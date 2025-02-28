@@ -55,6 +55,7 @@
 #include <linux/jiffies.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/dma-mapping.h>
 #include "xhci.h"
 #include "xhci-trace.h"
@@ -422,7 +423,8 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 	if ((xhci->cmd_ring->dequeue != xhci->cmd_ring->enqueue) &&
 	    !(xhci->xhc_state & XHCI_STATE_DYING)) {
 		xhci->current_cmd = cur_cmd;
-		xhci_mod_cmd_timer(xhci);
+		if (cur_cmd)
+			xhci_mod_cmd_timer(xhci);
 		xhci_ring_cmd_db(xhci);
 	}
 }
@@ -1649,12 +1651,13 @@ static void xhci_handle_cmd_nec_get_fw(struct xhci_hcd *xhci,
 			NEC_FW_MINOR(le32_to_cpu(event->status)));
 }
 
-static void xhci_complete_del_and_free_cmd(struct xhci_command *cmd, u32 status)
+static void xhci_complete_del_and_free_cmd(struct xhci_command *cmd, u32 comp_code, u32 comp_param)
 {
 	list_del(&cmd->cmd_list);
 
 	if (cmd->completion) {
-		cmd->status = status;
+		cmd->status = comp_code;
+		cmd->comp_param = comp_param;
 		complete(cmd->completion);
 	} else {
 		kfree(cmd);
@@ -1666,7 +1669,7 @@ void xhci_cleanup_command_queue(struct xhci_hcd *xhci)
 	struct xhci_command *cur_cmd, *tmp_cmd;
 	xhci->current_cmd = NULL;
 	list_for_each_entry_safe(cur_cmd, tmp_cmd, &xhci->cmd_list, cmd_list)
-		xhci_complete_del_and_free_cmd(cur_cmd, COMP_COMMAND_ABORTED);
+		xhci_complete_del_and_free_cmd(cur_cmd, COMP_COMMAND_ABORTED, 0);
 }
 
 void xhci_handle_command_timeout(struct work_struct *work)
@@ -1751,6 +1754,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
 {
 	unsigned int slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
+	u32 status = le32_to_cpu(event->status);
 	u64 cmd_dma;
 	dma_addr_t cmd_dequeue_dma;
 	u32 cmd_comp_code;
@@ -1879,7 +1883,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	}
 
 event_handled:
-	xhci_complete_del_and_free_cmd(cmd, cmd_comp_code);
+	xhci_complete_del_and_free_cmd(cmd, cmd_comp_code, COMP_PARAM(status));
 
 	inc_deq(xhci, xhci->cmd_ring);
 }
@@ -3438,8 +3442,8 @@ static void check_interval(struct urb *urb, struct xhci_ep_ctx *ep_ctx)
 	if (xhci_interval != ep_interval) {
 		dev_dbg_ratelimited(&urb->dev->dev,
 				"Driver uses different interval (%d microframe%s) than xHCI (%d microframe%s)\n",
-				ep_interval, ep_interval == 1 ? "" : "s",
-				xhci_interval, xhci_interval == 1 ? "" : "s");
+				ep_interval, str_plural(ep_interval),
+				xhci_interval, str_plural(xhci_interval));
 		urb->interval = xhci_interval;
 		/* Convert back to frames for LS/FS devices */
 		if (urb->dev->speed == USB_SPEED_LOW ||

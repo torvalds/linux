@@ -54,13 +54,13 @@ invoking hostt->queuecommand() or the block layer will time it out.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For all non-EH commands, scsi_done() is the completion callback.  It
-just calls blk_complete_request() to delete the block layer timer and
-raise SCSI_SOFTIRQ
+just calls blk_mq_complete_request() to delete the block layer timer and
+raise BLOCK_SOFTIRQ.
 
-SCSI_SOFTIRQ handler scsi_softirq calls scsi_decide_disposition() to
-determine what to do with the command.  scsi_decide_disposition()
-looks at the scmd->result value and sense data to determine what to do
-with the command.
+The BLOCK_SOFTIRQ indirectly calls scsi_complete(), which calls
+scsi_decide_disposition() to determine what to do with the command.
+scsi_decide_disposition() looks at the scmd->result value and sense
+data to determine what to do with the command.
 
  - SUCCESS
 
@@ -110,7 +110,7 @@ The timeout handler is scsi_timeout().  When a timeout occurs, this function
     retry which failed), when retries are exceeded, or when the EH deadline is
     expired. In these cases Step #3 is taken.
 
- 3. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
+ 3. scsi_eh_scmd_add(scmd) is invoked for the
     command.  See [1-4] for more information.
 
 1.3 Asynchronous command aborts
@@ -277,7 +277,6 @@ scmd->allowed.
 
     :ACTION: scsi_eh_finish_cmd() is invoked to EH-finish scmd
 
-	- scsi_setup_cmd_retry()
 	- move from local eh_work_q to local eh_done_q
 
     :LOCKING: none
@@ -317,7 +316,7 @@ scmd->allowed.
     ``scsi_eh_get_sense``
 
 	This action is taken for each error-completed
-	(!SCSI_EH_CANCEL_CMD) commands without valid sense data.  Most
+	command without valid sense data.  Most
 	SCSI transports/LLDDs automatically acquire sense data on
 	command failures (autosense).  Autosense is recommended for
 	performance reasons and as sense information could get out of
@@ -347,30 +346,6 @@ scmd->allowed.
 	   - otherwise
 		No action.
 
-    3. If !list_empty(&eh_work_q), invoke scsi_eh_abort_cmds().
-
-    ``scsi_eh_abort_cmds``
-
-	This action is taken for each timed out command when
-	no_async_abort is enabled in the host template.
-	hostt->eh_abort_handler() is invoked for each scmd.  The
-	handler returns SUCCESS if it has succeeded to make LLDD and
-	all related hardware forget about the scmd.
-
-	If a timedout scmd is successfully aborted and the sdev is
-	either offline or ready, scsi_eh_finish_cmd() is invoked for
-	the scmd.  Otherwise, the scmd is left in eh_work_q for
-	higher-severity actions.
-
-	Note that both offline and ready status mean that the sdev is
-	ready to process new scmds, where processing also implies
-	immediate failing; thus, if a sdev is in one of the two
-	states, no further recovery action is needed.
-
-	Device readiness is tested using scsi_eh_tur() which issues
-	TEST_UNIT_READY command.  Note that the scmd must have been
-	aborted successfully before reusing it for TEST_UNIT_READY.
-
     4. If !list_empty(&eh_work_q), invoke scsi_eh_ready_devs()
 
     ``scsi_eh_ready_devs``
@@ -384,7 +359,7 @@ scmd->allowed.
 
 	    For each sdev which has failed scmds with valid sense data
 	    of which scsi_check_sense()'s verdict is FAILED,
-	    START_STOP_UNIT command is issued w/ start=1.  Note that
+	    START STOP UNIT command is issued w/ start=1.  Note that
 	    as we explicitly choose error-completed scmds, it is known
 	    that lower layers have forgotten about the scmd and we can
 	    reuse it for STU.
@@ -477,9 +452,6 @@ except for #1 must be implemented by eh_strategy_handler().
  The following conditions must be true on exit from the handler.
 
  - shost->host_failed is zero.
-
- - Each scmd is in such a state that scsi_setup_cmd_retry() on the
-   scmd doesn't make any difference.
 
  - shost->eh_cmd_q is cleared.
 

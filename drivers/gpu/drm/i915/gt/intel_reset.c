@@ -1098,7 +1098,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 		dma_fence_default_wait(fence, false, MAX_SCHEDULE_TIMEOUT);
 		dma_fence_put(fence);
 
-		/* Restart iteration after droping lock */
+		/* Restart iteration after dropping lock */
 		spin_lock(&timelines->lock);
 		tl = list_entry(&timelines->active_list, typeof(*tl), link);
 	}
@@ -1422,6 +1422,9 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 
 	if (!test_bit(I915_WEDGED, &gt->reset.flags))
 		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_done_event);
+	else
+		drm_dev_wedged_event(&gt->i915->drm,
+				     DRM_WEDGE_RECOVERY_REBIND | DRM_WEDGE_RECOVERY_BUS_RESET);
 }
 
 /**

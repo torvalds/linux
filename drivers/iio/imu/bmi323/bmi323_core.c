@@ -174,7 +174,7 @@ struct bmi323_data {
 	__le16 fifo_buff[BMI323_FIFO_FULL_IN_WORDS] __aligned(IIO_DMA_MINALIGN);
 	struct {
 		__le16 channels[BMI323_CHAN_MAX];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer;
 	__le16 steps_count[BMI323_STEP_LEN];
 };

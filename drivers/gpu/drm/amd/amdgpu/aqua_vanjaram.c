@@ -77,7 +77,8 @@ static void aqua_vanjaram_set_xcp_id(struct amdgpu_device *adev,
 	ring->xcp_id = AMDGPU_XCP_NO_PARTITION;
 	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
 		adev->gfx.enforce_isolation[0].xcp_id = ring->xcp_id;
-	if (adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE)
+	if ((adev->xcp_mgr->mode == AMDGPU_XCP_MODE_NONE) ||
+	    (ring->funcs->type == AMDGPU_RING_TYPE_CPER))
 		return;
 
 	inst_mask = 1 << inst_idx;
@@ -559,8 +560,11 @@ static bool __aqua_vanjaram_is_valid_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 			adev->gmc.num_mem_partitions == 4) &&
 		       (num_xccs_per_xcp >= 2);
 	case AMDGPU_CPX_PARTITION_MODE:
+		/* (num_xcc > 1) because 1 XCC is considered SPX, not CPX.
+		 * (num_xcc % adev->gmc.num_mem_partitions) == 0 because
+		 * num_compute_partitions can't be less than num_mem_partitions
+		 */
 		return ((num_xcc > 1) &&
-		       (adev->gmc.num_mem_partitions == 1 || adev->gmc.num_mem_partitions == 4) &&
 		       (num_xcc % adev->gmc.num_mem_partitions) == 0);
 	default:
 		return false;

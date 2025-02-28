@@ -210,4 +210,32 @@ static inline struct bkey_i_##name *bkey_##name##_init(struct bkey_i *_k)\
 BCH_BKEY_TYPES();
 #undef x
 
+enum bch_validate_flags {
+	BCH_VALIDATE_write		= BIT(0),
+	BCH_VALIDATE_commit		= BIT(1),
+	BCH_VALIDATE_silent		= BIT(2),
+};
+
+#define BKEY_VALIDATE_CONTEXTS()	\
+	x(unknown)			\
+	x(superblock)			\
+	x(journal)			\
+	x(btree_root)			\
+	x(btree_node)			\
+	x(commit)
+
+struct bkey_validate_context {
+	enum {
+#define x(n)	BKEY_VALIDATE_##n,
+	BKEY_VALIDATE_CONTEXTS()
+#undef x
+	}			from:8;
+	enum bch_validate_flags	flags:8;
+	u8			level;
+	enum btree_id		btree;
+	bool			root:1;
+	unsigned		journal_offset;
+	u64			journal_seq;
+};
+
 #endif /* _BCACHEFS_BKEY_TYPES_H */

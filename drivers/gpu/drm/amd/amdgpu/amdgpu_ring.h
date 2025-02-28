@@ -37,7 +37,7 @@ struct amdgpu_job;
 struct amdgpu_vm;
 
 /* max number of rings */
-#define AMDGPU_MAX_RINGS		124
+#define AMDGPU_MAX_RINGS		132
 #define AMDGPU_MAX_HWIP_RINGS		64
 #define AMDGPU_MAX_GFX_RINGS		2
 #define AMDGPU_MAX_SW_GFX_RINGS         2
@@ -82,6 +82,7 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_KIQ,
 	AMDGPU_RING_TYPE_MES,
 	AMDGPU_RING_TYPE_UMSCH_MM,
+	AMDGPU_RING_TYPE_CPER,
 };
 
 enum amdgpu_ib_pool_type {

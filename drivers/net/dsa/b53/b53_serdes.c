@@ -99,8 +99,8 @@ static void b53_serdes_an_restart(struct phylink_pcs *pcs)
 			 SERDES_MII_BLK, reg);
 }
 
-static void b53_serdes_get_state(struct phylink_pcs *pcs,
-				  struct phylink_link_state *state)
+static void b53_serdes_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
+				 struct phylink_link_state *state)
 {
 	struct b53_device *dev = pcs_to_b53_pcs(pcs)->dev;
 	u8 lane = pcs_to_b53_pcs(pcs)->lane;

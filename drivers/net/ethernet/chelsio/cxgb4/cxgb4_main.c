@@ -6562,6 +6562,9 @@ static void cxgb4_advance_esn_state(struct xfrm_state *x)
 {
 	struct adapter *adap = netdev2adap(x->xso.dev);
 
+	if (x->xso.dir != XFRM_DEV_OFFLOAD_IN)
+		return;
+
 	if (!mutex_trylock(&uld_mutex)) {
 		dev_dbg(adap->pdev_dev,
 			"crypto uld critical resource is under use\n");

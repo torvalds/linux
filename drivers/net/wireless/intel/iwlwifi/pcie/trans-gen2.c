@@ -43,7 +43,7 @@ int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 	 * wake device's PCI Express link L1a -> L0s
 	 */
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
+		    CSR_HW_IF_CONFIG_REG_HAP_WAKE);
 
 	iwl_pcie_apm_config(trans);
 
@@ -68,8 +68,8 @@ static void iwl_pcie_gen2_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 		iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 			    CSR_RESET_LINK_PWR_MGMT_DISABLED);
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PREPARE |
-			    CSR_HW_IF_CONFIG_REG_ENABLE_PME);
+			    CSR_HW_IF_CONFIG_REG_WAKE_ME |
+			    CSR_HW_IF_CONFIG_REG_WAKE_ME_PCIE_OWNER_EN);
 		mdelay(1);
 		iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 			      CSR_RESET_LINK_PWR_MGMT_DISABLED);
@@ -123,14 +123,21 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 			"timeout waiting for FW reset ACK (inta_hw=0x%x)\n",
 			inta_hw);
 
-		if (!(inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE))
-			iwl_trans_fw_error(trans, true);
+		if (!(inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE)) {
+			struct iwl_fw_error_dump_mode mode = {
+				.type = IWL_ERR_TYPE_RESET_HS_TIMEOUT,
+				.context = IWL_ERR_CONTEXT_FROM_OPMODE,
+			};
+			iwl_op_mode_nic_error(trans->op_mode,
+					      IWL_ERR_TYPE_RESET_HS_TIMEOUT);
+			iwl_op_mode_dump_error(trans->op_mode, &mode);
+		}
 	}
 
 	trans_pcie->fw_reset_state = FW_RESET_IDLE;
 }
 
-void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
+static void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -139,9 +146,9 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	if (trans_pcie->is_down)
 		return;
 
-	if (trans->state >= IWL_TRANS_FW_STARTED)
-		if (trans_pcie->fw_reset_handshake)
-			iwl_trans_pcie_fw_reset_handshake(trans);
+	if (trans->state >= IWL_TRANS_FW_STARTED &&
+	    trans_pcie->fw_reset_handshake)
+		iwl_trans_pcie_fw_reset_handshake(trans);
 
 	trans_pcie->is_down = true;
 
@@ -286,9 +293,6 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 		break;
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_HRCDB):
 		pos = scnprintf(buf, buflen, "HRCDB");
-		break;
-	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_MS):
-		pos = scnprintf(buf, buflen, "MS");
 		break;
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_FM):
 		pos = scnprintf(buf, buflen, "FM");

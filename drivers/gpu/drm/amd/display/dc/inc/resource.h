@@ -29,7 +29,6 @@
 #include "core_status.h"
 #include "dal_asic_id.h"
 #include "dm_pp_smu.h"
-#include "spl/dc_spl.h"
 
 #define MEMORY_TYPE_MULTIPLIER_CZ 4
 #define MEMORY_TYPE_HBM 2
@@ -151,6 +150,8 @@ bool resource_attach_surfaces_to_context(
 		struct dc_stream_state *dc_stream,
 		struct dc_state *context,
 		const struct resource_pool *pool);
+
+bool resource_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx);
 
 #define FREE_PIPE_INDEX_NOT_FOUND -1
 

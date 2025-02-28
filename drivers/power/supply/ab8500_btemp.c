@@ -540,10 +540,9 @@ static int ab8500_btemp_get_property(struct power_supply *psy,
 	return 0;
 }
 
-static int ab8500_btemp_get_ext_psy_data(struct device *dev, void *data)
+static int ab8500_btemp_get_ext_psy_data(struct power_supply *ext, void *data)
 {
 	struct power_supply *psy;
-	struct power_supply *ext = dev_get_drvdata(dev);
 	const char **supplicants = (const char **)ext->supplied_to;
 	struct ab8500_btemp *di;
 	union power_supply_propval ret;
@@ -617,7 +616,7 @@ static int ab8500_btemp_get_ext_psy_data(struct device *dev, void *data)
  */
 static void ab8500_btemp_external_power_changed(struct power_supply *psy)
 {
-	power_supply_for_each_device(psy, ab8500_btemp_get_ext_psy_data);
+	power_supply_for_each_psy(psy, ab8500_btemp_get_ext_psy_data);
 }
 
 /* ab8500 btemp driver interrupts and their respective isr */

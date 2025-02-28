@@ -298,6 +298,7 @@ void bnxt_ulp_irq_stop(struct bnxt *bp)
 {
 	struct bnxt_en_dev *edev = bp->edev;
 	struct bnxt_ulp_ops *ops;
+	bool reset = false;
 
 	if (!edev || !(edev->flags & BNXT_EN_FLAG_MSIX_REQUESTED))
 		return;
@@ -311,7 +312,9 @@ void bnxt_ulp_irq_stop(struct bnxt *bp)
 		ops = rtnl_dereference(ulp->ulp_ops);
 		if (!ops || !ops->ulp_irq_stop)
 			return;
-		ops->ulp_irq_stop(ulp->handle);
+		if (test_bit(BNXT_STATE_FW_RESET_DET, &bp->state))
+			reset = true;
+		ops->ulp_irq_stop(ulp->handle, reset);
 	}
 }
 
@@ -346,9 +349,36 @@ void bnxt_ulp_irq_restart(struct bnxt *bp, int err)
 	}
 }
 
-int bnxt_register_async_events(struct bnxt_en_dev *edev,
-			       unsigned long *events_bmap,
-			       u16 max_id)
+void bnxt_ulp_async_events(struct bnxt *bp, struct hwrm_async_event_cmpl *cmpl)
+{
+	u16 event_id = le16_to_cpu(cmpl->event_id);
+	struct bnxt_en_dev *edev = bp->edev;
+	struct bnxt_ulp_ops *ops;
+	struct bnxt_ulp *ulp;
+
+	if (!bnxt_ulp_registered(edev))
+		return;
+	ulp = edev->ulp_tbl;
+
+	rcu_read_lock();
+
+	ops = rcu_dereference(ulp->ulp_ops);
+	if (!ops || !ops->ulp_async_notifier)
+		goto exit_unlock_rcu;
+	if (!ulp->async_events_bmap || event_id > ulp->max_async_event_id)
+		goto exit_unlock_rcu;
+
+	/* Read max_async_event_id first before testing the bitmap. */
+	smp_rmb();
+
+	if (test_bit(event_id, ulp->async_events_bmap))
+		ops->ulp_async_notifier(ulp->handle, cmpl);
+exit_unlock_rcu:
+	rcu_read_unlock();
+}
+
+void bnxt_register_async_events(struct bnxt_en_dev *edev,
+				unsigned long *events_bmap, u16 max_id)
 {
 	struct net_device *dev = edev->net;
 	struct bnxt *bp = netdev_priv(dev);
@@ -360,7 +390,6 @@ int bnxt_register_async_events(struct bnxt_en_dev *edev,
 	smp_wmb();
 	ulp->max_async_event_id = max_id;
 	bnxt_hwrm_func_drv_rgtr(bp, events_bmap, max_id + 1, true);
-	return 0;
 }
 EXPORT_SYMBOL(bnxt_register_async_events);
 
@@ -417,6 +446,8 @@ static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
 		edev->flags |= BNXT_EN_FLAG_VF;
 	if (BNXT_ROCE_VF_RESC_CAP(bp))
 		edev->flags |= BNXT_EN_FLAG_ROCE_VF_RES_MGMT;
+	if (BNXT_SW_RES_LMT(bp))
+		edev->flags |= BNXT_EN_FLAG_SW_RES_LMT;
 
 	edev->chip_num = bp->chip_num;
 	edev->hw_ring_stats_size = bp->hw_ring_stats_size;

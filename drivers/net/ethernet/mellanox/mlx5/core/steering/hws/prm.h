@@ -390,11 +390,6 @@ struct mlx5_ifc_definer_bits {
 	u8 match_mask[0x160];
 };
 
-struct mlx5_ifc_arg_bits {
-	u8 rsvd0[0x88];
-	u8 access_pd[0x18];
-};
-
 struct mlx5_ifc_header_modify_pattern_in_bits {
 	u8 modify_field_select[0x40];
 
@@ -426,11 +421,6 @@ struct mlx5_ifc_create_ste_in_bits {
 struct mlx5_ifc_create_definer_in_bits {
 	struct mlx5_ifc_general_obj_in_cmd_hdr_bits hdr;
 	struct mlx5_ifc_definer_bits definer;
-};
-
-struct mlx5_ifc_create_arg_in_bits {
-	struct mlx5_ifc_general_obj_in_cmd_hdr_bits hdr;
-	struct mlx5_ifc_arg_bits arg;
 };
 
 struct mlx5_ifc_create_header_modify_pattern_in_bits {
@@ -477,38 +467,6 @@ enum {
 enum {
 	MLX5_IFC_MODIFY_FLOW_TABLE_MISS_ACTION_DEFAULT = 0,
 	MLX5_IFC_MODIFY_FLOW_TABLE_MISS_ACTION_GOTO_TBL = 1,
-};
-
-struct mlx5_ifc_alloc_packet_reformat_out_bits {
-	u8 status[0x8];
-	u8 reserved_at_8[0x18];
-
-	u8 syndrome[0x20];
-
-	u8 packet_reformat_id[0x20];
-
-	u8 reserved_at_60[0x20];
-};
-
-struct mlx5_ifc_dealloc_packet_reformat_in_bits {
-	u8 opcode[0x10];
-	u8 reserved_at_10[0x10];
-
-	u8 reserved_at_20[0x10];
-	u8 op_mod[0x10];
-
-	u8 packet_reformat_id[0x20];
-
-	u8 reserved_at_60[0x20];
-};
-
-struct mlx5_ifc_dealloc_packet_reformat_out_bits {
-	u8 status[0x8];
-	u8 reserved_at_8[0x18];
-
-	u8 syndrome[0x20];
-
-	u8 reserved_at_40[0x40];
 };
 
 #endif /* MLX5_PRM_H_ */

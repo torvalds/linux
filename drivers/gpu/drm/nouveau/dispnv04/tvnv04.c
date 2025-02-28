@@ -32,7 +32,7 @@
 #include "hw.h"
 #include <drm/drm_modeset_helper_vtables.h>
 
-#include <drm/i2c/ch7006.h>
+#include <dispnv04/i2c/ch7006.h>
 
 static struct nvkm_i2c_bus_probe nv04_tv_encoder_info[] = {
 	{
@@ -99,7 +99,7 @@ static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 
 	NVWriteRAMDAC(dev, 0, NV_PRAMDAC_PLL_COEFF_SELECT, state->pllsel);
 
-	get_slave_funcs(encoder)->dpms(encoder, mode);
+	get_encoder_i2c_funcs(encoder)->dpms(encoder, mode);
 }
 
 static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
@@ -158,7 +158,7 @@ static void nv04_tv_mode_set(struct drm_encoder *encoder,
 	regp->tv_vskew = 1;
 	regp->tv_vsync_delay = 1;
 
-	get_slave_funcs(encoder)->mode_set(encoder, mode, adjusted_mode);
+	get_encoder_i2c_funcs(encoder)->mode_set(encoder, mode, adjusted_mode);
 }
 
 static void nv04_tv_commit(struct drm_encoder *encoder)
@@ -178,7 +178,7 @@ static void nv04_tv_commit(struct drm_encoder *encoder)
 
 static void nv04_tv_destroy(struct drm_encoder *encoder)
 {
-	get_slave_funcs(encoder)->destroy(encoder);
+	get_encoder_i2c_funcs(encoder)->destroy(encoder);
 	drm_encoder_cleanup(encoder);
 
 	kfree(encoder->helper_private);
@@ -191,11 +191,11 @@ static const struct drm_encoder_funcs nv04_tv_funcs = {
 
 static const struct drm_encoder_helper_funcs nv04_tv_helper_funcs = {
 	.dpms = nv04_tv_dpms,
-	.mode_fixup = drm_i2c_encoder_mode_fixup,
+	.mode_fixup = nouveau_i2c_encoder_mode_fixup,
 	.prepare = nv04_tv_prepare,
 	.commit = nv04_tv_commit,
 	.mode_set = nv04_tv_mode_set,
-	.detect = drm_i2c_encoder_detect,
+	.detect = nouveau_i2c_encoder_detect,
 };
 
 int
@@ -226,8 +226,8 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 			 NULL);
 	drm_encoder_helper_add(encoder, &nv04_tv_helper_funcs);
 
-	nv_encoder->enc_save = drm_i2c_encoder_save;
-	nv_encoder->enc_restore = drm_i2c_encoder_restore;
+	nv_encoder->enc_save = nouveau_i2c_encoder_save;
+	nv_encoder->enc_restore = nouveau_i2c_encoder_restore;
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
@@ -235,14 +235,14 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 	nv_encoder->or = ffs(entry->or) - 1;
 
 	/* Run the slave-specific initialization */
-	ret = drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
-				   &bus->i2c,
-				   &nv04_tv_encoder_info[type].dev);
+	ret = nouveau_i2c_encoder_init(dev, to_encoder_i2c(encoder),
+				       &bus->i2c,
+				       &nv04_tv_encoder_info[type].dev);
 	if (ret < 0)
 		goto fail_cleanup;
 
 	/* Attach it to the specified connector. */
-	get_slave_funcs(encoder)->create_resources(encoder, connector);
+	get_encoder_i2c_funcs(encoder)->create_resources(encoder, connector);
 	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;

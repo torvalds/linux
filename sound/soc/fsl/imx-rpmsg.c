@@ -218,7 +218,7 @@ static int imx_rpmsg_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
-	if (of_property_read_bool(np, "audio-routing")) {
+	if (of_property_present(np, "audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(&data->card, "audio-routing");
 		if (ret) {
 			dev_err(&pdev->dev, "failed to parse audio-routing: %d\n", ret);

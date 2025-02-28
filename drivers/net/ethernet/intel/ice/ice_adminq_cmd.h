@@ -12,6 +12,13 @@
 #define ICE_AQC_TOPO_MAX_LEVEL_NUM	0x9
 #define ICE_AQ_SET_MAC_FRAME_SIZE_MAX	9728
 
+#define ICE_RXQ_CTX_SIZE_DWORDS		8
+#define ICE_RXQ_CTX_SZ			(ICE_RXQ_CTX_SIZE_DWORDS * sizeof(u32))
+#define ICE_TXQ_CTX_SZ			22
+
+typedef struct __packed { u8 buf[ICE_RXQ_CTX_SZ]; } ice_rxq_ctx_buf_t;
+typedef struct __packed { u8 buf[ICE_TXQ_CTX_SZ]; } ice_txq_ctx_buf_t;
+
 struct ice_aqc_generic {
 	__le32 param0;
 	__le32 param1;
@@ -1491,7 +1498,6 @@ struct ice_aqc_dnl_equa_param {
 #define ICE_AQC_RX_EQU_POST1 (0x12 << ICE_AQC_RX_EQU_SHIFT)
 #define ICE_AQC_RX_EQU_BFLF (0x13 << ICE_AQC_RX_EQU_SHIFT)
 #define ICE_AQC_RX_EQU_BFHF (0x14 << ICE_AQC_RX_EQU_SHIFT)
-#define ICE_AQC_RX_EQU_DRATE (0x15 << ICE_AQC_RX_EQU_SHIFT)
 #define ICE_AQC_RX_EQU_CTLE_GAINHF (0x20 << ICE_AQC_RX_EQU_SHIFT)
 #define ICE_AQC_RX_EQU_CTLE_GAINLF (0x21 << ICE_AQC_RX_EQU_SHIFT)
 #define ICE_AQC_RX_EQU_CTLE_GAINDC (0x22 << ICE_AQC_RX_EQU_SHIFT)
@@ -1808,6 +1814,7 @@ struct ice_aqc_nvm_pass_comp_tbl {
 #define ICE_AQ_NVM_PASS_COMP_CAN_BE_UPDATED		0x0
 #define ICE_AQ_NVM_PASS_COMP_CAN_MAY_BE_UPDATEABLE	0x1
 #define ICE_AQ_NVM_PASS_COMP_CAN_NOT_BE_UPDATED		0x2
+#define ICE_AQ_NVM_PASS_COMP_PARTIAL_CHECK		0x3
 	u8 component_response_code; /* Response only */
 #define ICE_AQ_NVM_PASS_COMP_CAN_BE_UPDATED_CODE	0x0
 #define ICE_AQ_NVM_PASS_COMP_STAMP_IDENTICAL_CODE	0x1
@@ -2085,10 +2092,10 @@ struct ice_aqc_add_txqs_perq {
 	__le16 txq_id;
 	u8 rsvd[2];
 	__le32 q_teid;
-	u8 txq_ctx[22];
+	ice_txq_ctx_buf_t txq_ctx;
 	u8 rsvd2[2];
 	struct ice_aqc_txsched_elem info;
-};
+} __packed;
 
 /* The format of the command buffer for Add Tx LAN Queues (0x0C30)
  * is an array of the following structs. Please note that the length of
@@ -2511,6 +2518,87 @@ enum ice_aqc_fw_logging_mod {
 	ICE_AQC_FW_LOG_ID_MAX,
 };
 
+enum ice_aqc_health_status_mask {
+	ICE_AQC_HEALTH_STATUS_SET_PF_SPECIFIC_MASK = BIT(0),
+	ICE_AQC_HEALTH_STATUS_SET_ALL_PF_MASK      = BIT(1),
+	ICE_AQC_HEALTH_STATUS_SET_GLOBAL_MASK      = BIT(2),
+};
+
+/* Set Health Status (direct 0xFF20) */
+struct ice_aqc_set_health_status_cfg {
+	u8 event_source;
+	u8 reserved[15];
+};
+
+enum ice_aqc_health_status {
+	ICE_AQC_HEALTH_STATUS_ERR_UNKNOWN_MOD_STRICT		= 0x101,
+	ICE_AQC_HEALTH_STATUS_ERR_MOD_TYPE			= 0x102,
+	ICE_AQC_HEALTH_STATUS_ERR_MOD_QUAL			= 0x103,
+	ICE_AQC_HEALTH_STATUS_ERR_MOD_COMM			= 0x104,
+	ICE_AQC_HEALTH_STATUS_ERR_MOD_CONFLICT			= 0x105,
+	ICE_AQC_HEALTH_STATUS_ERR_MOD_NOT_PRESENT		= 0x106,
+	ICE_AQC_HEALTH_STATUS_INFO_MOD_UNDERUTILIZED		= 0x107,
+	ICE_AQC_HEALTH_STATUS_ERR_UNKNOWN_MOD_LENIENT		= 0x108,
+	ICE_AQC_HEALTH_STATUS_ERR_MOD_DIAGNOSTIC_FEATURE	= 0x109,
+	ICE_AQC_HEALTH_STATUS_ERR_INVALID_LINK_CFG		= 0x10B,
+	ICE_AQC_HEALTH_STATUS_ERR_PORT_ACCESS			= 0x10C,
+	ICE_AQC_HEALTH_STATUS_ERR_PORT_UNREACHABLE		= 0x10D,
+	ICE_AQC_HEALTH_STATUS_INFO_PORT_SPEED_MOD_LIMITED	= 0x10F,
+	ICE_AQC_HEALTH_STATUS_ERR_PARALLEL_FAULT		= 0x110,
+	ICE_AQC_HEALTH_STATUS_INFO_PORT_SPEED_PHY_LIMITED	= 0x111,
+	ICE_AQC_HEALTH_STATUS_ERR_NETLIST_TOPO			= 0x112,
+	ICE_AQC_HEALTH_STATUS_ERR_NETLIST			= 0x113,
+	ICE_AQC_HEALTH_STATUS_ERR_TOPO_CONFLICT			= 0x114,
+	ICE_AQC_HEALTH_STATUS_ERR_LINK_HW_ACCESS		= 0x115,
+	ICE_AQC_HEALTH_STATUS_ERR_LINK_RUNTIME			= 0x116,
+	ICE_AQC_HEALTH_STATUS_ERR_DNL_INIT			= 0x117,
+	ICE_AQC_HEALTH_STATUS_ERR_PHY_NVM_PROG			= 0x120,
+	ICE_AQC_HEALTH_STATUS_ERR_PHY_FW_LOAD			= 0x121,
+	ICE_AQC_HEALTH_STATUS_INFO_RECOVERY			= 0x500,
+	ICE_AQC_HEALTH_STATUS_ERR_FLASH_ACCESS			= 0x501,
+	ICE_AQC_HEALTH_STATUS_ERR_NVM_AUTH			= 0x502,
+	ICE_AQC_HEALTH_STATUS_ERR_OROM_AUTH			= 0x503,
+	ICE_AQC_HEALTH_STATUS_ERR_DDP_AUTH			= 0x504,
+	ICE_AQC_HEALTH_STATUS_ERR_NVM_COMPAT			= 0x505,
+	ICE_AQC_HEALTH_STATUS_ERR_OROM_COMPAT			= 0x506,
+	ICE_AQC_HEALTH_STATUS_ERR_NVM_SEC_VIOLATION		= 0x507,
+	ICE_AQC_HEALTH_STATUS_ERR_OROM_SEC_VIOLATION		= 0x508,
+	ICE_AQC_HEALTH_STATUS_ERR_DCB_MIB			= 0x509,
+	ICE_AQC_HEALTH_STATUS_ERR_MNG_TIMEOUT			= 0x50A,
+	ICE_AQC_HEALTH_STATUS_ERR_BMC_RESET			= 0x50B,
+	ICE_AQC_HEALTH_STATUS_ERR_LAST_MNG_FAIL			= 0x50C,
+	ICE_AQC_HEALTH_STATUS_ERR_RESOURCE_ALLOC_FAIL		= 0x50D,
+	ICE_AQC_HEALTH_STATUS_ERR_FW_LOOP			= 0x1000,
+	ICE_AQC_HEALTH_STATUS_ERR_FW_PFR_FAIL			= 0x1001,
+	ICE_AQC_HEALTH_STATUS_ERR_LAST_FAIL_AQ			= 0x1002,
+};
+
+/* Get Health Status (indirect 0xFF22) */
+struct ice_aqc_get_health_status {
+	__le16 health_status_count;
+	u8 reserved[6];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+enum ice_aqc_health_status_scope {
+	ICE_AQC_HEALTH_STATUS_PF	= 0x1,
+	ICE_AQC_HEALTH_STATUS_PORT	= 0x2,
+	ICE_AQC_HEALTH_STATUS_GLOBAL	= 0x3,
+};
+
+#define ICE_AQC_HEALTH_STATUS_UNDEFINED_DATA	0xDEADBEEF
+
+/* Get Health Status event buffer entry (0xFF22),
+ * repeated per reported health status.
+ */
+struct ice_aqc_health_status_elem {
+	__le16 health_status_code;
+	__le16 event_source;
+	__le32 internal_data1;
+	__le32 internal_data2;
+};
+
 /* Set FW Logging configuration (indirect 0xFF30)
  * Register for FW Logging (indirect 0xFF31)
  * Query FW Logging (indirect 0xFF32)
@@ -2651,6 +2739,8 @@ struct ice_aq_desc {
 		struct ice_aqc_get_link_status get_link_status;
 		struct ice_aqc_event_lan_overflow lan_overflow;
 		struct ice_aqc_get_link_topo get_link_topo;
+		struct ice_aqc_set_health_status_cfg set_health_status_cfg;
+		struct ice_aqc_get_health_status get_health_status;
 		struct ice_aqc_dnl_call_command dnl_call;
 		struct ice_aqc_i2c read_write_i2c;
 		struct ice_aqc_read_i2c_resp read_i2c_resp;
@@ -2852,6 +2942,10 @@ enum ice_adminq_opc {
 
 	/* Standalone Commands/Events */
 	ice_aqc_opc_event_lan_overflow			= 0x1001,
+
+	/* System Diagnostic commands */
+	ice_aqc_opc_set_health_status_cfg		= 0xFF20,
+	ice_aqc_opc_get_health_status			= 0xFF22,
 
 	/* FW Logging Commands */
 	ice_aqc_opc_fw_logs_config			= 0xFF30,

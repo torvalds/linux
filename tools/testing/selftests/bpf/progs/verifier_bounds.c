@@ -1200,4 +1200,138 @@ l0_%=:	r0 = 0;						\
 	: __clobber_all);
 }
 
+SEC("tc")
+__description("multiply mixed sign bounds. test 1")
+__success __log_level(2)
+__msg("r6 *= r7 {{.*}}; R6_w=scalar(smin=umin=0x1bc16d5cd4927ee1,smax=umax=0x1bc16d674ec80000,smax32=0x7ffffeff,umax32=0xfffffeff,var_off=(0x1bc16d4000000000; 0x3ffffffeff))")
+__naked void mult_mixed0_sign(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r6 = r0;"
+	"call %[bpf_get_prandom_u32];"
+	"r7 = r0;"
+	"r6 &= 0xf;"
+	"r6 -= 1000000000;"
+	"r7 &= 0xf;"
+	"r7 -= 2000000000;"
+	"r6 *= r7;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm(bpf_skb_store_bytes)
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("multiply mixed sign bounds. test 2")
+__success __log_level(2)
+__msg("r6 *= r7 {{.*}}; R6_w=scalar(smin=smin32=-100,smax=smax32=200)")
+__naked void mult_mixed1_sign(void)
+{
+	asm volatile (
+	"call %[bpf_get_prandom_u32];"
+	"r6 = r0;"
+	"call %[bpf_get_prandom_u32];"
+	"r7 = r0;"
+	"r6 &= 0xf;"
+	"r6 -= 0xa;"
+	"r7 &= 0xf;"
+	"r7 -= 0x14;"
+	"r6 *= r7;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm(bpf_skb_store_bytes)
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("multiply negative bounds")
+__success __log_level(2)
+__msg("r6 *= r7 {{.*}}; R6_w=scalar(smin=umin=smin32=umin32=0x3ff280b0,smax=umax=smax32=umax32=0x3fff0001,var_off=(0x3ff00000; 0xf81ff))")
+__naked void mult_sign_bounds(void)
+{
+	asm volatile (
+	"r8 = 0x7fff;"
+	"call %[bpf_get_prandom_u32];"
+	"r6 = r0;"
+	"call %[bpf_get_prandom_u32];"
+	"r7 = r0;"
+	"r6 &= 0xa;"
+	"r6 -= r8;"
+	"r7 &= 0xf;"
+	"r7 -= r8;"
+	"r6 *= r7;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm(bpf_skb_store_bytes)
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("multiply bounds that don't cross signed boundary")
+__success __log_level(2)
+__msg("r8 *= r6 {{.*}}; R6_w=scalar(smin=smin32=0,smax=umax=smax32=umax32=11,var_off=(0x0; 0xb)) R8_w=scalar(smin=0,smax=umax=0x7b96bb0a94a3a7cd,var_off=(0x0; 0x7fffffffffffffff))")
+__naked void mult_no_sign_crossing(void)
+{
+	asm volatile (
+	"r6 = 0xb;"
+	"r8 = 0xb3c3f8c99262687 ll;"
+	"call %[bpf_get_prandom_u32];"
+	"r7 = r0;"
+	"r6 &= r7;"
+	"r8 *= r6;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm(bpf_skb_store_bytes)
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("multiplication overflow, result in unbounded reg. test 1")
+__success __log_level(2)
+__msg("r6 *= r7 {{.*}}; R6_w=scalar()")
+__naked void mult_unsign_ovf(void)
+{
+	asm volatile (
+	"r8 = 0x7ffffffffff ll;"
+	"call %[bpf_get_prandom_u32];"
+	"r6 = r0;"
+	"call %[bpf_get_prandom_u32];"
+	"r7 = r0;"
+	"r6 &= 0x7fffffff;"
+	"r7 &= r8;"
+	"r6 *= r7;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm(bpf_skb_store_bytes)
+	: __clobber_all);
+}
+
+SEC("tc")
+__description("multiplication overflow, result in unbounded reg. test 2")
+__success __log_level(2)
+__msg("r6 *= r7 {{.*}}; R6_w=scalar()")
+__naked void mult_sign_ovf(void)
+{
+	asm volatile (
+	"r8 = 0x7ffffffff ll;"
+	"call %[bpf_get_prandom_u32];"
+	"r6 = r0;"
+	"call %[bpf_get_prandom_u32];"
+	"r7 = r0;"
+	"r6 &= 0xa;"
+	"r6 -= r8;"
+	"r7 &= 0x7fffffff;"
+	"r6 *= r7;"
+	"exit"
+	:
+	: __imm(bpf_get_prandom_u32),
+	  __imm(bpf_skb_store_bytes)
+	: __clobber_all);
+}
 char _license[] SEC("license") = "GPL";

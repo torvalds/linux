@@ -1,0 +1,32 @@
+What:		/sys/class/power_supply/max1720x/temp_ain1
+Date:		January 2025
+KernelVersion:	6.14
+Contact:	Dimitri Fedrau <dimitri.fedrau@liebherr.com>
+Description:
+		Reports the current temperature reading from AIN1 thermistor.
+
+		Access: Read
+
+		Valid values: Represented in 1/10 Degrees Celsius
+
+What:		/sys/class/power_supply/max1720x/temp_ain2
+Date:		January 2025
+KernelVersion:	6.14
+Contact:	Dimitri Fedrau <dimitri.fedrau@liebherr.com>
+Description:
+		Reports the current temperature reading from AIN2 thermistor.
+
+		Access: Read
+
+		Valid values: Represented in 1/10 Degrees Celsius
+
+What:		/sys/class/power_supply/max1720x/temp_int
+Date:		January 2025
+KernelVersion:	6.14
+Contact:	Dimitri Fedrau <dimitri.fedrau@liebherr.com>
+Description:
+		Reports the current temperature reading from internal die.
+
+		Access: Read
+
+		Valid values: Represented in 1/10 Degrees Celsius

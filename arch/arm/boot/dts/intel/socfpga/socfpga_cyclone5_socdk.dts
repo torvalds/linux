@@ -151,12 +151,6 @@
 
 &spi0 {
 	status = "okay";
-
-	spidev@0 {
-		compatible = "rohm,dh2228fv";
-		reg = <0>;
-		spi-max-frequency = <1000000>;
-	};
 };
 
 &usb1 {

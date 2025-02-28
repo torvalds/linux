@@ -199,11 +199,11 @@ static inline void __reg_clear(struct device *dev, void __iomem *base, u32 reg,
 }
 
 /* DCMIPP subdev init / release entry points */
-struct dcmipp_ent_device *dcmipp_par_ent_init(struct device *dev,
+struct dcmipp_ent_device *dcmipp_inp_ent_init(struct device *dev,
 					      const char *entity_name,
 					      struct v4l2_device *v4l2_dev,
 					      void __iomem *regs);
-void dcmipp_par_ent_release(struct dcmipp_ent_device *ved);
+void dcmipp_inp_ent_release(struct dcmipp_ent_device *ved);
 struct dcmipp_ent_device *
 dcmipp_byteproc_ent_init(struct device *dev, const char *entity_name,
 			 struct v4l2_device *v4l2_dev, void __iomem *regs);

@@ -103,6 +103,8 @@ typedef struct mdu_array_info_s {
 
 } mdu_array_info_t;
 
+#define LEVEL_LINEAR		(-1)
+
 /* we need a value for 'no level specified' and 0
  * means 'raid0', so we need something else.  This is
  * for internal use only

@@ -228,7 +228,7 @@ static int mt8195_run(struct snd_sof_dev *sdev)
 
 static int mt8195_dsp_probe(struct snd_sof_dev *sdev)
 {
-	struct platform_device *pdev = container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	struct adsp_priv *priv;
 	int ret;
 
@@ -341,7 +341,7 @@ static int mt8195_dsp_shutdown(struct snd_sof_dev *sdev)
 
 static void mt8195_dsp_remove(struct snd_sof_dev *sdev)
 {
-	struct platform_device *pdev = container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	struct adsp_priv *priv = sdev->pdata->hw_pdata;
 
 	platform_device_unregister(priv->ipc_dev);
@@ -351,7 +351,7 @@ static void mt8195_dsp_remove(struct snd_sof_dev *sdev)
 
 static int mt8195_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 {
-	struct platform_device *pdev = container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	int ret;
 	u32 reset_sw, dbg_pc;
 

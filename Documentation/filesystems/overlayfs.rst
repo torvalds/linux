@@ -156,7 +156,7 @@ A directory is made opaque by setting the xattr "trusted.overlay.opaque"
 to "y".  Where the upper filesystem contains an opaque directory, any
 directory in the lower filesystem with the same name is ignored.
 
-An opaque directory should not conntain any whiteouts, because they do not
+An opaque directory should not contain any whiteouts, because they do not
 serve any purpose.  A merge directory containing regular files with the xattr
 "trusted.overlay.whiteout", should be additionally marked by setting the xattr
 "trusted.overlay.opaque" to "x" on the merge directory itself.
@@ -266,7 +266,7 @@ Non-directories
 Objects that are not directories (files, symlinks, device-special
 files etc.) are presented either from the upper or lower filesystem as
 appropriate.  When a file in the lower filesystem is accessed in a way
-the requires write-access, such as opening for write access, changing
+that requires write-access, such as opening for write access, changing
 some metadata etc., the file is first copied from the lower filesystem
 to the upper filesystem (copy_up).  Note that creating a hard-link
 also requires copy_up, though of course creation of a symlink does
@@ -549,8 +549,8 @@ Nesting overlayfs mounts
 
 It is possible to use a lower directory that is stored on an overlayfs
 mount. For regular files this does not need any special care. However, files
-that have overlayfs attributes, such as whiteouts or "overlay.*" xattrs will be
-interpreted by the underlying overlayfs mount and stripped out. In order to
+that have overlayfs attributes, such as whiteouts or "overlay.*" xattrs, will
+be interpreted by the underlying overlayfs mount and stripped out. In order to
 allow the second overlayfs mount to see the attributes they must be escaped.
 
 Overlayfs specific xattrs are escaped by using a special prefix of

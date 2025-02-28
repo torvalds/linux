@@ -16,7 +16,9 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/string_choices.h>
 #include <linux/types.h>
+
 #include <asm/atarihw.h>
 #include <asm/atariints.h>
 
@@ -198,7 +200,7 @@ static void atari_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
 		seq_printf(seq, "0x%02x (undefined)\n", nvram[1]);
 
 	seq_printf(seq, "SCSI arbitration : %s\n",
-		   (nvram[16] & 0x80) ? "on" : "off");
+		   str_on_off(nvram[16] & 0x80));
 	seq_puts(seq, "SCSI host ID     : ");
 	if (nvram[16] & 0x80)
 		seq_printf(seq, "%d\n", nvram[16] & 7);
@@ -236,7 +238,7 @@ static void atari_nvram_proc_read(unsigned char *nvram, struct seq_file *seq,
 		   vmode & 16 ? "VGA" : "TV", vmode & 32 ? "PAL" : "NTSC");
 	seq_printf(seq,
 		   "                   %soverscan, compat. mode %s%s\n",
-		   vmode & 64 ? "" : "no ", vmode & 128 ? "on" : "off",
+		   vmode & 64 ? "" : "no ", str_on_off(vmode & 128),
 		   vmode & 256 ?
 		   (vmode & 16 ? ", line doubling" : ", half screen") : "");
 }

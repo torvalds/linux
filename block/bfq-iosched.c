@@ -7622,7 +7622,7 @@ static ssize_t bfq_low_latency_store(struct elevator_queue *e,
 #define BFQ_ATTR(name) \
 	__ATTR(name, 0644, bfq_##name##_show, bfq_##name##_store)
 
-static struct elv_fs_entry bfq_attrs[] = {
+static const struct elv_fs_entry bfq_attrs[] = {
 	BFQ_ATTR(fifo_expire_sync),
 	BFQ_ATTR(fifo_expire_async),
 	BFQ_ATTR(back_seek_max),

@@ -44,7 +44,7 @@ struct hmc5843_data {
 	struct iio_mount_matrix orientation;
 	struct {
 		__be16 chans[3];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 };
 

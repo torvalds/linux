@@ -1274,7 +1274,7 @@ static struct phy_driver gpy_drivers[] = {
 };
 module_phy_driver(gpy_drivers);
 
-static struct mdio_device_id __maybe_unused gpy_tbl[] = {
+static const struct mdio_device_id __maybe_unused gpy_tbl[] = {
 	{PHY_ID_MATCH_MODEL(PHY_ID_GPY2xx)},
 	{PHY_ID_GPY115B, PHY_ID_GPYx15B_MASK},
 	{PHY_ID_MATCH_MODEL(PHY_ID_GPY115C)},

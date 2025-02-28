@@ -828,7 +828,7 @@ static struct phy_driver qca807x_drivers[] = {
 };
 module_phy_driver(qca807x_drivers);
 
-static struct mdio_device_id __maybe_unused qca807x_tbl[] = {
+static const struct mdio_device_id __maybe_unused qca807x_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_QCA8072) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_QCA8075) },
 	{ }

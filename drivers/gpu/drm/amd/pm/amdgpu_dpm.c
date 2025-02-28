@@ -78,7 +78,7 @@ int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
 	int ret = 0;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	enum ip_power_state pwr_state = gate ? POWER_STATE_OFF : POWER_STATE_ON;
-	bool is_vcn = (block_type == AMD_IP_BLOCK_TYPE_UVD || block_type == AMD_IP_BLOCK_TYPE_VCN);
+	bool is_vcn = block_type == AMD_IP_BLOCK_TYPE_VCN;
 
 	if (atomic_read(&adev->pm.pwr_state[block_type]) == pwr_state &&
 			(!is_vcn || adev->vcn.num_vcn_inst == 1)) {
@@ -715,6 +715,9 @@ int amdgpu_dpm_send_rma_reason(struct amdgpu_device *adev)
 	mutex_lock(&adev->pm.mutex);
 	ret = smu_send_rma_reason(smu);
 	mutex_unlock(&adev->pm.mutex);
+
+	if (amdgpu_cper_generate_bp_threshold_record(adev))
+		dev_warn(adev->dev, "fail to generate bad page threshold cper records\n");
 
 	return ret;
 }

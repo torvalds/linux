@@ -105,6 +105,22 @@ static const struct {
 	{ ERDMA_WC_RETRY_EXC_ERR, IB_WC_RETRY_EXC_ERR, ERDMA_WC_VENDOR_NO_ERR },
 };
 
+static void erdma_process_ud_cqe(struct erdma_cqe *cqe, struct ib_wc *wc)
+{
+	u32 ud_info;
+
+	wc->wc_flags |= (IB_WC_GRH | IB_WC_WITH_NETWORK_HDR_TYPE);
+	ud_info = be32_to_cpu(cqe->ud.info);
+	wc->network_hdr_type = FIELD_GET(ERDMA_CQE_NTYPE_MASK, ud_info);
+	if (wc->network_hdr_type == ERDMA_NETWORK_TYPE_IPV4)
+		wc->network_hdr_type = RDMA_NETWORK_IPV4;
+	else
+		wc->network_hdr_type = RDMA_NETWORK_IPV6;
+	wc->src_qp = FIELD_GET(ERDMA_CQE_SQPN_MASK, ud_info);
+	wc->sl = FIELD_GET(ERDMA_CQE_SL_MASK, ud_info);
+	wc->pkey_index = 0;
+}
+
 #define ERDMA_POLLCQ_NO_QP 1
 
 static int erdma_poll_one_cqe(struct erdma_cq *cq, struct ib_wc *wc)
@@ -168,6 +184,10 @@ static int erdma_poll_one_cqe(struct erdma_cq *cq, struct ib_wc *wc)
 		wc->wc_flags |= IB_WC_WITH_INVALIDATE;
 	}
 
+	if (erdma_device_rocev2(dev) &&
+	    (qp->ibqp.qp_type == IB_QPT_UD || qp->ibqp.qp_type == IB_QPT_GSI))
+		erdma_process_ud_cqe(cqe, wc);
+
 	if (syndrome >= ERDMA_NUM_WC_STATUS)
 		syndrome = ERDMA_WC_GENERAL_ERR;
 
@@ -200,4 +220,49 @@ int erdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 	spin_unlock_irqrestore(&cq->kern_cq.lock, flags);
 
 	return npolled;
+}
+
+void erdma_remove_cqes_of_qp(struct ib_cq *ibcq, u32 qpn)
+{
+	struct erdma_cq *cq = to_ecq(ibcq);
+	struct erdma_cqe *cqe, *dst_cqe;
+	u32 prev_cq_ci, cur_cq_ci;
+	u32 ncqe = 0, nqp_cqe = 0;
+	unsigned long flags;
+	u8 owner;
+
+	spin_lock_irqsave(&cq->kern_cq.lock, flags);
+
+	prev_cq_ci = cq->kern_cq.ci;
+
+	while (ncqe < cq->depth && (cqe = get_next_valid_cqe(cq)) != NULL) {
+		++cq->kern_cq.ci;
+		++ncqe;
+	}
+
+	while (ncqe > 0) {
+		cur_cq_ci = prev_cq_ci + ncqe - 1;
+		cqe = get_queue_entry(cq->kern_cq.qbuf, cur_cq_ci, cq->depth,
+				      CQE_SHIFT);
+
+		if (be32_to_cpu(cqe->qpn) == qpn) {
+			++nqp_cqe;
+		} else if (nqp_cqe) {
+			dst_cqe = get_queue_entry(cq->kern_cq.qbuf,
+						  cur_cq_ci + nqp_cqe,
+						  cq->depth, CQE_SHIFT);
+			owner = FIELD_GET(ERDMA_CQE_HDR_OWNER_MASK,
+					  be32_to_cpu(dst_cqe->hdr));
+			cqe->hdr = cpu_to_be32(
+				(be32_to_cpu(cqe->hdr) &
+				 ~ERDMA_CQE_HDR_OWNER_MASK) |
+				FIELD_PREP(ERDMA_CQE_HDR_OWNER_MASK, owner));
+			memcpy(dst_cqe, cqe, sizeof(*cqe));
+		}
+
+		--ncqe;
+	}
+
+	cq->kern_cq.ci = prev_cq_ci + nqp_cqe;
+	spin_unlock_irqrestore(&cq->kern_cq.lock, flags);
 }

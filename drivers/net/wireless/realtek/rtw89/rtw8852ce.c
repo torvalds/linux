@@ -36,6 +36,7 @@ static const struct rtw89_pci_info rtw8852c_pci_info = {
 	.io_rcy_tmr		= MAC_AX_IO_RCY_ANA_TMR_6MS,
 	.rx_ring_eq_is_full	= false,
 	.check_rx_tag		= false,
+	.no_rxbd_fs		= false,
 
 	.init_cfg_reg		= R_AX_HAXI_INIT_CFG1,
 	.txhci_en_bit		= B_AX_TXHCI_EN_V1,
@@ -95,6 +96,7 @@ static const struct dmi_system_id rtw8852c_pci_quirks[] = {
 
 static const struct rtw89_driver_info rtw89_8852ce_info = {
 	.chip = &rtw8852c_chip_info,
+	.variant = NULL,
 	.quirks = rtw8852c_pci_quirks,
 	.bus = {
 		.pci = &rtw8852c_pci_info,

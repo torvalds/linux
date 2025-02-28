@@ -43,6 +43,8 @@
 static volatile sig_atomic_t workload_exec_errno;
 static volatile sig_atomic_t done;
 
+static struct stats latency_stats;  /* for tracepoints */
+
 static void sig_handler(int sig __maybe_unused)
 {
 	done = true;
@@ -726,9 +728,11 @@ out:
 	return (done && !workload_exec_errno) ? 0 : -1;
 }
 
-static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf,
-			   bool use_nsec)
+static void make_histogram(struct perf_ftrace *ftrace, int buckets[],
+			   char *buf, size_t len, char *linebuf)
 {
+	int min_latency = ftrace->min_latency;
+	int max_latency = ftrace->max_latency;
 	char *p, *q;
 	char *unit;
 	double num;
@@ -774,16 +778,34 @@ static void make_histogram(int buckets[], char *buf, size_t len, char *linebuf,
 		if (!unit || strncmp(unit, " us", 3))
 			goto next;
 
-		if (use_nsec)
+		if (ftrace->use_nsec)
 			num *= 1000;
 
-		i = log2(num);
-		if (i < 0)
-			i = 0;
+		i = 0;
+		if (num < min_latency)
+			goto do_inc;
+
+		num -= min_latency;
+
+		if (!ftrace->bucket_range) {
+			i = log2(num);
+			if (i < 0)
+				i = 0;
+		} else {
+			// Less than 1 unit (ms or ns), or, in the future,
+			// than the min latency desired.
+			if (num > 0) // 1st entry: [ 1 unit .. bucket_range units ]
+				i = num / ftrace->bucket_range + 1;
+			if (num >= max_latency - min_latency)
+				i = NUM_BUCKET -1;
+		}
 		if (i >= NUM_BUCKET)
 			i = NUM_BUCKET - 1;
 
+		num += min_latency;
+do_inc:
 		buckets[i]++;
+		update_stats(&latency_stats, num);
 
 next:
 		/* empty the line buffer for the next output  */
@@ -794,8 +816,10 @@ next:
 	strcat(linebuf, p);
 }
 
-static void display_histogram(int buckets[], bool use_nsec)
+static void display_histogram(struct perf_ftrace *ftrace, int buckets[])
 {
+	int min_latency = ftrace->min_latency;
+	bool use_nsec = ftrace->use_nsec;
 	int i;
 	int total = 0;
 	int bar_total = 46;  /* to fit in 80 column */
@@ -814,30 +838,74 @@ static void display_histogram(int buckets[], bool use_nsec)
 	       "  DURATION    ", "COUNT", bar_total, "GRAPH");
 
 	bar_len = buckets[0] * bar_total / total;
-	printf("  %4d - %-4d %s | %10d | %.*s%*s |\n",
-	       0, 1, use_nsec ? "ns" : "us", buckets[0], bar_len, bar, bar_total - bar_len, "");
+
+	printf("  %4d - %4d %s | %10d | %.*s%*s |\n",
+	       0, min_latency ?: 1, use_nsec ? "ns" : "us",
+	       buckets[0], bar_len, bar, bar_total - bar_len, "");
 
 	for (i = 1; i < NUM_BUCKET - 1; i++) {
-		int start = (1 << (i - 1));
-		int stop = 1 << i;
+		unsigned int start, stop;
 		const char *unit = use_nsec ? "ns" : "us";
 
-		if (start >= 1024) {
-			start >>= 10;
-			stop >>= 10;
-			unit = use_nsec ? "us" : "ms";
+		if (!ftrace->bucket_range) {
+			start = (1 << (i - 1));
+			stop  = 1 << i;
+
+			if (start >= 1024) {
+				start >>= 10;
+				stop >>= 10;
+				unit = use_nsec ? "us" : "ms";
+			}
+		} else {
+			start = (i - 1) * ftrace->bucket_range + min_latency;
+			stop  = i * ftrace->bucket_range + min_latency;
+
+			if (start >= ftrace->max_latency)
+				break;
+			if (stop > ftrace->max_latency)
+				stop = ftrace->max_latency;
+
+			if (start >= 1000) {
+				double dstart = start / 1000.0,
+				       dstop  = stop / 1000.0;
+				printf("  %4.2f - %-4.2f", dstart, dstop);
+				unit = use_nsec ? "us" : "ms";
+				goto print_bucket_info;
+			}
 		}
+
+		printf("  %4d - %4d", start, stop);
+print_bucket_info:
 		bar_len = buckets[i] * bar_total / total;
-		printf("  %4d - %-4d %s | %10d | %.*s%*s |\n",
-		       start, stop, unit, buckets[i], bar_len, bar,
+		printf(" %s | %10d | %.*s%*s |\n", unit, buckets[i], bar_len, bar,
 		       bar_total - bar_len, "");
 	}
 
 	bar_len = buckets[NUM_BUCKET - 1] * bar_total / total;
-	printf("  %4d - %-4s %s | %10d | %.*s%*s |\n",
-	       1, "...", use_nsec ? "ms" : " s", buckets[NUM_BUCKET - 1],
+	if (!ftrace->bucket_range) {
+		printf("  %4d - %-4s %s", 1, "...", use_nsec ? "ms" : "s ");
+	} else {
+		unsigned int upper_outlier = (NUM_BUCKET - 2) * ftrace->bucket_range + min_latency;
+		if (upper_outlier > ftrace->max_latency)
+			upper_outlier = ftrace->max_latency;
+
+		if (upper_outlier >= 1000) {
+			double dstart = upper_outlier / 1000.0;
+
+			printf("  %4.2f - %-4s %s", dstart, "...", use_nsec ? "us" : "ms");
+		} else {
+			printf("  %4d - %4s %s", upper_outlier, "...", use_nsec ? "ns" : "us");
+		}
+	}
+	printf(" | %10d | %.*s%*s |\n", buckets[NUM_BUCKET - 1],
 	       bar_len, bar, bar_total - bar_len, "");
 
+	printf("\n# statistics  (in %s)\n", ftrace->use_nsec ? "nsec" : "usec");
+	printf("  total time: %20.0f\n", latency_stats.mean * latency_stats.n);
+	printf("    avg time: %20.0f\n", latency_stats.mean);
+	printf("    max time: %20"PRIu64"\n", latency_stats.max);
+	printf("    min time: %20"PRIu64"\n", latency_stats.min);
+	printf("       count: %20.0f\n", latency_stats.n);
 }
 
 static int prepare_func_latency(struct perf_ftrace *ftrace)
@@ -876,6 +944,8 @@ static int prepare_func_latency(struct perf_ftrace *ftrace)
 	if (fd < 0)
 		pr_err("failed to open trace_pipe\n");
 
+	init_stats(&latency_stats);
+
 	put_tracing_file(trace_file);
 	return fd;
 }
@@ -905,7 +975,7 @@ static int stop_func_latency(struct perf_ftrace *ftrace)
 static int read_func_latency(struct perf_ftrace *ftrace, int buckets[])
 {
 	if (ftrace->target.use_bpf)
-		return perf_ftrace__latency_read_bpf(ftrace, buckets);
+		return perf_ftrace__latency_read_bpf(ftrace, buckets, &latency_stats);
 
 	return 0;
 }
@@ -951,7 +1021,7 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 			if (n < 0)
 				break;
 
-			make_histogram(buckets, buf, n, line, ftrace->use_nsec);
+			make_histogram(ftrace, buckets, buf, n, line);
 		}
 	}
 
@@ -968,12 +1038,12 @@ static int __cmd_latency(struct perf_ftrace *ftrace)
 		int n = read(trace_fd, buf, sizeof(buf) - 1);
 		if (n <= 0)
 			break;
-		make_histogram(buckets, buf, n, line, ftrace->use_nsec);
+		make_histogram(ftrace, buckets, buf, n, line);
 	}
 
 	read_func_latency(ftrace, buckets);
 
-	display_histogram(buckets, ftrace->use_nsec);
+	display_histogram(ftrace, buckets);
 
 out:
 	close(trace_fd);
@@ -996,6 +1066,7 @@ static int prepare_func_profile(struct perf_ftrace *ftrace)
 {
 	ftrace->tracer = "function_graph";
 	ftrace->graph_tail = 1;
+	ftrace->graph_verbose = 0;
 
 	ftrace->profile_hash = hashmap__new(profile_hash, profile_equal, NULL);
 	if (ftrace->profile_hash == NULL)
@@ -1558,6 +1629,12 @@ int cmd_ftrace(int argc, const char **argv)
 #endif
 	OPT_BOOLEAN('n', "use-nsec", &ftrace.use_nsec,
 		    "Use nano-second histogram"),
+	OPT_UINTEGER(0, "bucket-range", &ftrace.bucket_range,
+		    "Bucket range in ms or ns (-n/--use-nsec), default is log2() mode"),
+	OPT_UINTEGER(0, "min-latency", &ftrace.min_latency,
+		    "Minimum latency (1st bucket). Works only with --bucket-range."),
+	OPT_UINTEGER(0, "max-latency", &ftrace.max_latency,
+		    "Maximum latency (last bucket). Works only with --bucket-range and total buckets less than 22."),
 	OPT_PARENT(common_options),
 	};
 	const struct option profile_options[] = {
@@ -1576,6 +1653,9 @@ int cmd_ftrace(int argc, const char **argv)
 	OPT_CALLBACK('s', "sort", &profile_sort, "key",
 		     "Sort result by key: total (default), avg, max, count, name.",
 		     parse_sort_key),
+	OPT_CALLBACK(0, "graph-opts", &ftrace, "options",
+		     "Graph tracer options, available options: nosleep-time,noirqs,thresh=<n>,depth=<n>",
+		     parse_graph_tracer_opts),
 	OPT_PARENT(common_options),
 	};
 	const struct option *options = ftrace_options;
@@ -1652,6 +1732,29 @@ int cmd_ftrace(int argc, const char **argv)
 			parse_options_usage(ftrace_usage, options, "T", 1);
 			ret = -EINVAL;
 			goto out_delete_filters;
+		}
+		if (!ftrace.bucket_range && ftrace.min_latency) {
+			pr_err("--min-latency works only with --bucket-range\n");
+			parse_options_usage(ftrace_usage, options,
+					    "min-latency", /*short_opt=*/false);
+			ret = -EINVAL;
+			goto out_delete_filters;
+		}
+		if (ftrace.bucket_range && !ftrace.min_latency) {
+			/* default min latency should be the bucket range */
+			ftrace.min_latency = ftrace.bucket_range;
+		}
+		if (!ftrace.bucket_range && ftrace.max_latency) {
+			pr_err("--max-latency works only with --bucket-range\n");
+			parse_options_usage(ftrace_usage, options,
+					    "max-latency", /*short_opt=*/false);
+			ret = -EINVAL;
+			goto out_delete_filters;
+		}
+		if (ftrace.bucket_range && !ftrace.max_latency) {
+			/* default max latency should depend on bucket range and num_buckets */
+			ftrace.max_latency = (NUM_BUCKET - 2) * ftrace.bucket_range +
+						ftrace.min_latency;
 		}
 		cmd_func = __cmd_latency;
 		break;

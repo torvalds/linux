@@ -30,11 +30,8 @@ int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 	unsigned short event_status;
 	int i, num_fifo_bytes;
 	//hardware doesn't support checking for end-of-string character when using fifo
-	if (tms_priv->eos_flags & REOS) {
-		//pr_info("ag-rd: using tms9914 read for REOS %x EOS %x\n",tms_priv->eos_flags,
-		// tms_priv->eos);
+	if (tms_priv->eos_flags & REOS)
 		return tms9914_read(board, tms_priv, buffer, length, end, bytes_read);
-	}
 
 	clear_bit(DEV_CLEAR_BN, &tms_priv->state);
 
@@ -811,15 +808,15 @@ void agilent_82350b_detach(gpib_board_t *board)
 		if (a_priv->gpib_base) {
 			tms9914_board_reset(tms_priv);
 			if (a_priv->misc_base)
-				iounmap((void *)a_priv->misc_base);
+				iounmap(a_priv->misc_base);
 			if (a_priv->borg_base)
-				iounmap((void *)a_priv->borg_base);
+				iounmap(a_priv->borg_base);
 			if (a_priv->sram_base)
-				iounmap((void *)a_priv->sram_base);
+				iounmap(a_priv->sram_base);
 			if (a_priv->gpib_base)
-				iounmap((void *)a_priv->gpib_base);
+				iounmap(a_priv->gpib_base);
 			if (a_priv->plx_base)
-				iounmap((void *)a_priv->plx_base);
+				iounmap(a_priv->plx_base);
 			pci_release_regions(a_priv->pci_device);
 		}
 		if (a_priv->pci_device)
@@ -828,58 +825,58 @@ void agilent_82350b_detach(gpib_board_t *board)
 	agilent_82350b_free_private(board);
 }
 
-gpib_interface_t agilent_82350b_unaccel_interface = {
-name: "agilent_82350b_unaccel",
-attach : agilent_82350b_unaccel_attach,
-detach : agilent_82350b_detach,
-read : agilent_82350b_read,
-write : agilent_82350b_write,
-command : agilent_82350b_command,
-request_system_control : agilent_82350b_request_system_control,
-take_control : agilent_82350b_take_control,
-go_to_standby : agilent_82350b_go_to_standby,
-interface_clear : agilent_82350b_interface_clear,
-remote_enable : agilent_82350b_remote_enable,
-enable_eos : agilent_82350b_enable_eos,
-disable_eos : agilent_82350b_disable_eos,
-parallel_poll : agilent_82350b_parallel_poll,
-parallel_poll_configure : agilent_82350b_parallel_poll_configure,
-parallel_poll_response : agilent_82350b_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : agilent_82350b_line_status,
-update_status : agilent_82350b_update_status,
-primary_address : agilent_82350b_primary_address,
-secondary_address : agilent_82350b_secondary_address,
-serial_poll_response : agilent_82350b_serial_poll_response,
-t1_delay : agilent_82350b_t1_delay,
-return_to_local : agilent_82350b_return_to_local,
+static gpib_interface_t agilent_82350b_unaccel_interface = {
+	.name = "agilent_82350b_unaccel",
+	.attach = agilent_82350b_unaccel_attach,
+	.detach = agilent_82350b_detach,
+	.read = agilent_82350b_read,
+	.write = agilent_82350b_write,
+	.command = agilent_82350b_command,
+	.request_system_control = agilent_82350b_request_system_control,
+	.take_control = agilent_82350b_take_control,
+	.go_to_standby = agilent_82350b_go_to_standby,
+	.interface_clear = agilent_82350b_interface_clear,
+	.remote_enable = agilent_82350b_remote_enable,
+	.enable_eos = agilent_82350b_enable_eos,
+	.disable_eos = agilent_82350b_disable_eos,
+	.parallel_poll = agilent_82350b_parallel_poll,
+	.parallel_poll_configure = agilent_82350b_parallel_poll_configure,
+	.parallel_poll_response = agilent_82350b_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = agilent_82350b_line_status,
+	.update_status = agilent_82350b_update_status,
+	.primary_address = agilent_82350b_primary_address,
+	.secondary_address = agilent_82350b_secondary_address,
+	.serial_poll_response = agilent_82350b_serial_poll_response,
+	.t1_delay = agilent_82350b_t1_delay,
+	.return_to_local = agilent_82350b_return_to_local,
 };
 
-gpib_interface_t agilent_82350b_interface = {
-name: "agilent_82350b",
-attach : agilent_82350b_accel_attach,
-detach : agilent_82350b_detach,
-read : agilent_82350b_accel_read,
-write : agilent_82350b_accel_write,
-command : agilent_82350b_command,
-request_system_control : agilent_82350b_request_system_control,
-take_control : agilent_82350b_take_control,
-go_to_standby : agilent_82350b_go_to_standby,
-interface_clear : agilent_82350b_interface_clear,
-remote_enable : agilent_82350b_remote_enable,
-enable_eos : agilent_82350b_enable_eos,
-disable_eos : agilent_82350b_disable_eos,
-parallel_poll : agilent_82350b_parallel_poll,
-parallel_poll_configure : agilent_82350b_parallel_poll_configure,
-parallel_poll_response : agilent_82350b_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : agilent_82350b_line_status,
-update_status : agilent_82350b_update_status,
-primary_address : agilent_82350b_primary_address,
-secondary_address : agilent_82350b_secondary_address,
-serial_poll_response : agilent_82350b_serial_poll_response,
-t1_delay : agilent_82350b_t1_delay,
-return_to_local : agilent_82350b_return_to_local,
+static gpib_interface_t agilent_82350b_interface = {
+	.name = "agilent_82350b",
+	.attach = agilent_82350b_accel_attach,
+	.detach = agilent_82350b_detach,
+	.read = agilent_82350b_accel_read,
+	.write = agilent_82350b_accel_write,
+	.command = agilent_82350b_command,
+	.request_system_control = agilent_82350b_request_system_control,
+	.take_control = agilent_82350b_take_control,
+	.go_to_standby = agilent_82350b_go_to_standby,
+	.interface_clear = agilent_82350b_interface_clear,
+	.remote_enable = agilent_82350b_remote_enable,
+	.enable_eos = agilent_82350b_enable_eos,
+	.disable_eos = agilent_82350b_disable_eos,
+	.parallel_poll = agilent_82350b_parallel_poll,
+	.parallel_poll_configure = agilent_82350b_parallel_poll_configure,
+	.parallel_poll_response = agilent_82350b_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = agilent_82350b_line_status,
+	.update_status = agilent_82350b_update_status,
+	.primary_address = agilent_82350b_primary_address,
+	.secondary_address = agilent_82350b_secondary_address,
+	.serial_poll_response = agilent_82350b_serial_poll_response,
+	.t1_delay = agilent_82350b_t1_delay,
+	.return_to_local = agilent_82350b_return_to_local,
 };
 
 static int agilent_82350b_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
@@ -910,13 +907,30 @@ static int __init agilent_82350b_init_module(void)
 
 	result = pci_register_driver(&agilent_82350b_pci_driver);
 	if (result) {
-		pr_err("agilent_82350b: pci_driver_register failed!\n");
+		pr_err("agilent_82350b: pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
-	gpib_register_driver(&agilent_82350b_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&agilent_82350b_interface, THIS_MODULE);
+	result = gpib_register_driver(&agilent_82350b_unaccel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("agilent_82350b: gpib_register_driver failed: error = %d\n", result);
+		goto err_unaccel;
+	}
+
+	result = gpib_register_driver(&agilent_82350b_interface, THIS_MODULE);
+	if (result) {
+		pr_err("agilent_82350b: gpib_register_driver failed: error = %d\n", result);
+		goto err_interface;
+	}
+
 	return 0;
+
+err_interface:
+	gpib_unregister_driver(&agilent_82350b_unaccel_interface);
+err_unaccel:
+	pci_unregister_driver(&agilent_82350b_pci_driver);
+
+	return result;
 }
 
 static void __exit agilent_82350b_exit_module(void)

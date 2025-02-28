@@ -544,10 +544,9 @@ static int __io_timeout_prep(struct io_kiocb *req,
 
 	if (WARN_ON_ONCE(req_has_async_data(req)))
 		return -EFAULT;
-	if (io_alloc_async_data(req))
+	data = io_uring_alloc_async_data(NULL, req);
+	if (!data)
 		return -ENOMEM;
-
-	data = req->async_data;
 	data->req = req;
 	data->flags = flags;
 

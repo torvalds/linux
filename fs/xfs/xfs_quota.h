@@ -29,11 +29,6 @@ struct xfs_buf;
 	 (XFS_IS_GQUOTA_ON(mp) && (ip)->i_gdquot == NULL) || \
 	 (XFS_IS_PQUOTA_ON(mp) && (ip)->i_pdquot == NULL))
 
-#define XFS_IS_DQDETACHED(ip) \
-	((ip)->i_udquot == NULL && \
-	 (ip)->i_gdquot == NULL && \
-	 (ip)->i_pdquot == NULL)
-
 #define XFS_QM_NEED_QUOTACHECK(mp) \
 	((XFS_IS_UQUOTA_ON(mp) && \
 		(mp->m_sb.sb_qflags & XFS_UQUOTA_CHKD) == 0) || \

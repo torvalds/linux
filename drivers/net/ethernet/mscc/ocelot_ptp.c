@@ -680,9 +680,14 @@ static int ocelot_port_queue_ptp_tx_skb(struct ocelot *ocelot, int port,
 	skb_queue_walk_safe(&ocelot_port->tx_skbs, skb, skb_tmp) {
 		if (time_before(OCELOT_SKB_CB(skb)->ptp_tx_time +
 				OCELOT_PTP_TX_TSTAMP_TIMEOUT, jiffies)) {
-			dev_warn_ratelimited(ocelot->dev,
-					     "port %d invalidating stale timestamp ID %u which seems lost\n",
-					     port, OCELOT_SKB_CB(skb)->ts_id);
+			u64_stats_update_begin(&ocelot_port->ts_stats->syncp);
+			ocelot_port->ts_stats->lost++;
+			u64_stats_update_end(&ocelot_port->ts_stats->syncp);
+
+			dev_dbg_ratelimited(ocelot->dev,
+					    "port %d invalidating stale timestamp ID %u which seems lost\n",
+					    port, OCELOT_SKB_CB(skb)->ts_id);
+
 			__skb_unlink(skb, &ocelot_port->tx_skbs);
 			kfree_skb(skb);
 			ocelot->ptp_skbs_in_flight--;
@@ -748,13 +753,20 @@ int ocelot_port_txtstamp_request(struct ocelot *ocelot, int port,
 		return 0;
 
 	ptp_class = ptp_classify_raw(skb);
-	if (ptp_class == PTP_CLASS_NONE)
-		return -EINVAL;
+	if (ptp_class == PTP_CLASS_NONE) {
+		err = -EINVAL;
+		goto error;
+	}
 
 	/* Store ptp_cmd in OCELOT_SKB_CB(skb)->ptp_cmd */
 	if (ptp_cmd == IFH_REW_OP_ORIGIN_PTP) {
 		if (ocelot_ptp_is_onestep_sync(skb, ptp_class)) {
 			OCELOT_SKB_CB(skb)->ptp_cmd = ptp_cmd;
+
+			u64_stats_update_begin(&ocelot_port->ts_stats->syncp);
+			ocelot_port->ts_stats->onestep_pkts_unconfirmed++;
+			u64_stats_update_end(&ocelot_port->ts_stats->syncp);
+
 			return 0;
 		}
 
@@ -764,14 +776,16 @@ int ocelot_port_txtstamp_request(struct ocelot *ocelot, int port,
 
 	if (ptp_cmd == IFH_REW_OP_TWO_STEP_PTP) {
 		*clone = skb_clone_sk(skb);
-		if (!(*clone))
-			return -ENOMEM;
+		if (!(*clone)) {
+			err = -ENOMEM;
+			goto error;
+		}
 
 		/* Store timestamp ID in OCELOT_SKB_CB(clone)->ts_id */
 		err = ocelot_port_queue_ptp_tx_skb(ocelot, port, *clone);
 		if (err) {
 			kfree_skb(*clone);
-			return err;
+			goto error;
 		}
 
 		skb_shinfo(*clone)->tx_flags |= SKBTX_IN_PROGRESS;
@@ -780,6 +794,12 @@ int ocelot_port_txtstamp_request(struct ocelot *ocelot, int port,
 	}
 
 	return 0;
+
+error:
+	u64_stats_update_begin(&ocelot_port->ts_stats->syncp);
+	ocelot_port->ts_stats->err++;
+	u64_stats_update_end(&ocelot_port->ts_stats->syncp);
+	return err;
 }
 EXPORT_SYMBOL(ocelot_port_txtstamp_request);
 
@@ -816,6 +836,7 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 
 	while (budget--) {
 		struct skb_shared_hwtstamps shhwtstamps;
+		struct ocelot_port *ocelot_port;
 		u32 val, id, seqid, txport;
 		struct sk_buff *skb_match;
 		struct timespec64 ts;
@@ -832,16 +853,26 @@ void ocelot_get_txtstamp(struct ocelot *ocelot)
 		id = SYS_PTP_STATUS_PTP_MESS_ID_X(val);
 		txport = SYS_PTP_STATUS_PTP_MESS_TXPORT_X(val);
 		seqid = SYS_PTP_STATUS_PTP_MESS_SEQ_ID(val);
+		ocelot_port = ocelot->ports[txport];
 
 		/* Retrieve its associated skb */
 		skb_match = ocelot_port_dequeue_ptp_tx_skb(ocelot, txport, id,
 							   seqid);
 		if (!skb_match) {
-			dev_warn_ratelimited(ocelot->dev,
-					     "port %d received TX timestamp (seqid %d, ts id %u) for packet previously declared stale\n",
-					     txport, seqid, id);
+			u64_stats_update_begin(&ocelot_port->ts_stats->syncp);
+			ocelot_port->ts_stats->err++;
+			u64_stats_update_end(&ocelot_port->ts_stats->syncp);
+
+			dev_dbg_ratelimited(ocelot->dev,
+					    "port %d received TX timestamp (seqid %d, ts id %u) for packet previously declared stale\n",
+					    txport, seqid, id);
+
 			goto next_ts;
 		}
+
+		u64_stats_update_begin(&ocelot_port->ts_stats->syncp);
+		ocelot_port->ts_stats->pkts++;
+		u64_stats_update_end(&ocelot_port->ts_stats->syncp);
 
 		/* Get the h/w timestamp */
 		ocelot_get_hwtimestamp(ocelot, &ts);

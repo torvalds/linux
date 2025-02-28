@@ -949,8 +949,8 @@ void tipc_nametbl_stop(struct net *net)
 	}
 	spin_unlock_bh(&tn->nametbl_lock);
 
-	synchronize_net();
-	kfree(nt);
+	/* TODO: clear tn->nametbl, implement proper RCU rules ? */
+	kfree_rcu(nt, rcu);
 }
 
 static int __tipc_nl_add_nametable_publ(struct tipc_nl_msg *msg,

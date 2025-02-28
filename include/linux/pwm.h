@@ -347,6 +347,23 @@ struct pwm_chip {
 	struct pwm_device pwms[] __counted_by(npwm);
 };
 
+/**
+ * pwmchip_supports_waveform() - checks if the given chip supports waveform callbacks
+ * @chip: The pwm_chip to test
+ *
+ * Returns true iff the pwm chip support the waveform functions like
+ * pwm_set_waveform_might_sleep() and pwm_round_waveform_might_sleep()
+ */
+static inline bool pwmchip_supports_waveform(struct pwm_chip *chip)
+{
+	/*
+	 * only check for .write_waveform(). If that is available,
+	 * .round_waveform_tohw() and .round_waveform_fromhw() asserted to be
+	 * available, too, in pwmchip_add().
+	 */
+	return chip->ops->write_waveform != NULL;
+}
+
 static inline struct device *pwmchip_parent(const struct pwm_chip *chip)
 {
 	return chip->dev.parent;

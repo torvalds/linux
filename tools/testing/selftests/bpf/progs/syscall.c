@@ -76,9 +76,9 @@ static int btf_load(void)
 			.magic = BTF_MAGIC,
 			.version = BTF_VERSION,
 			.hdr_len = sizeof(struct btf_header),
-			.type_len = sizeof(__u32) * 8,
-			.str_off = sizeof(__u32) * 8,
-			.str_len = sizeof(__u32),
+			.type_len = sizeof(raw_btf.types),
+			.str_off = offsetof(struct btf_blob, str) - offsetof(struct btf_blob, types),
+			.str_len = sizeof(raw_btf.str),
 		},
 		.types = {
 			/* long */

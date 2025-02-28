@@ -570,17 +570,10 @@ static bool trap_oslar_el1(struct kvm_vcpu *vcpu,
 			   struct sys_reg_params *p,
 			   const struct sys_reg_desc *r)
 {
-	u64 oslsr;
-
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p, r);
 
-	/* Forward the OSLK bit to OSLSR */
-	oslsr = __vcpu_sys_reg(vcpu, OSLSR_EL1) & ~OSLSR_EL1_OSLK;
-	if (p->regval & OSLAR_EL1_OSLK)
-		oslsr |= OSLSR_EL1_OSLK;
-
-	__vcpu_sys_reg(vcpu, OSLSR_EL1) = oslsr;
+	kvm_debug_handle_oslar(vcpu, p->regval);
 	return true;
 }
 
@@ -621,43 +614,13 @@ static bool trap_dbgauthstatus_el1(struct kvm_vcpu *vcpu,
 	}
 }
 
-/*
- * We want to avoid world-switching all the DBG registers all the
- * time:
- *
- * - If we've touched any debug register, it is likely that we're
- *   going to touch more of them. It then makes sense to disable the
- *   traps and start doing the save/restore dance
- * - If debug is active (DBG_MDSCR_KDE or DBG_MDSCR_MDE set), it is
- *   then mandatory to save/restore the registers, as the guest
- *   depends on them.
- *
- * For this, we use a DIRTY bit, indicating the guest has modified the
- * debug registers, used as follow:
- *
- * On guest entry:
- * - If the dirty bit is set (because we're coming back from trapping),
- *   disable the traps, save host registers, restore guest registers.
- * - If debug is actively in use (DBG_MDSCR_KDE or DBG_MDSCR_MDE set),
- *   set the dirty bit, disable the traps, save host registers,
- *   restore guest registers.
- * - Otherwise, enable the traps
- *
- * On guest exit:
- * - If the dirty bit is set, save guest registers, restore host
- *   registers and clear the dirty bit. This ensure that the host can
- *   now use the debug registers.
- */
 static bool trap_debug_regs(struct kvm_vcpu *vcpu,
 			    struct sys_reg_params *p,
 			    const struct sys_reg_desc *r)
 {
 	access_rw(vcpu, p, r);
-	if (p->is_write)
-		vcpu_set_flag(vcpu, DEBUG_DIRTY);
 
-	trace_trap_reg(__func__, r->reg, p->is_write, p->regval);
-
+	kvm_debug_set_guest_ownership(vcpu);
 	return true;
 }
 
@@ -666,9 +629,6 @@ static bool trap_debug_regs(struct kvm_vcpu *vcpu,
  *
  * A 32 bit write to a debug register leave top bits alone
  * A 32 bit read from a debug register only returns the bottom bits
- *
- * All writes will set the DEBUG_DIRTY flag to ensure the hyp code
- * switches between host and guest values in future.
  */
 static void reg_to_dbg(struct kvm_vcpu *vcpu,
 		       struct sys_reg_params *p,
@@ -683,8 +643,6 @@ static void reg_to_dbg(struct kvm_vcpu *vcpu,
 	val &= ~mask;
 	val |= (p->regval & (mask >> shift)) << shift;
 	*dbg_reg = val;
-
-	vcpu_set_flag(vcpu, DEBUG_DIRTY);
 }
 
 static void dbg_to_reg(struct kvm_vcpu *vcpu,
@@ -698,152 +656,79 @@ static void dbg_to_reg(struct kvm_vcpu *vcpu,
 	p->regval = (*dbg_reg & mask) >> shift;
 }
 
-static bool trap_bvr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
+static u64 *demux_wb_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd)
 {
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm];
+	struct kvm_guest_debug_arch *dbg = &vcpu->arch.vcpu_debug_state;
+
+	switch (rd->Op2) {
+	case 0b100:
+		return &dbg->dbg_bvr[rd->CRm];
+	case 0b101:
+		return &dbg->dbg_bcr[rd->CRm];
+	case 0b110:
+		return &dbg->dbg_wvr[rd->CRm];
+	case 0b111:
+		return &dbg->dbg_wcr[rd->CRm];
+	default:
+		KVM_BUG_ON(1, vcpu->kvm);
+		return NULL;
+	}
+}
+
+static bool trap_dbg_wb_reg(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
+			    const struct sys_reg_desc *rd)
+{
+	u64 *reg = demux_wb_reg(vcpu, rd);
+
+	if (!reg)
+		return false;
 
 	if (p->is_write)
-		reg_to_dbg(vcpu, p, rd, dbg_reg);
+		reg_to_dbg(vcpu, p, rd, reg);
 	else
-		dbg_to_reg(vcpu, p, rd, dbg_reg);
+		dbg_to_reg(vcpu, p, rd, reg);
 
-	trace_trap_reg(__func__, rd->CRm, p->is_write, *dbg_reg);
-
+	kvm_debug_set_guest_ownership(vcpu);
 	return true;
 }
 
-static int set_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 val)
+static int set_dbg_wb_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			  u64 val)
 {
-	vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm] = val;
+	u64 *reg = demux_wb_reg(vcpu, rd);
+
+	if (!reg)
+		return -EINVAL;
+
+	*reg = val;
 	return 0;
 }
 
-static int get_bvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 *val)
+static int get_dbg_wb_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
+			  u64 *val)
 {
-	*val = vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm];
+	u64 *reg = demux_wb_reg(vcpu, rd);
+
+	if (!reg)
+		return -EINVAL;
+
+	*val = *reg;
 	return 0;
 }
 
-static u64 reset_bvr(struct kvm_vcpu *vcpu,
-		      const struct sys_reg_desc *rd)
+static u64 reset_dbg_wb_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd)
 {
-	vcpu->arch.vcpu_debug_state.dbg_bvr[rd->CRm] = rd->val;
-	return rd->val;
-}
+	u64 *reg = demux_wb_reg(vcpu, rd);
 
-static bool trap_bcr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
-{
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm];
+	/*
+	 * Bail early if we couldn't find storage for the register, the
+	 * KVM_BUG_ON() in demux_wb_reg() will prevent this VM from ever
+	 * being run.
+	 */
+	if (!reg)
+		return 0;
 
-	if (p->is_write)
-		reg_to_dbg(vcpu, p, rd, dbg_reg);
-	else
-		dbg_to_reg(vcpu, p, rd, dbg_reg);
-
-	trace_trap_reg(__func__, rd->CRm, p->is_write, *dbg_reg);
-
-	return true;
-}
-
-static int set_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 val)
-{
-	vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm] = val;
-	return 0;
-}
-
-static int get_bcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 *val)
-{
-	*val = vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm];
-	return 0;
-}
-
-static u64 reset_bcr(struct kvm_vcpu *vcpu,
-		      const struct sys_reg_desc *rd)
-{
-	vcpu->arch.vcpu_debug_state.dbg_bcr[rd->CRm] = rd->val;
-	return rd->val;
-}
-
-static bool trap_wvr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
-{
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm];
-
-	if (p->is_write)
-		reg_to_dbg(vcpu, p, rd, dbg_reg);
-	else
-		dbg_to_reg(vcpu, p, rd, dbg_reg);
-
-	trace_trap_reg(__func__, rd->CRm, p->is_write,
-		vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm]);
-
-	return true;
-}
-
-static int set_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 val)
-{
-	vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm] = val;
-	return 0;
-}
-
-static int get_wvr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 *val)
-{
-	*val = vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm];
-	return 0;
-}
-
-static u64 reset_wvr(struct kvm_vcpu *vcpu,
-		      const struct sys_reg_desc *rd)
-{
-	vcpu->arch.vcpu_debug_state.dbg_wvr[rd->CRm] = rd->val;
-	return rd->val;
-}
-
-static bool trap_wcr(struct kvm_vcpu *vcpu,
-		     struct sys_reg_params *p,
-		     const struct sys_reg_desc *rd)
-{
-	u64 *dbg_reg = &vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm];
-
-	if (p->is_write)
-		reg_to_dbg(vcpu, p, rd, dbg_reg);
-	else
-		dbg_to_reg(vcpu, p, rd, dbg_reg);
-
-	trace_trap_reg(__func__, rd->CRm, p->is_write, *dbg_reg);
-
-	return true;
-}
-
-static int set_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 val)
-{
-	vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm] = val;
-	return 0;
-}
-
-static int get_wcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *rd,
-		   u64 *val)
-{
-	*val = vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm];
-	return 0;
-}
-
-static u64 reset_wcr(struct kvm_vcpu *vcpu,
-		      const struct sys_reg_desc *rd)
-{
-	vcpu->arch.vcpu_debug_state.dbg_wcr[rd->CRm] = rd->val;
+	*reg = rd->val;
 	return rd->val;
 }
 
@@ -1350,13 +1235,17 @@ static int set_pmcr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 /* Silly macro to expand the DBG{BCR,BVR,WVR,WCR}n_EL1 registers in one go */
 #define DBG_BCR_BVR_WCR_WVR_EL1(n)					\
 	{ SYS_DESC(SYS_DBGBVRn_EL1(n)),					\
-	  trap_bvr, reset_bvr, 0, 0, get_bvr, set_bvr },		\
+	  trap_dbg_wb_reg, reset_dbg_wb_reg, 0, 0,			\
+	  get_dbg_wb_reg, set_dbg_wb_reg },				\
 	{ SYS_DESC(SYS_DBGBCRn_EL1(n)),					\
-	  trap_bcr, reset_bcr, 0, 0, get_bcr, set_bcr },		\
+	  trap_dbg_wb_reg, reset_dbg_wb_reg, 0, 0,			\
+	  get_dbg_wb_reg, set_dbg_wb_reg },				\
 	{ SYS_DESC(SYS_DBGWVRn_EL1(n)),					\
-	  trap_wvr, reset_wvr, 0, 0,  get_wvr, set_wvr },		\
+	  trap_dbg_wb_reg, reset_dbg_wb_reg, 0, 0,			\
+	  get_dbg_wb_reg, set_dbg_wb_reg },				\
 	{ SYS_DESC(SYS_DBGWCRn_EL1(n)),					\
-	  trap_wcr, reset_wcr, 0, 0,  get_wcr, set_wcr }
+	  trap_dbg_wb_reg, reset_dbg_wb_reg, 0, 0,			\
+	  get_dbg_wb_reg, set_dbg_wb_reg }
 
 #define PMU_SYS_REG(name)						\
 	SYS_DESC(SYS_##name), .reset = reset_pmu_reg,			\
@@ -1410,26 +1299,146 @@ static bool access_arch_timer(struct kvm_vcpu *vcpu,
 
 	switch (reg) {
 	case SYS_CNTP_TVAL_EL0:
+		if (is_hyp_ctxt(vcpu) && vcpu_el2_e2h_is_set(vcpu))
+			tmr = TIMER_HPTIMER;
+		else
+			tmr = TIMER_PTIMER;
+		treg = TIMER_REG_TVAL;
+		break;
+
+	case SYS_CNTV_TVAL_EL0:
+		if (is_hyp_ctxt(vcpu) && vcpu_el2_e2h_is_set(vcpu))
+			tmr = TIMER_HVTIMER;
+		else
+			tmr = TIMER_VTIMER;
+		treg = TIMER_REG_TVAL;
+		break;
+
 	case SYS_AARCH32_CNTP_TVAL:
+	case SYS_CNTP_TVAL_EL02:
 		tmr = TIMER_PTIMER;
 		treg = TIMER_REG_TVAL;
 		break;
+
+	case SYS_CNTV_TVAL_EL02:
+		tmr = TIMER_VTIMER;
+		treg = TIMER_REG_TVAL;
+		break;
+
+	case SYS_CNTHP_TVAL_EL2:
+		tmr = TIMER_HPTIMER;
+		treg = TIMER_REG_TVAL;
+		break;
+
+	case SYS_CNTHV_TVAL_EL2:
+		tmr = TIMER_HVTIMER;
+		treg = TIMER_REG_TVAL;
+		break;
+
 	case SYS_CNTP_CTL_EL0:
+		if (is_hyp_ctxt(vcpu) && vcpu_el2_e2h_is_set(vcpu))
+			tmr = TIMER_HPTIMER;
+		else
+			tmr = TIMER_PTIMER;
+		treg = TIMER_REG_CTL;
+		break;
+
+	case SYS_CNTV_CTL_EL0:
+		if (is_hyp_ctxt(vcpu) && vcpu_el2_e2h_is_set(vcpu))
+			tmr = TIMER_HVTIMER;
+		else
+			tmr = TIMER_VTIMER;
+		treg = TIMER_REG_CTL;
+		break;
+
 	case SYS_AARCH32_CNTP_CTL:
+	case SYS_CNTP_CTL_EL02:
 		tmr = TIMER_PTIMER;
 		treg = TIMER_REG_CTL;
 		break;
+
+	case SYS_CNTV_CTL_EL02:
+		tmr = TIMER_VTIMER;
+		treg = TIMER_REG_CTL;
+		break;
+
+	case SYS_CNTHP_CTL_EL2:
+		tmr = TIMER_HPTIMER;
+		treg = TIMER_REG_CTL;
+		break;
+
+	case SYS_CNTHV_CTL_EL2:
+		tmr = TIMER_HVTIMER;
+		treg = TIMER_REG_CTL;
+		break;
+
 	case SYS_CNTP_CVAL_EL0:
+		if (is_hyp_ctxt(vcpu) && vcpu_el2_e2h_is_set(vcpu))
+			tmr = TIMER_HPTIMER;
+		else
+			tmr = TIMER_PTIMER;
+		treg = TIMER_REG_CVAL;
+		break;
+
+	case SYS_CNTV_CVAL_EL0:
+		if (is_hyp_ctxt(vcpu) && vcpu_el2_e2h_is_set(vcpu))
+			tmr = TIMER_HVTIMER;
+		else
+			tmr = TIMER_VTIMER;
+		treg = TIMER_REG_CVAL;
+		break;
+
 	case SYS_AARCH32_CNTP_CVAL:
+	case SYS_CNTP_CVAL_EL02:
 		tmr = TIMER_PTIMER;
 		treg = TIMER_REG_CVAL;
 		break;
+
+	case SYS_CNTV_CVAL_EL02:
+		tmr = TIMER_VTIMER;
+		treg = TIMER_REG_CVAL;
+		break;
+
+	case SYS_CNTHP_CVAL_EL2:
+		tmr = TIMER_HPTIMER;
+		treg = TIMER_REG_CVAL;
+		break;
+
+	case SYS_CNTHV_CVAL_EL2:
+		tmr = TIMER_HVTIMER;
+		treg = TIMER_REG_CVAL;
+		break;
+
 	case SYS_CNTPCT_EL0:
 	case SYS_CNTPCTSS_EL0:
+		if (is_hyp_ctxt(vcpu))
+			tmr = TIMER_HPTIMER;
+		else
+			tmr = TIMER_PTIMER;
+		treg = TIMER_REG_CNT;
+		break;
+
 	case SYS_AARCH32_CNTPCT:
+	case SYS_AARCH32_CNTPCTSS:
 		tmr = TIMER_PTIMER;
 		treg = TIMER_REG_CNT;
 		break;
+
+	case SYS_CNTVCT_EL0:
+	case SYS_CNTVCTSS_EL0:
+		if (is_hyp_ctxt(vcpu))
+			tmr = TIMER_HVTIMER;
+		else
+			tmr = TIMER_VTIMER;
+		treg = TIMER_REG_CNT;
+		break;
+
+	case SYS_AARCH32_CNTVCT:
+	case SYS_AARCH32_CNTVCTSS:
+		tmr = TIMER_VTIMER;
+		treg = TIMER_REG_CNT;
+		break;
+
 	default:
 		print_sys_reg_msg(p, "%s", "Unhandled trapped timer register");
 		return undef_access(vcpu, p, r);
@@ -1441,6 +1450,16 @@ static bool access_arch_timer(struct kvm_vcpu *vcpu,
 		p->regval = kvm_arm_timer_read_sysreg(vcpu, tmr, treg);
 
 	return true;
+}
+
+static bool access_hv_timer(struct kvm_vcpu *vcpu,
+			    struct sys_reg_params *p,
+			    const struct sys_reg_desc *r)
+{
+	if (!vcpu_el2_e2h_is_set(vcpu))
+		return undef_access(vcpu, p, r);
+
+	return access_arch_timer(vcpu, p, r);
 }
 
 static s64 kvm_arm64_ftr_safe_value(u32 id, const struct arm64_ftr_bits *ftrp,
@@ -1599,8 +1618,12 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 		if (!vcpu_has_ptrauth(vcpu))
 			val &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_APA3) |
 				 ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_GPA3));
-		if (!cpus_have_final_cap(ARM64_HAS_WFXT))
+		if (!cpus_have_final_cap(ARM64_HAS_WFXT) ||
+		    has_broken_cntvoff())
 			val &= ~ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_WFxT);
+		break;
+	case SYS_ID_AA64ISAR3_EL1:
+		val &= ID_AA64ISAR3_EL1_FPRCVT | ID_AA64ISAR3_EL1_FAMINMAX;
 		break;
 	case SYS_ID_AA64MMFR2_EL1:
 		val &= ~ID_AA64MMFR2_EL1_CCIDX_MASK;
@@ -1803,6 +1826,9 @@ static u64 sanitise_id_aa64dfr0_el1(const struct kvm_vcpu *vcpu, u64 val)
 
 	/* Hide SPE from guests */
 	val &= ~ID_AA64DFR0_EL1_PMSVer_MASK;
+
+	/* Hide BRBE from guests */
+	val &= ~ID_AA64DFR0_EL1_BRBE_MASK;
 
 	return val;
 }
@@ -2626,7 +2652,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	ID_WRITABLE(ID_AA64ISAR2_EL1, ~(ID_AA64ISAR2_EL1_RES0 |
 					ID_AA64ISAR2_EL1_APA3 |
 					ID_AA64ISAR2_EL1_GPA3)),
-	ID_UNALLOCATED(6,3),
+	ID_WRITABLE(ID_AA64ISAR3_EL1, (ID_AA64ISAR3_EL1_FPRCVT |
+				       ID_AA64ISAR3_EL1_FAMINMAX)),
 	ID_UNALLOCATED(6,4),
 	ID_UNALLOCATED(6,5),
 	ID_UNALLOCATED(6,6),
@@ -2920,10 +2947,16 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	AMU_AMEVTYPER1_EL0(15),
 
 	{ SYS_DESC(SYS_CNTPCT_EL0), access_arch_timer },
+	{ SYS_DESC(SYS_CNTVCT_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTPCTSS_EL0), access_arch_timer },
+	{ SYS_DESC(SYS_CNTVCTSS_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTP_TVAL_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTP_CTL_EL0), access_arch_timer },
 	{ SYS_DESC(SYS_CNTP_CVAL_EL0), access_arch_timer },
+
+	{ SYS_DESC(SYS_CNTV_TVAL_EL0), access_arch_timer },
+	{ SYS_DESC(SYS_CNTV_CTL_EL0), access_arch_timer },
+	{ SYS_DESC(SYS_CNTV_CVAL_EL0), access_arch_timer },
 
 	/* PMEVCNTRn_EL0 */
 	PMU_PMEVCNTR_EL0(0),
@@ -3076,8 +3109,23 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	EL2_REG_VNCR(CNTVOFF_EL2, reset_val, 0),
 	EL2_REG(CNTHCTL_EL2, access_rw, reset_val, 0),
+	{ SYS_DESC(SYS_CNTHP_TVAL_EL2), access_arch_timer },
+	EL2_REG(CNTHP_CTL_EL2, access_arch_timer, reset_val, 0),
+	EL2_REG(CNTHP_CVAL_EL2, access_arch_timer, reset_val, 0),
+
+	{ SYS_DESC(SYS_CNTHV_TVAL_EL2), access_hv_timer },
+	EL2_REG(CNTHV_CTL_EL2, access_hv_timer, reset_val, 0),
+	EL2_REG(CNTHV_CVAL_EL2, access_hv_timer, reset_val, 0),
 
 	{ SYS_DESC(SYS_CNTKCTL_EL12), access_cntkctl_el12 },
+
+	{ SYS_DESC(SYS_CNTP_TVAL_EL02), access_arch_timer },
+	{ SYS_DESC(SYS_CNTP_CTL_EL02), access_arch_timer },
+	{ SYS_DESC(SYS_CNTP_CVAL_EL02), access_arch_timer },
+
+	{ SYS_DESC(SYS_CNTV_TVAL_EL02), access_arch_timer },
+	{ SYS_DESC(SYS_CNTV_CTL_EL02), access_arch_timer },
+	{ SYS_DESC(SYS_CNTV_CVAL_EL02), access_arch_timer },
 
 	EL2_REG(SP_EL2, NULL, reset_unknown, 0),
 };
@@ -3590,18 +3638,20 @@ static bool trap_dbgdidr(struct kvm_vcpu *vcpu,
  * None of the other registers share their location, so treat them as
  * if they were 64bit.
  */
-#define DBG_BCR_BVR_WCR_WVR(n)						      \
-	/* DBGBVRn */							      \
-	{ AA32(LO), Op1( 0), CRn( 0), CRm((n)), Op2( 4), trap_bvr, NULL, n }, \
-	/* DBGBCRn */							      \
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_bcr, NULL, n },	      \
-	/* DBGWVRn */							      \
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_wvr, NULL, n },	      \
-	/* DBGWCRn */							      \
-	{ Op1( 0), CRn( 0), CRm((n)), Op2( 7), trap_wcr, NULL, n }
+#define DBG_BCR_BVR_WCR_WVR(n)							\
+	/* DBGBVRn */								\
+	{ AA32(LO), Op1( 0), CRn( 0), CRm((n)), Op2( 4),			\
+	  trap_dbg_wb_reg, NULL, n },						\
+	/* DBGBCRn */								\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 5), trap_dbg_wb_reg, NULL, n },	\
+	/* DBGWVRn */								\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 6), trap_dbg_wb_reg, NULL, n },	\
+	/* DBGWCRn */								\
+	{ Op1( 0), CRn( 0), CRm((n)), Op2( 7), trap_dbg_wb_reg, NULL, n }
 
-#define DBGBXVR(n)							      \
-	{ AA32(HI), Op1( 0), CRn( 1), CRm((n)), Op2( 1), trap_bvr, NULL, n }
+#define DBGBXVR(n)								\
+	{ AA32(HI), Op1( 0), CRn( 1), CRm((n)), Op2( 1),			\
+	  trap_dbg_wb_reg, NULL, n }
 
 /*
  * Trapped cp14 registers. We generally ignore most of the external
@@ -3898,9 +3948,11 @@ static const struct sys_reg_desc cp15_64_regs[] = {
 	{ SYS_DESC(SYS_AARCH32_CNTPCT),	      access_arch_timer },
 	{ Op1( 1), CRn( 0), CRm( 2), Op2( 0), access_vm_reg, NULL, TTBR1_EL1 },
 	{ Op1( 1), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_ASGI1R */
+	{ SYS_DESC(SYS_AARCH32_CNTVCT),	      access_arch_timer },
 	{ Op1( 2), CRn( 0), CRm(12), Op2( 0), access_gic_sgi }, /* ICC_SGI0R */
 	{ SYS_DESC(SYS_AARCH32_CNTP_CVAL),    access_arch_timer },
 	{ SYS_DESC(SYS_AARCH32_CNTPCTSS),     access_arch_timer },
+	{ SYS_DESC(SYS_AARCH32_CNTVCTSS),     access_arch_timer },
 };
 
 static bool check_sysreg_table(const struct sys_reg_desc *table, unsigned int n,
@@ -4415,6 +4467,9 @@ void kvm_reset_sys_regs(struct kvm_vcpu *vcpu)
 			reset_vcpu_ftr_id_reg(vcpu, r);
 		else
 			r->reset(vcpu, r);
+
+		if (r->reg >= __SANITISED_REG_START__ && r->reg < NR_SYS_REGS)
+			(void)__vcpu_sys_reg(vcpu, r->reg);
 	}
 
 	set_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags);
@@ -4991,6 +5046,14 @@ void kvm_calculate_traps(struct kvm_vcpu *vcpu)
 		kvm->arch.fgu[HAFGRTR_GROUP] |= ~(HAFGRTR_EL2_RES0 |
 						  HAFGRTR_EL2_RES1);
 
+	if (!kvm_has_feat(kvm, ID_AA64DFR0_EL1, BRBE, IMP)) {
+		kvm->arch.fgu[HDFGRTR_GROUP] |= (HDFGRTR_EL2_nBRBDATA  |
+						 HDFGRTR_EL2_nBRBCTL   |
+						 HDFGRTR_EL2_nBRBIDR);
+		kvm->arch.fgu[HFGITR_GROUP] |= (HFGITR_EL2_nBRBINJ |
+						HFGITR_EL2_nBRBIALL);
+	}
+
 	set_bit(KVM_ARCH_FLAG_FGU_INITIALIZED, &kvm->arch.flags);
 out:
 	mutex_unlock(&kvm->arch.config_lock);
@@ -5018,7 +5081,7 @@ int kvm_finalize_sys_regs(struct kvm_vcpu *vcpu)
 	}
 
 	if (vcpu_has_nv(vcpu)) {
-		int ret = kvm_init_nv_sysregs(kvm);
+		int ret = kvm_init_nv_sysregs(vcpu);
 		if (ret)
 			return ret;
 	}

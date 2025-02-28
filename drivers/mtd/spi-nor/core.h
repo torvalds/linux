@@ -448,7 +448,11 @@ struct spi_nor_id {
  * @id:   pointer to struct spi_nor_id or NULL, which means "no ID" (mostly
  *        older chips).
  * @name: (obsolete) the name of the flash. Do not set it for new additions.
- * @size:           the size of the flash in bytes.
+ * @size:           the size of the flash in bytes. The flash size is one
+ *                  property parsed by the SFDP. We use it as an indicator
+ *                  whether we need SFDP parsing for a particular flash.
+ *                  I.e. non-legacy flash entries in flash_info will have
+ *                  a size of zero iff SFDP should be used.
  * @sector_size:    (optional) the size listed here is what works with
  *                  SPINOR_OP_SE, which isn't necessarily called a "sector" by
  *                  the vendor. Defaults to 64k.

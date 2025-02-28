@@ -43,17 +43,15 @@ static DEFINE_MUTEX(swap_slots_cache_mutex);
 /* Serialize swap slots cache enable/disable operations */
 static DEFINE_MUTEX(swap_slots_cache_enable_mutex);
 
-static void __drain_swap_slots_cache(unsigned int type);
+static void __drain_swap_slots_cache(void);
 
 #define use_swap_slot_cache (swap_slot_cache_active && swap_slot_cache_enabled)
-#define SLOTS_CACHE 0x1
-#define SLOTS_CACHE_RET 0x2
 
 static void deactivate_swap_slots_cache(void)
 {
 	mutex_lock(&swap_slots_cache_mutex);
 	swap_slot_cache_active = false;
-	__drain_swap_slots_cache(SLOTS_CACHE|SLOTS_CACHE_RET);
+	__drain_swap_slots_cache();
 	mutex_unlock(&swap_slots_cache_mutex);
 }
 
@@ -72,7 +70,7 @@ void disable_swap_slots_cache_lock(void)
 	if (swap_slot_cache_initialized) {
 		/* serialize with cpu hotplug operations */
 		cpus_read_lock();
-		__drain_swap_slots_cache(SLOTS_CACHE|SLOTS_CACHE_RET);
+		__drain_swap_slots_cache();
 		cpus_read_unlock();
 	}
 }
@@ -113,7 +111,7 @@ out:
 static int alloc_swap_slot_cache(unsigned int cpu)
 {
 	struct swap_slots_cache *cache;
-	swp_entry_t *slots, *slots_ret;
+	swp_entry_t *slots;
 
 	/*
 	 * Do allocation outside swap_slots_cache_mutex
@@ -125,28 +123,19 @@ static int alloc_swap_slot_cache(unsigned int cpu)
 	if (!slots)
 		return -ENOMEM;
 
-	slots_ret = kvcalloc(SWAP_SLOTS_CACHE_SIZE, sizeof(swp_entry_t),
-			     GFP_KERNEL);
-	if (!slots_ret) {
-		kvfree(slots);
-		return -ENOMEM;
-	}
-
 	mutex_lock(&swap_slots_cache_mutex);
 	cache = &per_cpu(swp_slots, cpu);
-	if (cache->slots || cache->slots_ret) {
+	if (cache->slots) {
 		/* cache already allocated */
 		mutex_unlock(&swap_slots_cache_mutex);
 
 		kvfree(slots);
-		kvfree(slots_ret);
 
 		return 0;
 	}
 
 	if (!cache->lock_initialized) {
 		mutex_init(&cache->alloc_lock);
-		spin_lock_init(&cache->free_lock);
 		cache->lock_initialized = true;
 	}
 	cache->nr = 0;
@@ -160,19 +149,16 @@ static int alloc_swap_slot_cache(unsigned int cpu)
 	 */
 	mb();
 	cache->slots = slots;
-	cache->slots_ret = slots_ret;
 	mutex_unlock(&swap_slots_cache_mutex);
 	return 0;
 }
 
-static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
-				  bool free_slots)
+static void drain_slots_cache_cpu(unsigned int cpu, bool free_slots)
 {
 	struct swap_slots_cache *cache;
-	swp_entry_t *slots = NULL;
 
 	cache = &per_cpu(swp_slots, cpu);
-	if ((type & SLOTS_CACHE) && cache->slots) {
+	if (cache->slots) {
 		mutex_lock(&cache->alloc_lock);
 		swapcache_free_entries(cache->slots + cache->cur, cache->nr);
 		cache->cur = 0;
@@ -183,20 +169,9 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
 		}
 		mutex_unlock(&cache->alloc_lock);
 	}
-	if ((type & SLOTS_CACHE_RET) && cache->slots_ret) {
-		spin_lock_irq(&cache->free_lock);
-		swapcache_free_entries(cache->slots_ret, cache->n_ret);
-		cache->n_ret = 0;
-		if (free_slots && cache->slots_ret) {
-			slots = cache->slots_ret;
-			cache->slots_ret = NULL;
-		}
-		spin_unlock_irq(&cache->free_lock);
-		kvfree(slots);
-	}
 }
 
-static void __drain_swap_slots_cache(unsigned int type)
+static void __drain_swap_slots_cache(void)
 {
 	unsigned int cpu;
 
@@ -224,13 +199,13 @@ static void __drain_swap_slots_cache(unsigned int type)
 	 * There are no slots on such cpu that need to be drained.
 	 */
 	for_each_online_cpu(cpu)
-		drain_slots_cache_cpu(cpu, type, false);
+		drain_slots_cache_cpu(cpu, false);
 }
 
 static int free_slot_cache(unsigned int cpu)
 {
 	mutex_lock(&swap_slots_cache_mutex);
-	drain_slots_cache_cpu(cpu, SLOTS_CACHE | SLOTS_CACHE_RET, true);
+	drain_slots_cache_cpu(cpu, true);
 	mutex_unlock(&swap_slots_cache_mutex);
 	return 0;
 }
@@ -267,39 +242,6 @@ static int refill_swap_slots_cache(struct swap_slots_cache *cache)
 					   cache->slots, 0);
 
 	return cache->nr;
-}
-
-void free_swap_slot(swp_entry_t entry)
-{
-	struct swap_slots_cache *cache;
-
-	/* Large folio swap slot is not covered. */
-	zswap_invalidate(entry);
-
-	cache = raw_cpu_ptr(&swp_slots);
-	if (likely(use_swap_slot_cache && cache->slots_ret)) {
-		spin_lock_irq(&cache->free_lock);
-		/* Swap slots cache may be deactivated before acquiring lock */
-		if (!use_swap_slot_cache || !cache->slots_ret) {
-			spin_unlock_irq(&cache->free_lock);
-			goto direct_free;
-		}
-		if (cache->n_ret >= SWAP_SLOTS_CACHE_SIZE) {
-			/*
-			 * Return slots to global pool.
-			 * The current swap_map value is SWAP_HAS_CACHE.
-			 * Set it to 0 to indicate it is available for
-			 * allocation in global pool
-			 */
-			swapcache_free_entries(cache->slots_ret, cache->n_ret);
-			cache->n_ret = 0;
-		}
-		cache->slots_ret[cache->n_ret++] = entry;
-		spin_unlock_irq(&cache->free_lock);
-	} else {
-direct_free:
-		swapcache_free_entries(&entry, 1);
-	}
 }
 
 swp_entry_t folio_alloc_swap(struct folio *folio)

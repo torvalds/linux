@@ -3,7 +3,7 @@
 nandcore-objs := core.o bbt.o
 obj-$(CONFIG_MTD_NAND_CORE) += nandcore.o
 obj-$(CONFIG_MTD_NAND_ECC_MEDIATEK) += ecc-mtk.o
-
+obj-$(CONFIG_MTD_NAND_QCOM) += qpic_common.o
 obj-y	+= onenand/
 obj-y	+= raw/
 obj-y	+= spi/

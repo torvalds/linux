@@ -40,6 +40,10 @@
  * @irq_pci_fn: the latest PCI function that has updated the mapping of
  *		the MSI/INTX IRQ dedicated outbound region.
  * @irq_pending: bitmask of asserted INTX IRQs.
+ * @perst_irq: IRQ used for the PERST# signal.
+ * @perst_asserted: True if the PERST# signal was asserted.
+ * @link_up: True if the PCI link is up.
+ * @link_training: Work item to execute PCI link training.
  */
 struct rockchip_pcie_ep {
 	struct rockchip_pcie	rockchip;
@@ -784,6 +788,7 @@ static int rockchip_pcie_ep_init_ob_mem(struct rockchip_pcie_ep *ep)
 						  SZ_1M);
 	if (!ep->irq_cpu_addr) {
 		dev_err(dev, "failed to reserve memory space for MSI\n");
+		err = -ENOMEM;
 		goto err_epc_mem_exit;
 	}
 

@@ -1621,7 +1621,7 @@ mpc52xx_console_setup(struct console *co, char *options)
 		 (void *)port->mapbase, port->membase,
 		 port->irq, port->uartclk);
 
-	/* Setup the port parameters accoding to options */
+	/* Setup the port parameters according to options */
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 	else

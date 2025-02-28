@@ -177,21 +177,21 @@ bool intel_tc_port_handles_hpd_glitches(struct intel_digital_port *dig_port)
  */
 bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
 
 	return tc_phy_cold_off_domain(tc) ==
-	       intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+	       intel_display_power_legacy_aux_domain(display, dig_port->aux_ch);
 }
 
 static intel_wakeref_t
 __tc_cold_block(struct intel_tc_port *tc, enum intel_display_power_domain *domain)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 
 	*domain = tc_phy_cold_off_domain(tc);
 
-	return intel_display_power_get(i915, *domain);
+	return intel_display_power_get(display, *domain);
 }
 
 static intel_wakeref_t
@@ -211,9 +211,9 @@ static void
 __tc_cold_unblock(struct intel_tc_port *tc, enum intel_display_power_domain domain,
 		  intel_wakeref_t wakeref)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 
-	intel_display_power_put(i915, domain, wakeref);
+	intel_display_power_put(display, domain, wakeref);
 }
 
 static void
@@ -230,21 +230,21 @@ tc_cold_unblock(struct intel_tc_port *tc, intel_wakeref_t wakeref)
 static void
 assert_display_core_power_enabled(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 
-	drm_WARN_ON(&i915->drm,
-		    !intel_display_power_is_enabled(i915, POWER_DOMAIN_DISPLAY_CORE));
+	drm_WARN_ON(display->drm,
+		    !intel_display_power_is_enabled(display, POWER_DOMAIN_DISPLAY_CORE));
 }
 
 static void
 assert_tc_cold_blocked(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	bool enabled;
 
-	enabled = intel_display_power_is_enabled(i915,
+	enabled = intel_display_power_is_enabled(display,
 						 tc_phy_cold_off_domain(tc));
-	drm_WARN_ON(&i915->drm, !enabled);
+	drm_WARN_ON(display->drm, !enabled);
 }
 
 static enum intel_display_power_domain
@@ -258,10 +258,10 @@ tc_port_power_domain(struct intel_tc_port *tc)
 static void
 assert_tc_port_power_enabled(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 
-	drm_WARN_ON(&i915->drm,
-		    !intel_display_power_is_enabled(i915, tc_port_power_domain(tc)));
+	drm_WARN_ON(display->drm,
+		    !intel_display_power_is_enabled(display, tc_port_power_domain(tc)));
 }
 
 static u32 intel_tc_port_get_lane_mask(struct intel_digital_port *dig_port)
@@ -296,12 +296,13 @@ u32 intel_tc_port_get_pin_assignment_mask(struct intel_digital_port *dig_port)
 
 static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
+	struct intel_display *display = to_intel_display(dig_port);
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	enum tc_port tc_port = intel_encoder_to_tc(&dig_port->base);
 	intel_wakeref_t wakeref;
 	u32 val, pin_assignment;
 
-	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref)
+	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
 		val = intel_de_read(i915, TCSS_DDI_STATUS(tc_port));
 
 	pin_assignment =
@@ -321,11 +322,11 @@ static int lnl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 
 static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(dig_port);
 	intel_wakeref_t wakeref;
 	u32 pin_mask;
 
-	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref)
+	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
 		pin_mask = intel_tc_port_get_pin_assignment_mask(dig_port);
 
 	switch (pin_mask) {
@@ -342,11 +343,11 @@ static int mtl_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 
 static int intel_tc_port_get_max_lane_count(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(dig_port);
 	intel_wakeref_t wakeref;
 	u32 lane_mask = 0;
 
-	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref)
+	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref)
 		lane_mask = intel_tc_port_get_lane_mask(dig_port);
 
 	switch (lane_mask) {
@@ -477,17 +478,18 @@ static void tc_phy_load_fia_params(struct intel_tc_port *tc, bool modular_fia)
 static enum intel_display_power_domain
 icl_tc_phy_cold_off_domain(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct intel_digital_port *dig_port = tc->dig_port;
 
 	if (tc->legacy_port)
-		return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+		return intel_display_power_legacy_aux_domain(display, dig_port->aux_ch);
 
 	return POWER_DOMAIN_TC_COLD_OFF;
 }
 
 static u32 icl_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 {
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	struct intel_digital_port *dig_port = tc->dig_port;
 	u32 isr_bit = i915->display.hotplug.pch_hpd[dig_port->base.hpd_pin];
@@ -496,7 +498,7 @@ static u32 icl_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 	u32 pch_isr;
 	u32 mask = 0;
 
-	with_intel_display_power(i915, tc_phy_cold_off_domain(tc), wakeref) {
+	with_intel_display_power(display, tc_phy_cold_off_domain(tc), wakeref) {
 		fia_isr = intel_de_read(i915, PORT_TX_DFLEXDPSP(tc->phy_fia));
 		pch_isr = intel_de_read(i915, SDEISR);
 	}
@@ -730,11 +732,12 @@ tgl_tc_phy_cold_off_domain(struct intel_tc_port *tc)
 
 static void tgl_tc_phy_init(struct intel_tc_port *tc)
 {
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	intel_wakeref_t wakeref;
 	u32 val;
 
-	with_intel_display_power(i915, tc_phy_cold_off_domain(tc), wakeref)
+	with_intel_display_power(display, tc_phy_cold_off_domain(tc), wakeref)
 		val = intel_de_read(i915, PORT_TX_DFLEXDPSP(FIA1));
 
 	drm_WARN_ON(&i915->drm, val == 0xffffffff);
@@ -760,17 +763,18 @@ static const struct intel_tc_phy_ops tgl_tc_phy_ops = {
 static enum intel_display_power_domain
 adlp_tc_phy_cold_off_domain(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct intel_digital_port *dig_port = tc->dig_port;
 
 	if (tc->mode != TC_PORT_TBT_ALT)
-		return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+		return intel_display_power_legacy_aux_domain(display, dig_port->aux_ch);
 
 	return POWER_DOMAIN_TC_COLD_OFF;
 }
 
 static u32 adlp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 {
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	struct intel_digital_port *dig_port = tc->dig_port;
 	enum hpd_pin hpd_pin = dig_port->base.hpd_pin;
@@ -781,7 +785,7 @@ static u32 adlp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 	u32 pch_isr;
 	u32 mask = 0;
 
-	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
+	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
 		cpu_isr = intel_de_read(i915, GEN11_DE_HPD_ISR);
 		pch_isr = intel_de_read(i915, SDEISR);
 	}
@@ -851,22 +855,23 @@ static bool adlp_tc_phy_is_owned(struct intel_tc_port *tc)
 
 static void adlp_tc_phy_get_hw_state(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum intel_display_power_domain port_power_domain =
 		tc_port_power_domain(tc);
 	intel_wakeref_t port_wakeref;
 
-	port_wakeref = intel_display_power_get(i915, port_power_domain);
+	port_wakeref = intel_display_power_get(display, port_power_domain);
 
 	tc->mode = tc_phy_get_current_mode(tc);
 	if (tc->mode != TC_PORT_DISCONNECTED)
 		tc->lock_wakeref = tc_cold_block(tc);
 
-	intel_display_power_put(i915, port_power_domain, port_wakeref);
+	intel_display_power_put(display, port_power_domain, port_wakeref);
 }
 
 static bool adlp_tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
 {
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum intel_display_power_domain port_power_domain =
 		tc_port_power_domain(tc);
@@ -877,7 +882,7 @@ static bool adlp_tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
 		return true;
 	}
 
-	port_wakeref = intel_display_power_get(i915, port_power_domain);
+	port_wakeref = intel_display_power_get(display, port_power_domain);
 
 	if (!adlp_tc_phy_take_ownership(tc, true) &&
 	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
@@ -898,7 +903,7 @@ static bool adlp_tc_phy_connect(struct intel_tc_port *tc, int required_lanes)
 	if (!tc_phy_verify_legacy_or_dp_alt_mode(tc, required_lanes))
 		goto out_unblock_tc_cold;
 
-	intel_display_power_put(i915, port_power_domain, port_wakeref);
+	intel_display_power_put(display, port_power_domain, port_wakeref);
 
 	return true;
 
@@ -907,19 +912,19 @@ out_unblock_tc_cold:
 out_release_phy:
 	adlp_tc_phy_take_ownership(tc, false);
 out_put_port_power:
-	intel_display_power_put(i915, port_power_domain, port_wakeref);
+	intel_display_power_put(display, port_power_domain, port_wakeref);
 
 	return false;
 }
 
 static void adlp_tc_phy_disconnect(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum intel_display_power_domain port_power_domain =
 		tc_port_power_domain(tc);
 	intel_wakeref_t port_wakeref;
 
-	port_wakeref = intel_display_power_get(i915, port_power_domain);
+	port_wakeref = intel_display_power_get(display, port_power_domain);
 
 	tc_cold_unblock(tc, fetch_and_zero(&tc->lock_wakeref));
 
@@ -934,7 +939,7 @@ static void adlp_tc_phy_disconnect(struct intel_tc_port *tc)
 		MISSING_CASE(tc->mode);
 	}
 
-	intel_display_power_put(i915, port_power_domain, port_wakeref);
+	intel_display_power_put(display, port_power_domain, port_wakeref);
 }
 
 static void adlp_tc_phy_init(struct intel_tc_port *tc)
@@ -959,6 +964,7 @@ static const struct intel_tc_phy_ops adlp_tc_phy_ops = {
  */
 static u32 xelpdp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 {
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	struct intel_digital_port *dig_port = tc->dig_port;
 	enum hpd_pin hpd_pin = dig_port->base.hpd_pin;
@@ -969,7 +975,7 @@ static u32 xelpdp_tc_phy_hpd_live_status(struct intel_tc_port *tc)
 	u32 pch_isr;
 	u32 mask = 0;
 
-	with_intel_display_power(i915, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
+	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
 		pica_isr = intel_de_read(i915, PICAINTERRUPT_ISR);
 		pch_isr = intel_de_read(i915, SDEISR);
 	}
@@ -1436,25 +1442,25 @@ static void tc_phy_init(struct intel_tc_port *tc)
 static void intel_tc_port_reset_mode(struct intel_tc_port *tc,
 				     int required_lanes, bool force_disconnect)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct intel_digital_port *dig_port = tc->dig_port;
 	enum tc_port_mode old_tc_mode = tc->mode;
 
-	intel_display_power_flush_work(i915);
+	intel_display_power_flush_work(display);
 	if (!intel_tc_cold_requires_aux_pw(dig_port)) {
 		enum intel_display_power_domain aux_domain;
 		bool aux_powered;
 
 		aux_domain = intel_aux_power_domain(dig_port);
-		aux_powered = intel_display_power_is_enabled(i915, aux_domain);
-		drm_WARN_ON(&i915->drm, aux_powered);
+		aux_powered = intel_display_power_is_enabled(display, aux_domain);
+		drm_WARN_ON(display->drm, aux_powered);
 	}
 
 	tc_phy_disconnect(tc);
 	if (!force_disconnect)
 		tc_phy_connect(tc, required_lanes);
 
-	drm_dbg_kms(&i915->drm, "Port %s: TC port mode reset (%s -> %s)\n",
+	drm_dbg_kms(display->drm, "Port %s: TC port mode reset (%s -> %s)\n",
 		    tc->port_name,
 		    tc_port_mode_name(old_tc_mode),
 		    tc_port_mode_name(tc->mode));

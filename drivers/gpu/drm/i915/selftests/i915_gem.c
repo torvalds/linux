@@ -80,7 +80,7 @@ static void simulate_hibernate(struct drm_i915_private *i915)
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	/*
-	 * As a final sting in the tail, invalidate stolen. Under a real S4,
+	 * As a final string in the tail, invalidate stolen. Under a real S4,
 	 * stolen is lost and needs to be refilled on resume. However, under
 	 * CI we merely do S4-device testing (as full S4 is too unreliable
 	 * for automated testing across a cluster), so to simulate the effect

@@ -503,7 +503,7 @@ static int rxperf_process_call(struct rxperf_call *call)
 				   reply_len + sizeof(rxperf_magic_cookie));
 
 	while (reply_len > 0) {
-		len = min_t(size_t, reply_len, PAGE_SIZE);
+		len = umin(reply_len, PAGE_SIZE);
 		bvec_set_page(&bv, ZERO_PAGE(0), len, 0);
 		iov_iter_bvec(&msg.msg_iter, WRITE, &bv, 1, len);
 		msg.msg_flags = MSG_MORE;

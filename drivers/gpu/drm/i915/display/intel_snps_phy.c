@@ -11,6 +11,7 @@
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
+#include "intel_snps_hdmi_pll.h"
 #include "intel_snps_phy.h"
 #include "intel_snps_phy_regs.h"
 
@@ -521,7 +522,7 @@ static const struct intel_mpllb_state dg2_hdmi_148_5 = {
 		REG_FIELD_PREP(SNPS_PHY_MPLLB_SSC_UP_SPREAD, 1),
 };
 
-/* values in the below table are calculted using the algo */
+/* values in the below table are calculated using the algo */
 static const struct intel_mpllb_state dg2_hdmi_25200 = {
 	.clock = 25200,
 	.ref_control =
@@ -1788,23 +1789,8 @@ intel_mpllb_tables_get(struct intel_crtc_state *crtc_state,
 int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 			   struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	const struct intel_mpllb_state * const *tables;
 	int i;
-
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
-		if (intel_snps_phy_check_hdmi_link_rate(crtc_state->port_clock)
-		    != MODE_OK) {
-			/*
-			 * FIXME: Can only support fixed HDMI frequencies
-			 * until we have a proper algorithm under a valid
-			 * license.
-			 */
-			drm_dbg_kms(&i915->drm, "Can't support HDMI link rate %d\n",
-				    crtc_state->port_clock);
-			return -EINVAL;
-		}
-	}
 
 	tables = intel_mpllb_tables_get(crtc_state, encoder);
 	if (!tables)
@@ -1815,6 +1801,14 @@ int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 			crtc_state->dpll_hw_state.mpllb = *tables[i];
 			return 0;
 		}
+	}
+
+	/* For HDMI PLLs try SNPS PHY algorithm, if there are no precomputed tables */
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
+		intel_snps_hdmi_pll_compute_mpllb(&crtc_state->dpll_hw_state.mpllb,
+						  crtc_state->port_clock);
+
+		return 0;
 	}
 
 	return -EINVAL;
@@ -1980,19 +1974,6 @@ void intel_mpllb_readout_hw_state(struct intel_encoder *encoder,
 	 * software state.
 	 */
 	pll_state->mpllb_div &= ~SNPS_PHY_MPLLB_FORCE_EN;
-}
-
-int intel_snps_phy_check_hdmi_link_rate(int clock)
-{
-	const struct intel_mpllb_state * const *tables = dg2_hdmi_tables;
-	int i;
-
-	for (i = 0; tables[i]; i++) {
-		if (clock == tables[i]->clock)
-			return MODE_OK;
-	}
-
-	return MODE_CLOCK_RANGE;
 }
 
 void intel_mpllb_state_verify(struct intel_atomic_state *state,

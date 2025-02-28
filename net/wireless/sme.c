@@ -252,7 +252,7 @@ void cfg80211_conn_work(struct work_struct *work)
 	u8 bssid_buf[ETH_ALEN], *bssid = NULL;
 	enum nl80211_timeout_reason treason;
 
-	wiphy_lock(&rdev->wiphy);
+	guard(wiphy)(&rdev->wiphy);
 
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->netdev)
@@ -280,8 +280,6 @@ void cfg80211_conn_work(struct work_struct *work)
 			__cfg80211_connect_result(wdev->netdev, &cr, false);
 		}
 	}
-
-	wiphy_unlock(&rdev->wiphy);
 }
 
 static void cfg80211_step_auth_next(struct cfg80211_conn *conn,
@@ -693,13 +691,13 @@ static bool cfg80211_is_all_idle(void)
 	 * as chan dfs state, etc.
 	 */
 	for_each_rdev(rdev) {
-		wiphy_lock(&rdev->wiphy);
+		guard(wiphy)(&rdev->wiphy);
+
 		list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 			if (wdev->conn || wdev->connected ||
 			    cfg80211_beaconing_iface_active(wdev))
 				is_all_idle = false;
 		}
-		wiphy_unlock(&rdev->wiphy);
 	}
 
 	return is_all_idle;
@@ -1583,7 +1581,7 @@ void cfg80211_autodisconnect_wk(struct work_struct *work)
 		container_of(work, struct wireless_dev, disconnect_wk);
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 
-	wiphy_lock(wdev->wiphy);
+	guard(wiphy)(wdev->wiphy);
 
 	if (wdev->conn_owner_nlportid) {
 		switch (wdev->iftype) {
@@ -1619,6 +1617,4 @@ void cfg80211_autodisconnect_wk(struct work_struct *work)
 			break;
 		}
 	}
-
-	wiphy_unlock(wdev->wiphy);
 }

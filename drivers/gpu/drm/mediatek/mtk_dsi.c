@@ -826,7 +826,7 @@ static void mtk_dsi_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static void mtk_dsi_bridge_atomic_disable(struct drm_bridge *bridge,
-					  struct drm_bridge_state *old_bridge_state)
+					  struct drm_atomic_state *state)
 {
 	struct mtk_dsi *dsi = bridge_to_dsi(bridge);
 
@@ -834,7 +834,7 @@ static void mtk_dsi_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void mtk_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
-					 struct drm_bridge_state *old_bridge_state)
+					 struct drm_atomic_state *state)
 {
 	struct mtk_dsi *dsi = bridge_to_dsi(bridge);
 
@@ -845,7 +845,7 @@ static void mtk_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void mtk_dsi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-					     struct drm_bridge_state *old_bridge_state)
+					     struct drm_atomic_state *state)
 {
 	struct mtk_dsi *dsi = bridge_to_dsi(bridge);
 	int ret;
@@ -856,7 +856,7 @@ static void mtk_dsi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void mtk_dsi_bridge_atomic_post_disable(struct drm_bridge *bridge,
-					       struct drm_bridge_state *old_bridge_state)
+					       struct drm_atomic_state *state)
 {
 	struct mtk_dsi *dsi = bridge_to_dsi(bridge);
 

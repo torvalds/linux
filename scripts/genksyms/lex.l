@@ -12,6 +12,7 @@
 %{
 
 #include <limits.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -50,6 +51,7 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 
 %%
 
+u?int(8|16|32|64)x(1|2|4|8|16)_t	return BUILTIN_INT_KEYW;
 
  /* Keep track of our location in the original source files.  */
 ^#[ \t]+{INT}[ \t]+\"[^\"\n]+\".*\n	return FILENAME;
@@ -112,6 +114,12 @@ MC_TOKEN		([~%^&*+=|<>/-]=)|(&&)|("||")|(->)|(<<)|(>>)
 
 /* The second stage lexer.  Here we incorporate knowledge of the state
    of the parser to tailor the tokens that are returned.  */
+
+/*
+ * The lexer cannot distinguish whether a typedef'ed string is a TYPE or an
+ * IDENT. We need a hint from the parser to handle this accurately.
+ */
+bool dont_want_type_specifier;
 
 int
 yylex(void)
@@ -207,7 +215,7 @@ repeat:
 		    goto repeat;
 		  }
 	      }
-	    if (!suppress_type_lookup)
+	    if (!suppress_type_lookup && !dont_want_type_specifier)
 	      {
 		if (find_symbol(yytext, SYM_TYPEDEF, 1))
 		  token = TYPE;
@@ -431,7 +439,12 @@ fini:
 
   if (suppress_type_lookup > 0)
     --suppress_type_lookup;
-  if (dont_want_brace_phrase > 0)
+
+  /*
+   *  __attribute__() can be placed immediately after the 'struct' keyword.
+   *  e.g.) struct __attribute__((__packed__)) foo { ... };
+   */
+  if (token != ATTRIBUTE_PHRASE && dont_want_brace_phrase > 0)
     --dont_want_brace_phrase;
 
   yylval = &next_node->next;

@@ -238,6 +238,12 @@
 
 #define AMDGPU_DRM_KEY_INJECT_WORKAROUND_VCNFW_ASD_HANDSHAKING 2
 
+enum amdgpu_vcn_caps {
+	AMDGPU_VCN_RRMT_ENABLED,
+};
+
+#define AMDGPU_VCN_CAPS(caps) BIT(AMDGPU_VCN_##caps)
+
 enum fw_queue_mode {
 	FW_QUEUE_RING_RESET = 1,
 	FW_QUEUE_DPG_HOLD_OFF = 2,
@@ -345,6 +351,7 @@ struct amdgpu_vcn {
 	uint32_t		*ip_dump;
 
 	uint32_t		supported_reset;
+	uint32_t		caps;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {

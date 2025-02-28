@@ -16,6 +16,7 @@ properties:
   compatible:
     items:
       - enum:
+          - mobileye,eyeq5-bootloader-config
           - raspberrypi,bootloader-config
           - raspberrypi,bootloader-public-key
       - const: nvmem-rmem

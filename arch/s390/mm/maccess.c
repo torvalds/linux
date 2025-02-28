@@ -17,6 +17,7 @@
 #include <asm/asm-extable.h>
 #include <asm/abs_lowcore.h>
 #include <asm/stacktrace.h>
+#include <asm/sections.h>
 #include <asm/maccess.h>
 #include <asm/ctlreg.h>
 

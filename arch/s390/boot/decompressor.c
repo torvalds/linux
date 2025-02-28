@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <asm/boot_data.h>
 #include <asm/page.h>
 #include "decompressor.h"
 #include "boot.h"
@@ -63,6 +64,15 @@ static unsigned long free_mem_end_ptr = (unsigned long) _end + BOOT_HEAP_SIZE;
 #include "../../../../lib/decompress_unzstd.c"
 #endif
 
+static void decompress_error(char *m)
+{
+	if (bootdebug)
+		boot_rb_dump();
+	boot_emerg("Decompression error: %s\n", m);
+	boot_emerg(" -- System halted\n");
+	disabled_wait();
+}
+
 unsigned long mem_safe_offset(void)
 {
 	return ALIGN(free_mem_end_ptr, PAGE_SIZE);
@@ -71,5 +81,5 @@ unsigned long mem_safe_offset(void)
 void deploy_kernel(void *output)
 {
 	__decompress(_compressed_start, _compressed_end - _compressed_start,
-		     NULL, NULL, output, vmlinux.image_size, NULL, error);
+		     NULL, NULL, output, vmlinux.image_size, NULL, decompress_error);
 }

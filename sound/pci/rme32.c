@@ -256,8 +256,10 @@ static int snd_rme32_playback_copy(struct snd_pcm_substream *substream,
 {
 	struct rme32 *rme32 = snd_pcm_substream_chip(substream);
 
-	return copy_from_iter_toio(rme32->iobase + RME32_IO_DATA_BUFFER + pos,
-				   src, count);
+	if (copy_from_iter_toio(rme32->iobase + RME32_IO_DATA_BUFFER + pos,
+				count, src) != count)
+		return -EFAULT;
+	return 0;
 }
 
 /* copy callback for halfduplex mode */
@@ -267,9 +269,10 @@ static int snd_rme32_capture_copy(struct snd_pcm_substream *substream,
 {
 	struct rme32 *rme32 = snd_pcm_substream_chip(substream);
 
-	return copy_to_iter_fromio(dst,
-				   rme32->iobase + RME32_IO_DATA_BUFFER + pos,
-				   count);
+	if (copy_to_iter_fromio(rme32->iobase + RME32_IO_DATA_BUFFER + pos,
+				count, dst) != count)
+		return -EFAULT;
+	return 0;
 }
 
 /*

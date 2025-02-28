@@ -2299,11 +2299,28 @@ void __bpf_obj_drop_impl(void *p, const struct btf_record *rec, bool percpu);
 struct bpf_map *bpf_map_get(u32 ufd);
 struct bpf_map *bpf_map_get_with_uref(u32 ufd);
 
+/*
+ * The __bpf_map_get() and __btf_get_by_fd() functions parse a file
+ * descriptor and return a corresponding map or btf object.
+ * Their names are double underscored to emphasize the fact that they
+ * do not increase refcnt. To also increase refcnt use corresponding
+ * bpf_map_get() and btf_get_by_fd() functions.
+ */
+
 static inline struct bpf_map *__bpf_map_get(struct fd f)
 {
 	if (fd_empty(f))
 		return ERR_PTR(-EBADF);
 	if (unlikely(fd_file(f)->f_op != &bpf_map_fops))
+		return ERR_PTR(-EINVAL);
+	return fd_file(f)->private_data;
+}
+
+static inline struct btf *__btf_get_by_fd(struct fd f)
+{
+	if (fd_empty(f))
+		return ERR_PTR(-EBADF);
+	if (unlikely(fd_file(f)->f_op != &btf_fops))
 		return ERR_PTR(-EINVAL);
 	return fd_file(f)->private_data;
 }
@@ -2589,10 +2606,10 @@ int dev_map_enqueue(struct bpf_dtab_netdev *dst, struct xdp_frame *xdpf,
 int dev_map_enqueue_multi(struct xdp_frame *xdpf, struct net_device *dev_rx,
 			  struct bpf_map *map, bool exclude_ingress);
 int dev_map_generic_redirect(struct bpf_dtab_netdev *dst, struct sk_buff *skb,
-			     struct bpf_prog *xdp_prog);
+			     const struct bpf_prog *xdp_prog);
 int dev_map_redirect_multi(struct net_device *dev, struct sk_buff *skb,
-			   struct bpf_prog *xdp_prog, struct bpf_map *map,
-			   bool exclude_ingress);
+			   const struct bpf_prog *xdp_prog,
+			   struct bpf_map *map, bool exclude_ingress);
 
 void __cpu_map_flush(struct list_head *flush_list);
 int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_frame *xdpf,
@@ -2862,15 +2879,15 @@ struct sk_buff;
 
 static inline int dev_map_generic_redirect(struct bpf_dtab_netdev *dst,
 					   struct sk_buff *skb,
-					   struct bpf_prog *xdp_prog)
+					   const struct bpf_prog *xdp_prog)
 {
 	return 0;
 }
 
 static inline
 int dev_map_redirect_multi(struct net_device *dev, struct sk_buff *skb,
-			   struct bpf_prog *xdp_prog, struct bpf_map *map,
-			   bool exclude_ingress)
+			   const struct bpf_prog *xdp_prog,
+			   struct bpf_map *map, bool exclude_ingress)
 {
 	return 0;
 }

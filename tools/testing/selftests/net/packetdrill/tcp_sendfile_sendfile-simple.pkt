@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+// Simplest possible test of open() and then sendfile().
+// We write some zeroes into a file (since packetdrill expects payloads
+// to be all zeroes) and then open() the file, then use sendfile()
+// and verify that the correct number of zeroes goes out.
+
+`./defaults.sh
+/bin/rm -f /tmp/testfile
+/bin/dd bs=1 count=5 if=/dev/zero of=/tmp/testfile status=none
+`
+
+// Initialize connection
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 10>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+   +0 < . 1:1(0) ack 1 win 514
+
+   +0 accept(3, ..., ...) = 4
+
+   +0 open("/tmp/testfile", O_RDONLY) = 5
+   +0 sendfile(4, 5, [0], 5) = 5
+   +0 > P. 1:6(5) ack 1

@@ -21,6 +21,10 @@
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT
 			copy_dsdt -- copy DSDT to memory
+			nocmcff -- Disable firmware first mode for corrected
+			errors. This disables parsing the HEST CMC error
+			source to check if firmware has set the FF flag. This
+			may result in duplicate corrected error reports.
 			nospcr -- disable console in ACPI SPCR table as
 				default _serial_ console on ARM64
 			For ARM64, ONLY "acpi=off", "acpi=on", "acpi=force" or
@@ -405,6 +409,8 @@
 			not play well with APC CPU idle - disable it if you have
 			APC and your system crashes randomly.
 
+	apic		[APIC,X86-64] Use IO-APIC. Default.
+
 	apic=		[APIC,X86,EARLY] Advanced Programmable Interrupt Controller
 			Change the output verbosity while booting
 			Format: { quiet (default) | verbose | debug }
@@ -423,6 +429,10 @@
 			none: External NMI is masked for all CPUs. This is
 			      useful so that a dump capture kernel won't be
 			      shot down by NMI
+
+	apicpmtimer	Do APIC timer calibration using the pmtimer. Implies
+			apicmaintimer. Useful when your PIT timer is totally
+			broken.
 
 	autoconf=	[IPV6]
 			See Documentation/networking/ipv6.rst.
@@ -1726,6 +1736,8 @@
 
 			off:	Disable GDS mitigation.
 
+	gbpages		[X86] Use GB pages for kernel direct mappings.
+
 	gcov_persist=	[GCOV] When non-zero (default), profiling data for
 			kernel modules is saved and remains accessible via
 			debugfs, even when the module is unloaded/reloaded.
@@ -2008,12 +2020,21 @@
 
 	idle=		[X86,EARLY]
 			Format: idle=poll, idle=halt, idle=nomwait
-			Poll forces a polling idle loop that can slightly
-			improve the performance of waking up a idle CPU, but
-			will use a lot of power and make the system run hot.
-			Not recommended.
+
+			idle=poll:  Don't do power saving in the idle loop
+			using HLT, but poll for rescheduling event. This will
+			make the CPUs eat a lot more power, but may be useful
+			to get slightly better performance in multiprocessor
+			benchmarks. It also makes some profiling using
+			performance counters more accurate.  Please note that
+			on systems with MONITOR/MWAIT support (like Intel
+			EM64T CPUs) this option has no performance advantage
+			over the normal idle loop.  It may also interact badly
+			with hyperthreading.
+
 			idle=halt: Halt is forced to be used for CPU idle.
 			In such case C2/C3 won't be used again.
+
 			idle=nomwait: Disable mwait for CPU C-states
 
 	idxd.sva=	[HW]
@@ -2311,19 +2332,72 @@
 		relaxed
 
 	iommu=		[X86,EARLY]
+
 		off
+			Don't initialize and use any kind of IOMMU.
+
 		force
+			Force the use of the hardware IOMMU even when
+			it is not actually needed (e.g. because < 3 GB
+			memory).
+
 		noforce
+			Don't force hardware IOMMU usage when it is not
+			needed. (default).
+
 		biomerge
 		panic
 		nopanic
 		merge
 		nomerge
+
 		soft
-		pt		[X86]
-		nopt		[X86]
-		nobypass	[PPC/POWERNV]
+			Use software bounce buffering (SWIOTLB) (default for
+			Intel machines). This can be used to prevent the usage
+			of an available hardware IOMMU.
+
+			[X86]
+		pt
+			[X86]
+		nopt
+			[PPC/POWERNV]
+		nobypass
 			Disable IOMMU bypass, using IOMMU for PCI devices.
+
+		[X86]
+		AMD Gart HW IOMMU-specific options:
+
+		<size>
+			Set the size of the remapping area in bytes.
+
+		allowed
+			Overwrite iommu off workarounds for specific chipsets
+
+		fullflush
+			Flush IOMMU on each allocation (default).
+
+		nofullflush
+			Don't use IOMMU fullflush.
+
+		memaper[=<order>]
+			Allocate an own aperture over RAM with size
+			32MB<<order.  (default: order=1, i.e. 64MB)
+
+		merge
+			Do scatter-gather (SG) merging. Implies "force"
+			(experimental).
+
+		nomerge
+			Don't do scatter-gather (SG) merging.
+
+		noaperture
+			Ask the IOMMU not to touch the aperture for AGP.
+
+		noagp
+			Don't initialize the AGP driver and use full aperture.
+
+		panic
+			Always panic when IOMMU overflows.
 
 	iommu.forcedac=	[ARM64,X86,EARLY] Control IOVA allocation for PCI devices.
 			Format: { "0" | "1" }
@@ -2432,7 +2506,9 @@
 			specified in the flag list (default: domain):
 
 			nohz
-			  Disable the tick when a single task runs.
+			  Disable the tick when a single task runs as well as
+			  disabling other kernel noises like having RCU callbacks
+			  offloaded. This is equivalent to the nohz_full parameter.
 
 			  A residual 1Hz tick is offloaded to workqueues, which you
 			  need to affine to housekeeping through the global
@@ -2695,7 +2771,7 @@
 			VMs, i.e. on the 0=>1 and 1=>0 transitions of the
 			number of VMs.
 
-			Enabling virtualization at module lode avoids potential
+			Enabling virtualization at module load avoids potential
 			latency for creation of the 0=>1 VM, as KVM serializes
 			virtualization enabling across all online CPUs.  The
 			"cost" of enabling virtualization when KVM is loaded,
@@ -2748,17 +2824,21 @@
 			nvhe: Standard nVHE-based mode, without support for
 			      protected guests.
 
-			protected: nVHE-based mode with support for guests whose
-				   state is kept private from the host.
+			protected: Mode with support for guests whose state is
+				   kept private from the host, using VHE or
+				   nVHE depending on HW support.
 
 			nested: VHE-based mode with support for nested
-				virtualization. Requires at least ARMv8.3
-				hardware.
+				virtualization. Requires at least ARMv8.4
+				hardware (with FEAT_NV2).
 
 			Defaults to VHE/nVHE based on hardware support. Setting
 			mode to "protected" will disable kexec and hibernation
-			for the host. "nested" is experimental and should be
-			used with extreme caution.
+			for the host. To force nVHE on VHE hardware, add
+			"arm64_sw.hvhe=0 id_aa64mmfr1.vh=0" to the
+			command-line.
+			"nested" is experimental and should be used with
+			extreme caution.
 
 	kvm-arm.vgic_v3_group0_trap=
 			[KVM,ARM,EARLY] Trap guest accesses to GICv3 group-0
@@ -3259,9 +3339,77 @@
 			devices can be requested on-demand with the
 			/dev/loop-control interface.
 
-	mce		[X86-32] Machine Check Exception
+	mce=		[X86-{32,64}]
 
-	mce=option	[X86-64] See Documentation/arch/x86/x86_64/boot-options.rst
+			Please see Documentation/arch/x86/x86_64/machinecheck.rst for sysfs runtime tunables.
+
+		off
+			disable machine check
+
+		no_cmci
+			disable CMCI(Corrected Machine Check Interrupt) that
+			Intel processor supports.  Usually this disablement is
+			not recommended, but it might be handy if your
+			hardware is misbehaving.
+
+			Note that you'll get more problems without CMCI than
+			with due to the shared banks, i.e. you might get
+			duplicated error logs.
+
+		dont_log_ce
+			don't make logs for corrected errors.  All events
+			reported as corrected are silently cleared by OS. This
+			option will be useful if you have no interest in any
+			of corrected errors.
+
+		ignore_ce
+			disable features for corrected errors, e.g.
+			polling timer and CMCI.  All events reported as
+			corrected are not cleared by OS and remained in its
+			error banks.
+
+			Usually this disablement is not recommended, however
+			if there is an agent checking/clearing corrected
+			errors (e.g. BIOS or hardware monitoring
+			applications), conflicting with OS's error handling,
+			and you cannot deactivate the agent, then this option
+			will be a help.
+
+		no_lmce
+			do not opt-in to Local MCE delivery. Use legacy method
+			to broadcast MCEs.
+
+		bootlog
+			enable logging of machine checks left over from
+			booting. Disabled by default on AMD Fam10h and older
+			because some BIOS leave bogus ones.
+
+			If your BIOS doesn't do that it's a good idea to
+			enable though to make sure you log even machine check
+			events that result in a reboot. On Intel systems it is
+			enabled by default.
+
+		nobootlog
+			disable boot machine check logging.
+
+		monarchtimeout (number)
+			sets the time in us to wait for other CPUs on machine
+			checks. 0 to disable.
+
+		bios_cmci_threshold
+			don't overwrite the bios-set CMCI threshold. This boot
+			option prevents Linux from overwriting the CMCI
+			threshold set by the bios.  Without this option, Linux
+			always sets the CMCI threshold to 1. Enabling this may
+			make memory predictive failure analysis less effective
+			if the bios sets thresholds for memory errors since we
+			will not see details for all errors.
+
+		recovery
+			force-enable recoverable machine check code paths
+
+			Everything else is in sysfs now.
+
 
 	md=		[HW] RAID subsystems devices and level
 			See Documentation/admin-guide/md.rst.
@@ -3351,8 +3499,8 @@
 			[KNL] Set the initial state for the memory hotplug
 			onlining policy. If not specified, the default value is
 			set according to the
-			CONFIG_MEMORY_HOTPLUG_DEFAULT_ONLINE kernel config
-			option.
+			CONFIG_MHP_DEFAULT_ONLINE_TYPE kernel config
+			options.
 			See Documentation/admin-guide/mm/memory-hotplug.rst.
 
 	memmap=exactmap	[KNL,X86,EARLY] Enable setting of an exact
@@ -3887,6 +4035,8 @@
 	noapic		[SMP,APIC,EARLY] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
 
+	noapictimer	[APIC,X86] Don't set up the APIC timer
+
 	noautogroup	Disable scheduler automatic task group creation.
 
 	nocache		[ARM,EARLY]
@@ -3934,6 +4084,8 @@
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
+	nogbpages	[X86] Do not use GB pages for kernel direct mappings.
+
 	no_hash_pointers
 			[KNL,EARLY]
 			Force pointers printed to the console or buffers to be
@@ -3959,6 +4111,8 @@
 			correctly or when doing power measurements to evaluate
 			the impact of the sleep instructions. This is also
 			useful when using JTAG debugger.
+
+	nohpet		[X86] Don't use the HPET timer.
 
 	nohugeiomap	[KNL,X86,PPC,ARM64,EARLY] Disable kernel huge I/O mappings.
 
@@ -4111,8 +4265,10 @@
 
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
-	no_timer_check	[X86,APIC] Disables the code which tests for
-			broken timer IRQ sources.
+	no_timer_check	[X86,APIC] Disables the code which tests for broken
+			timer IRQ sources, i.e., the IO-APIC timer. This can
+			work around problems with incorrect timer
+			initialization on some boards.
 
 	no_uaccess_flush
 	                [PPC,EARLY] Don't flush the L1-D cache after accessing user data.
@@ -4191,6 +4347,11 @@
 			[KNL, ARM64, RISCV, X86, EARLY]
 			If given as an integer followed by 'U', it will
 			divide each physical node into N emulated nodes.
+
+	numa=noacpi	[X86] Don't parse the SRAT table for NUMA setup
+
+	numa=nohmat	[X86] Don't parse the HMAT table for NUMA setup, or
+			soft-reserved memory partitioning.
 
 	numa_balancing=	[KNL,ARM64,PPC,RISCV,S390,X86] Enable or disable automatic
 			NUMA balancing.
@@ -4673,7 +4834,7 @@
 				  '1' – force enabled
 				  'x' – unchanged
 				For example,
-				  pci=config_acs=10x
+				  pci=config_acs=10x@pci:0:0
 				would configure all devices that support
 				ACS to enable P2P Request Redirect, disable
 				Translation Blocking, and leave Source
@@ -5367,7 +5528,42 @@
 
 	rcutorture.gp_cond= [KNL]
 			Use conditional/asynchronous update-side
-			primitives, if available.
+			normal-grace-period primitives, if available.
+
+	rcutorture.gp_cond_exp= [KNL]
+			Use conditional/asynchronous update-side
+			expedited-grace-period primitives, if available.
+
+	rcutorture.gp_cond_full= [KNL]
+			Use conditional/asynchronous update-side
+			normal-grace-period primitives that also take
+			concurrent expedited grace periods into account,
+			if available.
+
+	rcutorture.gp_cond_exp_full= [KNL]
+			Use conditional/asynchronous update-side
+			expedited-grace-period primitives that also take
+			concurrent normal grace periods into account,
+			if available.
+
+	rcutorture.gp_cond_wi= [KNL]
+			Nominal wait interval for normal conditional
+			grace periods (specified by rcutorture's
+			gp_cond and gp_cond_full module parameters),
+			in microseconds.  The actual wait interval will
+			be randomly selected to nanosecond granularity up
+			to this wait interval.	Defaults to 16 jiffies,
+			for example, 16,000 microseconds on a system
+			with HZ=1000.
+
+	rcutorture.gp_cond_wi_exp= [KNL]
+			Nominal wait interval for expedited conditional
+			grace periods (specified by rcutorture's
+			gp_cond_exp and gp_cond_exp_full module
+			parameters), in microseconds.  The actual wait
+			interval will be randomly selected to nanosecond
+			granularity up to this wait interval.  Defaults to
+			128 microseconds.
 
 	rcutorture.gp_exp= [KNL]
 			Use expedited update-side primitives, if available.
@@ -5375,6 +5571,43 @@
 	rcutorture.gp_normal= [KNL]
 			Use normal (non-expedited) asynchronous
 			update-side primitives, if available.
+
+	rcutorture.gp_poll= [KNL]
+			Use polled update-side normal-grace-period
+			primitives, if available.
+
+	rcutorture.gp_poll_exp= [KNL]
+			Use polled update-side expedited-grace-period
+			primitives, if available.
+
+	rcutorture.gp_poll_full= [KNL]
+			Use polled update-side normal-grace-period
+			primitives that also take concurrent expedited
+			grace periods into account, if available.
+
+	rcutorture.gp_poll_exp_full= [KNL]
+			Use polled update-side expedited-grace-period
+			primitives that also take concurrent normal
+			grace periods into account, if available.
+
+	rcutorture.gp_poll_wi= [KNL]
+			Nominal wait interval for normal conditional
+			grace periods (specified by rcutorture's
+			gp_poll and gp_poll_full module parameters),
+			in microseconds.  The actual wait interval will
+			be randomly selected to nanosecond granularity up
+			to this wait interval.	Defaults to 16 jiffies,
+			for example, 16,000 microseconds on a system
+			with HZ=1000.
+
+	rcutorture.gp_poll_wi_exp= [KNL]
+			Nominal wait interval for expedited conditional
+			grace periods (specified by rcutorture's
+			gp_poll_exp and gp_poll_exp_full module
+			parameters), in microseconds.  The actual wait
+			interval will be randomly selected to nanosecond
+			granularity up to this wait interval.  Defaults to
+			128 microseconds.
 
 	rcutorture.gp_sync= [KNL]
 			Use normal (non-expedited) synchronous
@@ -5428,6 +5661,22 @@
 	rcutorture.onoff_interval= [KNL]
 			Set time (jiffies) between CPU-hotplug operations,
 			or zero to disable CPU-hotplug testing.
+
+	rcutorture.preempt_duration= [KNL]
+			Set duration (in milliseconds) of preemptions
+			by a high-priority FIFO real-time task.  Set to
+			zero (the default) to disable.	The CPUs to
+			preempt are selected randomly from the set that
+			are online at a given point in time.  Races with
+			CPUs going offline are ignored, with that attempt
+			at preemption skipped.
+
+	rcutorture.preempt_interval= [KNL]
+			Set interval (in milliseconds, defaulting to one
+			second) between preemptions by a high-priority
+			FIFO real-time task.  This delay is mediated
+			by an hrtimer and is further fuzzed to avoid
+			inadvertent synchronizations.
 
 	rcutorture.read_exit_burst= [KNL]
 			The number of times in a given read-then-exit
@@ -5714,6 +5963,55 @@
 			      reboot_force is either force or not specified,
 			      reboot_cpu is s[mp]#### with #### being the processor
 					to be used for rebooting.
+
+		acpi
+			Use the ACPI RESET_REG in the FADT. If ACPI is not
+			configured or the ACPI reset does not work, the reboot
+			path attempts the reset using the keyboard controller.
+
+		bios
+			Use the CPU reboot vector for warm reset
+
+		cold
+			Set the cold reboot flag
+
+		default
+			There are some built-in platform specific "quirks"
+			- you may see: "reboot: <name> series board detected.
+			Selecting <type> for reboots." In the case where you
+			think the quirk is in error (e.g. you have newer BIOS,
+			or newer board) using this option will ignore the
+			built-in quirk table, and use the generic default
+			reboot actions.
+
+		efi
+			Use efi reset_system runtime service. If EFI is not
+			configured or the EFI reset does not work, the reboot
+			path attempts the reset using the keyboard controller.
+
+		force
+			Don't stop other CPUs on reboot. This can make reboot
+			more reliable in some cases.
+
+		kbd
+			Use the keyboard controller. cold reset (default)
+
+		pci
+			Use a write to the PCI config space register 0xcf9 to
+			trigger reboot.
+
+		triple
+			Force a triple fault (init)
+
+		warm
+			Don't set the cold reboot flag
+
+			Using warm reset will be much faster especially on big
+			memory systems because the BIOS will not go through
+			the memory check.  Disadvantage is that not all
+			hardware will be completely reinitialized on reboot so
+			there may be boot problems on some systems.
+
 
 	refscale.holdoff= [KNL]
 			Set test-start holdoff period.  The purpose of
@@ -6106,7 +6404,16 @@
 
 	serialnumber	[BUGS=X86-32]
 
-	sev=option[,option...] [X86-64] See Documentation/arch/x86/x86_64/boot-options.rst
+	sev=option[,option...] [X86-64]
+
+		debug
+			Enable debug messages.
+
+		nosnp
+			Do not enable SEV-SNP (applies to host/hypervisor
+			only). Setting 'nosnp' avoids the RMP check overhead
+			in memory accesses when users do not want to run
+			SEV-SNP guests.
 
 	shapers=	[NET]
 			Maximal number of shapers.
@@ -6858,6 +7165,14 @@
 			comma-separated list of trace events to enable. See
 			also Documentation/trace/events.rst
 
+			To enable modules, use :mod: keyword:
+
+			trace_event=:mod:<module>
+
+			The value before :mod: will only enable specific events
+			that are part of the module. See the above mentioned
+			document for more information.
+
 	trace_instance=[instance-info]
 			[FTRACE] Create a ring buffer instance early in boot up.
 			This will be listed in:
@@ -6989,6 +7304,13 @@
 			Format: [always|within_size|advise|never|deny|force]
 			Can be used to control the hugepage allocation policy for
 			the internal shmem mount.
+			See Documentation/admin-guide/mm/transhuge.rst
+			for more details.
+
+	transparent_hugepage_tmpfs= [KNL]
+			Format: [always|within_size|advise|never]
+			Can be used to control the default hugepage allocation policy
+			for the tmpfs mount.
 			See Documentation/admin-guide/mm/transhuge.rst
 			for more details.
 
@@ -7474,7 +7796,7 @@
 	vt.cur_default=	[VT] Default cursor shape.
 			Format: 0xCCBBAA, where AA, BB, and CC are the same as
 			the parameters of the <Esc>[?A;B;Cc escape sequence;
-			see VGA-softcursor.txt. Default: 2 = underline.
+			see vga-softcursor.rst. Default: 2 = underline.
 
 	vt.default_blu=	[VT]
 			Format: <blue0>,<blue1>,<blue2>,...,<blue15>

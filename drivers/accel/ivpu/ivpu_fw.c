@@ -145,7 +145,10 @@ ivpu_fw_sched_mode_select(struct ivpu_device *vdev, const struct vpu_firmware_he
 	if (ivpu_sched_mode != IVPU_SCHED_MODE_AUTO)
 		return ivpu_sched_mode;
 
-	return VPU_SCHEDULING_MODE_OS;
+	if (IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, JSM, 3, 24))
+		return VPU_SCHEDULING_MODE_OS;
+
+	return VPU_SCHEDULING_MODE_HW;
 }
 
 static int ivpu_fw_parse(struct ivpu_device *vdev)
@@ -531,6 +534,8 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->d0i3_entry_vpu_ts);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.system_time_us = %llu\n",
 		 boot_params->system_time_us);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.power_profile = %u\n",
+		 boot_params->power_profile);
 }
 
 void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)
@@ -631,6 +636,8 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 		boot_params->d0i3_delayed_entry = 1;
 	boot_params->d0i3_residency_time_us = 0;
 	boot_params->d0i3_entry_vpu_ts = 0;
+	if (IVPU_WA(disable_d0i2))
+		boot_params->power_profile = 1;
 
 	boot_params->system_time_us = ktime_to_us(ktime_get_real());
 	wmb(); /* Flush WC buffers after writing bootparams */

@@ -194,6 +194,25 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 	return ret;
 }
 
+static void
+mt7915_mcu_set_timeout(struct mt76_dev *mdev, int cmd)
+{
+	if ((cmd & __MCU_CMD_FIELD_ID) != MCU_CMD_EXT_CID)
+		return;
+
+	switch (FIELD_GET(__MCU_CMD_FIELD_EXT_ID, cmd)) {
+	case MCU_EXT_CMD_THERMAL_CTRL:
+	case MCU_EXT_CMD_GET_MIB_INFO:
+	case MCU_EXT_CMD_PHY_STAT_INFO:
+	case MCU_EXT_CMD_STA_REC_UPDATE:
+	case MCU_EXT_CMD_BSS_INFO_UPDATE:
+		mdev->mcu.timeout = 2 * HZ;
+		return;
+	default:
+		break;
+	}
+}
+
 static int
 mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			int cmd, int *wait_seq)
@@ -207,6 +226,8 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 		qid = MT_MCUQ_WA;
 	else
 		qid = MT_MCUQ_WM;
+
+	mt7915_mcu_set_timeout(mdev, cmd);
 
 	return mt76_tx_queue_skb_raw(dev, mdev->q_mcu[qid], skb, 0);
 }
@@ -1678,7 +1699,7 @@ int mt7915_mcu_add_sta(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 		return PTR_ERR(skb);
 
 	/* starec basic */
-	mt76_connac_mcu_sta_basic_tlv(&dev->mt76, skb, vif, link_sta,
+	mt76_connac_mcu_sta_basic_tlv(&dev->mt76, skb, &vif->bss_conf, link_sta,
 				      conn_state, newly);
 	/* tag order is in accordance with firmware dependency. */
 	if (sta && conn_state != CONN_STATE_DISCONNECT) {
@@ -2388,7 +2409,7 @@ int mt7915_mcu_init_firmware(struct mt7915_dev *dev)
 int mt7915_mcu_init(struct mt7915_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7915_mcu_ops = {
-		.max_retry = 3,
+		.max_retry = 1,
 		.headroom = sizeof(struct mt76_connac2_mcu_txd),
 		.mcu_skb_prepare_msg = mt76_connac2_mcu_fill_message,
 		.mcu_skb_send_msg = mt7915_mcu_send_message,
@@ -3150,8 +3171,13 @@ int mt7915_mcu_get_chan_mib_info(struct mt7915_phy *phy, bool chan_switch)
 	res = (struct mt7915_mcu_mib *)(skb->data + offs_cc);
 
 #define __res_u64(s) le64_to_cpu(res[s].data)
-	/* subtract Tx backoff time from Tx duration */
-	cc_tx = is_mt7915(&dev->mt76) ? __res_u64(1) - __res_u64(4) : __res_u64(1);
+	/* subtract Tx backoff time from Tx duration for MT7915 */
+	if (is_mt7915(&dev->mt76)) {
+		u64 backoff = (__res_u64(4) & 0xffff) * 79;  /* 16us + 9us * 7 */
+		cc_tx = __res_u64(1) - backoff;
+	} else {
+		cc_tx = __res_u64(1);
+	}
 
 	if (chan_switch)
 		goto out;

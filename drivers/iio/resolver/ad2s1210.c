@@ -164,7 +164,7 @@ struct ad2s1210_state {
 	struct {
 		__be16 chan[2];
 		/* Ensure timestamp is naturally aligned. */
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	/** SPI transmit buffer. */
 	u8 rx[2];

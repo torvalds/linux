@@ -8,6 +8,22 @@
 #include "peer.h"
 #include "debug.h"
 
+static struct ath12k_ml_peer *ath12k_peer_ml_find(struct ath12k_hw *ah, const u8 *addr)
+{
+	struct ath12k_ml_peer *ml_peer;
+
+	lockdep_assert_wiphy(ah->hw->wiphy);
+
+	list_for_each_entry(ml_peer, &ah->ml_peers, list) {
+		if (!ether_addr_equal(ml_peer->addr, addr))
+			continue;
+
+		return ml_peer;
+	}
+
+	return NULL;
+}
+
 struct ath12k_peer *ath12k_peer_find(struct ath12k_base *ab, int vdev_id,
 				     const u8 *addr)
 {
@@ -63,12 +79,29 @@ struct ath12k_peer *ath12k_peer_find_by_addr(struct ath12k_base *ab,
 	return NULL;
 }
 
+static struct ath12k_peer *ath12k_peer_find_by_ml_id(struct ath12k_base *ab,
+						     int ml_peer_id)
+{
+	struct ath12k_peer *peer;
+
+	lockdep_assert_held(&ab->base_lock);
+
+	list_for_each_entry(peer, &ab->peers, list)
+		if (ml_peer_id == peer->ml_id)
+			return peer;
+
+	return NULL;
+}
+
 struct ath12k_peer *ath12k_peer_find_by_id(struct ath12k_base *ab,
 					   int peer_id)
 {
 	struct ath12k_peer *peer;
 
 	lockdep_assert_held(&ab->base_lock);
+
+	if (peer_id & ATH12K_PEER_ML_ID_VALID)
+		return ath12k_peer_find_by_ml_id(ab, peer_id);
 
 	list_for_each_entry(peer, &ab->peers, list)
 		if (peer_id == peer->peer_id)
@@ -231,8 +264,9 @@ int ath12k_wait_for_peer_delete_done(struct ath12k *ar, u32 vdev_id,
 	return 0;
 }
 
-int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
+static int ath12k_peer_delete_send(struct ath12k *ar, u32 vdev_id, const u8 *addr)
 {
+	struct ath12k_base *ab = ar->ab;
 	int ret;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
@@ -241,11 +275,24 @@ int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
 
 	ret = ath12k_wmi_send_peer_delete_cmd(ar, addr, vdev_id);
 	if (ret) {
-		ath12k_warn(ar->ab,
+		ath12k_warn(ab,
 			    "failed to delete peer vdev_id %d addr %pM ret %d\n",
 			    vdev_id, addr, ret);
 		return ret;
 	}
+
+	return 0;
+}
+
+int ath12k_peer_delete(struct ath12k *ar, u32 vdev_id, u8 *addr)
+{
+	int ret;
+
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+
+	ret = ath12k_peer_delete_send(ar, vdev_id, addr);
+	if (ret)
+		return ret;
 
 	ret = ath12k_wait_for_peer_delete_done(ar, vdev_id, addr);
 	if (ret)
@@ -266,7 +313,11 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 		       struct ath12k_wmi_peer_create_arg *arg)
 {
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
+	struct ath12k_link_sta *arsta;
+	u8 link_id = arvif->link_id;
 	struct ath12k_peer *peer;
+	struct ath12k_sta *ahsta;
+	u16 ml_peer_id;
 	int ret;
 
 	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
@@ -332,6 +383,29 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 		arvif->ast_idx = peer->hw_peer_id;
 	}
 
+	if (sta) {
+		ahsta = ath12k_sta_to_ahsta(sta);
+		arsta = wiphy_dereference(ath12k_ar_to_hw(ar)->wiphy,
+					  ahsta->link[link_id]);
+
+		peer->link_id = arsta->link_id;
+
+		/* Fill ML info into created peer */
+		if (sta->mlo) {
+			ml_peer_id = ahsta->ml_peer_id;
+			peer->ml_id = ml_peer_id | ATH12K_PEER_ML_ID_VALID;
+			ether_addr_copy(peer->ml_addr, sta->addr);
+
+			/* the assoc link is considered primary for now */
+			peer->primary_link = arsta->is_assoc_link;
+			peer->mlo = true;
+		} else {
+			peer->ml_id = ATH12K_MLO_PEER_ID_INVALID;
+			peer->primary_link = true;
+			peer->mlo = false;
+		}
+	}
+
 	peer->sec_type = HAL_ENCRYPT_TYPE_OPEN;
 	peer->sec_type_grp = HAL_ENCRYPT_TYPE_OPEN;
 
@@ -340,4 +414,151 @@ int ath12k_peer_create(struct ath12k *ar, struct ath12k_link_vif *arvif,
 	spin_unlock_bh(&ar->ab->base_lock);
 
 	return 0;
+}
+
+static u16 ath12k_peer_ml_alloc(struct ath12k_hw *ah)
+{
+	u16 ml_peer_id;
+
+	lockdep_assert_wiphy(ah->hw->wiphy);
+
+	for (ml_peer_id = 0; ml_peer_id < ATH12K_MAX_MLO_PEERS; ml_peer_id++) {
+		if (test_bit(ml_peer_id, ah->free_ml_peer_id_map))
+			continue;
+
+		set_bit(ml_peer_id, ah->free_ml_peer_id_map);
+		break;
+	}
+
+	if (ml_peer_id == ATH12K_MAX_MLO_PEERS)
+		ml_peer_id = ATH12K_MLO_PEER_ID_INVALID;
+
+	return ml_peer_id;
+}
+
+int ath12k_peer_ml_create(struct ath12k_hw *ah, struct ieee80211_sta *sta)
+{
+	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(sta);
+	struct ath12k_ml_peer *ml_peer;
+
+	lockdep_assert_wiphy(ah->hw->wiphy);
+
+	if (!sta->mlo)
+		return -EINVAL;
+
+	ml_peer = ath12k_peer_ml_find(ah, sta->addr);
+	if (ml_peer) {
+		ath12k_hw_warn(ah, "ML peer %d exists already, unable to add new entry for %pM",
+			       ml_peer->id, sta->addr);
+		return -EEXIST;
+	}
+
+	ml_peer = kzalloc(sizeof(*ml_peer), GFP_ATOMIC);
+	if (!ml_peer)
+		return -ENOMEM;
+
+	ahsta->ml_peer_id = ath12k_peer_ml_alloc(ah);
+
+	if (ahsta->ml_peer_id == ATH12K_MLO_PEER_ID_INVALID) {
+		ath12k_hw_warn(ah, "unable to allocate ML peer id for sta %pM",
+			       sta->addr);
+		kfree(ml_peer);
+		return -ENOMEM;
+	}
+
+	ether_addr_copy(ml_peer->addr, sta->addr);
+	ml_peer->id = ahsta->ml_peer_id;
+	list_add(&ml_peer->list, &ah->ml_peers);
+
+	return 0;
+}
+
+int ath12k_peer_ml_delete(struct ath12k_hw *ah, struct ieee80211_sta *sta)
+{
+	struct ath12k_sta *ahsta = ath12k_sta_to_ahsta(sta);
+	struct ath12k_ml_peer *ml_peer;
+
+	lockdep_assert_wiphy(ah->hw->wiphy);
+
+	if (!sta->mlo)
+		return -EINVAL;
+
+	clear_bit(ahsta->ml_peer_id, ah->free_ml_peer_id_map);
+	ahsta->ml_peer_id = ATH12K_MLO_PEER_ID_INVALID;
+
+	ml_peer = ath12k_peer_ml_find(ah, sta->addr);
+	if (!ml_peer) {
+		ath12k_hw_warn(ah, "ML peer for %pM not found", sta->addr);
+		return -EINVAL;
+	}
+
+	list_del(&ml_peer->list);
+	kfree(ml_peer);
+
+	return 0;
+}
+
+int ath12k_peer_mlo_link_peers_delete(struct ath12k_vif *ahvif, struct ath12k_sta *ahsta)
+{
+	struct ieee80211_sta *sta = ath12k_ahsta_to_sta(ahsta);
+	struct ath12k_hw *ah = ahvif->ah;
+	struct ath12k_link_vif *arvif;
+	struct ath12k_link_sta *arsta;
+	unsigned long links;
+	struct ath12k *ar;
+	int ret, err_ret = 0;
+	u8 link_id;
+
+	lockdep_assert_wiphy(ah->hw->wiphy);
+
+	if (!sta->mlo)
+		return -EINVAL;
+
+	/* FW expects delete of all link peers at once before waiting for reception
+	 * of peer unmap or delete responses
+	 */
+	links = ahsta->links_map;
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = wiphy_dereference(ah->hw->wiphy, ahvif->link[link_id]);
+		arsta = wiphy_dereference(ah->hw->wiphy, ahsta->link[link_id]);
+		if (!arvif || !arsta)
+			continue;
+
+		ar = arvif->ar;
+		if (!ar)
+			continue;
+
+		ath12k_dp_peer_cleanup(ar, arvif->vdev_id, arsta->addr);
+
+		ret = ath12k_peer_delete_send(ar, arvif->vdev_id, arsta->addr);
+		if (ret) {
+			ath12k_warn(ar->ab,
+				    "failed to delete peer vdev_id %d addr %pM ret %d\n",
+				    arvif->vdev_id, arsta->addr, ret);
+			err_ret = ret;
+			continue;
+		}
+	}
+
+	/* Ensure all link peers are deleted and unmapped */
+	links = ahsta->links_map;
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		arvif = wiphy_dereference(ah->hw->wiphy, ahvif->link[link_id]);
+		arsta = wiphy_dereference(ah->hw->wiphy, ahsta->link[link_id]);
+		if (!arvif || !arsta)
+			continue;
+
+		ar = arvif->ar;
+		if (!ar)
+			continue;
+
+		ret = ath12k_wait_for_peer_delete_done(ar, arvif->vdev_id, arsta->addr);
+		if (ret) {
+			err_ret = ret;
+			continue;
+		}
+		ar->num_peers--;
+	}
+
+	return err_ret;
 }

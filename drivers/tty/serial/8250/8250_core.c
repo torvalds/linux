@@ -675,7 +675,6 @@ static void serial_8250_overrun_backoff_work(struct work_struct *work)
 
 	uart_port_lock_irqsave(port, &flags);
 	up->ier |= UART_IER_RLSI | UART_IER_RDI;
-	up->port.read_status_mask |= UART_LSR_DR;
 	serial_out(up, UART_IER, up->ier);
 	uart_port_unlock_irqrestore(port, flags);
 }

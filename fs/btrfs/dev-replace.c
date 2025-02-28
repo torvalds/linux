@@ -440,9 +440,6 @@ int btrfs_run_dev_replace(struct btrfs_trans_handle *trans)
 		dev_replace->cursor_right);
 	dev_replace->item_needs_writeback = 0;
 	up_write(&dev_replace->rwsem);
-
-	btrfs_mark_buffer_dirty(trans, eb);
-
 out:
 	btrfs_free_path(path);
 

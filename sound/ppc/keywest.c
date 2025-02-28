@@ -61,12 +61,6 @@ static int keywest_attach_adapter(struct i2c_adapter *adapter)
 		return -ENODEV;
 	}
 	
-	/*
-	 * Let i2c-core delete that device on driver removal.
-	 * This is safe because i2c-core holds the core_lock mutex for us.
-	 */
-	list_add_tail(&keywest_ctx->client->detected,
-		      &to_i2c_driver(keywest_ctx->client->dev.driver)->clients);
 	return 0;
 }
 
@@ -99,6 +93,7 @@ static struct i2c_driver keywest_driver = {
 void snd_pmac_keywest_cleanup(struct pmac_keywest *i2c)
 {
 	if (keywest_ctx && keywest_ctx == i2c) {
+		i2c_unregister_device(keywest_ctx->client);
 		i2c_del_driver(&keywest_driver);
 		keywest_ctx = NULL;
 	}

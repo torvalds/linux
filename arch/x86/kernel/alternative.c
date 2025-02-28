@@ -1854,10 +1854,17 @@ static inline temp_mm_state_t use_temporary_mm(struct mm_struct *mm)
 	return temp_state;
 }
 
+__ro_after_init struct mm_struct *poking_mm;
+__ro_after_init unsigned long poking_addr;
+
 static inline void unuse_temporary_mm(temp_mm_state_t prev_state)
 {
 	lockdep_assert_irqs_disabled();
+
 	switch_mm_irqs_off(NULL, prev_state.mm, current);
+
+	/* Clear the cpumask, to indicate no TLB flushing is needed anywhere */
+	cpumask_clear_cpu(raw_smp_processor_id(), mm_cpumask(poking_mm));
 
 	/*
 	 * Restore the breakpoints if they were disabled before the temporary mm
@@ -1866,9 +1873,6 @@ static inline void unuse_temporary_mm(temp_mm_state_t prev_state)
 	if (hw_breakpoint_active())
 		hw_breakpoint_restore();
 }
-
-__ro_after_init struct mm_struct *poking_mm;
-__ro_after_init unsigned long poking_addr;
 
 static void text_poke_memcpy(void *dst, const void *src, size_t len)
 {

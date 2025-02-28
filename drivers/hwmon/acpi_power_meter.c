@@ -84,6 +84,7 @@ struct acpi_power_meter_resource {
 	u64		power;
 	u64		cap;
 	u64		avg_interval;
+	bool		power_alarm;
 	int			sensors_valid;
 	unsigned long		sensors_last_updated;
 	struct sensor_device_attribute	sensors[NUM_SENSORS];
@@ -292,8 +293,8 @@ static ssize_t set_trip(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_power_meter_resource *resource = acpi_dev->driver_data;
+	unsigned long temp, trip_bk;
 	int res;
-	unsigned long temp;
 
 	res = kstrtoul(buf, 10, &temp);
 	if (res)
@@ -301,13 +302,15 @@ static ssize_t set_trip(struct device *dev, struct device_attribute *devattr,
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000);
 
-	mutex_lock(&resource->lock);
+	guard(mutex)(&resource->lock);
+
+	trip_bk = resource->trip[attr->index - 7];
 	resource->trip[attr->index - 7] = temp;
 	res = set_acpi_trip(resource);
-	mutex_unlock(&resource->lock);
-
-	if (res)
+	if (res) {
+		resource->trip[attr->index - 7] = trip_bk;
 		return res;
+	}
 
 	return count;
 }
@@ -396,6 +399,9 @@ static ssize_t show_val(struct device *dev,
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_power_meter_resource *resource = acpi_dev->driver_data;
 	u64 val = 0;
+	int ret;
+
+	guard(mutex)(&resource->lock);
 
 	switch (attr->index) {
 	case 0:
@@ -423,10 +429,17 @@ static ssize_t show_val(struct device *dev,
 			val = 0;
 		break;
 	case 6:
-		if (resource->power > resource->cap)
-			val = 1;
-		else
-			val = 0;
+		ret = update_meter(resource);
+		if (ret)
+			return ret;
+		/* need to update cap if not to support the notification. */
+		if (!(resource->caps.flags & POWER_METER_CAN_NOTIFY)) {
+			ret = update_cap(resource);
+			if (ret)
+				return ret;
+		}
+		val = resource->power_alarm || resource->power > resource->cap;
+		resource->power_alarm = resource->power > resource->cap;
 		break;
 	case 7:
 	case 8:
@@ -847,12 +860,20 @@ static void acpi_power_meter_notify(struct acpi_device *device, u32 event)
 		sysfs_notify(&device->dev.kobj, NULL, POWER_AVERAGE_NAME);
 		break;
 	case METER_NOTIFY_CAP:
+		mutex_lock(&resource->lock);
+		res = update_cap(resource);
+		if (res)
+			dev_err_once(&device->dev, "update cap failed when capping value is changed.\n");
+		mutex_unlock(&resource->lock);
 		sysfs_notify(&device->dev.kobj, NULL, POWER_CAP_NAME);
 		break;
 	case METER_NOTIFY_INTERVAL:
 		sysfs_notify(&device->dev.kobj, NULL, POWER_AVG_INTERVAL_NAME);
 		break;
 	case METER_NOTIFY_CAPPING:
+		mutex_lock(&resource->lock);
+		resource->power_alarm = true;
+		mutex_unlock(&resource->lock);
 		sysfs_notify(&device->dev.kobj, NULL, POWER_ALARM_NAME);
 		dev_info(&device->dev, "Capping in progress.\n");
 		break;

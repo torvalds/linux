@@ -159,7 +159,7 @@ static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
 					      unsigned level,
 					      unsigned flags)
 {
-	bch2_trans_verify_not_unlocked(trans);
+	bch2_trans_verify_not_unlocked_or_in_restart(trans);
 
 	return  bch2_foreground_maybe_merge_sibling(trans, path, level, flags,
 						    btree_prev_sib) ?:
@@ -278,12 +278,12 @@ static inline struct btree_node_entry *want_new_bset(struct bch_fs *c, struct bt
 {
 	struct bset_tree *t = bset_tree_last(b);
 	struct btree_node_entry *bne = max(write_block(b),
-			(void *) btree_bkey_last(b, bset_tree_last(b)));
+			(void *) btree_bkey_last(b, t));
 	ssize_t remaining_space =
 		__bch2_btree_u64s_remaining(b, bne->keys.start);
 
 	if (unlikely(bset_written(b, bset(b, t)))) {
-		if (remaining_space > (ssize_t) (block_bytes(c) >> 3))
+		if (b->written + block_sectors(c) <= btree_sectors(c))
 			return bne;
 	} else {
 		if (unlikely(bset_u64s(t) * sizeof(u64) > btree_write_set_buffer(b)) &&
@@ -334,6 +334,7 @@ void bch2_journal_entry_to_btree_root(struct bch_fs *, struct jset_entry *);
 struct jset_entry *bch2_btree_roots_to_journal_entries(struct bch_fs *,
 					struct jset_entry *, unsigned long);
 
+void bch2_async_btree_node_rewrites_flush(struct bch_fs *);
 void bch2_do_pending_node_rewrites(struct bch_fs *);
 void bch2_free_pending_node_rewrites(struct bch_fs *);
 

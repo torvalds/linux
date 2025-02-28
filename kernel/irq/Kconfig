@@ -141,6 +141,12 @@ config GENERIC_IRQ_DEBUGFS
 
 	  If you don't know what to do here, say N.
 
+# Clear forwarded VM interrupts during kexec.
+# This option ensures the kernel clears active states for interrupts
+# forwarded to virtual machines (VMs) during a machine kexec.
+config GENERIC_IRQ_KEXEC_CLEAR_VM_FORWARD
+	bool
+
 endmenu
 
 config GENERIC_IRQ_MULTI_HANDLER

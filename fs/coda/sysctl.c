@@ -14,7 +14,7 @@
 
 static struct ctl_table_header *fs_table_header;
 
-static struct ctl_table coda_table[] = {
+static const struct ctl_table coda_table[] = {
 	{
 		.procname	= "timeout",
 		.data		= &coda_timeout,

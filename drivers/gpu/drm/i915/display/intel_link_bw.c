@@ -221,7 +221,7 @@ assert_link_limit_change_valid(struct intel_display *display,
  * limits in @new_limits if there is a BW limitation.
  *
  * Returns:
- *   - 0 if the confugration is valid
+ *   - 0 if the configuration is valid
  *   - %-EAGAIN, if the configuration is invalid and @new_limits got updated
  *     with fallback values with which the configuration of all CRTCs
  *     in @state must be recomputed

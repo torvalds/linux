@@ -13,7 +13,7 @@ static struct ctl_table_header *fuse_table_header;
 /* Bound by fuse_init_out max_pages, which is a u16 */
 static unsigned int sysctl_fuse_max_pages_limit = 65535;
 
-static struct ctl_table fuse_sysctl_table[] = {
+static const struct ctl_table fuse_sysctl_table[] = {
 	{
 		.procname	= "max_pages_limit",
 		.data		= &fuse_max_pages_limit,

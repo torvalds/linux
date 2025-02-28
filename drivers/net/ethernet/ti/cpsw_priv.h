@@ -497,7 +497,6 @@ int cpsw_get_link_ksettings(struct net_device *ndev,
 int cpsw_set_link_ksettings(struct net_device *ndev,
 			    const struct ethtool_link_ksettings *ecmd);
 int cpsw_get_eee(struct net_device *ndev, struct ethtool_keee *edata);
-int cpsw_set_eee(struct net_device *ndev, struct ethtool_keee *edata);
 int cpsw_nway_reset(struct net_device *ndev);
 void cpsw_get_ringparam(struct net_device *ndev,
 			struct ethtool_ringparam *ering,

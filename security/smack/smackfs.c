@@ -562,6 +562,7 @@ static void smk_seq_stop(struct seq_file *s, void *v)
 
 static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 {
+	char acc[SMK_NUM_ACCESS_TYPE + 1];
 	/*
 	 * Don't show any rules with label names too long for
 	 * interface file (/smack/load or /smack/load2)
@@ -575,28 +576,11 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 	if (srp->smk_access == 0)
 		return;
 
-	seq_printf(s, "%s %s",
+	smack_str_from_perm(acc, srp->smk_access);
+	seq_printf(s, "%s %s %s\n",
 		   srp->smk_subject->smk_known,
-		   srp->smk_object->smk_known);
-
-	seq_putc(s, ' ');
-
-	if (srp->smk_access & MAY_READ)
-		seq_putc(s, 'r');
-	if (srp->smk_access & MAY_WRITE)
-		seq_putc(s, 'w');
-	if (srp->smk_access & MAY_EXEC)
-		seq_putc(s, 'x');
-	if (srp->smk_access & MAY_APPEND)
-		seq_putc(s, 'a');
-	if (srp->smk_access & MAY_TRANSMUTE)
-		seq_putc(s, 't');
-	if (srp->smk_access & MAY_LOCK)
-		seq_putc(s, 'l');
-	if (srp->smk_access & MAY_BRINGUP)
-		seq_putc(s, 'b');
-
-	seq_putc(s, '\n');
+		   srp->smk_object->smk_known,
+		   acc);
 }
 
 /*

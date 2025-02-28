@@ -54,64 +54,23 @@ static struct attribute *scf_pmu_event_attrs[] = {
 	ARM_CSPMU_EVENT_ATTR(scf_cache_wb,			0xF3),
 
 	NV_CSPMU_EVENT_ATTR_4(socket, rd_data,			0x101),
-	NV_CSPMU_EVENT_ATTR_4(socket, dl_rsp,			0x105),
 	NV_CSPMU_EVENT_ATTR_4(socket, wb_data,			0x109),
-	NV_CSPMU_EVENT_ATTR_4(socket, ev_rsp,			0x10d),
-	NV_CSPMU_EVENT_ATTR_4(socket, prb_data,			0x111),
 
 	NV_CSPMU_EVENT_ATTR_4(socket, rd_outstanding,		0x115),
-	NV_CSPMU_EVENT_ATTR_4(socket, dl_outstanding,		0x119),
-	NV_CSPMU_EVENT_ATTR_4(socket, wb_outstanding,		0x11d),
-	NV_CSPMU_EVENT_ATTR_4(socket, wr_outstanding,		0x121),
-	NV_CSPMU_EVENT_ATTR_4(socket, ev_outstanding,		0x125),
-	NV_CSPMU_EVENT_ATTR_4(socket, prb_outstanding,		0x129),
 
 	NV_CSPMU_EVENT_ATTR_4(socket, rd_access,		0x12d),
-	NV_CSPMU_EVENT_ATTR_4(socket, dl_access,		0x131),
 	NV_CSPMU_EVENT_ATTR_4(socket, wb_access,		0x135),
 	NV_CSPMU_EVENT_ATTR_4(socket, wr_access,		0x139),
-	NV_CSPMU_EVENT_ATTR_4(socket, ev_access,		0x13d),
-	NV_CSPMU_EVENT_ATTR_4(socket, prb_access,		0x141),
-
-	NV_CSPMU_EVENT_ATTR_4(ocu, gmem_rd_data,		0x145),
-	NV_CSPMU_EVENT_ATTR_4(ocu, gmem_rd_access,		0x149),
-	NV_CSPMU_EVENT_ATTR_4(ocu, gmem_wb_access,		0x14d),
-	NV_CSPMU_EVENT_ATTR_4(ocu, gmem_rd_outstanding,		0x151),
-	NV_CSPMU_EVENT_ATTR_4(ocu, gmem_wr_outstanding,		0x155),
-
-	NV_CSPMU_EVENT_ATTR_4(ocu, rem_rd_data,			0x159),
-	NV_CSPMU_EVENT_ATTR_4(ocu, rem_rd_access,		0x15d),
-	NV_CSPMU_EVENT_ATTR_4(ocu, rem_wb_access,		0x161),
-	NV_CSPMU_EVENT_ATTR_4(ocu, rem_rd_outstanding,		0x165),
-	NV_CSPMU_EVENT_ATTR_4(ocu, rem_wr_outstanding,		0x169),
 
 	ARM_CSPMU_EVENT_ATTR(gmem_rd_data,			0x16d),
 	ARM_CSPMU_EVENT_ATTR(gmem_rd_access,			0x16e),
 	ARM_CSPMU_EVENT_ATTR(gmem_rd_outstanding,		0x16f),
-	ARM_CSPMU_EVENT_ATTR(gmem_dl_rsp,			0x170),
-	ARM_CSPMU_EVENT_ATTR(gmem_dl_access,			0x171),
-	ARM_CSPMU_EVENT_ATTR(gmem_dl_outstanding,		0x172),
 	ARM_CSPMU_EVENT_ATTR(gmem_wb_data,			0x173),
 	ARM_CSPMU_EVENT_ATTR(gmem_wb_access,			0x174),
-	ARM_CSPMU_EVENT_ATTR(gmem_wb_outstanding,		0x175),
-	ARM_CSPMU_EVENT_ATTR(gmem_ev_rsp,			0x176),
-	ARM_CSPMU_EVENT_ATTR(gmem_ev_access,			0x177),
-	ARM_CSPMU_EVENT_ATTR(gmem_ev_outstanding,		0x178),
 	ARM_CSPMU_EVENT_ATTR(gmem_wr_data,			0x179),
-	ARM_CSPMU_EVENT_ATTR(gmem_wr_outstanding,		0x17a),
 	ARM_CSPMU_EVENT_ATTR(gmem_wr_access,			0x17b),
 
 	NV_CSPMU_EVENT_ATTR_4(socket, wr_data,			0x17c),
-
-	NV_CSPMU_EVENT_ATTR_4(ocu, gmem_wr_data,		0x180),
-	NV_CSPMU_EVENT_ATTR_4(ocu, gmem_wb_data,		0x184),
-	NV_CSPMU_EVENT_ATTR_4(ocu, gmem_wr_access,		0x188),
-	NV_CSPMU_EVENT_ATTR_4(ocu, gmem_wb_outstanding,		0x18c),
-
-	NV_CSPMU_EVENT_ATTR_4(ocu, rem_wr_data,			0x190),
-	NV_CSPMU_EVENT_ATTR_4(ocu, rem_wb_data,			0x194),
-	NV_CSPMU_EVENT_ATTR_4(ocu, rem_wr_access,		0x198),
-	NV_CSPMU_EVENT_ATTR_4(ocu, rem_wb_outstanding,		0x19c),
 
 	ARM_CSPMU_EVENT_ATTR(gmem_wr_total_bytes,		0x1a0),
 	ARM_CSPMU_EVENT_ATTR(remote_socket_wr_total_bytes,	0x1a1),
@@ -122,34 +81,11 @@ static struct attribute *scf_pmu_event_attrs[] = {
 	ARM_CSPMU_EVENT_ATTR(cmem_rd_data,			0x1a5),
 	ARM_CSPMU_EVENT_ATTR(cmem_rd_access,			0x1a6),
 	ARM_CSPMU_EVENT_ATTR(cmem_rd_outstanding,		0x1a7),
-	ARM_CSPMU_EVENT_ATTR(cmem_dl_rsp,			0x1a8),
-	ARM_CSPMU_EVENT_ATTR(cmem_dl_access,			0x1a9),
-	ARM_CSPMU_EVENT_ATTR(cmem_dl_outstanding,		0x1aa),
 	ARM_CSPMU_EVENT_ATTR(cmem_wb_data,			0x1ab),
 	ARM_CSPMU_EVENT_ATTR(cmem_wb_access,			0x1ac),
-	ARM_CSPMU_EVENT_ATTR(cmem_wb_outstanding,		0x1ad),
-	ARM_CSPMU_EVENT_ATTR(cmem_ev_rsp,			0x1ae),
-	ARM_CSPMU_EVENT_ATTR(cmem_ev_access,			0x1af),
-	ARM_CSPMU_EVENT_ATTR(cmem_ev_outstanding,		0x1b0),
 	ARM_CSPMU_EVENT_ATTR(cmem_wr_data,			0x1b1),
-	ARM_CSPMU_EVENT_ATTR(cmem_wr_outstanding,		0x1b2),
-
-	NV_CSPMU_EVENT_ATTR_4(ocu, cmem_rd_data,		0x1b3),
-	NV_CSPMU_EVENT_ATTR_4(ocu, cmem_rd_access,		0x1b7),
-	NV_CSPMU_EVENT_ATTR_4(ocu, cmem_wb_access,		0x1bb),
-	NV_CSPMU_EVENT_ATTR_4(ocu, cmem_rd_outstanding,		0x1bf),
-	NV_CSPMU_EVENT_ATTR_4(ocu, cmem_wr_outstanding,		0x1c3),
-
-	ARM_CSPMU_EVENT_ATTR(ocu_prb_access,			0x1c7),
-	ARM_CSPMU_EVENT_ATTR(ocu_prb_data,			0x1c8),
-	ARM_CSPMU_EVENT_ATTR(ocu_prb_outstanding,		0x1c9),
 
 	ARM_CSPMU_EVENT_ATTR(cmem_wr_access,			0x1ca),
-
-	NV_CSPMU_EVENT_ATTR_4(ocu, cmem_wr_access,		0x1cb),
-	NV_CSPMU_EVENT_ATTR_4(ocu, cmem_wb_data,		0x1cf),
-	NV_CSPMU_EVENT_ATTR_4(ocu, cmem_wr_data,		0x1d3),
-	NV_CSPMU_EVENT_ATTR_4(ocu, cmem_wb_outstanding,		0x1d7),
 
 	ARM_CSPMU_EVENT_ATTR(cmem_wr_total_bytes,		0x1db),
 
@@ -194,6 +130,7 @@ static struct attribute *pcie_pmu_format_attrs[] = {
 
 static struct attribute *nvlink_c2c_pmu_format_attrs[] = {
 	ARM_CSPMU_FORMAT_EVENT_ATTR,
+	ARM_CSPMU_FORMAT_ATTR(port, "config1:0-1"),
 	NULL,
 };
 
@@ -238,10 +175,12 @@ static u32 nv_cspmu_event_filter(const struct perf_event *event)
 	const struct nv_cspmu_ctx *ctx =
 		to_nv_cspmu_ctx(to_arm_cspmu(event->pmu));
 
-	if (ctx->filter_mask == 0)
+	const u32 filter_val = event->attr.config1 & ctx->filter_mask;
+
+	if (filter_val == 0)
 		return ctx->filter_default_val;
 
-	return event->attr.config1 & ctx->filter_mask;
+	return filter_val;
 }
 
 enum nv_cspmu_name_fmt {
@@ -274,7 +213,7 @@ static const struct nv_cspmu_match nv_cspmu_match[] = {
 	{
 	  .prodid = 0x104,
 	  .prodid_mask = NV_PRODID_MASK,
-	  .filter_mask = 0x0,
+	  .filter_mask = NV_NVL_C2C_FILTER_ID_MASK,
 	  .filter_default_val = NV_NVL_C2C_FILTER_ID_MASK,
 	  .name_pattern = "nvidia_nvlink_c2c1_pmu_%u",
 	  .name_fmt = NAME_FMT_SOCKET,
@@ -284,7 +223,7 @@ static const struct nv_cspmu_match nv_cspmu_match[] = {
 	{
 	  .prodid = 0x105,
 	  .prodid_mask = NV_PRODID_MASK,
-	  .filter_mask = 0x0,
+	  .filter_mask = NV_NVL_C2C_FILTER_ID_MASK,
 	  .filter_default_val = NV_NVL_C2C_FILTER_ID_MASK,
 	  .name_pattern = "nvidia_nvlink_c2c0_pmu_%u",
 	  .name_fmt = NAME_FMT_SOCKET,

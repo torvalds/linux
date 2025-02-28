@@ -134,8 +134,17 @@
 /* Timeout value to avoid infinite waiting for pwr_irq */
 #define MSM_PWR_IRQ_TIMEOUT_MS 5000
 
+/* Max load for eMMC Vdd supply */
+#define MMC_VMMC_MAX_LOAD_UA	570000
+
 /* Max load for eMMC Vdd-io supply */
 #define MMC_VQMMC_MAX_LOAD_UA	325000
+
+/* Max load for SD Vdd supply */
+#define SD_VMMC_MAX_LOAD_UA	800000
+
+/* Max load for SD Vdd-io supply */
+#define SD_VQMMC_MAX_LOAD_UA	22000
 
 #define msm_host_readl(msm_host, host, offset) \
 	msm_host->var_ops->msm_readl_relaxed(host, offset)
@@ -1403,10 +1412,47 @@ static int sdhci_msm_set_pincfg(struct sdhci_msm_host *msm_host, bool level)
 	return ret;
 }
 
-static int sdhci_msm_set_vmmc(struct mmc_host *mmc)
+static void msm_config_vmmc_regulator(struct mmc_host *mmc, bool hpm)
+{
+	int load;
+
+	if (!hpm)
+		load = 0;
+	else if (!mmc->card)
+		load = max(MMC_VMMC_MAX_LOAD_UA, SD_VMMC_MAX_LOAD_UA);
+	else if (mmc_card_mmc(mmc->card))
+		load = MMC_VMMC_MAX_LOAD_UA;
+	else if (mmc_card_sd(mmc->card))
+		load = SD_VMMC_MAX_LOAD_UA;
+	else
+		return;
+
+	regulator_set_load(mmc->supply.vmmc, load);
+}
+
+static void msm_config_vqmmc_regulator(struct mmc_host *mmc, bool hpm)
+{
+	int load;
+
+	if (!hpm)
+		load = 0;
+	else if (!mmc->card)
+		load = max(MMC_VQMMC_MAX_LOAD_UA, SD_VQMMC_MAX_LOAD_UA);
+	else if (mmc_card_sd(mmc->card))
+		load = SD_VQMMC_MAX_LOAD_UA;
+	else
+		return;
+
+	regulator_set_load(mmc->supply.vqmmc, load);
+}
+
+static int sdhci_msm_set_vmmc(struct sdhci_msm_host *msm_host,
+			      struct mmc_host *mmc, bool hpm)
 {
 	if (IS_ERR(mmc->supply.vmmc))
 		return 0;
+
+	msm_config_vmmc_regulator(mmc, hpm);
 
 	return mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, mmc->ios.vdd);
 }
@@ -1419,6 +1465,8 @@ static int msm_toggle_vqmmc(struct sdhci_msm_host *msm_host,
 
 	if (msm_host->vqmmc_enabled == level)
 		return 0;
+
+	msm_config_vqmmc_regulator(mmc, level);
 
 	if (level) {
 		/* Set the IO voltage regulator to default voltage level */
@@ -1642,7 +1690,8 @@ static void sdhci_msm_handle_pwr_irq(struct sdhci_host *host, int irq)
 	}
 
 	if (pwr_state) {
-		ret = sdhci_msm_set_vmmc(mmc);
+		ret = sdhci_msm_set_vmmc(msm_host, mmc,
+					 pwr_state & REQ_BUS_ON);
 		if (!ret)
 			ret = sdhci_msm_set_vqmmc(msm_host, mmc,
 					pwr_state & REQ_BUS_ON);
@@ -1807,12 +1856,19 @@ out:
 
 #ifdef CONFIG_MMC_CRYPTO
 
+static const struct blk_crypto_ll_ops sdhci_msm_crypto_ops; /* forward decl */
+
 static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 			      struct cqhci_host *cq_host)
 {
 	struct mmc_host *mmc = msm_host->mmc;
+	struct blk_crypto_profile *profile = &mmc->crypto_profile;
 	struct device *dev = mmc_dev(mmc);
 	struct qcom_ice *ice;
+	union cqhci_crypto_capabilities caps;
+	union cqhci_crypto_cap_entry cap;
+	int err;
+	int i;
 
 	if (!(cqhci_readl(cq_host, CQHCI_CAP) & CQHCI_CAP_CS))
 		return 0;
@@ -1827,8 +1883,37 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 		return PTR_ERR_OR_ZERO(ice);
 
 	msm_host->ice = ice;
-	mmc->caps2 |= MMC_CAP2_CRYPTO;
 
+	/* Initialize the blk_crypto_profile */
+
+	caps.reg_val = cpu_to_le32(cqhci_readl(cq_host, CQHCI_CCAP));
+
+	/* The number of keyslots supported is (CFGC+1) */
+	err = devm_blk_crypto_profile_init(dev, profile, caps.config_count + 1);
+	if (err)
+		return err;
+
+	profile->ll_ops = sdhci_msm_crypto_ops;
+	profile->max_dun_bytes_supported = 4;
+	profile->dev = dev;
+
+	/*
+	 * Currently this driver only supports AES-256-XTS.  All known versions
+	 * of ICE support it, but to be safe make sure it is really declared in
+	 * the crypto capability registers.  The crypto capability registers
+	 * also give the supported data unit size(s).
+	 */
+	for (i = 0; i < caps.num_crypto_cap; i++) {
+		cap.reg_val = cpu_to_le32(cqhci_readl(cq_host,
+						      CQHCI_CRYPTOCAP +
+						      i * sizeof(__le32)));
+		if (cap.algorithm_id == CQHCI_CRYPTO_ALG_AES_XTS &&
+		    cap.key_size == CQHCI_CRYPTO_KEY_SIZE_256)
+			profile->modes_supported[BLK_ENCRYPTION_MODE_AES_256_XTS] |=
+				cap.sdus_mask * 512;
+	}
+
+	mmc->caps2 |= MMC_CAP2_CRYPTO;
 	return 0;
 }
 
@@ -1854,34 +1939,54 @@ static __maybe_unused int sdhci_msm_ice_suspend(struct sdhci_msm_host *msm_host)
 	return 0;
 }
 
-/*
- * Program a key into a QC ICE keyslot, or evict a keyslot.  QC ICE requires
- * vendor-specific SCM calls for this; it doesn't support the standard way.
- */
-static int sdhci_msm_program_key(struct cqhci_host *cq_host,
-				 const union cqhci_crypto_cfg_entry *cfg,
-				 int slot)
+static inline struct sdhci_msm_host *
+sdhci_msm_host_from_crypto_profile(struct blk_crypto_profile *profile)
 {
-	struct sdhci_host *host = mmc_priv(cq_host->mmc);
+	struct mmc_host *mmc = mmc_from_crypto_profile(profile);
+	struct sdhci_host *host = mmc_priv(mmc);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
-	union cqhci_crypto_cap_entry cap;
 
-	if (!(cfg->config_enable & CQHCI_CRYPTO_CONFIGURATION_ENABLE))
-		return qcom_ice_evict_key(msm_host->ice, slot);
+	return msm_host;
+}
+
+/*
+ * Program a key into a QC ICE keyslot.  QC ICE requires a QC-specific SCM call
+ * for this; it doesn't support the standard way.
+ */
+static int sdhci_msm_ice_keyslot_program(struct blk_crypto_profile *profile,
+					 const struct blk_crypto_key *key,
+					 unsigned int slot)
+{
+	struct sdhci_msm_host *msm_host =
+		sdhci_msm_host_from_crypto_profile(profile);
 
 	/* Only AES-256-XTS has been tested so far. */
-	cap = cq_host->crypto_cap_array[cfg->crypto_cap_idx];
-	if (cap.algorithm_id != CQHCI_CRYPTO_ALG_AES_XTS ||
-		cap.key_size != CQHCI_CRYPTO_KEY_SIZE_256)
-		return -EINVAL;
+	if (key->crypto_cfg.crypto_mode != BLK_ENCRYPTION_MODE_AES_256_XTS)
+		return -EOPNOTSUPP;
 
 	return qcom_ice_program_key(msm_host->ice,
 				    QCOM_ICE_CRYPTO_ALG_AES_XTS,
 				    QCOM_ICE_CRYPTO_KEY_SIZE_256,
-				    cfg->crypto_key,
-				    cfg->data_unit_size, slot);
+				    key->raw,
+				    key->crypto_cfg.data_unit_size / 512,
+				    slot);
 }
+
+static int sdhci_msm_ice_keyslot_evict(struct blk_crypto_profile *profile,
+				       const struct blk_crypto_key *key,
+				       unsigned int slot)
+{
+	struct sdhci_msm_host *msm_host =
+		sdhci_msm_host_from_crypto_profile(profile);
+
+	return qcom_ice_evict_key(msm_host->ice, slot);
+}
+
+static const struct blk_crypto_ll_ops sdhci_msm_crypto_ops = {
+	.keyslot_program	= sdhci_msm_ice_keyslot_program,
+	.keyslot_evict		= sdhci_msm_ice_keyslot_evict,
+};
 
 #else /* CONFIG_MMC_CRYPTO */
 
@@ -1988,7 +2093,7 @@ static const struct cqhci_host_ops sdhci_msm_cqhci_ops = {
 	.enable		= sdhci_msm_cqe_enable,
 	.disable	= sdhci_msm_cqe_disable,
 #ifdef CONFIG_MMC_CRYPTO
-	.program_key	= sdhci_msm_program_key,
+	.uses_custom_crypto_profile = true,
 #endif
 };
 

@@ -16,6 +16,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/ethtool.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
@@ -35,6 +36,8 @@
 #define NSIM_IPSEC_MAX_SA_COUNT		33
 #define NSIM_IPSEC_VALID		BIT(31)
 #define NSIM_UDP_TUNNEL_N_PORTS		4
+
+#define NSIM_HDS_THRESHOLD_MAX		1024
 
 struct nsim_sa {
 	struct xfrm_state *xs;
@@ -101,7 +104,9 @@ struct netdevsim {
 	struct nsim_dev *nsim_dev;
 	struct nsim_dev_port *nsim_dev_port;
 	struct mock_phc *phc;
-	struct nsim_rq *rq;
+	struct nsim_rq **rq;
+
+	int rq_reset_mode;
 
 	u64 tx_packets;
 	u64 tx_bytes;
@@ -129,11 +134,13 @@ struct netdevsim {
 		u32 sleep;
 		u32 __ports[2][NSIM_UDP_TUNNEL_N_PORTS];
 		u32 (*ports)[NSIM_UDP_TUNNEL_N_PORTS];
+		struct dentry *ddir;
 		struct debugfs_u32_array dfs_ports[2];
 	} udp_ports;
 
 	struct page *page;
 	struct dentry *pp_dfs;
+	struct dentry *qr_dfs;
 
 	struct nsim_ethtool ethtool;
 	struct netdevsim __rcu *peer;

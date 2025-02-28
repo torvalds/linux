@@ -32,6 +32,7 @@ struct mptcp_pernet {
 	unsigned int close_timeout;
 	unsigned int stale_loss_cnt;
 	atomic_t active_disable_times;
+	u8 syn_retrans_before_tcp_fallback;
 	unsigned long active_disable_stamp;
 	u8 mptcp_enabled;
 	u8 checksum_enabled;
@@ -92,6 +93,7 @@ static void mptcp_pernet_set_defaults(struct mptcp_pernet *pernet)
 	pernet->mptcp_enabled = 1;
 	pernet->add_addr_timeout = TCP_RTO_MAX;
 	pernet->blackhole_timeout = 3600;
+	pernet->syn_retrans_before_tcp_fallback = 2;
 	atomic_set(&pernet->active_disable_times, 0);
 	pernet->close_timeout = TCP_TIMEWAIT_LEN;
 	pernet->checksum_enabled = 0;
@@ -245,6 +247,12 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.proc_handler = proc_blackhole_detect_timeout,
 		.extra1 = SYSCTL_ZERO,
 	},
+	{
+		.procname = "syn_retrans_before_tcp_fallback",
+		.maxlen = sizeof(u8),
+		.mode = 0644,
+		.proc_handler = proc_dou8vec_minmax,
+	},
 };
 
 static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
@@ -269,6 +277,7 @@ static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
 	/* table[7] is for available_schedulers which is read-only info */
 	table[8].data = &pernet->close_timeout;
 	table[9].data = &pernet->blackhole_timeout;
+	table[10].data = &pernet->syn_retrans_before_tcp_fallback;
 
 	hdr = register_net_sysctl_sz(net, MPTCP_SYSCTL_PATH, table,
 				     ARRAY_SIZE(mptcp_sysctl_table));
@@ -392,22 +401,26 @@ void mptcp_active_enable(struct sock *sk)
 void mptcp_active_detect_blackhole(struct sock *ssk, bool expired)
 {
 	struct mptcp_subflow_context *subflow;
-	u32 timeouts;
 
 	if (!sk_is_mptcp(ssk))
 		return;
 
-	timeouts = inet_csk(ssk)->icsk_retransmits;
 	subflow = mptcp_subflow_ctx(ssk);
 
 	if (subflow->request_mptcp && ssk->sk_state == TCP_SYN_SENT) {
-		if (timeouts == 2 || (timeouts < 2 && expired)) {
-			MPTCP_INC_STATS(sock_net(ssk), MPTCP_MIB_MPCAPABLEACTIVEDROP);
+		struct net *net = sock_net(ssk);
+		u8 timeouts, to_max;
+
+		timeouts = inet_csk(ssk)->icsk_retransmits;
+		to_max = mptcp_get_pernet(net)->syn_retrans_before_tcp_fallback;
+
+		if (timeouts == to_max || (timeouts < to_max && expired)) {
+			MPTCP_INC_STATS(net, MPTCP_MIB_MPCAPABLEACTIVEDROP);
 			subflow->mpc_drop = 1;
 			mptcp_subflow_early_fallback(mptcp_sk(subflow->conn), subflow);
-		} else {
-			subflow->mpc_drop = 0;
 		}
+	} else if (ssk->sk_state == TCP_SYN_SENT) {
+		subflow->mpc_drop = 0;
 	}
 }
 

@@ -326,7 +326,7 @@ static int pm860x_rtc_probe(struct platform_device *pdev)
 	schedule_delayed_work(&info->calib_work, VRTC_CALIB_INTERVAL);
 #endif	/* VRTC_CALIBRATION */
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	return 0;
 }

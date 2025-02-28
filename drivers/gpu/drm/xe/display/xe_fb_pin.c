@@ -9,6 +9,7 @@
 #include "intel_dpt.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
+#include "intel_fbdev.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_ggtt.h"
@@ -287,6 +288,7 @@ static struct i915_vma *__xe_pin_fb_vma(const struct intel_framebuffer *fb,
 	if (!vma)
 		return ERR_PTR(-ENODEV);
 
+	refcount_set(&vma->ref, 1);
 	if (IS_DGFX(to_xe_device(bo->ttm.base.dev)) &&
 	    intel_fb_rc_ccs_cc_plane(&fb->base) >= 0 &&
 	    !(bo->flags & XE_BO_FLAG_NEEDS_CPU_ACCESS)) {
@@ -347,6 +349,9 @@ static void __xe_unpin_fb_vma(struct i915_vma *vma)
 {
 	u8 tile_id = vma->node->ggtt->tile->id;
 
+	if (!refcount_dec_and_test(&vma->ref))
+		return;
+
 	if (vma->dpt)
 		xe_bo_unpin_map_no_vm(vma->dpt);
 	else if (!xe_ggtt_node_allocated(vma->bo->ggtt_node[tile_id]) ||
@@ -364,6 +369,7 @@ intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
 		     const struct i915_gtt_view *view,
 		     unsigned int alignment,
 		     unsigned int phys_alignment,
+		     unsigned int vtd_guard,
 		     bool uses_fence,
 		     unsigned long *out_flags)
 {
@@ -377,25 +383,58 @@ void intel_fb_unpin_vma(struct i915_vma *vma, unsigned long flags)
 	__xe_unpin_fb_vma(vma);
 }
 
-int intel_plane_pin_fb(struct intel_plane_state *plane_state)
+static bool reuse_vma(struct intel_plane_state *new_plane_state,
+		      const struct intel_plane_state *old_plane_state)
 {
-	struct drm_framebuffer *fb = plane_state->hw.fb;
+	struct intel_framebuffer *fb = to_intel_framebuffer(new_plane_state->hw.fb);
+	struct xe_device *xe = to_xe_device(fb->base.dev);
+	struct i915_vma *vma;
+
+	if (old_plane_state->hw.fb == new_plane_state->hw.fb &&
+	    !memcmp(&old_plane_state->view.gtt,
+		    &new_plane_state->view.gtt,
+		    sizeof(new_plane_state->view.gtt))) {
+		vma = old_plane_state->ggtt_vma;
+		goto found;
+	}
+
+	if (fb == intel_fbdev_framebuffer(xe->display.fbdev.fbdev)) {
+		vma = intel_fbdev_vma_pointer(xe->display.fbdev.fbdev);
+		if (vma)
+			goto found;
+	}
+
+	return false;
+
+found:
+	refcount_inc(&vma->ref);
+	new_plane_state->ggtt_vma = vma;
+	return true;
+}
+
+int intel_plane_pin_fb(struct intel_plane_state *new_plane_state,
+		       const struct intel_plane_state *old_plane_state)
+{
+	struct drm_framebuffer *fb = new_plane_state->hw.fb;
 	struct drm_gem_object *obj = intel_fb_bo(fb);
 	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct i915_vma *vma;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	struct intel_plane *plane = to_intel_plane(new_plane_state->uapi.plane);
 	u64 phys_alignment = plane->min_alignment(plane, fb, 0);
+
+	if (reuse_vma(new_plane_state, old_plane_state))
+		return 0;
 
 	/* We reject creating !SCANOUT fb's, so this is weird.. */
 	drm_WARN_ON(bo->ttm.base.dev, !(bo->flags & XE_BO_FLAG_SCANOUT));
 
-	vma = __xe_pin_fb_vma(intel_fb, &plane_state->view.gtt, phys_alignment);
+	vma = __xe_pin_fb_vma(intel_fb, &new_plane_state->view.gtt, phys_alignment);
 
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	plane_state->ggtt_vma = vma;
+	new_plane_state->ggtt_vma = vma;
 	return 0;
 }
 

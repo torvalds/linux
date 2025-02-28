@@ -486,7 +486,7 @@ static int isl28022_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id isl28022_ids[] = {
-	{ "isl28022", 0},
+	{ "isl28022" },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, isl28022_ids);
@@ -506,8 +506,7 @@ static struct i2c_driver isl28022_driver = {
 	.id_table	= isl28022_ids,
 };
 
-static int __init
-isl28022_init(void)
+static int __init isl28022_init(void)
 {
 	int err;
 
@@ -519,15 +518,13 @@ isl28022_init(void)
 	debugfs_remove_recursive(isl28022_debugfs_root);
 	return err;
 }
+module_init(isl28022_init);
 
-static void __exit
-isl28022_exit(void)
+static void __exit isl28022_exit(void)
 {
 	i2c_del_driver(&isl28022_driver);
 	debugfs_remove_recursive(isl28022_debugfs_root);
 }
-
-module_init(isl28022_init);
 module_exit(isl28022_exit);
 
 MODULE_AUTHOR("Carsten Spieß <mail@carsten-spiess.de>");

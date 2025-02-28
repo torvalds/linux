@@ -12,3 +12,8 @@ void rust_helper___mutex_init(struct mutex *mutex, const char *name,
 {
 	__mutex_init(mutex, name, key);
 }
+
+void rust_helper_mutex_assert_is_held(struct mutex *mutex)
+{
+	lockdep_assert_held(mutex);
+}

@@ -112,6 +112,25 @@
 		regulator-boot-on;
 	};
 
+	vcc_3v3_hdmi: regulator-vcc-3v3-hdmi {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3_HDMI";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_sw>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vcc_1v2_hdmi: regulator-vcc-1v2-hdmi {
+		compatible = "regulator-fixed";
+		regulator-name = "HDMI_CVCC";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vcc_3v3_mmc: regulator-vcc-3v3-mmc {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3_MMC";
@@ -367,6 +386,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmi_int_pins_default>;
 
+		iovcc-supply = <&vcc_3v3_hdmi>;
+		cvcc12-supply = <&vcc_1v2_hdmi>;
+
 		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -376,6 +398,7 @@
 
 				sii9022_in: endpoint {
 					remote-endpoint = <&dpi1_out>;
+					bus-width = <16>;
 				};
 			};
 
@@ -393,6 +416,7 @@
 		compatible = "atmel,24c02";
 		pagesize = <16>;
 		reg = <0x51>;
+		vcc-supply = <&vcc_3v3_mmc>;
 	};
 };
 

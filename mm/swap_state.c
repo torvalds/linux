@@ -317,7 +317,6 @@ void free_pages_and_swap_cache(struct encoded_page **pages, int nr)
 	struct folio_batch folios;
 	unsigned int refs[PAGEVEC_SIZE];
 
-	lru_add_drain();
 	folio_batch_init(&folios);
 	for (int i = 0; i < nr; i++) {
 		struct folio *folio = page_folio(encoded_page_ptr(pages[i]));

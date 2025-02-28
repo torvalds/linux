@@ -3562,11 +3562,11 @@ vm_area_alloc_pages(gfp_t gfp, int nid,
 			 * but mempolicy wants to alloc memory by interleaving.
 			 */
 			if (IS_ENABLED(CONFIG_NUMA) && nid == NUMA_NO_NODE)
-				nr = alloc_pages_bulk_array_mempolicy_noprof(gfp,
+				nr = alloc_pages_bulk_mempolicy_noprof(gfp,
 							nr_pages_request,
 							pages + nr_allocated);
 			else
-				nr = alloc_pages_bulk_array_node_noprof(gfp, nid,
+				nr = alloc_pages_bulk_node_noprof(gfp, nid,
 							nr_pages_request,
 							pages + nr_allocated);
 

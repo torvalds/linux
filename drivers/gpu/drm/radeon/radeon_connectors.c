@@ -806,7 +806,7 @@ static int radeon_lvds_get_modes(struct drm_connector *connector)
 }
 
 static enum drm_mode_status radeon_lvds_mode_valid(struct drm_connector *connector,
-				  struct drm_display_mode *mode)
+				  const struct drm_display_mode *mode)
 {
 	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
 
@@ -968,7 +968,7 @@ static int radeon_vga_get_modes(struct drm_connector *connector)
 }
 
 static enum drm_mode_status radeon_vga_mode_valid(struct drm_connector *connector,
-				  struct drm_display_mode *mode)
+				  const struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -1116,7 +1116,7 @@ static int radeon_tv_get_modes(struct drm_connector *connector)
 }
 
 static enum drm_mode_status radeon_tv_mode_valid(struct drm_connector *connector,
-				struct drm_display_mode *mode)
+				const struct drm_display_mode *mode)
 {
 	if ((mode->hdisplay > 1024) || (mode->vdisplay > 768))
 		return MODE_CLOCK_RANGE;
@@ -1447,7 +1447,7 @@ static void radeon_dvi_force(struct drm_connector *connector)
 }
 
 static enum drm_mode_status radeon_dvi_mode_valid(struct drm_connector *connector,
-				  struct drm_display_mode *mode)
+				  const struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
 	struct radeon_device *rdev = dev->dev_private;
@@ -1723,7 +1723,7 @@ out:
 }
 
 static enum drm_mode_status radeon_dp_mode_valid(struct drm_connector *connector,
-				  struct drm_display_mode *mode)
+				  const struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
 	struct radeon_device *rdev = dev->dev_private;

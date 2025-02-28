@@ -87,7 +87,7 @@ int w1_ds2780_eeprom_cmd(struct device *dev, int addr, int cmd)
 EXPORT_SYMBOL(w1_ds2780_eeprom_cmd);
 
 static ssize_t w1_slave_read(struct file *filp, struct kobject *kobj,
-			     struct bin_attribute *bin_attr, char *buf,
+			     const struct bin_attribute *bin_attr, char *buf,
 			     loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -95,15 +95,15 @@ static ssize_t w1_slave_read(struct file *filp, struct kobject *kobj,
 	return w1_ds2780_io(dev, buf, off, count, 0);
 }
 
-static BIN_ATTR_RO(w1_slave, DS2780_DATA_SIZE);
+static const BIN_ATTR_RO(w1_slave, DS2780_DATA_SIZE);
 
-static struct bin_attribute *w1_ds2780_bin_attrs[] = {
+static const struct bin_attribute *const w1_ds2780_bin_attrs[] = {
 	&bin_attr_w1_slave,
 	NULL,
 };
 
 static const struct attribute_group w1_ds2780_group = {
-	.bin_attrs = w1_ds2780_bin_attrs,
+	.bin_attrs_new = w1_ds2780_bin_attrs,
 };
 
 static const struct attribute_group *w1_ds2780_groups[] = {

@@ -13,6 +13,14 @@ Supported chips:
 
     Datasheet: https://datasheets.maximintegrated.com/en/ds/MAX15301.pdf
 
+  * Maxim MAX15303
+
+    Prefix: 'max15303'
+
+    Addresses scanned: -
+
+    Datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/max15303.pdf
+
 Author: Erik Rosen <erik.rosen@metormote.com>
 
 

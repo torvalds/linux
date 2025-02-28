@@ -74,7 +74,7 @@ static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	if (threshold < time_since_last_napi && napi_scheduled) {
 		netdev_err(dev,
 			   "napi handler hasn't been called for a long time but is scheduled\n");
-			   reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
+		reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
 	}
 schedule_reset:
 	/* Change the state of the device to trigger reset

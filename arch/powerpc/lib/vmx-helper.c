@@ -45,7 +45,7 @@ int exit_vmx_usercopy(void)
 	 * set and we are preemptible. The hack here is to schedule a
 	 * decrementer to fire here and reschedule for us if necessary.
 	 */
-	if (IS_ENABLED(CONFIG_PREEMPT) && need_resched())
+	if (IS_ENABLED(CONFIG_PREEMPTION) && need_resched())
 		set_dec(1);
 	return 0;
 }

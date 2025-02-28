@@ -46,8 +46,8 @@ ssize_t roccat_common2_sysfs_write(struct file *fp, struct kobject *kobj,
 
 #define ROCCAT_COMMON2_SYSFS_W(thingy, COMMAND, SIZE) \
 static ssize_t roccat_common2_sysfs_write_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
+		struct kobject *kobj, const struct bin_attribute *attr, \
+		char *buf, loff_t off, size_t count) \
 { \
 	return roccat_common2_sysfs_write(fp, kobj, buf, off, count, \
 			SIZE, COMMAND); \
@@ -55,8 +55,8 @@ static ssize_t roccat_common2_sysfs_write_ ## thingy(struct file *fp, \
 
 #define ROCCAT_COMMON2_SYSFS_R(thingy, COMMAND, SIZE) \
 static ssize_t roccat_common2_sysfs_read_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
+		struct kobject *kobj, const struct bin_attribute *attr, \
+		char *buf, loff_t off, size_t count) \
 { \
 	return roccat_common2_sysfs_read(fp, kobj, buf, off, count, \
 			SIZE, COMMAND); \
@@ -68,27 +68,27 @@ ROCCAT_COMMON2_SYSFS_R(thingy, COMMAND, SIZE)
 
 #define ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(thingy, COMMAND, SIZE) \
 ROCCAT_COMMON2_SYSFS_RW(thingy, COMMAND, SIZE); \
-static struct bin_attribute bin_attr_ ## thingy = { \
+static const struct bin_attribute bin_attr_ ## thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = SIZE, \
-	.read = roccat_common2_sysfs_read_ ## thingy, \
-	.write = roccat_common2_sysfs_write_ ## thingy \
+	.read_new = roccat_common2_sysfs_read_ ## thingy, \
+	.write_new = roccat_common2_sysfs_write_ ## thingy \
 }
 
 #define ROCCAT_COMMON2_BIN_ATTRIBUTE_R(thingy, COMMAND, SIZE) \
 ROCCAT_COMMON2_SYSFS_R(thingy, COMMAND, SIZE); \
-static struct bin_attribute bin_attr_ ## thingy = { \
+static const struct bin_attribute bin_attr_ ## thingy = { \
 	.attr = { .name = #thingy, .mode = 0440 }, \
 	.size = SIZE, \
-	.read = roccat_common2_sysfs_read_ ## thingy, \
+	.read_new = roccat_common2_sysfs_read_ ## thingy, \
 }
 
 #define ROCCAT_COMMON2_BIN_ATTRIBUTE_W(thingy, COMMAND, SIZE) \
 ROCCAT_COMMON2_SYSFS_W(thingy, COMMAND, SIZE); \
-static struct bin_attribute bin_attr_ ## thingy = { \
+static const struct bin_attribute bin_attr_ ## thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = SIZE, \
-	.write = roccat_common2_sysfs_write_ ## thingy \
+	.write_new = roccat_common2_sysfs_write_ ## thingy \
 }
 
 #endif

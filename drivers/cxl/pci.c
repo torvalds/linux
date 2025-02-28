@@ -907,7 +907,8 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct cxl_dev_state *cxlds;
 	struct cxl_register_map map;
 	struct cxl_memdev *cxlmd;
-	int i, rc, pmu_count;
+	int rc, pmu_count;
+	unsigned int i;
 	bool irq_avail;
 
 	/*
@@ -1009,6 +1010,9 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return rc;
 
 	pmu_count = cxl_count_regblock(pdev, CXL_REGLOC_RBI_PMU);
+	if (pmu_count < 0)
+		return pmu_count;
+
 	for (i = 0; i < pmu_count; i++) {
 		struct cxl_pmu_regs pmu_regs;
 

@@ -420,7 +420,7 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	wm_rtc->rtc = devm_rtc_device_register(&pdev->dev, "wm8350",
 					&wm8350_rtc_ops, THIS_MODULE);

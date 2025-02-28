@@ -1051,7 +1051,8 @@
 #define RTW89_PCI_TXWD_NUM_MAX		512
 #define RTW89_PCI_TXWD_PAGE_SIZE	128
 #define RTW89_PCI_ADDRINFO_MAX		4
-#define RTW89_PCI_RX_BUF_SIZE		(11454 + 40) /* +40 for rtw89_rxdesc_long_v2 */
+/* +40 for rtw89_rxdesc_long_v2; +4 for rtw89_pci_rxbd_info */
+#define RTW89_PCI_RX_BUF_SIZE		(11454 + 40 + 4)
 
 #define RTW89_PCI_POLL_BDRAM_RST_CNT	100
 #define RTW89_PCI_MULTITAG		8
@@ -1290,6 +1291,7 @@ struct rtw89_pci_gen_def {
 	void (*l1ss_set)(struct rtw89_dev *rtwdev, bool enable);
 
 	void (*disable_eq)(struct rtw89_dev *rtwdev);
+	void (*power_wake)(struct rtw89_dev *rtwdev, bool pwr_up);
 };
 
 #define RTW89_PCI_SSID(v, d, ssv, ssd, cust) \
@@ -1323,6 +1325,7 @@ struct rtw89_pci_info {
 	enum mac_ax_io_rcy_tmr io_rcy_tmr;
 	bool rx_ring_eq_is_full;
 	bool check_rx_tag;
+	bool no_rxbd_fs;
 
 	u32 init_cfg_reg;
 	u32 txhci_en_bit;
@@ -1803,6 +1806,14 @@ static inline void rtw89_pci_disable_eq(struct rtw89_dev *rtwdev)
 	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 
 	gen_def->disable_eq(rtwdev);
+}
+
+static inline void rtw89_pci_power_wake(struct rtw89_dev *rtwdev, bool pwr_up)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	gen_def->power_wake(rtwdev, pwr_up);
 }
 
 #endif

@@ -3,7 +3,6 @@
 #define __PERF_SYSCALLTBL_H
 
 struct syscalltbl {
-	int audit_machine;
 	struct {
 		int max_id;
 		int nr_entries;

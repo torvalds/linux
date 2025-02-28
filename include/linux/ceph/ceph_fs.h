@@ -504,20 +504,6 @@ struct ceph_mds_request_head_legacy {
 
 #define CEPH_MDS_REQUEST_HEAD_VERSION  3
 
-struct ceph_mds_request_head_old {
-	__le16 version;                /* struct version */
-	__le64 oldest_client_tid;
-	__le32 mdsmap_epoch;           /* on client */
-	__le32 flags;                  /* CEPH_MDS_FLAG_* */
-	__u8 num_retry, num_fwd;       /* count retry, fwd attempts */
-	__le16 num_releases;           /* # include cap/lease release records */
-	__le32 op;                     /* mds op code */
-	__le32 caller_uid, caller_gid;
-	__le64 ino;                    /* use this ino for openc, mkdir, mknod,
-					  etc. (if replaying) */
-	union ceph_mds_request_args_ext args;
-} __attribute__ ((packed));
-
 struct ceph_mds_request_head {
 	__le16 version;                /* struct version */
 	__le64 oldest_client_tid;

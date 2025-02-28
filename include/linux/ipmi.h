@@ -126,7 +126,7 @@ int ipmi_create_user(unsigned int          if_num,
  * the users before you destroy the callback structures, it should be
  * safe, too.
  */
-int ipmi_destroy_user(struct ipmi_user *user);
+void ipmi_destroy_user(struct ipmi_user *user);
 
 /* Get the IPMI version of the BMC we are talking to. */
 int ipmi_get_version(struct ipmi_user *user,

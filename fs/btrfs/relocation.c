@@ -342,12 +342,6 @@ static bool handle_useless_nodes(struct reloc_control *rc,
 		if (cur == node)
 			ret = true;
 
-		/* The node is the lowest node */
-		if (cur->lowest) {
-			list_del_init(&cur->lower);
-			cur->lowest = 0;
-		}
-
 		/* Cleanup the lower edges */
 		while (!list_empty(&cur->lower)) {
 			struct btrfs_backref_edge *edge;
@@ -373,7 +367,6 @@ static bool handle_useless_nodes(struct reloc_control *rc,
 		 * cache to avoid unnecessary backref lookup.
 		 */
 		if (cur->level > 0) {
-			list_add(&cur->list, &cache->detached);
 			cur->detached = 1;
 		} else {
 			rb_erase(&cur->rb_node, &cache->rb_root);
@@ -426,7 +419,6 @@ static noinline_for_stack struct btrfs_backref_node *build_backref_tree(
 		goto out;
 	}
 
-	node->lowest = 1;
 	cur = node;
 
 	/* Breadth-first search to build backref cache */
@@ -467,92 +459,6 @@ out:
 	ASSERT(list_empty(&cache->useless_node) &&
 	       list_empty(&cache->pending_edge));
 	return node;
-}
-
-/*
- * helper to add backref node for the newly created snapshot.
- * the backref node is created by cloning backref node that
- * corresponds to root of source tree
- */
-static int clone_backref_node(struct btrfs_trans_handle *trans,
-			      struct reloc_control *rc,
-			      const struct btrfs_root *src,
-			      struct btrfs_root *dest)
-{
-	struct btrfs_root *reloc_root = src->reloc_root;
-	struct btrfs_backref_cache *cache = &rc->backref_cache;
-	struct btrfs_backref_node *node = NULL;
-	struct btrfs_backref_node *new_node;
-	struct btrfs_backref_edge *edge;
-	struct btrfs_backref_edge *new_edge;
-	struct rb_node *rb_node;
-
-	rb_node = rb_simple_search(&cache->rb_root, src->commit_root->start);
-	if (rb_node) {
-		node = rb_entry(rb_node, struct btrfs_backref_node, rb_node);
-		if (node->detached)
-			node = NULL;
-		else
-			BUG_ON(node->new_bytenr != reloc_root->node->start);
-	}
-
-	if (!node) {
-		rb_node = rb_simple_search(&cache->rb_root,
-					   reloc_root->commit_root->start);
-		if (rb_node) {
-			node = rb_entry(rb_node, struct btrfs_backref_node,
-					rb_node);
-			BUG_ON(node->detached);
-		}
-	}
-
-	if (!node)
-		return 0;
-
-	new_node = btrfs_backref_alloc_node(cache, dest->node->start,
-					    node->level);
-	if (!new_node)
-		return -ENOMEM;
-
-	new_node->lowest = node->lowest;
-	new_node->checked = 1;
-	new_node->root = btrfs_grab_root(dest);
-	ASSERT(new_node->root);
-
-	if (!node->lowest) {
-		list_for_each_entry(edge, &node->lower, list[UPPER]) {
-			new_edge = btrfs_backref_alloc_edge(cache);
-			if (!new_edge)
-				goto fail;
-
-			btrfs_backref_link_edge(new_edge, edge->node[LOWER],
-						new_node, LINK_UPPER);
-		}
-	} else {
-		list_add_tail(&new_node->lower, &cache->leaves);
-	}
-
-	rb_node = rb_simple_insert(&cache->rb_root, new_node->bytenr,
-				   &new_node->rb_node);
-	if (rb_node)
-		btrfs_backref_panic(trans->fs_info, new_node->bytenr, -EEXIST);
-
-	if (!new_node->lowest) {
-		list_for_each_entry(new_edge, &new_node->lower, list[UPPER]) {
-			list_add_tail(&new_edge->list[LOWER],
-				      &new_edge->node[LOWER]->upper);
-		}
-	}
-	return 0;
-fail:
-	while (!list_empty(&new_node->lower)) {
-		new_edge = list_entry(new_node->lower.next,
-				      struct btrfs_backref_edge, list[UPPER]);
-		list_del(&new_edge->list[UPPER]);
-		btrfs_backref_free_edge(cache, new_edge);
-	}
-	btrfs_backref_free_node(cache, new_node);
-	return -ENOMEM;
 }
 
 /*
@@ -950,7 +856,6 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 	u32 i;
 	int ret = 0;
 	int first = 1;
-	int dirty = 0;
 
 	if (rc->stage != UPDATE_DATA_PTRS)
 		return 0;
@@ -1030,7 +935,6 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 		}
 
 		btrfs_set_file_extent_disk_bytenr(leaf, fi, new_bytenr);
-		dirty = 1;
 
 		key.offset -= btrfs_file_extent_offset(leaf, fi);
 		ref.action = BTRFS_ADD_DELAYED_REF;
@@ -1061,8 +965,6 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 			break;
 		}
 	}
-	if (dirty)
-		btrfs_mark_buffer_dirty(trans, leaf);
 	if (inode)
 		btrfs_add_delayed_iput(inode);
 	return ret;
@@ -1255,13 +1157,11 @@ again:
 		 */
 		btrfs_set_node_blockptr(parent, slot, new_bytenr);
 		btrfs_set_node_ptr_generation(parent, slot, new_ptr_gen);
-		btrfs_mark_buffer_dirty(trans, parent);
 
 		btrfs_set_node_blockptr(path->nodes[level],
 					path->slots[level], old_bytenr);
 		btrfs_set_node_ptr_generation(path->nodes[level],
 					      path->slots[level], old_ptr_gen);
-		btrfs_mark_buffer_dirty(trans, path->nodes[level]);
 
 		ref.action = BTRFS_ADD_DELAYED_REF;
 		ref.bytenr = old_bytenr;
@@ -2058,100 +1958,72 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 	int index = 0;
 	int ret;
 
-	next = node;
-	while (1) {
-		cond_resched();
-		next = walk_up_backref(next, edges, &index);
-		root = next->root;
+	next = walk_up_backref(node, edges, &index);
+	root = next->root;
 
-		/*
-		 * If there is no root, then our references for this block are
-		 * incomplete, as we should be able to walk all the way up to a
-		 * block that is owned by a root.
-		 *
-		 * This path is only for SHAREABLE roots, so if we come upon a
-		 * non-SHAREABLE root then we have backrefs that resolve
-		 * improperly.
-		 *
-		 * Both of these cases indicate file system corruption, or a bug
-		 * in the backref walking code.
-		 */
-		if (!root) {
-			ASSERT(0);
-			btrfs_err(trans->fs_info,
-		"bytenr %llu doesn't have a backref path ending in a root",
-				  node->bytenr);
-			return ERR_PTR(-EUCLEAN);
-		}
-		if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state)) {
-			ASSERT(0);
-			btrfs_err(trans->fs_info,
-	"bytenr %llu has multiple refs with one ending in a non-shareable root",
-				  node->bytenr);
-			return ERR_PTR(-EUCLEAN);
-		}
+	/*
+	 * If there is no root, then our references for this block are
+	 * incomplete, as we should be able to walk all the way up to a block
+	 * that is owned by a root.
+	 *
+	 * This path is only for SHAREABLE roots, so if we come upon a
+	 * non-SHAREABLE root then we have backrefs that resolve improperly.
+	 *
+	 * Both of these cases indicate file system corruption, or a bug in the
+	 * backref walking code.
+	 */
+	if (unlikely(!root)) {
+		btrfs_err(trans->fs_info,
+			  "bytenr %llu doesn't have a backref path ending in a root",
+			  node->bytenr);
+		return ERR_PTR(-EUCLEAN);
+	}
+	if (unlikely(!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))) {
+		btrfs_err(trans->fs_info,
+			  "bytenr %llu has multiple refs with one ending in a non-shareable root",
+			  node->bytenr);
+		return ERR_PTR(-EUCLEAN);
+	}
 
-		if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID) {
-			ret = record_reloc_root_in_trans(trans, root);
-			if (ret)
-				return ERR_PTR(ret);
-			break;
-		}
-
-		ret = btrfs_record_root_in_trans(trans, root);
+	if (btrfs_root_id(root) == BTRFS_TREE_RELOC_OBJECTID) {
+		ret = record_reloc_root_in_trans(trans, root);
 		if (ret)
 			return ERR_PTR(ret);
-		root = root->reloc_root;
-
-		/*
-		 * We could have raced with another thread which failed, so
-		 * root->reloc_root may not be set, return ENOENT in this case.
-		 */
-		if (!root)
-			return ERR_PTR(-ENOENT);
-
-		if (next->new_bytenr != root->node->start) {
-			/*
-			 * We just created the reloc root, so we shouldn't have
-			 * ->new_bytenr set and this shouldn't be in the changed
-			 *  list.  If it is then we have multiple roots pointing
-			 *  at the same bytenr which indicates corruption, or
-			 *  we've made a mistake in the backref walking code.
-			 */
-			ASSERT(next->new_bytenr == 0);
-			ASSERT(list_empty(&next->list));
-			if (next->new_bytenr || !list_empty(&next->list)) {
-				btrfs_err(trans->fs_info,
-	"bytenr %llu possibly has multiple roots pointing at the same bytenr %llu",
-					  node->bytenr, next->bytenr);
-				return ERR_PTR(-EUCLEAN);
-			}
-
-			next->new_bytenr = root->node->start;
-			btrfs_put_root(next->root);
-			next->root = btrfs_grab_root(root);
-			ASSERT(next->root);
-			list_add_tail(&next->list,
-				      &rc->backref_cache.changed);
-			mark_block_processed(rc, next);
-			break;
-		}
-
-		WARN_ON(1);
-		root = NULL;
-		next = walk_down_backref(edges, &index);
-		if (!next || next->level <= node->level)
-			break;
+		goto found;
 	}
-	if (!root) {
-		/*
-		 * This can happen if there's fs corruption or if there's a bug
-		 * in the backref lookup code.
-		 */
-		ASSERT(0);
+
+	ret = btrfs_record_root_in_trans(trans, root);
+	if (ret)
+		return ERR_PTR(ret);
+	root = root->reloc_root;
+
+	/*
+	 * We could have raced with another thread which failed, so
+	 * root->reloc_root may not be set, return ENOENT in this case.
+	 */
+	if (!root)
 		return ERR_PTR(-ENOENT);
+
+	if (next->new_bytenr) {
+		/*
+		 * We just created the reloc root, so we shouldn't have
+		 * ->new_bytenr set yet. If it is then we have multiple roots
+		 *  pointing at the same bytenr which indicates corruption, or
+		 *  we've made a mistake in the backref walking code.
+		 */
+		ASSERT(next->new_bytenr == 0);
+		btrfs_err(trans->fs_info,
+			  "bytenr %llu possibly has multiple roots pointing at the same bytenr %llu",
+			  node->bytenr, next->bytenr);
+		return ERR_PTR(-EUCLEAN);
 	}
 
+	next->new_bytenr = root->node->start;
+	btrfs_put_root(next->root);
+	next->root = btrfs_grab_root(root);
+	ASSERT(next->root);
+	mark_block_processed(rc, next);
+found:
 	next = node;
 	/* setup backref node path for btrfs_reloc_cow_block */
 	while (1) {
@@ -2247,17 +2119,11 @@ static noinline_for_stack u64 calcu_metadata_size(struct reloc_control *rc,
 	return num_bytes;
 }
 
-static int reserve_metadata_space(struct btrfs_trans_handle *trans,
-				  struct reloc_control *rc,
-				  struct btrfs_backref_node *node)
+static int refill_metadata_space(struct btrfs_trans_handle *trans,
+				 struct reloc_control *rc, u64 num_bytes)
 {
-	struct btrfs_root *root = rc->extent_root;
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	u64 num_bytes;
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int ret;
-	u64 tmp;
-
-	num_bytes = calcu_metadata_size(rc, node) * 2;
 
 	trans->block_rsv = rc->block_rsv;
 	rc->reserved_bytes += num_bytes;
@@ -2270,7 +2136,8 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 	ret = btrfs_block_rsv_refill(fs_info, rc->block_rsv, num_bytes,
 				     BTRFS_RESERVE_FLUSH_LIMIT);
 	if (ret) {
-		tmp = fs_info->nodesize * RELOCATION_RESERVED_NODES;
+		u64 tmp = fs_info->nodesize * RELOCATION_RESERVED_NODES;
+
 		while (tmp <= rc->reserved_bytes)
 			tmp <<= 1;
 		/*
@@ -2286,6 +2153,16 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 	}
 
 	return 0;
+}
+
+static int reserve_metadata_space(struct btrfs_trans_handle *trans,
+				  struct reloc_control *rc,
+				  struct btrfs_backref_node *node)
+{
+	u64 num_bytes;
+
+	num_bytes = calcu_metadata_size(rc, node) * 2;
+	return refill_metadata_space(trans, rc, num_bytes);
 }
 
 /*
@@ -2442,7 +2319,7 @@ next:
 
 	if (!ret && node->pending) {
 		btrfs_backref_drop_node_buffer(node);
-		list_move_tail(&node->list, &rc->backref_cache.changed);
+		list_del_init(&node->list);
 		node->pending = 0;
 	}
 
@@ -2605,8 +2482,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			/*
 			 * This block was the root block of a root, and this is
 			 * the first time we're processing the block and thus it
-			 * should not have had the ->new_bytenr modified and
-			 * should have not been included on the changed list.
+			 * should not have had the ->new_bytenr modified.
 			 *
 			 * However in the case of corruption we could have
 			 * multiple refs pointing to the same block improperly,
@@ -2616,8 +2492,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			 * normal user in the case of corruption.
 			 */
 			ASSERT(node->new_bytenr == 0);
-			ASSERT(list_empty(&node->list));
-			if (node->new_bytenr || !list_empty(&node->list)) {
+			if (node->new_bytenr) {
 				btrfs_err(root->fs_info,
 				  "bytenr %llu has improper references to it",
 					  node->bytenr);
@@ -2640,17 +2515,12 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 			btrfs_put_root(node->root);
 			node->root = btrfs_grab_root(root);
 			ASSERT(node->root);
-			list_add_tail(&node->list, &rc->backref_cache.changed);
 		} else {
-			path->lowest_level = node->level;
-			if (root == root->fs_info->chunk_root)
-				btrfs_reserve_chunk_metadata(trans, false);
-			ret = btrfs_search_slot(trans, root, key, path, 0, 1);
-			btrfs_release_path(path);
-			if (root == root->fs_info->chunk_root)
-				btrfs_trans_release_chunk_metadata(trans);
-			if (ret > 0)
-				ret = 0;
+			btrfs_err(root->fs_info,
+				  "bytenr %llu resolved to a non-shareable root",
+				  node->bytenr);
+			ret = -EUCLEAN;
+			goto out;
 		}
 		if (!ret)
 			update_processed_blocks(rc, node);
@@ -2658,8 +2528,47 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 		ret = do_relocation(trans, rc, node, key, path, 1);
 	}
 out:
-	if (ret || node->level == 0 || node->cowonly)
+	if (ret || node->level == 0)
 		btrfs_backref_cleanup_node(&rc->backref_cache, node);
+	return ret;
+}
+
+static int relocate_cowonly_block(struct btrfs_trans_handle *trans,
+				  struct reloc_control *rc, struct tree_block *block,
+				  struct btrfs_path *path)
+{
+	struct btrfs_fs_info *fs_info = trans->fs_info;
+	struct btrfs_root *root;
+	u64 num_bytes;
+	int nr_levels;
+	int ret;
+
+	root = btrfs_get_fs_root(fs_info, block->owner, true);
+	if (IS_ERR(root))
+		return PTR_ERR(root);
+
+	nr_levels = max(btrfs_header_level(root->node) - block->level, 0) + 1;
+
+	num_bytes = fs_info->nodesize * nr_levels;
+	ret = refill_metadata_space(trans, rc, num_bytes);
+	if (ret) {
+		btrfs_put_root(root);
+		return ret;
+	}
+	path->lowest_level = block->level;
+	if (root == root->fs_info->chunk_root)
+		btrfs_reserve_chunk_metadata(trans, false);
+
+	ret = btrfs_search_slot(trans, root, &block->key, path, 0, 1);
+	path->lowest_level = 0;
+	btrfs_release_path(path);
+
+	if (root == root->fs_info->chunk_root)
+		btrfs_trans_release_chunk_metadata(trans);
+	if (ret > 0)
+		ret = 0;
+	btrfs_put_root(root);
+
 	return ret;
 }
 
@@ -2702,6 +2611,20 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 
 	/* Do tree relocation */
 	rbtree_postorder_for_each_entry_safe(block, next, blocks, rb_node) {
+		/*
+		 * For COWonly blocks, or the data reloc tree, we only need to
+		 * COW down to the block, there's no need to generate a backref
+		 * tree.
+		 */
+		if (block->owner &&
+		    (!is_fstree(block->owner) ||
+		     block->owner == BTRFS_DATA_RELOC_TREE_OBJECTID)) {
+			ret = relocate_cowonly_block(trans, rc, block, path);
+			if (ret)
+				break;
+			continue;
+		}
+
 		node = build_backref_tree(trans, rc, &block->key,
 					  block->level, block->bytenr);
 		if (IS_ERR(node)) {
@@ -2947,7 +2870,7 @@ again:
 
 	/*
 	 * We could have lost folio private when we dropped the lock to read the
-	 * folio above, make sure we set_page_extent_mapped here so we have any
+	 * folio above, make sure we set_folio_extent_mapped() here so we have any
 	 * of the subpage blocksize stuff we need in place.
 	 */
 	ret = set_folio_extent_mapped(folio);
@@ -3799,7 +3722,6 @@ static int __insert_orphan_inode(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_mode(leaf, item, S_IFREG | 0600);
 	btrfs_set_inode_flags(leaf, item, BTRFS_INODE_NOCOMPRESS |
 					  BTRFS_INODE_PREALLOC);
-	btrfs_mark_buffer_dirty(trans, leaf);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -4405,8 +4327,18 @@ int btrfs_reloc_cow_block(struct btrfs_trans_handle *trans,
 		WARN_ON(!first_cow && level == 0);
 
 		node = rc->backref_cache.path[level];
-		BUG_ON(node->bytenr != buf->start &&
-		       node->new_bytenr != buf->start);
+
+		/*
+		 * If node->bytenr != buf->start and node->new_bytenr !=
+		 * buf->start then we've got the wrong backref node for what we
+		 * expected to see here and the cache is incorrect.
+		 */
+		if (unlikely(node->bytenr != buf->start && node->new_bytenr != buf->start)) {
+			btrfs_err(fs_info,
+"bytenr %llu was found but our backref cache was expecting %llu or %llu",
+				  buf->start, node->bytenr, node->new_bytenr);
+			return -EUCLEAN;
+		}
 
 		btrfs_backref_drop_node_buffer(node);
 		atomic_inc(&cow->refs);
@@ -4506,10 +4438,7 @@ int btrfs_reloc_post_snapshot(struct btrfs_trans_handle *trans,
 		return ret;
 	}
 	new_root->reloc_root = btrfs_grab_root(reloc_root);
-
-	if (rc->create_reloc_tree)
-		ret = clone_backref_node(trans, rc, root, reloc_root);
-	return ret;
+	return 0;
 }
 
 /*

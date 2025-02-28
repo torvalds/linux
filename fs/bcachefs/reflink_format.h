@@ -4,7 +4,7 @@
 
 struct bch_reflink_p {
 	struct bch_val		v;
-	__le64			idx;
+	__le64			idx_flags;
 	/*
 	 * A reflink pointer might point to an indirect extent which is then
 	 * later split (by copygc or rebalance). If we only pointed to part of
@@ -16,6 +16,11 @@ struct bch_reflink_p {
 	__le32			front_pad;
 	__le32			back_pad;
 } __packed __aligned(8);
+
+LE64_BITMASK(REFLINK_P_IDX,	struct bch_reflink_p, idx_flags,  0, 56);
+LE64_BITMASK(REFLINK_P_ERROR,	struct bch_reflink_p, idx_flags, 56, 57);
+LE64_BITMASK(REFLINK_P_MAY_UPDATE_OPTIONS,
+				struct bch_reflink_p, idx_flags, 57, 58);
 
 struct bch_reflink_v {
 	struct bch_val		v;

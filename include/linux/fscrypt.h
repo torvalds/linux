@@ -192,7 +192,8 @@ struct fscrypt_operations {
 					     unsigned int *num_devs);
 };
 
-int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags);
+int fscrypt_d_revalidate(struct inode *dir, const struct qstr *name,
+			 struct dentry *dentry, unsigned int flags);
 
 static inline struct fscrypt_inode_info *
 fscrypt_get_inode_info(const struct inode *inode)
@@ -711,8 +712,8 @@ static inline u64 fscrypt_fname_siphash(const struct inode *dir,
 	return 0;
 }
 
-static inline int fscrypt_d_revalidate(struct dentry *dentry,
-				       unsigned int flags)
+static inline int fscrypt_d_revalidate(struct inode *dir, const struct qstr *name,
+				       struct dentry *dentry, unsigned int flags)
 {
 	return 1;
 }

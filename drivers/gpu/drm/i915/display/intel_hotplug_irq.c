@@ -197,7 +197,7 @@ void i915_hotplug_interrupt_update_locked(struct drm_i915_private *dev_priv,
  * @bits: bits to enable
  * NOTE: the HPD enable bits are modified both inside and outside
  * of an interrupt context. To avoid that read-modify-write cycles
- * interfer, these bits are protected by a spinlock. Since this
+ * interfere, these bits are protected by a spinlock. Since this
  * function is usually not called from a context where the lock is
  * held already, this function acquires the lock itself. A non-locking
  * version is also available.

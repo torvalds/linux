@@ -1,0 +1,9 @@
+What: 		/sys/class/bluetooth/hci<index>/reset
+Date:		14-Jan-2025
+KernelVersion:	6.13
+Contact:	linux-bluetooth@vger.kernel.org
+Description: 	This write-only attribute allows users to trigger the vendor reset
+		method on the Bluetooth device when arbitrary data is written.
+		The reset may or may not be done through the device transport
+		(e.g., UART/USB), and can also be done through an out-of-band
+		approach such as GPIO.

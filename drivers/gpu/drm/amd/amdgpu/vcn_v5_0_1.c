@@ -575,9 +575,6 @@ static int vcn_v5_0_1_start(struct amdgpu_device *adev)
 	uint32_t tmp;
 	int i, j, k, r, vcn_inst;
 
-	if (adev->pm.dpm_enabled)
-		amdgpu_dpm_enable_uvd(adev, true);
-
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
 
@@ -815,9 +812,6 @@ static int vcn_v5_0_1_stop(struct amdgpu_device *adev)
 		/* clear status */
 		WREG32_SOC15(VCN, vcn_inst, regUVD_STATUS, 0);
 	}
-
-	if (adev->pm.dpm_enabled)
-		amdgpu_dpm_enable_uvd(adev, false);
 
 	return 0;
 }

@@ -2006,7 +2006,7 @@ static int ksz9477_config_init(struct phy_device *phydev)
 	 * in this switch shall be regarded as broken.
 	 */
 	if (phydev->dev_flags & MICREL_NO_EEE)
-		linkmode_fill(phydev->eee_broken_modes);
+		phy_disable_eee(phydev);
 
 	return kszphy_config_init(phydev);
 }
@@ -5689,7 +5689,7 @@ MODULE_DESCRIPTION("Micrel PHY driver");
 MODULE_AUTHOR("David J. Choi");
 MODULE_LICENSE("GPL");
 
-static struct mdio_device_id __maybe_unused micrel_tbl[] = {
+static const struct mdio_device_id __maybe_unused micrel_tbl[] = {
 	{ PHY_ID_KSZ9021, 0x000ffffe },
 	{ PHY_ID_KSZ9031, MICREL_PHY_ID_MASK },
 	{ PHY_ID_KSZ9131, MICREL_PHY_ID_MASK },

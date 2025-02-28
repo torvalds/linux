@@ -8,9 +8,11 @@
 #include <linux/poll.h>
 #include <linux/io_uring_types.h>
 #include <uapi/linux/eventpoll.h>
+#include "alloc_cache.h"
 #include "io-wq.h"
 #include "slist.h"
 #include "filetable.h"
+#include "opdef.h"
 
 #ifndef CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -221,6 +223,22 @@ static inline void io_req_set_res(struct io_kiocb *req, s32 res, u32 cflags)
 {
 	req->cqe.res = res;
 	req->cqe.flags = cflags;
+}
+
+static inline void *io_uring_alloc_async_data(struct io_alloc_cache *cache,
+					      struct io_kiocb *req)
+{
+	if (cache) {
+		req->async_data = io_cache_alloc(cache, GFP_KERNEL);
+	} else {
+		const struct io_issue_def *def = &io_issue_defs[req->opcode];
+
+		WARN_ON_ONCE(!def->async_size);
+		req->async_data = kmalloc(def->async_size, GFP_KERNEL);
+	}
+	if (req->async_data)
+		req->flags |= REQ_F_ASYNC_DATA;
+	return req->async_data;
 }
 
 static inline bool req_has_async_data(struct io_kiocb *req)

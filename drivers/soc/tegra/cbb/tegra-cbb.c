@@ -69,19 +69,12 @@ static int tegra_cbb_err_show(struct seq_file *file, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(tegra_cbb_err);
 
-static int tegra_cbb_err_debugfs_init(struct tegra_cbb *cbb)
+static void tegra_cbb_err_debugfs_init(struct tegra_cbb *cbb)
 {
 	static struct dentry *root;
 
-	if (!root) {
+	if (!root)
 		root = debugfs_create_file("tegra_cbb_err", 0444, NULL, cbb, &tegra_cbb_err_fops);
-		if (IS_ERR_OR_NULL(root)) {
-			pr_err("%s(): could not create debugfs node\n", __func__);
-			return PTR_ERR(root);
-		}
-	}
-
-	return 0;
 }
 
 void tegra_cbb_stall_enable(struct tegra_cbb *cbb)
@@ -148,13 +141,8 @@ int tegra_cbb_register(struct tegra_cbb *cbb)
 {
 	int ret;
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		ret = tegra_cbb_err_debugfs_init(cbb);
-		if (ret) {
-			dev_err(cbb->dev, "failed to create debugfs\n");
-			return ret;
-		}
-	}
+	if (IS_ENABLED(CONFIG_DEBUG_FS))
+		tegra_cbb_err_debugfs_init(cbb);
 
 	/* register interrupt handler for errors due to different initiators */
 	ret = cbb->ops->interrupt_enable(cbb);

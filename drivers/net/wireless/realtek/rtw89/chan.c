@@ -391,11 +391,12 @@ static void rtw89_entity_recalc_mgnt_roles(struct rtw89_dev *rtwdev)
 
 				list_del(&role->mgnt_entry);
 				list_add(&role->mgnt_entry, &mgnt->active_list);
-				break;
+				goto fill;
 			}
 		}
 	}
 
+fill:
 	list_for_each_entry(role, &mgnt->active_list, mgnt_entry) {
 		if (unlikely(pos >= RTW89_MAX_INTERFACE_NUM)) {
 			rtw89_warn(rtwdev,
@@ -801,7 +802,7 @@ fill:
 
 	mcc_role->limit.max_toa = max_toa_us / 1024;
 	mcc_role->limit.max_tob = max_tob_us / 1024;
-	mcc_role->limit.max_dur = max_dur_us / 1024;
+	mcc_role->limit.max_dur = mcc_role->limit.max_toa + mcc_role->limit.max_tob;
 	mcc_role->limit.enable = true;
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
@@ -2530,7 +2531,25 @@ void rtw89_chanctx_pause(struct rtw89_dev *rtwdev,
 	hal->entity_pause = true;
 }
 
-void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev)
+static void rtw89_chanctx_proceed_cb(struct rtw89_dev *rtwdev,
+				     const struct rtw89_chanctx_cb_parm *parm)
+{
+	int ret;
+
+	if (!parm || !parm->cb)
+		return;
+
+	ret = parm->cb(rtwdev, parm->data);
+	if (ret)
+		rtw89_warn(rtwdev, "%s (%s): cb failed: %d\n", __func__,
+			   parm->caller ?: "unknown", ret);
+}
+
+/* pass @cb_parm if there is a @cb_parm->cb which needs to invoke right after
+ * call rtw89_set_channel() and right before proceed entity according to mode.
+ */
+void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev,
+			   const struct rtw89_chanctx_cb_parm *cb_parm)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	enum rtw89_entity_mode mode;
@@ -2538,13 +2557,17 @@ void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev)
 
 	lockdep_assert_held(&rtwdev->mutex);
 
-	if (!hal->entity_pause)
+	if (unlikely(!hal->entity_pause)) {
+		rtw89_chanctx_proceed_cb(rtwdev, cb_parm);
 		return;
+	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_CHAN, "chanctx proceed\n");
 
 	hal->entity_pause = false;
 	rtw89_set_channel(rtwdev);
+
+	rtw89_chanctx_proceed_cb(rtwdev, cb_parm);
 
 	mode = rtw89_get_entity_mode(rtwdev);
 	switch (mode) {

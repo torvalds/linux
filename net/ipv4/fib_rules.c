@@ -249,6 +249,12 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	int err = -EINVAL;
 	struct fib4_rule *rule4 = (struct fib4_rule *) rule;
 
+	if (tb[FRA_FLOWLABEL] || tb[FRA_FLOWLABEL_MASK]) {
+		NL_SET_ERR_MSG(extack,
+			       "Flow label cannot be specified for IPv4 FIB rules");
+		goto errout;
+	}
+
 	if (!inet_validate_dscp(frh->tos)) {
 		NL_SET_ERR_MSG(extack,
 			       "Invalid dsfield (tos): ECN bits must be 0");

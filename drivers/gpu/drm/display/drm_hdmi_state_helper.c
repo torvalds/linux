@@ -542,7 +542,7 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_hdmi_check);
  */
 enum drm_mode_status
 drm_hdmi_connector_mode_valid(struct drm_connector *connector,
-			      struct drm_display_mode *mode)
+			      const struct drm_display_mode *mode)
 {
 	unsigned long long clock;
 

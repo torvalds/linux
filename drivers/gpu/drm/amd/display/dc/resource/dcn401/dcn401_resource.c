@@ -76,9 +76,6 @@
 
 #include "dml2/dml2_wrapper.h"
 
-#include "spl/dc_spl_scl_easf_filters.h"
-#include "spl/dc_spl_isharp_filters.h"
-
 #define DC_LOGGER_INIT(logger)
 
 enum dcn401_clk_src_array_id {
@@ -1872,9 +1869,9 @@ static bool dcn401_resource_construct(
 	dc->caps.subvp_vertical_int_margin_us = 30;
 	dc->caps.subvp_drr_vblank_start_margin_us = 100; // 100us margin
 
-	dc->caps.max_slave_planes = 2;
-	dc->caps.max_slave_yuv_planes = 2;
-	dc->caps.max_slave_rgb_planes = 2;
+	dc->caps.max_slave_planes = 3;
+	dc->caps.max_slave_yuv_planes = 3;
+	dc->caps.max_slave_rgb_planes = 3;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.dp_hpo = true;
@@ -1926,6 +1923,7 @@ static bool dcn401_resource_construct(
 	dc->config.dc_mode_clk_limit_support = true;
 	dc->config.enable_windowed_mpo_odm = true;
 	dc->config.set_pipe_unlock_order = true; /* Need to ensure DET gets freed before allocating */
+
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {
@@ -2189,8 +2187,6 @@ static bool dcn401_resource_construct(
 	dc->dml2_options.det_segment_size = DCN4_01_CRB_SEGMENT_SIZE_KB;
 
 	/* SPL */
-	spl_init_easf_filter_coeffs();
-	spl_init_blur_scale_coeffs();
 	dc->caps.scl_caps.sharpener_support = true;
 
 	return true;

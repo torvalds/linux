@@ -2755,7 +2755,7 @@ static int toshiba_acpi_enable_hotkeys(struct toshiba_acpi_dev *dev)
 }
 
 static bool toshiba_acpi_i8042_filter(unsigned char data, unsigned char str,
-				      struct serio *port)
+				      struct serio *port, void *context)
 {
 	if (str & I8042_STR_AUXDATA)
 		return false;
@@ -2915,7 +2915,7 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 	if (ec_handle && acpi_has_method(ec_handle, "NTFY")) {
 		INIT_WORK(&dev->hotkey_work, toshiba_acpi_hotkey_work);
 
-		error = i8042_install_filter(toshiba_acpi_i8042_filter);
+		error = i8042_install_filter(toshiba_acpi_i8042_filter, NULL);
 		if (error) {
 			pr_err("Error installing key filter\n");
 			goto err_free_dev;

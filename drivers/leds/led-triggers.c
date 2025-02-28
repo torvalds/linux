@@ -34,7 +34,7 @@ trigger_relevant(struct led_classdev *led_cdev, struct led_trigger *trig)
 }
 
 ssize_t led_trigger_write(struct file *filp, struct kobject *kobj,
-			  struct bin_attribute *bin_attr, char *buf,
+			  const struct bin_attribute *bin_attr, char *buf,
 			  loff_t pos, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -123,7 +123,7 @@ static int led_trigger_format(char *buf, size_t size,
  * copy it.
  */
 ssize_t led_trigger_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *attr, char *buf,
+			const struct bin_attribute *attr, char *buf,
 			loff_t pos, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);

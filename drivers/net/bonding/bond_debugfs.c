@@ -63,13 +63,8 @@ void bond_debug_unregister(struct bonding *bond)
 
 void bond_debug_reregister(struct bonding *bond)
 {
-	struct dentry *d;
-
-	d = debugfs_rename(bonding_debug_root, bond->debug_dir,
-			   bonding_debug_root, bond->dev->name);
-	if (!IS_ERR(d)) {
-		bond->debug_dir = d;
-	} else {
+	int err = debugfs_change_name(bond->debug_dir, "%s", bond->dev->name);
+	if (err) {
 		netdev_warn(bond->dev, "failed to reregister, so just unregister old one\n");
 		bond_debug_unregister(bond);
 	}

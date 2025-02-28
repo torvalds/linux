@@ -731,7 +731,7 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 		ret = (*secfeed)->allocate_filter(*secfeed, secfilter);
 		if (ret < 0) {
 			dvb_dmxdev_feed_restart(filter);
-			filter->feed.sec->start_filtering(*secfeed);
+			*secfeed = NULL;
 			dprintk("could not get filter\n");
 			return ret;
 		}

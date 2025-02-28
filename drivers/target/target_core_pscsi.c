@@ -823,7 +823,6 @@ static sense_reason_t
 pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		struct request *req)
 {
-	struct pscsi_dev_virt *pdv = PSCSI_DEV(cmd->se_dev);
 	struct bio *bio = NULL;
 	struct page *page;
 	struct scatterlist *sg;
@@ -871,12 +870,11 @@ new_bio:
 					(rw) ? "rw" : "r", nr_vecs);
 			}
 
-			pr_debug("PSCSI: Calling bio_add_pc_page() i: %d"
+			pr_debug("PSCSI: Calling bio_add_page() i: %d"
 				" bio: %p page: %p len: %d off: %d\n", i, bio,
 				page, len, off);
 
-			rc = bio_add_pc_page(pdv->pdv_sd->request_queue,
-					bio, page, bytes, off);
+			rc = bio_add_page(bio, page, bytes, off);
 			pr_debug("PSCSI: bio->bi_vcnt: %d nr_vecs: %d\n",
 				bio_segments(bio), nr_vecs);
 			if (rc != bytes) {

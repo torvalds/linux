@@ -54,6 +54,8 @@ struct sdw_slave;
 #define SDW_MAX_PORTS			15
 #define SDW_VALID_PORT_RANGE(n)		((n) < SDW_MAX_PORTS && (n) >= 1)
 
+#define SDW_MAX_LANES		8
+
 enum {
 	SDW_PORT_DIRN_SINK = 0,
 	SDW_PORT_DIRN_SOURCE,
@@ -356,6 +358,7 @@ struct sdw_dpn_prop {
  * and masks are supported
  * @commit_register_supported: is PCP_Commit register supported
  * @scp_int1_mask: SCP_INT1_MASK desired settings
+ * @lane_maps: Lane mapping for the slave, only valid if lane_control_support is set
  * @clock_reg_supported: the Peripheral implements the clock base and scale
  * registers introduced with the SoundWire 1.2 specification. SDCA devices
  * do not need to set this boolean property as the registers are required.
@@ -385,6 +388,7 @@ struct sdw_slave_prop {
 	u32 sdca_interrupt_register_list;
 	u8 commit_register_supported;
 	u8 scp_int1_mask;
+	u8 lane_maps[SDW_MAX_LANES];
 	bool clock_reg_supported;
 	bool use_domain_irq;
 };
@@ -450,6 +454,7 @@ struct sdw_master_prop {
 
 int sdw_master_read_prop(struct sdw_bus *bus);
 int sdw_slave_read_prop(struct sdw_slave *slave);
+int sdw_slave_read_lane_mapping(struct sdw_slave *slave);
 
 /*
  * SDW Slave Structures and APIs
@@ -850,77 +855,6 @@ struct sdw_master_ops {
 					int dev_num);
 };
 
-/**
- * struct sdw_bus - SoundWire bus
- * @dev: Shortcut to &bus->md->dev to avoid changing the entire code.
- * @md: Master device
- * @bus_lock_key: bus lock key associated to @bus_lock
- * @bus_lock: bus lock
- * @slaves: list of Slaves on this bus
- * @msg_lock_key: message lock key associated to @msg_lock
- * @msg_lock: message lock
- * @m_rt_list: List of Master instance of all stream(s) running on Bus. This
- * is used to compute and program bus bandwidth, clock, frame shape,
- * transport and port parameters
- * @defer_msg: Defer message
- * @params: Current bus parameters
- * @stream_refcount: number of streams currently using this bus
- * @ops: Master callback ops
- * @port_ops: Master port callback ops
- * @prop: Master properties
- * @vendor_specific_prop: pointer to non-standard properties
- * @hw_sync_min_links: Number of links used by a stream above which
- * hardware-based synchronization is required. This value is only
- * meaningful if multi_link is set. If set to 1, hardware-based
- * synchronization will be used even if a stream only uses a single
- * SoundWire segment.
- * @controller_id: system-unique controller ID. If set to -1, the bus @id will be used.
- * @link_id: Link id number, can be 0 to N, unique for each Controller
- * @id: bus system-wide unique id
- * @compute_params: points to Bus resource management implementation
- * @assigned: Bitmap for Slave device numbers.
- * Bit set implies used number, bit clear implies unused number.
- * @clk_stop_timeout: Clock stop timeout computed
- * @bank_switch_timeout: Bank switch timeout computed
- * @domain: IRQ domain
- * @irq_chip: IRQ chip
- * @debugfs: Bus debugfs (optional)
- * @multi_link: Store bus property that indicates if multi links
- * are supported. This flag is populated by drivers after reading
- * appropriate firmware (ACPI/DT).
- */
-struct sdw_bus {
-	struct device *dev;
-	struct sdw_master_device *md;
-	struct lock_class_key bus_lock_key;
-	struct mutex bus_lock;
-	struct list_head slaves;
-	struct lock_class_key msg_lock_key;
-	struct mutex msg_lock;
-	struct list_head m_rt_list;
-	struct sdw_defer defer_msg;
-	struct sdw_bus_params params;
-	int stream_refcount;
-	const struct sdw_master_ops *ops;
-	const struct sdw_master_port_ops *port_ops;
-	struct sdw_master_prop prop;
-	void *vendor_specific_prop;
-	int hw_sync_min_links;
-	int controller_id;
-	unsigned int link_id;
-	int id;
-	int (*compute_params)(struct sdw_bus *bus);
-	DECLARE_BITMAP(assigned, SDW_MAX_DEVICES);
-	unsigned int clk_stop_timeout;
-	u32 bank_switch_timeout;
-	struct irq_chip irq_chip;
-	struct irq_domain *domain;
-#ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
-#endif
-	bool multi_link;
-};
-
 int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 		       struct fwnode_handle *fwnode);
 void sdw_bus_master_delete(struct sdw_bus *bus);
@@ -1010,10 +944,83 @@ struct sdw_stream_runtime {
 	struct list_head master_list;
 };
 
+/**
+ * struct sdw_bus - SoundWire bus
+ * @dev: Shortcut to &bus->md->dev to avoid changing the entire code.
+ * @md: Master device
+ * @bus_lock_key: bus lock key associated to @bus_lock
+ * @bus_lock: bus lock
+ * @slaves: list of Slaves on this bus
+ * @msg_lock_key: message lock key associated to @msg_lock
+ * @msg_lock: message lock
+ * @m_rt_list: List of Master instance of all stream(s) running on Bus. This
+ * is used to compute and program bus bandwidth, clock, frame shape,
+ * transport and port parameters
+ * @defer_msg: Defer message
+ * @params: Current bus parameters
+ * @stream_refcount: number of streams currently using this bus
+ * @ops: Master callback ops
+ * @port_ops: Master port callback ops
+ * @prop: Master properties
+ * @vendor_specific_prop: pointer to non-standard properties
+ * @hw_sync_min_links: Number of links used by a stream above which
+ * hardware-based synchronization is required. This value is only
+ * meaningful if multi_link is set. If set to 1, hardware-based
+ * synchronization will be used even if a stream only uses a single
+ * SoundWire segment.
+ * @controller_id: system-unique controller ID. If set to -1, the bus @id will be used.
+ * @link_id: Link id number, can be 0 to N, unique for each Controller
+ * @id: bus system-wide unique id
+ * @compute_params: points to Bus resource management implementation
+ * @assigned: Bitmap for Slave device numbers.
+ * Bit set implies used number, bit clear implies unused number.
+ * @clk_stop_timeout: Clock stop timeout computed
+ * @bank_switch_timeout: Bank switch timeout computed
+ * @domain: IRQ domain
+ * @irq_chip: IRQ chip
+ * @debugfs: Bus debugfs (optional)
+ * @multi_link: Store bus property that indicates if multi links
+ * are supported. This flag is populated by drivers after reading
+ * appropriate firmware (ACPI/DT).
+ * @lane_used_bandwidth: how much bandwidth in bits per second is used by each lane
+ */
+struct sdw_bus {
+	struct device *dev;
+	struct sdw_master_device *md;
+	struct lock_class_key bus_lock_key;
+	struct mutex bus_lock;
+	struct list_head slaves;
+	struct lock_class_key msg_lock_key;
+	struct mutex msg_lock;
+	struct list_head m_rt_list;
+	struct sdw_defer defer_msg;
+	struct sdw_bus_params params;
+	int stream_refcount;
+	const struct sdw_master_ops *ops;
+	const struct sdw_master_port_ops *port_ops;
+	struct sdw_master_prop prop;
+	void *vendor_specific_prop;
+	int hw_sync_min_links;
+	int controller_id;
+	unsigned int link_id;
+	int id;
+	int (*compute_params)(struct sdw_bus *bus, struct sdw_stream_runtime *stream);
+	DECLARE_BITMAP(assigned, SDW_MAX_DEVICES);
+	unsigned int clk_stop_timeout;
+	u32 bank_switch_timeout;
+	struct irq_chip irq_chip;
+	struct irq_domain *domain;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs;
+#endif
+	bool multi_link;
+	unsigned int lane_used_bandwidth[SDW_MAX_LANES];
+};
+
 struct sdw_stream_runtime *sdw_alloc_stream(const char *stream_name);
 void sdw_release_stream(struct sdw_stream_runtime *stream);
 
-int sdw_compute_params(struct sdw_bus *bus);
+int sdw_compute_params(struct sdw_bus *bus, struct sdw_stream_runtime *stream);
 
 int sdw_stream_add_master(struct sdw_bus *bus,
 			  struct sdw_stream_config *stream_config,
@@ -1034,6 +1041,7 @@ int sdw_bus_exit_clk_stop(struct sdw_bus *bus);
 
 int sdw_compare_devid(struct sdw_slave *slave, struct sdw_slave_id id);
 void sdw_extract_slave_id(struct sdw_bus *bus, u64 addr, struct sdw_slave_id *id);
+bool is_clock_scaling_supported_by_slave(struct sdw_slave *slave);
 
 #if IS_ENABLED(CONFIG_SOUNDWIRE)
 
@@ -1044,6 +1052,8 @@ int sdw_stream_add_slave(struct sdw_slave *slave,
 			 struct sdw_stream_runtime *stream);
 int sdw_stream_remove_slave(struct sdw_slave *slave,
 			    struct sdw_stream_runtime *stream);
+
+int sdw_slave_get_scale_index(struct sdw_slave *slave, u8 *base);
 
 /* messaging and data APIs */
 int sdw_read(struct sdw_slave *slave, u32 addr);

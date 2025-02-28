@@ -215,7 +215,7 @@ static int mac_hid_toggle_emumouse(const struct ctl_table *table, int write,
 }
 
 /* file(s) in /proc/sys/dev/mac_hid */
-static struct ctl_table mac_hid_files[] = {
+static const struct ctl_table mac_hid_files[] = {
 	{
 		.procname	= "mouse_button_emulation",
 		.data		= &mouse_emulate_buttons,

@@ -1464,8 +1464,8 @@ void ConfigMainWindow::loadConfig(void)
 {
 	QString str;
 
-	str = QFileDialog::getOpenFileName(this, "", configname);
-	if (str.isNull())
+	str = QFileDialog::getOpenFileName(this, QString(), configname);
+	if (str.isEmpty())
 		return;
 
 	if (conf_read(str.toLocal8Bit().constData()))
@@ -1491,8 +1491,8 @@ void ConfigMainWindow::saveConfigAs(void)
 {
 	QString str;
 
-	str = QFileDialog::getSaveFileName(this, "", configname);
-	if (str.isNull())
+	str = QFileDialog::getSaveFileName(this, QString(), configname);
+	if (str.isEmpty())
 		return;
 
 	if (conf_write(str.toLocal8Bit().constData())) {

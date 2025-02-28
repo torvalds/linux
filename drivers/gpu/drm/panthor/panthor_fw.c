@@ -201,7 +201,6 @@ struct panthor_fw_section {
 
 #define MIN_CS_PER_CSG				8
 #define MIN_CSGS				3
-#define MAX_CSG_PRIO				0xf
 
 #define CSF_IFACE_VERSION(major, minor, patch)	\
 	(((major) << 24) | ((minor) << 16) | (patch))

@@ -1316,7 +1316,7 @@ config RTC_DRV_SC27XX
 config RTC_DRV_SPEAR
 	tristate "SPEAR ST RTC"
 	depends on PLAT_SPEAR || COMPILE_TEST
-	default y
+	default PLAT_SPEAR
 	help
 	 If you say Y here you will get support for the RTC found on
 	 spear

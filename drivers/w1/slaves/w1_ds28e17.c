@@ -583,7 +583,7 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 		return result;
 
 	/* Return current speed value. */
-	return sprintf(buf, "%d\n", result);
+	return sysfs_emit(buf, "%d\n", result);
 }
 
 static ssize_t speed_store(struct device *dev, struct device_attribute *attr,
@@ -633,7 +633,7 @@ static ssize_t stretch_show(struct device *dev, struct device_attribute *attr,
 	struct w1_f19_data *data = sl->family_data;
 
 	/* Return current stretch value. */
-	return sprintf(buf, "%d\n", data->stretch);
+	return sysfs_emit(buf, "%d\n", data->stretch);
 }
 
 static ssize_t stretch_store(struct device *dev, struct device_attribute *attr,

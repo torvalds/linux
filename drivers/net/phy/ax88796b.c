@@ -121,7 +121,7 @@ static struct phy_driver asix_driver[] = {
 
 module_phy_driver(asix_driver);
 
-static struct mdio_device_id __maybe_unused asix_tbl[] = {
+static const struct mdio_device_id __maybe_unused asix_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_ASIX_AX88772A) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_ASIX_AX88772C) },
 	{ PHY_ID_ASIX_AX88796B, 0xfffffff0 },

@@ -507,7 +507,6 @@ static void
 icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 				 struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum aux_ch aux_ch = icl_aux_pw_to_ch(power_well);
 	struct intel_digital_port *dig_port = aux_ch_to_digital_port(display, aux_ch);
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
@@ -539,7 +538,7 @@ icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 
 		tc_port = TGL_AUX_PW_TO_TC_PORT(i915_power_well_instance(power_well)->hsw.idx);
 
-		if (wait_for(intel_dkl_phy_read(dev_priv, DKL_CMN_UC_DW_27(tc_port)) &
+		if (wait_for(intel_dkl_phy_read(display, DKL_CMN_UC_DW_27(tc_port)) &
 			     DKL_CMN_UC_DW27_UC_HEALTH, 1))
 			drm_warn(display->drm,
 				 "Timeout waiting TC uC health\n");
@@ -962,8 +961,7 @@ static bool gen9_dc_off_power_well_enabled(struct intel_display *display,
 
 static void gen9_assert_dbuf_enabled(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-	u8 hw_enabled_dbuf_slices = intel_enabled_dbuf_slices_mask(dev_priv);
+	u8 hw_enabled_dbuf_slices = intel_enabled_dbuf_slices_mask(display);
 	u8 enabled_dbuf_slices = display->dbuf.enabled_slices;
 
 	drm_WARN(display->drm,
@@ -975,7 +973,6 @@ static void gen9_assert_dbuf_enabled(struct intel_display *display)
 
 void gen9_disable_dc_states(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct intel_cdclk_config cdclk_config = {};
 	u32 old_state = power_domains->dc_state;
@@ -1015,7 +1012,7 @@ void gen9_disable_dc_states(struct intel_display *display)
 		 * PHY's HW context for port B is lost after DC transitions,
 		 * so we need to restore it manually.
 		 */
-		intel_combo_phy_init(dev_priv);
+		intel_combo_phy_init(display);
 }
 
 static void gen9_dc_off_power_well_enable(struct intel_display *display,
@@ -1314,11 +1311,10 @@ static void vlv_dpio_cmn_power_well_enable(struct intel_display *display,
 static void vlv_dpio_cmn_power_well_disable(struct intel_display *display,
 					    struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum pipe pipe;
 
 	for_each_pipe(display, pipe)
-		assert_pll_disabled(dev_priv, pipe);
+		assert_pll_disabled(display, pipe);
 
 	/* Assert common reset */
 	intel_de_rmw(display, DPIO_CTL, DPIO_CMNRST, 0);
@@ -1500,7 +1496,6 @@ static void chv_dpio_cmn_power_well_enable(struct intel_display *display,
 static void chv_dpio_cmn_power_well_disable(struct intel_display *display,
 					    struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum i915_power_well_id id = i915_power_well_instance(power_well)->id;
 	enum dpio_phy phy;
 
@@ -1510,11 +1505,11 @@ static void chv_dpio_cmn_power_well_disable(struct intel_display *display,
 
 	if (id == VLV_DISP_PW_DPIO_CMN_BC) {
 		phy = DPIO_PHY0;
-		assert_pll_disabled(dev_priv, PIPE_A);
-		assert_pll_disabled(dev_priv, PIPE_B);
+		assert_pll_disabled(display, PIPE_A);
+		assert_pll_disabled(display, PIPE_B);
 	} else {
 		phy = DPIO_PHY1;
-		assert_pll_disabled(dev_priv, PIPE_C);
+		assert_pll_disabled(display, PIPE_C);
 	}
 
 	display->power.chv_phy_control &= ~PHY_COM_LANE_RESET_DEASSERT(phy);

@@ -59,7 +59,24 @@ static inline bool lan969x_port_is_25g(int portno)
 	return false;
 }
 
+static inline bool lan969x_port_is_rgmii(int portno)
+{
+	return portno == 28 || portno == 29;
+}
+
 /* lan969x_calendar.c */
 int lan969x_dsm_calendar_calc(struct sparx5 *sparx5, u32 taxi,
 			      struct sparx5_calendar_data *data);
+
+/* lan969x_rgmii.c */
+int lan969x_port_config_rgmii(struct sparx5_port *port,
+			      struct sparx5_port_config *conf);
+
+/* lan969x_fdma.c */
+int lan969x_fdma_init(struct sparx5 *sparx5);
+int lan969x_fdma_deinit(struct sparx5 *sparx5);
+int lan969x_fdma_napi_poll(struct napi_struct *napi, int weight);
+int lan969x_fdma_xmit(struct sparx5 *sparx5, u32 *ifh, struct sk_buff *skb,
+		      struct net_device *dev);
+
 #endif

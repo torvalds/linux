@@ -22,7 +22,7 @@
 
 static int twl6040gpo_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct twl6040 *twl6040 = dev_get_drvdata(chip->parent->parent);
+	struct twl6040 *twl6040 = gpiochip_get_data(chip);
 	int ret = 0;
 
 	ret = twl6040_reg_read(twl6040, TWL6040_REG_GPOCTL);
@@ -46,7 +46,7 @@ static int twl6040gpo_direction_out(struct gpio_chip *chip, unsigned offset,
 
 static void twl6040gpo_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct twl6040 *twl6040 = dev_get_drvdata(chip->parent->parent);
+	struct twl6040 *twl6040 = gpiochip_get_data(chip);
 	int ret;
 	u8 gpoctl;
 
@@ -91,7 +91,7 @@ static int gpo_twl6040_probe(struct platform_device *pdev)
 
 	twl6040gpo_chip.parent = &pdev->dev;
 
-	ret = devm_gpiochip_add_data(&pdev->dev, &twl6040gpo_chip, NULL);
+	ret = devm_gpiochip_add_data(&pdev->dev, &twl6040gpo_chip, twl6040);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "could not register gpiochip, %d\n", ret);
 		twl6040gpo_chip.ngpio = 0;

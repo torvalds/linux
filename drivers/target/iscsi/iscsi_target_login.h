@@ -9,7 +9,6 @@ struct iscsi_login;
 struct iscsi_np;
 struct sockaddr_storage;
 
-extern int iscsi_login_setup_crypto(struct iscsit_conn *);
 extern int iscsi_check_for_session_reinstatement(struct iscsit_conn *);
 extern int iscsi_login_post_auth_non_zero_tsih(struct iscsit_conn *, u16, u32);
 extern int iscsit_setup_np(struct iscsi_np *,

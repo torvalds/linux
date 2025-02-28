@@ -100,6 +100,20 @@ struct {
 	__uint(max_entries, 1);
 } cgroup_filter SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(long));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} slab_filter SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(long));
+	__uint(value_size, sizeof(struct slab_cache_data));
+	__uint(max_entries, 1);
+} slab_caches SEC(".maps");
+
 struct rw_semaphore___old {
 	struct task_struct *owner;
 } __attribute__((preserve_access_index));
@@ -116,12 +130,15 @@ struct mm_struct___new {
 	struct rw_semaphore mmap_lock;
 } __attribute__((preserve_access_index));
 
+extern struct kmem_cache *bpf_get_kmem_cache(u64 addr) __ksym __weak;
+
 /* control flags */
 const volatile int has_cpu;
 const volatile int has_task;
 const volatile int has_type;
 const volatile int has_addr;
 const volatile int has_cgroup;
+const volatile int has_slab;
 const volatile int needs_callstack;
 const volatile int stack_skip;
 const volatile int lock_owner;
@@ -135,6 +152,8 @@ int enabled;
 int perf_subsys_id = -1;
 
 __u64 end_ts;
+
+__u32 slab_cache_id;
 
 /* error stat */
 int task_fail;
@@ -202,7 +221,7 @@ static inline int can_record(u64 *ctx)
 		__u64 addr = ctx[0];
 
 		ok = bpf_map_lookup_elem(&addr_filter, &addr);
-		if (!ok)
+		if (!ok && !has_slab)
 			return 0;
 	}
 
@@ -211,6 +230,17 @@ static inline int can_record(u64 *ctx)
 		__u64 cgrp = get_current_cgroup_id();
 
 		ok = bpf_map_lookup_elem(&cgroup_filter, &cgrp);
+		if (!ok)
+			return 0;
+	}
+
+	if (has_slab && bpf_get_kmem_cache) {
+		__u8 *ok;
+		__u64 addr = ctx[0];
+		long kmem_cache_addr;
+
+		kmem_cache_addr = (long)bpf_get_kmem_cache(addr);
+		ok = bpf_map_lookup_elem(&slab_filter, &kmem_cache_addr);
 		if (!ok)
 			return 0;
 	}
@@ -487,8 +517,28 @@ int contention_end(u64 *ctx)
 		};
 		int err;
 
-		if (aggr_mode == LOCK_AGGR_ADDR)
-			first.flags |= check_lock_type(pelem->lock, pelem->flags);
+		if (aggr_mode == LOCK_AGGR_ADDR) {
+			first.flags |= check_lock_type(pelem->lock,
+						       pelem->flags & LCB_F_TYPE_MASK);
+
+			/* Check if it's from a slab object */
+			if (bpf_get_kmem_cache) {
+				struct kmem_cache *s;
+				struct slab_cache_data *d;
+
+				s = bpf_get_kmem_cache(pelem->lock);
+				if (s != NULL) {
+					/*
+					 * Save the ID of the slab cache in the flags
+					 * (instead of full address) to reduce the
+					 * space in the contention_data.
+					 */
+					d = bpf_map_lookup_elem(&slab_caches, &s);
+					if (d != NULL)
+						first.flags |= d->id;
+				}
+			}
+		}
 
 		err = bpf_map_update_elem(&lock_stat, &key, &first, BPF_NOEXIST);
 		if (err < 0) {
@@ -560,6 +610,45 @@ SEC("raw_tp/bpf_test_finish")
 int BPF_PROG(end_timestamp)
 {
 	end_ts = bpf_ktime_get_ns();
+	return 0;
+}
+
+/*
+ * bpf_iter__kmem_cache added recently so old kernels don't have it in the
+ * vmlinux.h.  But we cannot add it here since it will cause a compiler error
+ * due to redefinition of the struct on later kernels.
+ *
+ * So it uses a CO-RE trick to access the member only if it has the type.
+ * This will support both old and new kernels without compiler errors.
+ */
+struct bpf_iter__kmem_cache___new {
+	struct kmem_cache *s;
+} __attribute__((preserve_access_index));
+
+SEC("iter/kmem_cache")
+int slab_cache_iter(void *ctx)
+{
+	struct kmem_cache *s = NULL;
+	struct slab_cache_data d;
+	const char *nameptr;
+
+	if (bpf_core_type_exists(struct bpf_iter__kmem_cache)) {
+		struct bpf_iter__kmem_cache___new *iter = ctx;
+
+		s = iter->s;
+	}
+
+	if (s == NULL)
+		return 0;
+
+	nameptr = s->name;
+	bpf_probe_read_kernel_str(d.name, sizeof(d.name), nameptr);
+
+	d.id = ++slab_cache_id << LCB_F_SLAB_ID_SHIFT;
+	if (d.id >= LCB_F_SLAB_ID_END)
+		return 0;
+
+	bpf_map_update_elem(&slab_caches, &s, &d, BPF_NOEXIST);
 	return 0;
 }
 

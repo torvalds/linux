@@ -169,7 +169,7 @@ static void xe_display_fini(void *arg)
 
 	intel_hpd_poll_fini(xe);
 	intel_hdcp_component_fini(display);
-	intel_audio_deinit(xe);
+	intel_audio_deinit(display);
 	intel_display_driver_remove(display);
 }
 

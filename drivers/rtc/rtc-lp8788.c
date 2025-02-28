@@ -293,7 +293,7 @@ static int lp8788_rtc_probe(struct platform_device *pdev)
 	rtc->alarm = lp->pdata ? lp->pdata->alarm_sel : DEFAULT_ALARM_SEL;
 	platform_set_drvdata(pdev, rtc);
 
-	device_init_wakeup(dev, 1);
+	device_init_wakeup(dev, true);
 
 	rtc->rdev = devm_rtc_device_register(dev, "lp8788_rtc",
 					&lp8788_rtc_ops, THIS_MODULE);

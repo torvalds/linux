@@ -100,6 +100,11 @@ static void check_sched_switch_args(void)
 	const struct btf_type *t1, *t2, *t3;
 	u32 type_id;
 
+	if (!btf) {
+		pr_debug("Missing btf, check if CONFIG_DEBUG_INFO_BTF is enabled\n");
+		goto cleanup;
+	}
+
 	type_id = btf__find_by_name_kind(btf, "btf_trace_sched_switch",
 					 BTF_KIND_TYPEDEF);
 	if ((s32)type_id < 0)

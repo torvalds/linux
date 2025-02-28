@@ -1725,6 +1725,7 @@ static int rtase_get_settings(struct net_device *dev,
 		cmd->base.speed = SPEED_5000;
 		break;
 	case RTASE_HW_VER_907XD_V1:
+	case RTASE_HW_VER_907XD_VA:
 		cmd->base.speed = SPEED_10000;
 		break;
 	}
@@ -1993,6 +1994,7 @@ static int rtase_check_mac_version_valid(struct rtase_private *tp)
 	case RTASE_HW_VER_906X_7XA:
 	case RTASE_HW_VER_906X_7XC:
 	case RTASE_HW_VER_907XD_V1:
+	case RTASE_HW_VER_907XD_VA:
 		ret = 0;
 		break;
 	}
@@ -2016,7 +2018,7 @@ static int rtase_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	ret = pci_enable_device(pdev);
-	if (ret < 0)
+	if (ret)
 		goto err_out_free_dev;
 
 	/* make sure PCI base addr 1 is MMIO */
@@ -2032,7 +2034,7 @@ static int rtase_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	}
 
 	ret = pci_request_regions(pdev, KBUILD_MODNAME);
-	if (ret < 0)
+	if (ret)
 		goto err_out_disable;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
@@ -2108,7 +2110,7 @@ static int rtase_init_one(struct pci_dev *pdev,
 	dev_dbg(&pdev->dev, "Automotive Switch Ethernet driver loaded\n");
 
 	ret = rtase_init_board(pdev, &dev, &ioaddr);
-	if (ret != 0)
+	if (ret)
 		return ret;
 
 	tp = netdev_priv(dev);
@@ -2118,7 +2120,7 @@ static int rtase_init_one(struct pci_dev *pdev,
 
 	/* identify chip attached to board */
 	ret = rtase_check_mac_version_valid(tp);
-	if (ret != 0) {
+	if (ret) {
 		dev_err(&pdev->dev,
 			"unknown chip version: 0x%08x, contact rtase maintainers (see MAINTAINERS file)\n",
 			tp->hw_ver);
@@ -2129,7 +2131,7 @@ static int rtase_init_one(struct pci_dev *pdev,
 	rtase_init_hardware(tp);
 
 	ret = rtase_alloc_interrupt(pdev, tp);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&pdev->dev, "unable to alloc MSIX/MSI\n");
 		goto err_out_del_napi;
 	}
@@ -2174,7 +2176,7 @@ static int rtase_init_one(struct pci_dev *pdev,
 	netif_carrier_off(dev);
 
 	ret = register_netdev(dev);
-	if (ret != 0)
+	if (ret)
 		goto err_out_free_dma;
 
 	netdev_dbg(dev, "%pM, IRQ %d\n", dev->dev_addr, dev->irq);

@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/phylink.h>
 #include <linux/if_ether.h>
 
 #include <soc/fsl/qe/immap_qe.h>
@@ -921,7 +922,8 @@ struct ucc_geth_hardware_statistics {
 #define UCC_GETH_UPSMR_INIT                     UCC_GETH_UPSMR_RES1
 
 #define UCC_GETH_MACCFG1_INIT                   0
-#define UCC_GETH_MACCFG2_INIT                   (MACCFG2_RESERVED_1)
+#define UCC_GETH_MACCFG2_INIT                   (MACCFG2_RESERVED_1 | \
+						 (7 << MACCFG2_PREL_SHIFT))
 
 /* Ethernet Address Type. */
 enum enet_addr_type {
@@ -1073,6 +1075,9 @@ struct ucc_geth_tad_params {
 	u16 vid;
 };
 
+struct phylink;
+struct phylink_config;
+
 /* GETH protocol initialization structure */
 struct ucc_geth_info {
 	struct ucc_fast_info uf_info;
@@ -1088,7 +1093,6 @@ struct ucc_geth_info {
 	u8 miminumInterFrameGapEnforcement;
 	u8 backToBackInterFrameGap;
 	int ipAddressAlignment;
-	int lengthCheckRx;
 	u32 mblinterval;
 	u16 nortsrbytetime;
 	u8 fracsiz;
@@ -1114,7 +1118,6 @@ struct ucc_geth_info {
 	int transmitFlowControl;
 	u8 maxGroupAddrInHash;
 	u8 maxIndAddrInHash;
-	u8 prel;
 	u16 maxFrameLength;
 	u16 minFrameLength;
 	u16 maxD1Length;
@@ -1125,7 +1128,6 @@ struct ucc_geth_info {
 	u32 eventRegMask;
 	u16 pausePeriod;
 	u16 extensionField;
-	struct device_node *phy_node;
 	struct device_node *tbi_node;
 	u8 weightfactor[NUM_TX_QUEUES];
 	u8 interruptcoalescingmaxvalue[NUM_RX_QUEUES];
@@ -1210,14 +1212,12 @@ struct ucc_geth_private {
 	u16 skb_dirtytx[NUM_TX_QUEUES];
 
 	struct ugeth_mii_info *mii_info;
-	struct phy_device *phydev;
-	phy_interface_t phy_interface;
-	int max_speed;
 	uint32_t msg_enable;
-	int oldspeed;
-	int oldduplex;
-	int oldlink;
-	int wol_en;
+	u32 wol_en;
+	u32 phy_wol_en;
+
+	struct phylink *phylink;
+	struct phylink_config phylink_config;
 
 	struct device_node *node;
 };

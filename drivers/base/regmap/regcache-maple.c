@@ -73,8 +73,7 @@ static int regcache_maple_write(struct regmap *map, unsigned int reg,
 
 	rcu_read_unlock();
 
-	entry = kmalloc((last - index + 1) * sizeof(unsigned long),
-			map->alloc_flags);
+	entry = kmalloc_array(last - index + 1, sizeof(*entry), map->alloc_flags);
 	if (!entry)
 		return -ENOMEM;
 
@@ -204,7 +203,7 @@ static int regcache_maple_sync_block(struct regmap *map, unsigned long *entry,
 	 * overheads.
 	 */
 	if (max - min > 1 && regmap_can_raw_write(map)) {
-		buf = kmalloc(val_bytes * (max - min), map->alloc_flags);
+		buf = kmalloc_array(max - min, val_bytes, map->alloc_flags);
 		if (!buf) {
 			ret = -ENOMEM;
 			goto out;
@@ -320,7 +319,7 @@ static int regcache_maple_insert_block(struct regmap *map, int first,
 	unsigned long *entry;
 	int i, ret;
 
-	entry = kcalloc(last - first + 1, sizeof(unsigned long), map->alloc_flags);
+	entry = kmalloc_array(last - first + 1, sizeof(*entry), map->alloc_flags);
 	if (!entry)
 		return -ENOMEM;
 

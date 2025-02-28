@@ -78,8 +78,9 @@ struct io_hash_table {
 
 struct io_mapped_region {
 	struct page		**pages;
-	void			*vmap_ptr;
-	size_t			nr_pages;
+	void			*ptr;
+	unsigned		nr_pages;
+	unsigned		flags;
 };
 
 /*
@@ -221,7 +222,8 @@ struct io_alloc_cache {
 	void			**entries;
 	unsigned int		nr_cached;
 	unsigned int		max_cached;
-	size_t			elem_size;
+	unsigned int		elem_size;
+	unsigned int		init_clear;
 };
 
 struct io_ring_ctx {
@@ -293,6 +295,11 @@ struct io_ring_ctx {
 
 		struct io_submit_state	submit_state;
 
+		/*
+		 * Modifications are protected by ->uring_lock and ->mmap_lock.
+		 * The flags, buf_pages and buf_nr_pages fields should be stable
+		 * once published.
+		 */
 		struct xarray		io_bl_xa;
 
 		struct io_hash_table	cancel_table;
@@ -424,17 +431,10 @@ struct io_ring_ctx {
 	 * side will need to grab this lock, to prevent either side from
 	 * being run concurrently with the other.
 	 */
-	struct mutex			resize_lock;
+	struct mutex			mmap_lock;
 
-	/*
-	 * If IORING_SETUP_NO_MMAP is used, then the below holds
-	 * the gup'ed pages for the two rings, and the sqes.
-	 */
-	unsigned short			n_ring_pages;
-	unsigned short			n_sqe_pages;
-	struct page			**ring_pages;
-	struct page			**sqe_pages;
-
+	struct io_mapped_region		sq_region;
+	struct io_mapped_region		ring_region;
 	/* used for optimised request parameter and wait argument passing  */
 	struct io_mapped_region		param_region;
 };
@@ -481,6 +481,7 @@ enum {
 	REQ_F_BL_NO_RECYCLE_BIT,
 	REQ_F_BUFFERS_COMMIT_BIT,
 	REQ_F_BUF_NODE_BIT,
+	REQ_F_HAS_METADATA_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -561,6 +562,8 @@ enum {
 	REQ_F_BUFFERS_COMMIT	= IO_REQ_FLAG(REQ_F_BUFFERS_COMMIT_BIT),
 	/* buf node is valid */
 	REQ_F_BUF_NODE		= IO_REQ_FLAG(REQ_F_BUF_NODE_BIT),
+	/* request has read/write metadata assigned */
+	REQ_F_HAS_METADATA	= IO_REQ_FLAG(REQ_F_HAS_METADATA_BIT),
 };
 
 typedef void (*io_req_tw_func_t)(struct io_kiocb *req, struct io_tw_state *ts);

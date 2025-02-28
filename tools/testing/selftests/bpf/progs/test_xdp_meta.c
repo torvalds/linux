@@ -8,7 +8,7 @@
 #define round_up(x, y) ((((x) - 1) | __round_mask(x, y)) + 1)
 #define ctx_ptr(ctx, mem) (void *)(unsigned long)ctx->mem
 
-SEC("t")
+SEC("tc")
 int ing_cls(struct __sk_buff *ctx)
 {
 	__u8 *data, *data_meta, *data_end;
@@ -28,7 +28,7 @@ int ing_cls(struct __sk_buff *ctx)
 	return diff ? TC_ACT_SHOT : TC_ACT_OK;
 }
 
-SEC("x")
+SEC("xdp")
 int ing_xdp(struct xdp_md *ctx)
 {
 	__u8 *data, *data_meta, *data_end;

@@ -151,11 +151,6 @@ static inline int hpet_set_periodic_freq(unsigned long freq)
 	return 0;
 }
 
-static inline int hpet_rtc_dropped_irq(void)
-{
-	return 0;
-}
-
 static inline int hpet_rtc_timer_init(void)
 {
 	return 0;
@@ -864,7 +859,7 @@ static void acpi_cmos_wake_setup(struct device *dev)
 		dev_info(dev, "RTC can wake from S4\n");
 
 	/* RTC always wakes from S1/S2/S3, and often S4/STD */
-	device_init_wakeup(dev, 1);
+	device_init_wakeup(dev, true);
 }
 
 static void cmos_check_acpi_rtc_status(struct device *dev,

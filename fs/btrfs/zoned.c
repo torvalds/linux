@@ -2652,3 +2652,127 @@ void btrfs_check_active_zone_reservation(struct btrfs_fs_info *fs_info)
 	}
 	spin_unlock(&fs_info->zone_active_bgs_lock);
 }
+
+/*
+ * Reset the zones of unused block groups from @space_info->bytes_zone_unusable.
+ *
+ * @space_info:	the space to work on
+ * @num_bytes:	targeting reclaim bytes
+ *
+ * This one resets the zones of a block group, so we can reuse the region
+ * without removing the block group. On the other hand, btrfs_delete_unused_bgs()
+ * just removes a block group and frees up the underlying zones. So, we still
+ * need to allocate a new block group to reuse the zones.
+ *
+ * Resetting is faster than deleting/recreating a block group. It is similar
+ * to freeing the logical space on the regular mode. However, we cannot change
+ * the block group's profile with this operation.
+ */
+int btrfs_reset_unused_block_groups(struct btrfs_space_info *space_info, u64 num_bytes)
+{
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
+	const sector_t zone_size_sectors = fs_info->zone_size >> SECTOR_SHIFT;
+
+	if (!btrfs_is_zoned(fs_info))
+		return 0;
+
+	while (num_bytes > 0) {
+		struct btrfs_chunk_map *map;
+		struct btrfs_block_group *bg = NULL;
+		bool found = false;
+		u64 reclaimed = 0;
+
+		/*
+		 * Here, we choose a fully zone_unusable block group. It's
+		 * technically possible to reset a partly zone_unusable block
+		 * group, which still has some free space left. However,
+		 * handling that needs to cope with the allocation side, which
+		 * makes the logic more complex. So, let's handle the easy case
+		 * for now.
+		 */
+		spin_lock(&fs_info->unused_bgs_lock);
+		list_for_each_entry(bg, &fs_info->unused_bgs, bg_list) {
+			if ((bg->flags & BTRFS_BLOCK_GROUP_TYPE_MASK) != space_info->flags)
+				continue;
+
+			/*
+			 * Use trylock to avoid locking order violation. In
+			 * btrfs_reclaim_bgs_work(), the lock order is
+			 * &bg->lock -> &fs_info->unused_bgs_lock. We skip a
+			 * block group if we cannot take its lock.
+			 */
+			if (!spin_trylock(&bg->lock))
+				continue;
+			if (btrfs_is_block_group_used(bg) || bg->zone_unusable < bg->length) {
+				spin_unlock(&bg->lock);
+				continue;
+			}
+			spin_unlock(&bg->lock);
+			found = true;
+			break;
+		}
+		if (!found) {
+			spin_unlock(&fs_info->unused_bgs_lock);
+			return 0;
+		}
+
+		list_del_init(&bg->bg_list);
+		btrfs_put_block_group(bg);
+		spin_unlock(&fs_info->unused_bgs_lock);
+
+		/*
+		 * Since the block group is fully zone_unusable and we cannot
+		 * allocate from this block group anymore, we don't need to set
+		 * this block group read-only.
+		 */
+
+		down_read(&fs_info->dev_replace.rwsem);
+		map = bg->physical_map;
+		for (int i = 0; i < map->num_stripes; i++) {
+			struct btrfs_io_stripe *stripe = &map->stripes[i];
+			unsigned int nofs_flags;
+			int ret;
+
+			nofs_flags = memalloc_nofs_save();
+			ret = blkdev_zone_mgmt(stripe->dev->bdev, REQ_OP_ZONE_RESET,
+					       stripe->physical >> SECTOR_SHIFT,
+					       zone_size_sectors);
+			memalloc_nofs_restore(nofs_flags);
+
+			if (ret) {
+				up_read(&fs_info->dev_replace.rwsem);
+				return ret;
+			}
+		}
+		up_read(&fs_info->dev_replace.rwsem);
+
+		spin_lock(&space_info->lock);
+		spin_lock(&bg->lock);
+		ASSERT(!btrfs_is_block_group_used(bg));
+		if (bg->ro) {
+			spin_unlock(&bg->lock);
+			spin_unlock(&space_info->lock);
+			continue;
+		}
+
+		reclaimed = bg->alloc_offset;
+		bg->zone_unusable = bg->length - bg->zone_capacity;
+		bg->alloc_offset = 0;
+		/*
+		 * This holds because we currently reset fully used then freed
+		 * block group.
+		 */
+		ASSERT(reclaimed == bg->zone_capacity);
+		bg->free_space_ctl->free_space += reclaimed;
+		space_info->bytes_zone_unusable -= reclaimed;
+		spin_unlock(&bg->lock);
+		btrfs_return_free_space(space_info, reclaimed);
+		spin_unlock(&space_info->lock);
+
+		if (num_bytes <= reclaimed)
+			break;
+		num_bytes -= reclaimed;
+	}
+
+	return 0;
+}

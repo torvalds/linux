@@ -52,7 +52,8 @@ static int __init early_init_dt_alloc_reserved_memory_arch(phys_addr_t size,
 			memblock_phys_free(base, size);
 	}
 
-	kmemleak_ignore_phys(base);
+	if (!err)
+		kmemleak_ignore_phys(base);
 
 	return err;
 }
@@ -262,6 +263,11 @@ void __init fdt_scan_reserved_mem_reg_nodes(void)
 			       uname);
 			continue;
 		}
+
+		if (len > t_len)
+			pr_warn("%s() ignores %d regions in node '%s'\n",
+				__func__, len / t_len - 1, uname);
+
 		base = dt_mem_next_cell(dt_root_addr_cells, &prop);
 		size = dt_mem_next_cell(dt_root_size_cells, &prop);
 
@@ -409,12 +415,12 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 
 	prop = of_get_flat_dt_prop(node, "alignment", &len);
 	if (prop) {
-		if (len != dt_root_addr_cells * sizeof(__be32)) {
+		if (len != dt_root_size_cells * sizeof(__be32)) {
 			pr_err("invalid alignment property in '%s' node.\n",
 				uname);
 			return -EINVAL;
 		}
-		align = dt_mem_next_cell(dt_root_addr_cells, &prop);
+		align = dt_mem_next_cell(dt_root_size_cells, &prop);
 	}
 
 	nomap = of_get_flat_dt_prop(node, "no-map", NULL) != NULL;
@@ -435,13 +441,12 @@ static int __init __reserved_mem_alloc_size(unsigned long node, const char *unam
 			return -EINVAL;
 		}
 
-		base = 0;
-
 		while (len > 0) {
 			start = dt_mem_next_cell(dt_root_addr_cells, &prop);
 			end = start + dt_mem_next_cell(dt_root_size_cells,
 						       &prop);
 
+			base = 0;
 			ret = __reserved_mem_alloc_in_range(size, align,
 					start, end, nomap, &base);
 			if (ret == 0) {

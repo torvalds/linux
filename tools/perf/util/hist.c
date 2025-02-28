@@ -32,6 +32,9 @@
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 
+static int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
+static int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
+
 static bool hists__filter_entry_by_dso(struct hists *hists,
 				       struct hist_entry *he);
 static bool hists__filter_entry_by_thread(struct hists *hists,
@@ -1292,19 +1295,35 @@ out:
 	return err;
 }
 
-int64_t
-hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
+static int64_t
+hist_entry__cmp_impl(struct perf_hpp_list *hpp_list, struct hist_entry *left,
+		     struct hist_entry *right, unsigned long fn_offset,
+		     bool ignore_dynamic, bool ignore_skipped)
 {
 	struct hists *hists = left->hists;
 	struct perf_hpp_fmt *fmt;
-	int64_t cmp = 0;
+	perf_hpp_fmt_cmp_t *fn;
+	int64_t cmp;
 
-	hists__for_each_sort_list(hists, fmt) {
-		if (perf_hpp__is_dynamic_entry(fmt) &&
+	/*
+	 * Never collapse filtered and non-filtered entries.
+	 * Note this is not the same as having an extra (invisible) fmt
+	 * that corresponds to the filtered status.
+	 */
+	cmp = (int64_t)!!left->filtered - (int64_t)!!right->filtered;
+	if (cmp)
+		return cmp;
+
+	perf_hpp_list__for_each_sort_list(hpp_list, fmt) {
+		if (ignore_dynamic && perf_hpp__is_dynamic_entry(fmt) &&
 		    !perf_hpp__defined_dynamic_entry(fmt, hists))
 			continue;
 
-		cmp = fmt->cmp(fmt, left, right);
+		if (ignore_skipped && perf_hpp__should_skip(fmt, hists))
+			continue;
+
+		fn = (void *)fmt + fn_offset;
+		cmp = (*fn)(fmt, left, right);
 		if (cmp)
 			break;
 	}
@@ -1313,23 +1332,33 @@ hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
 }
 
 int64_t
+hist_entry__cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return hist_entry__cmp_impl(left->hists->hpp_list, left, right,
+		offsetof(struct perf_hpp_fmt, cmp), true, false);
+}
+
+static int64_t
+hist_entry__sort(struct hist_entry *left, struct hist_entry *right)
+{
+	return hist_entry__cmp_impl(left->hists->hpp_list, left, right,
+		offsetof(struct perf_hpp_fmt, sort), false, true);
+}
+
+int64_t
 hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 {
-	struct hists *hists = left->hists;
-	struct perf_hpp_fmt *fmt;
-	int64_t cmp = 0;
+	return hist_entry__cmp_impl(left->hists->hpp_list, left, right,
+		offsetof(struct perf_hpp_fmt, collapse), true, false);
+}
 
-	hists__for_each_sort_list(hists, fmt) {
-		if (perf_hpp__is_dynamic_entry(fmt) &&
-		    !perf_hpp__defined_dynamic_entry(fmt, hists))
-			continue;
-
-		cmp = fmt->collapse(fmt, left, right);
-		if (cmp)
-			break;
-	}
-
-	return cmp;
+static int64_t
+hist_entry__collapse_hierarchy(struct perf_hpp_list *hpp_list,
+			       struct hist_entry *left,
+			       struct hist_entry *right)
+{
+	return hist_entry__cmp_impl(hpp_list, left, right,
+		offsetof(struct perf_hpp_fmt, collapse), false, false);
 }
 
 void hist_entry__delete(struct hist_entry *he)
@@ -1503,14 +1532,7 @@ static struct hist_entry *hierarchy_insert_entry(struct hists *hists,
 	while (*p != NULL) {
 		parent = *p;
 		iter = rb_entry(parent, struct hist_entry, rb_node_in);
-
-		cmp = 0;
-		perf_hpp_list__for_each_sort_list(hpp_list, fmt) {
-			cmp = fmt->collapse(fmt, iter, he);
-			if (cmp)
-				break;
-		}
-
+		cmp = hist_entry__collapse_hierarchy(hpp_list, iter, he);
 		if (!cmp) {
 			he_stat__add_stat(&iter->stat, &he->stat);
 			return iter;
@@ -1728,24 +1750,6 @@ int hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 			ui_progress__update(prog, 1);
 	}
 	return 0;
-}
-
-static int64_t hist_entry__sort(struct hist_entry *a, struct hist_entry *b)
-{
-	struct hists *hists = a->hists;
-	struct perf_hpp_fmt *fmt;
-	int64_t cmp = 0;
-
-	hists__for_each_sort_list(hists, fmt) {
-		if (perf_hpp__should_skip(fmt, a->hists))
-			continue;
-
-		cmp = fmt->sort(fmt, a, b);
-		if (cmp)
-			break;
-	}
-
-	return cmp;
 }
 
 static void hists__reset_filter_stats(struct hists *hists)
@@ -2449,21 +2453,15 @@ static struct hist_entry *add_dummy_hierarchy_entry(struct hists *hists,
 	struct rb_node **p;
 	struct rb_node *parent = NULL;
 	struct hist_entry *he;
-	struct perf_hpp_fmt *fmt;
 	bool leftmost = true;
 
 	p = &root->rb_root.rb_node;
 	while (*p != NULL) {
-		int64_t cmp = 0;
+		int64_t cmp;
 
 		parent = *p;
 		he = rb_entry(parent, struct hist_entry, rb_node_in);
-
-		perf_hpp_list__for_each_sort_list(he->hpp_list, fmt) {
-			cmp = fmt->collapse(fmt, he, pair);
-			if (cmp)
-				break;
-		}
+		cmp = hist_entry__collapse_hierarchy(he->hpp_list, he, pair);
 		if (!cmp)
 			goto out;
 
@@ -2521,16 +2519,10 @@ static struct hist_entry *hists__find_hierarchy_entry(struct rb_root_cached *roo
 
 	while (n) {
 		struct hist_entry *iter;
-		struct perf_hpp_fmt *fmt;
-		int64_t cmp = 0;
+		int64_t cmp;
 
 		iter = rb_entry(n, struct hist_entry, rb_node_in);
-		perf_hpp_list__for_each_sort_list(he->hpp_list, fmt) {
-			cmp = fmt->collapse(fmt, iter, he);
-			if (cmp)
-				break;
-		}
-
+		cmp = hist_entry__collapse_hierarchy(he->hpp_list, iter, he);
 		if (cmp < 0)
 			n = n->rb_left;
 		else if (cmp > 0)

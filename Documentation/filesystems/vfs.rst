@@ -1251,7 +1251,8 @@ defined:
 .. code-block:: c
 
 	struct dentry_operations {
-		int (*d_revalidate)(struct dentry *, unsigned int);
+		int (*d_revalidate)(struct inode *, const struct qstr *,
+				    struct dentry *, unsigned int);
 		int (*d_weak_revalidate)(struct dentry *, unsigned int);
 		int (*d_hash)(const struct dentry *, struct qstr *);
 		int (*d_compare)(const struct dentry *,
@@ -1264,6 +1265,8 @@ defined:
 		struct vfsmount *(*d_automount)(struct path *);
 		int (*d_manage)(const struct path *, bool);
 		struct dentry *(*d_real)(struct dentry *, enum d_real_type type);
+		bool (*d_unalias_trylock)(const struct dentry *);
+		void (*d_unalias_unlock)(const struct dentry *);
 	};
 
 ``d_revalidate``
@@ -1426,6 +1429,25 @@ defined:
 	hosting the file's data or metadata respectively.
 
 	For non-regular files, the 'dentry' argument is returned.
+
+``d_unalias_trylock``
+	if present, will be called by d_splice_alias() before moving a
+	preexisting attached alias.  Returning false prevents __d_move(),
+	making d_splice_alias() fail with -ESTALE.
+
+	Rationale: setting FS_RENAME_DOES_D_MOVE will prevent d_move()
+	and d_exchange() calls from the outside of filesystem methods;
+	however, it does not guarantee that attached dentries won't
+	be renamed or moved by d_splice_alias() finding a preexisting
+	alias for a directory inode.  Normally we would not care;
+	however, something that wants to stabilize the entire path to
+	root over a blocking operation might need that.  See 9p for one
+	(and hopefully only) example.
+
+``d_unalias_unlock``
+	should be paired with ``d_unalias_trylock``; that one is called after
+	__d_move() call in __d_unalias().
+
 
 Each dentry has a pointer to its parent dentry, as well as a hash list
 of child dentries.  Child dentries are basically like files in a

@@ -109,6 +109,7 @@ ALL_TESTS="
 	ping_ipv4
 	ping_ipv6
 "
+REQUIRE_TEAMD="yes"
 NUM_NETIFS=8
 source lib.sh
 

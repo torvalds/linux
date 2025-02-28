@@ -90,6 +90,14 @@ config DRM_FSL_LDB
 	help
 	  Support for i.MX8MP DPI-to-LVDS on-SoC encoder.
 
+config DRM_I2C_NXP_TDA998X
+       tristate "NXP Semiconductors TDA998X HDMI encoder"
+       default m if DRM_TILCDC
+       select CEC_CORE if CEC_NOTIFIER
+       select SND_SOC_HDMI_CODEC if SND_SOC
+       help
+         Support for NXP Semiconductors TDA998X HDMI encoders.
+
 config DRM_ITE_IT6263
 	tristate "ITE IT6263 LVDS/HDMI bridge"
 	depends on OF

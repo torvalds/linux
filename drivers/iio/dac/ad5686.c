@@ -455,39 +455,28 @@ int ad5686_probe(struct device *dev,
 	struct ad5686_state *st;
 	struct iio_dev *indio_dev;
 	unsigned int val, ref_bit_msk;
+	bool has_external_vref;
 	u8 cmd;
-	int ret, i, voltage_uv = 0;
+	int ret, i;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*st));
 	if (indio_dev == NULL)
 		return  -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	dev_set_drvdata(dev, indio_dev);
 
 	st->dev = dev;
 	st->write = write;
 	st->read = read;
 
-	st->reg = devm_regulator_get_optional(dev, "vcc");
-	if (!IS_ERR(st->reg)) {
-		ret = regulator_enable(st->reg);
-		if (ret)
-			return ret;
-
-		ret = regulator_get_voltage(st->reg);
-		if (ret < 0)
-			goto error_disable_reg;
-
-		voltage_uv = ret;
-	}
-
 	st->chip_info = &ad5686_chip_info_tbl[chip_type];
 
-	if (voltage_uv)
-		st->vref_mv = voltage_uv / 1000;
-	else
-		st->vref_mv = st->chip_info->int_vref_mv;
+	ret = devm_regulator_get_enable_read_voltage(dev, "vcc");
+	if (ret < 0 && ret != -ENODEV)
+		return ret;
+
+	has_external_vref = ret != -ENODEV;
+	st->vref_mv = has_external_vref ? ret / 1000 : st->chip_info->int_vref_mv;
 
 	/* Set all the power down mode for all channels to 1K pulldown */
 	for (i = 0; i < st->chip_info->num_channels; i++)
@@ -505,12 +494,12 @@ int ad5686_probe(struct device *dev,
 	case AD5310_REGMAP:
 		cmd = AD5686_CMD_CONTROL_REG;
 		ref_bit_msk = AD5310_REF_BIT_MSK;
-		st->use_internal_vref = !voltage_uv;
+		st->use_internal_vref = !has_external_vref;
 		break;
 	case AD5683_REGMAP:
 		cmd = AD5686_CMD_CONTROL_REG;
 		ref_bit_msk = AD5683_REF_BIT_MSK;
-		st->use_internal_vref = !voltage_uv;
+		st->use_internal_vref = !has_external_vref;
 		break;
 	case AD5686_REGMAP:
 		cmd = AD5686_CMD_INTERNAL_REFER_SETUP;
@@ -519,42 +508,21 @@ int ad5686_probe(struct device *dev,
 	case AD5693_REGMAP:
 		cmd = AD5686_CMD_CONTROL_REG;
 		ref_bit_msk = AD5693_REF_BIT_MSK;
-		st->use_internal_vref = !voltage_uv;
+		st->use_internal_vref = !has_external_vref;
 		break;
 	default:
-		ret = -EINVAL;
-		goto error_disable_reg;
+		return -EINVAL;
 	}
 
-	val = (voltage_uv | ref_bit_msk);
+	val = (has_external_vref | ref_bit_msk);
 
 	ret = st->write(st, cmd, 0, !!val);
 	if (ret)
-		goto error_disable_reg;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_disable_reg;
-
-	return 0;
-
-error_disable_reg:
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
-	return ret;
+	return devm_iio_device_register(dev, indio_dev);
 }
 EXPORT_SYMBOL_NS_GPL(ad5686_probe, "IIO_AD5686");
-
-void ad5686_remove(struct device *dev)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad5686_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	if (!IS_ERR(st->reg))
-		regulator_disable(st->reg);
-}
-EXPORT_SYMBOL_NS_GPL(ad5686_remove, "IIO_AD5686");
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD5686/85/84 DAC");

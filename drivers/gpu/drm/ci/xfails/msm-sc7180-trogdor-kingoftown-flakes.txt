@@ -18,3 +18,17 @@ msm/msm_shrink@copy-gpu-oom-32
 # IGT Version: 1.28-g0df7b9b97
 # Linux Version: 6.9.0-rc7
 msm/msm_shrink@copy-gpu-oom-8
+
+# Board Name: sc7180-trogdor-kingoftown
+# Bug Report: https://gitlab.freedesktop.org/drm/msm/-/issues/68
+# Failure Rate: 40
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_lease@page-flip-implicit-plane
+
+# Board Name: sc7180-trogdor-kingoftown
+# Bug Report: https://gitlab.freedesktop.org/drm/msm/-/issues/69
+# Failure Rate: 20
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+kms_plane@plane-position-hole-dpms

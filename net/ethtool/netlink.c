@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <net/netdev_queues.h>
 #include <net/sock.h>
 #include <linux/ethtool_netlink.h>
 #include <linux/phy_link_topology.h>
@@ -90,7 +91,7 @@ int ethnl_ops_begin(struct net_device *dev)
 		pm_runtime_get_sync(dev->dev.parent);
 
 	if (!netif_device_present(dev) ||
-	    dev->reg_state == NETREG_UNREGISTERING) {
+	    dev->reg_state >= NETREG_UNREGISTERING) {
 		ret = -ENODEV;
 		goto err;
 	}
@@ -394,6 +395,8 @@ ethnl_default_requests[__ETHTOOL_MSG_USER_CNT] = {
 	[ETHTOOL_MSG_PLCA_GET_STATUS]	= &ethnl_plca_status_request_ops,
 	[ETHTOOL_MSG_MM_GET]		= &ethnl_mm_request_ops,
 	[ETHTOOL_MSG_MM_SET]		= &ethnl_mm_request_ops,
+	[ETHTOOL_MSG_TSCONFIG_GET]	= &ethnl_tsconfig_request_ops,
+	[ETHTOOL_MSG_TSCONFIG_SET]	= &ethnl_tsconfig_request_ops,
 };
 
 static struct ethnl_dump_ctx *ethnl_dump_context(struct netlink_callback *cb)
@@ -665,6 +668,7 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 	const struct ethnl_request_ops *ops;
 	struct ethnl_req_info req_info = {};
 	const u8 cmd = info->genlhdr->cmd;
+	struct net_device *dev;
 	int ret;
 
 	ops = ethnl_default_requests[cmd];
@@ -686,20 +690,36 @@ static int ethnl_default_set_doit(struct sk_buff *skb, struct genl_info *info)
 			goto out_dev;
 	}
 
+	dev = req_info.dev;
+
 	rtnl_lock();
-	ret = ethnl_ops_begin(req_info.dev);
+	dev->cfg_pending = kmemdup(dev->cfg, sizeof(*dev->cfg),
+				   GFP_KERNEL_ACCOUNT);
+	if (!dev->cfg_pending) {
+		ret = -ENOMEM;
+		goto out_tie_cfg;
+	}
+
+	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
-		goto out_rtnl;
+		goto out_free_cfg;
 
 	ret = ops->set(&req_info, info);
-	if (ret <= 0)
+	if (ret < 0)
 		goto out_ops;
-	ethtool_notify(req_info.dev, ops->set_ntf_cmd, NULL);
+
+	swap(dev->cfg, dev->cfg_pending);
+	if (!ret)
+		goto out_ops;
+	ethtool_notify(dev, ops->set_ntf_cmd, NULL);
 
 	ret = 0;
 out_ops:
-	ethnl_ops_complete(req_info.dev);
-out_rtnl:
+	ethnl_ops_complete(dev);
+out_free_cfg:
+	kfree(dev->cfg_pending);
+out_tie_cfg:
+	dev->cfg_pending = dev->cfg;
 	rtnl_unlock();
 out_dev:
 	ethnl_parse_header_dev_put(&req_info);
@@ -1074,9 +1094,9 @@ static const struct genl_ops ethtool_genl_ops[] = {
 	{
 		.cmd	= ETHTOOL_MSG_TSINFO_GET,
 		.doit	= ethnl_default_doit,
-		.start	= ethnl_default_start,
-		.dumpit	= ethnl_default_dumpit,
-		.done	= ethnl_default_done,
+		.start	= ethnl_tsinfo_start,
+		.dumpit	= ethnl_tsinfo_dumpit,
+		.done	= ethnl_tsinfo_done,
 		.policy = ethnl_tsinfo_get_policy,
 		.maxattr = ARRAY_SIZE(ethnl_tsinfo_get_policy) - 1,
 	},
@@ -1242,6 +1262,22 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.done	= ethnl_phy_done,
 		.policy = ethnl_phy_get_policy,
 		.maxattr = ARRAY_SIZE(ethnl_phy_get_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_TSCONFIG_GET,
+		.doit	= ethnl_default_doit,
+		.start	= ethnl_default_start,
+		.dumpit	= ethnl_default_dumpit,
+		.done	= ethnl_default_done,
+		.policy = ethnl_tsconfig_get_policy,
+		.maxattr = ARRAY_SIZE(ethnl_tsconfig_get_policy) - 1,
+	},
+	{
+		.cmd	= ETHTOOL_MSG_TSCONFIG_SET,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_default_set_doit,
+		.policy = ethnl_tsconfig_set_policy,
+		.maxattr = ARRAY_SIZE(ethnl_tsconfig_set_policy) - 1,
 	},
 };
 

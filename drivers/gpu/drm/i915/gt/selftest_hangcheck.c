@@ -548,7 +548,7 @@ static int igt_reset_fail_engine(void *arg)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	/* Check that we can recover from engine-reset failues */
+	/* Check that we can recover from engine-reset failures */
 
 	if (!intel_has_reset_engine(gt))
 		return 0;
@@ -1025,7 +1025,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			threads[tmp].engine = other;
 			threads[tmp].flags = flags;
 
-			worker = kthread_create_worker(0, "igt/%s",
+			worker = kthread_run_worker(0, "igt/%s",
 						       other->name);
 			if (IS_ERR(worker)) {
 				err = PTR_ERR(worker);

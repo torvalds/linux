@@ -142,7 +142,6 @@
 	phy-supply = <&vcc_io_33>;
 	pinctrl-0 = <&rgmiim1_pins>;
 	pinctrl-names = "default";
-	snps,aal;
 
 	mdio {
 		compatible = "snps,dwmac-mdio";

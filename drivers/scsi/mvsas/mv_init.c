@@ -609,7 +609,7 @@ static void mvs_pci_remove(struct pci_dev *pdev)
 	return;
 }
 
-static struct pci_device_id mvs_pci_table[] = {
+static const struct pci_device_id mvs_pci_table[] = {
 	{ PCI_VDEVICE(MARVELL, 0x6320), chip_6320 },
 	{ PCI_VDEVICE(MARVELL, 0x6340), chip_6440 },
 	{

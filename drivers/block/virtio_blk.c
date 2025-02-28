@@ -13,7 +13,6 @@
 #include <linux/string_helpers.h>
 #include <linux/idr.h>
 #include <linux/blk-mq.h>
-#include <linux/blk-mq-virtio.h>
 #include <linux/numa.h>
 #include <linux/vmalloc.h>
 #include <uapi/linux/virtio_ring.h>
@@ -1106,9 +1105,7 @@ cache_type_store(struct device *dev, struct device_attribute *attr,
 		lim.features |= BLK_FEAT_WRITE_CACHE;
 	else
 		lim.features &= ~BLK_FEAT_WRITE_CACHE;
-	blk_mq_freeze_queue(disk->queue);
-	i = queue_limits_commit_update(disk->queue, &lim);
-	blk_mq_unfreeze_queue(disk->queue);
+	i = queue_limits_commit_update_frozen(disk->queue, &lim);
 	if (i)
 		return i;
 	return count;
@@ -1181,7 +1178,8 @@ static void virtblk_map_queues(struct blk_mq_tag_set *set)
 		if (i == HCTX_TYPE_POLL)
 			blk_mq_map_queues(&set->map[i]);
 		else
-			blk_mq_virtio_map_queues(&set->map[i], vblk->vdev, 0);
+			blk_mq_map_hw_queues(&set->map[i],
+					     &vblk->vdev->dev, 0);
 	}
 }
 
@@ -1481,7 +1479,6 @@ static int virtblk_probe(struct virtio_device *vdev)
 	vblk->tag_set.ops = &virtio_mq_ops;
 	vblk->tag_set.queue_depth = queue_depth;
 	vblk->tag_set.numa_node = NUMA_NO_NODE;
-	vblk->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	vblk->tag_set.cmd_size =
 		sizeof(struct virtblk_req) +
 		sizeof(struct scatterlist) * VIRTIO_BLK_INLINE_SG_CNT;
@@ -1582,16 +1579,16 @@ static void virtblk_remove(struct virtio_device *vdev)
 	put_disk(vblk->disk);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int virtblk_freeze(struct virtio_device *vdev)
+static int virtblk_freeze_priv(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
 	struct request_queue *q = vblk->disk->queue;
+	unsigned int memflags;
 
 	/* Ensure no requests in virtqueues before deleting vqs. */
-	blk_mq_freeze_queue(q);
+	memflags = blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue_nowait(q);
-	blk_mq_unfreeze_queue(q);
+	blk_mq_unfreeze_queue(q, memflags);
 
 	/* Ensure we don't receive any more interrupts */
 	virtio_reset_device(vdev);
@@ -1605,7 +1602,7 @@ static int virtblk_freeze(struct virtio_device *vdev)
 	return 0;
 }
 
-static int virtblk_restore(struct virtio_device *vdev)
+static int virtblk_restore_priv(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
 	int ret;
@@ -1619,7 +1616,28 @@ static int virtblk_restore(struct virtio_device *vdev)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int virtblk_freeze(struct virtio_device *vdev)
+{
+	return virtblk_freeze_priv(vdev);
+}
+
+static int virtblk_restore(struct virtio_device *vdev)
+{
+	return virtblk_restore_priv(vdev);
+}
 #endif
+
+static int virtblk_reset_prepare(struct virtio_device *vdev)
+{
+	return virtblk_freeze_priv(vdev);
+}
+
+static int virtblk_reset_done(struct virtio_device *vdev)
+{
+	return virtblk_restore_priv(vdev);
+}
 
 static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_BLOCK, VIRTIO_DEV_ANY_ID },
@@ -1656,6 +1674,8 @@ static struct virtio_driver virtio_blk = {
 	.freeze				= virtblk_freeze,
 	.restore			= virtblk_restore,
 #endif
+	.reset_prepare			= virtblk_reset_prepare,
+	.reset_done			= virtblk_reset_done,
 };
 
 static int __init virtio_blk_init(void)

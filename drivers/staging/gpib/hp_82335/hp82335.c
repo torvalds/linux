@@ -173,32 +173,32 @@ void hp82335_return_to_local(gpib_board_t *board)
 	tms9914_return_to_local(board, &priv->tms9914_priv);
 }
 
-gpib_interface_t hp82335_interface = {
-name: "hp82335",
-attach : hp82335_attach,
-detach : hp82335_detach,
-read : hp82335_read,
-write : hp82335_write,
-command : hp82335_command,
-request_system_control : hp82335_request_system_control,
-take_control : hp82335_take_control,
-go_to_standby : hp82335_go_to_standby,
-interface_clear : hp82335_interface_clear,
-remote_enable : hp82335_remote_enable,
-enable_eos : hp82335_enable_eos,
-disable_eos : hp82335_disable_eos,
-parallel_poll : hp82335_parallel_poll,
-parallel_poll_configure : hp82335_parallel_poll_configure,
-parallel_poll_response : hp82335_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : hp82335_line_status,
-update_status : hp82335_update_status,
-primary_address : hp82335_primary_address,
-secondary_address : hp82335_secondary_address,
-serial_poll_response : hp82335_serial_poll_response,
-serial_poll_status : hp82335_serial_poll_status,
-t1_delay : hp82335_t1_delay,
-return_to_local : hp82335_return_to_local,
+static gpib_interface_t hp82335_interface = {
+	.name = "hp82335",
+	.attach = hp82335_attach,
+	.detach = hp82335_detach,
+	.read = hp82335_read,
+	.write = hp82335_write,
+	.command = hp82335_command,
+	.request_system_control = hp82335_request_system_control,
+	.take_control = hp82335_take_control,
+	.go_to_standby = hp82335_go_to_standby,
+	.interface_clear = hp82335_interface_clear,
+	.remote_enable = hp82335_remote_enable,
+	.enable_eos = hp82335_enable_eos,
+	.disable_eos = hp82335_disable_eos,
+	.parallel_poll = hp82335_parallel_poll,
+	.parallel_poll_configure = hp82335_parallel_poll_configure,
+	.parallel_poll_response = hp82335_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = hp82335_line_status,
+	.update_status = hp82335_update_status,
+	.primary_address = hp82335_primary_address,
+	.secondary_address = hp82335_secondary_address,
+	.serial_poll_response = hp82335_serial_poll_response,
+	.serial_poll_status = hp82335_serial_poll_status,
+	.t1_delay = hp82335_t1_delay,
+	.return_to_local = hp82335_return_to_local,
 };
 
 int hp82335_allocate_private(gpib_board_t *board)
@@ -326,7 +326,13 @@ void hp82335_detach(gpib_board_t *board)
 
 static int __init hp82335_init_module(void)
 {
-	gpib_register_driver(&hp82335_interface, THIS_MODULE);
+	int result = gpib_register_driver(&hp82335_interface, THIS_MODULE);
+
+	if (result) {
+		pr_err("hp82335: gpib_register_driver failed: error = %d\n", result);
+		return result;
+	}
+
 	return 0;
 }
 

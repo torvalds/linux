@@ -33,7 +33,9 @@ enum pd_ctrl_msg_type {
 	PD_CTRL_FR_SWAP = 19,
 	PD_CTRL_GET_PPS_STATUS = 20,
 	PD_CTRL_GET_COUNTRY_CODES = 21,
-	/* 22-31 Reserved */
+	/* 22-23 Reserved */
+	PD_CTRL_GET_REVISION = 24,
+	/* 25-31 Reserved */
 };
 
 enum pd_data_msg_type {
@@ -46,7 +48,9 @@ enum pd_data_msg_type {
 	PD_DATA_ALERT = 6,
 	PD_DATA_GET_COUNTRY_INFO = 7,
 	PD_DATA_ENTER_USB = 8,
-	/* 9-14 Reserved */
+	/* 9-11 Reserved */
+	PD_DATA_REVISION = 12,
+	/* 13-14 Reserved */
 	PD_DATA_VENDOR_DEF = 15,
 	/* 16-31 Reserved */
 };
@@ -452,6 +456,20 @@ static inline unsigned int rdo_max_power(u32 rdo)
 #define EUDO_DP_SUPPORT			BIT(15)
 #define EUDO_TBT_SUPPORT		BIT(14)
 #define EUDO_HOST_PRESENT		BIT(13)
+
+/*
+ * Request Message Data Object (PD Revision 3.1+ only)
+ * --------
+ * <31:28> :: Revision Major
+ * <27:24> :: Revision Minor
+ * <23:20> :: Version Major
+ * <19:16> :: Version Minor
+ * <15:0>  :: Reserved, Shall be set to zero
+ */
+
+#define RMDO(rev_maj, rev_min, ver_maj, ver_min)			\
+	(((rev_maj) & 0xf) << 28 | ((rev_min) & 0xf) << 24 |		\
+	 ((ver_maj) & 0xf) << 20 | ((ver_min) & 0xf) << 16)
 
 /* USB PD timers and counters */
 #define PD_T_NO_RESPONSE	5000	/* 4.5 - 5.5 seconds */

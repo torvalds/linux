@@ -239,7 +239,7 @@ static u32 rw_with_mcr_steering_fw(struct intel_gt *gt,
 		 * to remain in multicast mode for reads.  There's no real
 		 * downside to this, so we'll just go ahead and do so on all
 		 * platforms; we'll only clear the multicast bit from the mask
-		 * when exlicitly doing a write operation.
+		 * when explicitly doing a write operation.
 		 */
 		if (rw_flag == FW_REG_WRITE)
 			mcr_mask |= GEN11_MCR_MULTICAST;

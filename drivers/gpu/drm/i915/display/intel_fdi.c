@@ -80,14 +80,13 @@ void assert_fdi_rx_disabled(struct drm_i915_private *i915, enum pipe pipe)
 	assert_fdi_rx(i915, pipe, false);
 }
 
-void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915,
+void assert_fdi_tx_pll_enabled(struct intel_display *display,
 			       enum pipe pipe)
 {
-	struct intel_display *display = &i915->display;
 	bool cur_state;
 
 	/* ILK FDI PLL is always enabled */
-	if (IS_IRONLAKE(i915))
+	if (display->platform.ironlake)
 		return;
 
 	/* On Haswell, DDI ports are responsible for the FDI PLL setup */
@@ -99,10 +98,9 @@ void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915,
 				 "FDI TX PLL assertion failure, should be active but is disabled\n");
 }
 
-static void assert_fdi_rx_pll(struct drm_i915_private *i915,
+static void assert_fdi_rx_pll(struct intel_display *display,
 			      enum pipe pipe, bool state)
 {
-	struct intel_display *display = &i915->display;
 	bool cur_state;
 
 	cur_state = intel_de_read(display, FDI_RX_CTL(pipe)) & FDI_RX_PLL_ENABLE;
@@ -111,14 +109,14 @@ static void assert_fdi_rx_pll(struct drm_i915_private *i915,
 				 str_on_off(state), str_on_off(cur_state));
 }
 
-void assert_fdi_rx_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)
+void assert_fdi_rx_pll_enabled(struct intel_display *display, enum pipe pipe)
 {
-	assert_fdi_rx_pll(i915, pipe, true);
+	assert_fdi_rx_pll(display, pipe, true);
 }
 
-void assert_fdi_rx_pll_disabled(struct drm_i915_private *i915, enum pipe pipe)
+void assert_fdi_rx_pll_disabled(struct intel_display *display, enum pipe pipe)
 {
-	assert_fdi_rx_pll(i915, pipe, false);
+	assert_fdi_rx_pll(display, pipe, false);
 }
 
 void intel_fdi_link_train(struct intel_crtc *crtc,
@@ -390,7 +388,7 @@ static int intel_fdi_atomic_check_bw(struct intel_atomic_state *state,
  * @state must be recomputed with the updated @limits.
  *
  * Returns:
- *   - 0 if the confugration is valid
+ *   - 0 if the configuration is valid
  *   - %-EAGAIN, if the configuration is invalid and @limits got updated
  *     with fallback values with which the configuration of all CRTCs
  *     in @state must be recomputed
@@ -513,6 +511,7 @@ void intel_fdi_normal_train(struct intel_crtc *crtc)
 static void ilk_fdi_link_train(struct intel_crtc *crtc,
 			       const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum pipe pipe = crtc->pipe;
@@ -527,7 +526,7 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 		       intel_de_read(dev_priv, PIPE_DATA_M1(dev_priv, pipe)) & TU_SIZE_MASK);
 
 	/* FDI needs bits from pipe first */
-	assert_transcoder_enabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_enabled(display, crtc_state->cpu_transcoder);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */

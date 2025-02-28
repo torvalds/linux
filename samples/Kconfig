@@ -291,7 +291,18 @@ config SAMPLE_CGROUP
 	help
 	  Build samples that demonstrate the usage of the cgroup API.
 
+config SAMPLE_CHECK_EXEC
+	bool "Exec secure bits examples"
+	depends on CC_CAN_LINK && HEADERS_INSTALL
+	help
+	  Build a tool to easily configure SECBIT_EXEC_RESTRICT_FILE and
+	  SECBIT_EXEC_DENY_INTERACTIVE, and a simple script interpreter to
+	  demonstrate how they should be used with execveat(2) +
+	  AT_EXECVE_CHECK.
+
 source "samples/rust/Kconfig"
+
+source "samples/damon/Kconfig"
 
 endif # SAMPLES
 

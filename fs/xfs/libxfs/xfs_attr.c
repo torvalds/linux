@@ -1004,9 +1004,7 @@ xfs_attr_add_fork(
 	unsigned int		blks;		/* space reservation */
 	int			error;		/* error return value */
 
-	if (xfs_is_metadir_inode(ip))
-		ASSERT(XFS_IS_DQDETACHED(ip));
-	else
+	if (!xfs_is_metadir_inode(ip))
 		ASSERT(!XFS_NOT_DQATTACHED(mp, ip));
 
 	blks = XFS_ADDAFORK_SPACE_RES(mp);

@@ -264,18 +264,6 @@ extern bool timekeeping_rtc_skipresume(void);
 extern void timekeeping_inject_sleeptime64(const struct timespec64 *delta);
 
 /**
- * struct ktime_timestamps - Simultaneous mono/boot/real timestamps
- * @mono:	Monotonic timestamp
- * @boot:	Boottime timestamp
- * @real:	Realtime timestamp
- */
-struct ktime_timestamps {
-	u64		mono;
-	u64		boot;
-	u64		real;
-};
-
-/**
  * struct system_time_snapshot - simultaneous raw/real time capture with
  *				 counter value
  * @cycles:	Clocksource counter value to produce the system times
@@ -344,9 +332,6 @@ extern int get_device_system_crosststamp(
  * Simultaneously snapshot realtime and monotonic raw clocks
  */
 extern void ktime_get_snapshot(struct system_time_snapshot *systime_snapshot);
-
-/* NMI safe mono/boot/realtime timestamps */
-extern void ktime_get_fast_timestamps(struct ktime_timestamps *snap);
 
 /*
  * Persistent clock related interfaces

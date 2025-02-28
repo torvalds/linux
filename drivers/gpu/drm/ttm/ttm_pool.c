@@ -58,6 +58,23 @@ struct ttm_pool_dma {
 	unsigned long vaddr;
 };
 
+/**
+ * struct ttm_pool_alloc_state - Current state of the tt page allocation process
+ * @pages: Pointer to the next tt page pointer to populate.
+ * @caching_divide: Pointer to the first page pointer whose page has a staged but
+ * not committed caching transition from write-back to @tt_caching.
+ * @dma_addr: Pointer to the next tt dma_address entry to populate if any.
+ * @remaining_pages: Remaining pages to populate.
+ * @tt_caching: The requested cpu-caching for the pages allocated.
+ */
+struct ttm_pool_alloc_state {
+	struct page **pages;
+	struct page **caching_divide;
+	dma_addr_t *dma_addr;
+	pgoff_t remaining_pages;
+	enum ttm_caching tt_caching;
+};
+
 static unsigned long page_pool_size;
 
 MODULE_PARM_DESC(page_pool_size, "Number of pages in the WC/UC/DMA pool");
@@ -160,25 +177,25 @@ static void ttm_pool_free_page(struct ttm_pool *pool, enum ttm_caching caching,
 	kfree(dma);
 }
 
-/* Apply a new caching to an array of pages */
-static int ttm_pool_apply_caching(struct page **first, struct page **last,
-				  enum ttm_caching caching)
+/* Apply any cpu-caching deferred during page allocation */
+static int ttm_pool_apply_caching(struct ttm_pool_alloc_state *alloc)
 {
 #ifdef CONFIG_X86
-	unsigned int num_pages = last - first;
+	unsigned int num_pages = alloc->pages - alloc->caching_divide;
 
 	if (!num_pages)
 		return 0;
 
-	switch (caching) {
+	switch (alloc->tt_caching) {
 	case ttm_cached:
 		break;
 	case ttm_write_combined:
-		return set_pages_array_wc(first, num_pages);
+		return set_pages_array_wc(alloc->caching_divide, num_pages);
 	case ttm_uncached:
-		return set_pages_array_uc(first, num_pages);
+		return set_pages_array_uc(alloc->caching_divide, num_pages);
 	}
 #endif
+	alloc->caching_divide = alloc->pages;
 	return 0;
 }
 
@@ -354,24 +371,41 @@ static unsigned int ttm_pool_page_order(struct ttm_pool *pool, struct page *p)
 	return p->private;
 }
 
-/* Called when we got a page, either from a pool or newly allocated */
+/*
+ * Called when we got a page, either from a pool or newly allocated.
+ * if needed, dma map the page and populate the dma address array.
+ * Populate the page address array.
+ * If the caching is consistent, update any deferred caching. Otherwise
+ * stage this page for an upcoming deferred caching update.
+ */
 static int ttm_pool_page_allocated(struct ttm_pool *pool, unsigned int order,
-				   struct page *p, dma_addr_t **dma_addr,
-				   unsigned long *num_pages,
-				   struct page ***pages)
+				   struct page *p, enum ttm_caching page_caching,
+				   struct ttm_pool_alloc_state *alloc)
 {
-	unsigned int i;
-	int r;
+	pgoff_t i, nr = 1UL << order;
+	bool caching_consistent;
+	int r = 0;
 
-	if (*dma_addr) {
-		r = ttm_pool_map(pool, order, p, dma_addr);
+	caching_consistent = (page_caching == alloc->tt_caching) || PageHighMem(p);
+
+	if (caching_consistent) {
+		r = ttm_pool_apply_caching(alloc);
 		if (r)
 			return r;
 	}
 
-	*num_pages -= 1 << order;
-	for (i = 1 << order; i; --i, ++(*pages), ++p)
-		**pages = p;
+	if (alloc->dma_addr) {
+		r = ttm_pool_map(pool, order, p, &alloc->dma_addr);
+		if (r)
+			return r;
+	}
+
+	alloc->remaining_pages -= nr;
+	for (i = 0; i < nr; ++i)
+		*alloc->pages++ = p++;
+
+	if (caching_consistent)
+		alloc->caching_divide = alloc->pages;
 
 	return 0;
 }
@@ -413,6 +447,26 @@ static void ttm_pool_free_range(struct ttm_pool *pool, struct ttm_tt *tt,
 	}
 }
 
+static void ttm_pool_alloc_state_init(const struct ttm_tt *tt,
+				      struct ttm_pool_alloc_state *alloc)
+{
+	alloc->pages = tt->pages;
+	alloc->caching_divide = tt->pages;
+	alloc->dma_addr = tt->dma_address;
+	alloc->remaining_pages = tt->num_pages;
+	alloc->tt_caching = tt->caching;
+}
+
+/*
+ * Find a suitable allocation order based on highest desired order
+ * and number of remaining pages
+ */
+static unsigned int ttm_pool_alloc_find_order(unsigned int highest,
+					      const struct ttm_pool_alloc_state *alloc)
+{
+	return min_t(unsigned int, highest, __fls(alloc->remaining_pages));
+}
+
 /**
  * ttm_pool_alloc - Fill a ttm_tt object
  *
@@ -428,19 +482,19 @@ static void ttm_pool_free_range(struct ttm_pool *pool, struct ttm_tt *tt,
 int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 		   struct ttm_operation_ctx *ctx)
 {
-	pgoff_t num_pages = tt->num_pages;
-	dma_addr_t *dma_addr = tt->dma_address;
-	struct page **caching = tt->pages;
-	struct page **pages = tt->pages;
+	struct ttm_pool_alloc_state alloc;
 	enum ttm_caching page_caching;
 	gfp_t gfp_flags = GFP_USER;
 	pgoff_t caching_divide;
 	unsigned int order;
+	bool allow_pools;
 	struct page *p;
 	int r;
 
-	WARN_ON(!num_pages || ttm_tt_is_populated(tt));
-	WARN_ON(dma_addr && !pool->dev);
+	ttm_pool_alloc_state_init(tt, &alloc);
+
+	WARN_ON(!alloc.remaining_pages || ttm_tt_is_populated(tt));
+	WARN_ON(alloc.dma_addr && !pool->dev);
 
 	if (tt->page_flags & TTM_TT_FLAG_ZERO_ALLOC)
 		gfp_flags |= __GFP_ZERO;
@@ -453,67 +507,46 @@ int ttm_pool_alloc(struct ttm_pool *pool, struct ttm_tt *tt,
 	else
 		gfp_flags |= GFP_HIGHUSER;
 
-	for (order = min_t(unsigned int, MAX_PAGE_ORDER, __fls(num_pages));
-	     num_pages;
-	     order = min_t(unsigned int, order, __fls(num_pages))) {
+	page_caching = tt->caching;
+	allow_pools = true;
+	for (order = ttm_pool_alloc_find_order(MAX_PAGE_ORDER, &alloc);
+	     alloc.remaining_pages;
+	     order = ttm_pool_alloc_find_order(order, &alloc)) {
 		struct ttm_pool_type *pt;
 
-		page_caching = tt->caching;
-		pt = ttm_pool_select_type(pool, tt->caching, order);
-		p = pt ? ttm_pool_type_take(pt) : NULL;
-		if (p) {
-			r = ttm_pool_apply_caching(caching, pages,
-						   tt->caching);
-			if (r)
-				goto error_free_page;
-
-			caching = pages;
-			do {
-				r = ttm_pool_page_allocated(pool, order, p,
-							    &dma_addr,
-							    &num_pages,
-							    &pages);
-				if (r)
-					goto error_free_page;
-
-				caching = pages;
-				if (num_pages < (1 << order))
-					break;
-
-				p = ttm_pool_type_take(pt);
-			} while (p);
+		/* First, try to allocate a page from a pool if one exists. */
+		p = NULL;
+		pt = ttm_pool_select_type(pool, page_caching, order);
+		if (pt && allow_pools)
+			p = ttm_pool_type_take(pt);
+		/*
+		 * If that fails or previously failed, allocate from system.
+		 * Note that this also disallows additional pool allocations using
+		 * write-back cached pools of the same order. Consider removing
+		 * that behaviour.
+		 */
+		if (!p) {
+			page_caching = ttm_cached;
+			allow_pools = false;
+			p = ttm_pool_alloc_page(pool, gfp_flags, order);
 		}
-
-		page_caching = ttm_cached;
-		while (num_pages >= (1 << order) &&
-		       (p = ttm_pool_alloc_page(pool, gfp_flags, order))) {
-
-			if (PageHighMem(p)) {
-				r = ttm_pool_apply_caching(caching, pages,
-							   tt->caching);
-				if (r)
-					goto error_free_page;
-				caching = pages;
-			}
-			r = ttm_pool_page_allocated(pool, order, p, &dma_addr,
-						    &num_pages, &pages);
-			if (r)
-				goto error_free_page;
-			if (PageHighMem(p))
-				caching = pages;
-		}
-
+		/* If that fails, lower the order if possible and retry. */
 		if (!p) {
 			if (order) {
 				--order;
+				page_caching = tt->caching;
+				allow_pools = true;
 				continue;
 			}
 			r = -ENOMEM;
 			goto error_free_all;
 		}
+		r = ttm_pool_page_allocated(pool, order, p, page_caching, &alloc);
+		if (r)
+			goto error_free_page;
 	}
 
-	r = ttm_pool_apply_caching(caching, pages, tt->caching);
+	r = ttm_pool_apply_caching(&alloc);
 	if (r)
 		goto error_free_all;
 
@@ -523,10 +556,10 @@ error_free_page:
 	ttm_pool_free_page(pool, page_caching, order, p);
 
 error_free_all:
-	num_pages = tt->num_pages - num_pages;
-	caching_divide = caching - tt->pages;
+	caching_divide = alloc.caching_divide - tt->pages;
 	ttm_pool_free_range(pool, tt, tt->caching, 0, caching_divide);
-	ttm_pool_free_range(pool, tt, ttm_cached, caching_divide, num_pages);
+	ttm_pool_free_range(pool, tt, ttm_cached, caching_divide,
+			    tt->num_pages - alloc.remaining_pages);
 
 	return r;
 }

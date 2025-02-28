@@ -17,6 +17,5 @@ bool gemini_sata_bridge_enabled(struct sata_gemini *sg, bool is_ata1);
 enum gemini_muxmode gemini_sata_get_muxmode(struct sata_gemini *sg);
 int gemini_sata_start_bridge(struct sata_gemini *sg, unsigned int bridge);
 void gemini_sata_stop_bridge(struct sata_gemini *sg, unsigned int bridge);
-int gemini_sata_reset_bridge(struct sata_gemini *sg, unsigned int bridge);
 
 #endif

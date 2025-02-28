@@ -11,6 +11,7 @@
 
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/string_choices.h>
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 #include "p16v.h"
@@ -32,9 +33,9 @@ static void snd_emu10k1_proc_spdif_status(struct snd_emu10k1 * emu,
 	snd_iprintf(buffer, "\n%s\n", title);
 
 	if (status != 0xffffffff) {
-		snd_iprintf(buffer, "Professional Mode     : %s\n", (status & SPCS_PROFESSIONAL) ? "yes" : "no");
-		snd_iprintf(buffer, "Not Audio Data        : %s\n", (status & SPCS_NOTAUDIODATA) ? "yes" : "no");
-		snd_iprintf(buffer, "Copyright             : %s\n", (status & SPCS_COPYRIGHT) ? "yes" : "no");
+		snd_iprintf(buffer, "Professional Mode     : %s\n", str_yes_no(status & SPCS_PROFESSIONAL));
+		snd_iprintf(buffer, "Not Audio Data        : %s\n", str_yes_no(status & SPCS_NOTAUDIODATA));
+		snd_iprintf(buffer, "Copyright             : %s\n", str_yes_no(status & SPCS_COPYRIGHT));
 		snd_iprintf(buffer, "Emphasis              : %s\n", emphasis[(status & SPCS_EMPHASISMASK) >> 3]);
 		snd_iprintf(buffer, "Mode                  : %i\n", (status & SPCS_MODEMASK) >> 6);
 		snd_iprintf(buffer, "Category Code         : 0x%x\n", (status & SPCS_CATEGORYCODEMASK) >> 8);
@@ -46,9 +47,9 @@ static void snd_emu10k1_proc_spdif_status(struct snd_emu10k1 * emu,
 
 		if (rate_reg > 0) {
 			rate = snd_emu10k1_ptr_read(emu, rate_reg, 0);
-			snd_iprintf(buffer, "S/PDIF Valid          : %s\n", rate & SRCS_SPDIFVALID ? "on" : "off");
-			snd_iprintf(buffer, "S/PDIF Locked         : %s\n", rate & SRCS_SPDIFLOCKED ? "on" : "off");
-			snd_iprintf(buffer, "Rate Locked           : %s\n", rate & SRCS_RATELOCKED ? "on" : "off");
+			snd_iprintf(buffer, "S/PDIF Valid          : %s\n", str_on_off(rate & SRCS_SPDIFVALID));
+			snd_iprintf(buffer, "S/PDIF Locked         : %s\n", str_on_off(rate & SRCS_SPDIFLOCKED));
+			snd_iprintf(buffer, "Rate Locked           : %s\n", str_on_off(rate & SRCS_RATELOCKED));
 			/* From ((Rate * 48000 ) / 262144); */
 			snd_iprintf(buffer, "Estimated Sample Rate : %d\n", ((rate & 0xFFFFF ) * 375) >> 11); 
 		}
@@ -208,7 +209,7 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 #if 0
 	val = snd_emu10k1_ptr_read(emu, ZVSRCS, 0);
 	snd_iprintf(buffer, "\nZoomed Video\n");
-	snd_iprintf(buffer, "Rate Locked           : %s\n", val & SRCS_RATELOCKED ? "on" : "off");
+	snd_iprintf(buffer, "Rate Locked           : %s\n", str_on_off(val & SRCS_RATELOCKED));
 	snd_iprintf(buffer, "Estimated Sample Rate : 0x%x\n", val & SRCS_ESTSAMPLERATE);
 #endif
 }

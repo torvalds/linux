@@ -128,6 +128,7 @@
 #include <linux/blk-cgroup.h>
 #include <linux/fadvise.h>
 #include <linux/sched/mm.h>
+#include <linux/fsnotify.h>
 
 #include "internal.h"
 
@@ -158,20 +159,10 @@ static void read_pages(struct readahead_control *rac)
 
 	if (aops->readahead) {
 		aops->readahead(rac);
-		/*
-		 * Clean up the remaining folios.  The sizes in ->ra
-		 * may be used to size the next readahead, so make sure
-		 * they accurately reflect what happened.
-		 */
+		/* Clean up the remaining folios. */
 		while ((folio = readahead_folio(rac)) != NULL) {
-			unsigned long nr = folio_nr_pages(folio);
-
 			folio_get(folio);
-			rac->ra->size -= nr;
-			if (rac->ra->async_size >= nr) {
-				rac->ra->async_size -= nr;
-				filemap_remove_folio(folio);
-			}
+			filemap_remove_folio(folio);
 			folio_unlock(folio);
 			folio_put(folio);
 		}
@@ -186,6 +177,18 @@ static void read_pages(struct readahead_control *rac)
 	rac->_workingset = false;
 
 	BUG_ON(readahead_count(rac));
+}
+
+static struct folio *ractl_alloc_folio(struct readahead_control *ractl,
+				       gfp_t gfp_mask, unsigned int order)
+{
+	struct folio *folio;
+
+	folio = filemap_alloc_folio(gfp_mask, order);
+	if (folio && ractl->dropbehind)
+		__folio_set_dropbehind(folio);
+
+	return folio;
 }
 
 /**
@@ -265,8 +268,8 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 			continue;
 		}
 
-		folio = filemap_alloc_folio(gfp_mask,
-					    mapping_min_folio_order(mapping));
+		folio = ractl_alloc_folio(ractl, gfp_mask,
+					mapping_min_folio_order(mapping));
 		if (!folio)
 			break;
 
@@ -436,7 +439,7 @@ static inline int ra_alloc_folio(struct readahead_control *ractl, pgoff_t index,
 		pgoff_t mark, unsigned int order, gfp_t gfp)
 {
 	int err;
-	struct folio *folio = filemap_alloc_folio(gfp, order);
+	struct folio *folio = ractl_alloc_folio(ractl, gfp, order);
 
 	if (!folio)
 		return -ENOMEM;
@@ -458,7 +461,8 @@ void page_cache_ra_order(struct readahead_control *ractl,
 		struct file_ra_state *ra, unsigned int new_order)
 {
 	struct address_space *mapping = ractl->mapping;
-	pgoff_t index = readahead_index(ractl);
+	pgoff_t start = readahead_index(ractl);
+	pgoff_t index = start;
 	unsigned int min_order = mapping_min_folio_order(mapping);
 	pgoff_t limit = (i_size_read(mapping->host) - 1) >> PAGE_SHIFT;
 	pgoff_t mark = index + ra->size - ra->async_size;
@@ -516,12 +520,18 @@ void page_cache_ra_order(struct readahead_control *ractl,
 	/*
 	 * If there were already pages in the page cache, then we may have
 	 * left some gaps.  Let the regular readahead code take care of this
-	 * situation.
+	 * situation below.
 	 */
 	if (!err)
 		return;
 fallback:
-	do_page_cache_ra(ractl, ra->size, ra->async_size);
+	/*
+	 * ->readahead() may have updated readahead window size so we have to
+	 * check there's still something to read.
+	 */
+	if (ra->size > index - start)
+		do_page_cache_ra(ractl, ra->size - (index - start),
+				 ra->async_size);
 }
 
 static unsigned long ractl_max_pages(struct readahead_control *ractl,
@@ -547,6 +557,15 @@ void page_cache_sync_ra(struct readahead_control *ractl,
 	struct file_ra_state *ra = ractl->ra;
 	unsigned long max_pages, contig_count;
 	pgoff_t prev_index, miss;
+
+	/*
+	 * If we have pre-content watches we need to disable readahead to make
+	 * sure that we don't find 0 filled pages in cache that we never emitted
+	 * events for. Filesystems supporting HSM must make sure to not call
+	 * this function with ractl->file unset for files handled by HSM.
+	 */
+	if (ractl->file && unlikely(FMODE_FSNOTIFY_HSM(ractl->file->f_mode)))
+		return;
 
 	/*
 	 * Even if readahead is disabled, issue this request as readahead
@@ -624,6 +643,10 @@ void page_cache_async_ra(struct readahead_control *ractl,
 
 	/* no readahead */
 	if (!ra->ra_pages)
+		return;
+
+	/* See the comment in page_cache_sync_ra. */
+	if (ractl->file && unlikely(FMODE_FSNOTIFY_HSM(ractl->file->f_mode)))
 		return;
 
 	/*
@@ -754,7 +777,7 @@ void readahead_expand(struct readahead_control *ractl,
 		if (folio && !xa_is_value(folio))
 			return; /* Folio apparently present */
 
-		folio = filemap_alloc_folio(gfp_mask, min_order);
+		folio = ractl_alloc_folio(ractl, gfp_mask, min_order);
 		if (!folio)
 			return;
 
@@ -783,7 +806,7 @@ void readahead_expand(struct readahead_control *ractl,
 		if (folio && !xa_is_value(folio))
 			return; /* Folio apparently present */
 
-		folio = filemap_alloc_folio(gfp_mask, min_order);
+		folio = ractl_alloc_folio(ractl, gfp_mask, min_order);
 		if (!folio)
 			return;
 

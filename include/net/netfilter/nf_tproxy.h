@@ -49,7 +49,7 @@ __be32 nf_tproxy_laddr4(struct sk_buff *skb, __be32 user_laddr, __be32 daddr);
  *
  * nf_tproxy_handle_time_wait4() consumes the socket reference passed in.
  *
- * Returns the listener socket if there's one, the TIME_WAIT socket if
+ * Returns: the listener socket if there's one, the TIME_WAIT socket if
  * no such listener is found, or NULL if the TCP header is incomplete.
  */
 struct sock *
@@ -108,7 +108,7 @@ nf_tproxy_laddr6(struct sk_buff *skb, const struct in6_addr *user_laddr,
  *
  * nf_tproxy_handle_time_wait6() consumes the socket reference passed in.
  *
- * Returns the listener socket if there's one, the TIME_WAIT socket if
+ * Returns: the listener socket if there's one, the TIME_WAIT socket if
  * no such listener is found, or NULL if the TCP header is incomplete.
  */
 struct sock *

@@ -60,26 +60,17 @@ struct pci_epc *pci_epc_get(const char *epc_name)
 	int ret = -EINVAL;
 	struct pci_epc *epc;
 	struct device *dev;
-	struct class_dev_iter iter;
 
-	class_dev_iter_init(&iter, &pci_epc_class, NULL, NULL);
-	while ((dev = class_dev_iter_next(&iter))) {
-		if (strcmp(epc_name, dev_name(dev)))
-			continue;
+	dev = class_find_device_by_name(&pci_epc_class, epc_name);
+	if (!dev)
+		goto err;
 
-		epc = to_pci_epc(dev);
-		if (!try_module_get(epc->ops->owner)) {
-			ret = -EINVAL;
-			goto err;
-		}
-
-		class_dev_iter_exit(&iter);
-		get_device(&epc->dev);
+	epc = to_pci_epc(dev);
+	if (try_module_get(epc->ops->owner))
 		return epc;
-	}
 
 err:
-	class_dev_iter_exit(&iter);
+	put_device(dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(pci_epc_get);
@@ -609,10 +600,20 @@ EXPORT_SYMBOL_GPL(pci_epc_clear_bar);
 int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 		    struct pci_epf_bar *epf_bar)
 {
-	int ret;
+	const struct pci_epc_features *epc_features;
+	enum pci_barno bar = epf_bar->barno;
 	int flags = epf_bar->flags;
+	int ret;
 
-	if (!pci_epc_function_is_valid(epc, func_no, vfunc_no))
+	epc_features = pci_epc_get_features(epc, func_no, vfunc_no);
+	if (!epc_features)
+		return -EINVAL;
+
+	if (epc_features->bar[bar].type == BAR_FIXED &&
+	    (epc_features->bar[bar].fixed_size != epf_bar->size))
+		return -EINVAL;
+
+	if (!is_power_of_2(epf_bar->size))
 		return -EINVAL;
 
 	if ((epf_bar->barno == BAR_5 && flags & PCI_BASE_ADDRESS_MEM_TYPE_64) ||
@@ -942,7 +943,7 @@ void devm_pci_epc_destroy(struct device *dev, struct pci_epc *epc)
 {
 	int r;
 
-	r = devres_destroy(dev, devm_pci_epc_release, devm_pci_epc_match,
+	r = devres_release(dev, devm_pci_epc_release, devm_pci_epc_match,
 			   epc);
 	dev_WARN_ONCE(dev, r, "couldn't find PCI EPC resource\n");
 }

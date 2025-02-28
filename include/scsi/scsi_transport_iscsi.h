@@ -447,10 +447,6 @@ extern int iscsi_add_session(struct iscsi_cls_session *session,
 			     unsigned int target_id);
 extern int iscsi_session_event(struct iscsi_cls_session *session,
 			       enum iscsi_uevent_e event);
-extern struct iscsi_cls_session *iscsi_create_session(struct Scsi_Host *shost,
-						struct iscsi_transport *t,
-						int dd_size,
-						unsigned int target_id);
 extern void iscsi_force_destroy_session(struct iscsi_cls_session *session);
 extern void iscsi_remove_session(struct iscsi_cls_session *session);
 extern void iscsi_free_session(struct iscsi_cls_session *session);
@@ -497,8 +493,8 @@ extern void iscsi_destroy_all_flashnode(struct Scsi_Host *shost);
 extern int iscsi_flashnode_bus_match(struct device *dev,
 				     const struct device_driver *drv);
 extern struct device *
-iscsi_find_flashnode_sess(struct Scsi_Host *shost, void *data,
-			  int (*fn)(struct device *dev, void *data));
+iscsi_find_flashnode_sess(struct Scsi_Host *shost, const void *data,
+			  device_match_t fn);
 extern struct device *
 iscsi_find_flashnode_conn(struct iscsi_bus_flash_session *fnode_sess);
 

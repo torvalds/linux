@@ -228,6 +228,10 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
                 kernel::ThisModule::from_ptr(core::ptr::null_mut())
             }};
 
+            impl kernel::ModuleMetadata for {type_} {{
+                const NAME: &'static kernel::str::CStr = kernel::c_str!(\"{name}\");
+            }}
+
             // Double nested modules, since then nobody can access the public items inside.
             mod __module_init {{
                 mod __module_init {{

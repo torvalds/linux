@@ -1665,7 +1665,7 @@ static int proc_do_rointvec(const struct ctl_table *table, int write, void *buf,
 	return write ? 0 : proc_dointvec(table, 0, buf, lenp, ppos);
 }
 
-static struct ctl_table random_table[] = {
+static const struct ctl_table random_table[] = {
 	{
 		.procname	= "poolsize",
 		.data		= &sysctl_poolsize,

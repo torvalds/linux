@@ -647,7 +647,7 @@ void intel_dp_tunnel_atomic_clear_stream_bw(struct intel_atomic_state *state,
  * @state must be recomputed with the updated @limits.
  *
  * Returns:
- *   - 0 if the confugration is valid
+ *   - 0 if the configuration is valid
  *   - %-EAGAIN, if the configuration is invalid and @limits got updated
  *     with fallback values with which the configuration of all CRTCs in
  *     @state must be recomputed

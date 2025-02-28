@@ -89,6 +89,9 @@ enum cgt_group_id {
 	CGT_HCRX_EnFPM,
 	CGT_HCRX_TCR2En,
 
+	CGT_CNTHCTL_EL1TVT,
+	CGT_CNTHCTL_EL1TVCT,
+
 	CGT_ICH_HCR_TC,
 	CGT_ICH_HCR_TALL0,
 	CGT_ICH_HCR_TALL1,
@@ -124,6 +127,8 @@ enum cgt_group_id {
 	__COMPLEX_CONDITIONS__,
 	CGT_CNTHCTL_EL1PCTEN = __COMPLEX_CONDITIONS__,
 	CGT_CNTHCTL_EL1PTEN,
+	CGT_CNTHCTL_EL1NVPCT,
+	CGT_CNTHCTL_EL1NVVCT,
 
 	CGT_CPTR_TTA,
 	CGT_MDCR_HPMN,
@@ -393,6 +398,18 @@ static const struct trap_bits coarse_trap_bits[] = {
 		.mask		= HCRX_EL2_TCR2En,
 		.behaviour	= BEHAVE_FORWARD_RW,
 	},
+	[CGT_CNTHCTL_EL1TVT] = {
+		.index		= CNTHCTL_EL2,
+		.value		= CNTHCTL_EL1TVT,
+		.mask		= CNTHCTL_EL1TVT,
+		.behaviour	= BEHAVE_FORWARD_RW,
+	},
+	[CGT_CNTHCTL_EL1TVCT] = {
+		.index		= CNTHCTL_EL2,
+		.value		= CNTHCTL_EL1TVCT,
+		.mask		= CNTHCTL_EL1TVCT,
+		.behaviour	= BEHAVE_FORWARD_READ,
+	},
 	[CGT_ICH_HCR_TC] = {
 		.index		= ICH_HCR_EL2,
 		.value		= ICH_HCR_TC,
@@ -487,6 +504,32 @@ static enum trap_behaviour check_cnthctl_el1pten(struct kvm_vcpu *vcpu)
 	return BEHAVE_FORWARD_RW;
 }
 
+static bool is_nested_nv2_guest(struct kvm_vcpu *vcpu)
+{
+	u64 val;
+
+	val = __vcpu_sys_reg(vcpu, HCR_EL2);
+	return ((val & (HCR_E2H | HCR_TGE | HCR_NV2 | HCR_NV1 | HCR_NV)) == (HCR_E2H | HCR_NV2 | HCR_NV));
+}
+
+static enum trap_behaviour check_cnthctl_el1nvpct(struct kvm_vcpu *vcpu)
+{
+	if (!is_nested_nv2_guest(vcpu) ||
+	    !(__vcpu_sys_reg(vcpu, CNTHCTL_EL2) & CNTHCTL_EL1NVPCT))
+		return BEHAVE_HANDLE_LOCALLY;
+
+	return BEHAVE_FORWARD_RW;
+}
+
+static enum trap_behaviour check_cnthctl_el1nvvct(struct kvm_vcpu *vcpu)
+{
+	if (!is_nested_nv2_guest(vcpu) ||
+	    !(__vcpu_sys_reg(vcpu, CNTHCTL_EL2) & CNTHCTL_EL1NVVCT))
+		return BEHAVE_HANDLE_LOCALLY;
+
+	return BEHAVE_FORWARD_RW;
+}
+
 static enum trap_behaviour check_cptr_tta(struct kvm_vcpu *vcpu)
 {
 	u64 val = __vcpu_sys_reg(vcpu, CPTR_EL2);
@@ -494,7 +537,7 @@ static enum trap_behaviour check_cptr_tta(struct kvm_vcpu *vcpu)
 	if (!vcpu_el2_e2h_is_set(vcpu))
 		val = translate_cptr_el2_to_cpacr_el1(val);
 
-	if (val & CPACR_ELx_TTA)
+	if (val & CPACR_EL1_TTA)
 		return BEHAVE_FORWARD_RW;
 
 	return BEHAVE_HANDLE_LOCALLY;
@@ -534,6 +577,8 @@ static enum trap_behaviour check_mdcr_hpmn(struct kvm_vcpu *vcpu)
 static const complex_condition_check ccc[] = {
 	CCC(CGT_CNTHCTL_EL1PCTEN, check_cnthctl_el1pcten),
 	CCC(CGT_CNTHCTL_EL1PTEN, check_cnthctl_el1pten),
+	CCC(CGT_CNTHCTL_EL1NVPCT, check_cnthctl_el1nvpct),
+	CCC(CGT_CNTHCTL_EL1NVVCT, check_cnthctl_el1nvvct),
 	CCC(CGT_CPTR_TTA, check_cptr_tta),
 	CCC(CGT_MDCR_HPMN, check_mdcr_hpmn),
 };
@@ -850,11 +895,15 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 		      SYS_CNTHP_CVAL_EL2, CGT_HCR_NV),
 	SR_RANGE_TRAP(SYS_CNTHV_TVAL_EL2,
 		      SYS_CNTHV_CVAL_EL2, CGT_HCR_NV),
-	/* All _EL02, _EL12 registers */
+	/* All _EL02, _EL12 registers up to CNTKCTL_EL12*/
 	SR_RANGE_TRAP(sys_reg(3, 5, 0, 0, 0),
 		      sys_reg(3, 5, 10, 15, 7), CGT_HCR_NV),
 	SR_RANGE_TRAP(sys_reg(3, 5, 12, 0, 0),
-		      sys_reg(3, 5, 14, 15, 7), CGT_HCR_NV),
+		      sys_reg(3, 5, 14, 1, 0), CGT_HCR_NV),
+	SR_TRAP(SYS_CNTP_CTL_EL02,	CGT_CNTHCTL_EL1NVPCT),
+	SR_TRAP(SYS_CNTP_CVAL_EL02,	CGT_CNTHCTL_EL1NVPCT),
+	SR_TRAP(SYS_CNTV_CTL_EL02,	CGT_CNTHCTL_EL1NVVCT),
+	SR_TRAP(SYS_CNTV_CVAL_EL02,	CGT_CNTHCTL_EL1NVVCT),
 	SR_TRAP(OP_AT_S1E2R,		CGT_HCR_NV),
 	SR_TRAP(OP_AT_S1E2W,		CGT_HCR_NV),
 	SR_TRAP(OP_AT_S12E1R,		CGT_HCR_NV),
@@ -1184,6 +1233,11 @@ static const struct encoding_to_trap_config encoding_to_cgt[] __initconst = {
 	SR_TRAP(SYS_CNTP_CTL_EL0,	CGT_CNTHCTL_EL1PTEN),
 	SR_TRAP(SYS_CNTPCT_EL0,		CGT_CNTHCTL_EL1PCTEN),
 	SR_TRAP(SYS_CNTPCTSS_EL0,	CGT_CNTHCTL_EL1PCTEN),
+	SR_TRAP(SYS_CNTV_TVAL_EL0,	CGT_CNTHCTL_EL1TVT),
+	SR_TRAP(SYS_CNTV_CVAL_EL0,	CGT_CNTHCTL_EL1TVT),
+	SR_TRAP(SYS_CNTV_CTL_EL0,	CGT_CNTHCTL_EL1TVT),
+	SR_TRAP(SYS_CNTVCT_EL0,		CGT_CNTHCTL_EL1TVCT),
+	SR_TRAP(SYS_CNTVCTSS_EL0,	CGT_CNTHCTL_EL1TVCT),
 	SR_TRAP(SYS_FPMR,		CGT_HCRX_EnFPM),
 	/*
 	 * IMPDEF choice:
@@ -2345,14 +2399,14 @@ inject:
 	return true;
 }
 
-static bool forward_traps(struct kvm_vcpu *vcpu, u64 control_bit)
+static bool __forward_traps(struct kvm_vcpu *vcpu, unsigned int reg, u64 control_bit)
 {
 	bool control_bit_set;
 
 	if (!vcpu_has_nv(vcpu))
 		return false;
 
-	control_bit_set = __vcpu_sys_reg(vcpu, HCR_EL2) & control_bit;
+	control_bit_set = __vcpu_sys_reg(vcpu, reg) & control_bit;
 	if (!is_hyp_ctxt(vcpu) && control_bit_set) {
 		kvm_inject_nested_sync(vcpu, kvm_vcpu_get_esr(vcpu));
 		return true;
@@ -2360,9 +2414,24 @@ static bool forward_traps(struct kvm_vcpu *vcpu, u64 control_bit)
 	return false;
 }
 
+static bool forward_hcr_traps(struct kvm_vcpu *vcpu, u64 control_bit)
+{
+	return __forward_traps(vcpu, HCR_EL2, control_bit);
+}
+
 bool forward_smc_trap(struct kvm_vcpu *vcpu)
 {
-	return forward_traps(vcpu, HCR_TSC);
+	return forward_hcr_traps(vcpu, HCR_TSC);
+}
+
+static bool forward_mdcr_traps(struct kvm_vcpu *vcpu, u64 control_bit)
+{
+	return __forward_traps(vcpu, MDCR_EL2, control_bit);
+}
+
+bool forward_debug_exception(struct kvm_vcpu *vcpu)
+{
+	return forward_mdcr_traps(vcpu, MDCR_EL2_TDE);
 }
 
 static u64 kvm_check_illegal_exception_return(struct kvm_vcpu *vcpu, u64 spsr)
@@ -2406,7 +2475,7 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	 * Forward this trap to the virtual EL2 if the virtual
 	 * HCR_EL2.NV bit is set and this is coming from !EL2.
 	 */
-	if (forward_traps(vcpu, HCR_NV))
+	if (forward_hcr_traps(vcpu, HCR_NV))
 		return;
 
 	spsr = vcpu_read_sys_reg(vcpu, SPSR_EL2);

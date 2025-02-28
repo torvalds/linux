@@ -18,6 +18,7 @@
 #include "cifs_unicode.h"
 #include "smb2proto.h"
 #include "cifs_ioctl.h"
+#include "fs_context.h"
 
 /*
  * M-F Symlink Functions - Begin
@@ -604,22 +605,53 @@ cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 	cifs_dbg(FYI, "symname is %s\n", symname);
 
 	/* BB what if DFS and this volume is on different share? BB */
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) {
-		rc = create_mf_symlink(xid, pTcon, cifs_sb, full_path, symname);
-	} else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
-		rc = __cifs_sfu_make_node(xid, inode, direntry, pTcon,
-					  full_path, S_IFLNK, 0, symname);
+	rc = -EOPNOTSUPP;
+	switch (get_cifs_symlink_type(cifs_sb)) {
+	case CIFS_SYMLINK_TYPE_DEFAULT:
+		/* should not happen, get_cifs_symlink_type() resolves the default */
+		break;
+
+	case CIFS_SYMLINK_TYPE_NONE:
+		break;
+
+	case CIFS_SYMLINK_TYPE_UNIX:
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-	} else if (pTcon->unix_ext) {
-		rc = CIFSUnixCreateSymLink(xid, pTcon, full_path, symname,
-					   cifs_sb->local_nls,
-					   cifs_remap(cifs_sb));
+		if (pTcon->unix_ext) {
+			rc = CIFSUnixCreateSymLink(xid, pTcon, full_path,
+						   symname,
+						   cifs_sb->local_nls,
+						   cifs_remap(cifs_sb));
+		}
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-	} else if (server->ops->create_reparse_symlink) {
-		rc =  server->ops->create_reparse_symlink(xid, inode, direntry,
-							  pTcon, full_path,
-							  symname);
-		goto symlink_exit;
+		break;
+
+	case CIFS_SYMLINK_TYPE_MFSYMLINKS:
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS) {
+			rc = create_mf_symlink(xid, pTcon, cifs_sb,
+					       full_path, symname);
+		}
+		break;
+
+	case CIFS_SYMLINK_TYPE_SFU:
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+			rc = __cifs_sfu_make_node(xid, inode, direntry, pTcon,
+						  full_path, S_IFLNK,
+						  0, symname);
+		}
+		break;
+
+	case CIFS_SYMLINK_TYPE_NATIVE:
+	case CIFS_SYMLINK_TYPE_NFS:
+	case CIFS_SYMLINK_TYPE_WSL:
+		if (server->ops->create_reparse_symlink) {
+			rc = server->ops->create_reparse_symlink(xid, inode,
+								 direntry,
+								 pTcon,
+								 full_path,
+								 symname);
+			goto symlink_exit;
+		}
+		break;
 	}
 
 	if (rc == 0) {

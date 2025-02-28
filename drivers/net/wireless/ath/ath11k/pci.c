@@ -846,6 +846,9 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 				case 0x1019D0E1:
 					ab->hw_rev = ATH11K_HW_QCA2066_HW21;
 					break;
+				case 0x001e60e1:
+					ab->hw_rev = ATH11K_HW_QCA6698AQ_HW21;
+					break;
 				default:
 					ab->hw_rev = ATH11K_HW_WCN6855_HW21;
 				}

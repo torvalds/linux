@@ -66,7 +66,7 @@ struct bma220_data {
 	struct {
 		s8 chans[3];
 		/* Ensure timestamp is naturally aligned. */
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	u8 tx_buf[2] __aligned(IIO_DMA_MINALIGN);
 };

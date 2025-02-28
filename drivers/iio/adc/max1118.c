@@ -39,7 +39,7 @@ struct max1118 {
 	/* Ensure natural alignment of buffer elements */
 	struct {
 		u8 channels[2];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 
 	u8 data __aligned(IIO_DMA_MINALIGN);

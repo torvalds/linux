@@ -21,6 +21,8 @@
  *
  * The number of entries per group is defined by the number of bits
  * that a bitmap block can maintain.
+ *
+ * Return: Number of entries per group.
  */
 static inline unsigned long
 nilfs_palloc_entries_per_group(const struct inode *inode)

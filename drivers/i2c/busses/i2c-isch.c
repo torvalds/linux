@@ -291,9 +291,9 @@ static int smbus_sch_probe(struct platform_device *pdev)
 
 	/* Set up the sysfs linkage to our parent device */
 	priv->adapter.dev.parent = dev;
-	priv->adapter.owner = THIS_MODULE,
-	priv->adapter.class = I2C_CLASS_HWMON,
-	priv->adapter.algo = &smbus_algorithm,
+	priv->adapter.owner = THIS_MODULE;
+	priv->adapter.class = I2C_CLASS_HWMON;
+	priv->adapter.algo = &smbus_algorithm;
 
 	snprintf(priv->adapter.name, sizeof(priv->adapter.name),
 		 "SMBus SCH adapter at %04x", (unsigned short)res->start);

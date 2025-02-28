@@ -342,8 +342,6 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 struct perf_hpp;
 struct perf_hpp_fmt;
 
-int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
-int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
 int hist_entry__transaction_len(void);
 int hist_entry__sort_snprintf(struct hist_entry *he, char *bf, size_t size,
 			      struct hists *hists);
@@ -452,6 +450,9 @@ struct perf_hpp {
 	bool skip;
 };
 
+typedef int64_t (*perf_hpp_fmt_cmp_t)(
+	struct perf_hpp_fmt *, struct hist_entry *, struct hist_entry *);
+
 struct perf_hpp_fmt {
 	const char *name;
 	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
@@ -463,12 +464,9 @@ struct perf_hpp_fmt {
 		     struct hist_entry *he);
 	int (*entry)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		     struct hist_entry *he);
-	int64_t (*cmp)(struct perf_hpp_fmt *fmt,
-		       struct hist_entry *a, struct hist_entry *b);
-	int64_t (*collapse)(struct perf_hpp_fmt *fmt,
-			    struct hist_entry *a, struct hist_entry *b);
-	int64_t (*sort)(struct perf_hpp_fmt *fmt,
-			struct hist_entry *a, struct hist_entry *b);
+	perf_hpp_fmt_cmp_t cmp;
+	perf_hpp_fmt_cmp_t collapse;
+	perf_hpp_fmt_cmp_t sort;
 	bool (*equal)(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
 	void (*free)(struct perf_hpp_fmt *fmt);
 

@@ -30,16 +30,6 @@
 
 typedef int bank_handler_t(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type, void *data);
 
-struct aca_banks {
-	int nr_banks;
-	struct list_head list;
-};
-
-struct aca_hwip {
-	int hwid;
-	int mcatype;
-};
-
 static struct aca_hwip aca_hwid_mcatypes[ACA_HWIP_TYPE_COUNT] = {
 	ACA_BANK_HWID(SMU,	0x01,	0x01),
 	ACA_BANK_HWID(PCS_XGMI, 0x50,	0x00),
@@ -111,7 +101,7 @@ static struct aca_regs_dump {
 	{"STATUS",		ACA_REG_IDX_STATUS},
 	{"ADDR",		ACA_REG_IDX_ADDR},
 	{"MISC",		ACA_REG_IDX_MISC0},
-	{"CONFIG",		ACA_REG_IDX_CONFG},
+	{"CONFIG",		ACA_REG_IDX_CONFIG},
 	{"IPID",		ACA_REG_IDX_IPID},
 	{"SYND",		ACA_REG_IDX_SYND},
 	{"DESTAT",		ACA_REG_IDX_DESTAT},
@@ -168,7 +158,7 @@ static int aca_smu_get_valid_aca_banks(struct amdgpu_device *adev, enum aca_smu_
 		if (ret)
 			return ret;
 
-		bank.type = type;
+		bank.smu_err_type = type;
 
 		aca_smu_bank_dump(adev, i, count, &bank, qctx);
 
@@ -394,6 +384,36 @@ static bool aca_bank_should_update(struct amdgpu_device *adev, enum aca_smu_type
 	return ret;
 }
 
+static void aca_banks_generate_cper(struct amdgpu_device *adev,
+				    enum aca_smu_type type,
+				    struct aca_banks *banks,
+				    int count)
+{
+	struct aca_bank_node *node;
+	struct aca_bank *bank;
+
+	if (!banks || !count) {
+		dev_warn(adev->dev, "fail to generate cper records\n");
+		return;
+	}
+
+	/* UEs must be encoded into separate CPER entries */
+	if (type == ACA_SMU_TYPE_UE) {
+		list_for_each_entry(node, &banks->list, node) {
+			bank = &node->bank;
+			if (amdgpu_cper_generate_ue_record(adev, bank))
+				dev_warn(adev->dev, "fail to generate ue cper records\n");
+		}
+	} else {
+		/*
+		 * SMU_TYPE_CE banks are combined into 1 CPER entries,
+		 * they could be CEs or DEs or both
+		 */
+		if (amdgpu_cper_generate_ce_records(adev, banks, count))
+			dev_warn(adev->dev, "fail to generate ce cper records\n");
+	}
+}
+
 static int aca_banks_update(struct amdgpu_device *adev, enum aca_smu_type type,
 			    bank_handler_t handler, struct ras_query_context *qctx, void *data)
 {
@@ -430,6 +450,8 @@ static int aca_banks_update(struct amdgpu_device *adev, enum aca_smu_type type,
 				 handler, data);
 	if (ret)
 		goto err_release_banks;
+
+	aca_banks_generate_cper(adev, type, &banks, count);
 
 err_release_banks:
 	aca_banks_release(&banks);

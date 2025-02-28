@@ -91,7 +91,24 @@ static int ovl_revalidate_real(struct dentry *d, unsigned int flags, bool weak)
 		if (d->d_flags & DCACHE_OP_WEAK_REVALIDATE)
 			ret =  d->d_op->d_weak_revalidate(d, flags);
 	} else if (d->d_flags & DCACHE_OP_REVALIDATE) {
-		ret = d->d_op->d_revalidate(d, flags);
+		struct dentry *parent;
+		struct inode *dir;
+		struct name_snapshot n;
+
+		if (flags & LOOKUP_RCU) {
+			parent = READ_ONCE(d->d_parent);
+			dir = d_inode_rcu(parent);
+			if (!dir)
+				return -ECHILD;
+		} else {
+			parent = dget_parent(d);
+			dir = d_inode(parent);
+		}
+		take_dentry_name_snapshot(&n, d);
+		ret = d->d_op->d_revalidate(dir, &n.name, d, flags);
+		release_dentry_name_snapshot(&n);
+		if (!(flags & LOOKUP_RCU))
+			dput(parent);
 		if (!ret) {
 			if (!(flags & LOOKUP_RCU))
 				d_invalidate(d);
@@ -127,7 +144,8 @@ static int ovl_dentry_revalidate_common(struct dentry *dentry,
 	return ret;
 }
 
-static int ovl_dentry_revalidate(struct dentry *dentry, unsigned int flags)
+static int ovl_dentry_revalidate(struct inode *dir, const struct qstr *name,
+				 struct dentry *dentry, unsigned int flags)
 {
 	return ovl_dentry_revalidate_common(dentry, flags, false);
 }

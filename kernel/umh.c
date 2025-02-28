@@ -544,7 +544,7 @@ static int proc_cap_handler(const struct ctl_table *table, int write,
 	return 0;
 }
 
-static struct ctl_table usermodehelper_table[] = {
+static const struct ctl_table usermodehelper_table[] = {
 	{
 		.procname	= "bset",
 		.data		= &usermodehelper_bset,

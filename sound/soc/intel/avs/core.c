@@ -829,10 +829,10 @@ static const struct avs_spec jsl_desc = {
 	.hipc = &cnl_hipc_spec,
 };
 
-#define AVS_TGL_BASED_SPEC(sname)		\
+#define AVS_TGL_BASED_SPEC(sname, min)		\
 static const struct avs_spec sname##_desc = {	\
 	.name = #sname,				\
-	.min_fw_version = { 10,	29, 0, 5646 },	\
+	.min_fw_version = { 10,	min, 0, 5646 },	\
 	.dsp_ops = &avs_tgl_dsp_ops,		\
 	.core_init_mask = 1,			\
 	.attributes = AVS_PLATATTR_IMR,		\
@@ -840,11 +840,11 @@ static const struct avs_spec sname##_desc = {	\
 	.hipc = &cnl_hipc_spec,			\
 }
 
-AVS_TGL_BASED_SPEC(lkf);
-AVS_TGL_BASED_SPEC(tgl);
-AVS_TGL_BASED_SPEC(ehl);
-AVS_TGL_BASED_SPEC(adl);
-AVS_TGL_BASED_SPEC(adl_n);
+AVS_TGL_BASED_SPEC(lkf, 28);
+AVS_TGL_BASED_SPEC(tgl, 29);
+AVS_TGL_BASED_SPEC(ehl, 30);
+AVS_TGL_BASED_SPEC(adl, 35);
+AVS_TGL_BASED_SPEC(adl_n, 35);
 
 static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL_LP, &skl_desc) },
@@ -902,3 +902,13 @@ MODULE_AUTHOR("Cezary Rojewski <cezary.rojewski@intel.com>");
 MODULE_AUTHOR("Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>");
 MODULE_DESCRIPTION("Intel cAVS sound driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("intel/skl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/apl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/cnl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/icl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/jsl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/lkf/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/tgl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/ehl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/adl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/adl_n/dsp_basefw.bin");

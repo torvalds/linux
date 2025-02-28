@@ -93,7 +93,7 @@ static struct phy_driver bcm63xx_driver[] = {
 
 module_phy_driver(bcm63xx_driver);
 
-static struct mdio_device_id __maybe_unused bcm63xx_tbl[] = {
+static const struct mdio_device_id __maybe_unused bcm63xx_tbl[] = {
 	{ 0x00406000, 0xfffffc00 },
 	{ 0x002bdc00, 0xfffffc00 },
 	{ }

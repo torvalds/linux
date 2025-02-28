@@ -144,6 +144,7 @@ struct intel_framebuffer {
 	struct i915_address_space *dpt_vm;
 
 	unsigned int min_alignment;
+	unsigned int vtd_guard;
 };
 
 enum intel_hotplug_state {
@@ -412,6 +413,7 @@ struct intel_panel {
 		union {
 			struct {
 				struct drm_edp_backlight_info info;
+				bool luminance_control_support;
 			} vesa;
 			struct {
 				bool sdr_uses_aux;
@@ -494,6 +496,8 @@ struct intel_hdcp {
 	enum transcoder cpu_transcoder;
 	/* Only used for DP MST stream encryption */
 	enum transcoder stream_transcoder;
+	/* Used to force HDCP 1.4 bypassing HDCP 2.x */
+	bool force_hdcp14;
 };
 
 struct intel_connector {
@@ -638,6 +642,9 @@ struct intel_plane_state {
 	/* Plane state to display black pixels when pxp is borked */
 	bool force_black;
 
+	/* Acting as Y plane for another UV plane? */
+	bool is_y_plane;
+
 	/* plane control register */
 	u32 ctl;
 
@@ -677,16 +684,6 @@ struct intel_plane_state {
 	 */
 	struct intel_plane *planar_linked_plane;
 
-	/*
-	 * planar_slave:
-	 * If set don't update use the linked plane's state for updating
-	 * this plane during atomic commit with the update_slave() callback.
-	 *
-	 * It's also used by the watermark code to ignore wm calculations on
-	 * this plane. They're calculated by the linked plane's wm code.
-	 */
-	u32 planar_slave;
-
 	struct drm_intel_sprite_colorkey ckey;
 
 	struct drm_rect psr2_sel_fetch_area;
@@ -711,6 +708,8 @@ struct intel_initial_plane_config {
 struct intel_scaler {
 	u32 mode;
 	bool in_use;
+	int hscale;
+	int vscale;
 };
 
 struct intel_crtc_scaler_state {
@@ -732,7 +731,7 @@ struct intel_crtc_scaler_state {
 	 *
 	 * intel_atomic_setup_scalers will setup available scalers to users
 	 * requesting scalers. It will gracefully fail if request exceeds
-	 * avilability.
+	 * availability.
 	 */
 #define SKL_CRTC_INDEX 31
 	unsigned scaler_users;
@@ -1095,6 +1094,7 @@ struct intel_crtc_state {
 
 	int max_link_bpp_x16;	/* in 1/16 bpp units */
 	int pipe_bpp;		/* in 1 bpp units */
+	int min_hblank;
 	struct intel_link_m_n dp_m_n;
 
 	/* m2_n2 for eDP downclock */
@@ -1113,7 +1113,7 @@ struct intel_crtc_state {
 	u16 su_y_granularity;
 
 	/*
-	 * Frequence the dpll for the port should run at. Differs from the
+	 * Frequency the dpll for the port should run at. Differs from the
 	 * adjusted dotclock e.g. for DP or 10/12bpc hdmi mode. This is also
 	 * already multiplied by pixel_multiplier.
 	 */
@@ -1439,12 +1439,17 @@ struct intel_crtc {
 	bool block_dc_for_vblank;
 };
 
+struct intel_plane_error {
+	u32 ctl, surf, surflive;
+};
+
 struct intel_plane {
 	struct drm_plane base;
 	enum i9xx_plane_id i9xx_plane;
 	enum plane_id id;
 	enum pipe pipe;
 	bool need_async_flip_toggle_wa;
+	u8 vtd_guard;
 	u32 frontbuffer_bit;
 
 	struct {
@@ -1474,6 +1479,7 @@ struct intel_plane {
 	unsigned int (*max_stride)(struct intel_plane *plane,
 				   u32 pixel_format, u64 modifier,
 				   unsigned int rotation);
+	bool (*can_async_flip)(u64 modifier);
 	/* Write all non-self arming plane registers */
 	void (*update_noarm)(struct intel_dsb *dsb,
 			     struct intel_plane *plane,
@@ -1488,6 +1494,9 @@ struct intel_plane {
 	void (*disable_arm)(struct intel_dsb *dsb,
 			    struct intel_plane *plane,
 			    const struct intel_crtc_state *crtc_state);
+	void (*capture_error)(struct intel_crtc *crtc,
+			      struct intel_plane *plane,
+			      struct intel_plane_error *error);
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state);
@@ -1979,22 +1988,10 @@ static inline bool intel_encoder_is_hdmi(struct intel_encoder *encoder)
 	}
 }
 
-static inline struct intel_lspcon *
-enc_to_intel_lspcon(struct intel_encoder *encoder)
-{
-	return &enc_to_dig_port(encoder)->lspcon;
-}
-
 static inline struct intel_digital_port *
 dp_to_dig_port(struct intel_dp *intel_dp)
 {
 	return container_of(intel_dp, struct intel_digital_port, dp);
-}
-
-static inline struct intel_lspcon *
-dp_to_lspcon(struct intel_dp *intel_dp)
-{
-	return &dp_to_dig_port(intel_dp)->lspcon;
 }
 
 static inline struct intel_digital_port *

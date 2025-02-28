@@ -23,7 +23,6 @@
 #include <linux/string.h>
 #include <linux/log2.h>
 #include <linux/logic_pio.h>
-#include <linux/pm_wakeup.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
 #include <linux/pci_hotplug.h>
@@ -1100,34 +1099,6 @@ static void pci_enable_acs(struct pci_dev *dev)
 }
 
 /**
- * pcie_read_tlp_log - read TLP Header Log
- * @dev: PCIe device
- * @where: PCI Config offset of TLP Header Log
- * @tlp_log: TLP Log structure to fill
- *
- * Fill @tlp_log from TLP Header Log registers, e.g., AER or DPC.
- *
- * Return: 0 on success and filled TLP Log structure, <0 on error.
- */
-int pcie_read_tlp_log(struct pci_dev *dev, int where,
-		      struct pcie_tlp_log *tlp_log)
-{
-	int i, ret;
-
-	memset(tlp_log, 0, sizeof(*tlp_log));
-
-	for (i = 0; i < 4; i++) {
-		ret = pci_read_config_dword(dev, where + i * 4,
-					    &tlp_log->dw[i]);
-		if (ret)
-			return pcibios_err_to_errno(ret);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pcie_read_tlp_log);
-
-/**
  * pci_restore_bars - restore a device's BAR values (e.g. after wake-up)
  * @dev: PCI device to have its BARs restored
  *
@@ -2059,6 +2030,28 @@ int __weak pcibios_enable_device(struct pci_dev *dev, int bars)
 	return pci_enable_resources(dev, bars);
 }
 
+static int pci_host_bridge_enable_device(struct pci_dev *dev)
+{
+	struct pci_host_bridge *host_bridge = pci_find_host_bridge(dev->bus);
+	int err;
+
+	if (host_bridge && host_bridge->enable_device) {
+		err = host_bridge->enable_device(host_bridge, dev);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void pci_host_bridge_disable_device(struct pci_dev *dev)
+{
+	struct pci_host_bridge *host_bridge = pci_find_host_bridge(dev->bus);
+
+	if (host_bridge && host_bridge->disable_device)
+		host_bridge->disable_device(host_bridge, dev);
+}
+
 static int do_pci_enable_device(struct pci_dev *dev, int bars)
 {
 	int err;
@@ -2074,9 +2067,13 @@ static int do_pci_enable_device(struct pci_dev *dev, int bars)
 	if (bridge)
 		pcie_aspm_powersave_config_link(bridge);
 
+	err = pci_host_bridge_enable_device(dev);
+	if (err)
+		return err;
+
 	err = pcibios_enable_device(dev, bars);
 	if (err < 0)
-		return err;
+		goto err_enable;
 	pci_fixup_device(pci_fixup_enable, dev);
 
 	if (dev->msi_enabled || dev->msix_enabled)
@@ -2091,6 +2088,12 @@ static int do_pci_enable_device(struct pci_dev *dev, int bars)
 	}
 
 	return 0;
+
+err_enable:
+	pci_host_bridge_disable_device(dev);
+
+	return err;
+
 }
 
 /**
@@ -2273,6 +2276,8 @@ void pci_disable_device(struct pci_dev *dev)
 
 	if (atomic_dec_return(&dev->enable_cnt) != 0)
 		return;
+
+	pci_host_bridge_disable_device(dev);
 
 	do_pci_disable_device(dev);
 
@@ -3941,15 +3946,14 @@ EXPORT_SYMBOL(pci_release_region);
  * __pci_request_region - Reserved PCI I/O and memory resource
  * @pdev: PCI device whose resources are to be reserved
  * @bar: BAR to be reserved
- * @res_name: Name to be associated with resource.
+ * @name: name of the driver requesting the resource
  * @exclusive: whether the region access is exclusive or not
  *
  * Returns: 0 on success, negative error code on failure.
  *
- * Mark the PCI region associated with PCI device @pdev BAR @bar as
- * being reserved by owner @res_name.  Do not access any
- * address inside the PCI regions unless this call returns
- * successfully.
+ * Mark the PCI region associated with PCI device @pdev BAR @bar as being
+ * reserved by owner @name. Do not access any address inside the PCI regions
+ * unless this call returns successfully.
  *
  * If @exclusive is set, then the region is marked so that userspace
  * is explicitly not allowed to map the resource via /dev/mem or
@@ -3959,13 +3963,13 @@ EXPORT_SYMBOL(pci_release_region);
  * message is also printed on failure.
  */
 static int __pci_request_region(struct pci_dev *pdev, int bar,
-				const char *res_name, int exclusive)
+				const char *name, int exclusive)
 {
 	if (pci_is_managed(pdev)) {
 		if (exclusive == IORESOURCE_EXCLUSIVE)
-			return pcim_request_region_exclusive(pdev, bar, res_name);
+			return pcim_request_region_exclusive(pdev, bar, name);
 
-		return pcim_request_region(pdev, bar, res_name);
+		return pcim_request_region(pdev, bar, name);
 	}
 
 	if (pci_resource_len(pdev, bar) == 0)
@@ -3973,11 +3977,11 @@ static int __pci_request_region(struct pci_dev *pdev, int bar,
 
 	if (pci_resource_flags(pdev, bar) & IORESOURCE_IO) {
 		if (!request_region(pci_resource_start(pdev, bar),
-			    pci_resource_len(pdev, bar), res_name))
+			    pci_resource_len(pdev, bar), name))
 			goto err_out;
 	} else if (pci_resource_flags(pdev, bar) & IORESOURCE_MEM) {
 		if (!__request_mem_region(pci_resource_start(pdev, bar),
-					pci_resource_len(pdev, bar), res_name,
+					pci_resource_len(pdev, bar), name,
 					exclusive))
 			goto err_out;
 	}
@@ -3994,14 +3998,13 @@ err_out:
  * pci_request_region - Reserve PCI I/O and memory resource
  * @pdev: PCI device whose resources are to be reserved
  * @bar: BAR to be reserved
- * @res_name: Name to be associated with resource
+ * @name: name of the driver requesting the resource
  *
  * Returns: 0 on success, negative error code on failure.
  *
- * Mark the PCI region associated with PCI device @pdev BAR @bar as
- * being reserved by owner @res_name.  Do not access any
- * address inside the PCI regions unless this call returns
- * successfully.
+ * Mark the PCI region associated with PCI device @pdev BAR @bar as being
+ * reserved by owner @name. Do not access any address inside the PCI regions
+ * unless this call returns successfully.
  *
  * Returns 0 on success, or %EBUSY on error.  A warning
  * message is also printed on failure.
@@ -4011,9 +4014,9 @@ err_out:
  * when pcim_enable_device() has been called in advance. This hybrid feature is
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
-int pci_request_region(struct pci_dev *pdev, int bar, const char *res_name)
+int pci_request_region(struct pci_dev *pdev, int bar, const char *name)
 {
-	return __pci_request_region(pdev, bar, res_name, 0);
+	return __pci_request_region(pdev, bar, name, 0);
 }
 EXPORT_SYMBOL(pci_request_region);
 
@@ -4036,13 +4039,13 @@ void pci_release_selected_regions(struct pci_dev *pdev, int bars)
 EXPORT_SYMBOL(pci_release_selected_regions);
 
 static int __pci_request_selected_regions(struct pci_dev *pdev, int bars,
-					  const char *res_name, int excl)
+					  const char *name, int excl)
 {
 	int i;
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++)
 		if (bars & (1 << i))
-			if (__pci_request_region(pdev, i, res_name, excl))
+			if (__pci_request_region(pdev, i, name, excl))
 				goto err_out;
 	return 0;
 
@@ -4059,7 +4062,7 @@ err_out:
  * pci_request_selected_regions - Reserve selected PCI I/O and memory resources
  * @pdev: PCI device whose resources are to be reserved
  * @bars: Bitmask of BARs to be requested
- * @res_name: Name to be associated with resource
+ * @name: Name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *
@@ -4069,9 +4072,9 @@ err_out:
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
 int pci_request_selected_regions(struct pci_dev *pdev, int bars,
-				 const char *res_name)
+				 const char *name)
 {
-	return __pci_request_selected_regions(pdev, bars, res_name, 0);
+	return __pci_request_selected_regions(pdev, bars, name, 0);
 }
 EXPORT_SYMBOL(pci_request_selected_regions);
 
@@ -4079,7 +4082,7 @@ EXPORT_SYMBOL(pci_request_selected_regions);
  * pci_request_selected_regions_exclusive - Request regions exclusively
  * @pdev: PCI device to request regions from
  * @bars: bit mask of BARs to request
- * @res_name: name to be associated with the requests
+ * @name: name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *
@@ -4089,9 +4092,9 @@ EXPORT_SYMBOL(pci_request_selected_regions);
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
 int pci_request_selected_regions_exclusive(struct pci_dev *pdev, int bars,
-					   const char *res_name)
+					   const char *name)
 {
-	return __pci_request_selected_regions(pdev, bars, res_name,
+	return __pci_request_selected_regions(pdev, bars, name,
 			IORESOURCE_EXCLUSIVE);
 }
 EXPORT_SYMBOL(pci_request_selected_regions_exclusive);
@@ -4114,12 +4117,11 @@ EXPORT_SYMBOL(pci_release_regions);
 /**
  * pci_request_regions - Reserve PCI I/O and memory resources
  * @pdev: PCI device whose resources are to be reserved
- * @res_name: Name to be associated with resource.
+ * @name: name of the driver requesting the resources
  *
- * Mark all PCI regions associated with PCI device @pdev as
- * being reserved by owner @res_name.  Do not access any
- * address inside the PCI regions unless this call returns
- * successfully.
+ * Mark all PCI regions associated with PCI device @pdev as being reserved by
+ * owner @name. Do not access any address inside the PCI regions unless this
+ * call returns successfully.
  *
  * Returns 0 on success, or %EBUSY on error.  A warning
  * message is also printed on failure.
@@ -4129,22 +4131,22 @@ EXPORT_SYMBOL(pci_release_regions);
  * when pcim_enable_device() has been called in advance. This hybrid feature is
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
-int pci_request_regions(struct pci_dev *pdev, const char *res_name)
+int pci_request_regions(struct pci_dev *pdev, const char *name)
 {
 	return pci_request_selected_regions(pdev,
-			((1 << PCI_STD_NUM_BARS) - 1), res_name);
+			((1 << PCI_STD_NUM_BARS) - 1), name);
 }
 EXPORT_SYMBOL(pci_request_regions);
 
 /**
  * pci_request_regions_exclusive - Reserve PCI I/O and memory resources
  * @pdev: PCI device whose resources are to be reserved
- * @res_name: Name to be associated with resource.
+ * @name: name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *
  * Mark all PCI regions associated with PCI device @pdev as being reserved
- * by owner @res_name.  Do not access any address inside the PCI regions
+ * by owner @name. Do not access any address inside the PCI regions
  * unless this call returns successfully.
  *
  * pci_request_regions_exclusive() will mark the region so that /dev/mem
@@ -4158,10 +4160,10 @@ EXPORT_SYMBOL(pci_request_regions);
  * when pcim_enable_device() has been called in advance. This hybrid feature is
  * DEPRECATED! If you want managed cleanup, use the pcim_* functions instead.
  */
-int pci_request_regions_exclusive(struct pci_dev *pdev, const char *res_name)
+int pci_request_regions_exclusive(struct pci_dev *pdev, const char *name)
 {
 	return pci_request_selected_regions_exclusive(pdev,
-				((1 << PCI_STD_NUM_BARS) - 1), res_name);
+				((1 << PCI_STD_NUM_BARS) - 1), name);
 }
 EXPORT_SYMBOL(pci_request_regions_exclusive);
 
@@ -4488,11 +4490,6 @@ void pci_disable_parity(struct pci_dev *dev)
  * @enable: boolean: whether to enable or disable PCI INTx
  *
  * Enables/disables PCI INTx for device @pdev
- *
- * NOTE:
- * This is a "hybrid" function: It's normally unmanaged, but becomes managed
- * when pcim_enable_device() has been called in advance. This hybrid feature is
- * DEPRECATED! If you want managed cleanup, use pcim_intx() instead.
  */
 void pci_intx(struct pci_dev *pdev, int enable)
 {
@@ -4505,15 +4502,10 @@ void pci_intx(struct pci_dev *pdev, int enable)
 	else
 		new = pci_command | PCI_COMMAND_INTX_DISABLE;
 
-	if (new != pci_command) {
-		/* Preserve the "hybrid" behavior for backwards compatibility */
-		if (pci_is_managed(pdev)) {
-			WARN_ON_ONCE(pcim_intx(pdev, enable) != 0);
-			return;
-		}
+	if (new == pci_command)
+		return;
 
-		pci_write_config_word(pdev, PCI_COMMAND, new);
-	}
+	pci_write_config_word(pdev, PCI_COMMAND, new);
 }
 EXPORT_SYMBOL_GPL(pci_intx);
 
@@ -5204,7 +5196,7 @@ static void pci_dev_restore(struct pci_dev *dev)
 }
 
 /* dev->reset_methods[] is a 0-terminated list of indices into this array */
-static const struct pci_reset_fn_method pci_reset_fn_methods[] = {
+const struct pci_reset_fn_method pci_reset_fn_methods[] = {
 	{ },
 	{ pci_dev_specific_reset, .name = "device_specific" },
 	{ pci_dev_acpi_reset, .name = "acpi" },
@@ -5213,129 +5205,6 @@ static const struct pci_reset_fn_method pci_reset_fn_methods[] = {
 	{ pci_pm_reset, .name = "pm" },
 	{ pci_reset_bus_function, .name = "bus" },
 	{ cxl_reset_bus_function, .name = "cxl_bus" },
-};
-
-static ssize_t reset_method_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	ssize_t len = 0;
-	int i, m;
-
-	for (i = 0; i < PCI_NUM_RESET_METHODS; i++) {
-		m = pdev->reset_methods[i];
-		if (!m)
-			break;
-
-		len += sysfs_emit_at(buf, len, "%s%s", len ? " " : "",
-				     pci_reset_fn_methods[m].name);
-	}
-
-	if (len)
-		len += sysfs_emit_at(buf, len, "\n");
-
-	return len;
-}
-
-static int reset_method_lookup(const char *name)
-{
-	int m;
-
-	for (m = 1; m < PCI_NUM_RESET_METHODS; m++) {
-		if (sysfs_streq(name, pci_reset_fn_methods[m].name))
-			return m;
-	}
-
-	return 0;	/* not found */
-}
-
-static ssize_t reset_method_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	char *options, *tmp_options, *name;
-	int m, n;
-	u8 reset_methods[PCI_NUM_RESET_METHODS] = { 0 };
-
-	if (sysfs_streq(buf, "")) {
-		pdev->reset_methods[0] = 0;
-		pci_warn(pdev, "All device reset methods disabled by user");
-		return count;
-	}
-
-	if (sysfs_streq(buf, "default")) {
-		pci_init_reset_methods(pdev);
-		return count;
-	}
-
-	options = kstrndup(buf, count, GFP_KERNEL);
-	if (!options)
-		return -ENOMEM;
-
-	n = 0;
-	tmp_options = options;
-	while ((name = strsep(&tmp_options, " ")) != NULL) {
-		if (sysfs_streq(name, ""))
-			continue;
-
-		name = strim(name);
-
-		m = reset_method_lookup(name);
-		if (!m) {
-			pci_err(pdev, "Invalid reset method '%s'", name);
-			goto error;
-		}
-
-		if (pci_reset_fn_methods[m].reset_fn(pdev, PCI_RESET_PROBE)) {
-			pci_err(pdev, "Unsupported reset method '%s'", name);
-			goto error;
-		}
-
-		if (n == PCI_NUM_RESET_METHODS - 1) {
-			pci_err(pdev, "Too many reset methods\n");
-			goto error;
-		}
-
-		reset_methods[n++] = m;
-	}
-
-	reset_methods[n] = 0;
-
-	/* Warn if dev-specific supported but not highest priority */
-	if (pci_reset_fn_methods[1].reset_fn(pdev, PCI_RESET_PROBE) == 0 &&
-	    reset_methods[0] != 1)
-		pci_warn(pdev, "Device-specific reset disabled/de-prioritized by user");
-	memcpy(pdev->reset_methods, reset_methods, sizeof(pdev->reset_methods));
-	kfree(options);
-	return count;
-
-error:
-	/* Leave previous methods unchanged */
-	kfree(options);
-	return -EINVAL;
-}
-static DEVICE_ATTR_RW(reset_method);
-
-static struct attribute *pci_dev_reset_method_attrs[] = {
-	&dev_attr_reset_method.attr,
-	NULL,
-};
-
-static umode_t pci_dev_reset_method_attr_is_visible(struct kobject *kobj,
-						    struct attribute *a, int n)
-{
-	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
-
-	if (!pci_reset_supported(pdev))
-		return 0;
-
-	return a->mode;
-}
-
-const struct attribute_group pci_dev_reset_method_attr_group = {
-	.attrs = pci_dev_reset_method_attrs,
-	.is_visible = pci_dev_reset_method_attr_is_visible,
 };
 
 /**

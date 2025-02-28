@@ -547,7 +547,6 @@ struct xe_device {
 	 */
 	struct intel_display display;
 	enum intel_pch pch_type;
-	u16 pch_id;
 
 	struct dram_info {
 		bool wm_lv_0_adjust_needed;

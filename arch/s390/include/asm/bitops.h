@@ -36,184 +36,45 @@
 #include <linux/typecheck.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <asm/atomic_ops.h>
-#include <asm/barrier.h>
+#include <asm/asm.h>
 
-#define __BITOPS_WORDS(bits) (((bits) + BITS_PER_LONG - 1) / BITS_PER_LONG)
+#define arch___set_bit			generic___set_bit
+#define arch___clear_bit		generic___clear_bit
+#define arch___change_bit		generic___change_bit
+#define arch___test_and_set_bit		generic___test_and_set_bit
+#define arch___test_and_clear_bit	generic___test_and_clear_bit
+#define arch___test_and_change_bit	generic___test_and_change_bit
+#define arch_test_bit_acquire		generic_test_bit_acquire
 
-static inline unsigned long *
-__bitops_word(unsigned long nr, const volatile unsigned long *ptr)
+static __always_inline bool arch_test_bit(unsigned long nr, const volatile unsigned long *ptr)
 {
-	unsigned long addr;
+#ifdef __HAVE_ASM_FLAG_OUTPUTS__
+	const volatile unsigned char *addr;
+	unsigned long mask;
+	int cc;
 
-	addr = (unsigned long)ptr + ((nr ^ (nr & (BITS_PER_LONG - 1))) >> 3);
-	return (unsigned long *)addr;
+	/*
+	 * With CONFIG_PROFILE_ALL_BRANCHES enabled gcc fails to
+	 * handle __builtin_constant_p() in some cases.
+	 */
+	if (!IS_ENABLED(CONFIG_PROFILE_ALL_BRANCHES) && __builtin_constant_p(nr)) {
+		addr = (const volatile unsigned char *)ptr;
+		addr += (nr ^ (BITS_PER_LONG - BITS_PER_BYTE)) / BITS_PER_BYTE;
+		mask = 1UL << (nr & (BITS_PER_BYTE - 1));
+		asm volatile(
+			"	tm	%[addr],%[mask]\n"
+			: "=@cc" (cc)
+			: [addr] "Q" (*addr), [mask] "I" (mask)
+			);
+		return cc == 3;
+	}
+#endif
+	return generic_test_bit(nr, ptr);
 }
 
-static inline unsigned long __bitops_mask(unsigned long nr)
-{
-	return 1UL << (nr & (BITS_PER_LONG - 1));
-}
-
-static __always_inline void arch_set_bit(unsigned long nr, volatile unsigned long *ptr)
-{
-	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long mask = __bitops_mask(nr);
-
-	__atomic64_or(mask, (long *)addr);
-}
-
-static __always_inline void arch_clear_bit(unsigned long nr, volatile unsigned long *ptr)
-{
-	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long mask = __bitops_mask(nr);
-
-	__atomic64_and(~mask, (long *)addr);
-}
-
-static __always_inline void arch_change_bit(unsigned long nr,
-					    volatile unsigned long *ptr)
-{
-	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long mask = __bitops_mask(nr);
-
-	__atomic64_xor(mask, (long *)addr);
-}
-
-static inline bool arch_test_and_set_bit(unsigned long nr,
-					 volatile unsigned long *ptr)
-{
-	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long mask = __bitops_mask(nr);
-	unsigned long old;
-
-	old = __atomic64_or_barrier(mask, (long *)addr);
-	return old & mask;
-}
-
-static inline bool arch_test_and_clear_bit(unsigned long nr,
-					   volatile unsigned long *ptr)
-{
-	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long mask = __bitops_mask(nr);
-	unsigned long old;
-
-	old = __atomic64_and_barrier(~mask, (long *)addr);
-	return old & mask;
-}
-
-static inline bool arch_test_and_change_bit(unsigned long nr,
-					    volatile unsigned long *ptr)
-{
-	unsigned long *addr = __bitops_word(nr, ptr);
-	unsigned long mask = __bitops_mask(nr);
-	unsigned long old;
-
-	old = __atomic64_xor_barrier(mask, (long *)addr);
-	return old & mask;
-}
-
-static __always_inline void
-arch___set_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	unsigned long *p = __bitops_word(nr, addr);
-	unsigned long mask = __bitops_mask(nr);
-
-	*p |= mask;
-}
-
-static __always_inline void
-arch___clear_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	unsigned long *p = __bitops_word(nr, addr);
-	unsigned long mask = __bitops_mask(nr);
-
-	*p &= ~mask;
-}
-
-static __always_inline void
-arch___change_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	unsigned long *p = __bitops_word(nr, addr);
-	unsigned long mask = __bitops_mask(nr);
-
-	*p ^= mask;
-}
-
-static __always_inline bool
-arch___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	unsigned long *p = __bitops_word(nr, addr);
-	unsigned long mask = __bitops_mask(nr);
-	unsigned long old;
-
-	old = *p;
-	*p |= mask;
-	return old & mask;
-}
-
-static __always_inline bool
-arch___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	unsigned long *p = __bitops_word(nr, addr);
-	unsigned long mask = __bitops_mask(nr);
-	unsigned long old;
-
-	old = *p;
-	*p &= ~mask;
-	return old & mask;
-}
-
-static __always_inline bool
-arch___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
-{
-	unsigned long *p = __bitops_word(nr, addr);
-	unsigned long mask = __bitops_mask(nr);
-	unsigned long old;
-
-	old = *p;
-	*p ^= mask;
-	return old & mask;
-}
-
-#define arch_test_bit generic_test_bit
-#define arch_test_bit_acquire generic_test_bit_acquire
-
-static inline bool arch_test_and_set_bit_lock(unsigned long nr,
-					      volatile unsigned long *ptr)
-{
-	if (arch_test_bit(nr, ptr))
-		return true;
-	return arch_test_and_set_bit(nr, ptr);
-}
-
-static inline void arch_clear_bit_unlock(unsigned long nr,
-					 volatile unsigned long *ptr)
-{
-	smp_mb__before_atomic();
-	arch_clear_bit(nr, ptr);
-}
-
-static inline void arch___clear_bit_unlock(unsigned long nr,
-					   volatile unsigned long *ptr)
-{
-	smp_mb();
-	arch___clear_bit(nr, ptr);
-}
-
-static inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
-		volatile unsigned long *ptr)
-{
-	unsigned long old;
-
-	old = __atomic64_xor_barrier(mask, (long *)ptr);
-	return old & BIT(7);
-}
-#define arch_xor_unlock_is_negative_byte arch_xor_unlock_is_negative_byte
-
-#include <asm-generic/bitops/instrumented-atomic.h>
-#include <asm-generic/bitops/instrumented-non-atomic.h>
-#include <asm-generic/bitops/instrumented-lock.h>
+#include <asm-generic/bitops/atomic.h>
+#include <asm-generic/bitops/non-instrumented-non-atomic.h>
+#include <asm-generic/bitops/lock.h>
 
 /*
  * Functions which use MSB0 bit numbering.

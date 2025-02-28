@@ -511,13 +511,13 @@ static void vfio_bar_fixup(struct vfio_pci_core_device *vdev)
 		mask = ~(pci_resource_len(pdev, PCI_ROM_RESOURCE) - 1);
 		mask |= PCI_ROM_ADDRESS_ENABLE;
 		*vbar &= cpu_to_le32((u32)mask);
-	} else if (pdev->resource[PCI_ROM_RESOURCE].flags &
-					IORESOURCE_ROM_SHADOW) {
-		mask = ~(0x20000 - 1);
+	} else if (pdev->rom && pdev->romlen) {
+		mask = ~(roundup_pow_of_two(pdev->romlen) - 1);
 		mask |= PCI_ROM_ADDRESS_ENABLE;
 		*vbar &= cpu_to_le32((u32)mask);
-	} else
+	} else {
 		*vbar = 0;
+	}
 
 	vdev->bardirty = false;
 }
@@ -1389,11 +1389,12 @@ static int vfio_ext_cap_len(struct vfio_pci_core_device *vdev, u16 ecap, u16 epo
 
 	switch (ecap) {
 	case PCI_EXT_CAP_ID_VNDR:
-		ret = pci_read_config_dword(pdev, epos + PCI_VSEC_HDR, &dword);
+		ret = pci_read_config_dword(pdev, epos + PCI_VNDR_HEADER,
+					    &dword);
 		if (ret)
 			return pcibios_err_to_errno(ret);
 
-		return dword >> PCI_VSEC_HDR_LEN_SHIFT;
+		return PCI_VNDR_HEADER_LEN(dword);
 	case PCI_EXT_CAP_ID_VC:
 	case PCI_EXT_CAP_ID_VC9:
 	case PCI_EXT_CAP_ID_MFVC:

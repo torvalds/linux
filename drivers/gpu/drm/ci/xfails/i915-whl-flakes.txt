@@ -4,3 +4,10 @@
 # IGT Version: 1.28-g0df7b9b97
 # Linux Version: 6.9.0-rc7
 kms_pm_rpm@modeset-lpsp-stress
+
+# Board Name: dell-latitude-5400-8665U-sarien
+# Bug Report: https://gitlab.freedesktop.org/drm/i915/kernel/-/issues/13351
+# Failure Rate: 100
+# IGT Version: 1.29-g33adea9eb
+# Linux Version: 6.13.0-rc2
+gen9_exec_parse@unaligned-access

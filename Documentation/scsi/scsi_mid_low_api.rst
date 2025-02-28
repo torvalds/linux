@@ -101,7 +101,7 @@ supplied functions" below.
 Those functions in group b) are listed in a section entitled "Interface
 functions" below. Their function pointers are placed in the members of
 "struct scsi_host_template", an instance of which is passed to
-scsi_host_alloc() [#]_.  Those interface functions that the LLD does not
+scsi_host_alloc().  Those interface functions that the LLD does not
 wish to supply should have NULL placed in the corresponding member of
 struct scsi_host_template.  Defining an instance of struct
 scsi_host_template at file scope will cause NULL to be  placed in function
@@ -112,12 +112,9 @@ Those usages in group c) should be handled with care, especially in a
 that are shared with the mid level and other layers.
 
 All functions defined within an LLD and all data defined at file scope
-should be static. For example the slave_alloc() function in an LLD
+should be static. For example the sdev_init() function in an LLD
 called "xxx" could be defined as
-``static int xxx_slave_alloc(struct scsi_device * sdev) { /* code */ }``
-
-.. [#] the scsi_host_alloc() function is a replacement for the rather vaguely
-       named scsi_register() function in most situations.
+``static int xxx_sdev_init(struct scsi_device * sdev) { /* code */ }``
 
 
 Hotplug initialization model
@@ -149,21 +146,21 @@ scsi devices of which only the first 2 respond::
     scsi_add_host()  ---->
     scsi_scan_host()  -------+
 			    |
-			slave_alloc()
-			slave_configure() -->  scsi_change_queue_depth()
+			sdev_init()
+			sdev_configure() -->  scsi_change_queue_depth()
 			    |
-			slave_alloc()
-			slave_configure()
+			sdev_init()
+			sdev_configure()
 			    |
-			slave_alloc()   ***
-			slave_destroy() ***
+			sdev_init()   ***
+			sdev_destroy() ***
 
 
     *** For scsi devices that the mid level tries to scan but do not
-	respond, a slave_alloc(), slave_destroy() pair is called.
+	respond, a sdev_init(), sdev_destroy() pair is called.
 
 If the LLD wants to adjust the default queue settings, it can invoke
-scsi_change_queue_depth() in its slave_configure() routine.
+scsi_change_queue_depth() in its sdev_configure() routine.
 
 When an HBA is being removed it could be as part of an orderly shutdown
 associated with the LLD module being unloaded (e.g. with the "rmmod"
@@ -176,8 +173,8 @@ same::
     ===----------------------=========-----------------===------
     scsi_remove_host() ---------+
 				|
-			slave_destroy()
-			slave_destroy()
+			sdev_destroy()
+			sdev_destroy()
     scsi_host_put()
 
 It may be useful for a LLD to keep track of struct Scsi_Host instances
@@ -202,8 +199,8 @@ An LLD can use this sequence to make the mid level aware of a SCSI device::
     ===-------------------=========--------------------===------
     scsi_add_device()  ------+
 			    |
-			slave_alloc()
-			slave_configure()   [--> scsi_change_queue_depth()]
+			sdev_init()
+			sdev_configure()   [--> scsi_change_queue_depth()]
 
 In a similar fashion, an LLD may become aware that a SCSI device has been
 removed (unplugged) or the connection to it has been interrupted. Some
@@ -218,12 +215,12 @@ upper layers with this sequence::
     ===----------------------=========-----------------===------
     scsi_remove_device() -------+
 				|
-			slave_destroy()
+			sdev_destroy()
 
 It may be useful for an LLD to keep track of struct scsi_device instances
-(a pointer is passed as the parameter to slave_alloc() and
-slave_configure() callbacks). Such instances are "owned" by the mid-level.
-struct scsi_device instances are freed after slave_destroy().
+(a pointer is passed as the parameter to sdev_init() and
+sdev_configure() callbacks). Such instances are "owned" by the mid-level.
+struct scsi_device instances are freed after sdev_destroy().
 
 
 Reference Counting
@@ -302,14 +299,12 @@ Summary:
   - scsi_host_alloc - return a new scsi_host instance whose refcount==1
   - scsi_host_get - increments Scsi_Host instance's refcount
   - scsi_host_put - decrements Scsi_Host instance's refcount (free if 0)
-  - scsi_register - create and register a scsi host adapter instance.
   - scsi_remove_device - detach and remove a SCSI device
   - scsi_remove_host - detach and remove all SCSI devices owned by host
   - scsi_report_bus_reset - report scsi _bus_ reset observed
   - scsi_scan_host - scan SCSI bus
   - scsi_track_queue_full - track successive QUEUE_FULL events
   - scsi_unblock_requests - allow further commands to be queued to given host
-  - scsi_unregister - [calls scsi_host_put()]
 
 
 Details::
@@ -331,7 +326,7 @@ Details::
     *      bus scan when an HBA is added (i.e. scsi_scan_host()). So it
     *      should only be called if the HBA becomes aware of a new scsi
     *      device (lu) after scsi_scan_host() has completed. If successful
-    *      this call can lead to slave_alloc() and slave_configure() callbacks
+    *      this call can lead to sdev_init() and sdev_configure() callbacks
     *      into the LLD.
     *
     *      Defined in: drivers/scsi/scsi_scan.c
@@ -374,8 +369,8 @@ Details::
     *      Might block: no
     *
     *      Notes: Can be invoked any time on a SCSI device controlled by this
-    *      LLD. [Specifically during and after slave_configure() and prior to
-    *      slave_destroy().] Can safely be invoked from interrupt code.
+    *      LLD. [Specifically during and after sdev_configure() and prior to
+    *      sdev_destroy().] Can safely be invoked from interrupt code.
     *
     *      Defined in: drivers/scsi/scsi.c [see source code for more notes]
     *
@@ -475,27 +470,6 @@ Details::
 
 
     /**
-    * scsi_register - create and register a scsi host adapter instance.
-    * @sht:        pointer to scsi host template
-    * @privsize:   extra bytes to allocate in hostdata array (which is the
-    *              last member of the returned Scsi_Host instance)
-    *
-    *      Returns pointer to new Scsi_Host instance or NULL on failure
-    *
-    *      Might block: yes
-    *
-    *      Notes: When this call returns to the LLD, the SCSI bus scan on
-    *      this host has _not_ yet been done.
-    *      The hostdata array (by default zero length) is a per host scratch
-    *      area for the LLD.
-    *
-    *      Defined in: drivers/scsi/hosts.c .
-    **/
-    struct Scsi_Host * scsi_register(struct scsi_host_template * sht,
-				    int privsize)
-
-
-    /**
     * scsi_remove_device - detach and remove a SCSI device
     * @sdev:      a pointer to a scsi device instance
     *
@@ -506,7 +480,7 @@ Details::
     *      Notes: If an LLD becomes aware that a scsi device (lu) has
     *      been removed but its host is still present then it can request
     *      the removal of that scsi device. If successful this call will
-    *      lead to the slave_destroy() callback being invoked. sdev is an
+    *      lead to the sdev_destroy() callback being invoked. sdev is an
     *      invalid pointer after this call.
     *
     *      Defined in: drivers/scsi/scsi_sysfs.c .
@@ -524,7 +498,7 @@ Details::
     *
     *      Notes: Should only be invoked if the "hotplug initialization
     *      model" is being used. It should be called _prior_ to
-    *      scsi_unregister().
+    *      calling scsi_host_put().
     *
     *      Defined in: drivers/scsi/hosts.c .
     **/
@@ -601,43 +575,24 @@ Details::
     void scsi_unblock_requests(struct Scsi_Host * shost)
 
 
-    /**
-    * scsi_unregister - unregister and free memory used by host instance
-    * @shp:        pointer to scsi host instance to unregister.
-    *
-    *      Returns nothing
-    *
-    *      Might block: no
-    *
-    *      Notes: Should not be invoked if the "hotplug initialization
-    *      model" is being used. Called internally by exit_this_scsi_driver()
-    *      in the "passive initialization model". Hence a LLD has no need to
-    *      call this function directly.
-    *
-    *      Defined in: drivers/scsi/hosts.c .
-    **/
-    void scsi_unregister(struct Scsi_Host * shp)
-
-
-
 
 Interface Functions
 ===================
 Interface functions are supplied (defined) by LLDs and their function
 pointers are placed in an instance of struct scsi_host_template which
-is passed to scsi_host_alloc() [or scsi_register() / init_this_scsi_driver()].
+is passed to scsi_host_alloc().
 Some are mandatory. Interface functions should be declared static. The
-accepted convention is that driver "xyz" will declare its slave_configure()
+accepted convention is that driver "xyz" will declare its sdev_configure()
 function as::
 
-    static int xyz_slave_configure(struct scsi_device * sdev);
+    static int xyz_sdev_configure(struct scsi_device * sdev);
 
 and so forth for all interface functions listed below.
 
-A pointer to this function should be placed in the 'slave_configure' member
+A pointer to this function should be placed in the 'sdev_configure' member
 of a "struct scsi_host_template" instance. A pointer to such an instance
-should be passed to the mid level's scsi_host_alloc() [or scsi_register() /
-init_this_scsi_driver()].
+should be passed to the mid level's scsi_host_alloc().
+.
 
 The interface functions are also described in the include/scsi/scsi_host.h
 file immediately above their definition point in "struct scsi_host_template".
@@ -657,9 +612,9 @@ Summary:
   - ioctl - driver can respond to ioctls
   - proc_info - supports /proc/scsi/{driver_name}/{host_no}
   - queuecommand - queue scsi command, invoke 'done' on completion
-  - slave_alloc - prior to any commands being sent to a new device
-  - slave_configure - driver fine tuning for given device after attach
-  - slave_destroy - given device is about to be shut down
+  - sdev_init - prior to any commands being sent to a new device
+  - sdev_configure - driver fine tuning for given device after attach
+  - sdev_destroy - given device is about to be shut down
 
 
 Details::
@@ -728,11 +683,7 @@ Details::
     *
     *      Calling context: kernel thread
     *
-    *      Notes: If 'no_async_abort' is defined this callback
-    *  	will be invoked from scsi_eh thread. No other commands
-    *	will then be queued on current host during eh.
-    *	Otherwise it will be called whenever scsi_timeout()
-    *      is called due to a command timeout.
+    *      Notes: This is called only for a command that has timed out.
     *
     *      Optionally defined in: LLD
     **/
@@ -817,10 +768,6 @@ Details::
     *      The SCSI_IOCTL_PROBE_HOST ioctl yields the string returned by this
     *      function (or struct Scsi_Host::name if this function is not
     *      available).
-    *      In a similar manner, init_this_scsi_driver() outputs to the console
-    *      each host's "info" (or name) for the driver it is registering.
-    *      Also if proc_info() is not supplied, the output of this function
-    *      is used instead.
     *
     *      Optionally defined in: LLD
     **/
@@ -960,7 +907,7 @@ Details::
 
 
     /**
-    *      slave_alloc -   prior to any commands being sent to a new device
+    *      sdev_init -   prior to any commands being sent to a new device
     *                      (i.e. just prior to scan) this call is made
     *      @sdp: pointer to new device (about to be scanned)
     *
@@ -975,24 +922,24 @@ Details::
     *      prior to its initial scan. The corresponding scsi device may not
     *      exist but the mid level is just about to scan for it (i.e. send
     *      and INQUIRY command plus ...). If a device is found then
-    *      slave_configure() will be called while if a device is not found
-    *      slave_destroy() is called.
+    *      sdev_configure() will be called while if a device is not found
+    *      sdev_destroy() is called.
     *      For more details see the include/scsi/scsi_host.h file.
     *
     *      Optionally defined in: LLD
     **/
-	int slave_alloc(struct scsi_device *sdp)
+	int sdev_init(struct scsi_device *sdp)
 
 
     /**
-    *      slave_configure - driver fine tuning for given device just after it
+    *      sdev_configure - driver fine tuning for given device just after it
     *                     has been first scanned (i.e. it responded to an
     *                     INQUIRY)
     *      @sdp: device that has just been attached
     *
     *      Returns 0 if ok. Any other return is assumed to be an error and
     *      the device is taken offline. [offline devices will _not_ have
-    *      slave_destroy() called on them so clean up resources.]
+    *      sdev_destroy() called on them so clean up resources.]
     *
     *      Locks: none
     *
@@ -1004,11 +951,11 @@ Details::
     *
     *      Optionally defined in: LLD
     **/
-	int slave_configure(struct scsi_device *sdp)
+	int sdev_configure(struct scsi_device *sdp)
 
 
     /**
-    *      slave_destroy - given device is about to be shut down. All
+    *      sdev_destroy - given device is about to be shut down. All
     *                      activity has ceased on this device.
     *      @sdp: device that is about to be shut down
     *
@@ -1023,12 +970,12 @@ Details::
     *      by this driver for given device should be freed now. No further
     *      commands will be sent for this sdp instance. [However the device
     *      could be re-attached in the future in which case a new instance
-    *      of struct scsi_device would be supplied by future slave_alloc()
-    *      and slave_configure() calls.]
+    *      of struct scsi_device would be supplied by future sdev_init()
+    *      and sdev_configure() calls.]
     *
     *      Optionally defined in: LLD
     **/
-	void slave_destroy(struct scsi_device *sdp)
+	void sdev_destroy(struct scsi_device *sdp)
 
 
 
@@ -1039,7 +986,7 @@ struct scsi_host_template
 There is one "struct scsi_host_template" instance per LLD [#]_. It is
 typically initialized as a file scope static in a driver's header file. That
 way members that are not explicitly initialized will be set to 0 or NULL.
-Member of interest:
+Members of interest:
 
     name
 		 - name of driver (may contain spaces, please limit to
@@ -1054,6 +1001,13 @@ Member of interest:
    ``(*queuecommand)()``
 		 - primary callback that the mid level uses to inject
                    SCSI commands into an LLD.
+
+    vendor_id
+		 - a unique value that identifies the vendor supplying
+                   the LLD for the Scsi_Host.  Used most often in validating
+                   vendor-specific message requests.  Value consists of an
+                   identifier type and a vendor-specific value.
+                   See scsi_netlink.h for a description of valid formats.
 
 The structure is defined and commented in include/scsi/scsi_host.h
 
@@ -1095,9 +1049,6 @@ of interest:
 		 - maximum number of commands that can be queued on devices
                    controlled by the host. Overridden by LLD calls to
                    scsi_change_queue_depth().
-    no_async_abort
-		 - 1=>Asynchronous aborts are not supported
-		 - 0=>Timed-out commands will be aborted asynchronously
     hostt
 		 - pointer to driver's struct scsi_host_template from which
                    this struct Scsi_Host instance was spawned
@@ -1106,22 +1057,10 @@ of interest:
     transportt
 		 - pointer to driver's struct scsi_transport_template instance
                    (if any). FC and SPI transports currently supported.
-    sh_list
-		 - a double linked list of pointers to all struct Scsi_Host
-                   instances (currently ordered by ascending host_no)
-    my_devices
-		 - a double linked list of pointers to struct scsi_device
-                   instances that belong to this host.
     hostdata[0]
 		 - area reserved for LLD at end of struct Scsi_Host. Size
-                   is set by the second argument (named 'xtr_bytes') to
-                   scsi_host_alloc() or scsi_register().
-    vendor_id
-		 - a unique value that identifies the vendor supplying
-                   the LLD for the Scsi_Host.  Used most often in validating
-                   vendor-specific message requests.  Value consists of an
-                   identifier type and a vendor-specific value.
-                   See scsi_netlink.h for a description of valid formats.
+                   is set by the second argument (named 'privsize') to
+                   scsi_host_alloc().
 
 The scsi_host structure is defined in include/scsi/scsi_host.h
 
@@ -1143,30 +1082,11 @@ Members of interest:
 
     cmnd
 		 - array containing SCSI command
-    cmnd_len
+    cmd_len
 		 - length (in bytes) of SCSI command
     sc_data_direction
 		 - direction of data transfer in data phase. See
                    "enum dma_data_direction" in include/linux/dma-mapping.h
-    request_bufflen
-		 - number of data bytes to transfer (0 if no data phase)
-    use_sg
-		 - ==0 -> no scatter gather list, hence transfer data
-                          to/from request_buffer
-                 - >0 ->  scatter gather list (actually an array) in
-                          request_buffer with use_sg elements
-    request_buffer
-		   - either contains data buffer or scatter gather list
-                     depending on the setting of use_sg. Scatter gather
-                     elements are defined by 'struct scatterlist' found
-                     in include/linux/scatterlist.h .
-    done
-		 - function pointer that should be invoked by LLD when the
-                   SCSI command is completed (successfully or otherwise).
-                   Should only be called by an LLD if the LLD has accepted
-                   the command (i.e. queuecommand() returned or will return
-                   0). The LLD may invoke 'done'  prior to queuecommand()
-                   finishing.
     result
 		 - should be set by LLD prior to calling 'done'. A value
                    of 0 implies a successfully completed command (and all
@@ -1189,13 +1109,13 @@ Members of interest:
     device
 		 - pointer to scsi_device object that this command is
                    associated with.
-    resid
+    resid_len   (access by calling scsi_set_resid() / scsi_get_resid())
 		 - an LLD should set this unsigned integer to the requested
                    transfer length (i.e. 'request_bufflen') less the number
-                   of bytes that are actually transferred. 'resid' is
+                   of bytes that are actually transferred. 'resid_len' is
                    preset to 0 so an LLD can ignore it if it cannot detect
                    underruns (overruns should not be reported). An LLD
-                   should set 'resid' prior to invoking 'done'. The most
+                   should set 'resid_len' prior to invoking 'done'. The most
                    interesting case is data transfers from a SCSI target
                    device (e.g. READs) that underrun.
     underflow
@@ -1204,10 +1124,10 @@ Members of interest:
                    figure. Not many LLDs implement this check and some that
                    do just output an error message to the log rather than
                    report a DID_ERROR. Better for an LLD to implement
-                   'resid'.
+                   'resid_len'.
 
-It is recommended that a LLD set 'resid' on data transfers from a SCSI
-target device (e.g. READs). It is especially important that 'resid' is set
+It is recommended that a LLD set 'resid_len' on data transfers from a SCSI
+target device (e.g. READs). It is especially important that 'resid_len' is set
 when such data transfers have sense keys of MEDIUM ERROR and HARDWARE ERROR
 (and possibly RECOVERED ERROR). In these cases if a LLD is in doubt how much
 data has been received then the safest approach is to indicate no bytes have
@@ -1217,7 +1137,7 @@ a LLD might use these helpers::
     scsi_set_resid(SCpnt, scsi_bufflen(SCpnt));
 
 where 'SCpnt' is a pointer to a scsi_cmnd object. To indicate only three 512
-bytes blocks has been received 'resid' could be set like this::
+bytes blocks have been received 'resid_len' could be set like this::
 
     scsi_set_resid(SCpnt, scsi_bufflen(SCpnt) - (3 * 512));
 

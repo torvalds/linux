@@ -95,7 +95,7 @@ static int w1_f2d_readblock(struct w1_slave *sl, int off, int count, char *buf)
 }
 
 static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
-			   struct bin_attribute *bin_attr, char *buf,
+			   const struct bin_attribute *bin_attr, char *buf,
 			   loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -201,7 +201,7 @@ retry:
 }
 
 static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *bin_attr, char *buf,
+			    const struct bin_attribute *bin_attr, char *buf,
 			    loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -262,15 +262,15 @@ out_up:
 	return count;
 }
 
-static BIN_ATTR_RW(eeprom, W1_F2D_EEPROM_SIZE);
+static const BIN_ATTR_RW(eeprom, W1_F2D_EEPROM_SIZE);
 
-static struct bin_attribute *w1_f2d_bin_attrs[] = {
+static const struct bin_attribute *const w1_f2d_bin_attrs[] = {
 	&bin_attr_eeprom,
 	NULL,
 };
 
 static const struct attribute_group w1_f2d_group = {
-	.bin_attrs = w1_f2d_bin_attrs,
+	.bin_attrs_new = w1_f2d_bin_attrs,
 };
 
 static const struct attribute_group *w1_f2d_groups[] = {

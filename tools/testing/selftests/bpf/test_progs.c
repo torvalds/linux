@@ -1282,6 +1282,21 @@ void crash_handler(int signum)
 	backtrace_symbols_fd(bt, sz, STDERR_FILENO);
 }
 
+void hexdump(const char *prefix, const void *buf, size_t len)
+{
+	for (int i = 0; i < len; i++) {
+		if (!(i % 16)) {
+			if (i)
+				fprintf(stdout, "\n");
+			fprintf(stdout, "%s", prefix);
+		}
+		if (i && !(i % 8) && (i % 16))
+			fprintf(stdout, "\t");
+		fprintf(stdout, "%02X ", ((uint8_t *)(buf))[i]);
+	}
+	fprintf(stdout, "\n");
+}
+
 static void sigint_handler(int signum)
 {
 	int i;

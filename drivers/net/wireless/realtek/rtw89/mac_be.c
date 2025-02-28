@@ -1988,6 +1988,20 @@ int rtw89_mac_resume_sch_tx_v2(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en)
 }
 EXPORT_SYMBOL(rtw89_mac_resume_sch_tx_v2);
 
+void rtw89_mac_cfg_phy_rpt_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
+{
+	u32 reg, val;
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_RCR, mac_idx);
+	val = enable ? MAC_AX_PHY_RPT_SIZE_8 : MAC_AX_PHY_RPT_SIZE_0;
+	rtw89_write32_mask(rtwdev, reg, B_BE_PHY_RPT_SZ_MASK, val);
+	rtw89_write32_mask(rtwdev, reg, B_BE_HDR_CNV_SZ_MASK, MAC_AX_HDR_CNV_SIZE_0);
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_DRV_INFO_OPTION, mac_idx);
+	rtw89_write32_mask(rtwdev, reg, B_BE_DRV_INFO_PHYRPT_EN, enable);
+}
+EXPORT_SYMBOL(rtw89_mac_cfg_phy_rpt_be);
+
 static
 int rtw89_mac_cfg_ppdu_status_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 {
@@ -2583,6 +2597,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 
 	.typ_fltr_opt = rtw89_mac_typ_fltr_opt_be,
 	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_be,
+	.cfg_phy_rpt = rtw89_mac_cfg_phy_rpt_be,
 
 	.dle_mix_cfg = dle_mix_cfg_be,
 	.chk_dle_rdy = chk_dle_rdy_be,

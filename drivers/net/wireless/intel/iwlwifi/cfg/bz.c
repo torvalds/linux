@@ -10,7 +10,7 @@
 #include "fw/api/txq.h"
 
 /* Highest firmware API version supported */
-#define IWL_BZ_UCODE_API_MAX	94
+#define IWL_BZ_UCODE_API_MAX	96
 
 /* Lowest firmware API version supported */
 #define IWL_BZ_UCODE_API_MIN	92
@@ -37,20 +37,6 @@
 
 #define IWL_BZ_A_HR_B_MODULE_FIRMWARE(api) \
 	IWL_BZ_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_BZ_A_GF_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_GF_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_BZ_A_GF4_A_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_GF4_A_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_BZ_A_FM_B_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_FM_B_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_BZ_A_FM_C_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_FM_C_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_BZ_A_FM4_B_MODULE_FIRMWARE(api) \
-	IWL_BZ_A_FM4_B_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_GL_B_FM_B_MODULE_FIRMWARE(api) \
-	IWL_GL_B_FM_B_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL_GL_C_FM_C_MODULE_FIRMWARE(api) \
-	IWL_GL_C_FM_C_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl_bz_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
@@ -181,14 +167,11 @@ const struct iwl_cfg iwl_cfg_gl = {
 	.num_rbds = IWL_NUM_RBDS_BZ_EHT,
 };
 
-
 MODULE_FIRMWARE(IWL_BZ_A_HR_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_BZ_A_GF_A_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_BZ_A_GF4_A_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_BZ_A_FM_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_BZ_A_FM_C_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_BZ_A_FM4_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_GL_B_FM_B_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL_GL_C_FM_C_MODULE_FIRMWARE(IWL_BZ_UCODE_API_MAX));
-
-MODULE_FIRMWARE("iwlwifi-gl-c0-fm-c0.pnvm");
+IWL_FW_AND_PNVM(IWL_BZ_A_GF_A_FW_PRE, IWL_BZ_UCODE_API_MAX);
+IWL_FW_AND_PNVM(IWL_BZ_A_GF4_A_FW_PRE, IWL_BZ_UCODE_API_MAX);
+IWL_FW_AND_PNVM(IWL_BZ_A_FM_B_FW_PRE, IWL_BZ_UCODE_API_MAX);
+IWL_FW_AND_PNVM(IWL_BZ_A_FM_C_FW_PRE, IWL_BZ_UCODE_API_MAX);
+IWL_FW_AND_PNVM(IWL_BZ_A_FM4_B_FW_PRE, IWL_BZ_UCODE_API_MAX);
+IWL_FW_AND_PNVM(IWL_GL_B_FM_B_FW_PRE, IWL_BZ_UCODE_API_MAX);
+IWL_FW_AND_PNVM(IWL_GL_C_FM_C_FW_PRE, IWL_BZ_UCODE_API_MAX);

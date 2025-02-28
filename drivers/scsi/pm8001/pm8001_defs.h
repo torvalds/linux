@@ -90,7 +90,7 @@ enum port_type {
 #define	PM8001_MAX_PORTS	 16	/* max. possible ports */
 #define	PM8001_MAX_DEVICES	 2048	/* max supported device */
 #define	PM8001_MAX_MSIX_VEC	 64	/* max msi-x int for spcv/ve */
-#define	PM8001_RESERVE_SLOT	 8
+#define	PM8001_RESERVE_SLOT	 128
 
 #define PM8001_SECTOR_SIZE	512
 #define PM8001_PAGE_SIZE_4K	4096

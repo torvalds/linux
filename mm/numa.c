@@ -37,13 +37,7 @@ void __init alloc_node_data(int nid)
 void __init alloc_offline_node_data(int nid)
 {
 	pg_data_t *pgdat;
-
-	pgdat = memblock_alloc(sizeof(*pgdat), SMP_CACHE_BYTES);
-	if (!pgdat)
-		panic("Cannot allocate %zuB for node %d.\n",
-		      sizeof(*pgdat), nid);
-
-	node_data[nid] = pgdat;
+	node_data[nid] = memblock_alloc_or_panic(sizeof(*pgdat), SMP_CACHE_BYTES);
 }
 
 /* Stub functions: */

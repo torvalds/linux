@@ -2,7 +2,7 @@
 #ifndef _ASM_S390_ABS_LOWCORE_H
 #define _ASM_S390_ABS_LOWCORE_H
 
-#include <asm/sections.h>
+#include <linux/smp.h>
 #include <asm/lowcore.h>
 
 #define ABS_LOWCORE_MAP_SIZE	(NR_CPUS * sizeof(struct lowcore))
@@ -25,7 +25,7 @@ static inline void put_abs_lowcore(struct lowcore *lc)
 	put_cpu();
 }
 
-extern int __bootdata_preserved(relocate_lowcore);
+extern int relocate_lowcore;
 
 static inline int have_relocated_lowcore(void)
 {

@@ -77,6 +77,23 @@ struct nfs_lock_context {
 	struct rcu_head	rcu_head;
 };
 
+struct nfs_file_localio {
+	struct nfsd_file __rcu *ro_file;
+	struct nfsd_file __rcu *rw_file;
+	struct list_head list;
+	void __rcu *nfs_uuid; /* opaque pointer to 'nfs_uuid_t' */
+};
+
+static inline void nfs_localio_file_init(struct nfs_file_localio *nfl)
+{
+#if IS_ENABLED(CONFIG_NFS_LOCALIO)
+	nfl->ro_file = NULL;
+	nfl->rw_file = NULL;
+	INIT_LIST_HEAD(&nfl->list);
+	nfl->nfs_uuid = NULL;
+#endif
+}
+
 struct nfs4_state;
 struct nfs_open_context {
 	struct nfs_lock_context lock_context;
@@ -87,15 +104,16 @@ struct nfs_open_context {
 	struct nfs4_state *state;
 	fmode_t mode;
 
+	int error;
 	unsigned long flags;
 #define NFS_CONTEXT_BAD			(2)
 #define NFS_CONTEXT_UNLOCK	(3)
 #define NFS_CONTEXT_FILE_OPEN		(4)
-	int error;
 
-	struct list_head list;
 	struct nfs4_threshold	*mdsthreshold;
+	struct list_head list;
 	struct rcu_head	rcu_head;
+	struct nfs_file_localio nfl;
 };
 
 struct nfs_open_dir_context {

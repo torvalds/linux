@@ -35,13 +35,6 @@ struct ines_priv {
 	u8 extend_mode_bits;
 };
 
-// interfaces
-extern gpib_interface_t ines_pci_interface;
-extern gpib_interface_t ines_pci_accel_interface;
-extern gpib_interface_t ines_pcmcia_interface;
-extern gpib_interface_t ines_pcmcia_accel_interface;
-extern gpib_interface_t ines_pcmcia_unaccel_interface;
-
 // interface functions
 int ines_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read);
 int ines_write(gpib_board_t *board, uint8_t *buffer, size_t length,

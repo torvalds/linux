@@ -131,23 +131,23 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     cpts@310d0000 {
-         compatible = "ti,am65-cpts";
-         reg = <0x310d0000 0x400>;
-         reg-names = "cpts";
-         clocks = <&main_cpts_mux>;
-         clock-names = "cpts";
-         interrupts-extended = <&k3_irq 163 0 IRQ_TYPE_LEVEL_HIGH>;
-         interrupt-names = "cpts";
-         ti,cpts-periodic-outputs = <6>;
-         ti,cpts-ext-ts-inputs = <8>;
+        compatible = "ti,am65-cpts";
+        reg = <0x310d0000 0x400>;
+        reg-names = "cpts";
+        clocks = <&main_cpts_mux>;
+        clock-names = "cpts";
+        interrupts-extended = <&k3_irq 163 0 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "cpts";
+        ti,cpts-periodic-outputs = <6>;
+        ti,cpts-ext-ts-inputs = <8>;
 
-         main_cpts_mux: refclk-mux {
-               #clock-cells = <0>;
-               clocks = <&k3_clks 118 5>, <&k3_clks 118 11>,
-                        <&k3_clks 157 91>, <&k3_clks 157 77>,
-                        <&k3_clks 157 102>, <&k3_clks 157 80>,
-                        <&k3_clks 120 3>, <&k3_clks 121 3>;
-               assigned-clocks = <&main_cpts_mux>;
-               assigned-clock-parents = <&k3_clks 118 11>;
-         };
+        main_cpts_mux: refclk-mux {
+            #clock-cells = <0>;
+            clocks = <&k3_clks 118 5>, <&k3_clks 118 11>,
+                     <&k3_clks 157 91>, <&k3_clks 157 77>,
+                     <&k3_clks 157 102>, <&k3_clks 157 80>,
+                     <&k3_clks 120 3>, <&k3_clks 121 3>;
+            assigned-clocks = <&main_cpts_mux>;
+            assigned-clock-parents = <&k3_clks 118 11>;
+        };
     };

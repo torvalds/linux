@@ -984,6 +984,7 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 			nfs_put_client(cps.clp);
 			goto out_invalidcred;
 		}
+		svc_xprt_set_valid(rqstp->rq_xprt);
 	}
 
 	cps.minorversion = hdr_arg.minorversion;

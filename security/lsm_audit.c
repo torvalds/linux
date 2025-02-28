@@ -171,7 +171,7 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 
 static inline void print_ipv6_addr(struct audit_buffer *ab,
 				   const struct in6_addr *addr, __be16 port,
-				   char *name1, char *name2)
+				   const char *name1, const char *name2)
 {
 	if (!ipv6_addr_any(addr))
 		audit_log_format(ab, " %s=%pI6c", name1, addr);
@@ -180,7 +180,7 @@ static inline void print_ipv6_addr(struct audit_buffer *ab,
 }
 
 static inline void print_ipv4_addr(struct audit_buffer *ab, __be32 addr,
-				   __be16 port, char *name1, char *name2)
+				   __be16 port, const char *name1, const char *name2)
 {
 	if (addr)
 		audit_log_format(ab, " %s=%pI4", name1, &addr);
@@ -299,10 +299,10 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		if (tsk) {
 			pid_t pid = task_tgid_nr(tsk);
 			if (pid) {
-				char comm[sizeof(tsk->comm)];
+				char tskcomm[sizeof(tsk->comm)];
 				audit_log_format(ab, " opid=%d ocomm=", pid);
 				audit_log_untrustedstring(ab,
-				    get_task_comm(comm, tsk));
+				    get_task_comm(tskcomm, tsk));
 			}
 		}
 		break;
@@ -424,6 +424,9 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 		break;
 	case LSM_AUDIT_DATA_ANONINODE:
 		audit_log_format(ab, " anonclass=%s", a->u.anonclass);
+		break;
+	case LSM_AUDIT_DATA_NLMSGTYPE:
+		audit_log_format(ab, " nl-msgtype=%hu", a->u.nlmsg_type);
 		break;
 	} /* switch (a->type) */
 }

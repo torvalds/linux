@@ -176,9 +176,8 @@ imx8qxp_pc_bridge_mode_set(struct drm_bridge *bridge,
 	clk_disable_unprepare(pc->clk_apb);
 }
 
-static void
-imx8qxp_pc_bridge_atomic_disable(struct drm_bridge *bridge,
-				 struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_pc_bridge_atomic_disable(struct drm_bridge *bridge,
+					     struct drm_atomic_state *state)
 {
 	struct imx8qxp_pc_channel *ch = bridge->driver_private;
 	struct imx8qxp_pc *pc = ch->pc;

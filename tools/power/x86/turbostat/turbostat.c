@@ -3,7 +3,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel and AMD processors.
  *
- * Copyright (c) 2024 Intel Corporation.
+ * Copyright (c) 2025 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  */
 
@@ -94,6 +94,8 @@
 
 #define INTEL_ECORE_TYPE	0x20
 #define INTEL_PCORE_TYPE	0x40
+
+#define ROUND_UP_TO_PAGE_SIZE(n) (((n) + 0x1000UL-1UL) & ~(0x1000UL-1UL))
 
 enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
 enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC, COUNTER_K2M };
@@ -202,6 +204,8 @@ struct msr_counter bic[] = {
 	{ 0x0, "Die%c6", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "SysWatt", NULL, 0, 0, 0, NULL, 0 },
 	{ 0x0, "Sys_J", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "NMI", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c1e", NULL, 0, 0, 0, NULL, 0 },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -266,14 +270,16 @@ struct msr_counter bic[] = {
 #define	BIC_Diec6		(1ULL << 58)
 #define	BIC_SysWatt		(1ULL << 59)
 #define	BIC_Sys_J		(1ULL << 60)
+#define	BIC_NMI			(1ULL << 61)
+#define	BIC_CPU_c1e		(1ULL << 62)
 
-#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die )
-#define BIC_THERMAL_PWR ( BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__)
+#define BIC_TOPOLOGY (BIC_Package | BIC_Node | BIC_CoreCnt | BIC_PkgCnt | BIC_Core | BIC_CPU | BIC_Die)
+#define BIC_THERMAL_PWR (BIC_CoreTmp | BIC_PkgTmp | BIC_PkgWatt | BIC_CorWatt | BIC_GFXWatt | BIC_RAMWatt | BIC_PKG__ | BIC_RAM__ | BIC_SysWatt)
 #define BIC_FREQUENCY (BIC_Avg_MHz | BIC_Busy | BIC_Bzy_MHz | BIC_TSC_MHz | BIC_GFXMHz | BIC_GFXACTMHz | BIC_SAMMHz | BIC_SAMACTMHz | BIC_UNCORE_MHZ)
-#define BIC_IDLE (BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
-#define BIC_OTHER ( BIC_IRQ | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
+#define BIC_IDLE (BIC_Busy | BIC_sysfs | BIC_CPU_c1 | BIC_CPU_c3 | BIC_CPU_c6 | BIC_CPU_c7 | BIC_GFX_rc6 | BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_CPU_LPI | BIC_SYS_LPI | BIC_Mod_c6 | BIC_Totl_c0 | BIC_Any_c0 | BIC_GFX_c0 | BIC_CPUGFX | BIC_SAM_mc6 | BIC_Diec6)
+#define BIC_OTHER (BIC_IRQ | BIC_NMI | BIC_SMI | BIC_ThreadC | BIC_CoreTmp | BIC_IPC)
 
-#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC | BIC_SysWatt | BIC_Sys_J)
+#define BIC_DISABLED_BY_DEFAULT	(BIC_USEC | BIC_TOD | BIC_APIC | BIC_X2APIC)
 
 unsigned long long bic_enabled = (0xFFFFFFFFFFFFFFFFULL & ~BIC_DISABLED_BY_DEFAULT);
 unsigned long long bic_present = BIC_USEC | BIC_TOD | BIC_sysfs | BIC_APIC | BIC_X2APIC;
@@ -326,6 +332,7 @@ unsigned int rapl_joules;
 unsigned int summary_only;
 unsigned int list_header_only;
 unsigned int dump_only;
+unsigned int force_load;
 unsigned int has_aperf;
 unsigned int has_aperf_access;
 unsigned int has_epb;
@@ -353,7 +360,7 @@ unsigned long long cpuidle_cur_sys_lpi_us;
 unsigned int tj_max;
 unsigned int tj_max_override;
 double rapl_power_units, rapl_time_units;
-double rapl_dram_energy_units, rapl_energy_units;
+double rapl_dram_energy_units, rapl_energy_units, rapl_psys_energy_units;
 double rapl_joule_counter_range;
 unsigned int crystal_hz;
 unsigned long long tsc_hz;
@@ -365,6 +372,9 @@ unsigned int has_hwp_activity_window;	/* IA32_HWP_REQUEST[bits 41:32] */
 unsigned int has_hwp_epp;	/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;	/* IA32_HWP_REQUEST_PKG */
 unsigned int first_counter_read = 1;
+
+static struct timeval procsysfs_tv_begin;
+
 int ignore_stdin;
 bool no_msr;
 bool no_perf;
@@ -419,6 +429,7 @@ struct platform_features {
 	bool has_per_core_rapl;	/* Indicates cores energy collection is per-core, not per-package. AMD specific for now */
 	bool has_rapl_divisor;	/* Divisor for Energy unit raw value from MSR_RAPL_POWER_UNIT */
 	bool has_fixed_rapl_unit;	/* Fixed Energy Unit used for DRAM RAPL Domain */
+	bool has_fixed_rapl_psys_unit;	/* Fixed Energy Unit used for PSYS RAPL Domain */
 	int rapl_quirk_tdp;	/* Hardcoded TDP value when cannot be retrieved from hardware */
 	int tcc_offset_bits;	/* TCC Offset bits in MSR_IA32_TEMPERATURE_TARGET */
 	bool enable_tsc_tweak;	/* Use CPU Base freq instead of TSC freq for aperf/mperf counter */
@@ -819,6 +830,7 @@ static const struct platform_features spr_features = {
 	.has_msr_core_c1_res = 1,
 	.has_irtl_msrs = 1,
 	.has_cst_prewake_bit = 1,
+	.has_fixed_rapl_psys_unit = 1,
 	.trl_msrs = TRL_BASE | TRL_CORECOUNT,
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_PSYS,
 };
@@ -1024,6 +1036,7 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_ARROWLAKE_U, &adl_features },
 	{ INTEL_ARROWLAKE, &adl_features },
 	{ INTEL_LUNARLAKE_M, &lnl_features },
+	{ INTEL_PANTHERLAKE_L, &lnl_features },
 	{ INTEL_ATOM_SILVERMONT, &slv_features },
 	{ INTEL_ATOM_SILVERMONT_D, &slvd_features },
 	{ INTEL_ATOM_AIRMONT, &amt_features },
@@ -1036,6 +1049,7 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_ATOM_GRACEMONT, &adl_features },
 	{ INTEL_ATOM_CRESTMONT_X, &srf_features },
 	{ INTEL_ATOM_CRESTMONT, &grr_features },
+	{ INTEL_ATOM_DARKMONT_X, &srf_features },
 	{ INTEL_XEON_PHI_KNL, &knl_features },
 	{ INTEL_XEON_PHI_KNM, &knl_features },
 	/*
@@ -1054,9 +1068,10 @@ void probe_platform_features(unsigned int family, unsigned int model)
 {
 	int i;
 
-	platform = &default_features;
 
 	if (authentic_amd || hygon_genuine) {
+		/* fallback to default features on unsupported models */
+		force_load++;
 		if (max_extended_level >= 0x80000007) {
 			unsigned int eax, ebx, ecx, edx;
 
@@ -1065,11 +1080,11 @@ void probe_platform_features(unsigned int family, unsigned int model)
 			if ((edx & (1 << 14)) && family >= 0x17)
 				platform = &amd_features_with_rapl;
 		}
-		return;
+		goto end;
 	}
 
 	if (!genuine_intel)
-		return;
+		goto end;
 
 	for (i = 0; turbostat_pdata[i].features; i++) {
 		if (VFM_FAMILY(turbostat_pdata[i].vfm) == family && VFM_MODEL(turbostat_pdata[i].vfm) == model) {
@@ -1077,6 +1092,19 @@ void probe_platform_features(unsigned int family, unsigned int model)
 			return;
 		}
 	}
+
+end:
+	if (force_load && !platform) {
+		fprintf(outf, "Forced to run on unsupported platform!\n");
+		platform = &default_features;
+	}
+
+	if (platform)
+		return;
+
+	fprintf(stderr, "Unsupported platform detected.\n"
+		"\tSee RUN THE LATEST VERSION on turbostat(8)\n");
+	exit(1);
 }
 
 /* Model specific support End */
@@ -1094,8 +1122,8 @@ int backwards_count;
 char *progname;
 
 #define CPU_SUBSET_MAXCPUS	1024	/* need to use before probe... */
-cpu_set_t *cpu_present_set, *cpu_effective_set, *cpu_allowed_set, *cpu_affinity_set, *cpu_subset;
-size_t cpu_present_setsize, cpu_effective_setsize, cpu_allowed_setsize, cpu_affinity_setsize, cpu_subset_size;
+cpu_set_t *cpu_present_set, *cpu_possible_set, *cpu_effective_set, *cpu_allowed_set, *cpu_affinity_set, *cpu_subset;
+size_t cpu_present_setsize, cpu_possible_setsize, cpu_effective_setsize, cpu_allowed_setsize, cpu_affinity_setsize, cpu_subset_size;
 #define MAX_ADDED_THREAD_COUNTERS 24
 #define MAX_ADDED_CORE_COUNTERS 8
 #define MAX_ADDED_PACKAGE_COUNTERS 16
@@ -1271,7 +1299,7 @@ static const struct rapl_counter_arch_info rapl_counter_arch_infos[] = {
 	 .msr = MSR_PLATFORM_ENERGY_STATUS,
 	 .msr_mask = 0x00000000FFFFFFFF,
 	 .msr_shift = 0,
-	 .platform_rapl_msr_scale = &rapl_energy_units,
+	 .platform_rapl_msr_scale = &rapl_psys_energy_units,
 	 .rci_index = RAPL_RCI_INDEX_ENERGY_PLATFORM,
 	 .bic = BIC_SysWatt | BIC_Sys_J,
 	 .compat_scale = 1.0,
@@ -1510,6 +1538,17 @@ static struct msr_counter_arch_info msr_counter_arch_infos[] = {
 #define PMT_COUNTER_MTL_DC6_LSB    0
 #define PMT_COUNTER_MTL_DC6_MSB    63
 #define PMT_MTL_DC6_GUID           0x1a067102
+#define PMT_MTL_DC6_SEQ            0
+
+#define PMT_COUNTER_CWF_MC1E_OFFSET_BASE          20936
+#define PMT_COUNTER_CWF_MC1E_OFFSET_INCREMENT     24
+#define PMT_COUNTER_CWF_MC1E_NUM_MODULES_PER_FILE 12
+#define PMT_COUNTER_CWF_CPUS_PER_MODULE           4
+#define PMT_COUNTER_CWF_MC1E_LSB                  0
+#define PMT_COUNTER_CWF_MC1E_MSB                  63
+#define PMT_CWF_MC1E_GUID                         0x14421519
+
+unsigned long long tcore_clock_freq_hz = 800000000;
 
 #define PMT_COUNTER_NAME_SIZE_BYTES      16
 #define PMT_COUNTER_TYPE_NAME_SIZE_BYTES 32
@@ -1533,6 +1572,7 @@ struct pmt_mmio {
 enum pmt_datatype {
 	PMT_TYPE_RAW,
 	PMT_TYPE_XTAL_TIME,
+	PMT_TYPE_TCORE_CLOCK,
 };
 
 struct pmt_domain_info {
@@ -1561,6 +1601,93 @@ struct pmt_counter {
 	unsigned int num_domains;
 	struct pmt_domain_info *domains;
 };
+
+/*
+ * PMT telemetry directory iterator.
+ * Used to iterate telemetry files in sysfs in correct order.
+ */
+struct pmt_diriter_t {
+	DIR *dir;
+	struct dirent **namelist;
+	unsigned int num_names;
+	unsigned int current_name_idx;
+};
+
+int pmt_telemdir_filter(const struct dirent *e)
+{
+	unsigned int dummy;
+
+	return sscanf(e->d_name, "telem%u", &dummy);
+}
+
+int pmt_telemdir_sort(const struct dirent **a, const struct dirent **b)
+{
+	unsigned int aidx = 0, bidx = 0;
+
+	sscanf((*a)->d_name, "telem%u", &aidx);
+	sscanf((*b)->d_name, "telem%u", &bidx);
+
+	return aidx >= bidx;
+}
+
+const struct dirent *pmt_diriter_next(struct pmt_diriter_t *iter)
+{
+	const struct dirent *ret = NULL;
+
+	if (!iter->dir)
+		return NULL;
+
+	if (iter->current_name_idx >= iter->num_names)
+		return NULL;
+
+	ret = iter->namelist[iter->current_name_idx];
+	++iter->current_name_idx;
+
+	return ret;
+}
+
+const struct dirent *pmt_diriter_begin(struct pmt_diriter_t *iter, const char *pmt_root_path)
+{
+	int num_names = iter->num_names;
+
+	if (!iter->dir) {
+		iter->dir = opendir(pmt_root_path);
+		if (iter->dir == NULL)
+			return NULL;
+
+		num_names = scandir(pmt_root_path, &iter->namelist, pmt_telemdir_filter, pmt_telemdir_sort);
+		if (num_names == -1)
+			return NULL;
+	}
+
+	iter->current_name_idx = 0;
+	iter->num_names = num_names;
+
+	return pmt_diriter_next(iter);
+}
+
+void pmt_diriter_init(struct pmt_diriter_t *iter)
+{
+	memset(iter, 0, sizeof(*iter));
+}
+
+void pmt_diriter_remove(struct pmt_diriter_t *iter)
+{
+	if (iter->namelist) {
+		for (unsigned int i = 0; i < iter->num_names; i++) {
+			free(iter->namelist[i]);
+			iter->namelist[i] = NULL;
+		}
+	}
+
+	free(iter->namelist);
+	iter->namelist = NULL;
+	iter->num_names = 0;
+	iter->current_name_idx = 0;
+
+	closedir(iter->dir);
+	iter->dir = NULL;
+}
 
 unsigned int pmt_counter_get_width(const struct pmt_counter *p)
 {
@@ -1611,6 +1738,7 @@ struct thread_data {
 	unsigned long long c1;
 	unsigned long long instr_count;
 	unsigned long long irq_count;
+	unsigned long long nmi_count;
 	unsigned int smi_count;
 	unsigned int cpu_id;
 	unsigned int apic_id;
@@ -1917,6 +2045,7 @@ struct timeval tv_even, tv_odd, tv_delta;
 
 int *irq_column_2_cpu;		/* /proc/interrupts column numbers */
 int *irqs_per_cpu;		/* indexed by cpu_num */
+int *nmi_per_cpu;		/* indexed by cpu_num */
 
 void setup_all_buffers(bool startup);
 
@@ -1944,6 +2073,8 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 {
 	int retval, pkg_no, core_no, thread_no, node_no;
 
+	retval = 0;
+
 	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
 		for (node_no = 0; node_no < topo.nodes_per_pkg; node_no++) {
 			for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
@@ -1959,14 +2090,12 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 					c = GET_CORE(core_base, core_no, node_no, pkg_no);
 					p = GET_PKG(pkg_base, pkg_no);
 
-					retval = func(t, c, p);
-					if (retval)
-						return retval;
+					retval |= func(t, c, p);
 				}
 			}
 		}
 	}
-	return 0;
+	return retval;
 }
 
 int is_cpu_first_thread_in_core(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -2085,13 +2214,17 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 int probe_msr(int cpu, off_t offset)
 {
 	ssize_t retval;
-	unsigned long long dummy;
+	unsigned long long value;
 
 	assert(!no_msr);
 
-	retval = pread(get_msr_fd(cpu), &dummy, sizeof(dummy), offset);
+	retval = pread(get_msr_fd(cpu), &value, sizeof(value), offset);
 
-	if (retval != sizeof(dummy))
+	/*
+	 * Expect MSRs to accumulate some non-zero value since the system was powered on.
+	 * Treat zero as a read failure.
+	 */
+	if (retval != sizeof(value) || value == 0)
 		return 1;
 
 	return 0;
@@ -2135,41 +2268,54 @@ void help(void)
 		"when COMMAND completes.\n"
 		"If no COMMAND is specified, turbostat wakes every 5-seconds\n"
 		"to print statistics, until interrupted.\n"
-		"  -a, --add	add a counter\n"
+		"  -a, --add counter\n"
+		"		add a counter\n"
 		"		  eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
 		"		  eg. --add perf/cstate_pkg/c2-residency,package,delta,percent,perfPC2\n"
 		"		  eg. --add pmt,name=XTAL,type=raw,domain=package0,offset=0,lsb=0,msb=63,guid=0x1a067102\n"
-		"  -c, --cpu	cpu-set	limit output to summary plus cpu-set:\n"
+		"  -c, --cpu cpu-set\n"
+		"		limit output to summary plus cpu-set:\n"
 		"		  {core | package | j,k,l..m,n-p }\n"
-		"  -d, --debug	displays usec, Time_Of_Day_Seconds and more debugging\n"
+		"  -d, --debug\n"
+		"		displays usec, Time_Of_Day_Seconds and more debugging\n"
 		"		debug messages are printed to stderr\n"
-		"  -D, --Dump	displays the raw counter values\n"
-		"  -e, --enable	[all | column]\n"
+		"  -D, --Dump\n"
+		"		displays the raw counter values\n"
+		"  -e, --enable [all | column]\n"
 		"		shows all or the specified disabled column\n"
-		"  -H, --hide [column|column,column,...]\n"
+		"  -f, --force\n"
+		"		force load turbostat with minimum default features on unsupported platforms.\n"
+		"  -H, --hide [column | column,column,...]\n"
 		"		hide the specified column(s)\n"
 		"  -i, --interval sec.subsec\n"
-		"		Override default 5-second measurement interval\n"
-		"  -J, --Joules	displays energy in Joules instead of Watts\n"
-		"  -l, --list	list column headers only\n"
-		"  -M, --no-msr Disable all uses of the MSR driver\n"
-		"  -P, --no-perf Disable all uses of the perf API\n"
+		"		override default 5-second measurement interval\n"
+		"  -J, --Joules\n"
+		"		displays energy in Joules instead of Watts\n"
+		"  -l, --list\n"
+		"		list column headers only\n"
+		"  -M, --no-msr\n"
+		"		disable all uses of the MSR driver\n"
+		"  -P, --no-perf\n"
+		"		disable all uses of the perf API\n"
 		"  -n, --num_iterations num\n"
 		"		number of the measurement iterations\n"
 		"  -N, --header_iterations num\n"
 		"		print header every num iterations\n"
 		"  -o, --out file\n"
 		"		create or truncate \"file\" for all output\n"
-		"  -q, --quiet	skip decoding system configuration header\n"
-		"  -s, --show [column|column,column,...]\n"
+		"  -q, --quiet\n"
+		"		skip decoding system configuration header\n"
+		"  -s, --show [column | column,column,...]\n"
 		"		show only the specified column(s)\n"
 		"  -S, --Summary\n"
 		"		limits output to 1-line system summary per interval\n"
 		"  -T, --TCC temperature\n"
 		"		sets the Thermal Control Circuit temperature in\n"
 		"		  degrees Celsius\n"
-		"  -h, --help	print this help message\n"
-		"  -v, --version	print version information\n" "\n" "For more help, run \"man turbostat\"\n");
+		"  -h, --help\n"
+		"		print this help message\n"
+		"  -v, --version\n"
+		"		print version information\n\nFor more help, run \"man turbostat\"\n");
 }
 
 /*
@@ -2289,6 +2435,12 @@ void print_header(char *delim)
 		else
 			outp += sprintf(outp, "%sIRQ", (printed++ ? delim : ""));
 	}
+	if (DO_BIC(BIC_NMI)) {
+		if (sums_need_wide_columns)
+			outp += sprintf(outp, "%s     NMI", (printed++ ? delim : ""));
+		else
+			outp += sprintf(outp, "%sNMI", (printed++ ? delim : ""));
+	}
 
 	if (DO_BIC(BIC_SMI))
 		outp += sprintf(outp, "%sSMI", (printed++ ? delim : ""));
@@ -2335,6 +2487,7 @@ void print_header(char *delim)
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+		case PMT_TYPE_TCORE_CLOCK:
 			outp += sprintf(outp, "%s%s", (printed++ ? delim : ""), ppmt->name);
 			break;
 		}
@@ -2409,6 +2562,7 @@ void print_header(char *delim)
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+		case PMT_TYPE_TCORE_CLOCK:
 			outp += sprintf(outp, "%s%s", (printed++ ? delim : ""), ppmt->name);
 			break;
 		}
@@ -2540,6 +2694,7 @@ void print_header(char *delim)
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+		case PMT_TYPE_TCORE_CLOCK:
 			outp += sprintf(outp, "%s%s", (printed++ ? delim : ""), ppmt->name);
 			break;
 		}
@@ -2575,6 +2730,8 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 
 		if (DO_BIC(BIC_IRQ))
 			outp += sprintf(outp, "IRQ: %lld\n", t->irq_count);
+		if (DO_BIC(BIC_NMI))
+			outp += sprintf(outp, "IRQ: %lld\n", t->nmi_count);
 		if (DO_BIC(BIC_SMI))
 			outp += sprintf(outp, "SMI: %d\n", t->smi_count);
 
@@ -2794,6 +2951,14 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			outp += sprintf(outp, "%s%lld", (printed++ ? delim : ""), t->irq_count);
 	}
 
+	/* NMI */
+	if (DO_BIC(BIC_NMI)) {
+		if (sums_need_wide_columns)
+			outp += sprintf(outp, "%s%8lld", (printed++ ? delim : ""), t->nmi_count);
+		else
+			outp += sprintf(outp, "%s%lld", (printed++ ? delim : ""), t->nmi_count);
+	}
+
 	/* SMI */
 	if (DO_BIC(BIC_SMI))
 		outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), t->smi_count);
@@ -2848,7 +3013,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	for (i = 0, ppmt = sys.pmt_tp; ppmt; i++, ppmt = ppmt->next) {
 		const unsigned long value_raw = t->pmt_counter[i];
-		const double value_converted = 100.0 * value_raw / crystal_hz / interval_float;
+		double value_converted;
 		switch (ppmt->type) {
 		case PMT_TYPE_RAW:
 			if (pmt_counter_get_width(ppmt) <= 32)
@@ -2860,8 +3025,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+			value_converted = 100.0 * value_raw / crystal_hz / interval_float;
 			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 			break;
+
+		case PMT_TYPE_TCORE_CLOCK:
+			value_converted = 100.0 * value_raw / tcore_clock_freq_hz / interval_float;
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 		}
 	}
 
@@ -2928,7 +3098,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	for (i = 0, ppmt = sys.pmt_cp; ppmt; i++, ppmt = ppmt->next) {
 		const unsigned long value_raw = c->pmt_counter[i];
-		const double value_converted = 100.0 * value_raw / crystal_hz / interval_float;
+		double value_converted;
 		switch (ppmt->type) {
 		case PMT_TYPE_RAW:
 			if (pmt_counter_get_width(ppmt) <= 32)
@@ -2940,8 +3110,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+			value_converted = 100.0 * value_raw / crystal_hz / interval_float;
 			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 			break;
+
+		case PMT_TYPE_TCORE_CLOCK:
+			value_converted = 100.0 * value_raw / tcore_clock_freq_hz / interval_float;
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 		}
 	}
 
@@ -3126,7 +3301,7 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	for (i = 0, ppmt = sys.pmt_pp; ppmt; i++, ppmt = ppmt->next) {
 		const unsigned long value_raw = p->pmt_counter[i];
-		const double value_converted = 100.0 * value_raw / crystal_hz / interval_float;
+		double value_converted;
 		switch (ppmt->type) {
 		case PMT_TYPE_RAW:
 			if (pmt_counter_get_width(ppmt) <= 32)
@@ -3138,8 +3313,13 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 			break;
 
 		case PMT_TYPE_XTAL_TIME:
+			value_converted = 100.0 * value_raw / crystal_hz / interval_float;
 			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 			break;
+
+		case PMT_TYPE_TCORE_CLOCK:
+			value_converted = 100.0 * value_raw / tcore_clock_freq_hz / interval_float;
+			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), value_converted);
 		}
 	}
 
@@ -3409,6 +3589,9 @@ int delta_thread(struct thread_data *new, struct thread_data *old, struct core_d
 	if (DO_BIC(BIC_IRQ))
 		old->irq_count = new->irq_count - old->irq_count;
 
+	if (DO_BIC(BIC_NMI))
+		old->nmi_count = new->nmi_count - old->nmi_count;
+
 	if (DO_BIC(BIC_SMI))
 		old->smi_count = new->smi_count - old->smi_count;
 
@@ -3447,12 +3630,10 @@ int delta_cpu(struct thread_data *t, struct core_data *c,
 
 	/* always calculate thread delta */
 	retval = delta_thread(t, t2, c2);	/* c2 is core delta */
-	if (retval)
-		return retval;
 
 	/* calculate package delta only for 1st core in package */
 	if (is_cpu_first_core_in_package(t, c, p))
-		retval = delta_package(p, p2);
+		retval |= delta_package(p, p2);
 
 	return retval;
 }
@@ -3489,6 +3670,7 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	t->instr_count = 0;
 
 	t->irq_count = 0;
+	t->nmi_count = 0;
 	t->smi_count = 0;
 
 	c->c3 = 0;
@@ -3580,7 +3762,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	/* remember first tv_begin */
 	if (average.threads.tv_begin.tv_sec == 0)
-		average.threads.tv_begin = t->tv_begin;
+		average.threads.tv_begin = procsysfs_tv_begin;
 
 	/* remember last tv_end */
 	average.threads.tv_end = t->tv_end;
@@ -3593,6 +3775,7 @@ int sum_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	average.threads.instr_count += t->instr_count;
 
 	average.threads.irq_count += t->irq_count;
+	average.threads.nmi_count += t->nmi_count;
 	average.threads.smi_count += t->smi_count;
 
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
@@ -3734,6 +3917,9 @@ void compute_average(struct thread_data *t, struct core_data *c, struct pkg_data
 
 	if (average.threads.irq_count > 9999999)
 		sums_need_wide_columns = 1;
+	if (average.threads.nmi_count > 9999999)
+		sums_need_wide_columns = 1;
+
 
 	average.cores.c3 /= topo.allowed_cores;
 	average.cores.c6 /= topo.allowed_cores;
@@ -4546,7 +4732,8 @@ unsigned long pmt_gen_value_mask(unsigned int lsb, unsigned int msb)
 
 unsigned long pmt_read_counter(struct pmt_counter *ppmt, unsigned int domain_id)
 {
-	assert(domain_id < ppmt->num_domains);
+	if (domain_id >= ppmt->num_domains)
+		return 0;
 
 	const unsigned long *pmmio = ppmt->domains[domain_id].pcounter;
 	const unsigned long value = pmmio ? *pmmio : 0;
@@ -4590,6 +4777,8 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 
 	if (DO_BIC(BIC_IRQ))
 		t->irq_count = irqs_per_cpu[cpu];
+	if (DO_BIC(BIC_NMI))
+		t->nmi_count = nmi_per_cpu[cpu];
 
 	get_cstate_counters(cpu, t, c, p);
 
@@ -5335,6 +5524,7 @@ void free_all_buffers(void)
 
 	free(irq_column_2_cpu);
 	free(irqs_per_cpu);
+	free(nmi_per_cpu);
 
 	for (i = 0; i <= topo.max_cpu_num; ++i) {
 		if (cpus[i].put_ids)
@@ -5566,6 +5756,8 @@ int for_all_cpus_2(int (func) (struct thread_data *, struct core_data *,
 {
 	int retval, pkg_no, node_no, core_no, thread_no;
 
+	retval = 0;
+
 	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
 		for (node_no = 0; node_no < topo.nodes_per_pkg; ++node_no) {
 			for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
@@ -5587,14 +5779,12 @@ int for_all_cpus_2(int (func) (struct thread_data *, struct core_data *,
 					p = GET_PKG(pkg_base, pkg_no);
 					p2 = GET_PKG(pkg_base2, pkg_no);
 
-					retval = func(t, c, p, t2, c2, p2);
-					if (retval)
-						return retval;
+					retval |= func(t, c, p, t2, c2, p2);
 				}
 			}
 		}
 	}
-	return 0;
+	return retval;
 }
 
 /*
@@ -5791,16 +5981,21 @@ int snapshot_proc_interrupts(void)
 
 		irq_column_2_cpu[column] = cpu_number;
 		irqs_per_cpu[cpu_number] = 0;
+		nmi_per_cpu[cpu_number] = 0;
 	}
 
 	/* read /proc/interrupt count lines and sum up irqs per cpu */
 	while (1) {
 		int column;
 		char buf[64];
+		int this_row_is_nmi = 0;
 
-		retval = fscanf(fp, " %s:", buf);	/* flush irq# "N:" */
+		retval = fscanf(fp, " %s:", buf);	/* irq# "N:" */
 		if (retval != 1)
 			break;
+
+		if (strncmp(buf, "NMI", strlen("NMI")) == 0)
+			this_row_is_nmi = 1;
 
 		/* read the count per cpu */
 		for (column = 0; column < topo.num_cpus; ++column) {
@@ -5808,14 +6003,15 @@ int snapshot_proc_interrupts(void)
 			int cpu_number, irq_count;
 
 			retval = fscanf(fp, " %d", &irq_count);
+
 			if (retval != 1)
 				break;
 
 			cpu_number = irq_column_2_cpu[column];
 			irqs_per_cpu[cpu_number] += irq_count;
-
+			if (this_row_is_nmi)
+				nmi_per_cpu[cpu_number] += irq_count;
 		}
-
 		while (getc(fp) != '\n') ;	/* flush interrupt description */
 
 	}
@@ -5912,7 +6108,9 @@ int snapshot_sys_lpi_us(void)
  */
 int snapshot_proc_sysfs_files(void)
 {
-	if (DO_BIC(BIC_IRQ))
+	gettimeofday(&procsysfs_tv_begin, (struct timezone *)NULL);
+
+	if (DO_BIC(BIC_IRQ) || DO_BIC(BIC_NMI))
 		if (snapshot_proc_interrupts())
 			return 1;
 
@@ -7042,6 +7240,11 @@ void rapl_probe_intel(void)
 		rapl_dram_energy_units = (15.3 / 1000000);
 	else
 		rapl_dram_energy_units = rapl_energy_units;
+
+	if (platform->has_fixed_rapl_psys_unit)
+		rapl_psys_energy_units = 1.0;
+	else
+		rapl_psys_energy_units = rapl_energy_units;
 
 	time_unit = msr >> 16 & 0xF;
 	if (time_unit == 0)
@@ -8233,6 +8436,7 @@ void process_cpuid()
 		aperf_mperf_multiplier = platform->need_perf_multiplier ? 1024 : 1;
 
 	BIC_PRESENT(BIC_IRQ);
+	BIC_PRESENT(BIC_NMI);
 	BIC_PRESENT(BIC_TSC_MHz);
 }
 
@@ -8292,6 +8496,33 @@ int dir_filter(const struct dirent *dirp)
 		return 0;
 }
 
+char *possible_file = "/sys/devices/system/cpu/possible";
+char possible_buf[1024];
+
+int initialize_cpu_possible_set(void)
+{
+	FILE *fp;
+
+	fp = fopen(possible_file, "r");
+	if (!fp) {
+		warn("open %s", possible_file);
+		return -1;
+	}
+	if (fread(possible_buf, sizeof(char), 1024, fp) == 0) {
+		warn("read %s", possible_file);
+		goto err;
+	}
+	if (parse_cpu_str(possible_buf, cpu_possible_set, cpu_possible_setsize)) {
+		warnx("%s: cpu str malformat %s\n", possible_file, cpu_effective_str);
+		goto err;
+	}
+	return 0;
+
+err:
+	fclose(fp);
+	return -1;
+}
+
 void topology_probe(bool startup)
 {
 	int i;
@@ -8322,6 +8553,16 @@ void topology_probe(bool startup)
 	cpu_present_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
 	CPU_ZERO_S(cpu_present_setsize, cpu_present_set);
 	for_all_proc_cpus(mark_cpu_present);
+
+	/*
+	 * Allocate and initialize cpu_possible_set
+	 */
+	cpu_possible_set = CPU_ALLOC((topo.max_cpu_num + 1));
+	if (cpu_possible_set == NULL)
+		err(3, "CPU_ALLOC");
+	cpu_possible_setsize = CPU_ALLOC_SIZE((topo.max_cpu_num + 1));
+	CPU_ZERO_S(cpu_possible_setsize, cpu_possible_set);
+	initialize_cpu_possible_set();
 
 	/*
 	 * Allocate and initialize cpu_effective_set
@@ -8583,7 +8824,11 @@ void allocate_irq_buffers(void)
 
 	irqs_per_cpu = calloc(topo.max_cpu_num + 1, sizeof(int));
 	if (irqs_per_cpu == NULL)
-		err(-1, "calloc %d", topo.max_cpu_num + 1);
+		err(-1, "calloc %d IRQ", topo.max_cpu_num + 1);
+
+	nmi_per_cpu = calloc(topo.max_cpu_num + 1, sizeof(int));
+	if (nmi_per_cpu == NULL)
+		err(-1, "calloc %d NMI", topo.max_cpu_num + 1);
 }
 
 int update_topo(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -8854,49 +9099,36 @@ int parse_telem_info_file(int fd_dir, const char *info_filename, const char *for
 
 struct pmt_mmio *pmt_mmio_open(unsigned int target_guid)
 {
-	DIR *dirp;
-	struct dirent *entry;
+	struct pmt_diriter_t pmt_iter;
+	const struct dirent *entry;
 	struct stat st;
-	unsigned int telem_idx;
 	int fd_telem_dir, fd_pmt;
 	unsigned long guid, size, offset;
 	size_t mmap_size;
 	void *mmio;
-	struct pmt_mmio *ret = NULL;
+	struct pmt_mmio *head = NULL, *last = NULL;
+	struct pmt_mmio *new_pmt = NULL;
 
 	if (stat(SYSFS_TELEM_PATH, &st) == -1)
 		return NULL;
 
-	dirp = opendir(SYSFS_TELEM_PATH);
-	if (dirp == NULL)
+	pmt_diriter_init(&pmt_iter);
+	entry = pmt_diriter_begin(&pmt_iter, SYSFS_TELEM_PATH);
+	if (!entry) {
+		pmt_diriter_remove(&pmt_iter);
 		return NULL;
+	}
 
-	for (;;) {
-		entry = readdir(dirp);
-
-		if (entry == NULL)
+	for ( ; entry != NULL; entry = pmt_diriter_next(&pmt_iter)) {
+		if (fstatat(dirfd(pmt_iter.dir), entry->d_name, &st, 0) == -1)
 			break;
-
-		if (strcmp(entry->d_name, ".") == 0)
-			continue;
-
-		if (strcmp(entry->d_name, "..") == 0)
-			continue;
-
-		if (sscanf(entry->d_name, "telem%u", &telem_idx) != 1)
-			continue;
-
-		if (fstatat(dirfd(dirp), entry->d_name, &st, 0) == -1) {
-			break;
-		}
 
 		if (!S_ISDIR(st.st_mode))
 			continue;
 
-		fd_telem_dir = openat(dirfd(dirp), entry->d_name, O_RDONLY);
-		if (fd_telem_dir == -1) {
+		fd_telem_dir = openat(dirfd(pmt_iter.dir), entry->d_name, O_RDONLY);
+		if (fd_telem_dir == -1)
 			break;
-		}
 
 		if (parse_telem_info_file(fd_telem_dir, "guid", "%lx", &guid)) {
 			close(fd_telem_dir);
@@ -8924,38 +9156,54 @@ struct pmt_mmio *pmt_mmio_open(unsigned int target_guid)
 		if (fd_pmt == -1)
 			goto loop_cleanup_and_break;
 
-		mmap_size = (size + 0x1000UL) & (~0x1000UL);
+		mmap_size = ROUND_UP_TO_PAGE_SIZE(size);
 		mmio = mmap(0, mmap_size, PROT_READ, MAP_SHARED, fd_pmt, 0);
 		if (mmio != MAP_FAILED) {
-
 			if (debug)
 				fprintf(stderr, "%s: 0x%lx mmaped at: %p\n", __func__, guid, mmio);
 
-			ret = calloc(1, sizeof(*ret));
+			new_pmt = calloc(1, sizeof(*new_pmt));
 
-			if (!ret) {
+			if (!new_pmt) {
 				fprintf(stderr, "%s: Failed to allocate pmt_mmio\n", __func__);
 				exit(1);
 			}
 
-			ret->guid = guid;
-			ret->mmio_base = mmio;
-			ret->pmt_offset = offset;
-			ret->size = size;
+			/*
+			 * Create linked list of mmaped regions,
+			 * but preserve the ordering from sysfs.
+			 * Ordering is important for the user to
+			 * use the seq=%u parameter when adding a counter.
+			 */
+			new_pmt->guid = guid;
+			new_pmt->mmio_base = mmio;
+			new_pmt->pmt_offset = offset;
+			new_pmt->size = size;
+			new_pmt->next = pmt_mmios;
 
-			ret->next = pmt_mmios;
-			pmt_mmios = ret;
+			if (last)
+				last->next = new_pmt;
+			else
+				head = new_pmt;
+
+			last = new_pmt;
 		}
 
 loop_cleanup_and_break:
 		close(fd_pmt);
 		close(fd_telem_dir);
-		break;
 	}
 
-	closedir(dirp);
+	pmt_diriter_remove(&pmt_iter);
 
-	return ret;
+	/*
+	 * If we found something, stick just
+	 * created linked list to the front.
+	 */
+	if (head)
+		pmt_mmios = head;
+
+	return head;
 }
 
 struct pmt_mmio *pmt_mmio_find(unsigned int guid)
@@ -8992,13 +9240,18 @@ void *pmt_get_counter_pointer(struct pmt_mmio *pmmio, unsigned long counter_offs
 	return ret;
 }
 
-struct pmt_mmio *pmt_add_guid(unsigned int guid)
+struct pmt_mmio *pmt_add_guid(unsigned int guid, unsigned int seq)
 {
 	struct pmt_mmio *ret;
 
 	ret = pmt_mmio_find(guid);
 	if (!ret)
 		ret = pmt_mmio_open(guid);
+
+	while (ret && seq) {
+		ret = ret->next;
+		--seq;
+	}
 
 	return ret;
 }
@@ -9046,7 +9299,7 @@ void pmt_counter_add_domain(struct pmt_counter *pcounter, unsigned long *pmmio, 
 	pcounter->domains[domain_id].pcounter = pmmio;
 }
 
-int pmt_add_counter(unsigned int guid, const char *name, enum pmt_datatype type,
+int pmt_add_counter(unsigned int guid, unsigned int seq, const char *name, enum pmt_datatype type,
 		    unsigned int lsb, unsigned int msb, unsigned int offset, enum counter_scope scope,
 		    enum counter_format format, unsigned int domain_id, enum pmt_open_mode mode)
 {
@@ -9066,10 +9319,10 @@ int pmt_add_counter(unsigned int guid, const char *name, enum pmt_datatype type,
 		exit(1);
 	}
 
-	mmio = pmt_add_guid(guid);
+	mmio = pmt_add_guid(guid, seq);
 	if (!mmio) {
 		if (mode != PMT_OPEN_TRY) {
-			fprintf(stderr, "%s: failed to map PMT MMIO for guid %x\n", __func__, guid);
+			fprintf(stderr, "%s: failed to map PMT MMIO for guid %x, seq %u\n", __func__, guid, seq);
 			exit(1);
 		}
 
@@ -9124,10 +9377,68 @@ int pmt_add_counter(unsigned int guid, const char *name, enum pmt_datatype type,
 
 void pmt_init(void)
 {
+	int cpu_num;
+	unsigned long seq, offset, mod_num;
+
 	if (BIC_IS_ENABLED(BIC_Diec6)) {
-		pmt_add_counter(PMT_MTL_DC6_GUID, "Die%c6", PMT_TYPE_XTAL_TIME, PMT_COUNTER_MTL_DC6_LSB,
-				PMT_COUNTER_MTL_DC6_MSB, PMT_COUNTER_MTL_DC6_OFFSET, SCOPE_PACKAGE, FORMAT_DELTA,
-				0, PMT_OPEN_TRY);
+		pmt_add_counter(PMT_MTL_DC6_GUID, PMT_MTL_DC6_SEQ, "Die%c6", PMT_TYPE_XTAL_TIME,
+				PMT_COUNTER_MTL_DC6_LSB, PMT_COUNTER_MTL_DC6_MSB, PMT_COUNTER_MTL_DC6_OFFSET,
+				SCOPE_PACKAGE, FORMAT_DELTA, 0, PMT_OPEN_TRY);
+	}
+
+	if (BIC_IS_ENABLED(BIC_CPU_c1e)) {
+		seq = 0;
+		offset = PMT_COUNTER_CWF_MC1E_OFFSET_BASE;
+		mod_num = 0;	/* Relative module number for current PMT file. */
+
+		/* Open the counter for each CPU. */
+		for (cpu_num = 0; cpu_num < topo.max_cpu_num;) {
+
+			if (cpu_is_not_allowed(cpu_num))
+				goto next_loop_iter;
+
+			/*
+			 * Set the scope to CPU, even though CWF report the counter per module.
+			 * CPUs inside the same module will read from the same location, instead of reporting zeros.
+			 *
+			 * CWF with newer firmware might require a PMT_TYPE_XTAL_TIME intead of PMT_TYPE_TCORE_CLOCK.
+			 */
+			pmt_add_counter(PMT_CWF_MC1E_GUID, seq, "CPU%c1e", PMT_TYPE_TCORE_CLOCK,
+					PMT_COUNTER_CWF_MC1E_LSB, PMT_COUNTER_CWF_MC1E_MSB, offset, SCOPE_CPU,
+					FORMAT_DELTA, cpu_num, PMT_OPEN_TRY);
+
+			/*
+			 * Rather complex logic for each time we go to the next loop iteration,
+			 * so keep it as a label.
+			 */
+next_loop_iter:
+			/*
+			 * Advance the cpu number and check if we should also advance offset to
+			 * the next counter inside the PMT file.
+			 *
+			 * On Clearwater Forest platform, the counter is reported per module,
+			 * so open the same counter for all of the CPUs inside the module.
+			 * That way, reported table show the correct value for all of the CPUs inside the module,
+			 * instead of zeros.
+			 */
+			++cpu_num;
+			if (cpu_num % PMT_COUNTER_CWF_CPUS_PER_MODULE == 0) {
+				offset += PMT_COUNTER_CWF_MC1E_OFFSET_INCREMENT;
+				++mod_num;
+			}
+
+			/*
+			 * There are PMT_COUNTER_CWF_MC1E_NUM_MODULES_PER_FILE in each PMT file.
+			 *
+			 * If that number is reached, seq must be incremented to advance to the next file in a sequence.
+			 * Offset inside that file and a module counter has to be reset.
+			 */
+			if (mod_num == PMT_COUNTER_CWF_MC1E_NUM_MODULES_PER_FILE) {
+				++seq;
+				offset = PMT_COUNTER_CWF_MC1E_OFFSET_BASE;
+				mod_num = 0;
+			}
+		}
 	}
 }
 
@@ -9163,6 +9474,18 @@ void turbostat_init()
 	}
 }
 
+void affinitize_child(void)
+{
+	/* Prefer cpu_possible_set, if available */
+	if (sched_setaffinity(0, cpu_possible_setsize, cpu_possible_set)) {
+		warn("sched_setaffinity cpu_possible_set");
+
+		/* Otherwise, allow child to run on same cpu set as turbostat */
+		if (sched_setaffinity(0, cpu_allowed_setsize, cpu_allowed_set))
+			warn("sched_setaffinity cpu_allowed_set");
+	}
+}
+
 int fork_it(char **argv)
 {
 	pid_t child_pid;
@@ -9178,6 +9501,7 @@ int fork_it(char **argv)
 	child_pid = fork();
 	if (!child_pid) {
 		/* child */
+		affinitize_child();
 		execvp(argv[0], argv);
 		err(errno, "exec %s", argv[0]);
 	} else {
@@ -9204,10 +9528,9 @@ int fork_it(char **argv)
 	timersub(&tv_odd, &tv_even, &tv_delta);
 	if (for_all_cpus_2(delta_cpu, ODD_COUNTERS, EVEN_COUNTERS))
 		fprintf(outf, "%s: Counter reset detected\n", progname);
-	else {
-		compute_average(EVEN_COUNTERS);
-		format_all_counters(EVEN_COUNTERS);
-	}
+
+	compute_average(EVEN_COUNTERS);
+	format_all_counters(EVEN_COUNTERS);
 
 	fprintf(outf, "%.6f sec\n", tv_delta.tv_sec + tv_delta.tv_usec / 1000000.0);
 
@@ -9236,7 +9559,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2024.11.30 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2025.02.02 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
@@ -9561,7 +9884,7 @@ next:
 
 	}
 	if ((msr_num == 0) && (path == NULL) && (perf_device[0] == '\0' || perf_event[0] == '\0')) {
-		fprintf(stderr, "--add: (msrDDD | msr0xXXX | /path_to_counter | perf/device/event ) required\n");
+		fprintf(stderr, "--add: (msrDDD | msr0xXXX | /path_to_counter | perf/device/event) required\n");
 		fail++;
 	}
 
@@ -9599,15 +9922,100 @@ bool starts_with(const char *str, const char *prefix)
 	return strncmp(prefix, str, strlen(prefix)) == 0;
 }
 
+int pmt_parse_from_path(const char *target_path, unsigned int *out_guid, unsigned int *out_seq)
+{
+	struct pmt_diriter_t pmt_iter;
+	const struct dirent *dirname;
+	struct stat stat, target_stat;
+	int fd_telem_dir = -1;
+	int fd_target_dir;
+	unsigned int seq = 0;
+	unsigned long guid, target_guid;
+	int ret = -1;
+
+	fd_target_dir = open(target_path, O_RDONLY | O_DIRECTORY);
+	if (fd_target_dir == -1) {
+		return -1;
+	}
+
+	if (fstat(fd_target_dir, &target_stat) == -1) {
+		fprintf(stderr, "%s: Failed to stat the target: %s", __func__, strerror(errno));
+		exit(1);
+	}
+
+	if (parse_telem_info_file(fd_target_dir, "guid", "%lx", &target_guid)) {
+		fprintf(stderr, "%s: Failed to parse the target guid file: %s", __func__, strerror(errno));
+		exit(1);
+	}
+
+	close(fd_target_dir);
+
+	pmt_diriter_init(&pmt_iter);
+
+	for (dirname = pmt_diriter_begin(&pmt_iter, SYSFS_TELEM_PATH); dirname != NULL;
+	     dirname = pmt_diriter_next(&pmt_iter)) {
+
+		fd_telem_dir = openat(dirfd(pmt_iter.dir), dirname->d_name, O_RDONLY | O_DIRECTORY);
+		if (fd_telem_dir == -1)
+			continue;
+
+		if (parse_telem_info_file(fd_telem_dir, "guid", "%lx", &guid)) {
+			fprintf(stderr, "%s: Failed to parse the guid file: %s", __func__, strerror(errno));
+			continue;
+		}
+
+		if (fstat(fd_telem_dir, &stat) == -1) {
+			fprintf(stderr, "%s: Failed to stat %s directory: %s", __func__,
+				dirname->d_name, strerror(errno));
+			continue;
+		}
+
+		/*
+		 * If reached the same directory as target, exit the loop.
+		 * Seq has the correct value now.
+		 */
+		if (stat.st_dev == target_stat.st_dev && stat.st_ino == target_stat.st_ino) {
+			ret = 0;
+			break;
+		}
+
+		/*
+		 * If reached directory with the same guid,
+		 * but it's not the target directory yet,
+		 * increment seq and continue the search.
+		 */
+		if (guid == target_guid)
+			++seq;
+
+		close(fd_telem_dir);
+		fd_telem_dir = -1;
+	}
+
+	pmt_diriter_remove(&pmt_iter);
+
+	if (fd_telem_dir != -1)
+		close(fd_telem_dir);
+
+	if (!ret) {
+		*out_guid = target_guid;
+		*out_seq = seq;
+	}
+
+	return ret;
+}
+
 void parse_add_command_pmt(char *add_command)
 {
 	char *name = NULL;
 	char *type_name = NULL;
 	char *format_name = NULL;
+	char *direct_path = NULL;
+	static const char direct_path_prefix[] = "path=";
 	unsigned int offset;
 	unsigned int lsb;
 	unsigned int msb;
 	unsigned int guid;
+	unsigned int seq = 0; /* By default, pick first file in a sequence with a given GUID. */
 	unsigned int domain_id;
 	enum counter_scope scope = 0;
 	enum pmt_datatype type = PMT_TYPE_RAW;
@@ -9687,6 +10095,13 @@ void parse_add_command_pmt(char *add_command)
 			goto next;
 		}
 
+		if (sscanf(add_command, "seq=%x", &seq) == 1)
+			goto next;
+
+		if (strncmp(add_command, direct_path_prefix, strlen(direct_path_prefix)) == 0) {
+			direct_path = add_command + strlen(direct_path_prefix);
+			goto next;
+		}
 next:
 		add_command = strchr(add_command, ',');
 		if (add_command) {
@@ -9737,6 +10152,11 @@ next:
 			has_type = true;
 		}
 
+		if (strcmp("tcore_clock", type_name) == 0) {
+			type = PMT_TYPE_TCORE_CLOCK;
+			has_type = true;
+		}
+
 		if (!has_type) {
 			printf("%s: invalid %s: %s\n", __func__, "type", type_name);
 			exit(1);
@@ -9758,8 +10178,24 @@ next:
 		exit(1);
 	}
 
+	if (direct_path && has_guid) {
+		printf("%s: path and guid+seq parameters are mutually exclusive\n"
+		       "notice: passed guid=0x%x and path=%s\n", __func__, guid, direct_path);
+		exit(1);
+	}
+
+	if (direct_path) {
+		if (pmt_parse_from_path(direct_path, &guid, &seq)) {
+			printf("%s: failed to parse PMT file from %s\n", __func__, direct_path);
+			exit(1);
+		}
+
+		/* GUID was just infered from the direct path. */
+		has_guid = true;
+	}
+
 	if (!has_guid) {
-		printf("%s: missing %s\n", __func__, "guid");
+		printf("%s: missing %s\n", __func__, "guid or path");
 		exit(1);
 	}
 
@@ -9773,7 +10209,7 @@ next:
 		exit(1);
 	}
 
-	pmt_add_counter(guid, name, type, lsb, msb, offset, scope, format, domain_id, PMT_OPEN_REQUIRED);
+	pmt_add_counter(guid, seq, name, type, lsb, msb, offset, scope, format, domain_id, PMT_OPEN_REQUIRED);
 }
 
 void parse_add_command(char *add_command)
@@ -9921,6 +10357,7 @@ void cmdline(int argc, char **argv)
 		{ "Dump", no_argument, 0, 'D' },
 		{ "debug", no_argument, 0, 'd' },	/* internal, not documented */
 		{ "enable", required_argument, 0, 'e' },
+		{ "force", no_argument, 0, 'f' },
 		{ "interval", required_argument, 0, 'i' },
 		{ "IPC", no_argument, 0, 'I' },
 		{ "num_iterations", required_argument, 0, 'n' },
@@ -9980,6 +10417,9 @@ void cmdline(int argc, char **argv)
 		case 'e':
 			/* --enable specified counter */
 			bic_enabled = bic_enabled | bic_lookup(optarg, SHOW_LIST);
+			break;
+		case 'f':
+			force_load++;
 			break;
 		case 'd':
 			debug++;

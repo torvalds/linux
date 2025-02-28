@@ -180,38 +180,31 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/pinctrl/pinctrl-zynq.h>
-    pinctrl0: pinctrl@700 {
-       compatible = "xlnx,pinctrl-zynq";
-       reg = <0x700 0x200>;
-       syscon = <&slcr>;
+    pinctrl@700 {
+        compatible = "xlnx,pinctrl-zynq";
+        reg = <0x700 0x200>;
+        syscon = <&slcr>;
 
-       pinctrl_uart1_default: uart1-default {
-           mux {
-               groups = "uart1_10_grp";
-               function = "uart1";
-           };
+        uart1-default {
+            mux {
+                groups = "uart1_10_grp";
+                function = "uart1";
+            };
 
-           conf {
-               groups = "uart1_10_grp";
-               slew-rate = <0>;
-               power-source = <IO_STANDARD_LVCMOS18>;
-           };
+            conf {
+                groups = "uart1_10_grp";
+                slew-rate = <0>;
+                power-source = <IO_STANDARD_LVCMOS18>;
+            };
 
-           conf-rx {
-               pins = "MIO49";
-               bias-high-impedance;
-           };
+            conf-rx {
+                pins = "MIO49";
+                bias-high-impedance;
+            };
 
-           conf-tx {
-               pins = "MIO48";
-               bias-disable;
-           };
-       };
+            conf-tx {
+                pins = "MIO48";
+                bias-disable;
+            };
+        };
     };
-
-    uart1 {
-         pinctrl-names = "default";
-         pinctrl-0 = <&pinctrl_uart1_default>;
-    };
-
-...

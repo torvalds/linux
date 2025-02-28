@@ -19,13 +19,14 @@ class Automata:
 
     invalid_state_str = "INVALID_STATE"
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, model_name=None):
         self.__dot_path = file_path
-        self.name = self.__get_model_name()
+        self.name = model_name or self.__get_model_name()
         self.__dot_lines = self.__open_dot()
         self.states, self.initial_state, self.final_states = self.__get_state_variables()
         self.events = self.__get_event_variables()
         self.function = self.__create_matrix()
+        self.events_start, self.events_start_run = self.__store_init_events()
 
     def __get_model_name(self):
         basename = ntpath.basename(self.__dot_path)
@@ -172,3 +173,34 @@ class Automata:
             cursor += 1
 
         return matrix
+
+    def __store_init_events(self):
+        events_start = [False] * len(self.events)
+        events_start_run = [False] * len(self.events)
+        for i, _ in enumerate(self.events):
+            curr_event_will_init = 0
+            curr_event_from_init = False
+            curr_event_used = 0
+            for j, _ in enumerate(self.states):
+                if self.function[j][i] != self.invalid_state_str:
+                    curr_event_used += 1
+                if self.function[j][i] == self.initial_state:
+                    curr_event_will_init += 1
+            if self.function[0][i] != self.invalid_state_str:
+                curr_event_from_init = True
+            # this event always leads to init
+            if curr_event_will_init and curr_event_used == curr_event_will_init:
+                events_start[i] = True
+            # this event is only called from init
+            if curr_event_from_init and curr_event_used == 1:
+                events_start_run[i] = True
+        return events_start, events_start_run
+
+    def is_start_event(self, event):
+        return self.events_start[self.events.index(event)]
+
+    def is_start_run_event(self, event):
+        # prefer handle_start_event if there
+        if any(self.events_start):
+            return False
+        return self.events_start_run[self.events.index(event)]

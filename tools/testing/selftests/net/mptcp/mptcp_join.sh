@@ -1039,13 +1039,8 @@ do_transfer()
 
 	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
 		fail_test "client exit code $retc, server $rets"
-		echo -e "\nnetns ${listener_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${listener_ns} ss -Menita 1>&2 -o "sport = :$port"
-		cat /tmp/${listener_ns}.out
-		echo -e "\nnetns ${connector_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${connector_ns} ss -Menita 1>&2 -o "dport = :$port"
-		cat /tmp/${connector_ns}.out
-
+		mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}" \
+			"/tmp/${listener_ns}.out" "/tmp/${connector_ns}.out"
 		return 1
 	fi
 

@@ -1351,12 +1351,14 @@ int btrtl_setup_realtek(struct hci_dev *hdev)
 
 	btrtl_set_quirks(hdev, btrtl_dev);
 
-	hci_set_hw_info(hdev,
+	if (btrtl_dev->ic_info) {
+		hci_set_hw_info(hdev,
 			"RTL lmp_subver=%u hci_rev=%u hci_ver=%u hci_bus=%u",
 			btrtl_dev->ic_info->lmp_subver,
 			btrtl_dev->ic_info->hci_rev,
 			btrtl_dev->ic_info->hci_ver,
 			btrtl_dev->ic_info->hci_bus);
+	}
 
 	btrtl_free(btrtl_dev);
 	return ret;

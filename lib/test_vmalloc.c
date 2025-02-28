@@ -373,7 +373,7 @@ vm_map_ram_test(void)
 	if (!pages)
 		return -1;
 
-	nr_allocated = alloc_pages_bulk_array(GFP_KERNEL, map_nr_pages, pages);
+	nr_allocated = alloc_pages_bulk(GFP_KERNEL, map_nr_pages, pages);
 	if (nr_allocated != map_nr_pages)
 		goto cleanup;
 

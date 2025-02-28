@@ -157,8 +157,11 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 				    rcv_nxt);
 
 		if (tmp_opt.saw_tstamp) {
+			u64 ts = tcp_clock_ms();
+
+			WRITE_ONCE(tw->tw_entry_stamp, ts);
 			WRITE_ONCE(tcptw->tw_ts_recent_stamp,
-				  ktime_get_seconds());
+				   div_u64(ts, MSEC_PER_SEC));
 			WRITE_ONCE(tcptw->tw_ts_recent,
 				   tmp_opt.rcv_tsval);
 		}
@@ -316,6 +319,8 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		tw->tw_mark		= sk->sk_mark;
 		tw->tw_priority		= READ_ONCE(sk->sk_priority);
 		tw->tw_rcv_wscale	= tp->rx_opt.rcv_wscale;
+		/* refreshed when we enter true TIME-WAIT state */
+		tw->tw_entry_stamp	= tcp_time_stamp_ms(tp);
 		tcptw->tw_rcv_nxt	= tp->rcv_nxt;
 		tcptw->tw_snd_nxt	= tp->snd_nxt;
 		tcptw->tw_rcv_wnd	= tcp_receive_window(tp);

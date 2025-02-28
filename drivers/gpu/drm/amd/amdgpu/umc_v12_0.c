@@ -415,6 +415,7 @@ static int umc_v12_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank 
 		err_type = ACA_ERROR_TYPE_CE;
 	else
 		return 0;
+	bank->aca_err_type = err_type;
 
 	ret = aca_bank_info_decode(bank, &info);
 	if (ret)

@@ -423,7 +423,7 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 		priv = msta->vif;
 		vif = container_of(priv, struct ieee80211_vif, drv_priv);
 
-		__mt76_sta_remove(&dev->mt76, vif, sta);
+		__mt76_sta_remove(&dev->mphy, vif, sta);
 		memset(msta, 0, sizeof(*msta));
 	}
 
@@ -504,12 +504,14 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	mt76_worker_enable(&dev->mt76.tx_worker);
 	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
-	local_bh_disable();
 	napi_enable(&dev->mt76.tx_napi);
-	napi_schedule(&dev->mt76.tx_napi);
-
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_enable(&dev->mt76.napi[i]);
+	}
+
+	local_bh_disable();
+	napi_schedule(&dev->mt76.tx_napi);
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_schedule(&dev->mt76.napi[i]);
 	}
 	local_bh_enable();

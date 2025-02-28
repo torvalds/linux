@@ -298,19 +298,16 @@ static const struct amd_spi_freq amd_spi_freq[] = {
 	{ AMD_SPI_MIN_HZ,   F_800KHz,         0},
 };
 
-static int amd_set_spi_freq(struct amd_spi *amd_spi, u32 speed_hz)
+static void amd_set_spi_freq(struct amd_spi *amd_spi, u32 speed_hz)
 {
 	unsigned int i, spd7_val, alt_spd;
-
-	if (speed_hz < AMD_SPI_MIN_HZ)
-		return -EINVAL;
 
 	for (i = 0; i < ARRAY_SIZE(amd_spi_freq); i++)
 		if (speed_hz >= amd_spi_freq[i].speed_hz)
 			break;
 
 	if (amd_spi->speed_hz == amd_spi_freq[i].speed_hz)
-		return 0;
+		return;
 
 	amd_spi->speed_hz = amd_spi_freq[i].speed_hz;
 
@@ -329,8 +326,6 @@ static int amd_set_spi_freq(struct amd_spi *amd_spi, u32 speed_hz)
 		amd_spi_setclear_reg32(amd_spi, AMD_SPI_SPEED_REG, spd7_val,
 				       AMD_SPI_SPD7_MASK);
 	}
-
-	return 0;
 }
 
 static inline int amd_spi_fifo_xfer(struct amd_spi *amd_spi,
@@ -478,6 +473,9 @@ static bool amd_spi_supports_op(struct spi_mem *mem,
 	} else if (op->data.buswidth > 1 || op->data.nbytes > AMD_SPI_MAX_DATA) {
 		return false;
 	}
+
+	if (op->max_freq < mem->spi->controller->min_speed_hz)
+		return false;
 
 	return spi_mem_default_supports_op(mem, op);
 }
@@ -672,13 +670,10 @@ static int amd_spi_exec_mem_op(struct spi_mem *mem,
 			       const struct spi_mem_op *op)
 {
 	struct amd_spi *amd_spi;
-	int ret;
 
 	amd_spi = spi_controller_get_devdata(mem->spi->controller);
 
-	ret = amd_set_spi_freq(amd_spi, mem->spi->max_speed_hz);
-	if (ret)
-		return ret;
+	amd_set_spi_freq(amd_spi, op->max_freq);
 
 	if (amd_spi->version == AMD_SPI_V2)
 		amd_set_spi_addr_mode(amd_spi, op);
@@ -693,16 +688,20 @@ static int amd_spi_exec_mem_op(struct spi_mem *mem,
 		amd_spi_mem_data_out(amd_spi, op);
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
-	return ret;
+	return 0;
 }
 
 static const struct spi_controller_mem_ops amd_spi_mem_ops = {
 	.exec_op = amd_spi_exec_mem_op,
 	.adjust_op_size = amd_spi_adjust_op_size,
 	.supports_op = amd_spi_supports_op,
+};
+
+static const struct spi_controller_mem_caps amd_spi_mem_caps = {
+	.per_op_freq = true,
 };
 
 static int amd_spi_host_transfer(struct spi_controller *host,
@@ -782,6 +781,7 @@ static int amd_spi_probe(struct platform_device *pdev)
 	host->setup = amd_spi_host_setup;
 	host->transfer_one_message = amd_spi_host_transfer;
 	host->mem_ops = &amd_spi_mem_ops;
+	host->mem_caps = &amd_spi_mem_caps;
 	host->max_transfer_size = amd_spi_max_transfer_size;
 	host->max_message_size = amd_spi_max_transfer_size;
 

@@ -686,6 +686,8 @@ static int mes_v12_0_set_hw_resources_1(struct amdgpu_mes *mes, int pipe)
 	mes_set_hw_res_1_pkt.header.opcode = MES_SCH_API_SET_HW_RSRC_1;
 	mes_set_hw_res_1_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 	mes_set_hw_res_1_pkt.mes_kiq_unmap_timeout = 0xa;
+	mes_set_hw_res_1_pkt.cleaner_shader_fence_mc_addr =
+		mes->resource_1_gpu_addr;
 
 	return mes_v12_0_submit_pkt_and_poll_completion(mes, pipe,
 			&mes_set_hw_res_1_pkt, sizeof(mes_set_hw_res_1_pkt),
@@ -1525,6 +1527,18 @@ static int mes_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 			return r;
 	}
 
+	if (adev->enable_uni_mes) {
+		r = amdgpu_bo_create_kernel(adev, AMDGPU_GPU_PAGE_SIZE, PAGE_SIZE,
+					    AMDGPU_GEM_DOMAIN_VRAM,
+					    &adev->mes.resource_1,
+					    &adev->mes.resource_1_gpu_addr,
+					    &adev->mes.resource_1_addr);
+		if (r) {
+			dev_err(adev->dev, "(%d) failed to create mes resource_1 bo\n", r);
+			return r;
+		}
+	}
+
 	return 0;
 }
 
@@ -1532,6 +1546,11 @@ static int mes_v12_0_sw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	int pipe;
+
+	if (adev->enable_uni_mes)
+		amdgpu_bo_free_kernel(&adev->mes.resource_1,
+				      &adev->mes.resource_1_gpu_addr,
+				      &adev->mes.resource_1_addr);
 
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
 		kfree(adev->mes.mqd_backup[pipe]);

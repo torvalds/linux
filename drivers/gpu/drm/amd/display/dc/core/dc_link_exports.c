@@ -150,6 +150,12 @@ bool dc_link_update_dsc_config(struct pipe_ctx *pipe_ctx)
 	return link->dc->link_srv->update_dsc_config(pipe_ctx);
 }
 
+struct ddc_service *
+dc_get_oem_i2c_device(struct dc *dc)
+{
+	return dc->res_pool->oem_device;
+}
+
 bool dc_is_oem_i2c_device_present(
 	struct dc *dc,
 	size_t slave_address)

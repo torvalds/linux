@@ -29,6 +29,7 @@
 #include "move.h"
 #include "recovery_passes.h"
 #include "reflink.h"
+#include "recovery.h"
 #include "replicas.h"
 #include "super-io.h"
 #include "trace.h"
@@ -56,8 +57,8 @@ void bch2_gc_pos_to_text(struct printbuf *out, struct gc_pos *p)
 {
 	prt_str(out, bch2_gc_phase_strs[p->phase]);
 	prt_char(out, ' ');
-	bch2_btree_id_to_text(out, p->btree);
-	prt_printf(out, " l=%u ", p->level);
+	bch2_btree_id_level_to_text(out, p->btree, p->level);
+	prt_char(out, ' ');
 	bch2_bpos_to_text(out, p->pos);
 }
 
@@ -209,8 +210,9 @@ static int btree_check_node_boundaries(struct btree_trans *trans, struct btree *
 	if (bpos_eq(expected_start, cur->data->min_key))
 		return 0;
 
-	prt_printf(&buf, "  at btree %s level %u:\n  parent: ",
-		   bch2_btree_id_str(b->c.btree_id), b->c.level);
+	prt_printf(&buf, "  at ");
+	bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
+	prt_printf(&buf, ":\n  parent: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
 	if (prev) {
@@ -277,8 +279,9 @@ static int btree_repair_node_end(struct btree_trans *trans, struct btree *b,
 	if (bpos_eq(child->key.k.p, b->key.k.p))
 		return 0;
 
-	prt_printf(&buf, "at btree %s level %u:\n  parent: ",
-		   bch2_btree_id_str(b->c.btree_id), b->c.level);
+	prt_printf(&buf, "  at ");
+	bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
+	prt_printf(&buf, ":\n  parent: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
 	prt_str(&buf, "\n  child: ");
@@ -341,14 +344,14 @@ again:
 		ret = PTR_ERR_OR_ZERO(cur);
 
 		printbuf_reset(&buf);
+		bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level - 1);
+		prt_char(&buf, ' ');
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur_k.k));
 
 		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
-				trans, btree_node_unreadable,
-				"Topology repair: unreadable btree node at btree %s level %u:\n"
+				trans, btree_node_read_error,
+				"Topology repair: unreadable btree node at\n"
 				"  %s",
-				bch2_btree_id_str(b->c.btree_id),
-				b->c.level - 1,
 				buf.buf)) {
 			bch2_btree_node_evict(trans, cur_k.k);
 			cur = NULL;
@@ -357,11 +360,9 @@ again:
 			if (ret)
 				break;
 
-			if (!btree_id_is_alloc(b->c.btree_id)) {
-				ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_scan_for_btree_nodes);
-				if (ret)
-					break;
-			}
+			ret = bch2_btree_lost_data(c, b->c.btree_id);
+			if (ret)
+				break;
 			continue;
 		}
 
@@ -370,7 +371,7 @@ again:
 			break;
 
 		if (bch2_btree_node_is_stale(c, cur)) {
-			bch_info(c, "btree node %s older than nodes found by scanning", buf.buf);
+			bch_info(c, "btree node older than nodes found by scanning\n  %s", buf.buf);
 			six_unlock_read(&cur->c.lock);
 			bch2_btree_node_evict(trans, cur_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
@@ -478,14 +479,13 @@ again:
 	}
 
 	printbuf_reset(&buf);
+	bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
+	prt_newline(&buf);
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
 	if (mustfix_fsck_err_on(!have_child,
 			trans, btree_node_topology_interior_node_empty,
-			"empty interior btree node at btree %s level %u\n"
-			"  %s",
-			bch2_btree_id_str(b->c.btree_id),
-			b->c.level, buf.buf))
+			"empty interior btree node at %s", buf.buf))
 		ret = DROP_THIS_NODE;
 err:
 fsck_err:
@@ -511,6 +511,7 @@ int bch2_check_topology(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct bpos pulled_from_scan = POS_MIN;
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	bch2_trans_srcu_unlock(trans);
@@ -519,19 +520,22 @@ int bch2_check_topology(struct bch_fs *c)
 		struct btree_root *r = bch2_btree_id_root(c, i);
 		bool reconstructed_root = false;
 
+		printbuf_reset(&buf);
+		bch2_btree_id_to_text(&buf, i);
+
 		if (r->error) {
-			ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_scan_for_btree_nodes);
+			ret = bch2_btree_lost_data(c, i);
 			if (ret)
 				break;
 reconstruct_root:
-			bch_info(c, "btree root %s unreadable, must recover from scan", bch2_btree_id_str(i));
+			bch_info(c, "btree root %s unreadable, must recover from scan", buf.buf);
 
 			r->alive = false;
 			r->error = 0;
 
 			if (!bch2_btree_has_scanned_nodes(c, i)) {
 				mustfix_fsck_err(trans, btree_root_unreadable_and_scan_found_nothing,
-						 "no nodes found for btree %s, continue?", bch2_btree_id_str(i));
+						 "no nodes found for btree %s, continue?", buf.buf);
 				bch2_btree_root_alloc_fake_trans(trans, i, 0);
 			} else {
 				bch2_btree_root_alloc_fake_trans(trans, i, 1);
@@ -560,13 +564,14 @@ reconstruct_root:
 			if (!reconstructed_root)
 				goto reconstruct_root;
 
-			bch_err(c, "empty btree root %s", bch2_btree_id_str(i));
+			bch_err(c, "empty btree root %s", buf.buf);
 			bch2_btree_root_alloc_fake_trans(trans, i, 0);
 			r->alive = false;
 			ret = 0;
 		}
 	}
 fsck_err:
+	printbuf_exit(&buf);
 	bch2_trans_put(trans);
 	return ret;
 }
@@ -713,6 +718,7 @@ static int bch2_gc_btrees(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 	enum btree_id ids[BTREE_ID_NR];
+	struct printbuf buf = PRINTBUF;
 	unsigned i;
 	int ret = 0;
 
@@ -727,14 +733,9 @@ static int bch2_gc_btrees(struct bch_fs *c)
 			continue;
 
 		ret = bch2_gc_btree(trans, btree, true);
-
-		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
-					trans, btree_node_read_error,
-			       "btree node read error for %s",
-			       bch2_btree_id_str(btree)))
-			ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
 	}
-fsck_err:
+
+	printbuf_exit(&buf);
 	bch2_trans_put(trans);
 	bch_err_fn(c, ret);
 	return ret;
@@ -802,7 +803,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	old = bch2_alloc_to_v4(k, &old_convert);
 	gc = new = *old;
 
-	percpu_down_read(&c->mark_lock);
 	__bucket_m_to_alloc(&gc, *gc_bucket(ca, iter->pos.offset));
 
 	old_gc = gc;
@@ -813,7 +813,6 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 		gc.data_type = old->data_type;
 		gc.dirty_sectors = old->dirty_sectors;
 	}
-	percpu_up_read(&c->mark_lock);
 
 	/*
 	 * gc.data_type doesn't yet include need_discard & need_gc_gen states -
@@ -831,11 +830,9 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 		 * safe w.r.t. transaction restarts, so fixup the gc_bucket so
 		 * we don't run it twice:
 		 */
-		percpu_down_read(&c->mark_lock);
 		struct bucket *gc_m = gc_bucket(ca, iter->pos.offset);
 		gc_m->data_type = gc.data_type;
 		gc_m->dirty_sectors = gc.dirty_sectors;
-		percpu_up_read(&c->mark_lock);
 	}
 
 	if (fsck_err_on(new.data_type != gc.data_type,
@@ -895,11 +892,11 @@ static int bch2_gc_alloc_done(struct bch_fs *c)
 
 	for_each_member_device(c, ca) {
 		ret = bch2_trans_run(c,
-			for_each_btree_key_upto_commit(trans, iter, BTREE_ID_alloc,
+			for_each_btree_key_max_commit(trans, iter, BTREE_ID_alloc,
 					POS(ca->dev_idx, ca->mi.first_bucket),
 					POS(ca->dev_idx, ca->mi.nbuckets - 1),
 					BTREE_ITER_slots|BTREE_ITER_prefetch, k,
-					NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
+					NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 				bch2_alloc_write_key(trans, &iter, ca, k)));
 		if (ret) {
 			bch2_dev_put(ca);
@@ -923,98 +920,6 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 			break;
 		}
 	}
-
-	bch_err_fn(c, ret);
-	return ret;
-}
-
-static int bch2_gc_write_reflink_key(struct btree_trans *trans,
-				     struct btree_iter *iter,
-				     struct bkey_s_c k,
-				     size_t *idx)
-{
-	struct bch_fs *c = trans->c;
-	const __le64 *refcount = bkey_refcount_c(k);
-	struct printbuf buf = PRINTBUF;
-	struct reflink_gc *r;
-	int ret = 0;
-
-	if (!refcount)
-		return 0;
-
-	while ((r = genradix_ptr(&c->reflink_gc_table, *idx)) &&
-	       r->offset < k.k->p.offset)
-		++*idx;
-
-	if (!r ||
-	    r->offset != k.k->p.offset ||
-	    r->size != k.k->size) {
-		bch_err(c, "unexpected inconsistency walking reflink table at gc finish");
-		return -EINVAL;
-	}
-
-	if (fsck_err_on(r->refcount != le64_to_cpu(*refcount),
-			trans, reflink_v_refcount_wrong,
-			"reflink key has wrong refcount:\n"
-			"  %s\n"
-			"  should be %u",
-			(bch2_bkey_val_to_text(&buf, c, k), buf.buf),
-			r->refcount)) {
-		struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, k);
-		ret = PTR_ERR_OR_ZERO(new);
-		if (ret)
-			goto out;
-
-		if (!r->refcount)
-			new->k.type = KEY_TYPE_deleted;
-		else
-			*bkey_refcount(bkey_i_to_s(new)) = cpu_to_le64(r->refcount);
-		ret = bch2_trans_update(trans, iter, new, 0);
-	}
-out:
-fsck_err:
-	printbuf_exit(&buf);
-	return ret;
-}
-
-static int bch2_gc_reflink_done(struct bch_fs *c)
-{
-	size_t idx = 0;
-
-	int ret = bch2_trans_run(c,
-		for_each_btree_key_commit(trans, iter,
-				BTREE_ID_reflink, POS_MIN,
-				BTREE_ITER_prefetch, k,
-				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			bch2_gc_write_reflink_key(trans, &iter, k, &idx)));
-	c->reflink_gc_nr = 0;
-	return ret;
-}
-
-static int bch2_gc_reflink_start(struct bch_fs *c)
-{
-	c->reflink_gc_nr = 0;
-
-	int ret = bch2_trans_run(c,
-		for_each_btree_key(trans, iter, BTREE_ID_reflink, POS_MIN,
-				   BTREE_ITER_prefetch, k, ({
-			const __le64 *refcount = bkey_refcount_c(k);
-
-			if (!refcount)
-				continue;
-
-			struct reflink_gc *r = genradix_ptr_alloc(&c->reflink_gc_table,
-							c->reflink_gc_nr++, GFP_KERNEL);
-			if (!r) {
-				ret = -BCH_ERR_ENOMEM_gc_reflink_start;
-				break;
-			}
-
-			r->offset	= k.k->p.offset;
-			r->size		= k.k->size;
-			r->refcount	= 0;
-			0;
-		})));
 
 	bch_err_fn(c, ret);
 	return ret;
@@ -1171,7 +1076,6 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 	if (unlikely(test_bit(BCH_FS_going_ro, &c->flags)))
 		return -EROFS;
 
-	percpu_down_read(&c->mark_lock);
 	rcu_read_lock();
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch2_dev_rcu(c, ptr->dev);
@@ -1180,7 +1084,6 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 
 		if (dev_ptr_stale(ca, ptr) > 16) {
 			rcu_read_unlock();
-			percpu_up_read(&c->mark_lock);
 			goto update;
 		}
 	}
@@ -1195,7 +1098,6 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 			*gen = ptr->gen;
 	}
 	rcu_read_unlock();
-	percpu_up_read(&c->mark_lock);
 	return 0;
 update:
 	u = bch2_bkey_make_mut(trans, iter, &k, 0);
@@ -1224,7 +1126,6 @@ static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct bch_dev
 		return ret;
 
 	a_mut->v.oldest_gen = ca->oldest_gen[iter->pos.offset];
-	alloc_data_type_set(&a_mut->v, a_mut->v.data_type);
 
 	return bch2_trans_update(trans, iter, &a_mut->k_i, 0);
 }
@@ -1337,9 +1238,16 @@ void bch2_gc_gens_async(struct bch_fs *c)
 		bch2_write_ref_put(c, BCH_WRITE_REF_gc_gens);
 }
 
-void bch2_fs_gc_init(struct bch_fs *c)
+void bch2_fs_btree_gc_exit(struct bch_fs *c)
+{
+}
+
+int bch2_fs_btree_gc_init(struct bch_fs *c)
 {
 	seqcount_init(&c->gc_pos_lock);
-
 	INIT_WORK(&c->gc_gens_work, bch2_gc_gens_work);
+
+	init_rwsem(&c->gc_lock);
+	mutex_init(&c->gc_gens_lock);
+	return 0;
 }

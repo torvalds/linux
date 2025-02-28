@@ -28,6 +28,7 @@
 #include <linux/pm_qos.h>
 #include <linux/bitfield.h>
 #include <trace/events/power.h>
+#include <linux/units.h>
 
 #include <asm/cpu.h>
 #include <asm/div64.h>
@@ -302,11 +303,11 @@ static bool hwp_is_hybrid;
 
 static struct cpufreq_driver *intel_pstate_driver __read_mostly;
 
-#define HYBRID_SCALING_FACTOR		78741
+#define HYBRID_SCALING_FACTOR_ADL	78741
 #define HYBRID_SCALING_FACTOR_MTL	80000
 #define HYBRID_SCALING_FACTOR_LNL	86957
 
-static int hybrid_scaling_factor = HYBRID_SCALING_FACTOR;
+static int hybrid_scaling_factor;
 
 static inline int core_get_scaling(void)
 {
@@ -414,18 +415,15 @@ static int intel_pstate_get_cppc_guaranteed(int cpu)
 static int intel_pstate_cppc_get_scaling(int cpu)
 {
 	struct cppc_perf_caps cppc_perf;
-	int ret;
-
-	ret = cppc_get_perf_caps(cpu, &cppc_perf);
 
 	/*
-	 * If the nominal frequency and the nominal performance are not
-	 * zero and the ratio between them is not 100, return the hybrid
-	 * scaling factor.
+	 * Compute the perf-to-frequency scaling factor for the given CPU if
+	 * possible, unless it would be 0.
 	 */
-	if (!ret && cppc_perf.nominal_perf && cppc_perf.nominal_freq &&
-	    cppc_perf.nominal_perf * 100 != cppc_perf.nominal_freq)
-		return hybrid_scaling_factor;
+	if (!cppc_get_perf_caps(cpu, &cppc_perf) &&
+	    cppc_perf.nominal_perf && cppc_perf.nominal_freq)
+		return div_u64(cppc_perf.nominal_freq * KHZ_PER_MHZ,
+			       cppc_perf.nominal_perf);
 
 	return core_get_scaling();
 }
@@ -2211,24 +2209,30 @@ static void hybrid_get_type(void *data)
 
 static int hwp_get_cpu_scaling(int cpu)
 {
-	u8 cpu_type = 0;
+	if (hybrid_scaling_factor) {
+		u8 cpu_type = 0;
 
-	smp_call_function_single(cpu, hybrid_get_type, &cpu_type, 1);
-	/* P-cores have a smaller perf level-to-freqency scaling factor. */
-	if (cpu_type == 0x40)
-		return hybrid_scaling_factor;
+		smp_call_function_single(cpu, hybrid_get_type, &cpu_type, 1);
 
-	/* Use default core scaling for E-cores */
-	if (cpu_type == 0x20)
+		/*
+		 * Return the hybrid scaling factor for P-cores and use the
+		 * default core scaling for E-cores.
+		 */
+		if (cpu_type == 0x40)
+			return hybrid_scaling_factor;
+
+		if (cpu_type == 0x20)
+			return core_get_scaling();
+	}
+
+	/* Use core scaling on non-hybrid systems. */
+	if (!cpu_feature_enabled(X86_FEATURE_HYBRID_CPU))
 		return core_get_scaling();
 
 	/*
-	 * If reached here, this system is either non-hybrid (like Tiger
-	 * Lake) or hybrid-capable (like Alder Lake or Raptor Lake) with
-	 * no E cores (in which case CPUID for hybrid support is 0).
-	 *
-	 * The CPPC nominal_frequency field is 0 for non-hybrid systems,
-	 * so the default core scaling will be used for them.
+	 * The system is hybrid, but the hybrid scaling factor is not known or
+	 * the CPU type is not one of the above, so use CPPC to compute the
+	 * scaling factor for this CPU.
 	 */
 	return intel_pstate_cppc_get_scaling(cpu);
 }
@@ -2709,7 +2713,7 @@ static int intel_pstate_init_cpu(unsigned int cpunum)
 	}
 
 	cpu->epp_powersave = -EINVAL;
-	cpu->epp_policy = 0;
+	cpu->epp_policy = CPUFREQ_POLICY_UNKNOWN;
 
 	intel_pstate_get_cpu_pstates(cpu);
 
@@ -3665,8 +3669,12 @@ static const struct x86_cpu_id intel_epp_default[] = {
 };
 
 static const struct x86_cpu_id intel_hybrid_scaling_factor[] = {
+	X86_MATCH_VFM(INTEL_ALDERLAKE, HYBRID_SCALING_FACTOR_ADL),
+	X86_MATCH_VFM(INTEL_ALDERLAKE_L, HYBRID_SCALING_FACTOR_ADL),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE, HYBRID_SCALING_FACTOR_ADL),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_P, HYBRID_SCALING_FACTOR_ADL),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_S, HYBRID_SCALING_FACTOR_ADL),
 	X86_MATCH_VFM(INTEL_METEORLAKE_L, HYBRID_SCALING_FACTOR_MTL),
-	X86_MATCH_VFM(INTEL_ARROWLAKE, HYBRID_SCALING_FACTOR_MTL),
 	X86_MATCH_VFM(INTEL_LUNARLAKE_M, HYBRID_SCALING_FACTOR_LNL),
 	{}
 };

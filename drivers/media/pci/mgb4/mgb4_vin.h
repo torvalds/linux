@@ -22,8 +22,8 @@ struct mgb4_vin_regs {
 	u32 frame_period;
 	u32 sync;
 	u32 pclk;
-	u32 signal;
-	u32 signal2;
+	u32 hsync;
+	u32 vsync;
 	u32 padding;
 	u32 timer;
 };

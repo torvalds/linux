@@ -243,14 +243,19 @@ static int mt7925u_suspend(struct usb_interface *intf, pm_message_t state)
 {
 	struct mt792x_dev *dev = usb_get_intfdata(intf);
 	struct mt76_connac_pm *pm = &dev->pm;
-	int err;
+	int err, ret;
 
 	pm->suspended = true;
+	dev->hif_resumed = false;
 	flush_work(&dev->reset_work);
 
-	err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, true);
-	if (err)
+	mt76_connac_mcu_set_hif_suspend(&dev->mt76, true, false);
+	ret = wait_event_timeout(dev->wait,
+				 dev->hif_idle, 3 * HZ);
+	if (!ret) {
+		err = -ETIMEDOUT;
 		goto failed;
+	}
 
 	mt76u_stop_rx(&dev->mt76);
 	mt76u_stop_tx(&dev->mt76);
@@ -271,8 +276,9 @@ static int mt7925u_resume(struct usb_interface *intf)
 	struct mt792x_dev *dev = usb_get_intfdata(intf);
 	struct mt76_connac_pm *pm = &dev->pm;
 	bool reinit = true;
-	int err, i;
+	int err, i, ret;
 
+	dev->hif_idle = false;
 	for (i = 0; i < 10; i++) {
 		u32 val = mt76_rr(dev, MT_WF_SW_DEF_CR_USB_MCU_EVENT);
 
@@ -298,7 +304,11 @@ static int mt7925u_resume(struct usb_interface *intf)
 	if (err < 0)
 		goto failed;
 
-	err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, false);
+	mt76_connac_mcu_set_hif_suspend(&dev->mt76, false, false);
+	ret = wait_event_timeout(dev->wait,
+				 dev->hif_resumed, 3 * HZ);
+	if (!ret)
+		err = -ETIMEDOUT;
 failed:
 	pm->suspended = false;
 

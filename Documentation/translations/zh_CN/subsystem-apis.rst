@@ -88,6 +88,7 @@ TODOList:
    cpu-freq/index
    iio/index
    virt/index
+   security/index
    PCI/index
    peci/index
 
@@ -102,7 +103,6 @@ TODOList:
 * watchdog/index
 * hwmon/index
 * accel/index
-* security/index
 * crypto/index
 * bpf/index
 * usb/index

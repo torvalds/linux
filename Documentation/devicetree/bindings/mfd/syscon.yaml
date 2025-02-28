@@ -27,7 +27,7 @@ select:
     compatible:
       contains:
         enum:
-          - al,alpine-sysfabric-servic
+          - al,alpine-sysfabric-service
           - allwinner,sun8i-a83t-system-controller
           - allwinner,sun8i-h3-system-controller
           - allwinner,sun8i-v3s-system-controller
@@ -103,6 +103,7 @@ select:
           - rockchip,rk3288-qos
           - rockchip,rk3368-qos
           - rockchip,rk3399-qos
+          - rockchip,rk3562-qos
           - rockchip,rk3568-qos
           - rockchip,rk3576-qos
           - rockchip,rk3588-qos
@@ -201,6 +202,7 @@ properties:
           - rockchip,rk3288-qos
           - rockchip,rk3368-qos
           - rockchip,rk3399-qos
+          - rockchip,rk3562-qos
           - rockchip,rk3568-qos
           - rockchip,rk3576-qos
           - rockchip,rk3588-qos
@@ -213,6 +215,7 @@ properties:
           - ti,am625-dss-oldi-io-ctrl
           - ti,am62p-cpsw-mac-efuse
           - ti,am654-dss-oldi-io-ctrl
+          - ti,j784s4-acspcie-proxy-ctrl
           - ti,j784s4-pcie-ctrl
           - ti,keystone-pllctrl
       - const: syscon

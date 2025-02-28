@@ -72,6 +72,22 @@ static inline bool netmem_is_net_iov(const netmem_ref netmem)
 	return (__force unsigned long)netmem & NET_IOV;
 }
 
+/**
+ * __netmem_to_page - unsafely get pointer to the &page backing @netmem
+ * @netmem: netmem reference to convert
+ *
+ * Unsafe version of netmem_to_page(). When @netmem is always page-backed,
+ * e.g. when it's a header buffer, performs faster and generates smaller
+ * object code (no check for the LSB, no WARN). When @netmem points to IOV,
+ * provokes undefined behaviour.
+ *
+ * Return: pointer to the &page (garbage if @netmem is not page-backed).
+ */
+static inline struct page *__netmem_to_page(netmem_ref netmem)
+{
+	return (__force struct page *)netmem;
+}
+
 /* This conversion fails (returns NULL) if the netmem_ref is not struct page
  * backed.
  */
@@ -80,7 +96,7 @@ static inline struct page *netmem_to_page(netmem_ref netmem)
 	if (WARN_ON_ONCE(netmem_is_net_iov(netmem)))
 		return NULL;
 
-	return (__force struct page *)netmem;
+	return __netmem_to_page(netmem);
 }
 
 static inline struct net_iov *netmem_to_net_iov(netmem_ref netmem)
@@ -101,6 +117,17 @@ static inline netmem_ref net_iov_to_netmem(struct net_iov *niov)
 static inline netmem_ref page_to_netmem(struct page *page)
 {
 	return (__force netmem_ref)page;
+}
+
+/**
+ * virt_to_netmem - convert virtual memory pointer to a netmem reference
+ * @data: host memory pointer to convert
+ *
+ * Return: netmem reference to the &page backing this virtual address.
+ */
+static inline netmem_ref virt_to_netmem(const void *data)
+{
+	return page_to_netmem(virt_to_page(data));
 }
 
 static inline int netmem_ref_count(netmem_ref netmem)
@@ -125,6 +152,22 @@ static inline unsigned long netmem_pfn_trace(netmem_ref netmem)
 static inline struct net_iov *__netmem_clear_lsb(netmem_ref netmem)
 {
 	return (struct net_iov *)((__force unsigned long)netmem & ~NET_IOV);
+}
+
+/**
+ * __netmem_get_pp - unsafely get pointer to the &page_pool backing @netmem
+ * @netmem: netmem reference to get the pointer from
+ *
+ * Unsafe version of netmem_get_pp(). When @netmem is always page-backed,
+ * e.g. when it's a header buffer, performs faster and generates smaller
+ * object code (avoids clearing the LSB). When @netmem points to IOV,
+ * provokes invalid memory access.
+ *
+ * Return: pointer to the &page_pool (garbage if @netmem is not page-backed).
+ */
+static inline struct page_pool *__netmem_get_pp(netmem_ref netmem)
+{
+	return __netmem_to_page(netmem)->pp;
 }
 
 static inline struct page_pool *netmem_get_pp(netmem_ref netmem)
@@ -158,12 +201,43 @@ static inline netmem_ref netmem_compound_head(netmem_ref netmem)
 	return page_to_netmem(compound_head(netmem_to_page(netmem)));
 }
 
+/**
+ * __netmem_address - unsafely get pointer to the memory backing @netmem
+ * @netmem: netmem reference to get the pointer for
+ *
+ * Unsafe version of netmem_address(). When @netmem is always page-backed,
+ * e.g. when it's a header buffer, performs faster and generates smaller
+ * object code (no check for the LSB). When @netmem points to IOV, provokes
+ * undefined behaviour.
+ *
+ * Return: pointer to the memory (garbage if @netmem is not page-backed).
+ */
+static inline void *__netmem_address(netmem_ref netmem)
+{
+	return page_address(__netmem_to_page(netmem));
+}
+
 static inline void *netmem_address(netmem_ref netmem)
 {
 	if (netmem_is_net_iov(netmem))
 		return NULL;
 
-	return page_address(netmem_to_page(netmem));
+	return __netmem_address(netmem);
+}
+
+/**
+ * netmem_is_pfmemalloc - check if @netmem was allocated under memory pressure
+ * @netmem: netmem reference to check
+ *
+ * Return: true if @netmem is page-backed and the page was allocated under
+ * memory pressure, false otherwise.
+ */
+static inline bool netmem_is_pfmemalloc(netmem_ref netmem)
+{
+	if (netmem_is_net_iov(netmem))
+		return false;
+
+	return page_is_pfmemalloc(netmem_to_page(netmem));
 }
 
 static inline unsigned long netmem_get_dma_addr(netmem_ref netmem)

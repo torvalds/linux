@@ -171,7 +171,7 @@ static void mfd_fail_new(const char *name, unsigned int flags)
 	r = sys_memfd_create(name, flags);
 	if (r >= 0) {
 		printf("memfd_create(\"%s\", %u) succeeded, but failure expected\n",
-		       name, flags);
+		       name ? name : "NULL", flags);
 		close(r);
 		abort();
 	}

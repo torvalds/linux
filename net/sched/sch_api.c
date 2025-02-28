@@ -1560,7 +1560,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n,
 	}
 
 	if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], q->ops->id)) {
-		NL_SET_ERR_MSG(extack, "Invalid qdisc name");
+		NL_SET_ERR_MSG(extack, "Invalid qdisc name: must match existing qdisc");
 		return -EINVAL;
 	}
 
@@ -1664,13 +1664,17 @@ replay:
 				q = qdisc_lookup(dev, tcm->tcm_handle);
 				if (!q)
 					goto create_n_graft;
+				if (q->parent != tcm->tcm_parent) {
+					NL_SET_ERR_MSG(extack, "Cannot move an existing qdisc to a different parent");
+					return -EINVAL;
+				}
 				if (n->nlmsg_flags & NLM_F_EXCL) {
 					NL_SET_ERR_MSG(extack, "Exclusivity flag on, cannot override");
 					return -EEXIST;
 				}
 				if (tca[TCA_KIND] &&
 				    nla_strcmp(tca[TCA_KIND], q->ops->id)) {
-					NL_SET_ERR_MSG(extack, "Invalid qdisc name");
+					NL_SET_ERR_MSG(extack, "Invalid qdisc name: must match existing qdisc");
 					return -EINVAL;
 				}
 				if (q->flags & TCQ_F_INGRESS) {
@@ -1746,7 +1750,7 @@ replay:
 		return -EEXIST;
 	}
 	if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], q->ops->id)) {
-		NL_SET_ERR_MSG(extack, "Invalid qdisc name");
+		NL_SET_ERR_MSG(extack, "Invalid qdisc name: must match existing qdisc");
 		return -EINVAL;
 	}
 	err = qdisc_change(q, tca, extack);

@@ -1359,10 +1359,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 	/* allocate chunk */
 	alloc_size = struct_size(chunk, populated,
 				 BITS_TO_LONGS(region_size >> PAGE_SHIFT));
-	chunk = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-	if (!chunk)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      alloc_size);
+	chunk = memblock_alloc_or_panic(alloc_size, SMP_CACHE_BYTES);
 
 	INIT_LIST_HEAD(&chunk->list);
 
@@ -1374,24 +1371,14 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 	region_bits = pcpu_chunk_map_bits(chunk);
 
 	alloc_size = BITS_TO_LONGS(region_bits) * sizeof(chunk->alloc_map[0]);
-	chunk->alloc_map = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-	if (!chunk->alloc_map)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      alloc_size);
+	chunk->alloc_map = memblock_alloc_or_panic(alloc_size, SMP_CACHE_BYTES);
 
 	alloc_size =
 		BITS_TO_LONGS(region_bits + 1) * sizeof(chunk->bound_map[0]);
-	chunk->bound_map = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-	if (!chunk->bound_map)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      alloc_size);
+	chunk->bound_map = memblock_alloc_or_panic(alloc_size, SMP_CACHE_BYTES);
 
 	alloc_size = pcpu_chunk_nr_blocks(chunk) * sizeof(chunk->md_blocks[0]);
-	chunk->md_blocks = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-	if (!chunk->md_blocks)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      alloc_size);
-
+	chunk->md_blocks = memblock_alloc_or_panic(alloc_size, SMP_CACHE_BYTES);
 #ifdef NEED_PCPUOBJ_EXT
 	/* first chunk is free to use */
 	chunk->obj_exts = NULL;
@@ -2595,28 +2582,16 @@ void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	/* process group information and build config tables accordingly */
 	alloc_size = ai->nr_groups * sizeof(group_offsets[0]);
-	group_offsets = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-	if (!group_offsets)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      alloc_size);
+	group_offsets = memblock_alloc_or_panic(alloc_size, SMP_CACHE_BYTES);
 
 	alloc_size = ai->nr_groups * sizeof(group_sizes[0]);
-	group_sizes = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-	if (!group_sizes)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      alloc_size);
+	group_sizes = memblock_alloc_or_panic(alloc_size, SMP_CACHE_BYTES);
 
 	alloc_size = nr_cpu_ids * sizeof(unit_map[0]);
-	unit_map = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-	if (!unit_map)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      alloc_size);
+	unit_map = memblock_alloc_or_panic(alloc_size, SMP_CACHE_BYTES);
 
 	alloc_size = nr_cpu_ids * sizeof(unit_off[0]);
-	unit_off = memblock_alloc(alloc_size, SMP_CACHE_BYTES);
-	if (!unit_off)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      alloc_size);
+	unit_off = memblock_alloc_or_panic(alloc_size, SMP_CACHE_BYTES);
 
 	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
 		unit_map[cpu] = UINT_MAX;
@@ -2685,12 +2660,9 @@ void __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_free_slot = pcpu_sidelined_slot + 1;
 	pcpu_to_depopulate_slot = pcpu_free_slot + 1;
 	pcpu_nr_slots = pcpu_to_depopulate_slot + 1;
-	pcpu_chunk_lists = memblock_alloc(pcpu_nr_slots *
+	pcpu_chunk_lists = memblock_alloc_or_panic(pcpu_nr_slots *
 					  sizeof(pcpu_chunk_lists[0]),
 					  SMP_CACHE_BYTES);
-	if (!pcpu_chunk_lists)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      pcpu_nr_slots * sizeof(pcpu_chunk_lists[0]));
 
 	for (i = 0; i < pcpu_nr_slots; i++)
 		INIT_LIST_HEAD(&pcpu_chunk_lists[i]);
@@ -3155,25 +3127,19 @@ void __init __weak pcpu_populate_pte(unsigned long addr)
 	pmd_t *pmd;
 
 	if (pgd_none(*pgd)) {
-		p4d = memblock_alloc(P4D_TABLE_SIZE, P4D_TABLE_SIZE);
-		if (!p4d)
-			goto err_alloc;
+		p4d = memblock_alloc_or_panic(P4D_TABLE_SIZE, P4D_TABLE_SIZE);
 		pgd_populate(&init_mm, pgd, p4d);
 	}
 
 	p4d = p4d_offset(pgd, addr);
 	if (p4d_none(*p4d)) {
-		pud = memblock_alloc(PUD_TABLE_SIZE, PUD_TABLE_SIZE);
-		if (!pud)
-			goto err_alloc;
+		pud = memblock_alloc_or_panic(PUD_TABLE_SIZE, PUD_TABLE_SIZE);
 		p4d_populate(&init_mm, p4d, pud);
 	}
 
 	pud = pud_offset(p4d, addr);
 	if (pud_none(*pud)) {
-		pmd = memblock_alloc(PMD_TABLE_SIZE, PMD_TABLE_SIZE);
-		if (!pmd)
-			goto err_alloc;
+		pmd = memblock_alloc_or_panic(PMD_TABLE_SIZE, PMD_TABLE_SIZE);
 		pud_populate(&init_mm, pud, pmd);
 	}
 
@@ -3181,16 +3147,11 @@ void __init __weak pcpu_populate_pte(unsigned long addr)
 	if (!pmd_present(*pmd)) {
 		pte_t *new;
 
-		new = memblock_alloc(PTE_TABLE_SIZE, PTE_TABLE_SIZE);
-		if (!new)
-			goto err_alloc;
+		new = memblock_alloc_or_panic(PTE_TABLE_SIZE, PTE_TABLE_SIZE);
 		pmd_populate_kernel(&init_mm, pmd, new);
 	}
 
 	return;
-
-err_alloc:
-	panic("%s: Failed to allocate memory\n", __func__);
 }
 
 /**
@@ -3237,10 +3198,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size, pcpu_fc_cpu_to_node_fn_t 
 	/* unaligned allocations can't be freed, round up to page size */
 	pages_size = PFN_ALIGN(unit_pages * num_possible_cpus() *
 			       sizeof(pages[0]));
-	pages = memblock_alloc(pages_size, SMP_CACHE_BYTES);
-	if (!pages)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      pages_size);
+	pages = memblock_alloc_or_panic(pages_size, SMP_CACHE_BYTES);
 
 	/* allocate pages */
 	j = 0;

@@ -4,10 +4,12 @@
 #
 
 config CXLFLASH
-	tristate "Support for IBM CAPI Flash"
+	tristate "Support for IBM CAPI Flash (DEPRECATED)"
 	depends on PCI && SCSI && (CXL || OCXL) && EEH
 	select IRQ_POLL
-	default m
 	help
+	  The cxlflash driver is deprecated and will be removed in a future
+	  kernel release.
+
 	  Allows CAPI Accelerated IO to Flash
 	  If unsure, say N.

@@ -4,7 +4,6 @@ obj-y += net/
 obj-y += vdso/
 
 obj-$(CONFIG_KVM) += kvm/
-obj-$(CONFIG_BUILTIN_DTB) += boot/dts/
 
 # for cleaning
 subdir- += boot

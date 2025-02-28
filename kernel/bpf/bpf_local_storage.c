@@ -81,9 +81,7 @@ bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner,
 		return NULL;
 
 	if (smap->bpf_ma) {
-		migrate_disable();
 		selem = bpf_mem_cache_alloc_flags(&smap->selem_ma, gfp_flags);
-		migrate_enable();
 		if (selem)
 			/* Keep the original bpf_map_kzalloc behavior
 			 * before started using the bpf_mem_cache_alloc.
@@ -174,17 +172,14 @@ static void bpf_local_storage_free(struct bpf_local_storage *local_storage,
 		return;
 	}
 
-	if (smap) {
-		migrate_disable();
+	if (smap)
 		bpf_mem_cache_free(&smap->storage_ma, local_storage);
-		migrate_enable();
-	} else {
+	else
 		/* smap could be NULL if the selem that triggered
 		 * this 'local_storage' creation had been long gone.
 		 * In this case, directly do call_rcu().
 		 */
 		call_rcu(&local_storage->rcu, bpf_local_storage_free_rcu);
-	}
 }
 
 /* rcu tasks trace callback for bpf_ma == false */
@@ -217,7 +212,10 @@ static void bpf_selem_free_rcu(struct rcu_head *rcu)
 	selem = container_of(rcu, struct bpf_local_storage_elem, rcu);
 	/* The bpf_local_storage_map_free will wait for rcu_barrier */
 	smap = rcu_dereference_check(SDATA(selem)->smap, 1);
+
+	migrate_disable();
 	bpf_obj_free_fields(smap->map.record, SDATA(selem)->data);
+	migrate_enable();
 	bpf_mem_cache_raw_free(selem);
 }
 
@@ -256,9 +254,7 @@ void bpf_selem_free(struct bpf_local_storage_elem *selem,
 		 * bpf_mem_cache_free will be able to reuse selem
 		 * immediately.
 		 */
-		migrate_disable();
 		bpf_mem_cache_free(&smap->selem_ma, selem);
-		migrate_enable();
 		return;
 	}
 
@@ -497,15 +493,11 @@ int bpf_local_storage_alloc(void *owner,
 	if (err)
 		return err;
 
-	if (smap->bpf_ma) {
-		migrate_disable();
+	if (smap->bpf_ma)
 		storage = bpf_mem_cache_alloc_flags(&smap->storage_ma, gfp_flags);
-		migrate_enable();
-	} else {
+	else
 		storage = bpf_map_kzalloc(&smap->map, sizeof(*storage),
 					  gfp_flags | __GFP_NOWARN);
-	}
-
 	if (!storage) {
 		err = -ENOMEM;
 		goto uncharge;
@@ -841,8 +833,12 @@ bpf_local_storage_map_alloc(union bpf_attr *attr,
 	smap->elem_size = offsetof(struct bpf_local_storage_elem,
 				   sdata.data[attr->value_size]);
 
-	smap->bpf_ma = bpf_ma;
-	if (bpf_ma) {
+	/* In PREEMPT_RT, kmalloc(GFP_ATOMIC) is still not safe in non
+	 * preemptible context. Thus, enforce all storages to use
+	 * bpf_mem_alloc when CONFIG_PREEMPT_RT is enabled.
+	 */
+	smap->bpf_ma = IS_ENABLED(CONFIG_PREEMPT_RT) ? true : bpf_ma;
+	if (smap->bpf_ma) {
 		err = bpf_mem_alloc_init(&smap->selem_ma, smap->elem_size, false);
 		if (err)
 			goto free_smap;
@@ -898,15 +894,11 @@ void bpf_local_storage_map_free(struct bpf_map *map,
 		while ((selem = hlist_entry_safe(
 				rcu_dereference_raw(hlist_first_rcu(&b->list)),
 				struct bpf_local_storage_elem, map_node))) {
-			if (busy_counter) {
-				migrate_disable();
+			if (busy_counter)
 				this_cpu_inc(*busy_counter);
-			}
 			bpf_selem_unlink(selem, true);
-			if (busy_counter) {
+			if (busy_counter)
 				this_cpu_dec(*busy_counter);
-				migrate_enable();
-			}
 			cond_resched_rcu();
 		}
 		rcu_read_unlock();

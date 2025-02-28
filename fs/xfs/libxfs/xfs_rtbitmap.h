@@ -135,6 +135,15 @@ xfs_rtb_to_rtx(
 	return div_u64(rtbno, mp->m_sb.sb_rextsize);
 }
 
+/* Return the offset of a rtgroup block number within an rt extent. */
+static inline xfs_extlen_t
+xfs_rgbno_to_rtxoff(
+	struct xfs_mount	*mp,
+	xfs_rgblock_t		rgbno)
+{
+	return rgbno % mp->m_sb.sb_rextsize;
+}
+
 /* Return the offset of an rt block number within an rt extent. */
 static inline xfs_extlen_t
 xfs_rtb_to_rtxoff(

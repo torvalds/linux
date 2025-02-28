@@ -40,7 +40,6 @@
 #include <crypto/skcipher.h>
 #include <linux/sunrpc/auth_gss.h>
 #include <linux/sunrpc/gss_err.h>
-#include <linux/sunrpc/gss_asn1.h>
 
 /* Length of constant used in key derivation */
 #define GSS_KRB5_K5CLENGTH (5)

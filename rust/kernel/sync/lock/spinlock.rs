@@ -87,6 +87,14 @@ pub type SpinLock<T> = super::Lock<T, SpinLockBackend>;
 /// A kernel `spinlock_t` lock backend.
 pub struct SpinLockBackend;
 
+/// A [`Guard`] acquired from locking a [`SpinLock`].
+///
+/// This is simply a type alias for a [`Guard`] returned from locking a [`SpinLock`]. It will unlock
+/// the [`SpinLock`] upon being dropped.
+///
+/// [`Guard`]: super::Guard
+pub type SpinLockGuard<'a, T> = super::Guard<'a, T, SpinLockBackend>;
+
 // SAFETY: The underlying kernel `spinlock_t` object ensures mutual exclusion. `relock` uses the
 // default implementation that always calls the same locking method.
 unsafe impl super::Backend for SpinLockBackend {
@@ -124,5 +132,10 @@ unsafe impl super::Backend for SpinLockBackend {
         } else {
             None
         }
+    }
+
+    unsafe fn assert_is_held(ptr: *mut Self::State) {
+        // SAFETY: The `ptr` pointer is guaranteed to be valid and initialized before use.
+        unsafe { bindings::spin_assert_is_held(ptr) }
     }
 }

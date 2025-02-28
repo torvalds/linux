@@ -98,8 +98,7 @@ static void vcn_v4_0_3_enable_ras(struct amdgpu_device *adev,
 
 static inline bool vcn_v4_0_3_normalizn_reqd(struct amdgpu_device *adev)
 {
-	return (amdgpu_sriov_vf(adev) ||
-		(amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)));
+	return (adev->vcn.caps & AMDGPU_VCN_CAPS(RRMT_ENABLED)) == 0;
 }
 
 /**
@@ -295,6 +294,11 @@ static int vcn_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 			ring->sched.ready = true;
 		}
 	} else {
+		/* This flag is not set for VF, assumed to be disabled always */
+		if (RREG32_SOC15(VCN, GET_INST(VCN, 0), regVCN_RRMT_CNTL) &
+		    0x100)
+			adev->vcn.caps |= AMDGPU_VCN_CAPS(RRMT_ENABLED);
+
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 			struct amdgpu_vcn4_fw_shared *fw_shared;
 
@@ -1124,11 +1128,6 @@ static int vcn_v4_0_3_start(struct amdgpu_device *adev)
 	uint32_t tmp;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (adev->pm.dpm_enabled)
-			amdgpu_dpm_enable_vcn(adev, true, i);
-	}
-
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
 			r = vcn_v4_0_3_start_dpg_mode(adev, i, adev->vcn.indirect_sram);
 			continue;
@@ -1399,11 +1398,6 @@ static int vcn_v4_0_3_stop(struct amdgpu_device *adev)
 		vcn_v4_0_3_enable_clock_gating(adev, i);
 	}
 Done:
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
-		if (adev->pm.dpm_enabled)
-			amdgpu_dpm_enable_vcn(adev, false, i);
-	}
-
 	return 0;
 }
 
@@ -1931,10 +1925,12 @@ static int vcn_v4_0_3_aca_bank_parser(struct aca_handle *handle, struct aca_bank
 	misc0 = bank->regs[ACA_REG_IDX_MISC0];
 	switch (type) {
 	case ACA_SMU_TYPE_UE:
+		bank->aca_err_type = ACA_ERROR_TYPE_UE;
 		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE,
 						     1ULL);
 		break;
 	case ACA_SMU_TYPE_CE:
+		bank->aca_err_type = ACA_ERROR_TYPE_CE;
 		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_CE,
 						     ACA_REG__MISC0__ERRCNT(misc0));
 		break;

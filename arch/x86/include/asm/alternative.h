@@ -4,6 +4,7 @@
 
 #include <linux/types.h>
 #include <linux/stringify.h>
+#include <linux/objtool.h>
 #include <asm/asm.h>
 
 #define ALT_FLAGS_SHIFT		16
@@ -53,16 +54,6 @@
 #define LOCK_PREFIX_HERE ""
 #define LOCK_PREFIX ""
 #endif
-
-/*
- * objtool annotation to ignore the alternatives and only consider the original
- * instruction(s).
- */
-#define ANNOTATE_IGNORE_ALTERNATIVE				\
-	"999:\n\t"						\
-	".pushsection .discard.ignore_alts\n\t"			\
-	".long 999b\n\t"					\
-	".popsection\n\t"
 
 /*
  * The patching flags are part of the upper bits of the @ft_flags parameter when
@@ -309,17 +300,6 @@ void nop_func(void);
 	.macro LOCK_PREFIX
 	.endm
 #endif
-
-/*
- * objtool annotation to ignore the alternatives and only consider the original
- * instruction(s).
- */
-.macro ANNOTATE_IGNORE_ALTERNATIVE
-	.Lannotate_\@:
-	.pushsection .discard.ignore_alts
-	.long .Lannotate_\@
-	.popsection
-.endm
 
 /*
  * Issue one struct alt_instr descriptor entry (need to put it into

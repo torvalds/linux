@@ -697,7 +697,7 @@ static int __init libaesgcm_init(void)
 		u8 tagbuf[AES_BLOCK_SIZE];
 		int plen = aesgcm_tv[i].plen;
 		struct aesgcm_ctx ctx;
-		u8 buf[sizeof(ptext12)];
+		static u8 buf[sizeof(ptext12)];
 
 		if (aesgcm_expandkey(&ctx, aesgcm_tv[i].key, aesgcm_tv[i].klen,
 				     aesgcm_tv[i].clen - plen)) {

@@ -1318,7 +1318,7 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 	 * We'll do our default/implicit steering based on GSLICE (in the
 	 * sliceid field) and DSS (in the subsliceid field).  If we can
 	 * find overlap between the valid MSLICE and/or LNCF values with
-	 * a suitable GSLICE, then we can just re-use the default value and
+	 * a suitable GSLICE, then we can just reuse the default value and
 	 * skip and explicit steering at runtime.
 	 *
 	 * We only need to look for overlap between GSLICE/MSLICE/LNCF to find

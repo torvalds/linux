@@ -338,6 +338,7 @@ static int netkit_new_link(struct net *peer_net, struct net_device *dev,
 	enum netkit_scrub scrub_peer = NETKIT_SCRUB_DEFAULT;
 	enum netkit_mode mode = NETKIT_L3;
 	unsigned char ifname_assign_type;
+	u16 headroom = 0, tailroom = 0;
 	struct ifinfomsg *ifmp = NULL;
 	struct net_device *peer;
 	char ifname[IFNAMSIZ];
@@ -371,6 +372,10 @@ static int netkit_new_link(struct net *peer_net, struct net_device *dev,
 			if (err < 0)
 				return err;
 		}
+		if (data[IFLA_NETKIT_HEADROOM])
+			headroom = nla_get_u16(data[IFLA_NETKIT_HEADROOM]);
+		if (data[IFLA_NETKIT_TAILROOM])
+			tailroom = nla_get_u16(data[IFLA_NETKIT_TAILROOM]);
 	}
 
 	if (ifmp && tbp[IFLA_IFNAME]) {
@@ -390,6 +395,14 @@ static int netkit_new_link(struct net *peer_net, struct net_device *dev,
 		return PTR_ERR(peer);
 
 	netif_inherit_tso_max(peer, dev);
+	if (headroom) {
+		peer->needed_headroom = headroom;
+		dev->needed_headroom = headroom;
+	}
+	if (tailroom) {
+		peer->needed_tailroom = tailroom;
+		dev->needed_tailroom = tailroom;
+	}
 
 	if (mode == NETKIT_L2 && !(ifmp && tbp[IFLA_ADDRESS]))
 		eth_hw_addr_random(peer);
@@ -401,6 +414,7 @@ static int netkit_new_link(struct net *peer_net, struct net_device *dev,
 	nk->policy = policy_peer;
 	nk->scrub = scrub_peer;
 	nk->mode = mode;
+	nk->headroom = headroom;
 	bpf_mprog_bundle_init(&nk->bundle);
 
 	err = register_netdevice(peer);
@@ -426,6 +440,7 @@ static int netkit_new_link(struct net *peer_net, struct net_device *dev,
 	nk->policy = policy_prim;
 	nk->scrub = scrub_prim;
 	nk->mode = mode;
+	nk->headroom = headroom;
 	bpf_mprog_bundle_init(&nk->bundle);
 
 	err = register_netdevice(dev);
@@ -850,7 +865,18 @@ static int netkit_change_link(struct net_device *dev, struct nlattr *tb[],
 	struct net_device *peer = rtnl_dereference(nk->peer);
 	enum netkit_action policy;
 	struct nlattr *attr;
-	int err;
+	int err, i;
+	static const struct {
+		u32 attr;
+		char *name;
+	} fixed_params[] = {
+		{ IFLA_NETKIT_MODE,       "operating mode" },
+		{ IFLA_NETKIT_SCRUB,      "scrubbing" },
+		{ IFLA_NETKIT_PEER_SCRUB, "peer scrubbing" },
+		{ IFLA_NETKIT_PEER_INFO,  "peer info" },
+		{ IFLA_NETKIT_HEADROOM,   "headroom" },
+		{ IFLA_NETKIT_TAILROOM,   "tailroom" },
+	};
 
 	if (!nk->primary) {
 		NL_SET_ERR_MSG(extack,
@@ -858,28 +884,14 @@ static int netkit_change_link(struct net_device *dev, struct nlattr *tb[],
 		return -EACCES;
 	}
 
-	if (data[IFLA_NETKIT_MODE]) {
-		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_NETKIT_MODE],
-				    "netkit link operating mode cannot be changed after device creation");
-		return -EACCES;
-	}
-
-	if (data[IFLA_NETKIT_SCRUB]) {
-		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_NETKIT_SCRUB],
-				    "netkit scrubbing cannot be changed after device creation");
-		return -EACCES;
-	}
-
-	if (data[IFLA_NETKIT_PEER_SCRUB]) {
-		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_NETKIT_PEER_SCRUB],
-				    "netkit scrubbing cannot be changed after device creation");
-		return -EACCES;
-	}
-
-	if (data[IFLA_NETKIT_PEER_INFO]) {
-		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_NETKIT_PEER_INFO],
-				    "netkit peer info cannot be changed after device creation");
-		return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(fixed_params); i++) {
+		attr = data[fixed_params[i].attr];
+		if (attr) {
+			NL_SET_ERR_MSG_ATTR_FMT(extack, attr,
+						"netkit link %s cannot be changed after device creation",
+						fixed_params[i].name);
+			return -EACCES;
+		}
 	}
 
 	if (data[IFLA_NETKIT_POLICY]) {
@@ -914,6 +926,8 @@ static size_t netkit_get_size(const struct net_device *dev)
 	       nla_total_size(sizeof(u32)) + /* IFLA_NETKIT_PEER_SCRUB */
 	       nla_total_size(sizeof(u32)) + /* IFLA_NETKIT_MODE */
 	       nla_total_size(sizeof(u8))  + /* IFLA_NETKIT_PRIMARY */
+	       nla_total_size(sizeof(u16)) + /* IFLA_NETKIT_HEADROOM */
+	       nla_total_size(sizeof(u16)) + /* IFLA_NETKIT_TAILROOM */
 	       0;
 }
 
@@ -929,6 +943,10 @@ static int netkit_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	if (nla_put_u32(skb, IFLA_NETKIT_MODE, nk->mode))
 		return -EMSGSIZE;
 	if (nla_put_u32(skb, IFLA_NETKIT_SCRUB, nk->scrub))
+		return -EMSGSIZE;
+	if (nla_put_u16(skb, IFLA_NETKIT_HEADROOM, dev->needed_headroom))
+		return -EMSGSIZE;
+	if (nla_put_u16(skb, IFLA_NETKIT_TAILROOM, dev->needed_tailroom))
 		return -EMSGSIZE;
 
 	if (peer) {
@@ -947,6 +965,8 @@ static const struct nla_policy netkit_policy[IFLA_NETKIT_MAX + 1] = {
 	[IFLA_NETKIT_MODE]		= NLA_POLICY_MAX(NLA_U32, NETKIT_L3),
 	[IFLA_NETKIT_POLICY]		= { .type = NLA_U32 },
 	[IFLA_NETKIT_PEER_POLICY]	= { .type = NLA_U32 },
+	[IFLA_NETKIT_HEADROOM]		= { .type = NLA_U16 },
+	[IFLA_NETKIT_TAILROOM]		= { .type = NLA_U16 },
 	[IFLA_NETKIT_SCRUB]		= NLA_POLICY_MAX(NLA_U32, NETKIT_SCRUB_DEFAULT),
 	[IFLA_NETKIT_PEER_SCRUB]	= NLA_POLICY_MAX(NLA_U32, NETKIT_SCRUB_DEFAULT),
 	[IFLA_NETKIT_PRIMARY]		= { .type = NLA_REJECT,

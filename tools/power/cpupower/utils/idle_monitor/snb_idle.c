@@ -115,7 +115,7 @@ static int snb_start(void)
 
 	for (num = 0; num < SNB_CSTATE_COUNT; num++) {
 		for (cpu = 0; cpu < cpu_count; cpu++) {
-			snb_get_count(num, &val, cpu);
+			is_valid[cpu] = !snb_get_count(num, &val, cpu);
 			previous_count[num][cpu] = val;
 		}
 	}
@@ -132,7 +132,7 @@ static int snb_stop(void)
 
 	for (num = 0; num < SNB_CSTATE_COUNT; num++) {
 		for (cpu = 0; cpu < cpu_count; cpu++) {
-			is_valid[cpu] = !snb_get_count(num, &val, cpu);
+			is_valid[cpu] |= !snb_get_count(num, &val, cpu);
 			current_count[num][cpu] = val;
 		}
 	}

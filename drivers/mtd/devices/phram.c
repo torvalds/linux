@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
 #include <linux/of.h>
+#include <linux/security.h>
 
 struct phram_mtd_list {
 	struct mtd_info mtd;
@@ -410,18 +411,22 @@ static int __init init_phram(void)
 {
 	int ret;
 
+	ret = security_locked_down(LOCKDOWN_DEV_MEM);
+	if (ret)
+		return ret;
+
 	ret = platform_driver_register(&phram_driver);
 	if (ret)
 		return ret;
 
 #ifndef MODULE
-	if (phram_paramline[0])
+	if (phram_paramline[0]) {
 		ret = phram_setup(phram_paramline);
+		if (ret)
+			platform_driver_unregister(&phram_driver);
+	}
 	phram_init_called = 1;
 #endif
-
-	if (ret)
-		platform_driver_unregister(&phram_driver);
 
 	return ret;
 }

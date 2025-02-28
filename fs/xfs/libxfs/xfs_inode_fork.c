@@ -27,6 +27,8 @@
 #include "xfs_errortag.h"
 #include "xfs_health.h"
 #include "xfs_symlink_remote.h"
+#include "xfs_rtrmap_btree.h"
+#include "xfs_rtrefcount_btree.h"
 
 struct kmem_cache *xfs_ifork_cache;
 
@@ -178,7 +180,7 @@ xfs_iformat_btree(
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_bmdr_block_t	*dfp;
 	struct xfs_ifork	*ifp;
-	/* REFERENCED */
+	struct xfs_btree_block	*broot;
 	int			nrecs;
 	int			size;
 	int			level;
@@ -211,16 +213,13 @@ xfs_iformat_btree(
 		return -EFSCORRUPTED;
 	}
 
-	ifp->if_broot_bytes = size;
-	ifp->if_broot = kmalloc(size,
-				GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
-	ASSERT(ifp->if_broot != NULL);
+	broot = xfs_broot_alloc(ifp, size);
 	/*
 	 * Copy and convert from the on-disk structure
 	 * to the in-memory structure.
 	 */
 	xfs_bmdr_to_bmbt(ip, dfp, XFS_DFORK_SIZE(dip, ip->i_mount, whichfork),
-			 ifp->if_broot, size);
+			 broot, size);
 
 	ifp->if_bytes = 0;
 	ifp->if_data = NULL;
@@ -270,6 +269,16 @@ xfs_iformat_data_fork(
 			return xfs_iformat_extents(ip, dip, XFS_DATA_FORK);
 		case XFS_DINODE_FMT_BTREE:
 			return xfs_iformat_btree(ip, dip, XFS_DATA_FORK);
+		case XFS_DINODE_FMT_META_BTREE:
+			switch (ip->i_metatype) {
+			case XFS_METAFILE_RTRMAP:
+				return xfs_iformat_rtrmap(ip, dip);
+			case XFS_METAFILE_RTREFCOUNT:
+				return xfs_iformat_rtrefcount(ip, dip);
+			default:
+				break;
+			}
+			fallthrough;
 		default:
 			xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__,
 					dip, sizeof(*dip), __this_address);
@@ -363,134 +372,67 @@ xfs_iformat_attr_fork(
 }
 
 /*
- * Reallocate the space for if_broot based on the number of records
- * being added or deleted as indicated in rec_diff.  Move the records
- * and pointers in if_broot to fit the new size.  When shrinking this
- * will eliminate holes between the records and pointers created by
- * the caller.  When growing this will create holes to be filled in
- * by the caller.
- *
- * The caller must not request to add more records than would fit in
- * the on-disk inode root.  If the if_broot is currently NULL, then
- * if we are adding records, one will be allocated.  The caller must also
- * not request that the number of records go below zero, although
- * it can go to zero.
- *
- * ip -- the inode whose if_broot area is changing
- * ext_diff -- the change in the number of records, positive or negative,
- *	 requested for the if_broot array.
+ * Allocate the if_broot component of an inode fork so that it is @new_size
+ * bytes in size, using __GFP_NOLOCKDEP like all the other code that
+ * initializes a broot during inode load.  Returns if_broot.
  */
-void
-xfs_iroot_realloc(
-	xfs_inode_t		*ip,
-	int			rec_diff,
-	int			whichfork)
+struct xfs_btree_block *
+xfs_broot_alloc(
+	struct xfs_ifork	*ifp,
+	size_t			new_size)
 {
-	struct xfs_mount	*mp = ip->i_mount;
-	int			cur_max;
-	struct xfs_ifork	*ifp;
-	struct xfs_btree_block	*new_broot;
-	int			new_max;
-	size_t			new_size;
-	char			*np;
-	char			*op;
+	ASSERT(ifp->if_broot == NULL);
 
-	/*
-	 * Handle the degenerate case quietly.
-	 */
-	if (rec_diff == 0) {
-		return;
-	}
-
-	ifp = xfs_ifork_ptr(ip, whichfork);
-	if (rec_diff > 0) {
-		/*
-		 * If there wasn't any memory allocated before, just
-		 * allocate it now and get out.
-		 */
-		if (ifp->if_broot_bytes == 0) {
-			new_size = xfs_bmap_broot_space_calc(mp, rec_diff);
-			ifp->if_broot = kmalloc(new_size,
-						GFP_KERNEL | __GFP_NOFAIL);
-			ifp->if_broot_bytes = (int)new_size;
-			return;
-		}
-
-		/*
-		 * If there is already an existing if_broot, then we need
-		 * to realloc() it and shift the pointers to their new
-		 * location.  The records don't change location because
-		 * they are kept butted up against the btree block header.
-		 */
-		cur_max = xfs_bmbt_maxrecs(mp, ifp->if_broot_bytes, false);
-		new_max = cur_max + rec_diff;
-		new_size = xfs_bmap_broot_space_calc(mp, new_max);
-		ifp->if_broot = krealloc(ifp->if_broot, new_size,
-					 GFP_KERNEL | __GFP_NOFAIL);
-		op = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
-						     ifp->if_broot_bytes);
-		np = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
-						     (int)new_size);
-		ifp->if_broot_bytes = (int)new_size;
-		ASSERT(xfs_bmap_bmdr_space(ifp->if_broot) <=
-			xfs_inode_fork_size(ip, whichfork));
-		memmove(np, op, cur_max * (uint)sizeof(xfs_fsblock_t));
-		return;
-	}
-
-	/*
-	 * rec_diff is less than 0.  In this case, we are shrinking the
-	 * if_broot buffer.  It must already exist.  If we go to zero
-	 * records, just get rid of the root and clear the status bit.
-	 */
-	ASSERT((ifp->if_broot != NULL) && (ifp->if_broot_bytes > 0));
-	cur_max = xfs_bmbt_maxrecs(mp, ifp->if_broot_bytes, false);
-	new_max = cur_max + rec_diff;
-	ASSERT(new_max >= 0);
-	if (new_max > 0)
-		new_size = xfs_bmap_broot_space_calc(mp, new_max);
-	else
-		new_size = 0;
-	if (new_size > 0) {
-		new_broot = kmalloc(new_size, GFP_KERNEL | __GFP_NOFAIL);
-		/*
-		 * First copy over the btree block header.
-		 */
-		memcpy(new_broot, ifp->if_broot,
-			xfs_bmbt_block_len(ip->i_mount));
-	} else {
-		new_broot = NULL;
-	}
-
-	/*
-	 * Only copy the keys and pointers if there are any.
-	 */
-	if (new_max > 0) {
-		/*
-		 * First copy the keys.
-		 */
-		op = (char *)xfs_bmbt_key_addr(mp, ifp->if_broot, 1);
-		np = (char *)xfs_bmbt_key_addr(mp, new_broot, 1);
-		memcpy(np, op, new_max * (uint)sizeof(xfs_bmbt_key_t));
-
-		/*
-		 * Then copy the pointers.
-		 */
-		op = (char *)xfs_bmap_broot_ptr_addr(mp, ifp->if_broot, 1,
-						     ifp->if_broot_bytes);
-		np = (char *)xfs_bmap_broot_ptr_addr(mp, new_broot, 1,
-						     (int)new_size);
-		memcpy(np, op, new_max * (uint)sizeof(xfs_fsblock_t));
-	}
-	kfree(ifp->if_broot);
-	ifp->if_broot = new_broot;
-	ifp->if_broot_bytes = (int)new_size;
-	if (ifp->if_broot)
-		ASSERT(xfs_bmap_bmdr_space(ifp->if_broot) <=
-			xfs_inode_fork_size(ip, whichfork));
-	return;
+	ifp->if_broot = kmalloc(new_size,
+				GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
+	ifp->if_broot_bytes = new_size;
+	return ifp->if_broot;
 }
 
+/*
+ * Reallocate the if_broot component of an inode fork so that it is @new_size
+ * bytes in size.  Returns if_broot.
+ */
+struct xfs_btree_block *
+xfs_broot_realloc(
+	struct xfs_ifork	*ifp,
+	size_t			new_size)
+{
+	/* No size change?  No action needed. */
+	if (new_size == ifp->if_broot_bytes)
+		return ifp->if_broot;
+
+	/* New size is zero, free it. */
+	if (new_size == 0) {
+		ifp->if_broot_bytes = 0;
+		kfree(ifp->if_broot);
+		ifp->if_broot = NULL;
+		return NULL;
+	}
+
+	/*
+	 * Shrinking the iroot means we allocate a new smaller object and copy
+	 * it.  We don't trust krealloc not to nop on realloc-down.
+	 */
+	if (ifp->if_broot_bytes > 0 && ifp->if_broot_bytes > new_size) {
+		struct xfs_btree_block	*old_broot = ifp->if_broot;
+
+		ifp->if_broot = kmalloc(new_size, GFP_KERNEL | __GFP_NOFAIL);
+		ifp->if_broot_bytes = new_size;
+		memcpy(ifp->if_broot, old_broot, new_size);
+		kfree(old_broot);
+		return ifp->if_broot;
+	}
+
+	/*
+	 * Growing the iroot means we can krealloc.  This may get us the same
+	 * object.
+	 */
+	ifp->if_broot = krealloc(ifp->if_broot, new_size,
+			GFP_KERNEL | __GFP_NOFAIL);
+	ifp->if_broot_bytes = new_size;
+	return ifp->if_broot;
+}
 
 /*
  * This is called when the amount of space needed for if_data
@@ -668,6 +610,25 @@ xfs_iflush_fork(
 			ASSERT(whichfork == XFS_DATA_FORK);
 			xfs_dinode_put_rdev(dip,
 					linux_to_xfs_dev_t(VFS_I(ip)->i_rdev));
+		}
+		break;
+
+	case XFS_DINODE_FMT_META_BTREE:
+		ASSERT(whichfork == XFS_DATA_FORK);
+
+		if (!(iip->ili_fields & brootflag[whichfork]))
+			break;
+
+		switch (ip->i_metatype) {
+		case XFS_METAFILE_RTRMAP:
+			xfs_iflush_rtrmap(ip, dip);
+			break;
+		case XFS_METAFILE_RTREFCOUNT:
+			xfs_iflush_rtrefcount(ip, dip);
+			break;
+		default:
+			ASSERT(0);
+			break;
 		}
 		break;
 

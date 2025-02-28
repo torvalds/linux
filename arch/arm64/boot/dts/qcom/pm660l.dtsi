@@ -70,6 +70,12 @@
 			status = "disabled";
 		};
 
+		pm660l_flash: led-controller@d300 {
+			compatible = "qcom,pm660l-flash-led", "qcom,spmi-flash-led";
+			reg = <0xd300>;
+			status = "disabled";
+		};
+
 		pm660l_wled: leds@d800 {
 			compatible = "qcom,pm660l-wled";
 			reg = <0xd800>, <0xd900>;

@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# perf_probe :: Check patterns for line semantics (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 #
@@ -20,9 +20,12 @@ TEST_RESULT=0
 
 if ! check_kprobes_available; then
 	print_overall_skipped
-	exit 0
+	exit 2
 fi
 
+# Check for presence of DWARF
+$CMD_PERF check feature -q dwarf
+[ $? -ne 0 ] && HINT_FAIL="Some of the tests need DWARF to run"
 
 ### acceptable --line descriptions
 
@@ -51,5 +54,5 @@ done
 
 
 # print overall results
-print_overall_results "$TEST_RESULT"
+print_overall_results "$TEST_RESULT" $HINT_FAIL
 exit $?

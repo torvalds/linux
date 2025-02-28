@@ -30,7 +30,7 @@
 #include <linux/spi/spi.h>
 #include <linux/units.h>
 
-#include <dt-bindings/iio/adi,ad4695.h>
+#include <dt-bindings/iio/adc/adi,ad4695.h>
 
 /* AD4695 registers */
 #define AD4695_REG_SPI_CONFIG_A				0x0000

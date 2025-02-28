@@ -1027,7 +1027,7 @@ int kgd2kfd_init_zone_device(struct amdgpu_device *adev)
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(9, 0, 1))
 		return -EINVAL;
 
-	if (adev->flags & AMD_IS_APU)
+	if (adev->apu_prefer_gtt)
 		return 0;
 
 	pgmap = &kfddev->pgmap;

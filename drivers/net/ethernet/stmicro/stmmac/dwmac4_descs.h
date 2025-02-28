@@ -144,4 +144,7 @@
 /* TDS3 use for both format (read and write back) */
 #define RDES3_OWN			BIT(31)
 
+extern const struct stmmac_mode_ops dwmac4_ring_mode_ops;
+extern const struct stmmac_desc_ops dwmac4_desc_ops;
+
 #endif /* __DWMAC4_DESCS_H__ */

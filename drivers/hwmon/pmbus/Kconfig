@@ -51,7 +51,7 @@ config SENSORS_ADM1275
 	tristate "Analog Devices ADM1275 and compatibles"
 	help
 	  If you say yes here you get hardware monitoring support for Analog
-	  Devices ADM1075, ADM1272, ADM1275, ADM1276, ADM1278, ADM1281,
+	  Devices ADM1075, ADM1272, ADM1273, ADM1275, ADM1276, ADM1278, ADM1281,
 	  ADM1293, and ADM1294 Hot-Swap Controller and Digital Power Monitors.
 
 	  This driver can also be built as a module. If so, the module will
@@ -84,6 +84,15 @@ config SENSORS_BPA_RS600
 
 	  This driver can also be built as a module. If so, the module will
 	  be called bpa-rs600.
+
+config SENSORS_CRPS
+	tristate "Intel Common Redundant Power Supply"
+	help
+	  If you say yes here you get hardware monitoring support for the Intel
+	  Common Redundant Power Supply.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called crps.
 
 config SENSORS_DELTA_AHE50DC_FAN
 	tristate "Delta AHE-50DC fan control module"
@@ -251,7 +260,7 @@ config SENSORS_MAX15301
 	tristate "Maxim MAX15301"
 	help
 	  If you say yes here you get hardware monitoring support for Maxim
-	  MAX15301, as well as for Flex BMR461.
+	  MAX15301, MAX15303, as well as for Flex BMR461.
 
 	  This driver can also be built as a module. If so, the module will
 	  be called max15301.
@@ -509,6 +518,23 @@ config SENSORS_TDA38640_REGULATOR
 	help
 	  If you say yes here you get regulator support for Infineon
 	  TDA38640 as regulator.
+
+config SENSORS_TPS25990
+	tristate "TI TPS25990"
+	help
+	  If you say yes here you get hardware monitoring support for TI
+	  TPS25990.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called tps25990.
+
+config SENSORS_TPS25990_REGULATOR
+	bool "Regulator support for TPS25990 and compatibles"
+	depends on SENSORS_TPS25990 && REGULATOR
+	default SENSORS_TPS25990
+	help
+	  If you say yes here you get regulator support for Texas Instruments
+	  TPS25990.
 
 config SENSORS_TPS40422
 	tristate "TI TPS40422"

@@ -111,14 +111,14 @@ static void hisi_ddrc_pmu_v2_write_counter(struct hisi_pmu *ddrc_pmu,
  * so there is no need to write event type, while it is programmable counter in
  * PMU v2.
  */
-static void hisi_ddrc_pmu_write_evtype(struct hisi_pmu *hha_pmu, int idx,
+static void hisi_ddrc_pmu_write_evtype(struct hisi_pmu *ddrc_pmu, int idx,
 				       u32 type)
 {
 	u32 offset;
 
-	if (hha_pmu->identifier >= HISI_PMU_V2) {
+	if (ddrc_pmu->identifier >= HISI_PMU_V2) {
 		offset = DDRC_V2_EVENT_TYPE + 4 * idx;
-		writel(type, hha_pmu->base + offset);
+		writel(type, ddrc_pmu->base + offset);
 	}
 }
 
@@ -297,23 +297,22 @@ MODULE_DEVICE_TABLE(acpi, hisi_ddrc_pmu_acpi_match);
 static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 				   struct hisi_pmu *ddrc_pmu)
 {
+	hisi_uncore_pmu_init_topology(ddrc_pmu, &pdev->dev);
+
 	/*
 	 * Use the SCCL_ID and DDRC channel ID to identify the
 	 * DDRC PMU, while SCCL_ID is in MPIDR[aff2].
 	 */
 	if (device_property_read_u32(&pdev->dev, "hisilicon,ch-id",
-				     &ddrc_pmu->index_id)) {
+				     &ddrc_pmu->topo.index_id)) {
 		dev_err(&pdev->dev, "Can not read ddrc channel-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &ddrc_pmu->sccl_id)) {
+	if (ddrc_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Can not read ddrc sccl-id!\n");
 		return -EINVAL;
 	}
-	/* DDRC PMUs only share the same SCCL */
-	ddrc_pmu->ccl_id = -1;
 
 	ddrc_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ddrc_pmu->base)) {
@@ -323,8 +322,7 @@ static int hisi_ddrc_pmu_init_data(struct platform_device *pdev,
 
 	ddrc_pmu->identifier = readl(ddrc_pmu->base + DDRC_VERSION);
 	if (ddrc_pmu->identifier >= HISI_PMU_V2) {
-		if (device_property_read_u32(&pdev->dev, "hisilicon,sub-id",
-					     &ddrc_pmu->sub_id)) {
+		if (ddrc_pmu->topo.sub_id < 0) {
 			dev_err(&pdev->dev, "Can not read sub-id!\n");
 			return -EINVAL;
 		}
@@ -382,42 +380,19 @@ static const struct attribute_group hisi_ddrc_pmu_v2_events_group = {
 	.attrs = hisi_ddrc_pmu_v2_events_attr,
 };
 
-static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
-
-static struct attribute *hisi_ddrc_pmu_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL,
-};
-
-static const struct attribute_group hisi_ddrc_pmu_cpumask_attr_group = {
-	.attrs = hisi_ddrc_pmu_cpumask_attrs,
-};
-
-static struct device_attribute hisi_ddrc_pmu_identifier_attr =
-	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
-
-static struct attribute *hisi_ddrc_pmu_identifier_attrs[] = {
-	&hisi_ddrc_pmu_identifier_attr.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_ddrc_pmu_identifier_group = {
-	.attrs = hisi_ddrc_pmu_identifier_attrs,
-};
-
 static const struct attribute_group *hisi_ddrc_pmu_v1_attr_groups[] = {
 	&hisi_ddrc_pmu_v1_format_group,
 	&hisi_ddrc_pmu_v1_events_group,
-	&hisi_ddrc_pmu_cpumask_attr_group,
-	&hisi_ddrc_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL,
 };
 
 static const struct attribute_group *hisi_ddrc_pmu_v2_attr_groups[] = {
 	&hisi_ddrc_pmu_v2_format_group,
 	&hisi_ddrc_pmu_v2_events_group,
-	&hisi_ddrc_pmu_cpumask_attr_group,
-	&hisi_ddrc_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -501,13 +476,13 @@ static int hisi_ddrc_pmu_probe(struct platform_device *pdev)
 
 	if (ddrc_pmu->identifier >= HISI_PMU_V2)
 		name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-				      "hisi_sccl%u_ddrc%u_%u",
-				      ddrc_pmu->sccl_id, ddrc_pmu->index_id,
-				      ddrc_pmu->sub_id);
+				      "hisi_sccl%d_ddrc%d_%d",
+				      ddrc_pmu->topo.sccl_id, ddrc_pmu->topo.index_id,
+				      ddrc_pmu->topo.sub_id);
 	else
 		name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-				      "hisi_sccl%u_ddrc%u", ddrc_pmu->sccl_id,
-				      ddrc_pmu->index_id);
+				      "hisi_sccl%d_ddrc%d", ddrc_pmu->topo.sccl_id,
+				      ddrc_pmu->topo.index_id);
 
 	if (!name)
 		return -ENOMEM;
@@ -575,10 +550,10 @@ static void __exit hisi_ddrc_pmu_module_exit(void)
 {
 	platform_driver_unregister(&hisi_ddrc_pmu_driver);
 	cpuhp_remove_multi_state(CPUHP_AP_PERF_ARM_HISI_DDRC_ONLINE);
-
 }
 module_exit(hisi_ddrc_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC DDRC uncore PMU driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Shaokun Zhang <zhangshaokun@hisilicon.com>");

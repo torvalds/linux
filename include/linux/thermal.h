@@ -295,6 +295,10 @@ static inline struct thermal_zone_device *thermal_tripless_zone_device_register(
 static inline void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 { }
 
+static inline void thermal_zone_device_update(struct thermal_zone_device *tz,
+					      enum thermal_notify_event event)
+{ }
+
 static inline struct thermal_cooling_device *
 thermal_cooling_device_register(const char *type, void *devdata,
 	const struct thermal_cooling_device_ops *ops)

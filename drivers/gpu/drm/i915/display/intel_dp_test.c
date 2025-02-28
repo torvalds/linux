@@ -257,7 +257,7 @@ static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp,
 		/*
 		 * FIXME: Ideally pattern should come from DPCD 0x250. As
 		 * current firmware of DPR-100 could not set it, so hardcoding
-		 * now for complaince test.
+		 * now for compliance test.
 		 */
 		drm_dbg_kms(display->drm,
 			    "Set 80Bit Custom Phy Test Pattern 0x3e0f83e0 0x0f83e0f8 0x0000f83e\n");
@@ -275,7 +275,7 @@ static void intel_dp_phy_pattern_update(struct intel_dp *intel_dp,
 		/*
 		 * FIXME: Ideally pattern should come from DPCD 0x24A. As
 		 * current firmware of DPR-100 could not set it, so hardcoding
-		 * now for complaince test.
+		 * now for compliance test.
 		 */
 		drm_dbg_kms(display->drm,
 			    "Set HBR2 compliance Phy Test Pattern\n");

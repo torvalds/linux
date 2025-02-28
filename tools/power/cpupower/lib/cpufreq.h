@@ -68,6 +68,14 @@ unsigned long cpufreq_get_freq_hardware(unsigned int cpu);
 unsigned long cpufreq_get_transition_latency(unsigned int cpu);
 
 
+/* determine energy performance preference
+ *
+ * returns NULL on failure, else the string that represents the energy performance
+ * preference requested.
+ */
+char *cpufreq_get_energy_performance_preference(unsigned int cpu);
+void cpufreq_put_energy_performance_preference(char *ptr);
+
 /* determine hardware CPU frequency limits
  *
  * These may be limited further by thermal, energy or other

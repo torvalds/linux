@@ -33,6 +33,9 @@
 #include "xfs_attr.h"
 #include "xfs_attr_remote.h"
 #include "xfs_defer.h"
+#include "xfs_metafile.h"
+#include "xfs_rtgroup.h"
+#include "xfs_rtrmap_btree.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -40,6 +43,7 @@
 #include "scrub/bitmap.h"
 #include "scrub/agb_bitmap.h"
 #include "scrub/fsb_bitmap.h"
+#include "scrub/rtb_bitmap.h"
 #include "scrub/reap.h"
 
 /*
@@ -310,7 +314,7 @@ xreap_agextent_binval(
 	}
 
 out:
-	trace_xreap_agextent_binval(sc->sa.pag, agbno, *aglenp);
+	trace_xreap_agextent_binval(pag_group(sc->sa.pag), agbno, *aglenp);
 }
 
 /*
@@ -369,7 +373,8 @@ xreap_agextent_select(
 
 out_found:
 	*aglenp = len;
-	trace_xreap_agextent_select(sc->sa.pag, agbno, len, *crosslinked);
+	trace_xreap_agextent_select(pag_group(sc->sa.pag), agbno, len,
+			*crosslinked);
 out_cur:
 	xfs_btree_del_cursor(cur, error);
 	return error;
@@ -390,6 +395,8 @@ xreap_agextent_iter(
 	xfs_fsblock_t		fsbno;
 	int			error = 0;
 
+	ASSERT(rs->resv != XFS_AG_RESV_METAFILE);
+
 	fsbno = xfs_agbno_to_fsb(sc->sa.pag, agbno);
 
 	/*
@@ -406,7 +413,8 @@ xreap_agextent_iter(
 	 * to run xfs_repair.
 	 */
 	if (crosslinked) {
-		trace_xreap_dispose_unmap_extent(sc->sa.pag, agbno, *aglenp);
+		trace_xreap_dispose_unmap_extent(pag_group(sc->sa.pag), agbno,
+				*aglenp);
 
 		rs->force_roll = true;
 
@@ -416,7 +424,8 @@ xreap_agextent_iter(
 			 * records from the refcountbt, which will remove the
 			 * rmap record as well.
 			 */
-			xfs_refcount_free_cow_extent(sc->tp, fsbno, *aglenp);
+			xfs_refcount_free_cow_extent(sc->tp, false, fsbno,
+					*aglenp);
 			return 0;
 		}
 
@@ -424,7 +433,7 @@ xreap_agextent_iter(
 				*aglenp, rs->oinfo);
 	}
 
-	trace_xreap_dispose_free_extent(sc->sa.pag, agbno, *aglenp);
+	trace_xreap_dispose_free_extent(pag_group(sc->sa.pag), agbno, *aglenp);
 
 	/*
 	 * Invalidate as many buffers as we can, starting at agbno.  If this
@@ -448,7 +457,7 @@ xreap_agextent_iter(
 	if (rs->oinfo == &XFS_RMAP_OINFO_COW) {
 		ASSERT(rs->resv == XFS_AG_RESV_NONE);
 
-		xfs_refcount_free_cow_extent(sc->tp, fsbno, *aglenp);
+		xfs_refcount_free_cow_extent(sc->tp, false, fsbno, *aglenp);
 		error = xfs_free_extent_later(sc->tp, fsbno, *aglenp, NULL,
 				rs->resv, XFS_FREE_EXTENT_SKIP_DISCARD);
 		if (error)
@@ -675,6 +684,263 @@ xrep_reap_fsblocks(
 	return 0;
 }
 
+#ifdef CONFIG_XFS_RT
+/*
+ * Figure out the longest run of blocks that we can dispose of with a single
+ * call.  Cross-linked blocks should have their reverse mappings removed, but
+ * single-owner extents can be freed.  Units are rt blocks, not rt extents.
+ */
+STATIC int
+xreap_rgextent_select(
+	struct xreap_state	*rs,
+	xfs_rgblock_t		rgbno,
+	xfs_rgblock_t		rgbno_next,
+	bool			*crosslinked,
+	xfs_extlen_t		*rglenp)
+{
+	struct xfs_scrub	*sc = rs->sc;
+	struct xfs_btree_cur	*cur;
+	xfs_rgblock_t		bno = rgbno + 1;
+	xfs_extlen_t		len = 1;
+	int			error;
+
+	/*
+	 * Determine if there are any other rmap records covering the first
+	 * block of this extent.  If so, the block is crosslinked.
+	 */
+	cur = xfs_rtrmapbt_init_cursor(sc->tp, sc->sr.rtg);
+	error = xfs_rmap_has_other_keys(cur, rgbno, 1, rs->oinfo,
+			crosslinked);
+	if (error)
+		goto out_cur;
+
+	/*
+	 * Figure out how many of the subsequent blocks have the same crosslink
+	 * status.
+	 */
+	while (bno < rgbno_next) {
+		bool		also_crosslinked;
+
+		error = xfs_rmap_has_other_keys(cur, bno, 1, rs->oinfo,
+				&also_crosslinked);
+		if (error)
+			goto out_cur;
+
+		if (*crosslinked != also_crosslinked)
+			break;
+
+		len++;
+		bno++;
+	}
+
+	*rglenp = len;
+	trace_xreap_agextent_select(rtg_group(sc->sr.rtg), rgbno, len,
+			*crosslinked);
+out_cur:
+	xfs_btree_del_cursor(cur, error);
+	return error;
+}
+
+/*
+ * Dispose of as much of the beginning of this rtgroup extent as possible.
+ * The number of blocks disposed of will be returned in @rglenp.
+ */
+STATIC int
+xreap_rgextent_iter(
+	struct xreap_state	*rs,
+	xfs_rgblock_t		rgbno,
+	xfs_extlen_t		*rglenp,
+	bool			crosslinked)
+{
+	struct xfs_scrub	*sc = rs->sc;
+	xfs_rtblock_t		rtbno;
+	int			error;
+
+	/*
+	 * The only caller so far is CoW fork repair, so we only know how to
+	 * unlink or free CoW staging extents.  Here we don't have to worry
+	 * about invalidating buffers!
+	 */
+	if (rs->oinfo != &XFS_RMAP_OINFO_COW) {
+		ASSERT(rs->oinfo == &XFS_RMAP_OINFO_COW);
+		return -EFSCORRUPTED;
+	}
+	ASSERT(rs->resv == XFS_AG_RESV_NONE);
+
+	rtbno = xfs_rgbno_to_rtb(sc->sr.rtg, rgbno);
+
+	/*
+	 * If there are other rmappings, this block is cross linked and must
+	 * not be freed.  Remove the forward and reverse mapping and move on.
+	 */
+	if (crosslinked) {
+		trace_xreap_dispose_unmap_extent(rtg_group(sc->sr.rtg), rgbno,
+				*rglenp);
+
+		xfs_refcount_free_cow_extent(sc->tp, true, rtbno, *rglenp);
+		rs->deferred++;
+		return 0;
+	}
+
+	trace_xreap_dispose_free_extent(rtg_group(sc->sr.rtg), rgbno, *rglenp);
+
+	/*
+	 * The CoW staging extent is not crosslinked.  Use deferred work items
+	 * to remove the refcountbt records (which removes the rmap records)
+	 * and free the extent.  We're not worried about the system going down
+	 * here because log recovery walks the refcount btree to clean out the
+	 * CoW staging extents.
+	 */
+	xfs_refcount_free_cow_extent(sc->tp, true, rtbno, *rglenp);
+	error = xfs_free_extent_later(sc->tp, rtbno, *rglenp, NULL,
+			rs->resv,
+			XFS_FREE_EXTENT_REALTIME |
+			XFS_FREE_EXTENT_SKIP_DISCARD);
+	if (error)
+		return error;
+
+	rs->deferred++;
+	return 0;
+}
+
+#define XREAP_RTGLOCK_ALL	(XFS_RTGLOCK_BITMAP | \
+				 XFS_RTGLOCK_RMAP | \
+				 XFS_RTGLOCK_REFCOUNT)
+
+/*
+ * Break a rt file metadata extent into sub-extents by fate (crosslinked, not
+ * crosslinked), and dispose of each sub-extent separately.  The extent must
+ * be aligned to a realtime extent.
+ */
+STATIC int
+xreap_rtmeta_extent(
+	uint64_t		rtbno,
+	uint64_t		len,
+	void			*priv)
+{
+	struct xreap_state	*rs = priv;
+	struct xfs_scrub	*sc = rs->sc;
+	xfs_rgblock_t		rgbno = xfs_rtb_to_rgbno(sc->mp, rtbno);
+	xfs_rgblock_t		rgbno_next = rgbno + len;
+	int			error = 0;
+
+	ASSERT(sc->ip != NULL);
+	ASSERT(!sc->sr.rtg);
+
+	/*
+	 * We're reaping blocks after repairing file metadata, which means that
+	 * we have to init the xchk_ag structure ourselves.
+	 */
+	sc->sr.rtg = xfs_rtgroup_get(sc->mp, xfs_rtb_to_rgno(sc->mp, rtbno));
+	if (!sc->sr.rtg)
+		return -EFSCORRUPTED;
+
+	xfs_rtgroup_lock(sc->sr.rtg, XREAP_RTGLOCK_ALL);
+
+	while (rgbno < rgbno_next) {
+		xfs_extlen_t	rglen;
+		bool		crosslinked;
+
+		error = xreap_rgextent_select(rs, rgbno, rgbno_next,
+				&crosslinked, &rglen);
+		if (error)
+			goto out_unlock;
+
+		error = xreap_rgextent_iter(rs, rgbno, &rglen, crosslinked);
+		if (error)
+			goto out_unlock;
+
+		if (xreap_want_defer_finish(rs)) {
+			error = xfs_defer_finish(&sc->tp);
+			if (error)
+				goto out_unlock;
+			xreap_defer_finish_reset(rs);
+		} else if (xreap_want_roll(rs)) {
+			error = xfs_trans_roll_inode(&sc->tp, sc->ip);
+			if (error)
+				goto out_unlock;
+			xreap_reset(rs);
+		}
+
+		rgbno += rglen;
+	}
+
+out_unlock:
+	xfs_rtgroup_unlock(sc->sr.rtg, XREAP_RTGLOCK_ALL);
+	xfs_rtgroup_put(sc->sr.rtg);
+	sc->sr.rtg = NULL;
+	return error;
+}
+
+/*
+ * Dispose of every block of every rt metadata extent in the bitmap.
+ * Do not use this to dispose of the mappings in an ondisk inode fork.
+ */
+int
+xrep_reap_rtblocks(
+	struct xfs_scrub		*sc,
+	struct xrtb_bitmap		*bitmap,
+	const struct xfs_owner_info	*oinfo)
+{
+	struct xreap_state		rs = {
+		.sc			= sc,
+		.oinfo			= oinfo,
+		.resv			= XFS_AG_RESV_NONE,
+	};
+	int				error;
+
+	ASSERT(xfs_has_rmapbt(sc->mp));
+	ASSERT(sc->ip != NULL);
+
+	error = xrtb_bitmap_walk(bitmap, xreap_rtmeta_extent, &rs);
+	if (error)
+		return error;
+
+	if (xreap_dirty(&rs))
+		return xrep_defer_finish(sc);
+
+	return 0;
+}
+#endif /* CONFIG_XFS_RT */
+
+/*
+ * Dispose of every block of an old metadata btree that used to be rooted in a
+ * metadata directory file.
+ */
+int
+xrep_reap_metadir_fsblocks(
+	struct xfs_scrub		*sc,
+	struct xfsb_bitmap		*bitmap)
+{
+	/*
+	 * Reap old metadir btree blocks with XFS_AG_RESV_NONE because the old
+	 * blocks are no longer mapped by the inode, and inode metadata space
+	 * reservations can only account freed space to the i_nblocks.
+	 */
+	struct xfs_owner_info		oinfo;
+	struct xreap_state		rs = {
+		.sc			= sc,
+		.oinfo			= &oinfo,
+		.resv			= XFS_AG_RESV_NONE,
+	};
+	int				error;
+
+	ASSERT(xfs_has_rmapbt(sc->mp));
+	ASSERT(sc->ip != NULL);
+	ASSERT(xfs_is_metadir_inode(sc->ip));
+
+	xfs_rmap_ino_bmbt_owner(&oinfo, sc->ip->i_ino, XFS_DATA_FORK);
+
+	error = xfsb_bitmap_walk(bitmap, xreap_fsmeta_extent, &rs);
+	if (error)
+		return error;
+
+	if (xreap_dirty(&rs))
+		return xrep_defer_finish(sc);
+
+	return 0;
+}
+
 /*
  * Metadata files are not supposed to share blocks with anything else.
  * If blocks are shared, we remove the reverse mapping (thus reducing the
@@ -729,7 +995,8 @@ xreap_bmapi_select(
 	}
 
 	imap->br_blockcount = len;
-	trace_xreap_bmapi_select(sc->sa.pag, agbno, len, *crosslinked);
+	trace_xreap_bmapi_select(pag_group(sc->sa.pag), agbno, len,
+			*crosslinked);
 out_cur:
 	xfs_btree_del_cursor(cur, error);
 	return error;
@@ -868,7 +1135,8 @@ xreap_bmapi_binval(
 	}
 
 out:
-	trace_xreap_bmapi_binval(sc->sa.pag, agbno, imap->br_blockcount);
+	trace_xreap_bmapi_binval(pag_group(sc->sa.pag), agbno,
+			imap->br_blockcount);
 	return 0;
 }
 
@@ -895,7 +1163,7 @@ xrep_reap_bmapi_iter(
 		 * anybody else who thinks they own the block, even though that
 		 * runs the risk of stale buffer warnings in the future.
 		 */
-		trace_xreap_dispose_unmap_extent(sc->sa.pag,
+		trace_xreap_dispose_unmap_extent(pag_group(sc->sa.pag),
 				XFS_FSB_TO_AGBNO(sc->mp, imap->br_startblock),
 				imap->br_blockcount);
 
@@ -918,7 +1186,7 @@ xrep_reap_bmapi_iter(
 	 * by a block starting before the first block of the extent but overlap
 	 * anyway.
 	 */
-	trace_xreap_dispose_free_extent(sc->sa.pag,
+	trace_xreap_dispose_free_extent(pag_group(sc->sa.pag),
 			XFS_FSB_TO_AGBNO(sc->mp, imap->br_startblock),
 			imap->br_blockcount);
 

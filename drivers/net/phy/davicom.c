@@ -209,7 +209,7 @@ static struct phy_driver dm91xx_driver[] = {
 
 module_phy_driver(dm91xx_driver);
 
-static struct mdio_device_id __maybe_unused davicom_tbl[] = {
+static const struct mdio_device_id __maybe_unused davicom_tbl[] = {
 	{ 0x0181b880, 0x0ffffff0 },
 	{ 0x0181b8b0, 0x0ffffff0 },
 	{ 0x0181b8a0, 0x0ffffff0 },

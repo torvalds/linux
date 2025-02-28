@@ -27,6 +27,7 @@ protection_keys_64
 madv_populate
 uffd-stress
 uffd-unit-tests
+uffd-wp-mremap
 mlock-intersect-test
 mlock-random-test
 virtual_address_range
@@ -36,6 +37,9 @@ map_fixed_noreplace
 write_to_hugetlbfs
 hmm-tests
 memfd_secret
+hugetlb_dio
+pkey_sighandler_tests_32
+pkey_sighandler_tests_64
 soft-dirty
 split_huge_page_test
 ksm_tests
@@ -49,7 +53,6 @@ va_high_addr_switch
 hugetlb_fault_after_madv
 hugetlb_madv_vs_map
 mseal_test
-seal_elf
 droppable
 hugetlb_dio
 pkey_sighandler_tests_32

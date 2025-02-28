@@ -476,19 +476,6 @@ struct drm_sched_backend_ops {
          * and it's time to clean it up.
 	 */
 	void (*free_job)(struct drm_sched_job *sched_job);
-
-	/**
-	 * @update_job_credits: Called when the scheduler is considering this
-	 * job for execution.
-	 *
-	 * This callback returns the number of credits the job would take if
-	 * pushed to the hardware. Drivers may use this to dynamically update
-	 * the job's credit count. For instance, deduct the number of credits
-	 * for already signalled native fences.
-	 *
-	 * This callback is optional.
-	 */
-	u32 (*update_job_credits)(struct drm_sched_job *sched_job);
 };
 
 /**
@@ -553,12 +540,38 @@ struct drm_gpu_scheduler {
 	struct device			*dev;
 };
 
+/**
+ * struct drm_sched_init_args - parameters for initializing a DRM GPU scheduler
+ *
+ * @ops: backend operations provided by the driver
+ * @submit_wq: workqueue to use for submission. If NULL, an ordered wq is
+ *	       allocated and used.
+ * @num_rqs: Number of run-queues. This may be at most DRM_SCHED_PRIORITY_COUNT,
+ *	     as there's usually one run-queue per priority, but may be less.
+ * @credit_limit: the number of credits this scheduler can hold from all jobs
+ * @hang_limit: number of times to allow a job to hang before dropping it.
+ *		This mechanism is DEPRECATED. Set it to 0.
+ * @timeout: timeout value in jiffies for submitted jobs.
+ * @timeout_wq: workqueue to use for timeout work. If NULL, the system_wq is used.
+ * @score: score atomic shared with other schedulers. May be NULL.
+ * @name: name (typically the driver's name). Used for debugging
+ * @dev: associated device. Used for debugging
+ */
+struct drm_sched_init_args {
+	const struct drm_sched_backend_ops *ops;
+	struct workqueue_struct *submit_wq;
+	struct workqueue_struct *timeout_wq;
+	u32 num_rqs;
+	u32 credit_limit;
+	unsigned int hang_limit;
+	long timeout;
+	atomic_t *score;
+	const char *name;
+	struct device *dev;
+};
+
 int drm_sched_init(struct drm_gpu_scheduler *sched,
-		   const struct drm_sched_backend_ops *ops,
-		   struct workqueue_struct *submit_wq,
-		   u32 num_rqs, u32 credit_limit, unsigned int hang_limit,
-		   long timeout, struct workqueue_struct *timeout_wq,
-		   atomic_t *score, const char *name, struct device *dev);
+		   const struct drm_sched_init_args *args);
 
 void drm_sched_fini(struct drm_gpu_scheduler *sched);
 int drm_sched_job_init(struct drm_sched_job *job,
@@ -577,7 +590,8 @@ int drm_sched_job_add_resv_dependencies(struct drm_sched_job *job,
 int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 					    struct drm_gem_object *obj,
 					    bool write);
-
+bool drm_sched_job_has_dependency(struct drm_sched_job *job,
+				  struct dma_fence *fence);
 
 void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
 				    struct drm_gpu_scheduler **sched_list,
@@ -593,10 +607,6 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad);
 void drm_sched_start(struct drm_gpu_scheduler *sched, int errno);
 void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
 void drm_sched_increase_karma(struct drm_sched_job *bad);
-void drm_sched_reset_karma(struct drm_sched_job *bad);
-void drm_sched_increase_karma_ext(struct drm_sched_job *bad, int type);
-bool drm_sched_dependency_optimized(struct dma_fence* fence,
-				    struct drm_sched_entity *entity);
 void drm_sched_fault(struct drm_gpu_scheduler *sched);
 
 void drm_sched_rq_add_entity(struct drm_sched_rq *rq,

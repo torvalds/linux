@@ -82,14 +82,13 @@ nfs4_save_creds(const struct cred **original_creds)
 	new->fsuid = GLOBAL_ROOT_UID;
 	new->fsgid = GLOBAL_ROOT_GID;
 	*original_creds = override_creds(new);
-	put_cred(new);
 	return 0;
 }
 
 static void
 nfs4_reset_creds(const struct cred *original)
 {
-	revert_creds(original);
+	put_cred(revert_creds(original));
 }
 
 static void
@@ -2052,7 +2051,6 @@ static inline int check_for_legacy_methods(int status, struct net *net)
 		path_put(&path);
 		if (status)
 			return -ENOTDIR;
-		status = nn->client_tracking_ops->init(net);
 	}
 	return status;
 }

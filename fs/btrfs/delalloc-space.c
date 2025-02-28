@@ -176,7 +176,7 @@ void btrfs_free_reserved_data_space_noquota(struct btrfs_fs_info *fs_info,
 	ASSERT(IS_ALIGNED(len, fs_info->sectorsize));
 
 	data_sinfo = fs_info->data_sinfo;
-	btrfs_space_info_free_bytes_may_use(fs_info, data_sinfo, len);
+	btrfs_space_info_free_bytes_may_use(data_sinfo, len);
 }
 
 /*

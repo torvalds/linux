@@ -11,6 +11,22 @@
 
 struct file_operations;
 
+struct debugfs_inode_info {
+	struct inode vfs_inode;
+	union {
+		const void *raw;
+		const struct file_operations *real_fops;
+		const struct debugfs_short_fops *short_fops;
+		debugfs_automount_t automount;
+	};
+	const void *aux;
+};
+
+static inline struct debugfs_inode_info *DEBUGFS_I(struct inode *inode)
+{
+	return container_of(inode, struct debugfs_inode_info, vfs_inode);
+}
+
 /* declared over in file.c */
 extern const struct file_operations debugfs_noop_file_operations;
 extern const struct file_operations debugfs_open_proxy_file_operations;
@@ -20,29 +36,25 @@ extern const struct file_operations debugfs_full_short_proxy_file_operations;
 struct debugfs_fsdata {
 	const struct file_operations *real_fops;
 	const struct debugfs_short_fops *short_fops;
-	union {
-		/* automount_fn is used when real_fops is NULL */
-		debugfs_automount_t automount;
-		struct {
-			refcount_t active_users;
-			struct completion active_users_drained;
+	struct {
+		refcount_t active_users;
+		struct completion active_users_drained;
 
-			/* protect cancellations */
-			struct mutex cancellations_mtx;
-			struct list_head cancellations;
-		};
+		/* protect cancellations */
+		struct mutex cancellations_mtx;
+		struct list_head cancellations;
+		unsigned int methods;
 	};
 };
 
-/*
- * A dentry's ->d_fsdata either points to the real fops or to a
- * dynamically allocated debugfs_fsdata instance.
- * In order to distinguish between these two cases, a real fops
- * pointer gets its lowest bit set.
- */
-#define DEBUGFS_FSDATA_IS_REAL_FOPS_BIT BIT(0)
+enum {
+	HAS_READ = 1,
+	HAS_WRITE = 2,
+	HAS_LSEEK = 4,
+	HAS_POLL = 8,
+	HAS_IOCTL = 16
+};
 
-/* Access BITS */
 #define DEBUGFS_ALLOW_API	BIT(0)
 #define DEBUGFS_ALLOW_MOUNT	BIT(1)
 

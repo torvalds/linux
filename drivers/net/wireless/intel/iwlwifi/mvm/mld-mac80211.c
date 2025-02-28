@@ -18,6 +18,8 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 
 	mvmvif->mvm = mvm;
 
+	vif->driver_flags |= IEEE80211_VIF_REMOVE_AP_AFTER_DISASSOC;
+
 	/* Not much to do here. The stack will not allow interface
 	 * types or combinations that we didn't advertise, so we
 	 * don't really have to check the types.
@@ -208,32 +210,6 @@ static unsigned int iwl_mvm_mld_count_active_links(struct iwl_mvm_vif *mvmvif)
 	return n_active;
 }
 
-static void iwl_mvm_restart_mpdu_count(struct iwl_mvm *mvm,
-				       struct iwl_mvm_vif *mvmvif)
-{
-	struct ieee80211_sta *ap_sta = mvmvif->ap_sta;
-	struct iwl_mvm_sta *mvmsta;
-
-	lockdep_assert_held(&mvm->mutex);
-
-	if (!ap_sta)
-		return;
-
-	mvmsta = iwl_mvm_sta_from_mac80211(ap_sta);
-	if (!mvmsta->mpdu_counters)
-		return;
-
-	for (int q = 0; q < mvm->trans->num_rx_queues; q++) {
-		spin_lock_bh(&mvmsta->mpdu_counters[q].lock);
-		memset(mvmsta->mpdu_counters[q].per_link, 0,
-		       sizeof(mvmsta->mpdu_counters[q].per_link));
-		mvmsta->mpdu_counters[q].window_start = jiffies;
-		spin_unlock_bh(&mvmsta->mpdu_counters[q].lock);
-	}
-
-	IWL_DEBUG_INFO(mvm, "MPDU counters are cleared\n");
-}
-
 static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif)
 {
@@ -266,16 +242,6 @@ static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
 		mvmvif->primary_link = mvmvif->link_selection_primary;
 	else
 		mvmvif->primary_link = __ffs(vif->active_links);
-
-	/* Needed for tracking RSSI */
-	iwl_mvm_request_periodic_system_statistics(mvm, true);
-
-	/*
-	 * Restart the MPDU counters and the counting window, so when the
-	 * statistics arrive (which is where we look at the counters) we
-	 * will be at the end of the window.
-	 */
-	iwl_mvm_restart_mpdu_count(mvm, mvmvif);
 
 	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_ESR_LINK_UP,
 			       NULL);
@@ -323,7 +289,6 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 		ret = iwl_mvm_esr_mode_active(mvm, vif);
 		if (ret) {
 			IWL_ERR(mvm, "failed to activate ESR mode (%d)\n", ret);
-			iwl_mvm_request_periodic_system_statistics(mvm, false);
 			goto out;
 		}
 	}
@@ -448,11 +413,6 @@ static int iwl_mvm_esr_mode_inactive(struct iwl_mvm *mvm,
 		if (ret)
 			break;
 	}
-
-	iwl_mvm_request_periodic_system_statistics(mvm, false);
-
-	/* Start a new counting window */
-	iwl_mvm_restart_mpdu_count(mvm, mvmvif);
 
 	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_ESR_LINK_DOWN,
 			       NULL);
@@ -831,30 +791,6 @@ static bool iwl_mvm_mld_vif_have_valid_ap_sta(struct iwl_mvm_vif *mvmvif)
 	return false;
 }
 
-static void iwl_mvm_mld_vif_delete_all_stas(struct iwl_mvm *mvm,
-					    struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int i, ret;
-
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
-		return;
-
-	for_each_mvm_vif_valid_link(mvmvif, i) {
-		struct iwl_mvm_vif_link_info *link = mvmvif->link[i];
-
-		if (!link)
-			continue;
-
-		iwl_mvm_sec_key_remove_ap(mvm, vif, link, i);
-		ret = iwl_mvm_mld_rm_sta_id(mvm, link->ap_sta_id);
-		if (ret)
-			IWL_ERR(mvm, "failed to remove AP station\n");
-
-		link->ap_sta_id = IWL_INVALID_STA;
-	}
-}
-
 static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 						struct ieee80211_vif *vif,
 						u64 changes)
@@ -881,8 +817,13 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 		if (vif->cfg.assoc) {
 			mvmvif->session_prot_connection_loss = false;
 
-			/* clear statistics to get clean beacon counter */
+			/*
+			 * Clear statistics to get clean beacon counter, and ask for
+			 * periodic statistics, as they are needed for link
+			 * selection and RX OMI decisions.
+			 */
 			iwl_mvm_request_statistics(mvm, true);
+			iwl_mvm_request_periodic_system_statistics(mvm, true);
 			iwl_mvm_sf_update(mvm, vif, false);
 			iwl_mvm_power_vif_assoc(mvm, vif);
 
@@ -930,6 +871,8 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 		} else if (iwl_mvm_mld_vif_have_valid_ap_sta(mvmvif)) {
 			iwl_mvm_mei_host_disassociated(mvm);
 
+			iwl_mvm_request_periodic_system_statistics(mvm, false);
+
 			/* If update fails - SF might be running in associated
 			 * mode while disassociated - which is forbidden.
 			 */
@@ -938,15 +881,6 @@ static void iwl_mvm_mld_vif_cfg_changed_station(struct iwl_mvm *mvm,
 				  !test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED,
 					    &mvm->status),
 				  "Failed to update SF upon disassociation\n");
-
-			/* If we get an assert during the connection (after the
-			 * station has been added, but before the vif is set
-			 * to associated), mac80211 will re-add the station and
-			 * then configure the vif. Since the vif is not
-			 * associated, we would remove the station here and
-			 * this would fail the recovery.
-			 */
-			iwl_mvm_mld_vif_delete_all_stas(mvm, vif);
 		}
 
 		iwl_mvm_bss_info_changed_station_assoc(mvm, vif, changes);
