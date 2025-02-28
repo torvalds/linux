@@ -96,6 +96,11 @@ static int mlx5_health_get_rfr(u8 rfr_severity)
 	return rfr_severity >> MLX5_RFR_BIT_OFFSET;
 }
 
+static int mlx5_health_get_crr(u8 rfr_severity)
+{
+	return (rfr_severity >> MLX5_CRR_BIT_OFFSET) & 0x01;
+}
+
 static bool sensor_fw_synd_rfr(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
@@ -375,6 +380,8 @@ static const char *hsynd_str(u8 synd)
 		return "High temperature";
 	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_ICM_PCI_POISONED_ERR:
 		return "ICM fetch PCI data poisoned error";
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_TRUST_LOCKDOWN_ERR:
+		return "Trust lockdown error";
 	default:
 		return "unrecognized error";
 	}
@@ -442,12 +449,15 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	mlx5_log(dev, severity, "time %u\n", ioread32be(&h->time));
 	mlx5_log(dev, severity, "hw_id 0x%08x\n", ioread32be(&h->hw_id));
 	mlx5_log(dev, severity, "rfr %d\n", mlx5_health_get_rfr(rfr_severity));
+	mlx5_log(dev, severity, "crr %d\n", mlx5_health_get_crr(rfr_severity));
 	mlx5_log(dev, severity, "severity %d (%s)\n", severity, mlx5_loglevel_str(severity));
 	mlx5_log(dev, severity, "irisc_index %d\n", ioread8(&h->irisc_index));
 	mlx5_log(dev, severity, "synd 0x%x: %s\n", ioread8(&h->synd),
 		 hsynd_str(ioread8(&h->synd)));
 	mlx5_log(dev, severity, "ext_synd 0x%04x\n", ioread16be(&h->ext_synd));
 	mlx5_log(dev, severity, "raw fw_ver 0x%08x\n", ioread32be(&h->fw_ver));
+	if (mlx5_health_get_crr(rfr_severity))
+		mlx5_core_warn(dev, "Cold reset is required\n");
 }
 
 static int
@@ -799,14 +809,17 @@ static void poll_health(struct timer_list *t)
 	health->prev = count;
 	if (health->miss_counter == MAX_MISSES) {
 		mlx5_core_err(dev, "device's health compromised - reached miss count\n");
+		health->synd = ioread8(&h->synd);
 		print_health_info(dev);
 		queue_work(health->wq, &health->report_work);
 	}
 
 	prev_synd = health->synd;
 	health->synd = ioread8(&h->synd);
-	if (health->synd && health->synd != prev_synd)
+	if (health->synd && health->synd != prev_synd) {
+		print_health_info(dev);
 		queue_work(health->wq, &health->report_work);
+	}
 
 out:
 	mod_timer(&health->timer, get_next_poll_jiffies(dev));
