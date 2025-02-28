@@ -116,7 +116,7 @@ static void lowpan_setup(struct net_device *ldev)
 	ldev->netdev_ops	= &lowpan_netdev_ops;
 	ldev->header_ops	= &lowpan_header_ops;
 	ldev->needs_free_netdev	= true;
-	ldev->netns_local	= true;
+	ldev->netns_immutable	= true;
 }
 
 static int lowpan_validate(struct nlattr *tb[], struct nlattr *data[],

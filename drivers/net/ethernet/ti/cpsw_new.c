@@ -1409,7 +1409,7 @@ static int cpsw_create_ports(struct cpsw_common *cpsw)
 
 		ndev->features |= NETIF_F_HW_VLAN_CTAG_FILTER |
 				  NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_HW_TC;
-		ndev->netns_local = true;
+		ndev->netns_immutable = true;
 
 		ndev->xdp_features = NETDEV_XDP_ACT_BASIC |
 				     NETDEV_XDP_ACT_REDIRECT |

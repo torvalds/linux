@@ -6025,7 +6025,7 @@ void bond_setup(struct net_device *bond_dev)
 	bond_dev->lltx = true;
 
 	/* Don't allow bond devices to change network namespaces. */
-	bond_dev->netns_local = true;
+	bond_dev->netns_immutable = true;
 
 	/* By default, we declare the bond to be fully
 	 * VLAN hardware accelerated capable. Special

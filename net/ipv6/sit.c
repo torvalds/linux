@@ -1859,7 +1859,7 @@ static int __net_init sit_init_net(struct net *net)
 	/* FB netdevice is special: we have one, and only one per netns.
 	 * Allowing to move it to another netns is clearly unsafe.
 	 */
-	sitn->fb_tunnel_dev->netns_local = true;
+	sitn->fb_tunnel_dev->netns_immutable = true;
 
 	t = netdev_priv(sitn->fb_tunnel_dev);
 	t->net = net;

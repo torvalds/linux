@@ -905,7 +905,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev,
 
 	netdev->features |= netdev->hw_features;
 
-	netdev->netns_local = true;
+	netdev->netns_immutable = true;
 }
 
 static int mlx5e_init_rep(struct mlx5_core_dev *mdev,
