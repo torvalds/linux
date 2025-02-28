@@ -1462,8 +1462,6 @@ static int machine__create_modules(struct machine *machine)
 	if (modules__parse(modules, machine, machine__create_module))
 		return -1;
 
-	maps__fixup_end(machine__kernel_maps(machine));
-
 	if (!machine__set_modules_path(machine))
 		return 0;
 
@@ -1556,6 +1554,8 @@ int machine__create_kernel_maps(struct machine *machine)
 			map__put(next);
 		}
 	}
+
+	maps__fixup_end(machine__kernel_maps(machine));
 
 out_put:
 	dso__put(kernel);
