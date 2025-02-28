@@ -837,8 +837,7 @@ done:
 	if (ret) {
 		if (imu)
 			io_free_imu(ctx, imu);
-		if (node)
-			io_free_node(ctx, node);
+		io_free_node(ctx, node);
 		node = ERR_PTR(ret);
 	}
 	kvfree(pages);
