@@ -743,9 +743,9 @@ free_message:
 }
 
 static const struct fbnic_tlv_index fbnic_tsene_read_resp_index[] = {
-	FBNIC_TLV_ATTR_S32(FBNIC_TSENE_THERM),
-	FBNIC_TLV_ATTR_S32(FBNIC_TSENE_VOLT),
-	FBNIC_TLV_ATTR_S32(FBNIC_TSENE_ERROR),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_TSENE_THERM),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_TSENE_VOLT),
+	FBNIC_TLV_ATTR_S32(FBNIC_FW_TSENE_ERROR),
 	FBNIC_TLV_ATTR_LAST
 };
 
@@ -762,21 +762,21 @@ static int fbnic_fw_parse_tsene_read_resp(void *opaque,
 	if (!cmpl_data)
 		return -EINVAL;
 
-	if (results[FBNIC_TSENE_ERROR]) {
-		err = fbnic_tlv_attr_get_unsigned(results[FBNIC_TSENE_ERROR]);
+	if (results[FBNIC_FW_TSENE_ERROR]) {
+		err = fbnic_tlv_attr_get_unsigned(results[FBNIC_FW_TSENE_ERROR]);
 		if (err)
 			goto exit_complete;
 	}
 
-	if (!results[FBNIC_TSENE_THERM] || !results[FBNIC_TSENE_VOLT]) {
+	if (!results[FBNIC_FW_TSENE_THERM] || !results[FBNIC_FW_TSENE_VOLT]) {
 		err = -EINVAL;
 		goto exit_complete;
 	}
 
 	cmpl_data->u.tsene.millidegrees =
-		fbnic_tlv_attr_get_signed(results[FBNIC_TSENE_THERM]);
+		fbnic_tlv_attr_get_signed(results[FBNIC_FW_TSENE_THERM]);
 	cmpl_data->u.tsene.millivolts =
-		fbnic_tlv_attr_get_signed(results[FBNIC_TSENE_VOLT]);
+		fbnic_tlv_attr_get_signed(results[FBNIC_FW_TSENE_VOLT]);
 
 exit_complete:
 	cmpl_data->result = err;
