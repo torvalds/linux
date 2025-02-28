@@ -4,3 +4,4 @@
 #
 
 obj-$(CONFIG_NET_AIROHA) += airoha_eth.o
+obj-$(CONFIG_NET_AIROHA_NPU) += airoha_npu.o

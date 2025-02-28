@@ -240,6 +240,8 @@ struct airoha_eth {
 	unsigned long state;
 	void __iomem *fe_regs;
 
+	struct airoha_npu __rcu *npu;
+
 	struct reset_control_bulk_data rsts[AIROHA_MAX_NUM_RSTS];
 	struct reset_control_bulk_data xsi_rsts[AIROHA_MAX_NUM_XSI_RSTS];
 
