@@ -9,10 +9,12 @@
 #include <event-parse.h>
 #endif
 #include <perf/mmap.h>
+#include "callchain.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "event.h"
 #include "print_binary.h"
+#include "record.h"
 #include "strbuf.h"
 #include "thread_map.h"
 #include "trace-event.h"
@@ -1052,6 +1054,31 @@ static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 	return Py_None;
 }
 
+static PyObject *pyrf_evlist__config(struct pyrf_evlist *pevlist)
+{
+	struct record_opts opts = {
+		.sample_time	     = true,
+		.mmap_pages	     = UINT_MAX,
+		.user_freq	     = UINT_MAX,
+		.user_interval	     = ULLONG_MAX,
+		.freq		     = 4000,
+		.target		     = {
+			.uses_mmap   = true,
+			.default_per_cpu = true,
+		},
+		.nr_threads_synthesize = 1,
+		.ctl_fd              = -1,
+		.ctl_fd_ack          = -1,
+		.no_buffering        = true,
+		.no_inherit          = true,
+	};
+	struct evlist *evlist = &pevlist->evlist;
+
+	evlist__config(evlist, &opts, &callchain_param);
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
 static PyObject *pyrf_evlist__disable(struct pyrf_evlist *pevlist)
 {
 	evlist__disable(&pevlist->evlist);
@@ -1108,6 +1135,12 @@ static PyMethodDef pyrf_evlist__methods[] = {
 		.ml_meth  = (PyCFunction)pyrf_evlist__read_on_cpu,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 		.ml_doc	  = PyDoc_STR("reads an event.")
+	},
+	{
+		.ml_name  = "config",
+		.ml_meth  = (PyCFunction)pyrf_evlist__config,
+		.ml_flags = METH_NOARGS,
+		.ml_doc	  = PyDoc_STR("Apply default record options to the evlist.")
 	},
 	{
 		.ml_name  = "disable",
