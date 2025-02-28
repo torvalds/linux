@@ -303,6 +303,7 @@ int amd_pmf_get_pprof_modes(struct amd_pmf_dev *pmf)
 		mode = POWER_MODE_BALANCED_POWER;
 		break;
 	case PLATFORM_PROFILE_LOW_POWER:
+	case PLATFORM_PROFILE_QUIET:
 		mode = POWER_MODE_POWER_SAVER;
 		break;
 	default:
@@ -387,6 +388,13 @@ static int amd_pmf_profile_set(struct device *dev,
 	return 0;
 }
 
+static int amd_pmf_hidden_choices(void *drvdata, unsigned long *choices)
+{
+	set_bit(PLATFORM_PROFILE_QUIET, choices);
+
+	return 0;
+}
+
 static int amd_pmf_profile_probe(void *drvdata, unsigned long *choices)
 {
 	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
@@ -398,6 +406,7 @@ static int amd_pmf_profile_probe(void *drvdata, unsigned long *choices)
 
 static const struct platform_profile_ops amd_pmf_profile_ops = {
 	.probe = amd_pmf_profile_probe,
+	.hidden_choices = amd_pmf_hidden_choices,
 	.profile_get = amd_pmf_profile_get,
 	.profile_set = amd_pmf_profile_set,
 };
