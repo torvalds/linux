@@ -1,6 +1,53 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+_create_backfile() {
+	local my_size=$1
+	local my_file=`mktemp ublk_bpf_${my_size}_XXXXX`
+
+	truncate -s ${my_size} ${my_file}
+	echo $my_file
+}
+
+_remove_backfile() {
+	local file=$1
+
+	[ -f "$file" ] && rm -f $file
+}
+
+_create_tmp_dir() {
+	local my_file=`mktemp -d ublk_bpf_dir_XXXXX`
+
+	echo $my_file
+}
+
+_remove_tmp_dir() {
+	local dir=$1
+
+	[ -d "$dir" ] && rmdir $dir
+}
+
+_mkfs_mount_test()
+{
+	local dev=$1
+	local err_code=0
+	local mnt_dir=`_create_tmp_dir`
+
+	mkfs.ext4 -F $dev > /dev/null 2>&1
+	err_code=$?
+	if [ $err_code -ne 0 ]; then
+		return $err_code
+	fi
+
+	mount -t ext4 $dev $mnt_dir > /dev/null 2>&1
+	umount $dev
+	err_code=$?
+	_remove_tmp_dir $mnt_dir
+	if [ $err_code -ne 0 ]; then
+		return $err_code
+	fi
+}
+
 _check_root() {
 	local ksft_skip=4
 
