@@ -325,7 +325,7 @@ void cper_print_proc_ia(const char *pfx, const struct cper_sec_proc_ia *proc)
 
 	ctx_info = (struct cper_ia_proc_ctx *)err_info;
 	for (i = 0; i < VALID_PROC_CXT_INFO_NUM(proc->validation_bits); i++) {
-		int size = sizeof(*ctx_info) + ctx_info->reg_arr_size;
+		int size = ALIGN(sizeof(*ctx_info) + ctx_info->reg_arr_size, 16);
 		int groupsize = 4;
 
 		printk("%sContext Information Structure %d:\n", pfx, i);
