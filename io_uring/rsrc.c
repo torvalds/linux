@@ -782,7 +782,6 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
-	node->buf = NULL;
 
 	ret = -ENOMEM;
 	pages = io_pin_pages((unsigned long) iov->iov_base, iov->iov_len,
@@ -839,7 +838,7 @@ done:
 		if (imu)
 			io_free_imu(ctx, imu);
 		if (node)
-			io_put_rsrc_node(ctx, node);
+			io_free_node(ctx, node);
 		node = ERR_PTR(ret);
 	}
 	kvfree(pages);
