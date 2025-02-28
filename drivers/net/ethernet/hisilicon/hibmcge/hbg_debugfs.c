@@ -117,6 +117,8 @@ static int hbg_dbg_nic_state(struct seq_file *s, void *unused)
 		   reset_type_str[priv->reset_type]);
 	seq_printf(s, "need reset state: %s\n",
 		   state_str_true_false(priv, HBG_NIC_STATE_NEED_RESET));
+	seq_printf(s, "np_link fail state: %s\n",
+		   state_str_true_false(priv, HBG_NIC_STATE_NP_LINK_FAIL));
 
 	return 0;
 }

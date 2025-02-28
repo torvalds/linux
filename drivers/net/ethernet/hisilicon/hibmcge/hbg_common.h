@@ -37,6 +37,7 @@ enum hbg_nic_state {
 	HBG_NIC_STATE_RESETTING,
 	HBG_NIC_STATE_RESET_FAIL,
 	HBG_NIC_STATE_NEED_RESET, /* trigger a reset in scheduled task */
+	HBG_NIC_STATE_NP_LINK_FAIL,
 };
 
 enum hbg_reset_type {
@@ -82,6 +83,7 @@ enum hbg_hw_event_type {
 	HBG_HW_EVENT_NONE = 0,
 	HBG_HW_EVENT_INIT, /* driver is loading */
 	HBG_HW_EVENT_RESET,
+	HBG_HW_EVENT_CORE_RESET,
 };
 
 struct hbg_dev_specs {
@@ -252,6 +254,8 @@ struct hbg_stats {
 
 	u64 tx_timeout_cnt;
 	u64 tx_dma_err_cnt;
+
+	u64 np_link_fail_cnt;
 };
 
 struct hbg_priv {
@@ -272,5 +276,6 @@ struct hbg_priv {
 };
 
 void hbg_err_reset_task_schedule(struct hbg_priv *priv);
+void hbg_np_link_fail_task_schedule(struct hbg_priv *priv);
 
 #endif

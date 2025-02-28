@@ -286,6 +286,9 @@ static void hbg_service_task(struct work_struct *work)
 	if (test_and_clear_bit(HBG_NIC_STATE_NEED_RESET, &priv->state))
 		hbg_err_reset(priv);
 
+	if (test_and_clear_bit(HBG_NIC_STATE_NP_LINK_FAIL, &priv->state))
+		hbg_fix_np_link_fail(priv);
+
 	/* The type of statistics register is u32,
 	 * To prevent the statistics register from overflowing,
 	 * the driver dumps the statistics every 30 seconds.
@@ -298,6 +301,12 @@ static void hbg_service_task(struct work_struct *work)
 void hbg_err_reset_task_schedule(struct hbg_priv *priv)
 {
 	set_bit(HBG_NIC_STATE_NEED_RESET, &priv->state);
+	schedule_delayed_work(&priv->service_task, 0);
+}
+
+void hbg_np_link_fail_task_schedule(struct hbg_priv *priv)
+{
+	set_bit(HBG_NIC_STATE_NP_LINK_FAIL, &priv->state);
 	schedule_delayed_work(&priv->service_task, 0);
 }
 
