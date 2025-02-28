@@ -723,6 +723,13 @@ enum scsi_disposition scsi_check_sense(struct scsi_cmnd *scmd)
 		return SUCCESS;
 
 	case COMPLETED:
+		/*
+		 * A command using command duration limits (CDL) with a
+		 * descriptor set with policy 0xD may be completed with success
+		 * and the sense data DATA CURRENTLY UNAVAILABLE, indicating
+		 * that the command was in fact aborted because it exceeded its
+		 * duration limit. Never retry these commands.
+		 */
 		if (sshdr.asc == 0x55 && sshdr.ascq == 0x0a) {
 			set_scsi_ml_byte(scmd, SCSIML_STAT_DL_TIMEOUT);
 			req->cmd_flags |= REQ_FAILFAST_DEV;
