@@ -1575,7 +1575,7 @@ static void ip_fib_net_exit(struct net *net)
 {
 	int i;
 
-	ASSERT_RTNL();
+	ASSERT_RTNL_NET(net);
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	RCU_INIT_POINTER(net->ipv4.fib_main, NULL);
 	RCU_INIT_POINTER(net->ipv4.fib_default, NULL);
@@ -1635,9 +1635,9 @@ out_proc:
 out_nlfl:
 	fib4_semantics_exit(net);
 out_semantics:
-	rtnl_lock();
+	rtnl_net_lock(net);
 	ip_fib_net_exit(net);
-	rtnl_unlock();
+	rtnl_net_unlock(net);
 	goto out;
 }
 
@@ -1652,9 +1652,11 @@ static void __net_exit fib_net_exit_batch(struct list_head *net_list)
 	struct net *net;
 
 	rtnl_lock();
-	list_for_each_entry(net, net_list, exit_list)
+	list_for_each_entry(net, net_list, exit_list) {
+		__rtnl_net_lock(net);
 		ip_fib_net_exit(net);
-
+		__rtnl_net_unlock(net);
+	}
 	rtnl_unlock();
 
 	list_for_each_entry(net, net_list, exit_list)
