@@ -1941,16 +1941,9 @@ static inline bool boost_watermark(struct zone *zone)
 }
 
 /*
- * When we are falling back to another migratetype during allocation, try to
- * claim entire blocks to satisfy further allocations, instead of polluting
- * multiple pageblocks.
- *
- * If we are stealing a relatively large buddy page, it is likely there will be
- * more free pages in the pageblock, so try to claim the whole block. For
- * reclaimable and unmovable allocations, we try to claim the whole block
- * regardless of page size, as fragmentation caused by those allocations
- * polluting movable pageblocks is worse than movable allocations stealing from
- * unmovable and reclaimable pageblocks.
+ * When we are falling back to another migratetype during allocation, should we
+ * try to claim an entire block to satisfy further allocations, instead of
+ * polluting multiple pageblocks?
  */
 static bool should_try_claim_block(unsigned int order, int start_mt)
 {
@@ -1965,19 +1958,32 @@ static bool should_try_claim_block(unsigned int order, int start_mt)
 		return true;
 
 	/*
-	 * Movable pages won't cause permanent fragmentation, so when you alloc
-	 * small pages, you just need to temporarily steal unmovable or
-	 * reclaimable pages that are closest to the request size.  After a
-	 * while, memory compaction may occur to form large contiguous pages,
-	 * and the next movable allocation may not need to steal.  Unmovable and
-	 * reclaimable allocations need to actually claim the whole block.
+	 * Above a certain threshold, always try to claim, as it's likely there
+	 * will be more free pages in the pageblock.
 	 */
-	if (order >= pageblock_order / 2 ||
-		start_mt == MIGRATE_RECLAIMABLE ||
-		start_mt == MIGRATE_UNMOVABLE ||
-		page_group_by_mobility_disabled)
+	if (order >= pageblock_order / 2)
 		return true;
 
+	/*
+	 * Unmovable/reclaimable allocations would cause permanent
+	 * fragmentations if they fell back to allocating from a movable block
+	 * (polluting it), so we try to claim the whole block regardless of the
+	 * allocation size. Later movable allocations can always steal from this
+	 * block, which is less problematic.
+	 */
+	if (start_mt == MIGRATE_RECLAIMABLE || start_mt == MIGRATE_UNMOVABLE)
+		return true;
+
+	if (page_group_by_mobility_disabled)
+		return true;
+
+	/*
+	 * Movable pages won't cause permanent fragmentation, so when you alloc
+	 * small pages, we just need to temporarily steal unmovable or
+	 * reclaimable pages that are closest to the request size. After a
+	 * while, memory compaction may occur to form large contiguous pages,
+	 * and the next movable allocation may not need to steal.
+	 */
 	return false;
 }
 
