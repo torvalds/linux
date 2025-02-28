@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/rcupdate.h>
+#include <linux/delay.h>
 #include "../mm/slab.h"
 
 static struct kunit_resource resource;
@@ -181,6 +182,63 @@ static void test_kfree_rcu(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, slab_errors);
 }
 
+struct cache_destroy_work {
+	struct work_struct work;
+	struct kmem_cache *s;
+};
+
+static void cache_destroy_workfn(struct work_struct *w)
+{
+	struct cache_destroy_work *cdw;
+
+	cdw = container_of(w, struct cache_destroy_work, work);
+	kmem_cache_destroy(cdw->s);
+}
+
+#define KMEM_CACHE_DESTROY_NR 10
+
+static void test_kfree_rcu_wq_destroy(struct kunit *test)
+{
+	struct test_kfree_rcu_struct *p;
+	struct cache_destroy_work cdw;
+	struct workqueue_struct *wq;
+	struct kmem_cache *s;
+	unsigned int delay;
+	int i;
+
+	if (IS_BUILTIN(CONFIG_SLUB_KUNIT_TEST))
+		kunit_skip(test, "can't do kfree_rcu() when test is built-in");
+
+	INIT_WORK_ONSTACK(&cdw.work, cache_destroy_workfn);
+	wq = alloc_workqueue("test_kfree_rcu_destroy_wq",
+			WQ_HIGHPRI | WQ_UNBOUND | WQ_MEM_RECLAIM, 0);
+
+	if (!wq)
+		kunit_skip(test, "failed to alloc wq");
+
+	for (i = 0; i < KMEM_CACHE_DESTROY_NR; i++) {
+		s = test_kmem_cache_create("TestSlub_kfree_rcu_wq_destroy",
+				sizeof(struct test_kfree_rcu_struct),
+				SLAB_NO_MERGE);
+
+		if (!s)
+			kunit_skip(test, "failed to create cache");
+
+		delay = get_random_u8();
+		p = kmem_cache_alloc(s, GFP_KERNEL);
+		kfree_rcu(p, rcu);
+
+		cdw.s = s;
+
+		msleep(delay);
+		queue_work(wq, &cdw.work);
+		flush_work(&cdw.work);
+	}
+
+	destroy_workqueue(wq);
+	KUNIT_EXPECT_EQ(test, 0, slab_errors);
+}
+
 static void test_leak_destroy(struct kunit *test)
 {
 	struct kmem_cache *s = test_kmem_cache_create("TestSlub_leak_destroy",
@@ -254,6 +312,7 @@ static struct kunit_case test_cases[] = {
 	KUNIT_CASE(test_clobber_redzone_free),
 	KUNIT_CASE(test_kmalloc_redzone_access),
 	KUNIT_CASE(test_kfree_rcu),
+	KUNIT_CASE(test_kfree_rcu_wq_destroy),
 	KUNIT_CASE(test_leak_destroy),
 	KUNIT_CASE(test_krealloc_redzone_zeroing),
 	{}
