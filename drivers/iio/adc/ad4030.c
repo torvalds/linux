@@ -1011,8 +1011,8 @@ static int ad4030_probe(struct spi_device *spi)
 	st->regmap = devm_regmap_init(dev, &ad4030_regmap_bus, st,
 				      &ad4030_regmap_config);
 	if (IS_ERR(st->regmap))
-		dev_err_probe(dev, PTR_ERR(st->regmap),
-			      "Failed to initialize regmap\n");
+		return dev_err_probe(dev, PTR_ERR(st->regmap),
+				     "Failed to initialize regmap\n");
 
 	st->chip = spi_get_device_match_data(spi);
 	if (!st->chip)
