@@ -1779,7 +1779,7 @@ static const struct regmap_config disp_cc_sm8450_regmap_config = {
 	.fast_io = true,
 };
 
-static struct qcom_cc_desc disp_cc_sm8450_desc = {
+static const struct qcom_cc_desc disp_cc_sm8450_desc = {
 	.config = &disp_cc_sm8450_regmap_config,
 	.clks = disp_cc_sm8450_clocks,
 	.num_clks = ARRAY_SIZE(disp_cc_sm8450_clocks),
