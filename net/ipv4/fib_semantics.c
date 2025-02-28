@@ -1420,28 +1420,21 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	}
 #endif
 
-	err = -ENOBUFS;
-
 	if (fib_info_cnt >= fib_info_hash_size) {
+		unsigned int new_hash_bits = fib_info_hash_bits + 1;
 		struct hlist_head *new_info_hash;
-		unsigned int new_hash_bits;
-
-		if (!fib_info_hash_bits)
-			new_hash_bits = 4;
-		else
-			new_hash_bits = fib_info_hash_bits + 1;
 
 		new_info_hash = fib_info_hash_alloc(new_hash_bits);
 		if (new_info_hash)
 			fib_info_hash_move(new_info_hash, 1 << new_hash_bits);
-
-		if (!fib_info_hash_size)
-			goto failure;
 	}
 
 	fi = kzalloc(struct_size(fi, fib_nh, nhs), GFP_KERNEL);
-	if (!fi)
+	if (!fi) {
+		err = -ENOBUFS;
 		goto failure;
+	}
+
 	fi->fib_metrics = ip_fib_metrics_init(cfg->fc_mx, cfg->fc_mx_len, extack);
 	if (IS_ERR(fi->fib_metrics)) {
 		err = PTR_ERR(fi->fib_metrics);
@@ -1862,7 +1855,7 @@ int fib_sync_down_addr(struct net_device *dev, __be32 local)
 	struct fib_info *fi;
 	int ret = 0;
 
-	if (!fib_info_laddrhash || local == 0)
+	if (!local)
 		return 0;
 
 	head = fib_info_laddrhash_bucket(net, local);
@@ -2263,4 +2256,30 @@ check_saddr:
 		else
 			fl4->saddr = inet_select_addr(l3mdev, 0, RT_SCOPE_LINK);
 	}
+}
+
+int __net_init fib4_semantics_init(struct net *net)
+{
+	unsigned int hash_bits = 4;
+
+	if (!net_eq(net, &init_net))
+		return 0;
+
+	fib_info_hash = fib_info_hash_alloc(hash_bits);
+	if (!fib_info_hash)
+		return -ENOMEM;
+
+	fib_info_hash_bits = hash_bits;
+	fib_info_hash_size = 1 << hash_bits;
+	fib_info_laddrhash = fib_info_hash + fib_info_hash_size;
+
+	return 0;
+}
+
+void __net_exit fib4_semantics_exit(struct net *net)
+{
+	if (!net_eq(net, &init_net))
+		return;
+
+	fib_info_hash_free(fib_info_hash);
 }
