@@ -105,6 +105,7 @@ struct ec_bio {
 	struct bch_dev		*ca;
 	struct ec_stripe_buf	*buf;
 	size_t			idx;
+	u64			submit_time;
 	struct bio		bio;
 };
 
@@ -748,14 +749,15 @@ static void ec_block_endio(struct bio *bio)
 	struct bch_dev *ca = ec_bio->ca;
 	struct closure *cl = bio->bi_private;
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca,
-			       bio_data_dir(bio)
-			       ? BCH_MEMBER_ERROR_write
-			       : BCH_MEMBER_ERROR_read,
-			       "erasure coding %s error: %s",
+	bch2_account_io_completion(ca, bio_data_dir(bio),
+				   ec_bio->submit_time, !bio->bi_status);
+
+	if (bio->bi_status) {
+		bch_err_dev_ratelimited(ca, "erasure coding %s error: %s",
 			       str_write_read(bio_data_dir(bio)),
-			       bch2_blk_status_to_str(bio->bi_status)))
+			       bch2_blk_status_to_str(bio->bi_status));
 		clear_bit(ec_bio->idx, ec_bio->buf->valid);
+	}
 
 	int stale = dev_ptr_stale(ca, ptr);
 	if (stale) {
@@ -818,6 +820,7 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 		ec_bio->ca			= ca;
 		ec_bio->buf			= buf;
 		ec_bio->idx			= idx;
+		ec_bio->submit_time		= local_clock();
 
 		ec_bio->bio.bi_iter.bi_sector	= ptr->offset + buf->offset + (offset >> 9);
 		ec_bio->bio.bi_end_io		= ec_block_endio;

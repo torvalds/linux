@@ -716,11 +716,15 @@ static void bch2_write_endio(struct bio *bio)
 		? bch2_dev_have_ref(c, wbio->dev)
 		: NULL;
 
-	if (bch2_dev_inum_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
+	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_write,
+				   wbio->submit_time, !bio->bi_status);
+
+	if (bio->bi_status) {
+		bch_err_inum_offset_ratelimited(ca,
 				    op->pos.inode,
 				    wbio->inode_offset << 9,
 				    "data write error: %s",
-				    bch2_blk_status_to_str(bio->bi_status))) {
+				    bch2_blk_status_to_str(bio->bi_status));
 		set_bit(wbio->dev, op->failed.d);
 		op->flags |= BCH_WRITE_io_error;
 	}
@@ -732,10 +736,8 @@ static void bch2_write_endio(struct bio *bio)
 		set_bit(wbio->dev, op->devs_need_flush->d);
 	}
 
-	if (wbio->have_ioref) {
-		bch2_latency_acct(ca, wbio->submit_time, WRITE);
+	if (wbio->have_ioref)
 		percpu_ref_put(&ca->io_ref);
-	}
 
 	if (wbio->bounce)
 		bch2_bio_free_pages_pool(c, bio);

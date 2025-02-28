@@ -222,6 +222,14 @@ void bch2_latency_acct(struct bch_dev *, u64, int);
 static inline void bch2_latency_acct(struct bch_dev *ca, u64 submit_time, int rw) {}
 #endif
 
+static inline void bch2_account_io_success_fail(struct bch_dev *ca,
+						enum bch_member_error_type type,
+						bool success)
+{
+	if (!success)
+		bch2_io_error(ca, type);
+}
+
 static inline void bch2_account_io_completion(struct bch_dev *ca,
 					      enum bch_member_error_type type,
 					      u64 submit_time, bool success)
@@ -232,31 +240,8 @@ static inline void bch2_account_io_completion(struct bch_dev *ca,
 	if (type != BCH_MEMBER_ERROR_checksum)
 		bch2_latency_acct(ca, submit_time, type);
 
-	if (!success)
-		bch2_io_error(ca, type);
+	bch2_account_io_success_fail(ca, type, success);
 }
-
-#define bch2_dev_io_err_on(cond, ca, _type, ...)			\
-({									\
-	bool _ret = (cond);						\
-									\
-	if (_ret) {							\
-		bch_err_dev_ratelimited(ca, __VA_ARGS__);		\
-		bch2_io_error(ca, _type);				\
-	}								\
-	_ret;								\
-})
-
-#define bch2_dev_inum_io_err_on(cond, ca, _type, ...)			\
-({									\
-	bool _ret = (cond);						\
-									\
-	if (_ret) {							\
-		bch_err_inum_offset_ratelimited(ca, __VA_ARGS__);	\
-		bch2_io_error(ca, _type);				\
-	}								\
-	_ret;								\
-})
 
 int bch2_inum_offset_err_msg_trans(struct btree_trans *, struct printbuf *, subvol_inum, u64);
 

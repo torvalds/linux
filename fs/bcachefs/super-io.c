@@ -911,16 +911,16 @@ static void write_super_endio(struct bio *bio)
 {
 	struct bch_dev *ca = bio->bi_private;
 
+	bch2_account_io_success_fail(ca, bio_data_dir(bio), !bio->bi_status);
+
 	/* XXX: return errors directly */
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca,
-			       bio_data_dir(bio)
-			       ? BCH_MEMBER_ERROR_write
-			       : BCH_MEMBER_ERROR_read,
-			       "superblock %s error: %s",
+	if (bio->bi_status) {
+		bch_err_dev_ratelimited(ca, "superblock %s error: %s",
 			       str_write_read(bio_data_dir(bio)),
-			       bch2_blk_status_to_str(bio->bi_status)))
+			       bch2_blk_status_to_str(bio->bi_status));
 		ca->sb_write_error = 1;
+	}
 
 	closure_put(&ca->fs->sb_write);
 	percpu_ref_put(&ca->io_ref);

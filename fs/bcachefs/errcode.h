@@ -279,6 +279,7 @@
 	x(EIO,				no_encryption_key)			\
 	x(EIO,				insufficient_journal_devices)		\
 	x(EIO,				device_offline)				\
+	x(EIO,				EIO_fault_injected)			\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\

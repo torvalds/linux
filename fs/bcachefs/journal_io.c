@@ -1041,13 +1041,19 @@ reread:
 			bio->bi_iter.bi_sector = offset;
 			bch2_bio_map(bio, buf->data, sectors_read << 9);
 
+			u64 submit_time = local_clock();
 			ret = submit_bio_wait(bio);
 			kfree(bio);
 
-			if (bch2_dev_io_err_on(ret, ca, BCH_MEMBER_ERROR_read,
-					       "journal read error: sector %llu",
-					       offset) ||
-			    bch2_meta_read_fault("journal")) {
+			if (!ret && bch2_meta_read_fault("journal"))
+				ret = -BCH_ERR_EIO_fault_injected;
+
+			bch2_account_io_completion(ca, BCH_MEMBER_ERROR_read,
+						   submit_time, !ret);
+
+			if (ret) {
+				bch_err_dev_ratelimited(ca,
+					"journal read error: sector %llu", offset);
 				/*
 				 * We don't error out of the recovery process
 				 * here, since the relevant journal entry may be
@@ -1110,13 +1116,16 @@ reread:
 		struct bch_csum csum;
 		csum_good = jset_csum_good(c, j, &csum);
 
-		if (bch2_dev_io_err_on(!csum_good, ca, BCH_MEMBER_ERROR_checksum,
-				       "%s",
-				       (printbuf_reset(&err),
-					prt_str(&err, "journal "),
-					bch2_csum_err_msg(&err, csum_type, j->csum, csum),
-					err.buf)))
+		bch2_account_io_completion(ca, BCH_MEMBER_ERROR_checksum, 0, csum_good);
+
+		if (!csum_good) {
+			bch_err_dev_ratelimited(ca, "%s",
+				(printbuf_reset(&err),
+				 prt_str(&err, "journal "),
+				 bch2_csum_err_msg(&err, csum_type, j->csum, csum),
+				 err.buf));
 			saw_bad = true;
+		}
 
 		ret = bch2_encrypt(c, JSET_CSUM_TYPE(j), journal_nonce(j),
 			     j->encrypted_start,
@@ -1727,13 +1736,16 @@ static void journal_write_endio(struct bio *bio)
 	struct journal *j = &ca->fs->journal;
 	struct journal_buf *w = j->buf + jbio->buf_idx;
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
+	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_write,
+				   jbio->submit_time, !bio->bi_status);
+
+	if (bio->bi_status) {
+		bch_err_dev_ratelimited(ca,
 			       "error writing journal entry %llu: %s",
 			       le64_to_cpu(w->data->seq),
-			       bch2_blk_status_to_str(bio->bi_status)) ||
-	    bch2_meta_write_fault("journal")) {
-		unsigned long flags;
+			       bch2_blk_status_to_str(bio->bi_status));
 
+		unsigned long flags;
 		spin_lock_irqsave(&j->err_lock, flags);
 		bch2_dev_list_drop_dev(&w->devs_written, ca->dev_idx);
 		spin_unlock_irqrestore(&j->err_lock, flags);
@@ -1762,7 +1774,11 @@ static CLOSURE_CALLBACK(journal_write_submit)
 			     sectors);
 
 		struct journal_device *ja = &ca->journal;
-		struct bio *bio = &ja->bio[w->idx]->bio;
+		struct journal_bio *jbio = ja->bio[w->idx];
+		struct bio *bio = &jbio->bio;
+
+		jbio->submit_time	= local_clock();
+
 		bio_reset(bio, ca->disk_sb.bdev, REQ_OP_WRITE|REQ_SYNC|REQ_META);
 		bio->bi_iter.bi_sector	= ptr->offset;
 		bio->bi_end_io		= journal_write_endio;

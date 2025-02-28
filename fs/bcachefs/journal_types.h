@@ -175,6 +175,7 @@ typedef DARRAY(u64)		darray_u64;
 struct journal_bio {
 	struct bch_dev		*ca;
 	unsigned		buf_idx;
+	u64			submit_time;
 
 	struct bio		bio;
 };

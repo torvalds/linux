@@ -166,11 +166,17 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 	bio->bi_iter.bi_sector	= offset;
 	bch2_bio_map(bio, bn, PAGE_SIZE);
 
+	u64 submit_time = local_clock();
 	submit_bio_wait(bio);
-	if (bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_read,
-			       "IO error in try_read_btree_node() at %llu: %s",
-			       offset, bch2_blk_status_to_str(bio->bi_status)))
+
+	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_read, submit_time, !bio->bi_status);
+
+	if (bio->bi_status) {
+		bch_err_dev_ratelimited(ca,
+				"IO error in try_read_btree_node() at %llu: %s",
+				offset, bch2_blk_status_to_str(bio->bi_status));
 		return;
+	}
 
 	if (le64_to_cpu(bn->magic) != bset_magic(c))
 		return;
