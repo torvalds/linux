@@ -818,6 +818,9 @@ void intel_plane_update_noarm(struct intel_dsb *dsb,
 
 	trace_intel_plane_update_noarm(plane_state, crtc);
 
+	if (plane->fbc)
+		intel_fbc_dirty_rect_update_noarm(dsb, plane);
+
 	if (plane->update_noarm)
 		plane->update_noarm(dsb, plane, crtc_state, plane_state);
 }
