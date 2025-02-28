@@ -1119,7 +1119,7 @@ static const struct regmap_config ltc4162l_regmap_config = {
 	.writeable_reg	= ltc4162l_is_writeable_reg,
 	.volatile_reg	= ltc4162l_is_volatile_reg,
 	.max_register	= LTC4162L_INPUT_UNDERVOLTAGE_DAC,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static void ltc4162l_clear_interrupts(struct ltc4162l_info *info)
