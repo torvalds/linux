@@ -3017,7 +3017,7 @@ int mpt3sas_send_mctp_passthru_req(struct mpt3_passthru_command *command)
 	if (!(ioc->ctl_cmds.status & MPT3_CMD_COMPLETE)) {
 		mpt3sas_check_cmd_timeout(ioc,
 		    ioc->ctl_cmds.status, mpi_request,
-		    sizeof(Mpi26MctpPassthroughRequest_t), issue_reset);
+		    sizeof(Mpi26MctpPassthroughRequest_t) / 4, issue_reset);
 		goto issue_host_reset;
 	}
 
