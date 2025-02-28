@@ -1205,16 +1205,37 @@ static bool tiling_is_valid(const struct intel_plane_state *plane_state)
 }
 
 static void
-intel_fbc_dirty_rect_update(struct intel_dsb *dsb, struct intel_fbc *fbc)
+intel_fbc_invalidate_dirty_rect(struct intel_fbc *fbc)
+{
+	lockdep_assert_held(&fbc->lock);
+
+	fbc->state.dirty_rect = DRM_RECT_INIT(0, 0, 0, 0);
+}
+
+static void
+intel_fbc_program_dirty_rect(struct intel_dsb *dsb, struct intel_fbc *fbc,
+			     const struct drm_rect *fbc_dirty_rect)
 {
 	struct intel_display *display = fbc->display;
-	const struct drm_rect *fbc_dirty_rect = &fbc->state.dirty_rect;
 
-	lockdep_assert_held(&fbc->lock);
+	drm_WARN_ON(display->drm, fbc_dirty_rect->y2 == 0);
 
 	intel_de_write_dsb(display, dsb, XE3_FBC_DIRTY_RECT(fbc->id),
 			   FBC_DIRTY_RECT_START_LINE(fbc_dirty_rect->y1) |
 			   FBC_DIRTY_RECT_END_LINE(fbc_dirty_rect->y2 - 1));
+}
+
+static void
+intel_fbc_dirty_rect_update(struct intel_dsb *dsb, struct intel_fbc *fbc)
+{
+	const struct drm_rect *fbc_dirty_rect = &fbc->state.dirty_rect;
+
+	lockdep_assert_held(&fbc->lock);
+
+	if (!drm_rect_visible(fbc_dirty_rect))
+		return;
+
+	intel_fbc_program_dirty_rect(dsb, fbc, fbc_dirty_rect);
 }
 
 void
@@ -1236,48 +1257,19 @@ intel_fbc_dirty_rect_update_noarm(struct intel_dsb *dsb,
 }
 
 static void
-__intel_fbc_prepare_dirty_rect(const struct intel_plane_state *plane_state)
+intel_fbc_hw_intialize_dirty_rect(struct intel_fbc *fbc,
+				  const struct intel_plane_state *plane_state)
 {
-	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	struct intel_fbc *fbc = plane->fbc;
-	struct drm_rect *fbc_dirty_rect = &fbc->state.dirty_rect;
-	int width = drm_rect_width(&plane_state->uapi.src) >> 16;
-	const struct drm_rect *damage = &plane_state->damage;
-	int y_offset = plane_state->view.color_plane[0].y;
+	struct drm_rect src;
 
-	lockdep_assert_held(&fbc->lock);
+	/*
+	 * Initializing the FBC HW with the whole plane area as the dirty rect.
+	 * This is to ensure that we have valid coords be written to the
+	 * HW as dirty rect.
+	 */
+	drm_rect_fp_to_int(&src, &plane_state->uapi.src);
 
-	if (drm_rect_visible(damage))
-		*fbc_dirty_rect = *damage;
-	else
-		/* dirty rect must cover at least one line */
-		*fbc_dirty_rect = DRM_RECT_INIT(0, y_offset, width, 1);
-}
-
-void
-intel_fbc_prepare_dirty_rect(struct intel_atomic_state *state)
-{
-	struct intel_display *display = to_intel_display(state);
-	struct intel_plane_state *plane_state;
-	struct intel_plane *plane;
-	int i;
-
-	if (!HAS_FBC_DIRTY_RECT(display))
-		return;
-
-	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		struct intel_fbc *fbc = plane->fbc;
-
-		if (!fbc)
-			continue;
-
-		mutex_lock(&fbc->lock);
-
-		if (fbc->state.plane == plane)
-			__intel_fbc_prepare_dirty_rect(plane_state);
-
-		mutex_unlock(&fbc->lock);
-	}
+	intel_fbc_program_dirty_rect(NULL, fbc, &src);
 }
 
 static void intel_fbc_update_state(struct intel_atomic_state *state,
@@ -1351,6 +1343,62 @@ static bool intel_fbc_is_ok(const struct intel_plane_state *plane_state)
 	return !plane_state->no_fbc_reason &&
 		intel_fbc_is_fence_ok(plane_state) &&
 		intel_fbc_is_cfb_ok(plane_state);
+}
+
+static void
+__intel_fbc_prepare_dirty_rect(const struct intel_plane_state *plane_state,
+			       const struct intel_crtc_state *crtc_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	struct intel_fbc *fbc = plane->fbc;
+	struct drm_rect *fbc_dirty_rect = &fbc->state.dirty_rect;
+	int width = drm_rect_width(&plane_state->uapi.src) >> 16;
+	const struct drm_rect *damage = &plane_state->damage;
+	int y_offset = plane_state->view.color_plane[0].y;
+
+	lockdep_assert_held(&fbc->lock);
+
+	if (intel_crtc_needs_modeset(crtc_state) ||
+	    !intel_fbc_is_ok(plane_state)) {
+		intel_fbc_invalidate_dirty_rect(fbc);
+		return;
+	}
+
+	if (drm_rect_visible(damage))
+		*fbc_dirty_rect = *damage;
+	else
+		/* dirty rect must cover at least one line */
+		*fbc_dirty_rect = DRM_RECT_INIT(0, y_offset, width, 1);
+}
+
+void
+intel_fbc_prepare_dirty_rect(struct intel_atomic_state *state,
+			     struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(state);
+	const struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	if (!HAS_FBC_DIRTY_RECT(display))
+		return;
+
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		struct intel_fbc *fbc = plane->fbc;
+
+		if (!fbc || plane->pipe != crtc->pipe)
+			continue;
+
+		mutex_lock(&fbc->lock);
+
+		if (fbc->state.plane == plane)
+			__intel_fbc_prepare_dirty_rect(plane_state,
+						       crtc_state);
+
+		mutex_unlock(&fbc->lock);
+	}
 }
 
 static int intel_fbc_check_plane(struct intel_atomic_state *state,
@@ -1629,6 +1677,8 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 	drm_dbg_kms(display->drm, "Disabling FBC on [PLANE:%d:%s]\n",
 		    plane->base.base.id, plane->base.name);
 
+	intel_fbc_invalidate_dirty_rect(fbc);
+
 	__intel_fbc_cleanup_cfb(fbc);
 
 	fbc->state.plane = NULL;
@@ -1813,6 +1863,9 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 	fbc->no_fbc_reason = "FBC enabled but not active yet\n";
 
 	intel_fbc_update_state(state, crtc, plane);
+
+	if (HAS_FBC_DIRTY_RECT(display))
+		intel_fbc_hw_intialize_dirty_rect(fbc, plane_state);
 
 	intel_fbc_program_workarounds(fbc);
 	intel_fbc_program_cfb(fbc);
