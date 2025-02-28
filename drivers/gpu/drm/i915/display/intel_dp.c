@@ -4396,7 +4396,7 @@ intel_dp_mst_configure(struct intel_dp *intel_dp)
 	if (intel_dp->is_mst)
 		intel_dp_mst_prepare_probe(intel_dp);
 
-	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
+	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst.mgr, intel_dp->is_mst);
 
 	/* Avoid stale info on the next detect cycle. */
 	intel_dp->mst_detect = DRM_DP_SST;
@@ -4412,9 +4412,9 @@ intel_dp_mst_disconnect(struct intel_dp *intel_dp)
 
 	drm_dbg_kms(display->drm,
 		    "MST device may have disappeared %d vs %d\n",
-		    intel_dp->is_mst, intel_dp->mst_mgr.mst_state);
+		    intel_dp->is_mst, intel_dp->mst.mgr.mst_state);
 	intel_dp->is_mst = false;
-	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
+	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst.mgr, intel_dp->is_mst);
 }
 
 static bool
@@ -4920,7 +4920,7 @@ intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, u8 *ack)
 {
 	bool handled = false;
 
-	drm_dp_mst_hpd_irq_handle_event(&intel_dp->mst_mgr, esi, ack, &handled);
+	drm_dp_mst_hpd_irq_handle_event(&intel_dp->mst.mgr, esi, ack, &handled);
 
 	if (esi[1] & DP_CP_IRQ) {
 		intel_hdcp_handle_cp_irq(intel_dp->attached_connector);
@@ -4969,7 +4969,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 	bool link_ok = true;
 	bool reprobe_needed = false;
 
-	drm_WARN_ON_ONCE(display->drm, intel_dp->active_mst_links < 0);
+	drm_WARN_ON_ONCE(display->drm, intel_dp->mst.active_links < 0);
 
 	for (;;) {
 		u8 esi[4] = {};
@@ -4985,7 +4985,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		drm_dbg_kms(display->drm, "DPRX ESI: %4ph\n", esi);
 
-		if (intel_dp->active_mst_links > 0 && link_ok &&
+		if (intel_dp->mst.active_links > 0 && link_ok &&
 		    esi[3] & LINK_STATUS_CHANGED) {
 			if (!intel_dp_mst_link_status(intel_dp))
 				link_ok = false;
@@ -5008,7 +5008,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 			drm_dbg_kms(display->drm, "Failed to ack ESI\n");
 
 		if (ack[1] & (DP_DOWN_REP_MSG_RDY | DP_UP_REQ_MSG_RDY))
-			drm_dp_mst_hpd_irq_send_new_request(&intel_dp->mst_mgr);
+			drm_dp_mst_hpd_irq_send_new_request(&intel_dp->mst.mgr);
 	}
 
 	if (!link_ok || intel_dp->link.force_retrain)
@@ -5107,7 +5107,7 @@ bool intel_dp_has_connector(struct intel_dp *intel_dp,
 
 	/* MST */
 	for_each_pipe(display, pipe) {
-		encoder = &intel_dp->mst_encoders[pipe]->base;
+		encoder = &intel_dp->mst.stream_encoders[pipe]->base;
 		if (conn_state->best_encoder == &encoder->base)
 			return true;
 	}
@@ -6066,7 +6066,7 @@ static int intel_dp_connector_atomic_check(struct drm_connector *conn,
 		return ret;
 
 	if (intel_dp_mst_source_support(intel_dp)) {
-		ret = drm_dp_mst_root_conn_atomic_check(conn_state, &intel_dp->mst_mgr);
+		ret = drm_dp_mst_root_conn_atomic_check(conn_state, &intel_dp->mst.mgr);
 		if (ret)
 			return ret;
 	}
@@ -6604,7 +6604,7 @@ void intel_dp_mst_suspend(struct intel_display *display)
 			continue;
 
 		if (intel_dp->is_mst)
-			drm_dp_mst_topology_mgr_suspend(&intel_dp->mst_mgr);
+			drm_dp_mst_topology_mgr_suspend(&intel_dp->mst.mgr);
 	}
 }
 
@@ -6627,12 +6627,10 @@ void intel_dp_mst_resume(struct intel_display *display)
 		if (!intel_dp_mst_source_support(intel_dp))
 			continue;
 
-		ret = drm_dp_mst_topology_mgr_resume(&intel_dp->mst_mgr,
-						     true);
+		ret = drm_dp_mst_topology_mgr_resume(&intel_dp->mst.mgr, true);
 		if (ret) {
 			intel_dp->is_mst = false;
-			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
-							false);
+			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst.mgr, false);
 		}
 	}
 }

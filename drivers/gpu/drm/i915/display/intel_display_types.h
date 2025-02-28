@@ -1724,7 +1724,6 @@ struct intel_dp {
 	struct intel_pps pps;
 
 	bool is_mst;
-	int active_mst_links;
 	enum drm_dp_mst_mode mst_detect;
 
 	/* connector directly attached - won't be use for modeset in mst world */
@@ -1734,9 +1733,11 @@ struct intel_dp {
 	struct drm_dp_tunnel *tunnel;
 	bool tunnel_suspended:1;
 
-	/* mst connector list */
-	struct intel_dp_mst_encoder *mst_encoders[I915_MAX_PIPES];
-	struct drm_dp_mst_topology_mgr mst_mgr;
+	struct {
+		struct intel_dp_mst_encoder *stream_encoders[I915_MAX_PIPES];
+		struct drm_dp_mst_topology_mgr mgr;
+		int active_links;
+	} mst;
 
 	u32 (*get_aux_clock_divider)(struct intel_dp *dp, int index);
 	/*

@@ -136,7 +136,7 @@ intel_hdcp_required_content_stream(struct intel_atomic_state *state,
 		data->k++;
 
 		/* if there is only one active stream */
-		if (dig_port->dp.active_mst_links <= 1)
+		if (dig_port->dp.mst.active_links <= 1)
 			break;
 	}
 	drm_connector_list_iter_end(&conn_iter);

@@ -749,7 +749,7 @@ static int i915_dp_mst_info(struct seq_file *m, void *unused)
 		seq_printf(m, "MST Source Port [ENCODER:%d:%s]\n",
 			   dig_port->base.base.base.id,
 			   dig_port->base.base.name);
-		drm_dp_mst_dump_topology(m, &dig_port->dp.mst_mgr);
+		drm_dp_mst_dump_topology(m, &dig_port->dp.mst.mgr);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
