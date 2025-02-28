@@ -104,6 +104,8 @@ struct netconsole_target_stats  {
 enum sysdata_feature {
 	/* Populate the CPU that sends the message */
 	SYSDATA_CPU_NR = BIT(0),
+	/* Populate the task name (as in current->comm) in sysdata */
+	SYSDATA_TASKNAME = BIT(1),
 };
 
 /**
@@ -700,6 +702,8 @@ static size_t count_extradata_entries(struct netconsole_target *nt)
 	entries = list_count_nodes(&nt->userdata_group.cg_children);
 	/* Plus sysdata entries */
 	if (nt->sysdata_fields & SYSDATA_CPU_NR)
+		entries += 1;
+	if (nt->sysdata_fields & SYSDATA_TASKNAME)
 		entries += 1;
 
 	return entries;
