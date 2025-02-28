@@ -216,6 +216,26 @@ void bch2_io_error_work(struct work_struct *);
 /* Does the error handling without logging a message */
 void bch2_io_error(struct bch_dev *, enum bch_member_error_type);
 
+#ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
+void bch2_latency_acct(struct bch_dev *, u64, int);
+#else
+static inline void bch2_latency_acct(struct bch_dev *ca, u64 submit_time, int rw) {}
+#endif
+
+static inline void bch2_account_io_completion(struct bch_dev *ca,
+					      enum bch_member_error_type type,
+					      u64 submit_time, bool success)
+{
+	if (unlikely(!ca))
+		return;
+
+	if (type != BCH_MEMBER_ERROR_checksum)
+		bch2_latency_acct(ca, submit_time, type);
+
+	if (!success)
+		bch2_io_error(ca, type);
+}
+
 #define bch2_dev_io_err_on(cond, ca, _type, ...)			\
 ({									\
 	bool _ret = (cond);						\

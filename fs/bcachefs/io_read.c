@@ -524,12 +524,10 @@ static void bch2_read_io_err(struct work_struct *work)
 	bch2_read_err_msg(c, &buf, rbio, rbio->read_pos);
 	prt_printf(&buf, "data read error: %s", bch2_blk_status_to_str(bio->bi_status));
 
-	if (ca) {
-		bch2_io_error(ca, BCH_MEMBER_ERROR_read);
+	if (ca)
 		bch_err_ratelimited(ca, "%s", buf.buf);
-	} else {
+	else
 		bch_err_ratelimited(c, "%s", buf.buf);
-	}
 
 	printbuf_exit(&buf);
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, bio->bi_status);
@@ -614,12 +612,10 @@ static void bch2_read_csum_err(struct work_struct *work)
 	bch2_csum_err_msg(&buf, crc.csum_type, rbio->pick.crc.csum, csum);
 
 	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
-	if (ca) {
-		bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
+	if (ca)
 		bch_err_ratelimited(ca, "%s", buf.buf);
-	} else {
+	else
 		bch_err_ratelimited(c, "%s", buf.buf);
-	}
 
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 	printbuf_exit(&buf);
@@ -671,6 +667,7 @@ static void __bch2_read_endio(struct work_struct *work)
 	struct bch_read_bio *rbio =
 		container_of(work, struct bch_read_bio, work);
 	struct bch_fs *c	= rbio->c;
+	struct bch_dev *ca = rbio->have_ioref ? bch2_dev_have_ref(c, rbio->pick.ptr.dev) : NULL;
 	struct bio *src		= &rbio->bio;
 	struct bio *dst		= &bch2_rbio_parent(rbio)->bio;
 	struct bvec_iter dst_iter = rbio->bvec_iter;
@@ -692,7 +689,22 @@ static void __bch2_read_endio(struct work_struct *work)
 	}
 
 	csum = bch2_checksum_bio(c, crc.csum_type, nonce, src);
-	if (bch2_crc_cmp(csum, rbio->pick.crc.csum) && !c->opts.no_data_io)
+	bool csum_good = !bch2_crc_cmp(csum, rbio->pick.crc.csum) || c->opts.no_data_io;
+
+	/*
+	 * Checksum error: if the bio wasn't bounced, we may have been
+	 * reading into buffers owned by userspace (that userspace can
+	 * scribble over) - retry the read, bouncing it this time:
+	 */
+	if (!csum_good && !rbio->bounce && (rbio->flags & BCH_READ_user_mapped)) {
+		rbio->flags |= BCH_READ_must_bounce;
+		bch2_rbio_error(rbio, READ_RETRY, BLK_STS_IOERR);
+		goto out;
+	}
+
+	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_checksum, 0, csum_good);
+
+	if (!csum_good)
 		goto csum_err;
 
 	/*
@@ -765,17 +777,6 @@ out:
 	memalloc_nofs_restore(nofs_flags);
 	return;
 csum_err:
-	/*
-	 * Checksum error: if the bio wasn't bounced, we may have been
-	 * reading into buffers owned by userspace (that userspace can
-	 * scribble over) - retry the read, bouncing it this time:
-	 */
-	if (!rbio->bounce && (rbio->flags & BCH_READ_user_mapped)) {
-		rbio->flags |= BCH_READ_must_bounce;
-		bch2_rbio_error(rbio, READ_RETRY, BLK_STS_IOERR);
-		goto out;
-	}
-
 	bch2_rbio_punt(rbio, bch2_read_csum_err, RBIO_CONTEXT_UNBOUND, system_unbound_wq);
 	goto out;
 decompression_err:
@@ -795,8 +796,8 @@ static void bch2_read_endio(struct bio *bio)
 	struct workqueue_struct *wq = NULL;
 	enum rbio_context context = RBIO_CONTEXT_NULL;
 
-	if (ca)
-		bch2_latency_acct(ca, rbio->submit_time, READ);
+	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_read,
+				   rbio->submit_time, !bio->bi_status);
 
 	if (!rbio->split)
 		rbio->bio.bi_end_io = rbio->end_io;
