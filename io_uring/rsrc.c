@@ -959,11 +959,7 @@ int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,
 	imu->release = release;
 	imu->priv = rq;
 	imu->is_kbuf = true;
-
-	if (op_is_write(req_op(rq)))
-		imu->dir = IO_IMU_SOURCE;
-	else
-		imu->dir = IO_IMU_DEST;
+	imu->dir = 1 << rq_data_dir(rq);
 
 	bvec = imu->bvec;
 	rq_for_each_bvec(bv, rq, rq_iter)
