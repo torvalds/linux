@@ -376,6 +376,46 @@ static void fib_info_hash_free(struct hlist_head *head)
 	kvfree(head);
 }
 
+static void fib_info_hash_grow(void)
+{
+	struct hlist_head *new_info_hash, *old_info_hash;
+	unsigned int old_size = 1 << fib_info_hash_bits;
+	unsigned int i;
+
+	if (fib_info_cnt < old_size)
+		return;
+
+	new_info_hash = fib_info_hash_alloc(fib_info_hash_bits + 1);
+	if (!new_info_hash)
+		return;
+
+	old_info_hash = fib_info_hash;
+	fib_info_hash = new_info_hash;
+	fib_info_hash_bits += 1;
+
+	for (i = 0; i < old_size; i++) {
+		struct hlist_head *head = &old_info_hash[i];
+		struct hlist_node *n;
+		struct fib_info *fi;
+
+		hlist_for_each_entry_safe(fi, n, head, fib_hash)
+			hlist_add_head(&fi->fib_hash, fib_info_hash_bucket(fi));
+	}
+
+	for (i = 0; i < old_size; i++) {
+		struct hlist_head *lhead = &old_info_hash[old_size + i];
+		struct hlist_node *n;
+		struct fib_info *fi;
+
+		hlist_for_each_entry_safe(fi, n, lhead, fib_lhash)
+			hlist_add_head(&fi->fib_lhash,
+				       fib_info_laddrhash_bucket(fi->fib_net,
+								 fi->fib_prefsrc));
+	}
+
+	fib_info_hash_free(old_info_hash);
+}
+
 /* no metrics, only nexthop id */
 static struct fib_info *fib_find_info_nh(struct net *net,
 					 const struct fib_config *cfg)
@@ -1254,43 +1294,6 @@ int fib_check_nh(struct net *net, struct fib_nh *nh, u32 table, u8 scope,
 	return err;
 }
 
-static void fib_info_hash_move(struct hlist_head *new_info_hash)
-{
-	unsigned int old_size = 1 << fib_info_hash_bits;
-	struct hlist_head *old_info_hash;
-	unsigned int i;
-
-	ASSERT_RTNL();
-	old_info_hash = fib_info_hash;
-	fib_info_hash_bits += 1;
-	fib_info_hash = new_info_hash;
-
-	for (i = 0; i < old_size; i++) {
-		struct hlist_head *head = &old_info_hash[i];
-		struct hlist_node *n;
-		struct fib_info *fi;
-
-		hlist_for_each_entry_safe(fi, n, head, fib_hash)
-			hlist_add_head(&fi->fib_hash, fib_info_hash_bucket(fi));
-	}
-
-	for (i = 0; i < old_size; i++) {
-		struct hlist_head *lhead = &old_info_hash[old_size + i];
-		struct hlist_node *n;
-		struct fib_info *fi;
-
-		hlist_for_each_entry_safe(fi, n, lhead, fib_lhash) {
-			struct hlist_head *ldest;
-
-			ldest = fib_info_laddrhash_bucket(fi->fib_net,
-							  fi->fib_prefsrc);
-			hlist_add_head(&fi->fib_lhash, ldest);
-		}
-	}
-
-	fib_info_hash_free(old_info_hash);
-}
-
 __be32 fib_info_update_nhc_saddr(struct net *net, struct fib_nh_common *nhc,
 				 unsigned char scope)
 {
@@ -1403,13 +1406,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	}
 #endif
 
-	if (fib_info_cnt >= (1 << fib_info_hash_bits)) {
-		struct hlist_head *new_info_hash;
-
-		new_info_hash = fib_info_hash_alloc(fib_info_hash_bits + 1);
-		if (new_info_hash)
-			fib_info_hash_move(new_info_hash);
-	}
+	fib_info_hash_grow();
 
 	fi = kzalloc(struct_size(fi, fib_nh, nhs), GFP_KERNEL);
 	if (!fi) {
