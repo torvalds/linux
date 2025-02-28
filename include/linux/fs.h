@@ -1058,7 +1058,6 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
 
 /**
  * struct file - Represents a file
- * @f_ref: reference count
  * @f_lock: Protects f_ep, f_flags. Must not be taken from IRQ context.
  * @f_mode: FMODE_* flags often used in hotpaths
  * @f_op: file operations
@@ -1068,12 +1067,12 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
  * @f_flags: file flags
  * @f_iocb_flags: iocb flags
  * @f_cred: stashed credentials of creator/opener
+ * @f_owner: file owner
  * @f_path: path of the file
  * @f_pos_lock: lock protecting file position
  * @f_pipe: specific to pipes
  * @f_pos: file position
  * @f_security: LSM security context of this file
- * @f_owner: file owner
  * @f_wb_err: writeback error
  * @f_sb_err: per sb writeback errors
  * @f_ep: link of all epoll hooks for this file
@@ -1081,9 +1080,9 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
  * @f_llist: work queue entrypoint
  * @f_ra: file's readahead state
  * @f_freeptr: Pointer used by SLAB_TYPESAFE_BY_RCU file cache (don't touch.)
+ * @f_ref: reference count
  */
 struct file {
-	file_ref_t			f_ref;
 	spinlock_t			f_lock;
 	fmode_t				f_mode;
 	const struct file_operations	*f_op;
@@ -1093,6 +1092,7 @@ struct file {
 	unsigned int			f_flags;
 	unsigned int			f_iocb_flags;
 	const struct cred		*f_cred;
+	struct fown_struct		*f_owner;
 	/* --- cacheline 1 boundary (64 bytes) --- */
 	struct path			f_path;
 	union {
@@ -1106,7 +1106,6 @@ struct file {
 	void				*f_security;
 #endif
 	/* --- cacheline 2 boundary (128 bytes) --- */
-	struct fown_struct		*f_owner;
 	errseq_t			f_wb_err;
 	errseq_t			f_sb_err;
 #ifdef CONFIG_EPOLL
@@ -1118,6 +1117,7 @@ struct file {
 		struct file_ra_state	f_ra;
 		freeptr_t		f_freeptr;
 	};
+	file_ref_t			f_ref;
 	/* --- cacheline 3 boundary (192 bytes) --- */
 } __randomize_layout
   __attribute__((aligned(4)));	/* lest something weird decides that 2 is OK */
