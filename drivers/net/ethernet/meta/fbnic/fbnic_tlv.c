@@ -196,12 +196,16 @@ int fbnic_tlv_attr_put_string(struct fbnic_tlv_msg *msg, u16 attr_id,
 /**
  * fbnic_tlv_attr_get_unsigned - Retrieve unsigned value from result
  * @attr: Attribute to retrieve data from
+ * @def: The default value if attr is NULL
  *
  * Return: unsigned 64b value containing integer value
  **/
-u64 fbnic_tlv_attr_get_unsigned(struct fbnic_tlv_msg *attr)
+u64 fbnic_tlv_attr_get_unsigned(struct fbnic_tlv_msg *attr, u64 def)
 {
 	__le64 le64_value = 0;
+
+	if (!attr)
+		return def;
 
 	memcpy(&le64_value, &attr->value[0],
 	       le16_to_cpu(attr->hdr.len) - sizeof(*attr));
@@ -212,14 +216,20 @@ u64 fbnic_tlv_attr_get_unsigned(struct fbnic_tlv_msg *attr)
 /**
  * fbnic_tlv_attr_get_signed - Retrieve signed value from result
  * @attr: Attribute to retrieve data from
+ * @def: The default value if attr is NULL
  *
  * Return: signed 64b value containing integer value
  **/
-s64 fbnic_tlv_attr_get_signed(struct fbnic_tlv_msg *attr)
+s64 fbnic_tlv_attr_get_signed(struct fbnic_tlv_msg *attr, s64 def)
 {
-	int shift = (8 + sizeof(*attr) - le16_to_cpu(attr->hdr.len)) * 8;
 	__le64 le64_value = 0;
+	int shift;
 	s64 value;
+
+	if (!attr)
+		return def;
+
+	shift = (8 + sizeof(*attr) - le16_to_cpu(attr->hdr.len)) * 8;
 
 	/* Copy the value and adjust for byte ordering */
 	memcpy(&le64_value, &attr->value[0],
