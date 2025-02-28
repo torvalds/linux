@@ -68,6 +68,8 @@ properties:
       Drive inactive columns during scan,
       default is to turn inactive columns into inputs.
 
+  wakeup-source: true
+
 required:
   - compatible
   - row-gpios
@@ -96,4 +98,6 @@ examples:
                         0x0001006A
                         0x0101001C
                         0x0201006C>;
+
+        wakeup-source;
     };
