@@ -103,7 +103,7 @@ struct netconsole_target_stats  {
  */
 enum sysdata_feature {
 	/* Populate the CPU that sends the message */
-	CPU_NR = BIT(0),
+	SYSDATA_CPU_NR = BIT(0),
 };
 
 /**
@@ -418,7 +418,7 @@ static ssize_t sysdata_cpu_nr_enabled_show(struct config_item *item, char *buf)
 	bool cpu_nr_enabled;
 
 	mutex_lock(&dynamic_netconsole_mutex);
-	cpu_nr_enabled = !!(nt->sysdata_fields & CPU_NR);
+	cpu_nr_enabled = !!(nt->sysdata_fields & SYSDATA_CPU_NR);
 	mutex_unlock(&dynamic_netconsole_mutex);
 
 	return sysfs_emit(buf, "%d\n", cpu_nr_enabled);
@@ -699,7 +699,7 @@ static size_t count_extradata_entries(struct netconsole_target *nt)
 	/* Userdata entries */
 	entries = list_count_nodes(&nt->userdata_group.cg_children);
 	/* Plus sysdata entries */
-	if (nt->sysdata_fields & CPU_NR)
+	if (nt->sysdata_fields & SYSDATA_CPU_NR)
 		entries += 1;
 
 	return entries;
@@ -850,7 +850,7 @@ static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 		return ret;
 
 	mutex_lock(&dynamic_netconsole_mutex);
-	curr = nt->sysdata_fields & CPU_NR;
+	curr = nt->sysdata_fields & SYSDATA_CPU_NR;
 	if (cpu_nr_enabled == curr)
 		/* no change requested */
 		goto unlock_ok;
@@ -865,13 +865,13 @@ static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 	}
 
 	if (cpu_nr_enabled)
-		nt->sysdata_fields |= CPU_NR;
+		nt->sysdata_fields |= SYSDATA_CPU_NR;
 	else
 		/* This is special because extradata_complete might have
 		 * remaining data from previous sysdata, and it needs to be
 		 * cleaned.
 		 */
-		disable_sysdata_feature(nt, CPU_NR);
+		disable_sysdata_feature(nt, SYSDATA_CPU_NR);
 
 unlock_ok:
 	ret = strnlen(buf, count);
@@ -1130,7 +1130,7 @@ static int prepare_extradata(struct netconsole_target *nt)
 	 */
 	extradata_len = nt->userdata_length;
 
-	if (!(nt->sysdata_fields & CPU_NR))
+	if (!(nt->sysdata_fields & SYSDATA_CPU_NR))
 		goto out;
 
 	/* Append cpu=%d at extradata_complete after userdata str */
