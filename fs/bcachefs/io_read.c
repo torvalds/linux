@@ -375,6 +375,11 @@ static inline struct bch_read_bio *bch2_rbio_free(struct bch_read_bio *rbio)
 {
 	BUG_ON(rbio->bounce && !rbio->split);
 
+	if (rbio->have_ioref) {
+		struct bch_dev *ca = bch2_dev_have_ref(rbio->c, rbio->pick.ptr.dev);
+		percpu_ref_put(&ca->io_ref);
+	}
+
 	if (rbio->split) {
 		struct bch_read_bio *parent = rbio->parent;
 
@@ -790,10 +795,8 @@ static void bch2_read_endio(struct bio *bio)
 	struct workqueue_struct *wq = NULL;
 	enum rbio_context context = RBIO_CONTEXT_NULL;
 
-	if (rbio->have_ioref) {
+	if (ca)
 		bch2_latency_acct(ca, rbio->submit_time, READ);
-		percpu_ref_put(&ca->io_ref);
-	}
 
 	if (!rbio->split)
 		rbio->bio.bi_end_io = rbio->end_io;
