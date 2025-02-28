@@ -522,6 +522,24 @@ static int lklfuse_fallocate(const char *path, int mode, off_t offset,
 	return lkl_sys_fallocate(fi->fh, mode, offset, len);
 }
 
+static ssize_t lklfuse_copy_file_range(const char *path_in,
+				       struct fuse_file_info *fi_in,
+				       off_t off_in, const char *path_out,
+				       struct fuse_file_info *fi_out,
+				       off_t off_out, size_t len, int flags)
+{
+	lkl_loff_t loff_in = off_in, loff_out = off_out;
+
+	return lkl_sys_copy_file_range(fi_in->fh, &loff_in, fi_out->fh,
+				       &loff_out, len, flags);
+}
+
+static off_t lklfuse_lseek(const char *path, off_t off, int whence,
+			   struct fuse_file_info *fi)
+{
+	return lkl_sys_lseek(fi->fh, off, whence);
+}
+
 static void *lklfuse_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 {
 	cfg->nullpath_ok = 1;
@@ -576,6 +594,8 @@ const struct fuse_operations lklfuse_ops = {
 	/* .read_buf, (SG io) */
 	/* .flock, */
 	.fallocate = lklfuse_fallocate,
+	.copy_file_range = lklfuse_copy_file_range,
+	.lseek = lklfuse_lseek,
 };
 
 static int lklfuse_parse_vfs_flags(bool ro, const char *opts, int *flags,
