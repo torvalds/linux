@@ -874,6 +874,16 @@ static void pyrf_evlist__delete(struct pyrf_evlist *pevlist)
 	Py_TYPE(pevlist)->tp_free((PyObject*)pevlist);
 }
 
+static PyObject *pyrf_evlist__all_cpus(struct pyrf_evlist *pevlist)
+{
+	struct pyrf_cpu_map *pcpu_map = PyObject_New(struct pyrf_cpu_map, &pyrf_cpu_map__type);
+
+	if (pcpu_map)
+		pcpu_map->cpus = perf_cpu_map__get(pevlist->evlist.core.all_cpus);
+
+	return (PyObject *)pcpu_map;
+}
+
 static PyObject *pyrf_evlist__mmap(struct pyrf_evlist *pevlist,
 				   PyObject *args, PyObject *kwargs)
 {
@@ -1057,6 +1067,12 @@ static PyObject *pyrf_evlist__enable(struct pyrf_evlist *pevlist)
 }
 
 static PyMethodDef pyrf_evlist__methods[] = {
+	{
+		.ml_name  = "all_cpus",
+		.ml_meth  = (PyCFunction)pyrf_evlist__all_cpus,
+		.ml_flags = METH_NOARGS,
+		.ml_doc	  = PyDoc_STR("CPU map union of all evsel CPU maps.")
+	},
 	{
 		.ml_name  = "mmap",
 		.ml_meth  = (PyCFunction)pyrf_evlist__mmap,
