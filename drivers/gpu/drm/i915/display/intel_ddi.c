@@ -866,7 +866,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 			    encoder->base.base.id, encoder->base.name);
 
 	if (!mst_pipe_mask && dp128b132b_pipe_mask) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 		/*
 		 * If we don't have 8b/10b MST, but have more than one
@@ -878,7 +878,8 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 		 * we don't expect MST to have been enabled at that point, and
 		 * can assume it's SST.
 		 */
-		if (hweight8(dp128b132b_pipe_mask) > 1 || intel_dp->is_mst)
+		if (hweight8(dp128b132b_pipe_mask) > 1 ||
+		    intel_dp_mst_encoder_active_links(dig_port))
 			mst_pipe_mask = dp128b132b_pipe_mask;
 	}
 
@@ -4151,13 +4152,13 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_DP_MST) {
 		intel_ddi_read_func_ctl_dp_mst(encoder, pipe_config, ddi_func_ctl);
 	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_FDI_OR_128B132B && HAS_DP20(display)) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 		/*
 		 * If this is true, we know we're being called from mst stream
 		 * encoder's ->get_config().
 		 */
-		if (intel_dp->is_mst)
+		if (intel_dp_mst_encoder_active_links(dig_port))
 			intel_ddi_read_func_ctl_dp_mst(encoder, pipe_config, ddi_func_ctl);
 		else
 			intel_ddi_read_func_ctl_dp_sst(encoder, pipe_config, ddi_func_ctl);
