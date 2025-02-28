@@ -402,7 +402,7 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *filp)
 {
-	return 0;
+	return -ENOTSUPP;
 }
 #endif
 
