@@ -37,11 +37,6 @@ jobs:
             runs_on: ubuntu-22.04
             shell: bash
             build_options: "LLVM=1 CROSS_COMPILE=x86_64-linux-gnu"
-          - displayTargetName: lkl-fuzzers
-            os: unix
-            runs_on: ubuntu-22.04
-            shell: bash
-            build_options: "LKL_FUZZING=1 fuzzers"
           - displayTargetName: zpoline
           # maybe integrate with default Linux build once the function becomes stable
             os: unix
@@ -178,3 +173,27 @@ jobs:
         run: sudo pip install ply GitPython
       - name: Check coding style
         run: tools/lkl/scripts/checkpatch.sh
+
+  fuzzers:
+    runs-on: ubuntu-22.04
+    name: fuzzers
+    env:
+      PROTOBUF_MUTATOR_DIR: /tmp/libprotobuf-mutator
+    steps:
+      - name: Checkout
+        with:
+          fetch-depth: 0
+        uses: actions/checkout@v4
+      - name: Install clang toolchain
+        run: |
+          sudo apt update -y
+          sudo apt install -y clang lld llvm
+      - name: Install libprotobuf-mutator prerequisites
+        run: |
+          sudo apt update -y
+          sudo apt install -y binutils cmake ninja-build liblzma-dev libz-dev \
+            pkg-config autoconf libtool
+      - name: Build libprotobuf-mutator
+        run: tools/lkl/scripts/libprotobuf-mutator-build.sh
+      - name: Build fuzzers
+        run: make -j4 -C tools/lkl LKL_FUZZING=1 MMU=1 fuzzers

@@ -169,11 +169,87 @@ define do_autoconf_llvm
   $(eval LLVM_SUFFIX := $(if $(filter -%,$(LLVM)),$(LLVM)))
   export CLANG_TARGET_FLAGS_lkl := $(CROSS_COMPILE)
   export CC := $(LLVM_PREFIX)clang$(LLVM_SUFFIX)
+  export CXX := $(LLVM_PREFIX)clang++$(LLVM_SUFFIX)
   export LD := $(LLVM_PREFIX)ld.lld$(LLVM_SUFFIX)
   export AR := $(LLVM_PREFIX)llvm-ar$(LLVM_SUFFIX)
   $(eval LD := $(LLVM_PREFIX)ld.lld$(LLVM_SUFFIX))
   $(eval CC := $(LLVM_PREFIX)clang$(LLVM_SUFFIX))
   $(eval LD_FMT := $(call llvm_target_to_ld_fmt))
+endef
+
+define define_libprotobuf_mutator
+  $(eval PROTOC_PATH := $(PROTOBUF_MUTATOR_DIR)/build/external.protobuf/bin/protoc)
+  export PROTOC_PATH := $(PROTOC_PATH)
+
+  # Tell compiler where to find libprotobuf-mutator-related headers
+  export LIBPROTOBUF_MUTATOR_INCLUDES_DIR := -I$(PROTOBUF_MUTATOR_DIR) \
+    -I$(PROTOBUF_MUTATOR_DIR)/build/external.protobuf/include
+
+  # Tell linker where to find libprotobuf-mutator-related static libs
+  export LIBPROTOBUF_MUTATOR_LIBS_DIR := -L$(PROTOBUF_MUTATOR_DIR)/build/src \
+	  -L$(PROTOBUF_MUTATOR_DIR)/build/src/libfuzzer \
+	  -L$(PROTOBUF_MUTATOR_DIR)/build/external.protobuf/lib
+
+  # The same list of absl dependencies as in libprotobuf-mutator cmake config:
+  # https://github.com/google/libprotobuf-mutator/blob/master/cmake/external/protobuf.cmake
+  $(eval LIBPROTOBUF_LIBS := protobufd \
+    absl_bad_any_cast_impl absl_bad_optional_access absl_bad_variant_access \
+    absl_base absl_city absl_civil_time absl_cord absl_cord_internal \
+    absl_cordz_functions absl_cordz_handle absl_cordz_info \
+    absl_cordz_sample_token absl_crc_cord_state absl_crc_cpu_detect \
+    absl_crc_internal absl_crc32c absl_debugging_internal \
+    absl_demangle_internal absl_die_if_null absl_examine_stack \
+    absl_exponential_biased absl_failure_signal_handler \
+    absl_flags_commandlineflag absl_flags_commandlineflag_internal \
+    absl_flags_config absl_flags_internal absl_flags_marshalling \
+    absl_flags_parse absl_flags_private_handle_accessor \
+    absl_flags_program_name absl_flags_reflection absl_flags_usage \
+    absl_flags_usage_internal absl_graphcycles_internal absl_hash \
+    absl_hashtablez_sampler absl_int128 absl_kernel_timeout_internal \
+    absl_leak_check absl_log_entry absl_log_flags absl_log_globals \
+    absl_log_initialize absl_log_internal_check_op \
+    absl_log_internal_conditions absl_log_internal_format \
+    absl_log_internal_globals absl_log_internal_log_sink_set \
+    absl_log_internal_message absl_log_internal_nullguard \
+    absl_log_internal_proto absl_log_severity \
+    absl_log_sink absl_low_level_hash absl_malloc_internal \
+    absl_periodic_sampler absl_random_distributions \
+    absl_random_internal_distribution_test_util absl_random_internal_platform \
+    absl_random_internal_pool_urbg absl_random_internal_randen \
+    absl_random_internal_randen_hwaes absl_random_internal_randen_hwaes_impl \
+    absl_random_internal_randen_slow absl_random_internal_seed_material \
+    absl_random_seed_gen_exception absl_random_seed_sequences \
+    absl_raw_hash_set absl_raw_logging_internal absl_scoped_set_env \
+    absl_spinlock_wait absl_stacktrace absl_status \
+    absl_statusor absl_str_format_internal absl_strerror \
+    absl_string_view absl_strings absl_strings_internal \
+    absl_symbolize absl_synchronization absl_throw_delegate \
+    absl_time absl_time_zone utf8_validity)
+
+  export LIBPROTOBUF_MUTATOR_LIBS := \
+    -lprotobuf-mutator-libfuzzer -lprotobuf-mutator \
+    $(addprefix -l,$(LIBPROTOBUF_LIBS))
+
+  # Libprotobuf-mutator build safety checks
+  $(if $(wildcard $(PROTOC_PATH)),,\
+    $(error Cannot find protoc binary at $(PROTOC_PATH). \
+      Refer to documentation at tools/lkl/fuzzers/binder/README.md))
+
+  $(if $(wildcard $(PROTOBUF_MUTATOR_DIR)/build/src/libprotobuf-mutator.a),,\
+    $(error Cannot find libprotobuf-mutator.a in \
+      $(abspath $(PROTOBUF_MUTATOR_DIR)/build/src/). \
+      Refer to documentation at tools/lkl/fuzzers/binder/README.md))
+
+  $(if $(wildcard $(PROTOBUF_MUTATOR_DIR)/build/src/libfuzzer/libprotobuf-mutator-libfuzzer.a),,\
+    $(error Cannot find libprotobuf-mutator-libfuzzer.a in \
+      $(abspath $(PROTOBUF_MUTATOR_DIR)/build/src/libfuzzer/). \
+      Refer to documentation at tools/lkl/fuzzers/binder/README.md))
+
+  $(foreach protobuf_lib,$(LIBPROTOBUF_LIBS),\
+     $(if $(wildcard $(PROTOBUF_MUTATOR_DIR)/build/external.protobuf/lib/lib$(protobuf_lib).a),,\
+        $(error Cannot find lib$(protobuf_lib).a in \
+          $(PROTOBUF_MUTATOR_DIR)/build/external.protobuf/lib/. \
+          Refer to documentation at tools/lkl/fuzzers/binder/README.md)))
 endef
 
 define do_autoconf_fuzzing
@@ -185,6 +261,9 @@ define do_autoconf_fuzzing
   $(eval kasan := yes)
   $(call set_kernel_config,LKL_FUZZING,y)
   $(if $(LKL_LINE_COV),$(call set_kernel_config,LKL_LINE_COV,y))
+  $(if $(MMU),$(call set_kernel_config,ANDROID_BINDER_IPC,y))
+  $(if $(PROTOBUF_MUTATOR_DIR),$(call define_libprotobuf_mutator))
+  LDFLAGS += -fuse-ld=lld
 endef
 
 define mmu_test_enable
