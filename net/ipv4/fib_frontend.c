@@ -884,20 +884,24 @@ static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout;
 
+	rtnl_net_lock(net);
+
 	if (cfg.fc_nh_id && !nexthop_find_by_id(net, cfg.fc_nh_id)) {
 		NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
 		err = -EINVAL;
-		goto errout;
+		goto unlock;
 	}
 
 	tb = fib_get_table(net, cfg.fc_table);
 	if (!tb) {
 		NL_SET_ERR_MSG(extack, "FIB table does not exist");
 		err = -ESRCH;
-		goto errout;
+		goto unlock;
 	}
 
 	err = fib_table_delete(net, tb, &cfg, extack);
+unlock:
+	rtnl_net_unlock(net);
 errout:
 	return err;
 }
@@ -914,15 +918,20 @@ static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout;
 
+	rtnl_net_lock(net);
+
 	tb = fib_new_table(net, cfg.fc_table);
 	if (!tb) {
 		err = -ENOBUFS;
-		goto errout;
+		goto unlock;
 	}
 
 	err = fib_table_insert(net, tb, &cfg, extack);
 	if (!err && cfg.fc_type == RTN_LOCAL)
 		net->ipv4.fib_has_custom_local_routes = true;
+
+unlock:
+	rtnl_net_unlock(net);
 errout:
 	return err;
 }
@@ -1683,9 +1692,9 @@ static struct pernet_operations fib_net_ops = {
 
 static const struct rtnl_msg_handler fib_rtnl_msg_handlers[] __initconst = {
 	{.protocol = PF_INET, .msgtype = RTM_NEWROUTE,
-	 .doit = inet_rtm_newroute},
+	 .doit = inet_rtm_newroute, .flags = RTNL_FLAG_DOIT_PERNET},
 	{.protocol = PF_INET, .msgtype = RTM_DELROUTE,
-	 .doit = inet_rtm_delroute},
+	 .doit = inet_rtm_delroute, .flags = RTNL_FLAG_DOIT_PERNET},
 	{.protocol = PF_INET, .msgtype = RTM_GETROUTE, .dumpit = inet_dump_fib,
 	 .flags = RTNL_FLAG_DUMP_UNLOCKED | RTNL_FLAG_DUMP_SPLIT_NLM_DONE},
 };
