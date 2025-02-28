@@ -119,7 +119,7 @@ static const struct regmap_config max1720x_regmap_cfg = {
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 	.rd_table = &max1720x_readable_regs,
 	.volatile_table = &max1720x_volatile_regs,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct regmap_range max1720x_nvmem_allow[] = {
