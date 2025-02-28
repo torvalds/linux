@@ -39,7 +39,7 @@ int drm_client_modeset_create(struct drm_client_dev *client)
 	unsigned int max_connector_count = 1;
 	struct drm_mode_set *modeset;
 	struct drm_crtc *crtc;
-	unsigned int i = 0;
+	int i = 0;
 
 	/* Add terminating zero entry to enable index less iteration */
 	client->modesets = kcalloc(num_crtc + 1, sizeof(*client->modesets), GFP_KERNEL);
@@ -75,7 +75,7 @@ static void drm_client_modeset_release(struct drm_client_dev *client)
 	struct drm_mode_set *modeset;
 
 	drm_client_for_each_modeset(modeset, client) {
-		unsigned int i;
+		int i;
 
 		drm_mode_destroy(client->dev, modeset->mode);
 		modeset->mode = NULL;
@@ -960,7 +960,7 @@ bool drm_client_rotation(struct drm_mode_set *modeset, unsigned int *rotation)
 	struct drm_plane *plane = modeset->crtc->primary;
 	struct drm_cmdline_mode *cmdline;
 	u64 valid_mask = 0;
-	unsigned int i;
+	int i;
 
 	if (!modeset->num_connectors)
 		return false;
