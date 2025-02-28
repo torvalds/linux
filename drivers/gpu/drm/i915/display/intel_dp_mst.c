@@ -356,7 +356,7 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 			crtc_state->dp_m_n.tu = remote_tu;
 
 			slots = drm_dp_atomic_find_time_slots(state, &intel_dp->mst.mgr,
-							      connector->port,
+							      connector->mst.port,
 							      dfixed_trunc(pbn));
 		} else {
 			/* Same as above for remote_tu */
@@ -509,8 +509,8 @@ hblank_expansion_quirk_needs_dsc(const struct intel_connector *connector,
 {
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
-	bool is_uhbr_sink = connector->mst_port &&
-			    drm_dp_128b132b_supported(connector->mst_port->dpcd);
+	bool is_uhbr_sink = connector->mst.dp &&
+			    drm_dp_128b132b_supported(connector->mst.dp->dpcd);
 	int hblank_limit = is_uhbr_sink ? 500 : 300;
 
 	if (!connector->dp.dsc_hblank_expansion_quirk)
@@ -741,7 +741,7 @@ intel_dp_mst_transcoder_mask(struct intel_atomic_state *state,
 		const struct intel_crtc_state *crtc_state;
 		struct intel_crtc *crtc;
 
-		if (connector->mst_port != mst_port || !conn_state->base.crtc)
+		if (connector->mst.dp != mst_port || !conn_state->base.crtc)
 			continue;
 
 		crtc = to_intel_crtc(conn_state->base.crtc);
@@ -769,12 +769,12 @@ static u8 get_pipes_downstream_of_mst_port(struct intel_atomic_state *state,
 		if (!conn_state->base.crtc)
 			continue;
 
-		if (&connector->mst_port->mst.mgr != mst_mgr)
+		if (&connector->mst.dp->mst.mgr != mst_mgr)
 			continue;
 
-		if (connector->port != parent_port &&
+		if (connector->mst.port != parent_port &&
 		    !drm_dp_mst_port_downstream_of_parent(mst_mgr,
-							  connector->port,
+							  connector->mst.port,
 							  parent_port))
 			continue;
 
@@ -925,7 +925,7 @@ mst_connector_atomic_topology_check(struct intel_connector *connector,
 		struct intel_crtc_state *crtc_state;
 		struct intel_crtc *crtc;
 
-		if (connector_iter->mst_port != connector->mst_port ||
+		if (connector_iter->mst.dp != connector->mst.dp ||
 		    connector_iter == connector)
 			continue;
 
@@ -974,15 +974,15 @@ mst_connector_atomic_check(struct drm_connector *_connector,
 
 	if (intel_connector_needs_modeset(state, &connector->base)) {
 		ret = intel_dp_tunnel_atomic_check_state(state,
-							 connector->mst_port,
+							 connector->mst.dp,
 							 connector);
 		if (ret)
 			return ret;
 	}
 
 	return drm_dp_atomic_release_time_slots(&state->base,
-						&connector->mst_port->mst.mgr,
-						connector->port);
+						&connector->mst.dp->mst.mgr,
+						connector->mst.port);
 }
 
 static void mst_stream_disable(struct intel_atomic_state *state,
@@ -1027,9 +1027,9 @@ static void mst_stream_post_disable(struct intel_atomic_state *state,
 	struct drm_dp_mst_topology_state *new_mst_state =
 		drm_atomic_get_new_mst_topology_state(&state->base, &intel_dp->mst.mgr);
 	const struct drm_dp_mst_atomic_payload *old_payload =
-		drm_atomic_get_mst_payload_state(old_mst_state, connector->port);
+		drm_atomic_get_mst_payload_state(old_mst_state, connector->mst.port);
 	struct drm_dp_mst_atomic_payload *new_payload =
-		drm_atomic_get_mst_payload_state(new_mst_state, connector->port);
+		drm_atomic_get_mst_payload_state(new_mst_state, connector->mst.port);
 	struct intel_crtc *pipe_crtc;
 	bool last_mst_stream;
 	int i;
@@ -1080,7 +1080,7 @@ static void mst_stream_post_disable(struct intel_atomic_state *state,
 	 * Power down mst path before disabling the port, otherwise we end
 	 * up getting interrupts from the sink upon detecting link loss.
 	 */
-	drm_dp_send_power_updown_phy(&intel_dp->mst.mgr, connector->port,
+	drm_dp_send_power_updown_phy(&intel_dp->mst.mgr, connector->mst.port,
 				     false);
 
 	/*
@@ -1199,7 +1199,7 @@ static void mst_stream_pre_enable(struct intel_atomic_state *state,
 	if (first_mst_stream)
 		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
 
-	drm_dp_send_power_updown_phy(&intel_dp->mst.mgr, connector->port, true);
+	drm_dp_send_power_updown_phy(&intel_dp->mst.mgr, connector->mst.port, true);
 
 	intel_dp_sink_enable_decompression(state, connector, pipe_config);
 
@@ -1213,7 +1213,7 @@ static void mst_stream_pre_enable(struct intel_atomic_state *state,
 	intel_dp->mst.active_links++;
 
 	ret = drm_dp_add_payload_part1(&intel_dp->mst.mgr, mst_state,
-				       drm_atomic_get_mst_payload_state(mst_state, connector->port));
+				       drm_atomic_get_mst_payload_state(mst_state, connector->mst.port));
 	if (ret < 0)
 		intel_dp_queue_modeset_retry_for_link(state, primary_encoder, pipe_config);
 
@@ -1339,7 +1339,7 @@ static void mst_stream_enable(struct intel_atomic_state *state,
 
 	ret = drm_dp_add_payload_part2(&intel_dp->mst.mgr,
 				       drm_atomic_get_mst_payload_state(mst_state,
-									connector->port));
+									connector->mst.port));
 	if (ret < 0)
 		intel_dp_queue_modeset_retry_for_link(state, primary_encoder, pipe_config);
 
@@ -1392,7 +1392,7 @@ static int mst_connector_get_ddc_modes(struct drm_connector *_connector)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct intel_display *display = to_intel_display(connector);
-	struct intel_dp *intel_dp = connector->mst_port;
+	struct intel_dp *intel_dp = connector->mst.dp;
 	const struct drm_edid *drm_edid;
 	int ret;
 
@@ -1402,7 +1402,7 @@ static int mst_connector_get_ddc_modes(struct drm_connector *_connector)
 	if (!intel_display_driver_check_access(display))
 		return drm_edid_connector_add_modes(&connector->base);
 
-	drm_edid = drm_dp_mst_edid_read(&connector->base, &intel_dp->mst.mgr, connector->port);
+	drm_edid = drm_dp_mst_edid_read(&connector->base, &intel_dp->mst.mgr, connector->mst.port);
 
 	ret = intel_connector_update_modes(&connector->base, drm_edid);
 
@@ -1417,13 +1417,13 @@ mst_connector_late_register(struct drm_connector *_connector)
 	struct intel_connector *connector = to_intel_connector(_connector);
 	int ret;
 
-	ret = drm_dp_mst_connector_late_register(&connector->base, connector->port);
+	ret = drm_dp_mst_connector_late_register(&connector->base, connector->mst.port);
 	if (ret < 0)
 		return ret;
 
 	ret = intel_connector_register(&connector->base);
 	if (ret < 0)
-		drm_dp_mst_connector_early_unregister(&connector->base, connector->port);
+		drm_dp_mst_connector_early_unregister(&connector->base, connector->mst.port);
 
 	return ret;
 }
@@ -1434,7 +1434,7 @@ mst_connector_early_unregister(struct drm_connector *_connector)
 	struct intel_connector *connector = to_intel_connector(_connector);
 
 	intel_connector_unregister(&connector->base);
-	drm_dp_mst_connector_early_unregister(&connector->base, connector->port);
+	drm_dp_mst_connector_early_unregister(&connector->base, connector->mst.port);
 }
 
 static const struct drm_connector_funcs mst_connector_funcs = {
@@ -1463,9 +1463,9 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct intel_display *display = to_intel_display(connector);
-	struct intel_dp *intel_dp = connector->mst_port;
+	struct intel_dp *intel_dp = connector->mst.dp;
 	struct drm_dp_mst_topology_mgr *mgr = &intel_dp->mst.mgr;
-	struct drm_dp_mst_port *port = connector->port;
+	struct drm_dp_mst_port *port = connector->mst.port;
 	const int min_bpp = 18;
 	int max_dotclk = display->cdclk.max_dotclk_freq;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
@@ -1576,7 +1576,7 @@ mst_connector_atomic_best_encoder(struct drm_connector *_connector,
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct drm_connector_state *connector_state =
 		drm_atomic_get_new_connector_state(state, &connector->base);
-	struct intel_dp *intel_dp = connector->mst_port;
+	struct intel_dp *intel_dp = connector->mst.dp;
 	struct intel_crtc *crtc = to_intel_crtc(connector_state->crtc);
 
 	return &intel_dp->mst.stream_encoders[crtc->pipe]->base.base;
@@ -1588,7 +1588,7 @@ mst_connector_detect_ctx(struct drm_connector *_connector,
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct intel_display *display = to_intel_display(connector);
-	struct intel_dp *intel_dp = connector->mst_port;
+	struct intel_dp *intel_dp = connector->mst.dp;
 
 	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
@@ -1602,7 +1602,7 @@ mst_connector_detect_ctx(struct drm_connector *_connector,
 	intel_dp_flush_connector_commits(connector);
 
 	return drm_dp_mst_detect_port(&connector->base, ctx, &intel_dp->mst.mgr,
-				      connector->port);
+				      connector->mst.port);
 }
 
 static const struct drm_connector_helper_funcs mst_connector_helper_funcs = {
@@ -1693,10 +1693,10 @@ static bool detect_dsc_hblank_expansion_quirk(const struct intel_connector *conn
 	 * A logical port's OUI (at least for affected sinks) is all 0, so
 	 * instead of that the parent port's OUI is used for identification.
 	 */
-	if (drm_dp_mst_port_is_logical(connector->port)) {
-		aux = drm_dp_mst_aux_for_parent(connector->port);
+	if (drm_dp_mst_port_is_logical(connector->mst.port)) {
+		aux = drm_dp_mst_aux_for_parent(connector->mst.port);
 		if (!aux)
-			aux = &connector->mst_port->aux;
+			aux = &connector->mst.dp->aux;
 	}
 
 	if (drm_dp_read_dpcd_caps(aux, dpcd) < 0)
@@ -1744,8 +1744,8 @@ mst_topology_add_connector(struct drm_dp_mst_topology_mgr *mgr,
 
 	connector->get_hw_state = mst_connector_get_hw_state;
 	connector->sync_state = intel_dp_connector_sync_state;
-	connector->mst_port = intel_dp;
-	connector->port = port;
+	connector->mst.dp = intel_dp;
+	connector->mst.port = port;
 	drm_dp_mst_get_port_malloc(port);
 
 	ret = drm_connector_dynamic_init(display->drm, &connector->base, &mst_connector_funcs,
@@ -1954,11 +1954,11 @@ intel_dp_mst_add_topology_state_for_connector(struct intel_atomic_state *state,
 {
 	struct drm_dp_mst_topology_state *mst_state;
 
-	if (!connector->mst_port)
+	if (!connector->mst.dp)
 		return 0;
 
 	mst_state = drm_atomic_get_mst_topology_state(&state->base,
-						      &connector->mst_port->mst.mgr);
+						      &connector->mst.dp->mst.mgr);
 	if (IS_ERR(mst_state))
 		return PTR_ERR(mst_state);
 
@@ -2056,7 +2056,7 @@ bool intel_dp_mst_crtc_needs_modeset(struct intel_atomic_state *state,
 		const struct intel_crtc_state *old_crtc_state;
 		struct intel_crtc *crtc_iter;
 
-		if (connector->mst_port != crtc_connector->mst_port ||
+		if (connector->mst.dp != crtc_connector->mst.dp ||
 		    !conn_state->crtc)
 			continue;
 
@@ -2079,7 +2079,7 @@ bool intel_dp_mst_crtc_needs_modeset(struct intel_atomic_state *state,
 		 * case.
 		 */
 		if (connector->dp.dsc_decompression_aux ==
-		    &connector->mst_port->aux)
+		    &connector->mst.dp->aux)
 			return true;
 	}
 

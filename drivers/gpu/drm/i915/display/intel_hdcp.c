@@ -70,13 +70,13 @@ static int intel_conn_to_vcpi(struct intel_atomic_state *state,
 	int vcpi = 0;
 
 	/* For HDMI this is forced to be 0x0. For DP SST also this is 0x0. */
-	if (!connector->port)
+	if (!connector->mst.port)
 		return 0;
-	mgr = connector->port->mgr;
+	mgr = connector->mst.port->mgr;
 
 	drm_modeset_lock(&mgr->base.lock, state->base.acquire_ctx);
 	mst_state = to_drm_dp_mst_topology_state(mgr->base.state);
-	payload = drm_atomic_get_mst_payload_state(mst_state, connector->port);
+	payload = drm_atomic_get_mst_payload_state(mst_state, connector->mst.port);
 	if (drm_WARN_ON(mgr->dev, !payload))
 		goto out;
 
@@ -2775,7 +2775,7 @@ out:
 void intel_hdcp_info(struct seq_file *m, struct intel_connector *connector)
 {
 	seq_puts(m, "\tHDCP version: ");
-	if (connector->mst_port) {
+	if (connector->mst.dp) {
 		__intel_hdcp_info(m, connector, true);
 		seq_puts(m, "\tMST Hub HDCP version: ");
 	}

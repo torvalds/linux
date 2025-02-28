@@ -534,10 +534,6 @@ struct intel_connector {
 	   state of connector->polled in case hotplug storm detection changes it */
 	u8 polled;
 
-	struct drm_dp_mst_port *port;
-
-	struct intel_dp *mst_port;
-
 	int force_joined_pipes;
 
 	struct {
@@ -548,6 +544,11 @@ struct intel_connector {
 		u8 dsc_hblank_expansion_quirk:1;
 		u8 dsc_decompression_enabled:1;
 	} dp;
+
+	struct {
+		struct drm_dp_mst_port *port;
+		struct intel_dp *dp;
+	} mst;
 
 	/* Work struct to schedule a uevent on link train failure */
 	struct work_struct modeset_retry_work;
@@ -1956,8 +1957,8 @@ static inline struct intel_dp *enc_to_intel_dp(struct intel_encoder *encoder)
 
 static inline struct intel_dp *intel_attached_dp(struct intel_connector *connector)
 {
-	if (connector->mst_port)
-		return connector->mst_port;
+	if (connector->mst.dp)
+		return connector->mst.dp;
 	else
 		return enc_to_intel_dp(intel_attached_encoder(connector));
 }
