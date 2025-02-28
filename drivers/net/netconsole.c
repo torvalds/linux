@@ -1117,13 +1117,21 @@ static void populate_configfs_item(struct netconsole_target *nt,
 	init_target_config_group(nt, target_name);
 }
 
+static int append_cpu_nr(struct netconsole_target *nt, int offset)
+{
+	/* Append cpu=%d at extradata_complete after userdata str */
+	return scnprintf(&nt->extradata_complete[offset],
+			 MAX_EXTRADATA_ENTRY_LEN, " cpu=%u\n",
+			 raw_smp_processor_id());
+}
+
 /*
  * prepare_extradata - append sysdata at extradata_complete in runtime
  * @nt: target to send message to
  */
 static int prepare_extradata(struct netconsole_target *nt)
 {
-	int sysdata_len, extradata_len;
+	int extradata_len;
 
 	/* userdata was appended when configfs write helper was called
 	 * by update_userdata().
@@ -1133,12 +1141,8 @@ static int prepare_extradata(struct netconsole_target *nt)
 	if (!(nt->sysdata_fields & SYSDATA_CPU_NR))
 		goto out;
 
-	/* Append cpu=%d at extradata_complete after userdata str */
-	sysdata_len = scnprintf(&nt->extradata_complete[nt->userdata_length],
-				MAX_EXTRADATA_ENTRY_LEN, " cpu=%u\n",
-				raw_smp_processor_id());
-
-	extradata_len += sysdata_len;
+	if (nt->sysdata_fields & SYSDATA_CPU_NR)
+		extradata_len += append_cpu_nr(nt, extradata_len);
 
 	WARN_ON_ONCE(extradata_len >
 		     MAX_EXTRADATA_ENTRY_LEN * MAX_EXTRADATA_ITEMS);
