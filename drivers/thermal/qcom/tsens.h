@@ -34,6 +34,7 @@ enum tsens_ver {
 	VER_0 = 0,
 	VER_0_1,
 	VER_1_X,
+	VER_1_X_NO_RPM,
 	VER_2_X,
 	VER_2_X_NO_RPM,
 };
