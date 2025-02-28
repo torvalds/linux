@@ -11,7 +11,30 @@
 struct fwctl_device;
 struct fwctl_uctx;
 
+/**
+ * struct fwctl_ops - Driver provided operations
+ *
+ * fwctl_unregister() will wait until all excuting ops are completed before it
+ * returns. Drivers should be mindful to not let their ops run for too long as
+ * it will block device hot unplug and module unloading.
+ */
 struct fwctl_ops {
+	/**
+	 * @uctx_size: The size of the fwctl_uctx struct to allocate. The first
+	 * bytes of this memory will be a fwctl_uctx. The driver can use the
+	 * remaining bytes as its private memory.
+	 */
+	size_t uctx_size;
+	/**
+	 * @open_uctx: Called when a file descriptor is opened before the uctx
+	 * is ever used.
+	 */
+	int (*open_uctx)(struct fwctl_uctx *uctx);
+	/**
+	 * @close_uctx: Called when the uctx is destroyed, usually when the FD
+	 * is closed.
+	 */
+	void (*close_uctx)(struct fwctl_uctx *uctx);
 };
 
 /**
@@ -26,6 +49,15 @@ struct fwctl_device {
 	struct device dev;
 	/* private: */
 	struct cdev cdev;
+
+	/* Protect uctx_list */
+	struct mutex uctx_list_lock;
+	struct list_head uctx_list;
+	/*
+	 * Protect ops, held for write when ops becomes NULL during unregister,
+	 * held for read whenever ops is loaded or an ops function is running.
+	 */
+	struct rw_semaphore registration_lock;
 	const struct fwctl_ops *ops;
 };
 
@@ -65,5 +97,19 @@ DEFINE_FREE(fwctl, struct fwctl_device *, if (_T) fwctl_put(_T));
 
 int fwctl_register(struct fwctl_device *fwctl);
 void fwctl_unregister(struct fwctl_device *fwctl);
+
+/**
+ * struct fwctl_uctx - Per user FD context
+ * @fwctl: fwctl instance that owns the context
+ *
+ * Every FD opened by userspace will get a unique context allocation. Any driver
+ * private data will follow immediately after.
+ */
+struct fwctl_uctx {
+	struct fwctl_device *fwctl;
+	/* private: */
+	/* Head at fwctl_device::uctx_list */
+	struct list_head uctx_list_entry;
+};
 
 #endif

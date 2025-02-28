@@ -9565,6 +9565,7 @@ R:	Jonathan Cameron <Jonathan.Cameron@huawei.com>
 S:	Maintained
 F:	drivers/fwctl/
 F:	include/linux/fwctl.h
+F:	include/uapi/fwctl/
 
 GALAXYCORE GC0308 CAMERA SENSOR DRIVER
 M:	Sebastian Reichel <sre@kernel.org>
