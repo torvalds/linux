@@ -408,13 +408,13 @@ static void __init check_usemap_section_nr(int nid,
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
-static unsigned long __init section_map_size(void)
+unsigned long __init section_map_size(void)
 {
 	return ALIGN(sizeof(struct page) * PAGES_PER_SECTION, PMD_SIZE);
 }
 
 #else
-static unsigned long __init section_map_size(void)
+unsigned long __init section_map_size(void)
 {
 	return PAGE_ALIGN(sizeof(struct page) * PAGES_PER_SECTION);
 }
@@ -495,6 +495,44 @@ void __weak __meminit vmemmap_populate_print_last(void)
 {
 }
 
+static void *sparse_usagebuf __meminitdata;
+static void *sparse_usagebuf_end __meminitdata;
+
+/*
+ * Helper function that is used for generic section initialization, and
+ * can also be used by any hooks added above.
+ */
+void __init sparse_init_early_section(int nid, struct page *map,
+				      unsigned long pnum, unsigned long flags)
+{
+	BUG_ON(!sparse_usagebuf || sparse_usagebuf >= sparse_usagebuf_end);
+	check_usemap_section_nr(nid, sparse_usagebuf);
+	sparse_init_one_section(__nr_to_section(pnum), pnum, map,
+			sparse_usagebuf, SECTION_IS_EARLY | flags);
+	sparse_usagebuf = (void *)sparse_usagebuf + mem_section_usage_size();
+}
+
+static int __init sparse_usage_init(int nid, unsigned long map_count)
+{
+	unsigned long size;
+
+	size = mem_section_usage_size() * map_count;
+	sparse_usagebuf = sparse_early_usemaps_alloc_pgdat_section(
+				NODE_DATA(nid), size);
+	if (!sparse_usagebuf) {
+		sparse_usagebuf_end = NULL;
+		return -ENOMEM;
+	}
+
+	sparse_usagebuf_end = sparse_usagebuf + size;
+	return 0;
+}
+
+static void __init sparse_usage_fini(void)
+{
+	sparse_usagebuf = sparse_usagebuf_end = NULL;
+}
+
 /*
  * Initialize sparse on a specific node. The node spans [pnum_begin, pnum_end)
  * And number of present sections in this node is map_count.
@@ -503,47 +541,54 @@ static void __init sparse_init_nid(int nid, unsigned long pnum_begin,
 				   unsigned long pnum_end,
 				   unsigned long map_count)
 {
-	struct mem_section_usage *usage;
 	unsigned long pnum;
 	struct page *map;
+	struct mem_section *ms;
 
-	usage = sparse_early_usemaps_alloc_pgdat_section(NODE_DATA(nid),
-			mem_section_usage_size() * map_count);
-	if (!usage) {
+	if (sparse_usage_init(nid, map_count)) {
 		pr_err("%s: node[%d] usemap allocation failed", __func__, nid);
 		goto failed;
 	}
+
 	sparse_buffer_init(map_count * section_map_size(), nid);
+
+	sparse_vmemmap_init_nid_early(nid);
+
 	for_each_present_section_nr(pnum_begin, pnum) {
 		unsigned long pfn = section_nr_to_pfn(pnum);
 
 		if (pnum >= pnum_end)
 			break;
 
-		map = __populate_section_memmap(pfn, PAGES_PER_SECTION,
-				nid, NULL, NULL);
-		if (!map) {
-			pr_err("%s: node[%d] memory map backing failed. Some memory will not be available.",
-			       __func__, nid);
-			pnum_begin = pnum;
-			sparse_buffer_fini();
-			goto failed;
+		ms = __nr_to_section(pnum);
+		if (!preinited_vmemmap_section(ms)) {
+			map = __populate_section_memmap(pfn, PAGES_PER_SECTION,
+					nid, NULL, NULL);
+			if (!map) {
+				pr_err("%s: node[%d] memory map backing failed. Some memory will not be available.",
+				       __func__, nid);
+				pnum_begin = pnum;
+				sparse_usage_fini();
+				sparse_buffer_fini();
+				goto failed;
+			}
+			sparse_init_early_section(nid, map, pnum, 0);
 		}
-		check_usemap_section_nr(nid, usage);
-		sparse_init_one_section(__nr_to_section(pnum), pnum, map, usage,
-				SECTION_IS_EARLY);
-		usage = (void *) usage + mem_section_usage_size();
 	}
+	sparse_usage_fini();
 	sparse_buffer_fini();
 	return;
 failed:
-	/* We failed to allocate, mark all the following pnums as not present */
+	/*
+	 * We failed to allocate, mark all the following pnums as not present,
+	 * except the ones already initialized earlier.
+	 */
 	for_each_present_section_nr(pnum_begin, pnum) {
-		struct mem_section *ms;
-
 		if (pnum >= pnum_end)
 			break;
 		ms = __nr_to_section(pnum);
+		if (!preinited_vmemmap_section(ms))
+			ms->section_mem_map = 0;
 		ms->section_mem_map = 0;
 	}
 }

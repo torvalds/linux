@@ -470,3 +470,26 @@ struct page * __meminit __populate_section_memmap(unsigned long pfn,
 
 	return pfn_to_page(pfn);
 }
+
+#ifdef CONFIG_SPARSEMEM_VMEMMAP_PREINIT
+/*
+ * This is called just before initializing sections for a NUMA node.
+ * Any special initialization that needs to be done before the
+ * generic initialization can be done from here. Sections that
+ * are initialized in hooks called from here will be skipped by
+ * the generic initialization.
+ */
+void __init sparse_vmemmap_init_nid_early(int nid)
+{
+}
+
+/*
+ * This is called just before the initialization of page structures
+ * through memmap_init. Zones are now initialized, so any work that
+ * needs to be done that needs zone information can be done from
+ * here.
+ */
+void __init sparse_vmemmap_init_nid_late(int nid)
+{
+}
+#endif
