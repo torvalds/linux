@@ -47,6 +47,14 @@ struct fwctl_ops {
 	 * ignore length on input, the core code will handle everything.
 	 */
 	void *(*info)(struct fwctl_uctx *uctx, size_t *length);
+	/**
+	 * @fw_rpc: Implement FWCTL_RPC. Deliver rpc_in/in_len to the FW and
+	 * return the response and set out_len. rpc_in can be returned as the
+	 * response pointer. Otherwise the returned pointer is freed with
+	 * kvfree().
+	 */
+	void *(*fw_rpc)(struct fwctl_uctx *uctx, enum fwctl_rpc_scope scope,
+			void *rpc_in, size_t in_len, size_t *out_len);
 };
 
 /**
