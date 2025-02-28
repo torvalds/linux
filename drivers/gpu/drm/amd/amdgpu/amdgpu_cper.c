@@ -301,6 +301,7 @@ int amdgpu_cper_generate_ue_record(struct amdgpu_device *adev,
 		return ret;
 
 	amdgpu_cper_ring_write(ring, fatal, fatal->record_length);
+	kfree(fatal);
 
 	return 0;
 }
@@ -323,6 +324,7 @@ int amdgpu_cper_generate_bp_threshold_record(struct amdgpu_device *adev)
 		return ret;
 
 	amdgpu_cper_ring_write(ring, bp_threshold, bp_threshold->record_length);
+	kfree(bp_threshold);
 
 	return 0;
 }
@@ -399,6 +401,7 @@ int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
 	}
 
 	amdgpu_cper_ring_write(ring, corrected, corrected->record_length);
+	kfree(corrected);
 
 	return 0;
 }
