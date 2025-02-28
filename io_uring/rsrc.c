@@ -487,6 +487,12 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
+static void io_free_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
+{
+	if (!io_alloc_cache_put(&ctx->node_cache, node))
+		kvfree(node);
+}
+
 void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
 	if (node->tag)
@@ -506,8 +512,7 @@ void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 		break;
 	}
 
-	if (!io_alloc_cache_put(&ctx->node_cache, node))
-		kvfree(node);
+	io_free_node(ctx, node);
 }
 
 int io_sqe_files_unregister(struct io_ring_ctx *ctx)
