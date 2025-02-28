@@ -242,3 +242,17 @@ struct tsens_plat_data data_8976 = {
 	.feat		= &tsens_v1_feat,
 	.fields		= tsens_v1_regfields,
 };
+
+const struct tsens_ops ops_ipq5018 = {
+	.init		= init_tsens_v1_no_rpm,
+	.calibrate	= tsens_calibrate_common,
+	.get_temp	= get_temp_tsens_valid,
+};
+
+const struct tsens_plat_data data_ipq5018 = {
+	.num_sensors	= 5,
+	.ops		= &ops_ipq5018,
+	.hw_ids		= (unsigned int []){0, 1, 2, 3, 4},
+	.feat		= &tsens_v1_no_rpm_feat,
+	.fields		= tsens_v1_regfields,
+};
