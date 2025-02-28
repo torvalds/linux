@@ -357,6 +357,18 @@ static inline unsigned int fib_info_hashfn(struct fib_info *fi)
 	return fib_info_hashfn_result(fi->fib_net, val);
 }
 
+static struct hlist_head *fib_info_hash_alloc(unsigned int hash_bits)
+{
+	/* The second half is used for prefsrc */
+	return kvcalloc((1 << hash_bits) * 2, sizeof(struct hlist_head *),
+			GFP_KERNEL);
+}
+
+static void fib_info_hash_free(struct hlist_head *head)
+{
+	kvfree(head);
+}
+
 /* no metrics, only nexthop id */
 static struct fib_info *fib_find_info_nh(struct net *net,
 					 const struct fib_config *cfg)
@@ -1249,9 +1261,9 @@ fib_info_laddrhash_bucket(const struct net *net, __be32 val)
 }
 
 static void fib_info_hash_move(struct hlist_head *new_info_hash,
-			       struct hlist_head *new_laddrhash,
 			       unsigned int new_size)
 {
+	struct hlist_head *new_laddrhash = new_info_hash + new_size;
 	struct hlist_head *old_info_hash, *old_laddrhash;
 	unsigned int old_size = fib_info_hash_size;
 	unsigned int i;
@@ -1293,8 +1305,7 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 		}
 	}
 
-	kvfree(old_info_hash);
-	kvfree(old_laddrhash);
+	fib_info_hash_free(old_info_hash);
 }
 
 __be32 fib_info_update_nhc_saddr(struct net *net, struct fib_nh_common *nhc,
@@ -1412,22 +1423,18 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	err = -ENOBUFS;
 
 	if (fib_info_cnt >= fib_info_hash_size) {
-		unsigned int new_size = fib_info_hash_size << 1;
 		struct hlist_head *new_info_hash;
-		struct hlist_head *new_laddrhash;
-		size_t bytes;
+		unsigned int new_hash_bits;
 
-		if (!new_size)
-			new_size = 16;
-		bytes = (size_t)new_size * sizeof(struct hlist_head *);
-		new_info_hash = kvzalloc(bytes, GFP_KERNEL);
-		new_laddrhash = kvzalloc(bytes, GFP_KERNEL);
-		if (!new_info_hash || !new_laddrhash) {
-			kvfree(new_info_hash);
-			kvfree(new_laddrhash);
-		} else {
-			fib_info_hash_move(new_info_hash, new_laddrhash, new_size);
-		}
+		if (!fib_info_hash_bits)
+			new_hash_bits = 4;
+		else
+			new_hash_bits = fib_info_hash_bits + 1;
+
+		new_info_hash = fib_info_hash_alloc(new_hash_bits);
+		if (new_info_hash)
+			fib_info_hash_move(new_info_hash, 1 << new_hash_bits);
+
 		if (!fib_info_hash_size)
 			goto failure;
 	}
