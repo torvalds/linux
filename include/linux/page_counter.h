@@ -28,12 +28,13 @@ struct page_counter {
 	unsigned long watermark;
 	/* Latest cg2 reset watermark */
 	unsigned long local_watermark;
-	unsigned long failcnt;
+	unsigned long failcnt; /* v1-only field */
 
 	/* Keep all the read most fields in a separete cacheline. */
 	CACHELINE_PADDING(_pad2_);
 
 	bool protection_support;
+	bool track_failcnt;
 	unsigned long min;
 	unsigned long low;
 	unsigned long high;
@@ -58,6 +59,7 @@ static inline void page_counter_init(struct page_counter *counter,
 	counter->max = PAGE_COUNTER_MAX;
 	counter->parent = parent;
 	counter->protection_support = protection_support;
+	counter->track_failcnt = false;
 }
 
 static inline unsigned long page_counter_read(struct page_counter *counter)
