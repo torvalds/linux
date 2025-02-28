@@ -12,9 +12,9 @@
  */
 #ifdef CONFIG_X86_32
 
-#define mb()	alternative("lock; addl $0,0(%%esp)", "mfence", X86_FEATURE_XMM2)
-#define rmb()	alternative("lock; addl $0,0(%%esp)", "lfence", X86_FEATURE_XMM2)
-#define wmb()	alternative("lock; addl $0,0(%%esp)", "sfence", X86_FEATURE_XMM)
+#define mb()	alternative("lock addl $0,0(%%esp)", "mfence", X86_FEATURE_XMM2)
+#define rmb()	alternative("lock addl $0,0(%%esp)", "lfence", X86_FEATURE_XMM2)
+#define wmb()	alternative("lock addl $0,0(%%esp)", "sfence", X86_FEATURE_XMM)
 
 #else /* CONFIG_X86_32 */
 
