@@ -5,6 +5,7 @@
 #include <linux/if_vlan.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
+#include <linux/phy.h>
 #include "hbg_common.h"
 #include "hbg_diagnose.h"
 #include "hbg_err.h"
@@ -277,6 +278,7 @@ static const struct net_device_ops hbg_netdev_ops = {
 	.ndo_tx_timeout		= hbg_net_tx_timeout,
 	.ndo_set_rx_mode	= hbg_net_set_rx_mode,
 	.ndo_get_stats64	= hbg_net_get_stats,
+	.ndo_eth_ioctl		= phy_do_ioctl_running,
 };
 
 static void hbg_service_task(struct work_struct *work)
