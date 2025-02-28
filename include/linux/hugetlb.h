@@ -175,6 +175,7 @@ extern int sysctl_hugetlb_shm_group;
 extern struct list_head huge_boot_pages[MAX_NUMNODES];
 
 void hugetlb_bootmem_alloc(void);
+bool hugetlb_bootmem_allocated(void);
 
 /* arch callbacks */
 
@@ -1262,6 +1263,11 @@ static inline bool hugetlbfs_pagecache_present(
 
 static inline void hugetlb_bootmem_alloc(void)
 {
+}
+
+static inline bool hugetlb_bootmem_allocated(void)
+{
+	return false;
 }
 #endif	/* CONFIG_HUGETLB_PAGE */
 
