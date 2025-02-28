@@ -1861,7 +1861,7 @@
 	hpet_mmap=	[X86, HPET_MMAP] Allow userspace to mmap HPET
 			registers.  Default set by CONFIG_HPET_MMAP_DEFAULT.
 
-	hugepages=	[HW] Number of HugeTLB pages to allocate at boot.
+	hugepages=	[HW,EARLY] Number of HugeTLB pages to allocate at boot.
 			If this follows hugepagesz (below), it specifies
 			the number of pages of hugepagesz to be allocated.
 			If this is the first HugeTLB parameter on the command
@@ -1873,12 +1873,12 @@
 				<node>:<integer>[,<node>:<integer>]
 
 	hugepagesz=
-			[HW] The size of the HugeTLB pages.  This is used in
-			conjunction with hugepages (above) to allocate huge
-			pages of a specific size at boot.  The pair
-			hugepagesz=X hugepages=Y can be specified once for
-			each supported huge page size. Huge page sizes are
-			architecture dependent.  See also
+			[HW,EARLY] The size of the HugeTLB pages.  This is
+			used in conjunction with hugepages (above) to
+			allocate huge pages of a specific size at boot. The
+			pair hugepagesz=X hugepages=Y can be specified once
+			for each supported huge page size. Huge page sizes
+			are architecture dependent. See also
 			Documentation/admin-guide/mm/hugetlbpage.rst.
 			Format: size[KMG]
 

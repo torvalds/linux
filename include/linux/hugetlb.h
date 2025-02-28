@@ -174,6 +174,8 @@ struct address_space *hugetlb_folio_mapping_lock_write(struct folio *folio);
 extern int sysctl_hugetlb_shm_group;
 extern struct list_head huge_boot_pages[MAX_NUMNODES];
 
+void hugetlb_bootmem_alloc(void);
+
 /* arch callbacks */
 
 #ifndef CONFIG_HIGHPTE
@@ -1256,6 +1258,10 @@ static inline bool hugetlbfs_pagecache_present(
     struct hstate *h, struct vm_area_struct *vma, unsigned long address)
 {
 	return false;
+}
+
+static inline void hugetlb_bootmem_alloc(void)
+{
 }
 #endif	/* CONFIG_HUGETLB_PAGE */
 

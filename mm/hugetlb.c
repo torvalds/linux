@@ -40,6 +40,7 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
+#include <asm/setup.h>
 
 #include <linux/io.h>
 #include <linux/hugetlb.h>
@@ -62,12 +63,44 @@ static unsigned long hugetlb_cma_size __initdata;
 
 __initdata struct list_head huge_boot_pages[MAX_NUMNODES];
 
+/*
+ * Due to ordering constraints across the init code for various
+ * architectures, hugetlb hstate cmdline parameters can't simply
+ * be early_param. early_param might call the setup function
+ * before valid hugetlb page sizes are determined, leading to
+ * incorrect rejection of valid hugepagesz= options.
+ *
+ * So, record the parameters early and consume them whenever the
+ * init code is ready for them, by calling hugetlb_parse_params().
+ */
+
+/* one (hugepagesz=,hugepages=) pair per hstate, one default_hugepagesz */
+#define HUGE_MAX_CMDLINE_ARGS	(2 * HUGE_MAX_HSTATE + 1)
+struct hugetlb_cmdline {
+	char *val;
+	int (*setup)(char *val);
+};
+
 /* for command line parsing */
 static struct hstate * __initdata parsed_hstate;
 static unsigned long __initdata default_hstate_max_huge_pages;
 static bool __initdata parsed_valid_hugepagesz = true;
 static bool __initdata parsed_default_hugepagesz;
 static unsigned int default_hugepages_in_node[MAX_NUMNODES] __initdata;
+
+static char hstate_cmdline_buf[COMMAND_LINE_SIZE] __initdata;
+static int hstate_cmdline_index __initdata;
+static struct hugetlb_cmdline hugetlb_params[HUGE_MAX_CMDLINE_ARGS] __initdata;
+static int hugetlb_param_index __initdata;
+static __init int hugetlb_add_param(char *s, int (*setup)(char *val));
+static __init void hugetlb_parse_params(void);
+
+#define hugetlb_early_param(str, func) \
+static __init int func##args(char *s) \
+{ \
+	return hugetlb_add_param(s, func); \
+} \
+early_param(str, func##args)
 
 /*
  * Protects updates to hugepage_freelists, hugepage_activelist, nr_huge_pages,
@@ -3496,6 +3529,8 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
 
 		for (i = 0; i < MAX_NUMNODES; i++)
 			INIT_LIST_HEAD(&huge_boot_pages[i]);
+		h->next_nid_to_alloc = first_online_node;
+		h->next_nid_to_free = first_online_node;
 		initialized = true;
 	}
 
@@ -4558,8 +4593,6 @@ void __init hugetlb_add_hstate(unsigned int order)
 	for (i = 0; i < MAX_NUMNODES; ++i)
 		INIT_LIST_HEAD(&h->hugepage_freelists[i]);
 	INIT_LIST_HEAD(&h->hugepage_activelist);
-	h->next_nid_to_alloc = first_online_node;
-	h->next_nid_to_free = first_online_node;
 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
 					huge_page_size(h)/SZ_1K);
 
@@ -4584,6 +4617,42 @@ static void __init hugepages_clear_pages_in_node(void)
 	}
 }
 
+static __init int hugetlb_add_param(char *s, int (*setup)(char *))
+{
+	size_t len;
+	char *p;
+
+	if (hugetlb_param_index >= HUGE_MAX_CMDLINE_ARGS)
+		return -EINVAL;
+
+	len = strlen(s) + 1;
+	if (len + hstate_cmdline_index > sizeof(hstate_cmdline_buf))
+		return -EINVAL;
+
+	p = &hstate_cmdline_buf[hstate_cmdline_index];
+	memcpy(p, s, len);
+	hstate_cmdline_index += len;
+
+	hugetlb_params[hugetlb_param_index].val = p;
+	hugetlb_params[hugetlb_param_index].setup = setup;
+
+	hugetlb_param_index++;
+
+	return 0;
+}
+
+static __init void hugetlb_parse_params(void)
+{
+	int i;
+	struct hugetlb_cmdline *hcp;
+
+	for (i = 0; i < hugetlb_param_index; i++) {
+		hcp = &hugetlb_params[i];
+
+		hcp->setup(hcp->val);
+	}
+}
+
 /*
  * hugepages command line processing
  * hugepages normally follows a valid hugepagsz or default_hugepagsz
@@ -4603,7 +4672,7 @@ static int __init hugepages_setup(char *s)
 	if (!parsed_valid_hugepagesz) {
 		pr_warn("HugeTLB: hugepages=%s does not follow a valid hugepagesz, ignoring\n", s);
 		parsed_valid_hugepagesz = true;
-		return 1;
+		return -EINVAL;
 	}
 
 	/*
@@ -4657,24 +4726,16 @@ static int __init hugepages_setup(char *s)
 		}
 	}
 
-	/*
-	 * Global state is always initialized later in hugetlb_init.
-	 * But we need to allocate gigantic hstates here early to still
-	 * use the bootmem allocator.
-	 */
-	if (hugetlb_max_hstate && hstate_is_gigantic(parsed_hstate))
-		hugetlb_hstate_alloc_pages(parsed_hstate);
-
 	last_mhp = mhp;
 
-	return 1;
+	return 0;
 
 invalid:
 	pr_warn("HugeTLB: Invalid hugepages parameter %s\n", p);
 	hugepages_clear_pages_in_node();
-	return 1;
+	return -EINVAL;
 }
-__setup("hugepages=", hugepages_setup);
+hugetlb_early_param("hugepages", hugepages_setup);
 
 /*
  * hugepagesz command line processing
@@ -4693,7 +4754,7 @@ static int __init hugepagesz_setup(char *s)
 
 	if (!arch_hugetlb_valid_size(size)) {
 		pr_err("HugeTLB: unsupported hugepagesz=%s\n", s);
-		return 1;
+		return -EINVAL;
 	}
 
 	h = size_to_hstate(size);
@@ -4708,7 +4769,7 @@ static int __init hugepagesz_setup(char *s)
 		if (!parsed_default_hugepagesz ||  h != &default_hstate ||
 		    default_hstate.max_huge_pages) {
 			pr_warn("HugeTLB: hugepagesz=%s specified twice, ignoring\n", s);
-			return 1;
+			return -EINVAL;
 		}
 
 		/*
@@ -4718,14 +4779,14 @@ static int __init hugepagesz_setup(char *s)
 		 */
 		parsed_hstate = h;
 		parsed_valid_hugepagesz = true;
-		return 1;
+		return 0;
 	}
 
 	hugetlb_add_hstate(ilog2(size) - PAGE_SHIFT);
 	parsed_valid_hugepagesz = true;
-	return 1;
+	return 0;
 }
-__setup("hugepagesz=", hugepagesz_setup);
+hugetlb_early_param("hugepagesz", hugepagesz_setup);
 
 /*
  * default_hugepagesz command line input
@@ -4739,14 +4800,14 @@ static int __init default_hugepagesz_setup(char *s)
 	parsed_valid_hugepagesz = false;
 	if (parsed_default_hugepagesz) {
 		pr_err("HugeTLB: default_hugepagesz previously specified, ignoring %s\n", s);
-		return 1;
+		return -EINVAL;
 	}
 
 	size = (unsigned long)memparse(s, NULL);
 
 	if (!arch_hugetlb_valid_size(size)) {
 		pr_err("HugeTLB: unsupported default_hugepagesz=%s\n", s);
-		return 1;
+		return -EINVAL;
 	}
 
 	hugetlb_add_hstate(ilog2(size) - PAGE_SHIFT);
@@ -4763,17 +4824,33 @@ static int __init default_hugepagesz_setup(char *s)
 	 */
 	if (default_hstate_max_huge_pages) {
 		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
-		for_each_online_node(i)
-			default_hstate.max_huge_pages_node[i] =
-				default_hugepages_in_node[i];
-		if (hstate_is_gigantic(&default_hstate))
-			hugetlb_hstate_alloc_pages(&default_hstate);
+		/*
+		 * Since this is an early parameter, we can't check
+		 * NUMA node state yet, so loop through MAX_NUMNODES.
+		 */
+		for (i = 0; i < MAX_NUMNODES; i++) {
+			if (default_hugepages_in_node[i] != 0)
+				default_hstate.max_huge_pages_node[i] =
+					default_hugepages_in_node[i];
+		}
 		default_hstate_max_huge_pages = 0;
 	}
 
-	return 1;
+	return 0;
 }
-__setup("default_hugepagesz=", default_hugepagesz_setup);
+hugetlb_early_param("default_hugepagesz", default_hugepagesz_setup);
+
+void __init hugetlb_bootmem_alloc(void)
+{
+	struct hstate *h;
+
+	hugetlb_parse_params();
+
+	for_each_hstate(h) {
+		if (hstate_is_gigantic(h))
+			hugetlb_hstate_alloc_pages(h);
+	}
+}
 
 static unsigned int allowed_mems_nr(struct hstate *h)
 {
