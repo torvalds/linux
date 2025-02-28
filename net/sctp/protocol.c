@@ -185,12 +185,9 @@ static void sctp_v4_copy_ip_options(struct sock *sk, struct sock *newsk)
 	rcu_read_lock();
 	inet_opt = rcu_dereference(inet->inet_opt);
 	if (inet_opt) {
-		newopt = sock_kmalloc(newsk, sizeof(*inet_opt) +
+		newopt = sock_kmemdup(newsk, inet_opt, sizeof(*inet_opt) +
 				      inet_opt->opt.optlen, GFP_ATOMIC);
-		if (newopt)
-			memcpy(newopt, inet_opt, sizeof(*inet_opt) +
-			       inet_opt->opt.optlen);
-		else
+		if (!newopt)
 			pr_err("%s: Failed to copy ip options\n", __func__);
 	}
 	RCU_INIT_POINTER(newinet->inet_opt, newopt);

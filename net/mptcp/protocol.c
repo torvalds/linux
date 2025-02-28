@@ -3178,12 +3178,9 @@ static void mptcp_copy_ip_options(struct sock *newsk, const struct sock *sk)
 	rcu_read_lock();
 	inet_opt = rcu_dereference(inet->inet_opt);
 	if (inet_opt) {
-		newopt = sock_kmalloc(newsk, sizeof(*inet_opt) +
+		newopt = sock_kmemdup(newsk, inet_opt, sizeof(*inet_opt) +
 				      inet_opt->opt.optlen, GFP_ATOMIC);
-		if (newopt)
-			memcpy(newopt, inet_opt, sizeof(*inet_opt) +
-			       inet_opt->opt.optlen);
-		else
+		if (!newopt)
 			net_warn_ratelimited("%s: Failed to copy ip options\n", __func__);
 	}
 	RCU_INIT_POINTER(newinet->inet_opt, newopt);
