@@ -1018,6 +1018,12 @@
 	dai@2 {
 		reg = <2>;
 	};
+
+	dai@3 {
+		direction = <Q6ASM_DAI_RX>;
+		is-compress-dai;
+		reg = <3>;
+	};
 };
 
 &sdhc_2 {
@@ -1050,7 +1056,8 @@
 		"VA DMIC1", "vdd-micb",
 		"MM_DL1",  "MultiMedia1 Playback",
 		"MM_DL2",  "MultiMedia2 Playback",
-		"MultiMedia3 Capture", "MM_UL3";
+		"MultiMedia3 Capture", "MM_UL3",
+		"MM_DL4", "MultiMedia4 Playback";
 
 	mm1-dai-link {
 		link-name = "MultiMedia1";
@@ -1070,6 +1077,14 @@
 		link-name = "MultiMedia3";
 		cpu {
 			sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA3>;
+		};
+	};
+
+	mm4-dai-link {
+		link-name = "MultiMedia4";
+
+		cpu {
+			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA4>;
 		};
 	};
 
