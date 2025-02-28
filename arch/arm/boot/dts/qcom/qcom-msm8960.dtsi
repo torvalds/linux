@@ -52,6 +52,48 @@
 		reg = <0x80000000 0>;
 	};
 
+	thermal-zones {
+		cpu0-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsens 0>;
+
+			trips {
+				cpu_alert0: trip0 {
+					temperature = <60000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+
+				cpu_crit0: trip1 {
+					temperature = <95000>;
+					hysteresis = <10000>;
+					type = "critical";
+				};
+			};
+		};
+
+		cpu1-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsens 1>;
+
+			trips {
+				cpu_alert1: trip0 {
+					temperature = <60000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+
+				cpu_crit1: trip1 {
+					temperature = <95000>;
+					hysteresis = <10000>;
+					type = "critical";
+				};
+			};
+		};
+	};
+
 	cpu-pmu {
 		compatible = "qcom,krait-pmu";
 		interrupts = <GIC_PPI 10 0x304>;
@@ -115,6 +157,21 @@
 			cpu-offset = <0x80000>;
 		};
 
+		qfprom: efuse@700000 {
+			compatible = "qcom,msm8960-qfprom", "qcom,qfprom";
+			reg = <0x00700000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			tsens_calib: calib@404 {
+				reg = <0x404 0x10>;
+			};
+
+			tsens_backup: backup-calib@414 {
+				reg = <0x414 0x10>;
+			};
+		};
+
 		msmgpio: pinctrl@800000 {
 			compatible = "qcom,msm8960-pinctrl";
 			gpio-controller;
@@ -127,7 +184,7 @@
 		};
 
 		gcc: clock-controller@900000 {
-			compatible = "qcom,gcc-msm8960";
+			compatible = "qcom,gcc-msm8960", "syscon";
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
@@ -135,6 +192,18 @@
 				 <&pxo_board>,
 				 <&lcc PLL4>;
 			clock-names = "cxo", "pxo", "pll4";
+
+			tsens: thermal-sensor {
+				compatible = "qcom,msm8960-tsens";
+
+				nvmem-cells = <&tsens_calib>, <&tsens_backup>;
+				nvmem-cell-names = "calib", "calib_backup";
+				interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "uplow";
+
+				#qcom,sensors = <5>;
+				#thermal-sensor-cells = <1>;
+			};
 		};
 
 		lcc: clock-controller@28000000 {
