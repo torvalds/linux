@@ -213,6 +213,7 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 			case HPD_IDX:
 				privdata->dev_en.is_hpd_present = true;
 				privdata->dev_en.is_hpd_enabled = true;
+				amd_sfh_toggle_hpd(privdata, false);
 				break;
 			case ALS_IDX:
 				privdata->dev_en.is_als_present = true;
