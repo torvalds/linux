@@ -90,7 +90,7 @@ struct bmi270_data {
 	struct {
 		__le16 channels[6];
 		aligned_s64 timestamp;
-	} data __aligned(IIO_DMA_MINALIGN);
+	} buffer __aligned(IIO_DMA_MINALIGN);
 };
 
 enum bmi270_scan {
@@ -284,8 +284,8 @@ static int bmi270_set_scale(struct bmi270_data *data, int chan_type, int uscale)
 	return -EINVAL;
 }
 
-static int bmi270_get_scale(struct bmi270_data *bmi270_device, int chan_type,
-			    int *scale, int *uscale)
+static int bmi270_get_scale(struct bmi270_data *data, int chan_type, int *scale,
+			    int *uscale)
 {
 	int ret;
 	unsigned int val;
@@ -293,8 +293,7 @@ static int bmi270_get_scale(struct bmi270_data *bmi270_device, int chan_type,
 
 	switch (chan_type) {
 	case IIO_ACCEL:
-		ret = regmap_read(bmi270_device->regmap,
-				  BMI270_ACC_CONF_RANGE_REG, &val);
+		ret = regmap_read(data->regmap, BMI270_ACC_CONF_RANGE_REG, &val);
 		if (ret)
 			return ret;
 
@@ -302,8 +301,7 @@ static int bmi270_get_scale(struct bmi270_data *bmi270_device, int chan_type,
 		bmi270_scale_item = bmi270_scale_table[BMI270_ACCEL];
 		break;
 	case IIO_ANGL_VEL:
-		ret = regmap_read(bmi270_device->regmap,
-				  BMI270_GYR_CONF_RANGE_REG, &val);
+		ret = regmap_read(data->regmap, BMI270_GYR_CONF_RANGE_REG, &val);
 		if (ret)
 			return ret;
 
@@ -403,25 +401,25 @@ static irqreturn_t bmi270_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
-	struct bmi270_data *bmi270_device = iio_priv(indio_dev);
+	struct bmi270_data *data = iio_priv(indio_dev);
 	int ret;
 
-	ret = regmap_bulk_read(bmi270_device->regmap, BMI270_ACCEL_X_REG,
-			       &bmi270_device->data.channels,
-			       sizeof(bmi270_device->data.channels));
+	ret = regmap_bulk_read(data->regmap, BMI270_ACCEL_X_REG,
+			       &data->buffer.channels,
+			       sizeof(data->buffer.channels));
 
 	if (ret)
 		goto done;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &bmi270_device->data,
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->buffer,
 					   pf->timestamp);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 	return IRQ_HANDLED;
 }
 
-static int bmi270_get_data(struct bmi270_data *bmi270_device,
-			   int chan_type, int axis, int *val)
+static int bmi270_get_data(struct bmi270_data *data, int chan_type, int axis,
+			   int *val)
 {
 	__le16 sample;
 	int reg;
@@ -441,7 +439,7 @@ static int bmi270_get_data(struct bmi270_data *bmi270_device,
 		return -EINVAL;
 	}
 
-	ret = regmap_bulk_read(bmi270_device->regmap, reg, &sample, sizeof(sample));
+	ret = regmap_bulk_read(data->regmap, reg, &sample, sizeof(sample));
 	if (ret)
 		return ret;
 
@@ -455,17 +453,17 @@ static int bmi270_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long mask)
 {
 	int ret;
-	struct bmi270_data *bmi270_device = iio_priv(indio_dev);
+	struct bmi270_data *data = iio_priv(indio_dev);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = bmi270_get_data(bmi270_device, chan->type, chan->channel2, val);
+		ret = bmi270_get_data(data, chan->type, chan->channel2, val);
 		if (ret)
 			return ret;
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		ret = bmi270_get_scale(bmi270_device, chan->type, val, val2);
+		ret = bmi270_get_scale(data, chan->type, val, val2);
 		return ret ? ret : IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OFFSET:
 		switch (chan->type) {
@@ -476,7 +474,7 @@ static int bmi270_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		ret = bmi270_get_odr(bmi270_device, chan->type, val, val2);
+		ret = bmi270_get_odr(data, chan->type, val, val2);
 		return ret ? ret : IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
@@ -599,12 +597,12 @@ static const struct iio_chan_spec bmi270_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(BMI270_SCAN_TIMESTAMP),
 };
 
-static int bmi270_validate_chip_id(struct bmi270_data *bmi270_device)
+static int bmi270_validate_chip_id(struct bmi270_data *data)
 {
 	int chip_id;
 	int ret;
-	struct device *dev = bmi270_device->dev;
-	struct regmap *regmap = bmi270_device->regmap;
+	struct device *dev = data->dev;
+	struct regmap *regmap = data->regmap;
 
 	ret = regmap_read(regmap, BMI270_CHIP_ID_REG, &chip_id);
 	if (ret)
@@ -618,24 +616,24 @@ static int bmi270_validate_chip_id(struct bmi270_data *bmi270_device)
 	if (chip_id == BMI160_CHIP_ID_VAL)
 		return -ENODEV;
 
-	if (chip_id != bmi270_device->chip_info->chip_id)
+	if (chip_id != data->chip_info->chip_id)
 		dev_info(dev, "Unexpected chip id 0x%x", chip_id);
 
 	if (chip_id == bmi260_chip_info.chip_id)
-		bmi270_device->chip_info = &bmi260_chip_info;
+		data->chip_info = &bmi260_chip_info;
 	else if (chip_id == bmi270_chip_info.chip_id)
-		bmi270_device->chip_info = &bmi270_chip_info;
+		data->chip_info = &bmi270_chip_info;
 
 	return 0;
 }
 
-static int bmi270_write_calibration_data(struct bmi270_data *bmi270_device)
+static int bmi270_write_calibration_data(struct bmi270_data *data)
 {
 	int ret;
 	int status = 0;
 	const struct firmware *init_data;
-	struct device *dev = bmi270_device->dev;
-	struct regmap *regmap = bmi270_device->regmap;
+	struct device *dev = data->dev;
+	struct regmap *regmap = data->regmap;
 
 	ret = regmap_clear_bits(regmap, BMI270_PWR_CONF_REG,
 				BMI270_PWR_CONF_ADV_PWR_SAVE_MSK);
@@ -656,8 +654,7 @@ static int bmi270_write_calibration_data(struct bmi270_data *bmi270_device)
 		return dev_err_probe(dev, ret,
 				     "Failed to prepare device to load init data");
 
-	ret = request_firmware(&init_data,
-			       bmi270_device->chip_info->fw_name, dev);
+	ret = request_firmware(&init_data, data->chip_info->fw_name, dev);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to load init data file");
 
@@ -689,11 +686,11 @@ static int bmi270_write_calibration_data(struct bmi270_data *bmi270_device)
 	return 0;
 }
 
-static int bmi270_configure_imu(struct bmi270_data *bmi270_device)
+static int bmi270_configure_imu(struct bmi270_data *data)
 {
 	int ret;
-	struct device *dev = bmi270_device->dev;
-	struct regmap *regmap = bmi270_device->regmap;
+	struct device *dev = data->dev;
+	struct regmap *regmap = data->regmap;
 
 	ret = regmap_set_bits(regmap, BMI270_PWR_CTRL_REG,
 			      BMI270_PWR_CTRL_AUX_EN_MSK |
@@ -730,38 +727,38 @@ static int bmi270_configure_imu(struct bmi270_data *bmi270_device)
 	return 0;
 }
 
-static int bmi270_chip_init(struct bmi270_data *bmi270_device)
+static int bmi270_chip_init(struct bmi270_data *data)
 {
 	int ret;
 
-	ret = bmi270_validate_chip_id(bmi270_device);
+	ret = bmi270_validate_chip_id(data);
 	if (ret)
 		return ret;
 
-	ret = bmi270_write_calibration_data(bmi270_device);
+	ret = bmi270_write_calibration_data(data);
 	if (ret)
 		return ret;
 
-	return bmi270_configure_imu(bmi270_device);
+	return bmi270_configure_imu(data);
 }
 
 int bmi270_core_probe(struct device *dev, struct regmap *regmap,
 		      const struct bmi270_chip_info *chip_info)
 {
 	int ret;
-	struct bmi270_data *bmi270_device;
+	struct bmi270_data *data;
 	struct iio_dev *indio_dev;
 
-	indio_dev = devm_iio_device_alloc(dev, sizeof(*bmi270_device));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
-	bmi270_device = iio_priv(indio_dev);
-	bmi270_device->dev = dev;
-	bmi270_device->regmap = regmap;
-	bmi270_device->chip_info = chip_info;
+	data = iio_priv(indio_dev);
+	data->dev = dev;
+	data->regmap = regmap;
+	data->chip_info = chip_info;
 
-	ret = bmi270_chip_init(bmi270_device);
+	ret = bmi270_chip_init(data);
 	if (ret)
 		return ret;
 
