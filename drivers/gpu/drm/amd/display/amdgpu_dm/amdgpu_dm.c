@@ -4691,48 +4691,40 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
 					    int bl_idx)
 {
-#if defined(CONFIG_ACPI)
-	struct amdgpu_dm_backlight_caps caps;
+	struct amdgpu_dm_backlight_caps *caps = &dm->backlight_caps[bl_idx];
 
-	memset(&caps, 0, sizeof(caps));
-
-	if (dm->backlight_caps[bl_idx].caps_valid)
+	if (caps->caps_valid)
 		return;
 
-	amdgpu_acpi_get_backlight_caps(&caps);
+#if defined(CONFIG_ACPI)
+	amdgpu_acpi_get_backlight_caps(caps);
 
 	/* validate the firmware value is sane */
-	if (caps.caps_valid) {
-		int spread = caps.max_input_signal - caps.min_input_signal;
+	if (caps->caps_valid) {
+		int spread = caps->max_input_signal - caps->min_input_signal;
 
-		if (caps.max_input_signal > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
-		    caps.min_input_signal < 0 ||
+		if (caps->max_input_signal > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
+		    caps->min_input_signal < 0 ||
 		    spread > AMDGPU_DM_DEFAULT_MAX_BACKLIGHT ||
 		    spread < AMDGPU_DM_MIN_SPREAD) {
 			DRM_DEBUG_KMS("DM: Invalid backlight caps: min=%d, max=%d\n",
-				      caps.min_input_signal, caps.max_input_signal);
-			caps.caps_valid = false;
+				      caps->min_input_signal, caps->max_input_signal);
+			caps->caps_valid = false;
 		}
 	}
 
-	if (caps.caps_valid) {
-		dm->backlight_caps[bl_idx].caps_valid = true;
-		if (caps.aux_support)
-			return;
-		dm->backlight_caps[bl_idx].min_input_signal = caps.min_input_signal;
-		dm->backlight_caps[bl_idx].max_input_signal = caps.max_input_signal;
-	} else {
-		dm->backlight_caps[bl_idx].min_input_signal =
-				AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
-		dm->backlight_caps[bl_idx].max_input_signal =
-				AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+	if (!caps->caps_valid) {
+		caps->min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
+		caps->max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+		caps->caps_valid = true;
 	}
 #else
-	if (dm->backlight_caps[bl_idx].aux_support)
+	if (caps->aux_support)
 		return;
 
-	dm->backlight_caps[bl_idx].min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
-	dm->backlight_caps[bl_idx].max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+	caps->min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
+	caps->max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+	caps->caps_valid = true;
 #endif
 }
 
@@ -4786,19 +4778,19 @@ static void amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 					 int bl_idx,
 					 u32 user_brightness)
 {
-	struct amdgpu_dm_backlight_caps caps;
+	struct amdgpu_dm_backlight_caps *caps;
 	struct dc_link *link;
 	u32 brightness;
 	bool rc, reallow_idle = false;
 
 	amdgpu_dm_update_backlight_caps(dm, bl_idx);
-	caps = dm->backlight_caps[bl_idx];
+	caps = &dm->backlight_caps[bl_idx];
 
 	dm->brightness[bl_idx] = user_brightness;
 	/* update scratch register */
 	if (bl_idx == 0)
 		amdgpu_atombios_scratch_regs_set_backlight_level(dm->adev, dm->brightness[bl_idx]);
-	brightness = convert_brightness_from_user(&caps, dm->brightness[bl_idx]);
+	brightness = convert_brightness_from_user(caps, dm->brightness[bl_idx]);
 	link = (struct dc_link *)dm->backlight_link[bl_idx];
 
 	/* Change brightness based on AUX property */
@@ -4808,7 +4800,7 @@ static void amdgpu_dm_backlight_set_level(struct amdgpu_display_manager *dm,
 		reallow_idle = true;
 	}
 
-	if (caps.aux_support) {
+	if (caps->aux_support) {
 		rc = dc_link_set_backlight_level_nits(link, true, brightness,
 						      AUX_BL_DEFAULT_TRANSITION_TIME_MS);
 		if (!rc)
