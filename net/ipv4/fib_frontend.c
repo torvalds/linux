@@ -1450,7 +1450,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 		fib_sync_up(dev, RTNH_F_DEAD);
 #endif
 		atomic_inc(&net->ipv4.dev_addr_genid);
-		rt_cache_flush(dev_net(dev));
+		rt_cache_flush(net);
 		break;
 	case NETDEV_DOWN:
 		fib_del_ifaddr(ifa, NULL);
@@ -1461,7 +1461,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 			 */
 			fib_disable_ip(dev, event, true);
 		} else {
-			rt_cache_flush(dev_net(dev));
+			rt_cache_flush(net);
 		}
 		break;
 	}
