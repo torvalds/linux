@@ -492,11 +492,11 @@ static int ad4851_find_opt(const unsigned long *field, unsigned int start,
 static int ad4851_calibrate(struct iio_dev *indio_dev)
 {
 	struct ad4851_state *st = iio_priv(indio_dev);
-	unsigned int opt_delay, num_lanes, delay, i, s, c;
+	unsigned int opt_delay, num_lanes, delay, i, s;
 	enum iio_backend_interface_type interface_type;
 	DECLARE_BITMAP(pn_status, AD4851_MAX_LANES * AD4851_MAX_IODELAY);
 	bool status;
-	int ret;
+	int c, ret;
 
 	ret = iio_backend_interface_type_get(st->back, &interface_type);
 	if (ret)
