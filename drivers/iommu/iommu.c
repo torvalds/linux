@@ -45,6 +45,9 @@ static unsigned int iommu_def_domain_type __read_mostly;
 static bool iommu_dma_strict __read_mostly = IS_ENABLED(CONFIG_IOMMU_DEFAULT_DMA_STRICT);
 static u32 iommu_cmd_line __read_mostly;
 
+/* Tags used with xa_tag_pointer() in group->pasid_array */
+enum { IOMMU_PASID_ARRAY_DOMAIN = 0, IOMMU_PASID_ARRAY_HANDLE = 1 };
+
 struct iommu_group {
 	struct kobject kobj;
 	struct kobject *devices_kobj;
@@ -2147,6 +2150,17 @@ struct iommu_domain *iommu_get_dma_domain(struct device *dev)
 	return dev->iommu_group->default_domain;
 }
 
+static void *iommu_make_pasid_array_entry(struct iommu_domain *domain,
+					  struct iommu_attach_handle *handle)
+{
+	if (handle) {
+		handle->domain = domain;
+		return xa_tag_pointer(handle, IOMMU_PASID_ARRAY_HANDLE);
+	}
+
+	return xa_tag_pointer(domain, IOMMU_PASID_ARRAY_DOMAIN);
+}
+
 static int __iommu_attach_group(struct iommu_domain *domain,
 				struct iommu_group *group)
 {
@@ -2186,32 +2200,6 @@ int iommu_attach_group(struct iommu_domain *domain, struct iommu_group *group)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_attach_group);
-
-/**
- * iommu_group_replace_domain - replace the domain that a group is attached to
- * @group: IOMMU group that will be attached to the new domain
- * @new_domain: new IOMMU domain to replace with
- *
- * This API allows the group to switch domains without being forced to go to
- * the blocking domain in-between.
- *
- * If the currently attached domain is a core domain (e.g. a default_domain),
- * it will act just like the iommu_attach_group().
- */
-int iommu_group_replace_domain(struct iommu_group *group,
-			       struct iommu_domain *new_domain)
-{
-	int ret;
-
-	if (!new_domain)
-		return -EINVAL;
-
-	mutex_lock(&group->mutex);
-	ret = __iommu_group_set_domain(group, new_domain);
-	mutex_unlock(&group->mutex);
-	return ret;
-}
-EXPORT_SYMBOL_NS_GPL(iommu_group_replace_domain, "IOMMUFD_INTERNAL");
 
 static int __iommu_device_set_domain(struct iommu_group *group,
 				     struct device *dev,
@@ -3374,6 +3362,7 @@ int iommu_attach_device_pasid(struct iommu_domain *domain,
 	struct iommu_group *group = dev->iommu_group;
 	struct group_device *device;
 	const struct iommu_ops *ops;
+	void *entry;
 	int ret;
 
 	if (!group)
@@ -3397,16 +3386,31 @@ int iommu_attach_device_pasid(struct iommu_domain *domain,
 		}
 	}
 
-	if (handle)
-		handle->domain = domain;
+	entry = iommu_make_pasid_array_entry(domain, handle);
 
-	ret = xa_insert(&group->pasid_array, pasid, handle, GFP_KERNEL);
+	/*
+	 * Entry present is a failure case. Use xa_insert() instead of
+	 * xa_reserve().
+	 */
+	ret = xa_insert(&group->pasid_array, pasid, XA_ZERO_ENTRY, GFP_KERNEL);
 	if (ret)
 		goto out_unlock;
 
 	ret = __iommu_set_group_pasid(domain, group, pasid);
-	if (ret)
-		xa_erase(&group->pasid_array, pasid);
+	if (ret) {
+		xa_release(&group->pasid_array, pasid);
+		goto out_unlock;
+	}
+
+	/*
+	 * The xa_insert() above reserved the memory, and the group->mutex is
+	 * held, this cannot fail. The new domain cannot be visible until the
+	 * operation succeeds as we cannot tolerate PRIs becoming concurrently
+	 * queued and then failing attach.
+	 */
+	WARN_ON(xa_is_err(xa_store(&group->pasid_array,
+				   pasid, entry, GFP_KERNEL)));
+
 out_unlock:
 	mutex_unlock(&group->mutex);
 	return ret;
@@ -3480,13 +3484,17 @@ struct iommu_attach_handle *
 iommu_attach_handle_get(struct iommu_group *group, ioasid_t pasid, unsigned int type)
 {
 	struct iommu_attach_handle *handle;
+	void *entry;
 
 	xa_lock(&group->pasid_array);
-	handle = xa_load(&group->pasid_array, pasid);
-	if (!handle)
+	entry = xa_load(&group->pasid_array, pasid);
+	if (!entry || xa_pointer_tag(entry) != IOMMU_PASID_ARRAY_HANDLE) {
 		handle = ERR_PTR(-ENOENT);
-	else if (type && handle->domain->type != type)
-		handle = ERR_PTR(-EBUSY);
+	} else {
+		handle = xa_untag_pointer(entry);
+		if (type && handle->domain->type != type)
+			handle = ERR_PTR(-EBUSY);
+	}
 	xa_unlock(&group->pasid_array);
 
 	return handle;
@@ -3509,25 +3517,35 @@ int iommu_attach_group_handle(struct iommu_domain *domain,
 			      struct iommu_group *group,
 			      struct iommu_attach_handle *handle)
 {
+	void *entry;
 	int ret;
 
-	if (handle)
-		handle->domain = domain;
+	if (!handle)
+		return -EINVAL;
 
 	mutex_lock(&group->mutex);
-	ret = xa_insert(&group->pasid_array, IOMMU_NO_PASID, handle, GFP_KERNEL);
+	entry = iommu_make_pasid_array_entry(domain, handle);
+	ret = xa_insert(&group->pasid_array,
+			IOMMU_NO_PASID, XA_ZERO_ENTRY, GFP_KERNEL);
 	if (ret)
-		goto err_unlock;
+		goto out_unlock;
 
 	ret = __iommu_attach_group(domain, group);
-	if (ret)
-		goto err_erase;
-	mutex_unlock(&group->mutex);
+	if (ret) {
+		xa_release(&group->pasid_array, IOMMU_NO_PASID);
+		goto out_unlock;
+	}
 
-	return 0;
-err_erase:
-	xa_erase(&group->pasid_array, IOMMU_NO_PASID);
-err_unlock:
+	/*
+	 * The xa_insert() above reserved the memory, and the group->mutex is
+	 * held, this cannot fail. The new domain cannot be visible until the
+	 * operation succeeds as we cannot tolerate PRIs becoming concurrently
+	 * queued and then failing attach.
+	 */
+	WARN_ON(xa_is_err(xa_store(&group->pasid_array,
+				   IOMMU_NO_PASID, entry, GFP_KERNEL)));
+
+out_unlock:
 	mutex_unlock(&group->mutex);
 	return ret;
 }
@@ -3557,33 +3575,34 @@ EXPORT_SYMBOL_NS_GPL(iommu_detach_group_handle, "IOMMUFD_INTERNAL");
  * @new_domain: new IOMMU domain to replace with
  * @handle: attach handle
  *
- * This is a variant of iommu_group_replace_domain(). It allows the caller to
- * provide an attach handle for the new domain and use it when the domain is
- * attached.
+ * This API allows the group to switch domains without being forced to go to
+ * the blocking domain in-between. It allows the caller to provide an attach
+ * handle for the new domain and use it when the domain is attached.
+ *
+ * If the currently attached domain is a core domain (e.g. a default_domain),
+ * it will act just like the iommu_attach_group_handle().
  */
 int iommu_replace_group_handle(struct iommu_group *group,
 			       struct iommu_domain *new_domain,
 			       struct iommu_attach_handle *handle)
 {
-	void *curr;
+	void *curr, *entry;
 	int ret;
 
-	if (!new_domain)
+	if (!new_domain || !handle)
 		return -EINVAL;
 
 	mutex_lock(&group->mutex);
-	if (handle) {
-		ret = xa_reserve(&group->pasid_array, IOMMU_NO_PASID, GFP_KERNEL);
-		if (ret)
-			goto err_unlock;
-		handle->domain = new_domain;
-	}
+	entry = iommu_make_pasid_array_entry(new_domain, handle);
+	ret = xa_reserve(&group->pasid_array, IOMMU_NO_PASID, GFP_KERNEL);
+	if (ret)
+		goto err_unlock;
 
 	ret = __iommu_group_set_domain(group, new_domain);
 	if (ret)
 		goto err_release;
 
-	curr = xa_store(&group->pasid_array, IOMMU_NO_PASID, handle, GFP_KERNEL);
+	curr = xa_store(&group->pasid_array, IOMMU_NO_PASID, entry, GFP_KERNEL);
 	WARN_ON(xa_is_err(curr));
 
 	mutex_unlock(&group->mutex);
@@ -3596,3 +3615,32 @@ err_unlock:
 	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(iommu_replace_group_handle, "IOMMUFD_INTERNAL");
+
+#if IS_ENABLED(CONFIG_IRQ_MSI_IOMMU)
+/**
+ * iommu_dma_prepare_msi() - Map the MSI page in the IOMMU domain
+ * @desc: MSI descriptor, will store the MSI page
+ * @msi_addr: MSI target address to be mapped
+ *
+ * The implementation of sw_msi() should take msi_addr and map it to
+ * an IOVA in the domain and call msi_desc_set_iommu_msi_iova() with the
+ * mapping information.
+ *
+ * Return: 0 on success or negative error code if the mapping failed.
+ */
+int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
+{
+	struct device *dev = msi_desc_to_dev(desc);
+	struct iommu_group *group = dev->iommu_group;
+	int ret = 0;
+
+	if (!group)
+		return 0;
+
+	mutex_lock(&group->mutex);
+	if (group->domain && group->domain->sw_msi)
+		ret = group->domain->sw_msi(group->domain, desc, msi_addr);
+	mutex_unlock(&group->mutex);
+	return ret;
+}
+#endif /* CONFIG_IRQ_MSI_IOMMU */
