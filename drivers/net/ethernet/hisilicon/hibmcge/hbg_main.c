@@ -6,6 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include "hbg_common.h"
+#include "hbg_diagnose.h"
 #include "hbg_err.h"
 #include "hbg_ethtool.h"
 #include "hbg_hw.h"
@@ -289,13 +290,19 @@ static void hbg_service_task(struct work_struct *work)
 	if (test_and_clear_bit(HBG_NIC_STATE_NP_LINK_FAIL, &priv->state))
 		hbg_fix_np_link_fail(priv);
 
+	hbg_diagnose_message_push(priv);
+
 	/* The type of statistics register is u32,
 	 * To prevent the statistics register from overflowing,
 	 * the driver dumps the statistics every 30 seconds.
 	 */
-	hbg_update_stats(priv);
+	if (time_after(jiffies, priv->last_update_stats_time + 30 * HZ)) {
+		hbg_update_stats(priv);
+		priv->last_update_stats_time = jiffies;
+	}
+
 	schedule_delayed_work(&priv->service_task,
-			      msecs_to_jiffies(30 * MSEC_PER_SEC));
+			      msecs_to_jiffies(MSEC_PER_SEC));
 }
 
 void hbg_err_reset_task_schedule(struct hbg_priv *priv)

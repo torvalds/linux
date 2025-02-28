@@ -272,6 +272,7 @@ struct hbg_priv {
 	enum hbg_reset_type reset_type;
 	struct hbg_user_def user_def;
 	struct hbg_stats stats;
+	unsigned long last_update_stats_time;
 	struct delayed_work service_task;
 };
 
