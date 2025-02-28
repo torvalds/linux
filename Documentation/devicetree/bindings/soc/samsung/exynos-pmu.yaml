@@ -53,6 +53,7 @@ properties:
       - items:
           - enum:
               - samsung,exynos2200-pmu
+              - samsung,exynos7870-pmu
               - samsung,exynos7885-pmu
               - samsung,exynos8895-pmu
               - samsung,exynos9810-pmu
