@@ -784,6 +784,7 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 		}
 	} else {
 		write_unlock_bh(&ls->ls_rsbtbl_lock);
+		error = -EBADR;
 		goto do_new;
 	}
 
