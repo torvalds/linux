@@ -73,9 +73,10 @@ err_free:
 static void drm_client_modeset_release(struct drm_client_dev *client)
 {
 	struct drm_mode_set *modeset;
-	unsigned int i;
 
 	drm_client_for_each_modeset(modeset, client) {
+		unsigned int i;
+
 		drm_mode_destroy(client->dev, modeset->mode);
 		modeset->mode = NULL;
 		modeset->fb = NULL;
@@ -291,9 +292,8 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 				     struct drm_client_offset offsets[],
 				     bool enabled[], int width, int height)
 {
-	int count, i, j;
+	int count, i;
 	bool can_clone = false;
-	const struct drm_display_mode *mode;
 	struct drm_display_mode *dmt_mode;
 
 	/* only contemplate cloning in the single crtc case */
@@ -313,6 +313,8 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 	/* check the command line or if nothing common pick 1024x768 */
 	can_clone = true;
 	for (i = 0; i < connector_count; i++) {
+		int j;
+
 		if (!enabled[i])
 			continue;
 
@@ -347,6 +349,8 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 		goto fail;
 
 	for (i = 0; i < connector_count; i++) {
+		const struct drm_display_mode *mode;
+
 		if (!enabled[i])
 			continue;
 
@@ -380,12 +384,12 @@ static int drm_client_get_tile_offsets(struct drm_device *dev,
 				       int idx,
 				       int h_idx, int v_idx)
 {
-	struct drm_connector *connector;
 	int i;
 	int hoffset = 0, voffset = 0;
 
 	for (i = 0; i < connector_count; i++) {
-		connector = connectors[i];
+		struct drm_connector *connector = connectors[i];
+
 		if (!connector->has_tile)
 			continue;
 
@@ -415,7 +419,6 @@ static bool drm_client_target_preferred(struct drm_device *dev,
 					bool enabled[], int width, int height)
 {
 	const u64 mask = BIT_ULL(connector_count) - 1;
-	struct drm_connector *connector;
 	u64 conn_configured = 0;
 	int tile_pass = 0;
 	int num_tiled_conns = 0;
@@ -429,9 +432,9 @@ static bool drm_client_target_preferred(struct drm_device *dev,
 
 retry:
 	for (i = 0; i < connector_count; i++) {
+		struct drm_connector *connector = connectors[i];
 		const char *mode_type;
 
-		connector = connectors[i];
 
 		if (conn_configured & BIT_ULL(i))
 			continue;
@@ -546,9 +549,8 @@ static int drm_client_pick_crtcs(struct drm_client_dev *client,
 	struct drm_device *dev = client->dev;
 	struct drm_connector *connector;
 	int my_score, best_score, score;
-	struct drm_crtc **crtcs, *crtc;
+	struct drm_crtc **crtcs;
 	struct drm_mode_set *modeset;
-	int o;
 
 	if (n == connector_count)
 		return 0;
@@ -578,7 +580,8 @@ static int drm_client_pick_crtcs(struct drm_client_dev *client,
 	 * remaining connectors
 	 */
 	drm_client_for_each_modeset(modeset, client) {
-		crtc = modeset->crtc;
+		struct drm_crtc *crtc = modeset->crtc;
+		int o;
 
 		if (!connector_has_possible_crtc(connector, crtc))
 			continue;
@@ -622,7 +625,7 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 	const int count = min_t(unsigned int, connector_count, BITS_PER_LONG);
 	unsigned long conn_configured, conn_seq, mask;
 	struct drm_device *dev = client->dev;
-	int i, j;
+	int i;
 	bool *save_enabled;
 	bool fallback = true, ret = true;
 	int num_connectors_enabled = 0;
@@ -656,12 +659,11 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 retry:
 	conn_seq = conn_configured;
 	for (i = 0; i < count; i++) {
-		struct drm_connector *connector;
+		struct drm_connector *connector = connectors[i];
 		struct drm_encoder *encoder;
 		struct drm_crtc *crtc;
 		const char *mode_type;
-
-		connector = connectors[i];
+		int j;
 
 		if (conn_configured & BIT(i))
 			continue;
@@ -1239,11 +1241,12 @@ static void drm_client_modeset_dpms_legacy(struct drm_client_dev *client, int dp
 	struct drm_connector *connector;
 	struct drm_mode_set *modeset;
 	struct drm_modeset_acquire_ctx ctx;
-	int j;
 	int ret;
 
 	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 	drm_client_for_each_modeset(modeset, client) {
+		int j;
+
 		if (!modeset->crtc->enabled)
 			continue;
 
