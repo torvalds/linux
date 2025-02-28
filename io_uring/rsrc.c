@@ -490,7 +490,7 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 static void io_free_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
 	if (!io_alloc_cache_put(&ctx->node_cache, node))
-		kvfree(node);
+		kfree(node);
 }
 
 void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
