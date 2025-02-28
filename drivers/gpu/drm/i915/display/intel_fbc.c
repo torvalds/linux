@@ -734,7 +734,18 @@ static void intel_fbc_nuke(struct intel_fbc *fbc)
 
 static void intel_fbc_activate(struct intel_fbc *fbc)
 {
+	struct intel_display *display = fbc->display;
+
 	lockdep_assert_held(&fbc->lock);
+
+	/* only the fence can change for a flip nuke */
+	if (fbc->active && !intel_fbc_has_fences(display))
+		return;
+	/*
+	 * In case of FBC dirt rect, any updates to the FBC registers will
+	 * trigger the nuke.
+	 */
+	drm_WARN_ON(display->drm, fbc->active && HAS_FBC_DIRTY_RECT(display));
 
 	intel_fbc_hw_activate(fbc);
 	intel_fbc_nuke(fbc);
