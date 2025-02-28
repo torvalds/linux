@@ -207,7 +207,7 @@ def ksft_run(cases=None, globs=None, case_pfx=None, args=()):
 
     totals = {"pass": 0, "fail": 0, "skip": 0, "xfail": 0}
 
-    print("KTAP version 1")
+    print("TAP version 13")
     print("1.." + str(len(cases)))
 
     global KSFT_RESULT
