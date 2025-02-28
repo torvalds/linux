@@ -50,10 +50,6 @@
 
 #include "fib_lookup.h"
 
-static struct hlist_head *fib_info_hash;
-static unsigned int fib_info_hash_bits;
-static unsigned int fib_info_cnt;
-
 /* for_nexthops and change_nexthops only used when nexthop object
  * is not set in a fib_info. The logic within can reference fib_nh.
  */
@@ -256,8 +252,7 @@ void fib_release_info(struct fib_info *fi)
 	ASSERT_RTNL();
 	if (fi && refcount_dec_and_test(&fi->fib_treeref)) {
 		hlist_del(&fi->fib_hash);
-
-		fib_info_cnt--;
+		fi->fib_net->ipv4.fib_info_cnt--;
 
 		if (fi->fib_prefsrc)
 			hlist_del(&fi->fib_lhash);
@@ -333,11 +328,12 @@ static unsigned int fib_info_hashfn_1(int init_val, u8 protocol, u8 scope,
 static unsigned int fib_info_hashfn_result(const struct net *net,
 					   unsigned int val)
 {
-	return hash_32(val ^ net_hash_mix(net), fib_info_hash_bits);
+	return hash_32(val ^ net_hash_mix(net), net->ipv4.fib_info_hash_bits);
 }
 
 static struct hlist_head *fib_info_hash_bucket(struct fib_info *fi)
 {
+	struct net *net = fi->fib_net;
 	unsigned int val;
 
 	val = fib_info_hashfn_1(fi->fib_nhs, fi->fib_protocol,
@@ -352,16 +348,18 @@ static struct hlist_head *fib_info_hash_bucket(struct fib_info *fi)
 		} endfor_nexthops(fi)
 	}
 
-	return &fib_info_hash[fib_info_hashfn_result(fi->fib_net, val)];
+	return &net->ipv4.fib_info_hash[fib_info_hashfn_result(net, val)];
 }
 
 static struct hlist_head *fib_info_laddrhash_bucket(const struct net *net,
 						    __be32 val)
 {
-	u32 slot = hash_32(net_hash_mix(net) ^ (__force u32)val,
-			   fib_info_hash_bits);
+	unsigned int hash_bits = net->ipv4.fib_info_hash_bits;
+	u32 slot;
 
-	return &fib_info_hash[(1 << fib_info_hash_bits) + slot];
+	slot = hash_32(net_hash_mix(net) ^ (__force u32)val, hash_bits);
+
+	return &net->ipv4.fib_info_hash[(1 << hash_bits) + slot];
 }
 
 static struct hlist_head *fib_info_hash_alloc(unsigned int hash_bits)
@@ -376,22 +374,22 @@ static void fib_info_hash_free(struct hlist_head *head)
 	kvfree(head);
 }
 
-static void fib_info_hash_grow(void)
+static void fib_info_hash_grow(struct net *net)
 {
+	unsigned int old_size = 1 << net->ipv4.fib_info_hash_bits;
 	struct hlist_head *new_info_hash, *old_info_hash;
-	unsigned int old_size = 1 << fib_info_hash_bits;
 	unsigned int i;
 
-	if (fib_info_cnt < old_size)
+	if (net->ipv4.fib_info_cnt < old_size)
 		return;
 
-	new_info_hash = fib_info_hash_alloc(fib_info_hash_bits + 1);
+	new_info_hash = fib_info_hash_alloc(net->ipv4.fib_info_hash_bits + 1);
 	if (!new_info_hash)
 		return;
 
-	old_info_hash = fib_info_hash;
-	fib_info_hash = new_info_hash;
-	fib_info_hash_bits += 1;
+	old_info_hash = net->ipv4.fib_info_hash;
+	net->ipv4.fib_info_hash = new_info_hash;
+	net->ipv4.fib_info_hash_bits += 1;
 
 	for (i = 0; i < old_size; i++) {
 		struct hlist_head *head = &old_info_hash[i];
@@ -429,13 +427,12 @@ static struct fib_info *fib_find_info_nh(struct net *net,
 				 (__force u32)cfg->fc_prefsrc,
 				 cfg->fc_priority);
 	hash = fib_info_hashfn_result(net, hash);
-	head = &fib_info_hash[hash];
+	head = &net->ipv4.fib_info_hash[hash];
 
 	hlist_for_each_entry(fi, head, fib_hash) {
-		if (!net_eq(fi->fib_net, net))
-			continue;
 		if (!fi->nh || fi->nh->id != cfg->fc_nh_id)
 			continue;
+
 		if (cfg->fc_protocol == fi->fib_protocol &&
 		    cfg->fc_scope == fi->fib_scope &&
 		    cfg->fc_prefsrc == fi->fib_prefsrc &&
@@ -455,10 +452,9 @@ static struct fib_info *fib_find_info(struct fib_info *nfi)
 	struct fib_info *fi;
 
 	hlist_for_each_entry(fi, head, fib_hash) {
-		if (!net_eq(fi->fib_net, nfi->fib_net))
-			continue;
 		if (fi->fib_nhs != nfi->fib_nhs)
 			continue;
+
 		if (nfi->fib_protocol == fi->fib_protocol &&
 		    nfi->fib_scope == fi->fib_scope &&
 		    nfi->fib_prefsrc == fi->fib_prefsrc &&
@@ -1406,7 +1402,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	}
 #endif
 
-	fib_info_hash_grow();
+	fib_info_hash_grow(net);
 
 	fi = kzalloc(struct_size(fi, fib_nh, nhs), GFP_KERNEL);
 	if (!fi) {
@@ -1550,7 +1546,7 @@ link_it:
 	refcount_set(&fi->fib_treeref, 1);
 	refcount_set(&fi->fib_clntref, 1);
 
-	fib_info_cnt++;
+	net->ipv4.fib_info_cnt++;
 	hlist_add_head(&fi->fib_hash, fib_info_hash_bucket(fi));
 
 	if (fi->fib_prefsrc) {
@@ -2241,22 +2237,17 @@ int __net_init fib4_semantics_init(struct net *net)
 {
 	unsigned int hash_bits = 4;
 
-	if (!net_eq(net, &init_net))
-		return 0;
-
-	fib_info_hash = fib_info_hash_alloc(hash_bits);
-	if (!fib_info_hash)
+	net->ipv4.fib_info_hash = fib_info_hash_alloc(hash_bits);
+	if (!net->ipv4.fib_info_hash)
 		return -ENOMEM;
 
-	fib_info_hash_bits = hash_bits;
+	net->ipv4.fib_info_hash_bits = hash_bits;
+	net->ipv4.fib_info_cnt = 0;
 
 	return 0;
 }
 
 void __net_exit fib4_semantics_exit(struct net *net)
 {
-	if (!net_eq(net, &init_net))
-		return;
-
-	fib_info_hash_free(fib_info_hash);
+	fib_info_hash_free(net->ipv4.fib_info_hash);
 }
