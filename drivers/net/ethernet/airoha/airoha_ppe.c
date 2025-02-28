@@ -390,8 +390,8 @@ static u32 airoha_ppe_foe_get_entry_hash(struct airoha_foe_entry *hwe)
 	return hash;
 }
 
-static struct airoha_foe_entry *
-airoha_ppe_foe_get_entry(struct airoha_ppe *ppe, u32 hash)
+struct airoha_foe_entry *airoha_ppe_foe_get_entry(struct airoha_ppe *ppe,
+						  u32 hash)
 {
 	if (hash < PPE_SRAM_NUM_ENTRIES) {
 		u32 *hwe = ppe->foe + hash * sizeof(struct airoha_foe_entry);
@@ -861,7 +861,7 @@ void airoha_ppe_check_skb(struct airoha_ppe *ppe, u16 hash)
 int airoha_ppe_init(struct airoha_eth *eth)
 {
 	struct airoha_ppe *ppe;
-	int foe_size;
+	int foe_size, err;
 
 	ppe = devm_kzalloc(eth->dev, sizeof(*ppe), GFP_KERNEL);
 	if (!ppe)
@@ -882,7 +882,15 @@ int airoha_ppe_init(struct airoha_eth *eth)
 	if (!ppe->foe_flow)
 		return -ENOMEM;
 
-	return rhashtable_init(&eth->flow_table, &airoha_flow_table_params);
+	err = rhashtable_init(&eth->flow_table, &airoha_flow_table_params);
+	if (err)
+		return err;
+
+	err = airoha_ppe_debugfs_init(ppe);
+	if (err)
+		rhashtable_destroy(&eth->flow_table);
+
+	return err;
 }
 
 void airoha_ppe_deinit(struct airoha_eth *eth)
@@ -898,4 +906,5 @@ void airoha_ppe_deinit(struct airoha_eth *eth)
 	rcu_read_unlock();
 
 	rhashtable_destroy(&eth->flow_table);
+	debugfs_remove(eth->ppe->debugfs_dir);
 }
