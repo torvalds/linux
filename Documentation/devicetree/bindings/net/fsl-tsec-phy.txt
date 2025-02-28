@@ -8,44 +8,7 @@ Refer to Documentation/devicetree/bindings/net/fsl,gianfar-mdio.yaml
 
 * Gianfar-compatible ethernet nodes
 
-Properties:
-
-  - device_type : Should be "network"
-  - model : Model of the device.  Can be "TSEC", "eTSEC", or "FEC"
-  - compatible : Should be "gianfar"
-  - reg : Offset and length of the register set for the device
-  - interrupts : For FEC devices, the first interrupt is the device's
-    interrupt.  For TSEC and eTSEC devices, the first interrupt is
-    transmit, the second is receive, and the third is error.
-  - phy-handle : See ethernet.txt file in the same directory.
-  - fixed-link : See fixed-link.txt in the same directory.
-  - phy-connection-type : See ethernet.txt file in the same directory.
-    This property is only really needed if the connection is of type
-    "rgmii-id", as all other connection types are detected by hardware.
-  - fsl,magic-packet : If present, indicates that the hardware supports
-    waking up via magic packet.
-  - fsl,wake-on-filer : If present, indicates that the hardware supports
-    waking up by Filer General Purpose Interrupt (FGPI) asserted on the
-    Rx int line.  This is an advanced power management capability allowing
-    certain packet types (user) defined by filer rules to wake up the system.
-  - bd-stash : If present, indicates that the hardware supports stashing
-    buffer descriptors in the L2.
-  - rx-stash-len : Denotes the number of bytes of a received buffer to stash
-    in the L2.
-  - rx-stash-idx : Denotes the index of the first byte from the received
-    buffer to stash in the L2.
-
-Example:
-	ethernet@24000 {
-		device_type = "network";
-		model = "TSEC";
-		compatible = "gianfar";
-		reg = <0x24000 0x1000>;
-		local-mac-address = [ 00 E0 0C 00 73 00 ];
-		interrupts = <29 2 30 2 34 2>;
-		interrupt-parent = <&mpic>;
-		phy-handle = <&phy0>
-	};
+Refer to Documentation/devicetree/bindings/net/fsl,gianfar.yaml
 
 * Gianfar PTP clock nodes
 
