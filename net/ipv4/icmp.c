@@ -1248,22 +1248,6 @@ int icmp_rcv(struct sk_buff *skb)
 		goto reason_check;
 	}
 
-	if (icmph->type == ICMP_EXT_ECHOREPLY) {
-		reason = ping_rcv(skb);
-		goto reason_check;
-	}
-
-	/*
-	 *	18 is the highest 'known' ICMP type. Anything else is a mystery
-	 *
-	 *	RFC 1122: 3.2.2  Unknown ICMP messages types MUST be silently
-	 *		  discarded.
-	 */
-	if (icmph->type > NR_ICMP_TYPES) {
-		reason = SKB_DROP_REASON_UNHANDLED_PROTO;
-		goto error;
-	}
-
 	/*
 	 *	Parse the ICMP message
 	 */
@@ -1288,6 +1272,23 @@ int icmp_rcv(struct sk_buff *skb)
 			reason = SKB_DROP_REASON_INVALID_PROTO;
 			goto error;
 		}
+	}
+
+	if (icmph->type == ICMP_EXT_ECHOREPLY ||
+	    icmph->type == ICMP_ECHOREPLY) {
+		reason = ping_rcv(skb);
+		return reason ? NET_RX_DROP : NET_RX_SUCCESS;
+	}
+
+	/*
+	 *	18 is the highest 'known' ICMP type. Anything else is a mystery
+	 *
+	 *	RFC 1122: 3.2.2  Unknown ICMP messages types MUST be silently
+	 *		  discarded.
+	 */
+	if (icmph->type > NR_ICMP_TYPES) {
+		reason = SKB_DROP_REASON_UNHANDLED_PROTO;
+		goto error;
 	}
 
 	reason = icmp_pointers[icmph->type].handler(skb);

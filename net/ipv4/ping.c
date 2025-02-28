@@ -966,10 +966,9 @@ EXPORT_SYMBOL_GPL(ping_queue_rcv_skb);
 
 enum skb_drop_reason ping_rcv(struct sk_buff *skb)
 {
-	enum skb_drop_reason reason = SKB_DROP_REASON_NO_SOCKET;
-	struct sock *sk;
 	struct net *net = dev_net(skb->dev);
 	struct icmphdr *icmph = icmp_hdr(skb);
+	struct sock *sk;
 
 	/* We assume the packet has already been checked by icmp_rcv */
 
@@ -980,20 +979,11 @@ enum skb_drop_reason ping_rcv(struct sk_buff *skb)
 	skb_push(skb, skb->data - (u8 *)icmph);
 
 	sk = ping_lookup(net, skb, ntohs(icmph->un.echo.id));
-	if (sk) {
-		struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
+	if (sk)
+		return __ping_queue_rcv_skb(sk, skb);
 
-		pr_debug("rcv on socket %p\n", sk);
-		if (skb2)
-			reason = __ping_queue_rcv_skb(sk, skb2);
-		else
-			reason = SKB_DROP_REASON_NOMEM;
-	}
-
-	if (reason)
-		pr_debug("no socket, dropping\n");
-
-	return reason;
+	kfree_skb_reason(skb, SKB_DROP_REASON_NO_SOCKET);
+	return SKB_DROP_REASON_NO_SOCKET;
 }
 EXPORT_SYMBOL_GPL(ping_rcv);
 
