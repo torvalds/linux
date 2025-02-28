@@ -2258,14 +2258,13 @@ static bool skl_fb_scalable(const struct drm_framebuffer *fb)
 static void check_protection(struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct drm_gem_object *obj = intel_fb_bo(fb);
 
 	if (DISPLAY_VER(display) < 11)
 		return;
 
-	plane_state->decrypt = intel_pxp_key_check(i915->pxp, obj, false) == 0;
+	plane_state->decrypt = intel_pxp_key_check(obj, false) == 0;
 	plane_state->force_black = intel_bo_is_protected(obj) &&
 		!plane_state->decrypt;
 }
