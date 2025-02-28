@@ -78,6 +78,8 @@
 #include <drm/gpu_scheduler.h>
 #include <drm/spsc_queue.h>
 
+#include "sched_internal.h"
+
 #define CREATE_TRACE_POINTS
 #include "gpu_scheduler_trace.h"
 
@@ -86,9 +88,6 @@ static struct lockdep_map drm_sched_lockdep_map = {
 	.name = "drm_sched_lockdep_map"
 };
 #endif
-
-#define to_drm_sched_job(sched_job)		\
-		container_of((sched_job), struct drm_sched_job, queue_node)
 
 int drm_sched_policy = DRM_SCHED_POLICY_FIFO;
 
@@ -123,7 +122,7 @@ static bool drm_sched_can_queue(struct drm_gpu_scheduler *sched,
 {
 	struct drm_sched_job *s_job;
 
-	s_job = to_drm_sched_job(spsc_queue_peek(&entity->job_queue));
+	s_job = drm_sched_entity_queue_peek(entity);
 	if (!s_job)
 		return false;
 

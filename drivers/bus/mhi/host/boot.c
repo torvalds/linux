@@ -608,7 +608,7 @@ fw_load_ready_state:
 	return;
 
 error_ready_state:
-	if (fw_load_type == MHI_FW_LOAD_FBC) {
+	if (mhi_cntrl->fbc_image) {
 		mhi_free_bhie_table(mhi_cntrl, mhi_cntrl->fbc_image);
 		mhi_cntrl->fbc_image = NULL;
 	}
