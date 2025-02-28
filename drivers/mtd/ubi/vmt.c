@@ -54,7 +54,7 @@ static struct device_attribute attr_vol_upd_marker =
 static ssize_t vol_attribute_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	int ret, size;
+	int ret;
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
 	struct ubi_device *ubi = vol->ubi;
 
@@ -68,35 +68,32 @@ static ssize_t vol_attribute_show(struct device *dev,
 	spin_unlock(&ubi->volumes_lock);
 
 	if (attr == &attr_vol_reserved_ebs)
-		ret = scnprintf(buf, sizeof(int), "%d\n", vol->reserved_pebs);
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n", vol->reserved_pebs);
 	else if (attr == &attr_vol_type) {
 		const char *tp;
 
-		if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
+		if (vol->vol_type == UBI_DYNAMIC_VOLUME)
 			tp = "dynamic";
-			size = 8;
-		} else {
+		else
 			tp = "static";
-			size = 7;
-		}
-		ret = scnprintf(buf, size, "%s\n", tp);
+		ret = scnprintf(buf, PAGE_SIZE, "%s\n", tp);
 	} else if (attr == &attr_vol_name)
-		ret = scnprintf(buf, vol->name_len + 1, "%s\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%s\n",
 				vol->name);
 	else if (attr == &attr_vol_corrupted)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				vol->corrupted);
 	else if (attr == &attr_vol_alignment)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				vol->alignment);
 	else if (attr == &attr_vol_usable_eb_size)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				vol->usable_leb_size);
 	else if (attr == &attr_vol_data_bytes)
-		ret = scnprintf(buf, sizeof(unsigned long long), "%lld\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%lld\n",
 				vol->used_bytes);
 	else if (attr == &attr_vol_upd_marker)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				vol->upd_marker);
 	else
 		/* This must be a bug */

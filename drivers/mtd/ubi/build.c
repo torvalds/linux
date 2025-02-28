@@ -96,7 +96,7 @@ static DEFINE_SPINLOCK(ubi_devices_lock);
 static ssize_t version_show(struct class *class, struct class_attribute *attr,
 			    char *buf)
 {
-	return scnprintf(buf, sizeof(int), "%d\n", UBI_VERSION);
+	return scnprintf(buf, PAGE_SIZE, "%d\n", UBI_VERSION);
 }
 static CLASS_ATTR_RO(version);
 
@@ -374,49 +374,49 @@ static ssize_t dev_attribute_show(struct device *dev,
 	ubi = container_of(dev, struct ubi_device, dev);
 
 	if (attr == &dev_eraseblock_size)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->leb_size);
 	else if (attr == &dev_avail_eraseblocks)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->avail_pebs);
 	else if (attr == &dev_total_eraseblocks)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->good_peb_count);
 	else if (attr == &dev_volumes_count)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
-				ubi->vol_count - UBI_INT_VOL_COUNT);
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
+			ubi->vol_count - UBI_INT_VOL_COUNT);
 	else if (attr == &dev_max_ec)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->max_ec);
 	else if (attr == &dev_reserved_for_bad)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->beb_rsvd_pebs);
 	else if (attr == &dev_bad_peb_count)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->bad_peb_count);
 	else if (attr == &dev_max_vol_count)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->vtbl_slots);
 	else if (attr == &dev_min_io_size)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->min_io_size);
 	else if (attr == &dev_bgt_enabled)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->thread_enabled);
 	else if (attr == &dev_mtd_num)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->mtd->index);
 	else if (attr == &dev_ro_mode)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				ubi->ro_mode);
 	else if (attr == &dev_mtd_trigger_scrub)
-		ret = scnprintf(buf, sizeof(int), "%d\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
 				atomic_read(&ubi->scrub_work_count));
 	else if (attr == &dev_mtd_max_scrub_sqnum)
-		ret = scnprintf(buf, sizeof(unsigned long long), "%llu\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%llu\n",
 				get_max_sqnum(ubi));
 	else if (attr == &dev_mtd_min_scrub_sqnum)
-		ret = scnprintf(buf, sizeof(unsigned long long), "%llu\n",
+		ret = scnprintf(buf, PAGE_SIZE, "%llu\n",
 				ubi_wl_scrub_get_min_sqnum(ubi));
 	else
 		ret = -EINVAL;
@@ -513,7 +513,7 @@ static int uif_init(struct ubi_device *ubi)
 	int i, err;
 	dev_t dev;
 
-	scnprintf(ubi->ubi_name, sizeof(UBI_NAME_STR) + 5,
+	scnprintf(ubi->ubi_name, sizeof(ubi->ubi_name),
 			UBI_NAME_STR "%d", ubi->ubi_num);
 
 	/*
