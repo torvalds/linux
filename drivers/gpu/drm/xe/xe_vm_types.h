@@ -227,8 +227,8 @@ struct xe_vm {
 		 * up for revalidation. Protected from access with the
 		 * @invalidated_lock. Removing items from the list
 		 * additionally requires @lock in write mode, and adding
-		 * items to the list requires the @userptr.notifer_lock in
-		 * write mode.
+		 * items to the list requires either the @userptr.notifer_lock in
+		 * write mode, OR @lock in write mode.
 		 */
 		struct list_head invalidated;
 	} userptr;
