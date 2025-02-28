@@ -9563,6 +9563,7 @@ M:	Jason Gunthorpe <jgg@nvidia.com>
 M:	Saeed Mahameed <saeedm@nvidia.com>
 R:	Jonathan Cameron <Jonathan.Cameron@huawei.com>
 S:	Maintained
+F:	Documentation/userspace-api/fwctl/
 F:	drivers/fwctl/
 F:	include/linux/fwctl.h
 F:	include/uapi/fwctl/

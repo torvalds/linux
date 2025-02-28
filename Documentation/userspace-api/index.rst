@@ -45,6 +45,7 @@ Devices and I/O
 
    accelerators/ocxl
    dma-buf-alloc-exchange
+   fwctl/index
    gpio/index
    iommufd
    media/index
