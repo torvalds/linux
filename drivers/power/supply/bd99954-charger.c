@@ -156,7 +156,7 @@ static const struct regmap_config bd9995x_regmap_config = {
 	.reg_stride = 1,
 
 	.max_register = 3 * 0x100,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.ranges = regmap_range_cfg,
 	.num_ranges = ARRAY_SIZE(regmap_range_cfg),
