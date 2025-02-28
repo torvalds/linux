@@ -3223,7 +3223,18 @@ found:
 	 */
 	memblock_reserved_mark_noinit(virt_to_phys((void *)m + PAGE_SIZE),
 		huge_page_size(h) - PAGE_SIZE);
-	/* Put them into a private list first because mem_map is not up yet */
+
+	/*
+	 * Put them into a private list first because mem_map is not up yet.
+	 *
+	 * For pre-HVO to work correctly, pages need to be on the list for
+	 * the node they were actually allocated from. That node may be
+	 * different in the case of fallback by memblock_alloc_try_nid_raw.
+	 * So, extract the actual node first.
+	 */
+	if (nid == NUMA_NO_NODE)
+		node = early_pfn_to_nid(PHYS_PFN(virt_to_phys(m)));
+
 	INIT_LIST_HEAD(&m->list);
 	list_add(&m->list, &huge_boot_pages[node]);
 	m->hstate = h;
@@ -3318,8 +3329,8 @@ static void __init prep_and_add_bootmem_folios(struct hstate *h,
 	}
 }
 
-static bool __init hugetlb_bootmem_page_zones_valid(int nid,
-						    struct huge_bootmem_page *m)
+bool __init hugetlb_bootmem_page_zones_valid(int nid,
+					     struct huge_bootmem_page *m)
 {
 	unsigned long start_pfn;
 	bool valid;
