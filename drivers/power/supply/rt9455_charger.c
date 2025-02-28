@@ -1579,7 +1579,7 @@ static const struct regmap_config rt9455_regmap_config = {
 	.writeable_reg	= rt9455_is_writeable_reg,
 	.volatile_reg	= rt9455_is_volatile_reg,
 	.max_register	= RT9455_REG_MASK3,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static int rt9455_probe(struct i2c_client *client)
