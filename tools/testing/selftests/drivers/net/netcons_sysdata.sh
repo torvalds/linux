@@ -31,17 +31,38 @@ function set_cpu_nr() {
 	echo 1 > "${NETCONS_PATH}/userdata/cpu_nr_enabled"
 }
 
+# Enable the taskname to be appended to sysdata
+function set_taskname() {
+	if [[ ! -f "${NETCONS_PATH}/userdata/taskname_enabled" ]]
+	then
+		echo "Not able to enable taskname sysdata append. Configfs not available in ${NETCONS_PATH}/userdata/taskname_enabled" >&2
+		exit "${ksft_skip}"
+	fi
+
+	echo 1 > "${NETCONS_PATH}/userdata/taskname_enabled"
+}
+
 # Disable the sysdata cpu_nr feature
 function unset_cpu_nr() {
 	echo 0 > "${NETCONS_PATH}/userdata/cpu_nr_enabled"
 }
 
-# Test if MSG content and `cpu=${CPU}` exists in OUTPUT_FILE
-function validate_sysdata_cpu_exists() {
+# Once called, taskname=<..> will not be appended anymore
+function unset_taskname() {
+	echo 0 > "${NETCONS_PATH}/userdata/taskname_enabled"
+}
+
+# Test if MSG contains sysdata
+function validate_sysdata() {
 	# OUTPUT_FILE will contain something like:
 	# 6.11.1-0_fbk0_rc13_509_g30d75cea12f7,13,1822,115075213798,-;netconsole selftest: netcons_gtJHM
 	#  userdatakey=userdatavalue
 	#  cpu=X
+	#  taskname=<taskname>
+
+	# Echo is what this test uses to create the message. See runtest()
+	# function
+	SENDER="echo"
 
 	if [ ! -f "$OUTPUT_FILE" ]; then
 		echo "FAIL: File was not generated." >&2
@@ -62,12 +83,19 @@ function validate_sysdata_cpu_exists() {
 		exit "${ksft_fail}"
 	fi
 
+	if ! grep -q "taskname=${SENDER}" "${OUTPUT_FILE}"; then
+		echo "FAIL: 'taskname=echo' not found in ${OUTPUT_FILE}" >&2
+		cat "${OUTPUT_FILE}" >&2
+		exit "${ksft_fail}"
+	fi
+
 	rm "${OUTPUT_FILE}"
 	pkill_socat
 }
 
-# Test if MSG content exists in OUTPUT_FILE but no `cpu=` string
-function validate_sysdata_no_cpu() {
+# Test if MSG content exists in OUTPUT_FILE but no `cpu=` and `taskname=`
+# strings
+function validate_no_sysdata() {
 	if [ ! -f "$OUTPUT_FILE" ]; then
 		echo "FAIL: File was not generated." >&2
 		exit "${ksft_fail}"
@@ -81,6 +109,12 @@ function validate_sysdata_no_cpu() {
 
 	if grep -q "cpu=" "${OUTPUT_FILE}"; then
 		echo "FAIL: 'cpu=  found in ${OUTPUT_FILE}" >&2
+		cat "${OUTPUT_FILE}" >&2
+		exit "${ksft_fail}"
+	fi
+
+	if grep -q "taskname=" "${OUTPUT_FILE}"; then
+		echo "FAIL: 'taskname=  found in ${OUTPUT_FILE}" >&2
 		cat "${OUTPUT_FILE}" >&2
 		exit "${ksft_fail}"
 	fi
@@ -133,10 +167,12 @@ OUTPUT_FILE="/tmp/${TARGET}_1"
 MSG="Test #1 from CPU${CPU}"
 # Enable the auto population of cpu_nr
 set_cpu_nr
+# Enable taskname to be appended to sysdata
+set_taskname
 runtest
 # Make sure the message was received in the dst part
 # and exit
-validate_sysdata_cpu_exists
+validate_sysdata
 
 #====================================================
 # TEST #2
@@ -148,7 +184,7 @@ OUTPUT_FILE="/tmp/${TARGET}_2"
 MSG="Test #2 from CPU${CPU}"
 set_user_data
 runtest
-validate_sysdata_cpu_exists
+validate_sysdata
 
 # ===================================================
 # TEST #3
@@ -160,8 +196,9 @@ OUTPUT_FILE="/tmp/${TARGET}_3"
 MSG="Test #3 from CPU${CPU}"
 # Enable the auto population of cpu_nr
 unset_cpu_nr
+unset_taskname
 runtest
 # At this time, cpu= shouldn't be present in the msg
-validate_sysdata_no_cpu
+validate_no_sysdata
 
 exit "${ksft_pass}"
