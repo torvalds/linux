@@ -51,7 +51,6 @@
 #include "fib_lookup.h"
 
 static struct hlist_head *fib_info_hash;
-static struct hlist_head *fib_info_laddrhash;
 static unsigned int fib_info_hash_size;
 static unsigned int fib_info_hash_bits;
 static unsigned int fib_info_cnt;
@@ -355,6 +354,15 @@ static struct hlist_head *fib_info_hash_bucket(struct fib_info *fi)
 	}
 
 	return &fib_info_hash[fib_info_hashfn_result(fi->fib_net, val)];
+}
+
+static struct hlist_head *fib_info_laddrhash_bucket(const struct net *net,
+						    __be32 val)
+{
+	u32 slot = hash_32(net_hash_mix(net) ^ (__force u32)val,
+			   fib_info_hash_bits);
+
+	return &fib_info_hash[(1 << fib_info_hash_bits) + slot];
 }
 
 static struct hlist_head *fib_info_hash_alloc(unsigned int hash_bits)
@@ -1247,26 +1255,15 @@ int fib_check_nh(struct net *net, struct fib_nh *nh, u32 table, u8 scope,
 	return err;
 }
 
-static struct hlist_head *
-fib_info_laddrhash_bucket(const struct net *net, __be32 val)
-{
-	u32 slot = hash_32(net_hash_mix(net) ^ (__force u32)val,
-			   fib_info_hash_bits);
-
-	return &fib_info_laddrhash[slot];
-}
-
 static void fib_info_hash_move(struct hlist_head *new_info_hash,
 			       unsigned int new_size)
 {
-	struct hlist_head *new_laddrhash = new_info_hash + new_size;
-	struct hlist_head *old_info_hash, *old_laddrhash;
 	unsigned int old_size = fib_info_hash_size;
+	struct hlist_head *old_info_hash;
 	unsigned int i;
 
 	ASSERT_RTNL();
 	old_info_hash = fib_info_hash;
-	old_laddrhash = fib_info_laddrhash;
 	fib_info_hash_size = new_size;
 	fib_info_hash_bits = ilog2(new_size);
 	fib_info_hash = new_info_hash;
@@ -1280,9 +1277,8 @@ static void fib_info_hash_move(struct hlist_head *new_info_hash,
 			hlist_add_head(&fi->fib_hash, fib_info_hash_bucket(fi));
 	}
 
-	fib_info_laddrhash = new_laddrhash;
 	for (i = 0; i < old_size; i++) {
-		struct hlist_head *lhead = &old_laddrhash[i];
+		struct hlist_head *lhead = &old_info_hash[old_size + i];
 		struct hlist_node *n;
 		struct fib_info *fi;
 
@@ -2261,7 +2257,6 @@ int __net_init fib4_semantics_init(struct net *net)
 
 	fib_info_hash_bits = hash_bits;
 	fib_info_hash_size = 1 << hash_bits;
-	fib_info_laddrhash = fib_info_hash + fib_info_hash_size;
 
 	return 0;
 }
