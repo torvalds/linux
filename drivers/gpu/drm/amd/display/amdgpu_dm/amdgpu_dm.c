@@ -4758,6 +4758,9 @@ static u32 convert_brightness_from_user(const struct amdgpu_dm_backlight_caps *c
 	for (int i = 0; i < caps->data_points; i++) {
 		u8 signal, lum;
 
+		if (amdgpu_dc_debug_mask & DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE)
+			break;
+
 		signal = caps->luminance_data[i].input_signal;
 		lum = caps->luminance_data[i].luminance;
 
@@ -4942,6 +4945,8 @@ amdgpu_dm_register_backlight_device(struct amdgpu_dm_connector *aconnector)
 	} else
 		props.brightness = AMDGPU_MAX_BL_LEVEL;
 
+	if (caps.data_points && !(amdgpu_dc_debug_mask & DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE))
+		drm_info(drm, "Using custom brightness curve\n");
 	props.max_brightness = AMDGPU_MAX_BL_LEVEL;
 	props.type = BACKLIGHT_RAW;
 

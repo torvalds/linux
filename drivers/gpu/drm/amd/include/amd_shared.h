@@ -354,6 +354,10 @@ enum DC_DEBUG_MASK {
 	 * @DC_DISABLE_SUBVP: If set, disable DCN Sub-Viewport feature in amdgpu driver.
 	 */
 	DC_DISABLE_SUBVP = 0x20000,
+	/**
+	 * @DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE: If set, disable support for custom brightness curves
+	 */
+	DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE = 0x40000,
 };
 
 enum amd_dpm_forced_level;
