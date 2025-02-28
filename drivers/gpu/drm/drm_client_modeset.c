@@ -265,6 +265,25 @@ static void drm_client_connectors_enabled(struct drm_connector *connectors[],
 		enabled[i] = drm_connector_enabled(connectors[i], false);
 }
 
+static void mode_replace(struct drm_device *dev,
+			 const struct drm_display_mode **dst,
+			 const struct drm_display_mode *src)
+{
+	drm_mode_destroy(dev, (struct drm_display_mode *)*dst);
+
+	*dst = src ? drm_mode_duplicate(dev, src) : NULL;
+}
+
+static void modes_destroy(struct drm_device *dev,
+			  const struct drm_display_mode *modes[],
+			  int count)
+{
+	int i;
+
+	for (i = 0; i < count; i++)
+		mode_replace(dev, &modes[i], NULL);
+}
+
 static bool drm_client_target_cloned(struct drm_device *dev,
 				     struct drm_connector *connectors[],
 				     unsigned int connector_count,
@@ -296,7 +315,9 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 	for (i = 0; i < connector_count; i++) {
 		if (!enabled[i])
 			continue;
-		modes[i] = drm_connector_pick_cmdline_mode(connectors[i]);
+
+		mode_replace(dev, &modes[i],
+			     drm_connector_pick_cmdline_mode(connectors[i]));
 		if (!modes[i]) {
 			can_clone = false;
 			break;
@@ -335,7 +356,7 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 					   DRM_MODE_MATCH_CLOCK |
 					   DRM_MODE_MATCH_FLAGS |
 					   DRM_MODE_MATCH_3D_FLAGS))
-				modes[i] = mode;
+				mode_replace(dev, &modes[i], mode);
 		}
 		if (!modes[i])
 			can_clone = false;
@@ -445,16 +466,19 @@ retry:
 		}
 
 		mode_type = "cmdline";
-		modes[i] = drm_connector_pick_cmdline_mode(connector);
+		mode_replace(dev, &modes[i],
+			     drm_connector_pick_cmdline_mode(connector));
 
 		if (!modes[i]) {
 			mode_type = "preferred";
-			modes[i] = drm_connector_preferred_mode(connector, width, height);
+			mode_replace(dev, &modes[i],
+				     drm_connector_preferred_mode(connector, width, height));
 		}
 
 		if (!modes[i]) {
 			mode_type = "first";
-			modes[i] = drm_connector_first_mode(connector);
+			mode_replace(dev, &modes[i],
+				     drm_connector_first_mode(connector));
 		}
 
 		/*
@@ -472,10 +496,12 @@ retry:
 			     connector->tile_v_loc == 0 &&
 			     !drm_connector_get_tiled_mode(connector))) {
 				mode_type = "non tiled";
-				modes[i] = drm_connector_fallback_non_tiled_mode(connector);
+				mode_replace(dev, &modes[i],
+					     drm_connector_fallback_non_tiled_mode(connector));
 			} else {
 				mode_type = "tiled";
-				modes[i] = drm_connector_get_tiled_mode(connector);
+				mode_replace(dev, &modes[i],
+					     drm_connector_get_tiled_mode(connector));
 			}
 		}
 
@@ -690,16 +716,19 @@ retry:
 		}
 
 		mode_type = "cmdline";
-		modes[i] = drm_connector_pick_cmdline_mode(connector);
+		mode_replace(dev, &modes[i],
+			     drm_connector_pick_cmdline_mode(connector));
 
 		if (!modes[i]) {
 			mode_type = "preferred";
-			modes[i] = drm_connector_preferred_mode(connector, width, height);
+			mode_replace(dev, &modes[i],
+				     drm_connector_preferred_mode(connector, width, height));
 		}
 
 		if (!modes[i]) {
 			mode_type = "first";
-			modes[i] = drm_connector_first_mode(connector);
+			mode_replace(dev, &modes[i],
+				     drm_connector_first_mode(connector));
 		}
 
 		/* last resort: use current mode */
@@ -716,7 +745,8 @@ retry:
 			 * fastboot check to work correctly.
 			 */
 			mode_type = "current";
-			modes[i] = &connector->state->crtc->mode;
+			mode_replace(dev, &modes[i],
+				     &connector->state->crtc->mode);
 		}
 
 		/*
@@ -726,7 +756,8 @@ retry:
 		if (connector->has_tile &&
 		    num_tiled_conns < connector->num_h_tile * connector->num_v_tile) {
 			mode_type = "non tiled";
-			modes[i] = drm_connector_fallback_non_tiled_mode(connector);
+			mode_replace(dev, &modes[i],
+				     drm_connector_fallback_non_tiled_mode(connector));
 		}
 		crtcs[i] = new_crtc;
 
@@ -798,7 +829,6 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 	unsigned int total_modes_count = 0;
 	struct drm_client_offset *offsets;
 	unsigned int connector_count = 0;
-	/* points to modes protected by mode_config.mutex */
 	const struct drm_display_mode **modes;
 	struct drm_crtc **crtcs;
 	int i, ret = 0;
@@ -850,7 +880,7 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 
 	if (!drm_client_firmware_config(client, connectors, connector_count, crtcs,
 					modes, offsets, enabled, width, height)) {
-		memset(modes, 0, connector_count * sizeof(*modes));
+		modes_destroy(dev, modes, connector_count);
 		memset(crtcs, 0, connector_count * sizeof(*crtcs));
 		memset(offsets, 0, connector_count * sizeof(*offsets));
 
@@ -866,6 +896,8 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 		drm_client_pick_crtcs(client, connectors, connector_count,
 				      crtcs, modes, 0, width, height);
 	}
+
+	mutex_unlock(&dev->mode_config.mutex);
 
 	drm_client_modeset_release(client);
 
@@ -901,11 +933,11 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 			modeset->y = offset->y;
 		}
 	}
-	mutex_unlock(&dev->mode_config.mutex);
 
 	mutex_unlock(&client->modeset_mutex);
 out:
 	kfree(crtcs);
+	modes_destroy(dev, modes, connector_count);
 	kfree(modes);
 	kfree(offsets);
 	kfree(enabled);
