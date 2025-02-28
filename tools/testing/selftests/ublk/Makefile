@@ -6,6 +6,8 @@ LDLIBS += -lpthread -lm -luring
 TEST_PROGS := test_null_01.sh
 TEST_PROGS += test_loop_01.sh
 TEST_PROGS += test_loop_02.sh
+TEST_PROGS += test_loop_03.sh
+TEST_PROGS += test_loop_04.sh
 
 TEST_GEN_PROGS_EXTENDED = kublk
 

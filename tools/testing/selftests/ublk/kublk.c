@@ -282,6 +282,8 @@ static void ublk_queue_deinit(struct ublk_queue *q)
 	int i;
 	int nr_ios = q->q_depth;
 
+	io_uring_unregister_buffers(&q->ring);
+
 	io_uring_unregister_ring_fd(&q->ring);
 
 	if (q->ring.ring_fd > 0) {
@@ -311,6 +313,11 @@ static int ublk_queue_init(struct ublk_queue *q)
 	q->q_depth = depth;
 	q->cmd_inflight = 0;
 	q->tid = gettid();
+
+	if (dev->dev_info.flags & UBLK_F_SUPPORT_ZERO_COPY) {
+		q->state |= UBLKSRV_NO_BUF;
+		q->state |= UBLKSRV_ZC;
+	}
 
 	cmd_buf_size = ublk_queue_cmd_buf_sz(q);
 	off = UBLKSRV_CMD_BUF_OFFSET + q->q_id * ublk_queue_max_cmd_buf_sz();
@@ -344,6 +351,15 @@ static int ublk_queue_init(struct ublk_queue *q)
 		ublk_err("ublk dev %d queue %d setup io_uring failed %d\n",
 				q->dev->dev_info.dev_id, q->q_id, ret);
 		goto fail;
+	}
+
+	if (dev->dev_info.flags & UBLK_F_SUPPORT_ZERO_COPY) {
+		ret = io_uring_register_buffers_sparse(&q->ring, q->q_depth);
+		if (ret) {
+			ublk_err("ublk dev %d queue %d register spare buffers failed %d",
+					dev->dev_info.dev_id, q->q_id, ret);
+			goto fail;
+		}
 	}
 
 	io_uring_register_ring_fd(&q->ring);
@@ -502,9 +518,10 @@ static void ublk_handle_cqe(struct io_uring *r,
 		ublk_err("%s: res %d userdata %llx queue state %x\n", __func__,
 				cqe->res, cqe->user_data, q->state);
 
-	ublk_dbg(UBLK_DBG_IO_CMD, "%s: res %d (qid %d tag %u cmd_op %u target %d) stopping %d\n",
+	ublk_dbg(UBLK_DBG_IO_CMD, "%s: res %d (qid %d tag %u cmd_op %u target %d/%d) stopping %d\n",
 			__func__, cqe->res, q->q_id, tag, cmd_op,
 			is_target_io(cqe->user_data),
+			user_data_to_tgt_data(cqe->user_data),
 			(q->state & UBLKSRV_QUEUE_STOPPING));
 
 	/* Don't retrieve io in case of target io */
@@ -1022,6 +1039,7 @@ int main(int argc, char *argv[])
 		{ "depth",		1,	NULL, 'd' },
 		{ "debug_mask",		1,	NULL,  0  },
 		{ "quiet",		0,	NULL,  0  },
+		{ "zero_copy",          1,      NULL, 'z' },
 		{ 0, 0, 0, 0 }
 	};
 	int option_idx, opt;
@@ -1038,7 +1056,7 @@ int main(int argc, char *argv[])
 		return ret;
 
 	optind = 2;
-	while ((opt = getopt_long(argc, argv, "t:n:d:q:a",
+	while ((opt = getopt_long(argc, argv, "t:n:d:q:a:z",
 				  longopts, &option_idx)) != -1) {
 		switch (opt) {
 		case 'a':
@@ -1056,6 +1074,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'd':
 			ctx.queue_depth = strtol(optarg, NULL, 10);
+			break;
+		case 'z':
+			ctx.flags |= UBLK_F_SUPPORT_ZERO_COPY | UBLK_F_USER_COPY;
 			break;
 		case 0:
 			if (!strcmp(longopts[option_idx].name, "debug_mask"))
