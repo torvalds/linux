@@ -573,7 +573,6 @@ void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
 
 	prt_str_indented(out, "extra replicas:\t");
 	prt_u64(out, data_opts->extra_replicas);
-	prt_newline(out);
 }
 
 void bch2_data_update_to_text(struct printbuf *out, struct data_update *m)
@@ -707,6 +706,18 @@ int bch2_data_update_bios_init(struct data_update *m, struct bch_fs *c,
 	return 0;
 }
 
+static bool can_write_extent(struct bch_fs *c,
+			     struct bch_devs_list *devs_have,
+			     unsigned target)
+{
+	struct bch_devs_mask devs = target_rw_devs(c, BCH_DATA_user, target);
+
+	darray_for_each(*devs_have, i)
+		__clear_bit(*i, devs.d);
+
+	return !bch2_is_zero(&devs, sizeof(devs));
+}
+
 int bch2_data_update_init(struct btree_trans *trans,
 			  struct btree_iter *iter,
 			  struct moving_context *ctxt,
@@ -786,6 +797,20 @@ int bch2_data_update_init(struct btree_trans *trans,
 			m->op.incompressible = true;
 
 		ptr_bit <<= 1;
+	}
+
+	if (!can_write_extent(c, &m->op.devs_have,
+			      m->op.flags & BCH_WRITE_only_specified_devs ? m->op.target : 0)) {
+		/*
+		 * Check if we have rw devices not in devs_have: this can happen
+		 * if we're trying to move data on a ro or failed device
+		 *
+		 * If we can't move it, we need to clear the rebalance_work bit,
+		 * if applicable
+		 *
+		 * Also, copygc should skip ro/failed devices:
+		 */
+		return -BCH_ERR_data_update_done_no_rw_devs;
 	}
 
 	unsigned durability_required = max(0, (int) (io_opts->data_replicas - durability_have));

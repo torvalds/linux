@@ -186,6 +186,7 @@
 	x(BCH_ERR_data_update_done,	data_update_done_no_writes_needed)	\
 	x(BCH_ERR_data_update_done,	data_update_done_no_snapshot)		\
 	x(BCH_ERR_data_update_done,	data_update_done_no_dev_refs)		\
+	x(BCH_ERR_data_update_done,	data_update_done_no_rw_devs)		\
 	x(EINVAL,			device_state_not_allowed)		\
 	x(EINVAL,			member_info_missing)			\
 	x(EINVAL,			mismatched_block_size)			\
