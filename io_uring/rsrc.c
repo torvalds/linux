@@ -500,12 +500,10 @@ void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 
 	switch (node->type) {
 	case IORING_RSRC_FILE:
-		if (io_slot_file(node))
-			fput(io_slot_file(node));
+		fput(io_slot_file(node));
 		break;
 	case IORING_RSRC_BUFFER:
-		if (node->buf)
-			io_buffer_unmap(ctx, node->buf);
+		io_buffer_unmap(ctx, node->buf);
 		break;
 	default:
 		WARN_ON_ONCE(1);
