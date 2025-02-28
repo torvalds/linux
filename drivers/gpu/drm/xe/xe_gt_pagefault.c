@@ -14,6 +14,7 @@
 #include "abi/guc_actions_abi.h"
 #include "xe_bo.h"
 #include "xe_gt.h"
+#include "xe_gt_stats.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_guc.h"
 #include "xe_guc_ct.h"
@@ -124,15 +125,19 @@ static int xe_pf_begin(struct drm_exec *exec, struct xe_vma *vma,
 	return 0;
 }
 
-static int handle_vma_pagefault(struct xe_tile *tile, struct pagefault *pf,
+static int handle_vma_pagefault(struct xe_gt *gt, struct pagefault *pf,
 				struct xe_vma *vma)
 {
 	struct xe_vm *vm = xe_vma_vm(vma);
+	struct xe_tile *tile = gt_to_tile(gt);
 	struct drm_exec exec;
 	struct dma_fence *fence;
 	ktime_t end = 0;
 	int err;
 	bool atomic;
+
+	xe_gt_stats_incr(gt, XE_GT_STATS_ID_VMA_PAGEFAULT_COUNT, 1);
+	xe_gt_stats_incr(gt, XE_GT_STATS_ID_VMA_PAGEFAULT_BYTES, xe_vma_size(vma));
 
 	trace_xe_vma_pagefault(vma);
 	atomic = access_is_atomic(pf->access_type);
@@ -202,7 +207,6 @@ static struct xe_vm *asid_to_vm(struct xe_device *xe, u32 asid)
 static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	struct xe_tile *tile = gt_to_tile(gt);
 	struct xe_vm *vm;
 	struct xe_vma *vma = NULL;
 	int err;
@@ -231,7 +235,7 @@ static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 		goto unlock_vm;
 	}
 
-	err = handle_vma_pagefault(tile, pf, vma);
+	err = handle_vma_pagefault(gt, pf, vma);
 
 unlock_vm:
 	if (!err)
@@ -263,12 +267,13 @@ static void print_pagefault(struct xe_device *xe, struct pagefault *pf)
 		 "\tFaultType: %d\n"
 		 "\tAccessType: %d\n"
 		 "\tFaultLevel: %d\n"
-		 "\tEngineClass: %d\n"
+		 "\tEngineClass: %d %s\n"
 		 "\tEngineInstance: %d\n",
 		 pf->asid, pf->vfid, pf->pdata, upper_32_bits(pf->page_addr),
 		 lower_32_bits(pf->page_addr),
 		 pf->fault_type, pf->access_type, pf->fault_level,
-		 pf->engine_class, pf->engine_instance);
+		 pf->engine_class, xe_hw_engine_class_to_str(pf->engine_class),
+		 pf->engine_instance);
 }
 
 #define PF_MSG_LEN_DW	4

@@ -58,7 +58,7 @@ int intel_dsi_get_modes(struct drm_connector *connector)
 }
 
 enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
-					  struct drm_display_mode *mode)
+					  const struct drm_display_mode *mode)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_connector *intel_connector = to_intel_connector(connector);

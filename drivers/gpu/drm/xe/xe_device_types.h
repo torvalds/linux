@@ -18,9 +18,12 @@
 #include "xe_memirq_types.h"
 #include "xe_oa_types.h"
 #include "xe_platform_types.h"
+#include "xe_pmu_types.h"
 #include "xe_pt_types.h"
 #include "xe_sriov_types.h"
 #include "xe_step_types.h"
+#include "xe_survivability_mode_types.h"
+#include "xe_ttm_vram_mgr_types.h"
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 #define TEST_VM_OPS_ERROR
@@ -34,6 +37,7 @@
 
 struct xe_ggtt;
 struct xe_pat_ops;
+struct xe_pxp;
 
 #define XE_BO_INVALID_OFFSET	LONG_MAX
 
@@ -67,11 +71,11 @@ struct xe_pat_ops;
 		 struct xe_tile * : (tile__)->xe)
 
 /**
- * struct xe_mem_region - memory region structure
+ * struct xe_vram_region - memory region structure
  * This is used to describe a memory region in xe
  * device, such as HBM memory or CXL extension memory.
  */
-struct xe_mem_region {
+struct xe_vram_region {
 	/** @io_start: IO start address of this VRAM instance */
 	resource_size_t io_start;
 	/**
@@ -102,6 +106,8 @@ struct xe_mem_region {
 	resource_size_t actual_physical_size;
 	/** @mapping: pointer to VRAM mappable space */
 	void __iomem *mapping;
+	/** @ttm: VRAM TTM manager */
+	struct xe_ttm_vram_mgr ttm;
 };
 
 /**
@@ -186,13 +192,6 @@ struct xe_tile {
 	 */
 	struct xe_mmio mmio;
 
-	/**
-	 * @mmio_ext: MMIO-extension info for a tile.
-	 *
-	 * Each tile has its own additional 256MB (28-bit) MMIO-extension space.
-	 */
-	struct xe_mmio mmio_ext;
-
 	/** @mem: memory management info for tile */
 	struct {
 		/**
@@ -201,10 +200,7 @@ struct xe_tile {
 		 * Although VRAM is associated with a specific tile, it can
 		 * still be accessed by all tiles' GTs.
 		 */
-		struct xe_mem_region vram;
-
-		/** @mem.vram_mgr: VRAM TTM manager */
-		struct xe_ttm_vram_mgr *vram_mgr;
+		struct xe_vram_region vram;
 
 		/** @mem.ggtt: Global graphics translation table */
 		struct xe_ggtt *ggtt;
@@ -263,8 +259,6 @@ struct xe_device {
 		const char *graphics_name;
 		/** @info.media_name: media IP name */
 		const char *media_name;
-		/** @info.tile_mmio_ext_size: size of MMIO extension space, per-tile */
-		u32 tile_mmio_ext_size;
 		/** @info.graphics_verx100: graphics IP version */
 		u32 graphics_verx100;
 		/** @info.media_verx100: media IP version */
@@ -314,8 +308,8 @@ struct xe_device {
 		u8 has_heci_gscfi:1;
 		/** @info.has_llc: Device has a shared CPU+GPU last level cache */
 		u8 has_llc:1;
-		/** @info.has_mmio_ext: Device has extra MMIO address range */
-		u8 has_mmio_ext:1;
+		/** @info.has_pxp: Device has PXP support */
+		u8 has_pxp:1;
 		/** @info.has_range_tlb_invalidation: Has range based TLB invalidations */
 		u8 has_range_tlb_invalidation:1;
 		/** @info.has_sriov: Supports SR-IOV */
@@ -340,6 +334,9 @@ struct xe_device {
 		/** @info.skip_pcode: skip access to PCODE uC */
 		u8 skip_pcode:1;
 	} info;
+
+	/** @survivability: survivability information for device */
+	struct xe_survivability survivability;
 
 	/** @irq: device interrupt state */
 	struct {
@@ -372,7 +369,7 @@ struct xe_device {
 	/** @mem: memory info for device */
 	struct {
 		/** @mem.vram: VRAM info for device */
-		struct xe_mem_region vram;
+		struct xe_vram_region vram;
 		/** @mem.sys_mgr: system TTM manager */
 		struct ttm_resource_manager sys_mgr;
 	} mem;
@@ -430,6 +427,20 @@ struct xe_device {
 
 	/** @tiles: device tiles */
 	struct xe_tile tiles[XE_MAX_TILES_PER_DEVICE];
+
+	/**
+	 * @remove_action_list: list of actions to execute on device remove.
+	 * Use xe_device_add_remove_action() for that. Actions can only be added
+	 * during probe and are executed during the call from PCI subsystem to
+	 * remove the driver from the device.
+	 */
+	struct list_head remove_action_list;
+
+	/**
+	 * @probing: cover the section in which @remove_action_list can be used
+	 * to post cleaning actions
+	 */
+	bool probing;
 
 	/**
 	 * @mem_access: keep track of memory access in the device, possibly
@@ -514,6 +525,9 @@ struct xe_device {
 	/** @oa: oa observation subsystem */
 	struct xe_oa oa;
 
+	/** @pxp: Encapsulate Protected Xe Path support */
+	struct xe_pxp *pxp;
+
 	/** @needs_flr_on_fini: requests function-reset on fini */
 	bool needs_flr_on_fini;
 
@@ -524,6 +538,9 @@ struct xe_device {
 		/** @wedged.mode: Mode controlled by kernel parameter and debugfs */
 		int mode;
 	} wedged;
+
+	/** @pmu: performance monitoring unit */
+	struct xe_pmu pmu;
 
 #ifdef TEST_VM_OPS_ERROR
 	/**
@@ -585,8 +602,6 @@ struct xe_device {
 		unsigned int czclk_freq;
 		unsigned int fsb_freq, mem_freq, is_ddr3;
 	};
-
-	void *pxp;
 #endif
 };
 

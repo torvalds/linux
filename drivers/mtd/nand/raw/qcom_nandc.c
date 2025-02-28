@@ -1881,18 +1881,18 @@ static int qcom_param_page_type_exec(struct nand_chip *chip,  const struct nand_
 	nandc->regs->addr0 = 0;
 	nandc->regs->addr1 = 0;
 
-	host->cfg0 = FIELD_PREP(CW_PER_PAGE_MASK, 0) |
-		     FIELD_PREP(UD_SIZE_BYTES_MASK, 512) |
-		     FIELD_PREP(NUM_ADDR_CYCLES_MASK, 5) |
-		     FIELD_PREP(SPARE_SIZE_BYTES_MASK, 0);
+	nandc->regs->cfg0 = cpu_to_le32(FIELD_PREP(CW_PER_PAGE_MASK, 0) |
+					FIELD_PREP(UD_SIZE_BYTES_MASK, 512) |
+					FIELD_PREP(NUM_ADDR_CYCLES_MASK, 5) |
+					FIELD_PREP(SPARE_SIZE_BYTES_MASK, 0));
 
-	host->cfg1 = FIELD_PREP(NAND_RECOVERY_CYCLES_MASK, 7) |
-		     FIELD_PREP(BAD_BLOCK_BYTE_NUM_MASK, 17) |
-		     FIELD_PREP(CS_ACTIVE_BSY, 0) |
-		     FIELD_PREP(BAD_BLOCK_IN_SPARE_AREA, 1) |
-		     FIELD_PREP(WR_RD_BSY_GAP_MASK, 2) |
-		     FIELD_PREP(WIDE_FLASH, 0) |
-		     FIELD_PREP(DEV0_CFG1_ECC_DISABLE, 1);
+	nandc->regs->cfg1 = cpu_to_le32(FIELD_PREP(NAND_RECOVERY_CYCLES_MASK, 7) |
+					FIELD_PREP(BAD_BLOCK_BYTE_NUM_MASK, 17) |
+					FIELD_PREP(CS_ACTIVE_BSY, 0) |
+					FIELD_PREP(BAD_BLOCK_IN_SPARE_AREA, 1) |
+					FIELD_PREP(WR_RD_BSY_GAP_MASK, 2) |
+					FIELD_PREP(WIDE_FLASH, 0) |
+					FIELD_PREP(DEV0_CFG1_ECC_DISABLE, 1));
 
 	if (!nandc->props->qpic_version2)
 		nandc->regs->ecc_buf_cfg = cpu_to_le32(ECC_CFG_ECC_DISABLE);

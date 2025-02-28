@@ -269,7 +269,7 @@ struct xe_execlist_port *xe_execlist_port_create(struct xe_device *xe,
 
 	port->hwe = hwe;
 
-	port->lrc = xe_lrc_create(hwe, NULL, SZ_16K, XE_IRQ_DEFAULT_MSIX);
+	port->lrc = xe_lrc_create(hwe, NULL, SZ_16K, XE_IRQ_DEFAULT_MSIX, 0);
 	if (IS_ERR(port->lrc)) {
 		err = PTR_ERR(port->lrc);
 		goto err;
@@ -336,6 +336,15 @@ static const struct drm_sched_backend_ops drm_sched_ops = {
 static int execlist_exec_queue_init(struct xe_exec_queue *q)
 {
 	struct drm_gpu_scheduler *sched;
+	const struct drm_sched_init_args args = {
+		.ops = &drm_sched_ops,
+		.num_rqs = 1,
+		.credit_limit = q->lrc[0]->ring.size / MAX_JOB_SIZE_BYTES,
+		.hang_limit = XE_SCHED_HANG_LIMIT,
+		.timeout = XE_SCHED_JOB_TIMEOUT,
+		.name = q->hwe->name,
+		.dev = gt_to_xe(q->gt)->drm.dev,
+	};
 	struct xe_execlist_exec_queue *exl;
 	struct xe_device *xe = gt_to_xe(q->gt);
 	int err;
@@ -350,11 +359,7 @@ static int execlist_exec_queue_init(struct xe_exec_queue *q)
 
 	exl->q = q;
 
-	err = drm_sched_init(&exl->sched, &drm_sched_ops, NULL, 1,
-			     q->lrc[0]->ring.size / MAX_JOB_SIZE_BYTES,
-			     XE_SCHED_HANG_LIMIT, XE_SCHED_JOB_TIMEOUT,
-			     NULL, NULL, q->hwe->name,
-			     gt_to_xe(q->gt)->drm.dev);
+	err = drm_sched_init(&exl->sched, &args);
 	if (err)
 		goto err_free;
 

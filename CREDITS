@@ -2515,11 +2515,9 @@ D: SLS distribution
 D: Initial implementation of VC's, pty's and select()
 
 N: Pavel Machek
-E: pavel@ucw.cz
+E: pavel@kernel.org
 P: 4096R/92DFCE96 4FA7 9EEF FCD4 C44F C585  B8C7 C060 2241 92DF CE96
-D: Softcursor for vga, hypertech cdrom support, vcsa bugfix, nbd,
-D: sun4/330 port, capabilities for elf, speedup for rm on ext2, USB,
-D: work on suspend-to-ram/disk, killing duplicates from ioctl32,
+D: NBD, Sun4/330 port, USB, work on suspend-to-ram/disk,
 D: Altera SoCFPGA and Nokia N900 support.
 S: Czech Republic
 
@@ -3947,6 +3945,10 @@ S: MIT Room E40-343
 S: 1 Amherst Street
 S: Cambridge, Massachusetts 02139
 S: USA
+
+N: Luben Tuikov
+E: Luben Tuikov <ltuikov89@gmail.com>
+D: Maintainer of the DRM GPU Scheduler
 
 N: Simmule Turner
 E: sturner@tele-tv.com

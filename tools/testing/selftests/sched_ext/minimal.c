@@ -15,11 +15,11 @@ static enum scx_test_status setup(void **ctx)
 {
 	struct minimal *skel;
 
-	skel = minimal__open_and_load();
-	if (!skel) {
-		SCX_ERR("Failed to open and load skel");
-		return SCX_TEST_FAIL;
-	}
+	skel = minimal__open();
+	SCX_FAIL_IF(!skel, "Failed to open");
+	SCX_ENUM_INIT(skel);
+	SCX_FAIL_IF(minimal__load(skel), "Failed to load skel");
+
 	*ctx = skel;
 
 	return SCX_TEST_PASS;

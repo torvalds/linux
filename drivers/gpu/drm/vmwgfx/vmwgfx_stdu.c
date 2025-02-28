@@ -839,7 +839,7 @@ static void vmw_stdu_connector_destroy(struct drm_connector *connector)
 
 static enum drm_mode_status
 vmw_stdu_connector_mode_valid(struct drm_connector *connector,
-			      struct drm_display_mode *mode)
+			      const struct drm_display_mode *mode)
 {
 	enum drm_mode_status ret;
 	struct drm_device *dev = connector->dev;

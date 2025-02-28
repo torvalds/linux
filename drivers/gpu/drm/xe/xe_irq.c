@@ -20,6 +20,7 @@
 #include "xe_hw_engine.h"
 #include "xe_memirq.h"
 #include "xe_mmio.h"
+#include "xe_pxp.h"
 #include "xe_sriov.h"
 
 /*
@@ -208,6 +209,15 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 		}
 		if (heci_mask)
 			xe_mmio_write32(mmio, HECI2_RSVD_INTR_MASK, ~(heci_mask << 16));
+
+		if (xe_pxp_is_supported(xe)) {
+			u32 kcr_mask = KCR_PXP_STATE_TERMINATED_INTERRUPT |
+				       KCR_APP_TERMINATED_PER_FW_REQ_INTERRUPT |
+				       KCR_PXP_STATE_RESET_COMPLETE_INTERRUPT;
+
+			xe_mmio_write32(mmio, CRYPTO_RSVD_INTR_ENABLE, kcr_mask << 16);
+			xe_mmio_write32(mmio, CRYPTO_RSVD_INTR_MASK, ~(kcr_mask << 16));
+		}
 	}
 }
 
@@ -330,9 +340,15 @@ static void gt_irq_handler(struct xe_tile *tile,
 			}
 
 			if (class == XE_ENGINE_CLASS_OTHER) {
-				/* HECI GSCFI interrupts come from outside of GT */
+				/*
+				 * HECI GSCFI interrupts come from outside of GT.
+				 * KCR irqs come from inside GT but are handled
+				 * by the global PXP subsystem.
+				 */
 				if (xe->info.has_heci_gscfi && instance == OTHER_GSC_INSTANCE)
 					xe_heci_gsc_irq_handler(xe, intr_vec);
+				else if (instance == OTHER_KCR_INSTANCE)
+					xe_pxp_irq_handler(xe, intr_vec);
 				else
 					gt_other_irq_handler(engine_gt, instance, intr_vec);
 			}
@@ -510,6 +526,8 @@ static void gt_irq_reset(struct xe_tile *tile)
 		xe_mmio_write32(mmio, GUNIT_GSC_INTR_ENABLE, 0);
 		xe_mmio_write32(mmio, GUNIT_GSC_INTR_MASK, ~0);
 		xe_mmio_write32(mmio, HECI2_RSVD_INTR_MASK, ~0);
+		xe_mmio_write32(mmio, CRYPTO_RSVD_INTR_ENABLE, 0);
+		xe_mmio_write32(mmio, CRYPTO_RSVD_INTR_MASK, ~0);
 	}
 
 	xe_mmio_write32(mmio, GPM_WGBOXPERF_INTR_ENABLE, 0);
@@ -757,19 +775,7 @@ int xe_irq_install(struct xe_device *xe)
 
 	xe_irq_postinstall(xe);
 
-	err = devm_add_action_or_reset(xe->drm.dev, irq_uninstall, xe);
-	if (err)
-		goto free_irq_handler;
-
-	return 0;
-
-free_irq_handler:
-	if (xe_device_has_msix(xe))
-		xe_irq_msix_free(xe);
-	else
-		xe_irq_msi_free(xe);
-
-	return err;
+	return devm_add_action_or_reset(xe->drm.dev, irq_uninstall, xe);
 }
 
 static void xe_irq_msi_synchronize_irq(struct xe_device *xe)

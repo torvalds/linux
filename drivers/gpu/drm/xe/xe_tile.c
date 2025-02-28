@@ -94,10 +94,6 @@ static int xe_tile_alloc(struct xe_tile *tile)
 		return -ENOMEM;
 	tile->mem.ggtt->tile = tile;
 
-	tile->mem.vram_mgr = drmm_kzalloc(drm, sizeof(*tile->mem.vram_mgr), GFP_KERNEL);
-	if (!tile->mem.vram_mgr)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -139,7 +135,7 @@ static int tile_ttm_mgr_init(struct xe_tile *tile)
 	int err;
 
 	if (tile->mem.vram.usable_size) {
-		err = xe_ttm_vram_mgr_init(tile, tile->mem.vram_mgr);
+		err = xe_ttm_vram_mgr_init(tile, &tile->mem.vram.ttm);
 		if (err)
 			return err;
 		xe->info.mem_region_mask |= BIT(tile->id) << 1;
@@ -170,17 +166,19 @@ int xe_tile_init_noalloc(struct xe_tile *tile)
 	if (err)
 		return err;
 
+	xe_wa_apply_tile_workarounds(tile);
+
+	return xe_tile_sysfs_init(tile);
+}
+
+int xe_tile_init(struct xe_tile *tile)
+{
 	tile->mem.kernel_bb_pool = xe_sa_bo_manager_init(tile, SZ_1M, 16);
 	if (IS_ERR(tile->mem.kernel_bb_pool))
 		return PTR_ERR(tile->mem.kernel_bb_pool);
 
-	xe_wa_apply_tile_workarounds(tile);
-
-	err = xe_tile_sysfs_init(tile);
-
 	return 0;
 }
-
 void xe_tile_migrate_wait(struct xe_tile *tile)
 {
 	xe_migrate_wait(tile->migrate);

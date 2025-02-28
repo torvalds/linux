@@ -28,30 +28,6 @@
 static unsigned int pasid_bits = 16;
 static bool pasids_allocated; /* = false */
 
-bool kfd_set_pasid_limit(unsigned int new_limit)
-{
-	if (new_limit < 2)
-		return false;
-
-	if (new_limit < (1U << pasid_bits)) {
-		if (pasids_allocated)
-			/* We've already allocated user PASIDs, too late to
-			 * change the limit
-			 */
-			return false;
-
-		while (new_limit < (1U << pasid_bits))
-			pasid_bits--;
-	}
-
-	return true;
-}
-
-unsigned int kfd_get_pasid_limit(void)
-{
-	return 1U << pasid_bits;
-}
-
 u32 kfd_pasid_alloc(void)
 {
 	int r = amdgpu_pasid_alloc(pasid_bits);

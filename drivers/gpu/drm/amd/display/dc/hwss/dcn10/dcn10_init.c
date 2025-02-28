@@ -40,6 +40,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.update_plane_addr = dcn10_update_plane_addr,
 	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
+	.clear_surface_dcc_and_tiling = dcn10_reset_surface_dcc_and_tiling,
 	.program_output_csc = dcn10_program_output_csc,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dcn10_enable_timing_synchronization,

@@ -81,7 +81,7 @@ enum aca_reg_idx {
 	ACA_REG_IDX_STATUS		= 1,
 	ACA_REG_IDX_ADDR		= 2,
 	ACA_REG_IDX_MISC0		= 3,
-	ACA_REG_IDX_CONFG		= 4,
+	ACA_REG_IDX_CONFIG		= 4,
 	ACA_REG_IDX_IPID		= 5,
 	ACA_REG_IDX_SYND		= 6,
 	ACA_REG_IDX_DESTAT		= 8,
@@ -108,19 +108,31 @@ enum aca_error_type {
 };
 
 enum aca_smu_type {
+	ACA_SMU_TYPE_INVALID = -1,
 	ACA_SMU_TYPE_UE = 0,
 	ACA_SMU_TYPE_CE,
 	ACA_SMU_TYPE_COUNT,
 };
 
+struct aca_hwip {
+	int hwid;
+	int mcatype;
+};
+
 struct aca_bank {
-	enum aca_smu_type type;
+	enum aca_error_type aca_err_type;
+	enum aca_smu_type smu_err_type;
 	u64 regs[ACA_MAX_REGS_COUNT];
 };
 
 struct aca_bank_node {
 	struct aca_bank bank;
 	struct list_head node;
+};
+
+struct aca_banks {
+	int nr_banks;
+	struct list_head list;
 };
 
 struct aca_bank_info {

@@ -1312,7 +1312,7 @@ bool optc1_get_hw_timing(struct timing_generator *tg,
 	if (tg == NULL || hw_crtc_timing == NULL)
 		return false;
 
-	optc1_read_otg_state(DCN10TG_FROM_TG(tg), &s);
+	optc1_read_otg_state(tg, &s);
 
 	hw_crtc_timing->h_total = s.h_total + 1;
 	hw_crtc_timing->h_addressable = s.h_total - ((s.h_total - s.h_blank_start) + s.h_blank_end);
@@ -1328,9 +1328,11 @@ bool optc1_get_hw_timing(struct timing_generator *tg,
 }
 
 
-void optc1_read_otg_state(struct optc *optc1,
+void optc1_read_otg_state(struct timing_generator *optc,
 		struct dcn_otg_state *s)
 {
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
 	REG_GET(OTG_CONTROL,
 			OTG_MASTER_EN, &s->otg_enabled);
 
@@ -1663,6 +1665,7 @@ static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.setup_manual_trigger = optc1_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
+		.read_otg_state = optc1_read_otg_state,
 };
 
 void dcn10_timing_generator_init(struct optc *optc1)

@@ -210,6 +210,7 @@ int xe_sync_entry_parse(struct xe_device *xe, struct xe_file *xef,
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(xe_sync_entry_parse, ERRNO);
 
 int xe_sync_entry_add_deps(struct xe_sync_entry *sync, struct xe_sched_job *job)
 {

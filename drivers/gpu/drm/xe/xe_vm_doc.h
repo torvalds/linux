@@ -431,7 +431,7 @@
  * bind path also acquires this lock in write while the exec / compute mode
  * rebind worker acquires this lock in read mode.
  *
- * VM dma-resv lock (vm->ttm.base.resv->lock) - WW lock. Protects VM dma-resv
+ * VM dma-resv lock (vm->gpuvm.r_obj->resv->lock) - WW lock. Protects VM dma-resv
  * slots which is shared with any private BO in the VM. Expected to be acquired
  * during VM binds, execs, and compute mode rebind worker. This lock is also
  * held when private BOs are being evicted.

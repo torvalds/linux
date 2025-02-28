@@ -10,6 +10,7 @@ GPU Driver Documentation
    imagination/index
    mcde
    meson
+   nouveau
    pl111
    tegra
    tve200

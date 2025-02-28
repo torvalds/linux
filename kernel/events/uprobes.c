@@ -417,7 +417,7 @@ static void update_ref_ctr_warn(struct uprobe *uprobe,
 				struct mm_struct *mm, short d)
 {
 	pr_warn("ref_ctr %s failed for inode: 0x%lx offset: "
-		"0x%llx ref_ctr_offset: 0x%llx of mm: 0x%pK\n",
+		"0x%llx ref_ctr_offset: 0x%llx of mm: 0x%p\n",
 		d > 0 ? "increment" : "decrement", uprobe->inode->i_ino,
 		(unsigned long long) uprobe->offset,
 		(unsigned long long) uprobe->ref_ctr_offset, mm);

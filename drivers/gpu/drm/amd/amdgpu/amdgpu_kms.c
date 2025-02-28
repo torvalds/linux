@@ -888,6 +888,15 @@ out:
 		if (adev->gfx.config.ta_cntl2_truncate_coord_mode)
 			dev_info->ids_flags |= AMDGPU_IDS_FLAGS_CONFORMANT_TRUNC_COORD;
 
+		if (amdgpu_passthrough(adev))
+			dev_info->ids_flags |= (AMDGPU_IDS_FLAGS_MODE_PT <<
+						AMDGPU_IDS_FLAGS_MODE_SHIFT) &
+						AMDGPU_IDS_FLAGS_MODE_MASK;
+		else if (amdgpu_sriov_vf(adev))
+			dev_info->ids_flags |= (AMDGPU_IDS_FLAGS_MODE_VF <<
+						AMDGPU_IDS_FLAGS_MODE_SHIFT) &
+						AMDGPU_IDS_FLAGS_MODE_MASK;
+
 		vm_size = adev->vm_manager.max_pfn * AMDGPU_GPU_PAGE_SIZE;
 		vm_size -= AMDGPU_VA_RESERVED_TOP;
 

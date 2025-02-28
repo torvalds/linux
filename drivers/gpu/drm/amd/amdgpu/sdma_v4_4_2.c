@@ -1920,9 +1920,9 @@ static int sdma_v4_4_2_set_powergating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
-static void sdma_v4_4_2_get_clockgating_state(void *handle, u64 *flags)
+static void sdma_v4_4_2_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int data;
 
 	if (amdgpu_sriov_vf(adev))
@@ -2392,10 +2392,12 @@ static int sdma_v4_4_2_aca_bank_parser(struct aca_handle *handle, struct aca_ban
 	misc0 = bank->regs[ACA_REG_IDX_MISC0];
 	switch (type) {
 	case ACA_SMU_TYPE_UE:
+		bank->aca_err_type = ACA_ERROR_TYPE_UE;
 		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE,
 						     1ULL);
 		break;
 	case ACA_SMU_TYPE_CE:
+		bank->aca_err_type = ACA_ERROR_TYPE_CE;
 		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_CE,
 						     ACA_REG__MISC0__ERRCNT(misc0));
 		break;

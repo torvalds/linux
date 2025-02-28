@@ -523,7 +523,7 @@ static enum drm_connector_status ns2501_detect(struct intel_dvo_device *dvo)
 }
 
 static enum drm_mode_status ns2501_mode_valid(struct intel_dvo_device *dvo,
-					      struct drm_display_mode *mode)
+					      const struct drm_display_mode *mode)
 {
 	DRM_DEBUG_KMS
 	    ("is mode valid (hdisplay=%d,htotal=%d,vdisplay=%d,vtotal=%d)\n",

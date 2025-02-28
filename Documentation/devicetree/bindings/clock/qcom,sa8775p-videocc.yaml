@@ -18,6 +18,7 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,qcs8300-videocc
       - qcom,sa8775p-videocc
 
   clocks:

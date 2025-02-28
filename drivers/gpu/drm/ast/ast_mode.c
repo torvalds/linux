@@ -47,6 +47,7 @@
 
 #include "ast_drv.h"
 #include "ast_tables.h"
+#include "ast_vbios.h"
 
 #define AST_LUT_SIZE 256
 
@@ -106,134 +107,9 @@ static void ast_crtc_set_gamma(struct ast_device *ast,
 	}
 }
 
-static bool ast_get_vbios_mode_info(const struct drm_format_info *format,
-				    const struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode,
-				    struct ast_vbios_mode_info *vbios_mode)
-{
-	u32 refresh_rate_index = 0, refresh_rate;
-	const struct ast_vbios_enhtable *best = NULL;
-	u32 hborder, vborder;
-	bool check_sync;
-
-	switch (format->cpp[0] * 8) {
-	case 8:
-		vbios_mode->std_table = &vbios_stdtable[VGAModeIndex];
-		break;
-	case 16:
-		vbios_mode->std_table = &vbios_stdtable[HiCModeIndex];
-		break;
-	case 24:
-	case 32:
-		vbios_mode->std_table = &vbios_stdtable[TrueCModeIndex];
-		break;
-	default:
-		return false;
-	}
-
-	switch (mode->crtc_hdisplay) {
-	case 640:
-		vbios_mode->enh_table = &res_640x480[refresh_rate_index];
-		break;
-	case 800:
-		vbios_mode->enh_table = &res_800x600[refresh_rate_index];
-		break;
-	case 1024:
-		vbios_mode->enh_table = &res_1024x768[refresh_rate_index];
-		break;
-	case 1152:
-		vbios_mode->enh_table = &res_1152x864[refresh_rate_index];
-		break;
-	case 1280:
-		if (mode->crtc_vdisplay == 800)
-			vbios_mode->enh_table = &res_1280x800[refresh_rate_index];
-		else
-			vbios_mode->enh_table = &res_1280x1024[refresh_rate_index];
-		break;
-	case 1360:
-		vbios_mode->enh_table = &res_1360x768[refresh_rate_index];
-		break;
-	case 1440:
-		vbios_mode->enh_table = &res_1440x900[refresh_rate_index];
-		break;
-	case 1600:
-		if (mode->crtc_vdisplay == 900)
-			vbios_mode->enh_table = &res_1600x900[refresh_rate_index];
-		else
-			vbios_mode->enh_table = &res_1600x1200[refresh_rate_index];
-		break;
-	case 1680:
-		vbios_mode->enh_table = &res_1680x1050[refresh_rate_index];
-		break;
-	case 1920:
-		if (mode->crtc_vdisplay == 1080)
-			vbios_mode->enh_table = &res_1920x1080[refresh_rate_index];
-		else
-			vbios_mode->enh_table = &res_1920x1200[refresh_rate_index];
-		break;
-	default:
-		return false;
-	}
-
-	refresh_rate = drm_mode_vrefresh(mode);
-	check_sync = vbios_mode->enh_table->flags & WideScreenMode;
-
-	while (1) {
-		const struct ast_vbios_enhtable *loop = vbios_mode->enh_table;
-
-		while (loop->refresh_rate != 0xff) {
-			if ((check_sync) &&
-			    (((mode->flags & DRM_MODE_FLAG_NVSYNC)  &&
-			      (loop->flags & PVSync))  ||
-			     ((mode->flags & DRM_MODE_FLAG_PVSYNC)  &&
-			      (loop->flags & NVSync))  ||
-			     ((mode->flags & DRM_MODE_FLAG_NHSYNC)  &&
-			      (loop->flags & PHSync))  ||
-			     ((mode->flags & DRM_MODE_FLAG_PHSYNC)  &&
-			      (loop->flags & NHSync)))) {
-				loop++;
-				continue;
-			}
-			if (loop->refresh_rate <= refresh_rate
-			    && (!best || loop->refresh_rate > best->refresh_rate))
-				best = loop;
-			loop++;
-		}
-		if (best || !check_sync)
-			break;
-		check_sync = 0;
-	}
-
-	if (best)
-		vbios_mode->enh_table = best;
-
-	hborder = (vbios_mode->enh_table->flags & HBorder) ? 8 : 0;
-	vborder = (vbios_mode->enh_table->flags & VBorder) ? 8 : 0;
-
-	adjusted_mode->crtc_htotal = vbios_mode->enh_table->ht;
-	adjusted_mode->crtc_hblank_start = vbios_mode->enh_table->hde + hborder;
-	adjusted_mode->crtc_hblank_end = vbios_mode->enh_table->ht - hborder;
-	adjusted_mode->crtc_hsync_start = vbios_mode->enh_table->hde + hborder +
-		vbios_mode->enh_table->hfp;
-	adjusted_mode->crtc_hsync_end = (vbios_mode->enh_table->hde + hborder +
-					 vbios_mode->enh_table->hfp +
-					 vbios_mode->enh_table->hsync);
-
-	adjusted_mode->crtc_vtotal = vbios_mode->enh_table->vt;
-	adjusted_mode->crtc_vblank_start = vbios_mode->enh_table->vde + vborder;
-	adjusted_mode->crtc_vblank_end = vbios_mode->enh_table->vt - vborder;
-	adjusted_mode->crtc_vsync_start = vbios_mode->enh_table->vde + vborder +
-		vbios_mode->enh_table->vfp;
-	adjusted_mode->crtc_vsync_end = (vbios_mode->enh_table->vde + vborder +
-					 vbios_mode->enh_table->vfp +
-					 vbios_mode->enh_table->vsync);
-
-	return true;
-}
-
 static void ast_set_vbios_color_reg(struct ast_device *ast,
 				    const struct drm_format_info *format,
-				    const struct ast_vbios_mode_info *vbios_mode)
+				    const struct ast_vbios_enhtable *vmode)
 {
 	u32 color_index;
 
@@ -256,7 +132,7 @@ static void ast_set_vbios_color_reg(struct ast_device *ast,
 
 	ast_set_index_reg(ast, AST_IO_VGACRI, 0x91, 0x00);
 
-	if (vbios_mode->enh_table->flags & NewModeInfo) {
+	if (vmode->flags & NewModeInfo) {
 		ast_set_index_reg(ast, AST_IO_VGACRI, 0x91, 0xa8);
 		ast_set_index_reg(ast, AST_IO_VGACRI, 0x92, format->cpp[0] * 8);
 	}
@@ -264,19 +140,19 @@ static void ast_set_vbios_color_reg(struct ast_device *ast,
 
 static void ast_set_vbios_mode_reg(struct ast_device *ast,
 				   const struct drm_display_mode *adjusted_mode,
-				   const struct ast_vbios_mode_info *vbios_mode)
+				   const struct ast_vbios_enhtable *vmode)
 {
 	u32 refresh_rate_index, mode_id;
 
-	refresh_rate_index = vbios_mode->enh_table->refresh_rate_index;
-	mode_id = vbios_mode->enh_table->mode_id;
+	refresh_rate_index = vmode->refresh_rate_index;
+	mode_id = vmode->mode_id;
 
 	ast_set_index_reg(ast, AST_IO_VGACRI, 0x8d, refresh_rate_index & 0xff);
 	ast_set_index_reg(ast, AST_IO_VGACRI, 0x8e, mode_id & 0xff);
 
 	ast_set_index_reg(ast, AST_IO_VGACRI, 0x91, 0x00);
 
-	if (vbios_mode->enh_table->flags & NewModeInfo) {
+	if (vmode->flags & NewModeInfo) {
 		ast_set_index_reg(ast, AST_IO_VGACRI, 0x91, 0xa8);
 		ast_set_index_reg(ast, AST_IO_VGACRI, 0x93, adjusted_mode->clock / 1000);
 		ast_set_index_reg(ast, AST_IO_VGACRI, 0x94, adjusted_mode->crtc_hdisplay);
@@ -288,13 +164,10 @@ static void ast_set_vbios_mode_reg(struct ast_device *ast,
 
 static void ast_set_std_reg(struct ast_device *ast,
 			    struct drm_display_mode *mode,
-			    struct ast_vbios_mode_info *vbios_mode)
+			    const struct ast_vbios_stdtable *stdtable)
 {
-	const struct ast_vbios_stdtable *stdtable;
 	u32 i;
 	u8 jreg;
-
-	stdtable = vbios_mode->std_table;
 
 	jreg = stdtable->misc;
 	ast_io_write8(ast, AST_IO_VGAMR_W, jreg);
@@ -336,13 +209,13 @@ static void ast_set_std_reg(struct ast_device *ast,
 
 static void ast_set_crtc_reg(struct ast_device *ast,
 			     struct drm_display_mode *mode,
-			     struct ast_vbios_mode_info *vbios_mode)
+			     const struct ast_vbios_enhtable *vmode)
 {
 	u8 jreg05 = 0, jreg07 = 0, jreg09 = 0, jregAC = 0, jregAD = 0, jregAE = 0;
 	u16 temp, precache = 0;
 
 	if ((IS_AST_GEN6(ast) || IS_AST_GEN7(ast)) &&
-	    (vbios_mode->enh_table->flags & AST2500PreCatchCRT))
+	    (vmode->flags & AST2500PreCatchCRT))
 		precache = 40;
 
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x11, 0x7f, 0x00);
@@ -461,14 +334,14 @@ static void ast_set_offset_reg(struct ast_device *ast,
 
 static void ast_set_dclk_reg(struct ast_device *ast,
 			     struct drm_display_mode *mode,
-			     struct ast_vbios_mode_info *vbios_mode)
+			     const struct ast_vbios_enhtable *vmode)
 {
 	const struct ast_vbios_dclk_info *clk_info;
 
 	if (IS_AST_GEN6(ast) || IS_AST_GEN7(ast))
-		clk_info = &dclk_table_ast2500[vbios_mode->enh_table->dclk_index];
+		clk_info = &dclk_table_ast2500[vmode->dclk_index];
 	else
-		clk_info = &dclk_table[vbios_mode->enh_table->dclk_index];
+		clk_info = &dclk_table[vmode->dclk_index];
 
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xc0, 0x00, clk_info->param1);
 	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xc1, 0x00, clk_info->param2);
@@ -526,15 +399,15 @@ static void ast_set_crtthd_reg(struct ast_device *ast)
 
 static void ast_set_sync_reg(struct ast_device *ast,
 			     struct drm_display_mode *mode,
-			     struct ast_vbios_mode_info *vbios_mode)
+			     const struct ast_vbios_enhtable *vmode)
 {
 	u8 jreg;
 
 	jreg  = ast_io_read8(ast, AST_IO_VGAMR_R);
 	jreg &= ~0xC0;
-	if (vbios_mode->enh_table->flags & NVSync)
+	if (vmode->flags & NVSync)
 		jreg |= 0x80;
-	if (vbios_mode->enh_table->flags & NHSync)
+	if (vmode->flags & NHSync)
 		jreg |= 0x40;
 	ast_io_write8(ast, AST_IO_VGAMR_W, jreg);
 }
@@ -565,13 +438,13 @@ static void ast_wait_for_vretrace(struct ast_device *ast)
  * Planes
  */
 
-static int ast_plane_init(struct drm_device *dev, struct ast_plane *ast_plane,
-			  void __iomem *vaddr, u64 offset, unsigned long size,
-			  uint32_t possible_crtcs,
-			  const struct drm_plane_funcs *funcs,
-			  const uint32_t *formats, unsigned int format_count,
-			  const uint64_t *format_modifiers,
-			  enum drm_plane_type type)
+int ast_plane_init(struct drm_device *dev, struct ast_plane *ast_plane,
+		   void __iomem *vaddr, u64 offset, unsigned long size,
+		   uint32_t possible_crtcs,
+		   const struct drm_plane_funcs *funcs,
+		   const uint32_t *formats, unsigned int format_count,
+		   const uint64_t *format_modifiers,
+		   enum drm_plane_type type)
 {
 	struct drm_plane *plane = &ast_plane->base;
 
@@ -654,10 +527,9 @@ static void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 
 	if (!old_fb || (fb->format != old_fb->format) || crtc_state->mode_changed) {
 		struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
-		struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 
 		ast_set_color_reg(ast, fb->format);
-		ast_set_vbios_color_reg(ast, fb->format, vbios_mode_info);
+		ast_set_vbios_color_reg(ast, fb->format, ast_crtc_state->vmode);
 	}
 
 	drm_atomic_helper_damage_iter_init(&iter, old_plane_state, plane_state);
@@ -757,263 +629,6 @@ static int ast_primary_plane_init(struct ast_device *ast)
 }
 
 /*
- * Cursor plane
- */
-
-static void ast_update_cursor_image(u8 __iomem *dst, const u8 *src, int width, int height)
-{
-	union {
-		u32 ul;
-		u8 b[4];
-	} srcdata32[2], data32;
-	union {
-		u16 us;
-		u8 b[2];
-	} data16;
-	u32 csum = 0;
-	s32 alpha_dst_delta, last_alpha_dst_delta;
-	u8 __iomem *dstxor;
-	const u8 *srcxor;
-	int i, j;
-	u32 per_pixel_copy, two_pixel_copy;
-
-	alpha_dst_delta = AST_MAX_HWC_WIDTH << 1;
-	last_alpha_dst_delta = alpha_dst_delta - (width << 1);
-
-	srcxor = src;
-	dstxor = (u8 *)dst + last_alpha_dst_delta + (AST_MAX_HWC_HEIGHT - height) * alpha_dst_delta;
-	per_pixel_copy = width & 1;
-	two_pixel_copy = width >> 1;
-
-	for (j = 0; j < height; j++) {
-		for (i = 0; i < two_pixel_copy; i++) {
-			srcdata32[0].ul = *((u32 *)srcxor) & 0xf0f0f0f0;
-			srcdata32[1].ul = *((u32 *)(srcxor + 4)) & 0xf0f0f0f0;
-			data32.b[0] = srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
-			data32.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
-			data32.b[2] = srcdata32[1].b[1] | (srcdata32[1].b[0] >> 4);
-			data32.b[3] = srcdata32[1].b[3] | (srcdata32[1].b[2] >> 4);
-
-			writel(data32.ul, dstxor);
-			csum += data32.ul;
-
-			dstxor += 4;
-			srcxor += 8;
-
-		}
-
-		for (i = 0; i < per_pixel_copy; i++) {
-			srcdata32[0].ul = *((u32 *)srcxor) & 0xf0f0f0f0;
-			data16.b[0] = srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
-			data16.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
-			writew(data16.us, dstxor);
-			csum += (u32)data16.us;
-
-			dstxor += 2;
-			srcxor += 4;
-		}
-		dstxor += last_alpha_dst_delta;
-	}
-
-	/* write checksum + signature */
-	dst += AST_HWC_SIZE;
-	writel(csum, dst);
-	writel(width, dst + AST_HWC_SIGNATURE_SizeX);
-	writel(height, dst + AST_HWC_SIGNATURE_SizeY);
-	writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTX);
-	writel(0, dst + AST_HWC_SIGNATURE_HOTSPOTY);
-}
-
-static void ast_set_cursor_base(struct ast_device *ast, u64 address)
-{
-	u8 addr0 = (address >> 3) & 0xff;
-	u8 addr1 = (address >> 11) & 0xff;
-	u8 addr2 = (address >> 19) & 0xff;
-
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc8, addr0);
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc9, addr1);
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xca, addr2);
-}
-
-static void ast_set_cursor_location(struct ast_device *ast, u16 x, u16 y,
-				    u8 x_offset, u8 y_offset)
-{
-	u8 x0 = (x & 0x00ff);
-	u8 x1 = (x & 0x0f00) >> 8;
-	u8 y0 = (y & 0x00ff);
-	u8 y1 = (y & 0x0700) >> 8;
-
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc2, x_offset);
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc3, y_offset);
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc4, x0);
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc5, x1);
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc6, y0);
-	ast_set_index_reg(ast, AST_IO_VGACRI, 0xc7, y1);
-}
-
-static void ast_set_cursor_enabled(struct ast_device *ast, bool enabled)
-{
-	static const u8 mask = (u8)~(AST_IO_VGACRCB_HWC_16BPP |
-				     AST_IO_VGACRCB_HWC_ENABLED);
-
-	u8 vgacrcb = AST_IO_VGACRCB_HWC_16BPP;
-
-	if (enabled)
-		vgacrcb |= AST_IO_VGACRCB_HWC_ENABLED;
-
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xcb, mask, vgacrcb);
-}
-
-static const uint32_t ast_cursor_plane_formats[] = {
-	DRM_FORMAT_ARGB8888,
-};
-
-static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
-						struct drm_atomic_state *state)
-{
-	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
-	struct drm_framebuffer *new_fb = new_plane_state->fb;
-	struct drm_crtc_state *new_crtc_state = NULL;
-	int ret;
-
-	if (new_plane_state->crtc)
-		new_crtc_state = drm_atomic_get_new_crtc_state(state, new_plane_state->crtc);
-
-	ret = drm_atomic_helper_check_plane_state(new_plane_state, new_crtc_state,
-						  DRM_PLANE_NO_SCALING,
-						  DRM_PLANE_NO_SCALING,
-						  true, true);
-	if (ret || !new_plane_state->visible)
-		return ret;
-
-	if (new_fb->width > AST_MAX_HWC_WIDTH || new_fb->height > AST_MAX_HWC_HEIGHT)
-		return -EINVAL;
-
-	return 0;
-}
-
-static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
-						  struct drm_atomic_state *state)
-{
-	struct ast_plane *ast_plane = to_ast_plane(plane);
-	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
-	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
-	struct drm_framebuffer *fb = plane_state->fb;
-	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
-	struct ast_device *ast = to_ast_device(plane->dev);
-	struct iosys_map src_map = shadow_plane_state->data[0];
-	struct drm_rect damage;
-	const u8 *src = src_map.vaddr; /* TODO: Use mapping abstraction properly */
-	u64 dst_off = ast_plane->offset;
-	u8 __iomem *dst = ast_plane->vaddr; /* TODO: Use mapping abstraction properly */
-	u8 __iomem *sig = dst + AST_HWC_SIZE; /* TODO: Use mapping abstraction properly */
-	unsigned int offset_x, offset_y;
-	u16 x, y;
-	u8 x_offset, y_offset;
-
-	/*
-	 * Do data transfer to hardware buffer and point the scanout
-	 * engine to the offset.
-	 */
-
-	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &damage)) {
-		ast_update_cursor_image(dst, src, fb->width, fb->height);
-		ast_set_cursor_base(ast, dst_off);
-	}
-
-	/*
-	 * Update location in HWC signature and registers.
-	 */
-
-	writel(plane_state->crtc_x, sig + AST_HWC_SIGNATURE_X);
-	writel(plane_state->crtc_y, sig + AST_HWC_SIGNATURE_Y);
-
-	offset_x = AST_MAX_HWC_WIDTH - fb->width;
-	offset_y = AST_MAX_HWC_HEIGHT - fb->height;
-
-	if (plane_state->crtc_x < 0) {
-		x_offset = (-plane_state->crtc_x) + offset_x;
-		x = 0;
-	} else {
-		x_offset = offset_x;
-		x = plane_state->crtc_x;
-	}
-	if (plane_state->crtc_y < 0) {
-		y_offset = (-plane_state->crtc_y) + offset_y;
-		y = 0;
-	} else {
-		y_offset = offset_y;
-		y = plane_state->crtc_y;
-	}
-
-	ast_set_cursor_location(ast, x, y, x_offset, y_offset);
-
-	/* Dummy write to enable HWC and make the HW pick-up the changes. */
-	ast_set_cursor_enabled(ast, true);
-}
-
-static void ast_cursor_plane_helper_atomic_disable(struct drm_plane *plane,
-						   struct drm_atomic_state *state)
-{
-	struct ast_device *ast = to_ast_device(plane->dev);
-
-	ast_set_cursor_enabled(ast, false);
-}
-
-static const struct drm_plane_helper_funcs ast_cursor_plane_helper_funcs = {
-	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
-	.atomic_check = ast_cursor_plane_helper_atomic_check,
-	.atomic_update = ast_cursor_plane_helper_atomic_update,
-	.atomic_disable = ast_cursor_plane_helper_atomic_disable,
-};
-
-static const struct drm_plane_funcs ast_cursor_plane_funcs = {
-	.update_plane = drm_atomic_helper_update_plane,
-	.disable_plane = drm_atomic_helper_disable_plane,
-	.destroy = drm_plane_cleanup,
-	DRM_GEM_SHADOW_PLANE_FUNCS,
-};
-
-static int ast_cursor_plane_init(struct ast_device *ast)
-{
-	struct drm_device *dev = &ast->base;
-	struct ast_plane *ast_cursor_plane = &ast->cursor_plane;
-	struct drm_plane *cursor_plane = &ast_cursor_plane->base;
-	size_t size;
-	void __iomem *vaddr;
-	u64 offset;
-	int ret;
-
-	/*
-	 * Allocate backing storage for cursors. The BOs are permanently
-	 * pinned to the top end of the VRAM.
-	 */
-
-	size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
-
-	if (ast->vram_fb_available < size)
-		return -ENOMEM;
-
-	vaddr = ast->vram + ast->vram_fb_available - size;
-	offset = ast->vram_fb_available - size;
-
-	ret = ast_plane_init(dev, ast_cursor_plane, vaddr, offset, size,
-			     0x01, &ast_cursor_plane_funcs,
-			     ast_cursor_plane_formats, ARRAY_SIZE(ast_cursor_plane_formats),
-			     NULL, DRM_PLANE_TYPE_CURSOR);
-	if (ret) {
-		drm_err(dev, "ast_plane_init() failed: %d\n", ret);
-		return ret;
-	}
-	drm_plane_helper_add(cursor_plane, &ast_cursor_plane_helper_funcs);
-	drm_plane_enable_fb_damage_clips(cursor_plane);
-
-	ast->vram_fb_available -= size;
-
-	return 0;
-}
-
-/*
  * CRTC
  */
 
@@ -1021,72 +636,13 @@ static enum drm_mode_status
 ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 {
 	struct ast_device *ast = to_ast_device(crtc->dev);
-	enum drm_mode_status status;
-	uint32_t jtemp;
+	const struct ast_vbios_enhtable *vmode;
 
-	if (ast->support_wide_screen) {
-		if ((mode->hdisplay == 1680) && (mode->vdisplay == 1050))
-			return MODE_OK;
-		if ((mode->hdisplay == 1280) && (mode->vdisplay == 800))
-			return MODE_OK;
-		if ((mode->hdisplay == 1440) && (mode->vdisplay == 900))
-			return MODE_OK;
-		if ((mode->hdisplay == 1360) && (mode->vdisplay == 768))
-			return MODE_OK;
-		if ((mode->hdisplay == 1600) && (mode->vdisplay == 900))
-			return MODE_OK;
-		if ((mode->hdisplay == 1152) && (mode->vdisplay == 864))
-			return MODE_OK;
+	vmode = ast_vbios_find_mode(ast, mode);
+	if (!vmode)
+		return MODE_NOMODE;
 
-		if ((ast->chip == AST2100) || // GEN2, but not AST1100 (?)
-		    (ast->chip == AST2200) || // GEN3, but not AST2150 (?)
-		    IS_AST_GEN4(ast) || IS_AST_GEN5(ast) ||
-		    IS_AST_GEN6(ast) || IS_AST_GEN7(ast)) {
-			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
-				return MODE_OK;
-
-			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1200)) {
-				jtemp = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
-				if (jtemp & 0x01)
-					return MODE_NOMODE;
-				else
-					return MODE_OK;
-			}
-		}
-	}
-
-	status = MODE_NOMODE;
-
-	switch (mode->hdisplay) {
-	case 640:
-		if (mode->vdisplay == 480)
-			status = MODE_OK;
-		break;
-	case 800:
-		if (mode->vdisplay == 600)
-			status = MODE_OK;
-		break;
-	case 1024:
-		if (mode->vdisplay == 768)
-			status = MODE_OK;
-		break;
-	case 1152:
-		if (mode->vdisplay == 864)
-			status = MODE_OK;
-		break;
-	case 1280:
-		if (mode->vdisplay == 1024)
-			status = MODE_OK;
-		break;
-	case 1600:
-		if (mode->vdisplay == 1200)
-			status = MODE_OK;
-		break;
-	default:
-		break;
-	}
-
-	return status;
+	return MODE_OK;
 }
 
 static void ast_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
@@ -1095,8 +651,8 @@ static void ast_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 	struct ast_device *ast = to_ast_device(dev);
 	struct drm_crtc_state *crtc_state = crtc->state;
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
-	struct ast_vbios_mode_info *vbios_mode_info =
-		&ast_crtc_state->vbios_mode_info;
+	const struct ast_vbios_stdtable *std_table = ast_crtc_state->std_table;
+	const struct ast_vbios_enhtable *vmode = ast_crtc_state->vmode;
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 
 	/*
@@ -1107,25 +663,29 @@ static void ast_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
 	 */
 	ast_wait_for_vretrace(ast);
 
-	ast_set_vbios_mode_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_vbios_mode_reg(ast, adjusted_mode, vmode);
 	ast_set_index_reg(ast, AST_IO_VGACRI, 0xa1, 0x06);
-	ast_set_std_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_crtc_reg(ast, adjusted_mode, vbios_mode_info);
-	ast_set_dclk_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_std_reg(ast, adjusted_mode, std_table);
+	ast_set_crtc_reg(ast, adjusted_mode, vmode);
+	ast_set_dclk_reg(ast, adjusted_mode, vmode);
 	ast_set_crtthd_reg(ast);
-	ast_set_sync_reg(ast, adjusted_mode, vbios_mode_info);
+	ast_set_sync_reg(ast, adjusted_mode, vmode);
 }
 
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_atomic_state *state)
 {
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
 	struct drm_device *dev = crtc->dev;
+	struct ast_device *ast = to_ast_device(dev);
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
-	bool succ;
+	const struct ast_vbios_enhtable *vmode;
+	unsigned int hborder = 0;
+	unsigned int vborder = 0;
 	int ret;
 
 	if (!crtc_state->enable)
@@ -1157,11 +717,56 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 		}
 	}
 
-	succ = ast_get_vbios_mode_info(format, &crtc_state->mode,
-				       &crtc_state->adjusted_mode,
-				       &ast_state->vbios_mode_info);
-	if (!succ)
+	/*
+	 * Set register tables.
+	 *
+	 * TODO: These tables mix all kinds of fields and should
+	 *       probably be resolved into various helper functions.
+	 */
+	switch (format->format) {
+	case DRM_FORMAT_C8:
+		ast_state->std_table = &vbios_stdtable[VGAModeIndex];
+		break;
+	case DRM_FORMAT_RGB565:
+		ast_state->std_table = &vbios_stdtable[HiCModeIndex];
+		break;
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_XRGB8888:
+		ast_state->std_table = &vbios_stdtable[TrueCModeIndex];
+		break;
+	default:
 		return -EINVAL;
+	}
+
+	/*
+	 * Find the VBIOS mode and adjust the DRM display mode accordingly
+	 * if a full modeset is required. Otherwise keep the existing values.
+	 */
+	if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+		vmode = ast_vbios_find_mode(ast, &crtc_state->mode);
+		if (!vmode)
+			return -EINVAL;
+		ast_state->vmode = vmode;
+
+		if (vmode->flags & HBorder)
+			hborder = 8;
+		if (vmode->flags & VBorder)
+			vborder = 8;
+
+		adjusted_mode->crtc_hdisplay = vmode->hde;
+		adjusted_mode->crtc_hblank_start = vmode->hde + hborder;
+		adjusted_mode->crtc_hblank_end = vmode->ht - hborder;
+		adjusted_mode->crtc_hsync_start = vmode->hde + hborder + vmode->hfp;
+		adjusted_mode->crtc_hsync_end = vmode->hde + hborder + vmode->hfp + vmode->hsync;
+		adjusted_mode->crtc_htotal = vmode->ht;
+
+		adjusted_mode->crtc_vdisplay = vmode->vde;
+		adjusted_mode->crtc_vblank_start = vmode->vde + vborder;
+		adjusted_mode->crtc_vblank_end = vmode->vt - vborder;
+		adjusted_mode->crtc_vsync_start = vmode->vde + vborder + vmode->vfp;
+		adjusted_mode->crtc_vsync_end = vmode->vde + vborder + vmode->vfp + vmode->vsync;
+		adjusted_mode->crtc_vtotal = vmode->vt;
+	}
 
 	return 0;
 }
@@ -1263,8 +868,8 @@ ast_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 	ast_state = to_ast_crtc_state(crtc->state);
 
 	new_ast_state->format = ast_state->format;
-	memcpy(&new_ast_state->vbios_mode_info, &ast_state->vbios_mode_info,
-	       sizeof(new_ast_state->vbios_mode_info));
+	new_ast_state->std_table = ast_state->std_table;
+	new_ast_state->vmode = ast_state->vmode;
 
 	return &new_ast_state->base;
 }
@@ -1294,7 +899,7 @@ static int ast_crtc_init(struct ast_device *ast)
 	int ret;
 
 	ret = drm_crtc_init_with_planes(dev, crtc, &ast->primary_plane.base,
-					&ast->cursor_plane.base, &ast_crtc_funcs,
+					&ast->cursor_plane.base.base, &ast_crtc_funcs,
 					NULL);
 	if (ret)
 		return ret;
@@ -1373,12 +978,7 @@ int ast_mode_config_init(struct ast_device *ast)
 	dev->mode_config.min_height = 0;
 	dev->mode_config.preferred_depth = 24;
 
-	if (ast->chip == AST2100 || // GEN2, but not AST1100 (?)
-	    ast->chip == AST2200 || // GEN3, but not AST2150 (?)
-	    IS_AST_GEN7(ast) ||
-	    IS_AST_GEN6(ast) ||
-	    IS_AST_GEN5(ast) ||
-	    IS_AST_GEN4(ast)) {
+	if (ast->support_fullhd) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;
 	} else {

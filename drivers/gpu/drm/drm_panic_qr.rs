@@ -13,12 +13,13 @@
 //! The binary data must be a valid URL parameter, so the easiest way is
 //! to use base64 encoding. But this wastes 25% of data space, so the
 //! whole stack trace won't fit in the QR code. So instead it encodes
-//! every 13bits of input into 4 decimal digits, and then uses the
+//! every 7 bytes of input into 17 decimal digits, and then uses the
 //! efficient numeric encoding, that encode 3 decimal digits into
-//! 10bits. This makes 39bits of compressed data into 12 decimal digits,
-//! into 40bits in the QR code, so wasting only 2.5%. And the numbers are
+//! 10bits. This makes 168bits of compressed data into 51 decimal digits,
+//! into 170bits in the QR code, so wasting only 1.17%. And the numbers are
 //! valid URL parameter, so the website can do the reverse, to get the
-//! binary data.
+//! binary data. This is the same algorithm used by Fido v2.2 QR-initiated
+//! authentication specification.
 //!
 //! Inspired by these 3 projects, all under MIT license:
 //!
@@ -26,7 +27,6 @@
 //! * <https://github.com/erwanvivien/fast_qr>
 //! * <https://github.com/bjguillot/qr>
 
-use core::cmp;
 use kernel::str::CStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -296,35 +296,11 @@ const MODE_BINARY: u16 = 4;
 /// Padding bytes.
 const PADDING: [u8; 2] = [236, 17];
 
-/// Get the next 13 bits of data, starting at specified offset (in bits).
-fn get_next_13b(data: &[u8], offset: usize) -> Option<(u16, usize)> {
-    if offset < data.len() * 8 {
-        let size = cmp::min(13, data.len() * 8 - offset);
-        let byte_off = offset / 8;
-        let bit_off = offset % 8;
-        // `b` is 20 at max (`bit_off` <= 7 and `size` <= 13).
-        let b = (bit_off + size) as u16;
-
-        let first_byte = (data[byte_off] << bit_off >> bit_off) as u16;
-
-        let number = match b {
-            0..=8 => first_byte >> (8 - b),
-            9..=16 => (first_byte << (b - 8)) + (data[byte_off + 1] >> (16 - b)) as u16,
-            _ => {
-                (first_byte << (b - 8))
-                    + ((data[byte_off + 1] as u16) << (b - 16))
-                    + (data[byte_off + 2] >> (24 - b)) as u16
-            }
-        };
-        Some((number, size))
-    } else {
-        None
-    }
-}
-
 /// Number of bits to encode characters in numeric mode.
 const NUM_CHARS_BITS: [usize; 4] = [0, 4, 7, 10];
-const POW10: [u16; 4] = [1, 10, 100, 1000];
+/// Number of decimal digits required to encode n bytes of binary data.
+/// eg: you need 15 decimal digits to fit 6 bytes of binary data.
+const BYTES_TO_DIGITS: [usize; 8] = [0, 3, 5, 8, 10, 13, 15, 17];
 
 enum Segment<'a> {
     Numeric(&'a [u8]),
@@ -360,13 +336,9 @@ impl Segment<'_> {
         match self {
             Segment::Binary(data) => data.len(),
             Segment::Numeric(data) => {
-                let data_bits = data.len() * 8;
-                let last_chars = match data_bits % 13 {
-                    1 => 1,
-                    k => (k + 1) / 3,
-                };
-                // 4 decimal numbers per 13bits + remainder.
-                4 * (data_bits / 13) + last_chars
+                let last_chars = BYTES_TO_DIGITS[data.len() % 7];
+                // 17 decimal numbers per 7bytes + remainder.
+                17 * (data.len() / 7) + last_chars
             }
         }
     }
@@ -403,7 +375,7 @@ impl Segment<'_> {
 struct SegmentIterator<'a> {
     segment: &'a Segment<'a>,
     offset: usize,
-    carry: u16,
+    carry: u64,
     carry_len: usize,
 }
 
@@ -422,40 +394,30 @@ impl Iterator for SegmentIterator<'_> {
                 }
             }
             Segment::Numeric(data) => {
-                if self.carry_len == 3 {
-                    let out = (self.carry, NUM_CHARS_BITS[self.carry_len]);
-                    self.carry_len = 0;
-                    self.carry = 0;
-                    Some(out)
-                } else if let Some((bits, size)) = get_next_13b(data, self.offset) {
-                    self.offset += size;
-                    let new_chars = match size {
-                        1 => 1,
-                        k => (k + 1) / 3,
-                    };
-                    if self.carry_len + new_chars > 3 {
-                        self.carry_len = new_chars + self.carry_len - 3;
-                        let out = (
-                            self.carry * POW10[new_chars - self.carry_len]
-                                + bits / POW10[self.carry_len],
-                            NUM_CHARS_BITS[3],
-                        );
-                        self.carry = bits % POW10[self.carry_len];
-                        Some(out)
-                    } else {
-                        let out = (
-                            self.carry * POW10[new_chars] + bits,
-                            NUM_CHARS_BITS[self.carry_len + new_chars],
-                        );
-                        self.carry_len = 0;
-                        Some(out)
+                if self.carry_len < 3 && self.offset < data.len() {
+                    // If there are less than 3 decimal digits in the carry,
+                    // take the next 7 bytes of input, and add them to the carry.
+                    let mut buf = [0u8; 8];
+                    let len = 7.min(data.len() - self.offset);
+                    buf[..len].copy_from_slice(&data[self.offset..self.offset + len]);
+                    let chunk = u64::from_le_bytes(buf);
+                    let pow = u64::pow(10, BYTES_TO_DIGITS[len] as u32);
+                    self.carry = chunk + self.carry * pow;
+                    self.offset += len;
+                    self.carry_len += BYTES_TO_DIGITS[len];
+                }
+                match self.carry_len {
+                    0 => None,
+                    len => {
+                        // take the next 3 decimal digits of the carry
+                        // and return 10bits of numeric data.
+                        let out_len = 3.min(len);
+                        self.carry_len -= out_len;
+                        let pow = u64::pow(10, self.carry_len as u32);
+                        let out = (self.carry / pow) as u16;
+                        self.carry = self.carry % pow;
+                        Some((out, NUM_CHARS_BITS[out_len]))
                     }
-                } else if self.carry_len > 0 {
-                    let out = (self.carry, NUM_CHARS_BITS[self.carry_len]);
-                    self.carry_len = 0;
-                    Some(out)
-                } else {
-                    None
                 }
             }
         }

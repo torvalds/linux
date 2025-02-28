@@ -33,6 +33,7 @@
 #define JPEG_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 
 static void amdgpu_jpeg_idle_work_handler(struct work_struct *work);
+static void amdgpu_jpeg_reg_dump_fini(struct amdgpu_device *adev);
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev)
 {
@@ -84,6 +85,9 @@ int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev)
 		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j)
 			amdgpu_ring_fini(&adev->jpeg.inst[i].ring_dec[j]);
 	}
+
+	if (adev->jpeg.reg_list)
+		amdgpu_jpeg_reg_dump_fini(adev);
 
 	mutex_destroy(&adev->jpeg.jpeg_pg_lock);
 
@@ -450,5 +454,85 @@ void amdgpu_jpeg_sysfs_reset_mask_fini(struct amdgpu_device *adev)
 	if (adev->dev->kobj.sd) {
 		if (adev->jpeg.num_jpeg_inst)
 			device_remove_file(adev->dev, &dev_attr_jpeg_reset_mask);
+	}
+}
+
+int amdgpu_jpeg_reg_dump_init(struct amdgpu_device *adev,
+			       const struct amdgpu_hwip_reg_entry *reg, u32 count)
+{
+	adev->jpeg.ip_dump = kcalloc(adev->jpeg.num_jpeg_inst * count,
+				     sizeof(uint32_t), GFP_KERNEL);
+	if (!adev->jpeg.ip_dump) {
+		DRM_ERROR("Failed to allocate memory for JPEG IP Dump\n");
+		return -ENOMEM;
+	}
+	adev->jpeg.reg_list = reg;
+	adev->jpeg.reg_count = count;
+
+	return 0;
+}
+
+static void amdgpu_jpeg_reg_dump_fini(struct amdgpu_device *adev)
+{
+	kfree(adev->jpeg.ip_dump);
+	adev->jpeg.reg_list = NULL;
+	adev->jpeg.reg_count = 0;
+}
+
+void amdgpu_jpeg_dump_ip_state(struct amdgpu_ip_block *ip_block)
+{
+	struct amdgpu_device *adev = ip_block->adev;
+	u32 inst_off, inst_id, is_powered;
+	int i, j;
+
+	if (!adev->jpeg.ip_dump)
+		return;
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
+		if (adev->jpeg.harvest_config & (1 << i))
+			continue;
+
+		inst_id = GET_INST(JPEG, i);
+		inst_off = i * adev->jpeg.reg_count;
+		/* check power status from UVD_JPEG_POWER_STATUS */
+		adev->jpeg.ip_dump[inst_off] =
+			RREG32(SOC15_REG_ENTRY_OFFSET_INST(adev->jpeg.reg_list[0],
+							   inst_id));
+		is_powered = ((adev->jpeg.ip_dump[inst_off] & 0x1) != 1);
+
+		if (is_powered)
+			for (j = 1; j < adev->jpeg.reg_count; j++)
+				adev->jpeg.ip_dump[inst_off + j] =
+					RREG32(SOC15_REG_ENTRY_OFFSET_INST(adev->jpeg.reg_list[j],
+									   inst_id));
+	}
+}
+
+void amdgpu_jpeg_print_ip_state(struct amdgpu_ip_block *ip_block, struct drm_printer *p)
+{
+	struct amdgpu_device *adev = ip_block->adev;
+	u32 inst_off, is_powered;
+	int i, j;
+
+	if (!adev->jpeg.ip_dump)
+		return;
+
+	drm_printf(p, "num_instances:%d\n", adev->jpeg.num_jpeg_inst);
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
+		if (adev->jpeg.harvest_config & (1 << i)) {
+			drm_printf(p, "\nHarvested Instance:JPEG%d Skipping dump\n", i);
+			continue;
+		}
+
+		inst_off = i * adev->jpeg.reg_count;
+		is_powered = ((adev->jpeg.ip_dump[inst_off] & 0x1) != 1);
+
+		if (is_powered) {
+			drm_printf(p, "Active Instance:JPEG%d\n", i);
+			for (j = 0; j < adev->jpeg.reg_count; j++)
+				drm_printf(p, "%-50s \t 0x%08x\n", adev->jpeg.reg_list[j].reg_name,
+					   adev->jpeg.ip_dump[inst_off + j]);
+		} else
+			drm_printf(p, "\nInactive Instance:JPEG%d\n", i);
 	}
 }

@@ -11,9 +11,9 @@
 struct xe_device;
 
 #if IS_REACHABLE(CONFIG_HWMON)
-void xe_hwmon_register(struct xe_device *xe);
+int xe_hwmon_register(struct xe_device *xe);
 #else
-static inline void xe_hwmon_register(struct xe_device *xe) { };
+static inline int xe_hwmon_register(struct xe_device *xe) { return 0; };
 #endif
 
 #endif /* _XE_HWMON_H_ */

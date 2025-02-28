@@ -196,6 +196,7 @@ enum mga_type {
 	G200_EV,
 	G200_EH,
 	G200_EH3,
+	G200_EH5,
 	G200_ER,
 	G200_EW3,
 };
@@ -333,6 +334,8 @@ void mgag200_g200eh_pixpllc_atomic_update(struct drm_crtc *crtc, struct drm_atom
 struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev,
 						const struct drm_driver *drv);
 struct mga_device *mgag200_g200eh3_device_create(struct pci_dev *pdev,
+						 const struct drm_driver *drv);
+struct mga_device *mgag200_g200eh5_device_create(struct pci_dev *pdev,
 						 const struct drm_driver *drv);
 struct mga_device *mgag200_g200er_device_create(struct pci_dev *pdev,
 						const struct drm_driver *drv);
