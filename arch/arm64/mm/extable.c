@@ -20,6 +20,21 @@ static bool cpy_faulted_on_uaccess(const struct exception_table_entry *ex,
 	return uaccess_is_write == fault_on_write;
 }
 
+bool insn_may_access_user(unsigned long addr, unsigned long esr)
+{
+	const struct exception_table_entry *ex = search_exception_tables(addr);
+
+	if (!ex)
+		return false;
+
+	switch (ex->type) {
+	case EX_TYPE_UACCESS_CPY:
+		return cpy_faulted_on_uaccess(ex, esr);
+	default:
+		return true;
+	}
+}
+
 static inline unsigned long
 get_ex_fixup(const struct exception_table_entry *ex)
 {
