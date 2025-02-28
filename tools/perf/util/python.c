@@ -1312,6 +1312,8 @@ static PyObject *pyrf_evsel__from_evsel(struct evsel *evsel)
 	evsel__init(&pevsel->evsel, &evsel->core.attr, evsel->core.idx);
 
 	evsel__clone(&pevsel->evsel, evsel);
+	if (evsel__is_group_leader(evsel))
+		evsel__set_leader(&pevsel->evsel, &pevsel->evsel);
 	return (PyObject *)pevsel;
 }
 
