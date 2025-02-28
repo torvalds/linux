@@ -417,8 +417,14 @@ static int profile_class_registered(struct device *dev, const void *data)
 
 static umode_t profile_class_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
 {
-	if (!class_find_device(&platform_profile_class, NULL, NULL, profile_class_registered))
+	struct device *dev;
+
+	dev = class_find_device(&platform_profile_class, NULL, NULL, profile_class_registered);
+	if (!dev)
 		return 0;
+
+	put_device(dev);
+
 	return attr->mode;
 }
 

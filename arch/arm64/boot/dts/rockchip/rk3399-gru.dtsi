@@ -189,39 +189,39 @@
 	};
 
 	/* EC turns on w/ pp900_ddrpll_en */
-	pp900_ddrpll: pp900-ap {
+	pp900_ddrpll: regulator-pp900-ap {
 	};
 
 	/* EC turns on w/ pp900_pll_en */
-	pp900_pll: pp900-ap {
+	pp900_pll: regulator-pp900-ap {
 	};
 
 	/* EC turns on w/ pp900_pmu_en */
-	pp900_pmu: pp900-ap {
+	pp900_pmu: regulator-pp900-ap {
 	};
 
 	/* EC turns on w/ pp1800_s0_en_l */
-	pp1800_ap_io: pp1800_emmc: pp1800_nfc: pp1800_s0: pp1800 {
+	pp1800_ap_io: pp1800_emmc: pp1800_nfc: pp1800_s0: regulator-pp1800 {
 	};
 
 	/* EC turns on w/ pp1800_avdd_en_l */
-	pp1800_avdd: pp1800 {
+	pp1800_avdd: regulator-pp1800 {
 	};
 
 	/* EC turns on w/ pp1800_lid_en_l */
-	pp1800_lid: pp1800_mic: pp1800 {
+	pp1800_lid: pp1800_mic: regulator-pp1800 {
 	};
 
 	/* EC turns on w/ lpddr_pwr_en */
-	pp1800_lpddr: pp1800 {
+	pp1800_lpddr: regulator-pp1800 {
 	};
 
 	/* EC turns on w/ pp1800_pmu_en_l */
-	pp1800_pmu: pp1800 {
+	pp1800_pmu: regulator-pp1800 {
 	};
 
 	/* EC turns on w/ pp1800_usb_en_l */
-	pp1800_usb: pp1800 {
+	pp1800_usb: regulator-pp1800 {
 	};
 
 	pp3000_sd_slot: regulator-pp3000-sd-slot {
@@ -259,11 +259,11 @@
 	};
 
 	/* EC turns on w/ pp3300_trackpad_en_l */
-	pp3300_trackpad: pp3300-trackpad {
+	pp3300_trackpad: regulator-pp3300-trackpad {
 	};
 
 	/* EC turns on w/ usb_a_en */
-	pp5000_usb_a_vbus: pp5000 {
+	pp5000_usb_a_vbus: regulator-pp5000 {
 	};
 
 	ap_rtc_clk: ap-rtc-clk {
