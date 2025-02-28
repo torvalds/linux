@@ -428,11 +428,29 @@ static unsigned int maps__by_name_index(const struct maps *maps, const struct ma
 	return -1;
 }
 
+static void map__set_kmap_maps(struct map *map, struct maps *maps)
+{
+	struct dso *dso;
+
+	if (map == NULL)
+		return;
+
+	dso = map__dso(map);
+
+	if (dso && dso__kernel(dso)) {
+                struct kmap *kmap = map__kmap(map);
+
+                if (kmap)
+                        kmap->kmaps = maps;
+                else
+                        pr_err("Internal error: kernel dso with non kernel map\n");
+        }
+}
+
 static int __maps__insert(struct maps *maps, struct map *new)
 {
 	struct map **maps_by_address = maps__maps_by_address(maps);
 	struct map **maps_by_name = maps__maps_by_name(maps);
-	const struct dso *dso = map__dso(new);
 	unsigned int nr_maps = maps__nr_maps(maps);
 	unsigned int nr_allocate = RC_CHK_ACCESS(maps)->nr_maps_allocated;
 
@@ -483,14 +501,9 @@ static int __maps__insert(struct maps *maps, struct map *new)
 	}
 	if (map__end(new) < map__start(new))
 		RC_CHK_ACCESS(maps)->ends_broken = true;
-	if (dso && dso__kernel(dso)) {
-		struct kmap *kmap = map__kmap(new);
 
-		if (kmap)
-			kmap->kmaps = maps;
-		else
-			pr_err("Internal error: kernel dso with non kernel map\n");
-	}
+	map__set_kmap_maps(new, maps);
+
 	return 0;
 }
 
