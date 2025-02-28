@@ -69,12 +69,14 @@ enum bcachefs_metadata_version bch2_latest_compatible_version(enum bcachefs_meta
 	return v;
 }
 
-bool bch2_set_version_incompat(struct bch_fs *c, enum bcachefs_metadata_version version)
+int bch2_set_version_incompat(struct bch_fs *c, enum bcachefs_metadata_version version)
 {
-	bool ret = (c->sb.features & BIT_ULL(BCH_FEATURE_incompat_version_field)) &&
-		   version <= c->sb.version_incompat_allowed;
+	int ret = ((c->sb.features & BIT_ULL(BCH_FEATURE_incompat_version_field)) &&
+		   version <= c->sb.version_incompat_allowed)
+		? 0
+		: -BCH_ERR_may_not_use_incompat_feature;
 
-	if (ret) {
+	if (!ret) {
 		mutex_lock(&c->sb_lock);
 		SET_BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb,
 			max(BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb), version));

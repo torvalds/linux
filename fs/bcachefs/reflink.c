@@ -606,7 +606,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 	u64 dst_done = 0;
 	u32 dst_snapshot, src_snapshot;
 	bool reflink_p_may_update_opts_field =
-		bch2_request_incompat_feature(c, bcachefs_metadata_version_reflink_p_may_update_opts);
+		!bch2_request_incompat_feature(c, bcachefs_metadata_version_reflink_p_may_update_opts);
 	int ret = 0, ret2 = 0;
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_reflink))
