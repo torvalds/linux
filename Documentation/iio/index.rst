@@ -22,6 +22,7 @@ Industrial I/O Kernel Drivers
    ad4000
    ad4030
    ad4695
+   ad7191
    ad7380
    ad7606
    ad7625
