@@ -251,6 +251,9 @@ void mptcp_pm_add_addr_echoed(struct mptcp_sock *msk,
 
 	pr_debug("msk=%p\n", msk);
 
+	if (!READ_ONCE(pm->work_pending))
+		return;
+
 	spin_lock_bh(&pm->lock);
 
 	if (mptcp_lookup_anno_list_by_saddr(msk, addr) && READ_ONCE(pm->work_pending))
