@@ -811,6 +811,28 @@ static PyMethodDef pyrf_evsel__methods[] = {
 	{ .ml_name = NULL, }
 };
 
+#define evsel_member_def(member, ptype, help) \
+	{ #member, ptype, \
+	  offsetof(struct pyrf_evsel, evsel.member), \
+	  0, help }
+
+#define evsel_attr_member_def(member, ptype, help) \
+	{ #member, ptype, \
+	  offsetof(struct pyrf_evsel, evsel.core.attr.member), \
+	  0, help }
+
+static PyMemberDef pyrf_evsel__members[] = {
+	evsel_member_def(tracking, T_BOOL, "tracking event."),
+	evsel_attr_member_def(type, T_UINT, "attribute type."),
+	evsel_attr_member_def(size, T_UINT, "attribute size."),
+	evsel_attr_member_def(config, T_ULONGLONG, "attribute config."),
+	evsel_attr_member_def(sample_period, T_ULONGLONG, "attribute sample_period."),
+	evsel_attr_member_def(sample_type, T_ULONGLONG, "attribute sample_type."),
+	evsel_attr_member_def(read_format, T_ULONGLONG, "attribute read_format."),
+	evsel_attr_member_def(wakeup_events, T_UINT, "attribute wakeup_events."),
+	{ .name = NULL, },
+};
+
 static const char pyrf_evsel__doc[] = PyDoc_STR("perf event selector list object.");
 
 static PyTypeObject pyrf_evsel__type = {
@@ -820,6 +842,7 @@ static PyTypeObject pyrf_evsel__type = {
 	.tp_dealloc	= (destructor)pyrf_evsel__delete,
 	.tp_flags	= Py_TPFLAGS_DEFAULT|Py_TPFLAGS_BASETYPE,
 	.tp_doc		= pyrf_evsel__doc,
+	.tp_members	= pyrf_evsel__members,
 	.tp_methods	= pyrf_evsel__methods,
 	.tp_init	= (initproc)pyrf_evsel__init,
 	.tp_str         = pyrf_evsel__str,
