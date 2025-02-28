@@ -4582,7 +4582,7 @@ static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 	intel_display_power_flush_work(display);
 
 	drm_encoder_cleanup(encoder);
-	kfree(dig_port->hdcp_port_data.streams);
+	kfree(dig_port->hdcp.port_data.streams);
 	kfree(dig_port);
 }
 
@@ -5187,8 +5187,8 @@ void intel_ddi_init(struct intel_display *display,
 
 	intel_encoder_link_check_init(encoder, intel_ddi_link_check);
 
-	mutex_init(&dig_port->hdcp_mutex);
-	dig_port->num_hdcp_streams = 0;
+	mutex_init(&dig_port->hdcp.mutex);
+	dig_port->hdcp.num_streams = 0;
 
 	encoder->hotplug = intel_ddi_hotplug;
 	encoder->compute_output_type = intel_ddi_compute_output_type;
