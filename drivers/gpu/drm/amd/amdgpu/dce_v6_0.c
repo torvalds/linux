@@ -242,7 +242,8 @@ static bool dce_v6_0_hpd_sense(struct amdgpu_device *adev,
 	if (hpd >= adev->mode_info.num_hpd)
 		return connected;
 
-	if (RREG32(mmDC_HPD1_INT_STATUS + hpd_offsets[hpd]) & DC_HPD1_INT_STATUS__DC_HPD1_SENSE_MASK)
+	if (RREG32(mmDC_HPD1_INT_STATUS + hpd_offsets[hpd]) &
+	    DC_HPD1_INT_STATUS__DC_HPD1_SENSE_MASK)
 		connected = true;
 
 	return connected;
@@ -419,7 +420,6 @@ void dce_v6_0_disable_dce(struct amdgpu_device *adev)
 
 static void dce_v6_0_program_fmt(struct drm_encoder *encoder)
 {
-
 	struct drm_device *dev = encoder->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
@@ -895,8 +895,8 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 		wm_high.dram_channels = dram_channels;
 		wm_high.num_heads = num_heads;
 
-		if (adev->pm.dpm_enabled) {
 		/* watermark for low clocks */
+		if (adev->pm.dpm_enabled) {
 			wm_low.yclk =
 				amdgpu_dpm_get_mclk(adev, true) * 10;
 			wm_low.sclk =
@@ -3162,7 +3162,6 @@ static int dce_v6_0_hpd_irq(struct amdgpu_device *adev,
 	}
 
 	return 0;
-
 }
 
 static int dce_v6_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
@@ -3295,8 +3294,7 @@ static void dce_v6_0_ext_commit(struct drm_encoder *encoder)
 
 }
 
-static void
-dce_v6_0_ext_mode_set(struct drm_encoder *encoder,
+static void dce_v6_0_ext_mode_set(struct drm_encoder *encoder,
 		      struct drm_display_mode *mode,
 		      struct drm_display_mode *adjusted_mode)
 {
@@ -3308,8 +3306,7 @@ static void dce_v6_0_ext_disable(struct drm_encoder *encoder)
 
 }
 
-static void
-dce_v6_0_ext_dpms(struct drm_encoder *encoder, int mode)
+static void dce_v6_0_ext_dpms(struct drm_encoder *encoder, int mode)
 {
 
 }
@@ -3380,7 +3377,6 @@ static void dce_v6_0_encoder_add(struct amdgpu_device *adev,
 			amdgpu_encoder->devices |= supported_device;
 			return;
 		}
-
 	}
 
 	/* add a new one */
