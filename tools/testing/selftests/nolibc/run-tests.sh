@@ -19,7 +19,7 @@ werror=1
 llvm=
 all_archs=(
 	i386 x86_64
-	arm64 arm
+	arm64 arm armthumb
 	mips32le mips32be
 	ppc ppc64 ppc64le
 	riscv32 riscv64
@@ -103,6 +103,7 @@ fi
 crosstool_arch() {
 	case "$1" in
 	arm64) echo aarch64;;
+	armthumb) echo arm;;
 	ppc) echo powerpc;;
 	ppc64) echo powerpc64;;
 	ppc64le) echo powerpc64;;
@@ -116,7 +117,7 @@ crosstool_arch() {
 
 crosstool_abi() {
 	case "$1" in
-	arm) echo linux-gnueabi;;
+	arm | armthumb) echo linux-gnueabi;;
 	*) echo linux;;
 	esac
 }
