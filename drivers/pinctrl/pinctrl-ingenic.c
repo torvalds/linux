@@ -213,6 +213,11 @@ static int jz4730_pwm_pwm1_pins[] = { 0x5f, };
 static int jz4730_mii_pins[] = { 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76,
 				 0x77, 0x78, 0x19, 0x7a, 0x1b, 0x7c, };
 
+static int jz4730_i2s_mclk_pins[] = { 0x44, };
+static int jz4730_i2s_acreset_pins[] = { 0x45, };
+static int jz4730_i2s_data_pins[] = { 0x46, 0x47, };
+static int jz4730_i2s_clock_pins[] = { 0x4d, 0x4e, };
+
 static u8 jz4730_lcd_8bit_funcs[] = { 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, };
 
 static const struct group_desc jz4730_groups[] = {
@@ -235,6 +240,11 @@ static const struct group_desc jz4730_groups[] = {
 	INGENIC_PIN_GROUP("pwm0", jz4730_pwm_pwm0, 1),
 	INGENIC_PIN_GROUP("pwm1", jz4730_pwm_pwm1, 1),
 	INGENIC_PIN_GROUP("mii", jz4730_mii, 1),
+	INGENIC_PIN_GROUP("i2s-mclk-out", jz4730_i2s_mclk, 1),
+	INGENIC_PIN_GROUP("i2s-acreset", jz4730_i2s_acreset, 1),
+	INGENIC_PIN_GROUP("i2s-data", jz4730_i2s_data, 1),
+	INGENIC_PIN_GROUP("i2s-master", jz4730_i2s_clock, 1),
+	INGENIC_PIN_GROUP("i2s-slave", jz4730_i2s_clock, 2),
 };
 
 static const char *jz4730_mmc_groups[] = { "mmc-1bit", "mmc-4bit", };
@@ -251,6 +261,7 @@ static const char *jz4730_nand_groups[] = {
 static const char *jz4730_pwm0_groups[] = { "pwm0", };
 static const char *jz4730_pwm1_groups[] = { "pwm1", };
 static const char *jz4730_mii_groups[] = { "mii", };
+static const char *jz4730_i2s_groups[] = { "i2s-data", "i2s-master", "i2s-slave", };
 
 static const struct function_desc jz4730_functions[] = {
 	INGENIC_PIN_FUNCTION("mmc", jz4730_mmc),
@@ -263,6 +274,7 @@ static const struct function_desc jz4730_functions[] = {
 	INGENIC_PIN_FUNCTION("pwm0", jz4730_pwm0),
 	INGENIC_PIN_FUNCTION("pwm1", jz4730_pwm1),
 	INGENIC_PIN_FUNCTION("mii", jz4730_mii),
+	INGENIC_PIN_FUNCTION("i2s", jz4730_i2s),
 };
 
 static const struct ingenic_chip_info jz4730_chip_info = {
