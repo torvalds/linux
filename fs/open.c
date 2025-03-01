@@ -1578,11 +1578,14 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 	 */
 	__fput_sync(file);
 
+	if (likely(retval == 0))
+		return 0;
+
 	/* can't restart close syscall because file table entry was cleared */
-	if (unlikely(retval == -ERESTARTSYS ||
-		     retval == -ERESTARTNOINTR ||
-		     retval == -ERESTARTNOHAND ||
-		     retval == -ERESTART_RESTARTBLOCK))
+	if (retval == -ERESTARTSYS ||
+	    retval == -ERESTARTNOINTR ||
+	    retval == -ERESTARTNOHAND ||
+	    retval == -ERESTART_RESTARTBLOCK)
 		retval = -EINTR;
 
 	return retval;
