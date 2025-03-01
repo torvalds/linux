@@ -657,7 +657,8 @@ EXPORT_SYMBOL(tcp_create_openreq_child);
 
 struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			   struct request_sock *req,
-			   bool fastopen, bool *req_stolen)
+			   bool fastopen, bool *req_stolen,
+			   enum skb_drop_reason *drop_reason)
 {
 	struct tcp_options_received tmp_opt;
 	struct sock *child;

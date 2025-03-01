@@ -2265,7 +2265,8 @@ lookup:
 			th = (const struct tcphdr *)skb->data;
 			iph = ip_hdr(skb);
 			tcp_v4_fill_cb(skb, iph, th);
-			nsk = tcp_check_req(sk, skb, req, false, &req_stolen);
+			nsk = tcp_check_req(sk, skb, req, false, &req_stolen,
+					    &drop_reason);
 		} else {
 			drop_reason = SKB_DROP_REASON_SOCKET_FILTER;
 		}
