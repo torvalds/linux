@@ -26,6 +26,208 @@
 #include "soc_v1_0_enum.h"
 #include "oss/osssys_7_1_0_offset.h"
 #include "oss/osssys_7_1_0_sh_mask.h"
+#include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
+
+static int gmc_v12_1_vm_fault_interrupt_state(struct amdgpu_device *adev,
+					      struct amdgpu_irq_src *src,
+					      unsigned int type,
+					      enum amdgpu_interrupt_state state)
+{
+	struct amdgpu_vmhub *hub;
+	u32 tmp, reg, i, j;
+
+	switch (state) {
+	case AMDGPU_IRQ_STATE_DISABLE:
+		for_each_set_bit(j, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS) {
+			hub = &adev->vmhub[j];
+			for (i = 0; i < 16; i++) {
+				reg = hub->vm_context0_cntl + i;
+
+				/* This works because this interrupt is only
+				 * enabled at init/resume and disabled in
+				 * fini/suspend, so the overall state doesn't
+				 * change over the course of suspend/resume.
+				 */
+				if (adev->in_s0ix && (j == AMDGPU_GFXHUB(0)))
+					continue;
+
+				if (j >= AMDGPU_MMHUB0(0))
+					tmp = RREG32_SOC15_IP(MMHUB, reg);
+				else
+					tmp = RREG32_XCC(reg, j);
+
+				tmp &= ~hub->vm_cntx_cntl_vm_fault;
+
+				if (j >= AMDGPU_MMHUB0(0))
+					WREG32_SOC15_IP(MMHUB, reg, tmp);
+				else
+					WREG32_XCC(reg, tmp, j);
+			}
+		}
+		break;
+	case AMDGPU_IRQ_STATE_ENABLE:
+		for_each_set_bit(j, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS) {
+			hub = &adev->vmhub[j];
+			for (i = 0; i < 16; i++) {
+				reg = hub->vm_context0_cntl + i;
+
+				/* This works because this interrupt is only
+				 * enabled at init/resume and disabled in
+				 * fini/suspend, so the overall state doesn't
+				 * change over the course of suspend/resume.
+				 */
+				if (adev->in_s0ix && (j == AMDGPU_GFXHUB(0)))
+					continue;
+
+				if (j >= AMDGPU_MMHUB0(0))
+					tmp = RREG32_SOC15_IP(MMHUB, reg);
+				else
+					tmp = RREG32_XCC(reg, j);
+
+				tmp |= hub->vm_cntx_cntl_vm_fault;
+
+				if (j >= AMDGPU_MMHUB0(0))
+					WREG32_SOC15_IP(MMHUB, reg, tmp);
+				else
+					WREG32_XCC(reg, tmp, j);
+			}
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int gmc_v12_1_process_interrupt(struct amdgpu_device *adev,
+				       struct amdgpu_irq_src *source,
+				       struct amdgpu_iv_entry *entry)
+{
+	struct amdgpu_task_info *task_info;
+	bool retry_fault = false, write_fault = false;
+	unsigned int vmhub, node_id;
+	struct amdgpu_vmhub *hub;
+	uint32_t cam_index = 0;
+	const char *hub_name;
+	int ret, xcc_id = 0;
+	uint32_t status = 0;
+	u64 addr;
+
+	node_id = entry->node_id;
+
+	addr = (u64)entry->src_data[0] << 12;
+	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
+
+	if (entry->src_id == UTCL2_1_0__SRCID__RETRY) {
+		retry_fault = true;
+		write_fault = !!(entry->src_data[1] & 0x200000);
+	}
+
+	if (entry->client_id == SOC21_IH_CLIENTID_VMC) {
+		hub_name = "mmhub0";
+		vmhub = AMDGPU_MMHUB0(node_id / 4);
+	} else {
+		hub_name = "gfxhub0";
+		if (adev->gfx.funcs->ih_node_to_logical_xcc) {
+			xcc_id = adev->gfx.funcs->ih_node_to_logical_xcc(adev,
+								node_id);
+			if (xcc_id < 0)
+				xcc_id = 0;
+		}
+		vmhub = xcc_id;
+	}
+
+	hub = &adev->vmhub[vmhub];
+
+	if (retry_fault) {
+		if (adev->irq.retry_cam_enabled) {
+			/* Delegate it to a different ring if the hardware hasn't
+			 * already done it.
+			 */
+			if (entry->ih == &adev->irq.ih) {
+				amdgpu_irq_delegate(adev, entry, 8);
+				return 1;
+			}
+
+			cam_index = entry->src_data[3] & 0x3ff;
+
+			ret = amdgpu_vm_handle_fault(adev, entry->pasid, entry->vmid, node_id,
+							addr, entry->timestamp, write_fault);
+			WDOORBELL32(adev->irq.retry_cam_doorbell_index, cam_index);
+			if (ret)
+				return 1;
+		} else {
+			/* Process it onyl if it's the first fault for this address */
+			if (entry->ih != &adev->irq.ih_soft &&
+				amdgpu_gmc_filter_faults(adev, entry->ih, addr, entry->pasid,
+							 entry->timestamp))
+				return 1;
+
+			/* Delegate it to a different ring if the hardware hasn't
+			 * already done it.
+			 */
+			if (entry->ih == &adev->irq.ih) {
+				amdgpu_irq_delegate(adev, entry, 8);
+				return 1;
+			}
+
+			/* Try to handle the recoverable page faults by filling page
+			 * tables
+			 */
+			if (amdgpu_vm_handle_fault(adev, entry->pasid, entry->vmid, node_id,
+						   addr, entry->timestamp, write_fault))
+				return 1;
+		}
+	}
+
+	if (kgd2kfd_vmfault_fast_path(adev, entry, retry_fault))
+		return 1;
+
+	if (!printk_ratelimit())
+		return 0;
+
+	dev_err(adev->dev,
+		"[%s] %s page fault (src_id:%u ring:%u vmid:%u pasid:%u)\n", hub_name,
+		retry_fault ? "retry" : "no-retry",
+		entry->src_id, entry->ring_id, entry->vmid, entry->pasid);
+
+	task_info = amdgpu_vm_get_task_info_pasid(adev, entry->pasid);
+	if (task_info) {
+		amdgpu_vm_print_task_info(adev, task_info);
+		amdgpu_vm_put_task_info(task_info);
+	}
+
+	dev_err(adev->dev, "  in page starting at address 0x%016llx from IH client %d\n",
+		addr, entry->client_id);
+
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
+	/*
+	 * Issue a dummy read to wait for the status register to
+	 * be updated to avoid reading an incorrect value due to
+	 * the new fast GRBM interface.
+	 */
+	if (entry->vmid_src == AMDGPU_GFXHUB(0))
+		RREG32(hub->vm_l2_pro_fault_status);
+
+	status = RREG32(hub->vm_l2_pro_fault_status);
+
+	/* Only print L2 fault status if the status register could be read and
+	 * contains useful information
+	 */
+	if (!status)
+		return 0;
+
+	WREG32_P(hub->vm_l2_pro_fault_cntl, 1, ~1);
+
+	amdgpu_vm_update_fault_cache(adev, entry->pasid, addr, status, vmhub);
+
+	hub->vmhub_funcs->print_l2_protection_fault_status(adev, status);
+
+	return 0;
+}
 
 static bool gmc_v12_1_get_vmid_pasid_mapping_info(struct amdgpu_device *adev,
 						  uint8_t vmid, uint16_t *p_pasid)
@@ -381,4 +583,15 @@ static const struct amdgpu_gmc_funcs gmc_v12_1_gmc_funcs = {
 void gmc_v12_1_set_gmc_funcs(struct amdgpu_device *adev)
 {
 	adev->gmc.gmc_funcs = &gmc_v12_1_gmc_funcs;
+}
+
+static const struct amdgpu_irq_src_funcs gmc_v12_1_irq_funcs = {
+	.set = gmc_v12_1_vm_fault_interrupt_state,
+	.process = gmc_v12_1_process_interrupt,
+};
+
+void gmc_v12_1_set_irq_funcs(struct amdgpu_device *adev)
+{
+	adev->gmc.vm_fault.num_types = 1;
+	adev->gmc.vm_fault.funcs = &gmc_v12_1_irq_funcs;
 }

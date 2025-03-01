@@ -639,15 +639,16 @@ static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(12, 1, 0):
 		gmc_v12_1_set_gmc_funcs(adev);
+		gmc_v12_1_set_irq_funcs(adev);
 		adev->gmc.init_pte_flags = AMDGPU_PTE_IS_PTE;
 		break;
 	default:
 		gmc_v12_0_set_gmc_funcs(adev);
+		gmc_v12_0_set_irq_funcs(adev);
 		break;
 	}
 	gmc_v12_0_set_gfxhub_funcs(adev);
 	gmc_v12_0_set_mmhub_funcs(adev);
-	gmc_v12_0_set_irq_funcs(adev);
 	gmc_v12_0_set_umc_funcs(adev);
 
 	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
@@ -848,7 +849,8 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	if (!amdgpu_sriov_vf(adev)) {
+	if ((amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(12, 1, 0)) &&
+	    !amdgpu_sriov_vf(adev)) {
 		/* interrupt sent to DF. */
 		r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_DF, 0,
 				      &adev->gmc.ecc_irq);

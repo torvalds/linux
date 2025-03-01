@@ -25,5 +25,6 @@
 #define __GMC_V12_1_H__
 
 void gmc_v12_1_set_gmc_funcs(struct amdgpu_device *adev);
+void gmc_v12_1_set_irq_funcs(struct amdgpu_device *adev);
 
 #endif

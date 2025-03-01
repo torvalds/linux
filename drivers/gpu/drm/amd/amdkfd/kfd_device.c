@@ -1685,6 +1685,10 @@ bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entr
 {
 	struct kfd_process *p;
 	u32 cam_index;
+	u32 src_data_idx;
+
+	src_data_idx = (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0)) ?
+			3 : 2;
 
 	if (entry->ih == &adev->irq.ih_soft || entry->ih == &adev->irq.ih1) {
 		p = kfd_lookup_process_by_pasid(entry->pasid, NULL);
@@ -1693,7 +1697,8 @@ bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entr
 
 		if (p->gpu_page_fault && !p->debug_trap_enabled) {
 			if (retry_fault && adev->irq.retry_cam_enabled) {
-				cam_index = entry->src_data[2] & 0x3ff;
+				cam_index = entry->src_data[src_data_idx] & 0x3ff;
+
 				WDOORBELL32(adev->irq.retry_cam_doorbell_index, cam_index);
 			}
 
