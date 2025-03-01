@@ -1234,13 +1234,13 @@ static void fixup_obj(struct bpf_object *obj, struct bpf_program *prog, const ch
 			bpf_program__set_expected_attach_type(prog, attach_type);
 
 			if (!env.quiet) {
-				printf("Using guessed program type '%s' for %s/%s...\n",
+				fprintf(stderr, "Using guessed program type '%s' for %s/%s...\n",
 					libbpf_bpf_prog_type_str(prog_type),
 					filename, prog_name);
 			}
 		} else {
 			if (!env.quiet) {
-				printf("Failed to guess program type for freplace program with context type name '%s' for %s/%s. Consider using canonical type names to help veristat...\n",
+				fprintf(stderr, "Failed to guess program type for freplace program with context type name '%s' for %s/%s. Consider using canonical type names to help veristat...\n",
 					ctx_name, filename, prog_name);
 			}
 		}
