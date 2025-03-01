@@ -1762,12 +1762,11 @@ static void ublk_io_release(void *priv)
 
 static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 				struct ublk_queue *ubq, unsigned int tag,
-				const struct ublksrv_io_cmd *ub_cmd,
-				unsigned int issue_flags)
+				unsigned int index, unsigned int issue_flags)
 {
 	struct ublk_device *ub = cmd->file->private_data;
-	int index = (int)ub_cmd->addr, ret;
 	struct request *req;
+	int ret;
 
 	req = __ublk_check_and_get_req(ub, ubq, tag, 0);
 	if (!req)
@@ -1784,10 +1783,9 @@ static int ublk_register_io_buf(struct io_uring_cmd *cmd,
 }
 
 static int ublk_unregister_io_buf(struct io_uring_cmd *cmd,
-				  const struct ublksrv_io_cmd *ub_cmd,
-				  unsigned int issue_flags)
+				  unsigned int index, unsigned int issue_flags)
 {
-	return io_buffer_unregister_bvec(cmd, ub_cmd->addr, issue_flags);
+	return io_buffer_unregister_bvec(cmd, index, issue_flags);
 }
 
 static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
@@ -1842,9 +1840,9 @@ static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
 	ret = -EINVAL;
 	switch (_IOC_NR(cmd_op)) {
 	case UBLK_IO_REGISTER_IO_BUF:
-		return ublk_register_io_buf(cmd, ubq, tag, ub_cmd, issue_flags);
+		return ublk_register_io_buf(cmd, ubq, tag, ub_cmd->addr, issue_flags);
 	case UBLK_IO_UNREGISTER_IO_BUF:
-		return ublk_unregister_io_buf(cmd, ub_cmd, issue_flags);
+		return ublk_unregister_io_buf(cmd, ub_cmd->addr, issue_flags);
 	case UBLK_IO_FETCH_REQ:
 		/* UBLK_IO_FETCH_REQ is only allowed before queue is setup */
 		if (ublk_queue_ready(ubq)) {
