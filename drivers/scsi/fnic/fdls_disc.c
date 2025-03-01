@@ -311,36 +311,26 @@ void fdls_schedule_oxid_free_retry_work(struct work_struct *work)
 	unsigned long flags;
 	int idx;
 
-	spin_lock_irqsave(&fnic->fnic_lock, flags);
-
 	for_each_set_bit(idx, oxid_pool->pending_schedule_free, FNIC_OXID_POOL_SZ) {
 
 		FNIC_FCS_DBG(KERN_INFO, fnic->host, fnic->fnic_num,
 			"Schedule oxid free. oxid idx: %d\n", idx);
 
-		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 		reclaim_entry = kzalloc(sizeof(*reclaim_entry), GFP_KERNEL);
-		spin_lock_irqsave(&fnic->fnic_lock, flags);
-
 		if (!reclaim_entry) {
 			schedule_delayed_work(&oxid_pool->schedule_oxid_free_retry,
 				msecs_to_jiffies(SCHEDULE_OXID_FREE_RETRY_TIME));
-			spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 			return;
 		}
 
-		if (test_and_clear_bit(idx, oxid_pool->pending_schedule_free)) {
-			reclaim_entry->oxid_idx = idx;
-			reclaim_entry->expires = round_jiffies(jiffies + delay_j);
-			list_add_tail(&reclaim_entry->links, &oxid_pool->oxid_reclaim_list);
-			schedule_delayed_work(&oxid_pool->oxid_reclaim_work, delay_j);
-		} else {
-			/* unlikely scenario, free the allocated memory and continue */
-			kfree(reclaim_entry);
-		}
+		clear_bit(idx, oxid_pool->pending_schedule_free);
+		reclaim_entry->oxid_idx = idx;
+		reclaim_entry->expires = round_jiffies(jiffies + delay_j);
+		spin_lock_irqsave(&fnic->fnic_lock, flags);
+		list_add_tail(&reclaim_entry->links, &oxid_pool->oxid_reclaim_list);
+		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
+		schedule_delayed_work(&oxid_pool->oxid_reclaim_work, delay_j);
 	}
-
-	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 }
 
 static bool fdls_is_oxid_fabric_req(uint16_t oxid)
