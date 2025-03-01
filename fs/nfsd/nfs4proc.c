@@ -1712,7 +1712,7 @@ static int nfsd4_cb_offload_done(struct nfsd4_callback *cb,
 	switch (task->tk_status) {
 	case -NFS4ERR_DELAY:
 		if (cbo->co_retries--) {
-			rpc_delay(task, 1 * HZ);
+			rpc_delay(task, HZ / 5);
 			return 0;
 		}
 	}
