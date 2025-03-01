@@ -61,17 +61,8 @@ int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 		}
 	}
 	if (nop->flags & IORING_NOP_FIXED_BUFFER) {
-		struct io_ring_ctx *ctx = req->ctx;
-		struct io_rsrc_node *node;
-
-		ret = -EFAULT;
-		io_ring_submit_lock(ctx, issue_flags);
-		node = io_rsrc_node_lookup(&ctx->buf_table, req->buf_index);
-		if (node) {
-			io_req_assign_buf_node(req, node);
-			ret = 0;
-		}
-		io_ring_submit_unlock(ctx, issue_flags);
+		if (!io_find_buf_node(req, issue_flags))
+			ret = -EFAULT;
 	}
 done:
 	if (ret < 0)
