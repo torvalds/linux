@@ -1955,6 +1955,7 @@ static int ov08x40_identify_module(struct ov08x40 *ov08x)
 		return -ENXIO;
 	}
 
+	dev_dbg(&client->dev, "chip id 0x%x\n", val);
 	ov08x->identified = true;
 
 	return 0;
