@@ -1074,8 +1074,8 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 	return 0;
 }
 
-static inline struct io_rsrc_node *io_find_buf_node(struct io_kiocb *req,
-						    unsigned issue_flags)
+inline struct io_rsrc_node *io_find_buf_node(struct io_kiocb *req,
+					     unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_rsrc_node *node;
