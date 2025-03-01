@@ -98,14 +98,8 @@
 #define PINGPONG_MSM8996_MASK \
 	(BIT(DPU_PINGPONG_DSC))
 
-#define PINGPONG_MSM8996_TE2_MASK \
-	(PINGPONG_MSM8996_MASK | BIT(DPU_PINGPONG_TE2))
-
 #define PINGPONG_SDM845_MASK \
 	(BIT(DPU_PINGPONG_DITHER) | BIT(DPU_PINGPONG_DSC))
-
-#define PINGPONG_SDM845_TE2_MASK \
-	(PINGPONG_SDM845_MASK | BIT(DPU_PINGPONG_TE2))
 
 #define PINGPONG_SM8150_MASK \
 	(BIT(DPU_PINGPONG_DITHER) | BIT(DPU_PINGPONG_DSC))
@@ -434,20 +428,9 @@ static const struct dpu_dspp_sub_blks sdm845_dspp_sblk = {
 /*************************************************************
  * PINGPONG sub blocks config
  *************************************************************/
-static const struct dpu_pingpong_sub_blks msm8996_pp_sblk_te = {
-	.te2 = {.name = "te2", .base = 0x2000, .len = 0x0,
-		.version = 0x1},
-};
 
 static const struct dpu_pingpong_sub_blks msm8996_pp_sblk = {
 	/* No dither block */
-};
-
-static const struct dpu_pingpong_sub_blks sdm845_pp_sblk_te = {
-	.te2 = {.name = "te2", .base = 0x2000, .len = 0x0,
-		.version = 0x1},
-	.dither = {.name = "dither", .base = 0x30e0,
-		.len = 0x20, .version = 0x10000},
 };
 
 static const struct dpu_pingpong_sub_blks sdm845_pp_sblk = {
