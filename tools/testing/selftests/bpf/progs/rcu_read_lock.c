@@ -439,3 +439,61 @@ int rcu_read_lock_global_subprog_unlock(void *ctx)
 	ret += global_subprog_unlock(ret);
 	return 0;
 }
+
+int __noinline
+global_sleepable_helper_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user(&i, sizeof(i), NULL);
+	return i;
+}
+
+int __noinline
+global_sleepable_kfunc_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user_str(&i, sizeof(i), NULL, 0);
+	global_subprog(i);
+	return i;
+}
+
+int __noinline
+global_subprog_calling_sleepable_global(int i)
+{
+	if (!i)
+		global_sleepable_kfunc_subprog(i);
+	return i;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+int rcu_read_lock_sleepable_helper_global_subprog(void *ctx)
+{
+	volatile int ret = 0;
+
+	bpf_rcu_read_lock();
+	ret += global_sleepable_helper_subprog(ret);
+	bpf_rcu_read_unlock();
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+int rcu_read_lock_sleepable_kfunc_global_subprog(void *ctx)
+{
+	volatile int ret = 0;
+
+	bpf_rcu_read_lock();
+	ret += global_sleepable_kfunc_subprog(ret);
+	bpf_rcu_read_unlock();
+	return 0;
+}
+
+SEC("?fentry.s/" SYS_PREFIX "sys_getpgid")
+int rcu_read_lock_sleepable_global_subprog_indirect(void *ctx)
+{
+	volatile int ret = 0;
+
+	bpf_rcu_read_lock();
+	ret += global_subprog_calling_sleepable_global(ret);
+	bpf_rcu_read_unlock();
+	return 0;
+}

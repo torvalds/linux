@@ -222,7 +222,7 @@ int __noinline global_local_irq_balance(void)
 }
 
 SEC("?tc")
-__failure __msg("global function calls are not allowed with IRQs disabled")
+__success
 int irq_global_subprog(struct __sk_buff *ctx)
 {
 	unsigned long flags;
@@ -438,6 +438,75 @@ int irq_ooo_refs_array(struct __sk_buff *ctx)
 	bpf_local_irq_restore(&flags[1]);
 	bpf_local_irq_restore(&flags[2]);
 	bpf_local_irq_restore(&flags[0]);
+	return 0;
+}
+
+int __noinline
+global_subprog(int i)
+{
+	if (i)
+		bpf_printk("%p", &i);
+	return i;
+}
+
+int __noinline
+global_sleepable_helper_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user(&i, sizeof(i), NULL);
+	return i;
+}
+
+int __noinline
+global_sleepable_kfunc_subprog(int i)
+{
+	if (i)
+		bpf_copy_from_user_str(&i, sizeof(i), NULL, 0);
+	global_subprog(i);
+	return i;
+}
+
+int __noinline
+global_subprog_calling_sleepable_global(int i)
+{
+	if (!i)
+		global_sleepable_kfunc_subprog(i);
+	return i;
+}
+
+SEC("?syscall")
+__success
+int irq_non_sleepable_global_subprog(void *ctx)
+{
+	unsigned long flags;
+
+	bpf_local_irq_save(&flags);
+	global_subprog(0);
+	bpf_local_irq_restore(&flags);
+	return 0;
+}
+
+SEC("?syscall")
+__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+int irq_sleepable_helper_global_subprog(void *ctx)
+{
+	unsigned long flags;
+
+	bpf_local_irq_save(&flags);
+	global_sleepable_helper_subprog(0);
+	bpf_local_irq_restore(&flags);
+	return 0;
+}
+
+SEC("?syscall")
+__failure __msg("global functions that may sleep are not allowed in non-sleepable context")
+int irq_sleepable_global_subprog_indirect(void *ctx)
+{
+	unsigned long flags;
+
+	bpf_local_irq_save(&flags);
+	global_subprog_calling_sleepable_global(0);
+	bpf_local_irq_restore(&flags);
 	return 0;
 }
 
