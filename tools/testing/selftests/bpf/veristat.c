@@ -660,7 +660,7 @@ static int append_filter_file(const char *path)
 	f = fopen(path, "r");
 	if (!f) {
 		err = -errno;
-		fprintf(stderr, "Failed to open filters in '%s': %s\n", path, strerror(err));
+		fprintf(stderr, "Failed to open filters in '%s': %s\n", path, strerror(-err));
 		return err;
 	}
 
@@ -1422,7 +1422,7 @@ static int append_var_preset_file(const char *filename)
 	f = fopen(filename, "rt");
 	if (!f) {
 		err = -errno;
-		fprintf(stderr, "Failed to open presets in '%s': %s\n", filename, strerror(err));
+		fprintf(stderr, "Failed to open presets in '%s': %s\n", filename, strerror(-err));
 		return -EINVAL;
 	}
 
