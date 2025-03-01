@@ -283,6 +283,8 @@ static inline struct bch_dev *bch2_dev_iterate(struct bch_fs *c, struct bch_dev 
 
 static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev, int rw)
 {
+	might_sleep();
+
 	rcu_read_lock();
 	struct bch_dev *ca = bch2_dev_rcu(c, dev);
 	if (ca && !percpu_ref_tryget(&ca->io_ref))

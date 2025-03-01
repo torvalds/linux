@@ -1664,6 +1664,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 	}
 
 	bool completed = false;
+	bool do_discards = false;
 
 	for (seq = journal_last_unwritten_seq(j);
 	     seq <= journal_cur_seq(j);
@@ -1676,7 +1677,6 @@ static CLOSURE_CALLBACK(journal_write_done)
 			j->flushed_seq_ondisk = seq;
 			j->last_seq_ondisk = w->last_seq;
 
-			bch2_do_discards(c);
 			closure_wake_up(&c->freelist_wait);
 			bch2_reset_alloc_cursors(c);
 		}
@@ -1727,6 +1727,9 @@ static CLOSURE_CALLBACK(journal_write_done)
 	 */
 	bch2_journal_do_writes(j);
 	spin_unlock(&j->lock);
+
+	if (do_discards)
+		bch2_do_discards(c);
 }
 
 static void journal_write_endio(struct bio *bio)
