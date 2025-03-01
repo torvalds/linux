@@ -206,9 +206,9 @@ static void dce_v6_0_page_flip(struct amdgpu_device *adev,
 	/* update the scanout addresses */
 	WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
 	       upper_32_bits(crtc_base));
+	/* writing to the low address triggers the update */
 	WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
 	       (u32)crtc_base);
-
 	/* post the write */
 	RREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset);
 }
@@ -218,11 +218,11 @@ static int dce_v6_0_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 {
 	if ((crtc < 0) || (crtc >= adev->mode_info.num_crtc))
 		return -EINVAL;
+
 	*vbl = RREG32(mmCRTC_V_BLANK_START_END + crtc_offsets[crtc]);
 	*position = RREG32(mmCRTC_STATUS_POSITION + crtc_offsets[crtc]);
 
 	return 0;
-
 }
 
 /**
@@ -1006,6 +1006,18 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 }
 
 /* watermark setup */
+/**
+ * dce_v6_0_line_buffer_adjust - Set up the line buffer
+ *
+ * @adev: amdgpu_device pointer
+ * @amdgpu_crtc: the selected display controller
+ * @mode: the current display mode on the selected display
+ * controller
+ *
+ * Setup up the line buffer allocation for
+ * the selected display controller (CIK).
+ * Returns the line buffer size in pixels.
+ */
 static u32 dce_v6_0_line_buffer_adjust(struct amdgpu_device *adev,
 				   struct amdgpu_crtc *amdgpu_crtc,
 				   struct drm_display_mode *mode,
@@ -1386,6 +1398,8 @@ static int dce_v6_0_audio_init(struct amdgpu_device *adev)
 		adev->mode_info.audio.pin[i].connected = false;
 		adev->mode_info.audio.pin[i].offset = pin_offsets[i];
 		adev->mode_info.audio.pin[i].id = i;
+		/* disable audio.  it will be set up later */
+		/* XXX remove once we switch to ip funcs */
 		dce_v6_0_audio_enable(adev, &adev->mode_info.audio.pin[i], false);
 	}
 
