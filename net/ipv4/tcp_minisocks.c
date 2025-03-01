@@ -585,7 +585,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 
 	if (newtp->rx_opt.tstamp_ok) {
 		newtp->tcp_usec_ts = treq->req_usec_ts;
-		newtp->rx_opt.ts_recent = READ_ONCE(req->ts_recent);
+		newtp->rx_opt.ts_recent = req->ts_recent;
 		newtp->rx_opt.ts_recent_stamp = ktime_get_seconds();
 		newtp->tcp_header_len = sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED;
 	} else {
@@ -673,7 +673,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		tcp_parse_options(sock_net(sk), skb, &tmp_opt, 0, NULL);
 
 		if (tmp_opt.saw_tstamp) {
-			tmp_opt.ts_recent = READ_ONCE(req->ts_recent);
+			tmp_opt.ts_recent = req->ts_recent;
 			if (tmp_opt.rcv_tsecr) {
 				if (inet_rsk(req)->tstamp_ok && !fastopen)
 					tsecr_reject = !between(tmp_opt.rcv_tsecr,
