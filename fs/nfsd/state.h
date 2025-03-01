@@ -278,6 +278,7 @@ struct nfsd4_slot {
 	u32	sl_seqid;
 	__be32	sl_status;
 	struct svc_cred sl_cred;
+	u32	sl_index;
 	u32	sl_datalen;
 	u16	sl_opcnt;
 	u16	sl_generation;
