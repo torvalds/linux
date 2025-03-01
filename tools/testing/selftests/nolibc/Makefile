@@ -160,6 +160,7 @@ Q=@
 endif
 
 CFLAGS_i386 = $(call cc-option,-m32)
+CFLAGS_arm = -marm
 CFLAGS_ppc = -m32 -mbig-endian -mno-vsx $(call cc-option,-mmultiple)
 CFLAGS_ppc64 = -m64 -mbig-endian -mno-vsx $(call cc-option,-mmultiple)
 CFLAGS_ppc64le = -m64 -mlittle-endian -mno-vsx $(call cc-option,-mabi=elfv2)
