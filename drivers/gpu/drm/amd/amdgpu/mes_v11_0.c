@@ -1633,6 +1633,10 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 		goto failure;
 	}
 
+	r = amdgpu_mes_update_enforce_isolation(adev);
+	if (r)
+		goto failure;
+
 out:
 	/*
 	 * Disable KIQ ring usage from the driver once MES is enabled.
