@@ -1716,6 +1716,7 @@ static int nfsd4_cb_offload_done(struct nfsd4_callback *cb,
 			return 0;
 		}
 	}
+	nfsd41_cb_destroy_referring_call_list(cb);
 	return 1;
 }
 
@@ -1848,6 +1849,9 @@ static void nfsd4_send_cb_offload(struct nfsd4_copy *copy)
 
 	nfsd4_init_cb(&cbo->co_cb, copy->cp_clp, &nfsd4_cb_offload_ops,
 		      NFSPROC4_CLNT_CB_OFFLOAD);
+	nfsd41_cb_referring_call(&cbo->co_cb, &cbo->co_referring_sessionid,
+				 cbo->co_referring_slotid,
+				 cbo->co_referring_seqno);
 	trace_nfsd_cb_offload(copy->cp_clp, &cbo->co_res.cb_stateid,
 			      &cbo->co_fh, copy->cp_count, copy->nfserr);
 	nfsd4_try_run_cb(&cbo->co_cb);
@@ -1964,6 +1968,11 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		memcpy(&result->cb_stateid, &copy->cp_stateid.cs_stid,
 			sizeof(result->cb_stateid));
 		dup_copy_fields(copy, async_copy);
+		memcpy(async_copy->cp_cb_offload.co_referring_sessionid.data,
+		       cstate->session->se_sessionid.data,
+		       NFS4_MAX_SESSIONID_LEN);
+		async_copy->cp_cb_offload.co_referring_slotid = cstate->slot->sl_index;
+		async_copy->cp_cb_offload.co_referring_seqno = cstate->slot->sl_seqid;
 		async_copy->copy_task = kthread_create(nfsd4_do_async_copy,
 				async_copy, "%s", "copy thread");
 		if (IS_ERR(async_copy->copy_task))
