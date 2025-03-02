@@ -46,6 +46,7 @@
 #include <linux/in.h>
 #include <linux/sched.h>
 #include <linux/audit.h>
+#include <linux/parser.h>
 #include <linux/vmalloc.h>
 #include <linux/lsm_hooks.h>
 #include <net/netlabel.h>
@@ -2572,18 +2573,21 @@ out:
  * @name: interface name
  * @if_sid: interface SID
  */
-int security_netif_sid(char *name, u32 *if_sid)
+int security_netif_sid(const char *name, u32 *if_sid)
 {
 	struct selinux_policy *policy;
 	struct policydb *policydb;
 	struct sidtab *sidtab;
 	int rc;
 	struct ocontext *c;
+	bool wildcard_support;
 
 	if (!selinux_initialized()) {
 		*if_sid = SECINITSID_NETIF;
 		return 0;
 	}
+
+	wildcard_support = selinux_policycap_netif_wildcard();
 
 retry:
 	rc = 0;
@@ -2594,8 +2598,14 @@ retry:
 
 	c = policydb->ocontexts[OCON_NETIF];
 	while (c) {
-		if (strcmp(name, c->u.name) == 0)
-			break;
+		if (wildcard_support) {
+			if (match_wildcard(c->u.name, name))
+				break;
+		} else {
+			if (strcmp(c->u.name, name) == 0)
+				break;
+		}
+
 		c = c->next;
 	}
 
