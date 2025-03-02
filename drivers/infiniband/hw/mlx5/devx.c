@@ -136,12 +136,14 @@ int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user)
 		return -EINVAL;
 
 	uctx = MLX5_ADDR_OF(create_uctx_in, in, uctx);
-	if (is_user && capable(CAP_NET_RAW) &&
-	    (MLX5_CAP_GEN(dev->mdev, uctx_cap) & MLX5_UCTX_CAP_RAW_TX))
+	if (is_user &&
+	    (MLX5_CAP_GEN(dev->mdev, uctx_cap) & MLX5_UCTX_CAP_RAW_TX) &&
+	    capable(CAP_NET_RAW))
 		cap |= MLX5_UCTX_CAP_RAW_TX;
-	if (is_user && capable(CAP_SYS_RAWIO) &&
+	if (is_user &&
 	    (MLX5_CAP_GEN(dev->mdev, uctx_cap) &
-	     MLX5_UCTX_CAP_INTERNAL_DEV_RES))
+	     MLX5_UCTX_CAP_INTERNAL_DEV_RES) &&
+	    capable(CAP_SYS_RAWIO))
 		cap |= MLX5_UCTX_CAP_INTERNAL_DEV_RES;
 
 	MLX5_SET(create_uctx_in, in, opcode, MLX5_CMD_OP_CREATE_UCTX);
