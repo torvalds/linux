@@ -264,18 +264,6 @@ static int qcom_ssc_block_bus_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	data->pd_names = qcom_ssc_block_pd_names;
-	data->num_pds = ARRAY_SIZE(qcom_ssc_block_pd_names);
-
-	/* power domains */
-	ret = qcom_ssc_block_bus_pds_attach(&pdev->dev, data->pds, data->pd_names, data->num_pds);
-	if (ret < 0)
-		return dev_err_probe(&pdev->dev, ret, "error when attaching power domains\n");
-
-	ret = qcom_ssc_block_bus_pds_enable(data->pds, data->num_pds);
-	if (ret < 0)
-		return dev_err_probe(&pdev->dev, ret, "error when enabling power domains\n");
-
 	/* low level overrides for when the HW logic doesn't "just work" */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpm_sscaon_config0");
 	data->reg_mpm_sscaon_config0 = devm_ioremap_resource(&pdev->dev, res);
@@ -343,11 +331,30 @@ static int qcom_ssc_block_bus_probe(struct platform_device *pdev)
 
 	data->ssc_axi_halt = halt_args.args[0];
 
+	/* power domains */
+	data->pd_names = qcom_ssc_block_pd_names;
+	data->num_pds = ARRAY_SIZE(qcom_ssc_block_pd_names);
+
+	ret = qcom_ssc_block_bus_pds_attach(&pdev->dev, data->pds, data->pd_names, data->num_pds);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "error when attaching power domains\n");
+
+	ret = qcom_ssc_block_bus_pds_enable(data->pds, data->num_pds);
+	if (ret < 0) {
+		dev_err_probe(&pdev->dev, ret, "error when enabling power domains\n");
+		goto err_detach_pds_bus;
+	}
+
 	qcom_ssc_block_bus_init(&pdev->dev);
 
 	of_platform_populate(np, NULL, NULL, &pdev->dev);
 
 	return 0;
+
+err_detach_pds_bus:
+	qcom_ssc_block_bus_pds_detach(&pdev->dev, data->pds, data->num_pds);
+
+	return ret;
 }
 
 static void qcom_ssc_block_bus_remove(struct platform_device *pdev)
