@@ -89,6 +89,7 @@ struct inet_bind_bucket {
 	bool			fast_ipv6_only;
 	struct hlist_node	node;
 	struct hlist_head	bhash2;
+	struct rcu_head		rcu;
 };
 
 struct inet_bind2_bucket {
@@ -226,8 +227,7 @@ struct inet_bind_bucket *
 inet_bind_bucket_create(struct kmem_cache *cachep, struct net *net,
 			struct inet_bind_hashbucket *head,
 			const unsigned short snum, int l3mdev);
-void inet_bind_bucket_destroy(struct kmem_cache *cachep,
-			      struct inet_bind_bucket *tb);
+void inet_bind_bucket_destroy(struct inet_bind_bucket *tb);
 
 bool inet_bind_bucket_match(const struct inet_bind_bucket *tb,
 			    const struct net *net, unsigned short port,

@@ -39,7 +39,7 @@ void inet_twsk_bind_unhash(struct inet_timewait_sock *tw,
 	tw->tw_tb = NULL;
 	tw->tw_tb2 = NULL;
 	inet_bind2_bucket_destroy(hashinfo->bind2_bucket_cachep, tb2);
-	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
+	inet_bind_bucket_destroy(tb);
 
 	__sock_put((struct sock *)tw);
 }
