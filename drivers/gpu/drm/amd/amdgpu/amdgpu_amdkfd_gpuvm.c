@@ -1397,8 +1397,10 @@ static int init_kfd_vm(struct amdgpu_vm *vm, void **process_info,
 		       struct dma_fence **ef)
 {
 	struct amdkfd_process_info *info = NULL;
+	struct kfd_process *process = NULL;
 	int ret;
 
+	process = container_of(process_info, struct kfd_process, kgd_process_info);
 	if (!*process_info) {
 		info = kzalloc(sizeof(*info), GFP_KERNEL);
 		if (!info)
@@ -1424,6 +1426,8 @@ static int init_kfd_vm(struct amdgpu_vm *vm, void **process_info,
 		info->pid = get_task_pid(current->group_leader, PIDTYPE_PID);
 		INIT_DELAYED_WORK(&info->restore_userptr_work,
 				  amdgpu_amdkfd_restore_userptr_worker);
+
+		info->context_id = process->context_id;
 
 		*process_info = info;
 	}
