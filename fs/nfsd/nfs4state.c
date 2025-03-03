@@ -4815,8 +4815,8 @@ out:
 static unsigned long
 nfsd4_state_shrinker_count(struct shrinker *shrink, struct shrink_control *sc)
 {
-	int count;
 	struct nfsd_net *nn = shrink->private_data;
+	long count;
 
 	count = atomic_read(&nn->nfsd_courtesy_clients);
 	if (!count)
