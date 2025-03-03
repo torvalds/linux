@@ -14,6 +14,7 @@ description:
 maintainers:
   - Sandy Huang <hjc@rock-chips.com>
   - Heiko Stuebner <heiko@sntech.de>
+  - Andy Yan <andyshrk@163.com>
 
 properties:
   compatible:
@@ -124,13 +125,41 @@ allOf:
       properties:
         compatible:
           contains:
+            enum:
+              - rockchip,rk3566-vop
+              - rockchip,rk3568-vop
+    then:
+      properties:
+        clocks:
+          maxItems: 5
+
+        clock-names:
+          maxItems: 5
+
+        ports:
+          required:
+            - port@0
+            - port@1
+            - port@2
+
+        rockchip,vo1-grf: false
+        rockchip,vop-grf: false
+        rockchip,pmu: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
             const: rockchip,rk3588-vop
     then:
       properties:
         clocks:
           minItems: 7
+          maxItems: 9
+
         clock-names:
           minItems: 7
+          maxItems: 9
 
         ports:
           required:
@@ -144,23 +173,6 @@ allOf:
         - rockchip,vo1-grf
         - rockchip,vop-grf
         - rockchip,pmu
-
-    else:
-      properties:
-        rockchip,vo1-grf: false
-        rockchip,vop-grf: false
-        rockchip,pmu: false
-
-        clocks:
-          maxItems: 5
-        clock-names:
-          maxItems: 5
-
-        ports:
-          required:
-            - port@0
-            - port@1
-            - port@2
 
 additionalProperties: false
 
