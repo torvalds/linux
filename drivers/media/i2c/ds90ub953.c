@@ -185,10 +185,13 @@ static inline struct ub953_data *sd_to_ub953(struct v4l2_subdev *sd)
  * HW Access
  */
 
-static int ub953_read(struct ub953_data *priv, u8 reg, u8 *val)
+static int ub953_read(struct ub953_data *priv, u8 reg, u8 *val, int *err)
 {
 	unsigned int v;
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	mutex_lock(&priv->reg_lock);
 
@@ -204,12 +207,18 @@ static int ub953_read(struct ub953_data *priv, u8 reg, u8 *val)
 out_unlock:
 	mutex_unlock(&priv->reg_lock);
 
+	if (ret && err)
+		*err = ret;
+
 	return ret;
 }
 
-static int ub953_write(struct ub953_data *priv, u8 reg, u8 val)
+static int ub953_write(struct ub953_data *priv, u8 reg, u8 val, int *err)
 {
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	mutex_lock(&priv->reg_lock);
 
@@ -219,6 +228,9 @@ static int ub953_write(struct ub953_data *priv, u8 reg, u8 val)
 			"Cannot write register 0x%02x: %d\n", reg, ret);
 
 	mutex_unlock(&priv->reg_lock);
+
+	if (ret && err)
+		*err = ret;
 
 	return ret;
 }
@@ -244,10 +256,14 @@ static int ub953_select_ind_reg_block(struct ub953_data *priv, u8 block)
 }
 
 __maybe_unused
-static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val)
+static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val,
+			  int *err)
 {
 	unsigned int v;
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	mutex_lock(&priv->reg_lock);
 
@@ -276,13 +292,20 @@ static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val)
 out_unlock:
 	mutex_unlock(&priv->reg_lock);
 
+	if (ret && err)
+		*err = ret;
+
 	return ret;
 }
 
 __maybe_unused
-static int ub953_write_ind(struct ub953_data *priv, u8 block, u8 reg, u8 val)
+static int ub953_write_ind(struct ub953_data *priv, u8 block, u8 reg, u8 val,
+			   int *err)
 {
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	mutex_lock(&priv->reg_lock);
 
@@ -308,6 +331,9 @@ static int ub953_write_ind(struct ub953_data *priv, u8 block, u8 reg, u8 val)
 out_unlock:
 	mutex_unlock(&priv->reg_lock);
 
+	if (ret && err)
+		*err = ret;
+
 	return ret;
 }
 
@@ -320,7 +346,7 @@ static int ub953_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 	int ret;
 	u8 v;
 
-	ret = ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &v);
+	ret = ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &v, NULL);
 	if (ret)
 		return ret;
 
@@ -366,7 +392,7 @@ static int ub953_gpio_get(struct gpio_chip *gc, unsigned int offset)
 	int ret;
 	u8 v;
 
-	ret = ub953_read(priv, UB953_REG_GPIO_PIN_STS, &v);
+	ret = ub953_read(priv, UB953_REG_GPIO_PIN_STS, &v, NULL);
 	if (ret)
 		return ret;
 
@@ -400,11 +426,11 @@ static int ub953_gpiochip_probe(struct ub953_data *priv)
 	int ret;
 
 	/* Set all GPIOs to local input mode */
-	ret = ub953_write(priv, UB953_REG_LOCAL_GPIO_DATA, 0);
+	ret = ub953_write(priv, UB953_REG_LOCAL_GPIO_DATA, 0, NULL);
 	if (ret)
 		return ret;
 
-	ret = ub953_write(priv, UB953_REG_GPIO_INPUT_CTRL, 0xf);
+	ret = ub953_write(priv, UB953_REG_GPIO_INPUT_CTRL, 0xf, NULL);
 	if (ret)
 		return ret;
 
@@ -615,15 +641,15 @@ static int ub953_log_status(struct v4l2_subdev *sd)
 	u8 gpio_pin_sts = 0;
 
 	for (i = 0; i < sizeof(id); i++)
-		ub953_read(priv, UB953_REG_FPD3_RX_ID(i), &id[i]);
+		ub953_read(priv, UB953_REG_FPD3_RX_ID(i), &id[i], NULL);
 
 	dev_info(dev, "ID '%.*s'\n", (int)sizeof(id), id);
 
-	ub953_read(priv, UB953_REG_GENERAL_STATUS, &v);
+	ub953_read(priv, UB953_REG_GENERAL_STATUS, &v, NULL);
 	dev_info(dev, "GENERAL_STATUS %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CRC_ERR_CNT1, &v1);
-	ub953_read(priv, UB953_REG_CRC_ERR_CNT2, &v2);
+	ub953_read(priv, UB953_REG_CRC_ERR_CNT1, &v1, NULL);
+	ub953_read(priv, UB953_REG_CRC_ERR_CNT2, &v2, NULL);
 	dev_info(dev, "CRC error count %u\n", v1 | (v2 << 8));
 
 	/* Clear CRC error counter */
@@ -632,34 +658,34 @@ static int ub953_log_status(struct v4l2_subdev *sd)
 				   UB953_REG_BC_CTRL_CRC_ERR_CLR,
 				   UB953_REG_BC_CTRL_CRC_ERR_CLR);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_CNT, &v);
+	ub953_read(priv, UB953_REG_CSI_ERR_CNT, &v, NULL);
 	dev_info(dev, "CSI error count %u\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_STATUS, &v);
+	ub953_read(priv, UB953_REG_CSI_ERR_STATUS, &v, NULL);
 	dev_info(dev, "CSI_ERR_STATUS %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_DLANE01, &v);
+	ub953_read(priv, UB953_REG_CSI_ERR_DLANE01, &v, NULL);
 	dev_info(dev, "CSI_ERR_DLANE01 %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_DLANE23, &v);
+	ub953_read(priv, UB953_REG_CSI_ERR_DLANE23, &v, NULL);
 	dev_info(dev, "CSI_ERR_DLANE23 %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_CLK_LANE, &v);
+	ub953_read(priv, UB953_REG_CSI_ERR_CLK_LANE, &v, NULL);
 	dev_info(dev, "CSI_ERR_CLK_LANE %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_PKT_HDR_VC_ID, &v);
+	ub953_read(priv, UB953_REG_CSI_PKT_HDR_VC_ID, &v, NULL);
 	dev_info(dev, "CSI packet header VC %u ID %u\n", v >> 6, v & 0x3f);
 
-	ub953_read(priv, UB953_REG_PKT_HDR_WC_LSB, &v1);
-	ub953_read(priv, UB953_REG_PKT_HDR_WC_MSB, &v2);
+	ub953_read(priv, UB953_REG_PKT_HDR_WC_LSB, &v1, NULL);
+	ub953_read(priv, UB953_REG_PKT_HDR_WC_MSB, &v2, NULL);
 	dev_info(dev, "CSI packet header WC %u\n", (v2 << 8) | v1);
 
-	ub953_read(priv, UB953_REG_CSI_ECC, &v);
+	ub953_read(priv, UB953_REG_CSI_ECC, &v, NULL);
 	dev_info(dev, "CSI ECC %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_LOCAL_GPIO_DATA, &gpio_local_data);
-	ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &gpio_input_ctrl);
-	ub953_read(priv, UB953_REG_GPIO_PIN_STS, &gpio_pin_sts);
+	ub953_read(priv, UB953_REG_LOCAL_GPIO_DATA, &gpio_local_data, NULL);
+	ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &gpio_input_ctrl, NULL);
+	ub953_read(priv, UB953_REG_GPIO_PIN_STS, &gpio_pin_sts, NULL);
 
 	for (i = 0; i < UB953_NUM_GPIOS; i++) {
 		dev_info(dev,
@@ -843,11 +869,11 @@ static int ub953_i2c_master_init(struct ub953_data *priv)
 	scl_high = div64_u64((u64)scl_high * ref, 1000000000) - 5;
 	scl_low = div64_u64((u64)scl_low * ref, 1000000000) - 5;
 
-	ret = ub953_write(priv, UB953_REG_SCL_HIGH_TIME, scl_high);
+	ret = ub953_write(priv, UB953_REG_SCL_HIGH_TIME, scl_high, NULL);
 	if (ret)
 		return ret;
 
-	ret = ub953_write(priv, UB953_REG_SCL_LOW_TIME, scl_low);
+	ret = ub953_write(priv, UB953_REG_SCL_LOW_TIME, scl_low, NULL);
 	if (ret)
 		return ret;
 
@@ -986,11 +1012,11 @@ static int ub953_write_clkout_regs(struct ub953_data *priv,
 
 	clkout_ctrl1 = clkout_data->n;
 
-	ret = ub953_write(priv, UB953_REG_CLKOUT_CTRL0, clkout_ctrl0);
+	ret = ub953_write(priv, UB953_REG_CLKOUT_CTRL0, clkout_ctrl0, NULL);
 	if (ret)
 		return ret;
 
-	ret = ub953_write(priv, UB953_REG_CLKOUT_CTRL1, clkout_ctrl1);
+	ret = ub953_write(priv, UB953_REG_CLKOUT_CTRL1, clkout_ctrl1, NULL);
 	if (ret)
 		return ret;
 
@@ -1009,13 +1035,13 @@ static unsigned long ub953_clkout_recalc_rate(struct clk_hw *hw,
 	u64 rate;
 	int ret;
 
-	ret = ub953_read(priv, UB953_REG_CLKOUT_CTRL0, &ctrl0);
+	ret = ub953_read(priv, UB953_REG_CLKOUT_CTRL0, &ctrl0, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to read CLKOUT_CTRL0: %d\n", ret);
 		return 0;
 	}
 
-	ret = ub953_read(priv, UB953_REG_CLKOUT_CTRL1, &ctrl1);
+	ret = ub953_read(priv, UB953_REG_CLKOUT_CTRL1, &ctrl1, NULL);
 	if (ret) {
 		dev_err(dev, "Failed to read CLKOUT_CTRL1: %d\n", ret);
 		return 0;
@@ -1191,7 +1217,7 @@ static int ub953_hw_init(struct ub953_data *priv)
 	int ret;
 	u8 v;
 
-	ret = ub953_read(priv, UB953_REG_MODE_SEL, &v);
+	ret = ub953_read(priv, UB953_REG_MODE_SEL, &v, NULL);
 	if (ret)
 		return ret;
 
@@ -1231,13 +1257,13 @@ static int ub953_hw_init(struct ub953_data *priv)
 		return dev_err_probe(dev, -EINVAL,
 				     "clkin required for non-sync ext mode\n");
 
-	ret = ub953_read(priv, UB953_REG_REV_MASK_ID, &v);
+	ret = ub953_read(priv, UB953_REG_REV_MASK_ID, &v, NULL);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to read revision");
 
 	dev_info(dev, "Found %s rev/mask %#04x\n", priv->hw_data->model, v);
 
-	ret = ub953_read(priv, UB953_REG_GENERAL_CFG, &v);
+	ret = ub953_read(priv, UB953_REG_GENERAL_CFG, &v, NULL);
 	if (ret)
 		return ret;
 
@@ -1254,7 +1280,7 @@ static int ub953_hw_init(struct ub953_data *priv)
 		UB953_REG_GENERAL_CFG_CSI_LANE_SEL_SHIFT;
 	v |= UB953_REG_GENERAL_CFG_CRC_TX_GEN_ENABLE;
 
-	ret = ub953_write(priv, UB953_REG_GENERAL_CFG, v);
+	ret = ub953_write(priv, UB953_REG_GENERAL_CFG, v, NULL);
 	if (ret)
 		return ret;
 

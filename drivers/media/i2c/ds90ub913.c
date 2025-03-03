@@ -119,10 +119,14 @@ static const struct ub913_format_info *ub913_find_format(u32 incode)
 	return NULL;
 }
 
-static int ub913_read(const struct ub913_data *priv, u8 reg, u8 *val)
+static int ub913_read(const struct ub913_data *priv, u8 reg, u8 *val,
+		      int *err)
 {
 	unsigned int v;
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	ret = regmap_read(priv->regmap, reg, &v);
 	if (ret) {
@@ -134,30 +138,46 @@ static int ub913_read(const struct ub913_data *priv, u8 reg, u8 *val)
 	*val = v;
 
 out:
+	if (ret && err)
+		*err = ret;
+
 	return ret;
 }
 
-static int ub913_write(const struct ub913_data *priv, u8 reg, u8 val)
+static int ub913_write(const struct ub913_data *priv, u8 reg, u8 val,
+		       int *err)
 {
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	ret = regmap_write(priv->regmap, reg, val);
 	if (ret < 0)
 		dev_err(&priv->client->dev,
 			"Cannot write register 0x%02x: %d!\n", reg, ret);
 
+	if (ret && err)
+		*err = ret;
+
 	return ret;
 }
 
 static int ub913_update_bits(const struct ub913_data *priv, u8 reg, u8 mask,
-			     u8 val)
+			     u8 val, int *err)
 {
 	int ret;
+
+	if (err && *err)
+		return *err;
 
 	ret = regmap_update_bits(priv->regmap, reg, mask, val);
 	if (ret < 0)
 		dev_err(&priv->client->dev,
 			"Cannot update register 0x%02x %d!\n", reg, ret);
+
+	if (ret && err)
+		*err = ret;
 
 	return ret;
 }
@@ -206,7 +226,7 @@ static int ub913_gpiochip_probe(struct ub913_data *priv)
 	int ret;
 
 	/* Initialize GPIOs 0 and 1 to local control, tri-state */
-	ub913_write(priv, UB913_REG_GPIO_CFG(0), 0);
+	ub913_write(priv, UB913_REG_GPIO_CFG(0), 0, NULL);
 
 	gc->label = dev_name(dev);
 	gc->parent = dev;
@@ -486,23 +506,23 @@ static int ub913_log_status(struct v4l2_subdev *sd)
 	struct device *dev = &priv->client->dev;
 	u8 v = 0, v1 = 0, v2 = 0;
 
-	ub913_read(priv, UB913_REG_MODE_SEL, &v);
+	ub913_read(priv, UB913_REG_MODE_SEL, &v, NULL);
 	dev_info(dev, "MODE_SEL %#02x\n", v);
 
-	ub913_read(priv, UB913_REG_CRC_ERRORS_LSB, &v1);
-	ub913_read(priv, UB913_REG_CRC_ERRORS_MSB, &v2);
+	ub913_read(priv, UB913_REG_CRC_ERRORS_LSB, &v1, NULL);
+	ub913_read(priv, UB913_REG_CRC_ERRORS_MSB, &v2, NULL);
 	dev_info(dev, "CRC errors %u\n", v1 | (v2 << 8));
 
 	/* clear CRC errors */
-	ub913_read(priv, UB913_REG_GENERAL_CFG, &v);
+	ub913_read(priv, UB913_REG_GENERAL_CFG, &v, NULL);
 	ub913_write(priv, UB913_REG_GENERAL_CFG,
-		    v | UB913_REG_GENERAL_CFG_CRC_ERR_RESET);
-	ub913_write(priv, UB913_REG_GENERAL_CFG, v);
+		    v | UB913_REG_GENERAL_CFG_CRC_ERR_RESET, NULL);
+	ub913_write(priv, UB913_REG_GENERAL_CFG, v, NULL);
 
-	ub913_read(priv, UB913_REG_GENERAL_STATUS, &v);
+	ub913_read(priv, UB913_REG_GENERAL_STATUS, &v, NULL);
 	dev_info(dev, "GENERAL_STATUS %#02x\n", v);
 
-	ub913_read(priv, UB913_REG_PLL_OVR, &v);
+	ub913_read(priv, UB913_REG_PLL_OVR, &v, NULL);
 	dev_info(dev, "PLL_OVR %#02x\n", v);
 
 	return 0;
@@ -658,11 +678,11 @@ static int ub913_i2c_master_init(struct ub913_data *priv)
 	scl_high = div64_u64((u64)scl_high * ref, 1000000000);
 	scl_low = div64_u64((u64)scl_low * ref, 1000000000);
 
-	ret = ub913_write(priv, UB913_REG_SCL_HIGH_TIME, scl_high);
+	ret = ub913_write(priv, UB913_REG_SCL_HIGH_TIME, scl_high, NULL);
 	if (ret)
 		return ret;
 
-	ret = ub913_write(priv, UB913_REG_SCL_LOW_TIME, scl_low);
+	ret = ub913_write(priv, UB913_REG_SCL_LOW_TIME, scl_low, NULL);
 	if (ret)
 		return ret;
 
@@ -731,7 +751,7 @@ static int ub913_hw_init(struct ub913_data *priv)
 	int ret;
 	u8 v;
 
-	ret = ub913_read(priv, UB913_REG_MODE_SEL, &v);
+	ret = ub913_read(priv, UB913_REG_MODE_SEL, &v, NULL);
 	if (ret)
 		return ret;
 
@@ -752,7 +772,7 @@ static int ub913_hw_init(struct ub913_data *priv)
 	ret = ub913_update_bits(priv, UB913_REG_GENERAL_CFG,
 				UB913_REG_GENERAL_CFG_PCLK_RISING,
 				FIELD_PREP(UB913_REG_GENERAL_CFG_PCLK_RISING,
-					   priv->pclk_polarity_rising));
+					   priv->pclk_polarity_rising), NULL);
 
 	if (ret)
 		return ret;
