@@ -6812,10 +6812,9 @@ tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb)
 		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 		    sk->sk_state != TCP_FIN_WAIT1);
 
-		if (!tcp_check_req(sk, skb, req, true, &req_stolen)) {
-			SKB_DR_SET(reason, TCP_FASTOPEN);
+		SKB_DR_SET(reason, TCP_FASTOPEN);
+		if (!tcp_check_req(sk, skb, req, true, &req_stolen, &reason))
 			goto discard;
-		}
 	}
 
 	if (!th->ack && !th->rst && !th->syn) {

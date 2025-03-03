@@ -585,7 +585,7 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 
 	if (newtp->rx_opt.tstamp_ok) {
 		newtp->tcp_usec_ts = treq->req_usec_ts;
-		newtp->rx_opt.ts_recent = READ_ONCE(req->ts_recent);
+		newtp->rx_opt.ts_recent = req->ts_recent;
 		newtp->rx_opt.ts_recent_stamp = ktime_get_seconds();
 		newtp->tcp_header_len = sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED;
 	} else {
@@ -657,7 +657,8 @@ EXPORT_SYMBOL(tcp_create_openreq_child);
 
 struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			   struct request_sock *req,
-			   bool fastopen, bool *req_stolen)
+			   bool fastopen, bool *req_stolen,
+			   enum skb_drop_reason *drop_reason)
 {
 	struct tcp_options_received tmp_opt;
 	struct sock *child;
@@ -672,7 +673,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 		tcp_parse_options(sock_net(sk), skb, &tmp_opt, 0, NULL);
 
 		if (tmp_opt.saw_tstamp) {
-			tmp_opt.ts_recent = READ_ONCE(req->ts_recent);
+			tmp_opt.ts_recent = req->ts_recent;
 			if (tmp_opt.rcv_tsecr) {
 				if (inet_rsk(req)->tstamp_ok && !fastopen)
 					tsecr_reject = !between(tmp_opt.rcv_tsecr,
@@ -808,10 +809,15 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 					  LINUX_MIB_TCPACKSKIPPEDSYNRECV,
 					  &tcp_rsk(req)->last_oow_ack_time))
 			req->rsk_ops->send_ack(sk, skb, req);
-		if (paws_reject)
+		if (paws_reject) {
+			SKB_DR_SET(*drop_reason, TCP_RFC7323_PAWS);
 			NET_INC_STATS(sock_net(sk), LINUX_MIB_PAWSESTABREJECTED);
-		else if (tsecr_reject)
+		} else if (tsecr_reject) {
+			SKB_DR_SET(*drop_reason, TCP_RFC7323_TSECR);
 			NET_INC_STATS(sock_net(sk), LINUX_MIB_TSECRREJECTED);
+		} else {
+			SKB_DR_SET(*drop_reason, TCP_OVERWINDOW);
+		}
 		return NULL;
 	}
 
@@ -881,6 +887,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	return inet_csk_complete_hashdance(sk, child, req, own_req);
 
 listen_overflow:
+	SKB_DR_SET(*drop_reason, TCP_LISTEN_OVERFLOW);
 	if (sk != req->rsk_listener)
 		__NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPMIGRATEREQFAILURE);
 

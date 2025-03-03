@@ -3693,33 +3693,33 @@ EXPORT_SYMBOL(tcp_sock_set_keepcnt);
 
 int tcp_set_window_clamp(struct sock *sk, int val)
 {
+	u32 old_window_clamp, new_window_clamp;
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	if (!val) {
 		if (sk->sk_state != TCP_CLOSE)
 			return -EINVAL;
 		WRITE_ONCE(tp->window_clamp, 0);
-	} else {
-		u32 new_rcv_ssthresh, old_window_clamp = tp->window_clamp;
-		u32 new_window_clamp = val < SOCK_MIN_RCVBUF / 2 ?
-						SOCK_MIN_RCVBUF / 2 : val;
-
-		if (new_window_clamp == old_window_clamp)
-			return 0;
-
-		WRITE_ONCE(tp->window_clamp, new_window_clamp);
-		if (new_window_clamp < old_window_clamp) {
-			/* need to apply the reserved mem provisioning only
-			 * when shrinking the window clamp
-			 */
-			__tcp_adjust_rcv_ssthresh(sk, tp->window_clamp);
-
-		} else {
-			new_rcv_ssthresh = min(tp->rcv_wnd, tp->window_clamp);
-			tp->rcv_ssthresh = max(new_rcv_ssthresh,
-					       tp->rcv_ssthresh);
-		}
+		return 0;
 	}
+
+	old_window_clamp = tp->window_clamp;
+	new_window_clamp = max_t(int, SOCK_MIN_RCVBUF / 2, val);
+
+	if (new_window_clamp == old_window_clamp)
+		return 0;
+
+	WRITE_ONCE(tp->window_clamp, new_window_clamp);
+
+	/* Need to apply the reserved mem provisioning only
+	 * when shrinking the window clamp.
+	 */
+	if (new_window_clamp < old_window_clamp)
+		__tcp_adjust_rcv_ssthresh(sk, new_window_clamp);
+	else
+		tp->rcv_ssthresh = clamp(new_window_clamp,
+					 tp->rcv_ssthresh,
+					 tp->rcv_wnd);
 	return 0;
 }
 

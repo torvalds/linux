@@ -949,7 +949,7 @@ static unsigned int tcp_synack_options(const struct sock *sk,
 			tcp_rsk(req)->snt_tsval_first = opts->tsval;
 		}
 		WRITE_ONCE(tcp_rsk(req)->snt_tsval_last, opts->tsval);
-		opts->tsecr = READ_ONCE(req->ts_recent);
+		opts->tsecr = req->ts_recent;
 		remaining -= TCPOLEN_TSTAMP_ALIGNED;
 	}
 	if (likely(ireq->sack_ok)) {
