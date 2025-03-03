@@ -14,14 +14,6 @@
 #include "intel_hotplug.h"
 #include "intel_pps.h"
 
-static bool gpu_reset_clobbers_display(struct intel_display *display)
-{
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	return (INTEL_INFO(i915)->gpu_reset_clobbers_display &&
-		intel_has_gpu_reset(to_gt(i915)));
-}
-
 bool intel_display_reset_test(struct intel_display *display)
 {
 	return display->params.force_reset_modeset_test;
@@ -83,7 +75,7 @@ bool intel_display_reset_prepare(struct intel_display *display)
 	return true;
 }
 
-void intel_display_reset_finish(struct intel_display *display)
+void intel_display_reset_finish(struct intel_display *display, bool test_only)
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_modeset_acquire_ctx *ctx = &display->restore.reset_ctx;
@@ -98,7 +90,7 @@ void intel_display_reset_finish(struct intel_display *display)
 		goto unlock;
 
 	/* reset doesn't touch the display */
-	if (!gpu_reset_clobbers_display(display)) {
+	if (test_only) {
 		/* for testing only restore the display */
 		ret = drm_atomic_helper_commit_duplicated_state(state, ctx);
 		if (ret) {

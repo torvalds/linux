@@ -1437,7 +1437,7 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 		intel_gt_reset(gt, engine_mask, reason);
 
 		if (reset_display)
-			intel_display_reset_finish(display);
+			intel_display_reset_finish(display, !need_display_reset);
 	}
 
 	if (!test_bit(I915_WEDGED, &gt->reset.flags))
