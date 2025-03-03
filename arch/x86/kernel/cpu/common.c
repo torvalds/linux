@@ -1484,8 +1484,6 @@ static inline bool parse_set_clear_cpuid(char *arg, bool set)
 	char *opt;
 	int taint = 0;
 
-	pr_warn("%s CPUID bits:", set ? "Force-enabling" : "Clearing");
-
 	while (arg) {
 		bool found __maybe_unused = false;
 		unsigned int bit;
@@ -1500,16 +1498,19 @@ static inline bool parse_set_clear_cpuid(char *arg, bool set)
 		if (!kstrtouint(opt, 10, &bit)) {
 			if (bit < NCAPINTS * 32) {
 
+				if (set) {
+					pr_warn("setcpuid: force-enabling CPU feature flag:");
+					setup_force_cpu_cap(bit);
+				} else {
+					pr_warn("clearcpuid: force-disabling CPU feature flag:");
+					setup_clear_cpu_cap(bit);
+				}
 				/* empty-string, i.e., ""-defined feature flags */
 				if (!x86_cap_flags[bit])
-					pr_cont(" %d:%d", bit >> 5, bit & 31);
+					pr_cont(" %d:%d\n", bit >> 5, bit & 31);
 				else
-					pr_cont(" %s", x86_cap_flags[bit]);
+					pr_cont(" %s\n", x86_cap_flags[bit]);
 
-				if (set)
-					setup_force_cpu_cap(bit);
-				else
-					setup_clear_cpu_cap(bit);
 				taint++;
 			}
 			/*
@@ -1521,11 +1522,15 @@ static inline bool parse_set_clear_cpuid(char *arg, bool set)
 
 		for (bit = 0; bit < 32 * (NCAPINTS + NBUGINTS); bit++) {
 			const char *flag;
+			const char *kind;
 
-			if (bit < 32 * NCAPINTS)
+			if (bit < 32 * NCAPINTS) {
 				flag = x86_cap_flags[bit];
-			else
+				kind = "feature";
+			} else {
+				kind = "bug";
 				flag = x86_bug_flags[bit - (32 * NCAPINTS)];
+			}
 
 			if (!flag)
 				continue;
@@ -1533,21 +1538,23 @@ static inline bool parse_set_clear_cpuid(char *arg, bool set)
 			if (strcmp(flag, opt))
 				continue;
 
-			pr_cont(" %s", opt);
-			if (set)
+			if (set) {
+				pr_warn("setcpuid: force-enabling CPU %s flag: %s\n",
+					kind, flag);
 				setup_force_cpu_cap(bit);
-			else
+			} else {
+				pr_warn("clearcpuid: force-disabling CPU %s flag: %s\n",
+					kind, flag);
 				setup_clear_cpu_cap(bit);
+			}
 			taint++;
 			found = true;
 			break;
 		}
 
 		if (!found)
-			pr_cont(" (unknown: %s)", opt);
+			pr_warn("%s: unknown CPU flag: %s", set ? "setcpuid" : "clearcpuid", opt);
 	}
-
-	pr_cont("\n");
 
 	return taint;
 }
