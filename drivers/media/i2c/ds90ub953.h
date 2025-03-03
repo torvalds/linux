@@ -92,4 +92,8 @@
 #define UB953_IND_PGEN_VFP			0x0f
 #define UB953_IND_PGEN_COLOR(n)			(0x10 + (n)) /* n <= 15 */
 
+/* UB971 Registers */
+
+#define UB971_ENH_BC_CHK			0x4b
+
 #endif /* __MEDIA_I2C_DS90UB953_H__ */
