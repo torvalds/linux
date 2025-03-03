@@ -262,7 +262,7 @@ int pinconf_generic_parse_dt_pinmux(struct device_node *np, struct device *dev,
 	}
 
 	if (!pid || !pmux || !npins) {
-		dev_err(dev, "paramers error\n");
+		dev_err(dev, "parameters error\n");
 		return -EINVAL;
 	}
 
