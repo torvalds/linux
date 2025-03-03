@@ -6,8 +6,11 @@
 #ifndef __INTEL_RESET_H__
 #define __INTEL_RESET_H__
 
+#include <linux/types.h>
+
 struct intel_display;
 
+bool intel_display_reset_test(struct intel_display *display);
 void intel_display_reset_prepare(struct intel_display *display);
 void intel_display_reset_finish(struct intel_display *display);
 

@@ -22,6 +22,11 @@ static bool gpu_reset_clobbers_display(struct intel_display *display)
 		intel_has_gpu_reset(to_gt(i915)));
 }
 
+bool intel_display_reset_test(struct intel_display *display)
+{
+	return display->params.force_reset_modeset_test;
+}
+
 void intel_display_reset_prepare(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
@@ -33,7 +38,7 @@ void intel_display_reset_prepare(struct intel_display *display)
 		return;
 
 	/* reset doesn't touch the display */
-	if (!display->params.force_reset_modeset_test &&
+	if (!intel_display_reset_test(display) &&
 	    !gpu_reset_clobbers_display(display))
 		return;
 
