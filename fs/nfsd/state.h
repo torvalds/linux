@@ -197,8 +197,8 @@ struct nfs4_delegation {
 	struct list_head	dl_perclnt;
 	struct list_head	dl_recall_lru;  /* delegation recalled */
 	struct nfs4_clnt_odstate *dl_clnt_odstate;
-	u32			dl_type;
 	time64_t		dl_time;
+	u32			dl_type;
 /* For recall: */
 	int			dl_retries;
 	struct nfsd4_callback	dl_recall;
