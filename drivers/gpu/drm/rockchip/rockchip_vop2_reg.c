@@ -4,6 +4,7 @@
  * Author: Andy Yan <andy.yan@rock-chips.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/kernel.h>
 #include <linux/component.h>
 #include <linux/mod_devicetable.h>
