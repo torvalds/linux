@@ -1068,7 +1068,7 @@ int main(int argc, char *argv[])
 		return ret;
 
 	optind = 2;
-	while ((opt = getopt_long(argc, argv, "t:n:d:q:a:z",
+	while ((opt = getopt_long(argc, argv, "t:n:d:q:az",
 				  longopts, &option_idx)) != -1) {
 		switch (opt) {
 		case 'a':
