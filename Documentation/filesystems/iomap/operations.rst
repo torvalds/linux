@@ -514,8 +514,8 @@ IOMAP_WRITE`` with any combination of the following enhancements:
    if the mapping is unwritten and the filesystem cannot handle zeroing
    the unaligned regions without exposing stale contents.
 
- * ``IOMAP_ATOMIC``: This write is being issued with torn-write
-   protection.
+ * ``IOMAP_ATOMIC_HW``: This write is being issued with torn-write
+   protection based on HW-offload support.
    Only a single bio can be created for the write, and the write must
    not be split into multiple I/O requests, i.e. flag REQ_ATOMIC must be
    set.
