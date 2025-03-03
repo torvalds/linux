@@ -1605,13 +1605,12 @@ out:
 	return ret;
 }
 
-static noinline int search_ioctl(struct inode *inode,
+static noinline int search_ioctl(struct btrfs_root *root,
 				 struct btrfs_ioctl_search_key *sk,
 				 u64 *buf_size,
 				 char __user *ubuf)
 {
-	struct btrfs_fs_info *info = inode_to_fs_info(inode);
-	struct btrfs_root *root;
+	struct btrfs_fs_info *info = root->fs_info;
 	struct btrfs_key key;
 	struct btrfs_path *path;
 	int ret;
@@ -1628,9 +1627,10 @@ static noinline int search_ioctl(struct inode *inode,
 		return -ENOMEM;
 
 	if (sk->tree_id == 0) {
-		/* search the root of the inode that was passed */
-		root = btrfs_grab_root(BTRFS_I(inode)->root);
+		/* Search the root that we got passed. */
+		root = btrfs_grab_root(root);
 	} else {
+		/* Look up the root from the arguments. */
 		root = btrfs_get_fs_root(info, sk->tree_id, true);
 		if (IS_ERR(root)) {
 			btrfs_free_path(path);
@@ -1674,7 +1674,7 @@ err:
 	return ret;
 }
 
-static noinline int btrfs_ioctl_tree_search(struct inode *inode,
+static noinline int btrfs_ioctl_tree_search(struct btrfs_root *root,
 					    void __user *argp)
 {
 	struct btrfs_ioctl_search_args __user *uargs = argp;
@@ -1690,7 +1690,7 @@ static noinline int btrfs_ioctl_tree_search(struct inode *inode,
 
 	buf_size = sizeof(uargs->buf);
 
-	ret = search_ioctl(inode, &sk, &buf_size, uargs->buf);
+	ret = search_ioctl(root, &sk, &buf_size, uargs->buf);
 
 	/*
 	 * In the origin implementation an overflow is handled by returning a
@@ -1704,7 +1704,7 @@ static noinline int btrfs_ioctl_tree_search(struct inode *inode,
 	return ret;
 }
 
-static noinline int btrfs_ioctl_tree_search_v2(struct inode *inode,
+static noinline int btrfs_ioctl_tree_search_v2(struct btrfs_root *root,
 					       void __user *argp)
 {
 	struct btrfs_ioctl_search_args_v2 __user *uarg = argp;
@@ -1726,7 +1726,7 @@ static noinline int btrfs_ioctl_tree_search_v2(struct inode *inode,
 	if (buf_size > buf_limit)
 		buf_size = buf_limit;
 
-	ret = search_ioctl(inode, &args.key, &buf_size,
+	ret = search_ioctl(root, &args.key, &buf_size,
 			   (char __user *)(&uarg->buf[0]));
 	if (ret == 0 && copy_to_user(&uarg->key, &args.key, sizeof(args.key)))
 		ret = -EFAULT;
@@ -5265,9 +5265,9 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_DEV_INFO:
 		return btrfs_ioctl_dev_info(fs_info, argp);
 	case BTRFS_IOC_TREE_SEARCH:
-		return btrfs_ioctl_tree_search(inode, argp);
+		return btrfs_ioctl_tree_search(root, argp);
 	case BTRFS_IOC_TREE_SEARCH_V2:
-		return btrfs_ioctl_tree_search_v2(inode, argp);
+		return btrfs_ioctl_tree_search_v2(root, argp);
 	case BTRFS_IOC_INO_LOOKUP:
 		return btrfs_ioctl_ino_lookup(root, argp);
 	case BTRFS_IOC_INO_PATHS:
