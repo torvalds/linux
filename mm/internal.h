@@ -125,6 +125,8 @@ void page_writeback_init(void);
  */
 static inline int folio_nr_pages_mapped(const struct folio *folio)
 {
+	if (IS_ENABLED(CONFIG_NO_PAGE_MAPCOUNT))
+		return -1;
 	return atomic_read(&folio->_nr_pages_mapped) & FOLIO_PAGES_MAPPED;
 }
 
@@ -762,7 +764,8 @@ static inline void prep_compound_head(struct page *page, unsigned int order)
 
 	folio_set_order(folio, order);
 	atomic_set(&folio->_large_mapcount, -1);
-	atomic_set(&folio->_nr_pages_mapped, 0);
+	if (IS_ENABLED(CONFIG_PAGE_MAPCOUNT))
+		atomic_set(&folio->_nr_pages_mapped, 0);
 	if (IS_ENABLED(CONFIG_MM_ID)) {
 		folio->_mm_ids = 0;
 		folio->_mm_id_mapcount[0] = -1;
