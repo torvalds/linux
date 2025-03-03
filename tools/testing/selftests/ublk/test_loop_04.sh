@@ -8,15 +8,15 @@ ERR_CODE=0
 
 _prep_test "loop" "mkfs & mount & umount with zero copy"
 
-backfile_0=`_create_backfile 256M`
+backfile_0=$(_create_backfile 256M)
 
-dev_id=`_add_ublk_dev -t loop -z $backfile_0`
+dev_id=$(_add_ublk_dev -t loop -z "$backfile_0")
 
-_mkfs_mount_test /dev/ublkb${dev_id}
+_mkfs_mount_test /dev/ublkb"${dev_id}"
 ERR_CODE=$?
 
-_cleanup_test ${dev_id} "loop"
+_cleanup_test "${dev_id}" "loop"
 
-_remove_backfile $backfile_0
+_remove_backfile "$backfile_0"
 
 _show_result $TID $ERR_CODE

@@ -8,13 +8,13 @@ ERR_CODE=0
 
 _prep_test "loop" "write and verify test"
 
-backfile_0=`_create_backfile 256M`
+backfile_0=$(_create_backfile 256M)
 
-dev_id=`_add_ublk_dev -t loop $backfile_0`
+dev_id=$(_add_ublk_dev -t loop "$backfile_0")
 
 # run fio over the ublk disk
 fio --name=write_and_verify \
-    --filename=/dev/ublkb${dev_id} \
+    --filename=/dev/ublkb"${dev_id}" \
     --ioengine=libaio --iodepth=16 \
     --rw=write \
     --size=256M \
@@ -24,8 +24,8 @@ fio --name=write_and_verify \
     --bs=4k > /dev/null 2>&1
 ERR_CODE=$?
 
-_cleanup_test ${dev_id} "loop"
+_cleanup_test "${dev_id}" "loop"
 
-_remove_backfile $backfile_0
+_remove_backfile "$backfile_0"
 
 _show_result $TID $ERR_CODE

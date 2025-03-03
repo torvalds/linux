@@ -14,3 +14,6 @@ TEST_GEN_PROGS_EXTENDED = kublk
 include ../lib.mk
 
 $(TEST_GEN_PROGS_EXTENDED): kublk.c null.c file_backed.c
+
+check:
+	shellcheck -x -f gcc *.sh
