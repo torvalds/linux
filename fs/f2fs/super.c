@@ -673,9 +673,8 @@ static int f2fs_set_zstd_level(struct f2fs_sb_info *sbi, const char *str)
 #endif
 #endif
 
-static int parse_options(struct super_block *sb, char *options, bool is_remount)
+static int parse_options(struct f2fs_sb_info *sbi, char *options, bool is_remount)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	substring_t args[MAX_OPT_ARGS];
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	unsigned char (*ext)[F2FS_EXTENSION_LEN];
@@ -2376,7 +2375,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	default_options(sbi, true);
 
 	/* parse mount options */
-	err = parse_options(sb, data, true);
+	err = parse_options(sbi, data, true);
 	if (err)
 		goto restore_opts;
 
@@ -4546,7 +4545,7 @@ try_onemore:
 		goto free_sb_buf;
 	}
 
-	err = parse_options(sb, options, false);
+	err = parse_options(sbi, options, false);
 	if (err)
 		goto free_options;
 
