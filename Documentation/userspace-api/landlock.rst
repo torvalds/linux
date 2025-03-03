@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: January 2025
+:Date: March 2025
 
 The goal of Landlock is to enable restriction of ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -317,33 +317,32 @@ IPC scoping
 -----------
 
 Similar to the implicit `Ptrace restrictions`_, we may want to further restrict
-interactions between sandboxes. Each Landlock domain can be explicitly scoped
-for a set of actions by specifying it on a ruleset.  For example, if a
-sandboxed process should not be able to :manpage:`connect(2)` to a
-non-sandboxed process through abstract :manpage:`unix(7)` sockets, we can
-specify such a restriction with ``LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET``.
-Moreover, if a sandboxed process should not be able to send a signal to a
-non-sandboxed process, we can specify this restriction with
-``LANDLOCK_SCOPE_SIGNAL``.
+interactions between sandboxes.  Therefore, at ruleset creation time, each
+Landlock domain can restrict the scope for certain operations, so that these
+operations can only reach out to processes within the same Landlock domain or in
+a nested Landlock domain (the "scope").
 
-A sandboxed process can connect to a non-sandboxed process when its domain is
-not scoped. If a process's domain is scoped, it can only connect to sockets
-created by processes in the same scope.
-Moreover, if a process is scoped to send signal to a non-scoped process, it can
-only send signals to processes in the same scope.
+The operations which can be scoped are:
 
-A connected datagram socket behaves like a stream socket when its domain is
-scoped, meaning if the domain is scoped after the socket is connected, it can
-still :manpage:`send(2)` data just like a stream socket.  However, in the same
-scenario, a non-connected datagram socket cannot send data (with
-:manpage:`sendto(2)`) outside its scope.
+``LANDLOCK_SCOPE_SIGNAL``
+    This limits the sending of signals to target processes which run within the
+    same or a nested Landlock domain.
 
-A process with a scoped domain can inherit a socket created by a non-scoped
-process. The process cannot connect to this socket since it has a scoped
-domain.
+``LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET``
+    This limits the set of abstract :manpage:`unix(7)` sockets to which we can
+    :manpage:`connect(2)` to socket addresses which were created by a process in
+    the same or a nested Landlock domain.
 
-IPC scoping does not support exceptions, so if a domain is scoped, no rules can
-be added to allow access to resources or processes outside of the scope.
+    A :manpage:`sendto(2)` on a non-connected datagram socket is treated as if
+    it were doing an implicit :manpage:`connect(2)` and will be blocked if the
+    remote end does not stem from the same or a nested Landlock domain.
+
+    A :manpage:`sendto(2)` on a socket which was previously connected will not
+    be restricted.  This works for both datagram and stream sockets.
+
+IPC scoping does not support exceptions via :manpage:`landlock_add_rule(2)`.
+If an operation is scoped within a domain, no rules can be added to allow access
+to resources or processes outside of the scope.
 
 Truncating files
 ----------------
