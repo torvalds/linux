@@ -98,6 +98,9 @@
 #define XFRM_SPI_IN_TO_OUT 0x1
 #define XFRM_SPI_OUT_TO_IN 0x2
 
+#define GRE_TUNL_DEV0 "gre00"
+#define GRE_TUNL_DEV1 "gre11"
+
 #define PING_ARGS "-i 0.01 -c 3 -w 10 -q"
 
 static int config_device(void)
@@ -214,6 +217,18 @@ static int set_ipip_encap(const char *ipproto, const char *type)
 	return 0;
 fail:
 	return -1;
+}
+
+static int set_ipv4_addr(const char *dev0, const char *dev1)
+{
+	SYS(fail, "ip -n at_ns0 link set dev %s up", dev0);
+	SYS(fail, "ip -n at_ns0 addr add dev %s %s/24", dev0, IP4_ADDR_TUNL_DEV0);
+	SYS(fail, "ip link set dev %s up", dev1);
+	SYS(fail, "ip addr add dev %s %s/24", dev1, IP4_ADDR_TUNL_DEV1);
+
+	return 0;
+fail:
+	return 1;
 }
 
 static int add_ipip_tunnel(enum ipip_encap encap)
@@ -354,6 +369,31 @@ static void delete_xfrm_tunnel(void)
 		   IP4_ADDR_VETH0, IP4_ADDR1_VETH1, XFRM_SPI_IN_TO_OUT);
 	SYS_NOFAIL("ip xfrm state delete src %s dst %s proto esp spi %d",
 		   IP4_ADDR1_VETH1, IP4_ADDR_VETH0, XFRM_SPI_OUT_TO_IN);
+}
+
+static int add_ipv4_tunnel(const char *dev0, const char *dev1,
+			   const char *type, const char *opt)
+{
+	if (!type || !opt || !dev0 || !dev1)
+		return -1;
+
+	SYS(fail, "ip -n at_ns0 link add dev %s type %s %s local %s remote %s",
+	    dev0, type, opt, IP4_ADDR_VETH0, IP4_ADDR1_VETH1);
+
+	SYS(fail, "ip link add dev %s type %s external", dev1, type);
+
+	return set_ipv4_addr(dev0, dev1);
+fail:
+	return -1;
+}
+
+static void delete_tunnel(const char *dev0, const char *dev1)
+{
+	if (!dev0 || !dev1)
+		return;
+
+	SYS_NOFAIL("ip netns exec at_ns0 ip link delete dev %s", dev0);
+	SYS_NOFAIL("ip link delete dev %s", dev1);
 }
 
 static int test_ping(int family, const char *addr)
@@ -677,6 +717,59 @@ done:
 		test_tunnel_kern__destroy(skel);
 }
 
+enum gre_test {
+	GRE,
+	GRE_NOKEY,
+	GRETAP,
+	GRETAP_NOKEY,
+};
+
+static void test_gre_tunnel(enum gre_test test)
+{
+	struct test_tunnel_kern *skel;
+	int set_fd, get_fd;
+	int err;
+
+	skel = test_tunnel_kern__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
+		return;
+
+	switch (test) {
+	case GRE:
+		err = add_ipv4_tunnel(GRE_TUNL_DEV0, GRE_TUNL_DEV1, "gre", "seq");
+		set_fd = bpf_program__fd(skel->progs.gre_set_tunnel_no_key);
+		get_fd = bpf_program__fd(skel->progs.gre_get_tunnel);
+		break;
+	case GRE_NOKEY:
+		err = add_ipv4_tunnel(GRE_TUNL_DEV0, GRE_TUNL_DEV1, "gre", "seq key 2");
+		set_fd = bpf_program__fd(skel->progs.gre_set_tunnel);
+		get_fd = bpf_program__fd(skel->progs.gre_get_tunnel);
+		break;
+	case GRETAP:
+		err = add_ipv4_tunnel(GRE_TUNL_DEV0, GRE_TUNL_DEV1, "gretap", "seq");
+		set_fd = bpf_program__fd(skel->progs.gre_set_tunnel_no_key);
+		get_fd = bpf_program__fd(skel->progs.gre_get_tunnel);
+		break;
+	case GRETAP_NOKEY:
+		err = add_ipv4_tunnel(GRE_TUNL_DEV0, GRE_TUNL_DEV1, "gretap", "seq key 2");
+		set_fd = bpf_program__fd(skel->progs.gre_set_tunnel);
+		get_fd = bpf_program__fd(skel->progs.gre_get_tunnel);
+		break;
+	}
+	if (!ASSERT_OK(err, "add tunnel"))
+		goto done;
+
+	if (generic_attach(GRE_TUNL_DEV1, get_fd, set_fd))
+		goto done;
+
+	ping_dev0();
+	ping_dev1();
+
+done:
+	delete_tunnel(GRE_TUNL_DEV0, GRE_TUNL_DEV1);
+	test_tunnel_kern__destroy(skel);
+}
+
 #define RUN_TEST(name, ...)						\
 	({								\
 		if (test__start_subtest(#name)) {			\
@@ -694,6 +787,10 @@ static void *test_tunnel_run_tests(void *arg)
 	RUN_TEST(ipip_tunnel, FOU);
 	RUN_TEST(ipip_tunnel, GUE);
 	RUN_TEST(xfrm_tunnel);
+	RUN_TEST(gre_tunnel, GRE);
+	RUN_TEST(gre_tunnel, GRE_NOKEY);
+	RUN_TEST(gre_tunnel, GRETAP);
+	RUN_TEST(gre_tunnel, GRETAP_NOKEY);
 
 	return NULL;
 }
