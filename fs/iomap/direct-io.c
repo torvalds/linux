@@ -686,7 +686,9 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			iomi.flags |= IOMAP_OVERWRITE_ONLY;
 		}
 
-		if (iocb->ki_flags & IOCB_ATOMIC)
+		if (dio_flags & IOMAP_DIO_ATOMIC_SW)
+			iomi.flags |= IOMAP_ATOMIC_SW;
+		else if (iocb->ki_flags & IOCB_ATOMIC)
 			iomi.flags |= IOMAP_ATOMIC_HW;
 
 		/* for data sync or sync, we need sync completion processing */
