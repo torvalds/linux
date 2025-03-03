@@ -704,6 +704,7 @@ static const struct coresight_ops_source etm_source_ops = {
 };
 
 static const struct coresight_ops etm_cs_ops = {
+	.trace_id	= coresight_etm_get_trace_id,
 	.source_ops	= &etm_source_ops,
 };
 

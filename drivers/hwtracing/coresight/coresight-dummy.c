@@ -41,6 +41,16 @@ static void dummy_source_disable(struct coresight_device *csdev,
 	dev_dbg(csdev->dev.parent, "Dummy source disabled\n");
 }
 
+static int dummy_source_trace_id(struct coresight_device *csdev, __maybe_unused enum cs_mode mode,
+				 __maybe_unused struct coresight_device *sink)
+{
+	struct dummy_drvdata *drvdata;
+
+	drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	return drvdata->traceid;
+}
+
 static int dummy_sink_enable(struct coresight_device *csdev, enum cs_mode mode,
 				void *data)
 {
@@ -62,7 +72,8 @@ static const struct coresight_ops_source dummy_source_ops = {
 };
 
 static const struct coresight_ops dummy_source_cs_ops = {
-	.source_ops = &dummy_source_ops,
+	.trace_id	= dummy_source_trace_id,
+	.source_ops	= &dummy_source_ops,
 };
 
 static const struct coresight_ops_sink dummy_sink_ops = {
