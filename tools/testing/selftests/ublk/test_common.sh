@@ -155,5 +155,31 @@ _add_ublk_dev() {
 	echo "${dev_id}"
 }
 
+__remove_ublk_dev_return() {
+	local dev_id=$1
+
+	${UBLK_PROG} del -n "${dev_id}"
+	local res=$?
+	udevadm settle
+	return ${res}
+}
+
+__run_io_and_remove()
+{
+	local dev_id=$1
+	local size=$2
+
+	fio --name=job1 --filename=/dev/ublkb"${dev_id}" --ioengine=libaio \
+		--rw=readwrite --iodepth=64 --size="${size}" --numjobs=4 \
+		--runtime=20 --time_based > /dev/null 2>&1 &
+	sleep 2
+	if ! __remove_ublk_dev_return "${dev_id}"; then
+		echo "delete dev ${dev_id} failed"
+		return 255
+	fi
+	wait
+}
+
+
 UBLK_PROG=$(pwd)/kublk
 export UBLK_PROG
