@@ -71,7 +71,7 @@
 
 /* Indirect register blocks */
 #define UB953_IND_TARGET_PAT_GEN		0x00
-#define UB953_IND_TARGET_FPD3_TX		0x01
+#define UB953_IND_TARGET_ANALOG			0x01
 #define UB953_IND_TARGET_DIE_ID			0x02
 
 #define UB953_IND_PGEN_CTL			0x01
@@ -91,6 +91,11 @@
 #define UB953_IND_PGEN_VBP			0x0e
 #define UB953_IND_PGEN_VFP			0x0f
 #define UB953_IND_PGEN_COLOR(n)			(0x10 + (n)) /* n <= 15 */
+
+#define UB953_IND_ANA_TEMP_DYNAMIC_CFG		0x4b
+#define UB953_IND_ANA_TEMP_DYNAMIC_CFG_OV	BIT(5)
+#define UB953_IND_ANA_TEMP_STATIC_CFG		0x4c
+#define UB953_IND_ANA_TEMP_STATIC_CFG_MASK	GENMASK(6, 4)
 
 /* UB971 Registers */
 

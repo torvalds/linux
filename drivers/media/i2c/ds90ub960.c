@@ -2017,6 +2017,110 @@ static int ub960_rxport_serializer_write(struct ub960_rxport *rxport, u8 reg,
 	return ret;
 }
 
+static int ub960_rxport_serializer_read(struct ub960_rxport *rxport, u8 reg,
+					u8 *val, int *err)
+{
+	struct ub960_data *priv = rxport->priv;
+	struct device *dev = &priv->client->dev;
+	union i2c_smbus_data data = { 0 };
+	int ret;
+
+	if (err && *err)
+		return *err;
+
+	ret = i2c_smbus_xfer(priv->client->adapter, rxport->ser.alias,
+			     priv->client->flags, I2C_SMBUS_READ, reg,
+			     I2C_SMBUS_BYTE_DATA, &data);
+	if (ret)
+		dev_err(dev,
+			"rx%u: cannot read serializer register 0x%02x (%d)!\n",
+			rxport->nport, reg, ret);
+	else
+		*val = data.byte;
+
+	if (ret && err)
+		*err = ret;
+
+	return ret;
+}
+
+static int ub960_serializer_temp_ramp(struct ub960_rxport *rxport)
+{
+	struct ub960_data *priv = rxport->priv;
+	short temp_dynamic_offset[] = {-1, -1, 0, 0, 1, 1, 1, 3};
+	u8 temp_dynamic_cfg;
+	u8 nport = rxport->nport;
+	u8 ser_temp_code;
+	int ret;
+
+	/* Configure temp ramp only on UB953 */
+	if (!fwnode_device_is_compatible(rxport->ser.fwnode, "ti,ds90ub953-q1"))
+		return 0;
+
+	/* Read current serializer die temperature */
+	ub960_rxport_read(priv, nport, UB960_RR_SENSOR_STS_2, &ser_temp_code,
+			  &ret);
+
+	/* Enable I2C passthrough on back channel */
+	ub960_rxport_update_bits(priv, nport, UB960_RR_BCC_CONFIG,
+				 UB960_RR_BCC_CONFIG_I2C_PASS_THROUGH,
+				 UB960_RR_BCC_CONFIG_I2C_PASS_THROUGH, &ret);
+
+	if (ret)
+		return ret;
+
+	/* Select indirect page for analog regs on the serializer */
+	ub960_rxport_serializer_write(rxport, UB953_REG_IND_ACC_CTL,
+				      UB953_IND_TARGET_ANALOG << 2, &ret);
+
+	/* Set temperature ramp dynamic and static config */
+	ub960_rxport_serializer_write(rxport, UB953_REG_IND_ACC_ADDR,
+				      UB953_IND_ANA_TEMP_DYNAMIC_CFG, &ret);
+	ub960_rxport_serializer_read(rxport, UB953_REG_IND_ACC_DATA,
+				     &temp_dynamic_cfg, &ret);
+
+	if (ret)
+		return ret;
+
+	temp_dynamic_cfg |= UB953_IND_ANA_TEMP_DYNAMIC_CFG_OV;
+	temp_dynamic_cfg += temp_dynamic_offset[ser_temp_code];
+
+	/* Update temp static config */
+	ub960_rxport_serializer_write(rxport, UB953_REG_IND_ACC_ADDR,
+				      UB953_IND_ANA_TEMP_STATIC_CFG, &ret);
+	ub960_rxport_serializer_write(rxport, UB953_REG_IND_ACC_DATA,
+				      UB953_IND_ANA_TEMP_STATIC_CFG_MASK, &ret);
+
+	/* Update temperature ramp dynamic config */
+	ub960_rxport_serializer_write(rxport, UB953_REG_IND_ACC_ADDR,
+				      UB953_IND_ANA_TEMP_DYNAMIC_CFG, &ret);
+
+	/* Enable I2C auto ack on BC before we set dynamic cfg and reset */
+	ub960_rxport_update_bits(priv, nport, UB960_RR_BCC_CONFIG,
+				 UB960_RR_BCC_CONFIG_AUTO_ACK_ALL,
+				 UB960_RR_BCC_CONFIG_AUTO_ACK_ALL, &ret);
+
+	ub960_rxport_serializer_write(rxport, UB953_REG_IND_ACC_DATA,
+				      temp_dynamic_cfg, &ret);
+
+	if (ret)
+		return ret;
+
+	/* Soft reset to apply PLL updates */
+	ub960_rxport_serializer_write(rxport, UB953_REG_RESET_CTL,
+				      UB953_REG_RESET_CTL_DIGITAL_RESET_0,
+				      &ret);
+	msleep(20);
+
+	/* Disable I2C passthrough and auto-ack on BC */
+	ub960_rxport_update_bits(priv, nport, UB960_RR_BCC_CONFIG,
+				 UB960_RR_BCC_CONFIG_I2C_PASS_THROUGH |
+					 UB960_RR_BCC_CONFIG_AUTO_ACK_ALL,
+				 0x0, &ret);
+
+	return ret;
+}
+
 static int ub960_rxport_bc_ser_config(struct ub960_rxport *rxport)
 {
 	struct ub960_data *priv = rxport->priv;
@@ -2394,6 +2498,20 @@ static int ub960_init_rx_ports_ub960(struct ub960_data *priv)
 		ret = -EIO;
 		dev_err_probe(dev, ret, "Failed to lock all RX ports\n");
 		return ret;
+	}
+
+	/* Set temperature ramp on serializer */
+	for_each_active_rxport(priv, it) {
+		ret = ub960_serializer_temp_ramp(it.rxport);
+		if (ret)
+			return ret;
+
+		ub960_rxport_update_bits(priv, it.nport, UB960_RR_BCC_CONFIG,
+					 UB960_RR_BCC_CONFIG_I2C_PASS_THROUGH,
+					 UB960_RR_BCC_CONFIG_I2C_PASS_THROUGH,
+					 &ret);
+		if (ret)
+			return ret;
 	}
 
 	/*
@@ -3070,6 +3188,13 @@ static int ub960_init_rx_ports_ub9702(struct ub960_data *priv)
 
 	/* Wait time for stable lock */
 	fsleep(15000);
+
+	/* Set temperature ramp on serializer */
+	for_each_active_rxport(priv, it) {
+		ret = ub960_serializer_temp_ramp(it.rxport);
+		if (ret)
+			return ret;
+	}
 
 	for_each_active_rxport_fpd4(priv, it) {
 		ret = ub960_enable_dfe_lms_ub9702(priv, it.nport);
