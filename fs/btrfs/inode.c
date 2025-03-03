@@ -8513,8 +8513,6 @@ static int start_delalloc_inodes(struct btrfs_root *root,
 				 struct writeback_control *wbc, bool snapshot,
 				 bool in_reclaim_context)
 {
-	struct btrfs_inode *binode;
-	struct inode *inode;
 	struct btrfs_delalloc_work *work, *next;
 	LIST_HEAD(works);
 	LIST_HEAD(splice);
@@ -8525,30 +8523,30 @@ static int start_delalloc_inodes(struct btrfs_root *root,
 	spin_lock(&root->delalloc_lock);
 	list_splice_init(&root->delalloc_inodes, &splice);
 	while (!list_empty(&splice)) {
-		binode = list_entry(splice.next, struct btrfs_inode,
-				    delalloc_inodes);
+		struct btrfs_inode *inode;
+		struct inode *tmp_inode;
 
-		list_move_tail(&binode->delalloc_inodes,
-			       &root->delalloc_inodes);
+		inode = list_entry(splice.next, struct btrfs_inode, delalloc_inodes);
+
+		list_move_tail(&inode->delalloc_inodes, &root->delalloc_inodes);
 
 		if (in_reclaim_context &&
-		    test_bit(BTRFS_INODE_NO_DELALLOC_FLUSH, &binode->runtime_flags))
+		    test_bit(BTRFS_INODE_NO_DELALLOC_FLUSH, &inode->runtime_flags))
 			continue;
 
-		inode = igrab(&binode->vfs_inode);
-		if (!inode) {
+		tmp_inode = igrab(&inode->vfs_inode);
+		if (!tmp_inode) {
 			cond_resched_lock(&root->delalloc_lock);
 			continue;
 		}
 		spin_unlock(&root->delalloc_lock);
 
 		if (snapshot)
-			set_bit(BTRFS_INODE_SNAPSHOT_FLUSH,
-				&binode->runtime_flags);
+			set_bit(BTRFS_INODE_SNAPSHOT_FLUSH, &inode->runtime_flags);
 		if (full_flush) {
-			work = btrfs_alloc_delalloc_work(inode);
+			work = btrfs_alloc_delalloc_work(&inode->vfs_inode);
 			if (!work) {
-				iput(inode);
+				iput(&inode->vfs_inode);
 				ret = -ENOMEM;
 				goto out;
 			}
@@ -8556,8 +8554,8 @@ static int start_delalloc_inodes(struct btrfs_root *root,
 			btrfs_queue_work(root->fs_info->flush_workers,
 					 &work->work);
 		} else {
-			ret = filemap_fdatawrite_wbc(inode->i_mapping, wbc);
-			btrfs_add_delayed_iput(BTRFS_I(inode));
+			ret = filemap_fdatawrite_wbc(inode->vfs_inode.i_mapping, wbc);
+			btrfs_add_delayed_iput(inode);
 			if (ret || wbc->nr_to_write <= 0)
 				goto out;
 		}
