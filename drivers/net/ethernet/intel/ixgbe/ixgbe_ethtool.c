@@ -2491,6 +2491,26 @@ static int ixgbe_set_phys_id(struct net_device *netdev,
 	return 0;
 }
 
+static int ixgbe_set_phys_id_e610(struct net_device *netdev,
+				  enum ethtool_phys_id_state state)
+{
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
+	bool led_active;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		led_active = true;
+		break;
+	case ETHTOOL_ID_INACTIVE:
+		led_active = false;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return ixgbe_aci_set_port_id_led(&adapter->hw, !led_active);
+}
+
 static int ixgbe_get_coalesce(struct net_device *netdev,
 			      struct ethtool_coalesce *ec,
 			      struct kernel_ethtool_coalesce *kernel_coal,
@@ -3756,7 +3776,7 @@ static const struct ethtool_ops ixgbe_ethtool_ops_e610 = {
 	.set_msglevel           = ixgbe_set_msglevel,
 	.self_test              = ixgbe_diag_test,
 	.get_strings            = ixgbe_get_strings,
-	.set_phys_id            = ixgbe_set_phys_id,
+	.set_phys_id            = ixgbe_set_phys_id_e610,
 	.get_sset_count         = ixgbe_get_sset_count,
 	.get_ethtool_stats      = ixgbe_get_ethtool_stats,
 	.get_coalesce           = ixgbe_get_coalesce,

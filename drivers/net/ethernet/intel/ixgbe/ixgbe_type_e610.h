@@ -223,6 +223,7 @@ enum ixgbe_aci_opc {
 	ixgbe_aci_opc_write_mdio			= 0x06E5,
 	ixgbe_aci_opc_set_gpio_by_func			= 0x06E6,
 	ixgbe_aci_opc_get_gpio_by_func			= 0x06E7,
+	ixgbe_aci_opc_set_port_id_led			= 0x06E9,
 	ixgbe_aci_opc_set_gpio				= 0x06EC,
 	ixgbe_aci_opc_get_gpio				= 0x06ED,
 	ixgbe_aci_opc_sff_eeprom			= 0x06EE,
@@ -808,6 +809,18 @@ struct ixgbe_aci_cmd_get_link_topo_pin {
 	u8 rsvd[7];
 };
 
+/* Set Port Identification LED (direct, 0x06E9) */
+struct ixgbe_aci_cmd_set_port_id_led {
+	u8 lport_num;
+	u8 lport_num_valid;
+	u8 ident_mode;
+	u8 rsvd[13];
+};
+
+#define IXGBE_ACI_PORT_ID_PORT_NUM_VALID	BIT(0)
+#define IXGBE_ACI_PORT_IDENT_LED_ORIG		0
+#define IXGBE_ACI_PORT_IDENT_LED_BLINK		BIT(0)
+
 /* Read/Write SFF EEPROM command (indirect 0x06EE) */
 struct ixgbe_aci_cmd_sff_eeprom {
 	u8 lport_num;
@@ -985,6 +998,7 @@ struct ixgbe_aci_desc {
 		struct ixgbe_aci_cmd_restart_an restart_an;
 		struct ixgbe_aci_cmd_get_link_status get_link_status;
 		struct ixgbe_aci_cmd_set_event_mask set_event_mask;
+		struct ixgbe_aci_cmd_set_port_id_led set_port_id_led;
 		struct ixgbe_aci_cmd_get_link_topo get_link_topo;
 		struct ixgbe_aci_cmd_get_link_topo_pin get_link_topo_pin;
 		struct ixgbe_aci_cmd_sff_eeprom read_write_sff_param;
