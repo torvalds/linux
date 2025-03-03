@@ -115,6 +115,9 @@
 #define GENEVE_TUNL_DEV0 "geneve00"
 #define GENEVE_TUNL_DEV1 "geneve11"
 
+#define IP6GENEVE_TUNL_DEV0 "ip6geneve00"
+#define IP6GENEVE_TUNL_DEV1 "ip6geneve11"
+
 #define PING_ARGS "-i 0.01 -c 3 -w 10 -q"
 
 static int config_device(void)
@@ -458,6 +461,22 @@ static int add_geneve_tunnel(const char *dev0, const char *dev1,
 	SYS(fail, "ip link add dev %s type %s %s external", dev1, type, opt);
 
 	return set_ipv4_addr(dev0, dev1);
+fail:
+	return -1;
+}
+
+static int add_ip6geneve_tunnel(const char *dev0, const char *dev1,
+			     const char *type, const char *opt)
+{
+	if (!type || !opt || !dev0 || !dev1)
+		return -1;
+
+	SYS(fail, "ip -n at_ns0 link add dev %s type %s id 22 %s remote %s",
+	    dev0, type, opt, IP6_ADDR1_VETH1);
+
+	SYS(fail, "ip link add dev %s type %s %s external", dev1, type, opt);
+
+	return set_ipv6_addr(dev0, dev1);
 fail:
 	return -1;
 }
@@ -999,6 +1018,34 @@ done:
 	delete_tunnel(GENEVE_TUNL_DEV0, GENEVE_TUNL_DEV1);
 	test_tunnel_kern__destroy(skel);
 }
+
+static void test_ip6geneve_tunnel(void)
+{
+	struct test_tunnel_kern *skel;
+	int set_fd, get_fd;
+	int err;
+
+	skel = test_tunnel_kern__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
+		return;
+
+	err = add_ip6geneve_tunnel(IP6GENEVE_TUNL_DEV0, IP6GENEVE_TUNL_DEV1,
+				   "geneve", "");
+	if (!ASSERT_OK(err, "add tunnel"))
+		goto done;
+
+	set_fd = bpf_program__fd(skel->progs.ip6geneve_set_tunnel);
+	get_fd = bpf_program__fd(skel->progs.ip6geneve_get_tunnel);
+	if (generic_attach(IP6GENEVE_TUNL_DEV1, get_fd, set_fd))
+		goto done;
+
+	ping_dev0();
+	ping_dev1();
+done:
+	delete_tunnel(IP6GENEVE_TUNL_DEV0, IP6GENEVE_TUNL_DEV1);
+	test_tunnel_kern__destroy(skel);
+}
+
 #define RUN_TEST(name, ...)						\
 	({								\
 		if (test__start_subtest(#name)) {			\
@@ -1027,6 +1074,7 @@ static void *test_tunnel_run_tests(void *arg)
 	RUN_TEST(ip6erspan_tunnel, V1);
 	RUN_TEST(ip6erspan_tunnel, V2);
 	RUN_TEST(geneve_tunnel);
+	RUN_TEST(ip6geneve_tunnel);
 
 	return NULL;
 }
