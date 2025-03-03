@@ -12,6 +12,7 @@
 #include <getopt.h>
 #include <limits.h>
 #include <poll.h>
+#include <fcntl.h>
 #include <sys/syscall.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
