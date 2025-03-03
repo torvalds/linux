@@ -450,9 +450,9 @@ static int ub913_set_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 
-	format->format.code = finfo->outcode;
-
 	*fmt = format->format;
+
+	fmt->code = finfo->outcode;
 
 	return 0;
 }
