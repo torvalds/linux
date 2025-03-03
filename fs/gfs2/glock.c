@@ -910,12 +910,8 @@ void glock_set_object(struct gfs2_glock *gl, void *object)
 	prev_object = gl->gl_object;
 	gl->gl_object = object;
 	spin_unlock(&gl->gl_lockref.lock);
-	if (gfs2_assert_warn(gl->gl_name.ln_sbd, prev_object == NULL)) {
-		pr_warn("glock=%u/%llx\n",
-			gl->gl_name.ln_type,
-			(unsigned long long)gl->gl_name.ln_number);
+	if (gfs2_assert_warn(gl->gl_name.ln_sbd, prev_object == NULL))
 		gfs2_dump_glock(NULL, gl, true);
-	}
 }
 
 /**
@@ -931,12 +927,8 @@ void glock_clear_object(struct gfs2_glock *gl, void *object)
 	prev_object = gl->gl_object;
 	gl->gl_object = NULL;
 	spin_unlock(&gl->gl_lockref.lock);
-	if (gfs2_assert_warn(gl->gl_name.ln_sbd, prev_object == object)) {
-		pr_warn("glock=%u/%llx\n",
-			gl->gl_name.ln_type,
-			(unsigned long long)gl->gl_name.ln_number);
+	if (gfs2_assert_warn(gl->gl_name.ln_sbd, prev_object == object))
 		gfs2_dump_glock(NULL, gl, true);
-	}
 }
 
 void gfs2_inode_remember_delete(struct gfs2_glock *gl, u64 generation)
