@@ -56,6 +56,15 @@
 #define BTINTEL_PCIE_CSR_MSIX_IVAR_BASE		(BTINTEL_PCIE_CSR_MSIX_BASE + 0x0880)
 #define BTINTEL_PCIE_CSR_MSIX_IVAR(cause)	(BTINTEL_PCIE_CSR_MSIX_IVAR_BASE + (cause))
 
+/* IOSF Debug Register */
+#define BTINTEL_PCIE_DBGC_BASE_ADDR			(0xf3800300)
+#define BTINTEL_PCIE_DBGC_CUR_DBGBUFF_STATUS		(BTINTEL_PCIE_DBGC_BASE_ADDR + 0x1C)
+#define BTINTEL_PCIE_DBGC_DBGBUFF_WRAP_ARND		(BTINTEL_PCIE_DBGC_BASE_ADDR + 0x2C)
+
+#define BTINTEL_PCIE_DBG_IDX_BIT_MASK		0x0F
+#define BTINTEL_PCIE_DBGC_DBG_BUF_IDX(data)	(((data) >> 24) & BTINTEL_PCIE_DBG_IDX_BIT_MASK)
+#define BTINTEL_PCIE_DBG_OFFSET_BIT_MASK	0xFFFFFF
+
 /* The DRAM buffer count, each buffer size, and
  * fragment buffer size
  */
@@ -97,6 +106,19 @@ enum {
 enum {
 	BTINTEL_PCIE_CORE_HALTED,
 	BTINTEL_PCIE_HWEXP_INPROGRESS,
+	BTINTEL_PCIE_COREDUMP_INPROGRESS
+};
+
+enum btintel_pcie_tlv_type {
+	BTINTEL_CNVI_BT,
+	BTINTEL_WRITE_PTR,
+	BTINTEL_WRAP_CTR,
+	BTINTEL_TRIGGER_REASON,
+	BTINTEL_FW_SHA,
+	BTINTEL_CNVR_TOP,
+	BTINTEL_CNVI_TOP,
+	BTINTEL_DUMP_TIME,
+	BTINTEL_FW_BUILD,
 };
 
 #define BTINTEL_PCIE_MSIX_NON_AUTO_CLEAR_CAUSE	BIT(7)
@@ -371,6 +393,21 @@ struct btintel_pcie_dbgc {
 	struct data_buf *bufs;
 };
 
+struct btintel_pcie_dump_header {
+	const char	*driver_name;
+	u32		cnvi_top;
+	u32		cnvr_top;
+	u16		fw_timestamp;
+	u8		fw_build_type;
+	u32		fw_build_num;
+	u32		fw_git_sha1;
+	u32		cnvi_bt;
+	u32		write_ptr;
+	u32		wrap_ctr;
+	u16		trigger_reason;
+	int		state;
+};
+
 /* struct btintel_pcie_data
  * @pdev: pci device
  * @hdev: hdev device
@@ -452,6 +489,7 @@ struct btintel_pcie_data {
 	struct rxq	rxq;
 	u32	alive_intr_ctxt;
 	struct btintel_pcie_dbgc	dbgc;
+	struct btintel_pcie_dump_header dmp_hdr;
 };
 
 static inline u32 btintel_pcie_rd_reg32(struct btintel_pcie_data *data,
