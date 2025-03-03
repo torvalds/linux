@@ -54,6 +54,10 @@
 #define UB953_REG_CLKOUT_CTRL0			0x06
 #define UB953_REG_CLKOUT_CTRL1			0x07
 
+#define UB953_REG_I2C_CONTROL2			0x0a
+#define UB953_REG_I2C_CONTROL2_SDA_OUTPUT_SETUP_SHIFT	4
+#define UB953_REG_I2C_CONTROL2_BUS_SPEEDUP	BIT(1)
+
 #define UB953_REG_SCL_HIGH_TIME			0x0b
 #define UB953_REG_SCL_LOW_TIME			0x0c
 
@@ -1320,7 +1324,12 @@ static int ub953_hw_init(struct ub953_data *priv)
 	if (ret)
 		return ret;
 
-	return 0;
+	v = 1U << UB953_REG_I2C_CONTROL2_SDA_OUTPUT_SETUP_SHIFT;
+	v |= UB953_REG_I2C_CONTROL2_BUS_SPEEDUP;
+
+	ret = ub953_write(priv, UB953_REG_I2C_CONTROL2, v, NULL);
+
+	return ret;
 }
 
 static int ub953_subdev_init(struct ub953_data *priv)
