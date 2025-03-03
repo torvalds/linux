@@ -254,11 +254,13 @@ static int adau17x1_dsp_mux_enum_get(struct snd_kcontrol *kcontrol,
 }
 
 #define DECLARE_ADAU17X1_DSP_MUX_CTRL(_name, _label, _stream, _text) \
-	const struct snd_kcontrol_new _name = \
-		SOC_DAPM_ENUM_EXT(_label, (const struct soc_enum)\
+	const struct soc_enum _name##_enum = \
 			SOC_ENUM_SINGLE(SND_SOC_NOPM, _stream, \
-				ARRAY_SIZE(_text), _text), \
-			adau17x1_dsp_mux_enum_get, adau17x1_dsp_mux_enum_put)
+					ARRAY_SIZE(_text), _text); \
+	const struct snd_kcontrol_new _name = \
+		SOC_DAPM_ENUM_EXT(_label, _name##_enum, \
+				  adau17x1_dsp_mux_enum_get, \
+				  adau17x1_dsp_mux_enum_put)
 
 static const char * const adau17x1_dac_mux_text[] = {
 	"DSP",
