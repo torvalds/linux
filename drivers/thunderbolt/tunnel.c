@@ -1009,6 +1009,8 @@ static int tb_dp_dprx_start(struct tb_tunnel *tunnel)
 	 */
 	tb_tunnel_get(tunnel);
 
+	tunnel->dprx_started = true;
+
 	if (tunnel->callback) {
 		tunnel->dprx_timeout = dprx_timeout_to_ktime(dprx_timeout);
 		queue_delayed_work(tunnel->tb->wq, &tunnel->dprx_work, 0);
@@ -1021,9 +1023,12 @@ static int tb_dp_dprx_start(struct tb_tunnel *tunnel)
 
 static void tb_dp_dprx_stop(struct tb_tunnel *tunnel)
 {
-	tunnel->dprx_canceled = true;
-	cancel_delayed_work(&tunnel->dprx_work);
-	tb_tunnel_put(tunnel);
+	if (tunnel->dprx_started) {
+		tunnel->dprx_started = false;
+		tunnel->dprx_canceled = true;
+		cancel_delayed_work(&tunnel->dprx_work);
+		tb_tunnel_put(tunnel);
+	}
 }
 
 static int tb_dp_activate(struct tb_tunnel *tunnel, bool active)
