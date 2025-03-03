@@ -337,3 +337,5 @@
 		};
 	};
 };
+
+#include "bcm2166x-pinctrl.dtsi"
