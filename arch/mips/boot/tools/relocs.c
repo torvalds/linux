@@ -468,6 +468,8 @@ static void walk_relocs(int (*process)(struct section *sec, Elf_Rel *rel,
 			Elf_Sym *sym, const char *symname))
 {
 	int i;
+	struct section *extab_sec = sec_lookup("__ex_table");
+	int extab_index = extab_sec ? extab_sec - secs : -1;
 
 	/* Walk through the relocations */
 	for (i = 0; i < ehdr.e_shnum; i++) {
@@ -478,6 +480,9 @@ static void walk_relocs(int (*process)(struct section *sec, Elf_Rel *rel,
 		struct section *sec = &secs[i];
 
 		if (sec->shdr.sh_type != SHT_REL_TYPE)
+			continue;
+
+		if (sec->shdr.sh_info == extab_index)
 			continue;
 
 		sec_symtab  = sec->link;

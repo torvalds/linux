@@ -1194,7 +1194,9 @@ int bch2_set_nr_journal_buckets(struct bch_fs *c, struct bch_dev *ca,
 
 		closure_sync(&cl);
 
-		if (ret && ret != -BCH_ERR_bucket_alloc_blocked)
+		if (ret &&
+		    ret != -BCH_ERR_bucket_alloc_blocked &&
+		    ret != -BCH_ERR_open_buckets_empty)
 			break;
 	}
 
