@@ -1056,7 +1056,7 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      const struct mtd_partition *parts,
 			      int nr_parts)
 {
-	int ret;
+	int ret, err;
 
 	mtd_set_dev_defaults(mtd);
 
@@ -1108,8 +1108,11 @@ out:
 		nvmem_unregister(mtd->otp_factory_nvmem);
 	}
 
-	if (ret && device_is_registered(&mtd->dev))
-		del_mtd_device(mtd);
+	if (ret && device_is_registered(&mtd->dev)) {
+		err = del_mtd_device(mtd);
+		if (err)
+			pr_err("Error when deleting MTD device (%d)\n", err);
+	}
 
 	return ret;
 }
