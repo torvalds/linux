@@ -237,10 +237,12 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * references: i.e., if used for a function, it would add the PLT
  * suffix.
  */
-#define alternative_call(oldfunc, newfunc, ft_flags, output, input...)			\
+#define alternative_call(oldfunc, newfunc, ft_flags, output, input, clobbers...)	\
 	asm_inline volatile(ALTERNATIVE("call %c[old]", "call %c[new]", ft_flags)	\
 		: ALT_OUTPUT_SP(output)							\
-		: [old] "i" (oldfunc), [new] "i" (newfunc), ## input)
+		: [old] "i" (oldfunc), [new] "i" (newfunc)				\
+		  COMMA(input)								\
+		: clobbers)
 
 /*
  * Like alternative_call, but there are two features and respective functions.
@@ -249,24 +251,14 @@ static inline int alternatives_text_reserved(void *start, void *end)
  * Otherwise, old function is used.
  */
 #define alternative_call_2(oldfunc, newfunc1, ft_flags1, newfunc2, ft_flags2,		\
-			   output, input...)						\
+			   output, input, clobbers...)					\
 	asm_inline volatile(ALTERNATIVE_2("call %c[old]", "call %c[new1]", ft_flags1,	\
 		"call %c[new2]", ft_flags2)						\
 		: ALT_OUTPUT_SP(output)							\
 		: [old] "i" (oldfunc), [new1] "i" (newfunc1),				\
-		  [new2] "i" (newfunc2), ## input)
-
-/*
- * use this macro(s) if you need more than one output parameter
- * in alternative_io
- */
-#define ASM_OUTPUT2(a...) a
-
-/*
- * use this macro if you need clobbers but no inputs in
- * alternative_{input,io,call}()
- */
-#define ASM_NO_INPUT_CLOBBER(clbr...) "i" (0) : clbr
+		  [new2] "i" (newfunc2)							\
+		  COMMA(input)								\
+		: clobbers)
 
 #define ALT_OUTPUT_SP(...) ASM_CALL_CONSTRAINT, ## __VA_ARGS__
 
