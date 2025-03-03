@@ -6,6 +6,20 @@
 #include <linux/of.h>
 #include <linux/phy.h>
 
+#include "phylib.h"
+
+struct device_node *phy_package_get_node(struct phy_device *phydev)
+{
+	return phydev->shared->np;
+}
+EXPORT_SYMBOL_GPL(phy_package_get_node);
+
+void *phy_package_get_priv(struct phy_device *phydev)
+{
+	return phydev->shared->priv;
+}
+EXPORT_SYMBOL_GPL(phy_package_get_priv);
+
 /**
  * phy_package_join - join a common PHY group
  * @phydev: target phy_device struct
