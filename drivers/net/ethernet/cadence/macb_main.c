@@ -3253,9 +3253,11 @@ static void macb_get_pause_stats(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	struct macb_stats *hwstat = &bp->hw_stats.macb;
 
+	spin_lock_irq(&bp->stats_lock);
 	macb_update_stats(bp);
 	pause_stats->tx_pause_frames = hwstat->tx_pause_frames;
 	pause_stats->rx_pause_frames = hwstat->rx_pause_frames;
+	spin_unlock_irq(&bp->stats_lock);
 }
 
 static void gem_get_pause_stats(struct net_device *dev,
@@ -3264,9 +3266,11 @@ static void gem_get_pause_stats(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	struct gem_stats *hwstat = &bp->hw_stats.gem;
 
+	spin_lock_irq(&bp->stats_lock);
 	gem_update_stats(bp);
 	pause_stats->tx_pause_frames = hwstat->tx_pause_frames;
 	pause_stats->rx_pause_frames = hwstat->rx_pause_frames;
+	spin_unlock_irq(&bp->stats_lock);
 }
 
 static void macb_get_eth_mac_stats(struct net_device *dev,
@@ -3275,6 +3279,7 @@ static void macb_get_eth_mac_stats(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	struct macb_stats *hwstat = &bp->hw_stats.macb;
 
+	spin_lock_irq(&bp->stats_lock);
 	macb_update_stats(bp);
 	mac_stats->FramesTransmittedOK = hwstat->tx_ok;
 	mac_stats->SingleCollisionFrames = hwstat->tx_single_cols;
@@ -3290,6 +3295,7 @@ static void macb_get_eth_mac_stats(struct net_device *dev,
 	mac_stats->FramesLostDueToIntMACRcvError = hwstat->rx_overruns;
 	mac_stats->InRangeLengthErrors = hwstat->rx_length_mismatch;
 	mac_stats->FrameTooLongErrors = hwstat->rx_oversize_pkts;
+	spin_unlock_irq(&bp->stats_lock);
 }
 
 static void gem_get_eth_mac_stats(struct net_device *dev,
@@ -3298,6 +3304,7 @@ static void gem_get_eth_mac_stats(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	struct gem_stats *hwstat = &bp->hw_stats.gem;
 
+	spin_lock_irq(&bp->stats_lock);
 	gem_update_stats(bp);
 	mac_stats->FramesTransmittedOK = hwstat->tx_frames;
 	mac_stats->SingleCollisionFrames = hwstat->tx_single_collision_frames;
@@ -3320,6 +3327,7 @@ static void gem_get_eth_mac_stats(struct net_device *dev,
 	mac_stats->BroadcastFramesReceivedOK = hwstat->rx_broadcast_frames;
 	mac_stats->InRangeLengthErrors = hwstat->rx_length_field_frame_errors;
 	mac_stats->FrameTooLongErrors = hwstat->rx_oversize_frames;
+	spin_unlock_irq(&bp->stats_lock);
 }
 
 /* TODO: Report SQE test errors when added to phy_stats */
@@ -3329,8 +3337,10 @@ static void macb_get_eth_phy_stats(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	struct macb_stats *hwstat = &bp->hw_stats.macb;
 
+	spin_lock_irq(&bp->stats_lock);
 	macb_update_stats(bp);
 	phy_stats->SymbolErrorDuringCarrier = hwstat->rx_symbol_errors;
+	spin_unlock_irq(&bp->stats_lock);
 }
 
 static void gem_get_eth_phy_stats(struct net_device *dev,
@@ -3339,8 +3349,10 @@ static void gem_get_eth_phy_stats(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	struct gem_stats *hwstat = &bp->hw_stats.gem;
 
+	spin_lock_irq(&bp->stats_lock);
 	gem_update_stats(bp);
 	phy_stats->SymbolErrorDuringCarrier = hwstat->rx_symbol_errors;
+	spin_unlock_irq(&bp->stats_lock);
 }
 
 static void macb_get_rmon_stats(struct net_device *dev,
@@ -3350,10 +3362,12 @@ static void macb_get_rmon_stats(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	struct macb_stats *hwstat = &bp->hw_stats.macb;
 
+	spin_lock_irq(&bp->stats_lock);
 	macb_update_stats(bp);
 	rmon_stats->undersize_pkts = hwstat->rx_undersize_pkts;
 	rmon_stats->oversize_pkts = hwstat->rx_oversize_pkts;
 	rmon_stats->jabbers = hwstat->rx_jabbers;
+	spin_unlock_irq(&bp->stats_lock);
 }
 
 static const struct ethtool_rmon_hist_range gem_rmon_ranges[] = {
@@ -3374,6 +3388,7 @@ static void gem_get_rmon_stats(struct net_device *dev,
 	struct macb *bp = netdev_priv(dev);
 	struct gem_stats *hwstat = &bp->hw_stats.gem;
 
+	spin_lock_irq(&bp->stats_lock);
 	gem_update_stats(bp);
 	rmon_stats->undersize_pkts = hwstat->rx_undersized_frames;
 	rmon_stats->oversize_pkts = hwstat->rx_oversize_frames;
@@ -3392,6 +3407,7 @@ static void gem_get_rmon_stats(struct net_device *dev,
 	rmon_stats->hist_tx[4] = hwstat->tx_512_1023_byte_frames;
 	rmon_stats->hist_tx[5] = hwstat->tx_1024_1518_byte_frames;
 	rmon_stats->hist_tx[6] = hwstat->tx_greater_than_1518_byte_frames;
+	spin_unlock_irq(&bp->stats_lock);
 	*ranges = gem_rmon_ranges;
 }
 
