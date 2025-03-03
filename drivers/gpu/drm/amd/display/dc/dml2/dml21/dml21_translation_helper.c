@@ -952,7 +952,7 @@ static unsigned int map_stream_to_dml21_display_cfg(const struct dml2_context *d
 	return location;
 }
 
-static unsigned int map_plane_to_dml21_display_cfg(const struct dml2_context *dml_ctx, unsigned int stream_id,
+unsigned int map_plane_to_dml21_display_cfg(const struct dml2_context *dml_ctx, unsigned int stream_id,
 		const struct dc_plane_state *plane, const struct dc_state *context)
 {
 	unsigned int plane_id;

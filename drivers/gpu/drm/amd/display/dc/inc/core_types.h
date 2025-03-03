@@ -65,6 +65,7 @@ struct resource_pool;
 struct dc_state;
 struct resource_context;
 struct clk_bw_params;
+struct dc_mcache_params;
 
 struct resource_funcs {
 	enum engine_id (*get_preferred_eng_id_dpia)(unsigned int dpia_index);
@@ -220,6 +221,8 @@ struct resource_funcs {
 	unsigned int (*get_max_hw_cursor_size)(const struct dc *dc,
 			struct dc_state *state,
 			const struct dc_stream_state *stream);
+	bool (*program_mcache_pipe_config)(struct dc_state *context,
+		const struct dc_mcache_params *mcache_params);
 };
 
 struct audio_support{
