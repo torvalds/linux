@@ -46,8 +46,6 @@
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
-static void nfsd4_mark_cb_fault(struct nfs4_client *clp);
-
 #define NFSPROC4_CB_NULL 0
 #define NFSPROC4_CB_COMPOUND 1
 
