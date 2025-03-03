@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * Copyright (C) 2017 Google, Inc.
+ SPDX-License-Identifier: GPL-2.0-only */
+ Copyright (C) 2017 Google, Inc.
  */
 
 #ifndef _LINUX_BINDER_ALLOC_H
