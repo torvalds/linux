@@ -26,7 +26,7 @@ fio --name=write_and_verify \
     --bs=4k > /dev/null 2>&1
 ERR_CODE=$?
 
-_cleanup_test "${dev_id}" "loop"
+_cleanup_test "loop"
 
 _remove_backfile "$backfile_0"
 

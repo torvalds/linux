@@ -89,7 +89,7 @@ _show_result()
 }
 
 _cleanup_test() {
-	"${UBLK_PROG}" del -n "$1"
+	"${UBLK_PROG}" del -a
 }
 
 _add_ublk_dev() {
