@@ -364,37 +364,83 @@ fail:
 	return -1;
 }
 
-static int attach_tc_prog(struct bpf_tc_hook *hook, int igr_fd, int egr_fd)
+static int attach_tc_prog(int ifindex, int igr_fd, int egr_fd)
 {
+	DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = ifindex,
+			    .attach_point = BPF_TC_INGRESS | BPF_TC_EGRESS);
 	DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts1, .handle = 1,
 			    .priority = 1, .prog_fd = igr_fd);
 	DECLARE_LIBBPF_OPTS(bpf_tc_opts, opts2, .handle = 1,
 			    .priority = 1, .prog_fd = egr_fd);
 	int ret;
 
-	ret = bpf_tc_hook_create(hook);
+	ret = bpf_tc_hook_create(&hook);
 	if (!ASSERT_OK(ret, "create tc hook"))
 		return ret;
 
 	if (igr_fd >= 0) {
-		hook->attach_point = BPF_TC_INGRESS;
-		ret = bpf_tc_attach(hook, &opts1);
+		hook.attach_point = BPF_TC_INGRESS;
+		ret = bpf_tc_attach(&hook, &opts1);
 		if (!ASSERT_OK(ret, "bpf_tc_attach")) {
-			bpf_tc_hook_destroy(hook);
+			bpf_tc_hook_destroy(&hook);
 			return ret;
 		}
 	}
 
 	if (egr_fd >= 0) {
-		hook->attach_point = BPF_TC_EGRESS;
-		ret = bpf_tc_attach(hook, &opts2);
+		hook.attach_point = BPF_TC_EGRESS;
+		ret = bpf_tc_attach(&hook, &opts2);
 		if (!ASSERT_OK(ret, "bpf_tc_attach")) {
-			bpf_tc_hook_destroy(hook);
+			bpf_tc_hook_destroy(&hook);
 			return ret;
 		}
 	}
 
 	return 0;
+}
+
+static int generic_attach(const char *dev, int igr_fd, int egr_fd)
+{
+	int ifindex;
+
+	if (!ASSERT_OK_FD(igr_fd, "check ingress fd"))
+		return -1;
+	if (!ASSERT_OK_FD(egr_fd, "check egress fd"))
+		return -1;
+
+	ifindex = if_nametoindex(dev);
+	if (!ASSERT_NEQ(ifindex, 0, "get ifindex"))
+		return -1;
+
+	return attach_tc_prog(ifindex, igr_fd, egr_fd);
+}
+
+static int generic_attach_igr(const char *dev, int igr_fd)
+{
+	int ifindex;
+
+	if (!ASSERT_OK_FD(igr_fd, "check ingress fd"))
+		return -1;
+
+	ifindex = if_nametoindex(dev);
+	if (!ASSERT_NEQ(ifindex, 0, "get ifindex"))
+		return -1;
+
+	return attach_tc_prog(ifindex, igr_fd, -1);
+}
+
+static int generic_attach_egr(const char *dev, int egr_fd)
+{
+	int ifindex;
+
+	if (!ASSERT_OK_FD(egr_fd, "check egress fd"))
+		return -1;
+
+	ifindex = if_nametoindex(dev);
+	if (!ASSERT_NEQ(ifindex, 0, "get ifindex"))
+		return -1;
+
+	return attach_tc_prog(ifindex, -1, egr_fd);
 }
 
 static void test_vxlan_tunnel(void)
@@ -404,11 +450,9 @@ static void test_vxlan_tunnel(void)
 	int local_ip_map_fd = -1;
 	int set_src_prog_fd, get_src_prog_fd;
 	int set_dst_prog_fd;
-	int key = 0, ifindex = -1;
+	int key = 0;
 	uint local_ip;
 	int err;
-	DECLARE_LIBBPF_OPTS(bpf_tc_hook, tc_hook,
-			    .attach_point = BPF_TC_INGRESS);
 
 	/* add vxlan tunnel */
 	err = add_vxlan_tunnel();
@@ -419,42 +463,22 @@ static void test_vxlan_tunnel(void)
 	skel = test_tunnel_kern__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
 		goto done;
-	ifindex = if_nametoindex(VXLAN_TUNL_DEV1);
-	if (!ASSERT_NEQ(ifindex, 0, "vxlan11 ifindex"))
-		goto done;
-	tc_hook.ifindex = ifindex;
 	get_src_prog_fd = bpf_program__fd(skel->progs.vxlan_get_tunnel_src);
 	set_src_prog_fd = bpf_program__fd(skel->progs.vxlan_set_tunnel_src);
-	if (!ASSERT_GE(get_src_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (!ASSERT_GE(set_src_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (attach_tc_prog(&tc_hook, get_src_prog_fd, set_src_prog_fd))
+	if (generic_attach(VXLAN_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
 		goto done;
 
 	/* load and attach bpf prog to veth dev tc hook point */
-	ifindex = if_nametoindex("veth1");
-	if (!ASSERT_NEQ(ifindex, 0, "veth1 ifindex"))
-		goto done;
-	tc_hook.ifindex = ifindex;
 	set_dst_prog_fd = bpf_program__fd(skel->progs.veth_set_outer_dst);
-	if (!ASSERT_GE(set_dst_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (attach_tc_prog(&tc_hook, set_dst_prog_fd, -1))
+	if (generic_attach_igr("veth1", set_dst_prog_fd))
 		goto done;
 
 	/* load and attach prog set_md to tunnel dev tc hook point at_ns0 */
 	nstoken = open_netns("at_ns0");
 	if (!ASSERT_OK_PTR(nstoken, "setns src"))
 		goto done;
-	ifindex = if_nametoindex(VXLAN_TUNL_DEV0);
-	if (!ASSERT_NEQ(ifindex, 0, "vxlan00 ifindex"))
-		goto done;
-	tc_hook.ifindex = ifindex;
 	set_dst_prog_fd = bpf_program__fd(skel->progs.vxlan_set_tunnel_dst);
-	if (!ASSERT_GE(set_dst_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (attach_tc_prog(&tc_hook, -1, set_dst_prog_fd))
+	if (generic_attach_egr(VXLAN_TUNL_DEV0, set_dst_prog_fd))
 		goto done;
 	close_netns(nstoken);
 
@@ -488,11 +512,9 @@ static void test_ip6vxlan_tunnel(void)
 	int local_ip_map_fd = -1;
 	int set_src_prog_fd, get_src_prog_fd;
 	int set_dst_prog_fd;
-	int key = 0, ifindex = -1;
+	int key = 0;
 	uint local_ip;
 	int err;
-	DECLARE_LIBBPF_OPTS(bpf_tc_hook, tc_hook,
-			    .attach_point = BPF_TC_INGRESS);
 
 	/* add vxlan tunnel */
 	err = add_ip6vxlan_tunnel();
@@ -503,31 +525,17 @@ static void test_ip6vxlan_tunnel(void)
 	skel = test_tunnel_kern__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
 		goto done;
-	ifindex = if_nametoindex(IP6VXLAN_TUNL_DEV1);
-	if (!ASSERT_NEQ(ifindex, 0, "ip6vxlan11 ifindex"))
-		goto done;
-	tc_hook.ifindex = ifindex;
 	get_src_prog_fd = bpf_program__fd(skel->progs.ip6vxlan_get_tunnel_src);
 	set_src_prog_fd = bpf_program__fd(skel->progs.ip6vxlan_set_tunnel_src);
-	if (!ASSERT_GE(set_src_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (!ASSERT_GE(get_src_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (attach_tc_prog(&tc_hook, get_src_prog_fd, set_src_prog_fd))
+	if (generic_attach(IP6VXLAN_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
 		goto done;
 
 	/* load and attach prog set_md to tunnel dev tc hook point at_ns0 */
 	nstoken = open_netns("at_ns0");
 	if (!ASSERT_OK_PTR(nstoken, "setns src"))
 		goto done;
-	ifindex = if_nametoindex(IP6VXLAN_TUNL_DEV0);
-	if (!ASSERT_NEQ(ifindex, 0, "ip6vxlan00 ifindex"))
-		goto done;
-	tc_hook.ifindex = ifindex;
 	set_dst_prog_fd = bpf_program__fd(skel->progs.ip6vxlan_set_tunnel_dst);
-	if (!ASSERT_GE(set_dst_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (attach_tc_prog(&tc_hook, -1, set_dst_prog_fd))
+	if (generic_attach_egr(IP6VXLAN_TUNL_DEV0, set_dst_prog_fd))
 		goto done;
 	close_netns(nstoken);
 
@@ -559,10 +567,7 @@ static void test_ipip_tunnel(enum ipip_encap encap)
 	struct test_tunnel_kern *skel = NULL;
 	struct nstoken *nstoken;
 	int set_src_prog_fd, get_src_prog_fd;
-	int ifindex = -1;
 	int err;
-	DECLARE_LIBBPF_OPTS(bpf_tc_hook, tc_hook,
-			    .attach_point = BPF_TC_INGRESS);
 
 	/* add ipip tunnel */
 	err = add_ipip_tunnel(encap);
@@ -573,10 +578,6 @@ static void test_ipip_tunnel(enum ipip_encap encap)
 	skel = test_tunnel_kern__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
 		goto done;
-	ifindex = if_nametoindex(IPIP_TUNL_DEV1);
-	if (!ASSERT_NEQ(ifindex, 0, "ipip11 ifindex"))
-		goto done;
-	tc_hook.ifindex = ifindex;
 
 	switch (encap) {
 	case FOU:
@@ -598,11 +599,7 @@ static void test_ipip_tunnel(enum ipip_encap encap)
 			skel->progs.ipip_set_tunnel);
 	}
 
-	if (!ASSERT_GE(set_src_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (!ASSERT_GE(get_src_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (attach_tc_prog(&tc_hook, get_src_prog_fd, set_src_prog_fd))
+	if (generic_attach(IPIP_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
 		goto done;
 
 	/* ping from root namespace test */
@@ -628,8 +625,6 @@ done:
 
 static void test_xfrm_tunnel(void)
 {
-	DECLARE_LIBBPF_OPTS(bpf_tc_hook, tc_hook,
-			    .attach_point = BPF_TC_INGRESS);
 	LIBBPF_OPTS(bpf_xdp_attach_opts, opts);
 	struct test_tunnel_kern *skel = NULL;
 	struct nstoken *nstoken;
@@ -646,19 +641,16 @@ static void test_xfrm_tunnel(void)
 	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
 		goto done;
 
-	ifindex = if_nametoindex("veth1");
-	if (!ASSERT_NEQ(ifindex, 0, "veth1 ifindex"))
-		goto done;
 
 	/* attach tc prog to tunnel dev */
-	tc_hook.ifindex = ifindex;
 	tc_prog_fd = bpf_program__fd(skel->progs.xfrm_get_state);
-	if (!ASSERT_GE(tc_prog_fd, 0, "bpf_program__fd"))
-		goto done;
-	if (attach_tc_prog(&tc_hook, tc_prog_fd, -1))
+	if (generic_attach_igr("veth1", tc_prog_fd))
 		goto done;
 
 	/* attach xdp prog to tunnel dev */
+	ifindex = if_nametoindex("veth1");
+	if (!ASSERT_NEQ(ifindex, 0, "veth1 ifindex"))
+		goto done;
 	xdp_prog_fd = bpf_program__fd(skel->progs.xfrm_get_state_xdp);
 	if (!ASSERT_GE(xdp_prog_fd, 0, "bpf_program__fd"))
 		goto done;
