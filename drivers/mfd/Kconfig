@@ -1508,12 +1508,6 @@ config STMPE_SPI
 	  This is used to enable SPI interface of STMPE
 endmenu
 
-config MFD_STA2X11
-	bool "STMicroelectronics STA2X11"
-	depends on STA2X11
-	select MFD_CORE
-	select REGMAP_MMIO
-
 config MFD_SUN6I_PRCM
 	bool "Allwinner A31/A23/A33 PRCM controller"
 	depends on ARCH_SUNXI || COMPILE_TEST
