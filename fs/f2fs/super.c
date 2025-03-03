@@ -1039,7 +1039,7 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 			break;
 		case Opt_inlinecrypt:
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-			sb->s_flags |= SB_INLINECRYPT;
+			set_opt(sbi, INLINECRYPT);
 #else
 			f2fs_info(sbi, "inline encryption not supported");
 #endif
@@ -4585,6 +4585,9 @@ try_onemore:
 	sb->s_time_gran = 1;
 	sb->s_flags = (sb->s_flags & ~SB_POSIXACL) |
 		(test_opt(sbi, POSIX_ACL) ? SB_POSIXACL : 0);
+	if (test_opt(sbi, INLINECRYPT))
+		sb->s_flags |= SB_INLINECRYPT;
+
 	super_set_uuid(sb, (void *) raw_super->uuid, sizeof(raw_super->uuid));
 	super_set_sysfs_name_bdev(sb);
 	sb->s_iflags |= SB_I_CGROUPWB;
