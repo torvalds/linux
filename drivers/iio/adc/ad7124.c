@@ -181,6 +181,7 @@ struct ad7124_channel {
 	struct ad7124_channel_config cfg;
 	unsigned int ain;
 	unsigned int slot;
+	u8 syscalib_mode;
 };
 
 struct ad7124_state {
@@ -200,23 +201,6 @@ struct ad7124_state {
 	 */
 	unsigned int gain_default;
 	DECLARE_KFIFO(live_cfgs_fifo, struct ad7124_channel_config *, AD7124_MAX_CONFIGS);
-};
-
-static const struct iio_chan_spec ad7124_channel_template = {
-	.type = IIO_VOLTAGE,
-	.indexed = 1,
-	.differential = 1,
-	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-		BIT(IIO_CHAN_INFO_SCALE) |
-		BIT(IIO_CHAN_INFO_OFFSET) |
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),
-	.scan_type = {
-		.sign = 'u',
-		.realbits = 24,
-		.storagebits = 32,
-		.endianness = IIO_BE,
-	},
 };
 
 static struct ad7124_chip_info ad7124_chip_info_tbl[] = {
@@ -902,6 +886,140 @@ static int ad7124_check_chip_id(struct ad7124_state *st)
 
 	return 0;
 }
+
+enum {
+	AD7124_SYSCALIB_ZERO_SCALE,
+	AD7124_SYSCALIB_FULL_SCALE,
+};
+
+static int ad7124_syscalib_locked(struct ad7124_state *st, const struct iio_chan_spec *chan)
+{
+	struct device *dev = &st->sd.spi->dev;
+	struct ad7124_channel *ch = &st->channels[chan->channel];
+	int ret;
+
+	if (ch->syscalib_mode == AD7124_SYSCALIB_ZERO_SCALE) {
+		ch->cfg.calibration_offset = 0x800000;
+
+		ret = ad_sd_calibrate(&st->sd, AD7124_MODE_CAL_SYS_ZERO,
+				      chan->address);
+		if (ret < 0)
+			return ret;
+
+		ret = ad_sd_read_reg(&st->sd, AD7124_OFFSET(ch->cfg.cfg_slot), 3,
+				     &ch->cfg.calibration_offset);
+		if (ret < 0)
+			return ret;
+
+		dev_dbg(dev, "offset for channel %d after zero-scale calibration: 0x%x\n",
+			chan->channel, ch->cfg.calibration_offset);
+	} else {
+		ch->cfg.calibration_gain = st->gain_default;
+
+		ret = ad_sd_calibrate(&st->sd, AD7124_MODE_CAL_SYS_FULL,
+				      chan->address);
+		if (ret < 0)
+			return ret;
+
+		ret = ad_sd_read_reg(&st->sd, AD7124_GAIN(ch->cfg.cfg_slot), 3,
+				     &ch->cfg.calibration_gain);
+		if (ret < 0)
+			return ret;
+
+		dev_dbg(dev, "gain for channel %d after full-scale calibration: 0x%x\n",
+			chan->channel, ch->cfg.calibration_gain);
+	}
+
+	return 0;
+}
+
+static ssize_t ad7124_write_syscalib(struct iio_dev *indio_dev,
+				     uintptr_t private,
+				     const struct iio_chan_spec *chan,
+				     const char *buf, size_t len)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+	bool sys_calib;
+	int ret;
+
+	ret = kstrtobool(buf, &sys_calib);
+	if (ret)
+		return ret;
+
+	if (!sys_calib)
+		return len;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	ret = ad7124_syscalib_locked(st, chan);
+
+	iio_device_release_direct(indio_dev);
+
+	return ret ?: len;
+}
+
+static const char * const ad7124_syscalib_modes[] = {
+	[AD7124_SYSCALIB_ZERO_SCALE] = "zero_scale",
+	[AD7124_SYSCALIB_FULL_SCALE] = "full_scale",
+};
+
+static int ad7124_set_syscalib_mode(struct iio_dev *indio_dev,
+				    const struct iio_chan_spec *chan,
+				    unsigned int mode)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+
+	st->channels[chan->channel].syscalib_mode = mode;
+
+	return 0;
+}
+
+static int ad7124_get_syscalib_mode(struct iio_dev *indio_dev,
+				    const struct iio_chan_spec *chan)
+{
+	struct ad7124_state *st = iio_priv(indio_dev);
+
+	return st->channels[chan->channel].syscalib_mode;
+}
+
+static const struct iio_enum ad7124_syscalib_mode_enum = {
+	.items = ad7124_syscalib_modes,
+	.num_items = ARRAY_SIZE(ad7124_syscalib_modes),
+	.set = ad7124_set_syscalib_mode,
+	.get = ad7124_get_syscalib_mode
+};
+
+static const struct iio_chan_spec_ext_info ad7124_calibsys_ext_info[] = {
+	{
+		.name = "sys_calibration",
+		.write = ad7124_write_syscalib,
+		.shared = IIO_SEPARATE,
+	},
+	IIO_ENUM("sys_calibration_mode", IIO_SEPARATE,
+		 &ad7124_syscalib_mode_enum),
+	IIO_ENUM_AVAILABLE("sys_calibration_mode", IIO_SHARED_BY_TYPE,
+			   &ad7124_syscalib_mode_enum),
+	{ }
+};
+
+static const struct iio_chan_spec ad7124_channel_template = {
+	.type = IIO_VOLTAGE,
+	.indexed = 1,
+	.differential = 1,
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),
+	.scan_type = {
+		.sign = 'u',
+		.realbits = 24,
+		.storagebits = 32,
+		.endianness = IIO_BE,
+	},
+	.ext_info = ad7124_calibsys_ext_info,
+};
 
 /*
  * Input specifiers 8 - 15 are explicitly reserved for ad7124-4
