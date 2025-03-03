@@ -26,6 +26,12 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 }
 
 static inline void
+syscall_set_nr(struct task_struct *task, struct pt_regs *regs, int nr)
+{
+	regs->orig_gpr11 = nr;
+}
+
+static inline void
 syscall_rollback(struct task_struct *task, struct pt_regs *regs)
 {
 	regs->gpr[11] = regs->orig_gpr11;
