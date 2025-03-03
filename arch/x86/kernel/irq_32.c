@@ -98,7 +98,7 @@ static inline int execute_on_irq_stack(int overflow, struct irq_desc *desc)
 		     "movl %[sp], %%esp"
 		     : "+a" (desc), [sp] "+b" (isp)
 		     : [thunk_target] "D" (desc->handle_irq)
-		     : "memory", "cc", "ecx");
+		     : "memory", "cc", "edx", "ecx");
 	return 1;
 }
 
