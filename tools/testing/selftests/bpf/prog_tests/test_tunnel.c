@@ -364,6 +364,25 @@ fail:
 	return -1;
 }
 
+static void ping_dev0(void)
+{
+	/* ping from root namespace test */
+	test_ping(AF_INET, IP4_ADDR_TUNL_DEV0);
+}
+
+static void ping_dev1(void)
+{
+	struct nstoken *nstoken;
+
+	/* ping from at_ns0 namespace test */
+	nstoken = open_netns("at_ns0");
+	if (!ASSERT_OK_PTR(nstoken, "setns"))
+		return;
+
+	test_ping(AF_INET, IP4_ADDR_TUNL_DEV1);
+	close_netns(nstoken);
+}
+
 static int attach_tc_prog(int ifindex, int igr_fd, int egr_fd)
 {
 	DECLARE_LIBBPF_OPTS(bpf_tc_hook, hook, .ifindex = ifindex,
@@ -492,9 +511,7 @@ static void test_vxlan_tunnel(void)
 		goto done;
 
 	/* ping test */
-	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV0);
-	if (!ASSERT_OK(err, "test_ping"))
-		goto done;
+	ping_dev0();
 
 done:
 	/* delete vxlan tunnel */
@@ -549,9 +566,7 @@ static void test_ip6vxlan_tunnel(void)
 		goto done;
 
 	/* ping test */
-	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV0);
-	if (!ASSERT_OK(err, "test_ping"))
-		goto done;
+	ping_dev0();
 
 done:
 	/* delete ipv6 vxlan tunnel */
@@ -565,7 +580,6 @@ done:
 static void test_ipip_tunnel(enum ipip_encap encap)
 {
 	struct test_tunnel_kern *skel = NULL;
-	struct nstoken *nstoken;
 	int set_src_prog_fd, get_src_prog_fd;
 	int err;
 
@@ -602,19 +616,8 @@ static void test_ipip_tunnel(enum ipip_encap encap)
 	if (generic_attach(IPIP_TUNL_DEV1, get_src_prog_fd, set_src_prog_fd))
 		goto done;
 
-	/* ping from root namespace test */
-	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV0);
-	if (!ASSERT_OK(err, "test_ping"))
-		goto done;
-
-	/* ping from at_ns0 namespace test */
-	nstoken = open_netns("at_ns0");
-	if (!ASSERT_OK_PTR(nstoken, "setns"))
-		goto done;
-	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV1);
-	if (!ASSERT_OK(err, "test_ping"))
-		goto done;
-	close_netns(nstoken);
+	ping_dev0();
+	ping_dev1();
 
 done:
 	/* delete ipip tunnel */
@@ -627,7 +630,6 @@ static void test_xfrm_tunnel(void)
 {
 	LIBBPF_OPTS(bpf_xdp_attach_opts, opts);
 	struct test_tunnel_kern *skel = NULL;
-	struct nstoken *nstoken;
 	int xdp_prog_fd;
 	int tc_prog_fd;
 	int ifindex;
@@ -658,14 +660,7 @@ static void test_xfrm_tunnel(void)
 	if (!ASSERT_OK(err, "bpf_xdp_attach"))
 		goto done;
 
-	/* ping from at_ns0 namespace test */
-	nstoken = open_netns("at_ns0");
-	if (!ASSERT_OK_PTR(nstoken, "setns"))
-		goto done;
-	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV1);
-	close_netns(nstoken);
-	if (!ASSERT_OK(err, "test_ping"))
-		goto done;
+	ping_dev1();
 
 	if (!ASSERT_EQ(skel->bss->xfrm_reqid, 1, "req_id"))
 		goto done;
