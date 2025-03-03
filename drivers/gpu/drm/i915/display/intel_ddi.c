@@ -1193,7 +1193,8 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	/* Set PORT_TX_DW5 */
 	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN(0, phy));
 	val &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK |
-		  TAP2_DISABLE | TAP3_DISABLE);
+		 COEFF_POLARITY | CURSOR_PROGRAM |
+		 TAP2_DISABLE | TAP3_DISABLE);
 	val |= SCALING_MODE_SEL(0x2);
 	val |= RTERM_SELECT(0x6);
 	val |= TAP3_DISABLE;
