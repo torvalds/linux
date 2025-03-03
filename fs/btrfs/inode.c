@@ -4039,7 +4039,7 @@ cache_acl:
 		break;
 	}
 
-	btrfs_sync_inode_flags_to_i_flags(vfs_inode);
+	btrfs_sync_inode_flags_to_i_flags(inode);
 
 	ret = btrfs_add_inode_to_root(inode, true);
 	if (ret)
@@ -6262,7 +6262,7 @@ static void btrfs_inherit_iflags(struct btrfs_inode *inode, struct btrfs_inode *
 			inode->flags |= BTRFS_INODE_NODATASUM;
 	}
 
-	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
+	btrfs_sync_inode_flags_to_i_flags(inode);
 }
 
 int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
