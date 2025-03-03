@@ -1479,12 +1479,12 @@ static void detect_nopl(void)
 #endif
 }
 
-static inline void parse_set_clear_cpuid(char *arg, bool set)
+static inline bool parse_set_clear_cpuid(char *arg, bool set)
 {
 	char *opt;
 	int taint = 0;
 
-	pr_info("%s CPUID bits:", set ? "Force-enabling" : "Clearing");
+	pr_warn("%s CPUID bits:", set ? "Force-enabling" : "Clearing");
 
 	while (arg) {
 		bool found __maybe_unused = false;
@@ -1547,10 +1547,9 @@ static inline void parse_set_clear_cpuid(char *arg, bool set)
 			pr_cont(" (unknown: %s)", opt);
 	}
 
-	if (taint)
-		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
-
 	pr_cont("\n");
+
+	return taint;
 }
 
 
@@ -1560,6 +1559,7 @@ static inline void parse_set_clear_cpuid(char *arg, bool set)
  */
 static void __init cpu_parse_early_param(void)
 {
+	bool cpuid_taint = false;
 	char arg[128];
 	int arglen;
 
@@ -1594,11 +1594,16 @@ static void __init cpu_parse_early_param(void)
 
 	arglen = cmdline_find_option(boot_command_line, "clearcpuid", arg, sizeof(arg));
 	if (arglen > 0)
-		parse_set_clear_cpuid(arg, false);
+		cpuid_taint |= parse_set_clear_cpuid(arg, false);
 
 	arglen = cmdline_find_option(boot_command_line, "setcpuid", arg, sizeof(arg));
 	if (arglen > 0)
-		parse_set_clear_cpuid(arg, true);
+		cpuid_taint |= parse_set_clear_cpuid(arg, true);
+
+	if (cpuid_taint) {
+		pr_warn("!!! setcpuid=/clearcpuid= in use, this is for TESTING ONLY, may break things horribly. Tainting kernel.\n");
+		add_taint(TAINT_CPU_OUT_OF_SPEC, LOCKDEP_STILL_OK);
+	}
 }
 
 /*
