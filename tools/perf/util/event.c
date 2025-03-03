@@ -77,6 +77,7 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_HEADER_FEATURE]		= "FEATURE",
 	[PERF_RECORD_COMPRESSED]		= "COMPRESSED",
 	[PERF_RECORD_FINISHED_INIT]		= "FINISHED_INIT",
+	[PERF_RECORD_COMPRESSED2]		= "COMPRESSED2",
 };
 
 const char *perf_event__name(unsigned int id)

@@ -1400,7 +1400,9 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 	int err;
 
 	perf_sample__init(&sample, /*all=*/true);
-	if (event->header.type != PERF_RECORD_COMPRESSED || perf_tool__compressed_is_stub(tool))
+	if ((event->header.type != PERF_RECORD_COMPRESSED &&
+	     event->header.type != PERF_RECORD_COMPRESSED2) ||
+	    perf_tool__compressed_is_stub(tool))
 		dump_event(session->evlist, event, file_offset, &sample, file_path);
 
 	/* These events are processed right away */
@@ -1481,6 +1483,7 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		err = tool->feature(session, event);
 		break;
 	case PERF_RECORD_COMPRESSED:
+	case PERF_RECORD_COMPRESSED2:
 		err = tool->compressed(session, event, file_offset, file_path);
 		if (err)
 			dump_event(session->evlist, event, file_offset, &sample, file_path);
