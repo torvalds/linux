@@ -390,7 +390,9 @@ int ad_sigma_delta_single_conversion(struct iio_dev *indio_dev,
 	if (!iio_device_claim_direct(indio_dev))
 		return -EBUSY;
 
-	ad_sigma_delta_set_channel(sigma_delta, chan->address);
+	ret = ad_sigma_delta_set_channel(sigma_delta, chan->address);
+	if (ret)
+		goto out_release;
 
 	spi_bus_lock(sigma_delta->spi->controller);
 	sigma_delta->bus_locked = true;
@@ -431,6 +433,7 @@ out_unlock:
 	sigma_delta->keep_cs_asserted = false;
 	sigma_delta->bus_locked = false;
 	spi_bus_unlock(sigma_delta->spi->controller);
+out_release:
 	iio_device_release_direct(indio_dev);
 
 	if (ret)
