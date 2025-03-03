@@ -668,19 +668,6 @@ int pqm_update_mqd(struct process_queue_manager *pqm,
 	return 0;
 }
 
-struct kernel_queue *pqm_get_kernel_queue(
-					struct process_queue_manager *pqm,
-					unsigned int qid)
-{
-	struct process_queue_node *pqn;
-
-	pqn = get_queue_by_qid(pqm, qid);
-	if (pqn && pqn->kq)
-		return pqn->kq;
-
-	return NULL;
-}
-
 struct queue *pqm_get_user_queue(struct process_queue_manager *pqm,
 					unsigned int qid)
 {
