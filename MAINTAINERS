@@ -22486,7 +22486,6 @@ STAGING - SEPS525 LCD CONTROLLER DRIVERS
 M:	Michael Hennerich <michael.hennerich@analog.com>
 L:	linux-fbdev@vger.kernel.org
 S:	Supported
-F:	Documentation/devicetree/bindings/iio/adc/adi,ad7606.yaml
 F:	drivers/staging/fbtft/fb_seps525.c
 
 STAGING - SILICON MOTION SM750 FRAME BUFFER DRIVER
