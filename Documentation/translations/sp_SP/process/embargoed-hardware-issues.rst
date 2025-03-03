@@ -287,7 +287,7 @@ revelada involucrada. La lista de embajadores actuales:
 
   Google	Kees Cook <keescook@chromium.org>
 
-  LLVM		Nick Desaulniers <ndesaulniers@google.com>
+  LLVM		Nick Desaulniers <nick.desaulniers+lkml@gmail.com>
   ============= ========================================================
 
 Si quiere que su organización se añada a la lista de embajadores, por
