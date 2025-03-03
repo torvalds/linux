@@ -258,7 +258,7 @@ static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val)
 	ret = regmap_write(priv->regmap, UB953_REG_IND_ACC_ADDR, reg);
 	if (ret) {
 		dev_err(&priv->client->dev,
-			"Write to IND_ACC_ADDR failed when reading %u:%x02x: %d\n",
+			"Write to IND_ACC_ADDR failed when reading %u:0x%02x: %d\n",
 			block, reg, ret);
 		goto out_unlock;
 	}
@@ -266,7 +266,7 @@ static int ub953_read_ind(struct ub953_data *priv, u8 block, u8 reg, u8 *val)
 	ret = regmap_read(priv->regmap, UB953_REG_IND_ACC_DATA, &v);
 	if (ret) {
 		dev_err(&priv->client->dev,
-			"Write to IND_ACC_DATA failed when reading %u:%x02x: %d\n",
+			"Write to IND_ACC_DATA failed when reading %u:0x%02x: %d\n",
 			block, reg, ret);
 		goto out_unlock;
 	}
@@ -293,7 +293,7 @@ static int ub953_write_ind(struct ub953_data *priv, u8 block, u8 reg, u8 val)
 	ret = regmap_write(priv->regmap, UB953_REG_IND_ACC_ADDR, reg);
 	if (ret) {
 		dev_err(&priv->client->dev,
-			"Write to IND_ACC_ADDR failed when writing %u:%x02x: %d\n",
+			"Write to IND_ACC_ADDR failed when writing %u:0x%02x: %d\n",
 			block, reg, ret);
 		goto out_unlock;
 	}
@@ -301,7 +301,7 @@ static int ub953_write_ind(struct ub953_data *priv, u8 block, u8 reg, u8 val)
 	ret = regmap_write(priv->regmap, UB953_REG_IND_ACC_DATA, val);
 	if (ret) {
 		dev_err(&priv->client->dev,
-			"Write to IND_ACC_DATA failed when writing %u:%x02x\n: %d\n",
+			"Write to IND_ACC_DATA failed when writing %u:0x%02x: %d\n",
 			block, reg, ret);
 	}
 
