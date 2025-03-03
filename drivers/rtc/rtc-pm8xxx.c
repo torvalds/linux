@@ -519,11 +519,11 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	if (rc < 0)
 		return rc;
 
-	rc = devm_rtc_register_device(rtc_dd->rtc);
+	rc = devm_pm_set_wake_irq(&pdev->dev, rtc_dd->alarm_irq);
 	if (rc)
 		return rc;
 
-	return devm_pm_set_wake_irq(&pdev->dev, rtc_dd->alarm_irq);
+	return devm_rtc_register_device(rtc_dd->rtc);
 }
 
 static struct platform_driver pm8xxx_rtc_driver = {
