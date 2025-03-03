@@ -655,6 +655,50 @@ static void coresight_drop_device(struct coresight_device *csdev)
 	}
 }
 
+/*
+ * coresight device will read their existing or alloc a trace ID, if their trace_id
+ * callback is set.
+ *
+ * Return 0 if the trace_id callback is not set.
+ * Return the result of the trace_id callback if it is set. The return value
+ * will be the trace_id if successful, and an error number if it fails.
+ */
+static int coresight_get_trace_id(struct coresight_device *csdev,
+				  enum cs_mode mode,
+				  struct coresight_device *sink)
+{
+	if (coresight_ops(csdev)->trace_id)
+		return coresight_ops(csdev)->trace_id(csdev, mode, sink);
+
+	return 0;
+}
+
+/*
+ * Call this after creating the path and before enabling it. This leaves
+ * the trace ID set on the path, or it remains 0 if it couldn't be assigned.
+ */
+void coresight_path_assign_trace_id(struct coresight_path *path,
+				    enum cs_mode mode)
+{
+	struct coresight_device *sink = coresight_get_sink(&path->path_list);
+	struct coresight_node *nd;
+	int trace_id;
+
+	list_for_each_entry(nd, &path->path_list, link) {
+		/* Assign a trace ID to the path for the first device that wants to do it */
+		trace_id = coresight_get_trace_id(nd->csdev, mode, sink);
+
+		/*
+		 * 0 in this context is that it didn't want to assign so keep searching.
+		 * Non 0 is either success or fail.
+		 */
+		if (trace_id != 0) {
+			path->trace_id = trace_id;
+			return;
+		}
+	}
+}
+
 /**
  * _coresight_build_path - recursively build a path from a @csdev to a sink.
  * @csdev:	The device to start from.
