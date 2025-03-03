@@ -149,7 +149,7 @@ static __always_inline const struct vdso_time_data *__arch_get_vdso_u_time_data(
 	 * where __aarch64_get_vdso_u_time_data() is called, and then keep the
 	 * result in a register.
 	 */
-	asm volatile("mov %0, %1" : "=r"(ret) : "r"(vdso_u_time_data));
+	asm volatile("mov %0, %1" : "=r"(ret) : "r"(&vdso_u_time_data));
 
 	return ret;
 }

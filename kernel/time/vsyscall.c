@@ -17,8 +17,8 @@
 
 static inline void update_vdso_time_data(struct vdso_time_data *vdata, struct timekeeper *tk)
 {
+	struct vdso_clock *vc = vdata->clock_data;
 	struct vdso_timestamp *vdso_ts;
-	struct vdso_clock *vc = vdata;
 	u64 nsec, sec;
 
 	vc[CS_HRES_COARSE].cycle_last	= tk->tkr_mono.cycle_last;
@@ -78,8 +78,8 @@ static inline void update_vdso_time_data(struct vdso_time_data *vdata, struct ti
 void update_vsyscall(struct timekeeper *tk)
 {
 	struct vdso_time_data *vdata = vdso_k_time_data;
+	struct vdso_clock *vc = vdata->clock_data;
 	struct vdso_timestamp *vdso_ts;
-	struct vdso_clock *vc = vdata;
 	s32 clock_mode;
 	u64 nsec;
 
@@ -109,9 +109,8 @@ void update_vsyscall(struct timekeeper *tk)
 
 	/*
 	 * Read without the seqlock held by clock_getres().
-	 * Note: No need to have a second copy.
 	 */
-	WRITE_ONCE(vdata[CS_HRES_COARSE].hrtimer_res, hrtimer_resolution);
+	WRITE_ONCE(vdata->hrtimer_res, hrtimer_resolution);
 
 	/*
 	 * If the current clocksource is not VDSO capable, then spare the
@@ -131,8 +130,8 @@ void update_vsyscall_tz(void)
 {
 	struct vdso_time_data *vdata = vdso_k_time_data;
 
-	vdata[CS_HRES_COARSE].tz_minuteswest = sys_tz.tz_minuteswest;
-	vdata[CS_HRES_COARSE].tz_dsttime = sys_tz.tz_dsttime;
+	vdata->tz_minuteswest = sys_tz.tz_minuteswest;
+	vdata->tz_dsttime = sys_tz.tz_dsttime;
 
 	__arch_sync_vdso_time_data(vdata);
 }

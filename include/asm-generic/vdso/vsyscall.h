@@ -9,7 +9,7 @@
 #ifndef __arch_get_vdso_u_time_data
 static __always_inline const struct vdso_time_data *__arch_get_vdso_u_time_data(void)
 {
-	return vdso_u_time_data;
+	return &vdso_u_time_data;
 }
 #endif
 

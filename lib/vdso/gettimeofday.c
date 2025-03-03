@@ -87,8 +87,8 @@ int do_hres_timens(const struct vdso_time_data *vdns, const struct vdso_clock *v
 {
 	const struct vdso_time_data *vd = __arch_get_vdso_u_timens_data(vdns);
 	const struct timens_offset *offs = &vcns->offset[clk];
+	const struct vdso_clock *vc = vd->clock_data;
 	const struct vdso_timestamp *vdso_ts;
-	const struct vdso_clock *vc = vd;
 	u64 cycles, ns;
 	u32 seq;
 	s64 sec;
@@ -199,8 +199,8 @@ int do_coarse_timens(const struct vdso_time_data *vdns, const struct vdso_clock 
 {
 	const struct vdso_time_data *vd = __arch_get_vdso_u_timens_data(vdns);
 	const struct timens_offset *offs = &vcns->offset[clk];
+	const struct vdso_clock *vc = vd->clock_data;
 	const struct vdso_timestamp *vdso_ts;
-	const struct vdso_clock *vc = vd;
 	u64 nsec;
 	s64 sec;
 	s32 seq;
@@ -265,7 +265,7 @@ static __always_inline int
 __cvdso_clock_gettime_common(const struct vdso_time_data *vd, clockid_t clock,
 			     struct __kernel_timespec *ts)
 {
-	const struct vdso_clock *vc = vd;
+	const struct vdso_clock *vc = vd->clock_data;
 	u32 msk;
 
 	/* Check for negative values or invalid clocks */
@@ -337,7 +337,7 @@ static __maybe_unused int
 __cvdso_gettimeofday_data(const struct vdso_time_data *vd,
 			  struct __kernel_old_timeval *tv, struct timezone *tz)
 {
-	const struct vdso_clock *vc = vd;
+	const struct vdso_clock *vc = vd->clock_data;
 
 	if (likely(tv != NULL)) {
 		struct __kernel_timespec ts;
@@ -371,13 +371,13 @@ __cvdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
 static __maybe_unused __kernel_old_time_t
 __cvdso_time_data(const struct vdso_time_data *vd, __kernel_old_time_t *time)
 {
-	const struct vdso_clock *vc = vd;
+	const struct vdso_clock *vc = vd->clock_data;
 	__kernel_old_time_t t;
 
 	if (IS_ENABLED(CONFIG_TIME_NS) &&
 	    vc->clock_mode == VDSO_CLOCKMODE_TIMENS) {
 		vd = __arch_get_vdso_u_timens_data(vd);
-		vc = vd;
+		vc = vd->clock_data;
 	}
 
 	t = READ_ONCE(vc[CS_HRES_COARSE].basetime[CLOCK_REALTIME].sec);
@@ -399,7 +399,7 @@ static __maybe_unused
 int __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t clock,
 				struct __kernel_timespec *res)
 {
-	const struct vdso_clock *vc = vd;
+	const struct vdso_clock *vc = vd->clock_data;
 	u32 msk;
 	u64 ns;
 
@@ -420,7 +420,7 @@ int __cvdso_clock_getres_common(const struct vdso_time_data *vd, clockid_t clock
 		/*
 		 * Preserves the behaviour of posix_get_hrtimer_res().
 		 */
-		ns = READ_ONCE(vd[CS_HRES_COARSE].hrtimer_res);
+		ns = READ_ONCE(vd->hrtimer_res);
 	} else if (msk & VDSO_COARSE) {
 		/*
 		 * Preserves the behaviour of posix_get_coarse_res().

@@ -69,9 +69,7 @@ struct vdso_timestamp {
 };
 
 /**
- * struct vdso_time_data - vdso datapage representation
- * @arch_data:		architecture specific data (optional, defaults
- *			to an empty struct)
+ * struct vdso_clock - vdso per clocksource datapage representation
  * @seq:		timebase sequence counter
  * @clock_mode:		clock mode
  * @cycle_last:		timebase at clocksource init
@@ -81,17 +79,9 @@ struct vdso_timestamp {
  * @shift:		clocksource shift
  * @basetime[clock_id]:	basetime per clock_id
  * @offset[clock_id]:	time namespace offset per clock_id
- * @tz_minuteswest:	minutes west of Greenwich
- * @tz_dsttime:		type of DST correction
- * @hrtimer_res:	hrtimer resolution
- * @__unused:		unused
  *
- * vdso_time_data will be accessed by 64 bit and compat code at the same time
- * so we should be careful before modifying this structure.
- *
- * The ordering of the struct members is optimized to have fast access to the
- * often required struct members which are related to CLOCK_REALTIME and
- * CLOCK_MONOTONIC. This information is stored in the first cache lines.
+ * See also struct vdso_time_data for basic access and ordering information as
+ * struct vdso_clock is used there.
  *
  * @basetime is used to store the base time for the system wide time getter
  * VVAR page.
@@ -104,9 +94,7 @@ struct vdso_timestamp {
  * For clocks which are not affected by time namespace adjustment the
  * offset must be zero.
  */
-struct vdso_time_data {
-	struct arch_vdso_time_data arch_data;
-
+struct vdso_clock {
 	u32			seq;
 
 	s32			clock_mode;
@@ -122,14 +110,35 @@ struct vdso_time_data {
 		struct vdso_timestamp	basetime[VDSO_BASES];
 		struct timens_offset	offset[VDSO_BASES];
 	};
+};
 
-	s32			tz_minuteswest;
-	s32			tz_dsttime;
-	u32			hrtimer_res;
-	u32			__unused;
+/**
+ * struct vdso_time_data - vdso datapage representation
+ * @arch_data:		architecture specific data (optional, defaults
+ *			to an empty struct)
+ * @clock_data:		clocksource related data (array)
+ * @tz_minuteswest:	minutes west of Greenwich
+ * @tz_dsttime:		type of DST correction
+ * @hrtimer_res:	hrtimer resolution
+ * @__unused:		unused
+ *
+ * vdso_time_data will be accessed by 64 bit and compat code at the same time
+ * so we should be careful before modifying this structure.
+ *
+ * The ordering of the struct members is optimized to have fast acces to the
+ * often required struct members which are related to CLOCK_REALTIME and
+ * CLOCK_MONOTONIC. This information is stored in the first cache lines.
+ */
+struct vdso_time_data {
+	struct arch_vdso_time_data	arch_data;
+
+	struct vdso_clock		clock_data[CS_BASES];
+
+	s32				tz_minuteswest;
+	s32				tz_dsttime;
+	u32				hrtimer_res;
+	u32				__unused;
 } ____cacheline_aligned;
-
-#define vdso_clock vdso_time_data
 
 /**
  * struct vdso_rng_data - vdso RNG state information
@@ -151,7 +160,7 @@ struct vdso_rng_data {
  * relocation, and this is what we need.
  */
 #ifdef CONFIG_GENERIC_VDSO_DATA_STORE
-extern struct vdso_time_data vdso_u_time_data[CS_BASES] __attribute__((visibility("hidden")));
+extern struct vdso_time_data vdso_u_time_data __attribute__((visibility("hidden")));
 extern struct vdso_rng_data vdso_u_rng_data __attribute__((visibility("hidden")));
 extern struct vdso_arch_data vdso_u_arch_data __attribute__((visibility("hidden")));
 

@@ -15,8 +15,8 @@
 static __always_inline
 void __arm64_update_vsyscall(struct vdso_time_data *vdata)
 {
-	vdata[CS_HRES_COARSE].mask	= VDSO_PRECISION_MASK;
-	vdata[CS_RAW].mask		= VDSO_PRECISION_MASK;
+	vdata->clock_data[CS_HRES_COARSE].mask	= VDSO_PRECISION_MASK;
+	vdata->clock_data[CS_RAW].mask		= VDSO_PRECISION_MASK;
 }
 #define __arch_update_vsyscall __arm64_update_vsyscall
 

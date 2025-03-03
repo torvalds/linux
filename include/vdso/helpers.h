@@ -30,7 +30,7 @@ static __always_inline u32 vdso_read_retry(const struct vdso_clock *vc,
 
 static __always_inline void vdso_write_begin(struct vdso_time_data *vd)
 {
-	struct vdso_clock *vc = vd;
+	struct vdso_clock *vc = vd->clock_data;
 
 	/*
 	 * WRITE_ONCE() is required otherwise the compiler can validly tear
@@ -44,7 +44,7 @@ static __always_inline void vdso_write_begin(struct vdso_time_data *vd)
 
 static __always_inline void vdso_write_end(struct vdso_time_data *vd)
 {
-	struct vdso_clock *vc = vd;
+	struct vdso_clock *vc = vd->clock_data;
 
 	smp_wmb();
 	/*
