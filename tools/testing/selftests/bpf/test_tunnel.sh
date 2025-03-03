@@ -64,29 +64,6 @@ config_device()
 	ip addr add dev veth1 172.16.1.200/24
 }
 
-add_erspan_tunnel()
-{
-	# at_ns0 namespace
-	if [ "$1" == "v1" ]; then
-		ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE seq key 2 \
-		local 172.16.1.100 remote 172.16.1.200 \
-		erspan_ver 1 erspan 123
-	else
-		ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE seq key 2 \
-		local 172.16.1.100 remote 172.16.1.200 \
-		erspan_ver 2 erspan_dir egress erspan_hwid 3
-	fi
-	ip netns exec at_ns0 ip link set dev $DEV_NS up
-	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
-
-	# root namespace
-	ip link add dev $DEV type $TYPE external
-	ip link set dev $DEV up
-	ip addr add dev $DEV 10.1.1.200/24
-}
-
 add_ip6erspan_tunnel()
 {
 
@@ -187,30 +164,6 @@ add_ip6tnl_tunnel()
 	ip addr add dev $DEV 10.1.1.200/24
 	ip addr add dev $DEV 1::22/96
 	ip link set dev $DEV up
-}
-
-test_erspan()
-{
-	TYPE=erspan
-	DEV_NS=erspan00
-	DEV=erspan11
-	ret=0
-
-	check $TYPE
-	config_device
-	add_erspan_tunnel $1
-	attach_bpf $DEV erspan_set_tunnel erspan_get_tunnel
-	ping $PING_ARG 10.1.1.100
-	check_err $?
-	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
-	check_err $?
-	cleanup
-
-	if [ $ret -ne 0 ]; then
-                echo -e ${RED}"FAIL: $TYPE"${NC}
-                return 1
-        fi
-        echo -e ${GREEN}"PASS: $TYPE"${NC}
 }
 
 test_ip6erspan()
@@ -388,7 +341,6 @@ cleanup()
 	ip link del ip6ip6tnl11 2> /dev/null
 	ip link del geneve11 2> /dev/null
 	ip link del ip6geneve11 2> /dev/null
-	ip link del erspan11 2> /dev/null
 	ip link del ip6erspan11 2> /dev/null
 }
 
@@ -425,10 +377,6 @@ check_err()
 bpf_tunnel_test()
 {
 	local errors=0
-
-	echo "Testing ERSPAN tunnel..."
-	test_erspan v2
-	errors=$(( $errors + $? ))
 
 	echo "Testing IP6ERSPAN tunnel..."
 	test_ip6erspan v2
