@@ -71,6 +71,8 @@
 #define IP4_ADDR2_VETH1 "172.16.1.20"
 #define IP4_ADDR_TUNL_DEV0 "10.1.1.100"
 #define IP4_ADDR_TUNL_DEV1 "10.1.1.200"
+#define IP6_ADDR_TUNL_DEV0 "fc80::100"
+#define IP6_ADDR_TUNL_DEV1 "fc80::200"
 
 #define IP6_ADDR_VETH0 "::11"
 #define IP6_ADDR1_VETH1 "::22"
@@ -100,6 +102,9 @@
 
 #define GRE_TUNL_DEV0 "gre00"
 #define GRE_TUNL_DEV1 "gre11"
+
+#define IP6GRE_TUNL_DEV0 "ip6gre00"
+#define IP6GRE_TUNL_DEV1 "ip6gre11"
 
 #define PING_ARGS "-i 0.01 -c 3 -w 10 -q"
 
@@ -396,6 +401,43 @@ static void delete_tunnel(const char *dev0, const char *dev1)
 	SYS_NOFAIL("ip link delete dev %s", dev1);
 }
 
+static int set_ipv6_addr(const char *dev0, const char *dev1)
+{
+	/* disable IPv6 DAD because it might take too long and fail tests */
+	SYS(fail, "ip -n at_ns0 addr add %s/96 dev veth0 nodad", IP6_ADDR_VETH0);
+	SYS(fail, "ip -n at_ns0 link set dev veth0 up");
+	SYS(fail, "ip addr add %s/96 dev veth1 nodad", IP6_ADDR1_VETH1);
+	SYS(fail, "ip link set dev veth1 up");
+
+	SYS(fail, "ip -n at_ns0 addr add dev %s %s/24", dev0, IP4_ADDR_TUNL_DEV0);
+	SYS(fail, "ip -n at_ns0 addr add dev %s %s/96 nodad", dev0, IP6_ADDR_TUNL_DEV0);
+	SYS(fail, "ip -n at_ns0 link set dev %s up", dev0);
+
+	SYS(fail, "ip addr add dev %s %s/24", dev1, IP4_ADDR_TUNL_DEV1);
+	SYS(fail, "ip addr add dev %s %s/96 nodad", dev1, IP6_ADDR_TUNL_DEV1);
+	SYS(fail, "ip link set dev %s up", dev1);
+	return 0;
+fail:
+	return 1;
+}
+
+static int add_ipv6_tunnel(const char *dev0, const char *dev1,
+			   const char *type, const char *opt)
+{
+	if (!type || !opt || !dev0 || !dev1)
+		return -1;
+
+	SYS(fail, "ip -n at_ns0 link add dev %s type %s %s local %s remote %s",
+	    dev0, type, opt, IP6_ADDR_VETH0, IP6_ADDR1_VETH1);
+
+	SYS(fail, "ip link add dev %s type %s external", dev1, type);
+
+	return set_ipv6_addr(dev0, dev1);
+fail:
+	return -1;
+}
+
+
 static int test_ping(int family, const char *addr)
 {
 	SYS(fail, "%s %s %s > /dev/null", ping_command(family), PING_ARGS, addr);
@@ -420,6 +462,24 @@ static void ping_dev1(void)
 		return;
 
 	test_ping(AF_INET, IP4_ADDR_TUNL_DEV1);
+	close_netns(nstoken);
+}
+
+static void ping6_veth0(void)
+{
+	test_ping(AF_INET6, IP6_ADDR_VETH0);
+}
+
+static void ping6_dev1(void)
+{
+	struct nstoken *nstoken;
+
+	/* ping from at_ns0 namespace test */
+	nstoken = open_netns("at_ns0");
+	if (!ASSERT_OK_PTR(nstoken, "setns"))
+		return;
+
+	test_ping(AF_INET, IP6_ADDR_TUNL_DEV1);
 	close_netns(nstoken);
 }
 
@@ -770,6 +830,48 @@ done:
 	test_tunnel_kern__destroy(skel);
 }
 
+enum ip6gre_test {
+	IP6GRE,
+	IP6GRETAP
+};
+
+static void test_ip6gre_tunnel(enum ip6gre_test test)
+{
+	struct test_tunnel_kern *skel;
+	int set_fd, get_fd;
+	int err;
+
+	skel = test_tunnel_kern__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
+		return;
+
+	switch (test) {
+	case IP6GRE:
+		err = add_ipv6_tunnel(IP6GRE_TUNL_DEV0, IP6GRE_TUNL_DEV1,
+				      "ip6gre", "flowlabel 0xbcdef key 2");
+		break;
+	case IP6GRETAP:
+		err = add_ipv6_tunnel(IP6GRE_TUNL_DEV0, IP6GRE_TUNL_DEV1,
+				      "ip6gretap", "flowlabel 0xbcdef key 2");
+		break;
+	}
+	if (!ASSERT_OK(err, "add tunnel"))
+		goto done;
+
+	set_fd = bpf_program__fd(skel->progs.ip6gretap_set_tunnel);
+	get_fd = bpf_program__fd(skel->progs.ip6gretap_get_tunnel);
+	if (generic_attach(IP6GRE_TUNL_DEV1, get_fd, set_fd))
+		goto done;
+
+	ping6_veth0();
+	ping6_dev1();
+	ping_dev0();
+	ping_dev1();
+done:
+	delete_tunnel(IP6GRE_TUNL_DEV0, IP6GRE_TUNL_DEV1);
+	test_tunnel_kern__destroy(skel);
+}
+
 #define RUN_TEST(name, ...)						\
 	({								\
 		if (test__start_subtest(#name)) {			\
@@ -791,6 +893,8 @@ static void *test_tunnel_run_tests(void *arg)
 	RUN_TEST(gre_tunnel, GRE_NOKEY);
 	RUN_TEST(gre_tunnel, GRETAP);
 	RUN_TEST(gre_tunnel, GRETAP_NOKEY);
+	RUN_TEST(ip6gre_tunnel, IP6GRE);
+	RUN_TEST(ip6gre_tunnel, IP6GRETAP);
 
 	return NULL;
 }

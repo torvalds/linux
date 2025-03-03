@@ -64,31 +64,6 @@ config_device()
 	ip addr add dev veth1 172.16.1.200/24
 }
 
-add_ip6gretap_tunnel()
-{
-
-	# assign ipv6 address
-	ip netns exec at_ns0 ip addr add ::11/96 dev veth0
-	ip netns exec at_ns0 ip link set dev veth0 up
-	ip addr add dev veth1 ::22/96
-	ip link set dev veth1 up
-
-	# at_ns0 namespace
-	ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE seq flowlabel 0xbcdef key 2 \
-		local ::11 remote ::22
-
-	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
-	ip netns exec at_ns0 ip addr add dev $DEV_NS fc80::100/96
-	ip netns exec at_ns0 ip link set dev $DEV_NS up
-
-	# root namespace
-	ip link add dev $DEV type $TYPE external
-	ip addr add dev $DEV 10.1.1.200/24
-	ip addr add dev $DEV fc80::200/24
-	ip link set dev $DEV up
-}
-
 add_erspan_tunnel()
 {
 	# at_ns0 namespace
@@ -212,65 +187,6 @@ add_ip6tnl_tunnel()
 	ip addr add dev $DEV 10.1.1.200/24
 	ip addr add dev $DEV 1::22/96
 	ip link set dev $DEV up
-}
-
-test_ip6gre()
-{
-	TYPE=ip6gre
-	DEV_NS=ip6gre00
-	DEV=ip6gre11
-	ret=0
-
-	check $TYPE
-	config_device
-	# reuse the ip6gretap function
-	add_ip6gretap_tunnel
-	attach_bpf $DEV ip6gretap_set_tunnel ip6gretap_get_tunnel
-	# underlay
-	ping6 $PING_ARG ::11
-	# overlay: ipv4 over ipv6
-	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
-	ping $PING_ARG 10.1.1.100
-	check_err $?
-	# overlay: ipv6 over ipv6
-	ip netns exec at_ns0 ping6 $PING_ARG fc80::200
-	check_err $?
-	cleanup
-
-        if [ $ret -ne 0 ]; then
-                echo -e ${RED}"FAIL: $TYPE"${NC}
-                return 1
-        fi
-        echo -e ${GREEN}"PASS: $TYPE"${NC}
-}
-
-test_ip6gretap()
-{
-	TYPE=ip6gretap
-	DEV_NS=ip6gretap00
-	DEV=ip6gretap11
-	ret=0
-
-	check $TYPE
-	config_device
-	add_ip6gretap_tunnel
-	attach_bpf $DEV ip6gretap_set_tunnel ip6gretap_get_tunnel
-	# underlay
-	ping6 $PING_ARG ::11
-	# overlay: ipv4 over ipv6
-	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
-	ping $PING_ARG 10.1.1.100
-	check_err $?
-	# overlay: ipv6 over ipv6
-	ip netns exec at_ns0 ping6 $PING_ARG fc80::200
-	check_err $?
-	cleanup
-
-	if [ $ret -ne 0 ]; then
-                echo -e ${RED}"FAIL: $TYPE"${NC}
-                return 1
-        fi
-        echo -e ${GREEN}"PASS: $TYPE"${NC}
 }
 
 test_erspan()
@@ -470,8 +386,6 @@ cleanup()
 	ip link del ipip11 2> /dev/null
 	ip link del ipip6tnl11 2> /dev/null
 	ip link del ip6ip6tnl11 2> /dev/null
-	ip link del ip6gre11 2> /dev/null
-	ip link del ip6gretap11 2> /dev/null
 	ip link del geneve11 2> /dev/null
 	ip link del ip6geneve11 2> /dev/null
 	ip link del erspan11 2> /dev/null
@@ -497,7 +411,6 @@ check()
 
 enable_debug()
 {
-	echo 'file ip6_gre.c +p' > /sys/kernel/debug/dynamic_debug/control
 	echo 'file geneve.c +p' > /sys/kernel/debug/dynamic_debug/control
 	echo 'file ipip.c +p' > /sys/kernel/debug/dynamic_debug/control
 }
@@ -512,14 +425,6 @@ check_err()
 bpf_tunnel_test()
 {
 	local errors=0
-
-	echo "Testing IP6GRE tunnel..."
-	test_ip6gre
-	errors=$(( $errors + $? ))
-
-	echo "Testing IP6GRETAP tunnel..."
-	test_ip6gretap
-	errors=$(( $errors + $? ))
 
 	echo "Testing ERSPAN tunnel..."
 	test_erspan v2
