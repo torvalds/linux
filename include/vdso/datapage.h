@@ -11,6 +11,7 @@
 
 #include <vdso/align.h>
 #include <vdso/bits.h>
+#include <vdso/cache.h>
 #include <vdso/clocksource.h>
 #include <vdso/ktime.h>
 #include <vdso/limits.h>
@@ -126,7 +127,7 @@ struct vdso_time_data {
 	u32			__unused;
 
 	struct arch_vdso_time_data arch_data;
-};
+} ____cacheline_aligned;
 
 /**
  * struct vdso_rng_data - vdso RNG state information
