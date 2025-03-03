@@ -80,7 +80,7 @@ _prep_test() {
 	local type=$1
 	shift 1
 	modprobe ublk_drv
-	echo "ublk $type: $*"
+	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "ublk $type: $*"
 }
 
 _remove_test_files()
@@ -209,6 +209,12 @@ __run_io_and_remove()
 	wait
 }
 
+_ublk_test_top_dir()
+{
+	cd "$(dirname "$0")" && pwd
+}
 
-UBLK_PROG=$(pwd)/kublk
+UBLK_PROG=$(_ublk_test_top_dir)/kublk
+UBLK_TEST_QUIET=1
 export UBLK_PROG
+export UBLK_TEST_QUIET

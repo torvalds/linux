@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-. test_common.sh
+. "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 TID="stress_01"
 ERR_CODE=0
 DEV_ID=-1
@@ -17,7 +17,7 @@ ublk_io_and_remove()
 	DEV_ID=$(_add_ublk_dev "$@")
 	_check_add_dev $TID $? "${backfile}"
 
-	echo "run ublk IO vs. remove device(ublk add $*)"
+	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "run ublk IO vs. remove device(ublk add $*)"
 	if ! __run_io_and_remove "${DEV_ID}" "${size}" "no"; then
 		echo "/dev/ublkc${DEV_ID} isn't removed"
 		_remove_backfile "${backfile}"

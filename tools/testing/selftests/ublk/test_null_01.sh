@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-. test_common.sh
+. "$(cd "$(dirname "$0")" && pwd)"/test_common.sh
 
 TID="null_01"
 ERR_CODE=0
