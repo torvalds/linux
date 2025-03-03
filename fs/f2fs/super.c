@@ -486,12 +486,11 @@ static int f2fs_check_quota_options(struct f2fs_sb_info *sbi)
 }
 #endif
 
-static int f2fs_set_test_dummy_encryption(struct super_block *sb,
+static int f2fs_set_test_dummy_encryption(struct f2fs_sb_info *sbi,
 					  const char *opt,
 					  const substring_t *arg,
 					  bool is_remount)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct fs_parameter param = {
 		.type = fs_value_is_string,
 		.string = arg->from ? arg->from : "",
@@ -1032,7 +1031,7 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 			kfree(name);
 			break;
 		case Opt_test_dummy_encryption:
-			ret = f2fs_set_test_dummy_encryption(sb, p, &args[0],
+			ret = f2fs_set_test_dummy_encryption(sbi, p, &args[0],
 							     is_remount);
 			if (ret)
 				return ret;
