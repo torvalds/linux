@@ -64,36 +64,6 @@ config_device()
 	ip addr add dev veth1 172.16.1.200/24
 }
 
-add_ip6erspan_tunnel()
-{
-
-	# assign ipv6 address
-	ip netns exec at_ns0 ip addr add ::11/96 dev veth0
-	ip netns exec at_ns0 ip link set dev veth0 up
-	ip addr add dev veth1 ::22/96
-	ip link set dev veth1 up
-
-	# at_ns0 namespace
-	if [ "$1" == "v1" ]; then
-		ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE seq key 2 \
-		local ::11 remote ::22 \
-		erspan_ver 1 erspan 123
-	else
-		ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE seq key 2 \
-		local ::11 remote ::22 \
-		erspan_ver 2 erspan_dir egress erspan_hwid 7
-	fi
-	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
-	ip netns exec at_ns0 ip link set dev $DEV_NS up
-
-	# root namespace
-	ip link add dev $DEV type $TYPE external
-	ip addr add dev $DEV 10.1.1.200/24
-	ip link set dev $DEV up
-}
-
 add_geneve_tunnel()
 {
 	# at_ns0 namespace
@@ -164,29 +134,6 @@ add_ip6tnl_tunnel()
 	ip addr add dev $DEV 10.1.1.200/24
 	ip addr add dev $DEV 1::22/96
 	ip link set dev $DEV up
-}
-
-test_ip6erspan()
-{
-	TYPE=ip6erspan
-	DEV_NS=ip6erspan00
-	DEV=ip6erspan11
-	ret=0
-
-	check $TYPE
-	config_device
-	add_ip6erspan_tunnel $1
-	attach_bpf $DEV ip4ip6erspan_set_tunnel ip4ip6erspan_get_tunnel
-	ping6 $PING_ARG ::11
-	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
-	check_err $?
-	cleanup
-
-	if [ $ret -ne 0 ]; then
-                echo -e ${RED}"FAIL: $TYPE"${NC}
-                return 1
-        fi
-        echo -e ${GREEN}"PASS: $TYPE"${NC}
 }
 
 test_geneve()
@@ -341,7 +288,6 @@ cleanup()
 	ip link del ip6ip6tnl11 2> /dev/null
 	ip link del geneve11 2> /dev/null
 	ip link del ip6geneve11 2> /dev/null
-	ip link del ip6erspan11 2> /dev/null
 }
 
 cleanup_exit()
@@ -377,10 +323,6 @@ check_err()
 bpf_tunnel_test()
 {
 	local errors=0
-
-	echo "Testing IP6ERSPAN tunnel..."
-	test_ip6erspan v2
-	errors=$(( $errors + $? ))
 
 	echo "Testing GENEVE tunnel..."
 	test_geneve

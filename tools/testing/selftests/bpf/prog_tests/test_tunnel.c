@@ -109,6 +109,9 @@
 #define ERSPAN_TUNL_DEV0 "erspan00"
 #define ERSPAN_TUNL_DEV1 "erspan11"
 
+#define IP6ERSPAN_TUNL_DEV0 "ip6erspan00"
+#define IP6ERSPAN_TUNL_DEV1 "ip6erspan11"
+
 #define PING_ARGS "-i 0.01 -c 3 -w 10 -q"
 
 static int config_device(void)
@@ -916,6 +919,42 @@ done:
 	test_tunnel_kern__destroy(skel);
 }
 
+static void test_ip6erspan_tunnel(enum erspan_test test)
+{
+	struct test_tunnel_kern *skel;
+	int set_fd, get_fd;
+	int err;
+
+	skel = test_tunnel_kern__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_tunnel_kern__open_and_load"))
+		return;
+
+	switch (test) {
+	case V1:
+		err = add_ipv6_tunnel(IP6ERSPAN_TUNL_DEV0, IP6ERSPAN_TUNL_DEV1,
+				      "ip6erspan", "seq key 2 erspan_ver 1 erspan 123");
+		break;
+	case V2:
+		err = add_ipv6_tunnel(IP6ERSPAN_TUNL_DEV0, IP6ERSPAN_TUNL_DEV1,
+				      "ip6erspan",
+				      "seq key 2 erspan_ver 2 erspan_dir egress erspan_hwid 7");
+		break;
+	}
+	if (!ASSERT_OK(err, "add tunnel"))
+		goto done;
+
+	set_fd = bpf_program__fd(skel->progs.ip4ip6erspan_set_tunnel);
+	get_fd = bpf_program__fd(skel->progs.ip4ip6erspan_get_tunnel);
+	if (generic_attach(IP6ERSPAN_TUNL_DEV1, get_fd, set_fd))
+		goto done;
+
+	ping6_veth0();
+	ping_dev1();
+done:
+	delete_tunnel(IP6ERSPAN_TUNL_DEV0, IP6ERSPAN_TUNL_DEV1);
+	test_tunnel_kern__destroy(skel);
+}
+
 #define RUN_TEST(name, ...)						\
 	({								\
 		if (test__start_subtest(#name)) {			\
@@ -941,6 +980,8 @@ static void *test_tunnel_run_tests(void *arg)
 	RUN_TEST(ip6gre_tunnel, IP6GRETAP);
 	RUN_TEST(erspan_tunnel, V1);
 	RUN_TEST(erspan_tunnel, V2);
+	RUN_TEST(ip6erspan_tunnel, V1);
+	RUN_TEST(ip6erspan_tunnel, V2);
 
 	return NULL;
 }
