@@ -2365,6 +2365,50 @@ static int ixgbe_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
+static int ixgbe_set_wol_acpi(struct net_device *netdev,
+			      struct ethtool_wolinfo *wol)
+{
+	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 grc;
+
+	if (ixgbe_wol_exclusion(adapter, wol))
+		return wol->wolopts ? -EOPNOTSUPP : 0;
+
+	/* disable APM wakeup */
+	grc = IXGBE_READ_REG(hw, IXGBE_GRC_X550EM_a);
+	grc &= ~IXGBE_GRC_APME;
+	IXGBE_WRITE_REG(hw, IXGBE_GRC_X550EM_a, grc);
+
+	/* erase existing filters */
+	IXGBE_WRITE_REG(hw, IXGBE_WUFC, 0);
+	adapter->wol = 0;
+
+	if (wol->wolopts & WAKE_UCAST)
+		adapter->wol |= IXGBE_WUFC_EX;
+	if (wol->wolopts & WAKE_MCAST)
+		adapter->wol |= IXGBE_WUFC_MC;
+	if (wol->wolopts & WAKE_BCAST)
+		adapter->wol |= IXGBE_WUFC_BC;
+
+	IXGBE_WRITE_REG(hw, IXGBE_WUC, IXGBE_WUC_PME_EN);
+	IXGBE_WRITE_REG(hw, IXGBE_WUFC, adapter->wol);
+
+	hw->wol_enabled = adapter->wol;
+	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
+
+	return 0;
+}
+
+static int ixgbe_set_wol_e610(struct net_device *netdev,
+			      struct ethtool_wolinfo *wol)
+{
+	if (wol->wolopts & (WAKE_UCAST | WAKE_MCAST | WAKE_BCAST))
+		return ixgbe_set_wol_acpi(netdev, wol);
+	else
+		return ixgbe_set_wol(netdev, wol);
+}
+
 static int ixgbe_nway_reset(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = ixgbe_from_netdev(netdev);
@@ -3656,7 +3700,7 @@ static const struct ethtool_ops ixgbe_ethtool_ops_e610 = {
 	.get_regs_len           = ixgbe_get_regs_len,
 	.get_regs               = ixgbe_get_regs,
 	.get_wol                = ixgbe_get_wol,
-	.set_wol                = ixgbe_set_wol,
+	.set_wol                = ixgbe_set_wol_e610,
 	.nway_reset             = ixgbe_nway_reset,
 	.get_link               = ethtool_op_get_link,
 	.get_eeprom_len         = ixgbe_get_eeprom_len,
