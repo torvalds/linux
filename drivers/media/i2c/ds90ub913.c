@@ -504,25 +504,41 @@ static int ub913_log_status(struct v4l2_subdev *sd)
 {
 	struct ub913_data *priv = sd_to_ub913(sd);
 	struct device *dev = &priv->client->dev;
-	u8 v = 0, v1 = 0, v2 = 0;
+	u8 v, v1, v2;
+	int ret;
 
-	ub913_read(priv, UB913_REG_MODE_SEL, &v, NULL);
+	ret = ub913_read(priv, UB913_REG_MODE_SEL, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "MODE_SEL %#02x\n", v);
 
-	ub913_read(priv, UB913_REG_CRC_ERRORS_LSB, &v1, NULL);
-	ub913_read(priv, UB913_REG_CRC_ERRORS_MSB, &v2, NULL);
+	ub913_read(priv, UB913_REG_CRC_ERRORS_LSB, &v1, &ret);
+	ub913_read(priv, UB913_REG_CRC_ERRORS_MSB, &v2, &ret);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CRC errors %u\n", v1 | (v2 << 8));
 
 	/* clear CRC errors */
-	ub913_read(priv, UB913_REG_GENERAL_CFG, &v, NULL);
+	ub913_read(priv, UB913_REG_GENERAL_CFG, &v, &ret);
 	ub913_write(priv, UB913_REG_GENERAL_CFG,
-		    v | UB913_REG_GENERAL_CFG_CRC_ERR_RESET, NULL);
-	ub913_write(priv, UB913_REG_GENERAL_CFG, v, NULL);
+		    v | UB913_REG_GENERAL_CFG_CRC_ERR_RESET, &ret);
+	ub913_write(priv, UB913_REG_GENERAL_CFG, v, &ret);
 
-	ub913_read(priv, UB913_REG_GENERAL_STATUS, &v, NULL);
+	if (ret)
+		return ret;
+
+	ret = ub913_read(priv, UB913_REG_GENERAL_STATUS, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "GENERAL_STATUS %#02x\n", v);
 
-	ub913_read(priv, UB913_REG_PLL_OVR, &v, NULL);
+	ret = ub913_read(priv, UB913_REG_PLL_OVR, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "PLL_OVR %#02x\n", v);
 
 	return 0;
