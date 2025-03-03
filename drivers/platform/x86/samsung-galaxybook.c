@@ -1100,10 +1100,12 @@ static int galaxybook_fw_attrs_init(struct samsung_galaxybook *galaxybook)
 	}
 
 	err = galaxybook_block_recording_init(galaxybook);
-	if (!err)
-		galaxybook->has_block_recording = true;
-	else if (err != GB_NOT_SUPPORTED)
+	if (err == GB_NOT_SUPPORTED)
+		return 0;
+	else if (err)
 		return err;
+
+	galaxybook->has_block_recording = true;
 
 	return galaxybook_fw_attr_init(galaxybook,
 				       GB_ATTR_BLOCK_RECORDING,
