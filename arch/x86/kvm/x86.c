@@ -9783,6 +9783,7 @@ int kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 		kvm_host.xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
 		kvm_caps.supported_xcr0 = kvm_host.xcr0 & KVM_SUPPORTED_XCR0;
 	}
+	kvm_caps.inapplicable_quirks = KVM_X86_CONDITIONAL_QUIRKS;
 
 	rdmsrl_safe(MSR_EFER, &kvm_host.efer);
 
@@ -12733,6 +12734,7 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 	/* Decided by the vendor code for other VM types.  */
 	kvm->arch.pre_fault_allowed =
 		type == KVM_X86_DEFAULT_VM || type == KVM_X86_SW_PROTECTED_VM;
+	kvm->arch.disabled_quirks = kvm_caps.inapplicable_quirks;
 
 	ret = kvm_page_track_init(kvm);
 	if (ret)
