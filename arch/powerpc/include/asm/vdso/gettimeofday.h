@@ -99,7 +99,7 @@ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
 	return get_tb();
 }
 
-static inline bool vdso_clocksource_ok(const struct vdso_time_data *vd)
+static inline bool vdso_clocksource_ok(const struct vdso_clock *vc)
 {
 	return true;
 }
