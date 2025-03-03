@@ -679,7 +679,10 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	}
 
 	ublk_ctrl_get_info(dev);
-	ublk_send_dev_event(ctx, dev->dev_info.dev_id);
+	if (ctx->fg)
+		ublk_ctrl_dump(dev);
+	else
+		ublk_send_dev_event(ctx, dev->dev_info.dev_id);
 
 	/* wait until we are terminated */
 	for (i = 0; i < dinfo->nr_hw_queues; i++)
@@ -867,6 +870,9 @@ static int cmd_dev_add(struct dev_ctx *ctx)
 {
 	int res;
 
+	if (ctx->fg)
+		goto run;
+
 	ctx->_evtfd = eventfd(0, 0);
 	if (ctx->_evtfd < 0) {
 		ublk_err("%s: failed to create eventfd %s\n", __func__, strerror(errno));
@@ -876,8 +882,9 @@ static int cmd_dev_add(struct dev_ctx *ctx)
 	setsid();
 	res = fork();
 	if (res == 0) {
-		__cmd_dev_add(ctx);
-		exit(EXIT_SUCCESS);
+run:
+		res = __cmd_dev_add(ctx);
+		return res;
 	} else if (res > 0) {
 		uint64_t id;
 
@@ -1044,6 +1051,7 @@ int main(int argc, char *argv[])
 		{ "debug_mask",		1,	NULL,  0  },
 		{ "quiet",		0,	NULL,  0  },
 		{ "zero_copy",          1,      NULL, 'z' },
+		{ "foreground",		0,	NULL,  0  },
 		{ 0, 0, 0, 0 }
 	};
 	int option_idx, opt;
@@ -1087,7 +1095,8 @@ int main(int argc, char *argv[])
 				ublk_dbg_mask = strtol(optarg, NULL, 16);
 			if (!strcmp(longopts[option_idx].name, "quiet"))
 				ublk_dbg_mask = 0;
-			break;
+			if (!strcmp(longopts[option_idx].name, "foreground"))
+				ctx.fg = 1;
 		}
 	}
 
