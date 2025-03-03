@@ -3399,6 +3399,14 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	int order = folio_order(folio);
 	unsigned int nr = 1 << order;
 
+	/*
+	 * Reset any memcg data overlay in the tail pages. folio_nr_pages()
+	 * is unreliable after this point.
+	 */
+#ifdef NR_PAGES_IN_LARGE_FOLIO
+	folio->_nr_pages = 0;
+#endif
+
 	/* complete memcg works before add pages to LRU */
 	split_page_memcg(head, order, new_order);
 
