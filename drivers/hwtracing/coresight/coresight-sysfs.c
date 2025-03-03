@@ -214,7 +214,7 @@ int coresight_enable_sysfs(struct coresight_device *csdev)
 	if (!IS_VALID_CS_TRACE_ID(path->trace_id))
 		goto err_path;
 
-	ret = coresight_enable_path(&path->path_list, CS_MODE_SYSFS, NULL);
+	ret = coresight_enable_path(path, CS_MODE_SYSFS, NULL);
 	if (ret)
 		goto err_path;
 
@@ -256,7 +256,7 @@ out:
 	return ret;
 
 err_source:
-	coresight_disable_path(&path->path_list);
+	coresight_disable_path(path);
 
 err_path:
 	coresight_release_path(path);
@@ -302,7 +302,7 @@ void coresight_disable_sysfs(struct coresight_device *csdev)
 		break;
 	}
 
-	coresight_disable_path(&path->path_list);
+	coresight_disable_path(path);
 	coresight_release_path(path);
 
 out:
