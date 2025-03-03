@@ -69,16 +69,27 @@ static void wacom_wac_queue_flush(struct hid_device *hdev,
 				  struct kfifo_rec_ptr_2 *fifo)
 {
 	while (!kfifo_is_empty(fifo)) {
-		u8 buf[WACOM_PKGLEN_MAX];
-		int size;
+		int size = kfifo_peek_len(fifo);
+		u8 *buf = kzalloc(size, GFP_KERNEL);
+		unsigned int count;
 		int err;
 
-		size = kfifo_out(fifo, buf, sizeof(buf));
+		count = kfifo_out(fifo, buf, size);
+		if (count != size) {
+			// Hard to say what is the "right" action in this
+			// circumstance. Skipping the entry and continuing
+			// to flush seems reasonable enough, however.
+			hid_warn(hdev, "%s: removed fifo entry with unexpected size\n",
+				 __func__);
+			continue;
+		}
 		err = hid_report_raw_event(hdev, HID_INPUT_REPORT, buf, size, false);
 		if (err) {
 			hid_warn(hdev, "%s: unable to flush event due to error %d\n",
 				 __func__, err);
 		}
+
+		kfree(buf);
 	}
 }
 
@@ -158,13 +169,10 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 	if (wacom->wacom_wac.features.type == BOOTLOADER)
 		return 0;
 
-	if (size > WACOM_PKGLEN_MAX)
-		return 1;
-
 	if (wacom_wac_pen_serial_enforce(hdev, report, raw_data, size))
 		return -1;
 
-	memcpy(wacom->wacom_wac.data, raw_data, size);
+	wacom->wacom_wac.data = raw_data;
 
 	wacom_wac_irq(&wacom->wacom_wac, size);
 
@@ -1286,6 +1294,7 @@ static void wacom_devm_kfifo_release(struct device *dev, void *res)
 static int wacom_devm_kfifo_alloc(struct wacom *wacom)
 {
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	int fifo_size = min(PAGE_SIZE, 10 * wacom_wac->features.pktlen);
 	struct kfifo_rec_ptr_2 *pen_fifo;
 	int error;
 
@@ -1296,7 +1305,7 @@ static int wacom_devm_kfifo_alloc(struct wacom *wacom)
 	if (!pen_fifo)
 		return -ENOMEM;
 
-	error = kfifo_alloc(pen_fifo, WACOM_PKGLEN_MAX, GFP_KERNEL);
+	error = kfifo_alloc(pen_fifo, fifo_size, GFP_KERNEL);
 	if (error) {
 		devres_free(pen_fifo);
 		return error;
@@ -2352,11 +2361,13 @@ static int wacom_parse_and_register(struct wacom *wacom, bool wireless)
 	unsigned int connect_mask = HID_CONNECT_HIDRAW;
 
 	features->pktlen = wacom_compute_pktlen(hdev);
-	if (features->pktlen > WACOM_PKGLEN_MAX)
-		return -EINVAL;
 
 	if (!devres_open_group(&hdev->dev, wacom, GFP_KERNEL))
 		return -ENOMEM;
+
+	error = wacom_devm_kfifo_alloc(wacom);
+	if (error)
+		goto fail;
 
 	wacom->resources = true;
 
@@ -2820,10 +2831,6 @@ static int wacom_probe(struct hid_device *hdev,
 
 	if (features->check_for_hid_type && features->hid_type != hdev->type)
 		return -ENODEV;
-
-	error = wacom_devm_kfifo_alloc(wacom);
-	if (error)
-		return error;
 
 	wacom_wac->hid_data.inputmode = -1;
 	wacom_wac->mode_report = -1;
