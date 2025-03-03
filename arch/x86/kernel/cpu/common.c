@@ -667,8 +667,8 @@ static void filter_cpuid_features(struct cpuinfo_x86 *c, bool warn)
 		if (!warn)
 			continue;
 
-		pr_warn("CPU: CPU feature " X86_CAP_FMT " disabled, no CPUID level 0x%x\n",
-			x86_cap_flag(df->feature), df->level);
+		pr_warn("CPU: CPU feature %s disabled, no CPUID level 0x%x\n",
+			x86_cap_flags[df->feature], df->level);
 	}
 }
 
@@ -1502,9 +1502,9 @@ static inline void parse_set_clear_cpuid(char *arg, bool set)
 
 				/* empty-string, i.e., ""-defined feature flags */
 				if (!x86_cap_flags[bit])
-					pr_cont(" " X86_CAP_FMT_NUM, x86_cap_flag_num(bit));
+					pr_cont(" %d:%d", bit >> 5, bit & 31);
 				else
-					pr_cont(" " X86_CAP_FMT, x86_cap_flag(bit));
+					pr_cont(" %s", x86_cap_flags[bit]);
 
 				if (set)
 					setup_force_cpu_cap(bit);
@@ -1523,9 +1523,9 @@ static inline void parse_set_clear_cpuid(char *arg, bool set)
 			const char *flag;
 
 			if (bit < 32 * NCAPINTS)
-				flag = x86_cap_flag(bit);
+				flag = x86_cap_flags[bit];
 			else
-				flag = x86_bug_flag(bit - (32 * NCAPINTS));
+				flag = x86_bug_flags[bit - (32 * NCAPINTS)];
 
 			if (!flag)
 				continue;
