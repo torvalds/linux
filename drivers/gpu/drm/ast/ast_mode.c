@@ -1035,10 +1035,7 @@ int ast_mode_config_init(struct ast_device *ast)
 		return ret;
 
 	drm_mode_config_reset(dev);
-
-	ret = drmm_kms_helper_poll_init(dev);
-	if (ret)
-		return ret;
+	drmm_kms_helper_poll_init(dev);
 
 	return 0;
 }
