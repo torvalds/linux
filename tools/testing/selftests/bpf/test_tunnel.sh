@@ -79,28 +79,6 @@ add_ipip_tunnel()
 	ip addr add dev $DEV 10.1.1.200/24
 }
 
-add_ip6tnl_tunnel()
-{
-	ip netns exec at_ns0 ip addr add ::11/96 dev veth0
-	ip netns exec at_ns0 ip link set dev veth0 up
-	ip addr add dev veth1 ::22/96
-	ip link set dev veth1 up
-
-	# at_ns0 namespace
-	ip netns exec at_ns0 \
-		ip link add dev $DEV_NS type $TYPE \
-		local ::11 remote ::22
-	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
-	ip netns exec at_ns0 ip addr add dev $DEV_NS 1::11/96
-	ip netns exec at_ns0 ip link set dev $DEV_NS up
-
-	# root namespace
-	ip link add dev $DEV type $TYPE external
-	ip addr add dev $DEV 10.1.1.200/24
-	ip addr add dev $DEV 1::22/96
-	ip link set dev $DEV up
-}
-
 test_ipip()
 {
 	TYPE=ipip
@@ -126,62 +104,6 @@ test_ipip()
         echo -e ${GREEN}"PASS: $TYPE"${NC}
 }
 
-test_ipip6()
-{
-	TYPE=ip6tnl
-	DEV_NS=ipip6tnl00
-	DEV=ipip6tnl11
-	ret=0
-
-	check $TYPE
-	config_device
-	add_ip6tnl_tunnel
-	ip link set dev veth1 mtu 1500
-	attach_bpf $DEV ipip6_set_tunnel ipip6_get_tunnel
-	# underlay
-	ping6 $PING_ARG ::11
-	# ip4 over ip6
-	ping $PING_ARG 10.1.1.100
-	check_err $?
-	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
-	check_err $?
-	cleanup
-
-	if [ $ret -ne 0 ]; then
-                echo -e ${RED}"FAIL: $TYPE"${NC}
-                return 1
-        fi
-        echo -e ${GREEN}"PASS: $TYPE"${NC}
-}
-
-test_ip6ip6()
-{
-	TYPE=ip6tnl
-	DEV_NS=ip6ip6tnl00
-	DEV=ip6ip6tnl11
-	ret=0
-
-	check $TYPE
-	config_device
-	add_ip6tnl_tunnel
-	ip link set dev veth1 mtu 1500
-	attach_bpf $DEV ip6ip6_set_tunnel ip6ip6_get_tunnel
-	# underlay
-	ping6 $PING_ARG ::11
-	# ip6 over ip6
-	ping6 $PING_ARG 1::11
-	check_err $?
-	ip netns exec at_ns0 ping6 $PING_ARG 1::22
-	check_err $?
-	cleanup
-
-	if [ $ret -ne 0 ]; then
-                echo -e ${RED}"FAIL: ip6$TYPE"${NC}
-                return 1
-        fi
-        echo -e ${GREEN}"PASS: ip6$TYPE"${NC}
-}
-
 attach_bpf()
 {
 	DEV=$1
@@ -201,8 +123,6 @@ cleanup()
 	ip netns delete at_ns0 2> /dev/null
 	ip link del veth1 2> /dev/null
 	ip link del ipip11 2> /dev/null
-	ip link del ipip6tnl11 2> /dev/null
-	ip link del ip6ip6tnl11 2> /dev/null
 }
 
 cleanup_exit()
@@ -240,14 +160,6 @@ bpf_tunnel_test()
 
 	echo "Testing IPIP tunnel..."
 	test_ipip
-	errors=$(( $errors + $? ))
-
-	echo "Testing IPIP6 tunnel..."
-	test_ipip6
-	errors=$(( $errors + $? ))
-
-	echo "Testing IP6IP6 tunnel..."
-	test_ip6ip6
 	errors=$(( $errors + $? ))
 
 	return $errors
