@@ -775,16 +775,11 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 			break;
 #else
 		case Opt_user_xattr:
-			f2fs_info(sbi, "user_xattr options not supported");
-			break;
 		case Opt_nouser_xattr:
-			f2fs_info(sbi, "nouser_xattr options not supported");
-			break;
 		case Opt_inline_xattr:
-			f2fs_info(sbi, "inline_xattr options not supported");
-			break;
 		case Opt_noinline_xattr:
-			f2fs_info(sbi, "noinline_xattr options not supported");
+		case Opt_inline_xattr_size:
+			f2fs_info(sbi, "xattr options not supported");
 			break;
 #endif
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
@@ -796,10 +791,8 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 			break;
 #else
 		case Opt_acl:
-			f2fs_info(sbi, "acl options not supported");
-			break;
 		case Opt_noacl:
-			f2fs_info(sbi, "noacl options not supported");
+			f2fs_info(sbi, "acl options not supported");
 			break;
 #endif
 		case Opt_active_logs:
@@ -922,11 +915,8 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
 			break;
 #else
 		case Opt_fault_injection:
-			f2fs_info(sbi, "fault_injection options not supported");
-			break;
-
 		case Opt_fault_type:
-			f2fs_info(sbi, "fault_type options not supported");
+			f2fs_info(sbi, "fault injection options not supported");
 			break;
 #endif
 		case Opt_lazytime:
