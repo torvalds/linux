@@ -307,8 +307,6 @@
 
 #define UB960_XR_REFCLK_FREQ			0xa5	/* UB960 */
 
-#define UB960_RR_VC_ID_MAP(x)			(0xa0 + (x)) /* UB9702 */
-
 #define UB960_SR_IND_ACC_CTL			0xb0
 #define UB960_SR_IND_ACC_CTL_IA_AUTO_INC	BIT(1)
 
@@ -320,9 +318,6 @@
 #define UB960_SR_FPD3_ENC_CTL			0xba
 #define UB960_SR_FV_MIN_TIME			0xbc
 #define UB960_SR_GPIO_PD_CTL			0xbe
-
-#define UB960_SR_FPD_RATE_CFG			0xc2	/* UB9702 */
-#define UB960_SR_CSI_PLL_DIV			0xc9	/* UB9702 */
 
 #define UB960_RR_PORT_DEBUG			0xd0
 #define UB960_RR_AEQ_CTL2			0xd2
@@ -354,14 +349,11 @@
 #define UB960_RR_SEN_INT_RISE_STS		0xde
 #define UB960_RR_SEN_INT_FALL_STS		0xdf
 
-#define UB960_RR_CHANNEL_MODE			0xe4	/* UB9702 */
 
 #define UB960_SR_FPD3_RX_ID(n)			(0xf0 + (n))
 #define UB960_SR_FPD3_RX_ID_LEN			6
 
 #define UB960_SR_I2C_RX_ID(n)			(0xf8 + (n))
-
-#define UB9702_SR_REFCLK_FREQ			0x3d
 
 /* Indirect register blocks */
 #define UB960_IND_TARGET_PAT_GEN		0x00
@@ -396,6 +388,14 @@
 #define UB960_IR_RX_ANA_STROBE_SET_DATA		0x09
 #define UB960_IR_RX_ANA_STROBE_SET_DATA_NO_EXTRA_DELAY	BIT(3)
 #define UB960_IR_RX_ANA_STROBE_SET_DATA_DELAY_MASK	GENMASK(2, 0)
+
+/* UB9702 Registers */
+
+#define UB9702_SR_REFCLK_FREQ			0x3d
+#define UB9702_RR_VC_ID_MAP(x)			(0xa0 + (x))
+#define UB9702_SR_FPD_RATE_CFG			0xc2
+#define UB9702_SR_CSI_PLL_DIV			0xc9
+#define UB9702_RR_CHANNEL_MODE			0xe4
 
 /* EQ related */
 
@@ -1989,7 +1989,7 @@ static int ub960_init_tx_ports(struct ub960_data *priv)
 	ub960_write(priv, UB960_SR_CSI_PLL_CTL, speed_select, &ret);
 
 	if (priv->hw_data->is_ub9702) {
-		ub960_write(priv, UB960_SR_CSI_PLL_DIV, pll_div, &ret);
+		ub960_write(priv, UB9702_SR_CSI_PLL_DIV, pll_div, &ret);
 
 		switch (priv->tx_data_rate) {
 		case MHZ(1600):
@@ -2170,7 +2170,7 @@ static int ub960_init_rx_port_ub9702_fpd3(struct ub960_data *priv,
 
 	ub960_rxport_update_bits(priv, nport, UB960_RR_BCC_CONFIG, 0x7,
 				 bc_freq_val, &ret);
-	ub960_rxport_write(priv, nport, UB960_RR_CHANNEL_MODE, fpd_func_mode,
+	ub960_rxport_write(priv, nport, UB9702_RR_CHANNEL_MODE, fpd_func_mode,
 			   &ret);
 
 	/* set serdes_eq_mode = 1 */
@@ -2197,7 +2197,7 @@ static int ub960_init_rx_port_ub9702_fpd3(struct ub960_data *priv,
 			      BIT(3), BIT(3), &ret);
 
 	/* RX port to half-rate */
-	ub960_update_bits(priv, UB960_SR_FPD_RATE_CFG, 0x3 << (nport * 2),
+	ub960_update_bits(priv, UB9702_SR_FPD_RATE_CFG, 0x3 << (nport * 2),
 			  BIT(nport * 2), &ret);
 
 	return ret;
@@ -2285,7 +2285,7 @@ static int ub960_init_rx_port_ub9702_fpd4(struct ub960_data *priv,
 				 bc_freq_val, &ret);
 
 	/* FPD4 Sync Mode */
-	ub960_rxport_write(priv, nport, UB960_RR_CHANNEL_MODE, 0, &ret);
+	ub960_rxport_write(priv, nport, UB9702_RR_CHANNEL_MODE, 0, &ret);
 
 	/* add serdes_eq_offset of 4 */
 	ub960_write_ind(priv, UB960_IND_TARGET_RX_ANA(nport), 0x2b, 0x04,
@@ -2312,7 +2312,7 @@ static int ub960_init_rx_port_ub9702_fpd4(struct ub960_data *priv,
 			&ret);
 
 	/* RX port to 7.55G mode */
-	ub960_update_bits(priv, UB960_SR_FPD_RATE_CFG, 0x3 << (nport * 2),
+	ub960_update_bits(priv, UB9702_SR_FPD_RATE_CFG, 0x3 << (nport * 2),
 			  0 << (nport * 2), &ret);
 
 	if (ret)
@@ -2786,7 +2786,7 @@ static int ub960_configure_ports_for_streaming(struct ub960_data *priv,
 				/* Map all VCs from this port to VC(nport) */
 				for (i = 0; i < 8; i++)
 					ub960_rxport_write(priv, nport,
-							   UB960_RR_VC_ID_MAP(i),
+							   UB9702_RR_VC_ID_MAP(i),
 							   (nport << 4) | nport,
 							   &ret);
 			}
