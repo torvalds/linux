@@ -60,11 +60,6 @@
 #define RTC_PDN2               0x002e
 #define RTC_PDN2_PWRON_ALARM   BIT(4)
 
-#define RTC_MIN_YEAR           1968
-#define RTC_BASE_YEAR          1900
-#define RTC_NUM_YEARS          128
-#define RTC_MIN_YEAR_OFFSET    (RTC_MIN_YEAR - RTC_BASE_YEAR)
-
 #define MTK_RTC_POLL_DELAY_US  10
 #define MTK_RTC_POLL_TIMEOUT   (jiffies_to_usecs(HZ))
 
