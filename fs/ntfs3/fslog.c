@@ -3143,7 +3143,7 @@ static int do_action(struct ntfs_log *log, struct OPEN_ATTR_ENRTY *oe,
 
 			if (inode)
 				iput(inode);
-			else if (mi)
+			else
 				mi_put(mi);
 
 			inode = inode_parent;
