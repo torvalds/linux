@@ -11,6 +11,7 @@ _prep_test "loop" "write and verify test"
 backfile_0=$(_create_backfile 256M)
 
 dev_id=$(_add_ublk_dev -t loop "$backfile_0")
+_check_add_dev $TID $? "${backfile_0}"
 
 # run fio over the ublk disk
 fio --name=write_and_verify \

@@ -1,6 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+UBLK_SKIP_CODE=4
+
 _create_backfile() {
 	local my_size=$1
 	local my_file
@@ -79,12 +81,37 @@ _prep_test() {
 	echo "ublk $type: $*"
 }
 
+_remove_test_files()
+{
+	local files=$*
+
+	for file in ${files}; do
+		[ -f "${file}" ] && rm -f "${file}"
+	done
+}
+
 _show_result()
 {
-	if [ "$2" -ne 0 ]; then
-		echo "$1 : [FAIL]"
-	else
+	if [ "$2" -eq 0 ]; then
 		echo "$1 : [PASS]"
+	elif [ "$2" -eq 4 ]; then
+		echo "$1 : [SKIP]"
+	else
+		echo "$1 : [FAIL]"
+	fi
+	[ "$2" -ne 0 ] && exit "$2"
+	return 0
+}
+
+# don't call from sub-shell, otherwise can't exit
+_check_add_dev()
+{
+	local tid=$1
+	local code=$2
+	shift 2
+	if [ "${code}" -ne 0 ]; then
+		_remove_test_files "$@"
+		_show_result "${tid}" "${code}"
 	fi
 }
 
@@ -92,13 +119,28 @@ _cleanup_test() {
 	"${UBLK_PROG}" del -a
 }
 
+_have_feature()
+{
+	if  $UBLK_PROG "features" | grep "$1" > /dev/null 2>&1; then
+		return 0
+	fi
+	return 1
+}
+
 _add_ublk_dev() {
 	local kublk_temp;
 	local dev_id;
 
+	if echo "$@" | grep -q "\-z"; then
+		if ! _have_feature "ZERO_COPY"; then
+			return ${UBLK_SKIP_CODE}
+		fi
+	fi
+
 	kublk_temp=$(mktemp /tmp/kublk-XXXXXX)
 	if ! "${UBLK_PROG}" add "$@" > "${kublk_temp}" 2>&1; then
 		echo "fail to add ublk dev $*"
+		rm -f "${kublk_temp}"
 		return 255
 	fi
 
@@ -106,14 +148,6 @@ _add_ublk_dev() {
 	udevadm settle
 	rm -f "${kublk_temp}"
 	echo "${dev_id}"
-}
-
-_have_feature()
-{
-	if  "$UBLK_PROG" "features" | grep "$1" > /dev/null 2>&1; then
-		return 0
-	fi
-	return 1
 }
 
 UBLK_PROG=$(pwd)/kublk

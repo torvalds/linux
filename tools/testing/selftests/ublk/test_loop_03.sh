@@ -6,13 +6,11 @@
 TID="loop_03"
 ERR_CODE=0
 
-_have_feature "ZERO_COPY" || exit 4
-
 _prep_test "loop" "write and verify over zero copy"
 
 backfile_0=$(_create_backfile 256M)
-
 dev_id=$(_add_ublk_dev -t loop -z "$backfile_0")
+_check_add_dev $TID $? "$backfile_0"
 
 # run fio over the ublk disk
 fio --name=write_and_verify \
