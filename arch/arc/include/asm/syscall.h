@@ -67,6 +67,20 @@ syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
 	}
 }
 
+static inline void
+syscall_set_arguments(struct task_struct *task, struct pt_regs *regs,
+		      unsigned long *args)
+{
+	unsigned long *inside_ptregs = &regs->r0;
+	unsigned int n = 6;
+	unsigned int i = 0;
+
+	while (n--) {
+		*inside_ptregs = args[i++];
+		inside_ptregs--;
+	}
+}
+
 static inline int
 syscall_get_arch(struct task_struct *task)
 {

@@ -29,6 +29,18 @@ static inline void syscall_get_arguments(struct task_struct *tsk,
 	args[0] = regs->gr[26];
 }
 
+static inline void syscall_set_arguments(struct task_struct *tsk,
+					 struct pt_regs *regs,
+					 unsigned long *args)
+{
+	regs->gr[21] = args[5];
+	regs->gr[22] = args[4];
+	regs->gr[23] = args[3];
+	regs->gr[24] = args[2];
+	regs->gr[25] = args[1];
+	regs->gr[26] = args[0];
+}
+
 static inline long syscall_get_error(struct task_struct *task,
 				     struct pt_regs *regs)
 {

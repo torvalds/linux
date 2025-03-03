@@ -73,6 +73,19 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	memcpy(args, &regs->regs[1], 5 * sizeof(args[0]));
 }
 
+static inline void syscall_set_arguments(struct task_struct *task,
+					 struct pt_regs *regs,
+					 const unsigned long *args)
+{
+	memcpy(&regs->regs[0], args, 6 * sizeof(args[0]));
+	/*
+	 * Also copy the first argument into orig_x0
+	 * so that syscall_get_arguments() would return it
+	 * instead of the previous value.
+	 */
+	regs->orig_x0 = regs->regs[0];
+}
+
 /*
  * We don't care about endianness (__AUDIT_ARCH_LE bit) here because
  * AArch64 has the same system calls both on little- and big- endian.

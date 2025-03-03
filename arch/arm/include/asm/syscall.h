@@ -80,6 +80,19 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	memcpy(args, &regs->ARM_r0 + 1, 5 * sizeof(args[0]));
 }
 
+static inline void syscall_set_arguments(struct task_struct *task,
+					 struct pt_regs *regs,
+					 const unsigned long *args)
+{
+	memcpy(&regs->ARM_r0, args, 6 * sizeof(args[0]));
+	/*
+	 * Also copy the first argument into ARM_ORIG_r0
+	 * so that syscall_get_arguments() would return it
+	 * instead of the previous value.
+	 */
+	regs->ARM_ORIG_r0 = regs->ARM_r0;
+}
+
 static inline int syscall_get_arch(struct task_struct *task)
 {
 	/* ARM tasks don't change audit architectures on the fly. */

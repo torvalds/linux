@@ -61,6 +61,14 @@ static inline void syscall_get_arguments(struct task_struct *task,
 	memcpy(&args[1], &regs->regs[5], 5 * sizeof(long));
 }
 
+static inline void syscall_set_arguments(struct task_struct *task,
+					 struct pt_regs *regs,
+					 unsigned long *args)
+{
+	regs->orig_a0 = args[0];
+	memcpy(&regs->regs[5], &args[1], 5 * sizeof(long));
+}
+
 static inline int syscall_get_arch(struct task_struct *task)
 {
 	return AUDIT_ARCH_LOONGARCH64;
