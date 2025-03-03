@@ -55,7 +55,7 @@ static int smu7_update_vce_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 	return smu7_enable_disable_vce_dpm(hwmgr, !bgate);
 }
 
-int smu7_powerdown_uvd(struct pp_hwmgr *hwmgr)
+static int smu7_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (phm_cf_want_uvd_power_gating(hwmgr))
 		return smum_send_msg_to_smc(hwmgr,
