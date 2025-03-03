@@ -13567,8 +13567,10 @@ static void kvm_noncoherent_dma_assignment_start_or_stop(struct kvm *kvm)
 	 * due to toggling the "ignore PAT" bit.  Zap all SPTEs when the first
 	 * (or last) non-coherent device is (un)registered to so that new SPTEs
 	 * with the correct "ignore guest PAT" setting are created.
+	 *
+	 * If KVM always honors guest PAT, however, there is nothing to do.
 	 */
-	if (kvm_mmu_may_ignore_guest_pat(kvm))
+	if (kvm_check_has_quirk(kvm, KVM_X86_QUIRK_IGNORE_GUEST_PAT))
 		kvm_zap_gfn_range(kvm, gpa_to_gfn(0), gpa_to_gfn(~0ULL));
 }
 

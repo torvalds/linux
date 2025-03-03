@@ -4663,21 +4663,6 @@ out_unlock:
 }
 #endif
 
-bool kvm_mmu_may_ignore_guest_pat(struct kvm *kvm)
-{
-	/*
-	 * When EPT is enabled (shadow_memtype_mask is non-zero), and the VM
-	 * has non-coherent DMA (DMA doesn't snoop CPU caches), KVM's ABI is to
-	 * honor the memtype from the guest's PAT so that guest accesses to
-	 * memory that is DMA'd aren't cached against the guest's wishes.  As a
-	 * result, KVM _may_ ignore guest PAT, whereas without non-coherent DMA.
-	 * KVM _always_ ignores guest PAT, when EPT is enabled and when quirk
-	 * KVM_X86_QUIRK_IGNORE_GUEST_PAT is enabled or the CPU lacks the
-	 * ability to safely honor guest PAT.
-	 */
-	return kvm_check_has_quirk(kvm, KVM_X86_QUIRK_IGNORE_GUEST_PAT);
-}
-
 int kvm_tdp_page_fault(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault)
 {
 #ifdef CONFIG_X86_64
