@@ -668,16 +668,12 @@ static __always_inline void prefetchw(const void *x)
 	.sysenter_cs		= __KERNEL_CS,				  \
 }
 
-#define KSTK_ESP(task)		(task_pt_regs(task)->sp)
-
 #else
 extern unsigned long __top_init_kernel_stack[];
 
 #define INIT_THREAD {							\
 	.sp	= (unsigned long)&__top_init_kernel_stack,		\
 }
-
-extern unsigned long KSTK_ESP(struct task_struct *task);
 
 #endif /* CONFIG_X86_64 */
 
@@ -692,6 +688,7 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 #define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE_LOW)
 
 #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
+#define KSTK_ESP(task)		(task_pt_regs(task)->sp)
 
 /* Get/set a process' ability to use the timestamp counter instruction */
 #define GET_TSC_CTL(adr)	get_tsc_mode((adr))

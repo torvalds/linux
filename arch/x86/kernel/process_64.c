@@ -979,8 +979,3 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 
 	return ret;
 }
-
-unsigned long KSTK_ESP(struct task_struct *task)
-{
-	return task_pt_regs(task)->sp;
-}
