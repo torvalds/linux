@@ -42,7 +42,7 @@ void intel_display_reset_prepare(struct intel_display *display)
 	smp_mb__after_atomic();
 	wake_up_bit(&to_gt(dev_priv)->reset.flags, I915_RESET_MODESET);
 
-	if (atomic_read(&dev_priv->gpu_error.pending_fb_pin)) {
+	if (atomic_read(&display->restore.pending_fb_pin)) {
 		drm_dbg_kms(display->drm,
 			    "Modeset potentially stuck, unbreaking through wedging\n");
 		intel_gt_set_wedged(to_gt(dev_priv));
