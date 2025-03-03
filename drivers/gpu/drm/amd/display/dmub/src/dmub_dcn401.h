@@ -277,13 +277,11 @@ uint32_t dmub_dcn401_read_reg_inbox0_rsp_int_status(struct dmub_srv *dmub);
 void dmub_dcn401_read_reg_inbox0_cmd_rsp(struct dmub_srv *dmub,
 		union dmub_rb_cmd *cmd);
 void dmub_dcn401_write_reg_inbox0_rsp_int_ack(struct dmub_srv *dmub);
-void dmub_dcn401_clear_reg_inbox0_rsp_int_ack(struct dmub_srv *dmub);
-void dmub_dcn401_enable_reg_inbox0_rsp_int(struct dmub_srv *dmub, bool enable);
-
 void dmub_dcn401_write_reg_outbox0_rdy_int_ack(struct dmub_srv *dmub);
 void dmub_dcn401_read_reg_outbox0_msg(struct dmub_srv *dmub, uint32_t *msg);
 void dmub_dcn401_write_reg_outbox0_rsp(struct dmub_srv *dmub, uint32_t *msg);
 uint32_t dmub_dcn401_read_reg_outbox0_rsp_int_status(struct dmub_srv *dmub);
+void dmub_dcn401_enable_reg_inbox0_rsp_int(struct dmub_srv *dmub, bool enable);
 void dmub_dcn401_enable_reg_outbox0_rdy_int(struct dmub_srv *dmub, bool enable);
 uint32_t dmub_dcn401_read_reg_outbox0_rdy_int_status(struct dmub_srv *dmub);
 
