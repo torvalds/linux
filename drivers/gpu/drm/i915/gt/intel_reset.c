@@ -1413,11 +1413,14 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 
 	/* Use a watchdog to ensure that our reset completes */
 	intel_wedge_on_timeout(&w, gt, 60 * HZ) {
-		intel_display_reset_prepare(gt->i915);
+		struct drm_i915_private *i915 = gt->i915;
+		struct intel_display *display = &i915->display;
+
+		intel_display_reset_prepare(display);
 
 		intel_gt_reset(gt, engine_mask, reason);
 
-		intel_display_reset_finish(gt->i915);
+		intel_display_reset_finish(display);
 	}
 
 	if (!test_bit(I915_WEDGED, &gt->reset.flags))

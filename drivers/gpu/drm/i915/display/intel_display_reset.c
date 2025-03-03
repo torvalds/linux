@@ -14,24 +14,27 @@
 #include "intel_hotplug.h"
 #include "intel_pps.h"
 
-static bool gpu_reset_clobbers_display(struct drm_i915_private *dev_priv)
+static bool gpu_reset_clobbers_display(struct intel_display *display)
 {
-	return (INTEL_INFO(dev_priv)->gpu_reset_clobbers_display &&
-		intel_has_gpu_reset(to_gt(dev_priv)));
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	return (INTEL_INFO(i915)->gpu_reset_clobbers_display &&
+		intel_has_gpu_reset(to_gt(i915)));
 }
 
-void intel_display_reset_prepare(struct drm_i915_private *dev_priv)
+void intel_display_reset_prepare(struct intel_display *display)
 {
-	struct drm_modeset_acquire_ctx *ctx = &dev_priv->display.restore.reset_ctx;
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	struct drm_modeset_acquire_ctx *ctx = &display->restore.reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
 
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(display))
 		return;
 
 	/* reset doesn't touch the display */
-	if (!dev_priv->display.params.force_reset_modeset_test &&
-	    !gpu_reset_clobbers_display(dev_priv))
+	if (!display->params.force_reset_modeset_test &&
+	    !gpu_reset_clobbers_display(display))
 		return;
 
 	/* We have a modeset vs reset deadlock, defensively unbreak it. */
@@ -40,7 +43,7 @@ void intel_display_reset_prepare(struct drm_i915_private *dev_priv)
 	wake_up_bit(&to_gt(dev_priv)->reset.flags, I915_RESET_MODESET);
 
 	if (atomic_read(&dev_priv->gpu_error.pending_fb_pin)) {
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "Modeset potentially stuck, unbreaking through wedging\n");
 		intel_gt_set_wedged(to_gt(dev_priv));
 	}
@@ -49,10 +52,10 @@ void intel_display_reset_prepare(struct drm_i915_private *dev_priv)
 	 * Need mode_config.mutex so that we don't
 	 * trample ongoing ->detect() and whatnot.
 	 */
-	mutex_lock(&dev_priv->drm.mode_config.mutex);
+	mutex_lock(&display->drm->mode_config.mutex);
 	drm_modeset_acquire_init(ctx, 0);
 	while (1) {
-		ret = drm_modeset_lock_all_ctx(&dev_priv->drm, ctx);
+		ret = drm_modeset_lock_all_ctx(display->drm, ctx);
 		if (ret != -EDEADLK)
 			break;
 
@@ -62,34 +65,34 @@ void intel_display_reset_prepare(struct drm_i915_private *dev_priv)
 	 * Disabling the crtcs gracefully seems nicer. Also the
 	 * g33 docs say we should at least disable all the planes.
 	 */
-	state = drm_atomic_helper_duplicate_state(&dev_priv->drm, ctx);
+	state = drm_atomic_helper_duplicate_state(display->drm, ctx);
 	if (IS_ERR(state)) {
 		ret = PTR_ERR(state);
-		drm_err(&dev_priv->drm, "Duplicating state failed with %i\n",
+		drm_err(display->drm, "Duplicating state failed with %i\n",
 			ret);
 		return;
 	}
 
-	ret = drm_atomic_helper_disable_all(&dev_priv->drm, ctx);
+	ret = drm_atomic_helper_disable_all(display->drm, ctx);
 	if (ret) {
-		drm_err(&dev_priv->drm, "Suspending crtc's failed with %i\n",
+		drm_err(display->drm, "Suspending crtc's failed with %i\n",
 			ret);
 		drm_atomic_state_put(state);
 		return;
 	}
 
-	dev_priv->display.restore.modeset_state = state;
+	display->restore.modeset_state = state;
 	state->acquire_ctx = ctx;
 }
 
-void intel_display_reset_finish(struct drm_i915_private *i915)
+void intel_display_reset_finish(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_modeset_acquire_ctx *ctx = &display->restore.reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
 
-	if (!HAS_DISPLAY(i915))
+	if (!HAS_DISPLAY(display))
 		return;
 
 	/* reset doesn't touch the display */
@@ -101,12 +104,12 @@ void intel_display_reset_finish(struct drm_i915_private *i915)
 		goto unlock;
 
 	/* reset doesn't touch the display */
-	if (!gpu_reset_clobbers_display(i915)) {
+	if (!gpu_reset_clobbers_display(display)) {
 		/* for testing only restore the display */
 		ret = drm_atomic_helper_commit_duplicated_state(state, ctx);
 		if (ret) {
-			drm_WARN_ON(&i915->drm, ret == -EDEADLK);
-			drm_err(&i915->drm,
+			drm_WARN_ON(display->drm, ret == -EDEADLK);
+			drm_err(display->drm,
 				"Restoring old state failed with %i\n", ret);
 		}
 	} else {
@@ -122,7 +125,7 @@ void intel_display_reset_finish(struct drm_i915_private *i915)
 
 		ret = __intel_display_driver_resume(display, state, ctx);
 		if (ret)
-			drm_err(&i915->drm,
+			drm_err(display->drm,
 				"Restoring old state failed with %i\n", ret);
 
 		intel_hpd_poll_disable(i915);
@@ -132,7 +135,7 @@ void intel_display_reset_finish(struct drm_i915_private *i915)
 unlock:
 	drm_modeset_drop_locks(ctx);
 	drm_modeset_acquire_fini(ctx);
-	mutex_unlock(&i915->drm.mode_config.mutex);
+	mutex_unlock(&display->drm->mode_config.mutex);
 
 	clear_bit_unlock(I915_RESET_MODESET, &to_gt(i915)->reset.flags);
 }
