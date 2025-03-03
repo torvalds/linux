@@ -535,6 +535,7 @@ int udl_modeset_init(struct drm_device *dev)
 		return ret;
 
 	drm_mode_config_reset(dev);
+	drmm_kms_helper_poll_init(dev);
 
 	return 0;
 }

@@ -341,8 +341,6 @@ int udl_init(struct udl_device *udl)
 	if (ret)
 		goto err;
 
-	drm_kms_helper_poll_init(dev);
-
 	return 0;
 
 err:
