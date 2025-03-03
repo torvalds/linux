@@ -2018,6 +2018,7 @@ static int ub960_init_tx_ports_ub960(struct ub960_data *priv)
 static int ub960_init_tx_ports_ub9702(struct ub960_data *priv)
 {
 	u8 speed_select;
+	u8 ana_pll_div;
 	u8 pll_div;
 	int ret = 0;
 
@@ -2025,47 +2026,40 @@ static int ub960_init_tx_ports_ub9702(struct ub960_data *priv)
 	case MHZ(400):
 		speed_select = 3;
 		pll_div = 0x10;
+		ana_pll_div = 0xa2;
 		break;
 	case MHZ(800):
 		speed_select = 2;
 		pll_div = 0x10;
+		ana_pll_div = 0x92;
 		break;
 	case MHZ(1200):
 		speed_select = 1;
 		pll_div = 0x18;
+		ana_pll_div = 0x90;
+		break;
+	case MHZ(1500):
+		speed_select = 0;
+		pll_div = 0x0f;
+		ana_pll_div = 0x82;
 		break;
 	case MHZ(1600):
 	default:
 		speed_select = 0;
 		pll_div = 0x10;
+		ana_pll_div = 0x82;
+		break;
+	case MHZ(2500):
+		speed_select = 0x10;
+		pll_div = 0x19;
+		ana_pll_div = 0x80;
 		break;
 	}
 
 	ub960_write(priv, UB960_SR_CSI_PLL_CTL, speed_select, &ret);
-
 	ub960_write(priv, UB9702_SR_CSI_PLL_DIV, pll_div, &ret);
-
-	switch (priv->tx_data_rate) {
-	case MHZ(1600):
-	default:
-		ub960_write_ind(priv, UB960_IND_TARGET_CSI_ANA, 0x92, 0x80,
-				&ret);
-		ub960_write_ind(priv, UB960_IND_TARGET_CSI_ANA, 0x4b, 0x2a,
-				&ret);
-		break;
-	case MHZ(800):
-		ub960_write_ind(priv, UB960_IND_TARGET_CSI_ANA, 0x92, 0x90,
-				&ret);
-		ub960_write_ind(priv, UB960_IND_TARGET_CSI_ANA, 0x4f, 0x2a,
-				&ret);
-		ub960_write_ind(priv, UB960_IND_TARGET_CSI_ANA, 0x4b, 0x2a,
-				&ret);
-		break;
-	case MHZ(400):
-		ub960_write_ind(priv, UB960_IND_TARGET_CSI_ANA, 0x92, 0xa0,
-				&ret);
-		break;
-	}
+	ub960_write_ind(priv, UB960_IND_TARGET_CSI_ANA,
+			UB9702_IR_CSI_ANA_CSIPLL_REG_1, ana_pll_div, &ret);
 
 	return ret;
 }
