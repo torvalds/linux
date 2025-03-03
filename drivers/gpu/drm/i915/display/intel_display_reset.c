@@ -38,11 +38,6 @@ bool intel_display_reset_prepare(struct intel_display *display)
 	if (!HAS_DISPLAY(display))
 		return false;
 
-	/* reset doesn't touch the display */
-	if (!intel_display_reset_test(display) &&
-	    !gpu_reset_clobbers_display(display))
-		return false;
-
 	if (atomic_read(&display->restore.pending_fb_pin)) {
 		drm_dbg_kms(display->drm,
 			    "Modeset potentially stuck, unbreaking through wedging\n");

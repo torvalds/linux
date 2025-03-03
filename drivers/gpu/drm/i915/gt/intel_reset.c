@@ -1422,9 +1422,17 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 	intel_wedge_on_timeout(&w, gt, 60 * HZ) {
 		struct drm_i915_private *i915 = gt->i915;
 		struct intel_display *display = &i915->display;
+		bool need_display_reset;
 		bool reset_display;
 
-		reset_display = intel_display_reset_prepare(display);
+		need_display_reset = intel_gt_gpu_reset_clobbers_display(gt) &&
+			intel_has_gpu_reset(gt);
+
+		reset_display = intel_display_reset_test(display) ||
+			need_display_reset;
+
+		if (reset_display)
+			reset_display = intel_display_reset_prepare(display);
 
 		intel_gt_reset(gt, engine_mask, reason);
 
