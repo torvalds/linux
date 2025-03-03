@@ -27,7 +27,8 @@ bool intel_display_reset_test(struct intel_display *display)
 	return display->params.force_reset_modeset_test;
 }
 
-void intel_display_reset_prepare(struct intel_display *display)
+/* returns true if intel_display_reset_finish() needs to be called */
+bool intel_display_reset_prepare(struct intel_display *display)
 {
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct drm_modeset_acquire_ctx *ctx = &display->restore.reset_ctx;
@@ -35,17 +36,12 @@ void intel_display_reset_prepare(struct intel_display *display)
 	int ret;
 
 	if (!HAS_DISPLAY(display))
-		return;
+		return false;
 
 	/* reset doesn't touch the display */
 	if (!intel_display_reset_test(display) &&
 	    !gpu_reset_clobbers_display(display))
-		return;
-
-	/* We have a modeset vs reset deadlock, defensively unbreak it. */
-	set_bit(I915_RESET_MODESET, &to_gt(dev_priv)->reset.flags);
-	smp_mb__after_atomic();
-	wake_up_bit(&to_gt(dev_priv)->reset.flags, I915_RESET_MODESET);
+		return false;
 
 	if (atomic_read(&display->restore.pending_fb_pin)) {
 		drm_dbg_kms(display->drm,
@@ -75,7 +71,7 @@ void intel_display_reset_prepare(struct intel_display *display)
 		ret = PTR_ERR(state);
 		drm_err(display->drm, "Duplicating state failed with %i\n",
 			ret);
-		return;
+		return true;
 	}
 
 	ret = drm_atomic_helper_disable_all(display->drm, ctx);
@@ -83,11 +79,13 @@ void intel_display_reset_prepare(struct intel_display *display)
 		drm_err(display->drm, "Suspending crtc's failed with %i\n",
 			ret);
 		drm_atomic_state_put(state);
-		return;
+		return true;
 	}
 
 	display->restore.modeset_state = state;
 	state->acquire_ctx = ctx;
+
+	return true;
 }
 
 void intel_display_reset_finish(struct intel_display *display)
@@ -98,10 +96,6 @@ void intel_display_reset_finish(struct intel_display *display)
 	int ret;
 
 	if (!HAS_DISPLAY(display))
-		return;
-
-	/* reset doesn't touch the display */
-	if (!test_bit(I915_RESET_MODESET, &to_gt(i915)->reset.flags))
 		return;
 
 	state = fetch_and_zero(&display->restore.modeset_state);
@@ -141,6 +135,4 @@ unlock:
 	drm_modeset_drop_locks(ctx);
 	drm_modeset_acquire_fini(ctx);
 	mutex_unlock(&display->drm->mode_config.mutex);
-
-	clear_bit_unlock(I915_RESET_MODESET, &to_gt(i915)->reset.flags);
 }

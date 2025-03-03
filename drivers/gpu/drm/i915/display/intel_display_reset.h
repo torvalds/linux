@@ -11,7 +11,7 @@
 struct intel_display;
 
 bool intel_display_reset_test(struct intel_display *display);
-void intel_display_reset_prepare(struct intel_display *display);
+bool intel_display_reset_prepare(struct intel_display *display);
 void intel_display_reset_finish(struct intel_display *display);
 
 #endif /* __INTEL_RESET_H__ */
