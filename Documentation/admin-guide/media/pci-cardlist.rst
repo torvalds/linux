@@ -86,7 +86,6 @@ saa7134           Philips SAA7134
 saa7164           NXP SAA7164
 smipcie           SMI PCIe DVBSky cards
 solo6x10          Bluecherry / Softlogic 6x10 capture cards (MPEG-4/H.264)
-sta2x11_vip       STA2X11 VIP Video For Linux
 tw5864            Techwell TW5864 video/audio grabber and encoder
 tw686x            Intersil/Techwell TW686x
 tw68              Techwell tw68x Video For Linux
