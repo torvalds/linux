@@ -125,14 +125,16 @@ static int ub913_read(const struct ub913_data *priv, u8 reg, u8 *val)
 	int ret;
 
 	ret = regmap_read(priv->regmap, reg, &v);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&priv->client->dev,
 			"Cannot read register 0x%02x: %d!\n", reg, ret);
-		return ret;
+		goto out;
 	}
 
 	*val = v;
-	return 0;
+
+out:
+	return ret;
 }
 
 static int ub913_write(const struct ub913_data *priv, u8 reg, u8 val)
