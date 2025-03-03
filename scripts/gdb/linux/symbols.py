@@ -14,6 +14,7 @@
 import gdb
 import os
 import re
+import struct
 
 from itertools import count
 from linux import modules, utils, constants
@@ -52,6 +53,29 @@ if hasattr(gdb, 'Breakpoint'):
             gdb.execute("set pagination %s" % ("on" if pagination else "off"))
 
             return False
+
+
+def get_vmcore_s390():
+    with utils.qemu_phy_mem_mode():
+        vmcore_info = 0x0e0c
+        paddr_vmcoreinfo_note = gdb.parse_and_eval("*(unsigned long long *)" +
+                                                   hex(vmcore_info))
+        inferior = gdb.selected_inferior()
+        elf_note = inferior.read_memory(paddr_vmcoreinfo_note, 12)
+        n_namesz, n_descsz, n_type = struct.unpack(">III", elf_note)
+        desc_paddr = paddr_vmcoreinfo_note + len(elf_note) + n_namesz + 1
+        return gdb.parse_and_eval("(char *)" + hex(desc_paddr)).string()
+
+
+def get_kerneloffset():
+    if utils.is_target_arch('s390'):
+        try:
+            vmcore_str = get_vmcore_s390()
+        except gdb.error as e:
+            gdb.write("{}\n".format(e))
+            return None
+        return utils.parse_vmcore(vmcore_str).kerneloffset
+    return None
 
 
 class LxSymbols(gdb.Command):
@@ -160,7 +184,12 @@ lx-symbols command."""
                 obj.filename.endswith('vmlinux.debug')):
                 orig_vmlinux = obj.filename
         gdb.execute("symbol-file", to_string=True)
-        gdb.execute("symbol-file {0}".format(orig_vmlinux))
+        kerneloffset = get_kerneloffset()
+        if kerneloffset is None:
+            offset_arg = ""
+        else:
+            offset_arg = " -o " + hex(kerneloffset)
+        gdb.execute("symbol-file {0}{1}".format(orig_vmlinux, offset_arg))
 
         self.loaded_modules = []
         module_list = modules.module_list()
