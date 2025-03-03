@@ -155,6 +155,26 @@ _add_ublk_dev() {
 	echo "${dev_id}"
 }
 
+# kill the ublk daemon and return ublk device state
+__ublk_kill_daemon()
+{
+	local dev_id=$1
+	local exp_state=$2
+	local daemon_pid
+	local state
+
+	daemon_pid=$(_get_ublk_daemon_pid "${dev_id}")
+	state=$(_get_ublk_dev_state "${dev_id}")
+
+	for ((j=0;j<50;j++)); do
+		[ "$state" == "$exp_state" ] && break
+		kill -9 "$daemon_pid" > /dev/null 2>&1
+		sleep 1
+		state=$(_get_ublk_dev_state "${dev_id}")
+	done
+	echo "$state"
+}
+
 __remove_ublk_dev_return() {
 	local dev_id=$1
 
@@ -168,11 +188,20 @@ __run_io_and_remove()
 {
 	local dev_id=$1
 	local size=$2
+	local kill_server=$3
 
 	fio --name=job1 --filename=/dev/ublkb"${dev_id}" --ioengine=libaio \
 		--rw=readwrite --iodepth=64 --size="${size}" --numjobs=4 \
 		--runtime=20 --time_based > /dev/null 2>&1 &
 	sleep 2
+	if [ "${kill_server}" = "yes" ]; then
+		local state
+		state=$(__ublk_kill_daemon "${dev_id}" "DEAD")
+		if [ "$state" != "DEAD" ]; then
+			echo "device isn't dead($state) after killing daemon"
+			return 255
+		fi
+	fi
 	if ! __remove_ublk_dev_return "${dev_id}"; then
 		echo "delete dev ${dev_id} failed"
 		return 255
