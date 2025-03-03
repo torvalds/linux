@@ -691,13 +691,14 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 	return ret;
 }
 
-static int wait_ublk_dev(char *dev_name, int evt_mask, unsigned timeout)
+static int wait_ublk_dev(const char *path, int evt_mask, unsigned timeout)
 {
 #define EV_SIZE (sizeof(struct inotify_event))
 #define EV_BUF_LEN (128 * (EV_SIZE + 16))
 	struct pollfd pfd;
 	int fd, wd;
 	int ret = -EINVAL;
+	const char *dev_name = basename(path);
 
 	fd = inotify_init();
 	if (fd < 0) {
@@ -761,18 +762,23 @@ static int ublk_stop_io_daemon(const struct ublk_dev *dev)
 	char ublkc[64];
 	int ret = 0;
 
+	if (daemon_pid < 0)
+		return 0;
+
 	/* daemon may be dead already */
 	if (kill(daemon_pid, 0) < 0)
 		goto wait;
 
-	/*
-	 * Wait until ublk char device is closed, when our daemon is shutdown
-	 */
-	snprintf(ublkc, sizeof(ublkc), "%s%d", "ublkc", dev_id);
-	ret = wait_ublk_dev(ublkc, IN_CLOSE_WRITE, 10);
-	/* double check and inotify may not be 100% reliable */
+	snprintf(ublkc, sizeof(ublkc), "/dev/%s%d", "ublkc", dev_id);
+
+	/* ublk char device may be gone already */
+	if (access(ublkc, F_OK) != 0)
+		goto wait;
+
+	/* Wait until ublk char device is closed, when the daemon is shutdown */
+	ret = wait_ublk_dev(ublkc, IN_CLOSE, 10);
+	/* double check and since it may be closed before starting inotify */
 	if (ret == -ETIMEDOUT)
-		/* the daemon doesn't exist now if kill(0) fails */
 		ret = kill(daemon_pid, 0) < 0;
 wait:
 	waitpid(daemon_pid, NULL, 0);
@@ -910,8 +916,6 @@ static int __cmd_dev_del(struct dev_ctx *ctx)
 				__func__, dev->dev_info.ublksrv_pid, number, ret);
 	ublk_ctrl_del_dev(dev);
 fail:
-	if (ret >= 0)
-		ret = ublk_ctrl_get_info(dev);
 	ublk_ctrl_deinit(dev);
 
 	return (ret >= 0) ? 0 : ret;
