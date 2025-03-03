@@ -64,6 +64,7 @@ _check_root() {
 
 _remove_ublk_devices() {
 	${UBLK_PROG} del -a
+	modprobe -r ublk_drv
 }
 
 _get_ublk_dev_state() {
@@ -78,6 +79,7 @@ _prep_test() {
 	_check_root
 	local type=$1
 	shift 1
+	modprobe ublk_drv
 	echo "ublk $type: $*"
 }
 
@@ -131,6 +133,9 @@ _add_ublk_dev() {
 	local kublk_temp;
 	local dev_id;
 
+	if [ ! -c /dev/ublk-control ]; then
+		return ${UBLK_SKIP_CODE}
+	fi
 	if echo "$@" | grep -q "\-z"; then
 		if ! _have_feature "ZERO_COPY"; then
 			return ${UBLK_SKIP_CODE}
