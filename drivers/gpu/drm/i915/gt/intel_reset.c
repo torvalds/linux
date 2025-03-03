@@ -1403,6 +1403,11 @@ int intel_engine_reset(struct intel_engine_cs *engine, const char *msg)
 	return err;
 }
 
+static void display_reset_modeset_stuck(void *gt)
+{
+	intel_gt_set_wedged(gt);
+}
+
 static void intel_gt_reset_global(struct intel_gt *gt,
 				  u32 engine_mask,
 				  const char *reason)
@@ -1432,7 +1437,9 @@ static void intel_gt_reset_global(struct intel_gt *gt,
 			need_display_reset;
 
 		if (reset_display)
-			reset_display = intel_display_reset_prepare(display);
+			reset_display = intel_display_reset_prepare(display,
+								    display_reset_modeset_stuck,
+								    gt);
 
 		intel_gt_reset(gt, engine_mask, reason);
 
