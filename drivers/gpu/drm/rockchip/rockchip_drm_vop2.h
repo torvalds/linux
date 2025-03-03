@@ -44,6 +44,13 @@ enum win_dly_mode {
 	VOP2_DLY_MODE_MAX,
 };
 
+enum vop2_dly_module {
+	VOP2_DLY_WIN,           /** Win delay cycle for this VP */
+	VOP2_DLY_LAYER_MIX,     /** Layer Mix delay cycle for this VP */
+	VOP2_DLY_HDR_MIX,       /** HDR delay cycle for this VP */
+	VOP2_DLY_MAX,
+};
+
 enum vop2_scale_up_mode {
 	VOP2_SCALE_UP_NRST_NBOR,
 	VOP2_SCALE_UP_BIL,
@@ -140,16 +147,22 @@ enum vop2_win_regs {
 	VOP2_WIN_AFBC_UV_SWAP,
 	VOP2_WIN_AFBC_AUTO_GATING_EN,
 	VOP2_WIN_AFBC_BLOCK_SPLIT_EN,
+	VOP2_WIN_AFBC_PLD_OFFSET_EN,
 	VOP2_WIN_AFBC_PIC_VIR_WIDTH,
 	VOP2_WIN_AFBC_TILE_NUM,
 	VOP2_WIN_AFBC_PIC_OFFSET,
 	VOP2_WIN_AFBC_PIC_SIZE,
 	VOP2_WIN_AFBC_DSP_OFFSET,
+	VOP2_WIN_AFBC_PLD_OFFSET,
 	VOP2_WIN_TRANSFORM_OFFSET,
 	VOP2_WIN_AFBC_HDR_PTR,
 	VOP2_WIN_AFBC_HALF_BLOCK_EN,
 	VOP2_WIN_AFBC_ROTATE_270,
 	VOP2_WIN_AFBC_ROTATE_90,
+
+	VOP2_WIN_VP_SEL,
+	VOP2_WIN_DLY_NUM,
+
 	VOP2_WIN_MAX_REG,
 };
 
@@ -215,6 +228,10 @@ struct vop2_video_port_data {
 	struct vop_rect max_output;
 	const u8 pre_scan_max_dly[4];
 	unsigned int offset;
+	/**
+	 * @pixel_rate: pixel per cycle
+	 */
+	u8 pixel_rate;
 };
 
 struct vop2_video_port {
@@ -375,10 +392,13 @@ enum dst_factor_mode {
 #define RK3568_REG_CFG_DONE			0x000
 #define RK3568_VERSION_INFO			0x004
 #define RK3568_SYS_AUTO_GATING_CTRL		0x008
+#define RK3576_SYS_MMU_CTRL_IMD			0x020
 #define RK3568_SYS_AXI_LUT_CTRL			0x024
 #define RK3568_DSP_IF_EN			0x028
+#define RK3576_SYS_PORT_CTRL_IMD		0x028
 #define RK3568_DSP_IF_CTRL			0x02c
 #define RK3568_DSP_IF_POL			0x030
+#define RK3576_SYS_CLUSTER_PD_CTRL_IMD		0x030
 #define RK3588_SYS_PD_CTRL			0x034
 #define RK3568_WB_CTRL				0x40
 #define RK3568_WB_XSCAL_FACTOR			0x44
@@ -398,6 +418,55 @@ enum dst_factor_mode {
 #define RK3568_VP_INT_CLR(vp)			(0xA4 + (vp) * 0x10)
 #define RK3568_VP_INT_STATUS(vp)		(0xA8 + (vp) * 0x10)
 #define RK3568_VP_INT_RAW_STATUS(vp)		(0xAC + (vp) * 0x10)
+#define RK3576_WB_CTRL				0x100
+#define RK3576_WB_XSCAL_FACTOR			0x104
+#define RK3576_WB_YRGB_MST			0x108
+#define RK3576_WB_CBR_MST			0x10C
+#define RK3576_WB_VIR_STRIDE			0x110
+#define RK3576_WB_TIMEOUT_CTRL			0x114
+#define RK3576_MIPI0_IF_CTRL			0x180
+#define RK3576_HDMI0_IF_CTRL			0x184
+#define RK3576_EDP0_IF_CTRL			0x188
+#define RK3576_DP0_IF_CTRL			0x18C
+#define RK3576_RGB_IF_CTRL			0x194
+#define RK3576_DP1_IF_CTRL			0x1A4
+#define RK3576_DP2_IF_CTRL			0x1B0
+
+/* Extra OVL register definition */
+#define RK3576_SYS_EXTRA_ALPHA_CTRL		0x500
+#define RK3576_CLUSTER0_MIX_SRC_COLOR_CTRL	0x530
+#define RK3576_CLUSTER0_MIX_DST_COLOR_CTRL	0x534
+#define RK3576_CLUSTER0_MIX_SRC_ALPHA_CTRL	0x538
+#define RK3576_CLUSTER0_MIX_DST_ALPHA_CTRL	0x53c
+#define RK3576_CLUSTER1_MIX_SRC_COLOR_CTRL	0x540
+#define RK3576_CLUSTER1_MIX_DST_COLOR_CTRL	0x544
+#define RK3576_CLUSTER1_MIX_SRC_ALPHA_CTRL	0x548
+#define RK3576_CLUSTER1_MIX_DST_ALPHA_CTRL	0x54c
+
+/* OVL registers for Video Port definition */
+#define RK3576_OVL_CTRL(vp)			(0x600 + (vp) * 0x100)
+#define RK3576_OVL_LAYER_SEL(vp)		(0x604 + (vp) * 0x100)
+#define RK3576_OVL_MIX0_SRC_COLOR_CTRL(vp)	(0x620 + (vp) * 0x100)
+#define RK3576_OVL_MIX0_DST_COLOR_CTRL(vp)	(0x624 + (vp) * 0x100)
+#define RK3576_OVL_MIX0_SRC_ALPHA_CTRL(vp)	(0x628 + (vp) * 0x100)
+#define RK3576_OVL_MIX0_DST_ALPHA_CTRL(vp)	(0x62C + (vp) * 0x100)
+#define RK3576_OVL_MIX1_SRC_COLOR_CTRL(vp)	(0x630 + (vp) * 0x100)
+#define RK3576_OVL_MIX1_DST_COLOR_CTRL(vp)	(0x634 + (vp) * 0x100)
+#define RK3576_OVL_MIX1_SRC_ALPHA_CTRL(vp)	(0x638 + (vp) * 0x100)
+#define RK3576_OVL_MIX1_DST_ALPHA_CTRL(vp)	(0x63C + (vp) * 0x100)
+#define RK3576_OVL_MIX2_SRC_COLOR_CTRL(vp)	(0x640 + (vp) * 0x100)
+#define RK3576_OVL_MIX2_DST_COLOR_CTRL(vp)	(0x644 + (vp) * 0x100)
+#define RK3576_OVL_MIX2_SRC_ALPHA_CTRL(vp)	(0x648 + (vp) * 0x100)
+#define RK3576_OVL_MIX2_DST_ALPHA_CTRL(vp)	(0x64C + (vp) * 0x100)
+#define RK3576_EXTRA_OVL_SRC_COLOR_CTRL(vp)	(0x650 + (vp) * 0x100)
+#define RK3576_EXTRA_OVL_DST_COLOR_CTRL(vp)	(0x654 + (vp) * 0x100)
+#define RK3576_EXTRA_OVL_SRC_ALPHA_CTRL(vp)	(0x658 + (vp) * 0x100)
+#define RK3576_EXTRA_OVL_DST_ALPHA_CTRL(vp)	(0x65C + (vp) * 0x100)
+#define RK3576_OVL_HDR_SRC_COLOR_CTRL(vp)	(0x660 + (vp) * 0x100)
+#define RK3576_OVL_HDR_DST_COLOR_CTRL(vp)	(0x664 + (vp) * 0x100)
+#define RK3576_OVL_HDR_SRC_ALPHA_CTRL(vp)	(0x668 + (vp) * 0x100)
+#define RK3576_OVL_HDR_DST_ALPHA_CTRL(vp)	(0x66C + (vp) * 0x100)
+#define RK3576_OVL_BG_MIX_CTRL(vp)		(0x670 + (vp) * 0x100)
 
 /* Video Port registers definition */
 #define RK3568_VP0_CTRL_BASE			0x0C00
@@ -480,7 +549,11 @@ enum dst_factor_mode {
 #define RK3568_CLUSTER_WIN_AFBCD_DSP_OFFSET	0x68
 #define RK3568_CLUSTER_WIN_AFBCD_CTRL		0x6C
 
+#define RK3576_CLUSTER_WIN_AFBCD_PLD_PTR_OFFSET	0x78
+
 #define RK3568_CLUSTER_CTRL			0x100
+#define RK3576_CLUSTER_PORT_SEL_IMD		0x1F4
+#define RK3576_CLUSTER_DLY_NUM			0x1F8
 
 /* (E)smart register definition, offset relative to window base */
 #define RK3568_SMART_CTRL0			0x00
@@ -531,6 +604,9 @@ enum dst_factor_mode {
 #define RK3568_SMART_REGION3_SCL_FACTOR_CBR	0xC8
 #define RK3568_SMART_REGION3_SCL_OFFSET		0xCC
 #define RK3568_SMART_COLOR_KEY_CTRL		0xD0
+#define RK3576_SMART_ALPHA_MAP			0xD8
+#define RK3576_SMART_PORT_SEL_IMD		0xF4
+#define RK3576_SMART_DLY_NUM			0xF8
 
 /* HDR register definition */
 #define RK3568_HDR_LUT_CTRL			0x2000
@@ -678,6 +754,17 @@ enum dst_factor_mode {
 #define VP_INT_FS		BIT(0)
 
 #define POLFLAG_DCLK_INV	BIT(3)
+
+#define RK3576_OVL_CTRL__YUV_MODE			BIT(0)
+#define RK3576_OVL_BG_MIX_CTRL__BG_DLY			GENMASK(31, 24)
+
+#define RK3576_DSP_IF_CFG_DONE_IMD			BIT(31)
+#define RK3576_DSP_IF_DCLK_SEL_OUT			BIT(21)
+#define RK3576_DSP_IF_PCLK_DIV				BIT(20)
+#define RK3576_DSP_IF_PIN_POL				GENMASK(5, 4)
+#define RK3576_DSP_IF_MUX				GENMASK(3, 2)
+#define RK3576_DSP_IF_CLK_OUT_EN			BIT(1)
+#define RK3576_DSP_IF_EN				BIT(0)
 
 enum vop2_layer_phy_id {
 	ROCKCHIP_VOP2_CLUSTER0 = 0,
