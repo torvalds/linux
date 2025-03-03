@@ -2,6 +2,13 @@
  GPU Debugging
 ===============
 
+General Debugging Options
+=========================
+
+The DebugFS section provides documentation on a number files to aid in debugging
+issues on the GPU.
+
+
 GPUVM Debugging
 ===============
 
