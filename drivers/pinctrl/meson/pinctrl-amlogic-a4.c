@@ -775,7 +775,7 @@ static int aml_gpio_get_direction(struct gpio_chip *chip, unsigned int gpio)
 	if (ret)
 		return ret;
 
-	return BIT(bit) & val ? GPIO_LINE_DIRECTION_OUT : GPIO_LINE_DIRECTION_IN;
+	return BIT(bit) & val ? GPIO_LINE_DIRECTION_IN : GPIO_LINE_DIRECTION_OUT;
 }
 
 static int aml_gpio_direction_input(struct gpio_chip *chip, unsigned int gpio)
@@ -785,7 +785,7 @@ static int aml_gpio_direction_input(struct gpio_chip *chip, unsigned int gpio)
 
 	aml_gpio_calc_reg_and_bit(bank, AML_REG_DIR, gpio, &reg, &bit);
 
-	return regmap_update_bits(bank->reg_gpio, reg, BIT(bit), 0);
+	return regmap_update_bits(bank->reg_gpio, reg, BIT(bit), BIT(bit));
 }
 
 static int aml_gpio_direction_output(struct gpio_chip *chip, unsigned int gpio,
@@ -796,7 +796,7 @@ static int aml_gpio_direction_output(struct gpio_chip *chip, unsigned int gpio,
 	int ret;
 
 	aml_gpio_calc_reg_and_bit(bank, AML_REG_DIR, gpio, &reg, &bit);
-	ret = regmap_update_bits(bank->reg_gpio, reg, BIT(bit), BIT(bit));
+	ret = regmap_update_bits(bank->reg_gpio, reg, BIT(bit), 0);
 	if (ret < 0)
 		return ret;
 
