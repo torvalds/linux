@@ -16534,7 +16534,7 @@ static int nl80211_assoc_ml_reconf(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	err = cfg80211_assoc_ml_reconf(rdev, dev, links, rem_links);
+	err = -EOPNOTSUPP;
 
 out:
 	for (link_id = 0; link_id < ARRAY_SIZE(links); link_id++)
