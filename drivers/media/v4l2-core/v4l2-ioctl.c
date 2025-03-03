@@ -310,8 +310,8 @@ static void v4l_print_format(const void *arg, bool write_only)
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
 		win = &p->fmt.win;
-		pr_cont(", wxh=%dx%d, x,y=%d,%d, field=%s, chromakey=0x%08x, global_alpha=0x%02x\n",
-			win->w.width, win->w.height, win->w.left, win->w.top,
+		pr_cont(", (%d,%d)/%ux%u, field=%s, chromakey=0x%08x, global_alpha=0x%02x\n",
+			win->w.left, win->w.top, win->w.width, win->w.height,
 			prt_names(win->field, v4l2_field_names),
 			win->chromakey, win->global_alpha);
 		break;
@@ -589,12 +589,12 @@ static void v4l_print_cropcap(const void *arg, bool write_only)
 {
 	const struct v4l2_cropcap *p = arg;
 
-	pr_cont("type=%s, bounds wxh=%dx%d, x,y=%d,%d, defrect wxh=%dx%d, x,y=%d,%d, pixelaspect %d/%d\n",
+	pr_cont("type=%s, bounds (%d,%d)/%ux%u, defrect (%d,%d)/%ux%u, pixelaspect %d/%d\n",
 		prt_names(p->type, v4l2_type_names),
-		p->bounds.width, p->bounds.height,
 		p->bounds.left, p->bounds.top,
-		p->defrect.width, p->defrect.height,
+		p->bounds.width, p->bounds.height,
 		p->defrect.left, p->defrect.top,
+		p->defrect.width, p->defrect.height,
 		p->pixelaspect.numerator, p->pixelaspect.denominator);
 }
 
@@ -602,20 +602,20 @@ static void v4l_print_crop(const void *arg, bool write_only)
 {
 	const struct v4l2_crop *p = arg;
 
-	pr_cont("type=%s, wxh=%dx%d, x,y=%d,%d\n",
+	pr_cont("type=%s, crop=(%d,%d)/%ux%u\n",
 		prt_names(p->type, v4l2_type_names),
-		p->c.width, p->c.height,
-		p->c.left, p->c.top);
+		p->c.left, p->c.top,
+		p->c.width, p->c.height);
 }
 
 static void v4l_print_selection(const void *arg, bool write_only)
 {
 	const struct v4l2_selection *p = arg;
 
-	pr_cont("type=%s, target=%d, flags=0x%x, wxh=%dx%d, x,y=%d,%d\n",
+	pr_cont("type=%s, target=%d, flags=0x%x, rect=(%d,%d)/%ux%u\n",
 		prt_names(p->type, v4l2_type_names),
 		p->target, p->flags,
-		p->r.width, p->r.height, p->r.left, p->r.top);
+		p->r.left, p->r.top, p->r.width, p->r.height);
 }
 
 static void v4l_print_jpegcompression(const void *arg, bool write_only)
