@@ -5230,6 +5230,7 @@ const struct pci_reset_fn_method pci_reset_fn_methods[] = {
 int __pci_reset_function_locked(struct pci_dev *dev)
 {
 	int i, m, rc;
+	const struct pci_reset_fn_method *method;
 
 	might_sleep();
 
@@ -5246,9 +5247,13 @@ int __pci_reset_function_locked(struct pci_dev *dev)
 		if (!m)
 			return -ENOTTY;
 
-		rc = pci_reset_fn_methods[m].reset_fn(dev, PCI_RESET_DO_RESET);
+		method = &pci_reset_fn_methods[m];
+		pci_dbg(dev, "reset via %s\n", method->name);
+		rc = method->reset_fn(dev, PCI_RESET_DO_RESET);
 		if (!rc)
 			return 0;
+
+		pci_dbg(dev, "%s failed with %d\n", method->name, rc);
 		if (rc != -ENOTTY)
 			return rc;
 	}
