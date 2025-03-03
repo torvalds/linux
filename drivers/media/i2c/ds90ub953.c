@@ -633,23 +633,33 @@ static int ub953_log_status(struct v4l2_subdev *sd)
 {
 	struct ub953_data *priv = sd_to_ub953(sd);
 	struct device *dev = &priv->client->dev;
-	u8 v = 0, v1 = 0, v2 = 0;
-	unsigned int i;
 	char id[UB953_REG_FPD3_RX_ID_LEN];
-	u8 gpio_local_data = 0;
-	u8 gpio_input_ctrl = 0;
-	u8 gpio_pin_sts = 0;
+	u8 gpio_local_data;
+	u8 gpio_input_ctrl;
+	u8 gpio_pin_sts;
+	unsigned int i;
+	u8 v, v1, v2;
+	int ret;
 
-	for (i = 0; i < sizeof(id); i++)
-		ub953_read(priv, UB953_REG_FPD3_RX_ID(i), &id[i], NULL);
+	for (i = 0; i < sizeof(id); i++) {
+		ret = ub953_read(priv, UB953_REG_FPD3_RX_ID(i), &id[i], NULL);
+		if (ret)
+			return ret;
+	}
 
 	dev_info(dev, "ID '%.*s'\n", (int)sizeof(id), id);
 
-	ub953_read(priv, UB953_REG_GENERAL_STATUS, &v, NULL);
+	ret = ub953_read(priv, UB953_REG_GENERAL_STATUS, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "GENERAL_STATUS %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CRC_ERR_CNT1, &v1, NULL);
-	ub953_read(priv, UB953_REG_CRC_ERR_CNT2, &v2, NULL);
+	ub953_read(priv, UB953_REG_CRC_ERR_CNT1, &v1, &ret);
+	ub953_read(priv, UB953_REG_CRC_ERR_CNT2, &v2, &ret);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CRC error count %u\n", v1 | (v2 << 8));
 
 	/* Clear CRC error counter */
@@ -658,34 +668,60 @@ static int ub953_log_status(struct v4l2_subdev *sd)
 				   UB953_REG_BC_CTRL_CRC_ERR_CLR,
 				   UB953_REG_BC_CTRL_CRC_ERR_CLR);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_CNT, &v, NULL);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_CNT, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI error count %u\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_STATUS, &v, NULL);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_STATUS, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI_ERR_STATUS %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_DLANE01, &v, NULL);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_DLANE01, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI_ERR_DLANE01 %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_DLANE23, &v, NULL);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_DLANE23, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI_ERR_DLANE23 %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_ERR_CLK_LANE, &v, NULL);
+	ret = ub953_read(priv, UB953_REG_CSI_ERR_CLK_LANE, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI_ERR_CLK_LANE %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_CSI_PKT_HDR_VC_ID, &v, NULL);
+	ret = ub953_read(priv, UB953_REG_CSI_PKT_HDR_VC_ID, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI packet header VC %u ID %u\n", v >> 6, v & 0x3f);
 
-	ub953_read(priv, UB953_REG_PKT_HDR_WC_LSB, &v1, NULL);
-	ub953_read(priv, UB953_REG_PKT_HDR_WC_MSB, &v2, NULL);
+	ub953_read(priv, UB953_REG_PKT_HDR_WC_LSB, &v1, &ret);
+	ub953_read(priv, UB953_REG_PKT_HDR_WC_MSB, &v2, &ret);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI packet header WC %u\n", (v2 << 8) | v1);
 
-	ub953_read(priv, UB953_REG_CSI_ECC, &v, NULL);
+	ret = ub953_read(priv, UB953_REG_CSI_ECC, &v, NULL);
+	if (ret)
+		return ret;
+
 	dev_info(dev, "CSI ECC %#02x\n", v);
 
-	ub953_read(priv, UB953_REG_LOCAL_GPIO_DATA, &gpio_local_data, NULL);
-	ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &gpio_input_ctrl, NULL);
-	ub953_read(priv, UB953_REG_GPIO_PIN_STS, &gpio_pin_sts, NULL);
+	ub953_read(priv, UB953_REG_LOCAL_GPIO_DATA, &gpio_local_data, &ret);
+	ub953_read(priv, UB953_REG_GPIO_INPUT_CTRL, &gpio_input_ctrl, &ret);
+	ub953_read(priv, UB953_REG_GPIO_PIN_STS, &gpio_pin_sts, &ret);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < UB953_NUM_GPIOS; i++) {
 		dev_info(dev,
