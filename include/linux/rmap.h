@@ -13,6 +13,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/memremap.h>
+#include <linux/bit_spinlock.h>
 
 /*
  * The anon_vma heads a list of private "related" vmas, to scan if
@@ -173,6 +174,169 @@ static inline void anon_vma_merge(struct vm_area_struct *vma,
 
 struct anon_vma *folio_get_anon_vma(const struct folio *folio);
 
+#ifdef CONFIG_MM_ID
+static __always_inline void folio_lock_large_mapcount(struct folio *folio)
+{
+	bit_spin_lock(FOLIO_MM_IDS_LOCK_BITNUM, &folio->_mm_ids);
+}
+
+static __always_inline void folio_unlock_large_mapcount(struct folio *folio)
+{
+	__bit_spin_unlock(FOLIO_MM_IDS_LOCK_BITNUM, &folio->_mm_ids);
+}
+
+static inline unsigned int folio_mm_id(const struct folio *folio, int idx)
+{
+	VM_WARN_ON_ONCE(idx != 0 && idx != 1);
+	return folio->_mm_id[idx] & MM_ID_MASK;
+}
+
+static inline void folio_set_mm_id(struct folio *folio, int idx, mm_id_t id)
+{
+	VM_WARN_ON_ONCE(idx != 0 && idx != 1);
+	folio->_mm_id[idx] &= ~MM_ID_MASK;
+	folio->_mm_id[idx] |= id;
+}
+
+static inline void __folio_large_mapcount_sanity_checks(const struct folio *folio,
+		int diff, mm_id_t mm_id)
+{
+	VM_WARN_ON_ONCE(!folio_test_large(folio) || folio_test_hugetlb(folio));
+	VM_WARN_ON_ONCE(diff <= 0);
+	VM_WARN_ON_ONCE(mm_id < MM_ID_MIN || mm_id > MM_ID_MAX);
+
+	/*
+	 * Make sure we can detect at least one complete PTE mapping of the
+	 * folio in a single MM as "exclusively mapped". This is primarily
+	 * a check on 32bit, where we currently reduce the size of the per-MM
+	 * mapcount to a short.
+	 */
+	VM_WARN_ON_ONCE(diff > folio_large_nr_pages(folio));
+	VM_WARN_ON_ONCE(folio_large_nr_pages(folio) - 1 > MM_ID_MAPCOUNT_MAX);
+
+	VM_WARN_ON_ONCE(folio_mm_id(folio, 0) == MM_ID_DUMMY &&
+			folio->_mm_id_mapcount[0] != -1);
+	VM_WARN_ON_ONCE(folio_mm_id(folio, 0) != MM_ID_DUMMY &&
+			folio->_mm_id_mapcount[0] < 0);
+	VM_WARN_ON_ONCE(folio_mm_id(folio, 1) == MM_ID_DUMMY &&
+			folio->_mm_id_mapcount[1] != -1);
+	VM_WARN_ON_ONCE(folio_mm_id(folio, 1) != MM_ID_DUMMY &&
+			folio->_mm_id_mapcount[1] < 0);
+	VM_WARN_ON_ONCE(!folio_mapped(folio) &&
+			folio_test_large_maybe_mapped_shared(folio));
+}
+
+static __always_inline void folio_set_large_mapcount(struct folio *folio,
+		int mapcount, struct vm_area_struct *vma)
+{
+	__folio_large_mapcount_sanity_checks(folio, mapcount, vma->vm_mm->mm_id);
+
+	VM_WARN_ON_ONCE(folio_mm_id(folio, 0) != MM_ID_DUMMY);
+	VM_WARN_ON_ONCE(folio_mm_id(folio, 1) != MM_ID_DUMMY);
+
+	/* Note: mapcounts start at -1. */
+	atomic_set(&folio->_large_mapcount, mapcount - 1);
+	folio->_mm_id_mapcount[0] = mapcount - 1;
+	folio_set_mm_id(folio, 0, vma->vm_mm->mm_id);
+}
+
+static __always_inline void folio_add_large_mapcount(struct folio *folio,
+		int diff, struct vm_area_struct *vma)
+{
+	const mm_id_t mm_id = vma->vm_mm->mm_id;
+	int new_mapcount_val;
+
+	folio_lock_large_mapcount(folio);
+	__folio_large_mapcount_sanity_checks(folio, diff, mm_id);
+
+	new_mapcount_val = atomic_read(&folio->_large_mapcount) + diff;
+	atomic_set(&folio->_large_mapcount, new_mapcount_val);
+
+	/*
+	 * If a folio is mapped more than once into an MM on 32bit, we
+	 * can in theory overflow the per-MM mapcount (although only for
+	 * fairly large folios), turning it negative. In that case, just
+	 * free up the slot and mark the folio "mapped shared", otherwise
+	 * we might be in trouble when unmapping pages later.
+	 */
+	if (folio_mm_id(folio, 0) == mm_id) {
+		folio->_mm_id_mapcount[0] += diff;
+		if (!IS_ENABLED(CONFIG_64BIT) && unlikely(folio->_mm_id_mapcount[0] < 0)) {
+			folio->_mm_id_mapcount[0] = -1;
+			folio_set_mm_id(folio, 0, MM_ID_DUMMY);
+			folio->_mm_ids |= FOLIO_MM_IDS_SHARED_BIT;
+		}
+	} else if (folio_mm_id(folio, 1) == mm_id) {
+		folio->_mm_id_mapcount[1] += diff;
+		if (!IS_ENABLED(CONFIG_64BIT) && unlikely(folio->_mm_id_mapcount[1] < 0)) {
+			folio->_mm_id_mapcount[1] = -1;
+			folio_set_mm_id(folio, 1, MM_ID_DUMMY);
+			folio->_mm_ids |= FOLIO_MM_IDS_SHARED_BIT;
+		}
+	} else if (folio_mm_id(folio, 0) == MM_ID_DUMMY) {
+		folio_set_mm_id(folio, 0, mm_id);
+		folio->_mm_id_mapcount[0] = diff - 1;
+		/* We might have other mappings already. */
+		if (new_mapcount_val != diff - 1)
+			folio->_mm_ids |= FOLIO_MM_IDS_SHARED_BIT;
+	} else if (folio_mm_id(folio, 1) == MM_ID_DUMMY) {
+		folio_set_mm_id(folio, 1, mm_id);
+		folio->_mm_id_mapcount[1] = diff - 1;
+		/* Slot 0 certainly has mappings as well. */
+		folio->_mm_ids |= FOLIO_MM_IDS_SHARED_BIT;
+	}
+	folio_unlock_large_mapcount(folio);
+}
+
+static __always_inline void folio_sub_large_mapcount(struct folio *folio,
+		int diff, struct vm_area_struct *vma)
+{
+	const mm_id_t mm_id = vma->vm_mm->mm_id;
+	int new_mapcount_val;
+
+	folio_lock_large_mapcount(folio);
+	__folio_large_mapcount_sanity_checks(folio, diff, mm_id);
+
+	new_mapcount_val = atomic_read(&folio->_large_mapcount) - diff;
+	atomic_set(&folio->_large_mapcount, new_mapcount_val);
+
+	/*
+	 * There are valid corner cases where we might underflow a per-MM
+	 * mapcount (some mappings added when no slot was free, some mappings
+	 * added once a slot was free), so we always set it to -1 once we go
+	 * negative.
+	 */
+	if (folio_mm_id(folio, 0) == mm_id) {
+		folio->_mm_id_mapcount[0] -= diff;
+		if (folio->_mm_id_mapcount[0] >= 0)
+			goto out;
+		folio->_mm_id_mapcount[0] = -1;
+		folio_set_mm_id(folio, 0, MM_ID_DUMMY);
+	} else if (folio_mm_id(folio, 1) == mm_id) {
+		folio->_mm_id_mapcount[1] -= diff;
+		if (folio->_mm_id_mapcount[1] >= 0)
+			goto out;
+		folio->_mm_id_mapcount[1] = -1;
+		folio_set_mm_id(folio, 1, MM_ID_DUMMY);
+	}
+
+	/*
+	 * If one MM slot owns all mappings, the folio is mapped exclusively.
+	 * Note that if the folio is now unmapped (new_mapcount_val == -1), both
+	 * slots must be free (mapcount == -1), and we'll also mark it as
+	 * exclusive.
+	 */
+	if (folio->_mm_id_mapcount[0] == new_mapcount_val ||
+	    folio->_mm_id_mapcount[1] == new_mapcount_val)
+		folio->_mm_ids &= ~FOLIO_MM_IDS_SHARED_BIT;
+out:
+	folio_unlock_large_mapcount(folio);
+}
+#else /* !CONFIG_MM_ID */
+/*
+ * See __folio_rmap_sanity_checks(), we might map large folios even without
+ * CONFIG_TRANSPARENT_HUGEPAGE. We'll keep that working for now.
+ */
 static inline void folio_set_large_mapcount(struct folio *folio, int mapcount,
 		struct vm_area_struct *vma)
 {
@@ -191,6 +355,7 @@ static inline void folio_sub_large_mapcount(struct folio *folio,
 {
 	atomic_sub(diff, &folio->_large_mapcount);
 }
+#endif /* CONFIG_MM_ID */
 
 #define folio_inc_large_mapcount(folio, vma) \
 	folio_add_large_mapcount(folio, 1, vma)

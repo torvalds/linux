@@ -120,10 +120,18 @@ pages:
     and also increment/decrement folio->_nr_pages_mapped by ENTIRELY_MAPPED
     when _entire_mapcount goes from -1 to 0 or 0 to -1.
 
+    We also maintain the two slots for tracking MM owners (MM ID and
+    corresponding mapcount), and the current status ("maybe mapped shared" vs.
+    "mapped exclusively").
+
   - map/unmap of individual pages with PTE entry increment/decrement
     page->_mapcount, increment/decrement folio->_large_mapcount and also
     increment/decrement folio->_nr_pages_mapped when page->_mapcount goes
     from -1 to 0 or 0 to -1 as this counts the number of pages mapped by PTE.
+
+    We also maintain the two slots for tracking MM owners (MM ID and
+    corresponding mapcount), and the current status ("maybe mapped shared" vs.
+    "mapped exclusively").
 
 split_huge_page internally has to distribute the refcounts in the head
 page to the tail pages before clearing all PG_head/tail bits from the page

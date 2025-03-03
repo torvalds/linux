@@ -802,6 +802,36 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 #define mm_free_pgd(mm)
 #endif /* CONFIG_MMU */
 
+#ifdef CONFIG_MM_ID
+static DEFINE_IDA(mm_ida);
+
+static inline int mm_alloc_id(struct mm_struct *mm)
+{
+	int ret;
+
+	ret = ida_alloc_range(&mm_ida, MM_ID_MIN, MM_ID_MAX, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
+	mm->mm_id = ret;
+	return 0;
+}
+
+static inline void mm_free_id(struct mm_struct *mm)
+{
+	const mm_id_t id = mm->mm_id;
+
+	mm->mm_id = MM_ID_DUMMY;
+	if (id == MM_ID_DUMMY)
+		return;
+	if (WARN_ON_ONCE(id < MM_ID_MIN || id > MM_ID_MAX))
+		return;
+	ida_free(&mm_ida, id);
+}
+#else /* !CONFIG_MM_ID */
+static inline int mm_alloc_id(struct mm_struct *mm) { return 0; }
+static inline void mm_free_id(struct mm_struct *mm) {}
+#endif /* CONFIG_MM_ID */
+
 static void check_mm(struct mm_struct *mm)
 {
 	int i;
@@ -905,6 +935,7 @@ void __mmdrop(struct mm_struct *mm)
 
 	WARN_ON_ONCE(mm == current->active_mm);
 	mm_free_pgd(mm);
+	mm_free_id(mm);
 	destroy_context(mm);
 	mmu_notifier_subscriptions_destroy(mm);
 	check_mm(mm);
@@ -1289,6 +1320,9 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
 	if (mm_alloc_pgd(mm))
 		goto fail_nopgd;
 
+	if (mm_alloc_id(mm))
+		goto fail_noid;
+
 	if (init_new_context(p, mm))
 		goto fail_nocontext;
 
@@ -1308,6 +1342,8 @@ fail_pcpu:
 fail_cid:
 	destroy_context(mm);
 fail_nocontext:
+	mm_free_id(mm);
+fail_noid:
 	mm_free_pgd(mm);
 fail_nopgd:
 	free_mm(mm);
