@@ -351,7 +351,7 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 	u64 copied = 0;
 	size_t orig_count;
 
-	if (atomic_hw && length != fs_block_size)
+	if (atomic_hw && length != iter->len)
 		return -EINVAL;
 
 	if ((pos | length) & (bdev_logical_block_size(iomap->bdev) - 1) ||
