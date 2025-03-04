@@ -560,6 +560,14 @@ struct request_queue {
 	struct blk_flush_queue	*fq;
 	struct list_head	flush_list;
 
+	/*
+	 * Protects against I/O scheduler switching, specifically when
+	 * updating q->elevator. To ensure proper locking order during
+	 * an elevator update, first freeze the queue, then acquire
+	 * ->elevator_lock.
+	 */
+	struct mutex		elevator_lock;
+
 	struct mutex		sysfs_lock;
 	struct mutex		limits_lock;
 

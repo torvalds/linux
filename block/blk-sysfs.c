@@ -693,10 +693,15 @@ static struct attribute *blk_mq_queue_attrs[] = {
 	 * Attributes which are protected with q->sysfs_lock.
 	 */
 	&queue_requests_entry.attr,
-	&elv_iosched_entry.attr,
 #ifdef CONFIG_BLK_WBT
 	&queue_wb_lat_entry.attr,
 #endif
+	/*
+	 * Attributes which require some form of locking other than
+	 * q->sysfs_lock.
+	 */
+	&elv_iosched_entry.attr,
+
 	/*
 	 * Attributes which don't require locking.
 	 */
@@ -865,15 +870,19 @@ int blk_register_queue(struct gendisk *disk)
 	if (ret)
 		goto out_debugfs_remove;
 
-	if (q->elevator) {
-		ret = elv_register_queue(q, false);
-		if (ret)
-			goto out_unregister_ia_ranges;
-	}
-
 	ret = blk_crypto_sysfs_register(disk);
 	if (ret)
-		goto out_elv_unregister;
+		goto out_unregister_ia_ranges;
+
+	mutex_lock(&q->elevator_lock);
+	if (q->elevator) {
+		ret = elv_register_queue(q, false);
+		if (ret) {
+			mutex_unlock(&q->elevator_lock);
+			goto out_crypto_sysfs_unregister;
+		}
+	}
+	mutex_unlock(&q->elevator_lock);
 
 	blk_queue_flag_set(QUEUE_FLAG_REGISTERED, q);
 	wbt_enable_default(disk);
@@ -898,8 +907,8 @@ int blk_register_queue(struct gendisk *disk)
 
 	return ret;
 
-out_elv_unregister:
-	elv_unregister_queue(q);
+out_crypto_sysfs_unregister:
+	blk_crypto_sysfs_unregister(disk);
 out_unregister_ia_ranges:
 	disk_unregister_independent_access_ranges(disk);
 out_debugfs_remove:
@@ -945,8 +954,11 @@ void blk_unregister_queue(struct gendisk *disk)
 		blk_mq_sysfs_unregister(disk);
 	blk_crypto_sysfs_unregister(disk);
 
-	mutex_lock(&q->sysfs_lock);
+	mutex_lock(&q->elevator_lock);
 	elv_unregister_queue(q);
+	mutex_unlock(&q->elevator_lock);
+
+	mutex_lock(&q->sysfs_lock);
 	disk_unregister_independent_access_ranges(disk);
 	mutex_unlock(&q->sysfs_lock);
 
