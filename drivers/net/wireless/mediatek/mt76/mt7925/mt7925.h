@@ -137,6 +137,12 @@ enum {
 	MT7925_CLC_MAX_NUM,
 };
 
+struct mt7925_clc_rule_v2 {
+	u32 flag;
+	u8 alpha2[2];
+	u8 rsv[10];
+} __packed;
+
 struct mt7925_clc_rule {
 	u8 alpha2[2];
 	u8 type[2];
@@ -152,14 +158,26 @@ struct mt7925_clc_segment {
 	u8 rsv2[4];
 } __packed;
 
-struct mt7925_clc {
-	__le32 len;
-	u8 idx;
-	u8 ver;
+struct mt7925_clc_type0 {
 	u8 nr_country;
 	u8 type;
 	u8 nr_seg;
 	u8 rsv[7];
+} __packed;
+
+struct mt7925_clc_type2 {
+	u8 type;
+	u8 rsv[9];
+} __packed;
+
+struct mt7925_clc {
+	__le32 len;
+	u8 idx;
+	u8 ver;
+	union {
+		struct mt7925_clc_type0 t0;
+		struct mt7925_clc_type2 t2;
+	};
 	u8 data[];
 } __packed;
 
@@ -238,6 +256,7 @@ int mt7925_mcu_chip_config(struct mt792x_dev *dev, const char *cmd);
 int mt7925_mcu_set_rxfilter(struct mt792x_dev *dev, u32 fif,
 			    u8 bit_op, u32 bit_map);
 
+void mt7925_regd_be_ctrl(struct mt792x_dev *dev, u8 *alpha2);
 void mt7925_regd_update(struct mt792x_dev *dev);
 int mt7925_mac_init(struct mt792x_dev *dev);
 int mt7925_mac_sta_add(struct mt76_dev *mdev, struct ieee80211_vif *vif,
