@@ -16,7 +16,7 @@ use crate::{
 /// # Invariants
 ///
 /// The `ctx` field corresponds to a valid security context as returned by a successful call to
-/// `security_secid_to_secctx`, that has not yet been destroyed by `security_release_secctx`.
+/// `security_secid_to_secctx`, that has not yet been released by `security_release_secctx`.
 pub struct SecurityCtx {
     ctx: bindings::lsm_context,
 }
@@ -67,9 +67,8 @@ impl SecurityCtx {
 impl Drop for SecurityCtx {
     #[inline]
     fn drop(&mut self) {
-        // SAFETY: By the invariant of `Self`, this frees a context that came from a successful
-        // call to `security_secid_to_secctx` and has not yet been destroyed by
-        // `security_release_secctx`.
+        // SAFETY: By the invariant of `Self`, this releases an lsm context that came from a
+        // successful call to `security_secid_to_secctx` and has not yet been released.
         unsafe { bindings::security_release_secctx(&mut self.ctx) };
     }
 }
