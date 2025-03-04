@@ -172,12 +172,7 @@ QUEUE_SYSFS_LIMIT_SHOW_SECTORS_TO_KB(max_hw_sectors)
 #define QUEUE_SYSFS_SHOW_CONST(_name, _val)				\
 static ssize_t queue_##_name##_show(struct gendisk *disk, char *page)	\
 {									\
-	ssize_t ret;							\
-									\
-	mutex_lock(&disk->queue->sysfs_lock);				\
-	ret = sysfs_emit(page, "%d\n", _val);				\
-	mutex_unlock(&disk->queue->sysfs_lock);				\
-	return ret;							\
+	return sysfs_emit(page, "%d\n", _val);				\
 }
 
 /* deprecated fields */
@@ -266,17 +261,11 @@ QUEUE_SYSFS_FEATURE_SHOW(dax, BLK_FEAT_DAX);
 
 static ssize_t queue_poll_show(struct gendisk *disk, char *page)
 {
-	ssize_t ret;
+	if (queue_is_mq(disk->queue))
+		return sysfs_emit(page, "%u\n", blk_mq_can_poll(disk->queue));
 
-	mutex_lock(&disk->queue->sysfs_lock);
-	if (queue_is_mq(disk->queue)) {
-		ret = sysfs_emit(page, "%u\n", blk_mq_can_poll(disk->queue));
-	} else {
-		ret = sysfs_emit(page, "%u\n",
+	return sysfs_emit(page, "%u\n",
 			!!(disk->queue->limits.features & BLK_FEAT_POLL));
-	}
-	mutex_unlock(&disk->queue->sysfs_lock);
-	return ret;
 }
 
 static ssize_t queue_zoned_show(struct gendisk *disk, char *page)
@@ -288,12 +277,7 @@ static ssize_t queue_zoned_show(struct gendisk *disk, char *page)
 
 static ssize_t queue_nr_zones_show(struct gendisk *disk, char *page)
 {
-	ssize_t ret;
-
-	mutex_lock(&disk->queue->sysfs_lock);
-	ret = queue_var_show(disk_nr_zones(disk), page);
-	mutex_unlock(&disk->queue->sysfs_lock);
-	return ret;
+	return queue_var_show(disk_nr_zones(disk), page);
 }
 
 static ssize_t queue_iostats_passthrough_show(struct gendisk *disk, char *page)
@@ -320,13 +304,8 @@ static int queue_iostats_passthrough_store(struct gendisk *disk,
 
 static ssize_t queue_nomerges_show(struct gendisk *disk, char *page)
 {
-	ssize_t ret;
-
-	mutex_lock(&disk->queue->sysfs_lock);
-	ret = queue_var_show((blk_queue_nomerges(disk->queue) << 1) |
+	return queue_var_show((blk_queue_nomerges(disk->queue) << 1) |
 			       blk_queue_noxmerges(disk->queue), page);
-	mutex_unlock(&disk->queue->sysfs_lock);
-	return ret;
 }
 
 static ssize_t queue_nomerges_store(struct gendisk *disk, const char *page,
@@ -340,7 +319,6 @@ static ssize_t queue_nomerges_store(struct gendisk *disk, const char *page,
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&q->sysfs_lock);
 	memflags = blk_mq_freeze_queue(q);
 	blk_queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
 	blk_queue_flag_clear(QUEUE_FLAG_NOXMERGES, q);
@@ -349,22 +327,16 @@ static ssize_t queue_nomerges_store(struct gendisk *disk, const char *page,
 	else if (nm)
 		blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
 	blk_mq_unfreeze_queue(q, memflags);
-	mutex_unlock(&q->sysfs_lock);
 
 	return ret;
 }
 
 static ssize_t queue_rq_affinity_show(struct gendisk *disk, char *page)
 {
-	ssize_t ret;
-	bool set, force;
+	bool set = test_bit(QUEUE_FLAG_SAME_COMP, &disk->queue->queue_flags);
+	bool force = test_bit(QUEUE_FLAG_SAME_FORCE, &disk->queue->queue_flags);
 
-	mutex_lock(&disk->queue->sysfs_lock);
-	set = test_bit(QUEUE_FLAG_SAME_COMP, &disk->queue->queue_flags);
-	force = test_bit(QUEUE_FLAG_SAME_FORCE, &disk->queue->queue_flags);
-	ret = queue_var_show(set << force, page);
-	mutex_unlock(&disk->queue->sysfs_lock);
-	return ret;
+	return queue_var_show(set << force, page);
 }
 
 static ssize_t
@@ -380,7 +352,12 @@ queue_rq_affinity_store(struct gendisk *disk, const char *page, size_t count)
 	if (ret < 0)
 		return ret;
 
-	mutex_lock(&q->sysfs_lock);
+	/*
+	 * Here we update two queue flags each using atomic bitops, although
+	 * updating two flags isn't atomic it should be harmless as those flags
+	 * are accessed individually using atomic test_bit operation. So we
+	 * don't grab any lock while updating these flags.
+	 */
 	memflags = blk_mq_freeze_queue(q);
 	if (val == 2) {
 		blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
@@ -393,7 +370,6 @@ queue_rq_affinity_store(struct gendisk *disk, const char *page, size_t count)
 		blk_queue_flag_clear(QUEUE_FLAG_SAME_FORCE, q);
 	}
 	blk_mq_unfreeze_queue(q, memflags);
-	mutex_unlock(&q->sysfs_lock);
 #endif
 	return ret;
 }
@@ -411,30 +387,23 @@ static ssize_t queue_poll_store(struct gendisk *disk, const char *page,
 	ssize_t ret = count;
 	struct request_queue *q = disk->queue;
 
-	mutex_lock(&q->sysfs_lock);
 	memflags = blk_mq_freeze_queue(q);
 	if (!(q->limits.features & BLK_FEAT_POLL)) {
 		ret = -EINVAL;
 		goto out;
 	}
+
 	pr_info_ratelimited("writes to the poll attribute are ignored.\n");
 	pr_info_ratelimited("please use driver specific parameters instead.\n");
 out:
 	blk_mq_unfreeze_queue(q, memflags);
-	mutex_unlock(&q->sysfs_lock);
-
 	return ret;
 }
 
 static ssize_t queue_io_timeout_show(struct gendisk *disk, char *page)
 {
-	ssize_t ret;
-
-	mutex_lock(&disk->queue->sysfs_lock);
-	ret = sysfs_emit(page, "%u\n",
-			jiffies_to_msecs(disk->queue->rq_timeout));
-	mutex_unlock(&disk->queue->sysfs_lock);
-	return ret;
+	return sysfs_emit(page, "%u\n",
+			jiffies_to_msecs(READ_ONCE(disk->queue->rq_timeout)));
 }
 
 static ssize_t queue_io_timeout_store(struct gendisk *disk, const char *page,
@@ -448,11 +417,9 @@ static ssize_t queue_io_timeout_store(struct gendisk *disk, const char *page,
 	if (err || val == 0)
 		return -EINVAL;
 
-	mutex_lock(&q->sysfs_lock);
 	memflags = blk_mq_freeze_queue(q);
 	blk_queue_rq_timeout(q, msecs_to_jiffies(val));
 	blk_mq_unfreeze_queue(q, memflags);
-	mutex_unlock(&q->sysfs_lock);
 
 	return count;
 }
@@ -706,6 +673,10 @@ static struct attribute *queue_attrs[] = {
 	 * Attributes which are protected with q->sysfs_lock.
 	 */
 	&queue_ra_entry.attr,
+
+	/*
+	 * Attributes which don't require locking.
+	 */
 	&queue_discard_zeroes_data_entry.attr,
 	&queue_write_same_max_entry.attr,
 	&queue_nr_zones_entry.attr,
@@ -723,11 +694,15 @@ static struct attribute *blk_mq_queue_attrs[] = {
 	 */
 	&queue_requests_entry.attr,
 	&elv_iosched_entry.attr,
-	&queue_rq_affinity_entry.attr,
-	&queue_io_timeout_entry.attr,
 #ifdef CONFIG_BLK_WBT
 	&queue_wb_lat_entry.attr,
 #endif
+	/*
+	 * Attributes which don't require locking.
+	 */
+	&queue_rq_affinity_entry.attr,
+	&queue_io_timeout_entry.attr,
+
 	NULL,
 };
 
