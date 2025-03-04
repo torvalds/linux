@@ -488,7 +488,7 @@ static int zr36060_set_video(struct videocodec *codec, const struct tvnorm *norm
 	u32 reg;
 	int size;
 
-	zrdev_dbg(zr, "%s: set_video %d/%d-%dx%d (%%%d) call\n", ptr->name,
+	zrdev_dbg(zr, "%s: set_video (%u,%u)/%ux%u (%%%d) call\n", ptr->name,
 		  cap->x, cap->y, cap->width, cap->height, cap->decimation);
 
 	/* if () return -EINVAL;
