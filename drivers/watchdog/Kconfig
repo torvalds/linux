@@ -1743,7 +1743,8 @@ config NI903X_WDT
 
 config NIC7018_WDT
 	tristate "NIC7018 Watchdog"
-	depends on X86 && ACPI
+	depends on HAS_IOPORT
+	depends on ACPI || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
 	  Support for National Instruments NIC7018 Watchdog.
