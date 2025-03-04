@@ -3742,8 +3742,8 @@ static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,
 
 	ret = v4l2_subdev_call(input->camera, pad, set_selection, sd_state, &sel);
 	if (ret)
-		dev_err(isp->dev, "Error setting crop to %ux%u @%ux%u: %d\n",
-			sel.r.width, sel.r.height, sel.r.left, sel.r.top, ret);
+		dev_err(isp->dev, "Error setting crop to (%d,%d)/%ux%u: %d\n",
+			sel.r.left, sel.r.top, sel.r.width, sel.r.height, ret);
 
 set_fmt:
 	if (ret == 0)
