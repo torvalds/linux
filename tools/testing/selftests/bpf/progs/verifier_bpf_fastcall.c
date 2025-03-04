@@ -620,23 +620,61 @@ __naked void helper_call_does_not_prevent_bpf_fastcall(void)
 
 SEC("raw_tp")
 __arch_x86_64
+__log_level(4) __msg("stack depth 24")
+/* may_goto counter at -24 */
+__xlated("0: *(u64 *)(r10 -24) =")
+/* may_goto timestamp at -16 */
+__xlated("1: *(u64 *)(r10 -16) =")
+__xlated("2: r1 = 1")
+__xlated("...")
+__xlated("4: r0 = &(void __percpu *)(r0)")
+__xlated("...")
+/* may_goto expansion starts */
+__xlated("6: r11 = *(u64 *)(r10 -24)")
+__xlated("7: if r11 == 0x0 goto pc+6")
+__xlated("8: r11 -= 1")
+__xlated("9: if r11 != 0x0 goto pc+2")
+__xlated("10: r11 = -24")
+__xlated("11: call unknown")
+__xlated("12: *(u64 *)(r10 -24) = r11")
+/* may_goto expansion ends */
+__xlated("13: *(u64 *)(r10 -8) = r1")
+__xlated("14: exit")
+__success
+__naked void may_goto_interaction_x86_64(void)
+{
+	asm volatile (
+	"r1 = 1;"
+	"*(u64 *)(r10 - 16) = r1;"
+	"call %[bpf_get_smp_processor_id];"
+	"r1 = *(u64 *)(r10 - 16);"
+	".8byte %[may_goto];"
+	/* just touch some stack at -8 */
+	"*(u64 *)(r10 - 8) = r1;"
+	"exit;"
+	:
+	: __imm(bpf_get_smp_processor_id),
+	  __imm_insn(may_goto, BPF_RAW_INSN(BPF_JMP | BPF_JCOND, 0, 0, +1 /* offset */, 0))
+	: __clobber_all);
+}
+
+SEC("raw_tp")
+__arch_arm64
 __log_level(4) __msg("stack depth 16")
 /* may_goto counter at -16 */
 __xlated("0: *(u64 *)(r10 -16) =")
 __xlated("1: r1 = 1")
-__xlated("...")
-__xlated("3: r0 = &(void __percpu *)(r0)")
-__xlated("...")
+__xlated("2: call bpf_get_smp_processor_id")
 /* may_goto expansion starts */
-__xlated("5: r11 = *(u64 *)(r10 -16)")
-__xlated("6: if r11 == 0x0 goto pc+3")
-__xlated("7: r11 -= 1")
-__xlated("8: *(u64 *)(r10 -16) = r11")
+__xlated("3: r11 = *(u64 *)(r10 -16)")
+__xlated("4: if r11 == 0x0 goto pc+3")
+__xlated("5: r11 -= 1")
+__xlated("6: *(u64 *)(r10 -16) = r11")
 /* may_goto expansion ends */
-__xlated("9: *(u64 *)(r10 -8) = r1")
-__xlated("10: exit")
+__xlated("7: *(u64 *)(r10 -8) = r1")
+__xlated("8: exit")
 __success
-__naked void may_goto_interaction(void)
+__naked void may_goto_interaction_arm64(void)
 {
 	asm volatile (
 	"r1 = 1;"
