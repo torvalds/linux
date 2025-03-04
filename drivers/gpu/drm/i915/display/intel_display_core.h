@@ -170,8 +170,8 @@ struct intel_hotplug {
 	u32 retry_bits;
 	struct delayed_work reenable_work;
 
-	u32 long_port_mask;
-	u32 short_port_mask;
+	u32 long_hpd_pin_mask;
+	u32 short_hpd_pin_mask;
 	struct work_struct dig_port_work;
 
 	struct work_struct poll_init_work;

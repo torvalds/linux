@@ -353,28 +353,28 @@ static void i915_digport_work_func(struct work_struct *work)
 {
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private, display.hotplug.dig_port_work);
-	u32 long_port_mask, short_port_mask;
+	u32 long_hpd_pin_mask, short_hpd_pin_mask;
 	struct intel_encoder *encoder;
 	u32 old_bits = 0;
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	long_port_mask = dev_priv->display.hotplug.long_port_mask;
-	dev_priv->display.hotplug.long_port_mask = 0;
-	short_port_mask = dev_priv->display.hotplug.short_port_mask;
-	dev_priv->display.hotplug.short_port_mask = 0;
+	long_hpd_pin_mask = dev_priv->display.hotplug.long_hpd_pin_mask;
+	dev_priv->display.hotplug.long_hpd_pin_mask = 0;
+	short_hpd_pin_mask = dev_priv->display.hotplug.short_hpd_pin_mask;
+	dev_priv->display.hotplug.short_hpd_pin_mask = 0;
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
 		struct intel_digital_port *dig_port;
-		enum port port = encoder->port;
+		enum hpd_pin pin = encoder->hpd_pin;
 		bool long_hpd, short_hpd;
 		enum irqreturn ret;
 
 		if (!intel_encoder_has_hpd_pulse(encoder))
 			continue;
 
-		long_hpd = long_port_mask & BIT(port);
-		short_hpd = short_port_mask & BIT(port);
+		long_hpd = long_hpd_pin_mask & BIT(pin);
+		short_hpd = short_hpd_pin_mask & BIT(pin);
 
 		if (!long_hpd && !short_hpd)
 			continue;
@@ -384,7 +384,7 @@ static void i915_digport_work_func(struct work_struct *work)
 		ret = dig_port->hpd_pulse(dig_port, long_hpd);
 		if (ret == IRQ_NONE) {
 			/* fall back to old school hpd */
-			old_bits |= BIT(encoder->hpd_pin);
+			old_bits |= BIT(pin);
 		}
 	}
 
@@ -407,9 +407,10 @@ static void i915_digport_work_func(struct work_struct *work)
 void intel_hpd_trigger_irq(struct intel_digital_port *dig_port)
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_encoder *encoder = &dig_port->base;
 
 	spin_lock_irq(&i915->irq_lock);
-	i915->display.hotplug.short_port_mask |= BIT(dig_port->base.port);
+	i915->display.hotplug.short_hpd_pin_mask |= BIT(encoder->hpd_pin);
 	spin_unlock_irq(&i915->irq_lock);
 
 	queue_work(i915->display.hotplug.dp_wq, &i915->display.hotplug.dig_port_work);
@@ -557,7 +558,6 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 	 * only the one of them (DP) will have ->hpd_pulse().
 	 */
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
-		enum port port = encoder->port;
 		bool long_hpd;
 
 		pin = encoder->hpd_pin;
@@ -577,10 +577,10 @@ void intel_hpd_irq_handler(struct drm_i915_private *dev_priv,
 
 		if (long_hpd) {
 			long_hpd_pulse_mask |= BIT(pin);
-			dev_priv->display.hotplug.long_port_mask |= BIT(port);
+			dev_priv->display.hotplug.long_hpd_pin_mask |= BIT(pin);
 		} else {
 			short_hpd_pulse_mask |= BIT(pin);
-			dev_priv->display.hotplug.short_port_mask |= BIT(port);
+			dev_priv->display.hotplug.short_hpd_pin_mask |= BIT(pin);
 		}
 	}
 
@@ -920,8 +920,8 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
 
 	spin_lock_irq(&dev_priv->irq_lock);
 
-	dev_priv->display.hotplug.long_port_mask = 0;
-	dev_priv->display.hotplug.short_port_mask = 0;
+	dev_priv->display.hotplug.long_hpd_pin_mask = 0;
+	dev_priv->display.hotplug.short_hpd_pin_mask = 0;
 	dev_priv->display.hotplug.event_bits = 0;
 	dev_priv->display.hotplug.retry_bits = 0;
 
