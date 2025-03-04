@@ -615,10 +615,10 @@ static int airoha_qdma_rx_process(struct airoha_queue *q, int budget)
 		struct airoha_qdma_desc *desc = &q->desc[q->tail];
 		u32 hash, reason, msg1 = le32_to_cpu(desc->msg1);
 		dma_addr_t dma_addr = le32_to_cpu(desc->addr);
+		struct page *page = virt_to_head_page(e->buf);
 		u32 desc_ctrl = le32_to_cpu(desc->ctrl);
 		struct airoha_gdm_port *port;
-		struct sk_buff *skb;
-		int len, p;
+		int data_len, len, p;
 
 		if (!(desc_ctrl & QDMA_DESC_DONE_MASK))
 			break;
@@ -636,30 +636,41 @@ static int airoha_qdma_rx_process(struct airoha_queue *q, int budget)
 		dma_sync_single_for_cpu(eth->dev, dma_addr,
 					SKB_WITH_OVERHEAD(q->buf_size), dir);
 
+		data_len = q->skb ? q->buf_size
+				  : SKB_WITH_OVERHEAD(q->buf_size);
+		if (data_len < len)
+			goto free_frag;
+
 		p = airoha_qdma_get_gdm_port(eth, desc);
-		if (p < 0 || !eth->ports[p]) {
-			page_pool_put_full_page(q->page_pool,
-						virt_to_head_page(e->buf),
-						true);
-			continue;
-		}
+		if (p < 0 || !eth->ports[p])
+			goto free_frag;
 
 		port = eth->ports[p];
-		skb = napi_build_skb(e->buf, q->buf_size);
-		if (!skb) {
-			page_pool_put_full_page(q->page_pool,
-						virt_to_head_page(e->buf),
-						true);
-			break;
+		if (!q->skb) { /* first buffer */
+			q->skb = napi_build_skb(e->buf, q->buf_size);
+			if (!q->skb)
+				goto free_frag;
+
+			__skb_put(q->skb, len);
+			skb_mark_for_recycle(q->skb);
+			q->skb->dev = port->dev;
+			q->skb->protocol = eth_type_trans(q->skb, port->dev);
+			q->skb->ip_summed = CHECKSUM_UNNECESSARY;
+			skb_record_rx_queue(q->skb, qid);
+		} else { /* scattered frame */
+			struct skb_shared_info *shinfo = skb_shinfo(q->skb);
+			int nr_frags = shinfo->nr_frags;
+
+			if (nr_frags >= ARRAY_SIZE(shinfo->frags))
+				goto free_frag;
+
+			skb_add_rx_frag(q->skb, nr_frags, page,
+					e->buf - page_address(page), len,
+					q->buf_size);
 		}
 
-		skb_reserve(skb, 2);
-		__skb_put(skb, len);
-		skb_mark_for_recycle(skb);
-		skb->dev = port->dev;
-		skb->protocol = eth_type_trans(skb, skb->dev);
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		skb_record_rx_queue(skb, qid);
+		if (FIELD_GET(QDMA_DESC_MORE_MASK, desc_ctrl))
+			continue;
 
 		if (netdev_uses_dsa(port->dev)) {
 			/* PPE module requires untagged packets to work
@@ -672,22 +683,27 @@ static int airoha_qdma_rx_process(struct airoha_queue *q, int budget)
 
 			if (sptag < ARRAY_SIZE(port->dsa_meta) &&
 			    port->dsa_meta[sptag])
-				skb_dst_set_noref(skb,
+				skb_dst_set_noref(q->skb,
 						  &port->dsa_meta[sptag]->dst);
 		}
 
 		hash = FIELD_GET(AIROHA_RXD4_FOE_ENTRY, msg1);
 		if (hash != AIROHA_RXD4_FOE_ENTRY)
-			skb_set_hash(skb, jhash_1word(hash, 0),
+			skb_set_hash(q->skb, jhash_1word(hash, 0),
 				     PKT_HASH_TYPE_L4);
 
 		reason = FIELD_GET(AIROHA_RXD4_PPE_CPU_REASON, msg1);
 		if (reason == PPE_CPU_REASON_HIT_UNBIND_RATE_REACHED)
 			airoha_ppe_check_skb(eth->ppe, hash);
 
-		napi_gro_receive(&q->napi, skb);
-
 		done++;
+		napi_gro_receive(&q->napi, q->skb);
+		q->skb = NULL;
+		continue;
+free_frag:
+		page_pool_put_full_page(q->page_pool, page, true);
+		dev_kfree_skb(q->skb);
+		q->skb = NULL;
 	}
 	airoha_qdma_fill_rx_queue(q);
 
@@ -762,6 +778,7 @@ static int airoha_qdma_init_rx_queue(struct airoha_queue *q,
 			FIELD_PREP(RX_RING_THR_MASK, thr));
 	airoha_qdma_rmw(qdma, REG_RX_DMA_IDX(qid), RX_RING_DMA_IDX_MASK,
 			FIELD_PREP(RX_RING_DMA_IDX_MASK, q->head));
+	airoha_qdma_set(qdma, REG_RX_SCATTER_CFG(qid), RX_RING_SG_EN_MASK);
 
 	airoha_qdma_fill_rx_queue(q);
 
@@ -1161,7 +1178,6 @@ static int airoha_qdma_hw_init(struct airoha_qdma *qdma)
 	}
 
 	airoha_qdma_wr(qdma, REG_QDMA_GLOBAL_CFG,
-		       GLOBAL_CFG_RX_2B_OFFSET_MASK |
 		       FIELD_PREP(GLOBAL_CFG_DMA_PREFERENCE_MASK, 3) |
 		       GLOBAL_CFG_CPU_TXR_RR_MASK |
 		       GLOBAL_CFG_PAYLOAD_BYTE_SWAP_MASK |

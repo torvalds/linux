@@ -176,6 +176,7 @@ struct airoha_queue {
 
 	struct napi_struct napi;
 	struct page_pool *page_pool;
+	struct sk_buff *skb;
 };
 
 struct airoha_tx_irq_queue {
