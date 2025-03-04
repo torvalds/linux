@@ -996,33 +996,6 @@ void intel_hpd_cancel_work(struct drm_i915_private *dev_priv)
 		drm_dbg_kms(&dev_priv->drm, "Hotplug detection work still active\n");
 }
 
-bool intel_hpd_disable(struct drm_i915_private *dev_priv, enum hpd_pin pin)
-{
-	bool ret = false;
-
-	if (pin == HPD_NONE)
-		return false;
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	if (dev_priv->display.hotplug.stats[pin].state == HPD_ENABLED) {
-		dev_priv->display.hotplug.stats[pin].state = HPD_DISABLED;
-		ret = true;
-	}
-	spin_unlock_irq(&dev_priv->irq_lock);
-
-	return ret;
-}
-
-void intel_hpd_enable(struct drm_i915_private *dev_priv, enum hpd_pin pin)
-{
-	if (pin == HPD_NONE)
-		return;
-
-	spin_lock_irq(&dev_priv->irq_lock);
-	dev_priv->display.hotplug.stats[pin].state = HPD_ENABLED;
-	spin_unlock_irq(&dev_priv->irq_lock);
-}
-
 static void queue_work_for_missed_irqs(struct drm_i915_private *i915)
 {
 	struct intel_display *display = to_intel_display(&i915->drm);
@@ -1101,7 +1074,8 @@ static bool unblock_hpd_pin(struct intel_display *display, enum hpd_pin pin)
  *   drm_connector_funcs::detect()) remains allowed, for instance as part of
  *   userspace connector probing, or DRM core's connector polling.
  *
- * The call must be followed by calling intel_hpd_unblock().
+ * The call must be followed by calling intel_hpd_unblock(), or
+ * intel_hpd_clear_and_unblock().
  *
  * Note that the handling of HPD IRQs for another encoder using the same HPD
  * pin as that of @encoder will be also blocked.
@@ -1148,6 +1122,36 @@ void intel_hpd_unblock(struct intel_encoder *encoder)
 
 	if (unblock_hpd_pin(display, encoder->hpd_pin))
 		queue_work_for_missed_irqs(i915);
+
+	spin_unlock_irq(&i915->irq_lock);
+}
+
+/**
+ * intel_hpd_clear_and_unblock - Unblock handling of new HPD IRQs on an HPD pin
+ * @encoder: Encoder to unblock the HPD handling for
+ *
+ * Unblock the handling of HPD IRQs on the HPD pin of @encoder, which was
+ * previously blocked by intel_hpd_block(). Any HPD IRQ raised on the
+ * HPD pin while it was blocked will be cleared, handling only new IRQs.
+ */
+void intel_hpd_clear_and_unblock(struct intel_encoder *encoder)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct intel_hotplug *hotplug = &display->hotplug;
+	enum hpd_pin pin = encoder->hpd_pin;
+
+	if (pin == HPD_NONE)
+		return;
+
+	spin_lock_irq(&i915->irq_lock);
+
+	if (unblock_hpd_pin(display, pin)) {
+		hotplug->event_bits &= ~BIT(pin);
+		hotplug->retry_bits &= ~BIT(pin);
+		hotplug->short_hpd_pin_mask &= ~BIT(pin);
+		hotplug->long_hpd_pin_mask &= ~BIT(pin);
+	}
 
 	spin_unlock_irq(&i915->irq_lock);
 }

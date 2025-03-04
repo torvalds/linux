@@ -532,8 +532,6 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
-	bool reenable_hpd;
 	u32 adpa;
 	bool ret;
 	u32 save_adpa;
@@ -550,7 +548,7 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 	 *
 	 * Just disable HPD interrupts here to prevent this
 	 */
-	reenable_hpd = intel_hpd_disable(dev_priv, crt->base.hpd_pin);
+	intel_hpd_block(&crt->base);
 
 	save_adpa = adpa = intel_de_read(display, crt->adpa_reg);
 	drm_dbg_kms(display->drm,
@@ -577,8 +575,7 @@ static bool valleyview_crt_detect_hotplug(struct drm_connector *connector)
 	drm_dbg_kms(display->drm,
 		    "valleyview hotplug adpa=0x%x, result %d\n", adpa, ret);
 
-	if (reenable_hpd)
-		intel_hpd_enable(dev_priv, crt->base.hpd_pin);
+	intel_hpd_clear_and_unblock(&crt->base);
 
 	return ret;
 }

@@ -26,10 +26,9 @@ void intel_hpd_init(struct drm_i915_private *dev_priv);
 void intel_hpd_init_early(struct drm_i915_private *i915);
 void intel_hpd_cancel_work(struct drm_i915_private *dev_priv);
 enum hpd_pin intel_hpd_pin_default(enum port port);
-bool intel_hpd_disable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
-void intel_hpd_enable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
 void intel_hpd_block(struct intel_encoder *encoder);
 void intel_hpd_unblock(struct intel_encoder *encoder);
+void intel_hpd_clear_and_unblock(struct intel_encoder *encoder);
 void intel_hpd_debugfs_register(struct drm_i915_private *i915);
 
 void intel_hpd_enable_detection_work(struct drm_i915_private *i915);
