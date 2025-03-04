@@ -215,7 +215,7 @@ config CRC7
 	tristate
 
 config LIBCRC32C
-	tristate "CRC32c (Castagnoli, et al) Cyclic Redundancy-Check"
+	tristate
 	select CRC32
 	help
 	  This option just selects CRC32 and is provided for compatibility
