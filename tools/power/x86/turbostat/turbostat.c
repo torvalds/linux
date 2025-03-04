@@ -1056,7 +1056,7 @@ static const struct platform_data turbostat_pdata[] = {
 	 * Missing support for
 	 * INTEL_ICELAKE
 	 * INTEL_ATOM_SILVERMONT_MID
-	 * INTEL_ATOM_AIRMONT_MID
+	 * INTEL_ATOM_SILVERMONT_MID2
 	 * INTEL_ATOM_AIRMONT_NP
 	 */
 	{ 0, NULL },

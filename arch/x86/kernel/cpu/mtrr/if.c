@@ -99,7 +99,6 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 	char *ptr;
 	char line[LINE_SIZE];
 	int length;
-	size_t linelen;
 
 	memset(line, 0, LINE_SIZE);
 
@@ -108,9 +107,8 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 	if (length < 0)
 		return length;
 
-	linelen = strlen(line);
-	ptr = line + linelen - 1;
-	if (linelen && *ptr == '\n')
+	ptr = line + length - 1;
+	if (length && *ptr == '\n')
 		*ptr = '\0';
 
 	if (!strncmp(line, "disable=", 8)) {

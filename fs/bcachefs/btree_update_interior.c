@@ -681,9 +681,11 @@ static void btree_update_nodes_written(struct btree_update *as)
 
 		b = as->old_nodes[i];
 
+		bch2_trans_begin(trans);
 		btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
 		seq = b->data ? b->data->keys.seq : 0;
 		six_unlock_read(&b->c.lock);
+		bch2_trans_unlock_long(trans);
 
 		if (seq == as->old_nodes_seq[i])
 			wait_on_bit_io(&b->flags, BTREE_NODE_write_in_flight_inner,

@@ -1501,6 +1501,8 @@ static int acquire_lock_state(struct bpf_verifier_env *env, int insn_idx, enum r
 	struct bpf_reference_state *s;
 
 	s = acquire_reference_state(env, insn_idx);
+	if (!s)
+		return -ENOMEM;
 	s->type = type;
 	s->id = id;
 	s->ptr = ptr;
@@ -9149,10 +9151,11 @@ static int check_reg_const_str(struct bpf_verifier_env *env,
 	return 0;
 }
 
-/* Returns constant key value if possible, else negative error */
-static s64 get_constant_map_key(struct bpf_verifier_env *env,
+/* Returns constant key value in `value` if possible, else negative error */
+static int get_constant_map_key(struct bpf_verifier_env *env,
 				struct bpf_reg_state *key,
-				u32 key_size)
+				u32 key_size,
+				s64 *value)
 {
 	struct bpf_func_state *state = func(env, key);
 	struct bpf_reg_state *reg;
@@ -9179,8 +9182,10 @@ static s64 get_constant_map_key(struct bpf_verifier_env *env,
 	/* First handle precisely tracked STACK_ZERO */
 	for (i = off; i >= 0 && stype[i] == STACK_ZERO; i--)
 		zero_size++;
-	if (zero_size >= key_size)
+	if (zero_size >= key_size) {
+		*value = 0;
 		return 0;
+	}
 
 	/* Check that stack contains a scalar spill of expected size */
 	if (!is_spilled_scalar_reg(&state->stack[spi]))
@@ -9203,8 +9208,11 @@ static s64 get_constant_map_key(struct bpf_verifier_env *env,
 	if (err < 0)
 		return err;
 
-	return reg->var_off.value;
+	*value = reg->var_off.value;
+	return 0;
 }
+
+static bool can_elide_value_nullness(enum bpf_map_type type);
 
 static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
 			  struct bpf_call_arg_meta *meta,
@@ -9354,9 +9362,16 @@ skip_type_check:
 		err = check_helper_mem_access(env, regno, key_size, BPF_READ, false, NULL);
 		if (err)
 			return err;
-		meta->const_map_key = get_constant_map_key(env, reg, key_size);
-		if (meta->const_map_key < 0 && meta->const_map_key != -EOPNOTSUPP)
-			return meta->const_map_key;
+		if (can_elide_value_nullness(meta->map_ptr->map_type)) {
+			err = get_constant_map_key(env, reg, key_size, &meta->const_map_key);
+			if (err < 0) {
+				meta->const_map_key = -1;
+				if (err == -EOPNOTSUPP)
+					err = 0;
+				else
+					return err;
+			}
+		}
 		break;
 	case ARG_PTR_TO_MAP_VALUE:
 		if (type_may_be_null(arg_type) && register_is_null(reg))
