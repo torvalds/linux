@@ -1060,12 +1060,12 @@ static int ad7124_parse_channel_config(struct iio_dev *indio_dev,
 	/* Add one for temperature */
 	st->num_channels = min(num_channels + 1, AD7124_MAX_CHANNELS);
 
-	chan = devm_kcalloc(indio_dev->dev.parent, st->num_channels,
+	chan = devm_kcalloc(dev, st->num_channels,
 			    sizeof(*chan), GFP_KERNEL);
 	if (!chan)
 		return -ENOMEM;
 
-	channels = devm_kcalloc(indio_dev->dev.parent, st->num_channels, sizeof(*channels),
+	channels = devm_kcalloc(dev, st->num_channels, sizeof(*channels),
 				GFP_KERNEL);
 	if (!channels)
 		return -ENOMEM;
