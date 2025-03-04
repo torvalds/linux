@@ -1554,6 +1554,7 @@ static DEFINE_PER_CPU(struct scx_event_stats, event_stats_cpu);
  */
 #define scx_add_event(name, cnt) do {						\
 	this_cpu_add(event_stats_cpu.name, cnt);				\
+	trace_sched_ext_event(#name, cnt);					\
 } while(0)
 
 /**
@@ -1565,6 +1566,7 @@ static DEFINE_PER_CPU(struct scx_event_stats, event_stats_cpu);
  */
 #define __scx_add_event(name, cnt) do {						\
 	__this_cpu_add(event_stats_cpu.name, cnt);				\
+	trace_sched_ext_event(#name, cnt);					\
 } while(0)
 
 /**
