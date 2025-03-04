@@ -2073,10 +2073,10 @@ xfs_inodegc_want_queue_rt_file(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 
-	if (!XFS_IS_REALTIME_INODE(ip))
+	if (!XFS_IS_REALTIME_INODE(ip) || xfs_has_zoned(mp))
 		return false;
 
-	if (__percpu_counter_compare(&mp->m_frextents,
+	if (xfs_compare_freecounter(mp, XC_FREE_RTEXTENTS,
 				mp->m_low_rtexts[XFS_LOWSP_5_PCNT],
 				XFS_FDBLOCKS_BATCH) < 0)
 		return true;
@@ -2104,7 +2104,7 @@ xfs_inodegc_want_queue_work(
 	if (items > mp->m_ino_geo.inodes_per_cluster)
 		return true;
 
-	if (__percpu_counter_compare(&mp->m_fdblocks,
+	if (xfs_compare_freecounter(mp, XC_FREE_BLOCKS,
 				mp->m_low_space[XFS_LOWSP_5_PCNT],
 				XFS_FDBLOCKS_BATCH) < 0)
 		return true;

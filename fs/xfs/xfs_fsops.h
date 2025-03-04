@@ -8,7 +8,8 @@
 
 int xfs_growfs_data(struct xfs_mount *mp, struct xfs_growfs_data *in);
 int xfs_growfs_log(struct xfs_mount *mp, struct xfs_growfs_log *in);
-int xfs_reserve_blocks(struct xfs_mount *mp, uint64_t request);
+int xfs_reserve_blocks(struct xfs_mount *mp, enum xfs_free_counter cnt,
+		uint64_t request);
 int xfs_fs_goingdown(struct xfs_mount *mp, uint32_t inflags);
 
 int xfs_fs_reserve_ag_blocks(struct xfs_mount *mp);

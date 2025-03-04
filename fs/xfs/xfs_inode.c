@@ -3074,5 +3074,6 @@ bool
 xfs_is_always_cow_inode(
 	const struct xfs_inode	*ip)
 {
-	return ip->i_mount->m_always_cow && xfs_has_reflink(ip->i_mount);
+	return xfs_is_zoned_inode(ip) ||
+		(ip->i_mount->m_always_cow && xfs_has_reflink(ip->i_mount));
 }
