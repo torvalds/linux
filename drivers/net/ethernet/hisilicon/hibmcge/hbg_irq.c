@@ -11,6 +11,9 @@ static void hbg_irq_handle_err(struct hbg_priv *priv,
 	if (irq_info->need_print)
 		dev_err(&priv->pdev->dev,
 			"receive error interrupt: %s\n", irq_info->name);
+
+	if (irq_info->need_reset)
+		hbg_err_reset_task_schedule(priv);
 }
 
 static void hbg_irq_handle_tx(struct hbg_priv *priv,
@@ -25,30 +28,38 @@ static void hbg_irq_handle_rx(struct hbg_priv *priv,
 	napi_schedule(&priv->rx_ring.napi);
 }
 
-#define HBG_TXRX_IRQ_I(name, handle) \
-	{#name, HBG_INT_MSK_##name##_B, false, false, 0, handle}
-#define HBG_ERR_IRQ_I(name, need_print) \
-	{#name, HBG_INT_MSK_##name##_B, true, need_print, 0, hbg_irq_handle_err}
+static void hbg_irq_handle_rx_buf_val(struct hbg_priv *priv,
+				      struct hbg_irq_info *irq_info)
+{
+	priv->stats.rx_fifo_less_empty_thrsld_cnt++;
+}
+
+#define HBG_IRQ_I(name, handle) \
+	{#name, HBG_INT_MSK_##name##_B, false, false, false, 0, handle}
+#define HBG_ERR_IRQ_I(name, need_print, ndde_reset) \
+	{#name, HBG_INT_MSK_##name##_B, true, need_print, \
+	ndde_reset, 0, hbg_irq_handle_err}
 
 static struct hbg_irq_info hbg_irqs[] = {
-	HBG_TXRX_IRQ_I(RX, hbg_irq_handle_rx),
-	HBG_TXRX_IRQ_I(TX, hbg_irq_handle_tx),
-	HBG_ERR_IRQ_I(MAC_MII_FIFO_ERR, true),
-	HBG_ERR_IRQ_I(MAC_PCS_RX_FIFO_ERR, true),
-	HBG_ERR_IRQ_I(MAC_PCS_TX_FIFO_ERR, true),
-	HBG_ERR_IRQ_I(MAC_APP_RX_FIFO_ERR, true),
-	HBG_ERR_IRQ_I(MAC_APP_TX_FIFO_ERR, true),
-	HBG_ERR_IRQ_I(SRAM_PARITY_ERR, true),
-	HBG_ERR_IRQ_I(TX_AHB_ERR, true),
-	HBG_ERR_IRQ_I(RX_BUF_AVL, false),
-	HBG_ERR_IRQ_I(REL_BUF_ERR, true),
-	HBG_ERR_IRQ_I(TXCFG_AVL, false),
-	HBG_ERR_IRQ_I(TX_DROP, false),
-	HBG_ERR_IRQ_I(RX_DROP, false),
-	HBG_ERR_IRQ_I(RX_AHB_ERR, true),
-	HBG_ERR_IRQ_I(MAC_FIFO_ERR, false),
-	HBG_ERR_IRQ_I(RBREQ_ERR, false),
-	HBG_ERR_IRQ_I(WE_ERR, false),
+	HBG_IRQ_I(RX, hbg_irq_handle_rx),
+	HBG_IRQ_I(TX, hbg_irq_handle_tx),
+	HBG_ERR_IRQ_I(TX_PKT_CPL, true, true),
+	HBG_ERR_IRQ_I(MAC_MII_FIFO_ERR, true, true),
+	HBG_ERR_IRQ_I(MAC_PCS_RX_FIFO_ERR, true, true),
+	HBG_ERR_IRQ_I(MAC_PCS_TX_FIFO_ERR, true, true),
+	HBG_ERR_IRQ_I(MAC_APP_RX_FIFO_ERR, true, true),
+	HBG_ERR_IRQ_I(MAC_APP_TX_FIFO_ERR, true, true),
+	HBG_ERR_IRQ_I(SRAM_PARITY_ERR, true, false),
+	HBG_ERR_IRQ_I(TX_AHB_ERR, true, true),
+	HBG_IRQ_I(RX_BUF_AVL, hbg_irq_handle_rx_buf_val),
+	HBG_ERR_IRQ_I(REL_BUF_ERR, true, false),
+	HBG_ERR_IRQ_I(TXCFG_AVL, false, false),
+	HBG_ERR_IRQ_I(TX_DROP, false, false),
+	HBG_ERR_IRQ_I(RX_DROP, false, false),
+	HBG_ERR_IRQ_I(RX_AHB_ERR, true, false),
+	HBG_ERR_IRQ_I(MAC_FIFO_ERR, true, true),
+	HBG_ERR_IRQ_I(RBREQ_ERR, true, true),
+	HBG_ERR_IRQ_I(WE_ERR, true, true),
 };
 
 static irqreturn_t hbg_irq_handle(int irq_num, void *p)
