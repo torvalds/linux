@@ -953,8 +953,8 @@ static int bdisp_s_selection(struct file *file, void *fh,
 	if ((out.left < 0) || (out.left >= frame->width) ||
 	    (out.top < 0) || (out.top >= frame->height)) {
 		dev_err(ctx->bdisp_dev->dev,
-			"Invalid crop: %dx%d@(%d,%d) vs frame: %dx%d\n",
-			out.width, out.height, out.left, out.top,
+			"Invalid crop: (%d,%d)/%ux%u vs frame: %dx%d\n",
+			out.left, out.top, out.width, out.height,
 			frame->width, frame->height);
 		return -EINVAL;
 	}
@@ -966,8 +966,8 @@ static int bdisp_s_selection(struct file *file, void *fh,
 	if (((out.left + out.width) > frame->width) ||
 	    ((out.top + out.height) > frame->height)) {
 		dev_err(ctx->bdisp_dev->dev,
-			"Invalid crop: %dx%d@(%d,%d) vs frame: %dx%d\n",
-			out.width, out.height, out.left, out.top,
+			"Invalid crop: (%d,%d)/%ux%u vs frame: %dx%d\n",
+			out.left, out.top, out.width, out.height,
 			frame->width, frame->height);
 		return -EINVAL;
 	}
@@ -982,9 +982,9 @@ static int bdisp_s_selection(struct file *file, void *fh,
 	if ((out.left != in->left) || (out.top != in->top) ||
 	    (out.width != in->width) || (out.height != in->height)) {
 		dev_dbg(ctx->bdisp_dev->dev,
-			"%s crop updated: %dx%d@(%d,%d) -> %dx%d@(%d,%d)\n",
-			__func__, in->width, in->height, in->left, in->top,
-			out.width, out.height, out.left, out.top);
+			"%s crop updated: (%d,%d)/%ux%u -> (%d,%d)/%ux%u\n",
+			__func__, in->left, in->top, in->width, in->height,
+			out.left, out.top, out.width, out.height);
 		*in = out;
 	}
 

@@ -236,7 +236,7 @@ int mdp_try_crop(struct mdp_m2m_ctx *ctx, struct v4l2_rect *r,
 	u32 framew, frameh, walign, halign;
 	int ret;
 
-	dev_dbg(dev, "%d target:%d, set:(%d,%d) %ux%u", ctx->id,
+	dev_dbg(dev, "%d target:%d, set:(%d,%d)/%ux%u", ctx->id,
 		s->target, s->r.left, s->r.top, s->r.width, s->r.height);
 
 	left = s->r.left;
@@ -275,7 +275,7 @@ int mdp_try_crop(struct mdp_m2m_ctx *ctx, struct v4l2_rect *r,
 	r->width = right - left;
 	r->height = bottom - top;
 
-	dev_dbg(dev, "%d crop:(%d,%d) %ux%u", ctx->id,
+	dev_dbg(dev, "%d crop:(%d,%d)/%ux%u", ctx->id,
 		r->left, r->top, r->width, r->height);
 	return 0;
 }
