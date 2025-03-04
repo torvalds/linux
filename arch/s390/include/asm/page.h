@@ -89,7 +89,10 @@ static inline unsigned long pgprot_val(pgprot_t pgprot)
 	return pgprot.pgprot;
 }
 
-#define pgste_val(x)	((x).pgste)
+static inline unsigned long pgste_val(pgste_t pgste)
+{
+	return pgste.pgste;
+}
 
 static inline unsigned long pte_val(pte_t pte)
 {
