@@ -76,6 +76,7 @@ static __initdata struct hash {
 	struct hash *next;
 	char name[N_ALIGN(PATH_MAX)];
 } *head[32];
+static __initdata bool hardlink_seen;
 
 static inline int hash(int major, int minor, int ino)
 {
@@ -109,19 +110,21 @@ static char __init *find_link(int major, int minor, int ino,
 	strcpy(q->name, name);
 	q->next = NULL;
 	*p = q;
+	hardlink_seen = true;
 	return NULL;
 }
 
 static void __init free_hash(void)
 {
 	struct hash **p, *q;
-	for (p = head; p < head + 32; p++) {
+	for (p = head; hardlink_seen && p < head + 32; p++) {
 		while (*p) {
 			q = *p;
 			*p = q->next;
 			kfree(q);
 		}
 	}
+	hardlink_seen = false;
 }
 
 #ifdef CONFIG_INITRAMFS_PRESERVE_MTIME
@@ -564,6 +567,8 @@ char * __init unpack_to_rootfs(char *buf, unsigned long len)
 		len -= my_inptr;
 	}
 	dir_utime();
+	/* free any hardlink state collected without optional TRAILER!!! */
+	free_hash();
 	kfree(bufs);
 	return message;
 }
