@@ -1185,22 +1185,40 @@ struct bar {
 
 static void DEFINE_FLEX_test(struct kunit *test)
 {
-	/* Using _RAW_ on a __counted_by struct will initialize "counter" to zero */
-	DEFINE_RAW_FLEX(struct foo, two_but_zero, array, 2);
-#ifdef CONFIG_CC_HAS_COUNTED_BY
-	int expected_raw_size = sizeof(struct foo);
-#else
-	int expected_raw_size = sizeof(struct foo) + 2 * sizeof(s16);
-#endif
-	/* Without annotation, it will always be on-stack size. */
 	DEFINE_RAW_FLEX(struct bar, two, array, 2);
 	DEFINE_FLEX(struct foo, eight, array, counter, 8);
 	DEFINE_FLEX(struct foo, empty, array, counter, 0);
+	/* Using _RAW_ on a __counted_by struct will initialize "counter" to zero */
+	DEFINE_RAW_FLEX(struct foo, two_but_zero, array, 2);
+	int array_size_override = 0;
 
-	KUNIT_EXPECT_EQ(test, __struct_size(two_but_zero), expected_raw_size);
+	KUNIT_EXPECT_EQ(test, sizeof(*two), sizeof(struct bar));
 	KUNIT_EXPECT_EQ(test, __struct_size(two), sizeof(struct bar) + 2 * sizeof(s16));
-	KUNIT_EXPECT_EQ(test, __struct_size(eight), 24);
+	KUNIT_EXPECT_EQ(test, __member_size(two), sizeof(struct bar) + 2 * sizeof(s16));
+	KUNIT_EXPECT_EQ(test, __struct_size(two->array), 2 * sizeof(s16));
+	KUNIT_EXPECT_EQ(test, __member_size(two->array), 2 * sizeof(s16));
+
+	KUNIT_EXPECT_EQ(test, sizeof(*eight), sizeof(struct foo));
+	KUNIT_EXPECT_EQ(test, __struct_size(eight), sizeof(struct foo) + 8 * sizeof(s16));
+	KUNIT_EXPECT_EQ(test, __member_size(eight), sizeof(struct foo) + 8 * sizeof(s16));
+	KUNIT_EXPECT_EQ(test, __struct_size(eight->array), 8 * sizeof(s16));
+	KUNIT_EXPECT_EQ(test, __member_size(eight->array), 8 * sizeof(s16));
+
+	KUNIT_EXPECT_EQ(test, sizeof(*empty), sizeof(struct foo));
 	KUNIT_EXPECT_EQ(test, __struct_size(empty), sizeof(struct foo));
+	KUNIT_EXPECT_EQ(test, __member_size(empty), sizeof(struct foo));
+	KUNIT_EXPECT_EQ(test, __struct_size(empty->array), 0);
+	KUNIT_EXPECT_EQ(test, __member_size(empty->array), 0);
+
+	/* If __counted_by is not being used, array size will have the on-stack size. */
+	if (!IS_ENABLED(CONFIG_CC_HAS_COUNTED_BY))
+		array_size_override = 2 * sizeof(s16);
+
+	KUNIT_EXPECT_EQ(test, sizeof(*two_but_zero), sizeof(struct foo));
+	KUNIT_EXPECT_EQ(test, __struct_size(two_but_zero), sizeof(struct foo) + 2 * sizeof(s16));
+	KUNIT_EXPECT_EQ(test, __member_size(two_but_zero), sizeof(struct foo) + 2 * sizeof(s16));
+	KUNIT_EXPECT_EQ(test, __struct_size(two_but_zero->array), array_size_override);
+	KUNIT_EXPECT_EQ(test, __member_size(two_but_zero->array), array_size_override);
 }
 
 static struct kunit_case overflow_test_cases[] = {
