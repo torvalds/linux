@@ -28,6 +28,7 @@
 #define MII_ECTRL_POWER_MODE_MASK	GENMASK(14, 11)
 #define MII_ECTRL_POWER_MODE_NO_CHANGE	(0x0 << 11)
 #define MII_ECTRL_POWER_MODE_NORMAL	(0x3 << 11)
+#define MII_ECTRL_POWER_MODE_SLEEP	(0xa << 11)
 #define MII_ECTRL_POWER_MODE_STANDBY	(0xc << 11)
 #define MII_ECTRL_CABLE_TEST		BIT(5)
 #define MII_ECTRL_CONFIG_EN		BIT(2)
@@ -78,6 +79,9 @@
 
 #define MII_COMMCFG			27
 #define MII_COMMCFG_AUTO_OP		BIT(15)
+
+#define MII_CFG3			28
+#define MII_CFG3_PHY_EN			BIT(0)
 
 /* Configure REF_CLK as input in RMII mode */
 #define TJA110X_RMII_MODE_REFCLK_IN       BIT(0)
@@ -180,6 +184,14 @@ static int tja11xx_wakeup(struct phy_device *phydev)
 			return ret;
 
 		return tja11xx_enable_link_control(phydev);
+	case MII_ECTRL_POWER_MODE_SLEEP:
+		switch (phydev->phy_id & PHY_ID_MASK) {
+		case PHY_ID_TJA1102S:
+			/* Enable PHY, maybe it is disabled due to pin strapping */
+			return phy_set_bits(phydev, MII_CFG3, MII_CFG3_PHY_EN);
+		default:
+			return 0;
+		}
 	default:
 		break;
 	}
