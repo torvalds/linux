@@ -1082,22 +1082,20 @@ static void get_speed_duplex(struct net_device *netdev,
 			     struct ethtool_link_ksettings *link_ksettings)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	u32 speed = SPEED_UNKNOWN;
+	const struct mlx5_link_info *info;
 	u8 duplex = DUPLEX_UNKNOWN;
+	u32 speed = SPEED_UNKNOWN;
 
 	if (!netif_carrier_ok(netdev))
 		goto out;
 
-	speed = mlx5_port_ptys2speed(priv->mdev, eth_proto_oper, force_legacy);
-	if (!speed) {
-		if (data_rate_oper)
-			speed = 100 * data_rate_oper;
-		else
-			speed = SPEED_UNKNOWN;
-		goto out;
+	info = mlx5_port_ptys2info(priv->mdev, eth_proto_oper, force_legacy);
+	if (info) {
+		speed = info->speed;
+		duplex = DUPLEX_FULL;
+	} else if (data_rate_oper) {
+		speed = 100 * data_rate_oper;
 	}
-
-	duplex = DUPLEX_FULL;
 
 out:
 	link_ksettings->base.speed = speed;
@@ -1349,6 +1347,7 @@ static int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_port_eth_proto eproto;
+	struct mlx5_link_info info = {};
 	const unsigned long *adver;
 	bool an_changes = false;
 	u8 an_disable_admin;
@@ -1359,7 +1358,6 @@ static int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 	u32 link_modes;
 	u8 an_status;
 	u8 autoneg;
-	u32 speed;
 	bool ext;
 	int err;
 
@@ -1367,7 +1365,7 @@ static int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 
 	adver = link_ksettings->link_modes.advertising;
 	autoneg = link_ksettings->base.autoneg;
-	speed = link_ksettings->base.speed;
+	info.speed = link_ksettings->base.speed;
 
 	ext_supported = mlx5_ptys_ext_supported(mdev);
 	ext_requested = ext_link_mode_requested(adver);
@@ -1384,7 +1382,7 @@ static int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 		goto out;
 	}
 	link_modes = autoneg == AUTONEG_ENABLE ? ethtool2ptys_adver_func(adver) :
-		mlx5_port_speed2linkmodes(mdev, speed, !ext);
+		mlx5_port_info2linkmodes(mdev, &info, !ext);
 
 	err = mlx5e_speed_validate(priv->netdev, ext, link_modes, autoneg);
 	if (err)

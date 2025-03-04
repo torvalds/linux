@@ -129,6 +129,10 @@ struct mlx5_module_eeprom_query_params {
 	u32 module_number;
 };
 
+struct mlx5_link_info {
+	u32 speed;
+};
+
 static inline void mlx5_printk(struct mlx5_core_dev *dev, int level, const char *format, ...)
 {
 	struct device *device = dev->device;
@@ -359,10 +363,12 @@ int mlx5_query_dscp2prio(struct mlx5_core_dev *mdev, u8 *dscp2prio);
 int mlx5_port_query_eth_proto(struct mlx5_core_dev *dev, u8 port, bool ext,
 			      struct mlx5_port_eth_proto *eproto);
 bool mlx5_ptys_ext_supported(struct mlx5_core_dev *mdev);
-u32 mlx5_port_ptys2speed(struct mlx5_core_dev *mdev, u32 eth_proto_oper,
-			 bool force_legacy);
-u32 mlx5_port_speed2linkmodes(struct mlx5_core_dev *mdev, u32 speed,
-			      bool force_legacy);
+const struct mlx5_link_info *mlx5_port_ptys2info(struct mlx5_core_dev *mdev,
+						 u32 eth_proto_oper,
+						 bool force_legacy);
+u32 mlx5_port_info2linkmodes(struct mlx5_core_dev *mdev,
+			     struct mlx5_link_info *info,
+			     bool force_legacy);
 int mlx5_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 
 #define MLX5_PPS_CAP(mdev) (MLX5_CAP_GEN((mdev), pps) &&		\
