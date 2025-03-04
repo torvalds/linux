@@ -859,7 +859,7 @@ int kthread_affine_preferred(struct task_struct *p, const struct cpumask *mask)
 	struct kthread *kthread = to_kthread(p);
 	cpumask_var_t affinity;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	if (!wait_task_inactive(p, TASK_UNINTERRUPTIBLE) || kthread->started) {
 		WARN_ON(1);
@@ -892,7 +892,7 @@ int kthread_affine_preferred(struct task_struct *p, const struct cpumask *mask)
 out:
 	free_cpumask_var(affinity);
 
-	return 0;
+	return ret;
 }
 
 /*

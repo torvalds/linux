@@ -339,13 +339,14 @@ out:
 	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
 }
 
-static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
+static __always_inline void pci_read_bases(struct pci_dev *dev,
+					   unsigned int howmany, int rom)
 {
 	u32 rombar, stdbars[PCI_STD_NUM_BARS];
 	unsigned int pos, reg;
 	u16 orig_cmd;
 
-	BUILD_BUG_ON(howmany > PCI_STD_NUM_BARS);
+	BUILD_BUG_ON(statically_true(howmany > PCI_STD_NUM_BARS));
 
 	if (dev->non_compliant_bars)
 		return;

@@ -478,6 +478,7 @@ void iopf_queue_remove_device(struct iopf_queue *queue, struct device *dev)
 
 		ops->page_response(dev, iopf, &resp);
 		list_del_init(&group->pending_node);
+		iopf_free_group(group);
 	}
 	mutex_unlock(&fault_param->lock);
 

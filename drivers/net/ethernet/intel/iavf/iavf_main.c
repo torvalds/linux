@@ -2903,8 +2903,8 @@ static void iavf_watchdog_task(struct work_struct *work)
 	}
 
 	mutex_unlock(&adapter->crit_lock);
-	netdev_unlock(netdev);
 restart_watchdog:
+	netdev_unlock(netdev);
 	if (adapter->state >= __IAVF_DOWN)
 		queue_work(adapter->wq, &adapter->adminq_task);
 	if (adapter->aq_required)

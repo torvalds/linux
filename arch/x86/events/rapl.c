@@ -370,6 +370,10 @@ static int rapl_pmu_event_init(struct perf_event *event)
 	unsigned int rapl_pmu_idx;
 	struct rapl_pmus *rapl_pmus;
 
+	/* only look at RAPL events */
+	if (event->attr.type != event->pmu->type)
+		return -ENOENT;
+
 	/* unsupported modes and filters */
 	if (event->attr.sample_period) /* no sampling */
 		return -EINVAL;
@@ -387,10 +391,6 @@ static int rapl_pmu_event_init(struct perf_event *event)
 	rapl_pmus_scope = rapl_pmus->pmu.scope;
 
 	if (rapl_pmus_scope == PERF_PMU_SCOPE_PKG || rapl_pmus_scope == PERF_PMU_SCOPE_DIE) {
-		/* only look at RAPL package events */
-		if (event->attr.type != rapl_pmus_pkg->pmu.type)
-			return -ENOENT;
-
 		cfg = array_index_nospec((long)cfg, NR_RAPL_PKG_DOMAINS + 1);
 		if (!cfg || cfg >= NR_RAPL_PKG_DOMAINS + 1)
 			return -EINVAL;
@@ -398,10 +398,6 @@ static int rapl_pmu_event_init(struct perf_event *event)
 		bit = cfg - 1;
 		event->hw.event_base = rapl_model->rapl_pkg_msrs[bit].msr;
 	} else if (rapl_pmus_scope == PERF_PMU_SCOPE_CORE) {
-		/* only look at RAPL core events */
-		if (event->attr.type != rapl_pmus_core->pmu.type)
-			return -ENOENT;
-
 		cfg = array_index_nospec((long)cfg, NR_RAPL_CORE_DOMAINS + 1);
 		if (!cfg || cfg >= NR_RAPL_PKG_DOMAINS + 1)
 			return -EINVAL;

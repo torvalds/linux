@@ -17,7 +17,8 @@ config ARM_ALLWINNER_SUN50I_CPUFREQ_NVMEM
 
 config ARM_AIROHA_SOC_CPUFREQ
 	tristate "Airoha EN7581 SoC CPUFreq support"
-	depends on (ARCH_AIROHA && OF) || COMPILE_TEST
+	depends on ARCH_AIROHA || COMPILE_TEST
+	depends on OF
 	select PM_OPP
 	default ARCH_AIROHA
 	help
