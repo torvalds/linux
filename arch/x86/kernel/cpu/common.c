@@ -846,13 +846,13 @@ void cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
 	c->x86_cache_size = l2size;
 }
 
-u16 __read_mostly tlb_lli_4k[NR_INFO];
-u16 __read_mostly tlb_lli_2m[NR_INFO];
-u16 __read_mostly tlb_lli_4m[NR_INFO];
-u16 __read_mostly tlb_lld_4k[NR_INFO];
-u16 __read_mostly tlb_lld_2m[NR_INFO];
-u16 __read_mostly tlb_lld_4m[NR_INFO];
-u16 __read_mostly tlb_lld_1g[NR_INFO];
+u16 __read_mostly tlb_lli_4k;
+u16 __read_mostly tlb_lli_2m;
+u16 __read_mostly tlb_lli_4m;
+u16 __read_mostly tlb_lld_4k;
+u16 __read_mostly tlb_lld_2m;
+u16 __read_mostly tlb_lld_4m;
+u16 __read_mostly tlb_lld_1g;
 
 static void cpu_detect_tlb(struct cpuinfo_x86 *c)
 {
@@ -860,12 +860,10 @@ static void cpu_detect_tlb(struct cpuinfo_x86 *c)
 		this_cpu->c_detect_tlb(c);
 
 	pr_info("Last level iTLB entries: 4KB %d, 2MB %d, 4MB %d\n",
-		tlb_lli_4k[ENTRIES], tlb_lli_2m[ENTRIES],
-		tlb_lli_4m[ENTRIES]);
+		tlb_lli_4k, tlb_lli_2m, tlb_lli_4m);
 
 	pr_info("Last level dTLB entries: 4KB %d, 2MB %d, 4MB %d, 1GB %d\n",
-		tlb_lld_4k[ENTRIES], tlb_lld_2m[ENTRIES],
-		tlb_lld_4m[ENTRIES], tlb_lld_1g[ENTRIES]);
+		tlb_lld_4k, tlb_lld_2m, tlb_lld_4m, tlb_lld_1g);
 }
 
 void get_cpu_vendor(struct cpuinfo_x86 *c)

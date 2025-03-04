@@ -60,18 +60,13 @@ struct vm86;
 # define ARCH_MIN_MMSTRUCT_ALIGN	0
 #endif
 
-enum tlb_infos {
-	ENTRIES,
-	NR_INFO
-};
-
-extern u16 __read_mostly tlb_lli_4k[NR_INFO];
-extern u16 __read_mostly tlb_lli_2m[NR_INFO];
-extern u16 __read_mostly tlb_lli_4m[NR_INFO];
-extern u16 __read_mostly tlb_lld_4k[NR_INFO];
-extern u16 __read_mostly tlb_lld_2m[NR_INFO];
-extern u16 __read_mostly tlb_lld_4m[NR_INFO];
-extern u16 __read_mostly tlb_lld_1g[NR_INFO];
+extern u16 __read_mostly tlb_lli_4k;
+extern u16 __read_mostly tlb_lli_2m;
+extern u16 __read_mostly tlb_lli_4m;
+extern u16 __read_mostly tlb_lld_4k;
+extern u16 __read_mostly tlb_lld_2m;
+extern u16 __read_mostly tlb_lld_4m;
+extern u16 __read_mostly tlb_lld_1g;
 
 /*
  * CPU type and hardware bug flags. Kept separately for each CPU.

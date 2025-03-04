@@ -718,55 +718,55 @@ static void intel_tlb_lookup(const unsigned char desc)
 	entries = intel_tlb_table[k].entries;
 	switch (intel_tlb_table[k].tlb_type) {
 	case STLB_4K:
-		tlb_lli_4k[ENTRIES] = max(tlb_lli_4k[ENTRIES], entries);
-		tlb_lld_4k[ENTRIES] = max(tlb_lld_4k[ENTRIES], entries);
+		tlb_lli_4k = max(tlb_lli_4k, entries);
+		tlb_lld_4k = max(tlb_lld_4k, entries);
 		break;
 	case STLB_4K_2M:
-		tlb_lli_4k[ENTRIES] = max(tlb_lli_4k[ENTRIES], entries);
-		tlb_lld_4k[ENTRIES] = max(tlb_lld_4k[ENTRIES], entries);
-		tlb_lli_2m[ENTRIES] = max(tlb_lli_2m[ENTRIES], entries);
-		tlb_lld_2m[ENTRIES] = max(tlb_lld_2m[ENTRIES], entries);
-		tlb_lli_4m[ENTRIES] = max(tlb_lli_4m[ENTRIES], entries);
-		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], entries);
+		tlb_lli_4k = max(tlb_lli_4k, entries);
+		tlb_lld_4k = max(tlb_lld_4k, entries);
+		tlb_lli_2m = max(tlb_lli_2m, entries);
+		tlb_lld_2m = max(tlb_lld_2m, entries);
+		tlb_lli_4m = max(tlb_lli_4m, entries);
+		tlb_lld_4m = max(tlb_lld_4m, entries);
 		break;
 	case TLB_INST_ALL:
-		tlb_lli_4k[ENTRIES] = max(tlb_lli_4k[ENTRIES], entries);
-		tlb_lli_2m[ENTRIES] = max(tlb_lli_2m[ENTRIES], entries);
-		tlb_lli_4m[ENTRIES] = max(tlb_lli_4m[ENTRIES], entries);
+		tlb_lli_4k = max(tlb_lli_4k, entries);
+		tlb_lli_2m = max(tlb_lli_2m, entries);
+		tlb_lli_4m = max(tlb_lli_4m, entries);
 		break;
 	case TLB_INST_4K:
-		tlb_lli_4k[ENTRIES] = max(tlb_lli_4k[ENTRIES], entries);
+		tlb_lli_4k = max(tlb_lli_4k, entries);
 		break;
 	case TLB_INST_4M:
-		tlb_lli_4m[ENTRIES] = max(tlb_lli_4m[ENTRIES], entries);
+		tlb_lli_4m = max(tlb_lli_4m, entries);
 		break;
 	case TLB_INST_2M_4M:
-		tlb_lli_2m[ENTRIES] = max(tlb_lli_2m[ENTRIES], entries);
-		tlb_lli_4m[ENTRIES] = max(tlb_lli_4m[ENTRIES], entries);
+		tlb_lli_2m = max(tlb_lli_2m, entries);
+		tlb_lli_4m = max(tlb_lli_4m, entries);
 		break;
 	case TLB_DATA_4K:
 	case TLB_DATA0_4K:
-		tlb_lld_4k[ENTRIES] = max(tlb_lld_4k[ENTRIES], entries);
+		tlb_lld_4k = max(tlb_lld_4k, entries);
 		break;
 	case TLB_DATA_4M:
 	case TLB_DATA0_4M:
-		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], entries);
+		tlb_lld_4m = max(tlb_lld_4m, entries);
 		break;
 	case TLB_DATA_2M_4M:
 	case TLB_DATA0_2M_4M:
-		tlb_lld_2m[ENTRIES] = max(tlb_lld_2m[ENTRIES], entries);
-		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], entries);
+		tlb_lld_2m = max(tlb_lld_2m, entries);
+		tlb_lld_4m = max(tlb_lld_4m, entries);
 		break;
 	case TLB_DATA_4K_4M:
-		tlb_lld_4k[ENTRIES] = max(tlb_lld_4k[ENTRIES], entries);
-		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], entries);
+		tlb_lld_4k = max(tlb_lld_4k, entries);
+		tlb_lld_4m = max(tlb_lld_4m, entries);
 		break;
 	case TLB_DATA_1G_2M_4M:
-		tlb_lld_2m[ENTRIES] = max(tlb_lld_2m[ENTRIES], TLB_0x63_2M_4M_ENTRIES);
-		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], TLB_0x63_2M_4M_ENTRIES);
+		tlb_lld_2m = max(tlb_lld_2m, TLB_0x63_2M_4M_ENTRIES);
+		tlb_lld_4m = max(tlb_lld_4m, TLB_0x63_2M_4M_ENTRIES);
 		fallthrough;
 	case TLB_DATA_1G:
-		tlb_lld_1g[ENTRIES] = max(tlb_lld_1g[ENTRIES], entries);
+		tlb_lld_1g = max(tlb_lld_1g, entries);
 		break;
 	}
 }
