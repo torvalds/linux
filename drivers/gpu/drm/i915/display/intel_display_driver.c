@@ -199,7 +199,7 @@ void intel_display_driver_early_probe(struct intel_display *display)
 	intel_init_cdclk_hooks(display);
 	intel_audio_hooks_init(display);
 	intel_dpll_init_clock_hook(i915);
-	intel_init_display_hooks(i915);
+	intel_init_display_hooks(display);
 	intel_fdi_init_hook(display);
 	intel_dmc_wl_init(display);
 }
@@ -431,7 +431,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 
 	intel_wm_init(i915);
 
-	intel_panel_sanitize_ssc(i915);
+	intel_panel_sanitize_ssc(display);
 
 	intel_pps_setup(display);
 
@@ -451,7 +451,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 	intel_shared_dpll_init(display);
 	intel_fdi_pll_freq_update(display);
 
-	intel_update_czclk(i915);
+	intel_update_czclk(display);
 	intel_display_driver_init_hw(display);
 	intel_dpll_update_ref_clks(display);
 
@@ -462,7 +462,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 
 	/* Just disable it once at startup */
 	intel_vga_disable(display);
-	intel_setup_outputs(i915);
+	intel_setup_outputs(display);
 
 	ret = intel_dp_tunnel_mgr_init(display);
 	if (ret)
@@ -517,7 +517,7 @@ int intel_display_driver_probe(struct intel_display *display)
 	 * are already calculated and there is no assert_plane warnings
 	 * during bootup.
 	 */
-	ret = intel_initial_commit(display->drm);
+	ret = intel_initial_commit(display);
 	if (ret)
 		drm_dbg_kms(display->drm, "Initial modeset failed, %d\n", ret);
 

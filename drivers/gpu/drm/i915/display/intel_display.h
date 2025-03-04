@@ -457,7 +457,6 @@ int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 		      const char *name, u32 reg, int ref_freq);
 int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 			   const char *name, u32 reg);
-void intel_init_display_hooks(struct drm_i915_private *dev_priv);
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
@@ -541,11 +540,11 @@ void intel_modeset_put_crtc_power_domains(struct intel_crtc *crtc,
 					  struct intel_power_domain_mask *domains);
 
 /* interface for intel_display_driver.c */
-void intel_setup_outputs(struct drm_i915_private *i915);
-int intel_initial_commit(struct drm_device *dev);
-void intel_panel_sanitize_ssc(struct drm_i915_private *i915);
-void intel_update_czclk(struct drm_i915_private *i915);
-void intel_atomic_helper_free_state_worker(struct work_struct *work);
+void intel_init_display_hooks(struct intel_display *display);
+void intel_setup_outputs(struct intel_display *display);
+int intel_initial_commit(struct intel_display *display);
+void intel_panel_sanitize_ssc(struct intel_display *display);
+void intel_update_czclk(struct intel_display *display);
 enum drm_mode_status intel_mode_valid(struct drm_device *dev,
 				      const struct drm_display_mode *mode);
 int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
