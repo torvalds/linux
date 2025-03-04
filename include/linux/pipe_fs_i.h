@@ -31,6 +31,33 @@ struct pipe_buffer {
 	unsigned long private;
 };
 
+/*
+ * Really only alpha needs 32-bit fields, but
+ * might as well do it for 64-bit architectures
+ * since that's what we've historically done,
+ * and it makes 'head_tail' always be a simple
+ * 'unsigned long'.
+ */
+#ifdef CONFIG_64BIT
+typedef unsigned int pipe_index_t;
+#else
+typedef unsigned short pipe_index_t;
+#endif
+
+/*
+ * We have to declare this outside 'struct pipe_inode_info',
+ * but then we can't use 'union pipe_index' for an anonymous
+ * union, so we end up having to duplicate this declaration
+ * below. Annoying.
+ */
+union pipe_index {
+	unsigned long head_tail;
+	struct {
+		pipe_index_t head;
+		pipe_index_t tail;
+	};
+};
+
 /**
  *	struct pipe_inode_info - a linux kernel pipe
  *	@mutex: mutex protecting the whole thing
@@ -58,8 +85,16 @@ struct pipe_buffer {
 struct pipe_inode_info {
 	struct mutex mutex;
 	wait_queue_head_t rd_wait, wr_wait;
-	unsigned int head;
-	unsigned int tail;
+
+	/* This has to match the 'union pipe_index' above */
+	union {
+		unsigned long head_tail;
+		struct {
+			pipe_index_t head;
+			pipe_index_t tail;
+		};
+	};
+
 	unsigned int max_usage;
 	unsigned int ring_size;
 	unsigned int nr_accounted;
