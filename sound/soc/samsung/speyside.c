@@ -7,13 +7,13 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 
 #include "../codecs/wm8996.h"
 #include "../codecs/wm9081.h"
 
-#define WM8996_HPSEL_GPIO 214
 #define MCLK_AUDIO_RATE (512 * 48000)
 
 static int speyside_set_bias_level(struct snd_soc_card *card,
@@ -105,6 +105,7 @@ static struct snd_soc_jack_pin speyside_headset_pins[] = {
 	},
 };
 
+static struct gpio_desc *speyside_hpsel_gpio;
 /* Default the headphone selection to active high */
 static int speyside_jack_polarity;
 
@@ -123,7 +124,7 @@ static void speyside_set_polarity(struct snd_soc_component *component,
 				  int polarity)
 {
 	speyside_jack_polarity = !polarity;
-	gpio_direction_output(WM8996_HPSEL_GPIO, speyside_jack_polarity);
+	gpiod_direction_output(speyside_hpsel_gpio, speyside_jack_polarity);
 
 	/* Re-run DAPM to make sure we're using the correct mic bias */
 	snd_soc_dapm_sync(snd_soc_component_get_dapm(component));
@@ -145,16 +146,22 @@ static int speyside_wm8996_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct snd_soc_component *component = dai->component;
+	enum gpiod_flags flags;
 	int ret;
 
 	ret = snd_soc_dai_set_sysclk(dai, WM8996_SYSCLK_MCLK2, 32768, 0);
 	if (ret < 0)
 		return ret;
 
-	ret = gpio_request(WM8996_HPSEL_GPIO, "HP_SEL");
-	if (ret != 0)
-		pr_err("Failed to request HP_SEL GPIO: %d\n", ret);
-	gpio_direction_output(WM8996_HPSEL_GPIO, speyside_jack_polarity);
+	if (speyside_jack_polarity)
+		flags = GPIOD_OUT_HIGH;
+	else
+		flags = GPIOD_OUT_LOW;
+	speyside_hpsel_gpio = devm_gpiod_get(rtd->card->dev,
+					     "hp-sel",
+					     flags);
+	if (IS_ERR(speyside_hpsel_gpio))
+		return PTR_ERR(speyside_hpsel_gpio);
 
 	ret = snd_soc_card_jack_new_pins(rtd->card, "Headset",
 					 SND_JACK_LINEOUT | SND_JACK_HEADSET |
@@ -325,6 +332,21 @@ static struct snd_soc_card speyside = {
 	.late_probe = speyside_late_probe,
 };
 
+static struct gpiod_lookup_table wm8996_gpiod_table = {
+	/* Hardcoded device name in board file mach-crag6410.c */
+	.dev_id = "speyside",
+	.table = {
+		/*
+		 * This line was hardcoded to 214 in the global GPIO
+		 * number space, S3C GPIO macros seems top set the
+		 * wm8996 codec GPIO start offset to 212, so this will
+		 * be GPIO 214 - 212 = 2 on the wm8996.
+		 */
+		GPIO_LOOKUP("wm8996", 2, "hp-sel", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static int speyside_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &speyside;
@@ -332,6 +354,7 @@ static int speyside_probe(struct platform_device *pdev)
 
 	card->dev = &pdev->dev;
 
+	gpiod_add_lookup_table(&wm8996_gpiod_table);
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
 		dev_err_probe(&pdev->dev, ret, "snd_soc_register_card() failed\n");
