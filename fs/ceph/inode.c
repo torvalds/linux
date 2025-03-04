@@ -1870,9 +1870,12 @@ static int fill_readdir_cache(struct inode *dir, struct dentry *dn,
 
 		ctl->folio = __filemap_get_folio(&dir->i_data, pgoff,
 				fgf, mapping_gfp_mask(&dir->i_data));
-		if (!ctl->folio) {
+		if (IS_ERR(ctl->folio)) {
+			int err = PTR_ERR(ctl->folio);
+
+			ctl->folio = NULL;
 			ctl->index = -1;
-			return idx == 0 ? -ENOMEM : 0;
+			return idx == 0 ? err : 0;
 		}
 		/* reading/filling the cache are serialized by
 		 * i_rwsem, no need to use folio lock */
