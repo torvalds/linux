@@ -285,7 +285,7 @@ int arch_add_memory(int nid, u64 start, u64 size,
 	unsigned long size_pages = PFN_DOWN(size);
 	int rc;
 
-	if (WARN_ON_ONCE(params->pgprot.pgprot != PAGE_KERNEL.pgprot))
+	if (WARN_ON_ONCE(pgprot_val(params->pgprot) != pgprot_val(PAGE_KERNEL)))
 		return -EINVAL;
 
 	VM_BUG_ON(!mhp_range_allowed(start, size, true));
