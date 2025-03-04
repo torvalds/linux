@@ -57,7 +57,15 @@ u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 	     num_longs != 0; num_longs--, p += sizeof(unsigned long))
 		asm(CRC32_INST : "+r" (crc) : ASM_INPUT_RM (*(unsigned long *)p));
 
-	for (len %= sizeof(unsigned long); len; len--, p++)
+	if (sizeof(unsigned long) > 4 && (len & 4)) {
+		asm("crc32l %1, %0" : "+r" (crc) : ASM_INPUT_RM (*(u32 *)p));
+		p += 4;
+	}
+	if (len & 2) {
+		asm("crc32w %1, %0" : "+r" (crc) : ASM_INPUT_RM (*(u16 *)p));
+		p += 2;
+	}
+	if (len & 1)
 		asm("crc32b %1, %0" : "+r" (crc) : ASM_INPUT_RM (*p));
 
 	return crc;
