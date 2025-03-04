@@ -120,8 +120,6 @@ void native_smp_send_reschedule(int cpu);
 void native_send_call_func_ipi(const struct cpumask *mask);
 void native_send_call_func_single_ipi(int cpu);
 
-void smp_store_cpu_info(int id);
-
 asmlinkage __visible void smp_reboot_interrupt(void);
 __visible void smp_reschedule_interrupt(struct pt_regs *regs);
 __visible void smp_call_function_interrupt(struct pt_regs *regs);

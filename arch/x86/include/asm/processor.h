@@ -229,7 +229,7 @@ static inline unsigned long long l1tf_pfn_limit(void)
 void init_cpu_devs(void);
 void get_cpu_vendor(struct cpuinfo_x86 *c);
 extern void early_cpu_init(void);
-extern void identify_secondary_cpu(struct cpuinfo_x86 *);
+extern void identify_secondary_cpu(unsigned int cpu);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 void print_cpu_msr(struct cpuinfo_x86 *);
 
