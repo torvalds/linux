@@ -76,7 +76,8 @@ Kconfig 変更のレビュー
    されている。
 
 5) 新規ユーザースペース・インターフェースが、すべて ``Documentaion/ABI/``
-   以下に記載されている。詳しくは、 ``Documentation/ABI/README`` を参照。
+   以下に記載されている。詳しくは、 Documentation/admin-guide/abi.rst
+   (もしくは ``Documentation/ABI/README``) を参照。
    ユーザースペース・インターフェースを変更するパッチは、
    linux-api@vger.kernel.org にも CC すべし。
 
