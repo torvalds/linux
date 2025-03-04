@@ -563,8 +563,8 @@ struct request_queue {
 	/*
 	 * Protects against I/O scheduler switching, particularly when
 	 * updating q->elevator. Since the elevator update code path may
-	 * also modify q->nr_requests, this lock also protects the sysfs
-	 * attribute nr_requests.
+	 * also modify q->nr_requests and wbt latency, this lock also
+	 * protects the sysfs attributes nr_requests and wbt_lat_usec.
 	 * To ensure proper locking order during an elevator update, first
 	 * freeze the queue, then acquire ->elevator_lock.
 	 */
