@@ -502,10 +502,10 @@ struct spinand_info {
 	}
 
 #define SPINAND_SELECT_TARGET(__func)					\
-	.select_target = __func,
+	.select_target = __func
 
 #define SPINAND_CONT_READ(__set_cont_read)				\
-	.set_cont_read = __set_cont_read,
+	.set_cont_read = __set_cont_read
 
 #define SPINAND_FACT_OTP_INFO(__npages, __start_page, __ops)		\
 	.fact_otp = {							\
@@ -526,8 +526,8 @@ struct spinand_info {
 	}
 
 #define SPINAND_READ_RETRY(__read_retries, __set_read_retry)		\
-	.read_retries = __read_retries,				\
-	.set_read_retry = __set_read_retry,
+	.read_retries = __read_retries,					\
+	.set_read_retry = __set_read_retry
 
 #define SPINAND_INFO(__model, __id, __memorg, __eccreq, __op_variants,	\
 		     __flags, ...)					\

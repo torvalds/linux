@@ -187,7 +187,7 @@ static const struct spinand_info macronix_spinand_table[] = {
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
 				     macronix_ecc_get_status),
-		     SPINAND_CONT_READ(macronix_set_cont_read)
+		     SPINAND_CONT_READ(macronix_set_cont_read),
 		     SPINAND_READ_RETRY(MACRONIX_NUM_READ_RETRY_MODES,
 					macronix_set_read_retry)),
 	SPINAND_INFO("MX35LF4GE4AD",
@@ -200,7 +200,7 @@ static const struct spinand_info macronix_spinand_table[] = {
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
 				     macronix_ecc_get_status),
-		     SPINAND_CONT_READ(macronix_set_cont_read)
+		     SPINAND_CONT_READ(macronix_set_cont_read),
 		     SPINAND_READ_RETRY(MACRONIX_NUM_READ_RETRY_MODES,
 					macronix_set_read_retry)),
 	SPINAND_INFO("MX35LF1G24AD",
@@ -328,7 +328,7 @@ static const struct spinand_info macronix_spinand_table[] = {
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
 				     macronix_ecc_get_status),
-		     SPINAND_CONT_READ(macronix_set_cont_read)
+		     SPINAND_CONT_READ(macronix_set_cont_read),
 		     SPINAND_READ_RETRY(MACRONIX_NUM_READ_RETRY_MODES,
 					macronix_set_read_retry)),
 	SPINAND_INFO("MX35UF2G14AC",
@@ -378,7 +378,7 @@ static const struct spinand_info macronix_spinand_table[] = {
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
 				     macronix_ecc_get_status),
-		     SPINAND_CONT_READ(macronix_set_cont_read)
+		     SPINAND_CONT_READ(macronix_set_cont_read),
 		     SPINAND_READ_RETRY(MACRONIX_NUM_READ_RETRY_MODES,
 					macronix_set_read_retry)),
 	SPINAND_INFO("MX35UF2GE4AC",
@@ -424,7 +424,7 @@ static const struct spinand_info macronix_spinand_table[] = {
 		     SPINAND_HAS_QE_BIT,
 		     SPINAND_ECCINFO(&mx35lfxge4ab_ooblayout,
 				     macronix_ecc_get_status),
-		     SPINAND_CONT_READ(macronix_set_cont_read)
+		     SPINAND_CONT_READ(macronix_set_cont_read),
 		     SPINAND_READ_RETRY(MACRONIX_NUM_READ_RETRY_MODES,
 					macronix_set_read_retry)),
 	SPINAND_INFO("MX35UF1GE4AC",
