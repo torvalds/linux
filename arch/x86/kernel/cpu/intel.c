@@ -3,6 +3,7 @@
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/minmax.h>
 #include <linux/smp.h>
 #include <linux/string.h>
 
@@ -700,7 +701,9 @@ static const struct _tlb_table intel_tlb_table[] = {
 
 static void intel_tlb_lookup(const unsigned char desc)
 {
+	unsigned int entries;
 	unsigned char k;
+
 	if (desc == 0)
 		return;
 
@@ -712,81 +715,58 @@ static void intel_tlb_lookup(const unsigned char desc)
 	if (intel_tlb_table[k].tlb_type == 0)
 		return;
 
+	entries = intel_tlb_table[k].entries;
 	switch (intel_tlb_table[k].tlb_type) {
 	case STLB_4K:
-		if (tlb_lli_4k[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_4k[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lld_4k[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_4k[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lli_4k[ENTRIES] = max(tlb_lli_4k[ENTRIES], entries);
+		tlb_lld_4k[ENTRIES] = max(tlb_lld_4k[ENTRIES], entries);
 		break;
 	case STLB_4K_2M:
-		if (tlb_lli_4k[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_4k[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lld_4k[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_4k[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lli_2m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_2m[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lld_2m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_2m[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lli_4m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_4m[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lld_4m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_4m[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lli_4k[ENTRIES] = max(tlb_lli_4k[ENTRIES], entries);
+		tlb_lld_4k[ENTRIES] = max(tlb_lld_4k[ENTRIES], entries);
+		tlb_lli_2m[ENTRIES] = max(tlb_lli_2m[ENTRIES], entries);
+		tlb_lld_2m[ENTRIES] = max(tlb_lld_2m[ENTRIES], entries);
+		tlb_lli_4m[ENTRIES] = max(tlb_lli_4m[ENTRIES], entries);
+		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], entries);
 		break;
 	case TLB_INST_ALL:
-		if (tlb_lli_4k[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_4k[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lli_2m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_2m[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lli_4m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_4m[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lli_4k[ENTRIES] = max(tlb_lli_4k[ENTRIES], entries);
+		tlb_lli_2m[ENTRIES] = max(tlb_lli_2m[ENTRIES], entries);
+		tlb_lli_4m[ENTRIES] = max(tlb_lli_4m[ENTRIES], entries);
 		break;
 	case TLB_INST_4K:
-		if (tlb_lli_4k[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_4k[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lli_4k[ENTRIES] = max(tlb_lli_4k[ENTRIES], entries);
 		break;
 	case TLB_INST_4M:
-		if (tlb_lli_4m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_4m[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lli_4m[ENTRIES] = max(tlb_lli_4m[ENTRIES], entries);
 		break;
 	case TLB_INST_2M_4M:
-		if (tlb_lli_2m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_2m[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lli_4m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lli_4m[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lli_2m[ENTRIES] = max(tlb_lli_2m[ENTRIES], entries);
+		tlb_lli_4m[ENTRIES] = max(tlb_lli_4m[ENTRIES], entries);
 		break;
 	case TLB_DATA_4K:
 	case TLB_DATA0_4K:
-		if (tlb_lld_4k[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_4k[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lld_4k[ENTRIES] = max(tlb_lld_4k[ENTRIES], entries);
 		break;
 	case TLB_DATA_4M:
 	case TLB_DATA0_4M:
-		if (tlb_lld_4m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_4m[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], entries);
 		break;
 	case TLB_DATA_2M_4M:
 	case TLB_DATA0_2M_4M:
-		if (tlb_lld_2m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_2m[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lld_4m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_4m[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lld_2m[ENTRIES] = max(tlb_lld_2m[ENTRIES], entries);
+		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], entries);
 		break;
 	case TLB_DATA_4K_4M:
-		if (tlb_lld_4k[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_4k[ENTRIES] = intel_tlb_table[k].entries;
-		if (tlb_lld_4m[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_4m[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lld_4k[ENTRIES] = max(tlb_lld_4k[ENTRIES], entries);
+		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], entries);
 		break;
 	case TLB_DATA_1G_2M_4M:
-		if (tlb_lld_2m[ENTRIES] < TLB_0x63_2M_4M_ENTRIES)
-			tlb_lld_2m[ENTRIES] = TLB_0x63_2M_4M_ENTRIES;
-		if (tlb_lld_4m[ENTRIES] < TLB_0x63_2M_4M_ENTRIES)
-			tlb_lld_4m[ENTRIES] = TLB_0x63_2M_4M_ENTRIES;
+		tlb_lld_2m[ENTRIES] = max(tlb_lld_2m[ENTRIES], TLB_0x63_2M_4M_ENTRIES);
+		tlb_lld_4m[ENTRIES] = max(tlb_lld_4m[ENTRIES], TLB_0x63_2M_4M_ENTRIES);
 		fallthrough;
 	case TLB_DATA_1G:
-		if (tlb_lld_1g[ENTRIES] < intel_tlb_table[k].entries)
-			tlb_lld_1g[ENTRIES] = intel_tlb_table[k].entries;
+		tlb_lld_1g[ENTRIES] = max(tlb_lld_1g[ENTRIES], entries);
 		break;
 	}
 }
