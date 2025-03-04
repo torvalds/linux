@@ -428,11 +428,8 @@ API, but the filenames mode still does.
     - Mandatory:
         - CONFIG_CRYPTO_ADIANTUM
     - Recommended:
-        - arm32: CONFIG_CRYPTO_CHACHA20_NEON
         - arm32: CONFIG_CRYPTO_NHPOLY1305_NEON
-        - arm64: CONFIG_CRYPTO_CHACHA20_NEON
         - arm64: CONFIG_CRYPTO_NHPOLY1305_NEON
-        - x86: CONFIG_CRYPTO_CHACHA20_X86_64
         - x86: CONFIG_CRYPTO_NHPOLY1305_SSE2
         - x86: CONFIG_CRYPTO_NHPOLY1305_AVX2
 
