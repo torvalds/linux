@@ -95,7 +95,7 @@ static struct snd_soc_dai_link arndale_rt5631_dai[] = {
 		.stream_name = "Primary",
 		.dai_fmt = SND_SOC_DAIFMT_I2S
 			| SND_SOC_DAIFMT_NB_NF
-			| SND_SOC_DAIFMT_CBS_CFS,
+			| SND_SOC_DAIFMT_CBC_CFC,
 		.ops = &arndale_rt5631_ops,
 		SND_SOC_DAILINK_REG(rt5631_hifi),
 	},
@@ -112,7 +112,7 @@ static struct snd_soc_dai_link arndale_wm1811_dai[] = {
 		.stream_name = "Primary",
 		.dai_fmt = SND_SOC_DAIFMT_I2S
 			| SND_SOC_DAIFMT_NB_NF
-			| SND_SOC_DAIFMT_CBM_CFM,
+			| SND_SOC_DAIFMT_CBP_CFP,
 		.ops = &arndale_wm1811_ops,
 		SND_SOC_DAILINK_REG(wm1811_hifi),
 	},

@@ -242,10 +242,10 @@ static int cs42xx8_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	/* Set master/slave audio interface */
 	switch (format & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		cs42xx8->slave_mode = true;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		cs42xx8->slave_mode = false;
 		break;
 	default:

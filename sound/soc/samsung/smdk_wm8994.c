@@ -106,14 +106,14 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.stream_name = "Pri_Dai",
 		.init = smdk_wm8994_init_paiftx,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
+			SND_SOC_DAIFMT_CBP_CFP,
 		.ops = &smdk_ops,
 		SND_SOC_DAILINK_REG(aif1),
 	}, { /* Sec_Fifo Playback i/f */
 		.name = "Sec_FIFO TX",
 		.stream_name = "Sec_Dai",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBM_CFM,
+			SND_SOC_DAIFMT_CBP_CFP,
 		.ops = &smdk_ops,
 		SND_SOC_DAILINK_REG(fifo_tx),
 	},

@@ -438,12 +438,12 @@ static int cs35l33_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct cs35l33_private *priv = snd_soc_component_get_drvdata(component);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		regmap_update_bits(priv->regmap, CS35L33_ADSP_CTL,
 			CS35L33_MS_MASK, CS35L33_MS_MASK);
 		dev_dbg(component->dev, "Audio port in master mode\n");
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		regmap_update_bits(priv->regmap, CS35L33_ADSP_CTL,
 			CS35L33_MS_MASK, 0);
 		dev_dbg(component->dev, "Audio port in slave mode\n");
