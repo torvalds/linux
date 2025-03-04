@@ -60,6 +60,7 @@ MODULE_DEVICE_TABLE(pci, btintel_pcie_table);
 #define BTINTEL_PCIE_MAGIC_NUM	0xA5A5A5A5
 
 #define BTINTEL_PCIE_TRIGGER_REASON_USER_TRIGGER	0x17A2
+#define BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT		0x1E61
 
 /* Alive interrupt context */
 enum {
@@ -1202,6 +1203,11 @@ static void btintel_pcie_msix_hw_exp_handler(struct btintel_pcie_data *data)
 
 	if (test_and_set_bit(BTINTEL_PCIE_HWEXP_INPROGRESS, &data->flags))
 		return;
+
+	/* Trigger device core dump when there is HW  exception */
+	if (!test_and_set_bit(BTINTEL_PCIE_COREDUMP_INPROGRESS, &data->flags))
+		data->dmp_hdr.trigger_reason = BTINTEL_PCIE_TRIGGER_REASON_FW_ASSERT;
+
 	queue_work(data->workqueue, &data->rx_work);
 }
 
