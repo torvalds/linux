@@ -103,7 +103,9 @@ struct netconsole_target_stats  {
  */
 enum sysdata_feature {
 	/* Populate the CPU that sends the message */
-	CPU_NR = BIT(0),
+	SYSDATA_CPU_NR = BIT(0),
+	/* Populate the task name (as in current->comm) in sysdata */
+	SYSDATA_TASKNAME = BIT(1),
 };
 
 /**
@@ -418,10 +420,24 @@ static ssize_t sysdata_cpu_nr_enabled_show(struct config_item *item, char *buf)
 	bool cpu_nr_enabled;
 
 	mutex_lock(&dynamic_netconsole_mutex);
-	cpu_nr_enabled = !!(nt->sysdata_fields & CPU_NR);
+	cpu_nr_enabled = !!(nt->sysdata_fields & SYSDATA_CPU_NR);
 	mutex_unlock(&dynamic_netconsole_mutex);
 
 	return sysfs_emit(buf, "%d\n", cpu_nr_enabled);
+}
+
+/* configfs helper to display if taskname sysdata feature is enabled */
+static ssize_t sysdata_taskname_enabled_show(struct config_item *item,
+					     char *buf)
+{
+	struct netconsole_target *nt = to_target(item->ci_parent);
+	bool taskname_enabled;
+
+	mutex_lock(&dynamic_netconsole_mutex);
+	taskname_enabled = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
+	mutex_unlock(&dynamic_netconsole_mutex);
+
+	return sysfs_emit(buf, "%d\n", taskname_enabled);
 }
 
 /*
@@ -699,7 +715,9 @@ static size_t count_extradata_entries(struct netconsole_target *nt)
 	/* Userdata entries */
 	entries = list_count_nodes(&nt->userdata_group.cg_children);
 	/* Plus sysdata entries */
-	if (nt->sysdata_fields & CPU_NR)
+	if (nt->sysdata_fields & SYSDATA_CPU_NR)
+		entries += 1;
+	if (nt->sysdata_fields & SYSDATA_TASKNAME)
 		entries += 1;
 
 	return entries;
@@ -837,6 +855,40 @@ static void disable_sysdata_feature(struct netconsole_target *nt,
 	nt->extradata_complete[nt->userdata_length] = 0;
 }
 
+static ssize_t sysdata_taskname_enabled_store(struct config_item *item,
+					      const char *buf, size_t count)
+{
+	struct netconsole_target *nt = to_target(item->ci_parent);
+	bool taskname_enabled, curr;
+	ssize_t ret;
+
+	ret = kstrtobool(buf, &taskname_enabled);
+	if (ret)
+		return ret;
+
+	mutex_lock(&dynamic_netconsole_mutex);
+	curr = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
+	if (taskname_enabled == curr)
+		goto unlock_ok;
+
+	if (taskname_enabled &&
+	    count_extradata_entries(nt) >= MAX_EXTRADATA_ITEMS) {
+		ret = -ENOSPC;
+		goto unlock;
+	}
+
+	if (taskname_enabled)
+		nt->sysdata_fields |= SYSDATA_TASKNAME;
+	else
+		disable_sysdata_feature(nt, SYSDATA_TASKNAME);
+
+unlock_ok:
+	ret = strnlen(buf, count);
+unlock:
+	mutex_unlock(&dynamic_netconsole_mutex);
+	return ret;
+}
+
 /* configfs helper to sysdata cpu_nr feature */
 static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 					    const char *buf, size_t count)
@@ -850,7 +902,7 @@ static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 		return ret;
 
 	mutex_lock(&dynamic_netconsole_mutex);
-	curr = nt->sysdata_fields & CPU_NR;
+	curr = !!(nt->sysdata_fields & SYSDATA_CPU_NR);
 	if (cpu_nr_enabled == curr)
 		/* no change requested */
 		goto unlock_ok;
@@ -865,13 +917,13 @@ static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 	}
 
 	if (cpu_nr_enabled)
-		nt->sysdata_fields |= CPU_NR;
+		nt->sysdata_fields |= SYSDATA_CPU_NR;
 	else
 		/* This is special because extradata_complete might have
 		 * remaining data from previous sysdata, and it needs to be
 		 * cleaned.
 		 */
-		disable_sysdata_feature(nt, CPU_NR);
+		disable_sysdata_feature(nt, SYSDATA_CPU_NR);
 
 unlock_ok:
 	ret = strnlen(buf, count);
@@ -882,6 +934,7 @@ unlock:
 
 CONFIGFS_ATTR(userdatum_, value);
 CONFIGFS_ATTR(sysdata_, cpu_nr_enabled);
+CONFIGFS_ATTR(sysdata_, taskname_enabled);
 
 static struct configfs_attribute *userdatum_attrs[] = {
 	&userdatum_attr_value,
@@ -942,6 +995,7 @@ static void userdatum_drop(struct config_group *group, struct config_item *item)
 
 static struct configfs_attribute *userdata_attrs[] = {
 	&sysdata_attr_cpu_nr_enabled,
+	&sysdata_attr_taskname_enabled,
 	NULL,
 };
 
@@ -1117,28 +1171,41 @@ static void populate_configfs_item(struct netconsole_target *nt,
 	init_target_config_group(nt, target_name);
 }
 
+static int append_cpu_nr(struct netconsole_target *nt, int offset)
+{
+	/* Append cpu=%d at extradata_complete after userdata str */
+	return scnprintf(&nt->extradata_complete[offset],
+			 MAX_EXTRADATA_ENTRY_LEN, " cpu=%u\n",
+			 raw_smp_processor_id());
+}
+
+static int append_taskname(struct netconsole_target *nt, int offset)
+{
+	return scnprintf(&nt->extradata_complete[offset],
+			 MAX_EXTRADATA_ENTRY_LEN, " taskname=%s\n",
+			 current->comm);
+}
 /*
  * prepare_extradata - append sysdata at extradata_complete in runtime
  * @nt: target to send message to
  */
 static int prepare_extradata(struct netconsole_target *nt)
 {
-	int sysdata_len, extradata_len;
+	u32 fields = SYSDATA_CPU_NR | SYSDATA_TASKNAME;
+	int extradata_len;
 
 	/* userdata was appended when configfs write helper was called
 	 * by update_userdata().
 	 */
 	extradata_len = nt->userdata_length;
 
-	if (!(nt->sysdata_fields & CPU_NR))
+	if (!(nt->sysdata_fields & fields))
 		goto out;
 
-	/* Append cpu=%d at extradata_complete after userdata str */
-	sysdata_len = scnprintf(&nt->extradata_complete[nt->userdata_length],
-				MAX_EXTRADATA_ENTRY_LEN, " cpu=%u\n",
-				raw_smp_processor_id());
-
-	extradata_len += sysdata_len;
+	if (nt->sysdata_fields & SYSDATA_CPU_NR)
+		extradata_len += append_cpu_nr(nt, extradata_len);
+	if (nt->sysdata_fields & SYSDATA_TASKNAME)
+		extradata_len += append_taskname(nt, extradata_len);
 
 	WARN_ON_ONCE(extradata_len >
 		     MAX_EXTRADATA_ENTRY_LEN * MAX_EXTRADATA_ITEMS);

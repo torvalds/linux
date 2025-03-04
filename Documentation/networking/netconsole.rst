@@ -240,6 +240,34 @@ Delete `userdata` entries with `rmdir`::
 
    It is recommended to not write user data values with newlines.
 
+Task name auto population in userdata
+-------------------------------------
+
+Inside the netconsole configfs hierarchy, there is a file called
+`taskname_enabled` under the `userdata` directory. This file is used to enable
+or disable the automatic task name population feature. This feature
+automatically populates the current task name that is scheduled in the CPU
+sneding the message.
+
+To enable task name auto-population::
+
+  echo 1 > /sys/kernel/config/netconsole/target1/userdata/taskname_enabled
+
+When this option is enabled, the netconsole messages will include an additional
+line in the userdata field with the format `taskname=<task name>`. This allows
+the receiver of the netconsole messages to easily find which application was
+currently scheduled when that message was generated, providing extra context
+for kernel messages and helping to categorize them.
+
+Example::
+
+  echo "This is a message" > /dev/kmsg
+  12,607,22085407756,-;This is a message
+   taskname=echo
+
+In this example, the message was generated while "echo" was the current
+scheduled process.
+
 CPU number auto population in userdata
 --------------------------------------
 
