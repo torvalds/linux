@@ -60,9 +60,16 @@ bool irq_fpu_usable(void)
 	if (WARN_ON_ONCE(in_nmi()))
 		return false;
 
-	/* In kernel FPU usage already active? */
-	if (this_cpu_read(in_kernel_fpu))
+	/*
+	 * In kernel FPU usage already active?  This detects any explicitly
+	 * nested usage in task or softirq context, which is unsupported.  It
+	 * also detects attempted usage in a hardirq that has interrupted a
+	 * kernel-mode FPU section.
+	 */
+	if (this_cpu_read(in_kernel_fpu)) {
+		WARN_ON_FPU(!in_hardirq());
 		return false;
+	}
 
 	/*
 	 * When not in NMI or hard interrupt context, FPU can be used in:
@@ -420,7 +427,8 @@ EXPORT_SYMBOL_GPL(fpu_copy_uabi_to_guest_fpstate);
 
 void kernel_fpu_begin_mask(unsigned int kfpu_mask)
 {
-	preempt_disable();
+	if (!irqs_disabled())
+		fpregs_lock();
 
 	WARN_ON_FPU(!irq_fpu_usable());
 	WARN_ON_FPU(this_cpu_read(in_kernel_fpu));
@@ -448,7 +456,8 @@ void kernel_fpu_end(void)
 	WARN_ON_FPU(!this_cpu_read(in_kernel_fpu));
 
 	this_cpu_write(in_kernel_fpu, false);
-	preempt_enable();
+	if (!irqs_disabled())
+		fpregs_unlock();
 }
 EXPORT_SYMBOL_GPL(kernel_fpu_end);
 
