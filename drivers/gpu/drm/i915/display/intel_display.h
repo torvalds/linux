@@ -426,7 +426,7 @@ intel_mode_valid_max_plane_size(struct intel_display *display,
 enum drm_mode_status
 intel_cpu_transcoder_mode_valid(struct intel_display *display,
 				const struct drm_display_mode *mode);
-enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
+enum phy intel_port_to_phy(struct intel_display *display, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
 bool is_trans_port_sync_master(const struct intel_crtc_state *state);
 u8 intel_crtc_joined_pipe_mask(const struct intel_crtc_state *crtc_state);
@@ -465,10 +465,9 @@ intel_encoder_current_mode(struct intel_encoder *encoder);
 void intel_encoder_get_config(struct intel_encoder *encoder,
 			      struct intel_crtc_state *crtc_state);
 bool intel_phy_is_combo(struct intel_display *display, enum phy phy);
-bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy);
+bool intel_phy_is_tc(struct intel_display *display, enum phy phy);
 bool intel_phy_is_snps(struct intel_display *display, enum phy phy);
-enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
-			      enum port port);
+enum tc_port intel_port_to_tc(struct intel_display *display, enum port port);
 
 enum phy intel_encoder_to_phy(struct intel_encoder *encoder);
 bool intel_encoder_is_combo(struct intel_encoder *encoder);

@@ -5100,7 +5100,7 @@ void intel_ddi_init(struct intel_display *display,
 		return;
 	}
 
-	phy = intel_port_to_phy(dev_priv, port);
+	phy = intel_port_to_phy(display, port);
 
 	/*
 	 * On platforms with HTI (aka HDPORT), if it's enabled at boot it may
@@ -5160,7 +5160,7 @@ void intel_ddi_init(struct intel_display *display,
 				 port_name(port - PORT_D_XELPD + PORT_D),
 				 phy_name(phy));
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
-		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+		enum tc_port tc_port = intel_port_to_tc(display, port);
 
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,
@@ -5170,7 +5170,7 @@ void intel_ddi_init(struct intel_display *display,
 				 tc_port != TC_PORT_NONE ? "TC" : "",
 				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
 	} else if (DISPLAY_VER(dev_priv) >= 11) {
-		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+		enum tc_port tc_port = intel_port_to_tc(display, port);
 
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,

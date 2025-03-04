@@ -1834,20 +1834,20 @@ bool intel_phy_is_combo(struct intel_display *display, enum phy phy)
 }
 
 /* Prefer intel_encoder_is_tc() */
-bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy)
+bool intel_phy_is_tc(struct intel_display *display, enum phy phy)
 {
 	/*
 	 * Discrete GPU phy's are not attached to FIA's to support TC
 	 * subsystem Legacy or non-legacy, and only support native DP/HDMI
 	 */
-	if (IS_DGFX(dev_priv))
+	if (display->platform.dgfx)
 		return false;
 
-	if (DISPLAY_VER(dev_priv) >= 13)
+	if (DISPLAY_VER(display) >= 13)
 		return phy >= PHY_F && phy <= PHY_I;
-	else if (IS_TIGERLAKE(dev_priv))
+	else if (display->platform.tigerlake)
 		return phy >= PHY_D && phy <= PHY_I;
-	else if (IS_ICELAKE(dev_priv))
+	else if (display->platform.icelake)
 		return phy >= PHY_C && phy <= PHY_F;
 
 	return false;
@@ -1864,17 +1864,17 @@ bool intel_phy_is_snps(struct intel_display *display, enum phy phy)
 }
 
 /* Prefer intel_encoder_to_phy() */
-enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port)
+enum phy intel_port_to_phy(struct intel_display *display, enum port port)
 {
-	if (DISPLAY_VER(i915) >= 13 && port >= PORT_D_XELPD)
+	if (DISPLAY_VER(display) >= 13 && port >= PORT_D_XELPD)
 		return PHY_D + port - PORT_D_XELPD;
-	else if (DISPLAY_VER(i915) >= 13 && port >= PORT_TC1)
+	else if (DISPLAY_VER(display) >= 13 && port >= PORT_TC1)
 		return PHY_F + port - PORT_TC1;
-	else if (IS_ALDERLAKE_S(i915) && port >= PORT_TC1)
+	else if (display->platform.alderlake_s && port >= PORT_TC1)
 		return PHY_B + port - PORT_TC1;
-	else if ((IS_DG1(i915) || IS_ROCKETLAKE(i915)) && port >= PORT_TC1)
+	else if ((display->platform.dg1 || display->platform.rocketlake) && port >= PORT_TC1)
 		return PHY_C + port - PORT_TC1;
-	else if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
+	else if ((display->platform.jasperlake || display->platform.elkhartlake) &&
 		 port == PORT_D)
 		return PHY_A;
 
@@ -1882,12 +1882,12 @@ enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port)
 }
 
 /* Prefer intel_encoder_to_tc() */
-enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv, enum port port)
+enum tc_port intel_port_to_tc(struct intel_display *display, enum port port)
 {
-	if (!intel_phy_is_tc(dev_priv, intel_port_to_phy(dev_priv, port)))
+	if (!intel_phy_is_tc(display, intel_port_to_phy(display, port)))
 		return TC_PORT_NONE;
 
-	if (DISPLAY_VER(dev_priv) >= 12)
+	if (DISPLAY_VER(display) >= 12)
 		return TC_PORT_1 + port - PORT_TC1;
 	else
 		return TC_PORT_1 + port - PORT_C;
@@ -1895,9 +1895,9 @@ enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv, enum port port)
 
 enum phy intel_encoder_to_phy(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
-	return intel_port_to_phy(i915, encoder->port);
+	return intel_port_to_phy(display, encoder->port);
 }
 
 bool intel_encoder_is_combo(struct intel_encoder *encoder)
@@ -1916,16 +1916,16 @@ bool intel_encoder_is_snps(struct intel_encoder *encoder)
 
 bool intel_encoder_is_tc(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
-	return intel_phy_is_tc(i915, intel_encoder_to_phy(encoder));
+	return intel_phy_is_tc(display, intel_encoder_to_phy(encoder));
 }
 
 enum tc_port intel_encoder_to_tc(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
-	return intel_port_to_tc(i915, encoder->port);
+	return intel_port_to_tc(display, encoder->port);
 }
 
 enum intel_display_power_domain
