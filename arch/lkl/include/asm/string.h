@@ -38,8 +38,36 @@ static inline void *__memset(void *s, int c, size_t count)
 	return s;
 }
 
+#define __HAVE_ARCH_MEMMOVE
+static inline void *__memmove(void *dest, const void *src, size_t count)
+{
+	char *tmp;
+	const char *s;
+
+	if (lkl_ops->memmove)
+		return lkl_ops->memmove(dest, src, count);
+
+	/* from lib/string.c */
+
+	if (dest <= src) {
+		tmp = dest;
+		s = src;
+		while (count--)
+			*tmp++ = *s++;
+	} else {
+		tmp = dest;
+		tmp += count;
+		s = src;
+		s += count;
+		while (count--)
+			*--tmp = *--s;
+	}
+	return dest;
+}
+
 #define memcpy(dst, src, len) __memcpy(dst, src, len)
 #define memset(s, c, n) __memset(s, c, n)
+#define memmove(dst, src, len) __memmove(dst, src, len)
 
 #if defined(CONFIG_KASAN)
 
@@ -57,8 +85,10 @@ static inline void *__memset(void *s, int c, size_t count)
 
 #undef memcpy
 #undef memset
+#undef memmove
 extern void *memset(void *dst, int c, __kernel_size_t count);
 extern void *memcpy(void *dst, const void *src, __kernel_size_t count);
+extern void *memmove(void *dest, const void *src, size_t count);
 
 #endif /* __SANITIZE_ADDRESS__ */
 
