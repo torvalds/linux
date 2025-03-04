@@ -712,6 +712,7 @@ _, base_maps = bpftool("map")
 base_map_names = [
     'pid_iter.rodata', # created on each bpftool invocation
     'libbpf_det_bind', # created on each bpftool invocation
+    'libbpf_global',
 ]
 
 # Check netdevsim
