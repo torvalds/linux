@@ -306,7 +306,7 @@ int __adis_check_status(struct adis *adis)
 {
 	unsigned int status;
 	int diag_stat_bits;
-	u16 status_16;
+	u16 status_16 = 0;
 	int ret;
 	int i;
 
