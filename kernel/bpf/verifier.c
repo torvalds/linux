@@ -17019,27 +17019,6 @@ static int visit_func_call_insn(int t, struct bpf_insn *insns,
 /* Bitmask with 1s for all caller saved registers */
 #define ALL_CALLER_SAVED_REGS ((1u << CALLER_SAVED_REGS) - 1)
 
-/* Return a bitmask specifying which caller saved registers are
- * clobbered by a call to a helper *as if* this helper follows
- * bpf_fastcall contract:
- * - includes R0 if function is non-void;
- * - includes R1-R5 if corresponding parameter has is described
- *   in the function prototype.
- */
-static u32 helper_fastcall_clobber_mask(const struct bpf_func_proto *fn)
-{
-	u32 mask;
-	int i;
-
-	mask = 0;
-	if (fn->ret_type != RET_VOID)
-		mask |= BIT(BPF_REG_0);
-	for (i = 0; i < ARRAY_SIZE(fn->arg_type); ++i)
-		if (fn->arg_type[i] != ARG_DONTCARE)
-			mask |= BIT(BPF_REG_1 + i);
-	return mask;
-}
-
 /* True if do_misc_fixups() replaces calls to helper number 'imm',
  * replacement patch is presumed to follow bpf_fastcall contract
  * (see mark_fastcall_pattern_for_call() below).
@@ -17056,24 +17035,54 @@ static bool verifier_inlines_helper_call(struct bpf_verifier_env *env, s32 imm)
 	}
 }
 
-/* Same as helper_fastcall_clobber_mask() but for kfuncs, see comment above */
-static u32 kfunc_fastcall_clobber_mask(struct bpf_kfunc_call_arg_meta *meta)
-{
-	u32 vlen, i, mask;
+struct call_summary {
+	u8 num_params;
+	bool is_void;
+	bool fastcall;
+};
 
-	vlen = btf_type_vlen(meta->func_proto);
-	mask = 0;
-	if (!btf_type_is_void(btf_type_by_id(meta->btf, meta->func_proto->type)))
-		mask |= BIT(BPF_REG_0);
-	for (i = 0; i < vlen; ++i)
-		mask |= BIT(BPF_REG_1 + i);
-	return mask;
-}
-
-/* Same as verifier_inlines_helper_call() but for kfuncs, see comment above */
-static bool is_fastcall_kfunc_call(struct bpf_kfunc_call_arg_meta *meta)
+/* If @call is a kfunc or helper call, fills @cs and returns true,
+ * otherwise returns false.
+ */
+static bool get_call_summary(struct bpf_verifier_env *env, struct bpf_insn *call,
+			     struct call_summary *cs)
 {
-	return meta->kfunc_flags & KF_FASTCALL;
+	struct bpf_kfunc_call_arg_meta meta;
+	const struct bpf_func_proto *fn;
+	int i;
+
+	if (bpf_helper_call(call)) {
+
+		if (get_helper_proto(env, call->imm, &fn) < 0)
+			/* error would be reported later */
+			return false;
+		cs->fastcall = fn->allow_fastcall &&
+			       (verifier_inlines_helper_call(env, call->imm) ||
+				bpf_jit_inlines_helper_call(call->imm));
+		cs->is_void = fn->ret_type == RET_VOID;
+		cs->num_params = 0;
+		for (i = 0; i < ARRAY_SIZE(fn->arg_type); ++i) {
+			if (fn->arg_type[i] == ARG_DONTCARE)
+				break;
+			cs->num_params++;
+		}
+		return true;
+	}
+
+	if (bpf_pseudo_kfunc_call(call)) {
+		int err;
+
+		err = fetch_kfunc_meta(env, call, &meta, NULL);
+		if (err < 0)
+			/* error would be reported later */
+			return false;
+		cs->num_params = btf_type_vlen(meta.func_proto);
+		cs->fastcall = meta.kfunc_flags & KF_FASTCALL;
+		cs->is_void = btf_type_is_void(btf_type_by_id(meta.btf, meta.func_proto->type));
+		return true;
+	}
+
+	return false;
 }
 
 /* LLVM define a bpf_fastcall function attribute.
@@ -17156,39 +17165,23 @@ static void mark_fastcall_pattern_for_call(struct bpf_verifier_env *env,
 {
 	struct bpf_insn *insns = env->prog->insnsi, *stx, *ldx;
 	struct bpf_insn *call = &env->prog->insnsi[insn_idx];
-	const struct bpf_func_proto *fn;
-	u32 clobbered_regs_mask = ALL_CALLER_SAVED_REGS;
+	u32 clobbered_regs_mask;
+	struct call_summary cs;
 	u32 expected_regs_mask;
-	bool can_be_inlined = false;
 	s16 off;
 	int i;
 
-	if (bpf_helper_call(call)) {
-		if (get_helper_proto(env, call->imm, &fn) < 0)
-			/* error would be reported later */
-			return;
-		clobbered_regs_mask = helper_fastcall_clobber_mask(fn);
-		can_be_inlined = fn->allow_fastcall &&
-				 (verifier_inlines_helper_call(env, call->imm) ||
-				  bpf_jit_inlines_helper_call(call->imm));
-	}
-
-	if (bpf_pseudo_kfunc_call(call)) {
-		struct bpf_kfunc_call_arg_meta meta;
-		int err;
-
-		err = fetch_kfunc_meta(env, call, &meta, NULL);
-		if (err < 0)
-			/* error would be reported later */
-			return;
-
-		clobbered_regs_mask = kfunc_fastcall_clobber_mask(&meta);
-		can_be_inlined = is_fastcall_kfunc_call(&meta);
-	}
-
-	if (clobbered_regs_mask == ALL_CALLER_SAVED_REGS)
+	if (!get_call_summary(env, call, &cs))
 		return;
 
+	/* A bitmask specifying which caller saved registers are clobbered
+	 * by a call to a helper/kfunc *as if* this helper/kfunc follows
+	 * bpf_fastcall contract:
+	 * - includes R0 if function is non-void;
+	 * - includes R1-R5 if corresponding parameter has is described
+	 *   in the function prototype.
+	 */
+	clobbered_regs_mask = GENMASK(cs.num_params, cs.is_void ? 1 : 0);
 	/* e.g. if helper call clobbers r{0,1}, expect r{2,3,4,5} in the pattern */
 	expected_regs_mask = ~clobbered_regs_mask & ALL_CALLER_SAVED_REGS;
 
@@ -17246,7 +17239,7 @@ static void mark_fastcall_pattern_for_call(struct bpf_verifier_env *env,
 	 * don't set 'fastcall_spills_num' for call B so that remove_fastcall_spills_fills()
 	 * does not remove spill/fill pair {4,6}.
 	 */
-	if (can_be_inlined)
+	if (cs.fastcall)
 		env->insn_aux_data[insn_idx].fastcall_spills_num = i - 1;
 	else
 		subprog->keep_fastcall_stack = 1;
