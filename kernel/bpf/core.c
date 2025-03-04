@@ -3069,6 +3069,32 @@ void __weak arch_bpf_stack_walk(bool (*consume_fn)(void *cookie, u64 ip, u64 sp,
 {
 }
 
+bool __weak bpf_jit_supports_timed_may_goto(void)
+{
+	return false;
+}
+
+u64 __weak arch_bpf_timed_may_goto(void)
+{
+	return 0;
+}
+
+u64 bpf_check_timed_may_goto(struct bpf_timed_may_goto *p)
+{
+	u64 time = ktime_get_mono_fast_ns();
+
+	/* Populate the timestamp for this stack frame, and refresh count. */
+	if (!p->timestamp) {
+		p->timestamp = time;
+		return BPF_MAX_TIMED_LOOPS;
+	}
+	/* Check if we've exhausted our time slice, and zero count. */
+	if (time - p->timestamp >= (NSEC_PER_SEC / 4))
+		return 0;
+	/* Refresh the count for the stack frame. */
+	return BPF_MAX_TIMED_LOOPS;
+}
+
 /* for configs without MMU or 32-bit */
 __weak const struct bpf_map_ops arena_map_ops;
 __weak u64 bpf_arena_get_user_vm_start(struct bpf_arena *arena)

@@ -3791,3 +3791,8 @@ u64 bpf_arch_uaddress_limit(void)
 {
 	return 0;
 }
+
+bool bpf_jit_supports_timed_may_goto(void)
+{
+	return true;
+}
