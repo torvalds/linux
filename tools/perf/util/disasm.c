@@ -976,6 +976,7 @@ static int disasm_line__parse_powerpc(struct disasm_line *dl, struct annotate_ar
 	char *tmp_raw_insn, *name_raw_insn = skip_spaces(line);
 	char *name = skip_spaces(name_raw_insn + RAW_BYTES);
 	int disasm = 0;
+	int ret = 0;
 
 	if (args->options->disassembler_used)
 		disasm = 1;
@@ -984,7 +985,7 @@ static int disasm_line__parse_powerpc(struct disasm_line *dl, struct annotate_ar
 		return -1;
 
 	if (disasm)
-		disasm_line__parse(name, namep, rawp);
+		ret = disasm_line__parse(name, namep, rawp);
 	else
 		*namep = "";
 
@@ -998,7 +999,7 @@ static int disasm_line__parse_powerpc(struct disasm_line *dl, struct annotate_ar
 	if (disasm)
 		dl->raw.raw_insn = be32_to_cpu(dl->raw.raw_insn);
 
-	return 0;
+	return ret;
 }
 
 static void annotation_line__init(struct annotation_line *al,
