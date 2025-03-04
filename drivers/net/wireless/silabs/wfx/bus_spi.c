@@ -180,6 +180,13 @@ static size_t wfx_spi_align_size(void *priv, size_t size)
 	return ALIGN(size, 4);
 }
 
+static void wfx_spi_set_wakeup(void *priv, bool enabled)
+{
+	struct wfx_spi_priv *bus = priv;
+
+	device_set_wakeup_enable(&bus->func->dev, enabled);
+}
+
 static const struct wfx_hwbus_ops wfx_spi_hwbus_ops = {
 	.copy_from_io    = wfx_spi_copy_from_io,
 	.copy_to_io      = wfx_spi_copy_to_io,
@@ -188,6 +195,7 @@ static const struct wfx_hwbus_ops wfx_spi_hwbus_ops = {
 	.lock            = wfx_spi_lock,
 	.unlock          = wfx_spi_unlock,
 	.align_size      = wfx_spi_align_size,
+	.set_wakeup      = wfx_spi_set_wakeup,
 };
 
 static int wfx_spi_suspend(struct device *dev)

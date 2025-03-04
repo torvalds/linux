@@ -162,6 +162,7 @@ static const struct ieee80211_ops wfx_ops = {
 #ifdef CONFIG_PM
 	.suspend                 = wfx_suspend,
 	.resume                  = wfx_resume,
+	.set_wakeup              = wfx_set_wakeup,
 #endif
 };
 

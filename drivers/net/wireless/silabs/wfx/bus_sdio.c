@@ -173,6 +173,13 @@ static size_t wfx_sdio_align_size(void *priv, size_t size)
 	return sdio_align_size(bus->func, size);
 }
 
+static void wfx_sdio_set_wakeup(void *priv, bool enabled)
+{
+	struct wfx_sdio_priv *bus = priv;
+
+	device_set_wakeup_enable(&bus->func->dev, enabled);
+}
+
 static const struct wfx_hwbus_ops wfx_sdio_hwbus_ops = {
 	.copy_from_io    = wfx_sdio_copy_from_io,
 	.copy_to_io      = wfx_sdio_copy_to_io,
@@ -181,6 +188,7 @@ static const struct wfx_hwbus_ops wfx_sdio_hwbus_ops = {
 	.lock            = wfx_sdio_lock,
 	.unlock          = wfx_sdio_unlock,
 	.align_size      = wfx_sdio_align_size,
+	.set_wakeup      = wfx_sdio_set_wakeup,
 };
 
 static const struct of_device_id wfx_sdio_of_match[] = {
