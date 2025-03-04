@@ -1773,13 +1773,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 
 		cpuid_entry_override(entry, CPUID_8000_0022_EAX);
 
-		if (kvm_cpu_cap_has(X86_FEATURE_PERFMON_V2))
-			ebx.split.num_core_pmc = kvm_pmu_cap.num_counters_gp;
-		else if (kvm_cpu_cap_has(X86_FEATURE_PERFCTR_CORE))
-			ebx.split.num_core_pmc = AMD64_NUM_COUNTERS_CORE;
-		else
-			ebx.split.num_core_pmc = AMD64_NUM_COUNTERS;
-
+		ebx.split.num_core_pmc = kvm_pmu_cap.num_counters_gp;
 		entry->ebx = ebx.full;
 		break;
 	}
