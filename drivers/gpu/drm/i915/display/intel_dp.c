@@ -5193,7 +5193,6 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 				 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u8 pipe_mask;
 	int ret;
@@ -5224,7 +5223,7 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 		    encoder->base.base.id, encoder->base.name,
 		    str_yes_no(intel_dp->link.force_retrain));
 
-	ret = intel_modeset_commit_pipes(dev_priv, pipe_mask, ctx);
+	ret = intel_modeset_commit_pipes(display, pipe_mask, ctx);
 	if (ret == -EDEADLK)
 		return ret;
 

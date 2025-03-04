@@ -4660,6 +4660,7 @@ static int intel_ddi_init_dp_connector(struct intel_digital_port *dig_port)
 static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 				 struct drm_modeset_acquire_ctx *ctx)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_hdmi *hdmi = enc_to_intel_hdmi(encoder);
 	struct intel_connector *connector = hdmi->attached_connector;
@@ -4726,7 +4727,7 @@ static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 	 * would be perfectly happy if were to just reconfigure
 	 * the SCDC settings on the fly.
 	 */
-	return intel_modeset_commit_pipes(dev_priv, BIT(crtc->pipe), ctx);
+	return intel_modeset_commit_pipes(display, BIT(crtc->pipe), ctx);
 }
 
 static void intel_ddi_link_check(struct intel_encoder *encoder)

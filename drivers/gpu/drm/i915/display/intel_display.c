@@ -764,12 +764,12 @@ static void icl_set_pipe_chicken(const struct intel_crtc_state *crtc_state)
 	intel_de_write(dev_priv, PIPE_CHICKEN(pipe), tmp);
 }
 
-bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv)
+bool intel_has_pending_fb_unpin(struct intel_display *display)
 {
 	struct drm_crtc *crtc;
 	bool cleanup_done;
 
-	drm_for_each_crtc(crtc, &dev_priv->drm) {
+	drm_for_each_crtc(crtc, display->drm) {
 		struct drm_crtc_commit *commit;
 		spin_lock(&crtc->commit_lock);
 		commit = list_first_entry_or_null(&crtc->commit_list,
@@ -5574,7 +5574,7 @@ int intel_modeset_all_pipes_late(struct intel_atomic_state *state,
 	return 0;
 }
 
-int intel_modeset_commit_pipes(struct drm_i915_private *i915,
+int intel_modeset_commit_pipes(struct intel_display *display,
 			       u8 pipe_mask,
 			       struct drm_modeset_acquire_ctx *ctx)
 {
@@ -5582,14 +5582,14 @@ int intel_modeset_commit_pipes(struct drm_i915_private *i915,
 	struct intel_crtc *crtc;
 	int ret;
 
-	state = drm_atomic_state_alloc(&i915->drm);
+	state = drm_atomic_state_alloc(display->drm);
 	if (!state)
 		return -ENOMEM;
 
 	state->acquire_ctx = ctx;
 	to_intel_atomic_state(state)->internal = true;
 
-	for_each_intel_crtc_in_pipe_mask(&i915->drm, crtc, pipe_mask) {
+	for_each_intel_crtc_in_pipe_mask(display->drm, crtc, pipe_mask) {
 		struct intel_crtc_state *crtc_state =
 			intel_atomic_get_crtc_state(state, crtc);
 
