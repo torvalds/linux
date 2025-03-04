@@ -2495,6 +2495,9 @@ il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
 	u8 valid_tx_ant;
 	u8 ant_sel_tx;
 
+	if (!IS_ENABLED(CONFIG_MAC80211_DEBUGFS))
+		return;
+
 	il = lq_sta->drv;
 	valid_tx_ant = il->hw_params.valid_tx_ant;
 	if (lq_sta->dbg_fixed_rate) {
