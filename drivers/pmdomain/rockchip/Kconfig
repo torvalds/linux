@@ -5,6 +5,7 @@ config ROCKCHIP_PM_DOMAINS
 	bool "Rockchip generic power domain"
 	depends on PM
 	depends on HAVE_ARM_SMCCC_DISCOVERY
+	depends on REGULATOR
 	select PM_GENERIC_DOMAINS
 	help
 	  Say y here to enable power domain support.
