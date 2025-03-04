@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018, 2020-2021, 2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018, 2020-2021, 2024-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -117,7 +117,7 @@ struct iwl_alive_ntf_v6 {
  *	finishing init flow
  * @IWL_INIT_DEBUG_CFG: driver is going to send debug config command
  * @IWL_INIT_NVM: driver is going to send NVM_ACCESS commands
- * @IWL_INIT_PHY: driver is going to send PHY_DB commands
+ * @IWL_INIT_PHY: driver is going to send the PHY_CONFIGURATION_CMD
  */
 enum iwl_extended_cfg_flags {
 	IWL_INIT_DEBUG_CFG,

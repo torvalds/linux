@@ -19,7 +19,7 @@ enum iwl_phy_ops_subcmd_ids {
 	CMD_DTS_MEASUREMENT_TRIGGER_WIDE = 0x0,
 
 	/**
-	 * @CTDP_CONFIG_CMD: &struct iwl_mvm_ctdp_cmd
+	 * @CTDP_CONFIG_CMD: &struct iwl_ctdp_cmd
 	 */
 	CTDP_CONFIG_CMD = 0x03,
 
@@ -55,7 +55,7 @@ enum iwl_phy_ops_subcmd_ids {
 	/**
 	 * @DTS_MEASUREMENT_NOTIF_WIDE:
 	 * &struct iwl_dts_measurement_notif_v1 or
-	 * &struct iwl_dts_measurement_notif_v2
+	 * &struct iwl_dts_measurement_notif
 	 */
 	DTS_MEASUREMENT_NOTIF_WIDE = 0xFF,
 };
@@ -152,13 +152,13 @@ struct iwl_dts_measurement_notif_v1 {
 } __packed; /* TEMPERATURE_MEASUREMENT_TRIGGER_NTFY_S_VER_1*/
 
 /**
- * struct iwl_dts_measurement_notif_v2 - measurements notification
+ * struct iwl_dts_measurement_notif - measurements notification
  *
  * @temp: the measured temperature
  * @voltage: the measured voltage
  * @threshold_idx: the trip index that was crossed
  */
-struct iwl_dts_measurement_notif_v2 {
+struct iwl_dts_measurement_notif {
 	__le32 temp;
 	__le32 voltage;
 	__le32 threshold_idx;
@@ -195,25 +195,25 @@ struct ct_kill_notif {
 } __packed; /* CT_KILL_NOTIFICATION_API_S_VER_1, CT_KILL_NOTIFICATION_API_S_VER_2 */
 
 /**
-* enum iwl_mvm_ctdp_cmd_operation - CTDP command operations
+* enum iwl_ctdp_cmd_operation - CTDP command operations
 * @CTDP_CMD_OPERATION_START: update the current budget
 * @CTDP_CMD_OPERATION_STOP: stop ctdp
 * @CTDP_CMD_OPERATION_REPORT: get the average budget
 */
-enum iwl_mvm_ctdp_cmd_operation {
+enum iwl_ctdp_cmd_operation {
 	CTDP_CMD_OPERATION_START	= 0x1,
 	CTDP_CMD_OPERATION_STOP		= 0x2,
 	CTDP_CMD_OPERATION_REPORT	= 0x4,
 };/* CTDP_CMD_OPERATION_TYPE_E */
 
 /**
- * struct iwl_mvm_ctdp_cmd - track and manage the FW power consumption budget
+ * struct iwl_ctdp_cmd - track and manage the FW power consumption budget
  *
- * @operation: see &enum iwl_mvm_ctdp_cmd_operation
+ * @operation: see &enum iwl_ctdp_cmd_operation
  * @budget: the budget in milliwatt
  * @window_size: defined in API but not used
  */
-struct iwl_mvm_ctdp_cmd {
+struct iwl_ctdp_cmd {
 	__le32 operation;
 	__le32 budget;
 	__le32 window_size;

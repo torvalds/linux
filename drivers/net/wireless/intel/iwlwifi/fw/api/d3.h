@@ -1006,7 +1006,7 @@ struct iwl_wowlan_wake_pkt_notif {
  * struct iwl_mvm_d3_end_notif -  d3 end notification
  * @flags: See &enum iwl_d0i3_flags
  */
-struct iwl_mvm_d3_end_notif {
+struct iwl_d3_end_notif {
 	__le32 flags;
 } __packed;
 

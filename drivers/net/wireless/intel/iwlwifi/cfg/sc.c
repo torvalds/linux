@@ -121,7 +121,7 @@ static const struct iwl_base_params iwl_sc_base_params = {
 	.uhb_supported = true,						\
 	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
 	.num_rbds = IWL_NUM_RBDS_SC_EHT,				\
-	.ht_params = &iwl_22000_ht_params
+	.ht_params = &iwl_bz_ht_params
 
 /*
  * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an
@@ -142,21 +142,15 @@ const struct iwl_cfg_trans_params iwl_sc_trans_cfg = {
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
 
-const char iwl_sc_name[] = "Intel(R) TBD Sc device";
-
 const struct iwl_cfg iwl_cfg_sc = {
 	.fw_name_mac = "sc",
 	IWL_DEVICE_SC,
 };
 
-const char iwl_sc2_name[] = "Intel(R) TBD Sc2 device";
-
 const struct iwl_cfg iwl_cfg_sc2 = {
 	.fw_name_mac = "sc2",
 	IWL_DEVICE_SC,
 };
-
-const char iwl_sc2f_name[] = "Intel(R) TBD Sc2f device";
 
 const struct iwl_cfg iwl_cfg_sc2f = {
 	.fw_name_mac = "sc2f",

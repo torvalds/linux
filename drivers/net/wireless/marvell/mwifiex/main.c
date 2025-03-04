@@ -54,7 +54,7 @@ const u16 mwifiex_1d_to_wmm_queue[8] = { 1, 0, 0, 1, 2, 2, 3, 3 };
  * proper cleanup before exiting.
  */
 static int mwifiex_register(void *card, struct device *dev,
-			    struct mwifiex_if_ops *if_ops, void **padapter)
+			    const struct mwifiex_if_ops *if_ops, void **padapter)
 {
 	struct mwifiex_adapter *adapter;
 	int i;
@@ -1713,7 +1713,7 @@ err_exit:
  */
 int
 mwifiex_add_card(void *card, struct completion *fw_done,
-		 struct mwifiex_if_ops *if_ops, u8 iface_type,
+		 const struct mwifiex_if_ops *if_ops, u8 iface_type,
 		 struct device *dev)
 {
 	struct mwifiex_adapter *adapter;

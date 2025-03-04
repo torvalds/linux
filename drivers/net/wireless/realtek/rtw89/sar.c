@@ -99,7 +99,7 @@ struct rtw89_sar_handler rtw89_sar_handlers[RTW89_SAR_SOURCE_NR] = {
 		typeof(_dev) _d = (_dev);				\
 		BUILD_BUG_ON(!rtw89_sar_handlers[_s].descr_sar_source);	\
 		BUILD_BUG_ON(!rtw89_sar_handlers[_s].query_sar_config);	\
-		lockdep_assert_held(&_d->mutex);			\
+		lockdep_assert_wiphy(_d->hw->wiphy);			\
 		_d->sar._cfg_name = *(_cfg_data);			\
 		_d->sar.src = _s;					\
 	} while (0)
@@ -150,7 +150,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 	s32 cfg;
 	u8 fct;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return RTW89_SAR_TXPWR_MAC_MAX;
@@ -178,72 +178,80 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 	return rtw89_txpwr_sar_to_mac(rtwdev, fct, cfg);
 }
 
-void rtw89_print_sar(struct seq_file *m, struct rtw89_dev *rtwdev, u32 center_freq)
+int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
+		    u32 center_freq)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
 	const struct rtw89_sar_handler *sar_hdl = &rtw89_sar_handlers[src];
 	const u8 fct_mac = rtwdev->chip->txpwr_factor_mac;
+	char *p = buf, *end = buf + bufsz;
 	int ret;
 	s32 cfg;
 	u8 fct;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (src == RTW89_SAR_SOURCE_NONE) {
-		seq_puts(m, "no SAR is applied\n");
-		return;
+		p += scnprintf(p, end - p, "no SAR is applied\n");
+		goto out;
 	}
 
-	seq_printf(m, "source: %d (%s)\n", src, sar_hdl->descr_sar_source);
+	p += scnprintf(p, end - p, "source: %d (%s)\n", src,
+		       sar_hdl->descr_sar_source);
 
 	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
 	if (ret) {
-		seq_printf(m, "config: return code: %d\n", ret);
-		seq_printf(m, "assign: max setting: %d (unit: 1/%lu dBm)\n",
-			   RTW89_SAR_TXPWR_MAC_MAX, BIT(fct_mac));
-		return;
+		p += scnprintf(p, end - p, "config: return code: %d\n", ret);
+		p += scnprintf(p, end - p,
+			       "assign: max setting: %d (unit: 1/%lu dBm)\n",
+			       RTW89_SAR_TXPWR_MAC_MAX, BIT(fct_mac));
+		goto out;
 	}
 
 	fct = sar_hdl->txpwr_factor_sar;
 
-	seq_printf(m, "config: %d (unit: 1/%lu dBm)\n", cfg, BIT(fct));
+	p += scnprintf(p, end - p, "config: %d (unit: 1/%lu dBm)\n", cfg,
+		       BIT(fct));
+
+out:
+	return p - buf;
 }
 
-void rtw89_print_tas(struct seq_file *m, struct rtw89_dev *rtwdev)
+int rtw89_print_tas(struct rtw89_dev *rtwdev, char *buf, size_t bufsz)
 {
 	struct rtw89_tas_info *tas = &rtwdev->tas;
+	char *p = buf, *end = buf + bufsz;
 
 	if (!tas->enable) {
-		seq_puts(m, "no TAS is applied\n");
-		return;
+		p += scnprintf(p, end - p, "no TAS is applied\n");
+		goto out;
 	}
 
-	seq_printf(m, "DPR gap: %d\n", tas->dpr_gap);
-	seq_printf(m, "TAS delta: %d\n", tas->delta);
+	p += scnprintf(p, end - p, "DPR gap: %d\n", tas->dpr_gap);
+	p += scnprintf(p, end - p, "TAS delta: %d\n", tas->delta);
+
+out:
+	return p - buf;
 }
 
 static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,
 				  const struct rtw89_sar_cfg_common *sar)
 {
 	enum rtw89_sar_sources src;
-	int ret = 0;
 
-	mutex_lock(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	src = rtwdev->sar.src;
 	if (src != RTW89_SAR_SOURCE_NONE && src != RTW89_SAR_SOURCE_COMMON) {
 		rtw89_warn(rtwdev, "SAR source: %d is in use", src);
-		ret = -EBUSY;
-		goto exit;
+		return -EBUSY;
 	}
 
 	rtw89_sar_set_src(rtwdev, RTW89_SAR_SOURCE_COMMON, cfg_common, sar);
 	rtw89_core_set_chip_txpwr(rtwdev);
 
-exit:
-	mutex_unlock(&rtwdev->mutex);
-	return ret;
+	return 0;
 }
 
 static const struct cfg80211_sar_freq_ranges rtw89_common_sar_freq_ranges[] = {
@@ -278,6 +286,8 @@ int rtw89_ops_set_sar_specs(struct ieee80211_hw *hw,
 	u32 freq_end;
 	s32 power;
 	u32 i, idx;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (sar->type != NL80211_SAR_TYPE_POWER)
 		return -EINVAL;
@@ -316,7 +326,7 @@ static void rtw89_tas_state_update(struct rtw89_dev *rtwdev)
 	const struct rtw89_chan *chan;
 	int ret;
 
-	lockdep_assert_held(&rtwdev->mutex);
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
 
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return;
@@ -411,7 +421,8 @@ static const struct rtw89_reg_def txpwr_regs[] = {
 
 void rtw89_tas_track(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_env_monitor_info *env = &rtwdev->env_monitor;
+	struct rtw89_bb_ctx *bb = rtw89_get_bb_ctx(rtwdev, RTW89_PHY_0);
+	struct rtw89_env_monitor_info *env = &bb->env_monitor;
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	u8 max_nss_num = rtwdev->chip->rf_path_num;
 	struct rtw89_tas_info *tas = &rtwdev->tas;

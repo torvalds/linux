@@ -4245,6 +4245,10 @@ static int nl80211_parse_mon_options(struct cfg80211_registered_device *rdev,
 		change = true;
 	}
 
+	/* MONITOR_FLAG_COOK_FRAMES is deprecated, refuse cooperation */
+	if (params->flags & MONITOR_FLAG_COOK_FRAMES)
+		return -EOPNOTSUPP;
+
 	if (params->flags & MONITOR_FLAG_ACTIVE &&
 	    !(rdev->wiphy.features & NL80211_FEATURE_ACTIVE_MONITOR))
 		return -EOPNOTSUPP;
@@ -6746,9 +6750,6 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 
 	PUT_SINFO_U64(RX_BYTES64, rx_bytes);
 	PUT_SINFO_U64(TX_BYTES64, tx_bytes);
-	PUT_SINFO(LLID, llid, u16);
-	PUT_SINFO(PLID, plid, u16);
-	PUT_SINFO(PLINK_STATE, plink_state, u8);
 	PUT_SINFO_U64(RX_DURATION, rx_duration);
 	PUT_SINFO_U64(TX_DURATION, tx_duration);
 
@@ -6792,13 +6793,18 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 	PUT_SINFO(TX_RETRIES, tx_retries, u32);
 	PUT_SINFO(TX_FAILED, tx_failed, u32);
 	PUT_SINFO(EXPECTED_THROUGHPUT, expected_throughput, u32);
-	PUT_SINFO(AIRTIME_LINK_METRIC, airtime_link_metric, u32);
 	PUT_SINFO(BEACON_LOSS, beacon_loss_count, u32);
+
+	PUT_SINFO(LLID, llid, u16);
+	PUT_SINFO(PLID, plid, u16);
+	PUT_SINFO(PLINK_STATE, plink_state, u8);
+	PUT_SINFO(AIRTIME_LINK_METRIC, airtime_link_metric, u32);
 	PUT_SINFO(LOCAL_PM, local_pm, u32);
 	PUT_SINFO(PEER_PM, peer_pm, u32);
 	PUT_SINFO(NONPEER_PM, nonpeer_pm, u32);
 	PUT_SINFO(CONNECTED_TO_GATE, connected_to_gate, u8);
 	PUT_SINFO(CONNECTED_TO_AS, connected_to_as, u8);
+	PUT_SINFO_U64(T_OFFSET, t_offset);
 
 	if (sinfo->filled & BIT_ULL(NL80211_STA_INFO_BSS_PARAM)) {
 		bss_param = nla_nest_start_noflag(msg,
@@ -6826,7 +6832,6 @@ static int nl80211_send_station(struct sk_buff *msg, u32 cmd, u32 portid,
 		    &sinfo->sta_flags))
 		goto nla_put_failure;
 
-	PUT_SINFO_U64(T_OFFSET, t_offset);
 	PUT_SINFO_U64(RX_DROP_MISC, rx_dropped_misc);
 	PUT_SINFO_U64(BEACON_RX, rx_beacon);
 	PUT_SINFO(BEACON_SIGNAL_AVG, rx_beacon_signal_avg, u8);
@@ -10515,9 +10520,9 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 		     intbss->parent_bssid)))
 		goto nla_put_failure;
 
-	if (intbss->ts_boottime &&
+	if (res->ts_boottime &&
 	    nla_put_u64_64bit(msg, NL80211_BSS_LAST_SEEN_BOOTTIME,
-			      intbss->ts_boottime, NL80211_BSS_PAD))
+			      res->ts_boottime, NL80211_BSS_PAD))
 		goto nla_put_failure;
 
 	if (!nl80211_put_signal(msg, intbss->pub.chains,

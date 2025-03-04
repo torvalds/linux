@@ -1470,7 +1470,7 @@ int mwifiex_init_shutdown_fw(struct mwifiex_private *priv,
 			     u32 func_init_shutdown);
 
 int mwifiex_add_card(void *card, struct completion *fw_done,
-		     struct mwifiex_if_ops *if_ops, u8 iface_type,
+		     const struct mwifiex_if_ops *if_ops, u8 iface_type,
 		     struct device *dev);
 int mwifiex_remove_card(struct mwifiex_adapter *adapter);
 
@@ -1571,8 +1571,6 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 			     struct cfg80211_chan_def chandef);
 int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg);
-void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
-			      struct mwifiex_sta_node *node);
 
 void mwifiex_config_uap_11d(struct mwifiex_private *priv,
 			    struct cfg80211_beacon_data *beacon_data);

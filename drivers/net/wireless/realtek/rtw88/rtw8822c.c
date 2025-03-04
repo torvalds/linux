@@ -2746,7 +2746,7 @@ static void rtw8822c_set_tx_power_index(struct rtw_dev *rtwdev)
 	s8 diff_idx[4];
 
 	rtw8822c_set_write_tx_power_ref(rtwdev, pwr_ref_cck, pwr_ref_ofdm);
-	for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++) {
+	for (rs = 0; rs <= __RTW_RATE_SECTION_2SS_MAX; rs++) {
 		for (j = 0; j < rtw_rate_size[rs]; j++) {
 			rate = rtw_rate_section[rs][j];
 			pwr_a = hal->tx_pwr_tbl[RF_PATH_A][rate];

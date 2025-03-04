@@ -97,7 +97,7 @@ static void iwl_trans_reprobe_wk(struct work_struct *wk)
 	module_put(THIS_MODULE);
 }
 
-#define IWL_TRANS_RESET_OK_TIME	180 /* seconds */
+#define IWL_TRANS_RESET_OK_TIME	7 /* seconds */
 
 static enum iwl_reset_mode
 iwl_trans_determine_restart_mode(struct iwl_trans *trans)
@@ -671,6 +671,9 @@ IWL_EXPORT_SYMBOL(iwl_trans_txq_enable_cfg);
 
 int iwl_trans_wait_txq_empty(struct iwl_trans *trans, int queue)
 {
+	if (unlikely(test_bit(STATUS_FW_ERROR, &trans->status)))
+		return -EIO;
+
 	if (WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		      "bad state = %d\n", trans->state))
 		return -EIO;

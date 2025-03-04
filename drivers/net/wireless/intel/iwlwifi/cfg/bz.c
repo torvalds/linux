@@ -50,6 +50,13 @@ static const struct iwl_base_params iwl_bz_base_params = {
 	.pcie_l1_allowed = true,
 };
 
+const struct iwl_ht_params iwl_bz_ht_params = {
+	.stbc = true,
+	.ldpc = true,
+	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ) |
+		      BIT(NL80211_BAND_6GHZ),
+};
+
 #define IWL_DEVICE_BZ_COMMON						\
 	.ucode_api_max = IWL_BZ_UCODE_API_MAX,			\
 	.ucode_api_min = IWL_BZ_UCODE_API_MIN,			\
@@ -113,7 +120,7 @@ static const struct iwl_base_params iwl_bz_base_params = {
 
 #define IWL_DEVICE_BZ							\
 	IWL_DEVICE_BZ_COMMON,						\
-	.ht_params = &iwl_22000_ht_params
+	.ht_params = &iwl_bz_ht_params
 
 /*
  * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an
@@ -145,7 +152,6 @@ const struct iwl_cfg_trans_params iwl_gl_trans_cfg = {
 	.low_latency_xtal = true,
 };
 
-const char iwl_bz_name[] = "Intel(R) TBD Bz device";
 const char iwl_fm_name[] = "Intel(R) Wi-Fi 7 BE201 320MHz";
 const char iwl_wh_name[] = "Intel(R) Wi-Fi 7 BE211 320MHz";
 const char iwl_gl_name[] = "Intel(R) Wi-Fi 7 BE200 320MHz";
