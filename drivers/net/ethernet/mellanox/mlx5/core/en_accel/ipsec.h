@@ -76,11 +76,7 @@ struct mlx5_replay_esn {
 	u8 trigger : 1;
 };
 
-struct mlx5_accel_esp_xfrm_attrs {
-	u32   spi;
-	u32   mode;
-	struct aes_gcm_keymat aes_gcm;
-
+struct mlx5e_ipsec_addr {
 	union {
 		__be32 a4;
 		__be32 a6[4];
@@ -90,13 +86,19 @@ struct mlx5_accel_esp_xfrm_attrs {
 		__be32 a4;
 		__be32 a6[4];
 	} daddr;
+	u8 family;
+};
 
+struct mlx5_accel_esp_xfrm_attrs {
+	u32   spi;
+	u32   mode;
+	struct aes_gcm_keymat aes_gcm;
+	struct mlx5e_ipsec_addr addrs;
 	struct upspec upspec;
 	u8 dir : 2;
 	u8 type : 2;
 	u8 drop : 1;
 	u8 encap : 1;
-	u8 family;
 	struct mlx5_replay_esn replay_esn;
 	u32 authsize;
 	u32 reqid;
@@ -279,18 +281,8 @@ struct mlx5e_ipsec_sa_entry {
 };
 
 struct mlx5_accel_pol_xfrm_attrs {
-	union {
-		__be32 a4;
-		__be32 a6[4];
-	} saddr;
-
-	union {
-		__be32 a4;
-		__be32 a6[4];
-	} daddr;
-
+	struct mlx5e_ipsec_addr addrs;
 	struct upspec upspec;
-	u8 family;
 	u8 action;
 	u8 type : 2;
 	u8 dir : 2;
