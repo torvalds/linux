@@ -1019,14 +1019,9 @@ static const struct snd_kcontrol_new sma1307_aif_out1_source_control = {
 	.private_value = (unsigned long)&sma1307_aif_out_source_enum
 };
 
-static const struct snd_kcontrol_new sma1307_sdo_control = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "Switch",
-	.info = snd_soc_info_volsw,
-	.get = sma1307_dapm_sdo_enable_get,
-	.put = sma1307_dapm_sdo_enable_put,
-	.private_value = SOC_SINGLE_VALUE(SND_SOC_NOPM, 0, 1, 0, 0)
-};
+static const struct snd_kcontrol_new sma1307_sdo_control =
+	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM, 0, 1, 0,
+		       sma1307_dapm_sdo_enable_get, sma1307_dapm_sdo_enable_put);
 
 static const struct snd_kcontrol_new sma1307_enable_control =
 	SOC_DAPM_SINGLE("Switch", SMA1307_00_SYSTEM_CTRL, 0, 1, 0);
