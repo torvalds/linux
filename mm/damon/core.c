@@ -375,6 +375,7 @@ struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
 	scheme->next_apply_sis = 0;
 	scheme->walk_completed = false;
 	INIT_LIST_HEAD(&scheme->filters);
+	INIT_LIST_HEAD(&scheme->ops_filters);
 	scheme->stat = (struct damos_stat){};
 	INIT_LIST_HEAD(&scheme->list);
 
