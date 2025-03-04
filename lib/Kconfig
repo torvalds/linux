@@ -222,11 +222,7 @@ config LIBCRC32C
 	  purposes until the users are updated to select CRC32 directly.
 
 config CRC8
-	tristate "CRC8 function"
-	help
-	  This option provides CRC8 function. Drivers may select this
-	  when they need to do cyclic redundancy check according CRC8
-	  algorithm. Module will be called crc8.
+	tristate
 
 config CRC_OPTIMIZATIONS
 	bool "Enable optimized CRC implementations" if EXPERT
