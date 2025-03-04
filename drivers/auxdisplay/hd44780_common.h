@@ -30,4 +30,6 @@ int hd44780_common_blink(struct charlcd *lcd, enum charlcd_onoff on);
 int hd44780_common_fontsize(struct charlcd *lcd, enum charlcd_fontsize size);
 int hd44780_common_lines(struct charlcd *lcd, enum charlcd_lines lines);
 int hd44780_common_redefine_char(struct charlcd *lcd, char *esc);
-struct hd44780_common *hd44780_common_alloc(void);
+
+struct charlcd *hd44780_common_alloc(void);
+void hd44780_common_free(struct charlcd *lcd);
