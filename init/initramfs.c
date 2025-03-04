@@ -20,6 +20,7 @@
 #include <linux/security.h>
 
 #include "do_mounts.h"
+#include "initramfs_internal.h"
 
 static __initdata bool csum_present;
 static __initdata u32 io_csum;
@@ -256,7 +257,7 @@ static __initdata char *header_buf, *symlink_buf, *name_buf;
 
 static int __init do_start(void)
 {
-	read_into(header_buf, 110, GotHeader);
+	read_into(header_buf, CPIO_HDRLEN, GotHeader);
 	return 0;
 }
 
@@ -497,14 +498,23 @@ static unsigned long my_inptr __initdata; /* index of next byte to be processed 
 
 #include <linux/decompress/generic.h>
 
-static char * __init unpack_to_rootfs(char *buf, unsigned long len)
+/**
+ * unpack_to_rootfs - decompress and extract an initramfs archive
+ * @buf: input initramfs archive to extract
+ * @len: length of initramfs data to process
+ *
+ * Returns: NULL for success or an error message string
+ *
+ * This symbol shouldn't be used externally. It's available for unit tests.
+ */
+char * __init unpack_to_rootfs(char *buf, unsigned long len)
 {
 	long written;
 	decompress_fn decompress;
 	const char *compress_name;
 	static __initdata char msg_buf[64];
 
-	header_buf = kmalloc(110, GFP_KERNEL);
+	header_buf = kmalloc(CPIO_HDRLEN, GFP_KERNEL);
 	symlink_buf = kmalloc(PATH_MAX + N_ALIGN(PATH_MAX) + 1, GFP_KERNEL);
 	name_buf = kmalloc(N_ALIGN(PATH_MAX), GFP_KERNEL);
 
