@@ -230,6 +230,8 @@ enum hns_roce_opcode_type {
 };
 
 #define HNS_ROCE_OPC_POST_MB_TIMEOUT 35000
+#define HNS_ROCE_OPC_POST_MB_TRY_CNT 8
+#define HNS_ROCE_OPC_POST_MB_RETRY_GAP_MSEC 5
 struct hns_roce_cmdq_tx_timeout_map {
 	u16 opcode;
 	u32 tx_timeout;

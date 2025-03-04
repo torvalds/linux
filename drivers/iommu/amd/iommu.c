@@ -2043,12 +2043,12 @@ static void set_dte_entry(struct amd_iommu *iommu,
 	make_clear_dte(dev_data, dte, &new);
 
 	if (domain->iop.mode != PAGE_MODE_NONE)
-		new.data[0] = iommu_virt_to_phys(domain->iop.root);
+		new.data[0] |= iommu_virt_to_phys(domain->iop.root);
 
 	new.data[0] |= (domain->iop.mode & DEV_ENTRY_MODE_MASK)
 		    << DEV_ENTRY_MODE_SHIFT;
 
-	new.data[0] |= DTE_FLAG_IR | DTE_FLAG_IW | DTE_FLAG_V;
+	new.data[0] |= DTE_FLAG_IR | DTE_FLAG_IW;
 
 	/*
 	 * When SNP is enabled, we can only support TV=1 with non-zero domain ID.
