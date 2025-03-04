@@ -89,6 +89,7 @@ struct arm_spe_record {
 	u32 latency;
 	u64 from_ip;
 	u64 to_ip;
+	u64 prev_br_tgt;
 	u64 timestamp;
 	u64 virt_addr;
 	u64 phys_addr;

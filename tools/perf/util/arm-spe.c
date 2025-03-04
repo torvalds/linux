@@ -237,8 +237,9 @@ static struct arm_spe_queue *arm_spe__alloc_queue(struct arm_spe *spe,
 	if (spe->synth_opts.last_branch) {
 		size_t sz = sizeof(struct branch_stack);
 
-		/* Allocate one entry for TGT */
-		sz += sizeof(struct branch_entry);
+		/* Allocate up to two entries for PBT + TGT */
+		sz += sizeof(struct branch_entry) *
+			min(spe->synth_opts.last_branch_sz, 2U);
 		speq->last_branch = zalloc(sz);
 		if (!speq->last_branch)
 			goto out_free;
@@ -362,68 +363,83 @@ static void arm_spe_prep_sample(struct arm_spe *spe,
 
 static void arm_spe__prep_branch_stack(struct arm_spe_queue *speq)
 {
+	struct arm_spe *spe = speq->spe;
 	struct arm_spe_record *record = &speq->decoder->record;
 	struct branch_stack *bstack = speq->last_branch;
 	struct branch_flags *bs_flags;
+	unsigned int last_branch_sz = spe->synth_opts.last_branch_sz;
+	bool have_tgt = !!(speq->flags & PERF_IP_FLAG_BRANCH);
+	bool have_pbt = last_branch_sz >= (have_tgt + 1U) && record->prev_br_tgt;
 	size_t sz = sizeof(struct branch_stack) +
-		    sizeof(struct branch_entry) /* TGT */;
+		    sizeof(struct branch_entry) * min(last_branch_sz, 2U) /* PBT + TGT */;
+	int i = 0;
 
 	/* Clean up branch stack */
 	memset(bstack, 0x0, sz);
 
-	if (!(speq->flags & PERF_IP_FLAG_BRANCH))
+	if (!have_tgt && !have_pbt)
 		return;
 
-	bstack->entries[0].from = record->from_ip;
-	bstack->entries[0].to = record->to_ip;
+	if (have_tgt) {
+		bstack->entries[i].from = record->from_ip;
+		bstack->entries[i].to = record->to_ip;
 
-	bs_flags = &bstack->entries[0].flags;
-	bs_flags->value = 0;
+		bs_flags = &bstack->entries[i].flags;
+		bs_flags->value = 0;
 
-	if (record->op & ARM_SPE_OP_BR_CR_BL) {
-		if (record->op & ARM_SPE_OP_BR_COND)
-			bs_flags->type |= PERF_BR_COND_CALL;
-		else
-			bs_flags->type |= PERF_BR_CALL;
-	/*
-	 * Indirect branch instruction without link (e.g. BR),
-	 * take this case as function return.
-	 */
-	} else if (record->op & ARM_SPE_OP_BR_CR_RET ||
-		   record->op & ARM_SPE_OP_BR_INDIRECT) {
-		if (record->op & ARM_SPE_OP_BR_COND)
-			bs_flags->type |= PERF_BR_COND_RET;
-		else
-			bs_flags->type |= PERF_BR_RET;
-	} else if (record->op & ARM_SPE_OP_BR_CR_NON_BL_RET) {
-		if (record->op & ARM_SPE_OP_BR_COND)
-			bs_flags->type |= PERF_BR_COND;
-		else
-			bs_flags->type |= PERF_BR_UNCOND;
-	} else {
-		if (record->op & ARM_SPE_OP_BR_COND)
-			bs_flags->type |= PERF_BR_COND;
-		else
-			bs_flags->type |= PERF_BR_UNKNOWN;
+		if (record->op & ARM_SPE_OP_BR_CR_BL) {
+			if (record->op & ARM_SPE_OP_BR_COND)
+				bs_flags->type |= PERF_BR_COND_CALL;
+			else
+				bs_flags->type |= PERF_BR_CALL;
+		/*
+		 * Indirect branch instruction without link (e.g. BR),
+		 * take this case as function return.
+		 */
+		} else if (record->op & ARM_SPE_OP_BR_CR_RET ||
+			   record->op & ARM_SPE_OP_BR_INDIRECT) {
+			if (record->op & ARM_SPE_OP_BR_COND)
+				bs_flags->type |= PERF_BR_COND_RET;
+			else
+				bs_flags->type |= PERF_BR_RET;
+		} else if (record->op & ARM_SPE_OP_BR_CR_NON_BL_RET) {
+			if (record->op & ARM_SPE_OP_BR_COND)
+				bs_flags->type |= PERF_BR_COND;
+			else
+				bs_flags->type |= PERF_BR_UNCOND;
+		} else {
+			if (record->op & ARM_SPE_OP_BR_COND)
+				bs_flags->type |= PERF_BR_COND;
+			else
+				bs_flags->type |= PERF_BR_UNKNOWN;
+		}
+
+		if (record->type & ARM_SPE_BRANCH_MISS) {
+			bs_flags->mispred = 1;
+			bs_flags->predicted = 0;
+		} else {
+			bs_flags->mispred = 0;
+			bs_flags->predicted = 1;
+		}
+
+		if (record->type & ARM_SPE_BRANCH_NOT_TAKEN)
+			bs_flags->not_taken = 1;
+
+		if (record->type & ARM_SPE_IN_TXN)
+			bs_flags->in_tx = 1;
+
+		bs_flags->cycles = min(record->latency, 0xFFFFU);
+		i++;
 	}
 
-	if (record->type & ARM_SPE_BRANCH_MISS) {
-		bs_flags->mispred = 1;
-		bs_flags->predicted = 0;
-	} else {
-		bs_flags->mispred = 0;
-		bs_flags->predicted = 1;
+	if (have_pbt) {
+		bs_flags = &bstack->entries[i].flags;
+		bs_flags->type |= PERF_BR_UNKNOWN;
+		bstack->entries[i].to = record->prev_br_tgt;
+		i++;
 	}
 
-	if (record->type & ARM_SPE_BRANCH_NOT_TAKEN)
-		bs_flags->not_taken = 1;
-
-	if (record->type & ARM_SPE_IN_TXN)
-		bs_flags->in_tx = 1;
-
-	bs_flags->cycles = min(record->latency, 0xFFFFU);
-
-	bstack->nr = 1;
+	bstack->nr = i;
 	bstack->hw_idx = -1ULL;
 }
 
@@ -1584,8 +1600,8 @@ arm_spe_synth_events(struct arm_spe *spe, struct perf_session *session)
 	}
 
 	if (spe->synth_opts.last_branch) {
-		if (spe->synth_opts.last_branch_sz > 1)
-			pr_debug("Arm SPE supports only one bstack entry (TGT).\n");
+		if (spe->synth_opts.last_branch_sz > 2)
+			pr_debug("Arm SPE supports only two bstack entries (PBT+TGT).\n");
 
 		attr.sample_type |= PERF_SAMPLE_BRANCH_STACK;
 		/*
