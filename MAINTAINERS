@@ -26223,6 +26223,7 @@ F:	mm/zsmalloc.c
 
 ZSTD
 M:	Nick Terrell <terrelln@fb.com>
+M:	David Sterba <dsterba@suse.com>
 S:	Maintained
 B:	https://github.com/facebook/zstd/issues
 T:	git https://github.com/terrelln/linux.git
