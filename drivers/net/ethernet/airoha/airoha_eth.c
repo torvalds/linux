@@ -1705,6 +1705,20 @@ static void airoha_dev_get_stats64(struct net_device *dev,
 	} while (u64_stats_fetch_retry(&port->stats.syncp, start));
 }
 
+static int airoha_dev_change_mtu(struct net_device *dev, int mtu)
+{
+	struct airoha_gdm_port *port = netdev_priv(dev);
+	struct airoha_eth *eth = port->qdma->eth;
+	u32 len = ETH_HLEN + mtu + ETH_FCS_LEN;
+
+	airoha_fe_rmw(eth, REG_GDM_LEN_CFG(port->id),
+		      GDM_LONG_LEN_MASK,
+		      FIELD_PREP(GDM_LONG_LEN_MASK, len));
+	WRITE_ONCE(dev->mtu, mtu);
+
+	return 0;
+}
+
 static u16 airoha_dev_select_queue(struct net_device *dev, struct sk_buff *skb,
 				   struct net_device *sb_dev)
 {
@@ -2400,6 +2414,7 @@ static const struct net_device_ops airoha_netdev_ops = {
 	.ndo_init		= airoha_dev_init,
 	.ndo_open		= airoha_dev_open,
 	.ndo_stop		= airoha_dev_stop,
+	.ndo_change_mtu		= airoha_dev_change_mtu,
 	.ndo_select_queue	= airoha_dev_select_queue,
 	.ndo_start_xmit		= airoha_dev_xmit,
 	.ndo_get_stats64        = airoha_dev_get_stats64,
