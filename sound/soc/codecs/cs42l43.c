@@ -2402,9 +2402,22 @@ static int cs42l43_codec_runtime_resume(struct device *dev)
 	return 0;
 }
 
+static int cs42l43_codec_runtime_force_suspend(struct device *dev)
+{
+	struct cs42l43_codec *priv = dev_get_drvdata(dev);
+
+	dev_dbg(priv->dev, "Runtime suspend\n");
+
+	priv->suspend_jack_debounce = true;
+
+	pm_runtime_force_suspend(dev);
+
+	return 0;
+}
+
 static const struct dev_pm_ops cs42l43_codec_pm_ops = {
 	RUNTIME_PM_OPS(NULL, cs42l43_codec_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(cs42l43_codec_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static const struct platform_device_id cs42l43_codec_id_table[] = {
