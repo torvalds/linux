@@ -84,7 +84,11 @@ typedef struct { unsigned long p4d; } p4d_t;
 typedef struct { unsigned long pgd; } pgd_t;
 typedef pte_t *pgtable_t;
 
-#define pgprot_val(x)	((x).pgprot)
+static inline unsigned long pgprot_val(pgprot_t pgprot)
+{
+	return pgprot.pgprot;
+}
+
 #define pgste_val(x)	((x).pgste)
 
 static inline unsigned long pte_val(pte_t pte)
@@ -112,13 +116,13 @@ static inline unsigned long pgd_val(pgd_t pgd)
 	return pgd.pgd;
 }
 
+#define __pgprot(x)	((pgprot_t) { (x) } )
 #define __pgste(x)	((pgste_t) { (x) } )
 #define __pte(x)        ((pte_t) { (x) } )
 #define __pmd(x)        ((pmd_t) { (x) } )
 #define __pud(x)	((pud_t) { (x) } )
 #define __p4d(x)	((p4d_t) { (x) } )
 #define __pgd(x)        ((pgd_t) { (x) } )
-#define __pgprot(x)     ((pgprot_t) { (x) } )
 
 static inline void page_set_storage_key(unsigned long addr,
 					unsigned char skey, int mapped)
