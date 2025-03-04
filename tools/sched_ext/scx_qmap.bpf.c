@@ -776,21 +776,21 @@ static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 
 	__COMPAT_scx_bpf_events(&events, sizeof(events));
 
-	bpf_printk("%35s: %llu", "SCX_EV_SELECT_CPU_FALLBACK",
+	bpf_printk("%35s: %lld", "SCX_EV_SELECT_CPU_FALLBACK",
 		   scx_read_event(&events, SCX_EV_SELECT_CPU_FALLBACK));
-	bpf_printk("%35s: %llu", "SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE",
+	bpf_printk("%35s: %lld", "SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE",
 		   scx_read_event(&events, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE));
-	bpf_printk("%35s: %llu", "SCX_EV_DISPATCH_KEEP_LAST",
+	bpf_printk("%35s: %lld", "SCX_EV_DISPATCH_KEEP_LAST",
 		   scx_read_event(&events, SCX_EV_DISPATCH_KEEP_LAST));
-	bpf_printk("%35s: %llu", "SCX_EV_ENQ_SKIP_EXITING",
+	bpf_printk("%35s: %lld", "SCX_EV_ENQ_SKIP_EXITING",
 		   scx_read_event(&events, SCX_EV_ENQ_SKIP_EXITING));
-	bpf_printk("%35s: %llu", "SCX_EV_ENQ_SLICE_DFL",
+	bpf_printk("%35s: %lld", "SCX_EV_ENQ_SLICE_DFL",
 		   scx_read_event(&events, SCX_EV_ENQ_SLICE_DFL));
-	bpf_printk("%35s: %llu", "SCX_EV_BYPASS_DURATION",
+	bpf_printk("%35s: %lld", "SCX_EV_BYPASS_DURATION",
 		   scx_read_event(&events, SCX_EV_BYPASS_DURATION));
-	bpf_printk("%35s: %llu", "SCX_EV_BYPASS_DISPATCH",
+	bpf_printk("%35s: %lld", "SCX_EV_BYPASS_DISPATCH",
 		   scx_read_event(&events, SCX_EV_BYPASS_DISPATCH));
-	bpf_printk("%35s: %llu", "SCX_EV_BYPASS_ACTIVATE",
+	bpf_printk("%35s: %lld", "SCX_EV_BYPASS_ACTIVATE",
 		   scx_read_event(&events, SCX_EV_BYPASS_ACTIVATE));
 
 	bpf_timer_start(timer, ONE_SEC_IN_NS, 0);

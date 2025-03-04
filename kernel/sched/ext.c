@@ -1489,53 +1489,53 @@ struct scx_event_stats {
 	 * If ops.select_cpu() returns a CPU which can't be used by the task,
 	 * the core scheduler code silently picks a fallback CPU.
 	 */
-	u64		SCX_EV_SELECT_CPU_FALLBACK;
+	s64		SCX_EV_SELECT_CPU_FALLBACK;
 
 	/*
 	 * When dispatching to a local DSQ, the CPU may have gone offline in
 	 * the meantime. In this case, the task is bounced to the global DSQ.
 	 */
-	u64		SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE;
+	s64		SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE;
 
 	/*
 	 * If SCX_OPS_ENQ_LAST is not set, the number of times that a task
 	 * continued to run because there were no other tasks on the CPU.
 	 */
-	u64		SCX_EV_DISPATCH_KEEP_LAST;
+	s64		SCX_EV_DISPATCH_KEEP_LAST;
 
 	/*
 	 * If SCX_OPS_ENQ_EXITING is not set, the number of times that a task
 	 * is dispatched to a local DSQ when exiting.
 	 */
-	u64		SCX_EV_ENQ_SKIP_EXITING;
+	s64		SCX_EV_ENQ_SKIP_EXITING;
 
 	/*
 	 * If SCX_OPS_ENQ_MIGRATION_DISABLED is not set, the number of times a
 	 * migration disabled task skips ops.enqueue() and is dispatched to its
 	 * local DSQ.
 	 */
-	u64		SCX_EV_ENQ_SKIP_MIGRATION_DISABLED;
+	s64		SCX_EV_ENQ_SKIP_MIGRATION_DISABLED;
 
 	/*
 	 * The total number of tasks enqueued (or pick_task-ed) with a
 	 * default time slice (SCX_SLICE_DFL).
 	 */
-	u64		SCX_EV_ENQ_SLICE_DFL;
+	s64		SCX_EV_ENQ_SLICE_DFL;
 
 	/*
 	 * The total duration of bypass modes in nanoseconds.
 	 */
-	u64		SCX_EV_BYPASS_DURATION;
+	s64		SCX_EV_BYPASS_DURATION;
 
 	/*
 	 * The number of tasks dispatched in the bypassing mode.
 	 */
-	u64		SCX_EV_BYPASS_DISPATCH;
+	s64		SCX_EV_BYPASS_DISPATCH;
 
 	/*
 	 * The number of times the bypassing mode has been activated.
 	 */
-	u64		SCX_EV_BYPASS_ACTIVATE;
+	s64		SCX_EV_BYPASS_ACTIVATE;
 };
 
 /*
@@ -1584,7 +1584,7 @@ static DEFINE_PER_CPU(struct scx_event_stats, event_stats_cpu);
  * @kind: a kind of event to dump
  */
 #define scx_dump_event(s, events, kind) do {					\
-	dump_line(&(s), "%40s: %16llu", #kind, (events)->kind);			\
+	dump_line(&(s), "%40s: %16lld", #kind, (events)->kind);			\
 } while (0)
 
 
