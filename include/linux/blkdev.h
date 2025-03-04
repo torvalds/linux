@@ -561,10 +561,12 @@ struct request_queue {
 	struct list_head	flush_list;
 
 	/*
-	 * Protects against I/O scheduler switching, specifically when
-	 * updating q->elevator. To ensure proper locking order during
-	 * an elevator update, first freeze the queue, then acquire
-	 * ->elevator_lock.
+	 * Protects against I/O scheduler switching, particularly when
+	 * updating q->elevator. Since the elevator update code path may
+	 * also modify q->nr_requests, this lock also protects the sysfs
+	 * attribute nr_requests.
+	 * To ensure proper locking order during an elevator update, first
+	 * freeze the queue, then acquire ->elevator_lock.
 	 */
 	struct mutex		elevator_lock;
 
