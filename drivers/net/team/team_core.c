@@ -2203,7 +2203,7 @@ static void team_setup(struct net_device *dev)
 	dev->lltx = true;
 
 	/* Don't allow team devices to change network namespaces. */
-	dev->netns_local = true;
+	dev->netns_immutable = true;
 
 	dev->features |= NETIF_F_GRO;
 

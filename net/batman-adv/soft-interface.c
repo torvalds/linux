@@ -1037,7 +1037,7 @@ static void batadv_softif_init_early(struct net_device *dev)
 	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->lltx = true;
-	dev->netns_local = true;
+	dev->netns_immutable = true;
 
 	/* can't call min_mtu, because the needed variables
 	 * have not been initialized yet

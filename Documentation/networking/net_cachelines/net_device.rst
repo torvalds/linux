@@ -167,7 +167,7 @@ unsigned:1                          wol_enabled
 unsigned:1                          threaded                                                            napi_poll(napi_enable,dev_set_threaded)
 unsigned_long:1                     see_all_hwtstamp_requests
 unsigned_long:1                     change_proto_down
-unsigned_long:1                     netns_local
+unsigned_long:1                     netns_immutable
 unsigned_long:1                     fcoe_mtu
 struct list_head                    net_notifier_list
 struct macsec_ops*                  macsec_ops
