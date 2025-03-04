@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <signal.h>
+#include <unistd.h>
 #include <linux/compiler.h>
 #include "../tests.h"
 
@@ -12,9 +15,25 @@ static buf buf1 = {
 	.reserved[0] = 1,
 };
 
-static int datasym(int argc __maybe_unused, const char **argv __maybe_unused)
+static volatile sig_atomic_t done;
+
+static void sighandler(int sig __maybe_unused)
 {
-	for (;;) {
+	done = 1;
+}
+
+static int datasym(int argc, const char **argv)
+{
+	int sec = 1;
+
+	if (argc > 0)
+		sec = atoi(argv[0]);
+
+	signal(SIGINT, sighandler);
+	signal(SIGALRM, sighandler);
+	alarm(sec);
+
+	while (!done) {
 		buf1.data1++;
 		if (buf1.data1 == 123) {
 			/*
