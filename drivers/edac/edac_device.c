@@ -733,7 +733,7 @@ int edac_dev_register(struct device *parent, char *name,
 	ctx->private = private;
 	dev_set_drvdata(&ctx->dev, ctx);
 
-	ret = dev_set_name(&ctx->dev, name);
+	ret = dev_set_name(&ctx->dev, "%s", name);
 	if (ret)
 		goto data_mem_free;
 
