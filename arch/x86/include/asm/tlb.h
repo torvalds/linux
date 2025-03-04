@@ -33,6 +33,27 @@ enum addr_stride {
 	PMD_STRIDE = 1
 };
 
+/*
+ * INVLPGB can be targeted by virtual address, PCID, ASID, or any combination
+ * of the three. For example:
+ * - FLAG_VA | FLAG_INCLUDE_GLOBAL: invalidate all TLB entries at the address
+ * - FLAG_PCID:			    invalidate all TLB entries matching the PCID
+ *
+ * The first is used to invalidate (kernel) mappings at a particular
+ * address across all processes.
+ *
+ * The latter invalidates all TLB entries matching a PCID.
+ */
+#define INVLPGB_FLAG_VA			BIT(0)
+#define INVLPGB_FLAG_PCID		BIT(1)
+#define INVLPGB_FLAG_ASID		BIT(2)
+#define INVLPGB_FLAG_INCLUDE_GLOBAL	BIT(3)
+#define INVLPGB_FLAG_FINAL_ONLY		BIT(4)
+#define INVLPGB_FLAG_INCLUDE_NESTED	BIT(5)
+
+/* The implied mode when all bits are clear: */
+#define INVLPGB_MODE_ALL_NONGLOBALS	0UL
+
 #ifdef CONFIG_BROADCAST_TLB_FLUSH
 /*
  * INVLPGB does broadcast TLB invalidation across all the CPUs in the system.
@@ -40,13 +61,19 @@ enum addr_stride {
  * The INVLPGB instruction is weakly ordered, and a batch of invalidations can
  * be done in a parallel fashion.
  *
- * The instruction takes the number of extra pages to invalidate, beyond
- * the first page, while __invlpgb gets the more human readable number of
- * pages to invalidate.
+ * The instruction takes the number of extra pages to invalidate, beyond the
+ * first page, while __invlpgb gets the more human readable number of pages to
+ * invalidate.
  *
  * The bits in rax[0:2] determine respectively which components of the address
  * (VA, PCID, ASID) get compared when flushing. If neither bits are set, *any*
  * address in the specified range matches.
+ *
+ * Since it is desired to only flush TLB entries for the ASID that is executing
+ * the instruction (a host/hypervisor or a guest), the ASID valid bit should
+ * always be set. On a host/hypervisor, the hardware will use the ASID value
+ * specified in EDX[15:0] (which should be 0). On a guest, the hardware will
+ * use the actual ASID value of the guest.
  *
  * TLBSYNC is used to ensure that pending INVLPGB invalidations initiated from
  * this CPU have completed.
@@ -55,9 +82,9 @@ static inline void __invlpgb(unsigned long asid, unsigned long pcid,
 			     unsigned long addr, u16 nr_pages,
 			     enum addr_stride stride, u8 flags)
 {
-	u32 edx = (pcid << 16) | asid;
+	u64 rax = addr | flags | INVLPGB_FLAG_ASID;
 	u32 ecx = (stride << 31) | (nr_pages - 1);
-	u64 rax = addr | flags;
+	u32 edx = (pcid << 16) | asid;
 
 	/* The low bits in rax are for flags. Verify addr is clean. */
 	VM_WARN_ON_ONCE(addr & ~PAGE_MASK);
@@ -92,27 +119,6 @@ static inline void __invlpgb(unsigned long asid, unsigned long pcid,
 static inline void __invlpgb_all(unsigned long asid, unsigned long pcid, u8 flags) { }
 static inline void __tlbsync(void) { }
 #endif
-
-/*
- * INVLPGB can be targeted by virtual address, PCID, ASID, or any combination
- * of the three. For example:
- * - FLAG_VA | FLAG_INCLUDE_GLOBAL: invalidate all TLB entries at the address
- * - FLAG_PCID:			    invalidate all TLB entries matching the PCID
- *
- * The first is used to invalidate (kernel) mappings at a particular
- * address across all processes.
- *
- * The latter invalidates all TLB entries matching a PCID.
- */
-#define INVLPGB_FLAG_VA			BIT(0)
-#define INVLPGB_FLAG_PCID		BIT(1)
-#define INVLPGB_FLAG_ASID		BIT(2)
-#define INVLPGB_FLAG_INCLUDE_GLOBAL	BIT(3)
-#define INVLPGB_FLAG_FINAL_ONLY		BIT(4)
-#define INVLPGB_FLAG_INCLUDE_NESTED	BIT(5)
-
-/* The implied mode when all bits are clear: */
-#define INVLPGB_MODE_ALL_NONGLOBALS	0UL
 
 static inline void invlpgb_flush_user_nr_nosync(unsigned long pcid,
 						unsigned long addr,
