@@ -69,6 +69,13 @@
 	status = "okay";
 };
 
+&sdhc {
+	pinctrl-0 = <&sdc_default_state>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
 &sleep_clk {
 	clock-frequency = <32000>;
 };
