@@ -131,6 +131,7 @@ struct mlx5_module_eeprom_query_params {
 
 struct mlx5_link_info {
 	u32 speed;
+	u32 lanes;
 };
 
 static inline void mlx5_printk(struct mlx5_core_dev *dev, int level, const char *format, ...)
