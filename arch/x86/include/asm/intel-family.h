@@ -110,9 +110,9 @@
 
 #define INTEL_SAPPHIRERAPIDS_X		IFM(6, 0x8F) /* Golden Cove */
 
-#define INTEL_EMERALDRAPIDS_X		IFM(6, 0xCF)
+#define INTEL_EMERALDRAPIDS_X		IFM(6, 0xCF) /* Raptor Cove */
 
-#define INTEL_GRANITERAPIDS_X		IFM(6, 0xAD)
+#define INTEL_GRANITERAPIDS_X		IFM(6, 0xAD) /* Redwood Cove */
 #define INTEL_GRANITERAPIDS_D		IFM(6, 0xAE)
 
 /* "Hybrid" Processors (P-Core/E-Core) */
@@ -126,16 +126,16 @@
 #define INTEL_RAPTORLAKE_P		IFM(6, 0xBA)
 #define INTEL_RAPTORLAKE_S		IFM(6, 0xBF)
 
-#define INTEL_METEORLAKE		IFM(6, 0xAC)
+#define INTEL_METEORLAKE		IFM(6, 0xAC) /* Redwood Cove / Crestmont */
 #define INTEL_METEORLAKE_L		IFM(6, 0xAA)
 
-#define INTEL_ARROWLAKE_H		IFM(6, 0xC5)
+#define INTEL_ARROWLAKE_H		IFM(6, 0xC5) /* Lion Cove / Skymont */
 #define INTEL_ARROWLAKE			IFM(6, 0xC6)
 #define INTEL_ARROWLAKE_U		IFM(6, 0xB5)
 
-#define INTEL_LUNARLAKE_M		IFM(6, 0xBD)
+#define INTEL_LUNARLAKE_M		IFM(6, 0xBD) /* Lion Cove / Skymont */
 
-#define INTEL_PANTHERLAKE_L		IFM(6, 0xCC)
+#define INTEL_PANTHERLAKE_L		IFM(6, 0xCC) /* Cougar Cove / Crestmont */
 
 /* "Small Core" Processors (Atom/E-Core) */
 
@@ -149,9 +149,9 @@
 #define INTEL_ATOM_SILVERMONT		IFM(6, 0x37) /* Bay Trail, Valleyview */
 #define INTEL_ATOM_SILVERMONT_D		IFM(6, 0x4D) /* Avaton, Rangely */
 #define INTEL_ATOM_SILVERMONT_MID	IFM(6, 0x4A) /* Merriefield */
+#define INTEL_ATOM_SILVERMONT_MID2	IFM(6, 0x5A) /* Anniedale */
 
 #define INTEL_ATOM_AIRMONT		IFM(6, 0x4C) /* Cherry Trail, Braswell */
-#define INTEL_ATOM_AIRMONT_MID		IFM(6, 0x5A) /* Moorefield */
 #define INTEL_ATOM_AIRMONT_NP		IFM(6, 0x75) /* Lightning Mountain */
 
 #define INTEL_ATOM_GOLDMONT		IFM(6, 0x5C) /* Apollo Lake */
@@ -182,10 +182,23 @@
 /* Family 19 */
 #define INTEL_PANTHERCOVE_X		IFM(19, 0x01) /* Diamond Rapids */
 
-/* CPU core types */
+/*
+ * Intel CPU core types
+ *
+ * CPUID.1AH.EAX[31:0] uniquely identifies the microarchitecture
+ * of the core. Bits 31-24 indicates its core type (Core or Atom)
+ * and Bits [23:0] indicates the native model ID of the core.
+ * Core type and native model ID are defined in below enumerations.
+ */
 enum intel_cpu_type {
+	INTEL_CPU_TYPE_UNKNOWN,
 	INTEL_CPU_TYPE_ATOM = 0x20,
 	INTEL_CPU_TYPE_CORE = 0x40,
+};
+
+enum intel_native_id {
+	INTEL_ATOM_CMT_NATIVE_ID = 0x2,  /* Crestmont */
+	INTEL_ATOM_SKT_NATIVE_ID = 0x3,  /* Skymont */
 };
 
 #endif /* _ASM_X86_INTEL_FAMILY_H */

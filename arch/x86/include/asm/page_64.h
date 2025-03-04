@@ -55,8 +55,8 @@ static inline void clear_page(void *page)
 			   clear_page_rep, X86_FEATURE_REP_GOOD,
 			   clear_page_erms, X86_FEATURE_ERMS,
 			   "=D" (page),
-			   "D" (page)
-			   : "cc", "memory", "rax", "rcx");
+			   "D" (page),
+			   "cc", "memory", "rax", "rcx");
 }
 
 void copy_page(void *to, void *from);

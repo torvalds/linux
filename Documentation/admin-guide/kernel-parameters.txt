@@ -416,10 +416,6 @@
 			Format: { quiet (default) | verbose | debug }
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
-			For X86-32, this can also be used to specify an APIC
-			driver name.
-			Format: apic=driver_name
-			Examples: apic=bigsmp
 
 	apic_extnmi=	[APIC,X86,EARLY] External NMI delivery setting
 			Format: { bsp (default) | all | none }
@@ -7671,13 +7667,6 @@
 				 8 - SIGSEGV faults
 				16 - SIGBUS faults
 			Example: user_debug=31
-
-	userpte=
-			[X86,EARLY] Flags controlling user PTE allocations.
-
-				nohigh = do not allocate PTE pages in
-					HIGHMEM regardless of setting
-					of CONFIG_HIGHPTE.
 
 	vdso=		[X86,SH,SPARC]
 			On X86_32, this is an alias for vdso32=.  Otherwise:

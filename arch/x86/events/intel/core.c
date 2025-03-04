@@ -4685,9 +4685,9 @@ static int adl_hw_config(struct perf_event *event)
 	return -EOPNOTSUPP;
 }
 
-static enum hybrid_cpu_type adl_get_hybrid_cpu_type(void)
+static enum intel_cpu_type adl_get_hybrid_cpu_type(void)
 {
-	return HYBRID_INTEL_CORE;
+	return INTEL_CPU_TYPE_CORE;
 }
 
 static inline bool erratum_hsw11(struct perf_event *event)
@@ -5032,7 +5032,8 @@ static void intel_pmu_check_hybrid_pmus(struct x86_hybrid_pmu *pmu)
 
 static struct x86_hybrid_pmu *find_hybrid_pmu_for_cpu(void)
 {
-	u8 cpu_type = get_this_hybrid_cpu_type();
+	struct cpuinfo_x86 *c = &cpu_data(smp_processor_id());
+	enum intel_cpu_type cpu_type = c->topo.intel_type;
 	int i;
 
 	/*
@@ -5041,7 +5042,7 @@ static struct x86_hybrid_pmu *find_hybrid_pmu_for_cpu(void)
 	 * on it. There should be a fixup function provided for these
 	 * troublesome CPUs (->get_hybrid_cpu_type).
 	 */
-	if (cpu_type == HYBRID_INTEL_NONE) {
+	if (cpu_type == INTEL_CPU_TYPE_UNKNOWN) {
 		if (x86_pmu.get_hybrid_cpu_type)
 			cpu_type = x86_pmu.get_hybrid_cpu_type();
 		else
@@ -5058,16 +5059,16 @@ static struct x86_hybrid_pmu *find_hybrid_pmu_for_cpu(void)
 		enum hybrid_pmu_type pmu_type = x86_pmu.hybrid_pmu[i].pmu_type;
 		u32 native_id;
 
-		if (cpu_type == HYBRID_INTEL_CORE && pmu_type == hybrid_big)
+		if (cpu_type == INTEL_CPU_TYPE_CORE && pmu_type == hybrid_big)
 			return &x86_pmu.hybrid_pmu[i];
-		if (cpu_type == HYBRID_INTEL_ATOM) {
+		if (cpu_type == INTEL_CPU_TYPE_ATOM) {
 			if (x86_pmu.num_hybrid_pmus == 2 && pmu_type == hybrid_small)
 				return &x86_pmu.hybrid_pmu[i];
 
-			native_id = get_this_hybrid_cpu_native_id();
-			if (native_id == skt_native_id && pmu_type == hybrid_small)
+			native_id = c->topo.intel_native_model_id;
+			if (native_id == INTEL_ATOM_SKT_NATIVE_ID && pmu_type == hybrid_small)
 				return &x86_pmu.hybrid_pmu[i];
-			if (native_id == cmt_native_id && pmu_type == hybrid_tiny)
+			if (native_id == INTEL_ATOM_CMT_NATIVE_ID && pmu_type == hybrid_tiny)
 				return &x86_pmu.hybrid_pmu[i];
 		}
 	}
@@ -6696,7 +6697,7 @@ __init int intel_pmu_init(void)
 	case INTEL_ATOM_SILVERMONT_D:
 	case INTEL_ATOM_SILVERMONT_MID:
 	case INTEL_ATOM_AIRMONT:
-	case INTEL_ATOM_AIRMONT_MID:
+	case INTEL_ATOM_SILVERMONT_MID2:
 		memcpy(hw_cache_event_ids, slm_hw_cache_event_ids,
 			sizeof(hw_cache_event_ids));
 		memcpy(hw_cache_extra_regs, slm_hw_cache_extra_regs,

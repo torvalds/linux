@@ -1062,7 +1062,6 @@ defined(CONFIG_AUTOFDO_CLANG) || defined(CONFIG_PROPELLER_CLANG)
  */
 #define PERCPU_INPUT(cacheline)						\
 	__per_cpu_start = .;						\
-	*(.data..percpu..first)						\
 	. = ALIGN(PAGE_SIZE);						\
 	*(.data..percpu..page_aligned)					\
 	. = ALIGN(cacheline);						\
@@ -1074,52 +1073,17 @@ defined(CONFIG_AUTOFDO_CLANG) || defined(CONFIG_PROPELLER_CLANG)
 	__per_cpu_end = .;
 
 /**
- * PERCPU_VADDR - define output section for percpu area
+ * PERCPU_SECTION - define output section for percpu area
  * @cacheline: cacheline size
- * @vaddr: explicit base address (optional)
- * @phdr: destination PHDR (optional)
  *
  * Macro which expands to output section for percpu area.
  *
  * @cacheline is used to align subsections to avoid false cacheline
  * sharing between subsections for different purposes.
- *
- * If @vaddr is not blank, it specifies explicit base address and all
- * percpu symbols will be offset from the given address.  If blank,
- * @vaddr always equals @laddr + LOAD_OFFSET.
- *
- * @phdr defines the output PHDR to use if not blank.  Be warned that
- * output PHDR is sticky.  If @phdr is specified, the next output
- * section in the linker script will go there too.  @phdr should have
- * a leading colon.
- *
- * Note that this macros defines __per_cpu_load as an absolute symbol.
- * If there is no need to put the percpu section at a predetermined
- * address, use PERCPU_SECTION.
- */
-#define PERCPU_VADDR(cacheline, vaddr, phdr)				\
-	__per_cpu_load = .;						\
-	.data..percpu vaddr : AT(__per_cpu_load - LOAD_OFFSET) {	\
-		PERCPU_INPUT(cacheline)					\
-	} phdr								\
-	. = __per_cpu_load + SIZEOF(.data..percpu);
-
-/**
- * PERCPU_SECTION - define output section for percpu area, simple version
- * @cacheline: cacheline size
- *
- * Align to PAGE_SIZE and outputs output section for percpu area.  This
- * macro doesn't manipulate @vaddr or @phdr and __per_cpu_load and
- * __per_cpu_start will be identical.
- *
- * This macro is equivalent to ALIGN(PAGE_SIZE); PERCPU_VADDR(@cacheline,,)
- * except that __per_cpu_load is defined as a relative symbol against
- * .data..percpu which is required for relocatable x86_32 configuration.
  */
 #define PERCPU_SECTION(cacheline)					\
 	. = ALIGN(PAGE_SIZE);						\
 	.data..percpu	: AT(ADDR(.data..percpu) - LOAD_OFFSET) {	\
-		__per_cpu_load = .;					\
 		PERCPU_INPUT(cacheline)					\
 	}
 

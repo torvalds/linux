@@ -106,7 +106,7 @@ static const struct x86_cpu_id intel_tcc_cpu_ids[] __initconst = {
 	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT_D,		&temp_broadwell),
 	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT_MID,	&temp_broadwell),
 	X86_MATCH_VFM(INTEL_ATOM_AIRMONT,		&temp_broadwell),
-	X86_MATCH_VFM(INTEL_ATOM_AIRMONT_MID,		&temp_broadwell),
+	X86_MATCH_VFM(INTEL_ATOM_SILVERMONT_MID2,	&temp_broadwell),
 	X86_MATCH_VFM(INTEL_ATOM_AIRMONT_NP,		&temp_broadwell),
 	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT,		&temp_goldmont),
 	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT_D,		&temp_goldmont),

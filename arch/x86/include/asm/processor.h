@@ -60,18 +60,13 @@ struct vm86;
 # define ARCH_MIN_MMSTRUCT_ALIGN	0
 #endif
 
-enum tlb_infos {
-	ENTRIES,
-	NR_INFO
-};
-
-extern u16 __read_mostly tlb_lli_4k[NR_INFO];
-extern u16 __read_mostly tlb_lli_2m[NR_INFO];
-extern u16 __read_mostly tlb_lli_4m[NR_INFO];
-extern u16 __read_mostly tlb_lld_4k[NR_INFO];
-extern u16 __read_mostly tlb_lld_2m[NR_INFO];
-extern u16 __read_mostly tlb_lld_4m[NR_INFO];
-extern u16 __read_mostly tlb_lld_1g[NR_INFO];
+extern u16 __read_mostly tlb_lli_4k;
+extern u16 __read_mostly tlb_lli_2m;
+extern u16 __read_mostly tlb_lli_4m;
+extern u16 __read_mostly tlb_lld_4k;
+extern u16 __read_mostly tlb_lld_2m;
+extern u16 __read_mostly tlb_lld_4m;
+extern u16 __read_mostly tlb_lld_1g;
 
 /*
  * CPU type and hardware bug flags. Kept separately for each CPU.
@@ -234,7 +229,7 @@ static inline unsigned long long l1tf_pfn_limit(void)
 void init_cpu_devs(void);
 void get_cpu_vendor(struct cpuinfo_x86 *c);
 extern void early_cpu_init(void);
-extern void identify_secondary_cpu(struct cpuinfo_x86 *);
+extern void identify_secondary_cpu(unsigned int cpu);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 void print_cpu_msr(struct cpuinfo_x86 *);
 
@@ -421,36 +416,20 @@ struct irq_stack {
 } __aligned(IRQ_STACK_SIZE);
 
 #ifdef CONFIG_X86_64
-struct fixed_percpu_data {
-	/*
-	 * GCC hardcodes the stack canary as %gs:40.  Since the
-	 * irq_stack is the object at %gs:0, we reserve the bottom
-	 * 48 bytes of the irq stack for the canary.
-	 *
-	 * Once we are willing to require -mstack-protector-guard-symbol=
-	 * support for x86_64 stackprotector, we can get rid of this.
-	 */
-	char		gs_base[40];
-	unsigned long	stack_canary;
-};
-
-DECLARE_PER_CPU_FIRST(struct fixed_percpu_data, fixed_percpu_data) __visible;
-DECLARE_INIT_PER_CPU(fixed_percpu_data);
-
 static inline unsigned long cpu_kernelmode_gs_base(int cpu)
 {
-	return (unsigned long)per_cpu(fixed_percpu_data.gs_base, cpu);
+#ifdef CONFIG_SMP
+	return per_cpu_offset(cpu);
+#else
+	return 0;
+#endif
 }
 
 extern asmlinkage void entry_SYSCALL32_ignore(void);
 
 /* Save actual FS/GS selectors and bases to current->thread */
 void current_save_fsgs(void);
-#else	/* X86_64 */
-#ifdef CONFIG_STACKPROTECTOR
-DECLARE_PER_CPU(unsigned long, __stack_chk_guard);
-#endif
-#endif	/* !X86_64 */
+#endif	/* X86_64 */
 
 struct perf_event;
 

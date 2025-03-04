@@ -93,35 +93,6 @@ static int __init parse_apic(char *arg)
 }
 early_param("apic", parse_apic);
 
-void __init x86_32_probe_bigsmp_early(void)
-{
-	if (nr_cpu_ids <= 8 || xen_pv_domain())
-		return;
-
-	if (IS_ENABLED(CONFIG_X86_BIGSMP)) {
-		switch (boot_cpu_data.x86_vendor) {
-		case X86_VENDOR_INTEL:
-			if (!APIC_XAPIC(boot_cpu_apic_version))
-				break;
-			/* P4 and above */
-			fallthrough;
-		case X86_VENDOR_HYGON:
-		case X86_VENDOR_AMD:
-			if (apic_bigsmp_possible(cmdline_apic))
-				return;
-			break;
-		}
-	}
-	pr_info("Limiting to 8 possible CPUs\n");
-	set_nr_cpu_ids(8);
-}
-
-void __init x86_32_install_bigsmp(void)
-{
-	if (nr_cpu_ids > 8 && !xen_pv_domain())
-		apic_bigsmp_force();
-}
-
 void __init x86_32_probe_apic(void)
 {
 	if (!cmdline_apic) {
