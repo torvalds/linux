@@ -2505,6 +2505,7 @@ static int airoha_alloc_gdm_port(struct airoha_eth *eth,
 			   NETIF_F_SG | NETIF_F_TSO |
 			   NETIF_F_HW_TC;
 	dev->features |= dev->hw_features;
+	dev->vlan_features = dev->hw_features;
 	dev->dev.of_node = np;
 	dev->irq = qdma->irq;
 	SET_NETDEV_DEV(dev, eth->dev);
