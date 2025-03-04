@@ -274,11 +274,11 @@ MODULE_DEVICE_TABLE(of, wfx_spi_of_match);
 #endif
 
 struct spi_driver wfx_spi_driver = {
+	.id_table = wfx_spi_id,
+	.probe = wfx_spi_probe,
+	.remove = wfx_spi_remove,
 	.driver = {
 		.name = "wfx-spi",
 		.of_match_table = of_match_ptr(wfx_spi_of_match),
 	},
-	.id_table = wfx_spi_id,
-	.probe = wfx_spi_probe,
-	.remove = wfx_spi_remove,
 };
