@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/pm.h>
 
 #include "bus.h"
 #include "wfx.h"
@@ -189,6 +190,26 @@ static const struct wfx_hwbus_ops wfx_spi_hwbus_ops = {
 	.align_size      = wfx_spi_align_size,
 };
 
+static int wfx_spi_suspend(struct device *dev)
+{
+	struct spi_device *func = to_spi_device(dev);
+	struct wfx_spi_priv *bus = spi_get_drvdata(func);
+
+	if (!device_may_wakeup(dev))
+		return 0;
+	flush_work(&bus->core->hif.bh);
+	return enable_irq_wake(func->irq);
+}
+
+static int wfx_spi_resume(struct device *dev)
+{
+	struct spi_device *func = to_spi_device(dev);
+
+	if (!device_may_wakeup(dev))
+		return 0;
+	return disable_irq_wake(func->irq);
+}
+
 static int wfx_spi_probe(struct spi_device *func)
 {
 	struct wfx_platform_data *pdata;
@@ -239,7 +260,12 @@ static int wfx_spi_probe(struct spi_device *func)
 	if (!bus->core)
 		return -EIO;
 
-	return wfx_probe(bus->core);
+	ret = wfx_probe(bus->core);
+	if (ret)
+		return ret;
+
+	device_set_wakeup_capable(&func->dev, true);
+	return 0;
 }
 
 static void wfx_spi_remove(struct spi_device *func)
@@ -273,6 +299,8 @@ static const struct of_device_id wfx_spi_of_match[] = {
 MODULE_DEVICE_TABLE(of, wfx_spi_of_match);
 #endif
 
+static DEFINE_SIMPLE_DEV_PM_OPS(wfx_spi_pm_ops, wfx_spi_suspend, wfx_spi_resume);
+
 struct spi_driver wfx_spi_driver = {
 	.id_table = wfx_spi_id,
 	.probe = wfx_spi_probe,
@@ -280,5 +308,6 @@ struct spi_driver wfx_spi_driver = {
 	.driver = {
 		.name = "wfx-spi",
 		.of_match_table = of_match_ptr(wfx_spi_of_match),
+		.pm = &wfx_spi_pm_ops,
 	},
 };
