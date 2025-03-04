@@ -60,6 +60,7 @@ properties:
 
 required:
   - compatible
+  - reg
   - clocks
   - DVDD-supply
   - AVDD-supply
