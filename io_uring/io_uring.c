@@ -1422,8 +1422,7 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 
 				if (apoll->double_poll)
 					kfree(apoll->double_poll);
-				if (!io_alloc_cache_put(&ctx->apoll_cache, apoll))
-					kfree(apoll);
+				io_cache_free(&ctx->apoll_cache, apoll);
 				req->flags &= ~REQ_F_POLLED;
 			}
 			if (req->flags & IO_REQ_LINK_FLAGS)

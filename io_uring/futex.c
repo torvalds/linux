@@ -53,12 +53,10 @@ static void __io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 
 static void io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
-	struct io_futex_data *ifd = req->async_data;
 	struct io_ring_ctx *ctx = req->ctx;
 
 	io_tw_lock(ctx, tw);
-	if (!io_alloc_cache_put(&ctx->futex_cache, ifd))
-		kfree(ifd);
+	io_cache_free(&ctx->futex_cache, req->async_data);
 	__io_futex_complete(req, tw);
 }
 

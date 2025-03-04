@@ -124,8 +124,9 @@ static struct io_mapped_ubuf *io_alloc_imu(struct io_ring_ctx *ctx,
 
 static void io_free_imu(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 {
-	if (imu->nr_bvecs > IO_CACHED_BVECS_SEGS ||
-	    !io_alloc_cache_put(&ctx->imu_cache, imu))
+	if (imu->nr_bvecs <= IO_CACHED_BVECS_SEGS)
+		io_cache_free(&ctx->imu_cache, imu);
+	else
 		kvfree(imu);
 }
 
@@ -487,12 +488,6 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
-static void io_free_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
-{
-	if (!io_alloc_cache_put(&ctx->node_cache, node))
-		kfree(node);
-}
-
 void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
 	if (node->tag)
@@ -510,7 +505,7 @@ void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 		break;
 	}
 
-	io_free_node(ctx, node);
+	io_cache_free(&ctx->node_cache, node);
 }
 
 int io_sqe_files_unregister(struct io_ring_ctx *ctx)
@@ -835,7 +830,7 @@ done:
 	if (ret) {
 		if (imu)
 			io_free_imu(ctx, imu);
-		io_free_node(ctx, node);
+		io_cache_free(&ctx->node_cache, node);
 		node = ERR_PTR(ret);
 	}
 	kvfree(pages);
