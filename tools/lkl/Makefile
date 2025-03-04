@@ -28,6 +28,8 @@ include ../scripts/Makefile.include
 
 # OUTPUT fixup should be *after* include ../scripts/Makefile.include
 ifneq ($(OUTPUT),)
+  KERNEL_OUT_DIR := $(OUTPUT)
+  KOPT += O=$(KERNEL_OUT_DIR)
   OUTPUT := $(OUTPUT)/tools/lkl/
 else
   OUTPUT := $(CURDIR)/

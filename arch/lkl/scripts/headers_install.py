@@ -129,7 +129,7 @@ class Installer:
             except:
                 pass
             print("  INSTALL\t%s" % (out_dir + "/" + os.path.basename(h)))
-            os.system(self.srctree+"/scripts/headers_install.sh %s %s" % (os.path.abspath(h),
+            os.system(self.srctree+"/scripts/headers_install.sh %s %s" % (self.relpath2abspath(h),
                                                        out_dir + "/" + os.path.basename(h)))
             new_headers.add(out_dir + "/" + os.path.basename(h))
 
