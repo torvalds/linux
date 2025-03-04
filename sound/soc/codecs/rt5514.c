@@ -1206,15 +1206,15 @@ MODULE_DEVICE_TABLE(i2c, rt5514_i2c_id);
 #if defined(CONFIG_OF)
 static const struct of_device_id rt5514_of_match[] = {
 	{ .compatible = "realtek,rt5514", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt5514_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5514_acpi_match[] = {
-	{ "10EC5514", 0},
-	{},
+	{ "10EC5514" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5514_acpi_match);
 #endif

@@ -2192,15 +2192,15 @@ static const struct regmap_config rt1011_regmap = {
 #if defined(CONFIG_OF)
 static const struct of_device_id rt1011_of_match[] = {
 	{ .compatible = "realtek,rt1011", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt1011_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1011_acpi_match[] = {
-	{"10EC1011", 0,},
-	{},
+	{ "10EC1011" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt1011_acpi_match);
 #endif

@@ -1105,15 +1105,15 @@ MODULE_DEVICE_TABLE(i2c, rt1015_i2c_id);
 #if defined(CONFIG_OF)
 static const struct of_device_id rt1015_of_match[] = {
 	{ .compatible = "realtek,rt1015", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt1015_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1015_acpi_match[] = {
-	{"10EC1015", 0,},
-	{},
+	{ "10EC1015" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt1015_acpi_match);
 #endif

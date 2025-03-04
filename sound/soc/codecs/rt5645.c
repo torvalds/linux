@@ -3660,12 +3660,12 @@ MODULE_DEVICE_TABLE(of, rt5645_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5645_acpi_match[] = {
-	{ "10EC5645", 0 },
-	{ "10EC5648", 0 },
-	{ "10EC5650", 0 },
-	{ "10EC5640", 0 },
-	{ "10EC3270", 0 },
-	{},
+	{ "10EC3270" },
+	{ "10EC5640" },
+	{ "10EC5645" },
+	{ "10EC5648" },
+	{ "10EC5650" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5645_acpi_match);
 #endif

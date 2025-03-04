@@ -1083,8 +1083,9 @@ MODULE_DEVICE_TABLE(i2c, rt286_i2c_id);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt286_acpi_match[] = {
-	{ "INT343A", 0 },
-	{},
+	{ "10EC0286" },
+	{ "INT343A" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt286_acpi_match);
 #endif

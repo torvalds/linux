@@ -616,15 +616,15 @@ MODULE_DEVICE_TABLE(i2c, rt1016_i2c_id);
 #if defined(CONFIG_OF)
 static const struct of_device_id rt1016_of_match[] = {
 	{ .compatible = "realtek,rt1016", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt1016_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1016_acpi_match[] = {
-	{"10EC1016", 0,},
-	{},
+	{ "10EC1016" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt1016_acpi_match);
 #endif
