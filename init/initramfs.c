@@ -511,7 +511,6 @@ char * __init unpack_to_rootfs(char *buf, unsigned long len)
 	long written;
 	decompress_fn decompress;
 	const char *compress_name;
-	static __initdata char msg_buf[64];
 	struct {
 		char header[CPIO_HDRLEN];
 		char symlink[PATH_MAX + N_ALIGN(PATH_MAX) + 1];
@@ -552,12 +551,9 @@ char * __init unpack_to_rootfs(char *buf, unsigned long len)
 			if (res)
 				error("decompressor failed");
 		} else if (compress_name) {
-			if (!message) {
-				snprintf(msg_buf, sizeof msg_buf,
-					 "compression method %s not configured",
-					 compress_name);
-				message = msg_buf;
-			}
+			pr_err("compression method %s not configured\n",
+			       compress_name);
+			error("decompressor failed");
 		} else
 			error("invalid magic at start of compressed archive");
 		if (state != Reset)
