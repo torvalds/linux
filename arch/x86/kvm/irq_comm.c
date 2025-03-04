@@ -412,9 +412,21 @@ void kvm_scan_ioapic_irq(struct kvm_vcpu *vcpu, u32 dest_id, u16 dest_mode,
 	 * level-triggered IRQ.  The EOI needs to be intercepted and forwarded
 	 * to I/O APIC emulation so that the IRQ can be de-asserted.
 	 */
-	if (kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT, dest_id, dest_mode) ||
-	    kvm_apic_pending_eoi(vcpu, vector))
+	if (kvm_apic_match_dest(vcpu, NULL, APIC_DEST_NOSHORT, dest_id, dest_mode)) {
 		__set_bit(vector, ioapic_handled_vectors);
+	} else if (kvm_apic_pending_eoi(vcpu, vector)) {
+		__set_bit(vector, ioapic_handled_vectors);
+
+		/*
+		 * Track the highest pending EOI for which the vCPU is NOT the
+		 * target in the new routing.  Only the EOI for the IRQ that is
+		 * in-flight (for the old routing) needs to be intercepted, any
+		 * future IRQs that arrive on this vCPU will be coincidental to
+		 * the level-triggered routing and don't need to be intercepted.
+		 */
+		if ((int)vector > vcpu->arch.highest_stale_pending_ioapic_eoi)
+			vcpu->arch.highest_stale_pending_ioapic_eoi = vector;
+	}
 }
 
 void kvm_scan_ioapic_routes(struct kvm_vcpu *vcpu,
