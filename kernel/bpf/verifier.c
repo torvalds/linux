@@ -3360,6 +3360,15 @@ static int add_subprog_and_kfunc(struct bpf_verifier_env *env)
 	return 0;
 }
 
+static int jmp_offset(struct bpf_insn *insn)
+{
+	u8 code = insn->code;
+
+	if (code == (BPF_JMP32 | BPF_JA))
+		return insn->imm;
+	return insn->off;
+}
+
 static int check_subprogs(struct bpf_verifier_env *env)
 {
 	int i, subprog_start, subprog_end, off, cur_subprog = 0;
@@ -3386,10 +3395,7 @@ static int check_subprogs(struct bpf_verifier_env *env)
 			goto next;
 		if (BPF_OP(code) == BPF_EXIT || BPF_OP(code) == BPF_CALL)
 			goto next;
-		if (code == (BPF_JMP32 | BPF_JA))
-			off = i + insn[i].imm + 1;
-		else
-			off = i + insn[i].off + 1;
+		off = i + jmp_offset(&insn[i]) + 1;
 		if (off < subprog_start || off >= subprog_end) {
 			verbose(env, "jump out of range from insn %d to %d\n", i, off);
 			return -EINVAL;
@@ -3919,6 +3925,17 @@ static const char *disasm_kfunc_name(void *data, const struct bpf_insn *insn)
 	return btf_name_by_offset(desc_btf, func->name_off);
 }
 
+static void verbose_insn(struct bpf_verifier_env *env, struct bpf_insn *insn)
+{
+	const struct bpf_insn_cbs cbs = {
+		.cb_call	= disasm_kfunc_name,
+		.cb_print	= verbose,
+		.private_data	= env,
+	};
+
+	print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
+}
+
 static inline void bt_init(struct backtrack_state *bt, u32 frame)
 {
 	bt->frame = frame;
@@ -4119,11 +4136,6 @@ static bool calls_callback(struct bpf_verifier_env *env, int insn_idx);
 static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 			  struct bpf_insn_hist_entry *hist, struct backtrack_state *bt)
 {
-	const struct bpf_insn_cbs cbs = {
-		.cb_call	= disasm_kfunc_name,
-		.cb_print	= verbose,
-		.private_data	= env,
-	};
 	struct bpf_insn *insn = env->prog->insnsi + idx;
 	u8 class = BPF_CLASS(insn->code);
 	u8 opcode = BPF_OP(insn->code);
@@ -4141,7 +4153,7 @@ static int backtrack_insn(struct bpf_verifier_env *env, int idx, int subseq_idx,
 		fmt_stack_mask(env->tmp_str_buf, TMP_STR_BUF_LEN, bt_stack_mask(bt));
 		verbose(env, "stack=%s before ", env->tmp_str_buf);
 		verbose(env, "%d: ", idx);
-		print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
+		verbose_insn(env, insn);
 	}
 
 	/* If there is a history record that some registers gained range at this insn,
@@ -19273,19 +19285,13 @@ static int do_check(struct bpf_verifier_env *env)
 		}
 
 		if (env->log.level & BPF_LOG_LEVEL) {
-			const struct bpf_insn_cbs cbs = {
-				.cb_call	= disasm_kfunc_name,
-				.cb_print	= verbose,
-				.private_data	= env,
-			};
-
 			if (verifier_state_scratched(env))
 				print_insn_state(env, state, state->curframe);
 
 			verbose_linfo(env, env->insn_idx, "; ");
 			env->prev_log_pos = env->log.end_pos;
 			verbose(env, "%d: ", env->insn_idx);
-			print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
+			verbose_insn(env, insn);
 			env->prev_insn_print_pos = env->log.end_pos - env->prev_log_pos;
 			env->prev_log_pos = env->log.end_pos;
 		}
