@@ -194,12 +194,7 @@ config CRC32_ARCH
 	default CRC32 if ARCH_HAS_CRC32 && CRC_OPTIMIZATIONS
 
 config CRC64
-	tristate "CRC64 functions"
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC64 functions, but a module built outside
-	  the kernel tree does. Such modules that use library CRC64
-	  functions require M here.
+	tristate
 
 config ARCH_HAS_CRC64
 	bool
