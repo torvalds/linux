@@ -980,6 +980,7 @@ static void queue_work_for_missed_irqs(struct drm_i915_private *i915)
 		case HPD_MARK_DISABLED:
 			queue_work = true;
 			break;
+		case HPD_DISABLED:
 		case HPD_ENABLED:
 			break;
 		default:
