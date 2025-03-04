@@ -81,11 +81,18 @@ struct mlx5e_ipsec_addr {
 		__be32 a4;
 		__be32 a6[4];
 	} saddr;
-
+	union {
+		__be32 m4;
+		__be32 m6[4];
+	} smask;
 	union {
 		__be32 a4;
 		__be32 a6[4];
 	} daddr;
+	union {
+		__be32 m4;
+		__be32 m6[4];
+	} dmask;
 	u8 family;
 };
 

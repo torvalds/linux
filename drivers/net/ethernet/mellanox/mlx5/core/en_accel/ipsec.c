@@ -303,6 +303,16 @@ static void mlx5e_ipsec_init_macs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	neigh_release(n);
 }
 
+static void mlx5e_ipsec_state_mask(struct mlx5e_ipsec_addr *addrs)
+{
+	/*
+	 * State doesn't have subnet prefixes in outer headers.
+	 * The match is performed for exaxt source/destination addresses.
+	 */
+	memset(addrs->smask.m6, 0xFF, sizeof(__be32) * 4);
+	memset(addrs->dmask.m6, 0xFF, sizeof(__be32) * 4);
+}
+
 void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 					struct mlx5_accel_esp_xfrm_attrs *attrs)
 {
@@ -378,6 +388,7 @@ skip_replay_window:
 	       sizeof(attrs->addrs.saddr));
 	memcpy(&attrs->addrs.daddr, x->id.daddr.a6, sizeof(attrs->addrs.daddr));
 	attrs->addrs.family = x->props.family;
+	mlx5e_ipsec_state_mask(&attrs->addrs);
 	attrs->type = x->xso.type;
 	attrs->reqid = x->props.reqid;
 	attrs->upspec.dport = ntohs(x->sel.dport);
@@ -1046,6 +1057,43 @@ static void mlx5e_xfrm_update_stats(struct xfrm_state *x)
 	x->curlft.bytes += success_bytes - headers * success_packets;
 }
 
+static __be32 word_to_mask(int prefix)
+{
+	if (prefix < 0)
+		return 0;
+
+	if (!prefix || prefix > 31)
+		return cpu_to_be32(0xFFFFFFFF);
+
+	return cpu_to_be32(((1U << prefix) - 1) << (32 - prefix));
+}
+
+static void mlx5e_ipsec_policy_mask(struct mlx5e_ipsec_addr *addrs,
+				    struct xfrm_selector *sel)
+{
+	int i;
+
+	if (addrs->family == AF_INET) {
+		addrs->smask.m4 = word_to_mask(sel->prefixlen_s);
+		addrs->saddr.a4 &= addrs->smask.m4;
+		addrs->dmask.m4 = word_to_mask(sel->prefixlen_d);
+		addrs->daddr.a4 &= addrs->dmask.m4;
+		return;
+	}
+
+	for (i = 0; i < 4; i++) {
+		if (sel->prefixlen_s != 32 * i)
+			addrs->smask.m6[i] =
+				word_to_mask(sel->prefixlen_s - 32 * i);
+		addrs->saddr.a6[i] &= addrs->smask.m6[i];
+
+		if (sel->prefixlen_d != 32 * i)
+			addrs->dmask.m6[i] =
+				word_to_mask(sel->prefixlen_d - 32 * i);
+		addrs->daddr.a6[i] &= addrs->dmask.m6[i];
+	}
+}
+
 static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 				      struct xfrm_policy *x,
 				      struct netlink_ext_ack *extack)
@@ -1121,6 +1169,7 @@ mlx5e_ipsec_build_accel_pol_attrs(struct mlx5e_ipsec_pol_entry *pol_entry,
 	memcpy(&attrs->addrs.saddr, sel->saddr.a6, sizeof(attrs->addrs.saddr));
 	memcpy(&attrs->addrs.daddr, sel->daddr.a6, sizeof(attrs->addrs.daddr));
 	attrs->addrs.family = sel->family;
+	mlx5e_ipsec_policy_mask(&attrs->addrs, sel);
 	attrs->dir = x->xdo.dir;
 	attrs->action = x->action;
 	attrs->type = XFRM_DEV_OFFLOAD_PACKET;
