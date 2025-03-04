@@ -786,7 +786,7 @@ static int write_folio_nounlock(struct folio *folio,
 	ceph_fscache_write_to_cache(inode, page_off, len, caching);
 
 	if (IS_ENCRYPTED(inode)) {
-		bounce_page = fscrypt_encrypt_pagecache_blocks(&folio->page,
+		bounce_page = fscrypt_encrypt_pagecache_blocks(folio,
 						    CEPH_FSCRYPT_BLOCK_SIZE, 0,
 						    GFP_NOFS);
 		if (IS_ERR(bounce_page)) {
@@ -1248,7 +1248,7 @@ static inline int move_dirty_folio_in_page_array(struct address_space *mapping,
 	gfp_t gfp_flags = ceph_wbc->locked_pages ? GFP_NOWAIT : GFP_NOFS;
 
 	if (IS_ENCRYPTED(inode)) {
-		pages[index] = fscrypt_encrypt_pagecache_blocks(&folio->page,
+		pages[index] = fscrypt_encrypt_pagecache_blocks(folio,
 								PAGE_SIZE,
 								0,
 								gfp_flags);
