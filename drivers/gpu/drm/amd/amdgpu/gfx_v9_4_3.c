@@ -916,8 +916,6 @@ static const struct aca_info gfx_v9_4_3_aca_info = {
 
 static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
 {
-	u32 gb_addr_config;
-
 	adev->gfx.funcs = &gfx_v9_4_3_gfx_funcs;
 	adev->gfx.ras = &gfx_v9_4_3_ras;
 
@@ -926,9 +924,7 @@ static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
 	adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
 	adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
 	adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
-	gb_addr_config = RREG32_SOC15(GC, GET_INST(GC, 0), regGB_ADDR_CONFIG);
-
-	adev->gfx.config.gb_addr_config = gb_addr_config;
+	adev->gfx.config.gb_addr_config = GOLDEN_GB_ADDR_CONFIG;
 
 	adev->gfx.config.gb_addr_config_fields.num_pipes = 1 <<
 			REG_GET_FIELD(
