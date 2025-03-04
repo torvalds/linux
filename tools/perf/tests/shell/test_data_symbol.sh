@@ -5,8 +5,6 @@
 # Leo Yan <leo.yan@linaro.org>, 2022
 
 shelldir=$(dirname "$0")
-# shellcheck source=lib/waiting.sh
-. "${shelldir}"/lib/waiting.sh
 
 # shellcheck source=lib/perf_has_symbol.sh
 . "${shelldir}"/lib/perf_has_symbol.sh
@@ -60,19 +58,10 @@ echo "Recording workload..."
 # specific CPU and test in per-CPU mode.
 is_amd=$(grep -E -c 'vendor_id.*AuthenticAMD' /proc/cpuinfo)
 if (($is_amd >= 1)); then
-	perf mem record -vvv -o ${PERF_DATA} -C 0 -- taskset -c 0 $TEST_PROGRAM 2>"${ERR_FILE}" &
+	perf mem record -vvv -o ${PERF_DATA} -C 0 -- taskset -c 0 $TEST_PROGRAM 2>"${ERR_FILE}"
 else
-	perf mem record -vvv --all-user -o ${PERF_DATA} -- $TEST_PROGRAM 2>"${ERR_FILE}" &
+	perf mem record -vvv --all-user -o ${PERF_DATA} -- $TEST_PROGRAM 2>"${ERR_FILE}"
 fi
-
-PERFPID=$!
-
-wait_for_perf_to_start ${PERFPID} "${ERR_FILE}"
-
-sleep 1
-
-kill $PERFPID
-wait $PERFPID
 
 check_result
 exit $?
