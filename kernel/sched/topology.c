@@ -2347,36 +2347,69 @@ static struct sched_domain *build_sched_domain(struct sched_domain_topology_leve
 
 /*
  * Ensure topology masks are sane, i.e. there are no conflicts (overlaps) for
- * any two given CPUs at this (non-NUMA) topology level.
+ * any two given CPUs on non-NUMA topology levels.
  */
-static bool topology_span_sane(struct sched_domain_topology_level *tl,
-			      const struct cpumask *cpu_map, int cpu)
+static bool topology_span_sane(const struct cpumask *cpu_map)
 {
-	int i = cpu + 1;
+	struct sched_domain_topology_level *tl;
+	const struct cpumask **masks;
+	struct cpumask *covered;
+	int cpu, id;
+	bool ret = false;
 
-	/* NUMA levels are allowed to overlap */
-	if (tl->flags & SDTL_OVERLAP)
-		return true;
+	lockdep_assert_held(&sched_domains_mutex);
+	covered = sched_domains_tmpmask;
 
-	/*
-	 * Non-NUMA levels cannot partially overlap - they must be either
-	 * completely equal or completely disjoint. Otherwise we can end up
-	 * breaking the sched_group lists - i.e. a later get_group() pass
-	 * breaks the linking done for an earlier span.
-	 */
-	for_each_cpu_from(i, cpu_map) {
+	masks = kmalloc_array(nr_cpu_ids, sizeof(struct cpumask *), GFP_KERNEL);
+	if (!masks)
+		return ret;
+
+	for_each_sd_topology(tl) {
+
+		/* NUMA levels are allowed to overlap */
+		if (tl->flags & SDTL_OVERLAP)
+			continue;
+
+		cpumask_clear(covered);
+		memset(masks, 0, nr_cpu_ids * sizeof(struct cpumask *));
+
 		/*
-		 * We should 'and' all those masks with 'cpu_map' to exactly
-		 * match the topology we're about to build, but that can only
-		 * remove CPUs, which only lessens our ability to detect
-		 * overlaps
+		 * Non-NUMA levels cannot partially overlap - they must be either
+		 * completely equal or completely disjoint. Otherwise we can end up
+		 * breaking the sched_group lists - i.e. a later get_group() pass
+		 * breaks the linking done for an earlier span.
 		 */
-		if (!cpumask_equal(tl->mask(cpu), tl->mask(i)) &&
-		    cpumask_intersects(tl->mask(cpu), tl->mask(i)))
-			return false;
-	}
+		for_each_cpu(cpu, cpu_map) {
+			/* lowest bit set in this mask is used as a unique id */
+			id = cpumask_first(tl->mask(cpu));
 
-	return true;
+			/* zeroed masks cannot possibly collide */
+			if (id >= nr_cpu_ids)
+				continue;
+
+			/* if this mask doesn't collide with what we've already seen */
+			if (!cpumask_intersects(tl->mask(cpu), covered)) {
+				/* this failing would be an error in this algorithm */
+				if (WARN_ON(masks[id]))
+					goto notsane;
+
+				/* record the mask we saw for this id */
+				masks[id] = tl->mask(cpu);
+				cpumask_or(covered, tl->mask(cpu), covered);
+			} else if ((!masks[id]) || !cpumask_equal(masks[id], tl->mask(cpu))) {
+				/*
+				 * a collision with covered should have exactly matched
+				 * a previously seen mask with the same id
+				 */
+				goto notsane;
+			}
+		}
+	}
+	ret = true;
+
+ notsane:
+	kfree(masks);
+	return ret;
 }
 
 /*
@@ -2408,9 +2441,6 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 		sd = NULL;
 		for_each_sd_topology(tl) {
 
-			if (WARN_ON(!topology_span_sane(tl, cpu_map, i)))
-				goto error;
-
 			sd = build_sched_domain(tl, cpu_map, attr, sd, i);
 
 			has_asym |= sd->flags & SD_ASYM_CPUCAPACITY;
@@ -2423,6 +2453,9 @@ build_sched_domains(const struct cpumask *cpu_map, struct sched_domain_attr *att
 				break;
 		}
 	}
+
+	if (WARN_ON(!topology_span_sane(cpu_map)))
+		goto error;
 
 	/* Build the groups for the domains */
 	for_each_cpu(i, cpu_map) {
