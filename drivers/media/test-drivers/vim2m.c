@@ -26,6 +26,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
+#include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("Virtual device for mem2mem framework testing");
 MODULE_AUTHOR("Pawel Osciak, <pawel@osciak.com>");
@@ -755,31 +756,21 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 	return vidioc_g_fmt(file2ctx(file), f);
 }
 
-static int vidioc_try_fmt(struct v4l2_format *f, struct vim2m_fmt *fmt)
+static int vidioc_try_fmt(struct v4l2_format *f)
 {
-	int walign, halign;
-	/*
-	 * V4L2 specification specifies the driver corrects the
-	 * format struct if any of the dimensions is unsupported
-	 */
-	if (f->fmt.pix.height < MIN_H)
-		f->fmt.pix.height = MIN_H;
-	else if (f->fmt.pix.height > MAX_H)
-		f->fmt.pix.height = MAX_H;
+	int width, height, walign, halign;
 
-	if (f->fmt.pix.width < MIN_W)
-		f->fmt.pix.width = MIN_W;
-	else if (f->fmt.pix.width > MAX_W)
-		f->fmt.pix.width = MAX_W;
+	width = clamp(f->fmt.pix.width, MIN_W, MAX_W);
+	height = clamp(f->fmt.pix.width, MIN_H, MAX_H);
 
 	get_alignment(f->fmt.pix.pixelformat, &walign, &halign);
-	f->fmt.pix.width &= ~(walign - 1);
-	f->fmt.pix.height &= ~(halign - 1);
-	f->fmt.pix.bytesperline = (f->fmt.pix.width * fmt->depth) >> 3;
-	f->fmt.pix.sizeimage = f->fmt.pix.height * f->fmt.pix.bytesperline;
+	width = ALIGN(width, walign);
+	height = ALIGN(height, halign);
+
 	f->fmt.pix.field = V4L2_FIELD_NONE;
 
-	return 0;
+	return v4l2_fill_pixfmt(&f->fmt.pix, f->fmt.pix.pixelformat,
+			       width, height);
 }
 
 static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
@@ -804,7 +795,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.ycbcr_enc = ctx->ycbcr_enc;
 	f->fmt.pix.quantization = ctx->quant;
 
-	return vidioc_try_fmt(f, fmt);
+	return vidioc_try_fmt(f);
 }
 
 static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
@@ -827,7 +818,7 @@ static int vidioc_try_fmt_vid_out(struct file *file, void *priv,
 	if (!f->fmt.pix.colorspace)
 		f->fmt.pix.colorspace = V4L2_COLORSPACE_REC709;
 
-	return vidioc_try_fmt(f, fmt);
+	return vidioc_try_fmt(f);
 }
 
 static int vidioc_s_fmt(struct vim2m_ctx *ctx, struct v4l2_format *f)
