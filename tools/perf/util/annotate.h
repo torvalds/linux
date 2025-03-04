@@ -58,6 +58,7 @@ struct annotation_options {
 	     full_addr;
 	u8   offset_level;
 	u8   disassemblers[MAX_DISASSEMBLERS];
+	u8   disassembler_used;
 	int  min_pcnt;
 	int  max_lines;
 	int  context;
