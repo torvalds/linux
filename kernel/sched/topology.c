@@ -2352,17 +2352,12 @@ static struct sched_domain *build_sched_domain(struct sched_domain_topology_leve
 static bool topology_span_sane(const struct cpumask *cpu_map)
 {
 	struct sched_domain_topology_level *tl;
-	const struct cpumask **masks;
-	struct cpumask *covered;
-	int cpu, id;
-	bool ret = false;
+	struct cpumask *covered, *id_seen;
+	int cpu;
 
 	lockdep_assert_held(&sched_domains_mutex);
 	covered = sched_domains_tmpmask;
-
-	masks = kmalloc_array(nr_cpu_ids, sizeof(struct cpumask *), GFP_KERNEL);
-	if (!masks)
-		return ret;
+	id_seen = sched_domains_tmpmask2;
 
 	for_each_sd_topology(tl) {
 
@@ -2371,7 +2366,7 @@ static bool topology_span_sane(const struct cpumask *cpu_map)
 			continue;
 
 		cpumask_clear(covered);
-		memset(masks, 0, nr_cpu_ids * sizeof(struct cpumask *));
+		cpumask_clear(id_seen);
 
 		/*
 		 * Non-NUMA levels cannot partially overlap - they must be either
@@ -2380,36 +2375,27 @@ static bool topology_span_sane(const struct cpumask *cpu_map)
 		 * breaks the linking done for an earlier span.
 		 */
 		for_each_cpu(cpu, cpu_map) {
+			const struct cpumask *tl_cpu_mask = tl->mask(cpu);
+			int id;
+
 			/* lowest bit set in this mask is used as a unique id */
-			id = cpumask_first(tl->mask(cpu));
+			id = cpumask_first(tl_cpu_mask);
 
-			/* zeroed masks cannot possibly collide */
-			if (id >= nr_cpu_ids)
-				continue;
+			if (cpumask_test_cpu(id, id_seen)) {
+				/* First CPU has already been seen, ensure identical spans */
+				if (!cpumask_equal(tl->mask(id), tl_cpu_mask))
+					return false;
+			} else {
+				/* First CPU hasn't been seen before, ensure it's a completely new span */
+				if (cpumask_intersects(tl_cpu_mask, covered))
+					return false;
 
-			/* if this mask doesn't collide with what we've already seen */
-			if (!cpumask_intersects(tl->mask(cpu), covered)) {
-				/* this failing would be an error in this algorithm */
-				if (WARN_ON(masks[id]))
-					goto notsane;
-
-				/* record the mask we saw for this id */
-				masks[id] = tl->mask(cpu);
-				cpumask_or(covered, tl->mask(cpu), covered);
-			} else if ((!masks[id]) || !cpumask_equal(masks[id], tl->mask(cpu))) {
-				/*
-				 * a collision with covered should have exactly matched
-				 * a previously seen mask with the same id
-				 */
-				goto notsane;
+				cpumask_or(covered, covered, tl_cpu_mask);
+				cpumask_set_cpu(id, id_seen);
 			}
 		}
 	}
-	ret = true;
-
- notsane:
-	kfree(masks);
-	return ret;
+	return true;
 }
 
 /*
