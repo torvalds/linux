@@ -260,6 +260,10 @@ static bool damos_pa_filter_out(struct damos *scheme, struct folio *folio)
 		if (damos_pa_filter_match(filter, folio))
 			return !filter->allow;
 	}
+	damos_for_each_ops_filter(filter, scheme) {
+		if (damos_pa_filter_match(filter, folio))
+			return !filter->allow;
+	}
 	return false;
 }
 
@@ -285,6 +289,12 @@ static unsigned long damon_pa_pageout(struct damon_region *r, struct damos *s,
 
 	/* check access in page level again by default */
 	damos_for_each_filter(filter, s) {
+		if (filter->type == DAMOS_FILTER_TYPE_YOUNG) {
+			install_young_filter = false;
+			break;
+		}
+	}
+	damos_for_each_ops_filter(filter, s) {
 		if (filter->type == DAMOS_FILTER_TYPE_YOUNG) {
 			install_young_filter = false;
 			break;
@@ -537,6 +547,8 @@ static bool damon_pa_scheme_has_filter(struct damos *s)
 	struct damos_filter *f;
 
 	damos_for_each_filter(f, s)
+		return true;
+	damos_for_each_ops_filter(f, s)
 		return true;
 	return false;
 }
