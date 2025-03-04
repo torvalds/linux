@@ -4165,8 +4165,8 @@ enum skl_power_gate {
 	_MMIO_PIPE(pipe, _PIPE_FLIPDONETMSTMP_A, _PIPE_FLIPDONETMSTMP_B)
 
 #define _VLV_PIPE_MSA_MISC_A			0x70048
-#define VLV_PIPE_MSA_MISC(pipe)		\
-			_MMIO_PIPE2(dev_priv, pipe, _VLV_PIPE_MSA_MISC_A)
+#define VLV_PIPE_MSA_MISC(__display, pipe)			\
+	_MMIO_PIPE2(__display, pipe, _VLV_PIPE_MSA_MISC_A)
 #define   VLV_MSA_MISC1_HW_ENABLE			REG_BIT(31)
 #define   VLV_MSA_MISC1_SW_S3D_MASK			REG_GENMASK(2, 0) /* MSA MISC1 3:1 */
 
