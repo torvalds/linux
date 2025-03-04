@@ -309,7 +309,14 @@ static const struct {
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TRACE_END, "tr end"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_VMENTRY, "vmentry"},
 	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_CALL | PERF_IP_FLAG_VMEXIT, "vmexit"},
-	{PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_BRANCH_MISS, "br miss"},
+	{0, NULL}
+};
+
+static const struct {
+	u32 flags;
+	const char *name;
+} branch_events[] = {
+	{PERF_IP_FLAG_BRANCH_MISS, "miss"},
 	{0, NULL}
 };
 
@@ -317,8 +324,9 @@ static int sample_flags_to_name(u32 flags, char *str, size_t size)
 {
 	int i;
 	const char *prefix;
-	int pos = 0, ret;
+	int pos = 0, ret, ev_idx = 0;
 	u32 xf = flags & PERF_ADDITIONAL_STATE_MASK;
+	u32 types, events;
 	char xs[16] = { 0 };
 
 	/* Clear additional state bits */
@@ -338,8 +346,9 @@ static int sample_flags_to_name(u32 flags, char *str, size_t size)
 
 	flags &= ~(PERF_IP_FLAG_TRACE_BEGIN | PERF_IP_FLAG_TRACE_END);
 
+	types = flags & ~PERF_IP_FLAG_BRACH_EVENT_MASK;
 	for (i = 0; sample_flags[i].name; i++) {
-		if (sample_flags[i].flags != flags)
+		if (sample_flags[i].flags != types)
 			continue;
 
 		ret = snprintf(str + pos, size - pos, "%s", sample_flags[i].name);
@@ -347,6 +356,27 @@ static int sample_flags_to_name(u32 flags, char *str, size_t size)
 			return ret;
 		pos += ret;
 		break;
+	}
+
+	events = flags & PERF_IP_FLAG_BRACH_EVENT_MASK;
+	for (i = 0; branch_events[i].name; i++) {
+		if (!(branch_events[i].flags & events))
+			continue;
+
+		ret = snprintf(str + pos, size - pos, !ev_idx ? "/%s" : ",%s",
+			       branch_events[i].name);
+		if (ret < 0)
+			return ret;
+		pos += ret;
+		ev_idx++;
+	}
+
+	/* Add an end character '/' for events */
+	if (ev_idx) {
+		ret = snprintf(str + pos, size - pos, "/");
+		if (ret < 0)
+			return ret;
+		pos += ret;
 	}
 
 	if (!xf)
