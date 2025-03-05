@@ -112,11 +112,8 @@ enum ast_config_mode {
 
 #define AST_MAX_HWC_WIDTH	64
 #define AST_MAX_HWC_HEIGHT	64
-
 #define AST_HWC_PITCH		(AST_MAX_HWC_WIDTH * SZ_2)
 #define AST_HWC_SIZE		(AST_MAX_HWC_HEIGHT * AST_HWC_PITCH)
-
-#define AST_HWC_SIGNATURE_SIZE	32
 
 /*
  * Planes
@@ -183,7 +180,6 @@ struct ast_device {
 	void __iomem	*vram;
 	unsigned long	vram_base;
 	unsigned long	vram_size;
-	unsigned long	vram_fb_available;
 
 	struct mutex modeset_lock; /* Protects access to modeset I/O registers in ioregs */
 

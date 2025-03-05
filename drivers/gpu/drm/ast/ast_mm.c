@@ -92,7 +92,6 @@ int ast_mm_init(struct ast_device *ast)
 
 	ast->vram_base = base;
 	ast->vram_size = vram_size;
-	ast->vram_fb_available = vram_size;
 
 	return 0;
 }
