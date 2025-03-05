@@ -143,4 +143,22 @@ TEST_F(pidfd_info, sigkill_exit)
 	ASSERT_FALSE(!!(info.mask & PIDFD_INFO_EXIT));
 }
 
+TEST_F(pidfd_info, sigkill_reaped)
+{
+	struct pidfd_info info = {
+		.mask = PIDFD_INFO_CGROUPID,
+	};
+
+	/* Process has already been reaped and PIDFD_INFO_EXIT hasn't been set. */
+	ASSERT_NE(ioctl(self->child_pidfd2, PIDFD_GET_INFO, &info), 0);
+	ASSERT_EQ(errno, ESRCH);
+
+	info.mask = PIDFD_INFO_CGROUPID | PIDFD_INFO_EXIT;
+	ASSERT_EQ(ioctl(self->child_pidfd2, PIDFD_GET_INFO, &info), 0);
+	ASSERT_FALSE(!!(info.mask & PIDFD_INFO_CREDS));
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_EXIT));
+	ASSERT_TRUE(WIFSIGNALED(info.exit_code));
+	ASSERT_EQ(WTERMSIG(info.exit_code), SIGKILL);
+}
+
 TEST_HARNESS_MAIN
