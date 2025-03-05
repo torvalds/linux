@@ -40,6 +40,9 @@ struct cq_desc {
 #define CQ_DESC_COMP_NDX_BITS    12
 #define CQ_DESC_COMP_NDX_MASK    ((1 << CQ_DESC_COMP_NDX_BITS) - 1)
 
+#define CQ_DESC_32_FI_MASK (BIT(0) | BIT(1))
+#define CQ_DESC_64_FI_MASK (BIT(0) | BIT(1))
+
 static inline void cq_desc_dec(const struct cq_desc *desc_arg,
 	u8 *type, u8 *color, u16 *q_number, u16 *completed_index)
 {

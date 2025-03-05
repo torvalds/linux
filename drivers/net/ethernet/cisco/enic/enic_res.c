@@ -312,6 +312,7 @@ void enic_init_vnic_resources(struct enic *enic)
 int enic_alloc_vnic_resources(struct enic *enic)
 {
 	enum vnic_dev_intr_mode intr_mode;
+	int rq_cq_desc_size;
 	unsigned int i;
 	int err;
 
@@ -325,6 +326,24 @@ int enic_alloc_vnic_resources(struct enic *enic)
 		intr_mode == VNIC_DEV_INTR_MODE_MSI ? "MSI" :
 		intr_mode == VNIC_DEV_INTR_MODE_MSIX ? "MSI-X" :
 		"unknown");
+
+	switch (enic->ext_cq) {
+	case ENIC_RQ_CQ_ENTRY_SIZE_16:
+		rq_cq_desc_size = 16;
+		break;
+	case ENIC_RQ_CQ_ENTRY_SIZE_32:
+		rq_cq_desc_size = 32;
+		break;
+	case ENIC_RQ_CQ_ENTRY_SIZE_64:
+		rq_cq_desc_size = 64;
+		break;
+	default:
+		dev_err(enic_get_dev(enic),
+			"Unable to determine rq cq desc size: %d",
+			enic->ext_cq);
+		err = -ENODEV;
+		goto err_out;
+	}
 
 	/* Allocate queue resources
 	 */
@@ -348,8 +367,8 @@ int enic_alloc_vnic_resources(struct enic *enic)
 	for (i = 0; i < enic->cq_count; i++) {
 		if (i < enic->rq_count)
 			err = vnic_cq_alloc(enic->vdev, &enic->cq[i], i,
-				enic->config.rq_desc_count,
-				sizeof(struct cq_enet_rq_desc));
+					enic->config.rq_desc_count,
+					rq_cq_desc_size);
 		else
 			err = vnic_cq_alloc(enic->vdev, &enic->cq[i], i,
 				enic->config.wq_desc_count,
@@ -380,6 +399,39 @@ int enic_alloc_vnic_resources(struct enic *enic)
 
 err_out_cleanup:
 	enic_free_vnic_resources(enic);
-
+err_out:
 	return err;
+}
+
+/*
+ * CMD_CQ_ENTRY_SIZE_SET can fail on older hw generations that don't support
+ * that command
+ */
+void enic_ext_cq(struct enic *enic)
+{
+	u64 a0 = CMD_CQ_ENTRY_SIZE_SET, a1 = 0;
+	int wait = 1000;
+	int ret;
+
+	spin_lock_bh(&enic->devcmd_lock);
+	ret = vnic_dev_cmd(enic->vdev, CMD_CAPABILITY, &a0, &a1, wait);
+	if (ret || a0) {
+		dev_info(&enic->pdev->dev,
+			 "CMD_CQ_ENTRY_SIZE_SET not supported.");
+		enic->ext_cq = ENIC_RQ_CQ_ENTRY_SIZE_16;
+		goto out;
+	}
+	a1 &= VNIC_RQ_CQ_ENTRY_SIZE_ALL_BIT;
+	enic->ext_cq = fls(a1) - 1;
+	a0 = VNIC_RQ_ALL;
+	a1 = enic->ext_cq;
+	ret = vnic_dev_cmd(enic->vdev, CMD_CQ_ENTRY_SIZE_SET, &a0, &a1, wait);
+	if (ret) {
+		dev_info(&enic->pdev->dev, "CMD_CQ_ENTRY_SIZE_SET failed.");
+		enic->ext_cq = ENIC_RQ_CQ_ENTRY_SIZE_16;
+	}
+out:
+	spin_unlock_bh(&enic->devcmd_lock);
+	dev_info(&enic->pdev->dev, "CQ entry size set to %d bytes",
+		 16 << enic->ext_cq);
 }

@@ -21,24 +21,76 @@ static void enic_intr_update_pkt_size(struct vnic_rx_bytes_counter *pkt_size,
 		pkt_size->small_pkt_bytes_cnt += pkt_len;
 }
 
-static void enic_rq_cq_desc_dec(struct cq_enet_rq_desc *desc, u8 *type,
+static void enic_rq_cq_desc_dec(void *cq_desc, u8 cq_desc_size, u8 *type,
 				u8 *color, u16 *q_number, u16 *completed_index)
 {
 	/* type_color is the last field for all cq structs */
-	u8 type_color = desc->type_color;
+	u8 type_color;
 
-	/* Make sure color bit is read from desc *before* other fields
-	 * are read from desc.  Hardware guarantees color bit is last
-	 * bit (byte) written.  Adding the rmb() prevents the compiler
-	 * and/or CPU from reordering the reads which would potentially
-	 * result in reading stale values.
-	 */
-	rmb();
+	switch (cq_desc_size) {
+	case VNIC_RQ_CQ_ENTRY_SIZE_16: {
+		struct cq_enet_rq_desc *desc =
+			(struct cq_enet_rq_desc *)cq_desc;
+		type_color = desc->type_color;
 
-	*q_number = le16_to_cpu(desc->q_number_rss_type_flags) &
-		CQ_DESC_Q_NUM_MASK;
-	*completed_index = le16_to_cpu(desc->completed_index_flags) &
-	CQ_DESC_COMP_NDX_MASK;
+		/* Make sure color bit is read from desc *before* other fields
+		 * are read from desc.  Hardware guarantees color bit is last
+		 * bit (byte) written.  Adding the rmb() prevents the compiler
+		 * and/or CPU from reordering the reads which would potentially
+		 * result in reading stale values.
+		 */
+		rmb();
+
+		*q_number = le16_to_cpu(desc->q_number_rss_type_flags) &
+			    CQ_DESC_Q_NUM_MASK;
+		*completed_index = le16_to_cpu(desc->completed_index_flags) &
+				   CQ_DESC_COMP_NDX_MASK;
+		break;
+	}
+	case VNIC_RQ_CQ_ENTRY_SIZE_32: {
+		struct cq_enet_rq_desc_32 *desc =
+			(struct cq_enet_rq_desc_32 *)cq_desc;
+		type_color = desc->type_color;
+
+		/* Make sure color bit is read from desc *before* other fields
+		 * are read from desc.  Hardware guarantees color bit is last
+		 * bit (byte) written.  Adding the rmb() prevents the compiler
+		 * and/or CPU from reordering the reads which would potentially
+		 * result in reading stale values.
+		 */
+		rmb();
+
+		*q_number = le16_to_cpu(desc->q_number_rss_type_flags) &
+			    CQ_DESC_Q_NUM_MASK;
+		*completed_index = le16_to_cpu(desc->completed_index_flags) &
+				   CQ_DESC_COMP_NDX_MASK;
+		*completed_index |= (desc->fetch_index_flags & CQ_DESC_32_FI_MASK) <<
+				CQ_DESC_COMP_NDX_BITS;
+		break;
+	}
+	case VNIC_RQ_CQ_ENTRY_SIZE_64: {
+		struct cq_enet_rq_desc_64 *desc =
+			(struct cq_enet_rq_desc_64 *)cq_desc;
+		type_color = desc->type_color;
+
+		/* Make sure color bit is read from desc *before* other fields
+		 * are read from desc.  Hardware guarantees color bit is last
+		 * bit (byte) written.  Adding the rmb() prevents the compiler
+		 * and/or CPU from reordering the reads which would potentially
+		 * result in reading stale values.
+		 */
+		rmb();
+
+		*q_number = le16_to_cpu(desc->q_number_rss_type_flags) &
+			    CQ_DESC_Q_NUM_MASK;
+		*completed_index = le16_to_cpu(desc->completed_index_flags) &
+				   CQ_DESC_COMP_NDX_MASK;
+		*completed_index |= (desc->fetch_index_flags & CQ_DESC_64_FI_MASK) <<
+				CQ_DESC_COMP_NDX_BITS;
+		break;
+	}
+	}
+
 	*color = (type_color >> CQ_DESC_COLOR_SHIFT) & CQ_DESC_COLOR_MASK;
 	*type = type_color & CQ_DESC_TYPE_MASK;
 }
@@ -113,6 +165,10 @@ static void enic_rq_set_skb_flags(struct vnic_rq *vrq, u8 type, u32 rss_hash,
 	}
 }
 
+/*
+ * cq_enet_rq_desc accesses section uses only the 1st 15 bytes of the cq which
+ * is identical for all type (16,32 and 64 byte) of cqs.
+ */
 static void cq_enet_rq_desc_dec(struct cq_enet_rq_desc *desc, u8 *ingress_port,
 				u8 *fcoe, u8 *eop, u8 *sop, u8 *rss_type,
 				u8 *csum_not_calc, u32 *rss_hash,
@@ -258,9 +314,8 @@ void enic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf)
 }
 
 static void enic_rq_indicate_buf(struct enic *enic, struct vnic_rq *rq,
-				 struct vnic_rq_buf *buf,
-				 struct cq_enet_rq_desc *cq_desc, u8 type,
-				 u16 q_number, u16 completed_index)
+				 struct vnic_rq_buf *buf, void *cq_desc,
+				 u8 type, u16 q_number, u16 completed_index)
 {
 	struct sk_buff *skb;
 	struct vnic_cq *cq = &enic->cq[enic_cq_rq(enic, rq->index)];
@@ -277,7 +332,7 @@ static void enic_rq_indicate_buf(struct enic *enic, struct vnic_rq *rq,
 
 	rqstats->packets++;
 
-	cq_enet_rq_desc_dec(cq_desc, &ingress_port,
+	cq_enet_rq_desc_dec((struct cq_enet_rq_desc *)cq_desc, &ingress_port,
 			    &fcoe, &eop, &sop, &rss_type, &csum_not_calc,
 			    &rss_hash, &bytes_written, &packet_error,
 			    &vlan_stripped, &vlan_tci, &checksum, &fcoe_sof,
@@ -329,8 +384,8 @@ static void enic_rq_indicate_buf(struct enic *enic, struct vnic_rq *rq,
 	}
 }
 
-static void enic_rq_service(struct enic *enic, struct cq_enet_rq_desc *cq_desc,
-			    u8 type, u16 q_number, u16 completed_index)
+static void enic_rq_service(struct enic *enic, void *cq_desc, u8 type,
+			    u16 q_number, u16 completed_index)
 {
 	struct enic_rq_stats *rqstats = &enic->rq[q_number].stats;
 	struct vnic_rq *vrq = &enic->rq[q_number].vrq;
@@ -357,14 +412,12 @@ unsigned int enic_rq_cq_service(struct enic *enic, unsigned int cq_index,
 				unsigned int work_to_do)
 {
 	struct vnic_cq *cq = &enic->cq[cq_index];
-	struct cq_enet_rq_desc *cq_desc;
+	void *cq_desc = vnic_cq_to_clean(cq);
 	u16 q_number, completed_index;
 	unsigned int work_done = 0;
 	u8 type, color;
 
-	cq_desc = (struct cq_enet_rq_desc *)vnic_cq_to_clean(cq);
-
-	enic_rq_cq_desc_dec(cq_desc,  &type, &color, &q_number,
+	enic_rq_cq_desc_dec(cq_desc, enic->ext_cq, &type, &color, &q_number,
 			    &completed_index);
 
 	while (color != cq->last_color) {
@@ -374,9 +427,9 @@ unsigned int enic_rq_cq_service(struct enic *enic, unsigned int cq_index,
 		if (++work_done >= work_to_do)
 			break;
 
-		cq_desc = (struct cq_enet_rq_desc *)vnic_cq_to_clean(cq);
-		enic_rq_cq_desc_dec(cq_desc, &type, &color, &q_number,
-				    &completed_index);
+		cq_desc = vnic_cq_to_clean(cq);
+		enic_rq_cq_desc_dec(cq_desc, enic->ext_cq, &type, &color,
+				    &q_number, &completed_index);
 	}
 
 	return work_done;
