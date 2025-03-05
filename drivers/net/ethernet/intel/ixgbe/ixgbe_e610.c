@@ -1122,7 +1122,7 @@ static bool ixgbe_is_media_cage_present(struct ixgbe_hw *hw)
 	 * returns error (ENOENT), then no cage present. If no cage present then
 	 * connection type is backplane or BASE-T.
 	 */
-	return ixgbe_aci_get_netlist_node(hw, cmd, NULL, NULL);
+	return !ixgbe_aci_get_netlist_node(hw, cmd, NULL, NULL);
 }
 
 /**
