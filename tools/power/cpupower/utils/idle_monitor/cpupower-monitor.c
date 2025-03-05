@@ -427,11 +427,13 @@ int cmd_monitor(int argc, char **argv)
 
 	if (avail_monitors == 0) {
 		printf(_("No HW Cstate monitors found\n"));
+		cpu_topology_release(cpu_top);
 		return 1;
 	}
 
 	if (mode == list) {
 		list_monitors();
+		cpu_topology_release(cpu_top);
 		exit(EXIT_SUCCESS);
 	}
 
