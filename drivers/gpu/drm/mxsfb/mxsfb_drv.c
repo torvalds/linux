@@ -8,6 +8,7 @@
  * Copyright (C) 2008 Embedded Alley Solutions, Inc All Rights Reserved.
  */
 
+#include <linux/aperture.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
@@ -358,6 +359,15 @@ static int mxsfb_probe(struct platform_device *pdev)
 	ret = mxsfb_load(drm, device_get_match_data(&pdev->dev));
 	if (ret)
 		goto err_free;
+
+	/*
+	 * Remove early framebuffers (ie. simplefb). The framebuffer can be
+	 * located anywhere in RAM
+	 */
+	ret = aperture_remove_all_conflicting_devices(mxsfb_driver.name);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "can't kick out existing framebuffers\n");
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
