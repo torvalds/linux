@@ -135,21 +135,8 @@ static void ufs_renesas_indirect_poll(struct ufs_hba *hba, u32 gpio, u32 addr,
 	ufs_renesas_write(hba, 0xf0, 0);
 }
 
-static void ufs_renesas_write_phy_10ad_10af(struct ufs_hba *hba,
-					    u32 data_10ad, u32 data_10af)
+static void ufs_renesas_init_step1_to_3(struct ufs_hba *hba)
 {
-	ufs_renesas_write_phy(hba, 0x10ae, 0x0001);
-	ufs_renesas_write_phy(hba, 0x10ad, data_10ad);
-	ufs_renesas_write_phy(hba, 0x10af, data_10af);
-	ufs_renesas_write_phy(hba, 0x10b6, 0x0001);
-	ufs_renesas_write_phy(hba, 0x10ae, 0x0000);
-}
-
-static void ufs_renesas_pre_init(struct ufs_hba *hba)
-{
-	u32 timer_val;
-
-	/* This setting is for SERIES B */
 	ufs_renesas_write(hba, 0xc0, 0x49425308);
 	ufs_renesas_write_d0_d4(hba, 0x00000104, 0x00000002);
 	udelay(1);
@@ -163,7 +150,10 @@ static void ufs_renesas_pre_init(struct ufs_hba *hba)
 
 	ufs_renesas_write(hba, 0xc0, 0x49425308);
 	ufs_renesas_write(hba, 0xc0, 0x41584901);
+}
 
+static void ufs_renesas_init_step4_to_6(struct ufs_hba *hba)
+{
 	ufs_renesas_write_d0_d4(hba, 0x0000080c, 0x00000100);
 	ufs_renesas_write_d0_d4(hba, 0x00000804, 0x00000000);
 	ufs_renesas_write(hba, 0xd0, 0x0000080c);
@@ -173,6 +163,11 @@ static void ufs_renesas_pre_init(struct ufs_hba *hba)
 
 	ufs_renesas_write(hba, 0xd0, 0x00000804);
 	ufs_renesas_poll(hba, 0xd4, BIT(8) | BIT(6) | BIT(0), BIT(8) | BIT(6) | BIT(0));
+}
+
+static u32 ufs_renesas_init_disable_timer(struct ufs_hba *hba)
+{
+	u32 timer_val;
 
 	ufs_renesas_write(hba, 0xd0, 0x00000d00);
 	timer_val = ufs_renesas_read(hba, 0xd4) & 0x0000ffff;
@@ -183,6 +178,45 @@ static void ufs_renesas_pre_init(struct ufs_hba *hba)
 	ufs_renesas_poll(hba, 0xd4, BIT(27), BIT(27));
 	ufs_renesas_write(hba, 0xd0, 0x00000d2c);
 	ufs_renesas_poll(hba, 0xd4, BIT(0), BIT(0));
+
+	return timer_val;
+}
+
+static void ufs_renesas_init_enable_timer(struct ufs_hba *hba, u32 timer_val)
+{
+	ufs_renesas_write(hba, 0xf0, 0);
+	ufs_renesas_write(hba, 0xd0, 0x00000d00);
+	ufs_renesas_write(hba, 0xd4, timer_val);
+}
+
+static void ufs_renesas_write_phy_10ad_10af(struct ufs_hba *hba,
+					    u32 data_10ad, u32 data_10af)
+{
+	ufs_renesas_write_phy(hba, 0x10ae, 0x0001);
+	ufs_renesas_write_phy(hba, 0x10ad, data_10ad);
+	ufs_renesas_write_phy(hba, 0x10af, data_10af);
+	ufs_renesas_write_phy(hba, 0x10b6, 0x0001);
+	ufs_renesas_write_phy(hba, 0x10ae, 0x0000);
+}
+
+static void ufs_renesas_init_compensation_and_slicers(struct ufs_hba *hba)
+{
+	ufs_renesas_write_phy_10ad_10af(hba, 0x0000, 0x0001);
+	ufs_renesas_write_phy_10ad_10af(hba, 0x0000, 0x0002);
+	ufs_renesas_write_phy_10ad_10af(hba, 0x0080, 0x0000);
+	ufs_renesas_write_phy_10ad_10af(hba, 0x0080, 0x001a);
+}
+
+static void ufs_renesas_pre_init(struct ufs_hba *hba)
+{
+	u32 timer_val;
+
+	/* This setting is for SERIES B */
+	ufs_renesas_init_step1_to_3(hba);
+
+	ufs_renesas_init_step4_to_6(hba);
+
+	timer_val = ufs_renesas_init_disable_timer(hba);
 
 	/* phy setup */
 	ufs_renesas_indirect_write(hba, 1, 0x01, 0x001f);
@@ -219,10 +253,7 @@ static void ufs_renesas_pre_init(struct ufs_hba *hba)
 	ufs_renesas_write_phy(hba, 0x4000, 0x0000);
 	ufs_renesas_write_phy(hba, 0x4001, 0x0000);
 
-	ufs_renesas_write_phy_10ad_10af(hba, 0x0000, 0x0001);
-	ufs_renesas_write_phy_10ad_10af(hba, 0x0000, 0x0002);
-	ufs_renesas_write_phy_10ad_10af(hba, 0x0080, 0x0000);
-	ufs_renesas_write_phy_10ad_10af(hba, 0x0080, 0x001a);
+	ufs_renesas_init_compensation_and_slicers(hba);
 
 	ufs_renesas_indirect_write(hba, 7, 0x70, 0x0016);
 	ufs_renesas_indirect_write(hba, 7, 0x71, 0x0016);
@@ -249,9 +280,7 @@ static void ufs_renesas_pre_init(struct ufs_hba *hba)
 	ufs_renesas_indirect_poll(hba, 7, 0x41, 0, BIT(7));
 	/* end of phy setup */
 
-	ufs_renesas_write(hba, 0xf0, 0);
-	ufs_renesas_write(hba, 0xd0, 0x00000d00);
-	ufs_renesas_write(hba, 0xd4, timer_val);
+	ufs_renesas_init_enable_timer(hba, timer_val);
 }
 
 static int ufs_renesas_hce_enable_notify(struct ufs_hba *hba,
