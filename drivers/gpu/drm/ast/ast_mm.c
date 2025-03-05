@@ -38,20 +38,19 @@ static u32 ast_get_vram_size(struct ast_device *ast)
 	u8 jreg;
 	u32 vram_size;
 
-	vram_size = AST_VIDMEM_DEFAULT_SIZE;
 	jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xaa, 0xff);
 	switch (jreg & 3) {
 	case 0:
-		vram_size = AST_VIDMEM_SIZE_8M;
+		vram_size = SZ_8M;
 		break;
 	case 1:
-		vram_size = AST_VIDMEM_SIZE_16M;
+		vram_size = SZ_16M;
 		break;
 	case 2:
-		vram_size = AST_VIDMEM_SIZE_32M;
+		vram_size = SZ_32M;
 		break;
 	case 3:
-		vram_size = AST_VIDMEM_SIZE_64M;
+		vram_size = SZ_64M;
 		break;
 	}
 

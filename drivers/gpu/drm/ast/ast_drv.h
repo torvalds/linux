@@ -340,14 +340,6 @@ static inline void ast_set_index_reg_mask(struct ast_device *ast, u32 base, u8 i
 	__ast_write8_i_masked(ast->ioregs, base, index, preserve_mask, val);
 }
 
-#define AST_VIDMEM_SIZE_8M    0x00800000
-#define AST_VIDMEM_SIZE_16M   0x01000000
-#define AST_VIDMEM_SIZE_32M   0x02000000
-#define AST_VIDMEM_SIZE_64M   0x04000000
-#define AST_VIDMEM_SIZE_128M  0x08000000
-
-#define AST_VIDMEM_DEFAULT_SIZE AST_VIDMEM_SIZE_8M
-
 struct ast_vbios_stdtable {
 	u8 misc;
 	u8 seq[4];
