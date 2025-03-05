@@ -1279,9 +1279,11 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 			 * We replay the request because the device may
 			 * go away in the mean time.
 			 */
+			netdev_unlock_ops(dev);
 			rtnl_unlock();
 			request_module(NET_SCH_ALIAS_PREFIX "%s", name);
 			rtnl_lock();
+			netdev_lock_ops(dev);
 			ops = qdisc_lookup_ops(kind);
 			if (ops != NULL) {
 				/* We will try again qdisc_lookup_ops,
@@ -1591,7 +1593,11 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n,
 	if (!dev)
 		return -ENODEV;
 
-	return __tc_get_qdisc(skb, n, extack, dev, tca, tcm);
+	netdev_lock_ops(dev);
+	err = __tc_get_qdisc(skb, n, extack, dev, tca, tcm);
+	netdev_unlock_ops(dev);
+
+	return err;
 }
 
 static bool req_create_or_replace(struct nlmsghdr *n)
@@ -1828,7 +1834,9 @@ replay:
 		return -ENODEV;
 
 	replay = false;
+	netdev_lock_ops(dev);
 	err = __tc_modify_qdisc(skb, n, extack, dev, tca, tcm, &replay);
+	netdev_unlock_ops(dev);
 	if (replay)
 		goto replay;
 
@@ -1919,17 +1927,23 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 			s_q_idx = 0;
 		q_idx = 0;
 
+		netdev_lock_ops(dev);
 		if (tc_dump_qdisc_root(rtnl_dereference(dev->qdisc),
 				       skb, cb, &q_idx, s_q_idx,
-				       true, tca[TCA_DUMP_INVISIBLE]) < 0)
+				       true, tca[TCA_DUMP_INVISIBLE]) < 0) {
+			netdev_unlock_ops(dev);
 			goto done;
+		}
 
 		dev_queue = dev_ingress_queue(dev);
 		if (dev_queue &&
 		    tc_dump_qdisc_root(rtnl_dereference(dev_queue->qdisc_sleeping),
 				       skb, cb, &q_idx, s_q_idx, false,
-				       tca[TCA_DUMP_INVISIBLE]) < 0)
+				       tca[TCA_DUMP_INVISIBLE]) < 0) {
+			netdev_unlock_ops(dev);
 			goto done;
+		}
+		netdev_unlock_ops(dev);
 
 cont:
 		idx++;
@@ -2308,7 +2322,11 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 	if (!dev)
 		return -ENODEV;
 
-	return __tc_ctl_tclass(skb, n, extack, dev, tca, tcm);
+	netdev_lock_ops(dev);
+	err = __tc_ctl_tclass(skb, n, extack, dev, tca, tcm);
+	netdev_unlock_ops(dev);
+
+	return err;
 }
 
 struct qdisc_dump_args {
@@ -2426,7 +2444,9 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	if (!dev)
 		return 0;
 
+	netdev_lock_ops(dev);
 	err = __tc_dump_tclass(skb, cb, tcm, dev);
+	netdev_unlock_ops(dev);
 
 	dev_put(dev);
 
