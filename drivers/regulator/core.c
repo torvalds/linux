@@ -1830,12 +1830,49 @@ static const struct file_operations constraint_flags_fops = {
 
 #define REG_STR_SIZE	64
 
+static void link_and_create_debugfs(struct regulator *regulator, struct regulator_dev *rdev,
+				    struct device *dev)
+{
+	int err = 0;
+
+	if (dev) {
+		regulator->dev = dev;
+
+		/* Add a link to the device sysfs entry */
+		err = sysfs_create_link_nowarn(&rdev->dev.kobj, &dev->kobj,
+					       regulator->supply_name);
+		if (err) {
+			rdev_dbg(rdev, "could not add device link %s: %pe\n",
+				 dev->kobj.name, ERR_PTR(err));
+			/* non-fatal */
+		}
+	}
+
+	if (err != -EEXIST) {
+		regulator->debugfs = debugfs_create_dir(regulator->supply_name, rdev->debugfs);
+		if (IS_ERR(regulator->debugfs)) {
+			rdev_dbg(rdev, "Failed to create debugfs directory\n");
+			regulator->debugfs = NULL;
+		}
+	}
+
+	if (regulator->debugfs) {
+		debugfs_create_u32("uA_load", 0444, regulator->debugfs,
+				   &regulator->uA_load);
+		debugfs_create_u32("min_uV", 0444, regulator->debugfs,
+				   &regulator->voltage[PM_SUSPEND_ON].min_uV);
+		debugfs_create_u32("max_uV", 0444, regulator->debugfs,
+				   &regulator->voltage[PM_SUSPEND_ON].max_uV);
+		debugfs_create_file("constraint_flags", 0444, regulator->debugfs,
+				    regulator, &constraint_flags_fops);
+	}
+}
+
 static struct regulator *create_regulator(struct regulator_dev *rdev,
 					  struct device *dev,
 					  const char *supply_name)
 {
 	struct regulator *regulator;
-	int err = 0;
 
 	lockdep_assert_held_once(&rdev->mutex.base);
 
@@ -1867,38 +1904,6 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 	regulator->supply_name = supply_name;
 
 	list_add(&regulator->list, &rdev->consumer_list);
-
-	if (dev) {
-		regulator->dev = dev;
-
-		/* Add a link to the device sysfs entry */
-		err = sysfs_create_link_nowarn(&rdev->dev.kobj, &dev->kobj,
-					       supply_name);
-		if (err) {
-			rdev_dbg(rdev, "could not add device link %s: %pe\n",
-				  dev->kobj.name, ERR_PTR(err));
-			/* non-fatal */
-		}
-	}
-
-	if (err != -EEXIST) {
-		regulator->debugfs = debugfs_create_dir(supply_name, rdev->debugfs);
-		if (IS_ERR(regulator->debugfs)) {
-			rdev_dbg(rdev, "Failed to create debugfs directory\n");
-			regulator->debugfs = NULL;
-		}
-	}
-
-	if (regulator->debugfs) {
-		debugfs_create_u32("uA_load", 0444, regulator->debugfs,
-				   &regulator->uA_load);
-		debugfs_create_u32("min_uV", 0444, regulator->debugfs,
-				   &regulator->voltage[PM_SUSPEND_ON].min_uV);
-		debugfs_create_u32("max_uV", 0444, regulator->debugfs,
-				   &regulator->voltage[PM_SUSPEND_ON].max_uV);
-		debugfs_create_file("constraint_flags", 0444, regulator->debugfs,
-				    regulator, &constraint_flags_fops);
-	}
 
 	/*
 	 * Check now if the regulator is an always on regulator - if
@@ -2133,6 +2138,9 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 
 	regulator_unlock_two(rdev, r, &ww_ctx);
 
+	/* rdev->supply was created in set_supply() */
+	link_and_create_debugfs(rdev->supply, r, &rdev->dev);
+
 	/*
 	 * In set_machine_constraints() we may have turned this regulator on
 	 * but we couldn't propagate to the supply if it hadn't been resolved
@@ -2270,6 +2278,8 @@ struct regulator *_regulator_get_common(struct regulator_dev *rdev, struct devic
 		put_device(&rdev->dev);
 		return regulator;
 	}
+
+	link_and_create_debugfs(regulator, rdev, dev);
 
 	rdev->open_count++;
 	if (get_type == EXCLUSIVE_GET) {
