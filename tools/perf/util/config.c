@@ -856,12 +856,6 @@ void perf_config__exit(void)
 	config_set = NULL;
 }
 
-void perf_config__refresh(void)
-{
-	perf_config__exit();
-	perf_config__init();
-}
-
 static void perf_config_item__delete(struct perf_config_item *item)
 {
 	zfree(&item->name);
