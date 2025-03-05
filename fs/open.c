@@ -1550,7 +1550,7 @@ int filp_close(struct file *filp, fl_owner_t id)
 	int retval;
 
 	retval = filp_flush(filp, id);
-	fput(filp);
+	fput_close(filp);
 
 	return retval;
 }
@@ -1576,7 +1576,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 	 * We're returning to user space. Don't bother
 	 * with any delayed fput() cases.
 	 */
-	__fput_sync(file);
+	fput_close_sync(file);
 
 	if (likely(retval == 0))
 		return 0;
