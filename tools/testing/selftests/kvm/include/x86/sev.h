@@ -71,6 +71,11 @@ kvm_static_assert(SEV_RET_SUCCESS == 0);
 void sev_vm_init(struct kvm_vm *vm);
 void sev_es_vm_init(struct kvm_vm *vm);
 
+static inline void vmgexit(void)
+{
+	__asm__ __volatile__("rep; vmmcall");
+}
+
 static inline void sev_register_encrypted_memory(struct kvm_vm *vm,
 						 struct userspace_mem_region *region)
 {
