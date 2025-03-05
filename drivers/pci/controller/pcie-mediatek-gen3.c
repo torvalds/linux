@@ -354,7 +354,8 @@ static int mtk_pcie_set_trans_table(struct mtk_gen3_pcie *pcie,
 
 		dev_dbg(pcie->dev, "set %s trans window[%d]: cpu_addr = %#llx, pci_addr = %#llx, size = %#llx\n",
 			range_type, *num, (unsigned long long)cpu_addr,
-			(unsigned long long)pci_addr, (unsigned long long)table_size);
+			(unsigned long long)pci_addr,
+			(unsigned long long)table_size);
 
 		cpu_addr += table_size;
 		pci_addr += table_size;
@@ -889,7 +890,8 @@ static int mtk_pcie_parse_port(struct mtk_gen3_pcie *pcie)
 	for (i = 0; i < num_resets; i++)
 		pcie->phy_resets[i].id = pcie->soc->phy_resets.id[i];
 
-	ret = devm_reset_control_bulk_get_optional_shared(dev, num_resets, pcie->phy_resets);
+	ret = devm_reset_control_bulk_get_optional_shared(dev, num_resets,
+							  pcie->phy_resets);
 	if (ret) {
 		dev_err(dev, "failed to get PHY bulk reset\n");
 		return ret;
@@ -919,13 +921,14 @@ static int mtk_pcie_parse_port(struct mtk_gen3_pcie *pcie)
 		return pcie->num_clks;
 	}
 
-       ret = of_property_read_u32(dev->of_node, "num-lanes", &num_lanes);
-       if (ret == 0) {
-	       if (num_lanes == 0 || num_lanes > 16 || (num_lanes != 1 && num_lanes % 2))
+	ret = of_property_read_u32(dev->of_node, "num-lanes", &num_lanes);
+	if (ret == 0) {
+		if (num_lanes == 0 || num_lanes > 16 ||
+		    (num_lanes != 1 && num_lanes % 2))
 			dev_warn(dev, "invalid num-lanes, using controller defaults\n");
-	       else
+		else
 			pcie->num_lanes = num_lanes;
-       }
+	}
 
 	return 0;
 }
@@ -986,7 +989,8 @@ static int mtk_pcie_en7581_power_up(struct mtk_gen3_pcie *pcie)
 		goto err_phy_on;
 	}
 
-	err = reset_control_bulk_deassert(pcie->soc->phy_resets.num_resets, pcie->phy_resets);
+	err = reset_control_bulk_deassert(pcie->soc->phy_resets.num_resets,
+					  pcie->phy_resets);
 	if (err) {
 		dev_err(dev, "failed to deassert PHYs\n");
 		goto err_phy_deassert;
@@ -1031,7 +1035,8 @@ static int mtk_pcie_en7581_power_up(struct mtk_gen3_pcie *pcie)
 err_clk_prepare_enable:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-	reset_control_bulk_assert(pcie->soc->phy_resets.num_resets, pcie->phy_resets);
+	reset_control_bulk_assert(pcie->soc->phy_resets.num_resets,
+				  pcie->phy_resets);
 err_phy_deassert:
 	phy_power_off(pcie->phy);
 err_phy_on:
@@ -1055,7 +1060,8 @@ static int mtk_pcie_power_up(struct mtk_gen3_pcie *pcie)
 	usleep_range(PCIE_MTK_RESET_TIME_US, 2 * PCIE_MTK_RESET_TIME_US);
 
 	/* PHY power on and enable pipe clock */
-	err = reset_control_bulk_deassert(pcie->soc->phy_resets.num_resets, pcie->phy_resets);
+	err = reset_control_bulk_deassert(pcie->soc->phy_resets.num_resets,
+					  pcie->phy_resets);
 	if (err) {
 		dev_err(dev, "failed to deassert PHYs\n");
 		return err;
@@ -1095,7 +1101,8 @@ err_clk_init:
 err_phy_on:
 	phy_exit(pcie->phy);
 err_phy_init:
-	reset_control_bulk_assert(pcie->soc->phy_resets.num_resets, pcie->phy_resets);
+	reset_control_bulk_assert(pcie->soc->phy_resets.num_resets,
+				  pcie->phy_resets);
 
 	return err;
 }
@@ -1110,7 +1117,8 @@ static void mtk_pcie_power_down(struct mtk_gen3_pcie *pcie)
 
 	phy_power_off(pcie->phy);
 	phy_exit(pcie->phy);
-	reset_control_bulk_assert(pcie->soc->phy_resets.num_resets, pcie->phy_resets);
+	reset_control_bulk_assert(pcie->soc->phy_resets.num_resets,
+				  pcie->phy_resets);
 }
 
 static int mtk_pcie_get_controller_max_link_speed(struct mtk_gen3_pcie *pcie)
@@ -1137,7 +1145,8 @@ static int mtk_pcie_setup(struct mtk_gen3_pcie *pcie)
 	 * Deassert the line in order to avoid unbalance in deassert_count
 	 * counter since the bulk is shared.
 	 */
-	reset_control_bulk_deassert(pcie->soc->phy_resets.num_resets, pcie->phy_resets);
+	reset_control_bulk_deassert(pcie->soc->phy_resets.num_resets,
+				    pcie->phy_resets);
 
 	/* Don't touch the hardware registers before power up */
 	err = pcie->soc->power_up(pcie);
