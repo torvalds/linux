@@ -24,6 +24,23 @@ static inline void cq_enet_wq_desc_dec(struct cq_enet_wq_desc *desc,
 		color, q_number, completed_index);
 }
 
+/*
+ * Defines and Capabilities for CMD_CQ_ENTRY_SIZE_SET
+ */
+#define VNIC_RQ_ALL (~0ULL)
+
+#define VNIC_RQ_CQ_ENTRY_SIZE_16 0
+#define VNIC_RQ_CQ_ENTRY_SIZE_32 1
+#define VNIC_RQ_CQ_ENTRY_SIZE_64 2
+
+#define VNIC_RQ_CQ_ENTRY_SIZE_16_CAPABLE BIT(VNIC_RQ_CQ_ENTRY_SIZE_16)
+#define VNIC_RQ_CQ_ENTRY_SIZE_32_CAPABLE BIT(VNIC_RQ_CQ_ENTRY_SIZE_32)
+#define VNIC_RQ_CQ_ENTRY_SIZE_64_CAPABLE BIT(VNIC_RQ_CQ_ENTRY_SIZE_64)
+
+#define VNIC_RQ_CQ_ENTRY_SIZE_ALL_BIT  (VNIC_RQ_CQ_ENTRY_SIZE_16_CAPABLE | \
+					VNIC_RQ_CQ_ENTRY_SIZE_32_CAPABLE | \
+					VNIC_RQ_CQ_ENTRY_SIZE_64_CAPABLE)
+
 /* Completion queue descriptor: Ethernet receive queue, 16B */
 struct cq_enet_rq_desc {
 	__le16 completed_index_flags;
@@ -33,6 +50,45 @@ struct cq_enet_rq_desc {
 	__le16 vlan;
 	__le16 checksum_fcoe;
 	u8 flags;
+	u8 type_color;
+};
+
+/* Completion queue descriptor: Ethernet receive queue, 32B */
+struct cq_enet_rq_desc_32 {
+	__le16 completed_index_flags;
+	__le16 q_number_rss_type_flags;
+	__le32 rss_hash;
+	__le16 bytes_written_flags;
+	__le16 vlan;
+	__le16 checksum_fcoe;
+	u8 flags;
+	u8 fetch_index_flags;
+	__le32 time_stamp;
+	__le16 time_stamp2;
+	__le16 pie_info;
+	__le32 pie_info2;
+	__le16 pie_info3;
+	u8 pie_info4;
+	u8 type_color;
+};
+
+/* Completion queue descriptor: Ethernet receive queue, 64B */
+struct cq_enet_rq_desc_64 {
+	__le16 completed_index_flags;
+	__le16 q_number_rss_type_flags;
+	__le32 rss_hash;
+	__le16 bytes_written_flags;
+	__le16 vlan;
+	__le16 checksum_fcoe;
+	u8 flags;
+	u8 fetch_index_flags;
+	__le32 time_stamp;
+	__le16 time_stamp2;
+	__le16 pie_info;
+	__le32 pie_info2;
+	__le16 pie_info3;
+	u8 pie_info4;
+	u8 reserved[32];
 	u8 type_color;
 };
 
