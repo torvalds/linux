@@ -38,6 +38,7 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32mp151a-dhcor-testbench.dtb \
 	stm32mp151c-mecio1r0.dtb \
 	stm32mp151c-mect1s.dtb \
+	stm32mp151c-plyaqm.dtb \
 	stm32mp153c-dhcom-drc02.dtb \
 	stm32mp153c-dhcor-drc-compact.dtb \
 	stm32mp153c-lxa-fairytux2-gen1.dtb \
