@@ -2108,6 +2108,7 @@ static void btrfs_cleanup_pending_block_groups(struct btrfs_trans_handle *trans)
 		*/
 	       spin_lock(&fs_info->unused_bgs_lock);
                list_del_init(&block_group->bg_list);
+	       btrfs_put_block_group(block_group);
 	       spin_unlock(&fs_info->unused_bgs_lock);
        }
 }
