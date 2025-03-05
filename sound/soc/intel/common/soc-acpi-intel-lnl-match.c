@@ -553,6 +553,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_lnl_sdw_machines[] = {
 		.sof_tplg_filename = "sof-lnl-rt715-rt711-rt1308-mono.tplg",
 	},
 	{
+		.link_mask = BIT(0),
+		.links = sdw_mockup_multi_func,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-lnl-rt722-l0.tplg", /* Reuse the existing tplg file */
+	},
+	{
 		.link_mask = GENMASK(3, 0),
 		.links = lnl_3_in_1_sdca,
 		.drv_name = "sof_sdw",
