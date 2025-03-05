@@ -103,7 +103,6 @@ no_valid_dev_replace_entry_found:
 			"found replace target device without a valid replace item");
 			return -EUCLEAN;
 		}
-		ret = 0;
 		dev_replace->replace_state =
 			BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED;
 		dev_replace->cont_reading_from_srcdev_mode =
@@ -120,7 +119,7 @@ no_valid_dev_replace_entry_found:
 		dev_replace->tgtdev = NULL;
 		dev_replace->is_valid = 0;
 		dev_replace->item_needs_writeback = 0;
-		return ret;
+		return 0;
 	}
 	slot = path->slots[0];
 	eb = path->nodes[0];
