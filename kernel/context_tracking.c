@@ -80,17 +80,16 @@ static __always_inline void rcu_task_trace_heavyweight_exit(void)
  */
 static noinstr void ct_kernel_exit_state(int offset)
 {
-	int seq;
-
 	/*
 	 * CPUs seeing atomic_add_return() must see prior RCU read-side
 	 * critical sections, and we also must force ordering with the
 	 * next idle sojourn.
 	 */
 	rcu_task_trace_heavyweight_enter();  // Before CT state update!
-	seq = ct_state_inc(offset);
-	// RCU is no longer watching.  Better be in extended quiescent state!
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && (seq & CT_RCU_WATCHING));
+	// RCU is still watching.  Better not be in extended quiescent state!
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !rcu_is_watching_curr_cpu());
+	(void)ct_state_inc(offset);
+	// RCU is no longer watching.
 }
 
 /*

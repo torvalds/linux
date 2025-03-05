@@ -216,6 +216,36 @@ static const struct ref_scale_ops srcu_ops = {
 	.name		= "srcu"
 };
 
+static void srcu_fast_ref_scale_read_section(const int nloops)
+{
+	int i;
+	struct srcu_ctr __percpu *scp;
+
+	for (i = nloops; i >= 0; i--) {
+		scp = srcu_read_lock_fast(srcu_ctlp);
+		srcu_read_unlock_fast(srcu_ctlp, scp);
+	}
+}
+
+static void srcu_fast_ref_scale_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+	struct srcu_ctr __percpu *scp;
+
+	for (i = nloops; i >= 0; i--) {
+		scp = srcu_read_lock_fast(srcu_ctlp);
+		un_delay(udl, ndl);
+		srcu_read_unlock_fast(srcu_ctlp, scp);
+	}
+}
+
+static const struct ref_scale_ops srcu_fast_ops = {
+	.init		= rcu_sync_scale_init,
+	.readsection	= srcu_fast_ref_scale_read_section,
+	.delaysection	= srcu_fast_ref_scale_delay_section,
+	.name		= "srcu-fast"
+};
+
 static void srcu_lite_ref_scale_read_section(const int nloops)
 {
 	int i;
@@ -1163,7 +1193,7 @@ ref_scale_init(void)
 	long i;
 	int firsterr = 0;
 	static const struct ref_scale_ops *scale_ops[] = {
-		&rcu_ops, &srcu_ops, &srcu_lite_ops, RCU_TRACE_OPS RCU_TASKS_OPS
+		&rcu_ops, &srcu_ops, &srcu_fast_ops, &srcu_lite_ops, RCU_TRACE_OPS RCU_TASKS_OPS
 		&refcnt_ops, &rwlock_ops, &rwsem_ops, &lock_ops, &lock_irq_ops,
 		&acqrel_ops, &sched_clock_ops, &clock_ops, &jiffies_ops,
 		&typesafe_ref_ops, &typesafe_lock_ops, &typesafe_seqlock_ops,
