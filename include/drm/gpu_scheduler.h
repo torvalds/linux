@@ -410,10 +410,36 @@ struct drm_sched_backend_ops {
 					 struct drm_sched_entity *s_entity);
 
 	/**
-         * @run_job: Called to execute the job once all of the dependencies
-         * have been resolved.  This may be called multiple times, if
-	 * timedout_job() has happened and drm_sched_job_recovery()
-	 * decides to try it again.
+	 * @run_job: Called to execute the job once all of the dependencies
+	 * have been resolved.
+	 *
+	 * @sched_job: the job to run
+	 *
+	 * The deprecated drm_sched_resubmit_jobs() (called by &struct
+	 * drm_sched_backend_ops.timedout_job) can invoke this again with the
+	 * same parameters. Using this is discouraged because it violates
+	 * dma_fence rules, notably dma_fence_init() has to be called on
+	 * already initialized fences for a second time. Moreover, this is
+	 * dangerous because attempts to allocate memory might deadlock with
+	 * memory management code waiting for the reset to complete.
+	 *
+	 * TODO: Document what drivers should do / use instead.
+	 *
+	 * This method is called in a workqueue context - either from the
+	 * submit_wq the driver passed through drm_sched_init(), or, if the
+	 * driver passed NULL, a separate, ordered workqueue the scheduler
+	 * allocated.
+	 *
+	 * Note that the scheduler expects to 'inherit' its own reference to
+	 * this fence from the callback. It does not invoke an extra
+	 * dma_fence_get() on it. Consequently, this callback must take a
+	 * reference for the scheduler, and additional ones for the driver's
+	 * respective needs.
+	 *
+	 * Return:
+	 * * On success: dma_fence the driver must signal once the hardware has
+	 * completed the job ("hardware fence").
+	 * * On failure: NULL or an ERR_PTR.
 	 */
 	struct dma_fence *(*run_job)(struct drm_sched_job *sched_job);
 
