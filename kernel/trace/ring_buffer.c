@@ -1678,7 +1678,7 @@ static void *rb_range_buffer(struct ring_buffer_per_cpu *cpu_buffer, int idx)
  * See if the existing memory contains a valid meta section.
  * if so, use that, otherwise initialize it.
  */
-static bool rb_meta_init(struct trace_buffer *buffer)
+static bool rb_meta_init(struct trace_buffer *buffer, int scratch_size)
 {
 	unsigned long ptr = buffer->range_addr_start;
 	struct ring_buffer_meta *bmeta;
@@ -1696,6 +1696,7 @@ static bool rb_meta_init(struct trace_buffer *buffer)
 	/* The first buffer will start word size after the meta page */
 	ptr += sizeof(*bmeta);
 	ptr = ALIGN(ptr, sizeof(long));
+	ptr += scratch_size;
 
 	if (bmeta->magic != RING_BUFFER_META_MAGIC) {
 		pr_info("Ring buffer boot meta mismatch of magic\n");
@@ -1729,6 +1730,9 @@ static bool rb_meta_init(struct trace_buffer *buffer)
 	bmeta->struct_sizes = struct_sizes;
 	bmeta->total_size = total_size;
 	bmeta->buffers_offset = (void *)ptr - (void *)bmeta;
+
+	/* Zero out the scatch pad */
+	memset((void *)bmeta + sizeof(*bmeta), 0, bmeta->buffers_offset - sizeof(*bmeta));
 
 	return false;
 }
@@ -1954,7 +1958,7 @@ static void rb_meta_init_text_addr(struct ring_buffer_cpu_meta *meta)
 #endif
 }
 
-static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages)
+static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages, int scratch_size)
 {
 	struct ring_buffer_cpu_meta *meta;
 	struct ring_buffer_meta *bmeta;
@@ -1969,7 +1973,7 @@ static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages)
 	subbuf_mask = bitmap_alloc(nr_pages + 1, GFP_KERNEL);
 	/* If subbuf_mask fails to allocate, then rb_meta_valid() will return false */
 
-	if (rb_meta_init(buffer))
+	if (rb_meta_init(buffer, scratch_size))
 		valid = true;
 
 	bmeta = buffer->meta;
@@ -2367,6 +2371,7 @@ static void rb_free_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 static struct trace_buffer *alloc_buffer(unsigned long size, unsigned flags,
 					 int order, unsigned long start,
 					 unsigned long end,
+					 unsigned long scratch_size,
 					 struct lock_class_key *key)
 {
 	struct trace_buffer *buffer;
@@ -2416,10 +2421,15 @@ static struct trace_buffer *alloc_buffer(unsigned long size, unsigned flags,
 		/* Make sure that start is word aligned */
 		start = ALIGN(start, sizeof(long));
 
+		/* scratch_size needs to be aligned too */
+		scratch_size = ALIGN(scratch_size, sizeof(long));
+
 		/* Subtract the buffer meta data and word aligned */
 		buffers_start = start + sizeof(struct ring_buffer_cpu_meta);
 		buffers_start = ALIGN(buffers_start, sizeof(long));
+		buffers_start += scratch_size;
 
+		/* Calculate the size for the per CPU data */
 		size = end - buffers_start;
 		size = size / nr_cpu_ids;
 
@@ -2456,7 +2466,7 @@ static struct trace_buffer *alloc_buffer(unsigned long size, unsigned flags,
 		buffer->range_addr_start = start;
 		buffer->range_addr_end = end;
 
-		rb_range_meta_init(buffer, nr_pages);
+		rb_range_meta_init(buffer, nr_pages, scratch_size);
 	} else {
 
 		/* need at least two pages */
@@ -2509,7 +2519,7 @@ struct trace_buffer *__ring_buffer_alloc(unsigned long size, unsigned flags,
 					struct lock_class_key *key)
 {
 	/* Default buffer page size - one system page */
-	return alloc_buffer(size, flags, 0, 0, 0,key);
+	return alloc_buffer(size, flags, 0, 0, 0, 0, key);
 
 }
 EXPORT_SYMBOL_GPL(__ring_buffer_alloc);
@@ -2521,6 +2531,7 @@ EXPORT_SYMBOL_GPL(__ring_buffer_alloc);
  * @order: sub-buffer order
  * @start: start of allocated range
  * @range_size: size of allocated range
+ * @scratch_size: size of scratch area (for preallocated memory buffers)
  * @key: ring buffer reader_lock_key.
  *
  * Currently the only flag that is available is the RB_FL_OVERWRITE
@@ -2531,9 +2542,11 @@ EXPORT_SYMBOL_GPL(__ring_buffer_alloc);
 struct trace_buffer *__ring_buffer_alloc_range(unsigned long size, unsigned flags,
 					       int order, unsigned long start,
 					       unsigned long range_size,
+					       unsigned long scratch_size,
 					       struct lock_class_key *key)
 {
-	return alloc_buffer(size, flags, order, start, start + range_size, key);
+	return alloc_buffer(size, flags, order, start, start + range_size,
+			    scratch_size, key);
 }
 
 /**
@@ -2555,6 +2568,16 @@ bool ring_buffer_last_boot_delta(struct trace_buffer *buffer, unsigned long *kas
 	*kaslr_addr = buffer->kaslr_addr;
 
 	return true;
+}
+
+void *ring_buffer_meta_scratch(struct trace_buffer *buffer, unsigned int *size)
+{
+	if (!buffer || !buffer->meta)
+		return NULL;
+
+	*size = PAGE_SIZE - sizeof(*buffer->meta);
+
+	return (void *)buffer->meta + sizeof(*buffer->meta);
 }
 
 /**
