@@ -971,6 +971,25 @@ static void gfs2_glock_poke(struct gfs2_glock *gl)
 	gfs2_holder_uninit(&gh);
 }
 
+static struct gfs2_inode *gfs2_grab_existing_inode(struct gfs2_glock *gl)
+{
+	struct gfs2_inode *ip;
+
+	spin_lock(&gl->gl_lockref.lock);
+	ip = gl->gl_object;
+	if (ip && !igrab(&ip->i_inode))
+		ip = NULL;
+	spin_unlock(&gl->gl_lockref.lock);
+	if (ip) {
+		wait_on_inode(&ip->i_inode);
+		if (is_bad_inode(&ip->i_inode)) {
+			iput(&ip->i_inode);
+			ip = NULL;
+		}
+	}
+	return ip;
+}
+
 static void gfs2_try_evict(struct gfs2_glock *gl)
 {
 	struct gfs2_inode *ip;
@@ -988,18 +1007,7 @@ static void gfs2_try_evict(struct gfs2_glock *gl)
 	 * happened below.  (Verification is triggered by the call to
 	 * gfs2_queue_verify_delete() in gfs2_evict_inode().)
 	 */
-	spin_lock(&gl->gl_lockref.lock);
-	ip = gl->gl_object;
-	if (ip && !igrab(&ip->i_inode))
-		ip = NULL;
-	spin_unlock(&gl->gl_lockref.lock);
-	if (ip) {
-		wait_on_inode(&ip->i_inode);
-		if (is_bad_inode(&ip->i_inode)) {
-			iput(&ip->i_inode);
-			ip = NULL;
-		}
-	}
+	ip = gfs2_grab_existing_inode(gl);
 	if (ip) {
 		set_bit(GLF_DEFER_DELETE, &gl->gl_flags);
 		d_prune_aliases(&ip->i_inode);
@@ -1007,13 +1015,7 @@ static void gfs2_try_evict(struct gfs2_glock *gl)
 		clear_bit(GLF_DEFER_DELETE, &gl->gl_flags);
 
 		/* If the inode was evicted, gl->gl_object will now be NULL. */
-		spin_lock(&gl->gl_lockref.lock);
-		ip = gl->gl_object;
-		if (ip) {
-			if (!igrab(&ip->i_inode))
-				ip = NULL;
-		}
-		spin_unlock(&gl->gl_lockref.lock);
+		ip = gfs2_grab_existing_inode(gl);
 		if (ip) {
 			gfs2_glock_poke(ip->i_gl);
 			iput(&ip->i_inode);
