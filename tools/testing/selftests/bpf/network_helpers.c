@@ -554,7 +554,7 @@ int open_tuntap(const char *dev_name, bool need_mac)
 	struct ifreq ifr;
 	int fd = open("/dev/net/tun", O_RDWR);
 
-	if (!ASSERT_GT(fd, 0, "open(/dev/net/tun)"))
+	if (!ASSERT_GE(fd, 0, "open(/dev/net/tun)"))
 		return -1;
 
 	ifr.ifr_flags = IFF_NO_PI | (need_mac ? IFF_TAP : IFF_TUN);
