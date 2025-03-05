@@ -474,8 +474,6 @@ static void dump_test_log(const struct prog_test_def *test,
 	print_test_result(test, test_state);
 }
 
-static void stdio_restore(void);
-
 /* A bunch of tests set custom affinity per-thread and/or per-process. Reset
  * it after each test/sub-test.
  */
@@ -490,13 +488,11 @@ static void reset_affinity(void)
 
 	err = sched_setaffinity(0, sizeof(cpuset), &cpuset);
 	if (err < 0) {
-		stdio_restore();
 		fprintf(stderr, "Failed to reset process affinity: %d!\n", err);
 		exit(EXIT_ERR_SETUP_INFRA);
 	}
 	err = pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset);
 	if (err < 0) {
-		stdio_restore();
 		fprintf(stderr, "Failed to reset thread affinity: %d!\n", err);
 		exit(EXIT_ERR_SETUP_INFRA);
 	}
@@ -514,7 +510,6 @@ static void save_netns(void)
 static void restore_netns(void)
 {
 	if (setns(env.saved_netns_fd, CLONE_NEWNET) == -1) {
-		stdio_restore();
 		perror("setns(CLONE_NEWNS)");
 		exit(EXIT_ERR_SETUP_INFRA);
 	}
@@ -1270,8 +1265,7 @@ void crash_handler(int signum)
 
 	sz = backtrace(bt, ARRAY_SIZE(bt));
 
-	if (env.stdout_saved)
-		stdio_restore();
+	stdio_restore();
 	if (env.test) {
 		env.test_state->error_cnt++;
 		dump_test_log(env.test, env.test_state, true, false, NULL);
@@ -1400,6 +1394,8 @@ static void run_one_test(int test_num)
 
 	state->tested = true;
 
+	stdio_restore();
+
 	if (verbose() && env.worker_id == -1)
 		print_test_result(test, state);
 
@@ -1408,7 +1404,6 @@ static void run_one_test(int test_num)
 	if (test->need_cgroup_cleanup)
 		cleanup_cgroup_environment();
 
-	stdio_restore();
 	free(stop_libbpf_log_capture());
 
 	dump_test_log(test, state, false, false, NULL);
@@ -1943,6 +1938,9 @@ int main(int argc, char **argv)
 
 	sigaction(SIGSEGV, &sigact, NULL);
 
+	env.stdout_saved = stdout;
+	env.stderr_saved = stderr;
+
 	env.secs_till_notify = 10;
 	env.secs_till_kill = 120;
 	err = argp_parse(&argp, argc, argv, 0, NULL, &env);
@@ -1968,9 +1966,6 @@ int main(int argc, char **argv)
 			env.nr_cpus);
 		return -1;
 	}
-
-	env.stdout_saved = stdout;
-	env.stderr_saved = stderr;
 
 	env.has_testmod = true;
 	if (!env.list_test_names) {
