@@ -192,7 +192,7 @@ static inline bool pipe_empty(unsigned int head, unsigned int tail)
  */
 static inline unsigned int pipe_occupancy(unsigned int head, unsigned int tail)
 {
-	return head - tail;
+	return (pipe_index_t)(head - tail);
 }
 
 /**
