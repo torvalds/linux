@@ -7,6 +7,7 @@ struct monitor {
 	char name[MAX_DA_NAME_LEN];
 	char desc[MAX_DESCRIPTION];
 	int enabled;
+	int nested;
 };
 
 int should_stop(void);
