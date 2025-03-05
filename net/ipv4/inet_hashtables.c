@@ -538,7 +538,8 @@ EXPORT_SYMBOL_GPL(__inet_lookup_established);
 static int __inet_check_established(struct inet_timewait_death_row *death_row,
 				    struct sock *sk, __u16 lport,
 				    struct inet_timewait_sock **twp,
-				    bool rcu_lookup)
+				    bool rcu_lookup,
+				    u32 hash)
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	struct inet_sock *inet = inet_sk(sk);
@@ -549,8 +550,6 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	int sdif = l3mdev_master_ifindex_by_index(net, dif);
 	INET_ADDR_COOKIE(acookie, saddr, daddr);
 	const __portpair ports = INET_COMBINED_PORTS(inet->inet_dport, lport);
-	unsigned int hash = inet_ehashfn(net, daddr, lport,
-					 saddr, inet->inet_dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
 	struct inet_timewait_sock *tw = NULL;
 	const struct hlist_nulls_node *node;
@@ -1007,9 +1006,10 @@ static u32 *table_perturb;
 
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		struct sock *sk, u64 port_offset,
+		u32 hash_port0,
 		int (*check_established)(struct inet_timewait_death_row *,
 			struct sock *, __u16, struct inet_timewait_sock **,
-			bool rcu_lookup))
+			bool rcu_lookup, u32 hash))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	struct inet_bind_hashbucket *head, *head2;
@@ -1027,7 +1027,8 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 
 	if (port) {
 		local_bh_disable();
-		ret = check_established(death_row, sk, port, NULL, false);
+		ret = check_established(death_row, sk, port, NULL, false,
+					hash_port0 + port);
 		local_bh_enable();
 		return ret;
 	}
@@ -1071,7 +1072,8 @@ other_parity_scan:
 				rcu_read_unlock();
 				goto next_port;
 			}
-			if (!check_established(death_row, sk, port, &tw, true))
+			if (!check_established(death_row, sk, port, &tw, true,
+					       hash_port0 + port))
 				break;
 			rcu_read_unlock();
 			goto next_port;
@@ -1090,7 +1092,8 @@ other_parity_scan:
 					goto next_port_unlock;
 				WARN_ON(hlist_empty(&tb->bhash2));
 				if (!check_established(death_row, sk,
-						       port, &tw, false))
+						       port, &tw, false,
+						       hash_port0 + port))
 					goto ok;
 				goto next_port_unlock;
 			}
@@ -1197,11 +1200,18 @@ error:
 int inet_hash_connect(struct inet_timewait_death_row *death_row,
 		      struct sock *sk)
 {
+	const struct inet_sock *inet = inet_sk(sk);
+	const struct net *net = sock_net(sk);
 	u64 port_offset = 0;
+	u32 hash_port0;
 
 	if (!inet_sk(sk)->inet_num)
 		port_offset = inet_sk_port_offset(sk);
-	return __inet_hash_connect(death_row, sk, port_offset,
+
+	hash_port0 = inet_ehashfn(net, inet->inet_rcv_saddr, 0,
+				  inet->inet_daddr, inet->inet_dport);
+
+	return __inet_hash_connect(death_row, sk, port_offset, hash_port0,
 				   __inet_check_established);
 }
 EXPORT_SYMBOL_GPL(inet_hash_connect);
