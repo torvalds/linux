@@ -58,7 +58,7 @@ long ast_cursor_vram_offset(struct ast_device *ast)
 	if (size > ast->vram_size)
 		return -EINVAL;
 
-	return PAGE_ALIGN_DOWN(ast->vram_size - size);
+	return ALIGN_DOWN(ast->vram_size - size, SZ_8);
 }
 
 static u32 ast_cursor_calculate_checksum(const void *src, unsigned int width, unsigned int height)
