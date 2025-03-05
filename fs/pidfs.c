@@ -458,6 +458,47 @@ struct pid *pidfd_pid(const struct file *file)
 	return file_inode(file)->i_private;
 }
 
+/*
+ * We're called from release_task(). We know there's at least one
+ * reference to struct pid being held that won't be released until the
+ * task has been reaped which cannot happen until we're out of
+ * release_task().
+ *
+ * If this struct pid is referred to by a pidfd then
+ * stashed_dentry_get() will return the dentry and inode for that struct
+ * pid. Since we've taken a reference on it there's now an additional
+ * reference from the exit path on it. Which is fine. We're going to put
+ * it again in a second and we know that the pid is kept alive anyway.
+ *
+ * Worst case is that we've filled in the info and immediately free the
+ * dentry and inode afterwards since the pidfd has been closed. Since
+ * pidfs_exit() currently is placed after exit_task_work() we know that
+ * it cannot be us aka the exiting task holding a pidfd to ourselves.
+ */
+void pidfs_exit(struct task_struct *tsk)
+{
+	struct dentry *dentry;
+
+	might_sleep();
+
+	dentry = stashed_dentry_get(&task_pid(tsk)->stashed);
+	if (dentry) {
+		struct inode *inode = d_inode(dentry);
+		struct pidfs_exit_info *exit_info = &pidfs_i(inode)->exit_info;
+#ifdef CONFIG_CGROUPS
+		struct cgroup *cgrp;
+
+		rcu_read_lock();
+		cgrp = task_dfl_cgroup(tsk);
+		exit_info->cgroupid = cgroup_id(cgrp);
+		rcu_read_unlock();
+#endif
+		exit_info->exit_code = tsk->exit_code;
+
+		dput(dentry);
+	}
+}
+
 static struct vfsmount *pidfs_mnt __ro_after_init;
 
 /*
