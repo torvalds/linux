@@ -677,6 +677,20 @@ static bool kvm_pmc_counts_at_el2(struct kvm_pmc *pmc)
 	return kvm_pmc_read_evtreg(pmc) & ARMV8_PMU_INCLUDE_EL2;
 }
 
+static int kvm_map_pmu_event(struct kvm *kvm, unsigned int eventsel)
+{
+	struct arm_pmu *pmu = kvm->arch.arm_pmu;
+
+	/*
+	 * The CPU PMU likely isn't PMUv3; let the driver provide a mapping
+	 * for the guest's PMUv3 event ID.
+	 */
+	if (unlikely(pmu->map_pmuv3_event))
+		return pmu->map_pmuv3_event(eventsel);
+
+	return eventsel;
+}
+
 /**
  * kvm_pmu_create_perf_event - create a perf event for a counter
  * @pmc: Counter context
@@ -687,7 +701,8 @@ static void kvm_pmu_create_perf_event(struct kvm_pmc *pmc)
 	struct arm_pmu *arm_pmu = vcpu->kvm->arch.arm_pmu;
 	struct perf_event *event;
 	struct perf_event_attr attr;
-	u64 eventsel, evtreg;
+	int eventsel;
+	u64 evtreg;
 
 	evtreg = kvm_pmc_read_evtreg(pmc);
 
@@ -711,6 +726,14 @@ static void kvm_pmu_create_perf_event(struct kvm_pmc *pmc)
 	 */
 	if (vcpu->kvm->arch.pmu_filter &&
 	    !test_bit(eventsel, vcpu->kvm->arch.pmu_filter))
+		return;
+
+	/*
+	 * Don't create an event if we're running on hardware that requires
+	 * PMUv3 event translation and we couldn't find a valid mapping.
+	 */
+	eventsel = kvm_map_pmu_event(vcpu->kvm, eventsel);
+	if (eventsel < 0)
 		return;
 
 	memset(&attr, 0, sizeof(struct perf_event_attr));
