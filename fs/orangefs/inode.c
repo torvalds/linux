@@ -83,18 +83,18 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	struct orangefs_write_range *wrp, wr;
 	struct iov_iter iter;
 	ssize_t ret;
+	size_t start;
 	loff_t len, off;
 	int i;
 
 	len = i_size_read(inode);
 
+	start = offset_in_page(ow->off);
 	for (i = 0; i < ow->npages; i++) {
 		set_page_writeback(ow->pages[i]);
-		bvec_set_page(&ow->bv[i], ow->pages[i],
-			      min(page_offset(ow->pages[i]) + PAGE_SIZE,
-			          ow->off + ow->len) -
-			      max(ow->off, page_offset(ow->pages[i])),
-			      i == 0 ? ow->off - page_offset(ow->pages[i]) : 0);
+		bvec_set_page(&ow->bv[i], ow->pages[i], PAGE_SIZE - start,
+			      start);
+		start = 0;
 	}
 	iov_iter_bvec(&iter, ITER_SOURCE, ow->bv, ow->npages, ow->len);
 
