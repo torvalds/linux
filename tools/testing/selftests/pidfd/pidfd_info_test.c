@@ -195,4 +195,27 @@ TEST_F(pidfd_info, success_reaped)
 	ASSERT_EQ(WEXITSTATUS(info.exit_code), 0);
 }
 
+TEST_F(pidfd_info, success_reaped_poll)
+{
+	struct pidfd_info info = {
+		.mask = PIDFD_INFO_CGROUPID | PIDFD_INFO_EXIT,
+	};
+	struct pollfd fds = {};
+	int nevents;
+
+	fds.events = POLLIN;
+	fds.fd = self->child_pidfd2;
+
+	nevents = poll(&fds, 1, -1);
+	ASSERT_EQ(nevents, 1);
+	ASSERT_TRUE(!!(fds.revents & POLLIN));
+	ASSERT_TRUE(!!(fds.revents & POLLHUP));
+
+	ASSERT_EQ(ioctl(self->child_pidfd2, PIDFD_GET_INFO, &info), 0);
+	ASSERT_FALSE(!!(info.mask & PIDFD_INFO_CREDS));
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_EXIT));
+	ASSERT_TRUE(WIFSIGNALED(info.exit_code));
+	ASSERT_EQ(WTERMSIG(info.exit_code), SIGKILL);
+}
+
 TEST_HARNESS_MAIN
