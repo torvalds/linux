@@ -171,7 +171,6 @@
 };
 
 &cpsw3g {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_rgmii1_pins_default>;
 	status = "okay";
@@ -225,8 +224,8 @@
 		interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
-		ti,power-button;
 		system-power-controller;
+		ti,power-button;
 
 		regulators {
 			vdd_3v3: buck1 {
