@@ -1550,7 +1550,7 @@ int filp_close(struct file *filp, fl_owner_t id)
 	int retval;
 
 	retval = filp_flush(filp, id);
-	fput(filp);
+	fput_close(filp);
 
 	return retval;
 }
