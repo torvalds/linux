@@ -9,6 +9,9 @@ obj-$(CONFIG_RV_MON_SCHED) += monitors/sched/sched.o
 obj-$(CONFIG_RV_MON_TSS) += monitors/tss/tss.o
 obj-$(CONFIG_RV_MON_SCO) += monitors/sco/sco.o
 obj-$(CONFIG_RV_MON_SNROC) += monitors/snroc/snroc.o
+obj-$(CONFIG_RV_MON_SCPD) += monitors/scpd/scpd.o
+obj-$(CONFIG_RV_MON_SNEP) += monitors/snep/snep.o
+obj-$(CONFIG_RV_MON_SNCID) += monitors/sncid/sncid.o
 # Add new monitors here
 obj-$(CONFIG_RV_REACTORS) += rv_reactors.o
 obj-$(CONFIG_RV_REACT_PRINTK) += reactor_printk.o
