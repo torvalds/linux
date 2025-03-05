@@ -203,6 +203,7 @@ err_post_alloc:
 	__xe_exec_queue_free(q);
 	return ERR_PTR(err);
 }
+ALLOW_ERROR_INJECTION(xe_exec_queue_create, ERRNO);
 
 struct xe_exec_queue *xe_exec_queue_create_class(struct xe_device *xe, struct xe_gt *gt,
 						 struct xe_vm *vm,

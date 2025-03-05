@@ -270,6 +270,7 @@ out_up_write:
 
 	return err;
 }
+ALLOW_ERROR_INJECTION(xe_vm_add_compute_exec_queue, ERRNO);
 
 /**
  * xe_vm_remove_compute_exec_queue() - Remove compute exec queue from VM
