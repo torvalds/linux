@@ -50,6 +50,48 @@ static const struct snd_soc_acpi_endpoint spk_r_endpoint = {
 	.group_id = 1,
 };
 
+static const struct snd_soc_acpi_endpoint spk_1_endpoint = {
+	.num = 0,
+	.aggregated = 1,
+	.group_position = 1,
+	.group_id = 1,
+};
+
+static const struct snd_soc_acpi_endpoint spk_2_endpoint = {
+	.num = 0,
+	.aggregated = 1,
+	.group_position = 2,
+	.group_id = 1,
+};
+
+static const struct snd_soc_acpi_endpoint spk_3_endpoint = {
+	.num = 0,
+	.aggregated = 1,
+	.group_position = 3,
+	.group_id = 1,
+};
+
+static const struct snd_soc_acpi_endpoint spk_4_endpoint = {
+	.num = 0,
+	.aggregated = 1,
+	.group_position = 4,
+	.group_id = 1,
+};
+
+static const struct snd_soc_acpi_endpoint spk_5_endpoint = {
+	.num = 0,
+	.aggregated = 1,
+	.group_position = 5,
+	.group_id = 1,
+};
+
+static const struct snd_soc_acpi_endpoint spk_6_endpoint = {
+	.num = 0,
+	.aggregated = 1,
+	.group_position = 6,
+	.group_id = 1,
+};
+
 /*
  * Multi-function codecs with three endpoints created for
  * headset, amp and dmic functions.
@@ -114,6 +156,84 @@ static const struct snd_soc_acpi_endpoint jack_amp_g1_dmic_endpoints_endpoints[]
 		.group_position = 0,
 		.group_id = 0,
 	},
+};
+
+static const struct snd_soc_acpi_endpoint cs42l43_amp_spkagg_endpoints[] = {
+	{ /* Jack Playback Endpoint */
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* DMIC Capture Endpoint */
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* Jack Capture Endpoint */
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* Speaker Playback Endpoint */
+		.num = 3,
+		.aggregated = 1,
+		.group_position = 0,
+		.group_id = 1,
+	},
+};
+
+static const struct snd_soc_acpi_adr_device cs42l43_2_adr[] = {
+	{
+		.adr = 0x00023001fa424301ull,
+		.num_endpoints = ARRAY_SIZE(cs42l43_amp_spkagg_endpoints),
+		.endpoints = cs42l43_amp_spkagg_endpoints,
+		.name_prefix = "cs42l43"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device cs35l56_1_3amp_adr[] = {
+	{
+		.adr = 0x00013001fa355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_1_endpoint,
+		.name_prefix = "AMP1"
+	},
+	{
+		.adr = 0x00013101fa355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_2_endpoint,
+		.name_prefix = "AMP2"
+	},
+	{
+		.adr = 0x00013201fa355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_3_endpoint,
+		.name_prefix = "AMP3"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device cs35l56_3_3amp_adr[] = {
+	{
+		.adr = 0x00033301fa355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_4_endpoint,
+		.name_prefix = "AMP4"
+	},
+	{
+		.adr = 0x00033401fa355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_5_endpoint,
+		.name_prefix = "AMP5"
+	},
+	{
+		.adr = 0x00033501fa355601ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_6_endpoint,
+		.name_prefix = "AMP6"
+	}
 };
 
 static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
@@ -251,6 +371,25 @@ static const struct snd_soc_acpi_adr_device rt1320_3_group2_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_link_adr ptl_cs42l43_l2_cs35l56x6_l13[] = {
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(cs42l43_2_adr),
+		.adr_d = cs42l43_2_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(cs35l56_1_3amp_adr),
+		.adr_d = cs35l56_1_3amp_adr,
+	},
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(cs35l56_3_3amp_adr),
+		.adr_d = cs35l56_3_3amp_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr ptl_rt722_only[] = {
 	{
 		.mask = BIT(0),
@@ -373,6 +512,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 		.links = sdw_mockup_mic_headset_1amp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-rt715-rt711-rt1308-mono.tplg",
+	},
+	{
+		.link_mask = BIT(1) | BIT(2) | BIT(3),
+		.links = ptl_cs42l43_l2_cs35l56x6_l13,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-cs42l43-l2-cs35l56x6-l13.tplg",
 	},
 	{
 		.link_mask = BIT(0),
