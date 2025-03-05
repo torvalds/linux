@@ -93,7 +93,7 @@ unsigned int enic_wq_cq_service(struct enic *enic, unsigned int cq_index,
 	u8 type, color;
 	bool ext_wq;
 
-	ext_wq = cq->ring.size > ENIC_MAX_WQ_DESCS;
+	ext_wq = cq->ring.size > ENIC_MAX_WQ_DESCS_DEFAULT;
 
 	cq_desc = (struct cq_desc *)vnic_cq_to_clean(cq);
 	enic_wq_cq_desc_dec(cq_desc, ext_wq, &type, &color,

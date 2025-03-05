@@ -222,9 +222,9 @@ static void enic_get_ringparam(struct net_device *netdev,
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_enet_config *c = &enic->config;
 
-	ring->rx_max_pending = ENIC_MAX_RQ_DESCS;
+	ring->rx_max_pending = c->max_rq_ring;
 	ring->rx_pending = c->rq_desc_count;
-	ring->tx_max_pending = ENIC_MAX_WQ_DESCS;
+	ring->tx_max_pending = c->max_wq_ring;
 	ring->tx_pending = c->wq_desc_count;
 }
 
@@ -252,18 +252,18 @@ static int enic_set_ringparam(struct net_device *netdev,
 	}
 	rx_pending = c->rq_desc_count;
 	tx_pending = c->wq_desc_count;
-	if (ring->rx_pending > ENIC_MAX_RQ_DESCS ||
+	if (ring->rx_pending > c->max_rq_ring ||
 	    ring->rx_pending < ENIC_MIN_RQ_DESCS) {
 		netdev_info(netdev, "rx pending (%u) not in range [%u,%u]",
 			    ring->rx_pending, ENIC_MIN_RQ_DESCS,
-			    ENIC_MAX_RQ_DESCS);
+	      c->max_rq_ring);
 		return -EINVAL;
 	}
-	if (ring->tx_pending > ENIC_MAX_WQ_DESCS ||
+	if (ring->tx_pending > c->max_wq_ring ||
 	    ring->tx_pending < ENIC_MIN_WQ_DESCS) {
 		netdev_info(netdev, "tx pending (%u) not in range [%u,%u]",
 			    ring->tx_pending, ENIC_MIN_WQ_DESCS,
-			    ENIC_MAX_WQ_DESCS);
+			c->max_wq_ring);
 		return -EINVAL;
 	}
 	if (running)

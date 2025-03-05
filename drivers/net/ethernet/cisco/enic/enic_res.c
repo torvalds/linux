@@ -59,31 +59,38 @@ int enic_get_vnic_config(struct enic *enic)
 	GET_CONFIG(intr_timer_usec);
 	GET_CONFIG(loop_tag);
 	GET_CONFIG(num_arfs);
+	GET_CONFIG(max_rq_ring);
+	GET_CONFIG(max_wq_ring);
+	GET_CONFIG(max_cq_ring);
+
+	if (!c->max_wq_ring)
+		c->max_wq_ring = ENIC_MAX_WQ_DESCS_DEFAULT;
+	if (!c->max_rq_ring)
+		c->max_rq_ring = ENIC_MAX_RQ_DESCS_DEFAULT;
+	if (!c->max_cq_ring)
+		c->max_cq_ring = ENIC_MAX_CQ_DESCS_DEFAULT;
 
 	c->wq_desc_count =
-		min_t(u32, ENIC_MAX_WQ_DESCS,
-		max_t(u32, ENIC_MIN_WQ_DESCS,
-		c->wq_desc_count));
+		min_t(u32, c->max_wq_ring,
+		      max_t(u32, ENIC_MIN_WQ_DESCS, c->wq_desc_count));
 	c->wq_desc_count &= 0xffffffe0; /* must be aligned to groups of 32 */
 
 	c->rq_desc_count =
-		min_t(u32, ENIC_MAX_RQ_DESCS,
-		max_t(u32, ENIC_MIN_RQ_DESCS,
-		c->rq_desc_count));
+		min_t(u32, c->max_rq_ring,
+		      max_t(u32, ENIC_MIN_RQ_DESCS, c->rq_desc_count));
 	c->rq_desc_count &= 0xffffffe0; /* must be aligned to groups of 32 */
 
 	if (c->mtu == 0)
 		c->mtu = 1500;
-	c->mtu = min_t(u16, ENIC_MAX_MTU,
-		max_t(u16, ENIC_MIN_MTU,
-		c->mtu));
+	c->mtu = min_t(u16, ENIC_MAX_MTU, max_t(u16, ENIC_MIN_MTU, c->mtu));
 
 	c->intr_timer_usec = min_t(u32, c->intr_timer_usec,
 		vnic_dev_get_intr_coal_timer_max(enic->vdev));
 
 	dev_info(enic_get_dev(enic),
-		"vNIC MAC addr %pM wq/rq %d/%d mtu %d\n",
-		enic->mac_addr, c->wq_desc_count, c->rq_desc_count, c->mtu);
+		 "vNIC MAC addr %pM wq/rq %d/%d max wq/rq/cq %d/%d/%d mtu %d\n",
+		 enic->mac_addr, c->wq_desc_count, c->rq_desc_count,
+		 c->max_wq_ring, c->max_rq_ring, c->max_cq_ring, c->mtu);
 
 	dev_info(enic_get_dev(enic), "vNIC csum tx/rx %s/%s "
 		"tso/lro %s/%s rss %s intr mode %s type %s timer %d usec "
