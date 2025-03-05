@@ -55,7 +55,6 @@ struct ring_buffer_meta {
 };
 
 struct ring_buffer_cpu_meta {
-	unsigned long	kaslr_addr;
 	unsigned long	first_buffer;
 	unsigned long	head_buffer;
 	unsigned long	commit_buffer;
@@ -556,8 +555,6 @@ struct trace_buffer {
 	unsigned long			range_addr_end;
 
 	struct ring_buffer_meta		*meta;
-
-	unsigned long			kaslr_addr;
 
 	unsigned int			subbuf_size;
 	unsigned int			subbuf_order;
@@ -1949,15 +1946,6 @@ static void rb_meta_validate_events(struct ring_buffer_per_cpu *cpu_buffer)
 	}
 }
 
-static void rb_meta_init_text_addr(struct ring_buffer_cpu_meta *meta)
-{
-#ifdef CONFIG_RANDOMIZE_BASE
-	meta->kaslr_addr = kaslr_offset();
-#else
-	meta->kaslr_addr = 0;
-#endif
-}
-
 static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages, int scratch_size)
 {
 	struct ring_buffer_cpu_meta *meta;
@@ -1990,7 +1978,6 @@ static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages, int sc
 			meta->first_buffer += delta;
 			meta->head_buffer += delta;
 			meta->commit_buffer += delta;
-			buffer->kaslr_addr = meta->kaslr_addr;
 			continue;
 		}
 
@@ -2007,7 +1994,6 @@ static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages, int sc
 		subbuf = rb_subbufs_from_meta(meta);
 
 		meta->first_buffer = (unsigned long)subbuf;
-		rb_meta_init_text_addr(meta);
 
 		/*
 		 * The buffers[] array holds the order of the sub-buffers
@@ -2549,35 +2535,22 @@ struct trace_buffer *__ring_buffer_alloc_range(unsigned long size, unsigned flag
 			    scratch_size, key);
 }
 
-/**
- * ring_buffer_last_boot_delta - return the delta offset from last boot
- * @buffer: The buffer to return the delta from
- * @text: Return text delta
- * @data: Return data delta
- *
- * Returns: The true if the delta is non zero
- */
-bool ring_buffer_last_boot_delta(struct trace_buffer *buffer, unsigned long *kaslr_addr)
-{
-	if (!buffer)
-		return false;
-
-	if (!buffer->kaslr_addr)
-		return false;
-
-	*kaslr_addr = buffer->kaslr_addr;
-
-	return true;
-}
-
 void *ring_buffer_meta_scratch(struct trace_buffer *buffer, unsigned int *size)
 {
+	struct ring_buffer_meta *meta;
+	void *ptr;
+
 	if (!buffer || !buffer->meta)
 		return NULL;
 
-	*size = PAGE_SIZE - sizeof(*buffer->meta);
+	meta = buffer->meta;
 
-	return (void *)buffer->meta + sizeof(*buffer->meta);
+	ptr = (void *)ALIGN((unsigned long)meta + sizeof(*meta), sizeof(long));
+
+	if (size)
+		*size = (void *)meta + meta->buffers_offset - ptr;
+
+	return ptr;
 }
 
 /**
@@ -6133,7 +6106,6 @@ static void reset_disabled_cpu_buffer(struct ring_buffer_per_cpu *cpu_buffer)
 void ring_buffer_reset_cpu(struct trace_buffer *buffer, int cpu)
 {
 	struct ring_buffer_per_cpu *cpu_buffer = buffer->buffers[cpu];
-	struct ring_buffer_cpu_meta *meta;
 
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return;
@@ -6152,11 +6124,6 @@ void ring_buffer_reset_cpu(struct trace_buffer *buffer, int cpu)
 	atomic_dec(&cpu_buffer->record_disabled);
 	atomic_dec(&cpu_buffer->resize_disabled);
 
-	/* Make sure persistent meta now uses this buffer's addresses */
-	meta = rb_range_meta(buffer, 0, cpu_buffer->cpu);
-	if (meta)
-		rb_meta_init_text_addr(meta);
-
 	mutex_unlock(&buffer->mutex);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_reset_cpu);
@@ -6171,7 +6138,6 @@ EXPORT_SYMBOL_GPL(ring_buffer_reset_cpu);
 void ring_buffer_reset_online_cpus(struct trace_buffer *buffer)
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
-	struct ring_buffer_cpu_meta *meta;
 	int cpu;
 
 	/* prevent another thread from changing buffer sizes */
@@ -6198,11 +6164,6 @@ void ring_buffer_reset_online_cpus(struct trace_buffer *buffer)
 			continue;
 
 		reset_disabled_cpu_buffer(cpu_buffer);
-
-		/* Make sure persistent meta now uses this buffer's addresses */
-		meta = rb_range_meta(buffer, 0, cpu_buffer->cpu);
-		if (meta)
-			rb_meta_init_text_addr(meta);
 
 		atomic_dec(&cpu_buffer->record_disabled);
 		atomic_sub(RESET_BIT, &cpu_buffer->resize_disabled);
