@@ -426,7 +426,7 @@ static struct quickspi_device *quickspi_dev_init(struct pci_dev *pdev, void __io
 
 	thc_interrupt_enable(qsdev->thc_hw, true);
 
-	qsdev->state = QUICKSPI_INITED;
+	qsdev->state = QUICKSPI_INITIATED;
 
 	return qsdev;
 }
