@@ -750,6 +750,36 @@ struct tmonitor_ctx {
 	int pcap_fd;
 };
 
+static int __base_pr(const char *format, va_list args)
+{
+	return vfprintf(stdout, format, args);
+}
+
+static tm_print_fn_t __tm_pr = __base_pr;
+
+tm_print_fn_t traffic_monitor_set_print(tm_print_fn_t fn)
+{
+	tm_print_fn_t old_print_fn;
+
+	old_print_fn = __atomic_exchange_n(&__tm_pr, fn, __ATOMIC_RELAXED);
+
+	return old_print_fn;
+}
+
+void tm_print(const char *format, ...)
+{
+	tm_print_fn_t print_fn;
+	va_list args;
+
+	print_fn = __atomic_load_n(&__tm_pr, __ATOMIC_RELAXED);
+	if (!print_fn)
+		return;
+
+	va_start(args, format);
+	print_fn(format, args);
+	va_end(args);
+}
+
 /* Is this packet captured with a Ethernet protocol type? */
 static bool is_ethernet(const u_char *packet)
 {
@@ -767,7 +797,7 @@ static bool is_ethernet(const u_char *packet)
 	case 770: /* ARPHRD_FRAD */
 	case 778: /* ARPHDR_IPGRE */
 	case 803: /* ARPHRD_IEEE80211_RADIOTAP */
-		printf("Packet captured: arphdr_type=%d\n", arphdr_type);
+		tm_print("Packet captured: arphdr_type=%d\n", arphdr_type);
 		return false;
 	}
 	return true;
@@ -817,19 +847,19 @@ static void show_transport(const u_char *packet, u16 len, u32 ifindex,
 		dst_port = ntohs(tcp->dest);
 		transport_str = "TCP";
 	} else if (proto == IPPROTO_ICMP) {
-		printf("%-7s %-3s IPv4 %s > %s: ICMP, length %d, type %d, code %d\n",
-		       ifname, pkt_type_str(pkt_type), src_addr, dst_addr, len,
-		       packet[0], packet[1]);
+		tm_print("%-7s %-3s IPv4 %s > %s: ICMP, length %d, type %d, code %d\n",
+			 ifname, pkt_type_str(pkt_type), src_addr, dst_addr, len,
+			 packet[0], packet[1]);
 		return;
 	} else if (proto == IPPROTO_ICMPV6) {
-		printf("%-7s %-3s IPv6 %s > %s: ICMPv6, length %d, type %d, code %d\n",
-		       ifname, pkt_type_str(pkt_type), src_addr, dst_addr, len,
-		       packet[0], packet[1]);
+		tm_print("%-7s %-3s IPv6 %s > %s: ICMPv6, length %d, type %d, code %d\n",
+			 ifname, pkt_type_str(pkt_type), src_addr, dst_addr, len,
+			 packet[0], packet[1]);
 		return;
 	} else {
-		printf("%-7s %-3s %s %s > %s: protocol %d\n",
-		       ifname, pkt_type_str(pkt_type), ipv6 ? "IPv6" : "IPv4",
-		       src_addr, dst_addr, proto);
+		tm_print("%-7s %-3s %s %s > %s: protocol %d\n",
+			 ifname, pkt_type_str(pkt_type), ipv6 ? "IPv6" : "IPv4",
+			 src_addr, dst_addr, proto);
 		return;
 	}
 
@@ -843,13 +873,13 @@ static void show_transport(const u_char *packet, u16 len, u32 ifindex,
 			 tcp->ack ? ", ACK" : "");
 
 	if (ipv6)
-		printf("%-7s %-3s IPv6 %s.%d > %s.%d: %s, length %d%s\n",
-		       ifname, pkt_type_str(pkt_type), src_addr, src_port,
-		       dst_addr, dst_port, transport_str, len, flags);
+		tm_print("%-7s %-3s IPv6 %s.%d > %s.%d: %s, length %d%s\n",
+			 ifname, pkt_type_str(pkt_type), src_addr, src_port,
+			 dst_addr, dst_port, transport_str, len, flags);
 	else
-		printf("%-7s %-3s IPv4 %s:%d > %s:%d: %s, length %d%s\n",
-		       ifname, pkt_type_str(pkt_type), src_addr, src_port,
-		       dst_addr, dst_port, transport_str, len, flags);
+		tm_print("%-7s %-3s IPv4 %s:%d > %s:%d: %s, length %d%s\n",
+			 ifname, pkt_type_str(pkt_type), src_addr, src_port,
+			 dst_addr, dst_port, transport_str, len, flags);
 }
 
 static void show_ipv6_packet(const u_char *packet, u32 ifindex, u8 pkt_type)
@@ -964,8 +994,8 @@ static void *traffic_monitor_thread(void *arg)
 				ifname = _ifname;
 			}
 
-			printf("%-7s %-3s Unknown network protocol type 0x%x\n",
-			       ifname, pkt_type_str(ptype), proto);
+			tm_print("%-7s %-3s Unknown network protocol type 0x%x\n",
+				 ifname, pkt_type_str(ptype), proto);
 		}
 	}
 
@@ -1165,8 +1195,9 @@ void traffic_monitor_stop(struct tmonitor_ctx *ctx)
 	write(ctx->wake_fd, &w, sizeof(w));
 	pthread_join(ctx->thread, NULL);
 
-	printf("Packet file: %s\n", strrchr(ctx->pkt_fname, '/') + 1);
+	tm_print("Packet file: %s\n", strrchr(ctx->pkt_fname, '/') + 1);
 
 	traffic_monitor_release(ctx);
 }
+
 #endif /* TRAFFIC_MONITOR */
