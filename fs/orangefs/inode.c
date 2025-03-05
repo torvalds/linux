@@ -16,10 +16,10 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-static int orangefs_writepage_locked(struct page *page,
-    struct writeback_control *wbc)
+static int orangefs_writepage_locked(struct folio *folio,
+		struct writeback_control *wbc)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct orangefs_write_range *wr = NULL;
 	struct iov_iter iter;
 	struct bio_vec bv;
@@ -27,11 +27,11 @@ static int orangefs_writepage_locked(struct page *page,
 	ssize_t ret;
 	loff_t len, off;
 
-	set_page_writeback(page);
+	folio_start_writeback(folio);
 
 	len = i_size_read(inode);
-	if (PagePrivate(page)) {
-		wr = (struct orangefs_write_range *)page_private(page);
+	if (folio->private) {
+		wr = folio->private;
 		WARN_ON(wr->pos >= len);
 		off = wr->pos;
 		if (off + wr->len > len)
@@ -40,27 +40,27 @@ static int orangefs_writepage_locked(struct page *page,
 			wlen = wr->len;
 	} else {
 		WARN_ON(1);
-		off = page_offset(page);
-		if (off + PAGE_SIZE > len)
+		off = folio_pos(folio);
+		wlen = folio_size(folio);
+
+		if (wlen > len - off)
 			wlen = len - off;
-		else
-			wlen = PAGE_SIZE;
 	}
 	/* Should've been handled in orangefs_invalidate_folio. */
 	WARN_ON(off == len || off + wlen > len);
 
 	WARN_ON(wlen == 0);
-	bvec_set_page(&bv, page, wlen, off % PAGE_SIZE);
+	bvec_set_folio(&bv, folio, wlen, offset_in_folio(folio, off));
 	iov_iter_bvec(&iter, ITER_SOURCE, &bv, 1, wlen);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
 	    len, wr, NULL, NULL);
 	if (ret < 0) {
-		mapping_set_error(page->mapping, ret);
+		mapping_set_error(folio->mapping, ret);
 	} else {
 		ret = 0;
 	}
-	kfree(detach_page_private(page));
+	kfree(folio_detach_private(folio));
 	return ret;
 }
 
@@ -179,7 +179,7 @@ done:
 			orangefs_writepages_work(ow, wbc);
 			ow->npages = 0;
 		}
-		ret = orangefs_writepage_locked(&folio->page, wbc);
+		ret = orangefs_writepage_locked(folio, wbc);
 		mapping_set_error(folio->mapping, ret);
 		folio_unlock(folio);
 		folio_end_writeback(folio);
@@ -474,7 +474,7 @@ static int orangefs_launder_folio(struct folio *folio)
 	};
 	folio_wait_writeback(folio);
 	if (folio_clear_dirty_for_io(folio)) {
-		r = orangefs_writepage_locked(&folio->page, &wbc);
+		r = orangefs_writepage_locked(folio, &wbc);
 		folio_end_writeback(folio);
 	}
 	return r;
