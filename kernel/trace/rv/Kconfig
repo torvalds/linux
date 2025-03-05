@@ -28,6 +28,8 @@ menuconfig RV
 source "kernel/trace/rv/monitors/wip/Kconfig"
 source "kernel/trace/rv/monitors/wwnr/Kconfig"
 source "kernel/trace/rv/monitors/sched/Kconfig"
+source "kernel/trace/rv/monitors/tss/Kconfig"
+source "kernel/trace/rv/monitors/sco/Kconfig"
 # Add new monitors here
 
 config RV_REACTORS
