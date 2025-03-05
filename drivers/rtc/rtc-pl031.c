@@ -74,6 +74,8 @@
  * @st_weekday: if this is an ST Microelectronics silicon version that need
  *	the weekday fix
  * @irqflags: special IRQ flags per variant
+ * @range_min: minimum date/time supported by the RTC
+ * @range_max: maximum date/time supported by the RTC
  */
 struct pl031_vendor_data {
 	struct rtc_class_ops ops;
