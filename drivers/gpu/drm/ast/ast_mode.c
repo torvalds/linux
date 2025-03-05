@@ -51,6 +51,24 @@
 
 #define AST_LUT_SIZE 256
 
+static unsigned long ast_fb_vram_offset(void)
+{
+	return 0; // with shmem, the primary plane is always at offset 0
+}
+
+static unsigned long ast_fb_vram_size(struct ast_device *ast)
+{
+	struct drm_device *dev = &ast->base;
+	unsigned long offset = ast_fb_vram_offset(); // starts at offset
+	long cursor_offset = ast_cursor_vram_offset(ast); // ends at cursor offset
+
+	if (cursor_offset < 0)
+		cursor_offset = ast->vram_size; // no cursor; it's all ours
+	if (drm_WARN_ON_ONCE(dev, offset > cursor_offset))
+		return 0; // cannot legally happen; signal error
+	return cursor_offset - offset;
+}
+
 static inline void ast_load_palette_index(struct ast_device *ast,
 				     u8 index, u8 red, u8 green,
 				     u8 blue)
@@ -609,9 +627,8 @@ static int ast_primary_plane_init(struct ast_device *ast)
 	struct ast_plane *ast_primary_plane = &ast->primary_plane;
 	struct drm_plane *primary_plane = &ast_primary_plane->base;
 	void __iomem *vaddr = ast->vram;
-	u64 offset = 0; /* with shmem, the primary plane is always at offset 0 */
-	unsigned long cursor_size = roundup(AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE, PAGE_SIZE);
-	unsigned long size = ast->vram_fb_available - cursor_size;
+	u64 offset = ast_fb_vram_offset();
+	unsigned long size = ast_fb_vram_size(ast);
 	int ret;
 
 	ret = ast_plane_init(dev, ast_primary_plane, vaddr, offset, size,
@@ -942,7 +959,7 @@ static enum drm_mode_status ast_mode_config_mode_valid(struct drm_device *dev,
 	struct ast_device *ast = to_ast_device(dev);
 	unsigned long fbsize, fbpages, max_fbpages;
 
-	max_fbpages = (ast->vram_fb_available) >> PAGE_SHIFT;
+	max_fbpages = ast_fb_vram_size(ast) >> PAGE_SHIFT;
 
 	fbsize = mode->hdisplay * mode->vdisplay * max_bpp;
 	fbpages = DIV_ROUND_UP(fbsize, PAGE_SIZE);
