@@ -71,14 +71,15 @@ struct orangefs_writepages {
 	kgid_t gid;
 	int maxpages;
 	int npages;
+	struct address_space *mapping;
 	struct page **pages;
 	struct bio_vec *bv;
 };
 
 static int orangefs_writepages_work(struct orangefs_writepages *ow,
-    struct writeback_control *wbc)
+		struct writeback_control *wbc)
 {
-	struct inode *inode = ow->pages[0]->mapping->host;
+	struct inode *inode = ow->mapping->host;
 	struct orangefs_write_range *wrp, wr;
 	struct iov_iter iter;
 	ssize_t ret;
@@ -107,8 +108,8 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, ow->len,
 	    0, &wr, NULL, NULL);
 	if (ret < 0) {
+		mapping_set_error(ow->mapping, ret);
 		for (i = 0; i < ow->npages; i++) {
-			mapping_set_error(ow->pages[i]->mapping, ret);
 			if (PagePrivate(ow->pages[i])) {
 				wrp = (struct orangefs_write_range *)
 				    page_private(ow->pages[i]);
@@ -137,9 +138,8 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 }
 
 static int orangefs_writepages_callback(struct folio *folio,
-		struct writeback_control *wbc, void *data)
+		struct writeback_control *wbc, struct orangefs_writepages *ow)
 {
-	struct orangefs_writepages *ow = data;
 	struct orangefs_write_range *wr = folio->private;
 	int ret;
 
@@ -197,7 +197,9 @@ static int orangefs_writepages(struct address_space *mapping,
 {
 	struct orangefs_writepages *ow;
 	struct blk_plug plug;
-	int ret;
+	int error;
+	struct folio *folio = NULL;
+
 	ow = kzalloc(sizeof(struct orangefs_writepages), GFP_KERNEL);
 	if (!ow)
 		return -ENOMEM;
@@ -213,15 +215,17 @@ static int orangefs_writepages(struct address_space *mapping,
 		kfree(ow);
 		return -ENOMEM;
 	}
+	ow->mapping = mapping;
 	blk_start_plug(&plug);
-	ret = write_cache_pages(mapping, wbc, orangefs_writepages_callback, ow);
+	while ((folio = writeback_iter(mapping, wbc, folio, &error)))
+		error = orangefs_writepages_callback(folio, wbc, ow);
 	if (ow->npages)
-		ret = orangefs_writepages_work(ow, wbc);
+		error = orangefs_writepages_work(ow, wbc);
 	blk_finish_plug(&plug);
 	kfree(ow->pages);
 	kfree(ow->bv);
 	kfree(ow);
-	return ret;
+	return error;
 }
 
 static int orangefs_launder_folio(struct folio *);
