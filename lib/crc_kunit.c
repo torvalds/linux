@@ -226,8 +226,9 @@ crc_benchmark(struct kunit *test,
 	};
 	size_t len, i, j, num_iters;
 	/*
-	 * Some of the CRC library functions are marked as __pure, so use
-	 * volatile to ensure that all calls are really made as intended.
+	 * The CRC value that this function computes in a series of calls to
+	 * crc_func is never actually used, so use volatile to ensure that the
+	 * computations are done as intended and don't all get optimized out.
 	 */
 	volatile u64 crc = 0;
 	u64 t;
