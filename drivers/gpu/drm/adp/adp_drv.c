@@ -466,16 +466,12 @@ static int adp_parse_of(struct platform_device *pdev, struct adp_drv_private *ad
 	}
 
 	adp->be_irq = platform_get_irq_byname(pdev, "be");
-	if (adp->be_irq < 0) {
-		dev_err(dev, "failed to find be irq");
+	if (adp->be_irq < 0)
 		return adp->be_irq;
-	}
 
 	adp->fe_irq = platform_get_irq_byname(pdev, "fe");
-	if (adp->fe_irq < 0) {
-		dev_err(dev, "failed to find fe irq");
+	if (adp->fe_irq < 0)
 		return adp->fe_irq;
-	}
 
 	return 0;
 }
