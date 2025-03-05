@@ -64,15 +64,6 @@ static int orangefs_writepage_locked(struct page *page,
 	return ret;
 }
 
-static int orangefs_writepage(struct page *page, struct writeback_control *wbc)
-{
-	int ret;
-	ret = orangefs_writepage_locked(page, wbc);
-	unlock_page(page);
-	end_page_writeback(page);
-	return ret;
-}
-
 struct orangefs_writepages {
 	loff_t off;
 	size_t len;
@@ -605,7 +596,6 @@ out:
 
 /** ORANGEFS2 implementation of address space operations */
 static const struct address_space_operations orangefs_address_operations = {
-	.writepage = orangefs_writepage,
 	.readahead = orangefs_readahead,
 	.read_folio = orangefs_read_folio,
 	.writepages = orangefs_writepages,
@@ -615,6 +605,7 @@ static const struct address_space_operations orangefs_address_operations = {
 	.invalidate_folio = orangefs_invalidate_folio,
 	.release_folio = orangefs_release_folio,
 	.free_folio = orangefs_free_folio,
+	.migrate_folio = filemap_migrate_folio,
 	.launder_folio = orangefs_launder_folio,
 	.direct_IO = orangefs_direct_IO,
 };
