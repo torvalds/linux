@@ -35,8 +35,8 @@ u32 inet6_ehashfn(const struct net *net,
 	lhash = (__force u32)laddr->s6_addr32[3];
 	fhash = __ipv6_addr_jhash(faddr, tcp_ipv6_hash_secret);
 
-	return __inet6_ehashfn(lhash, lport, fhash, fport,
-			       inet6_ehash_secret + net_hash_mix(net));
+	return lport + __inet6_ehashfn(lhash, 0, fhash, fport,
+				       inet6_ehash_secret + net_hash_mix(net));
 }
 EXPORT_SYMBOL_GPL(inet6_ehashfn);
 
