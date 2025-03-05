@@ -46,8 +46,8 @@ static int force_online_offline;
 static int auto_mode;
 static int fact_enable_fail;
 static int cgroupv2;
+static int max_pkg_id;
 static int max_die_id;
-static int max_punit_id;
 static int max_die_id_package_0;
 
 /* clos related */
@@ -567,7 +567,7 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 	}
 
 	for (i = 0; i < MAX_PACKAGE_COUNT; i++) {
-		if (max_die_id == max_punit_id) {
+		if (max_die_id > max_pkg_id) {
 			for (k = 0; k < MAX_PUNIT_PER_DIE && k < MAX_DIE_PER_PACKAGE; k++) {
 				id.cpu = cpus[i][k][k];
 				id.pkg = i;
@@ -794,6 +794,8 @@ static void create_cpu_map(void)
 		cpu_map[i].die_id = die_id;
 		cpu_map[i].core_id = core_id;
 
+		if (max_pkg_id < pkg_id)
+			max_pkg_id = pkg_id;
 
 		punit_id = 0;
 
@@ -817,9 +819,6 @@ static void create_cpu_map(void)
 
 		if (max_die_id < die_id)
 			max_die_id = die_id;
-
-		if (max_punit_id < cpu_map[i].punit_id)
-			max_punit_id = cpu_map[i].punit_id;
 
 		if (!pkg_id && max_die_id_package_0 < die_id)
 			max_die_id_package_0 = die_id;
