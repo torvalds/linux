@@ -37,12 +37,12 @@ static void encrypt_region(struct kvm_vm *vm, struct userspace_mem_region *regio
 void sev_vm_init(struct kvm_vm *vm)
 {
 	if (vm->type == KVM_X86_DEFAULT_VM) {
-		assert(vm->arch.sev_fd == -1);
+		TEST_ASSERT_EQ(vm->arch.sev_fd, -1);
 		vm->arch.sev_fd = open_sev_dev_path_or_exit();
 		vm_sev_ioctl(vm, KVM_SEV_INIT, NULL);
 	} else {
 		struct kvm_sev_init init = { 0 };
-		assert(vm->type == KVM_X86_SEV_VM);
+		TEST_ASSERT_EQ(vm->type, KVM_X86_SEV_VM);
 		vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
 	}
 }
@@ -50,12 +50,12 @@ void sev_vm_init(struct kvm_vm *vm)
 void sev_es_vm_init(struct kvm_vm *vm)
 {
 	if (vm->type == KVM_X86_DEFAULT_VM) {
-		assert(vm->arch.sev_fd == -1);
+		TEST_ASSERT_EQ(vm->arch.sev_fd, -1);
 		vm->arch.sev_fd = open_sev_dev_path_or_exit();
 		vm_sev_ioctl(vm, KVM_SEV_ES_INIT, NULL);
 	} else {
 		struct kvm_sev_init init = { 0 };
-		assert(vm->type == KVM_X86_SEV_ES_VM);
+		TEST_ASSERT_EQ(vm->type, KVM_X86_SEV_ES_VM);
 		vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
 	}
 }
