@@ -321,6 +321,54 @@ void zpool_unmap_handle(struct zpool *zpool, unsigned long handle)
 }
 
 /**
+ * zpool_obj_read_begin() - Start reading from a previously allocated handle.
+ * @zpool:	The zpool that the handle was allocated from
+ * @handle:	The handle to read from
+ * @local_copy:	A local buffer to use if needed.
+ *
+ * This starts a read operation of a previously allocated handle. The passed
+ * @local_copy buffer may be used if needed by copying the memory into.
+ * zpool_obj_read_end() MUST be called after the read is completed to undo any
+ * actions taken (e.g. release locks).
+ *
+ * Returns: A pointer to the handle memory to be read, if @local_copy is used,
+ * the returned pointer is @local_copy.
+ */
+void *zpool_obj_read_begin(struct zpool *zpool, unsigned long handle,
+			   void *local_copy)
+{
+	return zpool->driver->obj_read_begin(zpool->pool, handle, local_copy);
+}
+
+/**
+ * zpool_obj_read_end() - Finish reading from a previously allocated handle.
+ * @zpool:	The zpool that the handle was allocated from
+ * @handle:	The handle to read from
+ * @handle_mem:	The pointer returned by zpool_obj_read_begin()
+ *
+ * Finishes a read operation previously started by zpool_obj_read_begin().
+ */
+void zpool_obj_read_end(struct zpool *zpool, unsigned long handle,
+			void *handle_mem)
+{
+	zpool->driver->obj_read_end(zpool->pool, handle, handle_mem);
+}
+
+/**
+ * zpool_obj_write() - Write to a previously allocated handle.
+ * @zpool:	The zpool that the handle was allocated from
+ * @handle:	The handle to read from
+ * @handle_mem:	The memory to copy from into the handle.
+ * @mem_len:	The length of memory to be written.
+ *
+ */
+void zpool_obj_write(struct zpool *zpool, unsigned long handle,
+		     void *handle_mem, size_t mem_len)
+{
+	zpool->driver->obj_write(zpool->pool, handle, handle_mem, mem_len);
+}
+
+/**
  * zpool_get_total_pages() - The total size of the pool
  * @zpool:	The zpool to check
  *
