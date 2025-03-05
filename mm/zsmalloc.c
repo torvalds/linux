@@ -482,31 +482,6 @@ static void zs_zpool_free(void *pool, unsigned long handle)
 	zs_free(pool, handle);
 }
 
-static void *zs_zpool_map(void *pool, unsigned long handle,
-			enum zpool_mapmode mm)
-{
-	enum zs_mapmode zs_mm;
-
-	switch (mm) {
-	case ZPOOL_MM_RO:
-		zs_mm = ZS_MM_RO;
-		break;
-	case ZPOOL_MM_WO:
-		zs_mm = ZS_MM_WO;
-		break;
-	case ZPOOL_MM_RW:
-	default:
-		zs_mm = ZS_MM_RW;
-		break;
-	}
-
-	return zs_map_object(pool, handle, zs_mm);
-}
-static void zs_zpool_unmap(void *pool, unsigned long handle)
-{
-	zs_unmap_object(pool, handle);
-}
-
 static void *zs_zpool_obj_read_begin(void *pool, unsigned long handle,
 				     void *local_copy)
 {
@@ -538,8 +513,6 @@ static struct zpool_driver zs_zpool_driver = {
 	.malloc_support_movable = true,
 	.malloc =		  zs_zpool_malloc,
 	.free =			  zs_zpool_free,
-	.map =			  zs_zpool_map,
-	.unmap =		  zs_zpool_unmap,
 	.obj_read_begin =	  zs_zpool_obj_read_begin,
 	.obj_read_end  =	  zs_zpool_obj_read_end,
 	.obj_write =		  zs_zpool_obj_write,
