@@ -732,13 +732,6 @@ static int dell_wmi_ddv_remove_battery(struct power_supply *battery, struct acpi
 	return 0;
 }
 
-static void dell_wmi_ddv_battery_remove(void *data)
-{
-	struct acpi_battery_hook *hook = data;
-
-	battery_hook_unregister(hook);
-}
-
 static int dell_wmi_ddv_battery_add(struct dell_wmi_ddv_data *data)
 {
 	data->hook.name = "Dell DDV Battery Extension";
@@ -755,9 +748,7 @@ static int dell_wmi_ddv_battery_add(struct dell_wmi_ddv_data *data)
 	data->eppid_attr.attr.mode = 0444;
 	data->eppid_attr.show = eppid_show;
 
-	battery_hook_register(&data->hook);
-
-	return devm_add_action_or_reset(&data->wdev->dev, dell_wmi_ddv_battery_remove, &data->hook);
+	return devm_battery_hook_register(&data->wdev->dev, &data->hook);
 }
 
 static int dell_wmi_ddv_buffer_read(struct seq_file *seq, enum dell_ddv_method method)
