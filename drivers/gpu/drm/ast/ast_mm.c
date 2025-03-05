@@ -37,9 +37,10 @@ static u32 ast_get_vram_size(struct ast_device *ast)
 {
 	u8 jreg;
 	u32 vram_size;
+	u8 vgacraa;
 
-	jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xaa, 0xff);
-	switch (jreg & 3) {
+	vgacraa = ast_get_index_reg(ast, AST_IO_VGACRI, 0xaa);
+	switch (vgacraa & AST_IO_VGACRAA_VGAMEM_SIZE_MASK) {
 	case 0:
 		vram_size = SZ_8M;
 		break;
