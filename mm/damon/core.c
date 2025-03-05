@@ -281,7 +281,14 @@ struct damos_filter *damos_new_filter(enum damos_filter_type type,
 	return filter;
 }
 
-static bool damos_filter_for_ops(enum damos_filter_type type)
+/**
+ * damos_filter_for_ops() - Return if the filter is ops-hndled one.
+ * @type:	type of the filter.
+ *
+ * Return: true if the filter of @type needs to be handled by ops layer, false
+ * otherwise.
+ */
+bool damos_filter_for_ops(enum damos_filter_type type)
 {
 	switch (type) {
 	case DAMOS_FILTER_TYPE_ADDR:

@@ -894,6 +894,7 @@ void damon_update_region_access_rate(struct damon_region *r, bool accessed,
 struct damos_filter *damos_new_filter(enum damos_filter_type type,
 		bool matching, bool allow);
 void damos_add_filter(struct damos *s, struct damos_filter *f);
+bool damos_filter_for_ops(enum damos_filter_type type);
 void damos_destroy_filter(struct damos_filter *f);
 
 struct damos_quota_goal *damos_new_quota_goal(
