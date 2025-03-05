@@ -3595,13 +3595,41 @@ F:	drivers/hwmon/asus_wmi_sensors.c
 
 ASYMMETRIC KEYS
 M:	David Howells <dhowells@redhat.com>
+M:	Lukas Wunner <lukas@wunner.de>
+M:	Ignat Korchagin <ignat@cloudflare.com>
 L:	keyrings@vger.kernel.org
+L:	linux-crypto@vger.kernel.org
 S:	Maintained
 F:	Documentation/crypto/asymmetric-keys.rst
 F:	crypto/asymmetric_keys/
 F:	include/crypto/pkcs7.h
 F:	include/crypto/public_key.h
+F:	include/keys/asymmetric-*.h
 F:	include/linux/verification.h
+
+ASYMMETRIC KEYS - ECDSA
+M:	Lukas Wunner <lukas@wunner.de>
+M:	Ignat Korchagin <ignat@cloudflare.com>
+R:	Stefan Berger <stefanb@linux.ibm.com>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	crypto/ecc*
+F:	crypto/ecdsa*
+F:	include/crypto/ecc*
+
+ASYMMETRIC KEYS - GOST
+M:	Lukas Wunner <lukas@wunner.de>
+M:	Ignat Korchagin <ignat@cloudflare.com>
+L:	linux-crypto@vger.kernel.org
+S:	Odd fixes
+F:	crypto/ecrdsa*
+
+ASYMMETRIC KEYS - RSA
+M:	Lukas Wunner <lukas@wunner.de>
+M:	Ignat Korchagin <ignat@cloudflare.com>
+L:	linux-crypto@vger.kernel.org
+S:	Maintained
+F:	crypto/rsa*
 
 ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
 R:	Dan Williams <dan.j.williams@intel.com>
