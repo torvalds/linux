@@ -158,8 +158,9 @@ static const struct seq_operations monitor_reactors_seq_ops = {
 	.show	= monitor_reactor_show
 };
 
-static void monitor_swap_reactors(struct rv_monitor_def *mdef, struct rv_reactor_def *rdef,
-				    bool reacting)
+static void monitor_swap_reactors_single(struct rv_monitor_def *mdef,
+					 struct rv_reactor_def *rdef,
+					 bool reacting, bool nested)
 {
 	bool monitor_enabled;
 
@@ -179,8 +180,29 @@ static void monitor_swap_reactors(struct rv_monitor_def *mdef, struct rv_reactor
 	mdef->reacting = reacting;
 	mdef->monitor->react = rdef->reactor->react;
 
-	if (monitor_enabled)
+	/* enable only once if iterating through a container */
+	if (monitor_enabled && !nested)
 		rv_enable_monitor(mdef);
+}
+
+static void monitor_swap_reactors(struct rv_monitor_def *mdef,
+				  struct rv_reactor_def *rdef, bool reacting)
+{
+	struct rv_monitor_def *p = mdef;
+
+	if (rv_is_container_monitor(mdef))
+		list_for_each_entry_continue(p, &rv_monitors_list, list) {
+			if (p->parent != mdef->monitor)
+				break;
+			monitor_swap_reactors_single(p, rdef, reacting, true);
+		}
+	/*
+	 * This call enables and disables the monitor if they were active.
+	 * In case of a container, we already disabled all and will enable all.
+	 * All nested monitors are enabled also if they were off, we may refine
+	 * this logic in the future.
+	 */
+	monitor_swap_reactors_single(mdef, rdef, reacting, false);
 }
 
 static ssize_t
