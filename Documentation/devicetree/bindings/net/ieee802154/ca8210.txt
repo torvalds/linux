@@ -20,7 +20,7 @@ Example:
 		reg = <0>;
 		spi-max-frequency = <3000000>;
 		spi-cpol;
-		reset-gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio1 1 GPIO_ACTIVE_LOW>;
 		irq-gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		extclock-enable;
 		extclock-freq = 16000000;
