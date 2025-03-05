@@ -166,11 +166,12 @@ static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
 
 static int get_metrics_table(struct amd_pmc_dev *pdev, struct smu_metrics *table)
 {
-	if (!pdev->smu_virt_addr) {
-		int ret = amd_pmc_setup_smu_logging(pdev);
+	int rc;
 
-		if (ret)
-			return ret;
+	if (!pdev->smu_virt_addr) {
+		rc = amd_pmc_setup_smu_logging(pdev);
+		if (rc)
+			return rc;
 	}
 
 	if (pdev->cpu_id == AMD_CPU_ID_PCO)
@@ -219,10 +220,10 @@ static ssize_t smu_fw_version_show(struct device *d, struct device_attribute *at
 				   char *buf)
 {
 	struct amd_pmc_dev *dev = dev_get_drvdata(d);
+	int rc;
 
 	if (!dev->major) {
-		int rc = amd_pmc_get_smu_version(dev);
-
+		rc = amd_pmc_get_smu_version(dev);
 		if (rc)
 			return rc;
 	}
@@ -233,10 +234,10 @@ static ssize_t smu_program_show(struct device *d, struct device_attribute *attr,
 				   char *buf)
 {
 	struct amd_pmc_dev *dev = dev_get_drvdata(d);
+	int rc;
 
 	if (!dev->major) {
-		int rc = amd_pmc_get_smu_version(dev);
-
+		rc = amd_pmc_get_smu_version(dev);
 		if (rc)
 			return rc;
 	}
@@ -697,14 +698,14 @@ static struct acpi_s2idle_dev_ops amd_pmc_s2idle_dev_ops = {
 static int amd_pmc_suspend_handler(struct device *dev)
 {
 	struct amd_pmc_dev *pdev = dev_get_drvdata(dev);
+	int rc;
 
 	/*
 	 * Must be called only from the same set of dev_pm_ops handlers
 	 * as i8042_pm_suspend() is called: currently just from .suspend.
 	 */
 	if (pdev->disable_8042_wakeup && !disable_workarounds) {
-		int rc = amd_pmc_wa_irq1(pdev);
-
+		rc = amd_pmc_wa_irq1(pdev);
 		if (rc) {
 			dev_err(pdev->dev, "failed to adjust keyboard wakeup: %d\n", rc);
 			return rc;
@@ -743,7 +744,6 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	u32 val;
 
 	dev->dev = &pdev->dev;
-
 	rdev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0, 0));
 	if (!rdev || !pci_match_id(pmc_pci_ids, rdev)) {
 		err = -ENODEV;
@@ -751,7 +751,6 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	}
 
 	dev->cpu_id = rdev->device;
-
 	if (dev->cpu_id == AMD_CPU_ID_SP || dev->cpu_id == AMD_CPU_ID_SHP) {
 		dev_warn_once(dev->dev, "S0i3 is not supported on this hardware\n");
 		err = -ENODEV;
@@ -767,7 +766,6 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	}
 
 	base_addr_lo = val & AMD_PMC_BASE_ADDR_HI_MASK;
-
 	err = amd_smn_read(0, AMD_PMC_BASE_ADDR_HI, &val);
 	if (err) {
 		dev_err(dev->dev, "error reading 0x%x\n", AMD_PMC_BASE_ADDR_HI);
