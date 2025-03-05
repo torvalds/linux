@@ -3693,7 +3693,7 @@ EXPORT_SYMBOL(tcp_sock_set_keepcnt);
 
 int tcp_set_window_clamp(struct sock *sk, int val)
 {
-	u32 old_window_clamp, new_window_clamp;
+	u32 old_window_clamp, new_window_clamp, new_rcv_ssthresh;
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	if (!val) {
@@ -3714,12 +3714,12 @@ int tcp_set_window_clamp(struct sock *sk, int val)
 	/* Need to apply the reserved mem provisioning only
 	 * when shrinking the window clamp.
 	 */
-	if (new_window_clamp < old_window_clamp)
+	if (new_window_clamp < old_window_clamp) {
 		__tcp_adjust_rcv_ssthresh(sk, new_window_clamp);
-	else
-		tp->rcv_ssthresh = clamp(new_window_clamp,
-					 tp->rcv_ssthresh,
-					 tp->rcv_wnd);
+	} else {
+		new_rcv_ssthresh = min(tp->rcv_wnd, new_window_clamp);
+		tp->rcv_ssthresh = max(new_rcv_ssthresh, tp->rcv_ssthresh);
+	}
 	return 0;
 }
 
