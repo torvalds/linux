@@ -8264,7 +8264,7 @@ take care to differentiate between these cases.
 :Architectures: arm64
 :Target: VM
 :Parameters: None
-:Returns: 0 on success, -EBUSY if vCPUs have been created before enabling this
+:Returns: 0 on success, -EINVAL if vCPUs have been created before enabling this
           capability.
 
 This capability changes the behavior of the registers that identify a PE
