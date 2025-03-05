@@ -218,4 +218,155 @@ TEST_F(pidfd_info, success_reaped_poll)
 	ASSERT_EQ(WTERMSIG(info.exit_code), SIGKILL);
 }
 
+static void *pidfd_info_pause_thread(void *arg)
+{
+	pid_t pid_thread = gettid();
+	int ipc_socket = *(int *)arg;
+
+	/* Inform the grand-parent what the tid of this thread is. */
+	if (write_nointr(ipc_socket, &pid_thread, sizeof(pid_thread)) != sizeof(pid_thread))
+		return NULL;
+
+	close(ipc_socket);
+
+	/* Sleep untill we're killed. */
+	pause();
+	return NULL;
+}
+
+TEST_F(pidfd_info, thread_group)
+{
+	pid_t pid_leader, pid_thread;
+	pthread_t thread;
+	int nevents, pidfd_leader, pidfd_thread, pidfd_leader_thread, ret;
+	int ipc_sockets[2];
+	struct pollfd fds = {};
+	struct pidfd_info info = {
+		.mask = PIDFD_INFO_CGROUPID | PIDFD_INFO_EXIT,
+	}, info2;
+
+	ret = socketpair(AF_LOCAL, SOCK_STREAM | SOCK_CLOEXEC, 0, ipc_sockets);
+	EXPECT_EQ(ret, 0);
+
+	pid_leader = create_child(&pidfd_leader, 0);
+	EXPECT_GE(pid_leader, 0);
+
+	if (pid_leader == 0) {
+		close(ipc_sockets[0]);
+
+		/* The thread will outlive the thread-group leader. */
+		if (pthread_create(&thread, NULL, pidfd_info_pause_thread, &ipc_sockets[1]))
+			syscall(__NR_exit, EXIT_FAILURE);
+
+		/* Make the thread-group leader exit prematurely. */
+		syscall(__NR_exit, EXIT_SUCCESS);
+	}
+
+	/* Retrieve the tid of the thread. */
+	EXPECT_EQ(close(ipc_sockets[1]), 0);
+	ASSERT_EQ(read_nointr(ipc_sockets[0], &pid_thread, sizeof(pid_thread)), sizeof(pid_thread));
+	EXPECT_EQ(close(ipc_sockets[0]), 0);
+
+	/* Opening a thread as a thread-group leader must fail. */
+	pidfd_thread = sys_pidfd_open(pid_thread, 0);
+	ASSERT_LT(pidfd_thread, 0);
+
+	/* Opening a thread as a PIDFD_THREAD must succeed. */
+	pidfd_thread = sys_pidfd_open(pid_thread, PIDFD_THREAD);
+	ASSERT_GE(pidfd_thread, 0);
+
+	/*
+	 * Opening a PIDFD_THREAD aka thread-specific pidfd based on a
+	 * thread-group leader must succeed.
+	 */
+	pidfd_leader_thread = sys_pidfd_open(pid_leader, PIDFD_THREAD);
+	ASSERT_GE(pidfd_leader_thread, 0);
+
+	/*
+	 * Note that pidfd_leader is a thread-group pidfd, so polling on it
+	 * would only notify us once all thread in the thread-group have
+	 * exited. So we can't poll before we have taken down the whole
+	 * thread-group.
+	 */
+
+	/* Get PIDFD_GET_INFO using the thread-group leader pidfd. */
+	ASSERT_EQ(ioctl(pidfd_leader, PIDFD_GET_INFO, &info), 0);
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_CREDS));
+	/* Process has exited but not been reaped, so no PIDFD_INFO_EXIT information yet. */
+	ASSERT_FALSE(!!(info.mask & PIDFD_INFO_EXIT));
+	ASSERT_EQ(info.pid, pid_leader);
+
+	/*
+	 * Now retrieve the same info using the thread specific pidfd
+	 * for the thread-group leader.
+	 */
+	info2.mask = PIDFD_INFO_CGROUPID | PIDFD_INFO_EXIT;
+	ASSERT_EQ(ioctl(pidfd_leader_thread, PIDFD_GET_INFO, &info2), 0);
+	ASSERT_TRUE(!!(info2.mask & PIDFD_INFO_CREDS));
+	/* Process has exited but not been reaped, so no PIDFD_INFO_EXIT information yet. */
+	ASSERT_FALSE(!!(info2.mask & PIDFD_INFO_EXIT));
+	ASSERT_EQ(info2.pid, pid_leader);
+
+	/* Now try the thread-specific pidfd. */
+	ASSERT_EQ(ioctl(pidfd_thread, PIDFD_GET_INFO, &info), 0);
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_CREDS));
+	/* The thread hasn't exited, so no PIDFD_INFO_EXIT information yet. */
+	ASSERT_FALSE(!!(info.mask & PIDFD_INFO_EXIT));
+	ASSERT_EQ(info.pid, pid_thread);
+
+	/*
+	 * Take down the whole thread-group. The thread-group leader
+	 * exited successfully but the thread will now be SIGKILLed.
+	 * This must be reflected in the recorded exit information.
+	 */
+	EXPECT_EQ(sys_pidfd_send_signal(pidfd_leader, SIGKILL, NULL, 0), 0);
+	EXPECT_EQ(sys_waitid(P_PIDFD, pidfd_leader, NULL, WEXITED), 0);
+
+	fds.events = POLLIN;
+	fds.fd = pidfd_leader;
+	nevents = poll(&fds, 1, -1);
+	ASSERT_EQ(nevents, 1);
+	ASSERT_TRUE(!!(fds.revents & POLLIN));
+	/* The thread-group leader has been reaped. */
+	ASSERT_TRUE(!!(fds.revents & POLLHUP));
+
+	/*
+	 * Retrieve exit information for the thread-group leader via the
+	 * thread-group leader pidfd.
+	 */
+	info.mask = PIDFD_INFO_CGROUPID | PIDFD_INFO_EXIT;
+	ASSERT_EQ(ioctl(pidfd_leader, PIDFD_GET_INFO, &info), 0);
+	ASSERT_FALSE(!!(info.mask & PIDFD_INFO_CREDS));
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_EXIT));
+	/* The thread-group leader exited successfully. Only the specific thread was SIGKILLed. */
+	ASSERT_TRUE(WIFEXITED(info.exit_code));
+	ASSERT_EQ(WEXITSTATUS(info.exit_code), 0);
+
+	/*
+	 * Retrieve exit information for the thread-group leader via the
+	 * thread-specific pidfd.
+	 */
+	info2.mask = PIDFD_INFO_CGROUPID | PIDFD_INFO_EXIT;
+	ASSERT_EQ(ioctl(pidfd_leader_thread, PIDFD_GET_INFO, &info2), 0);
+	ASSERT_FALSE(!!(info2.mask & PIDFD_INFO_CREDS));
+	ASSERT_TRUE(!!(info2.mask & PIDFD_INFO_EXIT));
+
+	/* The thread-group leader exited successfully. Only the specific thread was SIGKILLed. */
+	ASSERT_TRUE(WIFEXITED(info2.exit_code));
+	ASSERT_EQ(WEXITSTATUS(info2.exit_code), 0);
+
+	/* Retrieve exit information for the thread. */
+	info.mask = PIDFD_INFO_CGROUPID | PIDFD_INFO_EXIT;
+	ASSERT_EQ(ioctl(pidfd_thread, PIDFD_GET_INFO, &info), 0);
+	ASSERT_FALSE(!!(info.mask & PIDFD_INFO_CREDS));
+	ASSERT_TRUE(!!(info.mask & PIDFD_INFO_EXIT));
+
+	/* The thread got SIGKILLed. */
+	ASSERT_TRUE(WIFSIGNALED(info.exit_code));
+	ASSERT_EQ(WTERMSIG(info.exit_code), SIGKILL);
+
+	EXPECT_EQ(close(pidfd_leader), 0);
+	EXPECT_EQ(close(pidfd_thread), 0);
+}
+
 TEST_HARNESS_MAIN

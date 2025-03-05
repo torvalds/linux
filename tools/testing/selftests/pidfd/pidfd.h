@@ -131,6 +131,10 @@
 #define PIDFD_INFO_EXIT			(1UL << 3) /* Always returned if available, even if not requested */
 #endif
 
+#ifndef PIDFD_THREAD
+#define PIDFD_THREAD O_EXCL
+#endif
+
 struct pidfd_info {
 	__u64 mask;
 	__u64 cgroupid;
