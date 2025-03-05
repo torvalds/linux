@@ -20,6 +20,7 @@
 #define PIDFD_INFO_PID			(1UL << 0) /* Always returned, even if not requested */
 #define PIDFD_INFO_CREDS		(1UL << 1) /* Always returned, even if not requested */
 #define PIDFD_INFO_CGROUPID		(1UL << 2) /* Always returned if available, even if not requested */
+#define PIDFD_INFO_EXIT			(1UL << 3) /* Only returned if requested. */
 
 #define PIDFD_INFO_SIZE_VER0		64 /* sizeof first published struct */
 
@@ -86,7 +87,7 @@ struct pidfd_info {
 	__u32 sgid;
 	__u32 fsuid;
 	__u32 fsgid;
-	__u32 spare0[1];
+	__s32 exit_code;
 };
 
 #define PIDFS_IOCTL_MAGIC 0xFF

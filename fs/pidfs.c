@@ -36,7 +36,8 @@ struct pidfs_exit_info {
 };
 
 struct pidfs_inode {
-	struct pidfs_exit_info exit_info;
+	struct pidfs_exit_info __pei;
+	struct pidfs_exit_info *exit_info;
 	struct inode vfs_inode;
 };
 
@@ -228,17 +229,28 @@ static __poll_t pidfd_poll(struct file *file, struct poll_table_struct *pts)
 	return poll_flags;
 }
 
-static long pidfd_info(struct task_struct *task, unsigned int cmd, unsigned long arg)
+static inline bool pid_in_current_pidns(const struct pid *pid)
+{
+	const struct pid_namespace *ns = task_active_pid_ns(current);
+
+	if (ns->level <= pid->level)
+		return pid->numbers[ns->level].ns == ns;
+
+	return false;
+}
+
+static long pidfd_info(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct pidfd_info __user *uinfo = (struct pidfd_info __user *)arg;
+	struct inode *inode = file_inode(file);
+	struct pid *pid = pidfd_pid(file);
 	size_t usize = _IOC_SIZE(cmd);
 	struct pidfd_info kinfo = {};
+	struct pidfs_exit_info *exit_info;
 	struct user_namespace *user_ns;
+	struct task_struct *task;
 	const struct cred *c;
 	__u64 mask;
-#ifdef CONFIG_CGROUPS
-	struct cgroup *cgrp;
-#endif
 
 	if (!uinfo)
 		return -EINVAL;
@@ -247,6 +259,37 @@ static long pidfd_info(struct task_struct *task, unsigned int cmd, unsigned long
 
 	if (copy_from_user(&mask, &uinfo->mask, sizeof(mask)))
 		return -EFAULT;
+
+	/*
+	 * Restrict information retrieval to tasks within the caller's pid
+	 * namespace hierarchy.
+	 */
+	if (!pid_in_current_pidns(pid))
+		return -ESRCH;
+
+	if (mask & PIDFD_INFO_EXIT) {
+		exit_info = READ_ONCE(pidfs_i(inode)->exit_info);
+		if (exit_info) {
+			kinfo.mask |= PIDFD_INFO_EXIT;
+#ifdef CONFIG_CGROUPS
+			kinfo.cgroupid = exit_info->cgroupid;
+			kinfo.mask |= PIDFD_INFO_CGROUPID;
+#endif
+			kinfo.exit_code = exit_info->exit_code;
+		}
+	}
+
+	task = get_pid_task(pid, PIDTYPE_PID);
+	if (!task) {
+		/*
+		 * If the task has already been reaped, only exit
+		 * information is available
+		 */
+		if (!(mask & PIDFD_INFO_EXIT))
+			return -ESRCH;
+
+		goto copy_out;
+	}
 
 	c = get_task_cred(task);
 	if (!c)
@@ -267,11 +310,15 @@ static long pidfd_info(struct task_struct *task, unsigned int cmd, unsigned long
 	put_cred(c);
 
 #ifdef CONFIG_CGROUPS
-	rcu_read_lock();
-	cgrp = task_dfl_cgroup(task);
-	kinfo.cgroupid = cgroup_id(cgrp);
-	kinfo.mask |= PIDFD_INFO_CGROUPID;
-	rcu_read_unlock();
+	if (!kinfo.cgroupid) {
+		struct cgroup *cgrp;
+
+		rcu_read_lock();
+		cgrp = task_dfl_cgroup(task);
+		kinfo.cgroupid = cgroup_id(cgrp);
+		kinfo.mask |= PIDFD_INFO_CGROUPID;
+		rcu_read_unlock();
+	}
 #endif
 
 	/*
@@ -291,6 +338,7 @@ static long pidfd_info(struct task_struct *task, unsigned int cmd, unsigned long
 	if (kinfo.pid == 0 || kinfo.tgid == 0 || (kinfo.ppid == 0 && kinfo.pid != 1))
 		return -ESRCH;
 
+copy_out:
 	/*
 	 * If userspace and the kernel have the same struct size it can just
 	 * be copied. If userspace provides an older struct, only the bits that
@@ -325,7 +373,6 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct task_struct *task __free(put_task) = NULL;
 	struct nsproxy *nsp __free(put_nsproxy) = NULL;
-	struct pid *pid = pidfd_pid(file);
 	struct ns_common *ns_common = NULL;
 	struct pid_namespace *pid_ns;
 
@@ -340,13 +387,13 @@ static long pidfd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(file_inode(file)->i_generation, argp);
 	}
 
-	task = get_pid_task(pid, PIDTYPE_PID);
-	if (!task)
-		return -ESRCH;
-
 	/* Extensible IOCTL that does not open namespace FDs, take a shortcut */
 	if (_IOC_NR(cmd) == _IOC_NR(PIDFD_GET_INFO))
-		return pidfd_info(task, cmd, arg);
+		return pidfd_info(file, cmd, arg);
+
+	task = get_pid_task(pidfd_pid(file), PIDTYPE_PID);
+	if (!task)
+		return -ESRCH;
 
 	if (arg)
 		return -EINVAL;
@@ -484,7 +531,7 @@ void pidfs_exit(struct task_struct *tsk)
 	dentry = stashed_dentry_get(&task_pid(tsk)->stashed);
 	if (dentry) {
 		struct inode *inode = d_inode(dentry);
-		struct pidfs_exit_info *exit_info = &pidfs_i(inode)->exit_info;
+		struct pidfs_exit_info *exit_info = &pidfs_i(inode)->__pei;
 #ifdef CONFIG_CGROUPS
 		struct cgroup *cgrp;
 
@@ -495,6 +542,8 @@ void pidfs_exit(struct task_struct *tsk)
 #endif
 		exit_info->exit_code = tsk->exit_code;
 
+		/* Ensure that PIDFD_GET_INFO sees either all or nothing. */
+		smp_store_release(&pidfs_i(inode)->exit_info, &pidfs_i(inode)->__pei);
 		dput(dentry);
 	}
 }
@@ -562,7 +611,8 @@ static struct inode *pidfs_alloc_inode(struct super_block *sb)
 	if (!pi)
 		return NULL;
 
-	memset(&pi->exit_info, 0, sizeof(pi->exit_info));
+	memset(&pi->__pei, 0, sizeof(pi->__pei));
+	pi->exit_info = NULL;
 
 	return &pi->vfs_inode;
 }
