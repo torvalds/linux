@@ -2042,11 +2042,6 @@ static int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **re
 	if (IS_ERR(pidfd_file))
 		return PTR_ERR(pidfd_file);
 
-	/*
-	 * anon_inode_getfile() ignores everything outside of the
-	 * O_ACCMODE | O_NONBLOCK mask, set PIDFD_THREAD manually.
-	 */
-	pidfd_file->f_flags |= (flags & PIDFD_THREAD);
 	*ret = pidfd_file;
 	return take_fd(pidfd);
 }

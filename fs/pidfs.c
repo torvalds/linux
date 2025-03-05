@@ -696,6 +696,10 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 		return ERR_PTR(ret);
 
 	pidfd_file = dentry_open(&path, flags, current_cred());
+	/* Raise PIDFD_THREAD explicitly as do_dentry_open() strips it. */
+	if (!IS_ERR(pidfd_file))
+		pidfd_file->f_flags |= (flags & PIDFD_THREAD);
+
 	path_put(&path);
 	return pidfd_file;
 }
