@@ -31,6 +31,30 @@ static const struct snd_soc_acpi_endpoint sdw_mockup_r_endpoint = {
 	.group_id = 1,
 };
 
+static const struct snd_soc_acpi_endpoint jack_amp_g1_dmic_endpoints[] = {
+	/* Jack Endpoint */
+	{
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	/* Amp Endpoint, work as spk_l_endpoint */
+	{
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 0,
+		.group_id = 1,
+	},
+	/* DMIC Endpoint */
+	{
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
 static const struct snd_soc_acpi_adr_device sdw_mockup_headset_0_adr[] = {
 	{
 		.adr = 0x0000000105AA5500ull,
@@ -103,6 +127,15 @@ static const struct snd_soc_acpi_adr_device sdw_mockup_amp_2_group1_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_adr_device sdw_mockup_multi_function_adr[] = {
+	{
+		.adr = 0x0000000105AAAA01ull,
+		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints),
+		.endpoints = jack_amp_g1_dmic_endpoints,
+		.name_prefix = "sdw_mockup_mmulti-function"
+	}
+};
+
 const struct snd_soc_acpi_link_adr sdw_mockup_headset_1amp_mic[] = {
 	{
 		.mask = BIT(0),
@@ -161,6 +194,15 @@ const struct snd_soc_acpi_link_adr sdw_mockup_mic_headset_1amp[] = {
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(sdw_mockup_mic_0_adr),
 		.adr_d = sdw_mockup_mic_0_adr,
+	},
+	{}
+};
+
+const struct snd_soc_acpi_link_adr sdw_mockup_multi_func[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(sdw_mockup_multi_function_adr),
+		.adr_d = sdw_mockup_multi_function_adr,
 	},
 	{}
 };
