@@ -531,3 +531,32 @@ unsigned long ttm_tt_pages_limit(void)
 	return ttm_pages_limit;
 }
 EXPORT_SYMBOL(ttm_tt_pages_limit);
+
+/**
+ * ttm_tt_setup_backup() - Allocate and assign a backup structure for a ttm_tt
+ * @tt: The ttm_tt for wich to allocate and assign a backup structure.
+ *
+ * Assign a backup structure to be used for tt backup. This should
+ * typically be done at bo creation, to avoid allocations at shrinking
+ * time.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+int ttm_tt_setup_backup(struct ttm_tt *tt)
+{
+	struct ttm_backup *backup =
+		ttm_backup_shmem_create(((loff_t)tt->num_pages) << PAGE_SHIFT);
+
+	if (WARN_ON_ONCE(!(tt->page_flags & TTM_TT_FLAG_EXTERNAL_MAPPABLE)))
+		return -EINVAL;
+
+	if (IS_ERR(backup))
+		return PTR_ERR(backup);
+
+	if (tt->backup)
+		ttm_backup_fini(tt->backup);
+
+	tt->backup = backup;
+	return 0;
+}
+EXPORT_SYMBOL(ttm_tt_setup_backup);

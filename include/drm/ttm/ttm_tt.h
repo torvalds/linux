@@ -298,6 +298,8 @@ long ttm_tt_backup(struct ttm_device *bdev, struct ttm_tt *tt,
 int ttm_tt_restore(struct ttm_device *bdev, struct ttm_tt *tt,
 		   const struct ttm_operation_ctx *ctx);
 
+int ttm_tt_setup_backup(struct ttm_tt *tt);
+
 #if IS_ENABLED(CONFIG_AGP)
 #include <linux/agp_backend.h>
 
