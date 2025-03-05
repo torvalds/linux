@@ -1504,6 +1504,8 @@ struct damon_sysfs_scheme {
 	unsigned long apply_interval_us;
 	struct damon_sysfs_quotas *quotas;
 	struct damon_sysfs_watermarks *watermarks;
+	struct damon_sysfs_scheme_filters *core_filters;
+	struct damon_sysfs_scheme_filters *ops_filters;
 	struct damon_sysfs_scheme_filters *filters;
 	struct damon_sysfs_stats *stats;
 	struct damon_sysfs_scheme_regions *tried_regions;
@@ -1624,6 +1626,33 @@ static int damon_sysfs_scheme_set_filters(struct damon_sysfs_scheme *scheme,
 	return err;
 }
 
+static int damos_sysfs_set_filter_dirs(struct damon_sysfs_scheme *scheme)
+{
+	int err;
+
+	err = damon_sysfs_scheme_set_filters(scheme, "filters",
+			&scheme->filters);
+	if (err)
+		return err;
+	err = damon_sysfs_scheme_set_filters(scheme, "core_filters",
+			&scheme->core_filters);
+	if (err)
+		goto put_filters_out;
+	err = damon_sysfs_scheme_set_filters(scheme, "ops_filters",
+			&scheme->ops_filters);
+	if (err)
+		goto put_core_filters_out;
+	return 0;
+
+put_core_filters_out:
+	kobject_put(&scheme->core_filters->kobj);
+	scheme->core_filters = NULL;
+put_filters_out:
+	kobject_put(&scheme->filters->kobj);
+	scheme->filters = NULL;
+	return err;
+}
+
 static int damon_sysfs_scheme_set_stats(struct damon_sysfs_scheme *scheme)
 {
 	struct damon_sysfs_stats *stats = damon_sysfs_stats_alloc();
@@ -1672,8 +1701,7 @@ static int damon_sysfs_scheme_add_dirs(struct damon_sysfs_scheme *scheme)
 	err = damon_sysfs_scheme_set_watermarks(scheme);
 	if (err)
 		goto put_quotas_access_pattern_out;
-	err = damon_sysfs_scheme_set_filters(scheme, "filters",
-			&scheme->filters);
+	err = damos_sysfs_set_filter_dirs(scheme);
 	if (err)
 		goto put_watermarks_quotas_access_pattern_out;
 	err = damon_sysfs_scheme_set_stats(scheme);
@@ -1688,6 +1716,10 @@ put_tried_regions_out:
 	kobject_put(&scheme->tried_regions->kobj);
 	scheme->tried_regions = NULL;
 put_filters_watermarks_quotas_access_pattern_out:
+	kobject_put(&scheme->ops_filters->kobj);
+	scheme->ops_filters = NULL;
+	kobject_put(&scheme->core_filters->kobj);
+	scheme->core_filters = NULL;
 	kobject_put(&scheme->filters->kobj);
 	scheme->filters = NULL;
 put_watermarks_quotas_access_pattern_out:
@@ -1711,6 +1743,10 @@ static void damon_sysfs_scheme_rm_dirs(struct damon_sysfs_scheme *scheme)
 	kobject_put(&scheme->watermarks->kobj);
 	damon_sysfs_scheme_filters_rm_dirs(scheme->filters);
 	kobject_put(&scheme->filters->kobj);
+	damon_sysfs_scheme_filters_rm_dirs(scheme->core_filters);
+	kobject_put(&scheme->core_filters->kobj);
+	damon_sysfs_scheme_filters_rm_dirs(scheme->ops_filters);
+	kobject_put(&scheme->ops_filters->kobj);
 	kobject_put(&scheme->stats->kobj);
 	damon_sysfs_scheme_regions_rm_dirs(scheme->tried_regions);
 	kobject_put(&scheme->tried_regions->kobj);
