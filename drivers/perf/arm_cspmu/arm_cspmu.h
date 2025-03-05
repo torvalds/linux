@@ -149,11 +149,11 @@ struct arm_cspmu_impl_ops {
 	bool (*is_cycle_counter_event)(const struct perf_event *event);
 	/* Decode event type/id from configs */
 	u32 (*event_type)(const struct perf_event *event);
-	/* Decode filter value from configs */
-	u32 (*event_filter)(const struct perf_event *event);
-	/* Set event filter */
+	/* Set event filters */
+	void (*set_cc_filter)(struct arm_cspmu *cspmu,
+			      const struct perf_event *event);
 	void (*set_ev_filter)(struct arm_cspmu *cspmu,
-			      struct hw_perf_event *hwc, u32 filter);
+			      const struct perf_event *event);
 	/* Implementation specific event validation */
 	int (*validate_event)(struct arm_cspmu *cspmu,
 			      struct perf_event *event);

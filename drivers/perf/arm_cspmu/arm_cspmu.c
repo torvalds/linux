@@ -66,7 +66,9 @@ static unsigned long arm_cspmu_cpuhp_state;
 static DEFINE_MUTEX(arm_cspmu_lock);
 
 static void arm_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
-				    struct hw_perf_event *hwc, u32 filter);
+				    const struct perf_event *event);
+static void arm_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
+				    const struct perf_event *event);
 
 static struct acpi_apmt_node *arm_cspmu_apmt_node(struct device *dev)
 {
@@ -203,11 +205,6 @@ static u32 arm_cspmu_event_type(const struct perf_event *event)
 static bool arm_cspmu_is_cycle_counter_event(const struct perf_event *event)
 {
 	return (event->attr.config == ARM_CSPMU_EVT_CYCLES_DEFAULT);
-}
-
-static u32 arm_cspmu_event_filter(const struct perf_event *event)
-{
-	return event->attr.config1 & ARM_CSPMU_FILTER_MASK;
 }
 
 static ssize_t arm_cspmu_identifier_show(struct device *dev,
@@ -371,7 +368,7 @@ static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 		DEFAULT_IMPL_OP(get_name),
 		DEFAULT_IMPL_OP(is_cycle_counter_event),
 		DEFAULT_IMPL_OP(event_type),
-		DEFAULT_IMPL_OP(event_filter),
+		DEFAULT_IMPL_OP(set_cc_filter),
 		DEFAULT_IMPL_OP(set_ev_filter),
 		DEFAULT_IMPL_OP(event_attr_is_visible),
 	};
@@ -767,26 +764,26 @@ static inline void arm_cspmu_set_event(struct arm_cspmu *cspmu,
 }
 
 static void arm_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
-					struct hw_perf_event *hwc,
-					u32 filter)
+				    const struct perf_event *event)
 {
+	u32 filter = event->attr.config1 & ARM_CSPMU_FILTER_MASK;
 	u32 offset = PMEVFILTR + (4 * hwc->idx);
 
 	writel(filter, cspmu->base0 + offset);
 }
 
-static inline void arm_cspmu_set_cc_filter(struct arm_cspmu *cspmu, u32 filter)
+static void arm_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
+				    const struct perf_event *event)
 {
-	u32 offset = PMCCFILTR;
+	u32 filter = event->attr.config1 & ARM_CSPMU_FILTER_MASK;
 
-	writel(filter, cspmu->base0 + offset);
+	writel(filter, cspmu->base0 + PMCCFILTR);
 }
 
 static void arm_cspmu_start(struct perf_event *event, int pmu_flags)
 {
 	struct arm_cspmu *cspmu = to_arm_cspmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
-	u32 filter;
 
 	/* We always reprogram the counter */
 	if (pmu_flags & PERF_EF_RELOAD)
@@ -794,13 +791,11 @@ static void arm_cspmu_start(struct perf_event *event, int pmu_flags)
 
 	arm_cspmu_set_event_period(event);
 
-	filter = cspmu->impl.ops.event_filter(event);
-
 	if (event->hw.extra_reg.idx == cspmu->cycle_counter_logical_idx) {
-		arm_cspmu_set_cc_filter(cspmu, filter);
+		cspmu->impl.ops.set_cc_filter(cspmu, event);
 	} else {
 		arm_cspmu_set_event(cspmu, hwc);
-		cspmu->impl.ops.set_ev_filter(cspmu, hwc, filter);
+		cspmu->impl.ops.set_ev_filter(cspmu, event);
 	}
 
 	hwc->state = 0;
