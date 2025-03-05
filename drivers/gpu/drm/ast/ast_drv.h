@@ -432,6 +432,7 @@ int ast_vga_output_init(struct ast_device *ast);
 int ast_sil164_output_init(struct ast_device *ast);
 
 /* ast_cursor.c */
+long ast_cursor_vram_offset(struct ast_device *ast);
 int ast_cursor_plane_init(struct ast_device *ast);
 
 /* ast dp501 */

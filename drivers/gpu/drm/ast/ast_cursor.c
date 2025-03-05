@@ -45,6 +45,21 @@
 #define AST_HWC_SIGNATURE_HOTSPOTX	0x14
 #define AST_HWC_SIGNATURE_HOTSPOTY	0x18
 
+static unsigned long ast_cursor_vram_size(void)
+{
+	return AST_HWC_SIZE + AST_HWC_SIGNATURE_SIZE;
+}
+
+long ast_cursor_vram_offset(struct ast_device *ast)
+{
+	unsigned long size = ast_cursor_vram_size();
+
+	if (size > ast->vram_size)
+		return -EINVAL;
+
+	return PAGE_ALIGN_DOWN(ast->vram_size - size);
+}
+
 static u32 ast_cursor_calculate_checksum(const void *src, unsigned int width, unsigned int height)
 {
 	u32 csum = 0;
@@ -276,7 +291,7 @@ int ast_cursor_plane_init(struct ast_device *ast)
 	struct drm_plane *cursor_plane = &ast_plane->base;
 	size_t size;
 	void __iomem *vaddr;
-	u64 offset;
+	long offset;
 	int ret;
 
 	/*
@@ -290,7 +305,9 @@ int ast_cursor_plane_init(struct ast_device *ast)
 		return -ENOMEM;
 
 	vaddr = ast->vram + ast->vram_fb_available - size;
-	offset = ast->vram_fb_available - size;
+	offset = ast_cursor_vram_offset(ast);
+	if (offset < 0)
+		return offset;
 
 	ret = ast_plane_init(dev, ast_plane, vaddr, offset, size,
 			     0x01, &ast_cursor_plane_funcs,
