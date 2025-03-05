@@ -714,35 +714,6 @@ bool perf_pmus__supports_extended_type(void)
 	return perf_pmus__do_support_extended_type;
 }
 
-char *perf_pmus__default_pmu_name(void)
-{
-	int fd;
-	struct io_dir dir;
-	struct io_dirent64 *dent;
-	char *result = NULL;
-
-	if (!list_empty(&core_pmus))
-		return strdup(list_first_entry(&core_pmus, struct perf_pmu, list)->name);
-
-	fd = perf_pmu__event_source_devices_fd();
-	if (fd < 0)
-		return strdup("cpu");
-
-	io_dir__init(&dir, fd);
-
-	while ((dent = io_dir__readdir(&dir)) != NULL) {
-		if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, ".."))
-			continue;
-		if (is_pmu_core(dent->d_name)) {
-			result = strdup(dent->d_name);
-			break;
-		}
-	}
-
-	close(fd);
-	return result ?: strdup("cpu");
-}
-
 struct perf_pmu *evsel__find_pmu(const struct evsel *evsel)
 {
 	struct perf_pmu *pmu = evsel->pmu;
