@@ -35,9 +35,8 @@
 
 static u32 ast_get_vram_size(struct ast_device *ast)
 {
-	u8 jreg;
 	u32 vram_size;
-	u8 vgacraa;
+	u8 vgacr99, vgacraa;
 
 	vgacraa = ast_get_index_reg(ast, AST_IO_VGACRI, 0xaa);
 	switch (vgacraa & AST_IO_VGACRAA_VGAMEM_SIZE_MASK) {
@@ -55,16 +54,16 @@ static u32 ast_get_vram_size(struct ast_device *ast)
 		break;
 	}
 
-	jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0x99, 0xff);
-	switch (jreg & 0x03) {
+	vgacr99 = ast_get_index_reg(ast, AST_IO_VGACRI, 0x99);
+	switch (vgacr99 & AST_IO_VGACR99_VGAMEM_RSRV_MASK) {
 	case 1:
-		vram_size -= 0x100000;
+		vram_size -= SZ_1M;
 		break;
 	case 2:
-		vram_size -= 0x200000;
+		vram_size -= SZ_2M;
 		break;
 	case 3:
-		vram_size -= 0x400000;
+		vram_size -= SZ_4M;
 		break;
 	}
 
