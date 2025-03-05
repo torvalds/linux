@@ -203,6 +203,15 @@ static void of_gpio_try_fixup_polarity(const struct device_node *np,
 		 */
 		{ "qi,lb60",		"rb-gpios",	true },
 #endif
+#if IS_ENABLED(CONFIG_IEEE802154_CA8210)
+		/*
+		 * According to the datasheet, the NRST pin 27 is an active-low
+		 * signal. However, the device tree schema and admittedly
+		 * the out-of-tree implementations have been used for a long
+		 * time incorrectly by describing reset GPIO as active-high.
+		 */
+		{ "cascoda,ca8210",	"reset-gpio",	false },
+#endif
 #if IS_ENABLED(CONFIG_PCI_LANTIQ)
 		/*
 		 * According to the PCI specification, the RST# pin is an
