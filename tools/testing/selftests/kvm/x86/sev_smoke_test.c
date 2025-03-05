@@ -16,6 +16,18 @@
 
 #define XFEATURE_MASK_X87_AVX (XFEATURE_MASK_FP | XFEATURE_MASK_SSE | XFEATURE_MASK_YMM)
 
+static void guest_snp_code(void)
+{
+	uint64_t sev_msr = rdmsr(MSR_AMD64_SEV);
+
+	GUEST_ASSERT(sev_msr & MSR_AMD64_SEV_ENABLED);
+	GUEST_ASSERT(sev_msr & MSR_AMD64_SEV_ES_ENABLED);
+	GUEST_ASSERT(sev_msr & MSR_AMD64_SEV_SNP_ENABLED);
+
+	wrmsr(MSR_AMD64_SEV_ES_GHCB, GHCB_MSR_TERM_REQ);
+	vmgexit();
+}
+
 static void guest_sev_es_code(void)
 {
 	/* TODO: Check CPUID after GHCB-based hypercall support is added. */
@@ -180,7 +192,10 @@ static void test_sev_smoke(void *guest, uint32_t type, uint64_t policy)
 {
 	const u64 xf_mask = XFEATURE_MASK_X87_AVX;
 
-	test_sev(guest, type, policy | SEV_POLICY_NO_DBG);
+	if (type == KVM_X86_SNP_VM)
+		test_sev(guest, type, policy | SNP_POLICY_DBG);
+	else
+		test_sev(guest, type, policy | SEV_POLICY_NO_DBG);
 	test_sev(guest, type, policy);
 
 	if (type == KVM_X86_SEV_VM)
@@ -191,7 +206,10 @@ static void test_sev_smoke(void *guest, uint32_t type, uint64_t policy)
 	if (kvm_has_cap(KVM_CAP_XCRS) &&
 	    (xgetbv(0) & kvm_cpu_supported_xcr0() & xf_mask) == xf_mask) {
 		test_sync_vmsa(type, policy);
-		test_sync_vmsa(type, policy | SEV_POLICY_NO_DBG);
+		if (type == KVM_X86_SNP_VM)
+			test_sync_vmsa(type, policy | SNP_POLICY_DBG);
+		else
+			test_sync_vmsa(type, policy | SEV_POLICY_NO_DBG);
 	}
 }
 
@@ -203,6 +221,9 @@ int main(int argc, char *argv[])
 
 	if (kvm_cpu_has(X86_FEATURE_SEV_ES))
 		test_sev_smoke(guest_sev_es_code, KVM_X86_SEV_ES_VM, SEV_POLICY_ES);
+
+	if (kvm_cpu_has(X86_FEATURE_SEV_SNP))
+		test_sev_smoke(guest_snp_code, KVM_X86_SNP_VM, snp_default_policy());
 
 	return 0;
 }
