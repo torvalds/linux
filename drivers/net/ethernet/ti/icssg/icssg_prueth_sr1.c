@@ -84,7 +84,7 @@ static int emac_send_command_sr1(struct prueth_emac *emac, u32 cmd)
 	__le32 *data = emac->cmd_data;
 	dma_addr_t desc_dma, buf_dma;
 	struct prueth_tx_chn *tx_chn;
-	void **swdata;
+	struct prueth_swdata *swdata;
 	int ret = 0;
 	u32 *epib;
 
@@ -122,7 +122,8 @@ static int emac_send_command_sr1(struct prueth_emac *emac, u32 cmd)
 
 	cppi5_hdesc_attach_buf(first_desc, buf_dma, pkt_len, buf_dma, pkt_len);
 	swdata = cppi5_hdesc_get_swdata(first_desc);
-	*swdata = data;
+	swdata->type = PRUETH_SWDATA_CMD;
+	swdata->data.cmd = le32_to_cpu(data[0]);
 
 	cppi5_hdesc_set_pktlen(first_desc, pkt_len);
 	desc_dma = k3_cppi_desc_pool_virt2dma(tx_chn->desc_pool, first_desc);
@@ -275,9 +276,9 @@ static struct page *prueth_process_rx_mgm(struct prueth_emac *emac,
 	struct net_device *ndev = emac->ndev;
 	struct cppi5_host_desc_t *desc_rx;
 	struct page *page, *new_page;
+	struct prueth_swdata *swdata;
 	dma_addr_t desc_dma, buf_dma;
 	u32 buf_dma_len;
-	void **swdata;
 	int ret;
 
 	ret = k3_udma_glue_pop_rx_chn(rx_chn->rx_chn, flow_id, &desc_dma);
@@ -299,7 +300,7 @@ static struct page *prueth_process_rx_mgm(struct prueth_emac *emac,
 	}
 
 	swdata = cppi5_hdesc_get_swdata(desc_rx);
-	page = *swdata;
+	page = swdata->data.page;
 	cppi5_hdesc_get_obuf(desc_rx, &buf_dma, &buf_dma_len);
 
 	dma_unmap_single(rx_chn->dma_dev, buf_dma, buf_dma_len, DMA_FROM_DEVICE);
