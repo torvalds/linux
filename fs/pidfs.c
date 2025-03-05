@@ -276,10 +276,7 @@ static long pidfd_info(struct task_struct *task, unsigned int cmd, unsigned long
 	 * userspace knows about will be copied. If userspace provides a new
 	 * struct, only the bits that the kernel knows about will be copied.
 	 */
-	if (copy_to_user(uinfo, &kinfo, min(usize, sizeof(kinfo))))
-		return -EFAULT;
-
-	return 0;
+	return copy_struct_to_user(uinfo, usize, &kinfo, sizeof(kinfo), NULL);
 }
 
 static bool pidfs_ioctl_valid(unsigned int cmd)
