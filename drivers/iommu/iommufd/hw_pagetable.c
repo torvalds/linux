@@ -159,6 +159,7 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 			goto out_abort;
 		}
 	}
+	hwpt->domain->iommufd_hwpt = hwpt;
 	iommu_domain_set_sw_msi(hwpt->domain, iommufd_sw_msi);
 
 	/*
@@ -255,6 +256,7 @@ iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
 		goto out_abort;
 	}
 	hwpt->domain->owner = ops;
+	hwpt->domain->iommufd_hwpt = hwpt;
 	iommu_domain_set_sw_msi(hwpt->domain, iommufd_sw_msi);
 
 	if (WARN_ON_ONCE(hwpt->domain->type != IOMMU_DOMAIN_NESTED)) {
@@ -311,6 +313,7 @@ iommufd_viommu_alloc_hwpt_nested(struct iommufd_viommu *viommu, u32 flags,
 		hwpt->domain = NULL;
 		goto out_abort;
 	}
+	hwpt->domain->iommufd_hwpt = hwpt;
 	hwpt->domain->owner = viommu->iommu_dev->ops;
 	iommu_domain_set_sw_msi(hwpt->domain, iommufd_sw_msi);
 
@@ -415,7 +418,6 @@ int iommufd_hwpt_alloc(struct iommufd_ucmd *ucmd)
 		refcount_inc(&fault->obj.users);
 		iommufd_put_object(ucmd->ictx, &fault->obj);
 	}
-	hwpt->domain->iommufd_hwpt = hwpt;
 
 	cmd->out_hwpt_id = hwpt->obj.id;
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
