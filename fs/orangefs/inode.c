@@ -107,33 +107,23 @@ static int orangefs_writepages_work(struct orangefs_writepages *ow,
 	wr.gid = ow->gid;
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, ow->len,
 	    0, &wr, NULL, NULL);
-	if (ret < 0) {
+	if (ret < 0)
 		mapping_set_error(ow->mapping, ret);
-		for (i = 0; i < ow->npages; i++) {
-			if (PagePrivate(ow->pages[i])) {
-				wrp = (struct orangefs_write_range *)
-				    page_private(ow->pages[i]);
-				ClearPagePrivate(ow->pages[i]);
-				put_page(ow->pages[i]);
-				kfree(wrp);
-			}
-			end_page_writeback(ow->pages[i]);
-			unlock_page(ow->pages[i]);
-		}
-	} else {
+	else
 		ret = 0;
-		for (i = 0; i < ow->npages; i++) {
-			if (PagePrivate(ow->pages[i])) {
-				wrp = (struct orangefs_write_range *)
-				    page_private(ow->pages[i]);
-				ClearPagePrivate(ow->pages[i]);
-				put_page(ow->pages[i]);
-				kfree(wrp);
-			}
-			end_page_writeback(ow->pages[i]);
-			unlock_page(ow->pages[i]);
+
+	for (i = 0; i < ow->npages; i++) {
+		if (PagePrivate(ow->pages[i])) {
+			wrp = (struct orangefs_write_range *)
+			    page_private(ow->pages[i]);
+			ClearPagePrivate(ow->pages[i]);
+			put_page(ow->pages[i]);
+			kfree(wrp);
 		}
+		end_page_writeback(ow->pages[i]);
+		unlock_page(ow->pages[i]);
 	}
+
 	return ret;
 }
 
