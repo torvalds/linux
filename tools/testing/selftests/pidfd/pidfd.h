@@ -254,4 +254,11 @@ static inline ssize_t write_nointr(int fd, const void *buf, size_t count)
 	return ret;
 }
 
+static inline int sys_execveat(int dirfd, const char *pathname,
+			       char *const argv[], char *const envp[],
+			       int flags)
+{
+        return syscall(__NR_execveat, dirfd, pathname, argv, envp, flags);
+}
+
 #endif /* __PIDFD_H */
