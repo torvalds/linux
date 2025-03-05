@@ -114,6 +114,7 @@ static int blk_validate_integrity_limits(struct queue_limits *lim)
 			pr_warn("invalid PI settings.\n");
 			return -EINVAL;
 		}
+		bi->flags |= BLK_INTEGRITY_NOGENERATE | BLK_INTEGRITY_NOVERIFY;
 		return 0;
 	}
 
