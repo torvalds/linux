@@ -154,13 +154,18 @@ void v4l_bound_align_image(u32 *w, unsigned int wmin, unsigned int wmax,
 EXPORT_SYMBOL_GPL(v4l_bound_align_image);
 
 const void *
-__v4l2_find_nearest_size(const void *array, size_t array_size,
-			 size_t entry_size, size_t width_offset,
-			 size_t height_offset, s32 width, s32 height)
+__v4l2_find_nearest_size_conditional(const void *array, size_t array_size,
+				     size_t entry_size, size_t width_offset,
+				     size_t height_offset, s32 width,
+				     s32 height,
+				     bool (*func)(const void *array,
+						  size_t index,
+						  const void *context),
+				     const void *context)
 {
 	u32 error, min_error = U32_MAX;
 	const void *best = NULL;
-	unsigned int i;
+	size_t i;
 
 	if (!array)
 		return NULL;
@@ -168,6 +173,9 @@ __v4l2_find_nearest_size(const void *array, size_t array_size,
 	for (i = 0; i < array_size; i++, array += entry_size) {
 		const u32 *entry_width = array + width_offset;
 		const u32 *entry_height = array + height_offset;
+
+		if (func && !func(array, i, context))
+			continue;
 
 		error = abs(*entry_width - width) + abs(*entry_height - height);
 		if (error > min_error)
@@ -181,7 +189,7 @@ __v4l2_find_nearest_size(const void *array, size_t array_size,
 
 	return best;
 }
-EXPORT_SYMBOL_GPL(__v4l2_find_nearest_size);
+EXPORT_SYMBOL_GPL(__v4l2_find_nearest_size_conditional);
 
 int v4l2_g_parm_cap(struct video_device *vdev,
 		    struct v4l2_subdev *sd, struct v4l2_streamparm *a)
