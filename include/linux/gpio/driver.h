@@ -540,7 +540,7 @@ struct gpio_chip {
 	unsigned int of_gpio_n_cells;
 
 	/**
-	 * of_node_instance_match:
+	 * @of_node_instance_match:
 	 *
 	 * Determine if a chip is the right instance. Must be implemented by
 	 * any driver using more than one gpio_chip per device tree node.
