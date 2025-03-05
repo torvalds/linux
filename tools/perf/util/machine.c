@@ -779,6 +779,10 @@ int machine__process_ksymbol(struct machine *machine __maybe_unused,
 	if (dump_trace)
 		perf_event__fprintf_ksymbol(event, stdout);
 
+	/* no need to process non-JIT BPF as it cannot get samples */
+	if (event->ksymbol.len == 0)
+		return 0;
+
 	if (event->ksymbol.flags & PERF_RECORD_KSYMBOL_FLAGS_UNREGISTER)
 		return machine__process_ksymbol_unregister(machine, event,
 							   sample);
