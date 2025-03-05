@@ -376,6 +376,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 	},
 	{
 		.link_mask = BIT(0),
+		.links = sdw_mockup_multi_func,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-ptl-rt722.tplg", /* Reuse the existing tplg file */
+	},
+	{
+		.link_mask = BIT(0),
 		.links = ptl_rvp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-ptl-rt711.tplg",
