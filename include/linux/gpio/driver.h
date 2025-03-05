@@ -720,6 +720,7 @@ bool gpiochip_line_is_open_source(struct gpio_chip *gc, unsigned int offset);
 /* Sleep persistence inquiry for drivers */
 bool gpiochip_line_is_persistent(struct gpio_chip *gc, unsigned int offset);
 bool gpiochip_line_is_valid(const struct gpio_chip *gc, unsigned int offset);
+const unsigned long *gpiochip_query_valid_mask(const struct gpio_chip *gc);
 
 /* get driver data */
 void *gpiochip_get_data(struct gpio_chip *gc);
