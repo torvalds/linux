@@ -418,8 +418,13 @@ cmis_fw_update_commit_image(struct ethtool_cmis_cdb *cdb,
 static int cmis_fw_update_reset(struct net_device *dev)
 {
 	__u32 reset_data = ETH_RESET_PHY;
+	int ret;
 
-	return dev->ethtool_ops->reset(dev, &reset_data);
+	netdev_lock_ops(dev);
+	ret = dev->ethtool_ops->reset(dev, &reset_data);
+	netdev_unlock_ops(dev);
+
+	return ret;
 }
 
 void
