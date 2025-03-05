@@ -23567,6 +23567,7 @@ static void compute_insn_live_regs(struct bpf_verifier_env *env,
 	case BPF_JMP32:
 		switch (code) {
 		case BPF_JA:
+		case BPF_JCOND:
 			def = 0;
 			use = 0;
 			break;
