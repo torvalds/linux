@@ -88,27 +88,7 @@ static void stdio_hijack(char **log_buf, size_t *log_cnt)
 #endif
 }
 
-static void stdio_restore_cleanup(void)
-{
-#ifdef __GLIBC__
-	if (verbose() && env.worker_id == -1) {
-		/* nothing to do, output to stdout by default */
-		return;
-	}
-
-	fflush(stdout);
-
-	if (env.subtest_state) {
-		fclose(env.subtest_state->stdout_saved);
-		env.subtest_state->stdout_saved = NULL;
-		stdout = env.test_state->stdout_saved;
-		stderr = env.test_state->stdout_saved;
-	} else {
-		fclose(env.test_state->stdout_saved);
-		env.test_state->stdout_saved = NULL;
-	}
-#endif
-}
+static pthread_mutex_t stdout_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void stdio_restore(void)
 {
@@ -118,14 +98,33 @@ static void stdio_restore(void)
 		return;
 	}
 
-	if (stdout == env.stdout_saved)
-		return;
+	fflush(stdout);
 
-	stdio_restore_cleanup();
+	pthread_mutex_lock(&stdout_lock);
 
-	stdout = env.stdout_saved;
-	stderr = env.stderr_saved;
+	if (env.subtest_state) {
+		fclose(env.subtest_state->stdout_saved);
+		env.subtest_state->stdout_saved = NULL;
+		stdout = env.test_state->stdout_saved;
+		stderr = env.test_state->stdout_saved;
+	} else {
+		fclose(env.test_state->stdout_saved);
+		env.test_state->stdout_saved = NULL;
+		stdout = env.stdout_saved;
+		stderr = env.stderr_saved;
+	}
+
+	pthread_mutex_unlock(&stdout_lock);
 #endif
+}
+
+static int traffic_monitor_print_fn(const char *format, va_list args)
+{
+	pthread_mutex_lock(&stdout_lock);
+	vfprintf(stdout, format, args);
+	pthread_mutex_unlock(&stdout_lock);
+
+	return 0;
 }
 
 /* Adapted from perf/util/string.c */
@@ -536,7 +535,8 @@ void test__end_subtest(void)
 				   test_result(subtest_state->error_cnt,
 					       subtest_state->skipped));
 
-	stdio_restore_cleanup();
+	stdio_restore();
+
 	env.subtest_state = NULL;
 }
 
@@ -1265,7 +1265,10 @@ void crash_handler(int signum)
 
 	sz = backtrace(bt, ARRAY_SIZE(bt));
 
-	stdio_restore();
+	fflush(stdout);
+	stdout = env.stdout_saved;
+	stderr = env.stderr_saved;
+
 	if (env.test) {
 		env.test_state->error_cnt++;
 		dump_test_log(env.test, env.test_state, true, false, NULL);
@@ -1956,6 +1959,8 @@ int main(int argc, char **argv)
 	/* Use libbpf 1.0 API mode */
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 	libbpf_set_print(libbpf_print_fn);
+
+	traffic_monitor_set_print(traffic_monitor_print_fn);
 
 	srand(time(NULL));
 
