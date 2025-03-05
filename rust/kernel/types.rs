@@ -251,7 +251,7 @@ impl<T, F: FnOnce(T)> Drop for ScopeGuard<T, F> {
 
 /// Stores an opaque value.
 ///
-/// `Opaque<T>` is meant to be used with FFI objects that are never interpreted by Rust code.
+/// [`Opaque<T>`] is meant to be used with FFI objects that are never interpreted by Rust code.
 ///
 /// It is used to wrap structs from the C side, like for example `Opaque<bindings::mutex>`.
 /// It gets rid of all the usual assumptions that Rust has for a value:
@@ -266,7 +266,7 @@ impl<T, F: FnOnce(T)> Drop for ScopeGuard<T, F> {
 /// This has to be used for all values that the C side has access to, because it can't be ensured
 /// that the C side is adhering to the usual constraints that Rust needs.
 ///
-/// Using `Opaque<T>` allows to continue to use references on the Rust side even for values shared
+/// Using [`Opaque<T>`] allows to continue to use references on the Rust side even for values shared
 /// with C.
 ///
 /// # Examples
