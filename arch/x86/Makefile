@@ -269,6 +269,21 @@ archheaders:
 	$(Q)$(MAKE) $(build)=arch/x86/entry/syscalls all
 
 ###
+# <asm/cpufeaturemasks.h> header generation
+
+cpufeaturemasks.hdr := arch/x86/include/generated/asm/cpufeaturemasks.h
+cpufeaturemasks.awk := $(srctree)/arch/x86/tools/cpufeaturemasks.awk
+cpufeatures_hdr := $(srctree)/arch/x86/include/asm/cpufeatures.h
+targets += $(cpufeaturemasks.hdr)
+quiet_cmd_gen_featuremasks = GEN     $@
+      cmd_gen_featuremasks = $(AWK) -f $(cpufeaturemasks.awk) $(cpufeatures_hdr) $(KCONFIG_CONFIG) > $@
+
+$(cpufeaturemasks.hdr): $(cpufeaturemasks.awk) $(cpufeatures_hdr) $(KCONFIG_CONFIG) FORCE
+	$(shell mkdir -p $(dir $@))
+	$(call if_changed,gen_featuremasks)
+archprepare: $(cpufeaturemasks.hdr)
+
+###
 # Kernel objects
 
 libs-y  += arch/x86/lib/

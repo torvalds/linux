@@ -9,6 +9,7 @@
 #include <asm/asm.h>
 #include <linux/bitops.h>
 #include <asm/alternative.h>
+#include <asm/cpufeaturemasks.h>
 
 enum cpuid_leafs
 {
