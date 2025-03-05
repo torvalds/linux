@@ -257,8 +257,7 @@ bool bnxt_dev_is_vf_rep(struct net_device *dev)
 
 /* Called when the parent PF interface is closed:
  * As the mode transition from SWITCHDEV to LEGACY
- * happens under the rtnl_lock() this routine is safe
- * under the rtnl_lock()
+ * happens under the netdev instance lock this routine is safe
  */
 void bnxt_vf_reps_close(struct bnxt *bp)
 {
@@ -278,8 +277,7 @@ void bnxt_vf_reps_close(struct bnxt *bp)
 
 /* Called when the parent PF interface is opened (re-opened):
  * As the mode transition from SWITCHDEV to LEGACY
- * happen under the rtnl_lock() this routine is safe
- * under the rtnl_lock()
+ * happen under the netdev instance lock this routine is safe
  */
 void bnxt_vf_reps_open(struct bnxt *bp)
 {
@@ -348,7 +346,7 @@ void bnxt_vf_reps_destroy(struct bnxt *bp)
 	/* Ensure that parent PF's and VF-reps' RX/TX has been quiesced
 	 * before proceeding with VF-rep cleanup.
 	 */
-	rtnl_lock();
+	netdev_lock(bp->dev);
 	if (netif_running(bp->dev)) {
 		bnxt_close_nic(bp, false, false);
 		closed = true;
@@ -365,10 +363,10 @@ void bnxt_vf_reps_destroy(struct bnxt *bp)
 		bnxt_open_nic(bp, false, false);
 		bp->eswitch_mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
 	}
-	rtnl_unlock();
+	netdev_unlock(bp->dev);
 
-	/* Need to call vf_reps_destroy() outside of rntl_lock
-	 * as unregister_netdev takes rtnl_lock
+	/* Need to call vf_reps_destroy() outside of netdev instance lock
+	 * as unregister_netdev takes it
 	 */
 	__bnxt_vf_reps_destroy(bp);
 }
@@ -376,7 +374,7 @@ void bnxt_vf_reps_destroy(struct bnxt *bp)
 /* Free the VF-Reps in firmware, during firmware hot-reset processing.
  * Note that the VF-Rep netdevs are still active (not unregistered) during
  * this process. As the mode transition from SWITCHDEV to LEGACY happens
- * under the rtnl_lock() this routine is safe under the rtnl_lock().
+ * under the netdev instance lock this routine is safe.
  */
 void bnxt_vf_reps_free(struct bnxt *bp)
 {
@@ -413,7 +411,7 @@ static int bnxt_alloc_vf_rep(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 /* Allocate the VF-Reps in firmware, during firmware hot-reset processing.
  * Note that the VF-Rep netdevs are still active (not unregistered) during
  * this process. As the mode transition from SWITCHDEV to LEGACY happens
- * under the rtnl_lock() this routine is safe under the rtnl_lock().
+ * under the netdev instance lock this routine is safe.
  */
 int bnxt_vf_reps_alloc(struct bnxt *bp)
 {
