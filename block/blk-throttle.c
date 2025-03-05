@@ -478,8 +478,6 @@ static inline void throtl_start_new_slice_with_credit(struct throtl_grp *tg,
 {
 	tg->bytes_disp[rw] = 0;
 	tg->io_disp[rw] = 0;
-	tg->carryover_bytes[rw] = 0;
-	tg->carryover_ios[rw] = 0;
 
 	/*
 	 * Previous slice has expired. We must have trimmed it after last
@@ -498,16 +496,14 @@ static inline void throtl_start_new_slice_with_credit(struct throtl_grp *tg,
 }
 
 static inline void throtl_start_new_slice(struct throtl_grp *tg, bool rw,
-					  bool clear_carryover)
+					  bool clear)
 {
-	tg->bytes_disp[rw] = 0;
-	tg->io_disp[rw] = 0;
+	if (clear) {
+		tg->bytes_disp[rw] = 0;
+		tg->io_disp[rw] = 0;
+	}
 	tg->slice_start[rw] = jiffies;
 	tg->slice_end[rw] = jiffies + tg->td->throtl_slice;
-	if (clear_carryover) {
-		tg->carryover_bytes[rw] = 0;
-		tg->carryover_ios[rw] = 0;
-	}
 
 	throtl_log(&tg->service_queue,
 		   "[%c] new slice start=%lu end=%lu jiffies=%lu",
@@ -617,20 +613,16 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 	 */
 	time_elapsed -= tg->td->throtl_slice;
 	bytes_trim = calculate_bytes_allowed(tg_bps_limit(tg, rw),
-					     time_elapsed) +
-		     tg->carryover_bytes[rw];
-	io_trim = calculate_io_allowed(tg_iops_limit(tg, rw), time_elapsed) +
-		  tg->carryover_ios[rw];
+					     time_elapsed);
+	io_trim = calculate_io_allowed(tg_iops_limit(tg, rw), time_elapsed);
 	if (bytes_trim <= 0 && io_trim <= 0)
 		return;
 
-	tg->carryover_bytes[rw] = 0;
 	if ((long long)tg->bytes_disp[rw] >= bytes_trim)
 		tg->bytes_disp[rw] -= bytes_trim;
 	else
 		tg->bytes_disp[rw] = 0;
 
-	tg->carryover_ios[rw] = 0;
 	if ((int)tg->io_disp[rw] >= io_trim)
 		tg->io_disp[rw] -= io_trim;
 	else
@@ -645,7 +637,8 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 		   jiffies);
 }
 
-static void __tg_update_carryover(struct throtl_grp *tg, bool rw)
+static void __tg_update_carryover(struct throtl_grp *tg, bool rw,
+				  long long *bytes, int *ios)
 {
 	unsigned long jiffy_elapsed = jiffies - tg->slice_start[rw];
 	u64 bps_limit = tg_bps_limit(tg, rw);
@@ -658,26 +651,28 @@ static void __tg_update_carryover(struct throtl_grp *tg, bool rw)
 	 * configuration.
 	 */
 	if (bps_limit != U64_MAX)
-		tg->carryover_bytes[rw] +=
-			calculate_bytes_allowed(bps_limit, jiffy_elapsed) -
+		*bytes = calculate_bytes_allowed(bps_limit, jiffy_elapsed) -
 			tg->bytes_disp[rw];
 	if (iops_limit != UINT_MAX)
-		tg->carryover_ios[rw] +=
-			calculate_io_allowed(iops_limit, jiffy_elapsed) -
+		*ios = calculate_io_allowed(iops_limit, jiffy_elapsed) -
 			tg->io_disp[rw];
+	tg->bytes_disp[rw] -= *bytes;
+	tg->io_disp[rw] -= *ios;
 }
 
 static void tg_update_carryover(struct throtl_grp *tg)
 {
+	long long bytes[2] = {0};
+	int ios[2] = {0};
+
 	if (tg->service_queue.nr_queued[READ])
-		__tg_update_carryover(tg, READ);
+		__tg_update_carryover(tg, READ, &bytes[READ], &ios[READ]);
 	if (tg->service_queue.nr_queued[WRITE])
-		__tg_update_carryover(tg, WRITE);
+		__tg_update_carryover(tg, WRITE, &bytes[WRITE], &ios[WRITE]);
 
 	/* see comments in struct throtl_grp for meaning of these fields. */
 	throtl_log(&tg->service_queue, "%s: %lld %lld %d %d\n", __func__,
-		   tg->carryover_bytes[READ], tg->carryover_bytes[WRITE],
-		   tg->carryover_ios[READ], tg->carryover_ios[WRITE]);
+		   bytes[READ], bytes[WRITE], ios[READ], ios[WRITE]);
 }
 
 static unsigned long tg_within_iops_limit(struct throtl_grp *tg, struct bio *bio,
@@ -695,8 +690,7 @@ static unsigned long tg_within_iops_limit(struct throtl_grp *tg, struct bio *bio
 
 	/* Round up to the next throttle slice, wait time must be nonzero */
 	jiffy_elapsed_rnd = roundup(jiffy_elapsed + 1, tg->td->throtl_slice);
-	io_allowed = calculate_io_allowed(iops_limit, jiffy_elapsed_rnd) +
-		     tg->carryover_ios[rw];
+	io_allowed = calculate_io_allowed(iops_limit, jiffy_elapsed_rnd);
 	if (io_allowed > 0 && tg->io_disp[rw] + 1 <= io_allowed)
 		return 0;
 
@@ -729,8 +723,7 @@ static unsigned long tg_within_bps_limit(struct throtl_grp *tg, struct bio *bio,
 		jiffy_elapsed_rnd = tg->td->throtl_slice;
 
 	jiffy_elapsed_rnd = roundup(jiffy_elapsed_rnd, tg->td->throtl_slice);
-	bytes_allowed = calculate_bytes_allowed(bps_limit, jiffy_elapsed_rnd) +
-			tg->carryover_bytes[rw];
+	bytes_allowed = calculate_bytes_allowed(bps_limit, jiffy_elapsed_rnd);
 	if (bytes_allowed > 0 && tg->bytes_disp[rw] + bio_size <= bytes_allowed)
 		return 0;
 

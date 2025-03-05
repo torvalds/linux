@@ -102,9 +102,9 @@ struct throtl_grp {
 	unsigned int iops[2];
 
 	/* Number of bytes dispatched in current slice */
-	uint64_t bytes_disp[2];
+	int64_t bytes_disp[2];
 	/* Number of bio's dispatched in current slice */
-	unsigned int io_disp[2];
+	int io_disp[2];
 
 	/*
 	 * The following two fields are updated when new configuration is
