@@ -747,6 +747,10 @@
 	status = "okay";
 };
 
+&ufshc {
+	status = "okay";
+};
+
 &usbdp_phy {
 	rockchip,dp-lane-mux = <2 3>;
 	status = "okay";
