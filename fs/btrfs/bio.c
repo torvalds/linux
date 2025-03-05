@@ -97,21 +97,17 @@ static struct btrfs_bio *btrfs_split_bio(struct btrfs_fs_info *fs_info,
 	return bbio;
 }
 
-/* Free a bio that was never submitted to the underlying device. */
-static void btrfs_cleanup_bio(struct btrfs_bio *bbio)
-{
-	if (bbio_has_ordered_extent(bbio))
-		btrfs_put_ordered_extent(bbio->ordered);
-	bio_put(&bbio->bio);
-}
-
 void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status)
 {
 	bbio->bio.bi_status = status;
 	if (bbio->bio.bi_pool == &btrfs_clone_bioset) {
 		struct btrfs_bio *orig_bbio = bbio->private;
 
-		btrfs_cleanup_bio(bbio);
+		/* Free bio that was never submitted to the underlying device. */
+		if (bbio_has_ordered_extent(bbio))
+			btrfs_put_ordered_extent(bbio->ordered);
+		bio_put(&bbio->bio);
+
 		bbio = orig_bbio;
 	}
 
