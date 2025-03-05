@@ -106,9 +106,6 @@ struct throtl_grp {
 	/* Number of bio's dispatched in current slice */
 	unsigned int io_disp[2];
 
-	uint64_t last_bytes_disp[2];
-	unsigned int last_io_disp[2];
-
 	/*
 	 * The following two fields are updated when new configuration is
 	 * submitted while some bios are still throttled, they record how many

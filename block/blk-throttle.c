@@ -819,13 +819,10 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 	unsigned int bio_size = throtl_bio_data_size(bio);
 
 	/* Charge the bio to the group */
-	if (!bio_flagged(bio, BIO_BPS_THROTTLED)) {
+	if (!bio_flagged(bio, BIO_BPS_THROTTLED))
 		tg->bytes_disp[rw] += bio_size;
-		tg->last_bytes_disp[rw] += bio_size;
-	}
 
 	tg->io_disp[rw]++;
-	tg->last_io_disp[rw]++;
 }
 
 /**
