@@ -60,6 +60,7 @@ properties:
       - description: ST STM32MP151 based Boards
         items:
           - enum:
+              - ply,plyaqm   # Plymovent AQM board
               - prt,mecio1r0 # Protonic MECIO1r0
               - prt,mect1s   # Protonic MECT1S
               - prt,prtt1a   # Protonic PRTT1A
