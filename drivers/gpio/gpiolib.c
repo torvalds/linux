@@ -672,7 +672,7 @@ static int gpiochip_apply_reserved_ranges(struct gpio_chip *gc)
 		if (start >= gc->ngpio || start + count > gc->ngpio)
 			continue;
 
-		bitmap_clear(gc->valid_mask, start, count);
+		bitmap_clear(gc->gpiodev->valid_mask, start, count);
 	}
 
 	kfree(ranges);
@@ -686,8 +686,8 @@ static int gpiochip_init_valid_mask(struct gpio_chip *gc)
 	if (!(gpiochip_count_reserved_ranges(gc) || gc->init_valid_mask))
 		return 0;
 
-	gc->valid_mask = gpiochip_allocate_mask(gc);
-	if (!gc->valid_mask)
+	gc->gpiodev->valid_mask = gpiochip_allocate_mask(gc);
+	if (!gc->gpiodev->valid_mask)
 		return -ENOMEM;
 
 	ret = gpiochip_apply_reserved_ranges(gc);
@@ -696,7 +696,7 @@ static int gpiochip_init_valid_mask(struct gpio_chip *gc)
 
 	if (gc->init_valid_mask)
 		return gc->init_valid_mask(gc,
-					   gc->valid_mask,
+					   gc->gpiodev->valid_mask,
 					   gc->ngpio);
 
 	return 0;
@@ -704,7 +704,7 @@ static int gpiochip_init_valid_mask(struct gpio_chip *gc)
 
 static void gpiochip_free_valid_mask(struct gpio_chip *gc)
 {
-	gpiochip_free_mask(&gc->valid_mask);
+	gpiochip_free_mask(&gc->gpiodev->valid_mask);
 }
 
 static int gpiochip_add_pin_ranges(struct gpio_chip *gc)
@@ -735,7 +735,7 @@ static int gpiochip_add_pin_ranges(struct gpio_chip *gc)
  */
 const unsigned long *gpiochip_query_valid_mask(const struct gpio_chip *gc)
 {
-	return gc->valid_mask;
+	return gc->gpiodev->valid_mask;
 }
 EXPORT_SYMBOL_GPL(gpiochip_query_valid_mask);
 
@@ -743,9 +743,9 @@ bool gpiochip_line_is_valid(const struct gpio_chip *gc,
 				unsigned int offset)
 {
 	/* No mask means all valid */
-	if (likely(!gc->valid_mask))
+	if (likely(!gc->gpiodev->valid_mask))
 		return true;
-	return test_bit(offset, gc->valid_mask);
+	return test_bit(offset, gc->gpiodev->valid_mask);
 }
 EXPORT_SYMBOL_GPL(gpiochip_line_is_valid);
 

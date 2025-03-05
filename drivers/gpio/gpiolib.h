@@ -32,6 +32,8 @@
  * @chip: pointer to the corresponding gpiochip, holding static
  * data for this device
  * @descs: array of ngpio descriptors.
+ * @valid_mask: If not %NULL, holds bitmask of GPIOs which are valid to be
+ * used from the chip.
  * @desc_srcu: ensures consistent state of GPIO descriptors exposed to users
  * @ngpio: the number of GPIO lines on this GPIO device, equal to the size
  * of the @descs array.
@@ -65,6 +67,7 @@ struct gpio_device {
 	struct module		*owner;
 	struct gpio_chip __rcu	*chip;
 	struct gpio_desc	*descs;
+	unsigned long		*valid_mask;
 	struct srcu_struct	desc_srcu;
 	unsigned int		base;
 	u16			ngpio;

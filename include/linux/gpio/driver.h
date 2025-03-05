@@ -514,14 +514,6 @@ struct gpio_chip {
 	struct gpio_irq_chip irq;
 #endif /* CONFIG_GPIOLIB_IRQCHIP */
 
-	/**
-	 * @valid_mask:
-	 *
-	 * If not %NULL, holds bitmask of GPIOs which are valid to be used
-	 * from the chip.
-	 */
-	unsigned long *valid_mask;
-
 #if defined(CONFIG_OF_GPIO)
 	/*
 	 * If CONFIG_OF_GPIO is enabled, then all GPIO controllers described in
