@@ -52,6 +52,12 @@ enum {
 	IS_PREALLOC,		/* nat entry is preallocated */
 };
 
+/* For node type in __get_node_folio() */
+enum node_type {
+	NODE_TYPE_REGULAR,
+	NODE_TYPE_INODE,
+};
+
 /*
  * For node information
  */

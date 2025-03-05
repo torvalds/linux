@@ -778,7 +778,7 @@ int f2fs_get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 	npage[0] = dn->inode_page;
 
 	if (!npage[0]) {
-		npage[0] = f2fs_get_node_page(sbi, nids[0]);
+		npage[0] = f2fs_get_inode_page(sbi, nids[0]);
 		if (IS_ERR(npage[0]))
 			return PTR_ERR(npage[0]);
 	}
@@ -1147,7 +1147,7 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
 		return level;
 	}
 
-	folio = f2fs_get_node_folio(sbi, inode->i_ino);
+	folio = f2fs_get_inode_folio(sbi, inode->i_ino);
 	if (IS_ERR(folio)) {
 		trace_f2fs_truncate_inode_blocks_exit(inode, PTR_ERR(folio));
 		return PTR_ERR(folio);
@@ -1456,8 +1456,27 @@ void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	f2fs_put_page(apage, err ? 1 : 0);
 }
 
+static int sanity_check_node_footer(struct f2fs_sb_info *sbi,
+					struct page *page, pgoff_t nid,
+					enum node_type ntype)
+{
+	if (unlikely(nid != nid_of_node(page) ||
+		(ntype == NODE_TYPE_INODE && !IS_INODE(page)))) {
+		f2fs_warn(sbi, "inconsistent node block, node_type:%d, nid:%lu, "
+			  "node_footer[nid:%u,ino:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
+			  ntype, nid, nid_of_node(page), ino_of_node(page),
+			  ofs_of_node(page), cpver_of_node(page),
+			  next_blkaddr_of_node(page));
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
+		return -EFSCORRUPTED;
+	}
+	return 0;
+}
+
 static struct folio *__get_node_folio(struct f2fs_sb_info *sbi, pgoff_t nid,
-					struct page *parent, int start)
+					struct page *parent, int start,
+					enum node_type ntype)
 {
 	struct folio *folio;
 	int err;
@@ -1499,16 +1518,9 @@ repeat:
 		goto out_err;
 	}
 page_hit:
-	if (likely(nid == nid_of_node(&folio->page)))
+	err = sanity_check_node_footer(sbi, &folio->page, nid, ntype);
+	if (!err)
 		return folio;
-
-	f2fs_warn(sbi, "inconsistent node block, nid:%lu, node_footer[nid:%u,ino:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
-			  nid, nid_of_node(&folio->page), ino_of_node(&folio->page),
-			  ofs_of_node(&folio->page), cpver_of_node(&folio->page),
-			  next_blkaddr_of_node(&folio->page));
-	set_sbi_flag(sbi, SBI_NEED_FSCK);
-	f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
-	err = -EFSCORRUPTED;
 out_err:
 	folio_clear_uptodate(folio);
 out_put_err:
@@ -1519,14 +1531,22 @@ out_put_err:
 	return ERR_PTR(err);
 }
 
-struct folio *f2fs_get_node_folio(struct f2fs_sb_info *sbi, pgoff_t nid)
-{
-	return __get_node_folio(sbi, nid, NULL, 0);
-}
-
 struct page *f2fs_get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 {
-	struct folio *folio = __get_node_folio(sbi, nid, NULL, 0);
+	struct folio *folio = __get_node_folio(sbi, nid, NULL, 0,
+						NODE_TYPE_REGULAR);
+
+	return &folio->page;
+}
+
+struct folio *f2fs_get_inode_folio(struct f2fs_sb_info *sbi, pgoff_t ino)
+{
+	return __get_node_folio(sbi, ino, NULL, 0, NODE_TYPE_INODE);
+}
+
+struct page *f2fs_get_inode_page(struct f2fs_sb_info *sbi, pgoff_t ino)
+{
+	struct folio *folio = f2fs_get_inode_folio(sbi, ino);
 
 	return &folio->page;
 }
@@ -1535,7 +1555,8 @@ struct page *f2fs_get_node_page_ra(struct page *parent, int start)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
 	nid_t nid = get_nid(parent, start, false);
-	struct folio *folio = __get_node_folio(sbi, nid, parent, start);
+	struct folio *folio = __get_node_folio(sbi, nid, parent, start,
+							NODE_TYPE_REGULAR);
 
 	return &folio->page;
 }
@@ -2727,7 +2748,7 @@ int f2fs_recover_inline_xattr(struct inode *inode, struct page *page)
 	struct page *ipage;
 	struct f2fs_inode *ri;
 
-	ipage = f2fs_get_node_page(F2FS_I_SB(inode), inode->i_ino);
+	ipage = f2fs_get_inode_page(F2FS_I_SB(inode), inode->i_ino);
 	if (IS_ERR(ipage))
 		return PTR_ERR(ipage);
 
