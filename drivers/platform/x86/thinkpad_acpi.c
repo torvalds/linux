@@ -11849,7 +11849,9 @@ static int __init tpacpi_pdriver_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	devm_mutex_init(&pdev->dev, &tpacpi_inputdev_send_mutex);
+	ret = devm_mutex_init(&pdev->dev, &tpacpi_inputdev_send_mutex);
+	if (ret)
+		return ret;
 
 	tpacpi_inputdev = devm_input_allocate_device(&pdev->dev);
 	if (!tpacpi_inputdev)
