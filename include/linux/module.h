@@ -782,6 +782,8 @@ static inline void *module_writable_address(struct module *mod, void *loc)
 	return __module_writable_address(mod, loc);
 }
 
+void module_for_each_mod(int(*func)(struct module *mod, void *data), void *data);
+
 #else /* !CONFIG_MODULES... */
 
 static inline struct module *__module_address(unsigned long addr)
@@ -893,6 +895,10 @@ static inline bool module_is_coming(struct module *mod)
 static inline void *module_writable_address(struct module *mod, void *loc)
 {
 	return loc;
+}
+
+static inline void module_for_each_mod(int(*func)(struct module *mod, void *data), void *data)
+{
 }
 #endif /* CONFIG_MODULES */
 
