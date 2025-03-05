@@ -47,6 +47,8 @@
 /* Default filter format */
 #define ARM_CSPMU_FORMAT_FILTER_ATTR	\
 	ARM_CSPMU_FORMAT_ATTR(filter, "config1:0-31")
+#define ARM_CSPMU_FORMAT_FILTER2_ATTR	\
+	ARM_CSPMU_FORMAT_ATTR(filter2, "config2:0-31")
 
 /*
  * This is the default event number for cycle count, if supported, since the
@@ -72,6 +74,7 @@
 #define PMEVCNTR_HI			0x4
 #define PMEVTYPER			0x400
 #define PMCCFILTR			0x47C
+#define PMEVFILT2R			0x800
 #define PMEVFILTR			0xA00
 #define PMCNTENSET			0xC00
 #define PMCNTENCLR			0xC20

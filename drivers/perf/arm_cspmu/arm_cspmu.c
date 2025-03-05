@@ -183,6 +183,7 @@ arm_cspmu_event_attr_is_visible(struct kobject *kobj,
 static struct attribute *arm_cspmu_format_attrs[] = {
 	ARM_CSPMU_FORMAT_EVENT_ATTR,
 	ARM_CSPMU_FORMAT_FILTER_ATTR,
+	ARM_CSPMU_FORMAT_FILTER2_ATTR,
 	NULL,
 };
 
@@ -767,9 +768,11 @@ static void arm_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
 				    const struct perf_event *event)
 {
 	u32 filter = event->attr.config1 & ARM_CSPMU_FILTER_MASK;
-	u32 offset = PMEVFILTR + (4 * hwc->idx);
+	u32 filter2 = event->attr.config2 & ARM_CSPMU_FILTER_MASK;
+	u32 offset = 4 * event->hw.idx;
 
-	writel(filter, cspmu->base0 + offset);
+	writel(filter, cspmu->base0 + PMEVFILTR + offset);
+	writel(filter2, cspmu->base0 + PMEVFILT2R + offset);
 }
 
 static void arm_cspmu_set_cc_filter(struct arm_cspmu *cspmu,
