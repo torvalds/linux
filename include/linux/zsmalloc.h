@@ -16,23 +16,6 @@
 
 #include <linux/types.h>
 
-/*
- * zsmalloc mapping modes
- *
- * NOTE: These only make a difference when a mapped object spans pages.
- */
-enum zs_mapmode {
-	ZS_MM_RW, /* normal read-write mapping */
-	ZS_MM_RO, /* read-only (no copy-out at unmap time) */
-	ZS_MM_WO /* write-only (no copy-in at map time) */
-	/*
-	 * NOTE: ZS_MM_WO should only be used for initializing new
-	 * (uninitialized) allocations.  Partial writes to already
-	 * initialized allocations should use ZS_MM_RW to preserve the
-	 * existing data.
-	 */
-};
-
 struct zs_pool_stats {
 	/* How many pages were migrated (freed) */
 	atomic_long_t pages_compacted;
@@ -47,10 +30,6 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t flags);
 void zs_free(struct zs_pool *pool, unsigned long obj);
 
 size_t zs_huge_class_size(struct zs_pool *pool);
-
-void *zs_map_object(struct zs_pool *pool, unsigned long handle,
-			enum zs_mapmode mm);
-void zs_unmap_object(struct zs_pool *pool, unsigned long handle);
 
 unsigned long zs_get_total_pages(struct zs_pool *pool);
 unsigned long zs_compact(struct zs_pool *pool);
