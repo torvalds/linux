@@ -160,6 +160,7 @@ struct intel_hotplug {
 	struct {
 		unsigned long last_jiffies;
 		int count;
+		int blocked_count;
 		enum {
 			HPD_ENABLED = 0,
 			HPD_DISABLED = 1,
