@@ -65,6 +65,52 @@
 /* The cycle counter, if implemented, is located at counter[31]. */
 #define ARM_CSPMU_CYCLE_CNTR_IDX	31
 
+/*
+ * CoreSight PMU Arch register offsets.
+ */
+#define PMEVCNTR_LO			0x0
+#define PMEVCNTR_HI			0x4
+#define PMEVTYPER			0x400
+#define PMCCFILTR			0x47C
+#define PMEVFILTR			0xA00
+#define PMCNTENSET			0xC00
+#define PMCNTENCLR			0xC20
+#define PMINTENSET			0xC40
+#define PMINTENCLR			0xC60
+#define PMOVSCLR			0xC80
+#define PMOVSSET			0xCC0
+#define PMIMPDEF			0xD80
+#define PMCFGR				0xE00
+#define PMCR				0xE04
+#define PMIIDR				0xE08
+
+/* PMCFGR register field */
+#define PMCFGR_NCG			GENMASK(31, 28)
+#define PMCFGR_HDBG			BIT(24)
+#define PMCFGR_TRO			BIT(23)
+#define PMCFGR_SS			BIT(22)
+#define PMCFGR_FZO			BIT(21)
+#define PMCFGR_MSI			BIT(20)
+#define PMCFGR_UEN			BIT(19)
+#define PMCFGR_NA			BIT(17)
+#define PMCFGR_EX			BIT(16)
+#define PMCFGR_CCD			BIT(15)
+#define PMCFGR_CC			BIT(14)
+#define PMCFGR_SIZE			GENMASK(13, 8)
+#define PMCFGR_N			GENMASK(7, 0)
+
+/* PMCR register field */
+#define PMCR_TRO			BIT(11)
+#define PMCR_HDBG			BIT(10)
+#define PMCR_FZO			BIT(9)
+#define PMCR_NA				BIT(8)
+#define PMCR_DP				BIT(5)
+#define PMCR_X				BIT(4)
+#define PMCR_D				BIT(3)
+#define PMCR_C				BIT(2)
+#define PMCR_P				BIT(1)
+#define PMCR_E				BIT(0)
+
 /* PMIIDR register field */
 #define ARM_CSPMU_PMIIDR_IMPLEMENTER	GENMASK(11, 0)
 #define ARM_CSPMU_PMIIDR_PRODUCTID	GENMASK(31, 20)

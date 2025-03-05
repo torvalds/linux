@@ -10,10 +10,10 @@
 
 #include "arm_cspmu.h"
 
-#define PMAUXR0		0xD80
-#define PMAUXR1		0xD84
-#define PMAUXR2		0xD88
-#define PMAUXR3		0xD8C
+#define PMAUXR0		PMIMPDEF
+#define PMAUXR1		(PMIMPDEF + 0x4)
+#define PMAUXR2		(PMIMPDEF + 0x8)
+#define PMAUXR3		(PMIMPDEF + 0xC)
 
 #define to_ampere_cspmu_ctx(cspmu)	((struct ampere_cspmu_ctx *)(cspmu->impl.ctx))
 
