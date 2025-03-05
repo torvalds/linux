@@ -103,7 +103,6 @@
 
 /* SPI sampling registers */
 #define SE_GENI_CGC_CTRL	(0x28)
-#define SE_GENI_CFG_SEQ_START	(0x84)
 #define SE_GENI_CFG_REG108	(0x2B0)
 #define SE_GENI_CFG_REG109	(0x2B4)
 #define CPOL_CTRL_SHFT	1

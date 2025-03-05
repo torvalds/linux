@@ -395,6 +395,7 @@ static const struct intel_pinctrl_soc_data mtlp_soc_data = {
 };
 
 static const struct acpi_device_id mtl_pinctrl_acpi_match[] = {
+	{ "INTC105E", (kernel_ulong_t)&mtlp_soc_data },
 	{ "INTC1083", (kernel_ulong_t)&mtlp_soc_data },
 	{ }
 };

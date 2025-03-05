@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -57,6 +57,8 @@ static LIST_HEAD(adc_tm_device_list);
 
 #define ADC5_GEN3_SID				0x4f
 #define ADC5_GEN3_SID_MASK			GENMASK(3, 0)
+#define ADC5_GEN4_SID_MASK			GENMASK(4, 0)
+#define ADC5_GEN4_BUS_INDEX			0x00
 
 #define ADC5_GEN3_PERPH_CH			0x50
 #define ADC5_GEN3_CHAN_CONV_REQ			BIT(7)
@@ -109,9 +111,12 @@ static LIST_HEAD(adc_tm_device_list);
 #define ADC5_GEN3_CONV_REQ			0xe5
 #define ADC5_GEN3_CONV_REQ_REQ			BIT(0)
 
-#define ADC5_GEN3_SID_OFFSET			0x8
-#define ADC5_GEN3_CHANNEL_MASK			0xff
-#define V_CHAN(x)				(((x).sid << ADC5_GEN3_SID_OFFSET) | (x).channel)
+#define ADC5_GEN4_V_CHAN_CHANNEL_MASK		GENMASK(7, 0)
+#define ADC5_GEN4_V_CHAN_SID_MASK		GENMASK(12, 8)
+#define V_CHAN(x) \
+	(ADC5_GEN4_BUS_INDEX | \
+	 FIELD_PREP(ADC5_GEN4_V_CHAN_SID_MASK, (x).sid) | \
+	 FIELD_PREP(ADC5_GEN4_V_CHAN_CHANNEL_MASK, (x).channel))
 
 #define ADC_TM5_GEN3_LOWER_MASK(n)		((n) & GENMASK(7, 0))
 #define ADC_TM5_GEN3_UPPER_MASK(n)		(((n) & GENMASK(15, 8)) >> 8)
@@ -161,10 +166,13 @@ struct adc5_base_data {
  * @avg_samples: ability to provide single result from the ADC
  *	that is an average of multiple measurements.
  * @sdam_index: Index for which SDAM this channel is on.
+ * @bus_index: Index for which SPMI bus this channel is associated with.
+ * @generation: indicates if channel is ADC5 GEN3 or GEN4
  * @scale_fn_type: Represents the scaling function to convert voltage
  *	physical units desired by the client for the channel.
  * @datasheet_name: Channel name used in device tree.
  * @chip: pointer to top-level ADC device structure.
+ * @data: software configuration data.
  * @adc_tm: indicates TM type if the channel is used for TM measurements.
  * @tm_chan_index: TM channel number used (ranging from 1-7).
  * @timer: time period of recurring TM measurement.
@@ -194,11 +202,14 @@ struct adc5_channel_prop {
 	unsigned int			hw_settle_time;
 	unsigned int			avg_samples;
 	unsigned int			sdam_index;
+	unsigned int			bus_index;
+	enum vadc_generation		generation;
 
 	enum vadc_scale_fn_type		scale_fn_type;
 	const char			*datasheet_name;
 
 	struct adc5_chip		*chip;
+	const struct adc5_data		*data;
 	/* TM properties */
 	int				adc_tm;
 	unsigned int			tm_chan_index;
@@ -231,7 +242,6 @@ struct adc5_channel_prop {
  * @iio_chans: array of IIO channels specification.
  * @complete: ADC result notification after interrupt is received.
  * @lock: ADC lock for access to the peripheral.
- * @data: software configuration data.
  * @n_tm_channels: number of ADC channels used for TM measurements.
  * @list: list item, used to add this device to gloal list of ADC_TM devices.
  * @device_list: pointer to list of ADC_TM devices.
@@ -248,7 +258,6 @@ struct adc5_chip {
 	struct iio_chan_spec		*iio_chans;
 	struct completion		complete;
 	struct mutex			lock;
-	const struct adc5_data		*data;
 	/* TM properties */
 	unsigned int			n_tm_channels;
 	struct list_head		list;
@@ -357,7 +366,7 @@ static inline void adc5_gen3_dump_regs_debug(struct adc5_chip *adc)
 #endif
 
 static int adc5_gen3_read_voltage_data(struct adc5_chip *adc, u16 *data,
-				u8 sdam_index)
+				u8 sdam_index, enum vadc_generation generation)
 {
 	int ret;
 	u8 rslt[2];
@@ -368,7 +377,7 @@ static int adc5_gen3_read_voltage_data(struct adc5_chip *adc, u16 *data,
 
 	*data = (rslt[1] << 8) | rslt[0];
 
-	if (*data == ADC5_USR_DATA_CHECK) {
+	if (*data == ADC5_USR_DATA_CHECK && generation == ADC5_GEN3) {
 		pr_err("Invalid data:%#x\n", *data);
 		return -EINVAL;
 	}
@@ -406,7 +415,8 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 		return ret;
 
 	/* Write SID */
-	buf[0] = prop->sid & ADC5_GEN3_SID_MASK;
+	buf[0] = ADC5_GEN4_BUS_INDEX |
+		 FIELD_PREP(ADC5_GEN4_SID_MASK, prop->sid);
 
 	/*
 	 * Use channel 0 by default for immediate conversion and
@@ -541,7 +551,7 @@ static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 	pr_debug("ADC channel %s EOC took %u ms\n", prop->datasheet_name,
 		(i + 1) * ADC5_GEN3_CONV_TIMEOUT_MS - time_pending_ms);
 
-	ret = adc5_gen3_read_voltage_data(adc, data_volt, sdam_index);
+	ret = adc5_gen3_read_voltage_data(adc, data_volt, sdam_index, prop->generation);
 	if (ret < 0)
 		goto unlock;
 
@@ -739,7 +749,7 @@ static void tm_handler_work(struct work_struct *work)
 			}
 		} else {
 			ret = qcom_adc5_hw_scale(chan_prop->scale_fn_type,
-				chan_prop->prescale, adc->data, code, &temp);
+				chan_prop->prescale, chan_prop->data, code, &temp);
 
 			if (ret < 0) {
 				pr_err("Invalid temperature reading, ret=%d, code=0x%x\n",
@@ -793,7 +803,7 @@ static int adc5_gen3_read_raw(struct iio_dev *indio_dev,
 			return ret;
 
 		ret = qcom_adc5_hw_scale(prop->scale_fn_type,
-			prop->prescale, adc->data,
+			prop->prescale, prop->data,
 			adc_code_volt, val);
 		if (ret < 0)
 			return ret;
@@ -846,7 +856,7 @@ int adc_tm_gen3_get_temp(struct thermal_zone_device *tz, int *temp)
 		return ret;
 
 	ret = qcom_adc5_hw_scale(prop->scale_fn_type,
-		prop->prescale, adc->data,
+		prop->prescale, prop->data,
 		adc_code_volt, temp);
 
 	/* Save temperature data to minidump */
@@ -873,7 +883,8 @@ static int adc_tm5_gen3_configure(struct adc5_channel_prop *prop)
 		return ret;
 
 	/* Write SID */
-	buf[0] = prop->sid & ADC5_GEN3_SID_MASK;
+	buf[0] = ADC5_GEN4_BUS_INDEX |
+		 FIELD_PREP(ADC5_GEN4_SID_MASK, prop->sid);
 
 	/*
 	 * Select TM channel and indicate there is an actual
@@ -944,7 +955,7 @@ static int adc_tm5_gen3_set_trip_temp(struct thermal_zone_device *tz,
 	pr_debug("requested a low temp- %d and high temp- %d\n",
 			tm_config.low_thr_temp, tm_config.high_thr_temp);
 
-	adc_tm_scale_therm_voltage_100k_gen3(&tm_config);
+	adc_tm_scale_therm_voltage_100k_gen3(&tm_config, prop->data);
 
 	/*
 	 * Thresholds are forward scaled to confirm their
@@ -1455,6 +1466,78 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 						SCALE_HW_CALIB_THERM_100K_PU_PM7)
 };
 
+static const struct adc5_channels adc5_gen4_chans_pmic[ADC5_MAX_CHANNEL] = {
+	[ADC5_GEN4_OFFSET_REF]		= ADC5_CHAN_VOLT("ref_gnd", 0,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN4_1P25VREF]		= ADC5_CHAN_VOLT("vref_1p25", 0,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN4_VPH_PWR]		= ADC5_CHAN_VOLT("vph_pwr", 1,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN4_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 0,
+						SCALE_HW_CALIB_PMIC_THERM_PM7)
+	[ADC5_GEN4_AMUX1_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm1_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN4_AMUX2_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm2_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN4_AMUX3_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm3_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN4_AMUX4_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm4_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN4_AMUX5_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm5_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN4_AMUX6_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm6_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN4_AMUX1_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux1_gpio_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN4_AMUX2_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux2_gpio_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN4_AMUX3_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux3_gpio_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN4_AMUX4_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux4_gpio_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+};
+
+static const struct adc5_data adc5_gen3_data_pmic = {
+	.name = "pm-adc5-gen3",
+	.full_scale_code_volt = 0x70e4,
+	.full_scale_code_cur = 0x2ee0,
+	.full_scale_code_raw = 0x4000,
+	.adc_chans = adc5_chans_pmic,
+	.decimation = (unsigned int [ADC5_DECIMATION_SAMPLES_MAX])
+				{85, 340, 1360},
+	.hw_settle_1 = (unsigned int [VADC_HW_SETTLE_SAMPLES_MAX])
+				{15, 100, 200, 300, 400, 500, 600, 700,
+				1000, 2000, 4000, 8000, 16000, 32000,
+				64000, 128000},
+};
+
+static const struct adc5_data adc5_gen4_data_pmic = {
+	.name = "pm-adc5-gen4",
+	.full_scale_code_volt = 0x70e4,
+	.full_scale_code_cur = 0x4e20,
+	.full_scale_code_raw = 0xffff,
+	.adc_chans = adc5_gen4_chans_pmic,
+	.decimation = (unsigned int [ADC5_DECIMATION_SAMPLES_MAX])
+				{85, 340, 1360},
+	.hw_settle_1 = (unsigned int [VADC_HW_SETTLE_SAMPLES_MAX])
+				{15, 100, 200, 300, 400, 500, 600, 700,
+				1000, 2000, 4000, 8000, 16000, 32000,
+				64000, 128000},
+};
+
+static const struct of_device_id adc5_match_table[] = {
+	{
+		.compatible = "qcom,spmi-adc5-gen3",
+		.data = &adc5_gen3_data_pmic,
+	},
+	{
+		.compatible = "qcom,spmi-adc5-gen4",
+		.data = &adc5_gen4_data_pmic,
+	},
+	{ }
+};
+MODULE_DEVICE_TABLE(of, adc5_match_table);
+
 static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 				    struct adc5_channel_prop *prop,
 				    struct device_node *node,
@@ -1463,6 +1546,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 	const char *name = node->name, *channel_name;
 	u32 chan, value, varr[2];
 	u32 sid = 0;
+	u32 bus_index = 0;
 	int ret, val;
 	struct device *dev = adc->dev;
 
@@ -1472,20 +1556,32 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 		return ret;
 	}
 
+	if (of_property_read_bool(node, "qcom,adc5-gen4")) {
+		prop->generation = ADC5_GEN4;
+		prop->data = &adc5_gen4_data_pmic;
+	} else {
+		prop->generation = (data == &adc5_gen3_data_pmic) ? ADC5_GEN3 : ADC5_GEN4;
+		prop->data = data;
+	}
+
 	/*
 	 * Value read from "reg" is virtual channel number
-	 * virtual channel number = (sid << 8 | channel number).
+	 * virtual channel number = (bus index << 13 | sid << 8 | channel number).
+	 * ADC5 GEN3 channels bus index = 0
 	 */
-	sid = (chan >> ADC5_GEN3_SID_OFFSET);
-	chan = (chan & ADC5_GEN3_CHANNEL_MASK);
+
+	bus_index = ADC5_GEN4_BUS_INDEX;
+	sid = FIELD_GET(ADC5_GEN4_V_CHAN_SID_MASK, chan);
+	chan = FIELD_GET(ADC5_GEN4_V_CHAN_CHANNEL_MASK, chan);
 
 	if (chan > ADC5_OFFSET_EXT2 ||
-	    !data->adc_chans[chan].datasheet_name) {
+	    !prop->data->adc_chans[chan].datasheet_name) {
 		dev_err(dev, "%s invalid channel number %d\n", name, chan);
 		return -EINVAL;
 	}
 
 	/* the channel has DT description */
+	prop->bus_index = bus_index;
 	prop->channel = chan;
 	prop->sid = sid;
 
@@ -1507,7 +1603,10 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 		}
 		prop->decimation = ret;
 	} else {
-		prop->decimation = ADC5_DECIMATION_DEFAULT;
+		if (prop->generation == ADC5_GEN3)
+			prop->decimation = ADC5_DECIMATION_DEFAULT;
+		else
+			prop->decimation = ADC5_GEN4_DECIMATION_DEFAULT;
 	}
 
 	ret = of_property_read_u32_array(node, "qcom,pre-scaling", varr, 2);
@@ -1521,7 +1620,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 		prop->prescale = ret;
 	} else {
 		prop->prescale =
-			adc->data->adc_chans[prop->channel].prescale_index;
+			prop->data->adc_chans[prop->channel].prescale_index;
 	}
 
 	ret = of_property_read_u32(node, "qcom,hw-settle-time", &value);
@@ -1606,28 +1705,6 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 	return 0;
 }
 
-static const struct adc5_data adc5_gen3_data_pmic = {
-	.name = "pm-adc5-gen3",
-	.full_scale_code_volt = 0x70e4,
-	.full_scale_code_cur = 0x2ee0,
-	.adc_chans = adc5_chans_pmic,
-	.decimation = (unsigned int [ADC5_DECIMATION_SAMPLES_MAX])
-				{85, 340, 1360},
-	.hw_settle_1 = (unsigned int [VADC_HW_SETTLE_SAMPLES_MAX])
-				{15, 100, 200, 300, 400, 500, 600, 700,
-				1000, 2000, 4000, 8000, 16000, 32000,
-				64000, 128000},
-};
-
-static const struct of_device_id adc5_match_table[] = {
-	{
-		.compatible = "qcom,spmi-adc5-gen3",
-		.data = &adc5_gen3_data_pmic,
-	},
-	{ }
-};
-MODULE_DEVICE_TABLE(of, adc5_match_table);
-
 static int adc5_get_dt_data(struct adc5_chip *adc, struct device_node *node)
 {
 	const struct adc5_channels *adc_chan;
@@ -1661,7 +1738,6 @@ static int adc5_get_dt_data(struct adc5_chip *adc, struct device_node *node)
 		data = id->data;
 	else
 		data = &adc5_gen3_data_pmic;
-	adc->data = data;
 
 	for_each_available_child_of_node(node, child) {
 		ret = adc5_get_dt_channel_data(adc, chan_props, child, data);
@@ -1673,8 +1749,8 @@ static int adc5_get_dt_data(struct adc5_chip *adc, struct device_node *node)
 		chan_props->chip = adc;
 		if (chan_props->scale_fn_type == -EINVAL)
 			chan_props->scale_fn_type =
-				data->adc_chans[chan_props->channel].scale_fn_type;
-		adc_chan = &data->adc_chans[chan_props->channel];
+				chan_props->data->adc_chans[chan_props->channel].scale_fn_type;
+		adc_chan = &chan_props->data->adc_chans[chan_props->channel];
 		iio_chan->channel = chan_props->channel;
 		iio_chan->datasheet_name = chan_props->datasheet_name;
 		iio_chan->extend_name = chan_props->datasheet_name;

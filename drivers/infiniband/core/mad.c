@@ -2616,14 +2616,16 @@ static int retry_send(struct ib_mad_send_wr_private *mad_send_wr)
 
 static void timeout_sends(struct work_struct *work)
 {
+	struct ib_mad_send_wr_private *mad_send_wr, *n;
 	struct ib_mad_agent_private *mad_agent_priv;
-	struct ib_mad_send_wr_private *mad_send_wr;
 	struct ib_mad_send_wc mad_send_wc;
+	struct list_head local_list;
 	unsigned long flags, delay;
 
 	mad_agent_priv = container_of(work, struct ib_mad_agent_private,
 				      timed_work.work);
 	mad_send_wc.vendor_err = 0;
+	INIT_LIST_HEAD(&local_list);
 
 	spin_lock_irqsave(&mad_agent_priv->lock, flags);
 	while (!list_empty(&mad_agent_priv->wait_list)) {
@@ -2641,13 +2643,16 @@ static void timeout_sends(struct work_struct *work)
 			break;
 		}
 
-		list_del(&mad_send_wr->agent_list);
+		list_del_init(&mad_send_wr->agent_list);
 		if (mad_send_wr->status == IB_WC_SUCCESS &&
 		    !retry_send(mad_send_wr))
 			continue;
 
-		spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
+		list_add_tail(&mad_send_wr->agent_list, &local_list);
+	}
+	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 
+	list_for_each_entry_safe(mad_send_wr, n, &local_list, agent_list) {
 		if (mad_send_wr->status == IB_WC_SUCCESS)
 			mad_send_wc.status = IB_WC_RESP_TIMEOUT_ERR;
 		else
@@ -2655,11 +2660,8 @@ static void timeout_sends(struct work_struct *work)
 		mad_send_wc.send_buf = &mad_send_wr->send_buf;
 		mad_agent_priv->agent.send_handler(&mad_agent_priv->agent,
 						   &mad_send_wc);
-
 		deref_mad_agent(mad_agent_priv);
-		spin_lock_irqsave(&mad_agent_priv->lock, flags);
 	}
-	spin_unlock_irqrestore(&mad_agent_priv->lock, flags);
 }
 
 /*

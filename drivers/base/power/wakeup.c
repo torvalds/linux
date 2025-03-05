@@ -1008,6 +1008,7 @@ unsigned int pm_wakeup_irq(void)
 {
 	return wakeup_irq[0];
 }
+EXPORT_SYMBOL_GPL(pm_wakeup_irq);
 
 /**
  * pm_get_wakeup_count - Read the number of registered wakeup events.

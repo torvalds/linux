@@ -981,9 +981,7 @@ int topup_hyp_memcache(struct kvm_vcpu *vcpu)
 	err = __topup_hyp_memcache(mc, kvm_mmu_cache_min_pages(vcpu->kvm),
 				   hyp_mc_alloc_fn,
 				   kvm_host_pa, NULL);
-	if (!err)
-		account_hyp_memcache(mc, prev_nr_pages, vcpu->kvm);
-
+	account_hyp_memcache(mc, prev_nr_pages, vcpu->kvm);
 	return err;
 }
 

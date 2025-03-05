@@ -338,7 +338,7 @@ struct hab_device *find_hab_device(unsigned int mm_id)
 struct virtual_channel *frontend_open(struct uhab_context *ctx,
 		unsigned int mm_id,
 		int dom_id,
-		uint32_t flags)
+		uint32_t flags, int timeout)
 {
 	int ret, ret2, open_id = 0;
 	struct physical_channel *pchan = NULL;
@@ -391,7 +391,7 @@ struct virtual_channel *frontend_open(struct uhab_context *ctx,
 	/* Wait for Init-Ack sequence */
 	hab_open_request_init(&request, HAB_PAYLOAD_TYPE_INIT_ACK, pchan,
 		0, sub_id, open_id);
-	ret = hab_open_listen(ctx, dev, &request, &recv_request, 0, flags);
+	ret = hab_open_listen(ctx, dev, &request, &recv_request, timeout, flags);
 	if (!ret && recv_request && ((recv_request->xdata.ver_fe & 0xFFFF0000)
 		!= (recv_request->xdata.ver_be & 0xFFFF0000))) {
 		/* version check */
@@ -416,8 +416,11 @@ struct virtual_channel *frontend_open(struct uhab_context *ctx,
 				   vchan->id);
 		hab_open_pending_exit(ctx, pchan, &pending_open);
 
-		if (ret != -EINTR)
+		if (ret == -EAGAIN)
+			ret = -ETIMEDOUT;
+		else if (ret != -EINTR)
 			ret = -EINVAL;
+
 		goto err;
 	}
 
@@ -789,7 +792,7 @@ int hab_vchan_open(struct uhab_context *ctx,
 		if (ctx->lb_be)
 			vchan = backend_listen(ctx, mmid, timeout, flags);
 		else
-			vchan = frontend_open(ctx, mmid, LOOPBACK_DOM, flags);
+			vchan = frontend_open(ctx, mmid, LOOPBACK_DOM, flags, timeout);
 	} else {
 		dev = find_hab_device(mmid);
 
@@ -808,7 +811,7 @@ int hab_vchan_open(struct uhab_context *ctx,
 							timeout, flags);
 				else
 					vchan = frontend_open(ctx, mmid,
-							HABCFG_VMID_DONT_CARE, flags);
+							HABCFG_VMID_DONT_CARE, flags, timeout);
 			} else {
 				pr_err("open on nonexistent pchan (mmid %x)\n",
 					mmid);

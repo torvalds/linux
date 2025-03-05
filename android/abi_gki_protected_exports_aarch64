@@ -97,6 +97,7 @@ hci_alloc_dev_priv
 hci_cmd_sync
 hci_cmd_sync_cancel
 hci_cmd_sync_queue
+hci_cmd_sync_status
 hci_cmd_sync_submit
 hci_conn_check_secure
 hci_conn_security

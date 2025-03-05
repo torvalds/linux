@@ -978,11 +978,11 @@ static int rmi_driver_remove(struct device *dev)
 
 	rmi_disable_irq(rmi_dev, false);
 
-	irq_domain_remove(data->irqdomain);
-	data->irqdomain = NULL;
-
 	rmi_f34_remove_sysfs(rmi_dev);
 	rmi_free_function_list(rmi_dev);
+
+	irq_domain_remove(data->irqdomain);
+	data->irqdomain = NULL;
 
 	return 0;
 }

@@ -368,6 +368,7 @@ static int report_events(int argc, const char **argv, struct perf_mem *mem)
 		rep_argv[i] = argv[j];
 
 	ret = cmd_report(i, rep_argv);
+	free(new_sort_order);
 	free(rep_argv);
 	return ret;
 }
@@ -512,6 +513,9 @@ int cmd_mem(int argc, const char **argv)
 		return report_events(argc, argv, &mem);
 	else
 		usage_with_options(mem_usage, mem_options);
+
+	/* free usage string allocated by parse_options_subcommand */
+	free((void *)mem_usage[0]);
 
 	return 0;
 }

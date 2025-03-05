@@ -33,8 +33,9 @@
 #define ADC5_DECIMATION_SHORT			250
 #define ADC5_DECIMATION_MEDIUM			420
 #define ADC5_DECIMATION_LONG			840
-/* Default decimation - 1024 for rev2, 840 for pmic5 */
+/* Default decimation - 1024 for rev2, 840 for pmic5, 1360 for adc5_gen3 and 340 for adc5_gen4 */
 #define ADC5_DECIMATION_DEFAULT			2
+#define ADC5_GEN4_DECIMATION_DEFAULT		1
 #define ADC5_DECIMATION_SAMPLES_MAX		3
 
 #define VADC_HW_SETTLE_DELAY_MAX		10000
@@ -58,6 +59,7 @@
 #define ADC5_FULL_SCALE_CODE			0x70e4
 #define ADC5_USR_DATA_CHECK			0x8000
 
+#define R_PU_10K				10000
 #define R_PU_100K				100000
 #define RATIO_MAX_ADC7				BIT(14)
 
@@ -193,6 +195,12 @@ struct adc_tm_client_info {
  *	in ohms using 100k pullup. The hardware applies offset/slope to
  *	adc code.
  * SCALE_HW_CALIB_PM5_GEN3_USB_IN_I: Returns USB input current in microamperes.
+ * SCALE_HW_CALIB_PM5_GEN4_BATT_THERM_10K: Returns battery thermistor
+ *	temperature in decidegC using 10k pullup. The hardware applies
+ *	offset/slope to adc code.
+ * SCALE_HW_CALIB_PM5_GEN4_BATT_ID_10K: Returns battery ID resistance
+ *	in ohms using 10k pullup. The hardware applies offset/slope to
+ *	adc code.
  */
 enum vadc_scale_fn_type {
 	SCALE_DEFAULT = 0,
@@ -221,13 +229,21 @@ enum vadc_scale_fn_type {
 	SCALE_HW_CALIB_PM5_GEN3_BATT_THERM_100K,
 	SCALE_HW_CALIB_PM5_GEN3_BATT_ID_100K,
 	SCALE_HW_CALIB_PM5_GEN3_USB_IN_I,
+	SCALE_HW_CALIB_PM5_GEN4_BATT_THERM_10K,
+	SCALE_HW_CALIB_PM5_GEN4_BATT_ID_10K,
 	SCALE_HW_CALIB_INVALID,
+};
+
+enum vadc_generation {
+	ADC5_GEN3 = 0,
+	ADC5_GEN4,
 };
 
 struct adc5_data {
 	const char	*name;
 	const u32	full_scale_code_volt;
 	const u32	full_scale_code_cur;
+	const u32	full_scale_code_raw;
 	const struct adc5_channels *adc_chans;
 	const struct iio_info *info;
 	unsigned int	*decimation;
@@ -266,7 +282,8 @@ int qcom_adc5_decimation_from_dt(u32 value, const unsigned int *decimation);
 
 int qcom_vadc_decimation_from_dt(u32 value);
 
-void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param);
+void adc_tm_scale_therm_voltage_100k_gen3(struct adc_tm_config *param,
+					  const struct adc5_data *data);
 
 int32_t adc_tm_absolute_rthr_gen3(struct adc_tm_config *tm_config);
 

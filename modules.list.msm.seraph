@@ -5,6 +5,7 @@ qcom-pdc.ko
 pinctrl-msm.ko
 pinctrl-seraph.ko
 qcom_hwspinlock.ko
+qrtr.ko
 smem.ko
 socinfo.ko
 clk-dummy.ko
@@ -21,6 +22,10 @@ icc-debug.ko
 qnoc-qos.ko
 qnoc-seraph.ko
 spmi-pmic-arb.ko
+debug-regulator.ko
+proxy-consumer.ko
+qti-fixed-regulator.ko
+rpmh-regulator.ko
 stub-regulator.ko
 arm_smmu.ko
 iommu-logger.ko
@@ -42,6 +47,7 @@ tmecom-intf.ko
 msm_qmp.ko
 qcom_aoss.ko
 qcom-ipcc.ko
+qcom_ipc_logging.ko
 qcom_wdt_core.ko
 gh_virt_wdt.ko
 qcom-cpufreq-hw.ko
@@ -50,3 +56,11 @@ sched-walt.ko
 gic_intr_routing.ko
 crypto-qti.ko
 hwkm.ko
+gh_arm_drv.ko
+gh_cpusys_vm_mem_access.ko
+gh_dbl.ko
+gh_msgq.ko
+gh_rm_drv.ko
+gunyah.ko
+gunyah_loader.ko
+gunyah_qcom.ko

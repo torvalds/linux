@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -1091,18 +1091,20 @@ static int geni_i3c_gsi_write(struct geni_i3c_dev *gi3c, struct geni_i3c_xfer_pa
 	i3c_setup_go_tre(gi3c, xfer, 0, false, false);
 	gi3c->gsi.tx.tre.flags |= GO_TRE_SET;
 
-	ret = geni_se_common_iommu_map_buf(gi3c->wrapper_dev, &tx_tre_q->dma_buf[0],
-					   gi3c->cur_buf, gi3c->cur_len, DMA_TO_DEVICE);
-	if (ret) {
-		I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
-			    "%s:geni_se_common_iommu_map_buf failed ret:%d\n", __func__, ret);
-		goto geni_i3c_gsi_write_xfer_out;
-	}
-
 	if (gi3c->cur_len) {
+		ret = geni_se_common_iommu_map_buf(gi3c->wrapper_dev, &tx_tre_q->dma_buf[0],
+						   gi3c->cur_buf, gi3c->cur_len, DMA_TO_DEVICE);
+		if (ret) {
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				    "%s:geni_se_common_iommu_map_buf failed ret:%d\n",
+				    __func__, ret);
+			goto geni_i3c_gsi_write_xfer_out;
+		}
+
 		i3c_setup_tx_tre(gi3c, 0, false, false);
 		gi3c->gsi.tx.tre.flags |= DMA_TRE_SET;
 	}
+
 	tre_cnt = gsi_common_fill_tre_buf(&gi3c->gsi, tx_chan);
 	ret = gsi_common_prep_desc_and_submit(&gi3c->gsi,  tre_cnt, tx_chan, false);
 	if (ret < 0) {
@@ -1117,7 +1119,6 @@ static int geni_i3c_gsi_write(struct geni_i3c_dev *gi3c, struct geni_i3c_xfer_pa
 		geni_i3c_err(gi3c, GENI_TIMEOUT);
 		geni_i3c_se_dump_dbg_regs(&gi3c->se, gi3c->se.base, gi3c->ipcl);
 		gi3c->cur_buf = NULL;
-		gi3c->cur_len = 0;
 		gi3c->cur_idx = 0;
 		gi3c->cur_rnw = 0;
 		reinit_completion(&gi3c->done);
@@ -1128,9 +1129,11 @@ static int geni_i3c_gsi_write(struct geni_i3c_dev *gi3c, struct geni_i3c_xfer_pa
 		gi3c->cfg_sent = true;
 geni_i3c_err_prep:
 	ret = geni_i3c_err_prep_sg(gi3c);
-	geni_se_common_iommu_unmap_buf(gi3c->wrapper_dev, &tx_tre_q->dma_buf[0],
-				       gi3c->cur_len, DMA_TO_DEVICE);
+	if (gi3c->cur_len)
+		geni_se_common_iommu_unmap_buf(gi3c->wrapper_dev, &tx_tre_q->dma_buf[0],
+					       gi3c->cur_len, DMA_TO_DEVICE);
 	if (gi3c->err) {
+		gi3c->cur_len = 0;
 		ret = (gi3c->err == -EBUSY) ? I3C_ERROR_M2 : gi3c->err;
 		I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev,
 			    "%s:I3C transaction error :%d\n", __func__, gi3c->err);
@@ -1176,12 +1179,15 @@ static int geni_i3c_gsi_read(struct geni_i3c_dev *gi3c, struct geni_i3c_xfer_par
 	i3c_setup_go_tre(gi3c, xfer, 0, false, false);
 	gi3c->gsi.tx.tre.flags |= GO_TRE_SET;
 
-	ret = geni_se_common_iommu_map_buf(gi3c->wrapper_dev, &gi3c->rx_phy, gi3c->cur_buf,
-					   gi3c->cur_len, DMA_FROM_DEVICE);
-	if (ret) {
-		I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
-			    "%s:geni_se_common_iommu_map_buf failed ret:%d\n", __func__, ret);
-		goto geni_i3c_gsi_read_xfer_out;
+	if (gi3c->cur_len) {
+		ret = geni_se_common_iommu_map_buf(gi3c->wrapper_dev, &gi3c->rx_phy,
+						   gi3c->cur_buf, gi3c->cur_len, DMA_FROM_DEVICE);
+		if (ret) {
+			I3C_LOG_ERR(gi3c->ipcl, true, gi3c->se.dev,
+				    "%s:geni_se_common_iommu_map_buf failed ret:%d\n",
+				    __func__, ret);
+			goto geni_i3c_gsi_read_xfer_out;
+		}
 	}
 
 	i3c_setup_rx_tre(gi3c);
@@ -1208,7 +1214,6 @@ static int geni_i3c_gsi_read(struct geni_i3c_dev *gi3c, struct geni_i3c_xfer_par
 		geni_i3c_err(gi3c, GENI_TIMEOUT);
 		geni_i3c_se_dump_dbg_regs(&gi3c->se, gi3c->se.base, gi3c->ipcl);
 		gi3c->cur_buf = NULL;
-		gi3c->cur_len = 0;
 		gi3c->cur_idx = 0;
 		gi3c->cur_rnw = 0;
 		reinit_completion(&gi3c->done);
@@ -1219,9 +1224,11 @@ static int geni_i3c_gsi_read(struct geni_i3c_dev *gi3c, struct geni_i3c_xfer_par
 		gi3c->cfg_sent = true;
 geni_i3c_err_prep:
 	ret = geni_i3c_err_prep_sg(gi3c);
-	geni_se_common_iommu_unmap_buf(gi3c->wrapper_dev, &gi3c->rx_phy,
-				       gi3c->cur_len, DMA_FROM_DEVICE);
+	if (gi3c->cur_len)
+		geni_se_common_iommu_unmap_buf(gi3c->wrapper_dev, &gi3c->rx_phy,
+					       gi3c->cur_len, DMA_FROM_DEVICE);
 	if (gi3c->err) {
+		gi3c->cur_len = 0;
 		ret = (gi3c->err == -EBUSY) ? I3C_ERROR_M2 : gi3c->err;
 		I3C_LOG_DBG(gi3c->ipcl, false, gi3c->se.dev,
 			    "%s:I3C transaction error:%d\n", __func__, gi3c->err);
