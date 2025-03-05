@@ -97,6 +97,20 @@ static inline unsigned int vnic_cq_service(struct vnic_cq *cq,
 	return work_done;
 }
 
+static inline void *vnic_cq_to_clean(struct vnic_cq *cq)
+{
+	return ((u8 *)cq->ring.descs + cq->ring.desc_size * cq->to_clean);
+}
+
+static inline void vnic_cq_inc_to_clean(struct vnic_cq *cq)
+{
+	cq->to_clean++;
+	if (cq->to_clean == cq->ring.desc_count) {
+		cq->to_clean = 0;
+		cq->last_color = cq->last_color ? 0 : 1;
+	}
+}
+
 void vnic_cq_free(struct vnic_cq *cq);
 int vnic_cq_alloc(struct vnic_dev *vdev, struct vnic_cq *cq, unsigned int index,
 	unsigned int desc_count, unsigned int desc_size);
