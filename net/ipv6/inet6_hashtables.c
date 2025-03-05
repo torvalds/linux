@@ -263,7 +263,8 @@ EXPORT_SYMBOL_GPL(inet6_lookup);
 
 static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 				     struct sock *sk, const __u16 lport,
-				     struct inet_timewait_sock **twp)
+				     struct inet_timewait_sock **twp,
+				     bool rcu_lookup)
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	struct inet_sock *inet = inet_sk(sk);
@@ -276,11 +277,25 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	const unsigned int hash = inet6_ehashfn(net, daddr, lport, saddr,
 						inet->inet_dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
-	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
-	struct sock *sk2;
-	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw = NULL;
+	const struct hlist_nulls_node *node;
+	struct sock *sk2;
+	spinlock_t *lock;
 
+	if (rcu_lookup) {
+		sk_nulls_for_each(sk2, node, &head->chain) {
+			if (sk2->sk_hash != hash ||
+			    !inet6_match(net, sk2, saddr, daddr,
+					 ports, dif, sdif))
+				continue;
+			if (sk2->sk_state == TCP_TIME_WAIT)
+				break;
+			return -EADDRNOTAVAIL;
+		}
+		return 0;
+	}
+
+	lock = inet_ehash_lockp(hinfo, hash);
 	spin_lock(lock);
 
 	sk_nulls_for_each(sk2, node, &head->chain) {

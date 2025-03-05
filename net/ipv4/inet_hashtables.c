@@ -76,7 +76,7 @@ struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
 		tb->fastreuse = 0;
 		tb->fastreuseport = 0;
 		INIT_HLIST_HEAD(&tb->bhash2);
-		hlist_add_head(&tb->node, &head->chain);
+		hlist_add_head_rcu(&tb->node, &head->chain);
 	}
 	return tb;
 }
@@ -84,11 +84,11 @@ struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
 /*
  * Caller must hold hashbucket lock for this tb with local BH disabled
  */
-void inet_bind_bucket_destroy(struct kmem_cache *cachep, struct inet_bind_bucket *tb)
+void inet_bind_bucket_destroy(struct inet_bind_bucket *tb)
 {
 	if (hlist_empty(&tb->bhash2)) {
-		__hlist_del(&tb->node);
-		kmem_cache_free(cachep, tb);
+		hlist_del_rcu(&tb->node);
+		kfree_rcu(tb, rcu);
 	}
 }
 
@@ -201,7 +201,7 @@ static void __inet_put_port(struct sock *sk)
 	}
 	spin_unlock(&head2->lock);
 
-	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
+	inet_bind_bucket_destroy(tb);
 	spin_unlock(&head->lock);
 }
 
@@ -285,7 +285,7 @@ bhash2_find:
 
 error:
 	if (created_inet_bind_bucket)
-		inet_bind_bucket_destroy(table->bind_bucket_cachep, tb);
+		inet_bind_bucket_destroy(tb);
 	spin_unlock(&head2->lock);
 	spin_unlock(&head->lock);
 	return -ENOMEM;
@@ -537,7 +537,8 @@ EXPORT_SYMBOL_GPL(__inet_lookup_established);
 /* called with local bh disabled */
 static int __inet_check_established(struct inet_timewait_death_row *death_row,
 				    struct sock *sk, __u16 lport,
-				    struct inet_timewait_sock **twp)
+				    struct inet_timewait_sock **twp,
+				    bool rcu_lookup)
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	struct inet_sock *inet = inet_sk(sk);
@@ -551,11 +552,24 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	unsigned int hash = inet_ehashfn(net, daddr, lport,
 					 saddr, inet->inet_dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
-	spinlock_t *lock = inet_ehash_lockp(hinfo, hash);
-	struct sock *sk2;
-	const struct hlist_nulls_node *node;
 	struct inet_timewait_sock *tw = NULL;
+	const struct hlist_nulls_node *node;
+	struct sock *sk2;
+	spinlock_t *lock;
 
+	if (rcu_lookup) {
+		sk_nulls_for_each(sk2, node, &head->chain) {
+			if (sk2->sk_hash != hash ||
+			    !inet_match(net, sk2, acookie, ports, dif, sdif))
+				continue;
+			if (sk2->sk_state == TCP_TIME_WAIT)
+				break;
+			return -EADDRNOTAVAIL;
+		}
+		return 0;
+	}
+
+	lock = inet_ehash_lockp(hinfo, hash);
 	spin_lock(lock);
 
 	sk_nulls_for_each(sk2, node, &head->chain) {
@@ -994,7 +1008,8 @@ static u32 *table_perturb;
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 		struct sock *sk, u64 port_offset,
 		int (*check_established)(struct inet_timewait_death_row *,
-			struct sock *, __u16, struct inet_timewait_sock **))
+			struct sock *, __u16, struct inet_timewait_sock **,
+			bool rcu_lookup))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	struct inet_bind_hashbucket *head, *head2;
@@ -1012,7 +1027,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 
 	if (port) {
 		local_bh_disable();
-		ret = check_established(death_row, sk, port, NULL);
+		ret = check_established(death_row, sk, port, NULL, false);
 		local_bh_enable();
 		return ret;
 	}
@@ -1048,6 +1063,21 @@ other_parity_scan:
 			continue;
 		head = &hinfo->bhash[inet_bhashfn(net, port,
 						  hinfo->bhash_size)];
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(tb, &head->chain, node) {
+			if (!inet_bind_bucket_match(tb, net, port, l3mdev))
+				continue;
+			if (tb->fastreuse >= 0 || tb->fastreuseport >= 0) {
+				rcu_read_unlock();
+				goto next_port;
+			}
+			if (!check_established(death_row, sk, port, &tw, true))
+				break;
+			rcu_read_unlock();
+			goto next_port;
+		}
+		rcu_read_unlock();
+
 		spin_lock_bh(&head->lock);
 
 		/* Does not bother with rcv_saddr checks, because
@@ -1057,12 +1087,12 @@ other_parity_scan:
 			if (inet_bind_bucket_match(tb, net, port, l3mdev)) {
 				if (tb->fastreuse >= 0 ||
 				    tb->fastreuseport >= 0)
-					goto next_port;
+					goto next_port_unlock;
 				WARN_ON(hlist_empty(&tb->bhash2));
 				if (!check_established(death_row, sk,
-						       port, &tw))
+						       port, &tw, false))
 					goto ok;
-				goto next_port;
+				goto next_port_unlock;
 			}
 		}
 
@@ -1076,8 +1106,9 @@ other_parity_scan:
 		tb->fastreuse = -1;
 		tb->fastreuseport = -1;
 		goto ok;
-next_port:
+next_port_unlock:
 		spin_unlock_bh(&head->lock);
+next_port:
 		cond_resched();
 	}
 
@@ -1149,7 +1180,7 @@ error:
 
 	spin_unlock(&head2->lock);
 	if (tb_created)
-		inet_bind_bucket_destroy(hinfo->bind_bucket_cachep, tb);
+		inet_bind_bucket_destroy(tb);
 	spin_unlock(&head->lock);
 
 	if (tw)
