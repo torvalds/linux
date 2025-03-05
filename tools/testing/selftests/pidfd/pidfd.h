@@ -127,6 +127,10 @@
 #define PIDFD_INFO_CGROUPID		(1UL << 2) /* Always returned if available, even if not requested */
 #endif
 
+#ifndef PIDFD_INFO_EXIT
+#define PIDFD_INFO_EXIT			(1UL << 3) /* Always returned if available, even if not requested */
+#endif
+
 struct pidfd_info {
 	__u64 mask;
 	__u64 cgroupid;
@@ -141,7 +145,7 @@ struct pidfd_info {
 	__u32 sgid;
 	__u32 fsuid;
 	__u32 fsgid;
-	__u32 spare0[1];
+	__s32 exit_code;
 };
 
 /*
