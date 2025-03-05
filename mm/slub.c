@@ -1441,7 +1441,7 @@ static int check_slab(struct kmem_cache *s, struct slab *slab)
  * Determine if a certain object in a slab is on the freelist. Must hold the
  * slab lock to guarantee that the chains are in a consistent state.
  */
-static int on_freelist(struct kmem_cache *s, struct slab *slab, void *search)
+static bool on_freelist(struct kmem_cache *s, struct slab *slab, void *search)
 {
 	int nr = 0;
 	void *fp;
@@ -1451,24 +1451,32 @@ static int on_freelist(struct kmem_cache *s, struct slab *slab, void *search)
 	fp = slab->freelist;
 	while (fp && nr <= slab->objects) {
 		if (fp == search)
-			return 1;
+			return true;
 		if (!check_valid_pointer(s, slab, fp)) {
 			if (object) {
 				object_err(s, slab, object,
 					"Freechain corrupt");
 				set_freepointer(s, object, NULL);
+				break;
 			} else {
 				slab_err(s, slab, "Freepointer corrupt");
 				slab->freelist = NULL;
 				slab->inuse = slab->objects;
 				slab_fix(s, "Freelist cleared");
-				return 0;
+				return false;
 			}
-			break;
 		}
 		object = fp;
 		fp = get_freepointer(s, object);
 		nr++;
+	}
+
+	if (nr > slab->objects) {
+		slab_err(s, slab, "Freelist cycle detected");
+		slab->freelist = NULL;
+		slab->inuse = slab->objects;
+		slab_fix(s, "Freelist cleared");
+		return false;
 	}
 
 	max_objects = order_objects(slab_order(slab), s->size);
