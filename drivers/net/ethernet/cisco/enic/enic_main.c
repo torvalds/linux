@@ -1332,8 +1332,7 @@ static int enic_poll(struct napi_struct *napi, int budget)
 	unsigned int  work_done, rq_work_done = 0, wq_work_done;
 	int err;
 
-	wq_work_done = vnic_cq_service(&enic->cq[cq_wq], wq_work_to_do,
-				       enic_wq_service, NULL);
+	wq_work_done = enic_wq_cq_service(enic, cq_wq, wq_work_to_do);
 
 	if (budget > 0)
 		rq_work_done = enic_rq_cq_service(enic, cq_rq, rq_work_to_do);
@@ -1435,8 +1434,8 @@ static int enic_poll_msix_wq(struct napi_struct *napi, int budget)
 	wq_irq = wq->index;
 	cq = enic_cq_wq(enic, wq_irq);
 	intr = enic_msix_wq_intr(enic, wq_irq);
-	wq_work_done = vnic_cq_service(&enic->cq[cq], wq_work_to_do,
-				       enic_wq_service, NULL);
+
+	wq_work_done = enic_wq_cq_service(enic, cq, wq_work_to_do);
 
 	vnic_intr_return_credits(&enic->intr[intr], wq_work_done,
 				 0 /* don't unmask intr */,
