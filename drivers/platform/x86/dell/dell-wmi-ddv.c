@@ -104,7 +104,6 @@ struct dell_wmi_ddv_sensors {
 
 struct dell_wmi_ddv_data {
 	struct acpi_battery_hook hook;
-	struct device_attribute temp_attr;
 	struct device_attribute eppid_attr;
 	struct dell_wmi_ddv_sensors fans;
 	struct dell_wmi_ddv_sensors temps;
@@ -651,26 +650,6 @@ static int dell_wmi_ddv_battery_index(struct acpi_device *acpi_dev, u32 *index)
 	return kstrtou32(uid_str, 10, index);
 }
 
-static ssize_t temp_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct dell_wmi_ddv_data *data = container_of(attr, struct dell_wmi_ddv_data, temp_attr);
-	u32 index, value;
-	int ret;
-
-	ret = dell_wmi_ddv_battery_index(to_acpi_device(dev->parent), &index);
-	if (ret < 0)
-		return ret;
-
-	ret = dell_wmi_ddv_query_integer(data->wdev, DELL_DDV_BATTERY_TEMPERATURE, index, &value);
-	if (ret < 0)
-		return ret;
-
-	/* Use 2732 instead of 2731.5 to avoid unnecessary rounding and to emulate
-	 * the behaviour of the OEM application which seems to round down the result.
-	 */
-	return sysfs_emit(buf, "%d\n", value - 2732);
-}
-
 static ssize_t eppid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct dell_wmi_ddv_data *data = container_of(attr, struct dell_wmi_ddv_data, eppid_attr);
@@ -697,6 +676,46 @@ static ssize_t eppid_show(struct device *dev, struct device_attribute *attr, cha
 	return ret;
 }
 
+static int dell_wmi_ddv_get_property(struct power_supply *psy, const struct power_supply_ext *ext,
+				     void *drvdata, enum power_supply_property psp,
+				     union power_supply_propval *val)
+{
+	struct dell_wmi_ddv_data *data = drvdata;
+	u32 index, value;
+	int ret;
+
+	ret = dell_wmi_ddv_battery_index(to_acpi_device(psy->dev.parent), &index);
+	if (ret < 0)
+		return ret;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_TEMP:
+		ret = dell_wmi_ddv_query_integer(data->wdev, DELL_DDV_BATTERY_TEMPERATURE, index,
+						 &value);
+		if (ret < 0)
+			return ret;
+
+		/* Use 2732 instead of 2731.5 to avoid unnecessary rounding and to emulate
+		 * the behaviour of the OEM application which seems to round down the result.
+		 */
+		val->intval = value - 2732;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+static const enum power_supply_property dell_wmi_ddv_properties[] = {
+	POWER_SUPPLY_PROP_TEMP,
+};
+
+static const struct power_supply_ext dell_wmi_ddv_extension = {
+	.name = DRIVER_NAME,
+	.properties = dell_wmi_ddv_properties,
+	.num_properties = ARRAY_SIZE(dell_wmi_ddv_properties),
+	.get_property = dell_wmi_ddv_get_property,
+};
+
 static int dell_wmi_ddv_add_battery(struct power_supply *battery, struct acpi_battery_hook *hook)
 {
 	struct dell_wmi_ddv_data *data = container_of(hook, struct dell_wmi_ddv_data, hook);
@@ -708,13 +727,14 @@ static int dell_wmi_ddv_add_battery(struct power_supply *battery, struct acpi_ba
 	if (ret < 0)
 		return 0;
 
-	ret = device_create_file(&battery->dev, &data->temp_attr);
+	ret = device_create_file(&battery->dev, &data->eppid_attr);
 	if (ret < 0)
 		return ret;
 
-	ret = device_create_file(&battery->dev, &data->eppid_attr);
+	ret = power_supply_register_extension(battery, &dell_wmi_ddv_extension, &data->wdev->dev,
+					      data);
 	if (ret < 0) {
-		device_remove_file(&battery->dev, &data->temp_attr);
+		device_remove_file(&battery->dev, &data->eppid_attr);
 
 		return ret;
 	}
@@ -726,8 +746,8 @@ static int dell_wmi_ddv_remove_battery(struct power_supply *battery, struct acpi
 {
 	struct dell_wmi_ddv_data *data = container_of(hook, struct dell_wmi_ddv_data, hook);
 
-	device_remove_file(&battery->dev, &data->temp_attr);
 	device_remove_file(&battery->dev, &data->eppid_attr);
+	power_supply_unregister_extension(battery, &dell_wmi_ddv_extension);
 
 	return 0;
 }
@@ -737,11 +757,6 @@ static int dell_wmi_ddv_battery_add(struct dell_wmi_ddv_data *data)
 	data->hook.name = "Dell DDV Battery Extension";
 	data->hook.add_battery = dell_wmi_ddv_add_battery;
 	data->hook.remove_battery = dell_wmi_ddv_remove_battery;
-
-	sysfs_attr_init(&data->temp_attr.attr);
-	data->temp_attr.attr.name = "temp";
-	data->temp_attr.attr.mode = 0444;
-	data->temp_attr.show = temp_show;
 
 	sysfs_attr_init(&data->eppid_attr.attr);
 	data->eppid_attr.attr.name = "eppid";
