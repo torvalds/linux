@@ -1041,6 +1041,8 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
  * @amdgpu_crtc: the selected display controller
  * @mode: the current display mode on the selected display
  * controller
+ * @other_mode: the display mode of another display controller
+ *              that may be sharing the line buffer
  *
  * Setup up the line buffer allocation for
  * the selected display controller (CIK).
