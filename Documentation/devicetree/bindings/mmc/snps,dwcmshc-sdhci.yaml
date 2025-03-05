@@ -15,6 +15,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - rockchip,rk3528-dwcmshc
               - rockchip,rk3562-dwcmshc
               - rockchip,rk3576-dwcmshc
           - const: rockchip,rk3588-dwcmshc
