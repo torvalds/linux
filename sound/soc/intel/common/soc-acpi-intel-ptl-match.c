@@ -134,6 +134,15 @@ static const struct snd_soc_acpi_adr_device rt712_vb_2_group1_adr[] = {
 	}
 };
 
+static const struct snd_soc_acpi_adr_device rt712_vb_3_group1_adr[] = {
+	{
+		.adr = 0x000330025D071201ull,
+		.num_endpoints = ARRAY_SIZE(jack_amp_g1_dmic_endpoints_endpoints),
+		.endpoints = jack_amp_g1_dmic_endpoints_endpoints,
+		.name_prefix = "rt712"
+	}
+};
+
 static const struct snd_soc_acpi_adr_device rt713_vb_2_adr[] = {
 	{
 		.adr = 0x000230025d071301ull,
@@ -202,6 +211,15 @@ static const struct snd_soc_acpi_adr_device rt1320_1_group2_adr[] = {
 		.adr = 0x000130025D132001ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_l_endpoint,
+		.name_prefix = "rt1320-1"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt1320_2_group1_adr[] = {
+	{
+		.adr = 0x000230025D132001ull,
+		.num_endpoints = 1,
+		.endpoints = &spk_r_endpoint,
 		.name_prefix = "rt1320-1"
 	}
 };
@@ -284,6 +302,20 @@ static const struct snd_soc_acpi_link_adr ptl_sdw_rt712_vb_l2_rt1320_l1[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr ptl_sdw_rt712_vb_l3_rt1320_l2[] = {
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(rt712_vb_3_group1_adr),
+		.adr_d = rt712_vb_3_group1_adr,
+	},
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(rt1320_2_group1_adr),
+		.adr_d = rt1320_2_group1_adr,
+	},
+	{}
+};
+
 /* this table is used when there is no I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 	/* mockup tests need to be first */
@@ -341,6 +373,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 		.drv_name = "sof_sdw",
 		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
 		.sof_tplg_filename = "sof-ptl-rt712-l2-rt1320-l1.tplg"
+	},
+	{
+		.link_mask = BIT(2) | BIT(3),
+		.links = ptl_sdw_rt712_vb_l3_rt1320_l2,
+		.drv_name = "sof_sdw",
+		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
+		.sof_tplg_filename = "sof-ptl-rt712-l3-rt1320-l2.tplg"
 	},
 	{
 		.link_mask = BIT(1) | BIT(2) | BIT(3),
