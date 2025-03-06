@@ -8,6 +8,7 @@
 
 #include "intel-ixp42x.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 
 / {
 	model = "Netgear WG302 v1";
@@ -30,6 +31,35 @@
 	aliases {
 		/* These are switched around */
 		serial0 = &uart1;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		test_led: led-test {
+			color = <LED_COLOR_ID_AMBER>;
+			function = "test";
+			gpios = <&gpio0 4 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+		wlan_led: led-wlan {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_WLAN;
+			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+			linux,default-trigger = "phy0tx";
+		};
+	};
+
+	gpio_keys {
+		/* RESET is on GPIO13 which can't fire interrupts */
+		compatible = "gpio-keys-polled";
+		poll-interval = <100>;
+
+		button-reset {
+			linux,code = <KEY_RESTART>;
+			label = "reset";
+			gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	soc {
@@ -57,7 +87,7 @@
 			status = "okay";
 
 			/*
-			 * Taken from WG302 v2 PCI boardfile (wg302v2-pci.c)
+			 * Taken from WG302 v1 PCI boardfile (wg302v1-pci.c)
 			 * We have slots (IDSEL) 1 and 2 with one assigned IRQ
 			 * each handling all IRQs.
 			 */
@@ -70,10 +100,10 @@
 			<0x0800 0 0 3 &gpio0 8 IRQ_TYPE_LEVEL_LOW>, /* INT C on slot 1 is irq 8 */
 			<0x0800 0 0 4 &gpio0 8 IRQ_TYPE_LEVEL_LOW>, /* INT D on slot 1 is irq 8 */
 			/* IDSEL 2 */
-			<0x1000 0 0 1 &gpio0 9 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 2 is irq 9 */
-			<0x1000 0 0 2 &gpio0 9 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 2 is irq 9 */
-			<0x1000 0 0 3 &gpio0 9 IRQ_TYPE_LEVEL_LOW>, /* INT C on slot 2 is irq 9 */
-			<0x1000 0 0 4 &gpio0 9 IRQ_TYPE_LEVEL_LOW>; /* INT D on slot 2 is irq 9 */
+			<0x1000 0 0 1 &gpio0 10 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 2 is irq 10 */
+			<0x1000 0 0 2 &gpio0 10 IRQ_TYPE_LEVEL_LOW>, /* INT B on slot 2 is irq 10 */
+			<0x1000 0 0 3 &gpio0 10 IRQ_TYPE_LEVEL_LOW>, /* INT C on slot 2 is irq 10 */
+			<0x1000 0 0 4 &gpio0 10 IRQ_TYPE_LEVEL_LOW>; /* INT D on slot 2 is irq 10 */
 		};
 
 		ethernet@c8009000 {
