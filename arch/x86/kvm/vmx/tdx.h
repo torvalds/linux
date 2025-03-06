@@ -48,6 +48,8 @@ enum vcpu_tdx_state {
 struct vcpu_tdx {
 	struct kvm_vcpu	vcpu;
 	struct vcpu_vt vt;
+	u64 ext_exit_qualification;
+	gpa_t exit_gpa;
 	struct tdx_module_args vp_enter_args;
 
 	struct tdx_vp vp;
