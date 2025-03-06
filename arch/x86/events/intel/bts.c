@@ -338,9 +338,14 @@ static void bts_event_stop(struct perf_event *event, int flags)
 
 void intel_bts_enable_local(void)
 {
-	struct bts_ctx *bts = this_cpu_ptr(bts_ctx);
-	int state = READ_ONCE(bts->state);
+	struct bts_ctx *bts;
+	int state;
 
+	if (!bts_ctx)
+		return;
+
+	bts = this_cpu_ptr(bts_ctx);
+	state = READ_ONCE(bts->state);
 	/*
 	 * Here we transition from INACTIVE to ACTIVE;
 	 * if we instead are STOPPED from the interrupt handler,
@@ -358,7 +363,12 @@ void intel_bts_enable_local(void)
 
 void intel_bts_disable_local(void)
 {
-	struct bts_ctx *bts = this_cpu_ptr(bts_ctx);
+	struct bts_ctx *bts;
+
+	if (!bts_ctx)
+		return;
+
+	bts = this_cpu_ptr(bts_ctx);
 
 	/*
 	 * Here we transition from ACTIVE to INACTIVE;
@@ -450,12 +460,17 @@ bts_buffer_reset(struct bts_buffer *buf, struct perf_output_handle *handle)
 int intel_bts_interrupt(void)
 {
 	struct debug_store *ds = this_cpu_ptr(&cpu_hw_events)->ds;
-	struct bts_ctx *bts = this_cpu_ptr(bts_ctx);
-	struct perf_event *event = bts->handle.event;
+	struct bts_ctx *bts;
+	struct perf_event *event;
 	struct bts_buffer *buf;
 	s64 old_head;
 	int err = -ENOSPC, handled = 0;
 
+	if (!bts_ctx)
+		return 0;
+
+	bts = this_cpu_ptr(bts_ctx);
+	event = bts->handle.event;
 	/*
 	 * The only surefire way of knowing if this NMI is ours is by checking
 	 * the write ptr against the PMI threshold.
