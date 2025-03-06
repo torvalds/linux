@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - nvidia,tegra114-mipi
+      - nvidia,tegra124-mipi
       - nvidia,tegra210-mipi
       - nvidia,tegra186-mipi
 
