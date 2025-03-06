@@ -1316,7 +1316,9 @@ static int fbnic_alloc_nv_page_pool(struct fbnic_net *fbn,
 		.dev = nv->dev,
 		.dma_dir = DMA_BIDIRECTIONAL,
 		.offset = 0,
-		.max_len = PAGE_SIZE
+		.max_len = PAGE_SIZE,
+		.napi	= &nv->napi,
+		.netdev	= fbn->netdev,
 	};
 	struct page_pool *pp;
 
