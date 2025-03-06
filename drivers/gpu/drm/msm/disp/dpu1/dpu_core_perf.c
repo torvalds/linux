@@ -164,7 +164,7 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 	u32 bw, threshold;
 	struct dpu_crtc_state *dpu_cstate;
 	struct dpu_kms *kms;
-	struct dpu_core_perf_params perf;
+	struct dpu_core_perf_params perf = { 0 };
 
 	if (!crtc || !state) {
 		DPU_ERROR("invalid crtc\n");
