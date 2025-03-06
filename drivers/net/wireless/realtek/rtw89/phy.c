@@ -2044,7 +2044,7 @@ static s8 rtw89_phy_ant_gain_offset(struct rtw89_dev *rtwdev, u8 band, u32 cente
 	if (!chip->support_ant_gain)
 		return 0;
 
-	if (!(ant_gain->regd_enabled & BIT(regd)))
+	if (ant_gain->block_country || !(ant_gain->regd_enabled & BIT(regd)))
 		return 0;
 
 	offset_patha = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_A, center_freq);
@@ -2057,10 +2057,14 @@ s16 rtw89_phy_ant_gain_pwr_offset(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan)
 {
 	struct rtw89_ant_gain_info *ant_gain = &rtwdev->ant_gain;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 regd = rtw89_regd_get(rtwdev, chan->band_type);
 	s8 offset_patha, offset_pathb;
 
-	if (!(ant_gain->regd_enabled & BIT(regd)))
+	if (!chip->support_ant_gain)
+		return 0;
+
+	if (ant_gain->block_country || !(ant_gain->regd_enabled & BIT(regd)))
 		return 0;
 
 	offset_patha = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_A, chan->freq);
@@ -2079,7 +2083,8 @@ int rtw89_print_ant_gain(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 	char *p = buf, *end = buf + bufsz;
 	s8 offset_patha, offset_pathb;
 
-	if (!chip->support_ant_gain || !(ant_gain->regd_enabled & BIT(regd))) {
+	if (!(chip->support_ant_gain && (ant_gain->regd_enabled & BIT(regd))) ||
+	    ant_gain->block_country) {
 		p += scnprintf(p, end - p, "no DAG is applied\n");
 		goto out;
 	}

@@ -4666,6 +4666,7 @@ enum rtw89_ant_gain_domain_type {
 struct rtw89_ant_gain_info {
 	s8 offset[RTW89_ANT_GAIN_CHAIN_NUM][RTW89_ANT_GAIN_SUBBAND_NR];
 	u32 regd_enabled;
+	bool block_country;
 };
 
 struct rtw89_6ghz_span {
