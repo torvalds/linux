@@ -181,9 +181,9 @@ static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 
 	configured_link_freq = clk_get_rate(fsl_ldb->clk);
 	if (configured_link_freq != requested_link_freq)
-		dev_warn(fsl_ldb->dev, "Configured LDB clock (%lu Hz) does not match requested LVDS clock: %lu Hz\n",
-			 configured_link_freq,
-			 requested_link_freq);
+		dev_warn(fsl_ldb->dev,
+			 "Configured %pC clock (%lu Hz) does not match requested LVDS clock: %lu Hz\n",
+			 fsl_ldb->clk, configured_link_freq, requested_link_freq);
 
 	clk_prepare_enable(fsl_ldb->clk);
 
