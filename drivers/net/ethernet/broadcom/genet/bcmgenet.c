@@ -3757,7 +3757,6 @@ static const struct bcmgenet_hw_params bcmgenet_hw_params_v2 = {
 	.rdma_offset = 0x3000,
 	.tdma_offset = 0x4000,
 	.words_per_bd = 2,
-	.flags = GENET_HAS_EXT,
 };
 
 static const struct bcmgenet_hw_params bcmgenet_hw_params_v3 = {
@@ -3776,8 +3775,6 @@ static const struct bcmgenet_hw_params bcmgenet_hw_params_v3 = {
 	.rdma_offset = 0x10000,
 	.tdma_offset = 0x11000,
 	.words_per_bd = 2,
-	.flags = GENET_HAS_EXT | GENET_HAS_MDIO_INTR |
-		 GENET_HAS_MOCA_LINK_DET,
 };
 
 static const struct bcmgenet_hw_params bcmgenet_hw_params_v4 = {
@@ -3796,8 +3793,6 @@ static const struct bcmgenet_hw_params bcmgenet_hw_params_v4 = {
 	.rdma_offset = 0x2000,
 	.tdma_offset = 0x4000,
 	.words_per_bd = 3,
-	.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
-		 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
 };
 
 /* Infer hardware parameters from the detected GENET version */
@@ -3906,7 +3901,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 struct bcmgenet_plat_data {
 	enum bcmgenet_version version;
 	u32 dma_max_burst_length;
-	bool ephy_16nm;
+	u32 flags;
 };
 
 static const struct bcmgenet_plat_data v1_plat_data = {
@@ -3917,32 +3912,43 @@ static const struct bcmgenet_plat_data v1_plat_data = {
 static const struct bcmgenet_plat_data v2_plat_data = {
 	.version = GENET_V2,
 	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+	.flags = GENET_HAS_EXT,
 };
 
 static const struct bcmgenet_plat_data v3_plat_data = {
 	.version = GENET_V3,
 	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+	.flags = GENET_HAS_EXT | GENET_HAS_MDIO_INTR |
+		 GENET_HAS_MOCA_LINK_DET,
 };
 
 static const struct bcmgenet_plat_data v4_plat_data = {
 	.version = GENET_V4,
 	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+	.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
+		 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
 };
 
 static const struct bcmgenet_plat_data v5_plat_data = {
 	.version = GENET_V5,
 	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
+	.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
+		 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
 };
 
 static const struct bcmgenet_plat_data bcm2711_plat_data = {
 	.version = GENET_V5,
 	.dma_max_burst_length = 0x08,
+	.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
+		 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
 };
 
 static const struct bcmgenet_plat_data bcm7712_plat_data = {
 	.version = GENET_V5,
 	.dma_max_burst_length = DMA_MAX_BURST_LENGTH,
-	.ephy_16nm = true,
+	.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
+		 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET |
+		 GENET_HAS_EPHY_16NM,
 };
 
 static const struct of_device_id bcmgenet_match[] = {
@@ -4040,7 +4046,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	if (pdata) {
 		priv->version = pdata->version;
 		priv->dma_max_burst_length = pdata->dma_max_burst_length;
-		priv->ephy_16nm = pdata->ephy_16nm;
+		priv->flags = pdata->flags;
 	} else {
 		priv->version = pd->genet_version;
 		priv->dma_max_burst_length = DMA_MAX_BURST_LENGTH;

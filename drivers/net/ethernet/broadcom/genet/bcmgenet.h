@@ -476,6 +476,7 @@ enum bcmgenet_version {
 #define GENET_HAS_EXT		(1 << 1)
 #define GENET_HAS_MDIO_INTR	(1 << 2)
 #define GENET_HAS_MOCA_LINK_DET	(1 << 3)
+#define GENET_HAS_EPHY_16NM	(1 << 4)
 
 /* BCMGENET hardware parameters, keep this structure nicely aligned
  * since it is going to be used in hot paths
@@ -496,7 +497,6 @@ struct bcmgenet_hw_params {
 	u32		rdma_offset;
 	u32		tdma_offset;
 	u32		words_per_bd;
-	u32		flags;
 };
 
 struct bcmgenet_skb_cb {
@@ -597,6 +597,7 @@ struct bcmgenet_priv {
 
 	/* other misc variables */
 	const struct bcmgenet_hw_params *hw_params;
+	u32 flags;
 	unsigned autoneg_pause:1;
 	unsigned tx_pause:1;
 	unsigned rx_pause:1;
@@ -615,7 +616,6 @@ struct bcmgenet_priv {
 	phy_interface_t phy_interface;
 	int phy_addr;
 	int ext_phy;
-	bool ephy_16nm;
 
 	/* Interrupt variables */
 	struct work_struct bcmgenet_irq_work;
@@ -652,27 +652,27 @@ struct bcmgenet_priv {
 
 static inline bool bcmgenet_has_40bits(struct bcmgenet_priv *priv)
 {
-	return !!(priv->hw_params->flags & GENET_HAS_40BITS);
+	return !!(priv->flags & GENET_HAS_40BITS);
 }
 
 static inline bool bcmgenet_has_ext(struct bcmgenet_priv *priv)
 {
-	return !!(priv->hw_params->flags & GENET_HAS_EXT);
+	return !!(priv->flags & GENET_HAS_EXT);
 }
 
 static inline bool bcmgenet_has_mdio_intr(struct bcmgenet_priv *priv)
 {
-	return !!(priv->hw_params->flags & GENET_HAS_MDIO_INTR);
+	return !!(priv->flags & GENET_HAS_MDIO_INTR);
 }
 
 static inline bool bcmgenet_has_moca_link_det(struct bcmgenet_priv *priv)
 {
-	return !!(priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET);
+	return !!(priv->flags & GENET_HAS_MOCA_LINK_DET);
 }
 
 static inline bool bcmgenet_has_ephy_16nm(struct bcmgenet_priv *priv)
 {
-	return priv->ephy_16nm;
+	return !!(priv->flags & GENET_HAS_EPHY_16NM);
 }
 
 #define GENET_IO_MACRO(name, offset)					\
