@@ -30,6 +30,8 @@ int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
 		goto err_free_new_mem;
 	}
 
+	netdev_lock(dev);
+
 	err = qops->ndo_queue_mem_alloc(dev, new_mem, rxq_idx);
 	if (err)
 		goto err_free_old_mem;
@@ -51,6 +53,8 @@ int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
 	}
 
 	qops->ndo_queue_mem_free(dev, old_mem);
+
+	netdev_unlock(dev);
 
 	kvfree(old_mem);
 	kvfree(new_mem);
@@ -76,6 +80,7 @@ err_free_new_queue_mem:
 	qops->ndo_queue_mem_free(dev, new_mem);
 
 err_free_old_mem:
+	netdev_unlock(dev);
 	kvfree(old_mem);
 
 err_free_new_mem:
