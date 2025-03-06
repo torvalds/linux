@@ -5531,14 +5531,12 @@ static int send_encoded_inline_extent(struct send_ctx *sctx,
 	int ret;
 
 	fspath = get_cur_inode_path(sctx);
-	if (IS_ERR(fspath)) {
-		ret = PTR_ERR(fspath);
-		goto out;
-	}
+	if (IS_ERR(fspath))
+		return PTR_ERR(fspath);
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_ENCODED_WRITE);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_file_extent_item);
@@ -5554,12 +5552,12 @@ static int send_encoded_inline_extent(struct send_ctx *sctx,
 	ret = btrfs_encoded_io_compression_from_extent(fs_info,
 				btrfs_file_extent_compression(leaf, ei));
 	if (ret < 0)
-		goto out;
+		return ret;
 	TLV_PUT_U32(sctx, BTRFS_SEND_A_COMPRESSION, ret);
 
 	ret = put_data_header(sctx, inline_size);
 	if (ret < 0)
-		goto out;
+		return ret;
 	read_extent_buffer(leaf, sctx->send_buf + sctx->send_size,
 			   btrfs_file_extent_inline_start(ei), inline_size);
 	sctx->send_size += inline_size;
@@ -5567,7 +5565,6 @@ static int send_encoded_inline_extent(struct send_ctx *sctx,
 	ret = send_cmd(sctx);
 
 tlv_put_failure:
-out:
 	return ret;
 }
 
