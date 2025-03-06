@@ -32,6 +32,11 @@ static unsigned long xe_svm_range_end(struct xe_svm_range *range)
 	return drm_gpusvm_range_end(&range->base);
 }
 
+static unsigned long xe_svm_range_size(struct xe_svm_range *range)
+{
+	return drm_gpusvm_range_size(&range->base);
+}
+
 static void *xe_svm_devm_owner(struct xe_device *xe)
 {
 	return xe;
@@ -508,7 +513,6 @@ static int xe_svm_populate_devmem_pfn(struct drm_gpusvm_devmem *devmem_allocatio
 	return 0;
 }
 
-__maybe_unused
 static const struct drm_gpusvm_devmem_ops gpusvm_devmem_ops = {
 	.devmem_release = xe_svm_devmem_release,
 	.populate_devmem_pfn = xe_svm_populate_devmem_pfn,
@@ -588,6 +592,62 @@ static bool xe_svm_range_is_valid(struct xe_svm_range *range,
 	return (range->tile_present & ~range->tile_invalidated) & BIT(tile->id);
 }
 
+static struct xe_vram_region *tile_to_vr(struct xe_tile *tile)
+{
+	return &tile->mem.vram;
+}
+
+static int xe_svm_alloc_vram(struct xe_vm *vm, struct xe_tile *tile,
+			     struct xe_svm_range *range,
+			     const struct drm_gpusvm_ctx *ctx)
+{
+	struct mm_struct *mm = vm->svm.gpusvm.mm;
+	struct xe_vram_region *vr = tile_to_vr(tile);
+	struct drm_buddy_block *block;
+	struct list_head *blocks;
+	struct xe_bo *bo;
+	ktime_t end = 0;
+	int err;
+
+	if (!mmget_not_zero(mm))
+		return -EFAULT;
+	mmap_read_lock(mm);
+
+retry:
+	bo = xe_bo_create_locked(tile_to_xe(tile), NULL, NULL,
+				 xe_svm_range_size(range),
+				 ttm_bo_type_device,
+				 XE_BO_FLAG_VRAM_IF_DGFX(tile));
+	if (IS_ERR(bo)) {
+		err = PTR_ERR(bo);
+		if (xe_vm_validate_should_retry(NULL, err, &end))
+			goto retry;
+		goto unlock;
+	}
+
+	drm_gpusvm_devmem_init(&bo->devmem_allocation,
+			       vm->xe->drm.dev, mm,
+			       &gpusvm_devmem_ops,
+			       &tile->mem.vram.dpagemap,
+			       xe_svm_range_size(range));
+
+	blocks = &to_xe_ttm_vram_mgr_resource(bo->ttm.resource)->blocks;
+	list_for_each_entry(block, blocks, link)
+		block->private = vr;
+
+	err = drm_gpusvm_migrate_to_devmem(&vm->svm.gpusvm, &range->base,
+					   &bo->devmem_allocation, ctx);
+	xe_bo_unlock(bo);
+	if (err)
+		xe_bo_put(bo);	/* Creation ref */
+
+unlock:
+	mmap_read_unlock(mm);
+	mmput(mm);
+
+	return err;
+}
+
 /**
  * xe_svm_handle_pagefault() - SVM handle page fault
  * @vm: The VM.
@@ -596,7 +656,8 @@ static bool xe_svm_range_is_valid(struct xe_svm_range *range,
  * @fault_addr: The GPU fault address.
  * @atomic: The fault atomic access bit.
  *
- * Create GPU bindings for a SVM page fault.
+ * Create GPU bindings for a SVM page fault. Optionally migrate to device
+ * memory.
  *
  * Return: 0 on success, negative error code on error.
  */
@@ -604,7 +665,13 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 			    struct xe_tile *tile, u64 fault_addr,
 			    bool atomic)
 {
-	struct drm_gpusvm_ctx ctx = { .read_only = xe_vma_read_only(vma), };
+	struct drm_gpusvm_ctx ctx = {
+		.read_only = xe_vma_read_only(vma),
+		.devmem_possible = IS_DGFX(vm->xe) &&
+			IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR),
+		.check_pages_threshold = IS_DGFX(vm->xe) &&
+			IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR) ? SZ_64K : 0,
+	};
 	struct xe_svm_range *range;
 	struct drm_gpusvm_range *r;
 	struct drm_exec exec;
@@ -631,9 +698,31 @@ retry:
 	if (xe_svm_range_is_valid(range, tile))
 		return 0;
 
+	/* XXX: Add migration policy, for now migrate range once */
+	if (!range->skip_migrate && range->base.flags.migrate_devmem &&
+	    xe_svm_range_size(range) >= SZ_64K) {
+		range->skip_migrate = true;
+
+		err = xe_svm_alloc_vram(vm, tile, range, &ctx);
+		if (err) {
+			drm_dbg(&vm->xe->drm,
+				"VRAM allocation failed, falling back to "
+				"retrying fault, asid=%u, errno=%pe\n",
+				vm->usm.asid, ERR_PTR(err));
+			goto retry;
+		}
+	}
+
 	err = drm_gpusvm_range_get_pages(&vm->svm.gpusvm, r, &ctx);
-	if (err == -EFAULT || err == -EPERM)	/* Corner where CPU mappings have changed */
+	/* Corner where CPU mappings have changed */
+	if (err == -EOPNOTSUPP || err == -EFAULT || err == -EPERM) {
+		if (err == -EOPNOTSUPP)
+			drm_gpusvm_range_evict(&vm->svm.gpusvm, &range->base);
+		drm_dbg(&vm->xe->drm,
+			"Get pages failed, falling back to retrying, asid=%u, gpusvm=%p, errno=%pe\n",
+			vm->usm.asid, &vm->svm.gpusvm, ERR_PTR(err));
 		goto retry;
+	}
 	if (err)
 		goto err_out;
 
