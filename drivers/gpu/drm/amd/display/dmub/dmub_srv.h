@@ -566,10 +566,6 @@ struct dmub_notification {
 		struct aux_reply_data aux_reply;
 		enum dp_hpd_status hpd_status;
 		enum set_config_status sc_status;
-		/**
-		 * DPIA notification command.
-		 */
-		struct dmub_rb_cmd_dpia_notification dpia_notification;
 		struct dmub_rb_cmd_hpd_sense_notify_data hpd_sense_notify;
 	};
 };
