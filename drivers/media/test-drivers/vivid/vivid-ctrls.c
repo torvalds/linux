@@ -402,7 +402,7 @@ static int vivid_fb_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case VIVID_CID_CLEAR_FB:
-		vivid_clear_fb(dev);
+		vivid_fb_clear(dev);
 		break;
 	}
 	return 0;
