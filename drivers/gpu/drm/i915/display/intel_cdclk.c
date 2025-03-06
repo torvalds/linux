@@ -2788,7 +2788,7 @@ static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
 	return min_cdclk;
 }
 
-int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
+static int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 {
 	int min_cdclk;
 
@@ -3338,6 +3338,33 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		    new_cdclk_state->actual.voltage_level);
 
 	return 0;
+}
+
+void intel_cdclk_update_hw_state(struct intel_display *display)
+{
+	struct intel_cdclk_state *cdclk_state =
+		to_intel_cdclk_state(display->cdclk.obj.state);
+	struct intel_crtc *crtc;
+
+	cdclk_state->active_pipes = 0;
+
+	for_each_intel_crtc(display->drm, crtc) {
+		const struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		enum pipe pipe = crtc->pipe;
+		int min_cdclk = 0;
+
+		if (crtc_state->hw.active) {
+			cdclk_state->active_pipes |= BIT(pipe);
+
+			min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
+			if (drm_WARN_ON(display->drm, min_cdclk < 0))
+				min_cdclk = 0;
+		}
+
+		cdclk_state->min_cdclk[pipe] = min_cdclk;
+		cdclk_state->min_voltage_level[pipe] = crtc_state->min_voltage_level;
+	}
 }
 
 void intel_cdclk_crtc_disable_noatomic(struct intel_crtc *crtc)
