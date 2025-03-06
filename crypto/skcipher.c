@@ -209,12 +209,12 @@ static int skcipher_next_fast(struct skcipher_walk *walk)
 	diff |= (u8 *)(sg_page(walk->in.sg) + (walk->in.offset >> PAGE_SHIFT)) -
 		(u8 *)(sg_page(walk->out.sg) + (walk->out.offset >> PAGE_SHIFT));
 
-	skcipher_map_src(walk);
-	walk->dst.virt.addr = walk->src.virt.addr;
+	skcipher_map_dst(walk);
+	walk->src.virt.addr = walk->dst.virt.addr;
 
 	if (diff) {
 		walk->flags |= SKCIPHER_WALK_DIFF;
-		skcipher_map_dst(walk);
+		skcipher_map_src(walk);
 	}
 
 	return 0;
