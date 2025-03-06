@@ -12,6 +12,7 @@
 #include "rtw8852c.h"
 #include "rtw8852c_rfk.h"
 #include "rtw8852c_table.h"
+#include "sar.h"
 #include "util.h"
 
 #define RTW8852C_FW_FORMAT_MAX 1
@@ -2880,6 +2881,7 @@ static int rtw8852c_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 
 static const struct rtw89_chanctx_listener rtw8852c_chanctx_listener = {
 	.callbacks[RTW89_CHANCTX_CALLBACK_RFK] = rtw8852c_rfk_chanctx_cb,
+	.callbacks[RTW89_CHANCTX_CALLBACK_TAS] = rtw89_tas_chanctx_cb,
 };
 
 #ifdef CONFIG_PM
@@ -3011,6 +3013,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 				  BIT(NL80211_CHAN_WIDTH_160),
 	.support_unii4		= true,
 	.support_ant_gain	= true,
+	.support_tas		= true,
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= true,
 	.rx_freq_frome_ie	= false,

@@ -4543,6 +4543,12 @@ struct rtw89_c2h_rfk_report {
 	u8 version;
 } __packed;
 
+struct rtw89_c2h_rf_tas_info {
+	struct rtw89_c2h_hdr hdr;
+	__le32 cur_idx;
+	__le16 txpwr_history[20];
+} __packed;
+
 #define RTW89_FW_RSVD_PLE_SIZE 0x800
 
 #define RTW89_FW_BACKTRACE_INFO_SIZE 8

@@ -4601,8 +4601,6 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 	rtw89_mac_cfg_phy_rpt_bands(rtwdev, true);
 	rtw89_mac_update_rts_threshold(rtwdev);
 
-	rtw89_tas_reset(rtwdev);
-
 	ret = rtw89_hci_start(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to start hci\n");
@@ -4956,6 +4954,7 @@ void rtw89_core_scan_start(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwv
 	rtw89_chip_rfk_scan(rtwdev, rtwvif_link, true);
 	rtw89_hci_recalc_int_mit(rtwdev);
 	rtw89_phy_config_edcca(rtwdev, bb, true);
+	rtw89_tas_scan(rtwdev, true);
 
 	rtw89_fw_h2c_cam(rtwdev, rtwvif_link, NULL, mac_addr);
 }
@@ -4982,6 +4981,7 @@ void rtw89_core_scan_complete(struct rtw89_dev *rtwdev,
 	rtw89_btc_ntfy_scan_finish(rtwdev, rtwvif_link->phy_idx);
 	bb = rtw89_get_bb_ctx(rtwdev, rtwvif_link->phy_idx);
 	rtw89_phy_config_edcca(rtwdev, bb, false);
+	rtw89_tas_scan(rtwdev, false);
 
 	rtwdev->scanning = false;
 	rtw89_for_each_active_bb(rtwdev, bb)
