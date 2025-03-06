@@ -794,10 +794,8 @@ static int stm32_ospi_get_resources(struct platform_device *pdev)
 	}
 
 	ospi->irq = platform_get_irq(pdev, 0);
-	if (ospi->irq < 0) {
-		dev_err(dev, "Can't get irq %d\n", ospi->irq);
+	if (ospi->irq < 0)
 		return ospi->irq;
-	}
 
 	ret = devm_request_irq(dev, ospi->irq, stm32_ospi_irq, 0,
 			       dev_name(dev), ospi);
