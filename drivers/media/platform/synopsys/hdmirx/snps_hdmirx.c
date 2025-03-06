@@ -154,8 +154,8 @@ struct snps_hdmirx_dev {
 	u32 edid_blocks_written;
 	u32 cur_fmt_fourcc;
 	u32 color_depth;
-	u8 edid[EDID_NUM_BLOCKS_MAX * EDID_BLOCK_SIZE];
 	spinlock_t rst_lock; /* to lock register access */
+	u8 edid[EDID_NUM_BLOCKS_MAX * EDID_BLOCK_SIZE];
 };
 
 static const struct v4l2_dv_timings cea640x480 = V4L2_DV_BT_CEA_640X480P59_94;
