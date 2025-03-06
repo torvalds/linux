@@ -279,6 +279,8 @@ int xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 static void xe_evict_flags(struct ttm_buffer_object *tbo,
 			   struct ttm_placement *placement)
 {
+	struct xe_bo *bo;
+
 	if (!xe_bo_is_xe_bo(tbo)) {
 		/* Don't handle scatter gather BOs */
 		if (tbo->type == ttm_bo_type_sg) {
@@ -286,6 +288,12 @@ static void xe_evict_flags(struct ttm_buffer_object *tbo,
 			return;
 		}
 
+		*placement = sys_placement;
+		return;
+	}
+
+	bo = ttm_to_xe_bo(tbo);
+	if (bo->flags & XE_BO_FLAG_CPU_ADDR_MIRROR) {
 		*placement = sys_placement;
 		return;
 	}
@@ -731,6 +739,20 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 
 	if ((move_lacks_source && !needs_clear)) {
 		ttm_bo_move_null(ttm_bo, new_mem);
+		goto out;
+	}
+
+	if (!move_lacks_source && (bo->flags & XE_BO_FLAG_CPU_ADDR_MIRROR) &&
+	    new_mem->mem_type == XE_PL_SYSTEM) {
+		ret = xe_svm_bo_evict(bo);
+		if (!ret) {
+			drm_dbg(&xe->drm, "Evict system allocator BO success\n");
+			ttm_bo_move_null(ttm_bo, new_mem);
+		} else {
+			drm_dbg(&xe->drm, "Evict system allocator BO failed=%pe\n",
+				ERR_PTR(ret));
+		}
+
 		goto out;
 	}
 
