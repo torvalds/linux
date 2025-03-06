@@ -3867,6 +3867,28 @@ void skl_wm_crtc_disable_noatomic(struct intel_crtc *crtc)
 	memset(&crtc_state->wm.skl.ddb, 0, sizeof(crtc_state->wm.skl.ddb));
 }
 
+void skl_wm_plane_disable_noatomic(struct intel_crtc *crtc,
+				   struct intel_plane *plane)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+
+	if (DISPLAY_VER(display) < 9)
+		return;
+
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[plane->id], 0, 0);
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[plane->id], 0, 0);
+
+	crtc_state->wm.skl.plane_min_ddb[plane->id] = 0;
+	crtc_state->wm.skl.plane_interim_ddb[plane->id] = 0;
+
+	memset(&crtc_state->wm.skl.raw.planes[plane->id], 0,
+	       sizeof(crtc_state->wm.skl.raw.planes[plane->id]));
+	memset(&crtc_state->wm.skl.optimal.planes[plane->id], 0,
+	       sizeof(crtc_state->wm.skl.optimal.planes[plane->id]));
+}
+
 void intel_wm_state_verify(struct intel_atomic_state *state,
 			   struct intel_crtc *crtc)
 {
