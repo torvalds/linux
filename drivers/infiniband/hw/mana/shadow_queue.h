@@ -40,7 +40,7 @@ struct shadow_queue {
 
 static inline int create_shadow_queue(struct shadow_queue *queue, uint32_t length, uint32_t stride)
 {
-	queue->buffer = kvmalloc(length * stride, GFP_KERNEL);
+	queue->buffer = kvmalloc_array(length, stride, GFP_KERNEL);
 	if (!queue->buffer)
 		return -ENOMEM;
 
