@@ -32,6 +32,17 @@ struct xe_svm_range {
 };
 
 #if IS_ENABLED(CONFIG_DRM_GPUSVM)
+/**
+ * xe_svm_range_pages_valid() - SVM range pages valid
+ * @range: SVM range
+ *
+ * Return: True if SVM range pages are valid, False otherwise
+ */
+static inline bool xe_svm_range_pages_valid(struct xe_svm_range *range)
+{
+	return drm_gpusvm_range_pages_valid(range->base.gpusvm, &range->base);
+}
+
 int xe_svm_init(struct xe_vm *vm);
 
 void xe_svm_fini(struct xe_vm *vm);
@@ -42,6 +53,11 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 			    struct xe_tile *tile, u64 fault_addr,
 			    bool atomic);
 #else
+static inline bool xe_svm_range_pages_valid(struct xe_svm_range *range)
+{
+	return false;
+}
+
 static inline
 int xe_svm_init(struct xe_vm *vm)
 {
@@ -66,6 +82,18 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 	return 0;
 }
 #endif
+
+/**
+ * xe_svm_range_has_dma_mapping() - SVM range has DMA mapping
+ * @range: SVM range
+ *
+ * Return: True if SVM range has a DMA mapping, False otherwise
+ */
+static inline bool xe_svm_range_has_dma_mapping(struct xe_svm_range *range)
+{
+	lockdep_assert_held(&range->base.gpusvm->notifier_lock);
+	return range->base.flags.has_dma_mapping;
+}
 
 #define xe_svm_assert_in_notifier(vm__) \
 	lockdep_assert_held_write(&(vm__)->svm.gpusvm.notifier_lock)
