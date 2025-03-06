@@ -276,6 +276,7 @@ struct mlx5_ib_flow_matcher {
 	struct mlx5_core_dev	*mdev;
 	atomic_t		usecnt;
 	u8			match_criteria_enable;
+	u32			ib_port;
 };
 
 struct mlx5_ib_steering_anchor {
@@ -307,6 +308,8 @@ struct mlx5_ib_flow_db {
 	struct mlx5_ib_flow_prio	rdma_tx[MLX5_IB_NUM_FLOW_FT];
 	struct mlx5_ib_flow_prio	opfcs[MLX5_IB_OPCOUNTER_MAX];
 	struct mlx5_flow_table		*lag_demux_ft;
+	struct mlx5_ib_flow_prio        *rdma_transport_rx;
+	struct mlx5_ib_flow_prio        *rdma_transport_tx;
 	/* Protect flow steering bypass flow tables
 	 * when add/del flow rules.
 	 * only single add/removal of flow steering rule could be done

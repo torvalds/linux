@@ -12,6 +12,7 @@
 #include <rdma/mlx5_user_ioctl_verbs.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/ib_umem.h>
+#include <rdma/ib_ucaps.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/fs.h>
 #include <linux/mlx5/fs_helpers.h>
@@ -690,7 +691,7 @@ static struct mlx5_ib_flow_prio *_get_prio(struct mlx5_ib_dev *dev,
 					   struct mlx5_ib_flow_prio *prio,
 					   int priority,
 					   int num_entries, int num_groups,
-					   u32 flags)
+					   u32 flags, u16 vport)
 {
 	struct mlx5_flow_table_attr ft_attr = {};
 	struct mlx5_flow_table *ft;
@@ -698,6 +699,7 @@ static struct mlx5_ib_flow_prio *_get_prio(struct mlx5_ib_dev *dev,
 	ft_attr.prio = priority;
 	ft_attr.max_fte = num_entries;
 	ft_attr.flags = flags;
+	ft_attr.vport = vport;
 	ft_attr.autogroup.max_num_groups = num_groups;
 	ft = mlx5_create_auto_grouped_flow_table(ns, &ft_attr);
 	if (IS_ERR(ft))
@@ -792,7 +794,7 @@ static struct mlx5_ib_flow_prio *get_flow_table(struct mlx5_ib_dev *dev,
 	ft = prio->flow_table;
 	if (!ft)
 		return _get_prio(dev, ns, prio, priority, max_table_size,
-				 num_groups, flags);
+				 num_groups, flags, 0);
 
 	return prio;
 }
@@ -935,7 +937,7 @@ int mlx5_ib_fs_add_op_fc(struct mlx5_ib_dev *dev, u32 port_num,
 	prio = &dev->flow_db->opfcs[type];
 	if (!prio->flow_table) {
 		prio = _get_prio(dev, ns, prio, priority,
-				 dev->num_ports * MAX_OPFC_RULES, 1, 0);
+				 dev->num_ports * MAX_OPFC_RULES, 1, 0, 0);
 		if (IS_ERR(prio)) {
 			err = PTR_ERR(prio);
 			goto free;
@@ -1413,17 +1415,51 @@ free_ucmd:
 	return ERR_PTR(err);
 }
 
+static int mlx5_ib_fill_transport_ns_info(struct mlx5_ib_dev *dev,
+					  enum mlx5_flow_namespace_type type,
+					  u32 *flags, u16 *vport_idx,
+					  u16 *vport,
+					  struct mlx5_core_dev **ft_mdev,
+					  u32 ib_port)
+{
+	struct mlx5_core_dev *esw_mdev;
+
+	if (!is_mdev_switchdev_mode(dev->mdev))
+		return 0;
+
+	if (!MLX5_CAP_ADV_RDMA(dev->mdev, rdma_transport_manager))
+		return -EOPNOTSUPP;
+
+	if (!dev->port[ib_port - 1].rep)
+		return -EINVAL;
+
+	esw_mdev = mlx5_eswitch_get_core_dev(dev->port[ib_port - 1].rep->esw);
+	if (esw_mdev != dev->mdev)
+		return -EOPNOTSUPP;
+
+	*flags |= MLX5_FLOW_TABLE_OTHER_VPORT;
+	*ft_mdev = esw_mdev;
+	*vport = dev->port[ib_port - 1].rep->vport;
+	*vport_idx = dev->port[ib_port - 1].rep->vport_index;
+
+	return 0;
+}
+
 static struct mlx5_ib_flow_prio *
 _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 		enum mlx5_flow_namespace_type ns_type,
-		bool mcast)
+		bool mcast, u32 ib_port)
 {
+	struct mlx5_core_dev *ft_mdev = dev->mdev;
 	struct mlx5_flow_namespace *ns = NULL;
 	struct mlx5_ib_flow_prio *prio = NULL;
 	int max_table_size = 0;
+	u16 vport_idx = 0;
 	bool esw_encap;
 	u32 flags = 0;
+	u16 vport = 0;
 	int priority;
+	int ret;
 
 	if (mcast)
 		priority = MLX5_IB_FLOW_MCAST_PRIO;
@@ -1471,13 +1507,38 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 			MLX5_CAP_FLOWTABLE_RDMA_TX(dev->mdev, log_max_ft_size));
 		priority = user_priority;
 		break;
+	case MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX:
+	case MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_TX:
+		if (ib_port == 0 || user_priority > MLX5_RDMA_TRANSPORT_BYPASS_PRIO)
+			return ERR_PTR(-EINVAL);
+		ret = mlx5_ib_fill_transport_ns_info(dev, ns_type, &flags,
+						     &vport_idx, &vport,
+						     &ft_mdev, ib_port);
+		if (ret)
+			return ERR_PTR(ret);
+
+		if (ns_type == MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX)
+			max_table_size =
+				BIT(MLX5_CAP_FLOWTABLE_RDMA_TRANSPORT_RX(
+					ft_mdev, log_max_ft_size));
+		else
+			max_table_size =
+				BIT(MLX5_CAP_FLOWTABLE_RDMA_TRANSPORT_TX(
+					ft_mdev, log_max_ft_size));
+		priority = user_priority;
+		break;
 	default:
 		break;
 	}
 
 	max_table_size = min_t(int, max_table_size, MLX5_FS_MAX_ENTRIES);
 
-	ns = mlx5_get_flow_namespace(dev->mdev, ns_type);
+	if (ns_type == MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX ||
+	    ns_type == MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_TX)
+		ns = mlx5_get_flow_vport_namespace(ft_mdev, ns_type, vport_idx);
+	else
+		ns = mlx5_get_flow_namespace(ft_mdev, ns_type);
+
 	if (!ns)
 		return ERR_PTR(-EOPNOTSUPP);
 
@@ -1497,6 +1558,12 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 	case MLX5_FLOW_NAMESPACE_RDMA_TX:
 		prio = &dev->flow_db->rdma_tx[priority];
 		break;
+	case MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX:
+		prio = &dev->flow_db->rdma_transport_rx[ib_port - 1];
+		break;
+	case MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_TX:
+		prio = &dev->flow_db->rdma_transport_tx[ib_port - 1];
+		break;
 	default: return ERR_PTR(-EINVAL);
 	}
 
@@ -1507,7 +1574,7 @@ _get_flow_table(struct mlx5_ib_dev *dev, u16 user_priority,
 		return prio;
 
 	return _get_prio(dev, ns, prio, priority, max_table_size,
-			 MLX5_FS_MAX_TYPES, flags);
+			 MLX5_FS_MAX_TYPES, flags, vport);
 }
 
 static struct mlx5_ib_flow_handler *
@@ -1626,7 +1693,8 @@ static struct mlx5_ib_flow_handler *raw_fs_rule_add(
 	mutex_lock(&dev->flow_db->lock);
 
 	ft_prio = _get_flow_table(dev, fs_matcher->priority,
-				  fs_matcher->ns_type, mcast);
+				  fs_matcher->ns_type, mcast,
+				  fs_matcher->ib_port);
 	if (IS_ERR(ft_prio)) {
 		err = PTR_ERR(ft_prio);
 		goto unlock;
@@ -1742,6 +1810,12 @@ mlx5_ib_ft_type_to_namespace(enum mlx5_ib_uapi_flow_table_type table_type,
 	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_RDMA_TX:
 		*namespace = MLX5_FLOW_NAMESPACE_RDMA_TX;
 		break;
+	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_RDMA_TRANSPORT_RX:
+		*namespace = MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX;
+		break;
+	case MLX5_IB_UAPI_FLOW_TABLE_TYPE_RDMA_TRANSPORT_TX:
+		*namespace = MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_TX;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1831,7 +1905,8 @@ static int get_dests(struct uverbs_attr_bundle *attrs,
 		return -EINVAL;
 
 	/* Allow only DEVX object or QP as dest when inserting to RDMA_RX */
-	if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX) &&
+	if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX ||
+	     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX) &&
 	    ((!dest_devx && !dest_qp) || (dest_devx && dest_qp)))
 		return -EINVAL;
 
@@ -1848,7 +1923,8 @@ static int get_dests(struct uverbs_attr_bundle *attrs,
 			return -EINVAL;
 		/* Allow only flow table as dest when inserting to FDB or RDMA_RX */
 		if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_FDB_BYPASS ||
-		     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX) &&
+		     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_RX ||
+		     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX) &&
 		    *dest_type != MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE)
 			return -EINVAL;
 	} else if (dest_qp) {
@@ -1869,14 +1945,16 @@ static int get_dests(struct uverbs_attr_bundle *attrs,
 			*dest_id = mqp->raw_packet_qp.rq.tirn;
 		*dest_type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	} else if ((fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS ||
-		    fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TX) &&
+		    fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TX ||
+		    fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_TX) &&
 		   !(*flags & MLX5_IB_ATTR_CREATE_FLOW_FLAGS_DROP)) {
 		*dest_type = MLX5_FLOW_DESTINATION_TYPE_PORT;
 	}
 
 	if (*dest_type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
 	    (fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS ||
-	     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TX))
+	     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TX ||
+	     fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_TX))
 		return -EINVAL;
 
 	return 0;
@@ -2353,6 +2431,15 @@ static int mlx5_ib_matcher_ns(struct uverbs_attr_bundle *attrs,
 	return 0;
 }
 
+static bool verify_context_caps(struct mlx5_ib_dev *dev, u64 enabled_caps)
+{
+	if (is_mdev_switchdev_mode(dev->mdev))
+		return UCAP_ENABLED(enabled_caps,
+				    RDMA_UCAP_MLX5_CTRL_OTHER_VHCA);
+
+	return UCAP_ENABLED(enabled_caps, RDMA_UCAP_MLX5_CTRL_LOCAL);
+}
+
 static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 	struct uverbs_attr_bundle *attrs)
 {
@@ -2399,6 +2486,26 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
 	    mlx5_eswitch_mode(dev->mdev) != MLX5_ESWITCH_OFFLOADS) {
 		err = -EINVAL;
 		goto end;
+	}
+
+	if (uverbs_attr_is_valid(attrs, MLX5_IB_ATTR_FLOW_MATCHER_IB_PORT)) {
+		err = uverbs_copy_from(&obj->ib_port, attrs,
+				       MLX5_IB_ATTR_FLOW_MATCHER_IB_PORT);
+		if (err)
+			goto end;
+		if (!rdma_is_port_valid(&dev->ib_dev, obj->ib_port)) {
+			err = -EINVAL;
+			goto end;
+		}
+		if (obj->ns_type != MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_RX &&
+		    obj->ns_type != MLX5_FLOW_NAMESPACE_RDMA_TRANSPORT_TX) {
+			err = -EINVAL;
+			goto end;
+		}
+		if (!verify_context_caps(dev, uobj->context->enabled_caps)) {
+			err = -EOPNOTSUPP;
+			goto end;
+		}
 	}
 
 	uobj->object = obj;
@@ -2448,7 +2555,7 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_STEERING_ANCHOR_CREATE)(
 
 	mutex_lock(&dev->flow_db->lock);
 
-	ft_prio = _get_flow_table(dev, priority, ns_type, 0);
+	ft_prio = _get_flow_table(dev, priority, ns_type, 0, 0);
 	if (IS_ERR(ft_prio)) {
 		err = PTR_ERR(ft_prio);
 		goto free_obj;
@@ -2834,7 +2941,10 @@ DECLARE_UVERBS_NAMED_METHOD(
 			     UA_OPTIONAL),
 	UVERBS_ATTR_CONST_IN(MLX5_IB_ATTR_FLOW_MATCHER_FT_TYPE,
 			     enum mlx5_ib_uapi_flow_table_type,
-			     UA_OPTIONAL));
+			     UA_OPTIONAL),
+	UVERBS_ATTR_PTR_IN(MLX5_IB_ATTR_FLOW_MATCHER_IB_PORT,
+			   UVERBS_ATTR_TYPE(u32),
+			   UA_OPTIONAL));
 
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	MLX5_IB_METHOD_FLOW_MATCHER_DESTROY,
@@ -2904,8 +3014,26 @@ int mlx5_ib_fs_init(struct mlx5_ib_dev *dev)
 	if (!dev->flow_db)
 		return -ENOMEM;
 
+	dev->flow_db->rdma_transport_rx = kcalloc(dev->num_ports,
+					sizeof(struct mlx5_ib_flow_prio),
+					GFP_KERNEL);
+	if (!dev->flow_db->rdma_transport_rx)
+		goto free_flow_db;
+
+	dev->flow_db->rdma_transport_tx = kcalloc(dev->num_ports,
+					sizeof(struct mlx5_ib_flow_prio),
+					GFP_KERNEL);
+	if (!dev->flow_db->rdma_transport_tx)
+		goto free_rdma_transport_rx;
+
 	mutex_init(&dev->flow_db->lock);
 
 	ib_set_device_ops(&dev->ib_dev, &flow_ops);
 	return 0;
+
+free_rdma_transport_rx:
+	kfree(dev->flow_db->rdma_transport_rx);
+free_flow_db:
+	kfree(dev->flow_db);
+	return -ENOMEM;
 }

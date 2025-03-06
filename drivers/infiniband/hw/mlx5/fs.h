@@ -40,6 +40,8 @@ static inline void mlx5_ib_fs_cleanup(struct mlx5_ib_dev *dev)
 	 * is a safe assumption that all references are gone.
 	 */
 	mlx5_ib_fs_cleanup_anchor(dev);
+	kfree(dev->flow_db->rdma_transport_tx);
+	kfree(dev->flow_db->rdma_transport_rx);
 	kfree(dev->flow_db);
 }
 #endif /* _MLX5_IB_FS_H */
