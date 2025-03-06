@@ -685,20 +685,6 @@ static int btintel_pcie_enable_bt(struct btintel_pcie_data *data)
 	return 0;
 }
 
-/* BIT(0) - ROM, BIT(1) - IML and BIT(3) - OP
- * Sometimes during firmware image switching from ROM to IML or IML to OP image,
- * the previous image bit is not cleared by firmware when alive interrupt is
- * received. Driver needs to take care of these sticky bits when deciding the
- * current image running on controller.
- * Ex: 0x10 and 0x11 - both represents that controller is running IML
- */
-static inline bool btintel_pcie_in_rom(struct btintel_pcie_data *data)
-{
-	return data->boot_stage_cache & BTINTEL_PCIE_CSR_BOOT_STAGE_ROM &&
-		!(data->boot_stage_cache & BTINTEL_PCIE_CSR_BOOT_STAGE_IML) &&
-		!(data->boot_stage_cache & BTINTEL_PCIE_CSR_BOOT_STAGE_OPFW);
-}
-
 static inline bool btintel_pcie_in_op(struct btintel_pcie_data *data)
 {
 	return data->boot_stage_cache & BTINTEL_PCIE_CSR_BOOT_STAGE_OPFW;
