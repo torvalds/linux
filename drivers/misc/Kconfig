@@ -114,6 +114,18 @@ config RPMB
 
 	  If unsure, select N.
 
+config TI_FPC202
+	tristate "TI FPC202 Dual Port Controller"
+	depends on I2C
+	select GPIOLIB
+	select I2C_ATR
+	help
+	  If you say yes here you get support for the Texas Instruments FPC202
+	  Dual Port Controller.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called fpc202.
+
 config TIFM_CORE
 	tristate "TI Flash Media interface support"
 	depends on PCI
