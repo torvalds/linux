@@ -302,11 +302,39 @@ static int mchp_tc_count_cap_write(struct counter_device *counter,
 	return ret;
 }
 
+static int mchp_tc_count_compare_read(struct counter_device *counter, struct counter_count *count,
+				      u64 *val)
+{
+	struct mchp_tc_data *const priv = counter_priv(counter);
+	u32 cnt;
+	int ret;
+
+	ret = regmap_read(priv->regmap, ATMEL_TC_REG(priv->channel[0], RC), &cnt);
+	if (ret < 0)
+		return ret;
+
+	*val = cnt;
+
+	return 0;
+}
+
+static int mchp_tc_count_compare_write(struct counter_device *counter, struct counter_count *count,
+				       u64 val)
+{
+	struct mchp_tc_data *const priv = counter_priv(counter);
+
+	if (val > U32_MAX)
+		return -ERANGE;
+
+	return regmap_write(priv->regmap, ATMEL_TC_REG(priv->channel[0], RC), val);
+}
+
 static DEFINE_COUNTER_ARRAY_CAPTURE(mchp_tc_cnt_cap_array, 2);
 
 static struct counter_comp mchp_tc_count_ext[] = {
 	COUNTER_COMP_ARRAY_CAPTURE(mchp_tc_count_cap_read, mchp_tc_count_cap_write,
 				   mchp_tc_cnt_cap_array),
+	COUNTER_COMP_COMPARE(mchp_tc_count_compare_read, mchp_tc_count_compare_write),
 };
 
 static struct counter_count mchp_tc_counts[] = {
