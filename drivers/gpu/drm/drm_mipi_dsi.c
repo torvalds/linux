@@ -162,13 +162,13 @@ of_mipi_dsi_device_add(struct mipi_dsi_host *host, struct device_node *node)
 	u32 reg;
 
 	if (of_alias_from_compatible(node, info.type, sizeof(info.type)) < 0) {
-		drm_err(host, "modalias failure on %pOF\n", node);
+		dev_err(host->dev, "modalias failure on %pOF\n", node);
 		return ERR_PTR(-EINVAL);
 	}
 
 	ret = of_property_read_u32(node, "reg", &reg);
 	if (ret) {
-		drm_err(host, "device node %pOF has no valid reg property: %d\n",
+		dev_err(host->dev, "device node %pOF has no valid reg property: %d\n",
 			node, ret);
 		return ERR_PTR(-EINVAL);
 	}
@@ -206,18 +206,18 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 	int ret;
 
 	if (!info) {
-		drm_err(host, "invalid mipi_dsi_device_info pointer\n");
+		dev_err(host->dev, "invalid mipi_dsi_device_info pointer\n");
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (info->channel > 3) {
-		drm_err(host, "invalid virtual channel: %u\n", info->channel);
+		dev_err(host->dev, "invalid virtual channel: %u\n", info->channel);
 		return ERR_PTR(-EINVAL);
 	}
 
 	dsi = mipi_dsi_device_alloc(host);
 	if (IS_ERR(dsi)) {
-		drm_err(host, "failed to allocate DSI device %ld\n",
+		dev_err(host->dev, "failed to allocate DSI device %ld\n",
 			PTR_ERR(dsi));
 		return dsi;
 	}
@@ -228,7 +228,7 @@ mipi_dsi_device_register_full(struct mipi_dsi_host *host,
 
 	ret = mipi_dsi_device_add(dsi);
 	if (ret) {
-		drm_err(host, "failed to add DSI device %d\n", ret);
+		dev_err(host->dev, "failed to add DSI device %d\n", ret);
 		kfree(dsi);
 		return ERR_PTR(ret);
 	}

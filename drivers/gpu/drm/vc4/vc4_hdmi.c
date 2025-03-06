@@ -2928,8 +2928,8 @@ static int vc5_hdmi_init_resources(struct drm_device *drm,
 
 	vc4_hdmi->hdmicore_regs = devm_platform_ioremap_resource_byname(pdev,
 									"hdmi");
-	if (!vc4_hdmi->hdmicore_regs)
-		return -ENOMEM;
+	if (IS_ERR(vc4_hdmi->hdmicore_regs))
+		return PTR_ERR(vc4_hdmi->hdmicore_regs);
 
 	/* This is shared between both HDMI controllers. Cannot
 	 * claim for both instances. Lets not convert to using
@@ -2946,33 +2946,33 @@ static int vc5_hdmi_init_resources(struct drm_device *drm,
 
 	vc4_hdmi->cec_regs = devm_platform_ioremap_resource_byname(pdev,
 								   "cec");
-	if (!vc4_hdmi->cec_regs)
-		return -ENOMEM;
+	if (IS_ERR(vc4_hdmi->cec_regs))
+		return PTR_ERR(vc4_hdmi->cec_regs);
 
 	vc4_hdmi->csc_regs = devm_platform_ioremap_resource_byname(pdev,
 								   "csc");
-	if (!vc4_hdmi->csc_regs)
-		return -ENOMEM;
+	if (IS_ERR(vc4_hdmi->csc_regs))
+		return PTR_ERR(vc4_hdmi->csc_regs);
 
 	vc4_hdmi->dvp_regs = devm_platform_ioremap_resource_byname(pdev,
 								   "dvp");
-	if (!vc4_hdmi->dvp_regs)
-		return -ENOMEM;
+	if (IS_ERR(vc4_hdmi->dvp_regs))
+		return PTR_ERR(vc4_hdmi->dvp_regs);
 
 	vc4_hdmi->phy_regs = devm_platform_ioremap_resource_byname(pdev,
 								   "phy");
 
-	if (!vc4_hdmi->phy_regs)
-		return -ENOMEM;
+	if (IS_ERR(vc4_hdmi->phy_regs))
+		return PTR_ERR(vc4_hdmi->phy_regs);
 
 	vc4_hdmi->ram_regs = devm_platform_ioremap_resource_byname(pdev,
 								   "packet");
-	if (!vc4_hdmi->ram_regs)
-		return -ENOMEM;
+	if (IS_ERR(vc4_hdmi->ram_regs))
+		return PTR_ERR(vc4_hdmi->ram_regs);
 
 	vc4_hdmi->rm_regs = devm_platform_ioremap_resource_byname(pdev, "rm");
-	if (!vc4_hdmi->rm_regs)
-		return -ENOMEM;
+	if (IS_ERR(vc4_hdmi->rm_regs))
+		return PTR_ERR(vc4_hdmi->rm_regs);
 
 	vc4_hdmi->hsm_clock = devm_clk_get(dev, "hdmi");
 	if (IS_ERR(vc4_hdmi->hsm_clock)) {

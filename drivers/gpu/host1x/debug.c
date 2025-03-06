@@ -216,12 +216,3 @@ void host1x_debug_dump(struct host1x *host1x)
 
 	show_all(host1x, &o, true);
 }
-
-void host1x_debug_dump_syncpts(struct host1x *host1x)
-{
-	struct output o = {
-		.fn = write_to_printk
-	};
-
-	show_syncpts(host1x, &o, false);
-}

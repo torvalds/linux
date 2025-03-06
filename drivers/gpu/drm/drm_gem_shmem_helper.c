@@ -160,7 +160,7 @@ void drm_gem_shmem_free(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
 
-	if (obj->import_attach) {
+	if (drm_gem_is_imported(obj)) {
 		drm_prime_gem_destroy(obj, shmem->sgt);
 	} else {
 		dma_resv_lock(shmem->base.resv, NULL);
@@ -255,7 +255,7 @@ int drm_gem_shmem_pin_locked(struct drm_gem_shmem_object *shmem)
 
 	dma_resv_assert_held(shmem->base.resv);
 
-	drm_WARN_ON(shmem->base.dev, shmem->base.import_attach);
+	drm_WARN_ON(shmem->base.dev, drm_gem_is_imported(&shmem->base));
 
 	ret = drm_gem_shmem_get_pages(shmem);
 
@@ -286,7 +286,7 @@ int drm_gem_shmem_pin(struct drm_gem_shmem_object *shmem)
 	struct drm_gem_object *obj = &shmem->base;
 	int ret;
 
-	drm_WARN_ON(obj->dev, obj->import_attach);
+	drm_WARN_ON(obj->dev, drm_gem_is_imported(obj));
 
 	ret = dma_resv_lock_interruptible(shmem->base.resv, NULL);
 	if (ret)
@@ -309,7 +309,7 @@ void drm_gem_shmem_unpin(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
 
-	drm_WARN_ON(obj->dev, obj->import_attach);
+	drm_WARN_ON(obj->dev, drm_gem_is_imported(obj));
 
 	dma_resv_lock(shmem->base.resv, NULL);
 	drm_gem_shmem_unpin_locked(shmem);
@@ -338,11 +338,11 @@ int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem,
 	struct drm_gem_object *obj = &shmem->base;
 	int ret = 0;
 
-	if (obj->import_attach) {
-		ret = dma_buf_vmap(obj->import_attach->dmabuf, map);
+	if (drm_gem_is_imported(obj)) {
+		ret = dma_buf_vmap(obj->dma_buf, map);
 		if (!ret) {
 			if (drm_WARN_ON(obj->dev, map->is_iomem)) {
-				dma_buf_vunmap(obj->import_attach->dmabuf, map);
+				dma_buf_vunmap(obj->dma_buf, map);
 				return -EIO;
 			}
 		}
@@ -378,7 +378,7 @@ int drm_gem_shmem_vmap(struct drm_gem_shmem_object *shmem,
 	return 0;
 
 err_put_pages:
-	if (!obj->import_attach)
+	if (!drm_gem_is_imported(obj))
 		drm_gem_shmem_put_pages(shmem);
 err_zero_use:
 	shmem->vmap_use_count = 0;
@@ -404,8 +404,8 @@ void drm_gem_shmem_vunmap(struct drm_gem_shmem_object *shmem,
 {
 	struct drm_gem_object *obj = &shmem->base;
 
-	if (obj->import_attach) {
-		dma_buf_vunmap(obj->import_attach->dmabuf, map);
+	if (drm_gem_is_imported(obj)) {
+		dma_buf_vunmap(obj->dma_buf, map);
 	} else {
 		dma_resv_assert_held(shmem->base.resv);
 
@@ -566,7 +566,7 @@ static void drm_gem_shmem_vm_open(struct vm_area_struct *vma)
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 
-	drm_WARN_ON(obj->dev, obj->import_attach);
+	drm_WARN_ON(obj->dev, drm_gem_is_imported(obj));
 
 	dma_resv_lock(shmem->base.resv, NULL);
 
@@ -618,7 +618,7 @@ int drm_gem_shmem_mmap(struct drm_gem_shmem_object *shmem, struct vm_area_struct
 	struct drm_gem_object *obj = &shmem->base;
 	int ret;
 
-	if (obj->import_attach) {
+	if (drm_gem_is_imported(obj)) {
 		/* Reset both vm_ops and vm_private_data, so we don't end up with
 		 * vm_ops pointing to our implementation if the dma-buf backend
 		 * doesn't set those fields.
@@ -663,7 +663,7 @@ EXPORT_SYMBOL_GPL(drm_gem_shmem_mmap);
 void drm_gem_shmem_print_info(const struct drm_gem_shmem_object *shmem,
 			      struct drm_printer *p, unsigned int indent)
 {
-	if (shmem->base.import_attach)
+	if (drm_gem_is_imported(&shmem->base))
 		return;
 
 	drm_printf_indent(p, indent, "pages_use_count=%u\n", shmem->pages_use_count);
@@ -690,7 +690,7 @@ struct sg_table *drm_gem_shmem_get_sg_table(struct drm_gem_shmem_object *shmem)
 {
 	struct drm_gem_object *obj = &shmem->base;
 
-	drm_WARN_ON(obj->dev, obj->import_attach);
+	drm_WARN_ON(obj->dev, drm_gem_is_imported(obj));
 
 	return drm_prime_pages_to_sg(obj->dev, shmem->pages, obj->size >> PAGE_SHIFT);
 }
@@ -705,7 +705,7 @@ static struct sg_table *drm_gem_shmem_get_pages_sgt_locked(struct drm_gem_shmem_
 	if (shmem->sgt)
 		return shmem->sgt;
 
-	drm_WARN_ON(obj->dev, obj->import_attach);
+	drm_WARN_ON(obj->dev, drm_gem_is_imported(obj));
 
 	ret = drm_gem_shmem_get_pages(shmem);
 	if (ret)

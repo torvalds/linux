@@ -52,6 +52,7 @@
 #include "xe_pmu.h"
 #include "xe_pxp.h"
 #include "xe_query.h"
+#include "xe_shrinker.h"
 #include "xe_sriov.h"
 #include "xe_survivability_mode.h"
 #include "xe_tile.h"
@@ -403,6 +404,9 @@ static void xe_device_destroy(struct drm_device *dev, void *dummy)
 	if (xe->unordered_wq)
 		destroy_workqueue(xe->unordered_wq);
 
+	if (!IS_ERR_OR_NULL(xe->mem.shrinker))
+		xe_shrinker_destroy(xe->mem.shrinker);
+
 	if (xe->destroy_wq)
 		destroy_workqueue(xe->destroy_wq);
 
@@ -434,6 +438,10 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	err = drmm_add_action_or_reset(&xe->drm, xe_device_destroy, NULL);
 	if (err)
 		goto err;
+
+	xe->mem.shrinker = xe_shrinker_create(xe);
+	if (IS_ERR(xe->mem.shrinker))
+		return ERR_CAST(xe->mem.shrinker);
 
 	xe->info.devid = pdev->device;
 	xe->info.revid = pdev->revision;

@@ -189,7 +189,7 @@ static int set_up_atomic_state(struct kunit *test,
 static void drm_test_check_connector_changed_modeset(struct kunit *test)
 {
 	struct drm_atomic_test_priv *priv;
-	struct drm_modeset_acquire_ctx *ctx;
+	struct drm_modeset_acquire_ctx ctx;
 	struct drm_connector *old_conn, *new_conn;
 	struct drm_atomic_state *state;
 	struct drm_device *drm;
@@ -203,14 +203,13 @@ static void drm_test_check_connector_changed_modeset(struct kunit *test)
 	old_conn = &priv->connectors[0];
 	new_conn = &priv->connectors[1];
 
-	ctx = drm_kunit_helper_acquire_ctx_alloc(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	drm_modeset_acquire_init(&ctx, 0);
 
 	// first modeset to enable
-	ret = set_up_atomic_state(test, priv, old_conn, ctx);
+	ret = set_up_atomic_state(test, priv, old_conn, &ctx);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
+	state = drm_kunit_helper_atomic_state_alloc(test, drm, &ctx);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
 
 	new_conn_state = drm_atomic_get_connector_state(state, new_conn);
@@ -231,6 +230,9 @@ static void drm_test_check_connector_changed_modeset(struct kunit *test)
 	ret = drm_atomic_commit(state);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 	KUNIT_ASSERT_EQ(test, modeset_counter, initial_modeset_count + 1);
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 }
 
 /*
@@ -263,7 +265,7 @@ static void drm_test_check_valid_clones(struct kunit *test)
 	int ret;
 	const struct drm_clone_mode_test *param = test->param_value;
 	struct drm_atomic_test_priv *priv;
-	struct drm_modeset_acquire_ctx *ctx;
+	struct drm_modeset_acquire_ctx ctx;
 	struct drm_device *drm;
 	struct drm_atomic_state *state;
 	struct drm_crtc_state *crtc_state;
@@ -273,13 +275,12 @@ static void drm_test_check_valid_clones(struct kunit *test)
 
 	drm = &priv->drm;
 
-	ctx = drm_kunit_helper_acquire_ctx_alloc(test);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, ctx);
+	drm_modeset_acquire_init(&ctx, 0);
 
-	ret = set_up_atomic_state(test, priv, NULL, ctx);
+	ret = set_up_atomic_state(test, priv, NULL, &ctx);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 
-	state = drm_kunit_helper_atomic_state_alloc(test, drm, ctx);
+	state = drm_kunit_helper_atomic_state_alloc(test, drm, &ctx);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
 
 	crtc_state = drm_atomic_get_crtc_state(state, priv->crtc);
@@ -292,6 +293,9 @@ static void drm_test_check_valid_clones(struct kunit *test)
 
 	ret = drm_atomic_helper_check_modeset(drm, state);
 	KUNIT_ASSERT_EQ(test, ret, param->expected_result);
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 }
 
 static void drm_check_in_clone_mode_desc(const struct drm_clone_mode_test *t,
