@@ -1741,18 +1741,13 @@ static u32 airoha_get_dsa_tag(struct sk_buff *skb, struct net_device *dev)
 {
 #if IS_ENABLED(CONFIG_NET_DSA)
 	struct ethhdr *ehdr;
-	struct dsa_port *dp;
 	u8 xmit_tpid;
 	u16 tag;
 
 	if (!netdev_uses_dsa(dev))
 		return 0;
 
-	dp = dev->dsa_ptr;
-	if (IS_ERR(dp))
-		return 0;
-
-	if (dp->tag_ops->proto != DSA_TAG_PROTO_MTK)
+	if (dev->dsa_ptr->tag_ops->proto != DSA_TAG_PROTO_MTK)
 		return 0;
 
 	if (skb_cow_head(skb, 0))
