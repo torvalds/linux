@@ -235,8 +235,8 @@
 /**
  * struct atmel_qspi_pcal - Pad Calibration Clock Division
  * @pclk_rate: peripheral clock rate.
- * @pclkdiv: calibration clock division. The clock applied to the calibration
- *           cell is divided by pclkdiv + 1.
+ * @pclk_div: calibration clock division. The clock applied to the calibration
+ *           cell is divided by pclk_div + 1.
  */
 struct atmel_qspi_pcal {
 	u32 pclk_rate;
