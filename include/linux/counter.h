@@ -580,6 +580,9 @@ struct counter_array {
 #define COUNTER_COMP_CEILING(_read, _write) \
 	COUNTER_COMP_COUNT_U64("ceiling", _read, _write)
 
+#define COUNTER_COMP_COMPARE(_read, _write) \
+	COUNTER_COMP_COUNT_U64("compare", _read, _write)
+
 #define COUNTER_COMP_COUNT_MODE(_read, _write, _available) \
 { \
 	.type = COUNTER_COMP_COUNT_MODE, \
