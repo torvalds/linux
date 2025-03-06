@@ -628,12 +628,9 @@ void simple_recursive_removal(struct dentry *dentry,
 			inode_lock(inode);
 			if (simple_positive(victim)) {
 				d_invalidate(victim);	// avoid lost mounts
-				if (d_is_dir(victim))
-					fsnotify_rmdir(inode, victim);
-				else
-					fsnotify_unlink(inode, victim);
 				if (callback)
 					callback(victim);
+				fsnotify_delete(inode, d_inode(victim), victim);
 				dput(victim);		// unpin it
 			}
 			if (victim == dentry) {
