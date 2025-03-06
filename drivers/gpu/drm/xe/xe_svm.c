@@ -822,6 +822,9 @@ retry_bind:
 	}
 	drm_exec_fini(&exec);
 
+	if (xe_modparam.always_migrate_to_vram)
+		range->skip_migrate = false;
+
 	dma_fence_wait(fence, false);
 	dma_fence_put(fence);
 
