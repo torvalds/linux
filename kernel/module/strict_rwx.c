@@ -121,6 +121,15 @@ static const char *const ro_after_init[] = {
 	 * section, which are marked as such at module load time.
 	 */
 	"__jump_table",
+
+#ifdef CONFIG_HAVE_STATIC_CALL_INLINE
+	/*
+	 * Section .static_call_sites holds data structures that need to be
+	 * sorted and processed at module load time but are never modified
+	 * afterwards.
+	 */
+	".static_call_sites",
+#endif
 };
 
 void module_mark_ro_after_init(const Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
