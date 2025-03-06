@@ -806,24 +806,6 @@ static int intel_bw_crtc_min_cdclk(const struct intel_crtc_state *crtc_state)
 	return DIV_ROUND_UP_ULL(mul_u32_u32(intel_bw_crtc_data_rate(crtc_state), 10), 512);
 }
 
-static void intel_bw_crtc_update(struct intel_bw_state *bw_state,
-				 const struct intel_crtc_state *crtc_state)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-
-	bw_state->data_rate[crtc->pipe] =
-		intel_bw_crtc_data_rate(crtc_state);
-	bw_state->num_active_planes[crtc->pipe] =
-		intel_bw_crtc_num_active_planes(crtc_state);
-	bw_state->force_check_qgv = true;
-
-	drm_dbg_kms(&i915->drm, "pipe %c data rate %u num active planes %u\n",
-		    pipe_name(crtc->pipe),
-		    bw_state->data_rate[crtc->pipe],
-		    bw_state->num_active_planes[crtc->pipe]);
-}
-
 static unsigned int intel_bw_num_active_planes(struct drm_i915_private *dev_priv,
 					       const struct intel_bw_state *bw_state)
 {
@@ -1420,6 +1402,24 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	new_bw_state->force_check_qgv = false;
 
 	return 0;
+}
+
+static void intel_bw_crtc_update(struct intel_bw_state *bw_state,
+				 const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	bw_state->data_rate[crtc->pipe] =
+		intel_bw_crtc_data_rate(crtc_state);
+	bw_state->num_active_planes[crtc->pipe] =
+		intel_bw_crtc_num_active_planes(crtc_state);
+	bw_state->force_check_qgv = true;
+
+	drm_dbg_kms(&i915->drm, "pipe %c data rate %u num active planes %u\n",
+		    pipe_name(crtc->pipe),
+		    bw_state->data_rate[crtc->pipe],
+		    bw_state->num_active_planes[crtc->pipe]);
 }
 
 void intel_bw_update_hw_state(struct intel_display *display)
