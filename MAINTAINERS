@@ -15982,7 +15982,7 @@ F:	include/dt-bindings/clock/mobileye,eyeq5-clk.h
 
 MODULE SUPPORT
 M:	Luis Chamberlain <mcgrof@kernel.org>
-R:	Petr Pavlu <petr.pavlu@suse.com>
+M:	Petr Pavlu <petr.pavlu@suse.com>
 R:	Sami Tolvanen <samitolvanen@google.com>
 R:	Daniel Gomez <da.gomez@samsung.com>
 L:	linux-modules@vger.kernel.org
@@ -15993,8 +15993,10 @@ F:	include/linux/kmod.h
 F:	include/linux/module*.h
 F:	kernel/module/
 F:	lib/test_kmod.c
+F:	lib/tests/module/
 F:	scripts/module*
 F:	tools/testing/selftests/kmod/
+F:	tools/testing/selftests/module/
 
 MONOLITHIC POWER SYSTEM PMIC DRIVER
 M:	Saravanan Sekar <sravanhome@gmail.com>
