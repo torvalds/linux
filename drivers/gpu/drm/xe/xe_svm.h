@@ -20,6 +20,11 @@ struct xe_svm_range {
 	/** @base: base drm_gpusvm_range */
 	struct drm_gpusvm_range base;
 	/**
+	 * @garbage_collector_link: Link into VM's garbage collect SVM range
+	 * list. Protected by VM's garbage collect lock.
+	 */
+	struct list_head garbage_collector_link;
+	/**
 	 * @tile_present: Tile mask of binding is present for this range.
 	 * Protected by GPU SVM notifier lock.
 	 */

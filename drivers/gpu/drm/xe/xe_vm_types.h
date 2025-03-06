@@ -150,6 +150,24 @@ struct xe_vm {
 	struct {
 		/** @svm.gpusvm: base GPUSVM used to track fault allocations */
 		struct drm_gpusvm gpusvm;
+		/**
+		 * @svm.garbage_collector: Garbage collector which is used unmap
+		 * SVM range's GPU bindings and destroy the ranges.
+		 */
+		struct {
+			/** @svm.garbage_collector.lock: Protect's range list */
+			spinlock_t lock;
+			/**
+			 * @svm.garbage_collector.range_list: List of SVM ranges
+			 * in the garbage collector.
+			 */
+			struct list_head range_list;
+			/**
+			 * @svm.garbage_collector.work: Worker which the
+			 * garbage collector runs on.
+			 */
+			struct work_struct work;
+		} garbage_collector;
 	} svm;
 
 	struct xe_device *xe;
