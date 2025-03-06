@@ -1441,7 +1441,8 @@ void intel_bw_update_hw_state(struct intel_display *display)
 		if (crtc_state->hw.active)
 			bw_state->active_pipes |= BIT(pipe);
 
-		intel_bw_crtc_update(bw_state, crtc_state);
+		if (DISPLAY_VER(display) >= 11)
+			intel_bw_crtc_update(bw_state, crtc_state);
 	}
 }
 
