@@ -605,7 +605,6 @@ struct damon_operations {
  *
  * @after_wmarks_check:	Called after each schemes' watermarks check.
  * @after_aggregation:	Called after each aggregation.
- * @before_damos_apply:	Called before applying DAMOS action.
  * @before_terminate:	Called before terminating the monitoring.
  *
  * The monitoring thread (&damon_ctx.kdamond) calls @before_terminate just
@@ -626,10 +625,6 @@ struct damon_operations {
 struct damon_callback {
 	int (*after_wmarks_check)(struct damon_ctx *context);
 	int (*after_aggregation)(struct damon_ctx *context);
-	int (*before_damos_apply)(struct damon_ctx *context,
-			struct damon_target *target,
-			struct damon_region *region,
-			struct damos *scheme);
 	void (*before_terminate)(struct damon_ctx *context);
 };
 
