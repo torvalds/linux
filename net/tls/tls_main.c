@@ -1057,7 +1057,7 @@ static u16 tls_user_config(struct tls_context *ctx, bool tx)
 	return 0;
 }
 
-static int tls_get_info(struct sock *sk, struct sk_buff *skb)
+static int tls_get_info(struct sock *sk, struct sk_buff *skb, bool net_admin)
 {
 	u16 version, cipher_type;
 	struct tls_context *ctx;
@@ -1115,7 +1115,7 @@ nla_failure:
 	return err;
 }
 
-static size_t tls_get_info_size(const struct sock *sk)
+static size_t tls_get_info_size(const struct sock *sk, bool net_admin)
 {
 	size_t size = 0;
 

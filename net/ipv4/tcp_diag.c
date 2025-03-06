@@ -96,8 +96,8 @@ static int tcp_diag_put_ulp(struct sk_buff *skb, struct sock *sk,
 	if (err)
 		goto nla_failure;
 
-	if (net_admin && ulp_ops->get_info)
-		err = ulp_ops->get_info(sk, skb);
+	if (ulp_ops->get_info)
+		err = ulp_ops->get_info(sk, skb, net_admin);
 	if (err)
 		goto nla_failure;
 
@@ -170,8 +170,8 @@ static size_t tcp_diag_get_aux_size(struct sock *sk, bool net_admin)
 		if (ulp_ops) {
 			size += nla_total_size(0) +
 				nla_total_size(TCP_ULP_NAME_MAX);
-			if (net_admin && ulp_ops->get_info_size)
-				size += ulp_ops->get_info_size(sk);
+			if (ulp_ops->get_info_size)
+				size += ulp_ops->get_info_size(sk, net_admin);
 		}
 	}
 	return size;
