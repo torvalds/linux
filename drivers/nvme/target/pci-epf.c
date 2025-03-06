@@ -1271,9 +1271,6 @@ static u16 nvmet_pci_epf_create_cq(struct nvmet_ctrl *tctrl,
 	if (!(flags & NVME_QUEUE_PHYS_CONTIG))
 		return NVME_SC_INVALID_QUEUE | NVME_STATUS_DNR;
 
-	if (flags & NVME_CQ_IRQ_ENABLED)
-		set_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags);
-
 	cq->pci_addr = pci_addr;
 	cq->qid = cqid;
 	cq->depth = qsize + 1;
@@ -1290,10 +1287,11 @@ static u16 nvmet_pci_epf_create_cq(struct nvmet_ctrl *tctrl,
 		cq->qes = ctrl->io_cqes;
 	cq->pci_size = cq->qes * cq->depth;
 
-	cq->iv = nvmet_pci_epf_add_irq_vector(ctrl, vector);
-	if (!cq->iv) {
-		status = NVME_SC_INTERNAL | NVME_STATUS_DNR;
-		goto err;
+	if (flags & NVME_CQ_IRQ_ENABLED) {
+		cq->iv = nvmet_pci_epf_add_irq_vector(ctrl, vector);
+		if (!cq->iv)
+			return NVME_SC_INTERNAL | NVME_STATUS_DNR;
+		set_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags);
 	}
 
 	status = nvmet_cq_create(tctrl, &cq->nvme_cq, cqid, cq->depth);
@@ -1308,7 +1306,8 @@ static u16 nvmet_pci_epf_create_cq(struct nvmet_ctrl *tctrl,
 	return NVME_SC_SUCCESS;
 
 err:
-	clear_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags);
+	if (test_and_clear_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags))
+		nvmet_pci_epf_remove_irq_vector(ctrl, cq->vector);
 	return status;
 }
 
