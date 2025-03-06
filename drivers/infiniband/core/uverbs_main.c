@@ -52,6 +52,7 @@
 #include <rdma/ib.h>
 #include <rdma/uverbs_std_types.h>
 #include <rdma/rdma_netlink.h>
+#include <rdma/ib_ucaps.h>
 
 #include "uverbs.h"
 #include "core_priv.h"
@@ -1345,6 +1346,7 @@ static void __exit ib_uverbs_cleanup(void)
 				 IB_UVERBS_NUM_FIXED_MINOR);
 	unregister_chrdev_region(dynamic_uverbs_dev,
 				 IB_UVERBS_NUM_DYNAMIC_MINOR);
+	ib_cleanup_ucaps();
 	mmu_notifier_synchronize();
 }
 
