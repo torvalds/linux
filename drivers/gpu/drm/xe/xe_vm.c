@@ -3110,14 +3110,9 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe, struct xe_vm *vm,
 		u16 pat_index = (*bind_ops)[i].pat_index;
 		u16 coh_mode;
 
-		/* FIXME: Disabling CPU address mirror for now */
-		if (XE_IOCTL_DBG(xe, is_cpu_addr_mirror)) {
-			err = -EOPNOTSUPP;
-			goto free_bind_ops;
-		}
-
 		if (XE_IOCTL_DBG(xe, is_cpu_addr_mirror &&
-				 !xe_vm_in_fault_mode(vm))) {
+				 (!xe_vm_in_fault_mode(vm) ||
+				 !IS_ENABLED(CONFIG_DRM_GPUSVM)))) {
 			err = -EINVAL;
 			goto free_bind_ops;
 		}
