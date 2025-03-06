@@ -810,7 +810,7 @@ int open(const char *path, int flags, ...)
 		va_list args;
 
 		va_start(args, flags);
-		mode = va_arg(args, int);
+		mode = va_arg(args, mode_t);
 		va_end(args);
 	}
 
