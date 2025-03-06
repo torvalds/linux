@@ -42,6 +42,7 @@
 
 #include <rdma/uverbs_types.h>
 #include <rdma/uverbs_std_types.h>
+#include <rdma/ib_ucaps.h>
 #include "rdma_core.h"
 
 #include "uverbs.h"
@@ -232,6 +233,8 @@ int ib_init_ucontext(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_ucontext *ucontext = attrs->context;
 	struct ib_uverbs_file *file = attrs->ufile;
+	int *fd_array;
+	int fd_count;
 	int ret;
 
 	if (!down_read_trylock(&file->hw_destroy_rwsem))
@@ -246,6 +249,22 @@ int ib_init_ucontext(struct uverbs_attr_bundle *attrs)
 				   RDMACG_RESOURCE_HCA_HANDLE);
 	if (ret)
 		goto err;
+
+	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_GET_CONTEXT_FD_ARR)) {
+		fd_count = uverbs_attr_ptr_get_array_size(attrs,
+							  UVERBS_ATTR_GET_CONTEXT_FD_ARR,
+							  sizeof(int));
+		if (fd_count < 0) {
+			ret = fd_count;
+			goto err_uncharge;
+		}
+
+		fd_array = uverbs_attr_get_alloced_ptr(attrs,
+						       UVERBS_ATTR_GET_CONTEXT_FD_ARR);
+		ret = ib_get_ucaps(fd_array, fd_count, &ucontext->enabled_caps);
+		if (ret)
+			goto err_uncharge;
+	}
 
 	ret = ucontext->device->ops.alloc_ucontext(ucontext,
 						   &attrs->driver_udata);
