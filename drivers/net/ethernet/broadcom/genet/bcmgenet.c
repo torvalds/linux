@@ -3825,7 +3825,7 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	/* Read GENET HW version */
 	reg = bcmgenet_sys_readl(priv, SYS_REV_CTRL);
 	major = (reg >> 24 & 0x0f);
-	if (major == 6)
+	if (major == 6 || major == 7)
 		major = 5;
 	else if (major == 5)
 		major = 4;
