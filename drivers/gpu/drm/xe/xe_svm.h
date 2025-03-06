@@ -57,6 +57,8 @@ void xe_svm_close(struct xe_vm *vm);
 int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 			    struct xe_tile *tile, u64 fault_addr,
 			    bool atomic);
+
+bool xe_svm_has_mapping(struct xe_vm *vm, u64 start, u64 end);
 #else
 static inline bool xe_svm_range_pages_valid(struct xe_svm_range *range)
 {
@@ -85,6 +87,12 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 			    bool atomic)
 {
 	return 0;
+}
+
+static inline
+bool xe_svm_has_mapping(struct xe_vm *vm, u64 start, u64 end)
+{
+	return false;
 }
 #endif
 
