@@ -825,8 +825,6 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 	drm_connector_list_iter_end(&conn_iter);
 
 	for_each_intel_crtc(&i915->drm, crtc) {
-		struct intel_bw_state *bw_state =
-			to_intel_bw_state(i915->display.bw.obj.state);
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane *plane;
@@ -880,10 +878,9 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 
 		intel_pmdemand_update_port_clock(display, pmdemand_state, pipe,
 						 crtc_state->port_clock);
-
-		intel_bw_crtc_update(bw_state, crtc_state);
 	}
 
+	intel_bw_update_hw_state(display);
 	intel_cdclk_update_hw_state(display);
 
 	intel_pmdemand_init_pmdemand_params(display, pmdemand_state);

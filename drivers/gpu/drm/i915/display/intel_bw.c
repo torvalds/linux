@@ -806,8 +806,8 @@ static int intel_bw_crtc_min_cdclk(const struct intel_crtc_state *crtc_state)
 	return DIV_ROUND_UP_ULL(mul_u32_u32(intel_bw_crtc_data_rate(crtc_state), 10), 512);
 }
 
-void intel_bw_crtc_update(struct intel_bw_state *bw_state,
-			  const struct intel_crtc_state *crtc_state)
+static void intel_bw_crtc_update(struct intel_bw_state *bw_state,
+				 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
@@ -1420,6 +1420,23 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	new_bw_state->force_check_qgv = false;
 
 	return 0;
+}
+
+void intel_bw_update_hw_state(struct intel_display *display)
+{
+	struct intel_bw_state *bw_state =
+		to_intel_bw_state(display->bw.obj.state);
+	struct intel_crtc *crtc;
+
+	if (DISPLAY_VER(display) < 9)
+		return;
+
+	for_each_intel_crtc(display->drm, crtc) {
+		const struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+
+		intel_bw_crtc_update(bw_state, crtc_state);
+	}
 }
 
 void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc)
