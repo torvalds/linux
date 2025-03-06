@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2014-2024 Broadcom
+ * Copyright (c) 2014-2025 Broadcom
  */
 
 #ifndef __BCMGENET_H__
@@ -649,6 +649,31 @@ struct bcmgenet_priv {
 
 	struct ethtool_keee eee;
 };
+
+static inline bool bcmgenet_has_40bits(struct bcmgenet_priv *priv)
+{
+	return !!(priv->hw_params->flags & GENET_HAS_40BITS);
+}
+
+static inline bool bcmgenet_has_ext(struct bcmgenet_priv *priv)
+{
+	return !!(priv->hw_params->flags & GENET_HAS_EXT);
+}
+
+static inline bool bcmgenet_has_mdio_intr(struct bcmgenet_priv *priv)
+{
+	return !!(priv->hw_params->flags & GENET_HAS_MDIO_INTR);
+}
+
+static inline bool bcmgenet_has_moca_link_det(struct bcmgenet_priv *priv)
+{
+	return !!(priv->hw_params->flags & GENET_HAS_MOCA_LINK_DET);
+}
+
+static inline bool bcmgenet_has_ephy_16nm(struct bcmgenet_priv *priv)
+{
+	return priv->ephy_16nm;
+}
 
 #define GENET_IO_MACRO(name, offset)					\
 static inline u32 bcmgenet_##name##_readl(struct bcmgenet_priv *priv,	\
