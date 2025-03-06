@@ -87,8 +87,9 @@ int module_enable_data_nx(const struct module *mod)
 	return 0;
 }
 
-int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
-				char *secstrings, struct module *mod)
+int module_enforce_rwx_sections(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
+				const char *secstrings,
+				const struct module *mod)
 {
 	const unsigned long shf_wx = SHF_WRITE | SHF_EXECINSTR;
 	int i;
