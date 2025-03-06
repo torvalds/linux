@@ -1395,7 +1395,8 @@ static int dpu_crtc_assign_resources(struct drm_crtc *crtc,
 
 /**
  * dpu_crtc_check_mode_changed: check if full modeset is required
- * @crtc_state:	Corresponding CRTC state to be checked
+ * @old_crtc_state:	Previous CRTC state
+ * @new_crtc_state:	Corresponding CRTC state to be checked
  *
  * Check if the changes in the object properties demand full mode set.
  */
