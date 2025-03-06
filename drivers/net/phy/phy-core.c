@@ -6,6 +6,7 @@
 #include <linux/phy.h>
 #include <linux/of.h>
 
+#include "phylib.h"
 #include "phylib-internal.h"
 
 /**
