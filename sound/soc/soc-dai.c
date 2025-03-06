@@ -364,6 +364,14 @@ int snd_soc_dai_prepare(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_prepare);
 
+int snd_soc_dai_mute_is_ctrled_at_trigger(struct snd_soc_dai *dai)
+{
+	if (dai->driver->ops)
+		return dai->driver->ops->mute_unmute_on_trigger;
+
+	return 0;
+}
+
 /**
  * snd_soc_dai_digital_mute - configure DAI system or master clock.
  * @dai: DAI
@@ -620,7 +628,7 @@ int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
 			if (ret < 0)
 				break;
 
-			if (dai->driver->ops && dai->driver->ops->mute_unmute_on_trigger)
+			if (snd_soc_dai_mute_is_ctrled_at_trigger(dai))
 				snd_soc_dai_digital_mute(dai, 0, substream->stream);
 
 			soc_dai_mark_push(dai, substream, trigger);
@@ -633,7 +641,7 @@ int snd_soc_pcm_dai_trigger(struct snd_pcm_substream *substream,
 			if (rollback && !soc_dai_mark_match(dai, substream, trigger))
 				continue;
 
-			if (dai->driver->ops && dai->driver->ops->mute_unmute_on_trigger)
+			if (snd_soc_dai_mute_is_ctrled_at_trigger(dai))
 				snd_soc_dai_digital_mute(dai, 1, substream->stream);
 
 			r = soc_dai_trigger(dai, substream, cmd);
