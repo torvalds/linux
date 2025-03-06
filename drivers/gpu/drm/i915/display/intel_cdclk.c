@@ -3340,6 +3340,18 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 	return 0;
 }
 
+void intel_cdclk_crtc_disable_noatomic(struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	struct intel_cdclk_state *cdclk_state =
+		to_intel_cdclk_state(display->cdclk.obj.state);
+	enum pipe pipe = crtc->pipe;
+
+	cdclk_state->min_cdclk[pipe] = 0;
+	cdclk_state->min_voltage_level[pipe] = 0;
+	cdclk_state->active_pipes &= ~BIT(pipe);
+}
+
 static int intel_compute_max_dotclk(struct intel_display *display)
 {
 	int ppc = intel_cdclk_ppc(display, HAS_DOUBLE_WIDE(display));

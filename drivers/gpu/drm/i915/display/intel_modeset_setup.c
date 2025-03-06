@@ -158,8 +158,6 @@ static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_bw_state *bw_state =
 		to_intel_bw_state(i915->display.bw.obj.state);
-	struct intel_cdclk_state *cdclk_state =
-		to_intel_cdclk_state(i915->display.cdclk.obj.state);
 	struct intel_dbuf_state *dbuf_state =
 		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	struct intel_pmdemand_state *pmdemand_state =
@@ -179,9 +177,7 @@ static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 
 	intel_display_power_put_all_in_set(display, &crtc->enabled_power_domains);
 
-	cdclk_state->min_cdclk[pipe] = 0;
-	cdclk_state->min_voltage_level[pipe] = 0;
-	cdclk_state->active_pipes &= ~BIT(pipe);
+	intel_cdclk_crtc_disable_noatomic(crtc);
 
 	dbuf_state->active_pipes &= ~BIT(pipe);
 
