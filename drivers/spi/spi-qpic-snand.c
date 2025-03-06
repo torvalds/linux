@@ -514,7 +514,7 @@ static int qcom_spi_read_last_cw(struct qcom_nand_controller *snandc,
 	cfg0 = (ecc_cfg->cfg0_raw & ~(7U << CW_PER_PAGE)) |
 		0 << CW_PER_PAGE;
 	cfg1 = ecc_cfg->cfg1_raw;
-	ecc_bch_cfg = 1 << ECC_CFG_ECC_DISABLE;
+	ecc_bch_cfg = ECC_CFG_ECC_DISABLE;
 
 	snandc->regs->cmd = snandc->qspi->cmd;
 	snandc->regs->cfg0 = cpu_to_le32(cfg0);
