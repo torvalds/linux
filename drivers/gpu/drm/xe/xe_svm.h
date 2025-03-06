@@ -11,6 +11,7 @@
 
 #define XE_INTERCONNECT_VRAM DRM_INTERCONNECT_DRIVER
 
+struct xe_vram_region;
 struct xe_tile;
 struct xe_vm;
 struct xe_vma;
@@ -48,6 +49,8 @@ static inline bool xe_svm_range_pages_valid(struct xe_svm_range *range)
 	return drm_gpusvm_range_pages_valid(range->base.gpusvm, &range->base);
 }
 
+int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr);
+
 int xe_svm_init(struct xe_vm *vm);
 
 void xe_svm_fini(struct xe_vm *vm);
@@ -63,6 +66,12 @@ bool xe_svm_has_mapping(struct xe_vm *vm, u64 start, u64 end);
 static inline bool xe_svm_range_pages_valid(struct xe_svm_range *range)
 {
 	return false;
+}
+
+static inline
+int xe_devm_add(struct xe_tile *tile, struct xe_vram_region *vr)
+{
+	return 0;
 }
 
 static inline
