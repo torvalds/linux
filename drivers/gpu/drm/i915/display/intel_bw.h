@@ -14,6 +14,7 @@
 
 struct drm_i915_private;
 struct intel_atomic_state;
+struct intel_crtc;
 struct intel_crtc_state;
 
 struct intel_dbuf_bw {
@@ -81,5 +82,6 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 			    bool *need_cdclk_calc);
 int intel_bw_min_cdclk(struct drm_i915_private *i915,
 		       const struct intel_bw_state *bw_state);
+void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc);
 
 #endif /* __INTEL_BW_H__ */

@@ -1422,6 +1422,20 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	return 0;
 }
 
+void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	struct intel_bw_state *bw_state =
+		to_intel_bw_state(display->bw.obj.state);
+	enum pipe pipe = crtc->pipe;
+
+	if (DISPLAY_VER(display) < 9)
+		return;
+
+	bw_state->data_rate[pipe] = 0;
+	bw_state->num_active_planes[pipe] = 0;
+}
+
 static struct intel_global_state *
 intel_bw_duplicate_state(struct intel_global_obj *obj)
 {
