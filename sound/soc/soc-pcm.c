@@ -144,7 +144,6 @@ static inline const char *soc_codec_dai_name(struct snd_soc_pcm_runtime *rtd)
 	return (rtd)->dai_link->num_codecs == 1 ? snd_soc_rtd_to_codec(rtd, 0)->name : "multicodec";
 }
 
-#ifdef CONFIG_DEBUG_FS
 static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
 {
 	switch (state) {
@@ -173,6 +172,7 @@ static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
 	return "unknown";
 }
 
+#ifdef CONFIG_DEBUG_FS
 static ssize_t dpcm_show_state(struct snd_soc_pcm_runtime *fe,
 			       int stream, char *buf, size_t size)
 {
@@ -1636,9 +1636,9 @@ void dpcm_be_dai_stop(struct snd_soc_pcm_runtime *fe, int stream,
 			continue;
 
 		if (be->dpcm[stream].users == 0) {
-			dev_err(be->dev, "ASoC: no users %s at close - state %d\n",
+			dev_err(be->dev, "ASoC: no users %s at close - state %s\n",
 				snd_pcm_direction_name(stream),
-				be->dpcm[stream].state);
+				dpcm_state_string(be->dpcm[stream].state));
 			continue;
 		}
 
@@ -1687,9 +1687,9 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 
 		/* first time the dpcm is open ? */
 		if (be->dpcm[stream].users == DPCM_MAX_BE_USERS) {
-			dev_err(be->dev, "ASoC: too many users %s at open %d\n",
+			dev_err(be->dev, "ASoC: too many users %s at open %s\n",
 				snd_pcm_direction_name(stream),
-				be->dpcm[stream].state);
+				dpcm_state_string(be->dpcm[stream].state));
 			continue;
 		}
 
@@ -1708,9 +1708,9 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 		if (err < 0) {
 			be->dpcm[stream].users--;
 			if (be->dpcm[stream].users < 0)
-				dev_err(be->dev, "ASoC: no users %s at unwind %d\n",
+				dev_err(be->dev, "ASoC: no users %s at unwind %s\n",
 					snd_pcm_direction_name(stream),
-					be->dpcm[stream].state);
+					dpcm_state_string(be->dpcm[stream].state));
 
 			be->dpcm[stream].state = SND_SOC_DPCM_STATE_CLOSE;
 			goto unwind;
@@ -2572,8 +2572,8 @@ static int dpcm_run_update_startup(struct snd_soc_pcm_runtime *fe, int stream)
 	/* Only start the BE if the FE is ready */
 	if (fe->dpcm[stream].state == SND_SOC_DPCM_STATE_HW_FREE ||
 		fe->dpcm[stream].state == SND_SOC_DPCM_STATE_CLOSE) {
-		dev_err(fe->dev, "ASoC: FE %s is not ready %d\n",
-			fe->dai_link->name, fe->dpcm[stream].state);
+		dev_err(fe->dev, "ASoC: FE %s is not ready %s\n",
+			fe->dai_link->name, dpcm_state_string(fe->dpcm[stream].state));
 		ret = -EINVAL;
 		goto disconnect;
 	}
