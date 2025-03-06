@@ -1610,25 +1610,25 @@ process_slot:
  * will free the inode.
  */
 static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
-					   struct inode *inode)
+					   struct btrfs_inode *inode)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_path *path;
 	int ret;
 	u64 nlink = 0;
-	u64 ino = btrfs_ino(BTRFS_I(inode));
+	const u64 ino = btrfs_ino(inode);
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
-	ret = count_inode_refs(BTRFS_I(inode), path);
+	ret = count_inode_refs(inode, path);
 	if (ret < 0)
 		goto out;
 
 	nlink = ret;
 
-	ret = count_inode_extrefs(BTRFS_I(inode), path);
+	ret = count_inode_extrefs(inode, path);
 	if (ret < 0)
 		goto out;
 
@@ -1636,17 +1636,17 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 
 	ret = 0;
 
-	if (nlink != inode->i_nlink) {
-		set_nlink(inode, nlink);
-		ret = btrfs_update_inode(trans, BTRFS_I(inode));
+	if (nlink != inode->vfs_inode.i_nlink) {
+		set_nlink(&inode->vfs_inode, nlink);
+		ret = btrfs_update_inode(trans, inode);
 		if (ret)
 			goto out;
 	}
-	if (S_ISDIR(inode->i_mode))
-		BTRFS_I(inode)->index_cnt = (u64)-1;
+	if (S_ISDIR(inode->vfs_inode.i_mode))
+		inode->index_cnt = (u64)-1;
 
-	if (inode->i_nlink == 0) {
-		if (S_ISDIR(inode->i_mode)) {
+	if (inode->vfs_inode.i_nlink == 0) {
+		if (S_ISDIR(inode->vfs_inode.i_mode)) {
 			ret = replay_dir_deletes(trans, root, NULL, path,
 						 ino, 1);
 			if (ret)
@@ -1702,7 +1702,7 @@ static noinline int fixup_inode_link_counts(struct btrfs_trans_handle *trans,
 			break;
 		}
 
-		ret = fixup_inode_link_count(trans, &inode->vfs_inode);
+		ret = fixup_inode_link_count(trans, inode);
 		iput(&inode->vfs_inode);
 		if (ret)
 			break;
