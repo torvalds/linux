@@ -693,8 +693,6 @@ static void readout_plane_state(struct drm_i915_private *i915)
 static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 {
 	struct intel_display *display = &i915->display;
-	struct intel_dbuf_state *dbuf_state =
-		to_intel_dbuf_state(i915->display.dbuf.obj.state);
 	struct intel_pmdemand_state *pmdemand_state =
 		to_intel_pmdemand_state(i915->display.pmdemand.obj.state);
 	enum pipe pipe;
@@ -702,7 +700,6 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 	struct drm_connector_list_iter conn_iter;
-	u8 active_pipes = 0;
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -719,16 +716,11 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 		crtc->base.enabled = crtc_state->hw.enable;
 		crtc->active = crtc_state->hw.active;
 
-		if (crtc_state->hw.active)
-			active_pipes |= BIT(crtc->pipe);
-
 		drm_dbg_kms(&i915->drm,
 			    "[CRTC:%d:%s] hw state readout: %s\n",
 			    crtc->base.base.id, crtc->base.name,
 			    str_enabled_disabled(crtc_state->hw.active));
 	}
-
-	dbuf_state->active_pipes = active_pipes;
 
 	readout_plane_state(i915);
 

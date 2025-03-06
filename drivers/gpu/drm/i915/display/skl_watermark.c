@@ -3157,6 +3157,7 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 		dbuf_state->joined_mbus = intel_de_read(display, MBUS_CTL) & MBUS_JOIN;
 
 	dbuf_state->mdclk_cdclk_ratio = intel_mdclk_cdclk_ratio(display, &display->cdclk.hw);
+	dbuf_state->active_pipes = 0;
 
 	for_each_intel_crtc(display->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -3168,8 +3169,10 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 
 		memset(&crtc_state->wm.skl.optimal, 0,
 		       sizeof(crtc_state->wm.skl.optimal));
-		if (crtc_state->hw.active)
+		if (crtc_state->hw.active) {
 			skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
+			dbuf_state->active_pipes |= BIT(pipe);
+		}
 		crtc_state->wm.skl.raw = crtc_state->wm.skl.optimal;
 
 		memset(&dbuf_state->ddb[pipe], 0, sizeof(dbuf_state->ddb[pipe]));
