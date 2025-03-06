@@ -599,7 +599,7 @@ static void bcmgenet_hfb_create_rxnfc_filter(struct bcmgenet_priv *priv,
 					     struct bcmgenet_rxnfc_rule *rule)
 {
 	struct ethtool_rx_flow_spec *fs = &rule->fs;
-	u32 offset = 0, f_length = 0, f;
+	u32 offset = 0, f_length = 0, f, q;
 	u8 val_8, mask_8;
 	__be16 val_16;
 	u16 mask_16;
@@ -688,11 +688,13 @@ static void bcmgenet_hfb_create_rxnfc_filter(struct bcmgenet_priv *priv,
 
 	bcmgenet_hfb_set_filter_length(priv, f, 2 * f_length);
 	if (fs->ring_cookie == RX_CLS_FLOW_WAKE)
-		bcmgenet_hfb_set_filter_rx_queue_mapping(priv, f, 0);
+		q = 0;
+	else if (fs->ring_cookie == RX_CLS_FLOW_DISC)
+		q = priv->hw_params->rx_queues + 1;
 	else
 		/* Other Rx rings are direct mapped here */
-		bcmgenet_hfb_set_filter_rx_queue_mapping(priv, f,
-							 fs->ring_cookie);
+		q = fs->ring_cookie;
+	bcmgenet_hfb_set_filter_rx_queue_mapping(priv, f, q);
 	bcmgenet_hfb_enable_filter(priv, f);
 	rule->state = BCMGENET_RXNFC_STATE_ENABLED;
 }
@@ -1444,7 +1446,8 @@ static int bcmgenet_insert_flow(struct net_device *dev,
 	}
 
 	if (cmd->fs.ring_cookie > priv->hw_params->rx_queues &&
-	    cmd->fs.ring_cookie != RX_CLS_FLOW_WAKE) {
+	    cmd->fs.ring_cookie != RX_CLS_FLOW_WAKE &&
+	    cmd->fs.ring_cookie != RX_CLS_FLOW_DISC) {
 		netdev_err(dev, "rxnfc: Unsupported action (%llu)\n",
 			   cmd->fs.ring_cookie);
 		return -EINVAL;
