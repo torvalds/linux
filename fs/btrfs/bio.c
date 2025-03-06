@@ -573,7 +573,7 @@ static void run_one_async_done(struct btrfs_work *work, bool do_free)
 
 	/* If an error occurred we just want to clean up the bio and move on. */
 	if (bio->bi_status) {
-		btrfs_bio_end_io(async->bbio, async->bbio->bio.bi_status);
+		btrfs_bio_end_io(async->bbio, bio->bi_status);
 		return;
 	}
 
