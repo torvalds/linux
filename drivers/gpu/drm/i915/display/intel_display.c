@@ -674,13 +674,9 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 		    plane->base.base.id, plane->base.name,
 		    crtc->base.base.id, crtc->base.name);
 
+	intel_plane_set_invisible(crtc_state, plane_state);
 	intel_set_plane_visible(crtc_state, plane_state, false);
 	intel_plane_fixup_bitmasks(crtc_state);
-	crtc_state->data_rate[plane->id] = 0;
-	crtc_state->data_rate_y[plane->id] = 0;
-	crtc_state->rel_data_rate[plane->id] = 0;
-	crtc_state->rel_data_rate_y[plane->id] = 0;
-	crtc_state->min_cdclk[plane->id] = 0;
 
 	if ((crtc_state->active_planes & ~BIT(PLANE_CURSOR)) == 0 &&
 	    hsw_ips_disable(crtc_state)) {
