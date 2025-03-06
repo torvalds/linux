@@ -1449,11 +1449,11 @@ static struct damon_ctx *damon_sysfs_build_ctx(
  * damon_sysfs_commit_input() - Commit user inputs to a running kdamond.
  * @kdamond:	The kobject wrapper for the associated kdamond.
  *
- * If the sysfs input is wrong, the kdamond will be terminated.
+ * Returns error if the sysfs input is wrong.
  */
 static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
 {
-	struct damon_ctx *param_ctx;
+	struct damon_ctx *param_ctx, *test_ctx;
 	int err;
 
 	if (!damon_sysfs_kdamond_running(kdamond))
@@ -1465,7 +1465,15 @@ static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
 	param_ctx = damon_sysfs_build_ctx(kdamond->contexts->contexts_arr[0]);
 	if (IS_ERR(param_ctx))
 		return PTR_ERR(param_ctx);
+	test_ctx = damon_new_ctx();
+	err = damon_commit_ctx(test_ctx, param_ctx);
+	if (err) {
+		damon_sysfs_destroy_targets(test_ctx);
+		damon_destroy_ctx(test_ctx);
+		goto out;
+	}
 	err = damon_commit_ctx(kdamond->damon_ctx, param_ctx);
+out:
 	damon_sysfs_destroy_targets(param_ctx);
 	damon_destroy_ctx(param_ctx);
 	return err;
