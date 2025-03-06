@@ -31,6 +31,9 @@
 #define PM_BASE	384
 #define PN_BASE	416
 
+/* maximum number of banks per controller (PA -> PK) */
+#define SUNXI_PINCTRL_MAX_BANKS	11
+
 #define SUNXI_PINCTRL_PIN(bank, pin)		\
 	PINCTRL_PIN(P ## bank ## _BASE + (pin), "P" #bank #pin)
 
@@ -303,5 +306,11 @@ int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
 
 #define sunxi_pinctrl_init(_dev, _desc) \
 	sunxi_pinctrl_init_with_flags(_dev, _desc, 0)
+
+int sunxi_pinctrl_dt_table_init(struct platform_device *pdev,
+				const u8 *pins_per_bank,
+				const u8 *irq_bank_muxes,
+				struct sunxi_pinctrl_desc *desc,
+				unsigned long flags);
 
 #endif /* __PINCTRL_SUNXI_H */
