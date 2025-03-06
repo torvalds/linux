@@ -1869,12 +1869,12 @@ struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
 				   unsigned int offset)
 {
 	struct sg_table *sgt;
-	unsigned int n_segments;
+	unsigned int n_segments = skb_shinfo(skb)->nr_frags + 1;
+	int orig_nents;
 
 	if (WARN_ON_ONCE(skb_has_frag_list(skb)))
 		return NULL;
 
-	n_segments = DIV_ROUND_UP(skb->len - offset, skb_shinfo(skb)->gso_size);
 	*hdr = iwl_pcie_get_page_hdr(trans,
 				     hdr_room + __alignof__(struct sg_table) +
 				     sizeof(struct sg_table) +
@@ -1889,10 +1889,11 @@ struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
 	sg_init_table(sgt->sgl, n_segments);
 
 	/* Only map the data, not the header (it is copied to the TSO page) */
-	sgt->orig_nents = skb_to_sgvec(skb, sgt->sgl, offset,
-				       skb->len - offset);
-	if (WARN_ON_ONCE(sgt->orig_nents <= 0))
+	orig_nents = skb_to_sgvec(skb, sgt->sgl, offset, skb->len - offset);
+	if (WARN_ON_ONCE(orig_nents <= 0))
 		return NULL;
+
+	sgt->orig_nents = orig_nents;
 
 	/* And map the entire SKB */
 	if (dma_map_sgtable(trans->dev, sgt, DMA_TO_DEVICE, 0) < 0)
