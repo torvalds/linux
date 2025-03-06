@@ -3837,10 +3837,8 @@ static void skl_dbuf_sanitize(struct drm_i915_private *i915)
 	}
 }
 
-static void skl_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
+static void skl_wm_sanitize(struct drm_i915_private *i915)
 {
-	skl_wm_get_hw_state(i915);
-
 	skl_mbus_sanitize(i915);
 	skl_dbuf_sanitize(i915);
 }
@@ -4016,7 +4014,8 @@ void intel_wm_state_verify(struct intel_atomic_state *state,
 
 static const struct intel_wm_funcs skl_wm_funcs = {
 	.compute_global_watermarks = skl_compute_wm,
-	.get_hw_state = skl_wm_get_hw_state_and_sanitize,
+	.get_hw_state = skl_wm_get_hw_state,
+	.sanitize = skl_wm_sanitize,
 };
 
 void skl_wm_init(struct drm_i915_private *i915)

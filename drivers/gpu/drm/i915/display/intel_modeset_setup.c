@@ -991,6 +991,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	intel_dpll_sanitize_state(display);
 
 	intel_wm_get_hw_state(i915);
+	intel_wm_sanitize(i915);
 
 	for_each_intel_crtc(&i915->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
