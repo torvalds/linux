@@ -177,16 +177,6 @@ static inline bool pipe_has_watch_queue(const struct pipe_inode_info *pipe)
 }
 
 /**
- * pipe_empty - Return true if the pipe is empty
- * @head: The pipe ring head pointer
- * @tail: The pipe ring tail pointer
- */
-static inline bool pipe_empty(unsigned int head, unsigned int tail)
-{
-	return head == tail;
-}
-
-/**
  * pipe_occupancy - Return number of slots used in the pipe
  * @head: The pipe ring head pointer
  * @tail: The pipe ring tail pointer
@@ -194,6 +184,16 @@ static inline bool pipe_empty(unsigned int head, unsigned int tail)
 static inline unsigned int pipe_occupancy(unsigned int head, unsigned int tail)
 {
 	return (pipe_index_t)(head - tail);
+}
+
+/**
+ * pipe_empty - Return true if the pipe is empty
+ * @head: The pipe ring head pointer
+ * @tail: The pipe ring tail pointer
+ */
+static inline bool pipe_empty(unsigned int head, unsigned int tail)
+{
+	return !pipe_occupancy(head, tail);
 }
 
 /**
