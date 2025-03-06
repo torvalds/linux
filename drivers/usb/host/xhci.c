@@ -4755,8 +4755,8 @@ static u16 xhci_calculate_u1_timeout(struct xhci_hcd *xhci,
 	 */
 	if (timeout_ns <= USB3_LPM_U1_MAX_TIMEOUT)
 		return timeout_ns;
-	dev_dbg(&udev->dev, "Hub-initiated U1 disabled "
-			"due to long timeout %llu ms\n", timeout_ns);
+	dev_dbg(&udev->dev, "Hub-initiated U1 disabled due to long timeout %lluus\n",
+		timeout_ns);
 	return xhci_get_timeout_no_hub_lpm(udev, USB3_LPM_U1);
 }
 
@@ -4813,8 +4813,8 @@ static u16 xhci_calculate_u2_timeout(struct xhci_hcd *xhci,
 	 */
 	if (timeout_ns <= USB3_LPM_U2_MAX_TIMEOUT)
 		return timeout_ns;
-	dev_dbg(&udev->dev, "Hub-initiated U2 disabled "
-			"due to long timeout %llu ms\n", timeout_ns);
+	dev_dbg(&udev->dev, "Hub-initiated U2 disabled due to long timeout %lluus\n",
+		timeout_ns * 256);
 	return xhci_get_timeout_no_hub_lpm(udev, USB3_LPM_U2);
 }
 
