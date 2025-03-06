@@ -2050,6 +2050,9 @@ static s8 rtw89_phy_ant_gain_offset(struct rtw89_dev *rtwdev, u8 band, u32 cente
 	offset_patha = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_A, center_freq);
 	offset_pathb = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_B, center_freq);
 
+	if (RTW89_CHK_FW_FEATURE(NO_POWER_DIFFERENCE, &rtwdev->fw))
+		return min(offset_patha, offset_pathb);
+
 	return max(offset_patha, offset_pathb);
 }
 
@@ -2065,6 +2068,9 @@ s16 rtw89_phy_ant_gain_pwr_offset(struct rtw89_dev *rtwdev,
 		return 0;
 
 	if (ant_gain->block_country || !(ant_gain->regd_enabled & BIT(regd)))
+		return 0;
+
+	if (RTW89_CHK_FW_FEATURE(NO_POWER_DIFFERENCE, &rtwdev->fw))
 		return 0;
 
 	offset_patha = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_A, chan->freq);

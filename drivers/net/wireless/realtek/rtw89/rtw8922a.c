@@ -2156,6 +2156,56 @@ static void rtw8922a_set_txpwr_ref(struct rtw89_dev *rtwdev,
 				     B_BE_PWR_REF_CTRL_CCK, ref_cck);
 }
 
+static const struct rtw89_reg_def rtw8922a_txpwr_ref[][3] = {
+	{{ .addr = R_TXAGC_REF_DBM_P0, .mask = B_TXAGC_OFDM_REF_DBM_P0},
+	 { .addr = R_TXAGC_REF_DBM_P0, .mask = B_TXAGC_CCK_REF_DBM_P0},
+	 { .addr = R_TSSI_K_P0, .mask = B_TSSI_K_OFDM_P0}
+	},
+	{{ .addr = R_TXAGC_REF_DBM_RF1_P0, .mask = B_TXAGC_OFDM_REF_DBM_RF1_P0},
+	 { .addr = R_TXAGC_REF_DBM_RF1_P0, .mask = B_TXAGC_CCK_REF_DBM_RF1_P0},
+	 { .addr = R_TSSI_K_RF1_P0, .mask = B_TSSI_K_OFDM_RF1_P0}
+	},
+};
+
+static void rtw8922a_set_txpwr_diff(struct rtw89_dev *rtwdev,
+				    const struct rtw89_chan *chan,
+				    enum rtw89_phy_idx phy_idx)
+{
+	s16 pwr_ofst = rtw89_phy_ant_gain_pwr_offset(rtwdev, chan);
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	static const u32 path_ofst[] = {0x0, 0x100};
+	const struct rtw89_reg_def *txpwr_ref;
+	static const s16 tssi_k_base = 0x12;
+	s16 tssi_k_ofst = abs(pwr_ofst) + tssi_k_base;
+	s16 ofst_dec[RF_PATH_NUM_8922A];
+	s16 tssi_k[RF_PATH_NUM_8922A];
+	s16 pwr_ref_ofst;
+	s16 pwr_ref = 0;
+	u8 i;
+
+	if (rtwdev->hal.cv == CHIP_CAV)
+		pwr_ref = 16;
+
+	pwr_ref <<= chip->txpwr_factor_rf;
+	pwr_ref_ofst = pwr_ref - rtw89_phy_txpwr_bb_to_rf(rtwdev, abs(pwr_ofst));
+
+	ofst_dec[RF_PATH_A] = pwr_ofst > 0 ? pwr_ref : pwr_ref_ofst;
+	ofst_dec[RF_PATH_B] = pwr_ofst > 0 ? pwr_ref_ofst : pwr_ref;
+	tssi_k[RF_PATH_A] = pwr_ofst > 0 ? tssi_k_base : tssi_k_ofst;
+	tssi_k[RF_PATH_B] = pwr_ofst > 0 ? tssi_k_ofst : tssi_k_base;
+
+	for (i = 0; i < RF_PATH_NUM_8922A; i++) {
+		txpwr_ref = rtw8922a_txpwr_ref[phy_idx];
+
+		rtw89_phy_write32_mask(rtwdev, txpwr_ref[0].addr + path_ofst[i],
+				       txpwr_ref[0].mask, ofst_dec[i]);
+		rtw89_phy_write32_mask(rtwdev, txpwr_ref[1].addr + path_ofst[i],
+				       txpwr_ref[1].mask, ofst_dec[i]);
+		rtw89_phy_write32_mask(rtwdev, txpwr_ref[2].addr + path_ofst[i],
+				       txpwr_ref[2].mask, tssi_k[i]);
+	}
+}
+
 static void rtw8922a_bb_tx_triangular(struct rtw89_dev *rtwdev, bool en,
 				      enum rtw89_phy_idx phy_idx)
 {
@@ -2192,6 +2242,8 @@ static void rtw8922a_set_txpwr(struct rtw89_dev *rtwdev,
 	rtw8922a_set_tx_shape(rtwdev, chan, phy_idx);
 	rtw89_phy_set_txpwr_limit(rtwdev, chan, phy_idx);
 	rtw89_phy_set_txpwr_limit_ru(rtwdev, chan, phy_idx);
+	rtw8922a_set_txpwr_diff(rtwdev, chan, phy_idx);
+	rtw8922a_set_txpwr_ref(rtwdev, phy_idx);
 }
 
 static void rtw8922a_set_txpwr_ctrl(struct rtw89_dev *rtwdev,
@@ -2769,7 +2821,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 				  BIT(NL80211_CHAN_WIDTH_80) |
 				  BIT(NL80211_CHAN_WIDTH_160),
 	.support_unii4		= true,
-	.support_ant_gain	= false,
+	.support_ant_gain	= true,
 	.support_tas		= false,
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= false,
