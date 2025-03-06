@@ -3626,6 +3626,10 @@ int svm_invoke_exit_handler(struct kvm_vcpu *vcpu, u64 exit_code)
 		return kvm_emulate_halt(vcpu);
 	else if (exit_code == SVM_EXIT_NPF)
 		return npf_interception(vcpu);
+#ifdef CONFIG_KVM_AMD_SEV
+	else if (exit_code == SVM_EXIT_VMGEXIT)
+		return sev_handle_vmgexit(vcpu);
+#endif
 #endif
 	return svm_exit_handlers[exit_code](vcpu);
 }
