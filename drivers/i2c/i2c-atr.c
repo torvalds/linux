@@ -37,6 +37,7 @@ struct i2c_atr_alias_pair {
 /**
  * struct i2c_atr_alias_pool - Pool of client aliases available for an ATR.
  * @size:     Total number of aliases
+ * @shared:   Indicates if this alias pool is shared by multiple channels
  *
  * @lock:     Lock protecting @aliases and @use_mask
  * @aliases:  Array of aliases, must hold exactly @size elements
@@ -44,6 +45,7 @@ struct i2c_atr_alias_pair {
  */
 struct i2c_atr_alias_pool {
 	size_t size;
+	bool shared;
 
 	/* Protects aliases and use_mask */
 	spinlock_t lock;
@@ -58,6 +60,8 @@ struct i2c_atr_alias_pool {
  * @chan_id:         The ID of this channel
  * @alias_pairs:     List of @struct i2c_atr_alias_pair containing the
  *                   assigned aliases
+ * @alias_pool:      Pool of available client aliases
+ *
  * @orig_addrs_lock: Mutex protecting @orig_addrs
  * @orig_addrs:      Buffer used to store the original addresses during transmit
  * @orig_addrs_size: Size of @orig_addrs
@@ -68,6 +72,7 @@ struct i2c_atr_chan {
 	u32 chan_id;
 
 	struct list_head alias_pairs;
+	struct i2c_atr_alias_pool *alias_pool;
 
 	/* Lock orig_addrs during xfer */
 	struct mutex orig_addrs_lock;
@@ -84,7 +89,7 @@ struct i2c_atr_chan {
  * @algo:      The &struct i2c_algorithm for adapters
  * @lock:      Lock for the I2C bus segment (see &struct i2c_lock_operations)
  * @max_adapters: Maximum number of adapters this I2C ATR can have
- * @alias_pool: Pool of available client aliases
+ * @alias_pool: Optional common pool of available client aliases
  * @i2c_nb:    Notifier for remote client add & del events
  * @adapter:   Array of adapters
  */
@@ -107,7 +112,7 @@ struct i2c_atr {
 	struct i2c_adapter *adapter[] __counted_by(max_adapters);
 };
 
-static struct i2c_atr_alias_pool *i2c_atr_alloc_alias_pool(size_t num_aliases)
+static struct i2c_atr_alias_pool *i2c_atr_alloc_alias_pool(size_t num_aliases, bool shared)
 {
 	struct i2c_atr_alias_pool *alias_pool;
 	int ret;
@@ -129,6 +134,8 @@ static struct i2c_atr_alias_pool *i2c_atr_alloc_alias_pool(size_t num_aliases)
 		ret = -ENOMEM;
 		goto err_free_aliases;
 	}
+
+	alias_pool->shared = shared;
 
 	spin_lock_init(&alias_pool->lock);
 
@@ -357,7 +364,7 @@ static int i2c_atr_attach_addr(struct i2c_adapter *adapter,
 	u16 alias;
 	int ret;
 
-	ret = i2c_atr_reserve_alias(atr->alias_pool);
+	ret = i2c_atr_reserve_alias(chan->alias_pool);
 	if (ret < 0) {
 		dev_err(atr->dev, "failed to find a free alias\n");
 		return ret;
@@ -387,7 +394,7 @@ static int i2c_atr_attach_addr(struct i2c_adapter *adapter,
 err_free:
 	kfree(c2a);
 err_release_alias:
-	i2c_atr_release_alias(atr->alias_pool, alias);
+	i2c_atr_release_alias(chan->alias_pool, alias);
 
 	return ret;
 }
@@ -408,7 +415,7 @@ static void i2c_atr_detach_addr(struct i2c_adapter *adapter,
 		return;
 	}
 
-	i2c_atr_release_alias(atr->alias_pool, c2a->alias);
+	i2c_atr_release_alias(chan->alias_pool, c2a->alias);
 
 	dev_dbg(atr->dev,
 		"chan%u: detached alias 0x%02x from addr 0x%02x\n",
@@ -469,16 +476,20 @@ static int i2c_atr_parse_alias_pool(struct i2c_atr *atr)
 	u32 *aliases32;
 	int ret;
 
-	ret = fwnode_property_count_u32(dev_fwnode(dev), "i2c-alias-pool");
-	if (ret < 0) {
-		dev_err(dev, "Failed to count 'i2c-alias-pool' property: %d\n",
-			ret);
-		return ret;
+	if (!fwnode_property_present(dev_fwnode(dev), "i2c-alias-pool")) {
+		num_aliases = 0;
+	} else {
+		ret = fwnode_property_count_u32(dev_fwnode(dev), "i2c-alias-pool");
+		if (ret < 0) {
+			dev_err(dev, "Failed to count 'i2c-alias-pool' property: %d\n",
+				ret);
+			return ret;
+		}
+
+		num_aliases = ret;
 	}
 
-	num_aliases = ret;
-
-	alias_pool = i2c_atr_alloc_alias_pool(num_aliases);
+	alias_pool = i2c_atr_alloc_alias_pool(num_aliases, true);
 	if (IS_ERR(alias_pool)) {
 		ret = PTR_ERR(alias_pool);
 		dev_err(dev, "Failed to allocate alias pool, err %d\n", ret);
@@ -592,15 +603,15 @@ void i2c_atr_delete(struct i2c_atr *atr)
 }
 EXPORT_SYMBOL_NS_GPL(i2c_atr_delete, "I2C_ATR");
 
-int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
-			struct device *adapter_parent,
-			struct fwnode_handle *bus_handle)
+int i2c_atr_add_adapter(struct i2c_atr *atr, struct i2c_atr_adap_desc *desc)
 {
+	struct fwnode_handle *bus_handle = desc->bus_handle;
 	struct i2c_adapter *parent = atr->parent;
-	struct device *dev = atr->dev;
-	struct i2c_atr_chan *chan;
 	char symlink_name[ATR_MAX_SYMLINK_LEN];
-	int ret;
+	struct device *dev = atr->dev;
+	u32 chan_id = desc->chan_id;
+	struct i2c_atr_chan *chan;
+	int ret, idx;
 
 	if (chan_id >= atr->max_adapters) {
 		dev_err(dev, "No room for more i2c-atr adapters\n");
@@ -616,8 +627,8 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 	if (!chan)
 		return -ENOMEM;
 
-	if (!adapter_parent)
-		adapter_parent = dev;
+	if (!desc->parent)
+		desc->parent = dev;
 
 	chan->atr = atr;
 	chan->chan_id = chan_id;
@@ -629,7 +640,7 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 	chan->adap.owner = THIS_MODULE;
 	chan->adap.algo = &atr->algo;
 	chan->adap.algo_data = chan;
-	chan->adap.dev.parent = adapter_parent;
+	chan->adap.dev.parent = desc->parent;
 	chan->adap.retries = parent->retries;
 	chan->adap.timeout = parent->timeout;
 	chan->adap.quirks = parent->quirks;
@@ -656,13 +667,26 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 		fwnode_handle_put(atr_node);
 	}
 
+	if (desc->num_aliases > 0) {
+		chan->alias_pool = i2c_atr_alloc_alias_pool(desc->num_aliases, false);
+		if (IS_ERR(chan->alias_pool)) {
+			ret = PTR_ERR(chan->alias_pool);
+			goto err_fwnode_put;
+		}
+
+		for (idx = 0; idx < desc->num_aliases; idx++)
+			chan->alias_pool->aliases[idx] = desc->aliases[idx];
+	} else {
+		chan->alias_pool = atr->alias_pool;
+	}
+
 	atr->adapter[chan_id] = &chan->adap;
 
 	ret = i2c_add_adapter(&chan->adap);
 	if (ret) {
 		dev_err(dev, "failed to add atr-adapter %u (error=%d)\n",
 			chan_id, ret);
-		goto err_fwnode_put;
+		goto err_free_alias_pool;
 	}
 
 	snprintf(symlink_name, sizeof(symlink_name), "channel-%u",
@@ -679,6 +703,9 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 
 	return 0;
 
+err_free_alias_pool:
+	if (!chan->alias_pool->shared)
+		i2c_atr_free_alias_pool(chan->alias_pool);
 err_fwnode_put:
 	fwnode_handle_put(dev_fwnode(&chan->adap.dev));
 	mutex_destroy(&chan->orig_addrs_lock);
@@ -710,6 +737,9 @@ void i2c_atr_del_adapter(struct i2c_atr *atr, u32 chan_id)
 	sysfs_remove_link(&chan->adap.dev.kobj, "atr_device");
 
 	i2c_del_adapter(adap);
+
+	if (!chan->alias_pool->shared)
+		i2c_atr_free_alias_pool(chan->alias_pool);
 
 	atr->adapter[chan_id] = NULL;
 
