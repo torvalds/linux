@@ -3,11 +3,20 @@
 
 #include "x86_ops.h"
 #include "vmx.h"
+#include "mmu.h"
 #include "nested.h"
 #include "pmu.h"
 #include "posted_intr.h"
 #include "tdx.h"
 #include "tdx_arch.h"
+
+static void vt_disable_virtualization_cpu(void)
+{
+	/* Note, TDX *and* VMX need to be disabled if TDX is enabled. */
+	if (enable_tdx)
+		tdx_disable_virtualization_cpu();
+	vmx_disable_virtualization_cpu();
+}
 
 static __init int vt_hardware_setup(void)
 {
@@ -35,9 +44,21 @@ static __init int vt_hardware_setup(void)
 	 * is KVM may allocate couple of more bytes than needed for
 	 * each VM.
 	 */
-	if (enable_tdx)
+	if (enable_tdx) {
 		vt_x86_ops.vm_size = max_t(unsigned int, vt_x86_ops.vm_size,
 				sizeof(struct kvm_tdx));
+		/*
+		 * Note, TDX may fail to initialize in a later time in
+		 * vt_init(), in which case it is not necessary to setup
+		 * those callbacks.  But making them valid here even
+		 * when TDX fails to init later is fine because those
+		 * callbacks won't be called if the VM isn't TDX guest.
+		 */
+		vt_x86_ops.link_external_spt = tdx_sept_link_private_spt;
+		vt_x86_ops.set_external_spte = tdx_sept_set_private_spte;
+		vt_x86_ops.free_external_spt = tdx_sept_free_private_spt;
+		vt_x86_ops.remove_external_spte = tdx_sept_remove_private_spte;
+	}
 
 	return 0;
 }
@@ -98,6 +119,75 @@ static void vt_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	vmx_vcpu_reset(vcpu, init_event);
 }
 
+static void vt_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+{
+	if (is_td_vcpu(vcpu)) {
+		tdx_vcpu_load(vcpu, cpu);
+		return;
+	}
+
+	vmx_vcpu_load(vcpu, cpu);
+}
+
+static void vt_update_cpu_dirty_logging(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Basic TDX does not support feature PML. KVM does not enable PML in
+	 * TD's VMCS, nor does it allocate or flush PML buffer for TDX.
+	 */
+	if (WARN_ON_ONCE(is_td_vcpu(vcpu)))
+		return;
+
+	vmx_update_cpu_dirty_logging(vcpu);
+}
+
+static void vt_flush_tlb_all(struct kvm_vcpu *vcpu)
+{
+	if (is_td_vcpu(vcpu)) {
+		tdx_flush_tlb_all(vcpu);
+		return;
+	}
+
+	vmx_flush_tlb_all(vcpu);
+}
+
+static void vt_flush_tlb_current(struct kvm_vcpu *vcpu)
+{
+	if (is_td_vcpu(vcpu)) {
+		tdx_flush_tlb_current(vcpu);
+		return;
+	}
+
+	vmx_flush_tlb_current(vcpu);
+}
+
+static void vt_flush_tlb_gva(struct kvm_vcpu *vcpu, gva_t addr)
+{
+	if (is_td_vcpu(vcpu))
+		return;
+
+	vmx_flush_tlb_gva(vcpu, addr);
+}
+
+static void vt_flush_tlb_guest(struct kvm_vcpu *vcpu)
+{
+	if (is_td_vcpu(vcpu))
+		return;
+
+	vmx_flush_tlb_guest(vcpu);
+}
+
+static void vt_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
+			    int pgd_level)
+{
+	if (is_td_vcpu(vcpu)) {
+		tdx_load_mmu_pgd(vcpu, root_hpa, pgd_level);
+		return;
+	}
+
+	vmx_load_mmu_pgd(vcpu, root_hpa, pgd_level);
+}
+
 static int vt_mem_enc_ioctl(struct kvm *kvm, void __user *argp)
 {
 	if (!is_td(kvm))
@@ -112,6 +202,14 @@ static int vt_vcpu_mem_enc_ioctl(struct kvm_vcpu *vcpu, void __user *argp)
 		return -EINVAL;
 
 	return tdx_vcpu_ioctl(vcpu, argp);
+}
+
+static int vt_gmem_private_max_mapping_level(struct kvm *kvm, kvm_pfn_t pfn)
+{
+	if (is_td(kvm))
+		return tdx_gmem_private_max_mapping_level(kvm, pfn);
+
+	return 0;
 }
 
 #define VMX_REQUIRED_APICV_INHIBITS				\
@@ -131,7 +229,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.hardware_unsetup = vmx_hardware_unsetup,
 
 	.enable_virtualization_cpu = vmx_enable_virtualization_cpu,
-	.disable_virtualization_cpu = vmx_disable_virtualization_cpu,
+	.disable_virtualization_cpu = vt_disable_virtualization_cpu,
 	.emergency_disable_virtualization_cpu = vmx_emergency_disable_virtualization_cpu,
 
 	.has_emulated_msr = vmx_has_emulated_msr,
@@ -148,7 +246,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.vcpu_reset = vt_vcpu_reset,
 
 	.prepare_switch_to_guest = vmx_prepare_switch_to_guest,
-	.vcpu_load = vmx_vcpu_load,
+	.vcpu_load = vt_vcpu_load,
 	.vcpu_put = vmx_vcpu_put,
 
 	.update_exception_bitmap = vmx_update_exception_bitmap,
@@ -178,10 +276,10 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.set_rflags = vmx_set_rflags,
 	.get_if_flag = vmx_get_if_flag,
 
-	.flush_tlb_all = vmx_flush_tlb_all,
-	.flush_tlb_current = vmx_flush_tlb_current,
-	.flush_tlb_gva = vmx_flush_tlb_gva,
-	.flush_tlb_guest = vmx_flush_tlb_guest,
+	.flush_tlb_all = vt_flush_tlb_all,
+	.flush_tlb_current = vt_flush_tlb_current,
+	.flush_tlb_gva = vt_flush_tlb_gva,
+	.flush_tlb_guest = vt_flush_tlb_guest,
 
 	.vcpu_pre_run = vmx_vcpu_pre_run,
 	.vcpu_run = vmx_vcpu_run,
@@ -231,13 +329,12 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.write_tsc_offset = vmx_write_tsc_offset,
 	.write_tsc_multiplier = vmx_write_tsc_multiplier,
 
-	.load_mmu_pgd = vmx_load_mmu_pgd,
+	.load_mmu_pgd = vt_load_mmu_pgd,
 
 	.check_intercept = vmx_check_intercept,
 	.handle_exit_irqoff = vmx_handle_exit_irqoff,
 
-	.cpu_dirty_log_size = PML_LOG_NR_ENTRIES,
-	.update_cpu_dirty_logging = vmx_update_cpu_dirty_logging,
+	.update_cpu_dirty_logging = vt_update_cpu_dirty_logging,
 
 	.nested_ops = &vmx_nested_ops,
 
@@ -271,6 +368,8 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 
 	.mem_enc_ioctl = vt_mem_enc_ioctl,
 	.vcpu_mem_enc_ioctl = vt_vcpu_mem_enc_ioctl,
+
+	.private_max_mapping_level = vt_gmem_private_max_mapping_level
 };
 
 struct kvm_x86_init_ops vt_init_ops __initdata = {

@@ -121,6 +121,29 @@ struct td_params {
 #define TDX_MIN_TSC_FREQUENCY_KHZ		(100 * 1000)
 #define TDX_MAX_TSC_FREQUENCY_KHZ		(10 * 1000 * 1000)
 
+/* Additional Secure EPT entry information */
+#define TDX_SEPT_LEVEL_MASK		GENMASK_ULL(2, 0)
+#define TDX_SEPT_STATE_MASK		GENMASK_ULL(15, 8)
+#define TDX_SEPT_STATE_SHIFT		8
+
+enum tdx_sept_entry_state {
+	TDX_SEPT_FREE = 0,
+	TDX_SEPT_BLOCKED = 1,
+	TDX_SEPT_PENDING = 2,
+	TDX_SEPT_PENDING_BLOCKED = 3,
+	TDX_SEPT_PRESENT = 4,
+};
+
+static inline u8 tdx_get_sept_level(u64 sept_entry_info)
+{
+	return sept_entry_info & TDX_SEPT_LEVEL_MASK;
+}
+
+static inline u8 tdx_get_sept_state(u64 sept_entry_info)
+{
+	return (sept_entry_info & TDX_SEPT_STATE_MASK) >> TDX_SEPT_STATE_SHIFT;
+}
+
 #define MD_FIELD_ID_FEATURES0_TOPOLOGY_ENUM	BIT_ULL(20)
 
 /*

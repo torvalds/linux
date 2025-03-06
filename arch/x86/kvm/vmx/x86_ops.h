@@ -122,6 +122,7 @@ void vmx_cancel_hv_timer(struct kvm_vcpu *vcpu);
 void vmx_setup_mce(struct kvm_vcpu *vcpu);
 
 #ifdef CONFIG_KVM_INTEL_TDX
+void tdx_disable_virtualization_cpu(void);
 int tdx_vm_init(struct kvm *kvm);
 void tdx_mmu_release_hkid(struct kvm *kvm);
 void tdx_vm_destroy(struct kvm *kvm);
@@ -129,9 +130,25 @@ int tdx_vm_ioctl(struct kvm *kvm, void __user *argp);
 
 int tdx_vcpu_create(struct kvm_vcpu *vcpu);
 void tdx_vcpu_free(struct kvm_vcpu *vcpu);
+void tdx_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 
 int tdx_vcpu_ioctl(struct kvm_vcpu *vcpu, void __user *argp);
+
+int tdx_sept_link_private_spt(struct kvm *kvm, gfn_t gfn,
+			      enum pg_level level, void *private_spt);
+int tdx_sept_free_private_spt(struct kvm *kvm, gfn_t gfn,
+			      enum pg_level level, void *private_spt);
+int tdx_sept_set_private_spte(struct kvm *kvm, gfn_t gfn,
+			      enum pg_level level, kvm_pfn_t pfn);
+int tdx_sept_remove_private_spte(struct kvm *kvm, gfn_t gfn,
+				 enum pg_level level, kvm_pfn_t pfn);
+
+void tdx_flush_tlb_current(struct kvm_vcpu *vcpu);
+void tdx_flush_tlb_all(struct kvm_vcpu *vcpu);
+void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level);
+int tdx_gmem_private_max_mapping_level(struct kvm *kvm, kvm_pfn_t pfn);
 #else
+static inline void tdx_disable_virtualization_cpu(void) {}
 static inline int tdx_vm_init(struct kvm *kvm) { return -EOPNOTSUPP; }
 static inline void tdx_mmu_release_hkid(struct kvm *kvm) {}
 static inline void tdx_vm_destroy(struct kvm *kvm) {}
@@ -139,8 +156,42 @@ static inline int tdx_vm_ioctl(struct kvm *kvm, void __user *argp) { return -EOP
 
 static inline int tdx_vcpu_create(struct kvm_vcpu *vcpu) { return -EOPNOTSUPP; }
 static inline void tdx_vcpu_free(struct kvm_vcpu *vcpu) {}
+static inline void tdx_vcpu_load(struct kvm_vcpu *vcpu, int cpu) {}
 
 static inline int tdx_vcpu_ioctl(struct kvm_vcpu *vcpu, void __user *argp) { return -EOPNOTSUPP; }
+
+static inline int tdx_sept_link_private_spt(struct kvm *kvm, gfn_t gfn,
+					    enum pg_level level,
+					    void *private_spt)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int tdx_sept_free_private_spt(struct kvm *kvm, gfn_t gfn,
+					    enum pg_level level,
+					    void *private_spt)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int tdx_sept_set_private_spte(struct kvm *kvm, gfn_t gfn,
+					    enum pg_level level,
+					    kvm_pfn_t pfn)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int tdx_sept_remove_private_spte(struct kvm *kvm, gfn_t gfn,
+					       enum pg_level level,
+					       kvm_pfn_t pfn)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void tdx_flush_tlb_current(struct kvm_vcpu *vcpu) {}
+static inline void tdx_flush_tlb_all(struct kvm_vcpu *vcpu) {}
+static inline void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int root_level) {}
+static inline int tdx_gmem_private_max_mapping_level(struct kvm *kvm, kvm_pfn_t pfn) { return 0; }
 #endif
 
 #endif /* __KVM_X86_VMX_X86_OPS_H */
