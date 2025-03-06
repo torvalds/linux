@@ -2490,8 +2490,6 @@ static int kdamond_fn(void *data)
 
 			kdamond_reset_aggregated(ctx);
 			kdamond_split_regions(ctx);
-			if (ctx->ops.reset_aggregated)
-				ctx->ops.reset_aggregated(ctx);
 		}
 
 		if (ctx->passed_sample_intervals >= next_ops_update_sis) {
