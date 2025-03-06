@@ -274,6 +274,8 @@ struct bcmgenet_mib_counters {
 /* Only valid for GENETv3+ */
 #define UMAC_IRQ_MDIO_DONE		(1 << 23)
 #define UMAC_IRQ_MDIO_ERROR		(1 << 24)
+#define UMAC_IRQ_MDIO_EVENT		(UMAC_IRQ_MDIO_DONE | \
+					 UMAC_IRQ_MDIO_ERROR)
 
 /* INTRL2 instance 1 definitions */
 #define UMAC_IRQ1_TX_INTR_MASK		0xFFFF

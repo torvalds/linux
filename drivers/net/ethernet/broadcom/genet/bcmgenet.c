@@ -2584,7 +2584,7 @@ static void init_umac(struct bcmgenet_priv *priv)
 
 	/* Enable MDIO interrupts on GENET v3+ */
 	if (bcmgenet_has_mdio_intr(priv))
-		int0_enable |= (UMAC_IRQ_MDIO_DONE | UMAC_IRQ_MDIO_ERROR);
+		int0_enable |= UMAC_IRQ_MDIO_EVENT;
 
 	bcmgenet_intrl2_0_writel(priv, int0_enable, INTRL2_CPU_MASK_CLEAR);
 
@@ -3150,10 +3150,8 @@ static irqreturn_t bcmgenet_isr0(int irq, void *dev_id)
 	netif_dbg(priv, intr, priv->dev,
 		  "IRQ=0x%x\n", status);
 
-	if (bcmgenet_has_mdio_intr(priv) &&
-		status & (UMAC_IRQ_MDIO_DONE | UMAC_IRQ_MDIO_ERROR)) {
+	if (bcmgenet_has_mdio_intr(priv) && status & UMAC_IRQ_MDIO_EVENT)
 		wake_up(&priv->wq);
-	}
 
 	/* all other interested interrupts handled in bottom half */
 	status &= (UMAC_IRQ_LINK_EVENT | UMAC_IRQ_PHY_DET_R);
@@ -3311,19 +3309,21 @@ static void bcmgenet_netif_stop(struct net_device *dev, bool stop_phy)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 
-	bcmgenet_disable_tx_napi(priv);
 	netif_tx_disable(dev);
 
 	/* Disable MAC receive */
+	bcmgenet_hfb_reg_writel(priv, 0, HFB_CTRL);
 	umac_enable_set(priv, CMD_RX_EN, false);
+
+	if (stop_phy)
+		phy_stop(dev->phydev);
 
 	bcmgenet_dma_teardown(priv);
 
 	/* Disable MAC transmit. TX DMA disabled must be done before this */
 	umac_enable_set(priv, CMD_TX_EN, false);
 
-	if (stop_phy)
-		phy_stop(dev->phydev);
+	bcmgenet_disable_tx_napi(priv);
 	bcmgenet_disable_rx_napi(priv);
 	bcmgenet_intr_disable(priv);
 
@@ -4043,7 +4043,10 @@ static int bcmgenet_resume_noirq(struct device *d)
 			pm_wakeup_event(&priv->pdev->dev, 0);
 
 		/* From WOL-enabled suspend, switch to regular clock */
-		bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC);
+		if (!bcmgenet_power_up(priv, GENET_POWER_WOL_MAGIC))
+			return 0;
+
+		/* Failed so fall through to reset MAC */
 	}
 
 	/* If this is an internal GPHY, power it back on now, before UniMAC is
@@ -4055,8 +4058,6 @@ static int bcmgenet_resume_noirq(struct device *d)
 	/* take MAC out of reset */
 	bcmgenet_umac_reset(priv);
 
-	bcmgenet_intrl2_0_writel(priv, UMAC_IRQ_WAKE_EVENT, INTRL2_CPU_CLEAR);
-
 	return 0;
 }
 
@@ -4066,9 +4067,45 @@ static int bcmgenet_resume(struct device *d)
 	struct bcmgenet_priv *priv = netdev_priv(dev);
 	struct bcmgenet_rxnfc_rule *rule;
 	int ret;
+	u32 reg;
 
 	if (!netif_running(dev))
 		return 0;
+
+	if (device_may_wakeup(d) && priv->wolopts) {
+		reg = bcmgenet_umac_readl(priv, UMAC_CMD);
+		if (reg & CMD_RX_EN) {
+			/* Successfully exited WoL, just resume data flows */
+			list_for_each_entry(rule, &priv->rxnfc_list, list)
+				if (rule->state == BCMGENET_RXNFC_STATE_ENABLED)
+					bcmgenet_hfb_enable_filter(priv,
+							rule->fs.location + 1);
+			bcmgenet_hfb_enable_filter(priv, 0);
+			bcmgenet_set_rx_mode(dev);
+			bcmgenet_enable_rx_napi(priv);
+
+			/* Reinitialize Tx flows */
+			bcmgenet_tdma_disable(priv);
+			bcmgenet_init_tx_queues(priv->dev);
+			reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
+			reg |= DMA_EN;
+			bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
+			bcmgenet_enable_tx_napi(priv);
+
+			bcmgenet_link_intr_enable(priv);
+			phy_start_machine(dev->phydev);
+
+			netif_device_attach(dev);
+			enable_irq(priv->irq1);
+			return 0;
+		}
+		/* MAC was reset so complete bcmgenet_netif_stop() */
+		umac_enable_set(priv, CMD_RX_EN | CMD_TX_EN, false);
+		bcmgenet_rdma_disable(priv);
+		bcmgenet_intr_disable(priv);
+		bcmgenet_fini_dma(priv);
+		enable_irq(priv->irq1);
+	}
 
 	init_umac(priv);
 
@@ -4116,19 +4153,52 @@ static int bcmgenet_suspend(struct device *d)
 {
 	struct net_device *dev = dev_get_drvdata(d);
 	struct bcmgenet_priv *priv = netdev_priv(dev);
+	struct bcmgenet_rxnfc_rule *rule;
+	u32 reg, hfb_enable = 0;
 
 	if (!netif_running(dev))
 		return 0;
 
 	netif_device_detach(dev);
 
-	bcmgenet_netif_stop(dev, true);
+	if (device_may_wakeup(d) && priv->wolopts) {
+		netif_tx_disable(dev);
 
-	if (!device_may_wakeup(d))
-		phy_suspend(dev->phydev);
+		/* Suspend non-wake Rx data flows */
+		if (priv->wolopts & WAKE_FILTER)
+			list_for_each_entry(rule, &priv->rxnfc_list, list)
+				if (rule->fs.ring_cookie == RX_CLS_FLOW_WAKE &&
+				    rule->state == BCMGENET_RXNFC_STATE_ENABLED)
+					hfb_enable |= 1 << rule->fs.location;
+		reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+		if (GENET_IS_V1(priv) || GENET_IS_V2(priv)) {
+			reg &= ~RBUF_HFB_FILTER_EN_MASK;
+			reg |= hfb_enable << (RBUF_HFB_FILTER_EN_SHIFT + 1);
+		} else {
+			bcmgenet_hfb_reg_writel(priv, hfb_enable << 1,
+						HFB_FLT_ENABLE_V3PLUS + 4);
+		}
+		if (!hfb_enable)
+			reg &= ~RBUF_HFB_EN;
+		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
 
-	/* Disable filtering */
-	bcmgenet_hfb_reg_writel(priv, 0, HFB_CTRL);
+		/* Clear any old filter matches so only new matches wake */
+		bcmgenet_intrl2_0_writel(priv, 0xFFFFFFFF, INTRL2_CPU_MASK_SET);
+		bcmgenet_intrl2_0_writel(priv, 0xFFFFFFFF, INTRL2_CPU_CLEAR);
+
+		if (-ETIMEDOUT == bcmgenet_tdma_disable(priv))
+			netdev_warn(priv->dev,
+				    "Timed out while disabling TX DMA\n");
+
+		bcmgenet_disable_tx_napi(priv);
+		bcmgenet_disable_rx_napi(priv);
+		disable_irq(priv->irq1);
+		bcmgenet_tx_reclaim_all(dev);
+		bcmgenet_fini_tx_napi(priv);
+	} else {
+		/* Teardown the interface */
+		bcmgenet_netif_stop(dev, true);
+	}
 
 	return 0;
 }
