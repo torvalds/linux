@@ -70,6 +70,8 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 bool xe_svm_has_mapping(struct xe_vm *vm, u64 start, u64 end);
 
 int xe_svm_bo_evict(struct xe_bo *bo);
+
+void xe_svm_range_debug(struct xe_svm_range *range, const char *operation);
 #else
 static inline bool xe_svm_range_pages_valid(struct xe_svm_range *range)
 {
@@ -116,6 +118,11 @@ static inline
 int xe_svm_bo_evict(struct xe_bo *bo)
 {
 	return 0;
+}
+
+static inline
+void xe_svm_range_debug(struct xe_svm_range *range, const char *operation)
+{
 }
 #endif
 
