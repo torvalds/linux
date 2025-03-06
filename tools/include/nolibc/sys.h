@@ -798,13 +798,7 @@ int openat(int dirfd, const char *path, int flags, ...)
 static __attribute__((unused))
 int sys_open(const char *path, int flags, mode_t mode)
 {
-#ifdef __NR_openat
 	return my_syscall4(__NR_openat, AT_FDCWD, path, flags, mode);
-#elif defined(__NR_open)
-	return my_syscall3(__NR_open, path, flags, mode);
-#else
-	return __nolibc_enosys(__func__, path, flags, mode);
-#endif
 }
 
 static __attribute__((unused))
