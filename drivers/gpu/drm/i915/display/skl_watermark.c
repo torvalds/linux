@@ -3848,6 +3848,8 @@ static void skl_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
 void skl_wm_crtc_disable_noatomic(struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
 	struct intel_dbuf_state *dbuf_state =
 		to_intel_dbuf_state(display->dbuf.obj.state);
 	enum pipe pipe = crtc->pipe;
@@ -3856,6 +3858,13 @@ void skl_wm_crtc_disable_noatomic(struct intel_crtc *crtc)
 		return;
 
 	dbuf_state->active_pipes &= ~BIT(pipe);
+
+	dbuf_state->weight[pipe] = 0;
+	dbuf_state->slices[pipe] = 0;
+
+	memset(&dbuf_state->ddb[pipe], 0, sizeof(dbuf_state->ddb[pipe]));
+
+	memset(&crtc_state->wm.skl.ddb, 0, sizeof(crtc_state->wm.skl.ddb));
 }
 
 void intel_wm_state_verify(struct intel_atomic_state *state,
