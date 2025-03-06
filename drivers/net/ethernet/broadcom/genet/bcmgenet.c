@@ -446,33 +446,48 @@ static void bcmgenet_hfb_enable_filter(struct bcmgenet_priv *priv, u32 f_index)
 	u32 offset;
 	u32 reg;
 
-	offset = HFB_FLT_ENABLE_V3PLUS + (f_index < 32) * sizeof(u32);
-	reg = bcmgenet_hfb_reg_readl(priv, offset);
-	reg |= (1 << (f_index % 32));
-	bcmgenet_hfb_reg_writel(priv, reg, offset);
-	reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
-	reg |= RBUF_HFB_EN;
-	bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+	if (GENET_IS_V1(priv) || GENET_IS_V2(priv)) {
+		reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+		reg |= (1 << ((f_index % 32) + RBUF_HFB_FILTER_EN_SHIFT)) |
+			RBUF_HFB_EN;
+		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+	} else {
+		offset = HFB_FLT_ENABLE_V3PLUS + (f_index < 32) * sizeof(u32);
+		reg = bcmgenet_hfb_reg_readl(priv, offset);
+		reg |= (1 << (f_index % 32));
+		bcmgenet_hfb_reg_writel(priv, reg, offset);
+		reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+		reg |= RBUF_HFB_EN;
+		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+	}
 }
 
 static void bcmgenet_hfb_disable_filter(struct bcmgenet_priv *priv, u32 f_index)
 {
 	u32 offset, reg, reg1;
 
-	offset = HFB_FLT_ENABLE_V3PLUS;
-	reg = bcmgenet_hfb_reg_readl(priv, offset);
-	reg1 = bcmgenet_hfb_reg_readl(priv, offset + sizeof(u32));
-	if  (f_index < 32) {
-		reg1 &= ~(1 << (f_index % 32));
-		bcmgenet_hfb_reg_writel(priv, reg1, offset + sizeof(u32));
-	} else {
-		reg &= ~(1 << (f_index % 32));
-		bcmgenet_hfb_reg_writel(priv, reg, offset);
-	}
-	if (!reg && !reg1) {
+	if (GENET_IS_V1(priv) || GENET_IS_V2(priv)) {
 		reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
-		reg &= ~RBUF_HFB_EN;
+		reg &= ~(1 << ((f_index % 32) + RBUF_HFB_FILTER_EN_SHIFT));
+		if (!(reg & RBUF_HFB_FILTER_EN_MASK))
+			reg &= ~RBUF_HFB_EN;
 		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+	} else {
+		offset = HFB_FLT_ENABLE_V3PLUS;
+		reg = bcmgenet_hfb_reg_readl(priv, offset);
+		reg1 = bcmgenet_hfb_reg_readl(priv, offset + sizeof(u32));
+		if  (f_index < 32) {
+			reg1 &= ~(1 << (f_index % 32));
+			bcmgenet_hfb_reg_writel(priv, reg1, offset + sizeof(u32));
+		} else {
+			reg &= ~(1 << (f_index % 32));
+			bcmgenet_hfb_reg_writel(priv, reg, offset);
+		}
+		if (!reg && !reg1) {
+			reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
+			reg &= ~RBUF_HFB_EN;
+			bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
+		}
 	}
 }
 
@@ -481,6 +496,9 @@ static void bcmgenet_hfb_set_filter_rx_queue_mapping(struct bcmgenet_priv *priv,
 {
 	u32 offset;
 	u32 reg;
+
+	if (GENET_IS_V1(priv) || GENET_IS_V2(priv))
+		return;
 
 	offset = f_index / 8;
 	reg = bcmgenet_rdma_readl(priv, DMA_INDEX2RING_0 + offset);
@@ -495,9 +513,13 @@ static void bcmgenet_hfb_set_filter_length(struct bcmgenet_priv *priv,
 	u32 offset;
 	u32 reg;
 
-	offset = HFB_FLT_LEN_V3PLUS +
-		 ((priv->hw_params->hfb_filter_cnt - 1 - f_index) / 4) *
-		 sizeof(u32);
+	if (GENET_IS_V1(priv) || GENET_IS_V2(priv))
+		offset = HFB_FLT_LEN_V2;
+	else
+		offset = HFB_FLT_LEN_V3PLUS;
+
+	offset += sizeof(u32) *
+		  ((priv->hw_params->hfb_filter_cnt - 1 - f_index) / 4);
 	reg = bcmgenet_hfb_reg_readl(priv, offset);
 	reg &= ~(0xFF << (8 * (f_index % 4)));
 	reg |= ((f_length & 0xFF) << (8 * (f_index % 4)));
@@ -690,6 +712,7 @@ static void bcmgenet_hfb_clear_filter(struct bcmgenet_priv *priv, u32 f_index)
 {
 	u32 base, i;
 
+	bcmgenet_hfb_set_filter_length(priv, f_index, 0);
 	base = f_index * priv->hw_params->hfb_filter_size;
 	for (i = 0; i < priv->hw_params->hfb_filter_size; i++)
 		bcmgenet_hfb_writel(priv, 0x0, (base + i) * sizeof(u32));
@@ -699,19 +722,16 @@ static void bcmgenet_hfb_clear(struct bcmgenet_priv *priv)
 {
 	u32 i;
 
-	if (GENET_IS_V1(priv) || GENET_IS_V2(priv))
-		return;
+	bcmgenet_hfb_reg_writel(priv, 0, HFB_CTRL);
 
-	bcmgenet_hfb_reg_writel(priv, 0x0, HFB_CTRL);
-	bcmgenet_hfb_reg_writel(priv, 0x0, HFB_FLT_ENABLE_V3PLUS);
-	bcmgenet_hfb_reg_writel(priv, 0x0, HFB_FLT_ENABLE_V3PLUS + 4);
-
-	for (i = DMA_INDEX2RING_0; i <= DMA_INDEX2RING_7; i++)
-		bcmgenet_rdma_writel(priv, 0x0, i);
-
-	for (i = 0; i < (priv->hw_params->hfb_filter_cnt / 4); i++)
-		bcmgenet_hfb_reg_writel(priv, 0x0,
-					HFB_FLT_LEN_V3PLUS + i * sizeof(u32));
+	if (!GENET_IS_V1(priv) && !GENET_IS_V2(priv)) {
+		bcmgenet_hfb_reg_writel(priv, 0,
+					HFB_FLT_ENABLE_V3PLUS);
+		bcmgenet_hfb_reg_writel(priv, 0,
+					HFB_FLT_ENABLE_V3PLUS + 4);
+		for (i = DMA_INDEX2RING_0; i <= DMA_INDEX2RING_7; i++)
+			bcmgenet_rdma_writel(priv, 0, i);
+	}
 
 	for (i = 0; i < priv->hw_params->hfb_filter_cnt; i++)
 		bcmgenet_hfb_clear_filter(priv, i);
@@ -722,9 +742,6 @@ static void bcmgenet_hfb_init(struct bcmgenet_priv *priv)
 	int i;
 
 	INIT_LIST_HEAD(&priv->rxnfc_list);
-	if (GENET_IS_V1(priv) || GENET_IS_V2(priv))
-		return;
-
 	for (i = 0; i < MAX_NUM_OF_FS_RULES; i++) {
 		INIT_LIST_HEAD(&priv->rxnfc_rules[i].list);
 		priv->rxnfc_rules[i].state = BCMGENET_RXNFC_STATE_UNUSED;
@@ -3735,8 +3752,10 @@ static const struct bcmgenet_hw_params bcmgenet_hw_params_v1 = {
 	.bp_in_en_shift = 16,
 	.bp_in_mask = 0xffff,
 	.hfb_filter_cnt = 16,
+	.hfb_filter_size = 64,
 	.qtag_mask = 0x1F,
 	.hfb_offset = 0x1000,
+	.hfb_reg_offset = GENET_RBUF_OFF + RBUF_HFB_CTRL_V1,
 	.rdma_offset = 0x2000,
 	.tdma_offset = 0x3000,
 	.words_per_bd = 2,
@@ -3750,6 +3769,7 @@ static const struct bcmgenet_hw_params bcmgenet_hw_params_v2 = {
 	.bp_in_en_shift = 16,
 	.bp_in_mask = 0xffff,
 	.hfb_filter_cnt = 16,
+	.hfb_filter_size = 64,
 	.qtag_mask = 0x1F,
 	.tbuf_offset = 0x0600,
 	.hfb_offset = 0x1000,
