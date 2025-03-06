@@ -57,6 +57,8 @@ void amdgpu_cper_entry_fill_hdr(struct amdgpu_device *adev,
 				enum amdgpu_cper_type type,
 				enum cper_error_severity sev)
 {
+	char record_id[16];
+
 	hdr->signature[0]		= 'C';
 	hdr->signature[1]		= 'P';
 	hdr->signature[2]		= 'E';
@@ -71,7 +73,13 @@ void amdgpu_cper_entry_fill_hdr(struct amdgpu_device *adev,
 
 	amdgpu_cper_get_timestamp(&hdr->timestamp);
 
-	snprintf(hdr->record_id, 8, "%d", atomic_inc_return(&adev->cper.unique_id));
+	snprintf(record_id, 9, "%d:%X",
+		 (adev->smuio.funcs && adev->smuio.funcs->get_socket_id) ?
+			 adev->smuio.funcs->get_socket_id(adev) :
+			 0,
+		 atomic_inc_return(&adev->cper.unique_id));
+	memcpy(hdr->record_id, record_id, 8);
+
 	snprintf(hdr->platform_id, 16, "0x%04X:0x%04X",
 		 adev->pdev->vendor, adev->pdev->device);
 	/* pmfw version should be part of creator_id according to CPER spec */
@@ -117,10 +125,10 @@ static int amdgpu_cper_entry_fill_section_desc(struct amdgpu_device *adev,
 	section_desc->severity			= sev;
 	section_desc->sec_type			= sec_type;
 
-	if (adev->smuio.funcs &&
-	    adev->smuio.funcs->get_socket_id)
-		snprintf(section_desc->fru_text, 20, "OAM%d",
-			 adev->smuio.funcs->get_socket_id(adev));
+	snprintf(section_desc->fru_text, 20, "OAM%d",
+		 (adev->smuio.funcs && adev->smuio.funcs->get_socket_id) ?
+			 adev->smuio.funcs->get_socket_id(adev) :
+			 0);
 
 	if (bp_threshold)
 		section_desc->flag_bits.exceed_err_threshold = 1;
