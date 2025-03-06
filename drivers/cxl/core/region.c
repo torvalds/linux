@@ -3235,12 +3235,9 @@ static int cxl_extended_linear_cache_resize(struct cxl_region *cxlr,
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
 	struct cxl_region_params *p = &cxlr->params;
 	int nid = phys_to_target_node(res->start);
-	resource_size_t size, cache_size, start;
+	resource_size_t size = resource_size(res);
+	resource_size_t cache_size, start;
 	int rc;
-
-	size = resource_size(res);
-	if (!size)
-		return -EINVAL;
 
 	rc = cxl_acpi_get_extended_linear_cache_size(res, nid, &cache_size);
 	if (rc)
@@ -3253,7 +3250,7 @@ static int cxl_extended_linear_cache_resize(struct cxl_region *cxlr,
 		dev_warn(&cxlr->dev,
 			 "Extended Linear Cache size %pa != CXL size %pa. No Support!",
 			 &cache_size, &size);
-		return -EOPNOTSUPP;
+		return -ENXIO;
 	}
 
 	/*
@@ -3305,14 +3302,14 @@ static int __construct_region(struct cxl_region *cxlr,
 				    dev_name(&cxlr->dev));
 
 	rc = cxl_extended_linear_cache_resize(cxlr, res);
-	if (rc) {
+	if (rc && rc != -EOPNOTSUPP) {
 		/*
 		 * Failing to support extended linear cache region resize does not
 		 * prevent the region from functioning. Only causes cxl list showing
 		 * incorrect region size.
 		 */
 		dev_warn(cxlmd->dev.parent,
-			 "Extended linear cache calculation failed.\n");
+			 "Extended linear cache calculation failed rc:%d\n", rc);
 	}
 
 	rc = insert_resource(cxlrd->res, res);
