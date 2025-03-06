@@ -621,9 +621,9 @@ static void rtw8852bt_ext_loss_avg_update(struct rtw89_dev *rtwdev,
 	if (ext_loss_a == ext_loss_b) {
 		ext_loss_avg = ext_loss_a;
 	} else {
-		linear = rtw89_db_2_linear(abs(ext_loss_a - ext_loss_b)) + 1;
-		linear = DIV_ROUND_CLOSEST_ULL(linear / 2, 1 << RTW89_LINEAR_FRAC_BITS);
-		ext_loss_avg = rtw89_linear_2_db(linear);
+		linear = rtw89_db_to_linear(abs(ext_loss_a - ext_loss_b)) + 1;
+		linear /= 2;
+		ext_loss_avg = rtw89_linear_to_db(linear);
 		ext_loss_avg += min(ext_loss_a, ext_loss_b);
 	}
 
