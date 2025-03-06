@@ -794,7 +794,6 @@
 		reset-gpios = <&pm8550_gpios 10 GPIO_ACTIVE_LOW>;
 
 		clocks = <&rpmhcc RPMH_RF_CLK3>;
-		clock-names = "xo";
 
 		vdd-supply = <&vreg_rtmr0_1p15>;
 		vdd33-supply = <&vreg_rtmr0_3p3>;
@@ -880,7 +879,6 @@
 		reset-gpios = <&tlmm 176 GPIO_ACTIVE_LOW>;
 
 		clocks = <&rpmhcc RPMH_RF_CLK4>;
-		clock-names = "xo";
 
 		vdd-supply = <&vreg_rtmr1_1p15>;
 		vdd33-supply = <&vreg_rtmr1_3p3>;
