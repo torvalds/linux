@@ -2,7 +2,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) Wake-on-LAN support
  *
- * Copyright (c) 2014-2024 Broadcom
+ * Copyright (c) 2014-2025 Broadcom
  */
 
 #define pr_fmt(fmt)				"bcmgenet_wol: " fmt
@@ -180,7 +180,7 @@ int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 	if (priv->wolopts & WAKE_FILTER) {
 		list_for_each_entry(rule, &priv->rxnfc_list, list)
 			if (rule->fs.ring_cookie == RX_CLS_FLOW_WAKE)
-				hfb_enable |= (1 << rule->fs.location);
+				hfb_enable |= (1 << (rule->fs.location + 1));
 		reg = (hfb_ctrl_reg & ~RBUF_HFB_EN) | RBUF_ACPI_EN;
 		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
 	}

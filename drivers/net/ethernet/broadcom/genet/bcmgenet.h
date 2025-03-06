@@ -18,6 +18,9 @@
 
 #include "../unimac.h"
 
+/* Maximum number of hardware queues, downsized if needed */
+#define GENET_MAX_MQ_CNT	4
+
 /* total number of Buffer Descriptors, same for Rx/Tx */
 #define TOTAL_DESC				256
 
@@ -513,7 +516,6 @@ struct bcmgenet_tx_ring {
 	unsigned long	packets;
 	unsigned long	bytes;
 	unsigned int	index;		/* ring index */
-	unsigned int	queue;		/* queue index */
 	struct enet_cb	*cbs;		/* tx ring buffer control block*/
 	unsigned int	size;		/* size of each tx ring */
 	unsigned int    clean_ptr;      /* Tx ring clean pointer */
@@ -523,8 +525,6 @@ struct bcmgenet_tx_ring {
 	unsigned int	prod_index;	/* Tx ring producer index SW copy */
 	unsigned int	cb_ptr;		/* Tx ring initial CB ptr */
 	unsigned int	end_ptr;	/* Tx ring end CB ptr */
-	void (*int_enable)(struct bcmgenet_tx_ring *);
-	void (*int_disable)(struct bcmgenet_tx_ring *);
 	struct bcmgenet_priv *priv;
 };
 
@@ -553,8 +553,6 @@ struct bcmgenet_rx_ring {
 	struct bcmgenet_net_dim dim;
 	u32		rx_max_coalesced_frames;
 	u32		rx_coalesce_usecs;
-	void (*int_enable)(struct bcmgenet_rx_ring *);
-	void (*int_disable)(struct bcmgenet_rx_ring *);
 	struct bcmgenet_priv *priv;
 };
 
@@ -583,7 +581,7 @@ struct bcmgenet_priv {
 	struct enet_cb *tx_cbs;
 	unsigned int num_tx_bds;
 
-	struct bcmgenet_tx_ring tx_rings[DESC_INDEX + 1];
+	struct bcmgenet_tx_ring tx_rings[GENET_MAX_MQ_CNT + 1];
 
 	/* receive variables */
 	void __iomem *rx_bds;
@@ -593,7 +591,7 @@ struct bcmgenet_priv {
 	struct bcmgenet_rxnfc_rule rxnfc_rules[MAX_NUM_OF_FS_RULES];
 	struct list_head rxnfc_list;
 
-	struct bcmgenet_rx_ring rx_rings[DESC_INDEX + 1];
+	struct bcmgenet_rx_ring rx_rings[GENET_MAX_MQ_CNT + 1];
 
 	/* other misc variables */
 	const struct bcmgenet_hw_params *hw_params;
