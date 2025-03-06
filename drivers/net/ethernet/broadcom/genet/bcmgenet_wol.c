@@ -227,14 +227,14 @@ int bcmgenet_wol_power_down_cfg(struct bcmgenet_priv *priv,
 	return 0;
 }
 
-void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
-			       enum bcmgenet_power_mode mode)
+int bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
+			      enum bcmgenet_power_mode mode)
 {
 	u32 reg;
 
 	if (mode != GENET_POWER_WOL_MAGIC) {
 		netif_err(priv, wol, priv->dev, "invalid mode: %d\n", mode);
-		return;
+		return -EINVAL;
 	}
 
 	clk_disable_unprepare(priv->clk_wol);
@@ -247,7 +247,7 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 	if (priv->wolopts & (WAKE_MAGIC | WAKE_MAGICSECURE)) {
 		reg = bcmgenet_umac_readl(priv, UMAC_MPD_CTRL);
 		if (!(reg & MPD_EN))
-			return;	/* already reset so skip the rest */
+			return -EPERM;	/* already reset so skip the rest */
 		reg &= ~(MPD_EN | MPD_PW_EN);
 		bcmgenet_umac_writel(priv, reg, UMAC_MPD_CTRL);
 	}
@@ -256,7 +256,7 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 	if (priv->wolopts & WAKE_FILTER) {
 		reg = bcmgenet_hfb_reg_readl(priv, HFB_CTRL);
 		if (!(reg & RBUF_ACPI_EN))
-			return;	/* already reset so skip the rest */
+			return -EPERM;	/* already reset so skip the rest */
 		reg &= ~(RBUF_HFB_EN | RBUF_ACPI_EN);
 		bcmgenet_hfb_reg_writel(priv, reg, HFB_CTRL);
 	}
@@ -267,4 +267,6 @@ void bcmgenet_wol_power_up_cfg(struct bcmgenet_priv *priv,
 	reg &= ~CMD_CRC_FWD;
 	bcmgenet_umac_writel(priv, reg, UMAC_CMD);
 	spin_unlock_bh(&priv->reg_lock);
+
+	return 0;
 }
