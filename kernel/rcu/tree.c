@@ -2931,13 +2931,8 @@ static int __init rcu_spawn_core_kthreads(void)
 static void rcutree_enqueue(struct rcu_data *rdp, struct rcu_head *head, rcu_callback_t func)
 {
 	rcu_segcblist_enqueue(&rdp->cblist, head);
-	if (__is_kvfree_rcu_offset((unsigned long)func))
-		trace_rcu_kvfree_callback(rcu_state.name, head,
-					 (unsigned long)func,
-					 rcu_segcblist_n_cbs(&rdp->cblist));
-	else
-		trace_rcu_callback(rcu_state.name, head,
-				   rcu_segcblist_n_cbs(&rdp->cblist));
+	trace_rcu_callback(rcu_state.name, head,
+			   rcu_segcblist_n_cbs(&rdp->cblist));
 	trace_rcu_segcb_stats(&rdp->cblist, TPS("SegCBQueued"));
 }
 

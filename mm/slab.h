@@ -582,6 +582,8 @@ void __memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
 			    void **p, int objects, struct slabobj_ext *obj_exts);
 #endif
 
+void kvfree_rcu_cb(struct rcu_head *head);
+
 size_t __ksize(const void *objp);
 
 static inline size_t slab_ksize(const struct kmem_cache *s)

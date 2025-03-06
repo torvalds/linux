@@ -561,40 +561,6 @@ TRACE_EVENT_RCU(rcu_segcb_stats,
 );
 
 /*
- * Tracepoint for the registration of a single RCU callback of the special
- * kvfree() form.  The first argument is the RCU type, the second argument
- * is a pointer to the RCU callback, the third argument is the offset
- * of the callback within the enclosing RCU-protected data structure,
- * the fourth argument is the number of lazy callbacks queued, and the
- * fifth argument is the total number of callbacks queued.
- */
-TRACE_EVENT_RCU(rcu_kvfree_callback,
-
-	TP_PROTO(const char *rcuname, struct rcu_head *rhp, unsigned long offset,
-		 long qlen),
-
-	TP_ARGS(rcuname, rhp, offset, qlen),
-
-	TP_STRUCT__entry(
-		__field(const char *, rcuname)
-		__field(void *, rhp)
-		__field(unsigned long, offset)
-		__field(long, qlen)
-	),
-
-	TP_fast_assign(
-		__entry->rcuname = rcuname;
-		__entry->rhp = rhp;
-		__entry->offset = offset;
-		__entry->qlen = qlen;
-	),
-
-	TP_printk("%s rhp=%p func=%ld %ld",
-		  __entry->rcuname, __entry->rhp, __entry->offset,
-		  __entry->qlen)
-);
-
-/*
  * Tracepoint for marking the beginning rcu_do_batch, performed to start
  * RCU callback invocation.  The first argument is the RCU flavor,
  * the second is the number of lazy callbacks queued, the third is

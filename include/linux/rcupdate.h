@@ -1025,12 +1025,6 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define RCU_POINTER_INITIALIZER(p, v) \
 		.p = RCU_INITIALIZER(v)
 
-/*
- * Does the specified offset indicate that the corresponding rcu_head
- * structure can be handled by kvfree_rcu()?
- */
-#define __is_kvfree_rcu_offset(offset) ((offset) < 4096)
-
 /**
  * kfree_rcu() - kfree an object after a grace period.
  * @ptr: pointer to kfree for double-argument invocations.
@@ -1041,11 +1035,11 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  * when they are used in a kernel module, that module must invoke the
  * high-latency rcu_barrier() function at module-unload time.
  *
- * The kfree_rcu() function handles this issue.  Rather than encoding a
- * function address in the embedded rcu_head structure, kfree_rcu() instead
- * encodes the offset of the rcu_head structure within the base structure.
- * Because the functions are not allowed in the low-order 4096 bytes of
- * kernel virtual memory, offsets up to 4095 bytes can be accommodated.
+ * The kfree_rcu() function handles this issue. In order to have a universal
+ * callback function handling different offsets of rcu_head, the callback needs
+ * to determine the starting address of the freed object, which can be a large
+ * kmalloc or vmalloc allocation. To allow simply aligning the pointer down to
+ * page boundary for those, only offsets up to 4095 bytes can be accommodated.
  * If the offset is larger than 4095 bytes, a compile-time error will
  * be generated in kvfree_rcu_arg_2(). If this error is triggered, you can
  * either fall back to use of call_rcu() or rearrange the structure to
@@ -1082,14 +1076,23 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define kfree_rcu_mightsleep(ptr) kvfree_rcu_arg_1(ptr)
 #define kvfree_rcu_mightsleep(ptr) kvfree_rcu_arg_1(ptr)
 
+/*
+ * In mm/slab_common.c, no suitable header to include here.
+ */
+void kvfree_call_rcu(struct rcu_head *head, void *ptr);
+
+/*
+ * The BUILD_BUG_ON() makes sure the rcu_head offset can be handled. See the
+ * comment of kfree_rcu() for details.
+ */
 #define kvfree_rcu_arg_2(ptr, rhf)					\
 do {									\
 	typeof (ptr) ___p = (ptr);					\
 									\
-	if (___p) {									\
-		BUILD_BUG_ON(!__is_kvfree_rcu_offset(offsetof(typeof(*(ptr)), rhf)));	\
-		kvfree_call_rcu(&((___p)->rhf), (void *) (___p));			\
-	}										\
+	if (___p) {							\
+		BUILD_BUG_ON(offsetof(typeof(*(ptr)), rhf) >= 4096);	\
+		kvfree_call_rcu(&((___p)->rhf), (void *) (___p));	\
+	}								\
 } while (0)
 
 #define kvfree_rcu_arg_1(ptr)					\
