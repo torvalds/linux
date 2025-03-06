@@ -5,6 +5,7 @@
 
 #include <linux/init.h>
 #include <linux/bits.h>
+#include <linux/mmzone.h>
 
 #include <asm/errno.h>
 #include <asm/ptrace.h>
@@ -33,6 +34,8 @@
 #ifndef __ASSEMBLY__
 
 #include <uapi/asm/mce.h>
+#include <asm/tdx_global_metadata.h>
+#include <linux/pgtable.h>
 
 /*
  * Used by the #VE exception handler to gather the #VE exception
@@ -119,11 +122,68 @@ static inline u64 sc_retry(sc_func_t func, u64 fn,
 int tdx_cpu_enable(void);
 int tdx_enable(void);
 const char *tdx_dump_mce_info(struct mce *m);
+const struct tdx_sys_info *tdx_get_sysinfo(void);
+
+int tdx_guest_keyid_alloc(void);
+u32 tdx_get_nr_guest_keyids(void);
+void tdx_guest_keyid_free(unsigned int keyid);
+
+struct tdx_td {
+	/* TD root structure: */
+	struct page *tdr_page;
+
+	int tdcs_nr_pages;
+	/* TD control structure: */
+	struct page **tdcs_pages;
+
+	/* Size of `tdcx_pages` in struct tdx_vp */
+	int tdcx_nr_pages;
+};
+
+struct tdx_vp {
+	/* TDVP root page */
+	struct page *tdvpr_page;
+
+	/* TD vCPU control structure: */
+	struct page **tdcx_pages;
+};
+
+
+static inline u64 mk_keyed_paddr(u16 hkid, struct page *page)
+{
+	u64 ret;
+
+	ret = page_to_phys(page);
+	/* KeyID bits are just above the physical address bits: */
+	ret |= (u64)hkid << boot_cpu_data.x86_phys_bits;
+
+	return ret;
+
+}
+
+u64 tdh_mng_addcx(struct tdx_td *td, struct page *tdcs_page);
+u64 tdh_vp_addcx(struct tdx_vp *vp, struct page *tdcx_page);
+u64 tdh_mng_key_config(struct tdx_td *td);
+u64 tdh_mng_create(struct tdx_td *td, u16 hkid);
+u64 tdh_vp_create(struct tdx_td *td, struct tdx_vp *vp);
+u64 tdh_mng_rd(struct tdx_td *td, u64 field, u64 *data);
+u64 tdh_vp_flush(struct tdx_vp *vp);
+u64 tdh_mng_vpflushdone(struct tdx_td *td);
+u64 tdh_mng_key_freeid(struct tdx_td *td);
+u64 tdh_mng_init(struct tdx_td *td, u64 td_params, u64 *extended_err);
+u64 tdh_vp_init(struct tdx_vp *vp, u64 initial_rcx, u32 x2apicid);
+u64 tdh_vp_rd(struct tdx_vp *vp, u64 field, u64 *data);
+u64 tdh_vp_wr(struct tdx_vp *vp, u64 field, u64 data, u64 mask);
+u64 tdh_phymem_page_reclaim(struct page *page, u64 *tdx_pt, u64 *tdx_owner, u64 *tdx_size);
+u64 tdh_phymem_cache_wb(bool resume);
+u64 tdh_phymem_page_wbinvd_tdr(struct tdx_td *td);
 #else
 static inline void tdx_init(void) { }
 static inline int tdx_cpu_enable(void) { return -ENODEV; }
 static inline int tdx_enable(void)  { return -ENODEV; }
+static inline u32 tdx_get_nr_guest_keyids(void) { return 0; }
 static inline const char *tdx_dump_mce_info(struct mce *m) { return NULL; }
+static inline const struct tdx_sys_info *tdx_get_sysinfo(void) { return NULL; }
 #endif	/* CONFIG_INTEL_TDX_HOST */
 
 #endif /* !__ASSEMBLY__ */
