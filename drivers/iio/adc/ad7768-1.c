@@ -154,7 +154,6 @@ static const struct iio_chan_spec ad7768_channels[] = {
 struct ad7768_state {
 	struct spi_device *spi;
 	struct regulator *vref;
-	struct mutex lock;
 	struct clk *mclk;
 	unsigned int mclk_freq;
 	unsigned int samp_freq;
@@ -256,18 +255,20 @@ static int ad7768_reg_access(struct iio_dev *indio_dev,
 	struct ad7768_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&st->lock);
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
 	if (readval) {
 		ret = ad7768_spi_reg_read(st, reg, 1);
 		if (ret < 0)
-			goto err_unlock;
+			goto err_release;
 		*readval = ret;
 		ret = 0;
 	} else {
 		ret = ad7768_spi_reg_write(st, reg, writeval);
 	}
-err_unlock:
-	mutex_unlock(&st->lock);
+err_release:
+	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
@@ -469,18 +470,15 @@ static irqreturn_t ad7768_trigger_handler(int irq, void *p)
 	struct ad7768_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&st->lock);
-
 	ret = spi_read(st->spi, &st->data.scan.chan, 3);
 	if (ret < 0)
-		goto err_unlock;
+		goto out;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &st->data.scan,
 					   iio_get_time_ns(indio_dev));
 
-err_unlock:
+out:
 	iio_trigger_notify_done(indio_dev->trig);
-	mutex_unlock(&st->lock);
 
 	return IRQ_HANDLED;
 }
@@ -608,8 +606,6 @@ static int ad7768_probe(struct spi_device *spi)
 		return PTR_ERR(st->mclk);
 
 	st->mclk_freq = clk_get_rate(st->mclk);
-
-	mutex_init(&st->lock);
 
 	indio_dev->channels = ad7768_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7768_channels);
