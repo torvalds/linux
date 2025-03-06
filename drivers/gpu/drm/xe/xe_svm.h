@@ -7,10 +7,29 @@
 #define _XE_SVM_H_
 
 #include <drm/drm_pagemap.h>
+#include <drm/drm_gpusvm.h>
 
 #define XE_INTERCONNECT_VRAM DRM_INTERCONNECT_DRIVER
 
+struct xe_tile;
 struct xe_vm;
+struct xe_vma;
+
+/** struct xe_svm_range - SVM range */
+struct xe_svm_range {
+	/** @base: base drm_gpusvm_range */
+	struct drm_gpusvm_range base;
+	/**
+	 * @tile_present: Tile mask of binding is present for this range.
+	 * Protected by GPU SVM notifier lock.
+	 */
+	u8 tile_present;
+	/**
+	 * @tile_invalidated: Tile mask of binding is invalidated for this
+	 * range. Protected by GPU SVM notifier lock.
+	 */
+	u8 tile_invalidated;
+};
 
 #if IS_ENABLED(CONFIG_DRM_GPUSVM)
 int xe_svm_init(struct xe_vm *vm);
@@ -18,6 +37,10 @@ int xe_svm_init(struct xe_vm *vm);
 void xe_svm_fini(struct xe_vm *vm);
 
 void xe_svm_close(struct xe_vm *vm);
+
+int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
+			    struct xe_tile *tile, u64 fault_addr,
+			    bool atomic);
 #else
 static inline
 int xe_svm_init(struct xe_vm *vm)
@@ -34,6 +57,23 @@ static inline
 void xe_svm_close(struct xe_vm *vm)
 {
 }
+
+static inline
+int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
+			    struct xe_tile *tile, u64 fault_addr,
+			    bool atomic)
+{
+	return 0;
+}
 #endif
+
+#define xe_svm_assert_in_notifier(vm__) \
+	lockdep_assert_held_write(&(vm__)->svm.gpusvm.notifier_lock)
+
+#define xe_svm_notifier_lock(vm__)	\
+	drm_gpusvm_notifier_lock(&(vm__)->svm.gpusvm)
+
+#define xe_svm_notifier_unlock(vm__)	\
+	drm_gpusvm_notifier_unlock(&(vm__)->svm.gpusvm)
 
 #endif
