@@ -2727,6 +2727,52 @@ static void bcmgenet_fini_tx_napi(struct bcmgenet_priv *priv)
 	}
 }
 
+static int bcmgenet_tdma_disable(struct bcmgenet_priv *priv)
+{
+	int timeout = 0;
+	u32 reg, mask;
+
+	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
+	mask = (1 << (priv->hw_params->tx_queues + 1)) - 1;
+	mask = (mask << DMA_RING_BUF_EN_SHIFT) | DMA_EN;
+	reg &= ~mask;
+	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
+
+	/* Check DMA status register to confirm DMA is disabled */
+	while (timeout++ < DMA_TIMEOUT_VAL) {
+		reg = bcmgenet_tdma_readl(priv, DMA_STATUS);
+		if ((reg & mask) == mask)
+			return 0;
+
+		udelay(1);
+	}
+
+	return -ETIMEDOUT;
+}
+
+static int bcmgenet_rdma_disable(struct bcmgenet_priv *priv)
+{
+	int timeout = 0;
+	u32 reg, mask;
+
+	reg = bcmgenet_rdma_readl(priv, DMA_CTRL);
+	mask = (1 << (priv->hw_params->rx_queues + 1)) - 1;
+	mask = (mask << DMA_RING_BUF_EN_SHIFT) | DMA_EN;
+	reg &= ~mask;
+	bcmgenet_rdma_writel(priv, reg, DMA_CTRL);
+
+	/* Check DMA status register to confirm DMA is disabled */
+	while (timeout++ < DMA_TIMEOUT_VAL) {
+		reg = bcmgenet_rdma_readl(priv, DMA_STATUS);
+		if ((reg & mask) == mask)
+			return 0;
+
+		udelay(1);
+	}
+
+	return -ETIMEDOUT;
+}
+
 /* Initialize Tx queues
  *
  * Queues 1-4 are priority-based, each one has 32 descriptors,
@@ -2848,26 +2894,9 @@ static int bcmgenet_init_rx_queues(struct net_device *dev)
 static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 {
 	int ret = 0;
-	int timeout = 0;
-	u32 reg;
-	u32 dma_ctrl;
-	int i;
 
 	/* Disable TDMA to stop add more frames in TX DMA */
-	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
-	reg &= ~DMA_EN;
-	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
-
-	/* Check TDMA status register to confirm TDMA is disabled */
-	while (timeout++ < DMA_TIMEOUT_VAL) {
-		reg = bcmgenet_tdma_readl(priv, DMA_STATUS);
-		if (reg & DMA_DISABLED)
-			break;
-
-		udelay(1);
-	}
-
-	if (timeout == DMA_TIMEOUT_VAL) {
+	if (-ETIMEDOUT == bcmgenet_tdma_disable(priv)) {
 		netdev_warn(priv->dev, "Timed out while disabling TX DMA\n");
 		ret = -ETIMEDOUT;
 	}
@@ -2876,38 +2905,10 @@ static int bcmgenet_dma_teardown(struct bcmgenet_priv *priv)
 	usleep_range(10000, 20000);
 
 	/* Disable RDMA */
-	reg = bcmgenet_rdma_readl(priv, DMA_CTRL);
-	reg &= ~DMA_EN;
-	bcmgenet_rdma_writel(priv, reg, DMA_CTRL);
-
-	timeout = 0;
-	/* Check RDMA status register to confirm RDMA is disabled */
-	while (timeout++ < DMA_TIMEOUT_VAL) {
-		reg = bcmgenet_rdma_readl(priv, DMA_STATUS);
-		if (reg & DMA_DISABLED)
-			break;
-
-		udelay(1);
-	}
-
-	if (timeout == DMA_TIMEOUT_VAL) {
+	if (-ETIMEDOUT == bcmgenet_rdma_disable(priv)) {
 		netdev_warn(priv->dev, "Timed out while disabling RX DMA\n");
 		ret = -ETIMEDOUT;
 	}
-
-	dma_ctrl = 0;
-	for (i = 0; i <= priv->hw_params->rx_queues; i++)
-		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
-	reg = bcmgenet_rdma_readl(priv, DMA_CTRL);
-	reg &= ~dma_ctrl;
-	bcmgenet_rdma_writel(priv, reg, DMA_CTRL);
-
-	dma_ctrl = 0;
-	for (i = 0; i <= priv->hw_params->tx_queues; i++)
-		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
-	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
-	reg &= ~dma_ctrl;
-	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
 
 	return ret;
 }
@@ -2938,27 +2939,27 @@ static void bcmgenet_fini_dma(struct bcmgenet_priv *priv)
 static int bcmgenet_init_dma(struct bcmgenet_priv *priv, bool flush_rx)
 {
 	struct enet_cb *cb;
-	u32 reg, dma_ctrl;
 	unsigned int i;
 	int ret;
+	u32 reg;
 
 	netif_dbg(priv, hw, priv->dev, "%s\n", __func__);
 
-	/* Disable RX/TX DMA and flush TX queues */
-	dma_ctrl = 1 << (DESC_INDEX + DMA_RING_BUF_EN_SHIFT) | DMA_EN;
-	for (i = 0; i < priv->hw_params->tx_queues; i++)
-		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
-	reg = bcmgenet_tdma_readl(priv, DMA_CTRL);
-	reg &= ~dma_ctrl;
-	bcmgenet_tdma_writel(priv, reg, DMA_CTRL);
+	/* Disable TX DMA */
+	ret = bcmgenet_tdma_disable(priv);
+	if (ret) {
+		netdev_err(priv->dev, "failed to halt Tx DMA\n");
+		return ret;
+	}
 
-	dma_ctrl = 1 << (DESC_INDEX + DMA_RING_BUF_EN_SHIFT) | DMA_EN;
-	for (i = 0; i < priv->hw_params->rx_queues; i++)
-		dma_ctrl |= (1 << (i + DMA_RING_BUF_EN_SHIFT));
-	reg = bcmgenet_rdma_readl(priv, DMA_CTRL);
-	reg &= ~dma_ctrl;
-	bcmgenet_rdma_writel(priv, reg, DMA_CTRL);
+	/* Disable RX DMA */
+	ret = bcmgenet_rdma_disable(priv);
+	if (ret) {
+		netdev_err(priv->dev, "failed to halt Rx DMA\n");
+		return ret;
+	}
 
+	/* Flush TX queues */
 	bcmgenet_umac_writel(priv, 1, UMAC_TX_FLUSH);
 	udelay(10);
 	bcmgenet_umac_writel(priv, 0, UMAC_TX_FLUSH);
