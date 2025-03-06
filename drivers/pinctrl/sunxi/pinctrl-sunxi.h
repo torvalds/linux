@@ -25,6 +25,8 @@
 #define PG_BASE	192
 #define PH_BASE	224
 #define PI_BASE	256
+#define PJ_BASE	288
+#define PK_BASE	320
 #define PL_BASE	352
 #define PM_BASE	384
 #define PN_BASE	416
@@ -88,6 +90,8 @@
 
 #define PIO_POW_MOD_SEL_REG	0x340
 #define PIO_POW_MOD_CTL_REG	0x344
+
+#define PIO_BANK_K_OFFSET		0x500
 
 enum sunxi_desc_bias_voltage {
 	BIAS_VOLTAGE_NONE,
