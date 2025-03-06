@@ -40,8 +40,6 @@
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
 
-#include <sound/hdmi-codec.h>
-
 #include "snps_hdmirx.h"
 #include "snps_hdmirx_cec.h"
 
@@ -122,7 +120,6 @@ struct hdmirx_stream {
 
 struct snps_hdmirx_dev {
 	struct device *dev;
-	struct device *codec_dev;
 	struct hdmirx_stream stream;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler hdl;
@@ -158,7 +155,6 @@ struct snps_hdmirx_dev {
 	u32 cur_fmt_fourcc;
 	u32 color_depth;
 	u8 edid[EDID_NUM_BLOCKS_MAX * EDID_BLOCK_SIZE];
-	hdmi_codec_plugged_cb plugged_cb;
 	spinlock_t rst_lock; /* to lock register access */
 };
 
