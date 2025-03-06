@@ -319,6 +319,10 @@ static const struct dwc_eth_dwmac_data tegra_eqos_data = {
 	.stmmac_clk_name = "slave_bus",
 };
 
+static const struct dwc_eth_dwmac_data fsd_eqos_data = {
+	.stmmac_clk_name = "slave_bus",
+};
+
 static int dwc_eth_dwmac_probe(struct platform_device *pdev)
 {
 	const struct dwc_eth_dwmac_data *data;
@@ -359,7 +363,8 @@ static int dwc_eth_dwmac_probe(struct platform_device *pdev)
 	plat_dat->stmmac_clk = dwc_eth_find_clk(plat_dat,
 						data->stmmac_clk_name);
 
-	ret = data->probe(pdev, plat_dat, &stmmac_res);
+	if (data->probe)
+		ret = data->probe(pdev, plat_dat, &stmmac_res);
 	if (ret < 0) {
 		dev_err_probe(&pdev->dev, ret, "failed to probe subdriver\n");
 		clk_bulk_disable_unprepare(plat_dat->num_clks, plat_dat->clks);
@@ -400,6 +405,7 @@ static void dwc_eth_dwmac_remove(struct platform_device *pdev)
 static const struct of_device_id dwc_eth_dwmac_match[] = {
 	{ .compatible = "snps,dwc-qos-ethernet-4.10", .data = &dwc_qos_data },
 	{ .compatible = "nvidia,tegra186-eqos", .data = &tegra_eqos_data },
+	{ .compatible = "tesla,fsd-ethqos", .data = &fsd_eqos_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, dwc_eth_dwmac_match);
