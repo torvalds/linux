@@ -1431,9 +1431,15 @@ void intel_bw_update_hw_state(struct intel_display *display)
 	if (DISPLAY_VER(display) < 9)
 		return;
 
+	bw_state->active_pipes = 0;
+
 	for_each_intel_crtc(display->drm, crtc) {
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
+		enum pipe pipe = crtc->pipe;
+
+		if (crtc_state->hw.active)
+			bw_state->active_pipes |= BIT(pipe);
 
 		intel_bw_crtc_update(bw_state, crtc_state);
 	}
