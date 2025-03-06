@@ -106,6 +106,10 @@ properties:
       - description: USB3/SS(P) PHY
       - description: USB2/HS PHY
 
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description: Super Speed (SS) Output endpoint to a Type-C connector
+
   vusb33-supply:
     description: Regulator of USB AVDD3.3v
 
