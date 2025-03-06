@@ -70,7 +70,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 
-		vin0_adv7612_en {
+		vin0-adv7612-en-hog {
 			gpio-hog;
 			gpios = <3 GPIO_ACTIVE_LOW>;
 			output-high;

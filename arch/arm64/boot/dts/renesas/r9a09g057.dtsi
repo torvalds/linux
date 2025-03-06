@@ -249,7 +249,6 @@
 			reg = <0 0x10430000 0 0x10000>;
 			clocks = <&cpg CPG_CORE R9A09G057_SYS_0_PCLK>;
 			resets = <&cpg 0x30>;
-			status = "disabled";
 		};
 
 		ostm0: timer@11800000 {

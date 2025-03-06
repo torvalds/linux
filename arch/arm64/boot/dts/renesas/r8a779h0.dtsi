@@ -138,6 +138,7 @@
 		#clock-cells = <0>;
 		/* This value must be overridden by the board */
 		clock-frequency = <0>;
+		bootph-all;
 	};
 
 	extalr_clk: extalr-clk {
@@ -145,6 +146,7 @@
 		#clock-cells = <0>;
 		/* This value must be overridden by the board */
 		clock-frequency = <0>;
+		bootph-all;
 	};
 
 	pcie0_clkref: pcie0-clkref {
@@ -180,6 +182,8 @@
 	soc: soc {
 		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
+		bootph-all;
+
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
@@ -201,6 +205,7 @@
 			      <0 0xe6058000 0 0x16c>, <0 0xe6058800 0 0x16c>,
 			      <0 0xe6060000 0 0x16c>, <0 0xe6060800 0 0x16c>,
 			      <0 0xe6061000 0 0x16c>, <0 0xe6061800 0 0x16c>;
+			bootph-all;
 		};
 
 		gpio0: gpio@e6050180 {
@@ -401,11 +406,13 @@
 			#clock-cells = <2>;
 			#power-domain-cells = <0>;
 			#reset-cells = <1>;
+			bootph-all;
 		};
 
 		rst: reset-controller@e6160000 {
 			compatible = "renesas,r8a779h0-rst";
 			reg = <0 0xe6160000 0 0x4000>;
+			bootph-all;
 		};
 
 		sysc: system-controller@e6180000 {
@@ -793,8 +800,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_hc 0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -842,8 +847,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_hc 1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -891,8 +894,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_hc 2>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -1908,6 +1909,15 @@
 			resets = <&cpg 508>;
 		};
 
+		fcpvx0: fcp@fedb0000 {
+			compatible = "renesas,fcpv";
+			reg = <0 0xfedb0000 0 0x200>;
+			clocks = <&cpg CPG_MOD 1100>;
+			power-domains = <&sysc R8A779H0_PD_A3ISP0>;
+			resets = <&cpg 1100>;
+			iommus = <&ipmmu_vi1 24>;
+		};
+
 		vspd0: vsp@fea20000 {
 			compatible = "renesas,vsp2";
 			reg = <0 0xfea20000 0 0x8000>;
@@ -1916,6 +1926,17 @@
 			power-domains = <&sysc R8A779H0_PD_C4>;
 			resets = <&cpg 830>;
 			renesas,fcp = <&fcpvd0>;
+		};
+
+		vspx0: vsp@fedd0000 {
+			compatible = "renesas,vsp2";
+			reg = <0 0xfedd0000 0 0x8000>;
+			interrupts = <GIC_SPI 556 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 1028>;
+			power-domains = <&sysc R8A779H0_PD_A3ISP0>;
+			resets = <&cpg 1028>;
+
+			renesas,fcp = <&fcpvx0>;
 		};
 
 		du: display@feb00000 {
@@ -2144,6 +2165,7 @@
 		prr: chipid@fff00044 {
 			compatible = "renesas,prr";
 			reg = <0 0xfff00044 0 4>;
+			bootph-all;
 		};
 	};
 

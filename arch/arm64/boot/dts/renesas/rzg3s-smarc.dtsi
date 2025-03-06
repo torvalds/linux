@@ -12,6 +12,8 @@
 / {
 	aliases {
 		i2c0 = &i2c0;
+		serial0 = &scif1;
+		serial1 = &scif3;
 		serial3 = &scif0;
 		mmc1 = &sdhi1;
 	};
@@ -162,6 +164,11 @@
 			 <RZG2L_PORT_PINMUX(6, 4, 1)>; /* TXD */
 	};
 
+	scif3_pins: scif3 {
+		pinmux = <RZG2L_PORT_PINMUX(17, 2, 7)>, /* RXD */
+			 <RZG2L_PORT_PINMUX(17, 3, 7)>; /* TXD */
+	};
+
 	sdhi1_pins: sd1 {
 		data {
 			pins = "SD1_DATA0", "SD1_DATA1", "SD1_DATA2", "SD1_DATA3";
@@ -205,6 +212,12 @@
 &scif0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&scif0_pins>;
+	status = "okay";
+};
+
+&scif3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&scif3_pins>;
 	status = "okay";
 };
 

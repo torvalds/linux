@@ -26,3 +26,7 @@
 &rtxin_clk {
 	clock-frequency = <32768>;
 };
+
+&wdt1 {
+	status = "okay";
+};
