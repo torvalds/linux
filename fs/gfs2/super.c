@@ -1340,7 +1340,7 @@ static enum evict_behavior evict_should_delete(struct inode *inode,
 	/* Must not read inode block until block type has been verified */
 	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, gh);
 	if (unlikely(ret))
-		return EVICT_SHOULD_DEFER_DELETE;
+		return EVICT_SHOULD_SKIP_DELETE;
 
 	if (gfs2_inode_already_deleted(ip->i_gl, ip->i_no_formal_ino))
 		return EVICT_SHOULD_SKIP_DELETE;
@@ -1499,7 +1499,7 @@ static void gfs2_evict_inode(struct inode *inode)
 				gfs2_glock_put(io_gl);
 			goto out;
 		}
-		behavior = EVICT_SHOULD_DELETE;
+		behavior = EVICT_SHOULD_SKIP_DELETE;
 	}
 	if (behavior == EVICT_SHOULD_DELETE)
 		ret = evict_unlinked_inode(inode);
