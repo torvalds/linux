@@ -13,6 +13,7 @@
 #include <rdma/uverbs_std_types.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/fs.h>
+#include <rdma/ib_ucaps.h>
 #include "mlx5_ib.h"
 #include "devx.h"
 #include "qp.h"
@@ -122,7 +123,27 @@ devx_ufile2uctx(const struct uverbs_attr_bundle *attrs)
 	return to_mucontext(ib_uverbs_get_ucontext(attrs));
 }
 
-int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user)
+static int set_uctx_ucaps(struct mlx5_ib_dev *dev, u64 req_ucaps, u32 *cap)
+{
+	if (UCAP_ENABLED(req_ucaps, RDMA_UCAP_MLX5_CTRL_LOCAL)) {
+		if (MLX5_CAP_GEN(dev->mdev, uctx_cap) & MLX5_UCTX_CAP_RDMA_CTRL)
+			*cap |= MLX5_UCTX_CAP_RDMA_CTRL;
+		else
+			return -EOPNOTSUPP;
+	}
+
+	if (UCAP_ENABLED(req_ucaps, RDMA_UCAP_MLX5_CTRL_OTHER_VHCA)) {
+		if (MLX5_CAP_GEN(dev->mdev, uctx_cap) &
+		    MLX5_UCTX_CAP_RDMA_CTRL_OTHER_VHCA)
+			*cap |= MLX5_UCTX_CAP_RDMA_CTRL_OTHER_VHCA;
+		else
+			return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user, u64 req_ucaps)
 {
 	u32 in[MLX5_ST_SZ_DW(create_uctx_in)] = {};
 	u32 out[MLX5_ST_SZ_DW(create_uctx_out)] = {};
@@ -145,6 +166,12 @@ int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user)
 	     MLX5_UCTX_CAP_INTERNAL_DEV_RES) &&
 	    capable(CAP_SYS_RAWIO))
 		cap |= MLX5_UCTX_CAP_INTERNAL_DEV_RES;
+
+	if (req_ucaps) {
+		err = set_uctx_ucaps(dev, req_ucaps, &cap);
+		if (err)
+			return err;
+	}
 
 	MLX5_SET(create_uctx_in, in, opcode, MLX5_CMD_OP_CREATE_UCTX);
 	MLX5_SET(uctx, uctx, cap, cap);
@@ -2575,7 +2602,7 @@ int mlx5_ib_devx_init(struct mlx5_ib_dev *dev)
 	struct mlx5_devx_event_table *table = &dev->devx_event_table;
 	int uid;
 
-	uid = mlx5_ib_devx_create(dev, false);
+	uid = mlx5_ib_devx_create(dev, false, 0);
 	if (uid > 0) {
 		dev->devx_whitelist_uid = uid;
 		xa_init(&table->event_xa);
