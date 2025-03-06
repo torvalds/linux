@@ -83,6 +83,7 @@ static inline u32 btrfs_calc_input_length(u64 range_end, u64 cur)
 int __init btrfs_init_compress(void);
 void __cold btrfs_exit_compress(void);
 
+bool btrfs_compress_level_valid(unsigned int type, int level);
 int btrfs_compress_folios(unsigned int type, int level, struct address_space *mapping,
 			  u64 start, struct folio **folios, unsigned long *out_folios,
 			 unsigned long *total_in, unsigned long *total_out);

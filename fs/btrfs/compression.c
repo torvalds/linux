@@ -980,6 +980,16 @@ static int btrfs_compress_set_level(unsigned int type, int level)
 	return level;
 }
 
+/*
+ * Check whether the @level is within the valid range for the given type.
+ */
+bool btrfs_compress_level_valid(unsigned int type, int level)
+{
+	const struct btrfs_compress_op *ops = btrfs_compress_op[type];
+
+	return ops->min_level <= level && level <= ops->max_level;
+}
+
 /* Wrapper around find_get_page(), with extra error message. */
 int btrfs_compress_filemap_get_folio(struct address_space *mapping, u64 start,
 				     struct folio **in_folio_ret)

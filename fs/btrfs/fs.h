@@ -497,7 +497,7 @@ struct btrfs_fs_info {
 	u64 last_trans_log_full_commit;
 	unsigned long long mount_opt;
 
-	unsigned long compress_type:4;
+	int compress_type;
 	int compress_level;
 	u32 commit_interval;
 	/*

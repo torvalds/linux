@@ -877,6 +877,7 @@ static void compress_file_range(struct btrfs_work *work)
 	unsigned int poff;
 	int i;
 	int compress_type = fs_info->compress_type;
+	int compress_level = fs_info->compress_level;
 
 	inode_should_defrag(inode, start, end, end - start + 1, SZ_16K);
 
@@ -959,13 +960,15 @@ again:
 		goto cleanup_and_bail_uncompressed;
 	}
 
-	if (inode->defrag_compress)
+	if (inode->defrag_compress) {
 		compress_type = inode->defrag_compress;
-	else if (inode->prop_compress)
+		compress_level = inode->defrag_compress_level;
+	} else if (inode->prop_compress) {
 		compress_type = inode->prop_compress;
+	}
 
 	/* Compression level is applied here. */
-	ret = btrfs_compress_folios(compress_type, fs_info->compress_level,
+	ret = btrfs_compress_folios(compress_type, compress_level,
 				    mapping, start, folios, &nr_folios, &total_in,
 				    &total_compressed);
 	if (ret)

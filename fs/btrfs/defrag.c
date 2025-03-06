@@ -1363,6 +1363,7 @@ int btrfs_defrag_file(struct btrfs_inode *inode, struct file_ra_state *ra,
 	u64 last_byte;
 	bool do_compress = (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS);
 	int compress_type = BTRFS_COMPRESS_ZLIB;
+	int compress_level = 0;
 	int ret = 0;
 	u32 extent_thresh = range->extent_thresh;
 	pgoff_t start_index;
@@ -1376,10 +1377,21 @@ int btrfs_defrag_file(struct btrfs_inode *inode, struct file_ra_state *ra,
 		return -EINVAL;
 
 	if (do_compress) {
-		if (range->compress_type >= BTRFS_NR_COMPRESS_TYPES)
-			return -EINVAL;
-		if (range->compress_type)
-			compress_type = range->compress_type;
+		if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS_LEVEL) {
+			if (range->compress.type >= BTRFS_NR_COMPRESS_TYPES)
+				return -EINVAL;
+			if (range->compress.type) {
+				compress_type  = range->compress.type;
+				compress_level = range->compress.level;
+				if (!btrfs_compress_level_valid(compress_type, compress_level))
+					return -EINVAL;
+			}
+		} else {
+			if (range->compress_type >= BTRFS_NR_COMPRESS_TYPES)
+				return -EINVAL;
+			if (range->compress_type)
+				compress_type = range->compress_type;
+		}
 	}
 
 	if (extent_thresh == 0)
@@ -1430,8 +1442,10 @@ int btrfs_defrag_file(struct btrfs_inode *inode, struct file_ra_state *ra,
 			btrfs_inode_unlock(inode, 0);
 			break;
 		}
-		if (do_compress)
+		if (do_compress) {
 			inode->defrag_compress = compress_type;
+			inode->defrag_compress_level = compress_level;
+		}
 		ret = defrag_one_cluster(inode, ra, cur,
 				cluster_end + 1 - cur, extent_thresh,
 				newer_than, do_compress, &sectors_defragged,
