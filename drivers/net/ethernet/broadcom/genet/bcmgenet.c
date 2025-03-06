@@ -2,7 +2,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) controller driver
  *
- * Copyright (c) 2014-2024 Broadcom
+ * Copyright (c) 2014-2025 Broadcom
  */
 
 #define pr_fmt(fmt)				"bcmgenet: " fmt
@@ -3726,123 +3726,106 @@ static const struct net_device_ops bcmgenet_netdev_ops = {
 	.ndo_change_carrier	= bcmgenet_change_carrier,
 };
 
-/* Array of GENET hardware parameters/characteristics */
-static struct bcmgenet_hw_params bcmgenet_hw_params[] = {
-	[GENET_V1] = {
-		.tx_queues = 0,
-		.tx_bds_per_q = 0,
-		.rx_queues = 0,
-		.rx_bds_per_q = 0,
-		.bp_in_en_shift = 16,
-		.bp_in_mask = 0xffff,
-		.hfb_filter_cnt = 16,
-		.qtag_mask = 0x1F,
-		.hfb_offset = 0x1000,
-		.rdma_offset = 0x2000,
-		.tdma_offset = 0x3000,
-		.words_per_bd = 2,
-	},
-	[GENET_V2] = {
-		.tx_queues = 4,
-		.tx_bds_per_q = 32,
-		.rx_queues = 0,
-		.rx_bds_per_q = 0,
-		.bp_in_en_shift = 16,
-		.bp_in_mask = 0xffff,
-		.hfb_filter_cnt = 16,
-		.qtag_mask = 0x1F,
-		.tbuf_offset = 0x0600,
-		.hfb_offset = 0x1000,
-		.hfb_reg_offset = 0x2000,
-		.rdma_offset = 0x3000,
-		.tdma_offset = 0x4000,
-		.words_per_bd = 2,
-		.flags = GENET_HAS_EXT,
-	},
-	[GENET_V3] = {
-		.tx_queues = 4,
-		.tx_bds_per_q = 32,
-		.rx_queues = 0,
-		.rx_bds_per_q = 0,
-		.bp_in_en_shift = 17,
-		.bp_in_mask = 0x1ffff,
-		.hfb_filter_cnt = 48,
-		.hfb_filter_size = 128,
-		.qtag_mask = 0x3F,
-		.tbuf_offset = 0x0600,
-		.hfb_offset = 0x8000,
-		.hfb_reg_offset = 0xfc00,
-		.rdma_offset = 0x10000,
-		.tdma_offset = 0x11000,
-		.words_per_bd = 2,
-		.flags = GENET_HAS_EXT | GENET_HAS_MDIO_INTR |
-			 GENET_HAS_MOCA_LINK_DET,
-	},
-	[GENET_V4] = {
-		.tx_queues = 4,
-		.tx_bds_per_q = 32,
-		.rx_queues = 0,
-		.rx_bds_per_q = 0,
-		.bp_in_en_shift = 17,
-		.bp_in_mask = 0x1ffff,
-		.hfb_filter_cnt = 48,
-		.hfb_filter_size = 128,
-		.qtag_mask = 0x3F,
-		.tbuf_offset = 0x0600,
-		.hfb_offset = 0x8000,
-		.hfb_reg_offset = 0xfc00,
-		.rdma_offset = 0x2000,
-		.tdma_offset = 0x4000,
-		.words_per_bd = 3,
-		.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
-			 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
-	},
-	[GENET_V5] = {
-		.tx_queues = 4,
-		.tx_bds_per_q = 32,
-		.rx_queues = 0,
-		.rx_bds_per_q = 0,
-		.bp_in_en_shift = 17,
-		.bp_in_mask = 0x1ffff,
-		.hfb_filter_cnt = 48,
-		.hfb_filter_size = 128,
-		.qtag_mask = 0x3F,
-		.tbuf_offset = 0x0600,
-		.hfb_offset = 0x8000,
-		.hfb_reg_offset = 0xfc00,
-		.rdma_offset = 0x2000,
-		.tdma_offset = 0x4000,
-		.words_per_bd = 3,
-		.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
-			 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
-	},
+/* GENET hardware parameters/characteristics */
+static const struct bcmgenet_hw_params bcmgenet_hw_params_v1 = {
+	.tx_queues = 0,
+	.tx_bds_per_q = 0,
+	.rx_queues = 0,
+	.rx_bds_per_q = 0,
+	.bp_in_en_shift = 16,
+	.bp_in_mask = 0xffff,
+	.hfb_filter_cnt = 16,
+	.qtag_mask = 0x1F,
+	.hfb_offset = 0x1000,
+	.rdma_offset = 0x2000,
+	.tdma_offset = 0x3000,
+	.words_per_bd = 2,
+};
+
+static const struct bcmgenet_hw_params bcmgenet_hw_params_v2 = {
+	.tx_queues = 4,
+	.tx_bds_per_q = 32,
+	.rx_queues = 0,
+	.rx_bds_per_q = 0,
+	.bp_in_en_shift = 16,
+	.bp_in_mask = 0xffff,
+	.hfb_filter_cnt = 16,
+	.qtag_mask = 0x1F,
+	.tbuf_offset = 0x0600,
+	.hfb_offset = 0x1000,
+	.hfb_reg_offset = 0x2000,
+	.rdma_offset = 0x3000,
+	.tdma_offset = 0x4000,
+	.words_per_bd = 2,
+	.flags = GENET_HAS_EXT,
+};
+
+static const struct bcmgenet_hw_params bcmgenet_hw_params_v3 = {
+	.tx_queues = 4,
+	.tx_bds_per_q = 32,
+	.rx_queues = 0,
+	.rx_bds_per_q = 0,
+	.bp_in_en_shift = 17,
+	.bp_in_mask = 0x1ffff,
+	.hfb_filter_cnt = 48,
+	.hfb_filter_size = 128,
+	.qtag_mask = 0x3F,
+	.tbuf_offset = 0x0600,
+	.hfb_offset = 0x8000,
+	.hfb_reg_offset = 0xfc00,
+	.rdma_offset = 0x10000,
+	.tdma_offset = 0x11000,
+	.words_per_bd = 2,
+	.flags = GENET_HAS_EXT | GENET_HAS_MDIO_INTR |
+		 GENET_HAS_MOCA_LINK_DET,
+};
+
+static const struct bcmgenet_hw_params bcmgenet_hw_params_v4 = {
+	.tx_queues = 4,
+	.tx_bds_per_q = 32,
+	.rx_queues = 0,
+	.rx_bds_per_q = 0,
+	.bp_in_en_shift = 17,
+	.bp_in_mask = 0x1ffff,
+	.hfb_filter_cnt = 48,
+	.hfb_filter_size = 128,
+	.qtag_mask = 0x3F,
+	.tbuf_offset = 0x0600,
+	.hfb_offset = 0x8000,
+	.hfb_reg_offset = 0xfc00,
+	.rdma_offset = 0x2000,
+	.tdma_offset = 0x4000,
+	.words_per_bd = 3,
+	.flags = GENET_HAS_40BITS | GENET_HAS_EXT |
+		 GENET_HAS_MDIO_INTR | GENET_HAS_MOCA_LINK_DET,
 };
 
 /* Infer hardware parameters from the detected GENET version */
 static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 {
-	struct bcmgenet_hw_params *params;
+	const struct bcmgenet_hw_params *params;
 	u32 reg;
 	u8 major;
 	u16 gphy_rev;
 
-	if (GENET_IS_V5(priv) || GENET_IS_V4(priv)) {
-		bcmgenet_dma_regs = bcmgenet_dma_regs_v3plus;
-		genet_dma_ring_regs = genet_dma_ring_regs_v4;
-	} else if (GENET_IS_V3(priv)) {
+	/* default to latest values */
+	params = &bcmgenet_hw_params_v4;
+	bcmgenet_dma_regs = bcmgenet_dma_regs_v3plus;
+	genet_dma_ring_regs = genet_dma_ring_regs_v4;
+	if (GENET_IS_V3(priv)) {
+		params = &bcmgenet_hw_params_v3;
 		bcmgenet_dma_regs = bcmgenet_dma_regs_v3plus;
 		genet_dma_ring_regs = genet_dma_ring_regs_v123;
 	} else if (GENET_IS_V2(priv)) {
+		params = &bcmgenet_hw_params_v2;
 		bcmgenet_dma_regs = bcmgenet_dma_regs_v2;
 		genet_dma_ring_regs = genet_dma_ring_regs_v123;
 	} else if (GENET_IS_V1(priv)) {
+		params = &bcmgenet_hw_params_v1;
 		bcmgenet_dma_regs = bcmgenet_dma_regs_v1;
 		genet_dma_ring_regs = genet_dma_ring_regs_v123;
 	}
-
-	/* enum genet_version starts at 1 */
-	priv->hw_params = &bcmgenet_hw_params[priv->version];
-	params = priv->hw_params;
+	priv->hw_params = params;
 
 	/* Read GENET HW version */
 	reg = bcmgenet_sys_readl(priv, SYS_REV_CTRL);

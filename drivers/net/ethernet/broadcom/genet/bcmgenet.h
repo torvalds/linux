@@ -596,7 +596,7 @@ struct bcmgenet_priv {
 	struct bcmgenet_rx_ring rx_rings[DESC_INDEX + 1];
 
 	/* other misc variables */
-	struct bcmgenet_hw_params *hw_params;
+	const struct bcmgenet_hw_params *hw_params;
 	unsigned autoneg_pause:1;
 	unsigned tx_pause:1;
 	unsigned rx_pause:1;
