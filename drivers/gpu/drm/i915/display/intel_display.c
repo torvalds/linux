@@ -2997,7 +2997,6 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->sink_format = pipe_config->output_format;
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
-	pipe_config->shared_dpll = NULL;
 
 	ret = false;
 
@@ -3339,7 +3338,6 @@ static bool ilk_get_pipe_config(struct intel_crtc *crtc,
 		return false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
-	pipe_config->shared_dpll = NULL;
 
 	ret = false;
 	tmp = intel_de_read(display,
@@ -3905,8 +3903,6 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	if (!intel_display_power_get_in_set_if_enabled(display, &crtc->hw_readout_power_domains,
 						       POWER_DOMAIN_PIPE(crtc->pipe)))
 		return false;
-
-	pipe_config->shared_dpll = NULL;
 
 	active = hsw_get_transcoder_state(crtc, pipe_config, &crtc->hw_readout_power_domains);
 
