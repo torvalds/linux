@@ -82,18 +82,9 @@
 #define SUN4I_FUNC_INPUT	0
 #define SUN4I_FUNC_IRQ		6
 
-#define PINCTRL_SUN5I_A10S	BIT(1)
-#define PINCTRL_SUN5I_A13	BIT(2)
-#define PINCTRL_SUN5I_GR8	BIT(3)
-#define PINCTRL_SUN6I_A31	BIT(4)
-#define PINCTRL_SUN6I_A31S	BIT(5)
-#define PINCTRL_SUN4I_A10	BIT(6)
-#define PINCTRL_SUN7I_A20	BIT(7)
-#define PINCTRL_SUN8I_R40	BIT(8)
-#define PINCTRL_SUN8I_V3	BIT(9)
-#define PINCTRL_SUN8I_V3S	BIT(10)
-/* Variants below here have an updated register layout. */
-#define PINCTRL_SUN20I_D1	BIT(11)
+#define SUNXI_PINCTRL_VARIANT_MASK	GENMASK(7, 0)
+#define SUNXI_PINCTRL_NEW_REG_LAYOUT	BIT(8)
+#define SUNXI_PINCTRL_PORTF_SWITCH	BIT(9)
 
 #define PIO_POW_MOD_SEL_REG	0x340
 #define PIO_POW_MOD_CTL_REG	0x344
@@ -299,11 +290,11 @@ static inline u32 sunxi_grp_config_reg(u16 pin)
 	return GRP_CFG_REG + bank * 0x4;
 }
 
-int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
-				    const struct sunxi_pinctrl_desc *desc,
-				    unsigned long variant);
+int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
+				  const struct sunxi_pinctrl_desc *desc,
+				  unsigned long flags);
 
 #define sunxi_pinctrl_init(_dev, _desc) \
-	sunxi_pinctrl_init_with_variant(_dev, _desc, 0)
+	sunxi_pinctrl_init_with_flags(_dev, _desc, 0)
 
 #endif /* __PINCTRL_SUNXI_H */

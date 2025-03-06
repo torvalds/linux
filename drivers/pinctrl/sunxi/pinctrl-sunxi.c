@@ -1472,9 +1472,9 @@ static int sunxi_pinctrl_setup_debounce(struct sunxi_pinctrl *pctl,
 	return 0;
 }
 
-int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
-				    const struct sunxi_pinctrl_desc *desc,
-				    unsigned long variant)
+int sunxi_pinctrl_init_with_flags(struct platform_device *pdev,
+				  const struct sunxi_pinctrl_desc *desc,
+				  unsigned long flags)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct pinctrl_desc *pctrl_desc;
@@ -1497,8 +1497,8 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 
 	pctl->dev = &pdev->dev;
 	pctl->desc = desc;
-	pctl->variant = variant;
-	if (pctl->variant >= PINCTRL_SUN20I_D1) {
+	pctl->variant = flags & SUNXI_PINCTRL_VARIANT_MASK;
+	if (flags & SUNXI_PINCTRL_NEW_REG_LAYOUT) {
 		pctl->bank_mem_size = D1_BANK_MEM_SIZE;
 		pctl->pull_regs_offset = D1_PULL_REGS_OFFSET;
 		pctl->dlevel_field_width = D1_DLEVEL_FIELD_WIDTH;
