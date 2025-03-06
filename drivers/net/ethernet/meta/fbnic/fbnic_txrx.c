@@ -1221,7 +1221,7 @@ void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 	fbn->rx_stats.rx.csum_complete += stats->rx.csum_complete;
 	fbn->rx_stats.rx.csum_none += stats->rx.csum_none;
 	/* Remember to add new stats here */
-	BUILD_BUG_ON(sizeof(fbn->tx_stats.rx) / 8 != 3);
+	BUILD_BUG_ON(sizeof(fbn->rx_stats.rx) / 8 != 3);
 }
 
 void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
