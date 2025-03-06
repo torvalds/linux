@@ -3352,17 +3352,11 @@ void intel_cdclk_update_hw_state(struct intel_display *display)
 		const struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		enum pipe pipe = crtc->pipe;
-		int min_cdclk = 0;
 
-		if (crtc_state->hw.active) {
+		if (crtc_state->hw.active)
 			cdclk_state->active_pipes |= BIT(pipe);
 
-			min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
-			if (drm_WARN_ON(display->drm, min_cdclk < 0))
-				min_cdclk = 0;
-		}
-
-		cdclk_state->min_cdclk[pipe] = min_cdclk;
+		cdclk_state->min_cdclk[pipe] = intel_crtc_compute_min_cdclk(crtc_state);
 		cdclk_state->min_voltage_level[pipe] = crtc_state->min_voltage_level;
 	}
 }
