@@ -12,6 +12,8 @@
  * Count 0
  * \__  Synapse 0 -- Signal 0 (Channel A, i.e. TIOA)
  * \__  Synapse 1 -- Signal 1 (Channel B, i.e. TIOB)
+ * \__  Extension capture0    (RA register)
+ * \__  Extension capture1    (RB register)
  *
  * It also supports the following events:
  *
@@ -24,6 +26,10 @@
  * Channel 2:
  * - RC compare triggered
  */
+
+/* Capture extensions */
+#define COUNTER_MCHP_EXCAP_RA 0
+#define COUNTER_MCHP_EXCAP_RB 1
 
 /* Event channels */
 #define COUNTER_MCHP_EVCHN_CV 0
