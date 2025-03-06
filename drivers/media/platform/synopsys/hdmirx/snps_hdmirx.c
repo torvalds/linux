@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/mfd/syscon.h>
+#include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -291,7 +292,7 @@ static void hdmirx_get_timings(struct snps_hdmirx_dev *hdmirx_dev,
 	hfp = htotal - hact - hs - hbp;
 	vfp = vtotal - vact - vs - vbp;
 
-	fps = (bt->pixelclock + (htotal * vtotal) / 2) / (htotal * vtotal);
+	fps = div_u64(bt->pixelclock + (htotal * vtotal) / 2, htotal * vtotal);
 	bt->width = hact;
 	bt->height = vact;
 	bt->hfrontporch = hfp;
