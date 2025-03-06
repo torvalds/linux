@@ -325,6 +325,8 @@ int module_enable_text_rox(const struct module *mod);
 int module_enforce_rwx_sections(const Elf_Ehdr *hdr, const Elf_Shdr *sechdrs,
 				const char *secstrings,
 				const struct module *mod);
+void module_mark_ro_after_init(const Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
+			       const char *secstrings);
 
 #ifdef CONFIG_MODULE_SIG
 int module_sig_check(struct load_info *info, int flags);
