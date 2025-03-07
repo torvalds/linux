@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <linux/compiler.h>
 #ifdef HAVE_ZSTD_SUPPORT
@@ -16,9 +17,16 @@ bool gzip_is_compressed(const char *input);
 #endif
 
 #ifdef HAVE_LZMA_SUPPORT
+int lzma_decompress_stream_to_file(FILE *input, int output_fd);
 int lzma_decompress_to_file(const char *input, int output_fd);
 bool lzma_is_compressed(const char *input);
 #else
+static inline
+int lzma_decompress_stream_to_file(FILE *input __maybe_unused,
+				   int output_fd __maybe_unused)
+{
+	return -1;
+}
 static inline
 int lzma_decompress_to_file(const char *input __maybe_unused,
 			    int output_fd __maybe_unused)
