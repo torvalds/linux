@@ -3090,7 +3090,7 @@ static void set_dte_irq_entry(struct amd_iommu *iommu, u16 devid,
 	new &= ~DTE_IRQ_PHYS_ADDR_MASK;
 	new |= iommu_virt_to_phys(table->table);
 	new |= DTE_IRQ_REMAP_INTCTL;
-	new |= DTE_INTTABLEN;
+	new |= DTE_INTTABLEN_512;
 	new |= DTE_IRQ_REMAP_ENABLE;
 	WRITE_ONCE(dte->data[2], new);
 

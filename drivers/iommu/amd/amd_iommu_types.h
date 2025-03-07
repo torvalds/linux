@@ -313,10 +313,10 @@
  * AMD IOMMU hardware only support 512 IRTEs despite
  * the architectural limitation of 2048 entries.
  */
-#define DTE_INTTABLEN_VALUE     9ULL
-#define DTE_INTTABLEN           (DTE_INTTABLEN_VALUE << 1)
 #define DTE_INTTABLEN_MASK      (0xfULL << 1)
-#define MAX_IRQS_PER_TABLE      (1 << DTE_INTTABLEN_VALUE)
+#define DTE_INTTABLEN_VALUE_512 9ULL
+#define DTE_INTTABLEN_512       (DTE_INTTABLEN_VALUE_512 << 1)
+#define MAX_IRQS_PER_TABLE_512  BIT(DTE_INTTABLEN_VALUE_512)
 
 #define PAGE_MODE_NONE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
