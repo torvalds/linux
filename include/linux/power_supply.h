@@ -274,7 +274,6 @@ struct power_supply_desc {
 	int (*property_is_writeable)(struct power_supply *psy,
 				     enum power_supply_property psp);
 	void (*external_power_changed)(struct power_supply *psy);
-	void (*set_charged)(struct power_supply *psy);
 
 	/*
 	 * Set if thermal zone should not be created for this power supply.
