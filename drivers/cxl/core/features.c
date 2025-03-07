@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2024-2025 Intel Corporation. All rights reserved. */
+#include <linux/fwctl.h>
 #include <linux/device.h>
 #include <cxl/mailbox.h>
 #include <cxl/features.h>
@@ -331,3 +332,74 @@ int cxl_set_feature(struct cxl_mailbox *cxl_mbox,
 		}
 	} while (true);
 }
+
+/* FWCTL support */
+
+static inline struct cxl_memdev *fwctl_to_memdev(struct fwctl_device *fwctl_dev)
+{
+	return to_cxl_memdev(fwctl_dev->dev.parent);
+}
+
+static int cxlctl_open_uctx(struct fwctl_uctx *uctx)
+{
+	return 0;
+}
+
+static void cxlctl_close_uctx(struct fwctl_uctx *uctx)
+{
+}
+
+static void *cxlctl_fw_rpc(struct fwctl_uctx *uctx, enum fwctl_rpc_scope scope,
+			   void *in, size_t in_len, size_t *out_len)
+{
+	/* Place holder */
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static const struct fwctl_ops cxlctl_ops = {
+	.device_type = FWCTL_DEVICE_TYPE_CXL,
+	.uctx_size = sizeof(struct fwctl_uctx),
+	.open_uctx = cxlctl_open_uctx,
+	.close_uctx = cxlctl_close_uctx,
+	.fw_rpc = cxlctl_fw_rpc,
+};
+
+DEFINE_FREE(free_fwctl_dev, struct fwctl_device *, if (_T) fwctl_put(_T))
+
+static void free_memdev_fwctl(void *_fwctl_dev)
+{
+	struct fwctl_device *fwctl_dev = _fwctl_dev;
+
+	fwctl_unregister(fwctl_dev);
+	fwctl_put(fwctl_dev);
+}
+
+int devm_cxl_setup_fwctl(struct cxl_memdev *cxlmd)
+{
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_features_state *cxlfs;
+	int rc;
+
+	cxlfs = to_cxlfs(cxlds);
+	if (!cxlfs)
+		return -ENODEV;
+
+	/* No need to setup FWCTL if there are no user allowed features found */
+	if (!cxlfs->entries->num_user_features)
+		return -ENODEV;
+
+	struct fwctl_device *fwctl_dev __free(free_fwctl_dev) =
+		_fwctl_alloc_device(&cxlmd->dev, &cxlctl_ops, sizeof(*fwctl_dev));
+	if (!fwctl_dev)
+		return -ENOMEM;
+
+	rc = fwctl_register(fwctl_dev);
+	if (rc)
+		return rc;
+
+	return devm_add_action_or_reset(&cxlmd->dev, free_memdev_fwctl,
+					no_free_ptr(fwctl_dev));
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_fwctl, "CXL");
+
+MODULE_IMPORT_NS("FWCTL");
