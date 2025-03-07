@@ -52,8 +52,15 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		pinctrl-0 = <&hall_int_n_default>;
+		pinctrl-0 = <&hall_int_n_default>, <&kypd_vol_up_n>;
 		pinctrl-names = "default";
+
+		key-vol-up {
+			label = "volume_up";
+			gpios = <&pm8550_gpios 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			wakeup-source;
+		};
 
 		switch-lid {
 			gpios = <&tlmm 92 GPIO_ACTIVE_LOW>;
@@ -1240,6 +1247,14 @@
 };
 
 &pm8550_gpios {
+	kypd_vol_up_n: kypd-vol-up-n-state {
+		pins = "gpio6";
+		function = "normal";
+		power-source = <1>; /* 1.8 V */
+		bias-pull-up;
+		input-enable;
+	};
+
 	rtmr0_default: rtmr0-reset-n-active-state {
 		pins = "gpio10";
 		function = "normal";
