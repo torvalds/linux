@@ -3,6 +3,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/string_choices.h>
 
 #include "hnae3.h"
 #include "hns3_debugfs.h"
@@ -661,12 +662,14 @@ static void hns3_dump_rx_queue_info(struct hns3_enet_ring *ring,
 		HNS3_RING_RX_RING_PKTNUM_RECORD_REG));
 	sprintf(result[j++], "%u", ring->rx_copybreak);
 
-	sprintf(result[j++], "%s", readl_relaxed(ring->tqp->io_base +
-		HNS3_RING_EN_REG) ? "on" : "off");
+	sprintf(result[j++], "%s",
+		str_on_off(readl_relaxed(ring->tqp->io_base +
+					 HNS3_RING_EN_REG)));
 
 	if (hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev))
-		sprintf(result[j++], "%s", readl_relaxed(ring->tqp->io_base +
-			HNS3_RING_RX_EN_REG) ? "on" : "off");
+		sprintf(result[j++], "%s",
+			str_on_off(readl_relaxed(ring->tqp->io_base +
+						 HNS3_RING_RX_EN_REG)));
 	else
 		sprintf(result[j++], "%s", "NA");
 
@@ -764,12 +767,14 @@ static void hns3_dump_tx_queue_info(struct hns3_enet_ring *ring,
 	sprintf(result[j++], "%u", readl_relaxed(ring->tqp->io_base +
 		HNS3_RING_TX_RING_PKTNUM_RECORD_REG));
 
-	sprintf(result[j++], "%s", readl_relaxed(ring->tqp->io_base +
-		HNS3_RING_EN_REG) ? "on" : "off");
+	sprintf(result[j++], "%s",
+		str_on_off(readl_relaxed(ring->tqp->io_base +
+					 HNS3_RING_EN_REG)));
 
 	if (hnae3_ae_dev_tqp_txrx_indep_supported(ae_dev))
-		sprintf(result[j++], "%s", readl_relaxed(ring->tqp->io_base +
-			HNS3_RING_TX_EN_REG) ? "on" : "off");
+		sprintf(result[j++], "%s",
+			str_on_off(readl_relaxed(ring->tqp->io_base +
+						 HNS3_RING_TX_EN_REG)));
 	else
 		sprintf(result[j++], "%s", "NA");
 
@@ -1030,7 +1035,6 @@ static void
 hns3_dbg_dev_caps(struct hnae3_handle *h, char *buf, int len, int *pos)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(h->pdev);
-	const char * const str[] = {"no", "yes"};
 	unsigned long *caps = ae_dev->caps;
 	u32 i, state;
 
@@ -1039,7 +1043,7 @@ hns3_dbg_dev_caps(struct hnae3_handle *h, char *buf, int len, int *pos)
 	for (i = 0; i < ARRAY_SIZE(hns3_dbg_cap); i++) {
 		state = test_bit(hns3_dbg_cap[i].cap_bit, caps);
 		*pos += scnprintf(buf + *pos, len - *pos, "%s: %s\n",
-				  hns3_dbg_cap[i].name, str[state]);
+				  hns3_dbg_cap[i].name, str_yes_no(state));
 	}
 
 	*pos += scnprintf(buf + *pos, len - *pos, "\n");
