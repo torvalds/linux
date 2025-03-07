@@ -55,6 +55,7 @@ bool kvm_arm_hyp_service_available(u32 func_id)
 }
 EXPORT_SYMBOL_GPL(kvm_arm_hyp_service_available);
 
+#ifdef CONFIG_ARM64
 void  __init kvm_arm_target_impl_cpu_init(void)
 {
 	int i;
@@ -115,3 +116,4 @@ void  __init kvm_arm_target_impl_cpu_init(void)
 mem_free:
 	memblock_free(target, sizeof(*target) * max_cpus);
 }
+#endif
