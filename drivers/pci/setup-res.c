@@ -411,10 +411,10 @@ void pci_release_resource(struct pci_dev *dev, int resno)
 	struct resource *res = pci_resource_n(dev, resno);
 	const char *res_name = pci_resource_name(dev, resno);
 
-	pci_info(dev, "%s %pR: releasing\n", res_name, res);
-
 	if (!res->parent)
 		return;
+
+	pci_info(dev, "%s %pR: releasing\n", res_name, res);
 
 	release_resource(res);
 	res->end = resource_size(res) - 1;
