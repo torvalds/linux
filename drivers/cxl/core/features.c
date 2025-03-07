@@ -4,6 +4,7 @@
 #include <linux/device.h>
 #include <cxl/mailbox.h>
 #include <cxl/features.h>
+#include <uapi/fwctl/cxl.h>
 #include "cxl.h"
 #include "core.h"
 #include "cxlmem.h"
@@ -349,11 +350,127 @@ static void cxlctl_close_uctx(struct fwctl_uctx *uctx)
 {
 }
 
+static void *cxlctl_get_supported_features(struct cxl_features_state *cxlfs,
+					   const struct fwctl_rpc_cxl *rpc_in,
+					   size_t *out_len)
+{
+	const struct cxl_mbox_get_sup_feats_in *feat_in;
+	struct cxl_mbox_get_sup_feats_out *feat_out;
+	struct cxl_feat_entry *pos;
+	size_t out_size;
+	int requested;
+	u32 count;
+	u16 start;
+	int i;
+
+	if (rpc_in->op_size != sizeof(*feat_in))
+		return ERR_PTR(-EINVAL);
+
+	feat_in = &rpc_in->get_sup_feats_in;
+	count = le32_to_cpu(feat_in->count);
+	start = le16_to_cpu(feat_in->start_idx);
+	requested = count / sizeof(*pos);
+
+	/*
+	 * Make sure that the total requested number of entries is not greater
+	 * than the total number of supported features allowed for userspace.
+	 */
+	if (start >= cxlfs->entries->num_features)
+		return ERR_PTR(-EINVAL);
+
+	requested = min_t(int, requested, cxlfs->entries->num_features - start);
+
+	out_size = sizeof(struct fwctl_rpc_cxl_out) +
+		struct_size(feat_out, ents, requested);
+
+	struct fwctl_rpc_cxl_out *rpc_out __free(kvfree) =
+		kvzalloc(out_size, GFP_KERNEL);
+	if (!rpc_out)
+		return ERR_PTR(-ENOMEM);
+
+	rpc_out->size = struct_size(feat_out, ents, requested);
+	feat_out = &rpc_out->get_sup_feats_out;
+	if (requested == 0) {
+		feat_out->num_entries = cpu_to_le16(requested);
+		feat_out->supported_feats =
+			cpu_to_le16(cxlfs->entries->num_features);
+		rpc_out->retval = CXL_MBOX_CMD_RC_SUCCESS;
+		*out_len = out_size;
+		return no_free_ptr(rpc_out);
+	}
+
+	for (i = start, pos = &feat_out->ents[0];
+	     i < cxlfs->entries->num_features; i++, pos++) {
+		if (i - start == requested)
+			break;
+
+		memcpy(pos, &cxlfs->entries->ent[i], sizeof(*pos));
+		/*
+		 * If the feature is exclusive, set the set_feat_size to 0 to
+		 * indicate that the feature is not changeable.
+		 */
+		if (is_cxl_feature_exclusive(pos)) {
+			u32 flags;
+
+			pos->set_feat_size = 0;
+			flags = le32_to_cpu(pos->flags);
+			flags &= ~CXL_FEATURE_F_CHANGEABLE;
+			pos->flags = cpu_to_le32(flags);
+		}
+	}
+
+	feat_out->num_entries = cpu_to_le16(requested);
+	feat_out->supported_feats = cpu_to_le16(cxlfs->entries->num_features);
+	rpc_out->retval = CXL_MBOX_CMD_RC_SUCCESS;
+	*out_len = out_size;
+
+	return no_free_ptr(rpc_out);
+}
+
+static bool cxlctl_validate_hw_command(struct cxl_features_state *cxlfs,
+				       const struct fwctl_rpc_cxl *rpc_in,
+				       enum fwctl_rpc_scope scope,
+				       u16 opcode)
+{
+	struct cxl_mailbox *cxl_mbox = &cxlfs->cxlds->cxl_mbox;
+
+	switch (opcode) {
+	case CXL_MBOX_OP_GET_SUPPORTED_FEATURES:
+		if (cxl_mbox->feat_cap < CXL_FEATURES_RO)
+			return false;
+		if (scope >= FWCTL_RPC_CONFIGURATION)
+			return true;
+		return false;
+	default:
+		return false;
+	}
+}
+
+static void *cxlctl_handle_commands(struct cxl_features_state *cxlfs,
+				    const struct fwctl_rpc_cxl *rpc_in,
+				    size_t *out_len, u16 opcode)
+{
+	switch (opcode) {
+	case CXL_MBOX_OP_GET_SUPPORTED_FEATURES:
+		return cxlctl_get_supported_features(cxlfs, rpc_in, out_len);
+	default:
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+}
+
 static void *cxlctl_fw_rpc(struct fwctl_uctx *uctx, enum fwctl_rpc_scope scope,
 			   void *in, size_t in_len, size_t *out_len)
 {
-	/* Place holder */
-	return ERR_PTR(-EOPNOTSUPP);
+	struct fwctl_device *fwctl_dev = uctx->fwctl;
+	struct cxl_memdev *cxlmd = fwctl_to_memdev(fwctl_dev);
+	struct cxl_features_state *cxlfs = to_cxlfs(cxlmd->cxlds);
+	const struct fwctl_rpc_cxl *rpc_in = in;
+	u16 opcode = rpc_in->opcode;
+
+	if (!cxlctl_validate_hw_command(cxlfs, rpc_in, scope, opcode))
+		return ERR_PTR(-EINVAL);
+
+	return cxlctl_handle_commands(cxlfs, rpc_in, out_len, opcode);
 }
 
 static const struct fwctl_ops cxlctl_ops = {
