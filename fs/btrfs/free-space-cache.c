@@ -88,7 +88,7 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	struct btrfs_disk_key disk_key;
 	struct btrfs_free_space_header *header;
 	struct extent_buffer *leaf;
-	struct inode *inode = NULL;
+	struct btrfs_inode *inode;
 	unsigned nofs_flag;
 	int ret;
 
@@ -120,13 +120,13 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	btrfs_release_path(path);
 	memalloc_nofs_restore(nofs_flag);
 	if (IS_ERR(inode))
-		return inode;
+		return ERR_CAST(inode);
 
-	mapping_set_gfp_mask(inode->i_mapping,
-			mapping_gfp_constraint(inode->i_mapping,
+	mapping_set_gfp_mask(inode->vfs_inode.i_mapping,
+			mapping_gfp_constraint(inode->vfs_inode.i_mapping,
 			~(__GFP_FS | __GFP_HIGHMEM)));
 
-	return inode;
+	return &inode->vfs_inode;
 }
 
 struct inode *lookup_free_space_inode(struct btrfs_block_group *block_group,

@@ -5642,8 +5642,8 @@ static struct btrfs_inode *btrfs_iget_locked(u64 ino, struct btrfs_root *root)
  * Get an inode object given its inode number and corresponding root.  Path is
  * preallocated to prevent recursing back to iget through allocator.
  */
-struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
-			      struct btrfs_path *path)
+struct btrfs_inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
+				    struct btrfs_path *path)
 {
 	struct btrfs_inode *inode;
 	int ret;
@@ -5653,14 +5653,14 @@ struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
 		return ERR_PTR(-ENOMEM);
 
 	if (!(inode->vfs_inode.i_state & I_NEW))
-		return &inode->vfs_inode;
+		return inode;
 
 	ret = btrfs_read_locked_inode(inode, path);
 	if (ret)
 		return ERR_PTR(ret);
 
 	unlock_new_inode(&inode->vfs_inode);
-	return &inode->vfs_inode;
+	return inode;
 }
 
 /*
