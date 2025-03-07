@@ -2706,6 +2706,7 @@ void snd_seq_info_clients_read(struct snd_info_entry *entry,
 			continue;
 		}
 
+		mutex_lock(&client->ioctl_mutex);
 		snd_iprintf(buffer, "Client %3d : \"%s\" [%s %s]\n",
 			    c, client->name,
 			    client->type == USER_CLIENT ? "User" : "Kernel",
@@ -2723,6 +2724,7 @@ void snd_seq_info_clients_read(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "  Input pool :\n");
 			snd_seq_info_pool(buffer, client->data.user.fifo->pool, "    ");
 		}
+		mutex_unlock(&client->ioctl_mutex);
 		snd_seq_client_unlock(client);
 	}
 }
