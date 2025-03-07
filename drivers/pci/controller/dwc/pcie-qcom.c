@@ -61,7 +61,7 @@
 #define PARF_DBI_BASE_ADDR_V2_HI		0x354
 #define PARF_SLV_ADDR_SPACE_SIZE_V2		0x358
 #define PARF_SLV_ADDR_SPACE_SIZE_V2_HI		0x35c
-#define PARF_NO_SNOOP_OVERIDE			0x3d4
+#define PARF_NO_SNOOP_OVERRIDE			0x3d4
 #define PARF_ATU_BASE_ADDR			0x634
 #define PARF_ATU_BASE_ADDR_HI			0x638
 #define PARF_DEVICE_TYPE			0x1000
@@ -135,9 +135,9 @@
 #define PARF_INT_ALL_LINK_UP			BIT(13)
 #define PARF_INT_MSI_DEV_0_7			GENMASK(30, 23)
 
-/* PARF_NO_SNOOP_OVERIDE register fields */
-#define WR_NO_SNOOP_OVERIDE_EN			BIT(1)
-#define RD_NO_SNOOP_OVERIDE_EN			BIT(3)
+/* PARF_NO_SNOOP_OVERRIDE register fields */
+#define WR_NO_SNOOP_OVERRIDE_EN			BIT(1)
+#define RD_NO_SNOOP_OVERRIDE_EN			BIT(3)
 
 /* PARF_DEVICE_TYPE register fields */
 #define DEVICE_TYPE_RC				0x4
@@ -1007,8 +1007,8 @@ static int qcom_pcie_post_init_2_7_0(struct qcom_pcie *pcie)
 	const struct qcom_pcie_cfg *pcie_cfg = pcie->cfg;
 
 	if (pcie_cfg->override_no_snoop)
-		writel(WR_NO_SNOOP_OVERIDE_EN | RD_NO_SNOOP_OVERIDE_EN,
-				pcie->parf + PARF_NO_SNOOP_OVERIDE);
+		writel(WR_NO_SNOOP_OVERRIDE_EN | RD_NO_SNOOP_OVERRIDE_EN,
+				pcie->parf + PARF_NO_SNOOP_OVERRIDE);
 
 	qcom_pcie_clear_aspm_l0s(pcie->pci);
 	qcom_pcie_clear_hpc(pcie->pci);
