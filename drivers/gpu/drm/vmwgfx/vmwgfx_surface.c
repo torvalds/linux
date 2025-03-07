@@ -1,32 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright (c) 2009-2024 Broadcom. All Rights Reserved. The term
+ * Copyright (c) 2009-2025 Broadcom. All Rights Reserved. The term
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sub license, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice (including the
- * next paragraph) shall be included in all copies or substantial portions
- * of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL
- * THE COPYRIGHT HOLDERS, AUTHORS AND/OR ITS SUPPLIERS BE LIABLE FOR ANY CLAIM,
- * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
- * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
- * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
 
 #include "vmwgfx_bo.h"
+#include "vmwgfx_cursor_plane.h"
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
 #include "vmwgfx_so.h"
@@ -818,25 +799,11 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 	res->guest_memory_size = cur_bo_offset;
-	if (!file_priv->atomic &&
-	    metadata->scanout &&
-	    metadata->num_sizes == 1 &&
-	    metadata->sizes[0].width == VMW_CURSOR_SNOOP_WIDTH &&
-	    metadata->sizes[0].height == VMW_CURSOR_SNOOP_HEIGHT &&
-	    metadata->format == VMW_CURSOR_SNOOP_FORMAT) {
-		const struct SVGA3dSurfaceDesc *desc =
-			vmw_surface_get_desc(VMW_CURSOR_SNOOP_FORMAT);
-		const u32 cursor_size_bytes = VMW_CURSOR_SNOOP_WIDTH *
-					      VMW_CURSOR_SNOOP_HEIGHT *
-					      desc->pitchBytesPerBlock;
-		srf->snooper.image = kzalloc(cursor_size_bytes, GFP_KERNEL);
-		if (!srf->snooper.image) {
-			DRM_ERROR("Failed to allocate cursor_image\n");
-			ret = -ENOMEM;
-			goto out_no_copy;
-		}
-	} else {
-		srf->snooper.image = NULL;
+
+	srf->snooper.image = vmw_cursor_snooper_create(file_priv, metadata);
+	if (IS_ERR(srf->snooper.image)) {
+		ret = PTR_ERR(srf->snooper.image);
+		goto out_no_copy;
 	}
 
 	if (drm_is_primary_client(file_priv))

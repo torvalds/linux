@@ -887,3 +887,9 @@ out:
 		surf = vmw_res_to_srf(res);
 	return surf;
 }
+
+s32 vmw_bo_mobid(struct vmw_bo *vbo)
+{
+	WARN_ON(vbo->tbo.resource->mem_type != VMW_PL_MOB);
+	return (s32)vbo->tbo.resource->start;
+}

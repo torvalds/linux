@@ -233,4 +233,6 @@ static inline struct vmw_bo *to_vmw_bo(struct drm_gem_object *gobj)
 	return container_of((gobj), struct vmw_bo, tbo.base);
 }
 
+s32 vmw_bo_mobid(struct vmw_bo *vbo);
+
 #endif // VMWGFX_BO_H
