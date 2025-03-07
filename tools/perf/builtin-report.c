@@ -1719,6 +1719,9 @@ repeat:
 		report.data_type = true;
 		annotate_opts.annotate_src = false;
 
+		/* disable incompatible options */
+		symbol_conf.cumulate_callchain = false;
+
 #ifndef HAVE_LIBDW_SUPPORT
 		pr_err("Error: Data type profiling is disabled due to missing DWARF support\n");
 		goto error;
