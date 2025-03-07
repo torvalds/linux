@@ -626,9 +626,14 @@
 #define REG_RX_DELAY_INT_IDX(_n)	\
 	(((_n) < 16) ? 0x0210 + ((_n) << 5) : 0x0e10 + (((_n) - 16) << 5))
 
+#define REG_RX_SCATTER_CFG(_n)	\
+	(((_n) < 16) ? 0x0214 + ((_n) << 5) : 0x0e14 + (((_n) - 16) << 5))
+
 #define RX_DELAY_INT_MASK		GENMASK(15, 0)
 
 #define RX_RING_DMA_IDX_MASK		GENMASK(15, 0)
+
+#define RX_RING_SG_EN_MASK		BIT(0)
 
 #define REG_INGRESS_TRTCM_CFG		0x0070
 #define INGRESS_TRTCM_EN_MASK		BIT(31)
