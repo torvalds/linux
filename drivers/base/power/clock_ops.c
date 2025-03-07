@@ -344,46 +344,6 @@ static void __pm_clk_remove(struct pm_clock_entry *ce)
 }
 
 /**
- * pm_clk_remove - Stop using a device clock for power management.
- * @dev: Device whose clock should not be used for PM any more.
- * @con_id: Connection ID of the clock.
- *
- * Remove the clock represented by @con_id from the list of clocks used for
- * the power management of @dev.
- */
-void pm_clk_remove(struct device *dev, const char *con_id)
-{
-	struct pm_subsys_data *psd = dev_to_psd(dev);
-	struct pm_clock_entry *ce;
-
-	if (!psd)
-		return;
-
-	pm_clk_list_lock(psd);
-
-	list_for_each_entry(ce, &psd->clock_list, node) {
-		if (!con_id && !ce->con_id)
-			goto remove;
-		else if (!con_id || !ce->con_id)
-			continue;
-		else if (!strcmp(con_id, ce->con_id))
-			goto remove;
-	}
-
-	pm_clk_list_unlock(psd);
-	return;
-
- remove:
-	list_del(&ce->node);
-	if (ce->enabled_when_prepared)
-		psd->clock_op_might_sleep--;
-	pm_clk_list_unlock(psd);
-
-	__pm_clk_remove(ce);
-}
-EXPORT_SYMBOL_GPL(pm_clk_remove);
-
-/**
  * pm_clk_remove_clk - Stop using a device clock for power management.
  * @dev: Device whose clock should not be used for PM any more.
  * @clk: Clock pointer
