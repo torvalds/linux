@@ -1832,7 +1832,6 @@ static int btrfs_search_path_in_tree_user(struct mnt_idmap *idmap,
 	struct btrfs_path *path;
 	struct btrfs_key key, key2;
 	struct extent_buffer *leaf;
-	struct inode *temp_inode;
 	char *ptr;
 	int slot;
 	int len;
@@ -1860,6 +1859,8 @@ static int btrfs_search_path_in_tree_user(struct mnt_idmap *idmap,
 		key.type = BTRFS_INODE_REF_KEY;
 		key.offset = (u64)-1;
 		while (1) {
+			struct btrfs_inode *temp_inode;
+
 			ret = btrfs_search_backwards(root, &key, path);
 			if (ret < 0)
 				goto out_put;
@@ -1914,9 +1915,9 @@ static int btrfs_search_path_in_tree_user(struct mnt_idmap *idmap,
 				ret = PTR_ERR(temp_inode);
 				goto out_put;
 			}
-			ret = inode_permission(idmap, temp_inode,
+			ret = inode_permission(idmap, &temp_inode->vfs_inode,
 					       MAY_READ | MAY_EXEC);
-			iput(temp_inode);
+			iput(&temp_inode->vfs_inode);
 			if (ret) {
 				ret = -EACCES;
 				goto out_put;

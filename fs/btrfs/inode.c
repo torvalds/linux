@@ -3547,7 +3547,6 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 	struct extent_buffer *leaf;
 	struct btrfs_key key, found_key;
 	struct btrfs_trans_handle *trans;
-	struct inode *inode;
 	u64 last_objectid = 0;
 	int ret = 0, nr_unlink = 0;
 
@@ -3566,6 +3565,8 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 	key.offset = (u64)-1;
 
 	while (1) {
+		struct btrfs_inode *inode;
+
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
@@ -3689,10 +3690,10 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		 * deleted but wasn't. The inode number may have been reused,
 		 * but either way, we can delete the orphan item.
 		 */
-		if (!inode || inode->i_nlink) {
+		if (!inode || inode->vfs_inode.i_nlink) {
 			if (inode) {
-				ret = btrfs_drop_verity_items(BTRFS_I(inode));
-				iput(inode);
+				ret = btrfs_drop_verity_items(inode);
+				iput(&inode->vfs_inode);
 				inode = NULL;
 				if (ret)
 					goto out;
@@ -3715,7 +3716,7 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 		nr_unlink++;
 
 		/* this will do delete_inode and everything for us */
-		iput(inode);
+		iput(&inode->vfs_inode);
 	}
 	/* release the path since we're done with it */
 	btrfs_release_path(path);
@@ -5665,7 +5666,7 @@ struct inode *btrfs_iget_path(u64 ino, struct btrfs_root *root,
 /*
  * Get an inode object given its inode number and corresponding root.
  */
-struct inode *btrfs_iget(u64 ino, struct btrfs_root *root)
+struct btrfs_inode *btrfs_iget(u64 ino, struct btrfs_root *root)
 {
 	struct btrfs_inode *inode;
 	struct btrfs_path *path;
@@ -5676,7 +5677,7 @@ struct inode *btrfs_iget(u64 ino, struct btrfs_root *root)
 		return ERR_PTR(-ENOMEM);
 
 	if (!(inode->vfs_inode.i_state & I_NEW))
-		return &inode->vfs_inode;
+		return inode;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -5688,7 +5689,7 @@ struct inode *btrfs_iget(u64 ino, struct btrfs_root *root)
 		return ERR_PTR(ret);
 
 	unlock_new_inode(&inode->vfs_inode);
-	return &inode->vfs_inode;
+	return inode;
 }
 
 static struct btrfs_inode *new_simple_dir(struct inode *dir,
@@ -5748,7 +5749,7 @@ static inline u8 btrfs_inode_type(const struct btrfs_inode *inode)
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(dir);
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_root *sub_root = root;
 	struct btrfs_key location = { 0 };
@@ -5765,49 +5766,48 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 	if (location.type == BTRFS_INODE_ITEM_KEY) {
 		inode = btrfs_iget(location.objectid, root);
 		if (IS_ERR(inode))
-			return inode;
+			return ERR_CAST(inode);
 
 		/* Do extra check against inode mode with di_type */
-		if (btrfs_inode_type(BTRFS_I(inode)) != di_type) {
+		if (btrfs_inode_type(inode) != di_type) {
 			btrfs_crit(fs_info,
 "inode mode mismatch with dir: inode mode=0%o btrfs type=%u dir type=%u",
-				  inode->i_mode, btrfs_inode_type(BTRFS_I(inode)),
+				  inode->vfs_inode.i_mode, btrfs_inode_type(inode),
 				  di_type);
-			iput(inode);
+			iput(&inode->vfs_inode);
 			return ERR_PTR(-EUCLEAN);
 		}
-		return inode;
+		return &inode->vfs_inode;
 	}
 
 	ret = fixup_tree_root_location(fs_info, BTRFS_I(dir), dentry,
 				       &location, &sub_root);
 	if (ret < 0) {
-		if (ret != -ENOENT) {
+		if (ret != -ENOENT)
 			inode = ERR_PTR(ret);
-		} else {
-			struct btrfs_inode *b_inode;
-
-			b_inode = new_simple_dir(dir, &location, root);
-			inode = &b_inode->vfs_inode;
-		}
+		else
+			inode = new_simple_dir(dir, &location, root);
 	} else {
 		inode = btrfs_iget(location.objectid, sub_root);
 		btrfs_put_root(sub_root);
 
 		if (IS_ERR(inode))
-			return inode;
+			return ERR_CAST(inode);
 
 		down_read(&fs_info->cleanup_work_sem);
-		if (!sb_rdonly(inode->i_sb))
+		if (!sb_rdonly(inode->vfs_inode.i_sb))
 			ret = btrfs_orphan_cleanup(sub_root);
 		up_read(&fs_info->cleanup_work_sem);
 		if (ret) {
-			iput(inode);
+			iput(&inode->vfs_inode);
 			inode = ERR_PTR(ret);
 		}
 	}
 
-	return inode;
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	return &inode->vfs_inode;
 }
 
 static int btrfs_dentry_delete(const struct dentry *dentry)
@@ -6460,7 +6460,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	path = NULL;
 
 	if (args->subvol) {
-		struct inode *parent;
+		struct btrfs_inode *parent;
 
 		/*
 		 * Subvolumes inherit properties from their parent subvolume,
@@ -6471,8 +6471,8 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 			ret = PTR_ERR(parent);
 		} else {
 			ret = btrfs_inode_inherit_props(trans, BTRFS_I(inode),
-							BTRFS_I(parent));
-			iput(parent);
+							parent);
+			iput(&parent->vfs_inode);
 		}
 	} else {
 		ret = btrfs_inode_inherit_props(trans, BTRFS_I(inode),

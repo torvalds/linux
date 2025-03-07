@@ -75,7 +75,7 @@ struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_root *root;
-	struct inode *inode;
+	struct btrfs_inode *inode;
 
 	if (objectid < BTRFS_FIRST_FREE_OBJECTID)
 		return ERR_PTR(-ESTALE);
@@ -89,12 +89,12 @@ struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
-	if (generation != 0 && generation != inode->i_generation) {
-		iput(inode);
+	if (generation != 0 && generation != inode->vfs_inode.i_generation) {
+		iput(&inode->vfs_inode);
 		return ERR_PTR(-ESTALE);
 	}
 
-	return d_obtain_alias(inode);
+	return d_obtain_alias(&inode->vfs_inode);
 }
 
 static struct dentry *btrfs_fh_to_parent(struct super_block *sb, struct fid *fh,
@@ -146,6 +146,7 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 struct dentry *btrfs_get_parent(struct dentry *child)
 {
 	struct btrfs_inode *dir = BTRFS_I(d_inode(child));
+	struct btrfs_inode *inode;
 	struct btrfs_root *root = dir->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
@@ -210,7 +211,11 @@ struct dentry *btrfs_get_parent(struct dentry *child)
 					found_key.offset, 0);
 	}
 
-	return d_obtain_alias(btrfs_iget(key.objectid, root));
+	inode = btrfs_iget(key.objectid, root);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	return d_obtain_alias(&inode->vfs_inode);
 fail:
 	btrfs_free_path(path);
 	return ERR_PTR(ret);

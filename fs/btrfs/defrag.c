@@ -225,7 +225,7 @@ static int btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 				  struct file_ra_state *ra)
 {
 	struct btrfs_root *inode_root;
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	struct btrfs_ioctl_defrag_range_args range;
 	int ret = 0;
 	u64 cur = 0;
@@ -250,24 +250,24 @@ again:
 		goto cleanup;
 	}
 
-	if (cur >= i_size_read(inode)) {
-		iput(inode);
+	if (cur >= i_size_read(&inode->vfs_inode)) {
+		iput(&inode->vfs_inode);
 		goto cleanup;
 	}
 
 	/* Do a chunk of defrag */
-	clear_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags);
+	clear_bit(BTRFS_INODE_IN_DEFRAG, &inode->runtime_flags);
 	memset(&range, 0, sizeof(range));
 	range.len = (u64)-1;
 	range.start = cur;
 	range.extent_thresh = defrag->extent_thresh;
-	file_ra_state_init(ra, inode->i_mapping);
+	file_ra_state_init(ra, inode->vfs_inode.i_mapping);
 
 	sb_start_write(fs_info->sb);
-	ret = btrfs_defrag_file(BTRFS_I(inode), ra, &range, defrag->transid,
+	ret = btrfs_defrag_file(inode, ra, &range, defrag->transid,
 				BTRFS_DEFRAG_BATCH);
 	sb_end_write(fs_info->sb);
-	iput(inode);
+	iput(&inode->vfs_inode);
 
 	if (ret < 0)
 		goto cleanup;

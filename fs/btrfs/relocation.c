@@ -3246,14 +3246,16 @@ static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_trans_handle *trans;
+	struct btrfs_inode *btrfs_inode;
 	int ret = 0;
 
 	if (inode)
 		goto truncate;
 
-	inode = btrfs_iget(ino, root);
-	if (IS_ERR(inode))
+	btrfs_inode = btrfs_iget(ino, root);
+	if (IS_ERR(btrfs_inode))
 		return -ENOENT;
+	inode = &btrfs_inode->vfs_inode;
 
 truncate:
 	ret = btrfs_check_trunc_cache_free_space(fs_info,
@@ -3764,7 +3766,7 @@ static noinline_for_stack struct inode *create_reloc_inode(
 					struct btrfs_fs_info *fs_info,
 					const struct btrfs_block_group *group)
 {
-	struct inode *inode = NULL;
+	struct btrfs_inode *inode = NULL;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root;
 	u64 objectid;
@@ -3792,18 +3794,19 @@ static noinline_for_stack struct inode *create_reloc_inode(
 		inode = NULL;
 		goto out;
 	}
-	BTRFS_I(inode)->reloc_block_group_start = group->start;
+	inode->reloc_block_group_start = group->start;
 
-	ret = btrfs_orphan_add(trans, BTRFS_I(inode));
+	ret = btrfs_orphan_add(trans, inode);
 out:
 	btrfs_put_root(root);
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
 	if (ret) {
-		iput(inode);
+		if (inode)
+			iput(&inode->vfs_inode);
 		inode = ERR_PTR(ret);
 	}
-	return inode;
+	return &inode->vfs_inode;
 }
 
 /*
