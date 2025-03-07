@@ -21,6 +21,7 @@ msg_oob
 msg_zerocopy
 netlink-dumps
 nettest
+proc_net_pktgen
 psock_fanout
 psock_snd
 psock_tpacket
