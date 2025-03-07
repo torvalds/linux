@@ -3763,9 +3763,9 @@ out:
  * the inode is in data relocation tree and its link count is 0
  */
 static noinline_for_stack struct inode *create_reloc_inode(
-					struct btrfs_fs_info *fs_info,
 					const struct btrfs_block_group *group)
 {
+	struct btrfs_fs_info *fs_info = group->fs_info;
 	struct btrfs_inode *inode = NULL;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root;
@@ -3989,7 +3989,7 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 		goto out;
 	}
 
-	rc->data_inode = create_reloc_inode(fs_info, rc->block_group);
+	rc->data_inode = create_reloc_inode(rc->block_group);
 	if (IS_ERR(rc->data_inode)) {
 		err = PTR_ERR(rc->data_inode);
 		rc->data_inode = NULL;
