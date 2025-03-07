@@ -63,6 +63,7 @@
 		};
 
 		switch-lid {
+			label = "lid";
 			gpios = <&tlmm 92 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
 			linux,code = <SW_LID>;
