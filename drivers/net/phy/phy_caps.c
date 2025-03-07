@@ -265,3 +265,95 @@ void phy_caps_linkmodes(unsigned long caps, unsigned long *linkmodes)
 		linkmode_or(linkmodes, linkmodes, link_caps[capa].linkmodes);
 }
 EXPORT_SYMBOL_GPL(phy_caps_linkmodes);
+
+/**
+ * phy_caps_from_interface() - Get the link capa from a given PHY interface
+ * @interface: The PHY interface we want to get the possible Speed/Duplex from
+ *
+ * Returns: A bitmask of LINK_CAPA_xxx values that can be achieved with the
+ *          provided interface.
+ */
+unsigned long phy_caps_from_interface(phy_interface_t interface)
+{
+	unsigned long link_caps = 0;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_USXGMII:
+		link_caps |= BIT(LINK_CAPA_10000FD) | BIT(LINK_CAPA_5000FD);
+		fallthrough;
+
+	case PHY_INTERFACE_MODE_10G_QXGMII:
+		link_caps |= BIT(LINK_CAPA_2500FD);
+		fallthrough;
+
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_PSGMII:
+	case PHY_INTERFACE_MODE_QSGMII:
+	case PHY_INTERFACE_MODE_QUSGMII:
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_GMII:
+		link_caps |= BIT(LINK_CAPA_1000HD) | BIT(LINK_CAPA_1000FD);
+		fallthrough;
+
+	case PHY_INTERFACE_MODE_REVRMII:
+	case PHY_INTERFACE_MODE_RMII:
+	case PHY_INTERFACE_MODE_SMII:
+	case PHY_INTERFACE_MODE_REVMII:
+	case PHY_INTERFACE_MODE_MII:
+		link_caps |= BIT(LINK_CAPA_10HD) | BIT(LINK_CAPA_10FD);
+		fallthrough;
+
+	case PHY_INTERFACE_MODE_100BASEX:
+		link_caps |= BIT(LINK_CAPA_100HD) | BIT(LINK_CAPA_100FD);
+		break;
+
+	case PHY_INTERFACE_MODE_TBI:
+	case PHY_INTERFACE_MODE_MOCA:
+	case PHY_INTERFACE_MODE_RTBI:
+	case PHY_INTERFACE_MODE_1000BASEX:
+		link_caps |= BIT(LINK_CAPA_1000HD);
+		fallthrough;
+	case PHY_INTERFACE_MODE_1000BASEKX:
+	case PHY_INTERFACE_MODE_TRGMII:
+		link_caps |= BIT(LINK_CAPA_1000FD);
+		break;
+
+	case PHY_INTERFACE_MODE_2500BASEX:
+		link_caps |= BIT(LINK_CAPA_2500FD);
+		break;
+
+	case PHY_INTERFACE_MODE_5GBASER:
+		link_caps |= BIT(LINK_CAPA_5000FD);
+		break;
+
+	case PHY_INTERFACE_MODE_XGMII:
+	case PHY_INTERFACE_MODE_RXAUI:
+	case PHY_INTERFACE_MODE_XAUI:
+	case PHY_INTERFACE_MODE_10GBASER:
+	case PHY_INTERFACE_MODE_10GKR:
+		link_caps |= BIT(LINK_CAPA_10000FD);
+		break;
+
+	case PHY_INTERFACE_MODE_25GBASER:
+		link_caps |= BIT(LINK_CAPA_25000FD);
+		break;
+
+	case PHY_INTERFACE_MODE_XLGMII:
+		link_caps |= BIT(LINK_CAPA_40000FD);
+		break;
+
+	case PHY_INTERFACE_MODE_INTERNAL:
+		link_caps |= LINK_CAPA_ALL;
+		break;
+
+	case PHY_INTERFACE_MODE_NA:
+	case PHY_INTERFACE_MODE_MAX:
+		break;
+	}
+
+	return link_caps;
+}
+EXPORT_SYMBOL_GPL(phy_caps_from_interface);
