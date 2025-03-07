@@ -588,6 +588,10 @@ int prp_register_frame_out(struct hsr_port *port, struct hsr_frame_info *frame)
 	return 0;
 }
 
+#if IS_MODULE(CONFIG_PRP_DUP_DISCARD_KUNIT_TEST)
+EXPORT_SYMBOL(prp_register_frame_out);
+#endif
+
 static struct hsr_port *get_late_port(struct hsr_priv *hsr,
 				      struct hsr_node *node)
 {
