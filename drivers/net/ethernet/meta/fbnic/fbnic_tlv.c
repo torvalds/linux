@@ -261,7 +261,7 @@ ssize_t fbnic_tlv_attr_get_string(struct fbnic_tlv_msg *attr, char *dst,
 		return -E2BIG;
 
 	srclen = le16_to_cpu(attr->hdr.len) - sizeof(*attr);
-	if (srclen > 0 && attr->value[srclen - 1] == '\0')
+	if (srclen > 0 && ((char *)attr->value)[srclen - 1] == '\0')
 		srclen--;
 
 	if (srclen >= dstsize) {
