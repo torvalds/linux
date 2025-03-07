@@ -40,7 +40,7 @@
 			     <1 10 0xff04>;
 	};
 
-	smb0: smb {
+	smb0: bus {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
