@@ -18,6 +18,7 @@
  * @op_size: Size of input payload.
  * @reserved1: Reserved. Must be 0s.
  * @get_sup_feats_in: Get Supported Features input
+ * @get_feat_in: Get Feature input
  */
 struct fwctl_rpc_cxl {
 	__struct_group(fwctl_rpc_cxl_hdr, hdr, /* no attrs */,
@@ -26,7 +27,10 @@ struct fwctl_rpc_cxl {
 		__u32 op_size;
 		__u32 reserved1;
 	);
-	struct cxl_mbox_get_sup_feats_in get_sup_feats_in;
+	union {
+		struct cxl_mbox_get_sup_feats_in get_sup_feats_in;
+		struct cxl_mbox_get_feat_in get_feat_in;
+	};
 };
 
 /**
@@ -34,13 +38,17 @@ struct fwctl_rpc_cxl {
  * @size: Size of the output payload
  * @retval: Return value from device
  * @get_sup_feats_out: Get Supported Features output
+ * @payload: raw byte stream of payload
  */
 struct fwctl_rpc_cxl_out {
 	__struct_group(fwctl_rpc_cxl_out_hdr, hdr, /* no attrs */,
 		__u32 size;
 		__u32 retval;
 	);
-	struct cxl_mbox_get_sup_feats_out get_sup_feats_out;
+	union {
+		struct cxl_mbox_get_sup_feats_out get_sup_feats_out;
+		__DECLARE_FLEX_ARRAY(__u8, payload);
+	};
 };
 
 #endif
