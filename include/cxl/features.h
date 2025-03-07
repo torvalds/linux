@@ -51,8 +51,6 @@ enum cxl_features_capability {
  * struct cxl_features_state - The Features state for the device
  * @cxlds: Pointer to CXL device state
  * @entries: CXl feature entry context
- *	@num_features: total Features supported by the device
- *	@ent: Flex array of Feature detail entries from the device
  */
 struct cxl_features_state {
 	struct cxl_dev_state *cxlds;
