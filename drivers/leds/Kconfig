@@ -1015,7 +1015,7 @@ source "drivers/leds/rgb/Kconfig"
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 
-comment "Simple LED drivers"
-source "drivers/leds/simple/Kconfig"
+comment "Simatic LED drivers"
+source "drivers/leds/simatic/Kconfig"
 
 endif # NEW_LEDS
