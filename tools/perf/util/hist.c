@@ -1385,6 +1385,16 @@ void hist_entry__delete(struct hist_entry *he)
 {
 	struct hist_entry_ops *ops = he->ops;
 
+	if (symbol_conf.report_hierarchy) {
+		struct rb_root *root = &he->hroot_out.rb_root;
+		struct hist_entry *child, *tmp;
+
+		rbtree_postorder_for_each_entry_safe(child, tmp, root, rb_node)
+			hist_entry__delete(child);
+
+		*root = RB_ROOT;
+	}
+
 	thread__zput(he->thread);
 	map_symbol__exit(&he->ms);
 
