@@ -2,6 +2,7 @@
 
 #include <linux/phy.h>
 #include <linux/ethtool_netlink.h>
+#include <net/netdev_lock.h>
 #include "netlink.h"
 #include "common.h"
 

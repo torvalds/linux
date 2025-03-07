@@ -13,6 +13,7 @@
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
+#include <net/netdev_lock.h>
 #include <net/pkt_sched.h>
 
 #include <net/bluetooth/bluetooth.h>

@@ -77,6 +77,7 @@
 
 #include <net/ip.h>
 #include <net/arp.h>
+#include <net/netdev_lock.h>
 #include <net/net_namespace.h>
 
 #include <linux/bpqether.h>

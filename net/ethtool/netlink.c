@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <net/netdev_lock.h>
 #include <net/netdev_queues.h>
 #include <net/sock.h>
 #include <linux/ethtool_netlink.h>

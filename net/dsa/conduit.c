@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <net/dsa.h>
+#include <net/netdev_lock.h>
 
 #include "conduit.h"
 #include "dsa.h"

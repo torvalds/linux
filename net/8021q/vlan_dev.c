@@ -27,6 +27,7 @@
 #include <linux/phy.h>
 #include <net/arp.h>
 #include <net/macsec.h>
+#include <net/netdev_lock.h>
 
 #include "vlan.h"
 #include "vlanproc.h"

@@ -52,6 +52,7 @@
 #include <net/inet_ecn.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
+#include <net/netdev_lock.h>
 #include <net/dst_metadata.h>
 #include <net/inet_dscp.h>
 

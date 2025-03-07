@@ -54,6 +54,7 @@
 #include <net/pkt_cls.h>
 #include <net/page_pool/helpers.h>
 #include <linux/align.h>
+#include <net/netdev_lock.h>
 #include <net/netdev_queues.h>
 #include <net/netdev_rx_queue.h>
 #include <linux/pci-tph.h>

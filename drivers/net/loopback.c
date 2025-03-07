@@ -54,6 +54,7 @@
 #include <linux/percpu.h>
 #include <linux/net_tstamp.h>
 #include <net/net_namespace.h>
+#include <net/netdev_lock.h>
 #include <linux/u64_stats_sync.h>
 
 /* blackhole_netdev - a device used for dsts that are marked expired!

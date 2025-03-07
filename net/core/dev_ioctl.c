@@ -10,6 +10,7 @@
 #include <linux/wireless.h>
 #include <linux/if_bridge.h>
 #include <net/dsa_stubs.h>
+#include <net/netdev_lock.h>
 #include <net/wext.h>
 
 #include "dev.h"

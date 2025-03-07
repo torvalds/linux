@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/hashtable.h>
 
+#include <net/netdev_lock.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/netlink.h>

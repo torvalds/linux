@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/cpu.h>
+#include <net/netdev_lock.h>
 #include <net/netdev_rx_queue.h>
 #include <net/rps.h>
 

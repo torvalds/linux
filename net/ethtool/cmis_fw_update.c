@@ -2,6 +2,7 @@
 
 #include <linux/ethtool.h>
 #include <linux/firmware.h>
+#include <net/netdev_lock.h>
 
 #include "common.h"
 #include "module_fw.h"

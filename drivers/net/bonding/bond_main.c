@@ -90,6 +90,7 @@
 #include <net/tls.h>
 #endif
 #include <net/ip6_route.h>
+#include <net/netdev_lock.h>
 #include <net/xdp.h>
 
 #include "bonding_priv.h"

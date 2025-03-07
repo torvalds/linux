@@ -4,6 +4,7 @@
 #include <linux/phy.h>
 #include <linux/phy_link_topology.h>
 #include <linux/ptp_clock_kernel.h>
+#include <net/netdev_lock.h>
 
 #include "netlink.h"
 #include "common.h"

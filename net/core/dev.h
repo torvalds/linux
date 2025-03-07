@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/rwsem.h>
 #include <linux/netdevice.h>
+#include <net/netdev_lock.h>
 
 struct net;
 struct netlink_ext_ack;

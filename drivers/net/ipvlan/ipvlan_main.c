@@ -3,6 +3,7 @@
  */
 
 #include <linux/ethtool.h>
+#include <net/netdev_lock.h>
 
 #include "ipvlan.h"
 

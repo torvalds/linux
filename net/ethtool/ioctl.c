@@ -31,6 +31,7 @@
 #include <net/ipv6.h>
 #include <net/xdp_sock_drv.h>
 #include <net/flow_offload.h>
+#include <net/netdev_lock.h>
 #include <linux/ethtool_netlink.h>
 #include "common.h"
 

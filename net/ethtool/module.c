@@ -4,6 +4,7 @@
 #include <linux/firmware.h>
 #include <linux/sfp.h>
 #include <net/devlink.h>
+#include <net/netdev_lock.h>
 
 #include "netlink.h"
 #include "common.h"

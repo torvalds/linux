@@ -53,6 +53,7 @@
 #include <net/fib_rules.h>
 #include <net/rtnetlink.h>
 #include <net/net_namespace.h>
+#include <net/netdev_lock.h>
 #include <net/devlink.h>
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/addrconf.h>

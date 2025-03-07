@@ -9,6 +9,7 @@
 #include <linux/phy.h>
 #include <linux/phy_link_topology.h>
 #include <linux/sfp.h>
+#include <net/netdev_lock.h>
 
 struct phy_req_info {
 	struct ethnl_req_info		base;

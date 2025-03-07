@@ -15,6 +15,7 @@
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
 #include <linux/filter.h>
+#include <net/netdev_lock.h>
 #include <net/page_pool/helpers.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
