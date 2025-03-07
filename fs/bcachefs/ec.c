@@ -1486,6 +1486,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	if (s->err) {
 		if (!bch2_err_matches(s->err, EROFS))
 			bch_err(c, "error creating stripe: error writing data buckets");
+		ret = s->err;
 		goto err;
 	}
 
@@ -1494,6 +1495,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 
 		if (ec_do_recov(c, &s->existing_stripe)) {
 			bch_err(c, "error creating stripe: error reading existing stripe");
+			ret = -BCH_ERR_ec_block_read;
 			goto err;
 		}
 
@@ -1519,6 +1521,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 
 	if (ec_nr_failed(&s->new_stripe)) {
 		bch_err(c, "error creating stripe: error writing redundancy buckets");
+		ret = -BCH_ERR_ec_block_write;
 		goto err;
 	}
 
@@ -1540,6 +1543,8 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	if (ret)
 		goto err;
 err:
+	trace_stripe_create(c, s->idx, ret);
+
 	bch2_disk_reservation_put(c, &s->res);
 
 	for (i = 0; i < v->nr_blocks; i++)

@@ -280,6 +280,8 @@
 	x(EIO,				insufficient_journal_devices)		\
 	x(EIO,				device_offline)				\
 	x(EIO,				EIO_fault_injected)			\
+	x(EIO,				ec_block_read)				\
+	x(EIO,				ec_block_write)				\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\

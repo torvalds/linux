@@ -339,6 +339,30 @@ DEFINE_EVENT(bio, io_read_reuse_race,
 	TP_ARGS(bio)
 );
 
+/* ec.c */
+
+TRACE_EVENT(stripe_create,
+	TP_PROTO(struct bch_fs *c, u64 idx, int ret),
+	TP_ARGS(c, idx, ret),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(u64,		idx			)
+		__field(int,		ret			)
+	),
+
+	TP_fast_assign(
+		__entry->dev			= c->dev;
+		__entry->idx			= idx;
+		__entry->ret			= ret;
+	),
+
+	TP_printk("%d,%d idx %llu ret %i",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->idx,
+		  __entry->ret)
+);
+
 /* Journal */
 
 DEFINE_EVENT(bch_fs, journal_full,
