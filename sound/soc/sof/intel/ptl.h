@@ -9,6 +9,11 @@
 #ifndef __SOF_INTEL_PTL_H
 #define __SOF_INTEL_PTL_H
 
+#define PTL_MICPVCP_DDZE_FORCED		BIT(16)
+#define PTL_MICPVCP_DDZE_ENABLED	BIT(17)
+#define PTL_MICPVCP_DDZLS_SDW		GENMASK(26, 20)
+#define PTL_MICPVCP_GET_SDW_MASK(x)	(((x) & PTL_MICPVCP_DDZLS_SDW) >> 20)
+
 int sof_ptl_set_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *dsp_ops);
 
 #endif /* __SOF_INTEL_PTL_H */
