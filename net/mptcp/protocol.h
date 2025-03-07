@@ -1057,8 +1057,6 @@ bool mptcp_userspace_pm_active(const struct mptcp_sock *msk);
 
 void mptcp_fastopen_subflow_synack_set_params(struct mptcp_subflow_context *subflow,
 					      struct request_sock *req);
-int mptcp_nl_fill_addr(struct sk_buff *skb,
-		       struct mptcp_pm_addr_entry *entry);
 int mptcp_pm_genl_fill_addr(struct sk_buff *msg,
 			    struct netlink_callback *cb,
 			    struct mptcp_pm_addr_entry *entry);
