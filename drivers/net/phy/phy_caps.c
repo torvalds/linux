@@ -57,6 +57,9 @@ static int speed_duplex_to_capa(int speed, unsigned int duplex)
 	return -EINVAL;
 }
 
+#define for_each_link_caps_asc_speed(cap) \
+	for (cap = link_caps; cap < &link_caps[__LINK_CAPA_MAX]; cap++)
+
 /**
  * phy_caps_init() - Initializes the link_caps array from the link_mode_params.
  *
@@ -87,4 +90,34 @@ int phy_caps_init(void)
 	}
 
 	return 0;
+}
+
+/**
+ * phy_caps_speeds() - Fill an array of supported SPEED_* values for given modes
+ * @speeds: Output array to store the speeds list into
+ * @size: Size of the output array
+ * @linkmodes: Linkmodes to get the speeds from
+ *
+ * Fills the speeds array with all possible speeds that can be achieved with
+ * the specified linkmodes.
+ *
+ * Returns: The number of speeds filled into the array. If the input array isn't
+ *	    big enough to store all speeds, fill it as much as possible.
+ */
+size_t phy_caps_speeds(unsigned int *speeds, size_t size,
+		       unsigned long *linkmodes)
+{
+	struct link_capabilities *lcap;
+	size_t count = 0;
+
+	for_each_link_caps_asc_speed(lcap) {
+		if (linkmode_intersects(lcap->linkmodes, linkmodes) &&
+		    (count == 0 || speeds[count - 1] != lcap->speed)) {
+			speeds[count++] = lcap->speed;
+			if (count >= size)
+				break;
+		}
+	}
+
+	return count;
 }
