@@ -237,6 +237,7 @@ static void rtp_mark_active(struct xe_device *xe,
  *                        the save-restore argument.
  * @ctx: The context for processing the table, with one of device, gt or hwe
  * @entries: Table with RTP definitions
+ * @n_entries: Number of entries to process, usually ARRAY_SIZE(entries)
  * @sr: Save-restore struct where matching rules execute the action. This can be
  *      viewed as the "coalesced view" of multiple the tables. The bits for each
  *      register set are expected not to collide with previously added entries
@@ -247,6 +248,7 @@ static void rtp_mark_active(struct xe_device *xe,
  */
 void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 			  const struct xe_rtp_entry_sr *entries,
+			  size_t n_entries,
 			  struct xe_reg_sr *sr)
 {
 	const struct xe_rtp_entry_sr *entry;
@@ -259,7 +261,9 @@ void xe_rtp_process_to_sr(struct xe_rtp_process_ctx *ctx,
 	if (IS_SRIOV_VF(xe))
 		return;
 
-	for (entry = entries; entry && entry->name; entry++) {
+	xe_assert(xe, entries);
+
+	for (entry = entries; entry - entries < n_entries; entry++) {
 		bool match = false;
 
 		if (entry->flags & XE_RTP_ENTRY_FLAG_FOREACH_ENGINE) {
