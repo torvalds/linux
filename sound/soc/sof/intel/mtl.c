@@ -96,7 +96,7 @@ static bool mtl_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
 	return false;
 }
 
-int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
+static int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	struct sof_ipc4_msg *msg_data = msg->msg_data;
@@ -122,7 +122,6 @@ int mtl_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(mtl_ipc_send_msg, "SND_SOC_SOF_INTEL_MTL");
 
 void mtl_enable_ipc_interrupts(struct snd_sof_dev *sdev)
 {
@@ -238,7 +237,7 @@ int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 EXPORT_SYMBOL_NS(mtl_enable_interrupts, "SND_SOC_SOF_INTEL_MTL");
 
 /* pre fw run operations */
-int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
+static int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
 	u32 dsphfpwrsts;
@@ -298,9 +297,8 @@ int mtl_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(mtl_dsp_pre_fw_run, "SND_SOC_SOF_INTEL_MTL");
 
-int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
+static int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 {
 	int ret;
 
@@ -325,9 +323,8 @@ int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	hda_sdw_int_enable(sdev, true);
 	return 0;
 }
-EXPORT_SYMBOL_NS(mtl_dsp_post_fw_run, "SND_SOC_SOF_INTEL_MTL");
 
-void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
+static void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
 	char *level = (flags & SOF_DBG_DUMP_OPTIONAL) ? KERN_DEBUG : KERN_ERR;
 	u32 fwsts;
@@ -343,7 +340,6 @@ void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 
 	sof_ipc4_intel_dump_telemetry_state(sdev, flags);
 }
-EXPORT_SYMBOL_NS(mtl_dsp_dump, "SND_SOC_SOF_INTEL_MTL");
 
 static bool mtl_dsp_primary_core_is_enabled(struct snd_sof_dev *sdev)
 {
@@ -559,7 +555,7 @@ err:
 }
 EXPORT_SYMBOL_NS(mtl_dsp_cl_init, "SND_SOC_SOF_INTEL_MTL");
 
-irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
+static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 {
 	struct sof_ipc4_msg notification_data = {{ 0 }};
 	struct snd_sof_dev *sdev = context;
@@ -641,21 +637,18 @@ irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL_NS(mtl_ipc_irq_thread, "SND_SOC_SOF_INTEL_MTL");
 
-int mtl_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
+static int mtl_dsp_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
 {
 	return MTL_DSP_MBOX_UPLINK_OFFSET;
 }
-EXPORT_SYMBOL_NS(mtl_dsp_ipc_get_mailbox_offset, "SND_SOC_SOF_INTEL_MTL");
 
-int mtl_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
+static int mtl_dsp_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 {
 	return MTL_SRAM_WINDOW_OFFSET(id);
 }
-EXPORT_SYMBOL_NS(mtl_dsp_ipc_get_window_offset, "SND_SOC_SOF_INTEL_MTL");
 
-void mtl_ipc_dump(struct snd_sof_dev *sdev)
+static void mtl_ipc_dump(struct snd_sof_dev *sdev)
 {
 	u32 hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl;
 
@@ -671,7 +664,6 @@ void mtl_ipc_dump(struct snd_sof_dev *sdev)
 		"Host IPC initiator: %#x|%#x|%#x, target: %#x|%#x|%#x, ctl: %#x\n",
 		hipcidr, hipcidd, hipcida, hipctdr, hipctdd, hipctda, hipcctl);
 }
-EXPORT_SYMBOL_NS(mtl_ipc_dump, "SND_SOC_SOF_INTEL_MTL");
 
 static int mtl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 {
@@ -680,7 +672,7 @@ static int mtl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 	return mtl_enable_interrupts(sdev, false);
 }
 
-int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
+static int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 
@@ -692,9 +684,8 @@ int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(mtl_dsp_core_get, "SND_SOC_SOF_INTEL_MTL");
 
-int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
+static int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 	int ret;
@@ -710,7 +701,6 @@ int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(mtl_dsp_core_put, "SND_SOC_SOF_INTEL_MTL");
 
 int sof_mtl_set_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *dsp_ops)
 {
