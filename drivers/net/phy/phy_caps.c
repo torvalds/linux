@@ -60,6 +60,9 @@ static int speed_duplex_to_capa(int speed, unsigned int duplex)
 #define for_each_link_caps_asc_speed(cap) \
 	for (cap = link_caps; cap < &link_caps[__LINK_CAPA_MAX]; cap++)
 
+#define for_each_link_caps_desc_speed(cap) \
+	for (cap = &link_caps[__LINK_CAPA_MAX - 1]; cap >= link_caps; cap--)
+
 /**
  * phy_caps_init() - Initializes the link_caps array from the link_mode_params.
  *
@@ -120,4 +123,20 @@ size_t phy_caps_speeds(unsigned int *speeds, size_t size,
 	}
 
 	return count;
+}
+
+/**
+ * phy_caps_linkmode_max_speed() - Clamp a linkmodes set to a max speed
+ * @max_speed: Speed limit for the linkmode set
+ * @linkmodes: Linkmodes to limit
+ */
+void phy_caps_linkmode_max_speed(u32 max_speed, unsigned long *linkmodes)
+{
+	struct link_capabilities *lcap;
+
+	for_each_link_caps_desc_speed(lcap)
+		if (lcap->speed > max_speed)
+			linkmode_andnot(linkmodes, linkmodes, lcap->linkmodes);
+		else
+			break;
 }
