@@ -11,6 +11,8 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	/include/ "amd-seattle-clks.dtsi"
+
 	gic0: interrupt-controller@e1101000 {
 		compatible = "arm,gic-400", "arm,cortex-a15-gic";
 		interrupt-controller;
@@ -50,8 +52,6 @@
 		 * - DRAM range [0x8000000000 to 0xffffffffff]
 		 */
 		dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
-
-		/include/ "amd-seattle-clks.dtsi"
 
 		sata0: sata@e0300000 {
 			compatible = "snps,dwc-ahci";
