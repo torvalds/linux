@@ -554,9 +554,9 @@ static int ethnl_default_dump_one(struct sk_buff *skb, struct net_device *dev,
 
 	ethnl_init_reply_data(ctx->reply_data, ctx->ops, dev);
 	rtnl_lock();
-	netdev_lock_ops(ctx->req_info->dev);
+	netdev_lock_ops(dev);
 	ret = ctx->ops->prepare_data(ctx->req_info, ctx->reply_data, info);
-	netdev_unlock_ops(ctx->req_info->dev);
+	netdev_unlock_ops(dev);
 	rtnl_unlock();
 	if (ret < 0)
 		goto out;
