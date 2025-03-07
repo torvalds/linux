@@ -112,6 +112,10 @@
 #define FEATURE_SNPAVICSUP_GAM(x) \
 	(FIELD_GET(FEATURE_SNPAVICSUP, x) == 0x1)
 
+#define FEATURE_NUM_INT_REMAP_SUP	GENMASK_ULL(9, 8)
+#define FEATURE_NUM_INT_REMAP_SUP_2K(x) \
+	(FIELD_GET(FEATURE_NUM_INT_REMAP_SUP, x) == 0x1)
+
 /* Note:
  * The current driver only support 16-bit PASID.
  * Currently, hardware only implement upto 16-bit PASID
@@ -175,6 +179,9 @@
 #define CONTROL_GAM_EN		25
 #define CONTROL_GALOG_EN	28
 #define CONTROL_GAINT_EN	29
+#define CONTROL_NUM_INT_REMAP_MODE	43
+#define CONTROL_NUM_INT_REMAP_MODE_MASK	0x03
+#define CONTROL_NUM_INT_REMAP_MODE_2K	0x01
 #define CONTROL_EPH_EN		45
 #define CONTROL_XT_EN		50
 #define CONTROL_INTCAPXT_EN	51
@@ -309,14 +316,13 @@
 #define DTE_IRQ_REMAP_INTCTL    (2ULL << 60)
 #define DTE_IRQ_REMAP_ENABLE    1ULL
 
-/*
- * AMD IOMMU hardware only support 512 IRTEs despite
- * the architectural limitation of 2048 entries.
- */
 #define DTE_INTTABLEN_MASK      (0xfULL << 1)
 #define DTE_INTTABLEN_VALUE_512 9ULL
 #define DTE_INTTABLEN_512       (DTE_INTTABLEN_VALUE_512 << 1)
 #define MAX_IRQS_PER_TABLE_512  BIT(DTE_INTTABLEN_VALUE_512)
+#define DTE_INTTABLEN_VALUE_2K	11ULL
+#define DTE_INTTABLEN_2K	(DTE_INTTABLEN_VALUE_2K << 1)
+#define MAX_IRQS_PER_TABLE_2K	BIT(DTE_INTTABLEN_VALUE_2K)
 
 #define PAGE_MODE_NONE    0x00
 #define PAGE_MODE_1_LEVEL 0x01
@@ -847,6 +853,7 @@ struct iommu_dev_data {
 	struct device *dev;
 	u16 devid;			  /* PCI Device ID */
 
+	unsigned int max_irqs;		  /* Maximum IRQs supported by device */
 	u32 max_pasids;			  /* Max supported PASIDs */
 	u32 flags;			  /* Holds AMD_IOMMU_DEVICE_FLAG_<*> */
 	int ats_qdep;
