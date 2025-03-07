@@ -502,6 +502,39 @@ int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 		offset += sizeof(*tuple) + tuple->size;
 	}
 
+	/* Get the hardware configuration */
+	msg.primary = SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MOD_ID(SOF_IPC4_MOD_INIT_BASEFW_MOD_ID);
+	msg.primary |= SOF_IPC4_MOD_INSTANCE(SOF_IPC4_MOD_INIT_BASEFW_INSTANCE_ID);
+	msg.extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(SOF_IPC4_FW_PARAM_HW_CONFIG_GET);
+
+	msg.data_size = sdev->ipc->max_payload_size;
+
+	ret = iops->set_get_data(sdev, &msg, msg.data_size, false);
+	if (ret)
+		goto out;
+
+	offset = 0;
+	while (offset < msg.data_size) {
+		tuple = (struct sof_ipc4_tuple *)((u8 *)msg.data_ptr + offset);
+
+		switch (tuple->type) {
+		case SOF_IPC4_HW_CFG_INTEL_MIC_PRIVACY_CAPS:
+			if (ipc4_data->intel_configure_mic_privacy) {
+				struct sof_ipc4_intel_mic_privacy_cap *caps;
+
+				caps = (struct sof_ipc4_intel_mic_privacy_cap *)tuple->value;
+				ipc4_data->intel_configure_mic_privacy(sdev, caps);
+			}
+			break;
+		default:
+			break;
+		}
+
+		offset += sizeof(*tuple) + tuple->size;
+	}
+
 out:
 	kfree(msg.data_ptr);
 

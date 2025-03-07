@@ -396,6 +396,7 @@ enum sof_ipc4_base_fw_params {
 	SOF_IPC4_FW_PARAM_MODULES_INFO_GET,
 	SOF_IPC4_FW_PARAM_LIBRARIES_INFO_GET = 16,
 	SOF_IPC4_FW_PARAM_SYSTEM_TIME = 20,
+	SOF_IPC4_FW_PARAM_MIC_PRIVACY_STATE_CHANGE = 35,
 };
 
 enum sof_ipc4_fw_config_params {
@@ -445,6 +446,18 @@ struct sof_ipc4_dx_state_info {
 	/* core state: 0: put core_id to D3; 1: put core_id to D0 */
 	uint32_t dx_mask;
 } __packed __aligned(4);
+
+enum sof_ipc4_hw_config_params {
+	SOF_IPC4_HW_CFG_INTEL_MIC_PRIVACY_CAPS = 11,
+};
+
+#define SOF_IPC_INTEL_MIC_PRIVACY_VERSION_PTL	1
+
+struct sof_ipc4_intel_mic_privacy_cap {
+	uint32_t version;
+	uint32_t capabilities_length;
+	uint32_t capabilities[];
+} __packed;
 
 /* Reply messages */
 

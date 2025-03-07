@@ -11,6 +11,7 @@
 
 #include <linux/idr.h>
 #include <sound/sof/ext_manifest4.h>
+#include <sound/sof/ipc4/header.h>
 #include "sof-priv.h"
 
 /* The DSP window indices are fixed */
@@ -89,6 +90,8 @@ struct sof_ipc4_fw_data {
 
 	int (*load_library)(struct snd_sof_dev *sdev,
 			    struct sof_ipc4_fw_library *fw_lib, bool reload);
+	void (*intel_configure_mic_privacy)(struct snd_sof_dev *sdev,
+					    struct sof_ipc4_intel_mic_privacy_cap *caps);
 	struct mutex pipeline_state_mutex; /* protect pipeline triggers, ref counts and states */
 };
 
@@ -117,5 +120,7 @@ void sof_ipc4_update_cpc_from_manifest(struct snd_sof_dev *sdev,
 
 size_t sof_ipc4_find_debug_slot_offset_by_type(struct snd_sof_dev *sdev,
 					       u32 slot_type);
+
+void sof_ipc4_mic_privacy_state_change(struct snd_sof_dev *sdev, bool state);
 
 #endif
