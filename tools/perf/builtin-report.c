@@ -1673,8 +1673,6 @@ repeat:
 
 	if (symbol_conf.report_hierarchy) {
 		/* disable incompatible options */
-		symbol_conf.cumulate_callchain = false;
-
 		if (field_order) {
 			pr_err("Error: --hierarchy and --fields options cannot be used together\n");
 			parse_options_usage(report_usage, options, "F", 1);
