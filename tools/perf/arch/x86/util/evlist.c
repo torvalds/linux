@@ -76,12 +76,15 @@ int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
 		 * topdown metrics events are already in same group with slots
 		 * event, do nothing.
 		 */
-		if (arch_is_topdown_metrics(lhs) && !arch_is_topdown_metrics(rhs) &&
-		    lhs->core.leader != rhs->core.leader)
-			return -1;
-		if (!arch_is_topdown_metrics(lhs) && arch_is_topdown_metrics(rhs) &&
-		    lhs->core.leader != rhs->core.leader)
-			return 1;
+		if (lhs->core.leader != rhs->core.leader) {
+			bool lhs_topdown = arch_is_topdown_metrics(lhs);
+			bool rhs_topdown = arch_is_topdown_metrics(rhs);
+
+			if (lhs_topdown && !rhs_topdown)
+				return -1;
+			if (!lhs_topdown && rhs_topdown)
+				return 1;
+		}
 	}
 
 	/* Retire latency event should not be group leader*/
