@@ -67,8 +67,6 @@ extern struct list_head xen_pcibk_quirks;
 struct pci_dev *pcistub_get_pci_dev_by_slot(struct xen_pcibk_device *pdev,
 					    int domain, int bus,
 					    int slot, int func);
-struct pci_dev *pcistub_get_pci_dev(struct xen_pcibk_device *pdev,
-				    struct pci_dev *dev);
 void pcistub_put_pci_dev(struct pci_dev *dev);
 
 static inline bool xen_pcibk_pv_support(void)
