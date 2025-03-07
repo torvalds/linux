@@ -79,24 +79,22 @@ static void __p_read_format(char *buf, size_t size, u64 value)
 #define ENUM_ID_TO_STR_CASE(x) case x: return (#x);
 static const char *stringify_perf_type_id(struct perf_pmu *pmu, u32 type)
 {
-	if (pmu)
-		return pmu->name;
-
 	switch (type) {
 	ENUM_ID_TO_STR_CASE(PERF_TYPE_HARDWARE)
 	ENUM_ID_TO_STR_CASE(PERF_TYPE_SOFTWARE)
 	ENUM_ID_TO_STR_CASE(PERF_TYPE_TRACEPOINT)
 	ENUM_ID_TO_STR_CASE(PERF_TYPE_HW_CACHE)
-	ENUM_ID_TO_STR_CASE(PERF_TYPE_RAW)
 	ENUM_ID_TO_STR_CASE(PERF_TYPE_BREAKPOINT)
+	case PERF_TYPE_RAW:
+		return pmu ? pmu->name : "PERF_TYPE_RAW";
 	default:
-		return NULL;
+		return pmu ? pmu->name : NULL;
 	}
 }
 
 static const char *stringify_perf_hw_id(u64 value)
 {
-	switch (value) {
+	switch (value & PERF_HW_EVENT_MASK) {
 	ENUM_ID_TO_STR_CASE(PERF_COUNT_HW_CPU_CYCLES)
 	ENUM_ID_TO_STR_CASE(PERF_COUNT_HW_INSTRUCTIONS)
 	ENUM_ID_TO_STR_CASE(PERF_COUNT_HW_CACHE_REFERENCES)
@@ -169,79 +167,100 @@ static const char *stringify_perf_sw_id(u64 value)
 }
 #undef ENUM_ID_TO_STR_CASE
 
-#define PRINT_ID(_s, _f)					\
-do {								\
-	const char *__s = _s;					\
-	if (__s == NULL)					\
-		snprintf(buf, size, _f, value);			\
-	else							\
-		snprintf(buf, size, _f" (%s)", value, __s);	\
-} while (0)
-#define print_id_unsigned(_s)	PRINT_ID(_s, "%"PRIu64)
-#define print_id_hex(_s)	PRINT_ID(_s, "%#"PRIx64)
-
-static void __p_type_id(struct perf_pmu *pmu, char *buf, size_t size, u64 value)
+static void print_id_unsigned(char *buf, size_t size, u64 value, const char *s)
 {
-	print_id_unsigned(stringify_perf_type_id(pmu, value));
+	if (s == NULL)
+		snprintf(buf, size, "%"PRIu64, value);
+	else
+		snprintf(buf, size, "%"PRIu64" (%s)", value, s);
 }
 
-static void __p_config_hw_id(char *buf, size_t size, u64 value)
+static void print_id_hex(char *buf, size_t size, u64 value, const char *s)
 {
-	print_id_hex(stringify_perf_hw_id(value));
-}
-
-static void __p_config_sw_id(char *buf, size_t size, u64 value)
-{
-	print_id_hex(stringify_perf_sw_id(value));
-}
-
-static void __p_config_hw_cache_id(char *buf, size_t size, u64 value)
-{
-	const char *hw_cache_str = stringify_perf_hw_cache_id(value & 0xff);
-	const char *hw_cache_op_str =
-		stringify_perf_hw_cache_op_id((value & 0xff00) >> 8);
-	const char *hw_cache_op_result_str =
-		stringify_perf_hw_cache_op_result_id((value & 0xff0000) >> 16);
-
-	if (hw_cache_str == NULL || hw_cache_op_str == NULL ||
-	    hw_cache_op_result_str == NULL) {
+	if (s == NULL)
 		snprintf(buf, size, "%#"PRIx64, value);
+	else
+		snprintf(buf, size, "%#"PRIx64" (%s)", value, s);
+}
+
+static void __p_type_id(char *buf, size_t size, struct perf_pmu *pmu, u32 type)
+{
+	print_id_unsigned(buf, size, type, stringify_perf_type_id(pmu, type));
+}
+
+static void __p_config_hw_id(char *buf, size_t size, struct perf_pmu *pmu, u64 config)
+{
+	const char *name = stringify_perf_hw_id(config);
+
+	if (name == NULL) {
+		if (pmu == NULL) {
+			snprintf(buf, size, "%#"PRIx64, config);
+		} else {
+			snprintf(buf, size, "%#"PRIx64" (%s/config=%#"PRIx64"/)", config, pmu->name,
+				 config);
+		}
 	} else {
-		snprintf(buf, size, "%#"PRIx64" (%s | %s | %s)", value,
-			 hw_cache_op_result_str, hw_cache_op_str, hw_cache_str);
+		if (pmu == NULL)
+			snprintf(buf, size, "%#"PRIx64" (%s)", config, name);
+		else
+			snprintf(buf, size, "%#"PRIx64" (%s/%s/)", config, pmu->name, name);
 	}
 }
 
-static void __p_config_tracepoint_id(char *buf, size_t size, u64 value)
+static void __p_config_sw_id(char *buf, size_t size, u64 id)
 {
-	char *str = tracepoint_id_to_name(value);
+	print_id_hex(buf, size, id, stringify_perf_sw_id(id));
+}
 
-	print_id_hex(str);
+static void __p_config_hw_cache_id(char *buf, size_t size, struct perf_pmu *pmu, u64 config)
+{
+	const char *hw_cache_str = stringify_perf_hw_cache_id(config & 0xff);
+	const char *hw_cache_op_str =
+		stringify_perf_hw_cache_op_id((config & 0xff00) >> 8);
+	const char *hw_cache_op_result_str =
+		stringify_perf_hw_cache_op_result_id((config & 0xff0000) >> 16);
+
+	if (hw_cache_str == NULL || hw_cache_op_str == NULL || hw_cache_op_result_str == NULL) {
+		if (pmu == NULL) {
+			snprintf(buf, size, "%#"PRIx64, config);
+		} else {
+			snprintf(buf, size, "%#"PRIx64" (%s/config=%#"PRIx64"/)", config, pmu->name,
+				 config);
+		}
+	} else {
+		if (pmu == NULL) {
+			snprintf(buf, size, "%#"PRIx64" (%s | %s | %s)", config,
+				 hw_cache_op_result_str, hw_cache_op_str, hw_cache_str);
+		} else {
+			snprintf(buf, size, "%#"PRIx64" (%s/%s | %s | %s/)", config, pmu->name,
+				 hw_cache_op_result_str, hw_cache_op_str, hw_cache_str);
+		}
+	}
+}
+
+static void __p_config_tracepoint_id(char *buf, size_t size, u64 id)
+{
+	char *str = tracepoint_id_to_name(id);
+
+	print_id_hex(buf, size, id, str);
 	free(str);
 }
 
-static void __p_config_id(struct perf_pmu *pmu, char *buf, size_t size, u32 type, u64 value)
+static void __p_config_id(struct perf_pmu *pmu, char *buf, size_t size, u32 type, u64 config)
 {
-	const char *name = perf_pmu__name_from_config(pmu, value);
-
-	if (name) {
-		print_id_hex(name);
-		return;
-	}
 	switch (type) {
 	case PERF_TYPE_HARDWARE:
-		return __p_config_hw_id(buf, size, value);
+		return __p_config_hw_id(buf, size, pmu, config);
 	case PERF_TYPE_SOFTWARE:
-		return __p_config_sw_id(buf, size, value);
+		return __p_config_sw_id(buf, size, config);
 	case PERF_TYPE_HW_CACHE:
-		return __p_config_hw_cache_id(buf, size, value);
+		return __p_config_hw_cache_id(buf, size, pmu, config);
 	case PERF_TYPE_TRACEPOINT:
-		return __p_config_tracepoint_id(buf, size, value);
+		return __p_config_tracepoint_id(buf, size, config);
 	case PERF_TYPE_RAW:
 	case PERF_TYPE_BREAKPOINT:
 	default:
-		snprintf(buf, size, "%#"PRIx64, value);
-		return;
+		return print_id_hex(buf, size, config, perf_pmu__name_from_config(pmu, config));
 	}
 }
 
@@ -253,7 +272,7 @@ static void __p_config_id(struct perf_pmu *pmu, char *buf, size_t size, u32 type
 #define p_sample_type(val)	__p_sample_type(buf, BUF_SIZE, val)
 #define p_branch_sample_type(val) __p_branch_sample_type(buf, BUF_SIZE, val)
 #define p_read_format(val)	__p_read_format(buf, BUF_SIZE, val)
-#define p_type_id(val)		__p_type_id(pmu, buf, BUF_SIZE, val)
+#define p_type_id(val)		__p_type_id(buf, BUF_SIZE, pmu, val)
 #define p_config_id(val)	__p_config_id(pmu, buf, BUF_SIZE, attr->type, val)
 
 #define PRINT_ATTRn(_n, _f, _p, _a)			\
@@ -272,6 +291,13 @@ int perf_event_attr__fprintf(FILE *fp, struct perf_event_attr *attr,
 	struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
 	char buf[BUF_SIZE];
 	int ret = 0;
+
+	if (!pmu && (attr->type == PERF_TYPE_HARDWARE || attr->type == PERF_TYPE_HW_CACHE)) {
+		u32 extended_type = attr->config >> PERF_PMU_TYPE_SHIFT;
+
+		if (extended_type)
+			pmu = perf_pmus__find_by_type(extended_type);
+	}
 
 	PRINT_ATTRn("type", type, p_type_id, true);
 	PRINT_ATTRf(size, p_unsigned);
