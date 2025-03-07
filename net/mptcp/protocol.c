@@ -2681,7 +2681,7 @@ static void mptcp_worker(struct work_struct *work)
 
 	mptcp_check_fastclose(msk);
 
-	mptcp_pm_nl_work(msk);
+	mptcp_pm_worker(msk);
 
 	mptcp_check_send_data_fin(sk);
 	mptcp_check_data_fin_ack(sk);
