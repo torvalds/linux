@@ -360,7 +360,7 @@ struct ftrace_likely_data {
 #endif
 
 /* Do not trap wrapping arithmetic within an annotated function. */
-#ifdef CONFIG_UBSAN_SIGNED_WRAP
+#ifdef CONFIG_UBSAN_INTEGER_WRAP
 # define __signed_wrap __attribute__((no_sanitize("signed-integer-overflow")))
 #else
 # define __signed_wrap
