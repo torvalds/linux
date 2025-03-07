@@ -11,6 +11,7 @@ mod quote;
 mod concat_idents;
 mod export;
 mod helpers;
+mod kunit;
 mod module;
 mod paste;
 mod vtable;
@@ -391,4 +392,31 @@ pub fn paste(input: TokenStream) -> TokenStream {
     let mut tokens = input.into_iter().collect();
     paste::expand(&mut tokens);
     tokens.into_iter().collect()
+}
+
+/// Registers a KUnit test suite and its test cases using a user-space like syntax.
+///
+/// This macro should be used on modules. If `CONFIG_KUNIT` (in `.config`) is `n`, the target module
+/// is ignored.
+///
+/// # Examples
+///
+/// ```ignore
+/// # use macros::kunit_tests;
+/// #[kunit_tests(kunit_test_suit_name)]
+/// mod tests {
+///     #[test]
+///     fn foo() {
+///         assert_eq!(1, 1);
+///     }
+///
+///     #[test]
+///     fn bar() {
+///         assert_eq!(2, 2);
+///     }
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn kunit_tests(attr: TokenStream, ts: TokenStream) -> TokenStream {
+    kunit::kunit_tests(attr, ts)
 }

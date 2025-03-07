@@ -40,6 +40,8 @@ pub fn info(args: fmt::Arguments<'_>) {
     }
 }
 
+use macros::kunit_tests;
+
 /// Asserts that a boolean expression is `true` at runtime.
 ///
 /// Public but hidden since it should only be used from generated tests.
@@ -284,4 +286,13 @@ macro_rules! kunit_unsafe_test_suite {
                 unsafe { ::core::ptr::addr_of_mut!(KUNIT_TEST_SUITE) };
         };
     };
+}
+
+#[kunit_tests(rust_kernel_kunit)]
+mod tests {
+    #[test]
+    fn rust_test_kunit_example_test() {
+        #![expect(clippy::eq_op)]
+        assert_eq!(1 + 1, 2);
+    }
 }
