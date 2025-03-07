@@ -151,7 +151,7 @@ struct snps_hdmirx_dev {
 	bool hpd_trigger_level_high;
 	bool tmds_clk_ratio;
 	bool plugged;
-	u32 num_clks;
+	int num_clks;
 	u32 edid_blocks_written;
 	u32 cur_fmt_fourcc;
 	u32 color_depth;
