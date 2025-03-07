@@ -922,7 +922,6 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 	struct ftrace_graph_ent *call;
 	unsigned long long duration;
 	unsigned long ret_func;
-	unsigned long func;
 	int args_size;
 	int cpu = iter->cpu;
 	int i;
@@ -932,8 +931,6 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 	graph_ret = &ret_entry->ret;
 	call = &entry->graph_ent;
 	duration = ret_entry->rettime - ret_entry->calltime;
-
-	func = call->func + iter->tr->text_delta;
 
 	if (data) {
 		struct fgraph_cpu_data *cpu_data;
