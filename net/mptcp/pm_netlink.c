@@ -838,9 +838,20 @@ int mptcp_pm_mp_prio_send_ack(struct mptcp_sock *msk,
 	return -EINVAL;
 }
 
-static void mptcp_pm_nl_rm_addr_or_subflow(struct mptcp_sock *msk,
-					   const struct mptcp_rm_list *rm_list,
-					   enum linux_mptcp_mib_field rm_type)
+static void mptcp_pm_nl_rm_addr(struct mptcp_sock *msk, u8 rm_id)
+{
+	if (rm_id && WARN_ON_ONCE(msk->pm.add_addr_accepted == 0)) {
+		/* Note: if the subflow has been closed before, this
+		 * add_addr_accepted counter will not be decremented.
+		 */
+		if (--msk->pm.add_addr_accepted < mptcp_pm_get_add_addr_accept_max(msk))
+			WRITE_ONCE(msk->pm.accept_addr, true);
+	}
+}
+
+static void mptcp_pm_rm_addr_or_subflow(struct mptcp_sock *msk,
+					const struct mptcp_rm_list *rm_list,
+					enum linux_mptcp_mib_field rm_type)
 {
 	struct mptcp_subflow_context *subflow, *tmp;
 	struct sock *sk = (struct sock *)msk;
@@ -893,35 +904,23 @@ static void mptcp_pm_nl_rm_addr_or_subflow(struct mptcp_sock *msk,
 				__MPTCP_INC_STATS(sock_net(sk), rm_type);
 		}
 
-		if (rm_type == MPTCP_MIB_RMADDR)
+		if (rm_type == MPTCP_MIB_RMADDR) {
 			__MPTCP_INC_STATS(sock_net(sk), rm_type);
-
-		if (!removed)
-			continue;
-
-		if (!mptcp_pm_is_kernel(msk))
-			continue;
-
-		if (rm_type == MPTCP_MIB_RMADDR && rm_id &&
-		    !WARN_ON_ONCE(msk->pm.add_addr_accepted == 0)) {
-			/* Note: if the subflow has been closed before, this
-			 * add_addr_accepted counter will not be decremented.
-			 */
-			if (--msk->pm.add_addr_accepted < mptcp_pm_get_add_addr_accept_max(msk))
-				WRITE_ONCE(msk->pm.accept_addr, true);
+			if (removed && mptcp_pm_is_kernel(msk))
+				mptcp_pm_nl_rm_addr(msk, rm_id);
 		}
 	}
 }
 
-static void mptcp_pm_nl_rm_addr_received(struct mptcp_sock *msk)
+static void mptcp_pm_rm_addr_recv(struct mptcp_sock *msk)
 {
-	mptcp_pm_nl_rm_addr_or_subflow(msk, &msk->pm.rm_list_rx, MPTCP_MIB_RMADDR);
+	mptcp_pm_rm_addr_or_subflow(msk, &msk->pm.rm_list_rx, MPTCP_MIB_RMADDR);
 }
 
-static void mptcp_pm_nl_rm_subflow_received(struct mptcp_sock *msk,
-					    const struct mptcp_rm_list *rm_list)
+static void mptcp_pm_rm_subflow(struct mptcp_sock *msk,
+				const struct mptcp_rm_list *rm_list)
 {
-	mptcp_pm_nl_rm_addr_or_subflow(msk, rm_list, MPTCP_MIB_RMSUBFLOW);
+	mptcp_pm_rm_addr_or_subflow(msk, rm_list, MPTCP_MIB_RMSUBFLOW);
 }
 
 void mptcp_pm_worker(struct mptcp_sock *msk)
@@ -946,7 +945,7 @@ void mptcp_pm_worker(struct mptcp_sock *msk)
 	}
 	if (pm->status & BIT(MPTCP_PM_RM_ADDR_RECEIVED)) {
 		pm->status &= ~BIT(MPTCP_PM_RM_ADDR_RECEIVED);
-		mptcp_pm_nl_rm_addr_received(msk);
+		mptcp_pm_rm_addr_recv(msk);
 	}
 	if (pm->status & BIT(MPTCP_PM_ESTABLISHED)) {
 		pm->status &= ~BIT(MPTCP_PM_ESTABLISHED);
@@ -1538,7 +1537,7 @@ static int mptcp_nl_remove_subflow_and_signal_addr(struct net *net,
 		list.ids[0] = mptcp_endp_get_local_id(msk, addr);
 		if (remove_subflow) {
 			spin_lock_bh(&msk->pm.lock);
-			mptcp_pm_nl_rm_subflow_received(msk, &list);
+			mptcp_pm_rm_subflow(msk, &list);
 			spin_unlock_bh(&msk->pm.lock);
 		}
 
@@ -1583,7 +1582,7 @@ static int mptcp_nl_remove_id_zero_address(struct net *net,
 		lock_sock(sk);
 		spin_lock_bh(&msk->pm.lock);
 		mptcp_pm_remove_addr(msk, &list);
-		mptcp_pm_nl_rm_subflow_received(msk, &list);
+		mptcp_pm_rm_subflow(msk, &list);
 		__mark_subflow_endp_available(msk, 0);
 		spin_unlock_bh(&msk->pm.lock);
 		release_sock(sk);
@@ -1670,7 +1669,7 @@ static void mptcp_pm_flush_addrs_and_subflows(struct mptcp_sock *msk,
 		mptcp_pm_remove_addr(msk, &alist);
 	}
 	if (slist.nr)
-		mptcp_pm_nl_rm_subflow_received(msk, &slist);
+		mptcp_pm_rm_subflow(msk, &slist);
 	/* Reset counters: maybe some subflows have been removed before */
 	bitmap_fill(msk->pm.id_avail_bitmap, MPTCP_PM_MAX_ADDR_ID + 1);
 	msk->pm.local_addr_used = 0;
@@ -1910,7 +1909,7 @@ static void mptcp_pm_nl_fullmesh(struct mptcp_sock *msk,
 	list.ids[list.nr++] = mptcp_endp_get_local_id(msk, addr);
 
 	spin_lock_bh(&msk->pm.lock);
-	mptcp_pm_nl_rm_subflow_received(msk, &list);
+	mptcp_pm_rm_subflow(msk, &list);
 	__mark_subflow_endp_available(msk, list.ids[0]);
 	mptcp_pm_create_subflow_or_signal_addr(msk);
 	spin_unlock_bh(&msk->pm.lock);
