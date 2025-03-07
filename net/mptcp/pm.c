@@ -599,6 +599,14 @@ bool mptcp_pm_addr_families_match(const struct sock *sk,
 #endif
 }
 
+void mptcp_pm_destroy(struct mptcp_sock *msk)
+{
+	mptcp_pm_free_anno_list(msk);
+
+	if (mptcp_pm_is_userspace(msk))
+		mptcp_userspace_pm_free_local_addr_list(msk);
+}
+
 void mptcp_pm_data_reset(struct mptcp_sock *msk)
 {
 	u8 pm_type = mptcp_get_pm_type(sock_net((struct sock *)msk));
