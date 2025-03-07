@@ -181,6 +181,8 @@ EXPORT_SYMBOL(set_blocksize);
 
 int sb_set_blocksize(struct super_block *sb, int size)
 {
+	if (!(sb->s_type->fs_flags & FS_LBS) && size > PAGE_SIZE)
+		return 0;
 	if (set_blocksize(sb->s_bdev_file, size))
 		return 0;
 	/* If we get here, we know size is validated */
