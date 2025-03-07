@@ -449,19 +449,6 @@ int power_supply_get_property_from_supplier(struct power_supply *psy,
 }
 EXPORT_SYMBOL_GPL(power_supply_get_property_from_supplier);
 
-int power_supply_set_battery_charged(struct power_supply *psy)
-{
-	if (atomic_read(&psy->use_cnt) >= 0 &&
-			psy->desc->type == POWER_SUPPLY_TYPE_BATTERY &&
-			psy->desc->set_charged) {
-		psy->desc->set_charged(psy);
-		return 0;
-	}
-
-	return -EINVAL;
-}
-EXPORT_SYMBOL_GPL(power_supply_set_battery_charged);
-
 static int power_supply_match_device_by_name(struct device *dev, const void *data)
 {
 	const char *name = data;
