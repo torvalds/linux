@@ -381,6 +381,57 @@ int io_prep_write_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return __io_prep_rw(req, sqe, ITER_SOURCE);
 }
 
+static int io_rw_prep_reg_vec(struct io_kiocb *req, int ddir)
+{
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+	struct io_async_rw *io = req->async_data;
+	const struct iovec __user *uvec;
+	size_t uvec_segs = rw->len;
+	struct iovec *iov;
+	int iovec_off, ret;
+	void *res;
+
+	if (uvec_segs > io->vec.nr) {
+		ret = io_vec_realloc(&io->vec, uvec_segs);
+		if (ret)
+			return ret;
+		req->flags |= REQ_F_NEED_CLEANUP;
+	}
+	/* pad iovec to the right */
+	iovec_off = io->vec.nr - uvec_segs;
+	iov = io->vec.iovec + iovec_off;
+	uvec = u64_to_user_ptr(rw->addr);
+	res = iovec_from_user(uvec, uvec_segs, uvec_segs, iov,
+			      io_is_compat(req->ctx));
+	if (IS_ERR(res))
+		return PTR_ERR(res);
+
+	ret = io_import_reg_vec(ddir, &io->iter, req, &io->vec,
+				uvec_segs, iovec_off, 0);
+	iov_iter_save_state(&io->iter, &io->iter_state);
+	return ret;
+}
+
+int io_prep_readv_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int ret;
+
+	ret = __io_prep_rw(req, sqe, ITER_DEST);
+	if (unlikely(ret))
+		return ret;
+	return io_rw_prep_reg_vec(req, ITER_DEST);
+}
+
+int io_prep_writev_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int ret;
+
+	ret = __io_prep_rw(req, sqe, ITER_SOURCE);
+	if (unlikely(ret))
+		return ret;
+	return io_rw_prep_reg_vec(req, ITER_SOURCE);
+}
+
 /*
  * Multishot read is prepared just like a normal read/write request, only
  * difference is that we set the MULTISHOT flag.

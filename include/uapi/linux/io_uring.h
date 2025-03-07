@@ -281,6 +281,8 @@ enum io_uring_op {
 	IORING_OP_LISTEN,
 	IORING_OP_RECV_ZC,
 	IORING_OP_EPOLL_WAIT,
+	IORING_OP_READV_FIXED,
+	IORING_OP_WRITEV_FIXED,
 
 	/* this goes last, obviously */
 	IORING_OP_LAST,
