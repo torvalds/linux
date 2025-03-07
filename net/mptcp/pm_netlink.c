@@ -808,10 +808,10 @@ void mptcp_pm_addr_send_ack(struct mptcp_sock *msk)
 		mptcp_pm_send_ack(msk, alt, false, false);
 }
 
-int mptcp_pm_nl_mp_prio_send_ack(struct mptcp_sock *msk,
-				 struct mptcp_addr_info *addr,
-				 struct mptcp_addr_info *rem,
-				 u8 bkup)
+int mptcp_pm_mp_prio_send_ack(struct mptcp_sock *msk,
+			      struct mptcp_addr_info *addr,
+			      struct mptcp_addr_info *rem,
+			      u8 bkup)
 {
 	struct mptcp_subflow_context *subflow;
 
@@ -1936,7 +1936,7 @@ static void mptcp_nl_set_flags(struct net *net,
 
 		lock_sock(sk);
 		if (changed & MPTCP_PM_ADDR_FLAG_BACKUP)
-			mptcp_pm_nl_mp_prio_send_ack(msk, &local->addr, NULL, bkup);
+			mptcp_pm_mp_prio_send_ack(msk, &local->addr, NULL, bkup);
 		/* Subflows will only be recreated if the SUBFLOW flag is set */
 		if (is_subflow && (changed & MPTCP_PM_ADDR_FLAG_FULLMESH))
 			mptcp_pm_nl_fullmesh(msk, &local->addr);

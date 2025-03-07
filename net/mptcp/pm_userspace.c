@@ -605,10 +605,10 @@ int mptcp_userspace_pm_set_flags(struct mptcp_pm_addr_entry *local,
 	spin_unlock_bh(&msk->pm.lock);
 
 	lock_sock(sk);
-	ret = mptcp_pm_nl_mp_prio_send_ack(msk, &local->addr, &rem, bkup);
+	ret = mptcp_pm_mp_prio_send_ack(msk, &local->addr, &rem, bkup);
 	release_sock(sk);
 
-	/* mptcp_pm_nl_mp_prio_send_ack() only fails in one case */
+	/* mptcp_pm_mp_prio_send_ack() only fails in one case */
 	if (ret < 0)
 		GENL_SET_ERR_MSG(info, "subflow not found");
 
