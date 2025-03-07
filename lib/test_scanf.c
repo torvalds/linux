@@ -24,12 +24,12 @@ static char *test_buffer __initdata;
 static char *fmt_buffer __initdata;
 static struct rnd_state rnd_state __initdata;
 
-typedef int (*check_fn)(const void *check_data, const char *string,
-			const char *fmt, int n_args, va_list ap);
+typedef int (*check_fn)(const char *file, const int line, const void *check_data,
+			const char *string, const char *fmt, int n_args, va_list ap);
 
-static void __scanf(4, 6) __init
-_test(check_fn fn, const void *check_data, const char *string, const char *fmt,
-	int n_args, ...)
+static void __scanf(6, 8) __init
+_test(const char *file, const int line, check_fn fn, const void *check_data, const char *string,
+	const char *fmt, int n_args, ...)
 {
 	va_list ap, ap_copy;
 	int ret;
@@ -42,12 +42,12 @@ _test(check_fn fn, const void *check_data, const char *string, const char *fmt,
 	va_end(ap_copy);
 
 	if (ret != n_args) {
-		pr_warn("vsscanf(\"%s\", \"%s\", ...) returned %d expected %d\n",
-			string, fmt, ret, n_args);
+		pr_warn("%s:%d: vsscanf(\"%s\", \"%s\", ...) returned %d expected %d\n",
+			file, line, string, fmt, ret, n_args);
 		goto fail;
 	}
 
-	ret = (*fn)(check_data, string, fmt, n_args, ap);
+	ret = (*fn)(file, line, check_data, string, fmt, n_args, ap);
 	if (ret)
 		goto fail;
 
@@ -67,88 +67,88 @@ do {										\
 		typeof(*expect) got = *va_arg(ap, typeof(expect));		\
 		pr_debug("\t" arg_fmt "\n", got);				\
 		if (got != *expect) {						\
-			pr_warn("vsscanf(\"%s\", \"%s\", ...) expected " arg_fmt " got " arg_fmt "\n", \
-				str, fmt, *expect, got);			\
+			pr_warn("%s:%d, vsscanf(\"%s\", \"%s\", ...) expected " arg_fmt " got " arg_fmt "\n", \
+				file, line, str, fmt, *expect, got);		\
 			return 1;						\
 		}								\
 	}									\
 	return 0;								\
 } while (0)
 
-static int __init check_ull(const void *check_data, const char *string,
-			    const char *fmt, int n_args, va_list ap)
+static int __init check_ull(const char *file, const int line, const void *check_data,
+			    const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const unsigned long long *pval = check_data;
 
 	_check_numbers_template("%llu", pval, string, fmt, n_args, ap);
 }
 
-static int __init check_ll(const void *check_data, const char *string,
-			   const char *fmt, int n_args, va_list ap)
+static int __init check_ll(const char *file, const int line, const void *check_data,
+			   const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const long long *pval = check_data;
 
 	_check_numbers_template("%lld", pval, string, fmt, n_args, ap);
 }
 
-static int __init check_ulong(const void *check_data, const char *string,
-			   const char *fmt, int n_args, va_list ap)
+static int __init check_ulong(const char *file, const int line, const void *check_data,
+			      const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const unsigned long *pval = check_data;
 
 	_check_numbers_template("%lu", pval, string, fmt, n_args, ap);
 }
 
-static int __init check_long(const void *check_data, const char *string,
-			  const char *fmt, int n_args, va_list ap)
+static int __init check_long(const char *file, const int line, const void *check_data,
+			     const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const long *pval = check_data;
 
 	_check_numbers_template("%ld", pval, string, fmt, n_args, ap);
 }
 
-static int __init check_uint(const void *check_data, const char *string,
-			     const char *fmt, int n_args, va_list ap)
+static int __init check_uint(const char *file, const int line, const void *check_data,
+			     const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const unsigned int *pval = check_data;
 
 	_check_numbers_template("%u", pval, string, fmt, n_args, ap);
 }
 
-static int __init check_int(const void *check_data, const char *string,
-			    const char *fmt, int n_args, va_list ap)
+static int __init check_int(const char *file, const int line, const void *check_data,
+			    const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const int *pval = check_data;
 
 	_check_numbers_template("%d", pval, string, fmt, n_args, ap);
 }
 
-static int __init check_ushort(const void *check_data, const char *string,
-			       const char *fmt, int n_args, va_list ap)
+static int __init check_ushort(const char *file, const int line, const void *check_data,
+			       const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const unsigned short *pval = check_data;
 
 	_check_numbers_template("%hu", pval, string, fmt, n_args, ap);
 }
 
-static int __init check_short(const void *check_data, const char *string,
-			       const char *fmt, int n_args, va_list ap)
+static int __init check_short(const char *file, const int line, const void *check_data,
+			      const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const short *pval = check_data;
 
 	_check_numbers_template("%hd", pval, string, fmt, n_args, ap);
 }
 
-static int __init check_uchar(const void *check_data, const char *string,
-			       const char *fmt, int n_args, va_list ap)
+static int __init check_uchar(const char *file, const int line, const void *check_data,
+			      const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const unsigned char *pval = check_data;
 
 	_check_numbers_template("%hhu", pval, string, fmt, n_args, ap);
 }
 
-static int __init check_char(const void *check_data, const char *string,
-			       const char *fmt, int n_args, va_list ap)
+static int __init check_char(const char *file, const int line, const void *check_data,
+			     const char *string, const char *fmt, int n_args, va_list ap)
 {
 	const signed char *pval = check_data;
 
@@ -196,7 +196,7 @@ do {									\
 	T result = ~expect_val; /* should be overwritten */		\
 									\
 	snprintf(test_buffer, BUF_SIZE, gen_fmt, expect_val);		\
-	_test(fn, &expect_val, test_buffer, "%" scan_fmt, 1, &result);	\
+	_test(__FILE__, __LINE__, fn, &expect_val, test_buffer, "%" scan_fmt, 1, &result);	\
 } while (0)
 
 #define simple_numbers_loop(T, gen_fmt, scan_fmt, fn)			\
@@ -344,7 +344,7 @@ static void __init append_delim(char *str_buf, int *str_buf_pos, int str_buf_len
 #define test_array_8(fn, check_data, string, fmt, arr)				\
 do {										\
 	BUILD_BUG_ON(ARRAY_SIZE(arr) != 8);					\
-	_test(fn, check_data, string, fmt, 8,					\
+	_test(__FILE__, __LINE__, fn, check_data, string, fmt, 8,		\
 		&(arr)[0], &(arr)[1], &(arr)[2], &(arr)[3],			\
 		&(arr)[4], &(arr)[5], &(arr)[6], &(arr)[7]);			\
 } while (0)
@@ -608,7 +608,7 @@ do {										\
 	const T expect[2] = { expect0, expect1 };				\
 	T result[2] = { (T)~expect[0], (T)~expect[1] };				\
 										\
-	_test(fn, &expect, str, scan_fmt, n_args, &result[0], &result[1]);	\
+	_test(__FILE__, __LINE__, fn, &expect, str, scan_fmt, n_args, &result[0], &result[1]);	\
 } while (0)
 
 /*
