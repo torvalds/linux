@@ -2427,6 +2427,15 @@ config ASYNC_RAID6_TEST
 config TEST_HEXDUMP
 	tristate "Test functions located in the hexdump module at runtime"
 
+config PRINTF_KUNIT_TEST
+	tristate "KUnit test printf() family of functions at runtime" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test the printf functions at runtime.
+
+	  If unsure, say N.
+
 config STRING_KUNIT_TEST
 	tristate "KUnit test string functions at runtime" if !KUNIT_ALL_TESTS
 	depends on KUNIT
@@ -2439,9 +2448,6 @@ config STRING_HELPERS_KUNIT_TEST
 
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
-
-config TEST_PRINTF
-	tristate "Test printf() family of functions at runtime"
 
 config TEST_SCANF
 	tristate "Test scanf() family of functions at runtime"
