@@ -71,6 +71,13 @@ enum MES_SCH_API_OPCODE {
 	MES_SCH_API_MAX = 0xFF
 };
 
+enum MES_RRMT_MODE {
+	MES_RRMT_MODE_LOCAL_XCD,
+	MES_RRMT_MODE_LOCAL_REMOTE_AID,
+	MES_RRMT_MODE_REMOTE_XCD,
+	MES_RRMT_MODE_REMOTE_MID
+};
+
 union MES_API_HEADER {
 	struct {
 		uint32_t type	  : 4; /* 0 - Invalid; 1 - Scheduling; 2 - TBD */

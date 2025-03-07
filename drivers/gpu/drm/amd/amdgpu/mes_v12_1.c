@@ -44,6 +44,14 @@ static int mes_v12_1_kiq_hw_fini(struct amdgpu_device *adev, uint32_t xcc_id);
 #define MES_EOP_SIZE   2048
 
 #define regCP_HQD_IB_CONTROL_MES_12_1_DEFAULT 0x100000
+#define XCC_REG_RANGE_0_LOW  0x1260     /* XCC gfxdec0 lower Bound */
+#define XCC_REG_RANGE_0_HIGH 0x3C00     /* XCC gfxdec0 upper Bound */
+#define XCC_REG_RANGE_1_LOW  0xA000     /* XCC gfxdec1 lower Bound */
+#define XCC_REG_RANGE_1_HIGH 0x10000    /* XCC gfxdec1 upper Bound */
+#define XCC_MID_MASK 0x41000000
+
+#define NORMALIZE_XCC_REG_OFFSET(offset) \
+	(offset & 0x3FFFF)
 
 static void mes_v12_1_ring_set_wptr(struct amdgpu_ring *ring)
 {
@@ -477,6 +485,30 @@ static int mes_v12_1_query_sched_status(struct amdgpu_mes *mes,
 			&mes_status_pkt, sizeof(mes_status_pkt),
 			offsetof(union MESAPI__QUERY_MES_STATUS, api_status));
 }
+static uint32_t mes_v12_1_get_xcc_from_reg(uint32_t reg_offset)
+{
+	/* Check xcc reg offset range */
+	uint32_t xcc = (reg_offset & XCC_MID_MASK) ? 4 : 0;
+	/* Each XCC has two register ranges.
+	 * These are represented in reg_offset[17:16]
+	 */
+	return ((reg_offset >> 16) & 0x3) + xcc;
+}
+
+static void mes_v12_1_get_rrmt(uint32_t reg, uint32_t xcc_id,
+				 struct RRMT_OPTION *rrmt_opt)
+{
+	uint32_t normalized_reg = NORMALIZE_XCC_REG_OFFSET(reg);
+
+	if (((normalized_reg >= XCC_REG_RANGE_0_LOW) && (normalized_reg < XCC_REG_RANGE_0_HIGH)) ||
+		((normalized_reg >= XCC_REG_RANGE_1_LOW) && (normalized_reg < XCC_REG_RANGE_1_HIGH))) {
+		rrmt_opt->xcd_die_id = mes_v12_1_get_xcc_from_reg(reg);
+		rrmt_opt->mode = (xcc_id == rrmt_opt->xcd_die_id) ?
+			 MES_RRMT_MODE_LOCAL_XCD : MES_RRMT_MODE_REMOTE_XCD;
+	} else {
+		rrmt_opt->mode = MES_RRMT_MODE_LOCAL_REMOTE_AID;
+	}
+}
 
 static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 			     struct mes_misc_op_input *input)
@@ -500,11 +532,15 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		misc_pkt.opcode = MESAPI_MISC__READ_REG;
 		misc_pkt.read_reg.reg_offset = input->read_reg.reg_offset;
 		misc_pkt.read_reg.buffer_addr = input->read_reg.buffer_addr;
+		mes_v12_1_get_rrmt(input->read_reg.reg_offset, input->xcc_id,
+				     &misc_pkt.read_reg.rrmt_opt);
 		break;
 	case MES_MISC_OP_WRITE_REG:
 		misc_pkt.opcode = MESAPI_MISC__WRITE_REG;
 		misc_pkt.write_reg.reg_offset = input->write_reg.reg_offset;
 		misc_pkt.write_reg.reg_value = input->write_reg.reg_value;
+		mes_v12_1_get_rrmt(input->write_reg.reg_offset, input->xcc_id,
+				     &misc_pkt.write_reg.rrmt_opt);
 		break;
 	case MES_MISC_OP_WRM_REG_WAIT:
 		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
@@ -513,6 +549,8 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		misc_pkt.wait_reg_mem.mask = input->wrm_reg.mask;
 		misc_pkt.wait_reg_mem.reg_offset1 = input->wrm_reg.reg0;
 		misc_pkt.wait_reg_mem.reg_offset2 = 0;
+		mes_v12_1_get_rrmt(input->wrm_reg.reg0, input->xcc_id,
+				     &misc_pkt.wait_reg_mem.rrmt_opt1);
 		break;
 	case MES_MISC_OP_WRM_REG_WR_WAIT:
 		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
@@ -521,6 +559,10 @@ static int mes_v12_1_misc_op(struct amdgpu_mes *mes,
 		misc_pkt.wait_reg_mem.mask = input->wrm_reg.mask;
 		misc_pkt.wait_reg_mem.reg_offset1 = input->wrm_reg.reg0;
 		misc_pkt.wait_reg_mem.reg_offset2 = input->wrm_reg.reg1;
+		mes_v12_1_get_rrmt(input->wrm_reg.reg0, input->xcc_id,
+				     &misc_pkt.wait_reg_mem.rrmt_opt1);
+		mes_v12_1_get_rrmt(input->wrm_reg.reg1, input->xcc_id,
+				     &misc_pkt.wait_reg_mem.rrmt_opt2);
 		break;
 	case MES_MISC_OP_SET_SHADER_DEBUGGER:
 		pipe = AMDGPU_MES_SCHED_PIPE;
