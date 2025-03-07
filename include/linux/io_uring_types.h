@@ -111,8 +111,11 @@ struct io_uring_task {
 };
 
 struct iou_vec {
-	struct iovec		*iovec;
-	unsigned		nr;
+	union {
+		struct iovec	*iovec;
+		struct bio_vec	*bvec;
+	};
+	unsigned		nr; /* number of struct iovec it can hold */
 };
 
 struct io_uring {
