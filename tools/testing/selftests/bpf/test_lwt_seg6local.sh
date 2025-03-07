@@ -99,19 +99,14 @@ ip netns exec ${NS6} ip link set dev lo up
 
 # All link scope addresses and routes required between veths
 ip netns exec ${NS1} ip -6 addr add fb00::12/16 dev veth1 scope link
-ip netns exec ${NS1} ip -6 route add fb00::21 dev veth1 scope link
 ip netns exec ${NS2} ip -6 addr add fb00::21/16 dev veth2 scope link
 ip netns exec ${NS2} ip -6 addr add fb00::34/16 dev veth3 scope link
-ip netns exec ${NS2} ip -6 route add fb00::43 dev veth3 scope link
-ip netns exec ${NS3} ip -6 route add fb00::65 dev veth5 scope link
 ip netns exec ${NS3} ip -6 addr add fb00::43/16 dev veth4 scope link
 ip netns exec ${NS3} ip -6 addr add fb00::56/16 dev veth5 scope link
 ip netns exec ${NS4} ip -6 addr add fb00::65/16 dev veth6 scope link
 ip netns exec ${NS4} ip -6 addr add fb00::78/16 dev veth7 scope link
-ip netns exec ${NS4} ip -6 route add fb00::87 dev veth7 scope link
 ip netns exec ${NS5} ip -6 addr add fb00::87/16 dev veth8 scope link
 ip netns exec ${NS5} ip -6 addr add fb00::910/16 dev veth9 scope link
-ip netns exec ${NS5} ip -6 route add fb00::109 dev veth9 scope link
 ip netns exec ${NS5} ip -6 route add fb00::109 table 117 dev veth9 scope link
 ip netns exec ${NS6} ip -6 addr add fb00::109/16 dev veth10 scope link
 
