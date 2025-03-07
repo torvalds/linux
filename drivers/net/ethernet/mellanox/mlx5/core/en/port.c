@@ -80,6 +80,7 @@ int mlx5_port_set_eth_ptys(struct mlx5_core_dev *dev, bool an_disable,
 int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 {
 	struct mlx5_port_eth_proto eproto;
+	const struct mlx5_link_info *info;
 	bool force_legacy = false;
 	bool ext;
 	int err;
@@ -94,9 +95,13 @@ int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 		if (err)
 			goto out;
 	}
-	*speed = mlx5_port_ptys2speed(mdev, eproto.oper, force_legacy);
-	if (!(*speed))
+	info = mlx5_port_ptys2info(mdev, eproto.oper, force_legacy);
+	if (!info) {
+		*speed = SPEED_UNKNOWN;
 		err = -EINVAL;
+		goto out;
+	}
+	*speed = info->speed;
 
 out:
 	return err;
