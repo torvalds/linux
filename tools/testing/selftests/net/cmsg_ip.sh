@@ -50,8 +50,9 @@ check_result() {
 # IPV6_DONTFRAG
 for ovr in setsock cmsg both diff; do
     for df in 0 1; do
-	for p in u i r; do
+	for p in u U i r; do
 	    [ $p == "u" ] && prot=UDP
+	    [ $p == "U" ] && prot=UDP
 	    [ $p == "i" ] && prot=ICMP
 	    [ $p == "r" ] && prot=RAW
 
@@ -81,8 +82,9 @@ test_dscp() {
     ip $IPVER -netns $NS route add table 300 prohibit any
 
     for ovr in setsock cmsg both diff; do
-	for p in u i r; do
+	for p in u U i r; do
 	    [ $p == "u" ] && prot=UDP
+	    [ $p == "U" ] && prot=UDP
 	    [ $p == "i" ] && prot=ICMP
 	    [ $p == "r" ] && prot=RAW
 
@@ -134,8 +136,9 @@ test_ttl_hoplimit() {
     local -r LIM=4
 
     for ovr in setsock cmsg both diff; do
-	for p in u i r; do
+	for p in u U i r; do
 	    [ $p == "u" ] && prot=UDP
+	    [ $p == "U" ] && prot=UDP
 	    [ $p == "i" ] && prot=ICMP
 	    [ $p == "r" ] && prot=RAW
 
@@ -166,7 +169,7 @@ test_ttl_hoplimit -4 $TGT4 ttl
 test_ttl_hoplimit -6 $TGT6 hlim
 
 # IPV6 exthdr
-for p in u i r; do
+for p in u U i r; do
     # Very basic "does it crash" test
     for h in h d r; do
 	$NSEXE ./cmsg_sender -p $p -6 -H $h $TGT6 1234
