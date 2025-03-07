@@ -852,19 +852,6 @@ rpc_destroy_pipe_dir_objects(struct rpc_pipe_dir_head *pdh)
 		pdo->pdo_ops->destroy(dir, pdo);
 }
 
-enum {
-	RPCAUTH_info,
-	RPCAUTH_EOF
-};
-
-static const struct rpc_filelist authfiles[] = {
-	[RPCAUTH_info] = {
-		.name = "info",
-		.i_fop = &rpc_info_operations,
-		.mode = S_IFREG | 0400,
-	},
-};
-
 /**
  * rpc_create_client_dir - Create a new rpc_client directory in rpc_pipefs
  * @dentry: the parent of new directory
@@ -881,16 +868,18 @@ struct dentry *rpc_create_client_dir(struct dentry *dentry,
 				   struct rpc_clnt *rpc_client)
 {
 	struct dentry *ret;
-	int error;
+	int err;
 
 	ret = rpc_new_dir(dentry, name, 0555);
 	if (IS_ERR(ret))
 		return ret;
-	error = rpc_populate(ret, authfiles, RPCAUTH_info, RPCAUTH_EOF,
-		    rpc_client);
-	if (unlikely(error)) {
+	err = rpc_new_file(ret, "info", S_IFREG | 0400,
+			      &rpc_info_operations, rpc_client);
+	if (err) {
+		pr_warn("%s failed to populate directory %pd\n",
+				__func__, ret);
 		simple_recursive_removal(ret, NULL);
-		return ERR_PTR(error);
+		return ERR_PTR(err);
 	}
 	rpc_client->cl_pipedir_objects.pdh_dentry = ret;
 	rpc_create_pipe_dir_objects(&rpc_client->cl_pipedir_objects);
