@@ -16,14 +16,14 @@
 
 /* platform specific devices */
 #include "hda.h"
-#include "lnl.h"
+#include "ptl.h"
 
 /* PantherLake ops */
 static struct snd_sof_dsp_ops sof_ptl_ops;
 
 static int sof_ptl_ops_init(struct snd_sof_dev *sdev)
 {
-	return sof_lnl_set_ops(sdev, &sof_ptl_ops);
+	return sof_ptl_set_ops(sdev, &sof_ptl_ops);
 }
 
 static const struct sof_dev_desc ptl_desc = {
@@ -80,6 +80,4 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for PantherLake platforms");
 MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_HDA_GENERIC");
 MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_HDA_COMMON");
-MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_LNL");
-MODULE_IMPORT_NS("SND_SOC_SOF_HDA_MLINK");
 MODULE_IMPORT_NS("SND_SOC_SOF_PCI_DEV");

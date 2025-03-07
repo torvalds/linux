@@ -128,20 +128,22 @@ int sof_lnl_set_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *dsp_ops)
 EXPORT_SYMBOL_NS(sof_lnl_set_ops, "SND_SOC_SOF_INTEL_LNL");
 
 /* Check if an SDW IRQ occurred */
-static bool lnl_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
+bool lnl_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 
 	return hdac_bus_eml_check_interrupt(bus, true,  AZX_REG_ML_LEPTR_ID_SDW);
 }
+EXPORT_SYMBOL_NS(lnl_dsp_check_sdw_irq, "SND_SOC_SOF_INTEL_LNL");
 
-static int lnl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
+int lnl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 {
 	mtl_disable_ipc_interrupts(sdev);
 	return mtl_enable_interrupts(sdev, false);
 }
+EXPORT_SYMBOL_NS(lnl_dsp_disable_interrupts, "SND_SOC_SOF_INTEL_LNL");
 
-static bool lnl_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
+bool lnl_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	u16 wake_sts;
@@ -157,6 +159,7 @@ static bool lnl_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
 	/* filter out the range of SDIs that can be set for SoundWire */
 	return wake_sts & GENMASK(SDW_MAX_DEVICES, SDW_INTEL_DEV_NUM_IDA_MIN);
 }
+EXPORT_SYMBOL_NS(lnl_sdw_check_wakeen_irq, "SND_SOC_SOF_INTEL_LNL");
 
 const struct sof_intel_dsp_desc lnl_chip_info = {
 	.cores_num = 5,
@@ -181,30 +184,6 @@ const struct sof_intel_dsp_desc lnl_chip_info = {
 	.disable_interrupts = lnl_dsp_disable_interrupts,
 	.hw_ip_version = SOF_INTEL_ACE_2_0,
 };
-
-const struct sof_intel_dsp_desc ptl_chip_info = {
-	.cores_num = 5,
-	.init_core_mask = BIT(0),
-	.host_managed_cores_mask = BIT(0),
-	.ipc_req = MTL_DSP_REG_HFIPCXIDR,
-	.ipc_req_mask = MTL_DSP_REG_HFIPCXIDR_BUSY,
-	.ipc_ack = MTL_DSP_REG_HFIPCXIDA,
-	.ipc_ack_mask = MTL_DSP_REG_HFIPCXIDA_DONE,
-	.ipc_ctl = MTL_DSP_REG_HFIPCXCTL,
-	.rom_status_reg = LNL_DSP_REG_HFDSC,
-	.rom_init_timeout = 300,
-	.ssp_count = MTL_SSP_COUNT,
-	.d0i3_offset = MTL_HDA_VS_D0I3C,
-	.read_sdw_lcount =  hda_sdw_check_lcount_ext,
-	.check_sdw_irq = lnl_dsp_check_sdw_irq,
-	.check_sdw_wakeen_irq = lnl_sdw_check_wakeen_irq,
-	.check_ipc_irq = mtl_dsp_check_ipc_irq,
-	.cl_init = mtl_dsp_cl_init,
-	.power_down_dsp = mtl_power_down_dsp,
-	.disable_interrupts = lnl_dsp_disable_interrupts,
-	.hw_ip_version = SOF_INTEL_ACE_3_0,
-};
-EXPORT_SYMBOL_NS(ptl_chip_info, "SND_SOC_SOF_INTEL_LNL");
 
 MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_MTL");
 MODULE_IMPORT_NS("SND_SOC_SOF_HDA_MLINK");
