@@ -3657,6 +3657,34 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 	return -ESRCH;
 }
 
+/* This should match with sort_dimension__add() above */
+static bool is_hpp_sort_key(const char *key)
+{
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(arch_specific_sort_keys); i++) {
+		if (!strcmp(arch_specific_sort_keys[i], key) &&
+		    !arch_support_sort_key(key)) {
+			return false;
+		}
+	}
+
+	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
+		struct sort_dimension *sd = &common_sort_dimensions[i];
+
+		if (sd->name && !strncasecmp(key, sd->name, strlen(key)))
+			return false;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
+		struct hpp_dimension *hd = &hpp_sort_dimensions[i];
+
+		if (!strncasecmp(key, hd->name, strlen(key)))
+			return true;
+	}
+	return false;
+}
+
 static int setup_sort_list(struct perf_hpp_list *list, char *str,
 			   struct evlist *evlist)
 {
@@ -3664,7 +3692,9 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 	int ret = 0;
 	int level = 0;
 	int next_level = 1;
+	int prev_level = 0;
 	bool in_group = false;
+	bool prev_was_hpp = false;
 
 	do {
 		tok = str;
@@ -3685,6 +3715,19 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 		}
 
 		if (*tok) {
+			if (is_hpp_sort_key(tok)) {
+				/* keep output (hpp) sort keys in the same level */
+				if (prev_was_hpp) {
+					bool next_same = (level == next_level);
+
+					level = prev_level;
+					next_level = next_same ? level : level+1;
+				}
+				prev_was_hpp = true;
+			} else {
+				prev_was_hpp = false;
+			}
+
 			ret = sort_dimension__add(list, tok, evlist, level);
 			if (ret == -EINVAL) {
 				if (!cacheline_size() && !strncasecmp(tok, "dcacheline", strlen(tok)))
@@ -3696,6 +3739,7 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 				ui__error("Unknown --sort key: `%s'", tok);
 				break;
 			}
+			prev_level = level;
 		}
 
 		level = next_level;
