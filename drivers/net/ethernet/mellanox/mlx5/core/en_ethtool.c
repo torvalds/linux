@@ -237,6 +237,27 @@ void mlx5e_build_ptys2ethtool_map(void)
 				       ETHTOOL_LINK_MODE_800000baseDR8_2_Full_BIT,
 				       ETHTOOL_LINK_MODE_800000baseSR8_Full_BIT,
 				       ETHTOOL_LINK_MODE_800000baseVR8_Full_BIT);
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_200GAUI_1_200GBASE_CR1_KR1, ext,
+				       ETHTOOL_LINK_MODE_200000baseCR_Full_BIT,
+				       ETHTOOL_LINK_MODE_200000baseKR_Full_BIT,
+				       ETHTOOL_LINK_MODE_200000baseDR_Full_BIT,
+				       ETHTOOL_LINK_MODE_200000baseDR_2_Full_BIT,
+				       ETHTOOL_LINK_MODE_200000baseSR_Full_BIT,
+				       ETHTOOL_LINK_MODE_200000baseVR_Full_BIT);
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_400GAUI_2_400GBASE_CR2_KR2, ext,
+				       ETHTOOL_LINK_MODE_400000baseCR2_Full_BIT,
+				       ETHTOOL_LINK_MODE_400000baseKR2_Full_BIT,
+				       ETHTOOL_LINK_MODE_400000baseDR2_Full_BIT,
+				       ETHTOOL_LINK_MODE_400000baseDR2_2_Full_BIT,
+				       ETHTOOL_LINK_MODE_400000baseSR2_Full_BIT,
+				       ETHTOOL_LINK_MODE_400000baseVR2_Full_BIT);
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_800GAUI_4_800GBASE_CR4_KR4, ext,
+				       ETHTOOL_LINK_MODE_800000baseCR4_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseKR4_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseDR4_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseDR4_2_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseSR4_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseVR4_Full_BIT);
 }
 
 static void mlx5e_ethtool_get_speed_arr(struct mlx5_core_dev *mdev,
@@ -931,6 +952,7 @@ static const u32 pplm_fec_2_ethtool[] = {
 	[MLX5E_FEC_RS_528_514] = ETHTOOL_FEC_RS,
 	[MLX5E_FEC_RS_544_514] = ETHTOOL_FEC_RS,
 	[MLX5E_FEC_LLRS_272_257_1] = ETHTOOL_FEC_LLRS,
+	[MLX5E_FEC_RS_544_514_INTERLEAVED_QUAD] = ETHTOOL_FEC_RS,
 };
 
 static u32 pplm2ethtool_fec(u_long fec_mode, unsigned long size)

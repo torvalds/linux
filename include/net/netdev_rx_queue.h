@@ -16,6 +16,7 @@ struct netdev_rx_queue {
 	struct rps_dev_flow_table __rcu	*rps_flow_table;
 #endif
 	struct kobject			kobj;
+	const struct attribute_group	**groups;
 	struct net_device		*dev;
 	netdevice_tracker		dev_tracker;
 

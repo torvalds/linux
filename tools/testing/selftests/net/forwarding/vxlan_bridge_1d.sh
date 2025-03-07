@@ -740,6 +740,8 @@ test_learning()
 
 	vxlan_flood_test $mac $dst 0 10 0
 
+	# The entry should age out when it only forwards traffic
+	$MZ $h1 -c 50 -d 1sec -p 64 -b $mac -B $dst -t icmp -q &
 	sleep 60
 
 	bridge fdb show brport vx1 | grep $mac | grep -q self

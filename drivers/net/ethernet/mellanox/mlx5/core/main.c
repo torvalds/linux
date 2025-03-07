@@ -1038,7 +1038,11 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 
 	mlx5_init_reserved_gids(dev);
 
-	mlx5_init_clock(dev);
+	err = mlx5_init_clock(dev);
+	if (err) {
+		mlx5_core_err(dev, "failed to initialize hardware clock\n");
+		goto err_tables_cleanup;
+	}
 
 	dev->vxlan = mlx5_vxlan_create(dev);
 	dev->geneve = mlx5_geneve_create(dev);
@@ -1046,7 +1050,7 @@ static int mlx5_init_once(struct mlx5_core_dev *dev)
 	err = mlx5_init_rl_table(dev);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init rate limiting\n");
-		goto err_tables_cleanup;
+		goto err_clock_cleanup;
 	}
 
 	err = mlx5_mpfs_init(dev);
@@ -1123,10 +1127,11 @@ err_mpfs_cleanup:
 	mlx5_mpfs_cleanup(dev);
 err_rl_cleanup:
 	mlx5_cleanup_rl_table(dev);
-err_tables_cleanup:
+err_clock_cleanup:
 	mlx5_geneve_destroy(dev->geneve);
 	mlx5_vxlan_destroy(dev->vxlan);
 	mlx5_cleanup_clock(dev);
+err_tables_cleanup:
 	mlx5_cleanup_reserved_gids(dev);
 	mlx5_cq_debugfs_cleanup(dev);
 	mlx5_fw_reset_cleanup(dev);
@@ -1359,6 +1364,8 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_eq_table;
 	}
 
+	mlx5_clock_load(dev);
+
 	err = mlx5_fw_tracer_init(dev->tracer);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init FW tracer %d\n", err);
@@ -1442,6 +1449,7 @@ err_fpga_start:
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
 	mlx5_fw_reset_events_stop(dev);
 	mlx5_fw_tracer_cleanup(dev->tracer);
+	mlx5_clock_unload(dev);
 	mlx5_eq_table_destroy(dev);
 err_eq_table:
 	mlx5_irq_table_destroy(dev);
@@ -1468,6 +1476,7 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
 	mlx5_fw_reset_events_stop(dev);
 	mlx5_fw_tracer_cleanup(dev->tracer);
+	mlx5_clock_unload(dev);
 	mlx5_eq_table_destroy(dev);
 	mlx5_irq_table_destroy(dev);
 	mlx5_pagealloc_stop(dev);

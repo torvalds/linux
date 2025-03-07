@@ -46,7 +46,7 @@ static void mlx5e_init_trap_rq(struct mlx5e_trap *t, struct mlx5e_params *params
 	rq->pdev         = t->pdev;
 	rq->netdev       = priv->netdev;
 	rq->priv         = priv;
-	rq->clock        = &mdev->clock;
+	rq->clock        = mdev->clock;
 	rq->tstamp       = &priv->tstamp;
 	rq->mdev         = mdev;
 	rq->hw_mtu       = MLX5E_SW2HW_MTU(params, params->sw_mtu);
