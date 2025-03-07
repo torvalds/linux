@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_WMI_H
@@ -3817,6 +3817,7 @@ struct wmi_stop_scan_cmd {
 };
 
 struct scan_chan_list_params {
+	struct list_head list;
 	u32 pdev_id;
 	u16 nallchans;
 	struct channel_param ch_param[];
@@ -6346,6 +6347,11 @@ enum wmi_sta_keepalive_method {
 #define WMI_STA_KEEPALIVE_INTERVAL_DEFAULT	30
 #define WMI_STA_KEEPALIVE_INTERVAL_DISABLE	0
 
+enum wmi_wmm_params_type {
+	WMI_WMM_PARAM_TYPE_LEGACY = 0,
+	WMI_WMM_PARAM_TYPE_11AX_MU_EDCA = 1,
+};
+
 const void **ath11k_wmi_tlv_parse_alloc(struct ath11k_base *ab,
 					struct sk_buff *skb, gfp_t gfp);
 int ath11k_wmi_cmd_send(struct ath11k_pdev_wmi *wmi, struct sk_buff *skb,
@@ -6402,7 +6408,8 @@ int ath11k_wmi_send_scan_start_cmd(struct ath11k *ar,
 int ath11k_wmi_send_scan_stop_cmd(struct ath11k *ar,
 				  struct scan_cancel_param *param);
 int ath11k_wmi_send_wmm_update_cmd_tlv(struct ath11k *ar, u32 vdev_id,
-				       struct wmi_wmm_params_all_arg *param);
+				       struct wmi_wmm_params_all_arg *param,
+				       enum wmi_wmm_params_type wmm_param_type);
 int ath11k_wmi_pdev_suspend(struct ath11k *ar, u32 suspend_opt,
 			    u32 pdev_id);
 int ath11k_wmi_pdev_resume(struct ath11k *ar, u32 pdev_id);
