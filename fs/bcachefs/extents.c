@@ -79,10 +79,14 @@ void bch2_mark_io_failure(struct bch_io_failures *failed,
 	}
 }
 
-static inline u64 dev_latency(struct bch_fs *c, unsigned dev)
+static inline u64 dev_latency(struct bch_dev *ca)
 {
-	struct bch_dev *ca = bch2_dev_rcu(c, dev);
 	return ca ? atomic64_read(&ca->cur_latency[READ]) : S64_MAX;
+}
+
+static inline int dev_failed(struct bch_dev *ca)
+{
+	return !ca || ca->mi.state == BCH_MEMBER_STATE_failed;
 }
 
 /*
@@ -93,8 +97,16 @@ static inline bool ptr_better(struct bch_fs *c,
 			      const struct extent_ptr_decoded p2)
 {
 	if (likely(!p1.idx && !p2.idx)) {
-		u64 l1 = dev_latency(c, p1.ptr.dev);
-		u64 l2 = dev_latency(c, p2.ptr.dev);
+		struct bch_dev *ca1 = bch2_dev_rcu(c, p1.ptr.dev);
+		struct bch_dev *ca2 = bch2_dev_rcu(c, p2.ptr.dev);
+
+		int failed_delta = dev_failed(ca1) - dev_failed(ca2);
+
+		if (failed_delta)
+			return failed_delta < 0;
+
+		u64 l1 = dev_latency(ca1);
+		u64 l2 = dev_latency(ca2);
 
 		/*
 		 * Square the latencies, to bias more in favor of the faster
@@ -170,7 +182,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 				? f->idx
 				: f->idx + 1;
 
-		if (!p.idx && (!ca || !bch2_dev_is_readable(ca)))
+		if (!p.idx && (!ca || !bch2_dev_is_online(ca)))
 			p.idx++;
 
 		if (!p.idx && p.has_ec && bch2_force_reconstruct_read)
@@ -1012,7 +1024,7 @@ static bool want_cached_ptr(struct bch_fs *c, struct bch_io_opts *opts,
 
 	struct bch_dev *ca = bch2_dev_rcu_noerror(c, ptr->dev);
 
-	return ca && bch2_dev_is_readable(ca) && !dev_ptr_stale_rcu(ca, ptr);
+	return ca && bch2_dev_is_healthy(ca) && !dev_ptr_stale_rcu(ca, ptr);
 }
 
 void bch2_extent_ptr_set_cached(struct bch_fs *c,

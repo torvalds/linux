@@ -35,7 +35,7 @@ static inline bool bch2_dev_idx_is_online(struct bch_fs *c, unsigned dev)
 	return ret;
 }
 
-static inline bool bch2_dev_is_readable(struct bch_dev *ca)
+static inline bool bch2_dev_is_healthy(struct bch_dev *ca)
 {
 	return bch2_dev_is_online(ca) &&
 		ca->mi.state != BCH_MEMBER_STATE_failed;
