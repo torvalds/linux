@@ -150,6 +150,9 @@ static void io_rw_recycle(struct io_kiocb *req, unsigned int issue_flags)
 		return;
 
 	io_alloc_cache_vec_kasan(&rw->vec);
+	if (rw->vec.nr > IO_VEC_CACHE_SOFT_CAP)
+		io_vec_free(&rw->vec);
+
 	if (io_alloc_cache_put(&req->ctx->rw_cache, rw)) {
 		req->async_data = NULL;
 		req->flags &= ~REQ_F_ASYNC_DATA;

@@ -5,6 +5,8 @@
 #include <linux/io_uring_types.h>
 #include <linux/lockdep.h>
 
+#define IO_VEC_CACHE_SOFT_CAP		256
+
 enum {
 	IORING_RSRC_FILE		= 0,
 	IORING_RSRC_BUFFER		= 1,
