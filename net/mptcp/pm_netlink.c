@@ -94,8 +94,8 @@ void mptcp_local_address(const struct sock_common *skc, struct mptcp_addr_info *
 #endif
 }
 
-static void remote_address(const struct sock_common *skc,
-			   struct mptcp_addr_info *addr)
+void mptcp_remote_address(const struct sock_common *skc,
+			  struct mptcp_addr_info *addr)
 {
 	addr->family = skc->skc_family;
 	addr->port = skc->skc_dport;
@@ -138,7 +138,7 @@ static bool lookup_subflow_by_daddr(const struct list_head *list,
 		      (TCPF_ESTABLISHED | TCPF_SYN_SENT | TCPF_SYN_RECV)))
 			continue;
 
-		remote_address((struct sock_common *)ssk, &cur);
+		mptcp_remote_address((struct sock_common *)ssk, &cur);
 		if (mptcp_addresses_equal(&cur, daddr, daddr->port))
 			return true;
 	}
@@ -428,7 +428,7 @@ static unsigned int fill_remote_addresses_vec(struct mptcp_sock *msk,
 	int i = 0;
 
 	subflows_max = mptcp_pm_get_subflows_max(msk);
-	remote_address((struct sock_common *)sk, &remote);
+	mptcp_remote_address((struct sock_common *)sk, &remote);
 
 	/* Non-fullmesh endpoint, fill in the single entry
 	 * corresponding to the primary MPC subflow remote address
@@ -455,7 +455,7 @@ static unsigned int fill_remote_addresses_vec(struct mptcp_sock *msk,
 
 		mptcp_for_each_subflow(msk, subflow) {
 			ssk = mptcp_subflow_tcp_sock(subflow);
-			remote_address((struct sock_common *)ssk, &addrs[i]);
+			mptcp_remote_address((struct sock_common *)ssk, &addrs[i]);
 			addrs[i].id = READ_ONCE(subflow->remote_id);
 			if (deny_id0 && !addrs[i].id)
 				continue;
@@ -777,7 +777,7 @@ bool mptcp_pm_is_init_remote_addr(struct mptcp_sock *msk,
 {
 	struct mptcp_addr_info mpc_remote;
 
-	remote_address((struct sock_common *)msk, &mpc_remote);
+	mptcp_remote_address((struct sock_common *)msk, &mpc_remote);
 	return mptcp_addresses_equal(&mpc_remote, remote, remote->port);
 }
 
@@ -826,7 +826,7 @@ int mptcp_pm_mp_prio_send_ack(struct mptcp_sock *msk,
 			continue;
 
 		if (rem && rem->family != AF_UNSPEC) {
-			remote_address((struct sock_common *)ssk, &remote);
+			mptcp_remote_address((struct sock_common *)ssk, &remote);
 			if (!mptcp_addresses_equal(&remote, rem, rem->port))
 				continue;
 		}
