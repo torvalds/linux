@@ -201,6 +201,30 @@ unsafe impl<T: Sync + ?Sized, B: Backend> Sync for Guard<'_, T, B> {}
 
 impl<'a, T: ?Sized, B: Backend> Guard<'a, T, B> {
     /// Returns the lock that this guard originates from.
+    ///
+    /// # Examples
+    ///
+    /// The following example shows how to use [`Guard::lock_ref()`] to assert the corresponding
+    /// lock is held.
+    ///
+    /// ```
+    /// # use kernel::{new_spinlock, stack_pin_init, sync::lock::{Backend, Guard, Lock}};
+    ///
+    /// fn assert_held<T, B: Backend>(guard: &Guard<'_, T, B>, lock: &Lock<T, B>) {
+    ///     // Address-equal means the same lock.
+    ///     assert!(core::ptr::eq(guard.lock_ref(), lock));
+    /// }
+    ///
+    /// // Creates a new lock on the stack.
+    /// stack_pin_init!{
+    ///     let l = new_spinlock!(42)
+    /// }
+    ///
+    /// let g = l.lock();
+    ///
+    /// // `g` originates from `l`.
+    /// assert_held(&g, &l);
+    /// ```
     pub fn lock_ref(&self) -> &'a Lock<T, B> {
         self.lock
     }
