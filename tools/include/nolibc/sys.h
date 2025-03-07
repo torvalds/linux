@@ -10,10 +10,10 @@
 #include "std.h"
 
 /* system includes */
-#include <asm/unistd.h>
-#include <asm/signal.h>  /* for SIGCHLD */
-#include <asm/ioctls.h>
-#include <asm/mman.h>
+#include <linux/unistd.h>
+#include <linux/signal.h>  /* for SIGCHLD */
+#include <linux/termios.h>
+#include <linux/mman.h>
 #include <linux/fs.h>
 #include <linux/loop.h>
 #include <linux/time.h>
@@ -23,7 +23,6 @@
 #include <linux/prctl.h>
 #include <linux/resource.h>
 #include <linux/utsname.h>
-#include <linux/signal.h>
 
 #include "arch.h"
 #include "errno.h"
