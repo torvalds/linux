@@ -1813,6 +1813,10 @@ static CLOSURE_CALLBACK(journal_write_preflush)
 	struct journal *j = container_of(w, struct journal, buf[w->idx]);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 
+	/*
+	 * Wait for previous journal writes to comelete; they won't necessarily
+	 * be flushed if they're still in flight
+	 */
 	if (j->seq_ondisk + 1 != le64_to_cpu(w->data->seq)) {
 		spin_lock(&j->lock);
 		if (j->seq_ondisk + 1 != le64_to_cpu(w->data->seq)) {
