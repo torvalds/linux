@@ -251,3 +251,17 @@ bool phy_caps_valid(int speed, int duplex, const unsigned long *linkmodes)
 
 	return linkmode_intersects(link_caps[capa].linkmodes, linkmodes);
 }
+
+/**
+ * phy_caps_linkmodes() - Convert a bitfield of capabilities into linkmodes
+ * @caps: The list of caps, each bit corresponding to a LINK_CAPA value
+ * @linkmodes: The set of linkmodes to fill. Must be previously initialized.
+ */
+void phy_caps_linkmodes(unsigned long caps, unsigned long *linkmodes)
+{
+	unsigned long capa;
+
+	for_each_set_bit(capa, &caps, __LINK_CAPA_MAX)
+		linkmode_or(linkmodes, linkmodes, link_caps[capa].linkmodes);
+}
+EXPORT_SYMBOL_GPL(phy_caps_linkmodes);
