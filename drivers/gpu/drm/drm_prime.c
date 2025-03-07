@@ -997,7 +997,7 @@ EXPORT_SYMBOL(drm_gem_prime_import_dev);
 struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 					    struct dma_buf *dma_buf)
 {
-	return drm_gem_prime_import_dev(dev, dma_buf, dev->dev);
+	return drm_gem_prime_import_dev(dev, dma_buf, drm_dev_dma_dev(dev));
 }
 EXPORT_SYMBOL(drm_gem_prime_import);
 
