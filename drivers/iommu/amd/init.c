@@ -12,7 +12,6 @@
 #include <linux/acpi.h>
 #include <linux/list.h>
 #include <linux/bitmap.h>
-#include <linux/slab.h>
 #include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/msi.h>
@@ -2931,9 +2930,6 @@ static struct syscore_ops amd_iommu_syscore_ops = {
 
 static void __init free_iommu_resources(void)
 {
-	kmem_cache_destroy(amd_iommu_irq_cache);
-	amd_iommu_irq_cache = NULL;
-
 	free_iommu_all();
 	free_pci_segments();
 }
@@ -3032,7 +3028,7 @@ static void __init ivinfo_init(void *ivrs)
 static int __init early_amd_iommu_init(void)
 {
 	struct acpi_table_header *ivrs_base;
-	int remap_cache_sz, ret;
+	int ret;
 	acpi_status status;
 
 	if (!amd_iommu_detected)
@@ -3094,22 +3090,7 @@ static int __init early_amd_iommu_init(void)
 
 	if (amd_iommu_irq_remap) {
 		struct amd_iommu_pci_seg *pci_seg;
-		/*
-		 * Interrupt remapping enabled, create kmem_cache for the
-		 * remapping tables.
-		 */
 		ret = -ENOMEM;
-		if (!AMD_IOMMU_GUEST_IR_GA(amd_iommu_guest_ir))
-			remap_cache_sz = MAX_IRQS_PER_TABLE * sizeof(u32);
-		else
-			remap_cache_sz = MAX_IRQS_PER_TABLE * (sizeof(u64) * 2);
-		amd_iommu_irq_cache = kmem_cache_create("irq_remap_cache",
-							remap_cache_sz,
-							DTE_INTTAB_ALIGNMENT,
-							0, NULL);
-		if (!amd_iommu_irq_cache)
-			goto out;
-
 		for_each_pci_segment(pci_seg) {
 			if (alloc_irq_lookup_table(pci_seg))
 				goto out;

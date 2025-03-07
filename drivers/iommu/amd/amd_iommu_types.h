@@ -313,7 +313,6 @@
  * AMD IOMMU hardware only support 512 IRTEs despite
  * the architectural limitation of 2048 entries.
  */
-#define DTE_INTTAB_ALIGNMENT    128
 #define DTE_INTTABLEN_VALUE     9ULL
 #define DTE_INTTABLEN           (DTE_INTTABLEN_VALUE << 1)
 #define DTE_INTTABLEN_MASK      (0xfULL << 1)
@@ -491,9 +490,6 @@ extern const struct iommu_ops amd_iommu_ops;
 
 /* IVRS indicates that pre-boot remapping was enabled */
 extern bool amdr_ivrs_remap_support;
-
-/* kmem_cache to get tables with 128 byte alignement */
-extern struct kmem_cache *amd_iommu_irq_cache;
 
 #define PCI_SBDF_TO_SEGID(sbdf)		(((sbdf) >> 16) & 0xffff)
 #define PCI_SBDF_TO_DEVID(sbdf)		((sbdf) & 0xffff)

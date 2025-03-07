@@ -75,8 +75,6 @@ struct iommu_cmd {
  */
 DEFINE_IDA(pdom_ids);
 
-struct kmem_cache *amd_iommu_irq_cache;
-
 static int amd_iommu_attach_device(struct iommu_domain *dom,
 				   struct device *dev);
 
@@ -3118,7 +3116,7 @@ static struct irq_remap_table *get_irq_table(struct amd_iommu *iommu, u16 devid)
 	return table;
 }
 
-static struct irq_remap_table *__alloc_irq_table(void)
+static struct irq_remap_table *__alloc_irq_table(int nid, int order)
 {
 	struct irq_remap_table *table;
 
@@ -3126,19 +3124,13 @@ static struct irq_remap_table *__alloc_irq_table(void)
 	if (!table)
 		return NULL;
 
-	table->table = kmem_cache_alloc(amd_iommu_irq_cache, GFP_KERNEL);
+	table->table = iommu_alloc_pages_node(nid, GFP_KERNEL, order);
 	if (!table->table) {
 		kfree(table);
 		return NULL;
 	}
 	raw_spin_lock_init(&table->lock);
 
-	if (!AMD_IOMMU_GUEST_IR_GA(amd_iommu_guest_ir))
-		memset(table->table, 0,
-		       MAX_IRQS_PER_TABLE * sizeof(u32));
-	else
-		memset(table->table, 0,
-		       (MAX_IRQS_PER_TABLE * (sizeof(u64) * 2)));
 	return table;
 }
 
@@ -3170,6 +3162,14 @@ static int set_remap_table_entry_alias(struct pci_dev *pdev, u16 alias,
 	return 0;
 }
 
+static inline size_t get_irq_table_size(unsigned int max_irqs)
+{
+	if (!AMD_IOMMU_GUEST_IR_GA(amd_iommu_guest_ir))
+		return max_irqs * sizeof(u32);
+
+	return max_irqs * (sizeof(u64) * 2);
+}
+
 static struct irq_remap_table *alloc_irq_table(struct amd_iommu *iommu,
 					       u16 devid, struct pci_dev *pdev)
 {
@@ -3177,6 +3177,8 @@ static struct irq_remap_table *alloc_irq_table(struct amd_iommu *iommu,
 	struct irq_remap_table *new_table = NULL;
 	struct amd_iommu_pci_seg *pci_seg;
 	unsigned long flags;
+	int order = get_order(get_irq_table_size(MAX_IRQS_PER_TABLE));
+	int nid = iommu && iommu->dev ? dev_to_node(&iommu->dev->dev) : NUMA_NO_NODE;
 	u16 alias;
 
 	spin_lock_irqsave(&iommu_table_lock, flags);
@@ -3195,7 +3197,7 @@ static struct irq_remap_table *alloc_irq_table(struct amd_iommu *iommu,
 	spin_unlock_irqrestore(&iommu_table_lock, flags);
 
 	/* Nothing there yet, allocate new irq remapping table */
-	new_table = __alloc_irq_table();
+	new_table = __alloc_irq_table(nid, order);
 	if (!new_table)
 		return NULL;
 
@@ -3230,7 +3232,7 @@ out_unlock:
 	spin_unlock_irqrestore(&iommu_table_lock, flags);
 
 	if (new_table) {
-		kmem_cache_free(amd_iommu_irq_cache, new_table->table);
+		iommu_free_pages(new_table->table, order);
 		kfree(new_table);
 	}
 	return table;
