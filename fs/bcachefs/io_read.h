@@ -42,11 +42,11 @@ struct bch_read_bio {
 				narrow_crcs:1,
 				hole:1,
 				saw_error:1,
-				retry:2,
 				context:2;
 	};
 	u16			_state;
 	};
+	s16			ret;
 
 	struct extent_ptr_decoded pick;
 
@@ -164,6 +164,7 @@ static inline struct bch_read_bio *rbio_init_fragment(struct bio *bio,
 
 	rbio->c		= orig->c;
 	rbio->_state	= 0;
+	rbio->ret	= 0;
 	rbio->split	= true;
 	rbio->parent	= orig;
 	rbio->opts	= orig->opts;
@@ -180,6 +181,7 @@ static inline struct bch_read_bio *rbio_init(struct bio *bio,
 	rbio->start_time	= local_clock();
 	rbio->c			= c;
 	rbio->_state		= 0;
+	rbio->ret	= 0;
 	rbio->opts		= opts;
 	rbio->bio.bi_end_io	= end_io;
 	return rbio;

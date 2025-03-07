@@ -282,6 +282,19 @@
 	x(EIO,				EIO_fault_injected)			\
 	x(EIO,				ec_block_read)				\
 	x(EIO,				ec_block_write)				\
+	x(EIO,				data_read)				\
+	x(BCH_ERR_data_read,		data_read_retry)			\
+	x(BCH_ERR_data_read_retry,	data_read_retry_avoid)			\
+	x(BCH_ERR_data_read_retry_avoid,data_read_retry_device_offline)		\
+	x(BCH_ERR_data_read_retry_avoid,data_read_retry_io_err)			\
+	x(BCH_ERR_data_read_retry_avoid,data_read_retry_ec_reconstruct_err)	\
+	x(BCH_ERR_data_read_retry_avoid,data_read_retry_csum_err)		\
+	x(BCH_ERR_data_read_retry,	data_read_retry_csum_err_maybe_userspace)\
+	x(BCH_ERR_data_read,		data_read_decompress_err)		\
+	x(BCH_ERR_data_read,		data_read_decrypt_err)			\
+	x(BCH_ERR_data_read,		data_read_ptr_stale_race)		\
+	x(BCH_ERR_data_read_retry,	data_read_ptr_stale_retry)		\
+	x(BCH_ERR_data_read,		data_read_no_encryption_key)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\
