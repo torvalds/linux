@@ -1260,3 +1260,12 @@ int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg)
 	fput(file);
 	return ret;
 }
+
+void io_vec_free(struct iou_vec *iv)
+{
+	if (!iv->iovec)
+		return;
+	kfree(iv->iovec);
+	iv->iovec = NULL;
+	iv->nr = 0;
+}

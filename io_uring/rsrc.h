@@ -145,4 +145,20 @@ static inline void __io_unaccount_mem(struct user_struct *user,
 	atomic_long_sub(nr_pages, &user->locked_vm);
 }
 
+void io_vec_free(struct iou_vec *iv);
+
+static inline void io_vec_reset_iovec(struct iou_vec *iv,
+				      struct iovec *iovec, unsigned nr)
+{
+	io_vec_free(iv);
+	iv->iovec = iovec;
+	iv->nr = nr;
+}
+
+static inline void io_alloc_cache_vec_kasan(struct iou_vec *iv)
+{
+	if (IS_ENABLED(CONFIG_KASAN))
+		io_vec_free(iv);
+}
+
 #endif

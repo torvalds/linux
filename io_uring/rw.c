@@ -87,9 +87,9 @@ static int io_import_vec(int ddir, struct io_kiocb *req,
 	int ret, nr_segs;
 	struct iovec *iov;
 
-	if (io->free_iovec) {
-		nr_segs = io->free_iov_nr;
-		iov = io->free_iovec;
+	if (io->vec.iovec) {
+		nr_segs = io->vec.nr;
+		iov = io->vec.iovec;
 	} else {
 		nr_segs = 1;
 		iov = &io->fast_iov;
@@ -101,9 +101,7 @@ static int io_import_vec(int ddir, struct io_kiocb *req,
 		return ret;
 	if (iov) {
 		req->flags |= REQ_F_NEED_CLEANUP;
-		io->free_iov_nr = io->iter.nr_segs;
-		kfree(io->free_iovec);
-		io->free_iovec = iov;
+		io_vec_reset_iovec(&io->vec, iov, io->iter.nr_segs);
 	}
 	return 0;
 }
@@ -151,7 +149,7 @@ static void io_rw_recycle(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(issue_flags & IO_URING_F_UNLOCKED))
 		return;
 
-	io_alloc_cache_kasan(&rw->free_iovec, &rw->free_iov_nr);
+	io_alloc_cache_vec_kasan(&rw->vec);
 	if (io_alloc_cache_put(&req->ctx->rw_cache, rw)) {
 		req->async_data = NULL;
 		req->flags &= ~REQ_F_ASYNC_DATA;
@@ -201,7 +199,7 @@ static int io_rw_alloc_async(struct io_kiocb *req)
 	rw = io_uring_alloc_async_data(&ctx->rw_cache, req);
 	if (!rw)
 		return -ENOMEM;
-	if (rw->free_iovec)
+	if (rw->vec.iovec)
 		req->flags |= REQ_F_NEED_CLEANUP;
 	rw->bytes_done = 0;
 	return 0;
@@ -1327,7 +1325,6 @@ void io_rw_cache_free(const void *entry)
 {
 	struct io_async_rw *rw = (struct io_async_rw *) entry;
 
-	if (rw->free_iovec)
-		kfree(rw->free_iovec);
+	io_vec_free(&rw->vec);
 	kfree(rw);
 }

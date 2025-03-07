@@ -9,13 +9,13 @@ struct io_meta_state {
 };
 
 struct io_async_rw {
+	struct iou_vec			vec;
 	size_t				bytes_done;
-	struct iovec			*free_iovec;
+
 	struct_group(clear,
 		struct iov_iter			iter;
 		struct iov_iter_state		iter_state;
 		struct iovec			fast_iov;
-		int				free_iov_nr;
 		/*
 		 * wpq is for buffered io, while meta fields are used with
 		 * direct io
