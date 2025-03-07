@@ -700,7 +700,7 @@ mlx5_chains_create_global_table(struct mlx5_fs_chains *chains)
 		goto err_ignore;
 	}
 
-	chain = mlx5_chains_get_chain_range(chains),
+	chain = mlx5_chains_get_chain_range(chains);
 	prio = mlx5_chains_get_prio_range(chains);
 	level = mlx5_chains_get_level_range(chains);
 
