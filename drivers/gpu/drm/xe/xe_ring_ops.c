@@ -90,11 +90,10 @@ static int emit_flush_dw(u32 *dw, int i)
 	return i;
 }
 
-static int emit_flush_imm_ggtt(u32 addr, u32 value, bool invalidate_tlb,
-			       u32 *dw, int i)
+static int emit_flush_imm_ggtt(u32 addr, u32 value, u32 flags, u32 *dw, int i)
 {
 	dw[i++] = MI_FLUSH_DW | MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_IMM_DW |
-		(invalidate_tlb ? MI_INVALIDATE_TLB : 0);
+		  flags;
 	dw[i++] = addr | MI_FLUSH_DW_USE_GTT;
 	dw[i++] = 0;
 	dw[i++] = value;
@@ -254,7 +253,7 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 	if (job->ring_ops_flush_tlb) {
 		dw[i++] = preparser_disable(true);
 		i = emit_flush_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-					seqno, true, dw, i);
+					seqno, MI_INVALIDATE_TLB, dw, i);
 		dw[i++] = preparser_disable(false);
 	} else {
 		i = emit_store_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
@@ -270,7 +269,7 @@ static void __emit_job_gen12_simple(struct xe_sched_job *job, struct xe_lrc *lrc
 						dw, i);
 	}
 
-	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, false, dw, i);
+	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, 0, dw, i);
 
 	i = emit_user_interrupt(dw, i);
 
@@ -316,7 +315,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 
 	if (job->ring_ops_flush_tlb)
 		i = emit_flush_imm_ggtt(xe_lrc_start_seqno_ggtt_addr(lrc),
-					seqno, true, dw, i);
+					seqno, MI_INVALIDATE_TLB, dw, i);
 
 	dw[i++] = preparser_disable(false);
 
@@ -333,7 +332,7 @@ static void __emit_job_gen12_video(struct xe_sched_job *job, struct xe_lrc *lrc,
 						dw, i);
 	}
 
-	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, false, dw, i);
+	i = emit_flush_imm_ggtt(xe_lrc_seqno_ggtt_addr(lrc), seqno, 0, dw, i);
 
 	i = emit_user_interrupt(dw, i);
 
