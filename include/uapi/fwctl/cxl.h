@@ -19,6 +19,7 @@
  * @reserved1: Reserved. Must be 0s.
  * @get_sup_feats_in: Get Supported Features input
  * @get_feat_in: Get Feature input
+ * @set_feat_in: Set Feature input
  */
 struct fwctl_rpc_cxl {
 	__struct_group(fwctl_rpc_cxl_hdr, hdr, /* no attrs */,
@@ -30,6 +31,7 @@ struct fwctl_rpc_cxl {
 	union {
 		struct cxl_mbox_get_sup_feats_in get_sup_feats_in;
 		struct cxl_mbox_get_feat_in get_feat_in;
+		struct cxl_mbox_set_feat_in set_feat_in;
 	};
 };
 
