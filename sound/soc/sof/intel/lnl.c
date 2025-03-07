@@ -20,17 +20,6 @@
 #include "lnl.h"
 #include <sound/hda-mlink.h>
 
-/* LunarLake ops */
-struct snd_sof_dsp_ops sof_lnl_ops;
-EXPORT_SYMBOL_NS(sof_lnl_ops, "SND_SOC_SOF_INTEL_LNL");
-
-static const struct snd_sof_debugfs_map lnl_dsp_debugfs[] = {
-	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
-	{"pp", HDA_DSP_PP_BAR,  0, 0x1000, SOF_DEBUGFS_ACCESS_ALWAYS},
-	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
-	{"fw_regs", HDA_DSP_BAR,  MTL_SRAM_WINDOW_OFFSET(0), 0x1000, SOF_DEBUGFS_ACCESS_D0_ONLY},
-};
-
 /* this helps allows the DSP to setup DMIC/SSP */
 static int hdac_bus_offload_dmic_ssp(struct hdac_bus *bus, bool enable)
 {
@@ -111,78 +100,32 @@ static int lnl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	return 0;
 }
 
-int sof_lnl_ops_init(struct snd_sof_dev *sdev)
+int sof_lnl_set_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *dsp_ops)
 {
-	struct sof_ipc4_fw_data *ipc4_data;
+	int ret;
 
-	/* common defaults */
-	memcpy(&sof_lnl_ops, &sof_hda_common_ops, sizeof(struct snd_sof_dsp_ops));
+	ret = sof_mtl_set_ops(sdev, dsp_ops);
+	if (ret)
+		return ret;
 
 	/* probe/remove */
 	if (!sdev->dspless_mode_selected) {
-		sof_lnl_ops.probe = lnl_hda_dsp_probe;
-		sof_lnl_ops.remove = lnl_hda_dsp_remove;
+		dsp_ops->probe = lnl_hda_dsp_probe;
+		dsp_ops->remove = lnl_hda_dsp_remove;
 	}
 
-	/* shutdown */
-	sof_lnl_ops.shutdown = hda_dsp_shutdown;
-
-	/* doorbell */
-	sof_lnl_ops.irq_thread = mtl_ipc_irq_thread;
-
-	/* ipc */
-	sof_lnl_ops.send_msg = mtl_ipc_send_msg;
-	sof_lnl_ops.get_mailbox_offset = mtl_dsp_ipc_get_mailbox_offset;
-	sof_lnl_ops.get_window_offset = mtl_dsp_ipc_get_window_offset;
-
-	/* debug */
-	sof_lnl_ops.debug_map = lnl_dsp_debugfs;
-	sof_lnl_ops.debug_map_count = ARRAY_SIZE(lnl_dsp_debugfs);
-	sof_lnl_ops.dbg_dump = mtl_dsp_dump;
-	sof_lnl_ops.ipc_dump = mtl_ipc_dump;
-
-	/* pre/post fw run */
-	sof_lnl_ops.pre_fw_run = mtl_dsp_pre_fw_run;
-	sof_lnl_ops.post_fw_run = lnl_dsp_post_fw_run;
-
-	/* parse platform specific extended manifest */
-	sof_lnl_ops.parse_platform_ext_manifest = NULL;
-
-	/* dsp core get/put */
-	/* TODO: add core_get and core_put */
+	/* post fw run */
+	dsp_ops->post_fw_run = lnl_dsp_post_fw_run;
 
 	/* PM */
 	if (!sdev->dspless_mode_selected) {
-		sof_lnl_ops.resume = lnl_hda_dsp_resume;
-		sof_lnl_ops.runtime_resume = lnl_hda_dsp_runtime_resume;
+		dsp_ops->resume = lnl_hda_dsp_resume;
+		dsp_ops->runtime_resume = lnl_hda_dsp_runtime_resume;
 	}
 
-	/* dsp core get/put */
-	sof_lnl_ops.core_get = mtl_dsp_core_get;
-	sof_lnl_ops.core_put = mtl_dsp_core_put;
-
-	sdev->private = kzalloc(sizeof(struct sof_ipc4_fw_data), GFP_KERNEL);
-	if (!sdev->private)
-		return -ENOMEM;
-
-	ipc4_data = sdev->private;
-	ipc4_data->manifest_fw_hdr_offset = SOF_MAN4_FW_HDR_OFFSET;
-
-	ipc4_data->mtrace_type = SOF_IPC4_MTRACE_INTEL_CAVS_2;
-
-	ipc4_data->fw_context_save = true;
-
-	/* External library loading support */
-	ipc4_data->load_library = hda_dsp_ipc4_load_library;
-
-	/* set DAI ops */
-	hda_set_dai_drv_ops(sdev, &sof_lnl_ops);
-
-	sof_lnl_ops.set_power_state = hda_dsp_set_power_state_ipc4;
-
 	return 0;
-};
-EXPORT_SYMBOL_NS(sof_lnl_ops_init, "SND_SOC_SOF_INTEL_LNL");
+}
+EXPORT_SYMBOL_NS(sof_lnl_set_ops, "SND_SOC_SOF_INTEL_LNL");
 
 /* Check if an SDW IRQ occurred */
 static bool lnl_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
@@ -262,3 +205,6 @@ const struct sof_intel_dsp_desc ptl_chip_info = {
 	.hw_ip_version = SOF_INTEL_ACE_3_0,
 };
 EXPORT_SYMBOL_NS(ptl_chip_info, "SND_SOC_SOF_INTEL_LNL");
+
+MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_MTL");
+MODULE_IMPORT_NS("SND_SOC_SOF_HDA_MLINK");

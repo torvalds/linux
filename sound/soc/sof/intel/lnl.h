@@ -12,4 +12,6 @@
 #define LNL_DSP_REG_HFDSC		0x160200 /* DSP core0 status */
 #define LNL_DSP_REG_HFDEC		0x160204 /* DSP core0 error */
 
+int sof_lnl_set_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *dsp_ops);
+
 #endif /* __SOF_INTEL_LNL_H */
