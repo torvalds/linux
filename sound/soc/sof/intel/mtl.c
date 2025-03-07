@@ -712,43 +712,40 @@ int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 }
 EXPORT_SYMBOL_NS(mtl_dsp_core_put, "SND_SOC_SOF_INTEL_MTL");
 
-/* Meteorlake ops */
-struct snd_sof_dsp_ops sof_mtl_ops;
-
-int sof_mtl_ops_init(struct snd_sof_dev *sdev)
+int sof_mtl_set_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *dsp_ops)
 {
 	struct sof_ipc4_fw_data *ipc4_data;
 
 	/* common defaults */
-	memcpy(&sof_mtl_ops, &sof_hda_common_ops, sizeof(struct snd_sof_dsp_ops));
+	memcpy(dsp_ops, &sof_hda_common_ops, sizeof(struct snd_sof_dsp_ops));
 
 	/* shutdown */
-	sof_mtl_ops.shutdown = hda_dsp_shutdown;
+	dsp_ops->shutdown = hda_dsp_shutdown;
 
 	/* doorbell */
-	sof_mtl_ops.irq_thread = mtl_ipc_irq_thread;
+	dsp_ops->irq_thread = mtl_ipc_irq_thread;
 
 	/* ipc */
-	sof_mtl_ops.send_msg = mtl_ipc_send_msg;
-	sof_mtl_ops.get_mailbox_offset = mtl_dsp_ipc_get_mailbox_offset;
-	sof_mtl_ops.get_window_offset = mtl_dsp_ipc_get_window_offset;
+	dsp_ops->send_msg = mtl_ipc_send_msg;
+	dsp_ops->get_mailbox_offset = mtl_dsp_ipc_get_mailbox_offset;
+	dsp_ops->get_window_offset = mtl_dsp_ipc_get_window_offset;
 
 	/* debug */
-	sof_mtl_ops.debug_map = mtl_dsp_debugfs;
-	sof_mtl_ops.debug_map_count = ARRAY_SIZE(mtl_dsp_debugfs);
-	sof_mtl_ops.dbg_dump = mtl_dsp_dump;
-	sof_mtl_ops.ipc_dump = mtl_ipc_dump;
+	dsp_ops->debug_map = mtl_dsp_debugfs;
+	dsp_ops->debug_map_count = ARRAY_SIZE(mtl_dsp_debugfs);
+	dsp_ops->dbg_dump = mtl_dsp_dump;
+	dsp_ops->ipc_dump = mtl_ipc_dump;
 
 	/* pre/post fw run */
-	sof_mtl_ops.pre_fw_run = mtl_dsp_pre_fw_run;
-	sof_mtl_ops.post_fw_run = mtl_dsp_post_fw_run;
+	dsp_ops->pre_fw_run = mtl_dsp_pre_fw_run;
+	dsp_ops->post_fw_run = mtl_dsp_post_fw_run;
 
 	/* parse platform specific extended manifest */
-	sof_mtl_ops.parse_platform_ext_manifest = NULL;
+	dsp_ops->parse_platform_ext_manifest = NULL;
 
 	/* dsp core get/put */
-	sof_mtl_ops.core_get = mtl_dsp_core_get;
-	sof_mtl_ops.core_put = mtl_dsp_core_put;
+	dsp_ops->core_get = mtl_dsp_core_get;
+	dsp_ops->core_put = mtl_dsp_core_put;
 
 	sdev->private = kzalloc(sizeof(struct sof_ipc4_fw_data), GFP_KERNEL);
 	if (!sdev->private)
@@ -764,13 +761,14 @@ int sof_mtl_ops_init(struct snd_sof_dev *sdev)
 	/* External library loading support */
 	ipc4_data->load_library = hda_dsp_ipc4_load_library;
 
-	/* set DAI ops */
-	hda_set_dai_drv_ops(sdev, &sof_mtl_ops);
+	dsp_ops->set_power_state = hda_dsp_set_power_state_ipc4;
 
-	sof_mtl_ops.set_power_state = hda_dsp_set_power_state_ipc4;
+	/* set DAI ops */
+	hda_set_dai_drv_ops(sdev, dsp_ops);
 
 	return 0;
-};
+}
+EXPORT_SYMBOL_NS(sof_mtl_set_ops, "SND_SOC_SOF_INTEL_MTL");
 
 const struct sof_intel_dsp_desc mtl_chip_info = {
 	.cores_num = 3,
