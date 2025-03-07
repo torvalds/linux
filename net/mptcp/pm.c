@@ -12,6 +12,33 @@
 #include "mib.h"
 #include "mptcp_pm_gen.h"
 
+/* path manager helpers */
+
+/* if sk is ipv4 or ipv6_only allows only same-family local and remote addresses,
+ * otherwise allow any matching local/remote pair
+ */
+bool mptcp_pm_addr_families_match(const struct sock *sk,
+				  const struct mptcp_addr_info *loc,
+				  const struct mptcp_addr_info *rem)
+{
+	bool mptcp_is_v4 = sk->sk_family == AF_INET;
+
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	bool loc_is_v4 = loc->family == AF_INET || ipv6_addr_v4mapped(&loc->addr6);
+	bool rem_is_v4 = rem->family == AF_INET || ipv6_addr_v4mapped(&rem->addr6);
+
+	if (mptcp_is_v4)
+		return loc_is_v4 && rem_is_v4;
+
+	if (ipv6_only_sock(sk))
+		return !loc_is_v4 && !rem_is_v4;
+
+	return loc_is_v4 == rem_is_v4;
+#else
+	return mptcp_is_v4 && loc->family == AF_INET && rem->family == AF_INET;
+#endif
+}
+
 /* path manager command handlers */
 
 int mptcp_pm_announce_addr(struct mptcp_sock *msk,
@@ -325,8 +352,6 @@ void mptcp_pm_mp_fail_received(struct sock *sk, u64 fail_seq)
 	}
 }
 
-/* path manager helpers */
-
 bool mptcp_pm_add_addr_signal(struct mptcp_sock *msk, const struct sk_buff *skb,
 			      unsigned int opt_size, unsigned int remaining,
 			      struct mptcp_addr_info *addr, bool *echo,
@@ -572,31 +597,6 @@ void mptcp_pm_subflow_chk_stale(const struct mptcp_sock *msk, struct sock *ssk)
 		subflow->stale_count = 0;
 		mptcp_subflow_set_active(subflow);
 	}
-}
-
-/* if sk is ipv4 or ipv6_only allows only same-family local and remote addresses,
- * otherwise allow any matching local/remote pair
- */
-bool mptcp_pm_addr_families_match(const struct sock *sk,
-				  const struct mptcp_addr_info *loc,
-				  const struct mptcp_addr_info *rem)
-{
-	bool mptcp_is_v4 = sk->sk_family == AF_INET;
-
-#if IS_ENABLED(CONFIG_MPTCP_IPV6)
-	bool loc_is_v4 = loc->family == AF_INET || ipv6_addr_v4mapped(&loc->addr6);
-	bool rem_is_v4 = rem->family == AF_INET || ipv6_addr_v4mapped(&rem->addr6);
-
-	if (mptcp_is_v4)
-		return loc_is_v4 && rem_is_v4;
-
-	if (ipv6_only_sock(sk))
-		return !loc_is_v4 && !rem_is_v4;
-
-	return loc_is_v4 == rem_is_v4;
-#else
-	return mptcp_is_v4 && loc->family == AF_INET && rem->family == AF_INET;
-#endif
 }
 
 void mptcp_pm_worker(struct mptcp_sock *msk)
