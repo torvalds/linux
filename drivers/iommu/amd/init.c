@@ -411,33 +411,26 @@ static void iommu_set_device_table(struct amd_iommu *iommu)
 			&entry, sizeof(entry));
 }
 
-/* Generic functions to enable/disable certain features of the IOMMU. */
-void iommu_feature_enable(struct amd_iommu *iommu, u8 bit)
+static void iommu_feature_set(struct amd_iommu *iommu, u64 val, u64 mask, u8 shift)
 {
 	u64 ctrl;
 
 	ctrl = readq(iommu->mmio_base +  MMIO_CONTROL_OFFSET);
-	ctrl |= (1ULL << bit);
+	mask <<= shift;
+	ctrl &= ~mask;
+	ctrl |= (val << shift) & mask;
 	writeq(ctrl, iommu->mmio_base +  MMIO_CONTROL_OFFSET);
+}
+
+/* Generic functions to enable/disable certain features of the IOMMU. */
+void iommu_feature_enable(struct amd_iommu *iommu, u8 bit)
+{
+	iommu_feature_set(iommu, 1ULL, 1ULL, bit);
 }
 
 static void iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 {
-	u64 ctrl;
-
-	ctrl = readq(iommu->mmio_base + MMIO_CONTROL_OFFSET);
-	ctrl &= ~(1ULL << bit);
-	writeq(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
-}
-
-static void iommu_set_inv_tlb_timeout(struct amd_iommu *iommu, int timeout)
-{
-	u64 ctrl;
-
-	ctrl = readq(iommu->mmio_base + MMIO_CONTROL_OFFSET);
-	ctrl &= ~CTRL_INV_TO_MASK;
-	ctrl |= (timeout << CONTROL_INV_TIMEOUT) & CTRL_INV_TO_MASK;
-	writeq(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
+	iommu_feature_set(iommu, 0ULL, 1ULL, bit);
 }
 
 /* Function to enable the hardware */
@@ -2651,7 +2644,7 @@ static void iommu_init_flags(struct amd_iommu *iommu)
 	iommu_feature_enable(iommu, CONTROL_COHERENT_EN);
 
 	/* Set IOTLB invalidation timeout to 1s */
-	iommu_set_inv_tlb_timeout(iommu, CTRL_INV_TO_1S);
+	iommu_feature_set(iommu, CTRL_INV_TO_1S, CTRL_INV_TO_MASK, CONTROL_INV_TIMEOUT);
 
 	/* Enable Enhanced Peripheral Page Request Handling */
 	if (check_feature(FEATURE_EPHSUP))
