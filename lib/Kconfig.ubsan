@@ -125,6 +125,7 @@ config UBSAN_INTEGER_WRAP
 	depends on $(cc-option,-fsanitize=unsigned-integer-overflow)
 	depends on $(cc-option,-fsanitize=implicit-signed-integer-truncation)
 	depends on $(cc-option,-fsanitize=implicit-unsigned-integer-truncation)
+	depends on $(cc-option,-fsanitize-ignorelist=/dev/null)
 	help
 	  This option enables all of the sanitizers involved in integer overflow
 	  (wrap-around) mitigation: signed-integer-overflow, unsigned-integer-overflow,
