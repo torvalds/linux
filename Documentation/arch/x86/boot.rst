@@ -1038,16 +1038,6 @@ Offset/size:	0x000c/4
   This field contains maximal allowed type for setup_data and setup_indirect structs.
 
 
-The Image Checksum
-==================
-
-From boot protocol version 2.08 onwards the CRC-32 is calculated over
-the entire file using the characteristic polynomial 0x04C11DB7 and an
-initial remainder of 0xffffffff.  The checksum is appended to the
-file; therefore the CRC of the file up to the limit specified in the
-syssize field of the header is always 0.
-
-
 The Kernel Command Line
 =======================
 
