@@ -139,6 +139,7 @@ enum AMDGPU_DEBUG_MASK {
 	AMDGPU_DEBUG_ENABLE_RAS_ACA = BIT(4),
 	AMDGPU_DEBUG_ENABLE_EXP_RESETS = BIT(5),
 	AMDGPU_DEBUG_DISABLE_GPU_RING_RESET = BIT(6),
+	AMDGPU_DEBUG_SMU_POOL = BIT(7),
 };
 
 unsigned int amdgpu_vram_limit = UINT_MAX;
@@ -2237,6 +2238,10 @@ static void amdgpu_init_debug_options(struct amdgpu_device *adev)
 	if (amdgpu_debug_mask & AMDGPU_DEBUG_DISABLE_GPU_RING_RESET) {
 		pr_info("debug: ring reset disabled\n");
 		adev->debug_disable_gpu_ring_reset = true;
+	}
+	if (amdgpu_debug_mask & AMDGPU_DEBUG_SMU_POOL) {
+		pr_info("debug: use vram for smu pool\n");
+		adev->pm.smu_debug_mask |= SMU_DEBUG_POOL_USE_VRAM;
 	}
 }
 
