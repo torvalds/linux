@@ -253,12 +253,8 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 				return -EFAULT;
 			sr->len = tmp_iov.iov_len;
 		}
-
-		return 0;
 	}
-
-	return io_net_import_vec(req, iomsg, (struct iovec __user *)uiov,
-				 msg->msg_iovlen, ddir);
+	return 0;
 }
 
 static int io_copy_msghdr_from_user(struct user_msghdr *msg,
@@ -328,10 +324,8 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 				return -EFAULT;
 			sr->len = tmp_iov.iov_len;
 		}
-		return 0;
 	}
-
-	return io_net_import_vec(req, iomsg, msg->msg_iov, msg->msg_iovlen, ddir);
+	return 0;
 }
 
 static int io_sendmsg_copy_hdr(struct io_kiocb *req,
@@ -342,6 +336,12 @@ static int io_sendmsg_copy_hdr(struct io_kiocb *req,
 	int ret;
 
 	ret = io_msg_copy_hdr(req, iomsg, &msg, ITER_SOURCE, NULL);
+	if (unlikely(ret))
+		return ret;
+
+	if (!(req->flags & REQ_F_BUFFER_SELECT))
+		ret = io_net_import_vec(req, iomsg, msg.msg_iov, msg.msg_iovlen,
+					ITER_SOURCE);
 	/* save msg_control as sys_sendmsg() overwrites it */
 	sr->msg_control = iomsg->msg.msg_control_user;
 	return ret;
@@ -719,6 +719,13 @@ static int io_recvmsg_copy_hdr(struct io_kiocb *req,
 	ret = io_msg_copy_hdr(req, iomsg, &msg, ITER_DEST, &iomsg->uaddr);
 	if (unlikely(ret))
 		return ret;
+
+	if (!(req->flags & REQ_F_BUFFER_SELECT)) {
+		ret = io_net_import_vec(req, iomsg, msg.msg_iov, msg.msg_iovlen,
+					ITER_DEST);
+		if (unlikely(ret))
+			return ret;
+	}
 	return io_recvmsg_mshot_prep(req, iomsg, msg.msg_namelen,
 					msg.msg_controllen);
 }
