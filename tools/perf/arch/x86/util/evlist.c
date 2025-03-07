@@ -39,28 +39,13 @@ int arch_evlist__cmp(const struct evsel *lhs, const struct evsel *rhs)
 	 *         26,319,024      slots
 	 *          2,427,791      instructions
 	 *          2,683,508      topdown-retiring
-	 *
-	 * If slots event and topdown metrics events are not in same group, the
-	 * topdown metrics events must be first event after the slots event group,
-	 * otherwise topdown metrics events can't be regrouped correctly, e.g.
-	 *
-	 * a. perf stat -e "{instructions,slots},cycles,topdown-retiring" -C0 sleep 1
+	 * e. slots event and metrics event are not in a group and not adjacent
+	 *    perf stat -e "{instructions,slots},cycles,topdown-retiring" -C0 sleep 1
 	 *    WARNING: events were regrouped to match PMUs
-	 *     Performance counter stats for 'CPU(s) 0':
-	 *         17,923,134      slots
-	 *          2,154,855      instructions
-	 *          3,015,058      cycles
-	 *    <not supported>      topdown-retiring
-	 *
-	 * If slots event and topdown metrics events are in two groups, the group which
-	 * has topdown metrics events must contain only the topdown metrics event,
-	 * otherwise topdown metrics event can't be regrouped correctly as well, e.g.
-	 *
-	 * a. perf stat -e "{instructions,slots},{topdown-retiring,cycles}" -C0 sleep 1
-	 *    WARNING: events were regrouped to match PMUs
-	 *    Error:
-	 *    The sys_perf_event_open() syscall returned with 22 (Invalid argument) for
-	 *    event (topdown-retiring)
+	 *         68,433,522      slots
+	 *          8,856,102      topdown-retiring
+	 *          7,791,494      instructions
+	 *         11,469,513      cycles
 	 */
 	if (topdown_sys_has_perf_metrics() &&
 	    (arch_evsel__must_be_in_group(lhs) || arch_evsel__must_be_in_group(rhs))) {
