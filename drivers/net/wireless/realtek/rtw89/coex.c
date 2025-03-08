@@ -1540,6 +1540,9 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		} else if (ver->fcxbtafh == 2) {
 			pfinfo = &pfwinfo->rpt_fbtc_btafh.finfo.v2;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btafh.finfo.v2);
+		} else if (ver->fcxbtafh == 7) {
+			pfinfo = &pfwinfo->rpt_fbtc_btafh.finfo.v7;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btafh.finfo.v7);
 		} else {
 			goto err;
 		}

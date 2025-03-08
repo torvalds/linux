@@ -3044,6 +3044,7 @@ struct rtw89_btc_rpt_cmn_info {
 union rtw89_btc_fbtc_btafh_info {
 	struct rtw89_btc_fbtc_btafh v1;
 	struct rtw89_btc_fbtc_btafh_v2 v2;
+	struct rtw89_btc_fbtc_btafh_v7 v7;
 };
 
 struct rtw89_btc_report_ctrl_state {
