@@ -698,11 +698,9 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 
 		pos += scnprintf(pos, endpos - pos, "Dynamic status:\n");
 		dyn_status = (rsp->tas_status_mac[i].dynamic_status);
-		for_each_set_bit(tmp, &dyn_status, sizeof(dyn_status)) {
-			if (tmp >= 0 && tmp < TAS_DYNA_STATUS_MAX)
-				pos += scnprintf(pos, endpos - pos,
-						 "\t%s (%d)\n",
-						 tas_current_status[tmp], tmp);
+		for_each_set_bit(tmp, &dyn_status, TAS_DYNA_STATUS_MAX) {
+			pos += scnprintf(pos, endpos - pos, "\t%s (%d)\n",
+					 tas_current_status[tmp], tmp);
 		}
 
 		pos += scnprintf(pos, endpos - pos,
