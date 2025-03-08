@@ -494,6 +494,9 @@ static void bch2_rbio_retry(struct work_struct *work)
 		rbio->ret		= 0;
 	}
 
+	unsigned subvol		= rbio->subvol;
+	struct bpos read_pos	= rbio->read_pos;
+
 	rbio = bch2_rbio_free(rbio);
 
 	flags |= BCH_READ_in_retry;
@@ -508,6 +511,19 @@ static void bch2_rbio_retry(struct work_struct *work)
 	if (ret) {
 		rbio->ret = ret;
 		rbio->bio.bi_status = BLK_STS_IOERR;
+	} else {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_trans_do(c,
+			bch2_inum_offset_err_msg_trans(trans, &buf,
+					(subvol_inum) { subvol, read_pos.inode },
+					read_pos.offset << 9));
+		if (rbio->flags & BCH_READ_data_update)
+			prt_str(&buf, "(internal move) ");
+		prt_str(&buf, "successful retry");
+
+		bch_err_ratelimited(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 	}
 
 	bch2_rbio_done(rbio);
