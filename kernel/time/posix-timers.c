@@ -397,9 +397,8 @@ void posixtimer_free_timer(struct k_itimer *tmr)
 
 static void posix_timer_unhash_and_free(struct k_itimer *tmr)
 {
-	spin_lock(&hash_lock);
-	hlist_del_rcu(&tmr->t_hash);
-	spin_unlock(&hash_lock);
+	scoped_guard (spinlock, &hash_lock)
+		hlist_del_rcu(&tmr->t_hash);
 	posixtimer_putref(tmr);
 }
 
@@ -443,9 +442,8 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	new_timer->it_overrun = -1LL;
 
 	if (event) {
-		rcu_read_lock();
-		new_timer->it_pid = get_pid(good_sigevent(event));
-		rcu_read_unlock();
+		scoped_guard (rcu)
+			new_timer->it_pid = get_pid(good_sigevent(event));
 		if (!new_timer->it_pid) {
 			error = -EINVAL;
 			goto out;
@@ -579,7 +577,7 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 	 * can't change, but timr::it_signal becomes NULL during
 	 * destruction.
 	 */
-	rcu_read_lock();
+	guard(rcu)();
 	timr = posix_timer_by_id(timer_id);
 	if (timr) {
 		spin_lock_irqsave(&timr->it_lock, *flags);
@@ -587,14 +585,10 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 		 * Validate under timr::it_lock that timr::it_signal is
 		 * still valid. Pairs with #1 above.
 		 */
-		if (timr->it_signal == current->signal) {
-			rcu_read_unlock();
+		if (timr->it_signal == current->signal)
 			return timr;
-		}
 		spin_unlock_irqrestore(&timr->it_lock, *flags);
 	}
-	rcu_read_unlock();
-
 	return NULL;
 }
 
@@ -825,16 +819,15 @@ static struct k_itimer *timer_wait_running(struct k_itimer *timer,
 	timer_t timer_id = READ_ONCE(timer->it_id);
 
 	/* Prevent kfree(timer) after dropping the lock */
-	rcu_read_lock();
-	unlock_timer(timer, *flags);
+	scoped_guard (rcu) {
+		unlock_timer(timer, *flags);
+		/*
+		 * kc->timer_wait_running() might drop RCU lock. So @timer
+		 * cannot be touched anymore after the function returns!
+		 */
+		timer->kclock->timer_wait_running(timer);
+	}
 
-	/*
-	 * kc->timer_wait_running() might drop RCU lock. So @timer
-	 * cannot be touched anymore after the function returns!
-	 */
-	timer->kclock->timer_wait_running(timer);
-
-	rcu_read_unlock();
 	/* Relock the timer. It might be not longer hashed. */
 	return lock_timer(timer_id, flags);
 }
@@ -1020,20 +1013,20 @@ retry_delete:
 		goto retry_delete;
 	}
 
-	spin_lock(&current->sighand->siglock);
-	hlist_del(&timer->list);
-	posix_timer_cleanup_ignored(timer);
-	/*
-	 * A concurrent lookup could check timer::it_signal lockless. It
-	 * will reevaluate with timer::it_lock held and observe the NULL.
-	 *
-	 * It must be written with siglock held so that the signal code
-	 * observes timer->it_signal == NULL in do_sigaction(SIG_IGN),
-	 * which prevents it from moving a pending signal of a deleted
-	 * timer to the ignore list.
-	 */
-	WRITE_ONCE(timer->it_signal, NULL);
-	spin_unlock(&current->sighand->siglock);
+	scoped_guard (spinlock, &current->sighand->siglock) {
+		hlist_del(&timer->list);
+		posix_timer_cleanup_ignored(timer);
+		/*
+		 * A concurrent lookup could check timer::it_signal lockless. It
+		 * will reevaluate with timer::it_lock held and observe the NULL.
+		 *
+		 * It must be written with siglock held so that the signal code
+		 * observes timer->it_signal == NULL in do_sigaction(SIG_IGN),
+		 * which prevents it from moving a pending signal of a deleted
+		 * timer to the ignore list.
+		 */
+		WRITE_ONCE(timer->it_signal, NULL);
+	}
 
 	unlock_timer(timer, flags);
 	posix_timer_unhash_and_free(timer);
@@ -1106,9 +1099,8 @@ void exit_itimers(struct task_struct *tsk)
 		return;
 
 	/* Protect against concurrent read via /proc/$PID/timers */
-	spin_lock_irq(&tsk->sighand->siglock);
-	hlist_move_list(&tsk->signal->posix_timers, &timers);
-	spin_unlock_irq(&tsk->sighand->siglock);
+	scoped_guard (spinlock_irq, &tsk->sighand->siglock)
+		hlist_move_list(&tsk->signal->posix_timers, &timers);
 
 	/* The timers are not longer accessible via tsk::signal */
 	while (!hlist_empty(&timers)) {
