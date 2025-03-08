@@ -11,8 +11,8 @@
  */
 #include <linux/compat.h>
 #include <linux/compiler.h>
-#include <linux/hash.h>
 #include <linux/init.h>
+#include <linux/jhash.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/memblock.h>
@@ -47,11 +47,11 @@ struct timer_hash_bucket {
 
 static struct {
 	struct timer_hash_bucket	*buckets;
-	unsigned long			bits;
+	unsigned long			mask;
 } __timer_data __ro_after_init __aligned(2*sizeof(long));
 
 #define timer_buckets	(__timer_data.buckets)
-#define timer_hashbits	(__timer_data.bits)
+#define timer_hashmask	(__timer_data.mask)
 
 static const struct k_clock * const posix_clocks[];
 static const struct k_clock *clockid_to_kclock(const clockid_t id);
@@ -87,7 +87,7 @@ DEFINE_CLASS_IS_COND_GUARD(lock_timer);
 
 static struct timer_hash_bucket *hash_bucket(struct signal_struct *sig, unsigned int nr)
 {
-	return &timer_buckets[hash_32(hash32_ptr(sig) ^ nr, timer_hashbits)];
+	return &timer_buckets[jhash2((u32 *)&sig, sizeof(sig) / sizeof(u32), nr) & timer_hashmask];
 }
 
 static struct k_itimer *posix_timer_by_id(timer_t id)
@@ -1513,7 +1513,7 @@ static int __init posixtimer_init(void)
 	timer_buckets = alloc_large_system_hash("posixtimers", sizeof(*timer_buckets),
 						size, 0, 0, &shift, NULL, size, size);
 	size = 1UL << shift;
-	timer_hashbits = ilog2(size);
+	timer_hashmask = size - 1;
 
 	for (i = 0; i < size; i++) {
 		spin_lock_init(&timer_buckets[i].lock);
