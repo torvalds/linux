@@ -24,8 +24,21 @@ struct fbnic_net;
 #define FBNIC_TX_DESC_WAKEUP	(FBNIC_MAX_SKB_DESC * 2)
 #define FBNIC_TX_DESC_MIN	roundup_pow_of_two(FBNIC_TX_DESC_WAKEUP)
 
+/* To receive the worst case packet we need:
+ *	1 descriptor for primary metadata
+ *	+ 1 descriptor for optional metadata
+ *	+ 1 descriptor for headers
+ *	+ 4 descriptors for payload
+ */
+#define FBNIC_MAX_RX_PKT_DESC	7
+#define FBNIC_RX_DESC_MIN	roundup_pow_of_two(FBNIC_MAX_RX_PKT_DESC * 2)
+
 #define FBNIC_MAX_TXQS			128u
 #define FBNIC_MAX_RXQS			128u
+
+/* These apply to TWQs, TCQ, RCQ */
+#define FBNIC_QUEUE_SIZE_MIN		16u
+#define FBNIC_QUEUE_SIZE_MAX		SZ_64K
 
 #define FBNIC_TXQ_SIZE_DEFAULT		1024
 #define FBNIC_HPQ_SIZE_DEFAULT		256
