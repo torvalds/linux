@@ -50,6 +50,7 @@ pub mod faux;
 #[cfg(CONFIG_RUST_FW_LOADER_ABSTRACTIONS)]
 pub mod firmware;
 pub mod fs;
+#[path = "../pin-init/src/lib.rs"]
 pub mod init;
 pub mod io;
 pub mod ioctl;
