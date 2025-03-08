@@ -189,6 +189,33 @@ impl<T> StackInit<T> {
     }
 }
 
+#[test]
+fn stack_init_reuse() {
+    use ::std::{borrow::ToOwned, println, string::String};
+    use core::pin::pin;
+
+    #[derive(Debug)]
+    struct Foo {
+        a: usize,
+        b: String,
+    }
+    let mut slot: Pin<&mut StackInit<Foo>> = pin!(StackInit::uninit());
+    let value: Result<Pin<&mut Foo>, core::convert::Infallible> =
+        slot.as_mut().init(crate::init!(Foo {
+            a: 42,
+            b: "Hello".to_owned(),
+        }));
+    let value = value.unwrap();
+    println!("{value:?}");
+    let value: Result<Pin<&mut Foo>, core::convert::Infallible> =
+        slot.as_mut().init(crate::init!(Foo {
+            a: 24,
+            b: "world!".to_owned(),
+        }));
+    let value = value.unwrap();
+    println!("{value:?}");
+}
+
 /// When a value of this type is dropped, it drops a `T`.
 ///
 /// Can be forgotten to prevent the drop.

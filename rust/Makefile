@@ -121,7 +121,7 @@ rustdoc-pin_init_internal: $(src)/pin-init/internal/src/lib.rs FORCE
 
 rustdoc-pin_init: private rustdoc_host = yes
 rustdoc-pin_init: private rustc_target_flags = --extern pin_init_internal \
-    --extern macros --extern force:alloc --cfg kernel --cfg feature=\"alloc\"
+    --extern macros --extern alloc --cfg kernel --cfg feature=\"alloc\"
 rustdoc-pin_init: $(src)/pin-init/src/lib.rs rustdoc-pin_init_internal \
     rustdoc-macros FORCE
 	+$(call if_changed,rustdoc)

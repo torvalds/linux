@@ -204,8 +204,16 @@
 //! [structurally pinned fields]:
 //!     https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
 //! [stack]: crate::stack_pin_init
-//! [`Arc<T>`]: https://rust.docs.kernel.org/kernel/sync/struct.Arc.html
-//! [`Box<T>`]: https://rust.docs.kernel.org/kernel/alloc/kbox/struct.Box.html
+#![cfg_attr(
+    kernel,
+    doc = "[`Arc<T>`]: https://rust.docs.kernel.org/kernel/sync/struct.Arc.html"
+)]
+#![cfg_attr(
+    kernel,
+    doc = "[`Box<T>`]: https://rust.docs.kernel.org/kernel/alloc/kbox/struct.Box.html"
+)]
+#![cfg_attr(not(kernel), doc = "[`Arc<T>`]: alloc::alloc::sync::Arc")]
+#![cfg_attr(not(kernel), doc = "[`Box<T>`]: alloc::alloc::boxed::Box")]
 //! [`impl PinInit<Foo>`]: PinInit
 //! [`impl PinInit<T, E>`]: PinInit
 //! [`impl Init<T, E>`]: Init
@@ -238,6 +246,11 @@ use core::{
 pub mod __internal;
 #[doc(hidden)]
 pub mod macros;
+
+#[cfg(any(feature = "std", feature = "alloc"))]
+mod alloc;
+#[cfg(any(feature = "std", feature = "alloc"))]
+pub use alloc::InPlaceInit;
 
 /// Used to specify the pinning information of the fields of a struct.
 ///
@@ -914,8 +927,16 @@ macro_rules! assert_pinned {
 ///     - `slot` is not partially initialized.
 /// - while constructing the `T` at `slot` it upholds the pinning invariants of `T`.
 ///
-/// [`Arc<T>`]: https://rust.docs.kernel.org/kernel/sync/struct.Arc.html
-/// [`Box<T>`]: https://rust.docs.kernel.org/kernel/alloc/kbox/struct.Box.html
+#[cfg_attr(
+    kernel,
+    doc = "[`Arc<T>`]: https://rust.docs.kernel.org/kernel/sync/struct.Arc.html"
+)]
+#[cfg_attr(
+    kernel,
+    doc = "[`Box<T>`]: https://rust.docs.kernel.org/kernel/alloc/kbox/struct.Box.html"
+)]
+#[cfg_attr(not(kernel), doc = "[`Arc<T>`]: alloc::alloc::sync::Arc")]
+#[cfg_attr(not(kernel), doc = "[`Box<T>`]: alloc::alloc::boxed::Box")]
 #[must_use = "An initializer must be used in order to create its value."]
 pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     /// Initializes `slot`.
@@ -1005,8 +1026,16 @@ where
 /// Contrary to its supertype [`PinInit<T, E>`] the caller is allowed to
 /// move the pointee after initialization.
 ///
-/// [`Arc<T>`]: https://rust.docs.kernel.org/kernel/sync/struct.Arc.html
-/// [`Box<T>`]: https://rust.docs.kernel.org/kernel/alloc/kbox/struct.Box.html
+#[cfg_attr(
+    kernel,
+    doc = "[`Arc<T>`]: https://rust.docs.kernel.org/kernel/sync/struct.Arc.html"
+)]
+#[cfg_attr(
+    kernel,
+    doc = "[`Box<T>`]: https://rust.docs.kernel.org/kernel/alloc/kbox/struct.Box.html"
+)]
+#[cfg_attr(not(kernel), doc = "[`Arc<T>`]: alloc::alloc::sync::Arc")]
+#[cfg_attr(not(kernel), doc = "[`Box<T>`]: alloc::alloc::boxed::Box")]
 #[must_use = "An initializer must be used in order to create its value."]
 pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     /// Initializes `slot`.
