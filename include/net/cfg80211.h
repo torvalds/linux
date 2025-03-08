@@ -3086,10 +3086,13 @@ struct cfg80211_assoc_link {
  * struct cfg80211_ml_reconf_req - MLO link reconfiguration request
  * @add_links: data for links to add, see &struct cfg80211_assoc_link
  * @rem_links: bitmap of links to remove
+ * @ext_mld_capa_ops: extended MLD capabilities and operations set by
+ *	userspace for the ML reconfiguration action frame
  */
 struct cfg80211_ml_reconf_req {
 	struct cfg80211_assoc_link add_links[IEEE80211_MLD_MAX_NUM_LINKS];
 	u16 rem_links;
+	u16 ext_mld_capa_ops;
 };
 
 /**
@@ -3164,6 +3167,8 @@ enum cfg80211_assoc_req_flags {
  *	the link on which the association request should be sent
  * @ap_mld_addr: AP MLD address in case of MLO association request,
  *	valid iff @link_id >= 0
+ * @ext_mld_capa_ops: extended MLD capabilities and operations set by
+ *	userspace for the association
  */
 struct cfg80211_assoc_request {
 	struct cfg80211_bss *bss;
@@ -3184,6 +3189,7 @@ struct cfg80211_assoc_request {
 	struct cfg80211_assoc_link links[IEEE80211_MLD_MAX_NUM_LINKS];
 	const u8 *ap_mld_addr;
 	s8 link_id;
+	u16 ext_mld_capa_ops;
 };
 
 /**

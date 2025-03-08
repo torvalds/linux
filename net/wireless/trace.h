@@ -1378,6 +1378,7 @@ TRACE_EVENT(rdev_assoc,
 		__dynamic_array(u8, fils_kek, req->fils_kek_len)
 		__dynamic_array(u8, fils_nonces,
 				req->fils_nonces ? 2 * FILS_NONCE_LEN : 0)
+		__field(u16, ext_mld_capa_ops)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -1404,6 +1405,7 @@ TRACE_EVENT(rdev_assoc,
 		if (req->fils_nonces)
 			memcpy(__get_dynamic_array(fils_nonces),
 			       req->fils_nonces, 2 * FILS_NONCE_LEN);
+		__entry->ext_mld_capa_ops = req->ext_mld_capa_ops;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: %pM"
 		  ", previous bssid: %pM, use mfp: %s, flags: 0x%x",
@@ -4149,6 +4151,7 @@ TRACE_EVENT(rdev_assoc_ml_reconf,
 		NETDEV_ENTRY
 		__field(u16, add_links)
 		__field(u16, rem_links)
+		__field(u16, ext_mld_capa_ops)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
@@ -4160,6 +4163,7 @@ TRACE_EVENT(rdev_assoc_ml_reconf,
 		for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++)
 			if (req->add_links[i].bss)
 				__entry->add_links |= BIT(i);
+		__entry->ext_mld_capa_ops = req->ext_mld_capa_ops;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", add_links=0x%x, rem_links=0x%x",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG,
