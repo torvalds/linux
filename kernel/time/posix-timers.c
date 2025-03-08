@@ -682,7 +682,6 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 
 static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 {
-	const struct k_clock *kc;
 	struct k_itimer *timr;
 	unsigned long flags;
 	int ret = 0;
@@ -692,11 +691,7 @@ static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 		return -EINVAL;
 
 	memset(setting, 0, sizeof(*setting));
-	kc = timr->kclock;
-	if (WARN_ON_ONCE(!kc || !kc->timer_get))
-		ret = -EINVAL;
-	else
-		kc->timer_get(timr, setting);
+	timr->kclock->timer_get(timr, setting);
 
 	unlock_timer(timr, flags);
 	return ret;
@@ -824,7 +819,6 @@ static void common_timer_wait_running(struct k_itimer *timer)
 static struct k_itimer *timer_wait_running(struct k_itimer *timer,
 					   unsigned long *flags)
 {
-	const struct k_clock *kc = READ_ONCE(timer->kclock);
 	timer_t timer_id = READ_ONCE(timer->it_id);
 
 	/* Prevent kfree(timer) after dropping the lock */
@@ -835,8 +829,7 @@ static struct k_itimer *timer_wait_running(struct k_itimer *timer,
 	 * kc->timer_wait_running() might drop RCU lock. So @timer
 	 * cannot be touched anymore after the function returns!
 	 */
-	if (!WARN_ON_ONCE(!kc->timer_wait_running))
-		kc->timer_wait_running(timer);
+	timer->kclock->timer_wait_running(timer);
 
 	rcu_read_unlock();
 	/* Relock the timer. It might be not longer hashed. */
@@ -899,7 +892,6 @@ static int do_timer_settime(timer_t timer_id, int tmr_flags,
 			    struct itimerspec64 *new_spec64,
 			    struct itimerspec64 *old_spec64)
 {
-	const struct k_clock *kc;
 	struct k_itimer *timr;
 	unsigned long flags;
 	int error;
@@ -922,11 +914,7 @@ retry:
 	/* Prevent signal delivery and rearming. */
 	timr->it_signal_seq++;
 
-	kc = timr->kclock;
-	if (WARN_ON_ONCE(!kc || !kc->timer_set))
-		error = -EINVAL;
-	else
-		error = kc->timer_set(timr, tmr_flags, new_spec64, old_spec64);
+	error = timr->kclock->timer_set(timr, tmr_flags, new_spec64, old_spec64);
 
 	if (error == TIMER_RETRY) {
 		// We already got the old time...
@@ -1008,18 +996,6 @@ static inline void posix_timer_cleanup_ignored(struct k_itimer *tmr)
 	}
 }
 
-static inline int timer_delete_hook(struct k_itimer *timer)
-{
-	const struct k_clock *kc = timer->kclock;
-
-	/* Prevent signal delivery and rearming. */
-	timer->it_signal_seq++;
-
-	if (WARN_ON_ONCE(!kc || !kc->timer_del))
-		return -EINVAL;
-	return kc->timer_del(timer);
-}
-
 /* Delete a POSIX.1b interval timer. */
 SYSCALL_DEFINE1(timer_delete, timer_t, timer_id)
 {
@@ -1032,7 +1008,10 @@ retry_delete:
 	if (!timer)
 		return -EINVAL;
 
-	if (unlikely(timer_delete_hook(timer) == TIMER_RETRY)) {
+	/* Prevent signal delivery and rearming. */
+	timer->it_signal_seq++;
+
+	if (unlikely(timer->kclock->timer_del(timer) == TIMER_RETRY)) {
 		/* Unlocks and relocks the timer if it still exists */
 		timer = timer_wait_running(timer, &flags);
 		goto retry_delete;
@@ -1078,7 +1057,7 @@ retry_delete:
 	 * mechanism. Worse, that timer mechanism might run the expiry
 	 * function concurrently.
 	 */
-	if (timer_delete_hook(timer) == TIMER_RETRY) {
+	if (timer->kclock->timer_del(timer) == TIMER_RETRY) {
 		/*
 		 * Timer is expired concurrently, prevent livelocks
 		 * and pointless spinning on RT.
