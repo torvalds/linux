@@ -11,6 +11,9 @@ use super::*;
 
 /// See the [nomicon] for what subtyping is. See also [this table].
 ///
+/// The reason for not using `PhantomData<*mut T>` is that that type never implements [`Send`] and
+/// [`Sync`]. Hence `fn(*mut T) -> *mut T` is used, as that type always implements them.
+///
 /// [nomicon]: https://doc.rust-lang.org/nomicon/subtyping.html
 /// [this table]: https://doc.rust-lang.org/nomicon/phantom-data.html#table-of-phantomdata-patterns
 pub(super) type Invariant<T> = PhantomData<fn(*mut T) -> *mut T>;
@@ -105,7 +108,7 @@ pub unsafe trait InitData: Copy {
     }
 }
 
-pub struct AllData<T: ?Sized>(PhantomData<fn(KBox<T>) -> KBox<T>>);
+pub struct AllData<T: ?Sized>(Invariant<T>);
 
 impl<T: ?Sized> Clone for AllData<T> {
     fn clone(&self) -> Self {

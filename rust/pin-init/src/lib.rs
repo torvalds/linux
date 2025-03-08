@@ -212,7 +212,6 @@
 //! [`pin_data`]: ::macros::pin_data
 //! [`pin_init!`]: crate::pin_init!
 
-use crate::{alloc::KBox, types::ScopeGuard};
 use core::{
     cell::UnsafeCell,
     convert::Infallible,
@@ -944,7 +943,7 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
 }
 
 /// An initializer returned by [`PinInit::pin_chain`].
-pub struct ChainPinInit<I, F, T: ?Sized, E>(I, F, __internal::Invariant<(E, KBox<T>)>);
+pub struct ChainPinInit<I, F, T: ?Sized, E>(I, F, __internal::Invariant<(E, T)>);
 
 // SAFETY: The `__pinned_init` function is implemented such that it
 // - returns `Ok(())` on successful initialization,
@@ -1043,7 +1042,7 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
 }
 
 /// An initializer returned by [`Init::chain`].
-pub struct ChainInit<I, F, T: ?Sized, E>(I, F, __internal::Invariant<(E, KBox<T>)>);
+pub struct ChainInit<I, F, T: ?Sized, E>(I, F, __internal::Invariant<(E, T)>);
 
 // SAFETY: The `__init` function is implemented such that it
 // - returns `Ok(())` on successful initialization,
@@ -1140,25 +1139,19 @@ where
 {
     let init = move |slot: *mut [T; N]| {
         let slot = slot.cast::<T>();
-        // Counts the number of initialized elements and when dropped drops that many elements from
-        // `slot`.
-        let mut init_count = ScopeGuard::new_with_data(0, |i| {
-            // We now free every element that has been initialized before.
-            // SAFETY: The loop initialized exactly the values from 0..i and since we
-            // return `Err` below, the caller will consider the memory at `slot` as
-            // uninitialized.
-            unsafe { ptr::drop_in_place(ptr::slice_from_raw_parts_mut(slot, i)) };
-        });
         for i in 0..N {
             let init = make_init(i);
             // SAFETY: Since 0 <= `i` < N, it is still in bounds of `[T; N]`.
             let ptr = unsafe { slot.add(i) };
             // SAFETY: The pointer is derived from `slot` and thus satisfies the `__init`
             // requirements.
-            unsafe { init.__init(ptr) }?;
-            *init_count += 1;
+            if let Err(e) = unsafe { init.__init(ptr) } {
+                // SAFETY: The loop has initialized the elements `slot[0..i]` and since we return
+                // `Err` below, `slot` will be considered uninitialized memory.
+                unsafe { ptr::drop_in_place(ptr::slice_from_raw_parts_mut(slot, i)) };
+                return Err(e);
+            }
         }
-        init_count.dismiss();
         Ok(())
     };
     // SAFETY: The initializer above initializes every element of the array. On failure it drops
@@ -1189,25 +1182,19 @@ where
 {
     let init = move |slot: *mut [T; N]| {
         let slot = slot.cast::<T>();
-        // Counts the number of initialized elements and when dropped drops that many elements from
-        // `slot`.
-        let mut init_count = ScopeGuard::new_with_data(0, |i| {
-            // We now free every element that has been initialized before.
-            // SAFETY: The loop initialized exactly the values from 0..i and since we
-            // return `Err` below, the caller will consider the memory at `slot` as
-            // uninitialized.
-            unsafe { ptr::drop_in_place(ptr::slice_from_raw_parts_mut(slot, i)) };
-        });
         for i in 0..N {
             let init = make_init(i);
             // SAFETY: Since 0 <= `i` < N, it is still in bounds of `[T; N]`.
             let ptr = unsafe { slot.add(i) };
             // SAFETY: The pointer is derived from `slot` and thus satisfies the `__init`
             // requirements.
-            unsafe { init.__pinned_init(ptr) }?;
-            *init_count += 1;
+            if let Err(e) = unsafe { init.__pinned_init(ptr) } {
+                // SAFETY: The loop has initialized the elements `slot[0..i]` and since we return
+                // `Err` below, `slot` will be considered uninitialized memory.
+                unsafe { ptr::drop_in_place(ptr::slice_from_raw_parts_mut(slot, i)) };
+                return Err(e);
+            }
         }
-        init_count.dismiss();
         Ok(())
     };
     // SAFETY: The initializer above initializes every element of the array. On failure it drops
