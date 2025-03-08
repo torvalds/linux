@@ -690,7 +690,7 @@ int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
 
 	if (data->revision != IWL_UEFI_ECKV_REVISION) {
 		ret = -EINVAL;
-		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDD revision:%d\n",
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI ECKV revision:%d\n",
 				data->revision);
 		goto out;
 	}
