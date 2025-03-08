@@ -243,9 +243,8 @@ static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec64 *tp)
 
 static __init int init_posix_timers(void)
 {
-	posix_timers_cache = kmem_cache_create("posix_timers_cache",
-					sizeof(struct k_itimer), 0,
-					SLAB_PANIC | SLAB_ACCOUNT, NULL);
+	posix_timers_cache = kmem_cache_create("posix_timers_cache", sizeof(struct k_itimer), 0,
+					       SLAB_ACCOUNT, NULL);
 	return 0;
 }
 __initcall(init_posix_timers);
@@ -371,8 +370,12 @@ static struct pid *good_sigevent(sigevent_t * event)
 
 static struct k_itimer *alloc_posix_timer(void)
 {
-	struct k_itimer *tmr = kmem_cache_zalloc(posix_timers_cache, GFP_KERNEL);
+	struct k_itimer *tmr;
 
+	if (unlikely(!posix_timers_cache))
+		return NULL;
+
+	tmr = kmem_cache_zalloc(posix_timers_cache, GFP_KERNEL);
 	if (!tmr)
 		return tmr;
 
