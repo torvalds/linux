@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023, 2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -542,7 +542,7 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 					     size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_mvm_tas_status_resp *rsp = NULL;
+	struct iwl_tas_status_resp *rsp = NULL;
 	static const size_t bufsz = 1024;
 	char *buff, *pos, *endpos;
 	const char * const tas_dis_reason[TAS_DISABLED_REASON_MAX] = {
@@ -598,22 +598,18 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 
 	pos += scnprintf(pos, endpos - pos, "TAS Conclusion:\n");
 	for (i = 0; i < rsp->in_dual_radio + 1; i++) {
-		if (rsp->tas_status_mac[i].band != TAS_LMAC_BAND_INVALID &&
-		    rsp->tas_status_mac[i].dynamic_status & BIT(TAS_DYNA_ACTIVE)) {
+		if (rsp->tas_status_mac[i].dynamic_status &
+		    BIT(TAS_DYNA_ACTIVE)) {
 			pos += scnprintf(pos, endpos - pos, "\tON for ");
 			switch (rsp->tas_status_mac[i].band) {
-			case TAS_LMAC_BAND_HB:
+			case PHY_BAND_5:
 				pos += scnprintf(pos, endpos - pos, "HB\n");
 				break;
-			case TAS_LMAC_BAND_LB:
+			case PHY_BAND_24:
 				pos += scnprintf(pos, endpos - pos, "LB\n");
 				break;
-			case TAS_LMAC_BAND_UHB:
+			case PHY_BAND_6:
 				pos += scnprintf(pos, endpos - pos, "UHB\n");
-				break;
-			case TAS_LMAC_BAND_INVALID:
-				pos += scnprintf(pos, endpos - pos,
-						 "INVALID BAND\n");
 				break;
 			default:
 				pos += scnprintf(pos, endpos - pos,
@@ -668,19 +664,15 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 
 		pos += scnprintf(pos, endpos - pos, "TAS status for ");
 		switch (rsp->tas_status_mac[i].band) {
-		case TAS_LMAC_BAND_HB:
+		case PHY_BAND_5:
 			pos += scnprintf(pos, endpos - pos, "High band\n");
 			break;
-		case TAS_LMAC_BAND_LB:
+		case PHY_BAND_24:
 			pos += scnprintf(pos, endpos - pos, "Low band\n");
 			break;
-		case TAS_LMAC_BAND_UHB:
+		case PHY_BAND_6:
 			pos += scnprintf(pos, endpos - pos,
 					 "Ultra high band\n");
-			break;
-		case TAS_LMAC_BAND_INVALID:
-			pos += scnprintf(pos, endpos - pos,
-					 "INVALID band\n");
 			break;
 		default:
 			pos += scnprintf(pos, endpos - pos,
