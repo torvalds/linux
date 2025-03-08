@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! This module contains API-internal items for pin-init.
+//! This module contains library internal items.
 //!
-//! These items must not be used outside of
-//! - `kernel/init.rs`
-//! - `macros/pin_data.rs`
-//! - `macros/pinned_drop.rs`
+//! These items must not be used outside of this crate and the pin-init-internal crate located at
+//! `../internal`.
 
 use super::*;
 

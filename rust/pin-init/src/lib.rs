@@ -1,9 +1,36 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-//! API to safely and fallibly initialize pinned `struct`s using in-place constructors.
+//! Library to safely and fallibly initialize pinned `struct`s using in-place constructors.
+//!
+//! [Pinning][pinning] is Rust's way of ensuring data does not move.
 //!
 //! It also allows in-place initialization of big `struct`s that would otherwise produce a stack
 //! overflow.
+//!
+//! This library's main use-case is in [Rust-for-Linux]. Although this version can be used
+//! standalone.
+//!
+//! There are cases when you want to in-place initialize a struct. For example when it is very big
+//! and moving it from the stack is not an option, because it is bigger than the stack itself.
+//! Another reason would be that you need the address of the object to initialize it. This stands
+//! in direct conflict with Rust's normal process of first initializing an object and then moving
+//! it into it's final memory location. For more information, see
+//! <https://rust-for-linux.com/the-safe-pinned-initialization-problem>.
+//!
+//! This library allows you to do in-place initialization safely.
+//!
+//! ## Nightly Needed for `alloc` feature
+//!
+//! This library requires the [`allocator_api` unstable feature] when the `alloc` feature is
+//! enabled and thus this feature can only be used with a nightly compiler. When enabling the
+//! `alloc` feature, the user will be required to activate `allocator_api` as well.
+//!
+//! [`allocator_api` unstable feature]: https://doc.rust-lang.org/nightly/unstable-book/library-features/allocator-api.html
+//!
+//! The feature is enabled by default, thus by default `pin-init` will require a nightly compiler.
+//! However, using the crate on stable compilers is possible by disabling `alloc`. In practice this
+//! will require the `std` feature, because stable compilers have neither `Box` nor `Arc` in no-std
+//! mode.
 //!
 //! # Overview
 //!
@@ -17,11 +44,16 @@
 //! - a custom function/macro returning an in-place constructor provided by someone else,
 //! - using the unsafe function [`pin_init_from_closure()`] to manually create an initializer.
 //!
-//! Aside from pinned initialization, this API also supports in-place construction without pinning,
-//! the macros/types/functions are generally named like the pinned variants without the `pin`
-//! prefix.
+//! Aside from pinned initialization, this library also supports in-place construction without
+//! pinning, the macros/types/functions are generally named like the pinned variants without the
+//! `pin_` prefix.
 //!
 //! # Examples
+//!
+//! Throughout the examples we will often make use of the `CMutex` type which can be found in
+//! `../examples/mutex.rs`. It is essentially a userland rebuild of the `struct mutex` type from
+//! the Linux kernel. It also uses a wait list and a basic spinlock. Importantly the wait list
+//! requires it to be pinned to be locked and thus is a prime candidate for using this library.
 //!
 //! ## Using the [`pin_init!`] macro
 //!
@@ -36,7 +68,7 @@
 //! # #![feature(allocator_api)]
 //! # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
 //! # use core::pin::Pin;
-//! use pin_init::*;
+//! use pin_init::{pin_data, pin_init, InPlaceInit};
 //!
 //! #[pin_data]
 //! struct Foo {
@@ -80,8 +112,8 @@
 //!
 //! ## Using a custom function/macro that returns an initializer
 //!
-//! Many types from the kernel supply a function/macro that returns an initializer, because the
-//! above method only works for types where you can access the fields.
+//! Many types that use this library supply a function/macro that returns an initializer, because
+//! the above method only works for types where you can access the fields.
 //!
 //! ```rust,ignore
 //! # #![feature(allocator_api)]
@@ -132,7 +164,7 @@
 //!
 //! ```rust,ignore
 //! # #![feature(extern_types)]
-//! use pin_init::*;
+//! use pin_init::{pin_data, pinned_drop, PinInit, PinnedDrop, pin_init_from_closure};
 //! use core::{
 //!     ptr::addr_of_mut,
 //!     marker::PhantomPinned,
@@ -141,8 +173,11 @@
 //!     mem::MaybeUninit,
 //! };
 //! mod bindings {
+//!     #[repr(C)]
+//!     pub struct foo {
+//!         /* fields from C ... */
+//!     }
 //!     extern "C" {
-//!         pub type foo;
 //!         pub fn init_foo(ptr: *mut foo);
 //!         pub fn destroy_foo(ptr: *mut foo);
 //!         #[must_use = "you must check the error return code"]
@@ -200,6 +235,10 @@
 //! }
 //! ```
 //!
+//! For more information on how to use [`pin_init_from_closure()`], take a look at the uses inside
+//! the `kernel` crate. The [`sync`] module is a good starting point.
+//!
+//! [`sync`]: https://rust.docs.kernel.org/kernel/sync/index.html
 //! [pinning]: https://doc.rust-lang.org/std/pin/index.html
 //! [structurally pinned fields]:
 //!     https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
@@ -214,11 +253,10 @@
 )]
 #![cfg_attr(not(kernel), doc = "[`Arc<T>`]: alloc::alloc::sync::Arc")]
 #![cfg_attr(not(kernel), doc = "[`Box<T>`]: alloc::alloc::boxed::Box")]
-//! [`impl PinInit<Foo>`]: PinInit
-//! [`impl PinInit<T, E>`]: PinInit
-//! [`impl Init<T, E>`]: Init
-//! [`pin_data`]: crate::pin_data
-//! [`pin_init!`]: crate::pin_init!
+//! [`impl PinInit<Foo>`]: crate::PinInit
+//! [`impl PinInit<T, E>`]: crate::PinInit
+//! [`impl Init<T, E>`]: crate::Init
+//! [Rust-for-Linux]: https://rust-for-linux.com/
 
 #![cfg_attr(not(RUSTC_LINT_REASONS_IS_STABLE), feature(lint_reasons))]
 #![cfg_attr(
@@ -404,8 +442,6 @@ pub use ::pin_init_internal::Zeroable;
 /// A normal `let` binding with optional type annotation. The expression is expected to implement
 /// [`PinInit`]/[`Init`] with the error type [`Infallible`]. If you want to use a different error
 /// type, then use [`stack_try_pin_init!`].
-///
-/// [`stack_try_pin_init!`]: crate::stack_try_pin_init!
 #[macro_export]
 macro_rules! stack_pin_init {
     (let $var:ident $(: $t:ty)? = $val:expr) => {
@@ -542,10 +578,10 @@ macro_rules! stack_try_pin_init {
 ///
 /// # Init-functions
 ///
-/// When working with this API it is often desired to let others construct your types without
-/// giving access to all fields. This is where you would normally write a plain function `new`
-/// that would return a new instance of your type. With this API that is also possible.
-/// However, there are a few extra things to keep in mind.
+/// When working with this library it is often desired to let others construct your types without
+/// giving access to all fields. This is where you would normally write a plain function `new` that
+/// would return a new instance of your type. With this library that is also possible. However,
+/// there are a few extra things to keep in mind.
 ///
 /// To create an initializer function, simply declare it like this:
 ///
@@ -674,22 +710,22 @@ macro_rules! stack_try_pin_init {
 ///     #[pin]
 ///     pin: PhantomPinned,
 /// }
-/// pin_init!(&this in Buf {
+///
+/// let init = pin_init!(&this in Buf {
 ///     buf: [0; 64],
 ///     // SAFETY: TODO.
 ///     ptr: unsafe { addr_of_mut!((*this.as_ptr()).buf).cast() },
 ///     pin: PhantomPinned,
 /// });
-/// pin_init!(Buf {
+/// let init = pin_init!(Buf {
 ///     buf: [1; 64],
 ///     ..Zeroable::zeroed()
 /// });
 /// ```
 ///
-/// [`try_pin_init!`]: crate::try_pin_init
 /// [`NonNull<Self>`]: core::ptr::NonNull
 // For a detailed example of how this macro works, see the module documentation of the hidden
-// module `__internal` inside of `init/__internal.rs`.
+// module `macros` inside of `macros.rs`.
 #[macro_export]
 macro_rules! pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
@@ -719,7 +755,8 @@ macro_rules! pin_init {
 /// ```rust,ignore
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/error.rs"] mod error; use error::Error;
-/// use pin_init::*;
+/// use pin_init::{pin_data, try_pin_init, PinInit, InPlaceInit, zeroed};
+///
 /// #[pin_data]
 /// struct BigBuf {
 ///     big: Box<[u8; 1024 * 1024 * 1024]>,
@@ -730,7 +767,7 @@ macro_rules! pin_init {
 /// impl BigBuf {
 ///     fn new() -> impl PinInit<Self, Error> {
 ///         try_pin_init!(Self {
-///             big: Box::init(init::zeroed())?,
+///             big: Box::init(zeroed())?,
 ///             small: [0; 1024 * 1024],
 ///             ptr: core::ptr::null_mut(),
 ///         }? Error)
@@ -739,7 +776,7 @@ macro_rules! pin_init {
 /// # let _ = Box::pin_init(BigBuf::new());
 /// ```
 // For a detailed example of how this macro works, see the module documentation of the hidden
-// module `__internal` inside of `init/__internal.rs`.
+// module `macros` inside of `macros.rs`.
 #[macro_export]
 macro_rules! try_pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
@@ -772,9 +809,30 @@ macro_rules! try_pin_init {
 /// This initializer is for initializing data in-place that might later be moved. If you want to
 /// pin-initialize, use [`pin_init!`].
 ///
-/// [`try_init!`]: crate::try_init!
+/// # Examples
+///
+/// ```rust
+/// # #![feature(allocator_api)]
+/// # #[path = "../examples/error.rs"] mod error; use error::Error;
+/// # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
+/// # use pin_init::InPlaceInit;
+/// use pin_init::{init, Init, zeroed};
+///
+/// struct BigBuf {
+///     small: [u8; 1024 * 1024],
+/// }
+///
+/// impl BigBuf {
+///     fn new() -> impl Init<Self> {
+///         init!(Self {
+///             small <- zeroed(),
+///         })
+///     }
+/// }
+/// # let _ = Box::init(BigBuf::new());
+/// ```
 // For a detailed example of how this macro works, see the module documentation of the hidden
-// module `__internal` inside of `init/__internal.rs`.
+// module `macros` inside of `macros.rs`.
 #[macro_export]
 macro_rules! init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
@@ -804,7 +862,9 @@ macro_rules! init {
 /// ```rust,ignore
 /// # #![feature(allocator_api)]
 /// # use core::alloc::AllocError;
-/// use pin_init::*;
+/// # use pin_init::InPlaceInit;
+/// use pin_init::{try_init, Init, zeroed};
+///
 /// struct BigBuf {
 ///     big: Box<[u8; 1024 * 1024 * 1024]>,
 ///     small: [u8; 1024 * 1024],
@@ -818,10 +878,10 @@ macro_rules! init {
 ///         }? AllocError)
 ///     }
 /// }
+/// # let _ = Box::init(BigBuf::new());
 /// ```
-/// [`try_pin_init!`]: crate::try_pin_init
 // For a detailed example of how this macro works, see the module documentation of the hidden
-// module `__internal` inside of `init/__internal.rs`.
+// module `macros` inside of `macros.rs`.
 #[macro_export]
 macro_rules! try_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
@@ -847,7 +907,8 @@ macro_rules! try_init {
 ///
 /// This will succeed:
 /// ```ignore
-/// use pin_init::assert_pinned;
+/// use pin_init::{pin_data, assert_pinned};
+///
 /// #[pin_data]
 /// struct MyStruct {
 ///     #[pin]
@@ -859,7 +920,8 @@ macro_rules! try_init {
 ///
 /// This will fail:
 /// ```compile_fail,ignore
-/// use pin_init::assert_pinned;
+/// use pin_init::{pin_data, assert_pinned};
+///
 /// #[pin_data]
 /// struct MyStruct {
 ///     some_field: u64,
@@ -872,7 +934,9 @@ macro_rules! try_init {
 /// work around this, you may pass the `inline` parameter to the macro. The `inline` parameter can
 /// only be used when the macro is invoked from a function body.
 /// ```ignore
-/// use pin_init::assert_pinned;
+/// # use core::pin::Pin;
+/// use pin_init::{pin_data, assert_pinned};
+///
 /// #[pin_data]
 /// struct Foo<T> {
 ///     #[pin]
@@ -1056,14 +1120,15 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     ///
     /// ```rust,ignore
     /// # #![expect(clippy::disallowed_names)]
-    /// use pin_init::{init_from_closure, zeroed};
+    /// use pin_init::{init, zeroed, Init};
+    ///
     /// struct Foo {
     ///     buf: [u8; 1_000_000],
     /// }
     ///
     /// impl Foo {
     ///     fn setup(&mut self) {
-    ///         pr_info!("Setting up foo");
+    ///         println!("Setting up foo");
     ///     }
     /// }
     ///
@@ -1302,8 +1367,6 @@ pub trait InPlaceWrite<T> {
 /// # Safety
 ///
 /// This trait must be implemented via the [`pinned_drop`] proc-macro attribute on the impl.
-///
-/// [`pinned_drop`]: crate::pinned_drop
 pub unsafe trait PinnedDrop: __internal::HasPinData {
     /// Executes the pinned destructor of this type.
     ///
