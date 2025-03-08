@@ -10135,8 +10135,11 @@ void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 	done_data.len = orig_len;
 	done_data.added_links = link_mask;
 
-	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++)
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		done_data.links[link_id].bss = add_links_data->link[link_id].bss;
+		done_data.links[link_id].addr =
+			add_links_data->link[link_id].addr;
+	}
 
 	cfg80211_mlo_reconf_add_done(sdata->dev, &done_data);
 	kfree(sdata->u.mgd.reconf.add_links_data);
