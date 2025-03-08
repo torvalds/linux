@@ -12,10 +12,10 @@
 #include <linux/compat.h>
 #include <linux/compiler.h>
 #include <linux/hash.h>
-#include <linux/hashtable.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/memblock.h>
 #include <linux/nospec.h>
 #include <linux/posix-clock.h>
 #include <linux/posix-timers.h>
@@ -40,8 +40,18 @@ static struct kmem_cache *posix_timers_cache;
  * This allows checkpoint/restore to reconstruct the exact timer IDs for
  * a process.
  */
-static DEFINE_HASHTABLE(posix_timers_hashtable, 9);
-static DEFINE_SPINLOCK(hash_lock);
+struct timer_hash_bucket {
+	spinlock_t		lock;
+	struct hlist_head	head;
+};
+
+static struct {
+	struct timer_hash_bucket	*buckets;
+	unsigned long			bits;
+} __timer_data __ro_after_init __aligned(2*sizeof(long));
+
+#define timer_buckets	(__timer_data.buckets)
+#define timer_hashbits	(__timer_data.bits)
 
 static const struct k_clock * const posix_clocks[];
 static const struct k_clock *clockid_to_kclock(const clockid_t id);
@@ -75,18 +85,18 @@ static inline void unlock_timer(struct k_itimer *timr)
 DEFINE_CLASS(lock_timer, struct k_itimer *, unlock_timer(_T), __lock_timer(id), timer_t id);
 DEFINE_CLASS_IS_COND_GUARD(lock_timer);
 
-static int hash(struct signal_struct *sig, unsigned int nr)
+static struct timer_hash_bucket *hash_bucket(struct signal_struct *sig, unsigned int nr)
 {
-	return hash_32(hash32_ptr(sig) ^ nr, HASH_BITS(posix_timers_hashtable));
+	return &timer_buckets[hash_32(hash32_ptr(sig) ^ nr, timer_hashbits)];
 }
 
 static struct k_itimer *posix_timer_by_id(timer_t id)
 {
 	struct signal_struct *sig = current->signal;
-	struct hlist_head *head = &posix_timers_hashtable[hash(sig, id)];
+	struct timer_hash_bucket *bucket = hash_bucket(sig, id);
 	struct k_itimer *timer;
 
-	hlist_for_each_entry_rcu(timer, head, t_hash) {
+	hlist_for_each_entry_rcu(timer, &bucket->head, t_hash) {
 		/* timer->it_signal can be set concurrently */
 		if ((READ_ONCE(timer->it_signal) == sig) && (timer->it_id == id))
 			return timer;
@@ -105,11 +115,13 @@ static inline struct signal_struct *posix_sig_owner(const struct k_itimer *timer
 	return (struct signal_struct *)(val & ~1UL);
 }
 
-static bool posix_timer_hashed(struct hlist_head *head, struct signal_struct *sig, timer_t id)
+static bool posix_timer_hashed(struct timer_hash_bucket *bucket, struct signal_struct *sig,
+			       timer_t id)
 {
+	struct hlist_head *head = &bucket->head;
 	struct k_itimer *timer;
 
-	hlist_for_each_entry_rcu(timer, head, t_hash, lockdep_is_held(&hash_lock)) {
+	hlist_for_each_entry_rcu(timer, head, t_hash, lockdep_is_held(&bucket->lock)) {
 		if ((posix_sig_owner(timer) == sig) && (timer->it_id == id))
 			return true;
 	}
@@ -120,34 +132,34 @@ static int posix_timer_add(struct k_itimer *timer)
 {
 	struct signal_struct *sig = current->signal;
 
-	/*
-	 * FIXME: Replace this by a per signal struct xarray once there is
-	 * a plan to handle the resulting CRIU regression gracefully.
-	 */
 	for (unsigned int cnt = 0; cnt <= INT_MAX; cnt++) {
 		/* Get the next timer ID and clamp it to positive space */
 		unsigned int id = atomic_fetch_inc(&sig->next_posix_timer_id) & INT_MAX;
-		struct hlist_head *head = &posix_timers_hashtable[hash(sig, id)];
+		struct timer_hash_bucket *bucket = hash_bucket(sig, id);
 
-		spin_lock(&hash_lock);
-		if (!posix_timer_hashed(head, sig, id)) {
+		scoped_guard (spinlock, &bucket->lock) {
 			/*
-			 * Set the timer ID and the signal pointer to make
-			 * it identifiable in the hash table. The signal
-			 * pointer has bit 0 set to indicate that it is not
-			 * yet fully initialized. posix_timer_hashed()
-			 * masks this bit out, but the syscall lookup fails
-			 * to match due to it being set. This guarantees
-			 * that there can't be duplicate timer IDs handed
-			 * out.
+			 * Validate under the lock as this could have raced
+			 * against another thread ending up with the same
+			 * ID, which is highly unlikely, but possible.
 			 */
-			timer->it_id = (timer_t)id;
-			timer->it_signal = (struct signal_struct *)((unsigned long)sig | 1UL);
-			hlist_add_head_rcu(&timer->t_hash, head);
-			spin_unlock(&hash_lock);
-			return id;
+			if (!posix_timer_hashed(bucket, sig, id)) {
+				/*
+				 * Set the timer ID and the signal pointer to make
+				 * it identifiable in the hash table. The signal
+				 * pointer has bit 0 set to indicate that it is not
+				 * yet fully initialized. posix_timer_hashed()
+				 * masks this bit out, but the syscall lookup fails
+				 * to match due to it being set. This guarantees
+				 * that there can't be duplicate timer IDs handed
+				 * out.
+				 */
+				timer->it_id = (timer_t)id;
+				timer->it_signal = (struct signal_struct *)((unsigned long)sig | 1UL);
+				hlist_add_head_rcu(&timer->t_hash, &bucket->head);
+				return id;
+			}
 		}
-		spin_unlock(&hash_lock);
 		cond_resched();
 	}
 	/* POSIX return code when no timer ID could be allocated */
@@ -405,7 +417,9 @@ void posixtimer_free_timer(struct k_itimer *tmr)
 
 static void posix_timer_unhash_and_free(struct k_itimer *tmr)
 {
-	scoped_guard (spinlock, &hash_lock)
+	struct timer_hash_bucket *bucket = hash_bucket(posix_sig_owner(tmr), tmr->it_id);
+
+	scoped_guard (spinlock, &bucket->lock)
 		hlist_del_rcu(&tmr->t_hash);
 	posixtimer_putref(tmr);
 }
@@ -1485,3 +1499,26 @@ static const struct k_clock *clockid_to_kclock(const clockid_t id)
 
 	return posix_clocks[array_index_nospec(idx, ARRAY_SIZE(posix_clocks))];
 }
+
+static int __init posixtimer_init(void)
+{
+	unsigned long i, size;
+	unsigned int shift;
+
+	if (IS_ENABLED(CONFIG_BASE_SMALL))
+		size = 512;
+	else
+		size = roundup_pow_of_two(512 * num_possible_cpus());
+
+	timer_buckets = alloc_large_system_hash("posixtimers", sizeof(*timer_buckets),
+						size, 0, 0, &shift, NULL, size, size);
+	size = 1UL << shift;
+	timer_hashbits = ilog2(size);
+
+	for (i = 0; i < size; i++) {
+		spin_lock_init(&timer_buckets[i].lock);
+		INIT_HLIST_HEAD(&timer_buckets[i].head);
+	}
+	return 0;
+}
+core_initcall(posixtimer_init);
