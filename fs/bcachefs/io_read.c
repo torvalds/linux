@@ -443,7 +443,7 @@ retry:
 
 	if (!bkey_and_val_eq(k, bkey_i_to_s_c(u->k.k))) {
 		/* extent we wanted to read no longer exists: */
-		rbio->hole = true;
+		rbio->ret = -BCH_ERR_data_read_key_overwritten;
 		goto err;
 	}
 
@@ -1000,10 +1000,10 @@ retry_pick:
 		 */
 		struct data_update *u = container_of(orig, struct data_update, rbio);
 		if (pick.crc.compressed_size > u->op.wbio.bio.bi_iter.bi_size) {
-			BUG();
 			if (ca)
 				percpu_ref_put(&ca->io_ref);
-			goto hole;
+			rbio->ret = -BCH_ERR_data_read_buffer_too_small;
+			goto out_read_done;
 		}
 
 		iter.bi_size	= pick.crc.compressed_size << 9;
@@ -1083,7 +1083,6 @@ retry_pick:
 	rbio->flags		= flags;
 	rbio->have_ioref	= ca != NULL;
 	rbio->narrow_crcs	= narrow_crcs;
-	rbio->hole		= 0;
 	rbio->ret		= 0;
 	rbio->context		= 0;
 	rbio->pick		= pick;
@@ -1215,7 +1214,7 @@ hole:
 	 * to read no longer exists we have to signal that:
 	 */
 	if (flags & BCH_READ_data_update)
-		orig->hole = true;
+		orig->ret = -BCH_ERR_data_read_key_overwritten;
 
 	zero_fill_bio_iter(&orig->bio, iter);
 out_read_done:

@@ -295,6 +295,8 @@
 	x(BCH_ERR_data_read,		data_read_ptr_stale_race)		\
 	x(BCH_ERR_data_read_retry,	data_read_ptr_stale_retry)		\
 	x(BCH_ERR_data_read,		data_read_no_encryption_key)		\
+	x(BCH_ERR_data_read,		data_read_buffer_too_small)		\
+	x(BCH_ERR_data_read,		data_read_key_overwritten)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\

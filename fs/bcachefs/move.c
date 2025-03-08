@@ -125,8 +125,8 @@ static void move_write(struct moving_io *io)
 				     &ctxt->stats->sectors_error_corrected);
 	}
 
-	if (unlikely(io->write.rbio.bio.bi_status ||
-		     io->write.rbio.hole ||
+	if (unlikely(io->write.rbio.ret ||
+		     io->write.rbio.bio.bi_status ||
 		     io->write.data_opts.scrub)) {
 		move_free(io);
 		return;
