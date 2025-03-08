@@ -47,6 +47,8 @@
 
 #define NFSDDBG_FACILITY		NFSDDBG_FILEOP
 
+bool nfsd_disable_splice_read __read_mostly;
+
 /**
  * nfserrno - Map Linux errnos to NFS errnos
  * @errno: POSIX(-ish) error code to be mapped
@@ -1236,6 +1238,8 @@ out_nfserr:
  */
 bool nfsd_read_splice_ok(struct svc_rqst *rqstp)
 {
+	if (nfsd_disable_splice_read)
+		return false;
 	switch (svc_auth_flavor(rqstp)) {
 	case RPC_AUTH_GSS_KRB5I:
 	case RPC_AUTH_GSS_KRB5P:

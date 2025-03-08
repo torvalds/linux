@@ -164,6 +164,8 @@ static inline void nfsd_debugfs_init(void) {}
 static inline void nfsd_debugfs_exit(void) {}
 #endif
 
+extern bool nfsd_disable_splice_read __read_mostly;
+
 extern int nfsd_max_blksize;
 
 static inline int nfsd_v4client(struct svc_rqst *rq)
