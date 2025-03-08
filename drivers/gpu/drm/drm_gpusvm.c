@@ -23,37 +23,42 @@
  * DOC: Overview
  *
  * GPU Shared Virtual Memory (GPU SVM) layer for the Direct Rendering Manager (DRM)
- *
- * The GPU SVM layer is a component of the DRM framework designed to manage shared
- * virtual memory between the CPU and GPU. It enables efficient data exchange and
- * processing for GPU-accelerated applications by allowing memory sharing and
+ * is a component of the DRM framework designed to manage shared virtual memory
+ * between the CPU and GPU. It enables efficient data exchange and processing
+ * for GPU-accelerated applications by allowing memory sharing and
  * synchronization between the CPU's and GPU's virtual address spaces.
  *
  * Key GPU SVM Components:
- * - Notifiers: Notifiers: Used for tracking memory intervals and notifying the
- *		GPU of changes, notifiers are sized based on a GPU SVM
- *		initialization parameter, with a recommendation of 512M or
- *		larger. They maintain a Red-BlacK tree and a list of ranges that
- *		fall within the notifier interval. Notifiers are tracked within
- *		a GPU SVM Red-BlacK tree and list and are dynamically inserted
- *		or removed as ranges within the interval are created or
- *		destroyed.
- * - Ranges: Represent memory ranges mapped in a DRM device and managed
- *	     by GPU SVM. They are sized based on an array of chunk sizes, which
- *	     is a GPU SVM initialization parameter, and the CPU address space.
- *	     Upon GPU fault, the largest aligned chunk that fits within the
- *	     faulting CPU address space is chosen for the range size. Ranges are
- *	     expected to be dynamically allocated on GPU fault and removed on an
- *	     MMU notifier UNMAP event. As mentioned above, ranges are tracked in
- *	     a notifier's Red-Black tree.
- * - Operations: Define the interface for driver-specific GPU SVM operations
- *               such as range allocation, notifier allocation, and
- *               invalidations.
- * - Device Memory Allocations: Embedded structure containing enough information
- *                              for GPU SVM to migrate to / from device memory.
- * - Device Memory Operations: Define the interface for driver-specific device
- *                             memory operations release memory, populate pfns,
- *                             and copy to / from device memory.
+ *
+ * - Notifiers:
+ *	Used for tracking memory intervals and notifying the GPU of changes,
+ *	notifiers are sized based on a GPU SVM initialization parameter, with a
+ *	recommendation of 512M or larger. They maintain a Red-BlacK tree and a
+ *	list of ranges that fall within the notifier interval.  Notifiers are
+ *	tracked within a GPU SVM Red-BlacK tree and list and are dynamically
+ *	inserted or removed as ranges within the interval are created or
+ *	destroyed.
+ * - Ranges:
+ *	Represent memory ranges mapped in a DRM device and managed by GPU SVM.
+ *	They are sized based on an array of chunk sizes, which is a GPU SVM
+ *	initialization parameter, and the CPU address space.  Upon GPU fault,
+ *	the largest aligned chunk that fits within the faulting CPU address
+ *	space is chosen for the range size. Ranges are expected to be
+ *	dynamically allocated on GPU fault and removed on an MMU notifier UNMAP
+ *	event. As mentioned above, ranges are tracked in a notifier's Red-Black
+ *	tree.
+ *
+ * - Operations:
+ *	Define the interface for driver-specific GPU SVM operations such as
+ *	range allocation, notifier allocation, and invalidations.
+ *
+ * - Device Memory Allocations:
+ *	Embedded structure containing enough information for GPU SVM to migrate
+ *	to / from device memory.
+ *
+ * - Device Memory Operations:
+ *	Define the interface for driver-specific device memory operations
+ *	release memory, populate pfns, and copy to / from device memory.
  *
  * This layer provides interfaces for allocating, mapping, migrating, and
  * releasing memory ranges between the CPU and GPU. It handles all core memory
@@ -63,14 +68,18 @@
  * below.
  *
  * Expected Driver Components:
- * - GPU page fault handler: Used to create ranges and notifiers based on the
- *			     fault address, optionally migrate the range to
- *			     device memory, and create GPU bindings.
- * - Garbage collector: Used to unmap and destroy GPU bindings for ranges.
- *			Ranges are expected to be added to the garbage collector
- *			upon a MMU_NOTIFY_UNMAP event in notifier callback.
- * - Notifier callback: Used to invalidate and DMA unmap GPU bindings for
- *			ranges.
+ *
+ * - GPU page fault handler:
+ *	Used to create ranges and notifiers based on the fault address,
+ *	optionally migrate the range to device memory, and create GPU bindings.
+ *
+ * - Garbage collector:
+ *	Used to unmap and destroy GPU bindings for ranges.  Ranges are expected
+ *	to be added to the garbage collector upon a MMU_NOTIFY_UNMAP event in
+ *	notifier callback.
+ *
+ * - Notifier callback:
+ *	Used to invalidate and DMA unmap GPU bindings for ranges.
  */
 
 /**
@@ -83,9 +92,9 @@
  * range RB tree and list, as well as the range's DMA mappings and sequence
  * number. GPU SVM manages all necessary locking and unlocking operations,
  * except for the recheck range's pages being valid
- * (drm_gpusvm_range_pages_valid) when the driver is committing GPU bindings. This
- * lock corresponds to the 'driver->update' lock mentioned in the HMM
- * documentation (TODO: Link). Future revisions may transition from a GPU SVM
+ * (drm_gpusvm_range_pages_valid) when the driver is committing GPU bindings.
+ * This lock corresponds to the ``driver->update`` lock mentioned in
+ * Documentation/mm/hmm.rst. Future revisions may transition from a GPU SVM
  * global lock to a per-notifier lock if finer-grained locking is deemed
  * necessary.
  *
@@ -102,11 +111,11 @@
  * DOC: Migration
  *
  * The migration support is quite simple, allowing migration between RAM and
- * device memory at the range granularity. For example, GPU SVM currently does not
- * support mixing RAM and device memory pages within a range. This means that upon GPU
- * fault, the entire range can be migrated to device memory, and upon CPU fault, the
- * entire range is migrated to RAM. Mixed RAM and device memory storage within a range
- * could be added in the future if required.
+ * device memory at the range granularity. For example, GPU SVM currently does
+ * not support mixing RAM and device memory pages within a range. This means
+ * that upon GPU fault, the entire range can be migrated to device memory, and
+ * upon CPU fault, the entire range is migrated to RAM. Mixed RAM and device
+ * memory storage within a range could be added in the future if required.
  *
  * The reasoning for only supporting range granularity is as follows: it
  * simplifies the implementation, and range sizes are driver-defined and should
@@ -119,11 +128,11 @@
  * Partial unmapping of ranges (e.g., 1M out of 2M is unmapped by CPU resulting
  * in MMU_NOTIFY_UNMAP event) presents several challenges, with the main one
  * being that a subset of the range still has CPU and GPU mappings. If the
- * backing store for the range is in device memory, a subset of the backing store has
- * references. One option would be to split the range and device memory backing store,
- * but the implementation for this would be quite complicated. Given that
- * partial unmappings are rare and driver-defined range sizes are relatively
- * small, GPU SVM does not support splitting of ranges.
+ * backing store for the range is in device memory, a subset of the backing
+ * store has references. One option would be to split the range and device
+ * memory backing store, but the implementation for this would be quite
+ * complicated. Given that partial unmappings are rare and driver-defined range
+ * sizes are relatively small, GPU SVM does not support splitting of ranges.
  *
  * With no support for range splitting, upon partial unmapping of a range, the
  * driver is expected to invalidate and destroy the entire range. If the range
@@ -143,6 +152,8 @@
  * potentially required driver locking (e.g., DMA-resv locks).
  *
  * 1) GPU page fault handler
+ *
+ * .. code-block:: c
  *
  *	int driver_bind_range(struct drm_gpusvm *gpusvm, struct drm_gpusvm_range *range)
  *	{
@@ -208,7 +219,9 @@
  *		return err;
  *	}
  *
- * 2) Garbage Collector.
+ * 2) Garbage Collector
+ *
+ * .. code-block:: c
  *
  *	void __driver_garbage_collector(struct drm_gpusvm *gpusvm,
  *					struct drm_gpusvm_range *range)
@@ -231,7 +244,9 @@
  *			__driver_garbage_collector(gpusvm, range);
  *	}
  *
- * 3) Notifier callback.
+ * 3) Notifier callback
+ *
+ * .. code-block:: c
  *
  *	void driver_invalidation(struct drm_gpusvm *gpusvm,
  *				 struct drm_gpusvm_notifier *notifier,
@@ -499,7 +514,7 @@ drm_gpusvm_notifier_invalidate(struct mmu_interval_notifier *mni,
 	return true;
 }
 
-/**
+/*
  * drm_gpusvm_notifier_ops - MMU interval notifier operations for GPU SVM
  */
 static const struct mmu_interval_notifier_ops drm_gpusvm_notifier_ops = {
@@ -2055,7 +2070,6 @@ err_out:
 
 /**
  * drm_gpusvm_range_evict - Evict GPU SVM range
- * @pagemap: Pointer to the GPU SVM structure
  * @range: Pointer to the GPU SVM range to be removed
  *
  * This function evicts the specified GPU SVM range. This function will not
@@ -2146,8 +2160,8 @@ static vm_fault_t drm_gpusvm_migrate_to_ram(struct vm_fault *vmf)
 	return err ? VM_FAULT_SIGBUS : 0;
 }
 
-/**
- * drm_gpusvm_pagemap_ops() - Device page map operations for GPU SVM
+/*
+ * drm_gpusvm_pagemap_ops - Device page map operations for GPU SVM
  */
 static const struct dev_pagemap_ops drm_gpusvm_pagemap_ops = {
 	.page_free = drm_gpusvm_page_free,
