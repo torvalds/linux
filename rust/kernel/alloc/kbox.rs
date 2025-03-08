@@ -15,7 +15,7 @@ use core::pin::Pin;
 use core::ptr::NonNull;
 use core::result::Result;
 
-use crate::init::{InPlaceWrite, Init, PinInit};
+use crate::init::{InPlaceWrite, Init, PinInit, Zeroable};
 use crate::init_ext::InPlaceInit;
 use crate::types::ForeignOwnable;
 
@@ -99,6 +99,12 @@ pub type VBox<T> = Box<T, super::allocator::Vmalloc>;
 /// # Ok::<(), Error>(())
 /// ```
 pub type KVBox<T> = Box<T, super::allocator::KVmalloc>;
+
+// SAFETY: All zeros is equivalent to `None` (option layout optimization guarantee).
+//
+// In this case we are allowed to use `T: ?Sized`, since all zeros is the `None` variant and there
+// is no problem with a VTABLE pointer being null.
+unsafe impl<T: ?Sized, A: Allocator> Zeroable for Option<Box<T, A>> {}
 
 // SAFETY: `Box` is `Send` if `T` is `Send` because the `Box` owns a `T`.
 unsafe impl<T, A> Send for Box<T, A>

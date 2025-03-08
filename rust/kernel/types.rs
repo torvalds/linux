@@ -2,7 +2,7 @@
 
 //! Kernel types.
 
-use crate::init::{self, PinInit};
+use crate::init::{self, PinInit, Zeroable};
 use core::{
     cell::UnsafeCell,
     marker::{PhantomData, PhantomPinned},
@@ -308,6 +308,9 @@ pub struct Opaque<T> {
     value: UnsafeCell<MaybeUninit<T>>,
     _pin: PhantomPinned,
 }
+
+// SAFETY: `Opaque<T>` allows the inner value to be any bit pattern, including all zeros.
+unsafe impl<T> Zeroable for Opaque<T> {}
 
 impl<T> Opaque<T> {
     /// Creates a new opaque value.
