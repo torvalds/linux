@@ -402,6 +402,24 @@ TRACE_EVENT(mm_setup_per_zone_lowmem_reserve,
 		  __entry->lowmem_reserve)
 );
 
+TRACE_EVENT(mm_calculate_totalreserve_pages,
+
+	TP_PROTO(unsigned long totalreserve_pages),
+
+	TP_ARGS(totalreserve_pages),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, totalreserve_pages)
+	),
+
+	TP_fast_assign(
+		__entry->totalreserve_pages = totalreserve_pages;
+	),
+
+	TP_printk("totalreserve_pages=%lu", __entry->totalreserve_pages)
+);
+
+
 /*
  * Required for uniquely and securely identifying mm in rss_stat tracepoint.
  */
