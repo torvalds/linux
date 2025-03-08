@@ -1104,9 +1104,7 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 	 */
 	io_req_set_res(req, ret, cflags);
 	io_req_rw_cleanup(req, issue_flags);
-	if (issue_flags & IO_URING_F_MULTISHOT)
-		return IOU_STOP_MULTISHOT;
-	return IOU_OK;
+	return IOU_COMPLETE;
 }
 
 static bool io_kiocb_start_write(struct io_kiocb *req, struct kiocb *kiocb)

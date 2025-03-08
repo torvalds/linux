@@ -1792,7 +1792,6 @@ int io_poll_issue(struct io_kiocb *req, io_tw_token_t tw)
 	ret = __io_issue_sqe(req, issue_flags, &io_issue_defs[req->opcode]);
 
 	WARN_ON_ONCE(ret == IOU_ISSUE_SKIP_COMPLETE);
-	WARN_ON_ONCE(ret == IOU_OK);
 	return ret;
 }
 

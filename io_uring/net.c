@@ -915,11 +915,7 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 	/* Finish the request / stop multishot. */
 finish:
 	io_req_set_res(req, *ret, cflags);
-
-	if (issue_flags & IO_URING_F_MULTISHOT)
-		*ret = IOU_STOP_MULTISHOT;
-	else
-		*ret = IOU_OK;
+	*ret = IOU_COMPLETE;
 	io_req_msg_cleanup(req, issue_flags);
 	return true;
 }
@@ -1288,9 +1284,7 @@ int io_recvzc(struct io_kiocb *req, unsigned int issue_flags)
 	if (len && zc->len == 0) {
 		io_req_set_res(req, 0, 0);
 
-		if (issue_flags & IO_URING_F_MULTISHOT)
-			return IOU_STOP_MULTISHOT;
-		return IOU_OK;
+		return IOU_COMPLETE;
 	}
 	if (unlikely(ret <= 0) && ret != -EAGAIN) {
 		if (ret == -ERESTARTSYS)
@@ -1300,10 +1294,7 @@ int io_recvzc(struct io_kiocb *req, unsigned int issue_flags)
 
 		req_set_fail(req);
 		io_req_set_res(req, ret, 0);
-
-		if (issue_flags & IO_URING_F_MULTISHOT)
-			return IOU_STOP_MULTISHOT;
-		return IOU_OK;
+		return IOU_COMPLETE;
 	}
 	return IOU_RETRY;
 }
@@ -1709,9 +1700,7 @@ retry:
 	io_req_set_res(req, ret, cflags);
 	if (ret < 0)
 		req_set_fail(req);
-	if (!(issue_flags & IO_URING_F_MULTISHOT))
-		return IOU_OK;
-	return IOU_STOP_MULTISHOT;
+	return IOU_COMPLETE;
 }
 
 int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)

@@ -19,7 +19,9 @@
 #endif
 
 enum {
-	IOU_OK			= 0,
+	IOU_OK			= 0, /* deprecated, use IOU_COMPLETE */
+	IOU_COMPLETE		= 0,
+
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
 
 	/*
@@ -36,13 +38,6 @@ enum {
 	 * valid error code, yet less than -MAX_ERRNO and valid internally.
 	 */
 	IOU_REQUEUE		= -3072,
-
-	/*
-	 * Intended only when both IO_URING_F_MULTISHOT is passed
-	 * to indicate to the poll runner that multishot should be
-	 * removed and the result is set on req->cqe.res.
-	 */
-	IOU_STOP_MULTISHOT	= -ECANCELED,
 };
 
 struct io_wait_queue {
