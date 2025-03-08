@@ -20733,6 +20733,7 @@ RUST [ALLOC]
 M:	Danilo Krummrich <dakr@kernel.org>
 L:	rust-for-linux@vger.kernel.org
 S:	Maintained
+T:	git https://github.com/Rust-for-Linux/linux.git alloc-next
 F:	rust/kernel/alloc.rs
 F:	rust/kernel/alloc/
 
