@@ -1589,25 +1589,25 @@ thermal_zone_device_register_with_trips(const char *type,
 
 	tz->state = TZ_STATE_FLAG_INIT;
 
+	result = dev_set_name(&tz->device, "thermal_zone%d", tz->id);
+	if (result)
+		goto remove_id;
+
+	thermal_zone_device_init(tz);
+
+	result = thermal_zone_init_governor(tz);
+	if (result)
+		goto remove_id;
+
 	/* sys I/F */
 	/* Add nodes that are always present via .groups */
 	result = thermal_zone_create_device_groups(tz);
 	if (result)
 		goto remove_id;
 
-	result = dev_set_name(&tz->device, "thermal_zone%d", tz->id);
-	if (result) {
-		thermal_zone_destroy_device_groups(tz);
-		goto remove_id;
-	}
-	thermal_zone_device_init(tz);
 	result = device_register(&tz->device);
 	if (result)
 		goto release_device;
-
-	result = thermal_zone_init_governor(tz);
-	if (result)
-		goto unregister;
 
 	if (!tz->tzp || !tz->tzp->no_hwmon) {
 		result = thermal_add_hwmon_sysfs(tz);
