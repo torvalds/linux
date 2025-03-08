@@ -305,6 +305,8 @@ struct mlx5_cmd {
 		struct semaphore sem;
 		struct semaphore pages_sem;
 		struct semaphore throttle_sem;
+		struct semaphore unprivileged_sem;
+		struct xarray	privileged_uids;
 	} vars;
 	enum mlx5_cmdif_state	state;
 	void	       *cmd_alloc_buf;
@@ -989,6 +991,8 @@ struct mlx5_async_work {
 	mlx5_async_cbk_t user_callback;
 	u16 opcode; /* cmd opcode */
 	u16 op_mod; /* cmd op_mod */
+	u8 throttle_locked:1;
+	u8 unpriv_locked:1;
 	void *out; /* pointer to the cmd output buffer */
 };
 
@@ -1019,6 +1023,8 @@ int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
 			  void *out, int out_size);
 bool mlx5_cmd_is_down(struct mlx5_core_dev *dev);
+int mlx5_cmd_add_privileged_uid(struct mlx5_core_dev *dev, u16 uid);
+void mlx5_cmd_remove_privileged_uid(struct mlx5_core_dev *dev, u16 uid);
 
 void mlx5_core_uplink_netdev_set(struct mlx5_core_dev *mdev, struct net_device *netdev);
 void mlx5_core_uplink_netdev_event_replay(struct mlx5_core_dev *mdev);
