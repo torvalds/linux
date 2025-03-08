@@ -335,10 +335,17 @@ nopromote:
 static int bch2_read_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
 				   struct bch_read_bio *rbio, struct bpos read_pos)
 {
-	return lockrestart_do(trans,
+	int ret = lockrestart_do(trans,
 		bch2_inum_offset_err_msg_trans(trans, out,
 				(subvol_inum) { rbio->subvol, read_pos.inode },
 				read_pos.offset << 9));
+	if (ret)
+		return ret;
+
+	if (rbio->flags & BCH_READ_data_update)
+		prt_str(out, "(internal move) ");
+
+	return 0;
 }
 
 static void bch2_read_err_msg(struct bch_fs *c, struct printbuf *out,
