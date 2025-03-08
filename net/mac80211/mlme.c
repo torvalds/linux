@@ -4152,15 +4152,15 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	wiphy_work_cancel(sdata->local->hw.wiphy,
 			  &ifmgd->teardown_ttlm_work);
 
-	ieee80211_vif_set_links(sdata, 0, 0);
-
-	ifmgd->mcast_seq_last = IEEE80211_SN_MODULO;
-
 	/* if disconnection happens in the middle of the ML reconfiguration
 	 * flow, cfg80211 must called to release the BSS references obtained
 	 * when the flow started.
 	 */
 	ieee80211_ml_reconf_reset(sdata);
+
+	ieee80211_vif_set_links(sdata, 0, 0);
+
+	ifmgd->mcast_seq_last = IEEE80211_SN_MODULO;
 
 	ifmgd->epcs.enabled = false;
 	ifmgd->epcs.dialog_token = 0;
