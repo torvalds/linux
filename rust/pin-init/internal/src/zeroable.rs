@@ -27,7 +27,7 @@ pub(crate) fn derive(input: TokenStream) -> TokenStream {
             // If we find a `,`, then we have finished a generic/constant/lifetime parameter.
             TokenTree::Punct(p) if nested == 0 && p.as_char() == ',' => {
                 if in_generic && !inserted {
-                    new_impl_generics.extend(quote! { : ::kernel::init::Zeroable });
+                    new_impl_generics.extend(quote! { : ::pin_init::Zeroable });
                 }
                 in_generic = true;
                 inserted = false;
@@ -41,7 +41,7 @@ pub(crate) fn derive(input: TokenStream) -> TokenStream {
             TokenTree::Punct(p) if nested == 0 && p.as_char() == ':' => {
                 new_impl_generics.push(tt);
                 if in_generic {
-                    new_impl_generics.extend(quote! { ::kernel::init::Zeroable + });
+                    new_impl_generics.extend(quote! { ::pin_init::Zeroable + });
                     inserted = true;
                 }
             }
@@ -59,10 +59,10 @@ pub(crate) fn derive(input: TokenStream) -> TokenStream {
     }
     assert_eq!(nested, 0);
     if in_generic && !inserted {
-        new_impl_generics.extend(quote! { : ::kernel::init::Zeroable });
+        new_impl_generics.extend(quote! { : ::pin_init::Zeroable });
     }
     quote! {
-        ::kernel::__derive_zeroable!(
+        ::pin_init::__derive_zeroable!(
             parse_input:
                 @sig(#(#rest)*),
                 @impl_generics(#(#new_impl_generics)*),

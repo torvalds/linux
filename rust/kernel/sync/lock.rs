@@ -7,13 +7,11 @@
 
 use super::LockClassKey;
 use crate::{
-    init::PinInit,
-    pin_init,
     str::CStr,
     types::{NotThreadSafe, Opaque, ScopeGuard},
 };
 use core::{cell::UnsafeCell, marker::PhantomPinned};
-use macros::pin_data;
+use pin_init::{pin_data, pin_init, PinInit};
 
 pub mod mutex;
 pub mod spinlock;

@@ -2,6 +2,7 @@
 
 use proc_macro::{TokenStream, TokenTree};
 
+#[allow(dead_code)]
 pub(crate) trait ToTokens {
     fn to_tokens(&self, tokens: &mut TokenStream);
 }

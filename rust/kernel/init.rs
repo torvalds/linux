@@ -23,7 +23,7 @@
 //!
 //! [`Opaque<T>`]: crate::types::Opaque
 //! [`Opaque::ffi_init`]: crate::types::Opaque::ffi_init
-//! [`pin_init!`]: crate::pin_init
+//! [`pin_init!`]: pin_init::pin_init
 //!
 //! # Examples
 //!
@@ -137,8 +137,8 @@
 use crate::{
     alloc::{AllocError, Flags},
     error::{self, Error},
-    init::{init_from_closure, pin_init_from_closure, Init, PinInit},
 };
+use pin_init::{init_from_closure, pin_init_from_closure, Init, PinInit};
 
 /// Smart pointer that can initialize memory in-place.
 pub trait InPlaceInit<T>: Sized {
@@ -205,7 +205,8 @@ pub trait InPlaceInit<T>: Sized {
 /// # Examples
 ///
 /// ```rust
-/// use kernel::{init::zeroed, error::Error};
+/// use kernel::error::Error;
+/// use pin_init::zeroed;
 /// struct BigBuf {
 ///     big: KBox<[u8; 1024 * 1024 * 1024]>,
 ///     small: [u8; 1024 * 1024],
@@ -222,7 +223,7 @@ pub trait InPlaceInit<T>: Sized {
 /// ```
 ///
 /// [`Infallible`]: core::convert::Infallible
-/// [`init!`]: crate::init!
+/// [`init!`]: pin_init::init
 /// [`try_pin_init!`]: crate::try_pin_init!
 /// [`Error`]: crate::error::Error
 #[macro_export]
@@ -230,14 +231,14 @@ macro_rules! try_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::_try_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
+        ::pin_init::try_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
             $($fields)*
         }? $crate::error::Error)
     };
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
-        $crate::_try_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
+        ::pin_init::try_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
             $($fields)*
         }? $err)
     };
@@ -262,7 +263,8 @@ macro_rules! try_init {
 ///
 /// ```rust
 /// # #![feature(new_uninit)]
-/// use kernel::{init::zeroed, error::Error};
+/// use kernel::error::Error;
+/// use pin_init::zeroed;
 /// #[pin_data]
 /// struct BigBuf {
 ///     big: KBox<[u8; 1024 * 1024 * 1024]>,
@@ -282,21 +284,21 @@ macro_rules! try_init {
 /// ```
 ///
 /// [`Infallible`]: core::convert::Infallible
-/// [`pin_init!`]: crate::pin_init
+/// [`pin_init!`]: pin_init::pin_init
 /// [`Error`]: crate::error::Error
 #[macro_export]
 macro_rules! try_pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::_try_pin_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
+        ::pin_init::try_pin_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
             $($fields)*
         }? $crate::error::Error)
     };
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
-        $crate::_try_pin_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
+        ::pin_init::try_pin_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
             $($fields)*
         }? $err)
     };

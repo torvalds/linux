@@ -244,7 +244,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
             mod __module_init {{
                 mod __module_init {{
                     use super::super::{type_};
-                    use kernel::init::PinInit;
+                    use pin_init::PinInit;
 
                     /// The \"Rust loadable module\" mark.
                     //

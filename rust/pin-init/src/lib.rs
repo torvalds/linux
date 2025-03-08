@@ -209,8 +209,20 @@
 //! [`impl PinInit<Foo>`]: PinInit
 //! [`impl PinInit<T, E>`]: PinInit
 //! [`impl Init<T, E>`]: Init
-//! [`pin_data`]: ::macros::pin_data
+//! [`pin_data`]: crate::pin_data
 //! [`pin_init!`]: crate::pin_init!
+
+#![cfg_attr(not(RUSTC_LINT_REASONS_IS_STABLE), feature(lint_reasons))]
+#![cfg_attr(
+    all(
+        any(feature = "alloc", feature = "std"),
+        not(RUSTC_NEW_UNINIT_IS_STABLE)
+    ),
+    feature(new_uninit)
+)]
+#![forbid(missing_docs, unsafe_op_in_unsafe_fn)]
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(feature = "alloc", feature(allocator_api))]
 
 use core::{
     cell::UnsafeCell,
@@ -288,7 +300,7 @@ pub mod macros;
 /// ```
 ///
 /// [`pin_init!`]: crate::pin_init
-pub use ::macros::pin_data;
+pub use ::pin_init_internal::pin_data;
 
 /// Used to implement `PinnedDrop` safely.
 ///
@@ -322,7 +334,7 @@ pub use ::macros::pin_data;
 ///     }
 /// }
 /// ```
-pub use ::macros::pinned_drop;
+pub use ::pin_init_internal::pinned_drop;
 
 /// Derives the [`Zeroable`] trait for the given struct.
 ///
@@ -340,7 +352,7 @@ pub use ::macros::pinned_drop;
 ///     len: usize,
 /// }
 /// ```
-pub use ::macros::Zeroable;
+pub use ::pin_init_internal::Zeroable;
 
 /// Initialize and pin a type directly on the stack.
 ///
@@ -385,8 +397,8 @@ pub use ::macros::Zeroable;
 macro_rules! stack_pin_init {
     (let $var:ident $(: $t:ty)? = $val:expr) => {
         let val = $val;
-        let mut $var = ::core::pin::pin!($crate::init::__internal::StackInit$(::<$t>)?::uninit());
-        let mut $var = match $crate::init::__internal::StackInit::init($var, val) {
+        let mut $var = ::core::pin::pin!($crate::__internal::StackInit$(::<$t>)?::uninit());
+        let mut $var = match $crate::__internal::StackInit::init($var, val) {
             Ok(res) => res,
             Err(x) => {
                 let x: ::core::convert::Infallible = x;
@@ -463,13 +475,13 @@ macro_rules! stack_pin_init {
 macro_rules! stack_try_pin_init {
     (let $var:ident $(: $t:ty)? = $val:expr) => {
         let val = $val;
-        let mut $var = ::core::pin::pin!($crate::init::__internal::StackInit$(::<$t>)?::uninit());
-        let mut $var = $crate::init::__internal::StackInit::init($var, val);
+        let mut $var = ::core::pin::pin!($crate::__internal::StackInit$(::<$t>)?::uninit());
+        let mut $var = $crate::__internal::StackInit::init($var, val);
     };
     (let $var:ident $(: $t:ty)? =? $val:expr) => {
         let val = $val;
-        let mut $var = ::core::pin::pin!($crate::init::__internal::StackInit$(::<$t>)?::uninit());
-        let mut $var = $crate::init::__internal::StackInit::init($var, val)?;
+        let mut $var = ::core::pin::pin!($crate::__internal::StackInit$(::<$t>)?::uninit());
+        let mut $var = $crate::__internal::StackInit::init($var, val)?;
     };
 }
 
@@ -670,7 +682,7 @@ macro_rules! pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::_try_pin_init!($(&$this in)? $t $(::<$($generics),*>)? {
+        $crate::try_pin_init!($(&$this in)? $t $(::<$($generics),*>)? {
             $($fields)*
         }? ::core::convert::Infallible)
     };
@@ -716,7 +728,7 @@ macro_rules! pin_init {
 // For a detailed example of how this macro works, see the module documentation of the hidden
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]
-macro_rules! _try_pin_init {
+macro_rules! try_pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
@@ -755,7 +767,7 @@ macro_rules! init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::_try_init!($(&$this in)? $t $(::<$($generics),*>)? {
+        $crate::try_init!($(&$this in)? $t $(::<$($generics),*>)? {
             $($fields)*
         }? ::core::convert::Infallible)
     }
@@ -798,7 +810,7 @@ macro_rules! init {
 // For a detailed example of how this macro works, see the module documentation of the hidden
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]
-macro_rules! _try_init {
+macro_rules! try_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
@@ -868,8 +880,8 @@ macro_rules! assert_pinned {
     ($ty:ty, $field:ident, $field_ty:ty, inline) => {
         let _ = move |ptr: *mut $field_ty| {
             // SAFETY: This code is unreachable.
-            let data = unsafe { <$ty as $crate::init::__internal::HasPinData>::__pin_data() };
-            let init = $crate::init::__internal::AlwaysFail::<$field_ty>::new();
+            let data = unsafe { <$ty as $crate::__internal::HasPinData>::__pin_data() };
+            let init = $crate::__internal::AlwaysFail::<$field_ty>::new();
             // SAFETY: This code is unreachable.
             unsafe { data.$field(ptr, init) }.ok();
         };
@@ -1262,7 +1274,7 @@ pub trait InPlaceWrite<T> {
 ///
 /// This trait must be implemented via the [`pinned_drop`] proc-macro attribute on the impl.
 ///
-/// [`pinned_drop`]: crate::macros::pinned_drop
+/// [`pinned_drop`]: crate::pinned_drop
 pub unsafe trait PinnedDrop: __internal::HasPinData {
     /// Executes the pinned destructor of this type.
     ///

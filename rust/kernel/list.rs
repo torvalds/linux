@@ -4,12 +4,12 @@
 
 //! A linked list implementation.
 
-use crate::init::PinInit;
 use crate::sync::ArcBorrow;
 use crate::types::Opaque;
 use core::iter::{DoubleEndedIterator, FusedIterator};
 use core::marker::PhantomData;
 use core::ptr;
+use pin_init::PinInit;
 
 mod impl_list_item_mod;
 pub use self::impl_list_item_mod::{

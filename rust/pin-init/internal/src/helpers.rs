@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use proc_macro::{TokenStream, TokenTree};
+
 /// Parsed generics.
 ///
 /// See the field documentation for an explanation what each of the fields represents.

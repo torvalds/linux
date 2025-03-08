@@ -50,11 +50,7 @@ pub mod faux;
 #[cfg(CONFIG_RUST_FW_LOADER_ABSTRACTIONS)]
 pub mod firmware;
 pub mod fs;
-#[path = "../pin-init/src/lib.rs"]
 pub mod init;
-// momentarily use the name `init_ext` and set the path manually
-#[path = "init.rs"]
-pub mod init_ext;
 pub mod io;
 pub mod ioctl;
 pub mod jump_label;
@@ -116,11 +112,11 @@ pub trait InPlaceModule: Sync + Send {
     /// Creates an initialiser for the module.
     ///
     /// It is called when the module is loaded.
-    fn init(module: &'static ThisModule) -> impl init::PinInit<Self, error::Error>;
+    fn init(module: &'static ThisModule) -> impl pin_init::PinInit<Self, error::Error>;
 }
 
 impl<T: Module> InPlaceModule for T {
-    fn init(module: &'static ThisModule) -> impl init::PinInit<Self, error::Error> {
+    fn init(module: &'static ThisModule) -> impl pin_init::PinInit<Self, error::Error> {
         let initer = move |slot: *mut Self| {
             let m = <Self as Module>::init(module)?;
 
@@ -130,7 +126,7 @@ impl<T: Module> InPlaceModule for T {
         };
 
         // SAFETY: On success, `initer` always fully initialises an instance of `Self`.
-        unsafe { init::pin_init_from_closure(initer) }
+        unsafe { pin_init::pin_init_from_closure(initer) }
     }
 }
 

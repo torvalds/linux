@@ -5,7 +5,7 @@ use proc_macro::{Group, Punct, Spacing, TokenStream, TokenTree};
 
 pub(crate) fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
     // This proc-macro only does some pre-parsing and then delegates the actual parsing to
-    // `kernel::__pin_data!`.
+    // `pin_init::__pin_data!`.
 
     let (
         Generics {
@@ -71,7 +71,7 @@ pub(crate) fn pin_data(args: TokenStream, input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
     // This should be the body of the struct `{...}`.
     let last = rest.pop();
-    let mut quoted = quote!(::kernel::__pin_data! {
+    let mut quoted = quote!(::pin_init::__pin_data! {
         parse_input:
         @args(#args),
         @sig(#(#rest)*),

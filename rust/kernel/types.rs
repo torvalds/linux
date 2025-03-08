@@ -2,7 +2,6 @@
 
 //! Kernel types.
 
-use crate::init::{self, PinInit, Zeroable};
 use core::{
     cell::UnsafeCell,
     marker::{PhantomData, PhantomPinned},
@@ -10,6 +9,7 @@ use core::{
     ops::{Deref, DerefMut},
     ptr::NonNull,
 };
+use pin_init::{PinInit, Zeroable};
 
 /// Used to transfer ownership to and from foreign (non-Rust) languages.
 ///
@@ -336,7 +336,7 @@ impl<T> Opaque<T> {
             //   - `ptr` is a valid pointer to uninitialized memory,
             //   - `slot` is not accessed on error; the call is infallible,
             //   - `slot` is pinned in memory.
-            let _ = unsafe { init::PinInit::<T>::__pinned_init(slot, ptr) };
+            let _ = unsafe { PinInit::<T>::__pinned_init(slot, ptr) };
         })
     }
 
@@ -352,7 +352,7 @@ impl<T> Opaque<T> {
         // SAFETY: We contain a `MaybeUninit`, so it is OK for the `init_func` to not fully
         // initialize the `T`.
         unsafe {
-            init::pin_init_from_closure::<_, ::core::convert::Infallible>(move |slot| {
+            pin_init::pin_init_from_closure::<_, ::core::convert::Infallible>(move |slot| {
                 init_func(Self::raw_get(slot));
                 Ok(())
             })
@@ -372,7 +372,9 @@ impl<T> Opaque<T> {
     ) -> impl PinInit<Self, E> {
         // SAFETY: We contain a `MaybeUninit`, so it is OK for the `init_func` to not fully
         // initialize the `T`.
-        unsafe { init::pin_init_from_closure::<_, E>(move |slot| init_func(Self::raw_get(slot))) }
+        unsafe {
+            pin_init::pin_init_from_closure::<_, E>(move |slot| init_func(Self::raw_get(slot)))
+        }
     }
 
     /// Returns a raw pointer to the opaque data.

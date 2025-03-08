@@ -19,8 +19,7 @@
 use crate::{
     alloc::{AllocError, Flags, KBox},
     bindings,
-    init::{self, InPlaceWrite, Init, PinInit},
-    init_ext::InPlaceInit,
+    init::InPlaceInit,
     try_init,
     types::{ForeignOwnable, Opaque},
 };
@@ -33,7 +32,7 @@ use core::{
     pin::Pin,
     ptr::NonNull,
 };
-use macros::pin_data;
+use pin_init::{self, pin_data, InPlaceWrite, Init, PinInit};
 
 mod std_vendor;
 
@@ -738,7 +737,7 @@ impl<T> UniqueArc<T> {
             try_init!(ArcInner {
                 // SAFETY: There are no safety requirements for this FFI call.
                 refcount: Opaque::new(unsafe { bindings::REFCOUNT_INIT(1) }),
-                data <- init::uninit::<T, AllocError>(),
+                data <- pin_init::uninit::<T, AllocError>(),
             }? AllocError),
             flags,
         )?;

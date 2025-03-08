@@ -86,5 +86,3 @@ pub(crate) fn function_name(input: TokenStream) -> Option<Ident> {
     }
     None
 }
-
-include!("../pin-init/internal/src/helpers.rs");
