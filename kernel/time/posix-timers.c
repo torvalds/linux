@@ -53,13 +53,18 @@ static const struct k_clock clock_realtime, clock_monotonic;
 #error "SIGEV_THREAD_ID must not share bit with other SIGEV values!"
 #endif
 
-static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags);
+static struct k_itimer *__lock_timer(timer_t timer_id);
 
-#define lock_timer(tid, flags)						   \
-({	struct k_itimer *__timr;					   \
-	__cond_lock(&__timr->it_lock, __timr = __lock_timer(tid, flags));  \
-	__timr;								   \
+#define lock_timer(tid)							\
+({	struct k_itimer *__timr;					\
+	__cond_lock(&__timr->it_lock, __timr = __lock_timer(tid));	\
+	__timr;								\
 })
+
+static inline void unlock_timer(struct k_itimer *timr)
+{
+	spin_unlock_irq(&timr->it_lock);
+}
 
 static int hash(struct signal_struct *sig, unsigned int nr)
 {
@@ -142,11 +147,6 @@ static int posix_timer_add(struct k_itimer *timer)
 	}
 	/* POSIX return code when no timer ID could be allocated */
 	return -EAGAIN;
-}
-
-static inline void unlock_timer(struct k_itimer *timr, unsigned long flags)
-{
-	spin_unlock_irqrestore(&timr->it_lock, flags);
 }
 
 static int posix_get_realtime_timespec(clockid_t which_clock, struct timespec64 *tp)
@@ -538,7 +538,7 @@ COMPAT_SYSCALL_DEFINE3(timer_create, clockid_t, which_clock,
 }
 #endif
 
-static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
+static struct k_itimer *__lock_timer(timer_t timer_id)
 {
 	struct k_itimer *timr;
 
@@ -580,14 +580,14 @@ static struct k_itimer *__lock_timer(timer_t timer_id, unsigned long *flags)
 	guard(rcu)();
 	timr = posix_timer_by_id(timer_id);
 	if (timr) {
-		spin_lock_irqsave(&timr->it_lock, *flags);
+		spin_lock_irq(&timr->it_lock);
 		/*
 		 * Validate under timr::it_lock that timr::it_signal is
 		 * still valid. Pairs with #1 above.
 		 */
 		if (timr->it_signal == current->signal)
 			return timr;
-		spin_unlock_irqrestore(&timr->it_lock, *flags);
+		spin_unlock_irq(&timr->it_lock);
 	}
 	return NULL;
 }
@@ -680,17 +680,16 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 {
 	struct k_itimer *timr;
-	unsigned long flags;
 	int ret = 0;
 
-	timr = lock_timer(timer_id, &flags);
+	timr = lock_timer(timer_id);
 	if (!timr)
 		return -EINVAL;
 
 	memset(setting, 0, sizeof(*setting));
 	timr->kclock->timer_get(timr, setting);
 
-	unlock_timer(timr, flags);
+	unlock_timer(timr);
 	return ret;
 }
 
@@ -746,15 +745,14 @@ SYSCALL_DEFINE2(timer_gettime32, timer_t, timer_id,
 SYSCALL_DEFINE1(timer_getoverrun, timer_t, timer_id)
 {
 	struct k_itimer *timr;
-	unsigned long flags;
 	int overrun;
 
-	timr = lock_timer(timer_id, &flags);
+	timr = lock_timer(timer_id);
 	if (!timr)
 		return -EINVAL;
 
 	overrun = timer_overrun_to_int(timr);
-	unlock_timer(timr, flags);
+	unlock_timer(timr);
 
 	return overrun;
 }
@@ -813,14 +811,13 @@ static void common_timer_wait_running(struct k_itimer *timer)
  * when the task which tries to delete or disarm the timer has preempted
  * the task which runs the expiry in task work context.
  */
-static struct k_itimer *timer_wait_running(struct k_itimer *timer,
-					   unsigned long *flags)
+static struct k_itimer *timer_wait_running(struct k_itimer *timer)
 {
 	timer_t timer_id = READ_ONCE(timer->it_id);
 
 	/* Prevent kfree(timer) after dropping the lock */
 	scoped_guard (rcu) {
-		unlock_timer(timer, *flags);
+		unlock_timer(timer);
 		/*
 		 * kc->timer_wait_running() might drop RCU lock. So @timer
 		 * cannot be touched anymore after the function returns!
@@ -829,7 +826,7 @@ static struct k_itimer *timer_wait_running(struct k_itimer *timer,
 	}
 
 	/* Relock the timer. It might be not longer hashed. */
-	return lock_timer(timer_id, flags);
+	return lock_timer(timer_id);
 }
 
 /*
@@ -889,7 +886,6 @@ static int do_timer_settime(timer_t timer_id, int tmr_flags,
 			    struct itimerspec64 *old_spec64)
 {
 	struct k_itimer *timr;
-	unsigned long flags;
 	int error;
 
 	if (!timespec64_valid(&new_spec64->it_interval) ||
@@ -899,7 +895,7 @@ static int do_timer_settime(timer_t timer_id, int tmr_flags,
 	if (old_spec64)
 		memset(old_spec64, 0, sizeof(*old_spec64));
 
-	timr = lock_timer(timer_id, &flags);
+	timr = lock_timer(timer_id);
 retry:
 	if (!timr)
 		return -EINVAL;
@@ -916,10 +912,10 @@ retry:
 		// We already got the old time...
 		old_spec64 = NULL;
 		/* Unlocks and relocks the timer if it still exists */
-		timr = timer_wait_running(timr, &flags);
+		timr = timer_wait_running(timr);
 		goto retry;
 	}
-	unlock_timer(timr, flags);
+	unlock_timer(timr);
 
 	return error;
 }
@@ -995,10 +991,7 @@ static inline void posix_timer_cleanup_ignored(struct k_itimer *tmr)
 /* Delete a POSIX.1b interval timer. */
 SYSCALL_DEFINE1(timer_delete, timer_t, timer_id)
 {
-	struct k_itimer *timer;
-	unsigned long flags;
-
-	timer = lock_timer(timer_id, &flags);
+	struct k_itimer *timer = lock_timer(timer_id);
 
 retry_delete:
 	if (!timer)
@@ -1009,7 +1002,7 @@ retry_delete:
 
 	if (unlikely(timer->kclock->timer_del(timer) == TIMER_RETRY)) {
 		/* Unlocks and relocks the timer if it still exists */
-		timer = timer_wait_running(timer, &flags);
+		timer = timer_wait_running(timer);
 		goto retry_delete;
 	}
 
@@ -1028,7 +1021,7 @@ retry_delete:
 		WRITE_ONCE(timer->it_signal, NULL);
 	}
 
-	unlock_timer(timer, flags);
+	unlock_timer(timer);
 	posix_timer_unhash_and_free(timer);
 	return 0;
 }
@@ -1039,12 +1032,7 @@ retry_delete:
  */
 static void itimer_delete(struct k_itimer *timer)
 {
-	unsigned long flags;
-
-	/*
-	 * irqsave is required to make timer_wait_running() work.
-	 */
-	spin_lock_irqsave(&timer->it_lock, flags);
+	spin_lock_irq(&timer->it_lock);
 
 retry_delete:
 	/*
@@ -1065,7 +1053,7 @@ retry_delete:
 		 * do_exit() only for the last thread of the thread group.
 		 * So no other task can access and delete that timer.
 		 */
-		if (WARN_ON_ONCE(timer_wait_running(timer, &flags) != timer))
+		if (WARN_ON_ONCE(timer_wait_running(timer) != timer))
 			return;
 
 		goto retry_delete;
@@ -1082,7 +1070,7 @@ retry_delete:
 	 */
 	WRITE_ONCE(timer->it_signal, NULL);
 
-	spin_unlock_irqrestore(&timer->it_lock, flags);
+	spin_unlock_irq(&timer->it_lock);
 	posix_timer_unhash_and_free(timer);
 }
 
