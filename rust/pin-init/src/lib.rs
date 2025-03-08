@@ -676,16 +676,9 @@ macro_rules! pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::__init_internal!(
-            @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
-            @fields($($fields)*),
-            @error(::core::convert::Infallible),
-            @data(PinData, use_data),
-            @has_data(HasPinData, __pin_data),
-            @construct_closure(pin_init_from_closure),
-            @munch_fields($($fields)*),
-        )
+        $crate::try_pin_init!($(&$this in)? $t $(::<$($generics),*>)? {
+            $($fields)*
+        }? ::core::convert::Infallible)
     };
 }
 
@@ -784,16 +777,9 @@ macro_rules! init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::__init_internal!(
-            @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
-            @fields($($fields)*),
-            @error(::core::convert::Infallible),
-            @data(InitData, /*no use_data*/),
-            @has_data(HasInitData, __init_data),
-            @construct_closure(init_from_closure),
-            @munch_fields($($fields)*),
-        )
+        $crate::try_init!($(&$this in)? $t $(::<$($generics),*>)? {
+            $($fields)*
+        }? ::core::convert::Infallible)
     }
 }
 
