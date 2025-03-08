@@ -365,6 +365,8 @@ errors=%s		 Specify f2fs behavior on critical errors. This supports modes:
 			 pending node write	drop		keep		N/A
 			 pending meta write	keep		keep		N/A
 			 ====================== =============== =============== ========
+nat_bits		 Enable nat_bits feature to enhance full/empty nat blocks access,
+			 by default it's disabled.
 ======================== ============================================================
 
 Debugfs Entries
