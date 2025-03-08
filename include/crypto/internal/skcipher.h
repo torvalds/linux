@@ -59,7 +59,7 @@ struct skcipher_walk {
 		/* Virtual address of the source. */
 		struct {
 			struct {
-				void *const addr;
+				const void *const addr;
 			} virt;
 		} src;
 

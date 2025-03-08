@@ -33,7 +33,7 @@ static void crypto_ctr_crypt_final(struct skcipher_walk *walk,
 	u8 *ctrblk = walk->iv;
 	u8 tmp[MAX_CIPHER_BLOCKSIZE + MAX_CIPHER_ALIGNMASK];
 	u8 *keystream = PTR_ALIGN(tmp + 0, alignmask + 1);
-	u8 *src = walk->src.virt.addr;
+	const u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
 	unsigned int nbytes = walk->nbytes;
 
@@ -50,7 +50,7 @@ static int crypto_ctr_crypt_segment(struct skcipher_walk *walk,
 		   crypto_cipher_alg(tfm)->cia_encrypt;
 	unsigned int bsize = crypto_cipher_blocksize(tfm);
 	u8 *ctrblk = walk->iv;
-	u8 *src = walk->src.virt.addr;
+	const u8 *src = walk->src.virt.addr;
 	u8 *dst = walk->dst.virt.addr;
 	unsigned int nbytes = walk->nbytes;
 
@@ -77,20 +77,20 @@ static int crypto_ctr_crypt_inplace(struct skcipher_walk *walk,
 	unsigned int bsize = crypto_cipher_blocksize(tfm);
 	unsigned long alignmask = crypto_cipher_alignmask(tfm);
 	unsigned int nbytes = walk->nbytes;
+	u8 *dst = walk->dst.virt.addr;
 	u8 *ctrblk = walk->iv;
-	u8 *src = walk->src.virt.addr;
 	u8 tmp[MAX_CIPHER_BLOCKSIZE + MAX_CIPHER_ALIGNMASK];
 	u8 *keystream = PTR_ALIGN(tmp + 0, alignmask + 1);
 
 	do {
 		/* create keystream */
 		fn(crypto_cipher_tfm(tfm), keystream, ctrblk);
-		crypto_xor(src, keystream, bsize);
+		crypto_xor(dst, keystream, bsize);
 
 		/* increment counter in counterblock */
 		crypto_inc(ctrblk, bsize);
 
-		src += bsize;
+		dst += bsize;
 	} while ((nbytes -= bsize) >= bsize);
 
 	return nbytes;

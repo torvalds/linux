@@ -73,7 +73,7 @@ static int ecb_crypt(struct skcipher_request *req, const u32 *expkey)
 	err = skcipher_walk_virt(&walk, req, false);
 
 	while ((nbytes = walk.nbytes)) {
-		u8 *wsrc = walk.src.virt.addr;
+		const u8 *wsrc = walk.src.virt.addr;
 		u8 *wdst = walk.dst.virt.addr;
 
 		/* Process four block batch */
