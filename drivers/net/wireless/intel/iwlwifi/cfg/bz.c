@@ -13,7 +13,7 @@
 #define IWL_BZ_UCODE_API_MAX	98
 
 /* Lowest firmware API version supported */
-#define IWL_BZ_UCODE_API_MIN	92
+#define IWL_BZ_UCODE_API_MIN	93
 
 /* NVM versions */
 #define IWL_BZ_NVM_VERSION		0x0a1d
