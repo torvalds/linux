@@ -375,6 +375,33 @@ TRACE_EVENT(mm_setup_per_zone_wmarks,
 		  __entry->watermark_promo)
 );
 
+TRACE_EVENT(mm_setup_per_zone_lowmem_reserve,
+
+	TP_PROTO(struct zone *zone, struct zone *upper_zone, long lowmem_reserve),
+
+	TP_ARGS(zone, upper_zone, lowmem_reserve),
+
+	TP_STRUCT__entry(
+		__field(int, node_id)
+		__string(name, zone->name)
+		__string(upper_name, upper_zone->name)
+		__field(long, lowmem_reserve)
+	),
+
+	TP_fast_assign(
+		__entry->node_id = zone->zone_pgdat->node_id;
+		__assign_str(name);
+		__assign_str(upper_name);
+		__entry->lowmem_reserve = lowmem_reserve;
+	),
+
+	TP_printk("node_id=%d zone name=%s upper_zone name=%s lowmem_reserve_pages=%ld",
+		  __entry->node_id,
+		  __get_str(name),
+		  __get_str(upper_name),
+		  __entry->lowmem_reserve)
+);
+
 /*
  * Required for uniquely and securely identifying mm in rss_stat tracepoint.
  */
