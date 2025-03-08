@@ -342,6 +342,39 @@ TRACE_EVENT(mm_alloc_contig_migrate_range_info,
 		  __entry->nr_mapped)
 );
 
+TRACE_EVENT(mm_setup_per_zone_wmarks,
+
+	TP_PROTO(struct zone *zone),
+
+	TP_ARGS(zone),
+
+	TP_STRUCT__entry(
+		__field(int, node_id)
+		__string(name, zone->name)
+		__field(unsigned long, watermark_min)
+		__field(unsigned long, watermark_low)
+		__field(unsigned long, watermark_high)
+		__field(unsigned long, watermark_promo)
+	),
+
+	TP_fast_assign(
+		__entry->node_id = zone->zone_pgdat->node_id;
+		__assign_str(name);
+		__entry->watermark_min = zone->_watermark[WMARK_MIN];
+		__entry->watermark_low = zone->_watermark[WMARK_LOW];
+		__entry->watermark_high = zone->_watermark[WMARK_HIGH];
+		__entry->watermark_promo = zone->_watermark[WMARK_PROMO];
+	),
+
+	TP_printk("node_id=%d zone name=%s watermark min=%lu low=%lu high=%lu promo=%lu",
+		  __entry->node_id,
+		  __get_str(name),
+		  __entry->watermark_min,
+		  __entry->watermark_low,
+		  __entry->watermark_high,
+		  __entry->watermark_promo)
+);
+
 /*
  * Required for uniquely and securely identifying mm in rss_stat tracepoint.
  */
