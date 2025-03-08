@@ -10,7 +10,7 @@
 //! To initialize a `struct` with an in-place constructor you will need two things:
 //! - an in-place constructor,
 //! - a memory location that can hold your `struct` (this can be the [stack], an [`Arc<T>`],
-//!   [`KBox<T>`] or any other smart pointer that supports this library).
+//!   [`Box<T>`] or any other smart pointer that supports this library).
 //!
 //! To get an in-place constructor there are generally three options:
 //! - directly creating an in-place constructor using the [`pin_init!`] macro,
@@ -204,7 +204,8 @@
 //! [structurally pinned fields]:
 //!     https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
 //! [stack]: crate::stack_pin_init
-//! [`Arc<T>`]: crate::sync::Arc
+//! [`Arc<T>`]: https://rust.docs.kernel.org/kernel/sync/struct.Arc.html
+//! [`Box<T>`]: https://rust.docs.kernel.org/kernel/alloc/kbox/struct.Box.html
 //! [`impl PinInit<Foo>`]: PinInit
 //! [`impl PinInit<T, E>`]: PinInit
 //! [`impl Init<T, E>`]: Init
@@ -661,7 +662,7 @@ macro_rules! stack_try_pin_init {
 /// });
 /// ```
 ///
-/// [`try_pin_init!`]: kernel::try_pin_init
+/// [`try_pin_init!`]: crate::try_pin_init
 /// [`NonNull<Self>`]: core::ptr::NonNull
 // For a detailed example of how this macro works, see the module documentation of the hidden
 // module `__internal` inside of `init/__internal.rs`.
@@ -885,7 +886,7 @@ macro_rules! assert_pinned {
 /// A pin-initializer for the type `T`.
 ///
 /// To use this initializer, you will need a suitable memory location that can hold a `T`. This can
-/// be [`KBox<T>`], [`Arc<T>`] or even the stack (see [`stack_pin_init!`]).
+/// be [`Box<T>`], [`Arc<T>`] or even the stack (see [`stack_pin_init!`]).
 ///
 /// Also see the [module description](self).
 ///
@@ -902,7 +903,8 @@ macro_rules! assert_pinned {
 ///     - `slot` is not partially initialized.
 /// - while constructing the `T` at `slot` it upholds the pinning invariants of `T`.
 ///
-/// [`Arc<T>`]: crate::sync::Arc
+/// [`Arc<T>`]: https://rust.docs.kernel.org/kernel/sync/struct.Arc.html
+/// [`Box<T>`]: https://rust.docs.kernel.org/kernel/alloc/kbox/struct.Box.html
 #[must_use = "An initializer must be used in order to create its value."]
 pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     /// Initializes `slot`.
@@ -968,7 +970,7 @@ where
 /// An initializer for `T`.
 ///
 /// To use this initializer, you will need a suitable memory location that can hold a `T`. This can
-/// be [`KBox<T>`], [`Arc<T>`] or even the stack (see [`stack_pin_init!`]). Because
+/// be [`Box<T>`], [`Arc<T>`] or even the stack (see [`stack_pin_init!`]). Because
 /// [`PinInit<T, E>`] is a super trait, you can use every function that takes it as well.
 ///
 /// Also see the [module description](self).
@@ -992,7 +994,8 @@ where
 /// Contrary to its supertype [`PinInit<T, E>`] the caller is allowed to
 /// move the pointee after initialization.
 ///
-/// [`Arc<T>`]: crate::sync::Arc
+/// [`Arc<T>`]: https://rust.docs.kernel.org/kernel/sync/struct.Arc.html
+/// [`Box<T>`]: https://rust.docs.kernel.org/kernel/alloc/kbox/struct.Box.html
 #[must_use = "An initializer must be used in order to create its value."]
 pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     /// Initializes `slot`.
@@ -1272,7 +1275,7 @@ pub trait InPlaceWrite<T> {
 ///
 /// This trait must be implemented via the [`pinned_drop`] proc-macro attribute on the impl.
 ///
-/// [`pinned_drop`]: kernel::macros::pinned_drop
+/// [`pinned_drop`]: crate::macros::pinned_drop
 pub unsafe trait PinnedDrop: __internal::HasPinData {
     /// Executes the pinned destructor of this type.
     ///

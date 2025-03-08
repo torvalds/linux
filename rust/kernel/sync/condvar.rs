@@ -37,7 +37,7 @@ pub use new_condvar;
 /// spuriously.
 ///
 /// Instances of [`CondVar`] need a lock class and to be pinned. The recommended way to create such
-/// instances is with the [`pin_init`](crate::pin_init) and [`new_condvar`] macros.
+/// instances is with the [`pin_init`](crate::pin_init!) and [`new_condvar`] macros.
 ///
 /// # Examples
 ///

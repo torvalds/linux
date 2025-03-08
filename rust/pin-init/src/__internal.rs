@@ -135,7 +135,7 @@ unsafe impl<T: ?Sized> HasInitData for T {
 ///
 /// If `self.is_init` is true, then `self.value` is initialized.
 ///
-/// [`stack_pin_init`]: kernel::stack_pin_init
+/// [`stack_pin_init`]: crate::stack_pin_init
 pub struct StackInit<T> {
     value: MaybeUninit<T>,
     is_init: bool,
@@ -156,7 +156,7 @@ impl<T> StackInit<T> {
     /// Creates a new [`StackInit<T>`] that is uninitialized. Use [`stack_pin_init`] instead of this
     /// primitive.
     ///
-    /// [`stack_pin_init`]: kernel::stack_pin_init
+    /// [`stack_pin_init`]: crate::stack_pin_init
     #[inline]
     pub fn uninit() -> Self {
         Self {
