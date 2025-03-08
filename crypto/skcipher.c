@@ -41,12 +41,16 @@ static int skcipher_walk_next(struct skcipher_walk *walk);
 
 static inline void skcipher_map_src(struct skcipher_walk *walk)
 {
-	walk->src.virt.addr = scatterwalk_map(&walk->in);
+	/* XXX */
+	walk->in.__addr = scatterwalk_map(&walk->in);
+	walk->src.virt.addr = walk->in.addr;
 }
 
 static inline void skcipher_map_dst(struct skcipher_walk *walk)
 {
-	walk->dst.virt.addr = scatterwalk_map(&walk->out);
+	/* XXX */
+	walk->out.__addr = scatterwalk_map(&walk->out);
+	walk->dst.virt.addr = walk->out.addr;
 }
 
 static inline gfp_t skcipher_walk_gfp(struct skcipher_walk *walk)
@@ -120,7 +124,7 @@ int skcipher_walk_done(struct skcipher_walk *walk, int res)
 		goto dst_done;
 	}
 
-	scatterwalk_done_dst(&walk->out, walk->dst.virt.addr, n);
+	scatterwalk_done_dst(&walk->out, n);
 dst_done:
 
 	if (res > 0)

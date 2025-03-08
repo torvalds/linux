@@ -1306,12 +1306,11 @@ static void gcm_process_assoc(const struct aes_gcm_key *key, u8 ghash_acc[16],
 	scatterwalk_start(&walk, sg_src);
 
 	while (assoclen) {
-		unsigned int orig_len_this_step;
-		const u8 *orig_src = scatterwalk_next(&walk, assoclen,
-						      &orig_len_this_step);
+		unsigned int orig_len_this_step = scatterwalk_next(
+			&walk, assoclen);
 		unsigned int len_this_step = orig_len_this_step;
 		unsigned int len;
-		const u8 *src = orig_src;
+		const u8 *src = walk.addr;
 
 		if (unlikely(pos)) {
 			len = min(len_this_step, 16 - pos);
@@ -1335,7 +1334,7 @@ static void gcm_process_assoc(const struct aes_gcm_key *key, u8 ghash_acc[16],
 			pos = len_this_step;
 		}
 next:
-		scatterwalk_done_src(&walk, orig_src, orig_len_this_step);
+		scatterwalk_done_src(&walk, orig_len_this_step);
 		if (need_resched()) {
 			kernel_fpu_end();
 			kernel_fpu_begin();

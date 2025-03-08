@@ -460,11 +460,10 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u64 dg[], u32 len)
 
 	do {
 		unsigned int n;
-		const u8 *p;
 
-		p = scatterwalk_next(&walk, len, &n);
-		gcm_update_mac(dg, p, n, buf, &buf_count, ctx);
-		scatterwalk_done_src(&walk, p, n);
+		n = scatterwalk_next(&walk, len);
+		gcm_update_mac(dg, walk.addr, n, buf, &buf_count, ctx);
+		scatterwalk_done_src(&walk,  n);
 
 		if (unlikely(len / SZ_4K > (len - n) / SZ_4K)) {
 			kernel_neon_end();

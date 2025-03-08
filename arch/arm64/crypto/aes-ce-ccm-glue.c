@@ -157,12 +157,11 @@ static void ccm_calculate_auth_mac(struct aead_request *req, u8 mac[])
 
 	do {
 		unsigned int n;
-		const u8 *p;
 
-		p = scatterwalk_next(&walk, len, &n);
-		macp = ce_aes_ccm_auth_data(mac, p, n, macp, ctx->key_enc,
-					    num_rounds(ctx));
-		scatterwalk_done_src(&walk, p, n);
+		n = scatterwalk_next(&walk, len);
+		macp = ce_aes_ccm_auth_data(mac, walk.addr, n, macp,
+					    ctx->key_enc, num_rounds(ctx));
+		scatterwalk_done_src(&walk, n);
 		len -= n;
 	} while (len);
 }

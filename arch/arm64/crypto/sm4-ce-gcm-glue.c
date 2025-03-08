@@ -83,10 +83,10 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u8 ghash[])
 
 	do {
 		unsigned int n, orig_n;
-		const u8 *p, *orig_p;
+		const u8 *p;
 
-		orig_p = scatterwalk_next(&walk, assoclen, &orig_n);
-		p = orig_p;
+		orig_n = scatterwalk_next(&walk, assoclen);
+		p = walk.addr;
 		n = orig_n;
 
 		if (n + buflen < GHASH_BLOCK_SIZE) {
@@ -118,7 +118,7 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u8 ghash[])
 				memcpy(&buffer[0], p, buflen);
 		}
 
-		scatterwalk_done_src(&walk, orig_p, orig_n);
+		scatterwalk_done_src(&walk, orig_n);
 		assoclen -= orig_n;
 	} while (assoclen);
 

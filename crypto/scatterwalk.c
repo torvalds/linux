@@ -34,12 +34,11 @@ inline void memcpy_from_scatterwalk(void *buf, struct scatter_walk *walk,
 				    unsigned int nbytes)
 {
 	do {
-		const void *src_addr;
 		unsigned int to_copy;
 
-		src_addr = scatterwalk_next(walk, nbytes, &to_copy);
-		memcpy(buf, src_addr, to_copy);
-		scatterwalk_done_src(walk, src_addr, to_copy);
+		to_copy = scatterwalk_next(walk, nbytes);
+		memcpy(buf, walk->addr, to_copy);
+		scatterwalk_done_src(walk, to_copy);
 		buf += to_copy;
 		nbytes -= to_copy;
 	} while (nbytes);
@@ -50,12 +49,11 @@ inline void memcpy_to_scatterwalk(struct scatter_walk *walk, const void *buf,
 				  unsigned int nbytes)
 {
 	do {
-		void *dst_addr;
 		unsigned int to_copy;
 
-		dst_addr = scatterwalk_next(walk, nbytes, &to_copy);
-		memcpy(dst_addr, buf, to_copy);
-		scatterwalk_done_dst(walk, dst_addr, to_copy);
+		to_copy = scatterwalk_next(walk, nbytes);
+		memcpy(walk->addr, buf, to_copy);
+		scatterwalk_done_dst(walk, to_copy);
 		buf += to_copy;
 		nbytes -= to_copy;
 	} while (nbytes);

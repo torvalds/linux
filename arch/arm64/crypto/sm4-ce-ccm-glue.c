@@ -113,10 +113,10 @@ static void ccm_calculate_auth_mac(struct aead_request *req, u8 mac[])
 
 	do {
 		unsigned int n, orig_n;
-		const u8 *p, *orig_p;
+		const u8 *p;
 
-		orig_p = scatterwalk_next(&walk, assoclen, &orig_n);
-		p = orig_p;
+		orig_n = scatterwalk_next(&walk, assoclen);
+		p = walk.addr;
 		n = orig_n;
 
 		while (n > 0) {
@@ -149,7 +149,7 @@ static void ccm_calculate_auth_mac(struct aead_request *req, u8 mac[])
 			}
 		}
 
-		scatterwalk_done_src(&walk, orig_p, orig_n);
+		scatterwalk_done_src(&walk, orig_n);
 		assoclen -= orig_n;
 	} while (assoclen);
 }

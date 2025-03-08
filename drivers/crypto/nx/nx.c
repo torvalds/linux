@@ -154,17 +154,16 @@ struct nx_sg *nx_walk_and_build(struct nx_sg       *nx_dst,
 	struct scatter_walk walk;
 	struct nx_sg *nx_sg = nx_dst;
 	unsigned int n, len = *src_len;
-	char *dst;
 
 	/* we need to fast forward through @start bytes first */
 	scatterwalk_start_at_pos(&walk, sg_src, start);
 
 	while (len && (nx_sg - nx_dst) < sglen) {
-		dst = scatterwalk_next(&walk, len, &n);
+		n = scatterwalk_next(&walk, len);
 
-		nx_sg = nx_build_sg_list(nx_sg, dst, &n, sglen - (nx_sg - nx_dst));
+		nx_sg = nx_build_sg_list(nx_sg, walk.addr, &n, sglen - (nx_sg - nx_dst));
 
-		scatterwalk_done_src(&walk, dst, n);
+		scatterwalk_done_src(&walk, n);
 		len -= n;
 	}
 	/* update to_process */

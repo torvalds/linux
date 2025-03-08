@@ -120,18 +120,20 @@ static inline void *scatterwalk_map(struct scatter_walk *walk)
  * scatterwalk_next() - Get the next data buffer in a scatterlist walk
  * @walk: the scatter_walk
  * @total: the total number of bytes remaining, > 0
- * @nbytes_ret: (out) the next number of bytes available, <= @total
  *
- * Return: A virtual address for the next segment of data from the scatterlist.
- *	   The caller must call scatterwalk_done_src() or scatterwalk_done_dst()
- *	   when it is done using this virtual address.
+ * A virtual address for the next segment of data from the scatterlist will
+ * be placed into @walk->addr.  The caller must call scatterwalk_done_src()
+ * or scatterwalk_done_dst() when it is done using this virtual address.
+ *
+ * Returns: the next number of bytes available, <= @total
  */
-static inline void *scatterwalk_next(struct scatter_walk *walk,
-				     unsigned int total,
-				     unsigned int *nbytes_ret)
+static inline unsigned int scatterwalk_next(struct scatter_walk *walk,
+					    unsigned int total)
 {
-	*nbytes_ret = scatterwalk_clamp(walk, total);
-	return scatterwalk_map(walk);
+	unsigned int nbytes = scatterwalk_clamp(walk, total);
+
+	walk->__addr = scatterwalk_map(walk);
+	return nbytes;
 }
 
 static inline void scatterwalk_unmap(const void *vaddr)
@@ -149,32 +151,31 @@ static inline void scatterwalk_advance(struct scatter_walk *walk,
 /**
  * scatterwalk_done_src() - Finish one step of a walk of source scatterlist
  * @walk: the scatter_walk
- * @vaddr: the address returned by scatterwalk_next()
  * @nbytes: the number of bytes processed this step, less than or equal to the
  *	    number of bytes that scatterwalk_next() returned.
  *
- * Use this if the @vaddr was not written to, i.e. it is source data.
+ * Use this if the mapped address was not written to, i.e. it is source data.
  */
 static inline void scatterwalk_done_src(struct scatter_walk *walk,
-					const void *vaddr, unsigned int nbytes)
+					unsigned int nbytes)
 {
-	scatterwalk_unmap(vaddr);
+	scatterwalk_unmap(walk->addr);
 	scatterwalk_advance(walk, nbytes);
 }
 
 /**
  * scatterwalk_done_dst() - Finish one step of a walk of destination scatterlist
  * @walk: the scatter_walk
- * @vaddr: the address returned by scatterwalk_next()
  * @nbytes: the number of bytes processed this step, less than or equal to the
  *	    number of bytes that scatterwalk_next() returned.
  *
- * Use this if the @vaddr may have been written to, i.e. it is destination data.
+ * Use this if the mapped address may have been written to, i.e. it is
+ * destination data.
  */
 static inline void scatterwalk_done_dst(struct scatter_walk *walk,
-					void *vaddr, unsigned int nbytes)
+					unsigned int nbytes)
 {
-	scatterwalk_unmap(vaddr);
+	scatterwalk_unmap(walk->addr);
 	/*
 	 * Explicitly check ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE instead of just
 	 * relying on flush_dcache_page() being a no-op when not implemented,

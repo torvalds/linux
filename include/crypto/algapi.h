@@ -54,6 +54,7 @@ struct rtattr;
 struct scatterlist;
 struct seq_file;
 struct sk_buff;
+union crypto_no_such_thing;
 
 struct crypto_instance {
 	struct crypto_alg alg;
@@ -108,6 +109,12 @@ struct crypto_queue {
 struct scatter_walk {
 	struct scatterlist *sg;
 	unsigned int offset;
+	union {
+		void *const addr;
+
+		/* Private API field, do not touch. */
+		union crypto_no_such_thing *__addr;
+	};
 };
 
 struct crypto_attr_alg {
