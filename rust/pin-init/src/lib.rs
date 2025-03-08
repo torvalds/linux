@@ -63,7 +63,7 @@
 //! [`pin_init!`]. The syntax is almost the same as normal `struct` initializers. The difference is
 //! that you need to write `<-` instead of `:` for fields that you want to initialize in-place.
 //!
-//! ```rust,ignore
+//! ```rust
 //! # #![expect(clippy::disallowed_names)]
 //! # #![feature(allocator_api)]
 //! # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
@@ -87,7 +87,7 @@
 //! `foo` now is of the type [`impl PinInit<Foo>`]. We can now use any smart pointer that we like
 //! (or just the stack) to actually initialize a `Foo`:
 //!
-//! ```rust,ignore
+//! ```rust
 //! # #![expect(clippy::disallowed_names)]
 //! # #![feature(allocator_api)]
 //! # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
@@ -115,7 +115,7 @@
 //! Many types that use this library supply a function/macro that returns an initializer, because
 //! the above method only works for types where you can access the fields.
 //!
-//! ```rust,ignore
+//! ```rust
 //! # #![feature(allocator_api)]
 //! # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
 //! # use pin_init::*;
@@ -126,7 +126,7 @@
 //!
 //! To declare an init macro/function you just return an [`impl PinInit<T, E>`]:
 //!
-//! ```rust,ignore
+//! ```rust
 //! # #![feature(allocator_api)]
 //! # use pin_init::*;
 //! # #[path = "../examples/error.rs"] mod error; use error::Error;
@@ -162,7 +162,7 @@
 //! - you may assume that `slot` will stay pinned even after the closure returns until `drop` of
 //!   `slot` gets called.
 //!
-//! ```rust,ignore
+//! ```rust
 //! # #![feature(extern_types)]
 //! use pin_init::{pin_data, pinned_drop, PinInit, PinnedDrop, pin_init_from_closure};
 //! use core::{
@@ -306,7 +306,7 @@ pub use alloc::InPlaceInit;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
 /// use pin_init::pin_data;
@@ -323,7 +323,7 @@ pub use alloc::InPlaceInit;
 /// }
 /// ```
 ///
-/// ```ignore
+/// ```
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
 /// # mod bindings { pub struct info; pub unsafe fn destroy_info(_: *mut info) {} }
@@ -357,7 +357,7 @@ pub use ::pin_init_internal::pin_data;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
 /// # mod bindings { pub struct info; pub unsafe fn destroy_info(_: *mut info) {} }
@@ -391,7 +391,7 @@ pub use ::pin_init_internal::pinned_drop;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use pin_init::Zeroable;
 ///
 /// #[derive(Zeroable)]
@@ -407,7 +407,7 @@ pub use ::pin_init_internal::Zeroable;
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// # #![expect(clippy::disallowed_names)]
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
@@ -459,7 +459,7 @@ macro_rules! stack_pin_init {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// # #![expect(clippy::disallowed_names)]
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/error.rs"] mod error; use error::Error;
@@ -486,7 +486,7 @@ macro_rules! stack_pin_init {
 /// println!("a: {}", &*foo.a.lock());
 /// ```
 ///
-/// ```rust,ignore
+/// ```rust
 /// # #![expect(clippy::disallowed_names)]
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/error.rs"] mod error; use error::Error;
@@ -539,7 +539,7 @@ macro_rules! stack_try_pin_init {
 ///
 /// The syntax is almost identical to that of a normal `struct` initializer:
 ///
-/// ```rust,ignore
+/// ```rust
 /// # use pin_init::*;
 /// # use core::pin::Pin;
 /// #[pin_data]
@@ -583,7 +583,7 @@ macro_rules! stack_try_pin_init {
 ///
 /// To create an initializer function, simply declare it like this:
 ///
-/// ```rust,ignore
+/// ```rust
 /// # use pin_init::*;
 /// # use core::pin::Pin;
 /// # #[pin_data]
@@ -609,7 +609,7 @@ macro_rules! stack_try_pin_init {
 ///
 /// Users of `Foo` can now create it like this:
 ///
-/// ```rust,ignore
+/// ```rust
 /// # #![expect(clippy::disallowed_names)]
 /// # use pin_init::*;
 /// # use core::pin::Pin;
@@ -637,7 +637,7 @@ macro_rules! stack_try_pin_init {
 ///
 /// They can also easily embed it into their own `struct`s:
 ///
-/// ```rust,ignore
+/// ```rust
 /// # use pin_init::*;
 /// # use core::pin::Pin;
 /// # #[pin_data]
@@ -696,7 +696,7 @@ macro_rules! stack_try_pin_init {
 ///
 /// For instance:
 ///
-/// ```rust,ignore
+/// ```rust
 /// # use pin_init::*;
 /// # use core::{ptr::addr_of_mut, marker::PhantomPinned};
 /// #[pin_data]
@@ -750,7 +750,7 @@ macro_rules! pin_init {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/error.rs"] mod error; use error::Error;
 /// use pin_init::{pin_data, try_pin_init, PinInit, InPlaceInit, zeroed};
@@ -857,7 +857,7 @@ macro_rules! init {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// # #![feature(allocator_api)]
 /// # use core::alloc::AllocError;
 /// # use pin_init::InPlaceInit;
@@ -904,7 +904,7 @@ macro_rules! try_init {
 /// # Example
 ///
 /// This will succeed:
-/// ```ignore
+/// ```
 /// use pin_init::{pin_data, assert_pinned};
 ///
 /// #[pin_data]
@@ -917,7 +917,7 @@ macro_rules! try_init {
 /// ```
 ///
 /// This will fail:
-/// ```compile_fail,ignore
+/// ```compile_fail
 /// use pin_init::{pin_data, assert_pinned};
 ///
 /// #[pin_data]
@@ -931,7 +931,7 @@ macro_rules! try_init {
 /// Some uses of the macro may trigger the `can't use generic parameters from outer item` error. To
 /// work around this, you may pass the `inline` parameter to the macro. The `inline` parameter can
 /// only be used when the macro is invoked from a function body.
-/// ```ignore
+/// ```
 /// # use core::pin::Pin;
 /// use pin_init::{pin_data, assert_pinned};
 ///
@@ -1018,7 +1018,7 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
+    /// ```rust
     /// # #![feature(allocator_api)]
     /// # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
     /// # use pin_init::*;
@@ -1116,7 +1116,7 @@ pub unsafe trait Init<T: ?Sized, E = Infallible>: PinInit<T, E> {
     ///
     /// # Examples
     ///
-    /// ```rust,ignore
+    /// ```rust
     /// # #![expect(clippy::disallowed_names)]
     /// use pin_init::{init, zeroed, Init};
     ///
@@ -1229,7 +1229,7 @@ pub fn uninit<T, E>() -> impl Init<MaybeUninit<T>, E> {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// # use pin_init::*;
 /// use pin_init::init_array_from_fn;
 /// let array: Box<[usize; 1_000]> = Box::init(init_array_from_fn(|i| i)).unwrap();
@@ -1267,7 +1267,7 @@ where
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```rust
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
 /// # use pin_init::*;
@@ -1343,7 +1343,7 @@ pub trait InPlaceWrite<T> {
 ///
 /// Use [`pinned_drop`] to implement this trait safely:
 ///
-/// ```rust,ignore
+/// ```rust
 /// # #![feature(allocator_api)]
 /// # #[path = "../examples/mutex.rs"] mod mutex; use mutex::*;
 /// # use pin_init::*;
