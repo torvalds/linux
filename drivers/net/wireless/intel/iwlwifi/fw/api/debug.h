@@ -518,12 +518,15 @@ enum iwl_tas_dyna_status {
  * @TAS_DISABLED_DUE_TO_BIOS: TAS is disabled because TAS is disabled in BIOS
  * @TAS_DISABLED_DUE_TO_SAR_6DBM: TAS is disabled because SAR limit is less than 6 Dbm
  * @TAS_DISABLED_REASON_INVALID: TAS disable reason is invalid
+ * @TAS_DISABLED_DUE_TO_TABLE_SOURCE_INVALID: TAS is disabled due to
+ *	table source invalid
  * @TAS_DISABLED_REASON_MAX: TAS disable reason max value
  */
 enum iwl_tas_statically_disabled_reason {
 	TAS_DISABLED_DUE_TO_BIOS,
 	TAS_DISABLED_DUE_TO_SAR_6DBM,
 	TAS_DISABLED_REASON_INVALID,
+	TAS_DISABLED_DUE_TO_TABLE_SOURCE_INVALID,
 
 	TAS_DISABLED_REASON_MAX,
 }; /*_TAS_STATICALLY_DISABLED_REASON_E*/

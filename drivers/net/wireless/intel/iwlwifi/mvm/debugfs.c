@@ -552,6 +552,8 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 			"Due To SAR Limit Less Than 6 dBm",
 		[TAS_DISABLED_REASON_INVALID] =
 			"N/A",
+		[TAS_DISABLED_DUE_TO_TABLE_SOURCE_INVALID] =
+			"Due to table source invalid",
 	};
 	const char * const tas_current_status[TAS_DYNA_STATUS_MAX] = {
 		[TAS_DYNA_INACTIVE] = "INACTIVE",
