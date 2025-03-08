@@ -9770,6 +9770,7 @@ struct cfg80211_mlo_reconf_done_data {
 	u16 added_links;
 	struct {
 		struct cfg80211_bss *bss;
+		u8 *addr;
 	} links[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
