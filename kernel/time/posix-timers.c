@@ -63,8 +63,17 @@ static struct k_itimer *__lock_timer(timer_t timer_id);
 
 static inline void unlock_timer(struct k_itimer *timr)
 {
-	spin_unlock_irq(&timr->it_lock);
+	if (likely((timr)))
+		spin_unlock_irq(&timr->it_lock);
 }
+
+#define scoped_timer_get_or_fail(_id)					\
+	scoped_cond_guard(lock_timer, return -EINVAL, _id)
+
+#define scoped_timer				(scope)
+
+DEFINE_CLASS(lock_timer, struct k_itimer *, unlock_timer(_T), __lock_timer(id), timer_t id);
+DEFINE_CLASS_IS_COND_GUARD(lock_timer);
 
 static int hash(struct signal_struct *sig, unsigned int nr)
 {
@@ -682,18 +691,10 @@ void common_timer_get(struct k_itimer *timr, struct itimerspec64 *cur_setting)
 
 static int do_timer_gettime(timer_t timer_id,  struct itimerspec64 *setting)
 {
-	struct k_itimer *timr;
-	int ret = 0;
-
-	timr = lock_timer(timer_id);
-	if (!timr)
-		return -EINVAL;
-
 	memset(setting, 0, sizeof(*setting));
-	timr->kclock->timer_get(timr, setting);
-
-	unlock_timer(timr);
-	return ret;
+	scoped_timer_get_or_fail(timer_id)
+		scoped_timer->kclock->timer_get(scoped_timer, setting);
+	return 0;
 }
 
 /* Get the time remaining on a POSIX.1b interval timer. */
@@ -747,17 +748,8 @@ SYSCALL_DEFINE2(timer_gettime32, timer_t, timer_id,
  */
 SYSCALL_DEFINE1(timer_getoverrun, timer_t, timer_id)
 {
-	struct k_itimer *timr;
-	int overrun;
-
-	timr = lock_timer(timer_id);
-	if (!timr)
-		return -EINVAL;
-
-	overrun = timer_overrun_to_int(timr);
-	unlock_timer(timr);
-
-	return overrun;
+	scoped_timer_get_or_fail(timer_id)
+		return timer_overrun_to_int(scoped_timer);
 }
 
 static void common_hrtimer_arm(struct k_itimer *timr, ktime_t expires,
@@ -875,12 +867,9 @@ int common_timer_set(struct k_itimer *timr, int flags,
 	return 0;
 }
 
-static int do_timer_settime(timer_t timer_id, int tmr_flags,
-			    struct itimerspec64 *new_spec64,
+static int do_timer_settime(timer_t timer_id, int tmr_flags, struct itimerspec64 *new_spec64,
 			    struct itimerspec64 *old_spec64)
 {
-	int ret;
-
 	if (!timespec64_valid(&new_spec64->it_interval) ||
 	    !timespec64_valid(&new_spec64->it_value))
 		return -EINVAL;
@@ -888,36 +877,28 @@ static int do_timer_settime(timer_t timer_id, int tmr_flags,
 	if (old_spec64)
 		memset(old_spec64, 0, sizeof(*old_spec64));
 
-	for (;;) {
-		struct k_itimer *timr = lock_timer(timer_id);
+	for (; ; old_spec64 = NULL) {
+		struct k_itimer *timr;
 
-		if (!timr)
-			return -EINVAL;
+		scoped_timer_get_or_fail(timer_id) {
+			timr = scoped_timer;
 
-		if (old_spec64)
-			old_spec64->it_interval = ktime_to_timespec64(timr->it_interval);
+			if (old_spec64)
+				old_spec64->it_interval = ktime_to_timespec64(timr->it_interval);
 
-		/* Prevent signal delivery and rearming. */
-		timr->it_signal_seq++;
+			/* Prevent signal delivery and rearming. */
+			timr->it_signal_seq++;
 
-		ret = timr->kclock->timer_set(timr, tmr_flags, new_spec64, old_spec64);
-		if (ret != TIMER_RETRY) {
-			unlock_timer(timr);
-			break;
+			int ret = timr->kclock->timer_set(timr, tmr_flags, new_spec64, old_spec64);
+			if (ret != TIMER_RETRY)
+				return ret;
+
+			/* Protect the timer from being freed when leaving the lock scope */
+			rcu_read_lock();
 		}
-
-		/* Read the old time only once */
-		old_spec64 = NULL;
-		/* Protect the timer from being freed after the lock is dropped */
-		guard(rcu)();
-		unlock_timer(timr);
-		/*
-		 * timer_wait_running() might drop RCU read side protection
-		 * so the timer has to be looked up again!
-		 */
 		timer_wait_running(timr);
+		rcu_read_unlock();
 	}
-	return ret;
 }
 
 /* Set a POSIX.1b interval timer */
@@ -1028,13 +1009,12 @@ static void posix_timer_delete(struct k_itimer *timer)
 /* Delete a POSIX.1b interval timer. */
 SYSCALL_DEFINE1(timer_delete, timer_t, timer_id)
 {
-	struct k_itimer *timer = lock_timer(timer_id);
+	struct k_itimer *timer;
 
-	if (!timer)
-		return -EINVAL;
-
-	posix_timer_delete(timer);
-	unlock_timer(timer);
+	scoped_timer_get_or_fail(timer_id) {
+		timer = scoped_timer;
+		posix_timer_delete(timer);
+	}
 	/* Remove it from the hash, which frees up the timer ID */
 	posix_timer_unhash_and_free(timer);
 	return 0;
