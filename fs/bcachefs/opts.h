@@ -186,6 +186,11 @@ enum fsck_err_opts {
 	  OPT_STR(__bch2_csum_opts),					\
 	  BCH_SB_DATA_CSUM_TYPE,	BCH_CSUM_OPT_crc32c,		\
 	  NULL,		NULL)						\
+	x(checksum_err_retry_nr,	u8,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
+	  OPT_UINT(0, 32),						\
+	  BCH_SB_CSUM_ERR_RETRY_NR,	3,				\
+	  NULL,		NULL)						\
 	x(compression,			u8,				\
 	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_FN(bch2_opt_compression),					\

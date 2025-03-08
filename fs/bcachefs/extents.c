@@ -58,7 +58,8 @@ struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *f,
 }
 
 void bch2_mark_io_failure(struct bch_io_failures *failed,
-			  struct extent_ptr_decoded *p)
+			  struct extent_ptr_decoded *p,
+			  bool csum_error)
 {
 	struct bch_dev_io_failures *f = bch2_dev_io_failures(failed, p->ptr.dev);
 
@@ -66,17 +67,16 @@ void bch2_mark_io_failure(struct bch_io_failures *failed,
 		BUG_ON(failed->nr >= ARRAY_SIZE(failed->devs));
 
 		f = &failed->devs[failed->nr++];
-		f->dev		= p->ptr.dev;
-		f->idx		= p->idx;
-		f->nr_failed	= 1;
-		f->nr_retries	= 0;
-	} else if (p->idx != f->idx) {
-		f->idx		= p->idx;
-		f->nr_failed	= 1;
-		f->nr_retries	= 0;
-	} else {
-		f->nr_failed++;
+		memset(f, 0, sizeof(*f));
+		f->dev = p->ptr.dev;
 	}
+
+	if (p->do_ec_reconstruct)
+		f->failed_ec = true;
+	else if (!csum_error)
+		f->failed_io = true;
+	else
+		f->failed_csum_nr++;
 }
 
 static inline u64 dev_latency(struct bch_dev *ca)
@@ -94,37 +94,30 @@ static inline int dev_failed(struct bch_dev *ca)
  */
 static inline bool ptr_better(struct bch_fs *c,
 			      const struct extent_ptr_decoded p1,
-			      const struct extent_ptr_decoded p2)
+			      u64 p1_latency,
+			      struct bch_dev *ca1,
+			      const struct extent_ptr_decoded p2,
+			      u64 p2_latency)
 {
-	if (likely(!p1.idx && !p2.idx)) {
-		struct bch_dev *ca1 = bch2_dev_rcu(c, p1.ptr.dev);
-		struct bch_dev *ca2 = bch2_dev_rcu(c, p2.ptr.dev);
+	struct bch_dev *ca2 = bch2_dev_rcu(c, p2.ptr.dev);
 
-		int failed_delta = dev_failed(ca1) - dev_failed(ca2);
+	int failed_delta = dev_failed(ca1) - dev_failed(ca2);
+	if (unlikely(failed_delta))
+		return failed_delta < 0;
 
-		if (failed_delta)
-			return failed_delta < 0;
+	if (unlikely(bch2_force_reconstruct_read))
+		return p1.do_ec_reconstruct > p2.do_ec_reconstruct;
 
-		u64 l1 = dev_latency(ca1);
-		u64 l2 = dev_latency(ca2);
+	if (unlikely(p1.do_ec_reconstruct || p2.do_ec_reconstruct))
+		return p1.do_ec_reconstruct < p2.do_ec_reconstruct;
 
-		/*
-		 * Square the latencies, to bias more in favor of the faster
-		 * device - we never want to stop issuing reads to the slower
-		 * device altogether, so that we can update our latency numbers:
-		 */
-		l1 *= l1;
-		l2 *= l2;
+	int crc_retry_delta = (int) p1.crc_retry_nr - (int) p2.crc_retry_nr;
+	if (unlikely(crc_retry_delta))
+		return crc_retry_delta < 0;
 
-		/* Pick at random, biased in favor of the faster device: */
+	/* Pick at random, biased in favor of the faster device: */
 
-		return bch2_get_random_u64_below(l1 + l2) > l1;
-	}
-
-	if (bch2_force_reconstruct_read)
-		return p1.idx > p2.idx;
-
-	return p1.idx < p2.idx;
+	return bch2_get_random_u64_below(p1_latency + p2_latency) > p1_latency;
 }
 
 /*
@@ -133,73 +126,109 @@ static inline bool ptr_better(struct bch_fs *c,
  * other devices, it will still pick a pointer from avoid.
  */
 int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
-			      struct bch_io_failures *failed,
-			      struct extent_ptr_decoded *pick,
-			      int dev)
+			       struct bch_io_failures *failed,
+			       struct extent_ptr_decoded *pick,
+			       int dev)
 {
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
-	struct bch_dev_io_failures *f;
-	int ret = 0;
+	bool have_csum_errors = false, have_io_errors = false, have_missing_devs = false;
+	bool have_dirty_ptrs = false, have_pick = false;
 
 	if (k.k->type == KEY_TYPE_error)
 		return -BCH_ERR_key_type_error;
+
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 
 	if (bch2_bkey_extent_ptrs_flags(ptrs) & BIT_ULL(BCH_EXTENT_FLAG_poisoned))
 		return -BCH_ERR_extent_poisened;
 
 	rcu_read_lock();
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	u64 pick_latency;
+
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		have_dirty_ptrs |= !p.ptr.cached;
+
 		/*
 		 * Unwritten extent: no need to actually read, treat it as a
 		 * hole and return 0s:
 		 */
 		if (p.ptr.unwritten) {
-			ret = 0;
-			break;
+			rcu_read_unlock();
+			return 0;
 		}
 
 		/* Are we being asked to read from a specific device? */
 		if (dev >= 0 && p.ptr.dev != dev)
 			continue;
 
-		/*
-		 * If there are any dirty pointers it's an error if we can't
-		 * read:
-		 */
-		if (!ret && !p.ptr.cached)
-			ret = -BCH_ERR_no_device_to_read_from;
-
 		struct bch_dev *ca = bch2_dev_rcu(c, p.ptr.dev);
 
 		if (p.ptr.cached && (!ca || dev_ptr_stale_rcu(ca, &p.ptr)))
 			continue;
 
-		f = failed ? bch2_dev_io_failures(failed, p.ptr.dev) : NULL;
-		if (f)
-			p.idx = f->nr_failed < f->nr_retries
-				? f->idx
-				: f->idx + 1;
+		struct bch_dev_io_failures *f =
+			unlikely(failed) ? bch2_dev_io_failures(failed, p.ptr.dev) : NULL;
+		if (unlikely(f)) {
+			p.crc_retry_nr	   = f->failed_csum_nr;
+			p.has_ec	  &= ~f->failed_ec;
 
-		if (!p.idx && (!ca || !bch2_dev_is_online(ca)))
-			p.idx++;
+			if (ca && ca->mi.state != BCH_MEMBER_STATE_failed) {
+				have_io_errors	|= f->failed_io;
+				have_io_errors	|= f->failed_ec;
+			}
+			have_csum_errors	|= !!f->failed_csum_nr;
 
-		if (!p.idx && p.has_ec && bch2_force_reconstruct_read)
-			p.idx++;
+			if (p.has_ec && (f->failed_io || f->failed_csum_nr))
+				p.do_ec_reconstruct = true;
+			else if (f->failed_io ||
+				 f->failed_csum_nr > c->opts.checksum_err_retry_nr)
+				continue;
+		}
 
-		if (p.idx > (unsigned) p.has_ec)
-			continue;
+		have_missing_devs |= ca && !bch2_dev_is_online(ca);
 
-		if (ret > 0 && !ptr_better(c, p, *pick))
-			continue;
+		if (!ca || !bch2_dev_is_online(ca)) {
+			if (!p.has_ec)
+				continue;
+			p.do_ec_reconstruct = true;
+		}
 
-		*pick = p;
-		ret = 1;
+		if (bch2_force_reconstruct_read && p.has_ec)
+			p.do_ec_reconstruct = true;
+
+		u64 p_latency = dev_latency(ca);
+		/*
+		 * Square the latencies, to bias more in favor of the faster
+		 * device - we never want to stop issuing reads to the slower
+		 * device altogether, so that we can update our latency numbers:
+		 */
+		p_latency *= p_latency;
+
+		if (!have_pick ||
+		    ptr_better(c,
+			       p, p_latency, ca,
+			       *pick, pick_latency)) {
+			*pick = p;
+			pick_latency = p_latency;
+			have_pick = true;
+		}
 	}
 	rcu_read_unlock();
 
-	return ret;
+	if (have_pick)
+		return 1;
+	if (!have_dirty_ptrs)
+		return 0;
+	if (have_missing_devs)
+		return -BCH_ERR_no_device_to_read_from;
+	if (have_csum_errors)
+		return -BCH_ERR_data_read_csum_err;
+	if (have_io_errors)
+		return -BCH_ERR_data_read_io_err;
+
+	WARN_ONCE(1, "unhandled error case in %s\n", __func__);
+	return -EINVAL;
 }
 
 /* KEY_TYPE_btree_ptr: */

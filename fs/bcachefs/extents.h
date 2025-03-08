@@ -320,8 +320,9 @@ static inline struct bkey_ptrs bch2_bkey_ptrs(struct bkey_s k)
 ({									\
 	__label__ out;							\
 									\
-	(_ptr).idx	= 0;						\
-	(_ptr).has_ec	= false;					\
+	(_ptr).has_ec			= false;			\
+	(_ptr).do_ec_reconstruct	= false;			\
+	(_ptr).crc_retry_nr		= 0;				\
 									\
 	__bkey_extent_entry_for_each_from(_entry, _end, _entry)		\
 		switch (__extent_entry_type(_entry)) {			\
@@ -401,7 +402,7 @@ out:									\
 struct bch_dev_io_failures *bch2_dev_io_failures(struct bch_io_failures *,
 						 unsigned);
 void bch2_mark_io_failure(struct bch_io_failures *,
-			  struct extent_ptr_decoded *);
+			  struct extent_ptr_decoded *, bool);
 int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 			       struct bch_io_failures *,
 			       struct extent_ptr_decoded *, int);

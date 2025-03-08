@@ -457,6 +457,10 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 
 		if (!BCH_SB_WRITE_ERROR_TIMEOUT(sb))
 			SET_BCH_SB_WRITE_ERROR_TIMEOUT(sb, 30);
+
+		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_extent_flags &&
+		    !BCH_SB_CSUM_ERR_RETRY_NR(sb))
+			SET_BCH_SB_CSUM_ERR_RETRY_NR(sb, 3);
 	}
 
 #ifdef __KERNEL__

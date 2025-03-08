@@ -1355,7 +1355,7 @@ start:
 			percpu_ref_put(&ca->io_ref);
 		rb->have_ioref = false;
 
-		bch2_mark_io_failure(&failed, &rb->pick);
+		bch2_mark_io_failure(&failed, &rb->pick, false);
 
 		can_retry = bch2_bkey_pick_read_device(c,
 				bkey_i_to_s_c(&b->key),
