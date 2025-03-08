@@ -10,7 +10,7 @@
 //! To initialize a `struct` with an in-place constructor you will need two things:
 //! - an in-place constructor,
 //! - a memory location that can hold your `struct` (this can be the [stack], an [`Arc<T>`],
-//!   [`UniqueArc<T>`], [`KBox<T>`] or any other smart pointer that implements [`InPlaceInit`]).
+//!   [`KBox<T>`] or any other smart pointer that supports this library).
 //!
 //! To get an in-place constructor there are generally three options:
 //! - directly creating an in-place constructor using the [`pin_init!`] macro,
@@ -212,10 +212,7 @@
 //! [`pin_init!`]: crate::pin_init!
 
 use crate::{
-    alloc::{AllocError, Flags, KBox},
-    error::{self, Error},
-    sync::Arc,
-    sync::UniqueArc,
+    alloc::KBox,
     types::{Opaque, ScopeGuard},
 };
 use core::{
@@ -891,8 +888,7 @@ macro_rules! assert_pinned {
 /// A pin-initializer for the type `T`.
 ///
 /// To use this initializer, you will need a suitable memory location that can hold a `T`. This can
-/// be [`KBox<T>`], [`Arc<T>`], [`UniqueArc<T>`] or even the stack (see [`stack_pin_init!`]). Use
-/// the [`InPlaceInit::pin_init`] function of a smart pointer like [`Arc<T>`] on this.
+/// be [`KBox<T>`], [`Arc<T>`] or even the stack (see [`stack_pin_init!`]).
 ///
 /// Also see the [module description](self).
 ///
@@ -910,7 +906,6 @@ macro_rules! assert_pinned {
 /// - while constructing the `T` at `slot` it upholds the pinning invariants of `T`.
 ///
 /// [`Arc<T>`]: crate::sync::Arc
-/// [`Arc::pin_init`]: crate::sync::Arc::pin_init
 #[must_use = "An initializer must be used in order to create its value."]
 pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     /// Initializes `slot`.
@@ -976,8 +971,7 @@ where
 /// An initializer for `T`.
 ///
 /// To use this initializer, you will need a suitable memory location that can hold a `T`. This can
-/// be [`KBox<T>`], [`Arc<T>`], [`UniqueArc<T>`] or even the stack (see [`stack_pin_init!`]). Use
-/// the [`InPlaceInit::init`] function of a smart pointer like [`Arc<T>`] on this. Because
+/// be [`KBox<T>`], [`Arc<T>`] or even the stack (see [`stack_pin_init!`]). Because
 /// [`PinInit<T, E>`] is a super trait, you can use every function that takes it as well.
 ///
 /// Also see the [module description](self).
@@ -1238,95 +1232,6 @@ unsafe impl<T, E> PinInit<T, E> for T {
     }
 }
 
-/// Smart pointer that can initialize memory in-place.
-pub trait InPlaceInit<T>: Sized {
-    /// Pinned version of `Self`.
-    ///
-    /// If a type already implicitly pins its pointee, `Pin<Self>` is unnecessary. In this case use
-    /// `Self`, otherwise just use `Pin<Self>`.
-    type PinnedSelf;
-
-    /// Use the given pin-initializer to pin-initialize a `T` inside of a new smart pointer of this
-    /// type.
-    ///
-    /// If `T: !Unpin` it will not be able to move afterwards.
-    fn try_pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> Result<Self::PinnedSelf, E>
-    where
-        E: From<AllocError>;
-
-    /// Use the given pin-initializer to pin-initialize a `T` inside of a new smart pointer of this
-    /// type.
-    ///
-    /// If `T: !Unpin` it will not be able to move afterwards.
-    fn pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> error::Result<Self::PinnedSelf>
-    where
-        Error: From<E>,
-    {
-        // SAFETY: We delegate to `init` and only change the error type.
-        let init = unsafe {
-            pin_init_from_closure(|slot| init.__pinned_init(slot).map_err(|e| Error::from(e)))
-        };
-        Self::try_pin_init(init, flags)
-    }
-
-    /// Use the given initializer to in-place initialize a `T`.
-    fn try_init<E>(init: impl Init<T, E>, flags: Flags) -> Result<Self, E>
-    where
-        E: From<AllocError>;
-
-    /// Use the given initializer to in-place initialize a `T`.
-    fn init<E>(init: impl Init<T, E>, flags: Flags) -> error::Result<Self>
-    where
-        Error: From<E>,
-    {
-        // SAFETY: We delegate to `init` and only change the error type.
-        let init = unsafe {
-            init_from_closure(|slot| init.__pinned_init(slot).map_err(|e| Error::from(e)))
-        };
-        Self::try_init(init, flags)
-    }
-}
-
-impl<T> InPlaceInit<T> for Arc<T> {
-    type PinnedSelf = Self;
-
-    #[inline]
-    fn try_pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> Result<Self::PinnedSelf, E>
-    where
-        E: From<AllocError>,
-    {
-        UniqueArc::try_pin_init(init, flags).map(|u| u.into())
-    }
-
-    #[inline]
-    fn try_init<E>(init: impl Init<T, E>, flags: Flags) -> Result<Self, E>
-    where
-        E: From<AllocError>,
-    {
-        UniqueArc::try_init(init, flags).map(|u| u.into())
-    }
-}
-
-impl<T> InPlaceInit<T> for UniqueArc<T> {
-    type PinnedSelf = Pin<Self>;
-
-    #[inline]
-    fn try_pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> Result<Self::PinnedSelf, E>
-    where
-        E: From<AllocError>,
-    {
-        UniqueArc::new_uninit(flags)?.write_pin_init(init)
-    }
-
-    #[inline]
-    fn try_init<E>(init: impl Init<T, E>, flags: Flags) -> Result<Self, E>
-    where
-        E: From<AllocError>,
-    {
-        UniqueArc::new_uninit(flags)?.write_init(init)
-    }
-}
-
 /// Smart pointer containing uninitialized memory and that can write a value.
 pub trait InPlaceWrite<T> {
     /// The type `Self` turns into when the contents are initialized.
@@ -1341,28 +1246,6 @@ pub trait InPlaceWrite<T> {
     ///
     /// Does not drop the current value and considers it as uninitialized memory.
     fn write_pin_init<E>(self, init: impl PinInit<T, E>) -> Result<Pin<Self::Initialized>, E>;
-}
-
-impl<T> InPlaceWrite<T> for UniqueArc<MaybeUninit<T>> {
-    type Initialized = UniqueArc<T>;
-
-    fn write_init<E>(mut self, init: impl Init<T, E>) -> Result<Self::Initialized, E> {
-        let slot = self.as_mut_ptr();
-        // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
-        // slot is valid.
-        unsafe { init.__init(slot)? };
-        // SAFETY: All fields have been initialized.
-        Ok(unsafe { self.assume_init() })
-    }
-
-    fn write_pin_init<E>(mut self, init: impl PinInit<T, E>) -> Result<Pin<Self::Initialized>, E> {
-        let slot = self.as_mut_ptr();
-        // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
-        // slot is valid and will not be moved, because we pin it later.
-        unsafe { init.__pinned_init(slot)? };
-        // SAFETY: All fields have been initialized.
-        Ok(unsafe { self.assume_init() }.into())
-    }
 }
 
 /// Trait facilitating pinned destruction.

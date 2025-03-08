@@ -15,7 +15,8 @@ use core::pin::Pin;
 use core::ptr::NonNull;
 use core::result::Result;
 
-use crate::init::{InPlaceInit, InPlaceWrite, Init, PinInit};
+use crate::init::{InPlaceWrite, Init, PinInit};
+use crate::init_ext::InPlaceInit;
 use crate::types::ForeignOwnable;
 
 /// The kernel's [`Box`] type -- a heap allocation for a single value of type `T`.

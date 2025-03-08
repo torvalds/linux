@@ -19,7 +19,8 @@
 use crate::{
     alloc::{AllocError, Flags, KBox},
     bindings,
-    init::{self, InPlaceInit, Init, PinInit},
+    init::{self, InPlaceWrite, Init, PinInit},
+    init_ext::InPlaceInit,
     try_init,
     types::{ForeignOwnable, Opaque},
 };
@@ -201,6 +202,26 @@ unsafe impl<T: ?Sized + Sync + Send> Send for Arc<T> {}
 // `Arc<T>` on that thread, so the thread may ultimately access `T` using a mutable reference when
 // the reference count reaches zero and `T` is dropped.
 unsafe impl<T: ?Sized + Sync + Send> Sync for Arc<T> {}
+
+impl<T> InPlaceInit<T> for Arc<T> {
+    type PinnedSelf = Self;
+
+    #[inline]
+    fn try_pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> Result<Self::PinnedSelf, E>
+    where
+        E: From<AllocError>,
+    {
+        UniqueArc::try_pin_init(init, flags).map(|u| u.into())
+    }
+
+    #[inline]
+    fn try_init<E>(init: impl Init<T, E>, flags: Flags) -> Result<Self, E>
+    where
+        E: From<AllocError>,
+    {
+        UniqueArc::try_init(init, flags).map(|u| u.into())
+    }
+}
 
 impl<T> Arc<T> {
     /// Constructs a new reference counted instance of `T`.
@@ -657,6 +678,48 @@ impl<T: ?Sized> Deref for ArcBorrow<'_, T> {
 /// ```
 pub struct UniqueArc<T: ?Sized> {
     inner: Arc<T>,
+}
+
+impl<T> InPlaceInit<T> for UniqueArc<T> {
+    type PinnedSelf = Pin<Self>;
+
+    #[inline]
+    fn try_pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> Result<Self::PinnedSelf, E>
+    where
+        E: From<AllocError>,
+    {
+        UniqueArc::new_uninit(flags)?.write_pin_init(init)
+    }
+
+    #[inline]
+    fn try_init<E>(init: impl Init<T, E>, flags: Flags) -> Result<Self, E>
+    where
+        E: From<AllocError>,
+    {
+        UniqueArc::new_uninit(flags)?.write_init(init)
+    }
+}
+
+impl<T> InPlaceWrite<T> for UniqueArc<MaybeUninit<T>> {
+    type Initialized = UniqueArc<T>;
+
+    fn write_init<E>(mut self, init: impl Init<T, E>) -> Result<Self::Initialized, E> {
+        let slot = self.as_mut_ptr();
+        // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
+        // slot is valid.
+        unsafe { init.__init(slot)? };
+        // SAFETY: All fields have been initialized.
+        Ok(unsafe { self.assume_init() })
+    }
+
+    fn write_pin_init<E>(mut self, init: impl PinInit<T, E>) -> Result<Pin<Self::Initialized>, E> {
+        let slot = self.as_mut_ptr();
+        // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
+        // slot is valid and will not be moved, because we pin it later.
+        unsafe { init.__pinned_init(slot)? };
+        // SAFETY: All fields have been initialized.
+        Ok(unsafe { self.assume_init() }.into())
+    }
 }
 
 impl<T> UniqueArc<T> {

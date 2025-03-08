@@ -134,6 +134,61 @@
 //! }
 //! ```
 
+use crate::{
+    alloc::{AllocError, Flags},
+    error::{self, Error},
+    init::{init_from_closure, pin_init_from_closure, Init, PinInit},
+};
+
+/// Smart pointer that can initialize memory in-place.
+pub trait InPlaceInit<T>: Sized {
+    /// Pinned version of `Self`.
+    ///
+    /// If a type already implicitly pins its pointee, `Pin<Self>` is unnecessary. In this case use
+    /// `Self`, otherwise just use `Pin<Self>`.
+    type PinnedSelf;
+
+    /// Use the given pin-initializer to pin-initialize a `T` inside of a new smart pointer of this
+    /// type.
+    ///
+    /// If `T: !Unpin` it will not be able to move afterwards.
+    fn try_pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> Result<Self::PinnedSelf, E>
+    where
+        E: From<AllocError>;
+
+    /// Use the given pin-initializer to pin-initialize a `T` inside of a new smart pointer of this
+    /// type.
+    ///
+    /// If `T: !Unpin` it will not be able to move afterwards.
+    fn pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> error::Result<Self::PinnedSelf>
+    where
+        Error: From<E>,
+    {
+        // SAFETY: We delegate to `init` and only change the error type.
+        let init = unsafe {
+            pin_init_from_closure(|slot| init.__pinned_init(slot).map_err(|e| Error::from(e)))
+        };
+        Self::try_pin_init(init, flags)
+    }
+
+    /// Use the given initializer to in-place initialize a `T`.
+    fn try_init<E>(init: impl Init<T, E>, flags: Flags) -> Result<Self, E>
+    where
+        E: From<AllocError>;
+
+    /// Use the given initializer to in-place initialize a `T`.
+    fn init<E>(init: impl Init<T, E>, flags: Flags) -> error::Result<Self>
+    where
+        Error: From<E>,
+    {
+        // SAFETY: We delegate to `init` and only change the error type.
+        let init = unsafe {
+            init_from_closure(|slot| init.__pinned_init(slot).map_err(|e| Error::from(e)))
+        };
+        Self::try_init(init, flags)
+    }
+}
+
 /// Construct an in-place fallible initializer for `struct`s.
 ///
 /// This macro defaults the error to [`Error`]. If you need [`Infallible`], then use
