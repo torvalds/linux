@@ -43,14 +43,12 @@ static inline void skcipher_map_src(struct skcipher_walk *walk)
 {
 	/* XXX */
 	walk->in.__addr = scatterwalk_map(&walk->in);
-	walk->src.virt.addr = walk->in.addr;
 }
 
 static inline void skcipher_map_dst(struct skcipher_walk *walk)
 {
 	/* XXX */
 	walk->out.__addr = scatterwalk_map(&walk->out);
-	walk->dst.virt.addr = walk->out.addr;
 }
 
 static inline gfp_t skcipher_walk_gfp(struct skcipher_walk *walk)
@@ -100,8 +98,7 @@ int skcipher_walk_done(struct skcipher_walk *walk, int res)
 				    SKCIPHER_WALK_DIFF)))) {
 		scatterwalk_advance(&walk->in, n);
 	} else if (walk->flags & SKCIPHER_WALK_DIFF) {
-		scatterwalk_unmap(walk->src.virt.addr);
-		scatterwalk_advance(&walk->in, n);
+		scatterwalk_done_src(&walk->in, n);
 	} else if (walk->flags & SKCIPHER_WALK_COPY) {
 		scatterwalk_advance(&walk->in, n);
 		skcipher_map_dst(walk);
@@ -116,11 +113,8 @@ int skcipher_walk_done(struct skcipher_walk *walk, int res)
 			 */
 			res = -EINVAL;
 			total = 0;
-		} else {
-			u8 *buf = PTR_ALIGN(walk->buffer, walk->alignmask + 1);
-
-			memcpy_to_scatterwalk(&walk->out, buf, n);
-		}
+		} else
+			memcpy_to_scatterwalk(&walk->out, walk->out.addr, n);
 		goto dst_done;
 	}
 
@@ -162,7 +156,7 @@ static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 {
 	unsigned alignmask = walk->alignmask;
 	unsigned n;
-	u8 *buffer;
+	void *buffer;
 
 	if (!walk->buffer)
 		walk->buffer = walk->page;
@@ -176,10 +170,11 @@ static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 			return skcipher_walk_done(walk, -ENOMEM);
 		walk->buffer = buffer;
 	}
-	walk->dst.virt.addr = PTR_ALIGN(buffer, alignmask + 1);
-	walk->src.virt.addr = walk->dst.virt.addr;
 
-	memcpy_from_scatterwalk(walk->src.virt.addr, &walk->in, bsize);
+	buffer = PTR_ALIGN(buffer, alignmask + 1);
+	memcpy_from_scatterwalk(buffer, &walk->in, bsize);
+	walk->out.__addr = buffer;
+	walk->in.__addr = walk->out.addr;
 
 	walk->nbytes = bsize;
 	walk->flags |= SKCIPHER_WALK_SLOW;
@@ -189,7 +184,7 @@ static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 
 static int skcipher_next_copy(struct skcipher_walk *walk)
 {
-	u8 *tmp = walk->page;
+	void *tmp = walk->page;
 
 	skcipher_map_src(walk);
 	memcpy(tmp, walk->src.virt.addr, walk->nbytes);
@@ -199,8 +194,8 @@ static int skcipher_next_copy(struct skcipher_walk *walk)
 	 * processed (which might be less than walk->nbytes) is known.
 	 */
 
-	walk->src.virt.addr = tmp;
-	walk->dst.virt.addr = tmp;
+	walk->in.__addr = tmp;
+	walk->out.__addr = tmp;
 	return 0;
 }
 
@@ -214,7 +209,7 @@ static int skcipher_next_fast(struct skcipher_walk *walk)
 		(u8 *)(sg_page(walk->out.sg) + (walk->out.offset >> PAGE_SHIFT));
 
 	skcipher_map_dst(walk);
-	walk->src.virt.addr = walk->dst.virt.addr;
+	walk->in.__addr = walk->dst.virt.addr;
 
 	if (diff) {
 		walk->flags |= SKCIPHER_WALK_DIFF;

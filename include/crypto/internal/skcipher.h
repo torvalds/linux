@@ -56,15 +56,31 @@ struct crypto_lskcipher_spawn {
 
 struct skcipher_walk {
 	union {
+		/* Virtual address of the source. */
 		struct {
-			void *addr;
-		} virt;
-	} src, dst;
+			struct {
+				void *const addr;
+			} virt;
+		} src;
 
-	struct scatter_walk in;
+		/* Private field for the API, do not use. */
+		struct scatter_walk in;
+	};
+
 	unsigned int nbytes;
 
-	struct scatter_walk out;
+	union {
+		/* Virtual address of the destination. */
+		struct {
+			struct {
+				void *const addr;
+			} virt;
+		} dst;
+
+		/* Private field for the API, do not use. */
+		struct scatter_walk out;
+	};
+
 	unsigned int total;
 
 	u8 *page;

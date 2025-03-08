@@ -107,14 +107,15 @@ struct crypto_queue {
 };
 
 struct scatter_walk {
-	struct scatterlist *sg;
-	unsigned int offset;
+	/* Must be the first member, see struct skcipher_walk. */
 	union {
 		void *const addr;
 
 		/* Private API field, do not touch. */
 		union crypto_no_such_thing *__addr;
 	};
+	struct scatterlist *sg;
+	unsigned int offset;
 };
 
 struct crypto_attr_alg {
