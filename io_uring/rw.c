@@ -390,11 +390,10 @@ static int io_rw_import_reg_vec(struct io_kiocb *req,
 {
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	unsigned uvec_segs = rw->len;
-	unsigned iovec_off = io->vec.nr - uvec_segs;
 	int ret;
 
 	ret = io_import_reg_vec(ddir, &io->iter, req, &io->vec,
-				uvec_segs, iovec_off, issue_flags);
+				uvec_segs, issue_flags);
 	if (unlikely(ret))
 		return ret;
 	iov_iter_save_state(&io->iter, &io->iter_state);

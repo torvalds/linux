@@ -1349,11 +1349,11 @@ static int io_estimate_bvec_size(struct iovec *iov, unsigned nr_iovs,
 
 int io_import_reg_vec(int ddir, struct iov_iter *iter,
 			struct io_kiocb *req, struct iou_vec *vec,
-			unsigned nr_iovs, unsigned iovec_off,
-			unsigned issue_flags)
+			unsigned nr_iovs, unsigned issue_flags)
 {
 	struct io_rsrc_node *node;
 	struct io_mapped_ubuf *imu;
+	unsigned iovec_off;
 	struct iovec *iov;
 	unsigned nr_segs;
 
@@ -1366,6 +1366,7 @@ int io_import_reg_vec(int ddir, struct iov_iter *iter,
 	if (!(imu->dir & (1 << ddir)))
 		return -EFAULT;
 
+	iovec_off = vec->nr - nr_iovs;
 	iov = vec->iovec + iovec_off;
 	nr_segs = io_estimate_bvec_size(iov, nr_iovs, imu);
 
@@ -1377,8 +1378,7 @@ int io_import_reg_vec(int ddir, struct iov_iter *iter,
 		nr_segs += nr_iovs;
 	}
 
-	if (WARN_ON_ONCE(iovec_off + nr_iovs != vec->nr) ||
-	    nr_segs > vec->nr) {
+	if (nr_segs > vec->nr) {
 		struct iou_vec tmp_vec = {};
 		int ret;
 

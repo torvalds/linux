@@ -1513,12 +1513,10 @@ int io_sendmsg_zc(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (req->flags & REQ_F_IMPORT_BUFFER) {
 		unsigned uvec_segs = kmsg->msg.msg_iter.nr_segs;
-		unsigned iovec_off = kmsg->vec.nr - uvec_segs;
 		int ret;
 
 		ret = io_import_reg_vec(ITER_SOURCE, &kmsg->msg.msg_iter, req,
-					&kmsg->vec, uvec_segs, iovec_off,
-					issue_flags);
+					&kmsg->vec, uvec_segs, issue_flags);
 		if (unlikely(ret))
 			return ret;
 		kmsg->msg.sg_from_iter = io_sg_from_iter;
