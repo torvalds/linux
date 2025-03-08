@@ -2897,8 +2897,7 @@ size_t splice_folio_into_pipe(struct pipe_inode_info *pipe,
 	size = min(size, folio_size(folio) - offset);
 	offset %= PAGE_SIZE;
 
-	while (spliced < size &&
-	       !pipe_full(pipe->head, pipe->tail, pipe->max_usage)) {
+	while (spliced < size && !pipe_is_full(pipe)) {
 		struct pipe_buffer *buf = pipe_head_buf(pipe);
 		size_t part = min_t(size_t, PAGE_SIZE - offset, size - spliced);
 
@@ -2955,7 +2954,7 @@ ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 	iocb.ki_pos = *ppos;
 
 	/* Work out how much data we can actually add into the pipe */
-	used = pipe_occupancy(pipe->head, pipe->tail);
+	used = pipe_buf_usage(pipe);
 	npages = max_t(ssize_t, pipe->max_usage - used, 0);
 	len = min_t(size_t, len, npages * PAGE_SIZE);
 
@@ -3015,7 +3014,7 @@ ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 			total_spliced += n;
 			*ppos += n;
 			in->f_ra.prev_pos = *ppos;
-			if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
+			if (pipe_is_full(pipe))
 				goto out;
 		}
 
