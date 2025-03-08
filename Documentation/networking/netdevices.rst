@@ -290,6 +290,12 @@ ndo_set_rx_mode:
 	Synchronization: netif_addr_lock spinlock.
 	Context: BHs disabled
 
+ndo_setup_tc:
+	``TC_SETUP_BLOCK`` and ``TC_SETUP_FT`` are running under NFT locks
+	(i.e. no ``rtnl_lock`` and no device instance lock). The rest of
+	``tc_setup_type`` types run under netdev instance lock if the driver
+	implements queue management or shaper API.
+
 Most ndo callbacks not specified in the list above are running
 under ``rtnl_lock``. In addition, netdev instance lock is taken as well if
 the driver implements queue management or shaper API.
