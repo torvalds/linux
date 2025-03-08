@@ -27,6 +27,12 @@
 
 #include <linux/sched/mm.h>
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+static unsigned bch2_read_corrupt_ratio;
+module_param_named(read_corrupt_ratio, bch2_read_corrupt_ratio, uint, 0644);
+MODULE_PARM_DESC(read_corrupt_ratio, "");
+#endif
+
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 
 static bool bch2_target_congested(struct bch_fs *c, u16 target)
@@ -687,6 +693,8 @@ static void __bch2_read_endio(struct work_struct *work)
 	} else {
 		src->bi_iter			= rbio->bvec_iter;
 	}
+
+	bch2_maybe_corrupt_bio(src, bch2_read_corrupt_ratio);
 
 	csum = bch2_checksum_bio(c, crc.csum_type, nonce, src);
 	bool csum_good = !bch2_crc_cmp(csum, rbio->pick.crc.csum) || c->opts.no_data_io;

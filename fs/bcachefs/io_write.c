@@ -34,6 +34,12 @@
 #include <linux/random.h>
 #include <linux/sched/mm.h>
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+static unsigned bch2_write_corrupt_ratio;
+module_param_named(write_corrupt_ratio, bch2_write_corrupt_ratio, uint, 0644);
+MODULE_PARM_DESC(write_corrupt_ratio, "");
+#endif
+
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 
 static inline void bch2_congested_acct(struct bch_dev *ca, u64 io_latency,
@@ -1005,6 +1011,15 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 		bounce = true;
 	}
 
+#ifdef CONFIG_BCACHEFS_DEBUG
+	unsigned write_corrupt_ratio = READ_ONCE(bch2_write_corrupt_ratio);
+	if (!bounce && write_corrupt_ratio) {
+		dst = bch2_write_bio_alloc(c, wp, src,
+					   &page_alloc_failed,
+					   ec_buf);
+		bounce = true;
+	}
+#endif
 	saved_iter = dst->bi_iter;
 
 	do {
@@ -1113,6 +1128,14 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 		}
 
 		init_append_extent(op, wp, version, crc);
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+		if (write_corrupt_ratio) {
+			swap(dst->bi_iter.bi_size, dst_len);
+			bch2_maybe_corrupt_bio(dst, write_corrupt_ratio);
+			swap(dst->bi_iter.bi_size, dst_len);
+		}
+#endif
 
 		if (dst != src)
 			bio_advance(dst, dst_len);
@@ -1394,6 +1417,7 @@ retry:
 		bio->bi_private	= &op->cl;
 		bio->bi_opf |= REQ_OP_WRITE;
 		closure_get(&op->cl);
+
 		bch2_submit_wbio_replicas(to_wbio(bio), c, BCH_DATA_user,
 					  op->insert_keys.top, true);
 
