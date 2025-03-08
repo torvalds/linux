@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+#[cfg(not(kernel))]
+use proc_macro2 as proc_macro;
+
 use proc_macro::{TokenStream, TokenTree};
 
 /// Parsed generics.

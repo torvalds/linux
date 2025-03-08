@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#[cfg(not(kernel))]
+use proc_macro2 as proc_macro;
+
 use crate::helpers::{parse_generics, Generics};
 use proc_macro::{TokenStream, TokenTree};
 

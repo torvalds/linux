@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+#[cfg(not(kernel))]
+use proc_macro2 as proc_macro;
+
 use crate::helpers::{parse_generics, Generics};
 use proc_macro::{Group, Punct, Spacing, TokenStream, TokenTree};
 
