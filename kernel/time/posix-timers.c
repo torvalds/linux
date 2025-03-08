@@ -72,13 +72,13 @@ static int hash(struct signal_struct *sig, unsigned int nr)
 	return hash_32(hash32_ptr(sig) ^ nr, HASH_BITS(posix_timers_hashtable));
 }
 
-static struct k_itimer *__posix_timers_find(struct hlist_head *head,
-					    struct signal_struct *sig,
-					    timer_t id)
+static struct k_itimer *posix_timer_by_id(timer_t id)
 {
+	struct signal_struct *sig = current->signal;
+	struct hlist_head *head = &posix_timers_hashtable[hash(sig, id)];
 	struct k_itimer *timer;
 
-	hlist_for_each_entry_rcu(timer, head, t_hash, lockdep_is_held(&hash_lock)) {
+	hlist_for_each_entry_rcu(timer, head, t_hash) {
 		/* timer->it_signal can be set concurrently */
 		if ((READ_ONCE(timer->it_signal) == sig) && (timer->it_id == id))
 			return timer;
@@ -86,12 +86,26 @@ static struct k_itimer *__posix_timers_find(struct hlist_head *head,
 	return NULL;
 }
 
-static struct k_itimer *posix_timer_by_id(timer_t id)
+static inline struct signal_struct *posix_sig_owner(const struct k_itimer *timer)
 {
-	struct signal_struct *sig = current->signal;
-	struct hlist_head *head = &posix_timers_hashtable[hash(sig, id)];
+	unsigned long val = (unsigned long)timer->it_signal;
 
-	return __posix_timers_find(head, sig, id);
+	/*
+	 * Mask out bit 0, which acts as invalid marker to prevent
+	 * posix_timer_by_id() detecting it as valid.
+	 */
+	return (struct signal_struct *)(val & ~1UL);
+}
+
+static bool posix_timer_hashed(struct hlist_head *head, struct signal_struct *sig, timer_t id)
+{
+	struct k_itimer *timer;
+
+	hlist_for_each_entry_rcu(timer, head, t_hash, lockdep_is_held(&hash_lock)) {
+		if ((posix_sig_owner(timer) == sig) && (timer->it_id == id))
+			return true;
+	}
+	return false;
 }
 
 static int posix_timer_add(struct k_itimer *timer)
@@ -112,7 +126,19 @@ static int posix_timer_add(struct k_itimer *timer)
 		sig->next_posix_timer_id = (id + 1) & INT_MAX;
 
 		head = &posix_timers_hashtable[hash(sig, id)];
-		if (!__posix_timers_find(head, sig, id)) {
+		if (!posix_timer_hashed(head, sig, id)) {
+			/*
+			 * Set the timer ID and the signal pointer to make
+			 * it identifiable in the hash table. The signal
+			 * pointer has bit 0 set to indicate that it is not
+			 * yet fully initialized. posix_timer_hashed()
+			 * masks this bit out, but the syscall lookup fails
+			 * to match due to it being set. This guarantees
+			 * that there can't be duplicate timer IDs handed
+			 * out.
+			 */
+			timer->it_id = (timer_t)id;
+			timer->it_signal = (struct signal_struct *)((unsigned long)sig | 1UL);
 			hlist_add_head_rcu(&timer->t_hash, head);
 			spin_unlock(&hash_lock);
 			return id;
@@ -406,8 +432,7 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 
 	/*
 	 * Add the timer to the hash table. The timer is not yet valid
-	 * because new_timer::it_signal is still NULL. The timer id is also
-	 * not yet visible to user space.
+	 * after insertion, but has a unique ID allocated.
 	 */
 	new_timer_id = posix_timer_add(new_timer);
 	if (new_timer_id < 0) {
@@ -415,7 +440,6 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 		return new_timer_id;
 	}
 
-	new_timer->it_id = (timer_t) new_timer_id;
 	new_timer->it_clock = which_clock;
 	new_timer->kclock = kc;
 	new_timer->it_overrun = -1LL;
@@ -453,7 +477,7 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	}
 	/*
 	 * After succesful copy out, the timer ID is visible to user space
-	 * now but not yet valid because new_timer::signal is still NULL.
+	 * now but not yet valid because new_timer::signal low order bit is 1.
 	 *
 	 * Complete the initialization with the clock specific create
 	 * callback.
@@ -470,7 +494,11 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	 */
 	scoped_guard (spinlock_irq, &new_timer->it_lock) {
 		guard(spinlock)(&current->sighand->siglock);
-		/* This makes the timer valid in the hash table */
+		/*
+		 * new_timer::it_signal contains the signal pointer with
+		 * bit 0 set, which makes it invalid for syscall operations.
+		 * Store the unmodified signal pointer to make it valid.
+		 */
 		WRITE_ONCE(new_timer->it_signal, current->signal);
 		hlist_add_head(&new_timer->list, &current->signal->posix_timers);
 	}
