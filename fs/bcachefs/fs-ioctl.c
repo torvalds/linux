@@ -244,7 +244,7 @@ static int bch2_ioc_reinherit_attrs(struct bch_fs *c,
 	int ret = 0;
 	subvol_inum inum;
 
-	kname = kmalloc(BCH_NAME_MAX + 1, GFP_KERNEL);
+	kname = kmalloc(BCH_NAME_MAX, GFP_KERNEL);
 	if (!kname)
 		return -ENOMEM;
 
