@@ -2,6 +2,7 @@
 #
 # Makefile for the linux kernel signature checking certificates.
 #
+# This Makefile defines the build process for the certificate-related files, including generating keys, extracting certificates, and building the blacklist hashes.
 
 obj-$(CONFIG_SYSTEM_TRUSTED_KEYRING) += system_keyring.o system_certificates.o
 obj-$(CONFIG_SYSTEM_BLACKLIST_KEYRING) += blacklist.o blacklist_hashes.o
