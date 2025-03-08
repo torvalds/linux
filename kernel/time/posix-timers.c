@@ -518,7 +518,7 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 		 * Store the unmodified signal pointer to make it valid.
 		 */
 		WRITE_ONCE(new_timer->it_signal, current->signal);
-		hlist_add_head(&new_timer->list, &current->signal->posix_timers);
+		hlist_add_head_rcu(&new_timer->list, &current->signal->posix_timers);
 	}
 	/*
 	 * After unlocking @new_timer is subject to concurrent removal and
@@ -1004,7 +1004,7 @@ static void posix_timer_delete(struct k_itimer *timer)
 		unsigned long sig = (unsigned long)timer->it_signal | 1UL;
 
 		WRITE_ONCE(timer->it_signal, (struct signal_struct *)sig);
-		hlist_del(&timer->list);
+		hlist_del_rcu(&timer->list);
 		posix_timer_cleanup_ignored(timer);
 	}
 
