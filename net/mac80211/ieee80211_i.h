@@ -462,6 +462,8 @@ struct ieee80211_mgd_assoc_data {
 
 	unsigned int assoc_link_id;
 
+	__le16 ext_mld_capa_ops;
+
 	u8 fils_nonces[2 * FILS_NONCE_LEN];
 	u8 fils_kek[FILS_MAX_KEK_LEN];
 	size_t fils_kek_len;

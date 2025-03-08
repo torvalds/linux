@@ -1943,6 +1943,21 @@ ieee80211_assoc_add_ml_elem(struct ieee80211_sub_if_data *sdata,
 	}
 	skb_put_data(skb, &mld_capa_ops, sizeof(mld_capa_ops));
 
+	/* Many APs have broken parsing of the extended MLD capa/ops field,
+	 * dropping (re-)association request frames or replying with association
+	 * response with a failure status if it's present. Without a clear
+	 * indication as to whether the AP supports parsing this field or not do
+	 * not include it in the common information unless strict mode is set.
+	 */
+	if (ieee80211_hw_check(&local->hw, STRICT) &&
+	    assoc_data->ext_mld_capa_ops) {
+		ml_elem->control |=
+			cpu_to_le16(IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP);
+		common->len += 2;
+		skb_put_data(skb, &assoc_data->ext_mld_capa_ops,
+			     sizeof(assoc_data->ext_mld_capa_ops));
+	}
+
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		u16 link_present_elems[PRESENT_ELEMS_MAX] = {};
 		const u8 *extra_elems;
@@ -2112,6 +2127,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		/* max common info field in basic multi-link element */
 		size += sizeof(struct ieee80211_mle_basic_common_info) +
 			2 + /* capa & op */
+			2 + /* ext capa & op */
 			2; /* EML capa */
 
 		/*
@@ -9366,6 +9382,8 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	else
 		memcpy(assoc_data->ap_addr, cbss->bssid, ETH_ALEN);
 
+	assoc_data->ext_mld_capa_ops = cpu_to_le16(req->ext_mld_capa_ops);
+
 	if (ifmgd->associated) {
 		u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
@@ -10136,7 +10154,7 @@ disconnect:
 static struct sk_buff *
 ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 			      struct ieee80211_mgd_assoc_data *add_links_data,
-			      u16 removed_links)
+			      u16 removed_links, __le16 ext_mld_capa_ops)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgmt *mgmt;
@@ -10184,6 +10202,9 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 					    IEEE80211_EML_CAP_EMLMR_SUPPORT)))
 			var_common_size += 2;
 	}
+
+	if (ext_mld_capa_ops)
+		var_common_size += 2;
 
 	/* Add the common information length */
 	size += common_size + var_common_size;
@@ -10267,6 +10288,12 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 			cpu_to_le16(IEEE80211_MLC_RECONF_PRES_MLD_CAPA_OP);
 
 		skb_put_data(skb, &mld_capa_ops, sizeof(mld_capa_ops));
+	}
+
+	if (ext_mld_capa_ops) {
+		ml_elem->control |=
+			cpu_to_le16(IEEE80211_MLC_RECONF_PRES_EXT_MLD_CAPA_OP);
+		skb_put_data(skb, &ext_mld_capa_ops, sizeof(ext_mld_capa_ops));
 	}
 
 	if (sdata->u.mgd.flags & IEEE80211_STA_ENABLE_RRM)
@@ -10535,7 +10562,8 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	 * is expected to send the ML reconfiguration response frame on the link
 	 * on which the request was received.
 	 */
-	skb = ieee80211_build_ml_reconf_req(sdata, data, req->rem_links);
+	skb = ieee80211_build_ml_reconf_req(sdata, data, req->rem_links,
+					    cpu_to_le16(req->ext_mld_capa_ops));
 	if (!skb) {
 		err = -ENOMEM;
 		goto err_free;
