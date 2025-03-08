@@ -67,14 +67,19 @@ Agreed upon design principles
 Overview of baseline design
 ===========================
 
-Baseline design is simple as possible to get a working basline in which can be
-built upon.
-
-.. kernel-doc:: drivers/gpu/drm/xe/drm_gpusvm.c
+.. kernel-doc:: drivers/gpu/drm/drm_gpusvm.c
    :doc: Overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpusvm.c
    :doc: Locking
-   :doc: Migrataion
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpusvm.c
+   :doc: Migration
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpusvm.c
    :doc: Partial Unmapping of Ranges
+
+.. kernel-doc:: drivers/gpu/drm/drm_gpusvm.c
    :doc: Examples
 
 Possible future design features
