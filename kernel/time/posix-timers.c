@@ -119,21 +119,17 @@ static bool posix_timer_hashed(struct hlist_head *head, struct signal_struct *si
 static int posix_timer_add(struct k_itimer *timer)
 {
 	struct signal_struct *sig = current->signal;
-	struct hlist_head *head;
-	unsigned int cnt, id;
 
 	/*
 	 * FIXME: Replace this by a per signal struct xarray once there is
 	 * a plan to handle the resulting CRIU regression gracefully.
 	 */
-	for (cnt = 0; cnt <= INT_MAX; cnt++) {
+	for (unsigned int cnt = 0; cnt <= INT_MAX; cnt++) {
+		/* Get the next timer ID and clamp it to positive space */
+		unsigned int id = atomic_fetch_inc(&sig->next_posix_timer_id) & INT_MAX;
+		struct hlist_head *head = &posix_timers_hashtable[hash(sig, id)];
+
 		spin_lock(&hash_lock);
-		id = sig->next_posix_timer_id;
-
-		/* Write the next ID back. Clamp it to the positive space */
-		sig->next_posix_timer_id = (id + 1) & INT_MAX;
-
-		head = &posix_timers_hashtable[hash(sig, id)];
 		if (!posix_timer_hashed(head, sig, id)) {
 			/*
 			 * Set the timer ID and the signal pointer to make
