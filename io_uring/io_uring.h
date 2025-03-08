@@ -23,6 +23,14 @@ enum {
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
 
 	/*
+	 * The request has more work to do and should be retried. io_uring will
+	 * attempt to wait on the file for eligible opcodes, but otherwise
+	 * it'll be handed to iowq for blocking execution. It works for normal
+	 * requests as well as for the multi shot mode.
+	 */
+	IOU_RETRY		= -EAGAIN,
+
+	/*
 	 * Requeue the task_work to restart operations on this request. The
 	 * actual value isn't important, should just be not an otherwise
 	 * valid error code, yet less than -MAX_ERRNO and valid internally.
