@@ -52,6 +52,9 @@ pub mod firmware;
 pub mod fs;
 #[path = "../pin-init/src/lib.rs"]
 pub mod init;
+// momentarily use the name `init_ext` and set the path manually
+#[path = "init.rs"]
+pub mod init_ext;
 pub mod io;
 pub mod ioctl;
 pub mod jump_label;

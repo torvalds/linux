@@ -5,9 +5,6 @@
 //! It also allows in-place initialization of big `struct`s that would otherwise produce a stack
 //! overflow.
 //!
-//! Most `struct`s from the [`sync`] module need to be pinned, because they contain self-referential
-//! `struct`s from C. [Pinning][pinning] is Rust's way of ensuring data does not move.
-//!
 //! # Overview
 //!
 //! To initialize a `struct` with an in-place constructor you will need two things:
@@ -188,15 +185,6 @@
 //! }
 //! ```
 //!
-//! For the special case where initializing a field is a single FFI-function call that cannot fail,
-//! there exist the helper function [`Opaque::ffi_init`]. This function initialize a single
-//! [`Opaque`] field by just delegating to the supplied closure. You can use these in combination
-//! with [`pin_init!`].
-//!
-//! For more information on how to use [`pin_init_from_closure()`], take a look at the uses inside
-//! the `kernel` crate. The [`sync`] module is a good starting point.
-//!
-//! [`sync`]: kernel::sync
 //! [pinning]: https://doc.rust-lang.org/std/pin/index.html
 //! [structurally pinned fields]:
 //!     https://doc.rust-lang.org/std/pin/index.html#pinning-is-structural-for-field
@@ -205,8 +193,6 @@
 //! [`impl PinInit<Foo>`]: PinInit
 //! [`impl PinInit<T, E>`]: PinInit
 //! [`impl Init<T, E>`]: Init
-//! [`Opaque`]: kernel::types::Opaque
-//! [`Opaque::ffi_init`]: kernel::types::Opaque::ffi_init
 //! [`pin_data`]: ::macros::pin_data
 //! [`pin_init!`]: crate::pin_init!
 
