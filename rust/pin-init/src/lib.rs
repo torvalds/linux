@@ -1297,6 +1297,17 @@ pub unsafe trait PinnedDrop: __internal::HasPinData {
 /// ```
 pub unsafe trait Zeroable {}
 
+/// Marker trait for types that allow `Option<Self>` to be set to all zeroes in order to write
+/// `None` to that location.
+///
+/// # Safety
+///
+/// The implementer needs to ensure that `unsafe impl Zeroable for Option<Self> {}` is sound.
+pub unsafe trait ZeroableOption {}
+
+// SAFETY: by the safety requirement of `ZeroableOption`, this is valid.
+unsafe impl<T: ZeroableOption> Zeroable for Option<T> {}
+
 /// Create a new zeroed T.
 ///
 /// The returned initializer will write `0x00` to every byte of the given `slot`.
