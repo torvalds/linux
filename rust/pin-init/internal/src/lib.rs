@@ -14,6 +14,8 @@
 //
 // Remove once we have `proc_macro2` in the kernel.
 #![allow(clippy::useless_conversion)]
+// Documentation is done in the pin-init crate instead.
+#![allow(missing_docs)]
 
 use proc_macro::TokenStream;
 
@@ -30,19 +32,16 @@ mod pin_data;
 mod pinned_drop;
 mod zeroable;
 
-#[allow(missing_docs)]
 #[proc_macro_attribute]
 pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
     pin_data::pin_data(inner.into(), item.into()).into()
 }
 
-#[allow(missing_docs)]
 #[proc_macro_attribute]
 pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
     pinned_drop::pinned_drop(args.into(), input.into()).into()
 }
 
-#[allow(missing_docs)]
 #[proc_macro_derive(Zeroable)]
 pub fn derive_zeroable(input: TokenStream) -> TokenStream {
     zeroable::derive(input.into()).into()

@@ -14,7 +14,7 @@ use super::*;
 ///
 /// [nomicon]: https://doc.rust-lang.org/nomicon/subtyping.html
 /// [this table]: https://doc.rust-lang.org/nomicon/phantom-data.html#table-of-phantomdata-patterns
-pub(super) type Invariant<T> = PhantomData<fn(*mut T) -> *mut T>;
+pub(crate) type Invariant<T> = PhantomData<fn(*mut T) -> *mut T>;
 
 /// Module-internal type implementing `PinInit` and `Init`.
 ///
