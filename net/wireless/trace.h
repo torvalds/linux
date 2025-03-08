@@ -2,7 +2,7 @@
 /*
  * Portions of this file
  * Copyright(c) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018, 2020-2024 Intel Corporation
+ * Copyright (C) 2018, 2020-2025 Intel Corporation
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM cfg80211
@@ -4142,9 +4142,8 @@ TRACE_EVENT(cfg80211_mlo_reconf_add_done,
 
 TRACE_EVENT(rdev_assoc_ml_reconf,
 	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 struct cfg80211_assoc_link *add_links,
-		 u16 rem_links),
-	TP_ARGS(wiphy, netdev, add_links, rem_links),
+		 struct cfg80211_ml_reconf_req *req),
+	TP_ARGS(wiphy, netdev, req),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
@@ -4157,9 +4156,9 @@ TRACE_EVENT(rdev_assoc_ml_reconf,
 		u32 i;
 
 		__entry->add_links = 0;
-		__entry->rem_links = rem_links;
-		for (i = 0; add_links && i < IEEE80211_MLD_MAX_NUM_LINKS; i++)
-			if (add_links[i].bss)
+		__entry->rem_links = req->rem_links;
+		for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++)
+			if (req->add_links[i].bss)
 				__entry->add_links |= BIT(i);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", add_links=0x%x, rem_links=0x%x",

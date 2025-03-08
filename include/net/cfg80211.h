@@ -7,7 +7,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014 Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 
 #include <linux/ethtool.h>
@@ -3083,6 +3083,16 @@ struct cfg80211_assoc_link {
 };
 
 /**
+ * struct cfg80211_ml_reconf_req - MLO link reconfiguration request
+ * @add_links: data for links to add, see &struct cfg80211_assoc_link
+ * @rem_links: bitmap of links to remove
+ */
+struct cfg80211_ml_reconf_req {
+	struct cfg80211_assoc_link add_links[IEEE80211_MLD_MAX_NUM_LINKS];
+	u16 rem_links;
+};
+
+/**
  * enum cfg80211_assoc_req_flags - Over-ride default behaviour in association.
  *
  * @ASSOC_REQ_DISABLE_HT:  Disable HT (802.11n)
@@ -4972,8 +4982,7 @@ struct cfg80211_ops {
 			    struct cfg80211_ttlm_params *params);
 	u32	(*get_radio_mask)(struct wiphy *wiphy, struct net_device *dev);
 	int     (*assoc_ml_reconf)(struct wiphy *wiphy, struct net_device *dev,
-				   struct cfg80211_assoc_link *add_links,
-				   u16 rem_links);
+				   struct cfg80211_ml_reconf_req *req);
 	int	(*set_epcs)(struct wiphy *wiphy, struct net_device *dev,
 			    bool val);
 };

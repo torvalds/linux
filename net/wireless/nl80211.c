@@ -5,7 +5,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 
 #include <linux/if.h>
@@ -16488,9 +16488,9 @@ static int nl80211_assoc_ml_reconf(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_assoc_link links[IEEE80211_MLD_MAX_NUM_LINKS] = {};
+	struct cfg80211_ml_reconf_req req = {};
 	unsigned int link_id;
-	u16 add_links, rem_links;
+	u16 add_links;
 	int err;
 
 	if (!wdev->valid_links)
@@ -16506,39 +16506,37 @@ static int nl80211_assoc_ml_reconf(struct sk_buff *skb, struct genl_info *info)
 
 	add_links = 0;
 	if (info->attrs[NL80211_ATTR_MLO_LINKS]) {
-		err = nl80211_process_links(rdev, links, NULL, 0, info);
+		err = nl80211_process_links(rdev, req.add_links, NULL, 0, info);
 		if (err)
 			return err;
 
 		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS;
 		     link_id++) {
-			if (!links[link_id].bss)
+			if (!req.add_links[link_id].bss)
 				continue;
 			add_links |= BIT(link_id);
 		}
 	}
 
 	if (info->attrs[NL80211_ATTR_MLO_RECONF_REM_LINKS])
-		rem_links =
+		req.rem_links =
 			nla_get_u16(info->attrs[NL80211_ATTR_MLO_RECONF_REM_LINKS]);
-	else
-		rem_links = 0;
 
 	/* Validate that existing links are not added, removed links are valid
 	 * and don't allow adding and removing the same links
 	 */
-	if ((add_links & rem_links) || !(add_links | rem_links) ||
+	if ((add_links & req.rem_links) || !(add_links | req.rem_links) ||
 	    (wdev->valid_links & add_links) ||
-	    ((wdev->valid_links & rem_links) != rem_links)) {
+	    ((wdev->valid_links & req.rem_links) != req.rem_links)) {
 		err = -EINVAL;
 		goto out;
 	}
 
-	err = cfg80211_assoc_ml_reconf(rdev, dev, links, rem_links);
+	err = cfg80211_assoc_ml_reconf(rdev, dev, &req);
 
 out:
-	for (link_id = 0; link_id < ARRAY_SIZE(links); link_id++)
-		cfg80211_put_bss(&rdev->wiphy, links[link_id].bss);
+	for (link_id = 0; link_id < ARRAY_SIZE(req.add_links); link_id++)
+		cfg80211_put_bss(&rdev->wiphy, req.add_links[link_id].bss);
 
 	return err;
 }

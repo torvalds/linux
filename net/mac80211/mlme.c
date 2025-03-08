@@ -10362,8 +10362,7 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 }
 
 int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
-				  struct cfg80211_assoc_link *add_links,
-				  u16 rem_links)
+				  struct cfg80211_ml_reconf_req *req)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgd_assoc_data *data = NULL;
@@ -10383,9 +10382,8 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 		return -EBUSY;
 
 	added_links = 0;
-	for (link_id = 0; add_links && link_id < IEEE80211_MLD_MAX_NUM_LINKS;
-	     link_id++) {
-		if (!add_links[link_id].bss)
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		if (!req->add_links[link_id].bss)
 			continue;
 
 		added_links |= BIT(link_id);
@@ -10413,7 +10411,8 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS;
 		     link_id++) {
 			struct ieee80211_supported_band *sband;
-			struct cfg80211_bss *link_cbss = add_links[link_id].bss;
+			struct cfg80211_bss *link_cbss =
+				req->add_links[link_id].bss;
 			struct ieee80211_bss *bss;
 
 			if (!link_cbss)
@@ -10443,11 +10442,11 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 
 			data->link[link_id].bss = link_cbss;
 			data->link[link_id].disabled =
-				add_links[link_id].disabled;
+				req->add_links[link_id].disabled;
 			data->link[link_id].elems =
-				(u8 *)add_links[link_id].elems;
+				(u8 *)req->add_links[link_id].elems;
 			data->link[link_id].elems_len =
-				add_links[link_id].elems_len;
+				req->add_links[link_id].elems_len;
 
 			if (!bss->uapsd_supported)
 				uapsd_supported = false;
@@ -10497,10 +10496,11 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	 * Section 35.3.6.4 in Draft P802.11be_D7.0 the AP MLD should accept the
 	 * link removal request.
 	 */
-	if (rem_links) {
-		u16 new_active_links = sdata->vif.active_links & ~rem_links;
+	if (req->rem_links) {
+		u16 new_active_links =
+			sdata->vif.active_links & ~req->rem_links;
 
-		new_valid_links = sdata->vif.valid_links & ~rem_links;
+		new_valid_links = sdata->vif.valid_links & ~req->rem_links;
 
 		/* Should not be left with no valid links to perform the
 		 * ML reconfiguration
@@ -10535,14 +10535,15 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	 * is expected to send the ML reconfiguration response frame on the link
 	 * on which the request was received.
 	 */
-	skb = ieee80211_build_ml_reconf_req(sdata, data, rem_links);
+	skb = ieee80211_build_ml_reconf_req(sdata, data, req->rem_links);
 	if (!skb) {
 		err = -ENOMEM;
 		goto err_free;
 	}
 
-	if (rem_links) {
-		u16 new_dormant_links = sdata->vif.dormant_links & ~rem_links;
+	if (req->rem_links) {
+		u16 new_dormant_links =
+			sdata->vif.dormant_links & ~req->rem_links;
 
 		err = ieee80211_vif_set_links(sdata, new_valid_links,
 					      new_dormant_links);
@@ -10555,7 +10556,7 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 
 		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS;
 		     link_id++) {
-			if (!(rem_links & BIT(link_id)))
+			if (!(req->rem_links & BIT(link_id)))
 				continue;
 
 			ieee80211_sta_remove_link(sta, link_id);
@@ -10564,17 +10565,17 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 		/* notify the driver and upper layers */
 		ieee80211_vif_cfg_change_notify(sdata,
 						BSS_CHANGED_MLD_VALID_LINKS);
-		cfg80211_links_removed(sdata->dev, rem_links);
+		cfg80211_links_removed(sdata->dev, req->rem_links);
 	}
 
 	sdata_info(sdata, "mlo: reconf: adding=0x%x, removed=0x%x\n",
-		   added_links, rem_links);
+		   added_links, req->rem_links);
 
 	ieee80211_tx_skb(sdata, skb);
 
 	sdata->u.mgd.reconf.added_links = added_links;
 	sdata->u.mgd.reconf.add_links_data = data;
-	sdata->u.mgd.reconf.removed_links = rem_links;
+	sdata->u.mgd.reconf.removed_links = req->rem_links;
 	wiphy_delayed_work_queue(sdata->local->hw.wiphy,
 				 &sdata->u.mgd.reconf.wk,
 				 IEEE80211_ASSOC_TIMEOUT_SHORT);
