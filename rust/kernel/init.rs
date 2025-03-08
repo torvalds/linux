@@ -133,3 +133,116 @@
 //!     }
 //! }
 //! ```
+
+/// Construct an in-place fallible initializer for `struct`s.
+///
+/// This macro defaults the error to [`Error`]. If you need [`Infallible`], then use
+/// [`init!`].
+///
+/// The syntax is identical to [`try_pin_init!`]. If you want to specify a custom error,
+/// append `? $type` after the `struct` initializer.
+/// The safety caveats from [`try_pin_init!`] also apply:
+/// - `unsafe` code must guarantee either full initialization or return an error and allow
+///   deallocation of the memory.
+/// - the fields are initialized in the order given in the initializer.
+/// - no references to fields are allowed to be created inside of the initializer.
+///
+/// # Examples
+///
+/// ```rust
+/// use kernel::{init::zeroed, error::Error};
+/// struct BigBuf {
+///     big: KBox<[u8; 1024 * 1024 * 1024]>,
+///     small: [u8; 1024 * 1024],
+/// }
+///
+/// impl BigBuf {
+///     fn new() -> impl Init<Self, Error> {
+///         try_init!(Self {
+///             big: KBox::init(zeroed(), GFP_KERNEL)?,
+///             small: [0; 1024 * 1024],
+///         }? Error)
+///     }
+/// }
+/// ```
+///
+/// [`Infallible`]: core::convert::Infallible
+/// [`init!`]: crate::init!
+/// [`try_pin_init!`]: crate::try_pin_init!
+/// [`Error`]: crate::error::Error
+#[macro_export]
+macro_rules! try_init {
+    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+        $($fields:tt)*
+    }) => {
+        $crate::_try_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
+            $($fields)*
+        }? $crate::error::Error)
+    };
+    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+        $($fields:tt)*
+    }? $err:ty) => {
+        $crate::_try_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
+            $($fields)*
+        }? $err)
+    };
+}
+
+/// Construct an in-place, fallible pinned initializer for `struct`s.
+///
+/// If the initialization can complete without error (or [`Infallible`]), then use [`pin_init!`].
+///
+/// You can use the `?` operator or use `return Err(err)` inside the initializer to stop
+/// initialization and return the error.
+///
+/// IMPORTANT: if you have `unsafe` code inside of the initializer you have to ensure that when
+/// initialization fails, the memory can be safely deallocated without any further modifications.
+///
+/// This macro defaults the error to [`Error`].
+///
+/// The syntax is identical to [`pin_init!`] with the following exception: you can append `? $type`
+/// after the `struct` initializer to specify the error type you want to use.
+///
+/// # Examples
+///
+/// ```rust
+/// # #![feature(new_uninit)]
+/// use kernel::{init::zeroed, error::Error};
+/// #[pin_data]
+/// struct BigBuf {
+///     big: KBox<[u8; 1024 * 1024 * 1024]>,
+///     small: [u8; 1024 * 1024],
+///     ptr: *mut u8,
+/// }
+///
+/// impl BigBuf {
+///     fn new() -> impl PinInit<Self, Error> {
+///         try_pin_init!(Self {
+///             big: KBox::init(zeroed(), GFP_KERNEL)?,
+///             small: [0; 1024 * 1024],
+///             ptr: core::ptr::null_mut(),
+///         }? Error)
+///     }
+/// }
+/// ```
+///
+/// [`Infallible`]: core::convert::Infallible
+/// [`pin_init!`]: crate::pin_init
+/// [`Error`]: crate::error::Error
+#[macro_export]
+macro_rules! try_pin_init {
+    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+        $($fields:tt)*
+    }) => {
+        $crate::_try_pin_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
+            $($fields)*
+        }? $crate::error::Error)
+    };
+    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
+        $($fields:tt)*
+    }? $err:ty) => {
+        $crate::_try_pin_init!($(&$this in)? $t $(::<$($generics),* $(,)?>)? {
+            $($fields)*
+        }? $err)
+    };
+}

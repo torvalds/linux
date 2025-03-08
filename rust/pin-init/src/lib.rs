@@ -481,7 +481,7 @@ macro_rules! stack_try_pin_init {
 
 /// Construct an in-place, pinned initializer for `struct`s.
 ///
-/// This macro defaults the error to [`Infallible`]. If you need [`Error`], then use
+/// This macro defaults the error to [`Infallible`]. If you need a different error, then use
 /// [`try_pin_init!`].
 ///
 /// The syntax is almost identical to that of a normal `struct` initializer:
@@ -676,7 +676,7 @@ macro_rules! pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::try_pin_init!($(&$this in)? $t $(::<$($generics),*>)? {
+        $crate::_try_pin_init!($(&$this in)? $t $(::<$($generics),*>)? {
             $($fields)*
         }? ::core::convert::Infallible)
     };
@@ -692,9 +692,7 @@ macro_rules! pin_init {
 /// IMPORTANT: if you have `unsafe` code inside of the initializer you have to ensure that when
 /// initialization fails, the memory can be safely deallocated without any further modifications.
 ///
-/// This macro defaults the error to [`Error`].
-///
-/// The syntax is identical to [`pin_init!`] with the following exception: you can append `? $type`
+/// The syntax is identical to [`pin_init!`] with the following exception: you must append `? $type`
 /// after the `struct` initializer to specify the error type you want to use.
 ///
 /// # Examples
@@ -724,21 +722,7 @@ macro_rules! pin_init {
 // For a detailed example of how this macro works, see the module documentation of the hidden
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]
-macro_rules! try_pin_init {
-    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
-        $($fields:tt)*
-    }) => {
-        $crate::__init_internal!(
-            @this($($this)?),
-            @typ($t $(::<$($generics),*>)? ),
-            @fields($($fields)*),
-            @error($crate::error::Error),
-            @data(PinData, use_data),
-            @has_data(HasPinData, __pin_data),
-            @construct_closure(pin_init_from_closure),
-            @munch_fields($($fields)*),
-        )
-    };
+macro_rules! _try_pin_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
@@ -752,12 +736,12 @@ macro_rules! try_pin_init {
             @construct_closure(pin_init_from_closure),
             @munch_fields($($fields)*),
         )
-    };
+    }
 }
 
 /// Construct an in-place initializer for `struct`s.
 ///
-/// This macro defaults the error to [`Infallible`]. If you need [`Error`], then use
+/// This macro defaults the error to [`Infallible`]. If you need a different error, then use
 /// [`try_init!`].
 ///
 /// The syntax is identical to [`pin_init!`] and its safety caveats also apply:
@@ -777,7 +761,7 @@ macro_rules! init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }) => {
-        $crate::try_init!($(&$this in)? $t $(::<$($generics),*>)? {
+        $crate::_try_init!($(&$this in)? $t $(::<$($generics),*>)? {
             $($fields)*
         }? ::core::convert::Infallible)
     }
@@ -785,11 +769,11 @@ macro_rules! init {
 
 /// Construct an in-place fallible initializer for `struct`s.
 ///
-/// This macro defaults the error to [`Error`]. If you need [`Infallible`], then use
+/// If the initialization can complete without error (or [`Infallible`]), then use
 /// [`init!`].
 ///
-/// The syntax is identical to [`try_pin_init!`]. If you want to specify a custom error,
-/// append `? $type` after the `struct` initializer.
+/// The syntax is identical to [`try_pin_init!`]. You need to specify a custom error
+/// via `? $type` after the `struct` initializer.
 /// The safety caveats from [`try_pin_init!`] also apply:
 /// - `unsafe` code must guarantee either full initialization or return an error and allow
 ///   deallocation of the memory.
@@ -816,24 +800,11 @@ macro_rules! init {
 ///     }
 /// }
 /// ```
+/// [`try_pin_init!`]: crate::try_pin_init
 // For a detailed example of how this macro works, see the module documentation of the hidden
 // module `__internal` inside of `init/__internal.rs`.
 #[macro_export]
-macro_rules! try_init {
-    ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
-        $($fields:tt)*
-    }) => {
-        $crate::__init_internal!(
-            @this($($this)?),
-            @typ($t $(::<$($generics),*>)?),
-            @fields($($fields)*),
-            @error($crate::error::Error),
-            @data(InitData, /*no use_data*/),
-            @has_data(HasInitData, __init_data),
-            @construct_closure(init_from_closure),
-            @munch_fields($($fields)*),
-        )
-    };
+macro_rules! _try_init {
     ($(&$this:ident in)? $t:ident $(::<$($generics:ty),* $(,)?>)? {
         $($fields:tt)*
     }? $err:ty) => {
@@ -847,7 +818,7 @@ macro_rules! try_init {
             @construct_closure(init_from_closure),
             @munch_fields($($fields)*),
         )
-    };
+    }
 }
 
 /// Asserts that a field on a struct using `#[pin_data]` is marked with `#[pin]` ie. that it is
