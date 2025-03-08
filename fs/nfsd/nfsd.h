@@ -156,6 +156,14 @@ void nfsd_reset_versions(struct nfsd_net *nn);
 int nfsd_create_serv(struct net *net);
 void nfsd_destroy_serv(struct net *net);
 
+#ifdef CONFIG_DEBUG_FS
+void nfsd_debugfs_init(void);
+void nfsd_debugfs_exit(void);
+#else
+static inline void nfsd_debugfs_init(void) {}
+static inline void nfsd_debugfs_exit(void) {}
+#endif
+
 extern int nfsd_max_blksize;
 
 static inline int nfsd_v4client(struct svc_rqst *rq)
