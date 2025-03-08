@@ -403,9 +403,7 @@ static int io_sendmsg_zc_setup(struct io_kiocb *req, const struct io_uring_sqe *
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
 	struct user_msghdr msg;
-	int ret, iovec_off;
-	struct iovec *iov;
-	void *res;
+	int ret;
 
 	if (!(sr->flags & IORING_RECVSEND_FIXED_BUF))
 		return io_sendmsg_setup(req, sqe);
@@ -416,24 +414,9 @@ static int io_sendmsg_zc_setup(struct io_kiocb *req, const struct io_uring_sqe *
 	if (unlikely(ret))
 		return ret;
 	sr->msg_control = kmsg->msg.msg_control_user;
-
-	if (msg.msg_iovlen > kmsg->vec.nr || WARN_ON_ONCE(!kmsg->vec.iovec)) {
-		ret = io_vec_realloc(&kmsg->vec, msg.msg_iovlen);
-		if (ret)
-			return ret;
-		req->flags |= REQ_F_NEED_CLEANUP;
-	}
-	iovec_off = kmsg->vec.nr - msg.msg_iovlen;
-	iov = kmsg->vec.iovec + iovec_off;
-
-	res = iovec_from_user(msg.msg_iov, msg.msg_iovlen, kmsg->vec.nr, iov,
-			      io_is_compat(req->ctx));
-	if (IS_ERR(res))
-		return PTR_ERR(res);
-
 	kmsg->msg.msg_iter.nr_segs = msg.msg_iovlen;
-	req->flags |= REQ_F_IMPORT_BUFFER;
-	return ret;
+
+	return io_prep_reg_iovec(req, &kmsg->vec, msg.msg_iov, msg.msg_iovlen);
 }
 
 #define SENDMSG_FLAGS (IORING_RECVSEND_POLL_FIRST | IORING_RECVSEND_BUNDLE)

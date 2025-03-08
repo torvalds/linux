@@ -1397,3 +1397,29 @@ int io_import_reg_vec(int ddir, struct iov_iter *iter,
 
 	return io_vec_fill_bvec(ddir, iter, imu, iov, nr_iovs, vec);
 }
+
+int io_prep_reg_iovec(struct io_kiocb *req, struct iou_vec *iv,
+		      const struct iovec __user *uvec, size_t uvec_segs)
+{
+	struct iovec *iov;
+	int iovec_off, ret;
+	void *res;
+
+	if (uvec_segs > iv->nr) {
+		ret = io_vec_realloc(iv, uvec_segs);
+		if (ret)
+			return ret;
+		req->flags |= REQ_F_NEED_CLEANUP;
+	}
+
+	/* pad iovec to the right */
+	iovec_off = iv->nr - uvec_segs;
+	iov = iv->iovec + iovec_off;
+	res = iovec_from_user(uvec, uvec_segs, uvec_segs, iov,
+			      io_is_compat(req->ctx));
+	if (IS_ERR(res))
+		return PTR_ERR(res);
+
+	req->flags |= REQ_F_IMPORT_BUFFER;
+	return 0;
+}

@@ -407,28 +407,9 @@ static int io_rw_prep_reg_vec(struct io_kiocb *req)
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct io_async_rw *io = req->async_data;
 	const struct iovec __user *uvec;
-	size_t uvec_segs = rw->len;
-	struct iovec *iov;
-	int iovec_off, ret;
-	void *res;
 
-	if (uvec_segs > io->vec.nr) {
-		ret = io_vec_realloc(&io->vec, uvec_segs);
-		if (ret)
-			return ret;
-		req->flags |= REQ_F_NEED_CLEANUP;
-	}
-	/* pad iovec to the right */
-	iovec_off = io->vec.nr - uvec_segs;
-	iov = io->vec.iovec + iovec_off;
 	uvec = u64_to_user_ptr(rw->addr);
-	res = iovec_from_user(uvec, uvec_segs, uvec_segs, iov,
-			      io_is_compat(req->ctx));
-	if (IS_ERR(res))
-		return PTR_ERR(res);
-
-	req->flags |= REQ_F_IMPORT_BUFFER;
-	return 0;
+	return io_prep_reg_iovec(req, &io->vec, uvec, rw->len);
 }
 
 int io_prep_readv_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
