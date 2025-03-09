@@ -270,16 +270,11 @@ fail:
 	return ret;
 }
 
-void __get_cached_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
-{
-	*msg = entry->msg;
-}
-
 void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
 {
 	struct msi_desc *entry = irq_get_msi_desc(irq);
 
-	__get_cached_msi_msg(entry, msg);
+	*msg = entry->msg;
 }
 EXPORT_SYMBOL_GPL(get_cached_msi_msg);
 
@@ -1352,33 +1347,6 @@ static int msi_domain_alloc_locked(struct device *dev, struct msi_ctrl *ctrl)
 }
 
 /**
- * msi_domain_alloc_irqs_range_locked - Allocate interrupts from a MSI interrupt domain
- * @dev:	Pointer to device struct of the device for which the interrupts
- *		are allocated
- * @domid:	Id of the interrupt domain to operate on
- * @first:	First index to allocate (inclusive)
- * @last:	Last index to allocate (inclusive)
- *
- * Must be invoked from within a msi_lock_descs() / msi_unlock_descs()
- * pair. Use this for MSI irqdomains which implement their own descriptor
- * allocation/free.
- *
- * Return: %0 on success or an error code.
- */
-int msi_domain_alloc_irqs_range_locked(struct device *dev, unsigned int domid,
-				       unsigned int first, unsigned int last)
-{
-	struct msi_ctrl ctrl = {
-		.domid	= domid,
-		.first	= first,
-		.last	= last,
-		.nirqs	= last + 1 - first,
-	};
-
-	return msi_domain_alloc_locked(dev, &ctrl);
-}
-
-/**
  * msi_domain_alloc_irqs_range - Allocate interrupts from a MSI interrupt domain
  * @dev:	Pointer to device struct of the device for which the interrupts
  *		are allocated
@@ -1391,10 +1359,16 @@ int msi_domain_alloc_irqs_range_locked(struct device *dev, unsigned int domid,
 int msi_domain_alloc_irqs_range(struct device *dev, unsigned int domid,
 				unsigned int first, unsigned int last)
 {
+	struct msi_ctrl ctrl = {
+		.domid	= domid,
+		.first	= first,
+		.last	= last,
+		.nirqs	= last + 1 - first,
+	};
 	int ret;
 
 	msi_lock_descs(dev);
-	ret = msi_domain_alloc_irqs_range_locked(dev, domid, first, last);
+	ret = msi_domain_alloc_locked(dev, &ctrl);
 	msi_unlock_descs(dev);
 	return ret;
 }
@@ -1618,8 +1592,8 @@ static void msi_domain_free_locked(struct device *dev, struct msi_ctrl *ctrl)
  * @first:	First index to free (inclusive)
  * @last:	Last index to free (inclusive)
  */
-void msi_domain_free_irqs_range_locked(struct device *dev, unsigned int domid,
-				       unsigned int first, unsigned int last)
+static void msi_domain_free_irqs_range_locked(struct device *dev, unsigned int domid,
+					      unsigned int first, unsigned int last)
 {
 	struct msi_ctrl ctrl = {
 		.domid	= domid,
