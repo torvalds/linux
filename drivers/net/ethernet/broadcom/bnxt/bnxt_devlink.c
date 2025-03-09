@@ -461,7 +461,7 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 		if (rc) {
 			NL_SET_ERR_MSG_MOD(extack, "Failed to deregister");
 			if (netif_running(bp->dev))
-				dev_close(bp->dev);
+				netif_close(bp->dev);
 			netdev_unlock(bp->dev);
 			rtnl_unlock();
 			break;
@@ -576,7 +576,7 @@ static int bnxt_dl_reload_up(struct devlink *dl, enum devlink_reload_action acti
 		*actions_performed |= BIT(action);
 	} else if (netif_running(bp->dev)) {
 		netdev_lock(bp->dev);
-		dev_close(bp->dev);
+		netif_close(bp->dev);
 		netdev_unlock(bp->dev);
 	}
 	rtnl_unlock();

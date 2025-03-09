@@ -1760,6 +1760,7 @@ void netif_close(struct net_device *dev)
 		list_del(&single);
 	}
 }
+EXPORT_SYMBOL(netif_close);
 
 void netif_disable_lro(struct net_device *dev)
 {

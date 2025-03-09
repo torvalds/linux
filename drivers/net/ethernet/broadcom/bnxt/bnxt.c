@@ -12802,7 +12802,7 @@ int bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 		rc = __bnxt_open_nic(bp, irq_re_init, link_re_init);
 	if (rc) {
 		netdev_err(bp->dev, "nic open fail (rc: %x)\n", rc);
-		dev_close(bp->dev);
+		netif_close(bp->dev);
 	}
 	return rc;
 }
@@ -12840,7 +12840,7 @@ int bnxt_half_open_nic(struct bnxt *bp)
 half_open_err:
 	bnxt_free_skbs(bp);
 	bnxt_free_mem(bp, true);
-	dev_close(bp->dev);
+	netif_close(bp->dev);
 	return rc;
 }
 
@@ -14195,7 +14195,7 @@ void bnxt_fw_reset(struct bnxt *bp)
 			netdev_err(bp->dev, "Firmware reset aborted, rc = %d\n",
 				   n);
 			clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
-			dev_close(bp->dev);
+			netif_close(bp->dev);
 			goto fw_reset_exit;
 		} else if (n > 0) {
 			u16 vf_tmo_dsecs = n * 10;
@@ -14810,7 +14810,7 @@ static void bnxt_fw_reset_abort(struct bnxt *bp, int rc)
 	if (bp->fw_reset_state != BNXT_FW_RESET_STATE_POLL_VF)
 		bnxt_dl_health_fw_status_update(bp, false);
 	bp->fw_reset_state = 0;
-	dev_close(bp->dev);
+	netif_close(bp->dev);
 }
 
 static void bnxt_fw_reset_task(struct work_struct *work)
@@ -16276,7 +16276,7 @@ int bnxt_restore_pf_fw_resources(struct bnxt *bp)
 
 	if (netif_running(bp->dev)) {
 		if (rc)
-			dev_close(bp->dev);
+			netif_close(bp->dev);
 		else
 			rc = bnxt_open_nic(bp, true, false);
 	}
@@ -16669,7 +16669,7 @@ static void bnxt_shutdown(struct pci_dev *pdev)
 		goto shutdown_exit;
 
 	if (netif_running(dev))
-		dev_close(dev);
+		netif_close(dev);
 
 	bnxt_ptp_clear(bp);
 	bnxt_clear_int_mode(bp);
