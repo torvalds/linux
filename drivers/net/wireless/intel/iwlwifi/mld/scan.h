@@ -108,7 +108,8 @@ enum iwl_mld_traffic_load {
  *	in jiffies.
  * @last_start_time_jiffies: stores the last start time in jiffies
  *	(interface up/reset/resume).
- * @last_mlo_scan_jiffies: end time of the last MLO scan in jiffies.
+ * @last_mlo_scan_time: start time of the last MLO scan in nanoseconds since
+ *	boot.
  */
 struct iwl_mld_scan {
 	/* Add here fields that need clean up on restart */
@@ -129,7 +130,7 @@ struct iwl_mld_scan {
 	void *cmd;
 	unsigned long last_6ghz_passive_jiffies;
 	unsigned long last_start_time_jiffies;
-	unsigned long last_mlo_scan_jiffies;
+	unsigned long last_mlo_scan_time;
 };
 
 #endif /* __iwl_mld_scan_h__ */

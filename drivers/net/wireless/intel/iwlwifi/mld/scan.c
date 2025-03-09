@@ -1794,6 +1794,9 @@ static void iwl_mld_int_mlo_scan_start(struct iwl_mld *mld,
 	ret = _iwl_mld_single_scan_start(mld, vif, req, &ies,
 					 IWL_MLD_SCAN_INT_MLO);
 
+	if (!ret)
+		mld->scan.last_mlo_scan_time = ktime_get_boottime_ns();
+
 	IWL_DEBUG_SCAN(mld, "Internal MLO scan: ret=%d\n", ret);
 }
 
@@ -1922,7 +1925,6 @@ void iwl_mld_handle_scan_complete_notif(struct iwl_mld *mld,
 		mld->scan.pass_all_sched_res = SCHED_SCAN_PASS_ALL_STATE_DISABLED;
 	} else if (mld->scan.uid_status[uid] == IWL_MLD_SCAN_INT_MLO) {
 		IWL_DEBUG_SCAN(mld, "Internal MLO scan completed\n");
-		mld->scan.last_mlo_scan_jiffies = jiffies;
 
 		/*
 		 * We limit link selection to internal MLO scans as otherwise
