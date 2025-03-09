@@ -15,11 +15,12 @@ static void iwl_mld_vif_ps_iterator(void *data, u8 *mac,
 				    struct ieee80211_vif *vif)
 {
 	bool *ps_enable = (bool *)data;
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 
 	if (vif->type != NL80211_IFTYPE_STATION)
 		return;
 
-	*ps_enable &= vif->cfg.ps;
+	*ps_enable &= !mld_vif->ps_disabled;
 }
 
 int iwl_mld_update_device_power(struct iwl_mld *mld, bool d3)
