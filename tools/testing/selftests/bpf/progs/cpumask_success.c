@@ -749,7 +749,6 @@ out:
 }
 
 SEC("tp_btf/task_newtask")
-__success
 int BPF_PROG(test_refcount_null_tracking, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *mask1, *mask2;
