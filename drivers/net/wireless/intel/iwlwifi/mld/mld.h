@@ -34,6 +34,7 @@
 #include "constants.h"
 #include "ptp.h"
 #include "time_sync.h"
+#include "ftm-initiator.h"
 
 /**
  * DOC: Introduction
@@ -277,11 +278,7 @@ struct iwl_mld {
 
 	struct iwl_mld_time_sync_data __rcu *time_sync;
 
-	struct {
-		struct cfg80211_pmsr_request *req;
-		struct wireless_dev *req_wdev;
-		int responses[IWL_TOF_MAX_APS];
-	} ftm_initiator;
+	struct ftm_initiator_data ftm_initiator;
 };
 
 /* memset the part of the struct that requires cleanup on restart */
