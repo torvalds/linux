@@ -45,6 +45,10 @@ __bpf_kfunc_start_defs();
  *
  * bpf_cpumask_create() allocates memory using the BPF memory allocator, and
  * will not block. It may return NULL if no memory is available.
+ *
+ * Return:
+ * * A pointer to a new struct bpf_cpumask instance on success.
+ * * NULL if the BPF memory allocator is out of memory.
  */
 __bpf_kfunc struct bpf_cpumask *bpf_cpumask_create(void)
 {
@@ -71,6 +75,10 @@ __bpf_kfunc struct bpf_cpumask *bpf_cpumask_create(void)
  * Acquires a reference to a BPF cpumask. The cpumask returned by this function
  * must either be embedded in a map as a kptr, or freed with
  * bpf_cpumask_release().
+ *
+ * Return:
+ * * The struct bpf_cpumask pointer passed to the function.
+ *
  */
 __bpf_kfunc struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask)
 {
@@ -106,6 +114,9 @@ CFI_NOSEAL(bpf_cpumask_release_dtor);
  *
  * Find the index of the first nonzero bit of the cpumask. A struct bpf_cpumask
  * pointer may be safely passed to this function.
+ *
+ * Return:
+ * * The index of the first nonzero bit in the struct cpumask.
  */
 __bpf_kfunc u32 bpf_cpumask_first(const struct cpumask *cpumask)
 {
@@ -119,6 +130,9 @@ __bpf_kfunc u32 bpf_cpumask_first(const struct cpumask *cpumask)
  *
  * Find the index of the first unset bit of the cpumask. A struct bpf_cpumask
  * pointer may be safely passed to this function.
+ *
+ * Return:
+ * * The index of the first zero bit in the struct cpumask.
  */
 __bpf_kfunc u32 bpf_cpumask_first_zero(const struct cpumask *cpumask)
 {
@@ -133,6 +147,9 @@ __bpf_kfunc u32 bpf_cpumask_first_zero(const struct cpumask *cpumask)
  *
  * Find the index of the first nonzero bit of the AND of two cpumasks.
  * struct bpf_cpumask pointers may be safely passed to @src1 and @src2.
+ *
+ * Return:
+ * * The index of the first bit that is nonzero in both cpumask instances.
  */
 __bpf_kfunc u32 bpf_cpumask_first_and(const struct cpumask *src1,
 				      const struct cpumask *src2)
@@ -414,6 +431,9 @@ __bpf_kfunc u32 bpf_cpumask_any_and_distribute(const struct cpumask *src1,
  * @cpumask: The cpumask being queried.
  *
  * Count the number of set bits in the given cpumask.
+ *
+ * Return:
+ * * The number of bits set in the mask.
  */
 __bpf_kfunc u32 bpf_cpumask_weight(const struct cpumask *cpumask)
 {
