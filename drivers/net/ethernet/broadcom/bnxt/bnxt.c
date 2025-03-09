@@ -15539,6 +15539,7 @@ static void bnxt_queue_mem_free(struct net_device *dev, void *qmem)
 	struct bnxt_ring_struct *ring;
 
 	bnxt_free_one_rx_ring_skbs(bp, rxr);
+	bnxt_free_one_tpa_info(bp, rxr);
 
 	xdp_rxq_info_unreg(&rxr->xdp_rxq);
 
