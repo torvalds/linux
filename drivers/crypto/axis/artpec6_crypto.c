@@ -2897,13 +2897,13 @@ static int artpec6_crypto_probe(struct platform_device *pdev)
 	tasklet_init(&ac->task, artpec6_crypto_task,
 		     (unsigned long)ac);
 
-	ac->pad_buffer = devm_kzalloc(&pdev->dev, 2 * ARTPEC_CACHE_LINE_MAX,
+	ac->pad_buffer = devm_kcalloc(&pdev->dev, 2, ARTPEC_CACHE_LINE_MAX,
 				      GFP_KERNEL);
 	if (!ac->pad_buffer)
 		return -ENOMEM;
 	ac->pad_buffer = PTR_ALIGN(ac->pad_buffer, ARTPEC_CACHE_LINE_MAX);
 
-	ac->zero_buffer = devm_kzalloc(&pdev->dev, 2 * ARTPEC_CACHE_LINE_MAX,
+	ac->zero_buffer = devm_kcalloc(&pdev->dev, 2, ARTPEC_CACHE_LINE_MAX,
 				      GFP_KERNEL);
 	if (!ac->zero_buffer)
 		return -ENOMEM;
