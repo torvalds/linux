@@ -193,6 +193,8 @@ struct sof_intel_dsp_desc {
 	bool (*check_sdw_wakeen_irq)(struct snd_sof_dev *sdev);
 	void (*sdw_process_wakeen)(struct snd_sof_dev *sdev);
 	bool (*check_ipc_irq)(struct snd_sof_dev *sdev);
+	bool (*check_mic_privacy_irq)(struct snd_sof_dev *sdev, bool alt, int elid);
+	void (*process_mic_privacy)(struct snd_sof_dev *sdev, bool alt, int elid);
 	int (*power_down_dsp)(struct snd_sof_dev *sdev);
 	int (*disable_interrupts)(struct snd_sof_dev *sdev);
 	int (*cl_init)(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);
