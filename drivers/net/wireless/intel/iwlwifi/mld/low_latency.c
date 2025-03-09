@@ -120,9 +120,9 @@ static void iwl_mld_low_latency_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 		wiphy_delayed_work_queue(mld->wiphy, &mld->low_latency.work,
 					 MLD_LL_ACTIVE_WK_PERIOD);
 
-	ieee80211_iterate_active_interfaces(mld->hw,
-					    IEEE80211_IFACE_ITER_NORMAL,
-					    iwl_mld_low_latency_iter, mld);
+	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+						IEEE80211_IFACE_ITER_NORMAL,
+						iwl_mld_low_latency_iter, mld);
 }
 
 int iwl_mld_low_latency_init(struct iwl_mld *mld)
