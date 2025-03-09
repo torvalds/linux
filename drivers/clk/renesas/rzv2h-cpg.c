@@ -44,9 +44,11 @@
 #define CPG_BUS_1_MSTOP		(0xd00)
 #define CPG_BUS_MSTOP(m)	(CPG_BUS_1_MSTOP + ((m) - 1) * 4)
 
+#define CPG_PLL_CLK1(x)		((x) + 0x004)
 #define KDIV(val)		((s16)FIELD_GET(GENMASK(31, 16), (val)))
 #define MDIV(val)		FIELD_GET(GENMASK(15, 6), (val))
 #define PDIV(val)		FIELD_GET(GENMASK(5, 0), (val))
+#define CPG_PLL_CLK2(x)		((x) + 0x008)
 #define SDIV(val)		FIELD_GET(GENMASK(2, 0), (val))
 
 #define DDIV_DIVCTL_WEN(shift)		BIT((shift) + 16)
@@ -94,7 +96,7 @@ struct pll_clk {
 	struct rzv2h_cpg_priv *priv;
 	void __iomem *base;
 	struct clk_hw hw;
-	unsigned int conf;
+	struct pll pll;
 	unsigned int type;
 };
 
@@ -145,14 +147,15 @@ static unsigned long rzv2h_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 {
 	struct pll_clk *pll_clk = to_pll(hw);
 	struct rzv2h_cpg_priv *priv = pll_clk->priv;
+	struct pll pll = pll_clk->pll;
 	unsigned int clk1, clk2;
 	u64 rate;
 
-	if (!PLL_CLK_ACCESS(pll_clk->conf))
+	if (!pll.has_clkn)
 		return 0;
 
-	clk1 = readl(priv->base + PLL_CLK1_OFFSET(pll_clk->conf));
-	clk2 = readl(priv->base + PLL_CLK2_OFFSET(pll_clk->conf));
+	clk1 = readl(priv->base + CPG_PLL_CLK1(pll.offset));
+	clk2 = readl(priv->base + CPG_PLL_CLK2(pll.offset));
 
 	rate = mul_u64_u32_shr(parent_rate, (MDIV(clk1) << 16) + KDIV(clk1),
 			       16 + SDIV(clk2));
@@ -193,7 +196,7 @@ rzv2h_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	init.num_parents = 1;
 
 	pll_clk->hw.init = &init;
-	pll_clk->conf = core->cfg.conf;
+	pll_clk->pll = core->cfg.pll;
 	pll_clk->base = base;
 	pll_clk->priv = priv;
 	pll_clk->type = core->type;
