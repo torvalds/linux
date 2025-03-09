@@ -22,6 +22,7 @@ struct mlx5_fs_hws_actions_pool {
 	struct xarray table_dests;
 	struct xarray vport_vhca_dests;
 	struct xarray vport_dests;
+	struct xarray aso_meters;
 };
 
 struct mlx5_fs_hws_context {
@@ -49,6 +50,7 @@ struct mlx5_fs_hws_rule_action {
 	struct mlx5hws_action *action;
 	union {
 		struct mlx5_fc *counter;
+		struct mlx5_exe_aso *exe_aso;
 	};
 };
 
@@ -68,6 +70,9 @@ struct mlx5_fs_hws_create_action_ctx {
 	enum mlx5hws_action_type actions_type;
 	struct mlx5hws_context *hws_ctx;
 	u32 id;
+	union {
+		u8 return_reg_id;
+	};
 };
 
 struct mlx5hws_action *

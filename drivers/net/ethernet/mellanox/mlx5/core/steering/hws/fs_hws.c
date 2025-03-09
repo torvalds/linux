@@ -66,6 +66,7 @@ static int mlx5_fs_init_hws_actions_pool(struct mlx5_core_dev *dev,
 	xa_init(&hws_pool->table_dests);
 	xa_init(&hws_pool->vport_dests);
 	xa_init(&hws_pool->vport_vhca_dests);
+	xa_init(&hws_pool->aso_meters);
 	return 0;
 
 cleanup_insert_hdr:
@@ -88,10 +89,14 @@ destroy_tag:
 static void mlx5_fs_cleanup_hws_actions_pool(struct mlx5_fs_hws_context *fs_ctx)
 {
 	struct mlx5_fs_hws_actions_pool *hws_pool = &fs_ctx->hws_pool;
+	struct mlx5_fs_hws_data *fs_hws_data;
 	struct mlx5hws_action *action;
 	struct mlx5_fs_pool *pool;
 	unsigned long i;
 
+	xa_for_each(&hws_pool->aso_meters, i, fs_hws_data)
+		kfree(fs_hws_data);
+	xa_destroy(&hws_pool->aso_meters);
 	xa_for_each(&hws_pool->vport_vhca_dests, i, action)
 		mlx5hws_action_destroy(action);
 	xa_destroy(&hws_pool->vport_vhca_dests);
@@ -459,6 +464,70 @@ mlx5_fs_create_dest_action_range(struct mlx5hws_context *ctx,
 						      flags);
 }
 
+static struct mlx5_fs_hws_data *
+mlx5_fs_get_cached_hws_data(struct xarray *cache_xa, unsigned long index)
+{
+	struct mlx5_fs_hws_data *fs_hws_data;
+	int err;
+
+	xa_lock(cache_xa);
+	fs_hws_data = xa_load(cache_xa, index);
+	if (!fs_hws_data) {
+		fs_hws_data = kzalloc(sizeof(*fs_hws_data), GFP_ATOMIC);
+		if (!fs_hws_data) {
+			xa_unlock(cache_xa);
+			return NULL;
+		}
+		refcount_set(&fs_hws_data->hws_action_refcount, 0);
+		mutex_init(&fs_hws_data->lock);
+		err = __xa_insert(cache_xa, index, fs_hws_data, GFP_ATOMIC);
+		if (err) {
+			kfree(fs_hws_data);
+			xa_unlock(cache_xa);
+			return NULL;
+		}
+	}
+	xa_unlock(cache_xa);
+
+	return fs_hws_data;
+}
+
+static struct mlx5hws_action *
+mlx5_fs_get_action_aso_meter(struct mlx5_fs_hws_context *fs_ctx,
+			     struct mlx5_exe_aso *exe_aso)
+{
+	struct mlx5_fs_hws_create_action_ctx create_ctx;
+	struct mlx5hws_context *ctx = fs_ctx->hws_ctx;
+	struct mlx5_fs_hws_data *meter_hws_data;
+	u32 id = exe_aso->base_id;
+	struct xarray *meters_xa;
+
+	meters_xa = &fs_ctx->hws_pool.aso_meters;
+	meter_hws_data = mlx5_fs_get_cached_hws_data(meters_xa, id);
+	if (!meter_hws_data)
+		return NULL;
+
+	create_ctx.hws_ctx = ctx;
+	create_ctx.actions_type = MLX5HWS_ACTION_TYP_ASO_METER;
+	create_ctx.id = id;
+	create_ctx.return_reg_id = exe_aso->return_reg_id;
+
+	return mlx5_fs_get_hws_action(meter_hws_data, &create_ctx);
+}
+
+static void mlx5_fs_put_action_aso_meter(struct mlx5_fs_hws_context *fs_ctx,
+					 struct mlx5_exe_aso *exe_aso)
+{
+	struct mlx5_fs_hws_data *meter_hws_data;
+	struct xarray *meters_xa;
+
+	meters_xa = &fs_ctx->hws_pool.aso_meters;
+	meter_hws_data = xa_load(meters_xa, exe_aso->base_id);
+	if (!meter_hws_data)
+		return;
+	return mlx5_fs_put_hws_action(meter_hws_data);
+}
+
 static struct mlx5hws_action *
 mlx5_fs_create_action_dest_array(struct mlx5hws_context *ctx,
 				 struct mlx5hws_action_dest_attr *dests,
@@ -528,6 +597,11 @@ mlx5_fs_create_hws_action(struct mlx5_fs_hws_create_action_ctx *create_ctx)
 	case MLX5HWS_ACTION_TYP_CTR:
 		return mlx5hws_action_create_counter(create_ctx->hws_ctx,
 						     create_ctx->id, flags);
+	case MLX5HWS_ACTION_TYP_ASO_METER:
+		return mlx5hws_action_create_aso_meter(create_ctx->hws_ctx,
+						       create_ctx->id,
+						       create_ctx->return_reg_id,
+						       flags);
 	default:
 		return NULL;
 	}
@@ -576,11 +650,17 @@ void mlx5_fs_put_hws_action(struct mlx5_fs_hws_data *fs_hws_data)
 	mutex_unlock(&fs_hws_data->lock);
 }
 
-static void mlx5_fs_destroy_fs_action(struct mlx5_fs_hws_rule_action *fs_action)
+static void mlx5_fs_destroy_fs_action(struct mlx5_flow_root_namespace *ns,
+				      struct mlx5_fs_hws_rule_action *fs_action)
 {
+	struct mlx5_fs_hws_context *fs_ctx = &ns->fs_hws_context;
+
 	switch (mlx5hws_action_get_type(fs_action->action)) {
 	case MLX5HWS_ACTION_TYP_CTR:
 		mlx5_fc_put_hws_action(fs_action->counter);
+		break;
+	case MLX5HWS_ACTION_TYP_ASO_METER:
+		mlx5_fs_put_action_aso_meter(fs_ctx, fs_action->exe_aso);
 		break;
 	default:
 		mlx5hws_action_destroy(fs_action->action);
@@ -588,14 +668,15 @@ static void mlx5_fs_destroy_fs_action(struct mlx5_fs_hws_rule_action *fs_action)
 }
 
 static void
-mlx5_fs_destroy_fs_actions(struct mlx5_fs_hws_rule_action **fs_actions,
+mlx5_fs_destroy_fs_actions(struct mlx5_flow_root_namespace *ns,
+			   struct mlx5_fs_hws_rule_action **fs_actions,
 			   int *num_fs_actions)
 {
 	int i;
 
 	/* Free in reverse order to handle action dependencies */
 	for (i = *num_fs_actions - 1; i >= 0; i--)
-		mlx5_fs_destroy_fs_action(*fs_actions + i);
+		mlx5_fs_destroy_fs_action(ns, *fs_actions + i);
 	*num_fs_actions = 0;
 	kfree(*fs_actions);
 	*fs_actions = NULL;
@@ -792,8 +873,25 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 	}
 
 	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO) {
-		err = -EOPNOTSUPP;
-		goto free_actions;
+		if (fte_action->exe_aso.type != MLX5_EXE_ASO_FLOW_METER ||
+		    num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX) {
+			err = -EOPNOTSUPP;
+			goto free_actions;
+		}
+
+		tmp_action = mlx5_fs_get_action_aso_meter(fs_ctx,
+							  &fte_action->exe_aso);
+		if (!tmp_action) {
+			err = -ENOMEM;
+			goto free_actions;
+		}
+		(*ractions)[num_actions].aso_meter.offset =
+			fte_action->exe_aso.flow_meter.meter_idx;
+		(*ractions)[num_actions].aso_meter.init_color =
+			fte_action->exe_aso.flow_meter.init_color;
+		(*ractions)[num_actions++].action = tmp_action;
+		fs_actions[num_fs_actions].action = tmp_action;
+		fs_actions[num_fs_actions++].exe_aso = &fte_action->exe_aso;
 	}
 
 	if (fte_action->action & MLX5_FLOW_CONTEXT_ACTION_DROP) {
@@ -907,7 +1005,7 @@ static int mlx5_fs_fte_get_hws_actions(struct mlx5_flow_root_namespace *ns,
 	return 0;
 
 free_actions:
-	mlx5_fs_destroy_fs_actions(&fs_actions, &num_fs_actions);
+	mlx5_fs_destroy_fs_actions(ns, &fs_actions, &num_fs_actions);
 free_dest_actions_alloc:
 	kfree(dest_actions);
 free_fs_actions_alloc:
@@ -957,7 +1055,7 @@ static int mlx5_cmd_hws_create_fte(struct mlx5_flow_root_namespace *ns,
 	return 0;
 
 free_actions:
-	mlx5_fs_destroy_fs_actions(&fte->fs_hws_rule.hws_fs_actions,
+	mlx5_fs_destroy_fs_actions(ns, &fte->fs_hws_rule.hws_fs_actions,
 				   &fte->fs_hws_rule.num_fs_actions);
 out_err:
 	mlx5_core_err(ns->dev, "Failed to create hws rule err(%d)\n", err);
@@ -977,7 +1075,8 @@ static int mlx5_cmd_hws_delete_fte(struct mlx5_flow_root_namespace *ns,
 	err = mlx5hws_bwc_rule_destroy(rule->bwc_rule);
 	rule->bwc_rule = NULL;
 
-	mlx5_fs_destroy_fs_actions(&rule->hws_fs_actions, &rule->num_fs_actions);
+	mlx5_fs_destroy_fs_actions(ns, &rule->hws_fs_actions,
+				   &rule->num_fs_actions);
 
 	return err;
 }
@@ -1015,11 +1114,12 @@ static int mlx5_cmd_hws_update_fte(struct mlx5_flow_root_namespace *ns,
 	if (ret)
 		goto restore_actions;
 
-	mlx5_fs_destroy_fs_actions(&saved_hws_fs_actions, &saved_num_fs_actions);
+	mlx5_fs_destroy_fs_actions(ns, &saved_hws_fs_actions,
+				   &saved_num_fs_actions);
 	return ret;
 
 restore_actions:
-	mlx5_fs_destroy_fs_actions(&fte->fs_hws_rule.hws_fs_actions,
+	mlx5_fs_destroy_fs_actions(ns, &fte->fs_hws_rule.hws_fs_actions,
 				   &fte->fs_hws_rule.num_fs_actions);
 	fte->fs_hws_rule.hws_fs_actions = saved_hws_fs_actions;
 	fte->fs_hws_rule.num_fs_actions = saved_num_fs_actions;
