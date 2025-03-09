@@ -339,6 +339,10 @@ int iwl_mld_load_fw(struct iwl_mld *mld)
 	if (ret)
 		return ret;
 
+	ret = iwl_mld_init_mcc(mld);
+	if (ret)
+		return ret;
+
 	mld->fw_status.running = true;
 
 	return 0;
@@ -478,10 +482,6 @@ static int iwl_mld_config_fw(struct iwl_mld *mld)
 		return ret;
 
 	ret = iwl_mld_update_device_power(mld, false);
-	if (ret)
-		return ret;
-
-	ret = iwl_mld_init_mcc(mld);
 	if (ret)
 		return ret;
 
