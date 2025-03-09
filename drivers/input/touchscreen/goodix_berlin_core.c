@@ -12,7 +12,7 @@
  * to the previous generations.
  *
  * Currently the driver only handles Multitouch events with already
- * programmed firmware and "config" for "Revision D" Berlin IC.
+ * programmed firmware and "config" for "Revision A/D" Berlin IC.
  *
  * Support is missing for:
  * - ESD Management
@@ -20,7 +20,7 @@
  * - "Config" update/flashing
  * - Stylus Events
  * - Gesture Events
- * - Support for older revisions (A & B)
+ * - Support for revision B
  */
 
 #include <linux/bitfield.h>
@@ -28,6 +28,7 @@
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sizes.h>
@@ -53,10 +54,8 @@
 
 #define GOODIX_BERLIN_DEV_CONFIRM_VAL		0xAA
 #define GOODIX_BERLIN_BOOTOPTION_ADDR		0x10000
-#define GOODIX_BERLIN_FW_VERSION_INFO_ADDR	0x10014
 
 #define GOODIX_BERLIN_IC_INFO_MAX_LEN		SZ_1K
-#define GOODIX_BERLIN_IC_INFO_ADDR		0x10070
 
 #define GOODIX_BERLIN_CHECKSUM_SIZE		sizeof(u16)
 
@@ -174,6 +173,8 @@ struct goodix_berlin_core {
 
 	/* Runtime parameters extracted from IC_INFO buffer  */
 	u32 touch_data_addr;
+
+	const struct goodix_berlin_ic_data *ic_data;
 
 	struct goodix_berlin_event event;
 };
@@ -299,7 +300,7 @@ static int goodix_berlin_read_version(struct goodix_berlin_core *cd)
 {
 	int error;
 
-	error = regmap_raw_read(cd->regmap, GOODIX_BERLIN_FW_VERSION_INFO_ADDR,
+	error = regmap_raw_read(cd->regmap, cd->ic_data->fw_version_info_addr,
 				&cd->fw_version, sizeof(cd->fw_version));
 	if (error) {
 		dev_err(cd->dev, "error reading fw version, %d\n", error);
@@ -367,7 +368,7 @@ static int goodix_berlin_get_ic_info(struct goodix_berlin_core *cd)
 	if (!afe_data)
 		return -ENOMEM;
 
-	error = regmap_raw_read(cd->regmap, GOODIX_BERLIN_IC_INFO_ADDR,
+	error = regmap_raw_read(cd->regmap, cd->ic_data->ic_info_addr,
 				&length_raw, sizeof(length_raw));
 	if (error) {
 		dev_err(cd->dev, "failed get ic info length, %d\n", error);
@@ -380,8 +381,8 @@ static int goodix_berlin_get_ic_info(struct goodix_berlin_core *cd)
 		return -EINVAL;
 	}
 
-	error = regmap_raw_read(cd->regmap, GOODIX_BERLIN_IC_INFO_ADDR,
-				afe_data, length);
+	error = regmap_raw_read(cd->regmap, cd->ic_data->ic_info_addr, afe_data,
+				length);
 	if (error) {
 		dev_err(cd->dev, "failed get ic info data, %d\n", error);
 		return error;
@@ -716,7 +717,8 @@ const struct attribute_group *goodix_berlin_groups[] = {
 EXPORT_SYMBOL_GPL(goodix_berlin_groups);
 
 int goodix_berlin_probe(struct device *dev, int irq, const struct input_id *id,
-			struct regmap *regmap)
+			struct regmap *regmap,
+			const struct goodix_berlin_ic_data *ic_data)
 {
 	struct goodix_berlin_core *cd;
 	int error;
@@ -733,6 +735,7 @@ int goodix_berlin_probe(struct device *dev, int irq, const struct input_id *id,
 	cd->dev = dev;
 	cd->regmap = regmap;
 	cd->irq = irq;
+	cd->ic_data = ic_data;
 
 	cd->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(cd->reset_gpio))
