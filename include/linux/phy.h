@@ -2107,17 +2107,9 @@ int __phy_hwtstamp_set(struct phy_device *phydev,
 		       struct kernel_hwtstamp_config *config,
 		       struct netlink_ext_ack *extack);
 
-int __phy_package_read_mmd(struct phy_device *phydev,
-			   unsigned int addr_offset, int devad,
-			   u32 regnum);
-
 int phy_package_read_mmd(struct phy_device *phydev,
 			 unsigned int addr_offset, int devad,
 			 u32 regnum);
-
-int __phy_package_write_mmd(struct phy_device *phydev,
-			    unsigned int addr_offset, int devad,
-			    u32 regnum, u16 val);
 
 int phy_package_write_mmd(struct phy_device *phydev,
 			  unsigned int addr_offset, int devad,
