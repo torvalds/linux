@@ -212,7 +212,7 @@ pub trait HrTimerCallback {
     type Pointer<'a>: RawHrTimerCallback;
 
     /// Called by the timer logic when the timer fires.
-    fn run(this: <Self::Pointer<'_> as RawHrTimerCallback>::CallbackTarget<'_>)
+    fn run(this: <Self::Pointer<'_> as RawHrTimerCallback>::CallbackTarget<'_>) -> HrTimerRestart
     where
         Self: Sized;
 }
@@ -308,6 +308,24 @@ pub unsafe trait HasHrTimer<T> {
                 bindings::hrtimer_mode_HRTIMER_MODE_REL,
             );
         }
+    }
+}
+
+/// Restart policy for timers.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[repr(u32)]
+pub enum HrTimerRestart {
+    /// Timer should not be restarted.
+    #[allow(clippy::unnecessary_cast)]
+    NoRestart = bindings::hrtimer_restart_HRTIMER_NORESTART as u32,
+    /// Timer should be restarted.
+    #[allow(clippy::unnecessary_cast)]
+    Restart = bindings::hrtimer_restart_HRTIMER_RESTART as u32,
+}
+
+impl HrTimerRestart {
+    fn into_c(self) -> bindings::hrtimer_restart {
+        self as bindings::hrtimer_restart
     }
 }
 
