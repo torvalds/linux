@@ -97,7 +97,6 @@ struct pll_clk {
 	void __iomem *base;
 	struct clk_hw hw;
 	struct pll pll;
-	unsigned int type;
 };
 
 #define to_pll(_hw)	container_of(_hw, struct pll_clk, hw)
@@ -199,7 +198,6 @@ rzv2h_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	pll_clk->pll = core->cfg.pll;
 	pll_clk->base = base;
 	pll_clk->priv = priv;
-	pll_clk->type = core->type;
 
 	ret = devm_clk_hw_register(dev, &pll_clk->hw);
 	if (ret)
