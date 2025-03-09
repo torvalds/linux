@@ -461,6 +461,7 @@ static void iwl_mld_fill_chanctx_stats(struct ieee80211_hw *hw,
 {
 	struct iwl_mld_phy *phy = iwl_mld_phy_from_mac80211(ctx);
 	const struct iwl_stats_ntfy_per_phy *per_phy = data;
+	u32 new_load;
 
 	if (WARN_ON(phy->fw_id >= IWL_STATS_MAX_PHY_OPERATIONAL))
 		return;
@@ -468,7 +469,14 @@ static void iwl_mld_fill_chanctx_stats(struct ieee80211_hw *hw,
 	phy->channel_load_by_us =
 		le32_to_cpu(per_phy[phy->fw_id].channel_load_by_us);
 
-	/* TODO: channel load not by us (task=statistics) */
+	new_load = le32_to_cpu(per_phy[phy->fw_id].channel_load_not_by_us);
+	if (IWL_FW_CHECK(phy->mld, new_load > 100, "Invalid channel load %u\n",
+			 new_load))
+		return;
+
+	/* give a weight of 0.5 for the old value */
+	phy->avg_channel_load_not_by_us =
+		(new_load >> 1) + (phy->avg_channel_load_not_by_us >> 1);
 }
 
 static void

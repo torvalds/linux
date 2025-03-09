@@ -3,6 +3,7 @@
  * Copyright (C) 2024-2025 Intel Corporation
  */
 #include "mlo.h"
+#include "phy.h"
 
 /* Block reasons helper */
 #define HANDLE_EMLSR_BLOCKED_REASONS(HOW)	\
@@ -177,6 +178,19 @@ static void iwl_mld_check_emlsr_prevention(struct iwl_mld *mld,
 				 &mld_vif->emlsr.prevent_done_wk, delay);
 }
 
+static void iwl_mld_clear_avg_chan_load_iter(struct ieee80211_hw *hw,
+					     struct ieee80211_chanctx_conf *ctx,
+					     void *dat)
+{
+	struct iwl_mld_phy *phy = iwl_mld_phy_from_mac80211(ctx);
+
+	/* It is ok to do it for all chanctx (and not only for the ones that
+	 * belong to the EMLSR vif) since EMLSR is not allowed if there is
+	 * another vif.
+	 */
+	phy->avg_channel_load_not_by_us = 0;
+}
+
 static int _iwl_mld_exit_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif,
 			       enum iwl_mld_emlsr_exit exit, u8 link_to_keep,
 			       bool sync)
@@ -214,6 +228,13 @@ static int _iwl_mld_exit_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif,
 
 	/* Update latest exit reason and check EMLSR prevention */
 	iwl_mld_check_emlsr_prevention(mld, mld_vif, exit);
+
+	/* channel_load_not_by_us is invalid when in EMLSR.
+	 * Clear it so wrong values won't be used.
+	 */
+	ieee80211_iter_chan_contexts_atomic(mld->hw,
+					    iwl_mld_clear_avg_chan_load_iter,
+					    NULL);
 
 	return ret;
 }

@@ -15,6 +15,9 @@
  *	with. Used to detect a no-op when the chanctx changes.
  * @channel_load_by_us: channel load on this channel caused by
  *	the NIC itself, as indicated by firmware
+ * @avg_channel_load_not_by_us: averaged channel load on this channel caused by
+ *	others. This value is invalid when in EMLSR (due to FW limitations)
+ * @mld: pointer to the MLD context
  */
 struct iwl_mld_phy {
 	/* Add here fields that need clean up on hw restart */
@@ -24,6 +27,8 @@ struct iwl_mld_phy {
 	);
 	/* And here fields that survive a hw restart */
 	u32 channel_load_by_us;
+	u32 avg_channel_load_not_by_us;
+	struct iwl_mld *mld;
 };
 
 static inline struct iwl_mld_phy *

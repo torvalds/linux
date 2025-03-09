@@ -847,6 +847,7 @@ int iwl_mld_add_chanctx(struct ieee80211_hw *hw,
 	if (fw_id < 0)
 		return fw_id;
 
+	phy->mld = mld;
 	phy->fw_id = fw_id;
 	phy->chandef = *iwl_mld_get_chandef_from_chanctx(ctx);
 
