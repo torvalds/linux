@@ -2645,6 +2645,12 @@ struct mlx5_ifc_field_select_802_1qau_rp_bits {
 	u8         field_select_8021qaurp[0x20];
 };
 
+struct mlx5_ifc_phys_layer_recovery_cntrs_bits {
+	u8         total_successful_recovery_events[0x20];
+
+	u8         reserved_at_20[0x7a0];
+};
+
 struct mlx5_ifc_phys_layer_cntrs_bits {
 	u8         time_since_last_clear_high[0x20];
 
@@ -4846,6 +4852,7 @@ union mlx5_ifc_eth_cntrs_grp_data_layout_auto_bits {
 	struct mlx5_ifc_ib_ext_port_cntrs_grp_data_layout_bits ib_ext_port_cntrs_grp_data_layout;
 	struct mlx5_ifc_phys_layer_cntrs_bits phys_layer_cntrs;
 	struct mlx5_ifc_phys_layer_statistical_cntrs_bits phys_layer_statistical_cntrs;
+	struct mlx5_ifc_phys_layer_recovery_cntrs_bits phys_layer_recovery_cntrs;
 	u8         reserved_at_0[0x7c0];
 };
 
@@ -10584,7 +10591,9 @@ struct mlx5_ifc_mtutc_reg_bits {
 };
 
 struct mlx5_ifc_pcam_enhanced_features_bits {
-	u8         reserved_at_0[0x1d];
+	u8         reserved_at_0[0x10];
+	u8         ppcnt_recovery_counters[0x1];
+	u8         reserved_at_11[0xc];
 	u8         fec_200G_per_lane_in_pplm[0x1];
 	u8         reserved_at_1e[0x2a];
 	u8         fec_100G_per_lane_in_pplm[0x1];
