@@ -182,7 +182,7 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	dlen = req->dlen;
 
 	scratch = raw_cpu_ptr(&scomp_scratch);
-	spin_lock(&scratch->lock);
+	spin_lock_bh(&scratch->lock);
 
 	if (sg_nents(req->src) == 1 && !PageHighMem(sg_page(req->src))) {
 		src = page_to_virt(sg_page(req->src)) + req->src->offset;
@@ -230,7 +230,7 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 		}
 	}
 out:
-	spin_unlock(&scratch->lock);
+	spin_unlock_bh(&scratch->lock);
 	return ret;
 }
 
