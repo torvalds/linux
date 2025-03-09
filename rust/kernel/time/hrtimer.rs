@@ -67,6 +67,7 @@
 //! A `restart` operation on a timer in the **stopped** state is equivalent to a
 //! `start` operation.
 
+use super::ClockId;
 use crate::{init::PinInit, prelude::*, time::Ktime, types::Opaque};
 use core::marker::PhantomData;
 
@@ -94,7 +95,7 @@ unsafe impl<T> Sync for HrTimer<T> {}
 
 impl<T> HrTimer<T> {
     /// Return an initializer for a new timer instance.
-    pub fn new(mode: HrTimerMode) -> impl PinInit<Self>
+    pub fn new(mode: HrTimerMode, clock: ClockId) -> impl PinInit<Self>
     where
         T: HrTimerCallback,
     {
@@ -108,7 +109,7 @@ impl<T> HrTimer<T> {
                     bindings::hrtimer_setup(
                         place,
                         Some(T::Pointer::run),
-                        bindings::CLOCK_MONOTONIC as i32,
+                        clock.into_c(),
                         mode.into_c(),
                     );
                 }
