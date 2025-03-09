@@ -1422,7 +1422,8 @@ static void vchiq_remove(struct platform_device *pdev)
 	kthread_stop(mgmt->state.slot_handler_thread);
 
 	arm_state = vchiq_platform_get_arm_state(&mgmt->state);
-	kthread_stop(arm_state->ka_thread);
+	if (!IS_ERR_OR_NULL(arm_state->ka_thread))
+		kthread_stop(arm_state->ka_thread);
 }
 
 static struct platform_driver vchiq_driver = {
