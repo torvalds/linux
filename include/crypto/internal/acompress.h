@@ -94,4 +94,46 @@ void crypto_unregister_acomp(struct acomp_alg *alg);
 int crypto_register_acomps(struct acomp_alg *algs, int count);
 void crypto_unregister_acomps(struct acomp_alg *algs, int count);
 
+static inline bool acomp_request_chained(struct acomp_req *req)
+{
+	return crypto_request_chained(&req->base);
+}
+
+static inline bool acomp_request_src_isvirt(struct acomp_req *req)
+{
+	return req->base.flags & CRYPTO_ACOMP_REQ_SRC_VIRT;
+}
+
+static inline bool acomp_request_dst_isvirt(struct acomp_req *req)
+{
+	return req->base.flags & CRYPTO_ACOMP_REQ_DST_VIRT;
+}
+
+static inline bool acomp_request_isvirt(struct acomp_req *req)
+{
+	return req->base.flags & (CRYPTO_ACOMP_REQ_SRC_VIRT |
+				  CRYPTO_ACOMP_REQ_DST_VIRT);
+}
+
+static inline bool acomp_request_src_isnondma(struct acomp_req *req)
+{
+	return req->base.flags & CRYPTO_ACOMP_REQ_SRC_NONDMA;
+}
+
+static inline bool acomp_request_dst_isnondma(struct acomp_req *req)
+{
+	return req->base.flags & CRYPTO_ACOMP_REQ_DST_NONDMA;
+}
+
+static inline bool acomp_request_isnondma(struct acomp_req *req)
+{
+	return req->base.flags & (CRYPTO_ACOMP_REQ_SRC_NONDMA |
+				  CRYPTO_ACOMP_REQ_DST_NONDMA);
+}
+
+static inline bool crypto_acomp_req_chain(struct crypto_acomp *tfm)
+{
+	return crypto_tfm_req_chain(&tfm->base);
+}
+
 #endif
