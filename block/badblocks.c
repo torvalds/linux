@@ -1242,13 +1242,14 @@ re_check:
 	len = sectors;
 
 update_sectors:
+	/* This situation should never happen */
+	WARN_ON(sectors < len);
+
 	s += len;
 	sectors -= len;
 
 	if (sectors > 0)
 		goto re_check;
-
-	WARN_ON(sectors < 0);
 
 	if (unacked_badblocks > 0)
 		rv = -1;
