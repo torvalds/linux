@@ -23,6 +23,7 @@ struct mlx5_fs_hws_actions_pool {
 	struct xarray vport_vhca_dests;
 	struct xarray vport_dests;
 	struct xarray aso_meters;
+	struct xarray sample_dests;
 };
 
 struct mlx5_fs_hws_context {
@@ -51,6 +52,7 @@ struct mlx5_fs_hws_rule_action {
 	union {
 		struct mlx5_fc *counter;
 		struct mlx5_exe_aso *exe_aso;
+		u32 sampler_id;
 	};
 };
 
