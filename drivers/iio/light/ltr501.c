@@ -688,14 +688,13 @@ static int ltr501_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_PROCESSED:
 		switch (chan->type) {
 		case IIO_LIGHT:
-			ret = iio_device_claim_direct_mode(indio_dev);
-			if (ret)
-				return ret;
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
 
 			mutex_lock(&data->lock_als);
 			ret = ltr501_read_als(data, buf);
 			mutex_unlock(&data->lock_als);
-			iio_device_release_direct_mode(indio_dev);
+			iio_device_release_direct(indio_dev);
 			if (ret < 0)
 				return ret;
 			*val = ltr501_calculate_lux(le16_to_cpu(buf[1]),
@@ -705,13 +704,12 @@ static int ltr501_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = ltr501_read_info_raw(data, chan, val);
 
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		return ret;
 
 	case IIO_CHAN_INFO_SCALE:
@@ -870,13 +868,12 @@ static int ltr501_write_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	ret = __ltr501_write_raw(indio_dev, chan, val, val2, mask);
 
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
