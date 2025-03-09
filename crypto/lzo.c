@@ -15,7 +15,7 @@ struct lzo_ctx {
 	void *lzo_comp_mem;
 };
 
-static void *lzo_alloc_ctx(struct crypto_scomp *tfm)
+static void *lzo_alloc_ctx(void)
 {
 	void *ctx;
 
@@ -30,14 +30,14 @@ static int lzo_init(struct crypto_tfm *tfm)
 {
 	struct lzo_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	ctx->lzo_comp_mem = lzo_alloc_ctx(NULL);
+	ctx->lzo_comp_mem = lzo_alloc_ctx();
 	if (IS_ERR(ctx->lzo_comp_mem))
 		return -ENOMEM;
 
 	return 0;
 }
 
-static void lzo_free_ctx(struct crypto_scomp *tfm, void *ctx)
+static void lzo_free_ctx(void *ctx)
 {
 	kvfree(ctx);
 }
@@ -46,7 +46,7 @@ static void lzo_exit(struct crypto_tfm *tfm)
 {
 	struct lzo_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	lzo_free_ctx(NULL, ctx->lzo_comp_mem);
+	lzo_free_ctx(ctx->lzo_comp_mem);
 }
 
 static int __lzo_compress(const u8 *src, unsigned int slen,

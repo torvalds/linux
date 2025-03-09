@@ -112,7 +112,7 @@ out:
 	return ret;
 }
 
-static void *deflate_alloc_ctx(struct crypto_scomp *tfm)
+static void *deflate_alloc_ctx(void)
 {
 	struct deflate_ctx *ctx;
 	int ret;
@@ -143,7 +143,7 @@ static void __deflate_exit(void *ctx)
 	deflate_decomp_exit(ctx);
 }
 
-static void deflate_free_ctx(struct crypto_scomp *tfm, void *ctx)
+static void deflate_free_ctx(void *ctx)
 {
 	__deflate_exit(ctx);
 	kfree_sensitive(ctx);

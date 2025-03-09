@@ -15,7 +15,7 @@ struct lzorle_ctx {
 	void *lzorle_comp_mem;
 };
 
-static void *lzorle_alloc_ctx(struct crypto_scomp *tfm)
+static void *lzorle_alloc_ctx(void)
 {
 	void *ctx;
 
@@ -30,14 +30,14 @@ static int lzorle_init(struct crypto_tfm *tfm)
 {
 	struct lzorle_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	ctx->lzorle_comp_mem = lzorle_alloc_ctx(NULL);
+	ctx->lzorle_comp_mem = lzorle_alloc_ctx();
 	if (IS_ERR(ctx->lzorle_comp_mem))
 		return -ENOMEM;
 
 	return 0;
 }
 
-static void lzorle_free_ctx(struct crypto_scomp *tfm, void *ctx)
+static void lzorle_free_ctx(void *ctx)
 {
 	kvfree(ctx);
 }
@@ -46,7 +46,7 @@ static void lzorle_exit(struct crypto_tfm *tfm)
 {
 	struct lzorle_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	lzorle_free_ctx(NULL, ctx->lzorle_comp_mem);
+	lzorle_free_ctx(ctx->lzorle_comp_mem);
 }
 
 static int __lzorle_compress(const u8 *src, unsigned int slen,

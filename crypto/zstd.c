@@ -103,7 +103,7 @@ static int __zstd_init(void *ctx)
 	return ret;
 }
 
-static void *zstd_alloc_ctx(struct crypto_scomp *tfm)
+static void *zstd_alloc_ctx(void)
 {
 	int ret;
 	struct zstd_ctx *ctx;
@@ -134,7 +134,7 @@ static void __zstd_exit(void *ctx)
 	zstd_decomp_exit(ctx);
 }
 
-static void zstd_free_ctx(struct crypto_scomp *tfm, void *ctx)
+static void zstd_free_ctx(void *ctx)
 {
 	__zstd_exit(ctx);
 	kfree_sensitive(ctx);
