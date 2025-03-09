@@ -141,9 +141,8 @@ static int mxs_lradc_adc_read_single(struct iio_dev *iio_dev, int chan,
 	 * the same time, yet the code becomes horribly complicated. Therefore I
 	 * applied KISS principle here.
 	 */
-	ret = iio_device_claim_direct_mode(iio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(iio_dev))
+		return -EBUSY;
 
 	reinit_completion(&adc->completion);
 
@@ -192,7 +191,7 @@ err:
 	writel(LRADC_CTRL1_LRADC_IRQ_EN(0),
 	       adc->base + LRADC_CTRL1 + STMP_OFFSET_REG_CLR);
 
-	iio_device_release_direct_mode(iio_dev);
+	iio_device_release_direct(iio_dev);
 
 	return ret;
 }
@@ -275,9 +274,8 @@ static int mxs_lradc_adc_write_raw(struct iio_dev *iio_dev,
 			adc->scale_avail[chan->channel];
 	int ret;
 
-	ret = iio_device_claim_direct_mode(iio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(iio_dev))
+		return -EBUSY;
 
 	switch (m) {
 	case IIO_CHAN_INFO_SCALE:
@@ -300,7 +298,7 @@ static int mxs_lradc_adc_write_raw(struct iio_dev *iio_dev,
 		break;
 	}
 
-	iio_device_release_direct_mode(iio_dev);
+	iio_device_release_direct(iio_dev);
 
 	return ret;
 }
