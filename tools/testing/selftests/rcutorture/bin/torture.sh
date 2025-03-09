@@ -51,6 +51,8 @@ do_scftorture=yes
 do_rcuscale=yes
 do_refscale=yes
 do_kvfree=yes
+do_normal=yes
+explicit_normal=no
 do_kasan=yes
 do_kcsan=no
 do_clocksourcewd=yes
@@ -128,6 +130,8 @@ do
 		do_refscale=yes
 		do_rt=yes
 		do_kvfree=yes
+		do_normal=yes
+		explicit_normal=no
 		do_kasan=yes
 		do_kcsan=yes
 		do_clocksourcewd=yes
@@ -161,10 +165,16 @@ do
 		do_refscale=no
 		do_rt=no
 		do_kvfree=no
+		do_normal=no
+		explicit_normal=no
 		do_kasan=no
 		do_kcsan=no
 		do_clocksourcewd=no
 		do_srcu_lockdep=no
+		;;
+	--do-normal|--do-no-normal|--no-normal)
+		do_normal=`doyesno "$1" --do-normal`
+		explicit_normal=yes
 		;;
 	--do-rcuscale|--do-no-rcuscale|--no-rcuscale)
 		do_rcuscale=`doyesno "$1" --do-rcuscale`
@@ -241,6 +251,17 @@ trap 'rm -rf $T' 0 2
 
 echo " --- " $scriptname $args | tee -a $T/log
 echo " --- Results directory: " $ds | tee -a $T/log
+
+if test "$do_normal" = "no" && test "$do_kasan" = "no" && test "$do_kcsan" = "no"
+then
+	# Match old scripts so that "--do-none --do-rcutorture" does
+	# normal rcutorture testing, but no KASAN or KCSAN testing.
+	if test $explicit_normal = yes
+	then
+		echo " --- Everything disabled, so explicit --do-normal overridden" | tee -a $T/log
+	fi
+	do_normal=yes
+fi
 
 # Calculate rcutorture defaults and apportion time
 if test -z "$configs_rcutorture"
@@ -332,9 +353,12 @@ function torture_set {
 	local kcsan_kmake_tag=
 	local flavor=$1
 	shift
-	curflavor=$flavor
-	torture_one "$@"
-	mv $T/last-resdir $T/last-resdir-nodebug || :
+	if test "$do_normal" = "yes"
+	then
+		curflavor=$flavor
+		torture_one "$@"
+		mv $T/last-resdir $T/last-resdir-nodebug || :
+	fi
 	if test "$do_kasan" = "yes"
 	then
 		curflavor=${flavor}-kasan
