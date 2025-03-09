@@ -150,7 +150,6 @@ impl<T> HrTimer<T> {
     /// # Safety
     ///
     /// `this` must point to a valid `Self`.
-    #[allow(dead_code)]
     pub(crate) unsafe fn raw_cancel(this: *const Self) -> bool {
         // SAFETY: `this` points to an allocation of at least `HrTimer` size.
         let c_timer_ptr = unsafe { HrTimer::raw_get(this) };
@@ -349,3 +348,6 @@ macro_rules! impl_has_hr_timer {
         }
     }
 }
+
+mod arc;
+pub use arc::ArcHrTimerHandle;
