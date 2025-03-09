@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  */
 #ifndef __iwl_mld_hcmd_h__
 #define __iwl_mld_hcmd_h__
@@ -10,8 +10,10 @@ static inline int iwl_mld_send_cmd(struct iwl_mld *mld, struct iwl_host_cmd *cmd
 	/* No commands, including the d3 related commands, should be sent
 	 * after entering d3
 	 */
+#ifdef CONFIG_PM_SLEEP
 	if (WARN_ON(mld->fw_status.in_d3))
 		return -EIO;
+#endif
 
 	if (!(cmd->flags & CMD_ASYNC))
 		lockdep_assert_wiphy(mld->wiphy);
