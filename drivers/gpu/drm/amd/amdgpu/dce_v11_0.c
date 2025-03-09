@@ -3108,7 +3108,7 @@ static int dce_v11_0_resume(struct amdgpu_ip_block *ip_block)
 	return amdgpu_display_resume_helper(adev);
 }
 
-static bool dce_v11_0_is_idle(void *handle)
+static bool dce_v11_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	return true;
 }

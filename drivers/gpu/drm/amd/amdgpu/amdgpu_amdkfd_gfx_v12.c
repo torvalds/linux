@@ -361,6 +361,12 @@ static uint32_t kgd_gfx_v12_clear_address_watch(struct amdgpu_device *adev,
 	return 0;
 }
 
+static uint32_t kgd_gfx_v12_hqd_sdma_get_doorbell(struct amdgpu_device *adev,
+						 int engine, int queue)
+{
+	return 0;
+}
+
 const struct kfd2kgd_calls gfx_v12_kfd2kgd = {
 	.init_interrupts = init_interrupts_v12,
 	.hqd_dump = hqd_dump_v12,
@@ -374,4 +380,5 @@ const struct kfd2kgd_calls gfx_v12_kfd2kgd = {
 	.set_wave_launch_mode = kgd_gfx_v12_set_wave_launch_mode,
 	.set_address_watch = kgd_gfx_v12_set_address_watch,
 	.clear_address_watch = kgd_gfx_v12_clear_address_watch,
+	.hqd_sdma_get_doorbell = kgd_gfx_v12_hqd_sdma_get_doorbell
 };

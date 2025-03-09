@@ -34,6 +34,7 @@ enum link_training_result dp_perform_128b_132b_link_training(
 		struct link_training_settings *lt_settings);
 
 void decide_128b_132b_training_settings(struct dc_link *link,
+		const struct link_resource *link_res,
 		const struct dc_link_settings *link_settings,
 		struct link_training_settings *lt_settings);
 

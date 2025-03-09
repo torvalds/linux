@@ -206,9 +206,9 @@ static void dce_v6_0_page_flip(struct amdgpu_device *adev,
 	/* update the scanout addresses */
 	WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + amdgpu_crtc->crtc_offset,
 	       upper_32_bits(crtc_base));
+	/* writing to the low address triggers the update */
 	WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
 	       (u32)crtc_base);
-
 	/* post the write */
 	RREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset);
 }
@@ -218,11 +218,11 @@ static int dce_v6_0_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 {
 	if ((crtc < 0) || (crtc >= adev->mode_info.num_crtc))
 		return -EINVAL;
+
 	*vbl = RREG32(mmCRTC_V_BLANK_START_END + crtc_offsets[crtc]);
 	*position = RREG32(mmCRTC_STATUS_POSITION + crtc_offsets[crtc]);
 
 	return 0;
-
 }
 
 /**
@@ -242,7 +242,8 @@ static bool dce_v6_0_hpd_sense(struct amdgpu_device *adev,
 	if (hpd >= adev->mode_info.num_hpd)
 		return connected;
 
-	if (RREG32(mmDC_HPD1_INT_STATUS + hpd_offsets[hpd]) & DC_HPD1_INT_STATUS__DC_HPD1_SENSE_MASK)
+	if (RREG32(mmDC_HPD1_INT_STATUS + hpd_offsets[hpd]) &
+	    DC_HPD1_INT_STATUS__DC_HPD1_SENSE_MASK)
 		connected = true;
 
 	return connected;
@@ -370,13 +371,41 @@ static u32 dce_v6_0_hpd_get_gpio_reg(struct amdgpu_device *adev)
 	return mmDC_GPIO_HPD_A;
 }
 
+static bool dce_v6_0_is_display_hung(struct amdgpu_device *adev)
+{
+	u32 crtc_hung = 0;
+	u32 crtc_status[6];
+	u32 i, j, tmp;
+
+	for (i = 0; i < adev->mode_info.num_crtc; i++) {
+		if (RREG32(mmCRTC_CONTROL + crtc_offsets[i]) & CRTC_CONTROL__CRTC_MASTER_EN_MASK) {
+			crtc_status[i] = RREG32(mmCRTC_STATUS_HV_COUNT + crtc_offsets[i]);
+			crtc_hung |= (1 << i);
+		}
+	}
+
+	for (j = 0; j < 10; j++) {
+		for (i = 0; i < adev->mode_info.num_crtc; i++) {
+			if (crtc_hung & (1 << i)) {
+				tmp = RREG32(mmCRTC_STATUS_HV_COUNT + crtc_offsets[i]);
+				if (tmp != crtc_status[i])
+					crtc_hung &= ~(1 << i);
+			}
+		}
+		if (crtc_hung == 0)
+			return false;
+		udelay(100);
+	}
+
+	return true;
+}
+
 static void dce_v6_0_set_vga_render_state(struct amdgpu_device *adev,
 					  bool render)
 {
 	if (!render)
 		WREG32(mmVGA_RENDER_CONTROL,
 			RREG32(mmVGA_RENDER_CONTROL) & VGA_VSTATUS_CNTL);
-
 }
 
 static int dce_v6_0_get_num_crtc(struct amdgpu_device *adev)
@@ -419,7 +448,6 @@ void dce_v6_0_disable_dce(struct amdgpu_device *adev)
 
 static void dce_v6_0_program_fmt(struct drm_encoder *encoder)
 {
-
 	struct drm_device *dev = encoder->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
@@ -895,8 +923,8 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 		wm_high.dram_channels = dram_channels;
 		wm_high.num_heads = num_heads;
 
-		if (adev->pm.dpm_enabled) {
 		/* watermark for low clocks */
+		if (adev->pm.dpm_enabled) {
 			wm_low.yclk =
 				amdgpu_dpm_get_mclk(adev, true) * 10;
 			wm_low.sclk =
@@ -1006,6 +1034,20 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 }
 
 /* watermark setup */
+/**
+ * dce_v6_0_line_buffer_adjust - Set up the line buffer
+ *
+ * @adev: amdgpu_device pointer
+ * @amdgpu_crtc: the selected display controller
+ * @mode: the current display mode on the selected display
+ * controller
+ * @other_mode: the display mode of another display controller
+ *              that may be sharing the line buffer
+ *
+ * Setup up the line buffer allocation for
+ * the selected display controller (CIK).
+ * Returns the line buffer size in pixels.
+ */
 static u32 dce_v6_0_line_buffer_adjust(struct amdgpu_device *adev,
 				   struct amdgpu_crtc *amdgpu_crtc,
 				   struct drm_display_mode *mode,
@@ -1386,6 +1428,8 @@ static int dce_v6_0_audio_init(struct amdgpu_device *adev)
 		adev->mode_info.audio.pin[i].connected = false;
 		adev->mode_info.audio.pin[i].offset = pin_offsets[i];
 		adev->mode_info.audio.pin[i].id = i;
+		/* disable audio.  it will be set up later */
+		/* XXX remove once we switch to ip funcs */
 		dce_v6_0_audio_enable(adev, &adev->mode_info.audio.pin[i], false);
 	}
 
@@ -2865,14 +2909,35 @@ static int dce_v6_0_resume(struct amdgpu_ip_block *ip_block)
 	return amdgpu_display_resume_helper(adev);
 }
 
-static bool dce_v6_0_is_idle(void *handle)
+static bool dce_v6_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	return true;
 }
 
 static int dce_v6_0_soft_reset(struct amdgpu_ip_block *ip_block)
 {
-	DRM_INFO("xxxx: dce_v6_0_soft_reset --- no impl!!\n");
+	u32 srbm_soft_reset = 0, tmp;
+	struct amdgpu_device *adev = ip_block->adev;
+
+	if (dce_v6_0_is_display_hung(adev))
+		srbm_soft_reset |= SRBM_SOFT_RESET__SOFT_RESET_DC_MASK;
+
+	if (srbm_soft_reset) {
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+		tmp |= srbm_soft_reset;
+		dev_info(adev->dev, "SRBM_SOFT_RESET=0x%08X\n", tmp);
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+
+		udelay(50);
+
+		tmp &= ~srbm_soft_reset;
+		WREG32(mmSRBM_SOFT_RESET, tmp);
+		tmp = RREG32(mmSRBM_SOFT_RESET);
+
+		/* Wait a little for things to settle down */
+		udelay(50);
+	}
 	return 0;
 }
 
@@ -3148,7 +3213,6 @@ static int dce_v6_0_hpd_irq(struct amdgpu_device *adev,
 	}
 
 	return 0;
-
 }
 
 static int dce_v6_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
@@ -3281,8 +3345,7 @@ static void dce_v6_0_ext_commit(struct drm_encoder *encoder)
 
 }
 
-static void
-dce_v6_0_ext_mode_set(struct drm_encoder *encoder,
+static void dce_v6_0_ext_mode_set(struct drm_encoder *encoder,
 		      struct drm_display_mode *mode,
 		      struct drm_display_mode *adjusted_mode)
 {
@@ -3294,8 +3357,7 @@ static void dce_v6_0_ext_disable(struct drm_encoder *encoder)
 
 }
 
-static void
-dce_v6_0_ext_dpms(struct drm_encoder *encoder, int mode)
+static void dce_v6_0_ext_dpms(struct drm_encoder *encoder, int mode)
 {
 
 }
@@ -3366,7 +3428,6 @@ static void dce_v6_0_encoder_add(struct amdgpu_device *adev,
 			amdgpu_encoder->devices |= supported_device;
 			return;
 		}
-
 	}
 
 	/* add a new one */

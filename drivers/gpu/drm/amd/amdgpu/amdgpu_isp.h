@@ -50,6 +50,7 @@ struct amdgpu_isp {
 	struct mfd_cell *isp_cell;
 	struct resource *isp_res;
 	struct resource *isp_i2c_res;
+	struct resource *isp_gpio_res;
 	struct isp_platform_data *isp_pdata;
 	unsigned int harvest_config;
 	const struct firmware	*fw;

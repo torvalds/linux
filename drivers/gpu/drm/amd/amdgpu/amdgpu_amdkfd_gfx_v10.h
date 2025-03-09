@@ -65,3 +65,5 @@ uint64_t kgd_gfx_v10_hqd_reset(struct amdgpu_device *adev,
 			      uint32_t queue_id,
 			      uint32_t inst,
 			      unsigned int utimeout);
+uint32_t kgd_gfx_v10_hqd_sdma_get_doorbell(struct amdgpu_device *adev,
+					   int engine, int queue);

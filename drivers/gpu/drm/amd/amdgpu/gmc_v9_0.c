@@ -1607,9 +1607,8 @@ static void gmc_v9_0_init_nps_details(struct amdgpu_device *adev)
 
 	/* Mode detected by hardware and supported modes available */
 	if ((mode != UNKNOWN_MEMORY_PARTITION_MODE) && supp_modes) {
-		for (i = AMDGPU_NPS1_PARTITION_MODE;
-		     supp_modes && i <= AMDGPU_NPS8_PARTITION_MODE; i++) {
-			if (supp_modes & BIT(i - 1))
+		while ((i = ffs(supp_modes))) {
+			if (AMDGPU_ALL_NPS_MASK & BIT(i))
 				adev->gmc.supported_nps_modes |= BIT(i);
 			supp_modes &= supp_modes - 1;
 		}
@@ -2543,7 +2542,7 @@ static int gmc_v9_0_resume(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
-static bool gmc_v9_0_is_idle(void *handle)
+static bool gmc_v9_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	/* MC is always ready in GMC v9.*/
 	return true;

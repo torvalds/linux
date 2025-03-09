@@ -48,8 +48,15 @@ void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 
 void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
+	struct link_encoder *link_enc = pipe_ctx->link_res.dio_link_enc;
 	struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
+
+	if (!pipe_ctx->stream->ctx->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
+	if (!link_enc) {
+		ASSERT(link_enc);
+		return;
+	}
 
 	link_enc->funcs->connect_dig_be_to_fe(link_enc,
 			pipe_ctx->stream_res.stream_enc->id, true);
@@ -71,8 +78,15 @@ void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 
 void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
+	struct link_encoder *link_enc = pipe_ctx->link_res.dio_link_enc;
 	struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
+
+	if (!pipe_ctx->stream->ctx->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
+	if (!link_enc) {
+		ASSERT(link_enc);
+		return;
+	}
 
 	if (!stream_enc)
 		return;
@@ -142,7 +156,14 @@ void enable_dio_dp_link_output(struct dc_link *link,
 		enum clock_source_id clock_source,
 		const struct dc_link_settings *link_settings)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
+
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
+	if (!link_enc) {
+		ASSERT(link_enc);
+		return;
+	}
 
 	if (dc_is_dp_sst_signal(signal))
 		link_enc->funcs->enable_dp_output(
@@ -162,11 +183,16 @@ void disable_dio_link_output(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
 
-	if (link_enc != NULL)
-		link_enc->funcs->disable_output(link_enc, signal);
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
+	if (!link_enc) {
+		ASSERT(link_enc);
+		return;
+	}
 
+	link_enc->funcs->disable_output(link_enc, signal);
 	link->dc->link_srv->dp_trace_source_sequence(link,
 			DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 }
@@ -175,7 +201,14 @@ void set_dio_dp_link_test_pattern(struct dc_link *link,
 		const struct link_resource *link_res,
 		struct encoder_set_dp_phy_pattern_param *tp_params)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
+
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
+	if (!link_enc) {
+		ASSERT(link_enc);
+		return;
+	}
 
 	link_enc->funcs->dp_set_phy_pattern(link_enc, tp_params);
 	link->dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
@@ -186,7 +219,14 @@ void set_dio_dp_lane_settings(struct dc_link *link,
 		const struct dc_link_settings *link_settings,
 		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
+
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
+	if (!link_enc) {
+		ASSERT(link_enc);
+		return;
+	}
 
 	link_enc->funcs->dp_set_lane_settings(link_enc, link_settings, lane_settings);
 }
@@ -195,9 +235,15 @@ void update_dio_stream_allocation_table(struct dc_link *link,
 		const struct link_resource *link_res,
 		const struct link_mst_stream_allocation_table *table)
 {
-	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+	struct link_encoder *link_enc = link_res->dio_link_enc;
 
-	ASSERT(link_enc);
+	if (!link->dc->config.unify_link_enc_assignment)
+		link_enc = link_enc_cfg_get_link_enc(link);
+	if (!link_enc) {
+		ASSERT(link_enc);
+		return;
+	}
+
 	link_enc->funcs->update_mst_stream_allocation_table(link_enc, table);
 }
 
@@ -282,7 +328,10 @@ static const struct link_hwss dio_link_hwss = {
 bool can_use_dio_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res)
 {
-	return link->link_enc != NULL;
+	if (!link->dc->config.unify_link_enc_assignment)
+		return link->link_enc != NULL;
+	else
+		return link_res->dio_link_enc != NULL;
 }
 
 /**

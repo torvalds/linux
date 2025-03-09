@@ -204,6 +204,7 @@ enum link_training_result dp_perform_128b_132b_link_training(
 		struct link_training_settings legacy_settings;
 
 		decide_8b_10b_training_settings(link,
+				link_res,
 				&lt_settings->link_settings,
 				&legacy_settings);
 		return dp_perform_8b_10b_link_training(link, link_res, &legacy_settings);
@@ -227,6 +228,7 @@ enum link_training_result dp_perform_128b_132b_link_training(
 }
 
 void decide_128b_132b_training_settings(struct dc_link *link,
+		const struct link_resource *link_res,
 		const struct dc_link_settings *link_settings,
 		struct link_training_settings *lt_settings)
 {
@@ -238,7 +240,7 @@ void decide_128b_132b_training_settings(struct dc_link *link,
 			LINK_SPREAD_05_DOWNSPREAD_30KHZ;
 
 	lt_settings->pattern_for_cr = decide_cr_training_pattern(link_settings);
-	lt_settings->pattern_for_eq = decide_eq_training_pattern(link, link_settings);
+	lt_settings->pattern_for_eq = decide_eq_training_pattern(link, link_res, link_settings);
 	lt_settings->eq_pattern_time = 2500;
 	lt_settings->eq_wait_time_limit = 400000;
 	lt_settings->eq_loop_count_limit = 20;

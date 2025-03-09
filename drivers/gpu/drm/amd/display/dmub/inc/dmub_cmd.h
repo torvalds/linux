@@ -161,6 +161,13 @@
 #endif
 
 /**
+ * OS/FW agnostic memcmp
+ */
+#ifndef dmub_memcmp
+#define dmub_memcmp(lhs, rhs, bytes) memcmp((lhs), (rhs), (bytes))
+#endif
+
+/**
  * OS/FW agnostic udelay
  */
 #ifndef dmub_udelay
@@ -1460,6 +1467,11 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__PSP = 88,
 
+	/**
+	 * Command type used for all Fused IO commands.
+	 */
+	DMUB_CMD__FUSED_IO = 89,
+
 	DMUB_CMD__VBIOS = 128,
 };
 
@@ -1491,6 +1503,10 @@ enum dmub_out_cmd_type {
 	 * Command type used for HPD redetect notification
 	 */
 	DMUB_OUT_CMD__HPD_SENSE_NOTIFY = 6,
+	/**
+	 * Command type used for Fused IO notification
+	 */
+	DMUB_OUT_CMD__FUSED_IO = 7,
 };
 
 /* DMUB_CMD__DPIA command sub-types. */
@@ -5325,6 +5341,63 @@ struct dmub_rb_cmd_get_usbc_cable_id {
 	} data;
 };
 
+enum dmub_cmd_fused_io_sub_type {
+	DMUB_CMD__FUSED_IO_EXECUTE = 0,
+	DMUB_CMD__FUSED_IO_ABORT = 1,
+};
+
+enum dmub_cmd_fused_request_type {
+	FUSED_REQUEST_READ,
+	FUSED_REQUEST_WRITE,
+	FUSED_REQUEST_POLL,
+};
+
+enum dmub_cmd_fused_request_status {
+	FUSED_REQUEST_STATUS_SUCCESS,
+	FUSED_REQUEST_STATUS_BEGIN,
+	FUSED_REQUEST_STATUS_SUBMIT,
+	FUSED_REQUEST_STATUS_REPLY,
+	FUSED_REQUEST_STATUS_POLL,
+	FUSED_REQUEST_STATUS_ABORTED,
+	FUSED_REQUEST_STATUS_FAILED = 0x80,
+	FUSED_REQUEST_STATUS_INVALID,
+	FUSED_REQUEST_STATUS_BUSY,
+	FUSED_REQUEST_STATUS_TIMEOUT,
+	FUSED_REQUEST_STATUS_POLL_TIMEOUT,
+};
+
+struct dmub_cmd_fused_request {
+	uint8_t status;
+	uint8_t type : 2;
+	uint8_t _reserved0 : 3;
+	uint8_t poll_mask_msb : 3;  // Number of MSB to zero out from last byte before comparing
+	uint8_t identifier;
+	uint8_t _reserved1;
+	uint32_t timeout_us;
+	union dmub_cmd_fused_request_location {
+		struct dmub_cmd_fused_request_location_i2c {
+			uint8_t is_aux : 1;  // False
+			uint8_t ddc_line : 3;
+			uint8_t _reserved0 : 4;
+			uint8_t address;
+			uint8_t offset;
+			uint8_t length;
+		} i2c;
+		struct dmub_cmd_fused_request_location_aux {
+			uint32_t is_aux : 1;  // True
+			uint32_t ddc_line : 3;
+			uint32_t address : 20;
+			uint32_t length : 8;  // Automatically split into 16B transactions
+		} aux;
+	} u;
+	uint8_t buffer[0x30];  // Read: out, write: in, poll: expected
+};
+
+struct dmub_rb_cmd_fused_io {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_fused_request request;
+};
+
 /**
  * Command type of a DMUB_CMD__SECURE_DISPLAY command
  */
@@ -5738,6 +5811,8 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_fams2_drr_update fams2_drr_update;
 
 	struct dmub_rb_cmd_fams2_flip fams2_flip;
+
+	struct dmub_rb_cmd_fused_io fused_io;
 };
 
 /**
@@ -5768,6 +5843,7 @@ union dmub_rb_out_cmd {
 	 * HPD sense notification command.
 	 */
 	struct dmub_rb_cmd_hpd_sense_notify hpd_sense_notify;
+	struct dmub_rb_cmd_fused_io fused_io;
 };
 #pragma pack(pop)
 

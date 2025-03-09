@@ -93,7 +93,8 @@ static uint32_t get_eq_training_aux_rd_interval(
 }
 
 void decide_8b_10b_training_settings(
-	 struct dc_link *link,
+	struct dc_link *link,
+	const struct link_resource *link_res,
 	const struct dc_link_settings *link_setting,
 	struct link_training_settings *lt_settings)
 {
@@ -115,7 +116,7 @@ void decide_8b_10b_training_settings(
 			LINK_SPREAD_DISABLED : LINK_SPREAD_05_DOWNSPREAD_30KHZ;
 	lt_settings->eq_pattern_time = get_eq_training_aux_rd_interval(link, link_setting);
 	lt_settings->pattern_for_cr = decide_cr_training_pattern(link_setting);
-	lt_settings->pattern_for_eq = decide_eq_training_pattern(link, link_setting);
+	lt_settings->pattern_for_eq = decide_eq_training_pattern(link, link_res, link_setting);
 	lt_settings->enhanced_framing = 1;
 	lt_settings->should_set_fec_ready = true;
 	lt_settings->disallow_per_lane_settings = true;

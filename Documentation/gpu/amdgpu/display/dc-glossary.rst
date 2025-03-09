@@ -167,9 +167,6 @@ consider asking in the amdgfx and update this page.
     MALL
       Memory Access at Last Level
 
-    MC
-      Memory Controller
-
     MPC/MPCC
       Multiple pipes and plane combine
 
@@ -232,6 +229,3 @@ consider asking in the amdgfx and update this page.
 
     VRR
       Variable Refresh Rate
-
-    UVD
-      Unified Video Decoder

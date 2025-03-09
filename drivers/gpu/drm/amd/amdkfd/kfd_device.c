@@ -590,9 +590,13 @@ static int kfd_gws_init(struct kfd_node *node)
 			&& kfd->mec2_fw_version >= 0x6b) ||
 		(KFD_GC_VERSION(node) >= IP_VERSION(11, 0, 0)
 			&& KFD_GC_VERSION(node) < IP_VERSION(12, 0, 0)
-			&& mes_rev >= 68))))
+			&& mes_rev >= 68) ||
+		(KFD_GC_VERSION(node) >= IP_VERSION(12, 0, 0))))) {
+		if (KFD_GC_VERSION(node) >= IP_VERSION(12, 0, 0))
+			node->adev->gds.gws_size = 64;
 		ret = amdgpu_amdkfd_alloc_gws(node->adev,
 				node->adev->gds.gws_size, &node->gws);
+	}
 
 	return ret;
 }
@@ -1597,6 +1601,11 @@ int kfd_debugfs_hang_hws(struct kfd_node *dev)
 {
 	if (dev->dqm->sched_policy != KFD_SCHED_POLICY_HWS) {
 		pr_err("HWS is not enabled");
+		return -EINVAL;
+	}
+
+	if (dev->kfd->shared_resources.enable_mes) {
+		dev_err(dev->adev->dev, "Inducing MES hang is not supported\n");
 		return -EINVAL;
 	}
 
