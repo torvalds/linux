@@ -419,18 +419,17 @@ static int as73211_read_raw(struct iio_dev *indio_dev, struct iio_chan_spec cons
 	case IIO_CHAN_INFO_RAW: {
 		int ret;
 
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret < 0)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = as73211_req_data(data);
 		if (ret < 0) {
-			iio_device_release_direct_mode(indio_dev);
+			iio_device_release_direct(indio_dev);
 			return ret;
 		}
 
 		ret = i2c_smbus_read_word_data(data->client, chan->address);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 
@@ -614,12 +613,11 @@ static int as73211_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec con
 
 	guard(mutex)(&data->mutex);
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret < 0)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	ret = _as73211_write_raw(indio_dev, chan, val, val2, mask);
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
