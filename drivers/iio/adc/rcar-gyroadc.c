@@ -199,13 +199,12 @@ static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
 		if (!consumer)
 			return -EINVAL;
 
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = rcar_gyroadc_set_power(priv, true);
 		if (ret < 0) {
-			iio_device_release_direct_mode(indio_dev);
+			iio_device_release_direct(indio_dev);
 			return ret;
 		}
 
@@ -213,7 +212,7 @@ static int rcar_gyroadc_read_raw(struct iio_dev *indio_dev,
 		*val &= BIT(priv->sample_width) - 1;
 
 		ret = rcar_gyroadc_set_power(priv, false);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 
