@@ -840,7 +840,7 @@ int iwl_mld_add_chanctx(struct ieee80211_hw *hw,
 
 	phy->mld = mld;
 	phy->fw_id = fw_id;
-	phy->chandef = *iwl_mld_get_chandef_from_chanctx(ctx);
+	phy->chandef = *iwl_mld_get_chandef_from_chanctx(mld, ctx);
 
 	ret = iwl_mld_phy_fw_action(mld, ctx, FW_CTXT_ACTION_ADD);
 	if (ret) {
@@ -872,7 +872,7 @@ void iwl_mld_change_chanctx(struct ieee80211_hw *hw,
 	struct iwl_mld *mld = IWL_MAC80211_GET_MLD(hw);
 	struct iwl_mld_phy *phy = iwl_mld_phy_from_mac80211(ctx);
 	struct cfg80211_chan_def *chandef =
-		iwl_mld_get_chandef_from_chanctx(ctx);
+		iwl_mld_get_chandef_from_chanctx(mld, ctx);
 
 	/* We don't care about these */
 	if (!(changed & ~(IEEE80211_CHANCTX_CHANGE_RX_CHAINS |

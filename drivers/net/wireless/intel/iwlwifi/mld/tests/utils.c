@@ -169,7 +169,7 @@ iwlmld_kunit_add_chanctx_from_def(struct cfg80211_chan_def *def)
 
 	phy->fw_id = fw_id;
 	phy->mld = mld;
-	phy->chandef = *iwl_mld_get_chandef_from_chanctx(ctx);
+	phy->chandef = *def;
 
 	return ctx;
 }

@@ -67,7 +67,7 @@ static void iwl_mld_fill_rates(struct iwl_mld *mld,
 			       __le32 *cck_rates, __le32 *ofdm_rates)
 {
 	struct cfg80211_chan_def *chandef =
-		iwl_mld_get_chandef_from_chanctx(chan_ctx);
+		iwl_mld_get_chandef_from_chanctx(mld, chan_ctx);
 	struct ieee80211_supported_band *sband =
 		mld->hw->wiphy->bands[chandef->chan->band];
 	unsigned long basic = link->basic_rates;

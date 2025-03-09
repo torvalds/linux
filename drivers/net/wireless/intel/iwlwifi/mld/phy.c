@@ -22,16 +22,55 @@ int iwl_mld_allocate_fw_phy_id(struct iwl_mld *mld)
 }
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_allocate_fw_phy_id);
 
-struct cfg80211_chan_def *
-iwl_mld_get_chandef_from_chanctx(struct ieee80211_chanctx_conf *ctx)
+struct iwl_mld_chanctx_usage_data {
+	struct iwl_mld *mld;
+	struct ieee80211_chanctx_conf *ctx;
+	bool use_def;
+};
+
+static bool iwl_mld_chanctx_fils_enabled(struct ieee80211_vif *vif,
+					 struct ieee80211_chanctx_conf *ctx)
 {
-	bool use_def = cfg80211_channel_is_psc(ctx->def.chan) ||
+	if (vif->type != NL80211_IFTYPE_AP)
+		return false;
+
+	return cfg80211_channel_is_psc(ctx->def.chan) ||
 		(ctx->def.chan->band == NL80211_BAND_6GHZ &&
 		 ctx->def.width >= NL80211_CHAN_WIDTH_80);
-
-	return use_def ? &ctx->def : &ctx->min_def;
 }
-EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_get_chandef_from_chanctx);
+
+static void iwl_mld_chanctx_usage_iter(void *_data, u8 *mac,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_mld_chanctx_usage_data *data = _data;
+	struct ieee80211_bss_conf *link_conf;
+	int link_id;
+
+	for_each_vif_active_link(vif, link_conf, link_id) {
+		if (rcu_access_pointer(link_conf->chanctx_conf) != data->ctx)
+			continue;
+
+		if (iwl_mld_chanctx_fils_enabled(vif, data->ctx))
+			data->use_def = true;
+	}
+}
+
+struct cfg80211_chan_def *
+iwl_mld_get_chandef_from_chanctx(struct iwl_mld *mld,
+				 struct ieee80211_chanctx_conf *ctx)
+{
+	struct iwl_mld_chanctx_usage_data data = {
+		.mld = mld,
+		.ctx = ctx,
+	};
+
+	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+						IEEE80211_IFACE_ITER_NORMAL,
+						iwl_mld_chanctx_usage_iter,
+						&data);
+
+	return data.use_def ? &ctx->def : &ctx->min_def;
+}
 
 static u8
 iwl_mld_nl80211_width_to_fw(enum nl80211_chan_width width)
