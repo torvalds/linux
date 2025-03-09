@@ -1,32 +1,34 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.rst.
+# Kernel Configuration Main Menu
+# For syntax details, see Documentation/kbuild/kconfig-language.rst.
 #
+
 mainmenu "Linux/$(ARCH) $(KERNELVERSION) Kernel Configuration"
 
+# Common includes for setup and initialization
 source "scripts/Kconfig.include"
-
 source "init/Kconfig"
 
+# Core kernel modules and features
 source "kernel/Kconfig.freezer"
+source "mm/Kconfig"            # Memory Management
 
-source "fs/Kconfig.binfmt"
+# Filesystems configurations
+source "fs/Kconfig.binfmt"      # Binary Format Support
+source "fs/Kconfig"             # General Filesystem Options
 
-source "mm/Kconfig"
-
+# Network configurations
 source "net/Kconfig"
 
-source "drivers/Kconfig"
+# Drivers, Security, and Cryptography options
+source "drivers/Kconfig"        # Device Drivers
+source "security/Kconfig"       # Security Features
+source "crypto/Kconfig"         # Cryptography Support
 
-source "fs/Kconfig"
+# Libraries and Debugging tools
+source "lib/Kconfig"            # Core Libraries
+source "lib/Kconfig.debug"      # Debugging Options
 
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-
-source "lib/Kconfig.debug"
-
+# Documentation-specific options
 source "Documentation/Kconfig"
