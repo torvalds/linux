@@ -11,6 +11,7 @@
 #include <linux/property.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -630,36 +631,29 @@ static const struct attribute_group vf610_attribute_group = {
 	.attrs = vf610_attributes,
 };
 
-static int vf610_read_sample(struct iio_dev *indio_dev,
+static int vf610_read_sample(struct vf610_adc *info,
 			     struct iio_chan_spec const *chan, int *val)
 {
-	struct vf610_adc *info = iio_priv(indio_dev);
 	unsigned int hc_cfg;
 	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-
-	mutex_lock(&info->lock);
+	guard(mutex)(&info->lock);
 	reinit_completion(&info->completion);
 	hc_cfg = VF610_ADC_ADCHC(chan->channel);
 	hc_cfg |= VF610_ADC_AIEN;
 	writel(hc_cfg, info->regs + VF610_REG_ADC_HC0);
 	ret = wait_for_completion_interruptible_timeout(&info->completion,
 							VF610_ADC_TIMEOUT);
-	if (ret == 0) {
-		ret = -ETIMEDOUT;
-		goto out_unlock;
-	}
+	if (ret == 0)
+		return -ETIMEDOUT;
 
 	if (ret < 0)
-		goto out_unlock;
+		return ret;
 
 	switch (chan->type) {
 	case IIO_VOLTAGE:
 		*val = info->value;
-		break;
+		return 0;
 	case IIO_TEMP:
 		/*
 		 * Calculate in degree Celsius times 1000
@@ -669,17 +663,10 @@ static int vf610_read_sample(struct iio_dev *indio_dev,
 		*val = 25000 - ((int)info->value - VF610_VTEMP25_3V3) *
 				1000000 / VF610_TEMP_SLOPE_COEFF;
 
-		break;
+		return 0;
 	default:
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-
-out_unlock:
-	mutex_unlock(&info->lock);
-	iio_device_release_direct_mode(indio_dev);
-
-	return ret;
 }
 
 static int vf610_read_raw(struct iio_dev *indio_dev,
@@ -694,7 +681,11 @@ static int vf610_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_PROCESSED:
-		ret = vf610_read_sample(indio_dev, chan, val);
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+		ret = vf610_read_sample(info, chan, val);
+		iio_device_release_direct_mode(indio_dev);
 		if (ret < 0)
 			return ret;
 
