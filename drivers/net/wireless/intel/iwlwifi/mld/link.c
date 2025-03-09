@@ -760,8 +760,8 @@ void iwl_mld_check_omi_bw_reduction(struct iwl_mld *mld)
 		return;
 	}
 
-	if (time_is_before_jiffies(mld_link->rx_omi.exit_ts +
-				   msecs_to_jiffies(IWL_MLD_OMI_EXIT_PROTECTION)))
+	if (time_is_after_jiffies(mld_link->rx_omi.exit_ts +
+				  msecs_to_jiffies(IWL_MLD_OMI_EXIT_PROTECTION)))
 		return;
 
 	/* reduce bandwidth to 80 MHz to save power */
