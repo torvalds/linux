@@ -606,6 +606,25 @@ iwl_mld_remove_link_sta(struct iwl_mld *mld,
 		kfree_rcu(mld_link_sta, rcu_head);
 }
 
+static void iwl_mld_set_max_amsdu_len(struct iwl_mld *mld,
+				      struct ieee80211_link_sta *link_sta)
+{
+	const struct ieee80211_sta_ht_cap *ht_cap = &link_sta->ht_cap;
+
+	/* For EHT, HE and VHT we can use the value as it was calculated by
+	 * mac80211. For HT, mac80211 doesn't enforce to 4095, so force it
+	 * here
+	 */
+	if (link_sta->eht_cap.has_eht || link_sta->he_cap.has_he ||
+	    link_sta->vht_cap.vht_supported ||
+	    !ht_cap->ht_supported ||
+	    !(ht_cap->cap & IEEE80211_HT_CAP_MAX_AMSDU))
+		return;
+
+	link_sta->agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_BA;
+	ieee80211_sta_recalc_aggregates(link_sta->sta);
+}
+
 int iwl_mld_update_all_link_stations(struct iwl_mld *mld,
 				     struct ieee80211_sta *sta)
 {
@@ -618,6 +637,9 @@ int iwl_mld_update_all_link_stations(struct iwl_mld *mld,
 
 		if (ret)
 			return ret;
+
+		if (mld_sta->sta_state == IEEE80211_STA_ASSOC)
+			iwl_mld_set_max_amsdu_len(mld, link_sta);
 	}
 	return 0;
 }
@@ -1222,6 +1244,8 @@ int iwl_mld_update_link_stas(struct iwl_mld *mld,
 
 		link = link_conf_dereference_protected(mld_sta->vif,
 						       link_sta->link_id);
+
+		iwl_mld_set_max_amsdu_len(mld, link_sta);
 		iwl_mld_config_tlc_link(mld, vif, link, link_sta);
 
 		sta_mask_added |= BIT(mld_link_sta->fw_id);
