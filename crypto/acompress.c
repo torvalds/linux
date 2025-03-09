@@ -123,36 +123,6 @@ struct crypto_acomp *crypto_alloc_acomp_node(const char *alg_name, u32 type,
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_acomp_node);
 
-struct acomp_req *acomp_request_alloc(struct crypto_acomp *acomp)
-{
-	struct crypto_tfm *tfm = crypto_acomp_tfm(acomp);
-	struct acomp_req *req;
-
-	req = __acomp_request_alloc(acomp);
-	if (req && (tfm->__crt_alg->cra_type != &crypto_acomp_type))
-		return crypto_acomp_scomp_alloc_ctx(req);
-
-	return req;
-}
-EXPORT_SYMBOL_GPL(acomp_request_alloc);
-
-void acomp_request_free(struct acomp_req *req)
-{
-	struct crypto_acomp *acomp = crypto_acomp_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_acomp_tfm(acomp);
-
-	if (tfm->__crt_alg->cra_type != &crypto_acomp_type)
-		crypto_acomp_scomp_free_ctx(req);
-
-	if (req->base.flags & CRYPTO_ACOMP_ALLOC_OUTPUT) {
-		acomp->dst_free(req->dst);
-		req->dst = NULL;
-	}
-
-	__acomp_request_free(req);
-}
-EXPORT_SYMBOL_GPL(acomp_request_free);
-
 void comp_prepare_alg(struct comp_alg_common *alg)
 {
 	struct crypto_alg *base = &alg->base;

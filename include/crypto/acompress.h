@@ -10,8 +10,12 @@
 #define _CRYPTO_ACOMP_H
 
 #include <linux/atomic.h>
+#include <linux/compiler_types.h>
 #include <linux/container_of.h>
 #include <linux/crypto.h>
+#include <linux/slab.h>
+#include <linux/spinlock_types.h>
+#include <linux/types.h>
 
 #define CRYPTO_ACOMP_ALLOC_OUTPUT	0x00000001
 #define CRYPTO_ACOMP_DST_MAX		131072
@@ -54,8 +58,14 @@ struct crypto_acomp {
 	struct crypto_tfm base;
 };
 
+struct crypto_acomp_stream {
+	spinlock_t lock;
+	void *ctx;
+};
+
 #define COMP_ALG_COMMON {			\
 	struct crypto_alg base;			\
+	struct crypto_acomp_stream __percpu *stream;	\
 }
 struct comp_alg_common COMP_ALG_COMMON;
 
@@ -173,7 +183,16 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
  *
  * Return:	allocated handle in case of success or NULL in case of an error
  */
-struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
+static inline struct acomp_req *acomp_request_alloc_noprof(struct crypto_acomp *tfm)
+{
+	struct acomp_req *req;
+
+	req = kzalloc_noprof(sizeof(*req) + crypto_acomp_reqsize(tfm), GFP_KERNEL);
+	if (likely(req))
+		acomp_request_set_tfm(req, tfm);
+	return req;
+}
+#define acomp_request_alloc(...)	alloc_hooks(acomp_request_alloc_noprof(__VA_ARGS__))
 
 /**
  * acomp_request_free() -- zeroize and free asynchronous (de)compression
@@ -182,7 +201,10 @@ struct acomp_req *acomp_request_alloc(struct crypto_acomp *tfm);
  *
  * @req:	request to free
  */
-void acomp_request_free(struct acomp_req *req);
+static inline void acomp_request_free(struct acomp_req *req)
+{
+	kfree_sensitive(req);
+}
 
 /**
  * acomp_request_set_callback() -- Sets an asynchronous callback

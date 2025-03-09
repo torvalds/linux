@@ -98,13 +98,62 @@ error:
 	return -ENOMEM;
 }
 
+static void scomp_free_streams(struct scomp_alg *alg)
+{
+	struct crypto_acomp_stream __percpu *stream = alg->stream;
+	int i;
+
+	for_each_possible_cpu(i) {
+		struct crypto_acomp_stream *ps = per_cpu_ptr(stream, i);
+
+		if (!ps->ctx)
+			break;
+
+		alg->free_ctx(ps);
+	}
+
+	free_percpu(stream);
+}
+
+static int scomp_alloc_streams(struct scomp_alg *alg)
+{
+	struct crypto_acomp_stream __percpu *stream;
+	int i;
+
+	stream = alloc_percpu(struct crypto_acomp_stream);
+	if (!stream)
+		return -ENOMEM;
+
+	for_each_possible_cpu(i) {
+		struct crypto_acomp_stream *ps = per_cpu_ptr(stream, i);
+
+		ps->ctx = alg->alloc_ctx();
+		if (IS_ERR(ps->ctx)) {
+			scomp_free_streams(alg);
+			return PTR_ERR(ps->ctx);
+		}
+
+		spin_lock_init(&ps->lock);
+	}
+
+	alg->stream = stream;
+	return 0;
+}
+
 static int crypto_scomp_init_tfm(struct crypto_tfm *tfm)
 {
+	struct scomp_alg *alg = crypto_scomp_alg(__crypto_scomp_tfm(tfm));
 	int ret = 0;
 
 	mutex_lock(&scomp_lock);
+	if (!alg->stream) {
+		ret = scomp_alloc_streams(alg);
+		if (ret)
+			goto unlock;
+	}
 	if (!scomp_scratch_users++)
 		ret = crypto_scomp_alloc_scratches();
+unlock:
 	mutex_unlock(&scomp_lock);
 
 	return ret;
@@ -115,7 +164,7 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
 	void **tfm_ctx = acomp_tfm_ctx(tfm);
 	struct crypto_scomp *scomp = *tfm_ctx;
-	void **ctx = acomp_request_ctx(req);
+	struct crypto_acomp_stream *stream;
 	struct scomp_scratch *scratch;
 	void *src, *dst;
 	unsigned int dlen;
@@ -148,12 +197,15 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	else
 		dst = scratch->dst;
 
+	stream = raw_cpu_ptr(crypto_scomp_alg(scomp)->stream);
+	spin_lock(&stream->lock);
 	if (dir)
 		ret = crypto_scomp_compress(scomp, src, req->slen,
-					    dst, &req->dlen, *ctx);
+					    dst, &req->dlen, stream->ctx);
 	else
 		ret = crypto_scomp_decompress(scomp, src, req->slen,
-					      dst, &req->dlen, *ctx);
+					      dst, &req->dlen, stream->ctx);
+	spin_unlock(&stream->lock);
 	if (!ret) {
 		if (!req->dst) {
 			req->dst = sgl_alloc(req->dlen, GFP_ATOMIC, NULL);
@@ -226,45 +278,19 @@ int crypto_init_scomp_ops_async(struct crypto_tfm *tfm)
 	crt->compress = scomp_acomp_compress;
 	crt->decompress = scomp_acomp_decompress;
 	crt->dst_free = sgl_free;
-	crt->reqsize = sizeof(void *);
 
 	return 0;
 }
 
-struct acomp_req *crypto_acomp_scomp_alloc_ctx(struct acomp_req *req)
+static void crypto_scomp_destroy(struct crypto_alg *alg)
 {
-	struct crypto_acomp *acomp = crypto_acomp_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_acomp_tfm(acomp);
-	struct crypto_scomp **tfm_ctx = crypto_tfm_ctx(tfm);
-	struct crypto_scomp *scomp = *tfm_ctx;
-	void *ctx;
-
-	ctx = crypto_scomp_alloc_ctx(scomp);
-	if (IS_ERR(ctx)) {
-		kfree(req);
-		return NULL;
-	}
-
-	*req->__ctx = ctx;
-
-	return req;
-}
-
-void crypto_acomp_scomp_free_ctx(struct acomp_req *req)
-{
-	struct crypto_acomp *acomp = crypto_acomp_reqtfm(req);
-	struct crypto_tfm *tfm = crypto_acomp_tfm(acomp);
-	struct crypto_scomp **tfm_ctx = crypto_tfm_ctx(tfm);
-	struct crypto_scomp *scomp = *tfm_ctx;
-	void *ctx = *req->__ctx;
-
-	if (ctx)
-		crypto_scomp_free_ctx(scomp, ctx);
+	scomp_free_streams(__crypto_scomp_alg(alg));
 }
 
 static const struct crypto_type crypto_scomp_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_scomp_init_tfm,
+	.destroy = crypto_scomp_destroy,
 #ifdef CONFIG_PROC_FS
 	.show = crypto_scomp_show,
 #endif
