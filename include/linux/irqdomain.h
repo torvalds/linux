@@ -630,9 +630,6 @@ static inline int irq_domain_alloc_irqs(struct irq_domain *domain,
 				       NULL);
 }
 
-int irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
-				    unsigned int irq_base,
-				    unsigned int nr_irqs, void *arg);
 int irq_domain_set_hwirq_and_chip(struct irq_domain *domain,
 				  unsigned int virq,
 				  irq_hw_number_t hwirq,

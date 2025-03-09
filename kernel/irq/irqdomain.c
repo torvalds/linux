@@ -1589,9 +1589,8 @@ static void irq_domain_free_irqs_hierarchy(struct irq_domain *domain,
 	}
 }
 
-int irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain,
-				    unsigned int irq_base,
-				    unsigned int nr_irqs, void *arg)
+static int irq_domain_alloc_irqs_hierarchy(struct irq_domain *domain, unsigned int irq_base,
+					   unsigned int nr_irqs, void *arg)
 {
 	if (!domain->ops->alloc) {
 		pr_debug("domain->ops->alloc() is NULL\n");
