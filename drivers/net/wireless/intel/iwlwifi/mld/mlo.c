@@ -748,23 +748,23 @@ iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
 {
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
 	struct iwl_mld *mld = mld_vif->mld;
-	enum iwl_mld_emlsr_exit ret = 0;
+	u32 reason_mask = 0;
 
 	/* Per-link considerations */
 	if (iwl_mld_emlsr_disallowed_with_link(mld, vif, a, true) ||
 	    iwl_mld_emlsr_disallowed_with_link(mld, vif, b, false))
 		return false;
 
-	if (a->chandef->chan->band == b->chandef->chan->band) {
-		ret |= IWL_MLD_EMLSR_EXIT_EQUAL_BAND;
-	} else if (a->chandef->width != b->chandef->width) {
+	if (a->chandef->chan->band == b->chandef->chan->band)
+		reason_mask |= IWL_MLD_EMLSR_EXIT_EQUAL_BAND;
+	if (a->chandef->width != b->chandef->width) {
 		/* TODO: task=EMLSR task=statistics
 		 * replace BANDWIDTH exit reason with channel load criteria
 		 */
-		ret |= IWL_MLD_EMLSR_EXIT_BANDWIDTH;
+		reason_mask |= IWL_MLD_EMLSR_EXIT_BANDWIDTH;
 	}
 
-	if (ret) {
+	if (reason_mask) {
 		IWL_DEBUG_INFO(mld,
 			       "Links %d and %d are not a valid pair for EMLSR\n",
 			       a->link_id, b->link_id);
@@ -772,7 +772,7 @@ iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
 			       "Links bandwidth are: %d and %d\n",
 			       nl80211_chan_width_to_mhz(a->chandef->width),
 			       nl80211_chan_width_to_mhz(b->chandef->width));
-		iwl_mld_print_emlsr_exit(mld, ret);
+		iwl_mld_print_emlsr_exit(mld, reason_mask);
 		return false;
 	}
 
