@@ -465,10 +465,10 @@ u8 iwl_mld_get_fw_bss_vifs_ids(struct iwl_mld *mld)
 {
 	u8 fw_id_bitmap = 0;
 
-	ieee80211_iterate_interfaces(mld->hw,
-				     IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER,
-				     iwl_mld_get_fw_id_bss_bitmap_iter,
-				     &fw_id_bitmap);
+	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+						IEEE80211_IFACE_SKIP_SDATA_NOT_IN_DRIVER,
+						iwl_mld_get_fw_id_bss_bitmap_iter,
+						&fw_id_bitmap);
 
 	return fw_id_bitmap;
 }
