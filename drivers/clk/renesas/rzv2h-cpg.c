@@ -44,12 +44,18 @@
 #define CPG_BUS_1_MSTOP		(0xd00)
 #define CPG_BUS_MSTOP(m)	(CPG_BUS_1_MSTOP + ((m) - 1) * 4)
 
+#define CPG_PLL_STBY(x)		((x))
+#define CPG_PLL_STBY_RESETB	BIT(0)
+#define CPG_PLL_STBY_RESETB_WEN	BIT(16)
 #define CPG_PLL_CLK1(x)		((x) + 0x004)
 #define KDIV(val)		((s16)FIELD_GET(GENMASK(31, 16), (val)))
 #define MDIV(val)		FIELD_GET(GENMASK(15, 6), (val))
 #define PDIV(val)		FIELD_GET(GENMASK(5, 0), (val))
 #define CPG_PLL_CLK2(x)		((x) + 0x008)
 #define SDIV(val)		FIELD_GET(GENMASK(2, 0), (val))
+#define CPG_PLL_MON(x)		((x) + 0x010)
+#define CPG_PLL_MON_RESETB	BIT(0)
+#define CPG_PLL_MON_LOCK	BIT(4)
 
 #define DDIV_DIVCTL_WEN(shift)		BIT((shift) + 16)
 
@@ -141,6 +147,54 @@ struct ddiv_clk {
 
 #define to_ddiv_clock(_div) container_of(_div, struct ddiv_clk, div)
 
+static int rzv2h_cpg_pll_clk_is_enabled(struct clk_hw *hw)
+{
+	struct pll_clk *pll_clk = to_pll(hw);
+	struct rzv2h_cpg_priv *priv = pll_clk->priv;
+	u32 val = readl(priv->base + CPG_PLL_MON(pll_clk->pll.offset));
+
+	/* Ensure both RESETB and LOCK bits are set */
+	return (val & (CPG_PLL_MON_RESETB | CPG_PLL_MON_LOCK)) ==
+	       (CPG_PLL_MON_RESETB | CPG_PLL_MON_LOCK);
+}
+
+static int rzv2h_cpg_pll_clk_enable(struct clk_hw *hw)
+{
+	struct pll_clk *pll_clk = to_pll(hw);
+	struct rzv2h_cpg_priv *priv = pll_clk->priv;
+	struct pll pll = pll_clk->pll;
+	u32 stby_offset;
+	u32 mon_offset;
+	u32 val;
+	int ret;
+
+	if (rzv2h_cpg_pll_clk_is_enabled(hw))
+		return 0;
+
+	stby_offset = CPG_PLL_STBY(pll.offset);
+	mon_offset = CPG_PLL_MON(pll.offset);
+
+	writel(CPG_PLL_STBY_RESETB_WEN | CPG_PLL_STBY_RESETB,
+	       priv->base + stby_offset);
+
+	/*
+	 * Ensure PLL enters into normal mode
+	 *
+	 * Note: There is no HW information about the worst case latency.
+	 *
+	 * Since this latency might depend on external crystal or PLL rate,
+	 * use a "super" safe timeout value.
+	 */
+	ret = readl_poll_timeout_atomic(priv->base + mon_offset, val,
+			(val & (CPG_PLL_MON_RESETB | CPG_PLL_MON_LOCK)) ==
+			(CPG_PLL_MON_RESETB | CPG_PLL_MON_LOCK), 200, 2000);
+	if (ret)
+		dev_err(priv->dev, "Failed to enable PLL 0x%x/%pC\n",
+			stby_offset, hw->clk);
+
+	return ret;
+}
+
 static unsigned long rzv2h_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 						   unsigned long parent_rate)
 {
@@ -163,6 +217,8 @@ static unsigned long rzv2h_cpg_pll_clk_recalc_rate(struct clk_hw *hw,
 }
 
 static const struct clk_ops rzv2h_cpg_pll_ops = {
+	.is_enabled = rzv2h_cpg_pll_clk_is_enabled,
+	.enable = rzv2h_cpg_pll_clk_enable,
 	.recalc_rate = rzv2h_cpg_pll_clk_recalc_rate,
 };
 
