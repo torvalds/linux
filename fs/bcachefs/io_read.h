@@ -140,8 +140,8 @@ static inline void bch2_read_extent(struct btree_trans *trans,
 			   data_btree, k, offset_into_extent, NULL, flags, -1);
 }
 
-void __bch2_read(struct bch_fs *, struct bch_read_bio *, struct bvec_iter,
-		 subvol_inum, struct bch_io_failures *, unsigned flags);
+int __bch2_read(struct bch_fs *, struct bch_read_bio *, struct bvec_iter,
+		subvol_inum, struct bch_io_failures *, unsigned flags);
 
 static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 			     subvol_inum inum)

@@ -422,7 +422,7 @@ static void bch2_rbio_done(struct bch_read_bio *rbio)
 	bio_endio(&rbio->bio);
 }
 
-static noinline void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio,
+static noinline int bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio,
 				     struct bvec_iter bvec_iter,
 				     struct bch_io_failures *failed,
 				     unsigned flags)
@@ -457,12 +457,16 @@ err:
 
 	if (bch2_err_matches(ret, BCH_ERR_data_read_retry))
 		goto retry;
-	if (ret)
-		rbio->bio.bi_status = BLK_STS_IOERR;
+
+	if (ret) {
+		rbio->bio.bi_status	= BLK_STS_IOERR;
+		rbio->ret		= ret;
+	}
 
 	BUG_ON(atomic_read(&rbio->bio.__bi_remaining) != 1);
-	bch2_rbio_done(rbio);
 	bch2_trans_put(trans);
+
+	return ret;
 }
 
 static void bch2_rbio_retry(struct work_struct *work)
@@ -497,10 +501,16 @@ static void bch2_rbio_retry(struct work_struct *work)
 	flags &= ~BCH_READ_last_fragment;
 	flags |= BCH_READ_must_clone;
 
-	if (flags & BCH_READ_data_update)
-		bch2_read_retry_nodecode(c, rbio, iter, &failed, flags);
-	else
-		__bch2_read(c, rbio, iter, inum, &failed, flags);
+	int ret = flags & BCH_READ_data_update
+		? bch2_read_retry_nodecode(c, rbio, iter, &failed, flags)
+		: __bch2_read(c, rbio, iter, inum, &failed, flags);
+
+	if (ret) {
+		rbio->ret = ret;
+		rbio->bio.bi_status = BLK_STS_IOERR;
+	}
+
+	bch2_rbio_done(rbio);
 }
 
 static void bch2_rbio_error(struct bch_read_bio *rbio,
@@ -1191,9 +1201,6 @@ out:
 		if (bch2_err_matches(ret, BCH_ERR_data_read_retry_avoid))
 			bch2_mark_io_failure(failed, &pick);
 
-		if (!ret)
-			goto out_read_done;
-
 		return ret;
 	}
 
@@ -1218,12 +1225,13 @@ hole:
 
 	zero_fill_bio_iter(&orig->bio, iter);
 out_read_done:
-	if (flags & BCH_READ_last_fragment)
+	if ((flags & BCH_READ_last_fragment) &&
+	    !(flags & BCH_READ_in_retry))
 		bch2_rbio_done(orig);
 	return 0;
 }
 
-void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
+int __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 		 struct bvec_iter bvec_iter, subvol_inum inum,
 		 struct bch_io_failures *failed, unsigned flags)
 {
@@ -1313,18 +1321,21 @@ err:
 		lockrestart_do(trans,
 			bch2_inum_offset_err_msg_trans(trans, &buf, inum,
 						       bvec_iter.bi_sector << 9));
-		prt_printf(&buf, "read error %s from btree lookup", bch2_err_str(ret));
+		prt_printf(&buf, "read error: %s", bch2_err_str(ret));
 		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 
 		rbio->bio.bi_status	= BLK_STS_IOERR;
 		rbio->ret		= ret;
 
-		bch2_rbio_done(rbio);
+		if (!(flags & BCH_READ_in_retry))
+			bch2_rbio_done(rbio);
 	}
 
 	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&sk, c);
+
+	return ret;
 }
 
 void bch2_fs_io_read_exit(struct bch_fs *c)
