@@ -743,19 +743,17 @@ static int rpr0521_read_raw(struct iio_dev *indio_dev,
 {
 	struct rpr0521_data *data = iio_priv(indio_dev);
 	int ret;
-	int busy;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 		if (chan->type != IIO_INTENSITY && chan->type != IIO_PROXIMITY)
 			return -EINVAL;
 
-		busy = iio_device_claim_direct_mode(indio_dev);
-		if (busy)
+		if (!iio_device_claim_direct(indio_dev))
 			return -EBUSY;
 
 		ret = rpr0521_read_info_raw(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 
