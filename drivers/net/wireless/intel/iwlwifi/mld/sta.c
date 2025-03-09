@@ -793,7 +793,7 @@ void iwl_mld_remove_sta(struct iwl_mld *mld, struct ieee80211_sta *sta)
 		 * removed, but FW expects all the keys to be removed before
 		 * the STA is, so remove them all here.
 		 */
-		if (vif->type == NL80211_IFTYPE_STATION)
+		if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 			iwl_mld_remove_ap_keys(mld, vif, sta, link_id);
 
 		/* Remove the link_sta */
