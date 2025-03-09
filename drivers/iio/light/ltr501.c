@@ -646,6 +646,36 @@ static const struct iio_chan_spec ltr301_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
+static int ltr501_read_info_raw(struct ltr501_data *data,
+				struct iio_chan_spec const *chan,
+				int *val)
+{
+	__le16 buf[2];
+	int ret;
+
+	switch (chan->type) {
+	case IIO_INTENSITY:
+		mutex_lock(&data->lock_als);
+		ret = ltr501_read_als(data, buf);
+		mutex_unlock(&data->lock_als);
+		if (ret < 0)
+			return ret;
+		*val = le16_to_cpu(chan->address == LTR501_ALS_DATA1 ?
+				   buf[0] : buf[1]);
+		return IIO_VAL_INT;
+	case IIO_PROXIMITY:
+		mutex_lock(&data->lock_ps);
+		ret = ltr501_read_ps(data);
+		mutex_unlock(&data->lock_ps);
+		if (ret < 0)
+			return ret;
+		*val = ret & LTR501_PS_DATA_MASK;
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int ltr501_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long mask)
@@ -679,30 +709,7 @@ static int ltr501_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		switch (chan->type) {
-		case IIO_INTENSITY:
-			mutex_lock(&data->lock_als);
-			ret = ltr501_read_als(data, buf);
-			mutex_unlock(&data->lock_als);
-			if (ret < 0)
-				break;
-			*val = le16_to_cpu(chan->address == LTR501_ALS_DATA1 ?
-					   buf[0] : buf[1]);
-			ret = IIO_VAL_INT;
-			break;
-		case IIO_PROXIMITY:
-			mutex_lock(&data->lock_ps);
-			ret = ltr501_read_ps(data);
-			mutex_unlock(&data->lock_ps);
-			if (ret < 0)
-				break;
-			*val = ret & LTR501_PS_DATA_MASK;
-			ret = IIO_VAL_INT;
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
+		ret = ltr501_read_info_raw(data, chan, val);
 
 		iio_device_release_direct_mode(indio_dev);
 		return ret;
