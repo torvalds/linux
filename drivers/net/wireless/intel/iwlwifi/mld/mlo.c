@@ -289,22 +289,6 @@ int iwl_mld_block_emlsr_sync(struct iwl_mld *mld, struct ieee80211_vif *vif,
 static void _iwl_mld_select_links(struct iwl_mld *mld,
 				  struct ieee80211_vif *vif);
 
-void iwl_mld_trigger_link_selection(struct iwl_mld *mld,
-				    struct ieee80211_vif *vif)
-{
-	bool last_scan_was_recent =
-		time_before(jiffies, mld->scan.last_mlo_scan_jiffies +
-				     IWL_MLD_SCAN_EXPIRE_TIME);
-
-	if (last_scan_was_recent) {
-		IWL_DEBUG_EHT(mld, "MLO scan was recent, skip.\n");
-		_iwl_mld_select_links(mld, vif);
-	} else {
-		IWL_DEBUG_EHT(mld, "Doing link selection after MLO scan\n");
-		iwl_mld_int_mlo_scan(mld, vif);
-	}
-}
-
 void iwl_mld_unblock_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif,
 			   enum iwl_mld_emlsr_blocked reason)
 {
@@ -334,7 +318,7 @@ void iwl_mld_unblock_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif,
 		return;
 
 	IWL_DEBUG_INFO(mld, "EMLSR is unblocked\n");
-	iwl_mld_trigger_link_selection(mld, vif);
+	iwl_mld_int_mlo_scan(mld, vif);
 }
 
 static void
@@ -1011,5 +995,5 @@ void iwl_mld_retry_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif)
 	    mld_vif->emlsr.blocked_reasons)
 		return;
 
-	iwl_mld_trigger_link_selection(mld, vif);
+	iwl_mld_int_mlo_scan(mld, vif);
 }

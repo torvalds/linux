@@ -913,7 +913,7 @@ void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,
 		ieee80211_cqm_beacon_loss_notify(vif, GFP_ATOMIC);
 
 		/* try to switch links, no-op if we don't have MLO */
-		iwl_mld_trigger_link_selection(mld, vif);
+		iwl_mld_int_mlo_scan(mld, vif);
 	}
 
 	/* no more logic if we're not in EMLSR */
