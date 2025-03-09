@@ -58,6 +58,23 @@ struct mlx5_fs_hws_rule {
 	int num_fs_actions;
 };
 
+struct mlx5_fs_hws_data {
+	struct mlx5hws_action *hws_action;
+	struct mutex lock; /* protects hws_action */
+	refcount_t hws_action_refcount;
+};
+
+struct mlx5_fs_hws_create_action_ctx {
+	enum mlx5hws_action_type actions_type;
+	struct mlx5hws_context *hws_ctx;
+	u32 id;
+};
+
+struct mlx5hws_action *
+mlx5_fs_get_hws_action(struct mlx5_fs_hws_data *fs_hws_data,
+		       struct mlx5_fs_hws_create_action_ctx *create_ctx);
+void mlx5_fs_put_hws_action(struct mlx5_fs_hws_data *fs_hws_data);
+
 #ifdef CONFIG_MLX5_HW_STEERING
 
 bool mlx5_fs_hws_is_supported(struct mlx5_core_dev *dev);

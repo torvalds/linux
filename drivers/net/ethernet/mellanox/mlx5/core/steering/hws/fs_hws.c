@@ -519,6 +519,63 @@ mlx5_fs_create_action_last(struct mlx5hws_context *ctx)
 	return mlx5hws_action_create_last(ctx, flags);
 }
 
+static struct mlx5hws_action *
+mlx5_fs_create_hws_action(struct mlx5_fs_hws_create_action_ctx *create_ctx)
+{
+	u32 flags = MLX5HWS_ACTION_FLAG_HWS_FDB | MLX5HWS_ACTION_FLAG_SHARED;
+
+	switch (create_ctx->actions_type) {
+	case MLX5HWS_ACTION_TYP_CTR:
+		return mlx5hws_action_create_counter(create_ctx->hws_ctx,
+						     create_ctx->id, flags);
+	default:
+		return NULL;
+	}
+}
+
+struct mlx5hws_action *
+mlx5_fs_get_hws_action(struct mlx5_fs_hws_data *fs_hws_data,
+		       struct mlx5_fs_hws_create_action_ctx *create_ctx)
+{
+	/* try avoid locking if not necessary */
+	if (refcount_inc_not_zero(&fs_hws_data->hws_action_refcount))
+		return fs_hws_data->hws_action;
+
+	mutex_lock(&fs_hws_data->lock);
+	if (refcount_inc_not_zero(&fs_hws_data->hws_action_refcount)) {
+		mutex_unlock(&fs_hws_data->lock);
+		return fs_hws_data->hws_action;
+	}
+	fs_hws_data->hws_action = mlx5_fs_create_hws_action(create_ctx);
+	if (!fs_hws_data->hws_action) {
+		mutex_unlock(&fs_hws_data->lock);
+		return NULL;
+	}
+	refcount_set(&fs_hws_data->hws_action_refcount, 1);
+	mutex_unlock(&fs_hws_data->lock);
+
+	return fs_hws_data->hws_action;
+}
+
+void mlx5_fs_put_hws_action(struct mlx5_fs_hws_data *fs_hws_data)
+{
+	if (!fs_hws_data)
+		return;
+
+	/* try avoid locking if not necessary */
+	if (refcount_dec_not_one(&fs_hws_data->hws_action_refcount))
+		return;
+
+	mutex_lock(&fs_hws_data->lock);
+	if (!refcount_dec_and_test(&fs_hws_data->hws_action_refcount)) {
+		mutex_unlock(&fs_hws_data->lock);
+		return;
+	}
+	mlx5hws_action_destroy(fs_hws_data->hws_action);
+	fs_hws_data->hws_action = NULL;
+	mutex_unlock(&fs_hws_data->lock);
+}
+
 static void mlx5_fs_destroy_fs_action(struct mlx5_fs_hws_rule_action *fs_action)
 {
 	switch (mlx5hws_action_get_type(fs_action->action)) {
