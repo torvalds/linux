@@ -16,6 +16,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -517,6 +518,16 @@ static int _as73211_write_raw(struct iio_dev *indio_dev,
 	struct as73211_data *data = iio_priv(indio_dev);
 	int ret;
 
+	/* Need to switch to config mode ... */
+	if ((data->osr & AS73211_OSR_DOS_MASK) != AS73211_OSR_DOS_CONFIG) {
+		data->osr &= ~AS73211_OSR_DOS_MASK;
+		data->osr |= AS73211_OSR_DOS_CONFIG;
+
+		ret = i2c_smbus_write_byte_data(data->client, AS73211_REG_OSR, data->osr);
+		if (ret < 0)
+			return ret;
+	}
+
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ: {
 		int reg_bits, freq_kHz = val / HZ_PER_KHZ;  /* 1024, 2048, ... */
@@ -601,28 +612,15 @@ static int as73211_write_raw(struct iio_dev *indio_dev, struct iio_chan_spec con
 	struct as73211_data *data = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
 	ret = iio_device_claim_direct_mode(indio_dev);
 	if (ret < 0)
-		goto error_unlock;
-
-	/* Need to switch to config mode ... */
-	if ((data->osr & AS73211_OSR_DOS_MASK) != AS73211_OSR_DOS_CONFIG) {
-		data->osr &= ~AS73211_OSR_DOS_MASK;
-		data->osr |= AS73211_OSR_DOS_CONFIG;
-
-		ret = i2c_smbus_write_byte_data(data->client, AS73211_REG_OSR, data->osr);
-		if (ret < 0)
-			goto error_release;
-	}
+		return ret;
 
 	ret = _as73211_write_raw(indio_dev, chan, val, val2, mask);
-
-error_release:
 	iio_device_release_direct_mode(indio_dev);
-error_unlock:
-	mutex_unlock(&data->mutex);
+
 	return ret;
 }
 
