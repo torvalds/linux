@@ -331,21 +331,20 @@ struct z_erofs_zstd_cfgs {
 #define Z_EROFS_ZSTD_MAX_DICT_SIZE      Z_EROFS_PCLUSTER_MAX_SIZE
 
 /*
- * bit 0 : COMPACTED_2B indexes (0 - off; 1 - on)
- *  e.g. for 4k logical cluster size,      4B        if compacted 2B is off;
- *                                  (4B) + 2B + (4B) if compacted 2B is on.
- * bit 1 : HEAD1 big pcluster (0 - off; 1 - on)
- * bit 2 : HEAD2 big pcluster (0 - off; 1 - on)
- * bit 3 : tailpacking inline pcluster (0 - off; 1 - on)
- * bit 4 : interlaced plain pcluster (0 - off; 1 - on)
- * bit 5 : fragment pcluster (0 - off; 1 - on)
+ * Enable COMPACTED_2B for EROFS_INODE_COMPRESSED_COMPACT inodes:
+ *   4B (disabled) vs 4B+2B+4B (enabled)
  */
 #define Z_EROFS_ADVISE_COMPACTED_2B		0x0001
+/* Enable extent metadata for EROFS_INODE_COMPRESSED_FULL inodes */
+#define Z_EROFS_ADVISE_EXTENTS			0x0001
 #define Z_EROFS_ADVISE_BIG_PCLUSTER_1		0x0002
 #define Z_EROFS_ADVISE_BIG_PCLUSTER_2		0x0004
 #define Z_EROFS_ADVISE_INLINE_PCLUSTER		0x0008
 #define Z_EROFS_ADVISE_INTERLACED_PCLUSTER	0x0010
 #define Z_EROFS_ADVISE_FRAGMENT_PCLUSTER	0x0020
+/* Indicate the record size for each extent if extent metadata is used */
+#define Z_EROFS_ADVISE_EXTRECSZ_BIT		1
+#define Z_EROFS_ADVISE_EXTRECSZ_MASK		0x3
 
 #define Z_EROFS_FRAGMENT_INODE_BIT              7
 struct z_erofs_map_header {
@@ -357,45 +356,24 @@ struct z_erofs_map_header {
 			/* indicates the encoded size of tailpacking data */
 			__le16  h_idata_size;
 		};
+		__le32 h_extents_lo;	/* extent count LSB */
 	};
 	__le16	h_advise;
-	/*
-	 * bit 0-3 : algorithm type of head 1 (logical cluster type 01);
-	 * bit 4-7 : algorithm type of head 2 (logical cluster type 11).
-	 */
-	__u8	h_algorithmtype;
-	/*
-	 * bit 0-2 : logical cluster bits - 12, e.g. 0 for 4096;
-	 * bit 3-6 : reserved;
-	 * bit 7   : move the whole file into packed inode or not.
-	 */
-	__u8	h_clusterbits;
+	union {
+		struct {
+			/* algorithm type (bit 0-3: HEAD1; bit 4-7: HEAD2) */
+			__u8	h_algorithmtype;
+			/*
+			 * bit 0-3 : logical cluster bits - blkszbits
+			 * bit 4-6 : reserved
+			 * bit 7   : pack the whole file into packed inode
+			 */
+			__u8	h_clusterbits;
+		};
+		__le16 h_extents_hi;	/* extent count MSB */
+	};
 };
 
-/*
- * On-disk logical cluster type:
- *    0   - literal (uncompressed) lcluster
- *    1,3 - compressed lcluster (for HEAD lclusters)
- *    2   - compressed lcluster (for NONHEAD lclusters)
- *
- * In detail,
- *    0 - literal (uncompressed) lcluster,
- *        di_advise = 0
- *        di_clusterofs = the literal data offset of the lcluster
- *        di_blkaddr = the blkaddr of the literal pcluster
- *
- *    1,3 - compressed lcluster (for HEAD lclusters)
- *        di_advise = 1 or 3
- *        di_clusterofs = the decompressed data offset of the lcluster
- *        di_blkaddr = the blkaddr of the compressed pcluster
- *
- *    2 - compressed lcluster (for NONHEAD lclusters)
- *        di_advise = 2
- *        di_clusterofs =
- *           the decompressed data offset in its own HEAD lcluster
- *        di_u.delta[0] = distance to this HEAD lcluster
- *        di_u.delta[1] = distance to the next HEAD lcluster
- */
 enum {
 	Z_EROFS_LCLUSTER_TYPE_PLAIN	= 0,
 	Z_EROFS_LCLUSTER_TYPE_HEAD1	= 1,
@@ -409,11 +387,7 @@ enum {
 /* (noncompact only, HEAD) This pcluster refers to partial decompressed data */
 #define Z_EROFS_LI_PARTIAL_REF		(1 << 15)
 
-/*
- * D0_CBLKCNT will be marked _only_ at the 1st non-head lcluster to store the
- * compressed block count of a compressed extent (in logical clusters, aka.
- * block count of a pcluster).
- */
+/* Set on 1st non-head lcluster to store compressed block counti (in blocks) */
 #define Z_EROFS_LI_D0_CBLKCNT		(1 << 11)
 
 struct z_erofs_lcluster_index {
@@ -422,19 +396,36 @@ struct z_erofs_lcluster_index {
 	__le16 di_clusterofs;
 
 	union {
-		/* for the HEAD lclusters */
-		__le32 blkaddr;
+		__le32 blkaddr;		/* for the HEAD lclusters */
 		/*
-		 * for the NONHEAD lclusters
 		 * [0] - distance to its HEAD lcluster
 		 * [1] - distance to the next HEAD lcluster
 		 */
-		__le16 delta[2];
+		__le16 delta[2];	/* for the NONHEAD lclusters */
 	} di_u;
 };
 
-#define Z_EROFS_FULL_INDEX_ALIGN(end)	\
-	(ALIGN(end, 8) + sizeof(struct z_erofs_map_header) + 8)
+#define Z_EROFS_MAP_HEADER_END(end)	\
+	(ALIGN(end, 8) + sizeof(struct z_erofs_map_header))
+#define Z_EROFS_FULL_INDEX_START(end)	(Z_EROFS_MAP_HEADER_END(end) + 8)
+
+#define Z_EROFS_EXTENT_PLEN_PARTIAL	BIT(27)
+#define Z_EROFS_EXTENT_PLEN_FMT_BIT	28
+#define Z_EROFS_EXTENT_PLEN_MASK	((Z_EROFS_PCLUSTER_MAX_SIZE << 1) - 1)
+struct z_erofs_extent {
+	__le32 plen;		/* encoded length */
+	__le32 pstart_lo;	/* physical offset */
+	__le32 pstart_hi;	/* physical offset MSB */
+	__le32 lstart_lo;	/* logical offset */
+	__le32 lstart_hi;	/* logical offset MSB (>= 4GiB inodes) */
+	__u8 reserved[12];	/* for future use */
+};
+
+static inline int z_erofs_extent_recsize(unsigned int advise)
+{
+	return 4 << ((advise >> Z_EROFS_ADVISE_EXTRECSZ_BIT) &
+		Z_EROFS_ADVISE_EXTRECSZ_MASK);
+}
 
 /* check the EROFS on-disk layout strictly at compile time */
 static inline void erofs_check_ondisk_layout_definitions(void)

@@ -25,7 +25,7 @@ static int z_erofs_load_full_lcluster(struct z_erofs_maprecorder *m,
 {
 	struct inode *const inode = m->inode;
 	struct erofs_inode *const vi = EROFS_I(inode);
-	const erofs_off_t pos = Z_EROFS_FULL_INDEX_ALIGN(erofs_iloc(inode) +
+	const erofs_off_t pos = Z_EROFS_FULL_INDEX_START(erofs_iloc(inode) +
 			vi->inode_isize + vi->xattr_isize) +
 			lcn * sizeof(struct z_erofs_lcluster_index);
 	struct z_erofs_lcluster_index *di;
@@ -40,7 +40,7 @@ static int z_erofs_load_full_lcluster(struct z_erofs_maprecorder *m,
 	advise = le16_to_cpu(di->di_advise);
 	m->type = advise & Z_EROFS_LI_LCLUSTER_TYPE_MASK;
 	if (m->type == Z_EROFS_LCLUSTER_TYPE_NONHEAD) {
-		m->clusterofs = 1 << vi->z_logical_clusterbits;
+		m->clusterofs = 1 << vi->z_lclusterbits;
 		m->delta[0] = le16_to_cpu(di->di_u.delta[0]);
 		if (m->delta[0] & Z_EROFS_LI_D0_CBLKCNT) {
 			if (!(vi->z_advise & (Z_EROFS_ADVISE_BIG_PCLUSTER_1 |
@@ -55,7 +55,7 @@ static int z_erofs_load_full_lcluster(struct z_erofs_maprecorder *m,
 	} else {
 		m->partialref = !!(advise & Z_EROFS_LI_PARTIAL_REF);
 		m->clusterofs = le16_to_cpu(di->di_clusterofs);
-		if (m->clusterofs >= 1 << vi->z_logical_clusterbits) {
+		if (m->clusterofs >= 1 << vi->z_lclusterbits) {
 			DBG_BUGON(1);
 			return -EFSCORRUPTED;
 		}
@@ -102,9 +102,9 @@ static int z_erofs_load_compact_lcluster(struct z_erofs_maprecorder *m,
 {
 	struct inode *const inode = m->inode;
 	struct erofs_inode *const vi = EROFS_I(inode);
-	const erofs_off_t ebase = sizeof(struct z_erofs_map_header) +
-		ALIGN(erofs_iloc(inode) + vi->inode_isize + vi->xattr_isize, 8);
-	const unsigned int lclusterbits = vi->z_logical_clusterbits;
+	const erofs_off_t ebase = Z_EROFS_MAP_HEADER_END(erofs_iloc(inode) +
+			vi->inode_isize + vi->xattr_isize);
+	const unsigned int lclusterbits = vi->z_lclusterbits;
 	const unsigned int totalidx = erofs_iblks(inode);
 	unsigned int compacted_4b_initial, compacted_2b, amortizedshift;
 	unsigned int vcnt, lo, lobits, encodebits, nblk, bytes;
@@ -255,7 +255,7 @@ static int z_erofs_extent_lookback(struct z_erofs_maprecorder *m,
 {
 	struct super_block *sb = m->inode->i_sb;
 	struct erofs_inode *const vi = EROFS_I(m->inode);
-	const unsigned int lclusterbits = vi->z_logical_clusterbits;
+	const unsigned int lclusterbits = vi->z_lclusterbits;
 
 	while (m->lcn >= lookback_distance) {
 		unsigned long lcn = m->lcn - lookback_distance;
@@ -304,7 +304,7 @@ static int z_erofs_get_extent_compressedlen(struct z_erofs_maprecorder *m,
 	if ((m->headtype == Z_EROFS_LCLUSTER_TYPE_HEAD1 && !bigpcl1) ||
 	    ((m->headtype == Z_EROFS_LCLUSTER_TYPE_PLAIN ||
 	      m->headtype == Z_EROFS_LCLUSTER_TYPE_HEAD2) && !bigpcl2) ||
-	    (lcn << vi->z_logical_clusterbits) >= inode->i_size)
+	    (lcn << vi->z_lclusterbits) >= inode->i_size)
 		m->compressedblks = 1;
 
 	if (m->compressedblks)
@@ -354,7 +354,7 @@ static int z_erofs_get_extent_decompressedlen(struct z_erofs_maprecorder *m)
 	struct inode *inode = m->inode;
 	struct erofs_inode *vi = EROFS_I(inode);
 	struct erofs_map_blocks *map = m->map;
-	unsigned int lclusterbits = vi->z_logical_clusterbits;
+	unsigned int lclusterbits = vi->z_lclusterbits;
 	u64 lcn = m->lcn, headlcn = map->m_la >> lclusterbits;
 	int err;
 
@@ -398,16 +398,16 @@ static int z_erofs_do_map_blocks(struct inode *inode,
 	struct super_block *sb = inode->i_sb;
 	bool fragment = vi->z_advise & Z_EROFS_ADVISE_FRAGMENT_PCLUSTER;
 	bool ztailpacking = vi->z_idata_size;
+	unsigned int lclusterbits = vi->z_lclusterbits;
 	struct z_erofs_maprecorder m = {
 		.inode = inode,
 		.map = map,
 	};
 	int err = 0;
-	unsigned int lclusterbits, endoff, afmt;
+	unsigned int endoff, afmt;
 	unsigned long initial_lcn;
 	unsigned long long ofs, end;
 
-	lclusterbits = vi->z_logical_clusterbits;
 	ofs = flags & EROFS_GET_BLOCKS_FINDTAIL ? inode->i_size - 1 : map->m_la;
 	initial_lcn = ofs >> lclusterbits;
 	endoff = ofs & ((1 << lclusterbits) - 1);
@@ -569,6 +569,7 @@ static int z_erofs_fill_inode_lazy(struct inode *inode)
 		goto done;
 	}
 	vi->z_advise = le16_to_cpu(h->h_advise);
+	vi->z_lclusterbits = sb->s_blocksize_bits + (h->h_clusterbits & 15);
 	vi->z_algorithmtype[0] = h->h_algorithmtype & 15;
 	vi->z_algorithmtype[1] = h->h_algorithmtype >> 4;
 	if (vi->z_advise & Z_EROFS_ADVISE_FRAGMENT_PCLUSTER)
@@ -585,7 +586,6 @@ static int z_erofs_fill_inode_lazy(struct inode *inode)
 		goto out_put_metabuf;
 	}
 
-	vi->z_logical_clusterbits = sb->s_blocksize_bits + (h->h_clusterbits & 7);
 	if (!erofs_sb_has_big_pcluster(EROFS_SB(sb)) &&
 	    vi->z_advise & (Z_EROFS_ADVISE_BIG_PCLUSTER_1 |
 			    Z_EROFS_ADVISE_BIG_PCLUSTER_2)) {
