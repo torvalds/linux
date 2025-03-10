@@ -584,15 +584,6 @@ static inline int mm_is_protected(struct mm_struct *mm)
 	return 0;
 }
 
-static inline int mm_alloc_pgste(struct mm_struct *mm)
-{
-#ifdef CONFIG_PGSTE
-	if (unlikely(mm->context.alloc_pgste))
-		return 1;
-#endif
-	return 0;
-}
-
 static inline pgste_t clear_pgste_bit(pgste_t pgste, unsigned long mask)
 {
 	return __pgste(pgste_val(pgste) & ~mask);

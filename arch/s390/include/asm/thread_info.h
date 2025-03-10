@@ -67,7 +67,6 @@ void arch_setup_new_exec(void);
 #define TIF_NEED_RESCHED_LAZY	3	/* lazy rescheduling needed */
 #define TIF_UPROBE		4	/* breakpointed or single-stepping */
 #define TIF_PATCH_PENDING	5	/* pending live patching update */
-#define TIF_PGSTE		6	/* New mm's will use 4K page tables */
 #define TIF_NOTIFY_SIGNAL	7	/* signal notifications exist */
 #define TIF_GUARDED_STORAGE	8	/* load guarded storage control block */
 #define TIF_ISOLATE_BP_GUEST	9	/* Run KVM guests with isolated BP */
@@ -89,7 +88,6 @@ void arch_setup_new_exec(void);
 #define _TIF_NEED_RESCHED_LAZY	BIT(TIF_NEED_RESCHED_LAZY)
 #define _TIF_UPROBE		BIT(TIF_UPROBE)
 #define _TIF_PATCH_PENDING	BIT(TIF_PATCH_PENDING)
-#define _TIF_PGSTE		BIT(TIF_PGSTE)
 #define _TIF_NOTIFY_SIGNAL	BIT(TIF_NOTIFY_SIGNAL)
 #define _TIF_GUARDED_STORAGE	BIT(TIF_GUARDED_STORAGE)
 #define _TIF_ISOLATE_BP_GUEST	BIT(TIF_ISOLATE_BP_GUEST)

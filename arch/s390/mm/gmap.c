@@ -2260,9 +2260,6 @@ int s390_enable_sie(void)
 	/* Do we have pgstes? if yes, we are done */
 	if (mm_has_pgste(mm))
 		return 0;
-	/* Fail if the page tables are 2K */
-	if (!mm_alloc_pgste(mm))
-		return -EINVAL;
 	mmap_write_lock(mm);
 	mm->context.has_pgste = 1;
 	/* split thp mappings and disable thp for future mappings */
