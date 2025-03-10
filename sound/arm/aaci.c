@@ -1061,7 +1061,7 @@ static void aaci_remove(struct amba_device *dev)
 	}
 }
 
-static struct amba_id aaci_ids[] = {
+static const struct amba_id aaci_ids[] = {
 	{
 		.id	= 0x00041041,
 		.mask	= 0x000fffff,
