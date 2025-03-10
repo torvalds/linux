@@ -112,7 +112,7 @@ void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *fol
 
 /* Allocate additional data where page represents more than one sector */
 struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
-					  enum btrfs_subpage_type type);
+				size_t fsize, enum btrfs_subpage_type type);
 void btrfs_free_subpage(struct btrfs_subpage *subpage);
 
 void btrfs_folio_inc_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *folio);

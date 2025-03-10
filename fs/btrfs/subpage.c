@@ -86,7 +86,7 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 	if (type == BTRFS_SUBPAGE_DATA && !btrfs_is_subpage(fs_info, folio))
 		return 0;
 
-	subpage = btrfs_alloc_subpage(fs_info, type);
+	subpage = btrfs_alloc_subpage(fs_info, folio_size(folio), type);
 	if (IS_ERR(subpage))
 		return  PTR_ERR(subpage);
 
@@ -113,16 +113,16 @@ void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *fol
 }
 
 struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,
-					  enum btrfs_subpage_type type)
+				size_t fsize, enum btrfs_subpage_type type)
 {
 	struct btrfs_subpage *ret;
 	unsigned int real_size;
 
-	ASSERT(fs_info->sectorsize < PAGE_SIZE);
+	ASSERT(fs_info->sectorsize < fsize);
 
 	real_size = struct_size(ret, bitmaps,
 			BITS_TO_LONGS(btrfs_bitmap_nr_max *
-				      (PAGE_SIZE >> fs_info->sectorsize_bits)));
+				      (fsize >> fs_info->sectorsize_bits)));
 	ret = kzalloc(real_size, GFP_NOFS);
 	if (!ret)
 		return ERR_PTR(-ENOMEM);

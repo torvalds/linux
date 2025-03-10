@@ -3256,7 +3256,7 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	 * manually if we exit earlier.
 	 */
 	if (btrfs_meta_is_subpage(fs_info)) {
-		prealloc = btrfs_alloc_subpage(fs_info, BTRFS_SUBPAGE_METADATA);
+		prealloc = btrfs_alloc_subpage(fs_info, PAGE_SIZE, BTRFS_SUBPAGE_METADATA);
 		if (IS_ERR(prealloc)) {
 			ret = PTR_ERR(prealloc);
 			goto out;
