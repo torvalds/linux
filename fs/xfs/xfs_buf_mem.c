@@ -169,9 +169,6 @@ xmbuf_map_page(
 	unlock_page(page);
 
 	bp->b_addr = page_address(page);
-	bp->b_pages = bp->b_page_array;
-	bp->b_pages[0] = page;
-	bp->b_page_count = 1;
 	return 0;
 }
 
@@ -180,16 +177,10 @@ void
 xmbuf_unmap_page(
 	struct xfs_buf		*bp)
 {
-	struct page		*page = bp->b_pages[0];
-
 	ASSERT(xfs_buftarg_is_mem(bp->b_target));
 
-	put_page(page);
-
+	put_page(virt_to_page(bp->b_addr));
 	bp->b_addr = NULL;
-	bp->b_pages[0] = NULL;
-	bp->b_pages = NULL;
-	bp->b_page_count = 0;
 }
 
 /* Is this a valid daddr within the buftarg? */
