@@ -242,7 +242,8 @@ out:
 }
 
 SEC("?lsm.s/bpf")
-int BPF_PROG(inproper_sleepable_kfunc, int cmd, union bpf_attr *attr, unsigned int size)
+int BPF_PROG(inproper_sleepable_kfunc, int cmd, union bpf_attr *attr, unsigned int size,
+	     bool kernel)
 {
 	struct bpf_key *bkey;
 
