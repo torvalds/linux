@@ -97,23 +97,28 @@ static inline void scatterwalk_get_sglist(struct scatter_walk *walk,
 	scatterwalk_crypto_chain(sg_out, sg_next(walk->sg), 2);
 }
 
-static inline void *scatterwalk_map(struct scatter_walk *walk)
+static inline void scatterwalk_map(struct scatter_walk *walk)
 {
 	struct page *base_page = sg_page(walk->sg);
 
-	if (IS_ENABLED(CONFIG_HIGHMEM))
-		return kmap_local_page(base_page + (walk->offset >> PAGE_SHIFT)) +
-		       offset_in_page(walk->offset);
-	/*
-	 * When !HIGHMEM we allow the walker to return segments that span a page
-	 * boundary; see scatterwalk_clamp().  To make it clear that in this
-	 * case we're working in the linear buffer of the whole sg entry in the
-	 * kernel's direct map rather than within the mapped buffer of a single
-	 * page, compute the address as an offset from the page_address() of the
-	 * first page of the sg entry.  Either way the result is the address in
-	 * the direct map, but this makes it clearer what is really going on.
-	 */
-	return page_address(base_page) + walk->offset;
+	if (IS_ENABLED(CONFIG_HIGHMEM)) {
+		walk->__addr = kmap_local_page(base_page +
+					       (walk->offset >> PAGE_SHIFT)) +
+			       offset_in_page(walk->offset);
+	} else {
+		/*
+		 * When !HIGHMEM we allow the walker to return segments that
+		 * span a page boundary; see scatterwalk_clamp().  To make it
+		 * clear that in this case we're working in the linear buffer of
+		 * the whole sg entry in the kernel's direct map rather than
+		 * within the mapped buffer of a single page, compute the
+		 * address as an offset from the page_address() of the first
+		 * page of the sg entry.  Either way the result is the address
+		 * in the direct map, but this makes it clearer what is really
+		 * going on.
+		 */
+		walk->__addr = page_address(base_page) + walk->offset;
+	}
 }
 
 /**
@@ -132,14 +137,14 @@ static inline unsigned int scatterwalk_next(struct scatter_walk *walk,
 {
 	unsigned int nbytes = scatterwalk_clamp(walk, total);
 
-	walk->__addr = scatterwalk_map(walk);
+	scatterwalk_map(walk);
 	return nbytes;
 }
 
-static inline void scatterwalk_unmap(const void *vaddr)
+static inline void scatterwalk_unmap(struct scatter_walk *walk)
 {
 	if (IS_ENABLED(CONFIG_HIGHMEM))
-		kunmap_local(vaddr);
+		kunmap_local(walk->__addr);
 }
 
 static inline void scatterwalk_advance(struct scatter_walk *walk,
@@ -159,7 +164,7 @@ static inline void scatterwalk_advance(struct scatter_walk *walk,
 static inline void scatterwalk_done_src(struct scatter_walk *walk,
 					unsigned int nbytes)
 {
-	scatterwalk_unmap(walk->addr);
+	scatterwalk_unmap(walk);
 	scatterwalk_advance(walk, nbytes);
 }
 
@@ -175,7 +180,7 @@ static inline void scatterwalk_done_src(struct scatter_walk *walk,
 static inline void scatterwalk_done_dst(struct scatter_walk *walk,
 					unsigned int nbytes)
 {
-	scatterwalk_unmap(walk->addr);
+	scatterwalk_unmap(walk);
 	/*
 	 * Explicitly check ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE instead of just
 	 * relying on flush_dcache_page() being a no-op when not implemented,

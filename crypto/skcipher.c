@@ -39,18 +39,6 @@ static const struct crypto_type crypto_skcipher_type;
 
 static int skcipher_walk_next(struct skcipher_walk *walk);
 
-static inline void skcipher_map_src(struct skcipher_walk *walk)
-{
-	/* XXX */
-	walk->in.__addr = scatterwalk_map(&walk->in);
-}
-
-static inline void skcipher_map_dst(struct skcipher_walk *walk)
-{
-	/* XXX */
-	walk->out.__addr = scatterwalk_map(&walk->out);
-}
-
 static inline gfp_t skcipher_walk_gfp(struct skcipher_walk *walk)
 {
 	return walk->flags & SKCIPHER_WALK_SLEEP ? GFP_KERNEL : GFP_ATOMIC;
@@ -101,8 +89,8 @@ int skcipher_walk_done(struct skcipher_walk *walk, int res)
 		scatterwalk_done_src(&walk->in, n);
 	} else if (walk->flags & SKCIPHER_WALK_COPY) {
 		scatterwalk_advance(&walk->in, n);
-		skcipher_map_dst(walk);
-		memcpy(walk->dst.virt.addr, walk->page, n);
+		scatterwalk_map(&walk->out);
+		memcpy(walk->out.addr, walk->page, n);
 	} else { /* SKCIPHER_WALK_SLOW */
 		if (res > 0) {
 			/*
@@ -186,9 +174,9 @@ static int skcipher_next_copy(struct skcipher_walk *walk)
 {
 	void *tmp = walk->page;
 
-	skcipher_map_src(walk);
-	memcpy(tmp, walk->src.virt.addr, walk->nbytes);
-	scatterwalk_unmap(walk->src.virt.addr);
+	scatterwalk_map(&walk->in);
+	memcpy(tmp, walk->in.addr, walk->nbytes);
+	scatterwalk_unmap(&walk->in);
 	/*
 	 * walk->in is advanced later when the number of bytes actually
 	 * processed (which might be less than walk->nbytes) is known.
@@ -208,12 +196,12 @@ static int skcipher_next_fast(struct skcipher_walk *walk)
 	diff |= (u8 *)(sg_page(walk->in.sg) + (walk->in.offset >> PAGE_SHIFT)) -
 		(u8 *)(sg_page(walk->out.sg) + (walk->out.offset >> PAGE_SHIFT));
 
-	skcipher_map_dst(walk);
-	walk->in.__addr = walk->dst.virt.addr;
+	scatterwalk_map(&walk->out);
+	walk->in.__addr = walk->out.__addr;
 
 	if (diff) {
 		walk->flags |= SKCIPHER_WALK_DIFF;
-		skcipher_map_src(walk);
+		scatterwalk_map(&walk->in);
 	}
 
 	return 0;

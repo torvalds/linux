@@ -871,8 +871,7 @@ static int gcm_out_walk_go(struct gcm_sg_walk *gw, unsigned int minbytesneeded)
 		goto out;
 	}
 
-	/* XXX */
-	scatterwalk_unmap(gw->walk.addr);
+	scatterwalk_unmap(&gw->walk);
 
 	gw->ptr = gw->buf;
 	gw->nbytes = sizeof(gw->buf);
