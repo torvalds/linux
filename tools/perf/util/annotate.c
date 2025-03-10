@@ -760,11 +760,26 @@ static int disasm_line__print(struct disasm_line *dl, u64 start, int addr_fmt_wi
 	return 0;
 }
 
+static struct annotated_data_type *
+__hist_entry__get_data_type(struct hist_entry *he, struct arch *arch,
+			    struct debuginfo *dbg, struct disasm_line *dl,
+			    int *type_offset);
+
+struct annotation_print_data {
+	struct hist_entry *he;
+	struct evsel *evsel;
+	struct arch *arch;
+	struct debuginfo *dbg;
+	u64 start;
+	int addr_fmt_width;
+};
+
 static int
-annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start,
-		       struct evsel *evsel, struct annotation_options *opts,
-		       int printed, struct annotation_line *queue, int addr_fmt_width)
+annotation_line__print(struct annotation_line *al, struct annotation_print_data *apd,
+		       struct annotation_options *opts, int printed,
+		       struct annotation_line *queue)
 {
+	struct symbol *sym = apd->he->ms.sym;
 	struct disasm_line *dl = container_of(al, struct disasm_line, al);
 	struct annotation *notes = symbol__annotation(sym);
 	static const char *prev_line;
@@ -804,10 +819,8 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 			list_for_each_entry_from(queue, &notes->src->source, node) {
 				if (queue == al)
 					break;
-				annotation_line__print(queue, sym, start, evsel,
-						       &queue_opts, /*printed=*/0,
-						       /*queue=*/NULL,
-						       addr_fmt_width);
+				annotation_line__print(queue, apd, &queue_opts,
+						       /*printed=*/0, /*queue=*/NULL);
 			}
 		}
 
@@ -832,7 +845,31 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 
 		printf(" : ");
 
-		disasm_line__print(dl, start, addr_fmt_width);
+		disasm_line__print(dl, apd->start, apd->addr_fmt_width);
+
+		if (opts->code_with_type && apd->dbg) {
+			struct annotated_data_type *data_type;
+			int offset = 0;
+
+			data_type = __hist_entry__get_data_type(apd->he, apd->arch,
+								apd->dbg, dl, &offset);
+			if (data_type && data_type != NO_TYPE) {
+				char buf[4096];
+
+				printf("\t\t# data-type: %s",
+				       data_type->self.type_name);
+
+				if (data_type != &stackop_type &&
+				    data_type != &canary_type)
+					printf(" +%#x", offset);
+
+				if (annotated_data_type__get_member_name(data_type,
+									 buf,
+									 sizeof(buf),
+									 offset))
+					printf(" (%s)", buf);
+			}
+		}
 
 		/*
 		 * Also color the filename and line if needed, with
@@ -858,7 +895,8 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		if (!*al->line)
 			printf(" %*s:\n", width, " ");
 		else
-			printf(" %*s: %-*d %s\n", width, " ", addr_fmt_width, al->line_nr, al->line);
+			printf(" %*s: %-*d %s\n", width, " ", apd->addr_fmt_width,
+			       al->line_nr, al->line);
 	}
 
 	return 0;
@@ -1189,8 +1227,12 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 	struct sym_hist *h = annotation__histogram(notes, evsel);
 	struct annotation_line *pos, *queue = NULL;
 	struct annotation_options *opts = &annotate_opts;
-	u64 start = map__rip_2objdump(map, sym->start);
-	int printed = 2, queue_len = 0, addr_fmt_width;
+	struct annotation_print_data apd = {
+		.he = he,
+		.evsel = evsel,
+		.start = map__rip_2objdump(map, sym->start),
+	};
+	int printed = 2, queue_len = 0;
 	int more = 0;
 	bool context = opts->context;
 	int width = annotation__pcnt_width(notes);
@@ -1224,7 +1266,10 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 	if (verbose > 0)
 		symbol__annotate_hits(sym, evsel);
 
-	addr_fmt_width = annotated_source__addr_fmt_width(&notes->src->source, start);
+	apd.addr_fmt_width = annotated_source__addr_fmt_width(&notes->src->source,
+							      apd.start);
+	evsel__get_arch(evsel, &apd.arch);
+	apd.dbg = debuginfo__new(filename);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
 		int err;
@@ -1234,8 +1279,7 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 			queue_len = 0;
 		}
 
-		err = annotation_line__print(pos, sym, start, evsel,
-					     opts, printed, queue, addr_fmt_width);
+		err = annotation_line__print(pos, &apd, opts, printed, queue);
 
 		switch (err) {
 		case 0:
@@ -1266,6 +1310,7 @@ int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 		}
 	}
 
+	debuginfo__delete(apd.dbg);
 	free(filename);
 
 	return more;

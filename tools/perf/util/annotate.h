@@ -55,6 +55,7 @@ struct annotation_options {
 	     show_asm_raw,
 	     show_br_cntr,
 	     annotate_src,
+	     code_with_type,
 	     full_addr;
 	u8   offset_level;
 	u8   disassemblers[MAX_DISASSEMBLERS];
