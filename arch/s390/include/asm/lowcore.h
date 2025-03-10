@@ -224,7 +224,7 @@ static __always_inline struct lowcore *get_lowcore(void)
 	if (__is_defined(__DECOMPRESSOR))
 		return NULL;
 	asm_inline(
-		ALTERNATIVE("	llilh	%[lc],0",
+		ALTERNATIVE("	lghi	%[lc],0",
 			    "	llilh	%[lc],%[alt]",
 			    ALT_FEATURE(MFEATURE_LOWCORE))
 		: [lc] "=d" (lc)
@@ -242,7 +242,7 @@ static inline void set_prefix(__u32 address)
 #else /* __ASSEMBLY__ */
 
 .macro GET_LC reg
-	ALTERNATIVE "llilh	\reg,0",					\
+	ALTERNATIVE "lghi	\reg,0",					\
 		__stringify(llilh	\reg, LOWCORE_ALT_ADDRESS >> 16),	\
 		ALT_FEATURE(MFEATURE_LOWCORE)
 .endm
