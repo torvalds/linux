@@ -1148,21 +1148,31 @@ err_dsp:
 	return ret;
 }
 
+#ifdef CONFIG_ACPI
 static int cs35l41_acpi_get_name(struct cs35l41_private *cs35l41)
 {
-	acpi_handle handle = ACPI_HANDLE(cs35l41->dev);
+	struct acpi_device *adev = ACPI_COMPANION(cs35l41->dev);
+	acpi_handle handle = acpi_device_handle(adev);
+	const char *hid;
 	const char *sub;
 
-	/* If there is no ACPI_HANDLE, there is no ACPI for this system, return 0 */
-	if (!handle)
+	/* If there is no acpi_device, there is no ACPI for this system, return 0 */
+	if (!adev)
 		return 0;
 
 	sub = acpi_get_subsystem_id(handle);
 	if (IS_ERR(sub)) {
-		/* If bad ACPI, return 0 and fallback to legacy firmware path, otherwise fail */
-		if (PTR_ERR(sub) == -ENODATA)
-			return 0;
-		else
+		/* If no _SUB, fallback to _HID, otherwise fail */
+		if (PTR_ERR(sub) == -ENODATA) {
+			hid = acpi_device_hid(adev);
+			/* If dummy hid, return 0 and fallback to legacy firmware path */
+			if (!strcmp(hid, "device"))
+				return 0;
+			sub = kstrdup(hid, GFP_KERNEL);
+			if (!sub)
+				sub = ERR_PTR(-ENOMEM);
+
+		} else
 			return PTR_ERR(sub);
 	}
 
@@ -1171,6 +1181,12 @@ static int cs35l41_acpi_get_name(struct cs35l41_private *cs35l41)
 
 	return 0;
 }
+#else
+static int cs35l41_acpi_get_name(struct cs35l41_private *cs35l41)
+{
+	return 0;
+}
+#endif /* CONFIG_ACPI */
 
 int cs35l41_probe(struct cs35l41_private *cs35l41, const struct cs35l41_hw_cfg *hw_cfg)
 {

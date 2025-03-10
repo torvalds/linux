@@ -180,9 +180,9 @@ enum bch_fsck_flags {
 	x(ptr_crc_nonce_mismatch,				162,	0)		\
 	x(ptr_stripe_redundant,					163,	0)		\
 	x(reservation_key_nr_replicas_invalid,			164,	0)		\
-	x(reflink_v_refcount_wrong,				165,	0)		\
+	x(reflink_v_refcount_wrong,				165,	FSCK_AUTOFIX)	\
 	x(reflink_v_pos_bad,					292,	0)		\
-	x(reflink_p_to_missing_reflink_v,			166,	0)		\
+	x(reflink_p_to_missing_reflink_v,			166,	FSCK_AUTOFIX)	\
 	x(reflink_refcount_underflow,				293,	0)		\
 	x(stripe_pos_bad,					167,	0)		\
 	x(stripe_val_size_bad,					168,	0)		\

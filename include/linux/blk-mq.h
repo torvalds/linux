@@ -28,7 +28,7 @@ typedef enum rq_end_io_ret (rq_end_io_fn)(struct request *, blk_status_t);
 typedef __u32 __bitwise req_flags_t;
 
 /* Keep rqf_name[] in sync with the definitions below */
-enum {
+enum rqf_flags {
 	/* drive already may have started this one */
 	__RQF_STARTED,
 	/* request for flush sequence */
@@ -861,12 +861,22 @@ static inline bool blk_mq_add_to_batch(struct request *req,
 				       void (*complete)(struct io_comp_batch *))
 {
 	/*
-	 * blk_mq_end_request_batch() can't end request allocated from
-	 * sched tags
+	 * Check various conditions that exclude batch processing:
+	 * 1) No batch container
+	 * 2) Has scheduler data attached
+	 * 3) Not a passthrough request and end_io set
+	 * 4) Not a passthrough request and an ioerror
 	 */
-	if (!iob || (req->rq_flags & RQF_SCHED_TAGS) || ioerror ||
-			(req->end_io && !blk_rq_is_passthrough(req)))
+	if (!iob)
 		return false;
+	if (req->rq_flags & RQF_SCHED_TAGS)
+		return false;
+	if (!blk_rq_is_passthrough(req)) {
+		if (req->end_io)
+			return false;
+		if (ioerror < 0)
+			return false;
+	}
 
 	if (!iob->complete)
 		iob->complete = complete;

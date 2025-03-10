@@ -1591,6 +1591,13 @@ s_next(struct seq_file *m, void *v, loff_t *pos)
 		return iter;
 #endif
 
+	/*
+	 * The iter is allocated in s_start() and passed via the 'v'
+	 * parameter. To stop the iterator, NULL must be returned. But
+	 * the return value is what the 'v' parameter in s_stop() receives
+	 * and frees. Free iter here as it will no longer be used.
+	 */
+	kfree(iter);
 	return NULL;
 }
 
@@ -1667,9 +1674,9 @@ static int s_show(struct seq_file *m, void *v)
 }
 #endif
 
-static void s_stop(struct seq_file *m, void *p)
+static void s_stop(struct seq_file *m, void *v)
 {
-	kfree(p);
+	kfree(v);
 	t_stop(m, NULL);
 }
 

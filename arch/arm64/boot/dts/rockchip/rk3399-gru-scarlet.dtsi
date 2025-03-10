@@ -92,7 +92,7 @@
 	};
 
 	/* EC turns on pp1800_s3_en */
-	pp1800_s3: pp1800 {
+	pp1800_s3: regulator-pp1800 {
 	};
 
 	/* pp3300 children, sorted by name */
@@ -109,11 +109,11 @@
 	};
 
 	/* EC turns on pp3300_s0_en */
-	pp3300_s0: pp3300 {
+	pp3300_s0: regulator-pp3300 {
 	};
 
 	/* EC turns on pp3300_s3_en */
-	pp3300_s3: pp3300 {
+	pp3300_s3: regulator-pp3300 {
 	};
 
 	/*
