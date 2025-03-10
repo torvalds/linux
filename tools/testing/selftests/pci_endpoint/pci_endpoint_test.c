@@ -99,11 +99,11 @@ TEST_F(pci_ep_basic, LEGACY_IRQ_TEST)
 {
 	int ret;
 
-	pci_ep_ioctl(PCITEST_SET_IRQTYPE, 0);
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_INTX);
 	ASSERT_EQ(0, ret) TH_LOG("Can't set Legacy IRQ type");
 
 	pci_ep_ioctl(PCITEST_GET_IRQTYPE, 0);
-	ASSERT_EQ(0, ret) TH_LOG("Can't get Legacy IRQ type");
+	ASSERT_EQ(PCITEST_IRQ_TYPE_INTX, ret) TH_LOG("Can't get Legacy IRQ type");
 
 	pci_ep_ioctl(PCITEST_LEGACY_IRQ, 0);
 	EXPECT_FALSE(ret) TH_LOG("Test failed for Legacy IRQ");
@@ -113,11 +113,11 @@ TEST_F(pci_ep_basic, MSI_TEST)
 {
 	int ret, i;
 
-	pci_ep_ioctl(PCITEST_SET_IRQTYPE, 1);
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_MSI);
 	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI IRQ type");
 
 	pci_ep_ioctl(PCITEST_GET_IRQTYPE, 0);
-	ASSERT_EQ(1, ret) TH_LOG("Can't get MSI IRQ type");
+	ASSERT_EQ(PCITEST_IRQ_TYPE_MSI, ret) TH_LOG("Can't get MSI IRQ type");
 
 	for (i = 1; i <= 32; i++) {
 		pci_ep_ioctl(PCITEST_MSI, i);
@@ -129,11 +129,11 @@ TEST_F(pci_ep_basic, MSIX_TEST)
 {
 	int ret, i;
 
-	pci_ep_ioctl(PCITEST_SET_IRQTYPE, 2);
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_MSIX);
 	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI-X IRQ type");
 
 	pci_ep_ioctl(PCITEST_GET_IRQTYPE, 0);
-	ASSERT_EQ(2, ret) TH_LOG("Can't get MSI-X IRQ type");
+	ASSERT_EQ(PCITEST_IRQ_TYPE_MSIX, ret) TH_LOG("Can't get MSI-X IRQ type");
 
 	for (i = 1; i <= 2048; i++) {
 		pci_ep_ioctl(PCITEST_MSIX, i);
@@ -181,7 +181,7 @@ TEST_F(pci_ep_data_transfer, READ_TEST)
 	if (variant->use_dma)
 		param.flags = PCITEST_FLAGS_USE_DMA;
 
-	pci_ep_ioctl(PCITEST_SET_IRQTYPE, 1);
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_MSI);
 	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI IRQ type");
 
 	for (i = 0; i < ARRAY_SIZE(test_size); i++) {
@@ -200,7 +200,7 @@ TEST_F(pci_ep_data_transfer, WRITE_TEST)
 	if (variant->use_dma)
 		param.flags = PCITEST_FLAGS_USE_DMA;
 
-	pci_ep_ioctl(PCITEST_SET_IRQTYPE, 1);
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_MSI);
 	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI IRQ type");
 
 	for (i = 0; i < ARRAY_SIZE(test_size); i++) {
@@ -219,7 +219,7 @@ TEST_F(pci_ep_data_transfer, COPY_TEST)
 	if (variant->use_dma)
 		param.flags = PCITEST_FLAGS_USE_DMA;
 
-	pci_ep_ioctl(PCITEST_SET_IRQTYPE, 1);
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_MSI);
 	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI IRQ type");
 
 	for (i = 0; i < ARRAY_SIZE(test_size); i++) {
