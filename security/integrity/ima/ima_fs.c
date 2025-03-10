@@ -116,28 +116,6 @@ void ima_putc(struct seq_file *m, void *data, int datalen)
 		seq_putc(m, *(char *)data++);
 }
 
-static struct dentry **ascii_securityfs_measurement_lists __ro_after_init;
-static struct dentry **binary_securityfs_measurement_lists __ro_after_init;
-static int securityfs_measurement_list_count __ro_after_init;
-
-static void lookup_template_data_hash_algo(int *algo_idx, enum hash_algo *algo,
-					   struct seq_file *m,
-					   struct dentry **lists)
-{
-	struct dentry *dentry;
-	int i;
-
-	dentry = file_dentry(m->file);
-
-	for (i = 0; i < securityfs_measurement_list_count; i++) {
-		if (dentry == lists[i]) {
-			*algo_idx = i;
-			*algo = ima_algo_array[i].algo;
-			break;
-		}
-	}
-}
-
 /* print format:
  *       32bit-le=pcr#
  *       char[n]=template digest
@@ -160,9 +138,10 @@ int ima_measurements_show(struct seq_file *m, void *v)
 	algo_idx = ima_sha1_idx;
 	algo = HASH_ALGO_SHA1;
 
-	if (m->file != NULL)
-		lookup_template_data_hash_algo(&algo_idx, &algo, m,
-					       binary_securityfs_measurement_lists);
+	if (m->file != NULL) {
+		algo_idx = (unsigned long)file_inode(m->file)->i_private;
+		algo = ima_algo_array[algo_idx].algo;
+	}
 
 	/* get entry */
 	e = qe->entry;
@@ -256,9 +235,10 @@ static int ima_ascii_measurements_show(struct seq_file *m, void *v)
 	algo_idx = ima_sha1_idx;
 	algo = HASH_ALGO_SHA1;
 
-	if (m->file != NULL)
-		lookup_template_data_hash_algo(&algo_idx, &algo, m,
-					       ascii_securityfs_measurement_lists);
+	if (m->file != NULL) {
+		algo_idx = (unsigned long)file_inode(m->file)->i_private;
+		algo = ima_algo_array[algo_idx].algo;
+	}
 
 	/* get entry */
 	e = qe->entry;
@@ -412,57 +392,33 @@ static const struct seq_operations ima_policy_seqops = {
 };
 #endif
 
-static void __init remove_securityfs_measurement_lists(struct dentry **lists)
-{
-	kfree(lists);
-}
-
 static int __init create_securityfs_measurement_lists(void)
 {
-	char file_name[NAME_MAX + 1];
-	struct dentry *dentry;
-	u16 algo;
-	int i;
-
-	securityfs_measurement_list_count = NR_BANKS(ima_tpm_chip);
+	int count = NR_BANKS(ima_tpm_chip);
 
 	if (ima_sha1_idx >= NR_BANKS(ima_tpm_chip))
-		securityfs_measurement_list_count++;
+		count++;
 
-	ascii_securityfs_measurement_lists =
-	    kcalloc(securityfs_measurement_list_count, sizeof(struct dentry *),
-		    GFP_KERNEL);
-	if (!ascii_securityfs_measurement_lists)
-		return -ENOMEM;
-
-	binary_securityfs_measurement_lists =
-	    kcalloc(securityfs_measurement_list_count, sizeof(struct dentry *),
-		    GFP_KERNEL);
-	if (!binary_securityfs_measurement_lists)
-		return -ENOMEM;
-
-	for (i = 0; i < securityfs_measurement_list_count; i++) {
-		algo = ima_algo_array[i].algo;
+	for (int i = 0; i < count; i++) {
+		u16 algo = ima_algo_array[i].algo;
+		char file_name[NAME_MAX + 1];
+		struct dentry *dentry;
 
 		sprintf(file_name, "ascii_runtime_measurements_%s",
 			hash_algo_name[algo]);
 		dentry = securityfs_create_file(file_name, S_IRUSR | S_IRGRP,
-						ima_dir, NULL,
+						ima_dir, (void *)(uintptr_t)i,
 						&ima_ascii_measurements_ops);
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
 
-		ascii_securityfs_measurement_lists[i] = dentry;
-
 		sprintf(file_name, "binary_runtime_measurements_%s",
 			hash_algo_name[algo]);
 		dentry = securityfs_create_file(file_name, S_IRUSR | S_IRGRP,
-						ima_dir, NULL,
+						ima_dir, (void *)(uintptr_t)i,
 						&ima_measurements_ops);
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
-
-		binary_securityfs_measurement_lists[i] = dentry;
 	}
 
 	return 0;
@@ -543,9 +499,6 @@ int __init ima_fs_init(void)
 	struct dentry *dentry;
 	int ret;
 
-	ascii_securityfs_measurement_lists = NULL;
-	binary_securityfs_measurement_lists = NULL;
-
 	ima_dir = securityfs_create_dir("ima", integrity_dir);
 	if (IS_ERR(ima_dir))
 		return PTR_ERR(ima_dir);
@@ -600,9 +553,6 @@ int __init ima_fs_init(void)
 
 	return 0;
 out:
-	remove_securityfs_measurement_lists(ascii_securityfs_measurement_lists);
-	remove_securityfs_measurement_lists(binary_securityfs_measurement_lists);
-	securityfs_measurement_list_count = 0;
 	securityfs_remove(ima_symlink);
 	securityfs_remove(ima_dir);
 
