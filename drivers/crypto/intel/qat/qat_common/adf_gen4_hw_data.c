@@ -135,36 +135,18 @@ int adf_gen4_init_device(struct adf_accel_dev *accel_dev)
 }
 EXPORT_SYMBOL_GPL(adf_gen4_init_device);
 
-static inline void adf_gen4_unpack_ssm_wdtimer(u64 value, u32 *upper,
-					       u32 *lower)
-{
-	*lower = lower_32_bits(value);
-	*upper = upper_32_bits(value);
-}
-
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u64 timer_val_pke = ADF_SSM_WDT_PKE_DEFAULT_VALUE;
 	u64 timer_val = ADF_SSM_WDT_DEFAULT_VALUE;
-	u32 ssm_wdt_pke_high = 0;
-	u32 ssm_wdt_pke_low = 0;
-	u32 ssm_wdt_high = 0;
-	u32 ssm_wdt_low = 0;
 
-	/* Convert 64bit WDT timer value into 32bit values for
-	 * mmio write to 32bit CSRs.
-	 */
-	adf_gen4_unpack_ssm_wdtimer(timer_val, &ssm_wdt_high, &ssm_wdt_low);
-	adf_gen4_unpack_ssm_wdtimer(timer_val_pke, &ssm_wdt_pke_high,
-				    &ssm_wdt_pke_low);
+	/* Enable watchdog timer for sym and dc */
+	ADF_CSR_WR64_LO_HI(pmisc_addr, ADF_SSMWDTL_OFFSET, ADF_SSMWDTH_OFFSET, timer_val);
 
-	/* Enable WDT for sym and dc */
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTL_OFFSET, ssm_wdt_low);
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTH_OFFSET, ssm_wdt_high);
-	/* Enable WDT for pke */
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKEL_OFFSET, ssm_wdt_pke_low);
-	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKEH_OFFSET, ssm_wdt_pke_high);
+	/* Enable watchdog timer for pke */
+	ADF_CSR_WR64_LO_HI(pmisc_addr, ADF_SSMWDTPKEL_OFFSET, ADF_SSMWDTPKEH_OFFSET,
+			   timer_val_pke);
 }
 EXPORT_SYMBOL_GPL(adf_gen4_set_ssm_wdtimer);
 
