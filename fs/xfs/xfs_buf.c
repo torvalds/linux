@@ -243,23 +243,23 @@ xfs_buf_free(
 
 static int
 xfs_buf_alloc_kmem(
-	struct xfs_buf	*bp,
-	xfs_buf_flags_t	flags)
+	struct xfs_buf		*bp,
+	size_t			size,
+	gfp_t			gfp_mask)
 {
-	gfp_t		gfp_mask = GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL;
-	size_t		size = BBTOB(bp->b_length);
+	ASSERT(is_power_of_2(size));
+	ASSERT(size < PAGE_SIZE);
 
-	/* Assure zeroed buffer for non-read cases. */
-	if (!(flags & XBF_READ))
-		gfp_mask |= __GFP_ZERO;
-
-	bp->b_addr = kmalloc(size, gfp_mask);
+	bp->b_addr = kmalloc(size, gfp_mask | __GFP_NOFAIL);
 	if (!bp->b_addr)
 		return -ENOMEM;
 
-	if (((unsigned long)(bp->b_addr + size - 1) & PAGE_MASK) !=
-	    ((unsigned long)bp->b_addr & PAGE_MASK)) {
-		/* b_addr spans two pages - use alloc_page instead */
+	/*
+	 * Slab guarantees that we get back naturally aligned allocations for
+	 * power of two sizes.  Keep this check as the canary in the coal mine
+	 * if anything changes in slab.
+	 */
+	if (WARN_ON_ONCE(!IS_ALIGNED((unsigned long)bp->b_addr, size))) {
 		kfree(bp->b_addr);
 		bp->b_addr = NULL;
 		return -ENOMEM;
@@ -300,17 +300,21 @@ xfs_buf_alloc_backing_mem(
 	if (xfs_buftarg_is_mem(bp->b_target))
 		return xmbuf_map_page(bp);
 
-	/*
-	 * For buffers that fit entirely within a single page, first attempt to
-	 * allocate the memory from the heap to minimise memory usage.  If we
-	 * can't get heap memory for these small buffers, we fall back to using
-	 * the page allocator.
-	 */
-	if (size < PAGE_SIZE && xfs_buf_alloc_kmem(new_bp, flags) == 0)
-		return 0;
+	/* Assure zeroed buffer for non-read cases. */
+	if (!(flags & XBF_READ))
+		gfp_mask |= __GFP_ZERO;
 
 	if (flags & XBF_READ_AHEAD)
 		gfp_mask |= __GFP_NORETRY;
+
+	/*
+	 * For buffers smaller than PAGE_SIZE use a kmalloc allocation if that
+	 * is properly aligned.  The slab allocator now guarantees an aligned
+	 * allocation for all power of two sizes, which matches most of the
+	 * smaller than PAGE_SIZE buffers used by XFS.
+	 */
+	if (size < PAGE_SIZE && is_power_of_2(size))
+		return xfs_buf_alloc_kmem(bp, size, gfp_mask);
 
 	/* Make sure that we have a page list */
 	bp->b_page_count = DIV_ROUND_UP(size, PAGE_SIZE);
@@ -323,10 +327,6 @@ xfs_buf_alloc_backing_mem(
 			return -ENOMEM;
 	}
 	bp->b_flags |= _XBF_PAGES;
-
-	/* Assure zeroed buffer for non-read cases. */
-	if (!(flags & XBF_READ))
-		gfp_mask |= __GFP_ZERO;
 
 	/*
 	 * Bulk filling of pages can take multiple calls. Not filling the entire
