@@ -1560,8 +1560,7 @@ xrep_dinode_core(
 
 	/* Read the inode cluster buffer. */
 	error = xfs_trans_read_buf(sc->mp, sc->tp, sc->mp->m_ddev_targp,
-			ri->imap.im_blkno, ri->imap.im_len, XBF_UNMAPPED, &bp,
-			NULL);
+			ri->imap.im_blkno, ri->imap.im_len, 0, &bp, NULL);
 	if (error)
 		return error;
 

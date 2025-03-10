@@ -70,7 +70,7 @@ xfs_buf_item_straddle(
 {
 	void			*first, *last;
 
-	if (bp->b_page_count == 1 || !(bp->b_flags & XBF_UNMAPPED))
+	if (bp->b_page_count == 1)
 		return false;
 
 	first = xfs_buf_offset(bp, offset + (first_bit << XFS_BLF_SHIFT));
