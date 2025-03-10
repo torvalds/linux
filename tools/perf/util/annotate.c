@@ -87,6 +87,8 @@ struct annotated_data_type canary_type = {
 	},
 };
 
+#define NO_TYPE ((struct annotated_data_type *)-1UL)
+
 /* symbol histogram: key = offset << 16 | evsel->core.idx */
 static size_t sym_hist_hash(long key, void *ctx __maybe_unused)
 {
@@ -2649,6 +2651,92 @@ void debuginfo_cache__delete(void)
 	di_cache.dbg = NULL;
 }
 
+static struct annotated_data_type *
+__hist_entry__get_data_type(struct hist_entry *he, struct arch *arch,
+			    struct debuginfo *dbg, struct disasm_line *dl,
+			    int *type_offset)
+{
+	struct map_symbol *ms = &he->ms;
+	struct annotated_insn_loc loc;
+	struct annotated_op_loc *op_loc;
+	struct annotated_data_type *mem_type;
+	struct annotated_item_stat *istat;
+	int i;
+
+	istat = annotate_data_stat(&ann_insn_stat, dl->ins.name);
+	if (istat == NULL) {
+		ann_data_stat.no_insn++;
+		return NO_TYPE;
+	}
+
+	if (annotate_get_insn_location(arch, dl, &loc) < 0) {
+		ann_data_stat.no_insn_ops++;
+		istat->bad++;
+		return NO_TYPE;
+	}
+
+	if (is_stack_operation(arch, dl)) {
+		istat->good++;
+		*type_offset = 0;
+		return &stackop_type;
+	}
+
+	for_each_insn_op_loc(&loc, i, op_loc) {
+		struct data_loc_info dloc = {
+			.arch = arch,
+			.thread = he->thread,
+			.ms = ms,
+			.ip = ms->sym->start + dl->al.offset,
+			.cpumode = he->cpumode,
+			.op = op_loc,
+			.di = dbg,
+		};
+
+		if (!op_loc->mem_ref && op_loc->segment == INSN_SEG_NONE)
+			continue;
+
+		/* PC-relative addressing */
+		if (op_loc->reg1 == DWARF_REG_PC) {
+			dloc.var_addr = annotate_calc_pcrel(ms, dloc.ip,
+							    op_loc->offset, dl);
+		}
+
+		/* This CPU access in kernel - pretend PC-relative addressing */
+		if (dso__kernel(map__dso(ms->map)) && arch__is(arch, "x86") &&
+		    op_loc->segment == INSN_SEG_X86_GS && op_loc->imm) {
+			dloc.var_addr = op_loc->offset;
+			op_loc->reg1 = DWARF_REG_PC;
+		}
+
+		mem_type = find_data_type(&dloc);
+
+		if (mem_type == NULL && is_stack_canary(arch, op_loc)) {
+			istat->good++;
+			*type_offset = 0;
+			return &canary_type;
+		}
+
+		if (mem_type)
+			istat->good++;
+		else
+			istat->bad++;
+
+		if (symbol_conf.annotate_data_sample) {
+			struct evsel *evsel = hists_to_evsel(he->hists);
+
+			annotated_data_type__update_samples(mem_type, evsel,
+							    dloc.type_offset,
+							    he->stat.nr_events,
+							    he->stat.period);
+		}
+		*type_offset = dloc.type_offset;
+		return mem_type ?: NO_TYPE;
+	}
+
+	/* retry with a fused instruction */
+	return NULL;
+}
+
 /**
  * hist_entry__get_data_type - find data type for given hist entry
  * @he: hist entry
@@ -2664,12 +2752,9 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 	struct evsel *evsel = hists_to_evsel(he->hists);
 	struct arch *arch;
 	struct disasm_line *dl;
-	struct annotated_insn_loc loc;
-	struct annotated_op_loc *op_loc;
 	struct annotated_data_type *mem_type;
 	struct annotated_item_stat *istat;
 	u64 ip = he->ip;
-	int i;
 
 	ann_data_stat.total++;
 
@@ -2721,77 +2806,10 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 	}
 
 retry:
-	istat = annotate_data_stat(&ann_insn_stat, dl->ins.name);
-	if (istat == NULL) {
-		ann_data_stat.no_insn++;
-		return NULL;
-	}
-
-	if (annotate_get_insn_location(arch, dl, &loc) < 0) {
-		ann_data_stat.no_insn_ops++;
-		istat->bad++;
-		return NULL;
-	}
-
-	if (is_stack_operation(arch, dl)) {
-		istat->good++;
-		he->mem_type_off = 0;
-		return &stackop_type;
-	}
-
-	for_each_insn_op_loc(&loc, i, op_loc) {
-		struct data_loc_info dloc = {
-			.arch = arch,
-			.thread = he->thread,
-			.ms = ms,
-			/* Recalculate IP for LOCK prefix or insn fusion */
-			.ip = ms->sym->start + dl->al.offset,
-			.cpumode = he->cpumode,
-			.op = op_loc,
-			.di = di_cache.dbg,
-		};
-
-		if (!op_loc->mem_ref && op_loc->segment == INSN_SEG_NONE)
-			continue;
-
-		/* Recalculate IP because of LOCK prefix or insn fusion */
-		ip = ms->sym->start + dl->al.offset;
-
-		/* PC-relative addressing */
-		if (op_loc->reg1 == DWARF_REG_PC) {
-			dloc.var_addr = annotate_calc_pcrel(ms, dloc.ip,
-							    op_loc->offset, dl);
-		}
-
-		/* This CPU access in kernel - pretend PC-relative addressing */
-		if (dso__kernel(map__dso(ms->map)) && arch__is(arch, "x86") &&
-		    op_loc->segment == INSN_SEG_X86_GS && op_loc->imm) {
-			dloc.var_addr = op_loc->offset;
-			op_loc->reg1 = DWARF_REG_PC;
-		}
-
-		mem_type = find_data_type(&dloc);
-
-		if (mem_type == NULL && is_stack_canary(arch, op_loc)) {
-			istat->good++;
-			he->mem_type_off = 0;
-			return &canary_type;
-		}
-
-		if (mem_type)
-			istat->good++;
-		else
-			istat->bad++;
-
-		if (symbol_conf.annotate_data_sample) {
-			annotated_data_type__update_samples(mem_type, evsel,
-							    dloc.type_offset,
-							    he->stat.nr_events,
-							    he->stat.period);
-		}
-		he->mem_type_off = dloc.type_offset;
-		return mem_type;
-	}
+	mem_type = __hist_entry__get_data_type(he, arch, di_cache.dbg, dl,
+					       &he->mem_type_off);
+	if (mem_type)
+		return mem_type == NO_TYPE ? NULL : mem_type;
 
 	/*
 	 * Some instructions can be fused and the actual memory access came
@@ -2811,7 +2829,9 @@ retry:
 	}
 
 	ann_data_stat.no_mem_ops++;
-	istat->bad++;
+	istat = annotate_data_stat(&ann_insn_stat, dl->ins.name);
+	if (istat)
+		istat->bad++;
 	return NULL;
 }
 
