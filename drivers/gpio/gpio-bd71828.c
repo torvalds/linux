@@ -16,10 +16,9 @@ struct bd71828_gpio {
 	struct gpio_chip gpio;
 };
 
-static void bd71828_gpio_set(struct gpio_chip *chip, unsigned int offset,
-			     int value)
+static int bd71828_gpio_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
 {
-	int ret;
 	struct bd71828_gpio *bdgpio = gpiochip_get_data(chip);
 	u8 val = (value) ? BD71828_GPIO_OUT_HI : BD71828_GPIO_OUT_LO;
 
@@ -28,12 +27,10 @@ static void bd71828_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	 * we are dealing with - then we are done
 	 */
 	if (offset == HALL_GPIO_OFFSET)
-		return;
+		return 0;
 
-	ret = regmap_update_bits(bdgpio->regmap, GPIO_OUT_REG(offset),
-				 BD71828_GPIO_OUT_MASK, val);
-	if (ret)
-		dev_err(bdgpio->dev, "Could not set gpio to %d\n", value);
+	return regmap_update_bits(bdgpio->regmap, GPIO_OUT_REG(offset),
+				  BD71828_GPIO_OUT_MASK, val);
 }
 
 static int bd71828_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -112,7 +109,7 @@ static int bd71828_probe(struct platform_device *pdev)
 	bdgpio->gpio.set_config = bd71828_gpio_set_config;
 	bdgpio->gpio.can_sleep = true;
 	bdgpio->gpio.get = bd71828_gpio_get;
-	bdgpio->gpio.set = bd71828_gpio_set;
+	bdgpio->gpio.set_rv = bd71828_gpio_set;
 	bdgpio->gpio.base = -1;
 
 	/*
