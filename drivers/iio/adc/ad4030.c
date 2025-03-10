@@ -394,14 +394,13 @@ static int ad4030_get_chan_scale(struct iio_dev *indio_dev,
 	if (IS_ERR(scan_type))
 		return PTR_ERR(scan_type);
 
-	if (chan->differential) {
+	if (chan->differential)
 		*val = (st->vref_uv * 2) / MILLI;
-		*val2 = scan_type->realbits;
-		return IIO_VAL_FRACTIONAL_LOG2;
-	}
+	else
+		*val = st->vref_uv / MILLI;
 
-	*val = st->vref_uv / MILLI;
 	*val2 = scan_type->realbits;
+
 	return IIO_VAL_FRACTIONAL_LOG2;
 }
 
