@@ -1616,9 +1616,12 @@ EXPORT_SYMBOL_GPL(coresight_remove_driver);
 int coresight_etm_get_trace_id(struct coresight_device *csdev, enum cs_mode mode,
 			       struct coresight_device *sink)
 {
-	int trace_id;
-	int cpu = source_ops(csdev)->cpu_id(csdev);
+	int cpu, trace_id;
 
+	if (csdev->type != CORESIGHT_DEV_TYPE_SOURCE || !source_ops(csdev)->cpu_id)
+		return -EINVAL;
+
+	cpu = source_ops(csdev)->cpu_id(csdev);
 	switch (mode) {
 	case CS_MODE_SYSFS:
 		trace_id = coresight_trace_id_get_cpu_id(cpu);
