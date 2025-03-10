@@ -263,7 +263,10 @@ struct erofs_inode {
 			unsigned short z_advise;
 			unsigned char  z_algorithmtype[2];
 			unsigned char  z_lclusterbits;
-			unsigned long  z_tailextent_headlcn;
+			union {
+				u64    z_tailextent_headlcn;
+				u64    z_extents;
+			};
 			erofs_off_t    z_fragmentoff;
 			unsigned short z_idata_size;
 		};
