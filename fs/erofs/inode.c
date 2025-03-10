@@ -108,7 +108,7 @@ static int erofs_read_inode(struct inode *inode)
 		iu = dic->i_u;
 		i_uid_write(inode, le16_to_cpu(dic->i_uid));
 		i_gid_write(inode, le16_to_cpu(dic->i_gid));
-		set_nlink(inode, le16_to_cpu(dic->i_nlink));
+		set_nlink(inode, le16_to_cpu(dic->i_nb.nlink));
 		inode_set_mtime(inode, sbi->build_time, sbi->build_time_nsec);
 
 		inode->i_size = le32_to_cpu(dic->i_size);
@@ -129,7 +129,7 @@ static int erofs_read_inode(struct inode *inode)
 	case S_IFREG:
 	case S_IFDIR:
 	case S_IFLNK:
-		vi->raw_blkaddr = le32_to_cpu(iu.raw_blkaddr);
+		vi->startblk = le32_to_cpu(iu.startblk_lo);
 		if(S_ISLNK(inode->i_mode)) {
 			err = erofs_fill_symlink(inode, ptr, ofs);
 			if (err)
@@ -152,7 +152,7 @@ static int erofs_read_inode(struct inode *inode)
 	}
 
 	if (erofs_inode_is_data_compressed(vi->datalayout))
-		inode->i_blocks = le32_to_cpu(iu.compressed_blocks) <<
+		inode->i_blocks = le32_to_cpu(iu.blocks_lo) <<
 					(sb->s_blocksize_bits - 9);
 	else
 		inode->i_blocks = round_up(inode->i_size, sb->s_blocksize) >> 9;

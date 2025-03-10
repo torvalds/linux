@@ -178,8 +178,8 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 		dif->file = file;
 	}
 
-	dif->blocks = le32_to_cpu(dis->blocks);
-	dif->mapped_blkaddr = le32_to_cpu(dis->mapped_blkaddr);
+	dif->blocks = le32_to_cpu(dis->blocks_lo);
+	dif->uniaddr = le32_to_cpu(dis->uniaddr_lo);
 	sbi->total_blocks += dif->blocks;
 	*pos += EROFS_DEVT_SLOT_SIZE;
 	return 0;
@@ -299,7 +299,7 @@ static int erofs_read_superblock(struct super_block *sb)
 			  sbi->sb_size);
 		goto out;
 	}
-	sbi->dif0.blocks = le32_to_cpu(dsb->blocks);
+	sbi->dif0.blocks = le32_to_cpu(dsb->blocks_lo);
 	sbi->meta_blkaddr = le32_to_cpu(dsb->meta_blkaddr);
 #ifdef CONFIG_EROFS_FS_XATTR
 	sbi->xattr_blkaddr = le32_to_cpu(dsb->xattr_blkaddr);
@@ -308,12 +308,12 @@ static int erofs_read_superblock(struct super_block *sb)
 	sbi->xattr_filter_reserved = dsb->xattr_filter_reserved;
 #endif
 	sbi->islotbits = ilog2(sizeof(struct erofs_inode_compact));
-	sbi->root_nid = le16_to_cpu(dsb->root_nid);
+	sbi->root_nid = le16_to_cpu(dsb->rb.rootnid_2b);
 	sbi->packed_nid = le64_to_cpu(dsb->packed_nid);
 	sbi->inos = le64_to_cpu(dsb->inos);
 
-	sbi->build_time = le64_to_cpu(dsb->build_time);
-	sbi->build_time_nsec = le32_to_cpu(dsb->build_time_nsec);
+	sbi->build_time = le64_to_cpu(dsb->epoch);
+	sbi->build_time_nsec = le32_to_cpu(dsb->fixed_nsec);
 
 	super_set_uuid(sb, (void *)dsb->uuid, sizeof(dsb->uuid));
 

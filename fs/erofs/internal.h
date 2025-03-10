@@ -47,8 +47,8 @@ struct erofs_device_info {
 	struct dax_device *dax_dev;
 	u64 dax_part_off;
 
-	u32 blocks;
-	u32 mapped_blkaddr;
+	erofs_blk_t blocks;
+	erofs_blk_t uniaddr;
 };
 
 enum {
@@ -252,7 +252,7 @@ struct erofs_inode {
 	unsigned int *xattr_shared_xattrs;
 
 	union {
-		erofs_blk_t raw_blkaddr;
+		erofs_blk_t startblk;
 		struct {
 			unsigned short	chunkformat;
 			unsigned char	chunkbits;

@@ -95,7 +95,7 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 
 		map->m_flags = EROFS_MAP_MAPPED;
 		if (map->m_la < pos) {
-			map->m_pa = erofs_pos(sb, vi->raw_blkaddr) + map->m_la;
+			map->m_pa = erofs_pos(sb, vi->startblk) + map->m_la;
 			map->m_llen = pos - map->m_la;
 		} else {
 			map->m_pa = erofs_iloc(inode) + vi->inode_isize +
@@ -124,7 +124,7 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 	map->m_llen = min_t(erofs_off_t, 1UL << vi->chunkbits,
 			    round_up(inode->i_size - map->m_la, blksz));
 	if (vi->chunkformat & EROFS_CHUNK_FORMAT_INDEXES) {
-		startblk = le32_to_cpu(idx->blkaddr);
+		startblk = le32_to_cpu(idx->startblk_lo);
 		if (startblk != EROFS_NULL_ADDR) {
 			map->m_deviceid = le16_to_cpu(idx->device_id) &
 				EROFS_SB(sb)->device_id_mask;
@@ -168,7 +168,7 @@ int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *map)
 {
 	struct erofs_dev_context *devs = EROFS_SB(sb)->devs;
 	struct erofs_device_info *dif;
-	erofs_off_t startoff, length;
+	erofs_off_t startoff;
 	int id;
 
 	erofs_fill_from_devinfo(map, sb, &EROFS_SB(sb)->dif0);
@@ -181,7 +181,7 @@ int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *map)
 			return -ENODEV;
 		}
 		if (devs->flatdev) {
-			map->m_pa += erofs_pos(sb, dif->mapped_blkaddr);
+			map->m_pa += erofs_pos(sb, dif->uniaddr);
 			up_read(&devs->rwsem);
 			return 0;
 		}
@@ -190,13 +190,12 @@ int erofs_map_dev(struct super_block *sb, struct erofs_map_dev *map)
 	} else if (devs->extra_devices && !devs->flatdev) {
 		down_read(&devs->rwsem);
 		idr_for_each_entry(&devs->tree, dif, id) {
-			if (!dif->mapped_blkaddr)
+			if (!dif->uniaddr)
 				continue;
 
-			startoff = erofs_pos(sb, dif->mapped_blkaddr);
-			length = erofs_pos(sb, dif->blocks);
+			startoff = erofs_pos(sb, dif->uniaddr);
 			if (map->m_pa >= startoff &&
-			    map->m_pa < startoff + length) {
+			    map->m_pa < startoff + erofs_pos(sb, dif->blocks)) {
 				map->m_pa -= startoff;
 				erofs_fill_from_devinfo(map, sb, dif);
 				break;
