@@ -140,6 +140,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		break;
 	case 0x6f:
 		chip->name = "acp_asoc_rembrandt";
+		chip->rsrc = &rmb_rsrc;
 		chip->acp_hw_ops_init = acp6x_hw_ops_init;
 		chip->machines = snd_soc_acpi_amd_rmb_acp_machines;
 		break;
