@@ -339,7 +339,7 @@ static int ie31200_probe1(struct pci_dev *pdev, struct res_config *cfg)
 	struct edac_mc_layer layers[2];
 	void __iomem *window;
 	struct ie31200_priv *priv;
-	u32 addr_decode[IE31200_CHANNELS];
+	u32 addr_decode;
 
 	edac_dbg(0, "MC:\n");
 
@@ -383,25 +383,17 @@ static int ie31200_probe1(struct pci_dev *pdev, struct res_config *cfg)
 	priv->cfg = cfg;
 
 	for (i = 0; i < IE31200_CHANNELS; i++) {
-		addr_decode[i] = readl(window + cfg->reg_mad_dimm_offset[i]);
-		edac_dbg(0, "addr_decode: 0x%x\n", addr_decode[i]);
-	}
+		addr_decode = readl(window + cfg->reg_mad_dimm_offset[i]);
+		edac_dbg(0, "addr_decode: 0x%x\n", addr_decode);
 
-	/*
-	 * The dram rank boundary (DRB) reg values are boundary addresses
-	 * for each DRAM rank with a granularity of 64MB.  DRB regs are
-	 * cumulative; the last one will contain the total memory
-	 * contained in all ranks.
-	 */
-	for (i = 0; i < IE31200_DIMMS_PER_CHANNEL; i++) {
-		for (j = 0; j < IE31200_CHANNELS; j++) {
+		for (j = 0; j < IE31200_DIMMS_PER_CHANNEL; j++) {
 			struct dimm_data dimm_info;
 			struct dimm_info *dimm;
 			unsigned long nr_pages;
 
-			populate_dimm_info(&dimm_info, addr_decode[j], i, cfg);
+			populate_dimm_info(&dimm_info, addr_decode, j, cfg);
 			edac_dbg(0, "channel: %d, dimm: %d, size: %lld MiB, ranks: %d, DRAM chip type: %d\n",
-				 j, i, dimm_info.size >> 20,
+				 i, j, dimm_info.size >> 20,
 				 dimm_info.ranks,
 				 dimm_info.dtype);
 
@@ -411,7 +403,7 @@ static int ie31200_probe1(struct pci_dev *pdev, struct res_config *cfg)
 
 			nr_pages = nr_pages / dimm_info.ranks;
 			for (k = 0; k < dimm_info.ranks; k++) {
-				dimm = edac_get_dimm(mci, (i * dimm_info.ranks) + k, j, 0);
+				dimm = edac_get_dimm(mci, (j * dimm_info.ranks) + k, i, 0);
 				dimm->nr_pages = nr_pages;
 				edac_dbg(0, "set nr pages: 0x%lx\n", nr_pages);
 				dimm->grain = 8; /* just a guess */
