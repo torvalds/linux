@@ -788,6 +788,8 @@ int cmd_annotate(int argc, const char **argv)
 		    "Show instruction stats for the data type annotation"),
 	OPT_BOOLEAN(0, "skip-empty", &symbol_conf.skip_empty,
 		    "Do not display empty (or dummy) events in the output"),
+	OPT_BOOLEAN(0, "code-with-type", &annotate_opts.code_with_type,
+		    "Show data type info in code annotation (memory instructions only)"),
 	OPT_END()
 	};
 	int ret;
@@ -913,6 +915,13 @@ int cmd_annotate(int argc, const char **argv)
 		annotate_opts.annotate_src = false;
 		symbol_conf.annotate_data_member = true;
 		symbol_conf.annotate_data_sample = true;
+	} else if (annotate_opts.code_with_type) {
+		symbol_conf.annotate_data_member = true;
+
+		if (!annotate.use_stdio) {
+			pr_err("--code-with-type only works with --stdio.\n");
+			goto out_delete;
+		}
 	}
 
 	setup_browser(true);
