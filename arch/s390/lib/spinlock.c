@@ -160,7 +160,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 
 	ix = get_lowcore()->spinlock_index++;
 	barrier();
-	lockval = SPINLOCK_LOCKVAL;	/* cpu + 1 */
+	lockval = spinlock_lockval();	/* cpu + 1 */
 	node = this_cpu_ptr(&spin_wait[ix]);
 	node->prev = node->next = NULL;
 	node_id = node->node_id;
@@ -251,7 +251,7 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 {
 	int lockval, old, new, owner, count;
 
-	lockval = SPINLOCK_LOCKVAL;	/* cpu + 1 */
+	lockval = spinlock_lockval();	/* cpu + 1 */
 
 	/* Pass the virtual CPU to the lock holder if it is not running */
 	owner = arch_spin_yield_target(READ_ONCE(lp->lock), NULL);
@@ -290,7 +290,7 @@ EXPORT_SYMBOL(arch_spin_lock_wait);
 
 int arch_spin_trylock_retry(arch_spinlock_t *lp)
 {
-	int cpu = SPINLOCK_LOCKVAL;
+	int cpu = spinlock_lockval();
 	int owner, count;
 
 	for (count = spin_retry; count > 0; count--) {
