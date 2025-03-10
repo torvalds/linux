@@ -296,6 +296,13 @@ static struct bch_read_bio *promote_alloc(struct btree_trans *trans,
 					bool *read_full,
 					struct bch_io_failures *failed)
 {
+	/*
+	 * We're in the retry path, but we don't know what to repair yet, and we
+	 * don't want to do a promote here:
+	 */
+	if (failed && !failed->nr)
+		return NULL;
+
 	struct bch_fs *c = trans->c;
 	/*
 	 * if failed != NULL we're not actually doing a promote, we're
@@ -430,6 +437,28 @@ static void bch2_rbio_done(struct bch_read_bio *rbio)
 	bio_endio(&rbio->bio);
 }
 
+static void get_rbio_extent(struct btree_trans *trans,
+			    struct bch_read_bio *rbio,
+			    struct bkey_buf *sk)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret = lockrestart_do(trans,
+			bkey_err(k = bch2_bkey_get_iter(trans, &iter,
+						rbio->data_btree, rbio->data_pos, 0)));
+	if (ret)
+		return;
+
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	bkey_for_each_ptr(ptrs, ptr)
+		if (bch2_extent_ptr_eq(*ptr, rbio->pick.ptr)) {
+			bch2_bkey_buf_reassemble(sk, trans->c, k);
+			break;
+		}
+
+	bch2_trans_iter_exit(trans, &iter);
+}
+
 static noinline int bch2_read_retry_nodecode(struct btree_trans *trans,
 					struct bch_read_bio *rbio,
 					struct bvec_iter bvec_iter,
@@ -491,11 +520,18 @@ static void bch2_rbio_retry(struct work_struct *work)
 
 	struct btree_trans *trans = bch2_trans_get(c);
 
+	struct bkey_buf sk;
+	bch2_bkey_buf_init(&sk);
+	bkey_init(&sk.k->k);
+
 	trace_io_read_retry(&rbio->bio);
 	this_cpu_add(c->counters[BCH_COUNTER_io_read_retry],
 		     bvec_iter_sectors(rbio->bvec_iter));
 
-	if (bch2_err_matches(rbio->ret, BCH_ERR_data_read_retry_avoid))
+	get_rbio_extent(trans, rbio, &sk);
+
+	if (!bkey_deleted(&sk.k->k) &&
+	    bch2_err_matches(rbio->ret, BCH_ERR_data_read_retry_avoid))
 		bch2_mark_io_failure(&failed, &rbio->pick,
 				     rbio->ret == -BCH_ERR_data_read_retry_csum_err);
 
@@ -516,7 +552,7 @@ static void bch2_rbio_retry(struct work_struct *work)
 
 	int ret = rbio->data_update
 		? bch2_read_retry_nodecode(trans, rbio, iter, &failed, flags)
-		: __bch2_read(trans, rbio, iter, inum, &failed, flags);
+		: __bch2_read(trans, rbio, iter, inum, &failed, &sk, flags);
 
 	if (ret) {
 		rbio->ret = ret;
@@ -539,6 +575,7 @@ static void bch2_rbio_retry(struct work_struct *work)
 	}
 
 	bch2_rbio_done(rbio);
+	bch2_bkey_buf_exit(&sk, c);
 	bch2_trans_put(trans);
 }
 
@@ -1265,7 +1302,9 @@ out_read_done:
 
 int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 		struct bvec_iter bvec_iter, subvol_inum inum,
-		struct bch_io_failures *failed, unsigned flags)
+		struct bch_io_failures *failed,
+		struct bkey_buf *prev_read,
+		unsigned flags)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
@@ -1312,6 +1351,12 @@ int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 			goto err;
 
 		k = bkey_i_to_s_c(sk.k);
+
+		if (unlikely(flags & BCH_READ_in_retry)) {
+			if (!bkey_and_val_eq(k, bkey_i_to_s_c(prev_read->k)))
+				failed->nr = 0;
+			bch2_bkey_buf_copy(prev_read, c, sk.k);
+		}
 
 		/*
 		 * With indirect extents, the amount of data to read is the min

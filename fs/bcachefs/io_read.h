@@ -144,7 +144,8 @@ static inline void bch2_read_extent(struct btree_trans *trans,
 }
 
 int __bch2_read(struct btree_trans *, struct bch_read_bio *, struct bvec_iter,
-		subvol_inum, struct bch_io_failures *, unsigned flags);
+		subvol_inum,
+		struct bch_io_failures *, struct bkey_buf *, unsigned flags);
 
 static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 			     subvol_inum inum)
@@ -154,7 +155,7 @@ static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 	rbio->subvol = inum.subvol;
 
 	bch2_trans_run(c,
-		__bch2_read(trans, rbio, rbio->bio.bi_iter, inum, NULL,
+		__bch2_read(trans, rbio, rbio->bio.bi_iter, inum, NULL, NULL,
 			    BCH_READ_retry_if_stale|
 			    BCH_READ_may_promote|
 			    BCH_READ_user_mapped));
