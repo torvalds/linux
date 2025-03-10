@@ -34,6 +34,12 @@ module_param_named(read_corrupt_ratio, bch2_read_corrupt_ratio, uint, 0644);
 MODULE_PARM_DESC(read_corrupt_ratio, "");
 #endif
 
+static bool bch2_poison_extents_on_checksum_error;
+module_param_named(poison_extents_on_checksum_error,
+		   bch2_poison_extents_on_checksum_error, bool, 0644);
+MODULE_PARM_DESC(poison_extents_on_checksum_error,
+		 "Extents with checksum errors are marked as poisoned - unsafe without read fua support");
+
 #ifndef CONFIG_BCACHEFS_NO_LATENCY_ACCT
 
 static bool bch2_target_congested(struct bch_fs *c, u16 target)
@@ -459,6 +465,52 @@ static void get_rbio_extent(struct btree_trans *trans,
 	bch2_trans_iter_exit(trans, &iter);
 }
 
+static noinline int maybe_poison_extent(struct btree_trans *trans, struct bch_read_bio *rbio,
+					enum btree_id btree, struct bkey_s_c read_k)
+{
+	if (!bch2_poison_extents_on_checksum_error)
+		return 0;
+
+	struct bch_fs *c = trans->c;
+
+	struct data_update *u = rbio_data_update(rbio);
+	if (u)
+		read_k = bkey_i_to_s_c(u->k.k);
+
+	u64 flags = bch2_bkey_extent_flags(read_k);
+	if (flags & BIT_ULL(BCH_EXTENT_FLAG_poisoned))
+		return 0;
+
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, btree, bkey_start_pos(read_k.k),
+					       BTREE_ITER_intent);
+	int ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	if (!bkey_and_val_eq(k, read_k))
+		goto out;
+
+	struct bkey_i *new = bch2_trans_kmalloc(trans,
+					bkey_bytes(k.k) + sizeof(struct bch_extent_flags));
+	ret =   PTR_ERR_OR_ZERO(new) ?:
+		(bkey_reassemble(new, k), 0) ?:
+		bch2_bkey_extent_flags_set(c, new, flags|BIT_ULL(BCH_EXTENT_FLAG_poisoned)) ?:
+		bch2_trans_update(trans, &iter, new, BTREE_UPDATE_internal_snapshot_node) ?:
+		bch2_trans_commit(trans, NULL, NULL, 0);
+
+	/*
+	 * Propagate key change back to data update path, in particular so it
+	 * knows the extent has been poisoned and it's safe to change the
+	 * checksum
+	 */
+	if (u && !ret)
+		bch2_bkey_buf_copy(&u->k, c, new);
+out:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 static noinline int bch2_read_retry_nodecode(struct btree_trans *trans,
 					struct bch_read_bio *rbio,
 					struct bvec_iter bvec_iter,
@@ -492,7 +544,8 @@ retry:
 err:
 	bch2_trans_iter_exit(trans, &iter);
 
-	if (bch2_err_matches(ret, BCH_ERR_data_read_retry))
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
+	    bch2_err_matches(ret, BCH_ERR_data_read_retry))
 		goto retry;
 
 	if (ret) {
@@ -1008,6 +1061,16 @@ retry_pick:
 		goto hole;
 
 	if (unlikely(ret < 0)) {
+		if (ret == -BCH_ERR_data_read_csum_err) {
+			int ret2 = maybe_poison_extent(trans, orig, data_btree, k);
+			if (ret2) {
+				ret = ret2;
+				goto err;
+			}
+
+			trace_and_count(c, io_read_fail_and_poison, &orig->bio);
+		}
+
 		struct printbuf buf = PRINTBUF;
 		bch2_read_err_msg_trans(trans, &buf, orig, read_pos);
 		prt_printf(&buf, "%s\n  ", bch2_err_str(ret));
@@ -1310,6 +1373,7 @@ int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 	struct btree_iter iter;
 	struct bkey_buf sk;
 	struct bkey_s_c k;
+	enum btree_id data_btree;
 	int ret;
 
 	EBUG_ON(rbio->data_update);
@@ -1320,7 +1384,7 @@ int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 			     BTREE_ITER_slots);
 
 	while (1) {
-		enum btree_id data_btree = BTREE_ID_extents;
+		data_btree = BTREE_ID_extents;
 
 		bch2_trans_begin(trans);
 
@@ -1392,8 +1456,6 @@ err:
 			break;
 	}
 
-	bch2_trans_iter_exit(trans, &iter);
-
 	if (unlikely(ret)) {
 		if (ret != -BCH_ERR_extent_poisoned) {
 			struct printbuf buf = PRINTBUF;
@@ -1412,6 +1474,7 @@ err:
 			bch2_rbio_done(rbio);
 	}
 
+	bch2_trans_iter_exit(trans, &iter);
 	bch2_bkey_buf_exit(&sk, c);
 	return ret;
 }

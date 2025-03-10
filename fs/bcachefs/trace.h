@@ -339,6 +339,11 @@ DEFINE_EVENT(bio, io_read_reuse_race,
 	TP_ARGS(bio)
 );
 
+DEFINE_EVENT(bio, io_read_fail_and_poison,
+	TP_PROTO(struct bio *bio),
+	TP_ARGS(bio)
+);
+
 /* ec.c */
 
 TRACE_EVENT(stripe_create,
