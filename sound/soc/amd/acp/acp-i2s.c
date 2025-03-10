@@ -617,7 +617,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 	writel(acp_fifo_addr, adata->acp_base + reg_fifo_addr);
 	writel(FIFO_SIZE, adata->acp_base + reg_fifo_size);
 
-	ext_int_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
+	ext_int_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(chip, rsrc->irqp_used));
 	ext_int_ctrl |= BIT(I2S_RX_THRESHOLD(rsrc->offset)) |
 			BIT(BT_RX_THRESHOLD(rsrc->offset)) |
 			BIT(I2S_TX_THRESHOLD(rsrc->offset)) |
@@ -625,7 +625,7 @@ static int acp_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 			BIT(HS_RX_THRESHOLD(rsrc->offset)) |
 			BIT(HS_TX_THRESHOLD(rsrc->offset));
 
-	writel(ext_int_ctrl, ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
+	writel(ext_int_ctrl, ACP_EXTERNAL_INTR_CNTL(chip, rsrc->irqp_used));
 
 	return 0;
 }

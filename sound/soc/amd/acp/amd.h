@@ -147,10 +147,12 @@ struct acp_chip_info {
 	struct snd_acp_hw_ops *acp_hw_ops;
 	int (*acp_hw_ops_init)(struct acp_chip_info *chip);
 	struct platform_device *chip_pdev;
+	struct acp_resource *rsrc; /* Platform specific resources*/
 	struct platform_device *dmic_codec_dev;
 	struct platform_device *acp_plat_dev;
 	struct platform_device *mach_dev;
 	struct snd_soc_acpi_mach *machines;
+	struct acp_dev_data *adata;
 	u32 addr;
 	unsigned int flag;	/* Distinguish b/w Legacy or Only PDM */
 	bool is_pdm_dev;	/* flag set to true when ACP PDM controller exists */
@@ -215,11 +217,19 @@ struct acp_dev_data {
  * struct snd_acp_hw_ops - ACP PCI driver platform specific ops
  * @acp_init: ACP initialization
  * @acp_deinit: ACP de-initialization
+ * @irq: ACP irq handler
+ * @en_interrupts: ACP enable interrupts
+ * @dis_interrupts: ACP disable interrupts
  */
 struct snd_acp_hw_ops {
 	/* ACP hardware initilizations */
 	int (*acp_init)(struct acp_chip_info *chip);
 	int (*acp_deinit)(struct acp_chip_info *chip);
+
+	/* ACP Interrupts*/
+	irqreturn_t (*irq)(int irq, void *data);
+	int (*en_interrupts)(struct acp_chip_info *chip);
+	int (*dis_interrupts)(struct acp_chip_info *chip);
 };
 
 enum acp_config {
@@ -332,8 +342,9 @@ int acp_machine_select(struct acp_chip_info *chip);
 
 int acp_init(struct acp_chip_info *chip);
 int acp_deinit(struct acp_chip_info *chip);
-void acp_enable_interrupts(struct acp_dev_data *adata);
-void acp_disable_interrupts(struct acp_dev_data *adata);
+int acp_enable_interrupts(struct acp_chip_info *chip);
+int acp_disable_interrupts(struct acp_chip_info *chip);
+irqreturn_t acp_irq_handler(int irq, void *data);
 
 extern struct snd_acp_hw_ops acp31_common_hw_ops;
 extern struct snd_acp_hw_ops acp6x_common_hw_ops;
@@ -367,6 +378,20 @@ static inline int acp_hw_deinit(struct acp_chip_info *chip)
 {
 	if (chip && chip->acp_hw_ops && chip->acp_hw_ops->acp_deinit)
 		return chip->acp_hw_ops->acp_deinit(chip);
+	return -EOPNOTSUPP;
+}
+
+static inline int acp_hw_en_interrupts(struct acp_chip_info *chip)
+{
+	if (chip && chip->acp_hw_ops && chip->acp_hw_ops->en_interrupts)
+		return chip->acp_hw_ops->en_interrupts(chip);
+	return -EOPNOTSUPP;
+}
+
+static inline int acp_hw_dis_interrupts(struct acp_chip_info *chip)
+{
+	if (chip && chip->acp_hw_ops && chip->acp_hw_ops->dis_interrupts)
+		chip->acp_hw_ops->dis_interrupts(chip);
 	return -EOPNOTSUPP;
 }
 

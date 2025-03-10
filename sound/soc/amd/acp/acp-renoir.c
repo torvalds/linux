@@ -142,6 +142,7 @@ static int renoir_audio_probe(struct platform_device *pdev)
 		return ret;
 	adata->i2s_irq = ret;
 
+	chip->rsrc = &rsrc;
 	adata->dev = dev;
 	adata->dai_driver = acp_renoir_dai;
 	adata->num_dai = ARRAY_SIZE(acp_renoir_dai);
@@ -150,7 +151,11 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	adata->flag = chip->flag;
 
 	dev_set_drvdata(dev, adata);
-	acp_enable_interrupts(adata);
+	ret = acp_hw_en_interrupts(chip);
+	if (ret) {
+		dev_err(dev, "ACP en-interrupts failed\n");
+		return ret;
+	}
 	acp_platform_register(dev);
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
@@ -164,9 +169,13 @@ static int renoir_audio_probe(struct platform_device *pdev)
 static void renoir_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip = dev_get_platdata(dev);
+	int ret;
 
-	acp_disable_interrupts(adata);
+	ret = acp_hw_dis_interrupts(chip);
+	if (ret)
+		dev_err(dev, "ACP dis-interrupts failed\n");
+
 	acp_platform_unregister(dev);
 }
 

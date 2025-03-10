@@ -107,43 +107,6 @@ static const struct snd_pcm_hardware acp6x_pcm_hardware_capture = {
 	.periods_max = CAPTURE_MAX_NUM_PERIODS,
 };
 
-static irqreturn_t i2s_irq_handler(int irq, void *data)
-{
-	struct acp_dev_data *adata = data;
-	struct acp_resource *rsrc = adata->rsrc;
-	struct acp_stream *stream;
-	u16 i2s_flag = 0;
-	u32 ext_intr_stat, ext_intr_stat1;
-
-	if (adata->rsrc->no_of_ctrls == 2)
-		ext_intr_stat1 = readl(ACP_EXTERNAL_INTR_STAT(adata, (rsrc->irqp_used - 1)));
-
-	ext_intr_stat = readl(ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
-
-	spin_lock(&adata->acp_lock);
-	list_for_each_entry(stream, &adata->stream_list, list) {
-		if (ext_intr_stat & stream->irq_bit) {
-			writel(stream->irq_bit,
-			       ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
-			snd_pcm_period_elapsed(stream->substream);
-			i2s_flag = 1;
-		}
-		if (adata->rsrc->no_of_ctrls == 2) {
-			if (ext_intr_stat1 & stream->irq_bit) {
-				writel(stream->irq_bit, ACP_EXTERNAL_INTR_STAT(adata,
-				       (rsrc->irqp_used - 1)));
-				snd_pcm_period_elapsed(stream->substream);
-				i2s_flag = 1;
-			}
-		}
-	}
-	spin_unlock(&adata->acp_lock);
-	if (i2s_flag)
-		return IRQ_HANDLED;
-
-	return IRQ_NONE;
-}
-
 void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream)
 {
 	struct acp_resource *rsrc = adata->rsrc;
@@ -278,7 +241,7 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	}
 	runtime->private_data = stream;
 
-	writel(1, ACP_EXTERNAL_INTR_ENB(adata));
+	writel(1, ACP_EXTERNAL_INTR_ENB(chip));
 
 	spin_lock_irq(&adata->acp_lock);
 	list_add_tail(&stream->list, &adata->stream_list);
@@ -363,16 +326,17 @@ static const struct snd_soc_component_driver acp_pcm_component = {
 int acp_platform_register(struct device *dev)
 {
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip;
 	struct snd_soc_dai_driver;
 	unsigned int status;
 
-	status = devm_request_irq(dev, adata->i2s_irq, i2s_irq_handler,
-				  IRQF_SHARED, "ACP_I2S_IRQ", adata);
-	if (status) {
-		dev_err(dev, "ACP I2S IRQ request failed\n");
-		return status;
+	chip = dev_get_platdata(dev);
+	if (!chip || !chip->base) {
+		dev_err(dev, "ACP chip data is NULL\n");
+		return -ENODEV;
 	}
 
+	chip->adata = adata;
 	status = devm_snd_soc_register_component(dev, &acp_pcm_component,
 						 adata->dai_driver,
 						 adata->num_dai);

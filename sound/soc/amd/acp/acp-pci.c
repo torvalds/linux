@@ -26,6 +26,15 @@
 #define ACP3x_REG_START	0x1240000
 #define ACP3x_REG_END	0x125C000
 
+static irqreturn_t irq_handler(int irq, void *data)
+{
+	struct acp_chip_info *chip = data;
+
+	if (chip && chip->acp_hw_ops && chip->acp_hw_ops->irq)
+		return chip->acp_hw_ops->irq(irq, chip);
+
+	return IRQ_NONE;
+}
 static void acp_fill_platform_dev_info(struct platform_device_info *pdevinfo,
 				       struct device *parent,
 				       struct fwnode_handle *fw_node,
@@ -166,6 +175,13 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	if (ret)
 		goto release_regions;
 
+	ret = devm_request_irq(dev, pci->irq, irq_handler,
+			       IRQF_SHARED, "ACP_I2S_IRQ", chip);
+	if (ret) {
+		dev_err(&pci->dev, "ACP I2S IRQ request failed %d\n", ret);
+		return ret;
+	}
+
 	check_acp_config(pci, chip);
 	if (!chip->is_pdm_dev && !chip->is_i2s_config)
 		goto skip_pdev_creation;
@@ -213,20 +229,17 @@ static int __maybe_unused snd_acp_suspend(struct device *dev)
 static int __maybe_unused snd_acp_resume(struct device *dev)
 {
 	struct acp_chip_info *chip;
-	struct acp_dev_data *adata;
-	struct device child;
 	int ret;
 
 	chip = dev_get_drvdata(dev);
 	ret = acp_hw_init(chip);
 	if (ret)
 		dev_err(dev, "ACP init failed\n");
-	if (chip->chip_pdev) {
-		child = chip->chip_pdev->dev;
-		adata = dev_get_drvdata(&child);
-		if (adata)
-			acp_enable_interrupts(adata);
-	}
+
+	ret = acp_hw_en_interrupts(chip);
+	if (ret)
+		dev_err(dev, "ACP en-interrupts failed\n");
+
 	return ret;
 }
 

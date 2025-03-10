@@ -192,6 +192,7 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	chip->rsrc = &rsrc;
 	adata->i2s_irq = res->start;
 	adata->dev = dev;
 	adata->dai_driver = acp_rmb_dai;
@@ -208,7 +209,11 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	}
-	acp_enable_interrupts(adata);
+	ret = acp_hw_en_interrupts(chip);
+	if (ret) {
+		dev_err(dev, "ACP en-interrupts failed\n");
+		return ret;
+	}
 	acp_platform_register(dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -221,9 +226,13 @@ static int rembrandt_audio_probe(struct platform_device *pdev)
 static void rembrandt_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip = dev_get_platdata(dev);
+	int ret;
 
-	acp_disable_interrupts(adata);
+	ret = acp_hw_dis_interrupts(chip);
+	if (ret)
+		dev_err(dev, "ACP dis-interrupts failed\n");
+
 	acp_platform_unregister(dev);
 	pm_runtime_disable(&pdev->dev);
 }

@@ -27,26 +27,76 @@ const struct snd_acp_hw_ops acp_common_hw_ops = {
 	/* ACP hardware initilizations */
 	.acp_init = acp_init,
 	.acp_deinit = acp_deinit,
+
+	/* ACP Interrupts*/
+	.irq = acp_irq_handler,
+	.en_interrupts = acp_enable_interrupts,
+	.dis_interrupts = acp_disable_interrupts,
 };
 EXPORT_SYMBOL_NS_GPL(acp_common_hw_ops, "SND_SOC_ACP_COMMON");
-void acp_enable_interrupts(struct acp_dev_data *adata)
+
+irqreturn_t acp_irq_handler(int irq, void *data)
 {
+	struct acp_chip_info *chip = data;
+	struct acp_dev_data *adata = chip->adata;
 	struct acp_resource *rsrc = adata->rsrc;
+	struct acp_stream *stream;
+	u16 i2s_flag = 0;
+	u32 ext_intr_stat, ext_intr_stat1;
+
+	if (adata->rsrc->no_of_ctrls == 2)
+		ext_intr_stat1 = readl(ACP_EXTERNAL_INTR_STAT(chip, (rsrc->irqp_used - 1)));
+
+	ext_intr_stat = readl(ACP_EXTERNAL_INTR_STAT(chip, rsrc->irqp_used));
+
+	spin_lock(&adata->acp_lock);
+	list_for_each_entry(stream, &adata->stream_list, list) {
+		if (ext_intr_stat & stream->irq_bit) {
+			writel(stream->irq_bit,
+			       ACP_EXTERNAL_INTR_STAT(chip, rsrc->irqp_used));
+			snd_pcm_period_elapsed(stream->substream);
+			i2s_flag = 1;
+		}
+		if (adata->rsrc->no_of_ctrls == 2) {
+			if (ext_intr_stat1 & stream->irq_bit) {
+				writel(stream->irq_bit, ACP_EXTERNAL_INTR_STAT(chip,
+				       (rsrc->irqp_used - 1)));
+				snd_pcm_period_elapsed(stream->substream);
+				i2s_flag = 1;
+			}
+		}
+	}
+	spin_unlock(&adata->acp_lock);
+	if (i2s_flag)
+		return IRQ_HANDLED;
+
+	return IRQ_NONE;
+}
+
+int acp_enable_interrupts(struct acp_chip_info *chip)
+{
+	struct acp_resource *rsrc;
 	u32 ext_intr_ctrl;
 
-	writel(0x01, ACP_EXTERNAL_INTR_ENB(adata));
-	ext_intr_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
+	rsrc = chip->rsrc;
+	writel(0x01, ACP_EXTERNAL_INTR_ENB(chip));
+	ext_intr_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(chip, rsrc->irqp_used));
 	ext_intr_ctrl |= ACP_ERROR_MASK;
-	writel(ext_intr_ctrl, ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
+	writel(ext_intr_ctrl, ACP_EXTERNAL_INTR_CNTL(chip, rsrc->irqp_used));
+
+	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_enable_interrupts, "SND_SOC_ACP_COMMON");
 
-void acp_disable_interrupts(struct acp_dev_data *adata)
+int acp_disable_interrupts(struct acp_chip_info *chip)
 {
-	struct acp_resource *rsrc = adata->rsrc;
+	struct acp_resource *rsrc;
 
-	writel(ACP_EXT_INTR_STAT_CLEAR_MASK, ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
-	writel(0x00, ACP_EXTERNAL_INTR_ENB(adata));
+	rsrc = chip->rsrc;
+	writel(ACP_EXT_INTR_STAT_CLEAR_MASK, ACP_EXTERNAL_INTR_STAT(chip, rsrc->irqp_used));
+	writel(0x00, ACP_EXTERNAL_INTR_ENB(chip));
+
+	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_disable_interrupts, "SND_SOC_ACP_COMMON");
 
@@ -90,19 +140,23 @@ void restore_acp_pdm_params(struct snd_pcm_substream *substream,
 			    struct acp_dev_data *adata)
 {
 	struct snd_soc_dai *dai;
+	struct device *dev;
+	struct acp_chip_info *chip;
 	struct snd_soc_pcm_runtime *soc_runtime;
 	u32 ext_int_ctrl;
 
 	soc_runtime = snd_soc_substream_to_rtd(substream);
 	dai = snd_soc_rtd_to_cpu(soc_runtime, 0);
+	dev = dai->component->dev;
+	chip = dev_get_platdata(dev);
 	/* Programming channel mask and sampling rate */
 	writel(adata->ch_mask, adata->acp_base + ACP_WOV_PDM_NO_OF_CHANNELS);
 	writel(PDM_DEC_64, adata->acp_base + ACP_WOV_PDM_DECIMATION_FACTOR);
 
 	/* Enabling ACP Pdm interuppts */
-	ext_int_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(adata, 0));
+	ext_int_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(chip, 0));
 	ext_int_ctrl |= PDM_DMA_INTR_MASK;
-	writel(ext_int_ctrl, ACP_EXTERNAL_INTR_CNTL(adata, 0));
+	writel(ext_int_ctrl, ACP_EXTERNAL_INTR_CNTL(chip, 0));
 	set_acp_pdm_clk(substream, dai);
 }
 EXPORT_SYMBOL_NS_GPL(restore_acp_pdm_params, "SND_SOC_ACP_COMMON");
@@ -113,6 +167,7 @@ static int set_acp_i2s_dma_fifo(struct snd_pcm_substream *substream,
 	struct device *dev = dai->component->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
 	struct acp_resource *rsrc = adata->rsrc;
+	struct acp_chip_info *chip = dev_get_platdata(dev);
 	struct acp_stream *stream = substream->runtime->private_data;
 	u32 reg_dma_size, reg_fifo_size, reg_fifo_addr;
 	u32 phy_addr, acp_fifo_addr, ext_int_ctrl;
@@ -185,7 +240,7 @@ static int set_acp_i2s_dma_fifo(struct snd_pcm_substream *substream,
 	writel(acp_fifo_addr, adata->acp_base + reg_fifo_addr);
 	writel(FIFO_SIZE, adata->acp_base + reg_fifo_size);
 
-	ext_int_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
+	ext_int_ctrl = readl(ACP_EXTERNAL_INTR_CNTL(chip, rsrc->irqp_used));
 	ext_int_ctrl |= BIT(I2S_RX_THRESHOLD(rsrc->offset)) |
 			BIT(BT_RX_THRESHOLD(rsrc->offset)) |
 			BIT(I2S_TX_THRESHOLD(rsrc->offset)) |
@@ -193,7 +248,7 @@ static int set_acp_i2s_dma_fifo(struct snd_pcm_substream *substream,
 			BIT(HS_RX_THRESHOLD(rsrc->offset)) |
 			BIT(HS_TX_THRESHOLD(rsrc->offset));
 
-	writel(ext_int_ctrl, ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
+	writel(ext_int_ctrl, ACP_EXTERNAL_INTR_CNTL(chip, rsrc->irqp_used));
 	return 0;
 }
 
