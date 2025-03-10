@@ -6,7 +6,7 @@
 #include "btrfs_inode.h"
 
 /*
- * Subpage (sectorsize < PAGE_SIZE) support overview:
+ * Subpage (block size < folio size) support overview:
  *
  * Limitations:
  *
@@ -194,7 +194,7 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 	 */
 	if (folio->mapping)
 		ASSERT(folio_pos(folio) <= start &&
-		       start + len <= folio_pos(folio) + PAGE_SIZE);
+		       start + len <= folio_pos(folio) + folio_size(folio));
 }
 
 #define subpage_calc_start_bit(fs_info, folio, name, start, len)	\
@@ -223,7 +223,7 @@ static void btrfs_subpage_clamp_range(struct folio *folio, u64 *start, u32 *len)
 	if (folio_pos(folio) >= orig_start + orig_len)
 		*len = 0;
 	else
-		*len = min_t(u64, folio_pos(folio) + PAGE_SIZE,
+		*len = min_t(u64, folio_pos(folio) + folio_size(folio),
 			     orig_start + orig_len) - *start;
 }
 

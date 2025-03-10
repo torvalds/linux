@@ -89,7 +89,7 @@ static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
 {
 	if (folio->mapping && folio->mapping->host)
 		ASSERT(is_data_inode(BTRFS_I(folio->mapping->host)));
-	return fs_info->sectorsize < PAGE_SIZE;
+	return fs_info->sectorsize < folio_size(folio);
 }
 #else
 static inline bool btrfs_meta_is_subpage(const struct btrfs_fs_info *fs_info)
