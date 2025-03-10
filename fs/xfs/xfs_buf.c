@@ -278,7 +278,6 @@ xfs_buf_alloc_kmem(
 		bp->b_addr = NULL;
 		return -ENOMEM;
 	}
-	bp->b_offset = offset_in_page(bp->b_addr);
 	bp->b_pages = bp->b_page_array;
 	bp->b_pages[0] = kmem_to_page(bp->b_addr);
 	bp->b_page_count = 1;
@@ -1474,7 +1473,7 @@ xfs_buf_submit_bio(
 
 	if (bp->b_flags & _XBF_KMEM) {
 		__bio_add_page(bio, virt_to_page(bp->b_addr), size,
-				bp->b_offset);
+				offset_in_page(bp->b_addr));
 	} else {
 		for (p = 0; p < bp->b_page_count; p++)
 			__bio_add_page(bio, bp->b_pages[p], PAGE_SIZE, 0);
