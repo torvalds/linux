@@ -343,9 +343,6 @@ int acp_platform_register(struct device *dev)
 		return status;
 	}
 
-	INIT_LIST_HEAD(&chip->stream_list);
-	spin_lock_init(&chip->acp_lock);
-
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_platform_register, "SND_SOC_ACP_COMMON");
