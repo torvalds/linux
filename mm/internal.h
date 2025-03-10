@@ -36,6 +36,9 @@ struct folio_batch;
  *
  * Use the PAGETABLE_MOVE() macro to initialise this struct.
  *
+ * The old_addr and new_addr fields are updated as the page table move is
+ * executed.
+ *
  * NOTE: The page table move is affected by reading from [old_addr, old_end),
  * and old_addr may be updated for better page table alignment, so len_in
  * represents the length of the range being copied as specified by the user.
