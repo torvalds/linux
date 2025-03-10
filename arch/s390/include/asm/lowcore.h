@@ -223,9 +223,12 @@ static __always_inline struct lowcore *get_lowcore(void)
 
 	if (__is_defined(__DECOMPRESSOR))
 		return NULL;
-	asm(ALTERNATIVE("llilh %[lc],0", "llilh %[lc],%[alt]", ALT_FEATURE(MFEATURE_LOWCORE))
-	    : [lc] "=d" (lc)
-	    : [alt] "i" (LOWCORE_ALT_ADDRESS >> 16));
+	asm_inline(
+		ALTERNATIVE("	llilh	%[lc],0",
+			    "	llilh	%[lc],%[alt]",
+			    ALT_FEATURE(MFEATURE_LOWCORE))
+		: [lc] "=d" (lc)
+		: [alt] "i" (LOWCORE_ALT_ADDRESS >> 16));
 	return lc;
 }
 
