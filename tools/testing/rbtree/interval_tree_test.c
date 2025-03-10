@@ -18,6 +18,7 @@ int usage(void)
 	fprintf(stderr, "  -s: Number of iterations searching the tree\n");
 	fprintf(stderr, "  -a: Searches will iterate all nodes in the tree\n");
 	fprintf(stderr, "  -m: Largest value for the interval's endpoint\n");
+	fprintf(stderr, "  -r: Random seed\n");
 	exit(-1);
 }
 
@@ -31,7 +32,7 @@ int main(int argc, char **argv)
 {
 	int opt;
 
-	while ((opt = getopt(argc, argv, "n:p:q:s:am:")) != -1) {
+	while ((opt = getopt(argc, argv, "n:p:q:s:am:r:")) != -1) {
 		if (opt == 'n')
 			nnodes = strtoul(optarg, NULL, 0);
 		else if (opt == 'p')
@@ -44,6 +45,8 @@ int main(int argc, char **argv)
 			search_all = true;
 		else if (opt == 'm')
 			max_endpoint = strtoul(optarg, NULL, 0);
+		else if (opt == 'r')
+			seed = strtoul(optarg, NULL, 0);
 		else
 			usage();
 	}

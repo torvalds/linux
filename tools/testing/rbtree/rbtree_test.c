@@ -16,6 +16,7 @@ int usage(void)
 	fprintf(stderr, "  -n: Number of nodes in the rb-tree\n");
 	fprintf(stderr, "  -p: Number of iterations modifying the rb-tree\n");
 	fprintf(stderr, "  -c: Number of iterations modifying and verifying the rb-tree\n");
+	fprintf(stderr, "  -r: Random seed\n");
 	exit(-1);
 }
 
@@ -29,13 +30,15 @@ int main(int argc, char **argv)
 {
 	int opt;
 
-	while ((opt = getopt(argc, argv, "n:p:c:")) != -1) {
+	while ((opt = getopt(argc, argv, "n:p:c:r:")) != -1) {
 		if (opt == 'n')
 			nnodes = strtoul(optarg, NULL, 0);
 		else if (opt == 'p')
 			perf_loops = strtoul(optarg, NULL, 0);
 		else if (opt == 'c')
 			check_loops = strtoul(optarg, NULL, 0);
+		else if (opt == 'r')
+			seed = strtoul(optarg, NULL, 0);
 		else
 			usage();
 	}

@@ -14,6 +14,7 @@
 __param(int, nnodes, 100, "Number of nodes in the rb-tree");
 __param(int, perf_loops, 1000, "Number of iterations modifying the rb-tree");
 __param(int, check_loops, 100, "Number of iterations modifying and verifying the rb-tree");
+__param(ullong, seed, 3141592653589793238ULL, "Random seed");
 
 struct test_node {
 	u32 key;
@@ -402,7 +403,7 @@ static int __init rbtree_test_init(void)
 	if (!nodes)
 		return -ENOMEM;
 
-	prandom_seed_state(&rnd, 3141592653589793238ULL);
+	prandom_seed_state(&rnd, seed);
 
 	basic_check();
 	augmented_check();

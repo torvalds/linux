@@ -19,6 +19,7 @@ __param(int, search_loops, 1000, "Number of iterations searching the tree");
 __param(bool, search_all, false, "Searches will iterate all nodes in the tree");
 
 __param(uint, max_endpoint, ~0, "Largest value for the interval's endpoint");
+__param(ullong, seed, 3141592653589793238ULL, "Random seed");
 
 static struct rb_root_cached root = RB_ROOT_CACHED;
 static struct interval_tree_node *nodes = NULL;
@@ -137,7 +138,7 @@ static int interval_tree_test_init(void)
 		return -ENOMEM;
 	}
 
-	prandom_seed_state(&rnd, 3141592653589793238ULL);
+	prandom_seed_state(&rnd, seed);
 
 	basic_check();
 	search_check();
