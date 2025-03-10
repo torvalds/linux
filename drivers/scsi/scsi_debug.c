@@ -2065,13 +2065,19 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	unsigned char *cmd = scp->cmnd;
 	u32 alloc_len, n;
 	int ret;
-	bool have_wlun, is_disk, is_zbc, is_disk_zbc;
+	bool have_wlun, is_disk, is_zbc, is_disk_zbc, is_tape;
 
 	alloc_len = get_unaligned_be16(cmd + 3);
 	arr = kzalloc(SDEBUG_MAX_INQ_ARR_SZ, GFP_ATOMIC);
 	if (! arr)
 		return DID_REQUEUE << 16;
-	is_disk = (sdebug_ptype == TYPE_DISK);
+	if (scp->device->type >= 32) {
+		is_disk = (sdebug_ptype == TYPE_DISK);
+		is_tape = (sdebug_ptype == TYPE_TAPE);
+	} else {
+		is_disk = (scp->device->type == TYPE_DISK);
+		is_tape = (scp->device->type == TYPE_TAPE);
+	}
 	is_zbc = devip->zoned;
 	is_disk_zbc = (is_disk || is_zbc);
 	have_wlun = scsi_is_wlun(scp->device->lun);
@@ -2080,7 +2086,8 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	else if (sdebug_no_lun_0 && (devip->lun == SDEBUG_LUN_0_VAL))
 		pq_pdt = 0x7f;	/* not present, PQ=3, PDT=0x1f */
 	else
-		pq_pdt = (sdebug_ptype & 0x1f);
+		pq_pdt = ((scp->device->type >= 32 ?
+				sdebug_ptype : scp->device->type) & 0x1f);
 	arr[0] = pq_pdt;
 	if (0x2 & cmd[1]) {  /* CMDDT bit set */
 		mk_sense_invalid_fld(scp, SDEB_IN_CDB, 1, 1);
@@ -2203,7 +2210,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	if (is_disk) {		/* SBC-4 no version claimed */
 		put_unaligned_be16(0x600, arr + n);
 		n += 2;
-	} else if (sdebug_ptype == TYPE_TAPE) {	/* SSC-4 rev 3 */
+	} else if (is_tape) {	/* SSC-4 rev 3 */
 		put_unaligned_be16(0x525, arr + n);
 		n += 2;
 	} else if (is_zbc) {	/* ZBC BSR INCITS 536 revision 05 */
@@ -2312,7 +2319,7 @@ static int resp_start_stop(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	changing = (stopped_state != want_stop);
 	if (changing)
 		atomic_xchg(&devip->stopped, want_stop);
-	if (sdebug_ptype == TYPE_TAPE && !want_stop) {
+	if (scp->device->type == TYPE_TAPE && !want_stop) {
 		int i;
 
 		set_bit(SDEBUG_UA_NOT_READY_TO_READY, devip->uas_bm); /* not legal! */
@@ -2948,9 +2955,9 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 	subpcode = cmd[3];
 	msense_6 = (MODE_SENSE == cmd[0]);
 	llbaa = msense_6 ? false : !!(cmd[1] & 0x10);
-	is_disk = (sdebug_ptype == TYPE_DISK);
+	is_disk = (scp->device->type == TYPE_DISK);
 	is_zbc = devip->zoned;
-	is_tape = (sdebug_ptype == TYPE_TAPE);
+	is_tape = (scp->device->type == TYPE_TAPE);
 	if ((is_disk || is_zbc || is_tape) && !dbd)
 		bd_len = llbaa ? 16 : 8;
 	else
@@ -3165,7 +3172,7 @@ static int resp_mode_select(struct scsi_cmnd *scp,
 	md_len = mselect6 ? (arr[0] + 1) : (get_unaligned_be16(arr + 0) + 2);
 	bd_len = mselect6 ? arr[3] : get_unaligned_be16(arr + 6);
 	off = (mselect6 ? 4 : 8);
-	if (sdebug_ptype == TYPE_TAPE) {
+	if (scp->device->type == TYPE_TAPE) {
 		int blksize;
 
 		if (bd_len != 8) {
@@ -3230,7 +3237,7 @@ static int resp_mode_select(struct scsi_cmnd *scp,
 		}
 		break;
 	case 0xf:       /* Compression mode page */
-		if (sdebug_ptype != TYPE_TAPE)
+		if (scp->device->type != TYPE_TAPE)
 			goto bad_pcode;
 		if ((arr[off + 2] & 0x40) != 0) {
 			devip->tape_dce = (arr[off + 2] & 0x80) != 0;
@@ -3238,7 +3245,7 @@ static int resp_mode_select(struct scsi_cmnd *scp,
 		}
 		break;
 	case 0x11:	/* Medium Partition Mode Page (tape) */
-		if (sdebug_ptype == TYPE_TAPE) {
+		if (scp->device->type == TYPE_TAPE) {
 			int fld;
 
 			fld = process_medium_part_m_pg(devip, &arr[off], pg_len);
@@ -6667,7 +6674,7 @@ static void scsi_debug_sdev_destroy(struct scsi_device *sdp)
 
 	debugfs_remove(devip->debugfs_entry);
 
-	if (sdebug_ptype == TYPE_TAPE) {
+	if (sdp->type == TYPE_TAPE) {
 		kfree(devip->tape_blocks[0]);
 		devip->tape_blocks[0] = NULL;
 	}
@@ -6855,18 +6862,16 @@ static int sdebug_fail_lun_reset(struct scsi_cmnd *cmnd)
 
 static void scsi_tape_reset_clear(struct sdebug_dev_info *devip)
 {
-	if (sdebug_ptype == TYPE_TAPE) {
-		int i;
+	int i;
 
-		devip->tape_blksize = TAPE_DEF_BLKSIZE;
-		devip->tape_density = TAPE_DEF_DENSITY;
-		devip->tape_partition = 0;
-		devip->tape_dce = 0;
-		for (i = 0; i < TAPE_MAX_PARTITIONS; i++)
-			devip->tape_location[i] = 0;
-		devip->tape_pending_nbr_partitions = -1;
-		/* Don't reset partitioning? */
-	}
+	devip->tape_blksize = TAPE_DEF_BLKSIZE;
+	devip->tape_density = TAPE_DEF_DENSITY;
+	devip->tape_partition = 0;
+	devip->tape_dce = 0;
+	for (i = 0; i < TAPE_MAX_PARTITIONS; i++)
+		devip->tape_location[i] = 0;
+	devip->tape_pending_nbr_partitions = -1;
+	/* Don't reset partitioning? */
 }
 
 static int scsi_debug_device_reset(struct scsi_cmnd *SCpnt)
@@ -6884,7 +6889,8 @@ static int scsi_debug_device_reset(struct scsi_cmnd *SCpnt)
 	scsi_debug_stop_all_queued(sdp);
 	if (devip) {
 		set_bit(SDEBUG_UA_POR, devip->uas_bm);
-		scsi_tape_reset_clear(devip);
+		if (SCpnt->device->type == TYPE_TAPE)
+			scsi_tape_reset_clear(devip);
 	}
 
 	if (sdebug_fail_lun_reset(SCpnt)) {
@@ -6923,7 +6929,8 @@ static int scsi_debug_target_reset(struct scsi_cmnd *SCpnt)
 	list_for_each_entry(devip, &sdbg_host->dev_info_list, dev_list) {
 		if (devip->target == sdp->id) {
 			set_bit(SDEBUG_UA_BUS_RESET, devip->uas_bm);
-			scsi_tape_reset_clear(devip);
+			if (SCpnt->device->type == TYPE_TAPE)
+				scsi_tape_reset_clear(devip);
 			++k;
 		}
 	}
@@ -6955,7 +6962,8 @@ static int scsi_debug_bus_reset(struct scsi_cmnd *SCpnt)
 
 	list_for_each_entry(devip, &sdbg_host->dev_info_list, dev_list) {
 		set_bit(SDEBUG_UA_BUS_RESET, devip->uas_bm);
-		scsi_tape_reset_clear(devip);
+		if (SCpnt->device->type == TYPE_TAPE)
+			scsi_tape_reset_clear(devip);
 		++k;
 	}
 
@@ -6979,7 +6987,8 @@ static int scsi_debug_host_reset(struct scsi_cmnd *SCpnt)
 		list_for_each_entry(devip, &sdbg_host->dev_info_list,
 				    dev_list) {
 			set_bit(SDEBUG_UA_BUS_RESET, devip->uas_bm);
-			scsi_tape_reset_clear(devip);
+			if (SCpnt->device->type == TYPE_TAPE)
+				scsi_tape_reset_clear(devip);
 			++k;
 		}
 	}
