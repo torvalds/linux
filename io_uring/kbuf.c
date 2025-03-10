@@ -32,6 +32,25 @@ struct io_provide_buf {
 	__u16				bid;
 };
 
+static bool io_kbuf_inc_commit(struct io_buffer_list *bl, int len)
+{
+	while (len) {
+		struct io_uring_buf *buf;
+		u32 this_len;
+
+		buf = io_ring_head_to_buf(bl->buf_ring, bl->head, bl->mask);
+		this_len = min_t(int, len, buf->len);
+		buf->len -= this_len;
+		if (buf->len) {
+			buf->addr += this_len;
+			return false;
+		}
+		bl->head++;
+		len -= this_len;
+	}
+	return true;
+}
+
 bool io_kbuf_commit(struct io_kiocb *req,
 		    struct io_buffer_list *bl, int len, int nr)
 {
@@ -42,20 +61,8 @@ bool io_kbuf_commit(struct io_kiocb *req,
 
 	if (unlikely(len < 0))
 		return true;
-
-	if (bl->flags & IOBL_INC) {
-		struct io_uring_buf *buf;
-
-		buf = io_ring_head_to_buf(bl->buf_ring, bl->head, bl->mask);
-		if (WARN_ON_ONCE(len > buf->len))
-			len = buf->len;
-		buf->len -= len;
-		if (buf->len) {
-			buf->addr += len;
-			return false;
-		}
-	}
-
+	if (bl->flags & IOBL_INC)
+		return io_kbuf_inc_commit(bl, len);
 	bl->head += nr;
 	return true;
 }
@@ -226,25 +233,14 @@ static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
 	buf = io_ring_head_to_buf(br, head, bl->mask);
 	if (arg->max_len) {
 		u32 len = READ_ONCE(buf->len);
+		size_t needed;
 
 		if (unlikely(!len))
 			return -ENOBUFS;
-		/*
-		 * Limit incremental buffers to 1 segment. No point trying
-		 * to peek ahead and map more than we need, when the buffers
-		 * themselves should be large when setup with
-		 * IOU_PBUF_RING_INC.
-		 */
-		if (bl->flags & IOBL_INC) {
-			nr_avail = 1;
-		} else {
-			size_t needed;
-
-			needed = (arg->max_len + len - 1) / len;
-			needed = min_not_zero(needed, (size_t) PEEK_MAX_IMPORT);
-			if (nr_avail > needed)
-				nr_avail = needed;
-		}
+		needed = (arg->max_len + len - 1) / len;
+		needed = min_not_zero(needed, (size_t) PEEK_MAX_IMPORT);
+		if (nr_avail > needed)
+			nr_avail = needed;
 	}
 
 	/*
