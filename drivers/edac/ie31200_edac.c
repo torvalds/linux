@@ -377,29 +377,29 @@ static void __iomem *ie31200_map_mchbar(struct pci_dev *pdev)
 }
 
 static void __skl_populate_dimm_info(struct dimm_data *dd, u32 addr_decode,
-				     int chan)
+				     int dimm)
 {
-	dd->size = (addr_decode >> (chan << 4)) & IE31200_MAD_DIMM_SIZE_SKL;
-	dd->dual_rank = (addr_decode & (IE31200_MAD_DIMM_A_RANK_SKL << (chan << 4))) ? 1 : 0;
-	dd->x16_width = ((addr_decode & (IE31200_MAD_DIMM_A_WIDTH_SKL << (chan << 4))) >>
-				(IE31200_MAD_DIMM_A_WIDTH_SKL_SHIFT + (chan << 4)));
+	dd->size = (addr_decode >> (dimm << 4)) & IE31200_MAD_DIMM_SIZE_SKL;
+	dd->dual_rank = (addr_decode & (IE31200_MAD_DIMM_A_RANK_SKL << (dimm << 4))) ? 1 : 0;
+	dd->x16_width = ((addr_decode & (IE31200_MAD_DIMM_A_WIDTH_SKL << (dimm << 4))) >>
+				(IE31200_MAD_DIMM_A_WIDTH_SKL_SHIFT + (dimm << 4)));
 }
 
 static void __populate_dimm_info(struct dimm_data *dd, u32 addr_decode,
-				 int chan)
+				 int dimm)
 {
-	dd->size = (addr_decode >> (chan << 3)) & IE31200_MAD_DIMM_SIZE;
-	dd->dual_rank = (addr_decode & (IE31200_MAD_DIMM_A_RANK << chan)) ? 1 : 0;
-	dd->x16_width = (addr_decode & (IE31200_MAD_DIMM_A_WIDTH << chan)) ? 1 : 0;
+	dd->size = (addr_decode >> (dimm << 3)) & IE31200_MAD_DIMM_SIZE;
+	dd->dual_rank = (addr_decode & (IE31200_MAD_DIMM_A_RANK << dimm)) ? 1 : 0;
+	dd->x16_width = (addr_decode & (IE31200_MAD_DIMM_A_WIDTH << dimm)) ? 1 : 0;
 }
 
-static void populate_dimm_info(struct dimm_data *dd, u32 addr_decode, int chan,
+static void populate_dimm_info(struct dimm_data *dd, u32 addr_decode, int dimm,
 			       bool skl)
 {
 	if (skl)
-		__skl_populate_dimm_info(dd, addr_decode, chan);
+		__skl_populate_dimm_info(dd, addr_decode, dimm);
 	else
-		__populate_dimm_info(dd, addr_decode, chan);
+		__populate_dimm_info(dd, addr_decode, dimm);
 }
 
 
