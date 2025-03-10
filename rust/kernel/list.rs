@@ -319,7 +319,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
 
     /// Removes the last item from this list.
     pub fn pop_back(&mut self) -> Option<ListArc<T, ID>> {
-        if self.first.is_null() {
+        if self.is_empty() {
             return None;
         }
 
@@ -331,7 +331,7 @@ impl<T: ?Sized + ListItem<ID>, const ID: u64> List<T, ID> {
 
     /// Removes the first item from this list.
     pub fn pop_front(&mut self) -> Option<ListArc<T, ID>> {
-        if self.first.is_null() {
+        if self.is_empty() {
             return None;
         }
 
