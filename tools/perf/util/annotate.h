@@ -456,7 +456,6 @@ enum symbol_disassemble_errno {
 
 int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, size_t buflen);
 
-int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel);
 void symbol__annotate_zero_histogram(struct symbol *sym, struct evsel *evsel);
 void symbol__annotate_decay_histogram(struct symbol *sym, struct evsel *evsel);
 void annotated_source__purge(struct annotated_source *as);
@@ -465,9 +464,9 @@ int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel);
 
 bool ui__has_annotation(void);
 
-int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel);
-
-int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel);
+int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel);
+int hist_entry__tty_annotate(struct hist_entry *he, struct evsel *evsel);
+int hist_entry__tty_annotate2(struct hist_entry *he, struct evsel *evsel);
 
 #ifdef HAVE_SLANG_SUPPORT
 int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,

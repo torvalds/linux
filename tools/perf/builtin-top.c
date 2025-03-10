@@ -263,7 +263,7 @@ static void perf_top__show_details(struct perf_top *top)
 	printf("Showing %s for %s\n", evsel__name(top->sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", annotate_opts.min_pcnt);
 
-	more = symbol__annotate_printf(&he->ms, top->sym_evsel);
+	more = hist_entry__annotate_printf(he, top->sym_evsel);
 
 	if (top->evlist->enabled) {
 		if (top->zero)

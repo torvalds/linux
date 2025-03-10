@@ -1174,8 +1174,9 @@ static int annotated_source__addr_fmt_width(struct list_head *lines, u64 start)
 	return 0;
 }
 
-int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
+int hist_entry__annotate_printf(struct hist_entry *he, struct evsel *evsel)
 {
+	struct map_symbol *ms = &he->ms;
 	struct map *map = ms->map;
 	struct symbol *sym = ms->sym;
 	struct dso *dso = map__dso(map);
@@ -1600,8 +1601,9 @@ static void symbol__calc_lines(struct map_symbol *ms, struct rb_root *root)
 	annotation__calc_lines(notes, ms, root);
 }
 
-int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel)
+int hist_entry__tty_annotate2(struct hist_entry *he, struct evsel *evsel)
 {
+	struct map_symbol *ms = &he->ms;
 	struct dso *dso = map__dso(ms->map);
 	struct symbol *sym = ms->sym;
 	struct rb_root source_line = RB_ROOT;
@@ -1635,8 +1637,9 @@ int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel)
 	return 0;
 }
 
-int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel)
+int hist_entry__tty_annotate(struct hist_entry *he, struct evsel *evsel)
 {
+	struct map_symbol *ms = &he->ms;
 	struct dso *dso = map__dso(ms->map);
 	struct symbol *sym = ms->sym;
 	struct rb_root source_line = RB_ROOT;
@@ -1660,7 +1663,7 @@ int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel)
 		print_summary(&source_line, dso__long_name(dso));
 	}
 
-	symbol__annotate_printf(ms, evsel);
+	hist_entry__annotate_printf(he, evsel);
 
 	annotated_source__purge(symbol__annotation(sym)->src);
 

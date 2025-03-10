@@ -321,14 +321,14 @@ static int process_feature_event(struct perf_session *session,
 	return 0;
 }
 
-static int hist_entry__tty_annotate(struct hist_entry *he,
+static int hist_entry__stdio_annotate(struct hist_entry *he,
 				    struct evsel *evsel,
 				    struct perf_annotate *ann)
 {
-	if (!ann->use_stdio2)
-		return symbol__tty_annotate(&he->ms, evsel);
+	if (ann->use_stdio2)
+		return hist_entry__tty_annotate2(he, evsel);
 
-	return symbol__tty_annotate2(&he->ms, evsel);
+	return hist_entry__tty_annotate(he, evsel);
 }
 
 static void print_annotate_data_stat(struct annotated_data_stat *s)
@@ -541,7 +541,7 @@ find_next:
 			if (next != NULL)
 				nd = next;
 		} else {
-			hist_entry__tty_annotate(he, evsel, ann);
+			hist_entry__stdio_annotate(he, evsel, ann);
 			nd = rb_next(nd);
 		}
 	}
