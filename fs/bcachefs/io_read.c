@@ -428,13 +428,13 @@ static void bch2_rbio_done(struct bch_read_bio *rbio)
 	bio_endio(&rbio->bio);
 }
 
-static noinline int bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio,
-				     struct bvec_iter bvec_iter,
-				     struct bch_io_failures *failed,
-				     unsigned flags)
+static noinline int bch2_read_retry_nodecode(struct btree_trans *trans,
+					struct bch_read_bio *rbio,
+					struct bvec_iter bvec_iter,
+					struct bch_io_failures *failed,
+					unsigned flags)
 {
 	struct data_update *u = container_of(rbio, struct data_update, rbio);
-	struct btree_trans *trans = bch2_trans_get(c);
 retry:
 	bch2_trans_begin(trans);
 
@@ -470,8 +470,6 @@ err:
 	}
 
 	BUG_ON(atomic_read(&rbio->bio.__bi_remaining) != 1);
-	bch2_trans_put(trans);
-
 	return ret;
 }
 
@@ -487,6 +485,7 @@ static void bch2_rbio_retry(struct work_struct *work)
 		.inum	= rbio->read_pos.inode,
 	};
 	struct bch_io_failures failed = { .nr = 0 };
+	struct btree_trans *trans = bch2_trans_get(c);
 
 	trace_io_read_retry(&rbio->bio);
 	this_cpu_add(c->counters[BCH_COUNTER_io_read_retry],
@@ -512,8 +511,8 @@ static void bch2_rbio_retry(struct work_struct *work)
 	flags |= BCH_READ_must_clone;
 
 	int ret = rbio->data_update
-		? bch2_read_retry_nodecode(c, rbio, iter, &failed, flags)
-		: __bch2_read(c, rbio, iter, inum, &failed, flags);
+		? bch2_read_retry_nodecode(trans, rbio, iter, &failed, flags)
+		: __bch2_read(trans, rbio, iter, inum, &failed, flags);
 
 	if (ret) {
 		rbio->ret = ret;
@@ -521,7 +520,7 @@ static void bch2_rbio_retry(struct work_struct *work)
 	} else {
 		struct printbuf buf = PRINTBUF;
 
-		bch2_trans_do(c,
+		lockrestart_do(trans,
 			bch2_inum_offset_err_msg_trans(trans, &buf,
 					(subvol_inum) { subvol, read_pos.inode },
 					read_pos.offset << 9));
@@ -534,6 +533,7 @@ static void bch2_rbio_retry(struct work_struct *work)
 	}
 
 	bch2_rbio_done(rbio);
+	bch2_trans_put(trans);
 }
 
 static void bch2_rbio_error(struct bch_read_bio *rbio,
@@ -1256,11 +1256,11 @@ out_read_done:
 	return 0;
 }
 
-int __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
-		 struct bvec_iter bvec_iter, subvol_inum inum,
-		 struct bch_io_failures *failed, unsigned flags)
+int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
+		struct bvec_iter bvec_iter, subvol_inum inum,
+		struct bch_io_failures *failed, unsigned flags)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_buf sk;
 	struct bkey_s_c k;
@@ -1357,9 +1357,7 @@ err:
 			bch2_rbio_done(rbio);
 	}
 
-	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&sk, c);
-
 	return ret;
 }
 

@@ -3,6 +3,7 @@
 #define _BCACHEFS_IO_READ_H
 
 #include "bkey_buf.h"
+#include "btree_iter.h"
 #include "reflink.h"
 
 struct bch_read_bio {
@@ -140,7 +141,7 @@ static inline void bch2_read_extent(struct btree_trans *trans,
 			   data_btree, k, offset_into_extent, NULL, flags, -1);
 }
 
-int __bch2_read(struct bch_fs *, struct bch_read_bio *, struct bvec_iter,
+int __bch2_read(struct btree_trans *, struct bch_read_bio *, struct bvec_iter,
 		subvol_inum, struct bch_io_failures *, unsigned flags);
 
 static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
@@ -150,10 +151,11 @@ static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 
 	rbio->subvol = inum.subvol;
 
-	__bch2_read(c, rbio, rbio->bio.bi_iter, inum, NULL,
-		    BCH_READ_retry_if_stale|
-		    BCH_READ_may_promote|
-		    BCH_READ_user_mapped);
+	bch2_trans_run(c,
+		__bch2_read(trans, rbio, rbio->bio.bi_iter, inum, NULL,
+			    BCH_READ_retry_if_stale|
+			    BCH_READ_may_promote|
+			    BCH_READ_user_mapped));
 }
 
 static inline struct bch_read_bio *rbio_init_fragment(struct bio *bio,
