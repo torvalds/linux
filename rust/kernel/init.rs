@@ -870,7 +870,7 @@ pub unsafe trait PinInit<T: ?Sized, E = Infallible>: Sized {
     /// use kernel::{types::Opaque, init::pin_init_from_closure};
     /// #[repr(C)]
     /// struct RawFoo([u8; 16]);
-    /// extern {
+    /// extern "C" {
     ///     fn init_foo(_: *mut RawFoo);
     /// }
     ///

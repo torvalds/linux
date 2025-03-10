@@ -53,7 +53,11 @@ static __always_inline bool arch_test_bit(unsigned long nr, const volatile unsig
 	unsigned long mask;
 	int cc;
 
-	if (__builtin_constant_p(nr)) {
+	/*
+	 * With CONFIG_PROFILE_ALL_BRANCHES enabled gcc fails to
+	 * handle __builtin_constant_p() in some cases.
+	 */
+	if (!IS_ENABLED(CONFIG_PROFILE_ALL_BRANCHES) && __builtin_constant_p(nr)) {
 		addr = (const volatile unsigned char *)ptr;
 		addr += (nr ^ (BITS_PER_LONG - BITS_PER_BYTE)) / BITS_PER_BYTE;
 		mask = 1UL << (nr & (BITS_PER_BYTE - 1));

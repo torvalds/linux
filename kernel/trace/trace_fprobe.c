@@ -1049,6 +1049,19 @@ static int parse_symbol_and_return(int argc, const char *argv[],
 	if (*is_return)
 		return 0;
 
+	if (is_tracepoint) {
+		tmp = *symbol;
+		while (*tmp && (isalnum(*tmp) || *tmp == '_'))
+			tmp++;
+		if (*tmp) {
+			/* find a wrong character. */
+			trace_probe_log_err(tmp - *symbol, BAD_TP_NAME);
+			kfree(*symbol);
+			*symbol = NULL;
+			return -EINVAL;
+		}
+	}
+
 	/* If there is $retval, this should be a return fprobe. */
 	for (i = 2; i < argc; i++) {
 		tmp = strstr(argv[i], "$retval");
@@ -1056,6 +1069,8 @@ static int parse_symbol_and_return(int argc, const char *argv[],
 			if (is_tracepoint) {
 				trace_probe_log_set_index(i);
 				trace_probe_log_err(tmp - argv[i], RETVAL_ON_PROBE);
+				kfree(*symbol);
+				*symbol = NULL;
 				return -EINVAL;
 			}
 			*is_return = true;
@@ -1215,6 +1230,11 @@ static int trace_fprobe_create_internal(int argc, const char *argv[],
 	if (is_return && tf->tp.entry_arg) {
 		tf->fp.entry_handler = trace_fprobe_entry_handler;
 		tf->fp.entry_data_size = traceprobe_get_entry_data_size(&tf->tp);
+		if (ALIGN(tf->fp.entry_data_size, sizeof(long)) > MAX_FPROBE_DATA_SIZE) {
+			trace_probe_log_set_index(2);
+			trace_probe_log_err(0, TOO_MANY_EARGS);
+			return -E2BIG;
+		}
 	}
 
 	ret = traceprobe_set_print_fmt(&tf->tp,

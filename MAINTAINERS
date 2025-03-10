@@ -1046,14 +1046,14 @@ F:	drivers/crypto/ccp/hsti.*
 AMD DISPLAY CORE
 M:	Harry Wentland <harry.wentland@amd.com>
 M:	Leo Li <sunpeng.li@amd.com>
-M:	Rodrigo Siqueira <Rodrigo.Siqueira@amd.com>
+R:	Rodrigo Siqueira <siqueira@igalia.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/agd5f/linux.git
 F:	drivers/gpu/drm/amd/display/
 
 AMD DISPLAY CORE - DML
-M:	Chaitanya Dhere <chaitanya.dhere@amd.com>
+M:	Austin Zheng <austin.zheng@amd.com>
 M:	Jun Lei <jun.lei@amd.com>
 S:	Supported
 F:	drivers/gpu/drm/amd/display/dc/dml/
@@ -2209,8 +2209,8 @@ F:	sound/soc/codecs/cs42l84.*
 F:	sound/soc/codecs/ssm3515.c
 
 ARM/APPLE MACHINE SUPPORT
-M:	Hector Martin <marcan@marcan.st>
 M:	Sven Peter <sven@svenpeter.dev>
+M:	Janne Grunau <j@jannau.net>
 R:	Alyssa Rosenzweig <alyssa@rosenzweig.io>
 L:	asahi@lists.linux.dev
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2285,7 +2285,7 @@ F:	drivers/irqchip/irq-aspeed-i2c-ic.c
 
 ARM/ASPEED MACHINE SUPPORT
 M:	Joel Stanley <joel@jms.id.au>
-R:	Andrew Jeffery <andrew@codeconstruct.com.au>
+M:	Andrew Jeffery <andrew@codeconstruct.com.au>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-aspeed@lists.ozlabs.org (moderated for non-subscribers)
 S:	Supported
@@ -2878,7 +2878,7 @@ F:	drivers/pinctrl/nxp/
 
 ARM/NXP S32G/S32R DWMAC ETHERNET DRIVER
 M:	Jan Petrous <jan.petrous@oss.nxp.com>
-L:	NXP S32 Linux Team <s32@nxp.com>
+R:	s32@nxp.com
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/nxp,s32-dwmac.yaml
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-s32.c
@@ -3655,7 +3655,6 @@ F:	Documentation/devicetree/bindings/phy/phy-ath79-usb.txt
 F:	drivers/phy/qualcomm/phy-ath79-usb.c
 
 ATHEROS ATH GENERIC UTILITIES
-M:	Kalle Valo <kvalo@kernel.org>
 M:	Jeff Johnson <jjohnson@kernel.org>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
@@ -3860,13 +3859,6 @@ W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/pwm/adi,axi-pwmgen.yaml
 F:	drivers/pwm/pwm-axi-pwmgen.c
 
-AXXIA I2C CONTROLLER
-M:	Krzysztof Adamski <krzysztof.adamski@nokia.com>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/i2c/i2c-axxia.txt
-F:	drivers/i2c/busses/i2c-axxia.c
-
 AZ6007 DVB DRIVER
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
@@ -3955,6 +3947,7 @@ M:	Kent Overstreet <kent.overstreet@linux.dev>
 L:	linux-bcachefs@vger.kernel.org
 S:	Supported
 C:	irc://irc.oftc.net/bcache
+P:      Documentation/filesystems/bcachefs/SubmittingPatches.rst
 T:	git https://evilpiepirate.org/git/bcachefs.git
 F:	fs/bcachefs/
 F:	Documentation/filesystems/bcachefs/
@@ -5663,7 +5656,7 @@ F:	.clang-format
 
 CLANG/LLVM BUILD SUPPORT
 M:	Nathan Chancellor <nathan@kernel.org>
-R:	Nick Desaulniers <ndesaulniers@google.com>
+R:	Nick Desaulniers <nick.desaulniers+lkml@gmail.com>
 R:	Bill Wendling <morbo@google.com>
 R:	Justin Stitt <justinstitt@google.com>
 L:	llvm@lists.linux.dev
@@ -5782,6 +5775,7 @@ X:	drivers/clk/clkdev.c
 
 COMMON INTERNET FILE SYSTEM CLIENT (CIFS and SMB3)
 M:	Steve French <sfrench@samba.org>
+M:	Steve French <smfrench@gmail.com>
 R:	Paulo Alcantara <pc@manguebit.com> (DFS, global name space)
 R:	Ronnie Sahlberg <ronniesahlberg@gmail.com> (directory leases, sparse files)
 R:	Shyam Prasad N <sprasad@microsoft.com> (multichannel)
@@ -5863,7 +5857,6 @@ F:	Documentation/security/snp-tdx-threat-model.rst
 
 CONFIGFS
 M:	Joel Becker <jlbec@evilplan.org>
-M:	Christoph Hellwig <hch@lst.de>
 S:	Supported
 T:	git git://git.infradead.org/users/hch/configfs.git
 F:	fs/configfs/
@@ -5933,6 +5926,17 @@ F:	kernel/cgroup/cpuset.c
 F:	tools/testing/selftests/cgroup/test_cpuset.c
 F:	tools/testing/selftests/cgroup/test_cpuset_prs.sh
 F:	tools/testing/selftests/cgroup/test_cpuset_v1_base.sh
+
+CONTROL GROUP - DEVICE MEMORY CONTROLLER (DMEM)
+M:	Maarten Lankhorst <dev@lankhorst.se>
+M:	Maxime Ripard <mripard@kernel.org>
+M:	Natalie Vock <natalie.vock@gmx.de>
+L:	cgroups@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
+F:	include/linux/cgroup_dmem.h
+F:	kernel/cgroup/dmem.c
 
 CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)
 M:	Johannes Weiner <hannes@cmpxchg.org>
@@ -6886,7 +6890,6 @@ F:	kernel/dma/map_benchmark.c
 F:	tools/testing/selftests/dma/
 
 DMA MAPPING HELPERS
-M:	Christoph Hellwig <hch@lst.de>
 M:	Marek Szyprowski <m.szyprowski@samsung.com>
 R:	Robin Murphy <robin.murphy@arm.com>
 L:	iommu@lists.linux.dev
@@ -7116,8 +7119,10 @@ F:	rust/kernel/device.rs
 F:	rust/kernel/device_id.rs
 F:	rust/kernel/devres.rs
 F:	rust/kernel/driver.rs
+F:	rust/kernel/faux.rs
 F:	rust/kernel/platform.rs
 F:	samples/rust/rust_driver_platform.rs
+F:	samples/rust/rust_driver_faux.rs
 
 DRIVERS FOR OMAP ADAPTIVE VOLTAGE SCALING (AVS)
 M:	Nishanth Menon <nm@ti.com>
@@ -7431,7 +7436,6 @@ F:	Documentation/devicetree/bindings/display/panel/novatek,nt36672a.yaml
 F:	drivers/gpu/drm/panel/panel-novatek-nt36672a.c
 
 DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
-M:	Karol Herbst <kherbst@redhat.com>
 M:	Lyude Paul <lyude@redhat.com>
 M:	Danilo Krummrich <dakr@kernel.org>
 L:	dri-devel@lists.freedesktop.org
@@ -9418,7 +9422,7 @@ F:	fs/freevxfs/
 
 FREEZER
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
-M:	Pavel Machek <pavel@ucw.cz>
+M:	Pavel Machek <pavel@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	Documentation/power/freezing-of-tasks.rst
@@ -9835,8 +9839,7 @@ F:	drivers/input/touchscreen/goodix*
 
 GOOGLE ETHERNET DRIVERS
 M:	Jeroen de Borst <jeroendb@google.com>
-M:	Praveen Kaligineedi <pkaligineedi@google.com>
-R:	Shailend Chand <shailend@google.com>
+M:	Harshitha Ramamurthy <hramamurthy@google.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/google/gve.rst
@@ -9878,7 +9881,7 @@ S:	Maintained
 F:	drivers/staging/gpib/
 
 GPIO ACPI SUPPORT
-M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+M:	Mika Westerberg <westeri@kernel.org>
 M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 L:	linux-gpio@vger.kernel.org
 L:	linux-acpi@vger.kernel.org
@@ -10253,7 +10256,7 @@ F:	drivers/video/fbdev/hgafb.c
 
 HIBERNATION (aka Software Suspend, aka swsusp)
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
-M:	Pavel Machek <pavel@ucw.cz>
+M:	Pavel Machek <pavel@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 B:	https://bugzilla.kernel.org
@@ -10822,7 +10825,7 @@ S:	Odd Fixes
 F:	drivers/tty/hvc/
 
 I2C ACPI SUPPORT
-M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+M:	Mika Westerberg <westeri@kernel.org>
 L:	linux-i2c@vger.kernel.org
 L:	linux-acpi@vger.kernel.org
 S:	Maintained
@@ -12653,7 +12656,9 @@ F:	tools/testing/selftests/
 
 KERNEL SMB3 SERVER (KSMBD)
 M:	Namjae Jeon <linkinjeon@kernel.org>
+M:	Namjae Jeon <linkinjeon@samba.org>
 M:	Steve French <sfrench@samba.org>
+M:	Steve French <smfrench@gmail.com>
 R:	Sergey Senozhatsky <senozhatsky@chromium.org>
 R:	Tom Talpey <tom@talpey.com>
 L:	linux-cifs@vger.kernel.org
@@ -13124,8 +13129,8 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/har
 F:	scripts/leaking_addresses.pl
 
 LED SUBSYSTEM
-M:	Pavel Machek <pavel@ucw.cz>
 M:	Lee Jones <lee@kernel.org>
+M:	Pavel Machek <pavel@kernel.org>
 L:	linux-leds@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/leds.git
@@ -15689,7 +15694,7 @@ F:	include/uapi/linux/cciss*.h
 
 MICROSOFT MANA RDMA DRIVER
 M:	Long Li <longli@microsoft.com>
-M:	Ajay Sharma <sharmaajay@microsoft.com>
+M:	Konstantin Taranov <kotaranov@microsoft.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/mana/
@@ -16438,7 +16443,7 @@ X:	drivers/net/can/
 X:	drivers/net/wireless/
 
 NETWORKING DRIVERS (WIRELESS)
-M:	Kalle Valo <kvalo@kernel.org>
+M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 W:	https://wireless.wiki.kernel.org/
@@ -16461,6 +16466,28 @@ F:	include/linux/platform_data/dsa.h
 F:	include/net/dsa.h
 F:	net/dsa/
 F:	tools/testing/selftests/drivers/net/dsa/
+
+NETWORKING [ETHTOOL]
+M:	Andrew Lunn <andrew@lunn.ch>
+M:	Jakub Kicinski <kuba@kernel.org>
+F:	Documentation/netlink/specs/ethtool.yaml
+F:	Documentation/networking/ethtool-netlink.rst
+F:	include/linux/ethtool*
+F:	include/uapi/linux/ethtool*
+F:	net/ethtool/
+F:	tools/testing/selftests/drivers/net/*/ethtool*
+
+NETWORKING [ETHTOOL CABLE TEST]
+M:	Andrew Lunn <andrew@lunn.ch>
+F:	net/ethtool/cabletest.c
+F:	tools/testing/selftests/drivers/net/*/ethtool*
+K:	cable_test
+
+NETWORKING [ETHTOOL MAC MERGE]
+M:	Vladimir Oltean <vladimir.oltean@nxp.com>
+F:	net/ethtool/mm.c
+F:	tools/testing/selftests/drivers/net/hw/ethtool_mm.sh
+K:	ethtool_mm
 
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
@@ -16493,6 +16520,7 @@ F:	include/linux/netdev*
 F:	include/linux/netlink.h
 F:	include/linux/netpoll.h
 F:	include/linux/rtnetlink.h
+F:	include/linux/sctp.h
 F:	include/linux/seq_file_net.h
 F:	include/linux/skbuff*
 F:	include/net/
@@ -16509,6 +16537,7 @@ F:	include/uapi/linux/netdev*
 F:	include/uapi/linux/netlink.h
 F:	include/uapi/linux/netlink_diag.h
 F:	include/uapi/linux/rtnetlink.h
+F:	include/uapi/linux/sctp.h
 F:	lib/net_utils.c
 F:	lib/random32.c
 F:	net/
@@ -16621,6 +16650,7 @@ F:	tools/testing/selftests/net/mptcp/
 NETWORKING [TCP]
 M:	Eric Dumazet <edumazet@google.com>
 M:	Neal Cardwell <ncardwell@google.com>
+R:	Kuniyuki Iwashima <kuniyu@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/net_cachelines/tcp_sock.rst
@@ -16647,6 +16677,31 @@ S:	Maintained
 F:	include/net/tls.h
 F:	include/uapi/linux/tls.h
 F:	net/tls/*
+
+NETWORKING [SOCKETS]
+M:	Eric Dumazet <edumazet@google.com>
+M:	Kuniyuki Iwashima <kuniyu@amazon.com>
+M:	Paolo Abeni <pabeni@redhat.com>
+M:	Willem de Bruijn <willemb@google.com>
+S:	Maintained
+F:	include/linux/sock_diag.h
+F:	include/linux/socket.h
+F:	include/linux/sockptr.h
+F:	include/net/sock.h
+F:	include/net/sock_reuseport.h
+F:	include/uapi/linux/socket.h
+F:	net/core/*sock*
+F:	net/core/scm.c
+F:	net/socket.c
+
+NETWORKING [UNIX SOCKETS]
+M:	Kuniyuki Iwashima <kuniyu@amazon.com>
+S:	Maintained
+F:	include/net/af_unix.h
+F:	include/net/netns/unix.h
+F:	include/uapi/linux/unix_diag.h
+F:	net/unix/
+F:	tools/testing/selftests/net/af_unix/
 
 NETXEN (1/10) GbE SUPPORT
 M:	Manish Chopra <manishc@marvell.com>
@@ -16781,7 +16836,7 @@ F:	include/linux/tick.h
 F:	kernel/time/tick*.*
 
 NOKIA N900 CAMERA SUPPORT (ET8EK8 SENSOR, AD5820 FOCUS)
-M:	Pavel Machek <pavel@ucw.cz>
+M:	Pavel Machek <pavel@kernel.org>
 M:	Sakari Ailus <sakari.ailus@iki.fi>
 L:	linux-media@vger.kernel.org
 S:	Maintained
@@ -17713,6 +17768,7 @@ L:	netdev@vger.kernel.org
 L:	dev@openvswitch.org
 S:	Maintained
 W:	http://openvswitch.org
+F:	Documentation/networking/openvswitch.rst
 F:	include/uapi/linux/openvswitch.h
 F:	net/openvswitch/
 F:	tools/testing/selftests/net/openvswitch/
@@ -19312,7 +19368,6 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 F:	drivers/media/tuners/qt1010*
 
 QUALCOMM ATH12K WIRELESS DRIVER
-M:	Kalle Valo <kvalo@kernel.org>
 M:	Jeff Johnson <jjohnson@kernel.org>
 L:	ath12k@lists.infradead.org
 S:	Supported
@@ -19322,7 +19377,6 @@ F:	drivers/net/wireless/ath/ath12k/
 N:	ath12k
 
 QUALCOMM ATHEROS ATH10K WIRELESS DRIVER
-M:	Kalle Valo <kvalo@kernel.org>
 M:	Jeff Johnson <jjohnson@kernel.org>
 L:	ath10k@lists.infradead.org
 S:	Supported
@@ -19332,7 +19386,6 @@ F:	drivers/net/wireless/ath/ath10k/
 N:	ath10k
 
 QUALCOMM ATHEROS ATH11K WIRELESS DRIVER
-M:	Kalle Valo <kvalo@kernel.org>
 M:	Jeff Johnson <jjohnson@kernel.org>
 L:	ath11k@lists.infradead.org
 S:	Supported
@@ -19466,6 +19519,15 @@ L:	linux-arm-msm@vger.kernel.org
 L:	dmaengine@vger.kernel.org
 S:	Supported
 F:	drivers/dma/qcom/hidma*
+
+QUALCOMM I2C QCOM GENI DRIVER
+M:	Mukesh Kumar Savaliya <quic_msavaliy@quicinc.com>
+M:	Viken Dadhaniya <quic_vdadhani@quicinc.com>
+L:	linux-i2c@vger.kernel.org
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/i2c/qcom,i2c-geni-qcom.yaml
+F:	drivers/i2c/busses/i2c-qcom-geni.c
 
 QUALCOMM I2C CCI DRIVER
 M:	Loic Poulain <loic.poulain@linaro.org>
@@ -19607,7 +19669,6 @@ F:	drivers/net/wireless/quantenna
 RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
 M:	Christian König <christian.koenig@amd.com>
-M:	Xinhui Pan <Xinhui.Pan@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 B:	https://gitlab.freedesktop.org/drm/amd/-/issues
@@ -19829,7 +19890,7 @@ F:	net/rds/
 F:	tools/testing/selftests/net/rds/
 
 RDT - RESOURCE ALLOCATION
-M:	Fenghua Yu <fenghua.yu@intel.com>
+M:	Tony Luck <tony.luck@intel.com>
 M:	Reinette Chatre <reinette.chatre@intel.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
@@ -20280,6 +20341,7 @@ RISC-V ARCHITECTURE
 M:	Paul Walmsley <paul.walmsley@sifive.com>
 M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Albert Ou <aou@eecs.berkeley.edu>
+R:	Alexandre Ghiti <alex@ghiti.fr>
 L:	linux-riscv@lists.infradead.org
 S:	Supported
 Q:	https://patchwork.kernel.org/project/linux-riscv/list/
@@ -21873,10 +21935,13 @@ F:	sound/soc/uniphier/
 
 SOCKET TIMESTAMPING
 M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+R:	Jason Xing <kernelxing@tencent.com>
 S:	Maintained
 F:	Documentation/networking/timestamping.rst
 F:	include/linux/net_tstamp.h
 F:	include/uapi/linux/net_tstamp.h
+F:	tools/testing/selftests/bpf/*/net_timestamping*
+F:	tools/testing/selftests/net/*timestamp*
 F:	tools/testing/selftests/net/so_txtime.c
 
 SOEKRIS NET48XX LED SUPPORT
@@ -22806,7 +22871,7 @@ F:	drivers/sh/
 SUSPEND TO RAM
 M:	"Rafael J. Wysocki" <rafael@kernel.org>
 M:	Len Brown <len.brown@intel.com>
-M:	Pavel Machek <pavel@ucw.cz>
+M:	Pavel Machek <pavel@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 B:	https://bugzilla.kernel.org
@@ -24019,7 +24084,6 @@ F:	tools/testing/selftests/ftrace/
 TRACING MMIO ACCESSES (MMIOTRACE)
 M:	Steven Rostedt <rostedt@goodmis.org>
 M:	Masami Hiramatsu <mhiramat@kernel.org>
-R:	Karol Herbst <karolherbst@gmail.com>
 R:	Pekka Paalanen <ppaalanen@gmail.com>
 L:	linux-kernel@vger.kernel.org
 L:	nouveau@lists.freedesktop.org

@@ -419,7 +419,7 @@ reload:
 			size_t copy = umin(txb->space, msg_data_left(msg));
 
 			_debug("add %zu", copy);
-			if (!copy_from_iter_full(txb->kvec[0].iov_base + txb->offset,
+			if (!copy_from_iter_full(txb->data + txb->offset,
 						 copy, &msg->msg_iter))
 				goto efault;
 			_debug("added");
@@ -445,8 +445,6 @@ reload:
 			ret = call->security->secure_packet(call, txb);
 			if (ret < 0)
 				goto out;
-
-			txb->kvec[0].iov_len += txb->len;
 			rxrpc_queue_packet(rx, call, txb, notify_end_tx);
 			txb = NULL;
 		}
@@ -707,7 +705,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	} else {
 		switch (rxrpc_call_state(call)) {
 		case RXRPC_CALL_CLIENT_AWAIT_CONN:
-		case RXRPC_CALL_SERVER_SECURING:
+		case RXRPC_CALL_SERVER_RECV_REQUEST:
 			if (p.command == RXRPC_CMD_SEND_ABORT)
 				break;
 			fallthrough;

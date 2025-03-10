@@ -411,6 +411,17 @@ bool bch2_fs_emergency_read_only(struct bch_fs *c)
 	return ret;
 }
 
+bool bch2_fs_emergency_read_only_locked(struct bch_fs *c)
+{
+	bool ret = !test_and_set_bit(BCH_FS_emergency_ro, &c->flags);
+
+	bch2_journal_halt_locked(&c->journal);
+	bch2_fs_read_only_async(c);
+
+	wake_up(&bch2_read_only_wait);
+	return ret;
+}
+
 static int bch2_fs_read_write_late(struct bch_fs *c)
 {
 	int ret;

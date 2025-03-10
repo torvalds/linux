@@ -428,7 +428,7 @@ static int __bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 		bch2_bkey_get_iter_typed(trans, &snapshot_iter,
 				BTREE_ID_snapshots, POS(0, snapid),
 				0, snapshot);
-	ret = bkey_err(subvol);
+	ret = bkey_err(snapshot);
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), trans->c,
 				"missing snapshot %u", snapid);
 	if (ret)
@@ -440,6 +440,11 @@ static int __bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 		bch2_bkey_get_iter_typed(trans, &snapshot_tree_iter,
 				BTREE_ID_snapshot_trees, POS(0, treeid),
 				0, snapshot_tree);
+	ret = bkey_err(snapshot_tree);
+	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT), trans->c,
+				"missing snapshot tree %u", treeid);
+	if (ret)
+		goto err;
 
 	if (le32_to_cpu(snapshot_tree.v->master_subvol) == subvolid) {
 		struct bkey_i_snapshot_tree *snapshot_tree_mut =
