@@ -206,9 +206,7 @@ xfs_buf_free(
 	if (!xfs_buftarg_is_mem(bp->b_target) && size >= PAGE_SIZE)
 		mm_account_reclaimed_pages(howmany(size, PAGE_SHIFT));
 
-	if (xfs_buftarg_is_mem(bp->b_target))
-		xmbuf_unmap_page(bp);
-	else if (is_vmalloc_addr(bp->b_addr))
+	if (is_vmalloc_addr(bp->b_addr))
 		vfree(bp->b_addr);
 	else if (bp->b_flags & _XBF_KMEM)
 		kfree(bp->b_addr);
@@ -275,7 +273,7 @@ xfs_buf_alloc_backing_mem(
 	struct folio	*folio;
 
 	if (xfs_buftarg_is_mem(bp->b_target))
-		return xmbuf_map_page(bp);
+		return xmbuf_map_backing_mem(bp);
 
 	/* Assure zeroed buffer for non-read cases. */
 	if (!(flags & XBF_READ))
