@@ -102,6 +102,45 @@ static u8 dw_pcie_ep_find_capability(struct dw_pcie_ep *ep, u8 func_no, u8 cap)
 	return __dw_pcie_ep_find_next_cap(ep, func_no, next_cap_ptr, cap);
 }
 
+/**
+ * dw_pcie_ep_hide_ext_capability - Hide a capability from the linked list
+ * @pci: DWC PCI device
+ * @prev_cap: Capability preceding the capability that should be hidden
+ * @cap: Capability that should be hidden
+ *
+ * Return: 0 if success, errno otherwise.
+ */
+int dw_pcie_ep_hide_ext_capability(struct dw_pcie *pci, u8 prev_cap, u8 cap)
+{
+	u16 prev_cap_offset, cap_offset;
+	u32 prev_cap_header, cap_header;
+
+	prev_cap_offset = dw_pcie_find_ext_capability(pci, prev_cap);
+	if (!prev_cap_offset)
+		return -EINVAL;
+
+	prev_cap_header = dw_pcie_readl_dbi(pci, prev_cap_offset);
+	cap_offset = PCI_EXT_CAP_NEXT(prev_cap_header);
+	cap_header = dw_pcie_readl_dbi(pci, cap_offset);
+
+	/* cap must immediately follow prev_cap. */
+	if (PCI_EXT_CAP_ID(cap_header) != cap)
+		return -EINVAL;
+
+	/* Clear next ptr. */
+	prev_cap_header &= ~GENMASK(31, 20);
+
+	/* Set next ptr to next ptr of cap. */
+	prev_cap_header |= cap_header & GENMASK(31, 20);
+
+	dw_pcie_dbi_ro_wr_en(pci);
+	dw_pcie_writel_dbi(pci, prev_cap_offset, prev_cap_header);
+	dw_pcie_dbi_ro_wr_dis(pci);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dw_pcie_ep_hide_ext_capability);
+
 static int dw_pcie_ep_write_header(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 				   struct pci_epf_header *hdr)
 {
