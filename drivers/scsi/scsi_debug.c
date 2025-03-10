@@ -528,7 +528,8 @@ enum sdeb_opcode_index {
 	SDEB_I_WRITE_FILEMARKS = 35,
 	SDEB_I_SPACE = 36,
 	SDEB_I_FORMAT_MEDIUM = 37,
-	SDEB_I_LAST_ELEM_P1 = 38,	/* keep this last (previous + 1) */
+	SDEB_I_ERASE = 38,
+	SDEB_I_LAST_ELEM_P1 = 39,	/* keep this last (previous + 1) */
 };
 
 
@@ -539,7 +540,7 @@ static const unsigned char opcode_ind_arr[256] = {
 	SDEB_I_READ, 0, SDEB_I_WRITE, 0, 0, 0, 0, 0,
 	SDEB_I_WRITE_FILEMARKS, SDEB_I_SPACE, SDEB_I_INQUIRY, 0, 0,
 	    SDEB_I_MODE_SELECT, SDEB_I_RESERVE, SDEB_I_RELEASE,
-	0, 0, SDEB_I_MODE_SENSE, SDEB_I_START_STOP, 0, SDEB_I_SEND_DIAG,
+	0, SDEB_I_ERASE, SDEB_I_MODE_SENSE, SDEB_I_START_STOP, 0, SDEB_I_SEND_DIAG,
 	    SDEB_I_ALLOW_REMOVAL, 0,
 /* 0x20; 0x20->0x3f: 10 byte cdbs */
 	0, 0, 0, 0, 0, SDEB_I_READ_CAPACITY, 0, 0,
@@ -627,6 +628,7 @@ static int resp_space(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_read_position(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_rewind(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_format_medium(struct scsi_cmnd *, struct sdebug_dev_info *);
+static int resp_erase(struct scsi_cmnd *, struct sdebug_dev_info *);
 
 static int sdebug_do_add_host(bool mk_new_store);
 static int sdebug_add_host_helper(int per_host_idx);
@@ -887,7 +889,9 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEM_P1 + 1] = {
 	    {6,  0x07, 0xff, 0xff, 0xff, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 	{0, 0x4, 0, DS_SSC, 0, resp_format_medium, NULL,  /* FORMAT MEDIUM (6) */
 	    {6,  0x3, 0x7, 0, 0, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
-/* 38 */
+	{0, 0x19, 0, DS_SSC, F_D_IN, resp_erase, NULL,    /* ERASE (6) */
+	    {6,  0x03, 0x33, 0, 0, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
+/* 39 */
 /* sentinel */
 	{0xff, 0, 0, 0, 0, NULL, NULL,		/* terminating element */
 	    {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
@@ -3688,6 +3692,19 @@ static int resp_format_medium(struct scsi_cmnd *scp,
 		return -EINVAL;
 
 	devip->tape_pending_nbr_partitions = -1;
+
+	return 0;
+}
+
+static int resp_erase(struct scsi_cmnd *scp,
+		struct sdebug_dev_info *devip)
+{
+	int partition = devip->tape_partition;
+	int pos = devip->tape_location[partition];
+	struct tape_block *blp;
+
+	blp = devip->tape_blocks[partition] + pos;
+	blp->fl_size = TAPE_BLOCK_EOD_FLAG;
 
 	return 0;
 }
