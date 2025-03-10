@@ -165,6 +165,12 @@ struct amdgpu_mes {
 	struct amdgpu_bo		*hung_queue_db_array_gpu_obj[AMDGPU_MAX_MES_PIPES];
 	uint64_t			hung_queue_db_array_gpu_addr[AMDGPU_MAX_MES_PIPES];
 	void				*hung_queue_db_array_cpu_addr[AMDGPU_MAX_MES_PIPES];
+
+	/* cooperative dispatch */
+	bool                enable_coop_mode;
+	int                 master_xcc_ids[AMDGPU_MAX_MES_INST_PIPES];
+	struct amdgpu_bo    *shared_cmd_buf_obj[AMDGPU_MAX_MES_INST_PIPES];
+	uint64_t            shared_cmd_buf_gpu_addr[AMDGPU_MAX_MES_INST_PIPES];
 };
 
 struct amdgpu_mes_gang {

@@ -289,6 +289,11 @@ static int mes_v12_1_add_hw_queue(struct amdgpu_mes *mes,
 	union MESAPI__ADD_QUEUE mes_add_queue_pkt;
 	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB(0)];
 	uint32_t vm_cntx_cntl = hub->vm_cntx_cntl;
+	int xcc_id = input->xcc_id;
+	int inst = MES_PIPE_INST(xcc_id, AMDGPU_MES_SCHED_PIPE);
+
+	if (mes->enable_coop_mode)
+		xcc_id = mes->master_xcc_ids[inst];
 
 	memset(&mes_add_queue_pkt, 0, sizeof(mes_add_queue_pkt));
 
@@ -334,7 +339,7 @@ static int mes_v12_1_add_hw_queue(struct amdgpu_mes *mes,
 	mes_add_queue_pkt.gds_size = input->queue_size;
 
 	return mes_v12_1_submit_pkt_and_poll_completion(mes,
-			input->xcc_id, AMDGPU_MES_SCHED_PIPE,
+			xcc_id, AMDGPU_MES_SCHED_PIPE,
 			&mes_add_queue_pkt, sizeof(mes_add_queue_pkt),
 			offsetof(union MESAPI__ADD_QUEUE, api_status));
 }
@@ -343,6 +348,11 @@ static int mes_v12_1_remove_hw_queue(struct amdgpu_mes *mes,
 				     struct mes_remove_queue_input *input)
 {
 	union MESAPI__REMOVE_QUEUE mes_remove_queue_pkt;
+	int xcc_id = input->xcc_id;
+	int inst = MES_PIPE_INST(xcc_id, AMDGPU_MES_SCHED_PIPE);
+
+	if (mes->enable_coop_mode)
+		xcc_id = mes->master_xcc_ids[inst];
 
 	memset(&mes_remove_queue_pkt, 0, sizeof(mes_remove_queue_pkt));
 
@@ -354,7 +364,7 @@ static int mes_v12_1_remove_hw_queue(struct amdgpu_mes *mes,
 	mes_remove_queue_pkt.gang_context_addr = input->gang_context_addr;
 
 	return mes_v12_1_submit_pkt_and_poll_completion(mes,
-			input->xcc_id, AMDGPU_MES_SCHED_PIPE,
+			xcc_id, AMDGPU_MES_SCHED_PIPE,
 			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt),
 			offsetof(union MESAPI__REMOVE_QUEUE, api_status));
 }
@@ -600,6 +610,7 @@ static int mes_v12_1_set_hw_resources_1(struct amdgpu_mes *mes,
 					  int pipe, int xcc_id)
 {
 	union MESAPI_SET_HW_RESOURCES_1 mes_set_hw_res_1_pkt;
+	int master_xcc_id, inst = MES_PIPE_INST(xcc_id, pipe);
 
 	memset(&mes_set_hw_res_1_pkt, 0, sizeof(mes_set_hw_res_1_pkt));
 
@@ -607,6 +618,13 @@ static int mes_v12_1_set_hw_resources_1(struct amdgpu_mes *mes,
 	mes_set_hw_res_1_pkt.header.opcode = MES_SCH_API_SET_HW_RSRC_1;
 	mes_set_hw_res_1_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 	mes_set_hw_res_1_pkt.mes_kiq_unmap_timeout = 100;
+
+	if (mes->enable_coop_mode && pipe == AMDGPU_MES_SCHED_PIPE) {
+		master_xcc_id = mes->master_xcc_ids[inst];
+		mes_set_hw_res_1_pkt.mes_coop_mode = 1;
+		mes_set_hw_res_1_pkt.coop_sch_shared_mc_addr =
+			mes->shared_cmd_buf_gpu_addr[master_xcc_id];
+	}
 
 	return mes_v12_1_submit_pkt_and_poll_completion(mes, xcc_id, pipe,
 			&mes_set_hw_res_1_pkt, sizeof(mes_set_hw_res_1_pkt),
@@ -664,7 +682,8 @@ static int mes_v12_1_set_hw_resources(struct amdgpu_mes *mes,
 		mes->query_status_fence_gpu_addr[pipe];
 
 	for (i = 0; i < 5; i++) {
-		mes_set_hw_res_pkt.gc_base[i] = adev->reg_offset[GC_HWIP][0][i];
+		mes_set_hw_res_pkt.gc_base[i] =
+			adev->reg_offset[GC_HWIP][GET_INST(GC, xcc_id)][i];
 		mes_set_hw_res_pkt.mmhub_base[i] =
 				adev->reg_offset[MMHUB_HWIP][0][i];
 		mes_set_hw_res_pkt.osssys_base[i] =
@@ -1081,6 +1100,29 @@ static int mes_v12_1_allocate_eop_buf(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int mes_v12_1_allocate_shared_cmd_buf(struct amdgpu_device *adev,
+					     enum amdgpu_mes_pipe pipe,
+					     int xcc_id)
+{
+	int r, inst = MES_PIPE_INST(xcc_id, pipe);
+
+	if (pipe == AMDGPU_MES_KIQ_PIPE)
+		return 0;
+
+	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM,
+				    &adev->mes.shared_cmd_buf_obj[inst],
+				    &adev->mes.shared_cmd_buf_gpu_addr[inst],
+				    NULL);
+	if (r) {
+		dev_err(adev->dev,
+			"(%d) failed to create shared cmd buf bo\n", r);
+		return r;
+	}
+
+	return 0;
+}
+
 static int mes_v12_1_mqd_init(struct amdgpu_ring *ring)
 {
 	struct v12_1_mes_mqd *mqd = ring->mqd_ptr;
@@ -1440,6 +1482,9 @@ static int mes_v12_1_sw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	int pipe, r, xcc_id, num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
+	if (adev->enable_uni_mes && num_xcc > 1)
+		adev->mes.enable_coop_mode = true;
+
 	adev->mes.funcs = &mes_v12_1_funcs;
 	adev->mes.kiq_hw_init = &mes_v12_1_kiq_hw_init;
 	adev->mes.kiq_hw_fini = &mes_v12_1_kiq_hw_fini;
@@ -1469,6 +1514,13 @@ static int mes_v12_1_sw_init(struct amdgpu_ip_block *ip_block)
 				r = mes_v12_1_ring_init(adev, xcc_id, pipe);
 			if (r)
 				return r;
+
+			if (adev->mes.enable_coop_mode) {
+				r = mes_v12_1_allocate_shared_cmd_buf(adev,
+							      pipe, xcc_id);
+				if (r)
+					return r;
+			}
 		}
 	}
 
@@ -1483,6 +1535,10 @@ static int mes_v12_1_sw_fini(struct amdgpu_ip_block *ip_block)
 	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
 		for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
 			inst = MES_PIPE_INST(xcc_id, pipe);
+
+			amdgpu_bo_free_kernel(&adev->mes.shared_cmd_buf_obj[inst],
+					      &adev->mes.shared_cmd_buf_gpu_addr[inst],
+					      NULL);
 
 			kfree(adev->mes.mqd_backup[inst]);
 
@@ -1734,6 +1790,10 @@ static int mes_v12_1_hw_init(struct amdgpu_ip_block *ip_block)
 	int r, xcc_id, num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
 	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
+		/* for SPX mode, all master xcc ids are set to 0 */
+		if (adev->mes.enable_coop_mode)
+			adev->mes.master_xcc_ids[xcc_id] = 0;
+
 		r = mes_v12_1_xcc_hw_init(ip_block, xcc_id);
 		if (r)
 			return r;
