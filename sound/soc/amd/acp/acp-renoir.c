@@ -27,15 +27,6 @@
 
 #define DRV_NAME "acp_asoc_renoir"
 
-static struct acp_resource rsrc = {
-	.offset = 20,
-	.no_of_ctrls = 1,
-	.irqp_used = 0,
-	.irq_reg_offset = 0x1800,
-	.scratch_reg_offset = 0x12800,
-	.sram_pte_offset = 0x02052800,
-};
-
 static struct snd_soc_dai_driver acp_renoir_dai[] = {
 {
 	.name = "acp-i2s-sp",
@@ -121,7 +112,6 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	}
 
 	chip->dev = dev;
-	chip->rsrc = &rsrc;
 	chip->dai_driver = acp_renoir_dai;
 	chip->num_dai = ARRAY_SIZE(acp_renoir_dai);
 

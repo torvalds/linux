@@ -238,6 +238,15 @@ enum acp_config {
 	ACP_CONFIG_20,
 };
 
+struct acp_resource rn_rsrc = {
+	.offset = 20,
+	.no_of_ctrls = 1,
+	.irqp_used = 0,
+	.irq_reg_offset = 0x1800,
+	.scratch_reg_offset = 0x12800,
+	.sram_pte_offset = 0x02052800,
+};
+
 struct acp_resource rmb_rsrc = {
 	.offset = 0,
 	.no_of_ctrls = 2,
