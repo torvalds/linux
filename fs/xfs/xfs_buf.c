@@ -271,19 +271,49 @@ xfs_buf_alloc_kmem(
 	return 0;
 }
 
+/*
+ * Allocate backing memory for a buffer.
+ *
+ * For tmpfs-backed buffers used by in-memory btrees this directly maps the
+ * tmpfs page cache folios.
+ *
+ * For real file system buffers there are two different kinds backing memory:
+ *
+ * The first type backs the buffer by a kmalloc allocation.  This is done for
+ * less than PAGE_SIZE allocations to avoid wasting memory.
+ *
+ * The second type of buffer is the multi-page buffer. These are always made
+ * up of single pages so that they can be fed to vmap_ram() to return a
+ * contiguous memory region we can access the data through, or mark it as
+ * XBF_UNMAPPED and access the data directly through individual page_address()
+ * calls.
+ */
 static int
-xfs_buf_alloc_pages(
+xfs_buf_alloc_backing_mem(
 	struct xfs_buf	*bp,
 	xfs_buf_flags_t	flags)
 {
+	size_t		size = BBTOB(bp->b_length);
 	gfp_t		gfp_mask = GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOWARN;
 	long		filled = 0;
+
+	if (xfs_buftarg_is_mem(bp->b_target))
+		return xmbuf_map_page(bp);
+
+	/*
+	 * For buffers that fit entirely within a single page, first attempt to
+	 * allocate the memory from the heap to minimise memory usage.  If we
+	 * can't get heap memory for these small buffers, we fall back to using
+	 * the page allocator.
+	 */
+	if (size < PAGE_SIZE && xfs_buf_alloc_kmem(new_bp, flags) == 0)
+		return 0;
 
 	if (flags & XBF_READ_AHEAD)
 		gfp_mask |= __GFP_NORETRY;
 
 	/* Make sure that we have a page list */
-	bp->b_page_count = DIV_ROUND_UP(BBTOB(bp->b_length), PAGE_SIZE);
+	bp->b_page_count = DIV_ROUND_UP(size, PAGE_SIZE);
 	if (bp->b_page_count <= XB_PAGES) {
 		bp->b_pages = bp->b_page_array;
 	} else {
@@ -564,18 +594,7 @@ xfs_buf_find_insert(
 	if (error)
 		goto out_drop_pag;
 
-	if (xfs_buftarg_is_mem(new_bp->b_target)) {
-		error = xmbuf_map_page(new_bp);
-	} else if (BBTOB(new_bp->b_length) >= PAGE_SIZE ||
-		   xfs_buf_alloc_kmem(new_bp, flags) < 0) {
-		/*
-		 * For buffers that fit entirely within a single page, first
-		 * attempt to allocate the memory from the heap to minimise
-		 * memory usage. If we can't get heap memory for these small
-		 * buffers, we fall back to using the page allocator.
-		 */
-		error = xfs_buf_alloc_pages(new_bp, flags);
-	}
+	error = xfs_buf_alloc_backing_mem(new_bp, flags);
 	if (error)
 		goto out_free_buf;
 
@@ -939,14 +958,12 @@ xfs_buf_get_uncached(
 	if (error)
 		return error;
 
-	if (xfs_buftarg_is_mem(bp->b_target))
-		error = xmbuf_map_page(bp);
-	else
-		error = xfs_buf_alloc_pages(bp, flags);
+	error = xfs_buf_alloc_backing_mem(bp, flags);
 	if (error)
 		goto fail_free_buf;
 
-	error = _xfs_buf_map_pages(bp, 0);
+	if (!bp->b_addr)
+		error = _xfs_buf_map_pages(bp, 0);
 	if (unlikely(error)) {
 		xfs_warn(target->bt_mount,
 			"%s: failed to map pages", __func__);
