@@ -7155,6 +7155,7 @@ static int read_one_chunk(struct btrfs_key *key, struct extent_buffer *leaf,
 		btrfs_err(fs_info,
 			  "failed to add chunk map, start=%llu len=%llu: %d",
 			  map->start, map->chunk_len, ret);
+		btrfs_free_chunk_map(map);
 	}
 
 	return ret;
@@ -7200,8 +7201,12 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 
 	fs_devices = find_fsid(fsid, NULL);
 	if (!fs_devices) {
-		if (!btrfs_test_opt(fs_info, DEGRADED))
+		if (!btrfs_test_opt(fs_info, DEGRADED)) {
+			btrfs_err(fs_info,
+		"failed to find fsid %pU when attempting to open seed devices",
+				  fsid);
 			return ERR_PTR(-ENOENT);
+		}
 
 		fs_devices = alloc_fs_devices(fsid);
 		if (IS_ERR(fs_devices))

@@ -111,31 +111,35 @@ out:
 
 static void test_sockmap_vsock_delete_on_close(void)
 {
-	int err, c, p, map;
-	const int zero = 0;
-
-	err = create_pair(AF_VSOCK, SOCK_STREAM, &c, &p);
-	if (!ASSERT_OK(err, "create_pair(AF_VSOCK)"))
-		return;
+	int map, c, p, err, zero = 0;
 
 	map = bpf_map_create(BPF_MAP_TYPE_SOCKMAP, NULL, sizeof(int),
 			     sizeof(int), 1, NULL);
-	if (!ASSERT_GE(map, 0, "bpf_map_create")) {
-		close(c);
-		goto out;
-	}
+	if (!ASSERT_OK_FD(map, "bpf_map_create"))
+		return;
+
+	err = create_pair(AF_VSOCK, SOCK_STREAM, &c, &p);
+	if (!ASSERT_OK(err, "create_pair"))
+		goto close_map;
+
+	if (xbpf_map_update_elem(map, &zero, &c, BPF_NOEXIST))
+		goto close_socks;
+
+	xclose(c);
+	xclose(p);
+
+	err = create_pair(AF_VSOCK, SOCK_STREAM, &c, &p);
+	if (!ASSERT_OK(err, "create_pair"))
+		goto close_map;
 
 	err = bpf_map_update_elem(map, &zero, &c, BPF_NOEXIST);
-	close(c);
-	if (!ASSERT_OK(err, "bpf_map_update"))
-		goto out;
-
-	err = bpf_map_update_elem(map, &zero, &p, BPF_NOEXIST);
 	ASSERT_OK(err, "after close(), bpf_map_update");
 
-out:
-	close(p);
-	close(map);
+close_socks:
+	xclose(c);
+	xclose(p);
+close_map:
+	xclose(map);
 }
 
 static void test_skmsg_helpers(enum bpf_map_type map_type)
@@ -522,8 +526,8 @@ static void test_sockmap_skb_verdict_shutdown(void)
 	if (!ASSERT_EQ(err, 1, "epoll_wait(fd)"))
 		goto out_close;
 
-	n = recv(c1, &b, 1, SOCK_NONBLOCK);
-	ASSERT_EQ(n, 0, "recv_timeout(fin)");
+	n = recv(c1, &b, 1, MSG_DONTWAIT);
+	ASSERT_EQ(n, 0, "recv(fin)");
 out_close:
 	close(c1);
 	close(p1);
@@ -531,57 +535,6 @@ out:
 	test_sockmap_pass_prog__destroy(skel);
 }
 
-static void test_sockmap_stream_pass(void)
-{
-	int zero = 0, sent, recvd;
-	int verdict, parser;
-	int err, map;
-	int c = -1, p = -1;
-	struct test_sockmap_pass_prog *pass = NULL;
-	char snd[256] = "0123456789";
-	char rcv[256] = "0";
-
-	pass = test_sockmap_pass_prog__open_and_load();
-	verdict = bpf_program__fd(pass->progs.prog_skb_verdict);
-	parser = bpf_program__fd(pass->progs.prog_skb_parser);
-	map = bpf_map__fd(pass->maps.sock_map_rx);
-
-	err = bpf_prog_attach(parser, map, BPF_SK_SKB_STREAM_PARSER, 0);
-	if (!ASSERT_OK(err, "bpf_prog_attach stream parser"))
-		goto out;
-
-	err = bpf_prog_attach(verdict, map, BPF_SK_SKB_STREAM_VERDICT, 0);
-	if (!ASSERT_OK(err, "bpf_prog_attach stream verdict"))
-		goto out;
-
-	err = create_pair(AF_INET, SOCK_STREAM, &c, &p);
-	if (err)
-		goto out;
-
-	/* sk_data_ready of 'p' will be replaced by strparser handler */
-	err = bpf_map_update_elem(map, &zero, &p, BPF_NOEXIST);
-	if (!ASSERT_OK(err, "bpf_map_update_elem(p)"))
-		goto out_close;
-
-	/*
-	 * as 'prog_skb_parser' return the original skb len and
-	 * 'prog_skb_verdict' return SK_PASS, the kernel will just
-	 * pass it through to original socket 'p'
-	 */
-	sent = xsend(c, snd, sizeof(snd), 0);
-	ASSERT_EQ(sent, sizeof(snd), "xsend(c)");
-
-	recvd = recv_timeout(p, rcv, sizeof(rcv), SOCK_NONBLOCK,
-			     IO_TIMEOUT_SEC);
-	ASSERT_EQ(recvd, sizeof(rcv), "recv_timeout(p)");
-
-out_close:
-	close(c);
-	close(p);
-
-out:
-	test_sockmap_pass_prog__destroy(pass);
-}
 
 static void test_sockmap_skb_verdict_fionread(bool pass_prog)
 {
@@ -628,7 +581,7 @@ static void test_sockmap_skb_verdict_fionread(bool pass_prog)
 	ASSERT_EQ(avail, expected, "ioctl(FIONREAD)");
 	/* On DROP test there will be no data to read */
 	if (pass_prog) {
-		recvd = recv_timeout(c1, &buf, sizeof(buf), SOCK_NONBLOCK, IO_TIMEOUT_SEC);
+		recvd = recv_timeout(c1, &buf, sizeof(buf), MSG_DONTWAIT, IO_TIMEOUT_SEC);
 		ASSERT_EQ(recvd, sizeof(buf), "recv_timeout(c0)");
 	}
 
@@ -1061,6 +1014,34 @@ destroy:
 	test_sockmap_pass_prog__destroy(skel);
 }
 
+static void test_sockmap_vsock_unconnected(void)
+{
+	struct sockaddr_storage addr;
+	int map, s, zero = 0;
+	socklen_t alen;
+
+	map = bpf_map_create(BPF_MAP_TYPE_SOCKMAP, NULL, sizeof(int),
+			     sizeof(int), 1, NULL);
+	if (!ASSERT_OK_FD(map, "bpf_map_create"))
+		return;
+
+	s = xsocket(AF_VSOCK, SOCK_STREAM, 0);
+	if (s < 0)
+		goto close_map;
+
+	/* Fail connect(), but trigger transport assignment. */
+	init_addr_loopback(AF_VSOCK, &addr, &alen);
+	if (!ASSERT_ERR(connect(s, sockaddr(&addr), alen), "connect"))
+		goto close_sock;
+
+	ASSERT_ERR(bpf_map_update_elem(map, &zero, &s, BPF_ANY), "map_update");
+
+close_sock:
+	xclose(s);
+close_map:
+	xclose(map);
+}
+
 void test_sockmap_basic(void)
 {
 	if (test__start_subtest("sockmap create_update_free"))
@@ -1101,8 +1082,6 @@ void test_sockmap_basic(void)
 		test_sockmap_progs_query(BPF_SK_SKB_VERDICT);
 	if (test__start_subtest("sockmap skb_verdict shutdown"))
 		test_sockmap_skb_verdict_shutdown();
-	if (test__start_subtest("sockmap stream parser and verdict pass"))
-		test_sockmap_stream_pass();
 	if (test__start_subtest("sockmap skb_verdict fionread"))
 		test_sockmap_skb_verdict_fionread(true);
 	if (test__start_subtest("sockmap skb_verdict fionread on drop"))
@@ -1127,4 +1106,6 @@ void test_sockmap_basic(void)
 		test_skmsg_helpers_with_link(BPF_MAP_TYPE_SOCKHASH);
 	if (test__start_subtest("sockmap skb_verdict vsock poll"))
 		test_sockmap_skb_verdict_vsock_poll();
+	if (test__start_subtest("sockmap vsock unconnected"))
+		test_sockmap_vsock_unconnected();
 }

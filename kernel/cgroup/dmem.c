@@ -220,60 +220,32 @@ dmem_cgroup_calculate_protection(struct dmem_cgroup_pool_state *limit_pool,
 				 struct dmem_cgroup_pool_state *test_pool)
 {
 	struct page_counter *climit;
-	struct cgroup_subsys_state *css, *next_css;
+	struct cgroup_subsys_state *css;
 	struct dmemcg_state *dmemcg_iter;
-	struct dmem_cgroup_pool_state *pool, *parent_pool;
-	bool found_descendant;
+	struct dmem_cgroup_pool_state *pool, *found_pool;
 
 	climit = &limit_pool->cnt;
 
 	rcu_read_lock();
-	parent_pool = pool = limit_pool;
-	css = &limit_pool->cs->css;
 
-	/*
-	 * This logic is roughly equivalent to css_foreach_descendant_pre,
-	 * except we also track the parent pool to find out which pool we need
-	 * to calculate protection values for.
-	 *
-	 * We can stop the traversal once we find test_pool among the
-	 * descendants since we don't really care about any others.
-	 */
-	while (pool != test_pool) {
-		next_css = css_next_child(NULL, css);
-		if (next_css) {
-			parent_pool = pool;
-		} else {
-			while (css != &limit_pool->cs->css) {
-				next_css = css_next_child(css, css->parent);
-				if (next_css)
-					break;
-				css = css->parent;
-				parent_pool = pool_parent(parent_pool);
-			}
-			/*
-			 * We can only hit this when test_pool is not a
-			 * descendant of limit_pool.
-			 */
-			if (WARN_ON_ONCE(css == &limit_pool->cs->css))
-				break;
-		}
-		css = next_css;
-
-		found_descendant = false;
+	css_for_each_descendant_pre(css, &limit_pool->cs->css) {
 		dmemcg_iter = container_of(css, struct dmemcg_state, css);
+		found_pool = NULL;
 
 		list_for_each_entry_rcu(pool, &dmemcg_iter->pools, css_node) {
-			if (pool_parent(pool) == parent_pool) {
-				found_descendant = true;
+			if (pool->region == limit_pool->region) {
+				found_pool = pool;
 				break;
 			}
 		}
-		if (!found_descendant)
+		if (!found_pool)
 			continue;
 
 		page_counter_calculate_protection(
-			climit, &pool->cnt, true);
+			climit, &found_pool->cnt, true);
+
+		if (found_pool == test_pool)
+			break;
 	}
 	rcu_read_unlock();
 }

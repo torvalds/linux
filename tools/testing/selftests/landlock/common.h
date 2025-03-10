@@ -207,6 +207,7 @@ enforce_ruleset(struct __test_metadata *const _metadata, const int ruleset_fd)
 struct protocol_variant {
 	int domain;
 	int type;
+	int protocol;
 };
 
 struct service_fixture {

@@ -31,11 +31,6 @@ static inline unsigned dirent_val_u64s(unsigned len)
 			    sizeof(u64));
 }
 
-static inline unsigned int dirent_occupied_size(const struct qstr *name)
-{
-	return (BKEY_U64s + dirent_val_u64s(name->len)) * sizeof(u64);
-}
-
 int bch2_dirent_read_target(struct btree_trans *, subvol_inum,
 			    struct bkey_s_c_dirent, subvol_inum *);
 

@@ -396,6 +396,12 @@
 	status = "okay";
 };
 
+&uart5 {
+	/delete-property/ dmas;
+	/delete-property/ dma-names;
+	pinctrl-0 = <&uart5_xfer>;
+};
+
 /* Mule UCAN */
 &usb_host0_ehci {
 	status = "okay";
