@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
+#include <linux/limits.h>
 
 #if !defined(SYS_getdents64)
 #if defined(__x86_64__) || defined(__arm__)
