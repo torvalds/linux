@@ -151,6 +151,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	case 0x70:
 	case 0x71:
 		chip->name = "acp_asoc_acp70";
+		chip->rsrc = &acp70_rsrc;
 		chip->acp_hw_ops_init = acp70_hw_ops_init;
 		chip->machines = snd_soc_acpi_amd_acp70_acp_machines;
 		break;

@@ -30,16 +30,6 @@
 #define CLK7_CLK0_DFS_CNTL_N1		0X0006C1A4
 #define CLK0_DIVIDER			0X19
 
-static struct acp_resource rsrc = {
-	.offset = 0,
-	.no_of_ctrls = 2,
-	.irqp_used = 1,
-	.soc_mclk = true,
-	.irq_reg_offset = 0x1a00,
-	.scratch_reg_offset = 0x10000,
-	.sram_pte_offset = 0x03800000,
-};
-
 static struct snd_soc_dai_driver acp70_dai[] = {
 {
 	.name = "acp-i2s-sp",
@@ -153,7 +143,6 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	}
 
 	chip->dev = dev;
-	chip->rsrc = &rsrc;
 	chip->dai_driver = acp70_dai;
 	chip->num_dai = ARRAY_SIZE(acp70_dai);
 
