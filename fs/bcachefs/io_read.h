@@ -147,13 +147,11 @@ void __bch2_read(struct bch_fs *, struct bch_read_bio *, struct bvec_iter,
 static inline void bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 			     subvol_inum inum)
 {
-	struct bch_io_failures failed = { .nr = 0 };
-
 	BUG_ON(rbio->_state);
 
 	rbio->subvol = inum.subvol;
 
-	__bch2_read(c, rbio, rbio->bio.bi_iter, inum, &failed,
+	__bch2_read(c, rbio, rbio->bio.bi_iter, inum, NULL,
 		    BCH_READ_retry_if_stale|
 		    BCH_READ_may_promote|
 		    BCH_READ_user_mapped);
