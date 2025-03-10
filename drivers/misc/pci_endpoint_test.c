@@ -66,6 +66,9 @@
 
 #define PCI_ENDPOINT_TEST_CAPS			0x30
 #define CAP_UNALIGNED_ACCESS			BIT(0)
+#define CAP_MSI					BIT(1)
+#define CAP_MSIX				BIT(2)
+#define CAP_INTX				BIT(3)
 
 #define PCI_DEVICE_ID_TI_AM654			0xb00c
 #define PCI_DEVICE_ID_TI_J7200			0xb00f
@@ -113,6 +116,7 @@ struct pci_endpoint_test {
 	struct miscdevice miscdev;
 	enum pci_barno test_reg_bar;
 	size_t alignment;
+	u32 ep_caps;
 	const char *name;
 };
 
@@ -803,9 +807,21 @@ static int pci_endpoint_test_set_irq(struct pci_endpoint_test *test,
 	int ret;
 
 	if (req_irq_type < PCITEST_IRQ_TYPE_INTX ||
-	    req_irq_type > PCITEST_IRQ_TYPE_MSIX) {
+	    req_irq_type > PCITEST_IRQ_TYPE_AUTO) {
 		dev_err(dev, "Invalid IRQ type option\n");
 		return -EINVAL;
+	}
+
+	if (req_irq_type == PCITEST_IRQ_TYPE_AUTO) {
+		if (test->ep_caps & CAP_MSI)
+			req_irq_type = PCITEST_IRQ_TYPE_MSI;
+		else if (test->ep_caps & CAP_MSIX)
+			req_irq_type = PCITEST_IRQ_TYPE_MSIX;
+		else if (test->ep_caps & CAP_INTX)
+			req_irq_type = PCITEST_IRQ_TYPE_INTX;
+		else
+			/* fallback to MSI if no caps defined */
+			req_irq_type = PCITEST_IRQ_TYPE_MSI;
 	}
 
 	if (test->irq_type == req_irq_type)
@@ -893,13 +909,12 @@ static void pci_endpoint_test_get_capabilities(struct pci_endpoint_test *test)
 {
 	struct pci_dev *pdev = test->pdev;
 	struct device *dev = &pdev->dev;
-	u32 caps;
 
-	caps = pci_endpoint_test_readl(test, PCI_ENDPOINT_TEST_CAPS);
-	dev_dbg(dev, "PCI_ENDPOINT_TEST_CAPS: %#x\n", caps);
+	test->ep_caps = pci_endpoint_test_readl(test, PCI_ENDPOINT_TEST_CAPS);
+	dev_dbg(dev, "PCI_ENDPOINT_TEST_CAPS: %#x\n", test->ep_caps);
 
 	/* CAP_UNALIGNED_ACCESS is set if the EP can do unaligned access */
-	if (caps & CAP_UNALIGNED_ACCESS)
+	if (test->ep_caps & CAP_UNALIGNED_ACCESS)
 		test->alignment = 0;
 }
 

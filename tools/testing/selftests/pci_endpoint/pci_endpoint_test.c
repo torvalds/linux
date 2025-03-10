@@ -181,8 +181,8 @@ TEST_F(pci_ep_data_transfer, READ_TEST)
 	if (variant->use_dma)
 		param.flags = PCITEST_FLAGS_USE_DMA;
 
-	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_MSI);
-	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI IRQ type");
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_AUTO);
+	ASSERT_EQ(0, ret) TH_LOG("Can't set AUTO IRQ type");
 
 	for (i = 0; i < ARRAY_SIZE(test_size); i++) {
 		param.size = test_size[i];
@@ -200,8 +200,8 @@ TEST_F(pci_ep_data_transfer, WRITE_TEST)
 	if (variant->use_dma)
 		param.flags = PCITEST_FLAGS_USE_DMA;
 
-	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_MSI);
-	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI IRQ type");
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_AUTO);
+	ASSERT_EQ(0, ret) TH_LOG("Can't set AUTO IRQ type");
 
 	for (i = 0; i < ARRAY_SIZE(test_size); i++) {
 		param.size = test_size[i];
@@ -219,8 +219,8 @@ TEST_F(pci_ep_data_transfer, COPY_TEST)
 	if (variant->use_dma)
 		param.flags = PCITEST_FLAGS_USE_DMA;
 
-	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_MSI);
-	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI IRQ type");
+	pci_ep_ioctl(PCITEST_SET_IRQTYPE, PCITEST_IRQ_TYPE_AUTO);
+	ASSERT_EQ(0, ret) TH_LOG("Can't set AUTO IRQ type");
 
 	for (i = 0; i < ARRAY_SIZE(test_size); i++) {
 		param.size = test_size[i];
