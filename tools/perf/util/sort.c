@@ -2403,44 +2403,19 @@ sort__typeoff_sort(struct hist_entry *left, struct hist_entry *right)
 	return left->mem_type_off - right->mem_type_off;
 }
 
-static void fill_member_name(char *buf, size_t sz, struct annotated_member *m,
-			     int offset, bool first)
-{
-	struct annotated_member *child;
-
-	if (list_empty(&m->children))
-		return;
-
-	list_for_each_entry(child, &m->children, node) {
-		if (child->offset <= offset && offset < child->offset + child->size) {
-			int len = 0;
-
-			/* It can have anonymous struct/union members */
-			if (child->var_name) {
-				len = scnprintf(buf, sz, "%s%s",
-						first ? "" : ".", child->var_name);
-				first = false;
-			}
-
-			fill_member_name(buf + len, sz - len, child, offset, first);
-			return;
-		}
-	}
-}
-
 static int hist_entry__typeoff_snprintf(struct hist_entry *he, char *bf,
 				     size_t size, unsigned int width __maybe_unused)
 {
 	struct annotated_data_type *he_type = he->mem_type;
 	char buf[4096];
 
-	buf[0] = '\0';
-	if (list_empty(&he_type->self.children))
-		snprintf(buf, sizeof(buf), "no field");
-	else
-		fill_member_name(buf, sizeof(buf), &he_type->self,
-				 he->mem_type_off, true);
-	buf[4095] = '\0';
+	if (he_type == &unknown_type || he_type == &stackop_type ||
+	    he_type == &canary_type)
+		return repsep_snprintf(bf, size, "%s", he_type->self.type_name);
+
+	if (!annotated_data_type__get_member_name(he_type, buf, sizeof(buf),
+						  he->mem_type_off))
+		scnprintf(buf, sizeof(buf), "no field");
 
 	return repsep_snprintf(bf, size, "%s +%#x (%s)", he_type->self.type_name,
 			       he->mem_type_off, buf);

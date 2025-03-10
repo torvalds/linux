@@ -314,6 +314,40 @@ static void delete_members(struct annotated_member *member)
 	}
 }
 
+static int fill_member_name(char *buf, size_t sz, struct annotated_member *m,
+			    int offset, bool first)
+{
+	struct annotated_member *child;
+
+	if (list_empty(&m->children))
+		return 0;
+
+	list_for_each_entry(child, &m->children, node) {
+		int len;
+
+		if (offset < child->offset || offset >= child->offset + child->size)
+			continue;
+
+		/* It can have anonymous struct/union members */
+		if (child->var_name) {
+			len = scnprintf(buf, sz, "%s%s",
+					first ? "" : ".", child->var_name);
+			first = false;
+		} else {
+			len = 0;
+		}
+
+		return fill_member_name(buf + len, sz - len, child, offset, first) + len;
+	}
+	return 0;
+}
+
+int annotated_data_type__get_member_name(struct annotated_data_type *adt,
+					 char *buf, size_t sz, int member_offset)
+{
+	return fill_member_name(buf, sz, &adt->self, member_offset, /*first=*/true);
+}
+
 static struct annotated_data_type *dso__findnew_data_type(struct dso *dso,
 							  Dwarf_Die *type_die)
 {
