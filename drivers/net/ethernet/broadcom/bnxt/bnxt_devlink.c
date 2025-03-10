@@ -679,6 +679,8 @@ static const struct bnxt_dl_nvm_param nvm_params[] = {
 	 NVM_OFF_MSIX_VEC_PER_PF_MAX, BNXT_NVM_SHARED_CFG, 10, 4},
 	{DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
 	 NVM_OFF_MSIX_VEC_PER_PF_MIN, BNXT_NVM_SHARED_CFG, 7, 4},
+	{DEVLINK_PARAM_GENERIC_ID_ENABLE_ROCE, NVM_OFF_SUPPORT_RDMA,
+	 BNXT_NVM_FUNC_CFG, 1, 1},
 	{BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK, NVM_OFF_DIS_GRE_VER_CHECK,
 	 BNXT_NVM_SHARED_CFG, 1, 1},
 };
@@ -1132,6 +1134,32 @@ static int bnxt_dl_nvm_param_set(struct devlink *dl, u32 id,
 	return bnxt_hwrm_nvm_req(bp, id, req, &ctx->val);
 }
 
+static int bnxt_dl_roce_validate(struct devlink *dl, u32 id,
+				 union devlink_param_value val,
+				 struct netlink_ext_ack *extack)
+{
+	const struct bnxt_dl_nvm_param nvm_roce_cap = {0, NVM_OFF_RDMA_CAPABLE,
+		BNXT_NVM_SHARED_CFG, 1, 1};
+	struct bnxt *bp = bnxt_get_bp_from_dl(dl);
+	struct hwrm_nvm_get_variable_input *req;
+	union devlink_param_value roce_cap;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_NVM_GET_VARIABLE);
+	if (rc)
+		return rc;
+
+	if (__bnxt_hwrm_nvm_req(bp, &nvm_roce_cap, req, &roce_cap)) {
+		NL_SET_ERR_MSG_MOD(extack, "Unable to verify if device is RDMA Capable");
+		return -EINVAL;
+	}
+	if (!roce_cap.vbool) {
+		NL_SET_ERR_MSG_MOD(extack, "Device does not support RDMA");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int bnxt_dl_msix_validate(struct devlink *dl, u32 id,
 				 union devlink_param_value val,
 				 struct netlink_ext_ack *extack)
@@ -1196,6 +1224,10 @@ static const struct devlink_param bnxt_dl_params[] = {
 			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
 			      bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
 			      bnxt_dl_msix_validate),
+	DEVLINK_PARAM_GENERIC(ENABLE_ROCE,
+			      BIT(DEVLINK_PARAM_CMODE_PERMANENT),
+			      bnxt_dl_nvm_param_get, bnxt_dl_nvm_param_set,
+			      bnxt_dl_roce_validate),
 	DEVLINK_PARAM_DRIVER(BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK,
 			     "gre_ver_check", DEVLINK_PARAM_TYPE_BOOL,
 			     BIT(DEVLINK_PARAM_CMODE_PERMANENT),
