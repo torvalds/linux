@@ -203,9 +203,9 @@ xfs_buf_free_pages(
 
 	for (i = 0; i < bp->b_page_count; i++) {
 		if (bp->b_pages[i])
-			__free_page(bp->b_pages[i]);
+			folio_put(page_folio(bp->b_pages[i]));
 	}
-	mm_account_reclaimed_pages(bp->b_page_count);
+	mm_account_reclaimed_pages(howmany(BBTOB(bp->b_length), PAGE_SIZE));
 
 	if (bp->b_pages != bp->b_page_array)
 		kfree(bp->b_pages);
@@ -277,12 +277,17 @@ xfs_buf_alloc_kmem(
  * For tmpfs-backed buffers used by in-memory btrees this directly maps the
  * tmpfs page cache folios.
  *
- * For real file system buffers there are two different kinds backing memory:
+ * For real file system buffers there are three different kinds backing memory:
  *
  * The first type backs the buffer by a kmalloc allocation.  This is done for
  * less than PAGE_SIZE allocations to avoid wasting memory.
  *
- * The second type of buffer is the multi-page buffer. These are always made
+ * The second type is a single folio buffer - this may be a high order folio or
+ * just a single page sized folio, but either way they get treated the same way
+ * by the rest of the code - the buffer memory spans a single contiguous memory
+ * region that we don't have to map and unmap to access the data directly.
+ *
+ * The third type of buffer is the multi-page buffer. These are always made
  * up of single pages so that they can be fed to vmap_ram() to return a
  * contiguous memory region we can access the data through, or mark it as
  * XBF_UNMAPPED and access the data directly through individual page_address()
@@ -295,6 +300,7 @@ xfs_buf_alloc_backing_mem(
 {
 	size_t		size = BBTOB(bp->b_length);
 	gfp_t		gfp_mask = GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOWARN;
+	struct folio	*folio;
 	long		filled = 0;
 
 	if (xfs_buftarg_is_mem(bp->b_target))
@@ -316,7 +322,45 @@ xfs_buf_alloc_backing_mem(
 	if (size < PAGE_SIZE && is_power_of_2(size))
 		return xfs_buf_alloc_kmem(bp, size, gfp_mask);
 
-	/* Make sure that we have a page list */
+	/*
+	 * Don't bother with the retry loop for single PAGE allocations: vmalloc
+	 * won't do any better.
+	 */
+	if (size <= PAGE_SIZE)
+		gfp_mask |= __GFP_NOFAIL;
+
+	/*
+	 * Optimistically attempt a single high order folio allocation for
+	 * larger than PAGE_SIZE buffers.
+	 *
+	 * Allocating a high order folio makes the assumption that buffers are a
+	 * power-of-2 size, matching the power-of-2 folios sizes available.
+	 *
+	 * The exception here are user xattr data buffers, which can be arbitrarily
+	 * sized up to 64kB plus structure metadata, skip straight to the vmalloc
+	 * path for them instead of wasting memory here.
+	 */
+	if (size > PAGE_SIZE) {
+		if (!is_power_of_2(size))
+			goto fallback;
+		gfp_mask &= ~__GFP_DIRECT_RECLAIM;
+		gfp_mask |= __GFP_NORETRY;
+	}
+	folio = folio_alloc(gfp_mask, get_order(size));
+	if (!folio) {
+		if (size <= PAGE_SIZE)
+			return -ENOMEM;
+		goto fallback;
+	}
+	bp->b_addr = folio_address(folio);
+	bp->b_page_array[0] = &folio->page;
+	bp->b_pages = bp->b_page_array;
+	bp->b_page_count = 1;
+	bp->b_flags |= _XBF_PAGES;
+	return 0;
+
+fallback:
+	/* Fall back to allocating an array of single page folios. */
 	bp->b_page_count = DIV_ROUND_UP(size, PAGE_SIZE);
 	if (bp->b_page_count <= XB_PAGES) {
 		bp->b_pages = bp->b_page_array;
@@ -1474,7 +1518,7 @@ xfs_buf_submit_bio(
 	bio->bi_private = bp;
 	bio->bi_end_io = xfs_buf_bio_end_io;
 
-	if (bp->b_flags & _XBF_KMEM) {
+	if (bp->b_page_count == 1) {
 		__bio_add_page(bio, virt_to_page(bp->b_addr), size,
 				offset_in_page(bp->b_addr));
 	} else {
