@@ -1214,12 +1214,11 @@ void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version, bool incompat)
 		bch2_sb_field_resize(&c->disk_sb, downgrade, 0);
 
 	c->disk_sb.sb->version = cpu_to_le16(new_version);
-	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 
 	if (incompat) {
+		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 		SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb,
 			max(BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb), new_version));
-		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_FEATURE_incompat_version_field);
 	}
 }
 

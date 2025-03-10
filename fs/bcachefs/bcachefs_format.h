@@ -927,7 +927,8 @@ static inline void SET_BCH_SB_BACKGROUND_COMPRESSION_TYPE(struct bch_sb *sb, __u
 	 BIT_ULL(BCH_FEATURE_new_siphash)|		\
 	 BIT_ULL(BCH_FEATURE_btree_ptr_v2)|		\
 	 BIT_ULL(BCH_FEATURE_new_varint)|		\
-	 BIT_ULL(BCH_FEATURE_journal_no_flush))
+	 BIT_ULL(BCH_FEATURE_journal_no_flush)|		\
+	 BIT_ULL(BCH_FEATURE_incompat_version_field))
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,
