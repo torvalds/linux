@@ -1498,8 +1498,8 @@ static int bcm21664_pinctrl_lock_all(struct bcm281xx_pinctrl_data *pdata)
 				rc);
 			return rc;
 		}
-		regmap_write(pdata->regmap, BCM21664_ACCESS_LOCK_OFFSET(i),
-			     0xffffffff);
+		rc = regmap_write(pdata->regmap, BCM21664_ACCESS_LOCK_OFFSET(i),
+				  0xffffffff);
 		if (rc) {
 			dev_err(pdata->dev, "Failed to write access lock: %d\n",
 				rc);
