@@ -332,21 +332,51 @@ static void populate_dimm_info(struct dimm_data *dd, u32 addr_decode, int dimm,
 	dd->dtype = field_get(cfg->reg_mad_dimm_width_mask[dimm], addr_decode) + DEV_X8;
 }
 
-static int ie31200_probe1(struct pci_dev *pdev, struct res_config *cfg)
+static void ie31200_get_dimm_config(struct mem_ctl_info *mci, void __iomem *window,
+				    struct res_config *cfg)
 {
-	int i, j, k, ret;
-	struct mem_ctl_info *mci = NULL;
-	struct edac_mc_layer layers[2];
-	void __iomem *window;
-	struct ie31200_priv *priv;
+	struct dimm_data dimm_info;
+	struct dimm_info *dimm;
+	unsigned long nr_pages;
 	u32 addr_decode;
+	int i, j, k;
 
-	edac_dbg(0, "MC:\n");
+	for (i = 0; i < IE31200_CHANNELS; i++) {
+		addr_decode = readl(window + cfg->reg_mad_dimm_offset[i]);
+		edac_dbg(0, "addr_decode: 0x%x\n", addr_decode);
 
-	if (!ecc_capable(pdev)) {
-		ie31200_printk(KERN_INFO, "No ECC support\n");
-		return -ENODEV;
+		for (j = 0; j < IE31200_DIMMS_PER_CHANNEL; j++) {
+			populate_dimm_info(&dimm_info, addr_decode, j, cfg);
+			edac_dbg(0, "channel: %d, dimm: %d, size: %lld MiB, ranks: %d, DRAM chip type: %d\n",
+				 i, j, dimm_info.size >> 20,
+				 dimm_info.ranks,
+				 dimm_info.dtype);
+
+			nr_pages = MiB_TO_PAGES(dimm_info.size >> 20);
+			if (nr_pages == 0)
+				continue;
+
+			nr_pages = nr_pages / dimm_info.ranks;
+			for (k = 0; k < dimm_info.ranks; k++) {
+				dimm = edac_get_dimm(mci, (j * dimm_info.ranks) + k, i, 0);
+				dimm->nr_pages = nr_pages;
+				edac_dbg(0, "set nr pages: 0x%lx\n", nr_pages);
+				dimm->grain = 8; /* just a guess */
+				dimm->mtype = cfg->mtype;
+				dimm->dtype = dimm_info.dtype;
+				dimm->edac_mode = EDAC_UNKNOWN;
+			}
+		}
 	}
+}
+
+static int ie31200_register_mci(struct pci_dev *pdev, struct res_config *cfg)
+{
+	struct edac_mc_layer layers[2];
+	struct ie31200_priv *priv;
+	struct mem_ctl_info *mci;
+	void __iomem *window;
+	int ret;
 
 	nr_channels = how_many_channels(pdev);
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
@@ -382,38 +412,7 @@ static int ie31200_probe1(struct pci_dev *pdev, struct res_config *cfg)
 	priv->c1errlog = window + cfg->reg_eccerrlog_offset[1];
 	priv->cfg = cfg;
 
-	for (i = 0; i < IE31200_CHANNELS; i++) {
-		addr_decode = readl(window + cfg->reg_mad_dimm_offset[i]);
-		edac_dbg(0, "addr_decode: 0x%x\n", addr_decode);
-
-		for (j = 0; j < IE31200_DIMMS_PER_CHANNEL; j++) {
-			struct dimm_data dimm_info;
-			struct dimm_info *dimm;
-			unsigned long nr_pages;
-
-			populate_dimm_info(&dimm_info, addr_decode, j, cfg);
-			edac_dbg(0, "channel: %d, dimm: %d, size: %lld MiB, ranks: %d, DRAM chip type: %d\n",
-				 i, j, dimm_info.size >> 20,
-				 dimm_info.ranks,
-				 dimm_info.dtype);
-
-			nr_pages = MiB_TO_PAGES(dimm_info.size >> 20);
-			if (nr_pages == 0)
-				continue;
-
-			nr_pages = nr_pages / dimm_info.ranks;
-			for (k = 0; k < dimm_info.ranks; k++) {
-				dimm = edac_get_dimm(mci, (j * dimm_info.ranks) + k, i, 0);
-				dimm->nr_pages = nr_pages;
-				edac_dbg(0, "set nr pages: 0x%lx\n", nr_pages);
-				dimm->grain = 8; /* just a guess */
-				dimm->mtype = cfg->mtype;
-				dimm->dtype = dimm_info.dtype;
-				dimm->edac_mode = EDAC_UNKNOWN;
-			}
-		}
-	}
-
+	ie31200_get_dimm_config(mci, window, cfg);
 	ie31200_clear_error_info(mci);
 
 	if (edac_mc_add_mc(mci)) {
@@ -422,17 +421,32 @@ static int ie31200_probe1(struct pci_dev *pdev, struct res_config *cfg)
 		goto fail_unmap;
 	}
 
-	/* get this far and it's successful */
-	edac_dbg(3, "MC: success\n");
 	return 0;
-
 fail_unmap:
 	iounmap(window);
-
 fail_free:
 	edac_mc_free(mci);
-
 	return ret;
+}
+
+static int ie31200_probe1(struct pci_dev *pdev, struct res_config *cfg)
+{
+	int ret;
+
+	edac_dbg(0, "MC:\n");
+
+	if (!ecc_capable(pdev)) {
+		ie31200_printk(KERN_INFO, "No ECC support\n");
+		return -ENODEV;
+	}
+
+	ret = ie31200_register_mci(pdev, cfg);
+	if (ret)
+		return ret;
+
+	/* get this far and it's successful. */
+	edac_dbg(3, "MC: success\n");
+	return 0;
 }
 
 static int ie31200_init_one(struct pci_dev *pdev,
