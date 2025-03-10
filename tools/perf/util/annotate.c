@@ -760,13 +760,14 @@ static int disasm_line__print(struct disasm_line *dl, u64 start, int addr_fmt_wi
 
 static int
 annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start,
-		       struct evsel *evsel, int min_pcnt, int printed,
-		       int max_lines, struct annotation_line *queue, int addr_fmt_width,
-		       int percent_type)
+		       struct evsel *evsel, struct annotation_options *opts,
+		       int printed, struct annotation_line *queue, int addr_fmt_width)
 {
 	struct disasm_line *dl = container_of(al, struct disasm_line, al);
 	struct annotation *notes = symbol__annotation(sym);
 	static const char *prev_line;
+	int max_lines = opts->max_lines;
+	int percent_type = opts->percent_type;
 
 	if (al->offset != -1) {
 		double max_percent = 0.0;
@@ -786,19 +787,25 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 		if (al->data_nr > nr_percent)
 			nr_percent = al->data_nr;
 
-		if (max_percent < min_pcnt)
+		if (max_percent < opts->min_pcnt)
 			return -1;
 
 		if (max_lines && printed >= max_lines)
 			return 1;
 
 		if (queue != NULL) {
+			struct annotation_options queue_opts = {
+				.max_lines = 1,
+				.percent_type = percent_type,
+			};
+
 			list_for_each_entry_from(queue, &notes->src->source, node) {
 				if (queue == al)
 					break;
 				annotation_line__print(queue, sym, start, evsel,
-						       0, 0, 1, NULL, addr_fmt_width,
-						       percent_type);
+						       &queue_opts, /*printed=*/0,
+						       /*queue=*/NULL,
+						       addr_fmt_width);
 			}
 		}
 
@@ -1225,8 +1232,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 		}
 
 		err = annotation_line__print(pos, sym, start, evsel,
-					     opts->min_pcnt, printed, opts->max_lines,
-					     queue, addr_fmt_width, opts->percent_type);
+					     opts, printed, queue, addr_fmt_width);
 
 		switch (err) {
 		case 0:
