@@ -4541,11 +4541,11 @@ static int bnxt_get_module_status(struct bnxt *bp, struct netlink_ext_ack *extac
 	return -EINVAL;
 }
 
-static int bnxt_get_module_eeprom_by_page(struct net_device *dev,
-					  const struct ethtool_module_eeprom *page_data,
-					  struct netlink_ext_ack *extack)
+static int
+bnxt_mod_eeprom_by_page_precheck(struct bnxt *bp,
+				 const struct ethtool_module_eeprom *page_data,
+				 struct netlink_ext_ack *extack)
 {
-	struct bnxt *bp = netdev_priv(dev);
 	int rc;
 
 	if (BNXT_VF(bp) && !BNXT_VF_IS_TRUSTED(bp)) {
@@ -4567,6 +4567,19 @@ static int bnxt_get_module_eeprom_by_page(struct net_device *dev,
 		NL_SET_ERR_MSG_MOD(extack, "Firmware not capable for bank selection");
 		return -EINVAL;
 	}
+	return 0;
+}
+
+static int bnxt_get_module_eeprom_by_page(struct net_device *dev,
+					  const struct ethtool_module_eeprom *page_data,
+					  struct netlink_ext_ack *extack)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	int rc;
+
+	rc = bnxt_mod_eeprom_by_page_precheck(bp, page_data, extack);
+	if (rc)
+		return rc;
 
 	rc = bnxt_read_sfp_module_eeprom_info(bp, page_data->i2c_address << 1,
 					      page_data->page, page_data->bank,
