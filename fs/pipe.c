@@ -294,7 +294,6 @@ anon_pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		/* Read ->head with a barrier vs post_one_notification() */
 		unsigned int head = smp_load_acquire(&pipe->head);
 		unsigned int tail = pipe->tail;
-		unsigned int mask = pipe->ring_size - 1;
 
 #ifdef CONFIG_WATCH_QUEUE
 		if (pipe->note_loss) {
@@ -321,7 +320,7 @@ anon_pipe_read(struct kiocb *iocb, struct iov_iter *to)
 #endif
 
 		if (!pipe_empty(head, tail)) {
-			struct pipe_buffer *buf = &pipe->bufs[tail & mask];
+			struct pipe_buffer *buf = pipe_buf(pipe, tail);
 			size_t chars = buf->len;
 			size_t written;
 			int error;
@@ -477,8 +476,7 @@ anon_pipe_write(struct kiocb *iocb, struct iov_iter *from)
 	was_empty = pipe_empty(head, pipe->tail);
 	chars = total_len & (PAGE_SIZE-1);
 	if (chars && !was_empty) {
-		unsigned int mask = pipe->ring_size - 1;
-		struct pipe_buffer *buf = &pipe->bufs[(head - 1) & mask];
+		struct pipe_buffer *buf = pipe_buf(pipe, head - 1);
 		int offset = buf->offset + buf->len;
 
 		if ((buf->flags & PIPE_BUF_FLAG_CAN_MERGE) &&
@@ -509,7 +507,6 @@ anon_pipe_write(struct kiocb *iocb, struct iov_iter *from)
 
 		head = pipe->head;
 		if (!pipe_full(head, pipe->tail, pipe->max_usage)) {
-			unsigned int mask = pipe->ring_size - 1;
 			struct pipe_buffer *buf;
 			struct page *page;
 			int copied;
@@ -531,7 +528,7 @@ anon_pipe_write(struct kiocb *iocb, struct iov_iter *from)
 
 			pipe->head = head + 1;
 			/* Insert it into the buffer array */
-			buf = &pipe->bufs[head & mask];
+			buf = pipe_buf(pipe, head);
 			buf->page = page;
 			buf->ops = &anon_pipe_buf_ops;
 			buf->offset = 0;
@@ -1292,6 +1289,10 @@ int pipe_resize_ring(struct pipe_inode_info *pipe, unsigned int nr_slots)
 {
 	struct pipe_buffer *bufs;
 	unsigned int head, tail, mask, n;
+
+	/* nr_slots larger than limits of pipe->{head,tail} */
+	if (unlikely(nr_slots > (pipe_index_t)-1u))
+		return -EINVAL;
 
 	bufs = kcalloc(nr_slots, sizeof(*bufs),
 		       GFP_KERNEL_ACCOUNT | __GFP_NOWARN);
