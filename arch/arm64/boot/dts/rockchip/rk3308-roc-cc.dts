@@ -147,7 +147,7 @@
 
 &pwm5 {
 	status = "okay";
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pwm5_pin_pull_down>;
 };
 
