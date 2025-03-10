@@ -90,7 +90,21 @@ struct mlx5_esw_sched_node {
 	struct list_head children;
 	/* Valid only if this node is associated with a vport. */
 	struct mlx5_vport *vport;
+	/* Level in the hierarchy. The root node level is 1. */
+	u8 level;
 };
+
+static void esw_qos_node_attach_to_parent(struct mlx5_esw_sched_node *node)
+{
+	if (!node->parent) {
+		/* Root children are assigned a depth level of 2. */
+		node->level = 2;
+		list_add_tail(&node->entry, &node->esw->qos.domain->nodes);
+	} else {
+		node->level = node->parent->level + 1;
+		list_add_tail(&node->entry, &node->parent->children);
+	}
+}
 
 static void
 esw_qos_node_set_parent(struct mlx5_esw_sched_node *node, struct mlx5_esw_sched_node *parent)
@@ -99,6 +113,7 @@ esw_qos_node_set_parent(struct mlx5_esw_sched_node *node, struct mlx5_esw_sched_
 	node->parent = parent;
 	list_add_tail(&node->entry, &parent->children);
 	node->esw = parent->esw;
+	node->level = parent->level + 1;
 }
 
 void mlx5_esw_qos_vport_qos_free(struct mlx5_vport *vport)
@@ -358,7 +373,6 @@ static struct mlx5_esw_sched_node *
 __esw_qos_alloc_node(struct mlx5_eswitch *esw, u32 tsar_ix, enum sched_node_type type,
 		     struct mlx5_esw_sched_node *parent)
 {
-	struct list_head *parent_children;
 	struct mlx5_esw_sched_node *node;
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
@@ -370,8 +384,7 @@ __esw_qos_alloc_node(struct mlx5_eswitch *esw, u32 tsar_ix, enum sched_node_type
 	node->type = type;
 	node->parent = parent;
 	INIT_LIST_HEAD(&node->children);
-	parent_children = parent ? &parent->children : &esw->qos.domain->nodes;
-	list_add_tail(&node->entry, parent_children);
+	esw_qos_node_attach_to_parent(node);
 
 	return node;
 }
