@@ -136,8 +136,10 @@ static int erofs_read_inode(struct inode *inode)
 		goto err_out;
 	}
 	switch (inode->i_mode & S_IFMT) {
-	case S_IFREG:
 	case S_IFDIR:
+		vi->dot_omitted = (ifmt >> EROFS_I_DOT_OMITTED_BIT) & 1;
+		fallthrough;
+	case S_IFREG:
 	case S_IFLNK:
 		vi->startblk = le32_to_cpu(copied.i_u.startblk_lo) |
 			((u64)le16_to_cpu(copied.i_nb.startblk_hi) << 32);
