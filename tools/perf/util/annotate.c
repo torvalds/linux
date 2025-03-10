@@ -760,7 +760,7 @@ static int disasm_line__print(struct disasm_line *dl, u64 start, int addr_fmt_wi
 
 static int
 annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start,
-		       struct evsel *evsel, u64 len, int min_pcnt, int printed,
+		       struct evsel *evsel, int min_pcnt, int printed,
 		       int max_lines, struct annotation_line *queue, int addr_fmt_width,
 		       int percent_type)
 {
@@ -796,7 +796,7 @@ annotation_line__print(struct annotation_line *al, struct symbol *sym, u64 start
 			list_for_each_entry_from(queue, &notes->src->source, node) {
 				if (queue == al)
 					break;
-				annotation_line__print(queue, sym, start, evsel, len,
+				annotation_line__print(queue, sym, start, evsel,
 						       0, 0, 1, NULL, addr_fmt_width,
 						       percent_type);
 			}
@@ -1183,7 +1183,6 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 	int printed = 2, queue_len = 0, addr_fmt_width;
 	int more = 0;
 	bool context = opts->context;
-	u64 len;
 	int width = annotation__pcnt_width(notes);
 	int graph_dotted_len;
 	char buf[512];
@@ -1196,8 +1195,6 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 		d_filename = filename;
 	else
 		d_filename = basename(filename);
-
-	len = symbol__size(sym);
 
 	if (evsel__is_group_event(evsel)) {
 		evsel__group_desc(evsel, buf, sizeof(buf));
@@ -1227,7 +1224,7 @@ int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel)
 			queue_len = 0;
 		}
 
-		err = annotation_line__print(pos, sym, start, evsel, len,
+		err = annotation_line__print(pos, sym, start, evsel,
 					     opts->min_pcnt, printed, opts->max_lines,
 					     queue, addr_fmt_width, opts->percent_type);
 
