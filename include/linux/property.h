@@ -208,7 +208,12 @@ DEFINE_FREE(fwnode_handle, struct fwnode_handle *, fwnode_handle_put(_T))
 int fwnode_irq_get(const struct fwnode_handle *fwnode, unsigned int index);
 int fwnode_irq_get_byname(const struct fwnode_handle *fwnode, const char *name);
 
-unsigned int device_get_child_node_count(const struct device *dev);
+unsigned int fwnode_get_child_node_count(const struct fwnode_handle *fwnode);
+
+static inline unsigned int device_get_child_node_count(const struct device *dev)
+{
+	return fwnode_get_child_node_count(dev_fwnode(dev));
+}
 
 static inline int device_property_read_u8(const struct device *dev,
 					  const char *propname, u8 *val)

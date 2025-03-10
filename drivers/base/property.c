@@ -928,22 +928,22 @@ bool fwnode_device_is_available(const struct fwnode_handle *fwnode)
 EXPORT_SYMBOL_GPL(fwnode_device_is_available);
 
 /**
- * device_get_child_node_count - return the number of child nodes for device
- * @dev: Device to count the child nodes for
+ * fwnode_get_child_node_count - return the number of child nodes for a given firmware node
+ * @fwnode: Pointer to the parent firmware node
  *
- * Return: the number of child nodes for a given device.
+ * Return: the number of child nodes for a given firmware node.
  */
-unsigned int device_get_child_node_count(const struct device *dev)
+unsigned int fwnode_get_child_node_count(const struct fwnode_handle *fwnode)
 {
 	struct fwnode_handle *child;
 	unsigned int count = 0;
 
-	device_for_each_child_node(dev, child)
+	fwnode_for_each_child_node(fwnode, child)
 		count++;
 
 	return count;
 }
-EXPORT_SYMBOL_GPL(device_get_child_node_count);
+EXPORT_SYMBOL_GPL(fwnode_get_child_node_count);
 
 bool device_dma_supported(const struct device *dev)
 {
