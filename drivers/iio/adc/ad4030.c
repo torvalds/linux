@@ -868,6 +868,12 @@ static int ad4030_get_current_scan_type(const struct iio_dev *indio_dev,
 	return st->avg_log2 ? AD4030_SCAN_TYPE_AVG : AD4030_SCAN_TYPE_NORMAL;
 }
 
+static int ad4030_update_scan_mode(struct iio_dev *indio_dev,
+				   const unsigned long *scan_mask)
+{
+	return ad4030_set_mode(indio_dev, *scan_mask);
+}
+
 static const struct iio_info ad4030_iio_info = {
 	.read_avail = ad4030_read_avail,
 	.read_raw = ad4030_read_raw,
@@ -875,12 +881,8 @@ static const struct iio_info ad4030_iio_info = {
 	.debugfs_reg_access = ad4030_reg_access,
 	.read_label = ad4030_read_label,
 	.get_current_scan_type = ad4030_get_current_scan_type,
+	.update_scan_mode  = ad4030_update_scan_mode,
 };
-
-static int ad4030_buffer_preenable(struct iio_dev *indio_dev)
-{
-	return ad4030_set_mode(indio_dev, *indio_dev->active_scan_mask);
-}
 
 static bool ad4030_validate_scan_mask(struct iio_dev *indio_dev,
 				      const unsigned long *scan_mask)
@@ -895,7 +897,6 @@ static bool ad4030_validate_scan_mask(struct iio_dev *indio_dev,
 }
 
 static const struct iio_buffer_setup_ops ad4030_buffer_setup_ops = {
-	.preenable = ad4030_buffer_preenable,
 	.validate_scan_mask = ad4030_validate_scan_mask,
 };
 
