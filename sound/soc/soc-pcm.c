@@ -36,7 +36,7 @@ static inline int _soc_pcm_ret(struct snd_soc_pcm_runtime *rtd,
 
 /* is the current PCM operation for this FE ? */
 #if 0
-static int snd_soc_dpcm_fe_can_update(struct snd_soc_pcm_runtime *fe, int stream)
+static int snd_soc_dpcm_can_fe_update(struct snd_soc_pcm_runtime *fe, int stream)
 {
 	if (fe->dpcm[stream].runtime_update == SND_SOC_DPCM_UPDATE_FE)
 		return 1;
@@ -45,7 +45,7 @@ static int snd_soc_dpcm_fe_can_update(struct snd_soc_pcm_runtime *fe, int stream
 #endif
 
 /* is the current PCM operation for this BE ? */
-static int snd_soc_dpcm_be_can_update(struct snd_soc_pcm_runtime *fe,
+static int snd_soc_dpcm_can_be_update(struct snd_soc_pcm_runtime *fe,
 			       struct snd_soc_pcm_runtime *be, int stream)
 {
 	if ((fe->dpcm[stream].runtime_update == SND_SOC_DPCM_UPDATE_FE) ||
@@ -1632,7 +1632,7 @@ void dpcm_be_dai_stop(struct snd_soc_pcm_runtime *fe, int stream,
 			return;
 
 		/* is this op for this BE ? */
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+		if (!snd_soc_dpcm_can_be_update(fe, be, stream))
 			continue;
 
 		if (be->dpcm[stream].users == 0) {
@@ -1682,7 +1682,7 @@ int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream)
 		}
 
 		/* is this op for this BE ? */
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+		if (!snd_soc_dpcm_can_be_update(fe, be, stream))
 			continue;
 
 		/* first time the dpcm is open ? */
@@ -2007,7 +2007,7 @@ void dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream)
 			snd_soc_dpcm_get_substream(be, stream);
 
 		/* is this op for this BE ? */
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+		if (!snd_soc_dpcm_can_be_update(fe, be, stream))
 			continue;
 
 		/* only free hw when no longer used - check all FEs */
@@ -2073,7 +2073,7 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
 		/* is this op for this BE ? */
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+		if (!snd_soc_dpcm_can_be_update(fe, be, stream))
 			continue;
 
 		/* copy params for each dpcm */
@@ -2118,7 +2118,7 @@ unwind:
 		be = dpcm->be;
 		be_substream = snd_soc_dpcm_get_substream(be, stream);
 
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+		if (!snd_soc_dpcm_can_be_update(fe, be, stream))
 			continue;
 
 		/* only allow hw_free() if no connected FEs are running */
@@ -2188,7 +2188,7 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 		snd_pcm_stream_lock_irqsave_nested(be_substream, flags);
 
 		/* is this op for this BE ? */
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+		if (!snd_soc_dpcm_can_be_update(fe, be, stream))
 			goto next;
 
 		dev_dbg(be->dev, "ASoC: trigger BE %s cmd %d\n",
@@ -2465,7 +2465,7 @@ int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream)
 			snd_soc_dpcm_get_substream(be, stream);
 
 		/* is this op for this BE ? */
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+		if (!snd_soc_dpcm_can_be_update(fe, be, stream))
 			continue;
 
 		if (!snd_soc_dpcm_can_be_prepared(fe, be, stream))
@@ -2623,7 +2623,7 @@ disconnect:
 		struct snd_soc_pcm_runtime *be = dpcm->be;
 
 		/* is this op for this BE ? */
-		if (!snd_soc_dpcm_be_can_update(fe, be, stream))
+		if (!snd_soc_dpcm_can_be_update(fe, be, stream))
 			continue;
 
 		if (be->dpcm[stream].state == SND_SOC_DPCM_STATE_CLOSE ||
