@@ -89,8 +89,6 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		chip->name = "acp_asoc_acp63";
 		break;
 	case 0x70:
-		chip->name = "acp_asoc_acp70";
-		break;
 	case 0x71:
 		chip->name = "acp_asoc_acp70";
 		break;
