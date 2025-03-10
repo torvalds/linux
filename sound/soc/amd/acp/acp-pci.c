@@ -26,7 +26,6 @@
 #define ACP3x_REG_START	0x1240000
 #define ACP3x_REG_END	0x125C000
 
-static struct platform_device *dmic_dev;
 static struct platform_device *pdev;
 
 static const struct resource acp_res[] = {
@@ -43,6 +42,26 @@ static const struct resource acp_res[] = {
 		.flags = IORESOURCE_IRQ,
 	},
 };
+
+static int create_acp_platform_devs(struct pci_dev *pci, struct acp_chip_info *chip)
+{
+	int ret;
+
+	if (chip->is_pdm_dev && chip->is_pdm_config) {
+		chip->dmic_codec_dev = platform_device_register_data(&pci->dev,
+								     "dmic-codec",
+								     PLATFORM_DEVID_NONE,
+								     NULL, 0);
+		if (IS_ERR(chip->dmic_codec_dev)) {
+			dev_err(&pci->dev, "failed to create DMIC device\n");
+			ret = PTR_ERR(chip->dmic_codec_dev);
+			goto err;
+		}
+	}
+	return 0;
+err:
+	return ret;
+}
 
 static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
@@ -102,33 +121,33 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		goto release_regions;
 	}
 	chip->flag = flag;
-	dmic_dev = platform_device_register_data(dev, "dmic-codec", PLATFORM_DEVID_NONE, NULL, 0);
-	if (IS_ERR(dmic_dev)) {
-		dev_err(dev, "failed to create DMIC device\n");
-		ret = PTR_ERR(dmic_dev);
-		goto release_regions;
-	}
 
 	addr = pci_resource_start(pci, 0);
 	chip->base = devm_ioremap(&pci->dev, addr, pci_resource_len(pci, 0));
 	if (!chip->base) {
 		ret = -ENOMEM;
-		goto unregister_dmic_dev;
+		goto release_regions;
 	}
 
 	chip->acp_hw_ops_init(chip);
 	ret = acp_hw_init(chip);
 	if (ret)
-		goto unregister_dmic_dev;
+		goto release_regions;
 
 	check_acp_config(pci, chip);
 	if (!chip->is_pdm_dev && !chip->is_i2s_config)
 		goto skip_pdev_creation;
 
+	ret = create_acp_platform_devs(pci, chip);
+	if (ret < 0) {
+		dev_err(&pci->dev, "ACP platform devices creation failed\n");
+		goto de_init;
+	}
+
 	res = devm_kcalloc(&pci->dev, num_res, sizeof(struct resource), GFP_KERNEL);
 	if (!res) {
 		ret = -ENOMEM;
-		goto unregister_dmic_dev;
+		goto de_init;
 	}
 
 	for (i = 0; i < num_res; i++, res_acp++) {
@@ -156,7 +175,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	if (IS_ERR(pdev)) {
 		dev_err(&pci->dev, "cannot register %s device\n", pdevinfo.name);
 		ret = PTR_ERR(pdev);
-		goto unregister_dmic_dev;
+		goto de_init;
 	}
 
 skip_pdev_creation:
@@ -168,8 +187,8 @@ skip_pdev_creation:
 	pm_runtime_allow(&pci->dev);
 	return ret;
 
-unregister_dmic_dev:
-	platform_device_unregister(dmic_dev);
+de_init:
+	acp_hw_deinit(chip);
 release_regions:
 	pci_release_regions(pci);
 disable_pci:
@@ -223,8 +242,8 @@ static void acp_pci_remove(struct pci_dev *pci)
 	chip = pci_get_drvdata(pci);
 	pm_runtime_forbid(&pci->dev);
 	pm_runtime_get_noresume(&pci->dev);
-	if (dmic_dev)
-		platform_device_unregister(dmic_dev);
+	if (chip->dmic_codec_dev)
+		platform_device_unregister(chip->dmic_codec_dev);
 	if (pdev)
 		platform_device_unregister(pdev);
 	ret = acp_hw_deinit(chip);
