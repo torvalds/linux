@@ -237,10 +237,11 @@ static int sdw_compute_group_params(struct sdw_bus *bus,
 				continue;
 		} else {
 			/*
-			 * Include runtimes with running (ENABLED state) and paused (DISABLED state)
-			 * streams
+			 * Include runtimes with running (ENABLED/PREPARED state) and
+			 * paused (DISABLED state) streams
 			 */
 			if (m_rt->stream->state != SDW_STREAM_ENABLED &&
+			    m_rt->stream->state != SDW_STREAM_PREPARED &&
 			    m_rt->stream->state != SDW_STREAM_DISABLED)
 				continue;
 		}
