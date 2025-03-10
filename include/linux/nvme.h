@@ -199,28 +199,54 @@ enum {
 #define NVME_NVM_IOSQES		6
 #define NVME_NVM_IOCQES		4
 
+/*
+ * Controller Configuration (CC) register (Offset 14h)
+ */
 enum {
+	/* Enable (EN): bit 0 */
 	NVME_CC_ENABLE		= 1 << 0,
 	NVME_CC_EN_SHIFT	= 0,
+
+	/* Bits 03:01 are reserved (NVMe Base Specification rev 2.1) */
+
+	/* I/O Command Set Selected (CSS): bits 06:04 */
 	NVME_CC_CSS_SHIFT	= 4,
-	NVME_CC_MPS_SHIFT	= 7,
-	NVME_CC_AMS_SHIFT	= 11,
-	NVME_CC_SHN_SHIFT	= 14,
-	NVME_CC_IOSQES_SHIFT	= 16,
-	NVME_CC_IOCQES_SHIFT	= 20,
+	NVME_CC_CSS_MASK	= 7 << NVME_CC_CSS_SHIFT,
 	NVME_CC_CSS_NVM		= 0 << NVME_CC_CSS_SHIFT,
 	NVME_CC_CSS_CSI		= 6 << NVME_CC_CSS_SHIFT,
-	NVME_CC_CSS_MASK	= 7 << NVME_CC_CSS_SHIFT,
+
+	/* Memory Page Size (MPS): bits 10:07 */
+	NVME_CC_MPS_SHIFT	= 7,
+	NVME_CC_MPS_MASK	= 0xf << NVME_CC_MPS_SHIFT,
+
+	/* Arbitration Mechanism Selected (AMS): bits 13:11 */
+	NVME_CC_AMS_SHIFT	= 11,
+	NVME_CC_AMS_MASK	= 7 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_RR		= 0 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_WRRU	= 1 << NVME_CC_AMS_SHIFT,
 	NVME_CC_AMS_VS		= 7 << NVME_CC_AMS_SHIFT,
+
+	/* Shutdown Notification (SHN): bits 15:14 */
+	NVME_CC_SHN_SHIFT	= 14,
+	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
 	NVME_CC_SHN_NONE	= 0 << NVME_CC_SHN_SHIFT,
 	NVME_CC_SHN_NORMAL	= 1 << NVME_CC_SHN_SHIFT,
 	NVME_CC_SHN_ABRUPT	= 2 << NVME_CC_SHN_SHIFT,
-	NVME_CC_SHN_MASK	= 3 << NVME_CC_SHN_SHIFT,
+
+	/* I/O Submission Queue Entry Size (IOSQES): bits 19:16 */
+	NVME_CC_IOSQES_SHIFT	= 16,
+	NVME_CC_IOSQES_MASK	= 0xf << NVME_CC_IOSQES_SHIFT,
 	NVME_CC_IOSQES		= NVME_NVM_IOSQES << NVME_CC_IOSQES_SHIFT,
+
+	/* I/O Completion Queue Entry Size (IOCQES): bits 23:20 */
+	NVME_CC_IOCQES_SHIFT	= 20,
+	NVME_CC_IOCQES_MASK	= 0xf << NVME_CC_IOCQES_SHIFT,
 	NVME_CC_IOCQES		= NVME_NVM_IOCQES << NVME_CC_IOCQES_SHIFT,
+
+	/* Controller Ready Independent of Media Enable (CRIME): bit 24 */
 	NVME_CC_CRIME		= 1 << 24,
+
+	/* Bits 25:31 are reserved (NVMe Base Specification rev 2.1) */
 };
 
 enum {

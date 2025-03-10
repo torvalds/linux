@@ -396,10 +396,15 @@ free_dcb:
 
 static void bnxt_re_async_notifier(void *handle, struct hwrm_async_event_cmpl *cmpl)
 {
-	struct bnxt_re_dev *rdev = (struct bnxt_re_dev *)handle;
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(handle);
 	struct bnxt_re_dcb_work *dcb_work;
+	struct bnxt_re_dev *rdev;
 	u32 data1, data2;
 	u16 event_id;
+
+	rdev = en_info->rdev;
+	if (!rdev)
+		return;
 
 	event_id = le16_to_cpu(cmpl->event_id);
 	data1 = le32_to_cpu(cmpl->event_data1);
@@ -433,6 +438,8 @@ static void bnxt_re_stop_irq(void *handle, bool reset)
 	int indx;
 
 	rdev = en_info->rdev;
+	if (!rdev)
+		return;
 	rcfw = &rdev->rcfw;
 
 	if (reset) {
@@ -461,6 +468,8 @@ static void bnxt_re_start_irq(void *handle, struct bnxt_msix_entry *ent)
 	int indx, rc;
 
 	rdev = en_info->rdev;
+	if (!rdev)
+		return;
 	msix_ent = rdev->nqr->msix_entries;
 	rcfw = &rdev->rcfw;
 	if (!ent) {
@@ -1350,7 +1359,6 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct auxiliary_device *adev,
 		return NULL;
 	}
 	/* Default values */
-	rdev->nb.notifier_call = NULL;
 	rdev->netdev = en_dev->net;
 	rdev->en_dev = en_dev;
 	rdev->adev = adev;
@@ -2345,15 +2353,6 @@ exit:
 static void bnxt_re_remove_device(struct bnxt_re_dev *rdev, u8 op_type,
 				  struct auxiliary_device *aux_dev)
 {
-	if (rdev->nb.notifier_call) {
-		unregister_netdevice_notifier(&rdev->nb);
-		rdev->nb.notifier_call = NULL;
-	} else {
-		/* If notifier is null, we should have already done a
-		 * clean up before coming here.
-		 */
-		return;
-	}
 	bnxt_re_setup_cc(rdev, false);
 	ib_unregister_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev, op_type);
@@ -2433,6 +2432,7 @@ static int bnxt_re_suspend(struct auxiliary_device *adev, pm_message_t state)
 	ibdev_info(&rdev->ibdev, "%s: L2 driver notified to stop en_state 0x%lx",
 		   __func__, en_dev->en_state);
 	bnxt_re_remove_device(rdev, BNXT_RE_PRE_RECOVERY_REMOVE, adev);
+	bnxt_re_update_en_info_rdev(NULL, en_info, adev);
 	mutex_unlock(&bnxt_re_mutex);
 
 	return 0;
