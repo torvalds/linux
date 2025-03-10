@@ -28,11 +28,6 @@
 
 #define DRV_MODULE_NAME				"pci-endpoint-test"
 
-#define IRQ_TYPE_UNDEFINED			-1
-#define IRQ_TYPE_INTX				0
-#define IRQ_TYPE_MSI				1
-#define IRQ_TYPE_MSIX				2
-
 #define PCI_ENDPOINT_TEST_MAGIC			0x0
 
 #define PCI_ENDPOINT_TEST_COMMAND		0x4
@@ -158,7 +153,7 @@ static void pci_endpoint_test_free_irq_vectors(struct pci_endpoint_test *test)
 	struct pci_dev *pdev = test->pdev;
 
 	pci_free_irq_vectors(pdev);
-	test->irq_type = IRQ_TYPE_UNDEFINED;
+	test->irq_type = PCITEST_IRQ_TYPE_UNDEFINED;
 }
 
 static int pci_endpoint_test_alloc_irq_vectors(struct pci_endpoint_test *test,
@@ -169,7 +164,7 @@ static int pci_endpoint_test_alloc_irq_vectors(struct pci_endpoint_test *test,
 	struct device *dev = &pdev->dev;
 
 	switch (type) {
-	case IRQ_TYPE_INTX:
+	case PCITEST_IRQ_TYPE_INTX:
 		irq = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_INTX);
 		if (irq < 0) {
 			dev_err(dev, "Failed to get Legacy interrupt\n");
@@ -177,7 +172,7 @@ static int pci_endpoint_test_alloc_irq_vectors(struct pci_endpoint_test *test,
 		}
 
 		break;
-	case IRQ_TYPE_MSI:
+	case PCITEST_IRQ_TYPE_MSI:
 		irq = pci_alloc_irq_vectors(pdev, 1, 32, PCI_IRQ_MSI);
 		if (irq < 0) {
 			dev_err(dev, "Failed to get MSI interrupts\n");
@@ -185,7 +180,7 @@ static int pci_endpoint_test_alloc_irq_vectors(struct pci_endpoint_test *test,
 		}
 
 		break;
-	case IRQ_TYPE_MSIX:
+	case PCITEST_IRQ_TYPE_MSIX:
 		irq = pci_alloc_irq_vectors(pdev, 1, 2048, PCI_IRQ_MSIX);
 		if (irq < 0) {
 			dev_err(dev, "Failed to get MSI-X interrupts\n");
@@ -234,16 +229,16 @@ static int pci_endpoint_test_request_irq(struct pci_endpoint_test *test)
 
 fail:
 	switch (test->irq_type) {
-	case IRQ_TYPE_INTX:
+	case PCITEST_IRQ_TYPE_INTX:
 		dev_err(dev, "Failed to request IRQ %d for Legacy\n",
 			pci_irq_vector(pdev, i));
 		break;
-	case IRQ_TYPE_MSI:
+	case PCITEST_IRQ_TYPE_MSI:
 		dev_err(dev, "Failed to request IRQ %d for MSI %d\n",
 			pci_irq_vector(pdev, i),
 			i + 1);
 		break;
-	case IRQ_TYPE_MSIX:
+	case PCITEST_IRQ_TYPE_MSIX:
 		dev_err(dev, "Failed to request IRQ %d for MSI-X %d\n",
 			pci_irq_vector(pdev, i),
 			i + 1);
@@ -409,7 +404,7 @@ static int pci_endpoint_test_intx_irq(struct pci_endpoint_test *test)
 	u32 val;
 
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
-				 IRQ_TYPE_INTX);
+				 PCITEST_IRQ_TYPE_INTX);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, 0);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
 				 COMMAND_RAISE_INTX_IRQ);
@@ -429,7 +424,8 @@ static int pci_endpoint_test_msi_irq(struct pci_endpoint_test *test,
 	int ret;
 
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_TYPE,
-				 msix ? IRQ_TYPE_MSIX : IRQ_TYPE_MSI);
+				 msix ? PCITEST_IRQ_TYPE_MSIX :
+				 PCITEST_IRQ_TYPE_MSI);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_IRQ_NUMBER, msi_num);
 	pci_endpoint_test_writel(test, PCI_ENDPOINT_TEST_COMMAND,
 				 msix ? COMMAND_RAISE_MSIX_IRQ :
@@ -505,7 +501,8 @@ static int pci_endpoint_test_copy(struct pci_endpoint_test *test,
 	if (use_dma)
 		flags |= FLAG_USE_DMA;
 
-	if (irq_type < IRQ_TYPE_INTX || irq_type > IRQ_TYPE_MSIX) {
+	if (irq_type < PCITEST_IRQ_TYPE_INTX ||
+	    irq_type > PCITEST_IRQ_TYPE_MSIX) {
 		dev_err(dev, "Invalid IRQ type option\n");
 		return -EINVAL;
 	}
@@ -637,7 +634,8 @@ static int pci_endpoint_test_write(struct pci_endpoint_test *test,
 	if (use_dma)
 		flags |= FLAG_USE_DMA;
 
-	if (irq_type < IRQ_TYPE_INTX || irq_type > IRQ_TYPE_MSIX) {
+	if (irq_type < PCITEST_IRQ_TYPE_INTX ||
+	    irq_type > PCITEST_IRQ_TYPE_MSIX) {
 		dev_err(dev, "Invalid IRQ type option\n");
 		return -EINVAL;
 	}
@@ -733,7 +731,8 @@ static int pci_endpoint_test_read(struct pci_endpoint_test *test,
 	if (use_dma)
 		flags |= FLAG_USE_DMA;
 
-	if (irq_type < IRQ_TYPE_INTX || irq_type > IRQ_TYPE_MSIX) {
+	if (irq_type < PCITEST_IRQ_TYPE_INTX ||
+	    irq_type > PCITEST_IRQ_TYPE_MSIX) {
 		dev_err(dev, "Invalid IRQ type option\n");
 		return -EINVAL;
 	}
@@ -803,7 +802,8 @@ static int pci_endpoint_test_set_irq(struct pci_endpoint_test *test,
 	struct device *dev = &pdev->dev;
 	int ret;
 
-	if (req_irq_type < IRQ_TYPE_INTX || req_irq_type > IRQ_TYPE_MSIX) {
+	if (req_irq_type < PCITEST_IRQ_TYPE_INTX ||
+	    req_irq_type > PCITEST_IRQ_TYPE_MSIX) {
 		dev_err(dev, "Invalid IRQ type option\n");
 		return -EINVAL;
 	}
@@ -927,7 +927,7 @@ static int pci_endpoint_test_probe(struct pci_dev *pdev,
 	test->test_reg_bar = 0;
 	test->alignment = 0;
 	test->pdev = pdev;
-	test->irq_type = IRQ_TYPE_UNDEFINED;
+	test->irq_type = PCITEST_IRQ_TYPE_UNDEFINED;
 
 	data = (struct pci_endpoint_test_data *)ent->driver_data;
 	if (data) {
@@ -1078,23 +1078,23 @@ static void pci_endpoint_test_remove(struct pci_dev *pdev)
 static const struct pci_endpoint_test_data default_data = {
 	.test_reg_bar = BAR_0,
 	.alignment = SZ_4K,
-	.irq_type = IRQ_TYPE_MSI,
+	.irq_type = PCITEST_IRQ_TYPE_MSI,
 };
 
 static const struct pci_endpoint_test_data am654_data = {
 	.test_reg_bar = BAR_2,
 	.alignment = SZ_64K,
-	.irq_type = IRQ_TYPE_MSI,
+	.irq_type = PCITEST_IRQ_TYPE_MSI,
 };
 
 static const struct pci_endpoint_test_data j721e_data = {
 	.alignment = 256,
-	.irq_type = IRQ_TYPE_MSI,
+	.irq_type = PCITEST_IRQ_TYPE_MSI,
 };
 
 static const struct pci_endpoint_test_data rk3588_data = {
 	.alignment = SZ_64K,
-	.irq_type = IRQ_TYPE_MSI,
+	.irq_type = PCITEST_IRQ_TYPE_MSI,
 };
 
 /*
