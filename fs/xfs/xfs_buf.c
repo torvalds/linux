@@ -56,20 +56,6 @@ static inline bool xfs_buf_is_uncached(struct xfs_buf *bp)
 }
 
 static inline int
-xfs_buf_is_vmapped(
-	struct xfs_buf	*bp)
-{
-	/*
-	 * Return true if the buffer is vmapped.
-	 *
-	 * b_addr is null if the buffer is not mapped, but the code is clever
-	 * enough to know it doesn't have to map a single page, so the check has
-	 * to be both for b_addr and bp->b_page_count > 1.
-	 */
-	return bp->b_addr && bp->b_page_count > 1;
-}
-
-static inline int
 xfs_buf_vmap_len(
 	struct xfs_buf	*bp)
 {
@@ -212,7 +198,7 @@ xfs_buf_free_pages(
 
 	ASSERT(bp->b_flags & _XBF_PAGES);
 
-	if (xfs_buf_is_vmapped(bp))
+	if (is_vmalloc_addr(bp->b_addr))
 		vm_unmap_ram(bp->b_addr, bp->b_page_count);
 
 	for (i = 0; i < bp->b_page_count; i++) {
@@ -1298,7 +1284,7 @@ __xfs_buf_ioend(
 	trace_xfs_buf_iodone(bp, _RET_IP_);
 
 	if (bp->b_flags & XBF_READ) {
-		if (!bp->b_error && xfs_buf_is_vmapped(bp))
+		if (!bp->b_error && bp->b_addr && is_vmalloc_addr(bp->b_addr))
 			invalidate_kernel_vmap_range(bp->b_addr,
 					xfs_buf_vmap_len(bp));
 		if (!bp->b_error && bp->b_ops)
@@ -1479,7 +1465,7 @@ xfs_buf_submit_bio(
 			__bio_add_page(bio, bp->b_pages[p], PAGE_SIZE, 0);
 		bio->bi_iter.bi_size = size; /* limit to the actual size used */
 
-		if (xfs_buf_is_vmapped(bp))
+		if (bp->b_addr && is_vmalloc_addr(bp->b_addr))
 			flush_kernel_vmap_range(bp->b_addr,
 					xfs_buf_vmap_len(bp));
 	}
