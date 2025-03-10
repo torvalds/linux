@@ -232,7 +232,7 @@ int bch2_alloc_v3_validate(struct bch_fs *c, struct bkey_s_c k,
 	int ret = 0;
 
 	bkey_fsck_err_on(bch2_alloc_unpack_v3(&u, k),
-			 c, alloc_v2_unpack_error,
+			 c, alloc_v3_unpack_error,
 			 "unpack error");
 fsck_err:
 	return ret;
