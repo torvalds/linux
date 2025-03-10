@@ -59,26 +59,13 @@ static void init(void)
 		queries[i] = (prandom_u32_state(&rnd) >> 4) % max_endpoint;
 }
 
-static int interval_tree_test_init(void)
+static int basic_check(void)
 {
 	int i, j;
-	unsigned long results;
 	cycles_t time1, time2, time;
-
-	nodes = kmalloc_array(nnodes, sizeof(struct interval_tree_node),
-			      GFP_KERNEL);
-	if (!nodes)
-		return -ENOMEM;
-
-	queries = kmalloc_array(nsearches, sizeof(int), GFP_KERNEL);
-	if (!queries) {
-		kfree(nodes);
-		return -ENOMEM;
-	}
 
 	printk(KERN_ALERT "interval tree insert/remove");
 
-	prandom_seed_state(&rnd, 3141592653589793238ULL);
 	init();
 
 	time1 = get_cycles();
@@ -96,7 +83,18 @@ static int interval_tree_test_init(void)
 	time = div_u64(time, perf_loops);
 	printk(" -> %llu cycles\n", (unsigned long long)time);
 
+	return 0;
+}
+
+static int search_check(void)
+{
+	int i, j;
+	unsigned long results;
+	cycles_t time1, time2, time;
+
 	printk(KERN_ALERT "interval tree search");
+
+	init();
 
 	for (j = 0; j < nnodes; j++)
 		interval_tree_insert(nodes + j, &root);
@@ -119,6 +117,30 @@ static int interval_tree_test_init(void)
 	results = div_u64(results, search_loops);
 	printk(" -> %llu cycles (%lu results)\n",
 	       (unsigned long long)time, results);
+
+	for (j = 0; j < nnodes; j++)
+		interval_tree_remove(nodes + j, &root);
+
+	return 0;
+}
+
+static int interval_tree_test_init(void)
+{
+	nodes = kmalloc_array(nnodes, sizeof(struct interval_tree_node),
+			      GFP_KERNEL);
+	if (!nodes)
+		return -ENOMEM;
+
+	queries = kmalloc_array(nsearches, sizeof(int), GFP_KERNEL);
+	if (!queries) {
+		kfree(nodes);
+		return -ENOMEM;
+	}
+
+	prandom_seed_state(&rnd, 3141592653589793238ULL);
+
+	basic_check();
+	search_check();
 
 	kfree(queries);
 	kfree(nodes);
