@@ -21,6 +21,12 @@
 #define ACP63_PDM_ADDR		0x02
 #define ACP70_PDM_ADDR		0x02
 
+const struct snd_acp_hw_ops acp_common_hw_ops = {
+	/* ACP hardware initilizations */
+	.acp_init = acp_init,
+	.acp_deinit = acp_deinit,
+};
+EXPORT_SYMBOL_NS_GPL(acp_common_hw_ops, "SND_SOC_ACP_COMMON");
 void acp_enable_interrupts(struct acp_dev_data *adata)
 {
 	struct acp_resource *rsrc = adata->rsrc;
@@ -462,6 +468,50 @@ void check_acp_config(struct pci_dev *pci, struct acp_chip_info *chip)
 	}
 }
 EXPORT_SYMBOL_NS_GPL(check_acp_config, "SND_SOC_ACP_COMMON");
+
+struct snd_acp_hw_ops acp31_common_hw_ops;
+EXPORT_SYMBOL_NS_GPL(acp31_common_hw_ops, "SND_SOC_ACP_COMMON");
+int acp31_hw_ops_init(struct acp_chip_info *chip)
+{
+	memcpy(&acp31_common_hw_ops, &acp_common_hw_ops, sizeof(acp_common_hw_ops));
+	chip->acp_hw_ops = &acp31_common_hw_ops;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(acp31_hw_ops_init, "SND_SOC_ACP_COMMON");
+
+struct snd_acp_hw_ops acp6x_common_hw_ops;
+EXPORT_SYMBOL_NS_GPL(acp6x_common_hw_ops, "SND_SOC_ACP_COMMON");
+int acp6x_hw_ops_init(struct acp_chip_info *chip)
+{
+	memcpy(&acp6x_common_hw_ops, &acp_common_hw_ops, sizeof(acp_common_hw_ops));
+	chip->acp_hw_ops = &acp6x_common_hw_ops;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(acp6x_hw_ops_init, "SND_SOC_ACP_COMMON");
+
+struct snd_acp_hw_ops acp63_common_hw_ops;
+EXPORT_SYMBOL_NS_GPL(acp63_common_hw_ops, "SND_SOC_ACP_COMMON");
+int acp63_hw_ops_init(struct acp_chip_info *chip)
+{
+	memcpy(&acp63_common_hw_ops, &acp_common_hw_ops, sizeof(acp_common_hw_ops));
+	chip->acp_hw_ops = &acp63_common_hw_ops;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(acp63_hw_ops_init, "SND_SOC_ACP_COMMON");
+
+struct snd_acp_hw_ops acp70_common_hw_ops;
+EXPORT_SYMBOL_NS_GPL(acp70_common_hw_ops, "SND_SOC_ACP_COMMON");
+int acp70_hw_ops_init(struct acp_chip_info *chip)
+{
+	memcpy(&acp70_common_hw_ops, &acp_common_hw_ops, sizeof(acp_common_hw_ops));
+	chip->acp_hw_ops = &acp70_common_hw_ops;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(acp70_hw_ops_init, "SND_SOC_ACP_COMMON");
 
 MODULE_DESCRIPTION("AMD ACP legacy common features");
 MODULE_LICENSE("Dual BSD/GPL");

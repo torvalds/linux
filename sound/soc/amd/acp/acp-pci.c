@@ -81,16 +81,20 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	switch (pci->revision) {
 	case 0x01:
 		chip->name = "acp_asoc_renoir";
+		chip->acp_hw_ops_init = acp31_hw_ops_init;
 		break;
 	case 0x6f:
 		chip->name = "acp_asoc_rembrandt";
+		chip->acp_hw_ops_init = acp6x_hw_ops_init;
 		break;
 	case 0x63:
 		chip->name = "acp_asoc_acp63";
+		chip->acp_hw_ops_init = acp63_hw_ops_init;
 		break;
 	case 0x70:
 	case 0x71:
 		chip->name = "acp_asoc_acp70";
+		chip->acp_hw_ops_init = acp70_hw_ops_init;
 		break;
 	default:
 		dev_err(dev, "Unsupported device revision:0x%x\n", pci->revision);
@@ -112,7 +116,8 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		goto unregister_dmic_dev;
 	}
 
-	ret = acp_init(chip);
+	chip->acp_hw_ops_init(chip);
+	ret = acp_hw_init(chip);
 	if (ret)
 		goto unregister_dmic_dev;
 
@@ -179,7 +184,7 @@ static int __maybe_unused snd_acp_suspend(struct device *dev)
 	int ret;
 
 	chip = dev_get_drvdata(dev);
-	ret = acp_deinit(chip);
+	ret = acp_hw_deinit(chip);
 	if (ret)
 		dev_err(dev, "ACP de-init failed\n");
 	return ret;
@@ -193,7 +198,7 @@ static int __maybe_unused snd_acp_resume(struct device *dev)
 	int ret;
 
 	chip = dev_get_drvdata(dev);
-	ret = acp_init(chip);
+	ret = acp_hw_init(chip);
 	if (ret)
 		dev_err(dev, "ACP init failed\n");
 	if (chip->chip_pdev) {
@@ -222,7 +227,7 @@ static void acp_pci_remove(struct pci_dev *pci)
 		platform_device_unregister(dmic_dev);
 	if (pdev)
 		platform_device_unregister(pdev);
-	ret = acp_deinit(chip);
+	ret = acp_hw_deinit(chip);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 }
