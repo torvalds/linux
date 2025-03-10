@@ -3427,6 +3427,7 @@ void btrfs_add_delayed_iput(struct btrfs_inode *inode)
 	if (atomic_add_unless(&inode->vfs_inode.i_count, -1, 1))
 		return;
 
+	WARN_ON_ONCE(test_bit(BTRFS_FS_STATE_NO_DELAYED_IPUT, &fs_info->fs_state));
 	atomic_inc(&fs_info->nr_delayed_iputs);
 	/*
 	 * Need to be irq safe here because we can be called from either an irq
