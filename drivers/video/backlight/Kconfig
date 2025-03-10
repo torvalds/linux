@@ -70,7 +70,7 @@ config LCD_ILI9320
 	  then say y to include a power driver for it.
 
 config LCD_TDO24M
-	tristate "Toppoly TDO24M  and TDO35S LCD Panels support"
+	tristate "Toppoly TDO24M and TDO35S LCD Panels support"
 	depends on SPI_MASTER
 	help
 	  If you have a Toppoly TDO24M/TDO35S series LCD panel, say y here to
