@@ -646,6 +646,12 @@ static int ad4030_conversion(struct iio_dev *indio_dev)
 					   &st->rx_data.dual.diff[0],
 					   &st->rx_data.dual.diff[1]);
 
+	/*
+	 * If no common mode voltage channel is enabled, we can use the raw
+	 * data as is. Otherwise, we need to rearrange the data a bit to match
+	 * the natural alignment of the IIO buffer.
+	 */
+
 	if (st->mode != AD4030_OUT_DATA_MD_16_DIFF_8_COM &&
 	    st->mode != AD4030_OUT_DATA_MD_24_DIFF_8_COM)
 		return 0;
