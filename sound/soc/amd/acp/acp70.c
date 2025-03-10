@@ -135,8 +135,6 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_chip_info *chip;
-	struct acp_dev_data *adata;
-	struct resource *res;
 	int ret;
 
 	chip = dev_get_platdata(&pdev->dev);
@@ -154,36 +152,10 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	adata = devm_kzalloc(dev, sizeof(struct acp_dev_data), GFP_KERNEL);
-	if (!adata)
-		return -ENOMEM;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "acp_mem");
-	if (!res) {
-		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
-	}
-
-	adata->acp_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!adata->acp_base)
-		return -ENOMEM;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "acp_dai_irq");
-	if (!res) {
-		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
-		return -ENODEV;
-	}
-
+	chip->dev = dev;
 	chip->rsrc = &rsrc;
-	adata->i2s_irq = res->start;
-	adata->dev = dev;
-	adata->dai_driver = acp70_dai;
-	adata->num_dai = ARRAY_SIZE(acp70_dai);
-	adata->rsrc = &rsrc;
-	adata->acp_rev = chip->acp_rev;
-	adata->flag = chip->flag;
-
-	dev_set_drvdata(dev, adata);
+	chip->dai_driver = acp70_dai;
+	chip->num_dai = ARRAY_SIZE(acp70_dai);
 
 	/* Set clk7 DFS clock divider register value to get mclk as 196.608MHz*/
 	ret = amd_smn_write(0, CLK7_CLK0_DFS_CNTL_N1, CLK0_DIVIDER);
@@ -221,27 +193,27 @@ static void acp_acp70_audio_remove(struct platform_device *pdev)
 
 static int __maybe_unused acp70_pcm_resume(struct device *dev)
 {
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip = dev_get_platdata(dev);
 	struct acp_stream *stream;
 	struct snd_pcm_substream *substream;
 	snd_pcm_uframes_t buf_in_frames;
 	u64 buf_size;
 
-	spin_lock(&adata->acp_lock);
-	list_for_each_entry(stream, &adata->stream_list, list) {
+	spin_lock(&chip->acp_lock);
+	list_for_each_entry(stream, &chip->stream_list, list) {
 		substream = stream->substream;
 		if (substream && substream->runtime) {
 			buf_in_frames = (substream->runtime->buffer_size);
 			buf_size = frames_to_bytes(substream->runtime, buf_in_frames);
-			config_pte_for_stream(adata, stream);
-			config_acp_dma(adata, stream, buf_size);
+			config_pte_for_stream(chip, stream);
+			config_acp_dma(chip, stream, buf_size);
 			if (stream->dai_id)
-				restore_acp_i2s_params(substream, adata, stream);
+				restore_acp_i2s_params(substream, chip, stream);
 			else
-				restore_acp_pdm_params(substream, adata);
+				restore_acp_pdm_params(substream, chip);
 		}
 	}
-	spin_unlock(&adata->acp_lock);
+	spin_unlock(&chip->acp_lock);
 	return 0;
 }
 

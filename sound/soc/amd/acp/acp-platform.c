@@ -107,37 +107,37 @@ static const struct snd_pcm_hardware acp6x_pcm_hardware_capture = {
 	.periods_max = CAPTURE_MAX_NUM_PERIODS,
 };
 
-void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream)
+void config_pte_for_stream(struct acp_chip_info *chip, struct acp_stream *stream)
 {
-	struct acp_resource *rsrc = adata->rsrc;
+	struct acp_resource *rsrc = chip->rsrc;
 	u32 reg_val;
 
 	reg_val = rsrc->sram_pte_offset;
 	stream->reg_offset = 0x02000000;
 
-	writel((reg_val + GRP1_OFFSET) | BIT(31), adata->acp_base + ACPAXI2AXI_ATU_BASE_ADDR_GRP_1);
-	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1);
+	writel((reg_val + GRP1_OFFSET) | BIT(31), chip->base + ACPAXI2AXI_ATU_BASE_ADDR_GRP_1);
+	writel(PAGE_SIZE_4K_ENABLE,  chip->base + ACPAXI2AXI_ATU_PAGE_SIZE_GRP_1);
 
-	writel((reg_val + GRP2_OFFSET) | BIT(31), adata->acp_base + ACPAXI2AXI_ATU_BASE_ADDR_GRP_2);
-	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + ACPAXI2AXI_ATU_PAGE_SIZE_GRP_2);
+	writel((reg_val + GRP2_OFFSET) | BIT(31), chip->base + ACPAXI2AXI_ATU_BASE_ADDR_GRP_2);
+	writel(PAGE_SIZE_4K_ENABLE,  chip->base + ACPAXI2AXI_ATU_PAGE_SIZE_GRP_2);
 
-	writel(reg_val | BIT(31), adata->acp_base + ACPAXI2AXI_ATU_BASE_ADDR_GRP_5);
-	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + ACPAXI2AXI_ATU_PAGE_SIZE_GRP_5);
+	writel(reg_val | BIT(31), chip->base + ACPAXI2AXI_ATU_BASE_ADDR_GRP_5);
+	writel(PAGE_SIZE_4K_ENABLE,  chip->base + ACPAXI2AXI_ATU_PAGE_SIZE_GRP_5);
 
-	writel(0x01, adata->acp_base + ACPAXI2AXI_ATU_CTRL);
+	writel(0x01, chip->base + ACPAXI2AXI_ATU_CTRL);
 }
 EXPORT_SYMBOL_NS_GPL(config_pte_for_stream, "SND_SOC_ACP_COMMON");
 
-void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int size)
+void config_acp_dma(struct acp_chip_info *chip, struct acp_stream *stream, int size)
 {
 	struct snd_pcm_substream *substream = stream->substream;
-	struct acp_resource *rsrc = adata->rsrc;
+	struct acp_resource *rsrc = chip->rsrc;
 	dma_addr_t addr = substream->dma_buffer.addr;
 	int num_pages = (PAGE_ALIGN(size) >> PAGE_SHIFT);
 	u32 low, high, val;
 	u16 page_idx;
 
-	switch (adata->acp_rev) {
+	switch (chip->acp_rev) {
 	case ACP70_PCI_ID:
 	case ACP71_PCI_ID:
 		switch (stream->dai_id) {
@@ -163,7 +163,7 @@ void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int s
 			val = 0x6000;
 			break;
 		default:
-			dev_err(adata->dev, "Invalid dai id %x\n", stream->dai_id);
+			dev_err(chip->dev, "Invalid dai id %x\n", stream->dai_id);
 			return;
 		}
 		break;
@@ -176,9 +176,9 @@ void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int s
 		/* Load the low address of page int ACP SRAM through SRBM */
 		low = lower_32_bits(addr);
 		high = upper_32_bits(addr);
-		writel(low, adata->acp_base + rsrc->scratch_reg_offset + val);
+		writel(low, chip->base + rsrc->scratch_reg_offset + val);
 		high |= BIT(31);
-		writel(high, adata->acp_base + rsrc->scratch_reg_offset + val + 4);
+		writel(high, chip->base + rsrc->scratch_reg_offset + val + 4);
 
 		/* Move to next physically contiguous page */
 		val += 8;
@@ -191,7 +191,6 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct device *dev = component->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
 	struct acp_chip_info *chip;
 	struct acp_stream *stream;
 	int ret;
@@ -201,7 +200,7 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 		return -ENOMEM;
 
 	stream->substream = substream;
-	chip = dev_get_platdata(dev);
+	chip = dev_get_drvdata(dev->parent);
 	switch (chip->acp_rev) {
 	case ACP63_PCI_ID:
 	case ACP70_PCI_ID:
@@ -243,9 +242,9 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 
 	writel(1, ACP_EXTERNAL_INTR_ENB(chip));
 
-	spin_lock_irq(&adata->acp_lock);
-	list_add_tail(&stream->list, &adata->stream_list);
-	spin_unlock_irq(&adata->acp_lock);
+	spin_lock_irq(&chip->acp_lock);
+	list_add_tail(&stream->list, &chip->stream_list);
+	spin_unlock_irq(&chip->acp_lock);
 
 	return ret;
 }
@@ -254,13 +253,14 @@ static int acp_dma_hw_params(struct snd_soc_component *component,
 			     struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
-	struct acp_dev_data *adata = snd_soc_component_get_drvdata(component);
+	struct device *dev = component->dev;
+	struct acp_chip_info *chip = dev_get_drvdata(dev->parent);
 	struct acp_stream *stream = substream->runtime->private_data;
 	u64 size = params_buffer_bytes(params);
 
 	/* Configure ACP DMA block with params */
-	config_pte_for_stream(adata, stream);
-	config_acp_dma(adata, stream, size);
+	config_pte_for_stream(chip, stream);
+	config_acp_dma(chip, stream, size);
 
 	return 0;
 }
@@ -269,7 +269,7 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 					 struct snd_pcm_substream *substream)
 {
 	struct device *dev = component->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip = dev_get_drvdata(dev->parent);
 	struct acp_stream *stream = substream->runtime->private_data;
 	u32 pos, buffersize;
 	u64 bytescount;
@@ -277,7 +277,7 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 	buffersize = frames_to_bytes(substream->runtime,
 				     substream->runtime->buffer_size);
 
-	bytescount = acp_get_byte_count(adata, stream->dai_id, substream->stream);
+	bytescount = acp_get_byte_count(chip, stream->dai_id, substream->stream);
 
 	if (bytescount > stream->bytescount)
 		bytescount -= stream->bytescount;
@@ -301,13 +301,13 @@ static int acp_dma_close(struct snd_soc_component *component,
 			 struct snd_pcm_substream *substream)
 {
 	struct device *dev = component->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip = dev_get_drvdata(dev->parent);
 	struct acp_stream *stream = substream->runtime->private_data;
 
 	/* Remove entry from list */
-	spin_lock_irq(&adata->acp_lock);
+	spin_lock_irq(&chip->acp_lock);
 	list_del(&stream->list);
-	spin_unlock_irq(&adata->acp_lock);
+	spin_unlock_irq(&chip->acp_lock);
 	kfree(stream);
 
 	return 0;
@@ -325,7 +325,6 @@ static const struct snd_soc_component_driver acp_pcm_component = {
 
 int acp_platform_register(struct device *dev)
 {
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
 	struct acp_chip_info *chip;
 	struct snd_soc_dai_driver;
 	unsigned int status;
@@ -336,17 +335,16 @@ int acp_platform_register(struct device *dev)
 		return -ENODEV;
 	}
 
-	chip->adata = adata;
 	status = devm_snd_soc_register_component(dev, &acp_pcm_component,
-						 adata->dai_driver,
-						 adata->num_dai);
+						 chip->dai_driver,
+						 chip->num_dai);
 	if (status) {
 		dev_err(dev, "Fail to register acp i2s component\n");
 		return status;
 	}
 
-	INIT_LIST_HEAD(&adata->stream_list);
-	spin_lock_init(&adata->acp_lock);
+	INIT_LIST_HEAD(&chip->stream_list);
+	spin_lock_init(&chip->acp_lock);
 
 	return 0;
 }
@@ -354,10 +352,6 @@ EXPORT_SYMBOL_NS_GPL(acp_platform_register, "SND_SOC_ACP_COMMON");
 
 int acp_platform_unregister(struct device *dev)
 {
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
-
-	if (adata->mach_dev)
-		platform_device_unregister(adata->mach_dev);
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_platform_unregister, "SND_SOC_ACP_COMMON");
