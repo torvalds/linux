@@ -147,7 +147,6 @@ struct ad4030_state {
 	struct spi_device *spi;
 	struct regmap *regmap;
 	const struct ad4030_chip_info *chip;
-	const struct iio_scan_type *current_scan_type;
 	struct gpio_desc *cnv_gpio;
 	int vref_uv;
 	int vio_uv;
@@ -562,11 +561,6 @@ static int ad4030_set_mode(struct iio_dev *indio_dev, unsigned long mask)
 		st->mode = AD4030_OUT_DATA_MD_DIFF;
 	}
 
-	st->current_scan_type = iio_get_current_scan_type(indio_dev,
-							  st->chip->channels);
-	if (IS_ERR(st->current_scan_type))
-		return PTR_ERR(st->current_scan_type);
-
 	return regmap_update_bits(st->regmap, AD4030_REG_MODES,
 				  AD4030_REG_MODES_MASK_OUT_DATA_MODE,
 				  st->mode);
@@ -614,14 +608,19 @@ static void ad4030_extract_interleaved(u8 *src, u32 *ch0, u32 *ch1)
 static int ad4030_conversion(struct iio_dev *indio_dev)
 {
 	struct ad4030_state *st = iio_priv(indio_dev);
-	unsigned char diff_realbytes =
-		BITS_TO_BYTES(st->current_scan_type->realbits);
-	unsigned char diff_storagebytes =
-		BITS_TO_BYTES(st->current_scan_type->storagebits);
+	const struct iio_scan_type *scan_type;
+	unsigned char diff_realbytes, diff_storagebytes;
 	unsigned int bytes_to_read;
 	unsigned long cnv_nb = BIT(st->avg_log2);
 	unsigned int i;
 	int ret;
+
+	scan_type = iio_get_current_scan_type(indio_dev, st->chip->channels);
+	if (IS_ERR(scan_type))
+		return PTR_ERR(scan_type);
+
+	diff_realbytes = BITS_TO_BYTES(scan_type->realbits);
+	diff_storagebytes = BITS_TO_BYTES(scan_type->storagebits);
 
 	/* Number of bytes for one differential channel */
 	bytes_to_read = diff_realbytes;
@@ -672,11 +671,6 @@ static int ad4030_single_conversion(struct iio_dev *indio_dev,
 	ret = ad4030_set_mode(indio_dev, BIT(chan->scan_index));
 	if (ret)
 		return ret;
-
-	st->current_scan_type = iio_get_current_scan_type(indio_dev,
-							  st->chip->channels);
-	if (IS_ERR(st->current_scan_type))
-		return PTR_ERR(st->current_scan_type);
 
 	ret = ad4030_conversion(indio_dev);
 	if (ret)
