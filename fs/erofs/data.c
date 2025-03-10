@@ -77,7 +77,7 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 	unsigned int unit, blksz = sb->s_blocksize;
 	struct erofs_inode *vi = EROFS_I(inode);
 	struct erofs_inode_chunk_index *idx;
-	erofs_blk_t startblk;
+	erofs_blk_t startblk, addrmask;
 	bool tailpacking;
 	erofs_off_t pos;
 	u64 chunknr;
@@ -91,6 +91,8 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 
 	if (vi->datalayout != EROFS_INODE_CHUNK_BASED) {
 		tailpacking = (vi->datalayout == EROFS_INODE_FLAT_INLINE);
+		if (!tailpacking && vi->startblk == EROFS_NULL_ADDR)
+			goto out;
 		pos = erofs_pos(sb, erofs_iblks(inode) - tailpacking);
 
 		map->m_flags = EROFS_MAP_MAPPED;
@@ -124,8 +126,11 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 	map->m_llen = min_t(erofs_off_t, 1UL << vi->chunkbits,
 			    round_up(inode->i_size - map->m_la, blksz));
 	if (vi->chunkformat & EROFS_CHUNK_FORMAT_INDEXES) {
-		startblk = le32_to_cpu(idx->startblk_lo);
-		if (startblk != EROFS_NULL_ADDR) {
+		addrmask = (vi->chunkformat & EROFS_CHUNK_FORMAT_48BIT) ?
+			BIT_ULL(48) - 1 : BIT_ULL(32) - 1;
+		startblk = (((u64)le16_to_cpu(idx->startblk_hi) << 32) |
+			    le32_to_cpu(idx->startblk_lo)) & addrmask;
+		if ((startblk ^ EROFS_NULL_ADDR) & addrmask) {
 			map->m_deviceid = le16_to_cpu(idx->device_id) &
 				EROFS_SB(sb)->device_id_mask;
 			map->m_pa = erofs_pos(sb, startblk);
@@ -133,7 +138,7 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 		}
 	} else {
 		startblk = le32_to_cpu(*(__le32 *)idx);
-		if (startblk != EROFS_NULL_ADDR) {
+		if (startblk != (u32)EROFS_NULL_ADDR) {
 			map->m_pa = erofs_pos(sb, startblk);
 			map->m_flags = EROFS_MAP_MAPPED;
 		}

@@ -60,7 +60,7 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 
 		de = erofs_bread(&buf, dbstart, true);
 		if (IS_ERR(de)) {
-			erofs_err(sb, "fail to readdir of logical block %u of nid %llu",
+			erofs_err(sb, "failed to readdir of logical block %llu of nid %llu",
 				  erofs_blknr(sb, dbstart), EROFS_I(dir)->nid);
 			err = PTR_ERR(de);
 			break;
