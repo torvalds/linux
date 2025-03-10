@@ -432,7 +432,7 @@ static void end_folio_read(struct folio *folio, bool uptodate, u64 start, u32 le
 	else
 		btrfs_folio_clear_uptodate(fs_info, folio, start, len);
 
-	if (!btrfs_is_subpage(fs_info, folio->mapping))
+	if (!btrfs_is_subpage(fs_info, folio))
 		folio_unlock(folio);
 	else
 		btrfs_folio_end_lock(fs_info, folio, start, len);
@@ -488,7 +488,7 @@ static void end_bbio_data_write(struct btrfs_bio *bbio)
 static void begin_folio_read(struct btrfs_fs_info *fs_info, struct folio *folio)
 {
 	ASSERT(folio_test_locked(folio));
-	if (!btrfs_is_subpage(fs_info, folio->mapping))
+	if (!btrfs_is_subpage(fs_info, folio))
 		return;
 
 	ASSERT(folio_test_private(folio));
@@ -870,7 +870,7 @@ int set_folio_extent_mapped(struct folio *folio)
 
 	fs_info = folio_to_fs_info(folio);
 
-	if (btrfs_is_subpage(fs_info, folio->mapping))
+	if (btrfs_is_subpage(fs_info, folio))
 		return btrfs_attach_subpage(fs_info, folio, BTRFS_SUBPAGE_DATA);
 
 	folio_attach_private(folio, (void *)EXTENT_FOLIO_PRIVATE);
@@ -887,7 +887,7 @@ void clear_folio_extent_mapped(struct folio *folio)
 		return;
 
 	fs_info = folio_to_fs_info(folio);
-	if (btrfs_is_subpage(fs_info, folio->mapping))
+	if (btrfs_is_subpage(fs_info, folio))
 		return btrfs_detach_subpage(fs_info, folio, BTRFS_SUBPAGE_DATA);
 
 	folio_detach_private(folio);
@@ -1327,7 +1327,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(&inode->vfs_inode);
 	struct writeback_control *wbc = bio_ctrl->wbc;
-	const bool is_subpage = btrfs_is_subpage(fs_info, folio->mapping);
+	const bool is_subpage = btrfs_is_subpage(fs_info, folio);
 	const u64 page_start = folio_pos(folio);
 	const u64 page_end = page_start + folio_size(folio) - 1;
 	const unsigned int blocks_per_folio = btrfs_blocks_per_folio(fs_info, folio);
@@ -1355,7 +1355,7 @@ static noinline_for_stack int writepage_delalloc(struct btrfs_inode *inode,
 	int bit;
 
 	/* Save the dirty bitmap as our submission bitmap will be a subset of it. */
-	if (btrfs_is_subpage(fs_info, inode->vfs_inode.i_mapping)) {
+	if (btrfs_is_subpage(fs_info, folio)) {
 		ASSERT(blocks_per_folio > 1);
 		btrfs_get_subpage_dirty_bitmap(fs_info, folio, &bio_ctrl->submit_bitmap);
 	} else {
@@ -2407,7 +2407,7 @@ retry:
 			 * regular submission.
 			 */
 			if (wbc->sync_mode != WB_SYNC_NONE ||
-			    btrfs_is_subpage(inode_to_fs_info(inode), mapping)) {
+			    btrfs_is_subpage(inode_to_fs_info(inode), folio)) {
 				if (folio_test_writeback(folio))
 					submit_write_bio(bio_ctrl, 0);
 				folio_wait_writeback(folio);

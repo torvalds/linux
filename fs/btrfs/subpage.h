@@ -85,10 +85,10 @@ static inline bool btrfs_meta_is_subpage(const struct btrfs_fs_info *fs_info)
 	return fs_info->nodesize < PAGE_SIZE;
 }
 static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
-				    struct address_space *mapping)
+				    struct folio *folio)
 {
-	if (mapping && mapping->host)
-		ASSERT(is_data_inode(BTRFS_I(mapping->host)));
+	if (folio->mapping && folio->mapping->host)
+		ASSERT(is_data_inode(BTRFS_I(folio->mapping->host)));
 	return fs_info->sectorsize < PAGE_SIZE;
 }
 #else
@@ -97,10 +97,10 @@ static inline bool btrfs_meta_is_subpage(const struct btrfs_fs_info *fs_info)
 	return false;
 }
 static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
-				    struct address_space *mapping)
+				    struct folio *folio)
 {
-	if (mapping && mapping->host)
-		ASSERT(is_data_inode(BTRFS_I(mapping->host)));
+	if (folio->mapping && folio->mapping->host)
+		ASSERT(is_data_inode(BTRFS_I(folio->mapping->host)));
 	return false;
 }
 #endif

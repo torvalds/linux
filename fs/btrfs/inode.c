@@ -7273,7 +7273,7 @@ static void wait_subpage_spinlock(struct folio *folio)
 	struct btrfs_fs_info *fs_info = folio_to_fs_info(folio);
 	struct btrfs_subpage *subpage;
 
-	if (!btrfs_is_subpage(fs_info, folio->mapping))
+	if (!btrfs_is_subpage(fs_info, folio))
 		return;
 
 	ASSERT(folio_test_private(folio) && folio_get_private(folio));

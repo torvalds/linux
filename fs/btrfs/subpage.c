@@ -83,7 +83,7 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 		return 0;
 	if (type == BTRFS_SUBPAGE_METADATA && !btrfs_meta_is_subpage(fs_info))
 		return 0;
-	if (type == BTRFS_SUBPAGE_DATA && !btrfs_is_subpage(fs_info, folio->mapping))
+	if (type == BTRFS_SUBPAGE_DATA && !btrfs_is_subpage(fs_info, folio))
 		return 0;
 
 	subpage = btrfs_alloc_subpage(fs_info, type);
@@ -104,7 +104,7 @@ void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *fol
 		return;
 	if (type == BTRFS_SUBPAGE_METADATA && !btrfs_meta_is_subpage(fs_info))
 		return;
-	if (type == BTRFS_SUBPAGE_DATA && !btrfs_is_subpage(fs_info, folio->mapping))
+	if (type == BTRFS_SUBPAGE_DATA && !btrfs_is_subpage(fs_info, folio))
 		return;
 
 	subpage = folio_detach_private(folio);
@@ -286,7 +286,7 @@ void btrfs_folio_end_lock(const struct btrfs_fs_info *fs_info,
 
 	ASSERT(folio_test_locked(folio));
 
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, folio->mapping)) {
+	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, folio)) {
 		folio_unlock(folio);
 		return;
 	}
@@ -320,7 +320,7 @@ void btrfs_folio_end_lock_bitmap(const struct btrfs_fs_info *fs_info,
 	int cleared = 0;
 	int bit;
 
-	if (!btrfs_is_subpage(fs_info, folio->mapping)) {
+	if (!btrfs_is_subpage(fs_info, folio)) {
 		folio_unlock(folio);
 		return;
 	}
@@ -572,7 +572,7 @@ void btrfs_folio_set_##name(const struct btrfs_fs_info *fs_info,	\
 			    struct folio *folio, u64 start, u32 len)	\
 {									\
 	if (unlikely(!fs_info) ||					\
-	    !btrfs_is_subpage(fs_info, folio->mapping)) {		\
+	    !btrfs_is_subpage(fs_info, folio)) {			\
 		folio_set_func(folio);					\
 		return;							\
 	}								\
@@ -582,7 +582,7 @@ void btrfs_folio_clear_##name(const struct btrfs_fs_info *fs_info,	\
 			      struct folio *folio, u64 start, u32 len)	\
 {									\
 	if (unlikely(!fs_info) ||					\
-	    !btrfs_is_subpage(fs_info, folio->mapping)) {		\
+	    !btrfs_is_subpage(fs_info, folio)) {			\
 		folio_clear_func(folio);				\
 		return;							\
 	}								\
@@ -592,7 +592,7 @@ bool btrfs_folio_test_##name(const struct btrfs_fs_info *fs_info,	\
 			     struct folio *folio, u64 start, u32 len)	\
 {									\
 	if (unlikely(!fs_info) ||					\
-	    !btrfs_is_subpage(fs_info, folio->mapping))			\
+	    !btrfs_is_subpage(fs_info, folio))				\
 		return folio_test_func(folio);				\
 	return btrfs_subpage_test_##name(fs_info, folio, start, len);	\
 }									\
@@ -600,7 +600,7 @@ void btrfs_folio_clamp_set_##name(const struct btrfs_fs_info *fs_info,	\
 				  struct folio *folio, u64 start, u32 len) \
 {									\
 	if (unlikely(!fs_info) ||					\
-	    !btrfs_is_subpage(fs_info, folio->mapping)) {		\
+	    !btrfs_is_subpage(fs_info, folio)) {			\
 		folio_set_func(folio);					\
 		return;							\
 	}								\
@@ -611,7 +611,7 @@ void btrfs_folio_clamp_clear_##name(const struct btrfs_fs_info *fs_info, \
 				    struct folio *folio, u64 start, u32 len) \
 {									\
 	if (unlikely(!fs_info) ||					\
-	    !btrfs_is_subpage(fs_info, folio->mapping)) {		\
+	    !btrfs_is_subpage(fs_info, folio)) {			\
 		folio_clear_func(folio);				\
 		return;							\
 	}								\
@@ -622,7 +622,7 @@ bool btrfs_folio_clamp_test_##name(const struct btrfs_fs_info *fs_info,	\
 				   struct folio *folio, u64 start, u32 len) \
 {									\
 	if (unlikely(!fs_info) ||					\
-	    !btrfs_is_subpage(fs_info, folio->mapping))			\
+	    !btrfs_is_subpage(fs_info, folio))				\
 		return folio_test_func(folio);				\
 	btrfs_subpage_clamp_range(folio, &start, &len);			\
 	return btrfs_subpage_test_##name(fs_info, folio, start, len);	\
@@ -700,7 +700,7 @@ void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 	if (!IS_ENABLED(CONFIG_BTRFS_ASSERT))
 		return;
 
-	if (!btrfs_is_subpage(fs_info, folio->mapping)) {
+	if (!btrfs_is_subpage(fs_info, folio)) {
 		ASSERT(!folio_test_dirty(folio));
 		return;
 	}
@@ -735,7 +735,7 @@ void btrfs_folio_set_lock(const struct btrfs_fs_info *fs_info,
 	int ret;
 
 	ASSERT(folio_test_locked(folio));
-	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, folio->mapping))
+	if (unlikely(!fs_info) || !btrfs_is_subpage(fs_info, folio))
 		return;
 
 	subpage = folio_get_private(folio);
