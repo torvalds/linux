@@ -279,7 +279,7 @@ static bool __posixtimer_deliver_signal(struct kernel_siginfo *info, struct k_it
 	 * since the signal was queued. In either case, don't rearm and
 	 * drop the signal.
 	 */
-	if (timr->it_signal_seq != timr->it_sigqueue_seq || WARN_ON_ONCE(!timr->it_signal))
+	if (timr->it_signal_seq != timr->it_sigqueue_seq || WARN_ON_ONCE(!posixtimer_valid(timr)))
 		return false;
 
 	if (!timr->it_interval || WARN_ON_ONCE(timr->it_status != POSIX_TIMER_REQUEUE_PENDING))
@@ -323,6 +323,9 @@ bool posixtimer_deliver_signal(struct kernel_siginfo *info, struct sigqueue *tim
 void posix_timer_queue_signal(struct k_itimer *timr)
 {
 	lockdep_assert_held(&timr->it_lock);
+
+	if (!posixtimer_valid(timr))
+		return;
 
 	timr->it_status = timr->it_interval ? POSIX_TIMER_REQUEUE_PENDING : POSIX_TIMER_DISARMED;
 	posixtimer_send_sigqueue(timr);
@@ -553,11 +556,11 @@ static struct k_itimer *__lock_timer(timer_t timer_id)
 	 * The hash lookup and the timers are RCU protected.
 	 *
 	 * Timers are added to the hash in invalid state where
-	 * timr::it_signal == NULL. timer::it_signal is only set after the
-	 * rest of the initialization succeeded.
+	 * timr::it_signal is marked invalid. timer::it_signal is only set
+	 * after the rest of the initialization succeeded.
 	 *
 	 * Timer destruction happens in steps:
-	 *  1) Set timr::it_signal to NULL with timr::it_lock held
+	 *  1) Set timr::it_signal marked invalid with timr::it_lock held
 	 *  2) Release timr::it_lock
 	 *  3) Remove from the hash under hash_lock
 	 *  4) Put the reference count.
@@ -574,8 +577,8 @@ static struct k_itimer *__lock_timer(timer_t timer_id)
 	 *
 	 * The lookup validates locklessly that timr::it_signal ==
 	 * current::it_signal and timr::it_id == @timer_id. timr::it_id
-	 * can't change, but timr::it_signal becomes NULL during
-	 * destruction.
+	 * can't change, but timr::it_signal can become invalid during
+	 * destruction, which makes the locked check fail.
 	 */
 	guard(rcu)();
 	timr = posix_timer_by_id(timer_id);
@@ -811,22 +814,13 @@ static void common_timer_wait_running(struct k_itimer *timer)
  * when the task which tries to delete or disarm the timer has preempted
  * the task which runs the expiry in task work context.
  */
-static struct k_itimer *timer_wait_running(struct k_itimer *timer)
+static void timer_wait_running(struct k_itimer *timer)
 {
-	timer_t timer_id = READ_ONCE(timer->it_id);
-
-	/* Prevent kfree(timer) after dropping the lock */
-	scoped_guard (rcu) {
-		unlock_timer(timer);
-		/*
-		 * kc->timer_wait_running() might drop RCU lock. So @timer
-		 * cannot be touched anymore after the function returns!
-		 */
-		timer->kclock->timer_wait_running(timer);
-	}
-
-	/* Relock the timer. It might be not longer hashed. */
-	return lock_timer(timer_id);
+	/*
+	 * kc->timer_wait_running() might drop RCU lock. So @timer
+	 * cannot be touched anymore after the function returns!
+	 */
+	timer->kclock->timer_wait_running(timer);
 }
 
 /*
@@ -885,8 +879,7 @@ static int do_timer_settime(timer_t timer_id, int tmr_flags,
 			    struct itimerspec64 *new_spec64,
 			    struct itimerspec64 *old_spec64)
 {
-	struct k_itimer *timr;
-	int error;
+	int ret;
 
 	if (!timespec64_valid(&new_spec64->it_interval) ||
 	    !timespec64_valid(&new_spec64->it_value))
@@ -895,29 +888,36 @@ static int do_timer_settime(timer_t timer_id, int tmr_flags,
 	if (old_spec64)
 		memset(old_spec64, 0, sizeof(*old_spec64));
 
-	timr = lock_timer(timer_id);
-retry:
-	if (!timr)
-		return -EINVAL;
+	for (;;) {
+		struct k_itimer *timr = lock_timer(timer_id);
 
-	if (old_spec64)
-		old_spec64->it_interval = ktime_to_timespec64(timr->it_interval);
+		if (!timr)
+			return -EINVAL;
 
-	/* Prevent signal delivery and rearming. */
-	timr->it_signal_seq++;
+		if (old_spec64)
+			old_spec64->it_interval = ktime_to_timespec64(timr->it_interval);
 
-	error = timr->kclock->timer_set(timr, tmr_flags, new_spec64, old_spec64);
+		/* Prevent signal delivery and rearming. */
+		timr->it_signal_seq++;
 
-	if (error == TIMER_RETRY) {
-		// We already got the old time...
+		ret = timr->kclock->timer_set(timr, tmr_flags, new_spec64, old_spec64);
+		if (ret != TIMER_RETRY) {
+			unlock_timer(timr);
+			break;
+		}
+
+		/* Read the old time only once */
 		old_spec64 = NULL;
-		/* Unlocks and relocks the timer if it still exists */
-		timr = timer_wait_running(timr);
-		goto retry;
+		/* Protect the timer from being freed after the lock is dropped */
+		guard(rcu)();
+		unlock_timer(timr);
+		/*
+		 * timer_wait_running() might drop RCU read side protection
+		 * so the timer has to be looked up again!
+		 */
+		timer_wait_running(timr);
 	}
-	unlock_timer(timr);
-
-	return error;
+	return ret;
 }
 
 /* Set a POSIX.1b interval timer */
@@ -988,90 +988,56 @@ static inline void posix_timer_cleanup_ignored(struct k_itimer *tmr)
 	}
 }
 
+static void posix_timer_delete(struct k_itimer *timer)
+{
+	/*
+	 * Invalidate the timer, remove it from the linked list and remove
+	 * it from the ignored list if pending.
+	 *
+	 * The invalidation must be written with siglock held so that the
+	 * signal code observes the invalidated timer::it_signal in
+	 * do_sigaction(), which prevents it from moving a pending signal
+	 * of a deleted timer to the ignore list.
+	 *
+	 * The invalidation also prevents signal queueing, signal delivery
+	 * and therefore rearming from the signal delivery path.
+	 *
+	 * A concurrent lookup can still find the timer in the hash, but it
+	 * will check timer::it_signal with timer::it_lock held and observe
+	 * bit 0 set, which invalidates it. That also prevents the timer ID
+	 * from being handed out before this timer is completely gone.
+	 */
+	timer->it_signal_seq++;
+
+	scoped_guard (spinlock, &current->sighand->siglock) {
+		unsigned long sig = (unsigned long)timer->it_signal | 1UL;
+
+		WRITE_ONCE(timer->it_signal, (struct signal_struct *)sig);
+		hlist_del(&timer->list);
+		posix_timer_cleanup_ignored(timer);
+	}
+
+	while (timer->kclock->timer_del(timer) == TIMER_RETRY) {
+		guard(rcu)();
+		spin_unlock_irq(&timer->it_lock);
+		timer_wait_running(timer);
+		spin_lock_irq(&timer->it_lock);
+	}
+}
+
 /* Delete a POSIX.1b interval timer. */
 SYSCALL_DEFINE1(timer_delete, timer_t, timer_id)
 {
 	struct k_itimer *timer = lock_timer(timer_id);
 
-retry_delete:
 	if (!timer)
 		return -EINVAL;
 
-	/* Prevent signal delivery and rearming. */
-	timer->it_signal_seq++;
-
-	if (unlikely(timer->kclock->timer_del(timer) == TIMER_RETRY)) {
-		/* Unlocks and relocks the timer if it still exists */
-		timer = timer_wait_running(timer);
-		goto retry_delete;
-	}
-
-	scoped_guard (spinlock, &current->sighand->siglock) {
-		hlist_del(&timer->list);
-		posix_timer_cleanup_ignored(timer);
-		/*
-		 * A concurrent lookup could check timer::it_signal lockless. It
-		 * will reevaluate with timer::it_lock held and observe the NULL.
-		 *
-		 * It must be written with siglock held so that the signal code
-		 * observes timer->it_signal == NULL in do_sigaction(SIG_IGN),
-		 * which prevents it from moving a pending signal of a deleted
-		 * timer to the ignore list.
-		 */
-		WRITE_ONCE(timer->it_signal, NULL);
-	}
-
+	posix_timer_delete(timer);
 	unlock_timer(timer);
+	/* Remove it from the hash, which frees up the timer ID */
 	posix_timer_unhash_and_free(timer);
 	return 0;
-}
-
-/*
- * Delete a timer if it is armed, remove it from the hash and schedule it
- * for RCU freeing.
- */
-static void itimer_delete(struct k_itimer *timer)
-{
-	spin_lock_irq(&timer->it_lock);
-
-retry_delete:
-	/*
-	 * Even if the timer is not longer accessible from other tasks
-	 * it still might be armed and queued in the underlying timer
-	 * mechanism. Worse, that timer mechanism might run the expiry
-	 * function concurrently.
-	 */
-	if (timer->kclock->timer_del(timer) == TIMER_RETRY) {
-		/*
-		 * Timer is expired concurrently, prevent livelocks
-		 * and pointless spinning on RT.
-		 *
-		 * timer_wait_running() drops timer::it_lock, which opens
-		 * the possibility for another task to delete the timer.
-		 *
-		 * That's not possible here because this is invoked from
-		 * do_exit() only for the last thread of the thread group.
-		 * So no other task can access and delete that timer.
-		 */
-		if (WARN_ON_ONCE(timer_wait_running(timer) != timer))
-			return;
-
-		goto retry_delete;
-	}
-	hlist_del(&timer->list);
-
-	posix_timer_cleanup_ignored(timer);
-
-	/*
-	 * Setting timer::it_signal to NULL is technically not required
-	 * here as nothing can access the timer anymore legitimately via
-	 * the hash table. Set it to NULL nevertheless so that all deletion
-	 * paths are consistent.
-	 */
-	WRITE_ONCE(timer->it_signal, NULL);
-
-	spin_unlock_irq(&timer->it_lock);
-	posix_timer_unhash_and_free(timer);
 }
 
 /*
@@ -1082,6 +1048,8 @@ retry_delete:
 void exit_itimers(struct task_struct *tsk)
 {
 	struct hlist_head timers;
+	struct hlist_node *next;
+	struct k_itimer *timer;
 
 	if (hlist_empty(&tsk->signal->posix_timers))
 		return;
@@ -1091,8 +1059,10 @@ void exit_itimers(struct task_struct *tsk)
 		hlist_move_list(&tsk->signal->posix_timers, &timers);
 
 	/* The timers are not longer accessible via tsk::signal */
-	while (!hlist_empty(&timers)) {
-		itimer_delete(hlist_entry(timers.first, struct k_itimer, list));
+	hlist_for_each_entry_safe(timer, next, &timers, list) {
+		scoped_guard (spinlock_irq, &timer->it_lock)
+			posix_timer_delete(timer);
+		posix_timer_unhash_and_free(timer);
 		cond_resched();
 	}
 
