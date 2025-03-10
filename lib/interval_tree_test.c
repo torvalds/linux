@@ -5,6 +5,7 @@
 #include <linux/prandom.h>
 #include <linux/slab.h>
 #include <asm/timex.h>
+#include <linux/bitmap.h>
 
 #define __param(type, name, init, msg)		\
 	static type name = init;		\
@@ -125,6 +126,73 @@ static int search_check(void)
 	return 0;
 }
 
+static int intersection_range_check(void)
+{
+	int i, j, k;
+	unsigned long start, last;
+	struct interval_tree_node *node;
+	unsigned long *intxn1;
+	unsigned long *intxn2;
+
+	printk(KERN_ALERT "interval tree iteration\n");
+
+	intxn1 = bitmap_alloc(nnodes, GFP_KERNEL);
+	if (!intxn1) {
+		WARN_ON_ONCE("Failed to allocate intxn1\n");
+		return -ENOMEM;
+	}
+
+	intxn2 = bitmap_alloc(nnodes, GFP_KERNEL);
+	if (!intxn2) {
+		WARN_ON_ONCE("Failed to allocate intxn2\n");
+		bitmap_free(intxn1);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < search_loops; i++) {
+		/* Initialize interval tree for each round */
+		init();
+		for (j = 0; j < nnodes; j++)
+			interval_tree_insert(nodes + j, &root);
+
+		/* Let's try nsearches different ranges */
+		for (k = 0; k < nsearches; k++) {
+			/* Try whole range once */
+			if (!k) {
+				start = 0UL;
+				last = ULONG_MAX;
+			} else {
+				last = (prandom_u32_state(&rnd) >> 4) % max_endpoint;
+				start = (prandom_u32_state(&rnd) >> 4) % last;
+			}
+
+			/* Walk nodes to mark intersection nodes */
+			bitmap_zero(intxn1, nnodes);
+			for (j = 0; j < nnodes; j++) {
+				node = nodes + j;
+
+				if (start <= node->last && last >= node->start)
+					bitmap_set(intxn1, j, 1);
+			}
+
+			/* Iterate tree to clear intersection nodes */
+			bitmap_zero(intxn2, nnodes);
+			for (node = interval_tree_iter_first(&root, start, last); node;
+			     node = interval_tree_iter_next(node, start, last))
+				bitmap_set(intxn2, node - nodes, 1);
+
+			WARN_ON_ONCE(!bitmap_equal(intxn1, intxn2, nnodes));
+		}
+
+		for (j = 0; j < nnodes; j++)
+			interval_tree_remove(nodes + j, &root);
+	}
+
+	bitmap_free(intxn1);
+	bitmap_free(intxn2);
+	return 0;
+}
+
 static int interval_tree_test_init(void)
 {
 	nodes = kmalloc_array(nnodes, sizeof(struct interval_tree_node),
@@ -142,6 +210,7 @@ static int interval_tree_test_init(void)
 
 	basic_check();
 	search_check();
+	intersection_range_check();
 
 	kfree(queries);
 	kfree(nodes);
