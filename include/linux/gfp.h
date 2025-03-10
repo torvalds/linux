@@ -55,7 +55,7 @@ static inline bool gfpflags_allow_spinning(const gfp_t gfp_flags)
 	 * regular page allocator doesn't fully support this
 	 * allocation mode.
 	 */
-	return !(gfp_flags & __GFP_RECLAIM);
+	return !!(gfp_flags & __GFP_RECLAIM);
 }
 
 #ifdef CONFIG_HIGHMEM
