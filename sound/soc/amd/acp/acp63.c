@@ -52,16 +52,6 @@ union clk_pll_req_no {
 	u32 clk_pll_req_no_reg;
 };
 
-static struct acp_resource rsrc = {
-	.offset = 0,
-	.no_of_ctrls = 2,
-	.irqp_used = 1,
-	.soc_mclk = true,
-	.irq_reg_offset = 0x1a00,
-	.scratch_reg_offset = 0x12800,
-	.sram_pte_offset = 0x03802800,
-};
-
 static struct snd_soc_dai_driver acp63_dai[] = {
 {
 	.name = "acp-i2s-sp",
@@ -222,11 +212,10 @@ static int acp63_audio_probe(struct platform_device *pdev)
 	}
 
 	chip->dev = dev;
-	chip->rsrc = &rsrc;
 	chip->dai_driver = acp63_dai;
 	chip->num_dai = ARRAY_SIZE(acp63_dai);
 
-	if (chip->is_i2s_config && rsrc.soc_mclk) {
+	if (chip->is_i2s_config && chip->rsrc->soc_mclk) {
 		ret = acp63_i2s_master_clock_generate(chip);
 		if (ret)
 			return ret;

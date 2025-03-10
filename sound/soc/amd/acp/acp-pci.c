@@ -145,6 +145,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		break;
 	case 0x63:
 		chip->name = "acp_asoc_acp63";
+		chip->rsrc = &acp63_rsrc;
 		chip->acp_hw_ops_init = acp63_hw_ops_init;
 		chip->machines = snd_soc_acpi_amd_acp63_acp_machines;
 		break;
