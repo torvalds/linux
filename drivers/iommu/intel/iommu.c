@@ -1197,6 +1197,37 @@ static void iommu_disable_pci_ats(struct device_domain_info *info)
 	info->ats_enabled = 0;
 }
 
+static void iommu_enable_pci_pri(struct device_domain_info *info)
+{
+	struct pci_dev *pdev;
+
+	if (!info->ats_enabled || !info->pri_supported)
+		return;
+
+	pdev = to_pci_dev(info->dev);
+	/* PASID is required in PRG Response Message. */
+	if (info->pasid_enabled && !pci_prg_resp_pasid_required(pdev))
+		return;
+
+	if (pci_reset_pri(pdev))
+		return;
+
+	if (!pci_enable_pri(pdev, PRQ_DEPTH))
+		info->pri_enabled = 1;
+}
+
+static void iommu_disable_pci_pri(struct device_domain_info *info)
+{
+	if (!info->pri_enabled)
+		return;
+
+	if (WARN_ON(info->iopf_refcount))
+		iopf_queue_remove_device(info->iommu->iopf_queue, info->dev);
+
+	pci_disable_pri(to_pci_dev(info->dev));
+	info->pri_enabled = 0;
+}
+
 static void intel_flush_iotlb_all(struct iommu_domain *domain)
 {
 	cache_tag_flush_all(to_dmar_domain(domain));
@@ -3756,6 +3787,7 @@ static struct iommu_device *intel_iommu_probe_device(struct device *dev)
 
 	if (sm_supported(iommu))
 		iommu_enable_pci_ats(info);
+	iommu_enable_pci_pri(info);
 
 	return &iommu->iommu;
 free_table:
@@ -3773,6 +3805,7 @@ static void intel_iommu_release_device(struct device *dev)
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_iommu *iommu = info->iommu;
 
+	iommu_disable_pci_pri(info);
 	iommu_disable_pci_ats(info);
 
 	if (info->pasid_enabled) {
@@ -3861,116 +3894,41 @@ static struct iommu_group *intel_iommu_device_group(struct device *dev)
 	return generic_device_group(dev);
 }
 
-static int context_flip_pri(struct device_domain_info *info, bool enable)
+int intel_iommu_enable_iopf(struct device *dev)
 {
-	struct intel_iommu *iommu = info->iommu;
-	u8 bus = info->bus, devfn = info->devfn;
-	struct context_entry *context;
-	u16 did;
-
-	spin_lock(&iommu->lock);
-	if (context_copied(iommu, bus, devfn)) {
-		spin_unlock(&iommu->lock);
-		return -EINVAL;
-	}
-
-	context = iommu_context_addr(iommu, bus, devfn, false);
-	if (!context || !context_present(context)) {
-		spin_unlock(&iommu->lock);
-		return -ENODEV;
-	}
-	did = context_domain_id(context);
-
-	if (enable)
-		context_set_sm_pre(context);
-	else
-		context_clear_sm_pre(context);
-
-	if (!ecap_coherent(iommu->ecap))
-		clflush_cache_range(context, sizeof(*context));
-	intel_context_flush_present(info, context, did, true);
-	spin_unlock(&iommu->lock);
-
-	return 0;
-}
-
-static int intel_iommu_enable_iopf(struct device *dev)
-{
-	struct pci_dev *pdev = dev_is_pci(dev) ? to_pci_dev(dev) : NULL;
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
-	struct intel_iommu *iommu;
+	struct intel_iommu *iommu = info->iommu;
 	int ret;
 
-	if (!pdev || !info || !info->ats_enabled || !info->pri_supported)
+	if (!info->pri_enabled)
 		return -ENODEV;
 
-	if (info->pri_enabled)
-		return -EBUSY;
-
-	iommu = info->iommu;
-	if (!iommu)
-		return -EINVAL;
-
-	/* PASID is required in PRG Response Message. */
-	if (info->pasid_enabled && !pci_prg_resp_pasid_required(pdev))
-		return -EINVAL;
-
-	ret = pci_reset_pri(pdev);
-	if (ret)
-		return ret;
+	if (info->iopf_refcount) {
+		info->iopf_refcount++;
+		return 0;
+	}
 
 	ret = iopf_queue_add_device(iommu->iopf_queue, dev);
 	if (ret)
 		return ret;
 
-	ret = context_flip_pri(info, true);
-	if (ret)
-		goto err_remove_device;
-
-	ret = pci_enable_pri(pdev, PRQ_DEPTH);
-	if (ret)
-		goto err_clear_pri;
-
-	info->pri_enabled = 1;
+	info->iopf_refcount = 1;
 
 	return 0;
-err_clear_pri:
-	context_flip_pri(info, false);
-err_remove_device:
-	iopf_queue_remove_device(iommu->iopf_queue, dev);
-
-	return ret;
 }
 
-static int intel_iommu_disable_iopf(struct device *dev)
+void intel_iommu_disable_iopf(struct device *dev)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_iommu *iommu = info->iommu;
 
-	if (!info->pri_enabled)
-		return -EINVAL;
+	if (WARN_ON(!info->pri_enabled || !info->iopf_refcount))
+		return;
 
-	/* Disable new PRI reception: */
-	context_flip_pri(info, false);
+	if (--info->iopf_refcount)
+		return;
 
-	/*
-	 * Remove device from fault queue and acknowledge all outstanding
-	 * PRQs to the device:
-	 */
 	iopf_queue_remove_device(iommu->iopf_queue, dev);
-
-	/*
-	 * PCIe spec states that by clearing PRI enable bit, the Page
-	 * Request Interface will not issue new page requests, but has
-	 * outstanding page requests that have been transmitted or are
-	 * queued for transmission. This is supposed to be called after
-	 * the device driver has stopped DMA, all PASIDs have been
-	 * unbound and the outstanding PRQs have been drained.
-	 */
-	pci_disable_pri(to_pci_dev(dev));
-	info->pri_enabled = 0;
-
-	return 0;
 }
 
 static int
@@ -3993,7 +3951,8 @@ intel_iommu_dev_disable_feat(struct device *dev, enum iommu_dev_features feat)
 {
 	switch (feat) {
 	case IOMMU_DEV_FEAT_IOPF:
-		return intel_iommu_disable_iopf(dev);
+		intel_iommu_disable_iopf(dev);
+		return 0;
 
 	case IOMMU_DEV_FEAT_SVA:
 		return 0;
