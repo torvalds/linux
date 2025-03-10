@@ -913,12 +913,6 @@ struct fuse_conn {
 	/** Device ID from the root super block */
 	dev_t dev;
 
-	/** Dentries in the control filesystem */
-	struct dentry *ctl_dentry[FUSE_CTL_NUM_DENTRIES];
-
-	/** number of dentries used in the above array */
-	int ctl_ndents;
-
 	/** Key for lock owner ID scrambling */
 	u32 scramble_key[4];
 
