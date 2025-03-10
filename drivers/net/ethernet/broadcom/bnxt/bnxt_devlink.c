@@ -1023,37 +1023,19 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 
 }
 
-static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
-			     union devlink_param_value *val)
+static int __bnxt_hwrm_nvm_req(struct bnxt *bp,
+			       const struct bnxt_dl_nvm_param *nvm, void *msg,
+			       union devlink_param_value *val)
 {
 	struct hwrm_nvm_get_variable_input *req = msg;
-	struct bnxt_dl_nvm_param nvm_param;
 	struct hwrm_err_output *resp;
 	union bnxt_nvm_data *data;
 	dma_addr_t data_dma_addr;
-	int idx = 0, rc, i;
+	int idx = 0, rc;
 
-	/* Get/Set NVM CFG parameter is supported only on PFs */
-	if (BNXT_VF(bp)) {
-		hwrm_req_drop(bp, req);
-		return -EPERM;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(nvm_params); i++) {
-		if (nvm_params[i].id == param_id) {
-			nvm_param = nvm_params[i];
-			break;
-		}
-	}
-
-	if (i == ARRAY_SIZE(nvm_params)) {
-		hwrm_req_drop(bp, req);
-		return -EOPNOTSUPP;
-	}
-
-	if (nvm_param.dir_type == BNXT_NVM_PORT_CFG)
+	if (nvm->dir_type == BNXT_NVM_PORT_CFG)
 		idx = bp->pf.port_id;
-	else if (nvm_param.dir_type == BNXT_NVM_FUNC_CFG)
+	else if (nvm->dir_type == BNXT_NVM_FUNC_CFG)
 		idx = bp->pf.fw_fid - BNXT_FIRST_PF_FID;
 
 	data = hwrm_req_dma_slice(bp, req, sizeof(*data), &data_dma_addr);
@@ -1064,23 +1046,23 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	}
 
 	req->dest_data_addr = cpu_to_le64(data_dma_addr);
-	req->data_len = cpu_to_le16(nvm_param.nvm_num_bits);
-	req->option_num = cpu_to_le16(nvm_param.offset);
+	req->data_len = cpu_to_le16(nvm->nvm_num_bits);
+	req->option_num = cpu_to_le16(nvm->offset);
 	req->index_0 = cpu_to_le16(idx);
 	if (idx)
 		req->dimensions = cpu_to_le16(1);
 
 	resp = hwrm_req_hold(bp, req);
 	if (req->req_type == cpu_to_le16(HWRM_NVM_SET_VARIABLE)) {
-		bnxt_copy_to_nvm_data(data, val, nvm_param.nvm_num_bits,
-				      nvm_param.dl_num_bytes);
+		bnxt_copy_to_nvm_data(data, val, nvm->nvm_num_bits,
+				      nvm->dl_num_bytes);
 		rc = hwrm_req_send(bp, msg);
 	} else {
 		rc = hwrm_req_send_silent(bp, msg);
 		if (!rc) {
 			bnxt_copy_from_nvm_data(val, data,
-						nvm_param.nvm_num_bits,
-						nvm_param.dl_num_bytes);
+						nvm->nvm_num_bits,
+						nvm->dl_num_bytes);
 		} else {
 			if (resp->cmd_err ==
 				NVM_GET_VARIABLE_CMD_ERR_CODE_VAR_NOT_EXIST)
@@ -1091,6 +1073,27 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	if (rc == -EACCES)
 		netdev_err(bp->dev, "PF does not have admin privileges to modify NVM config\n");
 	return rc;
+}
+
+static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
+			     union devlink_param_value *val)
+{
+	struct hwrm_nvm_get_variable_input *req = msg;
+	const struct bnxt_dl_nvm_param *nvm_param;
+	int i;
+
+	/* Get/Set NVM CFG parameter is supported only on PFs */
+	if (BNXT_VF(bp)) {
+		hwrm_req_drop(bp, req);
+		return -EPERM;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(nvm_params); i++) {
+		nvm_param = &nvm_params[i];
+		if (nvm_param->id == param_id)
+			return __bnxt_hwrm_nvm_req(bp, nvm_param, msg, val);
+	}
+	return -EOPNOTSUPP;
 }
 
 static int bnxt_dl_nvm_param_get(struct devlink *dl, u32 id,
