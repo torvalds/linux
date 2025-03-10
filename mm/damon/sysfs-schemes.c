@@ -1471,7 +1471,7 @@ static int damon_sysfs_access_pattern_add_range_dir(
 	if (!range)
 		return -ENOMEM;
 	err = kobject_init_and_add(&range->kobj, &damon_sysfs_ul_range_ktype,
-			&access_pattern->kobj, name);
+			&access_pattern->kobj, "%s", name);
 	if (err)
 		kobject_put(&range->kobj);
 	else
