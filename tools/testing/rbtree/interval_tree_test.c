@@ -6,6 +6,7 @@
 #include <linux/math64.h>
 #include <linux/kern_levels.h>
 #include "shared.h"
+#include "maple-shared.h"
 
 #include "../../../lib/interval_tree_test.c"
 
@@ -51,6 +52,7 @@ int main(int argc, char **argv)
 			usage();
 	}
 
+	maple_tree_init();
 	interval_tree_tests();
 	return 0;
 }

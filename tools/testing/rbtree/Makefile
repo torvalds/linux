@@ -3,7 +3,7 @@
 .PHONY: clean
 
 TARGETS = rbtree_test interval_tree_test
-OFILES = $(LIBS) rbtree-shim.o interval_tree-shim.o
+OFILES = $(SHARED_OFILES) rbtree-shim.o interval_tree-shim.o maple-shim.o
 DEPS = ../../../include/linux/rbtree.h \
 	../../../include/linux/rbtree_types.h \
 	../../../include/linux/rbtree_augmented.h \
@@ -25,7 +25,9 @@ $(TARGETS):	$(OFILES)
 rbtree-shim.o: $(DEPS)
 rbtree_test.o:  ../../../lib/rbtree_test.c
 interval_tree-shim.o: $(DEPS)
+interval_tree-shim.o: CFLAGS += -DCONFIG_INTERVAL_TREE_SPAN_ITER
 interval_tree_test.o: 	../../../lib/interval_tree_test.c
+interval_tree_test.o: CFLAGS += -DCONFIG_INTERVAL_TREE_SPAN_ITER
 
 clean:
-	$(RM) $(TARGETS) *.o generated/*
+	$(RM) $(TARGETS) *.o radix-tree.c idr.c generated/*
