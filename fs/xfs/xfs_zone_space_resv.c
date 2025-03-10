@@ -160,6 +160,16 @@ xfs_zoned_reserve_available(
 			break;
 
 		/*
+		 * Make sure to start GC if it is not running already. As we
+		 * check the rtavailable count when filling up zones, GC is
+		 * normally already running at this point, but in some setups
+		 * with very few zones we may completely run out of non-
+		 * reserved blocks in between filling zones.
+		 */
+		if (!xfs_is_zonegc_running(mp))
+			wake_up_process(zi->zi_gc_thread);
+
+		/*
 		 * If there is no reclaimable group left and we aren't still
 		 * processing a pending GC request give up as we're fully out
 		 * of space.
