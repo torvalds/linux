@@ -460,6 +460,8 @@ void ilk_pch_post_disable(struct intel_atomic_state *state,
 {
 	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
 	enum pipe pipe = crtc->pipe;
 
 	ilk_disable_pch_transcoder(crtc);
@@ -476,6 +478,8 @@ void ilk_pch_post_disable(struct intel_atomic_state *state,
 	}
 
 	ilk_fdi_pll_disable(crtc);
+
+	intel_disable_shared_dpll(old_crtc_state);
 }
 
 static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)

@@ -1773,8 +1773,6 @@ static void ilk_crtc_disable(struct intel_atomic_state *state,
 
 	intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
 	intel_set_pch_fifo_underrun_reporting(display, pipe, true);
-
-	intel_disable_shared_dpll(old_crtc_state);
 }
 
 static void hsw_crtc_disable(struct intel_atomic_state *state,
