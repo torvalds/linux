@@ -1661,13 +1661,8 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	intel_encoders_pre_pll_enable(state, crtc);
 
-	for_each_pipe_crtc_modeset_enable(display, pipe_crtc, new_crtc_state, i) {
-		const struct intel_crtc_state *pipe_crtc_state =
-			intel_atomic_get_new_crtc_state(state, pipe_crtc);
-
-		if (pipe_crtc_state->shared_dpll)
-			intel_enable_shared_dpll(pipe_crtc_state);
-	}
+	if (new_crtc_state->shared_dpll)
+		intel_enable_shared_dpll(new_crtc_state);
 
 	intel_encoders_pre_enable(state, crtc);
 
@@ -1798,12 +1793,7 @@ static void hsw_crtc_disable(struct intel_atomic_state *state,
 	intel_encoders_disable(state, crtc);
 	intel_encoders_post_disable(state, crtc);
 
-	for_each_pipe_crtc_modeset_disable(display, pipe_crtc, old_crtc_state, i) {
-		const struct intel_crtc_state *old_pipe_crtc_state =
-			intel_atomic_get_old_crtc_state(state, pipe_crtc);
-
-		intel_disable_shared_dpll(old_pipe_crtc_state);
-	}
+	intel_disable_shared_dpll(old_crtc_state);
 
 	intel_encoders_post_pll_disable(state, crtc);
 

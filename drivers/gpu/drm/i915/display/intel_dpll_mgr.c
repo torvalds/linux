@@ -257,7 +257,7 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
-	unsigned int pipe_mask = BIT(crtc->pipe);
+	unsigned int pipe_mask = intel_crtc_joined_pipe_mask(crtc_state);
 	unsigned int old_mask;
 
 	if (drm_WARN_ON(display->drm, !pll))
@@ -303,7 +303,7 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
-	unsigned int pipe_mask = BIT(crtc->pipe);
+	unsigned int pipe_mask = intel_crtc_joined_pipe_mask(crtc_state);
 
 	/* PCH only available on ILK+ */
 	if (DISPLAY_VER(display) < 5)
