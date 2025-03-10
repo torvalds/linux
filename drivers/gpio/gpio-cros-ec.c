@@ -24,24 +24,21 @@
 static const char cros_ec_gpio_prefix[] = "EC:";
 
 /* Setting gpios is only supported when the system is unlocked */
-static void cros_ec_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
+static int cros_ec_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
 	const char *name = gc->names[gpio] + strlen(cros_ec_gpio_prefix);
 	struct cros_ec_device *cros_ec = gpiochip_get_data(gc);
 	struct ec_params_gpio_set params = {
 		.val = val,
 	};
-	int ret;
 	ssize_t copied;
 
 	copied = strscpy(params.name, name, sizeof(params.name));
 	if (copied < 0)
-		return;
+		return copied;
 
-	ret = cros_ec_cmd(cros_ec, 0, EC_CMD_GPIO_SET, &params,
-			  sizeof(params), NULL, 0);
-	if (ret < 0)
-		dev_err(gc->parent, "error setting gpio%d (%s) on EC: %d\n", gpio, name, ret);
+	return cros_ec_cmd(cros_ec, 0, EC_CMD_GPIO_SET, &params,
+			   sizeof(params), NULL, 0);
 }
 
 static int cros_ec_gpio_get(struct gpio_chip *gc, unsigned int gpio)
@@ -191,7 +188,7 @@ static int cros_ec_gpio_probe(struct platform_device *pdev)
 	gc->can_sleep = true;
 	gc->label = dev_name(dev);
 	gc->base = -1;
-	gc->set = cros_ec_gpio_set;
+	gc->set_rv = cros_ec_gpio_set;
 	gc->get = cros_ec_gpio_get;
 	gc->get_direction = cros_ec_gpio_get_direction;
 
