@@ -1184,7 +1184,8 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 		 * RX path since it will be already queued at the end of the TX
 		 * poll loop.
 		 */
-		if (!xfer->hdr.poll_completion)
+		if (!xfer->hdr.poll_completion ||
+		    xfer->hdr.type == MSG_TYPE_DELAYED_RESP)
 			scmi_raw_message_report(info->raw, xfer,
 						SCMI_RAW_REPLY_QUEUE,
 						cinfo->id);
