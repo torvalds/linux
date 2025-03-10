@@ -23,6 +23,7 @@ pub struct Registration(NonNull<bindings::faux_device>);
 
 impl Registration {
     /// Create and register a new faux device with the given name.
+    #[inline]
     pub fn new(name: &CStr, parent: Option<&device::Device>) -> Result<Self> {
         // SAFETY:
         // - `name` is copied by this function into its own storage
@@ -58,6 +59,7 @@ impl AsRef<device::Device> for Registration {
 }
 
 impl Drop for Registration {
+    #[inline]
     fn drop(&mut self) {
         // SAFETY: `self.0` is a valid registered faux_device via our type invariants.
         unsafe { bindings::faux_device_destroy(self.as_raw()) }
