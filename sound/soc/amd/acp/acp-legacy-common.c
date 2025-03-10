@@ -16,6 +16,8 @@
 #include <linux/pci.h>
 #include <linux/export.h>
 
+#include "../mach-config.h"
+
 #define ACP_RENOIR_PDM_ADDR	0x02
 #define ACP_REMBRANDT_PDM_ADDR	0x03
 #define ACP63_PDM_ADDR		0x02
@@ -350,6 +352,32 @@ int acp_deinit(struct acp_chip_info *chip)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(acp_deinit, "SND_SOC_ACP_COMMON");
+int acp_machine_select(struct acp_chip_info *chip)
+{
+	struct snd_soc_acpi_mach *mach;
+	int size, platform;
+
+	if (chip->flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
+		platform = chip->acp_rev;
+		chip->mach_dev = platform_device_register_data(chip->dev, "acp-pdm-mach",
+							       PLATFORM_DEVID_NONE, &platform,
+							       sizeof(platform));
+	} else {
+		size = sizeof(*chip->machines);
+		mach = snd_soc_acpi_find_machine(chip->machines);
+		if (!mach) {
+			dev_err(chip->dev, "warning: No matching ASoC machine driver found\n");
+			return -EINVAL;
+		}
+		mach->mach_params.subsystem_rev = chip->acp_rev;
+		chip->mach_dev = platform_device_register_data(chip->dev, mach->drv_name,
+							       PLATFORM_DEVID_NONE, mach, size);
+	}
+	if (IS_ERR(chip->mach_dev))
+		dev_warn(chip->dev, "Unable to register Machine device\n");
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(acp_machine_select, "SND_SOC_ACP_COMMON");
 
 static void check_acp3x_config(struct acp_chip_info *chip)
 {

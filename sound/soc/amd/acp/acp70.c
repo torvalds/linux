@@ -40,14 +40,6 @@ static struct acp_resource rsrc = {
 	.sram_pte_offset = 0x03800000,
 };
 
-static struct snd_soc_acpi_mach snd_soc_acpi_amd_acp70_acp_machines[] = {
-	{
-		.id = "AMDI0029",
-		.drv_name = "acp70-acp",
-	},
-	{},
-};
-
 static struct snd_soc_dai_driver acp70_dai[] = {
 {
 	.name = "acp-i2s-sp",
@@ -187,10 +179,8 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 	adata->dai_driver = acp70_dai;
 	adata->num_dai = ARRAY_SIZE(acp70_dai);
 	adata->rsrc = &rsrc;
-	adata->machines = snd_soc_acpi_amd_acp70_acp_machines;
 	adata->acp_rev = chip->acp_rev;
 	adata->flag = chip->flag;
-	acp_machine_select(adata);
 
 	dev_set_drvdata(dev, adata);
 

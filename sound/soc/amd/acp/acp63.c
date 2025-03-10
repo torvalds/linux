@@ -62,14 +62,6 @@ static struct acp_resource rsrc = {
 	.sram_pte_offset = 0x03802800,
 };
 
-static struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_acp_machines[] = {
-	{
-		.id = "AMDI0052",
-		.drv_name = "acp63-acp",
-	},
-	{},
-};
-
 static struct snd_soc_dai_driver acp63_dai[] = {
 {
 	.name = "acp-i2s-sp",
@@ -259,8 +251,6 @@ static int acp63_audio_probe(struct platform_device *pdev)
 	adata->acp_rev = chip->acp_rev;
 	adata->flag = chip->flag;
 	adata->is_i2s_config = chip->is_i2s_config;
-	adata->machines = snd_soc_acpi_amd_acp63_acp_machines;
-	acp_machine_select(adata);
 	dev_set_drvdata(dev, adata);
 
 	if (chip->is_i2s_config && rsrc.soc_mclk) {

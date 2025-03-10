@@ -21,7 +21,6 @@
 #include <linux/dma-mapping.h>
 
 #include "amd.h"
-#include "../mach-config.h"
 #include "acp-mach.h"
 
 #define DRV_NAME "acp_i2s_dma"
@@ -107,33 +106,6 @@ static const struct snd_pcm_hardware acp6x_pcm_hardware_capture = {
 	.periods_min = CAPTURE_MIN_NUM_PERIODS,
 	.periods_max = CAPTURE_MAX_NUM_PERIODS,
 };
-
-int acp_machine_select(struct acp_dev_data *adata)
-{
-	struct snd_soc_acpi_mach *mach;
-	int size, platform;
-
-	if (adata->flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
-		platform = adata->acp_rev;
-		adata->mach_dev = platform_device_register_data(adata->dev, "acp-pdm-mach",
-								PLATFORM_DEVID_NONE, &platform,
-								sizeof(platform));
-	} else {
-		size = sizeof(*adata->machines);
-		mach = snd_soc_acpi_find_machine(adata->machines);
-		if (!mach) {
-			dev_err(adata->dev, "warning: No matching ASoC machine driver found\n");
-			return -EINVAL;
-		}
-		mach->mach_params.subsystem_rev = adata->acp_rev;
-		adata->mach_dev = platform_device_register_data(adata->dev, mach->drv_name,
-								PLATFORM_DEVID_NONE, mach, size);
-	}
-	if (IS_ERR(adata->mach_dev))
-		dev_warn(adata->dev, "Unable to register Machine device\n");
-	return 0;
-}
-EXPORT_SYMBOL_NS_GPL(acp_machine_select, "SND_SOC_ACP_COMMON");
 
 static irqreturn_t i2s_irq_handler(int irq, void *data)
 {

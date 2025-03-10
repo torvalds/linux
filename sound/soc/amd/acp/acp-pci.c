@@ -127,19 +127,23 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	case 0x01:
 		chip->name = "acp_asoc_renoir";
 		chip->acp_hw_ops_init = acp31_hw_ops_init;
+		chip->machines = snd_soc_acpi_amd_acp_machines;
 		break;
 	case 0x6f:
 		chip->name = "acp_asoc_rembrandt";
 		chip->acp_hw_ops_init = acp6x_hw_ops_init;
+		chip->machines = snd_soc_acpi_amd_rmb_acp_machines;
 		break;
 	case 0x63:
 		chip->name = "acp_asoc_acp63";
 		chip->acp_hw_ops_init = acp63_hw_ops_init;
+		chip->machines = snd_soc_acpi_amd_acp63_acp_machines;
 		break;
 	case 0x70:
 	case 0x71:
 		chip->name = "acp_asoc_acp70";
 		chip->acp_hw_ops_init = acp70_hw_ops_init;
+		chip->machines = snd_soc_acpi_amd_acp70_acp_machines;
 		break;
 	default:
 		dev_err(dev, "Unsupported device revision:0x%x\n", pci->revision);
@@ -175,6 +179,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	chip->chip_pdev = chip->acp_plat_dev;
 	chip->dev = &chip->acp_plat_dev->dev;
 
+	acp_machine_select(chip);
 skip_pdev_creation:
 	dev_set_drvdata(&pci->dev, chip);
 	pm_runtime_set_autosuspend_delay(&pci->dev, 2000);
@@ -242,6 +247,8 @@ static void acp_pci_remove(struct pci_dev *pci)
 		platform_device_unregister(chip->dmic_codec_dev);
 	if (chip->acp_plat_dev)
 		platform_device_unregister(chip->acp_plat_dev);
+	if (chip->mach_dev)
+		platform_device_unregister(chip->mach_dev);
 
 	ret = acp_hw_deinit(chip);
 	if (ret)
