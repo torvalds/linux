@@ -158,9 +158,9 @@ int qnap_mcu_exec(struct qnap_mcu *mcu,
 
 	mutex_lock(&mcu->bus_lock);
 
-	reply->data = rx,
-	reply->length = length,
-	reply->received = 0,
+	reply->data = rx;
+	reply->length = length;
+	reply->received = 0;
 	reinit_completion(&reply->done);
 
 	qnap_mcu_write(mcu, cmd_data, cmd_data_size);
