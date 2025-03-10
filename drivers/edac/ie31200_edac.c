@@ -51,6 +51,7 @@
 #include <linux/edac.h>
 
 #include <linux/io-64-nonatomic-lo-hi.h>
+#include <asm/mce.h>
 #include "edac_module.h"
 
 #define EDAC_MOD_STR "ie31200_edac"
@@ -123,6 +124,7 @@ static int ie31200_registered = 1;
 
 struct res_config {
 	enum mem_type mtype;
+	bool cmci;
 	int imc_num;
 	/* Host MMIO configuration register */
 	u64 reg_mchbar_mask;
@@ -172,6 +174,7 @@ struct ie31200_error_info {
 	u16 errsts;
 	u16 errsts2;
 	u64 eccerrlog[IE31200_CHANNELS];
+	u64 erraddr;
 };
 
 static const struct ie31200_dev_info ie31200_devs[] = {
@@ -327,13 +330,13 @@ static void ie31200_process_error_info(struct mem_ctl_info *mci,
 		log = info->eccerrlog[channel];
 		if (log & cfg->reg_eccerrlog_ue_mask) {
 			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
-					     0, 0, 0,
+					     info->erraddr >> PAGE_SHIFT, 0, 0,
 					     field_get(cfg->reg_eccerrlog_rank_mask, log),
 					     channel, -1,
 					     "ie31200 UE", "");
 		} else if (log & cfg->reg_eccerrlog_ce_mask) {
 			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-					     0, 0,
+					     info->erraddr >> PAGE_SHIFT, 0,
 					     field_get(cfg->reg_eccerrlog_syndrome_mask, log),
 					     field_get(cfg->reg_eccerrlog_rank_mask, log),
 					     channel, -1,
@@ -342,12 +345,18 @@ static void ie31200_process_error_info(struct mem_ctl_info *mci,
 	}
 }
 
-static void ie31200_check(struct mem_ctl_info *mci)
+static void __ie31200_check(struct mem_ctl_info *mci, struct mce *mce)
 {
 	struct ie31200_error_info info;
 
+	info.erraddr = mce ? mce->addr : 0;
 	ie31200_get_and_clear_error_info(mci, &info);
 	ie31200_process_error_info(mci, &info);
+}
+
+static void ie31200_check(struct mem_ctl_info *mci)
+{
+	__ie31200_check(mci, NULL);
 }
 
 static void __iomem *ie31200_map_mchbar(struct pci_dev *pdev, struct res_config *cfg, int mc)
@@ -459,7 +468,7 @@ static int ie31200_register_mci(struct pci_dev *pdev, struct res_config *cfg, in
 	mci->mod_name = EDAC_MOD_STR;
 	mci->ctl_name = ie31200_devs[mc].ctl_name;
 	mci->dev_name = pci_name(pdev);
-	mci->edac_check = ie31200_check;
+	mci->edac_check = cfg->cmci ? NULL : ie31200_check;
 	mci->ctl_page_to_phys = NULL;
 	priv = mci->pvt_info;
 	priv->window = window;
@@ -499,6 +508,58 @@ fail_free:
 	return ret;
 }
 
+static void mce_check(struct mce *mce)
+{
+	struct ie31200_priv *priv;
+	int i;
+
+	for (i = 0; i < IE31200_IMC_NUM; i++) {
+		priv = ie31200_pvt.priv[i];
+		if (!priv)
+			continue;
+
+		__ie31200_check(priv->mci, mce);
+	}
+}
+
+static int mce_handler(struct notifier_block *nb, unsigned long val, void *data)
+{
+	struct mce *mce = (struct mce *)data;
+	char *type;
+
+	if (mce->kflags & MCE_HANDLED_CEC)
+		return NOTIFY_DONE;
+
+	/*
+	 * Ignore unless this is a memory related error.
+	 * Don't check MCI_STATUS_ADDRV since it's not set on some CPUs.
+	 */
+	if ((mce->status & 0xefff) >> 7 != 1)
+		return NOTIFY_DONE;
+
+	type = mce->mcgstatus & MCG_STATUS_MCIP ?  "Exception" : "Event";
+
+	edac_dbg(0, "CPU %d: Machine Check %s: 0x%llx Bank %d: 0x%llx\n",
+		 mce->extcpu, type, mce->mcgstatus,
+		 mce->bank, mce->status);
+	edac_dbg(0, "TSC 0x%llx\n", mce->tsc);
+	edac_dbg(0, "ADDR 0x%llx\n", mce->addr);
+	edac_dbg(0, "MISC 0x%llx\n", mce->misc);
+	edac_dbg(0, "PROCESSOR %u:0x%x TIME %llu SOCKET %u APIC 0x%x\n",
+		 mce->cpuvendor, mce->cpuid, mce->time,
+		 mce->socketid, mce->apicid);
+
+	mce_check(mce);
+	mce->kflags |= MCE_HANDLED_EDAC;
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ie31200_mce_dec = {
+	.notifier_call	= mce_handler,
+	.priority	= MCE_PRIO_EDAC,
+};
+
 static void ie31200_unregister_mcis(void)
 {
 	struct ie31200_priv *priv;
@@ -534,6 +595,13 @@ static int ie31200_probe1(struct pci_dev *pdev, struct res_config *cfg)
 			goto fail_register;
 	}
 
+	if (cfg->cmci) {
+		mce_register_decode_chain(&ie31200_mce_dec);
+		edac_op_state = EDAC_OPSTATE_INT;
+	} else {
+		edac_op_state = EDAC_OPSTATE_POLL;
+	}
+
 	/* get this far and it's successful. */
 	edac_dbg(3, "MC: success\n");
 	return 0;
@@ -560,9 +628,13 @@ static int ie31200_init_one(struct pci_dev *pdev,
 
 static void ie31200_remove_one(struct pci_dev *pdev)
 {
+	struct ie31200_priv *priv = ie31200_pvt.priv[0];
+
 	edac_dbg(0, "\n");
 	pci_dev_put(mci_pdev);
 	mci_pdev = NULL;
+	if (priv->cfg->cmci)
+		mce_unregister_decode_chain(&ie31200_mce_dec);
 	ie31200_unregister_mcis();
 }
 
@@ -612,6 +684,7 @@ static struct res_config skl_cfg = {
 
 struct res_config rpl_s_cfg = {
 	.mtype				= MEM_DDR5,
+	.cmci				= true,
 	.imc_num			= 2,
 	.reg_mchbar_mask		= GENMASK_ULL(41, 17),
 	.reg_mchbar_window_size		= BIT_ULL(16),
@@ -677,8 +750,6 @@ static int __init ie31200_init(void)
 	int pci_rc, i;
 
 	edac_dbg(3, "MC:\n");
-	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
-	opstate_init();
 
 	pci_rc = pci_register_driver(&ie31200_driver);
 	if (pci_rc < 0)
