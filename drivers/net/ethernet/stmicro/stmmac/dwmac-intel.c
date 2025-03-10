@@ -494,10 +494,10 @@ static int intel_tsn_lane_is_available(struct net_device *ndev,
 			if ((rbuf.buf[0] >>
 				(4 * (intel_priv->tsn_lane_regs[j] % 8)) &
 					B_PCH_FIA_PCR_L0O) == 0xB)
-				return ret;
+				return 0;
 	}
 
-	return ret;
+	return -EINVAL;
 }
 
 static int intel_set_reg_access(const struct pmc_serdes_regs *regs, int max_regs)
