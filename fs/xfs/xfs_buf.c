@@ -1633,13 +1633,18 @@ xfs_buf_zero(
 {
 	size_t			bend;
 
+	if (bp->b_addr) {
+		memset(bp->b_addr + boff, 0, bsize);
+		return;
+	}
+
 	bend = boff + bsize;
 	while (boff < bend) {
 		struct page	*page;
 		int		page_index, page_offset, csize;
 
-		page_index = (boff + bp->b_offset) >> PAGE_SHIFT;
-		page_offset = (boff + bp->b_offset) & ~PAGE_MASK;
+		page_index = boff >> PAGE_SHIFT;
+		page_offset = boff & ~PAGE_MASK;
 		page = bp->b_pages[page_index];
 		csize = min_t(size_t, PAGE_SIZE - page_offset,
 				      BBTOB(bp->b_length) - boff);
