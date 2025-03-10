@@ -240,6 +240,7 @@ xfs_buf_alloc_kmem(
 		return -ENOMEM;
 	}
 	bp->b_flags |= _XBF_KMEM;
+	trace_xfs_buf_backing_kmem(bp, _RET_IP_);
 	return 0;
 }
 
@@ -319,9 +320,11 @@ xfs_buf_alloc_backing_mem(
 	if (!folio) {
 		if (size <= PAGE_SIZE)
 			return -ENOMEM;
+		trace_xfs_buf_backing_fallback(bp, _RET_IP_);
 		goto fallback;
 	}
 	bp->b_addr = folio_address(folio);
+	trace_xfs_buf_backing_folio(bp, _RET_IP_);
 	return 0;
 
 fallback:
@@ -335,6 +338,7 @@ fallback:
 		memalloc_retry_wait(gfp_mask);
 	}
 
+	trace_xfs_buf_backing_vmalloc(bp, _RET_IP_);
 	return 0;
 }
 
