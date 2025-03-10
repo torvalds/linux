@@ -5077,8 +5077,9 @@ static int bnxt_set_dump(struct net_device *dev, struct ethtool_dump *dump)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (dump->flag > BNXT_DUMP_DRIVER) {
-		netdev_info(dev, "Supports only Live(0), Crash(1), Driver(2) dumps.\n");
+	if (dump->flag > BNXT_DUMP_LIVE_WITH_CTX_L1_CACHE) {
+		netdev_info(dev,
+			    "Supports only Live(0), Crash(1), Driver(2), Live with cached context(3) dumps.\n");
 		return -EINVAL;
 	}
 
