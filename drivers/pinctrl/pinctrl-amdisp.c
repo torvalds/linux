@@ -183,8 +183,8 @@ static int amdisp_pinctrl_probe(struct platform_device *pdev)
 	pdev->dev.init_name = DRV_NAME;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (IS_ERR(res))
-		return PTR_ERR(res);
+	if (!res)
+		return -EINVAL;
 
 	pctrl->gpiobase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pctrl->gpiobase))
