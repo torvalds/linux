@@ -4451,6 +4451,7 @@ void sev_vcpu_after_set_cpuid(struct vcpu_svm *svm)
 
 static void sev_es_init_vmcb(struct vcpu_svm *svm)
 {
+	struct kvm_sev_info *sev = to_kvm_sev_info(svm->vcpu.kvm);
 	struct vmcb *vmcb = svm->vmcb01.ptr;
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 
@@ -4465,6 +4466,10 @@ static void sev_es_init_vmcb(struct vcpu_svm *svm)
 	 */
 	if (svm->sev_es.vmsa && !svm->sev_es.snp_has_guest_vmsa)
 		svm->vmcb->control.vmsa_pa = __pa(svm->sev_es.vmsa);
+
+	if (cpu_feature_enabled(X86_FEATURE_ALLOWED_SEV_FEATURES))
+		svm->vmcb->control.allowed_sev_features = sev->vmsa_features |
+							  VMCB_ALLOWED_SEV_FEATURES_VALID;
 
 	/* Can't intercept CR register access, HV can't modify CR registers */
 	svm_clr_intercept(svm, INTERCEPT_CR0_READ);
