@@ -111,7 +111,7 @@
 			reg = <0x0>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <485>;
-			clocks = <&scmi_clk ARMCLK_L>;
+			clocks = <&scmi_clk SCMI_ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <120>;
@@ -124,7 +124,7 @@
 			reg = <0x1>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <485>;
-			clocks = <&scmi_clk ARMCLK_L>;
+			clocks = <&scmi_clk SCMI_ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -135,7 +135,7 @@
 			reg = <0x2>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <485>;
-			clocks = <&scmi_clk ARMCLK_L>;
+			clocks = <&scmi_clk SCMI_ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -146,7 +146,7 @@
 			reg = <0x3>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <485>;
-			clocks = <&scmi_clk ARMCLK_L>;
+			clocks = <&scmi_clk SCMI_ARMCLK_L>;
 			operating-points-v2 = <&cluster0_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -157,7 +157,7 @@
 			reg = <0x100>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			clocks = <&scmi_clk ARMCLK_B>;
+			clocks = <&scmi_clk SCMI_ARMCLK_B>;
 			operating-points-v2 = <&cluster1_opp_table>;
 			#cooling-cells = <2>;
 			dynamic-power-coefficient = <320>;
@@ -170,7 +170,7 @@
 			reg = <0x101>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			clocks = <&scmi_clk ARMCLK_B>;
+			clocks = <&scmi_clk SCMI_ARMCLK_B>;
 			operating-points-v2 = <&cluster1_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -181,7 +181,7 @@
 			reg = <0x102>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			clocks = <&scmi_clk ARMCLK_B>;
+			clocks = <&scmi_clk SCMI_ARMCLK_B>;
 			operating-points-v2 = <&cluster1_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -192,7 +192,7 @@
 			reg = <0x103>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			clocks = <&scmi_clk ARMCLK_B>;
+			clocks = <&scmi_clk SCMI_ARMCLK_B>;
 			operating-points-v2 = <&cluster1_opp_table>;
 			cpu-idle-states = <&CPU_SLEEP>;
 		};
@@ -932,7 +932,7 @@
 		gpu: gpu@27800000 {
 			compatible = "rockchip,rk3576-mali", "arm,mali-bifrost";
 			reg = <0x0 0x27800000 0x0 0x200000>;
-			assigned-clocks = <&scmi_clk CLK_GPU>;
+			assigned-clocks = <&scmi_clk SCMI_CLK_GPU>;
 			assigned-clock-rates = <198000000>;
 			clocks = <&cru CLK_GPU>;
 			clock-names = "core";
