@@ -5,7 +5,7 @@
  * Copyright 2007-2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2023, 2025 Intel Corporation
  */
 #include <linux/export.h>
 #include <linux/bitops.h>
@@ -2908,7 +2908,7 @@ bool cfg80211_radio_chandef_valid(const struct wiphy_radio *radio,
 	u32 freq, width;
 
 	freq = ieee80211_chandef_to_khz(chandef);
-	width = nl80211_chan_width_to_mhz(chandef->width);
+	width = cfg80211_chandef_get_width(chandef);
 	if (!ieee80211_radio_freq_range_valid(radio, freq, width))
 		return false;
 

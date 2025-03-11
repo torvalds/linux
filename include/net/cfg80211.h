@@ -1009,6 +1009,17 @@ cfg80211_chandef_compatible(const struct cfg80211_chan_def *chandef1,
 int nl80211_chan_width_to_mhz(enum nl80211_chan_width chan_width);
 
 /**
+ * cfg80211_chandef_get_width - return chandef width in MHz
+ * @c: chandef to return bandwidth for
+ * Return: channel width in MHz for the given chandef; note that it returns
+ *	80 for 80+80 configurations
+ */
+static inline int cfg80211_chandef_get_width(const struct cfg80211_chan_def *c)
+{
+	return nl80211_chan_width_to_mhz(c->width);
+}
+
+/**
  * cfg80211_chandef_valid - check if a channel definition is valid
  * @chandef: the channel definition to check
  * Return: %true if the channel definition is valid. %false otherwise.

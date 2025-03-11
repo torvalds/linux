@@ -55,11 +55,6 @@ void cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 }
 EXPORT_SYMBOL(cfg80211_chandef_create);
 
-static int cfg80211_chandef_get_width(const struct cfg80211_chan_def *c)
-{
-	return nl80211_chan_width_to_mhz(c->width);
-}
-
 static u32 cfg80211_get_start_freq(const struct cfg80211_chan_def *chandef,
 				   u32 cf)
 {
