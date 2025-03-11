@@ -4667,8 +4667,8 @@ find_next_key:
 		 * we didn't find a candidate key in this node, walk forward
 		 * and find another one
 		 */
+		path->slots[level] = slot;
 		if (slot >= nritems) {
-			path->slots[level] = slot;
 			sret = btrfs_find_next_key(root, path, min_key, level,
 						  min_trans);
 			if (sret == 0) {
@@ -4678,7 +4678,6 @@ find_next_key:
 				goto out;
 			}
 		}
-		path->slots[level] = slot;
 		if (level == path->lowest_level) {
 			ret = 0;
 			/* Save our key for returning back. */
