@@ -1563,8 +1563,9 @@ skip:
 
 }
 
-static struct hpd_rx_irq_offload_work_queue *hpd_rx_irq_create_workqueue(struct dc *dc)
+static struct hpd_rx_irq_offload_work_queue *hpd_rx_irq_create_workqueue(struct amdgpu_device *adev)
 {
+	struct dc *dc = adev->dm.dc;
 	int max_caps = dc->caps.max_links;
 	int i = 0;
 	struct hpd_rx_irq_offload_work_queue *hpd_rx_offload_wq = NULL;
@@ -1580,7 +1581,7 @@ static struct hpd_rx_irq_offload_work_queue *hpd_rx_irq_create_workqueue(struct 
 				    create_singlethread_workqueue("amdgpu_dm_hpd_rx_offload_wq");
 
 		if (hpd_rx_offload_wq[i].wq == NULL) {
-			DRM_ERROR("create amdgpu_dm_hpd_rx_offload_wq fail!");
+			drm_err(adev_to_drm(adev), "create amdgpu_dm_hpd_rx_offload_wq fail!");
 			goto out_err;
 		}
 
@@ -2146,7 +2147,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	dc_hardware_init(adev->dm.dc);
 
-	adev->dm.hpd_rx_offload_wq = hpd_rx_irq_create_workqueue(adev->dm.dc);
+	adev->dm.hpd_rx_offload_wq = hpd_rx_irq_create_workqueue(adev);
 	if (!adev->dm.hpd_rx_offload_wq) {
 		DRM_ERROR("amdgpu: failed to create hpd rx offload workqueue.\n");
 		goto error;
