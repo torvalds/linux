@@ -401,6 +401,61 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	return 0;
 }
 
+void
+nouveau_bo_unpin_del(struct nouveau_bo **pnvbo)
+{
+	struct nouveau_bo *nvbo = *pnvbo;
+
+	if (!nvbo)
+		return;
+
+	nouveau_bo_unmap(nvbo);
+	nouveau_bo_unpin(nvbo);
+	nouveau_bo_fini(nvbo);
+
+	*pnvbo = NULL;
+}
+
+int
+nouveau_bo_new_pin(struct nouveau_cli *cli, u32 domain, u32 size, struct nouveau_bo **pnvbo)
+{
+	struct nouveau_bo *nvbo;
+	int ret;
+
+	ret = nouveau_bo_new(cli, size, 0, domain, 0, 0, NULL, NULL, &nvbo);
+	if (ret)
+		return ret;
+
+	ret = nouveau_bo_pin(nvbo, domain, false);
+	if (ret) {
+		nouveau_bo_fini(nvbo);
+		return ret;
+	}
+
+	*pnvbo = nvbo;
+	return 0;
+}
+
+int
+nouveau_bo_new_map(struct nouveau_cli *cli, u32 domain, u32 size, struct nouveau_bo **pnvbo)
+{
+	struct nouveau_bo *nvbo;
+	int ret;
+
+	ret = nouveau_bo_new_pin(cli, domain, size, &nvbo);
+	if (ret)
+		return ret;
+
+	ret = nouveau_bo_map(nvbo);
+	if (ret) {
+		nouveau_bo_unpin_del(&nvbo);
+		return ret;
+	}
+
+	*pnvbo = nvbo;
+	return 0;
+}
+
 static void
 set_placement_range(struct nouveau_bo *nvbo, uint32_t domain)
 {

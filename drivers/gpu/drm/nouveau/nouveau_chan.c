@@ -105,10 +105,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_mem_dtor(&chan->mem_userd);
 		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
-		nouveau_bo_unmap(chan->push.buffer);
-		if (chan->push.buffer && chan->push.buffer->bo.pin_count)
-			nouveau_bo_unpin(chan->push.buffer);
-		nouveau_bo_fini(chan->push.buffer);
+		nouveau_bo_unpin_del(&chan->push.buffer);
 		kfree(chan);
 	}
 	*pchan = NULL;
@@ -163,14 +160,7 @@ nouveau_channel_prep(struct nouveau_cli *cli,
 	if (nouveau_vram_pushbuf)
 		target = NOUVEAU_GEM_DOMAIN_VRAM;
 
-	ret = nouveau_bo_new(cli, size, 0, target, 0, 0, NULL, NULL,
-			    &chan->push.buffer);
-	if (ret == 0) {
-		ret = nouveau_bo_pin(chan->push.buffer, target, false);
-		if (ret == 0)
-			ret = nouveau_bo_map(chan->push.buffer);
-	}
-
+	ret = nouveau_bo_new_map(cli, target, size, &chan->push.buffer);
 	if (ret) {
 		nouveau_channel_del(pchan);
 		return ret;
