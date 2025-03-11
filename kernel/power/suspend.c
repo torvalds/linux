@@ -95,8 +95,12 @@ static void s2idle_enter(void)
 	 * The correctness of the code below depends on the number of online
 	 * CPUs being stable, but CPUs cannot be taken offline or put online
 	 * while it is running.
+	 *
+	 * The s2idle_lock must be acquired before the pending wakeup check to
+	 * prevent pm_system_wakeup() from running as a whole between that check
+	 * and the subsequent s2idle_state update in which case a wakeup event
+	 * would get lost.
 	 */
-
 	raw_spin_lock_irq(&s2idle_lock);
 	if (pm_wakeup_pending())
 		goto out;
