@@ -58,7 +58,7 @@ pub use new_mutex;
 /// }
 ///
 /// // Allocate a boxed `Example`.
-/// let e = Box::pin_init(Example::new(), GFP_KERNEL)?;
+/// let e = KBox::pin_init(Example::new(), GFP_KERNEL)?;
 /// assert_eq!(e.c, 10);
 /// assert_eq!(e.d.lock().a, 20);
 /// assert_eq!(e.d.lock().b, 30);
@@ -86,6 +86,14 @@ pub use new_mutex;
 /// [`struct mutex`]: srctree/include/linux/mutex.h
 pub type Mutex<T> = super::Lock<T, MutexBackend>;
 
+/// A [`Guard`] acquired from locking a [`Mutex`].
+///
+/// This is simply a type alias for a [`Guard`] returned from locking a [`Mutex`]. It will unlock
+/// the [`Mutex`] upon being dropped.
+///
+/// [`Guard`]: super::Guard
+pub type MutexGuard<'a, T> = super::Guard<'a, T, MutexBackend>;
+
 /// A kernel `struct mutex` lock backend.
 pub struct MutexBackend;
 
@@ -96,7 +104,7 @@ unsafe impl super::Backend for MutexBackend {
 
     unsafe fn init(
         ptr: *mut Self::State,
-        name: *const core::ffi::c_char,
+        name: *const crate::ffi::c_char,
         key: *mut bindings::lock_class_key,
     ) {
         // SAFETY: The safety requirements ensure that `ptr` is valid for writes, and `name` and
@@ -114,5 +122,21 @@ unsafe impl super::Backend for MutexBackend {
         // SAFETY: The safety requirements of this function ensure that `ptr` is valid and that the
         // caller is the owner of the mutex.
         unsafe { bindings::mutex_unlock(ptr) };
+    }
+
+    unsafe fn try_lock(ptr: *mut Self::State) -> Option<Self::GuardState> {
+        // SAFETY: The `ptr` pointer is guaranteed to be valid and initialized before use.
+        let result = unsafe { bindings::mutex_trylock(ptr) };
+
+        if result != 0 {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    unsafe fn assert_is_held(ptr: *mut Self::State) {
+        // SAFETY: The `ptr` pointer is guaranteed to be valid and initialized before use.
+        unsafe { bindings::mutex_assert_is_held(ptr) }
     }
 }

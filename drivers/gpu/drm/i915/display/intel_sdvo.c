@@ -36,6 +36,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_eld.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -2081,10 +2082,10 @@ intel_sdvo_get_edid(struct drm_connector *connector)
 static const struct drm_edid *
 intel_sdvo_get_analog_edid(struct drm_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 	struct i2c_adapter *ddc;
 
-	ddc = intel_gmbus_get_adapter(i915, i915->display.vbt.crt_ddc_pin);
+	ddc = intel_gmbus_get_adapter(display, display->vbt.crt_ddc_pin);
 	if (!ddc)
 		return NULL;
 
@@ -2135,6 +2136,7 @@ intel_sdvo_connector_matches_edid(struct intel_sdvo_connector *sdvo,
 static enum drm_connector_status
 intel_sdvo_detect(struct drm_connector *connector, bool force)
 {
+	struct intel_display *display = to_intel_display(connector->dev);
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
@@ -2144,10 +2146,10 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	if (!intel_display_device_enabled(i915))
+	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
 
-	if (!intel_display_driver_check_access(i915))
+	if (!intel_display_driver_check_access(display))
 		return connector->status;
 
 	if (!intel_sdvo_set_target_output(intel_sdvo,
@@ -2195,14 +2197,14 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 
 static int intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 	int num_modes = 0;
 	const struct drm_edid *drm_edid;
 
 	drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	if (!intel_display_driver_check_access(i915))
+	if (!intel_display_driver_check_access(display))
 		return drm_edid_connector_add_modes(connector);
 
 	/* set the bus switch and get the modes */
@@ -2296,6 +2298,7 @@ static const struct drm_display_mode sdvo_tv_modes[] = {
 
 static int intel_sdvo_get_tv_modes(struct drm_connector *connector)
 {
+	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	struct drm_i915_private *i915 = to_i915(intel_sdvo->base.base.dev);
 	struct intel_sdvo_connector *intel_sdvo_connector =
@@ -2309,7 +2312,7 @@ static int intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	if (!intel_display_driver_check_access(i915))
+	if (!intel_display_driver_check_access(display))
 		return 0;
 
 	/*
@@ -2637,6 +2640,7 @@ intel_sdvo_select_ddc_bus(struct intel_sdvo *sdvo,
 static void
 intel_sdvo_select_i2c_bus(struct intel_sdvo *sdvo)
 {
+	struct intel_display *display = to_intel_display(&sdvo->base);
 	struct drm_i915_private *dev_priv = to_i915(sdvo->base.base.dev);
 	const struct sdvo_device_mapping *mapping;
 	u8 pin;
@@ -2647,7 +2651,7 @@ intel_sdvo_select_i2c_bus(struct intel_sdvo *sdvo)
 		mapping = &dev_priv->display.vbt.sdvo_mappings[1];
 
 	if (mapping->initialized &&
-	    intel_gmbus_is_valid_pin(dev_priv, mapping->i2c_pin))
+	    intel_gmbus_is_valid_pin(display, mapping->i2c_pin))
 		pin = mapping->i2c_pin;
 	else
 		pin = GMBUS_PIN_DPB;
@@ -2656,7 +2660,7 @@ intel_sdvo_select_i2c_bus(struct intel_sdvo *sdvo)
 		    sdvo->base.base.base.id, sdvo->base.base.name,
 		    pin, sdvo->target_addr);
 
-	sdvo->i2c = intel_gmbus_get_adapter(dev_priv, pin);
+	sdvo->i2c = intel_gmbus_get_adapter(display, pin);
 
 	/*
 	 * With gmbus we should be able to drive sdvo i2c at 2MHz, but somehow

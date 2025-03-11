@@ -1090,10 +1090,8 @@ static int nf_nat_ipv4_nlattr_to_range(struct nlattr *tb[],
 		range->flags |= NF_NAT_RANGE_MAP_IPS;
 	}
 
-	if (tb[CTA_NAT_V4_MAXIP])
-		range->max_addr.ip = nla_get_be32(tb[CTA_NAT_V4_MAXIP]);
-	else
-		range->max_addr.ip = range->min_addr.ip;
+	range->max_addr.ip = nla_get_be32_default(tb[CTA_NAT_V4_MAXIP],
+						  range->min_addr.ip);
 
 	return 0;
 }

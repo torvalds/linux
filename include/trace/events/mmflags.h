@@ -13,6 +13,69 @@
  * Thus most bits set go first.
  */
 
+/* These define the values that are enums (the bits) */
+#define TRACE_GFP_FLAGS_GENERAL			\
+	TRACE_GFP_EM(DMA)			\
+	TRACE_GFP_EM(HIGHMEM)			\
+	TRACE_GFP_EM(DMA32)			\
+	TRACE_GFP_EM(MOVABLE)			\
+	TRACE_GFP_EM(RECLAIMABLE)		\
+	TRACE_GFP_EM(HIGH)			\
+	TRACE_GFP_EM(IO)			\
+	TRACE_GFP_EM(FS)			\
+	TRACE_GFP_EM(ZERO)			\
+	TRACE_GFP_EM(DIRECT_RECLAIM)		\
+	TRACE_GFP_EM(KSWAPD_RECLAIM)		\
+	TRACE_GFP_EM(WRITE)			\
+	TRACE_GFP_EM(NOWARN)			\
+	TRACE_GFP_EM(RETRY_MAYFAIL)		\
+	TRACE_GFP_EM(NOFAIL)			\
+	TRACE_GFP_EM(NORETRY)			\
+	TRACE_GFP_EM(MEMALLOC)			\
+	TRACE_GFP_EM(COMP)			\
+	TRACE_GFP_EM(NOMEMALLOC)		\
+	TRACE_GFP_EM(HARDWALL)			\
+	TRACE_GFP_EM(THISNODE)			\
+	TRACE_GFP_EM(ACCOUNT)			\
+	TRACE_GFP_EM(ZEROTAGS)
+
+#ifdef CONFIG_KASAN_HW_TAGS
+# define TRACE_GFP_FLAGS_KASAN			\
+	TRACE_GFP_EM(SKIP_ZERO)			\
+	TRACE_GFP_EM(SKIP_KASAN)
+#else
+# define TRACE_GFP_FLAGS_KASAN
+#endif
+
+#ifdef CONFIG_LOCKDEP
+# define TRACE_GFP_FLAGS_LOCKDEP		\
+	TRACE_GFP_EM(NOLOCKDEP)
+#else
+# define TRACE_GFP_FLAGS_LOCKDEP
+#endif
+
+#ifdef CONFIG_SLAB_OBJ_EXT
+# define TRACE_GFP_FLAGS_SLAB			\
+	TRACE_GFP_EM(NO_OBJ_EXT)
+#else
+# define TRACE_GFP_FLAGS_SLAB
+#endif
+
+#define TRACE_GFP_FLAGS				\
+	TRACE_GFP_FLAGS_GENERAL			\
+	TRACE_GFP_FLAGS_KASAN			\
+	TRACE_GFP_FLAGS_LOCKDEP			\
+	TRACE_GFP_FLAGS_SLAB
+
+#undef TRACE_GFP_EM
+#define TRACE_GFP_EM(a) TRACE_DEFINE_ENUM(___GFP_##a##_BIT);
+
+TRACE_GFP_FLAGS
+
+/* Just in case these are ever used */
+TRACE_DEFINE_ENUM(___GFP_UNUSED_BIT);
+TRACE_DEFINE_ENUM(___GFP_LAST_BIT);
+
 #define gfpflag_string(flag) {(__force unsigned long)flag, #flag}
 
 #define __def_gfpflag_names			\

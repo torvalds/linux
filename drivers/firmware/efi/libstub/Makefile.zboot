@@ -12,22 +12,16 @@ quiet_cmd_copy_and_pad = PAD     $@
 $(obj)/vmlinux.bin: $(obj)/$(EFI_ZBOOT_PAYLOAD) FORCE
 	$(call if_changed,copy_and_pad)
 
-comp-type-$(CONFIG_KERNEL_GZIP)		:= gzip
-comp-type-$(CONFIG_KERNEL_LZ4)		:= lz4
-comp-type-$(CONFIG_KERNEL_LZMA)		:= lzma
-comp-type-$(CONFIG_KERNEL_LZO)		:= lzo
-comp-type-$(CONFIG_KERNEL_XZ)		:= xzkern
-comp-type-$(CONFIG_KERNEL_ZSTD)		:= zstd22
-
 # in GZIP, the appended le32 carrying the uncompressed size is part of the
 # format, but in other cases, we just append it at the end for convenience,
 # causing the original tools to complain when checking image integrity.
-# So disregard it when calculating the payload size in the zimage header.
-zboot-method-y                         := $(comp-type-y)_with_size
-zboot-size-len-y                       := 4
+comp-type-y				:= gzip
+zboot-method-y				:= gzip
+zboot-size-len-y			:= 0
 
-zboot-method-$(CONFIG_KERNEL_GZIP)     := gzip
-zboot-size-len-$(CONFIG_KERNEL_GZIP)   := 0
+comp-type-$(CONFIG_KERNEL_ZSTD)		:= zstd
+zboot-method-$(CONFIG_KERNEL_ZSTD)	:= zstd22_with_size
+zboot-size-len-$(CONFIG_KERNEL_ZSTD)	:= 4
 
 $(obj)/vmlinuz: $(obj)/vmlinux.bin FORCE
 	$(call if_changed,$(zboot-method-y))

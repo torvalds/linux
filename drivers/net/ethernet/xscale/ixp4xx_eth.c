@@ -1619,7 +1619,7 @@ static struct platform_driver ixp4xx_eth_driver = {
 		.of_match_table = of_match_ptr(ixp4xx_eth_of_match),
 	},
 	.probe		= ixp4xx_eth_probe,
-	.remove_new	= ixp4xx_eth_remove,
+	.remove		= ixp4xx_eth_remove,
 };
 module_platform_driver(ixp4xx_eth_driver);
 

@@ -294,7 +294,7 @@ static inline long page_pool_unref_page(struct page *page, long nr)
 
 static inline void page_pool_ref_netmem(netmem_ref netmem)
 {
-	atomic_long_inc(&netmem_to_page(netmem)->pp_ref_count);
+	atomic_long_inc(netmem_get_pp_ref_count_ref(netmem));
 }
 
 static inline void page_pool_ref_page(struct page *page)

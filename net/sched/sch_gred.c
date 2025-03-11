@@ -668,7 +668,7 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 	}
 
-	max_P = tb[TCA_GRED_MAX_P] ? nla_get_u32(tb[TCA_GRED_MAX_P]) : 0;
+	max_P = nla_get_u32_default(tb[TCA_GRED_MAX_P], 0);
 
 	ctl = nla_data(tb[TCA_GRED_PARMS]);
 	stab = nla_data(tb[TCA_GRED_STAB]);

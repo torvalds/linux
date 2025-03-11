@@ -577,6 +577,8 @@ static int rtk_usb3phy_probe(struct platform_device *pdev)
 
 	rtk_phy->dev			= &pdev->dev;
 	rtk_phy->phy_cfg = devm_kzalloc(dev, sizeof(*phy_cfg), GFP_KERNEL);
+	if (!rtk_phy->phy_cfg)
+		return -ENOMEM;
 
 	memcpy(rtk_phy->phy_cfg, phy_cfg, sizeof(*phy_cfg));
 
@@ -734,7 +736,7 @@ MODULE_DEVICE_TABLE(of, usbphy_rtk_dt_match);
 
 static struct platform_driver rtk_usb3phy_driver = {
 	.probe		= rtk_usb3phy_probe,
-	.remove_new	= rtk_usb3phy_remove,
+	.remove		= rtk_usb3phy_remove,
 	.driver		= {
 		.name	= "rtk-usb3phy",
 		.of_match_table = usbphy_rtk_dt_match,

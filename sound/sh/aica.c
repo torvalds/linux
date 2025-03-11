@@ -315,8 +315,6 @@ static void aica_period_elapsed(struct timer_list *t)
 static void spu_begin_dma(struct snd_pcm_substream *substream)
 {
 	struct snd_card_aica *dreamcastcard;
-	struct snd_pcm_runtime *runtime;
-	runtime = substream->runtime;
 	dreamcastcard = substream->pcm->private_data;
 	/*get the queue to do the work */
 	schedule_work(&(dreamcastcard->spu_dma_work));
@@ -601,7 +599,7 @@ static int snd_aica_probe(struct platform_device *devptr)
 
 static struct platform_driver snd_aica_driver = {
 	.probe = snd_aica_probe,
-	.remove_new = snd_aica_remove,
+	.remove = snd_aica_remove,
 	.driver = {
 		.name = SND_AICA_DRIVER,
 	},

@@ -2616,7 +2616,7 @@ static int dbri_probe(struct platform_device *op)
 	strcpy(card->driver, "DBRI");
 	strcpy(card->shortname, "Sun DBRI");
 	rp = &op->resource[0];
-	sprintf(card->longname, "%s at 0x%02lx:0x%016Lx, irq %d",
+	sprintf(card->longname, "%s at 0x%02lx:0x%016llx, irq %d",
 		card->shortname,
 		rp->flags & 0xffL, (unsigned long long)rp->start, irq);
 
@@ -2682,7 +2682,7 @@ static struct platform_driver dbri_sbus_driver = {
 		.of_match_table = dbri_match,
 	},
 	.probe		= dbri_probe,
-	.remove_new	= dbri_remove,
+	.remove		= dbri_remove,
 };
 
 module_platform_driver(dbri_sbus_driver);

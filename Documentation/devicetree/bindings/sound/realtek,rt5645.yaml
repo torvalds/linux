@@ -51,7 +51,7 @@ properties:
     description: Power supply for AVDD, providing 1.8V.
 
   cpvdd-supply:
-    description: Power supply for CPVDD, providing 3.5V.
+    description: Power supply for CPVDD, providing 1.8V.
 
   hp-detect-gpios:
     description: 

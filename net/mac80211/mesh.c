@@ -1157,14 +1157,14 @@ void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				       u64 changed)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	unsigned long bits = changed;
+	unsigned long bits[] = { BITMAP_FROM_U64(changed) };
 	u32 bit;
 
-	if (!bits)
+	if (!changed)
 		return;
 
 	/* if we race with running work, worst case this work becomes a noop */
-	for_each_set_bit(bit, &bits, sizeof(changed) * BITS_PER_BYTE)
+	for_each_set_bit(bit, bits, sizeof(changed) * BITS_PER_BYTE)
 		set_bit(bit, ifmsh->mbss_changed);
 	set_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags);
 	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
@@ -1482,7 +1482,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (!elems)
 		return;
 
-	/* ignore non-mesh or secure / unsecure mismatch */
+	/* ignore non-mesh or secure / insecure mismatch */
 	if ((!elems->mesh_id || !elems->mesh_config) ||
 	    (elems->rsn && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) ||
 	    (!elems->rsn && sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE))

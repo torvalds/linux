@@ -68,7 +68,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	}
 
 	/*
-	 * Check if there are pinctrl states at all. Note: we cant' use
+	 * Check if there are pinctrl states at all. Note: we can't use
 	 * devm_pinctrl_get_select() because we need to distinguish between
 	 * the -ENODEV from devm_pinctrl_get() and pinctrl_lookup_state().
 	 */
@@ -261,7 +261,9 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 	pm_runtime_no_callbacks(&pdev->dev);
 
 	/* switch to first parent as active master */
-	i2c_demux_activate_master(priv, 0);
+	err = i2c_demux_activate_master(priv, 0);
+	if (err)
+		goto err_rollback;
 
 	err = device_create_file(&pdev->dev, &dev_attr_available_masters);
 	if (err)
@@ -314,7 +316,7 @@ static struct platform_driver i2c_demux_pinctrl_driver = {
 		.of_match_table = i2c_demux_pinctrl_of_match,
 	},
 	.probe	= i2c_demux_pinctrl_probe,
-	.remove_new = i2c_demux_pinctrl_remove,
+	.remove = i2c_demux_pinctrl_remove,
 };
 module_platform_driver(i2c_demux_pinctrl_driver);
 

@@ -89,6 +89,7 @@
 #include <linux/crc32.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/reboot.h>
 #include "ubi.h"
 #include "wl.h"
 
@@ -127,6 +128,8 @@ static int self_check_in_wl_tree(const struct ubi_device *ubi,
 				 struct ubi_wl_entry *e, struct rb_root *root);
 static int self_check_in_pq(const struct ubi_device *ubi,
 			    struct ubi_wl_entry *e);
+static int ubi_wl_reboot_notifier(struct notifier_block *n,
+				  unsigned long state, void *cmd);
 
 /**
  * wl_tree_add - add a wear-leveling entry to a WL RB-tree.
@@ -683,7 +686,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 	ubi_assert(!ubi->move_to_put);
 
 #ifdef CONFIG_MTD_UBI_FASTMAP
-	if (!next_peb_for_wl(ubi) ||
+	if (!next_peb_for_wl(ubi, true) ||
 #else
 	if (!ubi->free.rb_node ||
 #endif
@@ -846,7 +849,14 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			goto out_not_moved;
 		}
 		if (err == MOVE_RETRY) {
-			scrubbing = 1;
+			/*
+			 * For source PEB:
+			 * 1. The scrubbing is set for scrub type PEB, it will
+			 *    be put back into ubi->scrub list.
+			 * 2. Non-scrub type PEB will be put back into ubi->used
+			 *    list.
+			 */
+			keep = 1;
 			dst_leb_clean = 1;
 			goto out_not_moved;
 		}
@@ -1943,6 +1953,13 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	if (!ubi->ro_mode && !ubi->fm_disabled)
 		ubi_ensure_anchor_pebs(ubi);
 #endif
+
+	if (!ubi->wl_reboot_notifier.notifier_call) {
+		ubi->wl_reboot_notifier.notifier_call = ubi_wl_reboot_notifier;
+		ubi->wl_reboot_notifier.priority = 1; /* Higher than MTD */
+		register_reboot_notifier(&ubi->wl_reboot_notifier);
+	}
+
 	return 0;
 
 out_free:
@@ -1986,6 +2003,17 @@ void ubi_wl_close(struct ubi_device *ubi)
 	tree_destroy(ubi, &ubi->free);
 	tree_destroy(ubi, &ubi->scrub);
 	kfree(ubi->lookuptbl);
+}
+
+static int ubi_wl_reboot_notifier(struct notifier_block *n,
+				  unsigned long state, void *cmd)
+{
+	struct ubi_device *ubi;
+
+	ubi = container_of(n, struct ubi_device, wl_reboot_notifier);
+	ubi_wl_close(ubi);
+
+	return NOTIFY_DONE;
 }
 
 /**

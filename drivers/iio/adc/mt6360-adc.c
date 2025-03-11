@@ -124,7 +124,7 @@ static int mt6360_adc_read_channel(struct mt6360_adc_data *mad, int channel, int
 		usleep_range(ADC_LOOP_TIME_US / 2, ADC_LOOP_TIME_US);
 	}
 
-	*val = rpt[1] << 8 | rpt[2];
+	*val = get_unaligned_be16(&rpt[1]);
 	ret = IIO_VAL_INT;
 
 out_adc_conv:

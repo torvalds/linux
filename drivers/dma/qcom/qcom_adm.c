@@ -937,7 +937,7 @@ MODULE_DEVICE_TABLE(of, adm_of_match);
 
 static struct platform_driver adm_dma_driver = {
 	.probe = adm_dma_probe,
-	.remove_new = adm_dma_remove,
+	.remove = adm_dma_remove,
 	.driver = {
 		.name = "adm-dma-engine",
 		.of_match_table = adm_of_match,

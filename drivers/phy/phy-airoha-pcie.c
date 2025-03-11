@@ -459,7 +459,7 @@ static void airoha_pcie_phy_init_clk_out(struct airoha_pcie_phy *pcie_phy)
 	airoha_phy_csr_2l_clear_bits(pcie_phy, REG_CSR_2L_CLKTX1_OFFSET,
 				     CSR_2L_PXP_CLKTX1_SR);
 	airoha_phy_csr_2l_update_field(pcie_phy, REG_CSR_2L_PLL_CMN_RESERVE0,
-				       CSR_2L_PXP_PLL_RESERVE_MASK, 0xdd);
+				       CSR_2L_PXP_PLL_RESERVE_MASK, 0xd0d);
 }
 
 static void airoha_pcie_phy_init_csr_2l(struct airoha_pcie_phy *pcie_phy)
@@ -471,9 +471,9 @@ static void airoha_pcie_phy_init_csr_2l(struct airoha_pcie_phy *pcie_phy)
 				 PCIE_SW_XFI_RXPCS_RST | PCIE_SW_REF_RST |
 				 PCIE_SW_RX_RST);
 	airoha_phy_pma0_set_bits(pcie_phy, REG_PCIE_PMA_TX_RESET,
-				 PCIE_TX_TOP_RST | REG_PCIE_PMA_TX_RESET);
+				 PCIE_TX_TOP_RST | PCIE_TX_CAL_RST);
 	airoha_phy_pma1_set_bits(pcie_phy, REG_PCIE_PMA_TX_RESET,
-				 PCIE_TX_TOP_RST | REG_PCIE_PMA_TX_RESET);
+				 PCIE_TX_TOP_RST | PCIE_TX_CAL_RST);
 }
 
 static void airoha_pcie_phy_init_rx(struct airoha_pcie_phy *pcie_phy)
@@ -802,7 +802,7 @@ static void airoha_pcie_phy_init_ssc_jcpll(struct airoha_pcie_phy *pcie_phy)
 	airoha_phy_csr_2l_set_bits(pcie_phy, REG_CSR_2L_JCPLL_SDM_IFM,
 				   CSR_2L_PXP_JCPLL_SDM_IFM);
 	airoha_phy_csr_2l_set_bits(pcie_phy, REG_CSR_2L_JCPLL_SDM_HREN,
-				   REG_CSR_2L_JCPLL_SDM_HREN);
+				   CSR_2L_PXP_JCPLL_SDM_HREN);
 	airoha_phy_csr_2l_clear_bits(pcie_phy, REG_CSR_2L_JCPLL_RST_DLY,
 				     CSR_2L_PXP_JCPLL_SDM_DI_EN);
 	airoha_phy_csr_2l_set_bits(pcie_phy, REG_CSR_2L_JCPLL_SSC,

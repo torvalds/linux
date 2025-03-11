@@ -596,6 +596,7 @@ static int qed_dmae_operation_wait(struct qed_hwfn *p_hwfn)
 	barrier();
 	while (*p_hwfn->dmae_info.p_completion_word != DMAE_COMPLETION_VAL) {
 		udelay(DMAE_MIN_WAIT_TIME);
+		cond_resched();
 		if (++wait_cnt > wait_cnt_limit) {
 			DP_NOTICE(p_hwfn->cdev,
 				  "Timed-out waiting for operation to complete. Completion word is 0x%08x expected 0x%08x.\n",

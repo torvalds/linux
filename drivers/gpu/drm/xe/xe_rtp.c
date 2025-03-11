@@ -196,7 +196,7 @@ static void rtp_get_context(struct xe_rtp_process_ctx *ctx,
 		*gt = (*hwe)->gt;
 		*xe = gt_to_xe(*gt);
 		break;
-	};
+	}
 }
 
 /**
@@ -340,3 +340,8 @@ bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
 	return dss >= dss_per_gslice;
 }
 
+bool xe_rtp_match_not_sriov_vf(const struct xe_gt *gt,
+			       const struct xe_hw_engine *hwe)
+{
+	return !IS_SRIOV_VF(gt_to_xe(gt));
+}

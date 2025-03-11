@@ -98,8 +98,8 @@ qcaspi_info_show(struct seq_file *s, void *what)
 
 	seq_printf(s, "IRQ              : %d\n",
 		   qca->spi_dev->irq);
-	seq_printf(s, "INTR             : %lx\n",
-		   qca->intr);
+	seq_printf(s, "FLAGS            : %lx\n",
+		   qca->flags);
 
 	seq_printf(s, "SPI max speed    : %lu\n",
 		   (unsigned long)qca->spi_dev->max_speed_hz);

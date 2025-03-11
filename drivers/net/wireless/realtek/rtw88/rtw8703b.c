@@ -29,9 +29,6 @@
 #define TBTT_PROHIBIT_HOLD_TIME 0x80
 #define TBTT_PROHIBIT_HOLD_TIME_STOP_BCN 0x64
 
-/* raw pkt_stat->drv_info_sz is in unit of 8-bytes */
-#define RX_DRV_INFO_SZ_UNIT_8703B 8
-
 #define TRANS_SEQ_END			\
 	0xFFFF,				\
 	RTW_PWR_CUT_ALL_MSK,		\
@@ -481,24 +478,19 @@ static const struct rtw_pwr_seq_cmd trans_act_to_lps_8703b[] = {
 	{TRANS_SEQ_END},
 };
 
-static const struct rtw_pwr_seq_cmd *card_enable_flow_8703b[] = {
+static const struct rtw_pwr_seq_cmd * const card_enable_flow_8703b[] = {
 	trans_pre_enable_8703b,
 	trans_carddis_to_cardemu_8703b,
 	trans_cardemu_to_act_8703b,
 	NULL
 };
 
-static const struct rtw_pwr_seq_cmd *card_disable_flow_8703b[] = {
+static const struct rtw_pwr_seq_cmd * const card_disable_flow_8703b[] = {
 	trans_act_to_lps_8703b,
 	trans_act_to_reset_mcu_8703b,
 	trans_act_to_cardemu_8703b,
 	trans_cardemu_to_carddis_8703b,
 	NULL
-};
-
-static const struct rtw_rfe_def rtw8703b_rfe_defs[] = {
-	[0] = { .phy_pg_tbl	= &rtw8703b_bb_pg_tbl,
-		.txpwr_lmt_tbl	= &rtw8703b_txpwr_lmt_tbl,},
 };
 
 static const struct rtw_page_table page_table_8703b[] = {
@@ -640,7 +632,7 @@ static void rtw8703b_pwrtrack_init(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_init_trigger = true;
 	dm_info->thermal_meter_k = rtwdev->efuse.thermal_meter_k;
 	dm_info->txagc_remnant_cck = 0;
-	dm_info->txagc_remnant_ofdm = 0;
+	dm_info->txagc_remnant_ofdm[RF_PATH_A] = 0;
 }
 
 static void rtw8703b_phy_set_param(struct rtw_dev *rtwdev)
@@ -1030,57 +1022,6 @@ static void query_phy_status(struct rtw_dev *rtwdev, u8 *phy_status,
 		query_phy_status_cck(rtwdev, phy_status, pkt_stat);
 	else
 		query_phy_status_ofdm(rtwdev, phy_status, pkt_stat);
-}
-
-static void rtw8703b_query_rx_desc(struct rtw_dev *rtwdev, u8 *rx_desc,
-				   struct rtw_rx_pkt_stat *pkt_stat,
-				   struct ieee80211_rx_status *rx_status)
-{
-	struct ieee80211_hdr *hdr;
-	u32 desc_sz = rtwdev->chip->rx_pkt_desc_sz;
-	u8 *phy_status = NULL;
-
-	memset(pkt_stat, 0, sizeof(*pkt_stat));
-
-	pkt_stat->phy_status = GET_RX_DESC_PHYST(rx_desc);
-	pkt_stat->icv_err = GET_RX_DESC_ICV_ERR(rx_desc);
-	pkt_stat->crc_err = GET_RX_DESC_CRC32(rx_desc);
-	pkt_stat->decrypted = !GET_RX_DESC_SWDEC(rx_desc) &&
-			      GET_RX_DESC_ENC_TYPE(rx_desc) != RX_DESC_ENC_NONE;
-	pkt_stat->is_c2h = GET_RX_DESC_C2H(rx_desc);
-	pkt_stat->pkt_len = GET_RX_DESC_PKT_LEN(rx_desc);
-	pkt_stat->drv_info_sz = GET_RX_DESC_DRV_INFO_SIZE(rx_desc);
-	pkt_stat->shift = GET_RX_DESC_SHIFT(rx_desc);
-	pkt_stat->rate = GET_RX_DESC_RX_RATE(rx_desc);
-	pkt_stat->cam_id = GET_RX_DESC_MACID(rx_desc);
-	pkt_stat->ppdu_cnt = 0;
-	pkt_stat->tsf_low = GET_RX_DESC_TSFL(rx_desc);
-
-	pkt_stat->drv_info_sz *= RX_DRV_INFO_SZ_UNIT_8703B;
-
-	if (pkt_stat->is_c2h)
-		return;
-
-	hdr = (struct ieee80211_hdr *)(rx_desc + desc_sz + pkt_stat->shift +
-				       pkt_stat->drv_info_sz);
-
-	pkt_stat->bw = GET_RX_DESC_BW(rx_desc);
-
-	if (pkt_stat->phy_status) {
-		phy_status = rx_desc + desc_sz + pkt_stat->shift;
-		query_phy_status(rtwdev, phy_status, pkt_stat);
-	}
-
-	rtw_rx_fill_rx_status(rtwdev, pkt_stat, hdr, rx_status, phy_status);
-
-	/* Rtl8723cs driver checks for size < 14 or size > 8192 and
-	 * simply drops the packet. Maybe this should go into
-	 * rtw_rx_fill_rx_status()?
-	 */
-	if (pkt_stat->pkt_len == 0) {
-		rx_status->flag |= RX_FLAG_NO_PSDU;
-		rtw_dbg(rtwdev, RTW_DBG_RX, "zero length packet");
-	}
 }
 
 #define ADDA_ON_VAL_8703B 0x03c00014
@@ -1643,7 +1584,7 @@ static void rtw8703b_pwrtrack_set_ofdm_pwr(struct rtw_dev *rtwdev, s8 swing_idx,
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 
-	dm_info->txagc_remnant_ofdm = txagc_idx;
+	dm_info->txagc_remnant_ofdm[RF_PATH_A] = txagc_idx;
 
 	/* Only path A is calibrated for rtl8703b */
 	rtw8703b_set_iqk_matrix(rtwdev, swing_idx, RF_PATH_A);
@@ -1872,6 +1813,12 @@ static const struct rtw_pwr_track_tbl rtw8703b_rtw_pwr_track_tbl = {
 	.pwrtrk_xtal_p = rtw8703b_pwrtrk_xtal_p,
 };
 
+static const struct rtw_rfe_def rtw8703b_rfe_defs[] = {
+	[0] = { .phy_pg_tbl	= &rtw8703b_bb_pg_tbl,
+		.txpwr_lmt_tbl	= &rtw8703b_txpwr_lmt_tbl,
+		.pwr_track_tbl	= &rtw8703b_rtw_pwr_track_tbl, },
+};
+
 /* Shared-Antenna Coex Table */
 static const struct coex_table_para table_sant_8703b[] = {
 	{0xffffffff, 0xffffffff}, /* case-0 */
@@ -1941,14 +1888,16 @@ static const struct coex_tdma_para tdma_sant_8703b[] = {
 	{ {0x61, 0x08, 0x03, 0x11, 0x11} },
 };
 
-static struct rtw_chip_ops rtw8703b_ops = {
+static const struct rtw_chip_ops rtw8703b_ops = {
+	.power_on		= rtw_power_on,
+	.power_off		= rtw_power_off,
 	.mac_init		= rtw8723x_mac_init,
 	.dump_fw_crash		= NULL,
 	.shutdown		= NULL,
 	.read_efuse		= rtw8703b_read_efuse,
 	.phy_set_param		= rtw8703b_phy_set_param,
 	.set_channel		= rtw8703b_set_channel,
-	.query_rx_desc		= rtw8703b_query_rx_desc,
+	.query_phy_status	= query_phy_status,
 	.read_rf		= rtw_phy_read_rf_sipi,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
 	.set_tx_power_index	= rtw8723x_set_tx_power_index,
@@ -2014,6 +1963,9 @@ const struct rtw_chip_info rtw8703b_hw_spec = {
 	.max_power_index = 0x3f,
 	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
 	.usb_tx_agg_desc_num = 1, /* Not sure if this chip has USB interface */
+	.hw_feature_report = true,
+	.c2h_ra_report_size = 7,
+	.old_datarate_fb_limit = true,
 
 	.path_div_supported = false,
 	.ht_supported = true,
@@ -2046,7 +1998,6 @@ const struct rtw_chip_info rtw8703b_hw_spec = {
 	.rfe_defs_size = ARRAY_SIZE(rtw8703b_rfe_defs),
 
 	.iqk_threshold = 8,
-	.pwr_track_tbl = &rtw8703b_rtw_pwr_track_tbl,
 
 	/* WOWLAN firmware exists, but not implemented yet */
 	.wow_fw_name = "rtw88/rtw8703b_wow_fw.bin",

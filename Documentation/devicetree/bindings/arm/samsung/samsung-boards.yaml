@@ -224,6 +224,24 @@ properties:
               - winlink,e850-96                 # WinLink E850-96
           - const: samsung,exynos850
 
+      - description: Exynos8895 based boards
+        items:
+          - enum:
+              - samsung,dreamlte                # Samsung Galaxy S8 (SM-G950F)
+          - const: samsung,exynos8895
+
+      - description: Exynos9810 based boards
+        items:
+          - enum:
+              - samsung,starlte                 # Samsung Galaxy S9 (SM-G960F)
+          - const: samsung,exynos9810
+
+      - description: Exynos990 based boards
+        items:
+          - enum:
+              - samsung,c1s                     # Samsung Galaxy Note20 5G (SM-N981B)
+          - const: samsung,exynos990
+
       - description: Exynos Auto v9 based boards
         items:
           - enum:

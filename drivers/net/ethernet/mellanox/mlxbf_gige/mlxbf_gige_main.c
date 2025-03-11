@@ -520,7 +520,7 @@ MODULE_DEVICE_TABLE(acpi, mlxbf_gige_acpi_match);
 
 static struct platform_driver mlxbf_gige_driver = {
 	.probe = mlxbf_gige_probe,
-	.remove_new = mlxbf_gige_remove,
+	.remove = mlxbf_gige_remove,
 	.shutdown = mlxbf_gige_shutdown,
 	.driver = {
 		.name = KBUILD_MODNAME,

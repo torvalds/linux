@@ -336,7 +336,7 @@ int enetc_setup_tc_cbs(struct net_device *ndev, void *type_data)
 	 *
 	 * (enetClockFrequency / portTransmitRate) * 100
 	 */
-	hi_credit_reg = (u32)div_u64((ENETC_CLK * 100ULL) * hi_credit_bit,
+	hi_credit_reg = (u32)div_u64((priv->sysclk_freq * 100ULL) * hi_credit_bit,
 				     port_transmit_rate * 1000000ULL);
 
 	enetc_port_wr(hw, ENETC_PTCCBSR1(tc), hi_credit_reg);

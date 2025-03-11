@@ -200,7 +200,7 @@ static void find_ns(struct ieee80211_radiotap_iterator *iterator,
  * present fields.  @this_arg can be changed by the caller (eg,
  * incremented to move inside a compound argument like
  * IEEE80211_RADIOTAP_CHANNEL).  The args pointed to are in
- * little-endian format whatever the endianess of your CPU.
+ * little-endian format whatever the endianness of your CPU.
  *
  * Alignment Gotcha:
  * You must take care when dereferencing iterator.this_arg

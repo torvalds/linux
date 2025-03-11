@@ -53,8 +53,8 @@
 #include "intel_gvt.h"
 #include "gvt.h"
 
-MODULE_IMPORT_NS(DMA_BUF);
-MODULE_IMPORT_NS(I915_GVT);
+MODULE_IMPORT_NS("DMA_BUF");
+MODULE_IMPORT_NS("I915_GVT");
 
 /* helper macros copied from vfio-pci */
 #define VFIO_PCI_OFFSET_SHIFT   40

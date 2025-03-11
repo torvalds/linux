@@ -704,7 +704,7 @@ static void cpcap_usb_phy_remove(struct platform_device *pdev)
 
 static struct platform_driver cpcap_usb_phy_driver = {
 	.probe		= cpcap_usb_phy_probe,
-	.remove_new	= cpcap_usb_phy_remove,
+	.remove		= cpcap_usb_phy_remove,
 	.driver		= {
 		.name	= "cpcap-usb-phy",
 		.of_match_table = of_match_ptr(cpcap_usb_phy_id_table),

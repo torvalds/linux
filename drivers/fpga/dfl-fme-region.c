@@ -71,11 +71,11 @@ static void fme_region_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver fme_region_driver = {
-	.driver	= {
-		.name    = DFL_FPGA_FME_REGION,
+	.driver = {
+		.name = DFL_FPGA_FME_REGION,
 	},
-	.probe   = fme_region_probe,
-	.remove_new = fme_region_remove,
+	.probe = fme_region_probe,
+	.remove = fme_region_remove,
 };
 
 module_platform_driver(fme_region_driver);

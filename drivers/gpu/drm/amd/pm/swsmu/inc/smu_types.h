@@ -275,7 +275,9 @@
 	__SMU_DUMMY_MAP(RmaDueToBadPageThreshold), \
 	__SMU_DUMMY_MAP(SelectPstatePolicy), \
 	__SMU_DUMMY_MAP(MALLPowerController), \
-	__SMU_DUMMY_MAP(MALLPowerState),
+	__SMU_DUMMY_MAP(MALLPowerState), \
+	__SMU_DUMMY_MAP(ResetSDMA), \
+	__SMU_DUMMY_MAP(ResetSDMA2),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type
@@ -313,6 +315,8 @@ enum smu_clk_type {
 	SMU_OD_ACOUSTIC_TARGET,
 	SMU_OD_FAN_TARGET_TEMPERATURE,
 	SMU_OD_FAN_MINIMUM_PWM,
+	SMU_OD_FAN_ZERO_RPM_ENABLE,
+	SMU_OD_FAN_ZERO_RPM_STOP_TEMP,
 	SMU_CLK_COUNT,
 };
 

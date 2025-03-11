@@ -45,63 +45,52 @@ source $lib_dir/devlink_lib.sh
 h1_create()
 {
 	simple_if_init $h1 192.0.2.1/24
+	defer simple_if_fini $h1 192.0.2.1/24
+
 	mtu_set $h1 10000
+	defer mtu_restore $h1
 
 	ip -4 route add default vrf v$h1 nexthop via 192.0.2.2
-}
-
-h1_destroy()
-{
-	ip -4 route del default vrf v$h1 nexthop via 192.0.2.2
-
-	mtu_restore $h1
-	simple_if_fini $h1 192.0.2.1/24
+	defer ip -4 route del default vrf v$h1 nexthop via 192.0.2.2
 }
 
 h2_create()
 {
 	simple_if_init $h2 198.51.100.1/24
+	defer simple_if_fini $h2 198.51.100.1/24
+
 	mtu_set $h2 10000
+	defer mtu_restore $h2
 
 	ip -4 route add default vrf v$h2 nexthop via 198.51.100.2
-}
-
-h2_destroy()
-{
-	ip -4 route del default vrf v$h2 nexthop via 198.51.100.2
-
-	mtu_restore $h2
-	simple_if_fini $h2 198.51.100.1/24
+	defer ip -4 route del default vrf v$h2 nexthop via 198.51.100.2
 }
 
 router_create()
 {
 	ip link set dev $rp1 up
+	defer ip link set dev $rp1 down
+
 	ip link set dev $rp2 up
+	defer ip link set dev $rp2 down
 
 	__addr_add_del $rp1 add 192.0.2.2/24
+	defer __addr_add_del $rp1 del 192.0.2.2/24
+
 	__addr_add_del $rp2 add 198.51.100.2/24
+	defer __addr_add_del $rp2 del 198.51.100.2/24
+
 	mtu_set $rp1 10000
+	defer mtu_restore $rp1
+
 	mtu_set $rp2 10000
+	defer mtu_restore $rp2
 
 	ip -4 route add blackhole 198.51.100.100
+	defer ip -4 route del blackhole 198.51.100.100
 
 	devlink trap set $DEVLINK_DEV trap blackhole_route action trap
-}
-
-router_destroy()
-{
-	devlink trap set $DEVLINK_DEV trap blackhole_route action drop
-
-	ip -4 route del blackhole 198.51.100.100
-
-	mtu_restore $rp2
-	mtu_restore $rp1
-	__addr_add_del $rp2 del 198.51.100.2/24
-	__addr_add_del $rp1 del 192.0.2.2/24
-
-	ip link set dev $rp2 down
-	ip link set dev $rp1 down
+	defer devlink trap set $DEVLINK_DEV trap blackhole_route action drop
 }
 
 setup_prepare()
@@ -114,27 +103,16 @@ setup_prepare()
 
 	rp1_mac=$(mac_get $rp1)
 
+	# Reload to ensure devlink-trap settings are back to default.
+	defer devlink_reload
+
 	vrf_prepare
+	defer vrf_cleanup
 
 	h1_create
 	h2_create
 
 	router_create
-}
-
-cleanup()
-{
-	pre_cleanup
-
-	router_destroy
-
-	h2_destroy
-	h1_destroy
-
-	vrf_cleanup
-
-	# Reload to ensure devlink-trap settings are back to default.
-	devlink_reload
 }
 
 rate_limits_test()
@@ -214,7 +192,10 @@ __rate_test()
 	# by the policer. Make sure measured received rate is about 1000 pps
 	log_info "=== Tx rate: Highest, Policer rate: 1000 pps ==="
 
+	defer_scope_push
+
 	start_traffic $h1 192.0.2.1 198.51.100.100 $rp1_mac
+	defer stop_traffic $!
 
 	sleep 5 # Take measurements when rate is stable
 
@@ -229,13 +210,16 @@ __rate_test()
 	check_err $? "Expected non-zero policer drop rate, got 0"
 	log_info "Measured policer drop rate of $drop_rate pps"
 
-	stop_traffic
+	defer_scope_pop
 
 	# Send packets at a rate of 1000 pps and make sure they are not dropped
 	# by the policer
 	log_info "=== Tx rate: 1000 pps, Policer rate: 1000 pps ==="
 
+	defer_scope_push
+
 	start_traffic $h1 192.0.2.1 198.51.100.100 $rp1_mac -d 1msec
+	defer stop_traffic $!
 
 	sleep 5 # Take measurements when rate is stable
 
@@ -244,7 +228,7 @@ __rate_test()
 	check_err $? "Expected zero policer drop rate, got a drop rate of $drop_rate pps"
 	log_info "Measured policer drop rate of $drop_rate pps"
 
-	stop_traffic
+	defer_scope_pop
 
 	# Unbind the policer and send packets at highest possible rate. Make
 	# sure they are not dropped by the policer and that the measured
@@ -253,7 +237,10 @@ __rate_test()
 
 	devlink trap group set $DEVLINK_DEV group l3_drops nopolicer
 
+	defer_scope_push
+
 	start_traffic $h1 192.0.2.1 198.51.100.100 $rp1_mac
+	defer stop_traffic $!
 
 	rate=$(trap_rate_get)
 	(( rate > 1000 ))
@@ -265,7 +252,7 @@ __rate_test()
 	check_err $? "Expected zero policer drop rate, got a drop rate of $drop_rate pps"
 	log_info "Measured policer drop rate of $drop_rate pps"
 
-	stop_traffic
+	defer_scope_pop
 
 	log_test "Trap policer rate"
 }

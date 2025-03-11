@@ -193,7 +193,7 @@ static struct platform_driver regulator_led_driver = {
 		.of_match_table = regulator_led_of_match,
 	},
 	.probe  = regulator_led_probe,
-	.remove_new = regulator_led_remove,
+	.remove = regulator_led_remove,
 };
 
 module_platform_driver(regulator_led_driver);

@@ -6,8 +6,8 @@
 #include "msm8994.dtsi"
 
 /* 8992 only features 2 A57 cores. */
-/delete-node/ &CPU6;
-/delete-node/ &CPU7;
+/delete-node/ &cpu6;
+/delete-node/ &cpu7;
 /delete-node/ &cpu6_map;
 /delete-node/ &cpu7_map;
 

@@ -81,10 +81,8 @@ struct intel_display_funcs {
 struct intel_wm_funcs {
 	/* update_wm is for legacy wm management */
 	void (*update_wm)(struct drm_i915_private *dev_priv);
-	int (*compute_pipe_wm)(struct intel_atomic_state *state,
-			       struct intel_crtc *crtc);
-	int (*compute_intermediate_wm)(struct intel_atomic_state *state,
-				       struct intel_crtc *crtc);
+	int (*compute_watermarks)(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc);
 	void (*initial_watermarks)(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc);
 	void (*atomic_update_watermarks)(struct intel_atomic_state *state,
@@ -286,6 +284,9 @@ struct intel_display {
 	/* drm device backpointer */
 	struct drm_device *drm;
 
+	/* Platform (and subplatform, if any) identification */
+	struct intel_display_platforms platform;
+
 	/* Display functions */
 	struct {
 		/* Top level crtc-ish functions */
@@ -452,10 +453,21 @@ struct intel_display {
 	} ips;
 
 	struct {
-		bool display_irqs_enabled;
+		/*
+		 * Most platforms treat the display irq block as an always-on
+		 * power domain. vlv/chv can disable it at runtime and need
+		 * special care to avoid writing any of the display block
+		 * registers outside of the power domain. We defer setting up
+		 * the display irqs in this case to the runtime pm.
+		 */
+		bool vlv_display_irqs_enabled;
 
 		/* For i915gm/i945gm vblank irq workaround */
 		u8 vblank_enabled;
+
+		int vblank_wa_num_pipes;
+
+		struct work_struct vblank_dc_work;
 
 		u32 de_irq_mask[I915_MAX_PIPES];
 		u32 pipestat_irq_mask[I915_MAX_PIPES];
@@ -500,6 +512,11 @@ struct intel_display {
 		/* restore state for suspend/resume and display reset */
 		struct drm_atomic_state *modeset_state;
 		struct drm_modeset_acquire_ctx reset_ctx;
+		u32 saveDSPARB;
+		u32 saveSWF0[16];
+		u32 saveSWF1[16];
+		u32 saveSWF3[3];
+		u16 saveGCDGMBUS;
 	} restore;
 
 	struct {
@@ -537,6 +554,9 @@ struct intel_display {
 
 		/* unbound hipri wq for page flips/plane updates */
 		struct workqueue_struct *flip;
+
+		/* hipri wq for commit cleanups */
+		struct workqueue_struct *cleanup;
 	} wq;
 
 	/* Grouping using named structs. Keep sorted. */

@@ -203,6 +203,7 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 	struct amdgpu_coredump_info *coredump = data;
 	struct drm_print_iterator iter;
 	struct amdgpu_vm_fault_info *fault_info;
+	struct amdgpu_ip_block *ip_block;
 	int ver;
 
 	iter.data = buffer;
@@ -282,13 +283,10 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 	/* dump the ip state for each ip */
 	drm_printf(&p, "IP Dump\n");
 	for (int i = 0; i < coredump->adev->num_ip_blocks; i++) {
-		if (coredump->adev->ip_blocks[i].version->funcs->print_ip_state) {
-			drm_printf(&p, "IP: %s\n",
-				   coredump->adev->ip_blocks[i]
-					   .version->funcs->name);
-			coredump->adev->ip_blocks[i]
-				.version->funcs->print_ip_state(
-					(void *)coredump->adev, &p);
+		ip_block = &coredump->adev->ip_blocks[i];
+		if (ip_block->version->funcs->print_ip_state) {
+			drm_printf(&p, "IP: %s\n", ip_block->version->funcs->name);
+			ip_block->version->funcs->print_ip_state(ip_block, &p);
 			drm_printf(&p, "\n");
 		}
 	}
@@ -345,11 +343,10 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 	coredump->skip_vram_check = skip_vram_check;
 	coredump->reset_vram_lost = vram_lost;
 
-	if (job && job->vm) {
-		struct amdgpu_vm *vm = job->vm;
+	if (job && job->pasid) {
 		struct amdgpu_task_info *ti;
 
-		ti = amdgpu_vm_get_task_info_vm(vm);
+		ti = amdgpu_vm_get_task_info_pasid(adev, job->pasid);
 		if (ti) {
 			coredump->reset_task_info = *ti;
 			amdgpu_vm_put_task_info(ti);

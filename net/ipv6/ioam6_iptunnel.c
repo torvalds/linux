@@ -142,10 +142,8 @@ static int ioam6_build_state(struct net *net, struct nlattr *nla,
 		}
 	}
 
-	if (!tb[IOAM6_IPTUNNEL_MODE])
-		mode = IOAM6_IPTUNNEL_MODE_INLINE;
-	else
-		mode = nla_get_u8(tb[IOAM6_IPTUNNEL_MODE]);
+	mode = nla_get_u8_default(tb[IOAM6_IPTUNNEL_MODE],
+				  IOAM6_IPTUNNEL_MODE_INLINE);
 
 	if (tb[IOAM6_IPTUNNEL_SRC] && mode == IOAM6_IPTUNNEL_MODE_INLINE) {
 		NL_SET_ERR_MSG(extack, "no tunnel src expected with this mode");

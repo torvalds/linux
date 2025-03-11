@@ -12,7 +12,7 @@
 
 /* KEY_TYPE_lru is obsolete: */
 int bch2_lru_validate(struct bch_fs *c, struct bkey_s_c k,
-		     enum bch_validate_flags flags)
+		      struct bkey_validate_context from)
 {
 	int ret = 0;
 
@@ -192,7 +192,7 @@ int bch2_check_lrus(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 				BTREE_ID_lru, POS_MIN, BTREE_ITER_prefetch, k,
-				NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			bch2_check_lru_key(trans, &iter, k, &last_flushed)));
 
 	bch2_bkey_buf_exit(&last_flushed, c);

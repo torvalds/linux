@@ -101,14 +101,6 @@ struct i915_dsm {
 	resource_size_t usable_size;
 };
 
-struct i915_suspend_saved_registers {
-	u32 saveDSPARB;
-	u32 saveSWF0[16];
-	u32 saveSWF1[16];
-	u32 saveSWF3[3];
-	u16 saveGCDGMBUS;
-};
-
 #define MAX_L3_SLICES 2
 struct intel_l3_parity {
 	u32 *remap_info[MAX_L3_SLICES];
@@ -234,10 +226,19 @@ struct drm_i915_private {
 
 	/* protects the irq masks */
 	spinlock_t irq_lock;
+	bool irqs_enabled;
+
+	/* LPT/WPT IOSF sideband protection */
+	struct mutex sbi_lock;
+
+	/* VLV/CHV IOSF sideband */
+	struct {
+		struct mutex lock; /* protect sideband access */
+		struct pm_qos_request qos;
+	} vlv_iosf_sb;
 
 	/* Sideband mailbox protection */
 	struct mutex sb_lock;
-	struct pm_qos_request sb_qos;
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask;
@@ -290,7 +291,6 @@ struct drm_i915_private {
 	struct i915_gpu_error gpu_error;
 
 	u32 suspend_count;
-	struct i915_suspend_saved_registers regfile;
 	struct vlv_s0ix_state *vlv_s0ix_state;
 
 	struct dram_info {
@@ -342,8 +342,6 @@ struct drm_i915_private {
 	} gem;
 
 	struct intel_pxp *pxp;
-
-	bool irq_enabled;
 
 	struct i915_pmu pmu;
 
@@ -508,8 +506,6 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	(IS_PLATFORM(i915, INTEL_IRONLAKE) && IS_MOBILE(i915))
 #define IS_SANDYBRIDGE(i915) IS_PLATFORM(i915, INTEL_SANDYBRIDGE)
 #define IS_IVYBRIDGE(i915)	IS_PLATFORM(i915, INTEL_IVYBRIDGE)
-#define IS_IVB_GT1(i915)	(IS_IVYBRIDGE(i915) && \
-				 INTEL_INFO(i915)->gt == 1)
 #define IS_VALLEYVIEW(i915)	IS_PLATFORM(i915, INTEL_VALLEYVIEW)
 #define IS_CHERRYVIEW(i915)	IS_PLATFORM(i915, INTEL_CHERRYVIEW)
 #define IS_HASWELL(i915)	IS_PLATFORM(i915, INTEL_HASWELL)
@@ -539,6 +535,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
  */
 #define IS_LUNARLAKE(i915) (0 && i915)
 #define IS_BATTLEMAGE(i915)  (0 && i915)
+#define IS_PANTHERLAKE(i915) (0 && i915)
 
 #define IS_ARROWLAKE_H(i915) \
 	IS_SUBPLATFORM(i915, INTEL_METEORLAKE, INTEL_SUBPLATFORM_ARL_H)
@@ -552,6 +549,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	IS_SUBPLATFORM(i915, INTEL_DG2, INTEL_SUBPLATFORM_G11)
 #define IS_DG2_G12(i915) \
 	IS_SUBPLATFORM(i915, INTEL_DG2, INTEL_SUBPLATFORM_G12)
+#define IS_DG2_D(i915) \
+	IS_SUBPLATFORM(i915, INTEL_DG2, INTEL_SUBPLATFORM_D)
 #define IS_RAPTORLAKE_S(i915) \
 	IS_SUBPLATFORM(i915, INTEL_ALDERLAKE_S, INTEL_SUBPLATFORM_RPL)
 #define IS_ALDERLAKE_P_N(i915) \
@@ -566,14 +565,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	IS_SUBPLATFORM(i915, INTEL_BROADWELL, INTEL_SUBPLATFORM_ULT)
 #define IS_BROADWELL_ULX(i915) \
 	IS_SUBPLATFORM(i915, INTEL_BROADWELL, INTEL_SUBPLATFORM_ULX)
-#define IS_BROADWELL_GT3(i915)	(IS_BROADWELL(i915) && \
-				 INTEL_INFO(i915)->gt == 3)
 #define IS_HASWELL_ULT(i915) \
 	IS_SUBPLATFORM(i915, INTEL_HASWELL, INTEL_SUBPLATFORM_ULT)
-#define IS_HASWELL_GT3(i915)	(IS_HASWELL(i915) && \
-				 INTEL_INFO(i915)->gt == 3)
-#define IS_HASWELL_GT1(i915)	(IS_HASWELL(i915) && \
-				 INTEL_INFO(i915)->gt == 1)
 /* ULX machines are also considered ULT. */
 #define IS_HASWELL_ULX(i915) \
 	IS_SUBPLATFORM(i915, INTEL_HASWELL, INTEL_SUBPLATFORM_ULX)
@@ -585,31 +578,14 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 	IS_SUBPLATFORM(i915, INTEL_KABYLAKE, INTEL_SUBPLATFORM_ULT)
 #define IS_KABYLAKE_ULX(i915) \
 	IS_SUBPLATFORM(i915, INTEL_KABYLAKE, INTEL_SUBPLATFORM_ULX)
-#define IS_SKYLAKE_GT2(i915)	(IS_SKYLAKE(i915) && \
-				 INTEL_INFO(i915)->gt == 2)
-#define IS_SKYLAKE_GT3(i915)	(IS_SKYLAKE(i915) && \
-				 INTEL_INFO(i915)->gt == 3)
-#define IS_SKYLAKE_GT4(i915)	(IS_SKYLAKE(i915) && \
-				 INTEL_INFO(i915)->gt == 4)
-#define IS_KABYLAKE_GT2(i915)	(IS_KABYLAKE(i915) && \
-				 INTEL_INFO(i915)->gt == 2)
-#define IS_KABYLAKE_GT3(i915)	(IS_KABYLAKE(i915) && \
-				 INTEL_INFO(i915)->gt == 3)
 #define IS_COFFEELAKE_ULT(i915) \
 	IS_SUBPLATFORM(i915, INTEL_COFFEELAKE, INTEL_SUBPLATFORM_ULT)
 #define IS_COFFEELAKE_ULX(i915) \
 	IS_SUBPLATFORM(i915, INTEL_COFFEELAKE, INTEL_SUBPLATFORM_ULX)
-#define IS_COFFEELAKE_GT2(i915)	(IS_COFFEELAKE(i915) && \
-				 INTEL_INFO(i915)->gt == 2)
-#define IS_COFFEELAKE_GT3(i915)	(IS_COFFEELAKE(i915) && \
-				 INTEL_INFO(i915)->gt == 3)
-
 #define IS_COMETLAKE_ULT(i915) \
 	IS_SUBPLATFORM(i915, INTEL_COMETLAKE, INTEL_SUBPLATFORM_ULT)
 #define IS_COMETLAKE_ULX(i915) \
 	IS_SUBPLATFORM(i915, INTEL_COMETLAKE, INTEL_SUBPLATFORM_ULX)
-#define IS_COMETLAKE_GT2(i915)	(IS_COMETLAKE(i915) && \
-				 INTEL_INFO(i915)->gt == 2)
 
 #define IS_ICL_WITH_PORT_F(i915) \
 	IS_SUBPLATFORM(i915, INTEL_ICELAKE, INTEL_SUBPLATFORM_PORTF)
@@ -617,9 +593,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_TIGERLAKE_UY(i915) \
 	IS_SUBPLATFORM(i915, INTEL_TIGERLAKE, INTEL_SUBPLATFORM_UY)
 
-#define IS_LP(i915)		(INTEL_INFO(i915)->is_lp)
-#define IS_GEN9_LP(i915)	(GRAPHICS_VER(i915) == 9 && IS_LP(i915))
-#define IS_GEN9_BC(i915)	(GRAPHICS_VER(i915) == 9 && !IS_LP(i915))
+#define IS_GEN9_LP(i915)	(IS_BROXTON(i915) || IS_GEMINILAKE(i915))
+#define IS_GEN9_BC(i915)	(GRAPHICS_VER(i915) == 9 && !IS_GEN9_LP(i915))
 
 #define __HAS_ENGINE(engine_mask, id) ((engine_mask) & BIT(id))
 #define HAS_ENGINE(gt, id) __HAS_ENGINE((gt)->info.engine_mask, id)
@@ -683,7 +658,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 /* WaRsDisableCoarsePowerGating:skl,cnl */
 #define NEEDS_WaRsDisableCoarsePowerGating(i915)			\
-	(IS_SKYLAKE_GT3(i915) || IS_SKYLAKE_GT4(i915))
+	(IS_SKYLAKE(i915) && (INTEL_INFO(i915)->gt == 3 || INTEL_INFO(i915)->gt == 4))
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
@@ -696,6 +671,9 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define HAS_RC6pp(i915)		 (false) /* HW was never validated */
 
 #define HAS_RPS(i915)	(INTEL_INFO(i915)->has_rps)
+
+#define HAS_PXP(i915) \
+	(IS_ENABLED(CONFIG_DRM_I915_PXP) && INTEL_INFO(i915)->has_pxp)
 
 #define HAS_HECI_PXP(i915) \
 	(INTEL_INFO(i915)->has_heci_pxp)
@@ -744,7 +722,7 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 /* DPF == dynamic parity feature */
 #define HAS_L3_DPF(i915) (INTEL_INFO(i915)->has_l3_dpf)
-#define NUM_L3_SLICES(i915) (IS_HASWELL_GT3(i915) ? \
+#define NUM_L3_SLICES(i915) (IS_HASWELL(i915) && INTEL_INFO(i915)->gt == 3 ? \
 				 2 : HAS_L3_DPF(i915))
 
 #define HAS_GUC_DEPRIVILEGE(i915) \

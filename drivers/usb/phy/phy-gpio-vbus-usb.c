@@ -385,7 +385,7 @@ static struct platform_driver gpio_vbus_driver = {
 		.of_match_table = gpio_vbus_of_match,
 	},
 	.probe		= gpio_vbus_probe,
-	.remove_new	= gpio_vbus_remove,
+	.remove		= gpio_vbus_remove,
 };
 
 module_platform_driver(gpio_vbus_driver);

@@ -15,10 +15,10 @@ void cxl_mem_active_inc(void)
 {
 	atomic_inc(&mem_active);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_mem_active_inc, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_mem_active_inc, "CXL");
 
 void cxl_mem_active_dec(void)
 {
 	atomic_dec(&mem_active);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_mem_active_dec, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_mem_active_dec, "CXL");

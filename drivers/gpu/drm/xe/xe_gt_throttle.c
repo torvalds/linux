@@ -8,6 +8,7 @@
 #include <regs/xe_gt_regs.h>
 #include "xe_device.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_sysfs.h"
 #include "xe_gt_throttle.h"
 #include "xe_mmio.h"
@@ -41,9 +42,9 @@ u32 xe_gt_throttle_get_limit_reasons(struct xe_gt *gt)
 
 	xe_pm_runtime_get(gt_to_xe(gt));
 	if (xe_gt_is_media_type(gt))
-		reg = xe_mmio_read32(gt, MTL_MEDIA_PERF_LIMIT_REASONS);
+		reg = xe_mmio_read32(&gt->mmio, MTL_MEDIA_PERF_LIMIT_REASONS);
 	else
-		reg = xe_mmio_read32(gt, GT0_PERF_LIMIT_REASONS);
+		reg = xe_mmio_read32(&gt->mmio, GT0_PERF_LIMIT_REASONS);
 	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return reg;
@@ -53,6 +54,7 @@ static u32 read_status(struct xe_gt *gt)
 {
 	u32 status = xe_gt_throttle_get_limit_reasons(gt) & GT0_PERF_LIMIT_REASONS_MASK;
 
+	xe_gt_dbg(gt, "throttle reasons: 0x%08x\n", status);
 	return status;
 }
 

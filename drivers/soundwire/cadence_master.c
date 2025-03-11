@@ -1378,6 +1378,31 @@ static void cdns_init_clock_ctrl(struct sdw_cdns *cdns)
 }
 
 /**
+ * sdw_cdns_soft_reset() - Cadence soft-reset
+ * @cdns: Cadence instance
+ */
+int sdw_cdns_soft_reset(struct sdw_cdns *cdns)
+{
+	int ret;
+
+	cdns_updatel(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_SOFT_RST,
+		     CDNS_MCP_CONTROL_SOFT_RST);
+
+	ret = cdns_config_update(cdns);
+	if (ret < 0) {
+		dev_err(cdns->dev, "%s: config update failed\n", __func__);
+		return ret;
+	}
+
+	ret = cdns_set_wait(cdns, CDNS_MCP_CONTROL, CDNS_MCP_CONTROL_SOFT_RST, 0);
+	if (ret < 0)
+		dev_err(cdns->dev, "%s: Soft Reset timed out\n", __func__);
+
+	return ret;
+}
+EXPORT_SYMBOL(sdw_cdns_soft_reset);
+
+/**
  * sdw_cdns_init() - Cadence initialization
  * @cdns: Cadence instance
  */
@@ -1399,6 +1424,11 @@ int sdw_cdns_init(struct sdw_cdns *cdns)
 	/* Set cmd accept mode */
 	cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL, CDNS_IP_MCP_CONTROL_CMD_ACCEPT,
 			CDNS_IP_MCP_CONTROL_CMD_ACCEPT);
+
+	/* disable wakeup */
+	cdns_ip_updatel(cdns, CDNS_IP_MCP_CONTROL,
+			CDNS_IP_MCP_CONTROL_BLOCK_WAKEUP,
+			0);
 
 	/* Configure mcp config */
 	val = cdns_readl(cdns, CDNS_MCP_CONFIG);

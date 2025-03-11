@@ -26,7 +26,7 @@
 	model = "Firefly ROC-RK3399-PC-PLUS Board";
 	compatible = "firefly,roc-rk3399-pc-plus", "rockchip,rk3399";
 
-	dc_12v: dc-12v {
+	dc_12v: regulator-dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
 		regulator-always-on;
@@ -51,7 +51,7 @@
 			"Headphone Amp INR", "ROUT2",
 			"Headphones", "Headphone Amp OUTL",
 			"Headphones", "Headphone Amp OUTR";
-		simple-audio-card,hp-det-gpio = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
+		simple-audio-card,hp-det-gpios = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
 		simple-audio-card,aux-devs = <&headphones_amp>;
 		simple-audio-card,pin-switches = "Headphones";
 

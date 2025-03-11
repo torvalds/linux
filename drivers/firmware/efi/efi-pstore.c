@@ -6,7 +6,7 @@
 #include <linux/slab.h>
 #include <linux/ucs2_string.h>
 
-MODULE_IMPORT_NS(EFIVAR);
+MODULE_IMPORT_NS("EFIVAR");
 
 #define DUMP_NAME_LEN 66
 

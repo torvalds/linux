@@ -349,7 +349,7 @@ config MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS
 	help
 	  Symbols exported with EXPORT_SYMBOL_NS*() are considered exported in
 	  a namespace. A module that makes use of a symbol exported with such a
-	  namespace is required to import the namespace via MODULE_IMPORT_NS().
+	  namespace is required to import the namespace via MODULE_IMPORT_NS("").
 	  There is no technical reason to enforce correct namespace imports,
 	  but it creates consistency between symbols defining namespaces and
 	  users importing namespaces they make use of. This option relaxes this

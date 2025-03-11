@@ -52,14 +52,14 @@ xfs_iunlink_log_dinode(
 	struct xfs_trans	*tp,
 	struct xfs_iunlink_item	*iup)
 {
-	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_inode	*ip = iup->ip;
 	struct xfs_dinode	*dip;
 	struct xfs_buf		*ibp;
+	xfs_agino_t		old_ptr;
 	int			offset;
 	int			error;
 
-	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &ibp);
+	error = xfs_imap_to_bp(tp->t_mountp, tp, &ip->i_imap, &ibp);
 	if (error)
 		return error;
 	/*
@@ -73,22 +73,21 @@ xfs_iunlink_log_dinode(
 	dip = xfs_buf_offset(ibp, ip->i_imap.im_boffset);
 
 	/* Make sure the old pointer isn't garbage. */
-	if (be32_to_cpu(dip->di_next_unlinked) != iup->old_agino) {
+	old_ptr = be32_to_cpu(dip->di_next_unlinked);
+	if (old_ptr != iup->old_agino) {
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__, dip,
 				sizeof(*dip), __this_address);
 		error = -EFSCORRUPTED;
 		goto out;
 	}
 
-	trace_xfs_iunlink_update_dinode(mp, iup->pag->pag_agno,
-			XFS_INO_TO_AGINO(mp, ip->i_ino),
-			be32_to_cpu(dip->di_next_unlinked), iup->next_agino);
+	trace_xfs_iunlink_update_dinode(iup, old_ptr);
 
 	dip->di_next_unlinked = cpu_to_be32(iup->next_agino);
 	offset = ip->i_imap.im_boffset +
 			offsetof(struct xfs_dinode, di_next_unlinked);
 
-	xfs_dinode_calc_crc(mp, dip);
+	xfs_dinode_calc_crc(tp->t_mountp, dip);
 	xfs_trans_inode_buf(tp, ibp);
 	xfs_trans_log_buf(tp, ibp, offset, offset + sizeof(xfs_agino_t) - 1);
 	return 0;

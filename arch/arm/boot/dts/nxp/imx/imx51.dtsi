@@ -399,7 +399,7 @@
 				clock-names = "ipg", "per";
 			};
 
-			iomuxc: iomuxc@73fa8000 {
+			iomuxc: pinctrl@73fa8000 {
 				compatible = "fsl,imx51-iomuxc";
 				reg = <0x73fa8000 0x4000>;
 			};

@@ -57,7 +57,6 @@
 
 
 #define VMWGFX_DRIVER_NAME "vmwgfx"
-#define VMWGFX_DRIVER_DATE "20211206"
 #define VMWGFX_DRIVER_MAJOR 2
 #define VMWGFX_DRIVER_MINOR 20
 #define VMWGFX_DRIVER_PATCHLEVEL 0
@@ -639,7 +638,7 @@ static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
 
 static inline struct vmw_private *vmw_priv(struct drm_device *dev)
 {
-	return (struct vmw_private *)dev->dev_private;
+	return container_of(dev, struct vmw_private, drm);
 }
 
 static inline struct vmw_private *vmw_priv_from_ttm(struct ttm_device *bdev)

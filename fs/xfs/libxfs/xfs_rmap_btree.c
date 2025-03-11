@@ -57,7 +57,7 @@ xfs_rmapbt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
 	return xfs_rmapbt_init_cursor(cur->bc_mp, cur->bc_tp,
-				cur->bc_ag.agbp, cur->bc_ag.pag);
+				cur->bc_ag.agbp, to_perag(cur->bc_group));
 }
 
 STATIC void
@@ -66,14 +66,15 @@ xfs_rmapbt_set_root(
 	const union xfs_btree_ptr	*ptr,
 	int				inc)
 {
-	struct xfs_buf		*agbp = cur->bc_ag.agbp;
-	struct xfs_agf		*agf = agbp->b_addr;
+	struct xfs_buf			*agbp = cur->bc_ag.agbp;
+	struct xfs_agf			*agf = agbp->b_addr;
+	struct xfs_perag		*pag = to_perag(cur->bc_group);
 
 	ASSERT(ptr->s != 0);
 
 	agf->agf_rmap_root = ptr->s;
 	be32_add_cpu(&agf->agf_rmap_level, inc);
-	cur->bc_ag.pag->pagf_rmap_level += inc;
+	pag->pagf_rmap_level += inc;
 
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
 }
@@ -87,7 +88,7 @@ xfs_rmapbt_alloc_block(
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	struct xfs_perag	*pag = cur->bc_ag.pag;
+	struct xfs_perag	*pag = to_perag(cur->bc_group);
 	struct xfs_alloc_arg    args = { .len = 1 };
 	int			error;
 	xfs_agblock_t		bno;
@@ -102,7 +103,7 @@ xfs_rmapbt_alloc_block(
 		return 0;
 	}
 
-	xfs_extent_busy_reuse(cur->bc_mp, pag, bno, 1, false);
+	xfs_extent_busy_reuse(pag_group(pag), bno, 1, false);
 
 	new->s = cpu_to_be32(bno);
 	be32_add_cpu(&agf->agf_rmap_blocks, 1);
@@ -125,7 +126,7 @@ xfs_rmapbt_free_block(
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	struct xfs_perag	*pag = cur->bc_ag.pag;
+	struct xfs_perag	*pag = to_perag(cur->bc_group);
 	xfs_agblock_t		bno;
 	int			error;
 
@@ -136,7 +137,7 @@ xfs_rmapbt_free_block(
 	if (error)
 		return error;
 
-	xfs_extent_busy_insert(cur->bc_tp, pag, bno, 1,
+	xfs_extent_busy_insert(cur->bc_tp, pag_group(pag), bno, 1,
 			      XFS_EXTENT_BUSY_SKIP_DISCARD);
 
 	xfs_ag_resv_free_extent(pag, XFS_AG_RESV_RMAPBT, NULL, 1);
@@ -227,7 +228,7 @@ xfs_rmapbt_init_ptr_from_cur(
 {
 	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
+	ASSERT(cur->bc_group->xg_gno == be32_to_cpu(agf->agf_seqno));
 
 	ptr->s = agf->agf_rmap_root;
 }
@@ -538,7 +539,7 @@ xfs_rmapbt_init_cursor(
 
 	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_rmapbt_ops,
 			mp->m_rmap_maxlevels, xfs_rmapbt_cur_cache);
-	cur->bc_ag.pag = xfs_perag_hold(pag);
+	cur->bc_group = xfs_group_hold(pag_group(pag));
 	cur->bc_ag.agbp = agbp;
 	if (agbp) {
 		struct xfs_agf		*agf = agbp->b_addr;
@@ -647,14 +648,13 @@ xfs_rmapbt_mem_cursor(
 	struct xfbtree		*xfbt)
 {
 	struct xfs_btree_cur	*cur;
-	struct xfs_mount	*mp = pag->pag_mount;
 
-	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_rmapbt_mem_ops,
+	cur = xfs_btree_alloc_cursor(pag_mount(pag), tp, &xfs_rmapbt_mem_ops,
 			xfs_rmapbt_maxlevels_ondisk(), xfs_rmapbt_cur_cache);
 	cur->bc_mem.xfbtree = xfbt;
 	cur->bc_nlevels = xfbt->nlevels;
 
-	cur->bc_mem.pag = xfs_perag_hold(pag);
+	cur->bc_group = xfs_group_hold(pag_group(pag));
 	return cur;
 }
 
@@ -863,7 +863,7 @@ xfs_rmapbt_calc_reserves(
 	 * never be available for the kinds of things that would require btree
 	 * expansion.  We therefore can pretend the space isn't there.
 	 */
-	if (xfs_ag_contains_log(mp, pag->pag_agno))
+	if (xfs_ag_contains_log(mp, pag_agno(pag)))
 		agblocks -= mp->m_sb.sb_logblocks;
 
 	/* Reserve 1% of the AG or enough for 1 block per record. */

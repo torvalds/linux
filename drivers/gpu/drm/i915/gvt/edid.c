@@ -32,6 +32,8 @@
  *
  */
 
+#include <drm/display/drm_dp.h>
+
 #include "display/intel_dp_aux_regs.h"
 #include "display/intel_gmbus_regs.h"
 #include "gvt.h"
@@ -504,13 +506,13 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 	}
 
 	/* Always set the wanted value for vms. */
-	ret_msg_size = (((op & 0x1) == GVT_AUX_I2C_READ) ? 2 : 1);
+	ret_msg_size = (((op & 0x1) == DP_AUX_I2C_READ) ? 2 : 1);
 	vgpu_vreg(vgpu, offset) =
 		DP_AUX_CH_CTL_DONE |
 		DP_AUX_CH_CTL_MESSAGE_SIZE(ret_msg_size);
 
 	if (msg_length == 3) {
-		if (!(op & GVT_AUX_I2C_MOT)) {
+		if (!(op & DP_AUX_I2C_MOT)) {
 			/* stop */
 			intel_vgpu_init_i2c_edid(vgpu);
 		} else {
@@ -530,7 +532,7 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 					i2c_edid->edid_available = true;
 			}
 		}
-	} else if ((op & 0x1) == GVT_AUX_I2C_WRITE) {
+	} else if ((op & 0x1) == DP_AUX_I2C_WRITE) {
 		/* TODO
 		 * We only support EDID reading from I2C_over_AUX. And
 		 * we do not expect the index mode to be used. Right now
@@ -538,7 +540,7 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 		 * support the gfx driver to do EDID access.
 		 */
 	} else {
-		if (drm_WARN_ON(&i915->drm, (op & 0x1) != GVT_AUX_I2C_READ))
+		if (drm_WARN_ON(&i915->drm, (op & 0x1) != DP_AUX_I2C_READ))
 			return;
 		if (drm_WARN_ON(&i915->drm, msg_length != 4))
 			return;
@@ -553,7 +555,7 @@ void intel_gvt_i2c_handle_aux_ch_write(struct intel_vgpu *vgpu,
 	 * ACK of I2C_WRITE
 	 * returned byte if it is READ
 	 */
-	aux_data_for_write |= GVT_AUX_I2C_REPLY_ACK << 24;
+	aux_data_for_write |= DP_AUX_I2C_REPLY_ACK << 24;
 	vgpu_vreg(vgpu, offset + 4) = aux_data_for_write;
 }
 

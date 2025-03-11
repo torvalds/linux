@@ -961,7 +961,7 @@ void shdma_chan_probe(struct shdma_dev *sdev,
 
 	spin_lock_init(&schan->chan_lock);
 
-	/* Init descripter manage list */
+	/* Init descriptor manage list */
 	INIT_LIST_HEAD(&schan->ld_queue);
 	INIT_LIST_HEAD(&schan->ld_free);
 

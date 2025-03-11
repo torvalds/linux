@@ -13,7 +13,7 @@
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/leds/common.h>
-#include "rk3399.dtsi"
+#include "rk3399-s.dtsi"
 
 / {
 	model = "Pine64 PinePhone Pro";
@@ -97,14 +97,14 @@
 		leds = <&led_red>, <&led_green>, <&led_blue>;
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-always-on;
 		regulator-boot-on;
 	};
 
-	vcc3v3_sys: vcc3v3-sys-regulator {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-always-on;
@@ -114,7 +114,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcca1v8_s3: vcc1v8-s3-regulator {
+	vcca1v8_s3: regulator-vcc1v8-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcca1v8_s3";
 		regulator-min-microvolt = <1800000>;
@@ -124,7 +124,7 @@
 		regulator-boot-on;
 	};
 
-	vcc1v8_codec: vcc1v8-codec-regulator {
+	vcc1v8_codec: regulator-vcc1v8-codec {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
@@ -158,7 +158,7 @@
 	};
 
 	/* MIPI DSI panel 1.8v supply */
-	vcc1v8_lcd: vcc1v8-lcd {
+	vcc1v8_lcd: regulator-vcc1v8-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		regulator-name = "vcc1v8_lcd";
@@ -169,7 +169,7 @@
 	};
 
 	/* MIPI DSI panel 2.8v supply */
-	vcc2v8_lcd: vcc2v8-lcd {
+	vcc2v8_lcd: regulator-vcc2v8-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		regulator-name = "vcc2v8_lcd";
@@ -241,7 +241,7 @@
 		clock-output-names = "xin32k", "rk808-clkout2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vcc_sys>;
@@ -451,27 +451,6 @@
 		interrupt-parent = <&gpio1>;
 		interrupts = <RK_PC6 IRQ_TYPE_LEVEL_LOW>;
 		vddio-supply = <&vcc_1v8>;
-	};
-};
-
-&cluster0_opp {
-	opp04 {
-		status = "disabled";
-	};
-
-	opp05 {
-		status = "disabled";
-	};
-};
-
-&cluster1_opp {
-	opp06 {
-		opp-hz = /bits/ 64 <1500000000>;
-		opp-microvolt = <1100000 1100000 1150000>;
-	};
-
-	opp07 {
-		status = "disabled";
 	};
 };
 

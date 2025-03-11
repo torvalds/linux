@@ -157,18 +157,18 @@ u64 __bootdata_preserved(stfle_fac_list[16]);
 EXPORT_SYMBOL(stfle_fac_list);
 struct oldmem_data __bootdata_preserved(oldmem_data);
 
-unsigned long VMALLOC_START;
+unsigned long __bootdata_preserved(VMALLOC_START);
 EXPORT_SYMBOL(VMALLOC_START);
 
-unsigned long VMALLOC_END;
+unsigned long __bootdata_preserved(VMALLOC_END);
 EXPORT_SYMBOL(VMALLOC_END);
 
-struct page *vmemmap;
+struct page *__bootdata_preserved(vmemmap);
 EXPORT_SYMBOL(vmemmap);
-unsigned long vmemmap_size;
+unsigned long __bootdata_preserved(vmemmap_size);
 
-unsigned long MODULES_VADDR;
-unsigned long MODULES_END;
+unsigned long __bootdata_preserved(MODULES_VADDR);
+unsigned long __bootdata_preserved(MODULES_END);
 
 /* An array with a pointer to the lowcore of every CPU. */
 struct lowcore *lowcore_ptr[NR_CPUS];
@@ -359,25 +359,17 @@ void *restart_stack;
 
 unsigned long stack_alloc(void)
 {
-#ifdef CONFIG_VMAP_STACK
-	void *ret;
+	void *stack;
 
-	ret = __vmalloc_node(THREAD_SIZE, THREAD_SIZE, THREADINFO_GFP,
-			     NUMA_NO_NODE, __builtin_return_address(0));
-	kmemleak_not_leak(ret);
-	return (unsigned long)ret;
-#else
-	return __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
-#endif
+	stack = __vmalloc_node(THREAD_SIZE, THREAD_SIZE, THREADINFO_GFP,
+			       NUMA_NO_NODE, __builtin_return_address(0));
+	kmemleak_not_leak(stack);
+	return (unsigned long)stack;
 }
 
 void stack_free(unsigned long stack)
 {
-#ifdef CONFIG_VMAP_STACK
-	vfree((void *) stack);
-#else
-	free_pages(stack, THREAD_SIZE_ORDER);
-#endif
+	vfree((void *)stack);
 }
 
 static unsigned long __init stack_alloc_early(void)
@@ -979,6 +971,7 @@ void __init setup_arch(char **cmdline_p)
 	if (test_facility(193))
 		static_branch_enable(&cpu_has_bear);
 
+	setup_protection_map();
 	/*
 	 * Create kernel page tables.
 	 */

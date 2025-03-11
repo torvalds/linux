@@ -1208,8 +1208,7 @@ static int swim3_attach(struct macio_dev *mdev,
 	fs = &floppy_states[floppy_count];
 	memset(fs, 0, sizeof(*fs));
 
-	rc = blk_mq_alloc_sq_tag_set(&fs->tag_set, &swim3_mq_ops, 2,
-			BLK_MQ_F_SHOULD_MERGE);
+	rc = blk_mq_alloc_sq_tag_set(&fs->tag_set, &swim3_mq_ops, 2, 0);
 	if (rc)
 		goto out_unregister;
 

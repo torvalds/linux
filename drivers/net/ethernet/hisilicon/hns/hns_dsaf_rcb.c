@@ -923,44 +923,42 @@ int hns_rcb_get_ring_regs_count(void)
  *@data:strings name value
  *@index:queue index
  */
-void hns_rcb_get_strings(int stringset, u8 *data, int index)
+void hns_rcb_get_strings(int stringset, u8 **data, int index)
 {
-	u8 *buff = data;
-
 	if (stringset != ETH_SS_STATS)
 		return;
 
-	ethtool_sprintf(&buff, "tx_ring%d_rcb_pkt_num", index);
-	ethtool_sprintf(&buff, "tx_ring%d_ppe_tx_pkt_num", index);
-	ethtool_sprintf(&buff, "tx_ring%d_ppe_drop_pkt_num", index);
-	ethtool_sprintf(&buff, "tx_ring%d_fbd_num", index);
+	ethtool_sprintf(data, "tx_ring%d_rcb_pkt_num", index);
+	ethtool_sprintf(data, "tx_ring%d_ppe_tx_pkt_num", index);
+	ethtool_sprintf(data, "tx_ring%d_ppe_drop_pkt_num", index);
+	ethtool_sprintf(data, "tx_ring%d_fbd_num", index);
 
-	ethtool_sprintf(&buff, "tx_ring%d_pkt_num", index);
-	ethtool_sprintf(&buff, "tx_ring%d_bytes", index);
-	ethtool_sprintf(&buff, "tx_ring%d_err_cnt", index);
-	ethtool_sprintf(&buff, "tx_ring%d_io_err", index);
-	ethtool_sprintf(&buff, "tx_ring%d_sw_err", index);
-	ethtool_sprintf(&buff, "tx_ring%d_seg_pkt", index);
-	ethtool_sprintf(&buff, "tx_ring%d_restart_queue", index);
-	ethtool_sprintf(&buff, "tx_ring%d_tx_busy", index);
+	ethtool_sprintf(data, "tx_ring%d_pkt_num", index);
+	ethtool_sprintf(data, "tx_ring%d_bytes", index);
+	ethtool_sprintf(data, "tx_ring%d_err_cnt", index);
+	ethtool_sprintf(data, "tx_ring%d_io_err", index);
+	ethtool_sprintf(data, "tx_ring%d_sw_err", index);
+	ethtool_sprintf(data, "tx_ring%d_seg_pkt", index);
+	ethtool_sprintf(data, "tx_ring%d_restart_queue", index);
+	ethtool_sprintf(data, "tx_ring%d_tx_busy", index);
 
-	ethtool_sprintf(&buff, "rx_ring%d_rcb_pkt_num", index);
-	ethtool_sprintf(&buff, "rx_ring%d_ppe_pkt_num", index);
-	ethtool_sprintf(&buff, "rx_ring%d_ppe_drop_pkt_num", index);
-	ethtool_sprintf(&buff, "rx_ring%d_fbd_num", index);
+	ethtool_sprintf(data, "rx_ring%d_rcb_pkt_num", index);
+	ethtool_sprintf(data, "rx_ring%d_ppe_pkt_num", index);
+	ethtool_sprintf(data, "rx_ring%d_ppe_drop_pkt_num", index);
+	ethtool_sprintf(data, "rx_ring%d_fbd_num", index);
 
-	ethtool_sprintf(&buff, "rx_ring%d_pkt_num", index);
-	ethtool_sprintf(&buff, "rx_ring%d_bytes", index);
-	ethtool_sprintf(&buff, "rx_ring%d_err_cnt", index);
-	ethtool_sprintf(&buff, "rx_ring%d_io_err", index);
-	ethtool_sprintf(&buff, "rx_ring%d_sw_err", index);
-	ethtool_sprintf(&buff, "rx_ring%d_seg_pkt", index);
-	ethtool_sprintf(&buff, "rx_ring%d_reuse_pg", index);
-	ethtool_sprintf(&buff, "rx_ring%d_len_err", index);
-	ethtool_sprintf(&buff, "rx_ring%d_non_vld_desc_err", index);
-	ethtool_sprintf(&buff, "rx_ring%d_bd_num_err", index);
-	ethtool_sprintf(&buff, "rx_ring%d_l2_err", index);
-	ethtool_sprintf(&buff, "rx_ring%d_l3l4csum_err", index);
+	ethtool_sprintf(data, "rx_ring%d_pkt_num", index);
+	ethtool_sprintf(data, "rx_ring%d_bytes", index);
+	ethtool_sprintf(data, "rx_ring%d_err_cnt", index);
+	ethtool_sprintf(data, "rx_ring%d_io_err", index);
+	ethtool_sprintf(data, "rx_ring%d_sw_err", index);
+	ethtool_sprintf(data, "rx_ring%d_seg_pkt", index);
+	ethtool_sprintf(data, "rx_ring%d_reuse_pg", index);
+	ethtool_sprintf(data, "rx_ring%d_len_err", index);
+	ethtool_sprintf(data, "rx_ring%d_non_vld_desc_err", index);
+	ethtool_sprintf(data, "rx_ring%d_bd_num_err", index);
+	ethtool_sprintf(data, "rx_ring%d_l2_err", index);
+	ethtool_sprintf(data, "rx_ring%d_l3l4csum_err", index);
 }
 
 void hns_rcb_get_common_regs(struct rcb_common_cb *rcb_com, void *data)

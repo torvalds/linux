@@ -61,18 +61,15 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/gpio/tegra194-gpio.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     i2c {
       #address-cells = <1>;
       #size-cells = <0>;
-      #interrupt-cells = <2>;
 
       typec@8 {
         compatible = "cypress,cypd4226";
         reg = <0x08>;
-        interrupt-parent = <&gpio_aon>;
-        interrupts = <TEGRA194_AON_GPIO(BB, 2) IRQ_TYPE_LEVEL_LOW>;
+        interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
         firmware-name = "nvidia,jetson-agx-xavier";
         #address-cells = <1>;
         #size-cells = <0>;

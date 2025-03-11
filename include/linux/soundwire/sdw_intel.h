@@ -4,6 +4,7 @@
 #ifndef __SDW_INTEL_H
 #define __SDW_INTEL_H
 
+#include <linux/acpi.h>
 #include <linux/irqreturn.h>
 #include <linux/soundwire/sdw.h>
 
@@ -286,31 +287,28 @@ struct hdac_bus;
  * hardware capabilities after all power dependencies are settled.
  * @link_mask: bit-wise mask listing SoundWire links reported by the
  * Controller
- * @num_slaves: total number of devices exposed across all enabled links
  * @handle: ACPI parent handle
  * @ldev: information for each link (controller-specific and kept
  * opaque here)
- * @ids: array of slave_id, representing Slaves exposed across all enabled
- * links
  * @link_list: list to handle interrupts across all links
  * @shim_lock: mutex to handle concurrent rmw access to shared SHIM registers.
  * @shim_mask: flags to track initialization of SHIM shared registers
  * @shim_base: sdw shim base.
  * @alh_base: sdw alh base.
+ * @peripherals: array representing Peripherals exposed across all enabled links
  */
 struct sdw_intel_ctx {
 	int count;
 	void __iomem *mmio_base;
 	u32 link_mask;
-	int num_slaves;
 	acpi_handle handle;
 	struct sdw_intel_link_dev **ldev;
-	struct sdw_extended_slave_id *ids;
 	struct list_head link_list;
 	struct mutex shim_lock; /* lock for access to shared SHIM registers */
 	u32 shim_mask;
 	u32 shim_base;
 	u32 alh_base;
+	struct sdw_peripherals *peripherals;
 };
 
 /**

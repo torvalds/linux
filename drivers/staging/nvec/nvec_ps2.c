@@ -175,7 +175,7 @@ static SIMPLE_DEV_PM_OPS(nvec_mouse_pm_ops, nvec_mouse_suspend,
 
 static struct platform_driver nvec_mouse_driver = {
 	.probe  = nvec_mouse_probe,
-	.remove_new = nvec_mouse_remove,
+	.remove = nvec_mouse_remove,
 	.driver = {
 		.name = "nvec-mouse",
 		.pm = &nvec_mouse_pm_ops,

@@ -402,7 +402,6 @@ static bool access_need_override_creds(int flags)
 
 static const struct cred *access_override_creds(void)
 {
-	const struct cred *old_cred;
 	struct cred *override_cred;
 
 	override_cred = prepare_creds();
@@ -447,13 +446,7 @@ static const struct cred *access_override_creds(void)
 	 * freeing.
 	 */
 	override_cred->non_rcu = 1;
-
-	old_cred = override_creds(override_cred);
-
-	/* override_cred() gets its own ref */
-	put_cred(override_cred);
-
-	return old_cred;
+	return override_creds(override_cred);
 }
 
 static long do_faccessat(int dfd, const char __user *filename, int mode, int flags)
@@ -523,7 +516,7 @@ out_path_release:
 	}
 out:
 	if (old_cred)
-		revert_creds(old_cred);
+		put_cred(revert_creds(old_cred));
 
 	return res;
 }
@@ -926,6 +919,10 @@ static int do_dentry_open(struct file *f,
 	}
 
 	error = security_file_open(f);
+	if (error)
+		goto cleanup_all;
+
+	error = fsnotify_open_perm(f);
 	if (error)
 		goto cleanup_all;
 

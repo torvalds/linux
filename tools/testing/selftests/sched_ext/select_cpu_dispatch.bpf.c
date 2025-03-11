@@ -29,7 +29,7 @@ s32 BPF_STRUCT_OPS(select_cpu_dispatch_select_cpu, struct task_struct *p,
 	cpu = prev_cpu;
 
 dispatch:
-	scx_bpf_dispatch(p, dsq_id, SCX_SLICE_DFL, 0);
+	scx_bpf_dsq_insert(p, dsq_id, SCX_SLICE_DFL, 0);
 	return cpu;
 }
 

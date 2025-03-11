@@ -416,7 +416,6 @@ u32 dispc_mgr_get_framedone_irq(struct dispc_device *dispc,
 				       enum omap_channel channel);
 u32 dispc_mgr_get_sync_lost_irq(struct dispc_device *dispc,
 				       enum omap_channel channel);
-u32 dispc_wb_get_framedone_irq(struct dispc_device *dispc);
 
 u32 dispc_get_memory_bandwidth_limit(struct dispc_device *dispc);
 
@@ -458,20 +457,11 @@ int dispc_ovl_setup(struct dispc_device *dispc,
 int dispc_ovl_enable(struct dispc_device *dispc,
 			    enum omap_plane_id plane, bool enable);
 
-bool dispc_has_writeback(struct dispc_device *dispc);
-int dispc_wb_setup(struct dispc_device *dispc,
-		   const struct omap_dss_writeback_info *wi,
-		   bool mem_to_mem, const struct videomode *vm,
-		   enum dss_writeback_channel channel_in);
-bool dispc_wb_go_busy(struct dispc_device *dispc);
-void dispc_wb_go(struct dispc_device *dispc);
-
 void dispc_enable_sidle(struct dispc_device *dispc);
 void dispc_disable_sidle(struct dispc_device *dispc);
 
 void dispc_lcd_enable_signal(struct dispc_device *dispc, bool enable);
 void dispc_pck_free_enable(struct dispc_device *dispc, bool enable);
-void dispc_enable_fifomerge(struct dispc_device *dispc, bool enable);
 
 typedef bool (*dispc_div_calc_func)(int lckd, int pckd, unsigned long lck,
 		unsigned long pck, void *data);
@@ -494,9 +484,6 @@ void dispc_ovl_compute_fifo_thresholds(struct dispc_device *dispc,
 void dispc_mgr_set_clock_div(struct dispc_device *dispc,
 			     enum omap_channel channel,
 			     const struct dispc_clock_info *cinfo);
-int dispc_mgr_get_clock_div(struct dispc_device *dispc,
-			    enum omap_channel channel,
-			    struct dispc_clock_info *cinfo);
 void dispc_set_tv_pclk(struct dispc_device *dispc, unsigned long pclk);
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS

@@ -333,7 +333,7 @@
 	pinctrl-1 = <&i2c0_pins_sleep>;
 	clock-frequency = <400000>;
 
-	at24@50 {
+	eeprom@50 {
 		compatible = "atmel,24c256";
 		pagesize = <64>;
 		reg = <0x50>;

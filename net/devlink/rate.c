@@ -108,12 +108,12 @@ static int devlink_nl_rate_fill(struct sk_buff *msg,
 			goto nla_put_failure;
 	}
 
-	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_RATE_TX_SHARE,
-			      devlink_rate->tx_share, DEVLINK_ATTR_PAD))
+	if (devlink_nl_put_u64(msg, DEVLINK_ATTR_RATE_TX_SHARE,
+			       devlink_rate->tx_share))
 		goto nla_put_failure;
 
-	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_RATE_TX_MAX,
-			      devlink_rate->tx_max, DEVLINK_ATTR_PAD))
+	if (devlink_nl_put_u64(msg, DEVLINK_ATTR_RATE_TX_MAX,
+			       devlink_rate->tx_max))
 		goto nla_put_failure;
 
 	if (nla_put_u32(msg, DEVLINK_ATTR_RATE_TX_PRIORITY,

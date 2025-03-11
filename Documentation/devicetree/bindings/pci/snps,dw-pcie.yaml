@@ -230,7 +230,6 @@ examples:
 
       interrupts = <25>, <24>;
       interrupt-names = "msi", "hp";
-      #interrupt-cells = <1>;
 
       reset-gpios = <&port0 0 1>;
 

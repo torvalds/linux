@@ -473,7 +473,7 @@ struct sub_codec dolphin_cs42l42_1 = {
  *                    Arrays Used for all projects using CS8409
  ******************************************************************************/
 
-const struct snd_pci_quirk cs8409_fixup_tbl[] = {
+const struct hda_quirk cs8409_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1028, 0x0A11, "Bullseye", CS8409_BULLSEYE),
 	SND_PCI_QUIRK(0x1028, 0x0A12, "Bullseye", CS8409_BULLSEYE),
 	SND_PCI_QUIRK(0x1028, 0x0A23, "Bullseye", CS8409_BULLSEYE),

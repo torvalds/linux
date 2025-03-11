@@ -43,7 +43,7 @@ enum jpeg_engin_status {
 
 static void jpeg_v4_0_3_set_dec_ring_funcs(struct amdgpu_device *adev);
 static void jpeg_v4_0_3_set_irq_funcs(struct amdgpu_device *adev);
-static int jpeg_v4_0_3_set_powergating_state(void *handle,
+static int jpeg_v4_0_3_set_powergating_state(struct amdgpu_ip_block *ip_block,
 				enum amd_powergating_state state);
 static void jpeg_v4_0_3_set_ras_funcs(struct amdgpu_device *adev);
 static void jpeg_v4_0_3_dec_ring_set_wptr(struct amdgpu_ring *ring);
@@ -68,15 +68,15 @@ static inline bool jpeg_v4_0_3_normalizn_reqd(struct amdgpu_device *adev)
 /**
  * jpeg_v4_0_3_early_init - set function pointers
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Set ring and irq function pointers
  */
-static int jpeg_v4_0_3_early_init(void *handle)
+static int jpeg_v4_0_3_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
-	adev->jpeg.num_jpeg_rings = AMDGPU_MAX_JPEG_RINGS;
+	adev->jpeg.num_jpeg_rings = AMDGPU_MAX_JPEG_RINGS_4_0_3;
 
 	jpeg_v4_0_3_set_dec_ring_funcs(adev);
 	jpeg_v4_0_3_set_irq_funcs(adev);
@@ -88,13 +88,13 @@ static int jpeg_v4_0_3_early_init(void *handle)
 /**
  * jpeg_v4_0_3_sw_init - sw init for JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Load firmware and sw initialization
  */
-static int jpeg_v4_0_3_sw_init(void *handle)
+static int jpeg_v4_0_3_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int i, j, r, jpeg_inst;
 
@@ -159,25 +159,33 @@ static int jpeg_v4_0_3_sw_init(void *handle)
 		}
 	}
 
+	/* TODO: Add queue reset mask when FW fully supports it */
+	adev->jpeg.supported_reset =
+		amdgpu_get_soft_full_reset_mask(&adev->jpeg.inst[0].ring_dec[0]);
+	r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
+	if (r)
+		return r;
+
 	return 0;
 }
 
 /**
  * jpeg_v4_0_3_sw_fini - sw fini for JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * JPEG suspend and free up sw allocation
  */
-static int jpeg_v4_0_3_sw_fini(void *handle)
+static int jpeg_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int r;
 
 	r = amdgpu_jpeg_suspend(adev);
 	if (r)
 		return r;
 
+	amdgpu_jpeg_sysfs_reset_mask_fini(adev);
 	r = amdgpu_jpeg_sw_fini(adev);
 
 	return r;
@@ -299,12 +307,12 @@ static int jpeg_v4_0_3_start_sriov(struct amdgpu_device *adev)
 /**
  * jpeg_v4_0_3_hw_init - start and test JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  */
-static int jpeg_v4_0_3_hw_init(void *handle)
+static int jpeg_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
 	int i, j, r, jpeg_inst;
 
@@ -313,7 +321,7 @@ static int jpeg_v4_0_3_hw_init(void *handle)
 		if (r)
 			return r;
 
-		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 			for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
 				ring = &adev->jpeg.inst[i].ring_dec[j];
 				ring->wptr = 0;
@@ -358,20 +366,20 @@ static int jpeg_v4_0_3_hw_init(void *handle)
 /**
  * jpeg_v4_0_3_hw_fini - stop the hardware block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Stop the JPEG block, mark ring as not ready any more
  */
-static int jpeg_v4_0_3_hw_fini(void *handle)
+static int jpeg_v4_0_3_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret = 0;
 
 	cancel_delayed_work_sync(&adev->jpeg.idle_work);
 
 	if (!amdgpu_sriov_vf(adev)) {
 		if (adev->jpeg.cur_state != AMD_PG_STATE_GATE)
-			ret = jpeg_v4_0_3_set_powergating_state(adev, AMD_PG_STATE_GATE);
+			ret = jpeg_v4_0_3_set_powergating_state(ip_block, AMD_PG_STATE_GATE);
 	}
 
 	return ret;
@@ -380,20 +388,19 @@ static int jpeg_v4_0_3_hw_fini(void *handle)
 /**
  * jpeg_v4_0_3_suspend - suspend JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * HW fini and suspend JPEG block
  */
-static int jpeg_v4_0_3_suspend(void *handle)
+static int jpeg_v4_0_3_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
-	r = jpeg_v4_0_3_hw_fini(adev);
+	r = jpeg_v4_0_3_hw_fini(ip_block);
 	if (r)
 		return r;
 
-	r = amdgpu_jpeg_suspend(adev);
+	r = amdgpu_jpeg_suspend(ip_block->adev);
 
 	return r;
 }
@@ -401,20 +408,19 @@ static int jpeg_v4_0_3_suspend(void *handle)
 /**
  * jpeg_v4_0_3_resume - resume JPEG block
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
  *
  * Resume firmware and hw init JPEG block
  */
-static int jpeg_v4_0_3_resume(void *handle)
+static int jpeg_v4_0_3_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
-	r = amdgpu_jpeg_resume(adev);
+	r = amdgpu_jpeg_resume(ip_block->adev);
 	if (r)
 		return r;
 
-	r = jpeg_v4_0_3_hw_init(adev);
+	r = jpeg_v4_0_3_hw_init(ip_block);
 
 	return r;
 }
@@ -674,11 +680,12 @@ void jpeg_v4_0_3_dec_ring_insert_start(struct amdgpu_ring *ring)
 		amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
 			0, 0, PACKETJ_TYPE0));
 		amdgpu_ring_write(ring, 0x62a04); /* PCTL0_MMHUB_DEEPSLEEP_IB */
-	}
 
-	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x80004000);
+		amdgpu_ring_write(ring,
+				  PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR, 0,
+					  0, PACKETJ_TYPE0));
+		amdgpu_ring_write(ring, 0x80004000);
+	}
 }
 
 /**
@@ -694,11 +701,12 @@ void jpeg_v4_0_3_dec_ring_insert_end(struct amdgpu_ring *ring)
 		amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
 			0, 0, PACKETJ_TYPE0));
 		amdgpu_ring_write(ring, 0x62a04);
-	}
 
-	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x00004000);
+		amdgpu_ring_write(ring,
+				  PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR, 0,
+					  0, PACKETJ_TYPE0));
+		amdgpu_ring_write(ring, 0x00004000);
+	}
 }
 
 /**
@@ -742,14 +750,6 @@ void jpeg_v4_0_3_dec_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 
 	amdgpu_ring_write(ring, PACKETJ(0, 0, 0, PACKETJ_TYPE6));
 	amdgpu_ring_write(ring, 0);
-
-	amdgpu_ring_write(ring,	PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x3fbc);
-
-	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x1);
 
 	amdgpu_ring_write(ring, PACKETJ(0, 0, 0, PACKETJ_TYPE6));
 	amdgpu_ring_write(ring, 0);
@@ -929,9 +929,9 @@ static bool jpeg_v4_0_3_is_idle(void *handle)
 	return ret;
 }
 
-static int jpeg_v4_0_3_wait_for_idle(void *handle)
+static int jpeg_v4_0_3_wait_for_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret = 0;
 	int i, j;
 
@@ -949,16 +949,16 @@ static int jpeg_v4_0_3_wait_for_idle(void *handle)
 	return ret;
 }
 
-static int jpeg_v4_0_3_set_clockgating_state(void *handle,
+static int jpeg_v4_0_3_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 					  enum amd_clockgating_state state)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	bool enable = state == AMD_CG_STATE_GATE;
 	int i;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (enable) {
-			if (!jpeg_v4_0_3_is_idle(handle))
+			if (!jpeg_v4_0_3_is_idle(adev))
 				return -EBUSY;
 			jpeg_v4_0_3_enable_clock_gating(adev, i);
 		} else {
@@ -968,10 +968,10 @@ static int jpeg_v4_0_3_set_clockgating_state(void *handle,
 	return 0;
 }
 
-static int jpeg_v4_0_3_set_powergating_state(void *handle,
+static int jpeg_v4_0_3_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					  enum amd_powergating_state state)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret;
 
 	if (amdgpu_sriov_vf(adev)) {
@@ -1058,7 +1058,6 @@ static int jpeg_v4_0_3_process_interrupt(struct amdgpu_device *adev,
 static const struct amd_ip_funcs jpeg_v4_0_3_ip_funcs = {
 	.name = "jpeg_v4_0_3",
 	.early_init = jpeg_v4_0_3_early_init,
-	.late_init = NULL,
 	.sw_init = jpeg_v4_0_3_sw_init,
 	.sw_fini = jpeg_v4_0_3_sw_fini,
 	.hw_init = jpeg_v4_0_3_hw_init,
@@ -1067,14 +1066,8 @@ static const struct amd_ip_funcs jpeg_v4_0_3_ip_funcs = {
 	.resume = jpeg_v4_0_3_resume,
 	.is_idle = jpeg_v4_0_3_is_idle,
 	.wait_for_idle = jpeg_v4_0_3_wait_for_idle,
-	.check_soft_reset = NULL,
-	.pre_soft_reset = NULL,
-	.soft_reset = NULL,
-	.post_soft_reset = NULL,
 	.set_clockgating_state = jpeg_v4_0_3_set_clockgating_state,
 	.set_powergating_state = jpeg_v4_0_3_set_powergating_state,
-	.dump_ip_state = NULL,
-	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs jpeg_v4_0_3_dec_ring_vm_funcs = {
@@ -1088,7 +1081,7 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_3_dec_ring_vm_funcs = {
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 6 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 8 +
 		8 + /* jpeg_v4_0_3_dec_ring_emit_vm_flush */
-		22 + 22 + /* jpeg_v4_0_3_dec_ring_emit_fence x2 vm fence */
+		18 + 18 + /* jpeg_v4_0_3_dec_ring_emit_fence x2 vm fence */
 		8 + 16,
 	.emit_ib_size = 22, /* jpeg_v4_0_3_dec_ring_emit_ib */
 	.emit_ib = jpeg_v4_0_3_dec_ring_emit_ib,
@@ -1238,9 +1231,95 @@ static const struct amdgpu_ras_block_hw_ops jpeg_v4_0_3_ras_hw_ops = {
 	.reset_ras_error_count = jpeg_v4_0_3_reset_ras_error_count,
 };
 
+static int jpeg_v4_0_3_aca_bank_parser(struct aca_handle *handle, struct aca_bank *bank,
+				      enum aca_smu_type type, void *data)
+{
+	struct aca_bank_info info;
+	u64 misc0;
+	int ret;
+
+	ret = aca_bank_info_decode(bank, &info);
+	if (ret)
+		return ret;
+
+	misc0 = bank->regs[ACA_REG_IDX_MISC0];
+	switch (type) {
+	case ACA_SMU_TYPE_UE:
+		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE,
+						     1ULL);
+		break;
+	case ACA_SMU_TYPE_CE:
+		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_CE,
+						     ACA_REG__MISC0__ERRCNT(misc0));
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
+/* reference to smu driver if header file */
+static int jpeg_v4_0_3_err_codes[] = {
+	16, 17, 18, 19, 20, 21, 22, 23, /* JPEG[0-7][S|D] */
+	24, 25, 26, 27, 28, 29, 30, 31
+};
+
+static bool jpeg_v4_0_3_aca_bank_is_valid(struct aca_handle *handle, struct aca_bank *bank,
+					 enum aca_smu_type type, void *data)
+{
+	u32 instlo;
+
+	instlo = ACA_REG__IPID__INSTANCEIDLO(bank->regs[ACA_REG_IDX_IPID]);
+	instlo &= GENMASK(31, 1);
+
+	if (instlo != mmSMNAID_AID0_MCA_SMU)
+		return false;
+
+	if (aca_bank_check_error_codes(handle->adev, bank,
+				       jpeg_v4_0_3_err_codes,
+				       ARRAY_SIZE(jpeg_v4_0_3_err_codes)))
+		return false;
+
+	return true;
+}
+
+static const struct aca_bank_ops jpeg_v4_0_3_aca_bank_ops = {
+	.aca_bank_parser = jpeg_v4_0_3_aca_bank_parser,
+	.aca_bank_is_valid = jpeg_v4_0_3_aca_bank_is_valid,
+};
+
+static const struct aca_info jpeg_v4_0_3_aca_info = {
+	.hwip = ACA_HWIP_TYPE_SMU,
+	.mask = ACA_ERROR_UE_MASK,
+	.bank_ops = &jpeg_v4_0_3_aca_bank_ops,
+};
+
+static int jpeg_v4_0_3_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
+{
+	int r;
+
+	r = amdgpu_ras_block_late_init(adev, ras_block);
+	if (r)
+		return r;
+
+	r = amdgpu_ras_bind_aca(adev, AMDGPU_RAS_BLOCK__JPEG,
+				&jpeg_v4_0_3_aca_info, NULL);
+	if (r)
+		goto late_fini;
+
+	return 0;
+
+late_fini:
+	amdgpu_ras_block_late_fini(adev, ras_block);
+
+	return r;
+}
+
 static struct amdgpu_jpeg_ras jpeg_v4_0_3_ras = {
 	.ras_block = {
 		.hw_ops = &jpeg_v4_0_3_ras_hw_ops,
+		.ras_late_init = jpeg_v4_0_3_ras_late_init,
 	},
 };
 

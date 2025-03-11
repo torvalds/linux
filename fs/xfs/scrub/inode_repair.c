@@ -521,10 +521,17 @@ STATIC void
 xrep_dinode_nlinks(
 	struct xfs_dinode	*dip)
 {
-	if (dip->di_version > 1)
-		dip->di_onlink = 0;
-	else
+	if (dip->di_version < 2) {
 		dip->di_nlink = 0;
+		return;
+	}
+
+	if (xfs_dinode_is_metadir(dip)) {
+		if (be16_to_cpu(dip->di_metatype) >= XFS_METAFILE_MAX)
+			dip->di_metatype = cpu_to_be16(XFS_METAFILE_UNKNOWN);
+	} else {
+		dip->di_metatype = 0;
+	}
 }
 
 /* Fix any conflicting flags that the verifiers complain about. */
@@ -565,6 +572,16 @@ xrep_dinode_flags(
 		dip->di_nrext64_pad = 0;
 	else if (dip->di_version >= 3)
 		dip->di_v3_pad = 0;
+
+	if (flags2 & XFS_DIFLAG2_METADATA) {
+		xfs_failaddr_t	fa;
+
+		fa = xfs_dinode_verify_metadir(sc->mp, dip, mode, flags,
+				flags2);
+		if (fa)
+			flags2 &= ~XFS_DIFLAG2_METADATA;
+	}
+
 	dip->di_flags = cpu_to_be16(flags);
 	dip->di_flags2 = cpu_to_be64(flags2);
 }
@@ -761,14 +778,13 @@ STATIC int
 xrep_dinode_count_rmaps(
 	struct xrep_inode	*ri)
 {
-	struct xfs_perag	*pag;
-	xfs_agnumber_t		agno;
+	struct xfs_perag	*pag = NULL;
 	int			error;
 
 	if (!xfs_has_rmapbt(ri->sc->mp) || xfs_has_realtime(ri->sc->mp))
 		return -EOPNOTSUPP;
 
-	for_each_perag(ri->sc->mp, agno, pag) {
+	while ((pag = xfs_perag_next(ri->sc->mp, pag))) {
 		error = xrep_dinode_count_ag_rmaps(ri, pag);
 		if (error) {
 			xfs_perag_rele(pag);
@@ -1755,15 +1771,8 @@ xrep_inode_pptr(
 	if (inode->i_nlink == 0 && !(inode->i_state & I_LINKABLE))
 		return 0;
 
-	/* The root directory doesn't have a parent pointer. */
-	if (ip == mp->m_rootip)
-		return 0;
-
-	/*
-	 * Metadata inodes are rooted in the superblock and do not have any
-	 * parents.
-	 */
-	if (xfs_is_metadata_inode(ip))
+	/* Children of the superblock do not have parent pointers. */
+	if (xchk_inode_is_sb_rooted(ip))
 		return 0;
 
 	/* Inode already has an attr fork; no further work possible here. */

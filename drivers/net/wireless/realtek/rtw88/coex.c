@@ -446,7 +446,7 @@ static void rtw_coex_check_rfk(struct rtw_dev *rtwdev)
 	}
 }
 
-static void rtw_coex_query_bt_info(struct rtw_dev *rtwdev)
+void rtw_coex_query_bt_info(struct rtw_dev *rtwdev)
 {
 	struct rtw_coex *coex = &rtwdev->coex;
 	struct rtw_coex_stat *coex_stat = &coex->stat;
@@ -494,11 +494,29 @@ static void rtw_coex_monitor_bt_enable(struct rtw_dev *rtwdev)
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 	struct rtw_coex_dm *coex_dm = &coex->dm;
 	bool bt_disabled = false;
+	bool bt_active = true;
 	u16 score_board;
 
 	if (chip->scbd_support) {
 		score_board = rtw_coex_read_scbd(rtwdev);
 		bt_disabled = !(score_board & COEX_SCBD_ONOFF);
+	} else {
+		if (coex_stat->hi_pri_tx == 0 && coex_stat->hi_pri_rx == 0 &&
+		    coex_stat->lo_pri_tx == 0 && coex_stat->lo_pri_rx == 0)
+			bt_active = false;
+
+		if (coex_stat->hi_pri_tx == 0xffff && coex_stat->hi_pri_rx == 0xffff &&
+		    coex_stat->lo_pri_tx == 0xffff && coex_stat->lo_pri_rx == 0xffff)
+			bt_active = false;
+
+		if (bt_active) {
+			coex_stat->bt_disable_cnt = 0;
+			bt_disabled = false;
+		} else {
+			coex_stat->bt_disable_cnt++;
+			if (coex_stat->bt_disable_cnt >= 10)
+				bt_disabled = true;
+		}
 	}
 
 	if (coex_stat->bt_disabled != bt_disabled) {
@@ -950,12 +968,18 @@ static void rtw_coex_coex_ctrl_owner(struct rtw_dev *rtwdev, bool wifi_control)
 
 static void rtw_coex_set_gnt_bt(struct rtw_dev *rtwdev, u8 state)
 {
+	if (!rtwdev->chip->ltecoex_addr)
+		return;
+
 	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0xc000, state);
 	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0x0c00, state);
 }
 
 static void rtw_coex_set_gnt_wl(struct rtw_dev *rtwdev, u8 state)
 {
+	if (!rtwdev->chip->ltecoex_addr)
+		return;
+
 	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0x3000, state);
 	rtw_coex_write_indirect_reg(rtwdev, LTE_COEX_CTRL, 0x0300, state);
 }
@@ -2747,16 +2771,19 @@ void rtw_coex_power_on_setting(struct rtw_dev *rtwdev)
 	rtw_write8(rtwdev, 0xff1a, 0x0);
 	rtw_coex_set_gnt_debug(rtwdev);
 }
+EXPORT_SYMBOL(rtw_coex_power_on_setting);
 
 void rtw_coex_power_off_setting(struct rtw_dev *rtwdev)
 {
 	rtw_write16(rtwdev, REG_WIFI_BT_INFO, BIT_BT_INT_EN);
 }
+EXPORT_SYMBOL(rtw_coex_power_off_setting);
 
 void rtw_coex_init_hw_config(struct rtw_dev *rtwdev, bool wifi_only)
 {
 	__rtw_coex_init_hw_config(rtwdev, wifi_only);
 }
+EXPORT_SYMBOL(rtw_coex_init_hw_config);
 
 void rtw_coex_ips_notify(struct rtw_dev *rtwdev, u8 type)
 {
@@ -3904,7 +3931,7 @@ void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m)
 	u8 sys_lte;
 	u16 score_board_WB, score_board_BW;
 	u32 wl_reg_6c0, wl_reg_6c4, wl_reg_6c8, wl_reg_778, wl_reg_6cc;
-	u32 lte_coex, bt_coex;
+	u32 lte_coex = 0, bt_coex = 0;
 	int i;
 
 	score_board_BW = rtw_coex_read_scbd(rtwdev);
@@ -3916,8 +3943,10 @@ void rtw_coex_display_coex_info(struct rtw_dev *rtwdev, struct seq_file *m)
 	wl_reg_778 = rtw_read8(rtwdev, REG_BT_STAT_CTRL);
 
 	sys_lte = rtw_read8(rtwdev, 0x73);
-	lte_coex = rtw_coex_read_indirect_reg(rtwdev, 0x38);
-	bt_coex = rtw_coex_read_indirect_reg(rtwdev, 0x54);
+	if (rtwdev->chip->ltecoex_addr) {
+		lte_coex = rtw_coex_read_indirect_reg(rtwdev, 0x38);
+		bt_coex = rtw_coex_read_indirect_reg(rtwdev, 0x54);
+	}
 
 	if (!coex_stat->wl_under_ips &&
 	    (!coex_stat->wl_under_lps || coex_stat->wl_force_lps_ctrl) &&

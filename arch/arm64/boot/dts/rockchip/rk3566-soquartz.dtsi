@@ -74,7 +74,7 @@
 		reset-gpios = <&gpio2 RK_PC2 GPIO_ACTIVE_LOW>;
 	};
 
-	vbus: vbus-regulator {
+	vbus: regulator-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "vbus";
 		regulator-always-on;
@@ -84,7 +84,7 @@
 	};
 
 	/* sourced from vbus, vbus is provided by the carrier board */
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -94,7 +94,7 @@
 		vin-supply = <&vbus>;
 	};
 
-	vcc3v3_sys: vcc3v3-sys-regulator {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-always-on;
@@ -213,7 +213,7 @@
 		clock-output-names = "rk808-clkout1", "rk808-clkout2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vcc3v3_sys>;

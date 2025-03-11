@@ -41,9 +41,7 @@ properties:
     enum: [ 1, 2 ]
 
   '#clock-cells':
-    description:
-      Cell is clock index. Optional if compatible has a single clock.
-    enum: [ 0, 1 ]
+    const: 1
 
   clocks:
     maxItems: 1
@@ -311,26 +309,6 @@ allOf:
     then:
       properties:
         '#reset-cells': false
-
-    # Compatibles exposing a single clock.
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - mobileye,eyeq6h-central-olb
-              - mobileye,eyeq6h-east-olb
-              - mobileye,eyeq6h-west-olb
-              - mobileye,eyeq6h-ddr0-olb
-              - mobileye,eyeq6h-ddr1-olb
-    then:
-      properties:
-        '#clock-cells':
-          const: 0
-    else:
-      properties:
-        '#clock-cells':
-          const: 1
 
     # Only EyeQ5 has pinctrl in OLB.
   - if:

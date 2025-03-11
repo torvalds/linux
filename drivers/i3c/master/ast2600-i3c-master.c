@@ -174,7 +174,7 @@ MODULE_DEVICE_TABLE(of, ast2600_i3c_master_of_match);
 
 static struct platform_driver ast2600_i3c_driver = {
 	.probe = ast2600_i3c_probe,
-	.remove_new = ast2600_i3c_remove,
+	.remove = ast2600_i3c_remove,
 	.driver = {
 		.name = "ast2600-i3c-master",
 		.of_match_table = ast2600_i3c_master_of_match,

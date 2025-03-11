@@ -392,7 +392,7 @@ out_ce:
 
 static struct platform_driver gpio_nand_driver = {
 	.probe		= gpio_nand_probe,
-	.remove_new	= gpio_nand_remove,
+	.remove		= gpio_nand_remove,
 	.driver		= {
 		.name	= "gpio-nand",
 		.of_match_table = of_match_ptr(gpio_nand_id_table),

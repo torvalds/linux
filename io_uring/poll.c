@@ -648,15 +648,12 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 	if (req->flags & REQ_F_POLLED) {
 		apoll = req->apoll;
 		kfree(apoll->double_poll);
-	} else if (!(issue_flags & IO_URING_F_UNLOCKED)) {
-		apoll = io_alloc_cache_get(&ctx->apoll_cache);
-		if (!apoll)
-			goto alloc_apoll;
-		apoll->poll.retries = APOLL_MAX_RETRY;
 	} else {
-alloc_apoll:
-		apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
-		if (unlikely(!apoll))
+		if (!(issue_flags & IO_URING_F_UNLOCKED))
+			apoll = io_cache_alloc(&ctx->apoll_cache, GFP_ATOMIC, NULL);
+		else
+			apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
+		if (!apoll)
 			return NULL;
 		apoll->poll.retries = APOLL_MAX_RETRY;
 	}

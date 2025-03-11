@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/mii.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/processor.h>
 #include <linux/property.h>
@@ -184,6 +185,8 @@
 	(ppb) * (ptp_clk_period), NSEC_PER_SEC)
 
 #define NXP_C45_SKB_CB(skb)	((struct nxp_c45_skb_cb *)(skb)->cb)
+
+#define TJA11XX_REVERSE_MODE		BIT(0)
 
 struct nxp_c45_phy;
 
@@ -1137,13 +1140,11 @@ static void nxp_c45_get_strings(struct phy_device *phydev, u8 *data)
 
 	for (i = 0; i < count; i++) {
 		if (i < ARRAY_SIZE(common_hw_stats)) {
-			strscpy(data + i * ETH_GSTRING_LEN,
-				common_hw_stats[i].name, ETH_GSTRING_LEN);
+			ethtool_puts(&data, common_hw_stats[i].name);
 			continue;
 		}
 		idx = i - ARRAY_SIZE(common_hw_stats);
-		strscpy(data + i * ETH_GSTRING_LEN,
-			phy_data->stats[idx].name, ETH_GSTRING_LEN);
+		ethtool_puts(&data, phy_data->stats[idx].name);
 	}
 }
 
@@ -1510,6 +1511,8 @@ static int nxp_c45_get_delays(struct phy_device *phydev)
 
 static int nxp_c45_set_phy_mode(struct phy_device *phydev)
 {
+	struct nxp_c45_phy *priv = phydev->priv;
+	u16 basic_config;
 	int ret;
 
 	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VEND1_ABILITIES);
@@ -1561,8 +1564,15 @@ static int nxp_c45_set_phy_mode(struct phy_device *phydev)
 			phydev_err(phydev, "rmii mode not supported\n");
 			return -EINVAL;
 		}
+
+		basic_config = MII_BASIC_CONFIG_RMII;
+
+		/* This is not PHY_INTERFACE_MODE_REVRMII */
+		if (priv->flags & TJA11XX_REVERSE_MODE)
+			basic_config |= MII_BASIC_CONFIG_REV;
+
 		phy_write_mmd(phydev, MDIO_MMD_VEND1, VEND1_MII_BASIC_CONFIG,
-			      MII_BASIC_CONFIG_RMII);
+			      basic_config);
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
 		if (!(ret & SGMII_ABILITY)) {
@@ -1623,6 +1633,20 @@ static int nxp_c45_get_features(struct phy_device *phydev)
 	return genphy_c45_pma_read_abilities(phydev);
 }
 
+static int nxp_c45_parse_dt(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->mdio.dev.of_node;
+	struct nxp_c45_phy *priv = phydev->priv;
+
+	if (!IS_ENABLED(CONFIG_OF_MDIO))
+		return 0;
+
+	if (of_property_read_bool(node, "nxp,rmii-refclk-out"))
+		priv->flags |= TJA11XX_REVERSE_MODE;
+
+	return 0;
+}
+
 static int nxp_c45_probe(struct phy_device *phydev)
 {
 	struct nxp_c45_phy *priv;
@@ -1641,6 +1665,8 @@ static int nxp_c45_probe(struct phy_device *phydev)
 	priv->phydev = phydev;
 
 	phydev->priv = priv;
+
+	nxp_c45_parse_dt(phydev);
 
 	mutex_init(&priv->ptp_lock);
 

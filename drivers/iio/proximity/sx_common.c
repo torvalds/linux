@@ -53,7 +53,7 @@ const struct iio_event_spec sx_common_events[3] = {
 				 BIT(IIO_EV_INFO_VALUE),
 	},
 };
-EXPORT_SYMBOL_NS_GPL(sx_common_events, SEMTECH_PROX);
+EXPORT_SYMBOL_NS_GPL(sx_common_events, "SEMTECH_PROX");
 
 static irqreturn_t sx_common_irq_handler(int irq, void *private)
 {
@@ -233,7 +233,7 @@ out:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(sx_common_read_proximity, SEMTECH_PROX);
+EXPORT_SYMBOL_NS_GPL(sx_common_read_proximity, "SEMTECH_PROX");
 
 /**
  * sx_common_read_event_config() - Configure event setting.
@@ -253,7 +253,7 @@ int sx_common_read_event_config(struct iio_dev *indio_dev,
 
 	return !!(data->chan_event & BIT(chan->channel));
 }
-EXPORT_SYMBOL_NS_GPL(sx_common_read_event_config, SEMTECH_PROX);
+EXPORT_SYMBOL_NS_GPL(sx_common_read_event_config, "SEMTECH_PROX");
 
 /**
  * sx_common_write_event_config() - Configure event setting.
@@ -268,7 +268,7 @@ EXPORT_SYMBOL_NS_GPL(sx_common_read_event_config, SEMTECH_PROX);
 int sx_common_write_event_config(struct iio_dev *indio_dev,
 				 const struct iio_chan_spec *chan,
 				 enum iio_event_type type,
-				 enum iio_event_direction dir, int state)
+				 enum iio_event_direction dir, bool state)
 {
 	struct sx_common_data *data = iio_priv(indio_dev);
 	unsigned int eventirq = SX_COMMON_FAR_IRQ | SX_COMMON_CLOSE_IRQ;
@@ -303,7 +303,7 @@ out_unlock:
 	mutex_unlock(&data->mutex);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(sx_common_write_event_config, SEMTECH_PROX);
+EXPORT_SYMBOL_NS_GPL(sx_common_write_event_config, "SEMTECH_PROX");
 
 static int sx_common_set_trigger_state(struct iio_trigger *trig, bool state)
 {
@@ -420,27 +420,6 @@ static const struct iio_buffer_setup_ops sx_common_buffer_setup_ops = {
 	.preenable = sx_common_buffer_preenable,
 	.postdisable = sx_common_buffer_postdisable,
 };
-
-void sx_common_get_raw_register_config(struct device *dev,
-				       struct sx_common_reg_default *reg_def)
-{
-#ifdef CONFIG_ACPI
-	struct acpi_device *adev = ACPI_COMPANION(dev);
-	u32 raw = 0, ret;
-	char prop[80];
-
-	if (!reg_def->property || !adev)
-		return;
-
-	snprintf(prop, ARRAY_SIZE(prop), "%s,reg_%s", acpi_device_hid(adev), reg_def->property);
-	ret = device_property_read_u32(dev, prop, &raw);
-	if (ret)
-		return;
-
-	reg_def->def = raw;
-#endif
-}
-EXPORT_SYMBOL_NS_GPL(sx_common_get_raw_register_config, SEMTECH_PROX);
 
 #define SX_COMMON_SOFT_RESET				0xde
 
@@ -563,7 +542,7 @@ int sx_common_probe(struct i2c_client *client,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(sx_common_probe, SEMTECH_PROX);
+EXPORT_SYMBOL_NS_GPL(sx_common_probe, "SEMTECH_PROX");
 
 MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
 MODULE_DESCRIPTION("Common functions and structures for Semtech sensor");

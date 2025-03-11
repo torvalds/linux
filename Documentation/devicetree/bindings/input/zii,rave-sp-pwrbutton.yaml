@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/zii,rave-sp-pwrbutton.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Zodiac Inflight Innovations RAVE Supervisory Processor Power Button
+
+maintainers:
+  - Frank Li <Frank.li@nxp.com>
+
+description:
+  RAVE SP input device is a "MFD cell" device corresponding to power
+  button functionality of RAVE Supervisory Processor. It is expected
+  that its Device Tree node is specified as a child of the node
+  corresponding to the parent RAVE SP device (as documented in
+  Documentation/devicetree/bindings/mfd/zii,rave-sp.yaml)
+
+properties:
+  compatible:
+    const: zii,rave-sp-pwrbutton
+
+required:
+  - compatible
+
+allOf:
+  - $ref: input.yaml
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    pwrbutton {
+        compatible = "zii,rave-sp-pwrbutton";
+    };
+

@@ -12,7 +12,6 @@
 #define SPX5_MIRROR_DISABLED 0
 #define SPX5_MIRROR_EGRESS 1
 #define SPX5_MIRROR_INGRESS 2
-#define SPX5_MIRROR_MONITOR_PORT_DEFAULT 65
 #define SPX5_QFWD_MP_OFFSET 9 /* Mirror port offset in the QFWD register */
 
 /* Convert from bool ingress/egress to mirror direction */
@@ -24,8 +23,14 @@ static u32 sparx5_mirror_to_dir(bool ingress)
 /* Get ports belonging to this mirror */
 static u64 sparx5_mirror_port_get(struct sparx5 *sparx5, u32 idx)
 {
-	return (u64)spx5_rd(sparx5, ANA_AC_PROBE_PORT_CFG1(idx)) << 32 |
-	       spx5_rd(sparx5, ANA_AC_PROBE_PORT_CFG(idx));
+	u64 val;
+
+	val = spx5_rd(sparx5, ANA_AC_PROBE_PORT_CFG(idx));
+
+	if (is_sparx5(sparx5))
+		val |= (u64)spx5_rd(sparx5, ANA_AC_PROBE_PORT_CFG1(idx)) << 32;
+
+	return val;
 }
 
 /* Add port to mirror (only front ports) */
@@ -194,7 +199,7 @@ void sparx5_mirror_del(struct sparx5_mall_entry *entry)
 
 	sparx5_mirror_monitor_set(sparx5,
 				  mirror_idx,
-				  SPX5_MIRROR_MONITOR_PORT_DEFAULT);
+				  sparx5->data->consts->n_ports);
 }
 
 void sparx5_mirror_stats(struct sparx5_mall_entry *entry,

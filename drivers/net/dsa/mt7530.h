@@ -248,6 +248,18 @@ enum mt7530_vlan_egress_attr {
 #define  AGE_UNIT_MAX			0xfff
 #define  AGE_UNIT(x)			(AGE_UNIT_MASK & (x))
 
+#define MT753X_ERLCR_P(x)		(0x1040 + ((x) * 0x100))
+#define  ERLCR_CIR_MASK			GENMASK(31, 16)
+#define  ERLCR_EN_MASK			BIT(15)
+#define  ERLCR_EXP_MASK			GENMASK(11, 8)
+#define  ERLCR_TBF_MODE_MASK		BIT(7)
+#define  ERLCR_MANT_MASK		GENMASK(6, 0)
+
+#define MT753X_GERLCR			0x10e0
+#define  EGR_BC_MASK			GENMASK(7, 0)
+#define  EGR_BC_CRC			0x4	/* crc */
+#define  EGR_BC_CRC_IPG_PREAMBLE	0x18	/* crc + ipg + preamble */
+
 /* Register for port STP state control */
 #define MT7530_SSP_P(x)			(0x2000 + ((x) * 0x100))
 #define  FID_PST(fid, state)		(((state) & 0x3) << ((fid) * 2))

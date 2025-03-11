@@ -1014,7 +1014,7 @@ static void omap_rtc_shutdown(struct platform_device *pdev)
 
 static struct platform_driver omap_rtc_driver = {
 	.probe		= omap_rtc_probe,
-	.remove_new	= omap_rtc_remove,
+	.remove		= omap_rtc_remove,
 	.shutdown	= omap_rtc_shutdown,
 	.driver		= {
 		.name	= "omap_rtc",

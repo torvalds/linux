@@ -184,11 +184,6 @@ invalid:
 	return ERR_PTR(-EINVAL);
 }
 
-#define acl_for_each_entry(acl, acl_e)			\
-	for (acl_e = acl->a_entries;			\
-	     acl_e < acl->a_entries + acl->a_count;	\
-	     acl_e++)
-
 /*
  * Convert from in-memory to filesystem representation.
  */
@@ -199,11 +194,11 @@ bch2_acl_to_xattr(struct btree_trans *trans,
 {
 	struct bkey_i_xattr *xattr;
 	bch_acl_header *acl_header;
-	const struct posix_acl_entry *acl_e;
+	const struct posix_acl_entry *acl_e, *pe;
 	void *outptr;
 	unsigned nr_short = 0, nr_long = 0, acl_len, u64s;
 
-	acl_for_each_entry(acl, acl_e) {
+	FOREACH_ACL_ENTRY(acl_e, acl, pe) {
 		switch (acl_e->e_tag) {
 		case ACL_USER:
 		case ACL_GROUP:
@@ -241,7 +236,7 @@ bch2_acl_to_xattr(struct btree_trans *trans,
 
 	outptr = (void *) acl_header + sizeof(*acl_header);
 
-	acl_for_each_entry(acl, acl_e) {
+	FOREACH_ACL_ENTRY(acl_e, acl, pe) {
 		bch_acl_entry *entry = outptr;
 
 		entry->e_tag = cpu_to_le16(acl_e->e_tag);

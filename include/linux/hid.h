@@ -359,6 +359,7 @@ struct hid_item {
  * | @HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP:
  * | @HID_QUIRK_HAVE_SPECIAL_DRIVER:
  * | @HID_QUIRK_INCREMENT_USAGE_ON_DUPLICATE:
+ * | @HID_QUIRK_IGNORE_SPECIAL_DRIVER
  * | @HID_QUIRK_FULLSPEED_INTERVAL:
  * | @HID_QUIRK_NO_INIT_REPORTS:
  * | @HID_QUIRK_NO_IGNORE:
@@ -384,6 +385,7 @@ struct hid_item {
 #define HID_QUIRK_HAVE_SPECIAL_DRIVER		BIT(19)
 #define HID_QUIRK_INCREMENT_USAGE_ON_DUPLICATE	BIT(20)
 #define HID_QUIRK_NOINVERT			BIT(21)
+#define HID_QUIRK_IGNORE_SPECIAL_DRIVER		BIT(22)
 #define HID_QUIRK_FULLSPEED_INTERVAL		BIT(28)
 #define HID_QUIRK_NO_INIT_REPORTS		BIT(29)
 #define HID_QUIRK_NO_IGNORE			BIT(30)
@@ -599,15 +601,17 @@ enum hid_battery_status {
 struct hid_driver;
 struct hid_ll_driver;
 
-struct hid_device {							/* device report descriptor */
-	const __u8 *dev_rdesc;
-	unsigned dev_rsize;
-	const __u8 *rdesc;
-	unsigned rsize;
+struct hid_device {
+	const __u8 *dev_rdesc;						/* device report descriptor */
+	const __u8 *bpf_rdesc;						/* bpf modified report descriptor, if any */
+	const __u8 *rdesc;						/* currently used report descriptor */
+	unsigned int dev_rsize;
+	unsigned int bpf_rsize;
+	unsigned int rsize;
+	unsigned int collection_size;					/* Number of allocated hid_collections */
 	struct hid_collection *collection;				/* List of HID collections */
-	unsigned collection_size;					/* Number of allocated hid_collections */
-	unsigned maxcollection;						/* Number of parsed collections */
-	unsigned maxapplication;					/* Number of applications */
+	unsigned int maxcollection;						/* Number of parsed collections */
+	unsigned int maxapplication;					/* Number of applications */
 	__u16 bus;							/* BUS ID */
 	__u16 group;							/* Report group */
 	__u32 vendor;							/* Vendor ID */
@@ -974,7 +978,6 @@ const struct hid_device_id *hid_match_device(struct hid_device *hdev,
 					     struct hid_driver *hdrv);
 bool hid_compare_device_paths(struct hid_device *hdev_a,
 			      struct hid_device *hdev_b, char separator);
-s32 hid_snto32(__u32 value, unsigned n);
 __u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
 		     unsigned offset, unsigned n);
 

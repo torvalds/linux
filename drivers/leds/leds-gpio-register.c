@@ -10,8 +10,8 @@
 
 /**
  * gpio_led_register_device - register a gpio-led device
- * @pdata: the platform data used for the new device
  * @id: platform ID
+ * @pdata: the platform data used for the new device
  *
  * Makes a copy of pdata and pdata->leds and registers a new leds-gpio device
  * with the result. This allows to have pdata and pdata-leds in .init.rodata

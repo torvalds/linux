@@ -46,10 +46,10 @@
 struct apds9300_data {
 	struct i2c_client *client;
 	struct mutex mutex;
-	int power_state;
+	bool power_state;
 	int thresh_low;
 	int thresh_hi;
-	int intr_en;
+	bool intr_en;
 };
 
 /* Lux calculation */
@@ -148,7 +148,7 @@ static int apds9300_set_thresh_hi(struct apds9300_data *data, int value)
 	return 0;
 }
 
-static int apds9300_set_intr_state(struct apds9300_data *data, int state)
+static int apds9300_set_intr_state(struct apds9300_data *data, bool state)
 {
 	int ret;
 	u8 cmd;
@@ -169,7 +169,7 @@ static int apds9300_set_intr_state(struct apds9300_data *data, int state)
 	return 0;
 }
 
-static int apds9300_set_power_state(struct apds9300_data *data, int state)
+static int apds9300_set_power_state(struct apds9300_data *data, bool state)
 {
 	int ret;
 	u8 cmd;
@@ -221,7 +221,7 @@ static int apds9300_chip_init(struct apds9300_data *data)
 	 * Disable interrupt to ensure thai it is doesn't enable
 	 * i.e. after device soft reset
 	 */
-	ret = apds9300_set_intr_state(data, 0);
+	ret = apds9300_set_intr_state(data, false);
 	if (ret < 0)
 		goto err;
 
@@ -321,7 +321,7 @@ static int apds9300_read_interrupt_config(struct iio_dev *indio_dev,
 
 static int apds9300_write_interrupt_config(struct iio_dev *indio_dev,
 		const struct iio_chan_spec *chan, enum iio_event_type type,
-		enum iio_event_direction dir, int state)
+		enum iio_event_direction dir, bool state)
 {
 	struct apds9300_data *data = iio_priv(indio_dev);
 	int ret;
@@ -459,8 +459,8 @@ static void apds9300_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 
 	/* Ensure that power off and interrupts are disabled */
-	apds9300_set_intr_state(data, 0);
-	apds9300_set_power_state(data, 0);
+	apds9300_set_intr_state(data, false);
+	apds9300_set_power_state(data, false);
 }
 
 static int apds9300_suspend(struct device *dev)
@@ -470,7 +470,7 @@ static int apds9300_suspend(struct device *dev)
 	int ret;
 
 	mutex_lock(&data->mutex);
-	ret = apds9300_set_power_state(data, 0);
+	ret = apds9300_set_power_state(data, false);
 	mutex_unlock(&data->mutex);
 
 	return ret;
@@ -483,7 +483,7 @@ static int apds9300_resume(struct device *dev)
 	int ret;
 
 	mutex_lock(&data->mutex);
-	ret = apds9300_set_power_state(data, 1);
+	ret = apds9300_set_power_state(data, true);
 	mutex_unlock(&data->mutex);
 
 	return ret;

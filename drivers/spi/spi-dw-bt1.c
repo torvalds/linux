@@ -317,7 +317,7 @@ MODULE_DEVICE_TABLE(of, dw_spi_bt1_of_match);
 
 static struct platform_driver dw_spi_bt1_driver = {
 	.probe	= dw_spi_bt1_probe,
-	.remove_new = dw_spi_bt1_remove,
+	.remove = dw_spi_bt1_remove,
 	.driver	= {
 		.name		= "bt1-sys-ssi",
 		.of_match_table	= dw_spi_bt1_of_match,
@@ -328,4 +328,4 @@ module_platform_driver(dw_spi_bt1_driver);
 MODULE_AUTHOR("Serge Semin <Sergey.Semin@baikalelectronics.ru>");
 MODULE_DESCRIPTION("Baikal-T1 System Boot SPI Controller driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(SPI_DW_CORE);
+MODULE_IMPORT_NS("SPI_DW_CORE");

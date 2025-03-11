@@ -834,6 +834,22 @@ Contact: Javier Martinez Canillas <javierm@redhat.com>
 
 Level: Advanced
 
+Querying errors from drm_syncobj
+================================
+
+The drm_syncobj container can be used by driver independent code to signal
+complection of submission.
+
+One minor feature still missing is a generic DRM IOCTL to query the error
+status of binary and timeline drm_syncobj.
+
+This should probably be improved by implementing the necessary kernel interface
+and adding support for that in the userspace stack.
+
+Contact: Christian König
+
+Level: Starter
+
 Outside DRM
 ===========
 

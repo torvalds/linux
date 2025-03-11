@@ -2440,7 +2440,7 @@ static struct platform_driver sdma_driver = {
 		.name	= "imx-sdma",
 		.of_match_table = sdma_dt_ids,
 	},
-	.remove_new	= sdma_remove,
+	.remove		= sdma_remove,
 	.probe		= sdma_probe,
 };
 

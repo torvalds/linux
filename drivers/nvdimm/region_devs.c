@@ -1270,4 +1270,4 @@ int nd_region_conflict(struct nd_region *nd_region, resource_size_t start,
 	return device_for_each_child(&nvdimm_bus->dev, &ctx, region_conflict);
 }
 
-MODULE_IMPORT_NS(DEVMEM);
+MODULE_IMPORT_NS("DEVMEM");

@@ -88,7 +88,6 @@ struct ov5645 {
 	struct v4l2_subdev sd;
 	struct media_pad pad;
 	struct v4l2_fwnode_endpoint ep;
-	struct v4l2_mbus_framefmt fmt;
 	struct v4l2_rect crop;
 	struct clk *xclk;
 
@@ -104,8 +103,6 @@ struct ov5645 {
 	u8 aec_pk_manual;
 	u8 timing_tc_reg20;
 	u8 timing_tc_reg21;
-
-	struct mutex power_lock; /* lock to protect power state */
 
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *rst_gpio;
@@ -781,11 +778,8 @@ static int ov5645_s_ctrl(struct v4l2_ctrl *ctrl)
 					     struct ov5645, ctrls);
 	int ret;
 
-	mutex_lock(&ov5645->power_lock);
-	if (!pm_runtime_get_if_in_use(ov5645->dev)) {
-		mutex_unlock(&ov5645->power_lock);
+	if (!pm_runtime_get_if_in_use(ov5645->dev))
 		return 0;
-	}
 
 	switch (ctrl->id) {
 	case V4L2_CID_SATURATION:
@@ -816,7 +810,6 @@ static int ov5645_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	pm_runtime_mark_last_busy(ov5645->dev);
 	pm_runtime_put_autosuspend(ov5645->dev);
-	mutex_unlock(&ov5645->power_lock);
 
 	return ret;
 }
@@ -855,49 +848,6 @@ static int ov5645_enum_frame_size(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static struct v4l2_mbus_framefmt *
-__ov5645_get_pad_format(struct ov5645 *ov5645,
-			struct v4l2_subdev_state *sd_state,
-			unsigned int pad,
-			enum v4l2_subdev_format_whence which)
-{
-	switch (which) {
-	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_state_get_format(sd_state, pad);
-	case V4L2_SUBDEV_FORMAT_ACTIVE:
-		return &ov5645->fmt;
-	default:
-		return NULL;
-	}
-}
-
-static int ov5645_get_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_state *sd_state,
-			     struct v4l2_subdev_format *format)
-{
-	struct ov5645 *ov5645 = to_ov5645(sd);
-
-	format->format = *__ov5645_get_pad_format(ov5645, sd_state,
-						  format->pad,
-						  format->which);
-	return 0;
-}
-
-static struct v4l2_rect *
-__ov5645_get_pad_crop(struct ov5645 *ov5645,
-		      struct v4l2_subdev_state *sd_state,
-		      unsigned int pad, enum v4l2_subdev_format_whence which)
-{
-	switch (which) {
-	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_state_get_crop(sd_state, pad);
-	case V4L2_SUBDEV_FORMAT_ACTIVE:
-		return &ov5645->crop;
-	default:
-		return NULL;
-	}
-}
-
 static int ov5645_set_format(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_format *format)
@@ -908,33 +858,30 @@ static int ov5645_set_format(struct v4l2_subdev *sd,
 	const struct ov5645_mode_info *new_mode;
 	int ret;
 
-	__crop = __ov5645_get_pad_crop(ov5645, sd_state, format->pad,
-				       format->which);
-
+	__crop = v4l2_subdev_state_get_crop(sd_state, 0);
 	new_mode = v4l2_find_nearest_size(ov5645_mode_info_data,
-			       ARRAY_SIZE(ov5645_mode_info_data),
-			       width, height,
-			       format->format.width, format->format.height);
+					  ARRAY_SIZE(ov5645_mode_info_data),
+					  width, height, format->format.width,
+					  format->format.height);
 
 	__crop->width = new_mode->width;
 	__crop->height = new_mode->height;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		ret = v4l2_ctrl_s_ctrl_int64(ov5645->pixel_clock,
-					     new_mode->pixel_clock);
+		ret = __v4l2_ctrl_s_ctrl_int64(ov5645->pixel_clock,
+					       new_mode->pixel_clock);
 		if (ret < 0)
 			return ret;
 
-		ret = v4l2_ctrl_s_ctrl(ov5645->link_freq,
-				       new_mode->link_freq);
+		ret = __v4l2_ctrl_s_ctrl(ov5645->link_freq,
+					 new_mode->link_freq);
 		if (ret < 0)
 			return ret;
 
 		ov5645->current_mode = new_mode;
 	}
 
-	__format = __ov5645_get_pad_format(ov5645, sd_state, format->pad,
-					   format->which);
+	__format = v4l2_subdev_state_get_format(sd_state, 0);
 	__format->width = __crop->width;
 	__format->height = __crop->height;
 	__format->code = MEDIA_BUS_FMT_UYVY8_1X16;
@@ -949,11 +896,15 @@ static int ov5645_set_format(struct v4l2_subdev *sd,
 static int ov5645_init_state(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_state *sd_state)
 {
-	struct v4l2_subdev_format fmt = { 0 };
-
-	fmt.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY : V4L2_SUBDEV_FORMAT_ACTIVE;
-	fmt.format.width = 1920;
-	fmt.format.height = 1080;
+	struct v4l2_subdev_format fmt = {
+		.which = V4L2_SUBDEV_FORMAT_TRY,
+		.pad = 0,
+		.format = {
+			.code = MEDIA_BUS_FMT_UYVY8_1X16,
+			.width = ov5645_mode_info_data[1].width,
+			.height = ov5645_mode_info_data[1].height,
+		},
+	};
 
 	ov5645_set_format(subdev, sd_state, &fmt);
 
@@ -964,82 +915,88 @@ static int ov5645_get_selection(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_selection *sel)
 {
-	struct ov5645 *ov5645 = to_ov5645(sd);
-
 	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
-	sel->r = *__ov5645_get_pad_crop(ov5645, sd_state, sel->pad,
-					sel->which);
+	sel->r = *v4l2_subdev_state_get_crop(sd_state, 0);
 	return 0;
 }
 
-static int ov5645_s_stream(struct v4l2_subdev *subdev, int enable)
+static int ov5645_enable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state, u32 pad,
+				 u64 streams_mask)
 {
-	struct ov5645 *ov5645 = to_ov5645(subdev);
+	struct ov5645 *ov5645 = to_ov5645(sd);
 	int ret;
 
-	if (enable) {
-		ret = pm_runtime_resume_and_get(ov5645->dev);
-		if (ret < 0)
-			return ret;
+	ret = pm_runtime_resume_and_get(ov5645->dev);
+	if (ret < 0)
+		return ret;
 
-		ret = ov5645_set_register_array(ov5645,
+	ret = ov5645_set_register_array(ov5645,
 					ov5645->current_mode->data,
 					ov5645->current_mode->data_size);
-		if (ret < 0) {
-			dev_err(ov5645->dev, "could not set mode %dx%d\n",
-				ov5645->current_mode->width,
-				ov5645->current_mode->height);
-			goto err_rpm_put;
-		}
-		ret = v4l2_ctrl_handler_setup(&ov5645->ctrls);
-		if (ret < 0) {
-			dev_err(ov5645->dev, "could not sync v4l2 controls\n");
-			goto err_rpm_put;
-		}
-
-		ret = ov5645_write_reg(ov5645, OV5645_IO_MIPI_CTRL00, 0x45);
-		if (ret < 0)
-			goto err_rpm_put;
-
-		ret = ov5645_write_reg(ov5645, OV5645_SYSTEM_CTRL0,
-				       OV5645_SYSTEM_CTRL0_START);
-		if (ret < 0)
-			goto err_rpm_put;
-	} else {
-		ret = ov5645_write_reg(ov5645, OV5645_IO_MIPI_CTRL00, 0x40);
-		if (ret < 0)
-			goto stream_off_rpm_put;
-
-		ret = ov5645_write_reg(ov5645, OV5645_SYSTEM_CTRL0,
-				       OV5645_SYSTEM_CTRL0_STOP);
-
-		goto stream_off_rpm_put;
+	if (ret < 0) {
+		dev_err(ov5645->dev, "could not set mode %dx%d\n",
+			ov5645->current_mode->width,
+			ov5645->current_mode->height);
+		goto err_rpm_put;
 	}
+	ret = __v4l2_ctrl_handler_setup(&ov5645->ctrls);
+	if (ret < 0) {
+		dev_err(ov5645->dev, "could not sync v4l2 controls\n");
+		goto err_rpm_put;
+	}
+
+	ret = ov5645_write_reg(ov5645, OV5645_IO_MIPI_CTRL00, 0x45);
+	if (ret < 0)
+		goto err_rpm_put;
+
+	ret = ov5645_write_reg(ov5645, OV5645_SYSTEM_CTRL0,
+			       OV5645_SYSTEM_CTRL0_START);
+	if (ret < 0)
+		goto err_rpm_put;
 
 	return 0;
 
 err_rpm_put:
 	pm_runtime_put_sync(ov5645->dev);
 	return ret;
+}
 
-stream_off_rpm_put:
+static int ov5645_disable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state, u32 pad,
+				  u64 streams_mask)
+{
+	struct ov5645 *ov5645 = to_ov5645(sd);
+	int ret;
+
+	ret = ov5645_write_reg(ov5645, OV5645_IO_MIPI_CTRL00, 0x40);
+	if (ret < 0)
+		goto rpm_put;
+
+	ret = ov5645_write_reg(ov5645, OV5645_SYSTEM_CTRL0,
+			       OV5645_SYSTEM_CTRL0_STOP);
+
+rpm_put:
 	pm_runtime_mark_last_busy(ov5645->dev);
 	pm_runtime_put_autosuspend(ov5645->dev);
+
 	return ret;
 }
 
 static const struct v4l2_subdev_video_ops ov5645_video_ops = {
-	.s_stream = ov5645_s_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops ov5645_subdev_pad_ops = {
 	.enum_mbus_code = ov5645_enum_mbus_code,
 	.enum_frame_size = ov5645_enum_frame_size,
-	.get_fmt = ov5645_get_format,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = ov5645_set_format,
 	.get_selection = ov5645_get_selection,
+	.enable_streams = ov5645_enable_streams,
+	.disable_streams = ov5645_disable_streams,
 };
 
 static const struct v4l2_subdev_ops ov5645_subdev_ops = {
@@ -1069,51 +1026,44 @@ static int ov5645_probe(struct i2c_client *client)
 	ov5645->dev = dev;
 
 	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
-	if (!endpoint) {
-		dev_err(dev, "endpoint node not found\n");
-		return -EINVAL;
-	}
+	if (!endpoint)
+		return dev_err_probe(dev, -EINVAL,
+				     "endpoint node not found\n");
 
 	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint),
 					 &ov5645->ep);
 
 	of_node_put(endpoint);
 
-	if (ret < 0) {
-		dev_err(dev, "parsing endpoint node failed\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret,
+				     "parsing endpoint node failed\n");
 
-	if (ov5645->ep.bus_type != V4L2_MBUS_CSI2_DPHY) {
-		dev_err(dev, "invalid bus type, must be CSI2\n");
-		return -EINVAL;
-	}
+	if (ov5645->ep.bus_type != V4L2_MBUS_CSI2_DPHY)
+		return dev_err_probe(dev, -EINVAL,
+				     "invalid bus type, must be CSI2\n");
 
 	/* get system clock (xclk) */
 	ov5645->xclk = devm_clk_get(dev, NULL);
-	if (IS_ERR(ov5645->xclk)) {
-		dev_err(dev, "could not get xclk");
-		return PTR_ERR(ov5645->xclk);
-	}
+	if (IS_ERR(ov5645->xclk))
+		return dev_err_probe(dev, PTR_ERR(ov5645->xclk),
+				     "could not get xclk");
 
 	ret = of_property_read_u32(dev->of_node, "clock-frequency", &xclk_freq);
-	if (ret) {
-		dev_err(dev, "could not get xclk frequency\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "could not get xclk frequency\n");
 
 	/* external clock must be 24MHz, allow 1% tolerance */
-	if (xclk_freq < 23760000 || xclk_freq > 24240000) {
-		dev_err(dev, "external clock frequency %u is not supported\n",
-			xclk_freq);
-		return -EINVAL;
-	}
+	if (xclk_freq < 23760000 || xclk_freq > 24240000)
+		return dev_err_probe(dev, -EINVAL,
+				     "unsupported xclk frequency %u\n",
+				     xclk_freq);
 
 	ret = clk_set_rate(ov5645->xclk, xclk_freq);
-	if (ret) {
-		dev_err(dev, "could not set xclk frequency\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "could not set xclk frequency\n");
 
 	for (i = 0; i < OV5645_NUM_SUPPLIES; i++)
 		ov5645->supplies[i].supply = ov5645_supply_name[i];
@@ -1124,18 +1074,14 @@ static int ov5645_probe(struct i2c_client *client)
 		return ret;
 
 	ov5645->enable_gpio = devm_gpiod_get(dev, "enable", GPIOD_OUT_HIGH);
-	if (IS_ERR(ov5645->enable_gpio)) {
-		dev_err(dev, "cannot get enable gpio\n");
-		return PTR_ERR(ov5645->enable_gpio);
-	}
+	if (IS_ERR(ov5645->enable_gpio))
+		return dev_err_probe(dev, PTR_ERR(ov5645->enable_gpio),
+				     "cannot get enable gpio\n");
 
 	ov5645->rst_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(ov5645->rst_gpio)) {
-		dev_err(dev, "cannot get reset gpio\n");
-		return PTR_ERR(ov5645->rst_gpio);
-	}
-
-	mutex_init(&ov5645->power_lock);
+	if (IS_ERR(ov5645->rst_gpio))
+		return dev_err_probe(dev, PTR_ERR(ov5645->rst_gpio),
+				     "cannot get reset gpio\n");
 
 	v4l2_ctrl_handler_init(&ov5645->ctrls, 9);
 	v4l2_ctrl_new_std(&ov5645->ctrls, &ov5645_ctrl_ops,
@@ -1170,9 +1116,8 @@ static int ov5645_probe(struct i2c_client *client)
 	ov5645->sd.ctrl_handler = &ov5645->ctrls;
 
 	if (ov5645->ctrls.error) {
-		dev_err(dev, "%s: control initialization error %d\n",
-		       __func__, ov5645->ctrls.error);
 		ret = ov5645->ctrls.error;
+		dev_err_probe(dev, ret, "failed to add controls\n");
 		goto free_ctrl;
 	}
 
@@ -1180,12 +1125,12 @@ static int ov5645_probe(struct i2c_client *client)
 	ov5645->sd.internal_ops = &ov5645_internal_ops;
 	ov5645->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	ov5645->pad.flags = MEDIA_PAD_FL_SOURCE;
-	ov5645->sd.dev = &client->dev;
+	ov5645->sd.dev = dev;
 	ov5645->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	ret = media_entity_pads_init(&ov5645->sd.entity, 1, &ov5645->pad);
 	if (ret < 0) {
-		dev_err(dev, "could not register media entity\n");
+		dev_err_probe(dev, ret, "could not register media entity\n");
 		goto free_ctrl;
 	}
 
@@ -1195,14 +1140,14 @@ static int ov5645_probe(struct i2c_client *client)
 
 	ret = ov5645_read_reg(ov5645, OV5645_CHIP_ID_HIGH, &chip_id_high);
 	if (ret < 0 || chip_id_high != OV5645_CHIP_ID_HIGH_BYTE) {
-		dev_err(dev, "could not read ID high\n");
 		ret = -ENODEV;
+		dev_err_probe(dev, ret, "could not read ID high\n");
 		goto power_down;
 	}
 	ret = ov5645_read_reg(ov5645, OV5645_CHIP_ID_LOW, &chip_id_low);
 	if (ret < 0 || chip_id_low != OV5645_CHIP_ID_LOW_BYTE) {
-		dev_err(dev, "could not read ID low\n");
 		ret = -ENODEV;
+		dev_err_probe(dev, ret, "could not read ID low\n");
 		goto power_down;
 	}
 
@@ -1211,24 +1156,31 @@ static int ov5645_probe(struct i2c_client *client)
 	ret = ov5645_read_reg(ov5645, OV5645_AEC_PK_MANUAL,
 			      &ov5645->aec_pk_manual);
 	if (ret < 0) {
-		dev_err(dev, "could not read AEC/AGC mode\n");
 		ret = -ENODEV;
+		dev_err_probe(dev, ret, "could not read AEC/AGC mode\n");
 		goto power_down;
 	}
 
 	ret = ov5645_read_reg(ov5645, OV5645_TIMING_TC_REG20,
 			      &ov5645->timing_tc_reg20);
 	if (ret < 0) {
-		dev_err(dev, "could not read vflip value\n");
 		ret = -ENODEV;
+		dev_err_probe(dev, ret, "could not read vflip value\n");
 		goto power_down;
 	}
 
 	ret = ov5645_read_reg(ov5645, OV5645_TIMING_TC_REG21,
 			      &ov5645->timing_tc_reg21);
 	if (ret < 0) {
-		dev_err(dev, "could not read hflip value\n");
 		ret = -ENODEV;
+		dev_err_probe(dev, ret, "could not read hflip value\n");
+		goto power_down;
+	}
+
+	ov5645->sd.state_lock = ov5645->ctrls.lock;
+	ret = v4l2_subdev_init_finalize(&ov5645->sd);
+	if (ret < 0) {
+		dev_err_probe(dev, ret, "subdev init error\n");
 		goto power_down;
 	}
 
@@ -1236,11 +1188,9 @@ static int ov5645_probe(struct i2c_client *client)
 	pm_runtime_get_noresume(dev);
 	pm_runtime_enable(dev);
 
-	ov5645_init_state(&ov5645->sd, NULL);
-
-	ret = v4l2_async_register_subdev(&ov5645->sd);
+	ret = v4l2_async_register_subdev_sensor(&ov5645->sd);
 	if (ret < 0) {
-		dev_err(dev, "could not register v4l2 device\n");
+		dev_err_probe(dev, ret, "could not register v4l2 device\n");
 		goto err_pm_runtime;
 	}
 
@@ -1254,13 +1204,13 @@ static int ov5645_probe(struct i2c_client *client)
 err_pm_runtime:
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
+	v4l2_subdev_cleanup(&ov5645->sd);
 power_down:
 	ov5645_set_power_off(dev);
 free_entity:
 	media_entity_cleanup(&ov5645->sd.entity);
 free_ctrl:
 	v4l2_ctrl_handler_free(&ov5645->ctrls);
-	mutex_destroy(&ov5645->power_lock);
 
 	return ret;
 }
@@ -1271,13 +1221,13 @@ static void ov5645_remove(struct i2c_client *client)
 	struct ov5645 *ov5645 = to_ov5645(sd);
 
 	v4l2_async_unregister_subdev(&ov5645->sd);
+	v4l2_subdev_cleanup(sd);
 	media_entity_cleanup(&ov5645->sd.entity);
 	v4l2_ctrl_handler_free(&ov5645->ctrls);
 	pm_runtime_disable(ov5645->dev);
 	if (!pm_runtime_status_suspended(ov5645->dev))
 		ov5645_set_power_off(ov5645->dev);
 	pm_runtime_set_suspended(ov5645->dev);
-	mutex_destroy(&ov5645->power_lock);
 }
 
 static const struct i2c_device_id ov5645_id[] = {

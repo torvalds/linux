@@ -11,10 +11,11 @@
  *	Jianhua Li <lijianhua@huawei.com>
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <drm/drm_aperture.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
@@ -26,6 +27,10 @@
 
 #include "hibmc_drm_drv.h"
 #include "hibmc_drm_regs.h"
+
+#define HIBMC_DP_HOST_SERDES_CTRL		0x1f001c
+#define HIBMC_DP_HOST_SERDES_CTRL_VAL		0x8a00
+#define HIBMC_DP_HOST_SERDES_CTRL_MASK		0x7ffff
 
 DEFINE_DRM_GEM_FOPS(hibmc_fops);
 
@@ -56,13 +61,13 @@ static const struct drm_driver hibmc_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &hibmc_fops,
 	.name			= "hibmc",
-	.date			= "20160828",
 	.desc			= "hibmc drm driver",
 	.major			= 1,
 	.minor			= 0,
 	.debugfs_init		= drm_vram_mm_debugfs_init,
 	.dumb_create            = hibmc_dumb_create,
 	.dumb_map_offset        = drm_gem_ttm_dumb_map_offset,
+	DRM_FBDEV_TTM_DRIVER_OPS,
 };
 
 static int __maybe_unused hibmc_pm_suspend(struct device *dev)
@@ -114,6 +119,14 @@ static int hibmc_kms_init(struct hibmc_drm_private *priv)
 	if (ret) {
 		drm_err(dev, "failed to init de: %d\n", ret);
 		return ret;
+	}
+
+	/* if DP existed, init DP */
+	if ((readl(priv->mmio + HIBMC_DP_HOST_SERDES_CTRL) &
+	     HIBMC_DP_HOST_SERDES_CTRL_MASK) == HIBMC_DP_HOST_SERDES_CTRL_VAL) {
+		ret = hibmc_dp_init(priv);
+		if (ret)
+			drm_err(dev, "failed to init dp: %d\n", ret);
 	}
 
 	ret = hibmc_vdac_init(priv);
@@ -306,7 +319,7 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 	struct drm_device *dev;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &hibmc_driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, hibmc_driver.name);
 	if (ret)
 		return ret;
 
@@ -326,6 +339,8 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 		goto err_return;
 	}
 
+	pci_set_master(pdev);
+
 	ret = hibmc_load(dev);
 	if (ret) {
 		drm_err(dev, "failed to load hibmc: %d\n", ret);
@@ -339,7 +354,7 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 		goto err_unload;
 	}
 
-	drm_fbdev_ttm_setup(dev, 32);
+	drm_client_setup(dev, NULL);
 
 	return 0;
 

@@ -506,6 +506,8 @@ static void vcpu_init_sregs(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 
 	sregs.cr0 = X86_CR0_PE | X86_CR0_NE | X86_CR0_PG;
 	sregs.cr4 |= X86_CR4_PAE | X86_CR4_OSFXSR;
+	if (kvm_cpu_has(X86_FEATURE_XSAVE))
+		sregs.cr4 |= X86_CR4_OSXSAVE;
 	sregs.efer |= (EFER_LME | EFER_LMA | EFER_NX);
 
 	kvm_seg_set_unusable(&sregs.ldt);
@@ -517,6 +519,20 @@ static void vcpu_init_sregs(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 
 	sregs.cr3 = vm->pgd;
 	vcpu_sregs_set(vcpu, &sregs);
+}
+
+static void vcpu_init_xcrs(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
+{
+	struct kvm_xcrs xcrs = {
+		.nr_xcrs = 1,
+		.xcrs[0].xcr = 0,
+		.xcrs[0].value = kvm_cpu_supported_xcr0(),
+	};
+
+	if (!kvm_cpu_has(X86_FEATURE_XSAVE))
+		return;
+
+	vcpu_xcrs_set(vcpu, &xcrs);
 }
 
 static void set_idt_entry(struct kvm_vm *vm, int vector, unsigned long addr,
@@ -675,6 +691,7 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id)
 	vcpu = __vm_vcpu_add(vm, vcpu_id);
 	vcpu_init_cpuid(vcpu, kvm_get_supported_cpuid());
 	vcpu_init_sregs(vm, vcpu);
+	vcpu_init_xcrs(vm, vcpu);
 
 	/* Setup guest general purpose registers */
 	vcpu_regs_get(vcpu, &regs);
@@ -686,6 +703,13 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id)
 	mp_state.mp_state = 0;
 	vcpu_mp_state_set(vcpu, &mp_state);
 
+	/*
+	 * Refresh CPUID after setting SREGS and XCR0, so that KVM's "runtime"
+	 * updates to guest CPUID, e.g. for OSXSAVE and XSAVE state size, are
+	 * reflected into selftests' vCPU CPUID cache, i.e. so that the cache
+	 * is consistent with vCPU state.
+	 */
+	vcpu_get_cpuid(vcpu);
 	return vcpu;
 }
 

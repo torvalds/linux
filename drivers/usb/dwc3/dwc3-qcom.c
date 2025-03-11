@@ -161,7 +161,7 @@ static int dwc3_qcom_register_extcon(struct dwc3_qcom *qcom)
 	struct extcon_dev	*host_edev;
 	int			ret;
 
-	if (!of_property_read_bool(dev->of_node, "extcon"))
+	if (!of_property_present(dev->of_node, "extcon"))
 		return 0;
 
 	qcom->edev = extcon_get_edev_by_phandle(dev, 0);
@@ -921,7 +921,7 @@ MODULE_DEVICE_TABLE(of, dwc3_qcom_of_match);
 
 static struct platform_driver dwc3_qcom_driver = {
 	.probe		= dwc3_qcom_probe,
-	.remove_new	= dwc3_qcom_remove,
+	.remove		= dwc3_qcom_remove,
 	.driver		= {
 		.name	= "dwc3-qcom",
 		.pm	= &dwc3_qcom_dev_pm_ops,

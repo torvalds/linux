@@ -53,7 +53,7 @@ MODULE_DEVICE_TABLE(of, rpm_proc_of_match);
 
 static struct platform_driver rpm_proc_driver = {
 	.probe = rpm_proc_probe,
-	.remove_new = rpm_proc_remove,
+	.remove = rpm_proc_remove,
 	.driver = {
 		.name = "qcom-rpm-proc",
 		.of_match_table = rpm_proc_of_match,

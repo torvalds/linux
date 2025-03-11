@@ -28,22 +28,37 @@ struct xe_devcoredump_snapshot {
 	ktime_t boot_time;
 	/** @process_name: Name of process that triggered this gpu hang */
 	char process_name[TASK_COMM_LEN];
+	/** @pid: Process id of process that triggered this gpu hang */
+	pid_t pid;
+	/** @reason: The reason the coredump was triggered */
+	char *reason;
 
 	/** @gt: Affected GT, used by forcewake for delayed capture */
 	struct xe_gt *gt;
 	/** @work: Workqueue for deferred capture outside of signaling context */
 	struct work_struct work;
 
-	/* GuC snapshots */
-	/** @ct: GuC CT snapshot */
-	struct xe_guc_ct_snapshot *ct;
-	/** @ge: Guc Engine snapshot */
+	/** @guc: GuC snapshots */
+	struct {
+		/** @guc.ct: GuC CT snapshot */
+		struct xe_guc_ct_snapshot *ct;
+		/** @guc.log: GuC log snapshot */
+		struct xe_guc_log_snapshot *log;
+	} guc;
+
+	/** @ge: GuC Submission Engine snapshot */
 	struct xe_guc_submit_exec_queue_snapshot *ge;
 
 	/** @hwe: HW Engine snapshot array */
 	struct xe_hw_engine_snapshot *hwe[XE_NUM_HW_ENGINES];
 	/** @job: Snapshot of job state */
 	struct xe_sched_job_snapshot *job;
+	/**
+	 * @matched_node: The matched capture node for timedout job
+	 * this single-node tracker works because devcoredump will always only
+	 * produce one hw-engine capture per devcoredump event
+	 */
+	struct __guc_capture_parsed_output *matched_node;
 	/** @vm: Snapshot of VM state */
 	struct xe_vm_snapshot *vm;
 
@@ -65,7 +80,9 @@ struct xe_devcoredump_snapshot {
  * for reading the information.
  */
 struct xe_devcoredump {
-	/** @captured: The snapshot of the first hang has already been taken. */
+	/** @lock: protects access to entire structure */
+	struct mutex lock;
+	/** @captured: The snapshot of the first hang has already been taken */
 	bool captured;
 	/** @snapshot: Snapshot is captured at time of the first crash */
 	struct xe_devcoredump_snapshot snapshot;

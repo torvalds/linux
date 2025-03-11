@@ -58,6 +58,9 @@ static const struct exynos_soc_id {
 	/* Compatible with: samsung,exynos850-chipid */
 	{ "EXYNOS7885", 0xE7885000 },
 	{ "EXYNOS850", 0xE3830000 },
+	{ "EXYNOS8895", 0xE8895000 },
+	{ "EXYNOS9810", 0xE9810000 },
+	{ "EXYNOS990", 0xE9830000 },
 	{ "EXYNOSAUTOV9", 0xAAA80000 },
 	{ "EXYNOSAUTOV920", 0x0A920000 },
 };
@@ -195,8 +198,8 @@ static struct platform_driver exynos_chipid_driver = {
 		.name = "exynos-chipid",
 		.of_match_table = exynos_chipid_of_device_ids,
 	},
-	.probe	= exynos_chipid_probe,
-	.remove_new = exynos_chipid_remove,
+	.probe = exynos_chipid_probe,
+	.remove = exynos_chipid_remove,
 };
 module_platform_driver(exynos_chipid_driver);
 

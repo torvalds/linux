@@ -21,6 +21,11 @@ nouveau_debugfs(struct drm_device *dev)
 extern void  nouveau_drm_debugfs_init(struct drm_minor *);
 extern int  nouveau_debugfs_init(struct nouveau_drm *);
 extern void nouveau_debugfs_fini(struct nouveau_drm *);
+
+extern struct dentry *nouveau_debugfs_root;
+
+int  nouveau_module_debugfs_init(void);
+void nouveau_module_debugfs_fini(void);
 #else
 static inline void
 nouveau_drm_debugfs_init(struct drm_minor *minor)
@@ -34,6 +39,17 @@ nouveau_debugfs_init(struct nouveau_drm *drm)
 
 static inline void
 nouveau_debugfs_fini(struct nouveau_drm *drm)
+{
+}
+
+static inline int
+nouveau_module_debugfs_init(void)
+{
+	return 0;
+}
+
+static inline void
+nouveau_module_debugfs_fini(void)
 {
 }
 

@@ -90,7 +90,7 @@ static struct platform_driver octeon_spi_driver = {
 		.of_match_table = octeon_spi_match,
 	},
 	.probe		= octeon_spi_probe,
-	.remove_new	= octeon_spi_remove,
+	.remove		= octeon_spi_remove,
 };
 
 module_platform_driver(octeon_spi_driver);

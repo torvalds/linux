@@ -1237,7 +1237,7 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 	}
 
 	/*
-	 * Check which sleep modes we can support. Power-off requieres the
+	 * Check which sleep modes we can support. Power-off requires the
 	 * reset-pin to ensure correct power-down/power-up behaviour. Start with
 	 * the EDT_PMODE_POWEROFF test since this is the deepest possible sleep
 	 * mode.

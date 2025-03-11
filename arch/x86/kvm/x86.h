@@ -8,6 +8,7 @@
 #include <asm/pvclock.h>
 #include "kvm_cache_regs.h"
 #include "kvm_emulate.h"
+#include "cpuid.h"
 
 struct kvm_caps {
 	/* control of guest tsc rate supported? */
@@ -233,9 +234,52 @@ static inline u8 vcpu_virt_addr_bits(struct kvm_vcpu *vcpu)
 	return kvm_is_cr4_bit_set(vcpu, X86_CR4_LA57) ? 57 : 48;
 }
 
-static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu)
+static inline u8 max_host_virt_addr_bits(void)
 {
-	return !__is_canonical_address(la, vcpu_virt_addr_bits(vcpu));
+	return kvm_cpu_cap_has(X86_FEATURE_LA57) ? 57 : 48;
+}
+
+/*
+ * x86 MSRs which contain linear addresses, x86 hidden segment bases, and
+ * IDT/GDT bases have static canonicality checks, the size of which depends
+ * only on the CPU's support for 5-level paging, rather than on the state of
+ * CR4.LA57.  This applies to both WRMSR and to other instructions that set
+ * their values, e.g. SGDT.
+ *
+ * KVM passes through most of these MSRS and also doesn't intercept the
+ * instructions that set the hidden segment bases.
+ *
+ * Because of this, to be consistent with hardware, even if the guest doesn't
+ * have LA57 enabled in its CPUID, perform canonicality checks based on *host*
+ * support for 5 level paging.
+ *
+ * Finally, instructions which are related to MMU invalidation of a given
+ * linear address, also have a similar static canonical check on address.
+ * This allows for example to invalidate 5-level addresses of a guest from a
+ * host which uses 4-level paging.
+ */
+static inline bool is_noncanonical_address(u64 la, struct kvm_vcpu *vcpu,
+					   unsigned int flags)
+{
+	if (flags & (X86EMUL_F_INVLPG | X86EMUL_F_MSR | X86EMUL_F_DT_LOAD))
+		return !__is_canonical_address(la, max_host_virt_addr_bits());
+	else
+		return !__is_canonical_address(la, vcpu_virt_addr_bits(vcpu));
+}
+
+static inline bool is_noncanonical_msr_address(u64 la, struct kvm_vcpu *vcpu)
+{
+	return is_noncanonical_address(la, vcpu, X86EMUL_F_MSR);
+}
+
+static inline bool is_noncanonical_base_address(u64 la, struct kvm_vcpu *vcpu)
+{
+	return is_noncanonical_address(la, vcpu, X86EMUL_F_DT_LOAD);
+}
+
+static inline bool is_noncanonical_invlpg_address(u64 la, struct kvm_vcpu *vcpu)
+{
+	return is_noncanonical_address(la, vcpu, X86EMUL_F_INVLPG);
 }
 
 static inline void vcpu_cache_mmio_info(struct kvm_vcpu *vcpu,

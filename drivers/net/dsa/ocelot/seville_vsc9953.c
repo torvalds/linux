@@ -1014,7 +1014,7 @@ MODULE_DEVICE_TABLE(of, seville_of_match);
 
 static struct platform_driver seville_vsc9953_driver = {
 	.probe		= seville_probe,
-	.remove_new	= seville_remove,
+	.remove		= seville_remove,
 	.shutdown	= seville_shutdown,
 	.driver = {
 		.name		= "mscc_seville",

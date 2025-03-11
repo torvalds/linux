@@ -1392,10 +1392,10 @@ static void dccg35_set_dtbclk_dto(
 
 		/* The recommended programming sequence to enable DTBCLK DTO to generate
 		 * valid pixel HPO DPSTREAM ENCODER, specifies that DTO source select should
-		 * be set only after DTO is enabled
+		 * be set only after DTO is enabled.
+		 * PIPEx_DTO_SRC_SEL should not be programmed during DTBCLK update since OTG may still be on, and the
+		 * programming is handled in program_pix_clk() regardless, so it can be removed from here.
 		 */
-		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
-				PIPE_DTO_SRC_SEL[params->otg_inst], 2);
 	} else {
 		switch (params->otg_inst) {
 		case 0:
@@ -1412,9 +1412,12 @@ static void dccg35_set_dtbclk_dto(
 			break;
 		}
 
-		REG_UPDATE_2(OTG_PIXEL_RATE_CNTL[params->otg_inst],
-				DTBCLK_DTO_ENABLE[params->otg_inst], 0,
-				PIPE_DTO_SRC_SEL[params->otg_inst], params->is_hdmi ? 0 : 1);
+		/**
+		 * PIPEx_DTO_SRC_SEL should not be programmed during DTBCLK update since OTG may still be on, and the
+		 * programming is handled in program_pix_clk() regardless, so it can be removed from here.
+		 */
+		REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				DTBCLK_DTO_ENABLE[params->otg_inst], 0);
 
 		REG_WRITE(DTBCLK_DTO_MODULO[params->otg_inst], 0);
 		REG_WRITE(DTBCLK_DTO_PHASE[params->otg_inst], 0);

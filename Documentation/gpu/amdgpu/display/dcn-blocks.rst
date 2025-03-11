@@ -1,3 +1,5 @@
+.. _dcn_blocks:
+
 ==========
 DCN Blocks
 ==========

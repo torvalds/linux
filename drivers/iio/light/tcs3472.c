@@ -327,7 +327,7 @@ static int tcs3472_read_event_config(struct iio_dev *indio_dev,
 
 static int tcs3472_write_event_config(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
-	enum iio_event_direction dir, int state)
+	enum iio_event_direction dir, bool state)
 {
 	struct tcs3472_data *data = iio_priv(indio_dev);
 	int ret = 0;

@@ -1545,7 +1545,7 @@ static struct platform_driver octeon_mgmt_driver = {
 		.of_match_table = octeon_mgmt_match,
 	},
 	.probe		= octeon_mgmt_probe,
-	.remove_new	= octeon_mgmt_remove,
+	.remove		= octeon_mgmt_remove,
 };
 
 module_platform_driver(octeon_mgmt_driver);

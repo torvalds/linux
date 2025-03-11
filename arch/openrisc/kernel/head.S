@@ -26,15 +26,15 @@
 #include <asm/asm-offsets.h>
 #include <linux/of_fdt.h>
 
-#define tophys(rd,rs)				\
-	l.movhi	rd,hi(-KERNELBASE)		;\
+#define tophys(rd,rs)						\
+	l.movhi	rd,hi(-KERNELBASE)				;\
 	l.add	rd,rd,rs
 
-#define CLEAR_GPR(gpr)				\
+#define CLEAR_GPR(gpr)						\
 	l.movhi	gpr,0x0
 
-#define LOAD_SYMBOL_2_GPR(gpr,symbol)		\
-	l.movhi gpr,hi(symbol)			;\
+#define LOAD_SYMBOL_2_GPR(gpr,symbol)				\
+	l.movhi gpr,hi(symbol)					;\
 	l.ori   gpr,gpr,lo(symbol)
 
 
@@ -326,21 +326,21 @@
 	l.addi  r1,r1,-(INT_FRAME_SIZE)				;\
 	/* r1 is KSP, r30 is __pa(KSP) */			;\
 	tophys  (r30,r1)					;\
-	l.sw    PT_GPR12(r30),r12					;\
+	l.sw    PT_GPR12(r30),r12				;\
 	l.mfspr r12,r0,SPR_EPCR_BASE				;\
 	l.sw    PT_PC(r30),r12					;\
 	l.mfspr r12,r0,SPR_ESR_BASE				;\
 	l.sw    PT_SR(r30),r12					;\
 	/* save r31 */						;\
 	EXCEPTION_T_LOAD_GPR30(r12)				;\
-	l.sw	PT_GPR30(r30),r12					;\
+	l.sw	PT_GPR30(r30),r12				;\
 	/* save r10 as was prior to exception */		;\
 	EXCEPTION_T_LOAD_GPR10(r12)				;\
-	l.sw	PT_GPR10(r30),r12					;\
-	/* save PT_SP as was prior to exception */			;\
+	l.sw	PT_GPR10(r30),r12				;\
+	/* save PT_SP as was prior to exception */		;\
 	EXCEPTION_T_LOAD_SP(r12)				;\
 	l.sw	PT_SP(r30),r12					;\
-	l.sw    PT_GPR13(r30),r13					;\
+	l.sw    PT_GPR13(r30),r13				;\
 	/* --> */						;\
 	/* save exception r4, set r4 = EA */			;\
 	l.sw	PT_GPR4(r30),r4					;\
@@ -356,6 +356,8 @@
 	l.rfe
 
 /* =====================================================[ exceptions] === */
+
+	__HEAD
 
 /* ---[ 0x100: RESET exception ]----------------------------------------- */
     .org 0x100
@@ -394,7 +396,7 @@ _dispatch_do_ipage_fault:
     .org 0x500
 	EXCEPTION_HANDLE(_timer_handler)
 
-/* ---[ 0x600: Alignment exception ]-------------------------------------- */
+/* ---[ 0x600: Alignment exception ]------------------------------------- */
     .org 0x600
 	EXCEPTION_HANDLE(_alignment_handler)
 
@@ -424,7 +426,7 @@ _dispatch_do_ipage_fault:
     .org 0xc00
 	EXCEPTION_HANDLE(_sys_call_handler)
 
-/* ---[ 0xd00: Floating point exception ]--------------------------------- */
+/* ---[ 0xd00: Floating point exception ]-------------------------------- */
     .org 0xd00
 	EXCEPTION_HANDLE(_fpe_trap_handler)
 
@@ -506,10 +508,10 @@ _dispatch_do_ipage_fault:
 
 /*    .text*/
 
-/* This early stuff belongs in HEAD, but some of the functions below definitely
+/* This early stuff belongs in the .init.text section, but some of the functions below definitely
  * don't... */
 
-	__HEAD
+	__INIT
 	.global _start
 _start:
 	/* Init r0 to zero as per spec */
@@ -816,7 +818,7 @@ secondary_start:
 
 #endif
 
-/* ========================================[ cache ]=== */
+/* ==========================================================[ cache ]=== */
 
 	/* alignment here so we don't change memory offsets with
 	 * memory controller defined

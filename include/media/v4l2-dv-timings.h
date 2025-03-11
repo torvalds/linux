@@ -8,6 +8,7 @@
 #ifndef __V4L2_DV_TIMINGS_H
 #define __V4L2_DV_TIMINGS_H
 
+#include <linux/debugfs.h>
 #include <linux/videodev2.h>
 
 /**
@@ -146,15 +147,18 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
  * @polarities: the horizontal and vertical polarities (same as struct
  *		v4l2_bt_timings polarities).
  * @interlaced: if this flag is true, it indicates interlaced format
+ * @cap: the v4l2_dv_timings_cap capabilities.
  * @fmt: the resulting timings.
  *
  * This function will attempt to detect if the given values correspond to a
  * valid CVT format. If so, then it will return true, and fmt will be filled
  * in with the found CVT timings.
  */
-bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
-		unsigned active_width, u32 polarities, bool interlaced,
-		struct v4l2_dv_timings *fmt);
+bool v4l2_detect_cvt(unsigned int frame_height, unsigned int hfreq,
+		     unsigned int vsync, unsigned int active_width,
+		     u32 polarities, bool interlaced,
+		     const struct v4l2_dv_timings_cap *cap,
+		     struct v4l2_dv_timings *fmt);
 
 /**
  * v4l2_detect_gtf - detect if the given timings follow the GTF standard
@@ -170,15 +174,18 @@ bool v4l2_detect_cvt(unsigned frame_height, unsigned hfreq, unsigned vsync,
  *		image height, so it has to be passed explicitly. Usually
  *		the native screen aspect ratio is used for this. If it
  *		is not filled in correctly, then 16:9 will be assumed.
+ * @cap: the v4l2_dv_timings_cap capabilities.
  * @fmt: the resulting timings.
  *
  * This function will attempt to detect if the given values correspond to a
  * valid GTF format. If so, then it will return true, and fmt will be filled
  * in with the found GTF timings.
  */
-bool v4l2_detect_gtf(unsigned frame_height, unsigned hfreq, unsigned vsync,
-		u32 polarities, bool interlaced, struct v4l2_fract aspect,
-		struct v4l2_dv_timings *fmt);
+bool v4l2_detect_gtf(unsigned int frame_height, unsigned int hfreq,
+		     unsigned int vsync, u32 polarities, bool interlaced,
+		     struct v4l2_fract aspect,
+		     const struct v4l2_dv_timings_cap *cap,
+		     struct v4l2_dv_timings *fmt);
 
 /**
  * v4l2_calc_aspect_ratio - calculate the aspect ratio based on bytes
@@ -250,5 +257,52 @@ u16 v4l2_get_edid_phys_addr(const u8 *edid, unsigned int size,
 void v4l2_set_edid_phys_addr(u8 *edid, unsigned int size, u16 phys_addr);
 u16 v4l2_phys_addr_for_input(u16 phys_addr, u8 input);
 int v4l2_phys_addr_validate(u16 phys_addr, u16 *parent, u16 *port);
+
+/* Add support for exporting InfoFrames to debugfs */
+
+/*
+ * HDMI InfoFrames start with a 3 byte header, then a checksum,
+ * followed by the actual IF payload.
+ *
+ * The payload length is limited to 30 bytes according to the HDMI spec,
+ * but since the length is encoded in 5 bits, it can be 31 bytes theoretically.
+ * So set the max length as 31 + 3 (header) + 1 (checksum) = 35.
+ */
+#define V4L2_DEBUGFS_IF_MAX_LEN (35)
+
+#define V4L2_DEBUGFS_IF_AVI	BIT(0)
+#define V4L2_DEBUGFS_IF_AUDIO	BIT(1)
+#define V4L2_DEBUGFS_IF_SPD	BIT(2)
+#define V4L2_DEBUGFS_IF_HDMI	BIT(3)
+
+typedef ssize_t (*v4l2_debugfs_if_read_t)(u32 type, void *priv,
+					  struct file *filp, char __user *ubuf,
+					  size_t count, loff_t *ppos);
+
+struct v4l2_debugfs_if {
+	struct dentry *if_dir;
+	void *priv;
+
+	v4l2_debugfs_if_read_t if_read;
+};
+
+#ifdef CONFIG_DEBUG_FS
+struct v4l2_debugfs_if *v4l2_debugfs_if_alloc(struct dentry *root, u32 if_types,
+					      void *priv,
+					      v4l2_debugfs_if_read_t if_read);
+void v4l2_debugfs_if_free(struct v4l2_debugfs_if *infoframes);
+#else
+static inline
+struct v4l2_debugfs_if *v4l2_debugfs_if_alloc(struct dentry *root, u32 if_types,
+					      void *priv,
+					      v4l2_debugfs_if_read_t if_read)
+{
+	return NULL;
+}
+
+static inline void v4l2_debugfs_if_free(struct v4l2_debugfs_if *infoframes)
+{
+}
+#endif
 
 #endif

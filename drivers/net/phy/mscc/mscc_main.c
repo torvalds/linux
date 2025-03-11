@@ -139,8 +139,7 @@ static void vsc85xx_get_strings(struct phy_device *phydev, u8 *data)
 		return;
 
 	for (i = 0; i < priv->nstats; i++)
-		strscpy(data + i * ETH_GSTRING_LEN, priv->hw_stats[i].string,
-			ETH_GSTRING_LEN);
+		ethtool_puts(&data, priv->hw_stats[i].string);
 }
 
 static u64 vsc85xx_get_stat(struct phy_device *phydev, int i)

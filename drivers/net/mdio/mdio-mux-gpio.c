@@ -86,7 +86,7 @@ static struct platform_driver mdio_mux_gpio_driver = {
 		.of_match_table = mdio_mux_gpio_match,
 	},
 	.probe		= mdio_mux_gpio_probe,
-	.remove_new	= mdio_mux_gpio_remove,
+	.remove		= mdio_mux_gpio_remove,
 };
 
 module_platform_driver(mdio_mux_gpio_driver);

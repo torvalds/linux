@@ -1,8 +1,8 @@
 #ifndef _ASM_POWERPC_DTL_H
 #define _ASM_POWERPC_DTL_H
 
+#include <linux/rwsem.h>
 #include <asm/lppaca.h>
-#include <linux/spinlock_types.h>
 
 /*
  * Layout of entries in the hypervisor's dispatch trace log buffer.
@@ -35,7 +35,7 @@ struct dtl_entry {
 #define DTL_LOG_ALL		(DTL_LOG_CEDE | DTL_LOG_PREEMPT | DTL_LOG_FAULT)
 
 extern struct kmem_cache *dtl_cache;
-extern rwlock_t dtl_access_lock;
+extern struct rw_semaphore dtl_access_lock;
 
 extern void register_dtl_buffer(int cpu);
 extern void alloc_dtl_buffers(unsigned long *time_limit);

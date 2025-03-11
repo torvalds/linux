@@ -944,7 +944,7 @@ static void mlxreg_lc_remove(struct platform_device *pdev)
 
 static struct platform_driver mlxreg_lc_driver = {
 	.probe = mlxreg_lc_probe,
-	.remove_new = mlxreg_lc_remove,
+	.remove = mlxreg_lc_remove,
 	.driver = {
 		.name = "mlxreg-lc",
 	},

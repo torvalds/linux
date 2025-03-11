@@ -70,7 +70,7 @@
 #include <linux/mman.h>
 
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 struct report {
@@ -455,7 +455,7 @@ static int report__setup_sample_type(struct report *rep)
 	if (!(evlist__combined_branch_type(session->evlist) & PERF_SAMPLE_BRANCH_ANY))
 		rep->nonany_branch_mode = true;
 
-#if !defined(HAVE_LIBUNWIND_SUPPORT) && !defined(HAVE_DWARF_SUPPORT)
+#if !defined(HAVE_LIBUNWIND_SUPPORT) && !defined(HAVE_LIBDW_SUPPORT)
 	if (dwarf_callchain_users) {
 		ui__warning("Please install libunwind or libdw "
 			    "development packages during the perf build.\n");
@@ -1271,6 +1271,10 @@ static int process_attr(const struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
+#define CALLCHAIN_BRANCH_SORT_ORDER	\
+	"srcline,symbol,dso,callchain_branch_predicted," \
+	"callchain_branch_abort,callchain_branch_cycles"
+
 int cmd_report(int argc, const char **argv)
 {
 	struct perf_session *session;
@@ -1639,7 +1643,7 @@ repeat:
 		symbol_conf.use_callchain = true;
 		callchain_register_param(&callchain_param);
 		if (sort_order == NULL)
-			sort_order = "srcline,symbol,dso";
+			sort_order = CALLCHAIN_BRANCH_SORT_ORDER;
 	}
 
 	if (report.mem_mode) {
@@ -1701,7 +1705,7 @@ repeat:
 		report.data_type = true;
 		annotate_opts.annotate_src = false;
 
-#ifndef HAVE_DWARF_GETLOCATIONS_SUPPORT
+#ifndef HAVE_LIBDW_SUPPORT
 		pr_err("Error: Data type profiling is disabled due to missing DWARF support\n");
 		goto error;
 #endif

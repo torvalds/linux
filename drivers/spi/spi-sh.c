@@ -459,7 +459,7 @@ static int spi_sh_probe(struct platform_device *pdev)
 
 static struct platform_driver spi_sh_driver = {
 	.probe = spi_sh_probe,
-	.remove_new = spi_sh_remove,
+	.remove = spi_sh_remove,
 	.driver = {
 		.name = "sh_spi",
 	},

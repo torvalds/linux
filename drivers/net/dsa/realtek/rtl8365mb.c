@@ -2164,7 +2164,7 @@ static struct platform_driver rtl8365mb_smi_driver = {
 		.of_match_table = rtl8365mb_of_match,
 	},
 	.probe  = realtek_smi_probe,
-	.remove_new = realtek_smi_remove,
+	.remove = realtek_smi_remove,
 	.shutdown = realtek_smi_shutdown,
 };
 
@@ -2206,4 +2206,4 @@ module_exit(rtl8365mb_exit);
 MODULE_AUTHOR("Alvin Šipraga <alsi@bang-olufsen.dk>");
 MODULE_DESCRIPTION("Driver for RTL8365MB-VC ethernet switch");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(REALTEK_DSA);
+MODULE_IMPORT_NS("REALTEK_DSA");

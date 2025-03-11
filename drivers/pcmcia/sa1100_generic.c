@@ -177,7 +177,7 @@ static struct platform_driver sa11x0_pcmcia_driver = {
 		.name		= "sa11x0-pcmcia",
 	},
 	.probe		= sa11x0_drv_pcmcia_probe,
-	.remove_new	= sa11x0_drv_pcmcia_remove,
+	.remove		= sa11x0_drv_pcmcia_remove,
 };
 
 /* sa11x0_pcmcia_init()

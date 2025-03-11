@@ -501,7 +501,7 @@ static struct platform_driver isp1704_charger_driver = {
 		.of_match_table = of_match_ptr(omap_isp1704_of_match),
 	},
 	.probe = isp1704_charger_probe,
-	.remove_new = isp1704_charger_remove,
+	.remove = isp1704_charger_remove,
 };
 
 module_platform_driver(isp1704_charger_driver);

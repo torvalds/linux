@@ -971,7 +971,7 @@ static int btrfs_fill_super(struct super_block *sb,
 
 	err = open_ctree(sb, fs_devices);
 	if (err) {
-		btrfs_err(fs_info, "open_ctree failed");
+		btrfs_err(fs_info, "open_ctree failed: %d", err);
 		return err;
 	}
 
@@ -1885,18 +1885,21 @@ static int btrfs_get_tree_super(struct fs_context *fc)
 
 	if (sb->s_root) {
 		btrfs_close_devices(fs_devices);
-		if ((fc->sb_flags ^ sb->s_flags) & SB_RDONLY)
-			ret = -EBUSY;
+		/*
+		 * At this stage we may have RO flag mismatch between
+		 * fc->sb_flags and sb->s_flags.  Caller should detect such
+		 * mismatch and reconfigure with sb->s_umount rwsem held if
+		 * needed.
+		 */
 	} else {
 		snprintf(sb->s_id, sizeof(sb->s_id), "%pg", bdev);
 		shrinker_debugfs_rename(sb->s_shrink, "sb-btrfs:%s", sb->s_id);
 		btrfs_sb(sb)->bdev_holder = &btrfs_fs_type;
 		ret = btrfs_fill_super(sb, fs_devices);
-	}
-
-	if (ret) {
-		deactivate_locked_super(sb);
-		return ret;
+		if (ret) {
+			deactivate_locked_super(sb);
+			return ret;
+		}
 	}
 
 	btrfs_clear_oneshot_options(fs_info);
@@ -1982,39 +1985,18 @@ error:
  * btrfs or not, setting the whole super block RO.  To make per-subvolume mounting
  * work with different options work we need to keep backward compatibility.
  */
-static struct vfsmount *btrfs_reconfigure_for_mount(struct fs_context *fc)
+static int btrfs_reconfigure_for_mount(struct fs_context *fc, struct vfsmount *mnt)
 {
-	struct vfsmount *mnt;
-	int ret;
-	const bool ro2rw = !(fc->sb_flags & SB_RDONLY);
+	int ret = 0;
 
-	/*
-	 * We got an EBUSY because our SB_RDONLY flag didn't match the existing
-	 * super block, so invert our setting here and retry the mount so we
-	 * can get our vfsmount.
-	 */
-	if (ro2rw)
-		fc->sb_flags |= SB_RDONLY;
-	else
-		fc->sb_flags &= ~SB_RDONLY;
+	if (fc->sb_flags & SB_RDONLY)
+		return ret;
 
-	mnt = fc_mount(fc);
-	if (IS_ERR(mnt))
-		return mnt;
-
-	if (!ro2rw)
-		return mnt;
-
-	/* We need to convert to rw, call reconfigure. */
-	fc->sb_flags &= ~SB_RDONLY;
 	down_write(&mnt->mnt_sb->s_umount);
-	ret = btrfs_reconfigure(fc);
+	if (!(fc->sb_flags & SB_RDONLY) && (mnt->mnt_sb->s_flags & SB_RDONLY))
+		ret = btrfs_reconfigure(fc);
 	up_write(&mnt->mnt_sb->s_umount);
-	if (ret) {
-		mntput(mnt);
-		return ERR_PTR(ret);
-	}
-	return mnt;
+	return ret;
 }
 
 static int btrfs_get_tree_subvol(struct fs_context *fc)
@@ -2024,6 +2006,7 @@ static int btrfs_get_tree_subvol(struct fs_context *fc)
 	struct fs_context *dup_fc;
 	struct dentry *dentry;
 	struct vfsmount *mnt;
+	int ret = 0;
 
 	/*
 	 * Setup a dummy root and fs_info for test/set super.  This is because
@@ -2066,11 +2049,16 @@ static int btrfs_get_tree_subvol(struct fs_context *fc)
 	fc->security = NULL;
 
 	mnt = fc_mount(dup_fc);
-	if (PTR_ERR_OR_ZERO(mnt) == -EBUSY)
-		mnt = btrfs_reconfigure_for_mount(dup_fc);
-	put_fs_context(dup_fc);
-	if (IS_ERR(mnt))
+	if (IS_ERR(mnt)) {
+		put_fs_context(dup_fc);
 		return PTR_ERR(mnt);
+	}
+	ret = btrfs_reconfigure_for_mount(dup_fc, mnt);
+	put_fs_context(dup_fc);
+	if (ret) {
+		mntput(mnt);
+		return ret;
+	}
 
 	/*
 	 * This free's ->subvol_name, because if it isn't set we have to
@@ -2458,6 +2446,9 @@ static __cold void btrfs_interface_exit(void)
 static int __init btrfs_print_mod_info(void)
 {
 	static const char options[] = ""
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+			", experimental=on"
+#endif
 #ifdef CONFIG_BTRFS_DEBUG
 			", debug=on"
 #endif
@@ -2478,7 +2469,17 @@ static int __init btrfs_print_mod_info(void)
 			", fsverity=no"
 #endif
 			;
+
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	if (btrfs_get_mod_read_policy() == NULL)
+		pr_info("Btrfs loaded%s\n", options);
+	else
+		pr_info("Btrfs loaded%s, read_policy=%s\n",
+			 options, btrfs_get_mod_read_policy());
+#else
 	pr_info("Btrfs loaded%s\n", options);
+#endif
+
 	return 0;
 }
 
@@ -2536,6 +2537,11 @@ static const struct init_sequence mod_init_seq[] = {
 	}, {
 		.init_func = extent_map_init,
 		.exit_func = extent_map_exit,
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	}, {
+		.init_func = btrfs_read_policy_init,
+		.exit_func = NULL,
+#endif
 	}, {
 		.init_func = ordered_data_init,
 		.exit_func = ordered_data_exit,

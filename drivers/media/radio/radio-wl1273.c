@@ -2145,7 +2145,7 @@ pdata_err:
 
 static struct platform_driver wl1273_fm_radio_driver = {
 	.probe		= wl1273_fm_radio_probe,
-	.remove_new	= wl1273_fm_radio_remove,
+	.remove		= wl1273_fm_radio_remove,
 	.driver		= {
 		.name	= "wl1273_fm_radio",
 	},

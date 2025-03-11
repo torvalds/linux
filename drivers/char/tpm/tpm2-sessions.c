@@ -1390,5 +1390,4 @@ int tpm2_sessions_init(struct tpm_chip *chip)
 
 	return rc;
 }
-EXPORT_SYMBOL(tpm2_sessions_init);
 #endif /* CONFIG_TCG_TPM2_HMAC */

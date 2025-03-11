@@ -42,18 +42,24 @@ int __fbnic_open(struct fbnic_net *fbn)
 		goto free_resources;
 	}
 
-	err = fbnic_fw_init_heartbeat(fbd, false);
+	err = fbnic_time_start(fbn);
 	if (err)
 		goto release_ownership;
 
+	err = fbnic_fw_init_heartbeat(fbd, false);
+	if (err)
+		goto time_stop;
+
 	err = fbnic_pcs_irq_enable(fbd);
 	if (err)
-		goto release_ownership;
+		goto time_stop;
 	/* Pull the BMC config and initialize the RPC */
 	fbnic_bmc_rpc_init(fbd);
 	fbnic_rss_reinit(fbd, fbn);
 
 	return 0;
+time_stop:
+	fbnic_time_stop(fbn);
 release_ownership:
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
 free_resources:
@@ -82,6 +88,7 @@ static int fbnic_stop(struct net_device *netdev)
 	fbnic_down(fbn);
 	fbnic_pcs_irq_disable(fbn->fbd);
 
+	fbnic_time_stop(fbn);
 	fbnic_fw_xmit_ownership_msg(fbn->fbd, false);
 
 	fbnic_free_resources(fbn);
@@ -266,6 +273,7 @@ void __fbnic_set_rx_mode(struct net_device *netdev)
 	/* Write updates to hardware */
 	fbnic_write_rules(fbd);
 	fbnic_write_macda(fbd);
+	fbnic_write_tce_tcam(fbd);
 }
 
 static void fbnic_set_rx_mode(struct net_device *netdev)
@@ -315,6 +323,84 @@ void fbnic_clear_rx_mode(struct net_device *netdev)
 
 	__dev_uc_unsync(netdev, NULL);
 	__dev_mc_unsync(netdev, NULL);
+}
+
+static int fbnic_hwtstamp_get(struct net_device *netdev,
+			      struct kernel_hwtstamp_config *config)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	*config = fbn->hwtstamp_config;
+
+	return 0;
+}
+
+static int fbnic_hwtstamp_set(struct net_device *netdev,
+			      struct kernel_hwtstamp_config *config,
+			      struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	int old_rx_filter;
+
+	if (config->source != HWTSTAMP_SOURCE_NETDEV)
+		return -EOPNOTSUPP;
+
+	if (!kernel_hwtstamp_config_changed(config, &fbn->hwtstamp_config))
+		return 0;
+
+	/* Upscale the filters */
+	switch (config->rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+		break;
+	case HWTSTAMP_FILTER_NTP_ALL:
+		config->rx_filter = HWTSTAMP_FILTER_ALL;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V1_L4_EVENT;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_L2_EVENT;
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	/* Configure */
+	old_rx_filter = fbn->hwtstamp_config.rx_filter;
+	memcpy(&fbn->hwtstamp_config, config, sizeof(*config));
+
+	if (old_rx_filter != config->rx_filter && netif_running(fbn->netdev)) {
+		fbnic_rss_reinit(fbn->fbd, fbn);
+		fbnic_write_rules(fbn->fbd);
+	}
+
+	/* Save / report back filter configuration
+	 * Note that our filter configuration is inexact. Instead of
+	 * filtering for a specific UDP port or L2 Ethertype we are
+	 * filtering in all UDP or all non-IP packets for timestamping. So
+	 * if anything other than FILTER_ALL is requested we report
+	 * FILTER_SOME indicating that we will be timestamping a few
+	 * additional packets.
+	 */
+	if (config->rx_filter > HWTSTAMP_FILTER_ALL)
+		config->rx_filter = HWTSTAMP_FILTER_SOME;
+
+	return 0;
 }
 
 static void fbnic_get_stats64(struct net_device *dev,
@@ -394,6 +480,8 @@ static const struct net_device_ops fbnic_netdev_ops = {
 	.ndo_set_mac_address	= fbnic_set_mac,
 	.ndo_set_rx_mode	= fbnic_set_rx_mode,
 	.ndo_get_stats64	= fbnic_get_stats64,
+	.ndo_hwtstamp_get	= fbnic_hwtstamp_get,
+	.ndo_hwtstamp_set	= fbnic_hwtstamp_set,
 };
 
 static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,

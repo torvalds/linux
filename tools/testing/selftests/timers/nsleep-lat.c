@@ -24,26 +24,13 @@
 #include <sys/timex.h>
 #include <string.h>
 #include <signal.h>
+#include <include/vdso/time64.h>
 #include "../kselftest.h"
-
-#define NSEC_PER_SEC 1000000000ULL
 
 #define UNRESONABLE_LATENCY 40000000 /* 40ms in nanosecs */
 
-
-#define CLOCK_REALTIME			0
-#define CLOCK_MONOTONIC			1
-#define CLOCK_PROCESS_CPUTIME_ID	2
-#define CLOCK_THREAD_CPUTIME_ID		3
-#define CLOCK_MONOTONIC_RAW		4
-#define CLOCK_REALTIME_COARSE		5
-#define CLOCK_MONOTONIC_COARSE		6
-#define CLOCK_BOOTTIME			7
-#define CLOCK_REALTIME_ALARM		8
-#define CLOCK_BOOTTIME_ALARM		9
+/* CLOCK_HWSPECIFIC == CLOCK_SGI_CYCLE (Deprecated) */
 #define CLOCK_HWSPECIFIC		10
-#define CLOCK_TAI			11
-#define NR_CLOCKIDS			12
 
 #define UNSUPPORTED 0xf00f
 
@@ -145,11 +132,12 @@ int main(int argc, char **argv)
 {
 	long long length;
 	int clockid, ret;
+	int max_clocks = CLOCK_TAI + 1;
 
 	ksft_print_header();
-	ksft_set_plan(NR_CLOCKIDS - CLOCK_REALTIME - SKIPPED_CLOCK_COUNT);
+	ksft_set_plan(max_clocks - CLOCK_REALTIME - SKIPPED_CLOCK_COUNT);
 
-	for (clockid = CLOCK_REALTIME; clockid < NR_CLOCKIDS; clockid++) {
+	for (clockid = CLOCK_REALTIME; clockid < max_clocks; clockid++) {
 
 		/* Skip cputime clockids since nanosleep won't increment cputime */
 		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||

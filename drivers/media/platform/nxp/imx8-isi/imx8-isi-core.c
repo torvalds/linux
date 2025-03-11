@@ -535,7 +535,7 @@ MODULE_DEVICE_TABLE(of, mxc_isi_of_match);
 
 static struct platform_driver mxc_isi_driver = {
 	.probe		= mxc_isi_probe,
-	.remove_new	= mxc_isi_remove,
+	.remove		= mxc_isi_remove,
 	.driver = {
 		.of_match_table = mxc_isi_of_match,
 		.name		= MXC_ISI_DRIVER_NAME,

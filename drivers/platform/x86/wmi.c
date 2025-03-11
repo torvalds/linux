@@ -22,7 +22,6 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/list.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/rwsem.h>
@@ -36,8 +35,6 @@
 MODULE_AUTHOR("Carlos Corbacho");
 MODULE_DESCRIPTION("ACPI-WMI Mapping Driver");
 MODULE_LICENSE("GPL");
-
-static LIST_HEAD(wmi_block_list);
 
 struct guid_block {
 	guid_t guid;
@@ -63,7 +60,6 @@ enum {	/* wmi_block flags */
 
 struct wmi_block {
 	struct wmi_device dev;
-	struct list_head list;
 	struct guid_block gblock;
 	struct acpi_device *acpi_device;
 	struct rw_semaphore notify_lock;	/* Protects notify callback add/remove */
@@ -73,6 +69,10 @@ struct wmi_block {
 	unsigned long flags;
 };
 
+struct wmi_guid_count_context {
+	const guid_t *guid;
+	int count;
+};
 
 /*
  * If the GUID data block is marked as expensive, we must enable and
@@ -91,7 +91,6 @@ static const struct acpi_device_id wmi_device_ids[] = {
 MODULE_DEVICE_TABLE(acpi, wmi_device_ids);
 
 #define dev_to_wblock(__dev)	container_of_const(__dev, struct wmi_block, dev.dev)
-#define dev_to_wdev(__dev)	container_of_const(__dev, struct wmi_device, dev)
 
 /*
  * GUID parsing functions
@@ -199,7 +198,7 @@ static struct wmi_device *wmi_find_device_by_guid(const char *guid_string)
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
-	return dev_to_wdev(dev);
+	return to_wmi_device(dev);
 }
 
 static void wmi_device_put(struct wmi_device *wdev)
@@ -654,8 +653,6 @@ char *wmi_get_acpi_device_uid(const char *guid_string)
 }
 EXPORT_SYMBOL_GPL(wmi_get_acpi_device_uid);
 
-#define drv_to_wdrv(__drv)	container_of_const(__drv, struct wmi_driver, driver)
-
 /*
  * sysfs interface
  */
@@ -761,7 +758,7 @@ static DEVICE_ATTR_RO(object_id);
 static ssize_t setable_show(struct device *dev, struct device_attribute *attr,
 			    char *buf)
 {
-	struct wmi_device *wdev = dev_to_wdev(dev);
+	struct wmi_device *wdev = to_wmi_device(dev);
 
 	return sysfs_emit(buf, "%d\n", (int)wdev->setable);
 }
@@ -803,7 +800,7 @@ static void wmi_dev_release(struct device *dev)
 
 static int wmi_dev_match(struct device *dev, const struct device_driver *driver)
 {
-	const struct wmi_driver *wmi_driver = drv_to_wdrv(driver);
+	const struct wmi_driver *wmi_driver = to_wmi_driver(driver);
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	const struct wmi_device_id *id = wmi_driver->id_table;
 
@@ -827,7 +824,7 @@ static int wmi_dev_match(struct device *dev, const struct device_driver *driver)
 static int wmi_dev_probe(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
-	struct wmi_driver *wdriver = drv_to_wdrv(dev->driver);
+	struct wmi_driver *wdriver = to_wmi_driver(dev->driver);
 	int ret = 0;
 
 	/* Some older WMI drivers will break if instantiated multiple times,
@@ -851,7 +848,7 @@ static int wmi_dev_probe(struct device *dev)
 		dev_warn(dev, "failed to enable device -- probing anyway\n");
 
 	if (wdriver->probe) {
-		ret = wdriver->probe(dev_to_wdev(dev),
+		ret = wdriver->probe(to_wmi_device(dev),
 				find_guid_context(wblock, wdriver));
 		if (ret) {
 			if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
@@ -871,17 +868,43 @@ static int wmi_dev_probe(struct device *dev)
 static void wmi_dev_remove(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
-	struct wmi_driver *wdriver = drv_to_wdrv(dev->driver);
+	struct wmi_driver *wdriver = to_wmi_driver(dev->driver);
 
 	down_write(&wblock->notify_lock);
 	wblock->driver_ready = false;
 	up_write(&wblock->notify_lock);
 
 	if (wdriver->remove)
-		wdriver->remove(dev_to_wdev(dev));
+		wdriver->remove(to_wmi_device(dev));
 
 	if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
 		dev_warn(dev, "failed to disable device\n");
+}
+
+static void wmi_dev_shutdown(struct device *dev)
+{
+	struct wmi_driver *wdriver;
+	struct wmi_block *wblock;
+
+	if (dev->driver) {
+		wdriver = to_wmi_driver(dev->driver);
+		wblock = dev_to_wblock(dev);
+
+		/*
+		 * Some machines return bogus WMI event data when disabling
+		 * the WMI event. Because of this we must prevent the associated
+		 * WMI driver from receiving new WMI events before disabling it.
+		 */
+		down_write(&wblock->notify_lock);
+		wblock->driver_ready = false;
+		up_write(&wblock->notify_lock);
+
+		if (wdriver->shutdown)
+			wdriver->shutdown(to_wmi_device(dev));
+
+		if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
+			dev_warn(dev, "Failed to disable device\n");
+	}
 }
 
 static struct class wmi_bus_class = {
@@ -895,6 +918,7 @@ static const struct bus_type wmi_bus_type = {
 	.uevent = wmi_dev_uevent,
 	.probe = wmi_dev_probe,
 	.remove = wmi_dev_remove,
+	.shutdown = wmi_dev_shutdown,
 };
 
 static const struct device_type wmi_type_event = {
@@ -915,21 +939,30 @@ static const struct device_type wmi_type_data = {
 	.release = wmi_dev_release,
 };
 
-/*
- * _WDG is a static list that is only parsed at startup,
- * so it's safe to count entries without extra protection.
- */
+static int wmi_count_guids(struct device *dev, void *data)
+{
+	struct wmi_guid_count_context *context = data;
+	struct wmi_block *wblock = dev_to_wblock(dev);
+
+	if (guid_equal(&wblock->gblock.guid, context->guid))
+		context->count++;
+
+	return 0;
+}
+
 static int guid_count(const guid_t *guid)
 {
-	struct wmi_block *wblock;
-	int count = 0;
+	struct wmi_guid_count_context context = {
+		.guid = guid,
+		.count = 0,
+	};
+	int ret;
 
-	list_for_each_entry(wblock, &wmi_block_list, list) {
-		if (guid_equal(&wblock->gblock.guid, guid))
-			count++;
-	}
+	ret = bus_for_each_dev(&wmi_bus_type, NULL, &context, wmi_count_guids);
+	if (ret < 0)
+		return ret;
 
-	return count;
+	return context.count;
 }
 
 static int wmi_create_device(struct device *wmi_bus_dev,
@@ -940,7 +973,7 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	struct acpi_device_info *info;
 	acpi_handle method_handle;
 	acpi_status status;
-	uint count;
+	int count;
 
 	if (wblock->gblock.flags & ACPI_WMI_EVENT) {
 		wblock->dev.dev.type = &wmi_type_event;
@@ -1008,6 +1041,9 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	wblock->dev.dev.parent = wmi_bus_dev;
 
 	count = guid_count(&wblock->gblock.guid);
+	if (count < 0)
+		return count;
+
 	if (count) {
 		dev_set_name(&wblock->dev.dev, "%pUL-%d", &wblock->gblock.guid, count);
 		set_bit(WMI_GUID_DUPLICATED, &wblock->flags);
@@ -1093,14 +1129,11 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 			continue;
 		}
 
-		list_add_tail(&wblock->list, &wmi_block_list);
-
 		retval = wmi_add_device(pdev, &wblock->dev);
 		if (retval) {
 			dev_err(wmi_bus_dev, "failed to register %pUL\n",
 				&wblock->gblock.guid);
 
-			list_del(&wblock->list);
 			put_device(&wblock->dev.dev);
 		}
 	}
@@ -1138,7 +1171,7 @@ static int wmi_get_notify_data(struct wmi_block *wblock, union acpi_object **obj
 
 static void wmi_notify_driver(struct wmi_block *wblock, union acpi_object *obj)
 {
-	struct wmi_driver *driver = drv_to_wdrv(wblock->dev.dev.driver);
+	struct wmi_driver *driver = to_wmi_driver(wblock->dev.dev.driver);
 
 	if (!obj && !driver->no_notify_data) {
 		dev_warn(&wblock->dev.dev, "Event contains no event data\n");
@@ -1200,9 +1233,6 @@ static void acpi_wmi_notify_handler(acpi_handle handle, u32 event, void *context
 
 static int wmi_remove_device(struct device *dev, void *data)
 {
-	struct wmi_block *wblock = dev_to_wblock(dev);
-
-	list_del(&wblock->list);
 	device_unregister(dev);
 
 	return 0;
@@ -1301,7 +1331,7 @@ static struct platform_driver acpi_wmi_driver = {
 		.acpi_match_table = wmi_device_ids,
 	},
 	.probe = acpi_wmi_probe,
-	.remove_new = acpi_wmi_remove,
+	.remove = acpi_wmi_remove,
 };
 
 static int __init acpi_wmi_init(void)

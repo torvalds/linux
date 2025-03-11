@@ -113,7 +113,6 @@ void bfa_sgpg_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
 		struct bfa_s *);
 void bfa_sgpg_attach(struct bfa_s *, void *bfad, struct bfa_iocfc_cfg_s *,
 		struct bfa_pcidev_s *);
-void bfa_uf_iocdisable(struct bfa_s *);
 void bfa_uf_meminfo(struct bfa_iocfc_cfg_s *, struct bfa_meminfo_s *,
 		struct bfa_s *);
 void bfa_uf_attach(struct bfa_s *, void *, struct bfa_iocfc_cfg_s *,

@@ -3,9 +3,11 @@
 #include <linux/bpf.h>
 #include <linux/btf.h>
 #include <linux/err.h>
+#include "linux/filter.h"
 #include <linux/btf_ids.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
+#include "range_tree.h"
 
 /*
  * bpf_arena is a sparsely populated shared memory region between bpf program and
@@ -45,7 +47,7 @@ struct bpf_arena {
 	u64 user_vm_start;
 	u64 user_vm_end;
 	struct vm_struct *kern_vm;
-	struct maple_tree mt;
+	struct range_tree rt;
 	struct list_head vma_list;
 	struct mutex lock;
 };
@@ -98,6 +100,9 @@ static struct bpf_map *arena_map_alloc(union bpf_attr *attr)
 	u64 vm_range;
 	int err = -ENOMEM;
 
+	if (!bpf_jit_supports_arena())
+		return ERR_PTR(-EOPNOTSUPP);
+
 	if (attr->key_size || attr->value_size || attr->max_entries == 0 ||
 	    /* BPF_F_MMAPABLE must be set */
 	    !(attr->map_flags & BPF_F_MMAPABLE) ||
@@ -132,7 +137,8 @@ static struct bpf_map *arena_map_alloc(union bpf_attr *attr)
 
 	INIT_LIST_HEAD(&arena->vma_list);
 	bpf_map_init_from_attr(&arena->map, attr);
-	mt_init_flags(&arena->mt, MT_FLAGS_ALLOC_RANGE);
+	range_tree_init(&arena->rt);
+	range_tree_set(&arena->rt, 0, attr->max_entries);
 	mutex_init(&arena->lock);
 
 	return &arena->map;
@@ -183,7 +189,7 @@ static void arena_map_free(struct bpf_map *map)
 	apply_to_existing_page_range(&init_mm, bpf_arena_get_kern_vm_start(arena),
 				     KERN_VM_SZ - GUARD_SZ, existing_page_cb, NULL);
 	free_vm_area(arena->kern_vm);
-	mtree_destroy(&arena->mt);
+	range_tree_destroy(&arena->rt);
 	bpf_map_area_free(arena);
 }
 
@@ -274,20 +280,20 @@ static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 		/* User space requested to segfault when page is not allocated by bpf prog */
 		return VM_FAULT_SIGSEGV;
 
-	ret = mtree_insert(&arena->mt, vmf->pgoff, MT_ENTRY, GFP_KERNEL);
+	ret = range_tree_clear(&arena->rt, vmf->pgoff, 1);
 	if (ret)
 		return VM_FAULT_SIGSEGV;
 
 	/* Account into memcg of the process that created bpf_arena */
 	ret = bpf_map_alloc_pages(map, GFP_KERNEL | __GFP_ZERO, NUMA_NO_NODE, 1, &page);
 	if (ret) {
-		mtree_erase(&arena->mt, vmf->pgoff);
+		range_tree_set(&arena->rt, vmf->pgoff, 1);
 		return VM_FAULT_SIGSEGV;
 	}
 
 	ret = vm_area_map_pages(arena->kern_vm, kaddr, kaddr + PAGE_SIZE, &page);
 	if (ret) {
-		mtree_erase(&arena->mt, vmf->pgoff);
+		range_tree_set(&arena->rt, vmf->pgoff, 1);
 		__free_page(page);
 		return VM_FAULT_SIGSEGV;
 	}
@@ -444,12 +450,16 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 
 	guard(mutex)(&arena->lock);
 
-	if (uaddr)
-		ret = mtree_insert_range(&arena->mt, pgoff, pgoff + page_cnt - 1,
-					 MT_ENTRY, GFP_KERNEL);
-	else
-		ret = mtree_alloc_range(&arena->mt, &pgoff, MT_ENTRY,
-					page_cnt, 0, page_cnt_max - 1, GFP_KERNEL);
+	if (uaddr) {
+		ret = is_range_tree_set(&arena->rt, pgoff, page_cnt);
+		if (ret)
+			goto out_free_pages;
+		ret = range_tree_clear(&arena->rt, pgoff, page_cnt);
+	} else {
+		ret = pgoff = range_tree_find(&arena->rt, page_cnt);
+		if (pgoff >= 0)
+			ret = range_tree_clear(&arena->rt, pgoff, page_cnt);
+	}
 	if (ret)
 		goto out_free_pages;
 
@@ -476,7 +486,7 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 	kvfree(pages);
 	return clear_lo32(arena->user_vm_start) + uaddr32;
 out:
-	mtree_erase(&arena->mt, pgoff);
+	range_tree_set(&arena->rt, pgoff, page_cnt);
 out_free_pages:
 	kvfree(pages);
 	return 0;
@@ -516,7 +526,7 @@ static void arena_free_pages(struct bpf_arena *arena, long uaddr, long page_cnt)
 
 	pgoff = compute_pgoff(arena, uaddr);
 	/* clear range */
-	mtree_store_range(&arena->mt, pgoff, pgoff + page_cnt - 1, NULL, GFP_KERNEL);
+	range_tree_set(&arena->rt, pgoff, page_cnt);
 
 	if (page_cnt > 1)
 		/* bulk zap if multiple pages being freed */

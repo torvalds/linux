@@ -6,6 +6,8 @@
 #ifndef _ASM_X86_CPUID_H
 #define _ASM_X86_CPUID_H
 
+#include <linux/types.h>
+
 #include <asm/string.h>
 
 struct cpuid_regs {
@@ -19,12 +21,19 @@ enum cpuid_regs_idx {
 	CPUID_EDX,
 };
 
+#define CPUID_LEAF_MWAIT	0x5
+#define CPUID_LEAF_DCA		0x9
+#define CPUID_LEAF_XSTATE	0x0d
+#define CPUID_LEAF_TSC		0x15
+#define CPUID_LEAF_FREQ		0x16
+#define CPUID_LEAF_TILE		0x1d
+
 #ifdef CONFIG_X86_32
-extern int have_cpuid_p(void);
+bool have_cpuid_p(void);
 #else
-static inline int have_cpuid_p(void)
+static inline bool have_cpuid_p(void)
 {
-	return 1;
+	return true;
 }
 #endif
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,

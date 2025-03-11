@@ -518,7 +518,7 @@ static struct platform_driver xgene_msi_driver = {
 		.of_match_table = xgene_msi_match_table,
 	},
 	.probe = xgene_msi_probe,
-	.remove_new = xgene_msi_remove,
+	.remove = xgene_msi_remove,
 };
 
 static int __init xgene_pcie_msi_init(void)

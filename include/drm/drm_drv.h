@@ -34,6 +34,9 @@
 
 #include <drm/drm_device.h>
 
+struct dmem_cgroup_region;
+struct drm_fb_helper;
+struct drm_fb_helper_surface_size;
 struct drm_file;
 struct drm_gem_object;
 struct drm_master;
@@ -367,6 +370,22 @@ struct drm_driver {
 			       uint64_t *offset);
 
 	/**
+	 * @fbdev_probe:
+	 *
+	 * Allocates and initialize the fb_info structure for fbdev emulation.
+	 * Furthermore it also needs to allocate the DRM framebuffer used to
+	 * back the fbdev.
+	 *
+	 * This callback is mandatory for fbdev support.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success ot a negative error code otherwise.
+	 */
+	int (*fbdev_probe)(struct drm_fb_helper *fbdev_helper,
+			   struct drm_fb_helper_surface_size *sizes);
+
+	/**
 	 * @show_fdinfo:
 	 *
 	 * Print device specific fdinfo.  See Documentation/gpu/drm-usage-stats.rst.
@@ -383,8 +402,6 @@ struct drm_driver {
 	char *name;
 	/** @desc: driver description */
 	char *desc;
-	/** @date: driver date, unused, to be removed */
-	char *date;
 
 	/**
 	 * @driver_features:
@@ -419,6 +436,10 @@ struct drm_driver {
 void *__devm_drm_dev_alloc(struct device *parent,
 			   const struct drm_driver *driver,
 			   size_t size, size_t offset);
+
+struct dmem_cgroup_region *
+drmm_cgroup_register_region(struct drm_device *dev,
+			    const char *region_name, u64 size);
 
 /**
  * devm_drm_dev_alloc - Resource managed allocation of a &drm_device instance

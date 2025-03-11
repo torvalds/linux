@@ -327,8 +327,8 @@ int pci_iov_add_virtfn(struct pci_dev *dev, int id)
 		virtfn->resource[i].name = pci_name(virtfn);
 		virtfn->resource[i].flags = res->flags;
 		size = pci_iov_resource_size(dev, i + PCI_IOV_RESOURCES);
-		virtfn->resource[i].start = res->start + size * id;
-		virtfn->resource[i].end = virtfn->resource[i].start + size - 1;
+		resource_set_range(&virtfn->resource[i],
+				   res->start + size * id, size);
 		rc = request_resource(res, &virtfn->resource[i]);
 		BUG_ON(rc);
 	}
@@ -804,7 +804,7 @@ found:
 			goto failed;
 		}
 		iov->barsz[i] = resource_size(res);
-		res->end = res->start + resource_size(res) * total - 1;
+		resource_set_size(res, resource_size(res) * total);
 		pci_info(dev, "%s %pR: contains BAR %d for %d VFs\n",
 			 res_name, res, i, total);
 		i += bar64;

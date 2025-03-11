@@ -49,10 +49,10 @@ config RENESAS_USB_DMAC
 	  SoCs.
 
 config RZ_DMAC
-	tristate "Renesas RZ/{G2L,V2L} DMA Controller"
-	depends on ARCH_RZG2L || COMPILE_TEST
+	tristate "Renesas RZ DMA Controller"
+	depends on ARCH_R7S72100 || ARCH_RZG2L || COMPILE_TEST
 	select RENESAS_DMA
 	select DMA_VIRTUAL_CHANNELS
 	help
-	  This driver supports the general purpose DMA controller found in the
-	  Renesas RZ/{G2L,V2L} SoC variants.
+	  This driver supports the general purpose DMA controller typically
+	  found in the Renesas RZ SoC variants.

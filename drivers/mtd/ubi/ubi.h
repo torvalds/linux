@@ -549,6 +549,7 @@ struct ubi_debug_info {
  * @peb_buf: a buffer of PEB size used for different purposes
  * @buf_mutex: protects @peb_buf
  * @ckvol_mutex: serializes static volume checking when opening
+ * @wl_reboot_notifier: close all wear-leveling work before reboot
  *
  * @dbg: debugging information for this UBI device
  */
@@ -651,6 +652,7 @@ struct ubi_device {
 	void *peb_buf;
 	struct mutex buf_mutex;
 	struct mutex ckvol_mutex;
+	struct notifier_block wl_reboot_notifier;
 
 	struct ubi_debug_info dbg;
 };
@@ -831,7 +833,6 @@ void ubi_remove_av(struct ubi_attach_info *ai, struct ubi_ainf_volume *av);
 struct ubi_ainf_peb *ubi_early_get_peb(struct ubi_device *ubi,
 				       struct ubi_attach_info *ai);
 int ubi_attach(struct ubi_device *ubi, int force_scan);
-void ubi_destroy_ai(struct ubi_attach_info *ai);
 
 /* vtbl.c */
 int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,

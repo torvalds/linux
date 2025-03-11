@@ -87,7 +87,12 @@ static int al3010_init(struct al3010_data *data)
 	int ret;
 
 	ret = al3010_set_pwr(data->client, true);
+	if (ret < 0)
+		return ret;
 
+	ret = devm_add_action_or_reset(&data->client->dev,
+				       al3010_set_pwr_off,
+				       data);
 	if (ret < 0)
 		return ret;
 
@@ -189,12 +194,6 @@ static int al3010_probe(struct i2c_client *client)
 		dev_err(&client->dev, "al3010 chip init failed\n");
 		return ret;
 	}
-
-	ret = devm_add_action_or_reset(&client->dev,
-					al3010_set_pwr_off,
-					data);
-	if (ret < 0)
-		return ret;
 
 	return devm_iio_device_register(&client->dev, indio_dev);
 }

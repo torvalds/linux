@@ -422,7 +422,7 @@ static int aw96103_read_event_config(struct iio_dev *indio_dev,
 static int aw96103_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
-				      enum iio_event_direction dir, int state)
+				      enum iio_event_direction dir, bool state)
 {
 	struct aw96103 *aw96103 = iio_priv(indio_dev);
 

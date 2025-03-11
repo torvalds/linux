@@ -54,7 +54,14 @@ struct sdw_slave;
 #define REGMAP_UPSHIFT(s)	(-(s))
 #define REGMAP_DOWNSHIFT(s)	(s)
 
-/* An enum of all the supported cache types */
+/*
+ * The supported cache types, the default is no cache.  Any new caches
+ * should usually use the maple tree cache unless they specifically
+ * require that there are never any allocations at runtime and can't
+ * provide defaults in which case they should use the flat cache.  The
+ * rbtree cache *may* have some performance advantage for very low end
+ * systems that make heavy use of cache syncs but is mainly legacy.
+ */
 enum regcache_type {
 	REGCACHE_NONE,
 	REGCACHE_RBTREE,
@@ -1328,6 +1335,15 @@ static inline int regmap_clear_bits(struct regmap *map,
 	return regmap_update_bits_base(map, reg, bits, 0, NULL, false, false);
 }
 
+static inline int regmap_assign_bits(struct regmap *map, unsigned int reg,
+				     unsigned int bits, bool value)
+{
+	if (value)
+		return regmap_set_bits(map, reg, bits);
+	else
+		return regmap_clear_bits(map, reg, bits);
+}
+
 int regmap_test_bits(struct regmap *map, unsigned int reg, unsigned int bits);
 
 /**
@@ -1791,6 +1807,13 @@ static inline int regmap_set_bits(struct regmap *map,
 
 static inline int regmap_clear_bits(struct regmap *map,
 				    unsigned int reg, unsigned int bits)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_assign_bits(struct regmap *map, unsigned int reg,
+				     unsigned int bits, bool value)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;

@@ -69,7 +69,7 @@ static inline void copy_page(void *to, void *from)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
 
 #define vma_alloc_zeroed_movable_folio(vma, vaddr) \
-	vma_alloc_folio(GFP_HIGHUSER_MOVABLE | __GFP_ZERO, 0, vma, vaddr, false)
+	vma_alloc_folio(GFP_HIGHUSER_MOVABLE | __GFP_ZERO, 0, vma, vaddr)
 
 /*
  * These are used to make use of C type-checking..
@@ -241,9 +241,7 @@ static inline unsigned long __phys_addr(unsigned long x, bool is_31bit)
 #define phys_to_pfn(phys)	((phys) >> PAGE_SHIFT)
 #define pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
 
-#define phys_to_page(phys)	pfn_to_page(phys_to_pfn(phys))
 #define phys_to_folio(phys)	page_folio(phys_to_page(phys))
-#define page_to_phys(page)	pfn_to_phys(page_to_pfn(page))
 #define folio_to_phys(page)	pfn_to_phys(folio_pfn(folio))
 
 static inline void *pfn_to_virt(unsigned long pfn)

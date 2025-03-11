@@ -46,7 +46,7 @@ struct tea5761_priv {
 /* FRQSET - Read: bytes 2 and 3 / Write: byte 1 and 2 */
 
 	/* First byte */
-#define TEA5761_FRQSET_SEARCH_UP 0x80		/* 1=Station search from botton to up */
+#define TEA5761_FRQSET_SEARCH_UP 0x80		/* 1=Station search from bottom to up */
 #define TEA5761_FRQSET_SEARCH_MODE 0x40		/* 1=Search mode */
 
 	/* Bits 0-5 for divider MSB */
@@ -132,7 +132,7 @@ static void tea5761_status_dump(unsigned char *buffer)
 	       frq / 1000, frq % 1000, div);
 }
 
-/* Freq should be specifyed at 62.5 Hz */
+/* Freq should be specified at 62.5 Hz */
 static int __set_radio_freq(struct dvb_frontend *fe,
 			    unsigned int freq,
 			    bool mono)

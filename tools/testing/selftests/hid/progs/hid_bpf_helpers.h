@@ -22,6 +22,9 @@
 #define HID_REQ_SET_IDLE         HID_REQ_SET_IDLE___not_used
 #define HID_REQ_SET_PROTOCOL     HID_REQ_SET_PROTOCOL___not_used
 
+/* do not define kfunc through vmlinux.h as this messes up our custom hack */
+#define BPF_NO_KFUNC_PROTOTYPES
+
 #include "vmlinux.h"
 
 #undef hid_bpf_ctx
@@ -91,31 +94,31 @@ struct hid_bpf_ops {
 /* following are kfuncs exported by HID for HID-BPF */
 extern __u8 *hid_bpf_get_data(struct hid_bpf_ctx *ctx,
 			      unsigned int offset,
-			      const size_t __sz) __ksym;
-extern struct hid_bpf_ctx *hid_bpf_allocate_context(unsigned int hid_id) __ksym;
-extern void hid_bpf_release_context(struct hid_bpf_ctx *ctx) __ksym;
+			      const size_t __sz) __weak __ksym;
+extern struct hid_bpf_ctx *hid_bpf_allocate_context(unsigned int hid_id) __weak __ksym;
+extern void hid_bpf_release_context(struct hid_bpf_ctx *ctx) __weak __ksym;
 extern int hid_bpf_hw_request(struct hid_bpf_ctx *ctx,
 			      __u8 *data,
 			      size_t buf__sz,
 			      enum hid_report_type type,
-			      enum hid_class_request reqtype) __ksym;
+			      enum hid_class_request reqtype) __weak __ksym;
 extern int hid_bpf_hw_output_report(struct hid_bpf_ctx *ctx,
-				    __u8 *buf, size_t buf__sz) __ksym;
+				    __u8 *buf, size_t buf__sz) __weak __ksym;
 extern int hid_bpf_input_report(struct hid_bpf_ctx *ctx,
 				enum hid_report_type type,
 				__u8 *data,
-				size_t buf__sz) __ksym;
+				size_t buf__sz) __weak __ksym;
 extern int hid_bpf_try_input_report(struct hid_bpf_ctx *ctx,
 				    enum hid_report_type type,
 				    __u8 *data,
-				    size_t buf__sz) __ksym;
+				    size_t buf__sz) __weak __ksym;
 
 /* bpf_wq implementation */
 extern int bpf_wq_init(struct bpf_wq *wq, void *p__map, unsigned int flags) __weak __ksym;
 extern int bpf_wq_start(struct bpf_wq *wq, unsigned int flags) __weak __ksym;
 extern int bpf_wq_set_callback_impl(struct bpf_wq *wq,
 		int (callback_fn)(void *map, int *key, void *wq),
-		unsigned int flags__k, void *aux__ign) __ksym;
+		unsigned int flags__k, void *aux__ign) __weak __ksym;
 #define bpf_wq_set_callback(timer, cb, flags) \
 	bpf_wq_set_callback_impl(timer, cb, flags, NULL)
 

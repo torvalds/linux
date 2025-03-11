@@ -8,7 +8,7 @@
  * Author: Padmavathi Venna <padma.v@samsung.com>
  *
  * Driver for Audio Subsystem Clock Controller of S5PV210-compatible SoCs.
-*/
+ */
 
 #include <linux/io.h>
 #include <linux/clk.h>

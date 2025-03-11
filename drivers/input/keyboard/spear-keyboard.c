@@ -20,7 +20,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/pm_wakeup.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/platform_data/keyboard-spear.h>
@@ -274,7 +273,7 @@ static int spear_kbd_suspend(struct device *dev)
 	struct input_dev *input_dev = kbd->input;
 	unsigned int rate = 0, mode_ctl_reg, val;
 
-	mutex_lock(&input_dev->mutex);
+	guard(mutex)(&input_dev->mutex);
 
 	/* explicitly enable clock as we may program device */
 	clk_enable(kbd->clk);
@@ -315,8 +314,6 @@ static int spear_kbd_suspend(struct device *dev)
 	/* restore previous clk state */
 	clk_disable(kbd->clk);
 
-	mutex_unlock(&input_dev->mutex);
-
 	return 0;
 }
 
@@ -326,7 +323,7 @@ static int spear_kbd_resume(struct device *dev)
 	struct spear_kbd *kbd = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = kbd->input;
 
-	mutex_lock(&input_dev->mutex);
+	guard(mutex)(&input_dev->mutex);
 
 	if (device_may_wakeup(&pdev->dev)) {
 		if (kbd->irq_wake_enabled) {
@@ -341,8 +338,6 @@ static int spear_kbd_resume(struct device *dev)
 	/* restore current configuration */
 	if (input_device_enabled(input_dev))
 		writel_relaxed(kbd->mode_ctl_reg, kbd->io_base + MODE_CTL_REG);
-
-	mutex_unlock(&input_dev->mutex);
 
 	return 0;
 }

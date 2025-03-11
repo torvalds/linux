@@ -40,6 +40,7 @@
 #define AMDGPU_MES_VERSION_MASK		0x00000fff
 #define AMDGPU_MES_API_VERSION_MASK	0x00fff000
 #define AMDGPU_MES_FEAT_VERSION_MASK	0xff000000
+#define AMDGPU_MES_MSCRATCH_SIZE	0x8000
 
 enum amdgpu_mes_priority_level {
 	AMDGPU_MES_PRIORITY_LEVEL_LOW       = 0,
@@ -75,6 +76,7 @@ struct amdgpu_mes {
 
 	uint32_t			sched_version;
 	uint32_t			kiq_version;
+	uint32_t			fw_version[AMDGPU_MAX_MES_PIPES];
 	bool                            enable_legacy_queue_map;
 
 	uint32_t                        total_max_queue;
@@ -119,9 +121,6 @@ struct amdgpu_mes {
 	uint32_t			query_status_fence_offs[AMDGPU_MAX_MES_PIPES];
 	uint64_t			query_status_fence_gpu_addr[AMDGPU_MAX_MES_PIPES];
 	uint64_t			*query_status_fence_ptr[AMDGPU_MAX_MES_PIPES];
-	uint32_t                        read_val_offs;
-	uint64_t			read_val_gpu_addr;
-	uint32_t			*read_val_ptr;
 
 	uint32_t			saved_flags;
 
@@ -310,6 +309,7 @@ enum mes_misc_opcode {
 	MES_MISC_OP_WRM_REG_WAIT,
 	MES_MISC_OP_WRM_REG_WR_WAIT,
 	MES_MISC_OP_SET_SHADER_DEBUGGER,
+	MES_MISC_OP_CHANGE_CONFIG,
 };
 
 struct mes_misc_op_input {
@@ -348,6 +348,21 @@ struct mes_misc_op_input {
 			uint32_t tcp_watch_cntl[4];
 			uint32_t trap_en;
 		} set_shader_debugger;
+
+		struct {
+			union {
+				struct {
+					uint32_t limit_single_process : 1;
+					uint32_t enable_hws_logging_buffer : 1;
+					uint32_t reserved : 30;
+				};
+				uint32_t all;
+			} option;
+			struct {
+				uint32_t tdr_level;
+				uint32_t tdr_delay;
+			} tdr_config;
+		} change_config;
 	};
 };
 
@@ -518,4 +533,7 @@ static inline void amdgpu_mes_unlock(struct amdgpu_mes *mes)
 }
 
 bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev);
+
+int amdgpu_mes_set_enforce_isolation(struct amdgpu_device *adev, uint32_t node_id, bool enable);
+
 #endif /* __AMDGPU_MES_H__ */

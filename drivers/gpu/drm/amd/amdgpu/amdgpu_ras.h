@@ -99,7 +99,8 @@ enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__IH,
 	AMDGPU_RAS_BLOCK__MPIO,
 
-	AMDGPU_RAS_BLOCK__LAST
+	AMDGPU_RAS_BLOCK__LAST,
+	AMDGPU_RAS_BLOCK__ANY = -1
 };
 
 enum amdgpu_ras_mca_block {
@@ -365,6 +366,7 @@ enum amdgpu_ras_error_query_mode {
 	AMDGPU_RAS_INVALID_ERROR_QUERY		= 0,
 	AMDGPU_RAS_DIRECT_ERROR_QUERY		= 1,
 	AMDGPU_RAS_FIRMWARE_ERROR_QUERY		= 2,
+	AMDGPU_RAS_VIRT_ERROR_COUNT_QUERY	= 3,
 };
 
 /* ras error status reisger fields */
@@ -481,6 +483,8 @@ struct ras_ecc_err {
 	uint64_t ipid;
 	uint64_t addr;
 	uint64_t pa_pfn;
+	/* save global channel index across all UMC instances */
+	uint32_t channel_idx;
 	struct ras_err_pages err_pages;
 };
 
@@ -557,8 +561,8 @@ struct amdgpu_ras {
 	struct ras_ecc_log_info  umc_ecc_log;
 	struct delayed_work page_retirement_dwork;
 
-	/* Fatal error detected flag */
-	atomic_t fed;
+	/* ras errors detected */
+	unsigned long ras_err_state;
 
 	/* RAS event manager */
 	struct ras_event_manager __event_mgr;
@@ -736,8 +740,8 @@ struct amdgpu_ras_block_hw_ops {
  * 8: feature disable
  */
 
-
-int amdgpu_ras_recovery_init(struct amdgpu_device *adev);
+int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev);
+int amdgpu_ras_recovery_init(struct amdgpu_device *adev, bool init_bp_info);
 
 void amdgpu_ras_resume(struct amdgpu_device *adev);
 void amdgpu_ras_suspend(struct amdgpu_device *adev);
@@ -749,7 +753,7 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 
 /* error handling functions */
 int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
-		struct eeprom_table_record *bps, int pages);
+		struct eeprom_table_record *bps, int pages, bool from_rom);
 
 int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 		unsigned long *new_cnt);
@@ -951,6 +955,10 @@ ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *a
 
 void amdgpu_ras_set_fed(struct amdgpu_device *adev, bool status);
 bool amdgpu_ras_get_fed_status(struct amdgpu_device *adev);
+void amdgpu_ras_set_err_poison(struct amdgpu_device *adev,
+			       enum amdgpu_ras_block block);
+void amdgpu_ras_clear_err_state(struct amdgpu_device *adev);
+bool amdgpu_ras_is_err_state(struct amdgpu_device *adev, int block);
 
 u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type type);
 int amdgpu_ras_mark_ras_event_caller(struct amdgpu_device *adev, enum ras_event_type type,

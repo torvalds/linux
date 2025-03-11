@@ -98,7 +98,7 @@
 		 * The bootloader will only keep display hardware enabled
 		 * if this memory region is named exactly 'splash_region'
 		 */
-		splash_region@b8000000 {
+		splash-region@b8000000 {
 			reg = <0x0 0xb8000000 0x0 0x2b00000>;
 			no-map;
 		};

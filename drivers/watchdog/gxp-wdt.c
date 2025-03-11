@@ -151,10 +151,8 @@ static int gxp_wdt_probe(struct platform_device *pdev)
 
 	watchdog_stop_on_reboot(&drvdata->wdd);
 	err = devm_watchdog_register_device(dev, &drvdata->wdd);
-	if (err) {
-		dev_err(dev, "Failed to register watchdog device");
+	if (err)
 		return err;
-	}
 
 	dev_info(dev, "HPE GXP watchdog timer");
 

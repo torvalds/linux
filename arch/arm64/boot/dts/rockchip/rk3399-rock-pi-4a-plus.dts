@@ -21,5 +21,5 @@
 };
 
 &sound {
-	hp-det-gpio = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+	hp-det-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
 };

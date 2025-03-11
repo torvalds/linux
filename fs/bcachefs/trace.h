@@ -199,6 +199,30 @@ DECLARE_EVENT_CLASS(bio,
 		  (unsigned long long)__entry->sector, __entry->nr_sector)
 );
 
+/* disk_accounting.c */
+
+TRACE_EVENT(accounting_mem_insert,
+	TP_PROTO(struct bch_fs *c, const char *acc),
+	TP_ARGS(c, acc),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__field(unsigned,	new_nr			)
+		__string(acc,		acc			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= c->dev;
+		__entry->new_nr		= c->accounting.k.nr;
+		__assign_str(acc);
+	),
+
+	TP_printk("%d,%d entries %u added %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->new_nr,
+		  __get_str(acc))
+);
+
 /* fs.c: */
 TRACE_EVENT(bch2_sync_fs,
 	TP_PROTO(struct super_block *sb, int wait),
@@ -848,8 +872,8 @@ TRACE_EVENT(move_data,
 TRACE_EVENT(evacuate_bucket,
 	TP_PROTO(struct bch_fs *c, struct bpos *bucket,
 		 unsigned sectors, unsigned bucket_size,
-		 u64 fragmentation, int ret),
-	TP_ARGS(c, bucket, sectors, bucket_size, fragmentation, ret),
+		 int ret),
+	TP_ARGS(c, bucket, sectors, bucket_size, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t,		dev		)
@@ -857,7 +881,6 @@ TRACE_EVENT(evacuate_bucket,
 		__field(u64,		bucket		)
 		__field(u32,		sectors		)
 		__field(u32,		bucket_size	)
-		__field(u64,		fragmentation	)
 		__field(int,		ret		)
 	),
 
@@ -867,15 +890,14 @@ TRACE_EVENT(evacuate_bucket,
 		__entry->bucket			= bucket->offset;
 		__entry->sectors		= sectors;
 		__entry->bucket_size		= bucket_size;
-		__entry->fragmentation		= fragmentation;
 		__entry->ret			= ret;
 	),
 
-	TP_printk("%d,%d %llu:%llu sectors %u/%u fragmentation %llu ret %i",
+	TP_printk("%d,%d %llu:%llu sectors %u/%u ret %i",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->member, __entry->bucket,
 		  __entry->sectors, __entry->bucket_size,
-		  __entry->fragmentation, __entry->ret)
+		  __entry->ret)
 );
 
 TRACE_EVENT(copygc,
@@ -1316,6 +1338,12 @@ TRACE_EVENT(trans_restart_key_cache_key_realloced,
 		  __entry->new_u64s)
 );
 
+DEFINE_EVENT(transaction_event,	trans_restart_write_buffer_flush,
+	TP_PROTO(struct btree_trans *trans,
+		 unsigned long caller_ip),
+	TP_ARGS(trans, caller_ip)
+);
+
 TRACE_EVENT(path_downgrade,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip,
@@ -1352,10 +1380,21 @@ TRACE_EVENT(path_downgrade,
 		  __entry->pos_snapshot)
 );
 
-DEFINE_EVENT(transaction_event,	trans_restart_write_buffer_flush,
-	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip),
-	TP_ARGS(trans, caller_ip)
+TRACE_EVENT(key_cache_fill,
+	TP_PROTO(struct btree_trans *trans, const char *key),
+	TP_ARGS(trans, key),
+
+	TP_STRUCT__entry(
+		__array(char,		trans_fn, 32	)
+		__string(key,		key			)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__assign_str(key);
+	),
+
+	TP_printk("%s %s", __entry->trans_fn, __get_str(key))
 );
 
 TRACE_EVENT(write_buffer_flush,
@@ -1412,6 +1451,24 @@ TRACE_EVENT(write_buffer_flush_slowpath,
 	),
 
 	TP_printk("%zu/%zu", __entry->slowpath, __entry->total)
+);
+
+TRACE_EVENT(write_buffer_maybe_flush,
+	TP_PROTO(struct btree_trans *trans, unsigned long caller_ip, const char *key),
+	TP_ARGS(trans, caller_ip, key),
+
+	TP_STRUCT__entry(
+		__array(char,			trans_fn, 32	)
+		__field(unsigned long,		caller_ip	)
+		__string(key,			key		)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__assign_str(key);
+	),
+
+	TP_printk("%s %pS %s", __entry->trans_fn, (void *) __entry->caller_ip, __get_str(key))
 );
 
 DEFINE_EVENT(fs_str, rebalance_extent,

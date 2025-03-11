@@ -230,7 +230,7 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_ppc_of_match);
 
 static struct platform_driver ehci_hcd_ppc_of_driver = {
 	.probe		= ehci_hcd_ppc_of_probe,
-	.remove_new	= ehci_hcd_ppc_of_remove,
+	.remove		= ehci_hcd_ppc_of_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "ppc-of-ehci",

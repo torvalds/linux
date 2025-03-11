@@ -433,37 +433,29 @@ int apmf_install_handler(struct amd_pmf_dev *pmf_dev)
 	return 0;
 }
 
-static acpi_status apmf_walk_resources(struct acpi_resource *res, void *data)
-{
-	struct amd_pmf_dev *dev = data;
-
-	switch (res->type) {
-	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		dev->policy_addr = res->data.address64.address.minimum;
-		dev->policy_sz = res->data.address64.address.address_length;
-		break;
-	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
-		dev->policy_addr = res->data.fixed_memory32.address;
-		dev->policy_sz = res->data.fixed_memory32.address_length;
-		break;
-	}
-
-	if (!dev->policy_addr || dev->policy_sz > POLICY_BUF_MAX_SZ || dev->policy_sz == 0) {
-		pr_err("Incorrect Policy params, possibly a SBIOS bug\n");
-		return AE_ERROR;
-	}
-
-	return AE_OK;
-}
-
 int apmf_check_smart_pc(struct amd_pmf_dev *pmf_dev)
 {
-	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
-	acpi_status status;
+	struct platform_device *pdev = to_platform_device(pmf_dev->dev);
 
-	status = acpi_walk_resources(ahandle, METHOD_NAME__CRS, apmf_walk_resources, pmf_dev);
-	if (ACPI_FAILURE(status)) {
-		dev_dbg(pmf_dev->dev, "acpi_walk_resources failed :%d\n", status);
+	pmf_dev->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!pmf_dev->res) {
+		dev_dbg(pmf_dev->dev, "Failed to get I/O memory resource\n");
+		return -EINVAL;
+	}
+
+	pmf_dev->policy_addr = pmf_dev->res->start;
+	/*
+	 * We cannot use resource_size() here because it adds an extra byte to round off the size.
+	 * In the case of PMF ResourceTemplate(), this rounding is already handled within the _CRS.
+	 * Using resource_size() would increase the resource size by 1, causing a mismatch with the
+	 * length field and leading to issues. Therefore, simply use end-start of the ACPI resource
+	 * to obtain the actual length.
+	 */
+	pmf_dev->policy_sz = pmf_dev->res->end - pmf_dev->res->start;
+
+	if (!pmf_dev->policy_addr || pmf_dev->policy_sz > POLICY_BUF_MAX_SZ ||
+	    pmf_dev->policy_sz == 0) {
+		dev_err(pmf_dev->dev, "Incorrect policy params, possibly a SBIOS bug\n");
 		return -EINVAL;
 	}
 

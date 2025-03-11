@@ -266,7 +266,6 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->update_pipe = false;
 	crtc_state->update_m_n = false;
 	crtc_state->update_lrr = false;
-	crtc_state->disable_lp_wm = false;
 	crtc_state->disable_cxsr = false;
 	crtc_state->update_wm_pre = false;
 	crtc_state->update_wm_post = false;
@@ -277,7 +276,8 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->fb_bits = 0;
 	crtc_state->update_planes = 0;
 	crtc_state->dsb_color_vblank = NULL;
-	crtc_state->dsb_color_commit = NULL;
+	crtc_state->dsb_commit = NULL;
+	crtc_state->use_dsb = false;
 
 	return &crtc_state->uapi;
 }
@@ -312,7 +312,7 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(state);
 
 	drm_WARN_ON(crtc->dev, crtc_state->dsb_color_vblank);
-	drm_WARN_ON(crtc->dev, crtc_state->dsb_color_commit);
+	drm_WARN_ON(crtc->dev, crtc_state->dsb_commit);
 
 	__drm_atomic_helper_crtc_destroy_state(&crtc_state->uapi);
 	intel_crtc_free_hw_state(crtc_state);

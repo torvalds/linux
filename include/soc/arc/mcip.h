@@ -8,7 +8,7 @@
 #ifndef __SOC_ARC_MCIP_H
 #define __SOC_ARC_MCIP_H
 
-#include <soc/arc/aux.h>
+#include <soc/arc/arc_aux.h>
 
 #define ARC_REG_MCIP_BCR	0x0d0
 #define ARC_REG_MCIP_IDU_BCR	0x0D5

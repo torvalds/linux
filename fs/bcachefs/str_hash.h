@@ -160,7 +160,7 @@ bch2_hash_lookup_in_snapshot(struct btree_trans *trans,
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
+	for_each_btree_key_max_norestart(trans, *iter, desc.btree_id,
 			   SPOS(inum.inum, desc.hash_key(info, key), snapshot),
 			   POS(inum.inum, U64_MAX),
 			   BTREE_ITER_slots|flags, k, ret) {
@@ -210,7 +210,7 @@ bch2_hash_hole(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
+	for_each_btree_key_max_norestart(trans, *iter, desc.btree_id,
 			   SPOS(inum.inum, desc.hash_key(info, key), snapshot),
 			   POS(inum.inum, U64_MAX),
 			   BTREE_ITER_slots|BTREE_ITER_intent, k, ret)
@@ -265,7 +265,7 @@ struct bkey_s_c bch2_hash_set_or_get_in_snapshot(struct btree_trans *trans,
 	bool found = false;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, *iter, desc.btree_id,
+	for_each_btree_key_max_norestart(trans, *iter, desc.btree_id,
 			   SPOS(insert->k.p.inode,
 				desc.hash_bkey(info, bkey_i_to_s_c(insert)),
 				snapshot),
@@ -391,6 +391,28 @@ int bch2_hash_delete(struct btree_trans *trans,
 	ret = bch2_hash_delete_at(trans, desc, info, &iter, 0);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
+}
+
+struct snapshots_seen;
+int __bch2_str_hash_check_key(struct btree_trans *,
+			      struct snapshots_seen *,
+			      const struct bch_hash_desc *,
+			      struct bch_hash_info *,
+			      struct btree_iter *, struct bkey_s_c);
+
+static inline int bch2_str_hash_check_key(struct btree_trans *trans,
+			    struct snapshots_seen *s,
+			    const struct bch_hash_desc *desc,
+			    struct bch_hash_info *hash_info,
+			    struct btree_iter *k_iter, struct bkey_s_c hash_k)
+{
+	if (hash_k.k->type != desc->key_type)
+		return 0;
+
+	if (likely(desc->hash_bkey(hash_info, hash_k) == hash_k.k->p.offset))
+		return 0;
+
+	return __bch2_str_hash_check_key(trans, s, desc, hash_info, k_iter, hash_k);
 }
 
 #endif /* _BCACHEFS_STR_HASH_H */

@@ -944,9 +944,7 @@ static void unlock_spi_csq_mutexes(struct amdgpu_device *adev)
  *
  * @adev: Handle of device whose registers are to be read
  * @queue_idx: Index of queue in the queue-map bit-field
- * @wave_cnt: Output parameter updated with number of waves in flight
- * @vmid: Output parameter updated with VMID of queue whose wave count
- *        is being collected
+ * @queue_cnt: Stores the wave count and doorbell offset for an active queue
  * @inst: xcc's instance number on a multi-XCC setup
  */
 static void get_wave_count(struct amdgpu_device *adev, int queue_idx,
@@ -1133,8 +1131,7 @@ uint64_t kgd_gfx_v9_hqd_get_pq_addr(struct amdgpu_device *adev,
 	uint32_t low, high;
 	uint64_t queue_addr = 0;
 
-	if (!adev->debug_exp_resets &&
-	    !adev->gfx.num_gfx_rings)
+	if (!amdgpu_gpu_recovery)
 		return 0;
 
 	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
@@ -1184,6 +1181,9 @@ uint64_t kgd_gfx_v9_hqd_reset(struct amdgpu_device *adev,
 {
 	uint32_t low, high, pipe_reset_data = 0;
 	uint64_t queue_addr = 0;
+
+	if (!amdgpu_gpu_recovery)
+		return 0;
 
 	kgd_gfx_v9_acquire_queue(adev, pipe_id, queue_id, inst);
 	amdgpu_gfx_rlc_enter_safe_mode(adev, inst);

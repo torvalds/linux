@@ -771,7 +771,7 @@ static int qcom_qspi_probe(struct platform_device *pdev)
 	host->prepare_message = qcom_qspi_prepare_message;
 	host->transfer_one = qcom_qspi_transfer_one;
 	host->handle_err = qcom_qspi_handle_err;
-	if (of_property_read_bool(pdev->dev.of_node, "iommus"))
+	if (of_property_present(pdev->dev.of_node, "iommus"))
 		host->can_dma = qcom_qspi_can_dma;
 	host->auto_runtime_pm = true;
 	host->mem_ops = &qcom_qspi_mem_ops;
@@ -908,7 +908,7 @@ static struct platform_driver qcom_qspi_driver = {
 		.of_match_table = qcom_qspi_dt_match,
 	},
 	.probe = qcom_qspi_probe,
-	.remove_new = qcom_qspi_remove,
+	.remove = qcom_qspi_remove,
 };
 module_platform_driver(qcom_qspi_driver);
 

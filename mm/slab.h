@@ -73,6 +73,11 @@ struct slab {
 						struct {
 							unsigned inuse:16;
 							unsigned objects:15;
+							/*
+							 * If slab debugging is enabled then the
+							 * frozen bit can be reused to indicate
+							 * that the slab was corrupted
+							 */
 							unsigned frozen:1;
 						};
 					};
@@ -123,7 +128,7 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
 
 /**
  * slab_folio - The folio allocated for a slab
- * @slab: The slab.
+ * @s: The slab.
  *
  * Slabs are allocated as folios that contain the individual objects and are
  * using some fields in the first struct page of the folio - those fields are
@@ -154,7 +159,7 @@ static_assert(IS_ALIGNED(offsetof(struct slab, freelist), sizeof(freelist_aba_t)
 
 /**
  * slab_page - The first struct page allocated for a slab
- * @slab: The slab.
+ * @s: The slab.
  *
  * A convenience wrapper for converting slab to the first struct page of the
  * underlying folio, to communicate with code not yet converted to folio or
@@ -694,6 +699,12 @@ void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 
 void __check_heap_object(const void *ptr, unsigned long n,
 			 const struct slab *slab, bool to_user);
+
+static inline bool slub_debug_orig_size(struct kmem_cache *s)
+{
+	return (kmem_cache_debug_flags(s, SLAB_STORE_USER) &&
+			(s->flags & SLAB_KMALLOC));
+}
 
 #ifdef CONFIG_SLUB_DEBUG
 void skip_orig_size_check(struct kmem_cache *s, const void *object);

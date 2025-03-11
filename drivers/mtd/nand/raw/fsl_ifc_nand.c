@@ -1130,7 +1130,7 @@ static struct platform_driver fsl_ifc_nand_driver = {
 		.of_match_table = fsl_ifc_nand_match,
 	},
 	.probe       = fsl_ifc_nand_probe,
-	.remove_new  = fsl_ifc_nand_remove,
+	.remove      = fsl_ifc_nand_remove,
 };
 
 module_platform_driver(fsl_ifc_nand_driver);

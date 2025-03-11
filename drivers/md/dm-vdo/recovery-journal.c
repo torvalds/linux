@@ -1365,7 +1365,7 @@ static void add_queued_recovery_entries(struct recovery_journal_block *block)
  *
  * Implements waiter_callback_fn.
  */
-static void write_block(struct vdo_waiter *waiter, void *context __always_unused)
+static void write_block(struct vdo_waiter *waiter, void __always_unused *context)
 {
 	struct recovery_journal_block *block =
 		container_of(waiter, struct recovery_journal_block, write_waiter);

@@ -605,6 +605,9 @@ int input_open_device(struct input_handle *handle)
 
 	handle->open++;
 
+	if (handle->handler->passive_observer)
+		goto out;
+
 	if (dev->users++ || dev->inhibited) {
 		/*
 		 * Device is already opened and/or inhibited,
@@ -668,11 +671,13 @@ void input_close_device(struct input_handle *handle)
 
 	__input_release_device(handle);
 
-	if (!--dev->users && !dev->inhibited) {
-		if (dev->poller)
-			input_dev_poller_stop(dev->poller);
-		if (dev->close)
-			dev->close(dev);
+	if (!handle->handler->passive_observer) {
+		if (!--dev->users && !dev->inhibited) {
+			if (dev->poller)
+				input_dev_poller_stop(dev->poller);
+			if (dev->close)
+				dev->close(dev);
+		}
 	}
 
 	if (!--handle->open) {

@@ -46,7 +46,7 @@ void vma_iter_dump_tree(const struct vma_iterator *vmi);
 		}							\
 	} while (0)
 #define VM_WARN_ON_ONCE_PAGE(cond, page)	({			\
-	static bool __section(".data.once") __warned;			\
+	static bool __section(".data..once") __warned;			\
 	int __ret_warn_once = !!(cond);					\
 									\
 	if (unlikely(__ret_warn_once && !__warned)) {			\
@@ -66,7 +66,7 @@ void vma_iter_dump_tree(const struct vma_iterator *vmi);
 	unlikely(__ret_warn);						\
 })
 #define VM_WARN_ON_ONCE_FOLIO(cond, folio)	({			\
-	static bool __section(".data.once") __warned;			\
+	static bool __section(".data..once") __warned;			\
 	int __ret_warn_once = !!(cond);					\
 									\
 	if (unlikely(__ret_warn_once && !__warned)) {			\
@@ -77,7 +77,7 @@ void vma_iter_dump_tree(const struct vma_iterator *vmi);
 	unlikely(__ret_warn_once);					\
 })
 #define VM_WARN_ON_ONCE_MM(cond, mm)		({			\
-	static bool __section(".data.once") __warned;			\
+	static bool __section(".data..once") __warned;			\
 	int __ret_warn_once = !!(cond);					\
 									\
 	if (unlikely(__ret_warn_once && !__warned)) {			\

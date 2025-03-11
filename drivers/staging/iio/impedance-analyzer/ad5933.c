@@ -628,9 +628,9 @@ static void ad5933_work(struct work_struct *work)
 		int scan_count = bitmap_weight(indio_dev->active_scan_mask,
 					       iio_get_masklength(indio_dev));
 		ret = ad5933_i2c_read(st->client,
-				test_bit(1, indio_dev->active_scan_mask) ?
-				AD5933_REG_REAL_DATA : AD5933_REG_IMAG_DATA,
-				scan_count * 2, (u8 *)buf);
+				      test_bit(1, indio_dev->active_scan_mask) ?
+				      AD5933_REG_REAL_DATA : AD5933_REG_IMAG_DATA,
+				      scan_count * 2, (u8 *)buf);
 		if (ret)
 			return;
 

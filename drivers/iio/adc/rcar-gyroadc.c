@@ -592,7 +592,7 @@ static const struct dev_pm_ops rcar_gyroadc_pm_ops = {
 
 static struct platform_driver rcar_gyroadc_driver = {
 	.probe          = rcar_gyroadc_probe,
-	.remove_new     = rcar_gyroadc_remove,
+	.remove         = rcar_gyroadc_remove,
 	.driver         = {
 		.name		= DRIVER_NAME,
 		.of_match_table	= rcar_gyroadc_match,

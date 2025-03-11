@@ -149,28 +149,22 @@ int ast_dp_launch(struct ast_device *ast)
 	return 0;
 }
 
-static bool ast_dp_power_is_on(struct ast_device *ast)
+static bool ast_dp_get_phy_sleep(struct ast_device *ast)
 {
-	u8 vgacre3;
+	u8 vgacre3 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xe3);
 
-	vgacre3 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xe3);
-
-	return !(vgacre3 & AST_DP_PHY_SLEEP);
+	return (vgacre3 & AST_IO_VGACRE3_DP_PHY_SLEEP);
 }
 
-static void ast_dp_power_on_off(struct drm_device *dev, bool on)
+static void ast_dp_set_phy_sleep(struct ast_device *ast, bool sleep)
 {
-	struct ast_device *ast = to_ast_device(dev);
-	// Read and Turn off DP PHY sleep
-	u8 bE3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, AST_DP_VIDEO_ENABLE);
+	u8 vgacre3 = 0x00;
 
-	// Turn on DP PHY sleep
-	if (!on)
-		bE3 |= AST_DP_PHY_SLEEP;
+	if (sleep)
+		vgacre3 |= AST_IO_VGACRE3_DP_PHY_SLEEP;
 
-	// DP Power on/off
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_PHY_SLEEP, bE3);
-
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe3, (u8)~AST_IO_VGACRE3_DP_PHY_SLEEP,
+			       vgacre3);
 	msleep(50);
 }
 
@@ -192,23 +186,39 @@ static void ast_dp_link_training(struct ast_device *ast)
 	drm_err(dev, "Link training failed\n");
 }
 
-static void ast_dp_set_on_off(struct drm_device *dev, bool on)
+static bool __ast_dp_wait_enable(struct ast_device *ast, bool enabled)
 {
-	struct ast_device *ast = to_ast_device(dev);
-	u8 video_on_off = on;
-	u32 i = 0;
+	u8 vgacrdf_test = 0x00;
+	u8 vgacrdf;
+	unsigned int i;
 
-	// Video On/Off
-	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_VIDEO_ENABLE, on);
+	if (enabled)
+		vgacrdf_test |= AST_IO_VGACRDF_DP_VIDEO_ENABLE;
 
-	video_on_off <<= 4;
-	while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF,
-						ASTDP_MIRROR_VIDEO_ENABLE) != video_on_off) {
-		// wait 1 ms
-		mdelay(1);
-		if (++i > 200)
-			break;
+	for (i = 0; i < 200; ++i) {
+		if (i)
+			mdelay(1);
+		vgacrdf = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xdf,
+						 AST_IO_VGACRDF_DP_VIDEO_ENABLE);
+		if (vgacrdf == vgacrdf_test)
+			return true;
 	}
+
+	return false;
+}
+
+static void ast_dp_set_enable(struct ast_device *ast, bool enabled)
+{
+	struct drm_device *dev = &ast->base;
+	u8 vgacre3 = 0x00;
+
+	if (enabled)
+		vgacre3 |= AST_IO_VGACRE3_DP_VIDEO_ENABLE;
+
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xe3, (u8)~AST_IO_VGACRE3_DP_VIDEO_ENABLE,
+			       vgacre3);
+
+	drm_WARN_ON(dev, !__ast_dp_wait_enable(ast, enabled));
 }
 
 static void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mode)
@@ -317,26 +327,25 @@ static void ast_astdp_encoder_helper_atomic_mode_set(struct drm_encoder *encoder
 static void ast_astdp_encoder_helper_atomic_enable(struct drm_encoder *encoder,
 						   struct drm_atomic_state *state)
 {
-	struct drm_device *dev = encoder->dev;
-	struct ast_device *ast = to_ast_device(dev);
+	struct ast_device *ast = to_ast_device(encoder->dev);
 	struct ast_connector *ast_connector = &ast->output.astdp.connector;
 
 	if (ast_connector->physical_status == connector_status_connected) {
-		ast_dp_power_on_off(dev, AST_DP_POWER_ON);
+		ast_dp_set_phy_sleep(ast, false);
 		ast_dp_link_training(ast);
 
 		ast_wait_for_vretrace(ast);
-		ast_dp_set_on_off(dev, 1);
+		ast_dp_set_enable(ast, true);
 	}
 }
 
 static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 						    struct drm_atomic_state *state)
 {
-	struct drm_device *dev = encoder->dev;
+	struct ast_device *ast = to_ast_device(encoder->dev);
 
-	ast_dp_set_on_off(dev, 0);
-	ast_dp_power_on_off(dev, AST_DP_POWER_OFF);
+	ast_dp_set_enable(ast, false);
+	ast_dp_set_phy_sleep(ast, true);
 }
 
 static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
@@ -383,22 +392,21 @@ static int ast_astdp_connector_helper_detect_ctx(struct drm_connector *connector
 						 bool force)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
-	struct drm_device *dev = connector->dev;
 	struct ast_device *ast = to_ast_device(connector->dev);
 	enum drm_connector_status status = connector_status_disconnected;
-	bool power_is_on;
+	bool phy_sleep;
 
 	mutex_lock(&ast->modeset_lock);
 
-	power_is_on = ast_dp_power_is_on(ast);
-	if (!power_is_on)
-		ast_dp_power_on_off(dev, true);
+	phy_sleep = ast_dp_get_phy_sleep(ast);
+	if (phy_sleep)
+		ast_dp_set_phy_sleep(ast, false);
 
 	if (ast_astdp_is_connected(ast))
 		status = connector_status_connected;
 
-	if (!power_is_on && status == connector_status_disconnected)
-		ast_dp_power_on_off(dev, false);
+	if (phy_sleep && status == connector_status_disconnected)
+		ast_dp_set_phy_sleep(ast, true);
 
 	mutex_unlock(&ast->modeset_lock);
 
@@ -414,6 +422,10 @@ static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs 
 	.detect_ctx = ast_astdp_connector_helper_detect_ctx,
 };
 
+/*
+ * Output
+ */
+
 static const struct drm_connector_funcs ast_astdp_connector_funcs = {
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -422,34 +434,18 @@ static const struct drm_connector_funcs ast_astdp_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static int ast_astdp_connector_init(struct drm_device *dev, struct drm_connector *connector)
-{
-	int ret;
-
-	ret = drm_connector_init(dev, connector, &ast_astdp_connector_funcs,
-				 DRM_MODE_CONNECTOR_DisplayPort);
-	if (ret)
-		return ret;
-
-	drm_connector_helper_add(connector, &ast_astdp_connector_helper_funcs);
-
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
-
-	return 0;
-}
-
 int ast_astdp_output_init(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct drm_crtc *crtc = &ast->crtc;
-	struct drm_encoder *encoder = &ast->output.astdp.encoder;
-	struct ast_connector *ast_connector = &ast->output.astdp.connector;
-	struct drm_connector *connector = &ast_connector->base;
+	struct drm_encoder *encoder;
+	struct ast_connector *ast_connector;
+	struct drm_connector *connector;
 	int ret;
 
+	/* encoder */
+
+	encoder = &ast->output.astdp.encoder;
 	ret = drm_encoder_init(dev, encoder, &ast_astdp_encoder_funcs,
 			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
@@ -458,9 +454,20 @@ int ast_astdp_output_init(struct ast_device *ast)
 
 	encoder->possible_crtcs = drm_crtc_mask(crtc);
 
-	ret = ast_astdp_connector_init(dev, connector);
+	/* connector */
+
+	ast_connector = &ast->output.astdp.connector;
+	connector = &ast_connector->base;
+	ret = drm_connector_init(dev, connector, &ast_astdp_connector_funcs,
+				 DRM_MODE_CONNECTOR_DisplayPort);
 	if (ret)
 		return ret;
+	drm_connector_helper_add(connector, &ast_astdp_connector_helper_funcs);
+
+	connector->interlace_allowed = 0;
+	connector->doublescan_allowed = 0;
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
+
 	ast_connector->physical_status = connector->status;
 
 	ret = drm_connector_attach_encoder(connector, encoder);

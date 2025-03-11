@@ -203,5 +203,35 @@ int of_clk_hw_register_kunit(struct kunit *test, struct device_node *node, struc
 }
 EXPORT_SYMBOL_GPL(of_clk_hw_register_kunit);
 
+KUNIT_DEFINE_ACTION_WRAPPER(of_clk_del_provider_wrapper,
+			    of_clk_del_provider, struct device_node *);
+
+/**
+ * of_clk_add_hw_provider_kunit() - Test managed of_clk_add_hw_provider()
+ * @test: The test context
+ * @np: Device node pointer associated with clock provider
+ * @get: Callback for decoding clk_hw
+ * @data: Context pointer for @get callback.
+ *
+ * Just like of_clk_add_hw_provider(), except the clk_hw provider is managed by
+ * the test case and is automatically unregistered after the test case
+ * concludes.
+ *
+ * Return: 0 on success or a negative errno value on failure.
+ */
+int of_clk_add_hw_provider_kunit(struct kunit *test, struct device_node *np,
+				 struct clk_hw *(*get)(struct of_phandle_args *clkspec, void *data),
+				 void *data)
+{
+	int ret;
+
+	ret = of_clk_add_hw_provider(np, get, data);
+	if (ret)
+		return ret;
+
+	return kunit_add_action_or_reset(test, of_clk_del_provider_wrapper, np);
+}
+EXPORT_SYMBOL_GPL(of_clk_add_hw_provider_kunit);
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("KUnit helpers for clk providers and consumers");

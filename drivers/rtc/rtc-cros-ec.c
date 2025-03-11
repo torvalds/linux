@@ -401,7 +401,7 @@ MODULE_DEVICE_TABLE(platform, cros_ec_rtc_id);
 
 static struct platform_driver cros_ec_rtc_driver = {
 	.probe = cros_ec_rtc_probe,
-	.remove_new = cros_ec_rtc_remove,
+	.remove = cros_ec_rtc_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &cros_ec_rtc_pm_ops,

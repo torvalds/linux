@@ -385,7 +385,7 @@ static struct platform_driver p50_gpio_driver = {
 		.name = DRIVER_NAME,
 	},
 	.probe = p50_gpio_probe,
-	.remove_new = p50_gpio_remove,
+	.remove = p50_gpio_remove,
 };
 
 /* Board setup */

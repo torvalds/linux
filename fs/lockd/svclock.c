@@ -608,7 +608,7 @@ out:
 __be32
 nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 		struct nlm_host *host, struct nlm_lock *lock,
-		struct nlm_lock *conflock, struct nlm_cookie *cookie)
+		struct nlm_lock *conflock)
 {
 	int			error;
 	int			mode;

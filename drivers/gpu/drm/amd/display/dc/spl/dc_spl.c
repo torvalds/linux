@@ -11,6 +11,41 @@
 #define IDENTITY_RATIO(ratio) (spl_fixpt_u2d19(ratio) == (1 << 19))
 #define MIN_VIEWPORT_SIZE 12
 
+static bool spl_is_yuv420(enum spl_pixel_format format)
+{
+	if ((format >= SPL_PIXEL_FORMAT_420BPP8) &&
+		(format <= SPL_PIXEL_FORMAT_420BPP10))
+		return true;
+
+	return false;
+}
+
+static bool spl_is_rgb8(enum spl_pixel_format format)
+{
+	if (format == SPL_PIXEL_FORMAT_ARGB8888)
+		return true;
+
+	return false;
+}
+
+static bool spl_is_video_format(enum spl_pixel_format format)
+{
+	if (format >= SPL_PIXEL_FORMAT_VIDEO_BEGIN
+		&& format <= SPL_PIXEL_FORMAT_VIDEO_END)
+		return true;
+	else
+		return false;
+}
+
+static bool spl_is_subsampled_format(enum spl_pixel_format format)
+{
+	if (format >= SPL_PIXEL_FORMAT_SUBSAMPLED_BEGIN
+		&& format <= SPL_PIXEL_FORMAT_SUBSAMPLED_END)
+		return true;
+	else
+		return false;
+}
+
 static struct spl_rect intersect_rec(const struct spl_rect *r0, const struct spl_rect *r1)
 {
 	struct spl_rect rec;
@@ -99,7 +134,7 @@ static struct spl_rect calculate_plane_rec_in_timing_active(
 	 *
 	 * recout_x = 128 + round(plane_x * 2304 / 1920)
 	 * recout_w = 128 + round((plane_x + plane_w) * 2304 / 1920) - recout_x
-	 * recout_y = 0 + round(plane_y * 1440 / 1280)
+	 * recout_y = 0 + round(plane_y * 1440 / 1200)
 	 * recout_h = 0 + round((plane_y + plane_h) * 1440 / 1200) - recout_y
 	 *
 	 * NOTE: fixed point division is not error free. To reduce errors
@@ -137,15 +172,32 @@ static struct spl_rect calculate_mpc_slice_in_timing_active(
 		struct spl_in *spl_in,
 		struct spl_rect *plane_clip_rec)
 {
-	int mpc_slice_count = spl_in->basic_in.mpc_combine_h;
-	int mpc_slice_idx = spl_in->basic_in.mpc_combine_v;
+	bool use_recout_width_aligned =
+		spl_in->basic_in.num_h_slices_recout_width_align.use_recout_width_aligned;
+	int mpc_slice_count =
+		spl_in->basic_in.num_h_slices_recout_width_align.num_slices_recout_width.mpc_num_h_slices;
+	int recout_width_align =
+		spl_in->basic_in.num_h_slices_recout_width_align.num_slices_recout_width.mpc_recout_width_align;
+	int mpc_slice_idx = spl_in->basic_in.mpc_h_slice_index;
 	int epimo = mpc_slice_count - plane_clip_rec->width % mpc_slice_count - 1;
 	struct spl_rect mpc_rec;
 
-	mpc_rec.width = plane_clip_rec->width / mpc_slice_count;
-	mpc_rec.x = plane_clip_rec->x + mpc_rec.width * mpc_slice_idx;
-	mpc_rec.height = plane_clip_rec->height;
-	mpc_rec.y = plane_clip_rec->y;
+	if (use_recout_width_aligned) {
+		mpc_rec.width = recout_width_align;
+		if ((mpc_rec.width * (mpc_slice_idx + 1)) > plane_clip_rec->width) {
+			mpc_rec.width = plane_clip_rec->width % recout_width_align;
+			mpc_rec.x = plane_clip_rec->x + recout_width_align * mpc_slice_idx;
+		} else
+			mpc_rec.x = plane_clip_rec->x + mpc_rec.width * mpc_slice_idx;
+		mpc_rec.height = plane_clip_rec->height;
+		mpc_rec.y = plane_clip_rec->y;
+
+	} else {
+		mpc_rec.width = plane_clip_rec->width / mpc_slice_count;
+		mpc_rec.x = plane_clip_rec->x + mpc_rec.width * mpc_slice_idx;
+		mpc_rec.height = plane_clip_rec->height;
+		mpc_rec.y = plane_clip_rec->y;
+	}
 	SPL_ASSERT(mpc_slice_count == 1 ||
 			spl_in->basic_out.view_format != SPL_VIEW_3D_SIDE_BY_SIDE ||
 			mpc_rec.width % 2 == 0);
@@ -391,8 +443,7 @@ static void spl_calculate_scaling_ratios(struct spl_in *spl_in,
 	spl_scratch->scl_data.ratios.horz_c = spl_scratch->scl_data.ratios.horz;
 	spl_scratch->scl_data.ratios.vert_c = spl_scratch->scl_data.ratios.vert;
 
-	if (spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP8
-			|| spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP10) {
+	if (spl_is_yuv420(spl_in->basic_in.format)) {
 		spl_scratch->scl_data.ratios.horz_c.value /= 2;
 		spl_scratch->scl_data.ratios.vert_c.value /= 2;
 	}
@@ -529,23 +580,6 @@ static void spl_calculate_init_and_vp(bool flip_scan_dir,
 		*vp_offset = src_size - *vp_offset - *vp_size;
 }
 
-static bool spl_is_yuv420(enum spl_pixel_format format)
-{
-	if ((format >= SPL_PIXEL_FORMAT_420BPP8) &&
-		(format <= SPL_PIXEL_FORMAT_420BPP10))
-		return true;
-
-	return false;
-}
-
-static bool spl_is_rgb8(enum spl_pixel_format format)
-{
-	if (format == SPL_PIXEL_FORMAT_ARGB8888)
-		return true;
-
-	return false;
-}
-
 /*Calculate inits and viewport */
 static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 		struct spl_scratch *spl_scratch)
@@ -556,8 +590,7 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 	struct spl_rect recout_clip_in_recout_dst;
 	struct spl_rect overlap_in_active_timing;
 	struct spl_rect odm_slice = calculate_odm_slice_in_timing_active(spl_in);
-	int vpc_div = (spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP8
-			|| spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP10) ? 2 : 1;
+	int vpc_div = spl_is_subsampled_format(spl_in->basic_in.format) ? 2 : 1;
 	bool orthogonal_rotation, flip_vert_scan_dir, flip_horz_scan_dir;
 	struct spl_fixed31_32 init_adj_h = spl_fixpt_zero;
 	struct spl_fixed31_32 init_adj_v = spl_fixpt_zero;
@@ -585,12 +618,7 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 			&flip_vert_scan_dir,
 			&flip_horz_scan_dir);
 
-	if (orthogonal_rotation) {
-		spl_swap(src.width, src.height);
-		spl_swap(flip_vert_scan_dir, flip_horz_scan_dir);
-	}
-
-	if (spl_is_yuv420(spl_in->basic_in.format)) {
+	if (spl_is_subsampled_format(spl_in->basic_in.format)) {
 		/* this gives the direction of the cositing (negative will move
 		 * left, right otherwise)
 		 */
@@ -598,20 +626,26 @@ static void spl_calculate_inits_and_viewports(struct spl_in *spl_in,
 
 		switch (spl_in->basic_in.cositing) {
 
-		case CHROMA_COSITING_LEFT:
-			init_adj_h = spl_fixpt_zero;
-			init_adj_v = spl_fixpt_from_fraction(sign, 4);
-			break;
-		case CHROMA_COSITING_NONE:
+		case CHROMA_COSITING_TOPLEFT:
 			init_adj_h = spl_fixpt_from_fraction(sign, 4);
 			init_adj_v = spl_fixpt_from_fraction(sign, 4);
 			break;
-		case CHROMA_COSITING_TOPLEFT:
+		case CHROMA_COSITING_LEFT:
+			init_adj_h = spl_fixpt_from_fraction(sign, 4);
+			init_adj_v = spl_fixpt_zero;
+			break;
+		case CHROMA_COSITING_NONE:
 		default:
 			init_adj_h = spl_fixpt_zero;
 			init_adj_v = spl_fixpt_zero;
 			break;
 		}
+	}
+
+	if (orthogonal_rotation) {
+		spl_swap(src.width, src.height);
+		spl_swap(flip_vert_scan_dir, flip_horz_scan_dir);
+		spl_swap(init_adj_h, init_adj_v);
 	}
 
 	spl_calculate_init_and_vp(
@@ -678,7 +712,7 @@ static void spl_handle_3d_recout(struct spl_in *spl_in, struct spl_rect *recout)
 	 * since 3d is special and needs to calculate vp as if there is no recout offset
 	 * This may break with rotation, good thing we aren't mixing hw rotation and 3d
 	 */
-	if (spl_in->basic_in.mpc_combine_v) {
+	if (spl_in->basic_in.mpc_h_slice_index) {
 		SPL_ASSERT(spl_in->basic_in.rotation == SPL_ROTATION_ANGLE_0 ||
 			(spl_in->basic_out.view_format != SPL_VIEW_3D_TOP_AND_BOTTOM &&
 					spl_in->basic_out.view_format != SPL_VIEW_3D_SIDE_BY_SIDE));
@@ -698,24 +732,6 @@ static void spl_clamp_viewport(struct spl_rect *viewport)
 		viewport->width = MIN_VIEWPORT_SIZE;
 }
 
-static bool spl_dscl_is_420_format(enum spl_pixel_format format)
-{
-	if (format == SPL_PIXEL_FORMAT_420BPP8 ||
-			format == SPL_PIXEL_FORMAT_420BPP10)
-		return true;
-	else
-		return false;
-}
-
-static bool spl_dscl_is_video_format(enum spl_pixel_format format)
-{
-	if (format >= SPL_PIXEL_FORMAT_VIDEO_BEGIN
-			&& format <= SPL_PIXEL_FORMAT_VIDEO_END)
-		return true;
-	else
-		return false;
-}
-
 static enum scl_mode spl_get_dscl_mode(const struct spl_in *spl_in,
 				const struct spl_scaler_data *data,
 				bool enable_isharp, bool enable_easf)
@@ -732,21 +748,20 @@ static enum scl_mode spl_get_dscl_mode(const struct spl_in *spl_in,
 			&& !enable_isharp)
 		return SCL_MODE_SCALING_444_BYPASS;
 
-	if (!spl_dscl_is_420_format(pixel_format)) {
-		if (spl_dscl_is_video_format(pixel_format))
+	if (!spl_is_subsampled_format(pixel_format)) {
+		if (spl_is_video_format(pixel_format))
 			return SCL_MODE_SCALING_444_YCBCR_ENABLE;
 		else
 			return SCL_MODE_SCALING_444_RGB_ENABLE;
 	}
 
-	/* Bypass YUV if at 1:1 with no ISHARP or if doing 2:1 YUV
-	 *  downscale without EASF
+	/*
+	 * Bypass YUV if Y is 1:1 with no ISHARP
+	 * Do not bypass UV at 1:1 for cositing to be applied
 	 */
-	if ((!enable_isharp) && (!enable_easf)) {
+	if (!enable_isharp) {
 		if (data->ratios.horz.value == one && data->ratios.vert.value == one)
 			return SCL_MODE_SCALING_420_LUMA_BYPASS;
-		if (data->ratios.horz_c.value == one && data->ratios.vert_c.value == one)
-			return SCL_MODE_SCALING_420_CHROMA_BYPASS;
 	}
 
 	return SCL_MODE_SCALING_420_YCBCR_ENABLE;
@@ -757,7 +772,7 @@ static bool spl_choose_lls_policy(enum spl_pixel_format format,
 	enum spl_transfer_func_predefined tf_predefined_type,
 	enum linear_light_scaling *lls_pref)
 {
-	if (spl_is_yuv420(format)) {
+	if (spl_is_video_format(format)) {
 		*lls_pref = LLS_PREF_NO;
 		if ((tf_type == SPL_TF_TYPE_PREDEFINED) ||
 			(tf_type == SPL_TF_TYPE_DISTRIBUTED_POINTS))
@@ -816,7 +831,7 @@ static bool enable_easf(struct spl_in *spl_in, struct spl_scratch *spl_scratch)
 /* Check if video is in fullscreen mode */
 static bool spl_is_video_fullscreen(struct spl_in *spl_in)
 {
-	if (spl_is_yuv420(spl_in->basic_in.format) && spl_in->is_fullscreen)
+	if (spl_is_video_format(spl_in->basic_in.format) && spl_in->is_fullscreen)
 		return true;
 	return false;
 }
@@ -847,14 +862,14 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	 * Apply sharpness to RGB and YUV (NV12/P010)
 	 *  surfaces based on policy setting
 	 */
-	if (!spl_is_yuv420(spl_in->basic_in.format) &&
-		(spl_in->debug.sharpen_policy == SHARPEN_YUV))
+	if (!spl_is_video_format(spl_in->basic_in.format) &&
+		(spl_in->sharpen_policy == SHARPEN_YUV))
 		return enable_isharp;
-	else if ((spl_is_yuv420(spl_in->basic_in.format) && !fullscreen) &&
-		(spl_in->debug.sharpen_policy == SHARPEN_RGB_FULLSCREEN_YUV))
+	else if ((spl_is_video_format(spl_in->basic_in.format) && !fullscreen) &&
+		(spl_in->sharpen_policy == SHARPEN_RGB_FULLSCREEN_YUV))
 		return enable_isharp;
 	else if (!spl_in->is_fullscreen &&
-			spl_in->debug.sharpen_policy == SHARPEN_FULLSCREEN_ALL)
+			spl_in->sharpen_policy == SHARPEN_FULLSCREEN_ALL)
 		return enable_isharp;
 
 	/*
@@ -868,6 +883,60 @@ static bool spl_get_isharp_en(struct spl_in *spl_in,
 	return enable_isharp;
 }
 
+/* Calculate number of tap with adaptive scaling off */
+static void spl_get_taps_non_adaptive_scaler(
+	  struct spl_scratch *spl_scratch, const struct spl_taps *in_taps)
+{
+	if (in_taps->h_taps == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz) > 1)
+			spl_scratch->scl_data.taps.h_taps = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.horz), 8);
+		else
+			spl_scratch->scl_data.taps.h_taps = 4;
+	} else
+		spl_scratch->scl_data.taps.h_taps = in_taps->h_taps;
+
+	if (in_taps->v_taps == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 1)
+			spl_scratch->scl_data.taps.v_taps = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.vert), 8);
+		else
+			spl_scratch->scl_data.taps.v_taps = 4;
+	} else
+		spl_scratch->scl_data.taps.v_taps = in_taps->v_taps;
+
+	if (in_taps->v_taps_c == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert_c) > 1)
+			spl_scratch->scl_data.taps.v_taps_c = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.vert_c), 8);
+		else
+			spl_scratch->scl_data.taps.v_taps_c = 4;
+	} else
+		spl_scratch->scl_data.taps.v_taps_c = in_taps->v_taps_c;
+
+	if (in_taps->h_taps_c == 0) {
+		if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz_c) > 1)
+			spl_scratch->scl_data.taps.h_taps_c = spl_min(2 * spl_fixpt_ceil(
+				spl_scratch->scl_data.ratios.horz_c), 8);
+		else
+			spl_scratch->scl_data.taps.h_taps_c = 4;
+	} else if ((in_taps->h_taps_c % 2) != 0 && in_taps->h_taps_c != 1)
+		/* Only 1 and even h_taps_c are supported by hw */
+		spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c - 1;
+	else
+		spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c;
+
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz))
+		spl_scratch->scl_data.taps.h_taps = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert))
+		spl_scratch->scl_data.taps.v_taps = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c))
+		spl_scratch->scl_data.taps.h_taps_c = 1;
+	if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c))
+		spl_scratch->scl_data.taps.v_taps_c = 1;
+
+}
+
 /* Calculate optimal number of taps */
 static bool spl_get_optimal_number_of_taps(
 	  int max_downscale_src_width, struct spl_in *spl_in, struct spl_scratch *spl_scratch,
@@ -879,11 +948,26 @@ static bool spl_get_optimal_number_of_taps(
 	int min_taps_y, min_taps_c;
 	enum lb_memory_config lb_config;
 	bool skip_easf = false;
+	bool is_subsampled = spl_is_subsampled_format(spl_in->basic_in.format);
 
 	if (spl_scratch->scl_data.viewport.width > spl_scratch->scl_data.h_active &&
 		max_downscale_src_width != 0 &&
-		spl_scratch->scl_data.viewport.width > max_downscale_src_width)
+		spl_scratch->scl_data.viewport.width > max_downscale_src_width) {
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+		*enable_easf_v = false;
+		*enable_easf_h = false;
+		*enable_isharp = false;
 		return false;
+	}
+
+	/* Disable adaptive scaler and sharpener when integer scaling is enabled */
+	if (spl_in->scaling_quality.integer_scaling) {
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+		*enable_easf_v = false;
+		*enable_easf_h = false;
+		*enable_isharp = false;
+		return true;
+	}
 
 	/* Check if we are using EASF or not */
 	skip_easf = enable_easf(spl_in, spl_scratch);
@@ -893,44 +977,10 @@ static bool spl_get_optimal_number_of_taps(
 	 * From programming guide: taps = min{ ceil(2*H_RATIO,1), 8} for downscaling
 	 * taps = 4 for upscaling
 	 */
-	if (skip_easf) {
-		if (in_taps->h_taps == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz) > 1)
-				spl_scratch->scl_data.taps.h_taps = spl_min(2 * spl_fixpt_ceil(
-					spl_scratch->scl_data.ratios.horz), 8);
-			else
-				spl_scratch->scl_data.taps.h_taps = 4;
-		} else
-			spl_scratch->scl_data.taps.h_taps = in_taps->h_taps;
-		if (in_taps->v_taps == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 1)
-				spl_scratch->scl_data.taps.v_taps = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
-					spl_scratch->scl_data.ratios.vert, 2)), 8);
-			else
-				spl_scratch->scl_data.taps.v_taps = 4;
-		} else
-			spl_scratch->scl_data.taps.v_taps = in_taps->v_taps;
-		if (in_taps->v_taps_c == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert_c) > 1)
-				spl_scratch->scl_data.taps.v_taps_c = spl_min(spl_fixpt_ceil(spl_fixpt_mul_int(
-					spl_scratch->scl_data.ratios.vert_c, 2)), 8);
-			else
-				spl_scratch->scl_data.taps.v_taps_c = 4;
-		} else
-			spl_scratch->scl_data.taps.v_taps_c = in_taps->v_taps_c;
-		if (in_taps->h_taps_c == 0) {
-			if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.horz_c) > 1)
-				spl_scratch->scl_data.taps.h_taps_c = spl_min(2 * spl_fixpt_ceil(
-					spl_scratch->scl_data.ratios.horz_c), 8);
-			else
-				spl_scratch->scl_data.taps.h_taps_c = 4;
-		} else if ((in_taps->h_taps_c % 2) != 0 && in_taps->h_taps_c != 1)
-			/* Only 1 and even h_taps_c are supported by hw */
-			spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c - 1;
-		else
-			spl_scratch->scl_data.taps.h_taps_c = in_taps->h_taps_c;
-	} else {
-		if (spl_is_yuv420(spl_in->basic_in.format)) {
+	if (skip_easf)
+		spl_get_taps_non_adaptive_scaler(spl_scratch, in_taps);
+	else {
+		if (spl_is_video_format(spl_in->basic_in.format)) {
 			spl_scratch->scl_data.taps.h_taps = 6;
 			spl_scratch->scl_data.taps.v_taps = 6;
 			spl_scratch->scl_data.taps.h_taps_c = 4;
@@ -948,13 +998,12 @@ static bool spl_get_optimal_number_of_taps(
 	min_taps_c = spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert_c);
 
 	/* Use LB_MEMORY_CONFIG_3 for 4:2:0 */
-	if ((spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP8)
-		|| (spl_in->basic_in.format == SPL_PIXEL_FORMAT_420BPP10))
+	if (spl_is_yuv420(spl_in->basic_in.format))
 		lb_config = LB_MEMORY_CONFIG_3;
 	else
 		lb_config = LB_MEMORY_CONFIG_0;
 	// Determine max vtap support by calculating how much line buffer can fit
-	spl_in->funcs->spl_calc_lb_num_partitions(spl_in->basic_out.alpha_en, &spl_scratch->scl_data,
+	spl_in->callbacks.spl_calc_lb_num_partitions(spl_in->basic_out.alpha_en, &spl_scratch->scl_data,
 			lb_config, &num_part_y, &num_part_c);
 	/* MAX_V_TAPS = MIN (NUM_LINES - MAX(CEILING(V_RATIO,1)-2, 0), 8) */
 	if (spl_fixpt_ceil(spl_scratch->scl_data.ratios.vert) > 2)
@@ -1005,13 +1054,11 @@ static bool spl_get_optimal_number_of_taps(
 		if (spl_scratch->scl_data.taps.h_taps_c == 5)
 			spl_scratch->scl_data.taps.h_taps_c = 4;
 
-		if (spl_is_yuv420(spl_in->basic_in.format)) {
-			if ((spl_scratch->scl_data.taps.h_taps <= 4) ||
-				(spl_scratch->scl_data.taps.h_taps_c <= 3)) {
+		if (spl_is_video_format(spl_in->basic_in.format)) {
+			if (spl_scratch->scl_data.taps.h_taps <= 4) {
 				*enable_easf_v = false;
 				*enable_easf_h = false;
-			} else if ((spl_scratch->scl_data.taps.v_taps <= 3) ||
-				(spl_scratch->scl_data.taps.v_taps_c <= 3)) {
+			} else if (spl_scratch->scl_data.taps.v_taps <= 3) {
 				*enable_easf_v = false;
 				*enable_easf_h = true;
 			} else {
@@ -1040,10 +1087,9 @@ static bool spl_get_optimal_number_of_taps(
 
 	/* Sharpener requires scaler to be enabled, including for 1:1
 	 * Check if ISHARP can be enabled
-	 * If ISHARP is not enabled, for 1:1, set taps to 1 and disable
-	 *  EASF
-	 * For case of 2:1 YUV where chroma is 1:1, set taps to 1 if
-	 *  EASF is not enabled
+	 * If ISHARP is not enabled, set taps to 1 if ratio is 1:1
+	 *  except for chroma taps.  Keep previous taps so it can
+	 *  handle cositing
 	 */
 
 	*enable_isharp = spl_get_isharp_en(spl_in, spl_scratch);
@@ -1053,20 +1099,28 @@ static bool spl_get_optimal_number_of_taps(
 			spl_scratch->scl_data.taps.h_taps = 1;
 			spl_scratch->scl_data.taps.v_taps = 1;
 
-			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c))
+			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c) && !is_subsampled)
 				spl_scratch->scl_data.taps.h_taps_c = 1;
 
-			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c))
+			if (IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c) && !is_subsampled)
 				spl_scratch->scl_data.taps.v_taps_c = 1;
 
 			*enable_easf_v = false;
 			*enable_easf_h = false;
 		} else {
 			if ((!*enable_easf_h) &&
+				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz)))
+				spl_scratch->scl_data.taps.h_taps = 1;
+
+			if ((!*enable_easf_v) &&
+				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert)))
+				spl_scratch->scl_data.taps.v_taps = 1;
+
+			if ((!*enable_easf_h) && !is_subsampled &&
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.horz_c)))
 				spl_scratch->scl_data.taps.h_taps_c = 1;
 
-			if ((!*enable_easf_v) &&
+			if ((!*enable_easf_v) && !is_subsampled &&
 				(IDENTITY_RATIO(spl_scratch->scl_data.ratios.vert_c)))
 				spl_scratch->scl_data.taps.v_taps_c = 1;
 		}
@@ -1077,8 +1131,7 @@ static bool spl_get_optimal_number_of_taps(
 static void spl_set_black_color_data(enum spl_pixel_format format,
 			struct scl_black_color *scl_black_color)
 {
-	bool ycbcr = format >= SPL_PIXEL_FORMAT_VIDEO_BEGIN
-					&& format <= SPL_PIXEL_FORMAT_VIDEO_END;
+	bool ycbcr = spl_is_video_format(format);
 	if (ycbcr)	{
 		scl_black_color->offset_rgb_y = BLACK_OFFSET_RGB_Y;
 		scl_black_color->offset_rgb_cbcr = BLACK_OFFSET_CBCR;
@@ -1545,7 +1598,7 @@ static void spl_set_easf_data(struct spl_scratch *spl_scratch, struct spl_out *s
 			0x0;	// fp1.5.10, C3 coefficient
 	}
 
-	if (spl_is_yuv420(format)) { /* TODO: 0 = RGB, 1 = YUV */
+	if (spl_is_subsampled_format(format)) { /* TODO: 0 = RGB, 1 = YUV */
 		dscl_prog_data->easf_matrix_mode = 1;
 		/*
 		 * 2-bit, BF3 chroma mode correction calculation mode
@@ -1590,7 +1643,8 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 
 	spl_build_isharp_1dlut_from_reference_curve(ratio, setup, adp_sharpness,
 		scale_to_sharpness_policy);
-	dscl_prog_data->isharp_delta = spl_get_pregen_filter_isharp_1D_lut(setup);
+	memcpy(dscl_prog_data->isharp_delta, spl_get_pregen_filter_isharp_1D_lut(setup),
+		sizeof(uint32_t) * ISHARP_LUT_TABLE_SIZE);
 	dscl_prog_data->sharpness_level = adp_sharpness.sharpness_level;
 
 	dscl_prog_data->isharp_en = 1;	// ISHARP_EN
@@ -1711,6 +1765,32 @@ static void spl_set_isharp_data(struct dscl_prog_data *dscl_prog_data,
 	spl_set_blur_scale_data(dscl_prog_data, data);
 }
 
+/* Calculate recout, scaling ratio, and viewport, then get optimal number of taps */
+static bool spl_calculate_number_of_taps(struct spl_in *spl_in, struct spl_scratch *spl_scratch, struct spl_out *spl_out,
+	bool *enable_easf_v, bool *enable_easf_h, bool *enable_isharp)
+{
+	bool res = false;
+
+	memset(spl_scratch, 0, sizeof(struct spl_scratch));
+	spl_scratch->scl_data.h_active = spl_in->h_active;
+	spl_scratch->scl_data.v_active = spl_in->v_active;
+
+	// All SPL calls
+	/* recout calculation */
+	/* depends on h_active */
+	spl_calculate_recout(spl_in, spl_scratch, spl_out);
+	/* depends on pixel format */
+	spl_calculate_scaling_ratios(spl_in, spl_scratch, spl_out);
+	/* depends on scaling ratios and recout, does not calculate offset yet */
+	spl_calculate_viewport_size(spl_in, spl_scratch);
+
+	res = spl_get_optimal_number_of_taps(
+			  spl_in->basic_out.max_downscale_src_width, spl_in,
+			  spl_scratch, &spl_in->scaling_quality, enable_easf_v,
+			  enable_easf_h, enable_isharp);
+	return res;
+}
+
 /* Calculate scaler parameters */
 bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 {
@@ -1725,23 +1805,9 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 	bool enable_isharp = false;
 	const struct spl_scaler_data *data = &spl_scratch.scl_data;
 
-	memset(&spl_scratch, 0, sizeof(struct spl_scratch));
-	spl_scratch.scl_data.h_active = spl_in->h_active;
-	spl_scratch.scl_data.v_active = spl_in->v_active;
+	res = spl_calculate_number_of_taps(spl_in, &spl_scratch, spl_out,
+		&enable_easf_v, &enable_easf_h, &enable_isharp);
 
-	// All SPL calls
-	/* recout calculation */
-	/* depends on h_active */
-	spl_calculate_recout(spl_in, &spl_scratch, spl_out);
-	/* depends on pixel format */
-	spl_calculate_scaling_ratios(spl_in, &spl_scratch, spl_out);
-	/* depends on scaling ratios and recout, does not calculate offset yet */
-	spl_calculate_viewport_size(spl_in, &spl_scratch);
-
-	res = spl_get_optimal_number_of_taps(
-			  spl_in->basic_out.max_downscale_src_width, spl_in,
-			  &spl_scratch, &spl_in->scaling_quality, &enable_easf_v,
-			  &enable_easf_h, &enable_isharp);
 	/*
 	 * Depends on recout, scaling ratios, h_active and taps
 	 * May need to re-check lb size after this in some obscure scenario
@@ -1753,11 +1819,11 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 	// Clamp
 	spl_clamp_viewport(&spl_scratch.scl_data.viewport);
 
-	if (!res)
-		return res;
-
 	// Save all calculated parameters in dscl_prog_data structure to program hw registers
 	spl_set_dscl_prog_data(spl_in, &spl_scratch, spl_out, enable_easf_v, enable_easf_h, enable_isharp);
+
+	if (!res)
+		return res;
 
 	if (spl_in->lls_pref == LLS_PREF_YES) {
 		if (spl_in->is_hdr_on)
@@ -1787,5 +1853,22 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 		spl_in->lls_pref, spl_in->basic_in.format, data, isharp_scale_ratio, setup,
 		spl_in->debug.scale_to_sharpness_policy);
 
+	return res;
+}
+
+/* External interface to get number of taps only */
+bool spl_get_number_of_taps(struct spl_in *spl_in, struct spl_out *spl_out)
+{
+	bool res = false;
+	bool enable_easf_v = false;
+	bool enable_easf_h = false;
+	bool enable_isharp = false;
+	struct spl_scratch spl_scratch;
+	struct dscl_prog_data *dscl_prog_data = spl_out->dscl_prog_data;
+	const struct spl_scaler_data *data = &spl_scratch.scl_data;
+
+	res = spl_calculate_number_of_taps(spl_in, &spl_scratch, spl_out,
+		&enable_easf_v, &enable_easf_h, &enable_isharp);
+	spl_set_taps_data(dscl_prog_data, data);
 	return res;
 }

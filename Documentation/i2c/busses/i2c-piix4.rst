@@ -109,3 +109,66 @@ which can easily get corrupted due to a state machine bug. These are mostly
 Thinkpad laptops, but desktop systems may also be affected. We have no list
 of all affected systems, so the only safe solution was to prevent access to
 the SMBus on all IBM systems (detected using DMI data.)
+
+
+Description in the ACPI code
+----------------------------
+
+Device driver for the PIIX4 chip creates a separate I2C bus for each of its
+ports::
+
+    $ i2cdetect -l
+    ...
+    i2c-7   unknown         SMBus PIIX4 adapter port 0 at 0b00      N/A
+    i2c-8   unknown         SMBus PIIX4 adapter port 2 at 0b00      N/A
+    i2c-9   unknown         SMBus PIIX4 adapter port 1 at 0b20      N/A
+    ...
+
+Therefore if you want to access one of these busses in the ACPI code, port
+subdevices are needed to be declared inside the PIIX device::
+
+    Scope (\_SB_.PCI0.SMBS)
+    {
+        Name (_ADR, 0x00140000)
+
+        Device (SMB0) {
+            Name (_ADR, 0)
+        }
+        Device (SMB1) {
+            Name (_ADR, 1)
+        }
+        Device (SMB2) {
+            Name (_ADR, 2)
+        }
+    }
+
+If this is not the case for your UEFI firmware and you don't have access to the
+source code, you can use ACPI SSDT Overlays to provide the missing parts. Just
+keep in mind that in this case you would need to load your extra SSDT table
+before the piix4 driver starts, i.e. you should provide SSDT via initrd or EFI
+variable methods and not via configfs.
+
+As an example of usage here is the ACPI snippet code that would assign jc42
+driver to the 0x1C device on the I2C bus created by the PIIX port 0::
+
+    Device (JC42) {
+        Name (_HID, "PRP0001")
+        Name (_DDN, "JC42 Temperature sensor")
+        Name (_CRS, ResourceTemplate () {
+            I2cSerialBusV2 (
+                0x001c,
+                ControllerInitiated,
+                100000,
+                AddressingMode7Bit,
+                "\\_SB.PCI0.SMBS.SMB0",
+                0
+            )
+        })
+
+        Name (_DSD, Package () {
+            ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+            Package () {
+                Package () { "compatible", Package() { "jedec,jc-42.4-temp" } },
+            }
+        })
+    }

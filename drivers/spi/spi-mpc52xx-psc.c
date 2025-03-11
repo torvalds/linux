@@ -107,7 +107,7 @@ static int mpc52xx_psc_spi_transfer_rxtx(struct spi_device *spi,
 	struct mpc52xx_psc_spi *mps = spi_controller_get_devdata(spi->controller);
 	struct mpc52xx_psc __iomem *psc = mps->psc;
 	struct mpc52xx_psc_fifo __iomem *fifo = mps->fifo;
-	unsigned rb = 0;	/* number of bytes receieved */
+	unsigned rb = 0;	/* number of bytes received */
 	unsigned sb = 0;	/* number of bytes sent */
 	unsigned char *rx_buf = (unsigned char *)t->rx_buf;
 	unsigned char *tx_buf = (unsigned char *)t->tx_buf;
@@ -325,7 +325,7 @@ static int mpc52xx_psc_spi_of_probe(struct platform_device *pdev)
 	if (IS_ERR(mps->psc))
 		return dev_err_probe(dev, PTR_ERR(mps->psc), "could not ioremap I/O port range\n");
 
-	/* On the 5200, fifo regs are immediately ajacent to the psc regs */
+	/* On the 5200, fifo regs are immediately adjacent to the psc regs */
 	mps->fifo = ((void __iomem *)mps->psc) + sizeof(struct mpc52xx_psc);
 
 	mps->irq = platform_get_irq(pdev, 0);

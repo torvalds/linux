@@ -226,7 +226,7 @@ static inline void ipc3_log_header(struct device *dev, u8 *text, u32 cmd)
 static void sof_ipc3_dump_payload(struct snd_sof_dev *sdev,
 				  void *ipc_data, size_t size)
 {
-	printk(KERN_DEBUG "Size of payload following the header: %zu\n", size);
+	dev_dbg(sdev->dev, "Size of payload following the header: %zu\n", size);
 	print_hex_dump_debug("Message payload: ", DUMP_PREFIX_OFFSET,
 			     16, 4, ipc_data, size, false);
 }

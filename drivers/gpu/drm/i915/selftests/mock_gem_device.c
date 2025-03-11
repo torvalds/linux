@@ -137,7 +137,7 @@ static const struct intel_device_info mock_info = {
 
 struct drm_i915_private *mock_gem_device(void)
 {
-#if IS_ENABLED(CONFIG_IOMMU_API) && defined(CONFIG_INTEL_IOMMU)
+#if IS_ENABLED(CONFIG_IOMMU_API) && IS_ENABLED(CONFIG_INTEL_IOMMU)
 	static struct dev_iommu fake_iommu = { .priv = (void *)-1 };
 #endif
 	struct drm_i915_private *i915;
@@ -153,7 +153,7 @@ struct drm_i915_private *mock_gem_device(void)
 	dev_set_name(&pdev->dev, "mock");
 	dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 
-#if IS_ENABLED(CONFIG_IOMMU_API) && defined(CONFIG_INTEL_IOMMU)
+#if IS_ENABLED(CONFIG_IOMMU_API) && IS_ENABLED(CONFIG_INTEL_IOMMU)
 	/* HACK to disable iommu for the fake device; force identity mapping */
 	pdev->dev.iommu = &fake_iommu;
 #endif
@@ -180,7 +180,7 @@ struct drm_i915_private *mock_gem_device(void)
 	/* Set up device info and initial runtime info. */
 	intel_device_info_driver_create(i915, pdev->device, &mock_info);
 
-	intel_display_device_probe(i915);
+	intel_display_device_probe(pdev);
 
 	dev_pm_domain_set(&pdev->dev, &pm_domain);
 	pm_runtime_enable(&pdev->dev);
@@ -203,7 +203,7 @@ struct drm_i915_private *mock_gem_device(void)
 	intel_root_gt_init_early(i915);
 	mock_uncore_init(&i915->uncore, i915);
 	atomic_inc(&to_gt(i915)->wakeref.count); /* disable; no hw support */
-	to_gt(i915)->awake = -ENODEV;
+	to_gt(i915)->awake = INTEL_WAKEREF_MOCK_GT;
 	mock_gt_probe(i915);
 
 	ret = intel_region_ttm_device_init(i915);

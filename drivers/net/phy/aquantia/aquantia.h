@@ -177,6 +177,7 @@ static const struct aqr107_hw_stat aqr107_hw_stats[] = {
 struct aqr107_priv {
 	u64 sgmii_stats[AQR107_SGMII_STAT_SZ];
 	unsigned long leds_active_low;
+	unsigned long leds_active_high;
 };
 
 #if IS_REACHABLE(CONFIG_HWMON)

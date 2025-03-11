@@ -25,7 +25,7 @@ struct isp1301 {
 #define phy_to_isp(p)		(container_of((p), struct isp1301, phy))
 
 static const struct i2c_device_id isp1301_id[] = {
-	{ "isp1301", 0 },
+	{ "isp1301" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, isp1301_id);

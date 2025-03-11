@@ -39,7 +39,7 @@
 #include <asm/xive.h>
 #include <asm/dbell.h>
 #include <asm/plpar_wrappers.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/svm.h>
 #include <asm/kvm_guest.h>
 

@@ -824,7 +824,7 @@ MODULE_DEVICE_TABLE(of, axxia_i2c_of_match);
 
 static struct platform_driver axxia_i2c_driver = {
 	.probe = axxia_i2c_probe,
-	.remove_new = axxia_i2c_remove,
+	.remove = axxia_i2c_remove,
 	.driver = {
 		.name = "axxia-i2c",
 		.of_match_table = axxia_i2c_of_match,

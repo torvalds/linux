@@ -43,6 +43,18 @@
 	clock-frequency = <25000000>;
 };
 
+&emmc {
+	status = "okay";
+	bus-width = <4>;
+	max-frequency = <200000000>;
+	mmc-ddr-1_8v;
+	mmc-ddr-3_3v;
+	mmc-hs200-1_8v;
+	no-sd;
+	no-sdio;
+	non-removable;
+};
+
 &sdhci0 {
 	status = "okay";
 	bus-width = <4>;
@@ -50,6 +62,17 @@
 	no-mmc;
 	no-sdio;
 	disable-wp;
+};
+
+&sdhci1 {
+	status = "okay";
+	bus-width = <4>;
+	cap-sdio-irq;
+	max-frequency = <50000000>;
+	no-mmc;
+	no-sd;
+	disable-wp;
+	non-removable;
 };
 
 &uart0 {

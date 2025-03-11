@@ -9,6 +9,7 @@
 #include <linux/hardirq.h>
 #include <linux/preempt.h>
 #include <linux/ftrace.h>
+#include <asm/text-patching.h>
 
 #include "common.h"
 
@@ -36,23 +37,25 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 	if (kprobe_running()) {
 		kprobes_inc_nmissed_count(p);
 	} else {
-		unsigned long orig_ip = regs->ip;
+		unsigned long orig_ip = instruction_pointer(regs);
+
 		/* Kprobe handler expects regs->ip = ip + 1 as breakpoint hit */
-		regs->ip = ip + sizeof(kprobe_opcode_t);
+		instruction_pointer_set(regs, ip + INT3_INSN_SIZE);
 
 		__this_cpu_write(current_kprobe, p);
 		kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 		if (!p->pre_handler || !p->pre_handler(p, regs)) {
-			/*
-			 * Emulate singlestep (and also recover regs->ip)
-			 * as if there is a 5byte nop
-			 */
-			regs->ip = (unsigned long)p->addr + MCOUNT_INSN_SIZE;
 			if (unlikely(p->post_handler)) {
+				/*
+				 * Emulate singlestep (and also recover regs->ip)
+				 * as if there is a 5byte nop
+				 */
+				instruction_pointer_set(regs, ip + MCOUNT_INSN_SIZE);
 				kcb->kprobe_status = KPROBE_HIT_SSDONE;
 				p->post_handler(p, regs, 0);
 			}
-			regs->ip = orig_ip;
+			/* Recover IP address */
+			instruction_pointer_set(regs, orig_ip);
 		}
 		/*
 		 * If pre_handler returns !0, it changes regs->ip. We have to

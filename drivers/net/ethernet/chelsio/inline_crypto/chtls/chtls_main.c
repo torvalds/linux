@@ -342,12 +342,13 @@ static struct sk_buff *copy_gl_to_skb_pkt(const struct pkt_gl *gl,
 {
 	struct sk_buff *skb;
 
-	/* Allocate space for cpl_pass_accpet_req which will be synthesized by
-	 * driver. Once driver synthesizes cpl_pass_accpet_req the skb will go
+	/* Allocate space for cpl_pass_accept_req which will be synthesized by
+	 * driver. Once driver synthesizes cpl_pass_accept_req the skb will go
 	 * through the regular cpl_pass_accept_req processing in TOM.
 	 */
-	skb = alloc_skb(gl->tot_len + sizeof(struct cpl_pass_accept_req)
-			- pktshift, GFP_ATOMIC);
+	skb = alloc_skb(size_add(gl->tot_len,
+				 sizeof(struct cpl_pass_accept_req)) -
+			pktshift, GFP_ATOMIC);
 	if (unlikely(!skb))
 		return NULL;
 	__skb_put(skb, gl->tot_len + sizeof(struct cpl_pass_accept_req)

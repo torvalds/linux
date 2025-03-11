@@ -837,6 +837,90 @@ static void mctp_test_route_input_multiple_nets_key(struct kunit *test)
 	mctp_test_route_input_multiple_nets_key_fini(test, &t2);
 }
 
+/* Input route to socket, using a single-packet message, where sock delivery
+ * fails. Ensure we're handling the failure appropriately.
+ */
+static void mctp_test_route_input_sk_fail_single(struct kunit *test)
+{
+	const struct mctp_hdr hdr = RX_HDR(1, 10, 8, FL_S | FL_E | FL_TO);
+	struct mctp_test_route *rt;
+	struct mctp_test_dev *dev;
+	struct socket *sock;
+	struct sk_buff *skb;
+	int rc;
+
+	__mctp_route_test_init(test, &dev, &rt, &sock, MCTP_NET_ANY);
+
+	/* No rcvbuf space, so delivery should fail. __sock_set_rcvbuf will
+	 * clamp the minimum to SOCK_MIN_RCVBUF, so we open-code this.
+	 */
+	lock_sock(sock->sk);
+	WRITE_ONCE(sock->sk->sk_rcvbuf, 0);
+	release_sock(sock->sk);
+
+	skb = mctp_test_create_skb(&hdr, 10);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
+	skb_get(skb);
+
+	mctp_test_skb_set_dev(skb, dev);
+
+	/* do route input, which should fail */
+	rc = mctp_route_input(&rt->rt, skb);
+	KUNIT_EXPECT_NE(test, rc, 0);
+
+	/* we should hold the only reference to skb */
+	KUNIT_EXPECT_EQ(test, refcount_read(&skb->users), 1);
+	kfree_skb(skb);
+
+	__mctp_route_test_fini(test, dev, rt, sock);
+}
+
+/* Input route to socket, using a fragmented message, where sock delivery fails.
+ */
+static void mctp_test_route_input_sk_fail_frag(struct kunit *test)
+{
+	const struct mctp_hdr hdrs[2] = { RX_FRAG(FL_S, 0), RX_FRAG(FL_E, 1) };
+	struct mctp_test_route *rt;
+	struct mctp_test_dev *dev;
+	struct sk_buff *skbs[2];
+	struct socket *sock;
+	unsigned int i;
+	int rc;
+
+	__mctp_route_test_init(test, &dev, &rt, &sock, MCTP_NET_ANY);
+
+	lock_sock(sock->sk);
+	WRITE_ONCE(sock->sk->sk_rcvbuf, 0);
+	release_sock(sock->sk);
+
+	for (i = 0; i < ARRAY_SIZE(skbs); i++) {
+		skbs[i] = mctp_test_create_skb(&hdrs[i], 10);
+		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skbs[i]);
+		skb_get(skbs[i]);
+
+		mctp_test_skb_set_dev(skbs[i], dev);
+	}
+
+	/* first route input should succeed, we're only queueing to the
+	 * frag list
+	 */
+	rc = mctp_route_input(&rt->rt, skbs[0]);
+	KUNIT_EXPECT_EQ(test, rc, 0);
+
+	/* final route input should fail to deliver to the socket */
+	rc = mctp_route_input(&rt->rt, skbs[1]);
+	KUNIT_EXPECT_NE(test, rc, 0);
+
+	/* we should hold the only reference to both skbs */
+	KUNIT_EXPECT_EQ(test, refcount_read(&skbs[0]->users), 1);
+	kfree_skb(skbs[0]);
+
+	KUNIT_EXPECT_EQ(test, refcount_read(&skbs[1]->users), 1);
+	kfree_skb(skbs[1]);
+
+	__mctp_route_test_fini(test, dev, rt, sock);
+}
+
 #if IS_ENABLED(CONFIG_MCTP_FLOWS)
 
 static void mctp_test_flow_init(struct kunit *test,
@@ -1053,6 +1137,8 @@ static struct kunit_case mctp_test_cases[] = {
 			 mctp_route_input_sk_reasm_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_route_input_sk_keys,
 			 mctp_route_input_sk_keys_gen_params),
+	KUNIT_CASE(mctp_test_route_input_sk_fail_single),
+	KUNIT_CASE(mctp_test_route_input_sk_fail_frag),
 	KUNIT_CASE(mctp_test_route_input_multiple_nets_bind),
 	KUNIT_CASE(mctp_test_route_input_multiple_nets_key),
 	KUNIT_CASE(mctp_test_packet_flow),

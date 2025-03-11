@@ -9,7 +9,7 @@
 
 MODULE_DESCRIPTION("Microsoft Azure Network Adapter IB driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(NET_MANA);
+MODULE_IMPORT_NS("NET_MANA");
 
 static const struct ib_device_ops mana_ib_dev_ops = {
 	.owner = THIS_MODULE,

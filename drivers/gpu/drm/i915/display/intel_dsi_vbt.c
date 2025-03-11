@@ -323,6 +323,7 @@ enum {
 static void icl_native_gpio_set_value(struct drm_i915_private *dev_priv,
 				      int gpio, bool value)
 {
+	struct intel_display *display = &dev_priv->display;
 	int index;
 
 	if (drm_WARN_ON(&dev_priv->drm, DISPLAY_VER(dev_priv) == 11 && gpio >= MIPI_RESET_2))
@@ -367,7 +368,7 @@ static void icl_native_gpio_set_value(struct drm_i915_private *dev_priv,
 	case MIPI_AVEE_EN_2:
 		index = gpio == MIPI_AVEE_EN_1 ? 1 : 2;
 
-		intel_de_rmw(dev_priv, GPIO(dev_priv, index),
+		intel_de_rmw(display, GPIO(display, index),
 			     GPIO_CLOCK_VAL_OUT,
 			     GPIO_CLOCK_DIR_MASK | GPIO_CLOCK_DIR_OUT |
 			     GPIO_CLOCK_VAL_MASK | (value ? GPIO_CLOCK_VAL_OUT : 0));
@@ -376,7 +377,7 @@ static void icl_native_gpio_set_value(struct drm_i915_private *dev_priv,
 	case MIPI_VIO_EN_2:
 		index = gpio == MIPI_VIO_EN_1 ? 1 : 2;
 
-		intel_de_rmw(dev_priv, GPIO(dev_priv, index),
+		intel_de_rmw(display, GPIO(display, index),
 			     GPIO_DATA_VAL_OUT,
 			     GPIO_DATA_DIR_MASK | GPIO_DATA_DIR_OUT |
 			     GPIO_DATA_VAL_MASK | (value ? GPIO_DATA_VAL_OUT : 0));
@@ -744,6 +745,23 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 		    str_enabled_disabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
 }
 
+static enum mipi_dsi_pixel_format vbt_to_dsi_pixel_format(unsigned int format)
+{
+	switch (format) {
+	case PIXEL_FORMAT_RGB888:
+		return MIPI_DSI_FMT_RGB888;
+	case PIXEL_FORMAT_RGB666_LOOSELY_PACKED:
+		return MIPI_DSI_FMT_RGB666;
+	case PIXEL_FORMAT_RGB666:
+		return MIPI_DSI_FMT_RGB666_PACKED;
+	case PIXEL_FORMAT_RGB565:
+		return MIPI_DSI_FMT_RGB565;
+	default:
+		MISSING_CASE(format);
+		return MIPI_DSI_FMT_RGB666;
+	}
+}
+
 bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
@@ -761,8 +779,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
 	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
 	intel_dsi->pixel_format =
-			pixel_format_from_register_bits(
-				mipi_config->videomode_color_format << 7);
+		vbt_to_dsi_pixel_format(mipi_config->videomode_color_format);
 
 	intel_dsi->dual_link = mipi_config->dual_link;
 	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;

@@ -8,13 +8,13 @@
 #include "dcn32/dcn32_dpp.h"
 #include "dcn401/dcn401_dpp.h"
 
-static struct spl_funcs dcn2_spl_funcs = {
+static struct spl_callbacks dcn2_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl2_spl_calc_lb_num_partitions,
 };
-static struct spl_funcs dcn32_spl_funcs = {
+static struct spl_callbacks dcn32_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl32_spl_calc_lb_num_partitions,
 };
-static struct spl_funcs dcn401_spl_funcs = {
+static struct spl_callbacks dcn401_spl_callbacks = {
 	.spl_calc_lb_num_partitions = dscl401_spl_calc_lb_num_partitions,
 };
 static void populate_splrect_from_rect(struct spl_rect *spl_rect, const struct rect *rect)
@@ -38,6 +38,7 @@ static void populate_spltaps_from_taps(struct spl_taps *spl_scaling_quality,
 	spl_scaling_quality->h_taps = scaling_quality->h_taps;
 	spl_scaling_quality->v_taps_c = scaling_quality->v_taps_c;
 	spl_scaling_quality->v_taps = scaling_quality->v_taps;
+	spl_scaling_quality->integer_scaling = scaling_quality->integer_scaling;
 }
 static void populate_taps_from_spltaps(struct scaling_taps *scaling_quality,
 		const struct spl_taps *spl_scaling_quality)
@@ -63,6 +64,13 @@ static void populate_inits_from_splinits(struct scl_inits *inits,
 	inits->h_c = dc_fixpt_from_int_dy(spl_inits->h_filter_init_int_c, spl_inits->h_filter_init_frac_c >> 5, 0, 19);
 	inits->v_c = dc_fixpt_from_int_dy(spl_inits->v_filter_init_int_c, spl_inits->v_filter_init_frac_c >> 5, 0, 19);
 }
+static void populate_splformat_from_format(enum spl_pixel_format *spl_pixel_format, const enum pixel_format pixel_format)
+{
+	if (pixel_format < PIXEL_FORMAT_INVALID)
+		*spl_pixel_format = (enum spl_pixel_format)pixel_format;
+	else
+		*spl_pixel_format = SPL_PIXEL_FORMAT_INVALID;
+}
 /// @brief Translate SPL input parameters from pipe context
 /// @param pipe_ctx
 /// @param spl_in
@@ -76,19 +84,19 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	// This is used to determine the vtap support
 	switch (plane_state->ctx->dce_version)	{
 	case DCN_VERSION_2_0:
-		spl_in->funcs = &dcn2_spl_funcs;
+		spl_in->callbacks = dcn2_spl_callbacks;
 		break;
 	case DCN_VERSION_3_2:
-		spl_in->funcs = &dcn32_spl_funcs;
+		spl_in->callbacks = dcn32_spl_callbacks;
 		break;
 	case DCN_VERSION_4_01:
-		spl_in->funcs = &dcn401_spl_funcs;
+		spl_in->callbacks = dcn401_spl_callbacks;
 		break;
 	default:
-		spl_in->funcs = &dcn2_spl_funcs;
+		spl_in->callbacks = dcn2_spl_callbacks;
 	}
 	// Make format field from spl_in point to plane_res scl_data format
-	spl_in->basic_in.format = (enum spl_pixel_format)pipe_ctx->plane_res.scl_data.format;
+	populate_splformat_from_format(&spl_in->basic_in.format, pipe_ctx->plane_res.scl_data.format);
 	// Make view_format from basic_out point to view_format from stream
 	spl_in->basic_out.view_format = (enum spl_view_3d)stream->view_format;
 	// Populate spl input basic input clip rect from plane state clip rect
@@ -107,19 +115,21 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	spl_in->basic_in.horizontal_mirror = plane_state->horizontal_mirror;
 
 	// Calculate horizontal splits and split index
-	spl_in->basic_in.mpc_combine_h = resource_get_mpc_slice_count(pipe_ctx);
+	spl_in->basic_in.num_h_slices_recout_width_align.use_recout_width_aligned = false;
+	spl_in->basic_in.num_h_slices_recout_width_align.num_slices_recout_width.mpc_num_h_slices =
+		resource_get_mpc_slice_count(pipe_ctx);
 
 	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
-		spl_in->basic_in.mpc_combine_v = 0;
+		spl_in->basic_in.mpc_h_slice_index = 0;
 	else
-		spl_in->basic_in.mpc_combine_v = resource_get_mpc_slice_index(pipe_ctx);
+		spl_in->basic_in.mpc_h_slice_index = resource_get_mpc_slice_index(pipe_ctx);
 
 	populate_splrect_from_rect(&spl_in->basic_out.odm_slice_rect, &odm_slice_src);
 	spl_in->basic_out.odm_combine_factor = 0;
 	spl_in->odm_slice_index = resource_get_odm_slice_index(pipe_ctx);
 	// Make spl input basic out info output_size width point to stream h active
 	spl_in->basic_out.output_size.width =
-		stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+		stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right + pipe_ctx->hblank_borrow;
 	// Make spl input basic out info output_size height point to v active
 	spl_in->basic_out.output_size.height =
 		stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
@@ -187,14 +197,14 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	spl_in->h_active = pipe_ctx->plane_res.scl_data.h_active;
 	spl_in->v_active = pipe_ctx->plane_res.scl_data.v_active;
 
-	spl_in->debug.sharpen_policy = (enum sharpen_policy)pipe_ctx->stream->ctx->dc->debug.sharpen_policy;
+	spl_in->sharpen_policy = (enum sharpen_policy)plane_state->adaptive_sharpness_policy;
 	spl_in->debug.scale_to_sharpness_policy =
 		(enum scale_to_sharpness_policy)pipe_ctx->stream->ctx->dc->debug.scale_to_sharpness_policy;
 
 	/* Check if it is stream is in fullscreen and if its HDR.
 	 * Use this to determine sharpness levels
 	 */
-	spl_in->is_fullscreen = dm_helpers_is_fullscreen(pipe_ctx->stream->ctx, pipe_ctx->stream);
+	spl_in->is_fullscreen = pipe_ctx->stream->sharpening_required;
 	spl_in->is_hdr_on = dm_helpers_is_hdr_on(pipe_ctx->stream->ctx, pipe_ctx->stream);
 	spl_in->sdr_white_level_nits = plane_state->sdr_white_level_nits;
 }

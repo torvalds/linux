@@ -796,8 +796,8 @@ static int rcar_pcie_enable_msi(struct rcar_pcie_host *host)
 	rcar_pci_write_reg(pcie, 0, PCIEMSIIER);
 
 	/*
-	 * Setup MSI data target using RC base address address, which
-	 * is guaranteed to be in the low 32bit range on any R-Car HW.
+	 * Setup MSI data target using RC base address, which is guaranteed
+	 * to be in the low 32bit range on any R-Car HW.
 	 */
 	rcar_pci_write_reg(pcie, lower_32_bits(res.start) | MSIFE, PCIEMSIALR);
 	rcar_pci_write_reg(pcie, upper_32_bits(res.start), PCIEMSIAUR);

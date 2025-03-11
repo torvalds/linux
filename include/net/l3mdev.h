@@ -78,7 +78,7 @@ static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
 	struct net_device *dev;
 	int rc = 0;
 
-	if (likely(ifindex)) {
+	if (ifindex) {
 		rcu_read_lock();
 
 		dev = dev_get_by_index_rcu(net, ifindex);

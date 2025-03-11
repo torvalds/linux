@@ -11,9 +11,36 @@
 #define EF_CV_MASK GENMASK(7, 4)
 #define EF_CV_INV 15
 
+#define EFUSE_B1_MSSDEVTYPE_MASK GENMASK(3, 0)
+#define EFUSE_B1_MSSCUSTIDX0_MASK GENMASK(7, 4)
+#define EFUSE_B2_MSSKEYNUM_MASK GENMASK(3, 0)
+#define EFUSE_B2_MSSCUSTIDX1_MASK BIT(6)
+
+#define EFUSE_EXTERNALPN_ADDR_AX 0x5EC
+#define EFUSE_CUSTOMER_ADDR_AX 0x5ED
+#define EFUSE_SERIALNUM_ADDR_AX 0x5ED
+
+#define EFUSE_B1_EXTERNALPN_MASK GENMASK(7, 0)
+#define EFUSE_B2_CUSTOMER_MASK GENMASK(3, 0)
+#define EFUSE_B2_SERIALNUM_MASK GENMASK(6, 4)
+
+#define OTP_KEY_INFO_NUM 2
+
+static const u8 otp_key_info_externalPN[OTP_KEY_INFO_NUM] = {0x0, 0x0};
+static const u8 otp_key_info_customer[OTP_KEY_INFO_NUM]   = {0x0, 0x1};
+static const u8 otp_key_info_serialNum[OTP_KEY_INFO_NUM]  = {0x0, 0x1};
+
 enum rtw89_efuse_bank {
 	RTW89_EFUSE_BANK_WIFI,
 	RTW89_EFUSE_BANK_BT,
+};
+
+enum rtw89_efuse_mss_dev_type {
+	MSS_DEV_TYPE_FWSEC_DEF = 0xF,
+	MSS_DEV_TYPE_FWSEC_WINLIN_INBOX = 0xC,
+	MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_NON_COB = 0xA,
+	MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_COB = 0x9,
+	MSS_DEV_TYPE_FWSEC_NONWIN_INBOX = 0x6,
 };
 
 static int rtw89_switch_efuse_bank(struct rtw89_dev *rtwdev,
@@ -354,3 +381,126 @@ int rtw89_read_efuse_ver(struct rtw89_dev *rtwdev, u8 *ecv)
 	return 0;
 }
 EXPORT_SYMBOL(rtw89_read_efuse_ver);
+
+static u8 get_mss_dev_type_idx(struct rtw89_dev *rtwdev, u8 mss_dev_type)
+{
+	switch (mss_dev_type) {
+	case MSS_DEV_TYPE_FWSEC_WINLIN_INBOX:
+		mss_dev_type = 0x0;
+		break;
+	case MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_NON_COB:
+		mss_dev_type = 0x1;
+		break;
+	case MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_COB:
+		mss_dev_type = 0x2;
+		break;
+	case MSS_DEV_TYPE_FWSEC_NONWIN_INBOX:
+		mss_dev_type = 0x3;
+		break;
+	case MSS_DEV_TYPE_FWSEC_DEF:
+		mss_dev_type = RTW89_FW_MSS_DEV_TYPE_FWSEC_DEF;
+		break;
+	default:
+		rtw89_warn(rtwdev, "unknown mss_dev_type %d", mss_dev_type);
+		mss_dev_type = RTW89_FW_MSS_DEV_TYPE_FWSEC_INV;
+		break;
+	}
+
+	return mss_dev_type;
+}
+
+int rtw89_efuse_recognize_mss_info_v1(struct rtw89_dev *rtwdev, u8 b1, u8 b2)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
+	u8 mss_dev_type;
+
+	if (chip->chip_id == RTL8852B && b1 == 0xFF && b2 == 0x6E) {
+		mss_dev_type = MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_NON_COB;
+		sec->mss_cust_idx = 0;
+		sec->mss_key_num = 0;
+
+		goto mss_dev_type;
+	}
+
+	mss_dev_type = u8_get_bits(b1, EFUSE_B1_MSSDEVTYPE_MASK);
+	sec->mss_cust_idx = 0x1F - (u8_get_bits(b1, EFUSE_B1_MSSCUSTIDX0_MASK) |
+				    u8_get_bits(b2, EFUSE_B2_MSSCUSTIDX1_MASK) << 4);
+	sec->mss_key_num = 0xF - u8_get_bits(b2, EFUSE_B2_MSSKEYNUM_MASK);
+
+mss_dev_type:
+	sec->mss_dev_type = get_mss_dev_type_idx(rtwdev, mss_dev_type);
+	if (sec->mss_dev_type == RTW89_FW_MSS_DEV_TYPE_FWSEC_INV) {
+		rtw89_warn(rtwdev, "invalid mss_dev_type %d\n", mss_dev_type);
+		return -ENOENT;
+	}
+
+	sec->can_mss_v1 = true;
+
+	return 0;
+}
+
+static
+int rtw89_efuse_recognize_mss_index_v0(struct rtw89_dev *rtwdev, u8 b1, u8 b2)
+{
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
+	u8 externalPN;
+	u8 serialNum;
+	u8 customer;
+	u8 i;
+
+	externalPN = 0xFF - u8_get_bits(b1, EFUSE_B1_EXTERNALPN_MASK);
+	customer = 0xF - u8_get_bits(b2, EFUSE_B2_CUSTOMER_MASK);
+	serialNum = 0x7 - u8_get_bits(b2, EFUSE_B2_SERIALNUM_MASK);
+
+	for (i = 0; i < OTP_KEY_INFO_NUM; i++) {
+		if (externalPN == otp_key_info_externalPN[i] &&
+		    customer == otp_key_info_customer[i] &&
+		    serialNum == otp_key_info_serialNum[i]) {
+			sec->mss_idx = i;
+			sec->can_mss_v0 = true;
+			return 0;
+		}
+	}
+
+	return -ENOENT;
+}
+
+int rtw89_efuse_read_fw_secure_ax(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
+	u32 sec_addr = EFUSE_EXTERNALPN_ADDR_AX;
+	u32 sec_size = 2;
+	u8 sec_map[2];
+	u8 b1, b2;
+	int ret;
+
+	ret = rtw89_dump_physical_efuse_map(rtwdev, sec_map,
+					    sec_addr, sec_size, false);
+	if (ret) {
+		rtw89_warn(rtwdev, "failed to dump secsel map\n");
+		return ret;
+	}
+
+	b1 = sec_map[0];
+	b2 = sec_map[1];
+
+	if (b1 == 0xFF && b2 == 0xFF)
+		return 0;
+
+	rtw89_efuse_recognize_mss_index_v0(rtwdev, b1, b2);
+	rtw89_efuse_recognize_mss_info_v1(rtwdev, b1, b2);
+	if (!sec->can_mss_v1 && !sec->can_mss_v0)
+		goto out;
+
+	sec->secure_boot = true;
+
+out:
+	rtw89_debug(rtwdev, RTW89_DBG_FW,
+		    "MSS secure_boot=%d(%d/%d) dev_type=%d cust_idx=%d key_num=%d mss_index=%d\n",
+		    sec->secure_boot, sec->can_mss_v0, sec->can_mss_v1,
+		    sec->mss_dev_type, sec->mss_cust_idx,
+		    sec->mss_key_num, sec->mss_idx);
+
+	return 0;
+}

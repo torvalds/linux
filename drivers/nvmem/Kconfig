@@ -246,6 +246,17 @@ config NVMEM_RAVE_SP_EEPROM
 	help
 	  Say y here to enable Rave SP EEPROM support.
 
+config NVMEM_RCAR_EFUSE
+	tristate "Renesas R-Car Gen4 E-FUSE support"
+	depends on (ARCH_RENESAS && ARM64) || COMPILE_TEST
+	depends on NVMEM
+	help
+	  Enable support for reading the fuses in the E-FUSE or OTP
+	  non-volatile memory block on Renesas R-Car Gen4 SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-rcar-efuse.
+
 config NVMEM_RMEM
 	tristate "Reserved Memory Based Driver Support"
 	depends on HAS_IOMEM

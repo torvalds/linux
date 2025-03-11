@@ -85,7 +85,7 @@ static struct platform_driver qcom_interconnect_rpm_smd_driver = {
 		.name		= "icc_smd_rpm",
 	},
 	.probe = qcom_icc_rpm_smd_probe,
-	.remove_new = qcom_icc_rpm_smd_remove,
+	.remove = qcom_icc_rpm_smd_remove,
 };
 module_platform_driver(qcom_interconnect_rpm_smd_driver);
 MODULE_AUTHOR("Georgi Djakov <georgi.djakov@linaro.org>");

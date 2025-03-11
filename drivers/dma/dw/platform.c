@@ -191,7 +191,7 @@ static const struct dev_pm_ops dw_dev_pm_ops = {
 
 static struct platform_driver dw_driver = {
 	.probe		= dw_probe,
-	.remove_new	= dw_remove,
+	.remove		= dw_remove,
 	.shutdown       = dw_shutdown,
 	.driver = {
 		.name	= DRV_NAME,

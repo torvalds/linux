@@ -1281,7 +1281,7 @@ MODULE_DEVICE_TABLE(of, of_ti_bandgap_match);
 
 static struct platform_driver ti_bandgap_sensor_driver = {
 	.probe = ti_bandgap_probe,
-	.remove_new = ti_bandgap_remove,
+	.remove = ti_bandgap_remove,
 	.driver = {
 			.name = "ti-soc-thermal",
 			.pm = DEV_PM_OPS,

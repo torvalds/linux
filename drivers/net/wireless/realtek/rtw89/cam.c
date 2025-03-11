@@ -211,25 +211,17 @@ static int rtw89_cam_get_addr_cam_key_idx(struct rtw89_addr_cam_entry *addr_cam,
 	return 0;
 }
 
-static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_sta *sta,
-				    const struct rtw89_sec_cam_entry *sec_cam,
-				    bool inform_fw)
+static int __rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
+				      struct rtw89_vif_link *rtwvif_link,
+				      struct rtw89_sta_link *rtwsta_link,
+				      const struct rtw89_sec_cam_entry *sec_cam,
+				      bool inform_fw)
 {
-	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
-	struct rtw89_vif *rtwvif;
 	struct rtw89_addr_cam_entry *addr_cam;
 	unsigned int i;
 	int ret = 0;
 
-	if (!vif) {
-		rtw89_err(rtwdev, "No iface for deleting sec cam\n");
-		return -EINVAL;
-	}
-
-	rtwvif = (struct rtw89_vif *)vif->drv_priv;
-	addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+	addr_cam = rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 
 	for_each_set_bit(i, addr_cam->sec_cam_map, RTW89_SEC_CAM_IN_ADDR_CAM) {
 		if (addr_cam->sec_ent[i] != sec_cam->sec_cam_idx)
@@ -239,11 +231,11 @@ static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
 	}
 
 	if (inform_fw) {
-		ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif, rtwsta);
+		ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta_link);
 		if (ret)
 			rtw89_err(rtwdev,
 				  "failed to update dctl cam del key: %d\n", ret);
-		ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
+		ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta_link, NULL);
 		if (ret)
 			rtw89_err(rtwdev, "failed to update cam del key: %d\n", ret);
 	}
@@ -251,25 +243,17 @@ static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
-static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_sta *sta,
-				    struct ieee80211_key_conf *key,
-				    struct rtw89_sec_cam_entry *sec_cam)
+static int __rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
+				      struct rtw89_vif_link *rtwvif_link,
+				      struct rtw89_sta_link *rtwsta_link,
+				      struct ieee80211_key_conf *key,
+				      struct rtw89_sec_cam_entry *sec_cam)
 {
-	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
-	struct rtw89_vif *rtwvif;
 	struct rtw89_addr_cam_entry *addr_cam;
 	u8 key_idx = 0;
 	int ret;
 
-	if (!vif) {
-		rtw89_err(rtwdev, "No iface for adding sec cam\n");
-		return -EINVAL;
-	}
-
-	rtwvif = (struct rtw89_vif *)vif->drv_priv;
-	addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+	addr_cam = rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 
 	if (key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	    key->cipher == WLAN_CIPHER_SUITE_WEP104)
@@ -285,18 +269,104 @@ static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
 	addr_cam->sec_ent_keyid[key_idx] = key->keyidx;
 	addr_cam->sec_ent[key_idx] = sec_cam->sec_cam_idx;
 	set_bit(key_idx, addr_cam->sec_cam_map);
-	ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif, rtwsta);
+	ret = rtw89_chip_h2c_dctl_sec_cam(rtwdev, rtwvif_link, rtwsta_link);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to update dctl cam sec entry: %d\n",
 			  ret);
 		return ret;
 	}
-	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif, rtwsta, NULL);
+	ret = rtw89_fw_h2c_cam(rtwdev, rtwvif_link, rtwsta_link, NULL);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to update addr cam sec entry: %d\n",
 			  ret);
 		clear_bit(key_idx, addr_cam->sec_cam_map);
 		return ret;
+	}
+
+	return 0;
+}
+
+static int rtw89_cam_detach_sec_cam(struct rtw89_dev *rtwdev,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta,
+				    const struct rtw89_sec_cam_entry *sec_cam,
+				    bool inform_fw)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_sta_link *rtwsta_link;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
+	int ret;
+
+	if (!vif) {
+		rtw89_err(rtwdev, "No iface for deleting sec cam\n");
+		return -EINVAL;
+	}
+
+	rtwvif = vif_to_rtwvif(vif);
+
+	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
+		rtwsta_link = rtwsta ? rtwsta->links[link_id] : NULL;
+		if (rtwsta && !rtwsta_link)
+			continue;
+
+		ret = __rtw89_cam_detach_sec_cam(rtwdev, rtwvif_link, rtwsta_link,
+						 sec_cam, inform_fw);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int rtw89_cam_attach_sec_cam(struct rtw89_dev *rtwdev,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta,
+				    struct ieee80211_key_conf *key,
+				    struct rtw89_sec_cam_entry *sec_cam)
+{
+	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	struct rtw89_sta_link *rtwsta_link;
+	struct rtw89_vif_link *rtwvif_link;
+	struct rtw89_vif *rtwvif;
+	unsigned int link_id;
+	int key_link_id;
+	int ret;
+
+	if (!vif) {
+		rtw89_err(rtwdev, "No iface for adding sec cam\n");
+		return -EINVAL;
+	}
+
+	rtwvif = vif_to_rtwvif(vif);
+
+	key_link_id = ieee80211_vif_is_mld(vif) ? key->link_id : 0;
+	if (key_link_id >= 0) {
+		rtwvif_link = rtwvif->links[key_link_id];
+		rtwsta_link = rtwsta ? rtwsta->links[key_link_id] : NULL;
+
+		if (!rtwvif_link || (rtwsta && !rtwsta_link)) {
+			rtw89_err(rtwdev, "No drv link for adding sec cam\n");
+			return -ENOLINK;
+		}
+
+		return __rtw89_cam_attach_sec_cam(rtwdev, rtwvif_link,
+						  rtwsta_link, key, sec_cam);
+	}
+
+	/* key_link_id < 0: MLD pairwise key */
+	if (!rtwsta) {
+		rtw89_err(rtwdev, "No sta for adding MLD pairwise sec cam\n");
+		return -EINVAL;
+	}
+
+	rtw89_sta_for_each_link(rtwsta, rtwsta_link, link_id) {
+		rtwvif_link = rtwsta_link->rtwvif_link;
+		ret = __rtw89_cam_attach_sec_cam(rtwdev, rtwvif_link,
+						 rtwsta_link, key, sec_cam);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -485,10 +555,10 @@ void rtw89_cam_deinit_bssid_cam(struct rtw89_dev *rtwdev,
 	clear_bit(bssid_cam->bssid_cam_idx, cam_info->bssid_cam_map);
 }
 
-void rtw89_cam_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+void rtw89_cam_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)
 {
-	struct rtw89_addr_cam_entry *addr_cam = &rtwvif->addr_cam;
-	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
+	struct rtw89_addr_cam_entry *addr_cam = &rtwvif_link->addr_cam;
+	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif_link->bssid_cam;
 
 	rtw89_cam_deinit_addr_cam(rtwdev, addr_cam);
 	rtw89_cam_deinit_bssid_cam(rtwdev, bssid_cam);
@@ -593,7 +663,7 @@ static int rtw89_cam_get_avail_bssid_cam(struct rtw89_dev *rtwdev,
 }
 
 int rtw89_cam_init_bssid_cam(struct rtw89_dev *rtwdev,
-			     struct rtw89_vif *rtwvif,
+			     struct rtw89_vif_link *rtwvif_link,
 			     struct rtw89_bssid_cam_entry *bssid_cam,
 			     const u8 *bssid)
 {
@@ -613,7 +683,7 @@ int rtw89_cam_init_bssid_cam(struct rtw89_dev *rtwdev,
 	}
 
 	bssid_cam->bssid_cam_idx = bssid_cam_idx;
-	bssid_cam->phy_idx = rtwvif->phy_idx;
+	bssid_cam->phy_idx = rtwvif_link->phy_idx;
 	bssid_cam->len = BSSID_CAM_ENT_SIZE;
 	bssid_cam->offset = 0;
 	bssid_cam->valid = true;
@@ -622,20 +692,21 @@ int rtw89_cam_init_bssid_cam(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-void rtw89_cam_bssid_changed(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+void rtw89_cam_bssid_changed(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)
 {
-	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
+	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif_link->bssid_cam;
 
-	ether_addr_copy(bssid_cam->bssid, rtwvif->bssid);
+	ether_addr_copy(bssid_cam->bssid, rtwvif_link->bssid);
 }
 
-int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)
 {
-	struct rtw89_addr_cam_entry *addr_cam = &rtwvif->addr_cam;
-	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
+	struct rtw89_addr_cam_entry *addr_cam = &rtwvif_link->addr_cam;
+	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif_link->bssid_cam;
 	int ret;
 
-	ret = rtw89_cam_init_bssid_cam(rtwdev, rtwvif, bssid_cam, rtwvif->bssid);
+	ret = rtw89_cam_init_bssid_cam(rtwdev, rtwvif_link, bssid_cam,
+				       rtwvif_link->bssid);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to init bssid cam\n");
 		return ret;
@@ -651,18 +722,26 @@ int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 }
 
 int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *rtwvif,
-				  struct rtw89_sta *rtwsta, u8 *cmd)
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link, u8 *cmd)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
-	struct rtw89_bssid_cam_entry *bssid_cam = rtw89_get_bssid_cam_of(rtwvif, rtwsta);
-	u8 bss_color = vif->bss_conf.he_bss_color.color;
+	struct rtw89_bssid_cam_entry *bssid_cam = rtw89_get_bssid_cam_of(rtwvif_link,
+									 rtwsta_link);
+	struct ieee80211_bss_conf *bss_conf;
+	u8 bss_color;
 	u8 bss_mask;
 
-	if (vif->bss_conf.nontransmitted)
+	rcu_read_lock();
+
+	bss_conf = rtw89_vif_rcu_dereference_link(rtwvif_link, false);
+	bss_color = bss_conf->he_bss_color.color;
+
+	if (bss_conf->nontransmitted)
 		bss_mask = RTW89_BSSID_MATCH_5_BYTES;
 	else
 		bss_mask = RTW89_BSSID_MATCH_ALL;
+
+	rcu_read_unlock();
 
 	FWCMD_SET_ADDR_BSSID_IDX(cmd, bssid_cam->bssid_cam_idx);
 	FWCMD_SET_ADDR_BSSID_OFFSET(cmd, bssid_cam->offset);
@@ -694,19 +773,30 @@ static u8 rtw89_cam_addr_hash(u8 start, const u8 *addr)
 }
 
 void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *rtwvif,
-				  struct rtw89_sta *rtwsta,
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link,
 				  const u8 *scan_mac_addr,
 				  u8 *cmd)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
-	struct rtw89_addr_cam_entry *addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
-	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta);
-	const u8 *sma = scan_mac_addr ? scan_mac_addr : rtwvif->mac_addr;
+	struct ieee80211_vif *vif = rtwvif_link_to_vif(rtwvif_link);
+	struct rtw89_addr_cam_entry *addr_cam =
+		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
+	struct ieee80211_sta *sta = rtwsta_link_to_sta_safe(rtwsta_link);
+	struct ieee80211_link_sta *link_sta;
+	const u8 *sma = scan_mac_addr ? scan_mac_addr : rtwvif_link->mac_addr;
 	u8 sma_hash, tma_hash, addr_msk_start;
 	u8 sma_start = 0;
 	u8 tma_start = 0;
-	u8 *tma = sta ? sta->addr : rtwvif->bssid;
+	const u8 *tma;
+
+	rcu_read_lock();
+
+	if (sta) {
+		link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+		tma = link_sta->addr;
+	} else {
+		tma = rtwvif_link->bssid;
+	}
 
 	if (addr_cam->addr_mask != 0) {
 		addr_msk_start = __ffs(addr_cam->addr_mask);
@@ -723,10 +813,10 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 	FWCMD_SET_ADDR_LEN(cmd, addr_cam->len);
 
 	FWCMD_SET_ADDR_VALID(cmd, addr_cam->valid);
-	FWCMD_SET_ADDR_NET_TYPE(cmd, rtwvif->net_type);
-	FWCMD_SET_ADDR_BCN_HIT_COND(cmd, rtwvif->bcn_hit_cond);
-	FWCMD_SET_ADDR_HIT_RULE(cmd, rtwvif->hit_rule);
-	FWCMD_SET_ADDR_BB_SEL(cmd, rtwvif->phy_idx);
+	FWCMD_SET_ADDR_NET_TYPE(cmd, rtwvif_link->net_type);
+	FWCMD_SET_ADDR_BCN_HIT_COND(cmd, rtwvif_link->bcn_hit_cond);
+	FWCMD_SET_ADDR_HIT_RULE(cmd, rtwvif_link->hit_rule);
+	FWCMD_SET_ADDR_BB_SEL(cmd, rtwvif_link->phy_idx);
 	FWCMD_SET_ADDR_ADDR_MASK(cmd, addr_cam->addr_mask);
 	FWCMD_SET_ADDR_MASK_SEL(cmd, addr_cam->mask_sel);
 	FWCMD_SET_ADDR_SMA_HASH(cmd, sma_hash);
@@ -748,20 +838,21 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 	FWCMD_SET_ADDR_TMA4(cmd, tma[4]);
 	FWCMD_SET_ADDR_TMA5(cmd, tma[5]);
 
-	FWCMD_SET_ADDR_PORT_INT(cmd, rtwvif->port);
-	FWCMD_SET_ADDR_TSF_SYNC(cmd, rtwvif->port);
-	FWCMD_SET_ADDR_TF_TRS(cmd, rtwvif->trigger);
-	FWCMD_SET_ADDR_LSIG_TXOP(cmd, rtwvif->lsig_txop);
-	FWCMD_SET_ADDR_TGT_IND(cmd, rtwvif->tgt_ind);
-	FWCMD_SET_ADDR_FRM_TGT_IND(cmd, rtwvif->frm_tgt_ind);
-	FWCMD_SET_ADDR_MACID(cmd, rtwsta ? rtwsta->mac_id : rtwvif->mac_id);
-	if (rtwvif->net_type == RTW89_NET_TYPE_INFRA)
+	FWCMD_SET_ADDR_PORT_INT(cmd, rtwvif_link->port);
+	FWCMD_SET_ADDR_TSF_SYNC(cmd, rtwvif_link->port);
+	FWCMD_SET_ADDR_TF_TRS(cmd, rtwvif_link->trigger);
+	FWCMD_SET_ADDR_LSIG_TXOP(cmd, rtwvif_link->lsig_txop);
+	FWCMD_SET_ADDR_TGT_IND(cmd, rtwvif_link->tgt_ind);
+	FWCMD_SET_ADDR_FRM_TGT_IND(cmd, rtwvif_link->frm_tgt_ind);
+	FWCMD_SET_ADDR_MACID(cmd, rtwsta_link ? rtwsta_link->mac_id :
+						rtwvif_link->mac_id);
+	if (rtwvif_link->net_type == RTW89_NET_TYPE_INFRA)
 		FWCMD_SET_ADDR_AID12(cmd, vif->cfg.aid & 0xfff);
-	else if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE)
+	else if (rtwvif_link->net_type == RTW89_NET_TYPE_AP_MODE)
 		FWCMD_SET_ADDR_AID12(cmd, sta ? sta->aid & 0xfff : 0);
-	FWCMD_SET_ADDR_WOL_PATTERN(cmd, rtwvif->wowlan_pattern);
-	FWCMD_SET_ADDR_WOL_UC(cmd, rtwvif->wowlan_uc);
-	FWCMD_SET_ADDR_WOL_MAGIC(cmd, rtwvif->wowlan_magic);
+	FWCMD_SET_ADDR_WOL_PATTERN(cmd, rtwvif_link->wowlan_pattern);
+	FWCMD_SET_ADDR_WOL_UC(cmd, rtwvif_link->wowlan_uc);
+	FWCMD_SET_ADDR_WOL_MAGIC(cmd, rtwvif_link->wowlan_magic);
 	FWCMD_SET_ADDR_WAPI(cmd, addr_cam->wapi);
 	FWCMD_SET_ADDR_SEC_ENT_MODE(cmd, addr_cam->sec_ent_mode);
 	FWCMD_SET_ADDR_SEC_ENT0_KEYID(cmd, addr_cam->sec_ent_keyid[0]);
@@ -780,18 +871,22 @@ void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 	FWCMD_SET_ADDR_SEC_ENT4(cmd, addr_cam->sec_ent[4]);
 	FWCMD_SET_ADDR_SEC_ENT5(cmd, addr_cam->sec_ent[5]);
 	FWCMD_SET_ADDR_SEC_ENT6(cmd, addr_cam->sec_ent[6]);
+
+	rcu_read_unlock();
 }
 
 void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
-					 struct rtw89_vif *rtwvif,
-					 struct rtw89_sta *rtwsta,
+					 struct rtw89_vif_link *rtwvif_link,
+					 struct rtw89_sta_link *rtwsta_link,
 					 struct rtw89_h2c_dctlinfo_ud_v1 *h2c)
 {
-	struct rtw89_addr_cam_entry *addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+	struct rtw89_addr_cam_entry *addr_cam =
+		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	u8 *ptk_tx_iv = rtw_wow->key_info.ptk_tx_iv;
 
-	h2c->c0 = le32_encode_bits(rtwsta ? rtwsta->mac_id : rtwvif->mac_id,
+	h2c->c0 = le32_encode_bits(rtwsta_link ? rtwsta_link->mac_id :
+						 rtwvif_link->mac_id,
 				   DCTLINFO_V1_C0_MACID) |
 		  le32_encode_bits(1, DCTLINFO_V1_C0_OP);
 
@@ -862,17 +957,27 @@ void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
 }
 
 void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
-					 struct rtw89_vif *rtwvif,
-					 struct rtw89_sta *rtwsta,
+					 struct rtw89_vif_link *rtwvif_link,
+					 struct rtw89_sta_link *rtwsta_link,
 					 struct rtw89_h2c_dctlinfo_ud_v2 *h2c)
 {
-	struct rtw89_addr_cam_entry *addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+	struct ieee80211_sta *sta = rtwsta_link_to_sta_safe(rtwsta_link);
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif_link->rtwvif);
+	struct rtw89_vif *rtwvif = rtwvif_link->rtwvif;
+	struct rtw89_addr_cam_entry *addr_cam =
+		rtw89_get_addr_cam_of(rtwvif_link, rtwsta_link);
+	bool is_mld = sta ? sta->mlo : ieee80211_vif_is_mld(vif);
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	u8 *ptk_tx_iv = rtw_wow->key_info.ptk_tx_iv;
+	u8 *mld_sma, *mld_tma, *mld_bssid;
 
-	h2c->c0 = le32_encode_bits(rtwsta ? rtwsta->mac_id : rtwvif->mac_id,
+	h2c->c0 = le32_encode_bits(rtwsta_link ? rtwsta_link->mac_id :
+						 rtwvif_link->mac_id,
 				   DCTLINFO_V2_C0_MACID) |
 		  le32_encode_bits(1, DCTLINFO_V2_C0_OP);
+
+	h2c->w2 = le32_encode_bits(is_mld, DCTLINFO_V2_W2_IS_MLD);
+	h2c->m2 = cpu_to_le32(DCTLINFO_V2_W2_IS_MLD);
 
 	h2c->w4 = le32_encode_bits(addr_cam->sec_ent_keyid[0],
 				   DCTLINFO_V2_W4_SEC_ENT0_KEYID) |
@@ -939,4 +1044,47 @@ void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
 					    DCTLINFO_V2_W4_SEC_KEY_ID);
 		h2c->m4 |= cpu_to_le32(DCTLINFO_V2_W4_SEC_KEY_ID);
 	}
+
+	if (!is_mld)
+		return;
+
+	if (rtwvif_link->net_type == RTW89_NET_TYPE_INFRA) {
+		mld_sma = rtwvif->mac_addr;
+		mld_tma = vif->cfg.ap_addr;
+		mld_bssid = vif->cfg.ap_addr;
+	} else if (rtwvif_link->net_type == RTW89_NET_TYPE_AP_MODE && sta) {
+		mld_sma = rtwvif->mac_addr;
+		mld_tma = sta->addr;
+		mld_bssid = rtwvif->mac_addr;
+	} else {
+		return;
+	}
+
+	h2c->w8 = le32_encode_bits(mld_sma[0], DCTLINFO_V2_W8_MLD_SMA_0) |
+		  le32_encode_bits(mld_sma[1], DCTLINFO_V2_W8_MLD_SMA_1) |
+		  le32_encode_bits(mld_sma[2], DCTLINFO_V2_W8_MLD_SMA_2) |
+		  le32_encode_bits(mld_sma[3], DCTLINFO_V2_W8_MLD_SMA_3);
+	h2c->m8 = cpu_to_le32(DCTLINFO_V2_W8_ALL);
+
+	h2c->w9 = le32_encode_bits(mld_sma[4], DCTLINFO_V2_W9_MLD_SMA_4) |
+		  le32_encode_bits(mld_sma[5], DCTLINFO_V2_W9_MLD_SMA_5) |
+		  le32_encode_bits(mld_tma[0], DCTLINFO_V2_W9_MLD_TMA_0) |
+		  le32_encode_bits(mld_tma[1], DCTLINFO_V2_W9_MLD_TMA_1);
+	h2c->m9 = cpu_to_le32(DCTLINFO_V2_W9_ALL);
+
+	h2c->w10 = le32_encode_bits(mld_tma[2], DCTLINFO_V2_W10_MLD_TMA_2) |
+		   le32_encode_bits(mld_tma[3], DCTLINFO_V2_W10_MLD_TMA_3) |
+		   le32_encode_bits(mld_tma[4], DCTLINFO_V2_W10_MLD_TMA_4) |
+		   le32_encode_bits(mld_tma[5], DCTLINFO_V2_W10_MLD_TMA_5);
+	h2c->m10 = cpu_to_le32(DCTLINFO_V2_W10_ALL);
+
+	h2c->w11 = le32_encode_bits(mld_bssid[0], DCTLINFO_V2_W11_MLD_BSSID_0) |
+		   le32_encode_bits(mld_bssid[1], DCTLINFO_V2_W11_MLD_BSSID_1) |
+		   le32_encode_bits(mld_bssid[2], DCTLINFO_V2_W11_MLD_BSSID_2) |
+		   le32_encode_bits(mld_bssid[3], DCTLINFO_V2_W11_MLD_BSSID_3);
+	h2c->m11 = cpu_to_le32(DCTLINFO_V2_W11_ALL);
+
+	h2c->w12 = le32_encode_bits(mld_bssid[4], DCTLINFO_V2_W12_MLD_BSSID_4) |
+		   le32_encode_bits(mld_bssid[5], DCTLINFO_V2_W12_MLD_BSSID_5);
+	h2c->m12 = cpu_to_le32(DCTLINFO_V2_W12_ALL);
 }

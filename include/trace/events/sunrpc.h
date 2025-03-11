@@ -719,7 +719,7 @@ TRACE_EVENT(rpc_xdr_overflow,
 	),
 
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		  " %sv%d %s requested=%zu p=%p end=%p xdr=[%p,%zu]/%u/[%p,%zu]/%u\n",
+		  " %sv%d %s requested=%zu p=%p end=%p xdr=[%p,%zu]/%u/[%p,%zu]/%u",
 		__entry->task_id, __entry->client_id,
 		__get_str(progname), __entry->version, __get_str(procedure),
 		__entry->requested, __entry->p, __entry->end,
@@ -777,7 +777,7 @@ TRACE_EVENT(rpc_xdr_alignment,
 	),
 
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		  " %sv%d %s offset=%zu copied=%u xdr=[%p,%zu]/%u/[%p,%zu]/%u\n",
+		  " %sv%d %s offset=%zu copied=%u xdr=[%p,%zu]/%u/[%p,%zu]/%u",
 		__entry->task_id, __entry->client_id,
 		__get_str(progname), __entry->version, __get_str(procedure),
 		__entry->offset, __entry->copied,

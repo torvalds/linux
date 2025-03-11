@@ -18,6 +18,13 @@
 	MAKE_GUC_KLV_KEY(CONCATENATE(VF_CFG_THRESHOLD_, TAG))
 
 /**
+ * MAKE_GUC_KLV_VF_CFG_THRESHOLD_LEN - Prepare the name of the KLV length constant.
+ * @TAG: unique tag of the GuC threshold KLV key.
+ */
+#define MAKE_GUC_KLV_VF_CFG_THRESHOLD_LEN(TAG) \
+	MAKE_GUC_KLV_LEN(CONCATENATE(VF_CFG_THRESHOLD_, TAG))
+
+/**
  * xe_guc_klv_threshold_key_to_index - Find index of the tracked GuC threshold.
  * @key: GuC threshold KLV key.
  *

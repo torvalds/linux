@@ -541,7 +541,7 @@ static struct bin_attribute *sdsi_bin_attrs[] = {
 };
 
 static umode_t
-sdsi_battr_is_visible(struct kobject *kobj, struct bin_attribute *attr, int n)
+sdsi_battr_is_visible(struct kobject *kobj, const struct bin_attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct sdsi_priv *priv = dev_get_drvdata(dev);

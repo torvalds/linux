@@ -2646,27 +2646,6 @@ bfa_fcs_rport_create_by_wwn(struct bfa_fcs_lport_s *port, wwn_t rpwwn)
 	bfa_sm_send_event(rport, RPSM_EVENT_ADDRESS_DISC);
 	return rport;
 }
-/*
- * Called by bport in private loop topology to indicate that a
- * rport has been discovered and plogi has been completed.
- *
- * @param[in] port	- base port or vport
- * @param[in] rpid	- remote port ID
- */
-void
-bfa_fcs_rport_start(struct bfa_fcs_lport_s *port, struct fchs_s *fchs,
-	 struct fc_logi_s *plogi)
-{
-	struct bfa_fcs_rport_s *rport;
-
-	rport = bfa_fcs_rport_alloc(port, WWN_NULL, fchs->s_id);
-	if (!rport)
-		return;
-
-	bfa_fcs_rport_update(rport, plogi);
-
-	bfa_sm_send_event(rport, RPSM_EVENT_PLOGI_COMP);
-}
 
 /*
  *	Called by bport/vport to handle PLOGI received from a new remote port.
@@ -3080,21 +3059,6 @@ bfa_fcs_rport_lookup(struct bfa_fcs_lport_s *port, wwn_t rpwwn)
 	struct bfa_fcs_rport_s *rport;
 
 	rport = bfa_fcs_lport_get_rport_by_pwwn(port, rpwwn);
-	if (rport == NULL) {
-		/*
-		 * TBD Error handling
-		 */
-	}
-
-	return rport;
-}
-
-struct bfa_fcs_rport_s *
-bfa_fcs_rport_lookup_by_nwwn(struct bfa_fcs_lport_s *port, wwn_t rnwwn)
-{
-	struct bfa_fcs_rport_s *rport;
-
-	rport = bfa_fcs_lport_get_rport_by_nwwn(port, rnwwn);
 	if (rport == NULL) {
 		/*
 		 * TBD Error handling

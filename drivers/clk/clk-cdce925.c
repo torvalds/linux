@@ -601,7 +601,7 @@ static int cdce925_regulator_enable(struct device *dev, const char *name)
 
 /* The CDCE925 uses a funky way to read/write registers. Bulk mode is
  * just weird, so just use the single byte mode exclusively. */
-static struct regmap_bus regmap_cdce925_bus = {
+static const struct regmap_bus regmap_cdce925_bus = {
 	.write = cdce925_regmap_i2c_write,
 	.read = cdce925_regmap_i2c_read,
 };

@@ -267,7 +267,7 @@ static struct platform_driver altera_msi_driver = {
 		.of_match_table = altera_msi_of_match,
 	},
 	.probe = altera_msi_probe,
-	.remove_new = altera_msi_remove,
+	.remove = altera_msi_remove,
 };
 
 static int __init altera_msi_init(void)

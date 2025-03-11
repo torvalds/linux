@@ -46,11 +46,6 @@ static inline void __tlb_flush_mm(struct mm_struct *mm)
 {
 	unsigned long gmap_asce;
 
-	/*
-	 * If the machine has IDTE we prefer to do a per mm flush
-	 * on all cpus instead of doing a local flush if the mm
-	 * only ran on the local cpu.
-	 */
 	preempt_disable();
 	atomic_inc(&mm->context.flush_count);
 	/* Reset TLB flush mask */

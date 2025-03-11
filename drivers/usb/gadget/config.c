@@ -57,11 +57,11 @@ EXPORT_SYMBOL_GPL(usb_descriptor_fillbuf);
  * usb_gadget_config_buf - builts a complete configuration descriptor
  * @config: Header for the descriptor, including characteristics such
  *	as power requirements and number of interfaces.
- * @desc: Null-terminated vector of pointers to the descriptors (interface,
- *	endpoint, etc) defining all functions in this device configuration.
  * @buf: Buffer for the resulting configuration descriptor.
  * @length: Length of buffer.  If this is not big enough to hold the
  *	entire configuration descriptor, an error code will be returned.
+ * @desc: Null-terminated vector of pointers to the descriptors (interface,
+ *	endpoint, etc) defining all functions in this device configuration.
  *
  * This copies descriptors into the response buffer, building a descriptor
  * for that configuration.  It returns the buffer length or a negative

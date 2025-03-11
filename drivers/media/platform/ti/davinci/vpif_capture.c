@@ -310,8 +310,6 @@ static const struct vb2_ops video_qops = {
 	.start_streaming	= vpif_start_streaming,
 	.stop_streaming		= vpif_stop_streaming,
 	.buf_queue		= vpif_buffer_queue,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 /**
@@ -1815,7 +1813,7 @@ static __refdata struct platform_driver vpif_driver = {
 		.pm	= &vpif_pm_ops,
 	},
 	.probe = vpif_probe,
-	.remove_new = vpif_remove,
+	.remove = vpif_remove,
 };
 
 module_platform_driver(vpif_driver);

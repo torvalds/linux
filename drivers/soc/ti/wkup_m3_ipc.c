@@ -755,7 +755,7 @@ MODULE_DEVICE_TABLE(of, wkup_m3_ipc_of_match);
 
 static struct platform_driver wkup_m3_ipc_driver = {
 	.probe = wkup_m3_ipc_probe,
-	.remove_new = wkup_m3_ipc_remove,
+	.remove = wkup_m3_ipc_remove,
 	.driver = {
 		.name = "wkup_m3_ipc",
 		.of_match_table = wkup_m3_ipc_of_match,

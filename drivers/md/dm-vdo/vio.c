@@ -202,6 +202,7 @@ int vio_reset_bio(struct vio *vio, char *data, bio_end_io_t callback,
 	if (data == NULL)
 		return VDO_SUCCESS;
 
+	bio->bi_ioprio = 0;
 	bio->bi_io_vec = bio->bi_inline_vecs;
 	bio->bi_max_vecs = vio->block_count + 1;
 	len = VDO_BLOCK_SIZE * vio->block_count;

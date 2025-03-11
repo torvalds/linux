@@ -325,7 +325,7 @@ static struct bin_attribute *vpd_attrs[] = {
 };
 
 static umode_t vpd_attr_is_visible(struct kobject *kobj,
-				   struct bin_attribute *a, int n)
+				   const struct bin_attribute *a, int n)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 

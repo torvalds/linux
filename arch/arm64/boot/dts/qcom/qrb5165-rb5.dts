@@ -32,7 +32,7 @@
 	};
 
 	/* Fixed crystal oscillator dedicated to MCP2518FD */
-	clk40M: can-clock {
+	clk40m: can-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <40000000>;
@@ -1118,7 +1118,7 @@
 	can@0 {
 		compatible = "microchip,mcp2518fd";
 		reg = <0>;
-		clocks = <&clk40M>;
+		clocks = <&clk40m>;
 		interrupts-extended = <&tlmm 15 IRQ_TYPE_LEVEL_LOW>;
 		spi-max-frequency = <10000000>;
 		vdd-supply = <&vdc_5v>;

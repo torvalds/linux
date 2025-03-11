@@ -490,7 +490,7 @@ static void ath9k_hw_init_macaddr(struct ath_hw *ah)
 	u16 eeval;
 	static const u32 EEP_MAC[] = { EEP_MAC_LSW, EEP_MAC_MID, EEP_MAC_MSW };
 
-	/* MAC address may already be loaded via ath9k_platform_data */
+	/* MAC address may already be loaded via NVMEM */
 	if (is_valid_ether_addr(common->macaddr))
 		return;
 

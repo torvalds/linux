@@ -93,8 +93,6 @@ struct inode *gfs2_lookup_by_inum(struct gfs2_sbd *sdp, u64 no_addr,
 				  u64 no_formal_ino,
 				  unsigned int blktype);
 
-int gfs2_inode_refresh(struct gfs2_inode *ip);
-
 struct inode *gfs2_lookupi(struct inode *dir, const struct qstr *name,
 			   int is_root);
 int gfs2_permission(struct mnt_idmap *idmap,

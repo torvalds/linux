@@ -2570,7 +2570,7 @@ static struct pci_driver rhine_driver_pci = {
 
 static struct platform_driver rhine_driver_platform = {
 	.probe		= rhine_init_one_platform,
-	.remove_new	= rhine_remove_one_platform,
+	.remove		= rhine_remove_one_platform,
 	.driver = {
 		.name	= DRV_NAME,
 		.of_match_table	= rhine_of_tbl,

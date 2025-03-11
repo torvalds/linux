@@ -17,7 +17,9 @@ description: |
 
 properties:
   compatible:
-    const: qcom,gcc-sm8450
+    enum:
+      - qcom,gcc-sm8450
+      - qcom,sm8475-gcc
 
   clocks:
     items:

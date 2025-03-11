@@ -82,8 +82,7 @@
 		compatible = "adi,adv7612";
 		reg = <0x4c>, <0x50>, <0x52>, <0x54>, <0x56>, <0x58>;
 		reg-names = "main", "afe", "rep", "edid", "hdmi", "cp";
-		interrupt-parent = <&gpio3>;
-		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio3 2 IRQ_TYPE_LEVEL_LOW>;
 		default-input = <0>;
 
 		ports {
@@ -114,8 +113,8 @@
 		       0x60 0x61 0x62 0x63 0x64 0x65>;
 		reg-names = "main", "dpll", "cp", "hdmi", "edid", "repeater",
 			    "infoframe", "cbus", "cec", "sdp", "txa", "txb" ;
-		interrupt-parent = <&gpio3>;
-		interrupts = <03 IRQ_TYPE_LEVEL_LOW>, <04 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio3 3 IRQ_TYPE_LEVEL_LOW>,
+				      <&gpio3 4 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-names = "intrq1", "intrq2";
 
 		ports {

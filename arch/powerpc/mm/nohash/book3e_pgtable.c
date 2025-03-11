@@ -10,7 +10,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/dma.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 
 #include <mm/mmu_decl.h>
 

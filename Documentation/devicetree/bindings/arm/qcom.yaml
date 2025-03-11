@@ -45,6 +45,7 @@ description: |
         qcs8550
         qcm2290
         qcm6490
+        qcs9100
         qdu1000
         qrb2210
         qrb4210
@@ -76,6 +77,7 @@ description: |
         sm6375
         sm7125
         sm7225
+        sm7325
         sm8150
         sm8250
         sm8350
@@ -821,6 +823,7 @@ properties:
       - items:
           - enum:
               - lenovo,thinkpad-x13s
+              - microsoft,arcata
               - qcom,sc8280xp-crd
               - qcom,sc8280xp-qrd
           - const: qcom,sc8280xp
@@ -914,6 +917,13 @@ properties:
 
       - items:
           - enum:
+              - qcom,qcs9100-ride
+              - qcom,qcs9100-ride-r3
+          - const: qcom,qcs9100
+          - const: qcom,sa8775p
+
+      - items:
+          - enum:
               - google,cheza
               - google,cheza-rev1
               - google,cheza-rev2
@@ -991,6 +1001,11 @@ properties:
 
       - items:
           - enum:
+              - nothing,spacewar
+          - const: qcom,sm7325
+
+      - items:
+          - enum:
               - microsoft,surface-duo
               - qcom,sm8150-hdk
               - qcom,sm8150-mtp
@@ -1058,6 +1073,7 @@ properties:
       - items:
           - enum:
               - asus,vivobook-s15
+              - dell,xps13-9345
               - lenovo,yoga-slim7x
               - microsoft,romulus13
               - microsoft,romulus15

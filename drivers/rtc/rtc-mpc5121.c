@@ -398,7 +398,7 @@ static struct platform_driver mpc5121_rtc_driver = {
 		.of_match_table = of_match_ptr(mpc5121_rtc_match),
 	},
 	.probe = mpc5121_rtc_probe,
-	.remove_new = mpc5121_rtc_remove,
+	.remove = mpc5121_rtc_remove,
 };
 
 module_platform_driver(mpc5121_rtc_driver);

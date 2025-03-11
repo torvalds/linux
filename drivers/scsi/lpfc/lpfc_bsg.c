@@ -398,7 +398,11 @@ lpfc_bsg_send_mgmt_cmd(struct bsg_job *job)
 	/* in case no data is transferred */
 	bsg_reply->reply_payload_rcv_len = 0;
 
-	if (ndlp->nlp_flag & NLP_ELS_SND_MASK)
+	if (test_bit(NLP_PLOGI_SND, &ndlp->nlp_flag) ||
+	    test_bit(NLP_PRLI_SND, &ndlp->nlp_flag) ||
+	    test_bit(NLP_ADISC_SND, &ndlp->nlp_flag) ||
+	    test_bit(NLP_LOGO_SND, &ndlp->nlp_flag) ||
+	    test_bit(NLP_RNID_SND, &ndlp->nlp_flag))
 		return -ENODEV;
 
 	/* allocate our bsg tracking structure */

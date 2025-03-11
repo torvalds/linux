@@ -2258,7 +2258,7 @@ static struct platform_driver xudc_driver = {
 		.pm	= &xudc_pm_ops,
 	},
 	.probe = xudc_probe,
-	.remove_new = xudc_remove,
+	.remove = xudc_remove,
 };
 
 module_platform_driver(xudc_driver);

@@ -66,8 +66,9 @@ register unsigned long current_stack_pointer __asm__("$sp");
  * - pending work-to-be-done flags are in LSW
  * - other flags in MSW
  */
-#define TIF_SIGPENDING		1	/* signal pending */
-#define TIF_NEED_RESCHED	2	/* rescheduling necessary */
+#define TIF_NEED_RESCHED	0	/* rescheduling necessary */
+#define TIF_NEED_RESCHED_LAZY	1	/* lazy rescheduling necessary */
+#define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NOTIFY_RESUME	3	/* callback before returning to user */
 #define TIF_NOTIFY_SIGNAL	4	/* signal notifications exist */
 #define TIF_RESTORE_SIGMASK	5	/* restore signal mask in do_signal() */
@@ -88,8 +89,9 @@ register unsigned long current_stack_pointer __asm__("$sp");
 #define TIF_LBT_CTX_LIVE	20	/* LBT context must be preserved */
 #define TIF_PATCH_PENDING	21	/* pending live patching update */
 
-#define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
+#define _TIF_NEED_RESCHED_LAZY	(1<<TIF_NEED_RESCHED_LAZY)
+#define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_NOTIFY_SIGNAL	(1<<TIF_NOTIFY_SIGNAL)
 #define _TIF_NOHZ		(1<<TIF_NOHZ)

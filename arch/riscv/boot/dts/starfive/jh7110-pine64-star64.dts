@@ -18,6 +18,7 @@
 	starfive,tx-use-rgmii-clk;
 	assigned-clocks = <&aoncrg JH7110_AONCLK_GMAC0_TX>;
 	assigned-clock-parents = <&aoncrg JH7110_AONCLK_GMAC0_RMII_RTX>;
+	status = "okay";
 };
 
 &gmac1 {
@@ -37,6 +38,10 @@
 			reg = <1>;
 		};
 	};
+};
+
+&i2c0 {
+	status = "okay";
 };
 
 &pcie1 {
@@ -61,4 +66,21 @@
 	motorcomm,tx-clk-adj-enabled;
 	motorcomm,tx-clk-10-inverted;
 	motorcomm,tx-clk-100-inverted;
+};
+
+&pwm {
+	status = "okay";
+};
+
+&pwmdac {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+};
+
+&usb0 {
+	dr_mode = "peripheral";
+	status = "okay";
 };

@@ -219,9 +219,11 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 	amdgpu_ucode_ip_version_decode(adev, SDMA0_HWIP, ucode_prefix, sizeof(ucode_prefix));
 	if (instance == 0)
 		err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw,
+					   AMDGPU_UCODE_REQUIRED,
 					   "amdgpu/%s.bin", ucode_prefix);
 	else
 		err = amdgpu_ucode_request(adev, &adev->sdma.instance[instance].fw,
+					   AMDGPU_UCODE_REQUIRED,
 					   "amdgpu/%s%d.bin", ucode_prefix, instance);
 	if (err)
 		goto out;
@@ -260,6 +262,8 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev,
 					 * groups of SDMAs */
 					if ((amdgpu_ip_version(adev, SDMA0_HWIP, 0) ==
 						IP_VERSION(4, 4, 2) ||
+					     amdgpu_ip_version(adev, SDMA0_HWIP, 0) ==
+						IP_VERSION(4, 4, 4) ||
 					     amdgpu_ip_version(adev, SDMA0_HWIP, 0) ==
 						IP_VERSION(4, 4, 5)) &&
 					    adev->firmware.load_type ==
@@ -342,4 +346,117 @@ int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev)
 		ras->ras_block.ras_cb = amdgpu_sdma_process_ras_data_cb;
 
 	return 0;
+}
+
+/*
+ * debugfs for to enable/disable sdma job submission to specific core.
+ */
+#if defined(CONFIG_DEBUG_FS)
+static int amdgpu_debugfs_sdma_sched_mask_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+
+	mask = BIT_ULL(adev->sdma.num_instances) - 1;
+	if ((val & mask) == 0)
+		return -EINVAL;
+
+	for (i = 0; i < adev->sdma.num_instances; ++i) {
+		ring = &adev->sdma.instance[i].ring;
+		if (val & BIT_ULL(i))
+			ring->sched.ready = true;
+		else
+			ring->sched.ready = false;
+	}
+	/* publish sched.ready flag update effective immediately across smp */
+	smp_rmb();
+	return 0;
+}
+
+static int amdgpu_debugfs_sdma_sched_mask_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+	for (i = 0; i < adev->sdma.num_instances; ++i) {
+		ring = &adev->sdma.instance[i].ring;
+		if (ring->sched.ready)
+			mask |= 1 << i;
+	}
+
+	*val = mask;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(amdgpu_debugfs_sdma_sched_mask_fops,
+			 amdgpu_debugfs_sdma_sched_mask_get,
+			 amdgpu_debugfs_sdma_sched_mask_set, "%llx\n");
+
+#endif
+
+void amdgpu_debugfs_sdma_sched_mask_init(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+	char name[32];
+
+	if (!(adev->sdma.num_instances > 1))
+		return;
+	sprintf(name, "amdgpu_sdma_sched_mask");
+	debugfs_create_file(name, 0600, root, adev,
+			    &amdgpu_debugfs_sdma_sched_mask_fops);
+#endif
+}
+
+static ssize_t amdgpu_get_sdma_reset_mask(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (!adev)
+		return -ENODEV;
+
+	return amdgpu_show_reset_mask(buf, adev->sdma.supported_reset);
+}
+
+static DEVICE_ATTR(sdma_reset_mask, 0444,
+		   amdgpu_get_sdma_reset_mask, NULL);
+
+int amdgpu_sdma_sysfs_reset_mask_init(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (!amdgpu_gpu_recovery)
+		return r;
+
+	if (adev->sdma.num_instances) {
+		r = device_create_file(adev->dev, &dev_attr_sdma_reset_mask);
+		if (r)
+			return r;
+	}
+
+	return r;
+}
+
+void amdgpu_sdma_sysfs_reset_mask_fini(struct amdgpu_device *adev)
+{
+	if (!amdgpu_gpu_recovery)
+		return;
+
+	if (adev->dev->kobj.sd) {
+		if (adev->sdma.num_instances)
+			device_remove_file(adev->dev, &dev_attr_sdma_reset_mask);
+	}
 }

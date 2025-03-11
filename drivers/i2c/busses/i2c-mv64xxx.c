@@ -1104,7 +1104,7 @@ static const struct dev_pm_ops mv64xxx_i2c_pm_ops = {
 
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
-	.remove_new = mv64xxx_i2c_remove,
+	.remove = mv64xxx_i2c_remove,
 	.driver	= {
 		.name	= MV64XXX_I2C_CTLR_NAME,
 		.pm     = &mv64xxx_i2c_pm_ops,

@@ -43,6 +43,7 @@
 #include "xfs_parent.h"
 #include "xfs_xattr.h"
 #include "xfs_inode_util.h"
+#include "xfs_metafile.h"
 
 struct kmem_cache *xfs_inode_cache;
 
@@ -341,8 +342,7 @@ xfs_lock_inumorder(
 {
 	uint	class = 0;
 
-	ASSERT(!(lock_mode & (XFS_ILOCK_PARENT | XFS_ILOCK_RTBITMAP |
-			      XFS_ILOCK_RTSUM)));
+	ASSERT(!(lock_mode & XFS_ILOCK_PARENT));
 	ASSERT(xfs_lockdep_subclass_ok(subclass));
 
 	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL)) {
@@ -554,8 +554,20 @@ xfs_lookup(
 	if (error)
 		goto out_free_name;
 
+	/*
+	 * Fail if a directory entry in the regular directory tree points to
+	 * a metadata file.
+	 */
+	if (XFS_IS_CORRUPT(dp->i_mount, xfs_is_metadir_inode(*ipp))) {
+		xfs_fs_mark_sick(dp->i_mount, XFS_SICK_FS_METADIR);
+		error = -EFSCORRUPTED;
+		goto out_irele;
+	}
+
 	return 0;
 
+out_irele:
+	xfs_irele(*ipp);
 out_free_name:
 	if (ci_name)
 		kfree(ci_name->name);
@@ -1295,7 +1307,7 @@ xfs_inode_needs_inactive(
 		return false;
 
 	/* Metadata inodes require explicit resource cleanup. */
-	if (xfs_is_metadata_inode(ip))
+	if (xfs_is_internal_inode(ip))
 		return false;
 
 	/* Want to clean out the cow blocks if there are any. */
@@ -1388,7 +1400,7 @@ xfs_inactive(
 		goto out;
 
 	/* Metadata inodes require explicit resource cleanup. */
-	if (xfs_is_metadata_inode(ip))
+	if (xfs_is_internal_inode(ip))
 		goto out;
 
 	/* Try to clean out the cow blocks if there are any. */
@@ -1514,9 +1526,8 @@ xfs_iunlink_reload_next(
 	xfs_agino_t		next_agino)
 {
 	struct xfs_perag	*pag = agibp->b_pag;
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_inode	*next_ip = NULL;
-	xfs_ino_t		ino;
 	int			error;
 
 	ASSERT(next_agino != NULLAGINO);
@@ -1530,7 +1541,7 @@ xfs_iunlink_reload_next(
 
 	xfs_info_ratelimited(mp,
  "Found unrecovered unlinked inode 0x%x in AG 0x%x.  Initiating recovery.",
-			next_agino, pag->pag_agno);
+			next_agino, pag_agno(pag));
 
 	/*
 	 * Use an untrusted lookup just to be cautious in case the AGI has been
@@ -1538,8 +1549,8 @@ xfs_iunlink_reload_next(
 	 * but we'd rather shut down now since we're already running in a weird
 	 * situation.
 	 */
-	ino = XFS_AGINO_TO_INO(mp, pag->pag_agno, next_agino);
-	error = xfs_iget(mp, tp, ino, XFS_IGET_UNTRUSTED, 0, &next_ip);
+	error = xfs_iget(mp, tp, xfs_agino_to_ino(pag, next_agino),
+			XFS_IGET_UNTRUSTED, 0, &next_ip);
 	if (error) {
 		xfs_ag_mark_sick(pag, XFS_SICK_AG_AGI);
 		return error;
@@ -1573,7 +1584,7 @@ xfs_ifree_mark_inode_stale(
 	struct xfs_inode	*free_ip,
 	xfs_ino_t		inum)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_inode_log_item *iip;
 	struct xfs_inode	*ip;
 
@@ -3041,7 +3052,7 @@ xfs_inode_alloc_unitsize(
 /* Should we always be using copy on write for file writes? */
 bool
 xfs_is_always_cow_inode(
-	struct xfs_inode	*ip)
+	const struct xfs_inode	*ip)
 {
 	return ip->i_mount->m_always_cow && xfs_has_reflink(ip->i_mount);
 }

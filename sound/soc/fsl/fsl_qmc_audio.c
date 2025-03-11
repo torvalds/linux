@@ -838,8 +838,6 @@ static int qmc_audio_dai_parse(struct qmc_audio *qmc_audio, struct device_node *
 				qmc_dai->id, i, ret);
 			return ret;
 		}
-		dev_info(qmc_audio->dev, "dai %d QMC channel %d mode %d, nb_tx_ts %u, nb_rx_ts %u\n",
-			 qmc_dai->id, i, info.mode, info.nb_tx_ts, info.nb_rx_ts);
 
 		if (info.mode != QMC_TRANSPARENT) {
 			dev_err(qmc_audio->dev, "dai %d QMC chan %d mode %d is not QMC_TRANSPARENT\n",

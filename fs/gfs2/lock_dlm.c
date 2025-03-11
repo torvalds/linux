@@ -224,8 +224,21 @@ static int make_mode(struct gfs2_sbd *sdp, const unsigned int lmstate)
 	return -1;
 }
 
+/* Taken from fs/dlm/lock.c. */
+
+static bool middle_conversion(int cur, int req)
+{
+	return (cur == DLM_LOCK_PR && req == DLM_LOCK_CW) ||
+	       (cur == DLM_LOCK_CW && req == DLM_LOCK_PR);
+}
+
+static bool down_conversion(int cur, int req)
+{
+	return !middle_conversion(cur, req) && req < cur;
+}
+
 static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
-		      const int req)
+		      const int cur, const int req)
 {
 	u32 lkf = 0;
 
@@ -251,7 +264,14 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 
 	if (!test_bit(GLF_INITIAL, &gl->gl_flags)) {
 		lkf |= DLM_LKF_CONVERT;
-		if (test_bit(GLF_BLOCKING, &gl->gl_flags))
+
+		/*
+		 * The DLM_LKF_QUECVT flag needs to be set for "first come,
+		 * first served" semantics, but it must only be set for
+		 * "upward" lock conversions or else DLM will reject the
+		 * request as invalid.
+		 */
+		if (!down_conversion(cur, req))
 			lkf |= DLM_LKF_QUECVT;
 	}
 
@@ -271,13 +291,14 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 		     unsigned int flags)
 {
 	struct lm_lockstruct *ls = &gl->gl_name.ln_sbd->sd_lockstruct;
-	int req;
+	int cur, req;
 	u32 lkf;
 	char strname[GDLM_STRNAME_BYTES] = "";
 	int error;
 
+	cur = make_mode(gl->gl_name.ln_sbd, gl->gl_state);
 	req = make_mode(gl->gl_name.ln_sbd, req_state);
-	lkf = make_flags(gl, flags, req);
+	lkf = make_flags(gl, flags, cur, req);
 	gfs2_glstats_inc(gl, GFS2_LKS_DCOUNT);
 	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
 	if (test_bit(GLF_INITIAL, &gl->gl_flags)) {

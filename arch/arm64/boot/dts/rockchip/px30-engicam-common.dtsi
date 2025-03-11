@@ -12,7 +12,7 @@
 		mmc2 = &sdio;
 	};
 
-	vcc5v0_sys: vcc5v0-sys {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";	/* +5V */
 		regulator-always-on;
@@ -42,7 +42,7 @@
 		states = <3300000 0x0>;
 	};
 
-	vcc3v3_rf_aux_mod: vcc3v3-rf-aux-mod {
+	vcc3v3_rf_aux_mod: regulator-vcc3v3-rf-aux-mod {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_rf_aux_mod";
 		regulator-min-microvolt = <3300000>;

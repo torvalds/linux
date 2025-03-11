@@ -533,6 +533,7 @@ identifiers: *[ function/type ...]*
   Include documentation for each *function* and *type* in *source*.
   If no *function* is specified, the documentation for all functions
   and types in the *source* will be included.
+  *type* can be a struct, union, enum, or typedef identifier.
 
   Examples::
 

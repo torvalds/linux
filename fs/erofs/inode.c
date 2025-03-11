@@ -318,6 +318,7 @@ int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,
 		  unsigned int query_flags)
 {
 	struct inode *const inode = d_inode(path->dentry);
+	struct block_device *bdev = inode->i_sb->s_bdev;
 	bool compressed =
 		erofs_inode_is_data_compressed(EROFS_I(inode)->datalayout);
 
@@ -330,15 +331,14 @@ int erofs_getattr(struct mnt_idmap *idmap, const struct path *path,
 	/*
 	 * Return the DIO alignment restrictions if requested.
 	 *
-	 * In EROFS, STATX_DIOALIGN is not supported in ondemand mode and
-	 * compressed files, so in these cases we report no DIO support.
+	 * In EROFS, STATX_DIOALIGN is only supported in bdev-based mode
+	 * and uncompressed inodes, otherwise we report no DIO support.
 	 */
 	if ((request_mask & STATX_DIOALIGN) && S_ISREG(inode->i_mode)) {
 		stat->result_mask |= STATX_DIOALIGN;
-		if (!erofs_is_fscache_mode(inode->i_sb) && !compressed) {
-			stat->dio_mem_align =
-				bdev_logical_block_size(inode->i_sb->s_bdev);
-			stat->dio_offset_align = stat->dio_mem_align;
+		if (bdev && !compressed) {
+			stat->dio_mem_align = bdev_dma_alignment(bdev) + 1;
+			stat->dio_offset_align = bdev_logical_block_size(bdev);
 		}
 	}
 	generic_fillattr(idmap, request_mask, inode, stat);

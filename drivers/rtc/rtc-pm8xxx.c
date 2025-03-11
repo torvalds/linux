@@ -537,7 +537,7 @@ static void pm8xxx_remove(struct platform_device *pdev)
 
 static struct platform_driver pm8xxx_rtc_driver = {
 	.probe		= pm8xxx_rtc_probe,
-	.remove_new	= pm8xxx_remove,
+	.remove		= pm8xxx_remove,
 	.driver	= {
 		.name		= "rtc-pm8xxx",
 		.of_match_table	= pm8xxx_id_table,

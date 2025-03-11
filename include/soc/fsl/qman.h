@@ -242,7 +242,7 @@ static inline void qm_sg_entry_set_f(struct qm_sg_entry *sg, int len)
 
 static inline int qm_sg_entry_get_off(const struct qm_sg_entry *sg)
 {
-	return be32_to_cpu(sg->offset) & QM_SG_OFF_MASK;
+	return be16_to_cpu(sg->offset) & QM_SG_OFF_MASK;
 }
 
 /* "Frame Dequeue Response" */

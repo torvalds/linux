@@ -387,7 +387,7 @@ static struct platform_driver intel_vbtn_pl_driver = {
 		.pm = &intel_vbtn_pm_ops,
 	},
 	.probe = intel_vbtn_probe,
-	.remove_new = intel_vbtn_remove,
+	.remove = intel_vbtn_remove,
 };
 
 static acpi_status __init

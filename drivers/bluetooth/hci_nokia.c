@@ -501,7 +501,7 @@ static int nokia_close(struct hci_uart *hu)
 	return 0;
 }
 
-/* Enqueue frame for transmittion (padding, crc, etc) */
+/* Enqueue frame for transmission (padding, crc, etc) */
 static int nokia_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 {
 	struct nokia_bt_dev *btdev = hu->priv;

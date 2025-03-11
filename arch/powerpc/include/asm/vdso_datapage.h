@@ -28,8 +28,9 @@ struct vdso_arch_data {
 	__u32 syscall_map[SYSCALL_MAP_SIZE];	/* Map of syscalls  */
 	__u32 compat_syscall_map[SYSCALL_MAP_SIZE];	/* Map of compat syscalls */
 
-	struct vdso_data data[CS_BASES];
 	struct vdso_rng_data rng_data;
+
+	struct vdso_data data[CS_BASES] __aligned(1 << CONFIG_PAGE_SHIFT);
 };
 
 #else /* CONFIG_PPC64 */
@@ -38,8 +39,9 @@ struct vdso_arch_data {
 	__u64 tb_ticks_per_sec;		/* Timebase tics / sec */
 	__u32 syscall_map[SYSCALL_MAP_SIZE]; /* Map of syscalls */
 	__u32 compat_syscall_map[0];	/* No compat syscalls on PPC32 */
-	struct vdso_data data[CS_BASES];
 	struct vdso_rng_data rng_data;
+
+	struct vdso_data data[CS_BASES] __aligned(1 << CONFIG_PAGE_SHIFT);
 };
 
 #endif /* CONFIG_PPC64 */
@@ -48,28 +50,16 @@ extern struct vdso_arch_data *vdso_data;
 
 #else /* __ASSEMBLY__ */
 
-.macro get_datapage ptr
+.macro get_datapage ptr offset=0
 	bcl	20, 31, .+4
 999:
 	mflr	\ptr
-	addis	\ptr, \ptr, (_vdso_datapage - 999b)@ha
-	addi	\ptr, \ptr, (_vdso_datapage - 999b)@l
+	addis	\ptr, \ptr, (_vdso_datapage - 999b + \offset)@ha
+	addi	\ptr, \ptr, (_vdso_datapage - 999b + \offset)@l
 .endm
 
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
-
-.macro get_realdatapage ptr scratch
-	get_datapage \ptr
-#ifdef CONFIG_TIME_NS
-	lwz	\scratch, VDSO_CLOCKMODE_OFFSET(\ptr)
-	xoris	\scratch, \scratch, VDSO_CLOCKMODE_TIMENS@h
-	xori	\scratch, \scratch, VDSO_CLOCKMODE_TIMENS@l
-	cntlzw	\scratch, \scratch
-	rlwinm	\scratch, \scratch, PAGE_SHIFT - 5, 1 << PAGE_SHIFT
-	add	\ptr, \ptr, \scratch
-#endif
-.endm
 
 #endif /* __ASSEMBLY__ */
 

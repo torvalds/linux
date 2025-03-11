@@ -67,7 +67,7 @@ xchk_iscan_mask_skipino(
 	xfs_agnumber_t		skip_agno = XFS_INO_TO_AGNO(mp, iscan->skip_ino);
 	xfs_agnumber_t		skip_agino = XFS_INO_TO_AGINO(mp, iscan->skip_ino);
 
-	if (pag->pag_agno != skip_agno)
+	if (pag_agno(pag) != skip_agno)
 		return;
 	if (skip_agino < rec->ir_startino)
 		return;
@@ -95,7 +95,7 @@ xchk_iscan_find_next(
 	struct xfs_btree_cur	*cur;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_trans	*tp = sc->tp;
-	xfs_agnumber_t		agno = pag->pag_agno;
+	xfs_agnumber_t		agno = pag_agno(pag);
 	xfs_agino_t		lastino = NULLAGINO;
 	xfs_agino_t		first, last;
 	xfs_agino_t		agino = *cursor;

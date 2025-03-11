@@ -396,7 +396,7 @@ extern const struct attribute_group *ahci_sdev_groups[];
 	.shost_groups		= ahci_shost_groups,			\
 	.sdev_groups		= ahci_sdev_groups,			\
 	.change_queue_depth     = ata_scsi_change_queue_depth,		\
-	.tag_alloc_policy       = BLK_TAG_ALLOC_RR,             	\
+	.tag_alloc_policy_rr	= true,					\
 	.device_configure	= ata_scsi_device_configure
 
 extern struct ata_port_operations ahci_ops;

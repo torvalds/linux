@@ -57,7 +57,7 @@
 	widgets = "Speaker", "Speaker",
 		  "Headphone", "Headphones";
 	pin-switches = "Speaker", "Headphones";
-	audio-routing =	"Speaker", "Speaker Amp OUT",
+	audio-routing = "Speaker", "Speaker Amp OUT",
 			"Speaker Amp IN", "HPH_R",
 			"Headphones", "Headphones Switch OUTL",
 			"Headphones", "Headphones Switch OUTR",

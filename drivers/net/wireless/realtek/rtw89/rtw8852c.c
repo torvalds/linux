@@ -203,7 +203,7 @@ static void rtw8852c_ctrl_tx_path_tmac(struct rtw89_dev *rtwdev, u8 tx_path,
 static int rtw8852c_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
-	u32 ret;
+	int ret;
 
 	val32 = rtw89_read32_mask(rtwdev, R_AX_SYS_STATUS1, B_AX_PAD_HCI_SEL_V2_MASK);
 	if (val32 == MAC_AX_HCI_SEL_PCIE_USB)
@@ -324,7 +324,7 @@ static int rtw8852c_pwr_on_func(struct rtw89_dev *rtwdev)
 static int rtw8852c_pwr_off_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
-	u32 ret;
+	int ret;
 
 	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_ANAPAR_WL, XTAL_SI_RFC2RF,
 				      XTAL_SI_RFC2RF);
@@ -1846,10 +1846,11 @@ static void rtw8852c_rfk_init(struct rtw89_dev *rtwdev)
 	rtw8852c_rx_dck(rtwdev, RTW89_PHY_0, false);
 }
 
-static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
+static void rtw8852c_rfk_channel(struct rtw89_dev *rtwdev,
+				 struct rtw89_vif_link *rtwvif_link)
 {
-	enum rtw89_chanctx_idx chanctx_idx = rtwvif->chanctx_idx;
-	enum rtw89_phy_idx phy_idx = rtwvif->phy_idx;
+	enum rtw89_chanctx_idx chanctx_idx = rtwvif_link->chanctx_idx;
+	enum rtw89_phy_idx phy_idx = rtwvif_link->phy_idx;
 
 	rtw8852c_mcc_get_ch_info(rtwdev, phy_idx);
 	rtw8852c_rx_dck(rtwdev, phy_idx, false);
@@ -1866,10 +1867,11 @@ static void rtw8852c_rfk_band_changed(struct rtw89_dev *rtwdev,
 	rtw8852c_tssi_scan(rtwdev, phy_idx, chan);
 }
 
-static void rtw8852c_rfk_scan(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+static void rtw8852c_rfk_scan(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
 			      bool start)
 {
-	rtw8852c_wifi_scan_notify(rtwdev, start, rtwvif->phy_idx);
+	rtw8852c_wifi_scan_notify(rtwdev, start, rtwvif_link->phy_idx);
 }
 
 static void rtw8852c_rfk_track(struct rtw89_dev *rtwdev)
@@ -2945,6 +2947,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.wde_qempty_acq_grpnum	= 16,
 	.wde_qempty_mgq_grpsel	= 16,
 	.rf_base_addr		= {0xe000, 0xf000},
+	.thermal_th		= {0x32, 0x35},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
 	.bb_table		= &rtw89_8852c_phy_bb_table,

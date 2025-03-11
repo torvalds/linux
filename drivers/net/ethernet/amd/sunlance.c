@@ -1514,7 +1514,7 @@ static struct platform_driver sunlance_sbus_driver = {
 		.of_match_table = sunlance_sbus_match,
 	},
 	.probe		= sunlance_sbus_probe,
-	.remove_new	= sunlance_sbus_remove,
+	.remove		= sunlance_sbus_remove,
 };
 
 module_platform_driver(sunlance_sbus_driver);

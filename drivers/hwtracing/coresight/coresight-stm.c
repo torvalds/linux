@@ -1036,7 +1036,7 @@ MODULE_DEVICE_TABLE(acpi, stm_acpi_ids);
 
 static struct platform_driver stm_platform_driver = {
 	.probe	= stm_platform_probe,
-	.remove_new = stm_platform_remove,
+	.remove = stm_platform_remove,
 	.driver	= {
 		.name			= "coresight-stm-platform",
 		.acpi_match_table	= ACPI_PTR(stm_acpi_ids),

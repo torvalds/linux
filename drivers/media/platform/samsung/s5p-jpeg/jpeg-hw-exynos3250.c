@@ -427,11 +427,6 @@ void exynos3250_jpeg_clear_int_status(void __iomem *regs,
 	writel(value, regs + EXYNOS3250_JPGINTST);
 }
 
-unsigned int exynos3250_jpeg_operating(void __iomem *regs)
-{
-	return readl(regs + S5P_JPGOPR) & EXYNOS3250_JPGOPR_MASK;
-}
-
 unsigned int exynos3250_jpeg_compressed_size(void __iomem *regs)
 {
 	return readl(regs + EXYNOS3250_JPGCNT) & EXYNOS3250_JPGCNT_MASK;

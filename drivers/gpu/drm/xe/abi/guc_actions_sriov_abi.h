@@ -502,6 +502,44 @@
 #define VF2GUC_VF_RESET_RESPONSE_MSG_0_MBZ		GUC_HXG_RESPONSE_MSG_0_DATA0
 
 /**
+ * DOC: VF2GUC_NOTIFY_RESFIX_DONE
+ *
+ * This action is used by VF to notify the GuC that the VF KMD has completed
+ * post-migration recovery steps.
+ *
+ * This message must be sent as `MMIO HXG Message`_.
+ *
+ *  +---+-------+--------------------------------------------------------------+
+ *  |   | Bits  | Description                                                  |
+ *  +===+=======+==============================================================+
+ *  | 0 |    31 | ORIGIN = GUC_HXG_ORIGIN_HOST_                                |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 30:28 | TYPE = GUC_HXG_TYPE_REQUEST_                                 |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 27:16 | DATA0 = MBZ                                                  |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   |  15:0 | ACTION = _`GUC_ACTION_VF2GUC_NOTIFY_RESFIX_DONE` = 0x5508    |
+ *  +---+-------+--------------------------------------------------------------+
+ *
+ *  +---+-------+--------------------------------------------------------------+
+ *  |   | Bits  | Description                                                  |
+ *  +===+=======+==============================================================+
+ *  | 0 |    31 | ORIGIN = GUC_HXG_ORIGIN_GUC_                                 |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 30:28 | TYPE = GUC_HXG_TYPE_RESPONSE_SUCCESS_                        |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   |  27:0 | DATA0 = MBZ                                                  |
+ *  +---+-------+--------------------------------------------------------------+
+ */
+#define GUC_ACTION_VF2GUC_NOTIFY_RESFIX_DONE		0x5508u
+
+#define VF2GUC_NOTIFY_RESFIX_DONE_REQUEST_MSG_LEN	GUC_HXG_REQUEST_MSG_MIN_LEN
+#define VF2GUC_NOTIFY_RESFIX_DONE_REQUEST_MSG_0_MBZ	GUC_HXG_REQUEST_MSG_0_DATA0
+
+#define VF2GUC_NOTIFY_RESFIX_DONE_RESPONSE_MSG_LEN	GUC_HXG_RESPONSE_MSG_MIN_LEN
+#define VF2GUC_NOTIFY_RESFIX_DONE_RESPONSE_MSG_0_MBZ	GUC_HXG_RESPONSE_MSG_0_DATA0
+
+/**
  * DOC: VF2GUC_QUERY_SINGLE_KLV
  *
  * This action is used by VF to query value of the single KLV data.
@@ -556,5 +594,66 @@
 #define VF2GUC_QUERY_SINGLE_KLV_RESPONSE_MSG_1_VALUE32	GUC_HXG_REQUEST_MSG_n_DATAn
 #define VF2GUC_QUERY_SINGLE_KLV_RESPONSE_MSG_2_VALUE64	GUC_HXG_REQUEST_MSG_n_DATAn
 #define VF2GUC_QUERY_SINGLE_KLV_RESPONSE_MSG_3_VALUE96	GUC_HXG_REQUEST_MSG_n_DATAn
+
+/**
+ * DOC: PF2GUC_SAVE_RESTORE_VF
+ *
+ * This message is used by the PF to migrate VF info state maintained by the GuC.
+ *
+ * This message must be sent as `CTB HXG Message`_.
+ *
+ * Available since GuC version 70.25.0
+ *
+ *  +---+-------+--------------------------------------------------------------+
+ *  |   | Bits  | Description                                                  |
+ *  +===+=======+==============================================================+
+ *  | 0 |    31 | ORIGIN = GUC_HXG_ORIGIN_HOST_                                |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 30:28 | TYPE = GUC_HXG_TYPE_REQUEST_                                 |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 27:16 | DATA0 = **OPCODE** - operation to take:                      |
+ *  |   |       |                                                              |
+ *  |   |       |   - _`GUC_PF_OPCODE_VF_SAVE` = 0                             |
+ *  |   |       |   - _`GUC_PF_OPCODE_VF_RESTORE` = 1                          |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   |  15:0 | ACTION = _`GUC_ACTION_PF2GUC_SAVE_RESTORE_VF` = 0x550B       |
+ *  +---+-------+--------------------------------------------------------------+
+ *  | 1 |  31:0 | **VFID** - VF identifier                                     |
+ *  +---+-------+--------------------------------------------------------------+
+ *  | 2 |  31:0 | **ADDR_LO** - lower 32-bits of GGTT offset to the buffer     |
+ *  |   |       | where the VF info will be save to or restored from.          |
+ *  +---+-------+--------------------------------------------------------------+
+ *  | 3 |  31:0 | **ADDR_HI** - upper 32-bits of GGTT offset to the buffer     |
+ *  |   |       | where the VF info will be save to or restored from.          |
+ *  +---+-------+--------------------------------------------------------------+
+ *  | 4 |  27:0 | **SIZE** - size of the buffer (in dwords)                    |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 31:28 | MBZ                                                          |
+ *  +---+-------+--------------------------------------------------------------+
+ *
+ *  +---+-------+--------------------------------------------------------------+
+ *  |   | Bits  | Description                                                  |
+ *  +===+=======+==============================================================+
+ *  | 0 |    31 | ORIGIN = GUC_HXG_ORIGIN_GUC_                                 |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 30:28 | TYPE = GUC_HXG_TYPE_RESPONSE_SUCCESS_                        |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   |  27:0 | DATA0 = **USED** - size of used buffer space (in dwords)     |
+ *  +---+-------+--------------------------------------------------------------+
+ */
+#define GUC_ACTION_PF2GUC_SAVE_RESTORE_VF		0x550Bu
+
+#define PF2GUC_SAVE_RESTORE_VF_REQUEST_MSG_LEN		(GUC_HXG_EVENT_MSG_MIN_LEN + 4u)
+#define PF2GUC_SAVE_RESTORE_VF_REQUEST_MSG_0_OPCODE	GUC_HXG_EVENT_MSG_0_DATA0
+#define   GUC_PF_OPCODE_VF_SAVE				0u
+#define   GUC_PF_OPCODE_VF_RESTORE			1u
+#define PF2GUC_SAVE_RESTORE_VF_REQUEST_MSG_1_VFID	GUC_HXG_EVENT_MSG_n_DATAn
+#define PF2GUC_SAVE_RESTORE_VF_REQUEST_MSG_2_ADDR_LO	GUC_HXG_EVENT_MSG_n_DATAn
+#define PF2GUC_SAVE_RESTORE_VF_REQUEST_MSG_3_ADDR_HI	GUC_HXG_EVENT_MSG_n_DATAn
+#define PF2GUC_SAVE_RESTORE_VF_REQUEST_MSG_4_SIZE	(0xfffffffu << 0)
+#define PF2GUC_SAVE_RESTORE_VF_REQUEST_MSG_4_MBZ	(0xfu << 28)
+
+#define PF2GUC_SAVE_RESTORE_VF_RESPONSE_MSG_LEN		GUC_HXG_RESPONSE_MSG_MIN_LEN
+#define PF2GUC_SAVE_RESTORE_VF_RESPONSE_MSG_0_USED	GUC_HXG_RESPONSE_MSG_0_DATA0
 
 #endif

@@ -300,8 +300,8 @@ __mesh_path_lookup_by_idx(struct mesh_table *tbl, int idx)
 
 /**
  * mesh_path_lookup_by_idx - look up a path in the mesh path table by its index
- * @idx: index
  * @sdata: local subif, or NULL for all entries
+ * @idx: index
  *
  * Returns: pointer to the mesh path structure, or NULL if not found.
  *
@@ -315,8 +315,8 @@ mesh_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
 
 /**
  * mpp_path_lookup_by_idx - look up a path in the proxy path table by its index
- * @idx: index
  * @sdata: local subif, or NULL for all entries
+ * @idx: index
  *
  * Returns: pointer to the proxy path structure, or NULL if not found.
  *
@@ -670,8 +670,8 @@ void mesh_fast_tx_flush_addr(struct ieee80211_sub_if_data *sdata,
 
 /**
  * mesh_path_add - allocate and add a new path to the mesh path table
- * @dst: destination address of the path (ETH_ALEN length)
  * @sdata: local subif
+ * @dst: destination address of the path (ETH_ALEN length)
  *
  * Returns: 0 on success
  *
@@ -916,8 +916,8 @@ static int table_path_del(struct mesh_table *tbl,
 /**
  * mesh_path_del - delete a mesh path from the table
  *
- * @addr: dst address (ETH_ALEN length)
  * @sdata: local subif
+ * @addr: dst address (ETH_ALEN length)
  *
  * Returns: 0 if successful
  */
@@ -996,8 +996,8 @@ int mesh_path_send_to_gates(struct mesh_path *mpath)
 /**
  * mesh_path_discard_frame - discard a frame whose path could not be resolved
  *
- * @skb: frame to discard
  * @sdata: network subif the frame was to be sent through
+ * @skb: frame to discard
  *
  * Locking: the function must me called within a rcu_read_lock region
  */

@@ -29,12 +29,37 @@
 	};
 };
 
+/*
+ * rst_usb_hub_hog and sel_usb_hub_hog have property 'output-high',
+ * dt overlay don't support /delete-property/. Both 'output-low' and
+ * 'output-high' will be exist under hog nodes if overlay file set
+ * 'output-low'. Workaround is disable these hog and create new hog with
+ * 'output-low'.
+ */
+
 &rst_usb_hub_hog {
-	output-low;
+	status = "disabled";
+};
+
+&expander0 {
+	rst-usb-low-hub-hog {
+		gpio-hog;
+		gpios = <13 0>;
+		output-low;
+		line-name = "RST_USB_HUB#";
+	};
 };
 
 &sel_usb_hub_hog {
-	output-low;
+	status = "disabled";
+};
+
+&gpio2 {
+	sel-usb-low-hub-hog {
+		gpio-hog;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
 };
 
 &usbotg1 {

@@ -1285,10 +1285,8 @@ static int f_midi2_set_alt(struct usb_function *fn, unsigned int intf,
 
 	if (alt == 0)
 		op_mode = MIDI_OP_MODE_MIDI1;
-	else if (alt == 1)
-		op_mode = MIDI_OP_MODE_MIDI2;
 	else
-		op_mode = MIDI_OP_MODE_UNSET;
+		op_mode = MIDI_OP_MODE_MIDI2;
 
 	if (midi2->operation_mode == op_mode)
 		return 0;
@@ -1593,7 +1591,11 @@ static int f_midi2_create_card(struct f_midi2 *midi2)
 			fb->info.midi_ci_version = b->midi_ci_version;
 			fb->info.ui_hint = reverse_dir(b->ui_hint);
 			fb->info.sysex8_streams = b->sysex8_streams;
-			fb->info.flags |= b->is_midi1;
+			if (b->is_midi1 < 2)
+				fb->info.flags |= b->is_midi1;
+			else
+				fb->info.flags |= SNDRV_UMP_BLOCK_IS_MIDI1 |
+					SNDRV_UMP_BLOCK_IS_LOWSPEED;
 			strscpy(fb->info.name, ump_fb_name(b),
 				sizeof(fb->info.name));
 		}

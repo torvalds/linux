@@ -465,7 +465,7 @@ MODULE_DEVICE_TABLE(of, pm8941_pwr_key_id_table);
 
 static struct platform_driver pm8941_pwrkey_driver = {
 	.probe = pm8941_pwrkey_probe,
-	.remove_new = pm8941_pwrkey_remove,
+	.remove = pm8941_pwrkey_remove,
 	.driver = {
 		.name = "pm8941-pwrkey",
 		.pm = pm_sleep_ptr(&pm8941_pwr_key_pm_ops),

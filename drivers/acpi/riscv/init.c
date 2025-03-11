@@ -7,7 +7,7 @@
 #include <linux/acpi.h>
 #include "init.h"
 
-void __init acpi_riscv_init(void)
+void __init acpi_arch_init(void)
 {
 	riscv_acpi_init_gsi_mapping();
 }

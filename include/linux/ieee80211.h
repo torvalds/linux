@@ -1445,6 +1445,8 @@ struct ieee80211_mgmt {
 					__le16 status;
 					__le16 capab;
 					__le16 timeout;
+					/* followed by BA Extension */
+					u8 variable[];
 				} __packed addba_resp;
 				struct{
 					u8 action_code;

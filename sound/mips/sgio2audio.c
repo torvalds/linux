@@ -917,8 +917,8 @@ static void snd_sgio2audio_remove(struct platform_device *pdev)
 
 static struct platform_driver sgio2audio_driver = {
 	.probe	= snd_sgio2audio_probe,
-	.remove_new = snd_sgio2audio_remove,
-	.driver = {
+	.remove	= snd_sgio2audio_remove,
+	.driver	= {
 		.name	= "sgio2audio",
 	}
 };

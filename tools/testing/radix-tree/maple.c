@@ -462,6 +462,28 @@ static noinline void __init check_new_node(struct maple_tree *mt)
 	MT_BUG_ON(mt, mas_allocated(&mas) != 10 + MAPLE_ALLOC_SLOTS - 1);
 	mas_destroy(&mas);
 
+	mas.node = MA_ERROR(-ENOMEM);
+	mas_node_count(&mas, MAPLE_ALLOC_SLOTS + 1); /* Request */
+	mas_nomem(&mas, GFP_KERNEL); /* Fill request */
+	MT_BUG_ON(mt, mas_allocated(&mas) != MAPLE_ALLOC_SLOTS + 1);
+	mas.node = MA_ERROR(-ENOMEM);
+	mas_node_count(&mas, MAPLE_ALLOC_SLOTS * 2 + 2); /* Request */
+	mas_nomem(&mas, GFP_KERNEL); /* Fill request */
+	mas.status = ma_start;
+	MT_BUG_ON(mt, mas_allocated(&mas) != MAPLE_ALLOC_SLOTS * 2 + 2);
+	mas_destroy(&mas);
+
+	mas.node = MA_ERROR(-ENOMEM);
+	mas_node_count(&mas, MAPLE_ALLOC_SLOTS * 2 + 1); /* Request */
+	mas_nomem(&mas, GFP_KERNEL); /* Fill request */
+	MT_BUG_ON(mt, mas_allocated(&mas) != MAPLE_ALLOC_SLOTS * 2 + 1);
+	mas.node = MA_ERROR(-ENOMEM);
+	mas_node_count(&mas, MAPLE_ALLOC_SLOTS * 3 + 2); /* Request */
+	mas_nomem(&mas, GFP_KERNEL); /* Fill request */
+	mas.status = ma_start;
+	MT_BUG_ON(mt, mas_allocated(&mas) != MAPLE_ALLOC_SLOTS * 3 + 2);
+	mas_destroy(&mas);
+
 	mtree_unlock(mt);
 }
 

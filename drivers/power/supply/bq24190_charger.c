@@ -567,6 +567,7 @@ static int bq24190_set_otg_vbus(struct bq24190_dev_info *bdi, bool enable)
 
 static int bq24296_set_otg_vbus(struct bq24190_dev_info *bdi, bool enable)
 {
+	union power_supply_propval val = { .intval = bdi->charge_type };
 	int ret;
 
 	ret = pm_runtime_resume_and_get(bdi->dev);
@@ -587,13 +588,18 @@ static int bq24296_set_otg_vbus(struct bq24190_dev_info *bdi, bool enable)
 
 		ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
 					 BQ24296_REG_POC_OTG_CONFIG_MASK,
-					 BQ24296_REG_POC_CHG_CONFIG_SHIFT,
+					 BQ24296_REG_POC_OTG_CONFIG_SHIFT,
 					 BQ24296_REG_POC_OTG_CONFIG_OTG);
-	} else
+	} else {
 		ret = bq24190_write_mask(bdi, BQ24190_REG_POC,
 					 BQ24296_REG_POC_OTG_CONFIG_MASK,
-					 BQ24296_REG_POC_CHG_CONFIG_SHIFT,
+					 BQ24296_REG_POC_OTG_CONFIG_SHIFT,
 					 BQ24296_REG_POC_OTG_CONFIG_DISABLE);
+		if (ret < 0)
+			goto out;
+
+		ret = bq24190_charger_set_charge_type(bdi, &val);
+	}
 
 out:
 	pm_runtime_mark_last_busy(bdi->dev);

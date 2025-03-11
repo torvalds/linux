@@ -194,22 +194,18 @@ static void powermate_sync_state(struct powermate_device *pm)
 static void powermate_config_complete(struct urb *urb)
 {
 	struct powermate_device *pm = urb->context;
-	unsigned long flags;
 
 	if (urb->status)
 		printk(KERN_ERR "powermate: config urb returned %d\n", urb->status);
 
-	spin_lock_irqsave(&pm->lock, flags);
+	guard(spinlock_irqsave)(&pm->lock);
 	powermate_sync_state(pm);
-	spin_unlock_irqrestore(&pm->lock, flags);
 }
 
 /* Set the LED up as described and begin the sync with the hardware if required */
 static void powermate_pulse_led(struct powermate_device *pm, int static_brightness, int pulse_speed,
 				int pulse_table, int pulse_asleep, int pulse_awake)
 {
-	unsigned long flags;
-
 	if (pulse_speed < 0)
 		pulse_speed = 0;
 	if (pulse_table < 0)
@@ -222,8 +218,7 @@ static void powermate_pulse_led(struct powermate_device *pm, int static_brightne
 	pulse_asleep = !!pulse_asleep;
 	pulse_awake = !!pulse_awake;
 
-
-	spin_lock_irqsave(&pm->lock, flags);
+	guard(spinlock_irqsave)(&pm->lock);
 
 	/* mark state updates which are required */
 	if (static_brightness != pm->static_brightness) {
@@ -245,8 +240,6 @@ static void powermate_pulse_led(struct powermate_device *pm, int static_brightne
 	}
 
 	powermate_sync_state(pm);
-
-	spin_unlock_irqrestore(&pm->lock, flags);
 }
 
 /* Callback from the Input layer when an event arrives from userspace to configure the LED */

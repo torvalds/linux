@@ -12,7 +12,6 @@
 
 #define DRV_NAME_RTSX_PCI		"rtsx_pci"
 #define DRV_NAME_RTSX_PCI_SDMMC		"rtsx_pci_sdmmc"
-#define DRV_NAME_RTSX_PCI_MS		"rtsx_pci_ms"
 
 #define RTSX_REG_PAIR(addr, val)	(((u32)(addr) << 16) | (u8)(val))
 

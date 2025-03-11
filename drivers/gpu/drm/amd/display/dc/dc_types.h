@@ -76,7 +76,6 @@ struct dc_perf_trace {
 	unsigned long last_entry_write;
 };
 
-#define MAX_SURFACE_NUM 6
 #define NUM_PIXEL_FORMATS 10
 
 enum tiling_mode {
@@ -179,6 +178,9 @@ struct dc_panel_patch {
 	unsigned int mst_start_top_delay;
 	unsigned int remove_sink_ext_caps;
 	unsigned int disable_colorimetry;
+	uint8_t blankstream_before_otg_off;
+	bool oled_optimize_display_on;
+	unsigned int force_mst_blocked_discovery;
 };
 
 struct dc_edid_caps {
@@ -872,6 +874,14 @@ struct dsc_dec_dpcd_caps {
 	bool is_dp; /* Decoded format */
 };
 
+struct hblank_expansion_dpcd_caps {
+	bool expansion_supported;
+	bool reduction_supported;
+	bool buffer_unit_bytes; /* True: buffer size in bytes. False: buffer size in pixels*/
+	bool buffer_per_port; /* True: buffer size per port. False: buffer size per lane*/
+	uint32_t buffer_size; /* Add 1 to value and multiply by 32 */
+};
+
 struct dc_golden_table {
 	uint16_t dc_golden_table_ver;
 	uint32_t aux_dphy_rx_control0_val;
@@ -922,10 +932,23 @@ struct display_endpoint_id {
 	enum display_endpoint_type ep_type;
 };
 
+enum backlight_control_type {
+	BACKLIGHT_CONTROL_PWM = 0,
+	BACKLIGHT_CONTROL_VESA_AUX = 1,
+	BACKLIGHT_CONTROL_AMD_AUX = 2,
+};
+
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
+#define MAX_CRC_WINDOW_NUM	2
+
 struct otg_phy_mux {
 	uint8_t phy_output_num;
 	uint8_t otg_output_num;
+};
+
+struct crc_window {
+	struct rect rect;
+	bool enable;
 };
 #endif
 
@@ -1043,10 +1066,13 @@ enum replay_FW_Message_type {
 
 union replay_error_status {
 	struct {
-		unsigned char STATE_TRANSITION_ERROR    :1;
-		unsigned char LINK_CRC_ERROR            :1;
-		unsigned char DESYNC_ERROR              :1;
-		unsigned char RESERVED                  :5;
+		unsigned int STATE_TRANSITION_ERROR     :1;
+		unsigned int LINK_CRC_ERROR             :1;
+		unsigned int DESYNC_ERROR               :1;
+		unsigned int RESERVED_3                 :1;
+		unsigned int LOW_RR_INCORRECT_VTOTAL    :1;
+		unsigned int NO_DOUBLED_RR              :1;
+		unsigned int RESERVED_6_7               :2;
 	} bits;
 	unsigned char raw;
 };
@@ -1093,6 +1119,8 @@ struct replay_config {
 	union replay_error_status replay_error_status;
 	/* Replay Low Hz enable Options */
 	union replay_low_refresh_rate_enable_options low_rr_enable_options;
+	/* Replay coasting vtotal is within low refresh rate range. */
+	bool low_rr_activated;
 };
 
 /* Replay feature flags*/
@@ -1117,10 +1145,12 @@ struct replay_settings {
 	uint32_t defer_update_coasting_vtotal_table[PR_COASTING_TYPE_NUM];
 	/* Maximum link off frame count */
 	uint32_t link_off_frame_count;
-	/* Replay pseudo vtotal for abm + ips on full screen video which can improve ips residency */
-	uint16_t abm_with_ips_on_full_screen_video_pseudo_vtotal;
+	/* Replay pseudo vtotal for low refresh rate*/
+	uint16_t low_rr_full_screen_video_pseudo_vtotal;
 	/* Replay last pseudo vtotal set to DMUB */
 	uint16_t last_pseudo_vtotal;
+	/* Replay desync error */
+	uint32_t replay_desync_error_fail_count;
 };
 
 /* To split out "global" and "per-panel" config settings.
@@ -1293,6 +1323,33 @@ struct dc_commit_streams_params {
 	struct dc_stream_state **streams;
 	uint8_t stream_count;
 	enum dc_power_source_type power_source;
+};
+
+struct set_backlight_level_params {
+	/* backlight in pwm */
+	uint32_t backlight_pwm_u16_16;
+	/* brightness ramping */
+	uint32_t frame_ramp;
+	/* backlight control type
+	 * 0: PWM backlight control
+	 * 1: VESA AUX backlight control
+	 * 2: AMD AUX backlight control
+	 */
+	enum backlight_control_type control_type;
+	/* backlight in millinits */
+	uint32_t backlight_millinits;
+	/* transition time in ms */
+	uint32_t transition_time_in_ms;
+	/* minimum luminance in nits */
+	uint32_t min_luminance;
+	/* maximum luminance in nits */
+	uint32_t max_luminance;
+	/* minimum backlight in pwm */
+	uint32_t min_backlight_pwm;
+	/* maximum backlight in pwm */
+	uint32_t max_backlight_pwm;
+	/* AUX HW instance */
+	uint8_t aux_inst;
 };
 
 #endif /* DC_TYPES_H_ */

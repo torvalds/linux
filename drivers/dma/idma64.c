@@ -693,7 +693,7 @@ static const struct dev_pm_ops idma64_dev_pm_ops = {
 
 static struct platform_driver idma64_platform_driver = {
 	.probe		= idma64_platform_probe,
-	.remove_new	= idma64_platform_remove,
+	.remove		= idma64_platform_remove,
 	.driver = {
 		.name	= LPSS_IDMA64_DRIVER_NAME,
 		.pm	= &idma64_dev_pm_ops,

@@ -38,6 +38,7 @@ enum testunit_regs {
 
 enum testunit_flags {
 	TU_FLAG_IN_PROCESS,
+	TU_FLAG_NACK,
 };
 
 struct testunit_data {
@@ -90,8 +91,10 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 
 	switch (event) {
 	case I2C_SLAVE_WRITE_REQUESTED:
-		if (test_bit(TU_FLAG_IN_PROCESS, &tu->flags))
-			return -EBUSY;
+		if (test_bit(TU_FLAG_IN_PROCESS | TU_FLAG_NACK, &tu->flags)) {
+			ret = -EBUSY;
+			break;
+		}
 
 		memset(tu->regs, 0, TU_NUM_REGS);
 		tu->reg_idx = 0;
@@ -99,8 +102,10 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 		break;
 
 	case I2C_SLAVE_WRITE_RECEIVED:
-		if (test_bit(TU_FLAG_IN_PROCESS, &tu->flags))
-			return -EBUSY;
+		if (test_bit(TU_FLAG_IN_PROCESS | TU_FLAG_NACK, &tu->flags)) {
+			ret = -EBUSY;
+			break;
+		}
 
 		if (tu->reg_idx < TU_NUM_REGS)
 			tu->regs[tu->reg_idx] = *val;
@@ -129,6 +134,8 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 		 * here because we still need them in the workqueue!
 		 */
 		tu->reg_idx = 0;
+
+		clear_bit(TU_FLAG_NACK, &tu->flags);
 		break;
 
 	case I2C_SLAVE_READ_PROCESSED:
@@ -150,6 +157,10 @@ static int i2c_slave_testunit_slave_cb(struct i2c_client *client,
 					tu->regs[TU_REG_CMD] : 0;
 		break;
 	}
+
+	/* If an error occurred somewhen, we NACK everything until next STOP */
+	if (ret)
+		set_bit(TU_FLAG_NACK, &tu->flags);
 
 	return ret;
 }
@@ -183,6 +194,10 @@ static void i2c_slave_testunit_work(struct work_struct *work)
 		break;
 
 	case TU_CMD_SMBUS_ALERT_REQUEST:
+		if (!tu->gpio) {
+			ret = -ENOENT;
+			break;
+		}
 		i2c_slave_unregister(tu->client);
 		orig_addr = tu->client->addr;
 		tu->client->addr = 0x0c;
@@ -232,6 +247,9 @@ static int i2c_slave_testunit_probe(struct i2c_client *client)
 	INIT_DELAYED_WORK(&tu->worker, i2c_slave_testunit_work);
 
 	tu->gpio = devm_gpiod_get_index_optional(&client->dev, NULL, 0, GPIOD_OUT_LOW);
+	if (IS_ERR(tu->gpio))
+		return PTR_ERR(tu->gpio);
+
 	if (gpiod_cansleep(tu->gpio)) {
 		dev_err(&client->dev, "GPIO access which may sleep is not allowed\n");
 		return -EDEADLK;

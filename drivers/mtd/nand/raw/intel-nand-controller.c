@@ -728,7 +728,7 @@ MODULE_DEVICE_TABLE(of, ebu_nand_match);
 
 static struct platform_driver ebu_nand_driver = {
 	.probe = ebu_nand_probe,
-	.remove_new = ebu_nand_remove,
+	.remove = ebu_nand_remove,
 	.driver = {
 		.name = "intel-nand-controller",
 		.of_match_table = ebu_nand_match,

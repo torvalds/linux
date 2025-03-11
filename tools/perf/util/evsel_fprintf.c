@@ -14,7 +14,7 @@
 #include "dso.h"
 
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 static int comma_fprintf(FILE *fp, bool *first, const char *fmt, ...)

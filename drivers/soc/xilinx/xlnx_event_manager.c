@@ -188,8 +188,10 @@ static int xlnx_add_cb_for_suspend(event_cb_func_t cb_fun, void *data)
 	INIT_LIST_HEAD(&eve_data->cb_list_head);
 
 	cb_data = kmalloc(sizeof(*cb_data), GFP_KERNEL);
-	if (!cb_data)
+	if (!cb_data) {
+		kfree(eve_data);
 		return -ENOMEM;
+	}
 	cb_data->eve_cb = cb_fun;
 	cb_data->agent_data = data;
 
@@ -709,7 +711,7 @@ static void xlnx_event_manager_remove(struct platform_device *pdev)
 
 static struct platform_driver xlnx_event_manager_driver = {
 	.probe = xlnx_event_manager_probe,
-	.remove_new = xlnx_event_manager_remove,
+	.remove = xlnx_event_manager_remove,
 	.driver = {
 		.name = "xlnx_event_manager",
 	},

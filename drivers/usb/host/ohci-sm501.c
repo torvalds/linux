@@ -252,7 +252,7 @@ static int ohci_sm501_resume(struct platform_device *pdev)
  */
 static struct platform_driver ohci_hcd_sm501_driver = {
 	.probe		= ohci_hcd_sm501_drv_probe,
-	.remove_new	= ohci_hcd_sm501_drv_remove,
+	.remove		= ohci_hcd_sm501_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.suspend	= ohci_sm501_suspend,
 	.resume		= ohci_sm501_resume,

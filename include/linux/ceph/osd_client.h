@@ -626,8 +626,6 @@ int ceph_osdc_notify(struct ceph_osd_client *osdc,
 		     u32 timeout,
 		     struct page ***preply_pages,
 		     size_t *preply_len);
-int ceph_osdc_watch_check(struct ceph_osd_client *osdc,
-			  struct ceph_osd_linger_request *lreq);
 int ceph_osdc_list_watchers(struct ceph_osd_client *osdc,
 			    struct ceph_object_id *oid,
 			    struct ceph_object_locator *oloc,

@@ -40,14 +40,6 @@ static inline u8 *ef4_tx_get_copy_buffer(struct ef4_tx_queue *tx_queue,
 	return (u8 *)page_buf->addr + offset;
 }
 
-u8 *ef4_tx_get_copy_buffer_limited(struct ef4_tx_queue *tx_queue,
-				   struct ef4_tx_buffer *buffer, size_t len)
-{
-	if (len > EF4_TX_CB_SIZE)
-		return NULL;
-	return ef4_tx_get_copy_buffer(tx_queue, buffer);
-}
-
 static void ef4_dequeue_buffer(struct ef4_tx_queue *tx_queue,
 			       struct ef4_tx_buffer *buffer,
 			       unsigned int *pkts_compl,

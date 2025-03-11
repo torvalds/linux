@@ -105,10 +105,10 @@ enum dma_resv_usage {
 	 * This should be used by submissions which don't want to participate in
 	 * any implicit synchronization.
 	 *
-	 * The most common case are preemption fences, page table updates, TLB
-	 * flushes as well as explicit synced user submissions.
+	 * The most common cases are preemption fences, page table updates, TLB
+	 * flushes as well as explicitly synced user submissions.
 	 *
-	 * Explicit synced user user submissions can be promoted to
+	 * Explicitly synced user submissions can be promoted to
 	 * DMA_RESV_USAGE_READ or DMA_RESV_USAGE_WRITE as needed using
 	 * dma_buf_import_sync_file() when implicit synchronization should
 	 * become necessary after initial adding of the fence.

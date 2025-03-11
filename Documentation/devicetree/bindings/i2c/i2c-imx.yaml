@@ -18,6 +18,7 @@ properties:
       - const: fsl,imx1-i2c
       - const: fsl,imx21-i2c
       - const: fsl,vf610-i2c
+      - const: nxp,s32g2-i2c
       - items:
           - enum:
               - fsl,ls1012a-i2c
@@ -54,6 +55,9 @@ properties:
               - fsl,imx8mn-i2c
               - fsl,imx8mp-i2c
           - const: fsl,imx21-i2c
+      - items:
+          - const: nxp,s32g3-i2c
+          - const: nxp,s32g2-i2c
 
   reg:
     maxItems: 1

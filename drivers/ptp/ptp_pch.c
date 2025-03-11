@@ -462,14 +462,14 @@ pch_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return ret;
 	}
 
-	ret = pcim_iomap_regions(pdev, BIT(IO_MEM_BAR), "1588_regs");
+	/* get the virtual address to the 1588 registers */
+	chip->regs = pcim_iomap_region(pdev, IO_MEM_BAR, KBUILD_MODNAME);
+	ret = PTR_ERR_OR_ZERO(chip->regs);
 	if (ret) {
 		dev_err(&pdev->dev, "could not locate IO memory address\n");
 		return ret;
 	}
 
-	/* get the virtual address to the 1588 registers */
-	chip->regs = pcim_iomap_table(pdev)[IO_MEM_BAR];
 	chip->caps = ptp_pch_caps;
 	chip->ptp_clock = ptp_clock_register(&chip->caps, &pdev->dev);
 	if (IS_ERR(chip->ptp_clock))

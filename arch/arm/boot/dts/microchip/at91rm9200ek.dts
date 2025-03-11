@@ -127,19 +127,19 @@
 	leds {
 		compatible = "gpio-leds";
 
-		ds2 {
+		led-ds2 {
 			label = "green";
 			gpios = <&pioB 0 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "mmc0";
 		};
 
-		ds4 {
+		led-ds4 {
 			label = "yellow";
 			gpios = <&pioB 1 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
 
-		ds6 {
+		led-ds6 {
 			label = "red";
 			gpios = <&pioB 2 GPIO_ACTIVE_LOW>;
 		};

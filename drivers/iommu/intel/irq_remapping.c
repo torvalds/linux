@@ -312,7 +312,7 @@ static int set_ioapic_sid(struct irte *irte, int apic)
 
 	for (i = 0; i < MAX_IO_APICS; i++) {
 		if (ir_ioapic[i].iommu && ir_ioapic[i].id == apic) {
-			sid = (ir_ioapic[i].bus << 8) | ir_ioapic[i].devfn;
+			sid = PCI_DEVID(ir_ioapic[i].bus, ir_ioapic[i].devfn);
 			break;
 		}
 	}
@@ -337,7 +337,7 @@ static int set_hpet_sid(struct irte *irte, u8 id)
 
 	for (i = 0; i < MAX_HPET_TBS; i++) {
 		if (ir_hpet[i].iommu && ir_hpet[i].id == id) {
-			sid = (ir_hpet[i].bus << 8) | ir_hpet[i].devfn;
+			sid = PCI_DEVID(ir_hpet[i].bus, ir_hpet[i].devfn);
 			break;
 		}
 	}
@@ -1463,7 +1463,6 @@ static int intel_irq_remapping_alloc(struct irq_domain *domain,
 		else
 			irq_data->chip = &intel_ir_chip;
 		intel_irq_remapping_prepare_irte(ird, irq_cfg, info, index, i);
-		irq_set_status_flags(virq + i, IRQ_MOVE_PCNTXT);
 	}
 	return 0;
 

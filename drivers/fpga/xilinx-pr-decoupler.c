@@ -162,7 +162,7 @@ static void xlnx_pr_decoupler_remove(struct platform_device *pdev)
 
 static struct platform_driver xlnx_pr_decoupler_driver = {
 	.probe = xlnx_pr_decoupler_probe,
-	.remove_new = xlnx_pr_decoupler_remove,
+	.remove = xlnx_pr_decoupler_remove,
 	.driver = {
 		.name = "xlnx_pr_decoupler",
 		.of_match_table = xlnx_pr_decoupler_of_match,

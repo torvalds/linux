@@ -55,18 +55,15 @@ struct userio_device {
 static int userio_device_write(struct serio *id, unsigned char val)
 {
 	struct userio_device *userio = id->port_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&userio->buf_lock, flags);
+	scoped_guard(spinlock_irqsave, &userio->buf_lock) {
+		userio->buf[userio->head] = val;
+		userio->head = (userio->head + 1) % USERIO_BUFSIZE;
 
-	userio->buf[userio->head] = val;
-	userio->head = (userio->head + 1) % USERIO_BUFSIZE;
-
-	if (userio->head == userio->tail)
-		dev_warn(userio_misc.this_device,
-			 "Buffer overflowed, userio client isn't keeping up");
-
-	spin_unlock_irqrestore(&userio->buf_lock, flags);
+		if (userio->head == userio->tail)
+			dev_warn(userio_misc.this_device,
+				 "Buffer overflowed, userio client isn't keeping up");
+	}
 
 	wake_up_interruptible(&userio->waitq);
 
@@ -75,9 +72,8 @@ static int userio_device_write(struct serio *id, unsigned char val)
 
 static int userio_char_open(struct inode *inode, struct file *file)
 {
-	struct userio_device *userio;
-
-	userio = kzalloc(sizeof(*userio), GFP_KERNEL);
+	struct userio_device *userio __free(kfree) =
+			kzalloc(sizeof(*userio), GFP_KERNEL);
 	if (!userio)
 		return -ENOMEM;
 
@@ -86,15 +82,13 @@ static int userio_char_open(struct inode *inode, struct file *file)
 	init_waitqueue_head(&userio->waitq);
 
 	userio->serio = kzalloc(sizeof(*userio->serio), GFP_KERNEL);
-	if (!userio->serio) {
-		kfree(userio);
+	if (!userio->serio)
 		return -ENOMEM;
-	}
 
 	userio->serio->write = userio_device_write;
 	userio->serio->port_data = userio;
 
-	file->private_data = userio;
+	file->private_data = no_free_ptr(userio);
 
 	return 0;
 }
@@ -118,14 +112,32 @@ static int userio_char_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static size_t userio_fetch_data(struct userio_device *userio, u8 *buf,
+				size_t count, size_t *copylen)
+{
+	size_t available, len;
+
+	guard(spinlock_irqsave)(&userio->buf_lock);
+
+	available = CIRC_CNT_TO_END(userio->head, userio->tail,
+				    USERIO_BUFSIZE);
+	len = min(available, count);
+	if (len) {
+		memcpy(buf, &userio->buf[userio->tail], len);
+		userio->tail = (userio->tail + len) % USERIO_BUFSIZE;
+	}
+
+	*copylen = len;
+	return available;
+}
+
 static ssize_t userio_char_read(struct file *file, char __user *user_buffer,
 				size_t count, loff_t *ppos)
 {
 	struct userio_device *userio = file->private_data;
 	int error;
-	size_t nonwrap_len, copylen;
-	unsigned char buf[USERIO_BUFSIZE];
-	unsigned long flags;
+	size_t available, copylen;
+	u8 buf[USERIO_BUFSIZE];
 
 	/*
 	 * By the time we get here, the data that was waiting might have
@@ -135,21 +147,8 @@ static ssize_t userio_char_read(struct file *file, char __user *user_buffer,
 	 * of course).
 	 */
 	for (;;) {
-		spin_lock_irqsave(&userio->buf_lock, flags);
-
-		nonwrap_len = CIRC_CNT_TO_END(userio->head,
-					      userio->tail,
-					      USERIO_BUFSIZE);
-		copylen = min(nonwrap_len, count);
-		if (copylen) {
-			memcpy(buf, &userio->buf[userio->tail], copylen);
-			userio->tail = (userio->tail + copylen) %
-							USERIO_BUFSIZE;
-		}
-
-		spin_unlock_irqrestore(&userio->buf_lock, flags);
-
-		if (nonwrap_len)
+		available = userio_fetch_data(userio, buf, count, &copylen);
+		if (available)
 			break;
 
 		/* buffer was/is empty */
@@ -176,6 +175,54 @@ static ssize_t userio_char_read(struct file *file, char __user *user_buffer,
 	return copylen;
 }
 
+static int userio_execute_cmd(struct userio_device *userio,
+			      const struct userio_cmd *cmd)
+{
+	switch (cmd->type) {
+	case USERIO_CMD_REGISTER:
+		if (!userio->serio->id.type) {
+			dev_warn(userio_misc.this_device,
+				 "No port type given on /dev/userio\n");
+			return -EINVAL;
+		}
+
+		if (userio->running) {
+			dev_warn(userio_misc.this_device,
+				 "Begin command sent, but we're already running\n");
+			return -EBUSY;
+		}
+
+		userio->running = true;
+		serio_register_port(userio->serio);
+		break;
+
+	case USERIO_CMD_SET_PORT_TYPE:
+		if (userio->running) {
+			dev_warn(userio_misc.this_device,
+				 "Can't change port type on an already running userio instance\n");
+			return -EBUSY;
+		}
+
+		userio->serio->id.type = cmd->data;
+		break;
+
+	case USERIO_CMD_SEND_INTERRUPT:
+		if (!userio->running) {
+			dev_warn(userio_misc.this_device,
+				 "The device must be registered before sending interrupts\n");
+			return -ENODEV;
+		}
+
+		serio_interrupt(userio->serio, cmd->data, 0);
+		break;
+
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static ssize_t userio_char_write(struct file *file, const char __user *buffer,
 				 size_t count, loff_t *ppos)
 {
@@ -191,61 +238,13 @@ static ssize_t userio_char_write(struct file *file, const char __user *buffer,
 	if (copy_from_user(&cmd, buffer, sizeof(cmd)))
 		return -EFAULT;
 
-	error = mutex_lock_interruptible(&userio->mutex);
-	if (error)
-		return error;
-
-	switch (cmd.type) {
-	case USERIO_CMD_REGISTER:
-		if (!userio->serio->id.type) {
-			dev_warn(userio_misc.this_device,
-				 "No port type given on /dev/userio\n");
-
-			error = -EINVAL;
-			goto out;
-		}
-
-		if (userio->running) {
-			dev_warn(userio_misc.this_device,
-				 "Begin command sent, but we're already running\n");
-			error = -EBUSY;
-			goto out;
-		}
-
-		userio->running = true;
-		serio_register_port(userio->serio);
-		break;
-
-	case USERIO_CMD_SET_PORT_TYPE:
-		if (userio->running) {
-			dev_warn(userio_misc.this_device,
-				 "Can't change port type on an already running userio instance\n");
-			error = -EBUSY;
-			goto out;
-		}
-
-		userio->serio->id.type = cmd.data;
-		break;
-
-	case USERIO_CMD_SEND_INTERRUPT:
-		if (!userio->running) {
-			dev_warn(userio_misc.this_device,
-				 "The device must be registered before sending interrupts\n");
-			error = -ENODEV;
-			goto out;
-		}
-
-		serio_interrupt(userio->serio, cmd.data, 0);
-		break;
-
-	default:
-		error = -EOPNOTSUPP;
-		goto out;
+	scoped_cond_guard(mutex_intr, return -EINTR, &userio->mutex) {
+		error = userio_execute_cmd(userio, &cmd);
+		if (error)
+			return error;
 	}
 
-out:
-	mutex_unlock(&userio->mutex);
-	return error ?: count;
+	return count;
 }
 
 static __poll_t userio_char_poll(struct file *file, poll_table *wait)

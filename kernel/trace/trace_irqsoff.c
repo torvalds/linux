@@ -176,12 +176,14 @@ static int irqsoff_display_graph(struct trace_array *tr, int set)
 }
 
 static int irqsoff_graph_entry(struct ftrace_graph_ent *trace,
-			       struct fgraph_ops *gops)
+			       struct fgraph_ops *gops,
+			       struct ftrace_regs *fregs)
 {
 	struct trace_array *tr = irqsoff_trace;
 	struct trace_array_cpu *data;
 	unsigned long flags;
 	unsigned int trace_ctx;
+	u64 *calltime;
 	int ret;
 
 	if (ftrace_graph_ignore_func(gops, trace))
@@ -199,6 +201,12 @@ static int irqsoff_graph_entry(struct ftrace_graph_ent *trace,
 	if (!func_prolog_dec(tr, &data, &flags))
 		return 0;
 
+	calltime = fgraph_reserve_data(gops->idx, sizeof(*calltime));
+	if (!calltime)
+		return 0;
+
+	*calltime = trace_clock_local();
+
 	trace_ctx = tracing_gen_ctx_flags(flags);
 	ret = __trace_graph_entry(tr, trace, trace_ctx);
 	atomic_dec(&data->disabled);
@@ -207,17 +215,25 @@ static int irqsoff_graph_entry(struct ftrace_graph_ent *trace,
 }
 
 static void irqsoff_graph_return(struct ftrace_graph_ret *trace,
-				 struct fgraph_ops *gops)
+				 struct fgraph_ops *gops,
+				 struct ftrace_regs *fregs)
 {
 	struct trace_array *tr = irqsoff_trace;
 	struct trace_array_cpu *data;
 	unsigned long flags;
 	unsigned int trace_ctx;
+	u64 *calltime;
+	int size;
 
 	ftrace_graph_addr_finish(gops, trace);
 
 	if (!func_prolog_dec(tr, &data, &flags))
 		return;
+
+	calltime = fgraph_retrieve_data(gops->idx, &size);
+	if (!calltime)
+		return;
+	trace->calltime = *calltime;
 
 	trace_ctx = tracing_gen_ctx_flags(flags);
 	__trace_graph_return(tr, trace, trace_ctx);

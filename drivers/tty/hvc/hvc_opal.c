@@ -247,7 +247,7 @@ static void hvc_opal_remove(struct platform_device *dev)
 
 static struct platform_driver hvc_opal_driver = {
 	.probe		= hvc_opal_probe,
-	.remove_new	= hvc_opal_remove,
+	.remove		= hvc_opal_remove,
 	.driver		= {
 		.name	= hvc_opal_name,
 		.of_match_table	= hvc_opal_match,

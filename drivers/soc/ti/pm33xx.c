@@ -591,7 +591,7 @@ static struct platform_driver am33xx_pm_driver = {
 		.name   = "pm33xx",
 	},
 	.probe = am33xx_pm_probe,
-	.remove_new = am33xx_pm_remove,
+	.remove = am33xx_pm_remove,
 };
 module_platform_driver(am33xx_pm_driver);
 

@@ -1215,7 +1215,7 @@ static int dsicm_probe(struct platform_device *pdev)
 
 		ddata->bldev = bldev;
 
-		bldev->props.power = FB_BLANK_UNBLANK;
+		bldev->props.power = BACKLIGHT_POWER_ON;
 		bldev->props.brightness = 255;
 
 		dsicm_bl_update_status(bldev);
@@ -1253,7 +1253,7 @@ static void dsicm_remove(struct platform_device *pdev)
 
 	bldev = ddata->bldev;
 	if (bldev != NULL) {
-		bldev->props.power = FB_BLANK_POWERDOWN;
+		bldev->props.power = BACKLIGHT_POWER_OFF;
 		dsicm_bl_update_status(bldev);
 		backlight_device_unregister(bldev);
 	}

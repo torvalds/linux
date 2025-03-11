@@ -22,15 +22,15 @@ int call_fib4_notifiers(struct net *net, enum fib_event_type event_type,
 	ASSERT_RTNL();
 
 	info->family = AF_INET;
-	net->ipv4.fib_seq++;
+	/* Paired with READ_ONCE() in fib4_seq_read() */
+	WRITE_ONCE(net->ipv4.fib_seq, net->ipv4.fib_seq + 1);
 	return call_fib_notifiers(net, event_type, info);
 }
 
-static unsigned int fib4_seq_read(struct net *net)
+static unsigned int fib4_seq_read(const struct net *net)
 {
-	ASSERT_RTNL();
-
-	return net->ipv4.fib_seq + fib4_rules_seq_read(net);
+	/* Paired with WRITE_ONCE() in call_fib4_notifiers() */
+	return READ_ONCE(net->ipv4.fib_seq) + fib4_rules_seq_read(net);
 }
 
 static int fib4_dump(struct net *net, struct notifier_block *nb,

@@ -954,7 +954,7 @@ static int RFTrackingFiltersCorrection(struct tda_state *state,
 			Capprox = 255;
 
 
-		/* TODO Temperature compensation. There is defenitely a scale factor */
+		/* TODO Temperature compensation. There is definitely a scale factor */
 		/*      missing in the datasheet, so leave it out for now.           */
 		state->m_Regs[EB14] = Capprox;
 

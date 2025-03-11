@@ -79,3 +79,14 @@
 &touchscreen {
 	compatible = "elan,ekth3500";
 };
+
+&i2c2 {
+	/* synaptics touchpad */
+	trackpad@2c {
+		compatible = "hid-over-i2c";
+		reg = <0x2c>;
+		hid-descr-addr = <0x20>;
+		interrupts-extended = <&pio 15 IRQ_TYPE_LEVEL_LOW>;
+		wakeup-source;
+	};
+};

@@ -31,6 +31,15 @@
 #define PM886_INT_WC			BIT(1)
 #define PM886_INT_MASK_MODE		BIT(2)
 
+#define PM886_REG_RTC_CNT1		0xd1
+#define PM886_REG_RTC_CNT2		0xd2
+#define PM886_REG_RTC_CNT3		0xd3
+#define PM886_REG_RTC_CNT4		0xd4
+#define PM886_REG_RTC_SPARE1		0xea
+#define PM886_REG_RTC_SPARE2		0xeb
+#define PM886_REG_RTC_SPARE3		0xec
+#define PM886_REG_RTC_SPARE4		0xed
+#define PM886_REG_RTC_SPARE5		0xee
 #define PM886_REG_RTC_SPARE6		0xef
 
 #define PM886_REG_BUCK_EN		0x08

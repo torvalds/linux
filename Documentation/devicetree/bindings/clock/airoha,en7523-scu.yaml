@@ -34,8 +34,10 @@ properties:
           - airoha,en7581-scu
 
   reg:
-    minItems: 2
-    maxItems: 4
+    items:
+      - description: scu base address
+      - description: misc scu base address
+    minItems: 1
 
   "#clock-cells":
     description:
@@ -60,9 +62,7 @@ allOf:
     then:
       properties:
         reg:
-          items:
-            - description: scu base address
-            - description: misc scu base address
+          minItems: 2
 
         '#reset-cells': false
 
@@ -73,11 +73,7 @@ allOf:
     then:
       properties:
         reg:
-          items:
-            - description: scu base address
-            - description: misc scu base address
-            - description: reset base address
-            - description: pb scu base address
+          maxItems: 1
 
 additionalProperties: false
 
@@ -96,12 +92,9 @@ examples:
       #address-cells = <2>;
       #size-cells = <2>;
 
-      scuclk: clock-controller@1fa20000 {
+      scuclk: clock-controller@1fb00000 {
         compatible = "airoha,en7581-scu";
-        reg = <0x0 0x1fa20000 0x0 0x400>,
-              <0x0 0x1fb00000 0x0 0x90>,
-              <0x0 0x1fb00830 0x0 0x8>,
-              <0x0 0x1fbe3400 0x0 0xfc>;
+        reg = <0x0 0x1fb00000 0x0 0x970>;
               #clock-cells = <1>;
               #reset-cells = <1>;
       };

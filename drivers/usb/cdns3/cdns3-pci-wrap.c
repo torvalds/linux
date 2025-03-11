@@ -37,8 +37,6 @@ struct cdns3_wrap {
 #define PCI_DRIVER_NAME		"cdns3-pci-usbss"
 #define PLAT_DRIVER_NAME	"cdns-usb3"
 
-#define PCI_DEVICE_ID_CDNS_USB3	0x0100
-
 static struct pci_dev *cdns3_get_second_fun(struct pci_dev *pdev)
 {
 	struct pci_dev *func;
@@ -189,7 +187,7 @@ static void cdns3_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id cdns3_pci_ids[] = {
-	{ PCI_VDEVICE(CDNS, PCI_DEVICE_ID_CDNS_USB3) },
+	{ PCI_VDEVICE(CDNS, PCI_DEVICE_ID_CDNS_USBSS) },
 	{ 0, }
 };
 

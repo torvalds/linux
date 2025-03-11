@@ -41,7 +41,7 @@ enum ad7887_channels {
 };
 
 /**
- * struct ad7887_chip_info - chip specifc information
+ * struct ad7887_chip_info - chip specific information
  * @int_vref_mv:	the internal reference voltage
  * @channels:		channels specification
  * @num_channels:	number of channels
@@ -234,7 +234,7 @@ static void ad7887_reg_disable(void *data)
 
 static int ad7887_probe(struct spi_device *spi)
 {
-	struct ad7887_platform_data *pdata = spi->dev.platform_data;
+	const struct ad7887_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct ad7887_state *st;
 	struct iio_dev *indio_dev;
 	uint8_t mode;

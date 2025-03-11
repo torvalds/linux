@@ -109,7 +109,7 @@ MODULE_DEVICE_TABLE(of, i2c_versatile_match);
 
 static struct platform_driver i2c_versatile_driver = {
 	.probe		= i2c_versatile_probe,
-	.remove_new	= i2c_versatile_remove,
+	.remove		= i2c_versatile_remove,
 	.driver		= {
 		.name	= "versatile-i2c",
 		.of_match_table = i2c_versatile_match,

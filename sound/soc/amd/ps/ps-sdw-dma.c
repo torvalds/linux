@@ -445,6 +445,8 @@ static const struct snd_soc_component_driver acp63_sdw_component = {
 	.trigger	= acp63_sdw_dma_trigger,
 	.pointer	= acp63_sdw_dma_pointer,
 	.pcm_construct	= acp63_sdw_dma_new,
+	.use_dai_pcm_id = true,
+
 };
 
 static int acp63_sdw_platform_probe(struct platform_device *pdev)

@@ -40,7 +40,7 @@
 /* Common definition of interrupt bit masks */
 #define HISI_SFC_V3XX_INT_MASK_ALL (0x1ff)	/* all the masks */
 #define HISI_SFC_V3XX_INT_MASK_CPLT BIT(0)	/* command execution complete */
-#define HISI_SFC_V3XX_INT_MASK_PP_ERR BIT(2)	/* page progrom error */
+#define HISI_SFC_V3XX_INT_MASK_PP_ERR BIT(2)	/* page program error */
 #define HISI_SFC_V3XX_INT_MASK_IACCES BIT(5)	/* error visiting inaccessible/
 						 * protected address
 						 */

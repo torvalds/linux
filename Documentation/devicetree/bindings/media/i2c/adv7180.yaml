@@ -39,6 +39,12 @@ properties:
     maxItems: 1
 
   adv,force-bt656-4:
+    deprecated: true
+    description:
+      Indicates that the output is a BT.656-4 compatible stream.
+    type: boolean
+
+  adi,force-bt656-4:
     description:
       Indicates that the output is a BT.656-4 compatible stream.
     type: boolean

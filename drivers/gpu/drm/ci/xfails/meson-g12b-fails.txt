@@ -1,4 +1,3 @@
-dumb_buffer@invalid-bpp,Fail
 kms_3d,Fail
 kms_cursor_legacy@forked-bo,Fail
 kms_cursor_legacy@forked-move,Fail

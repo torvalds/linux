@@ -30,7 +30,7 @@
  * 2006-07-24 - Converted to V4L2 API
  *		by Mauro Carvalho Chehab <mchehab@kernel.org>
  *
- * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@cisco.com>
+ * Converted to the radio-isa framework by Hans Verkuil <hansverk@cisco.com>
  *
  * Note that this is the driver for the Zoltrix Radio Plus.
  * This driver does not work for the Zoltrix Radio Plus 108 or the

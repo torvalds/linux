@@ -209,8 +209,6 @@ static int initialize_info(struct vdo_page_cache *cache)
 /**
  * allocate_cache_components() - Allocate components of the cache which require their own
  *                               allocation.
- * @maximum_age: The number of journal blocks before a dirtied page is considered old and must be
- *               written out.
  *
  * The caller is responsible for all clean up on errors.
  *

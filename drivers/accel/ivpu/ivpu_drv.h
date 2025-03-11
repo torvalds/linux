@@ -21,11 +21,11 @@
 
 #define DRIVER_NAME "intel_vpu"
 #define DRIVER_DESC "Driver for Intel NPU (Neural Processing Unit)"
-#define DRIVER_DATE "20230117"
 
-#define PCI_DEVICE_ID_MTL   0x7d1d
-#define PCI_DEVICE_ID_ARL   0xad1d
-#define PCI_DEVICE_ID_LNL   0x643e
+#define PCI_DEVICE_ID_MTL	0x7d1d
+#define PCI_DEVICE_ID_ARL	0xad1d
+#define PCI_DEVICE_ID_LNL	0x643e
+#define PCI_DEVICE_ID_PTL_P	0xb03e
 
 #define IVPU_HW_IP_37XX 37
 #define IVPU_HW_IP_40XX 40
@@ -46,16 +46,21 @@
 #define IVPU_MIN_DB 1
 #define IVPU_MAX_DB 255
 
-#define IVPU_NUM_ENGINES       2
-#define IVPU_NUM_PRIORITIES    4
-#define IVPU_NUM_CMDQS_PER_CTX (IVPU_NUM_ENGINES * IVPU_NUM_PRIORITIES)
+#define IVPU_JOB_ID_JOB_MASK		GENMASK(7, 0)
+#define IVPU_JOB_ID_CONTEXT_MASK	GENMASK(31, 8)
 
-#define IVPU_CMDQ_INDEX(engine, priority) ((engine) * IVPU_NUM_PRIORITIES + (priority))
+#define IVPU_NUM_PRIORITIES    4
+#define IVPU_NUM_CMDQS_PER_CTX (IVPU_NUM_PRIORITIES)
+
+#define IVPU_CMDQ_MIN_ID 1
+#define IVPU_CMDQ_MAX_ID 255
 
 #define IVPU_PLATFORM_SILICON 0
 #define IVPU_PLATFORM_SIMICS  2
 #define IVPU_PLATFORM_FPGA    3
 #define IVPU_PLATFORM_INVALID 8
+
+#define IVPU_SCHED_MODE_AUTO -1
 
 #define IVPU_DBG_REG	 BIT(0)
 #define IVPU_DBG_IRQ	 BIT(1)
@@ -134,6 +139,8 @@ struct ivpu_device {
 	struct xa_limit context_xa_limit;
 
 	struct xarray db_xa;
+	struct xa_limit db_limit;
+	u32 db_next;
 
 	struct mutex bo_list_lock; /* Protects bo_list */
 	struct list_head bo_list;
@@ -152,6 +159,7 @@ struct ivpu_device {
 		int tdr;
 		int autosuspend;
 		int d0i3_entry_msg;
+		int state_dump_msg;
 	} timeout;
 };
 
@@ -163,11 +171,15 @@ struct ivpu_file_priv {
 	struct kref ref;
 	struct ivpu_device *vdev;
 	struct mutex lock; /* Protects cmdq */
-	struct ivpu_cmdq *cmdq[IVPU_NUM_CMDQS_PER_CTX];
+	struct xarray cmdq_xa;
 	struct ivpu_mmu_context ctx;
 	struct mutex ms_lock; /* Protects ms_instance_list, ms_info_bo */
 	struct list_head ms_instance_list;
 	struct ivpu_bo *ms_info_bo;
+	struct xa_limit job_limit;
+	u32 job_id_next;
+	struct xa_limit cmdq_limit;
+	u32 cmdq_id_next;
 	bool has_mmu_faults;
 	bool bound;
 	bool aborted;
@@ -185,9 +197,9 @@ extern bool ivpu_force_snoop;
 #define IVPU_TEST_MODE_NULL_SUBMISSION    BIT(2)
 #define IVPU_TEST_MODE_D0I3_MSG_DISABLE   BIT(4)
 #define IVPU_TEST_MODE_D0I3_MSG_ENABLE    BIT(5)
-#define IVPU_TEST_MODE_PREEMPTION_DISABLE BIT(6)
-#define IVPU_TEST_MODE_HWS_EXTRA_EVENTS	  BIT(7)
+#define IVPU_TEST_MODE_MIP_DISABLE        BIT(6)
 #define IVPU_TEST_MODE_DISABLE_TIMEOUTS   BIT(8)
+#define IVPU_TEST_MODE_TURBO		  BIT(9)
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);
@@ -215,6 +227,8 @@ static inline int ivpu_hw_ip_gen(struct ivpu_device *vdev)
 		return IVPU_HW_IP_37XX;
 	case PCI_DEVICE_ID_LNL:
 		return IVPU_HW_IP_40XX;
+	case PCI_DEVICE_ID_PTL_P:
+		return IVPU_HW_IP_50XX;
 	default:
 		dump_stack();
 		ivpu_err(vdev, "Unknown NPU IP generation\n");
@@ -229,6 +243,7 @@ static inline int ivpu_hw_btrs_gen(struct ivpu_device *vdev)
 	case PCI_DEVICE_ID_ARL:
 		return IVPU_HW_BTRS_MTL;
 	case PCI_DEVICE_ID_LNL:
+	case PCI_DEVICE_ID_PTL_P:
 		return IVPU_HW_BTRS_LNL;
 	default:
 		dump_stack();

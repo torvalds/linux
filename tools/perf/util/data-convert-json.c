@@ -28,7 +28,7 @@
 #include "util/tool.h"
 
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 struct convert_json {

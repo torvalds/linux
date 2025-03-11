@@ -49,14 +49,6 @@ static inline u8 *efx_tx_get_copy_buffer(struct efx_tx_queue *tx_queue,
 	return (u8 *)page_buf->addr + offset;
 }
 
-u8 *efx_tx_get_copy_buffer_limited(struct efx_tx_queue *tx_queue,
-				   struct efx_tx_buffer *buffer, size_t len)
-{
-	if (len > EFX_TX_CB_SIZE)
-		return NULL;
-	return efx_tx_get_copy_buffer(tx_queue, buffer);
-}
-
 static void efx_tx_maybe_stop_queue(struct efx_tx_queue *txq1)
 {
 	/* We need to consider all queues that the net core sees as one */
@@ -553,6 +545,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 
 void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 {
+	unsigned int xdp_pkts_compl = 0, xdp_bytes_compl = 0;
 	unsigned int pkts_compl = 0, bytes_compl = 0;
 	unsigned int efv_pkts_compl = 0;
 	unsigned int read_ptr;
@@ -577,7 +570,8 @@ void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 		if (buffer->flags & EFX_TX_BUF_SKB)
 			finished = true;
 		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl,
-				   &efv_pkts_compl);
+				   &efv_pkts_compl, &xdp_pkts_compl,
+				   &xdp_bytes_compl);
 
 		++tx_queue->read_count;
 		read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
@@ -585,6 +579,8 @@ void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 
 	tx_queue->pkts_compl += pkts_compl;
 	tx_queue->bytes_compl += bytes_compl;
+	tx_queue->complete_xdp_packets += xdp_pkts_compl;
+	tx_queue->complete_xdp_bytes += xdp_bytes_compl;
 
 	EFX_WARN_ON_PARANOID(pkts_compl + efv_pkts_compl != 1);
 

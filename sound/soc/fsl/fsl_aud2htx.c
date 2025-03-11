@@ -169,7 +169,7 @@ static const struct regmap_config fsl_aud2htx_regmap_config = {
 	.readable_reg = fsl_aud2htx_readable_reg,
 	.volatile_reg = fsl_aud2htx_volatile_reg,
 	.writeable_reg = fsl_aud2htx_writeable_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct of_device_id fsl_aud2htx_dt_ids[] = {

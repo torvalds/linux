@@ -30,6 +30,19 @@ static inline void *io_alloc_cache_get(struct io_alloc_cache *cache)
 	return NULL;
 }
 
+static inline void *io_cache_alloc(struct io_alloc_cache *cache, gfp_t gfp,
+				   void (*init_once)(void *obj))
+{
+	if (unlikely(!cache->nr_cached)) {
+		void *obj = kmalloc(cache->elem_size, gfp);
+
+		if (obj && init_once)
+			init_once(obj);
+		return obj;
+	}
+	return io_alloc_cache_get(cache);
+}
+
 /* returns false if the cache was initialized properly */
 static inline bool io_alloc_cache_init(struct io_alloc_cache *cache,
 				       unsigned max_nr, size_t size)

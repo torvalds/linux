@@ -7,7 +7,6 @@
 
 #include "dc_spl_types.h"
 
-#define ISHARP_LUT_TABLE_SIZE 32
 const uint32_t *spl_get_filter_isharp_1D_lut_0(void);
 const uint32_t *spl_get_filter_isharp_1D_lut_0p5x(void);
 const uint32_t *spl_get_filter_isharp_1D_lut_1p0x(void);

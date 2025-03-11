@@ -595,7 +595,7 @@ static void pm8xxx_remove(struct platform_device *pdev)
 
 static struct platform_driver pm8xxx_driver = {
 	.probe		= pm8xxx_probe,
-	.remove_new	= pm8xxx_remove,
+	.remove		= pm8xxx_remove,
 	.driver		= {
 		.name	= "pm8xxx-core",
 		.of_match_table = pm8xxx_id_table,

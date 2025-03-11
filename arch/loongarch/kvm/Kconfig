@@ -21,13 +21,16 @@ config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
 	depends on AS_HAS_LVZ_EXTENSION
 	select HAVE_KVM_DIRTY_RING_ACQ_REL
+	select HAVE_KVM_IRQ_ROUTING
+	select HAVE_KVM_IRQCHIP
+	select HAVE_KVM_MSI
+	select HAVE_KVM_READONLY_MEM
 	select HAVE_KVM_VCPU_ASYNC_IOCTL
 	select KVM_COMMON
 	select KVM_GENERIC_DIRTYLOG_READ_PROTECT
 	select KVM_GENERIC_HARDWARE_ENABLING
 	select KVM_GENERIC_MMU_NOTIFIER
 	select KVM_MMIO
-	select HAVE_KVM_READONLY_MEM
 	select KVM_XFER_TO_GUEST_WORK
 	select SCHED_INFO
 	help

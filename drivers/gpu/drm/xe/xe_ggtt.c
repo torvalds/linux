@@ -5,6 +5,7 @@
 
 #include "xe_ggtt.h"
 
+#include <linux/fault-inject.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/sizes.h>
 
@@ -107,8 +108,10 @@ static unsigned int probe_gsm_size(struct pci_dev *pdev)
 
 static void ggtt_update_access_counter(struct xe_ggtt *ggtt)
 {
-	struct xe_gt *gt = XE_WA(ggtt->tile->primary_gt, 22019338487) ? ggtt->tile->primary_gt :
-			   ggtt->tile->media_gt;
+	struct xe_tile *tile = ggtt->tile;
+	struct xe_gt *affected_gt = XE_WA(tile->primary_gt, 22019338487) ?
+		tile->primary_gt : tile->media_gt;
+	struct xe_mmio *mmio = &affected_gt->mmio;
 	u32 max_gtt_writes = XE_WA(ggtt->tile->primary_gt, 22019338487) ? 1100 : 63;
 	/*
 	 * Wa_22019338487: GMD_ID is a RO register, a dummy write forces gunit
@@ -118,7 +121,7 @@ static void ggtt_update_access_counter(struct xe_ggtt *ggtt)
 	lockdep_assert_held(&ggtt->lock);
 
 	if ((++ggtt->access_count % max_gtt_writes) == 0) {
-		xe_mmio_write32(gt, GMD_ID, 0x0);
+		xe_mmio_write32(mmio, GMD_ID, 0x0);
 		ggtt->access_count = 0;
 	}
 }
@@ -243,7 +246,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	else
 		ggtt->pt_ops = &xelp_pt_ops;
 
-	ggtt->wq = alloc_workqueue("xe-ggtt-wq", 0, 0);
+	ggtt->wq = alloc_workqueue("xe-ggtt-wq", 0, WQ_MEM_RECLAIM);
 
 	drm_mm_init(&ggtt->mm, xe_wopcm_size(xe),
 		    ggtt->size - xe_wopcm_size(xe));
@@ -262,6 +265,7 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 
 	return 0;
 }
+ALLOW_ERROR_INJECTION(xe_ggtt_init_early, ERRNO); /* See xe_pci_probe() */
 
 static void xe_ggtt_invalidate(struct xe_ggtt *ggtt);
 
@@ -358,7 +362,7 @@ int xe_ggtt_init(struct xe_ggtt *ggtt)
 
 	/*
 	 * So we don't need to worry about 64K GGTT layout when dealing with
-	 * scratch entires, rather keep the scratch page in system memory on
+	 * scratch entries, rather keep the scratch page in system memory on
 	 * platforms where 64K pages are needed for VRAM.
 	 */
 	flags = XE_BO_FLAG_PINNED;
@@ -405,7 +409,7 @@ static void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
 	 * vs. correct GGTT page. Not particularly a hot code path so blindly
 	 * do a mmio read here which results in GuC reading correct GGTT page.
 	 */
-	xe_mmio_read32(xe_root_mmio_gt(xe), VF_CAP_REG);
+	xe_mmio_read32(xe_root_tile_mmio(xe), VF_CAP_REG);
 
 	/* Each GT in a tile has its own TLB to cache GGTT lookups */
 	ggtt_invalidate_gt_tlb(ggtt->tile->primary_gt);
@@ -594,10 +598,10 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 	u64 start;
 	u64 offset, pte;
 
-	if (XE_WARN_ON(!bo->ggtt_node))
+	if (XE_WARN_ON(!bo->ggtt_node[ggtt->tile->id]))
 		return;
 
-	start = bo->ggtt_node->base.start;
+	start = bo->ggtt_node[ggtt->tile->id]->base.start;
 
 	for (offset = 0; offset < bo->size; offset += XE_PAGE_SIZE) {
 		pte = ggtt->pt_ops->pte_encode_bo(bo, offset, pat_index);
@@ -608,15 +612,16 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 				  u64 start, u64 end)
 {
+	u64 alignment = bo->min_align > 0 ? bo->min_align : XE_PAGE_SIZE;
+	u8 tile_id = ggtt->tile->id;
 	int err;
-	u64 alignment = XE_PAGE_SIZE;
 
 	if (xe_bo_is_vram(bo) && ggtt->flags & XE_GGTT_FLAGS_64K)
 		alignment = SZ_64K;
 
-	if (XE_WARN_ON(bo->ggtt_node)) {
+	if (XE_WARN_ON(bo->ggtt_node[tile_id])) {
 		/* Someone's already inserted this BO in the GGTT */
-		xe_tile_assert(ggtt->tile, bo->ggtt_node->base.size == bo->size);
+		xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == bo->size);
 		return 0;
 	}
 
@@ -626,19 +631,19 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 
 	xe_pm_runtime_get_noresume(tile_to_xe(ggtt->tile));
 
-	bo->ggtt_node = xe_ggtt_node_init(ggtt);
-	if (IS_ERR(bo->ggtt_node)) {
-		err = PTR_ERR(bo->ggtt_node);
-		bo->ggtt_node = NULL;
+	bo->ggtt_node[tile_id] = xe_ggtt_node_init(ggtt);
+	if (IS_ERR(bo->ggtt_node[tile_id])) {
+		err = PTR_ERR(bo->ggtt_node[tile_id]);
+		bo->ggtt_node[tile_id] = NULL;
 		goto out;
 	}
 
 	mutex_lock(&ggtt->lock);
-	err = drm_mm_insert_node_in_range(&ggtt->mm, &bo->ggtt_node->base, bo->size,
-					  alignment, 0, start, end, 0);
+	err = drm_mm_insert_node_in_range(&ggtt->mm, &bo->ggtt_node[tile_id]->base,
+					  bo->size, alignment, 0, start, end, 0);
 	if (err) {
-		xe_ggtt_node_fini(bo->ggtt_node);
-		bo->ggtt_node = NULL;
+		xe_ggtt_node_fini(bo->ggtt_node[tile_id]);
+		bo->ggtt_node[tile_id] = NULL;
 	} else {
 		xe_ggtt_map_bo(ggtt, bo);
 	}
@@ -687,13 +692,15 @@ int xe_ggtt_insert_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
  */
 void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
-	if (XE_WARN_ON(!bo->ggtt_node))
+	u8 tile_id = ggtt->tile->id;
+
+	if (XE_WARN_ON(!bo->ggtt_node[tile_id]))
 		return;
 
 	/* This BO is not currently in the GGTT */
-	xe_tile_assert(ggtt->tile, bo->ggtt_node->base.size == bo->size);
+	xe_tile_assert(ggtt->tile, bo->ggtt_node[tile_id]->base.size == bo->size);
 
-	xe_ggtt_node_remove(bo->ggtt_node,
+	xe_ggtt_node_remove(bo->ggtt_node[tile_id],
 			    bo->flags & XE_BO_FLAG_GGTT_INVALIDATE);
 }
 

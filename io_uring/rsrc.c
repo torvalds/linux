@@ -626,11 +626,12 @@ static int io_buffer_account_pin(struct io_ring_ctx *ctx, struct page **pages,
 	return ret;
 }
 
-static bool io_do_coalesce_buffer(struct page ***pages, int *nr_pages,
-				struct io_imu_folio_data *data, int nr_folios)
+static bool io_coalesce_buffer(struct page ***pages, int *nr_pages,
+				struct io_imu_folio_data *data)
 {
 	struct page **page_array = *pages, **new_array = NULL;
 	int nr_pages_left = *nr_pages, i, j;
+	int nr_folios = data->nr_folios;
 
 	/* Store head pages only*/
 	new_array = kvmalloc_array(nr_folios, sizeof(struct page *),
@@ -667,27 +668,21 @@ static bool io_do_coalesce_buffer(struct page ***pages, int *nr_pages,
 	return true;
 }
 
-static bool io_try_coalesce_buffer(struct page ***pages, int *nr_pages,
-					 struct io_imu_folio_data *data)
+bool io_check_coalesce_buffer(struct page **page_array, int nr_pages,
+			      struct io_imu_folio_data *data)
 {
-	struct page **page_array = *pages;
 	struct folio *folio = page_folio(page_array[0]);
 	unsigned int count = 1, nr_folios = 1;
 	int i;
 
-	if (*nr_pages <= 1)
-		return false;
-
 	data->nr_pages_mid = folio_nr_pages(folio);
-	if (data->nr_pages_mid == 1)
-		return false;
-
 	data->folio_shift = folio_shift(folio);
+
 	/*
 	 * Check if pages are contiguous inside a folio, and all folios have
 	 * the same page count except for the head and tail.
 	 */
-	for (i = 1; i < *nr_pages; i++) {
+	for (i = 1; i < nr_pages; i++) {
 		if (page_folio(page_array[i]) == folio &&
 			page_array[i] == page_array[i-1] + 1) {
 			count++;
@@ -715,7 +710,8 @@ static bool io_try_coalesce_buffer(struct page ***pages, int *nr_pages,
 	if (nr_folios == 1)
 		data->nr_pages_head = count;
 
-	return io_do_coalesce_buffer(pages, nr_pages, data, nr_folios);
+	data->nr_folios = nr_folios;
+	return true;
 }
 
 static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
@@ -729,7 +725,7 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	size_t size;
 	int ret, nr_pages, i;
 	struct io_imu_folio_data data;
-	bool coalesced;
+	bool coalesced = false;
 
 	if (!iov->iov_base)
 		return NULL;
@@ -749,7 +745,10 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	}
 
 	/* If it's huge page(s), try to coalesce them into fewer bvec entries */
-	coalesced = io_try_coalesce_buffer(&pages, &nr_pages, &data);
+	if (nr_pages > 1 && io_check_coalesce_buffer(pages, nr_pages, &data)) {
+		if (data.nr_pages_mid != 1)
+			coalesced = io_coalesce_buffer(&pages, &nr_pages, &data);
+	}
 
 	imu = kvmalloc(struct_size(imu, bvec, nr_pages), GFP_KERNEL);
 	if (!imu)
@@ -883,7 +882,7 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 	 * and advance us to the beginning.
 	 */
 	offset = buf_addr - imu->ubuf;
-	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, offset + len);
+	iov_iter_bvec(iter, ddir, imu->bvec, imu->nr_bvecs, len);
 
 	if (offset) {
 		/*
@@ -905,7 +904,6 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 		const struct bio_vec *bvec = imu->bvec;
 
 		if (offset < bvec->bv_len) {
-			iter->count -= offset;
 			iter->iov_offset = offset;
 		} else {
 			unsigned long seg_skip;
@@ -916,7 +914,6 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 
 			iter->bvec += seg_skip;
 			iter->nr_segs -= seg_skip;
-			iter->count -= bvec->bv_len + offset;
 			iter->iov_offset = offset & ((1UL << imu->folio_shift) - 1);
 		}
 	}
@@ -930,6 +927,13 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 	struct io_rsrc_data data;
 	int i, ret, off, nr;
 	unsigned int nbufs;
+
+	/*
+	 * Accounting state is shared between the two rings; that only works if
+	 * both rings are accounted towards the same counters.
+	 */
+	if (ctx->user != src_ctx->user || ctx->mm_account != src_ctx->mm_account)
+		return -EINVAL;
 
 	/* if offsets are given, must have nr specified too */
 	if (!arg->nr && (arg->dst_off || arg->src_off))
@@ -997,7 +1001,7 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 			dst_node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
 			if (!dst_node) {
 				ret = -ENOMEM;
-				goto out_put_free;
+				goto out_unlock;
 			}
 
 			refcount_inc(&src_node->buf->refs);
@@ -1033,12 +1037,6 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 	mutex_lock(&src_ctx->uring_lock);
 	/* someone raced setting up buffers, dump ours */
 	ret = -EBUSY;
-out_put_free:
-	i = data.nr;
-	while (i--) {
-		io_buffer_unmap(src_ctx, data.nodes[i]);
-		kfree(data.nodes[i]);
-	}
 out_unlock:
 	io_rsrc_data_free(ctx, &data);
 	mutex_unlock(&src_ctx->uring_lock);

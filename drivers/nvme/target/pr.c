@@ -60,7 +60,7 @@ u16 nvmet_set_feat_resv_notif_mask(struct nvmet_req *req, u32 mask)
 		goto success;
 	}
 
-	xa_for_each(&ctrl->subsys->namespaces, idx, ns) {
+	nvmet_for_each_enabled_ns(&ctrl->subsys->namespaces, idx, ns) {
 		if (ns->pr.enable)
 			WRITE_ONCE(ns->pr.notify_mask, mask);
 	}
@@ -828,12 +828,11 @@ static void nvmet_execute_pr_report(struct nvmet_req *req)
 		goto out;
 	}
 
-	data = kmalloc(num_bytes, GFP_KERNEL);
+	data = kzalloc(num_bytes, GFP_KERNEL);
 	if (!data) {
 		status = NVME_SC_INTERNAL;
 		goto out;
 	}
-	memset(data, 0, num_bytes);
 	data->gen = cpu_to_le32(atomic_read(&pr->generation));
 	data->ptpls = 0;
 	ctrl_eds = data->regctl_eds;
@@ -1057,7 +1056,7 @@ int nvmet_ctrl_init_pr(struct nvmet_ctrl *ctrl)
 	 * nvmet_pr_init_ns(), see more details in nvmet_ns_enable().
 	 * So just check ns->pr.enable.
 	 */
-	xa_for_each(&subsys->namespaces, idx, ns) {
+	nvmet_for_each_enabled_ns(&subsys->namespaces, idx, ns) {
 		if (ns->pr.enable) {
 			ret = nvmet_pr_alloc_and_insert_pc_ref(ns, ctrl->cntlid,
 							&ctrl->hostid);
@@ -1068,7 +1067,7 @@ int nvmet_ctrl_init_pr(struct nvmet_ctrl *ctrl)
 	return 0;
 
 free_per_ctrl_refs:
-	xa_for_each(&subsys->namespaces, idx, ns) {
+	nvmet_for_each_enabled_ns(&subsys->namespaces, idx, ns) {
 		if (ns->pr.enable) {
 			pc_ref = xa_erase(&ns->pr_per_ctrl_refs, ctrl->cntlid);
 			if (pc_ref)
@@ -1088,7 +1087,7 @@ void nvmet_ctrl_destroy_pr(struct nvmet_ctrl *ctrl)
 	kfifo_free(&ctrl->pr_log_mgr.log_queue);
 	mutex_destroy(&ctrl->pr_log_mgr.lock);
 
-	xa_for_each(&ctrl->subsys->namespaces, idx, ns) {
+	nvmet_for_each_enabled_ns(&ctrl->subsys->namespaces, idx, ns) {
 		if (ns->pr.enable) {
 			pc_ref = xa_erase(&ns->pr_per_ctrl_refs, ctrl->cntlid);
 			if (pc_ref)

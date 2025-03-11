@@ -155,9 +155,6 @@ int efx_mcdi_rpc_start(struct efx_nic *efx, unsigned cmd,
 int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 			efx_dword_t *outbuf, size_t outlen,
 			size_t *outlen_actual);
-int efx_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned cmd,
-			      size_t inlen, efx_dword_t *outbuf,
-			      size_t outlen, size_t *outlen_actual);
 
 typedef void efx_mcdi_async_completer(struct efx_nic *efx,
 				      unsigned long cookie, int rc,
@@ -167,11 +164,6 @@ int efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
 		       const efx_dword_t *inbuf, size_t inlen, size_t outlen,
 		       efx_mcdi_async_completer *complete,
 		       unsigned long cookie);
-int efx_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
-			     const efx_dword_t *inbuf, size_t inlen,
-			     size_t outlen,
-			     efx_mcdi_async_completer *complete,
-			     unsigned long cookie);
 
 void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
 			    size_t inlen, efx_dword_t *outbuf,
@@ -410,10 +402,8 @@ int efx_mcdi_handle_assertion(struct efx_nic *efx);
 int efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode);
 int efx_mcdi_wol_filter_set_magic(struct efx_nic *efx, const u8 *mac,
 				  int *id_out);
-int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);
 int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id);
 int efx_mcdi_wol_filter_reset(struct efx_nic *efx);
-int efx_mcdi_flush_rxqs(struct efx_nic *efx);
 void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev);
 void efx_mcdi_mac_start_stats(struct efx_nic *efx);
 void efx_mcdi_mac_stop_stats(struct efx_nic *efx);

@@ -793,7 +793,7 @@ static int load_fw_from_host(struct ishtp_cl_data *client_data)
 	if (rv < 0)
 		goto end_err_fw_release;
 
-	/* Step 3: Start ISH main firmware exeuction */
+	/* Step 3: Start ISH main firmware execution */
 
 	rv = ish_fw_start(client_data);
 	if (rv < 0)

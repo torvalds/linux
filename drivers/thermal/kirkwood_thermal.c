@@ -102,7 +102,7 @@ MODULE_DEVICE_TABLE(of, kirkwood_thermal_id_table);
 
 static struct platform_driver kirkwood_thermal_driver = {
 	.probe = kirkwood_thermal_probe,
-	.remove_new = kirkwood_thermal_exit,
+	.remove = kirkwood_thermal_exit,
 	.driver = {
 		.name = "kirkwood_thermal",
 		.of_match_table = kirkwood_thermal_id_table,

@@ -738,6 +738,20 @@ void sctp_addr_wq_mgmt(struct net *net, struct sctp_sockaddr_entry *addr, int cm
 	 */
 
 	spin_lock_bh(&net->sctp.addr_wq_lock);
+
+	/* Avoid searching the queue or modifying it if there are no consumers,
+	 * as it can lead to performance degradation if addresses are modified
+	 * en-masse.
+	 *
+	 * If the queue already contains some events, update it anyway to avoid
+	 * ugly races between new sessions and new address events.
+	 */
+	if (list_empty(&net->sctp.auto_asconf_splist) &&
+	    list_empty(&net->sctp.addr_waitq)) {
+		spin_unlock_bh(&net->sctp.addr_wq_lock);
+		return;
+	}
+
 	/* Offsets existing events in addr_wq */
 	addrw = sctp_addr_wq_lookup(net, addr);
 	if (addrw) {
@@ -808,10 +822,10 @@ static int sctp_inetaddr_event(struct notifier_block *this, unsigned long ev,
 			if (addr->a.sa.sa_family == AF_INET &&
 					addr->a.v4.sin_addr.s_addr ==
 					ifa->ifa_local) {
-				sctp_addr_wq_mgmt(net, addr, SCTP_ADDR_DEL);
 				found = 1;
 				addr->valid = 0;
 				list_del_rcu(&addr->list);
+				sctp_addr_wq_mgmt(net, addr, SCTP_ADDR_DEL);
 				break;
 			}
 		}

@@ -696,7 +696,7 @@ unlock:
 	return ret;
 }
 
-static int ivpu_mmu_cd_add(struct ivpu_device *vdev, u32 ssid, u64 cd_dma)
+static int ivpu_mmu_cdtab_entry_set(struct ivpu_device *vdev, u32 ssid, u64 cd_dma, bool valid)
 {
 	struct ivpu_mmu_info *mmu = vdev->mmu;
 	struct ivpu_mmu_cdtab *cdtab = &mmu->cdtab;
@@ -708,30 +708,29 @@ static int ivpu_mmu_cd_add(struct ivpu_device *vdev, u32 ssid, u64 cd_dma)
 		return -EINVAL;
 
 	entry = cdtab->base + (ssid * IVPU_MMU_CDTAB_ENT_SIZE);
+	drm_WARN_ON(&vdev->drm, (entry[0] & IVPU_MMU_CD_0_V) == valid);
 
-	if (cd_dma != 0) {
-		cd[0] = FIELD_PREP(IVPU_MMU_CD_0_TCR_T0SZ, IVPU_MMU_T0SZ_48BIT) |
-			FIELD_PREP(IVPU_MMU_CD_0_TCR_TG0, 0) |
-			FIELD_PREP(IVPU_MMU_CD_0_TCR_IRGN0, 0) |
-			FIELD_PREP(IVPU_MMU_CD_0_TCR_ORGN0, 0) |
-			FIELD_PREP(IVPU_MMU_CD_0_TCR_SH0, 0) |
-			FIELD_PREP(IVPU_MMU_CD_0_TCR_IPS, IVPU_MMU_IPS_48BIT) |
-			FIELD_PREP(IVPU_MMU_CD_0_ASID, ssid) |
-			IVPU_MMU_CD_0_TCR_EPD1 |
-			IVPU_MMU_CD_0_AA64 |
-			IVPU_MMU_CD_0_R |
-			IVPU_MMU_CD_0_ASET |
-			IVPU_MMU_CD_0_V;
-		cd[1] = cd_dma & IVPU_MMU_CD_1_TTB0_MASK;
-		cd[2] = 0;
-		cd[3] = 0x0000000000007444;
+	cd[0] = FIELD_PREP(IVPU_MMU_CD_0_TCR_T0SZ, IVPU_MMU_T0SZ_48BIT) |
+		FIELD_PREP(IVPU_MMU_CD_0_TCR_TG0, 0) |
+		FIELD_PREP(IVPU_MMU_CD_0_TCR_IRGN0, 0) |
+		FIELD_PREP(IVPU_MMU_CD_0_TCR_ORGN0, 0) |
+		FIELD_PREP(IVPU_MMU_CD_0_TCR_SH0, 0) |
+		FIELD_PREP(IVPU_MMU_CD_0_TCR_IPS, IVPU_MMU_IPS_48BIT) |
+		FIELD_PREP(IVPU_MMU_CD_0_ASID, ssid) |
+		IVPU_MMU_CD_0_TCR_EPD1 |
+		IVPU_MMU_CD_0_AA64 |
+		IVPU_MMU_CD_0_R |
+		IVPU_MMU_CD_0_ASET;
+	cd[1] = cd_dma & IVPU_MMU_CD_1_TTB0_MASK;
+	cd[2] = 0;
+	cd[3] = 0x0000000000007444;
 
-		/* For global context generate memory fault on VPU */
-		if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID)
-			cd[0] |= IVPU_MMU_CD_0_A;
-	} else {
-		memset(cd, 0, sizeof(cd));
-	}
+	/* For global context generate memory fault on VPU */
+	if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID)
+		cd[0] |= IVPU_MMU_CD_0_A;
+
+	if (valid)
+		cd[0] |= IVPU_MMU_CD_0_V;
 
 	WRITE_ONCE(entry[1], cd[1]);
 	WRITE_ONCE(entry[2], cd[2]);
@@ -741,8 +740,8 @@ static int ivpu_mmu_cd_add(struct ivpu_device *vdev, u32 ssid, u64 cd_dma)
 	if (!ivpu_is_force_snoop_enabled(vdev))
 		clflush_cache_range(entry, IVPU_MMU_CDTAB_ENT_SIZE);
 
-	ivpu_dbg(vdev, MMU, "CDTAB %s entry (SSID=%u, dma=%pad): 0x%llx, 0x%llx, 0x%llx, 0x%llx\n",
-		 cd_dma ? "write" : "clear", ssid, &cd_dma, cd[0], cd[1], cd[2], cd[3]);
+	ivpu_dbg(vdev, MMU, "CDTAB set %s entry (SSID=%u, dma=%pad): 0x%llx, 0x%llx, 0x%llx, 0x%llx\n",
+		 valid ? "valid" : "invalid", ssid, &cd_dma, cd[0], cd[1], cd[2], cd[3]);
 
 	mutex_lock(&mmu->lock);
 	if (!mmu->on)
@@ -750,38 +749,18 @@ static int ivpu_mmu_cd_add(struct ivpu_device *vdev, u32 ssid, u64 cd_dma)
 
 	ret = ivpu_mmu_cmdq_write_cfgi_all(vdev);
 	if (ret)
-		goto unlock;
+		goto err_invalidate;
 
 	ret = ivpu_mmu_cmdq_sync(vdev);
+	if (ret)
+		goto err_invalidate;
 unlock:
 	mutex_unlock(&mmu->lock);
-	return ret;
-}
+	return 0;
 
-static int ivpu_mmu_cd_add_gbl(struct ivpu_device *vdev)
-{
-	int ret;
-
-	ret = ivpu_mmu_cd_add(vdev, 0, vdev->gctx.pgtable.pgd_dma);
-	if (ret)
-		ivpu_err(vdev, "Failed to add global CD entry: %d\n", ret);
-
-	return ret;
-}
-
-static int ivpu_mmu_cd_add_user(struct ivpu_device *vdev, u32 ssid, dma_addr_t cd_dma)
-{
-	int ret;
-
-	if (ssid == 0) {
-		ivpu_err(vdev, "Invalid SSID: %u\n", ssid);
-		return -EINVAL;
-	}
-
-	ret = ivpu_mmu_cd_add(vdev, ssid, cd_dma);
-	if (ret)
-		ivpu_err(vdev, "Failed to add CD entry SSID=%u: %d\n", ssid, ret);
-
+err_invalidate:
+	WRITE_ONCE(entry[0], 0);
+	mutex_unlock(&mmu->lock);
 	return ret;
 }
 
@@ -803,12 +782,6 @@ int ivpu_mmu_init(struct ivpu_device *vdev)
 		return ret;
 
 	ret = ivpu_mmu_strtab_init(vdev);
-	if (ret) {
-		ivpu_err(vdev, "Failed to initialize strtab: %d\n", ret);
-		return ret;
-	}
-
-	ret = ivpu_mmu_cd_add_gbl(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to initialize strtab: %d\n", ret);
 		return ret;
@@ -966,12 +939,12 @@ void ivpu_mmu_irq_gerr_handler(struct ivpu_device *vdev)
 	REGV_WR32(IVPU_MMU_REG_GERRORN, gerror_val);
 }
 
-int ivpu_mmu_set_pgtable(struct ivpu_device *vdev, int ssid, struct ivpu_mmu_pgtable *pgtable)
+int ivpu_mmu_cd_set(struct ivpu_device *vdev, int ssid, struct ivpu_mmu_pgtable *pgtable)
 {
-	return ivpu_mmu_cd_add_user(vdev, ssid, pgtable->pgd_dma);
+	return ivpu_mmu_cdtab_entry_set(vdev, ssid, pgtable->pgd_dma, true);
 }
 
-void ivpu_mmu_clear_pgtable(struct ivpu_device *vdev, int ssid)
+void ivpu_mmu_cd_clear(struct ivpu_device *vdev, int ssid)
 {
-	ivpu_mmu_cd_add_user(vdev, ssid, 0); /* 0 will clear CD entry */
+	ivpu_mmu_cdtab_entry_set(vdev, ssid, 0, false);
 }

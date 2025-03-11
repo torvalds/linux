@@ -42,7 +42,7 @@ static void amdgpu_job_do_core_dump(struct amdgpu_device *adev,
 	for (i = 0; i < adev->num_ip_blocks; i++)
 		if (adev->ip_blocks[i].version->funcs->dump_ip_state)
 			adev->ip_blocks[i].version->funcs
-				->dump_ip_state((void *)adev);
+				->dump_ip_state((void *)&adev->ip_blocks[i]);
 	dev_info(adev->dev, "Dumping IP State Completed\n");
 
 	amdgpu_coredump(adev, true, false, job);
@@ -102,8 +102,6 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 		return DRM_GPU_SCHED_STAT_ENODEV;
 	}
 
-	adev->job_hang = true;
-
 	/*
 	 * Do the coredump immediately after a job timeout to get a very
 	 * close dump/snapshot/representation of GPU's current error status
@@ -137,6 +135,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	/* attempt a per ring reset */
 	if (amdgpu_gpu_recovery &&
 	    ring->funcs->reset) {
+		dev_err(adev->dev, "Starting %s ring reset\n", s_job->sched->name);
 		/* stop the scheduler, but don't mess with the
 		 * bad job yet because if ring reset fails
 		 * we'll fall back to full GPU reset.
@@ -149,9 +148,10 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 			atomic_inc(&ring->adev->gpu_reset_counter);
 			amdgpu_fence_driver_force_completion(ring);
 			if (amdgpu_ring_sched_ready(ring))
-				drm_sched_start(&ring->sched);
+				drm_sched_start(&ring->sched, 0);
 			goto exit;
 		}
+		dev_err(adev->dev, "Ring %s reset failure\n", ring->sched.name);
 	}
 
 	if (amdgpu_device_should_recover_gpu(ring->adev)) {
@@ -179,7 +179,6 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 	}
 
 exit:
-	adev->job_hang = false;
 	drm_dev_exit(idx);
 	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
@@ -195,11 +194,6 @@ int amdgpu_job_alloc(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (!*job)
 		return -ENOMEM;
 
-	/*
-	 * Initialize the scheduler to at least some ring so that we always
-	 * have a pointer to adev.
-	 */
-	(*job)->base.sched = &adev->rings[0]->sched;
 	(*job)->vm = vm;
 
 	amdgpu_sync_create(&(*job)->explicit_sync);
@@ -253,7 +247,6 @@ void amdgpu_job_set_resources(struct amdgpu_job *job, struct amdgpu_bo *gds,
 
 void amdgpu_job_free_resources(struct amdgpu_job *job)
 {
-	struct amdgpu_ring *ring = to_amdgpu_ring(job->base.sched);
 	struct dma_fence *f;
 	unsigned i;
 
@@ -266,7 +259,7 @@ void amdgpu_job_free_resources(struct amdgpu_job *job)
 		f = NULL;
 
 	for (i = 0; i < job->num_ibs; ++i)
-		amdgpu_ib_free(ring->adev, &job->ibs[i], f);
+		amdgpu_ib_free(&job->ibs[i], f);
 }
 
 static void amdgpu_job_free_cb(struct drm_sched_job *s_job)
@@ -356,15 +349,22 @@ amdgpu_job_prepare_job(struct drm_sched_job *sched_job,
 	if (r)
 		goto error;
 
-	if (!fence && job->gang_submit)
+	if (job->gang_submit)
 		fence = amdgpu_device_switch_gang(ring->adev, job->gang_submit);
 
-	while (!fence && job->vm && !job->vmid) {
+	if (!fence && job->vm && !job->vmid) {
 		r = amdgpu_vmid_grab(job->vm, ring, job, &fence);
 		if (r) {
 			dev_err(ring->adev->dev, "Error getting VM ID (%d)\n", r);
 			goto error;
 		}
+		/*
+		 * The VM structure might be released after the VMID is
+		 * assigned, we had multiple problems with people trying to use
+		 * the VM pointer so better set it to NULL.
+		 */
+		if (!fence)
+			job->vm = NULL;
 	}
 
 	return fence;

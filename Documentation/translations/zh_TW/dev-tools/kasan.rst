@@ -404,16 +404,13 @@ KASAN連接到vmap基礎架構以懶清理未使用的影子內存。
 ~~~~
 
 有一些KASAN測試可以驗證KASAN是否正常工作並可以檢測某些類型的內存損壞。
-測試由兩部分組成:
 
-1. 與KUnit測試框架集成的測試。使用 ``CONFIG_KASAN_KUNIT_TEST`` 啓用。
-這些測試可以通過幾種不同的方式自動運行和部分驗證；請參閱下面的說明。
+所有 KASAN 測試均與 KUnit 測試框架集成，並且可以啟用
+透過 ``CONFIG_KASAN_KUNIT_TEST``。可以運行測試並進行部分驗證
+以幾種不同的方式自動進行；請參閱下面的說明。
 
-2. 與KUnit不兼容的測試。使用 ``CONFIG_KASAN_MODULE_TEST`` 啓用並且只能作爲模塊
-運行。這些測試只能通過加載內核模塊並檢查內核日誌以獲取KASAN報告來手動驗證。
-
-如果檢測到錯誤，每個KUnit兼容的KASAN測試都會打印多個KASAN報告之一，然後測試打印
-其編號和狀態。
+如果偵測到錯誤，每個 KASAN 測試都會列印多個 KASAN 報告之一。
+然後測試列印其編號和狀態。
 
 當測試通過::
 
@@ -440,16 +437,16 @@ KASAN連接到vmap基礎架構以懶清理未使用的影子內存。
 
         not ok 1 - kasan
 
-有幾種方法可以運行與KUnit兼容的KASAN測試。
+有幾種方法可以執行 KASAN 測試。
 
 1. 可加載模塊
 
-   啓用 ``CONFIG_KUNIT`` 後，KASAN-KUnit測試可以構建爲可加載模塊，並通過使用
-   ``insmod`` 或 ``modprobe`` 加載 ``kasan_test.ko`` 來運行。
+   啟用 ``CONFIG_KUNIT`` 後，測試可以建置為可載入模組
+   並且透過使用 ``insmod`` 或 ``modprobe`` 來載入 ``kasan_test.ko`` 來運作。
 
 2. 內置
 
-   通過內置 ``CONFIG_KUNIT`` ，也可以內置KASAN-KUnit測試。在這種情況下，
+   透過內建 ``CONFIG_KUNIT``，測試也可以內建。
    測試將在啓動時作爲後期初始化調用運行。
 
 3. 使用kunit_tool

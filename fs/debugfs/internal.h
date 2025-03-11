@@ -15,9 +15,11 @@ struct file_operations;
 extern const struct file_operations debugfs_noop_file_operations;
 extern const struct file_operations debugfs_open_proxy_file_operations;
 extern const struct file_operations debugfs_full_proxy_file_operations;
+extern const struct file_operations debugfs_full_short_proxy_file_operations;
 
 struct debugfs_fsdata {
 	const struct file_operations *real_fops;
+	const struct debugfs_short_fops *short_fops;
 	union {
 		/* automount_fn is used when real_fops is NULL */
 		debugfs_automount_t automount;

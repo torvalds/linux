@@ -1,0 +1,242 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: rt-rule
+protocol: netlink-raw
+protonum: 0
+
+doc:
+  FIB rule management over rtnetlink.
+
+definitions:
+  -
+    name: rtgenmsg
+    type: struct
+    members:
+      -
+        name: family
+        type: u8
+      -
+        name: pad
+        type: pad
+        len: 3
+  -
+    name: fib-rule-hdr
+    type: struct
+    members:
+      -
+        name: family
+        type: u8
+      -
+        name: dst-len
+        type: u8
+      -
+        name: src-len
+        type: u8
+      -
+        name: tos
+        type: u8
+      -
+        name: table
+        type: u8
+      -
+        name: res1
+        type: pad
+        len: 1
+      -
+        name: res2
+        type: pad
+        len: 1
+      -
+        name: action
+        type: u8
+        enum: fr-act
+      -
+        name: flags
+        type: u32
+  -
+    name: fr-act
+    type: enum
+    entries:
+      - unspec
+      - to-tbl
+      - goto
+      - nop
+      - res3
+      - res4
+      - blackhole
+      - unreachable
+      - prohibit
+  -
+    name: fib-rule-port-range
+    type: struct
+    members:
+      -
+        name: start
+        type: u16
+      -
+        name: end
+        type: u16
+  -
+    name: fib-rule-uid-range
+    type: struct
+    members:
+      -
+        name: start
+        type: u32
+      -
+        name: end
+        type: u32
+
+attribute-sets:
+  -
+    name: fib-rule-attrs
+    attributes:
+      -
+        name: dst
+        type: u32
+      -
+        name: src
+        type: u32
+      -
+        name: iifname
+        type: string
+      -
+        name: goto
+        type: u32
+      -
+        name: unused2
+        type: pad
+      -
+        name: priority
+        type: u32
+      -
+        name: unused3
+        type: pad
+      -
+        name: unused4
+        type: pad
+      -
+        name: unused5
+        type: pad
+      -
+        name: fwmark
+        type: u32
+        display-hint: hex
+      -
+        name: flow
+        type: u32
+      -
+        name: tun-id
+        type: u64
+      -
+        name: suppress-ifgroup
+        type: u32
+      -
+        name: suppress-prefixlen
+        type: u32
+        display-hint: hex
+      -
+        name: table
+        type: u32
+      -
+        name: fwmask
+        type: u32
+        display-hint: hex
+      -
+        name: oifname
+        type: string
+      -
+        name: pad
+        type: pad
+      -
+        name: l3mdev
+        type: u8
+      -
+        name: uid-range
+        type: binary
+        struct: fib-rule-uid-range
+      -
+        name: protocol
+        type: u8
+      -
+        name: ip-proto
+        type: u8
+      -
+        name: sport-range
+        type: binary
+        struct: fib-rule-port-range
+      -
+        name: dport-range
+        type: binary
+        struct: fib-rule-port-range
+      -
+        name: dscp
+        type: u8
+
+operations:
+  enum-model: directional
+  fixed-header: fib-rule-hdr
+  list:
+    -
+      name: newrule
+      doc: Add new FIB rule
+      attribute-set: fib-rule-attrs
+      do:
+        request:
+          value: 32
+          attributes: &fib-rule-all
+            - iifname
+            - oifname
+            - priority
+            - fwmark
+            - flow
+            - tun-id
+            - fwmask
+            - table
+            - suppress-prefixlen
+            - suppress-ifgroup
+            - goto
+            - l3mdev
+            - uid-range
+            - protocol
+            - ip-proto
+            - sport-range
+            - dport-range
+            - dscp
+    -
+      name: newrule-ntf
+      doc: Notify a rule creation
+      value: 32
+      notify: newrule
+    -
+      name: delrule
+      doc: Remove an existing FIB rule
+      attribute-set: fib-rule-attrs
+      do:
+        request:
+          value: 33
+          attributes: *fib-rule-all
+    -
+      name: delrule-ntf
+      doc: Notify a rule deletion
+      value: 33
+      notify: delrule
+    -
+      name: getrule
+      doc: Dump all FIB rules
+      attribute-set: fib-rule-attrs
+      dump:
+        request:
+          value: 34
+        reply:
+          value: 32
+          attributes: *fib-rule-all
+
+mcast-groups:
+  list:
+    -
+      name: rtnlgrp-ipv4-rule
+      value: 8
+    -
+      name: rtnlgrp-ipv6-rule
+      value: 19

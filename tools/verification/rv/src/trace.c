@@ -81,7 +81,7 @@ void trace_instance_destroy(struct trace_instance *trace)
 }
 
 /**
- * trace_instance_init - create an trace instance
+ * trace_instance_init - create a trace instance
  *
  * It is more than the tracefs instance, as it contains other
  * things required for the tracing, such as the local events and

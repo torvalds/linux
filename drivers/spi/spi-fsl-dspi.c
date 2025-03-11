@@ -280,25 +280,25 @@ static void dspi_native_dev_to_host(struct fsl_dspi *dspi, u32 rxdata)
 
 static void dspi_8on32_host_to_dev(struct fsl_dspi *dspi, u32 *txdata)
 {
-	*txdata = cpu_to_be32(*(u32 *)dspi->tx);
+	*txdata = (__force u32)cpu_to_be32(*(u32 *)dspi->tx);
 	dspi->tx += sizeof(u32);
 }
 
 static void dspi_8on32_dev_to_host(struct fsl_dspi *dspi, u32 rxdata)
 {
-	*(u32 *)dspi->rx = be32_to_cpu(rxdata);
+	*(u32 *)dspi->rx = be32_to_cpu((__force __be32)rxdata);
 	dspi->rx += sizeof(u32);
 }
 
 static void dspi_8on16_host_to_dev(struct fsl_dspi *dspi, u32 *txdata)
 {
-	*txdata = cpu_to_be16(*(u16 *)dspi->tx);
+	*txdata = (__force u32)cpu_to_be16(*(u16 *)dspi->tx);
 	dspi->tx += sizeof(u16);
 }
 
 static void dspi_8on16_dev_to_host(struct fsl_dspi *dspi, u32 rxdata)
 {
-	*(u16 *)dspi->rx = be16_to_cpu(rxdata);
+	*(u16 *)dspi->rx = be16_to_cpu((__force __be16)rxdata);
 	dspi->rx += sizeof(u16);
 }
 
@@ -1473,7 +1473,7 @@ static struct platform_driver fsl_dspi_driver = {
 	.driver.of_match_table	= fsl_dspi_dt_ids,
 	.driver.pm		= &dspi_pm,
 	.probe			= dspi_probe,
-	.remove_new		= dspi_remove,
+	.remove			= dspi_remove,
 	.shutdown		= dspi_shutdown,
 };
 module_platform_driver(fsl_dspi_driver);

@@ -1395,7 +1395,7 @@ static const struct dev_pm_ops xiic_dev_pm_ops = {
 
 static struct platform_driver xiic_i2c_driver = {
 	.probe   = xiic_i2c_probe,
-	.remove_new = xiic_i2c_remove,
+	.remove = xiic_i2c_remove,
 	.driver  = {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(xiic_of_match),

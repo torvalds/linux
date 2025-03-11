@@ -335,7 +335,7 @@ static void r852_cmdctl(struct nand_chip *chip, int dat, unsigned int ctrl)
 		else
 			dev->ctlreg &= ~R852_CTL_WRITE;
 
-		/* when write is stareted, enable write access */
+		/* when write is started, enable write access */
 		if (dat == NAND_CMD_ERASE1)
 			dev->ctlreg |= R852_CTL_WRITE;
 
@@ -372,7 +372,7 @@ static int r852_wait(struct nand_chip *chip)
 
 	nand_status_op(chip, &status);
 
-	/* Unfortunelly, no way to send detailed error status... */
+	/* Unfortunately, no way to send detailed error status... */
 	if (dev->dma_error) {
 		status |= NAND_STATUS_FAIL;
 		dev->dma_error = 0;

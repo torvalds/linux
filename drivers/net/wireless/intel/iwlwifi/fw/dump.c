@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -530,3 +530,28 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt)
 	}
 }
 IWL_EXPORT_SYMBOL(iwl_fwrt_dump_error_logs);
+
+bool iwl_fwrt_read_err_table(struct iwl_trans *trans, u32 base, u32 *err_id)
+{
+	struct error_table_start {
+		/* cf. struct iwl_error_event_table */
+		u32 valid;
+		__le32 err_id;
+	} err_info = {};
+	int ret;
+
+	if (!base)
+		return false;
+
+	ret = iwl_trans_read_mem_bytes(trans, base,
+				       &err_info, sizeof(err_info));
+
+	if (ret)
+		return true;
+
+	if (err_info.valid && err_id)
+		*err_id = le32_to_cpu(err_info.err_id);
+
+	return !!err_info.valid;
+}
+IWL_EXPORT_SYMBOL(iwl_fwrt_read_err_table);

@@ -246,7 +246,7 @@ MODULE_DEVICE_TABLE(of, meson_mx_ao_arc_rproc_match);
 
 static struct platform_driver meson_mx_ao_arc_rproc_driver = {
 	.probe = meson_mx_ao_arc_rproc_probe,
-	.remove_new = meson_mx_ao_arc_rproc_remove,
+	.remove = meson_mx_ao_arc_rproc_remove,
 	.driver = {
 		.name = "meson-mx-ao-arc-rproc",
 		.of_match_table = meson_mx_ao_arc_rproc_match,

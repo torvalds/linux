@@ -317,12 +317,6 @@ extern void ceph_release_page_vector(struct page **pages, int num_pages);
 extern void ceph_put_page_vector(struct page **pages, int num_pages,
 				 bool dirty);
 extern struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags);
-extern int ceph_copy_user_to_page_vector(struct page **pages,
-					 const void __user *data,
-					 loff_t off, size_t len);
-extern void ceph_copy_to_page_vector(struct page **pages,
-				    const void *data,
-				    loff_t off, size_t len);
 extern void ceph_copy_from_page_vector(struct page **pages,
 				    void *data,
 				    loff_t off, size_t len);

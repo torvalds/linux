@@ -744,7 +744,7 @@ static struct platform_driver brcmstb_i2c_driver = {
 		   .pm = pm_sleep_ptr(&brcmstb_i2c_pm),
 		   },
 	.probe = brcmstb_i2c_probe,
-	.remove_new = brcmstb_i2c_remove,
+	.remove = brcmstb_i2c_remove,
 };
 module_platform_driver(brcmstb_i2c_driver);
 

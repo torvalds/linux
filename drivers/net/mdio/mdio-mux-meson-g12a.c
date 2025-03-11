@@ -348,7 +348,7 @@ static void g12a_mdio_mux_remove(struct platform_device *pdev)
 
 static struct platform_driver g12a_mdio_mux_driver = {
 	.probe		= g12a_mdio_mux_probe,
-	.remove_new	= g12a_mdio_mux_remove,
+	.remove		= g12a_mdio_mux_remove,
 	.driver		= {
 		.name	= "g12a-mdio_mux",
 		.of_match_table = g12a_mdio_mux_match,

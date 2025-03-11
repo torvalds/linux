@@ -594,7 +594,7 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
  *     Called by tty low level driver when receive data is
  *     available.
  *
- * Arguments:  tty          pointer to tty isntance data
+ * Arguments:  tty          pointer to tty instance data
  *             data         pointer to received data
  *             flags        pointer to flags for data
  *             count        count of received data in bytes

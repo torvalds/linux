@@ -365,23 +365,18 @@ bool cm_helper_translate_curve_to_hw_format(struct dc_context *ctx,
 		region_start = -MAX_LOW_POINT;
 		region_end   = NUMBER_REGIONS - MAX_LOW_POINT;
 	} else {
-		/* 11 segments
-		 * segment is from 2^-10 to 2^1
+		/* 13 segments
+		 * segment is from 2^-12 to 2^0
 		 * There are less than 256 points, for optimization
 		 */
-		seg_distr[0] = 3;
-		seg_distr[1] = 4;
-		seg_distr[2] = 4;
-		seg_distr[3] = 4;
-		seg_distr[4] = 4;
-		seg_distr[5] = 4;
-		seg_distr[6] = 4;
-		seg_distr[7] = 4;
-		seg_distr[8] = 4;
-		seg_distr[9] = 4;
-		seg_distr[10] = 1;
+		const uint8_t SEG_COUNT = 12;
 
-		region_start = -10;
+		for (i = 0; i < SEG_COUNT; i++)
+			seg_distr[i] = 4;
+
+		seg_distr[SEG_COUNT] = 1;
+
+		region_start = -SEG_COUNT;
 		region_end = 1;
 	}
 

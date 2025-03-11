@@ -64,7 +64,7 @@ static int count_iters_for_insert(struct btree_trans *trans,
 		break;
 	case KEY_TYPE_reflink_p: {
 		struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
-		u64 idx = le64_to_cpu(p.v->idx);
+		u64 idx = REFLINK_P_IDX(p.v);
 		unsigned sectors = bpos_min(*end, p.k->p).offset -
 			bkey_start_offset(p.k);
 		struct btree_iter iter;
@@ -128,7 +128,7 @@ int bch2_extent_atomic_end(struct btree_trans *trans,
 
 	bch2_trans_copy_iter(&copy, iter);
 
-	for_each_btree_key_upto_continue_norestart(copy, insert->k.p, 0, k, ret) {
+	for_each_btree_key_max_continue_norestart(copy, insert->k.p, 0, k, ret) {
 		unsigned offset = 0;
 
 		if (bkey_gt(bkey_start_pos(&insert->k), bkey_start_pos(k.k)))

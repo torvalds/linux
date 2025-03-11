@@ -1565,7 +1565,7 @@ static struct platform_driver greth_of_driver = {
 		.of_match_table = greth_of_match,
 	},
 	.probe = greth_of_probe,
-	.remove_new = greth_of_remove,
+	.remove = greth_of_remove,
 };
 
 module_platform_driver(greth_of_driver);

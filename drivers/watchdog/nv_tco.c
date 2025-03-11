@@ -466,7 +466,7 @@ static void nv_tco_shutdown(struct platform_device *dev)
 
 static struct platform_driver nv_tco_driver = {
 	.probe		= nv_tco_init,
-	.remove_new	= nv_tco_remove,
+	.remove		= nv_tco_remove,
 	.shutdown	= nv_tco_shutdown,
 	.driver		= {
 		.name	= TCO_MODULE_NAME,

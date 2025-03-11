@@ -115,9 +115,9 @@ static void __exit amiga_a4000t_scsi_remove(struct platform_device *pdev)
  * triggering a section mismatch warning.
  */
 static struct platform_driver amiga_a4000t_scsi_driver __refdata = {
-	.remove_new = __exit_p(amiga_a4000t_scsi_remove),
-	.driver   = {
-		.name	= "amiga-a4000t-scsi",
+	.remove = __exit_p(amiga_a4000t_scsi_remove),
+	.driver = {
+		.name = "amiga-a4000t-scsi",
 	},
 };
 

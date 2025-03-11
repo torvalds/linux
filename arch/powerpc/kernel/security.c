@@ -14,7 +14,7 @@
 #include <linux/debugfs.h>
 
 #include <asm/asm-prototypes.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/security_features.h>
 #include <asm/sections.h>
 #include <asm/setup.h>

@@ -1403,7 +1403,7 @@ static struct platform_driver korina_driver = {
 		.of_match_table = of_match_ptr(korina_match),
 	},
 	.probe = korina_probe,
-	.remove_new = korina_remove,
+	.remove = korina_remove,
 };
 
 module_platform_driver(korina_driver);

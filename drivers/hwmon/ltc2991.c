@@ -125,7 +125,7 @@ static int ltc2991_get_curr(struct ltc2991_state *st, u32 reg, int channel,
 
 	/* Vx-Vy, 19.075uV/LSB */
 	*val = DIV_ROUND_CLOSEST(sign_extend32(reg_val, 14) * 19075,
-				 st->r_sense_uohm[channel]);
+				 (s32)st->r_sense_uohm[channel]);
 
 	return 0;
 }

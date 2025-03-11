@@ -267,7 +267,7 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 
 	count = round_down(count, nvmem->word_size);
 
-	if (!nvmem->reg_write)
+	if (!nvmem->reg_write || nvmem->read_only)
 		return -EPERM;
 
 	rc = nvmem_reg_write(nvmem, pos, buf, count);
@@ -298,14 +298,23 @@ static umode_t nvmem_bin_attr_get_umode(struct nvmem_device *nvmem)
 }
 
 static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
-					 struct bin_attribute *attr, int i)
+					 const struct bin_attribute *attr,
+					 int i)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct nvmem_device *nvmem = to_nvmem_device(dev);
 
-	attr->size = nvmem->size;
-
 	return nvmem_bin_attr_get_umode(nvmem);
+}
+
+static size_t nvmem_bin_attr_size(struct kobject *kobj,
+				  const struct bin_attribute *attr,
+				  int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+
+	return nvmem->size;
 }
 
 static umode_t nvmem_attr_is_visible(struct kobject *kobj,
@@ -383,6 +392,7 @@ static const struct attribute_group nvmem_bin_group = {
 	.bin_attrs	= nvmem_bin_attributes,
 	.attrs		= nvmem_attrs,
 	.is_bin_visible = nvmem_bin_attr_is_visible,
+	.bin_size	= nvmem_bin_attr_size,
 	.is_visible	= nvmem_attr_is_visible,
 };
 
@@ -1247,7 +1257,7 @@ static void devm_nvmem_device_release(struct device *dev, void *res)
 }
 
 /**
- * devm_nvmem_device_put() - put alredy got nvmem device
+ * devm_nvmem_device_put() - put already got nvmem device
  *
  * @dev: Device that uses the nvmem device.
  * @nvmem: pointer to nvmem device allocated by devm_nvmem_cell_get(),
@@ -1265,7 +1275,7 @@ void devm_nvmem_device_put(struct device *dev, struct nvmem_device *nvmem)
 EXPORT_SYMBOL_GPL(devm_nvmem_device_put);
 
 /**
- * nvmem_device_put() - put alredy got nvmem device
+ * nvmem_device_put() - put already got nvmem device
  *
  * @nvmem: pointer to nvmem device that needs to be released.
  */

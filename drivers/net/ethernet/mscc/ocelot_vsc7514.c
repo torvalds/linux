@@ -416,7 +416,7 @@ static void mscc_ocelot_remove(struct platform_device *pdev)
 
 static struct platform_driver mscc_ocelot_driver = {
 	.probe = mscc_ocelot_probe,
-	.remove_new = mscc_ocelot_remove,
+	.remove = mscc_ocelot_remove,
 	.driver = {
 		.name = "ocelot-switch",
 		.of_match_table = mscc_ocelot_match,

@@ -1463,7 +1463,7 @@ static struct platform_driver qpti_sbus_driver = {
 		.of_match_table = qpti_match,
 	},
 	.probe		= qpti_sbus_probe,
-	.remove_new	= qpti_sbus_remove,
+	.remove		= qpti_sbus_remove,
 };
 module_platform_driver(qpti_sbus_driver);
 

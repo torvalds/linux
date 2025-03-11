@@ -4596,7 +4596,6 @@ static int __init do_floppy_init(void)
 		tag_sets[drive].nr_maps = 1;
 		tag_sets[drive].queue_depth = 2;
 		tag_sets[drive].numa_node = NUMA_NO_NODE;
-		tag_sets[drive].flags = BLK_MQ_F_SHOULD_MERGE;
 		err = blk_mq_alloc_tag_set(&tag_sets[drive]);
 		if (err)
 			goto out_put_disk;

@@ -43,7 +43,7 @@ config PINCTRL_SOPHGO_SG2000
 	  pinctrl-sg2000.
 
 config PINCTRL_SOPHGO_SG2002
-	tristate "Sophgo SG2000 SoC Pinctrl driver"
+	tristate "Sophgo SG2002 SoC Pinctrl driver"
 	depends on ARCH_SOPHGO || COMPILE_TEST
 	depends on OF
 	select PINCTRL_SOPHGO_CV18XX

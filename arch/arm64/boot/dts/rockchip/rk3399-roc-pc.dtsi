@@ -113,7 +113,7 @@
 		reset-gpios = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
 	};
 
-	vcc_vbus_typec0: vcc-vbus-typec0 {
+	vcc_vbus_typec0: regulator-vcc-vbus-typec0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_vbus_typec0";
 		regulator-always-on;
@@ -122,7 +122,7 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
-	sys_12v: sys-12v {
+	sys_12v: regulator-sys-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "sys_12v";
 		regulator-always-on;
@@ -131,7 +131,7 @@
 	};
 
 	/* switched by pmic_sleep */
-	vcc1v8_s3: vcca1v8_s3: vcc1v8-s3 {
+	vcc1v8_s3: vcca1v8_s3: regulator-vcc1v8-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc1v8_s3";
 		regulator-always-on;
@@ -141,7 +141,7 @@
 		vin-supply = <&vcc_1v8>;
 	};
 
-	vcc3v0_sd: vcc3v0-sd {
+	vcc3v0_sd: regulator-vcc3v0-sd {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PD6 GPIO_ACTIVE_HIGH>;
@@ -154,7 +154,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc3v3_sys: vcc3v3-sys {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-always-on;
@@ -164,7 +164,7 @@
 		vin-supply = <&sys_12v>;
 	};
 
-	vcca_0v9: vcca-0v9 {
+	vcca_0v9: regulator-vcca-0v9 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcca_0v9";
 		regulator-always-on;
@@ -175,7 +175,7 @@
 	};
 
 	/* Actually 3 regulators (host0, 1, 2) controlled by the same gpio */
-	vcc5v0_host: vcc5v0-host-regulator {
+	vcc5v0_host: regulator-vcc5v0-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
@@ -185,7 +185,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcc_vbus_typec1: vcc-vbus-typec1 {
+	vcc_vbus_typec1: regulator-vcc-vbus-typec1 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
@@ -196,7 +196,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcc_sys: vcc-sys {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio2 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -209,7 +209,7 @@
 		vin-supply = <&sys_12v>;
 	};
 
-	vdd_log: vdd-log {
+	vdd_log: regulator-vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
 		regulator-name = "vdd_log";
@@ -298,7 +298,7 @@
 		clock-output-names = "xin32k", "rk808-clkout2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vcc3v3_sys>;

@@ -329,7 +329,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_gamma_driver_dt_match);
 
 struct platform_driver mtk_disp_gamma_driver = {
 	.probe		= mtk_disp_gamma_probe,
-	.remove_new	= mtk_disp_gamma_remove,
+	.remove		= mtk_disp_gamma_remove,
 	.driver		= {
 		.name	= "mediatek-disp-gamma",
 		.of_match_table = mtk_disp_gamma_driver_dt_match,

@@ -201,7 +201,7 @@ static int m62332_probe(struct i2c_client *client)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &m62332_info;
 
-	ret = iio_map_array_register(indio_dev, client->dev.platform_data);
+	ret = iio_map_array_register(indio_dev, dev_get_platdata(&client->dev));
 	if (ret < 0)
 		return ret;
 

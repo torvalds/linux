@@ -306,7 +306,7 @@ static void sgiwd93_remove(struct platform_device *pdev)
 
 static struct platform_driver sgiwd93_driver = {
 	.probe  = sgiwd93_probe,
-	.remove_new = sgiwd93_remove,
+	.remove = sgiwd93_remove,
 	.driver = {
 		.name   = "sgiwd93",
 	}

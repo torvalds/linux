@@ -19,7 +19,11 @@ description: |
 
 properties:
   compatible:
-    const: qcom,x1e80100-spmi-pmic-arb
+    oneOf:
+      - items:
+          - const: qcom,sar2130p-spmi-pmic-arb
+          - const: qcom,x1e80100-spmi-pmic-arb
+      - const: qcom,x1e80100-spmi-pmic-arb
 
   reg:
     items:

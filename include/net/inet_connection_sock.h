@@ -197,12 +197,12 @@ static inline void inet_csk_clear_xmit_timer(struct sock *sk, const int what)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
 	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0) {
-		icsk->icsk_pending = 0;
+		smp_store_release(&icsk->icsk_pending, 0);
 #ifdef INET_CSK_CLEAR_TIMERS
 		sk_stop_timer(sk, &icsk->icsk_retransmit_timer);
 #endif
 	} else if (what == ICSK_TIME_DACK) {
-		icsk->icsk_ack.pending = 0;
+		smp_store_release(&icsk->icsk_ack.pending, 0);
 		icsk->icsk_ack.retry = 0;
 #ifdef INET_CSK_CLEAR_TIMERS
 		sk_stop_timer(sk, &icsk->icsk_delack_timer);
@@ -229,11 +229,12 @@ static inline void inet_csk_reset_xmit_timer(struct sock *sk, const int what,
 
 	if (what == ICSK_TIME_RETRANS || what == ICSK_TIME_PROBE0 ||
 	    what == ICSK_TIME_LOSS_PROBE || what == ICSK_TIME_REO_TIMEOUT) {
-		icsk->icsk_pending = what;
+		smp_store_release(&icsk->icsk_pending, what);
 		icsk->icsk_timeout = jiffies + when;
 		sk_reset_timer(sk, &icsk->icsk_retransmit_timer, icsk->icsk_timeout);
 	} else if (what == ICSK_TIME_DACK) {
-		icsk->icsk_ack.pending |= ICSK_ACK_TIMER;
+		smp_store_release(&icsk->icsk_ack.pending,
+				  icsk->icsk_ack.pending | ICSK_ACK_TIMER);
 		icsk->icsk_ack.timeout = jiffies + when;
 		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
 	} else {
@@ -281,7 +282,7 @@ static inline int inet_csk_reqsk_queue_len(const struct sock *sk)
 
 static inline int inet_csk_reqsk_queue_is_full(const struct sock *sk)
 {
-	return inet_csk_reqsk_queue_len(sk) >= READ_ONCE(sk->sk_max_ack_backlog);
+	return inet_csk_reqsk_queue_len(sk) > READ_ONCE(sk->sk_max_ack_backlog);
 }
 
 bool inet_csk_reqsk_queue_drop(struct sock *sk, struct request_sock *req);

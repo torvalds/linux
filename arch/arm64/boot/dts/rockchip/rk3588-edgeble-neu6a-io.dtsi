@@ -10,7 +10,7 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
-	vcc3v3_pcie2x1l0: vcc3v3-pcie2x1l0-regulator {
+	vcc3v3_pcie2x1l0: regulator-vcc3v3-pcie2x1l0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie2x1l0";
 		regulator-min-microvolt = <3300000>;
@@ -19,7 +19,7 @@
 		vin-supply = <&vcc_3v3_s3>;
 	};
 
-	vcc3v3_pcie3x2: vcc3v3-pcie3x2-regulator {
+	vcc3v3_pcie3x2: regulator-vcc3v3-pcie3x2 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpios = <&gpio2 RK_PC4 GPIO_ACTIVE_HIGH>; /* PCIE_4G_PWEN */
@@ -32,7 +32,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc3v3_pcie3x4: vcc3v3-pcie3x4-regulator {
+	vcc3v3_pcie3x4: regulator-vcc3v3-pcie3x4 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpios = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>; /* PCIE30x4_PWREN_H */
@@ -45,7 +45,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc5v0_host: vcc5v0-host-regulator {
+	vcc5v0_host: regulator-vcc5v0-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PC7 GPIO_ACTIVE_HIGH>;

@@ -457,7 +457,7 @@ static void st_rproc_remove(struct platform_device *pdev)
 
 static struct platform_driver st_rproc_driver = {
 	.probe = st_rproc_probe,
-	.remove_new = st_rproc_remove,
+	.remove = st_rproc_remove,
 	.driver = {
 		.name = "st-rproc",
 		.of_match_table = of_match_ptr(st_rproc_match),

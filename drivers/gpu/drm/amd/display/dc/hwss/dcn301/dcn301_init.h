@@ -23,8 +23,8 @@
  *
  */
 
-#ifndef __DC_DCN30_INIT_H__
-#define __DC_DCN30_INIT_H__
+#ifndef __DC_DCN301_INIT_H__
+#define __DC_DCN301_INIT_H__
 
 struct dc;
 

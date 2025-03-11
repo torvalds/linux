@@ -2102,7 +2102,7 @@ static struct platform_driver rtl8366rb_smi_driver = {
 		.of_match_table = rtl8366rb_of_match,
 	},
 	.probe  = realtek_smi_probe,
-	.remove_new = realtek_smi_remove,
+	.remove = realtek_smi_remove,
 	.shutdown = realtek_smi_shutdown,
 };
 
@@ -2144,4 +2144,4 @@ module_exit(rtl8366rb_exit);
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_DESCRIPTION("Driver for RTL8366RB ethernet switch");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(REALTEK_DSA);
+MODULE_IMPORT_NS("REALTEK_DSA");

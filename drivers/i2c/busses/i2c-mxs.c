@@ -881,7 +881,7 @@ static struct platform_driver mxs_i2c_driver = {
 		   .of_match_table = mxs_i2c_dt_ids,
 		   },
 	.probe = mxs_i2c_probe,
-	.remove_new = mxs_i2c_remove,
+	.remove = mxs_i2c_remove,
 };
 
 static int __init mxs_i2c_init(void)

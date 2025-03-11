@@ -1,0 +1,9 @@
+/* SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause) */
+
+#ifndef _DT_BINDINGS_RESET_MT6735_MFGCFG_H
+#define _DT_BINDINGS_RESET_MT6735_MFGCFG_H
+
+#define MT6735_MFG_RST0_AXI		0
+#define MT6735_MFG_RST0_G3D		1
+
+#endif /* _DT_BINDINGS_RESET_MT6735_MFGCFG_H */

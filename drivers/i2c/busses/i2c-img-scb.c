@@ -1497,7 +1497,7 @@ static struct platform_driver img_scb_i2c_driver = {
 		.pm		= pm_ptr(&img_i2c_pm),
 	},
 	.probe = img_i2c_probe,
-	.remove_new = img_i2c_remove,
+	.remove = img_i2c_remove,
 };
 module_platform_driver(img_scb_i2c_driver);
 

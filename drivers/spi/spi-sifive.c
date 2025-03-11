@@ -471,7 +471,7 @@ MODULE_DEVICE_TABLE(of, sifive_spi_of_match);
 
 static struct platform_driver sifive_spi_driver = {
 	.probe = sifive_spi_probe,
-	.remove_new = sifive_spi_remove,
+	.remove = sifive_spi_remove,
 	.driver = {
 		.name = SIFIVE_SPI_DRIVER_NAME,
 		.pm = &sifive_spi_pm_ops,

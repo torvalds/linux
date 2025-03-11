@@ -1507,8 +1507,6 @@ static const struct vb2_ops imx7_csi_video_qops = {
 	.buf_init        = imx7_csi_video_buf_init,
 	.buf_prepare	 = imx7_csi_video_buf_prepare,
 	.buf_queue	 = imx7_csi_video_buf_queue,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 	.start_streaming = imx7_csi_video_start_streaming,
 	.stop_streaming  = imx7_csi_video_stop_streaming,
 };
@@ -2281,7 +2279,7 @@ MODULE_DEVICE_TABLE(of, imx7_csi_of_match);
 
 static struct platform_driver imx7_csi_driver = {
 	.probe = imx7_csi_probe,
-	.remove_new = imx7_csi_remove,
+	.remove = imx7_csi_remove,
 	.driver = {
 		.of_match_table = imx7_csi_of_match,
 		.name = "imx7-csi",

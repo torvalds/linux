@@ -50,6 +50,10 @@ properties:
   HPVDD-supply:
     description: Regulator providing analog output voltage 3.3V
 
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - clocks

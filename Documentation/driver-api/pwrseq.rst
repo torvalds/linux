@@ -11,7 +11,7 @@ Introduction
 ============
 
 This framework is designed to abstract complex power-up sequences that are
-shared between multiple logical devices in the linux kernel.
+shared between multiple logical devices in the Linux kernel.
 
 The intention is to allow consumers to obtain a power sequencing handle
 exposed by the power sequence provider and delegate the actual requesting and
@@ -25,7 +25,7 @@ The power sequencing API uses a number of terms specific to the subsystem:
 
 Unit
 
-    A unit is a discreet chunk of a power sequence. For instance one unit may
+    A unit is a discrete chunk of a power sequence. For instance one unit may
     enable a set of regulators, another may enable a specific GPIO. Units can
     define dependencies in the form of other units that must be enabled before
     it itself can be.
@@ -62,7 +62,7 @@ Provider interface
 The provider API is admittedly not nearly as straightforward as the one for
 consumers but it makes up for it in flexibility.
 
-Each provider can logically split the power-up sequence into descrete chunks
+Each provider can logically split the power-up sequence into discrete chunks
 (units) and define their dependencies. They can then expose named targets that
 consumers may use as the final point in the sequence that they wish to reach.
 
@@ -72,7 +72,7 @@ register with the pwrseq subsystem by calling pwrseq_device_register().
 Dynamic consumer matching
 -------------------------
 
-The main difference between pwrseq and other linux kernel providers is the
+The main difference between pwrseq and other Linux kernel providers is the
 mechanism for dynamic matching of consumers and providers. Every power sequence
 provider driver must implement the `match()` callback and pass it to the pwrseq
 core when registering with the subsystems.

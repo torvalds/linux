@@ -824,21 +824,6 @@ void spi_take_timestamp_post(struct spi_controller *ctlr,
 extern struct spi_controller *__spi_alloc_controller(struct device *host,
 						unsigned int size, bool slave);
 
-static inline struct spi_controller *spi_alloc_master(struct device *host,
-						      unsigned int size)
-{
-	return __spi_alloc_controller(host, size, false);
-}
-
-static inline struct spi_controller *spi_alloc_slave(struct device *host,
-						     unsigned int size)
-{
-	if (!IS_ENABLED(CONFIG_SPI_SLAVE))
-		return NULL;
-
-	return __spi_alloc_controller(host, size, true);
-}
-
 static inline struct spi_controller *spi_alloc_host(struct device *dev,
 						    unsigned int size)
 {
@@ -857,21 +842,6 @@ static inline struct spi_controller *spi_alloc_target(struct device *dev,
 struct spi_controller *__devm_spi_alloc_controller(struct device *dev,
 						   unsigned int size,
 						   bool slave);
-
-static inline struct spi_controller *devm_spi_alloc_master(struct device *dev,
-							   unsigned int size)
-{
-	return __devm_spi_alloc_controller(dev, size, false);
-}
-
-static inline struct spi_controller *devm_spi_alloc_slave(struct device *dev,
-							  unsigned int size)
-{
-	if (!IS_ENABLED(CONFIG_SPI_SLAVE))
-		return NULL;
-
-	return __devm_spi_alloc_controller(dev, size, true);
-}
 
 static inline struct spi_controller *devm_spi_alloc_host(struct device *dev,
 							 unsigned int size)

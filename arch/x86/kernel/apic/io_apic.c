@@ -1165,7 +1165,7 @@ static void io_apic_print_entries(unsigned int apic, unsigned int nr_entries)
 				 (entry.ir_index_15 << 15) | entry.ir_index_0_14, entry.ir_zero);
 		} else {
 			apic_dbg("%s, %s, D(%02X%02X), M(%1d)\n", buf,
-				 entry.dest_mode_logical ? "logical " : "physic	al",
+				 entry.dest_mode_logical ? "logical " : "physical",
 				 entry.virt_destid_8_14, entry.destid_0_7, entry.delivery_mode);
 		}
 	}
@@ -1861,7 +1861,7 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.irq_set_affinity	= ioapic_set_affinity,
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.irq_get_irqchip_state	= ioapic_irq_get_chip_state,
-	.flags			= IRQCHIP_SKIP_SET_WAKE |
+	.flags			= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MOVE_DEFERRED |
 				  IRQCHIP_AFFINITY_PRE_STARTUP,
 };
 

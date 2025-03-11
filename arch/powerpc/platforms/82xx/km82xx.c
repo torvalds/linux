@@ -27,15 +27,15 @@
 
 static void __init km82xx_pic_init(void)
 {
-	struct device_node *np = of_find_compatible_node(NULL, NULL,
-							"fsl,pq2-pic");
+	struct device_node *np __free(device_node);
+	np = of_find_compatible_node(NULL, NULL, "fsl,pq2-pic");
+
 	if (!np) {
 		pr_err("PIC init: can not find cpm-pic node\n");
 		return;
 	}
 
 	cpm2_pic_init(np);
-	of_node_put(np);
 }
 
 struct cpm_pin {

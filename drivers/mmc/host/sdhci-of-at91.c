@@ -471,7 +471,7 @@ static struct platform_driver sdhci_at91_driver = {
 		.pm	= &sdhci_at91_dev_pm_ops,
 	},
 	.probe		= sdhci_at91_probe,
-	.remove_new	= sdhci_at91_remove,
+	.remove		= sdhci_at91_remove,
 };
 
 module_platform_driver(sdhci_at91_driver);

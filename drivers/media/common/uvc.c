@@ -97,6 +97,10 @@ static const struct uvc_format_desc uvc_fmts[] = {
 		.fcc		= V4L2_PIX_FMT_RGB565,
 	},
 	{
+		.guid		= UVC_GUID_FORMAT_D3DFMT_R5G6B5,
+		.fcc		= V4L2_PIX_FMT_RGB565,
+	},
+	{
 		.guid		= UVC_GUID_FORMAT_BGR3,
 		.fcc		= V4L2_PIX_FMT_BGR24,
 	},
@@ -119,6 +123,10 @@ static const struct uvc_format_desc uvc_fmts[] = {
 	{
 		.guid		= UVC_GUID_FORMAT_Y12I,
 		.fcc		= V4L2_PIX_FMT_Y12I,
+	},
+	{
+		.guid		= UVC_GUID_FORMAT_Y16I,
+		.fcc		= V4L2_PIX_FMT_Y16I,
 	},
 	{
 		.guid		= UVC_GUID_FORMAT_Z16,

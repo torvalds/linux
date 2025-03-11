@@ -907,7 +907,7 @@ static struct platform_driver sm6115_tlmm_driver = {
 		.of_match_table = sm6115_tlmm_of_match,
 	},
 	.probe = sm6115_tlmm_probe,
-	.remove_new = msm_pinctrl_remove,
+	.remove = msm_pinctrl_remove,
 };
 
 static int __init sm6115_tlmm_init(void)

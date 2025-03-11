@@ -1004,7 +1004,7 @@ void ath12k_core_halt(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
 
-	lockdep_assert_held(&ar->conf_mutex);
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
 
 	ar->num_created_vdevs = 0;
 	ar->allocated_vdev_map = 0;
@@ -1078,6 +1078,7 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 		if (!ah || ah->state == ATH12K_HW_STATE_OFF)
 			continue;
 
+		wiphy_lock(ah->hw->wiphy);
 		mutex_lock(&ah->hw_mutex);
 
 		switch (ah->state) {
@@ -1086,10 +1087,7 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 
 			for (j = 0; j < ah->num_radio; j++) {
 				ar = &ah->radio[j];
-
-				mutex_lock(&ar->conf_mutex);
 				ath12k_core_halt(ar);
-				mutex_unlock(&ar->conf_mutex);
 			}
 
 			break;
@@ -1110,6 +1108,7 @@ static void ath12k_core_post_reconfigure_recovery(struct ath12k_base *ab)
 		}
 
 		mutex_unlock(&ah->hw_mutex);
+		wiphy_unlock(ah->hw->wiphy);
 	}
 
 	complete(&ab->driver_recovery);
@@ -1188,6 +1187,7 @@ static void ath12k_core_reset(struct work_struct *work)
 	ab->is_reset = true;
 	atomic_set(&ab->recovery_count, 0);
 
+	ath12k_coredump_collect(ab);
 	ath12k_core_pre_reconfigure_recovery(ab);
 
 	ath12k_core_post_reconfigure_recovery(ab);
@@ -1312,6 +1312,7 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	INIT_WORK(&ab->restart_work, ath12k_core_restart);
 	INIT_WORK(&ab->reset_work, ath12k_core_reset);
 	INIT_WORK(&ab->rfkill_work, ath12k_rfkill_work);
+	INIT_WORK(&ab->dump_work, ath12k_coredump_upload);
 
 	timer_setup(&ab->rx_replenish_retry, ath12k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);

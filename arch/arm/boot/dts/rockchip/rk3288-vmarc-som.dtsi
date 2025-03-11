@@ -11,7 +11,7 @@
 / {
 	compatible = "vamrs,rk3288-vmarc-som", "rockchip,rk3288";
 
-	vccio_flash: vccio-flash-regulator {
+	vccio_flash: regulator-vccio-flash {
 		compatible = "regulator-fixed";
 		regulator-name = "vccio_flash";
 		regulator-min-microvolt = <1800000>;

@@ -95,9 +95,11 @@ enum intel_platform {
 /*
  * Subplatform bits share the same namespace per parent platform. In other words
  * it is fine for the same bit to be used on multiple parent platforms.
+ * Devices can belong to multiple subplatforms if needed, so it's possible to set
+ * multiple bits for same device.
  */
 
-#define INTEL_SUBPLATFORM_BITS (3)
+#define INTEL_SUBPLATFORM_BITS (4)
 #define INTEL_SUBPLATFORM_MASK (BIT(INTEL_SUBPLATFORM_BITS) - 1)
 
 /* HSW/BDW/SKL/KBL/CFL */
@@ -114,6 +116,7 @@ enum intel_platform {
 #define INTEL_SUBPLATFORM_G10	0
 #define INTEL_SUBPLATFORM_G11	1
 #define INTEL_SUBPLATFORM_G12	2
+#define INTEL_SUBPLATFORM_D	3
 
 /* ADL */
 #define INTEL_SUBPLATFORM_RPL	0
@@ -140,7 +143,6 @@ enum intel_ppgtt_type {
 
 #define DEV_INFO_FOR_EACH_FLAG(func) \
 	func(is_mobile); \
-	func(is_lp); \
 	func(require_force_probe); \
 	func(is_dgfx); \
 	/* Keep has_* in alphabetical order */ \

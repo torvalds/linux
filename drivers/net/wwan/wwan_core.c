@@ -334,6 +334,14 @@ static const struct {
 		.name = "FASTBOOT",
 		.devsuf = "fastboot",
 	},
+	[WWAN_PORT_ADB] = {
+		.name = "ADB",
+		.devsuf = "adb",
+	},
+	[WWAN_PORT_MIPC] = {
+		.name = "MIPC",
+		.devsuf = "mipc",
+	},
 };
 
 static ssize_t type_show(struct device *dev, struct device_attribute *attr,
@@ -431,7 +439,7 @@ static int __wwan_port_dev_assign_name(struct wwan_port *port, const char *fmt)
 		return -ENFILE;
 	}
 
-	return dev_set_name(&port->dev, buf);
+	return dev_set_name(&port->dev, "%s", buf);
 }
 
 struct wwan_port *wwan_create_port(struct device *parent,

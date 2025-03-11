@@ -3,14 +3,12 @@
  * Copyright © 2022 Intel Corporation
  */
 
-#include "i915_drv.h"
 #include "i915_reg.h"
-
-#include "vlv_sideband_reg.h"
-
+#include "intel_display_core.h"
 #include "intel_display_power_map.h"
 #include "intel_display_power_well.h"
 #include "intel_display_types.h"
+#include "vlv_sideband_reg.h"
 
 #define __LIST_INLINE_ELEMS(__elem_type, ...) \
 	((__elem_type[]) { __VA_ARGS__ })
@@ -1586,6 +1584,136 @@ static const struct i915_power_well_desc_list xe2lpd_power_wells[] = {
 	I915_PW_DESCRIPTORS(xe2lpd_power_wells_pica),
 };
 
+/*
+ * Xe3 changes the power well hierarchy slightly from Xe_LPD+; PGB now
+ * depends on PG1 instead of PG2:
+ *
+ *       PG0
+ *        |
+ *     --PG1--
+ *    /   |   \
+ *  PGA  PGB  PG2
+ *           /   \
+ *         PGC   PGD
+ */
+
+#define XE3LPD_PW_C_POWER_DOMAINS \
+	POWER_DOMAIN_PIPE_C, \
+	POWER_DOMAIN_PIPE_PANEL_FITTER_C
+
+#define XE3LPD_PW_D_POWER_DOMAINS \
+	POWER_DOMAIN_PIPE_D, \
+	POWER_DOMAIN_PIPE_PANEL_FITTER_D
+
+#define XE3LPD_PW_2_POWER_DOMAINS \
+	XE3LPD_PW_C_POWER_DOMAINS, \
+	XE3LPD_PW_D_POWER_DOMAINS, \
+	POWER_DOMAIN_TRANSCODER_C, \
+	POWER_DOMAIN_TRANSCODER_D, \
+	POWER_DOMAIN_VGA, \
+	POWER_DOMAIN_PORT_DDI_LANES_TC1, \
+	POWER_DOMAIN_PORT_DDI_LANES_TC2, \
+	POWER_DOMAIN_PORT_DDI_LANES_TC3, \
+	POWER_DOMAIN_PORT_DDI_LANES_TC4
+
+I915_DECL_PW_DOMAINS(xe3lpd_pwdoms_pw_2,
+		     XE3LPD_PW_2_POWER_DOMAINS,
+		     POWER_DOMAIN_INIT);
+
+I915_DECL_PW_DOMAINS(xe3lpd_pwdoms_pw_b,
+		     POWER_DOMAIN_PIPE_B,
+		     POWER_DOMAIN_PIPE_PANEL_FITTER_B,
+		     POWER_DOMAIN_INIT);
+
+I915_DECL_PW_DOMAINS(xe3lpd_pwdoms_pw_c,
+		     XE3LPD_PW_C_POWER_DOMAINS,
+		     POWER_DOMAIN_INIT);
+
+I915_DECL_PW_DOMAINS(xe3lpd_pwdoms_pw_d,
+		     XE3LPD_PW_D_POWER_DOMAINS,
+		     POWER_DOMAIN_INIT);
+
+static const struct i915_power_well_desc xe3lpd_power_wells_main[] = {
+	{
+		.instances = &I915_PW_INSTANCES(
+			I915_PW("PW_2", &xe3lpd_pwdoms_pw_2,
+				.hsw.idx = ICL_PW_CTL_IDX_PW_2,
+				.id = SKL_DISP_PW_2),
+		),
+		.ops = &hsw_power_well_ops,
+		.has_vga = true,
+		.has_fuses = true,
+	}, {
+		.instances = &I915_PW_INSTANCES(
+			I915_PW("PW_A", &xelpd_pwdoms_pw_a,
+				.hsw.idx = XELPD_PW_CTL_IDX_PW_A),
+		),
+		.ops = &hsw_power_well_ops,
+		.irq_pipe_mask = BIT(PIPE_A),
+		.has_fuses = true,
+	}, {
+		.instances = &I915_PW_INSTANCES(
+			I915_PW("PW_B", &xe3lpd_pwdoms_pw_b,
+				.hsw.idx = XELPD_PW_CTL_IDX_PW_B),
+		),
+		.ops = &hsw_power_well_ops,
+		.irq_pipe_mask = BIT(PIPE_B),
+		.has_fuses = true,
+	}, {
+		.instances = &I915_PW_INSTANCES(
+			I915_PW("PW_C", &xe3lpd_pwdoms_pw_c,
+				.hsw.idx = XELPD_PW_CTL_IDX_PW_C),
+		),
+		.ops = &hsw_power_well_ops,
+		.irq_pipe_mask = BIT(PIPE_C),
+		.has_fuses = true,
+	}, {
+		.instances = &I915_PW_INSTANCES(
+			I915_PW("PW_D", &xe3lpd_pwdoms_pw_d,
+				.hsw.idx = XELPD_PW_CTL_IDX_PW_D),
+		),
+		.ops = &hsw_power_well_ops,
+		.irq_pipe_mask = BIT(PIPE_D),
+		.has_fuses = true,
+	}, {
+		.instances = &I915_PW_INSTANCES(
+			I915_PW("AUX_A", &icl_pwdoms_aux_a, .xelpdp.aux_ch = AUX_CH_A),
+			I915_PW("AUX_B", &icl_pwdoms_aux_b, .xelpdp.aux_ch = AUX_CH_B),
+			I915_PW("AUX_TC1", &xelpdp_pwdoms_aux_tc1, .xelpdp.aux_ch = AUX_CH_USBC1),
+			I915_PW("AUX_TC2", &xelpdp_pwdoms_aux_tc2, .xelpdp.aux_ch = AUX_CH_USBC2),
+			I915_PW("AUX_TC3", &xelpdp_pwdoms_aux_tc3, .xelpdp.aux_ch = AUX_CH_USBC3),
+			I915_PW("AUX_TC4", &xelpdp_pwdoms_aux_tc4, .xelpdp.aux_ch = AUX_CH_USBC4),
+		),
+		.ops = &xelpdp_aux_power_well_ops,
+	},
+};
+
+I915_DECL_PW_DOMAINS(xe3lpd_pwdoms_dc_off,
+	POWER_DOMAIN_DC_OFF,
+	XE3LPD_PW_2_POWER_DOMAINS,
+	XE3LPD_PW_C_POWER_DOMAINS,
+	XE3LPD_PW_D_POWER_DOMAINS,
+	POWER_DOMAIN_AUDIO_MMIO,
+	POWER_DOMAIN_INIT);
+
+static const struct i915_power_well_desc xe3lpd_power_wells_dcoff[] = {
+	{
+		.instances = &I915_PW_INSTANCES(
+			I915_PW("DC_off", &xe3lpd_pwdoms_dc_off,
+				.id = SKL_DISP_DC_OFF),
+		),
+		.ops = &gen9_dc_off_power_well_ops,
+	},
+};
+
+static const struct i915_power_well_desc_list xe3lpd_power_wells[] = {
+	I915_PW_DESCRIPTORS(i9xx_power_wells_always_on),
+	I915_PW_DESCRIPTORS(icl_power_wells_pw_1),
+	I915_PW_DESCRIPTORS(xe3lpd_power_wells_dcoff),
+	I915_PW_DESCRIPTORS(xe3lpd_power_wells_main),
+	I915_PW_DESCRIPTORS(xe2lpd_power_wells_pica),
+};
+
 static void init_power_well_domains(const struct i915_power_well_instance *inst,
 				    struct i915_power_well *power_well)
 {
@@ -1622,9 +1750,9 @@ __set_power_wells(struct i915_power_domains *power_domains,
 		  const struct i915_power_well_desc_list *power_well_descs,
 		  int power_well_descs_sz)
 {
-	struct drm_i915_private *i915 = container_of(power_domains,
-						     struct drm_i915_private,
-						     display.power.domains);
+	struct intel_display *display = container_of(power_domains,
+						     struct intel_display,
+						     power.domains);
 	u64 power_well_ids = 0;
 	const struct i915_power_well_desc_list *desc_list;
 	const struct i915_power_well_desc *desc;
@@ -1648,7 +1776,7 @@ __set_power_wells(struct i915_power_domains *power_domains,
 		enum i915_power_well_id id = inst->id;
 
 		pw->desc = desc;
-		drm_WARN_ON(&i915->drm,
+		drm_WARN_ON(display->drm,
 			    overflows_type(inst - desc->instances->list, pw->instance_idx));
 		pw->instance_idx = inst - desc->instances->list;
 
@@ -1659,8 +1787,8 @@ __set_power_wells(struct i915_power_domains *power_domains,
 		if (id == DISP_PW_ID_NONE)
 			continue;
 
-		drm_WARN_ON(&i915->drm, id >= sizeof(power_well_ids) * 8);
-		drm_WARN_ON(&i915->drm, power_well_ids & BIT_ULL(id));
+		drm_WARN_ON(display->drm, id >= sizeof(power_well_ids) * 8);
+		drm_WARN_ON(display->drm, power_well_ids & BIT_ULL(id));
 		power_well_ids |= BIT_ULL(id);
 	}
 
@@ -1681,51 +1809,53 @@ __set_power_wells(struct i915_power_domains *power_domains,
  */
 int intel_display_power_map_init(struct i915_power_domains *power_domains)
 {
-	struct drm_i915_private *i915 = container_of(power_domains,
-						     struct drm_i915_private,
-						     display.power.domains);
+	struct intel_display *display = container_of(power_domains,
+						     struct intel_display,
+						     power.domains);
 	/*
 	 * The enabling order will be from lower to higher indexed wells,
 	 * the disabling order is reversed.
 	 */
-	if (!HAS_DISPLAY(i915)) {
+	if (!HAS_DISPLAY(display)) {
 		power_domains->power_well_count = 0;
 		return 0;
 	}
 
-	if (DISPLAY_VER(i915) >= 20)
+	if (DISPLAY_VER(display) >= 30)
+		return set_power_wells(power_domains, xe3lpd_power_wells);
+	else if (DISPLAY_VER(display) >= 20)
 		return set_power_wells(power_domains, xe2lpd_power_wells);
-	else if (DISPLAY_VER(i915) >= 14)
+	else if (DISPLAY_VER(display) >= 14)
 		return set_power_wells(power_domains, xelpdp_power_wells);
-	else if (IS_DG2(i915))
+	else if (display->platform.dg2)
 		return set_power_wells(power_domains, xehpd_power_wells);
-	else if (DISPLAY_VER(i915) >= 13)
+	else if (DISPLAY_VER(display) >= 13)
 		return set_power_wells(power_domains, xelpd_power_wells);
-	else if (IS_DG1(i915))
+	else if (display->platform.dg1)
 		return set_power_wells(power_domains, dg1_power_wells);
-	else if (IS_ALDERLAKE_S(i915))
+	else if (display->platform.alderlake_s)
 		return set_power_wells(power_domains, adls_power_wells);
-	else if (IS_ROCKETLAKE(i915))
+	else if (display->platform.rocketlake)
 		return set_power_wells(power_domains, rkl_power_wells);
-	else if (DISPLAY_VER(i915) == 12)
+	else if (DISPLAY_VER(display) == 12)
 		return set_power_wells(power_domains, tgl_power_wells);
-	else if (DISPLAY_VER(i915) == 11)
+	else if (DISPLAY_VER(display) == 11)
 		return set_power_wells(power_domains, icl_power_wells);
-	else if (IS_GEMINILAKE(i915))
+	else if (display->platform.geminilake)
 		return set_power_wells(power_domains, glk_power_wells);
-	else if (IS_BROXTON(i915))
+	else if (display->platform.broxton)
 		return set_power_wells(power_domains, bxt_power_wells);
-	else if (DISPLAY_VER(i915) == 9)
+	else if (DISPLAY_VER(display) == 9)
 		return set_power_wells(power_domains, skl_power_wells);
-	else if (IS_CHERRYVIEW(i915))
+	else if (display->platform.cherryview)
 		return set_power_wells(power_domains, chv_power_wells);
-	else if (IS_BROADWELL(i915))
+	else if (display->platform.broadwell)
 		return set_power_wells(power_domains, bdw_power_wells);
-	else if (IS_HASWELL(i915))
+	else if (display->platform.haswell)
 		return set_power_wells(power_domains, hsw_power_wells);
-	else if (IS_VALLEYVIEW(i915))
+	else if (display->platform.valleyview)
 		return set_power_wells(power_domains, vlv_power_wells);
-	else if (IS_I830(i915))
+	else if (display->platform.i830)
 		return set_power_wells(power_domains, i830_power_wells);
 	else
 		return set_power_wells(power_domains, i9xx_power_wells);

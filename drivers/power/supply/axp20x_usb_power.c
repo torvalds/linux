@@ -220,16 +220,15 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 		return 0;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		if (IS_ENABLED(CONFIG_AXP20X_ADC)) {
-			ret = iio_read_channel_processed(power->vbus_v,
-							 &val->intval);
-			if (ret)
-				return ret;
-
 			/*
 			 * IIO framework gives mV but Power Supply framework
 			 * gives uV.
 			 */
-			val->intval *= 1000;
+			ret = iio_read_channel_processed_scale(power->vbus_v,
+							       &val->intval, 1000);
+			if (ret)
+				return ret;
+
 			return 0;
 		}
 
@@ -253,16 +252,15 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		if (IS_ENABLED(CONFIG_AXP20X_ADC)) {
-			ret = iio_read_channel_processed(power->vbus_i,
-							 &val->intval);
-			if (ret)
-				return ret;
-
 			/*
 			 * IIO framework gives mA but Power Supply framework
 			 * gives uA.
 			 */
-			val->intval *= 1000;
+			ret = iio_read_channel_processed_scale(power->vbus_i,
+							       &val->intval, 1000);
+			if (ret)
+				return ret;
+
 			return 0;
 		}
 
@@ -374,16 +372,15 @@ static int axp717_usb_power_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		if (IS_ENABLED(CONFIG_AXP20X_ADC)) {
-			ret = iio_read_channel_processed(power->vbus_v,
-							 &val->intval);
-			if (ret)
-				return ret;
-
 			/*
 			 * IIO framework gives mV but Power Supply framework
 			 * gives uV.
 			 */
-			val->intval *= 1000;
+			ret = iio_read_channel_processed_scale(power->vbus_v,
+							       &val->intval, 1000);
+			if (ret)
+				return ret;
+
 			return 0;
 		}
 

@@ -221,7 +221,7 @@ err_drm_dev_exit:
 	return ret;
 }
 
-static __always_inline u64
+static __always_inline __maybe_unused u64
 pvr_fw_version_packed(u32 major, u32 minor)
 {
 	return ((u64)major << 32) | minor;
@@ -1387,7 +1387,6 @@ static struct drm_driver pvr_drm_driver = {
 
 	.name = PVR_DRIVER_NAME,
 	.desc = PVR_DRIVER_DESC,
-	.date = PVR_DRIVER_DATE,
 	.major = PVR_DRIVER_MAJOR,
 	.minor = PVR_DRIVER_MINOR,
 	.patchlevel = PVR_DRIVER_PATCHLEVEL,
@@ -1485,7 +1484,7 @@ static const struct dev_pm_ops pvr_pm_ops = {
 
 static struct platform_driver pvr_driver = {
 	.probe = pvr_probe,
-	.remove_new = pvr_remove,
+	.remove = pvr_remove,
 	.driver = {
 		.name = PVR_DRIVER_NAME,
 		.pm = &pvr_pm_ops,
@@ -1497,5 +1496,5 @@ module_platform_driver(pvr_driver);
 MODULE_AUTHOR("Imagination Technologies Ltd.");
 MODULE_DESCRIPTION(PVR_DRIVER_DESC);
 MODULE_LICENSE("Dual MIT/GPL");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 MODULE_FIRMWARE("powervr/rogue_33.15.11.3_v1.fw");

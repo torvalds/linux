@@ -149,7 +149,7 @@ static struct platform_driver uflash_driver = {
 		.of_match_table = uflash_match,
 	},
 	.probe		= uflash_probe,
-	.remove_new	= uflash_remove,
+	.remove		= uflash_remove,
 };
 
 module_platform_driver(uflash_driver);

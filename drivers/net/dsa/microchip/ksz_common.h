@@ -65,6 +65,12 @@ struct ksz_chip_data {
 	u8 num_tx_queues;
 	u8 num_ipms; /* number of Internal Priority Maps */
 	bool tc_cbs_supported;
+
+	/**
+	 * @phy_side_mdio_supported: Indicates if the chip supports an additional
+	 * side MDIO channel for accessing integrated PHYs.
+	 */
+	bool phy_side_mdio_supported;
 	const struct ksz_dev_ops *ops;
 	const struct phylink_mac_ops *phylink_mac_ops;
 	bool phy_errata_9477;
@@ -191,6 +197,22 @@ struct ksz_device {
 	struct ksz_switch_macaddr *switch_macaddr;
 	struct net_device *hsr_dev;     /* HSR */
 	u8 hsr_ports;
+
+	/**
+	 * @phy_addr_map: Array mapping switch ports to their corresponding PHY
+	 * addresses.
+	 */
+	u8 phy_addr_map[KSZ_MAX_NUM_PORTS];
+
+	/**
+	 * @parent_mdio_bus: Pointer to the external MDIO bus controller.
+	 *
+	 * This points to an external MDIO bus controller that is used to access
+	 * the  PHYs integrated within the switch. Unlike an integrated MDIO
+	 * bus, this external controller provides a direct path for managing
+	 * the switch’s internal PHYs, bypassing the main SPI interface.
+	 */
+	struct mii_bus *parent_mdio_bus;
 };
 
 /* List of supported models */
@@ -214,6 +236,7 @@ enum ksz_model {
 	LAN9372,
 	LAN9373,
 	LAN9374,
+	LAN9646,
 };
 
 enum ksz_regs {
@@ -326,6 +349,43 @@ struct ksz_dev_ops {
 	void (*port_cleanup)(struct ksz_device *dev, int port);
 	void (*port_setup)(struct ksz_device *dev, int port, bool cpu_port);
 	int (*set_ageing_time)(struct ksz_device *dev, unsigned int msecs);
+
+	/**
+	 * @mdio_bus_preinit: Function pointer to pre-initialize the MDIO bus
+	 *                    for accessing PHYs.
+	 * @dev: Pointer to device structure.
+	 * @side_mdio: Boolean indicating if the PHYs are accessed over a side
+	 *             MDIO bus.
+	 *
+	 * This function pointer is used to configure the MDIO bus for PHY
+	 * access before initiating regular PHY operations. It enables either
+	 * SPI/I2C or side MDIO access modes by unlocking necessary registers
+	 * and setting up access permissions for the selected mode.
+	 *
+	 * Return:
+	 *  - 0 on success.
+	 *  - Negative error code on failure.
+	 */
+	int (*mdio_bus_preinit)(struct ksz_device *dev, bool side_mdio);
+
+	/**
+	 * @create_phy_addr_map: Function pointer to create a port-to-PHY
+	 *                       address map.
+	 * @dev: Pointer to device structure.
+	 * @side_mdio: Boolean indicating if the PHYs are accessed over a side
+	 *             MDIO bus.
+	 *
+	 * This function pointer is responsible for mapping switch ports to PHY
+	 * addresses according to the configured access mode (SPI or side MDIO)
+	 * and the device’s strap configuration. The mapping setup may vary
+	 * depending on the chip variant and configuration. Ensures the correct
+	 * address mapping for PHY communication.
+	 *
+	 * Return:
+	 *  - 0 on success.
+	 *  - Negative error code on failure (e.g., invalid configuration).
+	 */
+	int (*create_phy_addr_map)(struct ksz_device *dev, bool side_mdio);
 	int (*r_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
 	int (*w_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 val);
 	void (*r_mib_cnt)(struct ksz_device *dev, int port, u16 addr,

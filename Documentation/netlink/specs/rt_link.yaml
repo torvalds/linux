@@ -920,6 +920,13 @@ definitions:
       - name: l2
       - name: l3
 
+  -
+    name: netkit-scrub
+    type: enum
+    entries:
+      - name: none
+      - name: default
+
 attribute-sets:
   -
     name: link-attrs
@@ -1137,6 +1144,10 @@ attribute-sets:
         name: dpll-pin
         type: nest
         nested-attributes: link-dpll-pin-attrs
+      -
+        name: max-pacing-offload-horizon
+        type: uint
+        doc: EDT offload horizon supported by the device (in nsec).
   -
     name: af-spec-attrs
     attributes:
@@ -2147,6 +2158,14 @@ attribute-sets:
         name: mode
         type: u32
         enum: netkit-mode
+      -
+        name: scrub
+        type: u32
+        enum: netkit-scrub
+      -
+        name: peer-scrub
+        type: u32
+        enum: netkit-scrub
 
 sub-messages:
   -

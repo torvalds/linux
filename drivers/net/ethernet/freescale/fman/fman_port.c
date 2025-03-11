@@ -987,7 +987,7 @@ static int init_low_level_driver(struct fman_port *port)
 		return -ENODEV;
 	}
 
-	/* The code bellow is a trick so the FM will not release the buffer
+	/* The code below is a trick so the FM will not release the buffer
 	 * to BM nor will try to enqueue the frame to QM
 	 */
 	if (port->port_type == FMAN_PORT_TYPE_TX) {

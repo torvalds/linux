@@ -26,11 +26,18 @@ enum sparx5_serdes_mode {
 	SPX5_SD_MODE_SFI,
 };
 
-struct sparx5_serdes_private {
-	struct device *dev;
-	void __iomem *regs[NUM_TARGETS];
-	struct phy *phys[SPX5_SERDES_MAX];
-	unsigned long coreclock;
+enum sparx5_10g28cmu_mode {
+	SPX5_SD10G28_CMU_MAIN = 0,
+	SPX5_SD10G28_CMU_AUX1 = 1,
+	SPX5_SD10G28_CMU_AUX2 = 3,
+	SPX5_SD10G28_CMU_NONE = 4,
+	SPX5_SD10G28_CMU_MAX,
+};
+
+enum sparx5_target {
+	SPX5_TARGET_SPARX5,
+	SPX5_TARGET_LAN969X,
+
 };
 
 struct sparx5_serdes_macro {
@@ -42,6 +49,33 @@ struct sparx5_serdes_macro {
 	phy_interface_t portmode;
 	int speed;
 	enum phy_media media;
+};
+
+struct sparx5_serdes_consts {
+	int sd_max;
+	int cmu_max;
+};
+
+struct sparx5_serdes_ops {
+	void (*serdes_type_set)(struct sparx5_serdes_macro *macro, int sidx);
+	int (*serdes_cmu_get)(enum sparx5_10g28cmu_mode mode, int sd_index);
+};
+
+struct sparx5_serdes_match_data {
+	enum sparx5_target type;
+	const struct sparx5_serdes_consts consts;
+	const struct sparx5_serdes_ops ops;
+	const struct sparx5_serdes_io_resource *iomap;
+	int iomap_size;
+	const unsigned int *tsize;
+};
+
+struct sparx5_serdes_private {
+	struct device *dev;
+	void __iomem *regs[NUM_TARGETS];
+	struct phy *phys[SPX5_SERDES_MAX];
+	unsigned long coreclock;
+	const struct sparx5_serdes_match_data *data;
 };
 
 /* Read, Write and modify registers content.

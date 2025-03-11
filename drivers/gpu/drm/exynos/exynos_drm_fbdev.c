@@ -23,7 +23,6 @@
 #include "exynos_drm_fbdev.h"
 
 #define MAX_CONNECTOR		4
-#define PREFERRED_BPP		32
 
 static int exynos_drm_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
@@ -87,8 +86,11 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	return 0;
 }
 
-static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
-				    struct drm_fb_helper_surface_size *sizes)
+static const struct drm_fb_helper_funcs exynos_drm_fbdev_helper_funcs = {
+};
+
+int exynos_drm_fbdev_driver_fbdev_probe(struct drm_fb_helper *helper,
+					struct drm_fb_helper_surface_size *sizes)
 {
 	struct exynos_drm_gem *exynos_gem;
 	struct drm_device *dev = helper->dev;
@@ -120,6 +122,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(helper->fb);
 		goto err_destroy_gem;
 	}
+	helper->funcs = &exynos_drm_fbdev_helper_funcs;
 
 	ret = exynos_drm_fbdev_update(helper, sizes, exynos_gem);
 	if (ret < 0)
@@ -133,94 +136,4 @@ err_destroy_framebuffer:
 err_destroy_gem:
 	exynos_drm_gem_destroy(exynos_gem);
 	return ret;
-}
-
-static const struct drm_fb_helper_funcs exynos_drm_fb_helper_funcs = {
-	.fb_probe =	exynos_drm_fbdev_create,
-};
-
-/*
- * struct drm_client
- */
-
-static void exynos_drm_fbdev_client_unregister(struct drm_client_dev *client)
-{
-	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
-
-	if (fb_helper->info) {
-		drm_fb_helper_unregister_info(fb_helper);
-	} else {
-		drm_client_release(&fb_helper->client);
-		drm_fb_helper_unprepare(fb_helper);
-		kfree(fb_helper);
-	}
-}
-
-static int exynos_drm_fbdev_client_restore(struct drm_client_dev *client)
-{
-	drm_fb_helper_lastclose(client->dev);
-
-	return 0;
-}
-
-static int exynos_drm_fbdev_client_hotplug(struct drm_client_dev *client)
-{
-	struct drm_fb_helper *fb_helper = drm_fb_helper_from_client(client);
-	struct drm_device *dev = client->dev;
-	int ret;
-
-	if (dev->fb_helper)
-		return drm_fb_helper_hotplug_event(dev->fb_helper);
-
-	ret = drm_fb_helper_init(dev, fb_helper);
-	if (ret)
-		goto err_drm_err;
-
-	if (!drm_drv_uses_atomic_modeset(dev))
-		drm_helper_disable_unused_functions(dev);
-
-	ret = drm_fb_helper_initial_config(fb_helper);
-	if (ret)
-		goto err_drm_fb_helper_fini;
-
-	return 0;
-
-err_drm_fb_helper_fini:
-	drm_fb_helper_fini(fb_helper);
-err_drm_err:
-	drm_err(dev, "Failed to setup fbdev emulation (ret=%d)\n", ret);
-	return ret;
-}
-
-static const struct drm_client_funcs exynos_drm_fbdev_client_funcs = {
-	.owner		= THIS_MODULE,
-	.unregister	= exynos_drm_fbdev_client_unregister,
-	.restore	= exynos_drm_fbdev_client_restore,
-	.hotplug	= exynos_drm_fbdev_client_hotplug,
-};
-
-void exynos_drm_fbdev_setup(struct drm_device *dev)
-{
-	struct drm_fb_helper *fb_helper;
-	int ret;
-
-	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
-	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
-
-	fb_helper = kzalloc(sizeof(*fb_helper), GFP_KERNEL);
-	if (!fb_helper)
-		return;
-	drm_fb_helper_prepare(dev, fb_helper, PREFERRED_BPP, &exynos_drm_fb_helper_funcs);
-
-	ret = drm_client_init(dev, &fb_helper->client, "fbdev", &exynos_drm_fbdev_client_funcs);
-	if (ret)
-		goto err_drm_client_init;
-
-	drm_client_register(&fb_helper->client);
-
-	return;
-
-err_drm_client_init:
-	drm_fb_helper_unprepare(fb_helper);
-	kfree(fb_helper);
 }

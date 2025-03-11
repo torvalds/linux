@@ -54,7 +54,6 @@ struct mgb4_vout_dev {
 	const struct mgb4_vout_config *config;
 
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
 	struct debugfs_regset32 regset;
 	struct debugfs_reg32 regs[sizeof(struct mgb4_vout_regs) / 4];
 #endif

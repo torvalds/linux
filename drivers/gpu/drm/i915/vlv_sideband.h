@@ -25,6 +25,9 @@ enum {
 	VLV_IOSF_SB_PUNIT,
 };
 
+void vlv_iosf_sb_init(struct drm_i915_private *i915);
+void vlv_iosf_sb_fini(struct drm_i915_private *i915);
+
 void vlv_iosf_sb_get(struct drm_i915_private *i915, unsigned long ports);
 void vlv_iosf_sb_put(struct drm_i915_private *i915, unsigned long ports);
 

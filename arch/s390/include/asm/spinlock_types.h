@@ -3,7 +3,7 @@
 #define __ASM_SPINLOCK_TYPES_H
 
 #ifndef __LINUX_SPINLOCK_TYPES_RAW_H
-# error "please don't include this file directly"
+# error "Please do not include this file directly."
 #endif
 
 typedef struct {

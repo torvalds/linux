@@ -2,34 +2,40 @@
 #include <uapi/linux/bpf.h>
 #include <linux/if_link.h>
 #include <test_progs.h>
+#include <network_helpers.h>
 
 #include "test_xdp_with_cpumap_frags_helpers.skel.h"
 #include "test_xdp_with_cpumap_helpers.skel.h"
 
 #define IFINDEX_LO	1
+#define TEST_NS "cpu_attach_ns"
 
 static void test_xdp_with_cpumap_helpers(void)
 {
-	struct test_xdp_with_cpumap_helpers *skel;
+	struct test_xdp_with_cpumap_helpers *skel = NULL;
 	struct bpf_prog_info info = {};
 	__u32 len = sizeof(info);
 	struct bpf_cpumap_val val = {
 		.qsize = 192,
 	};
-	int err, prog_fd, map_fd;
+	int err, prog_fd, prog_redir_fd, map_fd;
+	struct nstoken *nstoken = NULL;
 	__u32 idx = 0;
+
+	SYS(out_close, "ip netns add %s", TEST_NS);
+	nstoken = open_netns(TEST_NS);
+	if (!ASSERT_OK_PTR(nstoken, "open_netns"))
+		goto out_close;
+	SYS(out_close, "ip link set dev lo up");
 
 	skel = test_xdp_with_cpumap_helpers__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "test_xdp_with_cpumap_helpers__open_and_load"))
 		return;
 
-	prog_fd = bpf_program__fd(skel->progs.xdp_redir_prog);
-	err = bpf_xdp_attach(IFINDEX_LO, prog_fd, XDP_FLAGS_SKB_MODE, NULL);
+	prog_redir_fd = bpf_program__fd(skel->progs.xdp_redir_prog);
+	err = bpf_xdp_attach(IFINDEX_LO, prog_redir_fd, XDP_FLAGS_SKB_MODE, NULL);
 	if (!ASSERT_OK(err, "Generic attach of program with 8-byte CPUMAP"))
 		goto out_close;
-
-	err = bpf_xdp_detach(IFINDEX_LO, XDP_FLAGS_SKB_MODE, NULL);
-	ASSERT_OK(err, "XDP program detach");
 
 	prog_fd = bpf_program__fd(skel->progs.xdp_dummy_cm);
 	map_fd = bpf_map__fd(skel->maps.cpu_map);
@@ -44,6 +50,26 @@ static void test_xdp_with_cpumap_helpers(void)
 	err = bpf_map_lookup_elem(map_fd, &idx, &val);
 	ASSERT_OK(err, "Read cpumap entry");
 	ASSERT_EQ(info.id, val.bpf_prog.id, "Match program id to cpumap entry prog_id");
+
+	/* send a packet to trigger any potential bugs in there */
+	char data[10] = {};
+	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
+			    .data_in = &data,
+			    .data_size_in = 10,
+			    .flags = BPF_F_TEST_XDP_LIVE_FRAMES,
+			    .repeat = 1,
+		);
+	err = bpf_prog_test_run_opts(prog_redir_fd, &opts);
+	ASSERT_OK(err, "XDP test run");
+
+	/* wait for the packets to be flushed, then check that redirect has been
+	 * performed
+	 */
+	kern_sync_rcu();
+	ASSERT_NEQ(skel->bss->redirect_count, 0, "redirected packets");
+
+	err = bpf_xdp_detach(IFINDEX_LO, XDP_FLAGS_SKB_MODE, NULL);
+	ASSERT_OK(err, "XDP program detach");
 
 	/* can not attach BPF_XDP_CPUMAP program to a device */
 	err = bpf_xdp_attach(IFINDEX_LO, prog_fd, XDP_FLAGS_SKB_MODE, NULL);
@@ -65,6 +91,8 @@ static void test_xdp_with_cpumap_helpers(void)
 	ASSERT_NEQ(err, 0, "Add BPF_XDP program with frags to cpumap entry");
 
 out_close:
+	close_netns(nstoken);
+	SYS_NOFAIL("ip netns del %s", TEST_NS);
 	test_xdp_with_cpumap_helpers__destroy(skel);
 }
 
@@ -111,7 +139,7 @@ out_close:
 	test_xdp_with_cpumap_frags_helpers__destroy(skel);
 }
 
-void serial_test_xdp_cpumap_attach(void)
+void test_xdp_cpumap_attach(void)
 {
 	if (test__start_subtest("CPUMAP with programs in entries"))
 		test_xdp_with_cpumap_helpers();

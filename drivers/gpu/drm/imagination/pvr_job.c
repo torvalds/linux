@@ -90,20 +90,13 @@ static int pvr_fw_cmd_init(struct pvr_device *pvr_dev, struct pvr_job *job,
 	void *stream;
 	int err;
 
-	stream = kzalloc(stream_len, GFP_KERNEL);
-	if (!stream)
-		return -ENOMEM;
-
-	if (copy_from_user(stream, u64_to_user_ptr(stream_userptr), stream_len)) {
-		err = -EFAULT;
-		goto err_free_stream;
-	}
+	stream = memdup_user(u64_to_user_ptr(stream_userptr), stream_len);
+	if (IS_ERR(stream))
+		return PTR_ERR(stream);
 
 	err = pvr_job_process_stream(pvr_dev, stream_def, stream, stream_len, job);
 
-err_free_stream:
 	kfree(stream);
-
 	return err;
 }
 

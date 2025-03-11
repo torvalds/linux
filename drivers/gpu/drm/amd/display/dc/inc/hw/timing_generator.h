@@ -141,6 +141,9 @@ struct crc_params {
 
 	bool continuous_mode;
 	bool enable;
+
+	uint8_t crc_eng_inst;
+	bool reset;
 };
 
 /**
@@ -291,7 +294,7 @@ struct timing_generator_funcs {
 	 * @get_crc: Get CRCs for the given timing generator. Return false if
 	 * CRCs are not enabled (via configure_crc).
 	 */
-	bool (*get_crc)(struct timing_generator *tg,
+	bool (*get_crc)(struct timing_generator *tg, uint8_t idx,
 			uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
 
 	void (*program_manual_trigger)(struct timing_generator *optc);
@@ -342,7 +345,11 @@ struct timing_generator_funcs {
 	void (*wait_drr_doublebuffer_pending_clear)(struct timing_generator *tg);
 	void (*set_long_vtotal)(struct timing_generator *optc, const struct long_vtotal_params *params);
 	void (*wait_odm_doublebuffer_pending_clear)(struct timing_generator *tg);
-	bool (*get_double_buffer_pending)(struct timing_generator *tg);
+	bool (*get_optc_double_buffer_pending)(struct timing_generator *tg);
+	bool (*get_otg_double_buffer_pending)(struct timing_generator *tg);
+	bool (*get_pipe_update_pending)(struct timing_generator *tg);
+	void (*set_vupdate_keepout)(struct timing_generator *tg, bool enable);
+	bool (*wait_update_lock_status)(struct timing_generator *tg, bool locked);
 };
 
 #endif

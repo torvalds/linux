@@ -36,7 +36,7 @@
 #include "util/sample.h"
 
 #ifdef HAVE_LIBTRACEEVENT
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 #endif
 
 #define pr_N(n, fmt, ...) \

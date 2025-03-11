@@ -824,7 +824,7 @@ static int ti_qspi_probe(struct platform_device *pdev)
 	}
 
 
-	if (of_property_read_bool(np, "syscon-chipselects")) {
+	if (of_property_present(np, "syscon-chipselects")) {
 		qspi->ctrl_base =
 		syscon_regmap_lookup_by_phandle(np,
 						"syscon-chipselects");
@@ -863,7 +863,6 @@ static int ti_qspi_probe(struct platform_device *pdev)
 		dev_err(qspi->dev,
 			"No Rx DMA available, trying mmap mode\n");
 		qspi->rx_chan = NULL;
-		ret = 0;
 		goto no_dma;
 	}
 	qspi->rx_bb_addr = dma_alloc_coherent(qspi->dev,
@@ -931,7 +930,7 @@ static const struct dev_pm_ops ti_qspi_pm_ops = {
 
 static struct platform_driver ti_qspi_driver = {
 	.probe	= ti_qspi_probe,
-	.remove_new = ti_qspi_remove,
+	.remove = ti_qspi_remove,
 	.driver = {
 		.name	= "ti-qspi",
 		.pm =   &ti_qspi_pm_ops,

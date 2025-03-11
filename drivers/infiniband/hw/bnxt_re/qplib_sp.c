@@ -129,12 +129,18 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_qp_init_rd_atom =
 		sb->max_qp_init_rd_atom > BNXT_QPLIB_MAX_OUT_RD_ATOM ?
 		BNXT_QPLIB_MAX_OUT_RD_ATOM : sb->max_qp_init_rd_atom;
-	attr->max_qp_wqes = le16_to_cpu(sb->max_qp_wr);
-	/*
-	 * 128 WQEs needs to be reserved for the HW (8916). Prevent
-	 * reporting the max number
-	 */
-	attr->max_qp_wqes -= BNXT_QPLIB_RESERVED_QP_WRS + 1;
+	attr->max_qp_wqes = le16_to_cpu(sb->max_qp_wr) - 1;
+	if (!bnxt_qplib_is_chip_gen_p5_p7(rcfw->res->cctx)) {
+		/*
+		 * 128 WQEs needs to be reserved for the HW (8916). Prevent
+		 * reporting the max number on legacy devices
+		 */
+		attr->max_qp_wqes -= BNXT_QPLIB_RESERVED_QP_WRS + 1;
+	}
+
+	/* Adjust for max_qp_wqes for variable wqe */
+	if (cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
+		attr->max_qp_wqes = BNXT_VAR_MAX_WQE - 1;
 
 	attr->max_qp_sges = cctx->modes.wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE ?
 			    min_t(u32, sb->max_sge_var_wqe, BNXT_VAR_MAX_SGE) : 6;
@@ -979,5 +985,40 @@ int bnxt_qplib_modify_cc(struct bnxt_qplib_res *res,
 	bnxt_qplib_fill_cmdqmsg(&msg, cmd, &resp, NULL, req_size,
 				sizeof(resp), 0);
 	rc = bnxt_qplib_rcfw_send_message(res->rcfw, &msg);
+	return rc;
+}
+
+int bnxt_qplib_read_context(struct bnxt_qplib_rcfw *rcfw, u8 res_type,
+			    u32 xid, u32 resp_size, void *resp_va)
+{
+	struct creq_read_context resp = {};
+	struct bnxt_qplib_cmdqmsg msg = {};
+	struct cmdq_read_context req = {};
+	struct bnxt_qplib_rcfw_sbuf sbuf;
+	int rc;
+
+	sbuf.size = resp_size;
+	sbuf.sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf.size,
+				     &sbuf.dma_addr, GFP_KERNEL);
+	if (!sbuf.sb)
+		return -ENOMEM;
+
+	bnxt_qplib_rcfw_cmd_prep((struct cmdq_base *)&req,
+				 CMDQ_BASE_OPCODE_READ_CONTEXT, sizeof(req));
+	req.resp_addr = cpu_to_le64(sbuf.dma_addr);
+	req.resp_size = resp_size / BNXT_QPLIB_CMDQE_UNITS;
+
+	req.xid = cpu_to_le32(xid);
+	req.type = res_type;
+
+	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, &sbuf, sizeof(req),
+				sizeof(resp), 0);
+	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
+	if (rc)
+		goto free_mem;
+
+	memcpy(resp_va, sbuf.sb, resp_size);
+free_mem:
+	dma_free_coherent(&rcfw->pdev->dev, sbuf.size, sbuf.sb, sbuf.dma_addr);
 	return rc;
 }

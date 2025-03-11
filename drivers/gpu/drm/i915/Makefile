@@ -30,11 +30,11 @@ i915-y += \
 	i915_params.o \
 	i915_pci.o \
 	i915_scatterlist.o \
-	i915_suspend.o \
 	i915_switcheroo.o \
 	i915_sysfs.o \
 	i915_utils.o \
 	intel_clock_gating.o \
+	intel_cpu_info.o \
 	intel_device_info.o \
 	intel_memory_region.o \
 	intel_pcode.o \
@@ -43,6 +43,7 @@ i915-y += \
 	intel_sbi.o \
 	intel_step.o \
 	intel_uncore.o \
+	intel_uncore_trace.o \
 	intel_wakeref.o \
 	vlv_sideband.o \
 	vlv_suspend.o
@@ -51,7 +52,8 @@ i915-y += \
 i915-y += \
 	soc/intel_dram.o \
 	soc/intel_gmch.o \
-	soc/intel_pch.o
+	soc/intel_pch.o \
+	soc/intel_rom.o
 
 # core library code
 i915-y += \
@@ -219,12 +221,14 @@ i915-$(CONFIG_HWMON) += \
 i915-y += \
 	display/hsw_ips.o \
 	display/i9xx_plane.o \
+	display/i9xx_display_sr.o \
 	display/i9xx_wm.o \
 	display/intel_alpm.o \
 	display/intel_atomic.o \
 	display/intel_atomic_plane.o \
 	display/intel_audio.o \
 	display/intel_bios.o \
+	display/intel_bo.o \
 	display/intel_bw.o \
 	display/intel_cdclk.o \
 	display/intel_color.o \
@@ -234,6 +238,7 @@ i915-y += \
 	display/intel_crtc_state_dump.o \
 	display/intel_cursor.o \
 	display/intel_display.o \
+	display/intel_display_conversion.o \
 	display/intel_display_driver.o \
 	display/intel_display_irq.o \
 	display/intel_display_params.o \
@@ -242,6 +247,7 @@ i915-y += \
 	display/intel_display_power_well.o \
 	display/intel_display_reset.o \
 	display/intel_display_rps.o \
+	display/intel_display_snapshot.o \
 	display/intel_display_wa.o \
 	display/intel_dmc.o \
 	display/intel_dmc_wl.o \
@@ -325,6 +331,7 @@ i915-y += \
 	display/intel_dp_hdcp.o \
 	display/intel_dp_link_training.o \
 	display/intel_dp_mst.o \
+	display/intel_dp_test.o \
 	display/intel_dsi.o \
 	display/intel_dsi_dcs_backlight.o \
 	display/intel_dsi_vbt.o \
@@ -335,6 +342,7 @@ i915-y += \
 	display/intel_lspcon.o \
 	display/intel_lvds.o \
 	display/intel_panel.o \
+	display/intel_pfit.o \
 	display/intel_pps.o \
 	display/intel_qp_tables.o \
 	display/intel_sdvo.o \

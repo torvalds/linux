@@ -146,18 +146,20 @@ static struct afs_cell *afs_alloc_cell(struct afs_net *net,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	cell->name = kmalloc(namelen + 1, GFP_KERNEL);
+	cell->name = kmalloc(1 + namelen + 1, GFP_KERNEL);
 	if (!cell->name) {
 		kfree(cell);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	cell->net = net;
+	cell->name[0] = '.';
+	cell->name++;
 	cell->name_len = namelen;
 	for (i = 0; i < namelen; i++)
 		cell->name[i] = tolower(name[i]);
 	cell->name[i] = 0;
 
+	cell->net = net;
 	refcount_set(&cell->ref, 1);
 	atomic_set(&cell->active, 0);
 	INIT_WORK(&cell->manager, afs_manage_cell_work);
@@ -211,7 +213,7 @@ parse_failed:
 	if (ret == -EINVAL)
 		printk(KERN_ERR "kAFS: bad VL server IP address\n");
 error:
-	kfree(cell->name);
+	kfree(cell->name - 1);
 	kfree(cell);
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
@@ -365,6 +367,14 @@ int afs_cell_init(struct afs_net *net, const char *rootcell)
 		len = cp - rootcell;
 	}
 
+	if (len == 0 || !rootcell[0] || rootcell[0] == '.' || rootcell[len - 1] == '.')
+		return -EINVAL;
+	if (memchr(rootcell, '/', len))
+		return -EINVAL;
+	cp = strstr(rootcell, "..");
+	if (cp && cp < rootcell + len)
+		return -EINVAL;
+
 	/* allocate a cell record for the root cell */
 	new_root = afs_lookup_cell(net, rootcell, len, vllist, false);
 	if (IS_ERR(new_root)) {
@@ -502,7 +512,7 @@ static void afs_cell_destroy(struct rcu_head *rcu)
 	afs_put_vlserverlist(net, rcu_access_pointer(cell->vl_servers));
 	afs_unuse_cell(net, cell->alias_of, afs_cell_trace_unuse_alias);
 	key_put(cell->anonymous_key);
-	kfree(cell->name);
+	kfree(cell->name - 1);
 	kfree(cell);
 
 	afs_dec_cells_outstanding(net);
@@ -710,7 +720,8 @@ static void afs_deactivate_cell(struct afs_net *net, struct afs_cell *cell)
 	afs_proc_cell_remove(cell);
 
 	mutex_lock(&net->proc_cells_lock);
-	hlist_del_rcu(&cell->proc_link);
+	if (!hlist_unhashed(&cell->proc_link))
+		hlist_del_rcu(&cell->proc_link);
 	afs_dynroot_rmdir(net, cell);
 	mutex_unlock(&net->proc_cells_lock);
 

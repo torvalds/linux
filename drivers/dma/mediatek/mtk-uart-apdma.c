@@ -637,7 +637,7 @@ static const struct dev_pm_ops mtk_uart_apdma_pm_ops = {
 
 static struct platform_driver mtk_uart_apdma_driver = {
 	.probe	= mtk_uart_apdma_probe,
-	.remove_new = mtk_uart_apdma_remove,
+	.remove = mtk_uart_apdma_remove,
 	.driver = {
 		.name		= KBUILD_MODNAME,
 		.pm		= &mtk_uart_apdma_pm_ops,

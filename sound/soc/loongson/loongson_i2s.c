@@ -246,6 +246,7 @@ struct snd_soc_dai_driver loongson_i2s_dai = {
 	.ops = &loongson_i2s_dai_ops,
 	.symmetric_rate = 1,
 };
+EXPORT_SYMBOL_GPL(loongson_i2s_dai);
 
 static int i2s_suspend(struct device *dev)
 {
@@ -268,3 +269,7 @@ static int i2s_resume(struct device *dev)
 const struct dev_pm_ops loongson_i2s_pm = {
 	SYSTEM_SLEEP_PM_OPS(i2s_suspend, i2s_resume)
 };
+EXPORT_SYMBOL_GPL(loongson_i2s_pm);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Common functions for loongson I2S controller driver");

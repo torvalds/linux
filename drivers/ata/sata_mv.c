@@ -672,7 +672,7 @@ static const struct scsi_host_template mv6_sht = {
 	.dma_boundary		= MV_DMA_BOUNDARY,
 	.sdev_groups		= ata_ncq_sdev_groups,
 	.change_queue_depth	= ata_scsi_change_queue_depth,
-	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,
+	.tag_alloc_policy_rr	= true,
 	.device_configure	= ata_scsi_device_configure
 };
 

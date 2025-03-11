@@ -7,7 +7,8 @@
  */
 
 /dts-v1/;
-#include "rk3328-orangepi-r1-plus.dts"
+
+#include "rk3328-orangepi-r1-plus.dtsi"
 
 / {
 	model = "Xunlong Orange Pi R1 Plus LTS";
@@ -18,10 +19,9 @@
 	phy-handle = <&yt8531c>;
 	tx_delay = <0x19>;
 	rx_delay = <0x05>;
+	status = "okay";
 
 	mdio {
-		/delete-node/ ethernet-phy@1;
-
 		yt8531c: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <0>;

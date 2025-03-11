@@ -378,7 +378,7 @@ struct mac_driver {
 	void (*get_regs)(void *mac_drv, void *data);
 	int (*get_regs_count)(void);
 	/* get strings name for ethtool statistic */
-	void (*get_strings)(u32 stringset, u8 *data);
+	void (*get_strings)(u32 stringset, u8 **data);
 	/* get the number of strings*/
 	int (*get_sset_count)(int stringset);
 
@@ -445,7 +445,7 @@ int hns_mac_config_mac_loopback(struct hns_mac_cb *mac_cb,
 				enum hnae_loop loop, int en);
 void hns_mac_update_stats(struct hns_mac_cb *mac_cb);
 void hns_mac_get_stats(struct hns_mac_cb *mac_cb, u64 *data);
-void hns_mac_get_strings(struct hns_mac_cb *mac_cb, int stringset, u8 *data);
+void hns_mac_get_strings(struct hns_mac_cb *mac_cb, int stringset, u8 **data);
 int hns_mac_get_sset_count(struct hns_mac_cb *mac_cb, int stringset);
 void hns_mac_get_regs(struct hns_mac_cb *mac_cb, void *data);
 int hns_mac_get_regs_count(struct hns_mac_cb *mac_cb);

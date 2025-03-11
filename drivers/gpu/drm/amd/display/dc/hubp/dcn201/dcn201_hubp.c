@@ -42,7 +42,7 @@
 static void hubp201_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -131,6 +131,7 @@ static struct hubp_funcs dcn201_hubp_funcs = {
 	.hubp_clear_underflow = hubp1_clear_underflow,
 	.hubp_set_flip_control_surface_gsl = hubp2_set_flip_control_surface_gsl,
 	.hubp_init = hubp1_init,
+	.hubp_clear_tiling = hubp1_clear_tiling,
 };
 
 bool dcn201_hubp_construct(

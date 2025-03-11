@@ -1605,7 +1605,7 @@ static const struct dev_pm_ops omap_i2c_pm_ops = {
 
 static struct platform_driver omap_i2c_driver = {
 	.probe		= omap_i2c_probe,
-	.remove_new	= omap_i2c_remove,
+	.remove		= omap_i2c_remove,
 	.driver		= {
 		.name	= "omap_i2c",
 		.pm	= pm_ptr(&omap_i2c_pm_ops),

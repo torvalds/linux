@@ -8,7 +8,7 @@
 
 #include <uapi/asm/hwprobe.h>
 
-#define RISCV_HWPROBE_MAX_KEY 9
+#define RISCV_HWPROBE_MAX_KEY 10
 
 static inline bool riscv_hwprobe_key_is_valid(__s64 key)
 {

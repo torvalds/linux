@@ -58,10 +58,21 @@ struct xe_guc {
 	struct xe_guc_ads ads;
 	/** @ct: GuC ct */
 	struct xe_guc_ct ct;
+	/** @capture: the error-state-capture module's data and objects */
+	struct xe_guc_state_capture *capture;
 	/** @pc: GuC Power Conservation */
 	struct xe_guc_pc pc;
 	/** @dbm: GuC Doorbell Manager */
 	struct xe_guc_db_mgr dbm;
+
+	/** @g2g: GuC to GuC communication state */
+	struct {
+		/** @g2g.bo: Storage for GuC to GuC communication channels */
+		struct xe_bo *bo;
+		/** @g2g.owned: Is the BO owned by this GT or just mapped in */
+		bool owned;
+	} g2g;
+
 	/** @submission_state: GuC submission state */
 	struct {
 		/** @submission_state.idm: GuC context ID Manager */
@@ -77,6 +88,7 @@ struct xe_guc {
 		/** @submission_state.fini_wq: submit fini wait queue */
 		wait_queue_head_t fini_wq;
 	} submission_state;
+
 	/** @hwconfig: Hardware config state */
 	struct {
 		/** @hwconfig.bo: buffer object of the hardware config */

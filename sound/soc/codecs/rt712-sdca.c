@@ -18,6 +18,7 @@
 #include <linux/pm_runtime.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
+#include <sound/sdca.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/slab.h>
 #include <sound/soc-dapm.h>
@@ -1652,6 +1653,17 @@ int rt712_sdca_init(struct device *dev, struct regmap *regmap,
 	if (ret < 0)
 		return ret;
 
+	/* only add the dmic component if a SMART_MIC function is exposed in ACPI */
+	if (sdca_device_quirk_match(slave, SDCA_QUIRKS_RT712_VB)) {
+		ret =  devm_snd_soc_register_component(dev,
+						       &soc_sdca_dev_rt712_dmic,
+						       rt712_sdca_dmic_dai,
+						       ARRAY_SIZE(rt712_sdca_dmic_dai));
+		if (ret < 0)
+			return ret;
+		rt712->dmic_function_found = true;
+	}
+
 	/* set autosuspend parameters */
 	pm_runtime_set_autosuspend_delay(dev, 3000);
 	pm_runtime_use_autosuspend(dev);
@@ -1799,7 +1811,6 @@ static void rt712_sdca_vb_io_init(struct rt712_sdca_priv *rt712)
 int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 {
 	struct rt712_sdca_priv *rt712 = dev_get_drvdata(dev);
-	int ret = 0;
 	unsigned int val;
 	struct sdw_slave_prop *prop = &slave->prop;
 
@@ -1829,15 +1840,22 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	rt712->version_id = (val & 0x0f00) >> 8;
 	dev_dbg(&slave->dev, "%s hw_id=0x%x, version_id=0x%x\n", __func__, rt712->hw_id, rt712->version_id);
 
-	if (rt712->version_id == RT712_VA)
-		rt712_sdca_va_io_init(rt712);
-	else {
-		/* multilanes and DMIC are supported by rt712vb */
-		ret =  devm_snd_soc_register_component(dev,
-			&soc_sdca_dev_rt712_dmic, rt712_sdca_dmic_dai, ARRAY_SIZE(rt712_sdca_dmic_dai));
-		if (ret < 0)
-			return ret;
+	if (rt712->version_id == RT712_VA) {
+		if (rt712->dmic_function_found) {
+			dev_err(&slave->dev, "%s RT712 VA detected but SMART_MIC function exposed in ACPI\n",
+				__func__);
+			goto suspend;
+		}
 
+		rt712_sdca_va_io_init(rt712);
+	} else {
+		if (!rt712->dmic_function_found) {
+			dev_err(&slave->dev, "%s RT712 VB detected but no SMART_MIC function exposed in ACPI\n",
+				__func__);
+			goto suspend;
+		}
+
+		/* multilanes and DMIC are supported by rt712vb */
 		prop->lane_control_support = true;
 		rt712_sdca_vb_io_init(rt712);
 	}
@@ -1862,10 +1880,12 @@ int rt712_sdca_io_init(struct device *dev, struct sdw_slave *slave)
 	/* Mark Slave initialization complete */
 	rt712->hw_init = true;
 
+	dev_dbg(&slave->dev, "%s hw_init complete\n", __func__);
+
+suspend:
 	pm_runtime_mark_last_busy(&slave->dev);
 	pm_runtime_put_autosuspend(&slave->dev);
 
-	dev_dbg(&slave->dev, "%s hw_init complete\n", __func__);
 	return 0;
 }
 

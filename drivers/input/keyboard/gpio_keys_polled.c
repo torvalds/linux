@@ -306,13 +306,8 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 			 * Legacy GPIO number so request the GPIO here and
 			 * convert it to descriptor.
 			 */
-			unsigned flags = GPIOF_IN;
-
-			if (button->active_low)
-				flags |= GPIOF_ACTIVE_LOW;
-
-			error = devm_gpio_request_one(dev, button->gpio,
-					flags, button->desc ? : DRV_NAME);
+			error = devm_gpio_request_one(dev, button->gpio, GPIOF_IN,
+						      button->desc ? : DRV_NAME);
 			if (error)
 				return dev_err_probe(dev, error,
 						     "unable to claim gpio %u\n",
@@ -325,6 +320,9 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 					button->gpio);
 				return -EINVAL;
 			}
+
+			if (button->active_low ^ gpiod_is_active_low(bdata->gpiod))
+				gpiod_toggle_active_low(bdata->gpiod);
 		}
 
 		bdata->last_state = -1;

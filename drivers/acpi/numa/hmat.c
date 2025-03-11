@@ -151,7 +151,7 @@ int acpi_get_genport_coordinates(u32 uid,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(acpi_get_genport_coordinates, CXL);
+EXPORT_SYMBOL_NS_GPL(acpi_get_genport_coordinates, "CXL");
 
 static __init void alloc_memory_initiator(unsigned int cpu_pxm)
 {

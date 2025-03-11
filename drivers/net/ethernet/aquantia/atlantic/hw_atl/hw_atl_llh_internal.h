@@ -42,6 +42,38 @@
 #define HW_ATL_TS_DATA_OUT_SHIFT 0
 #define HW_ATL_TS_DATA_OUT_WIDTH 12
 
+/* SMBUS0 Received Data register */
+#define HW_ATL_SMB0_RECEIVED_DATA_ADR 0x00000748
+/* SMBUS0 Transmitted Data register */
+#define HW_ATL_SMB0_TRANSMITTED_DATA_ADR 0x00000608
+
+/* SMBUS0 Global Provisioning 2 register */
+#define HW_ATL_SMB0_PROVISIONING2_ADR 0x00000604
+
+/* SMBUS0 Bus Busy Bitfield Definitions */
+#define HW_ATL_SMB0_BUS_BUSY_ADR 0x00000744
+#define HW_ATL_SMB0_BUS_BUSY_MSK 0x00000080
+#define HW_ATL_SMB0_BUS_BUSY_SHIFT 7
+#define HW_ATL_SMB0_BUS_BUSY_WIDTH 1
+
+/* SMBUS0 Byte Transfer Complete Bitfield Definitions */
+#define HW_ATL_SMB0_BYTE_TRANSFER_COMPLETE_ADR 0x00000744
+#define HW_ATL_SMB0_BYTE_TRANSFER_COMPLETE_MSK 0x00000002
+#define HW_ATL_SMB0_BYTE_TRANSFER_COMPLETE_SHIFT 1
+#define HW_ATL_SMB0_BYTE_TRANSFER_COMPLETE_WIDTH 1
+
+/* SMBUS0 Receive Acknowledge Bitfield Definitions */
+#define HW_ATL_SMB0_RX_ACKNOWLEDGED_ADR 0x00000744
+#define HW_ATL_SMB0_RX_ACKNOWLEDGED_MSK 0x00000100
+#define HW_ATL_SMB0_RX_ACKNOWLEDGED_SHIFT 8
+#define HW_ATL_SMB0_RX_ACKNOWLEDGED_WIDTH 1
+
+/* SMBUS0 Repeated Start Detect Bitfield Definitions */
+#define HW_ATL_SMB0_REPEATED_START_DETECT_ADR 0x00000744
+#define HW_ATL_SMB0_REPEATED_START_DETECT_MSK 0x00000004
+#define HW_ATL_SMB0_REPEATED_START_DETECT_SHIFT 2
+#define HW_ATL_SMB0_REPEATED_START_DETECT_WIDTH 1
+
 /* global microprocessor semaphore  definitions
  * base address: 0x000003a0
  * parameter: semaphore {s} | stride size 0x4 | range [0, 15]

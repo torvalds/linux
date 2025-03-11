@@ -968,7 +968,7 @@ MODULE_DEVICE_TABLE(of, dwc3_meson_g12a_match);
 
 static struct platform_driver dwc3_meson_g12a_driver = {
 	.probe		= dwc3_meson_g12a_probe,
-	.remove_new	= dwc3_meson_g12a_remove,
+	.remove		= dwc3_meson_g12a_remove,
 	.driver		= {
 		.name	= "dwc3-meson-g12a",
 		.of_match_table = dwc3_meson_g12a_match,

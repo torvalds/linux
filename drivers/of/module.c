@@ -35,12 +35,10 @@ ssize_t of_modalias(const struct device_node *np, char *str, ssize_t len)
 	str += csize;
 
 	of_property_for_each_string(np, "compatible", p, compat) {
-		csize = strlen(compat) + 1;
+		csize = snprintf(str, len, "C%s", compat);
 		tsize += csize;
 		if (csize >= len)
 			continue;
-
-		csize = snprintf(str, len, "C%s", compat);
 		for (c = str; c; ) {
 			c = strchr(c, ' ');
 			if (c)

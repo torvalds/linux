@@ -293,7 +293,7 @@ static void advwdt_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver advwdt_driver = {
-	.remove_new	= advwdt_remove,
+	.remove		= advwdt_remove,
 	.shutdown	= advwdt_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,

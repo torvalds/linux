@@ -560,7 +560,8 @@ static void iwl_mvm_update_link_sig(struct ieee80211_vif *vif, int sig,
 				    struct iwl_mvm_vif_link_info *link_info,
 				    struct ieee80211_bss_conf *bss_conf)
 {
-	struct iwl_mvm *mvm = iwl_mvm_vif_from_mac80211(vif)->mvm;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
 	int thold = bss_conf->cqm_rssi_thold;
 	int hyst = bss_conf->cqm_rssi_hyst;
 	int last_event;
@@ -625,6 +626,13 @@ static void iwl_mvm_update_link_sig(struct ieee80211_vif *vif, int sig,
 	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
 		return;
 
+	/* We're not in EMLSR and our signal is bad, try to switch link maybe */
+	if (sig < IWL_MVM_LOW_RSSI_MLO_SCAN_THRESH && !mvmvif->esr_active) {
+		iwl_mvm_int_mlo_scan(mvm, vif);
+		return;
+	}
+
+	/* We are in EMLSR, check if we need to exit */
 	exit_esr_thresh =
 		iwl_mvm_get_esr_rssi_thresh(mvm,
 					    &bss_conf->chanreq.oper,

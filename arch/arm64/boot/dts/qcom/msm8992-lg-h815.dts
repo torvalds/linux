@@ -91,27 +91,27 @@
 	};
 };
 
-&CPU0 {
+&cpu0 {
 	enable-method = "spin-table";
 };
 
-&CPU1 {
+&cpu1 {
 	enable-method = "spin-table";
 };
 
-&CPU2 {
+&cpu2 {
 	enable-method = "spin-table";
 };
 
-&CPU3 {
+&cpu3 {
 	enable-method = "spin-table";
 };
 
-&CPU4 {
+&cpu4 {
 	enable-method = "spin-table";
 };
 
-&CPU5 {
+&cpu5 {
 	enable-method = "spin-table";
 };
 

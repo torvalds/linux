@@ -1175,7 +1175,7 @@ static struct qcom_icc_node slv_lpass = {
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
-static struct qcom_icc_node *msm8937_bimc_nodes[] = {
+static struct qcom_icc_node * const msm8937_bimc_nodes[] = {
 	[MAS_APPS_PROC] = &mas_apps_proc,
 	[MAS_OXILI] = &mas_oxili,
 	[MAS_SNOC_BIMC_0] = &mas_snoc_bimc_0,
@@ -1204,7 +1204,7 @@ static const struct qcom_icc_desc msm8937_bimc = {
 	.ab_coeff = 154,
 };
 
-static struct qcom_icc_node *msm8937_pcnoc_nodes[] = {
+static struct qcom_icc_node * const msm8937_pcnoc_nodes[] = {
 	[MAS_SPDM] = &mas_spdm,
 	[MAS_BLSP_1] = &mas_blsp_1,
 	[MAS_BLSP_2] = &mas_blsp_2,
@@ -1268,7 +1268,7 @@ static const struct qcom_icc_desc msm8937_pcnoc = {
 	.regmap_cfg = &msm8937_pcnoc_regmap_config,
 };
 
-static struct qcom_icc_node *msm8937_snoc_nodes[] = {
+static struct qcom_icc_node * const msm8937_snoc_nodes[] = {
 	[MAS_QDSS_BAM] = &mas_qdss_bam,
 	[MAS_BIMC_SNOC] = &mas_bimc_snoc,
 	[MAS_PCNOC_SNOC] = &mas_pcnoc_snoc,
@@ -1304,7 +1304,7 @@ static const struct qcom_icc_desc msm8937_snoc = {
 	.qos_offset = 0x7000,
 };
 
-static struct qcom_icc_node *msm8937_snoc_mm_nodes[] = {
+static struct qcom_icc_node * const msm8937_snoc_mm_nodes[] = {
 	[MAS_JPEG] = &mas_jpeg,
 	[MAS_MDP] = &mas_mdp,
 	[MAS_VENUS] = &mas_venus,
@@ -1337,7 +1337,7 @@ MODULE_DEVICE_TABLE(of, msm8937_noc_of_match);
 
 static struct platform_driver msm8937_noc_driver = {
 	.probe = qnoc_probe,
-	.remove_new = qnoc_remove,
+	.remove = qnoc_remove,
 	.driver = {
 		.name = "qnoc-msm8937",
 		.of_match_table = msm8937_noc_of_match,

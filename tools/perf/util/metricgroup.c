@@ -14,6 +14,7 @@
 #include "pmus.h"
 #include "print-events.h"
 #include "smt.h"
+#include "tool_pmu.h"
 #include "expr.h"
 #include "rblist.h"
 #include <string.h>
@@ -297,8 +298,8 @@ static int setup_metric_events(const char *pmu, struct hashmap *ids,
 		struct expr_id_data *val_ptr;
 
 		/* Don't match events for the wrong hybrid PMU. */
-		if (!all_pmus && ev->pmu_name && evsel__is_hybrid(ev) &&
-		    strcmp(ev->pmu_name, pmu))
+		if (!all_pmus && ev->pmu && evsel__is_hybrid(ev) &&
+		    strcmp(ev->pmu->name, pmu))
 			continue;
 		/*
 		 * Check for duplicate events with the same name. For
@@ -673,20 +674,20 @@ static int metricgroup__build_event_string(struct strbuf *events,
 	struct hashmap_entry *cur;
 	size_t bkt;
 	bool no_group = true, has_tool_events = false;
-	bool tool_events[PERF_TOOL_MAX] = {false};
+	bool tool_events[TOOL_PMU__EVENT_MAX] = {false};
 	int ret = 0;
 
 #define RETURN_IF_NON_ZERO(x) do { if (x) return x; } while (0)
 
 	hashmap__for_each_entry(ctx->ids, cur, bkt) {
 		const char *sep, *rsep, *id = cur->pkey;
-		enum perf_tool_event ev;
+		enum tool_pmu_event ev;
 
 		pr_debug("found event %s\n", id);
 
 		/* Always move tool events outside of the group. */
-		ev = perf_tool_event__from_str(id);
-		if (ev != PERF_TOOL_NONE) {
+		ev = tool_pmu__str_to_event(id);
+		if (ev != TOOL_PMU__EVENT_NONE) {
 			has_tool_events = true;
 			tool_events[ev] = true;
 			continue;
@@ -754,14 +755,14 @@ static int metricgroup__build_event_string(struct strbuf *events,
 	if (has_tool_events) {
 		int i;
 
-		perf_tool_event__for_each_event(i) {
+		tool_pmu__for_each_event(i) {
 			if (tool_events[i]) {
 				if (!no_group) {
 					ret = strbuf_addch(events, ',');
 					RETURN_IF_NON_ZERO(ret);
 				}
 				no_group = false;
-				ret = strbuf_addstr(events, perf_tool_event__to_str(i));
+				ret = strbuf_addstr(events, tool_pmu__event_to_str(i));
 				RETURN_IF_NON_ZERO(ret);
 			}
 		}
@@ -1147,14 +1148,14 @@ static int metric_list_cmp(void *priv __maybe_unused, const struct list_head *l,
 	int i, left_count, right_count;
 
 	left_count = hashmap__size(left->pctx->ids);
-	perf_tool_event__for_each_event(i) {
-		if (!expr__get_id(left->pctx, perf_tool_event__to_str(i), &data))
+	tool_pmu__for_each_event(i) {
+		if (!expr__get_id(left->pctx, tool_pmu__event_to_str(i), &data))
 			left_count--;
 	}
 
 	right_count = hashmap__size(right->pctx->ids);
-	perf_tool_event__for_each_event(i) {
-		if (!expr__get_id(right->pctx, perf_tool_event__to_str(i), &data))
+	tool_pmu__for_each_event(i) {
+		if (!expr__get_id(right->pctx, tool_pmu__event_to_str(i), &data))
 			right_count--;
 	}
 
@@ -1374,18 +1375,18 @@ static void metricgroup__free_metrics(struct list_head *metric_list)
  *               to true if tool event is found.
  */
 static void find_tool_events(const struct list_head *metric_list,
-			     bool tool_events[PERF_TOOL_MAX])
+			     bool tool_events[TOOL_PMU__EVENT_MAX])
 {
 	struct metric *m;
 
 	list_for_each_entry(m, metric_list, nd) {
 		int i;
 
-		perf_tool_event__for_each_event(i) {
+		tool_pmu__for_each_event(i) {
 			struct expr_id_data *data;
 
 			if (!tool_events[i] &&
-			    !expr__get_id(m->pctx, perf_tool_event__to_str(i), &data))
+			    !expr__get_id(m->pctx, tool_pmu__event_to_str(i), &data))
 				tool_events[i] = true;
 		}
 	}
@@ -1446,7 +1447,7 @@ err_out:
  */
 static int parse_ids(bool metric_no_merge, bool fake_pmu,
 		     struct expr_parse_ctx *ids, const char *modifier,
-		     bool group_events, const bool tool_events[PERF_TOOL_MAX],
+		     bool group_events, const bool tool_events[TOOL_PMU__EVENT_MAX],
 		     struct evlist **out_evlist)
 {
 	struct parse_events_error parse_error;
@@ -1471,9 +1472,9 @@ static int parse_ids(bool metric_no_merge, bool fake_pmu,
 		 *    event1 if #smt_on else 0
 		 * Add a tool event to avoid a parse error on an empty string.
 		 */
-		perf_tool_event__for_each_event(i) {
+		tool_pmu__for_each_event(i) {
 			if (tool_events[i]) {
-				char *tmp = strdup(perf_tool_event__to_str(i));
+				char *tmp = strdup(tool_pmu__event_to_str(i));
 
 				if (!tmp)
 					return -ENOMEM;
@@ -1535,7 +1536,7 @@ static int parse_groups(struct evlist *perf_evlist,
 	struct evlist *combined_evlist = NULL;
 	LIST_HEAD(metric_list);
 	struct metric *m;
-	bool tool_events[PERF_TOOL_MAX] = {false};
+	bool tool_events[TOOL_PMU__EVENT_MAX] = {false};
 	bool is_default = !strcmp(str, "Default");
 	int ret;
 

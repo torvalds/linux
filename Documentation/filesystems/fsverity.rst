@@ -16,7 +16,7 @@ btrfs filesystems.  Like fscrypt, not too much filesystem-specific
 code is needed to support fs-verity.
 
 fs-verity is similar to `dm-verity
-<https://www.kernel.org/doc/Documentation/device-mapper/verity.txt>`_
+<https://www.kernel.org/doc/Documentation/admin-guide/device-mapper/verity.rst>`_
 but works on files rather than block devices.  On regular files on
 filesystems supporting fs-verity, userspace can execute an ioctl that
 causes the filesystem to build a Merkle tree for the file and persist

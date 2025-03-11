@@ -1051,29 +1051,12 @@ efx_mcdi_rpc_async(struct efx_nic *efx, unsigned int cmd,
 				   cookie, false);
 }
 
-int efx_mcdi_rpc_async_quiet(struct efx_nic *efx, unsigned int cmd,
-			     const efx_dword_t *inbuf, size_t inlen,
-			     size_t outlen, efx_mcdi_async_completer *complete,
-			     unsigned long cookie)
-{
-	return _efx_mcdi_rpc_async(efx, cmd, inbuf, inlen, outlen, complete,
-				   cookie, true);
-}
-
 int efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned cmd, size_t inlen,
 			efx_dword_t *outbuf, size_t outlen,
 			size_t *outlen_actual)
 {
 	return _efx_mcdi_rpc_finish(efx, cmd, inlen, outbuf, outlen,
 				    outlen_actual, false, NULL, NULL);
-}
-
-int efx_mcdi_rpc_finish_quiet(struct efx_nic *efx, unsigned cmd, size_t inlen,
-			      efx_dword_t *outbuf, size_t outlen,
-			      size_t *outlen_actual)
-{
-	return _efx_mcdi_rpc_finish(efx, cmd, inlen, outbuf, outlen,
-				    outlen_actual, true, NULL, NULL);
 }
 
 void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
@@ -1982,33 +1965,6 @@ efx_mcdi_wol_filter_set_magic(struct efx_nic *efx,  const u8 *mac, int *id_out)
 }
 
 
-int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out)
-{
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_WOL_FILTER_GET_OUT_LEN);
-	size_t outlen;
-	int rc;
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_WOL_FILTER_GET, NULL, 0,
-			  outbuf, sizeof(outbuf), &outlen);
-	if (rc)
-		goto fail;
-
-	if (outlen < MC_CMD_WOL_FILTER_GET_OUT_LEN) {
-		rc = -EIO;
-		goto fail;
-	}
-
-	*id_out = (int)MCDI_DWORD(outbuf, WOL_FILTER_GET_OUT_FILTER_ID);
-
-	return 0;
-
-fail:
-	*id_out = -1;
-	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
-	return rc;
-}
-
-
 int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_WOL_FILTER_REMOVE_IN_LEN);
@@ -2018,38 +1974,6 @@ int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_WOL_FILTER_REMOVE, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL);
-	return rc;
-}
-
-int efx_mcdi_flush_rxqs(struct efx_nic *efx)
-{
-	struct efx_channel *channel;
-	struct efx_rx_queue *rx_queue;
-	MCDI_DECLARE_BUF(inbuf,
-			 MC_CMD_FLUSH_RX_QUEUES_IN_LEN(EFX_MAX_CHANNELS));
-	int rc, count;
-
-	BUILD_BUG_ON(EFX_MAX_CHANNELS >
-		     MC_CMD_FLUSH_RX_QUEUES_IN_QID_OFST_MAXNUM);
-
-	count = 0;
-	efx_for_each_channel(channel, efx) {
-		efx_for_each_channel_rx_queue(rx_queue, channel) {
-			if (rx_queue->flush_pending) {
-				rx_queue->flush_pending = false;
-				atomic_dec(&efx->rxq_flush_pending);
-				MCDI_SET_ARRAY_DWORD(
-					inbuf, FLUSH_RX_QUEUES_IN_QID_OFST,
-					count, efx_rx_queue_index(rx_queue));
-				count++;
-			}
-		}
-	}
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, inbuf,
-			  MC_CMD_FLUSH_RX_QUEUES_IN_LEN(count), NULL, 0, NULL);
-	WARN_ON(rc < 0);
-
 	return rc;
 }
 

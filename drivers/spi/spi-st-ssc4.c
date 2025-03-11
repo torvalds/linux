@@ -449,7 +449,7 @@ static struct platform_driver spi_st_driver = {
 		.of_match_table = of_match_ptr(stm_spi_match),
 	},
 	.probe = spi_st_probe,
-	.remove_new = spi_st_remove,
+	.remove = spi_st_remove,
 };
 module_platform_driver(spi_st_driver);
 

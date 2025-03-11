@@ -3,7 +3,7 @@
 # Cleaning up
 # ==========================================================================
 
-src := $(if $(VPATH),$(VPATH)/)$(obj)
+src := $(srcroot)/$(obj)
 
 PHONY := __clean
 __clean:

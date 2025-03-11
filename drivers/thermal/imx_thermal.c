@@ -861,7 +861,7 @@ static struct platform_driver imx_thermal = {
 		.of_match_table = of_imx_thermal_match,
 	},
 	.probe		= imx_thermal_probe,
-	.remove_new	= imx_thermal_remove,
+	.remove		= imx_thermal_remove,
 };
 module_platform_driver(imx_thermal);
 

@@ -133,35 +133,6 @@ struct ib_uverbs_completion_event_file {
 	struct ib_uverbs_event_queue		ev_queue;
 };
 
-struct ib_uverbs_file {
-	struct kref				ref;
-	struct ib_uverbs_device		       *device;
-	struct mutex				ucontext_lock;
-	/*
-	 * ucontext must be accessed via ib_uverbs_get_ucontext() or with
-	 * ucontext_lock held
-	 */
-	struct ib_ucontext		       *ucontext;
-	struct ib_uverbs_async_event_file      *default_async_file;
-	struct list_head			list;
-
-	/*
-	 * To access the uobjects list hw_destroy_rwsem must be held for write
-	 * OR hw_destroy_rwsem held for read AND uobjects_lock held.
-	 * hw_destroy_rwsem should be called across any destruction of the HW
-	 * object of an associated uobject.
-	 */
-	struct rw_semaphore	hw_destroy_rwsem;
-	spinlock_t		uobjects_lock;
-	struct list_head	uobjects;
-
-	struct mutex umap_lock;
-	struct list_head umaps;
-	struct page *disassociate_page;
-
-	struct xarray		idr;
-};
-
 struct ib_uverbs_event {
 	union {
 		struct ib_uverbs_async_event_desc	async;

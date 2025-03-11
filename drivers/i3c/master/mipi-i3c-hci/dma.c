@@ -159,10 +159,10 @@ static void hci_dma_cleanup(struct i3c_hci *hci)
 	for (i = 0; i < rings->total; i++) {
 		rh = &rings->headers[i];
 
+		rh_reg_write(INTR_SIGNAL_ENABLE, 0);
 		rh_reg_write(RING_CONTROL, 0);
 		rh_reg_write(CR_SETUP, 0);
 		rh_reg_write(IBI_SETUP, 0);
-		rh_reg_write(INTR_SIGNAL_ENABLE, 0);
 
 		if (rh->xfer)
 			dma_free_coherent(&hci->master.dev,
@@ -733,19 +733,15 @@ done:
 	rh_reg_write(CHUNK_CONTROL, rh_reg_read(CHUNK_CONTROL) + ibi_chunks);
 }
 
-static bool hci_dma_irq_handler(struct i3c_hci *hci, unsigned int mask)
+static bool hci_dma_irq_handler(struct i3c_hci *hci)
 {
 	struct hci_rings_data *rings = hci->io_data;
 	unsigned int i;
 	bool handled = false;
 
-	for (i = 0; mask && i < rings->total; i++) {
+	for (i = 0; i < rings->total; i++) {
 		struct hci_rh_data *rh;
 		u32 status;
-
-		if (!(mask & BIT(i)))
-			continue;
-		mask &= ~BIT(i);
 
 		rh = &rings->headers[i];
 		status = rh_reg_read(INTR_STATUS);

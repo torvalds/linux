@@ -25,6 +25,8 @@
 #include "xfs_alloc.h"
 #include "xfs_ag.h"
 #include "xfs_sb.h"
+#include "xfs_rtgroup.h"
+#include "xfs_rtbitmap.h"
 
 /*
  * This is the number of entries in the l_buf_cancel_table used during
@@ -393,9 +395,18 @@ xlog_recover_validate_buf_type(
 		break;
 #ifdef CONFIG_XFS_RT
 	case XFS_BLFT_RTBITMAP_BUF:
+		if (xfs_has_rtgroups(mp) && magic32 != XFS_RTBITMAP_MAGIC) {
+			warnmsg = "Bad rtbitmap magic!";
+			break;
+		}
+		bp->b_ops = xfs_rtblock_ops(mp, XFS_RTGI_BITMAP);
+		break;
 	case XFS_BLFT_RTSUMMARY_BUF:
-		/* no magic numbers for verification of RT buffers */
-		bp->b_ops = &xfs_rtbuf_ops;
+		if (xfs_has_rtgroups(mp) && magic32 != XFS_RTSUMMARY_MAGIC) {
+			warnmsg = "Bad rtsummary magic!";
+			break;
+		}
+		bp->b_ops = xfs_rtblock_ops(mp, XFS_RTGI_SUMMARY);
 		break;
 #endif /* CONFIG_XFS_RT */
 	default:
@@ -704,6 +715,7 @@ xlog_recover_do_primary_sb_buffer(
 {
 	struct xfs_dsb			*dsb = bp->b_addr;
 	xfs_agnumber_t			orig_agcount = mp->m_sb.sb_agcount;
+	xfs_rgnumber_t			orig_rgcount = mp->m_sb.sb_rgcount;
 	int				error;
 
 	xlog_recover_do_reg_buffer(mp, item, bp, buf_f, current_lsn);
@@ -722,15 +734,30 @@ xlog_recover_do_primary_sb_buffer(
 		xfs_alert(mp, "Shrinking AG count in log recovery not supported");
 		return -EFSCORRUPTED;
 	}
+	if (mp->m_sb.sb_rgcount < orig_rgcount) {
+		xfs_warn(mp,
+ "Shrinking rtgroup count in log recovery not supported");
+		return -EFSCORRUPTED;
+	}
 
 	/*
-	 * Growfs can also grow the last existing AG.  In this case we also need
-	 * to update the length in the in-core perag structure and values
-	 * depending on it.
+	 * If the last AG was grown or shrunk, we also need to update the
+	 * length in the in-core perag structure and values depending on it.
 	 */
 	error = xfs_update_last_ag_size(mp, orig_agcount);
 	if (error)
 		return error;
+
+	/*
+	 * If the last rtgroup was grown or shrunk, we also need to update the
+	 * length in the in-core rtgroup structure and values depending on it.
+	 * Ignore this on any filesystem with zero rtgroups.
+	 */
+	if (orig_rgcount > 0) {
+		error = xfs_update_last_rtgroup_size(mp, orig_rgcount);
+		if (error)
+			return error;
+	}
 
 	/*
 	 * Initialize the new perags, and also update various block and inode
@@ -745,6 +772,13 @@ xlog_recover_do_primary_sb_buffer(
 		return error;
 	}
 	mp->m_alloc_set_aside = xfs_alloc_set_aside(mp);
+
+	error = xfs_initialize_rtgroups(mp, orig_rgcount, mp->m_sb.sb_rgcount,
+			mp->m_sb.sb_rextents);
+	if (error) {
+		xfs_warn(mp, "Failed recovery rtgroup init: %d", error);
+		return error;
+	}
 	return 0;
 }
 
@@ -791,11 +825,20 @@ xlog_recover_get_buf_lsn(
 	 * UUIDs, so we must recover them immediately.
 	 */
 	blft = xfs_blft_from_flags(buf_f);
-	if (blft == XFS_BLFT_RTBITMAP_BUF || blft == XFS_BLFT_RTSUMMARY_BUF)
+	if (!xfs_has_rtgroups(mp) && (blft == XFS_BLFT_RTBITMAP_BUF ||
+				      blft == XFS_BLFT_RTSUMMARY_BUF))
 		goto recover_immediately;
 
 	magic32 = be32_to_cpu(*(__be32 *)blk);
 	switch (magic32) {
+	case XFS_RTSUMMARY_MAGIC:
+	case XFS_RTBITMAP_MAGIC: {
+		struct xfs_rtbuf_blkinfo	*hdr = blk;
+
+		lsn = be64_to_cpu(hdr->rt_lsn);
+		uuid = &hdr->rt_uuid;
+		break;
+	}
 	case XFS_ABTB_CRC_MAGIC:
 	case XFS_ABTC_CRC_MAGIC:
 	case XFS_ABTB_MAGIC:
@@ -1037,6 +1080,18 @@ xlog_recover_buf_commit_pass2(
 				current_lsn);
 		if (error)
 			goto out_release;
+
+		/* Update the rt superblock if we have one. */
+		if (xfs_has_rtsb(mp) && mp->m_rtsb_bp) {
+			struct xfs_buf	*rtsb_bp = mp->m_rtsb_bp;
+
+			xfs_buf_lock(rtsb_bp);
+			xfs_buf_hold(rtsb_bp);
+			xfs_update_rtsb(rtsb_bp, bp);
+			rtsb_bp->b_flags |= _XBF_LOGRECOVERY;
+			xfs_buf_delwri_queue(rtsb_bp, buffer_list);
+			xfs_buf_relse(rtsb_bp);
+		}
 	} else {
 		xlog_recover_do_reg_buffer(mp, item, bp, buf_f, current_lsn);
 	}

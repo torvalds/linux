@@ -128,7 +128,7 @@ static int ep8248e_mdio_probe(struct platform_device *ofdev)
 
 	bus->name = "ep8248e-mdio-bitbang";
 	bus->parent = &ofdev->dev;
-	snprintf(bus->id, MII_BUS_ID_SIZE, "%x", res.start);
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%pa", &res.start);
 
 	ret = of_mdiobus_register(bus, ofdev->dev.of_node);
 	if (ret)

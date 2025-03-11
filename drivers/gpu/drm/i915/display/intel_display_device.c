@@ -3,18 +3,20 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#include <drm/intel/i915_pciids.h>
+#include <drm/intel/pciids.h>
 #include <drm/drm_color_mgmt.h>
 #include <linux/pci.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_cx0_phy_regs.h"
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_device.h"
 #include "intel_display_params.h"
 #include "intel_display_power.h"
 #include "intel_display_reg_defs.h"
+#include "intel_display_types.h"
 #include "intel_fbc.h"
 #include "intel_step.h"
 
@@ -31,14 +33,25 @@ struct stepping_desc {
 	.step_info.size = ARRAY_SIZE(_map)
 
 struct subplatform_desc {
-	enum intel_display_subplatform subplatform;
+	struct intel_display_platforms platforms;
 	const char *name;
 	const u16 *pciidlist;
 	struct stepping_desc step_info;
 };
 
+#define SUBPLATFORM(_platform, _subplatform)				\
+	.platforms._platform##_##_subplatform = 1,			\
+	.name = #_subplatform
+
+/*
+ * Group subplatform alias that matches multiple subplatforms. For making ult
+ * cover both ult and ulx on HSW/BDW.
+ */
+#define SUBPLATFORM_GROUP(_platform, _subplatform)			\
+	.platforms._platform##_##_subplatform = 1
+
 struct platform_desc {
-	enum intel_display_platform platform;
+	struct intel_display_platforms platforms;
 	const char *name;
 	const struct subplatform_desc *subplatforms;
 	const struct intel_display_device_info *info; /* NULL for GMD ID */
@@ -46,8 +59,15 @@ struct platform_desc {
 };
 
 #define PLATFORM(_platform)			 \
-	.platform = (INTEL_DISPLAY_##_platform), \
+	.platforms._platform = 1,		 \
 	.name = #_platform
+
+/*
+ * Group platform alias that matches multiple platforms. For aliases such as g4x
+ * that covers both g45 and gm45.
+ */
+#define PLATFORM_GROUP(_platform)		\
+	.platforms._platform = 1
 
 #define ID(id) (id)
 
@@ -232,7 +252,8 @@ static const struct intel_display_device_info no_display = {};
 	.__runtime_defaults.cpu_transcoder_mask = BIT(TRANSCODER_A)
 
 static const struct platform_desc i830_desc = {
-	PLATFORM(I830),
+	PLATFORM(i830),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -241,7 +262,7 @@ static const struct platform_desc i830_desc = {
 };
 
 static const struct platform_desc i845_desc = {
-	PLATFORM(I845G),
+	PLATFORM(i845g),
 	.info = &(const struct intel_display_device_info) {
 		I845_DISPLAY,
 
@@ -250,7 +271,8 @@ static const struct platform_desc i845_desc = {
 };
 
 static const struct platform_desc i85x_desc = {
-	PLATFORM(I85X),
+	PLATFORM(i85x),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		I830_DISPLAY,
 
@@ -260,7 +282,7 @@ static const struct platform_desc i85x_desc = {
 };
 
 static const struct platform_desc i865g_desc = {
-	PLATFORM(I865G),
+	PLATFORM(i865g),
 	.info = &(const struct intel_display_device_info) {
 		I845_DISPLAY,
 
@@ -282,7 +304,7 @@ static const struct platform_desc i865g_desc = {
 	.__runtime_defaults.port_mask = BIT(PORT_B) | BIT(PORT_C) /* SDVO B/C */
 
 static const struct platform_desc i915g_desc = {
-	PLATFORM(I915G),
+	PLATFORM(i915g),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -292,7 +314,8 @@ static const struct platform_desc i915g_desc = {
 };
 
 static const struct platform_desc i915gm_desc = {
-	PLATFORM(I915GM),
+	PLATFORM(i915gm),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -305,7 +328,7 @@ static const struct platform_desc i915gm_desc = {
 };
 
 static const struct platform_desc i945g_desc = {
-	PLATFORM(I945G),
+	PLATFORM(i945g),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -316,7 +339,8 @@ static const struct platform_desc i945g_desc = {
 };
 
 static const struct platform_desc i945gm_desc = {
-	PLATFORM(I915GM),
+	PLATFORM(i915gm),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I9XX_COLORS,
@@ -330,7 +354,7 @@ static const struct platform_desc i945gm_desc = {
 };
 
 static const struct platform_desc g33_desc = {
-	PLATFORM(G33),
+	PLATFORM(g33),
 	.info = &(const struct intel_display_device_info) {
 		GEN3_DISPLAY,
 		I845_COLORS,
@@ -338,13 +362,21 @@ static const struct platform_desc g33_desc = {
 	},
 };
 
-static const struct platform_desc pnv_desc = {
-	PLATFORM(PINEVIEW),
-	.info = &(const struct intel_display_device_info) {
-		GEN3_DISPLAY,
-		I9XX_COLORS,
-		.has_hotplug = 1,
-	},
+static const struct intel_display_device_info pnv_display = {
+	GEN3_DISPLAY,
+	I9XX_COLORS,
+	.has_hotplug = 1,
+};
+
+static const struct platform_desc pnv_g_desc = {
+	PLATFORM(pineview),
+	.info = &pnv_display,
+};
+
+static const struct platform_desc pnv_m_desc = {
+	PLATFORM(pineview),
+	PLATFORM_GROUP(mobile),
+	.info = &pnv_display,
 };
 
 #define GEN4_DISPLAY \
@@ -360,7 +392,7 @@ static const struct platform_desc pnv_desc = {
 		BIT(TRANSCODER_A) | BIT(TRANSCODER_B)
 
 static const struct platform_desc i965g_desc = {
-	PLATFORM(I965G),
+	PLATFORM(i965g),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.has_overlay = 1,
@@ -370,7 +402,8 @@ static const struct platform_desc i965g_desc = {
 };
 
 static const struct platform_desc i965gm_desc = {
-	PLATFORM(I965GM),
+	PLATFORM(i965gm),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.has_overlay = 1,
@@ -382,7 +415,8 @@ static const struct platform_desc i965gm_desc = {
 };
 
 static const struct platform_desc g45_desc = {
-	PLATFORM(G45),
+	PLATFORM(g45),
+	PLATFORM_GROUP(g4x),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 
@@ -391,7 +425,9 @@ static const struct platform_desc g45_desc = {
 };
 
 static const struct platform_desc gm45_desc = {
-	PLATFORM(GM45),
+	PLATFORM(gm45),
+	PLATFORM_GROUP(g4x),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		GEN4_DISPLAY,
 		.supports_tv = 1,
@@ -414,14 +450,15 @@ static const struct platform_desc gm45_desc = {
 	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D) /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
 
 static const struct platform_desc ilk_d_desc = {
-	PLATFORM(IRONLAKE),
+	PLATFORM(ironlake),
 	.info = &(const struct intel_display_device_info) {
 		ILK_DISPLAY,
 	},
 };
 
 static const struct platform_desc ilk_m_desc = {
-	PLATFORM(IRONLAKE),
+	PLATFORM(ironlake),
+	PLATFORM_GROUP(mobile),
 	.info = &(const struct intel_display_device_info) {
 		ILK_DISPLAY,
 
@@ -429,42 +466,58 @@ static const struct platform_desc ilk_m_desc = {
 	},
 };
 
-static const struct platform_desc snb_desc = {
-	PLATFORM(SANDYBRIDGE),
-	.info = &(const struct intel_display_device_info) {
-		.has_hotplug = 1,
-		I9XX_PIPE_OFFSETS,
-		I9XX_CURSOR_OFFSETS,
-		ILK_COLORS,
+static const struct intel_display_device_info snb_display = {
+	.has_hotplug = 1,
+	I9XX_PIPE_OFFSETS,
+	I9XX_CURSOR_OFFSETS,
+	ILK_COLORS,
 
-		.__runtime_defaults.ip.ver = 6,
-		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
-		.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
-		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
-		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-	},
+	.__runtime_defaults.ip.ver = 6,
+	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
+	.__runtime_defaults.cpu_transcoder_mask =
+	BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
+	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
+	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
 };
 
-static const struct platform_desc ivb_desc = {
-	PLATFORM(IVYBRIDGE),
-	.info = &(const struct intel_display_device_info) {
-		.has_hotplug = 1,
-		IVB_PIPE_OFFSETS,
-		IVB_CURSOR_OFFSETS,
-		IVB_COLORS,
+static const struct platform_desc snb_d_desc = {
+	PLATFORM(sandybridge),
+	.info = &snb_display,
+};
 
-		.__runtime_defaults.ip.ver = 7,
-		.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
-		.__runtime_defaults.cpu_transcoder_mask =
-		BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
-		.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
-		.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
-	},
+static const struct platform_desc snb_m_desc = {
+	PLATFORM(sandybridge),
+	PLATFORM_GROUP(mobile),
+	.info = &snb_display,
+};
+
+static const struct intel_display_device_info ivb_display = {
+	.has_hotplug = 1,
+	IVB_PIPE_OFFSETS,
+	IVB_CURSOR_OFFSETS,
+	IVB_COLORS,
+
+	.__runtime_defaults.ip.ver = 7,
+	.__runtime_defaults.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+	.__runtime_defaults.cpu_transcoder_mask =
+	BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
+	.__runtime_defaults.port_mask = BIT(PORT_A) | BIT(PORT_B) | BIT(PORT_C) | BIT(PORT_D), /* DP A, SDVO/HDMI/DP B, HDMI/DP C/D */
+	.__runtime_defaults.fbc_mask = BIT(INTEL_FBC_A),
+};
+
+static const struct platform_desc ivb_d_desc = {
+	PLATFORM(ivybridge),
+	.info = &ivb_display,
+};
+
+static const struct platform_desc ivb_m_desc = {
+	PLATFORM(ivybridge),
+	PLATFORM_GROUP(mobile),
+	.info = &ivb_display,
 };
 
 static const struct platform_desc vlv_desc = {
-	PLATFORM(VALLEYVIEW),
+	PLATFORM(valleyview),
 	.info = &(const struct intel_display_device_info) {
 		.has_gmch = 1,
 		.has_hotplug = 1,
@@ -495,10 +548,19 @@ static const u16 hsw_ulx_ids[] = {
 };
 
 static const struct platform_desc hsw_desc = {
-	PLATFORM(HASWELL),
+	PLATFORM(haswell),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_HASWELL_ULT, "ULT", hsw_ult_ids },
-		{ INTEL_DISPLAY_HASWELL_ULX, "ULX", hsw_ulx_ids },
+		/* Special case: Use ult both as group and subplatform. */
+		{
+			SUBPLATFORM(haswell, ult),
+			SUBPLATFORM_GROUP(haswell, ult),
+			.pciidlist = hsw_ult_ids,
+		},
+		{
+			SUBPLATFORM(haswell, ulx),
+			SUBPLATFORM_GROUP(haswell, ult),
+			.pciidlist = hsw_ulx_ids,
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -539,10 +601,19 @@ static const u16 bdw_ulx_ids[] = {
 };
 
 static const struct platform_desc bdw_desc = {
-	PLATFORM(BROADWELL),
+	PLATFORM(broadwell),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_BROADWELL_ULT, "ULT", bdw_ult_ids },
-		{ INTEL_DISPLAY_BROADWELL_ULX, "ULX", bdw_ulx_ids },
+		/* Special case: Use ult both as group and subplatform. */
+		{
+			SUBPLATFORM(broadwell, ult),
+			SUBPLATFORM_GROUP(broadwell, ult),
+			.pciidlist = bdw_ult_ids,
+		},
+		{
+			SUBPLATFORM(broadwell, ulx),
+			SUBPLATFORM_GROUP(broadwell, ult),
+			.pciidlist = bdw_ulx_ids,
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -567,7 +638,7 @@ static const struct platform_desc bdw_desc = {
 };
 
 static const struct platform_desc chv_desc = {
-	PLATFORM(CHERRYVIEW),
+	PLATFORM(cherryview),
 	.info = &(const struct intel_display_device_info) {
 		.has_hotplug = 1,
 		.has_gmch = 1,
@@ -630,10 +701,16 @@ static const enum intel_step skl_steppings[] = {
 };
 
 static const struct platform_desc skl_desc = {
-	PLATFORM(SKYLAKE),
+	PLATFORM(skylake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_SKYLAKE_ULT, "ULT", skl_ult_ids },
-		{ INTEL_DISPLAY_SKYLAKE_ULX, "ULX", skl_ulx_ids },
+		{
+			SUBPLATFORM(skylake, ult),
+			.pciidlist = skl_ult_ids,
+		},
+		{
+			SUBPLATFORM(skylake, ulx),
+			.pciidlist = skl_ulx_ids,
+		},
 		{},
 	},
 	.info = &skl_display,
@@ -665,10 +742,16 @@ static const enum intel_step kbl_steppings[] = {
 };
 
 static const struct platform_desc kbl_desc = {
-	PLATFORM(KABYLAKE),
+	PLATFORM(kabylake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_KABYLAKE_ULT, "ULT", kbl_ult_ids },
-		{ INTEL_DISPLAY_KABYLAKE_ULX, "ULX", kbl_ulx_ids },
+		{
+			SUBPLATFORM(kabylake, ult),
+			.pciidlist = kbl_ult_ids,
+		},
+		{
+			SUBPLATFORM(kabylake, ulx),
+			.pciidlist = kbl_ulx_ids,
+		},
 		{},
 	},
 	.info = &skl_display,
@@ -690,10 +773,16 @@ static const u16 cfl_ulx_ids[] = {
 };
 
 static const struct platform_desc cfl_desc = {
-	PLATFORM(COFFEELAKE),
+	PLATFORM(coffeelake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_COFFEELAKE_ULT, "ULT", cfl_ult_ids },
-		{ INTEL_DISPLAY_COFFEELAKE_ULX, "ULX", cfl_ulx_ids },
+		{
+			SUBPLATFORM(coffeelake, ult),
+			.pciidlist = cfl_ult_ids,
+		},
+		{
+			SUBPLATFORM(coffeelake, ulx),
+			.pciidlist = cfl_ulx_ids,
+		},
 		{},
 	},
 	.info = &skl_display,
@@ -706,9 +795,12 @@ static const u16 cml_ult_ids[] = {
 };
 
 static const struct platform_desc cml_desc = {
-	PLATFORM(COMETLAKE),
+	PLATFORM(cometlake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_COMETLAKE_ULT, "ULT", cml_ult_ids },
+		{
+			SUBPLATFORM(cometlake, ult),
+			.pciidlist = cml_ult_ids,
+		},
 		{},
 	},
 	.info = &skl_display,
@@ -745,7 +837,7 @@ static const enum intel_step bxt_steppings[] = {
 };
 
 static const struct platform_desc bxt_desc = {
-	PLATFORM(BROXTON),
+	PLATFORM(broxton),
 	.info = &(const struct intel_display_device_info) {
 		GEN9_LP_DISPLAY,
 		.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
@@ -760,7 +852,7 @@ static const enum intel_step glk_steppings[] = {
 };
 
 static const struct platform_desc glk_desc = {
-	PLATFORM(GEMINILAKE),
+	PLATFORM(geminilake),
 	.info = &(const struct intel_display_device_info) {
 		GEN9_LP_DISPLAY,
 		.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
@@ -822,9 +914,12 @@ static const enum intel_step icl_steppings[] = {
 };
 
 static const struct platform_desc icl_desc = {
-	PLATFORM(ICELAKE),
+	PLATFORM(icelake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_ICELAKE_PORT_F, "Port F", icl_port_f_ids },
+		{
+			SUBPLATFORM(icelake, port_f),
+			.pciidlist = icl_port_f_ids,
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -847,13 +942,13 @@ static const enum intel_step jsl_ehl_steppings[] = {
 };
 
 static const struct platform_desc jsl_desc = {
-	PLATFORM(JASPERLAKE),
+	PLATFORM(jasperlake),
 	.info = &jsl_ehl_display,
 	STEP_INFO(jsl_ehl_steppings),
 };
 
 static const struct platform_desc ehl_desc = {
-	PLATFORM(ELKHARTLAKE),
+	PLATFORM(elkhartlake),
 	.info = &jsl_ehl_display,
 	STEP_INFO(jsl_ehl_steppings),
 };
@@ -919,10 +1014,13 @@ static const enum intel_step tgl_uy_steppings[] = {
 };
 
 static const struct platform_desc tgl_desc = {
-	PLATFORM(TIGERLAKE),
+	PLATFORM(tigerlake),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_TIGERLAKE_UY, "UY", tgl_uy_ids,
-		  STEP_INFO(tgl_uy_steppings) },
+		{
+			SUBPLATFORM(tigerlake, uy),
+			.pciidlist = tgl_uy_ids,
+			STEP_INFO(tgl_uy_steppings),
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -944,7 +1042,8 @@ static const enum intel_step dg1_steppings[] = {
 };
 
 static const struct platform_desc dg1_desc = {
-	PLATFORM(DG1),
+	PLATFORM(dg1),
+	PLATFORM_GROUP(dgfx),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 
@@ -961,7 +1060,7 @@ static const enum intel_step rkl_steppings[] = {
 };
 
 static const struct platform_desc rkl_desc = {
-	PLATFORM(ROCKETLAKE),
+	PLATFORM(rocketlake),
 	.info = &(const struct intel_display_device_info) {
 		XE_D_DISPLAY,
 		.abox_mask = BIT(0),
@@ -996,10 +1095,13 @@ static const enum intel_step adl_s_rpl_s_steppings[] = {
 };
 
 static const struct platform_desc adl_s_desc = {
-	PLATFORM(ALDERLAKE_S),
+	PLATFORM(alderlake_s),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_ALDERLAKE_S_RAPTORLAKE_S, "RPL-S", adls_rpls_ids,
-		  STEP_INFO(adl_s_rpl_s_steppings) },
+		{
+			SUBPLATFORM(alderlake_s, raptorlake_s),
+			.pciidlist = adls_rpls_ids,
+			STEP_INFO(adl_s_rpl_s_steppings),
+		},
 		{},
 	},
 	.info = &(const struct intel_display_device_info) {
@@ -1100,14 +1202,23 @@ static const enum intel_step adl_p_rpl_pu_steppings[] = {
 };
 
 static const struct platform_desc adl_p_desc = {
-	PLATFORM(ALDERLAKE_P),
+	PLATFORM(alderlake_p),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_ALDERLAKE_P_ALDERLAKE_N, "ADL-N", adlp_adln_ids,
-		  STEP_INFO(adl_p_adl_n_steppings) },
-		{ INTEL_DISPLAY_ALDERLAKE_P_RAPTORLAKE_P, "RPL-P", adlp_rplp_ids,
-		  STEP_INFO(adl_p_rpl_pu_steppings) },
-		{ INTEL_DISPLAY_ALDERLAKE_P_RAPTORLAKE_U, "RPL-U", adlp_rplu_ids,
-		  STEP_INFO(adl_p_rpl_pu_steppings) },
+		{
+			SUBPLATFORM(alderlake_p, alderlake_n),
+			.pciidlist = adlp_adln_ids,
+			STEP_INFO(adl_p_adl_n_steppings),
+		},
+		{
+			SUBPLATFORM(alderlake_p, raptorlake_p),
+			.pciidlist = adlp_rplp_ids,
+			STEP_INFO(adl_p_rpl_pu_steppings),
+		},
+		{
+			SUBPLATFORM(alderlake_p, raptorlake_u),
+			.pciidlist = adlp_rplu_ids,
+			STEP_INFO(adl_p_rpl_pu_steppings),
+		},
 		{},
 	},
 	.info = &xe_lpd_display,
@@ -1159,14 +1270,24 @@ static const enum intel_step dg2_g12_steppings[] = {
 };
 
 static const struct platform_desc dg2_desc = {
-	PLATFORM(DG2),
+	PLATFORM(dg2),
+	PLATFORM_GROUP(dgfx),
 	.subplatforms = (const struct subplatform_desc[]) {
-		{ INTEL_DISPLAY_DG2_G10, "G10", dg2_g10_ids,
-		  STEP_INFO(dg2_g10_steppings) },
-		{ INTEL_DISPLAY_DG2_G11, "G11", dg2_g11_ids,
-		  STEP_INFO(dg2_g11_steppings) },
-		{ INTEL_DISPLAY_DG2_G12, "G12", dg2_g12_ids,
-		  STEP_INFO(dg2_g12_steppings) },
+		{
+			SUBPLATFORM(dg2, g10),
+			.pciidlist = dg2_g10_ids,
+			STEP_INFO(dg2_g10_steppings),
+		},
+		{
+			SUBPLATFORM(dg2, g11),
+			.pciidlist = dg2_g11_ids,
+			STEP_INFO(dg2_g11_steppings),
+		},
+		{
+			SUBPLATFORM(dg2, g12),
+			.pciidlist = dg2_g12_ids,
+			STEP_INFO(dg2_g12_steppings),
+		},
 		{},
 	},
 	.info = &xe_hpd_display,
@@ -1227,6 +1348,7 @@ static const struct intel_display_device_info xe2_lpd_display = {
 	.__runtime_defaults.fbc_mask =
 		BIT(INTEL_FBC_A) | BIT(INTEL_FBC_B) |
 		BIT(INTEL_FBC_C) | BIT(INTEL_FBC_D),
+	.__runtime_defaults.has_dbuf_overlap_detection = true,
 };
 
 static const struct intel_display_device_info xe2_hpd_display = {
@@ -1241,15 +1363,20 @@ static const struct intel_display_device_info xe2_hpd_display = {
  * reported by the hardware.
  */
 static const struct platform_desc mtl_desc = {
-	PLATFORM(METEORLAKE),
+	PLATFORM(meteorlake),
 };
 
 static const struct platform_desc lnl_desc = {
-	PLATFORM(LUNARLAKE),
+	PLATFORM(lunarlake),
 };
 
 static const struct platform_desc bmg_desc = {
-	PLATFORM(BATTLEMAGE),
+	PLATFORM(battlemage),
+	PLATFORM_GROUP(dgfx),
+};
+
+static const struct platform_desc ptl_desc = {
+	PLATFORM(pantherlake),
 };
 
 __diag_pop();
@@ -1289,11 +1416,14 @@ static const struct {
 	INTEL_I965GM_IDS(INTEL_DISPLAY_DEVICE, &i965gm_desc),
 	INTEL_GM45_IDS(INTEL_DISPLAY_DEVICE, &gm45_desc),
 	INTEL_G45_IDS(INTEL_DISPLAY_DEVICE, &g45_desc),
-	INTEL_PNV_IDS(INTEL_DISPLAY_DEVICE, &pnv_desc),
+	INTEL_PNV_G_IDS(INTEL_DISPLAY_DEVICE, &pnv_g_desc),
+	INTEL_PNV_M_IDS(INTEL_DISPLAY_DEVICE, &pnv_m_desc),
 	INTEL_ILK_D_IDS(INTEL_DISPLAY_DEVICE, &ilk_d_desc),
 	INTEL_ILK_M_IDS(INTEL_DISPLAY_DEVICE, &ilk_m_desc),
-	INTEL_SNB_IDS(INTEL_DISPLAY_DEVICE, &snb_desc),
-	INTEL_IVB_IDS(INTEL_DISPLAY_DEVICE, &ivb_desc),
+	INTEL_SNB_D_IDS(INTEL_DISPLAY_DEVICE, &snb_d_desc),
+	INTEL_SNB_M_IDS(INTEL_DISPLAY_DEVICE, &snb_m_desc),
+	INTEL_IVB_D_IDS(INTEL_DISPLAY_DEVICE, &ivb_d_desc),
+	INTEL_IVB_M_IDS(INTEL_DISPLAY_DEVICE, &ivb_m_desc),
 	INTEL_HSW_IDS(INTEL_DISPLAY_DEVICE, &hsw_desc),
 	INTEL_VLV_IDS(INTEL_DISPLAY_DEVICE, &vlv_desc),
 	INTEL_BDW_IDS(INTEL_DISPLAY_DEVICE, &bdw_desc),
@@ -1318,9 +1448,11 @@ static const struct {
 	INTEL_RPLU_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
 	INTEL_RPLP_IDS(INTEL_DISPLAY_DEVICE, &adl_p_desc),
 	INTEL_DG2_IDS(INTEL_DISPLAY_DEVICE, &dg2_desc),
+	INTEL_ARL_IDS(INTEL_DISPLAY_DEVICE, &mtl_desc),
 	INTEL_MTL_IDS(INTEL_DISPLAY_DEVICE, &mtl_desc),
 	INTEL_LNL_IDS(INTEL_DISPLAY_DEVICE, &lnl_desc),
 	INTEL_BMG_IDS(INTEL_DISPLAY_DEVICE, &bmg_desc),
+	INTEL_PTL_IDS(INTEL_DISPLAY_DEVICE, &ptl_desc),
 };
 
 static const struct {
@@ -1331,12 +1463,13 @@ static const struct {
 	{ 14,  0, &xe_lpdp_display },
 	{ 14,  1, &xe2_hpd_display },
 	{ 20,  0, &xe2_lpd_display },
+	{ 30,  0, &xe2_lpd_display },
 };
 
 static const struct intel_display_device_info *
-probe_gmdid_display(struct drm_i915_private *i915, struct intel_display_ip_ver *ip_ver)
+probe_gmdid_display(struct intel_display *display, struct intel_display_ip_ver *ip_ver)
 {
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct pci_dev *pdev = to_pci_dev(display->drm->dev);
 	struct intel_display_ip_ver gmd_id;
 	void __iomem *addr;
 	u32 val;
@@ -1344,7 +1477,8 @@ probe_gmdid_display(struct drm_i915_private *i915, struct intel_display_ip_ver *
 
 	addr = pci_iomap_range(pdev, 0, i915_mmio_reg_offset(GMD_ID_DISPLAY), sizeof(u32));
 	if (!addr) {
-		drm_err(&i915->drm, "Cannot map MMIO BAR to read display GMD_ID\n");
+		drm_err(display->drm,
+			"Cannot map MMIO BAR to read display GMD_ID\n");
 		return NULL;
 	}
 
@@ -1352,7 +1486,7 @@ probe_gmdid_display(struct drm_i915_private *i915, struct intel_display_ip_ver *
 	pci_iounmap(pdev, addr);
 
 	if (val == 0) {
-		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
+		drm_dbg_kms(display->drm, "Device doesn't have display\n");
 		return NULL;
 	}
 
@@ -1368,7 +1502,8 @@ probe_gmdid_display(struct drm_i915_private *i915, struct intel_display_ip_ver *
 		}
 	}
 
-	drm_err(&i915->drm, "Unrecognized display IP version %d.%02d; disabling display.\n",
+	drm_err(display->drm,
+		"Unrecognized display IP version %d.%02d; disabling display.\n",
 		gmd_id.ver, gmd_id.rel);
 	return NULL;
 }
@@ -1391,7 +1526,7 @@ find_subplatform_desc(struct pci_dev *pdev, const struct platform_desc *desc)
 	const struct subplatform_desc *sp;
 	const u16 *id;
 
-	for (sp = desc->subplatforms; sp && sp->subplatform; sp++)
+	for (sp = desc->subplatforms; sp && sp->pciidlist; sp++)
 		for (id = sp->pciidlist; *id; id++)
 			if (*id == pdev->device)
 				return sp;
@@ -1450,10 +1585,28 @@ static enum intel_step get_pre_gmdid_step(struct intel_display *display,
 	return step;
 }
 
-void intel_display_device_probe(struct drm_i915_private *i915)
+/* Size of the entire bitmap, not the number of platforms */
+static unsigned int display_platforms_num_bits(void)
 {
-	struct intel_display *display = &i915->display;
-	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	return sizeof(((struct intel_display_platforms *)0)->bitmap) * BITS_PER_BYTE;
+}
+
+/* Number of platform bits set */
+static unsigned int display_platforms_weight(const struct intel_display_platforms *p)
+{
+	return bitmap_weight(p->bitmap, display_platforms_num_bits());
+}
+
+/* Merge the subplatform information from src to dst */
+static void display_platforms_or(struct intel_display_platforms *dst,
+				 const struct intel_display_platforms *src)
+{
+	bitmap_or(dst->bitmap, dst->bitmap, src->bitmap, display_platforms_num_bits());
+}
+
+struct intel_display *intel_display_device_probe(struct pci_dev *pdev)
+{
+	struct intel_display *display = to_intel_display(pdev);
 	const struct intel_display_device_info *info;
 	struct intel_display_ip_ver ip_ver = {};
 	const struct platform_desc *desc;
@@ -1461,45 +1614,56 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 	enum intel_step step;
 
 	/* Add drm device backpointer as early as possible. */
-	i915->display.drm = &i915->drm;
+	display->drm = pci_get_drvdata(pdev);
 
-	intel_display_params_copy(&i915->display.params);
+	intel_display_params_copy(&display->params);
 
 	if (has_no_display(pdev)) {
-		drm_dbg_kms(&i915->drm, "Device doesn't have display\n");
+		drm_dbg_kms(display->drm, "Device doesn't have display\n");
 		goto no_display;
 	}
 
 	desc = find_platform_desc(pdev);
 	if (!desc) {
-		drm_dbg_kms(&i915->drm, "Unknown device ID %04x; disabling display.\n",
+		drm_dbg_kms(display->drm,
+			    "Unknown device ID %04x; disabling display.\n",
 			    pdev->device);
 		goto no_display;
 	}
 
 	info = desc->info;
 	if (!info)
-		info = probe_gmdid_display(i915, &ip_ver);
+		info = probe_gmdid_display(display, &ip_ver);
 	if (!info)
 		goto no_display;
 
-	DISPLAY_INFO(i915) = info;
+	DISPLAY_INFO(display) = info;
 
-	memcpy(DISPLAY_RUNTIME_INFO(i915),
-	       &DISPLAY_INFO(i915)->__runtime_defaults,
-	       sizeof(*DISPLAY_RUNTIME_INFO(i915)));
+	memcpy(DISPLAY_RUNTIME_INFO(display),
+	       &DISPLAY_INFO(display)->__runtime_defaults,
+	       sizeof(*DISPLAY_RUNTIME_INFO(display)));
 
-	drm_WARN_ON(&i915->drm, !desc->platform || !desc->name);
-	DISPLAY_RUNTIME_INFO(i915)->platform = desc->platform;
+	drm_WARN_ON(display->drm, !desc->name ||
+		    !display_platforms_weight(&desc->platforms));
+
+	display->platform = desc->platforms;
 
 	subdesc = find_subplatform_desc(pdev, desc);
 	if (subdesc) {
-		drm_WARN_ON(&i915->drm, !subdesc->subplatform || !subdesc->name);
-		DISPLAY_RUNTIME_INFO(i915)->subplatform = subdesc->subplatform;
+		drm_WARN_ON(display->drm, !subdesc->name ||
+			    !display_platforms_weight(&subdesc->platforms));
+
+		display_platforms_or(&display->platform, &subdesc->platforms);
+
+		/* Ensure platform and subplatform are distinct */
+		drm_WARN_ON(display->drm,
+			    display_platforms_weight(&display->platform) !=
+			    display_platforms_weight(&desc->platforms) +
+			    display_platforms_weight(&subdesc->platforms));
 	}
 
 	if (ip_ver.ver || ip_ver.rel || ip_ver.step) {
-		DISPLAY_RUNTIME_INFO(i915)->ip = ip_ver;
+		DISPLAY_RUNTIME_INFO(display)->ip = ip_ver;
 		step = STEP_A0 + ip_ver.step;
 		if (step > STEP_FUTURE) {
 			drm_dbg_kms(display->drm, "Using future display stepping\n");
@@ -1510,28 +1674,32 @@ void intel_display_device_probe(struct drm_i915_private *i915)
 					  subdesc ? &subdesc->step_info : NULL);
 	}
 
-	DISPLAY_RUNTIME_INFO(i915)->step = step;
+	DISPLAY_RUNTIME_INFO(display)->step = step;
 
-	drm_info(&i915->drm, "Found %s%s%s (device ID %04x) display version %u.%02u stepping %s\n",
+	drm_info(display->drm, "Found %s%s%s (device ID %04x) %s display version %u.%02u stepping %s\n",
 		 desc->name, subdesc ? "/" : "", subdesc ? subdesc->name : "",
-		 pdev->device, DISPLAY_RUNTIME_INFO(i915)->ip.ver,
-		 DISPLAY_RUNTIME_INFO(i915)->ip.rel,
+		 pdev->device, display->platform.dgfx ? "discrete" : "integrated",
+		 DISPLAY_RUNTIME_INFO(display)->ip.ver,
+		 DISPLAY_RUNTIME_INFO(display)->ip.rel,
 		 step != STEP_NONE ? intel_step_name(step) : "N/A");
 
-	return;
+	return display;
 
 no_display:
-	DISPLAY_INFO(i915) = &no_display;
+	DISPLAY_INFO(display) = &no_display;
+
+	return display;
 }
 
-void intel_display_device_remove(struct drm_i915_private *i915)
+void intel_display_device_remove(struct intel_display *display)
 {
-	intel_display_params_free(&i915->display.params);
+	intel_display_params_free(&display->params);
 }
 
-static void __intel_display_device_info_runtime_init(struct drm_i915_private *i915)
+static void __intel_display_device_info_runtime_init(struct intel_display *display)
 {
-	struct intel_display_runtime_info *display_runtime = DISPLAY_RUNTIME_INFO(i915);
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct intel_display_runtime_info *display_runtime = DISPLAY_RUNTIME_INFO(display);
 	enum pipe pipe;
 
 	BUILD_BUG_ON(BITS_PER_TYPE(display_runtime->pipe_mask) < I915_MAX_PIPES);
@@ -1539,35 +1707,35 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 	BUILD_BUG_ON(BITS_PER_TYPE(display_runtime->port_mask) < I915_MAX_PORTS);
 
 	/* This covers both ULT and ULX */
-	if (IS_HASWELL_ULT(i915) || IS_BROADWELL_ULT(i915))
+	if (display->platform.haswell_ult || display->platform.broadwell_ult)
 		display_runtime->port_mask &= ~BIT(PORT_D);
 
-	if (IS_ICL_WITH_PORT_F(i915))
+	if (display->platform.icelake_port_f)
 		display_runtime->port_mask |= BIT(PORT_F);
 
 	/* Wa_14011765242: adl-s A0,A1 */
-	if (IS_ALDERLAKE_S(i915) && IS_DISPLAY_STEP(i915, STEP_A0, STEP_A2))
-		for_each_pipe(i915, pipe)
+	if (display->platform.alderlake_s && IS_DISPLAY_STEP(display, STEP_A0, STEP_A2))
+		for_each_pipe(display, pipe)
 			display_runtime->num_scalers[pipe] = 0;
-	else if (DISPLAY_VER(i915) >= 11) {
-		for_each_pipe(i915, pipe)
+	else if (DISPLAY_VER(display) >= 11) {
+		for_each_pipe(display, pipe)
 			display_runtime->num_scalers[pipe] = 2;
-	} else if (DISPLAY_VER(i915) >= 9) {
+	} else if (DISPLAY_VER(display) >= 9) {
 		display_runtime->num_scalers[PIPE_A] = 2;
 		display_runtime->num_scalers[PIPE_B] = 2;
 		display_runtime->num_scalers[PIPE_C] = 1;
 	}
 
-	if (DISPLAY_VER(i915) >= 13 || HAS_D12_PLANE_MINIMIZATION(i915))
-		for_each_pipe(i915, pipe)
+	if (DISPLAY_VER(display) >= 13 || HAS_D12_PLANE_MINIMIZATION(display))
+		for_each_pipe(display, pipe)
 			display_runtime->num_sprites[pipe] = 4;
-	else if (DISPLAY_VER(i915) >= 11)
-		for_each_pipe(i915, pipe)
+	else if (DISPLAY_VER(display) >= 11)
+		for_each_pipe(display, pipe)
 			display_runtime->num_sprites[pipe] = 6;
-	else if (DISPLAY_VER(i915) == 10)
-		for_each_pipe(i915, pipe)
+	else if (DISPLAY_VER(display) == 10)
+		for_each_pipe(display, pipe)
 			display_runtime->num_sprites[pipe] = 3;
-	else if (IS_BROXTON(i915)) {
+	else if (display->platform.broxton) {
 		/*
 		 * Skylake and Broxton currently don't expose the topmost plane as its
 		 * use is exclusive with the legacy cursor and we only want to expose
@@ -1580,23 +1748,23 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		display_runtime->num_sprites[PIPE_A] = 2;
 		display_runtime->num_sprites[PIPE_B] = 2;
 		display_runtime->num_sprites[PIPE_C] = 1;
-	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
-		for_each_pipe(i915, pipe)
+	} else if (display->platform.valleyview || display->platform.cherryview) {
+		for_each_pipe(display, pipe)
 			display_runtime->num_sprites[pipe] = 2;
-	} else if (DISPLAY_VER(i915) >= 5 || IS_G4X(i915)) {
-		for_each_pipe(i915, pipe)
+	} else if (DISPLAY_VER(display) >= 5 || display->platform.g4x) {
+		for_each_pipe(display, pipe)
 			display_runtime->num_sprites[pipe] = 1;
 	}
 
-	if ((IS_DGFX(i915) || DISPLAY_VER(i915) >= 14) &&
-	    !(intel_de_read(i915, GU_CNTL_PROTECTED) & DEPRESENT)) {
-		drm_info(&i915->drm, "Display not present, disabling\n");
+	if ((display->platform.dgfx || DISPLAY_VER(display) >= 14) &&
+	    !(intel_de_read(display, GU_CNTL_PROTECTED) & DEPRESENT)) {
+		drm_info(display->drm, "Display not present, disabling\n");
 		goto display_fused_off;
 	}
 
-	if (IS_DISPLAY_VER(i915, 7, 8) && HAS_PCH_SPLIT(i915)) {
-		u32 fuse_strap = intel_de_read(i915, FUSE_STRAP);
-		u32 sfuse_strap = intel_de_read(i915, SFUSE_STRAP);
+	if (IS_DISPLAY_VER(display, 7, 8) && HAS_PCH_SPLIT(i915)) {
+		u32 fuse_strap = intel_de_read(display, FUSE_STRAP);
+		u32 sfuse_strap = intel_de_read(display, SFUSE_STRAP);
 
 		/*
 		 * SFUSE_STRAP is supposed to have a bit signalling the display
@@ -1611,16 +1779,16 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		    sfuse_strap & SFUSE_STRAP_DISPLAY_DISABLED ||
 		    (HAS_PCH_CPT(i915) &&
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
-			drm_info(&i915->drm,
+			drm_info(display->drm,
 				 "Display fused off, disabling\n");
 			goto display_fused_off;
 		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
-			drm_info(&i915->drm, "PipeC fused off\n");
+			drm_info(display->drm, "PipeC fused off\n");
 			display_runtime->pipe_mask &= ~BIT(PIPE_C);
 			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_C);
 		}
-	} else if (DISPLAY_VER(i915) >= 9) {
-		u32 dfsm = intel_de_read(i915, SKL_DFSM);
+	} else if (DISPLAY_VER(display) >= 9) {
+		u32 dfsm = intel_de_read(display, SKL_DFSM);
 
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE) {
 			display_runtime->pipe_mask &= ~BIT(PIPE_A);
@@ -1638,7 +1806,7 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 			display_runtime->fbc_mask &= ~BIT(INTEL_FBC_C);
 		}
 
-		if (DISPLAY_VER(i915) >= 12 &&
+		if (DISPLAY_VER(display) >= 12 &&
 		    (dfsm & TGL_DFSM_PIPE_D_DISABLE)) {
 			display_runtime->pipe_mask &= ~BIT(PIPE_D);
 			display_runtime->cpu_transcoder_mask &= ~BIT(TRANSCODER_D);
@@ -1651,19 +1819,25 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		if (dfsm & SKL_DFSM_DISPLAY_HDCP_DISABLE)
 			display_runtime->has_hdcp = 0;
 
-		if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
-			display_runtime->fbc_mask = 0;
+		if (display->platform.dg2 || DISPLAY_VER(display) < 13) {
+			if (dfsm & SKL_DFSM_DISPLAY_PM_DISABLE)
+				display_runtime->fbc_mask = 0;
+		}
 
-		if (DISPLAY_VER(i915) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
+		if (DISPLAY_VER(display) >= 11 && (dfsm & ICL_DFSM_DMC_DISABLE))
 			display_runtime->has_dmc = 0;
 
-		if (IS_DISPLAY_VER(i915, 10, 12) &&
+		if (IS_DISPLAY_VER(display, 10, 12) &&
 		    (dfsm & GLK_DFSM_DISPLAY_DSC_DISABLE))
 			display_runtime->has_dsc = 0;
+
+		if (DISPLAY_VER(display) >= 20 &&
+		    (dfsm & XE2LPD_DFSM_DBUF_OVERLAP_DISABLE))
+			display_runtime->has_dbuf_overlap_detection = false;
 	}
 
-	if (DISPLAY_VER(i915) >= 20) {
-		u32 cap = intel_de_read(i915, XE2LPD_DE_CAP);
+	if (DISPLAY_VER(display) >= 20) {
+		u32 cap = intel_de_read(display, XE2LPD_DE_CAP);
 
 		if (REG_FIELD_GET(XE2LPD_DE_CAP_DSC_MASK, cap) ==
 		    XE2LPD_DE_CAP_DSC_REMOVED)
@@ -1671,14 +1845,19 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 
 		if (REG_FIELD_GET(XE2LPD_DE_CAP_SCALER_MASK, cap) ==
 		    XE2LPD_DE_CAP_SCALER_SINGLE) {
-			for_each_pipe(i915, pipe)
+			for_each_pipe(display, pipe)
 				if (display_runtime->num_scalers[pipe])
 					display_runtime->num_scalers[pipe] = 1;
 		}
 	}
 
-	display_runtime->rawclk_freq = intel_read_rawclk(i915);
-	drm_dbg_kms(&i915->drm, "rawclk rate: %d kHz\n", display_runtime->rawclk_freq);
+	if (DISPLAY_VER(display) >= 30)
+		display_runtime->edp_typec_support =
+			intel_de_read(display, PICA_PHY_CONFIG_CONTROL) & EDP_ON_TYPEC;
+
+	display_runtime->rawclk_freq = intel_read_rawclk(display);
+	drm_dbg_kms(display->drm, "rawclk rate: %d kHz\n",
+		    display_runtime->rawclk_freq);
 
 	return;
 
@@ -1686,21 +1865,21 @@ display_fused_off:
 	memset(display_runtime, 0, sizeof(*display_runtime));
 }
 
-void intel_display_device_info_runtime_init(struct drm_i915_private *i915)
+void intel_display_device_info_runtime_init(struct intel_display *display)
 {
-	if (HAS_DISPLAY(i915))
-		__intel_display_device_info_runtime_init(i915);
+	if (HAS_DISPLAY(display))
+		__intel_display_device_info_runtime_init(display);
 
 	/* Display may have been disabled by runtime init */
-	if (!HAS_DISPLAY(i915)) {
-		i915->drm.driver_features &= ~(DRIVER_MODESET | DRIVER_ATOMIC);
-		i915->display.info.__device_info = &no_display;
+	if (!HAS_DISPLAY(display)) {
+		display->drm->driver_features &= ~(DRIVER_MODESET | DRIVER_ATOMIC);
+		display->info.__device_info = &no_display;
 	}
 
 	/* Disable nuclear pageflip by default on pre-g4x */
-	if (!i915->display.params.nuclear_pageflip &&
-	    DISPLAY_VER(i915) < 5 && !IS_G4X(i915))
-		i915->drm.driver_features &= ~DRIVER_ATOMIC;
+	if (!display->params.nuclear_pageflip &&
+	    DISPLAY_VER(display) < 5 && !display->platform.g4x)
+		display->drm->driver_features &= ~DRIVER_ATOMIC;
 }
 
 void intel_display_device_info_print(const struct intel_display_device_info *info,
@@ -1737,10 +1916,8 @@ void intel_display_device_info_print(const struct intel_display_device_info *inf
  * Disabling display means taking over the display hardware, putting it to
  * sleep, and preventing connectors from being connected via any means.
  */
-bool intel_display_device_enabled(struct drm_i915_private *i915)
+bool intel_display_device_enabled(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
-
 	/* Only valid when HAS_DISPLAY() is true */
 	drm_WARN_ON(display->drm, !HAS_DISPLAY(display));
 

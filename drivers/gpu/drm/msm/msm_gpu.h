@@ -194,17 +194,6 @@ struct msm_gpu {
 	refcount_t sysprof_active;
 
 	/**
-	 * cur_ctx_seqno:
-	 *
-	 * The ctx->seqno value of the last context to submit rendering,
-	 * and the one with current pgtables installed (for generations
-	 * that support per-context pgtables).  Tracked by seqno rather
-	 * than pointer value to avoid dangling pointers, and cases where
-	 * a ctx can be freed and a new one created with the same address.
-	 */
-	int cur_ctx_seqno;
-
-	/**
 	 * lock:
 	 *
 	 * General lock for serializing all the gpu things.

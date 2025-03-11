@@ -286,6 +286,10 @@ struct input_handle;
  * @start: starts handler for given handle. This function is called by
  *	input core right after connect() method and also when a process
  *	that "grabbed" a device releases it
+ * @passive_observer: set to %true by drivers only interested in observing
+ *	data stream from devices if there are other users present. Such
+ *	drivers will not result in starting underlying hardware device
+ *	when input_open_device() is called for their handles
  * @legacy_minors: set to %true by drivers using legacy minor ranges
  * @minor: beginning of range of 32 legacy minors for devices this driver
  *	can provide
@@ -321,6 +325,7 @@ struct input_handler {
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
 
+	bool passive_observer;
 	bool legacy_minors;
 	int minor;
 	const char *name;

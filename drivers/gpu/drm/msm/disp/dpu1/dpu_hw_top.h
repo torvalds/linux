@@ -157,18 +157,9 @@ struct dpu_hw_mdp {
 	struct dpu_hw_mdp_ops ops;
 };
 
-/**
- * dpu_hw_mdptop_init - initializes the top driver for the passed config
- * @dev:  Corresponding device for devres management
- * @cfg:  MDP TOP configuration from catalog
- * @addr: Mapped register io address of MDP
- * @mdss_rev: dpu core's major and minor versions
- */
 struct dpu_hw_mdp *dpu_hw_mdptop_init(struct drm_device *dev,
 				      const struct dpu_mdp_cfg *cfg,
 				      void __iomem *addr,
 				      const struct dpu_mdss_version *mdss_rev);
-
-void dpu_hw_mdp_destroy(struct dpu_hw_mdp *mdp);
 
 #endif /*_DPU_HW_TOP_H */

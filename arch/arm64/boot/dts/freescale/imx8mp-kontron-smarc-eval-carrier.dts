@@ -1,0 +1,254 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Copyright (C) 2024 Kontron Electronics GmbH
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/phy/phy-imx8-pcie.h>
+#include "imx8mp-kontron-smarc.dtsi"
+
+/ {
+	model = "Kontron SMARC Eval Carrier with i.MX8MP";
+	compatible = "kontron,imx8mp-smarc-eval-carrier", "kontron,imx8mp-smarc",
+		     "kontron,imx8mp-osm-s", "fsl,imx8mp";
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 50000 0>;
+		brightness-levels = <0 100>;
+		num-interpolated-steps = <100>;
+		default-brightness-level = <100>;
+		enable-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
+	};
+
+	extcon_usbc: usbc {
+		compatible = "linux,extcon-usb-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb1_id>;
+		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,bitclock-master = <&codec_dai>;
+		simple-audio-card,format = "i2s";
+		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,name = "imx8mp-wm8904";
+		simple-audio-card,routing =
+			"Headphone Jack", "HPOUTL",
+			"Headphone Jack", "HPOUTR",
+			"IN2L", "Line In Jack",
+			"IN2R", "Line In Jack",
+			"Headphone Jack", "MICBIAS",
+			"IN1L", "Headphone Jack";
+		simple-audio-card,widgets =
+			"Microphone", "Headphone Jack",
+			"Headphone", "Headphone Jack",
+			"Line", "Line In Jack";
+
+		codec_dai: simple-audio-card,codec {
+			clocks = <&audio_blk_ctrl IMX8MP_CLK_AUDIOMIX_SAI3_MCLK1>;
+			sound-dai = <&wm8904>;
+		};
+
+		simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+	};
+
+	regulator_can0: can0-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "can0_en";
+		gpio = <&expander_pm_out 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	regulator_can1: can1-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "can1_en";
+		gpio = <&expander_pm_out 7 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&ecspi1 {
+	status = "okay";
+};
+
+&ecspi2 {
+	status = "okay";
+};
+
+&eqos {
+	status = "okay";
+};
+
+&fec {
+	status = "okay";
+};
+
+&flexcan1 {
+	xceiver-supply = <&regulator_can0>;
+	status = "okay";
+};
+
+&flexcan2 {
+	xceiver-supply = <&regulator_can1>;
+	status = "okay";
+};
+
+&hdmi_pvi {
+	status = "okay";
+};
+
+&hdmi_tx {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi>;
+	ddc-i2c-bus = <&i2c3>;
+	status = "okay";
+};
+
+&hdmi_tx_phy {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+
+	expander_pm_out: io-expander@22 {
+		compatible = "nxp,pca9554";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "EN_5V0_S0", "EN_3V3_S0", "EN_1V8_S0",
+				  "EN_1V5_S0", "EN_12V0_PCIE", "EN_3V3_S5",
+				  "CAN0_EN", "CAN1_EN";
+	};
+
+	expander_pm_in: io-expander@24 {
+		compatible = "nxp,pca9554";
+		reg = <0x24>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "PG_5V0_3V3_S0", "PG_5V0_3V3_S5", "PG_1V8_S0",
+				  "PG_1V5_S0", "PG_BKLT_5V", "PG_BKLT_12V";
+	};
+};
+
+&i2c2 {
+	status = "okay";
+
+	wm8904: audio-codec@1a {
+		compatible = "wlf,wm8904";
+		reg = <0x1a>;
+		#sound-dai-cells = <0>;
+		clocks = <&audio_blk_ctrl IMX8MP_CLK_AUDIOMIX_SAI3_MCLK1>;
+		clock-names = "mclk";
+		AVDD-supply = <&reg_vdd_1v8>;
+		CPVDD-supply = <&reg_vdd_1v8>;
+		DBVDD-supply = <&reg_vdd_1v8>;
+		DCVDD-supply = <&reg_vdd_1v8>;
+		MICVDD-supply = <&reg_vdd_3v3>;
+	};
+
+	expander_audio: io-expander@20 {
+		compatible = "nxp,pca9554";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "I2C_SEL_CODEC_LOOPBACK", "FPAH_PRESENCE",
+				  "CODEC_OPTION_SW_I2S_HDA", "LINE_IN_JD",
+				  "LINE_OUT_JD", "HEADPHONES_JD", "MIC_JD";
+	};
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&i2c4 {
+	status = "okay";
+};
+
+&lcdif3 {
+	status = "okay";
+};
+
+&pcie_phy {
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_OUTPUT>;
+	fsl,clkreq-unsupported;
+	clocks = <&hsio_blk_ctrl>;
+	clock-names = "ref";
+	status = "okay";
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio3 2 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&sai3 {
+	assigned-clocks = <&clk IMX8MP_CLK_SAI3>;
+	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+	assigned-clock-rates = <24576000>;
+	fsl,sai-mclk-direction-output;
+	status = "okay";
+};
+
+&uart1 {
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&uart4 {
+	uart-has-rtscts;
+	status = "okay";
+};
+
+&usb_dwc3_0 {
+	adp-disable;
+	hnp-disable;
+	srp-disable;
+	dr_mode = "otg";
+	extcon = <&extcon_usbc>;
+	usb-role-switch;
+	status = "okay";
+};
+
+&usb_dwc3_1 {
+	status = "okay";
+};
+
+&usb3_0 {
+	status = "okay";
+};
+
+&usb3_1 {
+	status = "okay";
+};
+
+&usb3_phy0 {
+	vbus-supply = <&reg_usb1_vbus>;
+	status = "okay";
+};
+
+&usb3_phy1 {
+	status = "okay";
+};
+
+&usdhc2 {
+	vmmc-supply = <&reg_vdd_3v3>;
+	status = "okay";
+};

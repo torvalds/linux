@@ -76,6 +76,10 @@ properties:
       Integer to use BUSWAIT register.
 
   renesas,enable-gpio:
+    deprecated: true
+    maxItems: 1
+
+  renesas,enable-gpios:
     maxItems: 1
     description: |
       gpio specifier to check GPIO determining if USB function should be

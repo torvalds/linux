@@ -16,50 +16,55 @@ use core::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-/// A wrapper around a blk-mq `struct request`. This represents an IO request.
+/// A wrapper around a blk-mq [`struct request`]. This represents an IO request.
 ///
 /// # Implementation details
 ///
 /// There are four states for a request that the Rust bindings care about:
 ///
-/// A) Request is owned by block layer (refcount 0)
-/// B) Request is owned by driver but with zero `ARef`s in existence
-///    (refcount 1)
-/// C) Request is owned by driver with exactly one `ARef` in existence
-///    (refcount 2)
-/// D) Request is owned by driver with more than one `ARef` in existence
-///    (refcount > 2)
+/// 1. Request is owned by block layer (refcount 0).
+/// 2. Request is owned by driver but with zero [`ARef`]s in existence
+///    (refcount 1).
+/// 3. Request is owned by driver with exactly one [`ARef`] in existence
+///    (refcount 2).
+/// 4. Request is owned by driver with more than one [`ARef`] in existence
+///    (refcount > 2).
 ///
 ///
-/// We need to track A and B to ensure we fail tag to request conversions for
+/// We need to track 1 and 2 to ensure we fail tag to request conversions for
 /// requests that are not owned by the driver.
 ///
-/// We need to track C and D to ensure that it is safe to end the request and hand
+/// We need to track 3 and 4 to ensure that it is safe to end the request and hand
 /// back ownership to the block layer.
 ///
 /// The states are tracked through the private `refcount` field of
 /// `RequestDataWrapper`. This structure lives in the private data area of the C
-/// `struct request`.
+/// [`struct request`].
 ///
 /// # Invariants
 ///
-/// * `self.0` is a valid `struct request` created by the C portion of the kernel.
+/// * `self.0` is a valid [`struct request`] created by the C portion of the
+///   kernel.
 /// * The private data area associated with this request must be an initialized
 ///   and valid `RequestDataWrapper<T>`.
 /// * `self` is reference counted by atomic modification of
-///   self.wrapper_ref().refcount().
+///   `self.wrapper_ref().refcount()`.
+///
+/// [`struct request`]: srctree/include/linux/blk-mq.h
 ///
 #[repr(transparent)]
 pub struct Request<T: Operations>(Opaque<bindings::request>, PhantomData<T>);
 
 impl<T: Operations> Request<T> {
-    /// Create an `ARef<Request>` from a `struct request` pointer.
+    /// Create an [`ARef<Request>`] from a [`struct request`] pointer.
     ///
     /// # Safety
     ///
     /// * The caller must own a refcount on `ptr` that is transferred to the
-    ///   returned `ARef`.
-    /// * The type invariants for `Request` must hold for the pointee of `ptr`.
+    ///   returned [`ARef`].
+    /// * The type invariants for [`Request`] must hold for the pointee of `ptr`.
+    ///
+    /// [`struct request`]: srctree/include/linux/blk-mq.h
     pub(crate) unsafe fn aref_from_raw(ptr: *mut bindings::request) -> ARef<Self> {
         // INVARIANT: By the safety requirements of this function, invariants are upheld.
         // SAFETY: By the safety requirement of this function, we own a
@@ -84,12 +89,14 @@ impl<T: Operations> Request<T> {
     }
 
     /// Try to take exclusive ownership of `this` by dropping the refcount to 0.
-    /// This fails if `this` is not the only `ARef` pointing to the underlying
-    /// `Request`.
+    /// This fails if `this` is not the only [`ARef`] pointing to the underlying
+    /// [`Request`].
     ///
-    /// If the operation is successful, `Ok` is returned with a pointer to the
-    /// C `struct request`. If the operation fails, `this` is returned in the
-    /// `Err` variant.
+    /// If the operation is successful, [`Ok`] is returned with a pointer to the
+    /// C [`struct request`]. If the operation fails, `this` is returned in the
+    /// [`Err`] variant.
+    ///
+    /// [`struct request`]: srctree/include/linux/blk-mq.h
     fn try_set_end(this: ARef<Self>) -> Result<*mut bindings::request, ARef<Self>> {
         // We can race with `TagSet::tag_to_rq`
         if let Err(_old) = this.wrapper_ref().refcount().compare_exchange(
@@ -109,7 +116,7 @@ impl<T: Operations> Request<T> {
 
     /// Notify the block layer that the request has been completed without errors.
     ///
-    /// This function will return `Err` if `this` is not the only `ARef`
+    /// This function will return [`Err`] if `this` is not the only [`ARef`]
     /// referencing the request.
     pub fn end_ok(this: ARef<Self>) -> Result<(), ARef<Self>> {
         let request_ptr = Self::try_set_end(this)?;
@@ -123,13 +130,13 @@ impl<T: Operations> Request<T> {
         Ok(())
     }
 
-    /// Return a pointer to the `RequestDataWrapper` stored in the private area
+    /// Return a pointer to the [`RequestDataWrapper`] stored in the private area
     /// of the request structure.
     ///
     /// # Safety
     ///
     /// - `this` must point to a valid allocation of size at least size of
-    ///   `Self` plus size of `RequestDataWrapper`.
+    ///   [`Self`] plus size of [`RequestDataWrapper`].
     pub(crate) unsafe fn wrapper_ptr(this: *mut Self) -> NonNull<RequestDataWrapper> {
         let request_ptr = this.cast::<bindings::request>();
         // SAFETY: By safety requirements for this function, `this` is a
@@ -141,7 +148,7 @@ impl<T: Operations> Request<T> {
         unsafe { NonNull::new_unchecked(wrapper_ptr) }
     }
 
-    /// Return a reference to the `RequestDataWrapper` stored in the private
+    /// Return a reference to the [`RequestDataWrapper`] stored in the private
     /// area of the request structure.
     pub(crate) fn wrapper_ref(&self) -> &RequestDataWrapper {
         // SAFETY: By type invariant, `self.0` is a valid allocation. Further,
@@ -152,13 +159,15 @@ impl<T: Operations> Request<T> {
     }
 }
 
-/// A wrapper around data stored in the private area of the C `struct request`.
+/// A wrapper around data stored in the private area of the C [`struct request`].
+///
+/// [`struct request`]: srctree/include/linux/blk-mq.h
 pub(crate) struct RequestDataWrapper {
     /// The Rust request refcount has the following states:
     ///
     /// - 0: The request is owned by C block layer.
-    /// - 1: The request is owned by Rust abstractions but there are no ARef references to it.
-    /// - 2+: There are `ARef` references to the request.
+    /// - 1: The request is owned by Rust abstractions but there are no [`ARef`] references to it.
+    /// - 2+: There are [`ARef`] references to the request.
     refcount: AtomicU64,
 }
 
@@ -204,7 +213,7 @@ fn atomic_relaxed_op_return(target: &AtomicU64, op: impl Fn(u64) -> u64) -> u64 
 }
 
 /// Store the result of `op(target.load)` in `target` if `target.load() !=
-/// pred`, returning true if the target was updated.
+/// pred`, returning [`true`] if the target was updated.
 fn atomic_relaxed_op_unless(target: &AtomicU64, op: impl Fn(u64) -> u64, pred: u64) -> bool {
     target
         .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |x| {

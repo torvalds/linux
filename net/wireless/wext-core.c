@@ -1159,7 +1159,7 @@ char *iwe_stream_add_event(struct iw_request_info *info, char *stream,
 	/* Check if it's possible */
 	if (likely((stream + event_len) < ends)) {
 		iwe->len = event_len;
-		/* Beware of alignement issues on 64 bits */
+		/* Beware of alignment issues on 64 bits */
 		memcpy(stream, (char *) iwe, IW_EV_LCP_PK_LEN);
 		memcpy(stream + lcp_len, &iwe->u,
 		       event_len - lcp_len);

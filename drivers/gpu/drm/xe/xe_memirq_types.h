@@ -11,9 +11,9 @@
 struct xe_bo;
 
 /* ISR */
-#define XE_MEMIRQ_STATUS_OFFSET		0x0
+#define XE_MEMIRQ_STATUS_OFFSET(inst)	((inst) * SZ_4K + 0x0)
 /* IIR */
-#define XE_MEMIRQ_SOURCE_OFFSET		0x400
+#define XE_MEMIRQ_SOURCE_OFFSET(inst)	((inst) * SZ_4K + 0x400)
 /* IMR */
 #define XE_MEMIRQ_ENABLE_OFFSET		0x440
 

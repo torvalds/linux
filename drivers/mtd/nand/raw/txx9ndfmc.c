@@ -405,7 +405,7 @@ static int txx9ndfmc_resume(struct platform_device *dev)
 
 static struct platform_driver txx9ndfmc_driver = {
 	.probe		= txx9ndfmc_probe,
-	.remove_new	= txx9ndfmc_remove,
+	.remove		= txx9ndfmc_remove,
 	.resume		= txx9ndfmc_resume,
 	.driver		= {
 		.name	= "txx9ndfmc",

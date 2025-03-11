@@ -1965,7 +1965,7 @@ clean_up2:
 /*-------------------------------------------------------------------------*/
 static struct platform_driver r8a66597_driver = {
 	.probe =	r8a66597_probe,
-	.remove_new =	r8a66597_remove,
+	.remove =	r8a66597_remove,
 	.driver		= {
 		.name =	udc_name,
 	},

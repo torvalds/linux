@@ -905,7 +905,6 @@ static void rtw8852bx_ctrl_bw(struct rtw89_dev *rtwdev, u8 pri_ch, u8 bw,
 {
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	u32 rx_path_0;
-	u32 val;
 
 	rx_path_0 = rtw89_phy_read32_idx(rtwdev, R_CHBW_MOD_V1, B_ANT_RX_SEG0, phy_idx);
 
@@ -985,12 +984,11 @@ static void rtw8852bx_ctrl_bw(struct rtw89_dev *rtwdev, u8 pri_ch, u8 bw,
 		rtw89_phy_write32_idx(rtwdev, R_CHBW_MOD_V1, B_CHBW_MOD_PRICH,
 				      pri_ch, phy_idx);
 
-		/*Set RF mode at A */
-		val = chip_id == RTL8852BT ? 0x333 : 0xaaa;
+		/*Set RF mode at 3 */
 		rtw89_phy_write32_idx(rtwdev, R_P0_RFMODE_ORI_RX,
-				      B_P0_RFMODE_ORI_RX_ALL, val, phy_idx);
+				      B_P0_RFMODE_ORI_RX_ALL, 0x333, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_P1_RFMODE_ORI_RX,
-				      B_P1_RFMODE_ORI_RX_ALL, val, phy_idx);
+				      B_P1_RFMODE_ORI_RX_ALL, 0x333, phy_idx);
 		break;
 	default:
 		rtw89_warn(rtwdev, "Fail to switch bw (bw:%d, pri ch:%d)\n", bw,

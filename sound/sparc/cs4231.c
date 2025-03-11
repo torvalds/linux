@@ -2107,7 +2107,7 @@ static struct platform_driver cs4231_driver = {
 		.of_match_table = cs4231_match,
 	},
 	.probe		= cs4231_probe,
-	.remove_new	= cs4231_remove,
+	.remove		= cs4231_remove,
 };
 
 module_platform_driver(cs4231_driver);

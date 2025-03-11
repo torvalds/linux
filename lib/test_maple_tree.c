@@ -1387,6 +1387,92 @@ static noinline void __init check_prev_entry(struct maple_tree *mt)
 	mas_unlock(&mas);
 }
 
+static noinline void __init check_store_null(struct maple_tree *mt)
+{
+	MA_STATE(mas, mt, 0, ULONG_MAX);
+
+	/*
+	 * Store NULL at range [0, ULONG_MAX] to an empty tree should result
+	 * in an empty tree
+	 */
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	mas_lock(&mas);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	MT_BUG_ON(mt, !mtree_empty(mt));
+	mas_unlock(&mas);
+	mtree_destroy(mt);
+
+	/*
+	 * Store NULL at any range to an empty tree should result in an empty
+	 * tree
+	 */
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	mas_lock(&mas);
+	mas_set_range(&mas, 3, 10);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	MT_BUG_ON(mt, !mtree_empty(mt));
+	mas_unlock(&mas);
+	mtree_destroy(mt);
+
+	/*
+	 * Store NULL at range [0, ULONG_MAX] to a single entry tree should
+	 * result in an empty tree
+	 */
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	mas_lock(&mas);
+	mas_set(&mas, 0);
+	mas_store_gfp(&mas, &mas, GFP_KERNEL);
+	mas_set_range(&mas, 0, ULONG_MAX);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	MT_BUG_ON(mt, !mtree_empty(mt));
+	mas_unlock(&mas);
+	mtree_destroy(mt);
+
+	/*
+	 * Store NULL at range [0, n] to a single entry tree should
+	 * result in an empty tree
+	 */
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	mas_lock(&mas);
+	mas_set(&mas, 0);
+	mas_store_gfp(&mas, &mas, GFP_KERNEL);
+	mas_set_range(&mas, 0, 5);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	MT_BUG_ON(mt, !mtree_empty(mt));
+	mas_unlock(&mas);
+	mtree_destroy(mt);
+
+	/*
+	 * Store NULL at range [m, n] where m > 0 to a single entry tree
+	 * should still be a single entry tree
+	 */
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	mas_lock(&mas);
+	mas_set(&mas, 0);
+	mas_store_gfp(&mas, &mas, GFP_KERNEL);
+	mas_set_range(&mas, 2, 5);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	MT_BUG_ON(mt, mtree_empty(mt));
+//	MT_BUG_ON(mt, xa_is_node(mas_root(&mas)));
+	mas_unlock(&mas);
+	mtree_destroy(mt);
+
+	/*
+	 * Store NULL at range [0, ULONG_MAX] to a tree with node should
+	 * result in an empty tree
+	 */
+	mt_init_flags(mt, MT_FLAGS_ALLOC_RANGE);
+	mas_lock(&mas);
+	mas_set_range(&mas, 1, 3);
+	mas_store_gfp(&mas, &mas, GFP_KERNEL);
+//	MT_BUG_ON(mt, !xa_is_node(mas_root(&mas)));
+	mas_set_range(&mas, 0, ULONG_MAX);
+	mas_store_gfp(&mas, NULL, GFP_KERNEL);
+	MT_BUG_ON(mt, !mtree_empty(mt));
+	mas_unlock(&mas);
+	mtree_destroy(mt);
+}
+
 static noinline void __init check_root_expand(struct maple_tree *mt)
 {
 	MA_STATE(mas, mt, 0, 0);
@@ -3709,6 +3795,10 @@ static int __init maple_tree_seed(void)
 	mtree_destroy(&tree);
 	goto skip;
 #endif
+
+	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
+	check_store_null(&tree);
+	mtree_destroy(&tree);
 
 	mt_init_flags(&tree, MT_FLAGS_ALLOC_RANGE);
 	check_root_expand(&tree);

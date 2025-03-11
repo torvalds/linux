@@ -25,3 +25,8 @@ core_hotunplug.*
 
 # Whole machine hangs
 kms_cursor_crc.*
+
+# IGT test crash
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_content_protection@uevent

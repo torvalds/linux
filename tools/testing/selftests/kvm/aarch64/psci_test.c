@@ -54,6 +54,15 @@ static uint64_t psci_system_suspend(uint64_t entry_addr, uint64_t context_id)
 	return res.a0;
 }
 
+static uint64_t psci_system_off2(uint64_t type, uint64_t cookie)
+{
+	struct arm_smccc_res res;
+
+	smccc_hvc(PSCI_1_3_FN64_SYSTEM_OFF2, type, cookie, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+
 static uint64_t psci_features(uint32_t func_id)
 {
 	struct arm_smccc_res res;
@@ -188,11 +197,94 @@ static void host_test_system_suspend(void)
 	kvm_vm_free(vm);
 }
 
+static void guest_test_system_off2(void)
+{
+	uint64_t ret;
+
+	/* assert that SYSTEM_OFF2 is discoverable */
+	GUEST_ASSERT(psci_features(PSCI_1_3_FN_SYSTEM_OFF2) &
+		     PSCI_1_3_OFF_TYPE_HIBERNATE_OFF);
+	GUEST_ASSERT(psci_features(PSCI_1_3_FN64_SYSTEM_OFF2) &
+		     PSCI_1_3_OFF_TYPE_HIBERNATE_OFF);
+
+	/* With non-zero 'cookie' field, it should fail */
+	ret = psci_system_off2(PSCI_1_3_OFF_TYPE_HIBERNATE_OFF, 1);
+	GUEST_ASSERT(ret == PSCI_RET_INVALID_PARAMS);
+
+	/*
+	 * This would normally never return, so KVM sets the return value
+	 * to PSCI_RET_INTERNAL_FAILURE. The test case *does* return, so
+	 * that it can test both values for HIBERNATE_OFF.
+	 */
+	ret = psci_system_off2(PSCI_1_3_OFF_TYPE_HIBERNATE_OFF, 0);
+	GUEST_ASSERT(ret == PSCI_RET_INTERNAL_FAILURE);
+
+	/*
+	 * Revision F.b of the PSCI v1.3 specification documents zero as an
+	 * alias for HIBERNATE_OFF, since that's the value used in earlier
+	 * revisions of the spec and some implementations in the field.
+	 */
+	ret = psci_system_off2(0, 1);
+	GUEST_ASSERT(ret == PSCI_RET_INVALID_PARAMS);
+
+	ret = psci_system_off2(0, 0);
+	GUEST_ASSERT(ret == PSCI_RET_INTERNAL_FAILURE);
+
+	GUEST_DONE();
+}
+
+static void host_test_system_off2(void)
+{
+	struct kvm_vcpu *source, *target;
+	struct kvm_mp_state mps;
+	uint64_t psci_version = 0;
+	int nr_shutdowns = 0;
+	struct kvm_run *run;
+	struct ucall uc;
+
+	setup_vm(guest_test_system_off2, &source, &target);
+
+	vcpu_get_reg(target, KVM_REG_ARM_PSCI_VERSION, &psci_version);
+
+	TEST_ASSERT(psci_version >= PSCI_VERSION(1, 3),
+		    "Unexpected PSCI version %lu.%lu",
+		    PSCI_VERSION_MAJOR(psci_version),
+		    PSCI_VERSION_MINOR(psci_version));
+
+	vcpu_power_off(target);
+	run = source->run;
+
+	enter_guest(source);
+	while (run->exit_reason == KVM_EXIT_SYSTEM_EVENT) {
+		TEST_ASSERT(run->system_event.type == KVM_SYSTEM_EVENT_SHUTDOWN,
+			    "Unhandled system event: %u (expected: %u)",
+			    run->system_event.type, KVM_SYSTEM_EVENT_SHUTDOWN);
+		TEST_ASSERT(run->system_event.ndata >= 1,
+			    "Unexpected amount of system event data: %u (expected, >= 1)",
+			    run->system_event.ndata);
+		TEST_ASSERT(run->system_event.data[0] & KVM_SYSTEM_EVENT_SHUTDOWN_FLAG_PSCI_OFF2,
+			    "PSCI_OFF2 flag not set. Flags %llu (expected %llu)",
+			    run->system_event.data[0], KVM_SYSTEM_EVENT_SHUTDOWN_FLAG_PSCI_OFF2);
+
+		nr_shutdowns++;
+
+		/* Restart the vCPU */
+	        mps.mp_state = KVM_MP_STATE_RUNNABLE;
+		vcpu_mp_state_set(source, &mps);
+
+		enter_guest(source);
+	}
+
+	TEST_ASSERT(get_ucall(source, &uc) == UCALL_DONE, "Guest did not exit cleanly");
+	TEST_ASSERT(nr_shutdowns == 2, "Two shutdown events were expected, but saw %d", nr_shutdowns);
+}
+
 int main(void)
 {
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_SYSTEM_SUSPEND));
 
 	host_test_cpu_on();
 	host_test_system_suspend();
+	host_test_system_off2();
 	return 0;
 }

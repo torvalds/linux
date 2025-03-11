@@ -335,7 +335,7 @@ static struct platform_driver tegra_bpmp_i2c_driver = {
 		.of_match_table = tegra_bpmp_i2c_of_match,
 	},
 	.probe = tegra_bpmp_i2c_probe,
-	.remove_new = tegra_bpmp_i2c_remove,
+	.remove = tegra_bpmp_i2c_remove,
 };
 module_platform_driver(tegra_bpmp_i2c_driver);
 

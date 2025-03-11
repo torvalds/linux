@@ -47,6 +47,7 @@ MODULE_DEVICE_TABLE(spi, adau1372_spi_id);
 static struct spi_driver adau1372_spi_driver = {
 	.driver = {
 		.name = "adau1372",
+		.of_match_table = adau1372_of_match,
 	},
 	.probe = adau1372_spi_probe,
 	.id_table = adau1372_spi_id,

@@ -17,12 +17,10 @@ perf@i915-ref-count,Fail
 perf_pmu@busy-accuracy-50,Fail
 perf_pmu@module-unload,Fail
 perf_pmu@rc6,Crash
-prime_busy@after,Fail
 sysfs_heartbeat_interval@long,Timeout
 sysfs_heartbeat_interval@off,Timeout
 sysfs_preempt_timeout@off,Timeout
 sysfs_timeslice_duration@off,Timeout
-testdisplay,Timeout
 xe_module_load@force-load,Fail
 xe_module_load@load,Fail
 xe_module_load@many-reload,Fail

@@ -290,7 +290,7 @@ MODULE_DEVICE_TABLE(of, osm_l3_of_match);
 
 static struct platform_driver osm_l3_driver = {
 	.probe = qcom_osm_l3_probe,
-	.remove_new = qcom_osm_l3_remove,
+	.remove = qcom_osm_l3_remove,
 	.driver = {
 		.name = "osm-l3",
 		.of_match_table = osm_l3_of_match,

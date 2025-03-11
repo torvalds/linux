@@ -360,10 +360,26 @@ static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, dma_addr_t *nib)
 	return 0;
 }
 
-static int ensure_nib_shared(unsigned long addr, struct gmap *gmap)
+/**
+ * ensure_nib_shared() - Ensure the address of the NIB is secure and shared
+ * @addr: the physical (absolute) address of the NIB
+ *
+ * This function checks whether the NIB page, which has been pinned with
+ * vfio_pin_pages(), is a shared page belonging to a secure guest.
+ *
+ * It will call uv_pin_shared() on it; if the page was already pinned shared
+ * (i.e. if the NIB belongs to a secure guest and is shared), then 0
+ * (success) is returned. If the NIB was not shared, vfio_pin_pages() had
+ * exported it and now it does not belong to the secure guest anymore. In
+ * that case, an error is returned.
+ *
+ * Context: the NIB (at physical address @addr) has to be pinned with
+ *	    vfio_pin_pages() before calling this function.
+ *
+ * Return: 0 in case of success, otherwise an error < 0.
+ */
+static int ensure_nib_shared(unsigned long addr)
 {
-	int ret;
-
 	/*
 	 * The nib has to be located in shared storage since guest and
 	 * host access it. vfio_pin_pages() will do a pin shared and
@@ -374,12 +390,7 @@ static int ensure_nib_shared(unsigned long addr, struct gmap *gmap)
 	 *
 	 * If the page is already pinned shared the UV will return a success.
 	 */
-	ret = uv_pin_shared(addr);
-	if (ret) {
-		/* vfio_pin_pages() likely exported the page so let's re-import */
-		gmap_convert_to_secure(gmap, addr);
-	}
-	return ret;
+	return uv_pin_shared(addr);
 }
 
 /**
@@ -425,6 +436,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 		return status;
 	}
 
+	/* The pin will probably be successful even if the NIB was not shared */
 	ret = vfio_pin_pages(&q->matrix_mdev->vdev, nib, 1,
 			     IOMMU_READ | IOMMU_WRITE, &h_page);
 	switch (ret) {
@@ -447,7 +459,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 
 	/* NIB in non-shared storage is a rc 6 for PV guests */
 	if (kvm_s390_pv_cpu_is_protected(vcpu) &&
-	    ensure_nib_shared(h_nib & PAGE_MASK, kvm->arch.gmap)) {
+	    ensure_nib_shared(h_nib & PAGE_MASK)) {
 		vfio_unpin_pages(&q->matrix_mdev->vdev, nib, 1);
 		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
 		return status;

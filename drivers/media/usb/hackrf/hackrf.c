@@ -888,8 +888,6 @@ static const struct vb2_ops hackrf_vb2_ops = {
 	.buf_queue              = hackrf_buf_queue,
 	.start_streaming        = hackrf_start_streaming,
 	.stop_streaming         = hackrf_stop_streaming,
-	.wait_prepare           = vb2_ops_wait_prepare,
-	.wait_finish            = vb2_ops_wait_finish,
 };
 
 static int hackrf_querycap(struct file *file, void *fh,
@@ -1398,6 +1396,7 @@ static int hackrf_probe(struct usb_interface *intf,
 	dev->rx_vb2_queue.drv_priv = dev;
 	dev->rx_vb2_queue.buf_struct_size = sizeof(struct hackrf_buffer);
 	dev->rx_vb2_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	dev->rx_vb2_queue.lock = &dev->vb_queue_lock;
 	ret = vb2_queue_init(&dev->rx_vb2_queue);
 	if (ret) {
 		dev_err(dev->dev, "Could not initialize rx vb2 queue\n");
@@ -1413,6 +1412,7 @@ static int hackrf_probe(struct usb_interface *intf,
 	dev->tx_vb2_queue.drv_priv = dev;
 	dev->tx_vb2_queue.buf_struct_size = sizeof(struct hackrf_buffer);
 	dev->tx_vb2_queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	dev->tx_vb2_queue.lock = &dev->vb_queue_lock;
 	ret = vb2_queue_init(&dev->tx_vb2_queue);
 	if (ret) {
 		dev_err(dev->dev, "Could not initialize tx vb2 queue\n");
@@ -1474,7 +1474,6 @@ static int hackrf_probe(struct usb_interface *intf,
 	/* Init video_device structure for receiver */
 	dev->rx_vdev = hackrf_template;
 	dev->rx_vdev.queue = &dev->rx_vb2_queue;
-	dev->rx_vdev.queue->lock = &dev->vb_queue_lock;
 	dev->rx_vdev.v4l2_dev = &dev->v4l2_dev;
 	dev->rx_vdev.ctrl_handler = &dev->rx_ctrl_handler;
 	dev->rx_vdev.lock = &dev->v4l2_lock;
@@ -1494,7 +1493,6 @@ static int hackrf_probe(struct usb_interface *intf,
 	/* Init video_device structure for transmitter */
 	dev->tx_vdev = hackrf_template;
 	dev->tx_vdev.queue = &dev->tx_vb2_queue;
-	dev->tx_vdev.queue->lock = &dev->vb_queue_lock;
 	dev->tx_vdev.v4l2_dev = &dev->v4l2_dev;
 	dev->tx_vdev.ctrl_handler = &dev->tx_ctrl_handler;
 	dev->tx_vdev.lock = &dev->v4l2_lock;

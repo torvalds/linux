@@ -182,7 +182,7 @@ static int cbtx_get_sset_count(struct phy_device *phydev)
 
 static void cbtx_get_strings(struct phy_device *phydev, u8 *data)
 {
-	strncpy(data, "100btx_rx_err", ETH_GSTRING_LEN);
+	ethtool_puts(&data, "100btx_rx_err");
 }
 
 static void cbtx_get_stats(struct phy_device *phydev,

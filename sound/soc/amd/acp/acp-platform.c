@@ -114,7 +114,7 @@ int acp_machine_select(struct acp_dev_data *adata)
 	int size, platform;
 
 	if (adata->flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
-		platform = adata->platform;
+		platform = adata->acp_rev;
 		adata->mach_dev = platform_device_register_data(adata->dev, "acp-pdm-mach",
 								PLATFORM_DEVID_NONE, &platform,
 								sizeof(platform));
@@ -125,6 +125,7 @@ int acp_machine_select(struct acp_dev_data *adata)
 			dev_err(adata->dev, "warning: No matching ASoC machine driver found\n");
 			return -EINVAL;
 		}
+		mach->mach_params.subsystem_rev = adata->acp_rev;
 		adata->mach_dev = platform_device_register_data(adata->dev, mach->drv_name,
 								PLATFORM_DEVID_NONE, mach, size);
 	}
@@ -132,7 +133,7 @@ int acp_machine_select(struct acp_dev_data *adata)
 		dev_warn(adata->dev, "Unable to register Machine device\n");
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(acp_machine_select, SND_SOC_ACP_COMMON);
+EXPORT_SYMBOL_NS_GPL(acp_machine_select, "SND_SOC_ACP_COMMON");
 
 static irqreturn_t i2s_irq_handler(int irq, void *data)
 {
@@ -141,9 +142,6 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 	struct acp_stream *stream;
 	u16 i2s_flag = 0;
 	u32 ext_intr_stat, ext_intr_stat1;
-
-	if (!adata)
-		return IRQ_NONE;
 
 	if (adata->rsrc->no_of_ctrls == 2)
 		ext_intr_stat1 = readl(ACP_EXTERNAL_INTR_STAT(adata, (rsrc->irqp_used - 1)));
@@ -193,7 +191,7 @@ void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream
 
 	writel(0x01, adata->acp_base + ACPAXI2AXI_ATU_CTRL);
 }
-EXPORT_SYMBOL_NS_GPL(config_pte_for_stream, SND_SOC_ACP_COMMON);
+EXPORT_SYMBOL_NS_GPL(config_pte_for_stream, "SND_SOC_ACP_COMMON");
 
 void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int size)
 {
@@ -204,9 +202,9 @@ void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int s
 	u32 low, high, val;
 	u16 page_idx;
 
-	switch (adata->platform) {
-	case ACP70:
-	case ACP71:
+	switch (adata->acp_rev) {
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		switch (stream->dai_id) {
 		case I2S_SP_INSTANCE:
 			if (stream->dir == SNDRV_PCM_STREAM_PLAYBACK)
@@ -252,7 +250,7 @@ void config_acp_dma(struct acp_dev_data *adata, struct acp_stream *stream, int s
 		addr += PAGE_SIZE;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(config_acp_dma, SND_SOC_ACP_COMMON);
+EXPORT_SYMBOL_NS_GPL(config_acp_dma, "SND_SOC_ACP_COMMON");
 
 static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_substream *substream)
 {
@@ -270,9 +268,9 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	stream->substream = substream;
 	chip = dev_get_platdata(dev);
 	switch (chip->acp_rev) {
-	case ACP63_DEV:
-	case ACP70_DEV:
-	case ACP71_DEV:
+	case ACP63_PCI_ID:
+	case ACP70_PCI_ID:
+	case ACP71_PCI_ID:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			runtime->hw = acp6x_pcm_hardware_playback;
 		else
@@ -416,7 +414,7 @@ int acp_platform_register(struct device *dev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(acp_platform_register, SND_SOC_ACP_COMMON);
+EXPORT_SYMBOL_NS_GPL(acp_platform_register, "SND_SOC_ACP_COMMON");
 
 int acp_platform_unregister(struct device *dev)
 {
@@ -426,7 +424,7 @@ int acp_platform_unregister(struct device *dev)
 		platform_device_unregister(adata->mach_dev);
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(acp_platform_unregister, SND_SOC_ACP_COMMON);
+EXPORT_SYMBOL_NS_GPL(acp_platform_unregister, "SND_SOC_ACP_COMMON");
 
 MODULE_DESCRIPTION("AMD ACP PCM Driver");
 MODULE_LICENSE("Dual BSD/GPL");

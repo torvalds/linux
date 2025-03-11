@@ -370,7 +370,9 @@ static int gs_msg_ops_vcpu_fill_info(struct kvmppc_gs_buff *gsb,
 			 * default to L1's PVR.
 			 */
 			if (!vcpu->arch.vcore->arch_compat) {
-				if (cpu_has_feature(CPU_FTR_ARCH_31))
+				if (cpu_has_feature(CPU_FTR_P11_PVR))
+					arch_compat = PVR_ARCH_31_P11;
+				else if (cpu_has_feature(CPU_FTR_ARCH_31))
 					arch_compat = PVR_ARCH_31;
 				else if (cpu_has_feature(CPU_FTR_ARCH_300))
 					arch_compat = PVR_ARCH_300;

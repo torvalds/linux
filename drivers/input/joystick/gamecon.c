@@ -765,33 +765,31 @@ static void gc_timer(struct timer_list *t)
 static int gc_open(struct input_dev *dev)
 {
 	struct gc *gc = input_get_drvdata(dev);
-	int err;
 
-	err = mutex_lock_interruptible(&gc->mutex);
-	if (err)
-		return err;
+	scoped_guard(mutex_intr, &gc->mutex) {
+		if (!gc->used++) {
+			parport_claim(gc->pd);
+			parport_write_control(gc->pd->port, 0x04);
+			mod_timer(&gc->timer, jiffies + GC_REFRESH_TIME);
+		}
 
-	if (!gc->used++) {
-		parport_claim(gc->pd);
-		parport_write_control(gc->pd->port, 0x04);
-		mod_timer(&gc->timer, jiffies + GC_REFRESH_TIME);
+		return 0;
 	}
 
-	mutex_unlock(&gc->mutex);
-	return 0;
+	return -EINTR;
 }
 
 static void gc_close(struct input_dev *dev)
 {
 	struct gc *gc = input_get_drvdata(dev);
 
-	mutex_lock(&gc->mutex);
+	guard(mutex)(&gc->mutex);
+
 	if (!--gc->used) {
 		del_timer_sync(&gc->timer);
 		parport_write_control(gc->pd->port, 0x00);
 		parport_release(gc->pd);
 	}
-	mutex_unlock(&gc->mutex);
 }
 
 static int gc_setup_pad(struct gc *gc, int idx, int pad_type)

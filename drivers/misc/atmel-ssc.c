@@ -153,7 +153,7 @@ static int ssc_sound_dai_probe(struct ssc_device *ssc)
 
 	ssc->sound_dai = false;
 
-	if (!of_property_read_bool(np, "#sound-dai-cells"))
+	if (!of_property_present(np, "#sound-dai-cells"))
 		return 0;
 
 	id = of_alias_get_id(np, "ssc");
@@ -176,7 +176,7 @@ static void ssc_sound_dai_remove(struct ssc_device *ssc)
 #else
 static inline int ssc_sound_dai_probe(struct ssc_device *ssc)
 {
-	if (of_property_read_bool(ssc->pdev->dev.of_node, "#sound-dai-cells"))
+	if (of_property_present(ssc->pdev->dev.of_node, "#sound-dai-cells"))
 		return -ENOTSUPP;
 
 	return 0;
@@ -269,7 +269,7 @@ static struct platform_driver ssc_driver = {
 	},
 	.id_table	= atmel_ssc_devtypes,
 	.probe		= ssc_probe,
-	.remove_new	= ssc_remove,
+	.remove		= ssc_remove,
 };
 module_platform_driver(ssc_driver);
 

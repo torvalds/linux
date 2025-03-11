@@ -24,6 +24,7 @@
 #include "xfs_iomap.h"
 #include "xfs_trace.h"
 #include "xfs_quota.h"
+#include "xfs_rtgroup.h"
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
 #include "xfs_reflink.h"
@@ -115,7 +116,9 @@ xfs_bmbt_to_iomap(
 		iomap->addr = IOMAP_NULL_ADDR;
 		iomap->type = IOMAP_DELALLOC;
 	} else {
-		iomap->addr = BBTOB(xfs_fsb_to_db(ip, imap->br_startblock));
+		xfs_daddr_t	daddr = xfs_fsb_to_db(ip, imap->br_startblock);
+
+		iomap->addr = BBTOB(daddr);
 		if (mapping_flags & IOMAP_DAX)
 			iomap->addr += target->bt_dax_part_off;
 
@@ -124,6 +127,14 @@ xfs_bmbt_to_iomap(
 		else
 			iomap->type = IOMAP_MAPPED;
 
+		/*
+		 * Mark iomaps starting at the first sector of a RTG as merge
+		 * boundary so that each I/O completions is contained to a
+		 * single RTG.
+		 */
+		if (XFS_IS_REALTIME_INODE(ip) && xfs_has_rtgroups(mp) &&
+		    xfs_rtbno_is_group_start(mp, imap->br_startblock))
+			iomap->flags |= IOMAP_F_BOUNDARY;
 	}
 	iomap->offset = XFS_FSB_TO_B(mp, imap->br_startoff);
 	iomap->length = XFS_FSB_TO_B(mp, imap->br_blockcount);
@@ -342,16 +353,26 @@ xfs_quota_need_throttle(
 	xfs_fsblock_t		alloc_blocks)
 {
 	struct xfs_dquot	*dq = xfs_inode_dquot(ip, type);
+	struct xfs_dquot_res	*res;
+	struct xfs_dquot_pre	*pre;
 
 	if (!dq || !xfs_this_quota_on(ip->i_mount, type))
 		return false;
 
+	if (XFS_IS_REALTIME_INODE(ip)) {
+		res = &dq->q_rtb;
+		pre = &dq->q_rtb_prealloc;
+	} else {
+		res = &dq->q_blk;
+		pre = &dq->q_blk_prealloc;
+	}
+
 	/* no hi watermark, no throttle */
-	if (!dq->q_prealloc_hi_wmark)
+	if (!pre->q_prealloc_hi_wmark)
 		return false;
 
 	/* under the lo watermark, no throttle */
-	if (dq->q_blk.reserved + alloc_blocks < dq->q_prealloc_lo_wmark)
+	if (res->reserved + alloc_blocks < pre->q_prealloc_lo_wmark)
 		return false;
 
 	return true;
@@ -366,22 +387,35 @@ xfs_quota_calc_throttle(
 	int64_t			*qfreesp)
 {
 	struct xfs_dquot	*dq = xfs_inode_dquot(ip, type);
+	struct xfs_dquot_res	*res;
+	struct xfs_dquot_pre	*pre;
 	int64_t			freesp;
 	int			shift = 0;
 
+	if (!dq) {
+		res = NULL;
+		pre = NULL;
+	} else if (XFS_IS_REALTIME_INODE(ip)) {
+		res = &dq->q_rtb;
+		pre = &dq->q_rtb_prealloc;
+	} else {
+		res = &dq->q_blk;
+		pre = &dq->q_blk_prealloc;
+	}
+
 	/* no dq, or over hi wmark, squash the prealloc completely */
-	if (!dq || dq->q_blk.reserved >= dq->q_prealloc_hi_wmark) {
+	if (!res || res->reserved >= pre->q_prealloc_hi_wmark) {
 		*qblocks = 0;
 		*qfreesp = 0;
 		return;
 	}
 
-	freesp = dq->q_prealloc_hi_wmark - dq->q_blk.reserved;
-	if (freesp < dq->q_low_space[XFS_QLOWSP_5_PCNT]) {
+	freesp = pre->q_prealloc_hi_wmark - res->reserved;
+	if (freesp < pre->q_low_space[XFS_QLOWSP_5_PCNT]) {
 		shift = 2;
-		if (freesp < dq->q_low_space[XFS_QLOWSP_3_PCNT])
+		if (freesp < pre->q_low_space[XFS_QLOWSP_3_PCNT])
 			shift += 2;
-		if (freesp < dq->q_low_space[XFS_QLOWSP_1_PCNT])
+		if (freesp < pre->q_low_space[XFS_QLOWSP_1_PCNT])
 			shift += 2;
 	}
 
@@ -501,8 +535,8 @@ xfs_iomap_prealloc_size(
 				       alloc_blocks);
 
 	if (unlikely(XFS_IS_REALTIME_INODE(ip)))
-		freesp = xfs_rtx_to_rtb(mp,
-			xfs_iomap_freesp(&mp->m_frextents,
+		freesp = xfs_rtbxlen_to_blen(mp,
+				xfs_iomap_freesp(&mp->m_frextents,
 					mp->m_low_rtexts, &shift));
 	else
 		freesp = xfs_iomap_freesp(&mp->m_fdblocks, mp->m_low_space,
@@ -1234,6 +1268,14 @@ xfs_buffered_write_iomap_end(
 	if (iomap->type != IOMAP_DELALLOC || !(iomap->flags & IOMAP_F_NEW))
 		return 0;
 
+	/*
+	 * iomap_page_mkwrite() will never fail in a way that requires delalloc
+	 * extents that it allocated to be revoked.  Hence never try to release
+	 * them here.
+	 */
+	if (flags & IOMAP_FAULT)
+		return 0;
+
 	/* Nothing to do if we've written the entire delalloc extent */
 	start_byte = iomap_last_written_block(inode, offset, written);
 	end_byte = round_up(offset + length, i_blocksize(inode));
@@ -1258,15 +1300,6 @@ xfs_buffered_write_iomap_end(
 const struct iomap_ops xfs_buffered_write_iomap_ops = {
 	.iomap_begin		= xfs_buffered_write_iomap_begin,
 	.iomap_end		= xfs_buffered_write_iomap_end,
-};
-
-/*
- * iomap_page_mkwrite() will never fail in a way that requires delalloc extents
- * that it allocated to be revoked. Hence we do not need an .iomap_end method
- * for this operation.
- */
-const struct iomap_ops xfs_page_mkwrite_iomap_ops = {
-	.iomap_begin		= xfs_buffered_write_iomap_begin,
 };
 
 static int

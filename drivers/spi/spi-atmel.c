@@ -1781,7 +1781,7 @@ static struct platform_driver atmel_spi_driver = {
 		.of_match_table	= atmel_spi_dt_ids,
 	},
 	.probe		= atmel_spi_probe,
-	.remove_new	= atmel_spi_remove,
+	.remove		= atmel_spi_remove,
 };
 module_platform_driver(atmel_spi_driver);
 

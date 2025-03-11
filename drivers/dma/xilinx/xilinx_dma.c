@@ -3271,7 +3271,7 @@ static struct platform_driver xilinx_vdma_driver = {
 		.of_match_table = xilinx_dma_of_ids,
 	},
 	.probe = xilinx_dma_probe,
-	.remove_new = xilinx_dma_remove,
+	.remove = xilinx_dma_remove,
 };
 
 module_platform_driver(xilinx_vdma_driver);

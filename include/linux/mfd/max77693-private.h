@@ -419,17 +419,6 @@ enum max77693_haptic_reg {
 #define MAX77693_CONFIG2_MEN            6
 #define MAX77693_CONFIG2_HTYP           5
 
-enum max77693_irq_source {
-	LED_INT = 0,
-	TOPSYS_INT,
-	CHG_INT,
-	MUIC_INT1,
-	MUIC_INT2,
-	MUIC_INT3,
-
-	MAX77693_IRQ_GROUP_NR,
-};
-
 #define SRC_IRQ_CHARGER			BIT(0)
 #define SRC_IRQ_TOP			BIT(1)
 #define SRC_IRQ_FLASH			BIT(2)

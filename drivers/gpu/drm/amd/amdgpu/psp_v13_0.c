@@ -51,6 +51,8 @@ MODULE_FIRMWARE("amdgpu/psp_13_0_11_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_11_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_6_sos.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_6_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_12_sos.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_12_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_14_sos.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_14_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_14_0_0_toc.bin");
@@ -122,6 +124,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	case IP_VERSION(13, 0, 6):
 	case IP_VERSION(13, 0, 7):
 	case IP_VERSION(13, 0, 10):
+	case IP_VERSION(13, 0, 12):
 	case IP_VERSION(13, 0, 14):
 		err = psp_init_sos_microcode(psp, ucode_prefix);
 		if (err)
@@ -177,6 +180,7 @@ static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
 
 	retry_cnt =
 		((amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+		  amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12) ||
 		  amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14))) ?
 			PSP_VMBX_POLLING_LIMIT :
 			10;
@@ -203,6 +207,7 @@ static int psp_v13_0_wait_for_bootloader_steady_state(struct psp_context *psp)
 	int ret;
 
 	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12) ||
 	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14)) {
 		ret = psp_v13_0_wait_for_vmbx_ready(psp);
 		if (ret)
@@ -286,6 +291,11 @@ static int psp_v13_0_bootloader_load_dbg_drv(struct psp_context *psp)
 static int psp_v13_0_bootloader_load_ras_drv(struct psp_context *psp)
 {
 	return psp_v13_0_bootloader_load_component(psp, &psp->ras_drv, PSP_BL__LOAD_RASDRV);
+}
+
+static int psp_v13_0_bootloader_load_spdm_drv(struct psp_context *psp)
+{
+	return psp_v13_0_bootloader_load_component(psp, &psp->spdm_drv, PSP_BL__LOAD_SPDMDRV);
 }
 
 static inline void psp_v13_0_init_sos_version(struct psp_context *psp)
@@ -798,6 +808,7 @@ static bool psp_v13_0_get_ras_capability(struct psp_context *psp)
 		return false;
 
 	if ((amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6) ||
+	     amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12) ||
 	     amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 14)) &&
 	    (!(adev->flags & AMD_IS_APU))) {
 		reg_data = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_127);
@@ -823,6 +834,30 @@ static bool psp_v13_0_is_aux_sos_load_required(struct psp_context *psp)
 	return (pmfw_ver < 0x557300);
 }
 
+static bool psp_v13_0_is_reload_needed(struct psp_context *psp)
+{
+	uint32_t ucode_ver;
+
+	if (!psp_v13_0_is_sos_alive(psp))
+		return false;
+
+	/* Restrict reload support only to specific IP versions */
+	switch (amdgpu_ip_version(psp->adev, MP0_HWIP, 0)) {
+	case IP_VERSION(13, 0, 2):
+	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 14):
+		/* TOS version read from microcode header */
+		ucode_ver = psp->sos.fw_version;
+		/* Read TOS version from hardware */
+		psp_v13_0_init_sos_version(psp);
+		return (ucode_ver != psp->sos.fw_version);
+	default:
+		return false;
+	}
+
+	return false;
+}
+
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
 	.wait_for_bootloader = psp_v13_0_wait_for_bootloader_steady_state,
@@ -833,6 +868,7 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.bootloader_load_intf_drv = psp_v13_0_bootloader_load_intf_drv,
 	.bootloader_load_dbg_drv = psp_v13_0_bootloader_load_dbg_drv,
 	.bootloader_load_ras_drv = psp_v13_0_bootloader_load_ras_drv,
+	.bootloader_load_spdm_drv = psp_v13_0_bootloader_load_spdm_drv,
 	.bootloader_load_sos = psp_v13_0_bootloader_load_sos,
 	.ring_create = psp_v13_0_ring_create,
 	.ring_stop = psp_v13_0_ring_stop,
@@ -847,6 +883,7 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.fatal_error_recovery_quirk = psp_v13_0_fatal_error_recovery_quirk,
 	.get_ras_capability = psp_v13_0_get_ras_capability,
 	.is_aux_sos_load_required = psp_v13_0_is_aux_sos_load_required,
+	.is_reload_needed = psp_v13_0_is_reload_needed,
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)

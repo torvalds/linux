@@ -184,11 +184,11 @@ static const struct of_device_id qcom_ipq806x_sata_phy_of_match[] = {
 MODULE_DEVICE_TABLE(of, qcom_ipq806x_sata_phy_of_match);
 
 static struct platform_driver qcom_ipq806x_sata_phy_driver = {
-	.probe	= qcom_ipq806x_sata_phy_probe,
-	.remove_new = qcom_ipq806x_sata_phy_remove,
+	.probe = qcom_ipq806x_sata_phy_probe,
+	.remove = qcom_ipq806x_sata_phy_remove,
 	.driver = {
-		.name	= "qcom-ipq806x-sata-phy",
-		.of_match_table	= qcom_ipq806x_sata_phy_of_match,
+		.name = "qcom-ipq806x-sata-phy",
+		.of_match_table = qcom_ipq806x_sata_phy_of_match,
 	}
 };
 module_platform_driver(qcom_ipq806x_sata_phy_driver);

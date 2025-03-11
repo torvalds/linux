@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 			name = if_indextoname(s->ifc, ifname);
 			if (name)
 				printf("%8s", name);
-			printf("[%d]\t", s->ifc);
+			printf("[%u]\t", s->ifc);
 		}
 
 		printf("page pools: %u (zombies: %u)\n",

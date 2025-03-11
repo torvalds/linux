@@ -79,6 +79,7 @@ config POWER_RESET_EP93XX
 	bool "Cirrus EP93XX reset driver" if COMPILE_TEST
 	depends on MFD_SYSCON
 	default ARCH_EP93XX
+	select AUXILIARY_BUS
 	help
 	  This driver provides restart support for Cirrus EP93XX SoC.
 

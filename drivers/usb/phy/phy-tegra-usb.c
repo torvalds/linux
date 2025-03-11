@@ -1495,7 +1495,7 @@ static void tegra_usb_phy_remove(struct platform_device *pdev)
 
 static struct platform_driver tegra_usb_phy_driver = {
 	.probe		= tegra_usb_phy_probe,
-	.remove_new	= tegra_usb_phy_remove,
+	.remove		= tegra_usb_phy_remove,
 	.driver		= {
 		.name	= "tegra-phy",
 		.of_match_table = tegra_usb_phy_id_table,

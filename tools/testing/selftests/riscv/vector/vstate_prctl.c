@@ -76,6 +76,8 @@ int main(void)
 	long flag, expected;
 	long rc;
 
+	ksft_set_plan(1);
+
 	pair.key = RISCV_HWPROBE_KEY_IMA_EXT_0;
 	rc = riscv_hwprobe(&pair, 1, 0, NULL, 0);
 	if (rc < 0) {

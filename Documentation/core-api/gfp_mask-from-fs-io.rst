@@ -55,14 +55,16 @@ scope.
 What about __vmalloc(GFP_NOFS)
 ==============================
 
-vmalloc doesn't support GFP_NOFS semantic because there are hardcoded
-GFP_KERNEL allocations deep inside the allocator which are quite non-trivial
-to fix up. That means that calling ``vmalloc`` with GFP_NOFS/GFP_NOIO is
-almost always a bug. The good news is that the NOFS/NOIO semantic can be
-achieved by the scope API.
+Since v5.17, and specifically after the commit 451769ebb7e79 ("mm/vmalloc:
+alloc GFP_NO{FS,IO} for vmalloc"), GFP_NOFS/GFP_NOIO are now supported in
+``[k]vmalloc`` by implicitly using scope API.
+
+In earlier kernels ``vmalloc`` didn't support GFP_NOFS semantic because there
+were hardcoded GFP_KERNEL allocations deep inside the allocator. That means
+that calling ``vmalloc`` with GFP_NOFS/GFP_NOIO was almost always a bug.
 
 In the ideal world, upper layers should already mark dangerous contexts
-and so no special care is required and vmalloc should be called without
-any problems. Sometimes if the context is not really clear or there are
-layering violations then the recommended way around that is to wrap ``vmalloc``
-by the scope API with a comment explaining the problem.
+and so no special care is required and ``vmalloc`` should be called without any
+problems. Sometimes if the context is not really clear or there are layering
+violations then the recommended way around that (on pre-v5.17 kernels) is to
+wrap ``vmalloc`` by the scope API with a comment explaining the problem.

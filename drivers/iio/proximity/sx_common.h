@@ -8,7 +8,6 @@
 #ifndef IIO_SX_COMMON_H
 #define IIO_SX_COMMON_H
 
-#include <linux/acpi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>
 #include <linux/regulator/consumer.h>
@@ -144,14 +143,11 @@ int sx_common_read_event_config(struct iio_dev *indio_dev,
 int sx_common_write_event_config(struct iio_dev *indio_dev,
 				 const struct iio_chan_spec *chan,
 				 enum iio_event_type type,
-				 enum iio_event_direction dir, int state);
+				 enum iio_event_direction dir, bool state);
 
 int sx_common_probe(struct i2c_client *client,
 		    const struct sx_common_chip_info *chip_info,
 		    const struct regmap_config *regmap_config);
-
-void sx_common_get_raw_register_config(struct device *dev,
-				       struct sx_common_reg_default *reg_def);
 
 /* 3 is the number of events defined by a single phase. */
 extern const struct iio_event_spec sx_common_events[3];

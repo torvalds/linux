@@ -275,7 +275,7 @@ static struct platform_driver mlxreg_io_driver = {
 	    .name = "mlxreg-io",
 	},
 	.probe = mlxreg_io_probe,
-	.remove_new = mlxreg_io_remove,
+	.remove = mlxreg_io_remove,
 };
 
 module_platform_driver(mlxreg_io_driver);

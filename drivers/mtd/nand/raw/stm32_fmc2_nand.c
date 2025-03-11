@@ -2147,7 +2147,7 @@ MODULE_DEVICE_TABLE(of, stm32_fmc2_nfc_match);
 
 static struct platform_driver stm32_fmc2_nfc_driver = {
 	.probe	= stm32_fmc2_nfc_probe,
-	.remove_new = stm32_fmc2_nfc_remove,
+	.remove = stm32_fmc2_nfc_remove,
 	.driver	= {
 		.name = "stm32_fmc2_nfc",
 		.of_match_table = stm32_fmc2_nfc_match,

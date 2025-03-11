@@ -178,7 +178,7 @@ static struct clk_hw_onecell_data sun50i_a64_r_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun8i_a83t_r_ccu_resets[] = {
+static const struct ccu_reset_map sun8i_a83t_r_ccu_resets[] = {
 	[RST_APB0_IR]		=  { 0xb0, BIT(1) },
 	[RST_APB0_TIMER]	=  { 0xb0, BIT(2) },
 	[RST_APB0_RSB]		=  { 0xb0, BIT(3) },
@@ -186,14 +186,14 @@ static struct ccu_reset_map sun8i_a83t_r_ccu_resets[] = {
 	[RST_APB0_I2C]		=  { 0xb0, BIT(6) },
 };
 
-static struct ccu_reset_map sun8i_h3_r_ccu_resets[] = {
+static const struct ccu_reset_map sun8i_h3_r_ccu_resets[] = {
 	[RST_APB0_IR]		=  { 0xb0, BIT(1) },
 	[RST_APB0_TIMER]	=  { 0xb0, BIT(2) },
 	[RST_APB0_UART]		=  { 0xb0, BIT(4) },
 	[RST_APB0_I2C]		=  { 0xb0, BIT(6) },
 };
 
-static struct ccu_reset_map sun50i_a64_r_ccu_resets[] = {
+static const struct ccu_reset_map sun50i_a64_r_ccu_resets[] = {
 	[RST_APB0_IR]		=  { 0xb0, BIT(1) },
 	[RST_APB0_TIMER]	=  { 0xb0, BIT(2) },
 	[RST_APB0_RSB]		=  { 0xb0, BIT(3) },
@@ -274,6 +274,6 @@ static struct platform_driver sun8i_r_ccu_driver = {
 };
 module_platform_driver(sun8i_r_ccu_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for Allwinner SoCs' PRCM CCUs");
 MODULE_LICENSE("GPL");

@@ -74,7 +74,7 @@ static void __xe_gt_apply_ccs_mode(struct xe_gt *gt, u32 num_engines)
 	 * platforms as these bits are unused there.
 	 */
 	mode |= CCS_MODE_CSLICE_0_3_MASK << 16;
-	xe_mmio_write32(gt, CCS_MODE, mode);
+	xe_mmio_write32(&gt->mmio, CCS_MODE, mode);
 
 	xe_gt_dbg(gt, "CCS_MODE=%x config:%08x, num_engines:%d, num_slices:%d\n",
 		  mode, config, num_engines, num_slices);
@@ -150,7 +150,7 @@ ccs_mode_store(struct device *kdev, struct device_attribute *attr,
 		xe_gt_info(gt, "Setting compute mode to %d\n", num_engines);
 		gt->ccs_mode = num_engines;
 		xe_gt_record_user_engines(gt);
-		xe_gt_reset_async(gt);
+		xe_gt_reset(gt);
 	}
 
 	mutex_unlock(&xe->drm.filelist_mutex);

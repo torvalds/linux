@@ -15,7 +15,6 @@
 #include "cdns2-gadget.h"
 
 #define PCI_DRIVER_NAME		"cdns-pci-usbhs"
-#define PCI_DEVICE_ID_CDNS_USB2	0x0120
 #define PCI_BAR_DEV		0
 #define PCI_DEV_FN_DEVICE	0
 
@@ -113,7 +112,7 @@ static const struct dev_pm_ops cdns2_pci_pm_ops = {
 };
 
 static const struct pci_device_id cdns2_pci_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CDNS, PCI_DEVICE_ID_CDNS_USB2),
+	{ PCI_DEVICE(PCI_VENDOR_ID_CDNS, PCI_DEVICE_ID_CDNS_USB),
 	  .class = PCI_CLASS_SERIAL_USB_DEVICE },
 	{ 0, }
 };

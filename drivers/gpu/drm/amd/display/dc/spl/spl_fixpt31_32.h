@@ -5,11 +5,8 @@
 #ifndef __SPL_FIXED31_32_H__
 #define __SPL_FIXED31_32_H__
 
-#include "os_types.h"
+#include "spl_debug.h"
 #include "spl_os_types.h"   // swap
-#ifndef ASSERT
-#define ASSERT(_bool) ((void *)0)
-#endif
 
 #ifndef LLONG_MAX
 #define LLONG_MAX 9223372036854775807ll
@@ -194,7 +191,7 @@ static inline struct spl_fixed31_32 spl_fixpt_clamp(
  */
 static inline struct spl_fixed31_32 spl_fixpt_shl(struct spl_fixed31_32 arg, unsigned char shift)
 {
-	ASSERT(((arg.value >= 0) && (arg.value <= LLONG_MAX >> shift)) ||
+	SPL_ASSERT(((arg.value >= 0) && (arg.value <= LLONG_MAX >> shift)) ||
 		((arg.value < 0) && (arg.value >= ~(LLONG_MAX >> shift))));
 
 	arg.value = arg.value << shift;
@@ -231,7 +228,7 @@ static inline struct spl_fixed31_32 spl_fixpt_add(struct spl_fixed31_32 arg1, st
 {
 	struct spl_fixed31_32 res;
 
-	ASSERT(((arg1.value >= 0) && (LLONG_MAX - arg1.value >= arg2.value)) ||
+	SPL_ASSERT(((arg1.value >= 0) && (LLONG_MAX - arg1.value >= arg2.value)) ||
 		((arg1.value < 0) && (LLONG_MIN - arg1.value <= arg2.value)));
 
 	res.value = arg1.value + arg2.value;
@@ -256,7 +253,7 @@ static inline struct spl_fixed31_32 spl_fixpt_sub(struct spl_fixed31_32 arg1, st
 {
 	struct spl_fixed31_32 res;
 
-	ASSERT(((arg2.value >= 0) && (LLONG_MIN + arg2.value <= arg1.value)) ||
+	SPL_ASSERT(((arg2.value >= 0) && (LLONG_MIN + arg2.value <= arg1.value)) ||
 		((arg2.value < 0) && (LLONG_MAX + arg2.value >= arg1.value)));
 
 	res.value = arg1.value - arg2.value;
@@ -448,7 +445,7 @@ static inline int spl_fixpt_round(struct spl_fixed31_32 arg)
 
 	const long long summand = spl_fixpt_half.value;
 
-	ASSERT(LLONG_MAX - (long long)arg_value >= summand);
+	SPL_ASSERT(LLONG_MAX - (long long)arg_value >= summand);
 
 	arg_value += summand;
 
@@ -469,7 +466,7 @@ static inline int spl_fixpt_ceil(struct spl_fixed31_32 arg)
 	const long long summand = spl_fixpt_one.value -
 		spl_fixpt_epsilon.value;
 
-	ASSERT(LLONG_MAX - (long long)arg_value >= summand);
+	SPL_ASSERT(LLONG_MAX - (long long)arg_value >= summand);
 
 	arg_value += summand;
 
@@ -504,7 +501,7 @@ static inline struct spl_fixed31_32 spl_fixpt_truncate(struct spl_fixed31_32 arg
 	bool negative = arg.value < 0;
 
 	if (frac_bits >= FIXED31_32_BITS_PER_FRACTIONAL_PART) {
-		ASSERT(frac_bits == FIXED31_32_BITS_PER_FRACTIONAL_PART);
+		SPL_ASSERT(frac_bits == FIXED31_32_BITS_PER_FRACTIONAL_PART);
 		return arg;
 	}
 

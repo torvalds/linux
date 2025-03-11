@@ -67,12 +67,12 @@ test_ftrace_latency() {
 
 test_ftrace_profile() {
     echo "perf ftrace profile test"
-    perf ftrace profile sleep 0.1 > "${output}"
+    perf ftrace profile -m 16M sleep 0.1 > "${output}"
     grep ^# "${output}"
     grep sleep "${output}"
     grep schedule "${output}"
     grep execve "${output}"
-    time_re="[[:space:]]+10[[:digit:]]{4}\.[[:digit:]]{3}"
+    time_re="[[:space:]]+1[[:digit:]]{5}\.[[:digit:]]{3}"
     # 100283.000 100283.000 100283.000          1   __x64_sys_clock_nanosleep
     # Check for one *clock_nanosleep line with a Count of just 1 that takes a bit more than 0.1 seconds
     # Strip the _x64_sys part to work with other architectures

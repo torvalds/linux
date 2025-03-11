@@ -520,6 +520,56 @@ static int __bnxt_set_vf_params(struct bnxt *bp, int vf_id)
 	return hwrm_req_send(bp, req);
 }
 
+static void bnxt_hwrm_roce_sriov_cfg(struct bnxt *bp, int num_vfs)
+{
+	struct hwrm_func_qcaps_output *resp;
+	struct hwrm_func_cfg_input *cfg_req;
+	struct hwrm_func_qcaps_input *req;
+	int rc;
+
+	rc = hwrm_req_init(bp, req, HWRM_FUNC_QCAPS);
+	if (rc)
+		return;
+
+	req->fid = cpu_to_le16(0xffff);
+	resp = hwrm_req_hold(bp, req);
+	rc = hwrm_req_send(bp, req);
+	if (rc)
+		goto err;
+
+	rc = hwrm_req_init(bp, cfg_req, HWRM_FUNC_CFG);
+	if (rc)
+		goto err;
+
+	cfg_req->fid = cpu_to_le16(0xffff);
+	cfg_req->enables2 =
+		cpu_to_le32(FUNC_CFG_REQ_ENABLES2_ROCE_MAX_AV_PER_VF |
+			    FUNC_CFG_REQ_ENABLES2_ROCE_MAX_CQ_PER_VF |
+			    FUNC_CFG_REQ_ENABLES2_ROCE_MAX_MRW_PER_VF |
+			    FUNC_CFG_REQ_ENABLES2_ROCE_MAX_QP_PER_VF |
+			    FUNC_CFG_REQ_ENABLES2_ROCE_MAX_SRQ_PER_VF |
+			    FUNC_CFG_REQ_ENABLES2_ROCE_MAX_GID_PER_VF);
+	cfg_req->roce_max_av_per_vf =
+		cpu_to_le32(le32_to_cpu(resp->roce_vf_max_av) / num_vfs);
+	cfg_req->roce_max_cq_per_vf =
+		cpu_to_le32(le32_to_cpu(resp->roce_vf_max_cq) / num_vfs);
+	cfg_req->roce_max_mrw_per_vf =
+		cpu_to_le32(le32_to_cpu(resp->roce_vf_max_mrw) / num_vfs);
+	cfg_req->roce_max_qp_per_vf =
+		cpu_to_le32(le32_to_cpu(resp->roce_vf_max_qp) / num_vfs);
+	cfg_req->roce_max_srq_per_vf =
+		cpu_to_le32(le32_to_cpu(resp->roce_vf_max_srq) / num_vfs);
+	cfg_req->roce_max_gid_per_vf =
+		cpu_to_le32(le32_to_cpu(resp->roce_vf_max_gid) / num_vfs);
+
+	rc = hwrm_req_send(bp, cfg_req);
+
+err:
+	hwrm_req_drop(bp, req);
+	if (rc)
+		netdev_err(bp->dev, "RoCE sriov configuration failed\n");
+}
+
 /* Only called by PF to reserve resources for VFs, returns actual number of
  * VFs configured, or < 0 on error.
  */
@@ -758,6 +808,9 @@ int bnxt_cfg_hw_sriov(struct bnxt *bp, int *num_vfs, bool reset)
 			    rc);
 		*num_vfs = rc;
 	}
+
+	if (BNXT_RDMA_SRIOV_EN(bp) && BNXT_ROCE_VF_RESC_CAP(bp))
+		bnxt_hwrm_roce_sriov_cfg(bp, *num_vfs);
 
 	return 0;
 }

@@ -6,6 +6,8 @@
 #ifndef _SPL_OS_TYPES_H_
 #define _SPL_OS_TYPES_H_
 
+#include "spl_debug.h"
+
 #include <linux/slab.h>
 #include <linux/kgdb.h>
 #include <linux/kref.h>
@@ -18,7 +20,6 @@
  * general debug capabilities
  *
  */
-#define SPL_BREAK_TO_DEBUGGER() ASSERT(0)
 
 static inline uint64_t spl_div_u64_rem(uint64_t dividend, uint32_t divisor, uint32_t *remainder)
 {

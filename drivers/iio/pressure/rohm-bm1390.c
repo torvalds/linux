@@ -417,9 +417,6 @@ static int __bm1390_fifo_flush(struct iio_dev *idev, unsigned int samples,
 			return ret;
 	}
 
-	if (ret)
-		return ret;
-
 	for (i = 0; i < smp_lvl; i++) {
 		buffer[i].temp = temp;
 		iio_push_to_buffers(idev, &buffer[i]);

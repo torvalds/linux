@@ -11,11 +11,12 @@ use kernel::prelude::*;
 /// drop the vector, and touch it.
 #[no_mangle]
 pub extern "C" fn kasan_test_rust_uaf() -> u8 {
-    let mut v: Vec<u8> = Vec::new();
+    let mut v: KVec<u8> = KVec::new();
     for _ in 0..4096 {
         v.push(0x42, GFP_KERNEL).unwrap();
     }
     let ptr: *mut u8 = addr_of_mut!(v[2048]);
     drop(v);
+    // SAFETY: Incorrect, on purpose.
     unsafe { *ptr }
 }

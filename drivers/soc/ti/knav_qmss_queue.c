@@ -119,11 +119,10 @@ static int knav_queue_setup_irq(struct knav_range_info *range,
 
 	if (range->flags & RANGE_HAS_IRQ) {
 		irq = range->irqs[queue].irq;
-		ret = request_irq(irq, knav_queue_int_handler, 0,
-					inst->irq_name, inst);
+		ret = request_irq(irq, knav_queue_int_handler, IRQF_NO_AUTOEN,
+				  inst->irq_name, inst);
 		if (ret)
 			return ret;
-		disable_irq(irq);
 		if (range->irqs[queue].cpu_mask) {
 			ret = irq_set_affinity_hint(irq, range->irqs[queue].cpu_mask);
 			if (ret) {
@@ -723,7 +722,6 @@ static void kdesc_empty_pool(struct knav_pool *pool)
 		if (!desc) {
 			dev_dbg(pool->kdev->dev,
 				"couldn't unmap desc, continuing\n");
-			continue;
 		}
 	}
 	WARN_ON(i != pool->num_desc);
@@ -1894,7 +1892,7 @@ static void knav_queue_remove(struct platform_device *pdev)
 
 static struct platform_driver keystone_qmss_driver = {
 	.probe		= knav_queue_probe,
-	.remove_new	= knav_queue_remove,
+	.remove		= knav_queue_remove,
 	.driver		= {
 		.name	= "keystone-navigator-qmss",
 		.of_match_table = keystone_qmss_of_match,

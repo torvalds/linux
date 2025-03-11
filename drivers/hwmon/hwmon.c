@@ -1074,7 +1074,7 @@ hwmon_device_register_for_thermal(struct device *dev, const char *name,
 
 	return __hwmon_device_register(dev, name, drvdata, NULL, NULL);
 }
-EXPORT_SYMBOL_NS_GPL(hwmon_device_register_for_thermal, HWMON_THERMAL);
+EXPORT_SYMBOL_NS_GPL(hwmon_device_register_for_thermal, "HWMON_THERMAL");
 
 /**
  * hwmon_device_register - register w/ hwmon

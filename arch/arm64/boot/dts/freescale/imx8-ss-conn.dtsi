@@ -350,7 +350,7 @@ conn_subsys: bus@5b000000 {
 		power-domains = <&pd IMX_SC_R_NAND>;
 	};
 
-	gpmi: nand-controller@5b812000{
+	gpmi: nand-controller@5b812000 {
 		compatible = "fsl,imx8qxp-gpmi-nand";
 		reg = <0x5b812000 0x2000>, <0x5b814000 0x2000>;
 		reg-names = "gpmi-nand", "bch";

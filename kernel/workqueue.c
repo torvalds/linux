@@ -2508,6 +2508,7 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 		return;
 	}
 
+	WARN_ON_ONCE(cpu != WORK_CPU_UNBOUND && !cpu_online(cpu));
 	dwork->wq = wq;
 	dwork->cpu = cpu;
 	timer->expires = jiffies + delay;
@@ -2532,6 +2533,12 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
  * @wq: workqueue to use
  * @dwork: work to queue
  * @delay: number of jiffies to wait before queueing
+ *
+ * We queue the delayed_work to a specific CPU, for non-zero delays the
+ * caller must ensure it is online and can't go away. Callers that fail
+ * to ensure this, may get @dwork->timer queued to an offlined CPU and
+ * this will prevent queueing of @dwork->work unless the offlined CPU
+ * becomes online again.
  *
  * Return: %false if @work was already on a queue, %true otherwise.  If
  * @delay is zero and @dwork is idle, it will be scheduled for immediate
@@ -3680,23 +3687,27 @@ void workqueue_softirq_dead(unsigned int cpu)
  * check_flush_dependency - check for flush dependency sanity
  * @target_wq: workqueue being flushed
  * @target_work: work item being flushed (NULL for workqueue flushes)
+ * @from_cancel: are we called from the work cancel path
  *
  * %current is trying to flush the whole @target_wq or @target_work on it.
- * If @target_wq doesn't have %WQ_MEM_RECLAIM, verify that %current is not
- * reclaiming memory or running on a workqueue which doesn't have
- * %WQ_MEM_RECLAIM as that can break forward-progress guarantee leading to
- * a deadlock.
+ * If this is not the cancel path (which implies work being flushed is either
+ * already running, or will not be at all), check if @target_wq doesn't have
+ * %WQ_MEM_RECLAIM and verify that %current is not reclaiming memory or running
+ * on a workqueue which doesn't have %WQ_MEM_RECLAIM as that can break forward-
+ * progress guarantee leading to a deadlock.
  */
 static void check_flush_dependency(struct workqueue_struct *target_wq,
-				   struct work_struct *target_work)
+				   struct work_struct *target_work,
+				   bool from_cancel)
 {
-	work_func_t target_func = target_work ? target_work->func : NULL;
+	work_func_t target_func;
 	struct worker *worker;
 
-	if (target_wq->flags & WQ_MEM_RECLAIM)
+	if (from_cancel || target_wq->flags & WQ_MEM_RECLAIM)
 		return;
 
 	worker = current_wq_worker();
+	target_func = target_work ? target_work->func : NULL;
 
 	WARN_ONCE(current->flags & PF_MEMALLOC,
 		  "workqueue: PF_MEMALLOC task %d(%s) is flushing !WQ_MEM_RECLAIM %s:%ps",
@@ -3833,16 +3844,28 @@ static bool flush_workqueue_prep_pwqs(struct workqueue_struct *wq,
 {
 	bool wait = false;
 	struct pool_workqueue *pwq;
+	struct worker_pool *current_pool = NULL;
 
 	if (flush_color >= 0) {
 		WARN_ON_ONCE(atomic_read(&wq->nr_pwqs_to_flush));
 		atomic_set(&wq->nr_pwqs_to_flush, 1);
 	}
 
+	/*
+	 * For unbound workqueue, pwqs will map to only a few pools.
+	 * Most of the time, pwqs within the same pool will be linked
+	 * sequentially to wq->pwqs by cpu index. So in the majority
+	 * of pwq iters, the pool is the same, only doing lock/unlock
+	 * if the pool has changed. This can largely reduce expensive
+	 * lock operations.
+	 */
 	for_each_pwq(pwq, wq) {
-		struct worker_pool *pool = pwq->pool;
-
-		raw_spin_lock_irq(&pool->lock);
+		if (current_pool != pwq->pool) {
+			if (likely(current_pool))
+				raw_spin_unlock_irq(&current_pool->lock);
+			current_pool = pwq->pool;
+			raw_spin_lock_irq(&current_pool->lock);
+		}
 
 		if (flush_color >= 0) {
 			WARN_ON_ONCE(pwq->flush_color != -1);
@@ -3859,8 +3882,10 @@ static bool flush_workqueue_prep_pwqs(struct workqueue_struct *wq,
 			pwq->work_color = work_color;
 		}
 
-		raw_spin_unlock_irq(&pool->lock);
 	}
+
+	if (current_pool)
+		raw_spin_unlock_irq(&current_pool->lock);
 
 	if (flush_color >= 0 && atomic_dec_and_test(&wq->nr_pwqs_to_flush))
 		complete(&wq->first_flusher->done);
@@ -3966,7 +3991,7 @@ void __flush_workqueue(struct workqueue_struct *wq)
 		list_add_tail(&this_flusher.list, &wq->flusher_overflow);
 	}
 
-	check_flush_dependency(wq, NULL);
+	check_flush_dependency(wq, NULL, false);
 
 	mutex_unlock(&wq->mutex);
 
@@ -4141,7 +4166,7 @@ static bool start_flush_work(struct work_struct *work, struct wq_barrier *barr,
 	}
 
 	wq = pwq->wq;
-	check_flush_dependency(wq, work);
+	check_flush_dependency(wq, work, from_cancel);
 
 	insert_wq_barrier(pwq, barr, work, worker);
 	raw_spin_unlock_irq(&pool->lock);
@@ -5627,6 +5652,7 @@ static void wq_adjust_max_active(struct workqueue_struct *wq)
 	} while (activated);
 }
 
+__printf(1, 0)
 static struct workqueue_struct *__alloc_workqueue(const char *fmt,
 						  unsigned int flags,
 						  int max_active, va_list args)

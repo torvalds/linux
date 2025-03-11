@@ -200,7 +200,7 @@ static int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
 		dev_err_ratelimited(&i2c_adap->dev,
 				    "maddr:0x%04X size:0x%02X:quirk max_%s_len must be > %d",
 				    eeprom_addr, buf_size,
-				    read ? "read" : "write", EEPROM_OFFSET_SIZE);
+				    str_read_write(read), EEPROM_OFFSET_SIZE);
 		return -EINVAL;
 	}
 

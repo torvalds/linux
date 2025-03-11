@@ -1476,7 +1476,7 @@ static u32 MT2063_CalcLO2Mult(u32 *Div,
 }
 
 /*
- * FindClearTuneFilter() - Calculate the corrrect ClearTune filter to be
+ * FindClearTuneFilter() - Calculate the correct ClearTune filter to be
  *			   used for a given input frequency.
  *
  * @state:	ptr to tuner data structure

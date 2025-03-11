@@ -77,27 +77,22 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 
 	res_acp = acp_res;
 	num_res = ARRAY_SIZE(acp_res);
-
+	chip->acp_rev = pci->revision;
 	switch (pci->revision) {
 	case 0x01:
 		chip->name = "acp_asoc_renoir";
-		chip->acp_rev = ACP3X_DEV;
 		break;
 	case 0x6f:
 		chip->name = "acp_asoc_rembrandt";
-		chip->acp_rev = ACP6X_DEV;
 		break;
 	case 0x63:
 		chip->name = "acp_asoc_acp63";
-		chip->acp_rev = ACP63_DEV;
 		break;
 	case 0x70:
 		chip->name = "acp_asoc_acp70";
-		chip->acp_rev = ACP70_DEV;
 		break;
 	case 0x71:
 		chip->name = "acp_asoc_acp70";
-		chip->acp_rev = ACP71_DEV;
 		break;
 	default:
 		dev_err(dev, "Unsupported device revision:0x%x\n", pci->revision);
@@ -255,5 +250,5 @@ module_pci_driver(snd_amd_acp_pci_driver);
 
 MODULE_DESCRIPTION("AMD ACP common PCI support");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_IMPORT_NS(SND_SOC_ACP_COMMON);
+MODULE_IMPORT_NS("SND_SOC_ACP_COMMON");
 MODULE_ALIAS(DRV_NAME);

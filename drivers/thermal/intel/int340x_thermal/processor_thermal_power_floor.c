@@ -42,7 +42,7 @@ int proc_thermal_read_power_floor_status(struct proc_thermal_device *proc_priv)
 	status = readq(proc_priv->mmio_base + SOC_WT_RES_INT_STATUS_OFFSET);
 	return (status & SOC_POWER_FLOOR_STATUS) >> SOC_POWER_FLOOR_SHIFT;
 }
-EXPORT_SYMBOL_NS_GPL(proc_thermal_read_power_floor_status, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(proc_thermal_read_power_floor_status, "INT340X_THERMAL");
 
 static bool enable_state;
 static DEFINE_MUTEX(pf_lock);
@@ -69,13 +69,13 @@ pf_unlock:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(proc_thermal_power_floor_set_state, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(proc_thermal_power_floor_set_state, "INT340X_THERMAL");
 
 bool proc_thermal_power_floor_get_state(struct proc_thermal_device *proc_priv)
 {
 	return enable_state;
 }
-EXPORT_SYMBOL_NS_GPL(proc_thermal_power_floor_get_state, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(proc_thermal_power_floor_get_state, "INT340X_THERMAL");
 
 /**
  * proc_thermal_check_power_floor_intr() - Check power floor interrupt.
@@ -94,7 +94,7 @@ bool proc_thermal_check_power_floor_intr(struct proc_thermal_device *proc_priv)
 	int_status = readq(proc_priv->mmio_base + SOC_WT_RES_INT_STATUS_OFFSET);
 	return !!(int_status & SOC_POWER_FLOOR_INT_ACTIVE);
 }
-EXPORT_SYMBOL_NS_GPL(proc_thermal_check_power_floor_intr, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(proc_thermal_check_power_floor_intr, "INT340X_THERMAL");
 
 /**
  * proc_thermal_power_floor_intr_callback() - Process power floor notification
@@ -120,8 +120,8 @@ void proc_thermal_power_floor_intr_callback(struct pci_dev *pdev,
 
 	sysfs_notify(&pdev->dev.kobj, "power_limits", "power_floor_status");
 }
-EXPORT_SYMBOL_NS_GPL(proc_thermal_power_floor_intr_callback, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(proc_thermal_power_floor_intr_callback, "INT340X_THERMAL");
 
-MODULE_IMPORT_NS(INT340X_THERMAL);
+MODULE_IMPORT_NS("INT340X_THERMAL");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Processor Thermal power floor notification Interface");

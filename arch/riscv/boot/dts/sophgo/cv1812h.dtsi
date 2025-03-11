@@ -4,7 +4,9 @@
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/pinctrl/pinctrl-cv1812h.h>
 #include "cv18xx.dtsi"
+#include "cv181x.dtsi"
 
 / {
 	compatible = "sophgo,cv1812h";
@@ -12,6 +14,15 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>;
+	};
+
+	soc {
+		pinctrl: pinctrl@3001000 {
+			compatible = "sophgo,cv1812h-pinctrl";
+			reg = <0x03001000 0x1000>,
+			      <0x05027000 0x1000>;
+			reg-names = "sys", "rtc";
+		};
 	};
 };
 

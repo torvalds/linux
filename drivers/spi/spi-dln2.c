@@ -871,7 +871,7 @@ static struct platform_driver spi_dln2_driver = {
 		.pm	= &dln2_spi_pm,
 	},
 	.probe		= dln2_spi_probe,
-	.remove_new	= dln2_spi_remove,
+	.remove		= dln2_spi_remove,
 };
 module_platform_driver(spi_dln2_driver);
 

@@ -286,12 +286,7 @@ static inline void *bvec_virt(struct bio_vec *bvec)
  */
 static inline phys_addr_t bvec_phys(const struct bio_vec *bvec)
 {
-	/*
-	 * Note this open codes page_to_phys because page_to_phys is defined in
-	 * <asm/io.h>, which we don't want to pull in here.  If it ever moves to
-	 * a sensible place we should start using it.
-	 */
-	return PFN_PHYS(page_to_pfn(bvec->bv_page)) + bvec->bv_offset;
+	return page_to_phys(bvec->bv_page) + bvec->bv_offset;
 }
 
 #endif /* __LINUX_BVEC_H */

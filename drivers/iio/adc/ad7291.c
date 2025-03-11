@@ -269,7 +269,7 @@ static int ad7291_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
 				     enum iio_event_direction dir,
-				     int state)
+				     bool state)
 {
 	int ret = 0;
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);

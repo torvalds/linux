@@ -569,7 +569,7 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta)
 	if (!sta->sdata->u.ibss.control_port)
 		sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
 
-	rate_control_rate_init(sta);
+	rate_control_rate_init(&sta->deflink);
 
 	/* If it fails, maybe we raced another insertion? */
 	if (sta_info_insert_rcu(sta))
@@ -1068,11 +1068,12 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 
 		/* Force rx_nss recalculation */
 		sta->sta.deflink.rx_nss = 0;
-		rate_control_rate_init(sta);
+		rate_control_rate_init(&sta->deflink);
 		if (sta->sta.deflink.rx_nss != rx_nss)
 			changed |= IEEE80211_RC_NSS_CHANGED;
 
-		drv_sta_rc_update(local, sdata, &sta->sta, changed);
+		drv_link_sta_rc_update(local, sdata, &sta->sta.deflink,
+				       changed);
 	}
 
 	rcu_read_unlock();

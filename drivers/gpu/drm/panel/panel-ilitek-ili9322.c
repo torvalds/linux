@@ -318,7 +318,7 @@ static int ili9322_regmap_spi_read(void *context, const void *reg,
 	return spi_write_then_read(spi, buf, 1, val, 1);
 }
 
-static struct regmap_bus ili9322_regmap_bus = {
+static const struct regmap_bus ili9322_regmap_bus = {
 	.write = ili9322_regmap_spi_write,
 	.read = ili9322_regmap_spi_read,
 	.reg_format_endian_default = REGMAP_ENDIAN_BIG,

@@ -1550,7 +1550,7 @@ static const struct dev_pm_ops mtk_i2c_pm = {
 
 static struct platform_driver mtk_i2c_driver = {
 	.probe = mtk_i2c_probe,
-	.remove_new = mtk_i2c_remove,
+	.remove = mtk_i2c_remove,
 	.driver = {
 		.name = I2C_DRV_NAME,
 		.pm = pm_sleep_ptr(&mtk_i2c_pm),

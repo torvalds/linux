@@ -101,7 +101,7 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 };
 
 int bch2_dirent_validate(struct bch_fs *c, struct bkey_s_c k,
-			 enum bch_validate_flags flags)
+			 struct bkey_validate_context from)
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	struct qstr d_name = bch2_dirent_get_name(d);
@@ -120,7 +120,7 @@ int bch2_dirent_validate(struct bch_fs *c, struct bkey_s_c k,
 	 * Check new keys don't exceed the max length
 	 * (older keys may be larger.)
 	 */
-	bkey_fsck_err_on((flags & BCH_VALIDATE_commit) && d_name.len > BCH_NAME_MAX,
+	bkey_fsck_err_on((from.flags & BCH_VALIDATE_commit) && d_name.len > BCH_NAME_MAX,
 			 c, dirent_name_too_long,
 			 "dirent name too big (%u > %u)",
 			 d_name.len, BCH_NAME_MAX);
@@ -266,7 +266,7 @@ int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
 	} else {
 		target->subvol	= le32_to_cpu(d.v->d_child_subvol);
 
-		ret = bch2_subvolume_get(trans, target->subvol, true, BTREE_ITER_cached, &s);
+		ret = bch2_subvolume_get(trans, target->subvol, true, &s);
 
 		target->inum	= le64_to_cpu(s.inode);
 	}
@@ -500,7 +500,7 @@ int bch2_empty_dir_snapshot(struct btree_trans *trans, u64 dir, u32 subvol, u32 
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_dirents,
+	for_each_btree_key_max_norestart(trans, iter, BTREE_ID_dirents,
 			   SPOS(dir, 0, snapshot),
 			   POS(dir, U64_MAX), 0, k, ret)
 		if (k.k->type == KEY_TYPE_dirent) {
@@ -549,7 +549,7 @@ int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 	bch2_bkey_buf_init(&sk);
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_dirents,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_dirents,
 				   POS(inum.inum, ctx->pos),
 				   POS(inum.inum, U64_MAX),
 				   inum.subvol, 0, k, ({

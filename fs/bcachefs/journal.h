@@ -285,7 +285,8 @@ static inline void bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq
 		spin_lock(&j->lock);
 		bch2_journal_buf_put_final(j, seq);
 		spin_unlock(&j->lock);
-	}
+	} else if (unlikely(s.cur_entry_offset == JOURNAL_ENTRY_BLOCKED_VAL))
+		wake_up(&j->wait);
 }
 
 /*
@@ -403,7 +404,7 @@ void bch2_journal_flush_async(struct journal *, struct closure *);
 
 int bch2_journal_flush_seq(struct journal *, u64, unsigned);
 int bch2_journal_flush(struct journal *);
-bool bch2_journal_noflush_seq(struct journal *, u64);
+bool bch2_journal_noflush_seq(struct journal *, u64, u64);
 int bch2_journal_meta(struct journal *);
 
 void bch2_journal_halt(struct journal *);
@@ -411,7 +412,7 @@ void bch2_journal_halt(struct journal *);
 static inline int bch2_journal_error(struct journal *j)
 {
 	return j->reservations.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL
-		? -EIO : 0;
+		? -BCH_ERR_journal_shutdown : 0;
 }
 
 struct bch_dev;
@@ -424,7 +425,7 @@ static inline void bch2_journal_set_replay_done(struct journal *j)
 
 void bch2_journal_unblock(struct journal *);
 void bch2_journal_block(struct journal *);
-struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *j, u64 max_seq);
+struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *, u64, bool *);
 
 void __bch2_journal_debug_to_text(struct printbuf *, struct journal *);
 void bch2_journal_debug_to_text(struct printbuf *, struct journal *);

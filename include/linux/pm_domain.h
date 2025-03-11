@@ -30,9 +30,16 @@
  *				supplier and its PM domain when creating the
  *				device-links.
  *
+ * PD_FLAG_REQUIRED_OPP:	Assign required_devs for the required OPPs. The
+ *				index of the required OPP must correspond to the
+ *				index in the array of the pd_names. If pd_names
+ *				isn't specified, the index just follows the
+ *				index for the attached PM domain.
+ *
  */
 #define PD_FLAG_NO_DEV_LINK		BIT(0)
 #define PD_FLAG_DEV_LINK_ON		BIT(1)
+#define PD_FLAG_REQUIRED_OPP		BIT(2)
 
 struct dev_pm_domain_attach_data {
 	const char * const *pd_names;
@@ -43,6 +50,7 @@ struct dev_pm_domain_attach_data {
 struct dev_pm_domain_list {
 	struct device **pd_devs;
 	struct device_link **pd_links;
+	u32 *opp_tokens;
 	u32 num_pds;
 };
 
@@ -250,6 +258,7 @@ struct generic_pm_domain_data {
 	unsigned int performance_state;
 	unsigned int default_pstate;
 	unsigned int rpm_pstate;
+	unsigned int opp_token;
 	bool hw_mode;
 	void *data;
 };

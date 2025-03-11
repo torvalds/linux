@@ -1,0 +1,21 @@
+TODO:
+- checkpatch.pl fixes
+- fix device drivers that are broken ("depends on BROKEN" in Kconfig)
+- tidy-up comments:
+  - there are some "//comments" and "// comments" scattered around
+  - sometimes they are misaligned
+  - sometimes "// comments" are interleaved with "/* comments */"
+  - multiline comments should start with initial almost-blank line:
+    /*
+     * Good
+     * multiline
+     * comment
+     */
+    /* Bad
+     * multiline
+     * comment
+     */
+- resolve XXX notes where possible
+- fix FIXME notes
+- clean-up commented-out code
+- fix typos

@@ -352,7 +352,7 @@ static int riic_init_hw(struct riic_dev *riic)
 		if (brl <= (0x1F + 3))
 			break;
 
-		total_ticks /= 2;
+		total_ticks = DIV_ROUND_UP(total_ticks, 2);
 		rate /= 2;
 	}
 
@@ -632,7 +632,7 @@ static const struct of_device_id riic_i2c_dt_ids[] = {
 
 static struct platform_driver riic_i2c_driver = {
 	.probe		= riic_i2c_probe,
-	.remove_new	= riic_i2c_remove,
+	.remove		= riic_i2c_remove,
 	.driver		= {
 		.name	= "i2c-riic",
 		.of_match_table = riic_i2c_dt_ids,

@@ -7,26 +7,7 @@
  */
 #include "ptrace.h"
 #include "child.h"
-
-#ifndef __NR_pkey_alloc
-#define __NR_pkey_alloc		384
-#endif
-
-#ifndef __NR_pkey_free
-#define __NR_pkey_free		385
-#endif
-
-#ifndef NT_PPC_PKEY
-#define NT_PPC_PKEY		0x110
-#endif
-
-#ifndef PKEY_DISABLE_EXECUTE
-#define PKEY_DISABLE_EXECUTE	0x4
-#endif
-
-#define AMR_BITS_PER_PKEY 2
-#define PKEY_REG_BITS (sizeof(u64) * 8)
-#define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey + 1) * AMR_BITS_PER_PKEY))
+#include "pkeys.h"
 
 static const char user_read[] = "[User Read (Running)]";
 static const char user_write[] = "[User Write (Running)]";
@@ -60,11 +41,6 @@ struct shared_info {
 	unsigned long invalid_iamr;
 	unsigned long invalid_uamor;
 };
-
-static int sys_pkey_alloc(unsigned long flags, unsigned long init_access_rights)
-{
-	return syscall(__NR_pkey_alloc, flags, init_access_rights);
-}
 
 static int child(struct shared_info *info)
 {

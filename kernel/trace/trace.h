@@ -46,6 +46,7 @@ enum trace_type {
 	TRACE_BRANCH,
 	TRACE_GRAPH_RET,
 	TRACE_GRAPH_ENT,
+	TRACE_GRAPH_RETADDR_ENT,
 	TRACE_USER_STACK,
 	TRACE_BLK,
 	TRACE_BPUTS,
@@ -431,6 +432,7 @@ struct trace_array {
 enum {
 	TRACE_ARRAY_FL_GLOBAL	= BIT(0),
 	TRACE_ARRAY_FL_BOOT	= BIT(1),
+	TRACE_ARRAY_FL_MOD_INIT	= BIT(2),
 };
 
 extern struct list_head ftrace_trace_arrays;
@@ -512,6 +514,8 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct trace_branch, TRACE_BRANCH); \
 		IF_ASSIGN(var, ent, struct ftrace_graph_ent_entry,	\
 			  TRACE_GRAPH_ENT);		\
+		IF_ASSIGN(var, ent, struct fgraph_retaddr_ent_entry,\
+			  TRACE_GRAPH_RETADDR_ENT);		\
 		IF_ASSIGN(var, ent, struct ftrace_graph_ret_entry,	\
 			  TRACE_GRAPH_RET);		\
 		IF_ASSIGN(var, ent, struct func_repeats_entry,		\
@@ -664,9 +668,8 @@ void trace_buffer_unlock_commit_nostack(struct trace_buffer *buffer,
 
 bool trace_is_tracepoint_string(const char *str);
 const char *trace_event_format(struct trace_iterator *iter, const char *fmt);
-void trace_check_vprintf(struct trace_iterator *iter, const char *fmt,
-			 va_list ap) __printf(2, 0);
 char *trace_iter_expand_format(struct trace_iterator *iter);
+bool ignore_event(struct trace_iterator *iter);
 
 int trace_empty(struct trace_iterator *iter);
 
@@ -691,8 +694,10 @@ void trace_latency_header(struct seq_file *m);
 void trace_default_header(struct seq_file *m);
 void print_trace_header(struct seq_file *m, struct trace_iterator *iter);
 
-void trace_graph_return(struct ftrace_graph_ret *trace, struct fgraph_ops *gops);
-int trace_graph_entry(struct ftrace_graph_ent *trace, struct fgraph_ops *gops);
+void trace_graph_return(struct ftrace_graph_ret *trace, struct fgraph_ops *gops,
+			struct ftrace_regs *fregs);
+int trace_graph_entry(struct ftrace_graph_ent *trace, struct fgraph_ops *gops,
+		      struct ftrace_regs *fregs);
 
 void tracing_start_cmdline_record(void);
 void tracing_stop_cmdline_record(void);
@@ -714,8 +719,6 @@ extern unsigned long nsecs_to_usecs(unsigned long nsecs);
 extern unsigned long tracing_thresh;
 
 /* PID filtering */
-
-extern int pid_max;
 
 bool trace_find_filtered_pid(struct trace_pid_list *filtered_pids,
 			     pid_t search_pid);
@@ -772,6 +775,8 @@ extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
 extern unsigned long ftrace_update_tot_cnt;
 extern unsigned long ftrace_number_of_pages;
 extern unsigned long ftrace_number_of_groups;
+extern u64 ftrace_update_time;
+extern u64 ftrace_total_mod_time;
 void ftrace_init_trace_array(struct trace_array *tr);
 #else
 static inline void ftrace_init_trace_array(struct trace_array *tr) { }
@@ -879,6 +884,7 @@ static __always_inline bool ftrace_hash_empty(struct ftrace_hash *hash)
 #define TRACE_GRAPH_GRAPH_TIME          0x400
 #define TRACE_GRAPH_PRINT_RETVAL        0x800
 #define TRACE_GRAPH_PRINT_RETVAL_HEX    0x1000
+#define TRACE_GRAPH_PRINT_RETADDR       0x2000
 #define TRACE_GRAPH_PRINT_FILL_SHIFT	28
 #define TRACE_GRAPH_PRINT_FILL_MASK	(0x3 << TRACE_GRAPH_PRINT_FILL_SHIFT)
 
@@ -900,6 +906,10 @@ extern void graph_trace_close(struct trace_iterator *iter);
 extern int __trace_graph_entry(struct trace_array *tr,
 			       struct ftrace_graph_ent *trace,
 			       unsigned int trace_ctx);
+extern int __trace_graph_retaddr_entry(struct trace_array *tr,
+				struct ftrace_graph_ent *trace,
+				unsigned int trace_ctx,
+				unsigned long retaddr);
 extern void __trace_graph_return(struct trace_array *tr,
 				 struct ftrace_graph_ret *trace,
 				 unsigned int trace_ctx);
@@ -1048,6 +1058,7 @@ static inline void ftrace_graph_addr_finish(struct fgraph_ops *gops, struct ftra
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 extern unsigned int fgraph_max_depth;
+extern bool fgraph_sleep_time;
 
 static inline bool
 ftrace_graph_ignore_func(struct fgraph_ops *gops, struct ftrace_graph_ent *trace)
@@ -1104,6 +1115,7 @@ void ftrace_destroy_function_files(struct trace_array *tr);
 int ftrace_allocate_ftrace_ops(struct trace_array *tr);
 void ftrace_free_ftrace_ops(struct trace_array *tr);
 void ftrace_init_global_array_ops(struct trace_array *tr);
+struct trace_array *trace_get_global_array(void);
 void ftrace_init_array_ops(struct trace_array *tr, ftrace_func_t func);
 void ftrace_reset_array_ops(struct trace_array *tr);
 void ftrace_init_tracefs(struct trace_array *tr, struct dentry *d_tracer);
@@ -1402,7 +1414,8 @@ struct ftrace_event_field {
 	int			filter_type;
 	int			offset;
 	int			size;
-	int			is_signed;
+	unsigned int		is_signed:1;
+	unsigned int		needs_test:1;
 	int			len;
 };
 
@@ -1428,10 +1441,6 @@ struct trace_subsystem_dir {
 	int				ref_count;
 	int				nr_events;
 };
-
-extern int call_filter_check_discard(struct trace_event_call *call, void *rec,
-				     struct trace_buffer *buffer,
-				     struct ring_buffer_event *event);
 
 void trace_buffer_unlock_commit_regs(struct trace_array *tr,
 				     struct trace_buffer *buffer,
@@ -2175,5 +2184,12 @@ static inline int rv_init_interface(void)
 	return 0;
 }
 #endif
+
+/*
+ * This is used only to distinguish
+ * function address from trampoline code.
+ * So this value has no meaning.
+ */
+#define FTRACE_TRAMPOLINE_MARKER  ((unsigned long) INT_MAX)
 
 #endif /* _LINUX_KERNEL_TRACE_H */

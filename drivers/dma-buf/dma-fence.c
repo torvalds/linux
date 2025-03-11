@@ -309,8 +309,8 @@ bool dma_fence_begin_signalling(void)
 	if (in_atomic())
 		return true;
 
-	/* ... and non-recursive readlock */
-	lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _RET_IP_);
+	/* ... and non-recursive successful read_trylock */
+	lock_acquire(&dma_fence_lockdep_map, 0, 1, 1, 1, NULL, _RET_IP_);
 
 	return false;
 }
@@ -341,7 +341,7 @@ void __dma_fence_might_wait(void)
 	lock_map_acquire(&dma_fence_lockdep_map);
 	lock_map_release(&dma_fence_lockdep_map);
 	if (tmp)
-		lock_acquire(&dma_fence_lockdep_map, 0, 0, 1, 1, NULL, _THIS_IP_);
+		lock_acquire(&dma_fence_lockdep_map, 0, 1, 1, 1, NULL, _THIS_IP_);
 }
 #endif
 
@@ -412,7 +412,7 @@ int dma_fence_signal_timestamp(struct dma_fence *fence, ktime_t timestamp)
 	unsigned long flags;
 	int ret;
 
-	if (!fence)
+	if (WARN_ON(!fence))
 		return -EINVAL;
 
 	spin_lock_irqsave(fence->lock, flags);
@@ -464,7 +464,7 @@ int dma_fence_signal(struct dma_fence *fence)
 	int ret;
 	bool tmp;
 
-	if (!fence)
+	if (WARN_ON(!fence))
 		return -EINVAL;
 
 	tmp = dma_fence_begin_signalling();

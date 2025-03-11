@@ -1296,7 +1296,7 @@ MODULE_DEVICE_TABLE(of, ethoc_match);
 
 static struct platform_driver ethoc_driver = {
 	.probe   = ethoc_probe,
-	.remove_new = ethoc_remove,
+	.remove = ethoc_remove,
 	.suspend = ethoc_suspend,
 	.resume  = ethoc_resume,
 	.driver  = {

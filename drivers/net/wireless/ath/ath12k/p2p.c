@@ -69,20 +69,20 @@ static size_t ath12k_p2p_noa_ie_len_compute(const struct ath12k_wmi_p2p_noa_info
 	return len;
 }
 
-static void ath12k_p2p_noa_ie_assign(struct ath12k_vif *arvif, void *ie,
+static void ath12k_p2p_noa_ie_assign(struct ath12k_link_vif *arvif, void *ie,
 				     size_t len)
 {
 	struct ath12k *ar = arvif->ar;
 
 	lockdep_assert_held(&ar->data_lock);
 
-	kfree(arvif->u.ap.noa_data);
+	kfree(arvif->ahvif->u.ap.noa_data);
 
-	arvif->u.ap.noa_data = ie;
-	arvif->u.ap.noa_len = len;
+	arvif->ahvif->u.ap.noa_data = ie;
+	arvif->ahvif->u.ap.noa_len = len;
 }
 
-static void __ath12k_p2p_noa_update(struct ath12k_vif *arvif,
+static void __ath12k_p2p_noa_update(struct ath12k_link_vif *arvif,
 				    const struct ath12k_wmi_p2p_noa_info *noa)
 {
 	struct ath12k *ar = arvif->ar;
@@ -105,7 +105,7 @@ static void __ath12k_p2p_noa_update(struct ath12k_vif *arvif,
 	ath12k_p2p_noa_ie_assign(arvif, ie, len);
 }
 
-void ath12k_p2p_noa_update(struct ath12k_vif *arvif,
+void ath12k_p2p_noa_update(struct ath12k_link_vif *arvif,
 			   const struct ath12k_wmi_p2p_noa_info *noa)
 {
 	struct ath12k *ar = arvif->ar;
@@ -118,9 +118,12 @@ void ath12k_p2p_noa_update(struct ath12k_vif *arvif,
 static void ath12k_p2p_noa_update_vdev_iter(void *data, u8 *mac,
 					    struct ieee80211_vif *vif)
 {
-	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+	struct ath12k_vif *ahvif = ath12k_vif_to_ahvif(vif);
 	struct ath12k_p2p_noa_arg *arg = data;
+	struct ath12k_link_vif *arvif;
 
+	WARN_ON(!rcu_read_lock_any_held());
+	arvif = &ahvif->deflink;
 	if (arvif->ar != arg->ar || arvif->vdev_id != arg->vdev_id)
 		return;
 

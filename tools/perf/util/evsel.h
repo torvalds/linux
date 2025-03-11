@@ -11,6 +11,7 @@
 #include <perf/evsel.h>
 #include "symbol_conf.h"
 #include "pmus.h"
+#include "pmu.h"
 
 struct bpf_object;
 struct cgroup;
@@ -22,24 +23,8 @@ struct target;
 struct hashmap;
 struct bperf_leader_bpf;
 struct bperf_follower_bpf;
-struct perf_pmu;
 
 typedef int (evsel__sb_cb_t)(union perf_event *event, void *data);
-
-enum perf_tool_event {
-	PERF_TOOL_NONE		= 0,
-	PERF_TOOL_DURATION_TIME = 1,
-	PERF_TOOL_USER_TIME = 2,
-	PERF_TOOL_SYSTEM_TIME = 3,
-
-	PERF_TOOL_MAX,
-};
-
-const char *perf_tool_event__to_str(enum perf_tool_event ev);
-enum perf_tool_event perf_tool_event__from_str(const char *str);
-
-#define perf_tool_event__for_each_event(ev)		\
-	for ((ev) = PERF_TOOL_DURATION_TIME; (ev) < PERF_TOOL_MAX; ev++)
 
 /** struct evsel - event selector
  *
@@ -72,7 +57,6 @@ struct evsel {
 	struct {
 		char			*name;
 		char			*group_name;
-		const char		*pmu_name;
 		const char		*group_pmu_name;
 #ifdef HAVE_LIBTRACEEVENT
 		struct tep_event	*tp_format;
@@ -83,7 +67,6 @@ struct evsel {
 		const char		*unit;
 		struct cgroup		*cgrp;
 		const char		*metric_id;
-		enum perf_tool_event	tool_event;
 		/* parse modifier helper */
 		int			exclude_GH;
 		int			sample_read;
@@ -102,6 +85,7 @@ struct evsel {
 		int			bpf_fd;
 		struct bpf_object	*bpf_obj;
 		struct list_head	config_terms;
+		u64			alternate_hw_config;
 	};
 
 	/*
@@ -183,7 +167,7 @@ struct evsel {
 	unsigned long		open_flags;
 	int			precise_ip_original;
 
-	/* for missing_features */
+	/* The PMU the event is from. Used for missing_features, PMU name, etc. */
 	struct perf_pmu		*pmu;
 
 	/* For tool events */
@@ -221,6 +205,7 @@ struct perf_missing_features {
 	bool weight_struct;
 	bool read_lost;
 	bool branch_counters;
+	bool inherit_sample_read;
 };
 
 extern struct perf_missing_features perf_missing_features;
@@ -320,19 +305,9 @@ const char *evsel__name(struct evsel *evsel);
 bool evsel__name_is(struct evsel *evsel, const char *name);
 const char *evsel__metric_id(const struct evsel *evsel);
 
-static inline bool evsel__is_tool(const struct evsel *evsel)
-{
-	return evsel->tool_event != PERF_TOOL_NONE;
-}
-
 static inline bool evsel__is_retire_lat(const struct evsel *evsel)
 {
 	return evsel->retire_lat;
-}
-
-static inline enum perf_tool_event evsel__tool_event(const struct evsel *evsel)
-{
-	return evsel->tool_event;
 }
 
 const char *evsel__group_name(struct evsel *evsel);
@@ -368,7 +343,6 @@ int evsel__open(struct evsel *evsel, struct perf_cpu_map *cpus,
 void evsel__close(struct evsel *evsel);
 int evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 		struct perf_thread_map *threads);
-bool evsel__detect_missing_features(struct evsel *evsel);
 
 bool evsel__precise_ip_fallback(struct evsel *evsel);
 
@@ -393,25 +367,9 @@ u64 format_field__intval(struct tep_format_field *field, struct perf_sample *sam
 struct tep_format_field *evsel__field(struct evsel *evsel, const char *name);
 struct tep_format_field *evsel__common_field(struct evsel *evsel, const char *name);
 
-static inline bool __evsel__match(const struct evsel *evsel, u32 type, u64 config)
-{
-	if (evsel->core.attr.type != type)
-		return false;
-
-	if ((type == PERF_TYPE_HARDWARE || type == PERF_TYPE_HW_CACHE)  &&
-	    perf_pmus__supports_extended_type())
-		return (evsel->core.attr.config & PERF_HW_EVENT_MASK) == config;
-
-	return evsel->core.attr.config == config;
-}
+bool __evsel__match(const struct evsel *evsel, u32 type, u64 config);
 
 #define evsel__match(evsel, t, c) __evsel__match(evsel, PERF_TYPE_##t, PERF_COUNT_##c)
-
-static inline bool evsel__match2(struct evsel *e1, struct evsel *e2)
-{
-	return (e1->core.attr.type == e2->core.attr.type) &&
-	       (e1->core.attr.config == e2->core.attr.config);
-}
 
 int evsel__read_counter(struct evsel *evsel, int cpu_map_idx, int thread);
 

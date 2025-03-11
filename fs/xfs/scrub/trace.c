@@ -20,6 +20,7 @@
 #include "xfs_dir2.h"
 #include "xfs_rmap.h"
 #include "xfs_parent.h"
+#include "xfs_metafile.h"
 #include "scrub/scrub.h"
 #include "scrub/xfile.h"
 #include "scrub/xfarray.h"

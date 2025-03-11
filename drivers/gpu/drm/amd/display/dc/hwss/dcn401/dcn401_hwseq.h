@@ -55,12 +55,14 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 		bool lut_bank_a);
 void dcn401_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable);
 
+void dcn401_disable_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal);
+
 void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx);
 
 bool dcn401_apply_idle_power_optimizations(struct dc *dc, bool enable);
 
-struct ips_ono_region_state dcn401_read_ono_state(struct dc *dc,
-						  uint8_t region);
 void dcn401_wait_for_dcc_meta_propagation(const struct dc *dc,
 		const struct pipe_ctx *top_pipe_to_program);
 
@@ -81,7 +83,23 @@ void dcn401_hardware_release(struct dc *dc);
 void dcn401_update_odm(struct dc *dc, struct dc_state *context,
 		struct pipe_ctx *otg_master);
 void adjust_hotspot_between_slices_for_2x_magnify(uint32_t cursor_width, struct dc_cursor_position *pos_cpy);
-void dcn401_wait_for_det_buffer_update(struct dc *dc, struct dc_state *context, struct pipe_ctx *otg_master);
+void dcn401_wait_for_det_buffer_update_under_otg_master(struct dc *dc, struct dc_state *context, struct pipe_ctx *otg_master);
 void dcn401_interdependent_update_lock(struct dc *dc, struct dc_state *context, bool lock);
 void dcn401_program_outstanding_updates(struct dc *dc, struct dc_state *context);
+void dcn401_reset_back_end_for_pipe(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		struct dc_state *context);
+void dcn401_reset_hw_ctx_wrap(
+		struct dc *dc,
+		struct dc_state *context);
+void dcn401_perform_3dlut_wa_unlock(struct pipe_ctx *pipe_ctx);
+void dcn401_program_front_end_for_ctx(struct dc *dc, struct dc_state *context);
+void dcn401_post_unlock_program_front_end(struct dc *dc, struct dc_state *context);
+bool dcn401_update_bandwidth(struct dc *dc, struct dc_state *context);
+void dcn401_detect_pipe_changes(
+	struct dc_state *old_state,
+	struct dc_state *new_state,
+	struct pipe_ctx *old_pipe,
+	struct pipe_ctx *new_pipe);
 #endif /* __DC_HWSS_DCN401_H__ */

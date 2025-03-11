@@ -286,6 +286,18 @@ handle_line() {
 		last=$(( $last - 1 ))
 	fi
 
+	# Extract info after the symbol if present. E.g.:
+	# func_name+0x54/0x80 (P)
+	#                     ^^^
+	# The regex assumes only uppercase letters will be used. To be
+	# extended if needed.
+	local info_str=""
+	if [[ ${words[$last]} =~ \([A-Z]*\) ]]; then
+		info_str=${words[$last]}
+		unset words[$last]
+		last=$(( $last - 1 ))
+	fi
+
 	if [[ ${words[$last]} =~ \[([^]]+)\] ]]; then
 		module=${words[$last]}
 		# some traces format is "(%pS)", which like "(foo+0x0/0x1 [bar])"
@@ -311,7 +323,12 @@ handle_line() {
 	parse_symbol # modifies $symbol
 
 	# Add up the line number to the symbol
-	echo "${words[@]}" "$symbol $module"
+	if [[ -z ${module} ]]
+	then
+		echo "${words[@]}" "$symbol ${info_str}"
+	else
+		echo "${words[@]}" "$symbol $module ${info_str}"
+	fi
 }
 
 while read line; do

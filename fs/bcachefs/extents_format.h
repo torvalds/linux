@@ -201,19 +201,8 @@ struct bch_extent_stripe_ptr {
 #endif
 };
 
-struct bch_extent_rebalance {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-	__u64			type:6,
-				unused:34,
-				compression:8, /* enum bch_compression_opt */
-				target:16;
-#elif defined (__BIG_ENDIAN_BITFIELD)
-	__u64			target:16,
-				compression:8,
-				unused:34,
-				type:6;
-#endif
-};
+/* bch_extent_rebalance: */
+#include "rebalance_format.h"
 
 union bch_extent_entry {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__ ||  __BITS_PER_LONG == 64

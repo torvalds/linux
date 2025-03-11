@@ -28,6 +28,7 @@
 #include "link_encoder.h"
 #include "dcn31/dcn31_dio_link_encoder.h"
 #include "dcn35_dio_link_encoder.h"
+#include "dc_dmub_srv.h"
 #define CTX \
 	enc10->base.ctx
 #define DC_LOGGER \
@@ -159,6 +160,8 @@ static const struct link_encoder_funcs dcn35_link_enc_funcs = {
 	.is_in_alt_mode = dcn31_link_encoder_is_in_alt_mode,
 	.get_max_link_cap = dcn31_link_encoder_get_max_link_cap,
 	.set_dio_phy_mux = dcn31_link_encoder_set_dio_phy_mux,
+	.enable_dpia_output = dcn35_link_encoder_enable_dpia_output,
+	.disable_dpia_output = dcn35_link_encoder_disable_dpia_output,
 };
 
 void dcn35_link_encoder_construct(
@@ -264,4 +267,81 @@ void dcn35_link_encoder_construct(
 	if (enc10->base.ctx->dc->debug.hdmi20_disable)
 		enc10->base.features.flags.bits.HDMI_6GB_EN = 0;
 
+}
+
+/* DPIA equivalent of link_transmitter_control. */
+static bool link_dpia_control(struct dc_context *dc_ctx,
+	struct dmub_cmd_dig_dpia_control_data *dpia_control)
+{
+	union dmub_rb_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.dig1_dpia_control.header.type = DMUB_CMD__DPIA;
+	cmd.dig1_dpia_control.header.sub_type =
+			DMUB_CMD__DPIA_DIG1_DPIA_CONTROL;
+	cmd.dig1_dpia_control.header.payload_bytes =
+		sizeof(cmd.dig1_dpia_control) -
+		sizeof(cmd.dig1_dpia_control.header);
+
+	cmd.dig1_dpia_control.dpia_control = *dpia_control;
+
+	dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+
+	return true;
+}
+
+static void link_encoder_disable(struct dcn10_link_encoder *enc10)
+{
+	/* reset training complete */
+	REG_UPDATE(DP_LINK_CNTL, DP_LINK_TRAINING_COMPLETE, 0);
+}
+
+void dcn35_link_encoder_enable_dpia_output(
+	struct link_encoder *enc,
+	const struct dc_link_settings *link_settings,
+	uint8_t dpia_id,
+	uint8_t digmode,
+	uint8_t fec_rdy)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	struct dmub_cmd_dig_dpia_control_data dpia_control = { 0 };
+
+	enc1_configure_encoder(enc10, link_settings);
+
+	dpia_control.action = (uint8_t)TRANSMITTER_CONTROL_ENABLE;
+	dpia_control.enc_id = enc->preferred_engine;
+	dpia_control.mode_laneset.digmode = digmode;
+	dpia_control.lanenum = (uint8_t)link_settings->lane_count;
+	dpia_control.symclk_10khz = link_settings->link_rate *
+			LINK_RATE_REF_FREQ_IN_KHZ / 10;
+	/* DIG_BE_CNTL.DIG_HPD_SELECT set to 5 (hpdsel - 1) to indicate HPD pin unused by DPIA. */
+	dpia_control.hpdsel = 6;
+	dpia_control.dpia_id = dpia_id;
+	dpia_control.fec_rdy = fec_rdy;
+
+	DC_LOG_DEBUG("%s: DPIA(%d) - enc_id(%d)\n", __func__, dpia_control.dpia_id, dpia_control.enc_id);
+	link_dpia_control(enc->ctx, &dpia_control);
+}
+
+void dcn35_link_encoder_disable_dpia_output(
+	struct link_encoder *enc,
+	uint8_t dpia_id,
+	uint8_t digmode)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	struct dmub_cmd_dig_dpia_control_data dpia_control = { 0 };
+
+	if (enc->funcs->is_dig_enabled && !enc->funcs->is_dig_enabled(enc))
+		return;
+
+	dpia_control.action = (uint8_t)TRANSMITTER_CONTROL_DISABLE;
+	dpia_control.enc_id = enc->preferred_engine;
+	dpia_control.mode_laneset.digmode = digmode;
+	dpia_control.dpia_id = dpia_id;
+
+	DC_LOG_DEBUG("%s: DPIA(%d) - enc_id(%d)\n", __func__, dpia_control.dpia_id, dpia_control.enc_id);
+	link_dpia_control(enc->ctx, &dpia_control);
+
+	link_encoder_disable(enc10);
 }

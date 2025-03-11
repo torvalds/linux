@@ -649,3 +649,8 @@ void ath12k_mhi_resume(struct ath12k_pci *ab_pci)
 {
 	ath12k_mhi_set_state(ab_pci, ATH12K_MHI_RESUME);
 }
+
+void ath12k_mhi_coredump(struct mhi_controller *mhi_ctrl, bool in_panic)
+{
+	mhi_download_rddm_image(mhi_ctrl, in_panic);
+}

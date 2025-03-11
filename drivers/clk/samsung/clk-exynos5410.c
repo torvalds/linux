@@ -4,7 +4,7 @@
  * Author: Tarek Dakhran <t.dakhran@samsung.com>
  *
  * Common Clock Framework support for Exynos5410 SoC.
-*/
+ */
 
 #include <dt-bindings/clock/exynos5410.h>
 

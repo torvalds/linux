@@ -863,7 +863,7 @@ static void ipc_tx_send(void *prm)
 			/* Send ipc fragment */
 			ishtp_hdr.length = dev->mtu;
 			ishtp_hdr.msg_complete = 0;
-			/* All fregments submitted to IPC queue with no callback */
+			/* All fragments submitted to IPC queue with no callback */
 			ishtp_write_message(dev, &ishtp_hdr, pmsg);
 			cl->tx_offs += dev->mtu;
 			rem = cl_msg->send_buf.size - cl->tx_offs;

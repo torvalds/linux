@@ -1996,7 +1996,7 @@ static struct platform_driver advk_pcie_driver = {
 		.of_match_table = advk_pcie_of_match_table,
 	},
 	.probe = advk_pcie_probe,
-	.remove_new = advk_pcie_remove,
+	.remove = advk_pcie_remove,
 };
 module_platform_driver(advk_pcie_driver);
 

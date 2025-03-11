@@ -5,6 +5,7 @@ menu "UML-specific options"
 config UML
 	bool
 	default y
+	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_HAS_CPU_FINALIZE_INIT
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
@@ -32,6 +33,8 @@ config UML
 	select HAVE_ARCH_VMAP_STACK
 	select HAVE_RUST
 	select ARCH_HAS_UBSAN
+	select HAVE_ARCH_TRACEHOOK
+	select THREAD_INFO_IN_TASK
 
 config MMU
 	bool
@@ -94,7 +97,7 @@ config MAY_HAVE_RUNTIME_DEPS
 
 config STATIC_LINK
 	bool "Force a static link"
-	depends on CC_CAN_LINK_STATIC_NO_RUNTIME_DEPS || !MAY_HAVE_RUNTIME_DEPS
+	depends on !MAY_HAVE_RUNTIME_DEPS
 	help
 	  This option gives you the ability to force a static link of UML.
 	  Normally, UML is linked as a shared binary.  This is inconvenient for
@@ -209,8 +212,8 @@ config MMAPPER
 
 config PGTABLE_LEVELS
 	int
-	default 3 if 3_LEVEL_PGTABLES
-	default 2
+	default 4 if 64BIT
+	default 2 if !64BIT
 
 config UML_TIME_TRAVEL_SUPPORT
 	bool
@@ -226,6 +229,21 @@ config UML_TIME_TRAVEL_SUPPORT
 	  line help for more details.
 
 	  It is safe to say Y, but you probably don't need this.
+
+config UML_MAX_USERSPACE_ITERATIONS
+	int
+	prompt "Maximum number of unscheduled userspace iterations"
+	default 10000
+	depends on UML_TIME_TRAVEL_SUPPORT
+	help
+	  In UML inf-cpu and ext time-travel mode userspace can run without being
+	  interrupted. This will eventually overwhelm the kernel and create OOM
+	  situations (mainly RCU not running). This setting specifies the number
+	  of kernel/userspace switches (minor/major page fault, signal or syscall)
+	  for the same userspace thread before the sched_clock is advanced by a
+	  jiffie to trigger scheduling.
+
+	  Setting it to zero disables the feature.
 
 config KASAN_SHADOW_OFFSET
 	hex

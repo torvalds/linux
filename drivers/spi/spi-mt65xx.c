@@ -1432,7 +1432,7 @@ static struct platform_driver mtk_spi_driver = {
 		.of_match_table = mtk_spi_of_match,
 	},
 	.probe = mtk_spi_probe,
-	.remove_new = mtk_spi_remove,
+	.remove = mtk_spi_remove,
 };
 
 module_platform_driver(mtk_spi_driver);

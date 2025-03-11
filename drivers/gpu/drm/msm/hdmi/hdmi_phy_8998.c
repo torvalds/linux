@@ -137,7 +137,7 @@ static inline u32 pll_get_integloop_gain(u64 frac_start, u64 bclk, u32 ref_clk,
 
 	base <<= (digclk_divsel == 2 ? 1 : 0);
 
-	return (base <= 2046 ? base : 2046);
+	return base;
 }
 
 static inline u32 pll_get_pll_cmp(u64 fdata, unsigned long ref_clk)
@@ -157,9 +157,8 @@ static inline u32 pll_get_pll_cmp(u64 fdata, unsigned long ref_clk)
 #define HDMI_MHZ_TO_HZ ((u64)1000000)
 static int pll_get_post_div(struct hdmi_8998_post_divider *pd, u64 bclk)
 {
-	u32 const ratio_list[] = {1, 2, 3, 4, 5, 6,
-				     9, 10, 12, 15, 25};
-	u32 const band_list[] = {0, 1, 2, 3};
+	static const u32 ratio_list[] = {1, 2, 3, 4, 5, 6, 9, 10, 12, 15, 25};
+	static const u32 band_list[] = {0, 1, 2, 3};
 	u32 const sz_ratio = ARRAY_SIZE(ratio_list);
 	u32 const sz_band = ARRAY_SIZE(band_list);
 	u32 const cmp_cnt = 1024;
@@ -270,7 +269,7 @@ find_optimal_index:
 	case 25:
 		found_hsclk_divsel = 14;
 		break;
-	};
+	}
 
 	pd->vco_freq = found_vco_freq;
 	pd->tx_band_sel = found_tx_band_sel;

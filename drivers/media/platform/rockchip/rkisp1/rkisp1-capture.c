@@ -1203,8 +1203,6 @@ static const struct vb2_ops rkisp1_vb2_ops = {
 	.buf_init = rkisp1_vb2_buf_init,
 	.buf_queue = rkisp1_vb2_buf_queue,
 	.buf_prepare = rkisp1_vb2_buf_prepare,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.stop_streaming = rkisp1_vb2_stop_streaming,
 	.start_streaming = rkisp1_vb2_start_streaming,
 };

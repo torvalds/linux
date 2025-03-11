@@ -442,7 +442,7 @@ void hns_dsaf_update_stats(struct dsaf_device *dsaf_dev, u32 inode_num);
 
 int hns_dsaf_get_sset_count(struct dsaf_device *dsaf_dev, int stringset);
 void hns_dsaf_get_stats(struct dsaf_device *ddev, u64 *data, int port);
-void hns_dsaf_get_strings(int stringset, u8 *data, int port,
+void hns_dsaf_get_strings(int stringset, u8 **data, int port,
 			  struct dsaf_device *dsaf_dev);
 
 void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data);

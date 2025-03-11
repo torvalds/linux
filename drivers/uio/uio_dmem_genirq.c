@@ -210,8 +210,6 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 	}
 
 	if (uioinfo->irq) {
-		struct irq_data *irq_data = irq_get_irq_data(uioinfo->irq);
-
 		/*
 		 * If a level interrupt, dont do lazy disable. Otherwise the
 		 * irq will fire again since clearing of the actual cause, on
@@ -219,8 +217,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 		 * irqd_is_level_type() isn't used since isn't valid until
 		 * irq is configured.
 		 */
-		if (irq_data &&
-		    irqd_get_trigger_type(irq_data) & IRQ_TYPE_LEVEL_MASK) {
+		if (irq_get_trigger_type(uioinfo->irq) & IRQ_TYPE_LEVEL_MASK) {
 			dev_dbg(&pdev->dev, "disable lazy unmask\n");
 			irq_set_status_flags(uioinfo->irq, IRQ_DISABLE_UNLAZY);
 		}

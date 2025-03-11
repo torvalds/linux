@@ -104,7 +104,7 @@ void dp_set_hw_lane_settings(
 	// Don't return here if using FIXED_VS link HWSS and encoding is 128b/132b
 	if ((link_settings->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT) &&
 			!is_immediate_downstream(link, offset) &&
-			(!(link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) ||
+			(!((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) ||
 			link_dp_get_encoding_format(&link_settings->link_settings) == DP_8b_10b_ENCODING))
 		return;
 

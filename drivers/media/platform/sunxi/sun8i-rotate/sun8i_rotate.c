@@ -522,8 +522,6 @@ static const struct vb2_ops rotate_qops = {
 	.buf_queue		= rotate_buf_queue,
 	.start_streaming	= rotate_start_streaming,
 	.stop_streaming		= rotate_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int rotate_queue_init(void *priv, struct vb2_queue *src_vq,
@@ -905,7 +903,7 @@ static const struct dev_pm_ops rotate_pm_ops = {
 
 static struct platform_driver rotate_driver = {
 	.probe		= rotate_probe,
-	.remove_new	= rotate_remove,
+	.remove		= rotate_remove,
 	.driver		= {
 		.name		= ROTATE_NAME,
 		.of_match_table	= rotate_dt_match,

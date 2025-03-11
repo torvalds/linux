@@ -27,7 +27,7 @@
 			enable-method = "qcom,kpss-acc-v1";
 			device_type = "cpu";
 			reg = <0>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
 		};
@@ -37,12 +37,12 @@
 			enable-method = "qcom,kpss-acc-v1";
 			device_type = "cpu";
 			reg = <1>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
 		};
 
-		L2: l2-cache {
+		l2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			cache-unified;
@@ -383,7 +383,7 @@
 			tsens_calib: calib@400 {
 				reg = <0x400 0xb>;
 			};
-			tsens_calib_backup: calib_backup@410 {
+			tsens_calib_backup: calib-backup@410 {
 				reg = <0x410 0xb>;
 			};
 		};

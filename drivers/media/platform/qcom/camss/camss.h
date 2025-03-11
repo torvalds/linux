@@ -66,6 +66,10 @@ struct resources_icc {
 	struct icc_bw_tbl icc_bw_tbl;
 };
 
+struct resources_wrapper {
+	char *reg;
+};
+
 enum pm_domain {
 	PM_DOMAIN_VFE0 = 0,
 	PM_DOMAIN_VFE1 = 1,
@@ -74,6 +78,7 @@ enum pm_domain {
 
 enum camss_version {
 	CAMSS_8x16,
+	CAMSS_8x53,
 	CAMSS_8x96,
 	CAMSS_660,
 	CAMSS_845,
@@ -93,6 +98,7 @@ struct camss_resources {
 	const struct camss_subdev_resources *csid_res;
 	const struct camss_subdev_resources *ispif_res;
 	const struct camss_subdev_resources *vfe_res;
+	const struct resources_wrapper *csid_wrapper_res;
 	const struct resources_icc *icc_res;
 	const unsigned int icc_path_num;
 	const unsigned int csiphy_num;
@@ -110,6 +116,7 @@ struct camss {
 	struct csid_device *csid;
 	struct ispif_device *ispif;
 	struct vfe_device *vfe;
+	void __iomem *csid_wrapper_base;
 	atomic_t ref_count;
 	int genpd_num;
 	struct device *genpd;

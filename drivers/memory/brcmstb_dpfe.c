@@ -934,7 +934,7 @@ static struct platform_driver brcmstb_dpfe_driver = {
 		.of_match_table = brcmstb_dpfe_of_match,
 	},
 	.probe = brcmstb_dpfe_probe,
-	.remove_new = brcmstb_dpfe_remove,
+	.remove = brcmstb_dpfe_remove,
 	.resume = brcmstb_dpfe_resume,
 };
 

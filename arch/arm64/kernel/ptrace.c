@@ -720,6 +720,8 @@ static int fpmr_set(struct task_struct *target, const struct user_regset *regset
 	if (!system_supports_fpmr())
 		return -EINVAL;
 
+	fpmr = target->thread.uw.fpmr;
+
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &fpmr, 0, count);
 	if (ret)
 		return ret;
@@ -1427,7 +1429,7 @@ static int tagged_addr_ctrl_get(struct task_struct *target,
 {
 	long ctrl = get_tagged_addr_ctrl(target);
 
-	if (IS_ERR_VALUE(ctrl))
+	if (WARN_ON_ONCE(IS_ERR_VALUE(ctrl)))
 		return ctrl;
 
 	return membuf_write(&to, &ctrl, sizeof(ctrl));
@@ -1440,6 +1442,10 @@ static int tagged_addr_ctrl_set(struct task_struct *target, const struct
 {
 	int ret;
 	long ctrl;
+
+	ctrl = get_tagged_addr_ctrl(target);
+	if (WARN_ON_ONCE(IS_ERR_VALUE(ctrl)))
+		return ctrl;
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl, 0, -1);
 	if (ret)
@@ -1472,6 +1478,8 @@ static int poe_set(struct task_struct *target, const struct
 	if (!system_supports_poe())
 		return -EINVAL;
 
+	ctrl = target->thread.por_el0;
+
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ctrl, 0, -1);
 	if (ret)
 		return ret;
@@ -1483,6 +1491,22 @@ static int poe_set(struct task_struct *target, const struct
 #endif
 
 #ifdef CONFIG_ARM64_GCS
+static void task_gcs_to_user(struct user_gcs *user_gcs,
+			     const struct task_struct *target)
+{
+	user_gcs->features_enabled = target->thread.gcs_el0_mode;
+	user_gcs->features_locked = target->thread.gcs_el0_locked;
+	user_gcs->gcspr_el0 = target->thread.gcspr_el0;
+}
+
+static void task_gcs_from_user(struct task_struct *target,
+			       const struct user_gcs *user_gcs)
+{
+	target->thread.gcs_el0_mode = user_gcs->features_enabled;
+	target->thread.gcs_el0_locked = user_gcs->features_locked;
+	target->thread.gcspr_el0 = user_gcs->gcspr_el0;
+}
+
 static int gcs_get(struct task_struct *target,
 		   const struct user_regset *regset,
 		   struct membuf to)
@@ -1495,9 +1519,7 @@ static int gcs_get(struct task_struct *target,
 	if (target == current)
 		gcs_preserve_current_state();
 
-	user_gcs.features_enabled = target->thread.gcs_el0_mode;
-	user_gcs.features_locked = target->thread.gcs_el0_locked;
-	user_gcs.gcspr_el0 = target->thread.gcspr_el0;
+	task_gcs_to_user(&user_gcs, target);
 
 	return membuf_write(&to, &user_gcs, sizeof(user_gcs));
 }
@@ -1513,6 +1535,8 @@ static int gcs_set(struct task_struct *target, const struct
 	if (!system_supports_gcs())
 		return -EINVAL;
 
+	task_gcs_to_user(&user_gcs, target);
+
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &user_gcs, 0, -1);
 	if (ret)
 		return ret;
@@ -1520,9 +1544,7 @@ static int gcs_set(struct task_struct *target, const struct
 	if (user_gcs.features_enabled & ~PR_SHADOW_STACK_SUPPORTED_STATUS_MASK)
 		return -EINVAL;
 
-	target->thread.gcs_el0_mode = user_gcs.features_enabled;
-	target->thread.gcs_el0_locked = user_gcs.features_locked;
-	target->thread.gcspr_el0 = user_gcs.gcspr_el0;
+	task_gcs_from_user(target, &user_gcs);
 
 	return 0;
 }

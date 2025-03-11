@@ -773,7 +773,7 @@ static int dmac_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 		return ret;
 	}
 
-	ret = rtw89_mac_preload_init(rtwdev, RTW89_MAC_0, rtwdev->mac.qta_mode);
+	ret = rtw89_mac_preload_init(rtwdev, mac_idx, rtwdev->mac.qta_mode);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]preload init %d\n", ret);
 		return ret;
@@ -2091,13 +2091,13 @@ static int rtw89_mac_init_bfee_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 }
 
 static int rtw89_mac_set_csi_para_reg_be(struct rtw89_dev *rtwdev,
-					 struct ieee80211_vif *vif,
-					 struct ieee80211_sta *sta)
+					 struct rtw89_vif_link *rtwvif_link,
+					 struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	u8 nc = 1, nr = 3, ng = 0, cb = 1, cs = 1, ldpc_en = 1, stbc_en = 1;
-	u8 mac_idx = rtwvif->mac_idx;
-	u8 port_sel = rtwvif->port;
+	struct ieee80211_link_sta *link_sta;
+	u8 mac_idx = rtwvif_link->mac_idx;
+	u8 port_sel = rtwvif_link->port;
 	u8 sound_dim = 3, t;
 	u8 *phy_cap;
 	u32 reg;
@@ -2108,7 +2108,10 @@ static int rtw89_mac_set_csi_para_reg_be(struct rtw89_dev *rtwdev,
 	if (ret)
 		return ret;
 
-	phy_cap = sta->deflink.he_cap.he_cap_elem.phy_cap_info;
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+	phy_cap = link_sta->he_cap.he_cap_elem.phy_cap_info;
 
 	if ((phy_cap[3] & IEEE80211_HE_PHY_CAP3_SU_BEAMFORMER) ||
 	    (phy_cap[4] & IEEE80211_HE_PHY_CAP4_MU_BEAMFORMER)) {
@@ -2119,17 +2122,19 @@ static int rtw89_mac_set_csi_para_reg_be(struct rtw89_dev *rtwdev,
 		sound_dim = min(sound_dim, t);
 	}
 
-	if ((sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE) ||
-	    (sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE)) {
-		ldpc_en &= !!(sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC);
-		stbc_en &= !!(sta->deflink.vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK);
-		t = u32_get_bits(sta->deflink.vht_cap.cap,
+	if ((link_sta->vht_cap.cap & IEEE80211_VHT_CAP_MU_BEAMFORMER_CAPABLE) ||
+	    (link_sta->vht_cap.cap & IEEE80211_VHT_CAP_SU_BEAMFORMER_CAPABLE)) {
+		ldpc_en &= !!(link_sta->vht_cap.cap & IEEE80211_VHT_CAP_RXLDPC);
+		stbc_en &= !!(link_sta->vht_cap.cap & IEEE80211_VHT_CAP_RXSTBC_MASK);
+		t = u32_get_bits(link_sta->vht_cap.cap,
 				 IEEE80211_VHT_CAP_SOUNDING_DIMENSIONS_MASK);
 		sound_dim = min(sound_dim, t);
 	}
 
 	nc = min(nc, sound_dim);
 	nr = min(nr, sound_dim);
+
+	rcu_read_unlock();
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_CTRL_0, mac_idx);
 	rtw89_write32_set(rtwdev, reg, B_BE_BFMEE_BFPARAM_SEL);
@@ -2155,12 +2160,12 @@ static int rtw89_mac_set_csi_para_reg_be(struct rtw89_dev *rtwdev,
 }
 
 static int rtw89_mac_csi_rrsc_be(struct rtw89_dev *rtwdev,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_sta *sta)
+				 struct rtw89_vif_link *rtwvif_link,
+				 struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	u32 rrsc = BIT(RTW89_MAC_BF_RRSC_6M) | BIT(RTW89_MAC_BF_RRSC_24M);
-	u8 mac_idx = rtwvif->mac_idx;
+	struct ieee80211_link_sta *link_sta;
+	u8 mac_idx = rtwvif_link->mac_idx;
 	int ret;
 	u32 reg;
 
@@ -2168,21 +2173,27 @@ static int rtw89_mac_csi_rrsc_be(struct rtw89_dev *rtwdev,
 	if (ret)
 		return ret;
 
-	if (sta->deflink.he_cap.has_he) {
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+
+	if (link_sta->he_cap.has_he) {
 		rrsc |= (BIT(RTW89_MAC_BF_RRSC_HE_MSC0) |
 			 BIT(RTW89_MAC_BF_RRSC_HE_MSC3) |
 			 BIT(RTW89_MAC_BF_RRSC_HE_MSC5));
 	}
-	if (sta->deflink.vht_cap.vht_supported) {
+	if (link_sta->vht_cap.vht_supported) {
 		rrsc |= (BIT(RTW89_MAC_BF_RRSC_VHT_MSC0) |
 			 BIT(RTW89_MAC_BF_RRSC_VHT_MSC3) |
 			 BIT(RTW89_MAC_BF_RRSC_VHT_MSC5));
 	}
-	if (sta->deflink.ht_cap.ht_supported) {
+	if (link_sta->ht_cap.ht_supported) {
 		rrsc |= (BIT(RTW89_MAC_BF_RRSC_HT_MSC0) |
 			 BIT(RTW89_MAC_BF_RRSC_HT_MSC3) |
 			 BIT(RTW89_MAC_BF_RRSC_HT_MSC5));
 	}
+
+	rcu_read_unlock();
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TRXPTCL_RESP_CSI_CTRL_0, mac_idx);
 	rtw89_write32_set(rtwdev, reg, B_BE_BFMEE_BFPARAM_SEL);
@@ -2195,17 +2206,25 @@ static int rtw89_mac_csi_rrsc_be(struct rtw89_dev *rtwdev,
 }
 
 static void rtw89_mac_bf_assoc_be(struct rtw89_dev *rtwdev,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_sta *sta)
+				  struct rtw89_vif_link *rtwvif_link,
+				  struct rtw89_sta_link *rtwsta_link)
 {
-	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct ieee80211_link_sta *link_sta;
+	bool has_beamformer_cap;
 
-	if (rtw89_sta_has_beamformer_cap(sta)) {
+	rcu_read_lock();
+
+	link_sta = rtw89_sta_rcu_dereference_link(rtwsta_link, true);
+	has_beamformer_cap = rtw89_sta_has_beamformer_cap(link_sta);
+
+	rcu_read_unlock();
+
+	if (has_beamformer_cap) {
 		rtw89_debug(rtwdev, RTW89_DBG_BF,
 			    "initialize bfee for new association\n");
-		rtw89_mac_init_bfee_be(rtwdev, rtwvif->mac_idx);
-		rtw89_mac_set_csi_para_reg_be(rtwdev, vif, sta);
-		rtw89_mac_csi_rrsc_be(rtwdev, vif, sta);
+		rtw89_mac_init_bfee_be(rtwdev, rtwvif_link->mac_idx);
+		rtw89_mac_set_csi_para_reg_be(rtwdev, rtwvif_link, rtwsta_link);
+		rtw89_mac_csi_rrsc_be(rtwdev, rtwvif_link, rtwsta_link);
 	}
 }
 
@@ -2581,9 +2600,11 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.fwdl_enable_wcpu = rtw89_mac_fwdl_enable_wcpu_be,
 	.fwdl_get_status = fwdl_get_status_be,
 	.fwdl_check_path_ready = rtw89_fwdl_check_path_ready_be,
+	.fwdl_secure_idmem_share_mode = NULL,
 	.parse_efuse_map = rtw89_parse_efuse_map_be,
 	.parse_phycap_map = rtw89_parse_phycap_map_be,
 	.cnv_efuse_state = rtw89_cnv_efuse_state_be,
+	.efuse_read_fw_secure = rtw89_efuse_read_fw_secure_be,
 
 	.cfg_plt = rtw89_mac_cfg_plt_be,
 	.get_plt_cnt = rtw89_mac_get_plt_cnt_be,

@@ -915,20 +915,15 @@ static int macb_mii_probe(struct net_device *dev)
 	return 0;
 }
 
-static int macb_mdiobus_register(struct macb *bp)
+static int macb_mdiobus_register(struct macb *bp, struct device_node *mdio_np)
 {
 	struct device_node *child, *np = bp->pdev->dev.of_node;
 
 	/* If we have a child named mdio, probe it instead of looking for PHYs
 	 * directly under the MAC node
 	 */
-	child = of_get_child_by_name(np, "mdio");
-	if (child) {
-		int ret = of_mdiobus_register(bp->mii_bus, child);
-
-		of_node_put(child);
-		return ret;
-	}
+	if (mdio_np)
+		return of_mdiobus_register(bp->mii_bus, mdio_np);
 
 	/* Only create the PHY from the device tree if at least one PHY is
 	 * described. Otherwise scan the entire MDIO bus. We do this to support
@@ -950,17 +945,15 @@ static int macb_mdiobus_register(struct macb *bp)
 
 static int macb_mii_init(struct macb *bp)
 {
-	struct device_node *child, *np = bp->pdev->dev.of_node;
+	struct device_node *mdio_np, *np = bp->pdev->dev.of_node;
 	int err = -ENXIO;
 
 	/* With fixed-link, we don't need to register the MDIO bus,
 	 * except if we have a child named "mdio" in the device tree.
 	 * In that case, some devices may be attached to the MACB's MDIO bus.
 	 */
-	child = of_get_child_by_name(np, "mdio");
-	if (child)
-		of_node_put(child);
-	else if (of_phy_is_fixed_link(np))
+	mdio_np = of_get_child_by_name(np, "mdio");
+	if (!mdio_np && of_phy_is_fixed_link(np))
 		return macb_mii_probe(bp->dev);
 
 	/* Enable management port */
@@ -984,7 +977,7 @@ static int macb_mii_init(struct macb *bp)
 
 	dev_set_drvdata(&bp->dev->dev, bp->mii_bus);
 
-	err = macb_mdiobus_register(bp);
+	err = macb_mdiobus_register(bp, mdio_np);
 	if (err)
 		goto err_out_free_mdiobus;
 
@@ -999,6 +992,8 @@ err_out_unregister_bus:
 err_out_free_mdiobus:
 	mdiobus_free(bp->mii_bus);
 err_out:
+	of_node_put(mdio_np);
+
 	return err;
 }
 
@@ -4849,10 +4844,11 @@ static const struct macb_config pc302gem_config = {
 };
 
 static const struct macb_config sama5d2_config = {
-	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII,
+	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII | MACB_CAPS_JUMBO,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
+	.jumbo_max_len = 10240,
 	.usrio = &macb_default_usrio,
 };
 
@@ -5490,7 +5486,7 @@ static const struct dev_pm_ops macb_pm_ops = {
 
 static struct platform_driver macb_driver = {
 	.probe		= macb_probe,
-	.remove_new	= macb_remove,
+	.remove		= macb_remove,
 	.driver		= {
 		.name		= "macb",
 		.of_match_table	= of_match_ptr(macb_dt_ids),

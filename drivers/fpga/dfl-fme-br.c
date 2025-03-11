@@ -92,11 +92,11 @@ static void fme_br_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver fme_br_driver = {
-	.driver	= {
-		.name    = DFL_FPGA_FME_BRIDGE,
+	.driver = {
+		.name = DFL_FPGA_FME_BRIDGE,
 	},
-	.probe   = fme_br_probe,
-	.remove_new = fme_br_remove,
+	.probe = fme_br_probe,
+	.remove = fme_br_remove,
 };
 
 module_platform_driver(fme_br_driver);

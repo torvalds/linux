@@ -32,7 +32,7 @@ static int gx_card_i2s_be_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct meson_card *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct gx_dai_link_i2s_data *be =
-		(struct gx_dai_link_i2s_data *)priv->link_data[rtd->num];
+		(struct gx_dai_link_i2s_data *)priv->link_data[rtd->id];
 
 	return meson_card_i2s_set_sysclk(substream, params, be->mclk_fs);
 }

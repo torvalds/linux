@@ -928,8 +928,10 @@ static int rtw_ops_set_sar_specs(struct ieee80211_hw *hw,
 
 static void rtw_ops_sta_rc_update(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
-				  struct ieee80211_sta *sta, u32 changed)
+				  struct ieee80211_link_sta *link_sta,
+				  u32 changed)
 {
+	struct ieee80211_sta *sta = link_sta->sta;
 	struct rtw_dev *rtwdev = hw->priv;
 	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
 
@@ -973,7 +975,7 @@ const struct ieee80211_ops rtw_ops = {
 	.reconfig_complete	= rtw_reconfig_complete,
 	.hw_scan		= rtw_ops_hw_scan,
 	.cancel_hw_scan		= rtw_ops_cancel_hw_scan,
-	.sta_rc_update		= rtw_ops_sta_rc_update,
+	.link_sta_rc_update	= rtw_ops_sta_rc_update,
 	.set_sar_specs          = rtw_ops_set_sar_specs,
 #ifdef CONFIG_PM
 	.suspend		= rtw_ops_suspend,

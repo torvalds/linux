@@ -94,6 +94,11 @@ struct bpf_testmod_ops2 {
 	int (*test_1)(void);
 };
 
+struct bpf_testmod_ops3 {
+	int (*test_1)(void);
+	int (*test_2)(void);
+};
+
 struct st_ops_args {
 	u64 a;
 };

@@ -345,7 +345,7 @@ MODULE_DEVICE_TABLE(of, nop_xceiv_dt_ids);
 
 static struct platform_driver usb_phy_generic_driver = {
 	.probe		= usb_phy_generic_probe,
-	.remove_new	= usb_phy_generic_remove,
+	.remove		= usb_phy_generic_remove,
 	.driver		= {
 		.name	= "usb_phy_generic",
 		.of_match_table = nop_xceiv_dt_ids,

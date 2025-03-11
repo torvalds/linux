@@ -810,6 +810,12 @@ Here is the list of current tracers that may be configured.
 	to draw a graph of function calls similar to C code
 	source.
 
+	Note that the function graph calculates the timings of when the
+	function starts and returns internally and for each instance. If
+	there are two instances that run function graph tracer and traces
+	the same functions, the length of the timings may be slightly off as
+	each read the timestamp separately and not at the same time.
+
   "blk"
 
 	The block tracer. The tracer used by the blktrace user
@@ -1031,14 +1037,15 @@ explains which is which.
   CPU#: The CPU which the process was running on.
 
   irqs-off: 'd' interrupts are disabled. '.' otherwise.
-	.. caution:: If the architecture does not support a way to
-		read the irq flags variable, an 'X' will always
-		be printed here.
 
   need-resched:
+	- 'B' all, TIF_NEED_RESCHED, PREEMPT_NEED_RESCHED and TIF_RESCHED_LAZY is set,
 	- 'N' both TIF_NEED_RESCHED and PREEMPT_NEED_RESCHED is set,
 	- 'n' only TIF_NEED_RESCHED is set,
 	- 'p' only PREEMPT_NEED_RESCHED is set,
+	- 'L' both PREEMPT_NEED_RESCHED and TIF_RESCHED_LAZY is set,
+	- 'b' both TIF_NEED_RESCHED and TIF_RESCHED_LAZY is set,
+	- 'l' only TIF_RESCHED_LAZY is set
 	- '.' otherwise.
 
   hardirq/softirq:

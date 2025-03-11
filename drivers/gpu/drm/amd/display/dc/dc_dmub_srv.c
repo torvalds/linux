@@ -519,7 +519,8 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
 	union dmub_rb_cmd cmd = { 0 };
 	unsigned int panel_inst = 0;
 
-	if (!dc_get_edp_link_panel_inst(dc, pipe_ctx->stream->link, &panel_inst))
+	if (!dc_get_edp_link_panel_inst(dc, pipe_ctx->stream->link, &panel_inst) &&
+			dc->debug.visual_confirm == VISUAL_CONFIRM_DISABLE)
 		return;
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -1012,7 +1013,6 @@ static bool dc_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
 		r2 = test_pipe->plane_res.scl_data.recout;
 		r2_r = r2.x + r2.width;
 		r2_b = r2.y + r2.height;
-		split_pipe = test_pipe;
 
 		/**
 		 * There is another half plane on same layer because of
@@ -1245,7 +1245,7 @@ static int count_active_streams(const struct dc *dc)
 	for (i = 0; i < dc->current_state->stream_count; ++i) {
 		struct dc_stream_state *stream = dc->current_state->streams[i];
 
-		if (stream && !stream->dpms_off)
+		if (stream && (!stream->dpms_off || dc->config.disable_ips_in_dpms_off))
 			count += 1;
 	}
 
@@ -1293,6 +1293,8 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 		dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 
 		memset(&new_signals, 0, sizeof(new_signals));
+
+		new_signals.bits.allow_idle = 1; /* always set */
 
 		if (dc->config.disable_ips == DMUB_IPS_ENABLE ||
 		    dc->config.disable_ips == DMUB_IPS_DISABLE_DYNAMIC) {
@@ -1389,7 +1391,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		 */
 		dc_dmub_srv->needs_idle_wake = false;
 
-		if (prev_driver_signals.bits.allow_ips2 &&
+		if ((prev_driver_signals.bits.allow_ips2 || prev_driver_signals.all == 0) &&
 		    (!dc->debug.optimize_ips_handshake ||
 		     ips_fw->signals.bits.ips2_commit || !ips_fw->signals.bits.in_idle)) {
 			DC_LOG_IPS(
@@ -1450,7 +1452,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		}
 
 		dc_dmub_srv_notify_idle(dc, false);
-		if (prev_driver_signals.bits.allow_ips1) {
+		if (prev_driver_signals.bits.allow_ips1 || prev_driver_signals.all == 0) {
 			DC_LOG_IPS(
 				"wait for IPS1 commit clear (ips1_commit=%u ips2_commit=%u)",
 				ips_fw->signals.bits.ips1_commit,
@@ -1692,10 +1694,10 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 {
 	uint8_t num_cmds = 1;
 	uint32_t i;
-	union dmub_rb_cmd cmd[MAX_STREAMS + 1];
+	union dmub_rb_cmd cmd[2 * MAX_STREAMS + 1];
 	struct dmub_rb_cmd_fams2 *global_cmd = &cmd[0].fams2_config;
 
-	memset(cmd, 0, sizeof(union dmub_rb_cmd) * (MAX_STREAMS + 1));
+	memset(cmd, 0, sizeof(union dmub_rb_cmd) * (2 * MAX_STREAMS + 1));
 	/* fill in generic command header */
 	global_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
 	global_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
@@ -1712,17 +1714,26 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 
 		/* construct per-stream configs */
 		for (i = 0; i < context->bw_ctx.bw.dcn.fams2_global_config.num_streams; i++) {
-			struct dmub_rb_cmd_fams2 *stream_cmd = &cmd[i+1].fams2_config;
+			struct dmub_rb_cmd_fams2 *stream_base_cmd = &cmd[i+1].fams2_config;
+			struct dmub_rb_cmd_fams2 *stream_sub_state_cmd = &cmd[i+1+context->bw_ctx.bw.dcn.fams2_global_config.num_streams].fams2_config;
 
 			/* configure command header */
-			stream_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
-			stream_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
-			stream_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
-			stream_cmd->header.multi_cmd_pending = 1;
-			/* copy stream static state */
-			memcpy(&stream_cmd->config.stream,
-					&context->bw_ctx.bw.dcn.fams2_stream_params[i],
-					sizeof(struct dmub_fams2_stream_static_state));
+			stream_base_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+			stream_base_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
+			stream_base_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
+			stream_base_cmd->header.multi_cmd_pending = 1;
+			stream_sub_state_cmd->header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+			stream_sub_state_cmd->header.sub_type = DMUB_CMD__FAMS2_CONFIG;
+			stream_sub_state_cmd->header.payload_bytes = sizeof(struct dmub_rb_cmd_fams2) - sizeof(struct dmub_cmd_header);
+			stream_sub_state_cmd->header.multi_cmd_pending = 1;
+			/* copy stream static base state */
+			memcpy(&stream_base_cmd->config,
+					&context->bw_ctx.bw.dcn.fams2_stream_base_params[i],
+					sizeof(union dmub_cmd_fams2_config));
+			/* copy stream static sub state */
+			memcpy(&stream_sub_state_cmd->config,
+					&context->bw_ctx.bw.dcn.fams2_stream_sub_params[i],
+					sizeof(union dmub_cmd_fams2_config));
 		}
 	}
 
@@ -1733,8 +1744,8 @@ void dc_dmub_srv_fams2_update_config(struct dc *dc,
 	if (enable && context->bw_ctx.bw.dcn.fams2_global_config.features.bits.enable) {
 		/* set multi pending for global, and unset for last stream cmd */
 		global_cmd->header.multi_cmd_pending = 1;
-		cmd[context->bw_ctx.bw.dcn.fams2_global_config.num_streams].fams2_config.header.multi_cmd_pending = 0;
-		num_cmds += context->bw_ctx.bw.dcn.fams2_global_config.num_streams;
+		cmd[2 * context->bw_ctx.bw.dcn.fams2_global_config.num_streams].fams2_config.header.multi_cmd_pending = 0;
+		num_cmds += 2 * context->bw_ctx.bw.dcn.fams2_global_config.num_streams;
 	}
 
 	dm_execute_dmub_cmd_list(dc->ctx, num_cmds, cmd, DM_DMUB_WAIT_TYPE_WAIT);
@@ -1861,4 +1872,82 @@ void dc_dmub_srv_fams2_passthrough_flip(
 		cmds[num_cmds - 1].fams2_flip.header.multi_cmd_pending = 0;
 		dm_execute_dmub_cmd_list(dc->ctx, num_cmds, cmds, DM_DMUB_WAIT_TYPE_WAIT);
 	}
+}
+
+bool dc_dmub_srv_ips_residency_cntl(struct dc_dmub_srv *dc_dmub_srv, bool start_measurement)
+{
+	bool result;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	result = dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__IPS_RESIDENCY,
+					   start_measurement, NULL, DM_DMUB_WAIT_TYPE_WAIT);
+
+	return result;
+}
+
+void dc_dmub_srv_ips_query_residency_info(struct dc_dmub_srv *dc_dmub_srv, struct ips_residency_info *output)
+{
+	uint32_t i;
+	enum dmub_gpint_command command_code;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return;
+
+	switch (output->ips_mode) {
+	case DMUB_IPS_MODE_IPS1_MAX:
+		command_code = DMUB_GPINT__GET_IPS1_HISTOGRAM_COUNTER;
+		break;
+	case DMUB_IPS_MODE_IPS2:
+		command_code = DMUB_GPINT__GET_IPS2_HISTOGRAM_COUNTER;
+		break;
+	case DMUB_IPS_MODE_IPS1_RCG:
+		command_code = DMUB_GPINT__GET_IPS1_RCG_HISTOGRAM_COUNTER;
+		break;
+	case DMUB_IPS_MODE_IPS1_ONO2_ON:
+		command_code = DMUB_GPINT__GET_IPS1_ONO2_ON_HISTOGRAM_COUNTER;
+		break;
+	default:
+		command_code = DMUB_GPINT__INVALID_COMMAND;
+		break;
+	}
+
+	if (command_code == DMUB_GPINT__INVALID_COMMAND)
+		return;
+
+	// send gpint commands and wait for ack
+	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_PERCENT,
+				      (uint16_t)(output->ips_mode),
+				       &output->residency_percent, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+		output->residency_percent = 0;
+
+	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_ENTRY_COUNTER,
+				      (uint16_t)(output->ips_mode),
+				       &output->entry_counter, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+		output->entry_counter = 0;
+
+	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_LO,
+				      (uint16_t)(output->ips_mode),
+				       &output->total_active_time_us[0], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+		output->total_active_time_us[0] = 0;
+	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_RESIDENCY_DURATION_US_HI,
+				      (uint16_t)(output->ips_mode),
+				       &output->total_active_time_us[1], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+		output->total_active_time_us[1] = 0;
+
+	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_LO,
+				      (uint16_t)(output->ips_mode),
+				       &output->total_inactive_time_us[0], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+		output->total_inactive_time_us[0] = 0;
+	if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__GET_IPS_INACTIVE_RESIDENCY_DURATION_US_HI,
+				      (uint16_t)(output->ips_mode),
+				       &output->total_inactive_time_us[1], DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+		output->total_inactive_time_us[1] = 0;
+
+	// NUM_IPS_HISTOGRAM_BUCKETS = 16
+	for (i = 0; i < 16; i++)
+		if (!dc_wake_and_execute_gpint(dc_dmub_srv->ctx, command_code, i, &output->histogram[i],
+					       DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+			output->histogram[i] = 0;
 }

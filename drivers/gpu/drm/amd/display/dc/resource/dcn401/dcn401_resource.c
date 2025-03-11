@@ -685,7 +685,6 @@ static const struct dc_plane_cap plane_cap = {
 static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dmcu = true,
 	.force_abm_enable = false,
-	.timing_trace = false,
 	.clock_trace = true,
 	.disable_pplib_clock_request = false,
 	.pipe_split_policy = MPC_SPLIT_AVOID,
@@ -727,6 +726,10 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_unbounded_requesting = false,
 	.enable_legacy_fast_update = false,
 	.dcc_meta_propagation_delay_us = 10,
+	.fams_version = {
+		.minor = 1,
+		.major = 2,
+	}, //v2.1
 	.fams2_config = {
 		.bits = {
 			.enable = true,
@@ -734,7 +737,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.enable_stall_recovery = true,
 		}
 	},
-	.force_cositing = CHROMA_COSITING_TOPLEFT + 1,
+	.force_cositing = CHROMA_COSITING_NONE + 1,
 };
 
 static struct dce_aux *dcn401_aux_engine_create(
@@ -1032,7 +1035,7 @@ static struct link_encoder *dcn401_link_encoder_create(
 	struct dcn20_link_encoder *enc20 =
 		kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 
-	if (!enc20)
+	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 #undef REG_STRUCT
@@ -1292,6 +1295,29 @@ static struct hpo_dp_link_encoder *dcn401_hpo_dp_link_encoder_create(
 					&hpo_dp_le_shift, &hpo_dp_le_mask);
 
 	return &hpo_dp_enc31->base;
+}
+
+static unsigned int dcn401_calc_num_avail_chans_for_mall(struct dc *dc, unsigned int num_chans)
+{
+	unsigned int num_available_chans = 1;
+
+	/* channels for MALL must be a power of 2 */
+	while (num_chans > 1) {
+		num_available_chans = (num_available_chans << 1);
+		num_chans = (num_chans >> 1);
+	}
+
+	/* cannot be odd */
+	num_available_chans &= ~1;
+
+	/* clamp to max available channels for MALL per ASIC */
+	if (ASICREV_IS_GC_12_0_0_A0(dc->ctx->asic_id.hw_internal_rev)) {
+		num_available_chans = num_available_chans > 16 ? 16 : num_available_chans;
+	} else if (ASICREV_IS_GC_12_0_1_A0(dc->ctx->asic_id.hw_internal_rev)) {
+		num_available_chans = num_available_chans > 8 ? 8 : num_available_chans;
+	}
+
+	return num_available_chans;
 }
 
 static struct dce_hwseq *dcn401_hwseq_create(
@@ -1579,7 +1605,8 @@ static void dcn401_destroy_resource_pool(struct resource_pool **pool)
 }
 
 static struct dc_cap_funcs cap_funcs = {
-	.get_dcc_compression_cap = dcn20_get_dcc_compression_cap
+	.get_dcc_compression_cap = dcn20_get_dcc_compression_cap,
+	.get_subvp_en = dcn32_subvp_in_use,
 };
 
 static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
@@ -1587,6 +1614,14 @@ static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 	struct dml2_configuration_options *dml2_opt = &dc->dml2_tmp;
 
 	memcpy(dml2_opt, &dc->dml2_options, sizeof(dc->dml2_options));
+
+	/* re-calculate the available MALL size if required */
+	if (bw_params->num_channels > 0) {
+		dc->caps.max_cab_allocation_bytes = dcn401_calc_num_avail_chans_for_mall(
+			dc, bw_params->num_channels) *
+			dc->caps.mall_size_per_mem_channel * 1024 * 1024;
+		dc->caps.mall_size_total = dc->caps.max_cab_allocation_bytes;
+	}
 
 	DC_FP_START();
 
@@ -1605,6 +1640,7 @@ static void dcn401_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 
 enum dc_status dcn401_patch_unknown_plane_state(struct dc_plane_state *plane_state)
 {
+	plane_state->tiling_info.gfxversion = DcGfxAddr3;
 	plane_state->tiling_info.gfx_addr3.swizzle = DC_ADDR3_SW_64KB_2D;
 	return DC_OK;
 }
@@ -1688,6 +1724,27 @@ static void dcn401_build_pipe_pix_clk_params(struct pipe_ctx *pipe_ctx)
 	}
 }
 
+static int dcn401_get_power_profile(const struct dc_state *context)
+{
+	int uclk_mhz = context->bw_ctx.bw.dcn.clk.dramclk_khz / 1000;
+	int dpm_level = 0;
+
+	for (int i = 0; i < context->clk_mgr->bw_params->clk_table.num_entries_per_clk.num_memclk_levels; i++) {
+		if (context->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz == 0 ||
+			uclk_mhz < context->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz)
+			break;
+		if (uclk_mhz > context->clk_mgr->bw_params->clk_table.entries[i].memclk_mhz)
+			dpm_level++;
+	}
+
+	return dpm_level;
+}
+
+static unsigned int dcn401_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx)
+{
+	return pipe_ctx->global_sync.dcn4x.vstartup_lines;
+}
+
 static struct resource_funcs dcn401_res_pool_funcs = {
 	.destroy = dcn401_destroy_resource_pool,
 	.link_enc_create = dcn401_link_encoder_create,
@@ -1714,6 +1771,8 @@ static struct resource_funcs dcn401_res_pool_funcs = {
 	.prepare_mcache_programming = dcn401_prepare_mcache_programming,
 	.build_pipe_pix_clk_params = dcn401_build_pipe_pix_clk_params,
 	.calculate_mall_ways_from_bytes = dcn32_calculate_mall_ways_from_bytes,
+	.get_power_profile = dcn401_get_power_profile,
+	.get_vstartup_for_pipe = dcn401_get_vstartup_for_pipe
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)
@@ -1795,14 +1854,12 @@ static bool dcn401_resource_construct(
 	dc->caps.min_horizontal_blanking_period = 80;
 	dc->caps.dmdata_alloc_size = 2048;
 	dc->caps.mall_size_per_mem_channel = 4;
-	/* total size = mall per channel * num channels * 1024 * 1024 */
-	dc->caps.mall_size_total = dc->caps.mall_size_per_mem_channel * dc->ctx->dc_bios->vram_info.num_chans * 1048576;
 	dc->caps.cursor_cache_size = dc->caps.max_cursor_size * dc->caps.max_cursor_size * 8;
 	dc->caps.cache_line_size = 64;
 	dc->caps.cache_num_ways = 16;
 
 	/* Calculate the available MALL space */
-	dc->caps.max_cab_allocation_bytes = dcn32_calc_num_avail_chans_for_mall(
+	dc->caps.max_cab_allocation_bytes = dcn401_calc_num_avail_chans_for_mall(
 		dc, dc->ctx->dc_bios->vram_info.num_chans) *
 		dc->caps.mall_size_per_mem_channel * 1024 * 1024;
 	dc->caps.mall_size_total = dc->caps.max_cab_allocation_bytes;
@@ -1826,6 +1883,7 @@ static bool dcn401_resource_construct(
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
 	dc->caps.max_v_total = (1 << 15) - 1;
+	dc->caps.vtotal_limited_by_fp2 = true;
 
 	if (ASICREV_IS_GC_12_0_1_A0(dc->ctx->asic_id.hw_internal_rev))
 		dc->caps.dcc_plane_width_limit = 7680;
@@ -1867,6 +1925,7 @@ static bool dcn401_resource_construct(
 	dc->config.prefer_easf = true;
 	dc->config.dc_mode_clk_limit_support = true;
 	dc->config.enable_windowed_mpo_odm = true;
+	dc->config.set_pipe_unlock_order = true; /* Need to ensure DET gets freed before allocating */
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {
@@ -2132,6 +2191,7 @@ static bool dcn401_resource_construct(
 	/* SPL */
 	spl_init_easf_filter_coeffs();
 	spl_init_blur_scale_coeffs();
+	dc->caps.scl_caps.sharpener_support = true;
 
 	return true;
 

@@ -56,7 +56,7 @@ struct vchiq_service_base {
 			enum vchiq_reason reason,
 			struct vchiq_header *header,
 			unsigned int handle,
-			void *bulk_userdata);
+			void *cb_data, void __user *cb_userdata);
 	void *userdata;
 };
 
@@ -64,7 +64,8 @@ struct vchiq_completion_data_kernel {
 	enum vchiq_reason reason;
 	struct vchiq_header *header;
 	void *service_userdata;
-	void *bulk_userdata;
+	void *cb_data;
+	void  __user *cb_userdata;
 };
 
 struct vchiq_service_params_kernel {
@@ -73,7 +74,7 @@ struct vchiq_service_params_kernel {
 			enum vchiq_reason reason,
 			struct vchiq_header *header,
 			unsigned int handle,
-			void *bulk_userdata);
+			void *cb_data, void __user *cb_userdata);
 	void *userdata;
 	short version;       /* Increment for non-trivial changes */
 	short version_min;   /* Update for incompatible changes */

@@ -885,21 +885,6 @@ struct dsa_switch_ops {
 	 */
 	void	(*phylink_get_caps)(struct dsa_switch *ds, int port,
 				    struct phylink_config *config);
-	struct phylink_pcs *(*phylink_mac_select_pcs)(struct dsa_switch *ds,
-						      int port,
-						      phy_interface_t iface);
-	void	(*phylink_mac_config)(struct dsa_switch *ds, int port,
-				      unsigned int mode,
-				      const struct phylink_link_state *state);
-	void	(*phylink_mac_link_down)(struct dsa_switch *ds, int port,
-					 unsigned int mode,
-					 phy_interface_t interface);
-	void	(*phylink_mac_link_up)(struct dsa_switch *ds, int port,
-				       unsigned int mode,
-				       phy_interface_t interface,
-				       struct phy_device *phydev,
-				       int speed, int duplex,
-				       bool tx_pause, bool rx_pause);
 	void	(*phylink_fixed_state)(struct dsa_switch *ds, int port,
 				       struct phylink_link_state *state);
 	/*

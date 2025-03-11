@@ -763,7 +763,8 @@ static void init_default_table_values(struct pm8001_hba_info *pm8001_ha)
 		pm8001_ha->memoryMap.region[IOP].phys_addr_lo;
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.pcs_event_log_size		=
 							PM8001_EVENT_LOG_SIZE;
-	pm8001_ha->main_cfg_tbl.pm80xx_tbl.pcs_event_log_severity	= 0x01;
+	pm8001_ha->main_cfg_tbl.pm80xx_tbl.pcs_event_log_severity	=
+		pcs_event_log_severity;
 	pm8001_ha->main_cfg_tbl.pm80xx_tbl.fatal_err_interrupt		= 0x01;
 
 	/* Enable higher IQs and OQs, 32 to 63, bit 16 */

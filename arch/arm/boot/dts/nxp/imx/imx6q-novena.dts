@@ -530,7 +530,7 @@
 };
 
 &iomuxc {
-	pinctrl_audmux_novena: audmuxgrp-novena {
+	pinctrl_audmux_novena: audmux-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT7__AUD3_RXD		0x130b0
 			MX6QDL_PAD_CSI0_DAT4__AUD3_TXC		0x130b0
@@ -539,7 +539,7 @@
 		>;
 	};
 
-	pinctrl_backlight_novena: backlightgrp-novena {
+	pinctrl_backlight_novena: backlight-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_DISP0_DAT8__PWM1_OUT		0x1b0b0
 			MX6QDL_PAD_CSI0_DAT10__GPIO5_IO28	0x1b0b1
@@ -547,7 +547,7 @@
 		>;
 	};
 
-	pinctrl_ecspi3_novena: ecspi3grp-novena {
+	pinctrl_ecspi3_novena: ecspi3-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_DISP0_DAT2__ECSPI3_MISO	0x100b1
 			MX6QDL_PAD_DISP0_DAT1__ECSPI3_MOSI	0x100b1
@@ -555,7 +555,7 @@
 		>;
 	};
 
-	pinctrl_enet_novena: enetgrp-novena {
+	pinctrl_enet_novena: enet-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0
 			MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
@@ -578,7 +578,7 @@
 		>;
 	};
 
-	pinctrl_fpga_gpio: fpgagpiogrp-novena {
+	pinctrl_fpga_gpio: fpgagpio-novenagrp {
 		fsl,pins = <
 			/* FPGA power */
 			MX6QDL_PAD_SD1_DAT1__GPIO1_IO17		0x1b0b1
@@ -614,7 +614,7 @@
 		>;
 	};
 
-	pinctrl_fpga_eim: fpgaeimgrp-novena {
+	pinctrl_fpga_eim: fpgaeim-novenagrp {
 		fsl,pins = <
 			/* FPGA power */
 			MX6QDL_PAD_SD1_DAT1__GPIO1_IO17		0x1b0b1
@@ -650,7 +650,7 @@
 		>;
 	};
 
-	pinctrl_gpio_keys_novena: gpiokeysgrp-novena {
+	pinctrl_gpio_keys_novena: gpiokeys-novenagrp {
 		fsl,pins = <
 			/* User button */
 			MX6QDL_PAD_KEY_COL4__GPIO4_IO14		0x1b0b0
@@ -661,35 +661,35 @@
 		>;
 	};
 
-	pinctrl_hdmi_novena: hdmigrp-novena {
+	pinctrl_hdmi_novena: hdmi-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_KEY_ROW2__HDMI_TX_CEC_LINE	0x1f8b0
 			MX6QDL_PAD_EIM_A24__GPIO5_IO04		0x1b0b1
 		>;
 	};
 
-	pinctrl_i2c1_novena: i2c1grp-novena {
+	pinctrl_i2c1_novena: i2c1-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D21__I2C1_SCL		0x4001b8b1
 			MX6QDL_PAD_EIM_D28__I2C1_SDA		0x4001b8b1
 		>;
 	};
 
-	pinctrl_i2c2_novena: i2c2grp-novena {
+	pinctrl_i2c2_novena: i2c2-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_EB2__I2C2_SCL		0x4001b8b1
 			MX6QDL_PAD_EIM_D16__I2C2_SDA		0x4001b8b1
 		>;
 	};
 
-	pinctrl_i2c3_novena: i2c3grp-novena {
+	pinctrl_i2c3_novena: i2c3-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D17__I2C3_SCL		0x4001b8b1
 			MX6QDL_PAD_EIM_D18__I2C3_SDA		0x4001b8b1
 		>;
 	};
 
-	pinctrl_kpp_novena: kppgrp-novena {
+	pinctrl_kpp_novena: kpp-novenagrp {
 		fsl,pins = <
 			/* Front panel button */
 			MX6QDL_PAD_KEY_ROW1__KEY_ROW1		0x1b0b1
@@ -698,13 +698,13 @@
 		>;
 	};
 
-	pinctrl_leds_novena: ledsgrp-novena {
+	pinctrl_leds_novena: leds-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_SD1_DAT3__GPIO1_IO21		0x1b0b1
 		>;
 	};
 
-	pinctrl_pcie_novena: pciegrp-novena {
+	pinctrl_pcie_novena: pcie-novenagrp {
 		fsl,pins = <
 			/* Reset */
 			MX6QDL_PAD_EIM_D29__GPIO3_IO29		0x1b0b1
@@ -715,13 +715,13 @@
 		>;
 	};
 
-	pinctrl_sata_novena: satagrp-novena {
+	pinctrl_sata_novena: sata-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D30__GPIO3_IO30		0x1b0b1
 		>;
 	};
 
-	pinctrl_senoko_novena: senokogrp-novena {
+	pinctrl_senoko_novena: senoko-novenagrp {
 		fsl,pins = <
 			/* Senoko IRQ line */
 			MX6QDL_PAD_SD1_CLK__GPIO1_IO20		0x13048
@@ -730,7 +730,7 @@
 		>;
 	};
 
-	pinctrl_sound_novena: soundgrp-novena {
+	pinctrl_sound_novena: sound-novenagrp {
 		fsl,pins = <
 			/* Audio power regulator */
 			MX6QDL_PAD_DISP0_DAT23__GPIO5_IO17	0x1b0b1
@@ -740,41 +740,41 @@
 		>;
 	};
 
-	pinctrl_stmpe_novena: stmpegrp-novena {
+	pinctrl_stmpe_novena: stmpe-novenagrp {
 		fsl,pins = <
 			/* Touchscreen interrupt */
 			MX6QDL_PAD_DISP0_DAT19__GPIO5_IO13	0x1b0b1
 		>;
 	};
 
-	pinctrl_uart2_novena: uart2grp-novena {
+	pinctrl_uart2_novena: uart2-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D26__UART2_TX_DATA	0x1b0b1
 			MX6QDL_PAD_EIM_D27__UART2_RX_DATA	0x1b0b1
 		>;
 	};
 
-	pinctrl_uart3_novena: uart3grp-novena {
+	pinctrl_uart3_novena: uart3-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
 			MX6QDL_PAD_EIM_D25__UART3_RX_DATA	0x1b0b1
 		>;
 	};
 
-	pinctrl_uart4_novena: uart4grp-novena {
+	pinctrl_uart4_novena: uart4-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT12__UART4_TX_DATA	0x1b0b1
 			MX6QDL_PAD_CSI0_DAT13__UART4_RX_DATA	0x1b0b1
 		>;
 	};
 
-	pinctrl_usbotg_novena: usbotggrp-novena {
+	pinctrl_usbotg_novena: usbotg-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_RX_ER__USB_OTG_ID	0x17059
 		>;
 	};
 
-	pinctrl_usdhc2_novena: usdhc2grp-novena {
+	pinctrl_usdhc2_novena: usdhc2-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_SD2_CMD__SD2_CMD		0x170f9
 			MX6QDL_PAD_SD2_CLK__SD2_CLK		0x100f9
@@ -789,7 +789,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_novena: usdhc3grp-novena {
+	pinctrl_usdhc3_novena: usdhc3-novenagrp {
 		fsl,pins = <
 			MX6QDL_PAD_SD3_CMD__SD3_CMD		0x170f9
 			MX6QDL_PAD_SD3_CLK__SD3_CLK		0x100f9

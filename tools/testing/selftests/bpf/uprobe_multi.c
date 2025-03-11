@@ -12,6 +12,10 @@
 #define MADV_POPULATE_READ 22
 #endif
 
+#ifndef MADV_PAGEOUT
+#define MADV_PAGEOUT 21
+#endif
+
 int __attribute__((weak)) uprobe(void)
 {
 	return 0;

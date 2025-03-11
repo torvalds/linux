@@ -94,6 +94,8 @@ void __init mem_encrypt_init(void)
 	/* Call into SWIOTLB to update the SWIOTLB DMA buffers */
 	swiotlb_update_mem_attributes();
 
+	snp_secure_tsc_prepare();
+
 	print_mem_encrypt_feature_info();
 }
 

@@ -168,14 +168,12 @@ static int ep93xx_keypad_suspend(struct device *dev)
 	struct ep93xx_keypad *keypad = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = keypad->input_dev;
 
-	mutex_lock(&input_dev->mutex);
+	guard(mutex)(&input_dev->mutex);
 
 	if (keypad->enabled) {
 		clk_disable(keypad->clk);
 		keypad->enabled = false;
 	}
-
-	mutex_unlock(&input_dev->mutex);
 
 	return 0;
 }
@@ -186,7 +184,7 @@ static int ep93xx_keypad_resume(struct device *dev)
 	struct ep93xx_keypad *keypad = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = keypad->input_dev;
 
-	mutex_lock(&input_dev->mutex);
+	guard(mutex)(&input_dev->mutex);
 
 	if (input_device_enabled(input_dev)) {
 		if (!keypad->enabled) {
@@ -195,8 +193,6 @@ static int ep93xx_keypad_resume(struct device *dev)
 			keypad->enabled = true;
 		}
 	}
-
-	mutex_unlock(&input_dev->mutex);
 
 	return 0;
 }
@@ -289,7 +285,7 @@ static struct platform_driver ep93xx_keypad_driver = {
 		.of_match_table = ep93xx_keypad_of_ids,
 	},
 	.probe		= ep93xx_keypad_probe,
-	.remove_new	= ep93xx_keypad_remove,
+	.remove		= ep93xx_keypad_remove,
 };
 module_platform_driver(ep93xx_keypad_driver);
 

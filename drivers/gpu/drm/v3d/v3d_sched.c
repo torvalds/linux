@@ -5,16 +5,16 @@
  * DOC: Broadcom V3D scheduling
  *
  * The shared DRM GPU scheduler is used to coordinate submitting jobs
- * to the hardware.  Each DRM fd (roughly a client process) gets its
- * own scheduler entity, which will process jobs in order.  The GPU
- * scheduler will round-robin between clients to submit the next job.
+ * to the hardware. Each DRM fd (roughly a client process) gets its
+ * own scheduler entity, which will process jobs in order. The GPU
+ * scheduler will schedule the clients with a FIFO scheduling algorithm.
  *
  * For simplicity, and in order to keep latency low for interactive
  * jobs when bulk background jobs are queued up, we submit a new job
  * to the HW only when it has completed the last one, instead of
- * filling up the CT[01]Q FIFOs with jobs.  Similarly, we use
- * drm_sched_job_add_dependency() to manage the dependency between bin and
- * render, instead of having the clients submit jobs using the HW's
+ * filling up the CT[01]Q FIFOs with jobs. Similarly, we use
+ * `drm_sched_job_add_dependency()` to manage the dependency between bin
+ * and render, instead of having the clients submit jobs using the HW's
  * semaphores to interlock between them.
  */
 
@@ -120,11 +120,19 @@ v3d_cpu_job_free(struct drm_sched_job *sched_job)
 static void
 v3d_switch_perfmon(struct v3d_dev *v3d, struct v3d_job *job)
 {
-	if (job->perfmon != v3d->active_perfmon)
+	struct v3d_perfmon *perfmon = v3d->global_perfmon;
+
+	if (!perfmon)
+		perfmon = job->perfmon;
+
+	if (perfmon == v3d->active_perfmon)
+		return;
+
+	if (perfmon != v3d->active_perfmon)
 		v3d_perfmon_stop(v3d, v3d->active_perfmon, true);
 
-	if (job->perfmon && v3d->active_perfmon != job->perfmon)
-		v3d_perfmon_start(v3d, job->perfmon);
+	if (perfmon && v3d->active_perfmon != perfmon)
+		v3d_perfmon_start(v3d, perfmon);
 }
 
 static void
@@ -135,8 +143,31 @@ v3d_job_start_stats(struct v3d_job *job, enum v3d_queue queue)
 	struct v3d_stats *global_stats = &v3d->queue[queue].stats;
 	struct v3d_stats *local_stats = &file->stats[queue];
 	u64 now = local_clock();
+	unsigned long flags;
 
-	preempt_disable();
+	/*
+	 * We only need to disable local interrupts to appease lockdep who
+	 * otherwise would think v3d_job_start_stats vs v3d_stats_update has an
+	 * unsafe in-irq vs no-irq-off usage problem. This is a false positive
+	 * because all the locks are per queue and stats type, and all jobs are
+	 * completely one at a time serialised. More specifically:
+	 *
+	 * 1. Locks for GPU queues are updated from interrupt handlers under a
+	 *    spin lock and started here with preemption disabled.
+	 *
+	 * 2. Locks for CPU queues are updated from the worker with preemption
+	 *    disabled and equally started here with preemption disabled.
+	 *
+	 * Therefore both are consistent.
+	 *
+	 * 3. Because next job can only be queued after the previous one has
+	 *    been signaled, and locks are per queue, there is also no scope for
+	 *    the start part to race with the update part.
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		local_irq_save(flags);
+	else
+		preempt_disable();
 
 	write_seqcount_begin(&local_stats->lock);
 	local_stats->start_ns = now;
@@ -146,7 +177,10 @@ v3d_job_start_stats(struct v3d_job *job, enum v3d_queue queue)
 	global_stats->start_ns = now;
 	write_seqcount_end(&global_stats->lock);
 
-	preempt_enable();
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		local_irq_restore(flags);
+	else
+		preempt_enable();
 }
 
 static void
@@ -167,11 +201,21 @@ v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue)
 	struct v3d_stats *global_stats = &v3d->queue[queue].stats;
 	struct v3d_stats *local_stats = &file->stats[queue];
 	u64 now = local_clock();
+	unsigned long flags;
 
-	preempt_disable();
+	/* See comment in v3d_job_start_stats() */
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		local_irq_save(flags);
+	else
+		preempt_disable();
+
 	v3d_stats_update(local_stats, now);
 	v3d_stats_update(global_stats, now);
-	preempt_enable();
+
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		local_irq_restore(flags);
+	else
+		preempt_enable();
 }
 
 static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
@@ -667,7 +711,7 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 
 	/* Unblock schedulers and restart their jobs. */
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		drm_sched_start(&v3d->queue[q].sched);
+		drm_sched_start(&v3d->queue[q].sched, 0);
 	}
 
 	mutex_unlock(&v3d->reset_lock);

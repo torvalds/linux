@@ -96,7 +96,8 @@ static int bcm2835_audio_send_simple(struct bcm2835_audio_instance *instance,
 static int audio_vchi_callback(struct vchiq_instance *vchiq_instance,
 			       enum vchiq_reason reason,
 			       struct vchiq_header *header,
-			       unsigned int handle, void *userdata)
+			       unsigned int handle,
+			       void *cb_data, void __user *cb_userdata)
 {
 	struct bcm2835_audio_instance *instance = vchiq_get_service_userdata(vchiq_instance,
 									     handle);

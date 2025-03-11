@@ -8,7 +8,7 @@
 #include "rk3399-gru.dtsi"
 
 / {
-	pp900_ap: pp900-ap {
+	pp900_ap: regulator-pp900-ap {
 		compatible = "regulator-fixed";
 		regulator-name = "pp900_ap";
 
@@ -29,7 +29,7 @@
 	pp900_pcie: pp900-ap {
 	};
 
-	pp3000: pp3000 {
+	pp3000: regulator-pp3000 {
 		compatible = "regulator-fixed";
 		regulator-name = "pp3000";
 		pinctrl-names = "default";
@@ -46,7 +46,7 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	ppvar_centerlogic_pwm: ppvar-centerlogic-pwm {
+	ppvar_centerlogic_pwm: regulator-ppvar-centerlogic-pwm {
 		compatible = "pwm-regulator";
 		regulator-name = "ppvar_centerlogic_pwm";
 
@@ -78,7 +78,7 @@
 	};
 
 	/* Schematics call this PPVAR even though it's fixed */
-	ppvar_logic: ppvar-logic {
+	ppvar_logic: regulator-ppvar-logic {
 		compatible = "regulator-fixed";
 		regulator-name = "ppvar_logic";
 
@@ -91,7 +91,7 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	pp1800_audio: pp1800-audio {
+	pp1800_audio: regulator-pp1800-audio {
 		compatible = "regulator-fixed";
 		regulator-name = "pp1800_audio";
 		pinctrl-names = "default";
@@ -107,7 +107,7 @@
 	};
 
 	/* gpio is shared with pp3300_wifi_bt */
-	pp1800_pcie: pp1800-pcie {
+	pp1800_pcie: regulator-pp1800-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "pp1800_pcie";
 		pinctrl-names = "default";
@@ -129,7 +129,7 @@
 	pp3000_ap: pp3000_emmc: pp3000 {
 	};
 
-	pp1500_ap_io: pp1500-ap-io {
+	pp1500_ap_io: regulator-pp1500-ap-io {
 		compatible = "regulator-fixed";
 		regulator-name = "pp1500_ap_io";
 		pinctrl-names = "default";
@@ -146,7 +146,7 @@
 		vin-supply = <&pp1800>;
 	};
 
-	pp3300_disp: pp3300-disp {
+	pp3300_disp: regulator-pp3300-disp {
 		compatible = "regulator-fixed";
 		regulator-name = "pp3300_disp";
 		pinctrl-names = "default";
@@ -164,7 +164,7 @@
 	};
 
 	/* gpio is shared with pp1800_pcie and pinctrl is set there */
-	pp3300_wifi_bt: pp3300-wifi-bt {
+	pp3300_wifi_bt: regulator-pp3300-wifi-bt {
 		compatible = "regulator-fixed";
 		regulator-name = "pp3300_wifi_bt";
 
@@ -180,7 +180,7 @@
 	 * With some stretching of the imagination, we can call the 1.8V
 	 * regulator a supply.
 	 */
-	wlan_pd_n: wlan-pd-n {
+	wlan_pd_n: regulator-wlan-pd-n {
 		compatible = "regulator-fixed";
 		regulator-name = "wlan_pd_n";
 		pinctrl-names = "default";
@@ -550,7 +550,7 @@ ap_i2c_tp: &i2c5 {
 };
 
 &pinctrl {
-	discrete-regulators {
+	discretes {
 		pp1500_en: pp1500-en {
 			rockchip,pins = <0 RK_PB2 RK_FUNC_GPIO
 					 &pcfg_pull_none>;

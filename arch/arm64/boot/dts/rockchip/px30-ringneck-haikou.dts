@@ -90,7 +90,7 @@
 		clock-frequency = <24576000>;
 	};
 
-	dc_12v: dc-12v-regulator {
+	dc_12v: regulator-dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
 		regulator-always-on;
@@ -99,7 +99,7 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
-	vcc3v3_baseboard: vcc3v3-baseboard-regulator {
+	vcc3v3_baseboard: regulator-vcc3v3-baseboard {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_baseboard";
 		regulator-always-on;
@@ -109,7 +109,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_baseboard: vcc5v0-baseboard-regulator {
+	vcc5v0_baseboard: regulator-vcc5v0-baseboard {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_baseboard";
 		regulator-always-on;
@@ -119,7 +119,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vdda_codec: vdda-codec-regulator {
+	vdda_codec: regulator-vdda-codec {
 		compatible = "regulator-fixed";
 		regulator-name = "vdda_codec";
 		regulator-boot-on;
@@ -128,7 +128,7 @@
 		vin-supply = <&vcc5v0_baseboard>;
 	};
 
-	vddd_codec: vddd-codec-regulator {
+	vddd_codec: regulator-vddd-codec {
 		compatible = "regulator-fixed";
 		regulator-name = "vddd_codec";
 		regulator-boot-on;

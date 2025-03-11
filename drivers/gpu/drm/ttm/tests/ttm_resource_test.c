@@ -164,18 +164,18 @@ static void ttm_resource_init_pinned(struct kunit *test)
 
 	res = kunit_kzalloc(test, sizeof(*res), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, res);
-	KUNIT_ASSERT_TRUE(test, list_empty(&bo->bdev->pinned));
+	KUNIT_ASSERT_TRUE(test, list_empty(&bo->bdev->unevictable));
 
 	dma_resv_lock(bo->base.resv, NULL);
 	ttm_bo_pin(bo);
 	ttm_resource_init(bo, place, res);
-	KUNIT_ASSERT_TRUE(test, list_is_singular(&bo->bdev->pinned));
+	KUNIT_ASSERT_TRUE(test, list_is_singular(&bo->bdev->unevictable));
 
 	ttm_bo_unpin(bo);
 	ttm_resource_fini(man, res);
 	dma_resv_unlock(bo->base.resv);
 
-	KUNIT_ASSERT_TRUE(test, list_empty(&bo->bdev->pinned));
+	KUNIT_ASSERT_TRUE(test, list_empty(&bo->bdev->unevictable));
 }
 
 static void ttm_resource_fini_basic(struct kunit *test)
@@ -302,7 +302,7 @@ static void ttm_sys_man_free_basic(struct kunit *test)
 	res = kunit_kzalloc(test, sizeof(*res), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, res);
 
-	ttm_resource_alloc(bo, place, &res);
+	ttm_resource_alloc(bo, place, &res, NULL);
 
 	man = ttm_manager_type(priv->devs->ttm_dev, mem_type);
 	man->func->free(man, res);

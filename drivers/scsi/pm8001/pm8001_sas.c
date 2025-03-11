@@ -572,6 +572,13 @@ void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
 	pm8001_ccb_free(pm8001_ha, ccb);
 }
 
+static void pm8001_init_dev(struct pm8001_device *pm8001_dev, int id)
+{
+	pm8001_dev->id = id;
+	pm8001_dev->device_id = PM8001_MAX_DEVICES;
+	atomic_set(&pm8001_dev->running_req, 0);
+}
+
 /**
  * pm8001_alloc_dev - find a empty pm8001_device
  * @pm8001_ha: our hba card information
@@ -580,9 +587,11 @@ static struct pm8001_device *pm8001_alloc_dev(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 dev;
 	for (dev = 0; dev < PM8001_MAX_DEVICES; dev++) {
-		if (pm8001_ha->devices[dev].dev_type == SAS_PHY_UNUSED) {
-			pm8001_ha->devices[dev].id = dev;
-			return &pm8001_ha->devices[dev];
+		struct pm8001_device *pm8001_dev = &pm8001_ha->devices[dev];
+
+		if (pm8001_dev->dev_type == SAS_PHY_UNUSED) {
+			pm8001_init_dev(pm8001_dev, dev);
+			return pm8001_dev;
 		}
 	}
 	if (dev == PM8001_MAX_DEVICES) {
@@ -613,9 +622,7 @@ struct pm8001_device *pm8001_find_dev(struct pm8001_hba_info *pm8001_ha,
 
 void pm8001_free_dev(struct pm8001_device *pm8001_dev)
 {
-	u32 id = pm8001_dev->id;
 	memset(pm8001_dev, 0, sizeof(*pm8001_dev));
-	pm8001_dev->id = id;
 	pm8001_dev->dev_type = SAS_PHY_UNUSED;
 	pm8001_dev->device_id = PM8001_MAX_DEVICES;
 	pm8001_dev->sas_device = NULL;

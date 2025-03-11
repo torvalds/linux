@@ -77,12 +77,12 @@ static void __activate_cptr_traps(struct kvm_vcpu *vcpu)
 	 * VHE (HCR.E2H == 1) which allows us to use here the CPTR_EL2.TAM
 	 * shift value for trapping the AMU accesses.
 	 */
-	u64 val = CPACR_ELx_TTA | CPTR_EL2_TAM;
+	u64 val = CPACR_EL1_TTA | CPTR_EL2_TAM;
 
 	if (guest_owns_fp_regs()) {
-		val |= CPACR_ELx_FPEN;
+		val |= CPACR_EL1_FPEN;
 		if (vcpu_has_sve(vcpu))
-			val |= CPACR_ELx_ZEN;
+			val |= CPACR_EL1_ZEN;
 	} else {
 		__activate_traps_fpsimd32(vcpu);
 	}
@@ -122,13 +122,13 @@ static void __activate_cptr_traps(struct kvm_vcpu *vcpu)
 	 * hypervisor has traps enabled to dispel any illusion of something more
 	 * complicated taking place.
 	 */
-	if (!(SYS_FIELD_GET(CPACR_ELx, FPEN, cptr) & BIT(0)))
-		val &= ~CPACR_ELx_FPEN;
-	if (!(SYS_FIELD_GET(CPACR_ELx, ZEN, cptr) & BIT(0)))
-		val &= ~CPACR_ELx_ZEN;
+	if (!(SYS_FIELD_GET(CPACR_EL1, FPEN, cptr) & BIT(0)))
+		val &= ~CPACR_EL1_FPEN;
+	if (!(SYS_FIELD_GET(CPACR_EL1, ZEN, cptr) & BIT(0)))
+		val &= ~CPACR_EL1_ZEN;
 
 	if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR3_EL1, S2POE, IMP))
-		val |= cptr & CPACR_ELx_E0POE;
+		val |= cptr & CPACR_EL1_E0POE;
 
 	val |= cptr & CPTR_EL2_TCPAC;
 

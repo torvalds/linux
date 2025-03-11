@@ -19,6 +19,7 @@
 
 #include <acpi/video.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
@@ -475,7 +476,7 @@ static int psb_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	psb_fbdev_setup(dev_priv);
+	drm_client_setup(dev, NULL);
 
 	return 0;
 }
@@ -507,11 +508,11 @@ static const struct drm_driver driver = {
 	.num_ioctls = ARRAY_SIZE(psb_ioctls),
 
 	.dumb_create = psb_gem_dumb_create,
+	PSB_FBDEV_DRIVER_OPS,
 	.ioctls = psb_ioctls,
 	.fops = &psb_gem_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL

@@ -87,7 +87,7 @@
 			i2c1: i2c@f0018000 {
 				status = "okay";
 
-				pmic: act8865@5b {
+				act8865: pmic@5b {
 					compatible = "active-semi,act8865";
 					reg = <0x5b>;
 					status = "disabled";

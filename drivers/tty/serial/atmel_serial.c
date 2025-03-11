@@ -1166,7 +1166,7 @@ static void atmel_rx_from_dma(struct uart_port *port)
 		port->icount.rx += count;
 	}
 
-	/* USART retreives ownership of RX DMA buffer */
+	/* USART retrieves ownership of RX DMA buffer */
 	dma_sync_single_for_device(port->dev, atmel_port->rx_phys,
 				   ATMEL_SERIAL_RX_SIZE, DMA_FROM_DEVICE);
 
@@ -2419,17 +2419,11 @@ static void atmel_release_port(struct uart_port *port)
 static int atmel_request_port(struct uart_port *port)
 {
 	struct platform_device *mpdev = to_platform_device(port->dev->parent);
-	int size = resource_size(mpdev->resource);
-
-	if (!request_mem_region(port->mapbase, size, "atmel_serial"))
-		return -EBUSY;
 
 	if (port->flags & UPF_IOREMAP) {
-		port->membase = ioremap(port->mapbase, size);
-		if (port->membase == NULL) {
-			release_mem_region(port->mapbase, size);
-			return -ENOMEM;
-		}
+		port->membase = devm_platform_ioremap_resource(mpdev, 0);
+		if (IS_ERR(port->membase))
+			return PTR_ERR(port->membase);
 	}
 
 	return 0;
@@ -3017,7 +3011,7 @@ static SIMPLE_DEV_PM_OPS(atmel_serial_pm_ops, atmel_serial_suspend,
 
 static struct platform_driver atmel_serial_driver = {
 	.probe		= atmel_serial_probe,
-	.remove_new	= atmel_serial_remove,
+	.remove		= atmel_serial_remove,
 	.driver		= {
 		.name			= "atmel_usart_serial",
 		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),

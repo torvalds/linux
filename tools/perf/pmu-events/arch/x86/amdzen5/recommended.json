@@ -341,5 +341,117 @@
     "MetricGroup": "memory_controller",
     "PerPkg": "1",
     "ScaleUnit": "1per_memclk"
+  },
+  {
+    "MetricName": "dram_read_bandwidth_for_local_or_remote_socket",
+    "BriefDescription": "DRAM read data bandwidth for accesses in local or remote socket.",
+    "MetricExpr": "(local_or_remote_socket_read_data_beats_dram_0 + local_or_remote_socket_read_data_beats_dram_1 + local_or_remote_socket_read_data_beats_dram_2 + local_or_remote_socket_read_data_beats_dram_3 + local_or_remote_socket_read_data_beats_dram_4 + local_or_remote_socket_read_data_beats_dram_5 + local_or_remote_socket_read_data_beats_dram_6 + local_or_remote_socket_read_data_beats_dram_7 + local_or_remote_socket_read_data_beats_dram_8 + local_or_remote_socket_read_data_beats_dram_9 + local_or_remote_socket_read_data_beats_dram_10 + local_or_remote_socket_read_data_beats_dram_11) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "dram_write_bandwidth_for_local_socket",
+    "BriefDescription": "DRAM write data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_write_data_beats_dram_0 + local_socket_write_data_beats_dram_1 + local_socket_write_data_beats_dram_2 + local_socket_write_data_beats_dram_3 + local_socket_write_data_beats_dram_4 + local_socket_write_data_beats_dram_5 + local_socket_write_data_beats_dram_6 + local_socket_write_data_beats_dram_7 + local_socket_write_data_beats_dram_8 + local_socket_write_data_beats_dram_9 + local_socket_write_data_beats_dram_10 + local_socket_write_data_beats_dram_11) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "dram_write_bandwidth_for_remote_socket",
+    "BriefDescription": "DRAM write data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_write_data_beats_dram_0 + remote_socket_write_data_beats_dram_1 + remote_socket_write_data_beats_dram_2 + remote_socket_write_data_beats_dram_3 + remote_socket_write_data_beats_dram_4 + remote_socket_write_data_beats_dram_5 + remote_socket_write_data_beats_dram_6 + remote_socket_write_data_beats_dram_7 + remote_socket_write_data_beats_dram_8 + remote_socket_write_data_beats_dram_9 + remote_socket_write_data_beats_dram_10 + remote_socket_write_data_beats_dram_11) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "dram_write_bandwidth_for_local_or_remote_socket",
+    "BriefDescription": "DRAM write data bandwidth for accesses in local or remote socket.",
+    "MetricExpr": "(local_or_remote_socket_write_data_beats_dram_0 + local_or_remote_socket_write_data_beats_dram_1 + local_or_remote_socket_write_data_beats_dram_2 + local_or_remote_socket_write_data_beats_dram_3 + local_or_remote_socket_write_data_beats_dram_4 + local_or_remote_socket_write_data_beats_dram_5 + local_or_remote_socket_write_data_beats_dram_6 + local_or_remote_socket_write_data_beats_dram_7 + local_or_remote_socket_write_data_beats_dram_8 + local_or_remote_socket_write_data_beats_dram_9 + local_or_remote_socket_write_data_beats_dram_10 + local_or_remote_socket_write_data_beats_dram_11) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "upstream_dma_read_bandwidth_for_local_socket",
+    "BriefDescription": "Upstream DMA read data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_upstream_read_data_beats_io_0 + local_socket_upstream_read_data_beats_io_1 + local_socket_upstream_read_data_beats_io_2 + local_socket_upstream_read_data_beats_io_3 + local_socket_upstream_read_data_beats_io_4 + local_socket_upstream_read_data_beats_io_5 + local_socket_upstream_read_data_beats_io_6 + local_socket_upstream_read_data_beats_io_7) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "upstream_dma_write_bandwidth_for_local_socket",
+    "BriefDescription": "Upstream DMA write data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_upstream_write_data_beats_io_0 + local_socket_upstream_write_data_beats_io_1 + local_socket_upstream_write_data_beats_io_2 + local_socket_upstream_write_data_beats_io_3 + local_socket_upstream_write_data_beats_io_4 + local_socket_upstream_write_data_beats_io_5 + local_socket_upstream_write_data_beats_io_6 + local_socket_upstream_write_data_beats_io_7) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "upstream_dma_read_bandwidth_for_remote_socket",
+    "BriefDescription": "Upstream DMA read data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_upstream_read_data_beats_io_0 + remote_socket_upstream_read_data_beats_io_1 + remote_socket_upstream_read_data_beats_io_2 + remote_socket_upstream_read_data_beats_io_3 + remote_socket_upstream_read_data_beats_io_4 + remote_socket_upstream_read_data_beats_io_5 + remote_socket_upstream_read_data_beats_io_6 + remote_socket_upstream_read_data_beats_io_7) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "upstream_dma_write_bandwidth_for_remote_socket",
+    "BriefDescription": "Upstream DMA write data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_upstream_write_data_beats_io_0 + remote_socket_upstream_write_data_beats_io_1 + remote_socket_upstream_write_data_beats_io_2 + remote_socket_upstream_write_data_beats_io_3 + remote_socket_upstream_write_data_beats_io_4 + remote_socket_upstream_write_data_beats_io_5 + remote_socket_upstream_write_data_beats_io_6 + remote_socket_upstream_write_data_beats_io_7) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "core_inbound_data_bandwidth_for_local_socket",
+    "BriefDescription": "Core inbound data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_inbound_data_beats_cfi_0 + local_socket_inbound_data_beats_cfi_1 + local_socket_inbound_data_beats_cfi_2 + local_socket_inbound_data_beats_cfi_3 + local_socket_inbound_data_beats_cfi_4 + local_socket_inbound_data_beats_cfi_5 + local_socket_inbound_data_beats_cfi_6 + local_socket_inbound_data_beats_cfi_7 + local_socket_inbound_data_beats_cfi_8 + local_socket_inbound_data_beats_cfi_9 + local_socket_inbound_data_beats_cfi_10 + local_socket_inbound_data_beats_cfi_11 + local_socket_inbound_data_beats_cfi_12 + local_socket_inbound_data_beats_cfi_13 + local_socket_inbound_data_beats_cfi_14 + local_socket_inbound_data_beats_cfi_15) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "3.2e-5MB/s"
+  },
+  {
+    "MetricName": "core_outbound_data_bandwidth_for_local_socket",
+    "BriefDescription": "Core outbound data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_outbound_data_beats_cfi_0 + local_socket_outbound_data_beats_cfi_1 + local_socket_outbound_data_beats_cfi_2 + local_socket_outbound_data_beats_cfi_3 + local_socket_outbound_data_beats_cfi_4 + local_socket_outbound_data_beats_cfi_5 + local_socket_outbound_data_beats_cfi_6 + local_socket_outbound_data_beats_cfi_7 + local_socket_outbound_data_beats_cfi_8 + local_socket_outbound_data_beats_cfi_9 + local_socket_outbound_data_beats_cfi_10 + local_socket_outbound_data_beats_cfi_11 + local_socket_outbound_data_beats_cfi_12 + local_socket_outbound_data_beats_cfi_13 + local_socket_outbound_data_beats_cfi_14 + local_socket_outbound_data_beats_cfi_15) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "core_inbound_data_bandwidth_for_remote_socket",
+    "BriefDescription": "Core inbound data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_inbound_data_beats_cfi_0 + remote_socket_inbound_data_beats_cfi_1 + remote_socket_inbound_data_beats_cfi_2 + remote_socket_inbound_data_beats_cfi_3 + remote_socket_inbound_data_beats_cfi_4 + remote_socket_inbound_data_beats_cfi_5 + remote_socket_inbound_data_beats_cfi_6 + remote_socket_inbound_data_beats_cfi_7 + remote_socket_inbound_data_beats_cfi_8 + remote_socket_inbound_data_beats_cfi_9 + remote_socket_inbound_data_beats_cfi_10 + remote_socket_inbound_data_beats_cfi_11 + remote_socket_inbound_data_beats_cfi_12 + remote_socket_inbound_data_beats_cfi_13 + remote_socket_inbound_data_beats_cfi_14 + remote_socket_inbound_data_beats_cfi_15) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "3.2e-5MB/s"
+  },
+  {
+    "MetricName": "core_outbound_data_bandwidth_for_remote_socket",
+    "BriefDescription": "Core outbound data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_outbound_data_beats_cfi_0 + remote_socket_outbound_data_beats_cfi_1 + remote_socket_outbound_data_beats_cfi_2 + remote_socket_outbound_data_beats_cfi_3 + remote_socket_outbound_data_beats_cfi_4 + remote_socket_outbound_data_beats_cfi_5 + remote_socket_outbound_data_beats_cfi_6 + remote_socket_outbound_data_beats_cfi_7 + remote_socket_outbound_data_beats_cfi_8 + remote_socket_outbound_data_beats_cfi_9 + remote_socket_outbound_data_beats_cfi_10 + remote_socket_outbound_data_beats_cfi_11 + remote_socket_outbound_data_beats_cfi_12 + remote_socket_outbound_data_beats_cfi_13 + remote_socket_outbound_data_beats_cfi_14 + remote_socket_outbound_data_beats_cfi_15) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "cross_socket_inbound_data_bandwidth_for_local_socket",
+    "BriefDescription": "Inbound data bandwidth for accesses between local socket and remote socket.",
+    "MetricExpr": "(local_socket_inbound_data_beats_link_0 + local_socket_inbound_data_beats_link_1 + local_socket_inbound_data_beats_link_2 + local_socket_inbound_data_beats_link_3 + local_socket_inbound_data_beats_link_4 + local_socket_inbound_data_beats_link_5) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "cross_socket_outbound_data_bandwidth_for_local_socket",
+    "BriefDescription": "Outbound data bandwidth for accesses between local socket and remote socket.",
+    "MetricExpr": "(local_socket_outbound_data_beats_link_0 + local_socket_outbound_data_beats_link_1 + local_socket_outbound_data_beats_link_2 + local_socket_outbound_data_beats_link_3 + local_socket_outbound_data_beats_link_4 + local_socket_outbound_data_beats_link_5) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
   }
 ]

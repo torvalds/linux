@@ -44,7 +44,7 @@ int acp_dsp_block_read(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_ty
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_dsp_block_read, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_dsp_block_read, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_type,
 			u32 offset, void *src, size_t size)
@@ -106,13 +106,13 @@ int acp_dsp_block_write(struct snd_sof_dev *sdev, enum snd_sof_fw_blk_type blk_t
 	memcpy(dest, src, size);
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_dsp_block_write, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_dsp_block_write, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_get_bar_index(struct snd_sof_dev *sdev, u32 type)
 {
 	return type;
 }
-EXPORT_SYMBOL_NS(acp_get_bar_index, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_get_bar_index, "SND_SOC_SOF_AMD_COMMON");
 
 static void configure_pte_for_fw_loading(int type, int num_pages, struct acp_dev_data *adata)
 {
@@ -244,7 +244,7 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 	}
 	return ret;
 }
-EXPORT_SYMBOL_NS(acp_dsp_pre_fw_run, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_dsp_pre_fw_run, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_sof_dsp_run(struct snd_sof_dev *sdev)
 {
@@ -264,7 +264,7 @@ int acp_sof_dsp_run(struct snd_sof_dev *sdev)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_sof_dsp_run, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_sof_dsp_run, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_sof_load_signed_firmware(struct snd_sof_dev *sdev)
 {
@@ -317,4 +317,4 @@ int acp_sof_load_signed_firmware(struct snd_sof_dev *sdev)
 				      adata->fw_dbin->size);
 	return ret;
 }
-EXPORT_SYMBOL_NS(acp_sof_load_signed_firmware, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_sof_load_signed_firmware, "SND_SOC_SOF_AMD_COMMON");

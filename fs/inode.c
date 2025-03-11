@@ -952,7 +952,7 @@ again:
  * with this flag set because they are the inodes that are out of order.
  */
 static enum lru_status inode_lru_isolate(struct list_head *item,
-		struct list_lru_one *lru, spinlock_t *lru_lock, void *arg)
+		struct list_lru_one *lru, void *arg)
 {
 	struct list_head *freeable = arg;
 	struct inode	*inode = container_of(item, struct inode, i_lru);
@@ -994,7 +994,7 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
 	if (inode_has_buffers(inode) || !mapping_empty(&inode->i_data)) {
 		inode_pin_lru_isolating(inode);
 		spin_unlock(&inode->i_lock);
-		spin_unlock(lru_lock);
+		spin_unlock(&lru->lock);
 		if (remove_inode_buffers(inode)) {
 			unsigned long reap;
 			reap = invalidate_mapping_pages(&inode->i_data, 0, -1);
@@ -1005,7 +1005,6 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
 			mm_account_reclaimed_pages(reap);
 		}
 		inode_unpin_lru_isolating(inode);
-		spin_lock(lru_lock);
 		return LRU_RETRY;
 	}
 

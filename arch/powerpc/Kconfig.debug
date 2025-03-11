@@ -223,12 +223,6 @@ config PPC_EARLY_DEBUG_RTAS_CONSOLE
 	help
 	  Select this to enable early debugging via the RTAS console.
 
-config PPC_EARLY_DEBUG_MAPLE
-	bool "Maple real mode"
-	depends on PPC_MAPLE
-	help
-	  Select this to enable early debugging for Maple.
-
 config PPC_EARLY_DEBUG_PAS_REALMODE
 	bool "PA Semi real mode"
 	depends on PPC_PASEMI

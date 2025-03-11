@@ -1442,7 +1442,7 @@ static struct platform_driver pxad_driver = {
 	},
 	.id_table	= pxad_id_table,
 	.probe		= pxad_probe,
-	.remove_new	= pxad_remove,
+	.remove		= pxad_remove,
 };
 
 static bool pxad_filter_fn(struct dma_chan *chan, void *param)

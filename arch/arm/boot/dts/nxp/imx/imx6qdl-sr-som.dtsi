@@ -97,57 +97,55 @@
 };
 
 &iomuxc {
-	microsom {
-		pinctrl_microsom_enet_ar8035: microsom-enet-ar8035 {
-			fsl,pins = <
-				MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b8b0
-				MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
-				/* AR8035 reset */
-				MX6QDL_PAD_KEY_ROW4__GPIO4_IO15		0x130b0
-				/* AR8035 interrupt */
-				MX6QDL_PAD_DI0_PIN2__GPIO4_IO18		0x1b0b0
-				/* GPIO16 -> AR8035 25MHz */
-				MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0b0
-				MX6QDL_PAD_RGMII_TXC__RGMII_TXC		0x13030
-				MX6QDL_PAD_RGMII_TD0__RGMII_TD0		0x1b030
-				MX6QDL_PAD_RGMII_TD1__RGMII_TD1		0x1b030
-				MX6QDL_PAD_RGMII_TD2__RGMII_TD2		0x1b030
-				MX6QDL_PAD_RGMII_TD3__RGMII_TD3		0x1b030
-				MX6QDL_PAD_RGMII_TX_CTL__RGMII_TX_CTL	0x1b030
-				/* AR8035 CLK_25M --> ENET_REF_CLK (V22) */
-				MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK	0x0a0b1
-				/* AR8035 pin strapping: IO voltage: pull up */
-				MX6QDL_PAD_RGMII_RXC__RGMII_RXC		0x1b030
-				/* AR8035 pin strapping: PHYADDR#0: pull down */
-				MX6QDL_PAD_RGMII_RD0__RGMII_RD0		0x13030
-				/* AR8035 pin strapping: PHYADDR#1: pull down */
-				MX6QDL_PAD_RGMII_RD1__RGMII_RD1		0x13030
-				/* AR8035 pin strapping: MODE#1: pull up */
-				MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b030
-				/* AR8035 pin strapping: MODE#3: pull up */
-				MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b030
-				/* AR8035 pin strapping: MODE#0: pull down */
-				MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x13030
+	pinctrl_microsom_enet_ar8035: microsom-enet-ar8035grp {
+		fsl,pins = <
+			MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b8b0
+			MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0
+			/* AR8035 reset */
+			MX6QDL_PAD_KEY_ROW4__GPIO4_IO15		0x130b0
+			/* AR8035 interrupt */
+			MX6QDL_PAD_DI0_PIN2__GPIO4_IO18		0x1b0b0
+			/* GPIO16 -> AR8035 25MHz */
+			MX6QDL_PAD_GPIO_16__ENET_REF_CLK	0x4001b0b0
+			MX6QDL_PAD_RGMII_TXC__RGMII_TXC		0x13030
+			MX6QDL_PAD_RGMII_TD0__RGMII_TD0		0x1b030
+			MX6QDL_PAD_RGMII_TD1__RGMII_TD1		0x1b030
+			MX6QDL_PAD_RGMII_TD2__RGMII_TD2		0x1b030
+			MX6QDL_PAD_RGMII_TD3__RGMII_TD3		0x1b030
+			MX6QDL_PAD_RGMII_TX_CTL__RGMII_TX_CTL	0x1b030
+			/* AR8035 CLK_25M --> ENET_REF_CLK (V22) */
+			MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK	0x0a0b1
+			/* AR8035 pin strapping: IO voltage: pull up */
+			MX6QDL_PAD_RGMII_RXC__RGMII_RXC		0x1b030
+			/* AR8035 pin strapping: PHYADDR#0: pull down */
+			MX6QDL_PAD_RGMII_RD0__RGMII_RD0		0x13030
+			/* AR8035 pin strapping: PHYADDR#1: pull down */
+			MX6QDL_PAD_RGMII_RD1__RGMII_RD1		0x13030
+			/* AR8035 pin strapping: MODE#1: pull up */
+			MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b030
+			/* AR8035 pin strapping: MODE#3: pull up */
+			MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b030
+			/* AR8035 pin strapping: MODE#0: pull down */
+			MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x13030
 
-				/*
-				 * As the RMII pins are also connected to RGMII
-				 * so that an AR8030 can be placed, set these
-				 * to high-z with the same pulls as above.
-				 * Use the GPIO settings to avoid changing the
-				 * input select registers.
-				 */
-				MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25	0x03000
-				MX6QDL_PAD_ENET_RXD0__GPIO1_IO27	0x03000
-				MX6QDL_PAD_ENET_RXD1__GPIO1_IO26	0x03000
-			>;
-		};
+			/*
+			 * As the RMII pins are also connected to RGMII
+			 * so that an AR8030 can be placed, set these
+			 * to high-z with the same pulls as above.
+			 * Use the GPIO settings to avoid changing the
+			 * input select registers.
+			 */
+			MX6QDL_PAD_ENET_CRS_DV__GPIO1_IO25	0x03000
+			MX6QDL_PAD_ENET_RXD0__GPIO1_IO27	0x03000
+			MX6QDL_PAD_ENET_RXD1__GPIO1_IO26	0x03000
+		>;
+	};
 
-		pinctrl_microsom_uart1: microsom-uart1 {
-			fsl,pins = <
-				MX6QDL_PAD_CSI0_DAT10__UART1_TX_DATA	0x1b0b1
-				MX6QDL_PAD_CSI0_DAT11__UART1_RX_DATA	0x1b0b1
-			>;
-		};
+	pinctrl_microsom_uart1: microsom-uart1grp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT10__UART1_TX_DATA	0x1b0b1
+			MX6QDL_PAD_CSI0_DAT11__UART1_RX_DATA	0x1b0b1
+		>;
 	};
 };
 

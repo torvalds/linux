@@ -133,7 +133,7 @@ static struct platform_driver mtk_emi_icc_mt8183_driver = {
 		.sync_state = icc_sync_state,
 	},
 	.probe = mtk_emi_icc_probe,
-	.remove_new = mtk_emi_icc_remove,
+	.remove = mtk_emi_icc_remove,
 
 };
 module_platform_driver(mtk_emi_icc_mt8183_driver);

@@ -35,7 +35,7 @@
 #include "vmwgfx_vkms.h"
 #include "ttm_object.h"
 
-#include <drm/drm_aperture.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem_ttm_helper.h>
@@ -49,6 +49,8 @@
 #ifdef CONFIG_X86
 #include <asm/hypervisor.h>
 #endif
+
+#include <linux/aperture.h>
 #include <linux/cc_platform.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
@@ -401,7 +403,8 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 		.busy_domain = VMW_BO_DOMAIN_SYS,
 		.bo_type = ttm_bo_type_kernel,
 		.size = PAGE_SIZE,
-		.pin = true
+		.pin = true,
+		.keep_resv = true,
 	};
 
 	/*
@@ -412,10 +415,6 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 	ret = vmw_bo_create(dev_priv, &bo_params, &vbo);
 	if (unlikely(ret != 0))
 		return ret;
-
-	ret = ttm_bo_reserve(&vbo->tbo, false, true, NULL);
-	BUG_ON(ret != 0);
-	vmw_bo_pin_reserved(vbo, true);
 
 	ret = ttm_bo_kmap(&vbo->tbo, 0, 1, &map);
 	if (likely(ret == 0)) {
@@ -858,8 +857,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	enum vmw_res_type i;
 	bool refuse_dma = false;
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
-
-	dev_priv->drm.dev_private = dev_priv;
 
 	vmw_sw_context_init(dev_priv);
 
@@ -1629,10 +1626,11 @@ static const struct drm_driver driver = {
 	.prime_handle_to_fd = vmw_prime_handle_to_fd,
 	.gem_prime_import_sg_table = vmw_prime_import_sg_table,
 
+	DRM_FBDEV_TTM_DRIVER_OPS,
+
 	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,
-	.date = VMWGFX_DRIVER_DATE,
 	.major = VMWGFX_DRIVER_MAJOR,
 	.minor = VMWGFX_DRIVER_MINOR,
 	.patchlevel = VMWGFX_DRIVER_PATCHLEVEL
@@ -1653,7 +1651,7 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct vmw_private *vmw;
 	int ret;
 
-	ret = drm_aperture_remove_conflicting_pci_framebuffers(pdev, &driver);
+	ret = aperture_remove_conflicting_pci_devices(pdev, driver.name);
 	if (ret)
 		goto out_error;
 
@@ -1680,7 +1678,7 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	vmw_fifo_resource_inc(vmw);
 	vmw_svga_enable(vmw);
-	drm_fbdev_ttm_setup(&vmw->drm,  0);
+	drm_client_setup(&vmw->drm, NULL);
 
 	vmw_debugfs_gem_init(vmw);
 	vmw_debugfs_resource_managers_init(vmw);

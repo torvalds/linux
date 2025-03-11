@@ -1350,7 +1350,8 @@ int lg4ff_init(struct hid_device *hid)
 
 	/* Initialize device properties */
 	if (mmode_ret == LG4FF_MMODE_IS_MULTIMODE) {
-		BUG_ON(mmode_idx == -1);
+		if (WARN_ON(mmode_idx == -1))
+			return -EINVAL;
 		mmode_wheel = &lg4ff_multimode_wheels[mmode_idx];
 	}
 	lg4ff_init_wheel_data(&entry->wdata, &lg4ff_devices[i], mmode_wheel, real_product_id);

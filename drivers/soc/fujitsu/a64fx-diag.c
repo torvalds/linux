@@ -142,7 +142,7 @@ static struct platform_driver a64fx_diag_driver = {
 		.acpi_match_table = ACPI_PTR(a64fx_diag_acpi_match),
 	},
 	.probe = a64fx_diag_probe,
-	.remove_new = a64fx_diag_remove,
+	.remove = a64fx_diag_remove,
 };
 
 module_platform_driver(a64fx_diag_driver);

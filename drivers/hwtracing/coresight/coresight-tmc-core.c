@@ -730,7 +730,7 @@ MODULE_DEVICE_TABLE(acpi, tmc_acpi_ids);
 
 static struct platform_driver tmc_platform_driver = {
 	.probe	= tmc_platform_probe,
-	.remove_new = tmc_platform_remove,
+	.remove = tmc_platform_remove,
 	.driver	= {
 		.name			= "coresight-tmc-platform",
 		.acpi_match_table	= ACPI_PTR(tmc_acpi_ids),

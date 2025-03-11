@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Generic battery driver using IIO
- * Copyright (C) 2012, Anish Kumar <anish198519851985@gmail.com>
+ * Copyright (C) 2012, Anish Kumar <yesanishhere@gmail.com>
  * Copyright (c) 2023, Sebastian Reichel <sre@kernel.org>
  */
 #include <linux/interrupt.h>
@@ -295,6 +295,6 @@ static struct platform_driver gab_driver = {
 };
 module_platform_driver(gab_driver);
 
-MODULE_AUTHOR("anish kumar <anish198519851985@gmail.com>");
+MODULE_AUTHOR("anish kumar <yesanishhere@gmail.com>");
 MODULE_DESCRIPTION("generic battery driver using IIO");
 MODULE_LICENSE("GPL");

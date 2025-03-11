@@ -91,6 +91,7 @@
 #define AD4695_T_WAKEUP_SW_MS		3
 #define AD4695_T_REFBUF_MS		100
 #define AD4695_T_REGCONFIG_NS		20
+#define AD4695_T_SCK_CNV_DELAY_NS	80
 #define AD4695_REG_ACCESS_SCLK_HZ	(10 * MEGA)
 
 /* Max number of voltage input channels. */
@@ -132,8 +133,13 @@ struct ad4695_state {
 	unsigned int vref_mv;
 	/* Common mode input pin voltage. */
 	unsigned int com_mv;
-	/* 1 per voltage and temperature chan plus 1 xfer to trigger 1st CNV */
-	struct spi_transfer buf_read_xfer[AD4695_MAX_CHANNELS + 2];
+	/*
+	 * 2 per voltage and temperature chan plus 1 xfer to trigger 1st
+	 * CNV. Excluding the trigger xfer, every 2nd xfer only serves
+	 * to control CS and add a delay between the last SCLK and next
+	 * CNV rising edges.
+	 */
+	struct spi_transfer buf_read_xfer[AD4695_MAX_CHANNELS * 2 + 3];
 	struct spi_message buf_read_msg;
 	/* Raw conversion data received. */
 	u8 buf[ALIGN((AD4695_MAX_CHANNELS + 2) * AD4695_MAX_CHANNEL_SIZE,
@@ -423,7 +429,7 @@ static int ad4695_buffer_preenable(struct iio_dev *indio_dev)
 	u8 temp_chan_bit = st->chip_info->num_voltage_inputs;
 	u32 bit, num_xfer, num_slots;
 	u32 temp_en = 0;
-	int ret;
+	int ret, rx_buf_offset = 0;
 
 	/*
 	 * We are using the advanced sequencer since it is the only way to read
@@ -449,11 +455,9 @@ static int ad4695_buffer_preenable(struct iio_dev *indio_dev)
 	iio_for_each_active_channel(indio_dev, bit) {
 		xfer = &st->buf_read_xfer[num_xfer];
 		xfer->bits_per_word = 16;
-		xfer->rx_buf = &st->buf[(num_xfer - 1) * 2];
+		xfer->rx_buf = &st->buf[rx_buf_offset];
 		xfer->len = 2;
-		xfer->cs_change = 1;
-		xfer->cs_change_delay.value = AD4695_T_CONVERT_NS;
-		xfer->cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+		rx_buf_offset += xfer->len;
 
 		if (bit == temp_chan_bit) {
 			temp_en = 1;
@@ -468,21 +472,44 @@ static int ad4695_buffer_preenable(struct iio_dev *indio_dev)
 		}
 
 		num_xfer++;
+
+		/*
+		 * We need to add a blank xfer in data reads, to meet the timing
+		 * requirement of a minimum delay between the last SCLK rising
+		 * edge and the CS deassert.
+		 */
+		xfer = &st->buf_read_xfer[num_xfer];
+		xfer->delay.value = AD4695_T_SCK_CNV_DELAY_NS;
+		xfer->delay.unit = SPI_DELAY_UNIT_NSECS;
+		xfer->cs_change = 1;
+		xfer->cs_change_delay.value = AD4695_T_CONVERT_NS;
+		xfer->cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+
+		num_xfer++;
 	}
 
 	/*
 	 * The advanced sequencer requires that at least 2 slots are enabled.
 	 * Since slot 0 is always used for other purposes, we need only 1
-	 * enabled voltage channel to meet this requirement. If the temperature
-	 * channel is the only enabled channel, we need to add one more slot
-	 * in the sequence but not read from it.
+	 * enabled voltage channel to meet this requirement.  If the temperature
+	 * channel is the only enabled channel, we need to add one more slot in
+	 * the sequence but not read from it. This is because the temperature
+	 * sensor is sampled at the end of the channel sequence in advanced
+	 * sequencer mode (see datasheet page 38).
+	 *
+	 * From the iio_for_each_active_channel() block above, we now have an
+	 * xfer with data followed by a blank xfer to allow us to meet the
+	 * timing spec, so move both of those up before adding an extra to
+	 * handle the temperature-only case.
 	 */
 	if (num_slots < 2) {
-		/* move last xfer so we can insert one more xfer before it */
-		st->buf_read_xfer[num_xfer] = *xfer;
+		/* Move last two xfers */
+		st->buf_read_xfer[num_xfer] = st->buf_read_xfer[num_xfer - 1];
+		st->buf_read_xfer[num_xfer - 1] = st->buf_read_xfer[num_xfer - 2];
 		num_xfer++;
 
-		/* modify 2nd to last xfer for extra slot */
+		/* Modify inserted xfer for extra slot. */
+		xfer = &st->buf_read_xfer[num_xfer - 3];
 		memset(xfer, 0, sizeof(*xfer));
 		xfer->cs_change = 1;
 		xfer->delay.value = st->chip_info->t_acq_ns;
@@ -499,6 +526,12 @@ static int ad4695_buffer_preenable(struct iio_dev *indio_dev)
 			return ret;
 
 		num_slots++;
+
+		/*
+		 * We still want to point at the last xfer when finished, so
+		 * update the pointer.
+		 */
+		xfer = &st->buf_read_xfer[num_xfer - 1];
 	}
 
 	/*
@@ -583,8 +616,20 @@ out:
  */
 static int ad4695_read_one_sample(struct ad4695_state *st, unsigned int address)
 {
-	struct spi_transfer xfer[2] = { };
-	int ret, i = 0;
+	struct spi_transfer xfers[2] = {
+		{
+			.speed_hz = AD4695_REG_ACCESS_SCLK_HZ,
+			.bits_per_word = 16,
+			.tx_buf = &st->cnv_cmd,
+			.len = 2,
+		},
+		{
+			/* Required delay between last SCLK and CNV/CS */
+			.delay.value = AD4695_T_SCK_CNV_DELAY_NS,
+			.delay.unit = SPI_DELAY_UNIT_NSECS,
+		}
+	};
+	int ret;
 
 	ret = ad4695_set_single_cycle_mode(st, address);
 	if (ret)
@@ -592,29 +637,22 @@ static int ad4695_read_one_sample(struct ad4695_state *st, unsigned int address)
 
 	/*
 	 * Setting the first channel to the temperature channel isn't supported
-	 * in single-cycle mode, so we have to do an extra xfer to read the
-	 * temperature.
+	 * in single-cycle mode, so we have to do an extra conversion to read
+	 * the temperature.
 	 */
 	if (address == AD4695_CMD_TEMP_CHAN) {
-		/* We aren't reading, so we can make this a short xfer. */
-		st->cnv_cmd2 = AD4695_CMD_TEMP_CHAN << 3;
-		xfer[0].tx_buf = &st->cnv_cmd2;
-		xfer[0].len = 1;
-		xfer[0].cs_change = 1;
-		xfer[0].cs_change_delay.value = AD4695_T_CONVERT_NS;
-		xfer[0].cs_change_delay.unit = SPI_DELAY_UNIT_NSECS;
+		st->cnv_cmd = AD4695_CMD_TEMP_CHAN << 11;
 
-		i = 1;
+		ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
+		if (ret)
+			return ret;
 	}
 
 	/* Then read the result and exit conversion mode. */
 	st->cnv_cmd = AD4695_CMD_EXIT_CNV_MODE << 11;
-	xfer[i].bits_per_word = 16;
-	xfer[i].tx_buf = &st->cnv_cmd;
-	xfer[i].rx_buf = &st->raw_data;
-	xfer[i].len = 2;
+	xfers[0].rx_buf = &st->raw_data;
 
-	return spi_sync_transfer(st->spi, xfer, i + 1);
+	return spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 }
 
 static int ad4695_read_raw(struct iio_dev *indio_dev,

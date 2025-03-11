@@ -47,11 +47,12 @@ void dcn21_optimize_pwr_state(
 void dcn21_PLAT_58856_wa(struct dc_state *context,
 		struct pipe_ctx *pipe_ctx);
 
+bool dcn21_dmub_abm_set_pipe(struct abm *abm, uint32_t otg_inst,
+	uint32_t option, uint32_t panel_inst, uint32_t pwrseq_inst);
 void dcn21_set_pipe(struct pipe_ctx *pipe_ctx);
 void dcn21_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx);
 bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
-		uint32_t backlight_pwm_u16_16,
-		uint32_t frame_ramp);
+	struct set_backlight_level_params *params);
 bool dcn21_is_abm_supported(struct dc *dc,
 		struct dc_state *context, struct dc_stream_state *stream);
 

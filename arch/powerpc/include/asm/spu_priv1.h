@@ -216,7 +216,6 @@ spu_disable_spu (struct spu_context *ctx)
  */
 
 extern const struct spu_priv1_ops spu_priv1_mmio_ops;
-extern const struct spu_priv1_ops spu_priv1_beat_ops;
 
 extern const struct spu_management_ops spu_management_of_ops;
 

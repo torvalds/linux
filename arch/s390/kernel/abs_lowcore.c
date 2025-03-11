@@ -2,6 +2,7 @@
 
 #include <linux/pgtable.h>
 #include <asm/abs_lowcore.h>
+#include <asm/sections.h>
 
 unsigned long __bootdata_preserved(__abs_lowcore);
 int __bootdata_preserved(relocate_lowcore);

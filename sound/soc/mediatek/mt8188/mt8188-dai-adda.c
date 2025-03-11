@@ -63,7 +63,6 @@ static int mt8188_adda_mtkaif_init(struct mtk_base_afe *afe)
 			param->mtkaif_phase_cycle[MT8188_MTKAIF_MISO_0];
 	}
 
-	val = 0;
 	mask = (MTKAIF_RXIF_DELAY_DATA | MTKAIF_RXIF_DELAY_CYCLE_MASK);
 	val |= FIELD_PREP(MTKAIF_RXIF_DELAY_CYCLE_MASK, delay_cycle);
 	val |= FIELD_PREP(MTKAIF_RXIF_DELAY_DATA, delay_data);

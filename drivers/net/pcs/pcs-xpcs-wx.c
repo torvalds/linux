@@ -46,25 +46,23 @@
 #define TXGBE_VCO_CAL_LD0		0x72
 #define TXGBE_VCO_CAL_REF0		0x76
 
-static int txgbe_read_pma(struct dw_xpcs *xpcs, int reg)
-{
-	return xpcs_read(xpcs, MDIO_MMD_PMAPMD, TXGBE_PMA_MMD + reg);
-}
-
 static int txgbe_write_pma(struct dw_xpcs *xpcs, int reg, u16 val)
 {
 	return xpcs_write(xpcs, MDIO_MMD_PMAPMD, TXGBE_PMA_MMD + reg, val);
 }
 
+static int txgbe_modify_pma(struct dw_xpcs *xpcs, int reg, u16 mask, u16 set)
+{
+	return xpcs_modify(xpcs, MDIO_MMD_PMAPMD, TXGBE_PMA_MMD + reg, mask,
+			   set);
+}
+
 static void txgbe_pma_config_10gbaser(struct dw_xpcs *xpcs)
 {
-	int val;
-
 	txgbe_write_pma(xpcs, TXGBE_MPLLA_CTL0, 0x21);
 	txgbe_write_pma(xpcs, TXGBE_MPLLA_CTL3, 0);
-	val = txgbe_read_pma(xpcs, TXGBE_TX_GENCTL1);
-	val = u16_replace_bits(val, 0x5, TXGBE_TX_GENCTL1_VBOOST_LVL);
-	txgbe_write_pma(xpcs, TXGBE_TX_GENCTL1, val);
+	txgbe_modify_pma(xpcs, TXGBE_TX_GENCTL1, TXGBE_TX_GENCTL1_VBOOST_LVL,
+			 FIELD_PREP(TXGBE_TX_GENCTL1_VBOOST_LVL, 0x5));
 	txgbe_write_pma(xpcs, TXGBE_MISC_CTL0, TXGBE_MISC_CTL0_PLL |
 			TXGBE_MISC_CTL0_CR_PARA_SEL | TXGBE_MISC_CTL0_RX_VREF(0xF));
 	txgbe_write_pma(xpcs, TXGBE_VCO_CAL_LD0, 0x549);
@@ -78,38 +76,29 @@ static void txgbe_pma_config_10gbaser(struct dw_xpcs *xpcs)
 
 	txgbe_write_pma(xpcs, TXGBE_RX_EQ_CTL0, TXGBE_RX_EQ_CTL0_CTLE_POLE(2) |
 			TXGBE_RX_EQ_CTL0_CTLE_BOOST(5));
-	val = txgbe_read_pma(xpcs, TXGBE_RX_EQ_ATTN_CTL);
-	val &= ~TXGBE_RX_EQ_ATTN_LVL0;
-	txgbe_write_pma(xpcs, TXGBE_RX_EQ_ATTN_CTL, val);
+	txgbe_modify_pma(xpcs, TXGBE_RX_EQ_ATTN_CTL, TXGBE_RX_EQ_ATTN_LVL0, 0);
 	txgbe_write_pma(xpcs, TXGBE_DFE_TAP_CTL0, 0xBE);
-	val = txgbe_read_pma(xpcs, TXGBE_AFE_DFE_ENABLE);
-	val &= ~(TXGBE_DFE_EN_0 | TXGBE_AFE_EN_0);
-	txgbe_write_pma(xpcs, TXGBE_AFE_DFE_ENABLE, val);
-	val = txgbe_read_pma(xpcs, TXGBE_RX_EQ_CTL4);
-	val &= ~TXGBE_RX_EQ_CTL4_CONT_ADAPT0;
-	txgbe_write_pma(xpcs, TXGBE_RX_EQ_CTL4, val);
+	txgbe_modify_pma(xpcs, TXGBE_AFE_DFE_ENABLE,
+			 TXGBE_DFE_EN_0 | TXGBE_AFE_EN_0, 0);
+	txgbe_modify_pma(xpcs, TXGBE_RX_EQ_CTL4, TXGBE_RX_EQ_CTL4_CONT_ADAPT0,
+			 0);
 }
 
 static void txgbe_pma_config_1g(struct dw_xpcs *xpcs)
 {
-	int val;
-
-	val = txgbe_read_pma(xpcs, TXGBE_TX_GENCTL1);
-	val = u16_replace_bits(val, 0x5, TXGBE_TX_GENCTL1_VBOOST_LVL);
-	val &= ~TXGBE_TX_GENCTL1_VBOOST_EN0;
-	txgbe_write_pma(xpcs, TXGBE_TX_GENCTL1, val);
+	txgbe_modify_pma(xpcs, TXGBE_TX_GENCTL1,
+			 TXGBE_TX_GENCTL1_VBOOST_LVL |
+			 TXGBE_TX_GENCTL1_VBOOST_EN0,
+			 FIELD_PREP(TXGBE_TX_GENCTL1_VBOOST_LVL, 0x5));
 	txgbe_write_pma(xpcs, TXGBE_MISC_CTL0, TXGBE_MISC_CTL0_PLL |
 			TXGBE_MISC_CTL0_CR_PARA_SEL | TXGBE_MISC_CTL0_RX_VREF(0xF));
 
 	txgbe_write_pma(xpcs, TXGBE_RX_EQ_CTL0, TXGBE_RX_EQ_CTL0_VGA1_GAIN(7) |
 			TXGBE_RX_EQ_CTL0_VGA2_GAIN(7) | TXGBE_RX_EQ_CTL0_CTLE_BOOST(6));
-	val = txgbe_read_pma(xpcs, TXGBE_RX_EQ_ATTN_CTL);
-	val &= ~TXGBE_RX_EQ_ATTN_LVL0;
-	txgbe_write_pma(xpcs, TXGBE_RX_EQ_ATTN_CTL, val);
+	txgbe_modify_pma(xpcs, TXGBE_RX_EQ_ATTN_CTL, TXGBE_RX_EQ_ATTN_LVL0, 0);
 	txgbe_write_pma(xpcs, TXGBE_DFE_TAP_CTL0, 0);
-	val = txgbe_read_pma(xpcs, TXGBE_RX_GEN_CTL3);
-	val = u16_replace_bits(val, 0x4, TXGBE_RX_GEN_CTL3_LOS_TRSHLD0);
-	txgbe_write_pma(xpcs, TXGBE_RX_GEN_CTL3, val);
+	txgbe_modify_pma(xpcs, TXGBE_RX_GEN_CTL3, TXGBE_RX_GEN_CTL3_LOS_TRSHLD0,
+			 FIELD_PREP(TXGBE_RX_GEN_CTL3_LOS_TRSHLD0, 0x4));
 
 	txgbe_write_pma(xpcs, TXGBE_MPLLA_CTL0, 0x20);
 	txgbe_write_pma(xpcs, TXGBE_MPLLA_CTL3, 0x46);
@@ -172,7 +161,7 @@ static bool txgbe_xpcs_mode_quirk(struct dw_xpcs *xpcs)
 
 int txgbe_xpcs_switch_mode(struct dw_xpcs *xpcs, phy_interface_t interface)
 {
-	int val, ret;
+	int ret;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_10GBASER:
@@ -194,9 +183,8 @@ int txgbe_xpcs_switch_mode(struct dw_xpcs *xpcs, phy_interface_t interface)
 
 	if (interface == PHY_INTERFACE_MODE_10GBASER) {
 		xpcs_write(xpcs, MDIO_MMD_PCS, MDIO_CTRL2, MDIO_PCS_CTRL2_10GBR);
-		val = xpcs_read(xpcs, MDIO_MMD_PMAPMD, MDIO_CTRL1);
-		val |= MDIO_CTRL1_SPEED10G;
-		xpcs_write(xpcs, MDIO_MMD_PMAPMD, MDIO_CTRL1, val);
+		xpcs_modify(xpcs, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+			    MDIO_CTRL1_SPEED10G, MDIO_CTRL1_SPEED10G);
 		txgbe_pma_config_10gbaser(xpcs);
 	} else {
 		xpcs_write(xpcs, MDIO_MMD_PCS, MDIO_CTRL2, MDIO_PCS_CTRL2_10GBX);

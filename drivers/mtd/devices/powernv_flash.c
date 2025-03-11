@@ -286,7 +286,7 @@ static struct platform_driver powernv_flash_driver = {
 		.name		= "powernv_flash",
 		.of_match_table	= powernv_flash_match,
 	},
-	.remove_new	= powernv_flash_release,
+	.remove		= powernv_flash_release,
 	.probe		= powernv_flash_probe,
 };
 

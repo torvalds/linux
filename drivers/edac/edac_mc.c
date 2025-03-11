@@ -214,7 +214,7 @@ static int edac_mc_alloc_csrows(struct mem_ctl_info *mci)
 	unsigned int row, chn;
 
 	/*
-	 * Alocate and fill the csrow/channels structs
+	 * Allocate and fill the csrow/channels structs
 	 */
 	mci->csrows = kcalloc(tot_csrows, sizeof(*mci->csrows), GFP_KERNEL);
 	if (!mci->csrows)

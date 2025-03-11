@@ -1,0 +1,176 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2023-2024 Marek Vasut <marex@denx.de>
+ *
+ * DHCOM iMX8MP variant:
+ * DHCM-iMX8ML8-C160-R204-F1638-SPI16-E-SD-RTC-T-RGB-I-01D2
+ * DHCOM PCB number: 660-200 or newer
+ * PicoITX PCB number: 487-600 or newer
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/leds/common.h>
+#include "imx8mp-dhcom-som.dtsi"
+
+/ {
+	model = "DH electronics i.MX8M Plus DHCOM PicoITX";
+	compatible = "dh,imx8mp-dhcom-picoitx", "dh,imx8mp-dhcom-som",
+		     "fsl,imx8mp";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	led {
+		compatible = "gpio-leds";
+
+		led-0 {
+			color = <LED_COLOR_ID_YELLOW>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>; /* GPIO I */
+			pinctrl-0 = <&pinctrl_dhcom_i>;
+			pinctrl-names = "default";
+		};
+	};
+};
+
+&eqos {	/* First ethernet */
+	pinctrl-0 = <&pinctrl_eqos_rmii>;
+	phy-handle = <&ethphy0f>;
+	phy-mode = "rmii";
+
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_266M>,
+				 <&clk IMX8MP_SYS_PLL2_100M>,
+				 <&clk IMX8MP_SYS_PLL2_50M>;
+	assigned-clock-rates = <0>, <100000000>, <50000000>;
+};
+
+&ethphy0g {	/* Micrel KSZ9131RNXI */
+	status = "disabled";
+};
+
+&ethphy0f {	/* SMSC LAN8740Ai */
+	status = "okay";
+};
+
+&fec {
+	status = "disabled";
+};
+
+&flexcan1 {
+	status = "okay";
+};
+
+&gpio1 {
+	gpio-line-names =
+		"DHCOM-G", "", "", "",
+		"", "DHCOM-I", "PicoITX-HW0", "PicoITX-HW2",
+		"DHCOM-B", "DHCOM-A", "", "DHCOM-H", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio2 {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"", "", "", "PicoITX-HW1", "", "", "", "",
+		"", "", "", "", "DHCOM-INT", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio4 {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "SOM-HW1", "", "", "", "",
+		"", "", "", "PicoITX-Out2", "", "", "", "";
+};
+
+&gpio5 {
+	gpio-line-names =
+		"", "", "PicoITX-In2", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "",
+		"", "", "PicoITX-In1", "PicoITX-Out1",
+		"", "", "", "", "", "", "", "";
+};
+
+/* No HS connector on this SoM variant, so no HDMI, PCIe and only USB HS. */
+&hdmi_blk_ctrl {
+	status = "disabled";
+};
+
+&hdmi_pvi {
+	status = "disabled";
+};
+
+&hdmi_tx {
+	status = "disabled";
+};
+
+&hdmi_tx_phy {
+	status = "disabled";
+};
+
+&irqsteer_hdmi {
+	status = "disabled";
+};
+
+&lcdif3 {
+	status = "disabled";
+};
+
+&pcie_phy {
+	status = "disabled";
+};
+
+&pcie {
+	status = "disabled";
+};
+
+/* No WiFi/BT chipset on this SoM variant. */
+&uart2 {
+	bluetooth {
+		status = "disabled";
+	};
+};
+
+/* USB_OTG port is not routed out on PicoITX. */
+&usb3_0 {
+	status = "disabled";
+};
+
+&usb_dwc3_0 {
+	status = "disabled";
+};
+
+&usb3_1 {
+	fsl,over-current-active-low;
+};
+
+&usb_dwc3_1 {
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+};
+
+/* No WiFi/BT chipset on this SoM variant. */
+&usdhc1 {
+	status = "disabled";
+};
+
+&iomuxc {
+	/*
+	 * The following DHCOM GPIOs are used on this board.
+	 * Therefore, they have been removed from the list below.
+	 * I: yellow led
+	 */
+	pinctrl-0 = <&pinctrl_dhcom_a &pinctrl_dhcom_b &pinctrl_dhcom_c
+		     &pinctrl_dhcom_d &pinctrl_dhcom_e &pinctrl_dhcom_f
+		     &pinctrl_dhcom_g &pinctrl_dhcom_h &pinctrl_dhcom_j
+		     &pinctrl_dhcom_k &pinctrl_dhcom_l &pinctrl_dhcom_m
+		     &pinctrl_dhcom_n &pinctrl_dhcom_o &pinctrl_dhcom_p
+		     &pinctrl_dhcom_q &pinctrl_dhcom_r &pinctrl_dhcom_s
+		     &pinctrl_dhcom_int>;
+};

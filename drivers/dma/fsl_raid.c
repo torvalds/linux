@@ -886,7 +886,7 @@ static struct platform_driver fsl_re_driver = {
 		.of_match_table = fsl_re_ids,
 	},
 	.probe = fsl_re_probe,
-	.remove_new = fsl_re_remove,
+	.remove = fsl_re_remove,
 };
 
 module_platform_driver(fsl_re_driver);

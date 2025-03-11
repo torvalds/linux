@@ -1000,16 +1000,16 @@ static int ath11k_ahb_fw_resources_init(struct ath11k_base *ab)
 	if (!ab->hw_params.fixed_fw_mem)
 		return 0;
 
-	ret = ath11k_ahb_setup_msa_resources(ab);
-	if (ret) {
-		ath11k_err(ab, "failed to setup msa resources\n");
-		return ret;
-	}
-
 	node = of_get_child_by_name(host_dev->of_node, "wifi-firmware");
 	if (!node) {
 		ab_ahb->fw.use_tz = true;
 		return 0;
+	}
+
+	ret = ath11k_ahb_setup_msa_resources(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to setup msa resources\n");
+		return ret;
 	}
 
 	info.fwnode = &node->fwnode;
@@ -1313,12 +1313,12 @@ free_resources:
 }
 
 static struct platform_driver ath11k_ahb_driver = {
-	.driver         = {
-		.name   = "ath11k",
+	.driver = {
+		.name = "ath11k",
 		.of_match_table = ath11k_ahb_of_match,
 	},
-	.probe  = ath11k_ahb_probe,
-	.remove_new = ath11k_ahb_remove,
+	.probe = ath11k_ahb_probe,
+	.remove = ath11k_ahb_remove,
 	.shutdown = ath11k_ahb_shutdown,
 };
 

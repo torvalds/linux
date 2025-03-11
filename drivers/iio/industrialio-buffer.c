@@ -36,7 +36,7 @@
 
 #define DMABUF_ENQUEUE_TIMEOUT_MS 5000
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 struct iio_dmabuf_priv {
 	struct list_head entry;

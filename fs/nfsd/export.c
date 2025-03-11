@@ -1078,12 +1078,14 @@ static struct svc_export *exp_find(struct cache_detail *cd,
  * check_nfsd_access - check if access to export is allowed.
  * @exp: svc_export that is being accessed.
  * @rqstp: svc_rqst attempting to access @exp (will be NULL for LOCALIO).
+ * @may_bypass_gss: reduce strictness of authorization check
  *
  * Return values:
  *   %nfs_ok if access is granted, or
  *   %nfserr_wrongsec if access is denied
  */
-__be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
+__be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp,
+			 bool may_bypass_gss)
 {
 	struct exp_flavor_info *f, *end = exp->ex_flavors + exp->ex_nflavors;
 	struct svc_xprt *xprt;
@@ -1139,6 +1141,23 @@ ok:
 
 	if (nfsd4_spo_must_allow(rqstp))
 		return nfs_ok;
+
+	/* Some calls may be processed without authentication
+	 * on GSS exports. For example NFS2/3 calls on root
+	 * directory, see section 2.3.2 of rfc 2623.
+	 * For "may_bypass_gss" check that export has really
+	 * enabled some flavor with authentication (GSS or any
+	 * other) and also check that the used auth flavor is
+	 * without authentication (none or sys).
+	 */
+	if (may_bypass_gss && (
+	     rqstp->rq_cred.cr_flavor == RPC_AUTH_NULL ||
+	     rqstp->rq_cred.cr_flavor == RPC_AUTH_UNIX)) {
+		for (f = exp->ex_flavors; f < end; f++) {
+			if (f->pseudoflavor >= RPC_AUTH_DES)
+				return 0;
+		}
+	}
 
 denied:
 	return nfserr_wrongsec;
@@ -1406,9 +1425,12 @@ static int e_show(struct seq_file *m, void *p)
 		return 0;
 	}
 
-	exp_get(exp);
+	if (!cache_get_rcu(&exp->h))
+		return 0;
+
 	if (cache_check(cd, &exp->h, NULL))
 		return 0;
+
 	exp_put(exp);
 	return svc_export_show(m, cd, cp);
 }

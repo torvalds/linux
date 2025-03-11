@@ -38,6 +38,7 @@
 
 #define FREQ_INFO_REC	XE_REG(MCHBAR_MIRROR_BASE_SNB + 0x5ef0)
 #define   RPE_MASK		REG_GENMASK(15, 8)
+#define   RPA_MASK		REG_GENMASK(31, 16)
 
 #define GT_PERF_STATUS		XE_REG(0x1381b4)
 #define   CAGF_MASK	REG_GENMASK(19, 11)
@@ -262,7 +263,7 @@ static void pc_set_manual_rp_ctrl(struct xe_guc_pc *pc, bool enable)
 	u32 state = enable ? RPSWCTL_ENABLE : RPSWCTL_DISABLE;
 
 	/* Allow/Disallow punit to process software freq requests */
-	xe_mmio_write32(gt, RP_CONTROL, state);
+	xe_mmio_write32(&gt->mmio, RP_CONTROL, state);
 }
 
 static void pc_set_cur_freq(struct xe_guc_pc *pc, u32 freq)
@@ -274,7 +275,7 @@ static void pc_set_cur_freq(struct xe_guc_pc *pc, u32 freq)
 
 	/* Req freq is in units of 16.66 Mhz */
 	rpnswreq = REG_FIELD_PREP(REQ_RATIO_MASK, encode_freq(freq));
-	xe_mmio_write32(gt, RPNSWREQ, rpnswreq);
+	xe_mmio_write32(&gt->mmio, RPNSWREQ, rpnswreq);
 
 	/* Sleep for a small time to allow pcode to respond */
 	usleep_range(100, 300);
@@ -328,17 +329,49 @@ static int pc_set_max_freq(struct xe_guc_pc *pc, u32 freq)
 				   freq);
 }
 
+static void mtl_update_rpa_value(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+	u32 reg;
+
+	if (xe_gt_is_media_type(gt))
+		reg = xe_mmio_read32(&gt->mmio, MTL_MPA_FREQUENCY);
+	else
+		reg = xe_mmio_read32(&gt->mmio, MTL_GT_RPA_FREQUENCY);
+
+	pc->rpa_freq = decode_freq(REG_FIELD_GET(MTL_RPA_MASK, reg));
+}
+
 static void mtl_update_rpe_value(struct xe_guc_pc *pc)
 {
 	struct xe_gt *gt = pc_to_gt(pc);
 	u32 reg;
 
 	if (xe_gt_is_media_type(gt))
-		reg = xe_mmio_read32(gt, MTL_MPE_FREQUENCY);
+		reg = xe_mmio_read32(&gt->mmio, MTL_MPE_FREQUENCY);
 	else
-		reg = xe_mmio_read32(gt, MTL_GT_RPE_FREQUENCY);
+		reg = xe_mmio_read32(&gt->mmio, MTL_GT_RPE_FREQUENCY);
 
 	pc->rpe_freq = decode_freq(REG_FIELD_GET(MTL_RPE_MASK, reg));
+}
+
+static void tgl_update_rpa_value(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 reg;
+
+	/*
+	 * For PVC we still need to use fused RP1 as the approximation for RPe
+	 * For other platforms than PVC we get the resolved RPe directly from
+	 * PCODE at a different register
+	 */
+	if (xe->info.platform == XE_PVC)
+		reg = xe_mmio_read32(&gt->mmio, PVC_RP_STATE_CAP);
+	else
+		reg = xe_mmio_read32(&gt->mmio, FREQ_INFO_REC);
+
+	pc->rpa_freq = REG_FIELD_GET(RPA_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }
 
 static void tgl_update_rpe_value(struct xe_guc_pc *pc)
@@ -353,9 +386,9 @@ static void tgl_update_rpe_value(struct xe_guc_pc *pc)
 	 * PCODE at a different register
 	 */
 	if (xe->info.platform == XE_PVC)
-		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, PVC_RP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, FREQ_INFO_REC);
+		reg = xe_mmio_read32(&gt->mmio, FREQ_INFO_REC);
 
 	pc->rpe_freq = REG_FIELD_GET(RPE_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }
@@ -365,10 +398,13 @@ static void pc_update_rp_values(struct xe_guc_pc *pc)
 	struct xe_gt *gt = pc_to_gt(pc);
 	struct xe_device *xe = gt_to_xe(gt);
 
-	if (GRAPHICS_VERx100(xe) >= 1270)
+	if (GRAPHICS_VERx100(xe) >= 1270) {
+		mtl_update_rpa_value(pc);
 		mtl_update_rpe_value(pc);
-	else
+	} else {
+		tgl_update_rpa_value(pc);
 		tgl_update_rpe_value(pc);
+	}
 
 	/*
 	 * RPe is decided at runtime by PCODE. In the rare case where that's
@@ -392,10 +428,10 @@ u32 xe_guc_pc_get_act_freq(struct xe_guc_pc *pc)
 
 	/* When in RC6, actual frequency reported will be 0. */
 	if (GRAPHICS_VERx100(xe) >= 1270) {
-		freq = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1);
+		freq = xe_mmio_read32(&gt->mmio, MTL_MIRROR_TARGET_WP1);
 		freq = REG_FIELD_GET(MTL_CAGF_MASK, freq);
 	} else {
-		freq = xe_mmio_read32(gt, GT_PERF_STATUS);
+		freq = xe_mmio_read32(&gt->mmio, GT_PERF_STATUS);
 		freq = REG_FIELD_GET(CAGF_MASK, freq);
 	}
 
@@ -415,22 +451,24 @@ u32 xe_guc_pc_get_act_freq(struct xe_guc_pc *pc)
 int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq)
 {
 	struct xe_gt *gt = pc_to_gt(pc);
-	int ret;
+	unsigned int fw_ref;
 
 	/*
 	 * GuC SLPC plays with cur freq request when GuCRC is enabled
 	 * Block RC6 for a more reliable read.
 	 */
-	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (ret)
-		return ret;
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FW_GT)) {
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
+		return -ETIMEDOUT;
+	}
 
-	*freq = xe_mmio_read32(gt, RPNSWREQ);
+	*freq = xe_mmio_read32(&gt->mmio, RPNSWREQ);
 
 	*freq = REG_FIELD_GET(REQ_RATIO_MASK, *freq);
 	*freq = decode_freq(*freq);
 
-	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return 0;
 }
 
@@ -443,6 +481,19 @@ int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq)
 u32 xe_guc_pc_get_rp0_freq(struct xe_guc_pc *pc)
 {
 	return pc->rp0_freq;
+}
+
+/**
+ * xe_guc_pc_get_rpa_freq - Get the RPa freq
+ * @pc: The GuC PC
+ *
+ * Returns: RPa freq.
+ */
+u32 xe_guc_pc_get_rpa_freq(struct xe_guc_pc *pc)
+{
+	pc_update_rp_values(pc);
+
+	return pc->rpa_freq;
 }
 
 /**
@@ -479,8 +530,9 @@ u32 xe_guc_pc_get_rpn_freq(struct xe_guc_pc *pc)
  */
 int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq)
 {
-	struct xe_gt *gt = pc_to_gt(pc);
 	int ret;
+
+	xe_device_assert_mem_access(pc_to_xe(pc));
 
 	mutex_lock(&pc->freq_lock);
 	if (!pc->freq_ready) {
@@ -489,22 +541,12 @@ int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq)
 		goto out;
 	}
 
-	/*
-	 * GuC SLPC plays with min freq request when GuCRC is enabled
-	 * Block RC6 for a more reliable read.
-	 */
-	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	ret = pc_action_query_task_state(pc);
 	if (ret)
 		goto out;
 
-	ret = pc_action_query_task_state(pc);
-	if (ret)
-		goto fw;
-
 	*freq = pc_get_min_freq(pc);
 
-fw:
-	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
 out:
 	mutex_unlock(&pc->freq_lock);
 	return ret;
@@ -612,10 +654,10 @@ enum xe_gt_idle_state xe_guc_pc_c_status(struct xe_guc_pc *pc)
 	u32 reg, gt_c_state;
 
 	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270) {
-		reg = xe_mmio_read32(gt, MTL_MIRROR_TARGET_WP1);
+		reg = xe_mmio_read32(&gt->mmio, MTL_MIRROR_TARGET_WP1);
 		gt_c_state = REG_FIELD_GET(MTL_CC_MASK, reg);
 	} else {
-		reg = xe_mmio_read32(gt, GT_CORE_STATUS);
+		reg = xe_mmio_read32(&gt->mmio, GT_CORE_STATUS);
 		gt_c_state = REG_FIELD_GET(RCN_MASK, reg);
 	}
 
@@ -638,7 +680,7 @@ u64 xe_guc_pc_rc6_residency(struct xe_guc_pc *pc)
 	struct xe_gt *gt = pc_to_gt(pc);
 	u32 reg;
 
-	reg = xe_mmio_read32(gt, GT_GFX_RC6);
+	reg = xe_mmio_read32(&gt->mmio, GT_GFX_RC6);
 
 	return reg;
 }
@@ -652,7 +694,7 @@ u64 xe_guc_pc_mc6_residency(struct xe_guc_pc *pc)
 	struct xe_gt *gt = pc_to_gt(pc);
 	u64 reg;
 
-	reg = xe_mmio_read32(gt, MTL_MEDIA_MC6);
+	reg = xe_mmio_read32(&gt->mmio, MTL_MEDIA_MC6);
 
 	return reg;
 }
@@ -665,9 +707,9 @@ static void mtl_init_fused_rp_values(struct xe_guc_pc *pc)
 	xe_device_assert_mem_access(pc_to_xe(pc));
 
 	if (xe_gt_is_media_type(gt))
-		reg = xe_mmio_read32(gt, MTL_MEDIAP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, MTL_MEDIAP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, MTL_RP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, MTL_RP_STATE_CAP);
 
 	pc->rp0_freq = decode_freq(REG_FIELD_GET(MTL_RP0_CAP_MASK, reg));
 
@@ -683,9 +725,9 @@ static void tgl_init_fused_rp_values(struct xe_guc_pc *pc)
 	xe_device_assert_mem_access(pc_to_xe(pc));
 
 	if (xe->info.platform == XE_PVC)
-		reg = xe_mmio_read32(gt, PVC_RP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, PVC_RP_STATE_CAP);
 	else
-		reg = xe_mmio_read32(gt, RP_STATE_CAP);
+		reg = xe_mmio_read32(&gt->mmio, RP_STATE_CAP);
 	pc->rp0_freq = REG_FIELD_GET(RP0_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 	pc->rpn_freq = REG_FIELD_GET(RPN_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }
@@ -855,6 +897,7 @@ int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 {
 	struct xe_device *xe = pc_to_xe(pc);
 	struct xe_gt *gt = pc_to_gt(pc);
+	unsigned int fw_ref;
 	int ret = 0;
 
 	if (xe->info.skip_guc_pc)
@@ -864,13 +907,15 @@ int xe_guc_pc_gucrc_disable(struct xe_guc_pc *pc)
 	if (ret)
 		return ret;
 
-	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (ret)
-		return ret;
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
+	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
+		return -ETIMEDOUT;
+	}
 
 	xe_gt_idle_disable_c6(gt);
 
-	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 
 	return 0;
 }
@@ -956,13 +1001,16 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 	struct xe_device *xe = pc_to_xe(pc);
 	struct xe_gt *gt = pc_to_gt(pc);
 	u32 size = PAGE_ALIGN(sizeof(struct slpc_shared_data));
+	unsigned int fw_ref;
 	int ret;
 
 	xe_gt_assert(gt, xe_device_uc_enabled(xe));
 
-	ret = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (ret)
-		return ret;
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FW_GT)) {
+		xe_force_wake_put(gt_to_fw(gt), fw_ref);
+		return -ETIMEDOUT;
+	}
 
 	if (xe->info.skip_guc_pc) {
 		if (xe->info.platform != XE_PVC)
@@ -1005,7 +1053,7 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 	ret = pc_action_setup_gucrc(pc, GUCRC_FIRMWARE_CONTROL);
 
 out:
-	XE_WARN_ON(xe_force_wake_put(gt_to_fw(gt), XE_FORCEWAKE_ALL));
+	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 	return ret;
 }
 
@@ -1037,18 +1085,19 @@ static void xe_guc_pc_fini_hw(void *arg)
 {
 	struct xe_guc_pc *pc = arg;
 	struct xe_device *xe = pc_to_xe(pc);
+	unsigned int fw_ref;
 
 	if (xe_device_wedged(xe))
 		return;
 
-	XE_WARN_ON(xe_force_wake_get(gt_to_fw(pc_to_gt(pc)), XE_FORCEWAKE_ALL));
+	fw_ref = xe_force_wake_get(gt_to_fw(pc_to_gt(pc)), XE_FORCEWAKE_ALL);
 	xe_guc_pc_gucrc_disable(pc);
 	XE_WARN_ON(xe_guc_pc_stop(pc));
 
 	/* Bind requested freq to mert_freq_cap before unload */
 	pc_set_cur_freq(pc, min(pc_max_freq_cap(pc), pc->rpe_freq));
 
-	xe_force_wake_put(gt_to_fw(pc_to_gt(pc)), XE_FORCEWAKE_ALL);
+	xe_force_wake_put(gt_to_fw(pc_to_gt(pc)), fw_ref);
 }
 
 /**

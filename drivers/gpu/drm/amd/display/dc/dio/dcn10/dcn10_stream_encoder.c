@@ -255,7 +255,6 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	uint32_t misc1 = 0;
 	uint32_t h_blank;
 	uint32_t h_back_porch;
-	uint8_t synchronous_clock = 0; /* asynchronous mode */
 	uint8_t colorimetry_bpc;
 	uint8_t dp_pixel_encoding = 0;
 	uint8_t dp_component_depth = 0;
@@ -362,7 +361,6 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 		break;
 	}
 
-	misc0 = misc0 | synchronous_clock;
 	misc0 = colorimetry_bpc << 5;
 
 	switch (output_color_space) {

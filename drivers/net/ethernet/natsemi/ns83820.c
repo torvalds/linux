@@ -2090,7 +2090,7 @@ static int ns83820_init_one(struct pci_dev *pci_dev,
 	 */
 	/* Ramit : 1024 DMA is not a good idea, it ends up banging
 	 * some DELL and COMPAQ SMP systems
-	 * Turn on ALP, only we are accpeting Jumbo Packets */
+	 * Turn on ALP, only we are accepting Jumbo Packets */
 	writel(RXCFG_AEP | RXCFG_ARP | RXCFG_AIRL | RXCFG_RX_FD
 		| RXCFG_STRIPCRC
 		//| RXCFG_ALP

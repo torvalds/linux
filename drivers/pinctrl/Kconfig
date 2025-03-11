@@ -268,6 +268,17 @@ config PINCTRL_K210
 	  Add support for the Canaan Kendryte K210 RISC-V SOC Field
 	  Programmable IO Array (FPIOA) controller.
 
+config PINCTRL_K230
+	bool "Pinctrl driver for the Canaan Kendryte K230 SoC"
+	depends on OF
+	depends on ARCH_CANAAN || COMPILE_TEST
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select REGMAP_MMIO
+	help
+	  Add support for the Canaan Kendryte K230 RISC-V SOC pin controller.
+
 config PINCTRL_KEEMBAY
 	tristate "Pinctrl driver for Intel Keem Bay SoC"
 	depends on ARCH_KEEMBAY || (ARM64 && COMPILE_TEST)
@@ -551,6 +562,20 @@ config PINCTRL_TPS6594
 	  This driver can also be built as a module
 	  called tps6594-pinctrl.
 
+config PINCTRL_TH1520
+	tristate "Pinctrl driver for the T-Head TH1520 SoC"
+	depends on ARCH_THEAD || COMPILE_TEST
+	depends on OF
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select PINMUX
+	help
+	  This is the driver for the pin controller blocks on the
+	  T-Head TH1520 SoC.
+
+	  This driver is needed for RISC-V development boards like
+	  the BeagleV Ahead and the LicheePi 4A.
+
 config PINCTRL_ZYNQ
 	bool "Pinctrl driver for Xilinx Zynq"
 	depends on ARCH_ZYNQ
@@ -606,6 +631,7 @@ source "drivers/pinctrl/realtek/Kconfig"
 source "drivers/pinctrl/renesas/Kconfig"
 source "drivers/pinctrl/samsung/Kconfig"
 source "drivers/pinctrl/sophgo/Kconfig"
+source "drivers/pinctrl/spacemit/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
 source "drivers/pinctrl/sprd/Kconfig"
 source "drivers/pinctrl/starfive/Kconfig"

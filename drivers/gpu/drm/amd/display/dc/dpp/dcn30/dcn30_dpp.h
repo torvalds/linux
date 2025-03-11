@@ -572,6 +572,7 @@ struct dcn3_dpp {
 	int lb_memory_size;
 	int lb_bits_per_entry;
 	bool is_write_to_ram_a_safe;
+	bool dispclk_r_gate_disable;
 	struct scaler_data scl_data;
 	struct pwl_params pwl_data;
 };

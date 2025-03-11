@@ -795,7 +795,7 @@ MODULE_DEVICE_TABLE(of, rpcif_of_match);
 
 static struct platform_driver rpcif_driver = {
 	.probe	= rpcif_probe,
-	.remove_new = rpcif_remove,
+	.remove = rpcif_remove,
 	.driver = {
 		.name =	"rpc-if",
 		.of_match_table = rpcif_of_match,

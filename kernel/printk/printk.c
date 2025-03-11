@@ -2733,11 +2733,11 @@ module_param_named(console_no_auto_verbose, printk_console_no_auto_verbose, bool
 MODULE_PARM_DESC(console_no_auto_verbose, "Disable console loglevel raise to highest on oops/panic/etc");
 
 /**
- * suspend_console - suspend the console subsystem
+ * console_suspend_all - suspend the console subsystem
  *
  * This disables printk() while we go into suspend states
  */
-void suspend_console(void)
+void console_suspend_all(void)
 {
 	struct console *con;
 
@@ -2760,7 +2760,7 @@ void suspend_console(void)
 	synchronize_srcu(&console_srcu);
 }
 
-void resume_console(void)
+void console_resume_all(void)
 {
 	struct console_flush_type ft;
 	struct console *con;
@@ -3342,7 +3342,12 @@ void console_unblank(void)
 	 */
 	cookie = console_srcu_read_lock();
 	for_each_console_srcu(c) {
-		if ((console_srcu_read_flags(c) & CON_ENABLED) && c->unblank) {
+		short flags = console_srcu_read_flags(c);
+
+		if (flags & CON_SUSPENDED)
+			continue;
+
+		if ((flags & CON_ENABLED) && c->unblank) {
 			found_unblank = true;
 			break;
 		}
@@ -3379,7 +3384,12 @@ void console_unblank(void)
 
 	cookie = console_srcu_read_lock();
 	for_each_console_srcu(c) {
-		if ((console_srcu_read_flags(c) & CON_ENABLED) && c->unblank)
+		short flags = console_srcu_read_flags(c);
+
+		if (flags & CON_SUSPENDED)
+			continue;
+
+		if ((flags & CON_ENABLED) && c->unblank)
 			c->unblank();
 	}
 	console_srcu_read_unlock(cookie);
@@ -3497,10 +3507,10 @@ struct tty_driver *console_device(int *index)
 
 /*
  * Prevent further output on the passed console device so that (for example)
- * serial drivers can disable console output before suspending a port, and can
+ * serial drivers can suspend console output before suspending a port, and can
  * re-enable output afterwards.
  */
-void console_stop(struct console *console)
+void console_suspend(struct console *console)
 {
 	__pr_flush(console, 1000, true);
 	console_list_lock();
@@ -3515,9 +3525,9 @@ void console_stop(struct console *console)
 	 */
 	synchronize_srcu(&console_srcu);
 }
-EXPORT_SYMBOL(console_stop);
+EXPORT_SYMBOL(console_suspend);
 
-void console_start(struct console *console)
+void console_resume(struct console *console)
 {
 	struct console_flush_type ft;
 	bool is_nbcon;
@@ -3542,7 +3552,7 @@ void console_start(struct console *console)
 
 	__pr_flush(console, 1000, true);
 }
-EXPORT_SYMBOL(console_start);
+EXPORT_SYMBOL(console_resume);
 
 #ifdef CONFIG_PRINTK
 static int unregister_console_locked(struct console *console);

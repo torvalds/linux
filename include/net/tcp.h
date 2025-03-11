@@ -2430,6 +2430,20 @@ void tcp_plb_update_state(const struct sock *sk, struct tcp_plb_state *plb,
 void tcp_plb_check_rehash(struct sock *sk, struct tcp_plb_state *plb);
 void tcp_plb_update_state_upon_rto(struct sock *sk, struct tcp_plb_state *plb);
 
+static inline void tcp_warn_once(const struct sock *sk, bool cond, const char *str)
+{
+	WARN_ONCE(cond,
+		  "%scwn:%u out:%u sacked:%u lost:%u retrans:%u tlp_high_seq:%u sk_state:%u ca_state:%u advmss:%u mss_cache:%u pmtu:%u\n",
+		  str,
+		  tcp_snd_cwnd(tcp_sk(sk)),
+		  tcp_sk(sk)->packets_out, tcp_sk(sk)->sacked_out,
+		  tcp_sk(sk)->lost_out, tcp_sk(sk)->retrans_out,
+		  tcp_sk(sk)->tlp_high_seq, sk->sk_state,
+		  inet_csk(sk)->icsk_ca_state,
+		  tcp_sk(sk)->advmss, tcp_sk(sk)->mss_cache,
+		  inet_csk(sk)->icsk_pmtu_cookie);
+}
+
 /* At how many usecs into the future should the RTO fire? */
 static inline s64 tcp_rto_delta_us(const struct sock *sk)
 {
@@ -2441,17 +2455,7 @@ static inline s64 tcp_rto_delta_us(const struct sock *sk)
 
 		return rto_time_stamp_us - tcp_sk(sk)->tcp_mstamp;
 	} else {
-		WARN_ONCE(1,
-			"rtx queue emtpy: "
-			"out:%u sacked:%u lost:%u retrans:%u "
-			"tlp_high_seq:%u sk_state:%u ca_state:%u "
-			"advmss:%u mss_cache:%u pmtu:%u\n",
-			tcp_sk(sk)->packets_out, tcp_sk(sk)->sacked_out,
-			tcp_sk(sk)->lost_out, tcp_sk(sk)->retrans_out,
-			tcp_sk(sk)->tlp_high_seq, sk->sk_state,
-			inet_csk(sk)->icsk_ca_state,
-			tcp_sk(sk)->advmss, tcp_sk(sk)->mss_cache,
-			inet_csk(sk)->icsk_pmtu_cookie);
+		tcp_warn_once(sk, 1, "rtx queue empty: ");
 		return jiffies_to_usecs(rto);
 	}
 

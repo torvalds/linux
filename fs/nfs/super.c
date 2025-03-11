@@ -73,6 +73,7 @@
 #include "nfs.h"
 #include "netns.h"
 #include "sysfs.h"
+#include "nfs4idmap.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 

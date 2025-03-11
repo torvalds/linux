@@ -888,7 +888,7 @@ static struct platform_driver fsi_master_gpio_driver = {
 		.of_match_table	= fsi_master_gpio_match,
 	},
 	.probe	= fsi_master_gpio_probe,
-	.remove_new = fsi_master_gpio_remove,
+	.remove = fsi_master_gpio_remove,
 };
 
 module_platform_driver(fsi_master_gpio_driver);

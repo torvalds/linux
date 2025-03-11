@@ -180,7 +180,7 @@ static struct platform_driver exynos_generic_icc_driver = {
 		.sync_state = icc_sync_state,
 	},
 	.probe = exynos_generic_icc_probe,
-	.remove_new = exynos_generic_icc_remove,
+	.remove = exynos_generic_icc_remove,
 };
 module_platform_driver(exynos_generic_icc_driver);
 

@@ -75,7 +75,6 @@ enum itrace_period_type {
  *          (not fully accurate, since CYC packets are only emitted
  *          together with other events, such as branches)
  * @branches: whether to synthesize 'branches' events
- *            (branch misses only for Arm SPE)
  * @transactions: whether to synthesize events for transactions
  * @ptwrites: whether to synthesize events for ptwrites
  * @pwr_events: whether to synthesize power events
@@ -650,7 +649,7 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 #define ITRACE_HELP \
 "				i[period]:    		synthesize instructions events\n" \
 "				y[period]:    		synthesize cycles events (same period as i)\n" \
-"				b:	    		synthesize branches events (branch misses for Arm SPE)\n" \
+"				b:	    		synthesize branches events\n" \
 "				c:	    		synthesize branches events (calls only)\n"	\
 "				r:	    		synthesize branches events (returns only)\n" \
 "				x:	    		synthesize transactions events\n"		\

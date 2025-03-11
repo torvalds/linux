@@ -25,7 +25,7 @@ config MFD_ADP5585
 	select MFD_CORE
 	select REGMAP_I2C
 	depends on I2C
-	depends on OF || COMPILE_TEST
+	depends on OF
 	help
 	  Say yes here to add support for the Analog Devices ADP5585 GPIO
 	  expander, PWM and keypad controller. This includes the I2C driver and
@@ -235,6 +235,18 @@ config MFD_AXP20X_RSB
 	  This driver include only the core APIs. You have to select individual
 	  components like regulators or the PEK (Power Enable Key) under the
 	  corresponding menus.
+
+config MFD_CGBC
+	tristate "Congatec Board Controller"
+	select MFD_CORE
+	depends on X86
+	help
+	  This is the core driver of the Board Controller found on some Congatec
+	  SMARC modules. The Board Controller provides functions like watchdog,
+	  I2C busses, and GPIO controller.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cgbc-core.
 
 config MFD_CROS_EC_DEV
 	tristate "ChromeOS Embedded Controller multifunction device"

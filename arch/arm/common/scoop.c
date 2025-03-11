@@ -250,7 +250,7 @@ static void scoop_remove(struct platform_device *pdev)
 
 static struct platform_driver scoop_driver = {
 	.probe		= scoop_probe,
-	.remove_new	= scoop_remove,
+	.remove		= scoop_remove,
 	.suspend	= scoop_suspend,
 	.resume		= scoop_resume,
 	.driver		= {

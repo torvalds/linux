@@ -1363,6 +1363,8 @@ at_xdmac_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
 		return NULL;
 
 	desc = at_xdmac_memset_create_desc(chan, atchan, dest, len, value);
+	if (!desc)
+		return NULL;
 	list_add_tail(&desc->desc_node, &desc->descs_list);
 
 	desc->tx_dma_desc.cookie = -EBUSY;
@@ -2476,7 +2478,7 @@ MODULE_DEVICE_TABLE(of, atmel_xdmac_dt_ids);
 
 static struct platform_driver at_xdmac_driver = {
 	.probe		= at_xdmac_probe,
-	.remove_new	= at_xdmac_remove,
+	.remove		= at_xdmac_remove,
 	.driver = {
 		.name		= "at_xdmac",
 		.of_match_table	= of_match_ptr(atmel_xdmac_dt_ids),

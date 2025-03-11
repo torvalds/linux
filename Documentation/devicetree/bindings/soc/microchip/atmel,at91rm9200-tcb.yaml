@@ -15,13 +15,19 @@ description: |
 
 properties:
   compatible:
-    items:
-      - enum:
-          - atmel,at91rm9200-tcb
-          - atmel,at91sam9x5-tcb
-          - atmel,sama5d2-tcb
-      - const: simple-mfd
-      - const: syscon
+    oneOf:
+      - items:
+          - enum:
+              - atmel,at91rm9200-tcb
+              - atmel,at91sam9x5-tcb
+              - atmel,sama5d2-tcb
+          - const: simple-mfd
+          - const: syscon
+      - items:
+          - const: microchip,sam9x7-tcb
+          - const: atmel,sama5d2-tcb
+          - const: simple-mfd
+          - const: syscon
 
   reg:
     maxItems: 1

@@ -3206,15 +3206,11 @@ static int amt_newlink(struct net *net, struct net_device *dev,
 		goto err;
 	}
 
-	if (data[IFLA_AMT_RELAY_PORT])
-		amt->relay_port = nla_get_be16(data[IFLA_AMT_RELAY_PORT]);
-	else
-		amt->relay_port = htons(IANA_AMT_UDP_PORT);
+	amt->relay_port = nla_get_be16_default(data[IFLA_AMT_RELAY_PORT],
+					       htons(IANA_AMT_UDP_PORT));
 
-	if (data[IFLA_AMT_GATEWAY_PORT])
-		amt->gw_port = nla_get_be16(data[IFLA_AMT_GATEWAY_PORT]);
-	else
-		amt->gw_port = htons(IANA_AMT_UDP_PORT);
+	amt->gw_port = nla_get_be16_default(data[IFLA_AMT_GATEWAY_PORT],
+					    htons(IANA_AMT_UDP_PORT));
 
 	if (!amt->relay_port) {
 		NL_SET_ERR_MSG_ATTR(extack, tb[IFLA_AMT_DISCOVERY_IP],

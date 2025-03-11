@@ -9,8 +9,8 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 
-struct drm_i915_private;
 struct intel_atomic_state;
+struct intel_display;
 struct intel_global_obj;
 struct intel_global_state;
 
@@ -69,11 +69,11 @@ struct __intel_global_objs_state {
 	struct intel_global_state *state, *old_state, *new_state;
 };
 
-void intel_atomic_global_obj_init(struct drm_i915_private *dev_priv,
+void intel_atomic_global_obj_init(struct intel_display *display,
 				  struct intel_global_obj *obj,
 				  struct intel_global_state *state,
 				  const struct intel_global_state_funcs *funcs);
-void intel_atomic_global_obj_cleanup(struct drm_i915_private *dev_priv);
+void intel_atomic_global_obj_cleanup(struct intel_display *display);
 
 struct intel_global_state *
 intel_atomic_get_global_obj_state(struct intel_atomic_state *state,

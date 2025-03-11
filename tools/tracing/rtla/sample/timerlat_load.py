@@ -25,49 +25,53 @@ import sys
 import os
 
 parser = argparse.ArgumentParser(description='user-space timerlat thread in Python')
-parser.add_argument("cpu", help='CPU to run timerlat thread')
-parser.add_argument("-p", "--prio", help='FIFO priority')
-
+parser.add_argument("cpu", type=int, help='CPU to run timerlat thread')
+parser.add_argument("-p", "--prio", type=int, help='FIFO priority')
 args = parser.parse_args()
 
 try:
-    affinity_mask = { int(args.cpu) }
-except:
-    print("Invalid cpu: " + args.cpu)
-    exit(1)
+    affinity_mask = {args.cpu}
+    os.sched_setaffinity(0, affinity_mask)
+except Exception as e:
+    print(f"Error setting affinity: {e}")
+    sys.exit(1)
 
-try:
-    os.sched_setaffinity(0, affinity_mask);
-except:
-    print("Error setting affinity")
-    exit(1)
-
-if (args.prio):
+if args.prio:
     try:
-        param = os.sched_param(int(args.prio))
+        param = os.sched_param(args.prio)
         os.sched_setscheduler(0, os.SCHED_FIFO, param)
-    except:
-        print("Error setting priority")
-        exit(1)
+    except Exception as e:
+        print(f"Error setting priority: {e}")
+        sys.exit(1)
 
 try:
-    timerlat_path = "/sys/kernel/tracing/osnoise/per_cpu/cpu" + args.cpu + "/timerlat_fd"
+    timerlat_path = f"/sys/kernel/tracing/osnoise/per_cpu/cpu{args.cpu}/timerlat_fd"
     timerlat_fd = open(timerlat_path, 'r')
-except:
+except PermissionError:
+    print("Permission denied. Please check your access rights.")
+    sys.exit(1)
+except OSError:
     print("Error opening timerlat fd, did you run timerlat -U?")
-    exit(1)
+    sys.exit(1)
 
 try:
-    data_fd = open("/dev/full", 'r');
-except:
-    print("Error opening data fd")
+    data_fd = open("/dev/full", 'r')
+except Exception as e:
+    print(f"Error opening data fd: {e}")
+    sys.exit(1)
 
 while True:
     try:
         timerlat_fd.read(1)
-        data_fd.read(20*1024*1024)
-    except:
+        data_fd.read(20 * 1024 * 1024)
+    except KeyboardInterrupt:
         print("Leaving")
+        break
+    except IOError as e:
+        print(f"I/O error occurred: {e}")
+        break
+    except Exception as e:
+        print(f"Unexpected error: {e}")
         break
 
 timerlat_fd.close()

@@ -502,7 +502,7 @@ static struct platform_driver mcfqspi_driver = {
 	.driver.name	= DRIVER_NAME,
 	.driver.pm	= &mcfqspi_pm,
 	.probe		= mcfqspi_probe,
-	.remove_new	= mcfqspi_remove,
+	.remove		= mcfqspi_remove,
 };
 module_platform_driver(mcfqspi_driver);
 

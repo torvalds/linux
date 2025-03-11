@@ -94,6 +94,11 @@ uint32_t dc_dsc_stream_bandwidth_overhead_in_kbps(
 		const int num_slices_h,
 		const bool is_dp);
 
+void dc_dsc_dump_decoder_caps(const struct display_stream_compressor *dsc,
+			      const struct dsc_dec_dpcd_caps *dsc_sink_caps);
+void dc_dsc_dump_encoder_caps(const struct display_stream_compressor *dsc,
+			      const struct dc_crtc_timing *timing);
+
 /* TODO - Hardware/specs limitation should be owned by dc dsc and returned to DM,
  * and DM can choose to OVERRIDE the limitation on CASE BY CASE basis.
  * Hardware/specs limitation should not be writable by DM.

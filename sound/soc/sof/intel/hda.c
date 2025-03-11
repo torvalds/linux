@@ -238,7 +238,7 @@ int hda_sdw_startup(struct snd_sof_dev *sdev)
 
 	return sdw_intel_startup(hdev->sdw);
 }
-EXPORT_SYMBOL_NS(hda_sdw_startup, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_sdw_startup, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 static int hda_sdw_exit(struct snd_sof_dev *sdev)
 {
@@ -280,7 +280,7 @@ bool hda_common_check_sdw_irq(struct snd_sof_dev *sdev)
 out:
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_common_check_sdw_irq, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_common_check_sdw_irq, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 static bool hda_dsp_check_sdw_irq(struct snd_sof_dev *sdev)
 {
@@ -314,7 +314,7 @@ bool hda_sdw_check_wakeen_irq_common(struct snd_sof_dev *sdev)
 
 	return false;
 }
-EXPORT_SYMBOL_NS(hda_sdw_check_wakeen_irq_common, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_sdw_check_wakeen_irq_common, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 static bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
 {
@@ -345,7 +345,7 @@ void hda_sdw_process_wakeen_common(struct snd_sof_dev *sdev)
 
 	sdw_intel_process_wakeen_event(hdev->sdw);
 }
-EXPORT_SYMBOL_NS(hda_sdw_process_wakeen_common, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_sdw_process_wakeen_common, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 #else /* IS_ENABLED(CONFIG_SND_SOC_SOF_INTEL_SOUNDWIRE) */
 static inline int hda_sdw_acpi_scan(struct snd_sof_dev *sdev)
@@ -418,7 +418,7 @@ int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
 	/* re-enable clock gating and power gating */
 	return hda_dsp_ctrl_clock_power_gating(sdev, true);
 }
-EXPORT_SYMBOL_NS(hda_dsp_post_fw_run, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_dsp_post_fw_run, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 /*
  * Debug
@@ -739,7 +739,7 @@ int hda_dsp_probe_early(struct snd_sof_dev *sdev)
 err:
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_probe_early, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_dsp_probe_early, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 int hda_dsp_probe(struct snd_sof_dev *sdev)
 {
@@ -866,8 +866,6 @@ skip_dsp_setup:
 			dev_err(sdev->dev, "could not startup SoundWire links\n");
 			goto disable_pp_cap;
 		}
-
-		hda_sdw_int_enable(sdev, true);
 	}
 
 	init_waitqueue_head(&hdev->waitq);
@@ -896,7 +894,7 @@ hdac_bus_unmap:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_probe, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_dsp_probe, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 void hda_dsp_remove(struct snd_sof_dev *sdev)
 {
@@ -938,6 +936,12 @@ void hda_dsp_remove(struct snd_sof_dev *sdev)
 	/* disable DSP */
 	hda_dsp_ctrl_ppcap_enable(sdev, false);
 
+	/* Free the persistent DMA buffers used for base firmware download */
+	if (hda->cl_dmab.area)
+		snd_dma_free_pages(&hda->cl_dmab);
+	if (hda->iccmax_dmab.area)
+		snd_dma_free_pages(&hda->iccmax_dmab);
+
 skip_disable_dsp:
 	free_irq(sdev->ipc_irq, sdev);
 	if (sdev->msi_enabled)
@@ -950,7 +954,7 @@ skip_disable_dsp:
 	if (!sdev->dspless_mode_selected)
 		iounmap(sdev->bar[HDA_DSP_BAR]);
 }
-EXPORT_SYMBOL_NS(hda_dsp_remove, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_dsp_remove, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 void hda_dsp_remove_late(struct snd_sof_dev *sdev)
 {
@@ -966,7 +970,7 @@ int hda_power_down_dsp(struct snd_sof_dev *sdev)
 
 	return hda_dsp_core_reset_power_down(sdev, chip->host_managed_cores_mask);
 }
-EXPORT_SYMBOL_NS(hda_power_down_dsp, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_power_down_dsp, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 static void hda_generic_machine_select(struct snd_sof_dev *sdev,
@@ -1066,7 +1070,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct snd_soc_acpi_link_adr *link;
-	struct sdw_extended_slave_id *ids;
+	struct sdw_peripherals *peripherals;
 	struct snd_soc_acpi_mach *mach;
 	struct sof_intel_hda_dev *hdev;
 	u32 link_mask;
@@ -1085,7 +1089,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 		return NULL;
 	}
 
-	if (!hdev->sdw->num_slaves) {
+	if (!hdev->sdw->peripherals || !hdev->sdw->peripherals->num_peripherals) {
 		dev_warn(sdev->dev, "No SoundWire peripheral detected in ACPI tables\n");
 		return NULL;
 	}
@@ -1121,13 +1125,13 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 			 * are not found on this link.
 			 */
 			if (!snd_soc_acpi_sdw_link_slaves_found(sdev->dev, link,
-								hdev->sdw->ids,
-								hdev->sdw->num_slaves))
+								hdev->sdw->peripherals))
 				break;
 		}
 		/* Found if all Slaves are checked */
 		if (i == hdev->info.count || !link->num_adr)
-			break;
+			if (!mach->machine_check || mach->machine_check(hdev->sdw))
+				break;
 	}
 	if (mach && mach->link_mask) {
 		mach->mach_params.links = mach->links;
@@ -1138,10 +1142,13 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 	}
 
 	dev_info(sdev->dev, "No SoundWire machine driver found for the ACPI-reported configuration:\n");
-	ids = hdev->sdw->ids;
-	for (i = 0; i < hdev->sdw->num_slaves; i++)
+	peripherals = hdev->sdw->peripherals;
+	for (i = 0; i < peripherals->num_peripherals; i++)
 		dev_info(sdev->dev, "link %d mfg_id 0x%04x part_id 0x%04x version %#x\n",
-			 ids[i].link_id, ids[i].id.mfg_id, ids[i].id.part_id, ids[i].id.sdw_version);
+			 peripherals->array[i]->bus->link_id,
+			 peripherals->array[i]->id.mfg_id,
+			 peripherals->array[i]->id.part_id,
+			 peripherals->array[i]->id.sdw_version);
 
 	return NULL;
 }
@@ -1464,7 +1471,7 @@ int hda_pci_intel_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 
 	return sof_pci_probe(pci, pci_id);
 }
-EXPORT_SYMBOL_NS(hda_pci_intel_probe, SND_SOC_SOF_INTEL_HDA_GENERIC);
+EXPORT_SYMBOL_NS(hda_pci_intel_probe, "SND_SOC_SOF_INTEL_HDA_GENERIC");
 
 int hda_register_clients(struct snd_sof_dev *sdev)
 {
@@ -1478,13 +1485,13 @@ void hda_unregister_clients(struct snd_sof_dev *sdev)
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for HDaudio platforms");
-MODULE_IMPORT_NS(SND_SOC_SOF_PCI_DEV);
-MODULE_IMPORT_NS(SND_SOC_SOF_HDA_AUDIO_CODEC);
-MODULE_IMPORT_NS(SND_SOC_SOF_HDA_AUDIO_CODEC_I915);
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
-MODULE_IMPORT_NS(SND_INTEL_SOUNDWIRE_ACPI);
-MODULE_IMPORT_NS(SOUNDWIRE_INTEL_INIT);
-MODULE_IMPORT_NS(SOUNDWIRE_INTEL);
-MODULE_IMPORT_NS(SND_SOC_SOF_HDA_MLINK);
-MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HDA_COMMON);
-MODULE_IMPORT_NS(SND_SOC_ACPI_INTEL_MATCH);
+MODULE_IMPORT_NS("SND_SOC_SOF_PCI_DEV");
+MODULE_IMPORT_NS("SND_SOC_SOF_HDA_AUDIO_CODEC");
+MODULE_IMPORT_NS("SND_SOC_SOF_HDA_AUDIO_CODEC_I915");
+MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");
+MODULE_IMPORT_NS("SND_INTEL_SOUNDWIRE_ACPI");
+MODULE_IMPORT_NS("SOUNDWIRE_INTEL_INIT");
+MODULE_IMPORT_NS("SOUNDWIRE_INTEL");
+MODULE_IMPORT_NS("SND_SOC_SOF_HDA_MLINK");
+MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_HDA_COMMON");
+MODULE_IMPORT_NS("SND_SOC_ACPI_INTEL_MATCH");

@@ -204,7 +204,9 @@ struct exfat_entry_set_cache {
 #define IS_DYNAMIC_ES(es)	((es)->__bh != (es)->bh)
 
 struct exfat_dir_entry {
+	/* the cluster where file dentry is located */
 	struct exfat_chain dir;
+	/* the index of file dentry in ->dir */
 	int entry;
 	unsigned int type;
 	unsigned int start_clu;
@@ -290,7 +292,9 @@ struct exfat_sb_info {
  * EXFAT file system inode in-memory data
  */
 struct exfat_inode_info {
+	/* the cluster where file dentry is located */
 	struct exfat_chain dir;
+	/* the index of file dentry in ->dir */
 	int entry;
 	unsigned int type;
 	unsigned short attr;
@@ -508,6 +512,8 @@ struct exfat_dentry *exfat_get_dentry_cached(struct exfat_entry_set_cache *es,
 int exfat_get_dentry_set(struct exfat_entry_set_cache *es,
 		struct super_block *sb, struct exfat_chain *p_dir, int entry,
 		unsigned int num_entries);
+#define exfat_get_dentry_set_by_ei(es, sb, ei)		\
+	exfat_get_dentry_set(es, sb, &(ei)->dir, (ei)->entry, ES_ALL_ENTRIES)
 int exfat_get_empty_dentry_set(struct exfat_entry_set_cache *es,
 		struct super_block *sb, struct exfat_chain *p_dir, int entry,
 		unsigned int num_entries);

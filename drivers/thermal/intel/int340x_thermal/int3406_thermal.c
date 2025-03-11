@@ -195,7 +195,7 @@ MODULE_DEVICE_TABLE(acpi, int3406_thermal_match);
 
 static struct platform_driver int3406_thermal_driver = {
 	.probe = int3406_thermal_probe,
-	.remove_new = int3406_thermal_remove,
+	.remove = int3406_thermal_remove,
 	.driver = {
 		   .name = "int3406 thermal",
 		   .acpi_match_table = int3406_thermal_match,

@@ -754,7 +754,6 @@ static int vadc_get_fw_data(struct vadc_priv *vadc)
 	const struct vadc_channels *vadc_chan;
 	struct iio_chan_spec *iio_chan;
 	struct vadc_channel_prop prop;
-	struct fwnode_handle *child;
 	unsigned int index = 0;
 	int ret;
 
@@ -774,12 +773,10 @@ static int vadc_get_fw_data(struct vadc_priv *vadc)
 
 	iio_chan = vadc->iio_chans;
 
-	device_for_each_child_node(vadc->dev, child) {
+	device_for_each_child_node_scoped(vadc->dev, child) {
 		ret = vadc_get_fw_channel_data(vadc->dev, &prop, child);
-		if (ret) {
-			fwnode_handle_put(child);
+		if (ret)
 			return ret;
-		}
 
 		prop.scale_fn_type = vadc_chans[prop.channel].scale_fn_type;
 		vadc->chan_props[index] = prop;

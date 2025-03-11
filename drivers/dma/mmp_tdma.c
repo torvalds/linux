@@ -736,7 +736,7 @@ static struct platform_driver mmp_tdma_driver = {
 		.of_match_table = mmp_tdma_dt_ids,
 	},
 	.probe		= mmp_tdma_probe,
-	.remove_new	= mmp_tdma_remove,
+	.remove		= mmp_tdma_remove,
 };
 
 module_platform_driver(mmp_tdma_driver);

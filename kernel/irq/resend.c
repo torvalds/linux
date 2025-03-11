@@ -53,7 +53,7 @@ static int irq_sw_resend(struct irq_desc *desc)
 	 * Validate whether this interrupt can be safely injected from
 	 * non interrupt context
 	 */
-	if (handle_enforce_irqctx(&desc->irq_data))
+	if (irqd_is_handle_enforce_irqctx(&desc->irq_data))
 		return -EINVAL;
 
 	/*

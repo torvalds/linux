@@ -474,8 +474,8 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 
 	if (pci_msi_enabled()) {
 		pp->has_msi_ctrl = !(pp->ops->msi_init ||
-				     of_property_read_bool(np, "msi-parent") ||
-				     of_property_read_bool(np, "msi-map"));
+				     of_property_present(np, "msi-parent") ||
+				     of_property_present(np, "msi-map"));
 
 		/*
 		 * For the has_msi_ctrl case the default assignment is handled

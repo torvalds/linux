@@ -30,6 +30,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_probe_helper.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -43,6 +44,7 @@
 #include "intel_dsi_vbt.h"
 #include "intel_fifo_underrun.h"
 #include "intel_panel.h"
+#include "intel_pfit.h"
 #include "skl_scaler.h"
 #include "vlv_dsi.h"
 #include "vlv_dsi_pll.h"
@@ -65,9 +67,8 @@ static u16 pixels_from_txbyteclkhs(u16 clk_hs, int bpp, int lane_count,
 						(bpp * burst_mode_ratio));
 }
 
-enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt)
+static enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt)
 {
-	/* It just so happens the VBT matches register contents. */
 	switch (fmt) {
 	case VID_MODE_FORMAT_RGB888:
 		return MIPI_DSI_FMT_RGB888;
@@ -1071,7 +1072,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	hsync = intel_de_read(display, MIPI_HSYNC_PADDING_COUNT(display, port));
 	hbp = intel_de_read(display, MIPI_HBP_COUNT(display, port));
 
-	/* harizontal values are in terms of high speed byte clock */
+	/* horizontal values are in terms of high speed byte clock */
 	hfp = pixels_from_txbyteclkhs(hfp, bpp, lane_count,
 						intel_dsi->burst_mode_ratio);
 	hsync = pixels_from_txbyteclkhs(hsync, bpp, lane_count,
@@ -1756,6 +1757,31 @@ static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
 	intel_dsi->clk_hs_to_lp_count += extra_byte_count;
 
 	intel_dsi_log_params(intel_dsi);
+}
+
+int vlv_dsi_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
+		return 0;
+
+	/*
+	 * On Valleyview some DSI panels lose (v|h)sync when the clock is lower
+	 * than 320000KHz.
+	 */
+	if (IS_VALLEYVIEW(dev_priv))
+		return 320000;
+
+	/*
+	 * On Geminilake once the CDCLK gets as low as 79200
+	 * picture gets unstable, despite that values are
+	 * correct for DSI PLL and DE PLL.
+	 */
+	if (IS_GEMINILAKE(dev_priv))
+		return 158400;
+
+	return 0;
 }
 
 typedef void (*vlv_dsi_dmi_quirk_func)(struct intel_dsi *intel_dsi);

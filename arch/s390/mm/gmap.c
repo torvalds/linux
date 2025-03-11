@@ -587,7 +587,8 @@ int __gmap_link(struct gmap *gmap, unsigned long gaddr, unsigned long vmaddr)
 			if (pmd_leaf(*pmd)) {
 				*table = (pmd_val(*pmd) &
 					  _SEGMENT_ENTRY_HARDWARE_BITS_LARGE)
-					| _SEGMENT_ENTRY_GMAP_UC;
+					| _SEGMENT_ENTRY_GMAP_UC
+					| _SEGMENT_ENTRY;
 			} else
 				*table = pmd_val(*pmd) &
 					_SEGMENT_ENTRY_HARDWARE_BITS;
@@ -2396,7 +2397,8 @@ static void gmap_pmdp_clear(struct mm_struct *mm, unsigned long vmaddr,
 			gaddr = __gmap_segment_gaddr((unsigned long *)pmdp);
 			pmdp_notify_gmap(gmap, pmdp, gaddr);
 			WARN_ON(pmd_val(*pmdp) & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
-						   _SEGMENT_ENTRY_GMAP_UC));
+						   _SEGMENT_ENTRY_GMAP_UC |
+						   _SEGMENT_ENTRY));
 			if (purge)
 				__pmdp_csp(pmdp);
 			set_pmd(pmdp, __pmd(_SEGMENT_ENTRY_EMPTY));
@@ -2450,7 +2452,8 @@ void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr)
 			gaddr = __gmap_segment_gaddr(entry);
 			pmdp_notify_gmap(gmap, pmdp, gaddr);
 			WARN_ON(*entry & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
-					   _SEGMENT_ENTRY_GMAP_UC));
+					   _SEGMENT_ENTRY_GMAP_UC |
+					   _SEGMENT_ENTRY));
 			if (MACHINE_HAS_TLB_GUEST)
 				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
 					    gmap->asce, IDTE_LOCAL);
@@ -2485,7 +2488,8 @@ void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr)
 			gaddr = __gmap_segment_gaddr(entry);
 			pmdp_notify_gmap(gmap, pmdp, gaddr);
 			WARN_ON(*entry & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
-					   _SEGMENT_ENTRY_GMAP_UC));
+					   _SEGMENT_ENTRY_GMAP_UC |
+					   _SEGMENT_ENTRY));
 			if (MACHINE_HAS_TLB_GUEST)
 				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
 					    gmap->asce, IDTE_GLOBAL);

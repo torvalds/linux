@@ -773,6 +773,14 @@ static void azx_clear_irq_pending(struct azx *chip)
 static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 {
 	struct hdac_bus *bus = azx_bus(chip);
+	int ret;
+
+	if (!chip->msi || pci_alloc_irq_vectors(chip->pci, 1, 1, PCI_IRQ_MSI) < 0) {
+		ret = pci_alloc_irq_vectors(chip->pci, 1, 1, PCI_IRQ_INTX);
+		if (ret < 0)
+			return ret;
+		chip->msi = 0;
+	}
 
 	if (request_irq(chip->pci->irq, azx_interrupt,
 			chip->msi ? 0 : IRQF_SHARED,
@@ -786,7 +794,6 @@ static int azx_acquire_irq(struct azx *chip, int do_disconnect)
 	}
 	bus->irq = chip->pci->irq;
 	chip->card->sync_irq = bus->irq;
-	pci_intx(chip->pci, !chip->msi);
 	return 0;
 }
 
@@ -1032,22 +1039,12 @@ static int azx_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
-	struct hdac_bus *bus;
 
 	if (!azx_is_pm_ready(card))
 		return 0;
 
 	chip = card->private_data;
-	bus = azx_bus(chip);
 	azx_shutdown_chip(chip);
-	if (bus->irq >= 0) {
-		free_irq(bus->irq, chip);
-		bus->irq = -1;
-		chip->card->sync_irq = -1;
-	}
-
-	if (chip->msi)
-		pci_disable_msi(chip->pci);
 
 	trace_azx_suspend(chip);
 	return 0;
@@ -1062,11 +1059,6 @@ static int __maybe_unused azx_resume(struct device *dev)
 		return 0;
 
 	chip = card->private_data;
-	if (chip->msi)
-		if (pci_enable_msi(chip->pci) < 0)
-			chip->msi = 0;
-	if (azx_acquire_irq(chip, 1) < 0)
-		return -EIO;
 
 	__azx_runtime_resume(chip);
 
@@ -1867,6 +1859,8 @@ static int azx_first_init(struct azx *chip)
 		bus->polling_mode = 1;
 		bus->not_use_interrupts = 1;
 		bus->access_sdnctl_in_dword = 1;
+		if (!chip->jackpoll_interval)
+			chip->jackpoll_interval = msecs_to_jiffies(1500);
 	}
 
 	err = pcim_iomap_regions(pci, 1 << 0, "ICH HD audio");
@@ -1892,13 +1886,9 @@ static int azx_first_init(struct azx *chip)
 		chip->gts_present = true;
 #endif
 
-	if (chip->msi) {
-		if (chip->driver_caps & AZX_DCAPS_NO_MSI64) {
-			dev_dbg(card->dev, "Disabling 64bit MSI\n");
-			pci->no_64bit_msi = true;
-		}
-		if (pci_enable_msi(pci) < 0)
-			chip->msi = 0;
+	if (chip->msi && chip->driver_caps & AZX_DCAPS_NO_MSI64) {
+		dev_dbg(card->dev, "Disabling 64bit MSI\n");
+		pci->no_64bit_msi = true;
 	}
 
 	pci_set_master(pci);
@@ -2050,7 +2040,7 @@ static int disable_msi_reset_irq(struct azx *chip)
 	free_irq(bus->irq, chip);
 	bus->irq = -1;
 	chip->card->sync_irq = -1;
-	pci_disable_msi(chip->pci);
+	pci_free_irq_vectors(chip->pci);
 	chip->msi = 0;
 	err = azx_acquire_irq(chip, 1);
 	if (err < 0)

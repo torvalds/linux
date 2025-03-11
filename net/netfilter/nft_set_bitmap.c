@@ -88,13 +88,15 @@ bool nft_bitmap_lookup(const struct net *net, const struct nft_set *set,
 }
 
 static struct nft_bitmap_elem *
-nft_bitmap_elem_find(const struct nft_set *set, struct nft_bitmap_elem *this,
+nft_bitmap_elem_find(const struct net *net,
+		     const struct nft_set *set, struct nft_bitmap_elem *this,
 		     u8 genmask)
 {
 	const struct nft_bitmap *priv = nft_set_priv(set);
 	struct nft_bitmap_elem *be;
 
-	list_for_each_entry_rcu(be, &priv->list, head) {
+	list_for_each_entry_rcu(be, &priv->list, head,
+				lockdep_is_held(&nft_pernet(net)->commit_mutex)) {
 		if (memcmp(nft_set_ext_key(&be->ext),
 			   nft_set_ext_key(&this->ext), set->klen) ||
 		    !nft_set_elem_active(&be->ext, genmask))
@@ -132,7 +134,7 @@ static int nft_bitmap_insert(const struct net *net, const struct nft_set *set,
 	u8 genmask = nft_genmask_next(net);
 	u32 idx, off;
 
-	be = nft_bitmap_elem_find(set, new, genmask);
+	be = nft_bitmap_elem_find(net, set, new, genmask);
 	if (be) {
 		*elem_priv = &be->priv;
 		return -EEXIST;
@@ -201,7 +203,7 @@ nft_bitmap_deactivate(const struct net *net, const struct nft_set *set,
 
 	nft_bitmap_location(set, elem->key.val.data, &idx, &off);
 
-	be = nft_bitmap_elem_find(set, this, genmask);
+	be = nft_bitmap_elem_find(net, set, this, genmask);
 	if (!be)
 		return NULL;
 

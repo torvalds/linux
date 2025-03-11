@@ -197,7 +197,7 @@ int cdns_pcie_init_phy(struct device *dev, struct cdns_pcie *pcie)
 
 	phy_count = of_property_count_strings(np, "phy-names");
 	if (phy_count < 1) {
-		dev_err(dev, "no phy-names.  PHY will not be initialized\n");
+		dev_info(dev, "no \"phy-names\" property found; PHY will not be initialized\n");
 		pcie->phy_count = 0;
 		return 0;
 	}
@@ -260,7 +260,7 @@ static int cdns_pcie_resume_noirq(struct device *dev)
 
 	ret = cdns_pcie_enable_phy(pcie);
 	if (ret) {
-		dev_err(dev, "failed to enable phy\n");
+		dev_err(dev, "failed to enable PHY\n");
 		return ret;
 	}
 

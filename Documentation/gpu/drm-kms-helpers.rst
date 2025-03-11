@@ -110,15 +110,6 @@ fbdev Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_fb_helper.c
    :doc: fbdev helpers
 
-.. kernel-doc:: drivers/gpu/drm/drm_fbdev_dma.c
-   :export:
-
-.. kernel-doc:: drivers/gpu/drm/drm_fbdev_shmem.c
-   :export:
-
-.. kernel-doc:: drivers/gpu/drm/drm_fbdev_ttm.c
-   :export:
-
 .. kernel-doc:: include/drm/drm_fb_helper.h
    :internal:
 
@@ -228,6 +219,9 @@ Panel Helper Reference
    :export:
 
 .. kernel-doc:: drivers/gpu/drm/drm_panel_orientation_quirks.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_panel_backlight_quirks.c
    :export:
 
 Panel Self Refresh Helper Reference

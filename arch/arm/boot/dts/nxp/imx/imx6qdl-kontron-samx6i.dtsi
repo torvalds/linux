@@ -728,7 +728,7 @@
 		>;
 	};
 
-	pinctrl_wdog1: wdog1rp {
+	pinctrl_wdog1: wdog1grp {
 		fsl,pins = <
 			MX6QDL_PAD_GPIO_9__WDOG1_B	0x1b0b0
 		>;

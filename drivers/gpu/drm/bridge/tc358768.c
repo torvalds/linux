@@ -461,7 +461,9 @@ static int tc358768_dsi_host_attach(struct mipi_dsi_host *host,
 	ret = -EINVAL;
 	ep = of_graph_get_endpoint_by_regs(host->dev->of_node, 0, 0);
 	if (ep) {
-		ret = of_property_read_u32(ep, "data-lines", &priv->pd_lines);
+		ret = of_property_read_u32(ep, "bus-width", &priv->pd_lines);
+		if (ret)
+			ret = of_property_read_u32(ep, "data-lines", &priv->pd_lines);
 
 		of_node_put(ep);
 	}
@@ -1242,8 +1244,8 @@ static const struct regmap_config tc358768_regmap_config = {
 };
 
 static const struct i2c_device_id tc358768_i2c_ids[] = {
-	{ "tc358768", 0 },
-	{ "tc358778", 0 },
+	{ "tc358768" },
+	{ "tc358778" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tc358768_i2c_ids);

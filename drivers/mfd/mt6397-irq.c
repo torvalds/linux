@@ -11,6 +11,8 @@
 #include <linux/suspend.h>
 #include <linux/mfd/mt6323/core.h>
 #include <linux/mfd/mt6323/registers.h>
+#include <linux/mfd/mt6328/core.h>
+#include <linux/mfd/mt6328/registers.h>
 #include <linux/mfd/mt6331/core.h>
 #include <linux/mfd/mt6331/registers.h>
 #include <linux/mfd/mt6397/core.h>
@@ -31,6 +33,9 @@ static void mt6397_irq_sync_unlock(struct irq_data *data)
 		     mt6397->irq_masks_cur[0]);
 	regmap_write(mt6397->regmap, mt6397->int_con[1],
 		     mt6397->irq_masks_cur[1]);
+	if (mt6397->int_con[2])
+		regmap_write(mt6397->regmap, mt6397->int_con[2],
+			     mt6397->irq_masks_cur[2]);
 
 	mutex_unlock(&mt6397->irqlock);
 }
@@ -105,6 +110,8 @@ static irqreturn_t mt6397_irq_thread(int irq, void *data)
 
 	mt6397_irq_handle_reg(mt6397, mt6397->int_status[0], 0);
 	mt6397_irq_handle_reg(mt6397, mt6397->int_status[1], 16);
+	if (mt6397->int_status[2])
+		mt6397_irq_handle_reg(mt6397, mt6397->int_status[2], 32);
 
 	return IRQ_HANDLED;
 }
@@ -138,6 +145,9 @@ static int mt6397_irq_pm_notifier(struct notifier_block *notifier,
 			     chip->int_con[0], chip->wake_mask[0]);
 		regmap_write(chip->regmap,
 			     chip->int_con[1], chip->wake_mask[1]);
+		if (chip->int_con[2])
+			regmap_write(chip->regmap,
+				     chip->int_con[2], chip->wake_mask[2]);
 		enable_irq_wake(chip->irq);
 		break;
 
@@ -146,6 +156,9 @@ static int mt6397_irq_pm_notifier(struct notifier_block *notifier,
 			     chip->int_con[0], chip->irq_masks_cur[0]);
 		regmap_write(chip->regmap,
 			     chip->int_con[1], chip->irq_masks_cur[1]);
+		if (chip->int_con[2])
+			regmap_write(chip->regmap,
+				     chip->int_con[2], chip->irq_masks_cur[2]);
 		disable_irq_wake(chip->irq);
 		break;
 
@@ -169,6 +182,14 @@ int mt6397_irq_init(struct mt6397_chip *chip)
 		chip->int_status[0] = MT6323_INT_STATUS0;
 		chip->int_status[1] = MT6323_INT_STATUS1;
 		break;
+	case MT6328_CHIP_ID:
+		chip->int_con[0] = MT6328_INT_CON0;
+		chip->int_con[1] = MT6328_INT_CON1;
+		chip->int_con[2] = MT6328_INT_CON2;
+		chip->int_status[0] = MT6328_INT_STATUS0;
+		chip->int_status[1] = MT6328_INT_STATUS1;
+		chip->int_status[2] = MT6328_INT_STATUS2;
+		break;
 	case MT6331_CHIP_ID:
 		chip->int_con[0] = MT6331_INT_CON0;
 		chip->int_con[1] = MT6331_INT_CON1;
@@ -191,6 +212,8 @@ int mt6397_irq_init(struct mt6397_chip *chip)
 	/* Mask all interrupt sources */
 	regmap_write(chip->regmap, chip->int_con[0], 0x0);
 	regmap_write(chip->regmap, chip->int_con[1], 0x0);
+	if (chip->int_con[2])
+		regmap_write(chip->regmap, chip->int_con[2], 0x0);
 
 	chip->pm_nb.notifier_call = mt6397_irq_pm_notifier;
 	chip->irq_domain = irq_domain_add_linear(chip->dev->of_node,

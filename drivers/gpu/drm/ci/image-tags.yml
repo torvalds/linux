@@ -1,5 +1,5 @@
 variables:
-   CONTAINER_TAG: "2024-08-07-mesa-uprev"
+   CONTAINER_TAG: "2024-09-09-uprevs"
    DEBIAN_X86_64_BUILD_BASE_IMAGE: "debian/x86_64_build-base"
    DEBIAN_BASE_TAG: "${CONTAINER_TAG}"
 

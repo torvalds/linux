@@ -948,8 +948,6 @@ root_found:
 		goto out_no_inode;
 	}
 
-	kfree(opt->iocharset);
-
 	return 0;
 
 	/*
@@ -987,7 +985,6 @@ out_freebh:
 	brelse(bh);
 	brelse(pri_bh);
 out_freesbi:
-	kfree(opt->iocharset);
 	kfree(sbi);
 	s->s_fs_info = NULL;
 	return error;
@@ -1528,7 +1525,10 @@ static int isofs_get_tree(struct fs_context *fc)
 
 static void isofs_free_fc(struct fs_context *fc)
 {
-	kfree(fc->fs_private);
+	struct isofs_options *opt = fc->fs_private;
+
+	kfree(opt->iocharset);
+	kfree(opt);
 }
 
 static const struct fs_context_operations isofs_context_ops = {

@@ -18,3 +18,10 @@ kms_async_flips@crc
 # IGT Version: 1.28-g0df7b9b97
 # Linux Version: 6.9.0-rc7
 kms_plane@pixel-format-source-clamping
+
+# Board Name: hp-11A-G6-EE-grunt
+# Bug Report: https://lore.kernel.org/amd-gfx/09ee1862-3a0e-4085-ac1b-262601b1122b@collabora.com/T/#t
+# Failure Rate: 100
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_async_flips@async-flip-with-page-flip-events

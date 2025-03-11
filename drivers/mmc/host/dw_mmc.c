@@ -1182,7 +1182,7 @@ static void dw_mci_submit_data(struct dw_mci *host, struct mmc_data *data)
 		/*
 		 * Use the initial fifoth_val for PIO mode. If wm_algined
 		 * is set, we set watermark same as data size.
-		 * If next issued data may be transfered by DMA mode,
+		 * If next issued data may be transferred by DMA mode,
 		 * prev_blksz should be invalidated.
 		 */
 		if (host->wm_aligned)

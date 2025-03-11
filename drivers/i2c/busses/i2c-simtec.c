@@ -144,7 +144,7 @@ static struct platform_driver simtec_i2c_driver = {
 		.name		= "simtec-i2c",
 	},
 	.probe		= simtec_i2c_probe,
-	.remove_new	= simtec_i2c_remove,
+	.remove		= simtec_i2c_remove,
 };
 
 module_platform_driver(simtec_i2c_driver);

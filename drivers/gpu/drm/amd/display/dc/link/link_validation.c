@@ -409,3 +409,182 @@ bool link_validate_dpia_bandwidth(const struct dc_stream_state *stream, const un
 
 	return dpia_validate_usb4_bw(dpia_link, bw_needed, num_dpias);
 }
+
+struct dp_audio_layout_config {
+	uint8_t layouts_per_sample_denom;
+	uint8_t symbols_per_layout;
+	uint8_t max_layouts_per_audio_sdp;
+};
+
+static void get_audio_layout_config(
+	uint32_t channel_count,
+	enum dp_link_encoding encoding,
+	struct dp_audio_layout_config *output)
+{
+	memset(output, 0, sizeof(struct dp_audio_layout_config));
+
+	/* Assuming L-PCM audio. Current implementation uses max 1 layout per SDP,
+	 * with each layout being the same size (8ch layout).
+	 */
+	if (encoding == DP_8b_10b_ENCODING) {
+		if (channel_count == 2) {
+			output->layouts_per_sample_denom = 4;
+			output->symbols_per_layout = 40;
+			output->max_layouts_per_audio_sdp = 1;
+		} else if (channel_count == 8 || channel_count == 6) {
+			output->layouts_per_sample_denom = 1;
+			output->symbols_per_layout = 40;
+			output->max_layouts_per_audio_sdp = 1;
+		}
+	} else if (encoding == DP_128b_132b_ENCODING) {
+		if (channel_count == 2) {
+			output->layouts_per_sample_denom = 4;
+			output->symbols_per_layout = 10;
+			output->max_layouts_per_audio_sdp = 1;
+		} else if (channel_count == 8 || channel_count == 6) {
+			output->layouts_per_sample_denom = 1;
+			output->symbols_per_layout = 10;
+			output->max_layouts_per_audio_sdp = 1;
+		}
+	}
+}
+
+static uint32_t get_av_stream_map_lane_count(
+	enum dp_link_encoding encoding,
+	enum dc_lane_count lane_count,
+	bool is_mst)
+{
+	uint32_t av_stream_map_lane_count = 0;
+
+	if (encoding == DP_8b_10b_ENCODING) {
+		if (!is_mst)
+			av_stream_map_lane_count = lane_count;
+		else
+			av_stream_map_lane_count = 4;
+	} else if (encoding == DP_128b_132b_ENCODING) {
+		av_stream_map_lane_count = 4;
+	}
+
+	ASSERT(av_stream_map_lane_count != 0);
+
+	return av_stream_map_lane_count;
+}
+
+static uint32_t get_audio_sdp_overhead(
+	enum dp_link_encoding encoding,
+	enum dc_lane_count lane_count,
+	bool is_mst)
+{
+	uint32_t audio_sdp_overhead = 0;
+
+	if (encoding == DP_8b_10b_ENCODING) {
+		if (is_mst)
+			audio_sdp_overhead = 16; /* 4 * 2 + 8 */
+		else
+			audio_sdp_overhead = lane_count * 2 + 8;
+	} else if (encoding == DP_128b_132b_ENCODING) {
+		audio_sdp_overhead = 10; /* 4 x 2.5 */
+	}
+
+	ASSERT(audio_sdp_overhead != 0);
+
+	return audio_sdp_overhead;
+}
+
+/* Current calculation only applicable for 8b/10b MST and 128b/132b SST/MST.
+ */
+static uint32_t calculate_overhead_hblank_bw_in_symbols(
+	uint32_t max_slice_h)
+{
+	uint32_t overhead_hblank_bw = 0; /* in stream symbols */
+
+	overhead_hblank_bw += max_slice_h * 4; /* EOC overhead */
+	overhead_hblank_bw += 12; /* Main link overhead (VBID, BS/BE) */
+
+	return overhead_hblank_bw;
+}
+
+uint32_t dp_required_hblank_size_bytes(
+	const struct dc_link *link,
+	struct dp_audio_bandwidth_params *audio_params)
+{
+	/* Main logic from dce_audio is duplicated here, with the main
+	 * difference being:
+	 * - Pre-determined lane count of 4
+	 * - Assumed 16 dsc slices for worst case
+	 * - Assumed SDP split disabled for worst case
+	 * TODO: Unify logic from dce_audio to prevent duplicated logic.
+	 */
+
+	const struct dc_crtc_timing *timing = audio_params->crtc_timing;
+	const uint32_t channel_count = audio_params->channel_count;
+	const uint32_t sample_rate_hz = audio_params->sample_rate_hz;
+	const enum dp_link_encoding link_encoding = audio_params->link_encoding;
+
+	// 8b/10b MST and 128b/132b are always 4 logical lanes.
+	const uint32_t lane_count = 4;
+	const bool is_mst = (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT);
+	// Maximum slice count is with ODM 4:1, 4 slices per DSC
+	const uint32_t max_slices_h = 16;
+
+	const uint32_t av_stream_map_lane_count = get_av_stream_map_lane_count(
+			link_encoding, lane_count, is_mst);
+	const uint32_t audio_sdp_overhead = get_audio_sdp_overhead(
+			link_encoding, lane_count, is_mst);
+	struct dp_audio_layout_config layout_config;
+
+	if (link_encoding == DP_8b_10b_ENCODING && link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT)
+		return 0;
+
+	get_audio_layout_config(
+			channel_count, link_encoding, &layout_config);
+
+	/* DP spec recommends between 1.05 to 1.1 safety margin to prevent sample under-run */
+	struct fixed31_32 audio_sdp_margin = dc_fixpt_from_fraction(110, 100);
+	struct fixed31_32 horizontal_line_freq_khz = dc_fixpt_from_fraction(
+			timing->pix_clk_100hz, (long long)timing->h_total * 10);
+	struct fixed31_32 samples_per_line;
+	struct fixed31_32 layouts_per_line;
+	struct fixed31_32 symbols_per_sdp_max_layout;
+	struct fixed31_32 remainder;
+	uint32_t num_sdp_with_max_layouts;
+	uint32_t required_symbols_per_hblank;
+	uint32_t required_bytes_per_hblank = 0;
+
+	samples_per_line = dc_fixpt_from_fraction(sample_rate_hz, 1000);
+	samples_per_line = dc_fixpt_div(samples_per_line, horizontal_line_freq_khz);
+	layouts_per_line = dc_fixpt_div_int(samples_per_line, layout_config.layouts_per_sample_denom);
+	// HBlank expansion usage assumes SDP split disabled to allow for worst case.
+	layouts_per_line = dc_fixpt_from_int(dc_fixpt_ceil(layouts_per_line));
+
+	num_sdp_with_max_layouts = dc_fixpt_floor(
+			dc_fixpt_div_int(layouts_per_line, layout_config.max_layouts_per_audio_sdp));
+	symbols_per_sdp_max_layout = dc_fixpt_from_int(
+			layout_config.max_layouts_per_audio_sdp * layout_config.symbols_per_layout);
+	symbols_per_sdp_max_layout = dc_fixpt_add_int(symbols_per_sdp_max_layout, audio_sdp_overhead);
+	symbols_per_sdp_max_layout = dc_fixpt_mul(symbols_per_sdp_max_layout, audio_sdp_margin);
+	required_symbols_per_hblank = num_sdp_with_max_layouts;
+	required_symbols_per_hblank *= ((dc_fixpt_ceil(symbols_per_sdp_max_layout) + av_stream_map_lane_count) /
+			av_stream_map_lane_count) *	av_stream_map_lane_count;
+
+	if (num_sdp_with_max_layouts !=	dc_fixpt_ceil(
+			dc_fixpt_div_int(layouts_per_line, layout_config.max_layouts_per_audio_sdp))) {
+		remainder = dc_fixpt_sub_int(layouts_per_line,
+				num_sdp_with_max_layouts * layout_config.max_layouts_per_audio_sdp);
+		remainder = dc_fixpt_mul_int(remainder, layout_config.symbols_per_layout);
+		remainder = dc_fixpt_add_int(remainder, audio_sdp_overhead);
+		remainder = dc_fixpt_mul(remainder, audio_sdp_margin);
+		required_symbols_per_hblank += ((dc_fixpt_ceil(remainder) + av_stream_map_lane_count) /
+				av_stream_map_lane_count) * av_stream_map_lane_count;
+	}
+
+	required_symbols_per_hblank += calculate_overhead_hblank_bw_in_symbols(max_slices_h);
+
+	if (link_encoding == DP_8b_10b_ENCODING)
+		required_bytes_per_hblank = required_symbols_per_hblank; // 8 bits per 8b/10b symbol
+	else if (link_encoding == DP_128b_132b_ENCODING)
+		required_bytes_per_hblank = required_symbols_per_hblank * 4; // 32 bits per 128b/132b symbol
+
+	return required_bytes_per_hblank;
+}
+

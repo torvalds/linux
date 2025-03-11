@@ -46,12 +46,12 @@ intel_hdcp_gsc_initiate_session(struct device *dev, struct hdcp_port_data *data,
 				       (u8 *)&session_init_out,
 				       sizeof(session_init_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (session_init_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X Failed. Status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X Failed. Status: 0x%X\n",
 			    WIRED_INITIATE_HDCP2_SESSION,
 			    session_init_out.header.status);
 		return -EIO;
@@ -108,12 +108,12 @@ intel_hdcp_gsc_verify_receiver_cert_prepare_km(struct device *dev,
 				       (u8 *)&verify_rxcert_out,
 				       sizeof(verify_rxcert_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed: %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed: %zd\n", byte);
 		return byte;
 	}
 
 	if (verify_rxcert_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X Failed. Status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X Failed. Status: 0x%X\n",
 			    WIRED_VERIFY_RECEIVER_CERT,
 			    verify_rxcert_out.header.status);
 		return -EIO;
@@ -171,12 +171,12 @@ intel_hdcp_gsc_verify_hprime(struct device *dev, struct hdcp_port_data *data,
 				       (u8 *)&send_hprime_out,
 				       sizeof(send_hprime_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (send_hprime_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X Failed. Status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X Failed. Status: 0x%X\n",
 			    WIRED_AKE_SEND_HPRIME, send_hprime_out.header.status);
 		return -EIO;
 	}
@@ -222,12 +222,12 @@ intel_hdcp_gsc_store_pairing_info(struct device *dev, struct hdcp_port_data *dat
 				       (u8 *)&pairing_info_out,
 				       sizeof(pairing_info_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (pairing_info_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X failed. Status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X failed. Status: 0x%X\n",
 			    WIRED_AKE_SEND_PAIRING_INFO,
 			    pairing_info_out.header.status);
 		return -EIO;
@@ -269,12 +269,12 @@ intel_hdcp_gsc_initiate_locality_check(struct device *dev,
 	byte = intel_hdcp_gsc_msg_send(i915, (u8 *)&lc_init_in, sizeof(lc_init_in),
 				       (u8 *)&lc_init_out, sizeof(lc_init_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (lc_init_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X Failed. status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X Failed. status: 0x%X\n",
 			    WIRED_INIT_LOCALITY_CHECK, lc_init_out.header.status);
 		return -EIO;
 	}
@@ -323,12 +323,12 @@ intel_hdcp_gsc_verify_lprime(struct device *dev, struct hdcp_port_data *data,
 				       (u8 *)&verify_lprime_out,
 				       sizeof(verify_lprime_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (verify_lprime_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
 			    WIRED_VALIDATE_LOCALITY,
 			    verify_lprime_out.header.status);
 		return -EIO;
@@ -369,12 +369,12 @@ int intel_hdcp_gsc_get_session_key(struct device *dev,
 	byte = intel_hdcp_gsc_msg_send(i915, (u8 *)&get_skey_in, sizeof(get_skey_in),
 				       (u8 *)&get_skey_out, sizeof(get_skey_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (get_skey_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
 			    WIRED_GET_SESSION_KEY, get_skey_out.header.status);
 		return -EIO;
 	}
@@ -435,12 +435,12 @@ intel_hdcp_gsc_repeater_check_flow_prepare_ack(struct device *dev,
 				       (u8 *)&verify_repeater_out,
 				       sizeof(verify_repeater_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (verify_repeater_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
 			    WIRED_VERIFY_REPEATER,
 			    verify_repeater_out.header.status);
 		return -EIO;
@@ -504,12 +504,12 @@ int intel_hdcp_gsc_verify_mprime(struct device *dev,
 				       sizeof(verify_mprime_out));
 	kfree(verify_mprime_in);
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (verify_mprime_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
 			    WIRED_REPEATER_AUTH_STREAM_REQ,
 			    verify_mprime_out.header.status);
 		return -EIO;
@@ -552,12 +552,12 @@ int intel_hdcp_gsc_enable_authentication(struct device *dev,
 				       (u8 *)&enable_auth_out,
 				       sizeof(enable_auth_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (enable_auth_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
+		drm_dbg_kms(display->drm, "FW cmd 0x%08X failed. status: 0x%X\n",
 			    WIRED_ENABLE_AUTH, enable_auth_out.header.status);
 		return -EIO;
 	}
@@ -599,12 +599,12 @@ intel_hdcp_gsc_close_session(struct device *dev, struct hdcp_port_data *data)
 				       (u8 *)&session_close_out,
 				       sizeof(session_close_out));
 	if (byte < 0) {
-		drm_dbg_kms(&i915->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
+		drm_dbg_kms(display->drm, "intel_hdcp_gsc_msg_send failed. %zd\n", byte);
 		return byte;
 	}
 
 	if (session_close_out.header.status != FW_HDCP_STATUS_SUCCESS) {
-		drm_dbg_kms(&i915->drm, "Session Close Failed. status: 0x%X\n",
+		drm_dbg_kms(display->drm, "Session Close Failed. status: 0x%X\n",
 			    session_close_out.header.status);
 		return -EIO;
 	}

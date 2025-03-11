@@ -10,8 +10,8 @@
 #include <drm/drm_managed.h>
 
 #include "display/xe_display.h"
-#include "regs/xe_gt_regs.h"
-#include "regs/xe_regs.h"
+#include "regs/xe_guc_regs.h"
+#include "regs/xe_irq_regs.h"
 #include "xe_device.h"
 #include "xe_drv.h"
 #include "xe_gsc_proxy.h"
@@ -30,14 +30,19 @@
 #define IIR(offset)				XE_REG(offset + 0x8)
 #define IER(offset)				XE_REG(offset + 0xc)
 
-static void assert_iir_is_zero(struct xe_gt *mmio, struct xe_reg reg)
+static int xe_irq_msix_init(struct xe_device *xe);
+static void xe_irq_msix_free(struct xe_device *xe);
+static int xe_irq_msix_request_irqs(struct xe_device *xe);
+static void xe_irq_msix_synchronize_irq(struct xe_device *xe);
+
+static void assert_iir_is_zero(struct xe_mmio *mmio, struct xe_reg reg)
 {
 	u32 val = xe_mmio_read32(mmio, reg);
 
 	if (val == 0)
 		return;
 
-	drm_WARN(&gt_to_xe(mmio)->drm, 1,
+	drm_WARN(&mmio->tile->xe->drm, 1,
 		 "Interrupt register 0x%x is not zero: 0x%08x\n",
 		 reg.addr, val);
 	xe_mmio_write32(mmio, reg, 0xffffffff);
@@ -52,7 +57,7 @@ static void assert_iir_is_zero(struct xe_gt *mmio, struct xe_reg reg)
  */
 static void unmask_and_enable(struct xe_tile *tile, u32 irqregs, u32 bits)
 {
-	struct xe_gt *mmio = tile->primary_gt;
+	struct xe_mmio *mmio = &tile->mmio;
 
 	/*
 	 * If we're just enabling an interrupt now, it shouldn't already
@@ -70,7 +75,7 @@ static void unmask_and_enable(struct xe_tile *tile, u32 irqregs, u32 bits)
 /* Mask and disable all interrupts. */
 static void mask_and_disable(struct xe_tile *tile, u32 irqregs)
 {
-	struct xe_gt *mmio = tile->primary_gt;
+	struct xe_mmio *mmio = &tile->mmio;
 
 	xe_mmio_write32(mmio, IMR(irqregs), ~0);
 	/* Posting read */
@@ -87,7 +92,7 @@ static void mask_and_disable(struct xe_tile *tile, u32 irqregs)
 
 static u32 xelp_intr_disable(struct xe_device *xe)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 
 	xe_mmio_write32(mmio, GFX_MSTR_IRQ, 0);
 
@@ -103,7 +108,7 @@ static u32 xelp_intr_disable(struct xe_device *xe)
 static u32
 gu_misc_irq_ack(struct xe_device *xe, const u32 master_ctl)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	u32 iir;
 
 	if (!(master_ctl & GU_MISC_IRQ))
@@ -118,7 +123,7 @@ gu_misc_irq_ack(struct xe_device *xe, const u32 master_ctl)
 
 static inline void xelp_intr_enable(struct xe_device *xe, bool stall)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 
 	xe_mmio_write32(mmio, GFX_MSTR_IRQ, MASTER_IRQ);
 	if (stall)
@@ -129,12 +134,13 @@ static inline void xelp_intr_enable(struct xe_device *xe, bool stall)
 void xe_irq_enable_hwe(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_mmio *mmio = &gt->mmio;
 	u32 ccs_mask, bcs_mask;
 	u32 irqs, dmask, smask;
 	u32 gsc_mask = 0;
 	u32 heci_mask = 0;
 
-	if (IS_SRIOV_VF(xe) && xe_device_has_memirq(xe))
+	if (xe_device_uses_memirq(xe))
 		return;
 
 	if (xe_device_uc_enabled(xe)) {
@@ -155,35 +161,35 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 
 	if (!xe_gt_is_media_type(gt)) {
 		/* Enable interrupts for each engine class */
-		xe_mmio_write32(gt, RENDER_COPY_INTR_ENABLE, dmask);
+		xe_mmio_write32(mmio, RENDER_COPY_INTR_ENABLE, dmask);
 		if (ccs_mask)
-			xe_mmio_write32(gt, CCS_RSVD_INTR_ENABLE, smask);
+			xe_mmio_write32(mmio, CCS_RSVD_INTR_ENABLE, smask);
 
 		/* Unmask interrupts for each engine instance */
-		xe_mmio_write32(gt, RCS0_RSVD_INTR_MASK, ~smask);
-		xe_mmio_write32(gt, BCS_RSVD_INTR_MASK, ~smask);
+		xe_mmio_write32(mmio, RCS0_RSVD_INTR_MASK, ~smask);
+		xe_mmio_write32(mmio, BCS_RSVD_INTR_MASK, ~smask);
 		if (bcs_mask & (BIT(1)|BIT(2)))
-			xe_mmio_write32(gt, XEHPC_BCS1_BCS2_INTR_MASK, ~dmask);
+			xe_mmio_write32(mmio, XEHPC_BCS1_BCS2_INTR_MASK, ~dmask);
 		if (bcs_mask & (BIT(3)|BIT(4)))
-			xe_mmio_write32(gt, XEHPC_BCS3_BCS4_INTR_MASK, ~dmask);
+			xe_mmio_write32(mmio, XEHPC_BCS3_BCS4_INTR_MASK, ~dmask);
 		if (bcs_mask & (BIT(5)|BIT(6)))
-			xe_mmio_write32(gt, XEHPC_BCS5_BCS6_INTR_MASK, ~dmask);
+			xe_mmio_write32(mmio, XEHPC_BCS5_BCS6_INTR_MASK, ~dmask);
 		if (bcs_mask & (BIT(7)|BIT(8)))
-			xe_mmio_write32(gt, XEHPC_BCS7_BCS8_INTR_MASK, ~dmask);
+			xe_mmio_write32(mmio, XEHPC_BCS7_BCS8_INTR_MASK, ~dmask);
 		if (ccs_mask & (BIT(0)|BIT(1)))
-			xe_mmio_write32(gt, CCS0_CCS1_INTR_MASK, ~dmask);
+			xe_mmio_write32(mmio, CCS0_CCS1_INTR_MASK, ~dmask);
 		if (ccs_mask & (BIT(2)|BIT(3)))
-			xe_mmio_write32(gt,  CCS2_CCS3_INTR_MASK, ~dmask);
+			xe_mmio_write32(mmio, CCS2_CCS3_INTR_MASK, ~dmask);
 	}
 
 	if (xe_gt_is_media_type(gt) || MEDIA_VER(xe) < 13) {
 		/* Enable interrupts for each engine class */
-		xe_mmio_write32(gt, VCS_VECS_INTR_ENABLE, dmask);
+		xe_mmio_write32(mmio, VCS_VECS_INTR_ENABLE, dmask);
 
 		/* Unmask interrupts for each engine instance */
-		xe_mmio_write32(gt, VCS0_VCS1_INTR_MASK, ~dmask);
-		xe_mmio_write32(gt, VCS2_VCS3_INTR_MASK, ~dmask);
-		xe_mmio_write32(gt, VECS0_VECS1_INTR_MASK, ~dmask);
+		xe_mmio_write32(mmio, VCS0_VCS1_INTR_MASK, ~dmask);
+		xe_mmio_write32(mmio, VCS2_VCS3_INTR_MASK, ~dmask);
+		xe_mmio_write32(mmio, VECS0_VECS1_INTR_MASK, ~dmask);
 
 		/*
 		 * the heci2 interrupt is enabled via the same register as the
@@ -192,22 +198,22 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 		if (xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER)) {
 			gsc_mask = irqs | GSC_ER_COMPLETE;
 			heci_mask = GSC_IRQ_INTF(1);
-		} else if (HAS_HECI_GSCFI(xe)) {
+		} else if (xe->info.has_heci_gscfi) {
 			gsc_mask = GSC_IRQ_INTF(1);
 		}
 
 		if (gsc_mask) {
-			xe_mmio_write32(gt, GUNIT_GSC_INTR_ENABLE, gsc_mask | heci_mask);
-			xe_mmio_write32(gt, GUNIT_GSC_INTR_MASK, ~gsc_mask);
+			xe_mmio_write32(mmio, GUNIT_GSC_INTR_ENABLE, gsc_mask | heci_mask);
+			xe_mmio_write32(mmio, GUNIT_GSC_INTR_MASK, ~gsc_mask);
 		}
 		if (heci_mask)
-			xe_mmio_write32(gt, HECI2_RSVD_INTR_MASK, ~(heci_mask << 16));
+			xe_mmio_write32(mmio, HECI2_RSVD_INTR_MASK, ~(heci_mask << 16));
 	}
 }
 
 static u32
 gt_engine_identity(struct xe_device *xe,
-		   struct xe_gt *mmio,
+		   struct xe_mmio *mmio,
 		   const unsigned int bank,
 		   const unsigned int bit)
 {
@@ -279,7 +285,7 @@ static struct xe_gt *pick_engine_gt(struct xe_tile *tile,
 			return tile->media_gt;
 		default:
 			break;
-		};
+		}
 		fallthrough;
 	default:
 		return tile->primary_gt;
@@ -291,7 +297,7 @@ static void gt_irq_handler(struct xe_tile *tile,
 			   u32 *identity)
 {
 	struct xe_device *xe = tile_to_xe(tile);
-	struct xe_gt *mmio = tile->primary_gt;
+	struct xe_mmio *mmio = &tile->mmio;
 	unsigned int bank, bit;
 	u16 instance, intr_vec;
 	enum xe_engine_class class;
@@ -325,7 +331,7 @@ static void gt_irq_handler(struct xe_tile *tile,
 
 			if (class == XE_ENGINE_CLASS_OTHER) {
 				/* HECI GSCFI interrupts come from outside of GT */
-				if (HAS_HECI_GSCFI(xe) && instance == OTHER_GSC_INSTANCE)
+				if (xe->info.has_heci_gscfi && instance == OTHER_GSC_INSTANCE)
 					xe_heci_gsc_irq_handler(xe, intr_vec);
 				else
 					gt_other_irq_handler(engine_gt, instance, intr_vec);
@@ -348,12 +354,8 @@ static irqreturn_t xelp_irq_handler(int irq, void *arg)
 	unsigned long intr_dw[2];
 	u32 identity[32];
 
-	spin_lock(&xe->irq.lock);
-	if (!xe->irq.enabled) {
-		spin_unlock(&xe->irq.lock);
+	if (!atomic_read(&xe->irq.enabled))
 		return IRQ_NONE;
-	}
-	spin_unlock(&xe->irq.lock);
 
 	master_ctl = xelp_intr_disable(xe);
 	if (!master_ctl) {
@@ -376,7 +378,7 @@ static irqreturn_t xelp_irq_handler(int irq, void *arg)
 
 static u32 dg1_intr_disable(struct xe_device *xe)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	u32 val;
 
 	/* First disable interrupts */
@@ -394,7 +396,7 @@ static u32 dg1_intr_disable(struct xe_device *xe)
 
 static void dg1_intr_enable(struct xe_device *xe, bool stall)
 {
-	struct xe_gt *mmio = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 
 	xe_mmio_write32(mmio, DG1_MSTR_TILE_INTR, DG1_MSTR_IRQ);
 	if (stall)
@@ -417,12 +419,8 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 
 	/* TODO: This really shouldn't be copied+pasted */
 
-	spin_lock(&xe->irq.lock);
-	if (!xe->irq.enabled) {
-		spin_unlock(&xe->irq.lock);
+	if (!atomic_read(&xe->irq.enabled))
 		return IRQ_NONE;
-	}
-	spin_unlock(&xe->irq.lock);
 
 	master_tile_ctl = dg1_intr_disable(xe);
 	if (!master_tile_ctl) {
@@ -431,7 +429,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 	}
 
 	for_each_tile(tile, xe, id) {
-		struct xe_gt *mmio = tile->primary_gt;
+		struct xe_mmio *mmio = &tile->mmio;
 
 		if ((master_tile_ctl & DG1_MSTR_TILE(tile->id)) == 0)
 			continue;
@@ -459,7 +457,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		 * the primary tile.
 		 */
 		if (id == 0) {
-			if (HAS_HECI_CSCFI(xe))
+			if (xe->info.has_heci_cscfi)
 				xe_heci_csc_irq_handler(xe, master_ctl);
 			xe_display_irq_handler(xe, master_ctl);
 			gu_misc_iir = gu_misc_irq_ack(xe, master_ctl);
@@ -474,7 +472,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 
 static void gt_irq_reset(struct xe_tile *tile)
 {
-	struct xe_gt *mmio = tile->primary_gt;
+	struct xe_mmio *mmio = &tile->mmio;
 
 	u32 ccs_mask = xe_hw_engine_mask_per_class(tile->primary_gt,
 						   XE_ENGINE_CLASS_COMPUTE);
@@ -504,11 +502,11 @@ static void gt_irq_reset(struct xe_tile *tile)
 	if (ccs_mask & (BIT(0)|BIT(1)))
 		xe_mmio_write32(mmio, CCS0_CCS1_INTR_MASK, ~0);
 	if (ccs_mask & (BIT(2)|BIT(3)))
-		xe_mmio_write32(mmio,  CCS2_CCS3_INTR_MASK, ~0);
+		xe_mmio_write32(mmio, CCS2_CCS3_INTR_MASK, ~0);
 
 	if ((tile->media_gt &&
 	     xe_hw_engine_mask_per_class(tile->media_gt, XE_ENGINE_CLASS_OTHER)) ||
-	    HAS_HECI_GSCFI(tile_to_xe(tile))) {
+	    tile_to_xe(tile)->info.has_heci_gscfi) {
 		xe_mmio_write32(mmio, GUNIT_GSC_INTR_ENABLE, 0);
 		xe_mmio_write32(mmio, GUNIT_GSC_INTR_MASK, ~0);
 		xe_mmio_write32(mmio, HECI2_RSVD_INTR_MASK, ~0);
@@ -547,7 +545,7 @@ static void dg1_irq_reset(struct xe_tile *tile)
 
 static void dg1_irq_reset_mstr(struct xe_tile *tile)
 {
-	struct xe_gt *mmio = tile->primary_gt;
+	struct xe_mmio *mmio = &tile->mmio;
 
 	xe_mmio_write32(mmio, GFX_MSTR_IRQ, ~0);
 }
@@ -566,7 +564,7 @@ static void vf_irq_reset(struct xe_device *xe)
 
 	for_each_tile(tile, xe, id) {
 		if (xe_device_has_memirq(xe))
-			xe_memirq_reset(&tile->sriov.vf.memirq);
+			xe_memirq_reset(&tile->memirq);
 		else
 			gt_irq_reset(tile);
 	}
@@ -579,6 +577,11 @@ static void xe_irq_reset(struct xe_device *xe)
 
 	if (IS_SRIOV_VF(xe))
 		return vf_irq_reset(xe);
+
+	if (xe_device_uses_memirq(xe)) {
+		for_each_tile(tile, xe, id)
+			xe_memirq_reset(&tile->memirq);
+	}
 
 	for_each_tile(tile, xe, id) {
 		if (GRAPHICS_VERx100(xe) >= 1210)
@@ -609,7 +612,7 @@ static void vf_irq_postinstall(struct xe_device *xe)
 
 	for_each_tile(tile, xe, id)
 		if (xe_device_has_memirq(xe))
-			xe_memirq_postinstall(&tile->sriov.vf.memirq);
+			xe_memirq_postinstall(&tile->memirq);
 
 	if (GRAPHICS_VERx100(xe) < 1210)
 		xelp_intr_enable(xe, true);
@@ -621,6 +624,14 @@ static void xe_irq_postinstall(struct xe_device *xe)
 {
 	if (IS_SRIOV_VF(xe))
 		return vf_irq_postinstall(xe);
+
+	if (xe_device_uses_memirq(xe)) {
+		struct xe_tile *tile;
+		unsigned int id;
+
+		for_each_tile(tile, xe, id)
+			xe_memirq_postinstall(&tile->memirq);
+	}
 
 	xe_display_irq_postinstall(xe, xe_root_mmio_gt(xe));
 
@@ -644,15 +655,11 @@ static irqreturn_t vf_mem_irq_handler(int irq, void *arg)
 	struct xe_tile *tile;
 	unsigned int id;
 
-	spin_lock(&xe->irq.lock);
-	if (!xe->irq.enabled) {
-		spin_unlock(&xe->irq.lock);
+	if (!atomic_read(&xe->irq.enabled))
 		return IRQ_NONE;
-	}
-	spin_unlock(&xe->irq.lock);
 
 	for_each_tile(tile, xe, id)
-		xe_memirq_handler(&tile->sriov.vf.memirq);
+		xe_memirq_handler(&tile->memirq);
 
 	return IRQ_HANDLED;
 }
@@ -668,28 +675,11 @@ static irq_handler_t xe_irq_handler(struct xe_device *xe)
 		return xelp_irq_handler;
 }
 
-static void irq_uninstall(void *arg)
-{
-	struct xe_device *xe = arg;
-	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	int irq;
-
-	if (!xe->irq.enabled)
-		return;
-
-	xe->irq.enabled = false;
-	xe_irq_reset(xe);
-
-	irq = pci_irq_vector(pdev, 0);
-	free_irq(irq, xe);
-}
-
-int xe_irq_install(struct xe_device *xe)
+static int xe_irq_msi_request_irqs(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	unsigned int irq_flags = PCI_IRQ_MSIX;
 	irq_handler_t irq_handler;
-	int err, irq, nvec;
+	int irq, err;
 
 	irq_handler = xe_irq_handler(xe);
 	if (!irq_handler) {
@@ -697,34 +687,73 @@ int xe_irq_install(struct xe_device *xe)
 		return -EINVAL;
 	}
 
+	irq = pci_irq_vector(pdev, 0);
+	err = request_irq(irq, irq_handler, IRQF_SHARED, DRIVER_NAME, xe);
+	if (err < 0) {
+		drm_err(&xe->drm, "Failed to request MSI IRQ %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+static void xe_irq_msi_free(struct xe_device *xe)
+{
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	int irq;
+
+	irq = pci_irq_vector(pdev, 0);
+	free_irq(irq, xe);
+}
+
+static void irq_uninstall(void *arg)
+{
+	struct xe_device *xe = arg;
+
+	if (!atomic_xchg(&xe->irq.enabled, 0))
+		return;
+
 	xe_irq_reset(xe);
 
-	nvec = pci_msix_vec_count(pdev);
-	if (nvec <= 0) {
-		if (nvec == -EINVAL) {
-			/* MSIX capability is not supported in the device, using MSI */
-			irq_flags = PCI_IRQ_MSI;
-			nvec = 1;
-		} else {
-			drm_err(&xe->drm, "MSIX: Failed getting count\n");
-			return nvec;
-		}
+	if (xe_device_has_msix(xe))
+		xe_irq_msix_free(xe);
+	else
+		xe_irq_msi_free(xe);
+}
+
+int xe_irq_init(struct xe_device *xe)
+{
+	spin_lock_init(&xe->irq.lock);
+
+	return xe_irq_msix_init(xe);
+}
+
+int xe_irq_install(struct xe_device *xe)
+{
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	unsigned int irq_flags = PCI_IRQ_MSI;
+	int nvec = 1;
+	int err;
+
+	xe_irq_reset(xe);
+
+	if (xe_device_has_msix(xe)) {
+		nvec = xe->irq.msix.nvec;
+		irq_flags = PCI_IRQ_MSIX;
 	}
 
 	err = pci_alloc_irq_vectors(pdev, nvec, nvec, irq_flags);
 	if (err < 0) {
-		drm_err(&xe->drm, "MSI/MSIX: Failed to enable support %d\n", err);
+		drm_err(&xe->drm, "Failed to allocate IRQ vectors: %d\n", err);
 		return err;
 	}
 
-	irq = pci_irq_vector(pdev, 0);
-	err = request_irq(irq, irq_handler, IRQF_SHARED, DRIVER_NAME, xe);
-	if (err < 0) {
-		drm_err(&xe->drm, "Failed to request MSI/MSIX IRQ %d\n", err);
+	err = xe_device_has_msix(xe) ? xe_irq_msix_request_irqs(xe) :
+					xe_irq_msi_request_irqs(xe);
+	if (err)
 		return err;
-	}
 
-	xe->irq.enabled = true;
+	atomic_set(&xe->irq.enabled, 1);
 
 	xe_irq_postinstall(xe);
 
@@ -735,20 +764,28 @@ int xe_irq_install(struct xe_device *xe)
 	return 0;
 
 free_irq_handler:
-	free_irq(irq, xe);
+	if (xe_device_has_msix(xe))
+		xe_irq_msix_free(xe);
+	else
+		xe_irq_msi_free(xe);
 
 	return err;
 }
 
+static void xe_irq_msi_synchronize_irq(struct xe_device *xe)
+{
+	synchronize_irq(to_pci_dev(xe->drm.dev)->irq);
+}
+
 void xe_irq_suspend(struct xe_device *xe)
 {
-	int irq = to_pci_dev(xe->drm.dev)->irq;
+	atomic_set(&xe->irq.enabled, 0); /* no new irqs */
 
-	spin_lock_irq(&xe->irq.lock);
-	xe->irq.enabled = false; /* no new irqs */
-	spin_unlock_irq(&xe->irq.lock);
-
-	synchronize_irq(irq); /* flush irqs */
+	/* flush irqs */
+	if (xe_device_has_msix(xe))
+		xe_irq_msix_synchronize_irq(xe);
+	else
+		xe_irq_msi_synchronize_irq(xe);
 	xe_irq_reset(xe); /* turn irqs off */
 }
 
@@ -762,10 +799,205 @@ void xe_irq_resume(struct xe_device *xe)
 	 * 1. no irq will arrive before the postinstall
 	 * 2. display is not yet resumed
 	 */
-	xe->irq.enabled = true;
+	atomic_set(&xe->irq.enabled, 1);
 	xe_irq_reset(xe);
 	xe_irq_postinstall(xe); /* turn irqs on */
 
 	for_each_gt(gt, xe, id)
 		xe_irq_enable_hwe(gt);
+}
+
+/* MSI-X related definitions and functions below. */
+
+enum xe_irq_msix_static {
+	GUC2HOST_MSIX = 0,
+	DEFAULT_MSIX = XE_IRQ_DEFAULT_MSIX,
+	/* Must be last */
+	NUM_OF_STATIC_MSIX,
+};
+
+static int xe_irq_msix_init(struct xe_device *xe)
+{
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	int nvec = pci_msix_vec_count(pdev);
+
+	if (nvec == -EINVAL)
+		return 0;  /* MSI */
+
+	if (nvec < 0) {
+		drm_err(&xe->drm, "Failed getting MSI-X vectors count: %d\n", nvec);
+		return nvec;
+	}
+
+	xe->irq.msix.nvec = nvec;
+	xa_init_flags(&xe->irq.msix.indexes, XA_FLAGS_ALLOC);
+	return 0;
+}
+
+static irqreturn_t guc2host_irq_handler(int irq, void *arg)
+{
+	struct xe_device *xe = arg;
+	struct xe_tile *tile;
+	u8 id;
+
+	if (!atomic_read(&xe->irq.enabled))
+		return IRQ_NONE;
+
+	for_each_tile(tile, xe, id)
+		xe_guc_irq_handler(&tile->primary_gt->uc.guc,
+				   GUC_INTR_GUC2HOST);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t xe_irq_msix_default_hwe_handler(int irq, void *arg)
+{
+	unsigned int tile_id, gt_id;
+	struct xe_device *xe = arg;
+	struct xe_memirq *memirq;
+	struct xe_hw_engine *hwe;
+	enum xe_hw_engine_id id;
+	struct xe_tile *tile;
+	struct xe_gt *gt;
+
+	if (!atomic_read(&xe->irq.enabled))
+		return IRQ_NONE;
+
+	for_each_tile(tile, xe, tile_id) {
+		memirq = &tile->memirq;
+		if (!memirq->bo)
+			continue;
+
+		for_each_gt(gt, xe, gt_id) {
+			if (gt->tile != tile)
+				continue;
+
+			for_each_hw_engine(hwe, gt, id)
+				xe_memirq_hwe_handler(memirq, hwe);
+		}
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int xe_irq_msix_alloc_vector(struct xe_device *xe, void *irq_buf,
+				    bool dynamic_msix, u16 *msix)
+{
+	struct xa_limit limit;
+	int ret;
+	u32 id;
+
+	limit = (dynamic_msix) ? XA_LIMIT(NUM_OF_STATIC_MSIX, xe->irq.msix.nvec - 1) :
+				 XA_LIMIT(*msix, *msix);
+	ret = xa_alloc(&xe->irq.msix.indexes, &id, irq_buf, limit, GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	if (dynamic_msix)
+		*msix = id;
+
+	return 0;
+}
+
+static void xe_irq_msix_release_vector(struct xe_device *xe, u16 msix)
+{
+	xa_erase(&xe->irq.msix.indexes, msix);
+}
+
+static int xe_irq_msix_request_irq_internal(struct xe_device *xe, irq_handler_t handler,
+					    void *irq_buf, const char *name, u16 msix)
+{
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	int ret, irq;
+
+	irq = pci_irq_vector(pdev, msix);
+	if (irq < 0)
+		return irq;
+
+	ret = request_irq(irq, handler, IRQF_SHARED, name, irq_buf);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int xe_irq_msix_request_irq(struct xe_device *xe, irq_handler_t handler, void *irq_buf,
+			    const char *name, bool dynamic_msix, u16 *msix)
+{
+	int ret;
+
+	ret = xe_irq_msix_alloc_vector(xe, irq_buf, dynamic_msix, msix);
+	if (ret)
+		return ret;
+
+	ret = xe_irq_msix_request_irq_internal(xe, handler, irq_buf, name, *msix);
+	if (ret) {
+		drm_err(&xe->drm, "Failed to request IRQ for MSI-X %u\n", *msix);
+		xe_irq_msix_release_vector(xe, *msix);
+		return ret;
+	}
+
+	return 0;
+}
+
+void xe_irq_msix_free_irq(struct xe_device *xe, u16 msix)
+{
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	int irq;
+	void *irq_buf;
+
+	irq_buf = xa_load(&xe->irq.msix.indexes, msix);
+	if (!irq_buf)
+		return;
+
+	irq = pci_irq_vector(pdev, msix);
+	if (irq < 0) {
+		drm_err(&xe->drm, "MSI-X %u can't be released, there is no matching IRQ\n", msix);
+		return;
+	}
+
+	free_irq(irq, irq_buf);
+	xe_irq_msix_release_vector(xe, msix);
+}
+
+int xe_irq_msix_request_irqs(struct xe_device *xe)
+{
+	int err;
+	u16 msix;
+
+	msix = GUC2HOST_MSIX;
+	err = xe_irq_msix_request_irq(xe, guc2host_irq_handler, xe,
+				      DRIVER_NAME "-guc2host", false, &msix);
+	if (err)
+		return err;
+
+	msix = DEFAULT_MSIX;
+	err = xe_irq_msix_request_irq(xe, xe_irq_msix_default_hwe_handler, xe,
+				      DRIVER_NAME "-default-msix", false, &msix);
+	if (err) {
+		xe_irq_msix_free_irq(xe, GUC2HOST_MSIX);
+		return err;
+	}
+
+	return 0;
+}
+
+void xe_irq_msix_free(struct xe_device *xe)
+{
+	unsigned long msix;
+	u32 *dummy;
+
+	xa_for_each(&xe->irq.msix.indexes, msix, dummy)
+		xe_irq_msix_free_irq(xe, msix);
+	xa_destroy(&xe->irq.msix.indexes);
+}
+
+void xe_irq_msix_synchronize_irq(struct xe_device *xe)
+{
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	unsigned long msix;
+	u32 *dummy;
+
+	xa_for_each(&xe->irq.msix.indexes, msix, dummy)
+		synchronize_irq(pci_irq_vector(pdev, msix));
 }

@@ -8,8 +8,8 @@
 
 #include <linux/types.h>
 
-struct drm_i915_private;
 struct i2c_adapter;
+struct intel_display;
 
 #define GMBUS_PIN_DISABLED	0
 #define GMBUS_PIN_SSC		1
@@ -34,18 +34,17 @@ struct i2c_adapter;
 
 #define GMBUS_NUM_PINS	15 /* including 0 */
 
-int intel_gmbus_setup(struct drm_i915_private *dev_priv);
-void intel_gmbus_teardown(struct drm_i915_private *dev_priv);
-bool intel_gmbus_is_valid_pin(struct drm_i915_private *dev_priv,
-			      unsigned int pin);
+int intel_gmbus_setup(struct intel_display *display);
+void intel_gmbus_teardown(struct intel_display *display);
+bool intel_gmbus_is_valid_pin(struct intel_display *display, unsigned int pin);
 int intel_gmbus_output_aksv(struct i2c_adapter *adapter);
 
 struct i2c_adapter *
-intel_gmbus_get_adapter(struct drm_i915_private *dev_priv, unsigned int pin);
+intel_gmbus_get_adapter(struct intel_display *display, unsigned int pin);
 void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit);
 bool intel_gmbus_is_forced_bit(struct i2c_adapter *adapter);
-void intel_gmbus_reset(struct drm_i915_private *dev_priv);
+void intel_gmbus_reset(struct intel_display *display);
 
-void intel_gmbus_irq_handler(struct drm_i915_private *i915);
+void intel_gmbus_irq_handler(struct intel_display *display);
 
 #endif /* __INTEL_GMBUS_H__ */

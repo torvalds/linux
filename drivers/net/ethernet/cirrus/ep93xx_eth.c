@@ -862,7 +862,7 @@ MODULE_DEVICE_TABLE(of, ep93xx_eth_of_ids);
 
 static struct platform_driver ep93xx_eth_driver = {
 	.probe		= ep93xx_eth_probe,
-	.remove_new	= ep93xx_eth_remove,
+	.remove		= ep93xx_eth_remove,
 	.driver		= {
 		.name	= "ep93xx-eth",
 		.of_match_table = ep93xx_eth_of_ids,

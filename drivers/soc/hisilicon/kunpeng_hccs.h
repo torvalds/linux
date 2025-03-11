@@ -10,6 +10,19 @@
  * | P0 | P1 | P2 | P3 | P0 | P1 | P2 | P3 | P0 | P1 | P2 | P3 |P0 | P1 | P2 | P3 |
  */
 
+enum hccs_port_type {
+	HCCS_V1 = 1,
+	HCCS_V2,
+};
+
+#define HCCS_IP_PREFIX	"HCCS-v"
+#define HCCS_IP_MAX		255
+#define HCCS_NAME_MAX_LEN	9
+struct hccs_type_name_map {
+	u8 type;
+	char name[HCCS_NAME_MAX_LEN + 1];
+};
+
 /*
  * This value cannot be 255, otherwise the loop of the multi-BD communication
  * case cannot end.
@@ -19,7 +32,7 @@
 struct hccs_port_info {
 	u8 port_id;
 	u8 port_type;
-	u8 lane_mode;
+	u8 max_lane_num;
 	bool enable; /* if the port is enabled */
 	struct kobject kobj;
 	bool dir_created;
@@ -67,13 +80,18 @@ struct hccs_verspecific_data {
 	bool has_txdone_irq;
 };
 
+#define HCCS_CAPS_HCCS_V2_PM	BIT_ULL(0)
+
 struct hccs_dev {
 	struct device *dev;
 	struct acpi_device *acpi_dev;
 	const struct hccs_verspecific_data *verspec_data;
+	/* device capabilities from firmware, like HCCS_CAPS_xxx. */
 	u64 caps;
 	u8 chip_num;
 	struct hccs_chip_info *chips;
+	u16 used_type_num;
+	struct hccs_type_name_map *type_name_maps;
 	u8 chan_id;
 	struct mutex lock;
 	struct hccs_mbox_client_info cl_info;
@@ -91,6 +109,9 @@ enum hccs_subcmd_type {
 	HCCS_GET_DIE_PORTS_LANE_STA,
 	HCCS_GET_DIE_PORTS_LINK_STA,
 	HCCS_GET_DIE_PORTS_CRC_ERR_CNT,
+	HCCS_GET_PORT_IDLE_STATUS,
+	HCCS_PM_DEC_LANE,
+	HCCS_PM_INC_LANE,
 	HCCS_SUB_CMD_MAX = 255,
 };
 
@@ -113,7 +134,7 @@ struct hccs_die_info_rsp_data {
 struct hccs_port_attr {
 	u8 port_id;
 	u8 port_type;
-	u8 lane_mode;
+	u8 max_lane_num;
 	u8 enable : 1; /* if the port is enabled */
 	u16 rsv[2];
 };
@@ -132,6 +153,14 @@ struct hccs_port_comm_req_param {
 	u8 chip_id;
 	u8 die_id;
 	u8 port_id;
+};
+
+#define HCCS_PREPARE_INC_LANE	1
+#define HCCS_GET_ADAPT_RES	2
+#define HCCS_START_RETRAINING	3
+struct hccs_inc_lane_req_param {
+	u8 port_type;
+	u8 opt_type;
 };
 
 #define HCCS_PORT_RESET         1

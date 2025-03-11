@@ -61,7 +61,7 @@ bool firmware_request_builtin(struct firmware *fw, const char *name)
 
 	return false;
 }
-EXPORT_SYMBOL_NS_GPL(firmware_request_builtin, TEST_FIRMWARE);
+EXPORT_SYMBOL_NS_GPL(firmware_request_builtin, "TEST_FIRMWARE");
 
 /**
  * firmware_request_builtin_buf() - load builtin firmware into optional buffer

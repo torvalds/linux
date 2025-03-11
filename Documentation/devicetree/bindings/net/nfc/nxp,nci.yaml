@@ -17,6 +17,7 @@ properties:
           - enum:
               - nxp,nq310
               - nxp,pn547
+              - nxp,pn553
           - const: nxp,nxp-nci-i2c
 
   enable-gpios:

@@ -4,7 +4,7 @@
  * Copyright (C) 2018 Marek Vasut <marex@denx.de>
  *
  * DHCOM iMX6 variant:
- * DHCM-iMX6Q-C0800-R102-F0819-E-SD-RTC-T-HS-I-01D2
+ * DHCM-iMX6Q-C080-R102-F0819-E-SD-RTC-T-HS-I-01D2
  * DHCOM PCB number: 493-300 or newer
  * PDK2 PCB number: 516-400 or newer
  */

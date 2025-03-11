@@ -3286,5 +3286,5 @@ struct platform_driver tegra_dc_driver = {
 		.of_match_table = tegra_dc_of_match,
 	},
 	.probe = tegra_dc_probe,
-	.remove_new = tegra_dc_remove,
+	.remove = tegra_dc_remove,
 };

@@ -16,145 +16,24 @@
 #include <registers.h>
 #include <skas.h>
 
+#include <linux/regset.h>
+#include <asm/sigframe.h>
+
 #ifdef CONFIG_X86_32
-
-/*
- * FPU tag word conversions.
- */
-
-static inline unsigned short twd_i387_to_fxsr(unsigned short twd)
-{
-	unsigned int tmp; /* to avoid 16 bit prefixes in the code */
-
-	/* Transform each pair of bits into 01 (valid) or 00 (empty) */
-	tmp = ~twd;
-	tmp = (tmp | (tmp>>1)) & 0x5555; /* 0V0V0V0V0V0V0V0V */
-	/* and move the valid bits to the lower byte. */
-	tmp = (tmp | (tmp >> 1)) & 0x3333; /* 00VV00VV00VV00VV */
-	tmp = (tmp | (tmp >> 2)) & 0x0f0f; /* 0000VVVV0000VVVV */
-	tmp = (tmp | (tmp >> 4)) & 0x00ff; /* 00000000VVVVVVVV */
-	return tmp;
-}
-
-static inline unsigned long twd_fxsr_to_i387(struct user_fxsr_struct *fxsave)
-{
-	struct _fpxreg *st = NULL;
-	unsigned long twd = (unsigned long) fxsave->twd;
-	unsigned long tag;
-	unsigned long ret = 0xffff0000;
-	int i;
-
-#define FPREG_ADDR(f, n)	((char *)&(f)->st_space + (n) * 16)
-
-	for (i = 0; i < 8; i++) {
-		if (twd & 0x1) {
-			st = (struct _fpxreg *) FPREG_ADDR(fxsave, i);
-
-			switch (st->exponent & 0x7fff) {
-			case 0x7fff:
-				tag = 2;		/* Special */
-				break;
-			case 0x0000:
-				if ( !st->significand[0] &&
-				     !st->significand[1] &&
-				     !st->significand[2] &&
-				     !st->significand[3] ) {
-					tag = 1;	/* Zero */
-				} else {
-					tag = 2;	/* Special */
-				}
-				break;
-			default:
-				if (st->significand[3] & 0x8000) {
-					tag = 0;	/* Valid */
-				} else {
-					tag = 2;	/* Special */
-				}
-				break;
-			}
-		} else {
-			tag = 3;			/* Empty */
-		}
-		ret |= (tag << (2 * i));
-		twd = twd >> 1;
-	}
-	return ret;
-}
-
-static int convert_fxsr_to_user(struct _fpstate __user *buf,
-				struct user_fxsr_struct *fxsave)
-{
-	unsigned long env[7];
-	struct _fpreg __user *to;
-	struct _fpxreg *from;
-	int i;
-
-	env[0] = (unsigned long)fxsave->cwd | 0xffff0000ul;
-	env[1] = (unsigned long)fxsave->swd | 0xffff0000ul;
-	env[2] = twd_fxsr_to_i387(fxsave);
-	env[3] = fxsave->fip;
-	env[4] = fxsave->fcs | ((unsigned long)fxsave->fop << 16);
-	env[5] = fxsave->foo;
-	env[6] = fxsave->fos;
-
-	if (__copy_to_user(buf, env, 7 * sizeof(unsigned long)))
-		return 1;
-
-	to = &buf->_st[0];
-	from = (struct _fpxreg *) &fxsave->st_space[0];
-	for (i = 0; i < 8; i++, to++, from++) {
-		unsigned long __user *t = (unsigned long __user *)to;
-		unsigned long *f = (unsigned long *)from;
-
-		if (__put_user(*f, t) ||
-				__put_user(*(f + 1), t + 1) ||
-				__put_user(from->exponent, &to->exponent))
-			return 1;
-	}
-	return 0;
-}
-
-static int convert_fxsr_from_user(struct user_fxsr_struct *fxsave,
-				  struct _fpstate __user *buf)
-{
-	unsigned long env[7];
-	struct _fpxreg *to;
-	struct _fpreg __user *from;
-	int i;
-
-	if (copy_from_user( env, buf, 7 * sizeof(long)))
-		return 1;
-
-	fxsave->cwd = (unsigned short)(env[0] & 0xffff);
-	fxsave->swd = (unsigned short)(env[1] & 0xffff);
-	fxsave->twd = twd_i387_to_fxsr((unsigned short)(env[2] & 0xffff));
-	fxsave->fip = env[3];
-	fxsave->fop = (unsigned short)((env[4] & 0xffff0000ul) >> 16);
-	fxsave->fcs = (env[4] & 0xffff);
-	fxsave->foo = env[5];
-	fxsave->fos = env[6];
-
-	to = (struct _fpxreg *) &fxsave->st_space[0];
-	from = &buf->_st[0];
-	for (i = 0; i < 8; i++, to++, from++) {
-		unsigned long *t = (unsigned long *)to;
-		unsigned long __user *f = (unsigned long __user *)from;
-
-		if (__get_user(*t, f) ||
-		    __get_user(*(t + 1), f + 1) ||
-		    __get_user(to->exponent, &from->exponent))
-			return 1;
-	}
-	return 0;
-}
-
-extern int have_fpx_regs;
-
+struct _xstate_64 {
+	struct _fpstate_64		fpstate;
+	struct _header			xstate_hdr;
+	struct _ymmh_state		ymmh;
+	/* New processor state extensions go here: */
+};
+#else
+#define _xstate_64 _xstate
 #endif
 
 static int copy_sc_from_user(struct pt_regs *regs,
 			     struct sigcontext __user *from)
 {
+	struct _xstate_64 __user *from_fp64;
 	struct sigcontext sc;
 	int err;
 
@@ -203,35 +82,27 @@ static int copy_sc_from_user(struct pt_regs *regs,
 #undef GETREG
 
 #ifdef CONFIG_X86_32
-	if (have_fpx_regs) {
-		struct user_fxsr_struct fpx;
-		int pid = userspace_pid[current_thread_info()->cpu];
-
-		err = copy_from_user(&fpx,
-			&((struct _fpstate __user *)sc.fpstate)->_fxsr_env[0],
-				     sizeof(struct user_fxsr_struct));
-		if (err)
-			return 1;
-
-		err = convert_fxsr_from_user(&fpx, (void *)sc.fpstate);
-		if (err)
-			return 1;
-
-		err = restore_fpx_registers(pid, (unsigned long *) &fpx);
-		if (err < 0) {
-			printk(KERN_ERR "copy_sc_from_user - "
-			       "restore_fpx_registers failed, errno = %d\n",
-			       -err);
-			return 1;
-		}
-	} else
+	from_fp64 = ((void __user *)sc.fpstate) +
+		    offsetof(struct _fpstate_32, _fxsr_env);
+#else
+	from_fp64 = (void __user *)sc.fpstate;
 #endif
-	{
-		err = copy_from_user(regs->regs.fp, (void *)sc.fpstate,
-				     sizeof(struct _xstate));
-		if (err)
-			return 1;
-	}
+
+	err = copy_from_user(regs->regs.fp, from_fp64, host_fp_size);
+	if (err)
+		return 1;
+
+#ifdef CONFIG_X86_32
+	/* Data is duplicated and this copy is the important one */
+	err = copy_regset_from_user(current,
+				    task_user_regset_view(current),
+				    REGSET_FP_LEGACY, 0,
+				    sizeof(struct user_i387_struct),
+				    (void __user *)sc.fpstate);
+	if (err < 0)
+		return err;
+#endif
+
 	return 0;
 }
 
@@ -239,6 +110,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 			   struct _xstate __user *to_fp, struct pt_regs *regs,
 			   unsigned long mask)
 {
+	struct _xstate_64 __user *to_fp64;
 	struct sigcontext sc;
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
 	int err;
@@ -290,35 +162,46 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 		return 1;
 
 #ifdef CONFIG_X86_32
-	if (have_fpx_regs) {
-		int pid = userspace_pid[current_thread_info()->cpu];
-		struct user_fxsr_struct fpx;
+	err = copy_regset_to_user(current,
+				  task_user_regset_view(current),
+				  REGSET_FP_LEGACY, 0,
+				  sizeof(struct _fpstate_32), to_fp);
+	if (err < 0)
+		return err;
 
-		err = save_fpx_registers(pid, (unsigned long *) &fpx);
-		if (err < 0){
-			printk(KERN_ERR "copy_sc_to_user - save_fpx_registers "
-			       "failed, errno = %d\n", err);
-			return 1;
-		}
+	__put_user(X86_FXSR_MAGIC, &to_fp->fpstate.magic);
 
-		err = convert_fxsr_to_user(&to_fp->fpstate, &fpx);
-		if (err)
-			return 1;
+	BUILD_BUG_ON(offsetof(struct _xstate, xstate_hdr) !=
+		     offsetof(struct _xstate_64, xstate_hdr) +
+			offsetof(struct _fpstate_32, _fxsr_env));
+	to_fp64 = (void __user *)to_fp +
+		  offsetof(struct _fpstate_32, _fxsr_env);
+#else
+	to_fp64 = to_fp;
+#endif /* CONFIG_X86_32 */
 
-		err |= __put_user(fpx.swd, &to_fp->fpstate.status);
-		err |= __put_user(X86_FXSR_MAGIC, &to_fp->fpstate.magic);
-		if (err)
-			return 1;
+	if (copy_to_user(to_fp64, regs->regs.fp, host_fp_size))
+		return 1;
 
-		if (copy_to_user(&to_fp->fpstate._fxsr_env[0], &fpx,
-				 sizeof(struct user_fxsr_struct)))
-			return 1;
-	} else
+	/*
+	 * Put magic/size values for userspace. We do not bother to verify them
+	 * later on, however, userspace needs them should it try to read the
+	 * XSTATE data. And ptrace does not fill in these parts.
+	 */
+	BUILD_BUG_ON(sizeof(int) != FP_XSTATE_MAGIC2_SIZE);
+#ifdef CONFIG_X86_32
+	__put_user(offsetof(struct _fpstate_32, _fxsr_env) +
+		   host_fp_size + FP_XSTATE_MAGIC2_SIZE,
+		   &to_fp64->fpstate.sw_reserved.extended_size);
+#else
+	__put_user(host_fp_size + FP_XSTATE_MAGIC2_SIZE,
+		   &to_fp64->fpstate.sw_reserved.extended_size);
 #endif
-	{
-		if (copy_to_user(to_fp, regs->regs.fp, sizeof(struct _xstate)))
-			return 1;
-	}
+	__put_user(host_fp_size, &to_fp64->fpstate.sw_reserved.xstate_size);
+
+	__put_user(FP_XSTATE_MAGIC1, &to_fp64->fpstate.sw_reserved.magic1);
+	__put_user(FP_XSTATE_MAGIC2,
+		   (int __user *)((void __user *)to_fp64 + host_fp_size));
 
 	return 0;
 }
@@ -336,34 +219,15 @@ static int copy_ucontext_to_user(struct ucontext __user *uc,
 	return err;
 }
 
-struct sigframe
-{
-	char __user *pretcode;
-	int sig;
-	struct sigcontext sc;
-	struct _xstate fpstate;
-	unsigned long extramask[_NSIG_WORDS-1];
-	char retcode[8];
-};
-
-struct rt_sigframe
-{
-	char __user *pretcode;
-	int sig;
-	struct siginfo __user *pinfo;
-	void __user *puc;
-	struct siginfo info;
-	struct ucontext uc;
-	struct _xstate fpstate;
-	char retcode[8];
-};
-
 int setup_signal_stack_sc(unsigned long stack_top, struct ksignal *ksig,
 			  struct pt_regs *regs, sigset_t *mask)
 {
+	size_t math_size = offsetof(struct _fpstate_32, _fxsr_env) +
+			   host_fp_size + FP_XSTATE_MAGIC2_SIZE;
 	struct sigframe __user *frame;
 	void __user *restorer;
 	int err = 0, sig = ksig->sig;
+	unsigned long fp_to;
 
 	/* This is the same calculation as i386 - ((sp + 4) & 15) == 0 */
 	stack_top = ((stack_top + 4) & -16UL) - 4;
@@ -371,13 +235,21 @@ int setup_signal_stack_sc(unsigned long stack_top, struct ksignal *ksig,
 	if (!access_ok(frame, sizeof(*frame)))
 		return 1;
 
+	/* Add required space for math frame */
+	frame = (struct sigframe __user *)((unsigned long)frame - math_size);
+
 	restorer = frame->retcode;
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
 		restorer = ksig->ka.sa.sa_restorer;
 
-	err |= __put_user(restorer, &frame->pretcode);
+	err |= __put_user(restorer, (void __user * __user *)&frame->pretcode);
 	err |= __put_user(sig, &frame->sig);
-	err |= copy_sc_to_user(&frame->sc, &frame->fpstate, regs, mask->sig[0]);
+
+	fp_to = (unsigned long)frame + sizeof(*frame);
+
+	err |= copy_sc_to_user(&frame->sc,
+			       (struct _xstate __user *)fp_to,
+			       regs, mask->sig[0]);
 	if (_NSIG_WORDS > 1)
 		err |= __copy_to_user(&frame->extramask, &mask->sig[1],
 				      sizeof(frame->extramask));
@@ -407,26 +279,35 @@ int setup_signal_stack_sc(unsigned long stack_top, struct ksignal *ksig,
 int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 			  struct pt_regs *regs, sigset_t *mask)
 {
+	size_t math_size = offsetof(struct _fpstate_32, _fxsr_env) +
+			   host_fp_size + FP_XSTATE_MAGIC2_SIZE;
 	struct rt_sigframe __user *frame;
 	void __user *restorer;
 	int err = 0, sig = ksig->sig;
+	unsigned long fp_to;
 
 	stack_top &= -8UL;
 	frame = (struct rt_sigframe __user *) stack_top - 1;
 	if (!access_ok(frame, sizeof(*frame)))
 		return 1;
 
+	/* Add required space for math frame */
+	frame = (struct rt_sigframe __user *)((unsigned long)frame - math_size);
+
 	restorer = frame->retcode;
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
 		restorer = ksig->ka.sa.sa_restorer;
 
-	err |= __put_user(restorer, &frame->pretcode);
+	err |= __put_user(restorer, (void __user * __user *)&frame->pretcode);
 	err |= __put_user(sig, &frame->sig);
-	err |= __put_user(&frame->info, &frame->pinfo);
-	err |= __put_user(&frame->uc, &frame->puc);
+	err |= __put_user(&frame->info, (void __user * __user *)&frame->pinfo);
+	err |= __put_user(&frame->uc, (void __user * __user *)&frame->puc);
 	err |= copy_siginfo_to_user(&frame->info, &ksig->info);
-	err |= copy_ucontext_to_user(&frame->uc, &frame->fpstate, mask,
-					PT_REGS_SP(regs));
+
+	fp_to = (unsigned long)frame + sizeof(*frame);
+
+	err |= copy_ucontext_to_user(&frame->uc, (struct _xstate __user *)fp_to,
+				     mask, PT_REGS_SP(regs));
 
 	/*
 	 * This is movl $,%eax ; int $0x80
@@ -478,27 +359,24 @@ SYSCALL_DEFINE0(sigreturn)
 
 #else
 
-struct rt_sigframe
-{
-	char __user *pretcode;
-	struct ucontext uc;
-	struct siginfo info;
-	struct _xstate fpstate;
-};
-
 int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 			  struct pt_regs *regs, sigset_t *set)
 {
+	unsigned long math_size = host_fp_size + FP_XSTATE_MAGIC2_SIZE;
 	struct rt_sigframe __user *frame;
 	int err = 0, sig = ksig->sig;
 	unsigned long fp_to;
 
 	frame = (struct rt_sigframe __user *)
 		round_down(stack_top - sizeof(struct rt_sigframe), 16);
+
+	/* Add required space for math frame */
+	frame = (struct rt_sigframe __user *)((unsigned long)frame - math_size);
+
 	/* Subtract 128 for a red zone and 8 for proper alignment */
 	frame = (struct rt_sigframe __user *) ((unsigned long) frame - 128 - 8);
 
-	if (!access_ok(frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame) + math_size))
 		goto out;
 
 	if (ksig->ka.sa.sa_flags & SA_SIGINFO) {
@@ -509,12 +387,14 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
+	err |= __put_user(NULL, &frame->uc.uc_link);
 	err |= __save_altstack(&frame->uc.uc_stack, PT_REGS_SP(regs));
-	err |= copy_sc_to_user(&frame->uc.uc_mcontext, &frame->fpstate, regs,
-			       set->sig[0]);
 
-	fp_to = (unsigned long)&frame->fpstate;
+	fp_to = (unsigned long)frame + sizeof(*frame);
+
+	err |= copy_sc_to_user(&frame->uc.uc_mcontext,
+			       (struct _xstate __user *)fp_to,
+			       regs, set->sig[0]);
 
 	err |= __put_user(fp_to, &frame->uc.uc_mcontext.fpstate);
 	if (sizeof(*set) == 16) {
@@ -531,7 +411,7 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	 */
 	/* x86-64 should always use SA_RESTORER. */
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
-		err |= __put_user((void *)ksig->ka.sa.sa_restorer,
+		err |= __put_user((void __user *)ksig->ka.sa.sa_restorer,
 				  &frame->pretcode);
 	else
 		/* could use a vstub here */

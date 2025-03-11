@@ -366,25 +366,6 @@ int probe_file__del_strlist(int fd, struct strlist *namelist)
 	return ret;
 }
 
-int probe_file__del_events(int fd, struct strfilter *filter)
-{
-	struct strlist *namelist;
-	int ret;
-
-	namelist = strlist__new(NULL, NULL);
-	if (!namelist)
-		return -ENOMEM;
-
-	ret = probe_file__get_events(fd, filter, namelist);
-	if (ret < 0)
-		goto out;
-
-	ret = probe_file__del_strlist(fd, namelist);
-out:
-	strlist__delete(namelist);
-	return ret;
-}
-
 /* Caller must ensure to remove this entry from list */
 static void probe_cache_entry__delete(struct probe_cache_entry *entry)
 {

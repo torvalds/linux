@@ -212,7 +212,7 @@ active_fence_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 	struct i915_active_fence *active =
 		container_of(cb, typeof(*active), cb);
 
-	return cmpxchg(__active_fence_slot(active), fence, NULL) == fence;
+	return try_cmpxchg(__active_fence_slot(active), &fence, NULL);
 }
 
 static void
@@ -525,24 +525,6 @@ int i915_active_acquire(struct i915_active *ref)
 	mutex_unlock(&ref->mutex);
 
 	return err;
-}
-
-int i915_active_acquire_for_context(struct i915_active *ref, u64 idx)
-{
-	struct i915_active_fence *active;
-	int err;
-
-	err = i915_active_acquire(ref);
-	if (err)
-		return err;
-
-	active = active_instance(ref, idx);
-	if (!active) {
-		i915_active_release(ref);
-		return -ENOMEM;
-	}
-
-	return 0; /* return with active ref */
 }
 
 void i915_active_release(struct i915_active *ref)

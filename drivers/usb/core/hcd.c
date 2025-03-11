@@ -2794,8 +2794,14 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	int retval;
 	struct usb_device *rhdev;
 	struct usb_hcd *shared_hcd;
+	int skip_phy_initialization;
 
-	if (!hcd->skip_phy_initialization) {
+	if (usb_hcd_is_primary_hcd(hcd))
+		skip_phy_initialization = hcd->skip_phy_initialization;
+	else
+		skip_phy_initialization = hcd->primary_hcd->skip_phy_initialization;
+
+	if (!skip_phy_initialization) {
 		if (usb_hcd_is_primary_hcd(hcd)) {
 			hcd->phy_roothub = usb_phy_roothub_alloc(hcd->self.sysdev);
 			if (IS_ERR(hcd->phy_roothub))

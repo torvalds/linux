@@ -408,12 +408,10 @@
 
 	sata-port@0 {
 		phys = <&cp0_comphy2 0>;
-		phy-names = "cp0-sata0-0-phy";
 	};
 
 	sata-port@1 {
 		phys = <&cp0_comphy5 1>;
-		phy-names = "cp0-sata0-1-phy";
 	};
 };
 
