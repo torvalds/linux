@@ -114,6 +114,12 @@
 #endif
 
 MODULE_FIRMWARE("amdgpu/ip_discovery.bin");
+MODULE_FIRMWARE("amdgpu/vega10_ip_discovery.bin");
+MODULE_FIRMWARE("amdgpu/vega12_ip_discovery.bin");
+MODULE_FIRMWARE("amdgpu/vega20_ip_discovery.bin");
+MODULE_FIRMWARE("amdgpu/raven_ip_discovery.bin");
+MODULE_FIRMWARE("amdgpu/raven2_ip_discovery.bin");
+MODULE_FIRMWARE("amdgpu/picasso_ip_discovery.bin");
 
 #define mmIP_DISCOVERY_VERSION  0x16A00
 #define mmRCC_CONFIG_MEMSIZE	0xde3
@@ -400,7 +406,27 @@ static const char *amdgpu_discovery_get_fw_name(struct amdgpu_device *adev)
 	if (amdgpu_discovery == 2)
 		return "amdgpu/ip_discovery.bin";
 
-	return NULL;
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		return "amdgpu/vega10_ip_discovery.bin";
+	case CHIP_VEGA12:
+		return "amdgpu/vega12_ip_discovery.bin";
+	case CHIP_RAVEN:
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
+			return "amdgpu/raven2_ip_discovery.bin";
+		else if (adev->apu_flags & AMD_APU_IS_PICASSO)
+			return "amdgpu/picasso_ip_discovery.bin";
+		else
+			return "amdgpu/raven_ip_discovery.bin";
+	case CHIP_VEGA20:
+		return "amdgpu/vega20_ip_discovery.bin";
+	case CHIP_ARCTURUS:
+		return "amdgpu/arcturus_ip_discovery.bin";
+	case CHIP_ALDEBARAN:
+		return "amdgpu/aldebaran_ip_discovery.bin";
+	default:
+		return NULL;
+	}
 }
 
 static int amdgpu_discovery_init(struct amdgpu_device *adev)
