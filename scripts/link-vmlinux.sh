@@ -31,6 +31,7 @@ set -e
 LD="$1"
 KBUILD_LDFLAGS="$2"
 LDFLAGS_vmlinux="$3"
+VMLINUX="$4"
 
 is_enabled() {
 	grep -q "^$1=y" include/config/auto.conf
@@ -283,23 +284,23 @@ if is_enabled CONFIG_VMLINUX_MAP; then
 	generate_map=1
 fi
 
-vmlinux_link vmlinux
+vmlinux_link "${VMLINUX}"
 
 # fill in BTF IDs
 if is_enabled CONFIG_DEBUG_INFO_BTF; then
-	info BTFIDS vmlinux
+	info BTFIDS "${VMLINUX}"
 	RESOLVE_BTFIDS_ARGS=""
 	if is_enabled CONFIG_WERROR; then
 		RESOLVE_BTFIDS_ARGS=" --fatal_warnings "
 	fi
-	${RESOLVE_BTFIDS} ${RESOLVE_BTFIDS_ARGS} vmlinux
+	${RESOLVE_BTFIDS} ${RESOLVE_BTFIDS_ARGS} "${VMLINUX}"
 fi
 
-mksysmap vmlinux System.map
+mksysmap "${VMLINUX}" System.map
 
 if is_enabled CONFIG_BUILDTIME_TABLE_SORT; then
-	info SORTTAB vmlinux
-	if ! sorttable vmlinux; then
+	info SORTTAB "${VMLINUX}"
+	if ! sorttable "${VMLINUX}"; then
 		echo >&2 Failed to sort kernel tables
 		exit 1
 	fi
@@ -315,4 +316,4 @@ if is_enabled CONFIG_KALLSYMS; then
 fi
 
 # For fixdep
-echo "vmlinux: $0" > .vmlinux.d
+echo "${VMLINUX}: $0" > ".${VMLINUX}.d"
