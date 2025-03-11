@@ -709,7 +709,8 @@ void mt7996_mac_dump_work(struct work_struct *work);
 void mt7996_mac_sta_rc_work(struct work_struct *work);
 void mt7996_mac_update_stats(struct mt7996_phy *phy);
 void mt7996_mac_twt_teardown_flow(struct mt7996_dev *dev,
-				  struct mt7996_sta *msta,
+				  struct mt7996_vif_link *link,
+				  struct mt7996_sta_link *msta_link,
 				  u8 flowid);
 void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 			      struct ieee80211_sta *sta,
