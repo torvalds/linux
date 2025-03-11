@@ -21,17 +21,14 @@ static inline bool bch2_version_compatible(u16 version)
 void bch2_version_to_text(struct printbuf *, enum bcachefs_metadata_version);
 enum bcachefs_metadata_version bch2_latest_compatible_version(enum bcachefs_metadata_version);
 
-void bch2_set_version_incompat(struct bch_fs *, enum bcachefs_metadata_version);
+bool bch2_set_version_incompat(struct bch_fs *, enum bcachefs_metadata_version);
 
 static inline bool bch2_request_incompat_feature(struct bch_fs *c,
 						 enum bcachefs_metadata_version version)
 {
-	if (unlikely(version > c->sb.version_incompat)) {
-		if (version > c->sb.version_incompat_allowed)
-			return false;
-		bch2_set_version_incompat(c, version);
-	}
-	return true;
+	return likely(version <= c->sb.version_incompat)
+		? true
+		: bch2_set_version_incompat(c, version);
 }
 
 static inline size_t bch2_sb_field_bytes(struct bch_sb_field *f)
