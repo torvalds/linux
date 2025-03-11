@@ -602,6 +602,33 @@ static void mt7996_configure_filter(struct ieee80211_hw *hw,
 	mutex_unlock(&dev->mt76.mutex);
 }
 
+static int
+mt7996_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		   unsigned int link_id, int *dbm)
+{
+	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt7996_phy *phy = mt7996_vif_link_phy(&mvif->deflink);
+	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	struct wireless_dev *wdev;
+	int n_chains, delta, i;
+
+	if (!phy) {
+		wdev = ieee80211_vif_to_wdev(vif);
+		for (i = 0; i < hw->wiphy->n_radio; i++)
+			if (wdev->radio_mask & BIT(i))
+				phy = dev->radio_phy[i];
+
+		if (!phy)
+			return -EINVAL;
+	}
+
+	n_chains = hweight16(phy->mt76->chainmask);
+	delta = mt76_tx_power_nss_delta(n_chains);
+	*dbm = DIV_ROUND_UP(phy->mt76->txpower_cur + delta, 2);
+
+	return 0;
+}
+
 static u8
 mt7996_get_rates_table(struct mt7996_phy *phy, struct ieee80211_bss_conf *conf,
 		       bool beacon, bool mcast)
@@ -1651,7 +1678,7 @@ const struct ieee80211_ops mt7996_ops = {
 	.remain_on_channel = mt76_remain_on_channel,
 	.cancel_remain_on_channel = mt76_cancel_remain_on_channel,
 	.release_buffered_frames = mt76_release_buffered_frames,
-	.get_txpower = mt76_get_txpower,
+	.get_txpower = mt7996_get_txpower,
 	.channel_switch_beacon = mt7996_channel_switch_beacon,
 	.get_stats = mt7996_get_stats,
 	.get_et_sset_count = mt7996_get_et_sset_count,
