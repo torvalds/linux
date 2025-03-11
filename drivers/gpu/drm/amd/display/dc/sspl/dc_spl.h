@@ -17,9 +17,6 @@
 #define SPL_EXPAND(a, b)          SPL_EXPAND2(a, b)
 #define SPL_NAMESPACE(symbol)     SPL_EXPAND(SPL_PFX_, symbol)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /* SPL interfaces */
 
