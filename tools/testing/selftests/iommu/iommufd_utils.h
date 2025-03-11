@@ -9,6 +9,7 @@
 #include <sys/ioctl.h>
 #include <stdint.h>
 #include <assert.h>
+#include <poll.h>
 
 #include "../kselftest_harness.h"
 #include "../../../../drivers/iommu/iommufd/iommufd_test.h"
@@ -936,3 +937,117 @@ static int _test_cmd_vdevice_alloc(int fd, __u32 viommu_id, __u32 idev_id,
 	EXPECT_ERRNO(_errno,                                                 \
 		     _test_cmd_vdevice_alloc(self->fd, viommu_id, idev_id,   \
 					     virt_id, vdev_id))
+
+static int _test_cmd_veventq_alloc(int fd, __u32 viommu_id, __u32 type,
+				   __u32 *veventq_id, __u32 *veventq_fd)
+{
+	struct iommu_veventq_alloc cmd = {
+		.size = sizeof(cmd),
+		.type = type,
+		.veventq_depth = 2,
+		.viommu_id = viommu_id,
+	};
+	int ret;
+
+	ret = ioctl(fd, IOMMU_VEVENTQ_ALLOC, &cmd);
+	if (ret)
+		return ret;
+	if (veventq_id)
+		*veventq_id = cmd.out_veventq_id;
+	if (veventq_fd)
+		*veventq_fd = cmd.out_veventq_fd;
+	return 0;
+}
+
+#define test_cmd_veventq_alloc(viommu_id, type, veventq_id, veventq_fd) \
+	ASSERT_EQ(0, _test_cmd_veventq_alloc(self->fd, viommu_id, type, \
+					     veventq_id, veventq_fd))
+#define test_err_veventq_alloc(_errno, viommu_id, type, veventq_id,     \
+			       veventq_fd)                              \
+	EXPECT_ERRNO(_errno,                                            \
+		     _test_cmd_veventq_alloc(self->fd, viommu_id, type, \
+					     veventq_id, veventq_fd))
+
+static int _test_cmd_trigger_vevents(int fd, __u32 dev_id, __u32 nvevents)
+{
+	struct iommu_test_cmd trigger_vevent_cmd = {
+		.size = sizeof(trigger_vevent_cmd),
+		.op = IOMMU_TEST_OP_TRIGGER_VEVENT,
+		.trigger_vevent = {
+			.dev_id = dev_id,
+		},
+	};
+	int ret;
+
+	while (nvevents--) {
+		ret = ioctl(fd, _IOMMU_TEST_CMD(IOMMU_TEST_OP_TRIGGER_VEVENT),
+			    &trigger_vevent_cmd);
+		if (ret < 0)
+			return -1;
+	}
+	return ret;
+}
+
+#define test_cmd_trigger_vevents(dev_id, nvevents) \
+	ASSERT_EQ(0, _test_cmd_trigger_vevents(self->fd, dev_id, nvevents))
+
+static int _test_cmd_read_vevents(int fd, __u32 event_fd, __u32 nvevents,
+				  __u32 virt_id, int *prev_seq)
+{
+	struct pollfd pollfd = { .fd = event_fd, .events = POLLIN };
+	struct iommu_viommu_event_selftest *event;
+	struct iommufd_vevent_header *hdr;
+	ssize_t bytes;
+	void *data;
+	int ret, i;
+
+	ret = poll(&pollfd, 1, 1000);
+	if (ret < 0)
+		return -1;
+
+	data = calloc(nvevents, sizeof(*hdr) + sizeof(*event));
+	if (!data) {
+		errno = ENOMEM;
+		return -1;
+	}
+
+	bytes = read(event_fd, data,
+		     nvevents * (sizeof(*hdr) + sizeof(*event)));
+	if (bytes <= 0) {
+		errno = EFAULT;
+		ret = -1;
+		goto out_free;
+	}
+
+	for (i = 0; i < nvevents; i++) {
+		hdr = data + i * (sizeof(*hdr) + sizeof(*event));
+
+		if (hdr->flags & IOMMU_VEVENTQ_FLAG_LOST_EVENTS ||
+		    hdr->sequence - *prev_seq > 1) {
+			*prev_seq = hdr->sequence;
+			errno = EOVERFLOW;
+			ret = -1;
+			goto out_free;
+		}
+		*prev_seq = hdr->sequence;
+		event = data + sizeof(*hdr);
+		if (event->virt_id != virt_id) {
+			errno = EINVAL;
+			ret = -1;
+			goto out_free;
+		}
+	}
+
+	ret = 0;
+out_free:
+	free(data);
+	return ret;
+}
+
+#define test_cmd_read_vevents(event_fd, nvevents, virt_id, prev_seq)      \
+	ASSERT_EQ(0, _test_cmd_read_vevents(self->fd, event_fd, nvevents, \
+					    virt_id, prev_seq))
+#define test_err_read_vevents(_errno, event_fd, nvevents, virt_id, prev_seq) \
+	EXPECT_ERRNO(_errno,                                                 \
+		     _test_cmd_read_vevents(self->fd, event_fd, nvevents,    \
+					    virt_id, prev_seq))
