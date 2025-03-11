@@ -1001,41 +1001,52 @@ mt7996_mac_sta_event(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 		     struct ieee80211_sta *sta, enum mt76_sta_event ev)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-	struct mt7996_sta_link *msta_link = &msta->deflink;
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	struct mt7996_vif_link *link = &mvif->deflink;
-	int i, ret;
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
-	switch (ev) {
-	case MT76_STA_EVENT_ASSOC:
-		ret = mt7996_mcu_add_sta(dev, vif, &link->mt76, sta,
-					 CONN_STATE_CONNECT, true);
-		if (ret)
-			return ret;
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct mt7996_sta_link *msta_link;
+		struct mt7996_vif_link *link;
+		int i, err;
 
-		ret = mt7996_mcu_add_rate_ctrl(dev, vif, sta, false);
-		if (ret)
-			return ret;
+		link = mt7996_vif_link(dev, vif, link_id);
+		if (!link)
+			continue;
 
-		msta_link->wcid.tx_info |= MT_WCID_TX_INFO_SET;
-		msta_link->wcid.sta = 1;
+		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+		if (!msta_link)
+			continue;
 
-		return 0;
+		switch (ev) {
+		case MT76_STA_EVENT_ASSOC:
+			err = mt7996_mcu_add_sta(dev, vif, &link->mt76, sta,
+						 CONN_STATE_CONNECT, true);
+			if (err)
+				return err;
 
-	case MT76_STA_EVENT_AUTHORIZE:
-		return mt7996_mcu_add_sta(dev, vif, &link->mt76, sta,
-					  CONN_STATE_PORT_SECURE, false);
+			err = mt7996_mcu_add_rate_ctrl(dev, vif, sta, false);
+			if (err)
+				return err;
 
-	case MT76_STA_EVENT_DISASSOC:
-		for (i = 0; i < ARRAY_SIZE(msta_link->twt.flow); i++)
-			mt7996_mac_twt_teardown_flow(dev, msta, i);
+			msta_link->wcid.tx_info |= MT_WCID_TX_INFO_SET;
+			msta_link->wcid.sta = 1;
+			break;
+		case MT76_STA_EVENT_AUTHORIZE:
+			err = mt7996_mcu_add_sta(dev, vif, &link->mt76, sta,
+						 CONN_STATE_PORT_SECURE, false);
+			if (err)
+				return err;
+			break;
+		case MT76_STA_EVENT_DISASSOC:
+			for (i = 0; i < ARRAY_SIZE(msta_link->twt.flow); i++)
+				mt7996_mac_twt_teardown_flow(dev, msta, i);
 
-		mt7996_mcu_add_sta(dev, vif, &link->mt76, sta,
-				   CONN_STATE_DISCONNECT, false);
-		msta_link->wcid.sta_disabled = 1;
-		msta_link->wcid.sta = 0;
-
-		return 0;
+			mt7996_mcu_add_sta(dev, vif, &link->mt76, sta,
+					   CONN_STATE_DISCONNECT, false);
+			msta_link->wcid.sta_disabled = 1;
+			msta_link->wcid.sta = 0;
+			break;
+		}
 	}
 
 	return 0;
