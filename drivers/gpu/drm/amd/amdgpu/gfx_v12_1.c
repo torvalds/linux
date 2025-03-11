@@ -994,14 +994,16 @@ gfx_v12_1_rlc_backdoor_autoload_copy_sdma_ucode(struct amdgpu_device *adev)
 	uint32_t fw_size;
 	const struct sdma_firmware_header_v3_0 *sdma_hdr;
 
-	sdma_hdr = (const struct sdma_firmware_header_v3_0 *)
-		adev->sdma.instance[0].fw->data;
-	fw_data = (const __le32 *) (adev->sdma.instance[0].fw->data +
-			le32_to_cpu(sdma_hdr->ucode_offset_bytes));
-	fw_size = le32_to_cpu(sdma_hdr->ucode_size_bytes);
+	if (adev->sdma.instance[0].fw) {
+		sdma_hdr = (const struct sdma_firmware_header_v3_0 *)
+			adev->sdma.instance[0].fw->data;
+		fw_data = (const __le32 *) (adev->sdma.instance[0].fw->data +
+				le32_to_cpu(sdma_hdr->ucode_offset_bytes));
+		fw_size = le32_to_cpu(sdma_hdr->ucode_size_bytes);
 
-	gfx_v12_1_rlc_backdoor_autoload_copy_ucode(adev, SOC24_FIRMWARE_ID_SDMA_UCODE_TH0,
-						   fw_data, fw_size);
+		gfx_v12_1_rlc_backdoor_autoload_copy_ucode(adev, SOC24_FIRMWARE_ID_SDMA_UCODE_TH0,
+							   fw_data, fw_size);
+	}
 }
 
 static void
