@@ -836,3 +836,13 @@ Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	It reclaims the given KBs of file-backed pages registered by
 		ioctl(F2FS_IOC_DONATE_RANGE).
 		For example, writing N tries to drop N KBs spaces in LRU.
+
+What:		/sys/fs/f2fs/<disk>/carve_out
+Date:		March 2025
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	For several zoned storage devices, vendors will provide extra space which
+		was used for device level GC than specs and F2FS can use this space for
+		filesystem level GC. To do that, we can reserve the space using
+		reserved_blocks. However, it is not enough, since this extra space should
+		not be shown to users. So, with this new sysfs node, we can hide the space
+		by substracting reserved_blocks from total bytes.
