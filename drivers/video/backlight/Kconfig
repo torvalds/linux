@@ -370,13 +370,6 @@ config BACKLIGHT_88PM860X
 	help
 	  Say Y to enable the backlight driver for Marvell 88PM8606.
 
-config BACKLIGHT_PCF50633
-	tristate "Backlight driver for NXP PCF50633 MFD"
-	depends on MFD_PCF50633
-	help
-	  If you have a backlight driven by a NXP PCF50633 MFD, say Y here to
-	  enable its driver.
-
 config BACKLIGHT_AAT2870
 	tristate "AnalogicTech AAT2870 Backlight"
 	depends on MFD_AAT2870_CORE
