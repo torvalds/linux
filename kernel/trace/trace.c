@@ -6040,6 +6040,12 @@ static void update_last_data(struct trace_array *tr)
 	if (!(tr->flags & TRACE_ARRAY_FL_BOOT))
 		return;
 
+	if (!(tr->flags & TRACE_ARRAY_FL_LAST_BOOT))
+		return;
+
+	/* Only if the buffer has previous boot data clear and update it. */
+	tr->flags &= ~TRACE_ARRAY_FL_LAST_BOOT;
+
 	/* Reset the module list and reload them */
 	if (tr->scratch) {
 		struct trace_scratch *tscratch = tr->scratch;
@@ -6051,9 +6057,6 @@ static void update_last_data(struct trace_array *tr)
 		guard(mutex)(&scratch_mutex);
 		module_for_each_mod(save_mod, tr);
 	}
-
-	if (!(tr->flags & TRACE_ARRAY_FL_LAST_BOOT))
-		return;
 
 	/*
 	 * Need to clear all CPU buffers as there cannot be events
@@ -6077,7 +6080,6 @@ static void update_last_data(struct trace_array *tr)
 #else
 	tscratch->kaslr_addr = 0;
 #endif
-	tr->flags &= ~TRACE_ARRAY_FL_LAST_BOOT;
 }
 
 /**
@@ -10103,15 +10105,6 @@ static void trace_module_remove_evals(struct module *mod)
 static inline void trace_module_remove_evals(struct module *mod) { }
 #endif /* CONFIG_TRACE_EVAL_MAP_FILE */
 
-static bool trace_array_active(struct trace_array *tr)
-{
-	if (tr->current_trace != &nop_trace)
-		return true;
-
-	/* 0 is no events, 1 is all disabled */
-	return trace_events_enabled(tr, NULL) > 1;
-}
-
 static void trace_module_record(struct module *mod)
 {
 	struct trace_array *tr;
@@ -10120,11 +10113,8 @@ static void trace_module_record(struct module *mod)
 		/* Update any persistent trace array that has already been started */
 		if ((tr->flags & (TRACE_ARRAY_FL_BOOT | TRACE_ARRAY_FL_LAST_BOOT)) ==
 		    TRACE_ARRAY_FL_BOOT) {
-			/* Only update if the trace array is active */
-			if (trace_array_active(tr)) {
-				guard(mutex)(&scratch_mutex);
-				save_mod(mod, tr);
-			}
+			guard(mutex)(&scratch_mutex);
+			save_mod(mod, tr);
 		}
 	}
 }
