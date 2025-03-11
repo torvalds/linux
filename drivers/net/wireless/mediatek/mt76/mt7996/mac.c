@@ -72,10 +72,10 @@ static struct mt76_wcid *mt7996_rx_get_wcid(struct mt7996_dev *dev,
 	msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
 	msta = msta_link->sta;
 
-	if (!msta->vif)
+	if (!msta || !msta->vif)
 		return NULL;
 
-	return &msta->vif->deflink.sta.deflink.wcid;
+	return &msta->vif->deflink.msta_link.wcid;
 }
 
 bool mt7996_mac_wtbl_update(struct mt7996_dev *dev, int idx, u32 mask)
@@ -202,7 +202,7 @@ void mt7996_mac_enable_rtscts(struct mt7996_dev *dev,
 			      struct ieee80211_vif *vif, bool enable)
 {
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	struct mt7996_sta_link *msta_link = &mvif->deflink.sta.deflink;
+	struct mt7996_sta_link *msta_link = &mvif->deflink.msta_link;
 	u32 addr;
 
 	addr = mt7996_mac_wtbl_lmac_addr(dev, msta_link->wcid.idx, 5);

@@ -2171,8 +2171,8 @@ mt7996_mcu_add_group(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 		.val = cpu_to_le32(mvif->deflink.mt76.idx % 16),
 	};
 
-	msta = sta ? (struct mt7996_sta *)sta->drv_priv : &mvif->deflink.sta;
-	msta_link = &msta->deflink;
+	msta = sta ? (struct mt7996_sta *)sta->drv_priv : NULL;
+	msta_link = msta ? &msta->deflink : &mvif->deflink.msta_link;
 	req.wlan_idx = cpu_to_le16(msta_link->wcid.idx);
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(VOW), &req,
@@ -2319,7 +2319,7 @@ static int mt7996_mcu_get_pn(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 {
 #define TSC_TYPE_BIGTK_PN 2
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	struct mt7996_sta_link *msta_link = &mvif->deflink.sta.deflink;
+	struct mt7996_sta_link *msta_link = &mvif->deflink.msta_link;
 	struct sta_rec_pn_info *pn_info;
 	struct sk_buff *skb, *rskb;
 	struct tlv *tlv;
@@ -4357,8 +4357,8 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
 	struct mt7996_sta *msta;
 	struct sk_buff *skb;
 
-	msta = sta ? (struct mt7996_sta *)sta->drv_priv : &mvif->deflink.sta;
-	msta_link = &msta->deflink;
+	msta = sta ? (struct mt7996_sta *)sta->drv_priv : NULL;
+	msta_link = msta ? &msta->deflink : &mvif->deflink.msta_link;
 
 	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->deflink.mt76,
 					      &msta_link->wcid,

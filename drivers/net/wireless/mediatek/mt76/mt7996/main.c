@@ -161,19 +161,23 @@ mt7996_set_hw_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		  struct mt7996_vif_link *mlink, struct ieee80211_key_conf *key)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
-	struct mt7996_sta *msta = sta ? (struct mt7996_sta *)sta->drv_priv :
-				  &mlink->sta;
-	struct mt76_wcid *wcid = &msta->deflink.wcid;
-	u8 *wcid_keyidx = &wcid->hw_key_idx;
+	struct mt76_wcid *wcid = &mlink->msta_link.wcid;
 	struct mt7996_phy *phy;
 	int idx = key->keyidx;
+	u8 *wcid_keyidx;
 
 	phy = mt7996_vif_link_phy(mlink);
 	if (!phy)
 		return -EINVAL;
 
-	if (sta && !wcid->sta)
-		return -EOPNOTSUPP;
+	if (sta) {
+		struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+
+		wcid = &msta->deflink.wcid;
+		if (!wcid->sta)
+			return -EOPNOTSUPP;
+	}
+	wcid_keyidx = &wcid->hw_key_idx;
 
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_AES_CMAC:
@@ -229,7 +233,7 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 			struct mt76_vif_link *mlink)
 {
 	struct mt7996_vif_link *link = container_of(mlink, struct mt7996_vif_link, mt76);
-	struct mt7996_sta_link *msta_link = &link->sta.deflink;
+	struct mt7996_sta_link *msta_link = &link->msta_link;
 	struct mt7996_phy *phy = mphy->priv;
 	struct mt7996_dev *dev = phy->dev;
 	u8 band_idx = phy->mt76->band_idx;
@@ -261,7 +265,6 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 	idx = MT7996_WTBL_RESERVED - mlink->idx;
 
 	INIT_LIST_HEAD(&msta_link->rc_list);
-	msta_link->sta = &link->sta;
 	msta_link->wcid.idx = idx;
 	msta_link->wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	mt76_wcid_init(&msta_link->wcid, band_idx);
@@ -303,10 +306,9 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 			    struct mt76_vif_link *mlink)
 {
 	struct mt7996_vif_link *link = container_of(mlink, struct mt7996_vif_link, mt76);
+	struct mt7996_sta_link *msta_link = &link->msta_link;
 	struct mt7996_phy *phy = mphy->priv;
 	struct mt7996_dev *dev = phy->dev;
-	struct mt7996_sta *msta = &link->sta;
-	struct mt7996_sta_link *msta_link = &msta->deflink;
 	int idx = msta_link->wcid.idx;
 
 	mt7996_mcu_add_sta(dev, vif, mlink, NULL, CONN_STATE_DISCONNECT, false);
@@ -892,7 +894,7 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 		struct mt7996_vif *mvif;
 
 		mvif = (struct mt7996_vif *)vif->drv_priv;
-		wcid = &mvif->deflink.sta.deflink.wcid;
+		wcid = &mvif->deflink.msta_link.wcid;
 
 		if (mvif->mt76.roc_phy &&
 		    (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)) {
