@@ -126,26 +126,40 @@ static void move_write_done(struct bch_write_op *op)
 
 static void move_write(struct moving_io *io)
 {
+	struct bch_fs *c = io->write.op.c;
 	struct moving_context *ctxt = io->write.ctxt;
+	struct bch_read_bio *rbio = &io->write.rbio;
 
 	if (ctxt->stats) {
-		if (io->write.rbio.bio.bi_status)
+		if (rbio->bio.bi_status)
 			atomic64_add(io->write.rbio.bvec_iter.bi_size >> 9,
 				     &ctxt->stats->sectors_error_uncorrected);
-		else if (io->write.rbio.saw_error)
+		else if (rbio->saw_error)
 			atomic64_add(io->write.rbio.bvec_iter.bi_size >> 9,
 				     &ctxt->stats->sectors_error_corrected);
 	}
 
-	if (unlikely(io->write.rbio.ret ||
-		     io->write.rbio.bio.bi_status ||
-		     io->write.data_opts.scrub)) {
+	/*
+	 * If the extent has been bitrotted, we're going to have to give it a
+	 * new checksum in order to move it - but the poison bit will ensure
+	 * that userspace still gets the appropriate error.
+	 */
+	if (unlikely(rbio->ret == -BCH_ERR_data_read_csum_err &&
+		     (bch2_bkey_extent_flags(bkey_i_to_s_c(io->write.k.k)) & BIT_ULL(BCH_EXTENT_FLAG_poisoned)))) {
+		struct bch_extent_crc_unpacked crc = rbio->pick.crc;
+		struct nonce nonce = extent_nonce(rbio->version, crc);
+
+		rbio->pick.crc.csum	= bch2_checksum_bio(c, rbio->pick.crc.csum_type,
+							    nonce, &rbio->bio);
+		rbio->ret		= 0;
+	}
+
+	if (unlikely(rbio->ret || io->write.data_opts.scrub)) {
 		move_free(io);
 		return;
 	}
 
 	if (trace_io_move_write_enabled()) {
-		struct bch_fs *c = io->write.op.c;
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(io->write.k.k));

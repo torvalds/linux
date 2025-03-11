@@ -136,12 +136,8 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 	if (k.k->type == KEY_TYPE_error)
 		return -BCH_ERR_key_type_error;
 
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-
-	if (bch2_bkey_extent_ptrs_flags(ptrs) & BIT_ULL(BCH_EXTENT_FLAG_poisoned))
-		return -BCH_ERR_extent_poisoned;
-
 	rcu_read_lock();
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 	u64 pick_latency;
