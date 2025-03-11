@@ -788,7 +788,7 @@ static int ieee80211_chandef_num_subchans(const struct cfg80211_chan_def *c)
 	if (c->width == NL80211_CHAN_WIDTH_80P80)
 		return 4 + 4;
 
-	return nl80211_chan_width_to_mhz(c->width) / 20;
+	return cfg80211_chandef_get_width(c) / 20;
 }
 
 static int ieee80211_chandef_num_widths(const struct cfg80211_chan_def *c)

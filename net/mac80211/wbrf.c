@@ -2,6 +2,7 @@
 /*
  * Wifi Band Exclusion Interface for WLAN
  * Copyright (C) 2023 Advanced Micro Devices
+ * Copyright (C) 2025 Intel Corporation
  *
  */
 
@@ -45,7 +46,7 @@ static void get_ranges_from_chandef(struct cfg80211_chan_def *chandef,
 	u64 start_freq2, end_freq2;
 	int bandwidth;
 
-	bandwidth = nl80211_chan_width_to_mhz(chandef->width);
+	bandwidth = cfg80211_chandef_get_width(chandef);
 
 	get_chan_freq_boundary(chandef->center_freq1, bandwidth, &start_freq1, &end_freq1);
 
