@@ -1142,13 +1142,6 @@ config MFD_PCF50633
 	  facilities, and registers devices for the various functions
 	  so that function-specific drivers can bind to them.
 
-config PCF50633_ADC
-	tristate "NXP PCF50633 ADC"
-	depends on MFD_PCF50633
-	help
-	  Say yes here if you want to include support for ADC in the
-	  NXP PCF50633 chip.
-
 config PCF50633_GPIO
 	tristate "NXP PCF50633 GPIO"
 	depends on MFD_PCF50633
