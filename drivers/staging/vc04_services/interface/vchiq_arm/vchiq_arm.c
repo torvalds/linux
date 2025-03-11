@@ -271,7 +271,7 @@ static int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state 
 		return -ENXIO;
 	}
 
-	dev_dbg(&pdev->dev, "arm: vchiq_init - done (slots %pK, phys %pad)\n",
+	dev_dbg(&pdev->dev, "arm: vchiq_init - done (slots %p, phys %pad)\n",
 		vchiq_slot_zero, &slot_phys);
 
 	mutex_init(&drv_mgmt->connected_mutex);
@@ -368,7 +368,7 @@ void free_bulk_waiter(struct vchiq_instance *instance)
 				 &instance->bulk_waiter_list, list) {
 		list_del(&waiter->list);
 		dev_dbg(instance->state->dev,
-			"arm: bulk_waiter - cleaned up %pK for pid %d\n",
+			"arm: bulk_waiter - cleaned up %p for pid %d\n",
 			waiter, waiter->pid);
 		kfree(waiter);
 	}
@@ -622,7 +622,7 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 		mutex_lock(&instance->bulk_waiter_list_mutex);
 		list_add(&waiter->list, &instance->bulk_waiter_list);
 		mutex_unlock(&instance->bulk_waiter_list_mutex);
-		dev_dbg(instance->state->dev, "arm: saved bulk_waiter %pK for pid %d\n",
+		dev_dbg(instance->state->dev, "arm: saved bulk_waiter %p for pid %d\n",
 			waiter, current->pid);
 	}
 
