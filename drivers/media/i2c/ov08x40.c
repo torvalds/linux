@@ -1341,7 +1341,7 @@ static int ov08x40_power_on(struct device *dev)
 	}
 
 	gpiod_set_value_cansleep(ov08x->reset_gpio, 0);
-	usleep_range(1500, 1800);
+	usleep_range(5000, 5500);
 
 	return 0;
 
