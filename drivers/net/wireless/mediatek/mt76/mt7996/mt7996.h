@@ -204,10 +204,14 @@ struct mt7996_sta_link {
 		u8 flowid_mask;
 		struct mt7996_twt_flow flow[MT7996_MAX_STA_TWT_AGRT];
 	} twt;
+
+	struct rcu_head rcu_head;
 };
 
 struct mt7996_sta {
 	struct mt7996_sta_link deflink; /* must be first */
+	struct mt7996_sta_link __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
+	u8 deflink_id;
 
 	struct mt7996_vif *vif;
 };
