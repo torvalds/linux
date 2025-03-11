@@ -15,7 +15,11 @@
 #define SO_KEEPALIVE		9
 #define SO_PRIORITY		12
 #define SO_REUSEPORT		15
+#if defined(__TARGET_ARCH_powerpc)
+#define SO_RCVLOWAT		16
+#else
 #define SO_RCVLOWAT		18
+#endif
 #define SO_BINDTODEVICE		25
 #define SO_MARK			36
 #define SO_MAX_PACING_RATE	47
