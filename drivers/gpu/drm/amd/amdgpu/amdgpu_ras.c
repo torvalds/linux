@@ -2836,6 +2836,13 @@ static int __amdgpu_ras_convert_rec_array_from_rom(struct amdgpu_device *adev,
 
 	save_nps = (bps[0].retired_page >> UMC_NPS_SHIFT) & UMC_NPS_MASK;
 
+	/*old asics just have pa in eeprom*/
+	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12) {
+		memcpy(err_data->err_addr, bps,
+			sizeof(struct eeprom_table_record) * adev->umc.retire_unit);
+		goto out;
+	}
+
 	for (i = 0; i < adev->umc.retire_unit; i++)
 		bps[i].retired_page &= ~(UMC_NPS_MASK << UMC_NPS_SHIFT);
 
@@ -2858,6 +2865,7 @@ static int __amdgpu_ras_convert_rec_array_from_rom(struct amdgpu_device *adev,
 		}
 	}
 
+out:
 	return __amdgpu_ras_restore_bad_pages(adev, err_data->err_addr, adev->umc.retire_unit);
 }
 
@@ -2981,14 +2989,24 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 
 	/* only new entries are saved */
 	if (save_count > 0) {
-		for (i = 0; i < unit_num; i++) {
+		/*old asics only save pa to eeprom like before*/
+		if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12) {
 			if (amdgpu_ras_eeprom_append(control,
-					&data->bps[bad_page_num + i * adev->umc.retire_unit],
-					1)) {
+					&data->bps[bad_page_num], save_count)) {
 				dev_err(adev->dev, "Failed to save EEPROM table data!");
 				return -EIO;
 			}
+		} else {
+			for (i = 0; i < unit_num; i++) {
+				if (amdgpu_ras_eeprom_append(control,
+						&data->bps[bad_page_num +
+						i * adev->umc.retire_unit], 1)) {
+					dev_err(adev->dev, "Failed to save EEPROM table data!");
+					return -EIO;
+				}
+			}
 		}
+
 		dev_info(adev->dev, "Saved %d pages to EEPROM table.\n", save_count);
 	}
 

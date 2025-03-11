@@ -727,9 +727,14 @@ amdgpu_ras_eeprom_append_table(struct amdgpu_ras_eeprom_control *control,
 				     - control->ras_fri)
 		% control->ras_max_record_count;
 
-	control->ras_num_mca_recs += num;
-	control->ras_num_bad_pages += num * adev->umc.retire_unit;
+	/*old asics only save pa to eeprom like before*/
+	if (IP_VERSION_MAJ(amdgpu_ip_version(adev, UMC_HWIP, 0)) < 12)
+		control->ras_num_pa_recs += num;
+	else
+		control->ras_num_mca_recs += num;
 
+	control->ras_num_bad_pages = control->ras_num_pa_recs +
+				control->ras_num_mca_recs * adev->umc.retire_unit;
 Out:
 	kfree(buf);
 	return res;
