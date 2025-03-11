@@ -2562,6 +2562,9 @@ int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 		ret = -EINVAL;
 	}
 
+	if (ret)
+		return ret;
+
 	ret = validate_sys_chunk_array(fs_info, sb);
 
 	/*
