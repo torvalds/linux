@@ -1132,16 +1132,6 @@ config MFD_RETU
 	  Retu and Tahvo are a multi-function devices found on Nokia
 	  Internet Tablets (770, N800 and N810).
 
-config MFD_PCF50633
-	tristate "NXP PCF50633"
-	depends on I2C
-	select REGMAP_I2C
-	help
-	  Say yes here if you have NXP PCF50633 chip on your board.
-	  This core driver provides register access and IRQ handling
-	  facilities, and registers devices for the various functions
-	  so that function-specific drivers can bind to them.
-
 config MFD_PM8XXX
 	tristate "Qualcomm PM8xxx PMIC chips driver"
 	depends on ARM || HEXAGON || COMPILE_TEST
