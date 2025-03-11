@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-from __future__ import print_function
-
+import configparser
 import os
 import sys
 import glob
@@ -12,11 +11,6 @@ import logging
 import re
 import shutil
 import subprocess
-
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
 
 def data_equal(a, b):
     # Allow multiple values in assignment separated by '|'
