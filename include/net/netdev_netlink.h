@@ -5,6 +5,7 @@
 #include <linux/list.h>
 
 struct netdev_nl_sock {
+	struct mutex lock;
 	struct list_head bindings;
 };
 
