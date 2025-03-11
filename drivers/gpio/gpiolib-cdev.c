@@ -1366,9 +1366,6 @@ static long linereq_set_values(struct linereq *lr, void __user *ip)
 	/* scan requested lines to determine the subset to be set */
 	for (num_set = 0, i = 0; i < lr->num_lines; i++) {
 		if (lv.mask & BIT_ULL(i)) {
-			/* setting inputs is not allowed */
-			if (!test_bit(FLAG_IS_OUT, &lr->lines[i].desc->flags))
-				return -EPERM;
 			/* add to compacted values */
 			if (lv.bits & BIT_ULL(i))
 				__set_bit(num_set, vals);

@@ -3593,6 +3593,9 @@ static int gpio_set_open_source_value_commit(struct gpio_desc *desc, bool value)
 
 static int gpiod_set_raw_value_commit(struct gpio_desc *desc, bool value)
 {
+	if (unlikely(!test_bit(FLAG_IS_OUT, &desc->flags)))
+		return -EPERM;
+
 	CLASS(gpio_chip_guard, guard)(desc);
 	if (!guard.gc)
 		return -ENODEV;
@@ -3664,6 +3667,12 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 		if (!can_sleep)
 			WARN_ON(array_info->gdev->can_sleep);
 
+		for (i = 0; i < array_size; i++) {
+			if (unlikely(!test_bit(FLAG_IS_OUT,
+					       &desc_array[i]->flags)))
+				return -EPERM;
+		}
+
 		guard(srcu)(&array_info->gdev->srcu);
 		gc = srcu_dereference(array_info->gdev->chip,
 				      &array_info->gdev->srcu);
@@ -3722,6 +3731,9 @@ int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 			struct gpio_desc *desc = desc_array[i];
 			int hwgpio = gpio_chip_hwgpio(desc);
 			int value = test_bit(i, value_bitmap);
+
+			if (unlikely(!test_bit(FLAG_IS_OUT, &desc->flags)))
+				return -EPERM;
 
 			/*
 			 * Pins applicable for fast input but not for
