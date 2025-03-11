@@ -787,7 +787,7 @@ nsim_qreset_write(struct file *file, const char __user *data,
 	if (ret != 2)
 		return -EINVAL;
 
-	rtnl_lock();
+	netdev_lock(ns->netdev);
 	if (queue >= ns->netdev->real_num_rx_queues) {
 		ret = -EINVAL;
 		goto exit_unlock;
@@ -801,7 +801,7 @@ nsim_qreset_write(struct file *file, const char __user *data,
 
 	ret = count;
 exit_unlock:
-	rtnl_unlock();
+	netdev_unlock(ns->netdev);
 	return ret;
 }
 
