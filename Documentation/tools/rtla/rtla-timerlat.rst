@@ -17,9 +17,9 @@ DESCRIPTION
 .. include:: common_timerlat_description.rst
 
 The **rtla timerlat top** mode displays a summary of the periodic output
-from the *timerlat* tracer. The **rtla hist hist** mode displays a histogram
-of each tracer event occurrence. For further details, please refer to the
-respective man page.
+from the *timerlat* tracer. The **rtla timerlat hist** mode displays
+a histogram of each tracer event occurrence. For further details, please
+refer to the respective man page.
 
 MODES
 =====
