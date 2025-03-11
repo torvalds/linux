@@ -259,7 +259,7 @@ int intel_display_driver_probe_noirq(struct intel_display *display)
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 
-	ret = intel_bw_init(i915);
+	ret = intel_bw_init(display);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
 

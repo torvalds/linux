@@ -147,7 +147,7 @@ int xe_display_init_early(struct xe_device *xe)
 	 */
 	intel_dram_detect(xe);
 
-	intel_bw_init_hw(xe);
+	intel_bw_init_hw(display);
 
 	intel_display_device_info_runtime_init(display);
 

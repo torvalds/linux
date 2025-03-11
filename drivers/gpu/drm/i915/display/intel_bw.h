@@ -12,7 +12,6 @@
 #include "intel_display_power.h"
 #include "intel_global_state.h"
 
-struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -72,14 +71,14 @@ intel_atomic_get_new_bw_state(struct intel_atomic_state *state);
 struct intel_bw_state *
 intel_atomic_get_bw_state(struct intel_atomic_state *state);
 
-void intel_bw_init_hw(struct drm_i915_private *dev_priv);
-int intel_bw_init(struct drm_i915_private *dev_priv);
+void intel_bw_init_hw(struct intel_display *display);
+int intel_bw_init(struct intel_display *display);
 int intel_bw_atomic_check(struct intel_atomic_state *state);
-int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
+int icl_pcode_restrict_qgv_points(struct intel_display *display,
 				  u32 points_mask);
 int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 			    bool *need_cdclk_calc);
-int intel_bw_min_cdclk(struct drm_i915_private *i915,
+int intel_bw_min_cdclk(struct intel_display *display,
 		       const struct intel_bw_state *bw_state);
 void intel_bw_update_hw_state(struct intel_display *display);
 void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc);

@@ -2808,7 +2808,6 @@ static int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_stat
 static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_cdclk_state *cdclk_state =
 		intel_atomic_get_new_cdclk_state(state);
 	const struct intel_bw_state *bw_state;
@@ -2836,7 +2835,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 
 	bw_state = intel_atomic_get_new_bw_state(state);
 	if (bw_state) {
-		min_cdclk = intel_bw_min_cdclk(dev_priv, bw_state);
+		min_cdclk = intel_bw_min_cdclk(display, bw_state);
 
 		if (cdclk_state->bw_min_cdclk != min_cdclk) {
 			int ret;

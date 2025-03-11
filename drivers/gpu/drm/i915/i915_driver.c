@@ -578,7 +578,7 @@ static int i915_driver_hw_probe(struct drm_i915_private *dev_priv)
 	 */
 	intel_dram_detect(dev_priv);
 
-	intel_bw_init_hw(dev_priv);
+	intel_bw_init_hw(display);
 
 	return 0;
 

@@ -151,17 +151,17 @@ static bool is_sagv_enabled(struct intel_display *display, u16 points_mask)
 			      ICL_PCODE_REQ_QGV_PT_MASK);
 }
 
-int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
+int icl_pcode_restrict_qgv_points(struct intel_display *display,
 				  u32 points_mask)
 {
-	struct intel_display *display = &dev_priv->display;
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	int ret;
 
 	if (DISPLAY_VER(display) >= 14)
 		return 0;
 
 	/* bspec says to keep retrying for at least 1 ms */
-	ret = skl_pcode_request(&dev_priv->uncore, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
+	ret = skl_pcode_request(&i915->uncore, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
 				points_mask,
 				ICL_PCODE_REP_QGV_MASK | ADLS_PCODE_REP_PSF_MASK,
 				ICL_PCODE_REP_QGV_SAFE | ADLS_PCODE_REP_PSF_SAFE,
@@ -747,10 +747,8 @@ static unsigned int icl_qgv_bw(struct intel_display *display,
 	return display->bw.max[idx].deratedbw[qgv_point];
 }
 
-void intel_bw_init_hw(struct drm_i915_private *dev_priv)
+void intel_bw_init_hw(struct intel_display *display)
 {
-	struct intel_display *display = &dev_priv->display;
-
 	if (!HAS_DISPLAY(display))
 		return;
 
@@ -940,7 +938,6 @@ static unsigned int icl_max_bw_psf_gv_point_mask(struct intel_display *display)
 static void icl_force_disable_sagv(struct intel_display *display,
 				   struct intel_bw_state *bw_state)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	unsigned int qgv_points = icl_max_bw_qgv_point_mask(display, 0);
 	unsigned int psf_points = icl_max_bw_psf_gv_point_mask(display);
 
@@ -951,7 +948,7 @@ static void icl_force_disable_sagv(struct intel_display *display,
 	drm_dbg_kms(display->drm, "Forcing SAGV disable: mask 0x%x\n",
 		    bw_state->qgv_points_mask);
 
-	icl_pcode_restrict_qgv_points(i915, bw_state->qgv_points_mask);
+	icl_pcode_restrict_qgv_points(display, bw_state->qgv_points_mask);
 }
 
 static int mtl_find_qgv_points(struct intel_display *display,
@@ -1244,10 +1241,9 @@ intel_bw_dbuf_min_cdclk(struct intel_display *display,
 	return DIV_ROUND_UP(total_max_bw, 64);
 }
 
-int intel_bw_min_cdclk(struct drm_i915_private *i915,
+int intel_bw_min_cdclk(struct intel_display *display,
 		       const struct intel_bw_state *bw_state)
 {
-	struct intel_display *display = &i915->display;
 	enum pipe pipe;
 	int min_cdclk;
 
@@ -1263,7 +1259,6 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 			    bool *need_cdclk_calc)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_bw_state *new_bw_state = NULL;
 	const struct intel_bw_state *old_bw_state = NULL;
 	const struct intel_cdclk_state *cdclk_state;
@@ -1297,8 +1292,8 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 			return ret;
 	}
 
-	old_min_cdclk = intel_bw_min_cdclk(dev_priv, old_bw_state);
-	new_min_cdclk = intel_bw_min_cdclk(dev_priv, new_bw_state);
+	old_min_cdclk = intel_bw_min_cdclk(display, old_bw_state);
+	new_min_cdclk = intel_bw_min_cdclk(display, new_bw_state);
 
 	/*
 	 * No need to check against the cdclk state if
@@ -1501,9 +1496,9 @@ static const struct intel_global_state_funcs intel_bw_funcs = {
 	.atomic_destroy_state = intel_bw_destroy_state,
 };
 
-int intel_bw_init(struct drm_i915_private *i915)
+int intel_bw_init(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_bw_state *state;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
