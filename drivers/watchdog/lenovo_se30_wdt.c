@@ -5,6 +5,7 @@
 
 #define dev_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/io.h>
 #include <linux/dmi.h>
 #include <linux/delay.h>
 #include <linux/iommu.h>
