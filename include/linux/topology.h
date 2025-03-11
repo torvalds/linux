@@ -240,6 +240,29 @@ static inline const struct cpumask *cpu_smt_mask(int cpu)
 }
 #endif
 
+#ifndef topology_is_primary_thread
+
+static inline bool topology_is_primary_thread(unsigned int cpu)
+{
+	/*
+	 * When disabling SMT, the primary thread of the SMT will remain
+	 * enabled/active. Architectures that have a special primary thread
+	 * (e.g. x86) need to override this function. Otherwise the first
+	 * thread in the SMT can be made the primary thread.
+	 *
+	 * The sibling cpumask of an offline CPU always contains the CPU
+	 * itself on architectures using the implementation of
+	 * CONFIG_GENERIC_ARCH_TOPOLOGY for building their topology.
+	 * Other architectures not using CONFIG_GENERIC_ARCH_TOPOLOGY for
+	 * building their topology have to check whether to use this default
+	 * implementation or to override it.
+	 */
+	return cpu == cpumask_first(topology_sibling_cpumask(cpu));
+}
+#define topology_is_primary_thread topology_is_primary_thread
+
+#endif
+
 static inline const struct cpumask *cpu_cpu_mask(int cpu)
 {
 	return cpumask_of_node(cpu_to_node(cpu));
