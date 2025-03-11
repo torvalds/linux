@@ -406,14 +406,14 @@ $(OUTPUT)util/list_sort.o: ../lib/list_sort.c FORCE
 
 ifdef SHELLCHECK
   SHELL_TESTS := generate-cmdlist.sh
-  TEST_LOGS := $(SHELL_TESTS:%=%.shellcheck_log)
+  SHELL_TEST_LOGS := $(SHELL_TESTS:%=%.shellcheck_log)
 else
   SHELL_TESTS :=
-  TEST_LOGS :=
+  SHELL_TEST_LOGS :=
 endif
 
 $(OUTPUT)%.shellcheck_log: %
 	$(call rule_mkdir)
 	$(Q)$(call echo-cmd,test)shellcheck -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
 
-perf-util-y += $(TEST_LOGS)
+perf-util-y += $(SHELL_TEST_LOGS)

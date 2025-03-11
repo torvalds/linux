@@ -289,7 +289,7 @@ else
   force_fixdep := $(config)
 endif
 
-# Runs shellcheck on perf test shell scripts
+# Runs shellcheck on perf shell scripts
 ifeq ($(NO_SHELLCHECK),1)
   SHELLCHECK :=
 else
