@@ -6,5 +6,5 @@ debugging of operating system timer latency.
 
 The *timerlat* tracer outputs information in two ways. It periodically
 prints the timer latency at the timer *IRQ* handler and the *Thread*
-handler. It also enable the trace of the most relevant information via
+handler. It also enables the trace of the most relevant information via
 **osnoise:** tracepoints.
