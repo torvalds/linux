@@ -209,9 +209,11 @@
 
 #define __X86_STEPPINGS(mins, maxs)    GENMASK(maxs, mins)
 /**
- * X86_MATCH_VFM_STEPPINGS - Match encoded vendor/family/model/stepping
+ * X86_MATCH_VFM_STEPS - Match encoded vendor/family/model and steppings
+ *			 range.
  * @vfm:	Encoded 8-bits each for vendor, family, model
- * @steppings:	Bitmask of steppings to match
+ * @min_step:	Lowest stepping number to match
+ * @max_step:	Highest stepping number to match
  * @data:	Driver specific data or NULL. The internal storage
  *		format is unsigned long. The supplied value, pointer
  *		etc. is cast to unsigned long internally.
