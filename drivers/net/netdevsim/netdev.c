@@ -116,7 +116,8 @@ static int nsim_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
-	if (ns->xdp.prog && new_mtu > NSIM_XDP_MAX_MTU)
+	if (ns->xdp.prog && !ns->xdp.prog->aux->xdp_has_frags &&
+	    new_mtu > NSIM_XDP_MAX_MTU)
 		return -EBUSY;
 
 	WRITE_ONCE(dev->mtu, new_mtu);
