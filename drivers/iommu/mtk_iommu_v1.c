@@ -27,10 +27,19 @@
 #include <linux/spinlock.h>
 #include <linux/string_choices.h>
 #include <asm/barrier.h>
-#include <asm/dma-iommu.h>
 #include <dt-bindings/memory/mtk-memory-port.h>
 #include <dt-bindings/memory/mt2701-larb-port.h>
 #include <soc/mediatek/smi.h>
+
+#if defined(CONFIG_ARM)
+#include <asm/dma-iommu.h>
+#else
+#define arm_iommu_create_mapping(...) NULL
+#define arm_iommu_attach_device(...)	-ENODEV
+struct dma_iommu_mapping {
+	struct iommu_domain *domain;
+};
+#endif
 
 #define REG_MMU_PT_BASE_ADDR			0x000
 
