@@ -444,8 +444,6 @@ struct ieee80211_mgd_assoc_data {
 	const u8 *supp_rates;
 	u8 supp_rates_len;
 
-	unsigned long userspace_selectors[BITS_TO_LONGS(128)];
-
 	unsigned long timeout;
 	int tries;
 
@@ -523,6 +521,8 @@ struct ieee80211_if_managed {
 
 	struct ieee80211_mgd_auth_data *auth_data;
 	struct ieee80211_mgd_assoc_data *assoc_data;
+
+	unsigned long userspace_selectors[BITS_TO_LONGS(128)];
 
 	bool powersave; /* powersave requested for this iface */
 	bool broken_ap; /* AP is broken -- turn off powersave */
