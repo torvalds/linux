@@ -1602,8 +1602,8 @@ static void read_symbols(const char *modname)
 						     namespace);
 		}
 
-		if (extra_warn && !get_modinfo(&info, "description"))
-			warn("missing MODULE_DESCRIPTION() in %s\n", modname);
+		if (!get_modinfo(&info, "description"))
+			error("missing MODULE_DESCRIPTION() in %s\n", modname);
 	}
 
 	for (sym = info.symtab_start; sym < info.symtab_stop; sym++) {
