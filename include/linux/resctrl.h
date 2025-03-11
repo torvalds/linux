@@ -394,6 +394,15 @@ void resctrl_arch_reset_rmid(struct rdt_resource *r, struct rdt_mon_domain *d,
  */
 void resctrl_arch_reset_rmid_all(struct rdt_resource *r, struct rdt_mon_domain *d);
 
+/**
+ * resctrl_arch_reset_all_ctrls() - Reset the control for each CLOSID to its
+ *				    default.
+ * @r:		The resctrl resource to reset.
+ *
+ * This can be called from any CPU.
+ */
+void resctrl_arch_reset_all_ctrls(struct rdt_resource *r);
+
 extern unsigned int resctrl_rmid_realloc_threshold;
 extern unsigned int resctrl_rmid_realloc_limit;
 
