@@ -328,9 +328,6 @@ extern struct list_head rdt_all_groups;
 
 extern int max_name_width;
 
-int __init rdtgroup_init(void);
-void __exit rdtgroup_exit(void);
-
 /**
  * struct rftype - describe each file in the resctrl file system
  * @name:	File name
