@@ -791,7 +791,7 @@ void __weak pcibios_setup_bridge(struct pci_bus *bus, unsigned long type)
 {
 }
 
-void pci_setup_bridge(struct pci_bus *bus)
+static void pci_setup_bridge(struct pci_bus *bus)
 {
 	unsigned long type = IORESOURCE_IO | IORESOURCE_MEM |
 				  IORESOURCE_PREFETCH;
