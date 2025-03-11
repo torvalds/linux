@@ -275,14 +275,19 @@ EXPORT_SYMBOL(getname_kernel);
 
 void putname(struct filename *name)
 {
+	int refcnt;
+
 	if (IS_ERR_OR_NULL(name))
 		return;
 
-	if (WARN_ON_ONCE(!atomic_read(&name->refcnt)))
-		return;
+	refcnt = atomic_read(&name->refcnt);
+	if (refcnt != 1) {
+		if (WARN_ON_ONCE(!refcnt))
+			return;
 
-	if (!atomic_dec_and_test(&name->refcnt))
-		return;
+		if (!atomic_dec_and_test(&name->refcnt))
+			return;
+	}
 
 	if (name->name != name->iname) {
 		__putname(name->name);
