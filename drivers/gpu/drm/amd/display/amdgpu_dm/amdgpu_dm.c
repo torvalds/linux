@@ -1483,18 +1483,18 @@ static void dm_handle_hpd_rx_offload_work(struct work_struct *work)
 
 	offload_work = container_of(work, struct hpd_rx_irq_offload_work, work);
 	aconnector = offload_work->offload_wq->aconnector;
+	adev = offload_work->adev;
 
 	if (!aconnector) {
-		DRM_ERROR("Can't retrieve aconnector in hpd_rx_irq_offload_work");
+		drm_err(adev_to_drm(adev), "Can't retrieve aconnector in hpd_rx_irq_offload_work");
 		goto skip;
 	}
 
-	adev = drm_to_adev(aconnector->base.dev);
 	dc_link = aconnector->dc_link;
 
 	mutex_lock(&aconnector->hpd_lock);
 	if (!dc_link_detect_connection_type(dc_link, &new_connection_type))
-		DRM_ERROR("KMS: Failed to detect connector\n");
+		drm_err(adev_to_drm(adev), "KMS: Failed to detect connector\n");
 	mutex_unlock(&aconnector->hpd_lock);
 
 	if (new_connection_type == dc_connection_none)
@@ -3941,20 +3941,21 @@ static void handle_hpd_irq(void *param)
 
 }
 
-static void schedule_hpd_rx_offload_work(struct hpd_rx_irq_offload_work_queue *offload_wq,
+static void schedule_hpd_rx_offload_work(struct amdgpu_device *adev, struct hpd_rx_irq_offload_work_queue *offload_wq,
 							union hpd_irq_data hpd_irq_data)
 {
 	struct hpd_rx_irq_offload_work *offload_work =
 				kzalloc(sizeof(*offload_work), GFP_KERNEL);
 
 	if (!offload_work) {
-		DRM_ERROR("Failed to allocate hpd_rx_irq_offload_work.\n");
+		drm_err(adev_to_drm(adev), "Failed to allocate hpd_rx_irq_offload_work.\n");
 		return;
 	}
 
 	INIT_WORK(&offload_work->work, dm_handle_hpd_rx_offload_work);
 	offload_work->data = hpd_irq_data;
 	offload_work->offload_wq = offload_wq;
+	offload_work->adev = adev;
 
 	queue_work(offload_wq->wq, &offload_work->work);
 	DRM_DEBUG_KMS("queue work to handle hpd_rx offload work");
@@ -3996,7 +3997,7 @@ static void handle_hpd_rx_irq(void *param)
 		goto out;
 
 	if (hpd_irq_data.bytes.device_service_irq.bits.AUTOMATED_TEST) {
-		schedule_hpd_rx_offload_work(offload_wq, hpd_irq_data);
+		schedule_hpd_rx_offload_work(adev, offload_wq, hpd_irq_data);
 		goto out;
 	}
 
@@ -4018,7 +4019,7 @@ static void handle_hpd_rx_irq(void *param)
 			spin_unlock(&offload_wq->offload_lock);
 
 			if (!skip)
-				schedule_hpd_rx_offload_work(offload_wq, hpd_irq_data);
+				schedule_hpd_rx_offload_work(adev, offload_wq, hpd_irq_data);
 
 			goto out;
 		}
@@ -4035,7 +4036,7 @@ static void handle_hpd_rx_irq(void *param)
 			spin_unlock(&offload_wq->offload_lock);
 
 			if (!skip)
-				schedule_hpd_rx_offload_work(offload_wq, hpd_irq_data);
+				schedule_hpd_rx_offload_work(adev, offload_wq, hpd_irq_data);
 
 			goto out;
 		}
@@ -4045,7 +4046,7 @@ out:
 	if (result && !is_mst_root_connector) {
 		/* Downstream Port status changed. */
 		if (!dc_link_detect_connection_type(dc_link, &new_connection_type))
-			DRM_ERROR("KMS: Failed to detect connector\n");
+			drm_err(adev_to_drm(adev), "KMS: Failed to detect connector\n");
 
 		if (aconnector->base.force && new_connection_type == dc_connection_none) {
 			emulated_link_detect(dc_link);

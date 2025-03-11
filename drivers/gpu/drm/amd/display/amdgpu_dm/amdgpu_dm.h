@@ -276,6 +276,10 @@ struct hpd_rx_irq_offload_work {
 	 * @offload_wq: offload work queue that this work is queued to
 	 */
 	struct hpd_rx_irq_offload_work_queue *offload_wq;
+	/**
+	 * @adev: amdgpu_device pointer
+	 */
+	struct amdgpu_device *adev;
 };
 
 /**
