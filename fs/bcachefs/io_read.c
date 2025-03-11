@@ -1291,6 +1291,9 @@ void __bch2_read(struct bch_fs *c, struct bch_read_bio *rbio,
 		swap(bvec_iter.bi_size, bytes);
 		bio_advance_iter(&rbio->bio, &bvec_iter, bytes);
 err:
+		if (ret == -BCH_ERR_data_read_retry_csum_err_maybe_userspace)
+			flags |= BCH_READ_must_bounce;
+
 		if (ret &&
 		    !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
 		    !bch2_err_matches(ret, BCH_ERR_data_read_retry))
