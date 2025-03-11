@@ -161,7 +161,9 @@ version=$KERNELRELEASE
 if [ "${KDEB_PKGVERSION:+set}" ]; then
 	packageversion=$KDEB_PKGVERSION
 else
-	packageversion=$(${srctree}/scripts/setlocalversion --no-local ${srctree})-$($srctree/scripts/build-version)
+	upstream_version=$("${srctree}/scripts/setlocalversion" --no-local "${srctree}" | sed 's/-\(rc[1-9]\)/~\1/')
+	debian_revision=$("${srctree}/scripts/build-version")
+	packageversion=${upstream_version}-${debian_revision}
 fi
 sourcename=${KDEB_SOURCENAME:-linux-upstream}
 
