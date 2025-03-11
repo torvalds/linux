@@ -11,7 +11,6 @@ __archpost:
 
 -include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
-include $(srctree)/scripts/Makefile.lib
 
 CMD_RELOCS=arch/s390/tools/relocs
 OUT_RELOCS = arch/s390/boot
@@ -20,9 +19,8 @@ quiet_cmd_relocs = RELOCS  $(OUT_RELOCS)/relocs.S
 	mkdir -p $(OUT_RELOCS); \
 	$(CMD_RELOCS) $@ > $(OUT_RELOCS)/relocs.S
 
-vmlinux: FORCE
+vmlinux.unstripped: FORCE
 	$(call cmd,relocs)
-	$(call cmd,strip_relocs)
 
 clean:
 	@rm -f $(OUT_RELOCS)/relocs.S

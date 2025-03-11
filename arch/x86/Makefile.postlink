@@ -11,23 +11,21 @@ __archpost:
 
 -include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
-include $(srctree)/scripts/Makefile.lib
 
 CMD_RELOCS = arch/x86/tools/relocs
 OUT_RELOCS = arch/x86/boot/compressed
-quiet_cmd_relocs = RELOCS  $(OUT_RELOCS)/$@.relocs
+quiet_cmd_relocs = RELOCS  $(OUT_RELOCS)/vmlinux.relocs
       cmd_relocs = \
 	mkdir -p $(OUT_RELOCS); \
-	$(CMD_RELOCS) $@ > $(OUT_RELOCS)/$@.relocs; \
+	$(CMD_RELOCS) $@ > $(OUT_RELOCS)/vmlinux.relocs; \
 	$(CMD_RELOCS) --abs-relocs $@
 
 # `@true` prevents complaint when there is nothing to be done
 
-vmlinux: FORCE
+vmlinux vmlinux.unstripped: FORCE
 	@true
 ifeq ($(CONFIG_X86_NEED_RELOCS),y)
 	$(call cmd,relocs)
-	$(call cmd,strip_relocs)
 endif
 
 clean:
