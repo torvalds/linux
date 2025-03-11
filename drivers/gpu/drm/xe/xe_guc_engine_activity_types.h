@@ -79,14 +79,24 @@ struct xe_guc_engine_activity {
 	/** @num_activity_group: number of activity groups */
 	u32 num_activity_group;
 
+	/** @num_functions: number of functions */
+	u32 num_functions;
+
 	/** @supported: indicates support for engine activity stats */
 	bool supported;
 
-	/** @eag: holds the device level engine activity data */
+	/**
+	 * @eag: holds the device level engine activity data in native mode.
+	 * In SRIOV mode, points to an array with entries which holds the engine
+	 * activity data for PF and VF's
+	 */
 	struct engine_activity_group *eag;
 
 	/** @device_buffer: buffer object for global engine activity */
 	struct engine_activity_buffer device_buffer;
+
+	/** @function_buffer: buffer object for per-function engine activity */
+	struct engine_activity_buffer function_buffer;
 };
 #endif
 

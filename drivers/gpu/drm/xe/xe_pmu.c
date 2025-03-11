@@ -245,10 +245,11 @@ static u64 read_engine_events(struct xe_gt *gt, struct perf_event *event)
 	u64 val = 0;
 
 	hwe = event_to_hwe(event);
+
 	if (config_to_event_id(event->attr.config) == XE_PMU_EVENT_ENGINE_ACTIVE_TICKS)
-		val = xe_guc_engine_activity_active_ticks(&gt->uc.guc, hwe);
+		val = xe_guc_engine_activity_active_ticks(&gt->uc.guc, hwe, 0);
 	else
-		val = xe_guc_engine_activity_total_ticks(&gt->uc.guc, hwe);
+		val = xe_guc_engine_activity_total_ticks(&gt->uc.guc, hwe, 0);
 
 	return val;
 }
