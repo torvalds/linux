@@ -17,6 +17,8 @@
 #include "../iommu-priv.h"
 #include "iommufd_private.h"
 
+/* IOMMUFD_OBJ_FAULT Functions */
+
 int iommufd_fault_iopf_enable(struct iommufd_device *idev)
 {
 	struct device *dev = idev->dev;
@@ -73,13 +75,13 @@ void iommufd_auto_response_faults(struct iommufd_hw_pagetable *hwpt,
 	INIT_LIST_HEAD(&free_list);
 
 	mutex_lock(&fault->mutex);
-	spin_lock(&fault->lock);
-	list_for_each_entry_safe(group, next, &fault->deliver, node) {
+	spin_lock(&fault->common.lock);
+	list_for_each_entry_safe(group, next, &fault->common.deliver, node) {
 		if (group->attach_handle != &handle->handle)
 			continue;
 		list_move(&group->node, &free_list);
 	}
-	spin_unlock(&fault->lock);
+	spin_unlock(&fault->common.lock);
 
 	list_for_each_entry_safe(group, next, &free_list, node) {
 		list_del(&group->node);
@@ -99,7 +101,9 @@ void iommufd_auto_response_faults(struct iommufd_hw_pagetable *hwpt,
 
 void iommufd_fault_destroy(struct iommufd_object *obj)
 {
-	struct iommufd_fault *fault = container_of(obj, struct iommufd_fault, obj);
+	struct iommufd_eventq *eventq =
+		container_of(obj, struct iommufd_eventq, obj);
+	struct iommufd_fault *fault = eventq_to_fault(eventq);
 	struct iopf_group *group, *next;
 	unsigned long index;
 
@@ -109,7 +113,7 @@ void iommufd_fault_destroy(struct iommufd_object *obj)
 	 * accessing this pointer. Therefore, acquiring the mutex here
 	 * is unnecessary.
 	 */
-	list_for_each_entry_safe(group, next, &fault->deliver, node) {
+	list_for_each_entry_safe(group, next, &fault->common.deliver, node) {
 		list_del(&group->node);
 		iopf_group_response(group, IOMMU_PAGE_RESP_INVALID);
 		iopf_free_group(group);
@@ -142,15 +146,15 @@ static void iommufd_compose_fault_message(struct iommu_fault *fault,
 static struct iopf_group *
 iommufd_fault_deliver_fetch(struct iommufd_fault *fault)
 {
-	struct list_head *list = &fault->deliver;
+	struct list_head *list = &fault->common.deliver;
 	struct iopf_group *group = NULL;
 
-	spin_lock(&fault->lock);
+	spin_lock(&fault->common.lock);
 	if (!list_empty(list)) {
 		group = list_first_entry(list, struct iopf_group, node);
 		list_del(&group->node);
 	}
-	spin_unlock(&fault->lock);
+	spin_unlock(&fault->common.lock);
 	return group;
 }
 
@@ -158,16 +162,17 @@ iommufd_fault_deliver_fetch(struct iommufd_fault *fault)
 static void iommufd_fault_deliver_restore(struct iommufd_fault *fault,
 					  struct iopf_group *group)
 {
-	spin_lock(&fault->lock);
-	list_add(&group->node, &fault->deliver);
-	spin_unlock(&fault->lock);
+	spin_lock(&fault->common.lock);
+	list_add(&group->node, &fault->common.deliver);
+	spin_unlock(&fault->common.lock);
 }
 
 static ssize_t iommufd_fault_fops_read(struct file *filep, char __user *buf,
 				       size_t count, loff_t *ppos)
 {
 	size_t fault_size = sizeof(struct iommu_hwpt_pgfault);
-	struct iommufd_fault *fault = filep->private_data;
+	struct iommufd_eventq *eventq = filep->private_data;
+	struct iommufd_fault *fault = eventq_to_fault(eventq);
 	struct iommu_hwpt_pgfault data = {};
 	struct iommufd_device *idev;
 	struct iopf_group *group;
@@ -216,7 +221,8 @@ static ssize_t iommufd_fault_fops_write(struct file *filep, const char __user *b
 					size_t count, loff_t *ppos)
 {
 	size_t response_size = sizeof(struct iommu_hwpt_page_response);
-	struct iommufd_fault *fault = filep->private_data;
+	struct iommufd_eventq *eventq = filep->private_data;
+	struct iommufd_fault *fault = eventq_to_fault(eventq);
 	struct iommu_hwpt_page_response response;
 	struct iopf_group *group;
 	size_t done = 0;
@@ -256,59 +262,61 @@ static ssize_t iommufd_fault_fops_write(struct file *filep, const char __user *b
 	return done == 0 ? rc : done;
 }
 
-static __poll_t iommufd_fault_fops_poll(struct file *filep,
-					struct poll_table_struct *wait)
+/* Common Event Queue Functions */
+
+static __poll_t iommufd_eventq_fops_poll(struct file *filep,
+					 struct poll_table_struct *wait)
 {
-	struct iommufd_fault *fault = filep->private_data;
+	struct iommufd_eventq *eventq = filep->private_data;
 	__poll_t pollflags = EPOLLOUT;
 
-	poll_wait(filep, &fault->wait_queue, wait);
-	spin_lock(&fault->lock);
-	if (!list_empty(&fault->deliver))
+	poll_wait(filep, &eventq->wait_queue, wait);
+	spin_lock(&eventq->lock);
+	if (!list_empty(&eventq->deliver))
 		pollflags |= EPOLLIN | EPOLLRDNORM;
-	spin_unlock(&fault->lock);
+	spin_unlock(&eventq->lock);
 
 	return pollflags;
 }
 
-static int iommufd_fault_fops_release(struct inode *inode, struct file *filep)
+static int iommufd_eventq_fops_release(struct inode *inode, struct file *filep)
 {
-	struct iommufd_fault *fault = filep->private_data;
+	struct iommufd_eventq *eventq = filep->private_data;
 
-	refcount_dec(&fault->obj.users);
-	iommufd_ctx_put(fault->ictx);
+	refcount_dec(&eventq->obj.users);
+	iommufd_ctx_put(eventq->ictx);
 	return 0;
 }
 
-#define INIT_FAULT_FOPS(read_op, write_op)                                     \
+#define INIT_EVENTQ_FOPS(read_op, write_op)                                    \
 	((const struct file_operations){                                       \
 		.owner = THIS_MODULE,                                          \
 		.open = nonseekable_open,                                      \
 		.read = read_op,                                               \
 		.write = write_op,                                             \
-		.poll = iommufd_fault_fops_poll,                               \
-		.release = iommufd_fault_fops_release,                         \
+		.poll = iommufd_eventq_fops_poll,                              \
+		.release = iommufd_eventq_fops_release,                        \
 	})
 
-static int iommufd_fault_init(struct iommufd_fault *fault, char *name,
-			      struct iommufd_ctx *ictx,
-			      const struct file_operations *fops)
+static int iommufd_eventq_init(struct iommufd_eventq *eventq, char *name,
+			       struct iommufd_ctx *ictx,
+			       const struct file_operations *fops)
 {
 	struct file *filep;
 	int fdno;
 
-	spin_lock_init(&fault->lock);
-	INIT_LIST_HEAD(&fault->deliver);
-	init_waitqueue_head(&fault->wait_queue);
+	spin_lock_init(&eventq->lock);
+	INIT_LIST_HEAD(&eventq->deliver);
+	init_waitqueue_head(&eventq->wait_queue);
 
-	filep = anon_inode_getfile(name, fops, fault, O_RDWR);
+	filep = anon_inode_getfile(name, fops, eventq, O_RDWR);
 	if (IS_ERR(filep))
 		return PTR_ERR(filep);
 
-	fault->ictx = ictx;
-	iommufd_ctx_get(fault->ictx);
-	fault->filep = filep;
-	refcount_inc(&fault->obj.users);
+	eventq->ictx = ictx;
+	iommufd_ctx_get(eventq->ictx);
+	eventq->filep = filep;
+	refcount_inc(&eventq->obj.users);
 
 	fdno = get_unused_fd_flags(O_CLOEXEC);
 	if (fdno < 0)
@@ -317,7 +325,7 @@ static int iommufd_fault_init(struct iommufd_fault *fault, char *name,
 }
 
 static const struct file_operations iommufd_fault_fops =
-	INIT_FAULT_FOPS(iommufd_fault_fops_read, iommufd_fault_fops_write);
+	INIT_EVENTQ_FOPS(iommufd_fault_fops_read, iommufd_fault_fops_write);
 
 int iommufd_fault_alloc(struct iommufd_ucmd *ucmd)
 {
@@ -329,36 +337,37 @@ int iommufd_fault_alloc(struct iommufd_ucmd *ucmd)
 	if (cmd->flags)
 		return -EOPNOTSUPP;
 
-	fault = iommufd_object_alloc(ucmd->ictx, fault, IOMMUFD_OBJ_FAULT);
+	fault = __iommufd_object_alloc(ucmd->ictx, fault, IOMMUFD_OBJ_FAULT,
+				       common.obj);
 	if (IS_ERR(fault))
 		return PTR_ERR(fault);
 
 	xa_init_flags(&fault->response, XA_FLAGS_ALLOC1);
 	mutex_init(&fault->mutex);
 
-	fdno = iommufd_fault_init(fault, "[iommufd-pgfault]", ucmd->ictx,
-				  &iommufd_fault_fops);
+	fdno = iommufd_eventq_init(&fault->common, "[iommufd-pgfault]",
+				   ucmd->ictx, &iommufd_fault_fops);
 	if (fdno < 0) {
 		rc = fdno;
 		goto out_abort;
 	}
 
-	cmd->out_fault_id = fault->obj.id;
+	cmd->out_fault_id = fault->common.obj.id;
 	cmd->out_fault_fd = fdno;
 
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 	if (rc)
 		goto out_put_fdno;
-	iommufd_object_finalize(ucmd->ictx, &fault->obj);
+	iommufd_object_finalize(ucmd->ictx, &fault->common.obj);
 
-	fd_install(fdno, fault->filep);
+	fd_install(fdno, fault->common.filep);
 
 	return 0;
 out_put_fdno:
 	put_unused_fd(fdno);
-	fput(fault->filep);
+	fput(fault->common.filep);
 out_abort:
-	iommufd_object_abort_and_destroy(ucmd->ictx, &fault->obj);
+	iommufd_object_abort_and_destroy(ucmd->ictx, &fault->common.obj);
 
 	return rc;
 }
@@ -371,11 +380,11 @@ int iommufd_fault_iopf_handler(struct iopf_group *group)
 	hwpt = group->attach_handle->domain->iommufd_hwpt;
 	fault = hwpt->fault;
 
-	spin_lock(&fault->lock);
-	list_add_tail(&group->node, &fault->deliver);
-	spin_unlock(&fault->lock);
+	spin_lock(&fault->common.lock);
+	list_add_tail(&group->node, &fault->common.deliver);
+	spin_unlock(&fault->common.lock);
 
-	wake_up_interruptible(&fault->wait_queue);
+	wake_up_interruptible(&fault->common.wait_queue);
 
 	return 0;
 }
