@@ -2142,7 +2142,8 @@ static int smb_direct_ib_client_add(struct ib_device *ib_dev)
 	if (ib_dev->node_type != RDMA_NODE_IB_CA)
 		smb_direct_port = SMB_DIRECT_PORT_IWARP;
 
-	if (!rdma_frwr_is_supported(&ib_dev->attrs))
+	if (!ib_dev->ops.get_netdev ||
+	    !rdma_frwr_is_supported(&ib_dev->attrs))
 		return 0;
 
 	smb_dev = kzalloc(sizeof(*smb_dev), KSMBD_DEFAULT_GFP);
@@ -2242,38 +2243,17 @@ bool ksmbd_rdma_capable_netdev(struct net_device *netdev)
 		for (i = 0; i < smb_dev->ib_dev->phys_port_cnt; i++) {
 			struct net_device *ndev;
 
-			if (smb_dev->ib_dev->ops.get_netdev) {
-				ndev = smb_dev->ib_dev->ops.get_netdev(
-					smb_dev->ib_dev, i + 1);
-				if (!ndev)
-					continue;
+			ndev = smb_dev->ib_dev->ops.get_netdev(smb_dev->ib_dev,
+							       i + 1);
+			if (!ndev)
+				continue;
 
-				if (ndev == netdev) {
-					dev_put(ndev);
-					rdma_capable = true;
-					goto out;
-				}
+			if (ndev == netdev) {
 				dev_put(ndev);
-			/* if ib_dev does not implement ops.get_netdev
-			 * check for matching infiniband GUID in hw_addr
-			 */
-			} else if (netdev->type == ARPHRD_INFINIBAND) {
-				struct netdev_hw_addr *ha;
-				union ib_gid gid;
-				u32 port_num;
-				int ret;
-
-				netdev_hw_addr_list_for_each(
-					ha, &netdev->dev_addrs) {
-					memcpy(&gid, ha->addr + 4, sizeof(gid));
-					ret = ib_find_gid(smb_dev->ib_dev, &gid,
-							  &port_num, NULL);
-					if (!ret) {
-						rdma_capable = true;
-						goto out;
-					}
-				}
+				rdma_capable = true;
+				goto out;
 			}
+			dev_put(ndev);
 		}
 	}
 out:
