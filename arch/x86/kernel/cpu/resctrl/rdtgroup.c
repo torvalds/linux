@@ -57,6 +57,12 @@ static struct kernfs_node *kn_mongrp;
 /* Kernel fs node for "mon_data" directory under root */
 static struct kernfs_node *kn_mondata;
 
+/*
+ * Used to store the max resource name width to display the schemata names in
+ * a tabular format.
+ */
+int max_name_width;
+
 static struct seq_buf last_cmd_status;
 static char last_cmd_status_buf[512];
 
@@ -2613,10 +2619,10 @@ static int schemata_list_add(struct rdt_resource *r, enum resctrl_conf_type type
 
 	switch (r->schema_fmt) {
 	case RESCTRL_SCHEMA_BITMAP:
-		s->fmt_str = "%d=%0*x";
+		s->fmt_str = "%d=%x";
 		break;
 	case RESCTRL_SCHEMA_RANGE:
-		s->fmt_str = "%d=%0*u";
+		s->fmt_str = "%d=%u";
 		break;
 	}
 

@@ -487,8 +487,7 @@ static void show_doms(struct seq_file *s, struct resctrl_schema *schema, int clo
 			ctrl_val = resctrl_arch_get_config(r, dom, closid,
 							   schema->conf_type);
 
-		seq_printf(s, schema->fmt_str, dom->hdr.id, max_data_width,
-			   ctrl_val);
+		seq_printf(s, schema->fmt_str, dom->hdr.id, ctrl_val);
 		sep = true;
 	}
 	seq_puts(s, "\n");

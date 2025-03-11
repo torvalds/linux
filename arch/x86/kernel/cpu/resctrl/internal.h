@@ -326,7 +326,7 @@ struct rdtgroup {
 /* List of all resource groups */
 extern struct list_head rdt_all_groups;
 
-extern int max_name_width, max_data_width;
+extern int max_name_width;
 
 int __init rdtgroup_init(void);
 void __exit rdtgroup_exit(void);
