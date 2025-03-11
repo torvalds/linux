@@ -85,6 +85,47 @@ static void arm_smmu_make_nested_domain_ste(
 	}
 }
 
+int arm_smmu_attach_prepare_vmaster(struct arm_smmu_attach_state *state,
+				    struct arm_smmu_nested_domain *nested_domain)
+{
+	struct arm_smmu_vmaster *vmaster;
+	unsigned long vsid;
+	int ret;
+
+	iommu_group_mutex_assert(state->master->dev);
+
+	ret = iommufd_viommu_get_vdev_id(&nested_domain->vsmmu->core,
+					 state->master->dev, &vsid);
+	if (ret)
+		return ret;
+
+	vmaster = kzalloc(sizeof(*vmaster), GFP_KERNEL);
+	if (!vmaster)
+		return -ENOMEM;
+	vmaster->vsmmu = nested_domain->vsmmu;
+	vmaster->vsid = vsid;
+	state->vmaster = vmaster;
+
+	return 0;
+}
+
+void arm_smmu_attach_commit_vmaster(struct arm_smmu_attach_state *state)
+{
+	struct arm_smmu_master *master = state->master;
+
+	mutex_lock(&master->smmu->streams_mutex);
+	kfree(master->vmaster);
+	master->vmaster = state->vmaster;
+	mutex_unlock(&master->smmu->streams_mutex);
+}
+
+void arm_smmu_master_clear_vmaster(struct arm_smmu_master *master)
+{
+	struct arm_smmu_attach_state state = { .master = master };
+
+	arm_smmu_attach_commit_vmaster(&state);
+}
+
 static int arm_smmu_attach_dev_nested(struct iommu_domain *domain,
 				      struct device *dev)
 {
