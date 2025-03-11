@@ -311,8 +311,13 @@ ifeq ($(MYPY),1)
   MYPY := $(shell which mypy 2> /dev/null)
 endif
 
+# Runs pylint on perf python files
+ifeq ($(PYLINT),1)
+  PYLINT := $(shell which pylint 2> /dev/null)
+endif
+
 export srctree OUTPUT RM CC CXX LD AR CFLAGS CXXFLAGS V BISON FLEX AWK
-export HOSTCC HOSTLD HOSTAR HOSTCFLAGS SHELLCHECK MYPY
+export HOSTCC HOSTLD HOSTAR HOSTCFLAGS SHELLCHECK MYPY PYLINT
 
 include $(srctree)/tools/build/Makefile.include
 
