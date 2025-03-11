@@ -718,6 +718,22 @@ void mon_event_count(void *info)
 		rr->err = 0;
 }
 
+static struct rdt_ctrl_domain *get_ctrl_domain_from_cpu(int cpu,
+							struct rdt_resource *r)
+{
+	struct rdt_ctrl_domain *d;
+
+	lockdep_assert_cpus_held();
+
+	list_for_each_entry(d, &r->ctrl_domains, hdr.list) {
+		/* Find the domain that contains this CPU */
+		if (cpumask_test_cpu(cpu, &d->hdr.cpu_mask))
+			return d;
+	}
+
+	return NULL;
+}
+
 /*
  * Feedback loop for MBA software controller (mba_sc)
  *
