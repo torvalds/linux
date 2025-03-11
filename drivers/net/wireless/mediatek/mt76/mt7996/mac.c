@@ -831,7 +831,8 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 	u8 band_idx = (info->hw_queue & MT_TX_HW_QUEUE_PHY) >> 2;
 	u8 p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
-	struct mt76_vif_link *mvif;
+	struct mt76_vif_link *mlink = NULL;
+	struct mt7996_vif *mvif;
 	u16 tx_count = 15;
 	u32 val;
 	bool inband_disc = !!(changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
@@ -839,11 +840,18 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 	bool beacon = !!(changed & (BSS_CHANGED_BEACON |
 				    BSS_CHANGED_BEACON_ENABLED)) && (!inband_disc);
 
-	mvif = vif ? (struct mt76_vif_link *)vif->drv_priv : NULL;
-	if (mvif) {
-		omac_idx = mvif->omac_idx;
-		wmm_idx = mvif->wmm_idx;
-		band_idx = mvif->band_idx;
+	if (vif) {
+		mvif = (struct mt7996_vif *)vif->drv_priv;
+		if (wcid->offchannel)
+			mlink = rcu_dereference(mvif->mt76.offchannel_link);
+		if (!mlink)
+			mlink = &mvif->deflink.mt76;
+	}
+
+	if (mlink) {
+		omac_idx = mlink->omac_idx;
+		wmm_idx = mlink->wmm_idx;
+		band_idx = mlink->band_idx;
 	}
 
 	if (inband_disc) {
@@ -909,13 +917,13 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 			     is_multicast_ether_addr(hdr->addr1);
 		u8 idx = MT7996_BASIC_RATES_TBL;
 
-		if (mvif) {
-			if (mcast && mvif->mcast_rates_idx)
-				idx = mvif->mcast_rates_idx;
-			else if (beacon && mvif->beacon_rates_idx)
-				idx = mvif->beacon_rates_idx;
+		if (mlink) {
+			if (mcast && mlink->mcast_rates_idx)
+				idx = mlink->mcast_rates_idx;
+			else if (beacon && mlink->beacon_rates_idx)
+				idx = mlink->beacon_rates_idx;
 			else
-				idx = mvif->basic_rates_idx;
+				idx = mlink->basic_rates_idx;
 		}
 
 		val = FIELD_PREP(MT_TXD6_TX_RATE, idx) | MT_TXD6_FIXED_BW;
@@ -983,8 +991,14 @@ int mt7996_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 
 	if (vif) {
 		struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+		struct mt76_vif_link *mlink = NULL;
 
-		txp->fw.bss_idx = mvif->deflink.mt76.idx;
+		if (wcid->offchannel)
+			mlink = rcu_dereference(mvif->mt76.offchannel_link);
+		if (!mlink)
+			mlink = &mvif->deflink.mt76;
+
+		txp->fw.bss_idx = mlink->idx;
 	}
 
 	txp->fw.token = cpu_to_le16(id);
