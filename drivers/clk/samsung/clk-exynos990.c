@@ -5,8 +5,8 @@
  * Common Clock Framework support for Exynos990.
  */
 
-#include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/mod_devicetable.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
@@ -19,6 +19,7 @@
 /* NOTE: Must be equal to the last clock ID increased by one */
 #define CLKS_NR_TOP (CLK_GOUT_CMU_VRA_BUS + 1)
 #define CLKS_NR_HSI0 (CLK_GOUT_HSI0_XIU_D_HSI0_ACLK + 1)
+#define CLKS_NR_PERIS (CLK_GOUT_PERIS_OTP_CON_TOP_OSCCLK + 1)
 
 /* ---- CMU_TOP ------------------------------------------------------------- */
 
@@ -449,7 +450,7 @@ static const struct samsung_pll_clock top_pll_clks[] __initconst = {
 	    PLL_LOCKTIME_PLL_G3D, PLL_CON3_PLL_G3D, NULL),
 };
 
-/* Parent clock list for CMU_TOP muxes*/
+/* Parent clock list for CMU_TOP muxes */
 PNAME(mout_pll_shared0_p)		= { "oscclk", "fout_shared0_pll" };
 PNAME(mout_pll_shared1_p)		= { "oscclk", "fout_shared1_pll" };
 PNAME(mout_pll_shared2_p)		= { "oscclk", "fout_shared2_pll" };
@@ -1192,6 +1193,7 @@ static const unsigned long hsi0_clk_regs[] __initconst = {
 	CLK_CON_GAT_GOUT_BLK_HSI0_UID_XIU_D_HSI0_IPCLKPORT_ACLK,
 };
 
+/* Parent clock list for CMU_HSI0 muxes */
 PNAME(mout_hsi0_bus_user_p)		= { "oscclk", "dout_cmu_hsi0_bus" };
 PNAME(mout_hsi0_usb31drd_user_p)	= { "oscclk", "dout_cmu_hsi0_usb31drd" };
 PNAME(mout_hsi0_usbdp_debug_user_p)	= { "oscclk",
@@ -1304,6 +1306,182 @@ static const struct samsung_cmu_info hsi0_cmu_info __initconst = {
 	.nr_clk_regs = ARRAY_SIZE(hsi0_clk_regs),
 	.clk_name		= "bus",
 };
+
+/* ---- CMU_PERIS ----------------------------------------------------------- */
+
+/* Register Offset definitions for CMU_PERIS (0x10020000) */
+#define PLL_CON0_MUX_CLKCMU_PERIS_BUS_USER					0x0600
+#define PLL_CON1_MUX_CLKCMU_PERIS_BUS_USER					0x0604
+#define CLK_CON_MUX_MUX_CLK_PERIS_GIC						0x1000
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_SYSREG_PERIS_IPCLKPORT_PCLK		0x203c
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_WDT_CLUSTER2_IPCLKPORT_PCLK		0x204c
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_WDT_CLUSTER0_IPCLKPORT_PCLK		0x2048
+#define CLK_CON_GAT_CLK_BLK_PERIS_UID_PERIS_CMU_PERIS_IPCLKPORT_PCLK		0x200c
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_RSTNSYNC_CLK_PERIS_BUSP_IPCLKPORT_CLK	0x2034
+#define CLK_CON_GAT_CLK_BLK_PERIS_UID_RSTNSYNC_CLK_PERIS_OSCCLK_IPCLKPORT_CLK	0x2010
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_RSTNSYNC_CLK_PERIS_GIC_IPCLKPORT_CLK	0x2038
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_AD_AXI_P_PERIS_IPCLKPORT_ACLKM		0x2014
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_OTP_CON_BIRA_IPCLKPORT_PCLK		0x2028
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_GIC_IPCLKPORT_CLK			0x201c
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_LHM_AXI_P_PERIS_IPCLKPORT_I_CLK		0x2020
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_MCT_IPCLKPORT_PCLK			0x2024
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_OTP_CON_TOP_IPCLKPORT_PCLK		0x2030
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_D_TZPC_PERIS_IPCLKPORT_PCLK		0x2018
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_TMU_SUB_IPCLKPORT_PCLK			0x2040
+#define CLK_CON_GAT_GOUT_BLK_PERIS_UID_TMU_TOP_IPCLKPORT_PCLK			0x2044
+#define CLK_CON_GAT_CLK_BLK_PERIS_UID_OTP_CON_BIRA_IPCLKPORT_I_OSCCLK		0x2000
+#define CLK_CON_GAT_CLK_BLK_PERIS_UID_OTP_CON_TOP_IPCLKPORT_I_OSCCLK		0x2008
+#define QCH_CON_D_TZPC_PERIS_QCH						0x3004
+#define QCH_CON_GIC_QCH								0x3008
+#define QCH_CON_LHM_AXI_P_PERIS_QCH						0x300c
+#define QCH_CON_MCT_QCH								0x3010
+#define QCH_CON_OTP_CON_BIRA_QCH						0x3014
+#define QCH_CON_OTP_CON_TOP_QCH							0x301c
+#define QCH_CON_PERIS_CMU_PERIS_QCH						0x3020
+#define QCH_CON_SYSREG_PERIS_QCH						0x3024
+#define QCH_CON_TMU_SUB_QCH							0x3028
+#define QCH_CON_TMU_TOP_QCH							0x302c
+#define QCH_CON_WDT_CLUSTER0_QCH						0x3030
+#define QCH_CON_WDT_CLUSTER2_QCH						0x3034
+
+static const unsigned long peris_clk_regs[] __initconst = {
+	PLL_CON0_MUX_CLKCMU_PERIS_BUS_USER,
+	PLL_CON1_MUX_CLKCMU_PERIS_BUS_USER,
+	CLK_CON_MUX_MUX_CLK_PERIS_GIC,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_SYSREG_PERIS_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_WDT_CLUSTER2_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_WDT_CLUSTER0_IPCLKPORT_PCLK,
+	CLK_CON_GAT_CLK_BLK_PERIS_UID_PERIS_CMU_PERIS_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_RSTNSYNC_CLK_PERIS_BUSP_IPCLKPORT_CLK,
+	CLK_CON_GAT_CLK_BLK_PERIS_UID_RSTNSYNC_CLK_PERIS_OSCCLK_IPCLKPORT_CLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_RSTNSYNC_CLK_PERIS_GIC_IPCLKPORT_CLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_AD_AXI_P_PERIS_IPCLKPORT_ACLKM,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_OTP_CON_BIRA_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_GIC_IPCLKPORT_CLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_LHM_AXI_P_PERIS_IPCLKPORT_I_CLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_MCT_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_OTP_CON_TOP_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_D_TZPC_PERIS_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_TMU_SUB_IPCLKPORT_PCLK,
+	CLK_CON_GAT_GOUT_BLK_PERIS_UID_TMU_TOP_IPCLKPORT_PCLK,
+	CLK_CON_GAT_CLK_BLK_PERIS_UID_OTP_CON_BIRA_IPCLKPORT_I_OSCCLK,
+	CLK_CON_GAT_CLK_BLK_PERIS_UID_OTP_CON_TOP_IPCLKPORT_I_OSCCLK,
+	QCH_CON_D_TZPC_PERIS_QCH,
+	QCH_CON_GIC_QCH,
+	QCH_CON_LHM_AXI_P_PERIS_QCH,
+	QCH_CON_MCT_QCH,
+	QCH_CON_OTP_CON_BIRA_QCH,
+	QCH_CON_OTP_CON_TOP_QCH,
+	QCH_CON_PERIS_CMU_PERIS_QCH,
+	QCH_CON_SYSREG_PERIS_QCH,
+	QCH_CON_TMU_SUB_QCH,
+	QCH_CON_TMU_TOP_QCH,
+	QCH_CON_WDT_CLUSTER0_QCH,
+	QCH_CON_WDT_CLUSTER2_QCH,
+};
+
+/* Parent clock list for CMU_PERIS muxes */
+PNAME(mout_peris_bus_user_p)		= { "oscclk", "mout_cmu_peris_bus" };
+PNAME(mout_peris_clk_peris_gic_p)	= { "oscclk", "mout_peris_bus_user" };
+
+static const struct samsung_mux_clock peris_mux_clks[] __initconst = {
+	MUX(CLK_MOUT_PERIS_BUS_USER, "mout_peris_bus_user",
+	    mout_peris_bus_user_p, PLL_CON0_MUX_CLKCMU_PERIS_BUS_USER,
+	    4, 1),
+	MUX(CLK_MOUT_PERIS_CLK_PERIS_GIC, "mout_peris_clk_peris_gic",
+	    mout_peris_clk_peris_gic_p, CLK_CON_MUX_MUX_CLK_PERIS_GIC,
+	    4, 1),
+};
+
+static const struct samsung_gate_clock peris_gate_clks[] __initconst = {
+	GATE(CLK_GOUT_PERIS_SYSREG_PERIS_PCLK,
+	     "gout_peris_sysreg_peris_pclk", "mout_peris_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_SYSREG_PERIS_IPCLKPORT_PCLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_WDT_CLUSTER2_PCLK,
+	     "gout_peris_wdt_cluster2_pclk", "mout_peris_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_WDT_CLUSTER2_IPCLKPORT_PCLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_WDT_CLUSTER0_PCLK,
+	     "gout_peris_wdt_cluster0_pclk", "mout_peris_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_WDT_CLUSTER0_IPCLKPORT_PCLK,
+	     21, 0, 0),
+	GATE(CLK_CLK_PERIS_PERIS_CMU_PERIS_PCLK,
+	     "clk_peris_peris_cmu_peris_pclk", "mout_peris_bus_user",
+	     CLK_CON_GAT_CLK_BLK_PERIS_UID_PERIS_CMU_PERIS_IPCLKPORT_PCLK,
+	     21, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_GOUT_PERIS_CLK_PERIS_BUSP_CLK,
+	     "gout_peris_clk_peris_busp_clk", "mout_peris_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_RSTNSYNC_CLK_PERIS_BUSP_IPCLKPORT_CLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_CLK_PERIS_OSCCLK_CLK,
+	     "gout_peris_clk_peris_oscclk_clk", "mout_peris_bus_user",
+	     CLK_CON_GAT_CLK_BLK_PERIS_UID_RSTNSYNC_CLK_PERIS_OSCCLK_IPCLKPORT_CLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_CLK_PERIS_GIC_CLK,
+	     "gout_peris_clk_peris_gic_clk", "mout_peris_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_RSTNSYNC_CLK_PERIS_GIC_IPCLKPORT_CLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_AD_AXI_P_PERIS_ACLKM,
+	     "gout_peris_ad_axi_p_peris_aclkm", "mout_peris_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_AD_AXI_P_PERIS_IPCLKPORT_ACLKM,
+	     21, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_GOUT_PERIS_OTP_CON_BIRA_PCLK,
+	     "gout_peris_otp_con_bira_pclk", "mout_peris_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_OTP_CON_BIRA_IPCLKPORT_PCLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_GIC_CLK,
+	     "gout_peris_gic_clk", "mout_peris_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_GIC_IPCLKPORT_CLK,
+	     21, CLK_IS_CRITICAL, 0),
+	GATE(CLK_GOUT_PERIS_LHM_AXI_P_PERIS_CLK,
+	     "gout_peris_lhm_axi_p_peris_clk", "oscclk",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_LHM_AXI_P_PERIS_IPCLKPORT_I_CLK,
+	     21, CLK_IGNORE_UNUSED, 0),
+	GATE(CLK_GOUT_PERIS_MCT_PCLK,
+	     "gout_peris_mct_pclk", "mout_peris_clk_peris_gic",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_MCT_IPCLKPORT_PCLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_OTP_CON_TOP_PCLK,
+	     "gout_peris_otp_con_top_pclk", "mout_peris_clk_peris_gic",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_OTP_CON_TOP_IPCLKPORT_PCLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_D_TZPC_PERIS_PCLK,
+	     "gout_peris_d_tzpc_peris_pclk", "mout_peris_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_D_TZPC_PERIS_IPCLKPORT_PCLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_TMU_TOP_PCLK,
+	     "gout_peris_tmu_top_pclk", "mout_peris_clk_peris_gic",
+	     CLK_CON_GAT_GOUT_BLK_PERIS_UID_TMU_TOP_IPCLKPORT_PCLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_OTP_CON_BIRA_OSCCLK,
+	     "gout_peris_otp_con_bira_oscclk", "oscclk",
+	     CLK_CON_GAT_CLK_BLK_PERIS_UID_OTP_CON_BIRA_IPCLKPORT_I_OSCCLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_PERIS_OTP_CON_TOP_OSCCLK,
+	     "gout_peris_otp_con_top_oscclk", "oscclk",
+	     CLK_CON_GAT_CLK_BLK_PERIS_UID_OTP_CON_TOP_IPCLKPORT_I_OSCCLK,
+	     21, 0, 0),
+};
+
+static const struct samsung_cmu_info peris_cmu_info __initconst = {
+	.mux_clks = peris_mux_clks,
+	.nr_mux_clks = ARRAY_SIZE(peris_mux_clks),
+	.gate_clks = peris_gate_clks,
+	.nr_gate_clks = ARRAY_SIZE(peris_gate_clks),
+	.nr_clk_ids = CLKS_NR_PERIS,
+	.clk_regs = peris_clk_regs,
+	.nr_clk_regs = ARRAY_SIZE(peris_clk_regs),
+};
+
+static void __init exynos990_cmu_peris_init(struct device_node *np)
+{
+	exynos_arm64_register_cmu(NULL, np, &peris_cmu_info);
+}
+
+/* Register CMU_PERIS early, as it's a dependency for the MCT. */
+CLK_OF_DECLARE(exynos990_cmu_peris, "samsung,exynos990-cmu-peris",
+	       exynos990_cmu_peris_init);
 
 /* ----- platform_driver ----- */
 
