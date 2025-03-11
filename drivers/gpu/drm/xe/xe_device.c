@@ -514,7 +514,7 @@ static bool xe_driver_flr_disabled(struct xe_device *xe)
  */
 static void __xe_driver_flr(struct xe_device *xe)
 {
-	const unsigned int flr_timeout = 3 * MICRO; /* specs recommend a 3s wait */
+	const unsigned int flr_timeout = 3 * USEC_PER_SEC; /* specs recommend a 3s wait */
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	int ret;
 
