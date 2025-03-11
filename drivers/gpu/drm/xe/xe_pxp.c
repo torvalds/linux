@@ -132,14 +132,6 @@ static int pxp_wait_for_session_state(struct xe_pxp *pxp, u32 id, bool in_play)
 
 static void pxp_invalidate_queues(struct xe_pxp *pxp);
 
-static void pxp_invalidate_state(struct xe_pxp *pxp)
-{
-	pxp_invalidate_queues(pxp);
-
-	if (pxp->status == XE_PXP_ACTIVE)
-		pxp->key_instance++;
-}
-
 static int pxp_terminate_hw(struct xe_pxp *pxp)
 {
 	struct xe_gt *gt = pxp->gt;
@@ -193,7 +185,8 @@ static void pxp_terminate(struct xe_pxp *pxp)
 
 	mutex_lock(&pxp->mutex);
 
-	pxp_invalidate_state(pxp);
+	if (pxp->status == XE_PXP_ACTIVE)
+		pxp->key_instance++;
 
 	/*
 	 * we'll mark the status as needing termination on resume, so no need to
@@ -219,6 +212,8 @@ static void pxp_terminate(struct xe_pxp *pxp)
 	mark_termination_in_progress(pxp);
 
 	mutex_unlock(&pxp->mutex);
+
+	pxp_invalidate_queues(pxp);
 
 	ret = pxp_terminate_hw(pxp);
 	if (ret) {
@@ -665,6 +660,30 @@ out:
 	return ret;
 }
 
+static void __pxp_exec_queue_remove(struct xe_pxp *pxp, struct xe_exec_queue *q, bool lock)
+{
+	bool need_pm_put = false;
+
+	if (!xe_pxp_is_enabled(pxp))
+		return;
+
+	if (lock)
+		spin_lock_irq(&pxp->queues.lock);
+
+	if (!list_empty(&q->pxp.link)) {
+		list_del_init(&q->pxp.link);
+		need_pm_put = true;
+	}
+
+	q->pxp.type = DRM_XE_PXP_TYPE_NONE;
+
+	if (lock)
+		spin_unlock_irq(&pxp->queues.lock);
+
+	if (need_pm_put)
+		xe_pm_runtime_put(pxp->xe);
+}
+
 /**
  * xe_pxp_exec_queue_remove - remove a queue from the PXP list
  * @pxp: the xe->pxp pointer (it will be NULL if PXP is disabled)
@@ -676,50 +695,36 @@ out:
  */
 void xe_pxp_exec_queue_remove(struct xe_pxp *pxp, struct xe_exec_queue *q)
 {
-	bool need_pm_put = false;
-
-	if (!xe_pxp_is_enabled(pxp))
-		return;
-
-	spin_lock_irq(&pxp->queues.lock);
-
-	if (!list_empty(&q->pxp.link)) {
-		list_del_init(&q->pxp.link);
-		need_pm_put = true;
-	}
-
-	q->pxp.type = DRM_XE_PXP_TYPE_NONE;
-
-	spin_unlock_irq(&pxp->queues.lock);
-
-	if (need_pm_put)
-		xe_pm_runtime_put(pxp->xe);
+	__pxp_exec_queue_remove(pxp, q, true);
 }
 
 static void pxp_invalidate_queues(struct xe_pxp *pxp)
 {
 	struct xe_exec_queue *tmp, *q;
+	LIST_HEAD(to_clean);
 
 	spin_lock_irq(&pxp->queues.lock);
 
-	/*
-	 * Removing a queue from the PXP list requires a put of the RPM ref that
-	 * the queue holds to keep the PXP session alive, which can't be done
-	 * under spinlock. Since it is safe to kill a queue multiple times, we
-	 * can leave the invalid queue in the list for now and postpone the
-	 * removal and associated RPM put to when the queue is destroyed.
-	 */
-	list_for_each_entry(tmp, &pxp->queues.list, pxp.link) {
-		q = xe_exec_queue_get_unless_zero(tmp);
-
+	list_for_each_entry_safe(q, tmp, &pxp->queues.list, pxp.link) {
+		q = xe_exec_queue_get_unless_zero(q);
 		if (!q)
 			continue;
 
+		list_move_tail(&q->pxp.link, &to_clean);
+	}
+	spin_unlock_irq(&pxp->queues.lock);
+
+	list_for_each_entry_safe(q, tmp, &to_clean, pxp.link) {
 		xe_exec_queue_kill(q);
+
+		/*
+		 * We hold a ref to the queue so there is no risk of racing with
+		 * the calls to exec_queue_remove coming from exec_queue_destroy.
+		 */
+		__pxp_exec_queue_remove(pxp, q, false);
+
 		xe_exec_queue_put(q);
 	}
-
-	spin_unlock_irq(&pxp->queues.lock);
 }
 
 /**
@@ -816,6 +821,7 @@ int xe_pxp_obj_key_check(struct xe_pxp *pxp, struct drm_gem_object *obj)
  */
 int xe_pxp_pm_suspend(struct xe_pxp *pxp)
 {
+	bool needs_queue_inval = false;
 	int ret = 0;
 
 	if (!xe_pxp_is_enabled(pxp))
@@ -848,7 +854,8 @@ wait_for_activation:
 			break;
 		fallthrough;
 	case XE_PXP_ACTIVE:
-		pxp_invalidate_state(pxp);
+		pxp->key_instance++;
+		needs_queue_inval = true;
 		break;
 	default:
 		drm_err(&pxp->xe->drm, "unexpected state during PXP suspend: %u",
@@ -864,6 +871,9 @@ wait_for_activation:
 	pxp->status = XE_PXP_SUSPENDED;
 
 	mutex_unlock(&pxp->mutex);
+
+	if (needs_queue_inval)
+		pxp_invalidate_queues(pxp);
 
 	/*
 	 * if there is a termination in progress, wait for it.

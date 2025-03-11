@@ -54,7 +54,6 @@
 #include "xe_query.h"
 #include "xe_shrinker.h"
 #include "xe_sriov.h"
-#include "xe_survivability_mode.h"
 #include "xe_tile.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_sys_mgr.h"
@@ -65,12 +64,6 @@
 #include "xe_wa.h"
 
 #include <generated/xe_wa_oob.h>
-
-struct xe_device_remove_action {
-	struct list_head node;
-	void (*action)(void *);
-	void *data;
-};
 
 static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -395,6 +388,8 @@ static void xe_device_destroy(struct drm_device *dev, void *dummy)
 {
 	struct xe_device *xe = to_xe_device(dev);
 
+	xe_bo_dev_fini(&xe->bo_device);
+
 	if (xe->preempt_fence_wq)
 		destroy_workqueue(xe->preempt_fence_wq);
 
@@ -435,6 +430,7 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	if (WARN_ON(err))
 		goto err;
 
+	xe_bo_dev_init(&xe->bo_device);
 	err = drmm_add_action_or_reset(&xe->drm, xe_device_destroy, NULL);
 	if (err)
 		goto err;
@@ -675,7 +671,7 @@ static int wait_for_lmem_ready(struct xe_device *xe)
 }
 ALLOW_ERROR_INJECTION(wait_for_lmem_ready, ERRNO); /* See xe_pci_probe() */
 
-static void update_device_info(struct xe_device *xe)
+static void sriov_update_device_info(struct xe_device *xe)
 {
 	/* disable features that are not available/applicable to VFs */
 	if (IS_SRIOV_VF(xe)) {
@@ -706,15 +702,11 @@ int xe_device_probe_early(struct xe_device *xe)
 
 	xe_sriov_probe_early(xe);
 
-	update_device_info(xe);
+	sriov_update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
-	if (err) {
-		if (xe_survivability_mode_required(xe))
-			xe_survivability_mode_init(xe);
-
+	if (err)
 		return err;
-	}
 
 	err = wait_for_lmem_ready(xe);
 	if (err)
@@ -760,9 +752,6 @@ int xe_device_probe(struct xe_device *xe)
 	int err;
 	u8 id;
 
-	xe->probing = true;
-	INIT_LIST_HEAD(&xe->remove_action_list);
-
 	xe_pat_init_early(xe);
 
 	err = xe_sriov_init(xe);
@@ -770,6 +759,7 @@ int xe_device_probe(struct xe_device *xe)
 		return err;
 
 	xe->info.mem_region_mask = 1;
+
 	err = xe_set_dma_info(xe);
 	if (err)
 		return err;
@@ -778,7 +768,9 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		return err;
 
-	xe_ttm_sys_mgr_init(xe);
+	err = xe_ttm_sys_mgr_init(xe);
+	if (err)
+		return err;
 
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_init_early(gt);
@@ -873,7 +865,9 @@ int xe_device_probe(struct xe_device *xe)
 			return err;
 	}
 
-	xe_heci_gsc_init(xe);
+	err = xe_heci_gsc_init(xe);
+	if (err)
+		return err;
 
 	err = xe_oa_init(xe);
 	if (err)
@@ -885,11 +879,11 @@ int xe_device_probe(struct xe_device *xe)
 
 	err = xe_pxp_init(xe);
 	if (err)
-		goto err_remove_display;
+		return err;
 
 	err = drm_dev_register(&xe->drm, 0);
 	if (err)
-		goto err_remove_display;
+		return err;
 
 	xe_display_register(xe);
 
@@ -912,71 +906,12 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_vsec_init(xe);
 
-	xe->probing = false;
-
 	return devm_add_action_or_reset(xe->drm.dev, xe_device_sanitize, xe);
 
 err_unregister_display:
 	xe_display_unregister(xe);
-err_remove_display:
-	xe_display_driver_remove(xe);
 
 	return err;
-}
-
-/**
- * xe_device_call_remove_actions - Call the remove actions
- * @xe: xe device instance
- *
- * This is only to be used by xe_pci and xe_device to call the remove actions
- * while removing the driver or handling probe failures.
- */
-void xe_device_call_remove_actions(struct xe_device *xe)
-{
-	struct xe_device_remove_action *ra, *tmp;
-
-	list_for_each_entry_safe(ra, tmp, &xe->remove_action_list, node) {
-		ra->action(ra->data);
-		list_del(&ra->node);
-		kfree(ra);
-	}
-
-	xe->probing = false;
-}
-
-/**
- * xe_device_add_action_or_reset - Add an action to run on driver removal
- * @xe: xe device instance
- * @action: Function that should be called on device remove
- * @data: Pointer to data passed to @action implementation
- *
- * This adds a custom action to the list of remove callbacks executed on device
- * remove, before any dev or drm managed resources are removed.  This is only
- * needed if the action leads to component_del()/component_master_del() since
- * that is not compatible with devres cleanup.
- *
- * Returns: 0 on success or a negative error code on failure, in which case
- * @action is already called.
- */
-int xe_device_add_action_or_reset(struct xe_device *xe,
-				  void (*action)(void *), void *data)
-{
-	struct xe_device_remove_action *ra;
-
-	drm_WARN_ON(&xe->drm, !xe->probing);
-
-	ra = kmalloc(sizeof(*ra), GFP_KERNEL);
-	if (!ra) {
-		action(data);
-		return -ENOMEM;
-	}
-
-	INIT_LIST_HEAD(&ra->node);
-	ra->action = action;
-	ra->data = data;
-	list_add(&ra->node, &xe->remove_action_list);
-
-	return 0;
 }
 
 void xe_device_remove(struct xe_device *xe)
@@ -984,12 +919,6 @@ void xe_device_remove(struct xe_device *xe)
 	xe_display_unregister(xe);
 
 	drm_dev_unplug(&xe->drm);
-
-	xe_display_driver_remove(xe);
-
-	xe_heci_gsc_fini(xe);
-
-	xe_device_call_remove_actions(xe);
 }
 
 void xe_device_shutdown(struct xe_device *xe)

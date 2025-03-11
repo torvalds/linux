@@ -32,9 +32,6 @@ vram_d3cold_threshold_show(struct device *dev,
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	int ret;
 
-	if (!xe)
-		return -EINVAL;
-
 	xe_pm_runtime_get(xe);
 	ret = sysfs_emit(buf, "%d\n", xe->d3cold.vram_threshold);
 	xe_pm_runtime_put(xe);
@@ -50,9 +47,6 @@ vram_d3cold_threshold_store(struct device *dev, struct device_attribute *attr,
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	u32 vram_d3cold_threshold;
 	int ret;
-
-	if (!xe)
-		return -EINVAL;
 
 	ret = kstrtou32(buff, 0, &vram_d3cold_threshold);
 	if (ret)

@@ -278,6 +278,15 @@ config DRM_GPUVM
 	  GPU-VM representation providing helpers to manage a GPUs virtual
 	  address space
 
+config DRM_GPUSVM
+	tristate
+	depends on DRM && DEVICE_PRIVATE
+	select HMM_MIRROR
+	select MMU_NOTIFIER
+	help
+	  GPU-SVM representation providing helpers to manage a GPUs shared
+	  virtual memory
+
 config DRM_BUDDY
 	tristate
 	depends on DRM

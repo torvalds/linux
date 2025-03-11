@@ -10,9 +10,8 @@
 
 struct xe_device;
 
-void xe_survivability_mode_init(struct xe_device *xe);
-void xe_survivability_mode_remove(struct xe_device *xe);
-bool xe_survivability_mode_enabled(struct xe_device *xe);
+int xe_survivability_mode_enable(struct xe_device *xe);
+bool xe_survivability_mode_is_enabled(struct xe_device *xe);
 bool xe_survivability_mode_required(struct xe_device *xe);
 
 #endif /* _XE_SURVIVABILITY_MODE_H_ */
