@@ -146,7 +146,7 @@ static void virt_wifi_inform_bss(struct wiphy *wiphy)
 	static const struct {
 		u8 tag;
 		u8 len;
-		u8 ssid[8];
+		u8 ssid[8] __nonstring;
 	} __packed ssid = {
 		.tag = WLAN_EID_SSID,
 		.len = VIRT_WIFI_SSID_LEN,
