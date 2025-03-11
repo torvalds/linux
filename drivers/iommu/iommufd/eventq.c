@@ -262,13 +262,148 @@ static ssize_t iommufd_fault_fops_write(struct file *filep, const char __user *b
 	return done == 0 ? rc : done;
 }
 
+/* IOMMUFD_OBJ_VEVENTQ Functions */
+
+void iommufd_veventq_abort(struct iommufd_object *obj)
+{
+	struct iommufd_eventq *eventq =
+		container_of(obj, struct iommufd_eventq, obj);
+	struct iommufd_veventq *veventq = eventq_to_veventq(eventq);
+	struct iommufd_viommu *viommu = veventq->viommu;
+	struct iommufd_vevent *cur, *next;
+
+	lockdep_assert_held_write(&viommu->veventqs_rwsem);
+
+	list_for_each_entry_safe(cur, next, &eventq->deliver, node) {
+		list_del(&cur->node);
+		if (cur != &veventq->lost_events_header)
+			kfree(cur);
+	}
+
+	refcount_dec(&viommu->obj.users);
+	list_del(&veventq->node);
+}
+
+void iommufd_veventq_destroy(struct iommufd_object *obj)
+{
+	struct iommufd_veventq *veventq = eventq_to_veventq(
+		container_of(obj, struct iommufd_eventq, obj));
+
+	down_write(&veventq->viommu->veventqs_rwsem);
+	iommufd_veventq_abort(obj);
+	up_write(&veventq->viommu->veventqs_rwsem);
+}
+
+static struct iommufd_vevent *
+iommufd_veventq_deliver_fetch(struct iommufd_veventq *veventq)
+{
+	struct iommufd_eventq *eventq = &veventq->common;
+	struct list_head *list = &eventq->deliver;
+	struct iommufd_vevent *vevent = NULL;
+
+	spin_lock(&eventq->lock);
+	if (!list_empty(list)) {
+		struct iommufd_vevent *next;
+
+		next = list_first_entry(list, struct iommufd_vevent, node);
+		/* Make a copy of the lost_events_header for copy_to_user */
+		if (next == &veventq->lost_events_header) {
+			vevent = kzalloc(sizeof(*vevent), GFP_ATOMIC);
+			if (!vevent)
+				goto out_unlock;
+		}
+		list_del(&next->node);
+		if (vevent)
+			memcpy(vevent, next, sizeof(*vevent));
+		else
+			vevent = next;
+	}
+out_unlock:
+	spin_unlock(&eventq->lock);
+	return vevent;
+}
+
+static void iommufd_veventq_deliver_restore(struct iommufd_veventq *veventq,
+					    struct iommufd_vevent *vevent)
+{
+	struct iommufd_eventq *eventq = &veventq->common;
+	struct list_head *list = &eventq->deliver;
+
+	spin_lock(&eventq->lock);
+	if (vevent_for_lost_events_header(vevent)) {
+		/* Remove the copy of the lost_events_header */
+		kfree(vevent);
+		vevent = NULL;
+		/* An empty list needs the lost_events_header back */
+		if (list_empty(list))
+			vevent = &veventq->lost_events_header;
+	}
+	if (vevent)
+		list_add(&vevent->node, list);
+	spin_unlock(&eventq->lock);
+}
+
+static ssize_t iommufd_veventq_fops_read(struct file *filep, char __user *buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iommufd_eventq *eventq = filep->private_data;
+	struct iommufd_veventq *veventq = eventq_to_veventq(eventq);
+	struct iommufd_vevent_header *hdr;
+	struct iommufd_vevent *cur;
+	size_t done = 0;
+	int rc = 0;
+
+	if (*ppos)
+		return -ESPIPE;
+
+	while ((cur = iommufd_veventq_deliver_fetch(veventq))) {
+		/* Validate the remaining bytes against the header size */
+		if (done >= count || sizeof(*hdr) > count - done) {
+			iommufd_veventq_deliver_restore(veventq, cur);
+			break;
+		}
+		hdr = &cur->header;
+
+		/* If being a normal vEVENT, validate against the full size */
+		if (!vevent_for_lost_events_header(cur) &&
+		    sizeof(hdr) + cur->data_len > count - done) {
+			iommufd_veventq_deliver_restore(veventq, cur);
+			break;
+		}
+
+		if (copy_to_user(buf + done, hdr, sizeof(*hdr))) {
+			iommufd_veventq_deliver_restore(veventq, cur);
+			rc = -EFAULT;
+			break;
+		}
+		done += sizeof(*hdr);
+
+		if (cur->data_len &&
+		    copy_to_user(buf + done, cur->event_data, cur->data_len)) {
+			iommufd_veventq_deliver_restore(veventq, cur);
+			rc = -EFAULT;
+			break;
+		}
+		spin_lock(&eventq->lock);
+		veventq->num_events--;
+		spin_unlock(&eventq->lock);
+		done += cur->data_len;
+		kfree(cur);
+	}
+
+	return done == 0 ? rc : done;
+}
+
 /* Common Event Queue Functions */
 
 static __poll_t iommufd_eventq_fops_poll(struct file *filep,
 					 struct poll_table_struct *wait)
 {
 	struct iommufd_eventq *eventq = filep->private_data;
-	__poll_t pollflags = EPOLLOUT;
+	__poll_t pollflags = 0;
+
+	if (eventq->obj.type == IOMMUFD_OBJ_FAULT)
+		pollflags |= EPOLLOUT;
 
 	poll_wait(filep, &eventq->wait_queue, wait);
 	spin_lock(&eventq->lock);
@@ -387,4 +522,76 @@ int iommufd_fault_iopf_handler(struct iopf_group *group)
 	wake_up_interruptible(&fault->common.wait_queue);
 
 	return 0;
+}
+
+static const struct file_operations iommufd_veventq_fops =
+	INIT_EVENTQ_FOPS(iommufd_veventq_fops_read, NULL);
+
+int iommufd_veventq_alloc(struct iommufd_ucmd *ucmd)
+{
+	struct iommu_veventq_alloc *cmd = ucmd->cmd;
+	struct iommufd_veventq *veventq;
+	struct iommufd_viommu *viommu;
+	int fdno;
+	int rc;
+
+	if (cmd->flags || cmd->__reserved ||
+	    cmd->type == IOMMU_VEVENTQ_TYPE_DEFAULT)
+		return -EOPNOTSUPP;
+	if (!cmd->veventq_depth)
+		return -EINVAL;
+
+	viommu = iommufd_get_viommu(ucmd, cmd->viommu_id);
+	if (IS_ERR(viommu))
+		return PTR_ERR(viommu);
+
+	down_write(&viommu->veventqs_rwsem);
+
+	if (iommufd_viommu_find_veventq(viommu, cmd->type)) {
+		rc = -EEXIST;
+		goto out_unlock_veventqs;
+	}
+
+	veventq = __iommufd_object_alloc(ucmd->ictx, veventq,
+					 IOMMUFD_OBJ_VEVENTQ, common.obj);
+	if (IS_ERR(veventq)) {
+		rc = PTR_ERR(veventq);
+		goto out_unlock_veventqs;
+	}
+
+	veventq->type = cmd->type;
+	veventq->viommu = viommu;
+	refcount_inc(&viommu->obj.users);
+	veventq->depth = cmd->veventq_depth;
+	list_add_tail(&veventq->node, &viommu->veventqs);
+	veventq->lost_events_header.header.flags =
+		IOMMU_VEVENTQ_FLAG_LOST_EVENTS;
+
+	fdno = iommufd_eventq_init(&veventq->common, "[iommufd-viommu-event]",
+				   ucmd->ictx, &iommufd_veventq_fops);
+	if (fdno < 0) {
+		rc = fdno;
+		goto out_abort;
+	}
+
+	cmd->out_veventq_id = veventq->common.obj.id;
+	cmd->out_veventq_fd = fdno;
+
+	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+	if (rc)
+		goto out_put_fdno;
+
+	iommufd_object_finalize(ucmd->ictx, &veventq->common.obj);
+	fd_install(fdno, veventq->common.filep);
+	goto out_unlock_veventqs;
+
+out_put_fdno:
+	put_unused_fd(fdno);
+	fput(veventq->common.filep);
+out_abort:
+	iommufd_object_abort_and_destroy(ucmd->ictx, &veventq->common.obj);
+out_unlock_veventqs:
+	up_write(&viommu->veventqs_rwsem);
+	iommufd_put_object(ucmd->ictx, &viommu->obj);
+	return rc;
 }
