@@ -13,6 +13,7 @@
 #include "xe_hw_engine.h"
 #include "xe_pm.h"
 #include "xe_pmu.h"
+#include "xe_sriov_pf_helpers.h"
 
 /**
  * DOC: Xe PMU (Performance Monitoring Unit)
@@ -32,9 +33,10 @@
  *	gt[60:63]		Selects gt for the event
  *	engine_class[20:27]	Selects engine-class for event
  *	engine_instance[12:19]	Selects the engine-instance for the event
+ *	function[44:59]		Selects the function of the event (SRIOV enabled)
  *
  * For engine specific events (engine-*), gt, engine_class and engine_instance parameters must be
- * set as populated by DRM_XE_DEVICE_QUERY_ENGINES.
+ * set as populated by DRM_XE_DEVICE_QUERY_ENGINES and function if SRIOV is enabled.
  *
  * For gt specific events (gt-*) gt parameter must be passed. All other parameters will be 0.
  *
@@ -49,6 +51,7 @@
  */
 
 #define XE_PMU_EVENT_GT_MASK			GENMASK_ULL(63, 60)
+#define XE_PMU_EVENT_FUNCTION_MASK		GENMASK_ULL(59, 44)
 #define XE_PMU_EVENT_ENGINE_CLASS_MASK		GENMASK_ULL(27, 20)
 #define XE_PMU_EVENT_ENGINE_INSTANCE_MASK	GENMASK_ULL(19, 12)
 #define XE_PMU_EVENT_ID_MASK			GENMASK_ULL(11, 0)
@@ -56,6 +59,11 @@
 static unsigned int config_to_event_id(u64 config)
 {
 	return FIELD_GET(XE_PMU_EVENT_ID_MASK, config);
+}
+
+static unsigned int config_to_function_id(u64 config)
+{
+	return FIELD_GET(XE_PMU_EVENT_FUNCTION_MASK, config);
 }
 
 static unsigned int config_to_engine_class(u64 config)
@@ -151,7 +159,7 @@ static bool event_supported(struct xe_pmu *pmu, unsigned int gt,
 static bool event_param_valid(struct perf_event *event)
 {
 	struct xe_device *xe = container_of(event->pmu, typeof(*xe), pmu.base);
-	unsigned int engine_class, engine_instance;
+	unsigned int engine_class, engine_instance, function_id;
 	u64 config = event->attr.config;
 	struct xe_gt *gt;
 
@@ -161,16 +169,26 @@ static bool event_param_valid(struct perf_event *event)
 
 	engine_class = config_to_engine_class(config);
 	engine_instance = config_to_engine_instance(config);
+	function_id = config_to_function_id(config);
 
 	switch (config_to_event_id(config)) {
 	case XE_PMU_EVENT_GT_C6_RESIDENCY:
-		if (engine_class || engine_instance)
+		if (engine_class || engine_instance || function_id)
 			return false;
 		break;
 	case XE_PMU_EVENT_ENGINE_ACTIVE_TICKS:
 	case XE_PMU_EVENT_ENGINE_TOTAL_TICKS:
 		if (!event_to_hwe(event))
 			return false;
+
+		/* PF(0) and total vfs when SRIOV is enabled */
+		if (IS_SRIOV_PF(xe)) {
+			if (function_id > xe_sriov_pf_get_totalvfs(xe))
+				return false;
+		} else if (function_id) {
+			return false;
+		}
+
 		break;
 	}
 
@@ -242,14 +260,17 @@ static int xe_pmu_event_init(struct perf_event *event)
 static u64 read_engine_events(struct xe_gt *gt, struct perf_event *event)
 {
 	struct xe_hw_engine *hwe;
-	u64 val = 0;
+	unsigned int function_id;
+	u64 config, val = 0;
+
+	config = event->attr.config;
+	function_id = config_to_function_id(config);
 
 	hwe = event_to_hwe(event);
-
-	if (config_to_event_id(event->attr.config) == XE_PMU_EVENT_ENGINE_ACTIVE_TICKS)
-		val = xe_guc_engine_activity_active_ticks(&gt->uc.guc, hwe, 0);
+	if (config_to_event_id(config) == XE_PMU_EVENT_ENGINE_ACTIVE_TICKS)
+		val = xe_guc_engine_activity_active_ticks(&gt->uc.guc, hwe, function_id);
 	else
-		val = xe_guc_engine_activity_total_ticks(&gt->uc.guc, hwe, 0);
+		val = xe_guc_engine_activity_total_ticks(&gt->uc.guc, hwe, function_id);
 
 	return val;
 }
@@ -352,6 +373,7 @@ static void xe_pmu_event_del(struct perf_event *event, int flags)
 }
 
 PMU_FORMAT_ATTR(gt,			"config:60-63");
+PMU_FORMAT_ATTR(function,		"config:44-59");
 PMU_FORMAT_ATTR(engine_class,		"config:20-27");
 PMU_FORMAT_ATTR(engine_instance,	"config:12-19");
 PMU_FORMAT_ATTR(event,			"config:0-11");
@@ -360,6 +382,7 @@ static struct attribute *pmu_format_attrs[] = {
 	&format_attr_event.attr,
 	&format_attr_engine_class.attr,
 	&format_attr_engine_instance.attr,
+	&format_attr_function.attr,
 	&format_attr_gt.attr,
 	NULL,
 };
