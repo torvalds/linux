@@ -165,10 +165,10 @@ static inline pgste_t pgste_update_all(pte_t pte, pgste_t pgste,
 	skey = (unsigned long) page_get_storage_key(address);
 	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
 	/* Transfer page changed & referenced bit to guest bits in pgste */
-	pgste_val(pgste) |= bits << 48;		/* GR bit & GC bit */
+	pgste = set_pgste_bit(pgste, bits << 48); /* GR bit & GC bit */
 	/* Copy page access key and fetch protection bit to pgste */
-	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT);
-	pgste_val(pgste) |= (skey & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
+	pgste = clear_pgste_bit(pgste, PGSTE_ACC_BITS | PGSTE_FP_BIT);
+	pgste = set_pgste_bit(pgste, (skey & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56);
 #endif
 	return pgste;
 
@@ -212,7 +212,7 @@ static inline pgste_t pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
 		}
 		if (!(pte_val(entry) & _PAGE_PROTECT))
 			/* This pte allows write access, set user-dirty */
-			pgste_val(pgste) |= PGSTE_UC_BIT;
+			pgste = set_pgste_bit(pgste, PGSTE_UC_BIT);
 	}
 #endif
 	set_pte(ptep, entry);
@@ -228,7 +228,7 @@ static inline pgste_t pgste_pte_notify(struct mm_struct *mm,
 
 	bits = pgste_val(pgste) & (PGSTE_IN_BIT | PGSTE_VSIE_BIT);
 	if (bits) {
-		pgste_val(pgste) ^= bits;
+		pgste = __pgste(pgste_val(pgste) ^ bits);
 		ptep_notify(mm, addr, ptep, bits);
 	}
 #endif
@@ -601,7 +601,7 @@ void ptep_set_pte_at(struct mm_struct *mm, unsigned long addr,
 	/* the mm_has_pgste() check is done in set_pte_at() */
 	preempt_disable();
 	pgste = pgste_get_lock(ptep);
-	pgste_val(pgste) &= ~_PGSTE_GPS_ZERO;
+	pgste = clear_pgste_bit(pgste, _PGSTE_GPS_ZERO);
 	pgste_set_key(ptep, pgste, entry, mm);
 	pgste = pgste_set_pte(ptep, pgste, entry);
 	pgste_set_unlock(ptep, pgste);
@@ -614,7 +614,7 @@ void ptep_set_notify(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 
 	preempt_disable();
 	pgste = pgste_get_lock(ptep);
-	pgste_val(pgste) |= PGSTE_IN_BIT;
+	pgste = set_pgste_bit(pgste, PGSTE_IN_BIT);
 	pgste_set_unlock(ptep, pgste);
 	preempt_enable();
 }
@@ -659,7 +659,7 @@ int ptep_force_prot(struct mm_struct *mm, unsigned long addr,
 		entry = clear_pte_bit(entry, __pgprot(_PAGE_INVALID));
 		entry = set_pte_bit(entry, __pgprot(_PAGE_PROTECT));
 	}
-	pgste_val(pgste) |= bit;
+	pgste = set_pgste_bit(pgste, bit);
 	pgste = pgste_set_pte(ptep, pgste, entry);
 	pgste_set_unlock(ptep, pgste);
 	return 0;
@@ -679,7 +679,7 @@ int ptep_shadow_pte(struct mm_struct *mm, unsigned long saddr,
 	if (!(pte_val(spte) & _PAGE_INVALID) &&
 	    !((pte_val(spte) & _PAGE_PROTECT) &&
 	      !(pte_val(pte) & _PAGE_PROTECT))) {
-		pgste_val(spgste) |= PGSTE_VSIE_BIT;
+		spgste = set_pgste_bit(spgste, PGSTE_VSIE_BIT);
 		tpgste = pgste_get_lock(tptep);
 		tpte = __pte((pte_val(spte) & PAGE_MASK) |
 			     (pte_val(pte) & _PAGE_PROTECT));
@@ -737,7 +737,7 @@ void ptep_zap_unused(struct mm_struct *mm, unsigned long addr,
 		pte_clear(mm, addr, ptep);
 	}
 	if (reset)
-		pgste_val(pgste) &= ~(_PGSTE_GPS_USAGE_MASK | _PGSTE_GPS_NODAT);
+		pgste = clear_pgste_bit(pgste, _PGSTE_GPS_USAGE_MASK | _PGSTE_GPS_NODAT);
 	pgste_set_unlock(ptep, pgste);
 	preempt_enable();
 }
@@ -750,8 +750,8 @@ void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 	/* Clear storage key ACC and F, but set R/C */
 	preempt_disable();
 	pgste = pgste_get_lock(ptep);
-	pgste_val(pgste) &= ~(PGSTE_ACC_BITS | PGSTE_FP_BIT);
-	pgste_val(pgste) |= PGSTE_GR_BIT | PGSTE_GC_BIT;
+	pgste = clear_pgste_bit(pgste, PGSTE_ACC_BITS | PGSTE_FP_BIT);
+	pgste = set_pgste_bit(pgste, PGSTE_GR_BIT | PGSTE_GC_BIT);
 	ptev = pte_val(*ptep);
 	if (!(ptev & _PAGE_INVALID) && (ptev & _PAGE_WRITE))
 		page_set_storage_key(ptev & PAGE_MASK, PAGE_DEFAULT_KEY, 0);
@@ -772,7 +772,7 @@ bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long addr,
 
 	pgste = pgste_get_lock(ptep);
 	dirty = !!(pgste_val(pgste) & PGSTE_UC_BIT);
-	pgste_val(pgste) &= ~PGSTE_UC_BIT;
+	pgste = clear_pgste_bit(pgste, PGSTE_UC_BIT);
 	pte = *ptep;
 	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
 		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
@@ -834,11 +834,11 @@ again:
 	if (!ptep)
 		goto again;
 	new = old = pgste_get_lock(ptep);
-	pgste_val(new) &= ~(PGSTE_GR_BIT | PGSTE_GC_BIT |
-			    PGSTE_ACC_BITS | PGSTE_FP_BIT);
+	new = clear_pgste_bit(new, PGSTE_GR_BIT | PGSTE_GC_BIT |
+				   PGSTE_ACC_BITS | PGSTE_FP_BIT);
 	keyul = (unsigned long) key;
-	pgste_val(new) |= (keyul & (_PAGE_CHANGED | _PAGE_REFERENCED)) << 48;
-	pgste_val(new) |= (keyul & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
+	new = set_pgste_bit(new, (keyul & (_PAGE_CHANGED | _PAGE_REFERENCED)) << 48);
+	new = set_pgste_bit(new, (keyul & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56);
 	if (!(pte_val(*ptep) & _PAGE_INVALID)) {
 		unsigned long bits, skey;
 
@@ -849,12 +849,12 @@ again:
 		/* Set storage key ACC and FP */
 		page_set_storage_key(paddr, skey, !nq);
 		/* Merge host changed & referenced into pgste  */
-		pgste_val(new) |= bits << 52;
+		new = set_pgste_bit(new, bits << 52);
 	}
 	/* changing the guest storage key is considered a change of the page */
 	if ((pgste_val(new) ^ pgste_val(old)) &
 	    (PGSTE_ACC_BITS | PGSTE_FP_BIT | PGSTE_GR_BIT | PGSTE_GC_BIT))
-		pgste_val(new) |= PGSTE_UC_BIT;
+		new = set_pgste_bit(new, PGSTE_UC_BIT);
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(ptep, ptl);
@@ -942,19 +942,19 @@ again:
 		goto again;
 	new = old = pgste_get_lock(ptep);
 	/* Reset guest reference bit only */
-	pgste_val(new) &= ~PGSTE_GR_BIT;
+	new = clear_pgste_bit(new, PGSTE_GR_BIT);
 
 	if (!(pte_val(*ptep) & _PAGE_INVALID)) {
 		paddr = pte_val(*ptep) & PAGE_MASK;
 		cc = page_reset_referenced(paddr);
 		/* Merge real referenced bit into host-set */
-		pgste_val(new) |= ((unsigned long) cc << 53) & PGSTE_HR_BIT;
+		new = set_pgste_bit(new, ((unsigned long)cc << 53) & PGSTE_HR_BIT);
 	}
 	/* Reflect guest's logical view, not physical */
 	cc |= (pgste_val(old) & (PGSTE_GR_BIT | PGSTE_GC_BIT)) >> 49;
 	/* Changing the guest storage key is considered a change of the page */
 	if ((pgste_val(new) ^ pgste_val(old)) & PGSTE_GR_BIT)
-		pgste_val(new) |= PGSTE_UC_BIT;
+		new = set_pgste_bit(new, PGSTE_UC_BIT);
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(ptep, ptl);
@@ -1118,7 +1118,7 @@ int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 	if (res)
 		pgstev |= _PGSTE_GPS_ZERO;
 
-	pgste_val(pgste) = pgstev;
+	pgste = __pgste(pgstev);
 	pgste_set_unlock(ptep, pgste);
 	pte_unmap_unlock(ptep, ptl);
 	return res;
@@ -1151,8 +1151,8 @@ int set_pgste_bits(struct mm_struct *mm, unsigned long hva,
 		return -EFAULT;
 	new = pgste_get_lock(ptep);
 
-	pgste_val(new) &= ~bits;
-	pgste_val(new) |= value & bits;
+	new = clear_pgste_bit(new, bits);
+	new = set_pgste_bit(new, value & bits);
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(ptep, ptl);

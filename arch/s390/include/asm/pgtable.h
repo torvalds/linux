@@ -593,6 +593,16 @@ static inline int mm_alloc_pgste(struct mm_struct *mm)
 	return 0;
 }
 
+static inline pgste_t clear_pgste_bit(pgste_t pgste, unsigned long mask)
+{
+	return __pgste(pgste_val(pgste) & ~mask);
+}
+
+static inline pgste_t set_pgste_bit(pgste_t pgste, unsigned long mask)
+{
+	return __pgste(pgste_val(pgste) | mask);
+}
+
 static inline pte_t clear_pte_bit(pte_t pte, pgprot_t prot)
 {
 	return __pte(pte_val(pte) & ~pgprot_val(prot));
