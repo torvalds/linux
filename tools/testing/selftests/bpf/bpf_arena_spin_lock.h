@@ -22,7 +22,28 @@
 
 extern unsigned long CONFIG_NR_CPUS __kconfig;
 
-#define arena_spinlock_t struct qspinlock
+/*
+ * Typically, we'd just rely on the definition in vmlinux.h for qspinlock, but
+ * PowerPC overrides the definition to define lock->val as u32 instead of
+ * atomic_t, leading to compilation errors.  Import a local definition below so
+ * that we don't depend on the vmlinux.h version.
+ */
+
+struct __qspinlock {
+	union {
+		atomic_t val;
+		struct {
+			u8 locked;
+			u8 pending;
+		};
+		struct {
+			u16 locked_pending;
+			u16 tail;
+		};
+	};
+};
+
+#define arena_spinlock_t struct __qspinlock
 /* FIXME: Using typedef causes CO-RE relocation error */
 /* typedef struct qspinlock arena_spinlock_t; */
 

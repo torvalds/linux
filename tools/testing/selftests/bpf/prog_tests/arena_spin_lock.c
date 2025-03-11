@@ -4,8 +4,8 @@
 #include <network_helpers.h>
 #include <sys/sysinfo.h>
 
-struct qspinlock { int val; };
-typedef struct qspinlock arena_spinlock_t;
+struct __qspinlock { int val; };
+typedef struct __qspinlock arena_spinlock_t;
 
 struct arena_qnode {
 	unsigned long next;
