@@ -2315,12 +2315,18 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(vcn_busy_percent)) {
 		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
-			  gc_ver == IP_VERSION(10, 3, 3) ||
-			  gc_ver == IP_VERSION(10, 3, 6) ||
-			  gc_ver == IP_VERSION(10, 3, 7) ||
-			  gc_ver == IP_VERSION(11, 0, 1) ||
-			  gc_ver == IP_VERSION(11, 0, 4) ||
-			  gc_ver == IP_VERSION(11, 5, 0)))
+		      gc_ver == IP_VERSION(10, 3, 3) ||
+		      gc_ver == IP_VERSION(10, 3, 6) ||
+		      gc_ver == IP_VERSION(10, 3, 7) ||
+		      gc_ver == IP_VERSION(11, 0, 0) ||
+		      gc_ver == IP_VERSION(11, 0, 1) ||
+		      gc_ver == IP_VERSION(11, 0, 2) ||
+		      gc_ver == IP_VERSION(11, 0, 3) ||
+		      gc_ver == IP_VERSION(11, 0, 4) ||
+		      gc_ver == IP_VERSION(11, 5, 0) ||
+		      gc_ver == IP_VERSION(11, 5, 1) ||
+		      gc_ver == IP_VERSION(11, 5, 2) ||
+		      gc_ver == IP_VERSION(11, 5, 3)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pcie_bw)) {
 		/* PCIe Perf counters won't work on APU nodes */
