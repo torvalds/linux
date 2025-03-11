@@ -449,12 +449,6 @@ config CHARGER_88PM860X
 	help
 	  Say Y here to enable charger for Marvell 88PM860x chip.
 
-config CHARGER_PCF50633
-	tristate "NXP PCF50633 MBC"
-	depends on MFD_PCF50633
-	help
-	  Say Y to include support for NXP PCF50633 Main Battery Charger.
-
 config BATTERY_RX51
 	tristate "Nokia RX-51 (N900) battery driver"
 	depends on TWL4030_MADC
