@@ -496,7 +496,15 @@ ALLOW_ERROR_INJECTION(xe_device_create, ERRNO); /* See xe_pci_probe() */
 
 static bool xe_driver_flr_disabled(struct xe_device *xe)
 {
-	return xe_mmio_read32(xe_root_tile_mmio(xe), GU_CNTL_PROTECTED) & DRIVERINT_FLR_DIS;
+	if (IS_SRIOV_VF(xe))
+		return true;
+
+	if (xe_mmio_read32(xe_root_tile_mmio(xe), GU_CNTL_PROTECTED) & DRIVERINT_FLR_DIS) {
+		drm_info(&xe->drm, "Driver-FLR disabled by BIOS\n");
+		return true;
+	}
+
+	return false;
 }
 
 /*
@@ -560,10 +568,8 @@ static void __xe_driver_flr(struct xe_device *xe)
 
 static void xe_driver_flr(struct xe_device *xe)
 {
-	if (xe_driver_flr_disabled(xe)) {
-		drm_info_once(&xe->drm, "BIOS Disabled Driver-FLR\n");
+	if (xe_driver_flr_disabled(xe))
 		return;
-	}
 
 	__xe_driver_flr(xe);
 }
