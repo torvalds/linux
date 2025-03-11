@@ -198,7 +198,7 @@ uffd_setup_environment(uffd_test_args_t *args, uffd_test_case_t *test,
 
 	nr_pages = UFFD_TEST_MEM_SIZE / page_size;
 	/* TODO: remove this global var.. it's so ugly */
-	nr_cpus = 1;
+	nr_parallel = 1;
 
 	/* Initialize test arguments */
 	args->mem_type = mem_type;
