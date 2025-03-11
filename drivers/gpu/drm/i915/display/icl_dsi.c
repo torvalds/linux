@@ -1840,14 +1840,13 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 	struct intel_connector *connector = intel_dsi->attached_connector;
 	struct mipi_config *mipi_config = connector->panel.vbt.dsi.config;
 	u32 tlpx_ns;
-	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
-	u32 ths_prepare_ns, tclk_trail_ns;
+	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt;
+	u32 ths_prepare_ns;
 	u32 hs_zero_cnt;
 	u32 tclk_pre_cnt;
 
 	tlpx_ns = intel_dsi_tlpx_ns(intel_dsi);
 
-	tclk_trail_ns = max(mipi_config->tclk_trail, mipi_config->ths_trail);
 	ths_prepare_ns = max(mipi_config->ths_prepare,
 			     mipi_config->tclk_prepare);
 
@@ -1872,14 +1871,6 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 		drm_dbg_kms(display->drm,
 			    "clk_zero_cnt out of range (%d)\n", clk_zero_cnt);
 		clk_zero_cnt = ICL_CLK_ZERO_CNT_MAX;
-	}
-
-	/* trail cnt in escape clocks*/
-	trail_cnt = DIV_ROUND_UP(tclk_trail_ns, tlpx_ns);
-	if (trail_cnt > ICL_TRAIL_CNT_MAX) {
-		drm_dbg_kms(display->drm, "trail_cnt out of range (%d)\n",
-			    trail_cnt);
-		trail_cnt = ICL_TRAIL_CNT_MAX;
 	}
 
 	/* tclk pre count in escape clocks */
@@ -1914,17 +1905,13 @@ static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 			       CLK_ZERO_OVERRIDE |
 			       CLK_ZERO(clk_zero_cnt) |
 			       CLK_PRE_OVERRIDE |
-			       CLK_PRE(tclk_pre_cnt) |
-			       CLK_TRAIL_OVERRIDE |
-			       CLK_TRAIL(trail_cnt));
+			       CLK_PRE(tclk_pre_cnt));
 
 	/* data lanes dphy timings */
 	intel_dsi->dphy_data_lane_reg = (HS_PREPARE_OVERRIDE |
 					 HS_PREPARE(prepare_cnt) |
 					 HS_ZERO_OVERRIDE |
 					 HS_ZERO(hs_zero_cnt) |
-					 HS_TRAIL_OVERRIDE |
-					 HS_TRAIL(trail_cnt) |
 					 HS_EXIT_OVERRIDE |
 					 HS_EXIT(exit_zero_cnt));
 
