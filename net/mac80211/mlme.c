@@ -10233,8 +10233,8 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 		size += 2 + sizeof(struct ieee80211_mle_per_sta_profile) +
 			ETH_ALEN;
 
-		/* SSID element + WMM */
-		size += 2 + sdata->vif.cfg.ssid_len + 9;
+		/* WMM */
+		size += 9;
 		size += ieee80211_link_common_elems_size(sdata, iftype, cbss,
 							 elems_len);
 	}
@@ -10345,11 +10345,6 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 			u8 qos_info;
 
 			capab_pos = skb_put(skb, 2);
-
-			skb_put_u8(skb, WLAN_EID_SSID);
-			skb_put_u8(skb, sdata->vif.cfg.ssid_len);
-			skb_put_data(skb, sdata->vif.cfg.ssid,
-				     sdata->vif.cfg.ssid_len);
 
 			extra_used =
 				ieee80211_add_link_elems(sdata, skb, &capab, NULL,
