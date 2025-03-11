@@ -145,8 +145,8 @@ void intel_connector_destroy(struct drm_connector *connector)
 
 	drm_connector_cleanup(connector);
 
-	if (intel_connector->port)
-		drm_dp_mst_put_port_malloc(intel_connector->port);
+	if (intel_connector->mst.port)
+		drm_dp_mst_put_port_malloc(intel_connector->mst.port);
 
 	kfree(connector);
 }

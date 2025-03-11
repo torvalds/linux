@@ -1376,7 +1376,7 @@ bool intel_dp_has_dsc(const struct intel_connector *connector)
 	if (!HAS_DSC(display))
 		return false;
 
-	if (connector->mst_port && !HAS_DSC_MST(display))
+	if (connector->mst.dp && !HAS_DSC_MST(display))
 		return false;
 
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_eDP &&
@@ -2912,7 +2912,7 @@ static bool can_enable_drrs(struct intel_connector *connector,
 			    const struct intel_crtc_state *pipe_config,
 			    const struct drm_display_mode *downclock_mode)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 
 	if (pipe_config->vrr.enable)
 		return false;
@@ -2930,7 +2930,7 @@ static bool can_enable_drrs(struct intel_connector *connector,
 	if (pipe_config->has_pch_encoder)
 		return false;
 
-	if (!intel_cpu_transcoder_has_drrs(i915, pipe_config->cpu_transcoder))
+	if (!intel_cpu_transcoder_has_drrs(display, pipe_config->cpu_transcoder))
 		return false;
 
 	return downclock_mode &&
@@ -2943,7 +2943,6 @@ intel_dp_drrs_compute_config(struct intel_connector *connector,
 			     int link_bpp_x16)
 {
 	struct intel_display *display = to_intel_display(connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *downclock_mode =
 		intel_panel_downclock_mode(connector, &pipe_config->hw.adjusted_mode);
 	int pixel_clock;
@@ -2956,7 +2955,7 @@ intel_dp_drrs_compute_config(struct intel_connector *connector,
 		pipe_config->update_m_n = true;
 
 	if (!can_enable_drrs(connector, pipe_config, downclock_mode)) {
-		if (intel_cpu_transcoder_has_m2_n2(i915, pipe_config->cpu_transcoder))
+		if (intel_cpu_transcoder_has_m2_n2(display, pipe_config->cpu_transcoder))
 			intel_zero_m_n(&pipe_config->dp_m2_n2);
 		return;
 	}
@@ -3081,7 +3080,7 @@ intel_dp_queue_modeset_retry_for_link(struct intel_atomic_state *state,
 		if (!conn_state->base.crtc)
 			continue;
 
-		if (connector->mst_port == intel_dp)
+		if (connector->mst.dp == intel_dp)
 			intel_connector_queue_modeset_retry_work(connector);
 	}
 }
@@ -3131,7 +3130,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	if ((intel_dp_is_edp(intel_dp) && fixed_mode) ||
 	    pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420) {
-		ret = intel_panel_fitting(pipe_config, conn_state);
+		ret = intel_pfit_compute_config(pipe_config, conn_state);
 		if (ret)
 			return ret;
 	}
@@ -3303,8 +3302,8 @@ intel_dp_sink_set_dsc_passthrough(const struct intel_connector *connector,
 				  bool enable)
 {
 	struct intel_display *display = to_intel_display(connector);
-	struct drm_dp_aux *aux = connector->port ?
-				 connector->port->passthrough_aux : NULL;
+	struct drm_dp_aux *aux = connector->mst.port ?
+				 connector->mst.port->passthrough_aux : NULL;
 
 	if (!aux)
 		return;
@@ -3331,7 +3330,7 @@ static int intel_dp_dsc_aux_ref_count(struct intel_atomic_state *state,
 	 * On SST the decompression AUX device won't be shared, each connector
 	 * uses for this its own AUX targeting the sink device.
 	 */
-	if (!connector->mst_port)
+	if (!connector->mst.dp)
 		return connector->dp.dsc_decompression_enabled ? 1 : 0;
 
 	for_each_oldnew_connector_in_state(&state->base, _connector_iter,
@@ -3339,7 +3338,7 @@ static int intel_dp_dsc_aux_ref_count(struct intel_atomic_state *state,
 		const struct intel_connector *
 			connector_iter = to_intel_connector(_connector_iter);
 
-		if (connector_iter->mst_port != connector->mst_port)
+		if (connector_iter->mst.dp != connector->mst.dp)
 			continue;
 
 		if (!connector_iter->dp.dsc_decompression_enabled)
@@ -4397,7 +4396,7 @@ intel_dp_mst_configure(struct intel_dp *intel_dp)
 	if (intel_dp->is_mst)
 		intel_dp_mst_prepare_probe(intel_dp);
 
-	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
+	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst.mgr, intel_dp->is_mst);
 
 	/* Avoid stale info on the next detect cycle. */
 	intel_dp->mst_detect = DRM_DP_SST;
@@ -4413,9 +4412,9 @@ intel_dp_mst_disconnect(struct intel_dp *intel_dp)
 
 	drm_dbg_kms(display->drm,
 		    "MST device may have disappeared %d vs %d\n",
-		    intel_dp->is_mst, intel_dp->mst_mgr.mst_state);
+		    intel_dp->is_mst, intel_dp->mst.mgr.mst_state);
 	intel_dp->is_mst = false;
-	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr, intel_dp->is_mst);
+	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst.mgr, intel_dp->is_mst);
 }
 
 static bool
@@ -4921,7 +4920,7 @@ intel_dp_mst_hpd_irq(struct intel_dp *intel_dp, u8 *esi, u8 *ack)
 {
 	bool handled = false;
 
-	drm_dp_mst_hpd_irq_handle_event(&intel_dp->mst_mgr, esi, ack, &handled);
+	drm_dp_mst_hpd_irq_handle_event(&intel_dp->mst.mgr, esi, ack, &handled);
 
 	if (esi[1] & DP_CP_IRQ) {
 		intel_hdcp_handle_cp_irq(intel_dp->attached_connector);
@@ -4970,7 +4969,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 	bool link_ok = true;
 	bool reprobe_needed = false;
 
-	drm_WARN_ON_ONCE(display->drm, intel_dp->active_mst_links < 0);
+	drm_WARN_ON_ONCE(display->drm, intel_dp->mst.active_links < 0);
 
 	for (;;) {
 		u8 esi[4] = {};
@@ -4986,7 +4985,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		drm_dbg_kms(display->drm, "DPRX ESI: %4ph\n", esi);
 
-		if (intel_dp->active_mst_links > 0 && link_ok &&
+		if (intel_dp->mst.active_links > 0 && link_ok &&
 		    esi[3] & LINK_STATUS_CHANGED) {
 			if (!intel_dp_mst_link_status(intel_dp))
 				link_ok = false;
@@ -5009,7 +5008,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 			drm_dbg_kms(display->drm, "Failed to ack ESI\n");
 
 		if (ack[1] & (DP_DOWN_REP_MSG_RDY | DP_UP_REQ_MSG_RDY))
-			drm_dp_mst_hpd_irq_send_new_request(&intel_dp->mst_mgr);
+			drm_dp_mst_hpd_irq_send_new_request(&intel_dp->mst.mgr);
 	}
 
 	if (!link_ok || intel_dp->link.force_retrain)
@@ -5108,7 +5107,7 @@ bool intel_dp_has_connector(struct intel_dp *intel_dp,
 
 	/* MST */
 	for_each_pipe(display, pipe) {
-		encoder = &intel_dp->mst_encoders[pipe]->base;
+		encoder = &intel_dp->mst.stream_encoders[pipe]->base;
 		if (conn_state->best_encoder == &encoder->base)
 			return true;
 	}
@@ -5194,7 +5193,6 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 				 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u8 pipe_mask;
 	int ret;
@@ -5225,7 +5223,7 @@ static int intel_dp_retrain_link(struct intel_encoder *encoder,
 		    encoder->base.base.id, encoder->base.name,
 		    str_yes_no(intel_dp->link.force_retrain));
 
-	ret = intel_modeset_commit_pipes(dev_priv, pipe_mask, ctx);
+	ret = intel_modeset_commit_pipes(display, pipe_mask, ctx);
 	if (ret == -EDEADLK)
 		return ret;
 
@@ -6067,7 +6065,7 @@ static int intel_dp_connector_atomic_check(struct drm_connector *conn,
 		return ret;
 
 	if (intel_dp_mst_source_support(intel_dp)) {
-		ret = drm_dp_mst_root_conn_atomic_check(conn_state, &intel_dp->mst_mgr);
+		ret = drm_dp_mst_root_conn_atomic_check(conn_state, &intel_dp->mst.mgr);
 		if (ret)
 			return ret;
 	}
@@ -6605,7 +6603,7 @@ void intel_dp_mst_suspend(struct intel_display *display)
 			continue;
 
 		if (intel_dp->is_mst)
-			drm_dp_mst_topology_mgr_suspend(&intel_dp->mst_mgr);
+			drm_dp_mst_topology_mgr_suspend(&intel_dp->mst.mgr);
 	}
 }
 
@@ -6628,12 +6626,10 @@ void intel_dp_mst_resume(struct intel_display *display)
 		if (!intel_dp_mst_source_support(intel_dp))
 			continue;
 
-		ret = drm_dp_mst_topology_mgr_resume(&intel_dp->mst_mgr,
-						     true);
+		ret = drm_dp_mst_topology_mgr_resume(&intel_dp->mst.mgr, true);
 		if (ret) {
 			intel_dp->is_mst = false;
-			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
-							false);
+			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst.mgr, false);
 		}
 	}
 }

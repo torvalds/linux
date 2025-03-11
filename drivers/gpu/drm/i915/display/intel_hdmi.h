@@ -14,7 +14,6 @@ enum port;
 struct drm_connector;
 struct drm_connector_state;
 struct drm_encoder;
-struct drm_i915_private;
 struct intel_connector;
 struct intel_crtc_state;
 struct intel_digital_port;

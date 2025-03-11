@@ -70,6 +70,7 @@
 #include "intel_lspcon.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_modeset_lock.h"
+#include "intel_pfit.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_quirks.h"
@@ -187,11 +188,8 @@ static i915_reg_t intel_ddi_buf_status_reg(struct intel_display *display, enum p
 		return DDI_BUF_CTL(port);
 }
 
-void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
-			     enum port port)
+void intel_wait_ddi_buf_idle(struct intel_display *display, enum port port)
 {
-	struct intel_display *display = &dev_priv->display;
-
 	/*
 	 * Bspec's platform specific timeouts:
 	 * MTL+   : 100 us
@@ -890,7 +888,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 			    encoder->base.base.id, encoder->base.name);
 
 	if (!mst_pipe_mask && dp128b132b_pipe_mask) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 		/*
 		 * If we don't have 8b/10b MST, but have more than one
@@ -902,7 +900,8 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 		 * we don't expect MST to have been enabled at that point, and
 		 * can assume it's SST.
 		 */
-		if (hweight8(dp128b132b_pipe_mask) > 1 || intel_dp->is_mst)
+		if (hweight8(dp128b132b_pipe_mask) > 1 ||
+		    intel_dp_mst_encoder_active_links(dig_port))
 			mst_pipe_mask = dp128b132b_pipe_mask;
 	}
 
@@ -1194,7 +1193,8 @@ static void icl_ddi_combo_vswing_program(struct intel_encoder *encoder,
 	/* Set PORT_TX_DW5 */
 	val = intel_de_read(dev_priv, ICL_PORT_TX_DW5_LN(0, phy));
 	val &= ~(SCALING_MODE_SEL_MASK | RTERM_SELECT_MASK |
-		  TAP2_DISABLE | TAP3_DISABLE);
+		 COEFF_POLARITY | CURSOR_PROGRAM |
+		 TAP2_DISABLE | TAP3_DISABLE);
 	val |= SCALING_MODE_SEL(0x2);
 	val |= RTERM_SELECT(0x6);
 	val |= TAP3_DISABLE;
@@ -3095,7 +3095,7 @@ static void intel_ddi_buf_disable(struct intel_encoder *encoder,
 	intel_de_rmw(dev_priv, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
 
 	if (DISPLAY_VER(display) >= 14)
-		intel_wait_ddi_buf_idle(dev_priv, port);
+		intel_wait_ddi_buf_idle(display, port);
 
 	mtl_ddi_disable_d2d(encoder);
 
@@ -3107,7 +3107,7 @@ static void intel_ddi_buf_disable(struct intel_encoder *encoder,
 	intel_ddi_disable_fec(encoder, crtc_state);
 
 	if (DISPLAY_VER(display) < 14)
-		intel_wait_ddi_buf_idle(dev_priv, port);
+		intel_wait_ddi_buf_idle(display, port);
 
 	intel_ddi_wait_for_fec_status(encoder, crtc_state, false);
 }
@@ -4131,13 +4131,13 @@ static void intel_ddi_read_func_ctl(struct intel_encoder *encoder,
 	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_DP_MST) {
 		intel_ddi_read_func_ctl_dp_mst(encoder, pipe_config, ddi_func_ctl);
 	} else if (ddi_mode == TRANS_DDI_MODE_SELECT_FDI_OR_128B132B && HAS_DP20(display)) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+		struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 		/*
 		 * If this is true, we know we're being called from mst stream
 		 * encoder's ->get_config().
 		 */
-		if (intel_dp->is_mst)
+		if (intel_dp_mst_encoder_active_links(dig_port))
 			intel_ddi_read_func_ctl_dp_mst(encoder, pipe_config, ddi_func_ctl);
 		else
 			intel_ddi_read_func_ctl_dp_sst(encoder, pipe_config, ddi_func_ctl);
@@ -4583,7 +4583,7 @@ static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 	intel_display_power_flush_work(display);
 
 	drm_encoder_cleanup(encoder);
-	kfree(dig_port->hdcp_port_data.streams);
+	kfree(dig_port->hdcp.port_data.streams);
 	kfree(dig_port);
 }
 
@@ -4661,6 +4661,7 @@ static int intel_ddi_init_dp_connector(struct intel_digital_port *dig_port)
 static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 				 struct drm_modeset_acquire_ctx *ctx)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_hdmi *hdmi = enc_to_intel_hdmi(encoder);
 	struct intel_connector *connector = hdmi->attached_connector;
@@ -4727,7 +4728,7 @@ static int intel_hdmi_reset_link(struct intel_encoder *encoder,
 	 * would be perfectly happy if were to just reconfigure
 	 * the SCDC settings on the fly.
 	 */
-	return intel_modeset_commit_pipes(dev_priv, BIT(crtc->pipe), ctx);
+	return intel_modeset_commit_pipes(display, BIT(crtc->pipe), ctx);
 }
 
 static void intel_ddi_link_check(struct intel_encoder *encoder)
@@ -5101,7 +5102,7 @@ void intel_ddi_init(struct intel_display *display,
 		return;
 	}
 
-	phy = intel_port_to_phy(dev_priv, port);
+	phy = intel_port_to_phy(display, port);
 
 	/*
 	 * On platforms with HTI (aka HDPORT), if it's enabled at boot it may
@@ -5138,7 +5139,7 @@ void intel_ddi_init(struct intel_display *display,
 		return;
 	}
 
-	if (intel_phy_is_snps(dev_priv, phy) &&
+	if (intel_phy_is_snps(display, phy) &&
 	    dev_priv->display.snps.phy_failed_calibration & BIT(phy)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "SNPS PHY %c failed to calibrate, proceeding anyway\n",
@@ -5161,7 +5162,7 @@ void intel_ddi_init(struct intel_display *display,
 				 port_name(port - PORT_D_XELPD + PORT_D),
 				 phy_name(phy));
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
-		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+		enum tc_port tc_port = intel_port_to_tc(display, port);
 
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,
@@ -5171,7 +5172,7 @@ void intel_ddi_init(struct intel_display *display,
 				 tc_port != TC_PORT_NONE ? "TC" : "",
 				 tc_port != TC_PORT_NONE ? tc_port_name(tc_port) : phy_name(phy));
 	} else if (DISPLAY_VER(dev_priv) >= 11) {
-		enum tc_port tc_port = intel_port_to_tc(dev_priv, port);
+		enum tc_port tc_port = intel_port_to_tc(display, port);
 
 		drm_encoder_init(&dev_priv->drm, &encoder->base, &intel_ddi_funcs,
 				 DRM_MODE_ENCODER_TMDS,
@@ -5188,8 +5189,8 @@ void intel_ddi_init(struct intel_display *display,
 
 	intel_encoder_link_check_init(encoder, intel_ddi_link_check);
 
-	mutex_init(&dig_port->hdcp_mutex);
-	dig_port->num_hdcp_streams = 0;
+	mutex_init(&dig_port->hdcp.mutex);
+	dig_port->hdcp.num_streams = 0;
 
 	encoder->hotplug = intel_ddi_hotplug;
 	encoder->compute_output_type = intel_ddi_compute_output_type;

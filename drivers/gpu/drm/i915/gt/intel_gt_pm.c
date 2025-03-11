@@ -158,7 +158,7 @@ void intel_gt_pm_init(struct intel_gt *gt)
 
 static bool reset_engines(struct intel_gt *gt)
 {
-	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
+	if (intel_gt_gpu_reset_clobbers_display(gt))
 		return false;
 
 	return intel_gt_reset_all_engines(gt) == 0;

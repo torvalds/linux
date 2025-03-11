@@ -42,6 +42,7 @@
 #include "intel_frontbuffer.h"
 #include "intel_overlay.h"
 #include "intel_pci_config.h"
+#include "intel_pfit_regs.h"
 
 /* Limits for overlay size. According to intel doc, the real limits are:
  * Y width: 4095, UV width (planar): 2047, Y height: 2047,
@@ -799,7 +800,6 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 				      struct drm_intel_overlay_put_image *params)
 {
 	struct intel_display *display = overlay->display;
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct overlay_registers __iomem *regs = overlay->regs;
 	u32 swidth, swidthsw, sheight, ostride;
 	enum pipe pipe = overlay->crtc->pipe;
@@ -814,7 +814,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret != 0)
 		return ret;
 
-	atomic_inc(&dev_priv->gpu_error.pending_fb_pin);
+	atomic_inc(&display->restore.pending_fb_pin);
 
 	vma = intel_overlay_pin_fb(new_bo);
 	if (IS_ERR(vma)) {
@@ -902,7 +902,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 out_unpin:
 	i915_vma_unpin(vma);
 out_pin_section:
-	atomic_dec(&dev_priv->gpu_error.pending_fb_pin);
+	atomic_dec(&display->restore.pending_fb_pin);
 
 	return ret;
 }

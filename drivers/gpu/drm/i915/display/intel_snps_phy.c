@@ -5,8 +5,8 @@
 
 #include <linux/math.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"
 #include "intel_de.h"
@@ -27,12 +27,12 @@
  * since it is not handled by the shared DPLL framework as on other platforms.
  */
 
-void intel_snps_phy_wait_for_calibration(struct drm_i915_private *i915)
+void intel_snps_phy_wait_for_calibration(struct intel_display *display)
 {
 	enum phy phy;
 
 	for_each_phy_masked(phy, ~0) {
-		if (!intel_phy_is_snps(i915, phy))
+		if (!intel_phy_is_snps(display, phy))
 			continue;
 
 		/*
@@ -40,16 +40,16 @@ void intel_snps_phy_wait_for_calibration(struct drm_i915_private *i915)
 		 * which phy was affected and skip setup of the corresponding
 		 * output later.
 		 */
-		if (intel_de_wait_for_clear(i915, DG2_PHY_MISC(phy),
+		if (intel_de_wait_for_clear(display, DG2_PHY_MISC(phy),
 					    DG2_PHY_DP_TX_ACK_MASK, 25))
-			i915->display.snps.phy_failed_calibration |= BIT(phy);
+			display->snps.phy_failed_calibration |= BIT(phy);
 	}
 }
 
 void intel_snps_phy_update_psr_power_state(struct intel_encoder *encoder,
 					   bool enable)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	u32 val;
 
@@ -58,20 +58,20 @@ void intel_snps_phy_update_psr_power_state(struct intel_encoder *encoder,
 
 	val = REG_FIELD_PREP(SNPS_PHY_TX_REQ_LN_DIS_PWR_STATE_PSR,
 			     enable ? 2 : 3);
-	intel_de_rmw(i915, SNPS_PHY_TX_REQ(phy),
+	intel_de_rmw(display, SNPS_PHY_TX_REQ(phy),
 		     SNPS_PHY_TX_REQ_LN_DIS_PWR_STATE_PSR, val);
 }
 
 void intel_snps_phy_set_signal_levels(struct intel_encoder *encoder,
 				      const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_encoder_to_phy(encoder);
 	int n_entries, ln;
 
 	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
-	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
+	if (drm_WARN_ON_ONCE(display->drm, !trans))
 		return;
 
 	for (ln = 0; ln < 4; ln++) {
@@ -82,7 +82,7 @@ void intel_snps_phy_set_signal_levels(struct intel_encoder *encoder,
 		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_PRE, trans->entries[level].snps.pre_cursor);
 		val |= REG_FIELD_PREP(SNPS_PHY_TX_EQ_POST, trans->entries[level].snps.post_cursor);
 
-		intel_de_write(dev_priv, SNPS_PHY_TX_EQ(ln, phy), val);
+		intel_de_write(display, SNPS_PHY_TX_EQ(ln, phy), val);
 	}
 }
 
@@ -1817,7 +1817,7 @@ int intel_mpllb_calc_state(struct intel_crtc_state *crtc_state,
 void intel_mpllb_enable(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	const struct intel_mpllb_state *pll_state = &crtc_state->dpll_hw_state.mpllb;
 	enum phy phy = intel_encoder_to_phy(encoder);
 	i915_reg_t enable_reg = (phy <= PHY_D ?
@@ -1827,13 +1827,13 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	 * 3. Software programs the following PLL registers for the desired
 	 * frequency.
 	 */
-	intel_de_write(dev_priv, SNPS_PHY_MPLLB_CP(phy), pll_state->mpllb_cp);
-	intel_de_write(dev_priv, SNPS_PHY_MPLLB_DIV(phy), pll_state->mpllb_div);
-	intel_de_write(dev_priv, SNPS_PHY_MPLLB_DIV2(phy), pll_state->mpllb_div2);
-	intel_de_write(dev_priv, SNPS_PHY_MPLLB_SSCEN(phy), pll_state->mpllb_sscen);
-	intel_de_write(dev_priv, SNPS_PHY_MPLLB_SSCSTEP(phy), pll_state->mpllb_sscstep);
-	intel_de_write(dev_priv, SNPS_PHY_MPLLB_FRACN1(phy), pll_state->mpllb_fracn1);
-	intel_de_write(dev_priv, SNPS_PHY_MPLLB_FRACN2(phy), pll_state->mpllb_fracn2);
+	intel_de_write(display, SNPS_PHY_MPLLB_CP(phy), pll_state->mpllb_cp);
+	intel_de_write(display, SNPS_PHY_MPLLB_DIV(phy), pll_state->mpllb_div);
+	intel_de_write(display, SNPS_PHY_MPLLB_DIV2(phy), pll_state->mpllb_div2);
+	intel_de_write(display, SNPS_PHY_MPLLB_SSCEN(phy), pll_state->mpllb_sscen);
+	intel_de_write(display, SNPS_PHY_MPLLB_SSCSTEP(phy), pll_state->mpllb_sscstep);
+	intel_de_write(display, SNPS_PHY_MPLLB_FRACN1(phy), pll_state->mpllb_fracn1);
+	intel_de_write(display, SNPS_PHY_MPLLB_FRACN2(phy), pll_state->mpllb_fracn2);
 
 	/*
 	 * 4. If the frequency will result in a change to the voltage
@@ -1844,7 +1844,7 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	 */
 
 	/* 5. Software sets DPLL_ENABLE [PLL Enable] to "1". */
-	intel_de_rmw(dev_priv, enable_reg, 0, PLL_ENABLE);
+	intel_de_rmw(display, enable_reg, 0, PLL_ENABLE);
 
 	/*
 	 * 9. Software sets SNPS_PHY_MPLLB_DIV dp_mpllb_force_en to "1". This
@@ -1853,7 +1853,7 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	 * PLL because that will start the PLL before it has sampled the
 	 * divider values.
 	 */
-	intel_de_write(dev_priv, SNPS_PHY_MPLLB_DIV(phy),
+	intel_de_write(display, SNPS_PHY_MPLLB_DIV(phy),
 		       pll_state->mpllb_div | SNPS_PHY_MPLLB_FORCE_EN);
 
 	/*
@@ -1861,8 +1861,8 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 	 * is locked at new settings. This register bit is sampling PHY
 	 * dp_mpllb_state interface signal.
 	 */
-	if (intel_de_wait_for_set(dev_priv, enable_reg, PLL_LOCK, 5))
-		drm_dbg_kms(&dev_priv->drm, "Port %c PLL not locked\n", phy_name(phy));
+	if (intel_de_wait_for_set(display, enable_reg, PLL_LOCK, 5))
+		drm_dbg_kms(display->drm, "Port %c PLL not locked\n", phy_name(phy));
 
 	/*
 	 * 11. If the frequency will result in a change to the voltage
@@ -1875,7 +1875,7 @@ void intel_mpllb_enable(struct intel_encoder *encoder,
 
 void intel_mpllb_disable(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	i915_reg_t enable_reg = (phy <= PHY_D ?
 				 DG2_PLL_ENABLE(phy) : MG_PLL_ENABLE(0));
@@ -1889,20 +1889,20 @@ void intel_mpllb_disable(struct intel_encoder *encoder)
 	 */
 
 	/* 2. Software programs DPLL_ENABLE [PLL Enable] to "0" */
-	intel_de_rmw(i915, enable_reg, PLL_ENABLE, 0);
+	intel_de_rmw(display, enable_reg, PLL_ENABLE, 0);
 
 	/*
 	 * 4. Software programs SNPS_PHY_MPLLB_DIV dp_mpllb_force_en to "0".
 	 * This will allow the PLL to stop running.
 	 */
-	intel_de_rmw(i915, SNPS_PHY_MPLLB_DIV(phy), SNPS_PHY_MPLLB_FORCE_EN, 0);
+	intel_de_rmw(display, SNPS_PHY_MPLLB_DIV(phy), SNPS_PHY_MPLLB_FORCE_EN, 0);
 
 	/*
 	 * 5. Software polls DPLL_ENABLE [PLL Lock] for PHY acknowledgment
 	 * (dp_txX_ack) that the new transmitter setting request is completed.
 	 */
-	if (intel_de_wait_for_clear(i915, enable_reg, PLL_LOCK, 5))
-		drm_err(&i915->drm, "Port %c PLL not locked\n", phy_name(phy));
+	if (intel_de_wait_for_clear(display, enable_reg, PLL_LOCK, 5))
+		drm_err(display->drm, "Port %c PLL not locked\n", phy_name(phy));
 
 	/*
 	 * 6. If the frequency will result in a change to the voltage
@@ -1947,16 +1947,16 @@ int intel_mpllb_calc_port_clock(struct intel_encoder *encoder,
 void intel_mpllb_readout_hw_state(struct intel_encoder *encoder,
 				  struct intel_mpllb_state *pll_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 
-	pll_state->mpllb_cp = intel_de_read(dev_priv, SNPS_PHY_MPLLB_CP(phy));
-	pll_state->mpllb_div = intel_de_read(dev_priv, SNPS_PHY_MPLLB_DIV(phy));
-	pll_state->mpllb_div2 = intel_de_read(dev_priv, SNPS_PHY_MPLLB_DIV2(phy));
-	pll_state->mpllb_sscen = intel_de_read(dev_priv, SNPS_PHY_MPLLB_SSCEN(phy));
-	pll_state->mpllb_sscstep = intel_de_read(dev_priv, SNPS_PHY_MPLLB_SSCSTEP(phy));
-	pll_state->mpllb_fracn1 = intel_de_read(dev_priv, SNPS_PHY_MPLLB_FRACN1(phy));
-	pll_state->mpllb_fracn2 = intel_de_read(dev_priv, SNPS_PHY_MPLLB_FRACN2(phy));
+	pll_state->mpllb_cp = intel_de_read(display, SNPS_PHY_MPLLB_CP(phy));
+	pll_state->mpllb_div = intel_de_read(display, SNPS_PHY_MPLLB_DIV(phy));
+	pll_state->mpllb_div2 = intel_de_read(display, SNPS_PHY_MPLLB_DIV2(phy));
+	pll_state->mpllb_sscen = intel_de_read(display, SNPS_PHY_MPLLB_SSCEN(phy));
+	pll_state->mpllb_sscstep = intel_de_read(display, SNPS_PHY_MPLLB_SSCSTEP(phy));
+	pll_state->mpllb_fracn1 = intel_de_read(display, SNPS_PHY_MPLLB_FRACN1(phy));
+	pll_state->mpllb_fracn2 = intel_de_read(display, SNPS_PHY_MPLLB_FRACN2(phy));
 
 	/*
 	 * REF_CONTROL is under firmware control and never programmed by the
@@ -1964,7 +1964,7 @@ void intel_mpllb_readout_hw_state(struct intel_encoder *encoder,
 	 * only tells us the expected value for one field in this register,
 	 * so we'll only read out those specific bits here.
 	 */
-	pll_state->ref_control = intel_de_read(dev_priv, SNPS_PHY_REF_CONTROL(phy)) &
+	pll_state->ref_control = intel_de_read(display, SNPS_PHY_REF_CONTROL(phy)) &
 		SNPS_PHY_REF_CONTROL_REF_RANGE;
 
 	/*
@@ -1980,14 +1980,13 @@ void intel_mpllb_state_verify(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_mpllb_state mpllb_hw_state = {};
 	const struct intel_mpllb_state *mpllb_sw_state = &new_crtc_state->dpll_hw_state.mpllb;
 	struct intel_encoder *encoder;
 
-	if (!IS_DG2(i915))
+	if (!display->platform.dg2)
 		return;
 
 	if (!new_crtc_state->hw.active)
