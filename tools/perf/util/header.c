@@ -2770,6 +2770,8 @@ static int process_pmu_mappings(struct feat_fd *ff, void *data __maybe_unused)
 		free(name);
 		pmu_num--;
 	}
+	/* AMD may set it by evlist__has_amd_ibs() from perf_session__new() */
+	free(ff->ph->env.pmu_mappings);
 	ff->ph->env.pmu_mappings = strbuf_detach(&sb, NULL);
 	return 0;
 
