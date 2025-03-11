@@ -1609,11 +1609,6 @@ static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
 	kvfree(new_buf);
 }
 
-static inline struct journal_buf *journal_last_unwritten_buf(struct journal *j)
-{
-	return j->buf + (journal_last_unwritten_seq(j) & JOURNAL_BUF_MASK);
-}
-
 static CLOSURE_CALLBACK(journal_write_done)
 {
 	closure_type(w, struct journal_buf, io);

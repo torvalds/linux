@@ -712,7 +712,6 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 	struct btree_iter iter = {}, bp_iter = {};
 	struct bkey_buf sk;
 	struct bkey_s_c k;
-	unsigned sectors_moved = 0;
 	struct bkey_buf last_flushed;
 	int ret = 0;
 
@@ -834,7 +833,6 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 
 		if (ctxt->stats)
 			atomic64_add(sectors, &ctxt->stats->sectors_seen);
-		sectors_moved += sectors;
 next:
 		bch2_btree_iter_advance(&bp_iter);
 	}

@@ -562,20 +562,6 @@ static inline struct bkey_s_c btree_path_level_peek_all(struct bch_fs *c,
 			bch2_btree_node_iter_peek_all(&l->iter, l->b));
 }
 
-static inline struct bkey_s_c btree_path_level_peek(struct btree_trans *trans,
-						    struct btree_path *path,
-						    struct btree_path_level *l,
-						    struct bkey *u)
-{
-	struct bkey_s_c k = __btree_iter_unpack(trans->c, l, u,
-			bch2_btree_node_iter_peek(&l->iter, l->b));
-
-	path->pos = k.k ? k.k->p : l->b->key.k.p;
-	trans->paths_sorted = false;
-	bch2_btree_path_verify_level(trans, path, l - path->l);
-	return k;
-}
-
 static inline struct bkey_s_c btree_path_level_prev(struct btree_trans *trans,
 						    struct btree_path *path,
 						    struct btree_path_level *l,

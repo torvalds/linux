@@ -868,19 +868,6 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 			     uid, gid, mode, rdev, parent);
 }
 
-static inline u32 bkey_generation(struct bkey_s_c k)
-{
-	switch (k.k->type) {
-	case KEY_TYPE_inode:
-	case KEY_TYPE_inode_v2:
-		BUG();
-	case KEY_TYPE_inode_generation:
-		return le32_to_cpu(bkey_s_c_to_inode_generation(k).v->bi_generation);
-	default:
-		return 0;
-	}
-}
-
 static struct bkey_i_inode_alloc_cursor *
 bch2_inode_alloc_cursor_get(struct btree_trans *trans, u64 cpu, u64 *min, u64 *max)
 {
