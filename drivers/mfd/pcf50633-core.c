@@ -204,8 +204,6 @@ static int pcf50633_probe(struct i2c_client *client)
 	dev_info(pcf->dev, "Probed device version %d variant %d\n",
 							version, variant);
 
-	pcf50633_irq_init(pcf, client->irq);
-
 	/* Create sub devices */
 	pcf50633_client_dev_register(pcf, "pcf50633-input", &pcf->input_pdev);
 	pcf50633_client_dev_register(pcf, "pcf50633-rtc", &pcf->rtc_pdev);
@@ -258,7 +256,6 @@ static void pcf50633_remove(struct i2c_client *client)
 	int i;
 
 	sysfs_remove_group(&client->dev.kobj, &pcf_attr_group);
-	pcf50633_irq_free(pcf);
 
 	platform_device_unregister(pcf->input_pdev);
 	platform_device_unregister(pcf->rtc_pdev);
@@ -279,7 +276,7 @@ MODULE_DEVICE_TABLE(i2c, pcf50633_id_table);
 static struct i2c_driver pcf50633_driver = {
 	.driver = {
 		.name	= "pcf50633",
-		.pm	= pm_sleep_ptr(&pcf50633_pm),
+		/* going.... .pm	= pm_sleep_ptr(&pcf50633_pm), */
 	},
 	.id_table = pcf50633_id_table,
 	.probe = pcf50633_probe,
