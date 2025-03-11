@@ -2064,6 +2064,16 @@ static struct rftype *rdtgroup_get_rftype_by_name(const char *name)
 	return NULL;
 }
 
+static void thread_throttle_mode_init(void)
+{
+	struct rdt_resource *r_mba;
+
+	r_mba = resctrl_arch_get_resource(RDT_RESOURCE_MBA);
+	if (r_mba->membw.throttle_mode != THREAD_THROTTLE_UNDEFINED)
+		resctrl_file_fflags_init("thread_throttle_mode",
+					 RFTYPE_CTRL_INFO | RFTYPE_RES_MB);
+}
+
 void resctrl_file_fflags_init(const char *config, unsigned long fflags)
 {
 	struct rftype *rft;
@@ -4276,6 +4286,8 @@ int __init resctrl_init(void)
 		     sizeof(last_cmd_status_buf));
 
 	rdtgroup_setup_default();
+
+	thread_throttle_mode_init();
 
 	ret = resctrl_mon_resource_init();
 	if (ret)
