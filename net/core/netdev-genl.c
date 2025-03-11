@@ -829,8 +829,8 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *tb[ARRAY_SIZE(netdev_queue_id_nl_policy)];
 	struct net_devmem_dmabuf_binding *binding;
-	struct list_head *sock_binding_list;
 	u32 ifindex, dmabuf_fd, rxq_idx;
+	struct netdev_nl_sock *priv;
 	struct net_device *netdev;
 	struct sk_buff *rsp;
 	struct nlattr *attr;
@@ -845,10 +845,9 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 	ifindex = nla_get_u32(info->attrs[NETDEV_A_DEV_IFINDEX]);
 	dmabuf_fd = nla_get_u32(info->attrs[NETDEV_A_DMABUF_FD]);
 
-	sock_binding_list = genl_sk_priv_get(&netdev_nl_family,
-					     NETLINK_CB(skb).sk);
-	if (IS_ERR(sock_binding_list))
-		return PTR_ERR(sock_binding_list);
+	priv = genl_sk_priv_get(&netdev_nl_family, NETLINK_CB(skb).sk);
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
 
 	rsp = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!rsp)
@@ -909,7 +908,7 @@ int netdev_nl_bind_rx_doit(struct sk_buff *skb, struct genl_info *info)
 			goto err_unbind;
 	}
 
-	list_add(&binding->list, sock_binding_list);
+	list_add(&binding->list, &priv->bindings);
 
 	nla_put_u32(rsp, NETDEV_A_DMABUF_ID, binding->id);
 	genlmsg_end(rsp, hdr);
@@ -931,17 +930,17 @@ err_genlmsg_free:
 	return err;
 }
 
-void netdev_nl_sock_priv_init(struct list_head *priv)
+void netdev_nl_sock_priv_init(struct netdev_nl_sock *priv)
 {
-	INIT_LIST_HEAD(priv);
+	INIT_LIST_HEAD(&priv->bindings);
 }
 
-void netdev_nl_sock_priv_destroy(struct list_head *priv)
+void netdev_nl_sock_priv_destroy(struct netdev_nl_sock *priv)
 {
 	struct net_devmem_dmabuf_binding *binding;
 	struct net_devmem_dmabuf_binding *temp;
 
-	list_for_each_entry_safe(binding, temp, priv, list) {
+	list_for_each_entry_safe(binding, temp, &priv->bindings, list) {
 		rtnl_lock();
 		net_devmem_unbind_dmabuf(binding);
 		rtnl_unlock();
