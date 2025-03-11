@@ -464,11 +464,6 @@ static int ipu6_pci_config_setup(struct pci_dev *dev, u8 hw_ver)
 {
 	int ret;
 
-	/* disable IPU6 PCI ATS on mtl ES2 */
-	if (is_ipu6ep_mtl(hw_ver) && boot_cpu_data.x86_stepping == 0x2 &&
-	    pci_ats_supported(dev))
-		pci_disable_ats(dev);
-
 	/* No PCI msi capability for IPU6EP */
 	if (is_ipu6ep(hw_ver) || is_ipu6ep_mtl(hw_ver)) {
 		/* likely do nothing as msi not enabled by default */
