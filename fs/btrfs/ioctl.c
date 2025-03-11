@@ -1641,21 +1641,19 @@ static noinline int search_ioctl(struct btrfs_root *root,
 	key.offset = sk->min_offset;
 
 	while (1) {
-		ret = -EFAULT;
 		/*
 		 * Ensure that the whole user buffer is faulted in at sub-page
 		 * granularity, otherwise the loop may live-lock.
 		 */
-		if (fault_in_subpage_writeable(ubuf + sk_offset,
-					       *buf_size - sk_offset))
+		if (fault_in_subpage_writeable(ubuf + sk_offset, *buf_size - sk_offset)) {
+			ret = -EFAULT;
 			break;
+		}
 
 		ret = btrfs_search_forward(root, &key, path, sk->min_transid);
-		if (ret != 0) {
-			if (ret > 0)
-				ret = 0;
-			goto err;
-		}
+		if (ret)
+			break;
+
 		ret = copy_to_sk(path, &key, sk, buf_size, ubuf,
 				 &sk_offset, &num_found);
 		btrfs_release_path(path);
@@ -1663,9 +1661,10 @@ static noinline int search_ioctl(struct btrfs_root *root,
 			break;
 
 	}
+	/* Normalize return values from btrfs_search_forward() and copy_to_sk(). */
 	if (ret > 0)
 		ret = 0;
-err:
+
 	sk->nr_items = num_found;
 	btrfs_put_root(root);
 	btrfs_free_path(path);
