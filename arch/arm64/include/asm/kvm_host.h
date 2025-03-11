@@ -273,7 +273,8 @@ struct kvm_sysreg_masks;
 
 enum fgt_group_id {
 	__NO_FGT_GROUP__,
-	HFGxTR_GROUP,
+	HFGRTR_GROUP,
+	HFGWTR_GROUP = HFGRTR_GROUP,
 	HDFGRTR_GROUP,
 	HDFGWTR_GROUP = HDFGRTR_GROUP,
 	HFGITR_GROUP,

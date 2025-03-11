@@ -79,7 +79,7 @@ static inline void __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 		switch(reg) {						\
 		case HFGRTR_EL2:					\
 		case HFGWTR_EL2:					\
-			id = HFGxTR_GROUP;				\
+			id = HFGRTR_GROUP;				\
 			break;						\
 		case HFGITR_EL2:					\
 			id = HFGITR_GROUP;				\
@@ -166,7 +166,7 @@ static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 	update_fgt_traps(hctxt, vcpu, kvm, HFGRTR_EL2);
 	update_fgt_traps_cs(hctxt, vcpu, kvm, HFGWTR_EL2, 0,
 			    cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38) ?
-			    HFGxTR_EL2_TCR_EL1_MASK : 0);
+			    HFGWTR_EL2_TCR_EL1_MASK : 0);
 	update_fgt_traps(hctxt, vcpu, kvm, HFGITR_EL2);
 	update_fgt_traps(hctxt, vcpu, kvm, HDFGRTR_EL2);
 	update_fgt_traps(hctxt, vcpu, kvm, HDFGWTR_EL2);
