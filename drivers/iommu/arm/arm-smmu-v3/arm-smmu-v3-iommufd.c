@@ -433,4 +433,21 @@ struct iommufd_viommu *arm_vsmmu_alloc(struct device *dev,
 	return &vsmmu->core;
 }
 
+int arm_vmaster_report_event(struct arm_smmu_vmaster *vmaster, u64 *evt)
+{
+	struct iommu_vevent_arm_smmuv3 vevt;
+	int i;
+
+	lockdep_assert_held(&vmaster->vsmmu->smmu->streams_mutex);
+
+	vevt.evt[0] = cpu_to_le64((evt[0] & ~EVTQ_0_SID) |
+				  FIELD_PREP(EVTQ_0_SID, vmaster->vsid));
+	for (i = 1; i < EVTQ_ENT_DWORDS; i++)
+		vevt.evt[i] = cpu_to_le64(evt[i]);
+
+	return iommufd_viommu_report_event(&vmaster->vsmmu->core,
+					   IOMMU_VEVENTQ_TYPE_ARM_SMMUV3, &vevt,
+					   sizeof(vevt));
+}
+
 MODULE_IMPORT_NS("IOMMUFD");
