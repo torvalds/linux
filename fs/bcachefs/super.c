@@ -715,7 +715,7 @@ static int bch2_fs_online(struct bch_fs *c)
 	    kobject_add(&c->time_stats, &c->kobj, "time_stats") ?:
 #endif
 	    kobject_add(&c->counters_kobj, &c->kobj, "counters") ?:
-	    bch2_opts_create_sysfs_files(&c->opts_dir);
+	    bch2_opts_create_sysfs_files(&c->opts_dir, OPT_FS);
 	if (ret) {
 		bch_err(c, "error creating sysfs objects");
 		return ret;
@@ -1297,8 +1297,8 @@ static int bch2_dev_sysfs_online(struct bch_fs *c, struct bch_dev *ca)
 		return 0;
 
 	if (!ca->kobj.state_in_sysfs) {
-		ret = kobject_add(&ca->kobj, &c->kobj,
-				  "dev-%u", ca->dev_idx);
+		ret =   kobject_add(&ca->kobj, &c->kobj, "dev-%u", ca->dev_idx) ?:
+			bch2_opts_create_sysfs_files(&ca->kobj, OPT_DEVICE);
 		if (ret)
 			return ret;
 	}

@@ -523,7 +523,7 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 		if (ret < 0)
 			goto err_class_exit;
 
-		ret = bch2_opt_check_may_set(c, opt_id, v);
+		ret = bch2_opt_check_may_set(c, NULL, opt_id, v);
 		if (ret < 0)
 			goto err_class_exit;
 

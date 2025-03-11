@@ -635,7 +635,7 @@ void bch2_opts_to_text(struct printbuf *,
 		       struct bch_fs *, struct bch_sb *,
 		       unsigned, unsigned, unsigned);
 
-int bch2_opt_check_may_set(struct bch_fs *, int, u64);
+int bch2_opt_check_may_set(struct bch_fs *, struct bch_dev *, int, u64);
 int bch2_opts_check_may_set(struct bch_fs *);
 int bch2_parse_one_mount_opt(struct bch_fs *, struct bch_opts *,
 			     struct printbuf *, const char *, const char *);

@@ -480,7 +480,7 @@ void bch2_opts_to_text(struct printbuf *out,
 	}
 }
 
-int bch2_opt_check_may_set(struct bch_fs *c, int id, u64 v)
+int bch2_opt_check_may_set(struct bch_fs *c, struct bch_dev *ca, int id, u64 v)
 {
 	int ret = 0;
 
@@ -501,7 +501,7 @@ int bch2_opt_check_may_set(struct bch_fs *c, int id, u64 v)
 int bch2_opts_check_may_set(struct bch_fs *c)
 {
 	for (unsigned i = 0; i < bch2_opts_nr; i++) {
-		int ret = bch2_opt_check_may_set(c, i, bch2_opt_get_by_id(&c->opts, i));
+		int ret = bch2_opt_check_may_set(c, NULL, i, bch2_opt_get_by_id(&c->opts, i));
 		if (ret)
 			return ret;
 	}
