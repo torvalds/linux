@@ -617,13 +617,14 @@ mt7996_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
 	struct mt7996_dev *dev = msta->vif->deflink.phy->dev;
+	struct mt7996_sta_link *msta_link = &msta->deflink;
 	struct seq_file *s = data;
 	u8 ac;
 
 	for (ac = 0; ac < 4; ac++) {
 		u32 qlen, ctrl, val;
-		u32 idx = msta->wcid.idx >> 5;
-		u8 offs = msta->wcid.idx & GENMASK(4, 0);
+		u32 idx = msta_link->wcid.idx >> 5;
+		u8 offs = msta_link->wcid.idx & GENMASK(4, 0);
 
 		ctrl = BIT(31) | BIT(11) | (ac << 24);
 		val = mt76_rr(dev, MT_PLE_AC_QEMPTY(ac, idx));
@@ -631,11 +632,11 @@ mt7996_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 		if (val & BIT(offs))
 			continue;
 
-		mt76_wr(dev, MT_FL_Q0_CTRL, ctrl | msta->wcid.idx);
+		mt76_wr(dev, MT_FL_Q0_CTRL, ctrl | msta_link->wcid.idx);
 		qlen = mt76_get_field(dev, MT_FL_Q3_CTRL,
 				      GENMASK(11, 0));
 		seq_printf(s, "\tSTA %pM wcid %d: AC%d%d queued:%d\n",
-			   sta->addr, msta->wcid.idx,
+			   sta->addr, msta_link->wcid.idx,
 			   msta->vif->deflink.mt76.wmm_idx, ac, qlen);
 	}
 }
@@ -930,6 +931,7 @@ static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
 	struct ieee80211_sta *sta = file->private_data;
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
 	struct mt7996_dev *dev = msta->vif->deflink.phy->dev;
+	struct mt7996_sta_link *msta_link = &msta->deflink;
 	struct ra_rate phy = {};
 	char buf[100];
 	int ret;
@@ -964,7 +966,7 @@ static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
 		goto out;
 	}
 
-	phy.wlan_idx = cpu_to_le16(msta->wcid.idx);
+	phy.wlan_idx = cpu_to_le16(msta_link->wcid.idx);
 	phy.gi = cpu_to_le16(gi);
 	phy.ltf = cpu_to_le16(ltf);
 	phy.ldpc = phy.ldpc ? 7 : 0;

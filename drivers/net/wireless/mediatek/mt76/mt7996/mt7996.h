@@ -185,10 +185,10 @@ struct mt7996_twt_flow {
 
 DECLARE_EWMA(avg_signal, 10, 8)
 
-struct mt7996_sta {
+struct mt7996_sta_link {
 	struct mt76_wcid wcid; /* must be first */
 
-	struct mt7996_vif *vif;
+	struct mt7996_sta *sta;
 
 	struct list_head rc_list;
 	u32 airtime_ac[8];
@@ -204,6 +204,12 @@ struct mt7996_sta {
 		u8 flowid_mask;
 		struct mt7996_twt_flow flow[MT7996_MAX_STA_TWT_AGRT];
 	} twt;
+};
+
+struct mt7996_sta {
+	struct mt7996_sta_link deflink; /* must be first */
+
+	struct mt7996_vif *vif;
 };
 
 struct mt7996_vif_link {

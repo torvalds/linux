@@ -1162,10 +1162,11 @@ int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
 			 bool enable)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)params->sta->drv_priv;
+	struct mt7996_sta_link *msta_link = &msta->deflink;
 	struct mt7996_vif *mvif = msta->vif;
 
 	if (enable && !params->amsdu)
-		msta->wcid.amsdu = false;
+		msta_link->wcid.amsdu = false;
 
 	return mt7996_mcu_sta_ba(dev, &mvif->deflink.mt76, params, enable, true);
 }
@@ -1322,6 +1323,7 @@ mt7996_mcu_sta_amsdu_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 			 struct ieee80211_vif *vif, struct ieee80211_sta *sta)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	struct mt7996_sta_link *msta_link = &msta->deflink;
 	struct sta_rec_amsdu *amsdu;
 	struct tlv *tlv;
 
@@ -1337,7 +1339,7 @@ mt7996_mcu_sta_amsdu_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
 	amsdu = (struct sta_rec_amsdu *)tlv;
 	amsdu->max_amsdu_num = 8;
 	amsdu->amsdu_en = true;
-	msta->wcid.amsdu = true;
+	msta_link->wcid.amsdu = true;
 
 	switch (sta->deflink.agg.max_amsdu_len) {
 	case IEEE80211_MAX_MPDU_LEN_VHT_11454:
@@ -1879,13 +1881,14 @@ int mt7996_mcu_set_fixed_field(struct mt7996_dev *dev, struct ieee80211_vif *vif
 {
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	struct mt7996_sta_link *msta_link = &msta->deflink;
 	struct sta_phy_uni *phy = data;
 	struct sta_rec_ra_fixed_uni *ra;
 	struct sk_buff *skb;
 	struct tlv *tlv;
 
 	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->deflink.mt76,
-					      &msta->wcid,
+					      &msta_link->wcid,
 					      MT7996_STA_UPDATE_MAX_SIZE);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -1972,14 +1975,14 @@ mt7996_mcu_add_rate_ctrl_fixed(struct mt7996_dev *dev, struct ieee80211_vif *vif
 	/* fixed GI */
 	if (mask->control[band].gi != NL80211_TXRATE_DEFAULT_GI ||
 	    mask->control[band].he_gi != GENMASK(7, 0)) {
-		struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+		struct mt7996_sta_link *msta_link = (void *)sta->drv_priv;
 		u32 addr;
 
 		/* firmware updates only TXCMD but doesn't take WTBL into
 		 * account, so driver should update here to reflect the
 		 * actual txrate hardware sends out.
 		 */
-		addr = mt7996_mac_wtbl_lmac_addr(dev, msta->wcid.idx, 7);
+		addr = mt7996_mac_wtbl_lmac_addr(dev, msta_link->wcid.idx, 7);
 		if (sta->deflink.he_cap.has_he)
 			mt76_rmw_field(dev, addr, GENMASK(31, 24), phy.sgi);
 		else
@@ -2113,11 +2116,12 @@ int mt7996_mcu_add_rate_ctrl(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 {
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	struct mt7996_sta_link *msta_link = &msta->deflink;
 	struct sk_buff *skb;
 	int ret;
 
 	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->deflink.mt76,
-					      &msta->wcid,
+					      &msta_link->wcid,
 					      MT7996_STA_UPDATE_MAX_SIZE);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -2148,6 +2152,7 @@ mt7996_mcu_add_group(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 {
 #define MT_STA_BSS_GROUP		1
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt7996_sta_link *msta_link;
 	struct mt7996_sta *msta;
 	struct {
 		u8 __rsv1[4];
@@ -2167,7 +2172,8 @@ mt7996_mcu_add_group(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 	};
 
 	msta = sta ? (struct mt7996_sta *)sta->drv_priv : &mvif->deflink.sta;
-	req.wlan_idx = cpu_to_le16(msta->wcid.idx);
+	msta_link = &msta->deflink;
+	req.wlan_idx = cpu_to_le16(msta_link->wcid.idx);
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_WM_UNI_CMD(VOW), &req,
 				 sizeof(req), true);
@@ -2184,8 +2190,9 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 
 	if (sta) {
 		struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+		struct mt7996_sta_link *msta_link = &msta->deflink;
 
-		wcid = &msta->wcid;
+		wcid = &msta_link->wcid;
 		link_sta = &sta->deflink;
 	}
 
@@ -2312,12 +2319,14 @@ static int mt7996_mcu_get_pn(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 {
 #define TSC_TYPE_BIGTK_PN 2
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt7996_sta_link *msta_link = &mvif->deflink.sta.deflink;
 	struct sta_rec_pn_info *pn_info;
 	struct sk_buff *skb, *rskb;
 	struct tlv *tlv;
 	int ret;
 
-	skb = mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->deflink.mt76, &mvif->deflink.sta.wcid);
+	skb = mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->deflink.mt76,
+					    &msta_link->wcid);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
@@ -4344,19 +4353,21 @@ int mt7996_mcu_wtbl_update_hdr_trans(struct mt7996_dev *dev,
 				     struct ieee80211_sta *sta)
 {
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
+	struct mt7996_sta_link *msta_link;
 	struct mt7996_sta *msta;
 	struct sk_buff *skb;
 
 	msta = sta ? (struct mt7996_sta *)sta->drv_priv : &mvif->deflink.sta;
+	msta_link = &msta->deflink;
 
 	skb = __mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->deflink.mt76,
-					      &msta->wcid,
+					      &msta_link->wcid,
 					      MT7996_STA_UPDATE_MAX_SIZE);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
 	/* starec hdr trans */
-	mt7996_mcu_sta_hdr_trans_tlv(dev, skb, vif, &msta->wcid);
+	mt7996_mcu_sta_hdr_trans_tlv(dev, skb, vif, &msta_link->wcid);
 	return mt76_mcu_skb_send_msg(&dev->mt76, skb,
 				     MCU_WMWA_UNI_CMD(STA_REC_UPDATE), true);
 }
