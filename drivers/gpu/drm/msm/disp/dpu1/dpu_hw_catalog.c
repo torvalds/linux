@@ -232,37 +232,6 @@ static const u32 rotation_v2_formats[] = {
 	/* TODO add formats after validation */
 };
 
-static const u32 wb2_formats_rgb[] = {
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_BGR565,
-	DRM_FORMAT_RGB888,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_RGBA8888,
-	DRM_FORMAT_ABGR8888,
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_RGBX8888,
-	DRM_FORMAT_XBGR8888,
-	DRM_FORMAT_ARGB1555,
-	DRM_FORMAT_RGBA5551,
-	DRM_FORMAT_XRGB1555,
-	DRM_FORMAT_RGBX5551,
-	DRM_FORMAT_ARGB4444,
-	DRM_FORMAT_RGBA4444,
-	DRM_FORMAT_RGBX4444,
-	DRM_FORMAT_XRGB4444,
-	DRM_FORMAT_BGR888,
-	DRM_FORMAT_BGRA8888,
-	DRM_FORMAT_BGRX8888,
-	DRM_FORMAT_ABGR1555,
-	DRM_FORMAT_BGRA5551,
-	DRM_FORMAT_XBGR1555,
-	DRM_FORMAT_BGRX5551,
-	DRM_FORMAT_ABGR4444,
-	DRM_FORMAT_BGRA4444,
-	DRM_FORMAT_BGRX4444,
-	DRM_FORMAT_XBGR4444,
-};
-
 static const u32 wb2_formats_rgb_yuv[] = {
 	DRM_FORMAT_RGB565,
 	DRM_FORMAT_BGR565,
@@ -507,7 +476,14 @@ static const struct dpu_dsc_sub_blks dsc_sblk_1 = {
 /*************************************************************
  * CDM block config
  *************************************************************/
-static const struct dpu_cdm_cfg sc7280_cdm = {
+static const struct dpu_cdm_cfg dpu_cdm_1_x_4_x = {
+	.name = "cdm_0",
+	.id = CDM_0,
+	.len = 0x224,
+	.base = 0x79200,
+};
+
+static const struct dpu_cdm_cfg dpu_cdm_5_x = {
 	.name = "cdm_0",
 	.id = CDM_0,
 	.len = 0x228,

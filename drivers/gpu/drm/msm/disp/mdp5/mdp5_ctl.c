@@ -3,6 +3,7 @@
  * Copyright (c) 2014-2015 The Linux Foundation. All rights reserved.
  */
 
+#include <linux/string_choices.h>
 #include "mdp5_kms.h"
 #include "mdp5_ctl.h"
 
@@ -233,7 +234,7 @@ int mdp5_ctl_set_encoder_state(struct mdp5_ctl *ctl,
 		return -EINVAL;
 
 	ctl->encoder_enabled = enabled;
-	DBG("intf_%d: %s", intf->num, enabled ? "on" : "off");
+	DBG("intf_%d: %s", intf->num, str_on_off(enabled));
 
 	if (start_signal_needed(ctl, pipeline)) {
 		send_start_signal(ctl);
