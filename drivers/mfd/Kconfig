@@ -1142,13 +1142,6 @@ config MFD_PCF50633
 	  facilities, and registers devices for the various functions
 	  so that function-specific drivers can bind to them.
 
-config PCF50633_GPIO
-	tristate "NXP PCF50633 GPIO"
-	depends on MFD_PCF50633
-	help
-	  Say yes here if you want to include support GPIO for pins on
-	  the PCF50633 chip.
-
 config MFD_PM8XXX
 	tristate "Qualcomm PM8xxx PMIC chips driver"
 	depends on ARM || HEXAGON || COMPILE_TEST
