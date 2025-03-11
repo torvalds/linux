@@ -26,6 +26,24 @@ int proc_resctrl_show(struct seq_file *m,
 /* max value for struct rdt_domain's mbps_val */
 #define MBA_MAX_MBPS   U32_MAX
 
+/* Walk all possible resources, with variants for only controls or monitors. */
+#define for_each_rdt_resource(_r)						\
+	for ((_r) = resctrl_arch_get_resource(0);				\
+	     (_r) && (_r)->rid < RDT_NUM_RESOURCES;				\
+	     (_r) = resctrl_arch_get_resource((_r)->rid + 1))
+
+#define for_each_capable_rdt_resource(r)				      \
+	for_each_rdt_resource((r))					      \
+		if ((r)->alloc_capable || (r)->mon_capable)
+
+#define for_each_alloc_capable_rdt_resource(r)				      \
+	for_each_rdt_resource((r))					      \
+		if ((r)->alloc_capable)
+
+#define for_each_mon_capable_rdt_resource(r)				      \
+	for_each_rdt_resource((r))					      \
+		if ((r)->mon_capable)
+
 /**
  * enum resctrl_conf_type - The type of configuration.
  * @CDP_NONE:	No prioritisation, both code and data are controlled or monitored.
