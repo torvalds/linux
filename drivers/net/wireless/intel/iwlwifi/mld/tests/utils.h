@@ -65,24 +65,26 @@ struct ieee80211_chanctx_conf *
 iwlmld_kunit_add_chanctx_from_def(struct cfg80211_chan_def *def);
 
 static inline struct ieee80211_chanctx_conf *
-iwlmld_kunit_add_chanctx(enum nl80211_band band)
+iwlmld_kunit_add_chanctx(enum nl80211_band band, enum nl80211_chan_width width)
 {
-	struct cfg80211_chan_def *chandef;
+	struct cfg80211_chan_def chandef;
 
 	switch (band) {
 	case NL80211_BAND_2GHZ:
-		chandef = &chandef_2ghz;
+		chandef = chandef_2ghz;
 		break;
 	case NL80211_BAND_5GHZ:
-		chandef = &chandef_5ghz;
+		chandef = chandef_5ghz;
 		break;
 	default:
 	case NL80211_BAND_6GHZ:
-		chandef = &chandef_6ghz;
+		chandef = chandef_6ghz;
 		break;
 	}
 
-	return iwlmld_kunit_add_chanctx_from_def(chandef);
+	chandef.width = width;
+
+	return iwlmld_kunit_add_chanctx_from_def(&chandef);
 }
 
 void iwlmld_kunit_assign_chanctx_to_link(struct ieee80211_vif *vif,
