@@ -217,7 +217,7 @@
 #define SRST_MSCH_BRG_BIU		171
 #define SRST_P_MSCH_BIU			172
 #define SRST_P_DDR_HWLP			173
-#define SRST_P_DDR_PHY			173
+#define SRST_P_DDR_PHY			290
 #define SRST_P_DDR_DFICTL		174
 #define SRST_P_DDR_DMA2DDR		175
 /********Name=DDRSOFTRST_CON01,Offset=0x20204********/
