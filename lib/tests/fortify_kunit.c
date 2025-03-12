@@ -60,6 +60,7 @@ static int fortify_write_overflows;
 
 static const char array_of_10[] = "this is 10";
 static const char *ptr_of_11 = "this is 11!";
+static const char * const unchanging_12 = "this is 12!!";
 static char array_unknown[] = "compiler thinks I might change";
 
 void fortify_add_kunit_error(int write)
@@ -83,12 +84,28 @@ void fortify_add_kunit_error(int write)
 
 static void fortify_test_known_sizes(struct kunit *test)
 {
+	char stack[80] = "Test!";
+
+	KUNIT_EXPECT_FALSE(test, __is_constexpr(__builtin_strlen(stack)));
+	KUNIT_EXPECT_EQ(test, __compiletime_strlen(stack), 5);
+
+	KUNIT_EXPECT_TRUE(test, __is_constexpr(__builtin_strlen("88888888")));
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen("88888888"), 8);
+
+	KUNIT_EXPECT_TRUE(test, __is_constexpr(__builtin_strlen(array_of_10)));
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen(array_of_10), 10);
+
+	KUNIT_EXPECT_FALSE(test, __is_constexpr(__builtin_strlen(ptr_of_11)));
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen(ptr_of_11), 11);
 
+	KUNIT_EXPECT_TRUE(test, __is_constexpr(__builtin_strlen(unchanging_12)));
+	KUNIT_EXPECT_EQ(test, __compiletime_strlen(unchanging_12), 12);
+
+	KUNIT_EXPECT_FALSE(test, __is_constexpr(__builtin_strlen(array_unknown)));
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen(array_unknown), SIZE_MAX);
+
 	/* Externally defined and dynamically sized string pointer: */
+	KUNIT_EXPECT_FALSE(test, __is_constexpr(__builtin_strlen(test->name)));
 	KUNIT_EXPECT_EQ(test, __compiletime_strlen(test->name), SIZE_MAX);
 }
 
