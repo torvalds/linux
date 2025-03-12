@@ -37,8 +37,9 @@ const struct mmu_interval_notifier_ops rxe_mn_ops = {
 	.invalidate = rxe_ib_invalidate_range,
 };
 
-#define RXE_PAGEFAULT_RDONLY BIT(1)
-#define RXE_PAGEFAULT_SNAPSHOT BIT(2)
+#define RXE_PAGEFAULT_DEFAULT 0
+#define RXE_PAGEFAULT_RDONLY BIT(0)
+#define RXE_PAGEFAULT_SNAPSHOT BIT(1)
 static int rxe_odp_do_pagefault_and_lock(struct rxe_mr *mr, u64 user_va, int bcnt, u32 flags)
 {
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
@@ -222,7 +223,7 @@ int rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 		    enum rxe_mr_copy_dir dir)
 {
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
-	u32 flags = 0;
+	u32 flags = RXE_PAGEFAULT_DEFAULT;
 	int err;
 
 	if (length == 0)
@@ -236,7 +237,7 @@ int rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 		break;
 
 	case RXE_FROM_MR_OBJ:
-		flags = RXE_PAGEFAULT_RDONLY;
+		flags |= RXE_PAGEFAULT_RDONLY;
 		break;
 
 	default:
@@ -312,7 +313,8 @@ int rxe_odp_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
 	int err;
 
-	err = rxe_odp_map_range_and_lock(mr, iova, sizeof(char), 0);
+	err = rxe_odp_map_range_and_lock(mr, iova, sizeof(char),
+					 RXE_PAGEFAULT_DEFAULT);
 	if (err < 0)
 		return err;
 
