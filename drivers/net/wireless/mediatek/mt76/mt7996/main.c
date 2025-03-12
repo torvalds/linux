@@ -1200,12 +1200,18 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
+	u8 link_id = u32_get_bits(info->control.flags,
+				  IEEE80211_TX_CTRL_MLO_LINK);
+
+	rcu_read_lock();
 
 	if (vif) {
-		struct mt7996_vif *mvif;
+		struct mt7996_vif *mvif = (void *)vif->drv_priv;
+		struct mt76_vif_link *mlink;
 
-		mvif = (struct mt7996_vif *)vif->drv_priv;
-		wcid = &mvif->deflink.msta_link.wcid;
+		mlink = rcu_dereference(mvif->mt76.link[link_id]);
+		if (mlink && mlink->wcid)
+			wcid = mlink->wcid;
 
 		if (mvif->mt76.roc_phy &&
 		    (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)) {
@@ -1217,19 +1223,22 @@ static void mt7996_tx(struct ieee80211_hw *hw,
 		}
 	}
 
-	if (control->sta) {
-		struct mt7996_sta_link *msta_link;
-
-		msta_link = (struct mt7996_sta_link *)control->sta->drv_priv;
-		wcid = &msta_link->wcid;
-	}
-
 	if (!mphy) {
 		ieee80211_free_txskb(hw, skb);
-		return;
+		goto unlock;
 	}
 
+	if (control->sta) {
+		struct mt7996_sta *msta = (void *)control->sta->drv_priv;
+		struct mt7996_sta_link *msta_link;
+
+		msta_link = rcu_dereference(msta->link[link_id]);
+		if (msta_link)
+			wcid = &msta_link->wcid;
+	}
 	mt76_tx(mphy, control->sta, wcid, skb);
+unlock:
+	rcu_read_unlock();
 }
 
 static int mt7996_set_rts_threshold(struct ieee80211_hw *hw, u32 val)
