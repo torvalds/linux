@@ -304,6 +304,7 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 
 	INIT_LIST_HEAD(&msta_link->rc_list);
 	msta_link->wcid.idx = idx;
+	msta_link->wcid.link_id = link_conf->link_id;
 	msta_link->wcid.tx_info |= MT_WCID_TX_INFO_SET;
 	mt76_wcid_init(&msta_link->wcid, band_idx);
 
@@ -1521,29 +1522,39 @@ static void mt7996_sta_statistics(struct ieee80211_hw *hw,
 	}
 }
 
-static void mt7996_sta_rc_work(void *data, struct ieee80211_sta *sta)
+static void mt7996_link_rate_ctrl_update(void *data, struct ieee80211_sta *sta)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
 	struct mt7996_dev *dev = msta->vif->deflink.phy->dev;
-	struct mt7996_sta_link *msta_link = &msta->deflink;
+	struct mt7996_sta_link *msta_link;
 	u32 *changed = data;
 
+	rcu_read_lock();
+
+	msta_link = rcu_dereference(msta->link[msta->deflink_id]);
+	if (!msta_link)
+		goto out;
+
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
+
 	msta_link->changed |= *changed;
 	if (list_empty(&msta_link->rc_list))
 		list_add_tail(&msta_link->rc_list, &dev->sta_rc_list);
+
 	spin_unlock_bh(&dev->mt76.sta_poll_lock);
+out:
+	rcu_read_unlock();
 }
 
-static void mt7996_sta_rc_update(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_link_sta *link_sta,
-				 u32 changed)
+static void mt7996_link_sta_rc_update(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_link_sta *link_sta,
+				      u32 changed)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct ieee80211_sta *sta = link_sta->sta;
 
-	mt7996_sta_rc_work(&changed, sta);
+	mt7996_link_rate_ctrl_update(&changed, sta);
 	ieee80211_queue_work(hw, &dev->rc_work);
 }
 
@@ -1565,7 +1576,8 @@ mt7996_set_bitrate_mask(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	 * - multiple rates: if it's not in range format i.e 0-{7,8,9} for VHT
 	 * then multiple MCS setting (MCS 4,5,6) is not supported.
 	 */
-	ieee80211_iterate_stations_atomic(hw, mt7996_sta_rc_work, &changed);
+	ieee80211_iterate_stations_atomic(hw, mt7996_link_rate_ctrl_update,
+					  &changed);
 	ieee80211_queue_work(hw, &dev->rc_work);
 
 	return 0;
@@ -2023,7 +2035,7 @@ const struct ieee80211_ops mt7996_ops = {
 	.link_info_changed = mt7996_link_info_changed,
 	.sta_state = mt7996_sta_state,
 	.sta_pre_rcu_remove = mt76_sta_pre_rcu_remove,
-	.link_sta_rc_update = mt7996_sta_rc_update,
+	.link_sta_rc_update = mt7996_link_sta_rc_update,
 	.set_key = mt7996_set_key,
 	.ampdu_action = mt7996_ampdu_action,
 	.set_rts_threshold = mt7996_set_rts_threshold,
