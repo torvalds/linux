@@ -730,9 +730,8 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
 	u32 val;
 
 	if (wcid->sta) {
-		struct ieee80211_sta *sta;
+		struct ieee80211_sta *sta = wcid_to_sta(wcid);
 
-		sta = container_of((void *)wcid, struct ieee80211_sta, drv_priv);
 		wmm = sta->wme;
 	}
 
@@ -759,7 +758,9 @@ mt7996_mac_write_txwi_8023(struct mt7996_dev *dev, __le32 *txwi,
 
 static void
 mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
-			    struct sk_buff *skb, struct ieee80211_key_conf *key)
+			    struct sk_buff *skb,
+			    struct ieee80211_key_conf *key,
+			    struct mt76_wcid *wcid)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
@@ -767,6 +768,7 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
 	bool multicast = is_multicast_ether_addr(hdr->addr1);
 	u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	__le16 fc = hdr->frame_control, sc = hdr->seq_ctrl;
+	u16 seqno = le16_to_cpu(sc);
 	u8 fc_type, fc_stype;
 	u32 val;
 
@@ -816,9 +818,13 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
 		txwi[3] |= cpu_to_le32(MT_TXD3_REM_TX_COUNT);
 	}
 
-	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
-		u16 seqno = le16_to_cpu(sc);
+	if (multicast && ieee80211_vif_is_mld(info->control.vif)) {
+		val = MT_TXD3_SN_VALID |
+		      FIELD_PREP(MT_TXD3_SEQ, IEEE80211_SEQ_TO_SN(seqno));
+		txwi[3] |= cpu_to_le32(val);
+	}
 
+	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
 		if (ieee80211_is_back_req(hdr->frame_control)) {
 			struct ieee80211_bar *bar;
 
@@ -831,6 +837,19 @@ mt7996_mac_write_txwi_80211(struct mt7996_dev *dev, __le32 *txwi,
 		txwi[3] |= cpu_to_le32(val);
 		txwi[3] &= ~cpu_to_le32(MT_TXD3_HW_AMSDU);
 	}
+
+	if (ieee80211_vif_is_mld(info->control.vif) &&
+	    (multicast || unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE))))
+		txwi[5] |= cpu_to_le32(MT_TXD5_FL);
+
+	if (ieee80211_is_nullfunc(fc) && ieee80211_has_a4(fc) &&
+	    ieee80211_vif_is_mld(info->control.vif)) {
+		txwi[5] |= cpu_to_le32(MT_TXD5_FL);
+		txwi[6] |= cpu_to_le32(MT_TXD6_DIS_MAT);
+	}
+
+	if (!wcid->sta && ieee80211_is_mgmt(fc))
+		txwi[6] |= cpu_to_le32(MT_TXD6_DIS_MAT);
 }
 
 void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
@@ -846,6 +865,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
 	struct mt76_vif_link *mlink = NULL;
 	struct mt7996_vif *mvif;
+	unsigned int link_id;
 	u16 tx_count = 15;
 	u32 val;
 	bool inband_disc = !!(changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
@@ -853,13 +873,15 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 	bool beacon = !!(changed & (BSS_CHANGED_BEACON |
 				    BSS_CHANGED_BEACON_ENABLED)) && (!inband_disc);
 
-	if (vif) {
-		mvif = (struct mt7996_vif *)vif->drv_priv;
-		if (wcid->offchannel)
-			mlink = rcu_dereference(mvif->mt76.offchannel_link);
-		if (!mlink)
-			mlink = &mvif->deflink.mt76;
-	}
+	if (wcid != &dev->mt76.global_wcid)
+		link_id = wcid->link_id;
+	else
+		link_id = u32_get_bits(info->control.flags,
+				       IEEE80211_TX_CTRL_MLO_LINK);
+
+	mvif = vif ? (struct mt7996_vif *)vif->drv_priv : NULL;
+	if (mvif)
+		mlink = rcu_dereference(mvif->mt76.link[link_id]);
 
 	if (mlink) {
 		omac_idx = mlink->omac_idx;
@@ -911,7 +933,10 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 		val |= MT_TXD5_TX_STATUS_HOST;
 	txwi[5] = cpu_to_le32(val);
 
-	val = MT_TXD6_DIS_MAT | MT_TXD6_DAS;
+	val = MT_TXD6_DAS;
+	if (q_idx >= MT_LMAC_ALTX0 && q_idx <= MT_LMAC_BCN0)
+		val |= MT_TXD6_DIS_MAT;
+
 	if (is_mt7996(&dev->mt76))
 		val |= FIELD_PREP(MT_TXD6_MSDU_CNT, 1);
 	else if (is_8023 || !ieee80211_is_mgmt(hdr->frame_control))
@@ -923,7 +948,7 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 	if (is_8023)
 		mt7996_mac_write_txwi_8023(dev, txwi, skb, wcid);
 	else
-		mt7996_mac_write_txwi_80211(dev, txwi, skb, key);
+		mt7996_mac_write_txwi_80211(dev, txwi, skb, key, wcid);
 
 	if (txwi[1] & cpu_to_le32(MT_TXD1_FIXED_RATE)) {
 		bool mcast = ieee80211_is_data(hdr->frame_control) &&
@@ -940,6 +965,8 @@ void mt7996_mac_write_txwi(struct mt7996_dev *dev, __le32 *txwi,
 		}
 
 		val = FIELD_PREP(MT_TXD6_TX_RATE, idx) | MT_TXD6_FIXED_BW;
+		if (mcast)
+			val |= MT_TXD6_DIS_MAT;
 		txwi[6] |= cpu_to_le32(val);
 		txwi[3] |= cpu_to_le32(MT_TXD3_BA_DISABLE);
 	}
