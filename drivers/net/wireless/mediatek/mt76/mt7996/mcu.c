@@ -1160,26 +1160,20 @@ mt7996_mcu_sta_ba(struct mt7996_dev *dev, struct mt76_vif_link *mvif,
 /** starec & wtbl **/
 int mt7996_mcu_add_tx_ba(struct mt7996_dev *dev,
 			 struct ieee80211_ampdu_params *params,
-			 bool enable)
+			 struct mt7996_vif_link *link,
+			 struct mt7996_sta_link *msta_link, bool enable)
 {
-	struct mt7996_sta *msta = (struct mt7996_sta *)params->sta->drv_priv;
-	struct mt7996_sta_link *msta_link = &msta->deflink;
-	struct mt7996_vif *mvif = msta->vif;
-
 	if (enable && !params->amsdu)
 		msta_link->wcid.amsdu = false;
 
-	return mt7996_mcu_sta_ba(dev, &mvif->deflink.mt76, params, enable, true);
+	return mt7996_mcu_sta_ba(dev, &link->mt76, params, enable, true);
 }
 
 int mt7996_mcu_add_rx_ba(struct mt7996_dev *dev,
 			 struct ieee80211_ampdu_params *params,
-			 bool enable)
+			 struct mt7996_vif_link *link, bool enable)
 {
-	struct mt7996_sta *msta = (struct mt7996_sta *)params->sta->drv_priv;
-	struct mt7996_vif *mvif = msta->vif;
-
-	return mt7996_mcu_sta_ba(dev, &mvif->deflink.mt76, params, enable, false);
+	return mt7996_mcu_sta_ba(dev, &link->mt76, params, enable, false);
 }
 
 static void
