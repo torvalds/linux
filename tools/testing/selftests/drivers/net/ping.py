@@ -7,7 +7,7 @@ from lib.py import ksft_run, ksft_exit
 from lib.py import ksft_eq, KsftSkipEx, KsftFailEx
 from lib.py import EthtoolFamily, NetDrvEpEnv
 from lib.py import bkg, cmd, wait_port_listen, rand_port
-from lib.py import ethtool, ip
+from lib.py import defer, ethtool, ip
 
 remote_ifname=""
 no_sleep=False
@@ -60,6 +60,7 @@ def _set_xdp_generic_sb_on(cfg) -> None:
     prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 1500", shell=True, host=cfg.remote)
     cmd(f"ip link set dev {cfg.ifname} mtu 1500 xdpgeneric obj {prog} sec xdp", shell=True)
+    defer(cmd, f"ip link set dev {cfg.ifname} xdpgeneric off")
 
     if no_sleep != True:
         time.sleep(10)
@@ -68,7 +69,9 @@ def _set_xdp_generic_mb_on(cfg) -> None:
     test_dir = os.path.dirname(os.path.realpath(__file__))
     prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 9000", shell=True, host=cfg.remote)
+    defer(ip, f"link set dev {remote_ifname} mtu 1500", host=cfg.remote)
     ip("link set dev %s mtu 9000 xdpgeneric obj %s sec xdp.frags" % (cfg.ifname, prog))
+    defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdpgeneric off")
 
     if no_sleep != True:
         time.sleep(10)
@@ -78,6 +81,7 @@ def _set_xdp_native_sb_on(cfg) -> None:
     prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 1500", shell=True, host=cfg.remote)
     cmd(f"ip -j link set dev {cfg.ifname} mtu 1500 xdp obj {prog} sec xdp", shell=True)
+    defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdp off")
     xdp_info = ip("-d link show %s" % (cfg.ifname), json=True)[0]
     if xdp_info['xdp']['mode'] != 1:
         """
@@ -94,10 +98,11 @@ def _set_xdp_native_mb_on(cfg) -> None:
     test_dir = os.path.dirname(os.path.realpath(__file__))
     prog = test_dir + "/../../net/lib/xdp_dummy.bpf.o"
     cmd(f"ip link set dev {remote_ifname} mtu 9000", shell=True, host=cfg.remote)
+    defer(ip, f"link set dev {remote_ifname} mtu 1500", host=cfg.remote)
     try:
         cmd(f"ip link set dev {cfg.ifname} mtu 9000 xdp obj {prog} sec xdp.frags", shell=True)
+        defer(ip, f"link set dev {cfg.ifname} mtu 1500 xdp off")
     except Exception as e:
-        cmd(f"ip link set dev {remote_ifname} mtu 1500", shell=True, host=cfg.remote)
         raise KsftSkipEx('device does not support native-multi-buffer XDP')
 
     if no_sleep != True:
@@ -111,6 +116,7 @@ def _set_xdp_offload_on(cfg) -> None:
         cmd(f"ip link set dev {cfg.ifname} xdpoffload obj {prog} sec xdp", shell=True)
     except Exception as e:
         raise KsftSkipEx('device does not support offloaded XDP')
+    defer(ip, f"link set dev {cfg.ifname} xdpoffload off")
     cmd(f"ip link set dev {remote_ifname} mtu 1500", shell=True, host=cfg.remote)
 
     if no_sleep != True:
@@ -157,7 +163,6 @@ def test_xdp_generic_sb(cfg, netnl) -> None:
     _test_v4(cfg)
     _test_v6(cfg)
     _test_tcp(cfg)
-    ip("link set dev %s xdpgeneric off" % cfg.ifname)
 
 def test_xdp_generic_mb(cfg, netnl) -> None:
     _set_xdp_generic_mb_on(cfg)
@@ -169,7 +174,6 @@ def test_xdp_generic_mb(cfg, netnl) -> None:
     _test_v4(cfg)
     _test_v6(cfg)
     _test_tcp(cfg)
-    ip("link set dev %s xdpgeneric off" % cfg.ifname)
 
 def test_xdp_native_sb(cfg, netnl) -> None:
     _set_xdp_native_sb_on(cfg)
@@ -181,7 +185,6 @@ def test_xdp_native_sb(cfg, netnl) -> None:
     _test_v4(cfg)
     _test_v6(cfg)
     _test_tcp(cfg)
-    ip("link set dev %s xdp off" % cfg.ifname)
 
 def test_xdp_native_mb(cfg, netnl) -> None:
     _set_xdp_native_mb_on(cfg)
@@ -193,14 +196,12 @@ def test_xdp_native_mb(cfg, netnl) -> None:
     _test_v4(cfg)
     _test_v6(cfg)
     _test_tcp(cfg)
-    ip("link set dev %s xdp off" % cfg.ifname)
 
 def test_xdp_offload(cfg, netnl) -> None:
     _set_xdp_offload_on(cfg)
     _test_v4(cfg)
     _test_v6(cfg)
     _test_tcp(cfg)
-    ip("link set dev %s xdpoffload off" % cfg.ifname)
 
 def main() -> None:
     with NetDrvEpEnv(__file__) as cfg:
@@ -213,7 +214,6 @@ def main() -> None:
                   test_xdp_native_mb,
                   test_xdp_offload],
                  args=(cfg, EthtoolFamily()))
-        set_interface_init(cfg)
     ksft_exit()
 
 
