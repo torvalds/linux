@@ -4193,12 +4193,12 @@ mt7996_mcu_set_obss_spr_pd(struct mt7996_phy *phy,
 }
 
 static int
-mt7996_mcu_set_obss_spr_siga(struct mt7996_phy *phy, struct ieee80211_vif *vif,
+mt7996_mcu_set_obss_spr_siga(struct mt7996_phy *phy,
+			     struct mt7996_vif_link *link,
 			     struct ieee80211_he_obss_pd *he_obss_pd)
 {
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_dev *dev = phy->dev;
-	u8 omac = mvif->deflink.mt76.omac_idx;
+	u8 omac = link->mt76.omac_idx;
 	struct {
 		u8 band_idx;
 		u8 __rsv[3];
@@ -4270,7 +4270,8 @@ mt7996_mcu_set_obss_spr_bitmap(struct mt7996_phy *phy,
 				 sizeof(req), true);
 }
 
-int mt7996_mcu_add_obss_spr(struct mt7996_phy *phy, struct ieee80211_vif *vif,
+int mt7996_mcu_add_obss_spr(struct mt7996_phy *phy,
+			    struct mt7996_vif_link *link,
 			    struct ieee80211_he_obss_pd *he_obss_pd)
 {
 	int ret;
@@ -4304,7 +4305,7 @@ int mt7996_mcu_add_obss_spr(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 		return ret;
 
 	/* Set SR prohibit */
-	ret = mt7996_mcu_set_obss_spr_siga(phy, vif, he_obss_pd);
+	ret = mt7996_mcu_set_obss_spr_siga(phy, link, he_obss_pd);
 	if (ret)
 		return ret;
 
