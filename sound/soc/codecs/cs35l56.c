@@ -1441,7 +1441,6 @@ void cs35l56_remove(struct cs35l56_private *cs35l56)
 	if (cs35l56->base.irq)
 		devm_free_irq(cs35l56->base.dev, cs35l56->base.irq, &cs35l56->base);
 
-	flush_workqueue(cs35l56->dsp_wq);
 	destroy_workqueue(cs35l56->dsp_wq);
 
 	pm_runtime_dont_use_autosuspend(cs35l56->base.dev);
