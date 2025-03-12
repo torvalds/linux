@@ -347,7 +347,8 @@ CMD_VERSIONS(missed_beacon_notif,
 CMD_VERSIONS(tx_resp_notif,
 	     CMD_VER_ENTRY(8, iwl_tx_resp))
 CMD_VERSIONS(compressed_ba_notif,
-	     CMD_VER_ENTRY(5, iwl_compressed_ba_notif))
+	     CMD_VER_ENTRY(5, iwl_compressed_ba_notif)
+	     CMD_VER_ENTRY(6, iwl_compressed_ba_notif))
 CMD_VERSIONS(tlc_notif,
 	     CMD_VER_ENTRY(3, iwl_tlc_update_notif))
 CMD_VERSIONS(mu_mimo_grp_notif,
