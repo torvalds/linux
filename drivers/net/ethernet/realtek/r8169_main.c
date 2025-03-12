@@ -5447,11 +5447,10 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (region < 0)
 		return dev_err_probe(&pdev->dev, -ENODEV, "no MMIO resource found\n");
 
-	rc = pcim_iomap_regions(pdev, BIT(region), KBUILD_MODNAME);
-	if (rc < 0)
-		return dev_err_probe(&pdev->dev, rc, "cannot remap MMIO, aborting\n");
-
-	tp->mmio_addr = pcim_iomap_table(pdev)[region];
+	tp->mmio_addr = pcim_iomap_region(pdev, region, KBUILD_MODNAME);
+	if (IS_ERR(tp->mmio_addr))
+		return dev_err_probe(&pdev->dev, PTR_ERR(tp->mmio_addr),
+				     "cannot remap MMIO, aborting\n");
 
 	txconfig = RTL_R32(tp, TxConfig);
 	if (txconfig == ~0U)
