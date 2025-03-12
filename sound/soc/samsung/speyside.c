@@ -347,6 +347,11 @@ static struct gpiod_lookup_table wm8996_gpiod_table = {
 	},
 };
 
+static void speyside_gpiod_table_action(void *data)
+{
+	gpiod_remove_lookup_table(&wm8996_gpiod_table);
+}
+
 static int speyside_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &speyside;
@@ -355,6 +360,11 @@ static int speyside_probe(struct platform_device *pdev)
 	card->dev = &pdev->dev;
 
 	gpiod_add_lookup_table(&wm8996_gpiod_table);
+	ret = devm_add_action_or_reset(&pdev->dev, speyside_gpiod_table_action,
+				       NULL);
+	if (ret)
+		return ret;
+
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
 		dev_err_probe(&pdev->dev, ret, "snd_soc_register_card() failed\n");
