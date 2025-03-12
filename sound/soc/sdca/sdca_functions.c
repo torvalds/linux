@@ -241,7 +241,8 @@ static int find_sdca_init_table(struct device *dev,
 	return 0;
 }
 
-static const char *find_sdca_control_label(const struct sdca_entity *entity,
+static const char *find_sdca_control_label(struct device *dev,
+					   const struct sdca_entity *entity,
 					   const struct sdca_control *control)
 {
 	switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
@@ -530,7 +531,7 @@ static const char *find_sdca_control_label(const struct sdca_entity *entity,
 	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_SDCA_VERSION):
 		return SDCA_CTL_DEVICE_SDCA_VERSION_NAME;
 	default:
-		return NULL;
+		return devm_kasprintf(dev, GFP_KERNEL, "Imp-Def %#x", control->sel);
 	}
 }
 
@@ -739,12 +740,9 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 	if (!ret)
 		control->interrupt_position = tmp;
 
-	control->label = find_sdca_control_label(entity, control);
-	if (!control->label) {
-		dev_err(dev, "%s: control %#x: name not found\n",
-			entity->label, control->sel);
-		return -EINVAL;
-	}
+	control->label = find_sdca_control_label(dev, entity, control);
+	if (!control->label)
+		return -ENOMEM;
 
 	control->nbits = find_sdca_control_bits(entity, control);
 
