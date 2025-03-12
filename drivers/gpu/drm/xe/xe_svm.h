@@ -12,10 +12,11 @@
 #define XE_INTERCONNECT_VRAM DRM_INTERCONNECT_DRIVER
 
 struct xe_bo;
-struct xe_vram_region;
+struct xe_gt;
 struct xe_tile;
 struct xe_vm;
 struct xe_vma;
+struct xe_vram_region;
 
 /** struct xe_svm_range - SVM range */
 struct xe_svm_range {
@@ -64,7 +65,7 @@ void xe_svm_fini(struct xe_vm *vm);
 void xe_svm_close(struct xe_vm *vm);
 
 int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
-			    struct xe_tile *tile, u64 fault_addr,
+			    struct xe_gt *gt, u64 fault_addr,
 			    bool atomic);
 
 bool xe_svm_has_mapping(struct xe_vm *vm, u64 start, u64 end);
@@ -102,7 +103,7 @@ void xe_svm_close(struct xe_vm *vm)
 
 static inline
 int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
-			    struct xe_tile *tile, u64 fault_addr,
+			    struct xe_gt *gt, u64 fault_addr,
 			    bool atomic)
 {
 	return 0;

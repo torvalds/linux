@@ -4,6 +4,7 @@
  */
 
 #include "xe_bo.h"
+#include "xe_gt_stats.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_migrate.h"
 #include "xe_module.h"
@@ -713,7 +714,7 @@ unlock:
  * xe_svm_handle_pagefault() - SVM handle page fault
  * @vm: The VM.
  * @vma: The CPU address mirror VMA.
- * @tile: The tile upon the fault occurred.
+ * @gt: The gt upon the fault occurred.
  * @fault_addr: The GPU fault address.
  * @atomic: The fault atomic access bit.
  *
@@ -723,7 +724,7 @@ unlock:
  * Return: 0 on success, negative error code on error.
  */
 int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
-			    struct xe_tile *tile, u64 fault_addr,
+			    struct xe_gt *gt, u64 fault_addr,
 			    bool atomic)
 {
 	struct drm_gpusvm_ctx ctx = {
@@ -737,11 +738,14 @@ int xe_svm_handle_pagefault(struct xe_vm *vm, struct xe_vma *vma,
 	struct drm_gpusvm_range *r;
 	struct drm_exec exec;
 	struct dma_fence *fence;
+	struct xe_tile *tile = gt_to_tile(gt);
 	ktime_t end = 0;
 	int err;
 
 	lockdep_assert_held_write(&vm->lock);
 	xe_assert(vm->xe, xe_vma_is_cpu_addr_mirror(vma));
+
+	xe_gt_stats_incr(gt, XE_GT_STATS_ID_SVM_PAGEFAULT_COUNT, 1);
 
 retry:
 	/* Always process UNMAPs first so view SVM ranges is current */
