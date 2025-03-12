@@ -5295,6 +5295,12 @@ static int bpf_sol_tcp_getsockopt(struct sock *sk, int optname,
 		memcpy(optval, &cb_flags, optlen);
 		break;
 	}
+	case TCP_BPF_RTO_MIN: {
+		int rto_min_us = jiffies_to_usecs(inet_csk(sk)->icsk_rto_min);
+
+		memcpy(optval, &rto_min_us, optlen);
+		break;
+	}
 	default:
 		return -EINVAL;
 	}
