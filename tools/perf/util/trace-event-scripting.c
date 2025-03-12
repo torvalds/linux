@@ -347,7 +347,7 @@ static int sample_flags_to_name(u32 flags, char *str, size_t size)
 
 	flags &= ~(PERF_IP_FLAG_TRACE_BEGIN | PERF_IP_FLAG_TRACE_END);
 
-	types = flags & ~PERF_IP_FLAG_BRACH_EVENT_MASK;
+	types = flags & ~PERF_IP_FLAG_BRANCH_EVENT_MASK;
 	for (i = 0; sample_flags[i].name; i++) {
 		if (sample_flags[i].flags != types)
 			continue;
@@ -359,7 +359,7 @@ static int sample_flags_to_name(u32 flags, char *str, size_t size)
 		break;
 	}
 
-	events = flags & PERF_IP_FLAG_BRACH_EVENT_MASK;
+	events = flags & PERF_IP_FLAG_BRANCH_EVENT_MASK;
 	for (i = 0; branch_events[i].name; i++) {
 		if (!(branch_events[i].flags & events))
 			continue;
