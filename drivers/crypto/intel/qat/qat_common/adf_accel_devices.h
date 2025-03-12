@@ -53,6 +53,16 @@ enum adf_accel_capabilities {
 	ADF_ACCEL_CAPABILITIES_RANDOM_NUMBER = 128
 };
 
+enum adf_fuses {
+	ADF_FUSECTL0,
+	ADF_FUSECTL1,
+	ADF_FUSECTL2,
+	ADF_FUSECTL3,
+	ADF_FUSECTL4,
+	ADF_FUSECTL5,
+	ADF_MAX_FUSES
+};
+
 struct adf_bar {
 	resource_size_t base_addr;
 	void __iomem *virt_addr;
@@ -345,7 +355,7 @@ struct adf_hw_device_data {
 	struct qat_migdev_ops vfmig_ops;
 	const char *fw_name;
 	const char *fw_mmp_name;
-	u32 fuses;
+	u32 fuses[ADF_MAX_FUSES];
 	u32 straps;
 	u32 accel_capabilities_mask;
 	u32 extended_dc_capabilities;

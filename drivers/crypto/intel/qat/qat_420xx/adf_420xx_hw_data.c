@@ -98,7 +98,7 @@ static struct adf_hw_device_class adf_420xx_class = {
 
 static u32 get_ae_mask(struct adf_hw_device_data *self)
 {
-	u32 me_disable = self->fuses;
+	u32 me_disable = self->fuses[ADF_FUSECTL4];
 
 	return ~me_disable & ADF_420XX_ACCELENGINES_MASK;
 }
