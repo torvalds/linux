@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/arm,dma-350.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Arm CoreLink DMA-350 Controller
+
+maintainers:
+  - Robin Murphy <robin.murphy@arm.com>
+
+allOf:
+  - $ref: dma-controller.yaml#
+
+properties:
+  compatible:
+    const: arm,dma-350
+
+  reg:
+    items:
+      - description: Base and size of the full register map
+
+  interrupts:
+    minItems: 1
+    items:
+      - description: Channel 0 interrupt
+      - description: Channel 1 interrupt
+      - description: Channel 2 interrupt
+      - description: Channel 3 interrupt
+      - description: Channel 4 interrupt
+      - description: Channel 5 interrupt
+      - description: Channel 6 interrupt
+      - description: Channel 7 interrupt
+
+  "#dma-cells":
+    const: 1
+    description: The cell is the trigger input number
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
