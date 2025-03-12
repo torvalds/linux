@@ -1069,15 +1069,11 @@ ov13b10_set_pad_format(struct v4l2_subdev *sd,
 		__v4l2_ctrl_s_ctrl_int64(ov13b->pixel_rate, pixel_rate);
 
 		/* Update limits and set FPS to default */
-		vblank_def = ov13b->cur_mode->vts_def -
-			     ov13b->cur_mode->height;
-		vblank_min = ov13b->cur_mode->vts_min -
-			     ov13b->cur_mode->height;
+		vblank_def = mode->vts_def - mode->height;
+		vblank_min = mode->vts_min - mode->height;
 		__v4l2_ctrl_modify_range(ov13b->vblank, vblank_min,
-					 OV13B10_VTS_MAX
-					 - ov13b->cur_mode->height,
-					 1,
-					 vblank_def);
+					 OV13B10_VTS_MAX - mode->height,
+					 1, vblank_def);
 		__v4l2_ctrl_s_ctrl(ov13b->vblank, vblank_def);
 		h_blank = mode->ppl - mode->width;
 		__v4l2_ctrl_modify_range(ov13b->hblank, h_blank,
