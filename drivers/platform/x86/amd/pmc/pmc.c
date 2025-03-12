@@ -785,7 +785,7 @@ static int amd_pmc_probe(struct platform_device *pdev)
 
 	err = devm_mutex_init(dev->dev, &dev->lock);
 	if (err)
-		return err;
+		goto err_pci_dev_put;
 
 	/* Get num of IP blocks within the SoC */
 	amd_pmc_get_ip_info(dev);
