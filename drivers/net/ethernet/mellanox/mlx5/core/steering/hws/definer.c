@@ -500,7 +500,8 @@ hws_definer_check_match_flags(struct mlx5hws_definer_conv_data *cd)
 	return 0;
 
 err_conflict:
-	mlx5hws_err(cd->ctx, "Invalid definer fields combination\n");
+	mlx5hws_err(cd->ctx, "Invalid definer fields combination: match_flags = 0x%08x\n",
+		    cd->match_flags);
 	return -EINVAL;
 }
 
