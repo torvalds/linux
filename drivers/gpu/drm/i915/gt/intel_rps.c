@@ -1025,6 +1025,10 @@ void intel_rps_boost(struct i915_request *rq)
 		if (rps_uses_slpc(rps)) {
 			slpc = rps_to_slpc(rps);
 
+			/* Waitboost should not be done with power saving profile */
+			if (slpc->power_profile == SLPC_POWER_PROFILES_POWER_SAVING)
+				return;
+
 			if (slpc->min_freq_softlimit >= slpc->boost_freq)
 				return;
 

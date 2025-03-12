@@ -46,5 +46,6 @@ void intel_guc_slpc_boost(struct intel_guc_slpc *slpc);
 void intel_guc_slpc_dec_waiters(struct intel_guc_slpc *slpc);
 int intel_guc_slpc_set_ignore_eff_freq(struct intel_guc_slpc *slpc, bool val);
 int intel_guc_slpc_set_strategy(struct intel_guc_slpc *slpc, u32 val);
+int intel_guc_slpc_set_power_profile(struct intel_guc_slpc *slpc, u32 val);
 
 #endif
