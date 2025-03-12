@@ -14,6 +14,7 @@
 #include "notif.h"
 #include "ap.h"
 #include "iwl-utils.h"
+#include "scan.h"
 #ifdef CONFIG_THERMAL
 #include "thermal.h"
 #endif
@@ -901,6 +902,33 @@ iwl_dbgfs_vif_twt_operation_write(struct iwl_mld *mld, char *buf, size_t count,
 
 VIF_DEBUGFS_WRITE_FILE_OPS(twt_operation, 256);
 
+static ssize_t iwl_dbgfs_vif_int_mlo_scan_write(struct iwl_mld *mld, char *buf,
+						size_t count, void *data)
+{
+	struct ieee80211_vif *vif = data;
+	u32 action;
+	int ret;
+
+	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
+		return -EINVAL;
+
+	if (kstrtou32(buf, 0, &action))
+		return -EINVAL;
+
+	if (action == 0) {
+		ret = iwl_mld_scan_stop(mld, IWL_MLD_SCAN_INT_MLO, false);
+	} else if (action == 1) {
+		iwl_mld_int_mlo_scan(mld, vif);
+		ret = 0;
+	} else {
+		ret = -EINVAL;
+	}
+
+	return ret ?: count;
+}
+
+VIF_DEBUGFS_WRITE_FILE_OPS(int_mlo_scan, 32);
+
 void iwl_mld_add_vif_debugfs(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif)
 {
@@ -939,8 +967,8 @@ void iwl_mld_add_vif_debugfs(struct ieee80211_hw *hw,
 	VIF_DEBUGFS_ADD_FILE(low_latency, mld_vif_dbgfs, 0600);
 	VIF_DEBUGFS_ADD_FILE(twt_setup, mld_vif_dbgfs, 0200);
 	VIF_DEBUGFS_ADD_FILE(twt_operation, mld_vif_dbgfs, 0200);
+	VIF_DEBUGFS_ADD_FILE(int_mlo_scan, mld_vif_dbgfs, 0200);
 }
-
 #define LINK_DEBUGFS_WRITE_FILE_OPS(name, bufsz)			\
 	WIPHY_DEBUGFS_WRITE_FILE_OPS(link_##name, bufsz, bss_conf)
 
