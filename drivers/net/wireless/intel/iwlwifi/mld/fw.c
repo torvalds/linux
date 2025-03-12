@@ -257,7 +257,7 @@ alive_failure:
 	return ret;
 }
 
-int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
+static int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld)
 {
 	struct iwl_notification_wait init_wait;
 	struct iwl_init_extended_cfg_cmd init_cfg = {};

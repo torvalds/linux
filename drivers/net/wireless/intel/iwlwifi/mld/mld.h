@@ -336,7 +336,6 @@ iwl_mld_add_debugfs_files(struct iwl_mld *mld, struct dentry *debugfs_dir)
 {}
 #endif
 
-int iwl_mld_run_fw_init_sequence(struct iwl_mld *mld);
 int iwl_mld_load_fw(struct iwl_mld *mld);
 void iwl_mld_stop_fw(struct iwl_mld *mld);
 int iwl_mld_start_fw(struct iwl_mld *mld);
