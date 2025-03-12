@@ -2160,11 +2160,16 @@ void amdgpu_gfx_profile_idle_work_handler(struct work_struct *work)
 	for (i = 0; i < (AMDGPU_MAX_COMPUTE_RINGS * AMDGPU_MAX_GC_INSTANCES); ++i)
 		fences += amdgpu_fence_count_emitted(&adev->gfx.compute_ring[i]);
 	if (!fences && !atomic_read(&adev->gfx.total_submission_cnt)) {
-		r = amdgpu_dpm_switch_power_profile(adev, profile, false);
-		if (r)
-			dev_warn(adev->dev, "(%d) failed to disable %s power profile mode\n", r,
-				 profile == PP_SMC_POWER_PROFILE_FULLSCREEN3D ?
-				 "fullscreen 3D" : "compute");
+		mutex_lock(&adev->gfx.workload_profile_mutex);
+		if (adev->gfx.workload_profile_active) {
+			r = amdgpu_dpm_switch_power_profile(adev, profile, false);
+			if (r)
+				dev_warn(adev->dev, "(%d) failed to disable %s power profile mode\n", r,
+					 profile == PP_SMC_POWER_PROFILE_FULLSCREEN3D ?
+					 "fullscreen 3D" : "compute");
+			adev->gfx.workload_profile_active = false;
+		}
+		mutex_unlock(&adev->gfx.workload_profile_mutex);
 	} else {
 		schedule_delayed_work(&adev->gfx.idle_work, GFX_PROFILE_IDLE_TIMEOUT);
 	}
@@ -2184,11 +2189,16 @@ void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring)
 	atomic_inc(&adev->gfx.total_submission_cnt);
 
 	if (!cancel_delayed_work_sync(&adev->gfx.idle_work)) {
-		r = amdgpu_dpm_switch_power_profile(adev, profile, true);
-		if (r)
-			dev_warn(adev->dev, "(%d) failed to disable %s power profile mode\n", r,
-				 profile == PP_SMC_POWER_PROFILE_FULLSCREEN3D ?
-				 "fullscreen 3D" : "compute");
+		mutex_lock(&adev->gfx.workload_profile_mutex);
+		if (!adev->gfx.workload_profile_active) {
+			r = amdgpu_dpm_switch_power_profile(adev, profile, true);
+			if (r)
+				dev_warn(adev->dev, "(%d) failed to disable %s power profile mode\n", r,
+					 profile == PP_SMC_POWER_PROFILE_FULLSCREEN3D ?
+					 "fullscreen 3D" : "compute");
+			adev->gfx.workload_profile_active = true;
+		}
+		mutex_unlock(&adev->gfx.workload_profile_mutex);
 	}
 }
 
