@@ -359,7 +359,6 @@ int bch2_move_extent(struct moving_context *ctxt,
 			   bkey_start_pos(k.k),
 			   iter->btree_id, k, 0,
 			   NULL,
-			   BCH_READ_data_update|
 			   BCH_READ_last_fragment,
 			   data_opts.scrub ?  data_opts.read_dev : -1);
 	return 0;

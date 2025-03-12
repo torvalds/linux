@@ -35,7 +35,8 @@ struct bch_read_bio {
 	u16			flags;
 	union {
 	struct {
-	u16			promote:1,
+	u16			data_update:1,
+				promote:1,
 				bounce:1,
 				split:1,
 				have_ioref:1,
@@ -108,7 +109,6 @@ static inline int bch2_read_indirect_extent(struct btree_trans *trans,
 	x(retry_if_stale)		\
 	x(may_promote)			\
 	x(user_mapped)			\
-	x(data_update)			\
 	x(last_fragment)		\
 	x(must_bounce)			\
 	x(must_clone)			\
@@ -161,12 +161,13 @@ static inline struct bch_read_bio *rbio_init_fragment(struct bio *bio,
 {
 	struct bch_read_bio *rbio = to_rbio(bio);
 
-	rbio->c		= orig->c;
-	rbio->_state	= 0;
-	rbio->ret	= 0;
-	rbio->split	= true;
-	rbio->parent	= orig;
-	rbio->opts	= orig->opts;
+	rbio->c			= orig->c;
+	rbio->_state		= 0;
+	rbio->flags		= 0;
+	rbio->ret		= 0;
+	rbio->split		= true;
+	rbio->parent		= orig;
+	rbio->opts		= orig->opts;
 	return rbio;
 }
 
@@ -180,7 +181,8 @@ static inline struct bch_read_bio *rbio_init(struct bio *bio,
 	rbio->start_time	= local_clock();
 	rbio->c			= c;
 	rbio->_state		= 0;
-	rbio->ret	= 0;
+	rbio->flags		= 0;
+	rbio->ret		= 0;
 	rbio->opts		= opts;
 	rbio->bio.bi_end_io	= end_io;
 	return rbio;
