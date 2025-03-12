@@ -745,8 +745,8 @@ operations:
             - irq-suspend-timeout
 
 kernel-family:
-  headers: [ "linux/list.h"]
-  sock-priv: struct list_head
+  headers: [ "net/netdev_netlink.h"]
+  sock-priv: struct netdev_nl_sock
 
 mcast-groups:
   list:
