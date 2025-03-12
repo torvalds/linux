@@ -5956,11 +5956,23 @@ nfsd4_verify_setuid_write(struct nfsd4_open *open, struct nfsd_file *nf)
 	return 0;
 }
 
+#ifdef CONFIG_NFSD_V4_DELEG_TIMESTAMPS
+static bool nfsd4_want_deleg_timestamps(const struct nfsd4_open *open)
+{
+	return open->op_deleg_want & OPEN4_SHARE_ACCESS_WANT_DELEG_TIMESTAMPS;
+}
+#else /* CONFIG_NFSD_V4_DELEG_TIMESTAMPS */
+static bool nfsd4_want_deleg_timestamps(const struct nfsd4_open *open)
+{
+	return false;
+}
+#endif /* CONFIG NFSD_V4_DELEG_TIMESTAMPS */
+
 static struct nfs4_delegation *
 nfs4_set_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 		    struct svc_fh *parent)
 {
-	bool deleg_ts = open->op_deleg_want & OPEN4_SHARE_ACCESS_WANT_DELEG_TIMESTAMPS;
+	bool deleg_ts = nfsd4_want_deleg_timestamps(open);
 	struct nfs4_client *clp = stp->st_stid.sc_client;
 	struct nfs4_file *fp = stp->st_stid.sc_file;
 	struct nfs4_clnt_odstate *odstate = stp->st_clnt_odstate;
@@ -6168,8 +6180,8 @@ static void
 nfs4_open_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 		     struct svc_fh *currentfh)
 {
-	bool deleg_ts = open->op_deleg_want & OPEN4_SHARE_ACCESS_WANT_DELEG_TIMESTAMPS;
 	struct nfs4_openowner *oo = openowner(stp->st_stateowner);
+	bool deleg_ts = nfsd4_want_deleg_timestamps(open);
 	struct nfs4_client *clp = stp->st_stid.sc_client;
 	struct svc_fh *parent = NULL;
 	struct nfs4_delegation *dp;
