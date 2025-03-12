@@ -2717,13 +2717,14 @@ out:
 }
 
 int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
-				    struct ieee80211_vif *vif, u32 changed)
+				    struct ieee80211_bss_conf *link_conf,
+				    struct mt7996_vif_link *link, u32 changed)
 {
 #define OFFLOAD_TX_MODE_SU	BIT(0)
 #define OFFLOAD_TX_MODE_MU	BIT(1)
+	struct ieee80211_vif *vif = link_conf->vif;
 	struct ieee80211_hw *hw = mt76_hw(dev);
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	struct mt7996_phy *phy = mt7996_vif_link_phy(&mvif->deflink);
+	struct mt7996_phy *phy = link->phy;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 	struct bss_inband_discovery_tlv *discov;
 	struct ieee80211_tx_info *info;
@@ -2740,21 +2741,21 @@ int mt7996_mcu_beacon_inband_discov(struct mt7996_dev *dev,
 	chandef = &phy->mt76->chandef;
 	band = chandef->chan->band;
 
-	if (vif->bss_conf.nontransmitted)
+	if (link_conf->nontransmitted)
 		return 0;
 
-	rskb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->deflink.mt76,
+	rskb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &link->mt76,
 					  MT7996_MAX_BSS_OFFLOAD_SIZE);
 	if (IS_ERR(rskb))
 		return PTR_ERR(rskb);
 
 	if (changed & BSS_CHANGED_FILS_DISCOVERY &&
-	    vif->bss_conf.fils_discovery.max_interval) {
-		interval = vif->bss_conf.fils_discovery.max_interval;
+	    link_conf->fils_discovery.max_interval) {
+		interval = link_conf->fils_discovery.max_interval;
 		skb = ieee80211_get_fils_discovery_tmpl(hw, vif);
 	} else if (changed & BSS_CHANGED_UNSOL_BCAST_PROBE_RESP &&
-		   vif->bss_conf.unsol_bcast_probe_resp_interval) {
-		interval = vif->bss_conf.unsol_bcast_probe_resp_interval;
+		   link_conf->unsol_bcast_probe_resp_interval) {
+		interval = link_conf->unsol_bcast_probe_resp_interval;
 		skb = ieee80211_get_unsol_bcast_probe_resp_tmpl(hw, vif);
 	}
 

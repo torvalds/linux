@@ -827,7 +827,7 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changed & (BSS_CHANGED_UNSOL_BCAST_PROBE_RESP |
 		       BSS_CHANGED_FILS_DISCOVERY))
-		mt7996_mcu_beacon_inband_discov(dev, vif, changed);
+		mt7996_mcu_beacon_inband_discov(dev, info, link, changed);
 
 	if (changed & BSS_CHANGED_MU_GROUPS)
 		mt7996_update_mu_group(hw, link, info);
