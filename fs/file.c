@@ -577,6 +577,7 @@ repeat:
 
 	__set_open_fd(fd, fdt, flags & O_CLOEXEC);
 	error = fd;
+	VFS_BUG_ON(rcu_access_pointer(fdt->fd[fd]) != NULL);
 
 out:
 	spin_unlock(&files->file_lock);
@@ -642,7 +643,7 @@ void fd_install(unsigned int fd, struct file *file)
 		rcu_read_unlock_sched();
 		spin_lock(&files->file_lock);
 		fdt = files_fdtable(files);
-		WARN_ON(fdt->fd[fd] != NULL);
+		VFS_BUG_ON(rcu_access_pointer(fdt->fd[fd]) != NULL);
 		rcu_assign_pointer(fdt->fd[fd], file);
 		spin_unlock(&files->file_lock);
 		return;
@@ -650,7 +651,7 @@ void fd_install(unsigned int fd, struct file *file)
 	/* coupled with smp_wmb() in expand_fdtable() */
 	smp_rmb();
 	fdt = rcu_dereference_sched(files->fdt);
-	BUG_ON(fdt->fd[fd] != NULL);
+	VFS_BUG_ON(rcu_access_pointer(fdt->fd[fd]) != NULL);
 	rcu_assign_pointer(fdt->fd[fd], file);
 	rcu_read_unlock_sched();
 }
