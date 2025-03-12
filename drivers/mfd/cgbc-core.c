@@ -96,7 +96,7 @@ static int cgbc_session_command(struct cgbc_device_data *cgbc, u8 cmd)
 
 static int cgbc_session_request(struct cgbc_device_data *cgbc)
 {
-	unsigned int ret;
+	int ret;
 
 	ret = cgbc_wait_device(cgbc);
 
