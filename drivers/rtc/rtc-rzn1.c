@@ -444,6 +444,11 @@ dis_runtime_pm:
 
 static void rzn1_rtc_remove(struct platform_device *pdev)
 {
+	struct rzn1_rtc *rtc = platform_get_drvdata(pdev);
+
+	/* Disable all interrupts */
+	writel(0, rtc->base + RZN1_RTC_CTL1);
+
 	pm_runtime_put(&pdev->dev);
 }
 
