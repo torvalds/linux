@@ -508,7 +508,7 @@ static struct request *__blk_mq_alloc_requests(struct blk_mq_alloc_data *data)
 
 retry:
 	data->ctx = blk_mq_get_ctx(q);
-	data->hctx = blk_mq_map_queue(q, data->cmd_flags, data->ctx);
+	data->hctx = blk_mq_map_queue(data->cmd_flags, data->ctx);
 
 	if (q->elevator) {
 		/*
