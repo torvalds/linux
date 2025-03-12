@@ -625,6 +625,35 @@ struct sta_rec_hdr_trans {
 	u8 mesh;
 } __packed;
 
+struct sta_rec_mld_setup {
+	__le16 tag;
+	__le16 len;
+	u8 mld_addr[ETH_ALEN];
+	__le16 primary_id;
+	__le16 seconed_id;
+	__le16 setup_wcid;
+	u8 link_num;
+	u8 info;
+	u8 __rsv[2];
+	u8 link_info[];
+} __packed;
+
+struct sta_rec_eht_mld {
+	__le16 tag;
+	__le16 len;
+	u8 nsep;
+	u8 __rsv1[2];
+	u8 str_cap[__MT_MAX_BAND];
+	__le16 eml_cap;
+	u8 __rsv2[4];
+} __packed;
+
+struct mld_setup_link {
+	__le16 wcid;
+	u8 bss_idx;
+	u8 __rsv;
+} __packed;
+
 struct hdr_trans_en {
 	__le16 tag;
 	__le16 len;
@@ -798,6 +827,9 @@ enum {
 					 sizeof(struct sta_rec_eht) +		\
 					 sizeof(struct sta_rec_hdrt) +		\
 					 sizeof(struct sta_rec_hdr_trans) +	\
+					 sizeof(struct sta_rec_mld_setup) +	\
+					 sizeof(struct mld_setup_link) * 3 +	\
+					 sizeof(struct sta_rec_eht_mld) +	\
 					 sizeof(struct tlv))
 
 #define MT7996_MAX_BEACON_SIZE		1338

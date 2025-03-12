@@ -2197,6 +2197,80 @@ mt7996_mcu_add_group(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 				 sizeof(req), true);
 }
 
+static void
+mt7996_mcu_sta_mld_setup_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+			     struct ieee80211_sta *sta)
+{
+	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	unsigned long links = sta->valid_links;
+	unsigned int nlinks = hweight16(links);
+	struct mld_setup_link *mld_setup_link;
+	struct sta_rec_mld_setup *mld_setup;
+	struct mt7996_sta_link *msta_link;
+	struct ieee80211_vif *vif;
+	unsigned int link_id;
+	struct tlv *tlv;
+
+	msta_link = mt76_dereference(msta->link[msta->deflink_id], &dev->mt76);
+	if (!msta_link)
+		return;
+
+	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_MLD,
+				      sizeof(struct sta_rec_mld_setup) +
+				      sizeof(struct mld_setup_link) * nlinks);
+
+	mld_setup = (struct sta_rec_mld_setup *)tlv;
+	memcpy(mld_setup->mld_addr, sta->addr, ETH_ALEN);
+	mld_setup->setup_wcid = cpu_to_le16(msta_link->wcid.idx);
+	mld_setup->primary_id = cpu_to_le16(msta_link->wcid.idx);
+
+	if (nlinks > 1) {
+		link_id = __ffs(links & ~BIT(msta->deflink_id));
+		msta_link = mt76_dereference(msta->link[msta->deflink_id],
+					     &dev->mt76);
+		if (!msta_link)
+			return;
+	}
+	mld_setup->seconed_id = cpu_to_le16(msta_link->wcid.idx);
+	mld_setup->link_num = nlinks;
+
+	vif = container_of((void *)msta->vif, struct ieee80211_vif, drv_priv);
+	mld_setup_link = (struct mld_setup_link *)mld_setup->link_info;
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct mt7996_vif_link *link;
+
+		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+		if (!msta_link)
+			continue;
+
+		link = mt7996_vif_link(dev, vif, link_id);
+		if (!link)
+			continue;
+
+		if (!msta_link)
+			continue;
+
+		mld_setup_link->wcid = cpu_to_le16(msta_link->wcid.idx);
+		mld_setup_link->bss_idx = link->mt76.idx;
+		mld_setup_link++;
+	}
+}
+
+static void
+mt7996_mcu_sta_eht_mld_tlv(struct mt7996_dev *dev, struct sk_buff *skb,
+			   struct ieee80211_sta *sta)
+{
+	struct sta_rec_eht_mld *eht_mld;
+	struct tlv *tlv;
+	int i;
+
+	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_EHT_MLD, sizeof(*eht_mld));
+	eht_mld = (struct sta_rec_eht_mld *)tlv;
+
+	for (i = 0; i < ARRAY_SIZE(eht_mld->str_cap); i++)
+		eht_mld->str_cap[i] = 0x7;
+}
+
 int mt7996_mcu_add_sta(struct mt7996_dev *dev,
 		       struct ieee80211_bss_conf *link_conf,
 		       struct ieee80211_link_sta *link_sta,
@@ -2255,6 +2329,11 @@ int mt7996_mcu_add_sta(struct mt7996_dev *dev,
 		mt7996_mcu_sta_eht_tlv(skb, link_sta);
 		/* starec muru */
 		mt7996_mcu_sta_muru_tlv(dev, skb, link_conf, link_sta);
+
+		if (sta->mlo) {
+			mt7996_mcu_sta_mld_setup_tlv(dev, skb, sta);
+			mt7996_mcu_sta_eht_mld_tlv(dev, skb, sta);
+		}
 	}
 
 	ret = mt7996_mcu_add_group(dev, link_conf->vif, sta);
