@@ -84,6 +84,12 @@ static int devicetree_state_flags;
 #define DTSF_APPLY_FAIL		0x01
 #define DTSF_REVERT_FAIL	0x02
 
+static int of_prop_val_eq(const struct property *p1, const struct property *p2)
+{
+	return p1->length == p2->length &&
+	       !memcmp(p1->value, p2->value, (size_t)p1->length);
+}
+
 /*
  * If a changeset apply or revert encounters an error, an attempt will
  * be made to undo partial changes, but may fail.  If the undo fails
