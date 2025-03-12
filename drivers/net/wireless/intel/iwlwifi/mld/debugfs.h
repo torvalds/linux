@@ -204,10 +204,10 @@ static ssize_t __iwl_dbgfs_##name##_read(struct file *file,		\
 #define WIPHY_DEBUGFS_READ_WRITE_FILE_OPS_MLD(name, bufsz)		\
 	MLD_DEBUGFS_OPEN_WRAPPER(name, bufsz, struct iwl_mld)		\
 	WIPHY_DEBUGFS_WRITE_WRAPPER_MLD(name)				\
-	MLD_DEBUGFS_READ_WRAPPER(name)					\
+	WIPHY_DEBUGFS_READ_WRAPPER_MLD(name)				\
 	static const struct file_operations iwl_dbgfs_##name##_ops = {	\
 		.write = __iwl_dbgfs_##name##_write,			\
-		.read = _iwl_dbgfs_##name##_read,			\
+		.read = __iwl_dbgfs_##name##_read,			\
 		.open = _iwl_dbgfs_##name##_open,			\
 		.llseek = generic_file_llseek,				\
 		.release = _iwl_dbgfs_release,				\
