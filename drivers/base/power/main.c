@@ -249,7 +249,7 @@ static int dpm_wait_fn(struct device *dev, void *async_ptr)
 
 static void dpm_wait_for_children(struct device *dev, bool async)
 {
-       device_for_each_child(dev, &async, dpm_wait_fn);
+	device_for_each_child(dev, &async, dpm_wait_fn);
 }
 
 static void dpm_wait_for_suppliers(struct device *dev, bool async)
