@@ -1540,19 +1540,37 @@ static void mt7996_sta_set_4addr(struct ieee80211_hw *hw,
 				 struct ieee80211_sta *sta,
 				 bool enabled)
 {
-	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-	struct mt7996_sta_link *msta_link = &msta->deflink;
+	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
-	if (enabled)
-		set_bit(MT_WCID_FLAG_4ADDR, &msta_link->wcid.flags);
-	else
-		clear_bit(MT_WCID_FLAG_4ADDR, &msta_link->wcid.flags);
+	mutex_lock(&dev->mt76.mutex);
 
-	if (!msta_link->wcid.sta)
-		return;
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct mt7996_sta_link *msta_link;
+		struct mt7996_vif_link *link;
 
-	mt7996_mcu_wtbl_update_hdr_trans(dev, vif, sta);
+		link = mt7996_vif_link(dev, vif, link_id);
+		if (!link)
+			continue;
+
+		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+		if (!msta_link)
+			continue;
+
+		if (enabled)
+			set_bit(MT_WCID_FLAG_4ADDR, &msta_link->wcid.flags);
+		else
+			clear_bit(MT_WCID_FLAG_4ADDR, &msta_link->wcid.flags);
+
+		if (!msta_link->wcid.sta)
+			continue;
+
+		mt7996_mcu_wtbl_update_hdr_trans(dev, vif, link, msta_link);
+	}
+
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static void mt7996_sta_set_decap_offload(struct ieee80211_hw *hw,
@@ -1560,19 +1578,39 @@ static void mt7996_sta_set_decap_offload(struct ieee80211_hw *hw,
 					 struct ieee80211_sta *sta,
 					 bool enabled)
 {
-	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-	struct mt7996_sta_link *msta_link = &msta->deflink;
+	struct mt7996_dev *dev = mt7996_hw_dev(hw);
+	struct ieee80211_link_sta *link_sta;
+	unsigned int link_id;
 
-	if (enabled)
-		set_bit(MT_WCID_FLAG_HDR_TRANS, &msta_link->wcid.flags);
-	else
-		clear_bit(MT_WCID_FLAG_HDR_TRANS, &msta_link->wcid.flags);
+	mutex_lock(&dev->mt76.mutex);
 
-	if (!msta_link->wcid.sta)
-		return;
+	for_each_sta_active_link(vif, sta, link_sta, link_id) {
+		struct mt7996_sta_link *msta_link;
+		struct mt7996_vif_link *link;
 
-	mt7996_mcu_wtbl_update_hdr_trans(dev, vif, sta);
+		link = mt7996_vif_link(dev, vif, link_id);
+		if (!link)
+			continue;
+
+		msta_link = mt76_dereference(msta->link[link_id], &dev->mt76);
+		if (!msta_link)
+			continue;
+
+		if (enabled)
+			set_bit(MT_WCID_FLAG_HDR_TRANS,
+				&msta_link->wcid.flags);
+		else
+			clear_bit(MT_WCID_FLAG_HDR_TRANS,
+				  &msta_link->wcid.flags);
+
+		if (!msta_link->wcid.sta)
+			continue;
+
+		mt7996_mcu_wtbl_update_hdr_trans(dev, vif, link, msta_link);
+	}
+
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static const char mt7996_gstrings_stats[][ETH_GSTRING_LEN] = {
