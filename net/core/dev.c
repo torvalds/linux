@@ -1059,28 +1059,6 @@ struct net_device *netdev_get_by_index_lock(struct net *net, int ifindex)
 	return __netdev_put_lock(dev);
 }
 
-/**
- * netdev_get_by_name_lock() - find a device by its name
- * @net: the applicable net namespace
- * @name: name of device
- *
- * Search for an interface by name. If a valid device
- * with @name is found it will be returned with netdev->lock held.
- * netdev_unlock() must be called to release it.
- *
- * Return: pointer to a device with lock held, NULL if not found.
- */
-struct net_device *netdev_get_by_name_lock(struct net *net, const char *name)
-{
-	struct net_device *dev;
-
-	dev = dev_get_by_name(net, name);
-	if (!dev)
-		return NULL;
-
-	return __netdev_put_lock(dev);
-}
-
 struct net_device *
 netdev_xa_find_lock(struct net *net, struct net_device *dev,
 		    unsigned long *index)
@@ -9597,24 +9575,44 @@ int netif_set_mac_address(struct net_device *dev, struct sockaddr *sa,
 	return 0;
 }
 
+DECLARE_RWSEM(dev_addr_sem);
+
+int netif_set_mac_address_user(struct net_device *dev, struct sockaddr *sa,
+			       struct netlink_ext_ack *extack)
+{
+	int ret;
+
+	down_write(&dev_addr_sem);
+	ret = netif_set_mac_address(dev, sa, extack);
+	up_write(&dev_addr_sem);
+	return ret;
+}
+
 int dev_get_mac_address(struct sockaddr *sa, struct net *net, char *dev_name)
 {
 	size_t size = sizeof(sa->sa_data_min);
 	struct net_device *dev;
+	int ret = 0;
 
-	dev = netdev_get_by_name_lock(net, dev_name);
-	if (!dev)
-		return -ENODEV;
+	down_read(&dev_addr_sem);
+	rcu_read_lock();
 
+	dev = dev_get_by_name_rcu(net, dev_name);
+	if (!dev) {
+		ret = -ENODEV;
+		goto unlock;
+	}
 	if (!dev->addr_len)
 		memset(sa->sa_data, 0, size);
 	else
 		memcpy(sa->sa_data, dev->dev_addr,
 		       min_t(size_t, size, dev->addr_len));
 	sa->sa_family = dev->type;
-	netdev_unlock(dev);
 
-	return 0;
+unlock:
+	rcu_read_unlock();
+	up_read(&dev_addr_sem);
+	return ret;
 }
 EXPORT_SYMBOL(dev_get_mac_address);
 

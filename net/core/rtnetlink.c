@@ -3090,11 +3090,7 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 		sa->sa_family = dev->type;
 		memcpy(sa->sa_data, nla_data(tb[IFLA_ADDRESS]),
 		       dev->addr_len);
-		if (!netdev_need_ops_lock(dev))
-			netdev_lock(dev);
-		err = netif_set_mac_address(dev, sa, extack);
-		if (!netdev_need_ops_lock(dev))
-			netdev_unlock(dev);
+		err = netif_set_mac_address_user(dev, sa, extack);
 		kfree(sa);
 		if (err)
 			goto errout;
