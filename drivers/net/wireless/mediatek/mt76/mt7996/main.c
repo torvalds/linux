@@ -1336,10 +1336,10 @@ mt7996_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-u64 __mt7996_get_tsf(struct ieee80211_hw *hw, struct mt7996_vif *mvif)
+u64 __mt7996_get_tsf(struct ieee80211_hw *hw, struct mt7996_vif_link *link)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
-	struct mt7996_phy *phy = mt7996_vif_link_phy(&mvif->deflink);
+	struct mt7996_phy *phy = link->phy;
 	union {
 		u64 t64;
 		u32 t32[2];
@@ -1351,8 +1351,8 @@ u64 __mt7996_get_tsf(struct ieee80211_hw *hw, struct mt7996_vif *mvif)
 
 	lockdep_assert_held(&dev->mt76.mutex);
 
-	n = mvif->deflink.mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
-					       : mvif->deflink.mt76.omac_idx;
+	n = link->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
+					       : link->mt76.omac_idx;
 	/* TSF software read */
 	mt76_rmw(dev, MT_LPON_TCR(phy->mt76->band_idx, n), MT_LPON_TCR_SW_MODE,
 		 MT_LPON_TCR_SW_READ);
@@ -1370,7 +1370,7 @@ mt7996_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	u64 ret;
 
 	mutex_lock(&dev->mt76.mutex);
-	ret = __mt7996_get_tsf(hw, mvif);
+	ret = __mt7996_get_tsf(hw, &mvif->deflink);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return ret;
@@ -1382,26 +1382,33 @@ mt7996_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
-	struct mt7996_phy *phy = mt7996_vif_link_phy(&mvif->deflink);
+	struct mt7996_vif_link *link;
+	struct mt7996_phy *phy;
 	union {
 		u64 t64;
 		u32 t32[2];
 	} tsf = { .t64 = timestamp, };
 	u16 n;
 
-	if (!phy)
-		return;
-
 	mutex_lock(&dev->mt76.mutex);
 
-	n = mvif->deflink.mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
-					       : mvif->deflink.mt76.omac_idx;
+	link = mt7996_vif_link(dev, vif, mvif->mt76.deflink_id);
+	if (!link)
+		goto unlock;
+
+	n = link->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
+					       : link->mt76.omac_idx;
+	phy = link->phy;
+	if (!phy)
+		goto unlock;
+
 	mt76_wr(dev, MT_LPON_UTTR0(phy->mt76->band_idx), tsf.t32[0]);
 	mt76_wr(dev, MT_LPON_UTTR1(phy->mt76->band_idx), tsf.t32[1]);
 	/* TSF software overwrite */
 	mt76_rmw(dev, MT_LPON_TCR(phy->mt76->band_idx, n), MT_LPON_TCR_SW_MODE,
 		 MT_LPON_TCR_SW_WRITE);
 
+unlock:
 	mutex_unlock(&dev->mt76.mutex);
 }
 
@@ -1411,26 +1418,33 @@ mt7996_offset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
-	struct mt7996_phy *phy = mt7996_vif_link_phy(&mvif->deflink);
+	struct mt7996_vif_link *link;
+	struct mt7996_phy *phy;
 	union {
 		u64 t64;
 		u32 t32[2];
 	} tsf = { .t64 = timestamp, };
 	u16 n;
 
-	if (!phy)
-		return;
-
 	mutex_lock(&dev->mt76.mutex);
 
-	n = mvif->deflink.mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
-					       : mvif->deflink.mt76.omac_idx;
+	link = mt7996_vif_link(dev, vif, mvif->mt76.deflink_id);
+	if (!link)
+		goto unlock;
+
+	phy = link->phy;
+	if (!phy)
+		goto unlock;
+
+	n = link->mt76.omac_idx > HW_BSSID_MAX ? HW_BSSID_0
+					       : link->mt76.omac_idx;
 	mt76_wr(dev, MT_LPON_UTTR0(phy->mt76->band_idx), tsf.t32[0]);
 	mt76_wr(dev, MT_LPON_UTTR1(phy->mt76->band_idx), tsf.t32[1]);
 	/* TSF software adjust*/
 	mt76_rmw(dev, MT_LPON_TCR(phy->mt76->band_idx, n), MT_LPON_TCR_SW_MODE,
 		 MT_LPON_TCR_SW_ADJUST);
 
+unlock:
 	mutex_unlock(&dev->mt76.mutex);
 }
 

@@ -2732,7 +2732,7 @@ void mt7996_mac_add_twt_setup(struct ieee80211_hw *hw,
 
 		flow->sched = true;
 		flow->start_tsf = mt7996_mac_twt_sched_list_add(dev, flow);
-		curr_tsf = __mt7996_get_tsf(hw, msta->vif);
+		curr_tsf = __mt7996_get_tsf(hw, &msta->vif->deflink);
 		div_u64_rem(curr_tsf - flow->start_tsf, interval, &rem);
 		flow_tsf = curr_tsf + interval - rem;
 		twt_agrt->twt = cpu_to_le64(flow_tsf);
