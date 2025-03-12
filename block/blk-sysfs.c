@@ -671,11 +671,6 @@ static struct attribute *queue_attrs[] = {
 	&queue_dax_entry.attr,
 	&queue_virt_boundary_mask_entry.attr,
 	&queue_dma_alignment_entry.attr,
-
-	/*
-	 * Attributes which require some form of locking other than
-	 * q->sysfs_lock.
-	 */
 	&queue_ra_entry.attr,
 
 	/*
