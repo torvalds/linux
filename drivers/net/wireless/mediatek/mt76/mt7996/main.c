@@ -158,62 +158,101 @@ mt7996_init_bitrate_mask(struct ieee80211_vif *vif, struct mt7996_vif_link *mlin
 static int
 mt7996_set_hw_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		  struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		  struct mt7996_vif_link *mlink, struct ieee80211_key_conf *key)
+		  struct ieee80211_key_conf *key)
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
-	struct mt76_wcid *wcid = &mlink->msta_link.wcid;
-	struct mt7996_phy *phy;
 	int idx = key->keyidx;
-	u8 *wcid_keyidx;
+	unsigned int link_id;
+	unsigned long links;
 
-	phy = mt7996_vif_link_phy(mlink);
-	if (!phy)
-		return -EINVAL;
+	if (key->link_id >= 0)
+		links = BIT(key->link_id);
+	else if (sta && sta->valid_links)
+		links = sta->valid_links;
+	else if (vif->valid_links)
+		links = vif->valid_links;
+	else
+		links = BIT(0);
 
-	if (sta) {
-		struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	for_each_set_bit(link_id, &links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct mt7996_sta_link *msta_link;
+		struct mt7996_vif_link *link;
+		u8 *wcid_keyidx;
+		int err;
 
-		wcid = &msta->deflink.wcid;
-		if (!wcid->sta)
-			return -EOPNOTSUPP;
-	}
-	wcid_keyidx = &wcid->hw_key_idx;
+		link = mt7996_vif_link(dev, vif, link_id);
+		if (!link)
+			continue;
 
-	switch (key->cipher) {
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-	case WLAN_CIPHER_SUITE_BIP_CMAC_256:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_128:
-	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
-		if (key->keyidx == 6 || key->keyidx == 7) {
-			wcid_keyidx = &wcid->hw_key_idx2;
-			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
+		if (sta) {
+			struct mt7996_sta *msta;
+
+			msta = (struct mt7996_sta *)sta->drv_priv;
+			msta_link = mt76_dereference(msta->link[link_id],
+						     &dev->mt76);
+			if (!msta_link)
+				continue;
+
+			if (!msta_link->wcid.sta)
+				return -EOPNOTSUPP;
+		} else {
+			msta_link = &link->msta_link;
 		}
-		break;
-	default:
-		break;
+		wcid_keyidx = &msta_link->wcid.hw_key_idx;
+
+		switch (key->cipher) {
+		case WLAN_CIPHER_SUITE_AES_CMAC:
+		case WLAN_CIPHER_SUITE_BIP_CMAC_256:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_128:
+		case WLAN_CIPHER_SUITE_BIP_GMAC_256:
+			if (key->keyidx == 6 || key->keyidx == 7) {
+				wcid_keyidx = &msta_link->wcid.hw_key_idx2;
+				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIE;
+			}
+			break;
+		default:
+			break;
+		}
+
+		if (cmd == SET_KEY && !sta && !link->mt76.cipher) {
+			struct ieee80211_bss_conf *link_conf;
+
+			link_conf = link_conf_dereference_protected(vif,
+								    link_id);
+			if (!link_conf)
+				link_conf = &vif->bss_conf;
+
+			link->mt76.cipher =
+				mt76_connac_mcu_get_cipher(key->cipher);
+			mt7996_mcu_add_bss_info(link->phy, vif, link_conf,
+						&link->mt76, msta_link, true);
+		}
+
+		if (cmd == SET_KEY) {
+			*wcid_keyidx = idx;
+		} else {
+			if (idx == *wcid_keyidx)
+				*wcid_keyidx = -1;
+			continue;
+		}
+
+		mt76_wcid_key_setup(&dev->mt76, &msta_link->wcid, key);
+
+		if (key->keyidx == 6 || key->keyidx == 7) {
+			err = mt7996_mcu_bcn_prot_enable(dev, link,
+							 msta_link, key);
+			if (err)
+				return err;
+		}
+
+		err = mt7996_mcu_add_key(&dev->mt76, vif, key,
+					 MCU_WMWA_UNI_CMD(STA_REC_UPDATE),
+					 &msta_link->wcid, cmd);
+		if (err)
+			return err;
 	}
 
-	if (cmd == SET_KEY && !sta && !mlink->mt76.cipher) {
-		mlink->mt76.cipher = mt76_connac_mcu_get_cipher(key->cipher);
-		mt7996_mcu_add_bss_info(phy, vif, &vif->bss_conf, &mlink->mt76,
-					&mlink->msta_link, true);
-	}
-
-	if (cmd == SET_KEY) {
-		*wcid_keyidx = idx;
-	} else {
-		if (idx == *wcid_keyidx)
-			*wcid_keyidx = -1;
-		return 0;
-	}
-
-	mt76_wcid_key_setup(&dev->mt76, wcid, key);
-
-	if (key->keyidx == 6 || key->keyidx == 7)
-		return mt7996_mcu_bcn_prot_enable(dev, vif, key);
-
-	return mt7996_mcu_add_key(&dev->mt76, vif, key,
-				  MCU_WMWA_UNI_CMD(STA_REC_UPDATE), wcid, cmd);
+	return 0;
 }
 
 static void
@@ -221,12 +260,10 @@ mt7996_key_iter(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		struct ieee80211_sta *sta, struct ieee80211_key_conf *key,
 		void *data)
 {
-	struct mt7996_vif_link *mlink = data;
-
 	if (sta)
 		return;
 
-	WARN_ON(mt7996_set_hw_key(hw, SET_KEY, vif, NULL, mlink, key));
+	WARN_ON(mt7996_set_hw_key(hw, SET_KEY, vif, NULL, key));
 }
 
 int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
@@ -298,7 +335,7 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 				   CONN_STATE_PORT_SECURE, true);
 	rcu_assign_pointer(dev->mt76.wcid[idx], &msta_link->wcid);
 
-	ieee80211_iter_keys(mphy->hw, vif, mt7996_key_iter, link);
+	ieee80211_iter_keys(mphy->hw, vif, mt7996_key_iter, NULL);
 
 	return 0;
 }
@@ -486,7 +523,6 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 {
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	struct mt7996_vif_link *mlink = &mvif->deflink;
 	int err;
 
 	/* The hardware does not support per-STA RX GTK, fallback
@@ -521,11 +557,11 @@ static int mt7996_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		return -EOPNOTSUPP;
 	}
 
-	if (!mt7996_vif_link_phy(mlink))
-	    return 0; /* defer until after link add */
+	if (!mt7996_vif_link_phy(&mvif->deflink))
+		return 0; /* defer until after link add */
 
 	mutex_lock(&dev->mt76.mutex);
-	err = mt7996_set_hw_key(hw, cmd, vif, sta, mlink, key);
+	err = mt7996_set_hw_key(hw, cmd, vif, sta, key);
 	mutex_unlock(&dev->mt76.mutex);
 
 	return err;

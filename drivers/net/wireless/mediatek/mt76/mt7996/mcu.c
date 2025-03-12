@@ -2430,18 +2430,17 @@ int mt7996_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
 	return mt76_mcu_skb_send_msg(dev, skb, mcu_cmd, true);
 }
 
-static int mt7996_mcu_get_pn(struct mt7996_dev *dev, struct ieee80211_vif *vif,
-			     u8 *pn)
+static int mt7996_mcu_get_pn(struct mt7996_dev *dev,
+			     struct mt7996_vif_link *link,
+			     struct mt7996_sta_link *msta_link, u8 *pn)
 {
 #define TSC_TYPE_BIGTK_PN 2
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
-	struct mt7996_sta_link *msta_link = &mvif->deflink.msta_link;
 	struct sta_rec_pn_info *pn_info;
 	struct sk_buff *skb, *rskb;
 	struct tlv *tlv;
 	int ret;
 
-	skb = mt76_connac_mcu_alloc_sta_req(&dev->mt76, &mvif->deflink.mt76,
+	skb = mt76_connac_mcu_alloc_sta_req(&dev->mt76, &link->mt76,
 					    &msta_link->wcid);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -2466,10 +2465,11 @@ static int mt7996_mcu_get_pn(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 	return 0;
 }
 
-int mt7996_mcu_bcn_prot_enable(struct mt7996_dev *dev, struct ieee80211_vif *vif,
+int mt7996_mcu_bcn_prot_enable(struct mt7996_dev *dev,
+			       struct mt7996_vif_link *link,
+			       struct mt7996_sta_link *msta_link,
 			       struct ieee80211_key_conf *key)
 {
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_mcu_bcn_prot_tlv *bcn_prot;
 	struct sk_buff *skb;
 	struct tlv *tlv;
@@ -2478,7 +2478,7 @@ int mt7996_mcu_bcn_prot_enable(struct mt7996_dev *dev, struct ieee80211_vif *vif
 		  sizeof(struct mt7996_mcu_bcn_prot_tlv);
 	int ret;
 
-	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &mvif->deflink.mt76, len);
+	skb = __mt7996_mcu_alloc_bss_req(&dev->mt76, &link->mt76, len);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
 
@@ -2486,7 +2486,7 @@ int mt7996_mcu_bcn_prot_enable(struct mt7996_dev *dev, struct ieee80211_vif *vif
 
 	bcn_prot = (struct mt7996_mcu_bcn_prot_tlv *)tlv;
 
-	ret = mt7996_mcu_get_pn(dev, vif, pn);
+	ret = mt7996_mcu_get_pn(dev, link, msta_link, pn);
 	if (ret) {
 		dev_kfree_skb(skb);
 		return ret;
