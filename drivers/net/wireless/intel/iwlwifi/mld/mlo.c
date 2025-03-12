@@ -47,7 +47,6 @@ static void iwl_mld_print_emlsr_blocked(struct iwl_mld *mld, u32 mask)
 	HOW(FAIL_ENTRY)			\
 	HOW(CSA)			\
 	HOW(EQUAL_BAND)			\
-	HOW(BANDWIDTH)			\
 	HOW(LOW_RSSI)			\
 	HOW(LINK_USAGE)			\
 	HOW(BT_COEX)			\
@@ -748,6 +747,7 @@ iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
 	struct iwl_mld_link *link_a =
 		iwl_mld_link_dereference_check(mld_vif, a->link_id);
 	struct ieee80211_chanctx_conf *chanctx_a = NULL;
+	u32 bw_a, bw_b, ratio;
 	u32 primary_load_perc;
 
 	if (!link_a || !link_a->active) {
@@ -765,7 +765,34 @@ iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
 
 	IWL_DEBUG_EHT(mld, "Average channel load not by us: %u\n", primary_load_perc);
 
-	return primary_load_perc > iwl_mld_get_min_chan_load_thresh(chanctx_a);
+	if (primary_load_perc < iwl_mld_get_min_chan_load_thresh(chanctx_a)) {
+		IWL_DEBUG_EHT(mld, "Channel load is below the minimum threshold\n");
+		return false;
+	}
+
+	if (iwl_mld_vif_low_latency(mld_vif)) {
+		IWL_DEBUG_EHT(mld, "Low latency vif, EMLSR is allowed\n");
+		return true;
+	}
+
+	if (a->chandef->width <= b->chandef->width)
+		return true;
+
+	bw_a = nl80211_chan_width_to_mhz(a->chandef->width);
+	bw_b = nl80211_chan_width_to_mhz(b->chandef->width);
+	ratio = bw_a / bw_b;
+
+	switch (ratio) {
+	case 2:
+		return primary_load_perc > 25;
+	case 4:
+		return primary_load_perc > 40;
+	case 8:
+	case 16:
+		return primary_load_perc > 50;
+	}
+
+	return false;
 }
 
 static bool
@@ -784,12 +811,6 @@ iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
 
 	if (a->chandef->chan->band == b->chandef->chan->band)
 		reason_mask |= IWL_MLD_EMLSR_EXIT_EQUAL_BAND;
-	if (a->chandef->width != b->chandef->width) {
-		/* TODO: task=EMLSR task=statistics
-		 * replace BANDWIDTH exit reason with channel load criteria
-		 */
-		reason_mask |= IWL_MLD_EMLSR_EXIT_BANDWIDTH;
-	}
 	if (!iwl_mld_channel_load_allows_emlsr(mld, vif, a, b))
 		reason_mask |= IWL_MLD_EMLSR_EXIT_CHAN_LOAD;
 
@@ -941,23 +962,6 @@ void iwl_mld_select_links(struct iwl_mld *mld)
 						NULL);
 }
 
-void iwl_mld_emlsr_check_equal_bw(struct iwl_mld *mld,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_bss_conf *link)
-{
-	u8 other_link_id = iwl_mld_get_other_link(vif, link->link_id);
-	struct ieee80211_bss_conf *other_link =
-		link_conf_dereference_check(vif, other_link_id);
-
-	if (!ieee80211_vif_link_active(vif, link->link_id) ||
-	    WARN_ON(link->link_id == other_link_id || !other_link))
-		return;
-
-	if (link->chanreq.oper.width != other_link->chanreq.oper.width)
-		iwl_mld_exit_emlsr(mld, vif, IWL_MLD_EMLSR_EXIT_BANDWIDTH,
-				   iwl_mld_get_primary_link(vif));
-}
-
 static void iwl_mld_emlsr_check_bt_iter(void *_data, u8 *mac,
 					struct ieee80211_vif *vif)
 {
@@ -1038,10 +1042,15 @@ static void iwl_mld_chan_load_update_iter(void *_data, u8 *mac,
 	} else {
 		u32 old_chan_load = data->prev_chan_load_not_by_us;
 		u32 new_chan_load = phy->avg_channel_load_not_by_us;
-		u32 thresh = iwl_mld_get_min_chan_load_thresh(chanctx);
+		u32 min_thresh = iwl_mld_get_min_chan_load_thresh(chanctx);
 
-		if (old_chan_load <= thresh && new_chan_load > thresh)
+#define THRESHOLD_CROSSED(threshold) \
+	(old_chan_load <= (threshold) && new_chan_load > (threshold))
+
+		if (THRESHOLD_CROSSED(min_thresh) || THRESHOLD_CROSSED(25) ||
+		    THRESHOLD_CROSSED(40) || THRESHOLD_CROSSED(50))
 			iwl_mld_retry_emlsr(mld, vif);
+#undef THRESHOLD_CROSSED
 	}
 }
 

@@ -7,6 +7,7 @@
 #include "low_latency.h"
 #include "hcmd.h"
 #include "power.h"
+#include "mlo.h"
 
 #define MLD_LL_WK_INTERVAL_MSEC 500
 #define MLD_LL_PERIOD (HZ * MLD_LL_WK_INTERVAL_MSEC / 1000)
@@ -230,6 +231,9 @@ void iwl_mld_vif_update_low_latency(struct iwl_mld *mld,
 		return;
 
 	iwl_mld_update_mac_power(mld, vif, false);
+
+	if (low_latency)
+		iwl_mld_retry_emlsr(mld, vif);
 }
 
 static bool iwl_mld_is_vo_vi_pkt(struct ieee80211_hdr *hdr)

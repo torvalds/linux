@@ -52,8 +52,6 @@ enum iwl_mld_emlsr_blocked {
  * @IWL_MLD_EMLSR_EXIT_FAIL_ENTRY: FW failed to enter EMLSR
  * @IWL_MLD_EMLSR_EXIT_CSA: EMLSR prevented due to channel switch on link
  * @IWL_MLD_EMLSR_EXIT_EQUAL_BAND: EMLSR prevented as both links share the band
- * @IWL_MLD_EMLSR_EXIT_BANDWIDTH: Bandwidths of primary and secondary links are
- *      not equal
  * @IWL_MLD_EMLSR_EXIT_LOW_RSSI: Link RSSI is unsuitable for EMLSR
  * @IWL_MLD_EMLSR_EXIT_LINK_USAGE: Exit EMLSR due to low TPT on secondary link
  * @IWL_MLD_EMLSR_EXIT_BT_COEX: Exit EMLSR due to BT coexistence
@@ -68,13 +66,12 @@ enum iwl_mld_emlsr_exit {
 	IWL_MLD_EMLSR_EXIT_FAIL_ENTRY		= 0x4,
 	IWL_MLD_EMLSR_EXIT_CSA			= 0x8,
 	IWL_MLD_EMLSR_EXIT_EQUAL_BAND		= 0x10,
-	IWL_MLD_EMLSR_EXIT_BANDWIDTH		= 0x20,
-	IWL_MLD_EMLSR_EXIT_LOW_RSSI		= 0x40,
-	IWL_MLD_EMLSR_EXIT_LINK_USAGE		= 0x80,
-	IWL_MLD_EMLSR_EXIT_BT_COEX		= 0x100,
-	IWL_MLD_EMLSR_EXIT_CHAN_LOAD		= 0x200,
-	IWL_MLD_EMLSR_EXIT_RFI			= 0x400,
-	IWL_MLD_EMLSR_EXIT_FW_REQUEST		= 0x800,
+	IWL_MLD_EMLSR_EXIT_LOW_RSSI		= 0x20,
+	IWL_MLD_EMLSR_EXIT_LINK_USAGE		= 0x40,
+	IWL_MLD_EMLSR_EXIT_BT_COEX		= 0x80,
+	IWL_MLD_EMLSR_EXIT_CHAN_LOAD		= 0x100,
+	IWL_MLD_EMLSR_EXIT_RFI			= 0x200,
+	IWL_MLD_EMLSR_EXIT_FW_REQUEST		= 0x400,
 };
 
 /**

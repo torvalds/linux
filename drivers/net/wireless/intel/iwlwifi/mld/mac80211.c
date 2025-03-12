@@ -1187,15 +1187,11 @@ iwl_mld_mac80211_link_info_changed_sta(struct iwl_mld *mld,
 		bw = ieee80211_chan_width_to_rx_bw(link_conf->chanreq.oper.width);
 
 		iwl_mld_omi_ap_changed_bw(mld, link_conf, bw);
+
 	}
 
-	if (changes & BSS_CHANGED_BANDWIDTH) {
-		if (iwl_mld_emlsr_active(vif))
-			iwl_mld_emlsr_check_equal_bw(mld, vif, link_conf);
-		else
-			/* Channel load threshold may have changed */
-			iwl_mld_retry_emlsr(mld, vif);
-	}
+	if (changes & BSS_CHANGED_BANDWIDTH)
+		iwl_mld_retry_emlsr(mld, vif);
 }
 
 static int iwl_mld_update_mu_groups(struct iwl_mld *mld,

@@ -134,10 +134,6 @@ void iwl_mld_emlsr_unblock_tpt_wk(struct wiphy *wiphy, struct wiphy_work *wk);
 
 void iwl_mld_select_links(struct iwl_mld *mld);
 
-void iwl_mld_emlsr_check_equal_bw(struct iwl_mld *mld,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_bss_conf *link);
-
 void iwl_mld_emlsr_check_bt(struct iwl_mld *mld);
 
 void iwl_mld_emlsr_check_chan_load(struct ieee80211_hw *hw,
