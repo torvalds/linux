@@ -10,6 +10,27 @@
 #include <drm/display/drm_hdmi_state_helper.h>
 
 /**
+ * DOC: hdmi helpers
+ *
+ * These functions contain an implementation of the HDMI specification
+ * in the form of KMS helpers.
+ *
+ * It contains TMDS character rate computation, automatic selection of
+ * output formats, infoframes generation, etc.
+ *
+ * Testing
+ * ~~~~~~~
+ *
+ * The helpers have unit testing and can be tested using kunit with:
+ *
+ * .. code-block:: bash
+ *
+ *	$ ./tools/testing/kunit/kunit.py run \
+ *		--kunitconfig=drivers/gpu/drm/tests \
+ *		drm_atomic_helper_connector_hdmi_*
+ */
+
+/**
  * __drm_atomic_helper_connector_hdmi_reset() - Initializes all HDMI @drm_connector_state resources
  * @connector: DRM connector
  * @new_conn_state: connector state to reset
