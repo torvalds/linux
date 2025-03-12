@@ -1064,7 +1064,8 @@ __mt7996_mcu_alloc_bss_req(struct mt76_dev *dev, struct mt76_vif_link *mvif, int
 
 int mt7996_mcu_add_bss_info(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 			    struct ieee80211_bss_conf *link_conf,
-			    struct mt76_vif_link *mlink, int enable)
+			    struct mt76_vif_link *mlink,
+			    struct mt7996_sta_link *msta_link, int enable)
 {
 	struct mt7996_dev *dev = phy->dev;
 	struct sk_buff *skb;
@@ -1081,7 +1082,7 @@ int mt7996_mcu_add_bss_info(struct mt7996_phy *phy, struct ieee80211_vif *vif,
 
 	/* bss_basic must be first */
 	mt7996_mcu_bss_basic_tlv(skb, vif, link_conf, mlink, phy->mt76,
-				 mlink->wcid->idx, enable);
+				 msta_link->wcid.idx, enable);
 	mt7996_mcu_bss_sec_tlv(skb, mlink);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR)

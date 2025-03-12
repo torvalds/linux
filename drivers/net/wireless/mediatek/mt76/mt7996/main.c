@@ -195,7 +195,8 @@ mt7996_set_hw_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	if (cmd == SET_KEY && !sta && !mlink->mt76.cipher) {
 		mlink->mt76.cipher = mt76_connac_mcu_get_cipher(key->cipher);
-		mt7996_mcu_add_bss_info(phy, vif, &vif->bss_conf, &mlink->mt76, true);
+		mt7996_mcu_add_bss_info(phy, vif, &vif->bss_conf, &mlink->mt76,
+					&mlink->msta_link, true);
 	}
 
 	if (cmd == SET_KEY) {
@@ -288,7 +289,7 @@ int mt7996_vif_link_add(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 
 	mt7996_init_bitrate_mask(vif, link);
 
-	mt7996_mcu_add_bss_info(phy, vif, link_conf, mlink, true);
+	mt7996_mcu_add_bss_info(phy, vif, link_conf, mlink, msta_link, true);
 	/* defer the first STA_REC of BMC entry to BSS_CHANGED_BSSID for STA
 	 * interface, since firmware only records BSSID when the entry is new
 	 */
@@ -314,7 +315,7 @@ void mt7996_vif_link_remove(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 
 	mt7996_mcu_add_sta(dev, link_conf, NULL, link, NULL,
 			   CONN_STATE_DISCONNECT, false);
-	mt7996_mcu_add_bss_info(phy, vif, link_conf, mlink, false);
+	mt7996_mcu_add_bss_info(phy, vif, link_conf, mlink, msta_link, false);
 
 	mt7996_mcu_add_dev_info(phy, vif, link_conf, mlink, false);
 
@@ -704,7 +705,8 @@ mt7996_vif_cfg_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				continue;
 
 			mt7996_mcu_add_bss_info(link->phy, vif, link_conf,
-						&link->mt76, true);
+						&link->mt76, &link->msta_link,
+						true);
 			mt7996_mcu_add_sta(dev, link_conf, NULL, link, NULL,
 					   CONN_STATE_PORT_SECURE,
 					   !!(changed & BSS_CHANGED_BSSID));
@@ -740,7 +742,8 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	 */
 	if ((changed & BSS_CHANGED_BSSID && !is_zero_ether_addr(info->bssid)) ||
 	    (changed & BSS_CHANGED_BEACON_ENABLED && info->enable_beacon)) {
-		mt7996_mcu_add_bss_info(phy, vif, info, &link->mt76, true);
+		mt7996_mcu_add_bss_info(phy, vif, info, &link->mt76,
+					&link->msta_link, true);
 		mt7996_mcu_add_sta(dev, info, NULL, link, NULL,
 				   CONN_STATE_PORT_SECURE,
 				   !!(changed & BSS_CHANGED_BSSID));
