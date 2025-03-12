@@ -556,8 +556,8 @@ iwl_dbgfs_vif_twt_setup_write(struct iwl_mld *mld, char *buf, size_t count,
 	};
 	struct ieee80211_vif *vif = data;
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct iwl_dhc_cmd *cmd __free(kfree) = NULL;
 	struct iwl_dhc_twt_operation *dhc_twt_cmd;
-	struct iwl_dhc_cmd *cmd __free(kfree);
 	u64 target_wake_time;
 	u32 twt_operation, interval_exp, interval_mantissa, min_wake_duration;
 	u8 trigger, flow_type, flow_id, protection, tenth_param;
