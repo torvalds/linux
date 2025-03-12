@@ -1973,13 +1973,26 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
 {
 	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-	struct mt7996_sta_link *msta_link = &msta->deflink;
-	struct mt7996_vif_link *mlink = &mvif->deflink;
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
 	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+	struct mt7996_sta_link *msta_link;
+	struct mt7996_vif_link *link;
+	struct mt76_vif_link *mlink;
 	struct mt7996_phy *phy;
 
-	phy = mt7996_vif_link_phy(mlink);
+	mlink = rcu_dereference(mvif->mt76.link[msta->deflink_id]);
+	if (!mlink)
+		return -EIO;
+
+	msta_link = rcu_dereference(msta->link[msta->deflink_id]);
+	if (!msta_link)
+		return -EIO;
+
+	if (!msta_link->wcid.sta || msta_link->wcid.idx > MT7996_WTBL_STA)
+		return -EIO;
+
+	link = (struct mt7996_vif_link *)mlink;
+	phy = mt7996_vif_link_phy(link);
 	if (!phy)
 		return -ENODEV;
 
@@ -1989,13 +2002,10 @@ mt7996_net_fill_forward_path(struct ieee80211_hw *hw,
 	if (!mtk_wed_device_active(wed))
 		return -ENODEV;
 
-	if (!msta_link->wcid.sta || msta_link->wcid.idx > MT7996_WTBL_STA)
-		return -EIO;
-
 	path->type = DEV_PATH_MTK_WDMA;
 	path->dev = ctx->dev;
 	path->mtk_wdma.wdma_idx = wed->wdma_idx;
-	path->mtk_wdma.bss = mvif->deflink.mt76.idx;
+	path->mtk_wdma.bss = mlink->idx;
 	path->mtk_wdma.queue = 0;
 	path->mtk_wdma.wcid = msta_link->wcid.idx;
 
