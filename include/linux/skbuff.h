@@ -3867,25 +3867,6 @@ static inline int __must_check skb_put_padto(struct sk_buff *skb, unsigned int l
 bool csum_and_copy_from_iter_full(void *addr, size_t bytes, __wsum *csum, struct iov_iter *i)
 	__must_check;
 
-static inline int skb_add_data(struct sk_buff *skb,
-			       struct iov_iter *from, int copy)
-{
-	const int off = skb->len;
-
-	if (skb->ip_summed == CHECKSUM_NONE) {
-		__wsum csum = 0;
-		if (csum_and_copy_from_iter_full(skb_put(skb, copy), copy,
-					         &csum, from)) {
-			skb->csum = csum_block_add(skb->csum, csum, off);
-			return 0;
-		}
-	} else if (copy_from_iter_full(skb_put(skb, copy), copy, from))
-		return 0;
-
-	__skb_trim(skb, off);
-	return -EFAULT;
-}
-
 static inline bool skb_can_coalesce(struct sk_buff *skb, int i,
 				    const struct page *page, int off)
 {
