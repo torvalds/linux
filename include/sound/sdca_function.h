@@ -601,6 +601,27 @@ enum sdca_entity0_controls {
 #define SDCA_CTL_DEVICE_SDCA_VERSION_NAME		"Device SDCA Version"
 
 /**
+ * enum sdca_control_datatype - SDCA Control Data Types
+ *
+ * Data Types as described in the SDCA specification v1.0 section
+ * 7.3.
+ */
+enum sdca_control_datatype {
+	SDCA_CTL_DATATYPE_ONEBIT,
+	SDCA_CTL_DATATYPE_INTEGER,
+	SDCA_CTL_DATATYPE_SPEC_ENCODED_VALUE,
+	SDCA_CTL_DATATYPE_BCD,
+	SDCA_CTL_DATATYPE_Q7P8DB,
+	SDCA_CTL_DATATYPE_BYTEINDEX,
+	SDCA_CTL_DATATYPE_POSTURENUMBER,
+	SDCA_CTL_DATATYPE_DP_INDEX,
+	SDCA_CTL_DATATYPE_BITINDEX,
+	SDCA_CTL_DATATYPE_BITMAP,
+	SDCA_CTL_DATATYPE_GUID,
+	SDCA_CTL_DATATYPE_IMPDEF,
+};
+
+/**
  * enum sdca_access_mode - SDCA Control access mode
  *
  * Access modes as described in the SDCA specification v1.0 section
@@ -653,6 +674,7 @@ struct sdca_control_range {
  * @cn_list: A bitmask showing the valid Control Numbers within this Control,
  * Control Numbers typically represent channels.
  * @range: Buffer describing valid range of values for the Control.
+ * @type: Format of the data in the Control.
  * @mode: Access mode of the Control.
  * @layers: Bitmask of access layers of the Control.
  * @deferrable: Indicates if the access to the Control can be deferred.
@@ -669,6 +691,7 @@ struct sdca_control {
 	u64 cn_list;
 
 	struct sdca_control_range range;
+	enum sdca_control_datatype type;
 	enum sdca_access_mode mode;
 	u8 layers;
 
