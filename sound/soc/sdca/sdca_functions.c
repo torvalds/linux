@@ -10,6 +10,7 @@
 
 #include <linux/acpi.h>
 #include <linux/byteorder/generic.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
 #include <linux/module.h>
@@ -186,14 +187,18 @@ void sdca_lookup_functions(struct sdw_slave *slave)
 }
 EXPORT_SYMBOL_NS(sdca_lookup_functions, "SND_SOC_SDCA");
 
+struct raw_init_write {
+	__le32 addr;
+	u8 val;
+} __packed;
+
 static int find_sdca_init_table(struct device *dev,
 				struct fwnode_handle *function_node,
 				struct sdca_function_data *function)
 {
+	struct raw_init_write *raw __free(kfree) = NULL;
 	struct sdca_init_write *init_write;
-	int write_size = sizeof(init_write->addr) + sizeof(init_write->val);
-	u8 *init_list, *init_iter;
-	int num_init_writes;
+	int i, num_init_writes;
 
 	num_init_writes = fwnode_property_count_u8(function_node,
 						   "mipi-sdca-function-initialization-table");
@@ -203,7 +208,7 @@ static int find_sdca_init_table(struct device *dev,
 		dev_err(dev, "%pfwP: failed to read initialization table: %d\n",
 			function_node, num_init_writes);
 		return num_init_writes;
-	} else if (num_init_writes % write_size != 0) {
+	} else if (num_init_writes % sizeof(*raw) != 0) {
 		dev_err(dev, "%pfwP: init table size invalid\n", function_node);
 		return -EINVAL;
 	} else if (num_init_writes > SDCA_MAX_INIT_COUNT) {
@@ -211,33 +216,27 @@ static int find_sdca_init_table(struct device *dev,
 		return -EINVAL;
 	}
 
-	init_write = devm_kcalloc(dev, num_init_writes / write_size,
-				  sizeof(*init_write), GFP_KERNEL);
-	if (!init_write)
-		return -ENOMEM;
-
-	init_list = kcalloc(num_init_writes, sizeof(*init_list), GFP_KERNEL);
-	if (!init_list)
+	raw = kzalloc(num_init_writes, GFP_KERNEL);
+	if (!raw)
 		return -ENOMEM;
 
 	fwnode_property_read_u8_array(function_node,
 				      "mipi-sdca-function-initialization-table",
-				      init_list, num_init_writes);
+				      (u8 *)raw, num_init_writes);
+
+	num_init_writes /= sizeof(*raw);
+
+	init_write = devm_kcalloc(dev, num_init_writes, sizeof(*init_write), GFP_KERNEL);
+	if (!init_write)
+		return -ENOMEM;
+
+	for (i = 0; i < num_init_writes; i++) {
+		init_write[i].addr = le32_to_cpu(raw[i].addr);
+		init_write[i].val = raw[i].val;
+	}
 
 	function->num_init_table = num_init_writes;
 	function->init_table = init_write;
-
-	for (init_iter = init_list; init_iter < init_list + num_init_writes;) {
-		u32 *addr = (u32 *)init_iter;
-
-		init_write->addr = le32_to_cpu(*addr);
-		init_iter += sizeof(init_write->addr);
-
-		init_write->val = *init_iter;
-		init_iter += sizeof(init_write->val);
-	}
-
-	kfree(init_list);
 
 	return 0;
 }
