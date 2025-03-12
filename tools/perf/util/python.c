@@ -22,13 +22,6 @@
 #include "util/sample.h"
 #include <internal/lib.h>
 
-#define _PyUnicode_FromString(arg) \
-  PyUnicode_FromString(arg)
-#define _PyUnicode_FromFormat(...) \
-  PyUnicode_FromFormat(__VA_ARGS__)
-#define _PyLong_FromLong(arg) \
-  PyLong_FromLong(arg)
-
 PyMODINIT_FUNC PyInit_perf(void);
 
 #define member_def(type, member, ptype, help) \
