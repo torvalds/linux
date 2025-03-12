@@ -1287,7 +1287,7 @@ mt7996_mac_add_txs_skb(struct mt7996_dev *dev, struct mt76_wcid *wcid,
 		struct ieee80211_sta *sta;
 		u8 tid;
 
-		sta = container_of((void *)wcid, struct ieee80211_sta, drv_priv);
+		sta = wcid_to_sta(wcid);
 		tid = FIELD_GET(MT_TXS0_TID, txs);
 		ieee80211_refresh_tx_agg_session_timer(sta, tid);
 	}
