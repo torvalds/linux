@@ -295,6 +295,26 @@ static void tdx_clear_page(struct page *page)
 	__mb();
 }
 
+static void tdx_no_vcpus_enter_start(struct kvm *kvm)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+
+	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	WRITE_ONCE(kvm_tdx->wait_for_sept_zap, true);
+
+	kvm_make_all_cpus_request(kvm, KVM_REQ_OUTSIDE_GUEST_MODE);
+}
+
+static void tdx_no_vcpus_enter_stop(struct kvm *kvm)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(kvm);
+
+	lockdep_assert_held_write(&kvm->mmu_lock);
+
+	WRITE_ONCE(kvm_tdx->wait_for_sept_zap, false);
+}
+
 /* TDH.PHYMEM.PAGE.RECLAIM is allowed only when destroying the TD. */
 static int __tdx_reclaim_page(struct page *page)
 {
@@ -605,6 +625,7 @@ int tdx_vm_init(struct kvm *kvm)
 
 	kvm->arch.has_protected_state = true;
 	kvm->arch.has_private_mem = true;
+	kvm->arch.disabled_quirks |= KVM_X86_QUIRK_IGNORE_GUEST_PAT;
 
 	/*
 	 * Because guest TD is protected, VMM can't parse the instruction in TD.
@@ -706,9 +727,39 @@ void tdx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	local_irq_enable();
 }
 
+bool tdx_interrupt_allowed(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * KVM can't get the interrupt status of TDX guest and it assumes
+	 * interrupt is always allowed unless TDX guest calls TDVMCALL with HLT,
+	 * which passes the interrupt blocked flag.
+	 */
+	return vmx_get_exit_reason(vcpu).basic != EXIT_REASON_HLT ||
+	       !to_tdx(vcpu)->vp_enter_args.r12;
+}
+
 bool tdx_protected_apic_has_interrupt(struct kvm_vcpu *vcpu)
 {
-	return pi_has_pending_interrupt(vcpu);
+	u64 vcpu_state_details;
+
+	if (pi_has_pending_interrupt(vcpu))
+		return true;
+
+	/*
+	 * Only check RVI pending for HALTED case with IRQ enabled.
+	 * For non-HLT cases, KVM doesn't care about STI/SS shadows.  And if the
+	 * interrupt was pending before TD exit, then it _must_ be blocked,
+	 * otherwise the interrupt would have been serviced at the instruction
+	 * boundary.
+	 */
+	if (vmx_get_exit_reason(vcpu).basic != EXIT_REASON_HLT ||
+	    to_tdx(vcpu)->vp_enter_args.r12)
+		return false;
+
+	vcpu_state_details =
+		td_state_non_arch_read64(to_tdx(vcpu), TD_VCPU_STATE_DETAILS_NON_ARCH);
+
+	return tdx_vcpu_state_details_intr_pending(vcpu_state_details);
 }
 
 /*
@@ -824,7 +875,11 @@ int tdx_vcpu_pre_run(struct kvm_vcpu *vcpu)
 static __always_inline u32 tdcall_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
 {
 	switch (tdvmcall_leaf(vcpu)) {
+	case EXIT_REASON_CPUID:
+	case EXIT_REASON_HLT:
 	case EXIT_REASON_IO_INSTRUCTION:
+	case EXIT_REASON_MSR_READ:
+	case EXIT_REASON_MSR_WRITE:
 		return tdvmcall_leaf(vcpu);
 	case EXIT_REASON_EPT_VIOLATION:
 		return EXIT_REASON_EPT_MISCONFIG;
@@ -859,6 +914,12 @@ static __always_inline u32 tdx_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
 			return EXIT_REASON_VMCALL;
 
 		return tdcall_to_vmx_exit_reason(vcpu);
+	case EXIT_REASON_EPT_MISCONFIG:
+		/*
+		 * Defer KVM_BUG_ON() until tdx_handle_exit() because this is in
+		 * non-instrumentable code with interrupts disabled.
+		 */
+		return -1u;
 	default:
 		break;
 	}
@@ -974,6 +1035,14 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 	 */
 	WARN_ON_ONCE(force_immediate_exit);
 
+	/*
+	 * Wait until retry of SEPT-zap-related SEAMCALL completes before
+	 * allowing vCPU entry to avoid contention with tdh_vp_enter() and
+	 * TDCALLs.
+	 */
+	if (unlikely(READ_ONCE(to_kvm_tdx(vcpu->kvm)->wait_for_sept_zap)))
+		return EXIT_FASTPATH_EXIT_HANDLED;
+
 	trace_kvm_entry(vcpu, force_immediate_exit);
 
 	if (pi_test_on(&vt->pi_desc)) {
@@ -993,6 +1062,9 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 	tdx->guest_entered = true;
 
 	vcpu->arch.regs_avail &= TDX_REGS_AVAIL_SET;
+
+	if (unlikely(tdx->vp_enter_ret == EXIT_REASON_EPT_MISCONFIG))
+		return EXIT_FASTPATH_NONE;
 
 	if (unlikely((tdx->vp_enter_ret & TDX_SW_ERROR) == TDX_SW_ERROR))
 		return EXIT_FASTPATH_NONE;
@@ -1091,9 +1163,7 @@ static int tdx_complete_vmcall_map_gpa(struct kvm_vcpu *vcpu)
 	/*
 	 * Stop processing the remaining part if there is a pending interrupt,
 	 * which could be qualified to deliver.  Skip checking pending RVI for
-	 * TDVMCALL_MAP_GPA.
-	 * TODO: Add a comment to link the reason when the target function is
-	 * implemented.
+	 * TDVMCALL_MAP_GPA, see comments in tdx_protected_apic_has_interrupt().
 	 */
 	if (kvm_vcpu_has_events(vcpu)) {
 		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_RETRY);
@@ -1199,6 +1269,25 @@ static int tdx_report_fatal_error(struct kvm_vcpu *vcpu)
 		regs[VCPU_REGS_R8 + index] = module_regs[index];
 
 	return 0;
+}
+
+static int tdx_emulate_cpuid(struct kvm_vcpu *vcpu)
+{
+	u32 eax, ebx, ecx, edx;
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+
+	/* EAX and ECX for cpuid is stored in R12 and R13. */
+	eax = tdx->vp_enter_args.r12;
+	ecx = tdx->vp_enter_args.r13;
+
+	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, false);
+
+	tdx->vp_enter_args.r12 = eax;
+	tdx->vp_enter_args.r13 = ebx;
+	tdx->vp_enter_args.r14 = ecx;
+	tdx->vp_enter_args.r15 = edx;
+
+	return 1;
 }
 
 static int tdx_complete_pio_out(struct kvm_vcpu *vcpu)
@@ -1360,6 +1449,20 @@ error:
 	return 1;
 }
 
+static int tdx_get_td_vm_call_info(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+
+	if (tdx->vp_enter_args.r12)
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+	else {
+		tdx->vp_enter_args.r11 = 0;
+		tdx->vp_enter_args.r13 = 0;
+		tdx->vp_enter_args.r14 = 0;
+	}
+	return 1;
+}
+
 static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 {
 	switch (tdvmcall_leaf(vcpu)) {
@@ -1367,6 +1470,8 @@ static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 		return tdx_map_gpa(vcpu);
 	case TDVMCALL_REPORT_FATAL_ERROR:
 		return tdx_report_fatal_error(vcpu);
+	case TDVMCALL_GET_TD_VM_CALL_INFO:
+		return tdx_get_td_vm_call_info(vcpu);
 	default:
 		break;
 	}
@@ -1484,15 +1589,24 @@ static int tdx_sept_drop_private_spte(struct kvm *kvm, gfn_t gfn,
 	if (KVM_BUG_ON(!is_hkid_assigned(kvm_tdx), kvm))
 		return -EINVAL;
 
-	do {
+	/*
+	 * When zapping private page, write lock is held. So no race condition
+	 * with other vcpu sept operation.
+	 * Race with TDH.VP.ENTER due to (0-step mitigation) and Guest TDCALLs.
+	 */
+	err = tdh_mem_page_remove(&kvm_tdx->td, gpa, tdx_level, &entry,
+				  &level_state);
+
+	if (unlikely(tdx_operand_busy(err))) {
 		/*
-		 * When zapping private page, write lock is held. So no race
-		 * condition with other vcpu sept operation.  Race only with
-		 * TDH.VP.ENTER.
+		 * The second retry is expected to succeed after kicking off all
+		 * other vCPUs and prevent them from invoking TDH.VP.ENTER.
 		 */
+		tdx_no_vcpus_enter_start(kvm);
 		err = tdh_mem_page_remove(&kvm_tdx->td, gpa, tdx_level, &entry,
 					  &level_state);
-	} while (unlikely(tdx_operand_busy(err)));
+		tdx_no_vcpus_enter_stop(kvm);
+	}
 
 	if (KVM_BUG_ON(err, kvm)) {
 		pr_tdx_error_2(TDH_MEM_PAGE_REMOVE, err, entry, level_state);
@@ -1576,9 +1690,13 @@ static int tdx_sept_zap_private_spte(struct kvm *kvm, gfn_t gfn,
 	WARN_ON_ONCE(level != PG_LEVEL_4K);
 
 	err = tdh_mem_range_block(&kvm_tdx->td, gpa, tdx_level, &entry, &level_state);
-	if (unlikely(tdx_operand_busy(err)))
-		return -EBUSY;
 
+	if (unlikely(tdx_operand_busy(err))) {
+		/* After no vCPUs enter, the second retry is expected to succeed */
+		tdx_no_vcpus_enter_start(kvm);
+		err = tdh_mem_range_block(&kvm_tdx->td, gpa, tdx_level, &entry, &level_state);
+		tdx_no_vcpus_enter_stop(kvm);
+	}
 	if (tdx_is_sept_zap_err_due_to_premap(kvm_tdx, err, entry, level) &&
 	    !KVM_BUG_ON(!atomic64_read(&kvm_tdx->nr_premapped), kvm)) {
 		atomic64_dec(&kvm_tdx->nr_premapped);
@@ -1628,9 +1746,13 @@ static void tdx_track(struct kvm *kvm)
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
 
-	do {
+	err = tdh_mem_track(&kvm_tdx->td);
+	if (unlikely(tdx_operand_busy(err))) {
+		/* After no vCPUs enter, the second retry is expected to succeed */
+		tdx_no_vcpus_enter_start(kvm);
 		err = tdh_mem_track(&kvm_tdx->td);
-	} while (unlikely(tdx_operand_busy(err)));
+		tdx_no_vcpus_enter_stop(kvm);
+	}
 
 	if (KVM_BUG_ON(err, kvm))
 		pr_tdx_error(TDH_MEM_TRACK, err);
@@ -1700,6 +1822,123 @@ void tdx_deliver_interrupt(struct kvm_lapic *apic, int delivery_mode,
 	trace_kvm_apicv_accept_irq(vcpu->vcpu_id, delivery_mode, trig_mode, vector);
 }
 
+static inline bool tdx_is_sept_violation_unexpected_pending(struct kvm_vcpu *vcpu)
+{
+	u64 eeq_type = to_tdx(vcpu)->ext_exit_qualification & TDX_EXT_EXIT_QUAL_TYPE_MASK;
+	u64 eq = vmx_get_exit_qual(vcpu);
+
+	if (eeq_type != TDX_EXT_EXIT_QUAL_TYPE_PENDING_EPT_VIOLATION)
+		return false;
+
+	return !(eq & EPT_VIOLATION_RWX_MASK) && !(eq & EPT_VIOLATION_EXEC_FOR_RING3_LIN);
+}
+
+static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
+{
+	unsigned long exit_qual;
+	gpa_t gpa = to_tdx(vcpu)->exit_gpa;
+	bool local_retry = false;
+	int ret;
+
+	if (vt_is_tdx_private_gpa(vcpu->kvm, gpa)) {
+		if (tdx_is_sept_violation_unexpected_pending(vcpu)) {
+			pr_warn("Guest access before accepting 0x%llx on vCPU %d\n",
+				gpa, vcpu->vcpu_id);
+			kvm_vm_dead(vcpu->kvm);
+			return -EIO;
+		}
+		/*
+		 * Always treat SEPT violations as write faults.  Ignore the
+		 * EXIT_QUALIFICATION reported by TDX-SEAM for SEPT violations.
+		 * TD private pages are always RWX in the SEPT tables,
+		 * i.e. they're always mapped writable.  Just as importantly,
+		 * treating SEPT violations as write faults is necessary to
+		 * avoid COW allocations, which will cause TDAUGPAGE failures
+		 * due to aliasing a single HPA to multiple GPAs.
+		 */
+		exit_qual = EPT_VIOLATION_ACC_WRITE;
+
+		/* Only private GPA triggers zero-step mitigation */
+		local_retry = true;
+	} else {
+		exit_qual = vmx_get_exit_qual(vcpu);
+		/*
+		 * EPT violation due to instruction fetch should never be
+		 * triggered from shared memory in TDX guest.  If such EPT
+		 * violation occurs, treat it as broken hardware.
+		 */
+		if (KVM_BUG_ON(exit_qual & EPT_VIOLATION_ACC_INSTR, vcpu->kvm))
+			return -EIO;
+	}
+
+	trace_kvm_page_fault(vcpu, gpa, exit_qual);
+
+	/*
+	 * To minimize TDH.VP.ENTER invocations, retry locally for private GPA
+	 * mapping in TDX.
+	 *
+	 * KVM may return RET_PF_RETRY for private GPA due to
+	 * - contentions when atomically updating SPTEs of the mirror page table
+	 * - in-progress GFN invalidation or memslot removal.
+	 * - TDX_OPERAND_BUSY error from TDH.MEM.PAGE.AUG or TDH.MEM.SEPT.ADD,
+	 *   caused by contentions with TDH.VP.ENTER (with zero-step mitigation)
+	 *   or certain TDCALLs.
+	 *
+	 * If TDH.VP.ENTER is invoked more times than the threshold set by the
+	 * TDX module before KVM resolves the private GPA mapping, the TDX
+	 * module will activate zero-step mitigation during TDH.VP.ENTER. This
+	 * process acquires an SEPT tree lock in the TDX module, leading to
+	 * further contentions with TDH.MEM.PAGE.AUG or TDH.MEM.SEPT.ADD
+	 * operations on other vCPUs.
+	 *
+	 * Breaking out of local retries for kvm_vcpu_has_events() is for
+	 * interrupt injection. kvm_vcpu_has_events() should not see pending
+	 * events for TDX. Since KVM can't determine if IRQs (or NMIs) are
+	 * blocked by TDs, false positives are inevitable i.e., KVM may re-enter
+	 * the guest even if the IRQ/NMI can't be delivered.
+	 *
+	 * Note: even without breaking out of local retries, zero-step
+	 * mitigation may still occur due to
+	 * - invoking of TDH.VP.ENTER after KVM_EXIT_MEMORY_FAULT,
+	 * - a single RIP causing EPT violations for more GFNs than the
+	 *   threshold count.
+	 * This is safe, as triggering zero-step mitigation only introduces
+	 * contentions to page installation SEAMCALLs on other vCPUs, which will
+	 * handle retries locally in their EPT violation handlers.
+	 */
+	while (1) {
+		ret = __vmx_handle_ept_violation(vcpu, gpa, exit_qual);
+
+		if (ret != RET_PF_RETRY || !local_retry)
+			break;
+
+		if (kvm_vcpu_has_events(vcpu) || signal_pending(current))
+			break;
+
+		if (kvm_check_request(KVM_REQ_VM_DEAD, vcpu)) {
+			ret = -EIO;
+			break;
+		}
+
+		cond_resched();
+	}
+	return ret;
+}
+
+int tdx_complete_emulated_msr(struct kvm_vcpu *vcpu, int err)
+{
+	if (err) {
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+		return 1;
+	}
+
+	if (vmx_get_exit_reason(vcpu).basic == EXIT_REASON_MSR_READ)
+		tdvmcall_set_return_val(vcpu, kvm_read_edx_eax(vcpu));
+
+	return 1;
+}
+
+
 int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 {
 	struct vcpu_tdx *tdx = to_tdx(vcpu);
@@ -1708,6 +1947,11 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 
 	if (fastpath != EXIT_FASTPATH_NONE)
 		return 1;
+
+	if (unlikely(vp_enter_ret == EXIT_REASON_EPT_MISCONFIG)) {
+		KVM_BUG_ON(1, vcpu->kvm);
+		return -EIO;
+	}
 
 	/*
 	 * Handle TDX SW errors, including TDX_SEAMCALL_UD, TDX_SEAMCALL_GP and
@@ -1750,14 +1994,28 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 	case EXIT_REASON_EXTERNAL_INTERRUPT:
 		++vcpu->stat.irq_exits;
 		return 1;
+	case EXIT_REASON_CPUID:
+		return tdx_emulate_cpuid(vcpu);
+	case EXIT_REASON_HLT:
+		return kvm_emulate_halt_noskip(vcpu);
 	case EXIT_REASON_TDCALL:
 		return handle_tdvmcall(vcpu);
 	case EXIT_REASON_VMCALL:
 		return tdx_emulate_vmcall(vcpu);
 	case EXIT_REASON_IO_INSTRUCTION:
 		return tdx_emulate_io(vcpu);
+	case EXIT_REASON_MSR_READ:
+		kvm_rcx_write(vcpu, tdx->vp_enter_args.r12);
+		return kvm_emulate_rdmsr(vcpu);
+	case EXIT_REASON_MSR_WRITE:
+		kvm_rcx_write(vcpu, tdx->vp_enter_args.r12);
+		kvm_rax_write(vcpu, tdx->vp_enter_args.r13 & -1u);
+		kvm_rdx_write(vcpu, tdx->vp_enter_args.r13 >> 32);
+		return kvm_emulate_wrmsr(vcpu);
 	case EXIT_REASON_EPT_MISCONFIG:
 		return tdx_emulate_mmio(vcpu);
+	case EXIT_REASON_EPT_VIOLATION:
+		return tdx_handle_ept_violation(vcpu);
 	case EXIT_REASON_OTHER_SMI:
 		/*
 		 * Unlike VMX, SMI in SEAM non-root mode (i.e. when
@@ -1809,6 +2067,104 @@ void tdx_get_exit_info(struct kvm_vcpu *vcpu, u32 *reason,
 	}
 
 	*error_code = 0;
+}
+
+bool tdx_has_emulated_msr(u32 index)
+{
+	switch (index) {
+	case MSR_IA32_UCODE_REV:
+	case MSR_IA32_ARCH_CAPABILITIES:
+	case MSR_IA32_POWER_CTL:
+	case MSR_IA32_CR_PAT:
+	case MSR_MTRRcap:
+	case MTRRphysBase_MSR(0) ... MSR_MTRRfix4K_F8000:
+	case MSR_MTRRdefType:
+	case MSR_IA32_TSC_DEADLINE:
+	case MSR_IA32_MISC_ENABLE:
+	case MSR_PLATFORM_INFO:
+	case MSR_MISC_FEATURES_ENABLES:
+	case MSR_IA32_APICBASE:
+	case MSR_EFER:
+	case MSR_IA32_FEAT_CTL:
+	case MSR_IA32_MCG_CAP:
+	case MSR_IA32_MCG_STATUS:
+	case MSR_IA32_MCG_CTL:
+	case MSR_IA32_MCG_EXT_CTL:
+	case MSR_IA32_MC0_CTL ... MSR_IA32_MCx_CTL(KVM_MAX_MCE_BANKS) - 1:
+	case MSR_IA32_MC0_CTL2 ... MSR_IA32_MCx_CTL2(KVM_MAX_MCE_BANKS) - 1:
+		/* MSR_IA32_MCx_{CTL, STATUS, ADDR, MISC, CTL2} */
+	case MSR_KVM_POLL_CONTROL:
+		return true;
+	case APIC_BASE_MSR ... APIC_BASE_MSR + 0xff:
+		/*
+		 * x2APIC registers that are virtualized by the CPU can't be
+		 * emulated, KVM doesn't have access to the virtual APIC page.
+		 */
+		switch (index) {
+		case X2APIC_MSR(APIC_TASKPRI):
+		case X2APIC_MSR(APIC_PROCPRI):
+		case X2APIC_MSR(APIC_EOI):
+		case X2APIC_MSR(APIC_ISR) ... X2APIC_MSR(APIC_ISR + APIC_ISR_NR):
+		case X2APIC_MSR(APIC_TMR) ... X2APIC_MSR(APIC_TMR + APIC_ISR_NR):
+		case X2APIC_MSR(APIC_IRR) ... X2APIC_MSR(APIC_IRR + APIC_ISR_NR):
+			return false;
+		default:
+			return true;
+		}
+	default:
+		return false;
+	}
+}
+
+static bool tdx_is_read_only_msr(u32 index)
+{
+	return  index == MSR_IA32_APICBASE || index == MSR_EFER ||
+		index == MSR_IA32_FEAT_CTL;
+}
+
+int tdx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
+{
+	switch (msr->index) {
+	case MSR_IA32_FEAT_CTL:
+		/*
+		 * MCE and MCA are advertised via cpuid. Guest kernel could
+		 * check if LMCE is enabled or not.
+		 */
+		msr->data = FEAT_CTL_LOCKED;
+		if (vcpu->arch.mcg_cap & MCG_LMCE_P)
+			msr->data |= FEAT_CTL_LMCE_ENABLED;
+		return 0;
+	case MSR_IA32_MCG_EXT_CTL:
+		if (!msr->host_initiated && !(vcpu->arch.mcg_cap & MCG_LMCE_P))
+			return 1;
+		msr->data = vcpu->arch.mcg_ext_ctl;
+		return 0;
+	default:
+		if (!tdx_has_emulated_msr(msr->index))
+			return 1;
+
+		return kvm_get_msr_common(vcpu, msr);
+	}
+}
+
+int tdx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
+{
+	switch (msr->index) {
+	case MSR_IA32_MCG_EXT_CTL:
+		if ((!msr->host_initiated && !(vcpu->arch.mcg_cap & MCG_LMCE_P)) ||
+		    (msr->data & ~MCG_EXT_CTL_LMCE_EN))
+			return 1;
+		vcpu->arch.mcg_ext_ctl = msr->data;
+		return 0;
+	default:
+		if (tdx_is_read_only_msr(msr->index))
+			return 1;
+
+		if (!tdx_has_emulated_msr(msr->index))
+			return 1;
+
+		return kvm_set_msr_common(vcpu, msr);
+	}
 }
 
 static int tdx_get_capabilities(struct kvm_tdx_cmd *cmd)
@@ -3117,6 +3473,11 @@ int __init tdx_bringup(void)
 
 	if (!cpu_feature_enabled(X86_FEATURE_MOVDIR64B)) {
 		pr_err("tdx: MOVDIR64B is required for TDX\n");
+		goto success_disable_tdx;
+	}
+
+	if (!cpu_feature_enabled(X86_FEATURE_SELFSNOOP)) {
+		pr_err("Self-snoop is required for TDX\n");
 		goto success_disable_tdx;
 	}
 
