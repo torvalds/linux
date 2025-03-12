@@ -1025,7 +1025,7 @@ struct gem_stats {
  * this register should contribute to.
  */
 struct gem_statistic {
-	char stat_string[ETH_GSTRING_LEN];
+	char stat_string[ETH_GSTRING_LEN] __nonstring;
 	int offset;
 	u32 stat_bits;
 };
