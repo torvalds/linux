@@ -2587,14 +2587,13 @@ int security_netif_sid(const char *name, u32 *if_sid)
 		return 0;
 	}
 
-	wildcard_support = selinux_policycap_netif_wildcard();
-
 retry:
 	rc = 0;
 	rcu_read_lock();
 	policy = rcu_dereference(selinux_state.policy);
 	policydb = &policy->policydb;
 	sidtab = policy->sidtab;
+	wildcard_support = ebitmap_get_bit(&policydb->policycaps, POLICYDB_CAP_NETIF_WILDCARD);
 
 	c = policydb->ocontexts[OCON_NETIF];
 	while (c) {
