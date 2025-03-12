@@ -602,12 +602,6 @@ void iwl_mld_emlsr_unblock_tpt_wk(struct wiphy *wiphy, struct wiphy_work *wk)
 /*
  * Link selection
  */
-struct iwl_mld_link_sel_data {
-	u8 link_id;
-	const struct cfg80211_chan_def *chandef;
-	s32 signal;
-	u16 grade;
-};
 
 s8 iwl_mld_get_emlsr_rssi_thresh(struct iwl_mld *mld,
 				 const struct cfg80211_chan_def *chandef,
@@ -737,7 +731,7 @@ iwl_mld_get_min_chan_load_thresh(struct ieee80211_chanctx_conf *chanctx)
 	return 10;
 }
 
-static bool
+VISIBLE_IF_IWLWIFI_KUNIT bool
 iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
 				  struct ieee80211_vif *vif,
 				  const struct iwl_mld_link_sel_data *a,
@@ -794,6 +788,7 @@ iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
 
 	return false;
 }
+EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mld_channel_load_allows_emlsr);
 
 static bool
 iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
