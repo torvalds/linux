@@ -53,29 +53,48 @@ static const struct mt7996_dfs_radar_spec jp_radar_specs = {
 };
 
 static struct mt76_wcid *mt7996_rx_get_wcid(struct mt7996_dev *dev,
-					    u16 idx, bool unicast)
+					    u16 idx, u8 band_idx)
 {
 	struct mt7996_sta_link *msta_link;
 	struct mt7996_sta *msta;
+	struct mt7996_vif *mvif;
 	struct mt76_wcid *wcid;
+	int i;
 
 	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
 		return NULL;
 
 	wcid = rcu_dereference(dev->mt76.wcid[idx]);
-	if (unicast || !wcid)
-		return wcid;
-
-	if (!wcid->sta)
+	if (!wcid)
 		return NULL;
+
+	if (!mt7996_band_valid(dev, band_idx))
+		return NULL;
+
+	if (wcid->phy_idx == band_idx)
+		return wcid;
 
 	msta_link = container_of(wcid, struct mt7996_sta_link, wcid);
 	msta = msta_link->sta;
-
 	if (!msta || !msta->vif)
 		return NULL;
 
-	return &msta->vif->deflink.msta_link.wcid;
+	mvif = msta->vif;
+	for (i = 0; i < ARRAY_SIZE(mvif->mt76.link); i++) {
+		struct mt76_vif_link *mlink;
+
+		mlink = rcu_dereference(mvif->mt76.link[i]);
+		if (!mlink)
+			continue;
+
+		if (mlink->band_idx != band_idx)
+			continue;
+
+		msta_link = rcu_dereference(msta->link[i]);
+		break;
+	}
+
+	return &msta_link->wcid;
 }
 
 bool mt7996_mac_wtbl_update(struct mt7996_dev *dev, int idx, u32 mask)
@@ -483,7 +502,7 @@ mt7996_mac_fill_rx(struct mt7996_dev *dev, enum mt76_rxq_id q,
 
 	unicast = FIELD_GET(MT_RXD3_NORMAL_ADDR_TYPE, rxd3) == MT_RXD3_NORMAL_U2M;
 	idx = FIELD_GET(MT_RXD1_NORMAL_WLAN_IDX, rxd1);
-	status->wcid = mt7996_rx_get_wcid(dev, idx, unicast);
+	status->wcid = mt7996_rx_get_wcid(dev, idx, band_idx);
 
 	if (status->wcid) {
 		struct mt7996_sta_link *msta_link;
