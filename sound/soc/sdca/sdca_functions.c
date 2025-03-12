@@ -1136,6 +1136,92 @@ static int find_sdca_entity_pde(struct device *dev,
 	return 0;
 }
 
+struct raw_ge_mode {
+	u8 val;
+	u8 num_controls;
+	struct {
+		u8 id;
+		u8 sel;
+		u8 cn;
+		__le32 val;
+	} __packed controls[] __counted_by(num_controls);
+} __packed;
+
+static int find_sdca_entity_ge(struct device *dev,
+			       struct fwnode_handle *entity_node,
+			       struct sdca_entity *entity)
+{
+	struct sdca_entity_ge *group = &entity->ge;
+	u8 *affected_list __free(kfree) = NULL;
+	u8 *affected_iter;
+	int num_affected;
+	int i, j;
+
+	num_affected = fwnode_property_count_u8(entity_node,
+						"mipi-sdca-ge-selectedmode-controls-affected");
+	if (!num_affected || num_affected == -EINVAL) {
+		return 0;
+	} else if (num_affected < 0) {
+		dev_err(dev, "%s: failed to read affected controls: %d\n",
+			entity->label, num_affected);
+		return num_affected;
+	} else if (num_affected > SDCA_MAX_AFFECTED_COUNT) {
+		dev_err(dev, "%s: maximum affected controls size exceeded\n",
+			entity->label);
+		return -EINVAL;
+	}
+
+	affected_list = kcalloc(num_affected, sizeof(*affected_list), GFP_KERNEL);
+	if (!affected_list)
+		return -ENOMEM;
+
+	fwnode_property_read_u8_array(entity_node,
+				      "mipi-sdca-ge-selectedmode-controls-affected",
+				      affected_list, num_affected);
+
+	group->num_modes = *affected_list;
+	affected_iter = affected_list + 1;
+
+	group->modes = devm_kcalloc(dev, group->num_modes, sizeof(*group->modes),
+				    GFP_KERNEL);
+	if (!group->modes)
+		return -ENOMEM;
+
+	for (i = 0; i < group->num_modes; i++) {
+		struct raw_ge_mode *raw = (struct raw_ge_mode *)affected_iter;
+		struct sdca_ge_mode *mode = &group->modes[i];
+
+		affected_iter += sizeof(*raw);
+		if (affected_iter > affected_list + num_affected)
+			goto bad_list;
+
+		mode->val = raw->val;
+		mode->num_controls = raw->num_controls;
+
+		affected_iter += mode->num_controls * sizeof(raw->controls[0]);
+		if (affected_iter > affected_list + num_affected)
+			goto bad_list;
+
+		mode->controls = devm_kcalloc(dev, mode->num_controls,
+					      sizeof(*mode->controls), GFP_KERNEL);
+		if (!mode->controls)
+			return -ENOMEM;
+
+		for (j = 0; j < mode->num_controls; j++) {
+			mode->controls[j].id = raw->controls[j].id;
+			mode->controls[j].sel = raw->controls[j].sel;
+			mode->controls[j].cn = raw->controls[j].cn;
+			mode->controls[j].val = le32_to_cpu(raw->controls[j].val);
+		}
+	}
+
+	return 0;
+
+bad_list:
+	dev_err(dev, "%s: malformed affected controls list\n", entity->label);
+	return -EINVAL;
+}
+
 static int find_sdca_entity(struct device *dev,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
@@ -1173,6 +1259,9 @@ static int find_sdca_entity(struct device *dev,
 		break;
 	case SDCA_ENTITY_TYPE_PDE:
 		ret = find_sdca_entity_pde(dev, entity_node, entity);
+		break;
+	case SDCA_ENTITY_TYPE_GE:
+		ret = find_sdca_entity_ge(dev, entity_node, entity);
 		break;
 	default:
 		break;
@@ -1384,6 +1473,42 @@ static int find_sdca_entity_connection_pde(struct device *dev,
 	return 0;
 }
 
+static int find_sdca_entity_connection_ge(struct device *dev,
+					  struct sdca_function_data *function,
+					  struct fwnode_handle *entity_node,
+					  struct sdca_entity *entity)
+{
+	int i, j;
+
+	for (i = 0; i < entity->ge.num_modes; i++) {
+		struct sdca_ge_mode *mode = &entity->ge.modes[i];
+
+		for (j = 0; j < mode->num_controls; j++) {
+			struct sdca_ge_control *affected = &mode->controls[j];
+			struct sdca_entity *managed;
+
+			managed = find_sdca_entity_by_id(function, affected->id);
+			if (!managed) {
+				dev_err(dev, "%s: failed to find entity with id %#x\n",
+					entity->label, affected->id);
+				return -EINVAL;
+			}
+
+			if (managed->group && managed->group != entity) {
+				dev_err(dev,
+					"%s: entity controlled by two groups %s, %s\n",
+					managed->label, managed->group->label,
+					entity->label);
+				return -EINVAL;
+			}
+
+			managed->group = entity;
+		}
+	}
+
+	return 0;
+}
+
 static int find_sdca_entity_connection(struct device *dev,
 				       struct sdca_function_data *function,
 				       struct fwnode_handle *entity_node,
@@ -1403,6 +1528,10 @@ static int find_sdca_entity_connection(struct device *dev,
 	case SDCA_ENTITY_TYPE_PDE:
 		ret = find_sdca_entity_connection_pde(dev, function,
 						      entity_node, entity);
+		break;
+	case SDCA_ENTITY_TYPE_GE:
+		ret = find_sdca_entity_connection_ge(dev, function,
+						     entity_node, entity);
 		break;
 	default:
 		ret = 0;

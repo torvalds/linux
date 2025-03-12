@@ -44,6 +44,11 @@ struct sdca_function_desc;
  */
 #define SDCA_MAX_DELAY_COUNT 256
 
+/*
+ * Sanity check on size of affected controls data, can be expanded if needed.
+ */
+#define SDCA_MAX_AFFECTED_COUNT 2048
+
 /**
  * enum sdca_function_type - SDCA Function Type codes
  * @SDCA_FUNCTION_TYPE_SMART_AMP: Amplifier with protection features.
@@ -928,10 +933,50 @@ enum sdca_entity_type {
 };
 
 /**
+ * struct sdca_ge_control - control entry in the affected controls list
+ * @id: Entity ID of the Control affected.
+ * @sel: Control Selector of the Control affected.
+ * @cn: Control Number of the Control affected.
+ * @val: Value written to Control for this Mode.
+ */
+struct sdca_ge_control {
+	int id;
+	int sel;
+	int cn;
+	int val;
+};
+
+/**
+ * struct sdca_ge_mode - mode entry in the affected controls list
+ * @controls: Dynamically allocated array of controls written for this Mode.
+ * @num_controls: Number of controls written in this Mode.
+ * @val: GE Selector Mode value.
+ */
+struct sdca_ge_mode {
+	struct sdca_ge_control *controls;
+	int num_controls;
+	int val;
+};
+
+/**
+ * struct sdca_entity_ge - information specific to Group Entities
+ * @kctl: ALSA control pointer that can be used by linked Entities.
+ * @modes: Dynamically allocated array of Modes and the Controls written
+ * in each mode.
+ * @num_modes: Number of Modes.
+ */
+struct sdca_entity_ge {
+	struct snd_kcontrol_new *kctl;
+	struct sdca_ge_mode *modes;
+	int num_modes;
+};
+
+/**
  * struct sdca_entity - information for one SDCA Entity
  * @label: String such as "OT 12".
  * @id: Identifier used for addressing.
  * @type: Type code for the Entity.
+ * @group: Pointer to Group Entity controlling this one, NULL if N/A.
  * @sources: Dynamically allocated array pointing to each input Entity
  * connected to this Entity.
  * @controls: Dynamically allocated array of Controls.
@@ -940,12 +985,14 @@ enum sdca_entity_type {
  * @iot: Input/Output Terminal specific Entity properties.
  * @cs: Clock Source specific Entity properties.
  * @pde: Power Domain Entity specific Entity properties.
+ * @ge: Group Entity specific Entity properties.
  */
 struct sdca_entity {
 	const char *label;
 	int id;
 	enum sdca_entity_type type;
 
+	struct sdca_entity *group;
 	struct sdca_entity **sources;
 	struct sdca_control *controls;
 	int num_sources;
@@ -954,6 +1001,7 @@ struct sdca_entity {
 		struct sdca_entity_iot iot;
 		struct sdca_entity_cs cs;
 		struct sdca_entity_pde pde;
+		struct sdca_entity_ge ge;
 	};
 };
 
