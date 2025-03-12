@@ -438,10 +438,15 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 
 	if (!fences && !atomic_read(&vcn_inst->total_submission_cnt)) {
 		vcn_inst->set_pg_state(vcn_inst, AMD_PG_STATE_GATE);
-		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
-						    false);
-		if (r)
-			dev_warn(adev->dev, "(%d) failed to disable video power profile mode\n", r);
+		mutex_lock(&adev->vcn.workload_profile_mutex);
+		if (adev->vcn.workload_profile_active) {
+			r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
+							    false);
+			if (r)
+				dev_warn(adev->dev, "(%d) failed to disable video power profile mode\n", r);
+			adev->vcn.workload_profile_active = false;
+		}
+		mutex_unlock(&adev->vcn.workload_profile_mutex);
 	} else {
 		schedule_delayed_work(&vcn_inst->idle_work, VCN_IDLE_TIMEOUT);
 	}
@@ -456,10 +461,15 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	atomic_inc(&vcn_inst->total_submission_cnt);
 
 	if (!cancel_delayed_work_sync(&vcn_inst->idle_work)) {
-		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
-				true);
-		if (r)
-			dev_warn(adev->dev, "(%d) failed to switch to video power profile mode\n", r);
+		mutex_lock(&adev->vcn.workload_profile_mutex);
+		if (!adev->vcn.workload_profile_active) {
+			r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
+							    true);
+			if (r)
+				dev_warn(adev->dev, "(%d) failed to switch to video power profile mode\n", r);
+			adev->vcn.workload_profile_active = true;
+		}
+		mutex_unlock(&adev->vcn.workload_profile_mutex);
 	}
 
 	mutex_lock(&vcn_inst->vcn_pg_lock);
