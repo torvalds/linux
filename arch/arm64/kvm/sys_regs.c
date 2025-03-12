@@ -1939,6 +1939,21 @@ static int set_id_aa64pfr1_el1(struct kvm_vcpu *vcpu,
 	return set_id_reg(vcpu, rd, user_val);
 }
 
+static int set_id_aa64mmfr0_el1(struct kvm_vcpu *vcpu,
+				const struct sys_reg_desc *rd, u64 user_val)
+{
+	u64 sanitized_val = kvm_read_sanitised_id_reg(vcpu, rd);
+	u64 tgran2_mask = ID_AA64MMFR0_EL1_TGRAN4_2_MASK |
+			  ID_AA64MMFR0_EL1_TGRAN16_2_MASK |
+			  ID_AA64MMFR0_EL1_TGRAN64_2_MASK;
+
+	if (vcpu_has_nv(vcpu) &&
+	    ((sanitized_val & tgran2_mask) != (user_val & tgran2_mask)))
+		return -EINVAL;
+
+	return set_id_reg(vcpu, rd, user_val);
+}
+
 static int set_id_aa64mmfr2_el1(struct kvm_vcpu *vcpu,
 				const struct sys_reg_desc *rd, u64 user_val)
 {
@@ -2662,10 +2677,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	ID_UNALLOCATED(6,7),
 
 	/* CRm=7 */
-	ID_WRITABLE(ID_AA64MMFR0_EL1, ~(ID_AA64MMFR0_EL1_RES0 |
-					ID_AA64MMFR0_EL1_TGRAN4_2 |
-					ID_AA64MMFR0_EL1_TGRAN64_2 |
-					ID_AA64MMFR0_EL1_TGRAN16_2 |
+	ID_FILTERED(ID_AA64MMFR0_EL1, id_aa64mmfr0_el1,
+				      ~(ID_AA64MMFR0_EL1_RES0 |
 					ID_AA64MMFR0_EL1_ASIDBITS)),
 	ID_WRITABLE(ID_AA64MMFR1_EL1, ~(ID_AA64MMFR1_EL1_RES0 |
 					ID_AA64MMFR1_EL1_HCX |
