@@ -99,7 +99,7 @@ void iwl_mld_emlsr_tmp_non_bss_done_wk(struct wiphy *wiphy,
 				       struct wiphy_work *wk)
 {
 	struct iwl_mld_vif *mld_vif = container_of(wk, struct iwl_mld_vif,
-						   emlsr.prevent_done_wk.work);
+						   emlsr.tmp_non_bss_done_wk.work);
 	struct ieee80211_vif *vif =
 		container_of((void *)mld_vif, struct ieee80211_vif, drv_priv);
 
