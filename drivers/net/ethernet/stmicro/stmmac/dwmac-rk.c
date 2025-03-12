@@ -1503,7 +1503,7 @@ static struct rk_priv_data *rk_gmac_setup(struct platform_device *pdev,
 	if (!bsp_priv)
 		return ERR_PTR(-ENOMEM);
 
-	of_get_phy_mode(dev->of_node, &bsp_priv->phy_iface);
+	bsp_priv->phy_iface = plat->phy_interface;
 	bsp_priv->ops = ops;
 
 	/* Some SoCs have multiple MAC controllers, which need
