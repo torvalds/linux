@@ -2456,13 +2456,8 @@ iwl_mld_change_vif_links(struct ieee80211_hw *hw,
 		added |= BIT(0);
 
 	for (int i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
-		if (removed & BIT(i)) {
-			link_conf = old[i];
-
-			err = iwl_mld_remove_link(mld, link_conf);
-			if (err)
-				return err;
-		}
+		if (removed & BIT(i))
+			iwl_mld_remove_link(mld, old[i]);
 	}
 
 	for (int i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {

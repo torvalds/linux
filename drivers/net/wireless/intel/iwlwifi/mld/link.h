@@ -114,8 +114,8 @@ iwl_mld_cleanup_link(struct iwl_mld *mld, struct iwl_mld_link *link)
 
 int iwl_mld_add_link(struct iwl_mld *mld,
 		     struct ieee80211_bss_conf *bss_conf);
-int iwl_mld_remove_link(struct iwl_mld *mld,
-			struct ieee80211_bss_conf *bss_conf);
+void iwl_mld_remove_link(struct iwl_mld *mld,
+			 struct ieee80211_bss_conf *bss_conf);
 int iwl_mld_activate_link(struct iwl_mld *mld,
 			  struct ieee80211_bss_conf *link);
 void iwl_mld_deactivate_link(struct iwl_mld *mld,

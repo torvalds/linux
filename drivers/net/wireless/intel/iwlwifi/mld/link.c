@@ -455,7 +455,7 @@ void iwl_mld_deactivate_link(struct iwl_mld *mld,
 					       mld_link->fw_id);
 }
 
-static int
+static void
 iwl_mld_rm_link_from_fw(struct iwl_mld *mld, struct ieee80211_bss_conf *link)
 {
 	struct iwl_mld_link *mld_link = iwl_mld_link_from_mac80211(link);
@@ -464,13 +464,13 @@ iwl_mld_rm_link_from_fw(struct iwl_mld *mld, struct ieee80211_bss_conf *link)
 	lockdep_assert_wiphy(mld->wiphy);
 
 	if (WARN_ON(!mld_link))
-		return -EINVAL;
+		return;
 
 	cmd.link_id = cpu_to_le32(mld_link->fw_id);
 	cmd.spec_link_id = link->link_id;
 	cmd.phy_id = cpu_to_le32(FW_CTXT_ID_INVALID);
 
-	return iwl_mld_send_link_cmd(mld, &cmd, FW_CTXT_ACTION_REMOVE);
+	iwl_mld_send_link_cmd(mld, &cmd, FW_CTXT_ACTION_REMOVE);
 }
 
 static void iwl_mld_omi_bw_update(struct iwl_mld *mld,
@@ -832,18 +832,17 @@ free:
 }
 
 /* Remove link from fw, unmap the bss_conf, and destroy the link structure */
-int iwl_mld_remove_link(struct iwl_mld *mld,
-			struct ieee80211_bss_conf *bss_conf)
+void iwl_mld_remove_link(struct iwl_mld *mld,
+			 struct ieee80211_bss_conf *bss_conf)
 {
 	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(bss_conf->vif);
 	struct iwl_mld_link *link = iwl_mld_link_from_mac80211(bss_conf);
 	bool is_deflink = link == &mld_vif->deflink;
-	int ret;
 
 	if (WARN_ON(!link || link->active))
-		return -EINVAL;
+		return;
 
-	ret = iwl_mld_rm_link_from_fw(mld, bss_conf);
+	iwl_mld_rm_link_from_fw(mld, bss_conf);
 	/* Continue cleanup on failure */
 
 	if (!is_deflink)
@@ -854,11 +853,9 @@ int iwl_mld_remove_link(struct iwl_mld *mld,
 	wiphy_delayed_work_cancel(mld->wiphy, &link->rx_omi.finished_work);
 
 	if (WARN_ON(link->fw_id >= mld->fw->ucode_capa.num_links))
-		return -EINVAL;
+		return;
 
 	RCU_INIT_POINTER(mld->fw_id_to_bss_conf[link->fw_id], NULL);
-
-	return ret;
 }
 
 void iwl_mld_handle_missed_beacon_notif(struct iwl_mld *mld,
