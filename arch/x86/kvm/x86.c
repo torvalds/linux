@@ -10030,13 +10030,16 @@ static int complete_hypercall_exit(struct kvm_vcpu *vcpu)
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
-int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, unsigned long nr,
-			      unsigned long a0, unsigned long a1,
-			      unsigned long a2, unsigned long a3,
-			      int op_64_bit, int cpl,
+int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, int cpl,
 			      int (*complete_hypercall)(struct kvm_vcpu *))
 {
 	unsigned long ret;
+	unsigned long nr = kvm_rax_read(vcpu);
+	unsigned long a0 = kvm_rbx_read(vcpu);
+	unsigned long a1 = kvm_rcx_read(vcpu);
+	unsigned long a2 = kvm_rdx_read(vcpu);
+	unsigned long a3 = kvm_rsi_read(vcpu);
+	int op_64_bit = is_64_bit_hypercall(vcpu);
 
 	++vcpu->stat.hypercalls;
 
@@ -10139,9 +10142,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	if (kvm_hv_hypercall_enabled(vcpu))
 		return kvm_hv_hypercall(vcpu);
 
-	return __kvm_emulate_hypercall(vcpu, rax, rbx, rcx, rdx, rsi,
-				       is_64_bit_hypercall(vcpu),
-				       kvm_x86_call(get_cpl)(vcpu),
+	return __kvm_emulate_hypercall(vcpu, kvm_x86_call(get_cpl)(vcpu),
 				       complete_hypercall_exit);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_hypercall);
@@ -11142,16 +11143,13 @@ static bool kvm_vcpu_running(struct kvm_vcpu *vcpu)
 		!vcpu->arch.apf.halted);
 }
 
-static bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
+bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
 {
 	if (!list_empty_careful(&vcpu->async_pf.done))
 		return true;
 
 	if (kvm_apic_has_pending_init_or_sipi(vcpu) &&
 	    kvm_apic_init_sipi_allowed(vcpu))
-		return true;
-
-	if (vcpu->arch.pv.pv_unhalted)
 		return true;
 
 	if (kvm_is_exception_pending(vcpu))
@@ -11191,10 +11189,12 @@ static bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(kvm_vcpu_has_events);
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_running(vcpu) || kvm_vcpu_has_events(vcpu);
+	return kvm_vcpu_running(vcpu) || vcpu->arch.pv.pv_unhalted ||
+	       kvm_vcpu_has_events(vcpu);
 }
 
 /* Called within kvm->srcu read side.  */
@@ -11330,7 +11330,7 @@ static int __kvm_emulate_halt(struct kvm_vcpu *vcpu, int state, int reason)
 	 */
 	++vcpu->stat.halt_exits;
 	if (lapic_in_kernel(vcpu)) {
-		if (kvm_vcpu_has_events(vcpu))
+		if (kvm_vcpu_has_events(vcpu) || vcpu->arch.pv.pv_unhalted)
 			vcpu->arch.pv.pv_unhalted = false;
 		else
 			vcpu->arch.mp_state = state;
@@ -14024,6 +14024,7 @@ EXPORT_SYMBOL_GPL(kvm_sev_es_string_io);
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_entry);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_exit);
+EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_mmio);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_fast_mmio);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_inj_virq);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_page_fault);

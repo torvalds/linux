@@ -48,6 +48,8 @@ enum vcpu_tdx_state {
 struct vcpu_tdx {
 	struct kvm_vcpu	vcpu;
 	struct vcpu_vt vt;
+	u64 ext_exit_qualification;
+	gpa_t exit_gpa;
 	struct tdx_module_args vp_enter_args;
 
 	struct tdx_vp vp;
@@ -58,6 +60,9 @@ struct vcpu_tdx {
 
 	enum vcpu_tdx_state state;
 	bool guest_entered;
+
+	u64 map_gpa_next;
+	u64 map_gpa_end;
 };
 
 void tdh_vp_rd_failed(struct vcpu_tdx *tdx, char *uclass, u32 field, u64 err);

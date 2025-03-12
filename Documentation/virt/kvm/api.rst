@@ -6823,6 +6823,7 @@ should put the acknowledged interrupt vector into the 'epr' field.
   #define KVM_SYSTEM_EVENT_WAKEUP         4
   #define KVM_SYSTEM_EVENT_SUSPEND        5
   #define KVM_SYSTEM_EVENT_SEV_TERM       6
+  #define KVM_SYSTEM_EVENT_TDX_FATAL      7
 			__u32 type;
                         __u32 ndata;
                         __u64 data[16];
@@ -6849,6 +6850,11 @@ Valid values for 'type' are:
    reset/shutdown of the VM.
  - KVM_SYSTEM_EVENT_SEV_TERM -- an AMD SEV guest requested termination.
    The guest physical address of the guest's GHCB is stored in `data[0]`.
+ - KVM_SYSTEM_EVENT_TDX_FATAL -- a TDX guest reported a fatal error state.
+   KVM doesn't do any parsing or conversion, it just dumps 16 general-purpose
+   registers to userspace, in ascending order of the 4-bit indices for x86-64
+   general-purpose registers in instruction encoding, as defined in the Intel
+   SDM.
  - KVM_SYSTEM_EVENT_WAKEUP -- the exiting vCPU is in a suspended state and
    KVM has recognized a wakeup event. Userspace may honor this event by
    marking the exiting vCPU as runnable, or deny it and call KVM_RUN again.
