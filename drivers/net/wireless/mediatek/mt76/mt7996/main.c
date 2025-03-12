@@ -700,12 +700,11 @@ mt7996_get_rates_table(struct mt7996_phy *phy, struct ieee80211_bss_conf *conf,
 }
 
 static void
-mt7996_update_mu_group(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+mt7996_update_mu_group(struct ieee80211_hw *hw, struct mt7996_vif_link *link,
 		       struct ieee80211_bss_conf *info)
 {
-	struct mt7996_vif *mvif = (struct mt7996_vif *)vif->drv_priv;
 	struct mt7996_dev *dev = mt7996_hw_dev(hw);
-	u8 band = mvif->deflink.mt76.band_idx;
+	u8 band = link->mt76.band_idx;
 	u32 *mu;
 
 	mu = (u32 *)info->mu_group.membership;
@@ -831,7 +830,7 @@ mt7996_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		mt7996_mcu_beacon_inband_discov(dev, vif, changed);
 
 	if (changed & BSS_CHANGED_MU_GROUPS)
-		mt7996_update_mu_group(hw, vif, info);
+		mt7996_update_mu_group(hw, link, info);
 
 	if (changed & BSS_CHANGED_TXPOWER &&
 	    info->txpower != phy->txpower) {
