@@ -772,7 +772,6 @@ static void mt6370_chg_destroy_wq(void *data)
 {
 	struct workqueue_struct *wq = data;
 
-	flush_workqueue(wq);
 	destroy_workqueue(wq);
 }
 
