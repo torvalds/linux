@@ -1136,6 +1136,25 @@ struct sdca_function_data {
 	unsigned int busy_max_delay;
 };
 
+static inline u32 sdca_range(struct sdca_control_range *range,
+			     unsigned int col, unsigned int row)
+{
+	return range->data[(row * range->cols) + col];
+}
+
+static inline u32 sdca_range_search(struct sdca_control_range *range,
+				    int search_col, int value, int result_col)
+{
+	int i;
+
+	for (i = 0; i < range->rows; i++) {
+		if (sdca_range(range, search_col, i) == value)
+			return sdca_range(range, result_col, i);
+	}
+
+	return 0;
+}
+
 int sdca_parse_function(struct device *dev,
 			struct sdca_function_desc *desc,
 			struct sdca_function_data *function);
