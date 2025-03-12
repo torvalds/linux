@@ -137,7 +137,7 @@ static inline void fqdir_pre_exit(struct fqdir *fqdir)
 }
 void fqdir_exit(struct fqdir *fqdir);
 
-void inet_frag_kill(struct inet_frag_queue *q);
+void inet_frag_kill(struct inet_frag_queue *q, int *refs);
 void inet_frag_destroy(struct inet_frag_queue *q);
 struct inet_frag_queue *inet_frag_find(struct fqdir *fqdir, void *key);
 

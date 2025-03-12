@@ -225,10 +225,10 @@ void fqdir_exit(struct fqdir *fqdir)
 }
 EXPORT_SYMBOL(fqdir_exit);
 
-void inet_frag_kill(struct inet_frag_queue *fq)
+void inet_frag_kill(struct inet_frag_queue *fq, int *refs)
 {
 	if (del_timer(&fq->timer))
-		refcount_dec(&fq->refcnt);
+		(*refs)++;
 
 	if (!(fq->flags & INET_FRAG_COMPLETE)) {
 		struct fqdir *fqdir = fq->fqdir;
@@ -243,7 +243,7 @@ void inet_frag_kill(struct inet_frag_queue *fq)
 		if (!READ_ONCE(fqdir->dead)) {
 			rhashtable_remove_fast(&fqdir->rhashtable, &fq->node,
 					       fqdir->f->rhash_params);
-			refcount_dec(&fq->refcnt);
+			(*refs)++;
 		} else {
 			fq->flags |= INET_FRAG_HASH_DEAD;
 		}
@@ -349,9 +349,11 @@ static struct inet_frag_queue *inet_frag_create(struct fqdir *fqdir,
 	*prev = rhashtable_lookup_get_insert_key(&fqdir->rhashtable, &q->key,
 						 &q->node, f->rhash_params);
 	if (*prev) {
+		int refs = 2;
+
 		q->flags |= INET_FRAG_COMPLETE;
-		inet_frag_kill(q);
-		inet_frag_destroy(q);
+		inet_frag_kill(q, &refs);
+		inet_frag_putn(q, refs);
 		return NULL;
 	}
 	return q;

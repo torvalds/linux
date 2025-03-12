@@ -31,7 +31,8 @@ static const char lowpan_frags_cache_name[] = "lowpan-frags";
 static struct inet_frags lowpan_frags;
 
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *skb,
-			     struct sk_buff *prev,  struct net_device *ldev);
+			     struct sk_buff *prev, struct net_device *ldev,
+			     int *refs);
 
 static void lowpan_frag_init(struct inet_frag_queue *q, const void *a)
 {
@@ -54,7 +55,7 @@ static void lowpan_frag_expire(struct timer_list *t)
 	if (fq->q.flags & INET_FRAG_COMPLETE)
 		goto out;
 
-	inet_frag_kill(&fq->q);
+	inet_frag_kill(&fq->q, &refs);
 out:
 	spin_unlock(&fq->q.lock);
 	inet_frag_putn(&fq->q, refs);
@@ -83,7 +84,8 @@ fq_find(struct net *net, const struct lowpan_802154_cb *cb,
 }
 
 static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
-			     struct sk_buff *skb, u8 frag_type)
+			     struct sk_buff *skb, u8 frag_type,
+			     int *refs)
 {
 	struct sk_buff *prev_tail;
 	struct net_device *ldev;
@@ -144,7 +146,7 @@ static int lowpan_frag_queue(struct lowpan_frag_queue *fq,
 		unsigned long orefdst = skb->_skb_refdst;
 
 		skb->_skb_refdst = 0UL;
-		res = lowpan_frag_reasm(fq, skb, prev_tail, ldev);
+		res = lowpan_frag_reasm(fq, skb, prev_tail, ldev, refs);
 		skb->_skb_refdst = orefdst;
 		return res;
 	}
@@ -163,11 +165,12 @@ err:
  *	the last and the first frames arrived and all the bits are here.
  */
 static int lowpan_frag_reasm(struct lowpan_frag_queue *fq, struct sk_buff *skb,
-			     struct sk_buff *prev_tail, struct net_device *ldev)
+			     struct sk_buff *prev_tail, struct net_device *ldev,
+			     int *refs)
 {
 	void *reasm_data;
 
-	inet_frag_kill(&fq->q);
+	inet_frag_kill(&fq->q, refs);
 
 	reasm_data = inet_frag_reasm_prepare(&fq->q, skb, prev_tail);
 	if (!reasm_data)
@@ -306,7 +309,7 @@ int lowpan_frag_rcv(struct sk_buff *skb, u8 frag_type)
 		int ret, refs = 1;
 
 		spin_lock(&fq->q.lock);
-		ret = lowpan_frag_queue(fq, skb, frag_type);
+		ret = lowpan_frag_queue(fq, skb, frag_type, &refs);
 		spin_unlock(&fq->q.lock);
 
 		inet_frag_putn(&fq->q, refs);

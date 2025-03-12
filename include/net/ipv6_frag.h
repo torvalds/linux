@@ -78,7 +78,7 @@ ip6frag_expire_frag_queue(struct net *net, struct frag_queue *fq)
 		goto out;
 
 	fq->q.flags |= INET_FRAG_DROP;
-	inet_frag_kill(&fq->q);
+	inet_frag_kill(&fq->q, &refs);
 
 	dev = dev_get_by_index_rcu(net, fq->iif);
 	if (!dev)

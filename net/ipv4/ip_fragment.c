@@ -76,7 +76,8 @@ static u8 ip4_frag_ecn(u8 tos)
 static struct inet_frags ip4_frags;
 
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
-			 struct sk_buff *prev_tail, struct net_device *dev);
+			 struct sk_buff *prev_tail, struct net_device *dev,
+			 int *refs);
 
 
 static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
@@ -105,14 +106,6 @@ static void ip4_frag_free(struct inet_frag_queue *q)
 	qp = container_of(q, struct ipq, q);
 	if (qp->peer)
 		inet_putpeer(qp->peer);
-}
-
-/* Kill ipq entry. It is not destroyed immediately,
- * because caller (and someone more) holds reference count.
- */
-static void ipq_kill(struct ipq *ipq)
-{
-	inet_frag_kill(&ipq->q);
 }
 
 static bool frag_expire_skip_icmp(u32 user)
@@ -152,7 +145,7 @@ static void ip_expire(struct timer_list *t)
 		goto out;
 
 	qp->q.flags |= INET_FRAG_DROP;
-	ipq_kill(qp);
+	inet_frag_kill(&qp->q, &refs);
 	__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 	__IP_INC_STATS(net, IPSTATS_MIB_REASMTIMEOUT);
 
@@ -271,7 +264,7 @@ static int ip_frag_reinit(struct ipq *qp)
 }
 
 /* Add new segment to existing queue. */
-static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
+static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb, int *refs)
 {
 	struct net *net = qp->q.fqdir->net;
 	int ihl, end, flags, offset;
@@ -291,7 +284,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	if (!(IPCB(skb)->flags & IPSKB_FRAG_COMPLETE) &&
 	    unlikely(ip_frag_too_far(qp)) &&
 	    unlikely(err = ip_frag_reinit(qp))) {
-		ipq_kill(qp);
+		inet_frag_kill(&qp->q, refs);
 		goto err;
 	}
 
@@ -375,10 +368,10 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		unsigned long orefdst = skb->_skb_refdst;
 
 		skb->_skb_refdst = 0UL;
-		err = ip_frag_reasm(qp, skb, prev_tail, dev);
+		err = ip_frag_reasm(qp, skb, prev_tail, dev, refs);
 		skb->_skb_refdst = orefdst;
 		if (err)
-			inet_frag_kill(&qp->q);
+			inet_frag_kill(&qp->q, refs);
 		return err;
 	}
 
@@ -395,7 +388,7 @@ insert_error:
 	err = -EINVAL;
 	__IP_INC_STATS(net, IPSTATS_MIB_REASM_OVERLAPS);
 discard_qp:
-	inet_frag_kill(&qp->q);
+	inet_frag_kill(&qp->q, refs);
 	__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 err:
 	kfree_skb_reason(skb, reason);
@@ -409,7 +402,8 @@ static bool ip_frag_coalesce_ok(const struct ipq *qp)
 
 /* Build a new IP datagram from all its fragments. */
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
-			 struct sk_buff *prev_tail, struct net_device *dev)
+			 struct sk_buff *prev_tail, struct net_device *dev,
+			 int *refs)
 {
 	struct net *net = qp->q.fqdir->net;
 	struct iphdr *iph;
@@ -417,7 +411,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *skb,
 	int len, err;
 	u8 ecn;
 
-	ipq_kill(qp);
+	inet_frag_kill(&qp->q, refs);
 
 	ecn = ip_frag_ecn_table[qp->ecn];
 	if (unlikely(ecn == 0xff)) {
@@ -495,7 +489,7 @@ int ip_defrag(struct net *net, struct sk_buff *skb, u32 user)
 
 		spin_lock(&qp->q.lock);
 
-		ret = ip_frag_queue(qp, skb);
+		ret = ip_frag_queue(qp, skb, &refs);
 
 		spin_unlock(&qp->q.lock);
 		inet_frag_putn(&qp->q, refs);
