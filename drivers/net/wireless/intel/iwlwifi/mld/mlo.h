@@ -11,6 +11,7 @@
 #include "iwl-config.h"
 #include "iwl-trans.h"
 #include "iface.h"
+#include "phy.h"
 
 struct iwl_mld;
 
@@ -139,7 +140,9 @@ void iwl_mld_emlsr_check_equal_bw(struct iwl_mld *mld,
 
 void iwl_mld_emlsr_check_bt(struct iwl_mld *mld);
 
-void iwl_mld_emlsr_check_chan_load(struct iwl_mld *mld);
+void iwl_mld_emlsr_check_chan_load(struct ieee80211_hw *hw,
+				   struct iwl_mld_phy *phy,
+				   u32 prev_chan_load_not_by_us);
 
 /**
  * iwl_mld_retry_emlsr - Retry entering EMLSR

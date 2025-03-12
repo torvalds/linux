@@ -9,7 +9,6 @@
 #define HANDLE_EMLSR_BLOCKED_REASONS(HOW)	\
 	HOW(PREVENTION)			\
 	HOW(WOWLAN)			\
-	HOW(FW)				\
 	HOW(ROC)			\
 	HOW(NON_BSS)			\
 	HOW(TMP_NON_BSS)		\
@@ -53,7 +52,8 @@ static void iwl_mld_print_emlsr_blocked(struct iwl_mld *mld, u32 mask)
 	HOW(LINK_USAGE)			\
 	HOW(BT_COEX)			\
 	HOW(CHAN_LOAD)			\
-	HOW(RFI)
+	HOW(RFI)			\
+	HOW(FW_REQUEST)
 
 static const char *
 iwl_mld_get_emlsr_exit_string(enum iwl_mld_emlsr_exit exit)
@@ -332,18 +332,14 @@ iwl_mld_vif_iter_emlsr_mode_notif(void *data, u8 *mac,
 		return;
 
 	switch (le32_to_cpu(notif->action)) {
-	case ESR_RECOMMEND_ENTER:
-		iwl_mld_unblock_emlsr(mld_vif->mld, vif,
-				      IWL_MLD_EMLSR_BLOCKED_FW);
-		break;
 	case ESR_RECOMMEND_LEAVE:
-		iwl_mld_block_emlsr(mld_vif->mld, vif,
-				    IWL_MLD_EMLSR_BLOCKED_FW,
-				    iwl_mld_get_primary_link(vif));
+		iwl_mld_exit_emlsr(mld_vif->mld, vif,
+				   IWL_MLD_EMLSR_EXIT_FW_REQUEST,
+				   iwl_mld_get_primary_link(vif));
 		break;
+	case ESR_RECOMMEND_ENTER:
 	case ESR_FORCE_LEAVE:
 	default:
-		/* ESR_FORCE_LEAVE should not happen at this point */
 		IWL_WARN(mld_vif->mld, "Unexpected EMLSR notification: %d\n",
 			 le32_to_cpu(notif->action));
 	}
@@ -724,6 +720,53 @@ iwl_mld_set_link_sel_data(struct iwl_mld *mld,
 	return n_data;
 }
 
+static u32
+iwl_mld_get_min_chan_load_thresh(struct ieee80211_chanctx_conf *chanctx)
+{
+	const struct iwl_mld_phy *phy = iwl_mld_phy_from_mac80211(chanctx);
+
+	switch (phy->chandef.width) {
+	case NL80211_CHAN_WIDTH_320:
+	case NL80211_CHAN_WIDTH_160:
+		return 5;
+	case NL80211_CHAN_WIDTH_80:
+		return 7;
+	default:
+		break;
+	}
+	return 10;
+}
+
+static bool
+iwl_mld_channel_load_allows_emlsr(struct iwl_mld *mld,
+				  struct ieee80211_vif *vif,
+				  const struct iwl_mld_link_sel_data *a,
+				  const struct iwl_mld_link_sel_data *b)
+{
+	struct iwl_mld_vif *mld_vif = iwl_mld_vif_from_mac80211(vif);
+	struct iwl_mld_link *link_a =
+		iwl_mld_link_dereference_check(mld_vif, a->link_id);
+	struct ieee80211_chanctx_conf *chanctx_a = NULL;
+	u32 primary_load_perc;
+
+	if (!link_a || !link_a->active) {
+		IWL_DEBUG_EHT(mld, "Primary link is not active. Can't enter EMLSR\n");
+		return false;
+	}
+
+	chanctx_a = wiphy_dereference(mld->wiphy, link_a->chan_ctx);
+
+	if (WARN_ON(!chanctx_a))
+		return false;
+
+	primary_load_perc =
+		iwl_mld_phy_from_mac80211(chanctx_a)->avg_channel_load_not_by_us;
+
+	IWL_DEBUG_EHT(mld, "Average channel load not by us: %u\n", primary_load_perc);
+
+	return primary_load_perc > iwl_mld_get_min_chan_load_thresh(chanctx_a);
+}
+
 static bool
 iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
 			 struct iwl_mld_link_sel_data *a,
@@ -746,6 +789,8 @@ iwl_mld_valid_emlsr_pair(struct ieee80211_vif *vif,
 		 */
 		reason_mask |= IWL_MLD_EMLSR_EXIT_BANDWIDTH;
 	}
+	if (!iwl_mld_channel_load_allows_emlsr(mld, vif, a, b))
+		reason_mask |= IWL_MLD_EMLSR_EXIT_CHAN_LOAD;
 
 	if (reason_mask) {
 		IWL_DEBUG_INFO(mld,
@@ -904,7 +949,6 @@ void iwl_mld_emlsr_check_equal_bw(struct iwl_mld *mld,
 		link_conf_dereference_check(vif, other_link_id);
 
 	if (!ieee80211_vif_link_active(vif, link->link_id) ||
-	    !iwl_mld_emlsr_active(vif) ||
 	    WARN_ON(link->link_id == other_link_id || !other_link))
 		return;
 
@@ -952,39 +996,67 @@ void iwl_mld_emlsr_check_bt(struct iwl_mld *mld)
 						NULL);
 }
 
-static void iwl_mld_emlsr_check_chan_load_iter(void *_data, u8 *mac,
-					       struct ieee80211_vif *vif)
+struct iwl_mld_chan_load_data {
+	struct iwl_mld_phy *phy;
+	u32 prev_chan_load_not_by_us;
+};
+
+static void iwl_mld_chan_load_update_iter(void *_data, u8 *mac,
+					  struct ieee80211_vif *vif)
 {
-	struct iwl_mld *mld = (struct iwl_mld *)_data;
+	struct iwl_mld_chan_load_data *data = _data;
+	const struct iwl_mld_phy *phy = data->phy;
+	struct ieee80211_chanctx_conf *chanctx =
+		container_of((const void *)phy, struct ieee80211_chanctx_conf,
+			     drv_priv);
+	struct iwl_mld *mld = iwl_mld_vif_from_mac80211(vif)->mld;
 	struct ieee80211_bss_conf *prim_link;
 	unsigned int prim_link_id;
-	int chan_load;
-
-	if (!iwl_mld_emlsr_active(vif))
-		return;
 
 	prim_link_id = iwl_mld_get_primary_link(vif);
 	prim_link = link_conf_dereference_protected(vif, prim_link_id);
+
 	if (WARN_ON(!prim_link))
 		return;
 
-	chan_load = iwl_mld_get_chan_load_by_others(mld, prim_link, true);
-
-	if (chan_load < 0)
+	if (chanctx != rcu_access_pointer(prim_link->chanctx_conf))
 		return;
 
-	/* chan_load is in range [0,255] */
-	if (chan_load < NORMALIZE_PERCENT_TO_255(IWL_MLD_CHAN_LOAD_THRESH))
-		iwl_mld_exit_emlsr(mld, vif, IWL_MLD_EMLSR_EXIT_CHAN_LOAD,
-				   prim_link_id);
+	if (iwl_mld_emlsr_active(vif)) {
+		int chan_load = iwl_mld_get_chan_load_by_others(mld, prim_link,
+								true);
+
+		if (chan_load < 0)
+			return;
+
+		/* chan_load is in range [0,255] */
+		if (chan_load < NORMALIZE_PERCENT_TO_255(IWL_MLD_EXIT_EMLSR_CHAN_LOAD))
+			iwl_mld_exit_emlsr(mld, vif,
+					   IWL_MLD_EMLSR_EXIT_CHAN_LOAD,
+					   prim_link_id);
+	} else {
+		u32 old_chan_load = data->prev_chan_load_not_by_us;
+		u32 new_chan_load = phy->avg_channel_load_not_by_us;
+		u32 thresh = iwl_mld_get_min_chan_load_thresh(chanctx);
+
+		if (old_chan_load <= thresh && new_chan_load > thresh)
+			iwl_mld_retry_emlsr(mld, vif);
+	}
 }
 
-void iwl_mld_emlsr_check_chan_load(struct iwl_mld *mld)
+void iwl_mld_emlsr_check_chan_load(struct ieee80211_hw *hw,
+				   struct iwl_mld_phy *phy,
+				   u32 prev_chan_load_not_by_us)
 {
-	ieee80211_iterate_active_interfaces_mtx(mld->hw,
+	struct iwl_mld_chan_load_data data = {
+		.phy = phy,
+		.prev_chan_load_not_by_us = prev_chan_load_not_by_us,
+	};
+
+	ieee80211_iterate_active_interfaces_mtx(hw,
 						IEEE80211_IFACE_ITER_NORMAL,
-						iwl_mld_emlsr_check_chan_load_iter,
-						(void *)(uintptr_t)mld);
+						iwl_mld_chan_load_update_iter,
+						&data);
 }
 
 void iwl_mld_retry_emlsr(struct iwl_mld *mld, struct ieee80211_vif *vif)

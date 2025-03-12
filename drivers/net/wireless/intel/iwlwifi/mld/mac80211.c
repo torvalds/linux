@@ -1189,8 +1189,13 @@ iwl_mld_mac80211_link_info_changed_sta(struct iwl_mld *mld,
 		iwl_mld_omi_ap_changed_bw(mld, link_conf, bw);
 	}
 
-	if (changes & BSS_CHANGED_BANDWIDTH)
-		iwl_mld_emlsr_check_equal_bw(mld, vif, link_conf);
+	if (changes & BSS_CHANGED_BANDWIDTH) {
+		if (iwl_mld_emlsr_active(vif))
+			iwl_mld_emlsr_check_equal_bw(mld, vif, link_conf);
+		else
+			/* Channel load threshold may have changed */
+			iwl_mld_retry_emlsr(mld, vif);
+	}
 }
 
 static int iwl_mld_update_mu_groups(struct iwl_mld *mld,
@@ -1711,10 +1716,6 @@ static int iwl_mld_move_sta_state_up(struct iwl_mld *mld,
 				iwl_mld_block_emlsr(mld_vif->mld, vif,
 						    IWL_MLD_EMLSR_BLOCKED_TPT,
 						    0);
-
-			/* Wait for the FW to send a recommendation */
-			iwl_mld_block_emlsr(mld, vif,
-					    IWL_MLD_EMLSR_BLOCKED_FW, 0);
 
 			/* clear COEX_HIGH_PRIORITY_ENABLE */
 			ret = iwl_mld_mac_fw_action(mld, vif,
