@@ -530,8 +530,8 @@ int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head,
 			if (!folio) {
 				folio = filemap_grab_folio(mapping,
 						block >> shift);
-				if (!folio) {
-					ret = -ENOMEM;
+				if (IS_ERR(folio)) {
+					ret = PTR_ERR(folio);
 					done = true;
 					goto out;
 				}
