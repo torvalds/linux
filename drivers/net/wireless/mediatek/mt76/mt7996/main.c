@@ -1017,6 +1017,7 @@ mt7996_mac_sta_event(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 		     struct ieee80211_sta *sta, enum mt76_sta_event ev)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
+	unsigned long links = sta->valid_links;
 	struct ieee80211_link_sta *link_sta;
 	unsigned int link_id;
 
@@ -1067,11 +1068,16 @@ mt7996_mac_sta_event(struct mt7996_dev *dev, struct ieee80211_vif *vif,
 				mt7996_mac_twt_teardown_flow(dev, link,
 							     msta_link, i);
 
-			mt7996_mcu_add_sta(dev, link_conf, link_sta, link,
-					   msta_link, CONN_STATE_DISCONNECT,
-					   false);
+			if (sta->mlo && links == BIT(link_id)) /* last link */
+				mt7996_mcu_teardown_mld_sta(dev, link,
+							    msta_link);
+			else
+				mt7996_mcu_add_sta(dev, link_conf, link_sta,
+						   link, msta_link,
+						   CONN_STATE_DISCONNECT, false);
 			msta_link->wcid.sta_disabled = 1;
 			msta_link->wcid.sta = 0;
+			links = links & ~BIT(link_id);
 			break;
 		}
 	}
