@@ -2,7 +2,9 @@
 #include <linux/cleanup.h>
 #include <linux/cpu.h>
 #include <asm/cpufeature.h>
+#include <asm/fpu/xcr.h>
 #include <linux/misc_cgroup.h>
+#include <linux/mmu_context.h>
 #include <asm/tdx.h>
 #include "capabilities.h"
 #include "mmu.h"
@@ -12,6 +14,9 @@
 #include "vmx.h"
 #include "mmu/spte.h"
 #include "common.h"
+#include "posted_intr.h"
+#include <trace/events/kvm.h>
+#include "trace.h"
 
 #pragma GCC poison to_vmx
 
@@ -102,6 +107,44 @@ static u32 tdx_set_guest_phys_addr_bits(const u32 eax, int addr_bits)
 	return (eax & ~GENMASK(23, 16)) | (addr_bits & 0xff) << 16;
 }
 
+#define TDX_FEATURE_TSX (__feature_bit(X86_FEATURE_HLE) | __feature_bit(X86_FEATURE_RTM))
+
+static bool has_tsx(const struct kvm_cpuid_entry2 *entry)
+{
+	return entry->function == 7 && entry->index == 0 &&
+	       (entry->ebx & TDX_FEATURE_TSX);
+}
+
+static void clear_tsx(struct kvm_cpuid_entry2 *entry)
+{
+	entry->ebx &= ~TDX_FEATURE_TSX;
+}
+
+static bool has_waitpkg(const struct kvm_cpuid_entry2 *entry)
+{
+	return entry->function == 7 && entry->index == 0 &&
+	       (entry->ecx & __feature_bit(X86_FEATURE_WAITPKG));
+}
+
+static void clear_waitpkg(struct kvm_cpuid_entry2 *entry)
+{
+	entry->ecx &= ~__feature_bit(X86_FEATURE_WAITPKG);
+}
+
+static void tdx_clear_unsupported_cpuid(struct kvm_cpuid_entry2 *entry)
+{
+	if (has_tsx(entry))
+		clear_tsx(entry);
+
+	if (has_waitpkg(entry))
+		clear_waitpkg(entry);
+}
+
+static bool tdx_unsupported_cpuid(const struct kvm_cpuid_entry2 *entry)
+{
+	return has_tsx(entry) || has_waitpkg(entry);
+}
+
 #define KVM_TDX_CPUID_NO_SUBLEAF	((__u32)-1)
 
 static void td_init_cpuid_entry2(struct kvm_cpuid_entry2 *entry, unsigned char idx)
@@ -125,6 +168,8 @@ static void td_init_cpuid_entry2(struct kvm_cpuid_entry2 *entry, unsigned char i
 	 */
 	if (entry->function == 0x80000008)
 		entry->eax = tdx_set_guest_phys_addr_bits(entry->eax, 0xff);
+
+	tdx_clear_unsupported_cpuid(entry);
 }
 
 static int init_kvm_tdx_caps(const struct tdx_sys_info_td_conf *td_conf,
@@ -585,6 +630,7 @@ int tdx_vcpu_create(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.efer = EFER_SCE | EFER_LME | EFER_LMA | EFER_NX;
 
+	vcpu->arch.switch_db_regs = KVM_DEBUGREG_AUTO_SWITCH;
 	vcpu->arch.cr0_guest_owned_bits = -1ul;
 	vcpu->arch.cr4_guest_owned_bits = -1ul;
 
@@ -627,6 +673,74 @@ void tdx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	local_irq_enable();
 }
 
+/*
+ * Compared to vmx_prepare_switch_to_guest(), there is not much to do
+ * as SEAMCALL/SEAMRET calls take care of most of save and restore.
+ */
+void tdx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vt *vt = to_vt(vcpu);
+
+	if (vt->guest_state_loaded)
+		return;
+
+	if (likely(is_64bit_mm(current->mm)))
+		vt->msr_host_kernel_gs_base = current->thread.gsbase;
+	else
+		vt->msr_host_kernel_gs_base = read_msr(MSR_KERNEL_GS_BASE);
+
+	vt->host_debugctlmsr = get_debugctlmsr();
+
+	vt->guest_state_loaded = true;
+}
+
+struct tdx_uret_msr {
+	u32 msr;
+	unsigned int slot;
+	u64 defval;
+};
+
+static struct tdx_uret_msr tdx_uret_msrs[] = {
+	{.msr = MSR_SYSCALL_MASK, .defval = 0x20200 },
+	{.msr = MSR_STAR,},
+	{.msr = MSR_LSTAR,},
+	{.msr = MSR_TSC_AUX,},
+};
+
+static void tdx_user_return_msr_update_cache(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tdx_uret_msrs); i++)
+		kvm_user_return_msr_update_cache(tdx_uret_msrs[i].slot,
+						 tdx_uret_msrs[i].defval);
+}
+
+static void tdx_prepare_switch_to_host(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vt *vt = to_vt(vcpu);
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+
+	if (!vt->guest_state_loaded)
+		return;
+
+	++vcpu->stat.host_state_reload;
+	wrmsrl(MSR_KERNEL_GS_BASE, vt->msr_host_kernel_gs_base);
+
+	if (tdx->guest_entered) {
+		tdx_user_return_msr_update_cache();
+		tdx->guest_entered = false;
+	}
+
+	vt->guest_state_loaded = false;
+}
+
+void tdx_vcpu_put(struct kvm_vcpu *vcpu)
+{
+	vmx_vcpu_pi_put(vcpu);
+	tdx_prepare_switch_to_host(vcpu);
+}
+
 void tdx_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
@@ -660,6 +774,102 @@ void tdx_vcpu_free(struct kvm_vcpu *vcpu)
 	tdx->state = VCPU_TD_STATE_UNINITIALIZED;
 }
 
+int tdx_vcpu_pre_run(struct kvm_vcpu *vcpu)
+{
+	if (unlikely(to_tdx(vcpu)->state != VCPU_TD_STATE_INITIALIZED ||
+		     to_kvm_tdx(vcpu->kvm)->state != TD_STATE_RUNNABLE))
+		return -EINVAL;
+
+	return 1;
+}
+
+static noinstr void tdx_vcpu_enter_exit(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+
+	guest_state_enter_irqoff();
+
+	tdx->vp_enter_ret = tdh_vp_enter(&tdx->vp, &tdx->vp_enter_args);
+
+	guest_state_exit_irqoff();
+}
+
+#define TDX_REGS_AVAIL_SET	(BIT_ULL(VCPU_EXREG_EXIT_INFO_1) | \
+				 BIT_ULL(VCPU_EXREG_EXIT_INFO_2) | \
+				 BIT_ULL(VCPU_REGS_RAX) | \
+				 BIT_ULL(VCPU_REGS_RBX) | \
+				 BIT_ULL(VCPU_REGS_RCX) | \
+				 BIT_ULL(VCPU_REGS_RDX) | \
+				 BIT_ULL(VCPU_REGS_RBP) | \
+				 BIT_ULL(VCPU_REGS_RSI) | \
+				 BIT_ULL(VCPU_REGS_RDI) | \
+				 BIT_ULL(VCPU_REGS_R8) | \
+				 BIT_ULL(VCPU_REGS_R9) | \
+				 BIT_ULL(VCPU_REGS_R10) | \
+				 BIT_ULL(VCPU_REGS_R11) | \
+				 BIT_ULL(VCPU_REGS_R12) | \
+				 BIT_ULL(VCPU_REGS_R13) | \
+				 BIT_ULL(VCPU_REGS_R14) | \
+				 BIT_ULL(VCPU_REGS_R15))
+
+static void tdx_load_host_xsave_state(struct kvm_vcpu *vcpu)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
+
+	/*
+	 * All TDX hosts support PKRU; but even if they didn't,
+	 * vcpu->arch.host_pkru would be 0 and the wrpkru would be
+	 * skipped.
+	 */
+	if (vcpu->arch.host_pkru != 0)
+		wrpkru(vcpu->arch.host_pkru);
+
+	if (kvm_host.xcr0 != (kvm_tdx->xfam & kvm_caps.supported_xcr0))
+		xsetbv(XCR_XFEATURE_ENABLED_MASK, kvm_host.xcr0);
+
+	/*
+	 * Likewise, even if a TDX hosts didn't support XSS both arms of
+	 * the comparison would be 0 and the wrmsrl would be skipped.
+	 */
+	if (kvm_host.xss != (kvm_tdx->xfam & kvm_caps.supported_xss))
+		wrmsrl(MSR_IA32_XSS, kvm_host.xss);
+}
+
+#define TDX_DEBUGCTL_PRESERVED (DEBUGCTLMSR_BTF | \
+				DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI | \
+				DEBUGCTLMSR_FREEZE_IN_SMM)
+
+fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	struct vcpu_vt *vt = to_vt(vcpu);
+
+	/*
+	 * force_immediate_exit requires vCPU entering for events injection with
+	 * an immediately exit followed. But The TDX module doesn't guarantee
+	 * entry, it's already possible for KVM to _think_ it completely entry
+	 * to the guest without actually having done so.
+	 * Since KVM never needs to force an immediate exit for TDX, and can't
+	 * do direct injection, just warn on force_immediate_exit.
+	 */
+	WARN_ON_ONCE(force_immediate_exit);
+
+	trace_kvm_entry(vcpu, force_immediate_exit);
+
+	tdx_vcpu_enter_exit(vcpu);
+
+	if (vt->host_debugctlmsr & ~TDX_DEBUGCTL_PRESERVED)
+		update_debugctlmsr(vt->host_debugctlmsr);
+
+	tdx_load_host_xsave_state(vcpu);
+	tdx->guest_entered = true;
+
+	vcpu->arch.regs_avail &= TDX_REGS_AVAIL_SET;
+
+	trace_kvm_exit(vcpu, KVM_ISA_VMX);
+
+	return EXIT_FASTPATH_NONE;
+}
 
 void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int pgd_level)
 {
@@ -1083,6 +1293,9 @@ static int setup_tdparams_cpuids(struct kvm_cpuid2 *cpuid,
 					      tmp.function, tmp.index);
 		if (!entry)
 			continue;
+
+		if (tdx_unsupported_cpuid(entry))
+			return -EINVAL;
 
 		copy_cnt++;
 
@@ -2113,7 +2326,25 @@ static int __init __do_tdx_bringup(void)
 static int __init __tdx_bringup(void)
 {
 	const struct tdx_sys_info_td_conf *td_conf;
-	int r;
+	int r, i;
+
+	for (i = 0; i < ARRAY_SIZE(tdx_uret_msrs); i++) {
+		/*
+		 * Check if MSRs (tdx_uret_msrs) can be saved/restored
+		 * before returning to user space.
+		 *
+		 * this_cpu_ptr(user_return_msrs)->registered isn't checked
+		 * because the registration is done at vcpu runtime by
+		 * tdx_user_return_msr_update_cache().
+		 */
+		tdx_uret_msrs[i].slot = kvm_find_user_return_msr(tdx_uret_msrs[i].msr);
+		if (tdx_uret_msrs[i].slot == -1) {
+			/* If any MSR isn't supported, it is a KVM bug */
+			pr_err("MSR %x isn't included by kvm_find_user_return_msr\n",
+				tdx_uret_msrs[i].msr);
+			return -EIO;
+		}
+	}
 
 	/*
 	 * Enabling TDX requires enabling hardware virtualization first,
@@ -2227,6 +2458,11 @@ int __init tdx_bringup(void)
 
 	if (!tdp_mmu_enabled || !enable_mmio_caching || !enable_ept_ad_bits) {
 		pr_err("TDP MMU and MMIO caching and EPT A/D bit is required for TDX\n");
+		goto success_disable_tdx;
+	}
+
+	if (!cpu_feature_enabled(X86_FEATURE_OSXSAVE)) {
+		pr_err("tdx: OSXSAVE is required for TDX\n");
 		goto success_disable_tdx;
 	}
 
