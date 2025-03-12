@@ -913,9 +913,9 @@ static int find_sdca_entity_pde(struct device *dev,
 {
 	static const int mult_delay = 3;
 	struct sdca_entity_pde *power = &entity->pde;
+	u32 *delay_list __free(kfree) = NULL;
 	struct sdca_pde_delay *delays;
 	int num_delays;
-	u32 *delay_list;
 	int i, j;
 
 	num_delays = fwnode_property_count_u32(entity_node,
@@ -961,8 +961,6 @@ static int find_sdca_entity_pde(struct device *dev,
 
 	power->num_max_delay = num_delays;
 	power->max_delay = delays;
-
-	kfree(delay_list);
 
 	return 0;
 }
@@ -1022,8 +1020,8 @@ static int find_sdca_entities(struct device *dev,
 			      struct fwnode_handle *function_node,
 			      struct sdca_function_data *function)
 {
+	u32 *entity_list __free(kfree) = NULL;
 	struct sdca_entity *entities;
-	u32 *entity_list;
 	int num_entities;
 	int i, ret;
 
@@ -1053,8 +1051,6 @@ static int find_sdca_entities(struct device *dev,
 
 	for (i = 0; i < num_entities; i++)
 		entities[i].id = entity_list[i];
-
-	kfree(entity_list);
 
 	/* now read subproperties */
 	for (i = 0; i < num_entities; i++) {
@@ -1170,8 +1166,8 @@ static int find_sdca_entity_connection_pde(struct device *dev,
 					   struct sdca_entity *entity)
 {
 	struct sdca_entity_pde *power = &entity->pde;
+	u32 *managed_list __free(kfree) = NULL;
 	struct sdca_entity **managed;
-	u32 *managed_list;
 	int num_managed;
 	int i;
 
@@ -1205,14 +1201,11 @@ static int find_sdca_entity_connection_pde(struct device *dev,
 		if (!managed[i]) {
 			dev_err(dev, "%s: failed to find entity with id %#x\n",
 				entity->label, managed_list[i]);
-			kfree(managed_list);
 			return -EINVAL;
 		}
 
 		dev_info(dev, "%s -> %s\n", managed[i]->label, entity->label);
 	}
-
-	kfree(managed_list);
 
 	power->num_managed = num_managed;
 	power->managed = managed;
@@ -1453,9 +1446,9 @@ static int find_sdca_clusters(struct device *dev,
 			      struct fwnode_handle *function_node,
 			      struct sdca_function_data *function)
 {
+	u32 *cluster_list __free(kfree) = NULL;
 	struct sdca_cluster *clusters;
 	int num_clusters;
-	u32 *cluster_list;
 	int i, ret;
 
 	num_clusters = fwnode_property_count_u32(function_node, "mipi-sdca-cluster-id-list");
@@ -1483,8 +1476,6 @@ static int find_sdca_clusters(struct device *dev,
 
 	for (i = 0; i < num_clusters; i++)
 		clusters[i].id = cluster_list[i];
-
-	kfree(cluster_list);
 
 	/* now read subproperties */
 	for (i = 0; i < num_clusters; i++) {
