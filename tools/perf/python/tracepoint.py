@@ -5,7 +5,15 @@
 
 import perf
 
+def change_proctitle():
+    try:
+        import setproctitle
+        setproctitle.setproctitle("tracepoint.py")
+    except:
+        print("Install the setproctitle python package to help with top and friends")
+
 def main():
+    change_proctitle()
     cpus    = perf.cpu_map()
     threads = perf.thread_map(-1)
     evlist = perf.parse_events("sched:sched_switch", cpus, threads)
