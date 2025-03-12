@@ -1861,6 +1861,7 @@ int psp_ras_initialize(struct psp_context *psp)
 	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
 		ras_cmd->ras_in_message.init_flags.nps_mode =
 			adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+	ras_cmd->ras_in_message.init_flags.active_umc_mask = adev->umc.active_mask;
 
 	ret = psp_ta_load(psp, &psp->ras_context.context);
 
