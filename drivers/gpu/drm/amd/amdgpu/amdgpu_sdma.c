@@ -76,22 +76,14 @@ uint64_t amdgpu_sdma_get_csa_mc_addr(struct amdgpu_ring *ring,
 	if (amdgpu_sriov_vf(adev) || vmid == 0 || !adev->gfx.mcbp)
 		return 0;
 
-	if (ring->is_mes_queue) {
-		uint32_t offset = 0;
+	r = amdgpu_sdma_get_index_from_ring(ring, &index);
 
-		offset = offsetof(struct amdgpu_mes_ctx_meta_data,
-				  sdma[ring->idx].sdma_meta_data);
-		csa_mc_addr = amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset);
-	} else {
-		r = amdgpu_sdma_get_index_from_ring(ring, &index);
-
-		if (r || index > 31)
-			csa_mc_addr = 0;
-		else
-			csa_mc_addr = amdgpu_csa_vaddr(adev) +
-				AMDGPU_CSA_SDMA_OFFSET +
-				index * AMDGPU_CSA_SDMA_SIZE;
-	}
+	if (r || index > 31)
+		csa_mc_addr = 0;
+	else
+		csa_mc_addr = amdgpu_csa_vaddr(adev) +
+			AMDGPU_CSA_SDMA_OFFSET +
+			index * AMDGPU_CSA_SDMA_SIZE;
 
 	return csa_mc_addr;
 }

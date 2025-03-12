@@ -393,10 +393,6 @@ static void gmc_v11_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned int 
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t reg;
 
-	/* MES fw manages IH_VMID_x_LUT updating */
-	if (ring->is_mes_queue)
-		return;
-
 	if (ring->vm_hub == AMDGPU_GFXHUB(0))
 		reg = SOC15_REG_OFFSET(OSSSYS, 0, regIH_VMID_0_LUT) + vmid;
 	else

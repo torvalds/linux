@@ -301,11 +301,6 @@ struct amdgpu_ring {
 	unsigned 		num_hw_submission;
 	atomic_t		*sched_score;
 
-	/* used for mes */
-	bool			is_mes_queue;
-	uint32_t		hw_queue_id;
-	struct amdgpu_mes_ctx_data *mes_ctx;
-
 	bool            is_sw_ring;
 	unsigned int    entry_index;
 	/* store the cached rptr to restore after reset */
@@ -434,15 +429,6 @@ static inline void amdgpu_ring_patch_cond_exec(struct amdgpu_ring *ring,
 		cur += ring->ring_size >> 2;
 	ring->ring[offset] = cur - offset;
 }
-
-#define amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset)			\
-	(ring->is_mes_queue && ring->mes_ctx ?				\
-	 (ring->mes_ctx->meta_data_gpu_addr + offset) : 0)
-
-#define amdgpu_mes_ctx_get_offs_cpu_addr(ring, offset)			\
-	(ring->is_mes_queue && ring->mes_ctx ?				\
-	 (void *)((uint8_t *)(ring->mes_ctx->meta_data_ptr) + offset) : \
-	 NULL)
 
 int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 

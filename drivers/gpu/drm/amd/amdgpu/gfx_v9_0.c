@@ -5466,16 +5466,8 @@ static void gfx_v9_0_ring_patch_ce_meta(struct amdgpu_ring *ring,
 
 	payload_size = sizeof(struct v9_ce_ib_state);
 
-	if (ring->is_mes_queue) {
-		payload_offset = offsetof(struct amdgpu_mes_ctx_meta_data,
-					  gfx[0].gfx_meta_data) +
-			offsetof(struct v9_gfx_meta_data, ce_payload);
-		ce_payload_cpu_addr =
-			amdgpu_mes_ctx_get_offs_cpu_addr(ring, payload_offset);
-	} else {
-		payload_offset = offsetof(struct v9_gfx_meta_data, ce_payload);
-		ce_payload_cpu_addr = adev->virt.csa_cpu_addr + payload_offset;
-	}
+	payload_offset = offsetof(struct v9_gfx_meta_data, ce_payload);
+	ce_payload_cpu_addr = adev->virt.csa_cpu_addr + payload_offset;
 
 	if (offset + (payload_size >> 2) <= ring->buf_mask + 1) {
 		memcpy((void *)&ring->ring[offset], ce_payload_cpu_addr, payload_size);
@@ -5498,16 +5490,8 @@ static void gfx_v9_0_ring_patch_de_meta(struct amdgpu_ring *ring,
 
 	payload_size = sizeof(struct v9_de_ib_state);
 
-	if (ring->is_mes_queue) {
-		payload_offset = offsetof(struct amdgpu_mes_ctx_meta_data,
-					  gfx[0].gfx_meta_data) +
-			offsetof(struct v9_gfx_meta_data, de_payload);
-		de_payload_cpu_addr =
-			amdgpu_mes_ctx_get_offs_cpu_addr(ring, payload_offset);
-	} else {
-		payload_offset = offsetof(struct v9_gfx_meta_data, de_payload);
-		de_payload_cpu_addr = adev->virt.csa_cpu_addr + payload_offset;
-	}
+	payload_offset = offsetof(struct v9_gfx_meta_data, de_payload);
+	de_payload_cpu_addr = adev->virt.csa_cpu_addr + payload_offset;
 
 	((struct v9_de_ib_state *)de_payload_cpu_addr)->ib_completion_status =
 		IB_COMPLETION_STATUS_PREEMPTED;
@@ -5697,19 +5681,9 @@ static void gfx_v9_0_ring_emit_ce_meta(struct amdgpu_ring *ring, bool resume)
 
 	cnt = (sizeof(ce_payload) >> 2) + 4 - 2;
 
-	if (ring->is_mes_queue) {
-		offset = offsetof(struct amdgpu_mes_ctx_meta_data,
-				  gfx[0].gfx_meta_data) +
-			offsetof(struct v9_gfx_meta_data, ce_payload);
-		ce_payload_gpu_addr =
-			amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset);
-		ce_payload_cpu_addr =
-			amdgpu_mes_ctx_get_offs_cpu_addr(ring, offset);
-	} else {
-		offset = offsetof(struct v9_gfx_meta_data, ce_payload);
-		ce_payload_gpu_addr = amdgpu_csa_vaddr(ring->adev) + offset;
-		ce_payload_cpu_addr = adev->virt.csa_cpu_addr + offset;
-	}
+	offset = offsetof(struct v9_gfx_meta_data, ce_payload);
+	ce_payload_gpu_addr = amdgpu_csa_vaddr(ring->adev) + offset;
+	ce_payload_cpu_addr = adev->virt.csa_cpu_addr + offset;
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, cnt));
 	amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(2) |
@@ -5795,28 +5769,13 @@ static void gfx_v9_0_ring_emit_de_meta(struct amdgpu_ring *ring, bool resume, bo
 	void *de_payload_cpu_addr;
 	int cnt;
 
-	if (ring->is_mes_queue) {
-		offset = offsetof(struct amdgpu_mes_ctx_meta_data,
-				  gfx[0].gfx_meta_data) +
-			offsetof(struct v9_gfx_meta_data, de_payload);
-		de_payload_gpu_addr =
-			amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset);
-		de_payload_cpu_addr =
-			amdgpu_mes_ctx_get_offs_cpu_addr(ring, offset);
+	offset = offsetof(struct v9_gfx_meta_data, de_payload);
+	de_payload_gpu_addr = amdgpu_csa_vaddr(ring->adev) + offset;
+	de_payload_cpu_addr = adev->virt.csa_cpu_addr + offset;
 
-		offset = offsetof(struct amdgpu_mes_ctx_meta_data,
-				  gfx[0].gds_backup) +
-			offsetof(struct v9_gfx_meta_data, de_payload);
-		gds_addr = amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset);
-	} else {
-		offset = offsetof(struct v9_gfx_meta_data, de_payload);
-		de_payload_gpu_addr = amdgpu_csa_vaddr(ring->adev) + offset;
-		de_payload_cpu_addr = adev->virt.csa_cpu_addr + offset;
-
-		gds_addr = ALIGN(amdgpu_csa_vaddr(ring->adev) +
-				 AMDGPU_CSA_SIZE - adev->gds.gds_size,
-				 PAGE_SIZE);
-	}
+	gds_addr = ALIGN(amdgpu_csa_vaddr(ring->adev) +
+			 AMDGPU_CSA_SIZE - adev->gds.gds_size,
+			 PAGE_SIZE);
 
 	if (usegds) {
 		de_payload.gds_backup_addrlo = lower_32_bits(gds_addr);
