@@ -2294,10 +2294,15 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
 		if (changed & (IEEE80211_RC_SUPP_RATES_CHANGED |
 			       IEEE80211_RC_NSS_CHANGED |
 			       IEEE80211_RC_BW_CHANGED))
-			mt7996_mcu_add_rate_ctrl(dev, vif, sta, true);
+			mt7996_mcu_add_rate_ctrl(dev, vif, &vif->bss_conf,
+						 &sta->deflink,
+						 &msta->vif->deflink,
+						 msta_link, true);
 
 		if (changed & IEEE80211_RC_SMPS_CHANGED)
-			mt7996_mcu_set_fixed_field(dev, vif, sta, NULL,
+			mt7996_mcu_set_fixed_field(dev, &sta->deflink,
+						   &msta->vif->deflink,
+						   msta_link, NULL,
 						   RATE_PARAM_MMPS_UPDATE);
 
 		spin_lock_bh(&dev->mt76.sta_poll_lock);
