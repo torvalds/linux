@@ -78,6 +78,7 @@ struct mana_ib_dev {
 	struct xarray qp_table_wq;
 	struct mana_ib_adapter_caps adapter_caps;
 	struct dma_pool *av_pool;
+	netdevice_tracker dev_tracker;
 };
 
 struct mana_ib_wq {
