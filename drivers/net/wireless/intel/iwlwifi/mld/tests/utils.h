@@ -13,6 +13,12 @@ struct iwl_mld;
 
 int iwlmld_kunit_test_init(struct kunit *test);
 
+struct iwl_mld_kunit_link {
+	u8 id;
+	enum nl80211_band band;
+	enum nl80211_chan_width bandwidth;
+};
+
 enum nl80211_iftype;
 
 struct ieee80211_vif *iwlmld_kunit_add_vif(bool mlo, enum nl80211_iftype type);
@@ -88,10 +94,12 @@ struct ieee80211_sta *iwlmld_kunit_setup_sta(struct ieee80211_vif *vif,
 					     enum ieee80211_sta_state state,
 					     int link_id);
 
-struct ieee80211_vif *iwlmld_kunit_setup_mlo_assoc(u16 valid_links,
-						   u8 assoc_link_id,
-						   enum nl80211_band band);
-struct ieee80211_vif *iwlmld_kunit_setup_non_mlo_assoc(enum nl80211_band band);
+struct ieee80211_vif *
+iwlmld_kunit_setup_mlo_assoc(u16 valid_links,
+			     struct iwl_mld_kunit_link *assoc_link);
+
+struct ieee80211_vif *
+iwlmld_kunit_setup_non_mlo_assoc(struct iwl_mld_kunit_link *assoc_link);
 
 struct iwl_rx_packet *
 _iwl_mld_kunit_create_pkt(const void *notif, size_t notif_sz);
@@ -99,9 +107,9 @@ _iwl_mld_kunit_create_pkt(const void *notif, size_t notif_sz);
 #define iwl_mld_kunit_create_pkt(_notif)	\
 	_iwl_mld_kunit_create_pkt(&(_notif), sizeof(_notif))
 
-struct ieee80211_vif *iwlmld_kunit_assoc_emlsr(u16 valid_links,
-					       enum nl80211_band band1,
-					       enum nl80211_band band2);
+struct ieee80211_vif *
+iwlmld_kunit_assoc_emlsr(struct iwl_mld_kunit_link *link1,
+			 struct iwl_mld_kunit_link *link2);
 
 struct element *iwlmld_kunit_gen_element(u8 id, const void *data, size_t len);
 

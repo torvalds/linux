@@ -329,7 +329,7 @@ static void iwlmld_kunit_set_vif_associated(struct ieee80211_vif *vif)
 }
 
 static struct ieee80211_vif *
-iwlmld_kunit_setup_assoc(bool mlo, u8 link_id, enum nl80211_band band)
+iwlmld_kunit_setup_assoc(bool mlo, struct iwl_mld_kunit_link *assoc_link)
 {
 	struct kunit *test = kunit_get_current_test();
 	struct iwl_mld *mld = test->priv;
@@ -337,32 +337,32 @@ iwlmld_kunit_setup_assoc(bool mlo, u8 link_id, enum nl80211_band band)
 	struct ieee80211_bss_conf *link;
 	struct ieee80211_chanctx_conf *chan_ctx;
 
-	KUNIT_ASSERT_TRUE(test, mlo || link_id == 0);
+	KUNIT_ASSERT_TRUE(test, mlo || assoc_link->id == 0);
 
 	vif = iwlmld_kunit_add_vif(mlo, NL80211_IFTYPE_STATION);
 
 	if (mlo)
-		link = iwlmld_kunit_add_link(vif, link_id);
+		link = iwlmld_kunit_add_link(vif, assoc_link->id);
 	else
 		link = &vif->bss_conf;
 
-	chan_ctx = iwlmld_kunit_add_chanctx(band);
+	chan_ctx = iwlmld_kunit_add_chanctx(assoc_link->band);
 
 	wiphy_lock(mld->wiphy);
 	iwlmld_kunit_assign_chanctx_to_link(vif, link, chan_ctx);
 	wiphy_unlock(mld->wiphy);
 
 	/* The AP sta will now be pointer to by mld_vif->ap_sta */
-	iwlmld_kunit_setup_sta(vif, IEEE80211_STA_AUTHORIZED, link_id);
+	iwlmld_kunit_setup_sta(vif, IEEE80211_STA_AUTHORIZED, assoc_link->id);
 
 	iwlmld_kunit_set_vif_associated(vif);
 
 	return vif;
 }
 
-struct ieee80211_vif *iwlmld_kunit_setup_mlo_assoc(u16 valid_links,
-						   u8 assoc_link_id,
-						   enum nl80211_band band)
+struct ieee80211_vif *
+iwlmld_kunit_setup_mlo_assoc(u16 valid_links,
+			     struct iwl_mld_kunit_link *assoc_link)
 {
 	struct kunit *test = kunit_get_current_test();
 	struct ieee80211_vif *vif;
@@ -370,13 +370,13 @@ struct ieee80211_vif *iwlmld_kunit_setup_mlo_assoc(u16 valid_links,
 	KUNIT_ASSERT_TRUE(test,
 			  hweight16(valid_links) == 1 ||
 			  hweight16(valid_links) == 2);
-	KUNIT_ASSERT_TRUE(test, valid_links & BIT(assoc_link_id));
+	KUNIT_ASSERT_TRUE(test, valid_links & BIT(assoc_link->id));
 
-	vif = iwlmld_kunit_setup_assoc(true, assoc_link_id, band);
+	vif = iwlmld_kunit_setup_assoc(true, assoc_link);
 
 	/* Add the other link, if applicable */
 	if (hweight16(valid_links) > 1) {
-		u8 other_link_id = ffs(valid_links & ~BIT(assoc_link_id)) - 1;
+		u8 other_link_id = ffs(valid_links & ~BIT(assoc_link->id)) - 1;
 
 		iwlmld_kunit_add_link(vif, other_link_id);
 	}
@@ -384,9 +384,10 @@ struct ieee80211_vif *iwlmld_kunit_setup_mlo_assoc(u16 valid_links,
 	return vif;
 }
 
-struct ieee80211_vif *iwlmld_kunit_setup_non_mlo_assoc(enum nl80211_band band)
+struct ieee80211_vif *
+iwlmld_kunit_setup_non_mlo_assoc(struct iwl_mld_kunit_link *assoc_link)
 {
-	return iwlmld_kunit_setup_assoc(false, 0, band);
+	return iwlmld_kunit_setup_assoc(false, assoc_link);
 }
 
 struct iwl_rx_packet *
@@ -403,9 +404,8 @@ _iwl_mld_kunit_create_pkt(const void *notif, size_t notif_sz)
 	return pkt;
 }
 
-struct ieee80211_vif *iwlmld_kunit_assoc_emlsr(u16 valid_links,
-					       enum nl80211_band band1,
-					       enum nl80211_band band2)
+struct ieee80211_vif *iwlmld_kunit_assoc_emlsr(struct iwl_mld_kunit_link *link1,
+					       struct iwl_mld_kunit_link *link2)
 {
 	struct kunit *test = kunit_get_current_test();
 	struct iwl_mld *mld = test->priv;
@@ -414,23 +414,20 @@ struct ieee80211_vif *iwlmld_kunit_assoc_emlsr(u16 valid_links,
 	struct ieee80211_chanctx_conf *chan_ctx;
 	struct ieee80211_sta *sta;
 	struct iwl_mld_vif *mld_vif;
-	u8 assoc_link_id, other_link_id;
+	u16 valid_links = BIT(link1->id) | BIT(link2->id);
 
 	KUNIT_ASSERT_TRUE(test, hweight16(valid_links) == 2);
 
-	assoc_link_id = ffs(valid_links) - 1;
-	other_link_id = ffs(valid_links & ~BIT(assoc_link_id)) - 1;
-
-	vif = iwlmld_kunit_setup_mlo_assoc(valid_links, assoc_link_id, band1);
+	vif = iwlmld_kunit_setup_mlo_assoc(valid_links, link1);
 	mld_vif = iwl_mld_vif_from_mac80211(vif);
 
 	/* Activate second link */
 	wiphy_lock(mld->wiphy);
 
-	link = wiphy_dereference(mld->wiphy, vif->link_conf[other_link_id]);
+	link = wiphy_dereference(mld->wiphy, vif->link_conf[link2->id]);
 	KUNIT_EXPECT_NOT_NULL(test, link);
 
-	chan_ctx = iwlmld_kunit_add_chanctx(band2);
+	chan_ctx = iwlmld_kunit_add_chanctx(link2->band);
 	iwlmld_kunit_assign_chanctx_to_link(vif, link, chan_ctx);
 
 	wiphy_unlock(mld->wiphy);
@@ -439,7 +436,7 @@ struct ieee80211_vif *iwlmld_kunit_assoc_emlsr(u16 valid_links,
 	sta = mld_vif->ap_sta;
 	KUNIT_EXPECT_NOT_NULL(test, sta);
 
-	iwlmld_kunit_alloc_link_sta(sta, other_link_id);
+	iwlmld_kunit_alloc_link_sta(sta, link2->id);
 
 	return vif;
 }

@@ -126,23 +126,24 @@ static void test_link_grading(struct kunit *test)
 	struct ieee80211_vif *vif;
 	struct ieee80211_bss_conf *link;
 	unsigned int actual_grade;
-	u8 assoc_link_id;
 	/* Extract test case parameters */
 	u8 link_id = test_param->input.link.link_id;
-	enum nl80211_band band = test_param->input.link.chandef->chan->band;
 	bool active = test_param->input.link.active;
 	u16 valid_links;
+	struct iwl_mld_kunit_link assoc_link = {
+		.band = test_param->input.link.chandef->chan->band,
+	};
 
 	/* If the link is not active, use a different link as the assoc link */
 	if (active) {
-		assoc_link_id = link_id;
+		assoc_link.id = link_id;
 		valid_links = BIT(link_id);
 	} else {
-		assoc_link_id = BIT(ffz(BIT(link_id)));
-		valid_links = BIT(assoc_link_id) | BIT(link_id);
+		assoc_link.id = BIT(ffz(BIT(link_id)));
+		valid_links = BIT(assoc_link.id) | BIT(link_id);
 	}
 
-	vif = iwlmld_kunit_setup_mlo_assoc(valid_links, assoc_link_id, band);
+	vif = iwlmld_kunit_setup_mlo_assoc(valid_links, &assoc_link);
 
 	wiphy_lock(mld->wiphy);
 	link = wiphy_dereference(mld->wiphy, vif->link_conf[link_id]);

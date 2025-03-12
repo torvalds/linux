@@ -2,7 +2,7 @@
 /*
  * KUnit tests for channel helper functions
  *
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  */
 #include <kunit/static_stub.h>
 
@@ -61,6 +61,14 @@ static void test_missed_beacon(struct kunit *test)
 		(const void *)(test->param_value);
 	struct ieee80211_vif *vif;
 	struct iwl_rx_packet *pkt;
+	struct iwl_mld_kunit_link link1 = {
+		.id = 0,
+		.band = NL80211_BAND_6GHZ,
+	};
+	struct iwl_mld_kunit_link link2 = {
+		.id = 1,
+		.band = NL80211_BAND_5GHZ,
+	};
 
 	kunit_activate_static_stub(test, ieee80211_connection_loss,
 				   fake_ieee80211_connection_loss);
@@ -68,12 +76,11 @@ static void test_missed_beacon(struct kunit *test)
 	notif = (void *)pkt->data;
 
 	if (test_param->input.emlsr) {
-		vif = iwlmld_kunit_assoc_emlsr(0x3, NL80211_BAND_5GHZ,
-					       NL80211_BAND_6GHZ);
+		vif = iwlmld_kunit_assoc_emlsr(&link1, &link2);
 	} else {
 		struct iwl_mld_vif *mld_vif;
 
-		vif = iwlmld_kunit_setup_non_mlo_assoc(NL80211_BAND_6GHZ);
+		vif = iwlmld_kunit_setup_non_mlo_assoc(&link1);
 		mld_vif = iwl_mld_vif_from_mac80211(vif);
 		notif->link_id = cpu_to_le32(mld_vif->deflink.fw_id);
 	}
