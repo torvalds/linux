@@ -15,6 +15,7 @@
 #include "mmu/spte.h"
 #include "common.h"
 #include "posted_intr.h"
+#include "irq.h"
 #include <trace/events/kvm.h>
 #include "trace.h"
 
@@ -644,11 +645,17 @@ int tdx_vcpu_create(struct kvm_vcpu *vcpu)
 	if (kvm_tdx->state != TD_STATE_INITIALIZED)
 		return -EIO;
 
-	/* TDX module mandates APICv, which requires an in-kernel local APIC. */
-	if (!lapic_in_kernel(vcpu))
+	/*
+	 * TDX module mandates APICv, which requires an in-kernel local APIC.
+	 * Disallow an in-kernel I/O APIC, because level-triggered interrupts
+	 * and thus the I/O APIC as a whole can't be faithfully emulated in KVM.
+	 */
+	if (!irqchip_split(vcpu->kvm))
 		return -EINVAL;
 
 	fpstate_set_confidential(&vcpu->arch.guest_fpu);
+	vcpu->arch.apic->guest_apic_protected = true;
+	INIT_LIST_HEAD(&tdx->vt.pi_wakeup_list);
 
 	vcpu->arch.efer = EFER_SCE | EFER_LME | EFER_LMA | EFER_NX;
 
@@ -669,6 +676,9 @@ int tdx_vcpu_create(struct kvm_vcpu *vcpu)
 	if ((kvm_tdx->xfam & XFEATURE_MASK_XTILE) == XFEATURE_MASK_XTILE)
 		vcpu->arch.xfd_no_write_intercept = true;
 
+	tdx->vt.pi_desc.nv = POSTED_INTR_VECTOR;
+	__pi_set_sn(&tdx->vt.pi_desc);
+
 	tdx->state = VCPU_TD_STATE_UNINITIALIZED;
 
 	return 0;
@@ -678,6 +688,7 @@ void tdx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_tdx *tdx = to_tdx(vcpu);
 
+	vmx_vcpu_pi_load(vcpu, cpu);
 	if (vcpu->cpu == cpu || !is_hkid_assigned(to_kvm_tdx(vcpu->kvm)))
 		return;
 
@@ -693,6 +704,11 @@ void tdx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	list_add(&tdx->cpu_list, &per_cpu(associated_tdvcpus, cpu));
 	local_irq_enable();
+}
+
+bool tdx_protected_apic_has_interrupt(struct kvm_vcpu *vcpu)
+{
+	return pi_has_pending_interrupt(vcpu);
 }
 
 /*
@@ -866,6 +882,8 @@ static noinstr void tdx_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 	tdx->exit_gpa = tdx->vp_enter_args.r8;
 	vt->exit_intr_info = tdx->vp_enter_args.r9;
 
+	vmx_handle_nmi(vcpu);
+
 	guest_state_exit_irqoff();
 }
 
@@ -958,6 +976,14 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 
 	trace_kvm_entry(vcpu, force_immediate_exit);
 
+	if (pi_test_on(&vt->pi_desc)) {
+		apic->send_IPI_self(POSTED_INTR_VECTOR);
+
+		if (pi_test_pir(kvm_lapic_get_reg(vcpu->arch.apic, APIC_LVTT) &
+			       APIC_VECTOR_MASK, &vt->pi_desc))
+			kvm_wait_lapic_expire(vcpu);
+	}
+
 	tdx_vcpu_enter_exit(vcpu);
 
 	if (vt->host_debugctlmsr & ~TDX_DEBUGCTL_PRESERVED)
@@ -980,6 +1006,47 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 		return EXIT_FASTPATH_NONE;
 
 	return tdx_exit_handlers_fastpath(vcpu);
+}
+
+void tdx_inject_nmi(struct kvm_vcpu *vcpu)
+{
+	++vcpu->stat.nmi_injections;
+	td_management_write8(to_tdx(vcpu), TD_VCPU_PEND_NMI, 1);
+	/*
+	 * From KVM's perspective, NMI injection is completed right after
+	 * writing to PEND_NMI.  KVM doesn't care whether an NMI is injected by
+	 * the TDX module or not.
+	 */
+	vcpu->arch.nmi_injected = false;
+	/*
+	 * TDX doesn't support KVM to request NMI window exit.  If there is
+	 * still a pending vNMI, KVM is not able to inject it along with the
+	 * one pending in TDX module in a back-to-back way.  Since the previous
+	 * vNMI is still pending in TDX module, i.e. it has not been delivered
+	 * to TDX guest yet, it's OK to collapse the pending vNMI into the
+	 * previous one.  The guest is expected to handle all the NMI sources
+	 * when handling the first vNMI.
+	 */
+	vcpu->arch.nmi_pending = 0;
+}
+
+static int tdx_handle_exception_nmi(struct kvm_vcpu *vcpu)
+{
+	u32 intr_info = vmx_get_intr_info(vcpu);
+
+	/*
+	 * Machine checks are handled by handle_exception_irqoff(), or by
+	 * tdx_handle_exit() with TDX_NON_RECOVERABLE set if a #MC occurs on
+	 * VM-Entry.  NMIs are handled by tdx_vcpu_enter_exit().
+	 */
+	if (is_nmi(intr_info) || is_machine_check(intr_info))
+		return 1;
+
+	vcpu->run->exit_reason = KVM_EXIT_EXCEPTION;
+	vcpu->run->ex.exception = intr_info & INTR_INFO_VECTOR_MASK;
+	vcpu->run->ex.error_code = 0;
+
+	return 0;
 }
 
 static int complete_hypercall_exit(struct kvm_vcpu *vcpu)
@@ -1621,6 +1688,18 @@ int tdx_sept_remove_private_spte(struct kvm *kvm, gfn_t gfn,
 	return tdx_sept_drop_private_spte(kvm, gfn, level, page);
 }
 
+void tdx_deliver_interrupt(struct kvm_lapic *apic, int delivery_mode,
+			   int trig_mode, int vector)
+{
+	struct kvm_vcpu *vcpu = apic->vcpu;
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+
+	/* TDX supports only posted interrupt.  No lapic emulation. */
+	__vmx_deliver_posted_interrupt(vcpu, &tdx->vt.pi_desc, vector);
+
+	trace_kvm_apicv_accept_irq(vcpu->vcpu_id, delivery_mode, trig_mode, vector);
+}
+
 int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 {
 	struct vcpu_tdx *tdx = to_tdx(vcpu);
@@ -1666,6 +1745,11 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 		vcpu->mmio_needed = 0;
 		return 0;
+	case EXIT_REASON_EXCEPTION_NMI:
+		return tdx_handle_exception_nmi(vcpu);
+	case EXIT_REASON_EXTERNAL_INTERRUPT:
+		++vcpu->stat.irq_exits;
+		return 1;
 	case EXIT_REASON_TDCALL:
 		return handle_tdvmcall(vcpu);
 	case EXIT_REASON_VMCALL:
@@ -1674,6 +1758,27 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		return tdx_emulate_io(vcpu);
 	case EXIT_REASON_EPT_MISCONFIG:
 		return tdx_emulate_mmio(vcpu);
+	case EXIT_REASON_OTHER_SMI:
+		/*
+		 * Unlike VMX, SMI in SEAM non-root mode (i.e. when
+		 * TD guest vCPU is running) will cause VM exit to TDX module,
+		 * then SEAMRET to KVM.  Once it exits to KVM, SMI is delivered
+		 * and handled by kernel handler right away.
+		 *
+		 * The Other SMI exit can also be caused by the SEAM non-root
+		 * machine check delivered via Machine Check System Management
+		 * Interrupt (MSMI), but it has already been handled by the
+		 * kernel machine check handler, i.e., the memory page has been
+		 * marked as poisoned and it won't be freed to the free list
+		 * when the TDX guest is terminated (the TDX module marks the
+		 * guest as dead and prevent it from further running when
+		 * machine check happens in SEAM non-root).
+		 *
+		 * - A MSMI will not reach here, it's handled as non_recoverable
+		 *   case above.
+		 * - If it's not an MSMI, no need to do anything here.
+		 */
+		return 1;
 	default:
 		break;
 	}
@@ -2564,9 +2669,26 @@ static int tdx_vcpu_init(struct kvm_vcpu *vcpu, struct kvm_tdx_cmd *cmd)
 	if (ret)
 		return ret;
 
+	td_vmcs_write16(tdx, POSTED_INTR_NV, POSTED_INTR_VECTOR);
+	td_vmcs_write64(tdx, POSTED_INTR_DESC_ADDR, __pa(&tdx->vt.pi_desc));
+	td_vmcs_setbit32(tdx, PIN_BASED_VM_EXEC_CONTROL, PIN_BASED_POSTED_INTR);
+
 	tdx->state = VCPU_TD_STATE_INITIALIZED;
 
 	return 0;
+}
+
+void tdx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
+{
+	/*
+	 * Yell on INIT, as TDX doesn't support INIT, i.e. KVM should drop all
+	 * INIT events.
+	 *
+	 * Defer initializing vCPU for RESET state until KVM_TDX_INIT_VCPU, as
+	 * userspace needs to define the vCPU model before KVM can initialize
+	 * vCPU state, e.g. to enable x2APIC.
+	 */
+	WARN_ON_ONCE(init_event);
 }
 
 struct tdx_gmem_post_populate_arg {
@@ -2980,6 +3102,11 @@ int __init tdx_bringup(void)
 
 	if (!tdp_mmu_enabled || !enable_mmio_caching || !enable_ept_ad_bits) {
 		pr_err("TDP MMU and MMIO caching and EPT A/D bit is required for TDX\n");
+		goto success_disable_tdx;
+	}
+
+	if (!enable_apicv) {
+		pr_err("APICv is required for TDX\n");
 		goto success_disable_tdx;
 	}
 

@@ -263,7 +263,6 @@ struct vcpu_vmx {
 		} seg[8];
 	} segment_cache;
 	int vpid;
-	bool emulation_required;
 
 	/* Support for a guest hypervisor (nested VMX) */
 	struct nested_vmx nested;
