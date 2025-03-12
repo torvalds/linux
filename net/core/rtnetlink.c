@@ -3088,13 +3088,24 @@ static int do_setlink(const struct sk_buff *skb, struct net_device *dev,
 			goto errout;
 		}
 		sa->sa_family = dev->type;
+
+		netdev_unlock_ops(dev);
+
+		/* dev_addr_sem is an outer lock, enforce proper ordering */
+		down_write(&dev_addr_sem);
+		netdev_lock_ops(dev);
+
 		memcpy(sa->sa_data, nla_data(tb[IFLA_ADDRESS]),
 		       dev->addr_len);
-		err = netif_set_mac_address_user(dev, sa, extack);
+		err = netif_set_mac_address(dev, sa, extack);
 		kfree(sa);
-		if (err)
+		if (err) {
+			up_write(&dev_addr_sem);
 			goto errout;
+		}
 		status |= DO_SETLINK_MODIFIED;
+
+		up_write(&dev_addr_sem);
 	}
 
 	if (tb[IFLA_MTU]) {

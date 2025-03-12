@@ -89,9 +89,11 @@ int dev_set_mac_address_user(struct net_device *dev, struct sockaddr *sa,
 {
 	int ret;
 
+	down_write(&dev_addr_sem);
 	netdev_lock_ops(dev);
-	ret = netif_set_mac_address_user(dev, sa, extack);
+	ret = netif_set_mac_address(dev, sa, extack);
 	netdev_unlock_ops(dev);
+	up_write(&dev_addr_sem);
 
 	return ret;
 }
