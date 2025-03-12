@@ -163,7 +163,7 @@ int __init acpi_gtdt_init(struct acpi_table_header *table,
 {
 	void *platform_timer;
 	struct acpi_table_gtdt *gtdt;
-	int cnt = 0;
+	u32 cnt = 0;
 
 	gtdt = container_of(table, struct acpi_table_gtdt, header);
 	acpi_gtdt_desc.gtdt = gtdt;
@@ -188,13 +188,17 @@ int __init acpi_gtdt_init(struct acpi_table_header *table,
 		cnt++;
 
 	if (cnt != gtdt->platform_timer_count) {
+		cnt = min(cnt, gtdt->platform_timer_count);
+		pr_err(FW_BUG "limiting Platform Timer count to %d\n", cnt);
+	}
+
+	if (!cnt) {
 		acpi_gtdt_desc.platform_timer = NULL;
-		pr_err(FW_BUG "invalid timer data.\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	if (platform_timer_count)
-		*platform_timer_count = gtdt->platform_timer_count;
+		*platform_timer_count = cnt;
 
 	return 0;
 }

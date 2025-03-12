@@ -18,6 +18,7 @@ Introduction
     both access system memory directly and with the same effective
     addresses.
 
+    **This driver is deprecated and will be removed in a future release.**
 
 Hardware overview
 =================
@@ -453,7 +454,7 @@ Sysfs Class
 
     A cxl sysfs class is added under /sys/class/cxl to facilitate
     enumeration and tuning of the accelerators. Its layout is
-    described in Documentation/ABI/testing/sysfs-class-cxl
+    described in Documentation/ABI/obsolete/sysfs-class-cxl
 
 
 Udev rules

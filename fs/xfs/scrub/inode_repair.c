@@ -1055,9 +1055,17 @@ xrep_dinode_check_dfork(
 			return true;
 		break;
 	case S_IFREG:
-		if (fmt == XFS_DINODE_FMT_LOCAL)
+		switch (fmt) {
+		case XFS_DINODE_FMT_LOCAL:
 			return true;
-		fallthrough;
+		case XFS_DINODE_FMT_EXTENTS:
+		case XFS_DINODE_FMT_BTREE:
+		case XFS_DINODE_FMT_META_BTREE:
+			break;
+		default:
+			return true;
+		}
+		break;
 	case S_IFLNK:
 	case S_IFDIR:
 		switch (fmt) {

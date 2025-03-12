@@ -4,12 +4,6 @@
 
 #include <linux/lockdep.h>
 
-#define IO_NODE_ALLOC_CACHE_MAX 32
-
-#define IO_RSRC_TAG_TABLE_SHIFT	(PAGE_SHIFT - 3)
-#define IO_RSRC_TAG_TABLE_MAX	(1U << IO_RSRC_TAG_TABLE_SHIFT)
-#define IO_RSRC_TAG_TABLE_MASK	(IO_RSRC_TAG_TABLE_MAX - 1)
-
 enum {
 	IORING_RSRC_FILE		= 0,
 	IORING_RSRC_BUFFER		= 1,
