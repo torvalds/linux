@@ -123,10 +123,12 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 		[IEEE80211_AC_VO] = 6
 	};
 	struct mt7996_sta_link *msta_link;
+	struct mt76_vif_link *mlink;
 	struct ieee80211_sta *sta;
 	struct mt7996_sta *msta;
 	u32 tx_time[IEEE80211_NUM_ACS], rx_time[IEEE80211_NUM_ACS];
 	LIST_HEAD(sta_poll_list);
+	struct mt76_wcid *wcid;
 	int i;
 
 	spin_lock_bh(&dev->mt76.sta_poll_lock);
@@ -150,10 +152,11 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 					     struct mt7996_sta_link,
 					     wcid.poll_list);
 		msta = msta_link->sta;
-		list_del_init(&msta_link->wcid.poll_list);
+		wcid = &msta_link->wcid;
+		list_del_init(&wcid->poll_list);
 		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
-		idx = msta_link->wcid.idx;
+		idx = wcid->idx;
 
 		/* refresh peer's airtime reporting */
 		addr = mt7996_mac_wtbl_lmac_addr(dev, idx, 20);
@@ -181,7 +184,7 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 			       sizeof(msta_link->airtime_ac));
 		}
 
-		if (!msta_link->wcid.sta)
+		if (!wcid->sta)
 			continue;
 
 		sta = container_of((void *)msta, struct ieee80211_sta,
@@ -207,8 +210,15 @@ static void mt7996_mac_sta_poll(struct mt7996_dev *dev)
 		rssi[2] = to_rssi(GENMASK(23, 16), val);
 		rssi[3] = to_rssi(GENMASK(31, 14), val);
 
-		msta_link->ack_signal =
-			mt76_rx_signal(msta->vif->deflink.phy->mt76->antenna_mask, rssi);
+		mlink = rcu_dereference(msta->vif->mt76.link[wcid->link_id]);
+		if (mlink) {
+			struct mt76_phy *mphy = mt76_vif_link_phy(mlink);
+
+			if (mphy)
+				msta_link->ack_signal =
+					mt76_rx_signal(mphy->antenna_mask,
+						       rssi);
+		}
 
 		ewma_avg_signal_add(&msta_link->avg_ack_signal,
 				    -msta_link->ack_signal);
