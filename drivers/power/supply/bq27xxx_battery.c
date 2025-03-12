@@ -2148,10 +2148,6 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		ret = bq27xxx_simple_value(di->cache.capacity, val);
-		/* If 0 is reported, it is expected that EDVF is also set */
-		if (!ret && di->opts & BQ27XXX_O_ZERO &&
-		   !(di->cache.flags & BQ27000_FLAG_EDVF))
-			return -EINVAL;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
 		ret = bq27xxx_battery_capacity_level(di, val);
@@ -2175,15 +2171,10 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		if (di->regs[BQ27XXX_REG_NAC] != INVALID_REG_ADDR) {
+		if (di->regs[BQ27XXX_REG_NAC] != INVALID_REG_ADDR)
 			ret = bq27xxx_battery_read_nac(di, val);
-			/* If 0 is reported, it is expected that EDVF is also set */
-			if (!ret && di->opts & BQ27XXX_O_ZERO &&
-			   !(di->cache.flags & BQ27000_FLAG_EDVF))
-				return -EINVAL;
-		} else {
+		else
 			ret = bq27xxx_battery_read_rc(di, val);
-		}
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		ret = bq27xxx_battery_read_fcc(di, val);
@@ -2208,10 +2199,6 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
 		ret = bq27xxx_battery_read_energy(di, val);
-		/* If 0 is reported, it is expected that EDVF is also set */
-		if (!ret && di->opts & BQ27XXX_O_ZERO &&
-		   !(di->cache.flags & BQ27000_FLAG_EDVF))
-			return -EINVAL;
 		break;
 	case POWER_SUPPLY_PROP_POWER_AVG:
 		ret = bq27xxx_battery_pwr_avg(di, val);
