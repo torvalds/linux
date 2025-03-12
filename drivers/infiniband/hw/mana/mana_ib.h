@@ -79,6 +79,7 @@ struct mana_ib_dev {
 	struct mana_ib_adapter_caps adapter_caps;
 	struct dma_pool *av_pool;
 	netdevice_tracker dev_tracker;
+	struct notifier_block nb;
 };
 
 struct mana_ib_wq {
