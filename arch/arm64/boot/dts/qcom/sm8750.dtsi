@@ -1059,7 +1059,7 @@
 
 				interrupts = <GIC_SPI 461 IRQ_TYPE_LEVEL_HIGH>;
 
-				clocks = <&gcc GCC_QUPV3_WRAP2_S5_CLK>;
+				clocks = <&gcc GCC_QUPV3_WRAP2_S6_CLK>;
 				clock-names = "se";
 
 				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
