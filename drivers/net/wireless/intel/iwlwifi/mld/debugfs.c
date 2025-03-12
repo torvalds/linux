@@ -21,6 +21,8 @@
 #include "fw/api/rs.h"
 #include "fw/api/dhc.h"
 #include "fw/api/rfi.h"
+#include "fw/dhc-utils.h"
+#include <linux/dmi.h>
 
 #define MLD_DEBUGFS_READ_FILE_OPS(name, bufsz)				\
 	_MLD_DEBUGFS_READ_FILE_OPS(name, bufsz, struct iwl_mld)
@@ -206,11 +208,240 @@ iwl_dbgfs_he_sniffer_params_read(struct iwl_mld *mld, char *buf, size_t count)
 #define IWL_RFI_BUF_SIZE (IWL_RFI_DDR_BUF_SIZE + IWL_RFI_DLVR_BUF_SIZE +\
 				IWL_RFI_DESENSE_BUF_SIZE + 32)
 
+static size_t iwl_mld_dump_tas_resp(struct iwl_dhc_tas_status_resp *resp,
+				    size_t count, u8 *buf)
+{
+	const char * const tas_dis_reason[TAS_DISABLED_REASON_MAX] = {
+		[TAS_DISABLED_DUE_TO_BIOS] =
+			"Due To BIOS",
+		[TAS_DISABLED_DUE_TO_SAR_6DBM] =
+			"Due To SAR Limit Less Than 6 dBm",
+		[TAS_DISABLED_REASON_INVALID] =
+			"N/A",
+		[TAS_DISABLED_DUE_TO_TABLE_SOURCE_INVALID] =
+			"Due to table source invalid"
+	};
+	const char * const tas_current_status[TAS_DYNA_STATUS_MAX] = {
+		[TAS_DYNA_INACTIVE] = "INACTIVE",
+		[TAS_DYNA_INACTIVE_MVM_MODE] =
+			"inactive due to mvm mode",
+		[TAS_DYNA_INACTIVE_TRIGGER_MODE] =
+			"inactive due to trigger mode",
+		[TAS_DYNA_INACTIVE_BLOCK_LISTED] =
+			"inactive due to block listed",
+		[TAS_DYNA_INACTIVE_UHB_NON_US] =
+			"inactive due to uhb non US",
+		[TAS_DYNA_ACTIVE] = "ACTIVE",
+	};
+	ssize_t pos = 0;
+
+	if (resp->header.version != 1) {
+		pos += scnprintf(buf + pos, count - pos,
+				 "Unsupported TAS response version:%d",
+				 resp->header.version);
+		return pos;
+	}
+
+	pos += scnprintf(buf + pos, count - pos, "TAS Report\n");
+	switch (resp->tas_config_info.table_source) {
+	case BIOS_SOURCE_NONE:
+		pos += scnprintf(buf + pos, count - pos,
+				 "BIOS SOURCE NONE ");
+		break;
+	case BIOS_SOURCE_ACPI:
+		pos += scnprintf(buf + pos, count - pos,
+				 "BIOS SOURCE ACPI ");
+		break;
+	case BIOS_SOURCE_UEFI:
+		pos += scnprintf(buf + pos, count - pos,
+				 "BIOS SOURCE UEFI ");
+		break;
+	default:
+		pos += scnprintf(buf + pos, count - pos,
+				 "BIOS SOURCE UNKNOWN (%d) ",
+				 resp->tas_config_info.table_source);
+		break;
+	}
+
+	pos += scnprintf(buf + pos, count - pos,
+			 "revision is: %d data is: 0x%08x\n",
+			 resp->tas_config_info.table_revision,
+			 resp->tas_config_info.value);
+	pos += scnprintf(buf + pos, count - pos, "Current MCC: 0x%x\n",
+			 le16_to_cpu(resp->curr_mcc));
+
+	pos += scnprintf(buf + pos, count - pos, "Block list entries:");
+	for (int i = 0; i < ARRAY_SIZE(resp->mcc_block_list); i++)
+		pos += scnprintf(buf + pos, count - pos, " 0x%x",
+				 le16_to_cpu(resp->mcc_block_list[i]));
+
+	pos += scnprintf(buf + pos, count - pos,
+			 "\nDo TAS Support Dual Radio?: %s\n",
+			 hweight8(resp->valid_radio_mask) > 1 ?
+			 "TRUE" : "FALSE");
+
+	for (int i = 0; i < ARRAY_SIZE(resp->tas_status_radio); i++) {
+		int tmp;
+		unsigned long dynamic_status;
+
+		if (!(resp->valid_radio_mask & BIT(i)))
+			continue;
+
+		pos += scnprintf(buf + pos, count - pos,
+				 "TAS report for radio:%d\n", i + 1);
+		pos += scnprintf(buf + pos, count - pos,
+				 "Static status: %sabled\n",
+				 resp->tas_status_radio[i].static_status ?
+				 "En" : "Dis");
+		if (!resp->tas_status_radio[i].static_status) {
+			u8 static_disable_reason =
+				resp->tas_status_radio[i].static_disable_reason;
+
+			pos += scnprintf(buf + pos, count - pos,
+					 "\tStatic Disabled Reason: ");
+			if (static_disable_reason >= TAS_DISABLED_REASON_MAX) {
+				pos += scnprintf(buf + pos, count - pos,
+						 "unsupported value (%d)\n",
+						 static_disable_reason);
+				continue;
+			}
+
+			pos += scnprintf(buf + pos, count - pos,
+					 "%s (%d)\n",
+					 tas_dis_reason[static_disable_reason],
+					 static_disable_reason);
+			continue;
+		}
+
+		pos += scnprintf(buf + pos, count - pos, "\tANT A %s and ",
+				 (resp->tas_status_radio[i].dynamic_status_ant_a
+				  & BIT(TAS_DYNA_ACTIVE)) ? "ON" : "OFF");
+
+		pos += scnprintf(buf + pos, count - pos, "ANT B %s for ",
+				 (resp->tas_status_radio[i].dynamic_status_ant_b
+				  & BIT(TAS_DYNA_ACTIVE)) ? "ON" : "OFF");
+
+		switch (resp->tas_status_radio[i].band) {
+		case PHY_BAND_5:
+			pos += scnprintf(buf + pos, count - pos, "HB\n");
+			break;
+		case PHY_BAND_24:
+			pos += scnprintf(buf + pos, count - pos, "LB\n");
+			break;
+		case PHY_BAND_6:
+			pos += scnprintf(buf + pos, count - pos, "UHB\n");
+			break;
+		default:
+			pos += scnprintf(buf + pos, count - pos,
+					 "Unsupported band (%d)\n",
+					 resp->tas_status_radio[i].band);
+			break;
+		}
+
+		pos += scnprintf(buf + pos, count - pos,
+				 "Is near disconnection?: %s\n",
+				 resp->tas_status_radio[i].near_disconnection ?
+				 "True" : "False");
+
+		pos += scnprintf(buf + pos, count - pos,
+				 "Dynamic status antenna A:\n");
+		dynamic_status = resp->tas_status_radio[i].dynamic_status_ant_a;
+		for_each_set_bit(tmp, &dynamic_status, TAS_DYNA_STATUS_MAX) {
+			pos += scnprintf(buf + pos, count - pos, "\t%s (%d)\n",
+					 tas_current_status[tmp], tmp);
+		}
+		pos += scnprintf(buf + pos, count - pos,
+				 "\nDynamic status antenna B:\n");
+		dynamic_status = resp->tas_status_radio[i].dynamic_status_ant_b;
+		for_each_set_bit(tmp, &dynamic_status, TAS_DYNA_STATUS_MAX) {
+			pos += scnprintf(buf + pos, count - pos, "\t%s (%d)\n",
+					 tas_current_status[tmp], tmp);
+		}
+
+		tmp = le16_to_cpu(resp->tas_status_radio[i].max_reg_pwr_limit_ant_a);
+		pos += scnprintf(buf + pos, count - pos,
+				 "Max antenna A regulatory pwr limit (dBm): %d.%03d\n",
+				 tmp / 8, 125 * (tmp % 8));
+		tmp = le16_to_cpu(resp->tas_status_radio[i].max_reg_pwr_limit_ant_b);
+		pos += scnprintf(buf + pos, count - pos,
+				 "Max antenna B regulatory pwr limit (dBm): %d.%03d\n",
+				 tmp / 8, 125 * (tmp % 8));
+
+		tmp = le16_to_cpu(resp->tas_status_radio[i].sar_limit_ant_a);
+		pos += scnprintf(buf + pos, count - pos,
+				 "Antenna A SAR limit (dBm): %d.%03d\n",
+				 tmp / 8, 125 * (tmp % 8));
+		tmp = le16_to_cpu(resp->tas_status_radio[i].sar_limit_ant_b);
+		pos += scnprintf(buf + pos, count - pos,
+				 "Antenna B SAR limit (dBm): %d.%03d\n",
+				 tmp / 8, 125 * (tmp % 8));
+	}
+
+	return pos;
+}
+
+static ssize_t iwl_dbgfs_tas_get_status_read(struct iwl_mld *mld, char *buf,
+					     size_t count)
+{
+	struct iwl_dhc_cmd cmd = {
+		.index_and_mask = cpu_to_le32(DHC_TABLE_TOOLS |
+					      DHC_TARGET_UMAC |
+					      DHC_TOOLS_UMAC_GET_TAS_STATUS),
+	};
+	struct iwl_host_cmd hcmd = {
+		.id = WIDE_ID(LEGACY_GROUP, DEBUG_HOST_COMMAND),
+		.flags = CMD_WANT_SKB,
+		.len[0] = sizeof(cmd),
+		.data[0] = &cmd,
+	};
+	struct iwl_dhc_tas_status_resp *resp = NULL;
+	ssize_t pos = 0;
+	u32 resp_len;
+	u32 status;
+	int ret;
+
+	if (iwl_mld_dbgfs_fw_cmd_disabled(mld))
+		return -EIO;
+
+	ret = iwl_mld_send_cmd(mld, &hcmd);
+	if (ret)
+		return ret;
+
+	pos += scnprintf(buf + pos, count - pos, "\nOEM name: %s\n",
+			 dmi_get_system_info(DMI_SYS_VENDOR) ?: "<unknown>");
+	pos += scnprintf(buf + pos, count - pos,
+			 "\tVendor In Approved List: %s\n",
+			 iwl_is_tas_approved() ? "YES" : "NO");
+
+	status = iwl_dhc_resp_status(mld->fwrt.fw, hcmd.resp_pkt);
+	if (status != 1) {
+		pos += scnprintf(buf + pos, count - pos,
+				 "response status is not success: %d\n",
+				 status);
+		goto out;
+	}
+
+	resp = iwl_dhc_resp_data(mld->fwrt.fw, hcmd.resp_pkt, &resp_len);
+	if (IS_ERR(resp) || resp_len != sizeof(*resp)) {
+		pos += scnprintf(buf + pos, count - pos,
+			"Invalid size for TAS response (%u instead of %zd)\n",
+			resp_len, sizeof(*resp));
+		goto out;
+	}
+
+	pos += iwl_mld_dump_tas_resp(resp, count - pos, buf + pos);
+
+out:
+	iwl_free_resp(&hcmd);
+	return pos;
+}
+
 WIPHY_DEBUGFS_WRITE_FILE_OPS_MLD(fw_nmi, 10);
 WIPHY_DEBUGFS_WRITE_FILE_OPS_MLD(fw_restart, 10);
 WIPHY_DEBUGFS_READ_WRITE_FILE_OPS_MLD(he_sniffer_params, 32);
 WIPHY_DEBUGFS_WRITE_FILE_OPS_MLD(fw_dbg_clear, 10);
 WIPHY_DEBUGFS_WRITE_FILE_OPS_MLD(send_echo_cmd, 8);
+WIPHY_DEBUGFS_READ_FILE_OPS_MLD(tas_get_status, 2048);
 
 static ssize_t iwl_dbgfs_wifi_6e_enable_read(struct iwl_mld *mld,
 					     size_t count, u8 *buf)
@@ -307,6 +538,7 @@ iwl_mld_add_debugfs_files(struct iwl_mld *mld, struct dentry *debugfs_dir)
 	MLD_DEBUGFS_ADD_FILE(he_sniffer_params, debugfs_dir, 0600);
 	MLD_DEBUGFS_ADD_FILE(fw_dbg_clear, debugfs_dir, 0200);
 	MLD_DEBUGFS_ADD_FILE(send_echo_cmd, debugfs_dir, 0200);
+	MLD_DEBUGFS_ADD_FILE(tas_get_status, debugfs_dir, 0400);
 #ifdef CONFIG_THERMAL
 	MLD_DEBUGFS_ADD_FILE(start_ctdp, debugfs_dir, 0200);
 	MLD_DEBUGFS_ADD_FILE(stop_ctdp, debugfs_dir, 0200);
