@@ -34,9 +34,6 @@
 #define OV13B10_VTS_120FPS		0x0320
 #define OV13B10_VTS_MAX			0x7fff
 
-/* HBLANK control - read only */
-#define OV13B10_PPL_560MHZ		4704
-
 /* Exposure control */
 #define OV13B10_REG_EXPOSURE		0x3500
 #define OV13B10_EXPOSURE_MIN		4
@@ -95,7 +92,7 @@ struct ov13b10_reg_list {
 
 /* Link frequency config */
 struct ov13b10_link_freq_config {
-	u32 pixels_per_line;
+	u64 link_freq;
 
 	/* registers for this link frequency */
 	struct ov13b10_reg_list reg_list;
@@ -114,6 +111,10 @@ struct ov13b10_mode {
 
 	/* Index of Link frequency config to be used */
 	u32 link_freq_index;
+
+	/* Pixels per line in current mode */
+	u32 ppl;
+
 	/* Default register values */
 	struct ov13b10_reg_list reg_list;
 };
@@ -549,7 +550,7 @@ static const s64 link_freq_menu_items[] = {
 static const struct ov13b10_link_freq_config
 			link_freq_configs[] = {
 	{
-		.pixels_per_line = OV13B10_PPL_560MHZ,
+		.link_freq = OV13B10_LINK_FREQ_560MHZ,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mipi_data_rate_1120mbps),
 			.regs = mipi_data_rate_1120mbps,
@@ -564,6 +565,7 @@ static const struct ov13b10_mode supported_modes[] = {
 		.height = 3120,
 		.vts_def = OV13B10_VTS_30FPS,
 		.vts_min = OV13B10_VTS_30FPS,
+		.ppl = 4704,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_4208x3120_regs),
 			.regs = mode_4208x3120_regs,
@@ -575,6 +577,7 @@ static const struct ov13b10_mode supported_modes[] = {
 		.height = 3120,
 		.vts_def = OV13B10_VTS_30FPS,
 		.vts_min = OV13B10_VTS_30FPS,
+		.ppl = 4704,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_4160x3120_regs),
 			.regs = mode_4160x3120_regs,
@@ -586,6 +589,7 @@ static const struct ov13b10_mode supported_modes[] = {
 		.height = 2340,
 		.vts_def = OV13B10_VTS_30FPS,
 		.vts_min = OV13B10_VTS_30FPS,
+		.ppl = 4704,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_4160x2340_regs),
 			.regs = mode_4160x2340_regs,
@@ -597,6 +601,7 @@ static const struct ov13b10_mode supported_modes[] = {
 		.height = 1560,
 		.vts_def = OV13B10_VTS_60FPS,
 		.vts_min = OV13B10_VTS_60FPS,
+		.ppl = 4704,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_2104x1560_regs),
 			.regs = mode_2104x1560_regs,
@@ -608,6 +613,7 @@ static const struct ov13b10_mode supported_modes[] = {
 		.height = 1170,
 		.vts_def = OV13B10_VTS_60FPS,
 		.vts_min = OV13B10_VTS_60FPS,
+		.ppl = 4704,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_2080x1170_regs),
 			.regs = mode_2080x1170_regs,
@@ -620,6 +626,7 @@ static const struct ov13b10_mode supported_modes[] = {
 		.vts_def = OV13B10_VTS_120FPS,
 		.vts_min = OV13B10_VTS_120FPS,
 		.link_freq_index = OV13B10_LINK_FREQ_INDEX_0,
+		.ppl = 4664,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1364x768_120fps_regs),
 			.regs = mode_1364x768_120fps_regs,
@@ -1072,9 +1079,7 @@ ov13b10_set_pad_format(struct v4l2_subdev *sd,
 					 1,
 					 vblank_def);
 		__v4l2_ctrl_s_ctrl(ov13b->vblank, vblank_def);
-		h_blank =
-			link_freq_configs[mode->link_freq_index].pixels_per_line
-			 - ov13b->cur_mode->width;
+		h_blank = mode->ppl - mode->width;
 		__v4l2_ctrl_modify_range(ov13b->hblank, h_blank,
 					 h_blank, 1, h_blank);
 	}
@@ -1328,8 +1333,7 @@ static int ov13b10_init_controls(struct ov13b10 *ov13b)
 					  OV13B10_VTS_MAX - mode->height, 1,
 					  vblank_def);
 
-	hblank = link_freq_configs[mode->link_freq_index].pixels_per_line -
-		 mode->width;
+	hblank = mode->ppl - mode->width;
 	ov13b->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov13b10_ctrl_ops,
 					  V4L2_CID_HBLANK,
 					  hblank, hblank, 1, hblank);
