@@ -441,10 +441,12 @@ static int idxd_submit_user_descriptor(struct idxd_user_context *ctx,
 	 * DSA devices are capable of indirect ("batch") command submission.
 	 * On devices where direct user submissions are not safe, we cannot
 	 * allow this since there is no good way for us to verify these
-	 * indirect commands.
+	 * indirect commands. Narrow the restriction of operations with the
+	 * BATCH opcode to only DSA version 1 devices.
 	 */
 	if (is_dsa_dev(idxd_dev) && descriptor.opcode == DSA_OPCODE_BATCH &&
-		!wq->idxd->user_submission_safe)
+	    wq->idxd->hw.version == DEVICE_VERSION_1 &&
+	    !wq->idxd->user_submission_safe)
 		return -EINVAL;
 	/*
 	 * As per the programming specification, the completion address must be
