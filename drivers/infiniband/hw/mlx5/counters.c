@@ -849,9 +849,8 @@ static void mlx5_ib_dealloc_counters(struct mlx5_ib_dev *dev)
 				    dev->port[i].cnts.opfcs, j, &in_use_opfc))
 				goto skip;
 
-			if (IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS))
-				mlx5_ib_fs_remove_op_fc(dev,
-					&dev->port[i].cnts.opfcs[j], j);
+			mlx5_ib_fs_remove_op_fc(dev,
+						&dev->port[i].cnts.opfcs[j], j);
 			mlx5_fc_destroy(dev->mdev,
 					dev->port[i].cnts.opfcs[j].fc);
 skip:
@@ -1115,8 +1114,7 @@ static const struct ib_device_ops hw_stats_ops = {
 	.counter_dealloc = mlx5_ib_counter_dealloc,
 	.counter_alloc_stats = mlx5_ib_counter_alloc_stats,
 	.counter_update_stats = mlx5_ib_counter_update_stats,
-	.modify_hw_stat = IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS) ?
-			  mlx5_ib_modify_stat : NULL,
+	.modify_hw_stat = mlx5_ib_modify_stat,
 	.counter_init = mlx5_ib_counter_init,
 
 	INIT_RDMA_OBJ_SIZE(rdma_counter, mlx5_rdma_counter, rdma_counter),
