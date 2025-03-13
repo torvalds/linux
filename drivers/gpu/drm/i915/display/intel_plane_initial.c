@@ -75,6 +75,15 @@ initial_plane_phys_lmem(struct intel_display *display,
 	dma_addr_t dma_addr;
 	u32 base;
 
+	mem_type = initial_plane_memory_type(i915);
+	mem = intel_memory_region_by_type(i915, mem_type);
+	if (!mem) {
+		drm_dbg_kms(display->drm,
+			    "Initial plane memory region (type %s) not initialized\n",
+			    intel_memory_type_str(mem_type));
+		return false;
+	}
+
 	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
 
 	dma_addr = intel_ggtt_read_entry(&ggtt->vm, base, &is_present, &is_local);
@@ -88,15 +97,6 @@ initial_plane_phys_lmem(struct intel_display *display,
 	if (!is_local) {
 		drm_err(display->drm,
 			"Initial plane FB PTE not LMEM\n");
-		return false;
-	}
-
-	mem_type = initial_plane_memory_type(i915);
-	mem = intel_memory_region_by_type(i915, mem_type);
-	if (!mem) {
-		drm_dbg_kms(display->drm,
-			    "Initial plane memory region (type %s) not initialized\n",
-			    intel_memory_type_str(mem_type));
 		return false;
 	}
 
@@ -133,6 +133,15 @@ initial_plane_phys_smem(struct intel_display *display,
 	dma_addr_t dma_addr;
 	u32 base;
 
+	mem_type = initial_plane_memory_type(i915);
+	mem = intel_memory_region_by_type(i915, mem_type);
+	if (!mem) {
+		drm_dbg_kms(display->drm,
+			    "Initial plane memory region (type %s) not initialized\n",
+			    intel_memory_type_str(mem_type));
+		return false;
+	}
+
 	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
 
 	dma_addr = intel_ggtt_read_entry(&ggtt->vm, base, &is_present, &is_local);
@@ -146,15 +155,6 @@ initial_plane_phys_smem(struct intel_display *display,
 	if (is_local) {
 		drm_err(display->drm,
 			"Initial plane FB PTE LMEM\n");
-		return false;
-	}
-
-	mem_type = initial_plane_memory_type(i915);
-	mem = intel_memory_region_by_type(i915, mem_type);
-	if (!mem) {
-		drm_dbg_kms(display->drm,
-			    "Initial plane memory region (type %s) not initialized\n",
-			    intel_memory_type_str(mem_type));
 		return false;
 	}
 
