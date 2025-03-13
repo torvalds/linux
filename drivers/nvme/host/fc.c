@@ -2620,7 +2620,7 @@ nvme_fc_map_data(struct nvme_fc_ctrl *ctrl, struct request *rq,
 	if (ret)
 		return -ENOMEM;
 
-	op->nents = blk_rq_map_sg(rq->q, rq, freq->sg_table.sgl);
+	op->nents = blk_rq_map_sg(rq, freq->sg_table.sgl);
 	WARN_ON(op->nents > blk_rq_nr_phys_segments(rq));
 	freq->sg_cnt = fc_dma_map_sg(ctrl->lport->dev, freq->sg_table.sgl,
 				op->nents, rq_dma_dir(rq));

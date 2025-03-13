@@ -1904,7 +1904,7 @@ static void msb_io_work(struct work_struct *work)
 
 		/* process the request */
 		dbg_verbose("IO: processing new request");
-		blk_rq_map_sg(msb->queue, req, sg);
+		blk_rq_map_sg(req, sg);
 
 		lba = blk_rq_pos(req);
 

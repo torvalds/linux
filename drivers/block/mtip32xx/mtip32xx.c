@@ -2056,7 +2056,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, struct request *rq,
 	unsigned int nents;
 
 	/* Map the scatter list for DMA access */
-	nents = blk_rq_map_sg(hctx->queue, rq, command->sg);
+	nents = blk_rq_map_sg(rq, command->sg);
 	nents = dma_map_sg(&dd->pdev->dev, command->sg, nents, dma_dir);
 
 	prefetch(&port->flags);
