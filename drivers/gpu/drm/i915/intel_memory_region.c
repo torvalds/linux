@@ -227,7 +227,7 @@ static int intel_memory_region_memtest(struct intel_memory_region *mem,
 	return err;
 }
 
-static const char *region_type_str(u16 type)
+const char *intel_memory_type_str(enum intel_memory_type type)
 {
 	switch (type) {
 	case INTEL_MEMORY_SYSTEM:
@@ -271,7 +271,7 @@ intel_memory_region_create(struct drm_i915_private *i915,
 	mem->instance = instance;
 
 	snprintf(mem->uabi_name, sizeof(mem->uabi_name), "%s%u",
-		 region_type_str(type), instance);
+		 intel_memory_type_str(type), instance);
 
 	mutex_init(&mem->objects.lock);
 	INIT_LIST_HEAD(&mem->objects.list);
