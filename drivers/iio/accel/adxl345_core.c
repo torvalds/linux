@@ -133,7 +133,7 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 		ret = regmap_bulk_read(st->regmap,
 				       ADXL345_REG_DATA_AXIS(chan->address),
 				       &accel, sizeof(accel));
-		if (ret < 0)
+		if (ret)
 			return ret;
 
 		*val = sign_extend32(le16_to_cpu(accel), 12);
@@ -145,7 +145,7 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBBIAS:
 		ret = regmap_read(st->regmap,
 				  ADXL345_REG_OFS_AXIS(chan->address), &regval);
-		if (ret < 0)
+		if (ret)
 			return ret;
 		/*
 		 * 8-bit resolution at +/- 2g, that is 4x accel data scale
@@ -156,7 +156,7 @@ static int adxl345_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		ret = regmap_read(st->regmap, ADXL345_REG_BW_RATE, &regval);
-		if (ret < 0)
+		if (ret)
 			return ret;
 
 		samp_freq_nhz = ADXL345_BASE_RATE_NANO_HZ <<
@@ -266,7 +266,7 @@ static int adxl345_set_fifo(struct adxl345_state *st)
 
 	/* FIFO should only be configured while in standby mode */
 	ret = adxl345_set_measure_en(st, false);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = regmap_read(st->regmap, ADXL345_REG_INT_MAP, &intio);
@@ -279,7 +279,7 @@ static int adxl345_set_fifo(struct adxl345_state *st)
 			   FIELD_PREP(ADXL345_FIFO_CTL_TRIGGER_MSK, intio) |
 			   FIELD_PREP(ADXL345_FIFO_CTL_MODE_MSK,
 				      st->fifo_mode));
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return adxl345_set_measure_en(st, true);
@@ -300,7 +300,7 @@ static int adxl345_get_samples(struct adxl345_state *st)
 	int ret;
 
 	ret = regmap_read(st->regmap, ADXL345_REG_FIFO_STATUS, &regval);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return FIELD_GET(ADXL345_REG_FIFO_STATUS_MSK, regval);
@@ -328,7 +328,7 @@ static int adxl345_fifo_transfer(struct adxl345_state *st, int samples)
 		/* read 3x 2 byte elements from base address into next fifo_buf position */
 		ret = regmap_bulk_read(st->regmap, ADXL345_REG_XYZ_BASE,
 				       st->fifo_buf + (i * count / 2), count);
-		if (ret < 0)
+		if (ret)
 			return ret;
 
 		/*
@@ -386,7 +386,7 @@ static int adxl345_buffer_predisable(struct iio_dev *indio_dev)
 
 	st->fifo_mode = ADXL345_FIFO_BYPASS;
 	ret = adxl345_set_fifo(st);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return regmap_write(st->regmap, ADXL345_REG_INT_ENABLE, 0x00);
@@ -540,7 +540,7 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	}
 
 	ret = regmap_read(st->regmap, ADXL345_REG_DEVID, &regval);
-	if (ret < 0)
+	if (ret)
 		return dev_err_probe(dev, ret, "Error reading device ID\n");
 
 	if (regval != ADXL345_DEVID)
@@ -549,11 +549,11 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 
 	/* Enable measurement mode */
 	ret = adxl345_set_measure_en(st, true);
-	if (ret < 0)
+	if (ret)
 		return dev_err_probe(dev, ret, "Failed to enable measurement mode\n");
 
 	ret = devm_add_action_or_reset(dev, adxl345_powerdown, st);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	st->irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT1");
@@ -591,7 +591,7 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 		ret = regmap_write(st->regmap, ADXL345_REG_FIFO_CTL,
 				   FIELD_PREP(ADXL345_FIFO_CTL_MODE_MSK,
 					      ADXL345_FIFO_BYPASS));
-		if (ret < 0)
+		if (ret)
 			return ret;
 	}
 
