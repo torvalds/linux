@@ -94,9 +94,10 @@ initial_plane_phys_lmem(struct intel_display *display,
 		return false;
 	}
 
-	if (!is_local) {
+	if (intel_memory_type_is_local(mem->type) != is_local) {
 		drm_err(display->drm,
-			"Initial plane FB PTE not LMEM\n");
+			"Initial plane FB PTE unsuitable for %s\n",
+			mem->region.name);
 		return false;
 	}
 
@@ -152,9 +153,10 @@ initial_plane_phys_smem(struct intel_display *display,
 		return false;
 	}
 
-	if (is_local) {
+	if (intel_memory_type_is_local(mem->type) != is_local) {
 		drm_err(display->drm,
-			"Initial plane FB PTE LMEM\n");
+			"Initial plane FB PTE unsuitable for %s\n",
+			mem->region.name);
 		return false;
 	}
 
