@@ -15,8 +15,6 @@
 struct firmware;
 struct pci_dev;
 
-#define IPU6_BUS_NAME	IPU6_NAME "-bus"
-
 struct ipu6_buttress_ctrl;
 
 struct ipu6_bus_device {
