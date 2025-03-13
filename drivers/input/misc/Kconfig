@@ -214,6 +214,18 @@ config INPUT_PMIC8XXX_PWRKEY
 	  To compile this driver as a module, choose M here: the
 	  module will be called pmic8xxx-pwrkey.
 
+config INPUT_QCOM_SPMI_HAPTICS
+	tristate "Qualcomm SPMI HAPTICS"
+	depends on ARCH_QCOM
+	depends on SPMI
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables support for the haptics found in pmi8998 and
+	  related PMICs. Based on the ff-memless interface.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called qcom_spmi_haptics.
+
 config INPUT_SPARCSPKR
 	tristate "SPARC Speaker support"
 	depends on PCI && SPARC64
