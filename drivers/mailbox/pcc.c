@@ -117,8 +117,6 @@ struct pcc_chan_info {
 static struct pcc_chan_info *chan_info;
 static int pcc_chan_count;
 
-static int pcc_send_data(struct mbox_chan *chan, void *data);
-
 /*
  * PCC can be used with perf critical drivers such as CPPC
  * So it makes sense to locally cache the virtual address and
@@ -288,33 +286,24 @@ static int pcc_mbox_error_check_and_clear(struct pcc_chan_info *pchan)
 	return 0;
 }
 
-static void check_and_ack(struct pcc_chan_info *pchan, struct mbox_chan *chan)
+static void pcc_chan_acknowledge(struct pcc_chan_info *pchan)
 {
-	struct acpi_pcct_ext_pcc_shared_memory pcc_hdr;
+	struct acpi_pcct_ext_pcc_shared_memory __iomem *pcc_hdr;
 
 	if (pchan->type != ACPI_PCCT_TYPE_EXT_PCC_SLAVE_SUBSPACE)
 		return;
-	/* If the memory region has not been mapped, we cannot
-	 * determine if we need to send the message, but we still
-	 * need to set the cmd_update flag before returning.
-	 */
-	if (pchan->chan.shmem == NULL) {
-		pcc_chan_reg_read_modify_write(&pchan->cmd_update);
-		return;
-	}
-	memcpy_fromio(&pcc_hdr, pchan->chan.shmem,
-		      sizeof(struct acpi_pcct_ext_pcc_shared_memory));
+
+	pcc_chan_reg_read_modify_write(&pchan->cmd_update);
+
+	pcc_hdr = pchan->chan.shmem;
+
 	/*
-	 * The PCC slave subspace channel needs to set the command complete bit
-	 * after processing message. If the PCC_ACK_FLAG is set, it should also
-	 * ring the doorbell.
-	 *
-	 * The PCC master subspace channel clears chan_in_use to free channel.
+	 * The PCC slave subspace channel needs to set the command
+	 * complete bit after processing message. If the PCC_ACK_FLAG
+	 * is set, it should also ring the doorbell.
 	 */
-	if (pcc_hdr.flags & PCC_CMD_COMPLETION_NOTIFY)
-		pcc_send_data(chan, NULL);
-	else
-		pcc_chan_reg_read_modify_write(&pchan->cmd_update);
+	if (ioread32(&pcc_hdr->flags) & PCC_CMD_COMPLETION_NOTIFY)
+		pcc_chan_reg_read_modify_write(&pchan->db);
 }
 
 /**
@@ -353,7 +342,7 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 	pchan->chan_in_use = false;
 	mbox_chan_received_data(chan, NULL);
 
-	check_and_ack(pchan, chan);
+	pcc_chan_acknowledge(pchan);
 
 	return IRQ_HANDLED;
 }
