@@ -26,6 +26,7 @@
 #include <net/codel_impl.h>
 #include <linux/unaligned.h>
 #include <net/fq_impl.h>
+#include <net/sock.h>
 #include <net/gso.h>
 
 #include "ieee80211_i.h"
@@ -2876,8 +2877,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (unlikely(!multicast &&
-		     ((skb->sk &&
-		       skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS) ||
+		     ((skb->sk && sock_flag(skb->sk, SOCK_WIFI_STATUS)) ||
 		      ctrl_flags & IEEE80211_TX_CTL_REQ_TX_STATUS)))
 		info_id = ieee80211_store_ack_skb(local, skb, &info_flags,
 						  cookie);
@@ -3774,7 +3774,7 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 		return false;
 
 	/* don't handle TX status request here either */
-	if (skb->sk && skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)
+	if (skb->sk && sock_flag(skb->sk, SOCK_WIFI_STATUS))
 		return false;
 
 	if (hdr->frame_control & cpu_to_le16(IEEE80211_STYPE_QOS_DATA)) {
@@ -4664,8 +4664,7 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
 			memcpy(IEEE80211_SKB_CB(seg), info, sizeof(*info));
 	}
 
-	if (unlikely(skb->sk &&
-		     skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS)) {
+	if (unlikely(skb->sk && sock_flag(skb->sk, SOCK_WIFI_STATUS))) {
 		info->status_data = ieee80211_store_ack_skb(local, skb,
 							    &info->flags, NULL);
 		if (info->status_data)

@@ -7,6 +7,7 @@
 #ifndef WIL6210_TXRX_H
 #define WIL6210_TXRX_H
 
+#include <net/sock.h>
 #include "wil6210.h"
 #include "txrx_edma.h"
 
@@ -617,7 +618,7 @@ static inline bool wil_need_txstat(struct sk_buff *skb)
 	const u8 *da = wil_skb_get_da(skb);
 
 	return is_unicast_ether_addr(da) && skb->sk &&
-	       (skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS);
+	       sock_flag(skb->sk, SOCK_WIFI_STATUS);
 }
 
 static inline void wil_consume_skb(struct sk_buff *skb, bool acked)
