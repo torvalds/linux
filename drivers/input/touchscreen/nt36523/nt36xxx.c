@@ -1421,13 +1421,20 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 		ts->pen_input_dev->keybit[BIT_WORD(BTN_STYLUS2)] |= BIT_MASK(BTN_STYLUS2);
 		ts->pen_input_dev->propbit[0] = BIT(INPUT_PROP_DIRECT);
 
+		int x_max, y_max;
+
 		if (ts->wgp_stylus) {
-			input_set_abs_params(ts->pen_input_dev, ABS_X, 0, ts->abs_x_max * 2 - 1, 0, 0);
-			input_set_abs_params(ts->pen_input_dev, ABS_Y, 0, ts->abs_y_max * 2 - 1, 0, 0);
+			x_max = ts->abs_x_max * 2 - 1;
+			y_max = ts->abs_y_max * 2 - 1;
 		} else {
-			input_set_abs_params(ts->pen_input_dev, ABS_X, 0, ts->abs_x_max - 1, 0, 0);
-			input_set_abs_params(ts->pen_input_dev, ABS_Y, 0, ts->abs_y_max - 1, 0, 0);
+			x_max = ts->abs_x_max - 1;
+			y_max = ts->abs_y_max - 1;
 		}
+
+		input_set_abs_params(ts->pen_input_dev, ABS_X, 0, x_max, 0, 0);
+		input_set_abs_params(ts->pen_input_dev, ABS_Y, 0, y_max , 0, 0);
+		input_abs_set_res(ts->pen_input_dev, ABS_X, x_max / PANEL_DEFAULT_WIDTH_MM);
+		input_abs_set_res(ts->pen_input_dev, ABS_Y, y_max / PANEL_DEFAULT_HEIGHT_MM);
 
 		input_set_abs_params(ts->pen_input_dev, ABS_PRESSURE, 0, PEN_PRESSURE_MAX, 0, 0);
 		input_set_abs_params(ts->pen_input_dev, ABS_DISTANCE, 0, PEN_DISTANCE_MAX, 0, 0);

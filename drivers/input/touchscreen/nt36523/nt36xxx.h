@@ -70,7 +70,9 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 #define PEN_DISTANCE_MAX (1)
 #define PEN_TILT_MIN (-60)
 #define PEN_TILT_MAX (60)
-
+//---for pen resolution---
+#define PANEL_DEFAULT_WIDTH_MM 148  // 148mm
+#define PANEL_DEFAULT_HEIGHT_MM 237 // 237mm
 /* Enable only when module have tp reset pin and connected to host */
 #define NVT_TOUCH_SUPPORT_HW_RST 0
 
