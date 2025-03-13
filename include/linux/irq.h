@@ -1222,7 +1222,6 @@ static inline struct irq_chip_type *irq_data_get_chip_type(struct irq_data *d)
 
 #define IRQ_MSK(n) (u32)((n) < 32 ? ((1 << (n)) - 1) : UINT_MAX)
 
-#ifdef CONFIG_SMP
 static inline void irq_gc_lock(struct irq_chip_generic *gc)
 {
 	raw_spin_lock(&gc->lock);
@@ -1232,10 +1231,6 @@ static inline void irq_gc_unlock(struct irq_chip_generic *gc)
 {
 	raw_spin_unlock(&gc->lock);
 }
-#else
-static inline void irq_gc_lock(struct irq_chip_generic *gc) { }
-static inline void irq_gc_unlock(struct irq_chip_generic *gc) { }
-#endif
 
 /*
  * The irqsave variants are for usage in non interrupt code. Do not use
