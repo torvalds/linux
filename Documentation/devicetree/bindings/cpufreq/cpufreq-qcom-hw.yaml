@@ -115,19 +115,15 @@ allOf:
     then:
       properties:
         reg:
-          minItems: 1
           maxItems: 1
 
         reg-names:
-          minItems: 1
           maxItems: 1
 
         interrupts:
-          minItems: 1
           maxItems: 1
 
         interrupt-names:
-          minItems: 1
           maxItems: 1
 
   - if:
