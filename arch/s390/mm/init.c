@@ -175,7 +175,6 @@ void __init mem_init(void)
         high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
 	pv_init();
-	kfence_split_mapping();
 
 	/* this will put all low memory onto the freelists */
 	memblock_free_all();
