@@ -316,7 +316,7 @@ int rxe_odp_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 	err = rxe_odp_map_range_and_lock(mr, iova, sizeof(char),
 					 RXE_PAGEFAULT_DEFAULT);
 	if (err < 0)
-		return err;
+		return RESPST_ERR_RKEY_VIOLATION;
 
 	err = rxe_odp_do_atomic_op(mr, iova, opcode, compare, swap_add,
 				   orig_val);
