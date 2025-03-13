@@ -2026,44 +2026,6 @@ static struct bch_fs *bch2_path_to_fs(const char *path)
 	return c ?: ERR_PTR(-ENOENT);
 }
 
-static int bch2_remount(struct super_block *sb, int *flags,
-			struct bch_opts opts)
-{
-	struct bch_fs *c = sb->s_fs_info;
-	int ret = 0;
-
-	opt_set(opts, read_only, (*flags & SB_RDONLY) != 0);
-
-	if (opts.read_only != c->opts.read_only) {
-		down_write(&c->state_lock);
-
-		if (opts.read_only) {
-			bch2_fs_read_only(c);
-
-			sb->s_flags |= SB_RDONLY;
-		} else {
-			ret = bch2_fs_read_write(c);
-			if (ret) {
-				bch_err(c, "error going rw: %i", ret);
-				up_write(&c->state_lock);
-				ret = -EINVAL;
-				goto err;
-			}
-
-			sb->s_flags &= ~SB_RDONLY;
-		}
-
-		c->opts.read_only = opts.read_only;
-
-		up_write(&c->state_lock);
-	}
-
-	if (opt_defined(opts, errors))
-		c->opts.errors = opts.errors;
-err:
-	return bch2_err_class(ret);
-}
-
 static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 {
 	struct bch_fs *c = root->d_sb->s_fs_info;
@@ -2374,8 +2336,39 @@ static int bch2_fs_reconfigure(struct fs_context *fc)
 {
 	struct super_block *sb = fc->root->d_sb;
 	struct bch2_opts_parse *opts = fc->fs_private;
+	struct bch_fs *c = sb->s_fs_info;
+	int ret = 0;
 
-	return bch2_remount(sb, &fc->sb_flags, opts->opts);
+	opt_set(opts->opts, read_only, (fc->sb_flags & SB_RDONLY) != 0);
+
+	if (opts->opts.read_only != c->opts.read_only) {
+		down_write(&c->state_lock);
+
+		if (opts->opts.read_only) {
+			bch2_fs_read_only(c);
+
+			sb->s_flags |= SB_RDONLY;
+		} else {
+			ret = bch2_fs_read_write(c);
+			if (ret) {
+				bch_err(c, "error going rw: %i", ret);
+				up_write(&c->state_lock);
+				ret = -EINVAL;
+				goto err;
+			}
+
+			sb->s_flags &= ~SB_RDONLY;
+		}
+
+		c->opts.read_only = opts->opts.read_only;
+
+		up_write(&c->state_lock);
+	}
+
+	if (opt_defined(opts->opts, errors))
+		c->opts.errors = opts->opts.errors;
+err:
+	return bch2_err_class(ret);
 }
 
 static const struct fs_context_operations bch2_context_ops = {
