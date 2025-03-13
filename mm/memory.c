@@ -114,14 +114,6 @@ static __always_inline bool vmf_orig_pte_uffd_wp(struct vm_fault *vmf)
 }
 
 /*
- * A number of key systems in x86 including ioremap() rely on the assumption
- * that high_memory defines the upper bound on direct map memory, then end
- * of ZONE_NORMAL.
- */
-void *high_memory;
-EXPORT_SYMBOL(high_memory);
-
-/*
  * Randomize the address space (stacks, mmaps, brk, etc.).
  *
  * ( When CONFIG_COMPAT_BRK=y we exclude brk from randomization,

@@ -164,8 +164,6 @@ void __init mem_init(void)
 {
 	free_highpages();
 
-	high_memory = (void *)__va(max_low_pfn << PAGE_SHIFT);
-
 	memblock_free_all();
 }
 

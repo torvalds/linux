@@ -150,8 +150,6 @@ void __init setup_arch_memory(void)
 	 */
 	max_zone_pfn[ZONE_HIGHMEM] = max_high_pfn;
 
-	high_memory = (void *)(min_high_pfn << PAGE_SHIFT);
-
 	arch_pfn_offset = min(min_low_pfn, min_high_pfn);
 	kmap_init();
 #endif /* CONFIG_HIGHMEM */

@@ -385,7 +385,6 @@ int __init linux_main(int argc, char **argv, char **envp)
 
 	high_physmem = uml_physmem + physmem_size;
 	end_iomem = high_physmem + iomem_size;
-	high_memory = (void *) end_iomem;
 
 	start_vm = VMALLOC_START;
 

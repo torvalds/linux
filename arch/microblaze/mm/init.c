@@ -120,8 +120,6 @@ void __init setup_memory(void)
 
 void __init mem_init(void)
 {
-	high_memory = (void *)__va(memory_start + lowmem_size - 1);
-
 	/* this will put all memory onto the freelists */
 	memblock_free_all();
 #ifdef CONFIG_HIGHMEM

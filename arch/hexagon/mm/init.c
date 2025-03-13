@@ -100,12 +100,6 @@ static void __init paging_init(void)
 	 * initial kernel segment table's physical address.
 	 */
 	init_mm.context.ptbase = __pa(init_mm.pgd);
-
-	/*
-	 * Start of high memory area.  Will probably need something more
-	 * fancy if we...  get more fancy.
-	 */
-	high_memory = (void *)((bootmem_lastpg + 1) << PAGE_SHIFT);
 }
 
 #ifndef DMA_RESERVE

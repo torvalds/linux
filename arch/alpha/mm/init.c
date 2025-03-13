@@ -276,7 +276,6 @@ srm_paging_stop (void)
 void __init
 mem_init(void)
 {
-	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 	memblock_free_all();
 }
 

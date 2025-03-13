@@ -562,7 +562,6 @@ void __init mem_init(void)
 	BUILD_BUG_ON(TMPALIAS_MAP_START >= 0x80000000);
 #endif
 
-	high_memory = __va((max_pfn << PAGE_SHIFT));
 	memblock_free_all();
 
 #ifdef CONFIG_PA11

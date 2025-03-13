@@ -62,12 +62,6 @@ void __init paging_init(void)
 
 void __init mem_init(void)
 {
-	unsigned long end_mem   = memory_end; /* this must not include
-						kernel stack at top */
-
-	end_mem &= PAGE_MASK;
-	high_memory = __va(end_mem);
-
 	/* this will put all memory onto the freelists */
 	memblock_free_all();
 }
