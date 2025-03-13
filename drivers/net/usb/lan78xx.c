@@ -627,7 +627,7 @@ static int lan78xx_read_reg(struct lan78xx_net *dev, u32 index, u32 *data)
 
 	kfree(buf);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static int lan78xx_write_reg(struct lan78xx_net *dev, u32 index, u32 data)
@@ -658,7 +658,7 @@ static int lan78xx_write_reg(struct lan78xx_net *dev, u32 index, u32 data)
 
 	kfree(buf);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static int lan78xx_update_reg(struct lan78xx_net *dev, u32 reg, u32 mask,

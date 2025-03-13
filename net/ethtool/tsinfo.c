@@ -290,7 +290,8 @@ static void *ethnl_tsinfo_prepare_dump(struct sk_buff *skb,
 	reply_data = ctx->reply_data;
 	memset(reply_data, 0, sizeof(*reply_data));
 	reply_data->base.dev = dev;
-	memset(&reply_data->ts_info, 0, sizeof(reply_data->ts_info));
+	reply_data->ts_info.cmd = ETHTOOL_GET_TS_INFO;
+	reply_data->ts_info.phc_index = -1;
 
 	return ehdr;
 }
