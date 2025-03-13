@@ -36,6 +36,7 @@
 #include "md.h"
 #include "raid1.h"
 #include "md-bitmap.h"
+#include "md-cluster.h"
 
 #define UNSUPPORTED_MDDEV_FLAGS		\
 	((1L << MD_HAS_JOURNAL) |	\
@@ -45,6 +46,7 @@
 
 static void allow_barrier(struct r1conf *conf, sector_t sector_nr);
 static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
+static void raid1_free(struct mddev *mddev, void *priv);
 
 #define RAID_1_10_NAME "raid1"
 #include "raid1-10.c"
@@ -1315,8 +1317,6 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	struct r1conf *conf = mddev->private;
 	struct raid1_info *mirror;
 	struct bio *read_bio;
-	const enum req_op op = bio_op(bio);
-	const blk_opf_t do_sync = bio->bi_opf & REQ_SYNC;
 	int max_sectors;
 	int rdisk, error;
 	bool r1bio_existed = !!r1_bio;
@@ -1404,7 +1404,6 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 	read_bio->bi_iter.bi_sector = r1_bio->sector +
 		mirror->rdev->data_offset;
 	read_bio->bi_end_io = raid1_end_read_request;
-	read_bio->bi_opf = op | do_sync;
 	if (test_bit(FailFast, &mirror->rdev->flags) &&
 	    test_bit(R1BIO_FailFast, &r1_bio->state))
 	        read_bio->bi_opf |= MD_FAILFAST;
@@ -1467,7 +1466,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	bool is_discard = (bio_op(bio) == REQ_OP_DISCARD);
 
 	if (mddev_is_clustered(mddev) &&
-	     md_cluster_ops->area_resyncing(mddev, WRITE,
+	    mddev->cluster_ops->area_resyncing(mddev, WRITE,
 		     bio->bi_iter.bi_sector, bio_end_sector(bio))) {
 
 		DEFINE_WAIT(w);
@@ -1478,7 +1477,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		for (;;) {
 			prepare_to_wait(&conf->wait_barrier,
 					&w, TASK_IDLE);
-			if (!md_cluster_ops->area_resyncing(mddev, WRITE,
+			if (!mddev->cluster_ops->area_resyncing(mddev, WRITE,
 							bio->bi_iter.bi_sector,
 							bio_end_sector(bio)))
 				break;
@@ -1653,8 +1652,6 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 
 		mbio->bi_iter.bi_sector	= (r1_bio->sector + rdev->data_offset);
 		mbio->bi_end_io	= raid1_end_write_request;
-		mbio->bi_opf = bio_op(bio) |
-			(bio->bi_opf & (REQ_SYNC | REQ_FUA | REQ_ATOMIC));
 		if (test_bit(FailFast, &rdev->flags) &&
 		    !test_bit(WriteMostly, &rdev->flags) &&
 		    conf->raid_disks - mddev->degraded > 1)
@@ -3038,9 +3035,9 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		conf->cluster_sync_low = mddev->curr_resync_completed;
 		conf->cluster_sync_high = conf->cluster_sync_low + CLUSTER_RESYNC_WINDOW_SECTORS;
 		/* Send resync message */
-		md_cluster_ops->resync_info_update(mddev,
-				conf->cluster_sync_low,
-				conf->cluster_sync_high);
+		mddev->cluster_ops->resync_info_update(mddev,
+						       conf->cluster_sync_low,
+						       conf->cluster_sync_high);
 	}
 
 	/* For a user-requested sync, we read all readable devices and do a
@@ -3258,8 +3255,11 @@ static int raid1_run(struct mddev *mddev)
 
 	if (!mddev_is_dm(mddev)) {
 		ret = raid1_set_limits(mddev);
-		if (ret)
+		if (ret) {
+			if (!mddev->private)
+				raid1_free(mddev, conf);
 			return ret;
+		}
 	}
 
 	mddev->degraded = 0;
@@ -3273,6 +3273,8 @@ static int raid1_run(struct mddev *mddev)
 	 */
 	if (conf->raid_disks - mddev->degraded < 1) {
 		md_unregister_thread(mddev, &conf->thread);
+		if (!mddev->private)
+			raid1_free(mddev, conf);
 		return -EINVAL;
 	}
 
@@ -3493,9 +3495,13 @@ static void *raid1_takeover(struct mddev *mddev)
 
 static struct md_personality raid1_personality =
 {
-	.name		= "raid1",
-	.level		= 1,
-	.owner		= THIS_MODULE,
+	.head = {
+		.type	= MD_PERSONALITY,
+		.id	= ID_RAID1,
+		.name	= "raid1",
+		.owner	= THIS_MODULE,
+	},
+
 	.make_request	= raid1_make_request,
 	.run		= raid1_run,
 	.free		= raid1_free,
@@ -3512,18 +3518,18 @@ static struct md_personality raid1_personality =
 	.takeover	= raid1_takeover,
 };
 
-static int __init raid_init(void)
+static int __init raid1_init(void)
 {
-	return register_md_personality(&raid1_personality);
+	return register_md_submodule(&raid1_personality.head);
 }
 
-static void raid_exit(void)
+static void __exit raid1_exit(void)
 {
-	unregister_md_personality(&raid1_personality);
+	unregister_md_submodule(&raid1_personality.head);
 }
 
-module_init(raid_init);
-module_exit(raid_exit);
+module_init(raid1_init);
+module_exit(raid1_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RAID1 (mirroring) personality for MD");
 MODULE_ALIAS("md-personality-3"); /* RAID1 */

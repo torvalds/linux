@@ -287,8 +287,8 @@ static inline bool raid1_should_read_first(struct mddev *mddev,
 		return true;
 
 	if (mddev_is_clustered(mddev) &&
-	    md_cluster_ops->area_resyncing(mddev, READ, this_sector,
-					   this_sector + len))
+	    mddev->cluster_ops->area_resyncing(mddev, READ, this_sector,
+					       this_sector + len))
 		return true;
 
 	return false;

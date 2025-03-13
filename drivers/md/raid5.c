@@ -5858,6 +5858,9 @@ static enum reshape_loc get_reshape_loc(struct mddev *mddev,
 		struct r5conf *conf, sector_t logical_sector)
 {
 	sector_t reshape_progress, reshape_safe;
+
+	if (likely(conf->reshape_progress == MaxSector))
+		return LOC_NO_RESHAPE;
 	/*
 	 * Spinlock is needed as reshape_progress may be
 	 * 64bit on a 32bit platform, and so it might be
@@ -5935,22 +5938,19 @@ static enum stripe_result make_stripe_request(struct mddev *mddev,
 	const int rw = bio_data_dir(bi);
 	enum stripe_result ret;
 	struct stripe_head *sh;
+	enum reshape_loc loc;
 	sector_t new_sector;
 	int previous = 0, flags = 0;
 	int seq, dd_idx;
 
 	seq = read_seqcount_begin(&conf->gen_lock);
-
-	if (unlikely(conf->reshape_progress != MaxSector)) {
-		enum reshape_loc loc = get_reshape_loc(mddev, conf,
-						       logical_sector);
-		if (loc == LOC_INSIDE_RESHAPE) {
-			ret = STRIPE_SCHEDULE_AND_RETRY;
-			goto out;
-		}
-		if (loc == LOC_AHEAD_OF_RESHAPE)
-			previous = 1;
+	loc = get_reshape_loc(mddev, conf, logical_sector);
+	if (loc == LOC_INSIDE_RESHAPE) {
+		ret = STRIPE_SCHEDULE_AND_RETRY;
+		goto out;
 	}
+	if (loc == LOC_AHEAD_OF_RESHAPE)
+		previous = 1;
 
 	new_sector = raid5_compute_sector(conf, logical_sector, previous,
 					  &dd_idx, NULL);
@@ -6127,7 +6127,6 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 
 	/* Bail out if conflicts with reshape and REQ_NOWAIT is set */
 	if ((bi->bi_opf & REQ_NOWAIT) &&
-	    (conf->reshape_progress != MaxSector) &&
 	    get_reshape_loc(mddev, conf, logical_sector) == LOC_INSIDE_RESHAPE) {
 		bio_wouldblock_error(bi);
 		if (rw == WRITE)
@@ -8954,9 +8953,13 @@ static void raid5_prepare_suspend(struct mddev *mddev)
 
 static struct md_personality raid6_personality =
 {
-	.name		= "raid6",
-	.level		= 6,
-	.owner		= THIS_MODULE,
+	.head = {
+		.type	= MD_PERSONALITY,
+		.id	= ID_RAID6,
+		.name	= "raid6",
+		.owner	= THIS_MODULE,
+	},
+
 	.make_request	= raid5_make_request,
 	.run		= raid5_run,
 	.start		= raid5_start,
@@ -8980,9 +8983,13 @@ static struct md_personality raid6_personality =
 };
 static struct md_personality raid5_personality =
 {
-	.name		= "raid5",
-	.level		= 5,
-	.owner		= THIS_MODULE,
+	.head = {
+		.type	= MD_PERSONALITY,
+		.id	= ID_RAID5,
+		.name	= "raid5",
+		.owner	= THIS_MODULE,
+	},
+
 	.make_request	= raid5_make_request,
 	.run		= raid5_run,
 	.start		= raid5_start,
@@ -9007,9 +9014,13 @@ static struct md_personality raid5_personality =
 
 static struct md_personality raid4_personality =
 {
-	.name		= "raid4",
-	.level		= 4,
-	.owner		= THIS_MODULE,
+	.head = {
+		.type	= MD_PERSONALITY,
+		.id	= ID_RAID4,
+		.name	= "raid4",
+		.owner	= THIS_MODULE,
+	},
+
 	.make_request	= raid5_make_request,
 	.run		= raid5_run,
 	.start		= raid5_start,
@@ -9045,21 +9056,39 @@ static int __init raid5_init(void)
 				      "md/raid5:prepare",
 				      raid456_cpu_up_prepare,
 				      raid456_cpu_dead);
-	if (ret) {
-		destroy_workqueue(raid5_wq);
-		return ret;
-	}
-	register_md_personality(&raid6_personality);
-	register_md_personality(&raid5_personality);
-	register_md_personality(&raid4_personality);
+	if (ret)
+		goto err_destroy_wq;
+
+	ret = register_md_submodule(&raid6_personality.head);
+	if (ret)
+		goto err_cpuhp_remove;
+
+	ret = register_md_submodule(&raid5_personality.head);
+	if (ret)
+		goto err_unregister_raid6;
+
+	ret = register_md_submodule(&raid4_personality.head);
+	if (ret)
+		goto err_unregister_raid5;
+
 	return 0;
+
+err_unregister_raid5:
+	unregister_md_submodule(&raid5_personality.head);
+err_unregister_raid6:
+	unregister_md_submodule(&raid6_personality.head);
+err_cpuhp_remove:
+	cpuhp_remove_multi_state(CPUHP_MD_RAID5_PREPARE);
+err_destroy_wq:
+	destroy_workqueue(raid5_wq);
+	return ret;
 }
 
-static void raid5_exit(void)
+static void __exit raid5_exit(void)
 {
-	unregister_md_personality(&raid6_personality);
-	unregister_md_personality(&raid5_personality);
-	unregister_md_personality(&raid4_personality);
+	unregister_md_submodule(&raid6_personality.head);
+	unregister_md_submodule(&raid5_personality.head);
+	unregister_md_submodule(&raid4_personality.head);
 	cpuhp_remove_multi_state(CPUHP_MD_RAID5_PREPARE);
 	destroy_workqueue(raid5_wq);
 }
