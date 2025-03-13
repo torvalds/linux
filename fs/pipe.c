@@ -960,6 +960,12 @@ int create_pipe_files(struct file **res, int flags)
 	res[1] = f;
 	stream_open(inode, res[0]);
 	stream_open(inode, res[1]);
+	/*
+	 * Disable permission and pre-content events, but enable legacy
+	 * inotify events for legacy users.
+	 */
+	file_set_fsnotify_mode(res[0], FMODE_NONOTIFY_PERM);
+	file_set_fsnotify_mode(res[1], FMODE_NONOTIFY_PERM);
 	return 0;
 }
 

@@ -53,7 +53,10 @@ struct journal_buf {
  */
 
 enum journal_pin_type {
-	JOURNAL_PIN_TYPE_btree,
+	JOURNAL_PIN_TYPE_btree3,
+	JOURNAL_PIN_TYPE_btree2,
+	JOURNAL_PIN_TYPE_btree1,
+	JOURNAL_PIN_TYPE_btree0,
 	JOURNAL_PIN_TYPE_key_cache,
 	JOURNAL_PIN_TYPE_other,
 	JOURNAL_PIN_TYPE_NR,
@@ -237,6 +240,7 @@ struct journal {
 	/* seq, last_seq from the most recent journal entry successfully written */
 	u64			seq_ondisk;
 	u64			flushed_seq_ondisk;
+	u64			flushing_seq;
 	u64			last_seq_ondisk;
 	u64			err_seq;
 	u64			last_empty_seq;

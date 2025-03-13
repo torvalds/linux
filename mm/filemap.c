@@ -445,7 +445,7 @@ EXPORT_SYMBOL(filemap_fdatawrite_range);
  * filemap_fdatawrite_range_kick - start writeback on a range
  * @mapping:	target address_space
  * @start:	index to start writeback on
- * @end:	last (non-inclusive) index for writeback
+ * @end:	last (inclusive) index for writeback
  *
  * This is a non-integrity writeback helper, to start writing back folios
  * for the indicated range.

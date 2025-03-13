@@ -29,6 +29,7 @@ int bch2_dev_resize(struct bch_fs *, struct bch_dev *, u64);
 struct bch_dev *bch2_dev_lookup(struct bch_fs *, const char *);
 
 bool bch2_fs_emergency_read_only(struct bch_fs *);
+bool bch2_fs_emergency_read_only_locked(struct bch_fs *);
 void bch2_fs_read_only(struct bch_fs *);
 
 int bch2_fs_read_write(struct bch_fs *);

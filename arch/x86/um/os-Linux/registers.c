@@ -18,6 +18,7 @@
 #include <registers.h>
 #include <sys/mman.h>
 
+static unsigned long ptrace_regset;
 unsigned long host_fp_size;
 
 int get_fp_registers(int pid, unsigned long *regs)
@@ -27,7 +28,7 @@ int get_fp_registers(int pid, unsigned long *regs)
 		.iov_len = host_fp_size,
 	};
 
-	if (ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
+	if (ptrace(PTRACE_GETREGSET, pid, ptrace_regset, &iov) < 0)
 		return -errno;
 	return 0;
 }
@@ -39,7 +40,7 @@ int put_fp_registers(int pid, unsigned long *regs)
 		.iov_len = host_fp_size,
 	};
 
-	if (ptrace(PTRACE_SETREGSET, pid, NT_X86_XSTATE, &iov) < 0)
+	if (ptrace(PTRACE_SETREGSET, pid, ptrace_regset, &iov) < 0)
 		return -errno;
 	return 0;
 }
@@ -58,9 +59,23 @@ int arch_init_registers(int pid)
 		return -ENOMEM;
 
 	/* GDB has x86_xsave_length, which uses x86_cpuid_count */
-	ret = ptrace(PTRACE_GETREGSET, pid, NT_X86_XSTATE, &iov);
+	ptrace_regset = NT_X86_XSTATE;
+	ret = ptrace(PTRACE_GETREGSET, pid, ptrace_regset, &iov);
 	if (ret)
 		ret = -errno;
+
+	if (ret == -ENODEV) {
+#ifdef CONFIG_X86_32
+		ptrace_regset = NT_PRXFPREG;
+#else
+		ptrace_regset = NT_PRFPREG;
+#endif
+		iov.iov_len = 2 * 1024 * 1024;
+		ret = ptrace(PTRACE_GETREGSET, pid, ptrace_regset, &iov);
+		if (ret)
+			ret = -errno;
+	}
+
 	munmap(iov.iov_base, 2 * 1024 * 1024);
 
 	host_fp_size = iov.iov_len;
