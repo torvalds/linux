@@ -7146,8 +7146,6 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 
 	if (log_dentries)
 		ret = log_new_dir_dentries(trans, inode, ctx);
-	else
-		ret = 0;
 end_trans:
 	if (ret < 0) {
 		btrfs_set_log_full_commit(trans);
