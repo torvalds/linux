@@ -209,6 +209,33 @@ static inline bool pipe_full(unsigned int head, unsigned int tail,
 }
 
 /**
+ * pipe_is_full - Return true if the pipe is full
+ * @pipe: the pipe
+ */
+static inline bool pipe_is_full(const struct pipe_inode_info *pipe)
+{
+	return pipe_full(pipe->head, pipe->tail, pipe->max_usage);
+}
+
+/**
+ * pipe_is_empty - Return true if the pipe is empty
+ * @pipe: the pipe
+ */
+static inline bool pipe_is_empty(const struct pipe_inode_info *pipe)
+{
+	return pipe_empty(pipe->head, pipe->tail);
+}
+
+/**
+ * pipe_buf_usage - Return how many pipe buffers are in use
+ * @pipe: the pipe
+ */
+static inline unsigned int pipe_buf_usage(const struct pipe_inode_info *pipe)
+{
+	return pipe_occupancy(pipe->head, pipe->tail);
+}
+
+/**
  * pipe_buf - Return the pipe buffer for the specified slot in the pipe ring
  * @pipe: The pipe to access
  * @slot: The slot of interest

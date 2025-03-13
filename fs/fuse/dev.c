@@ -1457,7 +1457,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (ret < 0)
 		goto out;
 
-	if (pipe_occupancy(pipe->head, pipe->tail) + cs.nr_segs > pipe->max_usage) {
+	if (pipe_buf_usage(pipe) + cs.nr_segs > pipe->max_usage) {
 		ret = -EIO;
 		goto out;
 	}

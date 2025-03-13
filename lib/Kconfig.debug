@@ -2103,7 +2103,7 @@ config FAIL_SKB_REALLOC
 	  reallocated, catching possible invalid pointers to the skb.
 
 	  For more information, check
-	  Documentation/dev-tools/fault-injection/fault-injection.rst
+	  Documentation/fault-injection/fault-injection.rst
 
 config FAULT_INJECTION_CONFIGFS
 	bool "Configfs interface for fault-injection capabilities"
