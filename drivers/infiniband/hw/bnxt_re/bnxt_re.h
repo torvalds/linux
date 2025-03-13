@@ -246,6 +246,10 @@ struct bnxt_re_dev {
 #define BNXT_RE_CHECK_RC(x) ((x) && ((x) != -ETIMEDOUT))
 void bnxt_re_pacing_alert(struct bnxt_re_dev *rdev);
 
+int bnxt_re_assign_pma_port_counters(struct bnxt_re_dev *rdev, struct ib_mad *out_mad);
+int bnxt_re_assign_pma_port_ext_counters(struct bnxt_re_dev *rdev,
+					 struct ib_mad *out_mad);
+
 static inline struct device *rdev_to_dev(struct bnxt_re_dev *rdev)
 {
 	if (rdev)
