@@ -1176,9 +1176,8 @@ static bool get_swap_device_info(struct swap_info_struct *si)
  * Fast path try to get swap entries with specified order from current
  * CPU's swap entry pool (a cluster).
  */
-static int swap_alloc_fast(swp_entry_t *entry,
-			   unsigned char usage,
-			   int order)
+static bool swap_alloc_fast(swp_entry_t *entry,
+			    int order)
 {
 	struct swap_cluster_info *ci;
 	struct swap_info_struct *si;
@@ -1197,7 +1196,7 @@ static int swap_alloc_fast(swp_entry_t *entry,
 	if (cluster_is_usable(ci, order)) {
 		if (cluster_is_empty(ci))
 			offset = cluster_offset(si, ci);
-		found = alloc_swap_scan_cluster(si, ci, offset, order, usage);
+		found = alloc_swap_scan_cluster(si, ci, offset, order, SWAP_HAS_CACHE);
 		if (found)
 			*entry = swp_entry(si->type, found);
 	} else {
@@ -1208,47 +1207,30 @@ static int swap_alloc_fast(swp_entry_t *entry,
 	return !!found;
 }
 
-swp_entry_t folio_alloc_swap(struct folio *folio)
+/* Rotate the device and switch to a new cluster */
+static bool swap_alloc_slow(swp_entry_t *entry,
+			    int order)
 {
-	unsigned int order = folio_order(folio);
-	unsigned int size = 1 << order;
-	struct swap_info_struct *si, *next;
-	swp_entry_t entry = {};
-	unsigned long offset;
 	int node;
+	unsigned long offset;
+	struct swap_info_struct *si, *next;
 
-	if (order) {
-		/*
-		 * Should not even be attempting large allocations when huge
-		 * page swap is disabled. Warn and fail the allocation.
-		 */
-		if (!IS_ENABLED(CONFIG_THP_SWAP) || size > SWAPFILE_CLUSTER) {
-			VM_WARN_ON_ONCE(1);
-			return entry;
-		}
-	}
-
-	/* Fast path using percpu cluster */
-	local_lock(&percpu_swap_cluster.lock);
-	if (swap_alloc_fast(&entry, SWAP_HAS_CACHE, order))
-		goto out;
-
-	/* Rotate the device and switch to a new cluster */
+	node = numa_node_id();
 	spin_lock(&swap_avail_lock);
 start_over:
-	node = numa_node_id();
 	plist_for_each_entry_safe(si, next, &swap_avail_heads[node], avail_lists[node]) {
+		/* Rotate the device and switch to a new cluster */
 		plist_requeue(&si->avail_lists[node], &swap_avail_heads[node]);
 		spin_unlock(&swap_avail_lock);
 		if (get_swap_device_info(si)) {
 			offset = cluster_alloc_swap_entry(si, order, SWAP_HAS_CACHE);
 			put_swap_device(si);
 			if (offset) {
-				entry = swp_entry(si->type, offset);
-				goto out;
+				*entry = swp_entry(si->type, offset);
+				return true;
 			}
 			if (order)
-				goto out;
+				return false;
 		}
 
 		spin_lock(&swap_avail_lock);
@@ -1267,16 +1249,67 @@ start_over:
 			goto start_over;
 	}
 	spin_unlock(&swap_avail_lock);
-out:
-	local_unlock(&percpu_swap_cluster.lock);
-	/* Need to call this even if allocation failed, for MEMCG_SWAP_FAIL. */
-	if (mem_cgroup_try_charge_swap(folio, entry)) {
-		put_swap_folio(folio, entry);
-		entry.val = 0;
+	return false;
+}
+
+/**
+ * folio_alloc_swap - allocate swap space for a folio
+ * @folio: folio we want to move to swap
+ * @gfp: gfp mask for shadow nodes
+ *
+ * Allocate swap space for the folio and add the folio to the
+ * swap cache.
+ *
+ * Context: Caller needs to hold the folio lock.
+ * Return: Whether the folio was added to the swap cache.
+ */
+int folio_alloc_swap(struct folio *folio, gfp_t gfp)
+{
+	unsigned int order = folio_order(folio);
+	unsigned int size = 1 << order;
+	swp_entry_t entry = {};
+
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
+	VM_BUG_ON_FOLIO(!folio_test_uptodate(folio), folio);
+
+	/*
+	 * Should not even be attempting large allocations when huge
+	 * page swap is disabled. Warn and fail the allocation.
+	 */
+	if (order && (!IS_ENABLED(CONFIG_THP_SWAP) || size > SWAPFILE_CLUSTER)) {
+		VM_WARN_ON_ONCE(1);
+		return -EINVAL;
 	}
-	if (entry.val)
-		atomic_long_sub(size, &nr_swap_pages);
-	return entry;
+
+	local_lock(&percpu_swap_cluster.lock);
+	if (!swap_alloc_fast(&entry, order))
+		swap_alloc_slow(&entry, order);
+	local_unlock(&percpu_swap_cluster.lock);
+
+	/* Need to call this even if allocation failed, for MEMCG_SWAP_FAIL. */
+	if (mem_cgroup_try_charge_swap(folio, entry))
+		goto out_free;
+
+	if (!entry.val)
+		return -ENOMEM;
+
+	/*
+	 * XArray node allocations from PF_MEMALLOC contexts could
+	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
+	 * stops emergency reserves from being allocated.
+	 *
+	 * TODO: this could cause a theoretical memory reclaim
+	 * deadlock in the swap out path.
+	 */
+	if (add_to_swap_cache(folio, entry, gfp | __GFP_NOMEMALLOC, NULL))
+		goto out_free;
+
+	atomic_long_sub(size, &nr_swap_pages);
+	return 0;
+
+out_free:
+	put_swap_folio(folio, entry);
+	return -ENOMEM;
 }
 
 static struct swap_info_struct *_swap_info_get(swp_entry_t entry)
