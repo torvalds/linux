@@ -347,9 +347,14 @@ static int hctx_busy_show(void *data, struct seq_file *m)
 {
 	struct blk_mq_hw_ctx *hctx = data;
 	struct show_busy_params params = { .m = m, .hctx = hctx };
+	int res;
 
+	res = mutex_lock_interruptible(&hctx->queue->elevator_lock);
+	if (res)
+		return res;
 	blk_mq_tagset_busy_iter(hctx->queue->tag_set, hctx_show_busy_rq,
 				&params);
+	mutex_unlock(&hctx->queue->elevator_lock);
 
 	return 0;
 }
