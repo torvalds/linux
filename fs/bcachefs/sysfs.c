@@ -650,6 +650,7 @@ static ssize_t sysfs_opt_store(struct bch_fs *c,
 
 	if (v &&
 	    (id == Opt_background_target ||
+	     (id == Opt_foreground_target && !c->opts.background_target) ||
 	     id == Opt_background_compression ||
 	     (id == Opt_compression && !c->opts.background_compression)))
 		bch2_set_rebalance_needs_scan(c, 0);
