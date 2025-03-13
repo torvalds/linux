@@ -422,7 +422,6 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 
 	if (ret == 0) {
 		char *src_copy;
-		char *dst_copy;
 		u32 dst_size = btrfs_item_size(path->nodes[0],
 						  path->slots[0]);
 		if (dst_size != item_size)
@@ -432,23 +431,16 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 			btrfs_release_path(path);
 			return 0;
 		}
-		dst_copy = kmalloc(item_size, GFP_NOFS);
 		src_copy = kmalloc(item_size, GFP_NOFS);
-		if (!dst_copy || !src_copy) {
+		if (!src_copy) {
 			btrfs_release_path(path);
-			kfree(dst_copy);
-			kfree(src_copy);
 			return -ENOMEM;
 		}
 
 		read_extent_buffer(eb, src_copy, src_ptr, item_size);
-
 		dst_ptr = btrfs_item_ptr_offset(path->nodes[0], path->slots[0]);
-		read_extent_buffer(path->nodes[0], dst_copy, dst_ptr,
-				   item_size);
-		ret = memcmp(dst_copy, src_copy, item_size);
+		ret = memcmp_extent_buffer(path->nodes[0], src_copy, dst_ptr, item_size);
 
-		kfree(dst_copy);
 		kfree(src_copy);
 		/*
 		 * they have the same contents, just return, this saves
