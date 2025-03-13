@@ -185,7 +185,7 @@ static inline void clwb(volatile void *__p)
 {
 	volatile struct { char x[64]; } *p = __p;
 
-	asm volatile(ALTERNATIVE_2(
+	asm_inline volatile(ALTERNATIVE_2(
 		"ds clflush %0",
 		"clflushopt %0", X86_FEATURE_CLFLUSHOPT,
 		"clwb %0", X86_FEATURE_CLWB)
