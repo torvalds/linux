@@ -34,21 +34,6 @@
 		serial0 = &uart6;
 	};
 
-	chosen {
-		#address-cells = <2>;
-		#size-cells = <2>;
-		ranges;
-
-		framebuffer: framebuffer@9c000000 {
-			compatible = "simple-framebuffer";
-			reg = <0x0 0x9c000000 0x0 0x2300000>;
-			width = <1600>;
-			height = <2560>;
-			stride = <(1600 * 4)>;
-			format = "a8r8g8b8";
-		};
-	};
-
 	battery_l: battery-l {
 		compatible = "simple-battery";
 		voltage-min-design-microvolt = <3870000>;
@@ -202,11 +187,6 @@
 
 		cdsp_secure_heap: cdsp-secure-heap@8e100000 {
 			reg = <0x0 0x8e100000 0x0 0x4600000>;
-			no-map;
-		};
-
-		cont_splash_mem: cont-splash@9c000000 {
-			reg = <0x0 0x9c000000 0x0 0x2300000>;
 			no-map;
 		};
 

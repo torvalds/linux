@@ -56,3 +56,123 @@ error: sound/soc/codecs/wm_adsp.c: patch does not apply
         
 Falling back to direct application...
 warning: 2 lines add whitespace errors.
+[lmi-mainline-v6.12.0rc6 b18ccfc1d] Applied patch: 0009-arm64-dts-qcom-sm8250-oneplus-instantnoodlep-Add-dev.patch
+ 4 files changed, 966 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/qcom/sm8250-oneplus-instantnoodlep.dts
+ create mode 100644 git_patch_apply_20250313_045325.log
+ create mode 100644 git_patch_apply_20250313_045428.log
+ create mode 100644 patch.sh
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/dsi/dsi_manager.c:494
+error: drivers/gpu/drm/msm/dsi/dsi_manager.c: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/dpu_hw_ctl.c:544
+error: drivers/gpu/drm/msm/disp/dpu1/dpu_hw_ctl.c: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/dpu_hw_ctl.h:36
+error: drivers/gpu/drm/msm/disp/dpu1/dpu_hw_ctl.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/dpu_encoder.c:1198
+error: drivers/gpu/drm/msm/disp/dpu1/dpu_encoder.c: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.h:354
+error: drivers/gpu/drm/msm/disp/dpu1/dpu_hw_catalog.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/dpu_rm.c:132
+error: drivers/gpu/drm/msm/disp/dpu1/dpu_rm.c: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/dpu_rm.h:35
+error: drivers/gpu/drm/msm/disp/dpu1/dpu_rm.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_5_0_sm8150.h:14
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_5_0_sm8150.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_5_1_sc8180x.h:14
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_5_1_sc8180x.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_0_sm8250.h:14
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_0_sm8250.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_2_sc7180.h:12
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_2_sc7180.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_3_sm6115.h:12
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_3_sm6115.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_5_qcm2290.h:12
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_5_qcm2290.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_7_0_sm8350.h:14
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_7_0_sm8350.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_7_2_sc7280.h:12
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_7_2_sc7280.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_8_0_sc8280xp.h:14
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_8_0_sc8280xp.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_8_1_sm8450.h:14
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_8_1_sm8450.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_9_0_sm8550.h:14
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_9_0_sm8550.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/dpu_encoder_phys_cmd.c:59
+error: drivers/gpu/drm/msm/disp/dpu1/dpu_encoder_phys_cmd.c: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/dpu_encoder_phys_vid.c:298
+error: drivers/gpu/drm/msm/disp/dpu1/dpu_encoder_phys_vid.c: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_5_0_sm8150.h:38
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_5_0_sm8150.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_5_1_sc8180x.h:42
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_5_1_sc8180x.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_0_sm8250.h:36
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_6_0_sm8250.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_7_0_sm8350.h:36
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_7_0_sm8350.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_8_0_sc8280xp.h:36
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_8_0_sc8280xp.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_8_1_sm8450.h:37
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_8_1_sm8450.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_9_0_sm8550.h:28
+error: drivers/gpu/drm/msm/disp/dpu1/catalog/dpu_9_0_sm8550.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi:1065
+error: arch/arm64/boot/dts/qcom/sm8250-xiaomi-elish-common.dtsi: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
