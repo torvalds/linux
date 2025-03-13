@@ -34,3 +34,7 @@
 		vcc-supply = <&vreg_l1c_1p8>;
 	};
 };
+
+&venus {
+	firmware-name = "qcom/sm8250/OnePlus/kebab/venus.mbn";
+};
