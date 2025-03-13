@@ -2328,6 +2328,22 @@ static enum compact_result __compact_finished(struct compact_control *cc)
 	if (!pageblock_aligned(cc->migrate_pfn))
 		return COMPACT_CONTINUE;
 
+	/*
+	 * When defrag_mode is enabled, make kcompactd target
+	 * watermarks in whole pageblocks. Because they can be stolen
+	 * without polluting, no further fallback checks are needed.
+	 */
+	if (defrag_mode && !cc->direct_compaction) {
+		if (__zone_watermark_ok(cc->zone, cc->order,
+					high_wmark_pages(cc->zone),
+					cc->highest_zoneidx, cc->alloc_flags,
+					zone_page_state(cc->zone,
+							NR_FREE_PAGES_BLOCKS)))
+			return COMPACT_SUCCESS;
+
+		return COMPACT_CONTINUE;
+	}
+
 	/* Direct compactor: Is a suitable page free? */
 	ret = COMPACT_NO_SUITABLE_PAGE;
 	for (order = cc->order; order < NR_PAGE_ORDERS; order++) {
@@ -2495,13 +2511,19 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
 static enum compact_result
 compaction_suit_allocation_order(struct zone *zone, unsigned int order,
 				 int highest_zoneidx, unsigned int alloc_flags,
-				 bool async)
+				 bool async, bool kcompactd)
 {
+	unsigned long free_pages;
 	unsigned long watermark;
 
+	if (kcompactd && defrag_mode)
+		free_pages = zone_page_state(zone, NR_FREE_PAGES_BLOCKS);
+	else
+		free_pages = zone_page_state(zone, NR_FREE_PAGES);
+
 	watermark = wmark_pages(zone, alloc_flags & ALLOC_WMARK_MASK);
-	if (zone_watermark_ok(zone, order, watermark, highest_zoneidx,
-			      alloc_flags))
+	if (__zone_watermark_ok(zone, order, watermark, highest_zoneidx,
+				alloc_flags, free_pages))
 		return COMPACT_SUCCESS;
 
 	/*
@@ -2557,7 +2579,8 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 		ret = compaction_suit_allocation_order(cc->zone, cc->order,
 						       cc->highest_zoneidx,
 						       cc->alloc_flags,
-						       cc->mode == MIGRATE_ASYNC);
+						       cc->mode == MIGRATE_ASYNC,
+						       !cc->direct_compaction);
 		if (ret != COMPACT_CONTINUE)
 			return ret;
 	}
@@ -3051,6 +3074,8 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
 	struct zone *zone;
 	enum zone_type highest_zoneidx = pgdat->kcompactd_highest_zoneidx;
 	enum compact_result ret;
+	unsigned int alloc_flags = defrag_mode ?
+		ALLOC_WMARK_HIGH : ALLOC_WMARK_MIN;
 
 	for (zoneid = 0; zoneid <= highest_zoneidx; zoneid++) {
 		zone = &pgdat->node_zones[zoneid];
@@ -3060,8 +3085,8 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
 
 		ret = compaction_suit_allocation_order(zone,
 				pgdat->kcompactd_max_order,
-				highest_zoneidx, ALLOC_WMARK_MIN,
-				false);
+				highest_zoneidx, alloc_flags,
+				false, true);
 		if (ret == COMPACT_CONTINUE)
 			return true;
 	}
@@ -3084,7 +3109,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 		.mode = MIGRATE_SYNC_LIGHT,
 		.ignore_skip_hint = false,
 		.gfp_mask = GFP_KERNEL,
-		.alloc_flags = ALLOC_WMARK_MIN,
+		.alloc_flags = defrag_mode ? ALLOC_WMARK_HIGH : ALLOC_WMARK_MIN,
 	};
 	enum compact_result ret;
 
@@ -3104,7 +3129,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 
 		ret = compaction_suit_allocation_order(zone,
 				cc.order, zoneid, cc.alloc_flags,
-				false);
+				false, true);
 		if (ret != COMPACT_CONTINUE)
 			continue;
 

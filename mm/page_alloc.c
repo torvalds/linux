@@ -273,7 +273,7 @@ int min_free_kbytes = 1024;
 int user_min_free_kbytes = -1;
 static int watermark_boost_factor __read_mostly = 15000;
 static int watermark_scale_factor = 10;
-static int defrag_mode;
+int defrag_mode;
 
 /* movable_zone is the "real" zone pages in ZONE_MOVABLE are taken from */
 int movable_zone;
@@ -660,16 +660,20 @@ static inline void __add_to_free_list(struct page *page, struct zone *zone,
 				      bool tail)
 {
 	struct free_area *area = &zone->free_area[order];
+	int nr_pages = 1 << order;
 
 	VM_WARN_ONCE(get_pageblock_migratetype(page) != migratetype,
 		     "page type is %lu, passed migratetype is %d (nr=%d)\n",
-		     get_pageblock_migratetype(page), migratetype, 1 << order);
+		     get_pageblock_migratetype(page), migratetype, nr_pages);
 
 	if (tail)
 		list_add_tail(&page->buddy_list, &area->free_list[migratetype]);
 	else
 		list_add(&page->buddy_list, &area->free_list[migratetype]);
 	area->nr_free++;
+
+	if (order >= pageblock_order && !is_migrate_isolate(migratetype))
+		__mod_zone_page_state(zone, NR_FREE_PAGES_BLOCKS, nr_pages);
 }
 
 /*
@@ -681,24 +685,34 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
 				     unsigned int order, int old_mt, int new_mt)
 {
 	struct free_area *area = &zone->free_area[order];
+	int nr_pages = 1 << order;
 
 	/* Free page moving can fail, so it happens before the type update */
 	VM_WARN_ONCE(get_pageblock_migratetype(page) != old_mt,
 		     "page type is %lu, passed migratetype is %d (nr=%d)\n",
-		     get_pageblock_migratetype(page), old_mt, 1 << order);
+		     get_pageblock_migratetype(page), old_mt, nr_pages);
 
 	list_move_tail(&page->buddy_list, &area->free_list[new_mt]);
 
-	account_freepages(zone, -(1 << order), old_mt);
-	account_freepages(zone, 1 << order, new_mt);
+	account_freepages(zone, -nr_pages, old_mt);
+	account_freepages(zone, nr_pages, new_mt);
+
+	if (order >= pageblock_order &&
+	    is_migrate_isolate(old_mt) != is_migrate_isolate(new_mt)) {
+		if (!is_migrate_isolate(old_mt))
+			nr_pages = -nr_pages;
+		__mod_zone_page_state(zone, NR_FREE_PAGES_BLOCKS, nr_pages);
+	}
 }
 
 static inline void __del_page_from_free_list(struct page *page, struct zone *zone,
 					     unsigned int order, int migratetype)
 {
+	int nr_pages = 1 << order;
+
         VM_WARN_ONCE(get_pageblock_migratetype(page) != migratetype,
 		     "page type is %lu, passed migratetype is %d (nr=%d)\n",
-		     get_pageblock_migratetype(page), migratetype, 1 << order);
+		     get_pageblock_migratetype(page), migratetype, nr_pages);
 
 	/* clear reported state and update reported page count */
 	if (page_reported(page))
@@ -708,6 +722,9 @@ static inline void __del_page_from_free_list(struct page *page, struct zone *zon
 	__ClearPageBuddy(page);
 	set_page_private(page, 0);
 	zone->free_area[order].nr_free--;
+
+	if (order >= pageblock_order && !is_migrate_isolate(migratetype))
+		__mod_zone_page_state(zone, NR_FREE_PAGES_BLOCKS, -nr_pages);
 }
 
 static inline void del_page_from_free_list(struct page *page, struct zone *zone,
