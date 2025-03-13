@@ -437,10 +437,47 @@ done:
 static bool is_rdma_bytes_counter(u32 type)
 {
 	if (type == MLX5_IB_OPCOUNTER_RDMA_TX_BYTES ||
-	    type == MLX5_IB_OPCOUNTER_RDMA_RX_BYTES)
+	    type == MLX5_IB_OPCOUNTER_RDMA_RX_BYTES ||
+	    type == MLX5_IB_OPCOUNTER_RDMA_TX_BYTES_PER_QP ||
+	    type == MLX5_IB_OPCOUNTER_RDMA_RX_BYTES_PER_QP)
 		return true;
 
 	return false;
+}
+
+static int do_per_qp_get_op_stat(struct rdma_counter *counter)
+{
+	struct mlx5_ib_dev *dev = to_mdev(counter->device);
+	const struct mlx5_ib_counters *cnts = get_counters(dev, counter->port);
+	struct mlx5_rdma_counter *mcounter = to_mcounter(counter);
+	int i, ret, index, num_hw_counters;
+	u64 packets = 0, bytes = 0;
+
+	for (i = MLX5_IB_OPCOUNTER_CC_RX_CE_PKTS_PER_QP;
+	     i <= MLX5_IB_OPCOUNTER_RDMA_RX_BYTES_PER_QP; i++) {
+		if (!mcounter->fc[i])
+			continue;
+
+		ret = mlx5_fc_query(dev->mdev, mcounter->fc[i],
+				    &packets, &bytes);
+		if (ret)
+			return ret;
+
+		num_hw_counters = cnts->num_q_counters +
+				  cnts->num_cong_counters +
+				  cnts->num_ext_ppcnt_counters;
+
+		index = i - MLX5_IB_OPCOUNTER_CC_RX_CE_PKTS_PER_QP +
+			num_hw_counters;
+
+		if (is_rdma_bytes_counter(i))
+			counter->stats->value[index] = bytes;
+		else
+			counter->stats->value[index] = packets;
+
+		clear_bit(index, counter->stats->is_disabled);
+	}
+	return 0;
 }
 
 static int do_get_op_stat(struct ib_device *ibdev,
@@ -542,19 +579,30 @@ static int mlx5_ib_counter_update_stats(struct rdma_counter *counter)
 {
 	struct mlx5_ib_dev *dev = to_mdev(counter->device);
 	const struct mlx5_ib_counters *cnts = get_counters(dev, counter->port);
+	int ret;
 
-	return mlx5_ib_query_q_counters(dev->mdev, cnts,
-					counter->stats, counter->id);
+	ret = mlx5_ib_query_q_counters(dev->mdev, cnts, counter->stats,
+				       counter->id);
+	if (ret)
+		return ret;
+
+	if (!counter->mode.bind_opcnt)
+		return 0;
+
+	return do_per_qp_get_op_stat(counter);
 }
 
 static int mlx5_ib_counter_dealloc(struct rdma_counter *counter)
 {
+	struct mlx5_rdma_counter *mcounter = to_mcounter(counter);
 	struct mlx5_ib_dev *dev = to_mdev(counter->device);
 	u32 in[MLX5_ST_SZ_DW(dealloc_q_counter_in)] = {};
 
 	if (!counter->id)
 		return 0;
 
+	WARN_ON(!xa_empty(&mcounter->qpn_opfc_xa));
+	mlx5r_fs_destroy_fcs(dev, counter);
 	MLX5_SET(dealloc_q_counter_in, in, opcode,
 		 MLX5_CMD_OP_DEALLOC_Q_COUNTER);
 	MLX5_SET(dealloc_q_counter_in, in, counter_set_id, counter->id);
@@ -585,8 +633,14 @@ static int mlx5_ib_counter_bind_qp(struct rdma_counter *counter,
 	if (err)
 		goto fail_set_counter;
 
+	err = mlx5r_fs_bind_op_fc(qp, counter, port);
+	if (err)
+		goto fail_bind_op_fc;
+
 	return 0;
 
+fail_bind_op_fc:
+	mlx5_ib_qp_set_counter(qp, NULL);
 fail_set_counter:
 	mlx5_ib_counter_dealloc(counter);
 	counter->id = 0;
@@ -596,7 +650,20 @@ fail_set_counter:
 
 static int mlx5_ib_counter_unbind_qp(struct ib_qp *qp, u32 port)
 {
-	return mlx5_ib_qp_set_counter(qp, NULL);
+	struct rdma_counter *counter = qp->counter;
+	int err;
+
+	mlx5r_fs_unbind_op_fc(qp, counter);
+
+	err = mlx5_ib_qp_set_counter(qp, NULL);
+	if (err)
+		goto fail_set_counter;
+
+	return 0;
+
+fail_set_counter:
+	mlx5r_fs_bind_op_fc(qp, counter, port);
+	return err;
 }
 
 static void mlx5_ib_fill_counters(struct mlx5_ib_dev *dev,
@@ -789,9 +856,8 @@ err:
  * was already created, if both conditions are met return true and the counter
  * else return false.
  */
-static bool mlx5r_is_opfc_shared_and_in_use(struct mlx5_ib_op_fc *opfcs,
-					    u32 type,
-					    struct mlx5_ib_op_fc **opfc)
+bool mlx5r_is_opfc_shared_and_in_use(struct mlx5_ib_op_fc *opfcs, u32 type,
+				     struct mlx5_ib_op_fc **opfc)
 {
 	u32 shared_fc_type;
 
@@ -807,6 +873,18 @@ static bool mlx5r_is_opfc_shared_and_in_use(struct mlx5_ib_op_fc *opfcs,
 		break;
 	case MLX5_IB_OPCOUNTER_RDMA_RX_BYTES:
 		shared_fc_type = MLX5_IB_OPCOUNTER_RDMA_RX_PACKETS;
+		break;
+	case MLX5_IB_OPCOUNTER_RDMA_TX_PACKETS_PER_QP:
+		shared_fc_type = MLX5_IB_OPCOUNTER_RDMA_TX_BYTES_PER_QP;
+		break;
+	case MLX5_IB_OPCOUNTER_RDMA_TX_BYTES_PER_QP:
+		shared_fc_type = MLX5_IB_OPCOUNTER_RDMA_TX_PACKETS_PER_QP;
+		break;
+	case MLX5_IB_OPCOUNTER_RDMA_RX_PACKETS_PER_QP:
+		shared_fc_type = MLX5_IB_OPCOUNTER_RDMA_RX_BYTES_PER_QP;
+		break;
+	case MLX5_IB_OPCOUNTER_RDMA_RX_BYTES_PER_QP:
+		shared_fc_type = MLX5_IB_OPCOUNTER_RDMA_RX_PACKETS_PER_QP;
 		break;
 	default:
 		return false;
@@ -1104,7 +1182,12 @@ out:
 	return 0;
 }
 
-static void mlx5_ib_counter_init(struct rdma_counter *counter) {}
+static void mlx5_ib_counter_init(struct rdma_counter *counter)
+{
+	struct mlx5_rdma_counter *mcounter = to_mcounter(counter);
+
+	xa_init(&mcounter->qpn_opfc_xa);
+}
 
 static const struct ib_device_ops hw_stats_ops = {
 	.alloc_hw_port_stats = mlx5_ib_alloc_hw_port_stats,
