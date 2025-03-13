@@ -67,9 +67,9 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/random.h>
+#include <linux/scatterlist.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
-#include <linux/highmem.h>
 #include <linux/lcm.h>
 #include <linux/rtnetlink.h>
 #include <crypto/authenc.h>
@@ -83,26 +83,21 @@
 int crypto_shash_update_sg(struct shash_desc *desc, struct scatterlist *sg,
 			   size_t offset, size_t len)
 {
-	do {
-		int ret;
+	struct sg_mapping_iter miter;
+	size_t i, n;
+	int ret = 0;
 
-		if (offset < sg->length) {
-			struct page *page = sg_page(sg);
-			void *p = kmap_local_page(page);
-			void *q = p + sg->offset + offset;
-			size_t seg = min_t(size_t, len, sg->length - offset);
-
-			ret = crypto_shash_update(desc, q, seg);
-			kunmap_local(p);
-			if (ret < 0)
-				return ret;
-			len -= seg;
-			offset = 0;
-		} else {
-			offset -= sg->length;
-		}
-	} while (len > 0 && (sg = sg_next(sg)));
-	return 0;
+	sg_miter_start(&miter, sg, sg_nents(sg),
+		       SG_MITER_FROM_SG | SG_MITER_LOCAL);
+	for (i = 0; i < len; i += n) {
+		sg_miter_next(&miter);
+		n = min(miter.length, len - i);
+		ret = crypto_shash_update(desc, miter.addr, n);
+		if (ret < 0)
+			break;
+	}
+	sg_miter_stop(&miter);
+	return ret;
 }
 
 static int rfc3961_do_encrypt(struct crypto_sync_skcipher *tfm, void *iv,
