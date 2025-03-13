@@ -718,8 +718,7 @@ mkey_cache_ent_from_rb_key(struct mlx5_ib_dev *dev,
 }
 
 static struct mlx5_ib_mr *_mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
-					struct mlx5_cache_ent *ent,
-					int access_flags)
+					       struct mlx5_cache_ent *ent)
 {
 	struct mlx5_ib_mr *mr;
 	int err;
@@ -794,7 +793,7 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 	if (!ent)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	return _mlx5_mr_cache_alloc(dev, ent, access_flags);
+	return _mlx5_mr_cache_alloc(dev, ent);
 }
 
 static void mlx5_mkey_cache_debugfs_cleanup(struct mlx5_ib_dev *dev)
@@ -1155,7 +1154,7 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 		return mr;
 	}
 
-	mr = _mlx5_mr_cache_alloc(dev, ent, access_flags);
+	mr = _mlx5_mr_cache_alloc(dev, ent);
 	if (IS_ERR(mr))
 		return mr;
 
