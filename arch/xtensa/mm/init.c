@@ -129,15 +129,6 @@ void __init zones_init(void)
 	print_vm_layout();
 }
 
-/*
- * Initialize memory pages.
- */
-
-void __init mem_init(void)
-{
-	memblock_free_all();
-}
-
 static void __init parse_memmap_one(char *p)
 {
 	char *oldp;

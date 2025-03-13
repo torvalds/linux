@@ -264,11 +264,6 @@ void __init arch_mm_preinit(void)
 	taint_real_pages();
 }
 
-void __init mem_init(void)
-{
-	memblock_free_all();
-}
-
 void sparc_flush_page_to_ram(struct page *page)
 {
 	unsigned long vaddr = (unsigned long)page_address(page);

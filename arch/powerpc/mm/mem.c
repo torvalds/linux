@@ -327,11 +327,6 @@ void __init arch_mm_preinit(void)
 #endif /* CONFIG_PPC32 */
 }
 
-void __init mem_init(void)
-{
-	memblock_free_all();
-}
-
 void free_initmem(void)
 {
 	ppc_md.progress = ppc_printk_progress;

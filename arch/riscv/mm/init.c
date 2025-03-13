@@ -196,11 +196,6 @@ void __init arch_mm_preinit(void)
 	print_vm_layout();
 }
 
-void __init mem_init(void)
-{
-	memblock_free_all();
-}
-
 /* Limit the memory size via mem. */
 static phys_addr_t memory_limit;
 #ifdef CONFIG_XIP_KERNEL

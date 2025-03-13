@@ -330,8 +330,6 @@ unsigned int mem_init_done = 0;
 
 void __init mem_init(void)
 {
-	memblock_free_all();
-
 	/* Set this up early, so we can take care of the zero page */
 	cpu_cache_init();
 

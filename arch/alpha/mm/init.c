@@ -273,12 +273,6 @@ srm_paging_stop (void)
 }
 #endif
 
-void __init
-mem_init(void)
-{
-	memblock_free_all();
-}
-
 static const pgprot_t protection_map[16] = {
 	[VM_NONE]					= _PAGE_P(_PAGE_FOE | _PAGE_FOW |
 								  _PAGE_FOR),

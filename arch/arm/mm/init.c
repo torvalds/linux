@@ -263,17 +263,6 @@ void __init arch_mm_preinit(void)
 #endif
 }
 
-/*
- * mem_init() marks the free areas in the mem_map and tells us how much
- * memory is free.  This is done after various parts of the system have
- * claimed their memory after the kernel image.
- */
-void __init mem_init(void)
-{
-	/* this will put all unused low memory onto the freelists */
-	memblock_free_all();
-}
-
 #ifdef CONFIG_STRICT_KERNEL_RWX
 struct section_perm {
 	const char *name;

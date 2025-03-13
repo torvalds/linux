@@ -107,9 +107,6 @@ void __init setup_memory(void)
 
 void __init mem_init(void)
 {
-	/* this will put all memory onto the freelists */
-	memblock_free_all();
-
 	mem_init_done = 1;
 }
 

@@ -75,11 +75,6 @@ void __init paging_init(void)
 
 	free_area_init(max_zone_pfns);
 }
-
-void __init mem_init(void)
-{
-	memblock_free_all();
-}
 #endif /* !CONFIG_NUMA */
 
 void __ref free_initmem(void)

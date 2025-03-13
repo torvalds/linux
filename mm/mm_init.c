@@ -2738,6 +2738,10 @@ void __init __weak arch_mm_preinit(void)
 {
 }
 
+void __init __weak mem_init(void)
+{
+}
+
 /*
  * Set up kernel memory allocators
  */
@@ -2761,6 +2765,7 @@ void __init mm_core_init(void)
 	report_meminit();
 	kmsan_init_shadow();
 	stack_depot_early_init();
+	memblock_free_all();
 	mem_init();
 	kmem_cache_init();
 	/*

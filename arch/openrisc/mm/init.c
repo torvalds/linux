@@ -196,9 +196,6 @@ void __init mem_init(void)
 	/* clear the zero-page */
 	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 
-	/* this will put all low memory onto the freelists */
-	memblock_free_all();
-
 	printk("mem_init_done ...........................................\n");
 	mem_init_done = 1;
 	return;

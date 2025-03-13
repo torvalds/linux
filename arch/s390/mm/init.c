@@ -165,12 +165,6 @@ void __init arch_mm_preinit(void)
 	setup_zero_pages();	/* Setup zeroed pages. */
 }
 
-void __init mem_init(void)
-{
-	/* this will put all low memory onto the freelists */
-	memblock_free_all();
-}
-
 unsigned long memory_block_size_bytes(void)
 {
 	/*

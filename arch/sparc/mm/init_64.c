@@ -2505,8 +2505,6 @@ static void __init register_page_bootmem_info(void)
 }
 void __init mem_init(void)
 {
-	memblock_free_all();
-
 	/*
 	 * Must be done after boot memory is put on freelist, because here we
 	 * might set fields in deferred struct pages that have not yet been

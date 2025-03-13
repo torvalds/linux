@@ -60,12 +60,6 @@ void __init paging_init(void)
 			(unsigned long)empty_zero_page + PAGE_SIZE);
 }
 
-void __init mem_init(void)
-{
-	/* this will put all memory onto the freelists */
-	memblock_free_all();
-}
-
 void __init mmu_init(void)
 {
 	flush_tlb_all();

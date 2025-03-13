@@ -169,17 +169,6 @@ void __init arch_mm_preinit(void)
 	BUILD_BUG_ON((PTRS_PER_PTE * sizeof(pte_t)) > PAGE_SIZE);
 }
 
-/*
- * mem_init - initializes memory
- *
- * Frees up bootmem
- * Calculates and displays memory available/used
- */
-void __init mem_init(void)
-{
-	memblock_free_all();
-}
-
 #ifdef CONFIG_HIGHMEM
 int pfn_valid(unsigned long pfn)
 {

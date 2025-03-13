@@ -42,11 +42,6 @@ unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)]
 						__page_aligned_bss;
 EXPORT_SYMBOL(empty_zero_page);
 
-void __init mem_init(void)
-{
-	memblock_free_all();
-}
-
 void free_initmem(void)
 {
 	free_initmem_default(-1);

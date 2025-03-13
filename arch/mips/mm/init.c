@@ -451,11 +451,6 @@ void __init arch_mm_preinit(void)
 }
 #endif /* !CONFIG_NUMA */
 
-void __init mem_init(void)
-{
-	memblock_free_all();
-}
-
 void free_init_pages(const char *what, unsigned long begin, unsigned long end)
 {
 	unsigned long pfn;

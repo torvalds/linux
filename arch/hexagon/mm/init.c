@@ -43,24 +43,6 @@ DEFINE_SPINLOCK(kmap_gen_lock);
 /*  checkpatch says don't init this to 0.  */
 unsigned long long kmap_generation;
 
-/*
- * mem_init - initializes memory
- *
- * Frees up bootmem
- * Fixes up more stuff for HIGHMEM
- * Calculates and displays memory available/used
- */
-void __init mem_init(void)
-{
-	/*  No idea where this is actually declared.  Seems to evade LXR.  */
-	memblock_free_all();
-
-	/*
-	 *  To-Do:  someone somewhere should wipe out the bootmem map
-	 *  after we're done?
-	 */
-}
-
 void sync_icache_dcache(pte_t pte)
 {
 	unsigned long addr;

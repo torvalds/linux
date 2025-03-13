@@ -1475,7 +1475,8 @@ static inline bool gup_must_unshare(struct vm_area_struct *vma,
 }
 
 extern bool mirrored_kernelcore;
-extern bool memblock_has_mirror(void);
+bool memblock_has_mirror(void);
+void memblock_free_all(void);
 
 static __always_inline void vma_set_range(struct vm_area_struct *vma,
 					  unsigned long start, unsigned long end,
