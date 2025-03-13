@@ -230,6 +230,29 @@ static int proc_path_manager(const struct ctl_table *ctl, int write,
 	return ret;
 }
 
+static int proc_pm_type(const struct ctl_table *ctl, int write,
+			void *buffer, size_t *lenp, loff_t *ppos)
+{
+	struct mptcp_pernet *pernet = container_of(ctl->data,
+						   struct mptcp_pernet,
+						   pm_type);
+	int ret;
+
+	ret = proc_dou8vec_minmax(ctl, write, buffer, lenp, ppos);
+	if (write && ret == 0) {
+		u8 pm_type = READ_ONCE(*(u8 *)ctl->data);
+		char *pm_name = "";
+
+		if (pm_type == MPTCP_PM_TYPE_KERNEL)
+			pm_name = "kernel";
+		else if (pm_type == MPTCP_PM_TYPE_USERSPACE)
+			pm_name = "userspace";
+		mptcp_set_path_manager(pernet->path_manager, pm_name);
+	}
+
+	return ret;
+}
+
 static struct ctl_table mptcp_sysctl_table[] = {
 	{
 		.procname = "enabled",
@@ -274,7 +297,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.procname = "pm_type",
 		.maxlen = sizeof(u8),
 		.mode = 0644,
-		.proc_handler = proc_dou8vec_minmax,
+		.proc_handler = proc_pm_type,
 		.extra1       = SYSCTL_ZERO,
 		.extra2       = &mptcp_pm_type_max
 	},
