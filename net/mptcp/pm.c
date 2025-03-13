@@ -5,6 +5,8 @@
  */
 #define pr_fmt(fmt) "MPTCP: " fmt
 
+#include <linux/rculist.h>
+#include <linux/spinlock.h>
 #include "protocol.h"
 #include "mib.h"
 
@@ -17,6 +19,9 @@ struct mptcp_pm_add_entry {
 	struct timer_list	add_timer;
 	struct mptcp_sock	*sock;
 };
+
+static DEFINE_SPINLOCK(mptcp_pm_list_lock);
+static LIST_HEAD(mptcp_pm_list);
 
 /* path manager helpers */
 
@@ -1014,4 +1019,49 @@ void __init mptcp_pm_init(void)
 {
 	mptcp_pm_kernel_register();
 	mptcp_pm_nl_init();
+}
+
+/* Must be called with rcu read lock held */
+struct mptcp_pm_ops *mptcp_pm_find(const char *name)
+{
+	struct mptcp_pm_ops *pm_ops;
+
+	list_for_each_entry_rcu(pm_ops, &mptcp_pm_list, list) {
+		if (!strcmp(pm_ops->name, name))
+			return pm_ops;
+	}
+
+	return NULL;
+}
+
+int mptcp_pm_validate(struct mptcp_pm_ops *pm_ops)
+{
+	return 0;
+}
+
+int mptcp_pm_register(struct mptcp_pm_ops *pm_ops)
+{
+	int ret;
+
+	ret = mptcp_pm_validate(pm_ops);
+	if (ret)
+		return ret;
+
+	spin_lock(&mptcp_pm_list_lock);
+	if (mptcp_pm_find(pm_ops->name)) {
+		spin_unlock(&mptcp_pm_list_lock);
+		return -EEXIST;
+	}
+	list_add_tail_rcu(&pm_ops->list, &mptcp_pm_list);
+	spin_unlock(&mptcp_pm_list_lock);
+
+	pr_debug("%s registered\n", pm_ops->name);
+	return 0;
+}
+
+void mptcp_pm_unregister(struct mptcp_pm_ops *pm_ops)
+{
+	spin_lock(&mptcp_pm_list_lock);
+	list_del_rcu(&pm_ops->list);
+	spin_unlock(&mptcp_pm_list_lock);
 }
