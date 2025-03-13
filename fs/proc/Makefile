@@ -9,6 +9,7 @@ CFLAGS_task_mmu.o	+= -Wno-override-init
 proc-y			:= nommu.o task_nommu.o
 proc-$(CONFIG_MMU)	:= task_mmu.o
 
+proc-$(CONFIG_PG_STATS)		+= pg_stats.o
 proc-y       += inode.o root.o base.o generic.o array.o \
 		fd.o
 proc-$(CONFIG_TTY)      += proc_tty.o

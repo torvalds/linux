@@ -783,25 +783,6 @@ struct kmap_ctrl {
 };
 
 struct task_struct {
-	// Counts for operations on the Page Global Directory
-	unsigned int pgd_alloc_count;
-	unsigned int pgd_free_count;
-	unsigned int pgd_set_count;
-
-	// Counts for operations on the Page Upper Directory
-	unsigned int pud_alloc_count;
-	unsigned int pud_free_count;
-	unsigned int pud_set_count;
-	
-	// Counts for operations on the Page Middle Directory
-	unsigned int pmd_alloc_count;
-	unsigned int pmd_free_count;
-	unsigned int pmd_set_count;
-
-	// Counts for operations on the Page Table Entry
-	unsigned int pte_alloc_count;
-	unsigned int pte_free_count;
-	unsigned int pte_set_count;
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 	/*
 	 * For reasons of header soup (see current_thread_info()), this
@@ -1621,6 +1602,26 @@ struct task_struct {
 #ifdef CONFIG_USER_EVENTS
 	struct user_event_mm		*user_event_mm;
 #endif
+
+	// Counts for operations on the Page Global Directory
+	unsigned int pgd_alloc_count;
+	unsigned int pgd_free_count;
+	unsigned int pgd_set_count;
+
+	// Counts for operations on the Page Upper Directory
+	unsigned int pud_alloc_count;
+	unsigned int pud_free_count;
+	unsigned int pud_set_count;
+	
+	// Counts for operations on the Page Middle Directory
+	unsigned int pmd_alloc_count;
+	unsigned int pmd_free_count;
+	unsigned int pmd_set_count;
+
+	// Counts for operations on the Page Table Entry
+	unsigned int pte_alloc_count;
+	unsigned int pte_free_count;
+	unsigned int pte_set_count;
 
 	/*
 	 * New fields for task_struct should be added above here, so that

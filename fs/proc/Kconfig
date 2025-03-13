@@ -1,4 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config PG_STATS
+    bool "Enable page table statistics proc file"
+    default y
+    help
+      Enable the /proc/pg_stats entry which shows page table allocation,
+      free, and set counters for each process.
+
 config PROC_FS
 	bool "/proc file system support" if EXPERT
 	default y
