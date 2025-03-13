@@ -164,7 +164,6 @@ void __init mem_init(void)
 {
 	free_highpages();
 
-	max_mapnr = max_pfn - ARCH_PFN_OFFSET;
 	high_memory = (void *)__va(max_low_pfn << PAGE_SHIFT);
 
 	memblock_free_all();

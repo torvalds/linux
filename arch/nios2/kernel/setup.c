@@ -158,7 +158,6 @@ void __init setup_arch(char **cmdline_p)
 	*cmdline_p = boot_command_line;
 
 	find_limits(&min_low_pfn, &max_low_pfn, &max_pfn);
-	max_mapnr = max_low_pfn;
 
 	memblock_reserve(__pa_symbol(_stext), _end - _stext);
 #ifdef CONFIG_BLK_DEV_INITRD

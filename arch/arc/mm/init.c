@@ -154,11 +154,6 @@ void __init setup_arch_memory(void)
 
 	arch_pfn_offset = min(min_low_pfn, min_high_pfn);
 	kmap_init();
-
-#else /* CONFIG_HIGHMEM */
-	/* pfn_valid() uses this when FLATMEM=y and HIGHMEM=n */
-	max_mapnr = max_low_pfn - min_low_pfn;
-
 #endif /* CONFIG_HIGHMEM */
 
 	free_area_init(max_zone_pfn);

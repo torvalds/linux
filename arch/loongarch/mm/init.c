@@ -78,7 +78,6 @@ void __init paging_init(void)
 
 void __init mem_init(void)
 {
-	max_mapnr = max_low_pfn;
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
 	memblock_free_all();
