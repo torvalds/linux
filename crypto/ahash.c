@@ -16,6 +16,7 @@
 #include <linux/cryptouser.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -201,25 +202,36 @@ int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc)
 	unsigned int nbytes = req->nbytes;
 	struct scatterlist *sg;
 	unsigned int offset;
+	struct page *page;
+	const u8 *data;
 	int err;
 
-	if (ahash_request_isvirt(req))
-		return crypto_shash_digest(desc, req->svirt, nbytes,
-					   req->result);
+	data = req->svirt;
+	if (!nbytes || ahash_request_isvirt(req))
+		return crypto_shash_digest(desc, data, nbytes, req->result);
 
-	if (nbytes &&
-	    (sg = req->src, offset = sg->offset,
-	     nbytes <= min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset))) {
-		void *data;
+	sg = req->src;
+	if (nbytes > sg->length)
+		return crypto_shash_init(desc) ?:
+		       shash_ahash_finup(req, desc);
 
-		data = kmap_local_page(sg_page(sg));
-		err = crypto_shash_digest(desc, data + offset, nbytes,
-					  req->result);
-		kunmap_local(data);
-	} else
-		err = crypto_shash_init(desc) ?:
-		      shash_ahash_finup(req, desc);
+	page = sg_page(sg);
+	offset = sg->offset;
+	data = lowmem_page_address(page) + offset;
+	if (!IS_ENABLED(CONFIG_HIGHMEM))
+		return crypto_shash_digest(desc, data, nbytes, req->result);
 
+	page += offset >> PAGE_SHIFT;
+	offset = offset_in_page(offset);
+
+	if (nbytes > (unsigned int)PAGE_SIZE - offset)
+		return crypto_shash_init(desc) ?:
+		       shash_ahash_finup(req, desc);
+
+	data = kmap_local_page(page);
+	err = crypto_shash_digest(desc, data + offset, nbytes,
+				  req->result);
+	kunmap_local(data);
 	return err;
 }
 EXPORT_SYMBOL_GPL(shash_ahash_digest);
