@@ -2172,6 +2172,9 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 	if (ret)
 		goto err;
 
+	if (opt_defined(opts, discard))
+		set_bit(BCH_FS_discard_mount_opt_set, &c->flags);
+
 	/* Some options can't be parsed until after the fs is started: */
 	opts = bch2_opts_empty();
 	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf);

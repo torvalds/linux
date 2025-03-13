@@ -627,7 +627,8 @@ struct bch_dev {
 	x(topology_error)		\
 	x(errors_fixed)			\
 	x(errors_not_fixed)		\
-	x(no_invalid_checks)
+	x(no_invalid_checks)		\
+	x(discard_mount_opt_set)	\
 
 enum bch_fs_flags {
 #define x(n)		BCH_FS_##n,

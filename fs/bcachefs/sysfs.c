@@ -664,6 +664,15 @@ static ssize_t sysfs_opt_store(struct bch_fs *c,
 	    c->copygc_thread)
 		wake_up_process(c->copygc_thread);
 
+	if (id == Opt_discard && !ca) {
+		mutex_lock(&c->sb_lock);
+		for_each_member_device(c, ca)
+			opt->set_member(bch2_members_v2_get_mut(ca->disk_sb.sb, ca->dev_idx), v);
+
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+	}
+
 	ret = size;
 err:
 	up_write(&c->state_lock);
