@@ -566,9 +566,9 @@ struct request_queue {
 	 * nr_requests and wbt latency, this lock also protects the sysfs attrs
 	 * nr_requests and wbt_lat_usec. Additionally the nr_hw_queues update
 	 * may modify hctx tags, reserved-tags and cpumask, so this lock also
-	 * helps protect the hctx attrs. To ensure proper locking order during
-	 * an elevator or nr_hw_queue update, first freeze the queue, then
-	 * acquire ->elevator_lock.
+	 * helps protect the hctx sysfs/debugfs attrs. To ensure proper locking
+	 * order during an elevator or nr_hw_queue update, first freeze the
+	 * queue, then acquire ->elevator_lock.
 	 */
 	struct mutex		elevator_lock;
 
