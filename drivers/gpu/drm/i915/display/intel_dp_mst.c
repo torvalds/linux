@@ -341,6 +341,10 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 
 			break;
 		}
+
+		/* Allow using zero step to indicate one try */
+		if (!step)
+			break;
 	}
 
 	if (slots < 0) {

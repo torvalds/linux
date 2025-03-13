@@ -130,9 +130,7 @@ static void rxrpc_adjust_mtu(struct rxrpc_peer *peer, unsigned int mtu)
 			peer->pmtud_bad = max_data + 1;
 
 		trace_rxrpc_pmtud_reduce(peer, 0, max_data, rxrpc_pmtud_reduce_icmp);
-		write_seqcount_begin(&peer->mtu_lock);
 		peer->max_data = max_data;
-		write_seqcount_end(&peer->mtu_lock);
 	}
 }
 
@@ -165,6 +163,13 @@ void rxrpc_input_error(struct rxrpc_local *local, struct sk_buff *skb)
 	if ((serr->ee.ee_origin == SO_EE_ORIGIN_ICMP &&
 	     serr->ee.ee_type == ICMP_DEST_UNREACH &&
 	     serr->ee.ee_code == ICMP_FRAG_NEEDED)) {
+		rxrpc_adjust_mtu(peer, serr->ee.ee_info);
+		goto out;
+	}
+
+	if ((serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6 &&
+	     serr->ee.ee_type == ICMPV6_PKT_TOOBIG &&
+	     serr->ee.ee_code == 0)) {
 		rxrpc_adjust_mtu(peer, serr->ee.ee_info);
 		goto out;
 	}
@@ -401,13 +406,8 @@ void rxrpc_input_probe_for_pmtud(struct rxrpc_connection *conn, rxrpc_serial_t a
 	}
 
 	max_data = umin(max_data, peer->ackr_max_data);
-	if (max_data != peer->max_data) {
-		preempt_disable();
-		write_seqcount_begin(&peer->mtu_lock);
+	if (max_data != peer->max_data)
 		peer->max_data = max_data;
-		write_seqcount_end(&peer->mtu_lock);
-		preempt_enable();
-	}
 
 	jumbo = max_data + sizeof(struct rxrpc_jumbo_header);
 	jumbo /= RXRPC_JUMBO_SUBPKTLEN;

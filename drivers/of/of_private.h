@@ -208,4 +208,8 @@ static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int n
 static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int na) { }
 #endif
 
+#if IS_ENABLED(CONFIG_KUNIT)
+int __of_address_resource_bounds(struct resource *r, u64 start, u64 size);
+#endif
+
 #endif /* _LINUX_OF_PRIVATE_H */

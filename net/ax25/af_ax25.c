@@ -685,6 +685,15 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
+		if (ax25->ax25_dev) {
+			if (dev == ax25->ax25_dev->dev) {
+				rcu_read_unlock();
+				break;
+			}
+			netdev_put(ax25->ax25_dev->dev, &ax25->dev_tracker);
+			ax25_dev_put(ax25->ax25_dev);
+		}
+
 		ax25->ax25_dev = ax25_dev_ax25dev(dev);
 		if (!ax25->ax25_dev) {
 			rcu_read_unlock();
@@ -692,6 +701,8 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 		ax25_fillin_cb(ax25, ax25->ax25_dev);
+		netdev_hold(dev, &ax25->dev_tracker, GFP_ATOMIC);
+		ax25_dev_hold(ax25->ax25_dev);
 		rcu_read_unlock();
 		break;
 

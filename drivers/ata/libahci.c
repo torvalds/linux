@@ -541,6 +541,7 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 		hpriv->saved_port_map = port_map;
 	}
 
+	/* mask_port_map not set means that all ports are available */
 	if (hpriv->mask_port_map) {
 		dev_warn(dev, "masking port_map 0x%lx -> 0x%lx\n",
 			port_map,

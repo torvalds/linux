@@ -653,8 +653,8 @@ put_runtime_pm:
 }
 EXPORT_SYMBOL_NS_GPL(xhci_pci_common_probe, "xhci");
 
-static const struct pci_device_id pci_ids_reject[] = {
-	/* handled by xhci-pci-renesas */
+/* handled by xhci-pci-renesas if enabled */
+static const struct pci_device_id pci_ids_renesas[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RENESAS, 0x0014) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_RENESAS, 0x0015) },
 	{ /* end: all zeroes */ }
@@ -662,7 +662,8 @@ static const struct pci_device_id pci_ids_reject[] = {
 
 static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	if (pci_match_id(pci_ids_reject, dev))
+	if (IS_ENABLED(CONFIG_USB_XHCI_PCI_RENESAS) &&
+			pci_match_id(pci_ids_renesas, dev))
 		return -ENODEV;
 
 	return xhci_pci_common_probe(dev, id);
