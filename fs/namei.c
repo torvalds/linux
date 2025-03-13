@@ -2864,14 +2864,13 @@ static int lookup_one_common(struct mnt_idmap *idmap,
  * Note that this routine is purely a helper for filesystem usage and should
  * not be called by generic code.
  *
- * The caller must hold base->i_mutex.
+ * No locks need be held - only a counted reference to @base is needed.
+ *
  */
 struct dentry *try_lookup_one_len(const char *name, struct dentry *base, int len)
 {
 	struct qstr this;
 	int err;
-
-	WARN_ON_ONCE(!inode_is_locked(base->d_inode));
 
 	err = lookup_one_common(&nop_mnt_idmap, name, base, len, &this);
 	if (err)
