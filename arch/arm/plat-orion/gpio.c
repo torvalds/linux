@@ -496,11 +496,10 @@ static void orion_gpio_unmask_irq(struct irq_data *d)
 	u32 reg_val;
 	u32 mask = d->mask;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	reg_val = irq_reg_readl(gc, ct->regs.mask);
 	reg_val |= mask;
 	irq_reg_writel(gc, reg_val, ct->regs.mask);
-	irq_gc_unlock(gc);
 }
 
 static void orion_gpio_mask_irq(struct irq_data *d)
@@ -510,11 +509,10 @@ static void orion_gpio_mask_irq(struct irq_data *d)
 	u32 mask = d->mask;
 	u32 reg_val;
 
-	irq_gc_lock(gc);
+	guard(raw_spinlock)(&gc->lock);
 	reg_val = irq_reg_readl(gc, ct->regs.mask);
 	reg_val &= ~mask;
 	irq_reg_writel(gc, reg_val, ct->regs.mask);
-	irq_gc_unlock(gc);
 }
 
 void __init orion_gpio_init(int gpio_base, int ngpio,
