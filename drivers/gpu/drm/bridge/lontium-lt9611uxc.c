@@ -280,11 +280,12 @@ static struct mipi_dsi_device *lt9611uxc_attach_dsi(struct lt9611uxc *lt9611uxc,
 }
 
 static int lt9611uxc_bridge_attach(struct drm_bridge *bridge,
+				   struct drm_encoder *encoder,
 				   enum drm_bridge_attach_flags flags)
 {
 	struct lt9611uxc *lt9611uxc = bridge_to_lt9611uxc(bridge);
 
-	return drm_bridge_attach(bridge->encoder, lt9611uxc->next_bridge,
+	return drm_bridge_attach(encoder, lt9611uxc->next_bridge,
 				 bridge, flags);
 }
 

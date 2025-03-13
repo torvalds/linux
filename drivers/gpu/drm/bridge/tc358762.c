@@ -202,11 +202,12 @@ static void tc358762_enable(struct drm_bridge *bridge,
 }
 
 static int tc358762_attach(struct drm_bridge *bridge,
+			   struct drm_encoder *encoder,
 			   enum drm_bridge_attach_flags flags)
 {
 	struct tc358762 *ctx = bridge_to_tc358762(bridge);
 
-	return drm_bridge_attach(bridge->encoder, ctx->panel_bridge,
+	return drm_bridge_attach(encoder, ctx->panel_bridge,
 				 bridge, flags);
 }
 

@@ -1481,6 +1481,7 @@ static void zynqmp_dp_disp_disable(struct zynqmp_dp *dp,
  */
 
 static int zynqmp_dp_bridge_attach(struct drm_bridge *bridge,
+				   struct drm_encoder *encoder,
 				   enum drm_bridge_attach_flags flags)
 {
 	struct zynqmp_dp *dp = bridge_to_dp(bridge);
@@ -1494,7 +1495,7 @@ static int zynqmp_dp_bridge_attach(struct drm_bridge *bridge,
 	}
 
 	if (dp->next_bridge) {
-		ret = drm_bridge_attach(bridge->encoder, dp->next_bridge,
+		ret = drm_bridge_attach(encoder, dp->next_bridge,
 					bridge, flags);
 		if (ret < 0)
 			goto error;

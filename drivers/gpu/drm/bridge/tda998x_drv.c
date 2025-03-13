@@ -1365,6 +1365,7 @@ static int tda998x_connector_init(struct tda998x_priv *priv,
 /* DRM bridge functions */
 
 static int tda998x_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);

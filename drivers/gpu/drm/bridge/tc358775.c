@@ -589,12 +589,13 @@ static int tc358775_parse_dt(struct device_node *np, struct tc_data *tc)
 }
 
 static int tc_bridge_attach(struct drm_bridge *bridge,
+			    struct drm_encoder *encoder,
 			    enum drm_bridge_attach_flags flags)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 
 	/* Attach the panel-bridge to the dsi bridge */
-	return drm_bridge_attach(bridge->encoder, tc->panel_bridge,
+	return drm_bridge_attach(encoder, tc->panel_bridge,
 				 &tc->bridge, flags);
 }
 

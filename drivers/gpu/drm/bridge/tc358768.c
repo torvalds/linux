@@ -554,6 +554,7 @@ static const struct mipi_dsi_host_ops tc358768_dsi_host_ops = {
 };
 
 static int tc358768_bridge_attach(struct drm_bridge *bridge,
+				  struct drm_encoder *encoder,
 				  enum drm_bridge_attach_flags flags)
 {
 	struct tc358768_priv *priv = bridge_to_tc358768(bridge);
@@ -563,7 +564,7 @@ static int tc358768_bridge_attach(struct drm_bridge *bridge,
 		return -ENOTSUPP;
 	}
 
-	return drm_bridge_attach(bridge->encoder, priv->output.bridge, bridge,
+	return drm_bridge_attach(encoder, priv->output.bridge, bridge,
 				 flags);
 }
 

@@ -416,6 +416,7 @@ out:
 }
 
 static int sii902x_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
@@ -424,7 +425,7 @@ static int sii902x_bridge_attach(struct drm_bridge *bridge,
 	int ret;
 
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
-		return drm_bridge_attach(bridge->encoder, sii902x->next_bridge,
+		return drm_bridge_attach(encoder, sii902x->next_bridge,
 					 bridge, flags);
 
 	drm_connector_helper_add(&sii902x->connector,
@@ -452,7 +453,7 @@ static int sii902x_bridge_attach(struct drm_bridge *bridge,
 	if (ret)
 		return ret;
 
-	drm_connector_attach_encoder(&sii902x->connector, bridge->encoder);
+	drm_connector_attach_encoder(&sii902x->connector, encoder);
 
 	return 0;
 }

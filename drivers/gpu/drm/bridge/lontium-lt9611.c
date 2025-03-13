@@ -740,11 +740,12 @@ static struct mipi_dsi_device *lt9611_attach_dsi(struct lt9611 *lt9611,
 }
 
 static int lt9611_bridge_attach(struct drm_bridge *bridge,
+				struct drm_encoder *encoder,
 				enum drm_bridge_attach_flags flags)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 
-	return drm_bridge_attach(bridge->encoder, lt9611->next_bridge,
+	return drm_bridge_attach(encoder, lt9611->next_bridge,
 				 bridge, flags);
 }
 

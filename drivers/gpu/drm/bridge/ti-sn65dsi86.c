@@ -732,6 +732,7 @@ static int ti_sn_attach_host(struct auxiliary_device *adev, struct ti_sn65dsi86 
 }
 
 static int ti_sn_bridge_attach(struct drm_bridge *bridge,
+			       struct drm_encoder *encoder,
 			       enum drm_bridge_attach_flags flags)
 {
 	struct ti_sn65dsi86 *pdata = bridge_to_ti_sn65dsi86(bridge);
@@ -748,7 +749,7 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge,
 	 * Attach the next bridge.
 	 * We never want the next bridge to *also* create a connector.
 	 */
-	ret = drm_bridge_attach(bridge->encoder, pdata->next_bridge,
+	ret = drm_bridge_attach(encoder, pdata->next_bridge,
 				&pdata->bridge, flags | DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret < 0)
 		goto err_initted_aux;

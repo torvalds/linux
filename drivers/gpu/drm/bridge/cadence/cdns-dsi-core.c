@@ -605,6 +605,7 @@ static int cdns_dsi_check_conf(struct cdns_dsi *dsi,
 }
 
 static int cdns_dsi_bridge_attach(struct drm_bridge *bridge,
+				  struct drm_encoder *encoder,
 				  enum drm_bridge_attach_flags flags)
 {
 	struct cdns_dsi_input *input = bridge_to_cdns_dsi_input(bridge);
@@ -617,7 +618,7 @@ static int cdns_dsi_bridge_attach(struct drm_bridge *bridge,
 		return -ENOTSUPP;
 	}
 
-	return drm_bridge_attach(bridge->encoder, output->bridge, bridge,
+	return drm_bridge_attach(encoder, output->bridge, bridge,
 				 flags);
 }
 

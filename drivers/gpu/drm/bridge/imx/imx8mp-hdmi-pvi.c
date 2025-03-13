@@ -40,11 +40,12 @@ to_imx8mp_hdmi_pvi(struct drm_bridge *bridge)
 }
 
 static int imx8mp_hdmi_pvi_bridge_attach(struct drm_bridge *bridge,
+					 struct drm_encoder *encoder,
 					 enum drm_bridge_attach_flags flags)
 {
 	struct imx8mp_hdmi_pvi *pvi = to_imx8mp_hdmi_pvi(bridge);
 
-	return drm_bridge_attach(bridge->encoder, pvi->next_bridge,
+	return drm_bridge_attach(encoder, pvi->next_bridge,
 				 bridge, flags);
 }
 

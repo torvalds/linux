@@ -1072,15 +1072,16 @@ dw_mipi_dsi_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static int dw_mipi_dsi_bridge_attach(struct drm_bridge *bridge,
+				     struct drm_encoder *encoder,
 				     enum drm_bridge_attach_flags flags)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 
 	/* Set the encoder type as caller does not know it */
-	bridge->encoder->encoder_type = DRM_MODE_ENCODER_DSI;
+	encoder->encoder_type = DRM_MODE_ENCODER_DSI;
 
 	/* Attach the panel-bridge to the dsi bridge */
-	return drm_bridge_attach(bridge->encoder, dsi->panel_bridge, bridge,
+	return drm_bridge_attach(encoder, dsi->panel_bridge, bridge,
 				 flags);
 }
 

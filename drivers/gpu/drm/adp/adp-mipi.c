@@ -212,12 +212,13 @@ static const struct mipi_dsi_host_ops adp_dsi_host_ops = {
 };
 
 static int adp_dsi_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct adp_mipi_drv_private *adp =
 		container_of(bridge, struct adp_mipi_drv_private, bridge);
 
-	return drm_bridge_attach(bridge->encoder, adp->next_bridge, bridge, flags);
+	return drm_bridge_attach(encoder, adp->next_bridge, bridge, flags);
 }
 
 static const struct drm_bridge_funcs adp_dsi_bridge_funcs = {

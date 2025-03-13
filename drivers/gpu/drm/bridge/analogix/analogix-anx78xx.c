@@ -888,6 +888,7 @@ static const struct drm_connector_funcs anx78xx_connector_funcs = {
 };
 
 static int anx78xx_bridge_attach(struct drm_bridge *bridge,
+				 struct drm_encoder *encoder,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct anx78xx *anx78xx = bridge_to_anx78xx(bridge);
@@ -924,7 +925,7 @@ static int anx78xx_bridge_attach(struct drm_bridge *bridge,
 	anx78xx->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
 	err = drm_connector_attach_encoder(&anx78xx->connector,
-					   bridge->encoder);
+					   encoder);
 	if (err) {
 		DRM_ERROR("Failed to link up connector to encoder: %d\n", err);
 		goto connector_cleanup;
