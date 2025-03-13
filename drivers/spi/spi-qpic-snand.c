@@ -263,8 +263,10 @@ static int qcom_spi_ecc_init_ctx_pipelined(struct nand_device *nand)
 		return -ENOMEM;
 	snandc->qspi->oob_buf = kzalloc(mtd->writesize + mtd->oobsize,
 					GFP_KERNEL);
-	if (!snandc->qspi->oob_buf)
+	if (!snandc->qspi->oob_buf) {
+		kfree(ecc_cfg);
 		return -ENOMEM;
+	}
 
 	memset(snandc->qspi->oob_buf, 0xff, mtd->writesize + mtd->oobsize);
 
