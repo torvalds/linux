@@ -1212,8 +1212,7 @@ xfs_growfs_rtg(
 			goto out_error;
 	}
 
-	if (old_rsum_cache)
-		kvfree(old_rsum_cache);
+	kvfree(old_rsum_cache);
 	goto out_rele;
 
 out_error:
