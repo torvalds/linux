@@ -36,7 +36,6 @@ struct adxl345_state {
 	struct regmap *regmap;
 	bool fifo_delay; /* delay: delay is needed for SPI */
 	int irq;
-	u8 int_map;
 	u8 watermark;
 	u8 fifo_mode;
 	__le16 fifo_buf[ADXL345_DIRS * ADXL345_FIFO_SIZE + 1] __aligned(IIO_DMA_MINALIGN);
@@ -112,11 +111,6 @@ static int adxl345_set_measure_en(struct adxl345_state *st, bool en)
 	unsigned int val = en ? ADXL345_POWER_CTL_MEASURE : ADXL345_POWER_CTL_STANDBY;
 
 	return regmap_write(st->regmap, ADXL345_REG_POWER_CTL, val);
-}
-
-static int adxl345_set_interrupts(struct adxl345_state *st)
-{
-	return regmap_write(st->regmap, ADXL345_REG_INT_ENABLE, st->int_map);
 }
 
 static int adxl345_read_raw(struct iio_dev *indio_dev,
@@ -217,7 +211,7 @@ static int adxl345_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 static int adxl345_set_watermark(struct iio_dev *indio_dev, unsigned int value)
 {
 	struct adxl345_state *st = iio_priv(indio_dev);
-	unsigned int fifo_mask = 0x1F;
+	const unsigned int fifo_mask = 0x1F, watermark_mask = 0x02;
 	int ret;
 
 	value = min(value, ADXL345_FIFO_SIZE - 1);
@@ -227,9 +221,8 @@ static int adxl345_set_watermark(struct iio_dev *indio_dev, unsigned int value)
 		return ret;
 
 	st->watermark = value;
-	st->int_map |= ADXL345_INT_WATERMARK;
-
-	return 0;
+	return regmap_update_bits(st->regmap, ADXL345_REG_INT_ENABLE,
+				  watermark_mask, ADXL345_INT_WATERMARK);
 }
 
 static int adxl345_write_raw_get_fmt(struct iio_dev *indio_dev,
@@ -381,11 +374,6 @@ static void adxl345_fifo_reset(struct adxl345_state *st)
 static int adxl345_buffer_postenable(struct iio_dev *indio_dev)
 {
 	struct adxl345_state *st = iio_priv(indio_dev);
-	int ret;
-
-	ret = adxl345_set_interrupts(st);
-	if (ret < 0)
-		return ret;
 
 	st->fifo_mode = ADXL345_FIFO_STREAM;
 	return adxl345_set_fifo(st);
@@ -401,8 +389,7 @@ static int adxl345_buffer_predisable(struct iio_dev *indio_dev)
 	if (ret < 0)
 		return ret;
 
-	st->int_map = 0x00;
-	return adxl345_set_interrupts(st);
+	return regmap_write(st->regmap, ADXL345_REG_INT_ENABLE, 0x00);
 }
 
 static const struct iio_buffer_setup_ops adxl345_buffer_ops = {
@@ -523,6 +510,11 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->channels = adxl345_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adxl345_channels);
 	indio_dev->available_scan_masks = adxl345_scan_masks;
+
+	/* Reset interrupts at start up */
+	ret = regmap_write(st->regmap, ADXL345_REG_INT_ENABLE, 0x00);
+	if (ret)
+		return ret;
 
 	if (setup) {
 		/* Perform optional initial bus specific configuration */
