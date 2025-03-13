@@ -245,12 +245,12 @@ static bool pcc_mbox_cmd_complete_check(struct pcc_chan_info *pchan)
 	u64 val;
 	int ret;
 
+	if (!pchan->cmd_complete.gas)
+		return true;
+
 	ret = pcc_chan_reg_read(&pchan->cmd_complete, &val);
 	if (ret)
 		return false;
-
-	if (!pchan->cmd_complete.gas)
-		return true;
 
 	/*
 	 * Judge if the channel respond the interrupt based on the value of
