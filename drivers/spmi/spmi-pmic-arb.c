@@ -318,7 +318,6 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 			if (status & PMIC_ARB_STATUS_FAILURE) {
 				dev_err(&ctrl->dev, "%s: %#x %#x: transaction failed (%#x) reg: 0x%x\n",
 					__func__, sid, addr, status, offset);
-				WARN_ON(1);
 				return -EIO;
 			}
 
