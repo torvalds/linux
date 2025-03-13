@@ -259,3 +259,17 @@ Falling back to direct application...
  2 files changed, 11 insertions(+)
 error: repository lacks the necessary blob to perform 3-way merge.
 Falling back to direct application...
+[lmi-mainline-v6.12.0rc6 549fe439c] Applied patch: 0031-arm64-dts-qcom-sm8250-add-uart16-Signed-off-by-Teguh.patch
+ 2 files changed, 27 insertions(+)
+/sd/1DMP/Videos//0032-power-supply-Driver-for-Qualcomm-SMB5-Signed-off-by-.patch:55: trailing whitespace.
+ * This work based on pmi8998 charger driver by 
+/sd/1DMP/Videos//0032-power-supply-Driver-for-Qualcomm-SMB5-Signed-off-by-.patch:493: trailing whitespace.
+		*val *= CURRENT_SCALE_FACTOR;	
+/sd/1DMP/Videos//0032-power-supply-Driver-for-Qualcomm-SMB5-Signed-off-by-.patch:741: space before tab in indent.
+ 		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+Falling back to direct application...
+warning: 3 lines add whitespace errors.
