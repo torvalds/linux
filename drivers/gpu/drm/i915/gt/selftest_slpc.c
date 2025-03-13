@@ -489,7 +489,7 @@ static int live_slpc_tile_interaction(void *arg)
 		return -ENOMEM;
 
 	for_each_gt(gt, i915, i) {
-		threads[i].worker = kthread_create_worker(0, "igt/slpc_parallel:%d", gt->info.id);
+		threads[i].worker = kthread_run_worker(0, "igt/slpc_parallel:%d", gt->info.id);
 
 		if (IS_ERR(threads[i].worker)) {
 			ret = PTR_ERR(threads[i].worker);

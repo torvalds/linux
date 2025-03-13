@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
+
+syscall_abis_32 += riscv memfd_secret
+syscall_abis_64 += riscv rlimit memfd_secret

@@ -374,7 +374,7 @@ static void sysctl_test_register_sysctl_sz_invalid_extra_value(
 		struct kunit *test)
 {
 	unsigned char data = 0;
-	struct ctl_table table_foo[] = {
+	const struct ctl_table table_foo[] = {
 		{
 			.procname	= "foo",
 			.data		= &data,
@@ -386,7 +386,7 @@ static void sysctl_test_register_sysctl_sz_invalid_extra_value(
 		},
 	};
 
-	struct ctl_table table_bar[] = {
+	const struct ctl_table table_bar[] = {
 		{
 			.procname	= "bar",
 			.data		= &data,
@@ -398,7 +398,7 @@ static void sysctl_test_register_sysctl_sz_invalid_extra_value(
 		},
 	};
 
-	struct ctl_table table_qux[] = {
+	const struct ctl_table table_qux[] = {
 		{
 			.procname	= "qux",
 			.data		= &data,

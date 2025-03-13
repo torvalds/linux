@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
+#include <linux/i3c/device.h>
 #include <linux/hwmon.h>
 #include <linux/err.h>
 #include <linux/of.h>
@@ -38,6 +39,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 	max6626,
 	max31725,
 	mcp980x,
+	p3t1755,
 	pct2075,
 	stds75,
 	stlm75,
@@ -104,17 +106,15 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 #define LM75_REG_MAX		0x03
 #define PCT2075_REG_IDLE	0x04
 
-/* Each client has this additional data */
 struct lm75_data {
-	struct i2c_client		*client;
 	struct regmap			*regmap;
-	struct regulator		*vs;
 	u16				orig_conf;
-	u16				current_conf;
 	u8				resolution;	/* In bits, 9 to 16 */
 	unsigned int			sample_time;	/* In ms */
 	enum lm75_type			kind;
 	const struct lm75_params	*params;
+	u8				reg_buf[1];
+	u8				val_buf[3];
 };
 
 /*-----------------------------------------------------------------------*/
@@ -222,6 +222,13 @@ static const struct lm75_params device_params[] = {
 		.default_resolution = 9,
 		.default_sample_time = MSEC_PER_SEC / 18,
 	},
+	[p3t1755] = {
+		.clr_mask = 1 << 1 | 1 << 7,	/* disable SMBAlert and one-shot */
+		.default_resolution = 12,
+		.default_sample_time = 55,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 28, 55, 110, 220 },
+	},
 	[pct2075] = {
 		.default_resolution = 11,
 		.default_sample_time = MSEC_PER_SEC / 10,
@@ -276,6 +283,7 @@ static const struct lm75_params device_params[] = {
 		.default_sample_time = 125,
 		.num_sample_times = 4,
 		.sample_times = (unsigned int []){ 125, 250, 1000, 4000 },
+		.alarm = true,
 	},
 	[tmp175] = {
 		.set_mask = 3 << 5,	/* 12-bit mode */
@@ -332,41 +340,11 @@ static inline long lm75_reg_to_mc(s16 temp, u8 resolution)
 	return ((temp >> (16 - resolution)) * 1000) >> (resolution - 8);
 }
 
-static int lm75_write_config(struct lm75_data *data, u16 set_mask,
-			     u16 clr_mask)
+static inline int lm75_write_config(struct lm75_data *data, u16 set_mask,
+				    u16 clr_mask)
 {
-	unsigned int value;
-
-	clr_mask |= LM75_SHUTDOWN << (8 * data->params->config_reg_16bits);
-	value = data->current_conf & ~clr_mask;
-	value |= set_mask;
-
-	if (data->current_conf != value) {
-		s32 err;
-		if (data->params->config_reg_16bits)
-			err = regmap_write(data->regmap, LM75_REG_CONF, value);
-		else
-			err = i2c_smbus_write_byte_data(data->client,
-							LM75_REG_CONF,
-							value);
-		if (err)
-			return err;
-		data->current_conf = value;
-	}
-	return 0;
-}
-
-static int lm75_read_config(struct lm75_data *data)
-{
-	int ret;
-	unsigned int status;
-
-	if (data->params->config_reg_16bits) {
-		ret = regmap_read(data->regmap, LM75_REG_CONF, &status);
-		return ret ? ret : status;
-	}
-
-	return i2c_smbus_read_byte_data(data->client, LM75_REG_CONF);
+	return regmap_update_bits(data->regmap, LM75_REG_CONF,
+				  clr_mask | LM75_SHUTDOWN, set_mask);
 }
 
 static irqreturn_t lm75_alarm_handler(int irq, void *private)
@@ -418,7 +396,8 @@ static int lm75_read(struct device *dev, enum hwmon_sensor_types type,
 		if (attr == hwmon_temp_alarm) {
 			switch (data->kind) {
 			case as6200:
-				*val = (regval >> 5) & 0x1;
+			case tmp112:
+				*val = (regval >> 13) & 0x1;
 				break;
 			default:
 				return -EINVAL;
@@ -469,7 +448,6 @@ static int lm75_write_temp(struct device *dev, u32 attr, long temp)
 static int lm75_update_interval(struct device *dev, long val)
 {
 	struct lm75_data *data = dev_get_drvdata(dev);
-	unsigned int reg;
 	u8 index;
 	s32 err;
 
@@ -489,19 +467,14 @@ static int lm75_update_interval(struct device *dev, long val)
 		break;
 	case tmp112:
 	case as6200:
-		err = regmap_read(data->regmap, LM75_REG_CONF, &reg);
-		if (err < 0)
-			return err;
-		reg &= ~0x00c0;
-		reg |= (3 - index) << 6;
-		err = regmap_write(data->regmap, LM75_REG_CONF, reg);
+		err = regmap_update_bits(data->regmap, LM75_REG_CONF,
+					 0xc000, (3 - index) << 14);
 		if (err < 0)
 			return err;
 		data->sample_time = data->params->sample_times[index];
 		break;
 	case pct2075:
-		err = i2c_smbus_write_byte_data(data->client, PCT2075_REG_IDLE,
-						index + 1);
+		err = regmap_write(data->regmap, PCT2075_REG_IDLE, index + 1);
 		if (err)
 			return err;
 		data->sample_time = data->params->sample_times[index];
@@ -598,6 +571,115 @@ static bool lm75_is_volatile_reg(struct device *dev, unsigned int reg)
 	return reg == LM75_REG_TEMP || reg == LM75_REG_CONF;
 }
 
+static int lm75_i2c_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct i2c_client *client = context;
+	struct lm75_data *data = i2c_get_clientdata(client);
+	int ret;
+
+	if (reg == LM75_REG_CONF) {
+		if (!data->params->config_reg_16bits)
+			ret = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
+		else
+			ret = i2c_smbus_read_word_data(client, LM75_REG_CONF);
+	} else {
+		ret = i2c_smbus_read_word_swapped(client, reg);
+	}
+	if (ret < 0)
+		return ret;
+	*val = ret;
+	return 0;
+}
+
+static int lm75_i2c_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct i2c_client *client = context;
+	struct lm75_data *data = i2c_get_clientdata(client);
+
+	if (reg == PCT2075_REG_IDLE ||
+	    (reg == LM75_REG_CONF && !data->params->config_reg_16bits))
+		return i2c_smbus_write_byte_data(client, reg, val);
+	else if (reg == LM75_REG_CONF)
+		return i2c_smbus_write_word_data(client, reg, val);
+	return i2c_smbus_write_word_swapped(client, reg, val);
+}
+
+static const struct regmap_bus lm75_i2c_regmap_bus = {
+	.reg_read = lm75_i2c_reg_read,
+	.reg_write = lm75_i2c_reg_write,
+};
+
+static int lm75_i3c_reg_read(void *context, unsigned int reg, unsigned int *val)
+{
+	struct i3c_device *i3cdev = context;
+	struct lm75_data *data = i3cdev_get_drvdata(i3cdev);
+	struct i3c_priv_xfer xfers[] = {
+		{
+			.rnw = false,
+			.len = 1,
+			.data.out = data->reg_buf,
+		},
+		{
+			.rnw = true,
+			.len = 2,
+			.data.out = data->val_buf,
+		},
+	};
+	int ret;
+
+	data->reg_buf[0] = reg;
+
+	if (reg == LM75_REG_CONF && !data->params->config_reg_16bits)
+		xfers[1].len--;
+
+	ret = i3c_device_do_priv_xfers(i3cdev, xfers, 2);
+	if (ret < 0)
+		return ret;
+
+	if (reg == LM75_REG_CONF && !data->params->config_reg_16bits)
+		*val = data->val_buf[0];
+	else if (reg == LM75_REG_CONF)
+		*val = data->val_buf[0] | (data->val_buf[1] << 8);
+	else
+		*val = data->val_buf[1] | (data->val_buf[0] << 8);
+
+	return 0;
+}
+
+static int lm75_i3c_reg_write(void *context, unsigned int reg, unsigned int val)
+{
+	struct i3c_device *i3cdev = context;
+	struct lm75_data *data = i3cdev_get_drvdata(i3cdev);
+	struct i3c_priv_xfer xfers[] = {
+		{
+			.rnw = false,
+			.len = 3,
+			.data.out = data->val_buf,
+		},
+	};
+
+	data->val_buf[0] = reg;
+
+	if (reg == PCT2075_REG_IDLE ||
+	    (reg == LM75_REG_CONF && !data->params->config_reg_16bits)) {
+		xfers[0].len--;
+		data->val_buf[1] = val & 0xff;
+	} else if (reg == LM75_REG_CONF) {
+		data->val_buf[1] = val & 0xff;
+		data->val_buf[2] = (val >> 8) & 0xff;
+	} else {
+		data->val_buf[1] = (val >> 8) & 0xff;
+		data->val_buf[2] = val & 0xff;
+	}
+
+	return i3c_device_do_priv_xfers(i3cdev, xfers, 1);
+}
+
+static const struct regmap_bus lm75_i3c_regmap_bus = {
+	.reg_read = lm75_i3c_reg_read,
+	.reg_write = lm75_i3c_reg_write,
+};
+
 static const struct regmap_config lm75_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 16,
@@ -610,46 +692,33 @@ static const struct regmap_config lm75_regmap_config = {
 	.use_single_write = true,
 };
 
-static void lm75_disable_regulator(void *data)
-{
-	struct lm75_data *lm75 = data;
-
-	regulator_disable(lm75->vs);
-}
-
 static void lm75_remove(void *data)
 {
 	struct lm75_data *lm75 = data;
-	struct i2c_client *client = lm75->client;
 
-	i2c_smbus_write_byte_data(client, LM75_REG_CONF, lm75->orig_conf);
+	regmap_write(lm75->regmap, LM75_REG_CONF, lm75->orig_conf);
 }
 
-static int lm75_probe(struct i2c_client *client)
+static int lm75_generic_probe(struct device *dev, const char *name,
+			      enum lm75_type kind, int irq, struct regmap *regmap)
 {
-	struct device *dev = &client->dev;
 	struct device *hwmon_dev;
 	struct lm75_data *data;
 	int status, err;
-
-	if (!i2c_check_functionality(client->adapter,
-			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
-		return -EIO;
 
 	data = devm_kzalloc(dev, sizeof(struct lm75_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->client = client;
-	data->kind = (uintptr_t)i2c_get_match_data(client);
+	/* needed by custom regmap callbacks */
+	dev_set_drvdata(dev, data);
 
-	data->vs = devm_regulator_get(dev, "vs");
-	if (IS_ERR(data->vs))
-		return PTR_ERR(data->vs);
+	data->kind = kind;
+	data->regmap = regmap;
 
-	data->regmap = devm_regmap_init_i2c(client, &lm75_regmap_config);
-	if (IS_ERR(data->regmap))
-		return PTR_ERR(data->regmap);
+	err = devm_regulator_get_enable(dev, "vs");
+	if (err)
+		return err;
 
 	/* Set to LM75 resolution (9 bits, 1/2 degree C) and range.
 	 * Then tweak to be more precise when appropriate.
@@ -661,25 +730,11 @@ static int lm75_probe(struct i2c_client *client)
 	data->sample_time = data->params->default_sample_time;
 	data->resolution = data->params->default_resolution;
 
-	/* Enable the power */
-	err = regulator_enable(data->vs);
-	if (err) {
-		dev_err(dev, "failed to enable regulator: %d\n", err);
-		return err;
-	}
-
-	err = devm_add_action_or_reset(dev, lm75_disable_regulator, data);
+	/* Cache original configuration */
+	err = regmap_read(data->regmap, LM75_REG_CONF, &status);
 	if (err)
 		return err;
-
-	/* Cache original configuration */
-	status = lm75_read_config(data);
-	if (status < 0) {
-		dev_dbg(dev, "Can't read config? %d\n", status);
-		return status;
-	}
 	data->orig_conf = status;
-	data->current_conf = status;
 
 	err = lm75_write_config(data, data->params->set_mask,
 				data->params->clr_mask);
@@ -690,20 +745,19 @@ static int lm75_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
-							 data, &lm75_chip_info,
-							 NULL);
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, name, data,
+							 &lm75_chip_info, NULL);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
-	if (client->irq) {
+	if (irq) {
 		if (data->params->alarm) {
 			err = devm_request_threaded_irq(dev,
-							client->irq,
+							irq,
 							NULL,
 							&lm75_alarm_handler,
 							IRQF_ONESHOT,
-							client->name,
+							name,
 							hwmon_dev);
 			if (err)
 				return err;
@@ -713,12 +767,29 @@ static int lm75_probe(struct i2c_client *client)
 		}
 	}
 
-	dev_info(dev, "%s: sensor '%s'\n", dev_name(hwmon_dev), client->name);
+	dev_info(dev, "%s: sensor '%s'\n", dev_name(hwmon_dev), name);
 
 	return 0;
 }
 
-static const struct i2c_device_id lm75_ids[] = {
+static int lm75_i2c_probe(struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	struct regmap *regmap;
+
+	if (!i2c_check_functionality(client->adapter,
+			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
+		return -EOPNOTSUPP;
+
+	regmap = devm_regmap_init(dev, &lm75_i2c_regmap_bus, client, &lm75_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	return lm75_generic_probe(dev, client->name, (uintptr_t)i2c_get_match_data(client),
+				  client->irq, regmap);
+}
+
+static const struct i2c_device_id lm75_i2c_ids[] = {
 	{ "adt75", adt75, },
 	{ "as6200", as6200, },
 	{ "at30ts74", at30ts74, },
@@ -734,6 +805,7 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "max31725", max31725, },
 	{ "max31726", max31725, },
 	{ "mcp980x", mcp980x, },
+	{ "p3t1755", p3t1755, },
 	{ "pct2075", pct2075, },
 	{ "stds75", stds75, },
 	{ "stlm75", stlm75, },
@@ -750,7 +822,38 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ "tmp1075", tmp1075, },
 	{ /* LIST END */ }
 };
-MODULE_DEVICE_TABLE(i2c, lm75_ids);
+MODULE_DEVICE_TABLE(i2c, lm75_i2c_ids);
+
+struct lm75_i3c_device {
+	enum lm75_type type;
+	const char *name;
+};
+
+static const struct lm75_i3c_device lm75_i3c_p3t1755 = {
+	.name = "p3t1755",
+	.type = p3t1755,
+};
+
+static const struct i3c_device_id lm75_i3c_ids[] = {
+	I3C_DEVICE(0x011b, 0x152a, &lm75_i3c_p3t1755),
+	{ /* LIST END */ }
+};
+MODULE_DEVICE_TABLE(i3c, lm75_i3c_ids);
+
+static int lm75_i3c_probe(struct i3c_device *i3cdev)
+{
+	struct device *dev = i3cdev_to_dev(i3cdev);
+	const struct lm75_i3c_device *id_data;
+	struct regmap *regmap;
+
+	regmap = devm_regmap_init(dev, &lm75_i3c_regmap_bus, i3cdev, &lm75_regmap_config);
+	if (IS_ERR(regmap))
+		return PTR_ERR(regmap);
+
+	id_data = i3c_device_match_id(i3cdev, lm75_i3c_ids)->data;
+
+	return lm75_generic_probe(dev, id_data->name, id_data->type, 0, regmap);
+}
 
 static const struct of_device_id __maybe_unused lm75_of_match[] = {
 	{
@@ -812,6 +915,10 @@ static const struct of_device_id __maybe_unused lm75_of_match[] = {
 	{
 		.compatible = "maxim,mcp980x",
 		.data = (void *)mcp980x
+	},
+	{
+		.compatible = "nxp,p3t1755",
+		.data = (void *)p3t1755
 	},
 	{
 		.compatible = "nxp,pct2075",
@@ -972,32 +1079,16 @@ static int lm75_detect(struct i2c_client *new_client,
 #ifdef CONFIG_PM
 static int lm75_suspend(struct device *dev)
 {
-	int status;
-	struct i2c_client *client = to_i2c_client(dev);
+	struct lm75_data *data = dev_get_drvdata(dev);
 
-	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
-	if (status < 0) {
-		dev_dbg(&client->dev, "Can't read config? %d\n", status);
-		return status;
-	}
-	status = status | LM75_SHUTDOWN;
-	i2c_smbus_write_byte_data(client, LM75_REG_CONF, status);
-	return 0;
+	return regmap_update_bits(data->regmap, LM75_REG_CONF, LM75_SHUTDOWN, LM75_SHUTDOWN);
 }
 
 static int lm75_resume(struct device *dev)
 {
-	int status;
-	struct i2c_client *client = to_i2c_client(dev);
+	struct lm75_data *data = dev_get_drvdata(dev);
 
-	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
-	if (status < 0) {
-		dev_dbg(&client->dev, "Can't read config? %d\n", status);
-		return status;
-	}
-	status = status & ~LM75_SHUTDOWN;
-	i2c_smbus_write_byte_data(client, LM75_REG_CONF, status);
-	return 0;
+	return regmap_update_bits(data->regmap, LM75_REG_CONF, LM75_SHUTDOWN, 0);
 }
 
 static const struct dev_pm_ops lm75_dev_pm_ops = {
@@ -1009,20 +1100,28 @@ static const struct dev_pm_ops lm75_dev_pm_ops = {
 #define LM75_DEV_PM_OPS NULL
 #endif /* CONFIG_PM */
 
-static struct i2c_driver lm75_driver = {
+static struct i2c_driver lm75_i2c_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm75",
 		.of_match_table = of_match_ptr(lm75_of_match),
 		.pm	= LM75_DEV_PM_OPS,
 	},
-	.probe		= lm75_probe,
-	.id_table	= lm75_ids,
+	.probe		= lm75_i2c_probe,
+	.id_table	= lm75_i2c_ids,
 	.detect		= lm75_detect,
 	.address_list	= normal_i2c,
 };
 
-module_i2c_driver(lm75_driver);
+static struct i3c_driver lm75_i3c_driver = {
+	.driver = {
+		.name = "lm75_i3c",
+	},
+	.probe = lm75_i3c_probe,
+	.id_table = lm75_i3c_ids,
+};
+
+module_i3c_i2c_driver(lm75_i3c_driver, &lm75_i2c_driver)
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");
 MODULE_DESCRIPTION("LM75 driver");

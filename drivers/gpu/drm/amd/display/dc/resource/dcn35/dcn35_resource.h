@@ -35,6 +35,7 @@
 
 extern struct _vcs_dpi_ip_params_st dcn3_5_ip;
 extern struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc;
+enum dc_status dcn35_patch_unknown_plane_state(struct dc_plane_state *plane_state);
 
 struct dcn35_resource_pool {
 	struct resource_pool base;

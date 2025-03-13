@@ -9,7 +9,7 @@
 #include "../ieee80211_i.h"
 #include "../sta_info.h"
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static const struct mfp_test_case {
 	const char *desc;

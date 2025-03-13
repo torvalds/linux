@@ -2833,8 +2833,8 @@ int rdma_nl_notify_event(struct ib_device *device, u32 port_num,
 			  enum rdma_nl_notify_event_type type)
 {
 	struct sk_buff *skb;
+	int ret = -EMSGSIZE;
 	struct net *net;
-	int ret = 0;
 	void *nlh;
 
 	net = read_pnet(&device->coredev.rdma_net);

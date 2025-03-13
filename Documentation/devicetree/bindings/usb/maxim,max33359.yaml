@@ -13,8 +13,12 @@ description: Maxim TCPCI Type-C PD controller
 
 properties:
   compatible:
-    enum:
-      - maxim,max33359
+    oneOf:
+      - enum:
+          - maxim,max33359
+      - items:
+          - const: maxim,max77759-tcpci
+          - const: maxim,max33359
 
   reg:
     maxItems: 1
@@ -70,6 +74,7 @@ examples:
                                        PDO_FIXED_DUAL_ROLE)
                                        PDO_FIXED(9000, 2000, 0)>;
                 sink-bc12-completion-time-ms = <500>;
+                pd-revision = /bits/ 8 <0x03 0x01 0x01 0x08>;
             };
         };
     };

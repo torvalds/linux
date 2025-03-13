@@ -30,20 +30,17 @@ static bool is_image_text(unsigned long addr)
 
 static void __kprobes *patch_map(void *addr, int fixmap)
 {
-	unsigned long uintaddr = (uintptr_t) addr;
-	bool image = is_image_text(uintaddr);
-	struct page *page;
+	phys_addr_t phys;
 
-	if (image)
-		page = phys_to_page(__pa_symbol(addr));
-	else if (IS_ENABLED(CONFIG_EXECMEM))
-		page = vmalloc_to_page(addr);
-	else
-		return addr;
+	if (is_image_text((unsigned long)addr)) {
+		phys = __pa_symbol(addr);
+	} else {
+		struct page *page = vmalloc_to_page(addr);
+		BUG_ON(!page);
+		phys = page_to_phys(page) + offset_in_page(addr);
+	}
 
-	BUG_ON(!page);
-	return (void *)set_fixmap_offset(fixmap, page_to_phys(page) +
-			(uintaddr & ~PAGE_MASK));
+	return (void *)set_fixmap_offset(fixmap, phys);
 }
 
 static void __kprobes patch_unmap(int fixmap)

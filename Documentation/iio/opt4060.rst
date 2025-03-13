@@ -1,0 +1,61 @@
+==============================
+OPT4060 driver
+==============================
+
+1. Overview
+=============================
+
+This driver supports the Texas Instrument RGBW high resolution color sensor over
+I2C.
+https://www.ti.com/lit/gpn/opt4060
+
+The driver supports:
+- Raw values for red, green, blue and clear.
+- Illuminance values.
+- Scaled color values for red, green and blue.
+- IIO events for thresholds.
+- IIO triggered buffer using both its own data ready trigger and triggers from
+other drivers.
+
+2. Illuminance calculation
+=============================
+
+Illuminance is calculated using the wide spectrum green channel.
+
+lux = GREEN_RAW x 2.15e-3
+
+The value is accessed from:
+/sys/bus/iio/devices/iio:deviceX/in_illuminance_input
+
+See section 8.4.5.2 in the data sheet for additional details.
+
+3. Color scale values
+=============================
+
+The sensor has different sensitivity for the different color components and
+compensating factors are exposed from the driver.
+
+The values are accessed from:
+/sys/bus/iio/devices/iio:deviceX/in_intensity_red_scale
+/sys/bus/iio/devices/iio:deviceX/in_intensity_green_scale
+/sys/bus/iio/devices/iio:deviceX/in_intensity_blue_scale
+
+A userspace application can multiply the raw values with the scale values so
+that for a particular test light source, typically white, the measurement
+intensity is the same across the different color channels. This is calculated
+in the following way:
+
+R = RED_RAW x SCALE_RED(2.4)
+G = GREEN_RAW x SCALE_GREEN(1.0)
+B = BLUE_RAW x SCALE_BLUE(1.3)
+
+The data sheet suggests using the scaled values to normalize the scaled R, G
+and B values. This is useful to get a value for the ratio between colors
+independent of light intensity. A userspace application can do this in the
+following way:
+
+R_NORMALIZED = R / (R + G + B)
+G_NORMALIZED = G / (R + G + B)
+B_NORMALIZED = B / (R + G + B)
+
+See section 8.4.5.2 in the data sheet for additional details.

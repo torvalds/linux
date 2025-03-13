@@ -40,6 +40,7 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_atomic_helper.h>
 
+#include "i915_drv.h"
 #include "i915_config.h"
 #include "i9xx_plane_regs.h"
 #include "intel_atomic_plane.h"
@@ -207,17 +208,6 @@ unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 		fb->format->cpp[color_plane];
 }
 
-static bool
-use_min_ddb(const struct intel_crtc_state *crtc_state,
-	    struct intel_plane *plane)
-{
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
-
-	return DISPLAY_VER(i915) >= 13 &&
-	       crtc_state->uapi.async_flip &&
-	       plane->async_flip;
-}
-
 static unsigned int
 intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 			       const struct intel_plane_state *plane_state,
@@ -225,21 +215,13 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 {
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int width, height;
 	unsigned int rel_data_rate;
+	int width, height;
 
 	if (plane->id == PLANE_CURSOR)
 		return 0;
 
 	if (!plane_state->uapi.visible)
-		return 0;
-
-	/*
-	 * We calculate extra ddb based on ratio plane rate/total data rate
-	 * in case, in some cases we should not allocate extra ddb for the plane,
-	 * so do not count its data rate, if this is the case.
-	 */
-	if (use_min_ddb(crtc_state, plane))
 		return 0;
 
 	/*
@@ -256,7 +238,11 @@ intel_plane_relative_data_rate(const struct intel_crtc_state *crtc_state,
 		height /= 2;
 	}
 
-	rel_data_rate = width * height * fb->format->cpp[color_plane];
+	rel_data_rate =
+		skl_plane_relative_data_rate(crtc_state, plane, width, height,
+					     fb->format->cpp[color_plane]);
+	if (!rel_data_rate)
+		return 0;
 
 	return intel_adjusted_rate(&plane_state->uapi.src,
 				   &plane_state->uapi.dst,

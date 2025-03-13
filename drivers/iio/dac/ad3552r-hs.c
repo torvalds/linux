@@ -329,6 +329,12 @@ static int ad3552r_hs_setup(struct ad3552r_hs_state *st)
 		dev_info(st->dev, "Chip ID error. Expected 0x%x, Read 0x%x\n",
 			 AD3552R_ID, id);
 
+	/* Clear reset error flag, see ad3552r manual, rev B table 38. */
+	ret = st->data->bus_reg_write(st->back, AD3552R_REG_ADDR_ERR_STATUS,
+				      AD3552R_MASK_RESET_STATUS, 1);
+	if (ret)
+		return ret;
+
 	ret = st->data->bus_reg_write(st->back,
 				      AD3552R_REG_ADDR_SH_REFERENCE_CONFIG,
 				      0, 1);
@@ -525,5 +531,5 @@ MODULE_AUTHOR("Dragos Bogdan <dragos.bogdan@analog.com>");
 MODULE_AUTHOR("Angelo Dureghello <adueghello@baylibre.com>");
 MODULE_DESCRIPTION("AD3552R Driver - High Speed version");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_BACKEND);
-MODULE_IMPORT_NS(IIO_AD3552R);
+MODULE_IMPORT_NS("IIO_BACKEND");
+MODULE_IMPORT_NS("IIO_AD3552R");

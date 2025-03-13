@@ -33,6 +33,9 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 		msr0xXXX is a hex offset, eg. msr0x10
 		/sys/path... is an absolute path to a sysfs attribute
 		<device> is a perf device from /sys/bus/event_source/devices/<device> eg. cstate_core
+			On Intel hybrid platforms, instead of one "cpu" perf device there are two, "cpu_core" and "cpu_atom" devices for P and E cores respectively.
+			Turbostat, in this case, allow user to use "cpu" device and will automatically detect the type of a CPU and translate it to "cpu_core" and "cpu_atom" accordingly.
+			For a complete example see "ADD PERF COUNTER EXAMPLE #2 (using virtual "cpu" device)".
 		<event> is a perf event for given device from /sys/bus/event_source/devices/<device>/events/<event> eg. c1-residency
 			perf/cstate_core/c1-residency would then use /sys/bus/event_source/devices/cstate_core/events/c1-residency
 
@@ -133,7 +136,7 @@ displays the statistics gathered since it was forked.
 The system configuration dump (if --quiet is not used) is followed by statistics.  The first row of the statistics labels the content of each column (below).  The second row of statistics is the system summary line.  The system summary line has a '-' in the columns for the Package, Core, and CPU.  The contents of the system summary line depends on the type of column.  Columns that count items (eg. IRQ) show the sum across all CPUs in the system.  Columns that show a percentage show the average across all CPUs in the system.  Columns that dump raw MSR values simply show 0 in the summary.  After the system summary row, each row describes a specific Package/Core/CPU.  Note that if the --cpu parameter is used to limit which specific CPUs are displayed, turbostat will still collect statistics for all CPUs in the system and will still show the system summary for all CPUs in the system.
 .SH COLUMN DESCRIPTIONS
 .PP
-\fBusec\fP For each CPU, the number of microseconds elapsed during counter collection, including thread migration -- if any.  This counter is disabled by default, and is enabled with "--enable usec", or --debug.  On the summary row, usec refers to the total elapsed time to collect the counters on all cpus.
+\fBusec\fP For each CPU, the number of microseconds elapsed during counter collection, including thread migration -- if any.  This counter is disabled by default, and is enabled with "--enable usec", or --debug.  On the summary row, usec refers to the total elapsed time to snapshot the procfs/sysfs and collect the counters on all cpus.
 .PP
 \fBTime_Of_Day_Seconds\fP For each CPU, the gettimeofday(2) value (seconds.subsec since Epoch) when the counters ending the measurement interval were collected.  This column is disabled by default, and can be enabled with "--enable Time_Of_Day_Seconds" or "--debug".  On the summary row, Time_Of_Day_Seconds refers to the timestamp following collection of counters on the last CPU.
 .PP
@@ -186,6 +189,8 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 \fBGFXWatt\fP Watts consumed by the Graphics part of the package -- available only on client processors.
 .PP
 \fBRAMWatt\fP Watts consumed by the DRAM DIMMS -- available only on server processors.
+.PP
+\fBSysWatt\fP Watts consumed by the whole platform (RAPL PSYS).
 .PP
 \fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.  Note that the system summary is the sum of the package throttling time, and thus may be higher than 100% on a multi-package system.  Note that the meaning of this field is model specific.  For example, some hardware increments this counter when RAPL responds to thermal limits, but does not increment this counter when RAPL responds to power limits.  Comparing PkgWatt and PkgTmp to system limits is necessary.
 .PP
@@ -387,6 +392,28 @@ CPU     pCPU%c1 CPU%c1
 
 .fi
 
+.SH ADD PERF COUNTER EXAMPLE #2 (using virtual cpu device)
+Here we run on hybrid, Raptor Lake platform.
+We limit turbostat to show output for just cpu0 (pcore) and cpu12 (ecore).
+We add a counter showing number of L3 cache misses, using virtual "cpu" device,
+labeling it with the column header, "VCMISS".
+We add a counter showing number of L3 cache misses, using virtual "cpu_core" device,
+labeling it with the column header, "PCMISS". This will fail on ecore cpu12.
+We add a counter showing number of L3 cache misses, using virtual "cpu_atom" device,
+labeling it with the column header, "ECMISS". This will fail on pcore cpu0.
+We display it only once, after the conclusion of 0.1 second sleep.
+.nf
+sudo ./turbostat --quiet --cpu 0,12 --show CPU --add perf/cpu/cache-misses,cpu,delta,raw,VCMISS --add perf/cpu_core/cache-misses,cpu,delta,raw,PCMISS --add perf/cpu_atom/cache-misses,cpu,delta,raw,ECMISS sleep .1
+turbostat: added_perf_counters_init_: perf/cpu_atom/cache-misses: failed to open counter on cpu0
+turbostat: added_perf_counters_init_: perf/cpu_core/cache-misses: failed to open counter on cpu12
+0.104630 sec
+CPU                 ECMISS                  PCMISS                  VCMISS
+-       0x0000000000000000      0x0000000000000000      0x0000000000000000
+0       0x0000000000000000      0x0000000000007951      0x0000000000007796
+12      0x000000000001137a      0x0000000000000000      0x0000000000011392
+
+.fi
+
 .SH ADD PMT COUNTER EXAMPLE
 Here we limit turbostat to showing just the CPU number 0.
 We add two counters, showing crystal clock count and the DC6 residency.
@@ -489,14 +516,40 @@ that they count at TSC rate, which is true on all processors tested to date.
 Volume 3B: System Programming Guide"
 https://www.intel.com/products/processor/manuals/
 
+.SH RUN THE LATEST VERSION
+If turbostat complains that it doesn't recognize your processor,
+please try the latest version.
+
+The latest version of turbostat does not require the latest version of the Linux kernel.
+However, some features, such as perf(1) counters, do require kernel support.
+
+The latest turbostat release is available in the upstream Linux Kernel source tree.
+eg. "git pull https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
+and run make in tools/power/x86/turbostat/.
+
+n.b. "make install" will update your system manually, but a distro update may subsequently downgrade your turbostat to an older version.
+For this reason, manually installing to /usr/local/bin may be what you want.
+
+Note that turbostat/Makefile has a "make snapshot" target, which will create a tar file
+that can build without a local kernel source tree.
+
+If the upstream version isn't new enough, the development tree can be found here:
+"git pull https://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git turbostat"
+
+If the development tree doesn't work, please contact the author via chat,
+or via email with the word "turbostat" on the Subject line.
+
 .SH FILES
 .ta
 .nf
+/sys/bus/event_source/devices/
 /dev/cpu/*/msr
+/sys/class/intel_pmt/
+/sys/devices/system/cpu/
 .fi
 
 .SH "SEE ALSO"
-msr(4), vmstat(8)
+perf(1), msr(4), vmstat(8)
 .PP
 .SH AUTHOR
 .nf

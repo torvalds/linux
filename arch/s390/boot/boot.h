@@ -8,12 +8,12 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/printk.h>
 #include <asm/physmem_info.h>
 
 struct machine_info {
 	unsigned char has_edat1 : 1;
 	unsigned char has_edat2 : 1;
-	unsigned char has_nx : 1;
 };
 
 struct vmlinux_info {
@@ -48,13 +48,16 @@ void physmem_set_usable_limit(unsigned long limit);
 void physmem_reserve(enum reserved_range_type type, unsigned long addr, unsigned long size);
 void physmem_free(enum reserved_range_type type);
 /* for continuous/multiple allocations per type */
-unsigned long physmem_alloc_top_down(enum reserved_range_type type, unsigned long size,
-				     unsigned long align);
+unsigned long physmem_alloc_or_die(enum reserved_range_type type, unsigned long size,
+				   unsigned long align);
+unsigned long physmem_alloc(enum reserved_range_type type, unsigned long size,
+			    unsigned long align, bool die_on_oom);
 /* for single allocations, 1 per type */
 unsigned long physmem_alloc_range(enum reserved_range_type type, unsigned long size,
 				  unsigned long align, unsigned long min, unsigned long max,
 				  bool die_on_oom);
 unsigned long get_physmem_alloc_pos(void);
+void dump_physmem_reserved(void);
 bool ipl_report_certs_intersects(unsigned long addr, unsigned long size,
 				 unsigned long *intersection_start);
 bool is_ipl_block_dump(void);
@@ -70,12 +73,28 @@ void print_pgm_check_info(void);
 unsigned long randomize_within_range(unsigned long size, unsigned long align,
 				     unsigned long min, unsigned long max);
 void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit);
-void __printf(1, 2) boot_printk(const char *fmt, ...);
+int __printf(1, 2) boot_printk(const char *fmt, ...);
 void print_stacktrace(unsigned long sp);
 void error(char *m);
 int get_random(unsigned long limit, unsigned long *value);
+void boot_rb_dump(void);
+
+#ifndef boot_fmt
+#define boot_fmt(fmt)	fmt
+#endif
+
+#define boot_emerg(fmt, ...)	boot_printk(KERN_EMERG boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_alert(fmt, ...)	boot_printk(KERN_ALERT boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_crit(fmt, ...)	boot_printk(KERN_CRIT boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_err(fmt, ...)	boot_printk(KERN_ERR boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_warn(fmt, ...)	boot_printk(KERN_WARNING boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_notice(fmt, ...)	boot_printk(KERN_NOTICE boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_info(fmt, ...)	boot_printk(KERN_INFO boot_fmt(fmt), ##__VA_ARGS__)
+#define boot_debug(fmt, ...)	boot_printk(KERN_DEBUG boot_fmt(fmt), ##__VA_ARGS__)
 
 extern struct machine_info machine;
+extern int boot_console_loglevel;
+extern bool boot_ignore_loglevel;
 
 /* Symbols defined by linker scripts */
 extern const char kernel_version[];

@@ -45,7 +45,7 @@ static int pty_limit_min;
 static int pty_limit_max = INT_MAX;
 static atomic_t pty_count = ATOMIC_INIT(0);
 
-static struct ctl_table pty_table[] = {
+static const struct ctl_table pty_table[] = {
 	{
 		.procname	= "max",
 		.maxlen		= sizeof(int),

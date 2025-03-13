@@ -390,7 +390,7 @@ void intel_tc_port_set_fia_lane_count(struct intel_digital_port *dig_port,
 {
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
-	bool lane_reversal = dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
+	bool lane_reversal = dig_port->lane_reversal;
 	u32 val;
 
 	if (DISPLAY_VER(i915) >= 14)
@@ -1013,21 +1013,52 @@ xelpdp_tc_phy_wait_for_tcss_power(struct intel_tc_port *tc, bool enabled)
 	return true;
 }
 
+/*
+ * Gfx driver WA 14020908590 for PTL tcss_rxdetect_clkswb_req/ack
+ * handshake violation when pwwreq= 0->1 during TC7/10 entry
+ */
+static void xelpdp_tc_power_request_wa(struct intel_display *display, bool enable)
+{
+	/* check if mailbox is running busy */
+	if (intel_de_wait_for_clear(display, TCSS_DISP_MAILBOX_IN_CMD,
+				    TCSS_DISP_MAILBOX_IN_CMD_RUN_BUSY, 10)) {
+		drm_dbg_kms(display->drm,
+			    "Timeout waiting for TCSS mailbox run/busy bit to clear\n");
+		return;
+	}
+
+	intel_de_write(display, TCSS_DISP_MAILBOX_IN_DATA, enable ? 1 : 0);
+	intel_de_write(display, TCSS_DISP_MAILBOX_IN_CMD,
+		       TCSS_DISP_MAILBOX_IN_CMD_RUN_BUSY |
+		       TCSS_DISP_MAILBOX_IN_CMD_DATA(0x1));
+
+	/* wait to clear mailbox running busy bit before continuing */
+	if (intel_de_wait_for_clear(display, TCSS_DISP_MAILBOX_IN_CMD,
+				    TCSS_DISP_MAILBOX_IN_CMD_RUN_BUSY, 10)) {
+		drm_dbg_kms(display->drm,
+			    "Timeout after writing data to mailbox. Mailbox run/busy bit did not clear\n");
+		return;
+	}
+}
+
 static void __xelpdp_tc_phy_enable_tcss_power(struct intel_tc_port *tc, bool enable)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	enum port port = tc->dig_port->base.port;
-	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(i915, port);
+	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(display, port);
 	u32 val;
 
 	assert_tc_cold_blocked(tc);
 
-	val = intel_de_read(i915, reg);
+	if (DISPLAY_VER(display) == 30)
+		xelpdp_tc_power_request_wa(display, enable);
+
+	val = intel_de_read(display, reg);
 	if (enable)
 		val |= XELPDP_TCSS_POWER_REQUEST;
 	else
 		val &= ~XELPDP_TCSS_POWER_REQUEST;
-	intel_de_write(i915, reg, val);
+	intel_de_write(display, reg, val);
 }
 
 static bool xelpdp_tc_phy_enable_tcss_power(struct intel_tc_port *tc, bool enable)

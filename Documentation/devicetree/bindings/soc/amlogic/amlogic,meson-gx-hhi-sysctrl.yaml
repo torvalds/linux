@@ -13,6 +13,7 @@ properties:
   compatible:
     items:
       - enum:
+          - amlogic,meson-hhi-sysctrl
           - amlogic,meson-gx-hhi-sysctrl
           - amlogic,meson-gx-ao-sysctrl
           - amlogic,meson-axg-hhi-sysctrl
@@ -36,6 +37,19 @@ properties:
     type: object
 
 allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - amlogic,meson-hhi-sysctrl
+    then:
+      properties:
+        clock-controller:
+          $ref: /schemas/clock/amlogic,meson8-clkc.yaml#
+
+        pinctrl: false
+        phy: false
+
   - if:
       properties:
         compatible:

@@ -185,6 +185,7 @@ void test__end_subtest(void);
 void test__skip(void);
 void test__fail(void);
 int test__join_cgroup(const char *path);
+void hexdump(const char *prefix, const void *buf, size_t len);
 
 #define PRINT_FAIL(format...)                                                  \
 	({                                                                     \
@@ -341,6 +342,20 @@ int test__join_cgroup(const char *path);
 	CHECK(!___ok, (name),						\
 	      "unexpected %s: '%s' is not a substring of '%s'\n",	\
 	      (name), ___substr, ___str);				\
+	___ok;								\
+})
+
+#define ASSERT_MEMEQ(actual, expected, len, name) ({			\
+	static int duration = 0;					\
+	const void *__act = actual;					\
+	const void *__exp = expected;					\
+	int __len = len;						\
+	bool ___ok = memcmp(__act, __exp, __len) == 0;			\
+	CHECK(!___ok, (name), "unexpected memory mismatch\n");		\
+	fprintf(stdout, "actual:\n");					\
+	hexdump("\t", __act, __len);					\
+	fprintf(stdout, "expected:\n");					\
+	hexdump("\t", __exp, __len);					\
 	___ok;								\
 })
 

@@ -315,7 +315,7 @@ void optc401_set_drr(
 	struct drr_params amended_params = { 0 };
 	bool program_manual_trigger = false;
 
-	if (dc->caps.dmub_caps.fams_ver >= 2 && dc->debug.fams2_config.bits.enable) {
+	if (dc->caps.dmub_caps.fams_ver == dc->debug.fams_version.ver && dc->debug.fams2_config.bits.enable) {
 		if (params != NULL &&
 				params->vertical_total_max > 0 &&
 				params->vertical_total_min > 0) {
@@ -380,7 +380,7 @@ void optc401_set_vtotal_min_max(struct timing_generator *optc, int vtotal_min, i
 {
 	struct dc *dc = optc->ctx->dc;
 
-	if (dc->caps.dmub_caps.fams_ver >= 2 && dc->debug.fams2_config.bits.enable) {
+	if (dc->caps.dmub_caps.fams_ver == dc->debug.fams_version.ver && dc->debug.fams2_config.bits.enable) {
 		/* FAMS2 */
 		dc_dmub_srv_fams2_drr_update(dc, optc->inst,
 				vtotal_min,

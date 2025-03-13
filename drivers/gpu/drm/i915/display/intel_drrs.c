@@ -68,7 +68,9 @@ const char *intel_drrs_type_str(enum drrs_type drrs_type)
 bool intel_cpu_transcoder_has_drrs(struct drm_i915_private *i915,
 				   enum transcoder cpu_transcoder)
 {
-	if (HAS_DOUBLE_BUFFERED_M_N(i915))
+	struct intel_display *display = &i915->display;
+
+	if (HAS_DOUBLE_BUFFERED_M_N(display))
 		return true;
 
 	return intel_cpu_transcoder_has_m2_n2(i915, cpu_transcoder);

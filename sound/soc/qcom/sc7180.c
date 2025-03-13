@@ -513,7 +513,7 @@ static int sc7180_snd_platform_probe(struct platform_device *pdev)
 	card->controls = sc7180_snd_controls;
 	card->num_controls = ARRAY_SIZE(sc7180_snd_controls);
 
-	if (of_property_read_bool(dev->of_node, "dmic-gpios")) {
+	if (of_property_present(dev->of_node, "dmic-gpios")) {
 		card->dapm_widgets = sc7180_snd_dual_mic_widgets,
 		card->num_dapm_widgets = ARRAY_SIZE(sc7180_snd_dual_mic_widgets),
 		card->controls = sc7180_snd_dual_mic_controls,

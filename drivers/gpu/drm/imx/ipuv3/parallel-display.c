@@ -273,7 +273,7 @@ MODULE_DEVICE_TABLE(of, imx_pd_dt_ids);
 
 static struct platform_driver imx_pd_driver = {
 	.probe		= imx_pd_probe,
-	.remove_new	= imx_pd_remove,
+	.remove		= imx_pd_remove,
 	.driver		= {
 		.of_match_table = imx_pd_dt_ids,
 		.name	= "imx-parallel-display",

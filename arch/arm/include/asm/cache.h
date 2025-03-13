@@ -26,4 +26,10 @@
 
 #define __read_mostly __section(".data..read_mostly")
 
+#ifndef __ASSEMBLY__
+#ifdef CONFIG_ARCH_HAS_CACHE_LINE_SIZE
+int cache_line_size(void);
+#endif
+#endif
+
 #endif

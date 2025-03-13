@@ -144,8 +144,7 @@ static int imx8m_reset(struct snd_sof_dev *sdev)
 
 static int imx8m_probe(struct snd_sof_dev *sdev)
 {
-	struct platform_device *pdev =
-		container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *res_node;
 	struct resource *mmio;
@@ -295,7 +294,51 @@ static struct snd_soc_dai_driver imx8m_dai[] = {
 	},
 },
 {
+	.name = "sai2",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
 	.name = "sai3",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
+	.name = "sai5",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
+	.name = "sai6",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
+	.name = "sai7",
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 32,
@@ -472,6 +515,11 @@ static const struct snd_sof_dsp_ops sof_imx8m_ops = {
 
 static struct snd_sof_of_mach sof_imx8mp_machs[] = {
 	{
+		.compatible = "fsl,imx8mp-evk-revb4",
+		.sof_tplg_filename = "sof-imx8mp-wm8962.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+	{
 		.compatible = "fsl,imx8mp-evk",
 		.sof_tplg_filename = "sof-imx8mp-wm8960.tplg",
 		.drv_name = "asoc-audio-graph-card2",
@@ -516,4 +564,4 @@ module_platform_driver(snd_sof_of_imx8m_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for IMX8M platforms");
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
+MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");

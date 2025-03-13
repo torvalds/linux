@@ -105,6 +105,7 @@ TEST_PROGS = bridge_fdb_learning_limit.sh \
 	vxlan_bridge_1q_port_8472_ipv6.sh \
 	vxlan_bridge_1q_port_8472.sh \
 	vxlan_bridge_1q.sh \
+	vxlan_reserved.sh \
 	vxlan_symmetric_ipv6.sh \
 	vxlan_symmetric.sh
 

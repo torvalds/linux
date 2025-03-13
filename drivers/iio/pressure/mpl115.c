@@ -225,7 +225,7 @@ int mpl115_probe(struct device *dev, const char *name,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(mpl115_probe, IIO_MPL115);
+EXPORT_SYMBOL_NS_GPL(mpl115_probe, "IIO_MPL115");
 
 static int mpl115_runtime_suspend(struct device *dev)
 {

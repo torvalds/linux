@@ -53,7 +53,9 @@ static ssize_t mt7915_thermal_temp_show(struct device *dev,
 
 	switch (i) {
 	case 0:
+		mutex_lock(&phy->dev->mt76.mutex);
 		temperature = mt7915_mcu_get_temperature(phy);
+		mutex_unlock(&phy->dev->mt76.mutex);
 		if (temperature < 0)
 			return temperature;
 		/* display in millidegree celcius */
@@ -82,7 +84,7 @@ static ssize_t mt7915_thermal_temp_store(struct device *dev,
 		return ret;
 
 	mutex_lock(&phy->dev->mt76.mutex);
-	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 60, 130);
+	val = DIV_ROUND_CLOSEST(clamp_val(val, 60 * 1000, 130 * 1000), 1000);
 
 	if ((i - 1 == MT7915_CRIT_TEMP_IDX &&
 	     val > phy->throttle_temp[MT7915_MAX_TEMP_IDX]) ||
@@ -95,9 +97,8 @@ static ssize_t mt7915_thermal_temp_store(struct device *dev,
 	}
 
 	phy->throttle_temp[i - 1] = val;
-	mutex_unlock(&phy->dev->mt76.mutex);
-
 	ret = mt7915_mcu_set_thermal_protect(phy);
+	mutex_unlock(&phy->dev->mt76.mutex);
 	if (ret)
 		return ret;
 
@@ -159,7 +160,9 @@ mt7915_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
 	 * cooling_device convention: 0 = no cooling, more = more cooling
 	 * mcu convention: 1 = max cooling, more = less cooling
 	 */
+	mutex_lock(&phy->dev->mt76.mutex);
 	ret = mt7915_mcu_set_thermal_throttling(phy, throttling);
+	mutex_unlock(&phy->dev->mt76.mutex);
 	if (ret)
 		return ret;
 
@@ -511,6 +514,15 @@ mt7915_mac_init_band(struct mt7915_dev *dev, u8 band)
 		   MT_WF_RMAC_MIB_QOS01_BACKOFF);
 	mt76_clear(dev, MT_WF_RMAC_MIB_AIRTIME4(band),
 		   MT_WF_RMAC_MIB_QOS23_BACKOFF);
+
+	/* clear backoff time for Tx duration */
+	mt76_clear(dev, MT_WTBLOFF_TOP_ACR(band),
+		   MT_WTBLOFF_TOP_ADM_BACKOFFTIME);
+
+	/* exclude estimated backoff time for Tx duration on MT7915 */
+	if (is_mt7915(&dev->mt76))
+		mt76_set(dev, MT_AGG_ATCR0(band),
+			   MT_AGG_ATCR_MAC_BFF_TIME_EN);
 
 	/* clear backoff time and set software compensation for OBSS time */
 	mask = MT_WF_RMAC_MIB_OBSS_BACKOFF | MT_WF_RMAC_MIB_ED_OFFSET;
@@ -1114,7 +1126,7 @@ mt7915_init_he_caps(struct mt7915_phy *phy, enum nl80211_band band,
 		memset(he_cap->ppe_thres, 0, sizeof(he_cap->ppe_thres));
 		if (he_cap_elem->phy_cap_info[6] &
 		    IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT) {
-			mt76_connac_gen_ppe_thresh(he_cap->ppe_thres, nss);
+			mt76_connac_gen_ppe_thresh(he_cap->ppe_thres, nss, band);
 		} else {
 			he_cap_elem->phy_cap_info[9] |=
 				u8_encode_bits(IEEE80211_HE_PHY_CAP9_NOMINAL_PKT_PADDING_16US,
@@ -1239,13 +1251,13 @@ int mt7915_register_device(struct mt7915_dev *dev)
 	if (ret)
 		goto unreg_dev;
 
-	ieee80211_queue_work(mt76_hw(dev), &dev->init_work);
-
 	if (phy2) {
 		ret = mt7915_register_ext_phy(dev, phy2);
 		if (ret)
 			goto unreg_thermal;
 	}
+
+	ieee80211_queue_work(mt76_hw(dev), &dev->init_work);
 
 	dev->recovery.hw_init_done = true;
 

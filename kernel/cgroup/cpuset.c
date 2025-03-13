@@ -197,10 +197,8 @@ static struct cpuset top_cpuset = {
 
 /*
  * There are two global locks guarding cpuset structures - cpuset_mutex and
- * callback_lock. We also require taking task_lock() when dereferencing a
- * task's cpuset pointer. See "The task_lock() exception", at the end of this
- * comment.  The cpuset code uses only cpuset_mutex. Other kernel subsystems
- * can use cpuset_lock()/cpuset_unlock() to prevent change to cpuset
+ * callback_lock. The cpuset code uses only cpuset_mutex. Other kernel
+ * subsystems can use cpuset_lock()/cpuset_unlock() to prevent change to cpuset
  * structures. Note that cpuset_mutex needs to be a mutex as it is used in
  * paths that rely on priority inheritance (e.g. scheduler - on RT) for
  * correctness.
@@ -229,9 +227,6 @@ static struct cpuset top_cpuset = {
  * The cpuset_common_seq_show() handlers only hold callback_lock across
  * small pieces of code, such as when reading out possibly multi-word
  * cpumasks and nodemasks.
- *
- * Accessing a task's cpuset should be done in accordance with the
- * guidelines for accessing subsystem state in kernel/cgroup.c
  */
 
 static DEFINE_MUTEX(cpuset_mutex);
@@ -890,7 +885,15 @@ v2:
 	 */
 	if (cgrpv2) {
 		for (i = 0; i < ndoms; i++) {
-			cpumask_copy(doms[i], csa[i]->effective_cpus);
+			/*
+			 * The top cpuset may contain some boot time isolated
+			 * CPUs that need to be excluded from the sched domain.
+			 */
+			if (csa[i] == &top_cpuset)
+				cpumask_and(doms[i], csa[i]->effective_cpus,
+					    housekeeping_cpumask(HK_TYPE_DOMAIN));
+			else
+				cpumask_copy(doms[i], csa[i]->effective_cpus);
 			if (dattr)
 				dattr[i] = SD_ATTR_INIT;
 		}
@@ -3121,29 +3124,6 @@ ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 	int retval = -ENODEV;
 
 	buf = strstrip(buf);
-
-	/*
-	 * CPU or memory hotunplug may leave @cs w/o any execution
-	 * resources, in which case the hotplug code asynchronously updates
-	 * configuration and transfers all tasks to the nearest ancestor
-	 * which can execute.
-	 *
-	 * As writes to "cpus" or "mems" may restore @cs's execution
-	 * resources, wait for the previously scheduled operations before
-	 * proceeding, so that we don't end up keep removing tasks added
-	 * after execution capability is restored.
-	 *
-	 * cpuset_handle_hotplug may call back into cgroup core asynchronously
-	 * via cgroup_transfer_tasks() and waiting for it from a cgroupfs
-	 * operation like this one can lead to a deadlock through kernfs
-	 * active_ref protection.  Let's break the protection.  Losing the
-	 * protection is okay as we check whether @cs is online after
-	 * grabbing cpuset_mutex anyway.  This only happens on the legacy
-	 * hierarchies.
-	 */
-	css_get(&cs->css);
-	kernfs_break_active_protection(of->kn);
-
 	cpus_read_lock();
 	mutex_lock(&cpuset_mutex);
 	if (!is_cpuset_online(cs))
@@ -3176,8 +3156,6 @@ ssize_t cpuset_write_resmask(struct kernfs_open_file *of,
 out_unlock:
 	mutex_unlock(&cpuset_mutex);
 	cpus_read_unlock();
-	kernfs_unbreak_active_protection(of->kn);
-	css_put(&cs->css);
 	flush_workqueue(cpuset_migrate_mm_wq);
 	return retval ?: nbytes;
 }

@@ -854,7 +854,7 @@ static const struct attribute_group dev_string_attr_grp = {
 
 static ssize_t
 descriptors_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
+		const struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -890,11 +890,11 @@ descriptors_read(struct file *filp, struct kobject *kobj,
 	}
 	return count - nleft;
 }
-static BIN_ATTR_RO(descriptors, 18 + 65535); /* dev descr + max-size raw descriptor */
+static const BIN_ATTR_RO(descriptors, 18 + 65535); /* dev descr + max-size raw descriptor */
 
 static ssize_t
 bos_descriptors_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
+		const struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -913,12 +913,12 @@ bos_descriptors_read(struct file *filp, struct kobject *kobj,
 	}
 	return n;
 }
-static BIN_ATTR_RO(bos_descriptors, 65535); /* max-size BOS */
+static const BIN_ATTR_RO(bos_descriptors, 65535); /* max-size BOS */
 
 /* When modifying this list, be sure to modify dev_bin_attrs_are_visible()
  * accordingly.
  */
-static struct bin_attribute *dev_bin_attrs[] = {
+static const struct bin_attribute *const dev_bin_attrs[] = {
 	&bin_attr_descriptors,
 	&bin_attr_bos_descriptors,
 	NULL
@@ -944,7 +944,7 @@ static umode_t dev_bin_attrs_are_visible(struct kobject *kobj,
 }
 
 static const struct attribute_group dev_bin_attr_grp = {
-	.bin_attrs =		dev_bin_attrs,
+	.bin_attrs_new =	dev_bin_attrs,
 	.is_bin_visible =	dev_bin_attrs_are_visible,
 };
 

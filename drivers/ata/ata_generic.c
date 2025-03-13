@@ -209,7 +209,7 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 	return ata_pci_bmdma_init_one(dev, ppi, &generic_sht, (void *)id, 0);
 }
 
-static struct pci_device_id ata_generic[] = {
+static const struct pci_device_id ata_generic[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_PCTECH, PCI_DEVICE_ID_PCTECH_SAMURAI_IDE), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HOLTEK, PCI_DEVICE_ID_HOLTEK_6565), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_UMC,    PCI_DEVICE_ID_UMC_UM8673F), },

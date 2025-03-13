@@ -320,9 +320,6 @@ int irdma_netdevice_event(struct notifier_block *notifier, unsigned long event,
 	case NETDEV_DOWN:
 		iwdev->iw_status = 0;
 		fallthrough;
-	case NETDEV_UP:
-		irdma_port_ibevent(iwdev);
-		break;
 	default:
 		break;
 	}
@@ -969,74 +966,6 @@ void irdma_terminate_del_timer(struct irdma_sc_qp *qp)
 	ret = del_timer(&iwqp->terminate_timer);
 	if (ret)
 		irdma_qp_rem_ref(&iwqp->ibqp);
-}
-
-/**
- * irdma_cqp_query_fpm_val_cmd - send cqp command for fpm
- * @dev: function device struct
- * @val_mem: buffer for fpm
- * @hmc_fn_id: function id for fpm
- */
-int irdma_cqp_query_fpm_val_cmd(struct irdma_sc_dev *dev,
-				struct irdma_dma_mem *val_mem, u8 hmc_fn_id)
-{
-	struct irdma_cqp_request *cqp_request;
-	struct cqp_cmds_info *cqp_info;
-	struct irdma_pci_f *rf = dev_to_rf(dev);
-	int status;
-
-	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
-	if (!cqp_request)
-		return -ENOMEM;
-
-	cqp_info = &cqp_request->info;
-	cqp_request->param = NULL;
-	cqp_info->in.u.query_fpm_val.cqp = dev->cqp;
-	cqp_info->in.u.query_fpm_val.fpm_val_pa = val_mem->pa;
-	cqp_info->in.u.query_fpm_val.fpm_val_va = val_mem->va;
-	cqp_info->in.u.query_fpm_val.hmc_fn_id = hmc_fn_id;
-	cqp_info->cqp_cmd = IRDMA_OP_QUERY_FPM_VAL;
-	cqp_info->post_sq = 1;
-	cqp_info->in.u.query_fpm_val.scratch = (uintptr_t)cqp_request;
-
-	status = irdma_handle_cqp_op(rf, cqp_request);
-	irdma_put_cqp_request(&rf->cqp, cqp_request);
-
-	return status;
-}
-
-/**
- * irdma_cqp_commit_fpm_val_cmd - commit fpm values in hw
- * @dev: hardware control device structure
- * @val_mem: buffer with fpm values
- * @hmc_fn_id: function id for fpm
- */
-int irdma_cqp_commit_fpm_val_cmd(struct irdma_sc_dev *dev,
-				 struct irdma_dma_mem *val_mem, u8 hmc_fn_id)
-{
-	struct irdma_cqp_request *cqp_request;
-	struct cqp_cmds_info *cqp_info;
-	struct irdma_pci_f *rf = dev_to_rf(dev);
-	int status;
-
-	cqp_request = irdma_alloc_and_get_cqp_request(&rf->cqp, true);
-	if (!cqp_request)
-		return -ENOMEM;
-
-	cqp_info = &cqp_request->info;
-	cqp_request->param = NULL;
-	cqp_info->in.u.commit_fpm_val.cqp = dev->cqp;
-	cqp_info->in.u.commit_fpm_val.fpm_val_pa = val_mem->pa;
-	cqp_info->in.u.commit_fpm_val.fpm_val_va = val_mem->va;
-	cqp_info->in.u.commit_fpm_val.hmc_fn_id = hmc_fn_id;
-	cqp_info->cqp_cmd = IRDMA_OP_COMMIT_FPM_VAL;
-	cqp_info->post_sq = 1;
-	cqp_info->in.u.commit_fpm_val.scratch = (uintptr_t)cqp_request;
-
-	status = irdma_handle_cqp_op(rf, cqp_request);
-	irdma_put_cqp_request(&rf->cqp, cqp_request);
-
-	return status;
 }
 
 /**

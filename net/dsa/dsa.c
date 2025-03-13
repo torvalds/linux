@@ -1367,7 +1367,7 @@ static int dsa_switch_parse_of(struct dsa_switch *ds, struct device_node *dn)
 	return dsa_switch_parse_ports_of(ds, dn);
 }
 
-static int dev_is_class(struct device *dev, void *class)
+static int dev_is_class(struct device *dev, const void *class)
 {
 	if (dev->class != NULL && !strcmp(dev->class->name, class))
 		return 1;

@@ -136,6 +136,25 @@ struct erdma_user_dbrecords_page {
 	int refcnt;
 };
 
+struct erdma_av {
+	u8 port;
+	u8 hop_limit;
+	u8 traffic_class;
+	u8 sl;
+	u8 sgid_index;
+	u16 udp_sport;
+	u32 flow_label;
+	u8 dmac[ETH_ALEN];
+	u8 dgid[ERDMA_ROCEV2_GID_SIZE];
+	enum erdma_network_type ntype;
+};
+
+struct erdma_ah {
+	struct ib_ah ibah;
+	struct erdma_av av;
+	u32 ahn;
+};
+
 struct erdma_uqp {
 	struct erdma_mem sq_mem;
 	struct erdma_mem rq_mem;
@@ -176,33 +195,91 @@ struct erdma_kqp {
 	u8 sig_all;
 };
 
-enum erdma_qp_state {
-	ERDMA_QP_STATE_IDLE = 0,
-	ERDMA_QP_STATE_RTR = 1,
-	ERDMA_QP_STATE_RTS = 2,
-	ERDMA_QP_STATE_CLOSING = 3,
-	ERDMA_QP_STATE_TERMINATE = 4,
-	ERDMA_QP_STATE_ERROR = 5,
-	ERDMA_QP_STATE_UNDEF = 7,
-	ERDMA_QP_STATE_COUNT = 8
+enum erdma_qps_iwarp {
+	ERDMA_QPS_IWARP_IDLE = 0,
+	ERDMA_QPS_IWARP_RTR = 1,
+	ERDMA_QPS_IWARP_RTS = 2,
+	ERDMA_QPS_IWARP_CLOSING = 3,
+	ERDMA_QPS_IWARP_TERMINATE = 4,
+	ERDMA_QPS_IWARP_ERROR = 5,
+	ERDMA_QPS_IWARP_UNDEF = 6,
+	ERDMA_QPS_IWARP_COUNT = 7,
 };
 
-enum erdma_qp_attr_mask {
-	ERDMA_QP_ATTR_STATE = (1 << 0),
-	ERDMA_QP_ATTR_LLP_HANDLE = (1 << 2),
-	ERDMA_QP_ATTR_ORD = (1 << 3),
-	ERDMA_QP_ATTR_IRD = (1 << 4),
-	ERDMA_QP_ATTR_SQ_SIZE = (1 << 5),
-	ERDMA_QP_ATTR_RQ_SIZE = (1 << 6),
-	ERDMA_QP_ATTR_MPA = (1 << 7)
+enum erdma_qpa_mask_iwarp {
+	ERDMA_QPA_IWARP_STATE = (1 << 0),
+	ERDMA_QPA_IWARP_LLP_HANDLE = (1 << 2),
+	ERDMA_QPA_IWARP_ORD = (1 << 3),
+	ERDMA_QPA_IWARP_IRD = (1 << 4),
+	ERDMA_QPA_IWARP_SQ_SIZE = (1 << 5),
+	ERDMA_QPA_IWARP_RQ_SIZE = (1 << 6),
+	ERDMA_QPA_IWARP_MPA = (1 << 7),
+	ERDMA_QPA_IWARP_CC = (1 << 8),
+};
+
+enum erdma_qps_rocev2 {
+	ERDMA_QPS_ROCEV2_RESET = 0,
+	ERDMA_QPS_ROCEV2_INIT = 1,
+	ERDMA_QPS_ROCEV2_RTR = 2,
+	ERDMA_QPS_ROCEV2_RTS = 3,
+	ERDMA_QPS_ROCEV2_SQD = 4,
+	ERDMA_QPS_ROCEV2_SQE = 5,
+	ERDMA_QPS_ROCEV2_ERROR = 6,
+	ERDMA_QPS_ROCEV2_COUNT = 7,
+};
+
+enum erdma_qpa_mask_rocev2 {
+	ERDMA_QPA_ROCEV2_STATE = (1 << 0),
+	ERDMA_QPA_ROCEV2_QKEY = (1 << 1),
+	ERDMA_QPA_ROCEV2_AV = (1 << 2),
+	ERDMA_QPA_ROCEV2_SQ_PSN = (1 << 3),
+	ERDMA_QPA_ROCEV2_RQ_PSN = (1 << 4),
+	ERDMA_QPA_ROCEV2_DST_QPN = (1 << 5),
 };
 
 enum erdma_qp_flags {
 	ERDMA_QP_IN_FLUSHING = (1 << 0),
 };
 
+#define ERDMA_QP_ACTIVE 0
+#define ERDMA_QP_PASSIVE 1
+
+struct erdma_mod_qp_params_iwarp {
+	enum erdma_qps_iwarp state;
+	enum erdma_cc_alg cc;
+	u8 qp_type;
+	u8 pd_len;
+	u32 irq_size;
+	u32 orq_size;
+};
+
+struct erdma_qp_attrs_iwarp {
+	enum erdma_qps_iwarp state;
+	u32 cookie;
+};
+
+struct erdma_mod_qp_params_rocev2 {
+	enum erdma_qps_rocev2 state;
+	u32 qkey;
+	u32 sq_psn;
+	u32 rq_psn;
+	u32 dst_qpn;
+	struct erdma_av av;
+};
+
+union erdma_mod_qp_params {
+	struct erdma_mod_qp_params_iwarp iwarp;
+	struct erdma_mod_qp_params_rocev2 rocev2;
+};
+
+struct erdma_qp_attrs_rocev2 {
+	enum erdma_qps_rocev2 state;
+	u32 qkey;
+	u32 dst_qpn;
+	struct erdma_av av;
+};
+
 struct erdma_qp_attrs {
-	enum erdma_qp_state state;
 	enum erdma_cc_alg cc; /* Congestion control algorithm */
 	u32 sq_size;
 	u32 rq_size;
@@ -210,11 +287,10 @@ struct erdma_qp_attrs {
 	u32 irq_size;
 	u32 max_send_sge;
 	u32 max_recv_sge;
-	u32 cookie;
-#define ERDMA_QP_ACTIVE 0
-#define ERDMA_QP_PASSIVE 1
-	u8 qp_type;
-	u8 pd_len;
+	union {
+		struct erdma_qp_attrs_iwarp iwarp;
+		struct erdma_qp_attrs_rocev2 rocev2;
+	};
 };
 
 struct erdma_qp {
@@ -286,10 +362,24 @@ static inline struct erdma_cq *find_cq_by_cqn(struct erdma_dev *dev, int id)
 
 void erdma_qp_get(struct erdma_qp *qp);
 void erdma_qp_put(struct erdma_qp *qp);
-int erdma_modify_qp_internal(struct erdma_qp *qp, struct erdma_qp_attrs *attrs,
-			     enum erdma_qp_attr_mask mask);
+int erdma_modify_qp_state_iwarp(struct erdma_qp *qp,
+				struct erdma_mod_qp_params_iwarp *params,
+				int mask);
+int erdma_modify_qp_state_rocev2(struct erdma_qp *qp,
+				 struct erdma_mod_qp_params_rocev2 *params,
+				 int attr_mask);
 void erdma_qp_llp_close(struct erdma_qp *qp);
 void erdma_qp_cm_drop(struct erdma_qp *qp);
+
+static inline bool erdma_device_iwarp(struct erdma_dev *dev)
+{
+	return dev->proto == ERDMA_PROTO_IWARP;
+}
+
+static inline bool erdma_device_rocev2(struct erdma_dev *dev)
+{
+	return dev->proto == ERDMA_PROTO_ROCEV2;
+}
 
 static inline struct erdma_ucontext *to_ectx(struct ib_ucontext *ibctx)
 {
@@ -314,6 +404,21 @@ static inline struct erdma_qp *to_eqp(struct ib_qp *qp)
 static inline struct erdma_cq *to_ecq(struct ib_cq *ibcq)
 {
 	return container_of(ibcq, struct erdma_cq, ibcq);
+}
+
+static inline struct erdma_ah *to_eah(struct ib_ah *ibah)
+{
+	return container_of(ibah, struct erdma_ah, ibah);
+}
+
+static inline int erdma_check_gid_attr(const struct ib_gid_attr *attr)
+{
+	u8 ntype = rdma_gid_attr_network_type(attr);
+
+	if (ntype != RDMA_NETWORK_IPV4 && ntype != RDMA_NETWORK_IPV6)
+		return -EINVAL;
+
+	return 0;
 }
 
 static inline struct erdma_user_mmap_entry *
@@ -360,6 +465,7 @@ int erdma_post_send(struct ib_qp *ibqp, const struct ib_send_wr *send_wr,
 int erdma_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *recv_wr,
 		    const struct ib_recv_wr **bad_recv_wr);
 int erdma_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
+void erdma_remove_cqes_of_qp(struct ib_cq *ibcq, u32 qpn);
 struct ib_mr *erdma_ib_alloc_mr(struct ib_pd *ibpd, enum ib_mr_type mr_type,
 				u32 max_num_sg);
 int erdma_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
@@ -370,5 +476,15 @@ struct rdma_hw_stats *erdma_alloc_hw_port_stats(struct ib_device *device,
 						u32 port_num);
 int erdma_get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 		       u32 port, int index);
+enum rdma_link_layer erdma_get_link_layer(struct ib_device *ibdev,
+					  u32 port_num);
+int erdma_add_gid(const struct ib_gid_attr *attr, void **context);
+int erdma_del_gid(const struct ib_gid_attr *attr, void **context);
+int erdma_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey);
+void erdma_set_av_cfg(struct erdma_av_cfg *av_cfg, struct erdma_av *av);
+int erdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
+		    struct ib_udata *udata);
+int erdma_destroy_ah(struct ib_ah *ibah, u32 flags);
+int erdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 
 #endif

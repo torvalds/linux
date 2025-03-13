@@ -408,9 +408,9 @@ void rxrpc_kernel_shutdown_call(struct socket *sock, struct rxrpc_call *call)
 
 		/* Make sure we're not going to call back into a kernel service */
 		if (call->notify_rx) {
-			spin_lock(&call->notify_lock);
+			spin_lock_irq(&call->notify_lock);
 			call->notify_rx = rxrpc_dummy_notify_rx;
-			spin_unlock(&call->notify_lock);
+			spin_unlock_irq(&call->notify_lock);
 		}
 	}
 	mutex_unlock(&call->user_mutex);

@@ -237,7 +237,7 @@ static uint64_t set_metadata(uint64_t src, unsigned long lam)
  * both pointers should point to the same address.
  *
  * @return:
- * 0: value on the pointer with metadate and value on original are same
+ * 0: value on the pointer with metadata and value on original are same
  * 1: not same.
  */
 static int handle_lam_test(void *src, unsigned int lam)

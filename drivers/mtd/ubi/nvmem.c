@@ -55,7 +55,7 @@ static int ubi_nvmem_reg_read(void *priv, unsigned int from,
 	if (err)
 		return err;
 
-	return bytes_left == 0 ? 0 : -EIO;
+	return 0;
 }
 
 static int ubi_nvmem_add(struct ubi_volume_info *vi)

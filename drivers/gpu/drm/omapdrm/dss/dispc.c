@@ -4766,7 +4766,7 @@ static const struct dev_pm_ops dispc_pm_ops = {
 
 struct platform_driver omap_dispchw_driver = {
 	.probe		= dispc_probe,
-	.remove_new     = dispc_remove,
+	.remove		= dispc_remove,
 	.driver         = {
 		.name   = "omapdss_dispc",
 		.pm	= &dispc_pm_ops,

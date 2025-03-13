@@ -60,6 +60,7 @@ Storage interfaces
    cdrom/index
    scsi/index
    target/index
+   nvme/index
 
 Other subsystems
 ----------------

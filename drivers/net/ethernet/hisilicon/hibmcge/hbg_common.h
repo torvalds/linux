@@ -4,6 +4,7 @@
 #ifndef __HBG_COMMON_H
 #define __HBG_COMMON_H
 
+#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include "hbg_reg.h"
@@ -33,6 +34,14 @@ enum hbg_tx_state {
 
 enum hbg_nic_state {
 	HBG_NIC_STATE_EVENT_HANDLING = 0,
+	HBG_NIC_STATE_RESETTING,
+	HBG_NIC_STATE_RESET_FAIL,
+};
+
+enum hbg_reset_type {
+	HBG_RESET_TYPE_NONE = 0,
+	HBG_RESET_TYPE_FLR,
+	HBG_RESET_TYPE_FUNCTION,
 };
 
 struct hbg_buffer {
@@ -84,6 +93,7 @@ struct hbg_dev_specs {
 	u32 vlan_layers;
 	u32 max_mtu;
 	u32 min_mtu;
+	u32 uc_mac_num;
 
 	u32 max_frame_len;
 	u32 rx_buf_size;
@@ -114,6 +124,22 @@ struct hbg_mac {
 	u32 duplex;
 	u32 autoneg;
 	u32 link_status;
+	u32 pause_autoneg;
+};
+
+struct hbg_mac_table_entry {
+	u8 addr[ETH_ALEN];
+};
+
+struct hbg_mac_filter {
+	struct hbg_mac_table_entry *mac_table;
+	u32 table_max_len;
+	bool enabled;
+};
+
+/* saved for restore after rest */
+struct hbg_user_def {
+	struct ethtool_pauseparam pause_param;
 };
 
 struct hbg_priv {
@@ -126,6 +152,9 @@ struct hbg_priv {
 	struct hbg_vector vectors;
 	struct hbg_ring tx_ring;
 	struct hbg_ring rx_ring;
+	struct hbg_mac_filter filter;
+	enum hbg_reset_type reset_type;
+	struct hbg_user_def user_def;
 };
 
 #endif

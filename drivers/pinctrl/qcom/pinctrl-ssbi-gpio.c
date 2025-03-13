@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
@@ -569,7 +570,7 @@ static void pm8xxx_gpio_dbg_show_one(struct seq_file *s,
 		seq_printf(s, " VIN%d", pin->power_source);
 		seq_printf(s, " %-27s", biases[pin->bias]);
 		seq_printf(s, " %-10s", buffer_types[pin->open_drain]);
-		seq_printf(s, " %-4s", pin->output_value ? "high" : "low");
+		seq_printf(s, " %-4s", str_high_low(pin->output_value));
 		seq_printf(s, " %-7s", strengths[pin->output_strength]);
 		if (pin->inverted)
 			seq_puts(s, " inverted");

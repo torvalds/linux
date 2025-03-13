@@ -306,7 +306,7 @@ static struct platform_driver omap_cf_driver = {
 	.driver = {
 		.name	= driver_name,
 	},
-	.remove_new	= __exit_p(omap_cf_remove),
+	.remove		= __exit_p(omap_cf_remove),
 };
 
 static int __init omap_cf_init(void)

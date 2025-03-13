@@ -34,6 +34,9 @@ properties:
   regulator-input-current-limit-microamp:
     description: maximum input current regulator allows
 
+  regulator-power-budget-milliwatt:
+    description: power budget of the regulator
+
   regulator-always-on:
     description: boolean, regulator should never be disabled
     type: boolean

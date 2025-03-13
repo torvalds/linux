@@ -26,6 +26,8 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,qcs615-pdc
+          - qcom,qcs8300-pdc
           - qcom,qdu1000-pdc
           - qcom,sa8255p-pdc
           - qcom,sa8775p-pdc
@@ -47,6 +49,7 @@ properties:
           - qcom,sm8450-pdc
           - qcom,sm8550-pdc
           - qcom,sm8650-pdc
+          - qcom,sm8750-pdc
           - qcom,x1e80100-pdc
       - const: qcom,pdc
 

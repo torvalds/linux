@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/string_choices.h>
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <linux/mmc/sdio_func.h>
@@ -88,7 +89,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 			else
 				adapter->psmode = 0;
 			BT_DBG("PS Mode:%s",
-				(adapter->psmode) ? "Enable" : "Disable");
+			       str_enable_disable(adapter->psmode));
 		} else {
 			BT_DBG("PS Mode command failed");
 		}

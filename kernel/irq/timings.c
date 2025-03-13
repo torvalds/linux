@@ -509,6 +509,7 @@ static inline void irq_timings_store(int irq, struct irqt_stat *irqs, u64 ts)
 
 /**
  * irq_timings_next_event - Return when the next event is supposed to arrive
+ * @now: current time
  *
  * During the last busy cycle, the number of interrupts is incremented
  * and stored in the irq_timings structure. This information is

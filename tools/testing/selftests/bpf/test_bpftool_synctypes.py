@@ -66,7 +66,7 @@ class ArrayParser(BlockParser):
 
     def __init__(self, reader, array_name):
         self.array_name = array_name
-        self.start_marker = re.compile(f'(static )?const bool {self.array_name}\[.*\] = {{\n')
+        self.start_marker = re.compile(fr'(static )?const bool {self.array_name}\[.*\] = {{\n')
         super().__init__(reader)
 
     def search_block(self):
@@ -80,7 +80,7 @@ class ArrayParser(BlockParser):
         Parse a block and return data as a dictionary. Items to extract must be
         on separate lines in the file.
         """
-        pattern = re.compile('\[(BPF_\w*)\]\s*= (true|false),?$')
+        pattern = re.compile(r'\[(BPF_\w*)\]\s*= (true|false),?$')
         entries = set()
         while True:
             line = self.reader.readline()
@@ -178,7 +178,7 @@ class FileExtractor(object):
         @enum_name: name of the enum to parse
         """
         start_marker = re.compile(f'enum {enum_name} {{\n')
-        pattern = re.compile('^\s*(BPF_\w+),?(\s+/\*.*\*/)?$')
+        pattern = re.compile(r'^\s*(BPF_\w+),?(\s+/\*.*\*/)?$')
         end_marker = re.compile('^};')
         parser = BlockParser(self.reader)
         parser.search_block(start_marker)
@@ -226,8 +226,8 @@ class FileExtractor(object):
 
         @block_name: name of the blog to parse, 'TYPE' in the example
         """
-        start_marker = re.compile(f'\*{block_name}\* := {{')
-        pattern = re.compile('\*\*([\w/-]+)\*\*')
+        start_marker = re.compile(fr'\*{block_name}\* := {{')
+        pattern = re.compile(r'\*\*([\w/-]+)\*\*')
         end_marker = re.compile('}\n')
         return self.__get_description_list(start_marker, pattern, end_marker)
 
@@ -245,8 +245,8 @@ class FileExtractor(object):
 
         @block_name: name of the blog to parse, 'TYPE' in the example
         """
-        start_marker = re.compile(f'"\s*{block_name} := {{')
-        pattern = re.compile('([\w/]+) [|}]')
+        start_marker = re.compile(fr'"\s*{block_name} := {{')
+        pattern = re.compile(r'([\w/]+) [|}]')
         end_marker = re.compile('}')
         return self.__get_description_list(start_marker, pattern, end_marker)
 
@@ -264,8 +264,8 @@ class FileExtractor(object):
 
         @macro: macro starting the block, 'HELP_SPEC_OPTIONS' in the example
         """
-        start_marker = re.compile(f'"\s*{macro}\s*" [|}}]')
-        pattern = re.compile('([\w-]+) ?(?:\||}[ }\]])')
+        start_marker = re.compile(fr'"\s*{macro}\s*" [|}}]')
+        pattern = re.compile(r'([\w-]+) ?(?:\||}[ }\]])')
         end_marker = re.compile('}\\\\n')
         return self.__get_description_list(start_marker, pattern, end_marker)
 
@@ -283,8 +283,8 @@ class FileExtractor(object):
 
         @block_name: name of the blog to parse, 'TYPE' in the example
         """
-        start_marker = re.compile(f'local {block_name}=\'')
-        pattern = re.compile('(?:.*=\')?([\w/]+)')
+        start_marker = re.compile(fr'local {block_name}=\'')
+        pattern = re.compile(r'(?:.*=\')?([\w/]+)')
         end_marker = re.compile('\'$')
         return self.__get_description_list(start_marker, pattern, end_marker)
 
@@ -316,7 +316,7 @@ class MainHeaderFileExtractor(SourceFileExtractor):
             {'-p', '-d', '--pretty', '--debug', '--json', '-j'}
         """
         start_marker = re.compile(f'"OPTIONS :=')
-        pattern = re.compile('([\w-]+) ?(?:\||}[ }\]"])')
+        pattern = re.compile(r'([\w-]+) ?(?:\||}[ }\]"])')
         end_marker = re.compile('#define')
 
         parser = InlineListParser(self.reader)
@@ -338,8 +338,8 @@ class ManSubstitutionsExtractor(SourceFileExtractor):
 
             {'-p', '-d', '--pretty', '--debug', '--json', '-j'}
         """
-        start_marker = re.compile('\|COMMON_OPTIONS\| replace:: {')
-        pattern = re.compile('\*\*([\w/-]+)\*\*')
+        start_marker = re.compile(r'\|COMMON_OPTIONS\| replace:: {')
+        pattern = re.compile(r'\*\*([\w/-]+)\*\*')
         end_marker = re.compile('}$')
 
         parser = InlineListParser(self.reader)

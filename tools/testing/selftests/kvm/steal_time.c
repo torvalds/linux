@@ -269,9 +269,8 @@ static void guest_code(int cpu)
 static bool is_steal_time_supported(struct kvm_vcpu *vcpu)
 {
 	uint64_t id = RISCV_SBI_EXT_REG(KVM_RISCV_SBI_EXT_STA);
-	unsigned long enabled;
+	unsigned long enabled = vcpu_get_reg(vcpu, id);
 
-	vcpu_get_reg(vcpu, id, &enabled);
 	TEST_ASSERT(enabled == 0 || enabled == 1, "Expected boolean result");
 
 	return enabled;

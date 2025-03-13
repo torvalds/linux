@@ -110,7 +110,7 @@ static int w1_f23_refresh_block(struct w1_slave *sl, struct w1_f23_data *data,
 #endif	/* CONFIG_W1_SLAVE_DS2433_CRC */
 
 static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
-			   struct bin_attribute *bin_attr, char *buf,
+			   const struct bin_attribute *bin_attr, char *buf,
 			   loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -224,7 +224,7 @@ static int w1_f23_write(struct w1_slave *sl, int addr, int len, const u8 *data)
 }
 
 static ssize_t eeprom_write(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *bin_attr, char *buf,
+			    const struct bin_attribute *bin_attr, char *buf,
 			    loff_t off, size_t count)
 {
 	struct w1_slave *sl = kobj_to_w1_slave(kobj);
@@ -274,27 +274,27 @@ out_up:
 	return count;
 }
 
-static struct bin_attribute bin_attr_f23_eeprom = {
+static const struct bin_attribute bin_attr_f23_eeprom = {
 	.attr = { .name = "eeprom", .mode = 0644 },
-	.read = eeprom_read,
-	.write = eeprom_write,
+	.read_new = eeprom_read,
+	.write_new = eeprom_write,
 	.size = W1_EEPROM_DS2433_SIZE,
 };
 
-static struct bin_attribute bin_attr_f43_eeprom = {
+static const struct bin_attribute bin_attr_f43_eeprom = {
 	.attr = { .name = "eeprom", .mode = 0644 },
-	.read = eeprom_read,
-	.write = eeprom_write,
+	.read_new = eeprom_read,
+	.write_new = eeprom_write,
 	.size = W1_EEPROM_DS28EC20_SIZE,
 };
 
-static struct bin_attribute *w1_f23_bin_attributes[] = {
+static const struct bin_attribute *const w1_f23_bin_attributes[] = {
 	&bin_attr_f23_eeprom,
 	NULL,
 };
 
 static const struct attribute_group w1_f23_group = {
-	.bin_attrs = w1_f23_bin_attributes,
+	.bin_attrs_new = w1_f23_bin_attributes,
 };
 
 static const struct attribute_group *w1_f23_groups[] = {
@@ -302,13 +302,13 @@ static const struct attribute_group *w1_f23_groups[] = {
 	NULL,
 };
 
-static struct bin_attribute *w1_f43_bin_attributes[] = {
+static const struct bin_attribute *const w1_f43_bin_attributes[] = {
 	&bin_attr_f43_eeprom,
 	NULL,
 };
 
 static const struct attribute_group w1_f43_group = {
-	.bin_attrs = w1_f43_bin_attributes,
+	.bin_attrs_new = w1_f43_bin_attributes,
 };
 
 static const struct attribute_group *w1_f43_groups[] = {

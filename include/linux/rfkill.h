@@ -241,7 +241,7 @@ bool rfkill_soft_blocked(struct rfkill *rfkill);
  * rfkill_find_type - Helper for finding rfkill type by name
  * @name: the name of the type
  *
- * Returns enum rfkill_type that corresponds to the name.
+ * Returns: enum rfkill_type that corresponds to the name.
  */
 enum rfkill_type rfkill_find_type(const char *name);
 

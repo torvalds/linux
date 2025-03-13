@@ -179,7 +179,7 @@ const struct security_class_mapping secclass_map[] = {
 	{ "anon_inode", { COMMON_FILE_PERMS, NULL } },
 	{ "io_uring", { "override_creds", "sqpoll", "cmd", NULL } },
 	{ "user_namespace", { "create", NULL } },
-	{ NULL }
+	/* last one */ { NULL, {} }
 };
 
 #ifdef __KERNEL__ /* avoid this check when building host programs */

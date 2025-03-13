@@ -81,4 +81,16 @@ config KUNIT_DEFAULT_ENABLED
 	  In most cases this should be left as Y. Only if additional opt-in
 	  behavior is needed should this be set to N.
 
+config KUNIT_AUTORUN_ENABLED
+	bool "Default value of kunit.autorun"
+	default y
+	help
+	  Sets the default value of kunit.autorun. If set to N then KUnit
+	  tests will not run after initialization unless kunit.autorun=1 is
+	  passed to the kernel command line. The test can still be run manually
+	  via debugfs interface.
+
+	  In most cases this should be left as Y. Only if additional opt-in
+	  behavior is needed should this be set to N.
+
 endif # KUNIT

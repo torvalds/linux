@@ -11,6 +11,7 @@
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/types.h>
 
 #include <linux/pinctrl/pinconf-generic.h>
@@ -544,7 +545,7 @@ static void pmic_mpp_config_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, " %d", pad->aout_level);
 		if (pad->has_pullup)
 			seq_printf(s, " %-8s", biases[pad->pullup]);
-		seq_printf(s, " %-4s", pad->out_value ? "high" : "low");
+		seq_printf(s, " %-4s", str_high_low(pad->out_value));
 		if (pad->dtest)
 			seq_printf(s, " dtest%d", pad->dtest);
 		if (pad->paired)

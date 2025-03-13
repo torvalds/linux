@@ -469,8 +469,21 @@ xfs_fill_fsxattr(
 		}
 	}
 
-	if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE)
-		fa->fsx_cowextsize = XFS_FSB_TO_B(mp, ip->i_cowextsize);
+	if (ip->i_diflags2 & XFS_DIFLAG2_COWEXTSIZE) {
+		/*
+		 * Don't let a misaligned CoW extent size hint on a directory
+		 * escape to userspace if it won't pass the setattr checks
+		 * later.
+		 */
+		if ((ip->i_diflags & XFS_DIFLAG_RTINHERIT) &&
+		    ip->i_cowextsize % mp->m_sb.sb_rextsize > 0) {
+			fa->fsx_xflags &= ~FS_XFLAG_COWEXTSIZE;
+			fa->fsx_cowextsize = 0;
+		} else {
+			fa->fsx_cowextsize = XFS_FSB_TO_B(mp, ip->i_cowextsize);
+		}
+	}
+
 	fa->fsx_projid = ip->i_projid;
 	if (ifp && !xfs_need_iread_extents(ifp))
 		fa->fsx_nextents = xfs_iext_count(ifp);
@@ -541,10 +554,6 @@ xfs_ioctl_setattr_xflags(
 		if (mp->m_sb.sb_rblocks == 0 || mp->m_sb.sb_rextsize == 0 ||
 		    xfs_extlen_to_rtxmod(mp, ip->i_extsize))
 			return -EINVAL;
-
-		/* Clear reflink if we are actually able to set the rt flag. */
-		if (xfs_is_reflink_inode(ip))
-			ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 	}
 
 	/* diflags2 only valid for v3 inodes. */
@@ -1204,7 +1213,16 @@ xfs_file_ioctl(
 		struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
 		struct dioattr		da;
 
-		da.d_mem =  da.d_miniosz = target->bt_logical_sectorsize;
+		da.d_mem = target->bt_logical_sectorsize;
+
+		/*
+		 * See xfs_report_dioalign() for an explanation about why this
+		 * reports a value larger than the sector size for COW inodes.
+		 */
+		if (xfs_is_cow_inode(ip))
+			da.d_miniosz = xfs_inode_alloc_unitsize(ip);
+		else
+			da.d_miniosz = target->bt_logical_sectorsize;
 		da.d_maxiosz = INT_MAX & ~(da.d_miniosz - 1);
 
 		if (copy_to_user(arg, &da, sizeof(da)))

@@ -619,6 +619,8 @@ static int host1x_probe(struct platform_device *pdev)
 		goto free_contexts;
 	}
 
+	mutex_init(&host->intr_mutex);
+
 	pm_runtime_enable(&pdev->dev);
 
 	err = devm_tegra_core_dev_init_opp_table_common(&pdev->dev);
@@ -769,7 +771,7 @@ static struct platform_driver tegra_host1x_driver = {
 		.pm = &host1x_pm_ops,
 	},
 	.probe = host1x_probe,
-	.remove_new = host1x_remove,
+	.remove = host1x_remove,
 };
 
 static struct platform_driver * const drivers[] = {

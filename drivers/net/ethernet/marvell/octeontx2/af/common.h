@@ -159,6 +159,7 @@ enum nix_scheduler {
 #define	SDP_HW_MIN_FRS			16
 #define CN10K_LMAC_LINK_MAX_FRS		16380 /* 16k - FCS */
 #define CN10K_LBK_LINK_MAX_FRS		65535 /* 64k */
+#define SDP_LINK_CREDIT			0x320202
 
 /* NIX RX action operation*/
 #define NIX_RX_ACTIONOP_DROP		(0x0ull)

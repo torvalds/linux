@@ -47,7 +47,7 @@ ROCCAT_COMMON2_BIN_ATTRIBUTE_R(tcu_image, 0x0c, 0x0404);
 ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(sensor, 0x0f, 0x06);
 ROCCAT_COMMON2_BIN_ATTRIBUTE_W(talk, 0x10, 0x10);
 
-static struct bin_attribute *konepure_bin_attrs[] = {
+static const struct bin_attribute *const konepure_bin_attrs[] = {
 	&bin_attr_actual_profile,
 	&bin_attr_control,
 	&bin_attr_info,
@@ -62,7 +62,7 @@ static struct bin_attribute *konepure_bin_attrs[] = {
 };
 
 static const struct attribute_group konepure_group = {
-	.bin_attrs = konepure_bin_attrs,
+	.bin_attrs_new = konepure_bin_attrs,
 };
 
 static const struct attribute_group *konepure_groups[] = {

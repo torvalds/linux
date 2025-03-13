@@ -14,8 +14,8 @@
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
-#include "i915_drv.h"
 #include "intel_crtc.h"
+#include "intel_display_core.h"
 #include "intel_display_limits.h"
 #include "intel_display_types.h"
 #include "intel_vblank.h"

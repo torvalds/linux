@@ -15,6 +15,7 @@
  */
 
 #include <crypto/aria.h>
+#include <linux/unaligned.h>
 
 static const u32 key_rc[20] = {
 	0x517cc1b7, 0x27220a94, 0xfe13abe8, 0xfa9a6ee0,
@@ -27,7 +28,6 @@ static const u32 key_rc[20] = {
 static void aria_set_encrypt_key(struct aria_ctx *ctx, const u8 *in_key,
 				 unsigned int key_len)
 {
-	const __be32 *key = (const __be32 *)in_key;
 	u32 w0[4], w1[4], w2[4], w3[4];
 	u32 reg0, reg1, reg2, reg3;
 	const u32 *ck;
@@ -35,10 +35,10 @@ static void aria_set_encrypt_key(struct aria_ctx *ctx, const u8 *in_key,
 
 	ck = &key_rc[(key_len - 16) / 2];
 
-	w0[0] = be32_to_cpu(key[0]);
-	w0[1] = be32_to_cpu(key[1]);
-	w0[2] = be32_to_cpu(key[2]);
-	w0[3] = be32_to_cpu(key[3]);
+	w0[0] = get_unaligned_be32(&in_key[0]);
+	w0[1] = get_unaligned_be32(&in_key[4]);
+	w0[2] = get_unaligned_be32(&in_key[8]);
+	w0[3] = get_unaligned_be32(&in_key[12]);
 
 	reg0 = w0[0] ^ ck[0];
 	reg1 = w0[1] ^ ck[1];
@@ -48,11 +48,11 @@ static void aria_set_encrypt_key(struct aria_ctx *ctx, const u8 *in_key,
 	aria_subst_diff_odd(&reg0, &reg1, &reg2, &reg3);
 
 	if (key_len > 16) {
-		w1[0] = be32_to_cpu(key[4]);
-		w1[1] = be32_to_cpu(key[5]);
+		w1[0] = get_unaligned_be32(&in_key[16]);
+		w1[1] = get_unaligned_be32(&in_key[20]);
 		if (key_len > 24) {
-			w1[2] = be32_to_cpu(key[6]);
-			w1[3] = be32_to_cpu(key[7]);
+			w1[2] = get_unaligned_be32(&in_key[24]);
+			w1[3] = get_unaligned_be32(&in_key[28]);
 		} else {
 			w1[2] = 0;
 			w1[3] = 0;
@@ -195,17 +195,15 @@ EXPORT_SYMBOL_GPL(aria_set_key);
 static void __aria_crypt(struct aria_ctx *ctx, u8 *out, const u8 *in,
 			 u32 key[][ARIA_RD_KEY_WORDS])
 {
-	const __be32 *src = (const __be32 *)in;
-	__be32 *dst = (__be32 *)out;
 	u32 reg0, reg1, reg2, reg3;
 	int rounds, rkidx = 0;
 
 	rounds = ctx->rounds;
 
-	reg0 = be32_to_cpu(src[0]);
-	reg1 = be32_to_cpu(src[1]);
-	reg2 = be32_to_cpu(src[2]);
-	reg3 = be32_to_cpu(src[3]);
+	reg0 = get_unaligned_be32(&in[0]);
+	reg1 = get_unaligned_be32(&in[4]);
+	reg2 = get_unaligned_be32(&in[8]);
+	reg3 = get_unaligned_be32(&in[12]);
 
 	aria_add_round_key(key[rkidx], &reg0, &reg1, &reg2, &reg3);
 	rkidx++;
@@ -241,10 +239,10 @@ static void __aria_crypt(struct aria_ctx *ctx, u8 *out, const u8 *in,
 					(u8)(s1[get_u8(reg3, 2)]),
 					(u8)(s2[get_u8(reg3, 3)]));
 
-	dst[0] = cpu_to_be32(reg0);
-	dst[1] = cpu_to_be32(reg1);
-	dst[2] = cpu_to_be32(reg2);
-	dst[3] = cpu_to_be32(reg3);
+	put_unaligned_be32(reg0, &out[0]);
+	put_unaligned_be32(reg1, &out[4]);
+	put_unaligned_be32(reg2, &out[8]);
+	put_unaligned_be32(reg3, &out[12]);
 }
 
 void aria_encrypt(void *_ctx, u8 *out, const u8 *in)
@@ -284,7 +282,6 @@ static struct crypto_alg aria_alg = {
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	ARIA_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct aria_ctx),
-	.cra_alignmask		=	3,
 	.cra_module		=	THIS_MODULE,
 	.cra_u			=	{
 		.cipher = {

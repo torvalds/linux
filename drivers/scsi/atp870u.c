@@ -1743,7 +1743,7 @@ static const struct scsi_host_template atp870u_template = {
      .max_sectors		= ATP870U_MAX_SECTORS,
 };
 
-static struct pci_device_id atp870u_id_table[] = {
+static const struct pci_device_id atp870u_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ARTOP, ATP885_DEVID)			  },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ARTOP, ATP880_DEVID1)		  },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ARTOP, ATP880_DEVID2)		  },

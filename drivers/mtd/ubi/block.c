@@ -383,7 +383,7 @@ int ubiblock_create(struct ubi_volume_info *vi)
 	dev->tag_set.ops = &ubiblock_mq_ops;
 	dev->tag_set.queue_depth = 64;
 	dev->tag_set.numa_node = NUMA_NO_NODE;
-	dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING;
+	dev->tag_set.flags = BLK_MQ_F_BLOCKING;
 	dev->tag_set.cmd_size = sizeof(struct ubiblock_pdu);
 	dev->tag_set.driver_data = dev;
 	dev->tag_set.nr_hw_queues = 1;

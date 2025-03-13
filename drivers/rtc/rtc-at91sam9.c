@@ -353,7 +353,7 @@ static int at91_rtc_probe(struct platform_device *pdev)
 
 	/* platform setup code should have handled this; sigh */
 	if (!device_can_wakeup(&pdev->dev))
-		device_init_wakeup(&pdev->dev, 1);
+		device_init_wakeup(&pdev->dev, true);
 
 	platform_set_drvdata(pdev, rtc);
 
@@ -530,7 +530,7 @@ MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
 
 static struct platform_driver at91_rtc_driver = {
 	.probe		= at91_rtc_probe,
-	.remove_new	= at91_rtc_remove,
+	.remove		= at91_rtc_remove,
 	.shutdown	= at91_rtc_shutdown,
 	.driver		= {
 		.name	= "rtc-at91sam9",

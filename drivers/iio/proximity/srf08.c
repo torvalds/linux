@@ -66,7 +66,7 @@ struct srf08_data {
 	/* Ensure timestamp is naturally aligned */
 	struct {
 		s16 chan;
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 
 	/* Sensor-Type */

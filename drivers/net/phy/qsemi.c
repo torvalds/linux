@@ -155,7 +155,7 @@ static struct phy_driver qs6612_driver[] = { {
 
 module_phy_driver(qs6612_driver);
 
-static struct mdio_device_id __maybe_unused qs6612_tbl[] = {
+static const struct mdio_device_id __maybe_unused qs6612_tbl[] = {
 	{ 0x00181440, 0xfffffff0 },
 	{ }
 };

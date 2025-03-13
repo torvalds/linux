@@ -309,6 +309,8 @@ int nilfs_commit_super(struct super_block *sb, int flag)
  * This function restores state flags in the on-disk super block.
  * This will set "clean" flag (i.e. NILFS_VALID_FS) unless the
  * filesystem was not clean previously.
+ *
+ * Return: 0 on success, %-EIO if I/O error or superblock is corrupted.
  */
 int nilfs_cleanup_super(struct super_block *sb)
 {
@@ -339,6 +341,8 @@ int nilfs_cleanup_super(struct super_block *sb)
  * nilfs_move_2nd_super - relocate secondary super block
  * @sb: super block instance
  * @sb2off: new offset of the secondary super block (in bytes)
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_move_2nd_super(struct super_block *sb, loff_t sb2off)
 {
@@ -420,6 +424,8 @@ out:
  * nilfs_resize_fs - resize the filesystem
  * @sb: super block instance
  * @newsize: new size of the filesystem (in bytes)
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_resize_fs(struct super_block *sb, __u64 newsize)
 {
@@ -987,7 +993,7 @@ static int nilfs_attach_snapshot(struct super_block *s, __u64 cno,
  * nilfs_tree_is_busy() - try to shrink dentries of a checkpoint
  * @root_dentry: root dentry of the tree to be shrunk
  *
- * This function returns true if the tree was in-use.
+ * Return: true if the tree was in-use, false otherwise.
  */
 static bool nilfs_tree_is_busy(struct dentry *root_dentry)
 {
@@ -1033,6 +1039,8 @@ int nilfs_checkpoint_is_mounted(struct super_block *sb, __u64 cno)
  *
  * This function is called exclusively by nilfs->ns_mount_mutex.
  * So, the recovery process is protected from other simultaneous mounts.
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int
 nilfs_fill_super(struct super_block *sb, struct fs_context *fc)

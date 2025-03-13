@@ -327,4 +327,4 @@ MODULE_DESCRIPTION("Flex Timer Module Quadrature decoder");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kjeld Flarup <kfa@deif.com>");
 MODULE_AUTHOR("Patrick Havelange <patrick.havelange@essensium.com>");
-MODULE_IMPORT_NS(COUNTER);
+MODULE_IMPORT_NS("COUNTER");

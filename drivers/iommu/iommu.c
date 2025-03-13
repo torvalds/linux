@@ -1756,7 +1756,7 @@ static int iommu_get_def_domain_type(struct iommu_group *group,
 		group->id);
 
 	/*
-	 * Try to recover, drivers are allowed to force IDENITY or DMA, IDENTITY
+	 * Try to recover, drivers are allowed to force IDENTITY or DMA, IDENTITY
 	 * takes precedence.
 	 */
 	if (type == IOMMU_DOMAIN_IDENTITY)
@@ -2211,7 +2211,7 @@ int iommu_group_replace_domain(struct iommu_group *group,
 	mutex_unlock(&group->mutex);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(iommu_group_replace_domain, IOMMUFD_INTERNAL);
+EXPORT_SYMBOL_NS_GPL(iommu_group_replace_domain, "IOMMUFD_INTERNAL");
 
 static int __iommu_device_set_domain(struct iommu_group *group,
 				     struct device *dev,
@@ -2819,7 +2819,7 @@ int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode)
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 
 	if (!ops)
-		return -EPROBE_DEFER;
+		return driver_deferred_probe_check_state(dev);
 
 	if (fwspec)
 		return ops == iommu_fwspec_ops(fwspec) ? 0 : -EINVAL;
@@ -3312,6 +3312,16 @@ bool iommu_group_dma_owner_claimed(struct iommu_group *group)
 }
 EXPORT_SYMBOL_GPL(iommu_group_dma_owner_claimed);
 
+static void iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid,
+				   struct iommu_domain *domain)
+{
+	const struct iommu_ops *ops = dev_iommu_ops(dev);
+	struct iommu_domain *blocked_domain = ops->blocked_domain;
+
+	WARN_ON(blocked_domain->ops->set_dev_pasid(blocked_domain,
+						   dev, pasid, domain));
+}
+
 static int __iommu_set_group_pasid(struct iommu_domain *domain,
 				   struct iommu_group *group, ioasid_t pasid)
 {
@@ -3330,11 +3340,9 @@ static int __iommu_set_group_pasid(struct iommu_domain *domain,
 err_revert:
 	last_gdev = device;
 	for_each_group_device(group, device) {
-		const struct iommu_ops *ops = dev_iommu_ops(device->dev);
-
 		if (device == last_gdev)
 			break;
-		ops->remove_dev_pasid(device->dev, pasid, domain);
+		iommu_remove_dev_pasid(device->dev, pasid, domain);
 	}
 	return ret;
 }
@@ -3344,12 +3352,9 @@ static void __iommu_remove_group_pasid(struct iommu_group *group,
 				       struct iommu_domain *domain)
 {
 	struct group_device *device;
-	const struct iommu_ops *ops;
 
-	for_each_group_device(group, device) {
-		ops = dev_iommu_ops(device->dev);
-		ops->remove_dev_pasid(device->dev, pasid, domain);
-	}
+	for_each_group_device(group, device)
+		iommu_remove_dev_pasid(device->dev, pasid, domain);
 }
 
 /*
@@ -3368,16 +3373,20 @@ int iommu_attach_device_pasid(struct iommu_domain *domain,
 	/* Caller must be a probed driver on dev */
 	struct iommu_group *group = dev->iommu_group;
 	struct group_device *device;
+	const struct iommu_ops *ops;
 	int ret;
-
-	if (!domain->ops->set_dev_pasid)
-		return -EOPNOTSUPP;
 
 	if (!group)
 		return -ENODEV;
 
-	if (!dev_has_iommu(dev) || dev_iommu_ops(dev) != domain->owner ||
-	    pasid == IOMMU_NO_PASID)
+	ops = dev_iommu_ops(dev);
+
+	if (!domain->ops->set_dev_pasid ||
+	    !ops->blocked_domain ||
+	    !ops->blocked_domain->ops->set_dev_pasid)
+		return -EOPNOTSUPP;
+
+	if (ops != domain->owner || pasid == IOMMU_NO_PASID)
 		return -EINVAL;
 
 	mutex_lock(&group->mutex);
@@ -3482,7 +3491,7 @@ iommu_attach_handle_get(struct iommu_group *group, ioasid_t pasid, unsigned int 
 
 	return handle;
 }
-EXPORT_SYMBOL_NS_GPL(iommu_attach_handle_get, IOMMUFD_INTERNAL);
+EXPORT_SYMBOL_NS_GPL(iommu_attach_handle_get, "IOMMUFD_INTERNAL");
 
 /**
  * iommu_attach_group_handle - Attach an IOMMU domain to an IOMMU group
@@ -3522,7 +3531,7 @@ err_unlock:
 	mutex_unlock(&group->mutex);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(iommu_attach_group_handle, IOMMUFD_INTERNAL);
+EXPORT_SYMBOL_NS_GPL(iommu_attach_group_handle, "IOMMUFD_INTERNAL");
 
 /**
  * iommu_detach_group_handle - Detach an IOMMU domain from an IOMMU group
@@ -3540,7 +3549,7 @@ void iommu_detach_group_handle(struct iommu_domain *domain,
 	xa_erase(&group->pasid_array, IOMMU_NO_PASID);
 	mutex_unlock(&group->mutex);
 }
-EXPORT_SYMBOL_NS_GPL(iommu_detach_group_handle, IOMMUFD_INTERNAL);
+EXPORT_SYMBOL_NS_GPL(iommu_detach_group_handle, "IOMMUFD_INTERNAL");
 
 /**
  * iommu_replace_group_handle - replace the domain that a group is attached to
@@ -3586,4 +3595,4 @@ err_unlock:
 	mutex_unlock(&group->mutex);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(iommu_replace_group_handle, IOMMUFD_INTERNAL);
+EXPORT_SYMBOL_NS_GPL(iommu_replace_group_handle, "IOMMUFD_INTERNAL");

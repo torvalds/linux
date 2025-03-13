@@ -320,7 +320,7 @@ struct serial_struct;
  *
  * @poll_init: ``int ()(struct tty_driver *driver, int line, char *options)``
  *
- *	kgdboc support (Documentation/dev-tools/kgdb.rst). This routine is
+ *	kgdboc support (Documentation/process/debugging/kgdb.rst). This routine is
  *	called to initialize the HW for later use by calling @poll_get_char or
  *	@poll_put_char.
  *

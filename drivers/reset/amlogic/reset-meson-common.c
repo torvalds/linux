@@ -105,7 +105,7 @@ const struct reset_control_ops meson_reset_ops = {
 	.deassert	= meson_reset_deassert,
 	.status		= meson_reset_status,
 };
-EXPORT_SYMBOL_NS_GPL(meson_reset_ops, MESON_RESET);
+EXPORT_SYMBOL_NS_GPL(meson_reset_ops, "MESON_RESET");
 
 const struct reset_control_ops meson_reset_toggle_ops = {
 	.reset		= meson_reset_level_toggle,
@@ -113,7 +113,7 @@ const struct reset_control_ops meson_reset_toggle_ops = {
 	.deassert	= meson_reset_deassert,
 	.status		= meson_reset_status,
 };
-EXPORT_SYMBOL_NS_GPL(meson_reset_toggle_ops, MESON_RESET);
+EXPORT_SYMBOL_NS_GPL(meson_reset_toggle_ops, "MESON_RESET");
 
 int meson_reset_controller_register(struct device *dev, struct regmap *map,
 				    const struct meson_reset_param *param)
@@ -133,10 +133,10 @@ int meson_reset_controller_register(struct device *dev, struct regmap *map,
 
 	return devm_reset_controller_register(dev, &data->rcdev);
 }
-EXPORT_SYMBOL_NS_GPL(meson_reset_controller_register, MESON_RESET);
+EXPORT_SYMBOL_NS_GPL(meson_reset_controller_register, "MESON_RESET");
 
 MODULE_DESCRIPTION("Amlogic Meson Reset Core function");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_IMPORT_NS(MESON_RESET);
+MODULE_IMPORT_NS("MESON_RESET");

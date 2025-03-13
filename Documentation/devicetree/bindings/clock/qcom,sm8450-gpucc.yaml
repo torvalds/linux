@@ -32,6 +32,7 @@ properties:
       - qcom,sm8550-gpucc
       - qcom,sm8650-gpucc
       - qcom,x1e80100-gpucc
+      - qcom,x1p42100-gpucc
 
   clocks:
     items:

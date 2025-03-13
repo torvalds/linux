@@ -161,7 +161,7 @@ out:
 	return ret;
 }
 
-static struct bin_attribute p2pmem_alloc_attr = {
+static const struct bin_attribute p2pmem_alloc_attr = {
 	.attr = { .name = "allocate", .mode = 0660 },
 	.mmap = p2pmem_alloc_mmap,
 	/*
@@ -180,14 +180,14 @@ static struct attribute *p2pmem_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *p2pmem_bin_attrs[] = {
+static const struct bin_attribute *const p2pmem_bin_attrs[] = {
 	&p2pmem_alloc_attr,
 	NULL,
 };
 
 static const struct attribute_group p2pmem_group = {
 	.attrs = p2pmem_attrs,
-	.bin_attrs = p2pmem_bin_attrs,
+	.bin_attrs_new = p2pmem_bin_attrs,
 	.name = "p2pmem",
 };
 

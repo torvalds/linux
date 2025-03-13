@@ -594,7 +594,7 @@ static irqreturn_t scd30_trigger_handler(int irq, void *p)
 	struct scd30_state *state = iio_priv(indio_dev);
 	struct {
 		int data[SCD30_MEAS_COUNT];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 	int ret;
 
@@ -747,7 +747,7 @@ int scd30_probe(struct device *dev, int irq, const char *name, void *priv,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS(scd30_probe, IIO_SCD30);
+EXPORT_SYMBOL_NS(scd30_probe, "IIO_SCD30");
 
 MODULE_AUTHOR("Tomasz Duszynski <tomasz.duszynski@octakon.com>");
 MODULE_DESCRIPTION("Sensirion SCD30 carbon dioxide sensor core driver");

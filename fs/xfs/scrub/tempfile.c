@@ -184,11 +184,18 @@ out_release_dquots:
 }
 
 /*
+ * Move sc->tempip from the regular directory tree to the metadata directory
+ * tree if sc->ip is part of the metadata directory tree and tempip has an
+ * eligible file mode.
+ *
  * Temporary files have to be created before we even know which inode we're
  * going to scrub, so we assume that they will be part of the regular directory
  * tree.  If it turns out that we're actually scrubbing a file from the
  * metadata directory tree, we have to subtract the temp file from the root
- * dquots and detach the dquots.
+ * dquots and detach the dquots prior to setting the METADATA iflag.  However,
+ * the scrub setup functions grab sc->ip and create sc->tempip before we
+ * actually get around to checking if the file mode is the right type for the
+ * scrubber.
  */
 int
 xrep_tempfile_adjust_directory_tree(
@@ -203,6 +210,9 @@ xrep_tempfile_adjust_directory_tree(
 	ASSERT(!xfs_is_metadir_inode(sc->tempip));
 
 	if (!sc->ip || !xfs_is_metadir_inode(sc->ip))
+		return 0;
+	if (!S_ISDIR(VFS_I(sc->tempip)->i_mode) &&
+	    !S_ISREG(VFS_I(sc->tempip)->i_mode))
 		return 0;
 
 	xfs_ilock(sc->tempip, XFS_IOLOCK_EXCL);
@@ -223,6 +233,7 @@ xrep_tempfile_adjust_directory_tree(
 	if (error)
 		goto out_ilock;
 
+	xfs_iflags_set(sc->tempip, XFS_IRECOVERY);
 	xfs_qm_dqdetach(sc->tempip);
 out_ilock:
 	xrep_tempfile_iunlock(sc);
@@ -245,6 +256,8 @@ xrep_tempfile_remove_metadir(
 		return 0;
 
 	ASSERT(sc->tp == NULL);
+
+	xfs_iflags_clear(sc->tempip, XFS_IRECOVERY);
 
 	xfs_ilock(sc->tempip, XFS_IOLOCK_EXCL);
 	sc->temp_ilock_flags |= XFS_IOLOCK_EXCL;
@@ -593,6 +606,8 @@ STATIC int
 xrep_tempexch_prep_request(
 	struct xfs_scrub	*sc,
 	int			whichfork,
+	xfs_fileoff_t		off,
+	xfs_filblks_t		len,
 	struct xrep_tempexch	*tx)
 {
 	struct xfs_exchmaps_req	*req = &tx->req;
@@ -616,18 +631,19 @@ xrep_tempexch_prep_request(
 	/* Exchange all mappings in both forks. */
 	req->ip1 = sc->tempip;
 	req->ip2 = sc->ip;
-	req->startoff1 = 0;
-	req->startoff2 = 0;
+	req->startoff1 = off;
+	req->startoff2 = off;
 	switch (whichfork) {
 	case XFS_ATTR_FORK:
 		req->flags |= XFS_EXCHMAPS_ATTR_FORK;
 		break;
 	case XFS_DATA_FORK:
-		/* Always exchange sizes when exchanging data fork mappings. */
-		req->flags |= XFS_EXCHMAPS_SET_SIZES;
+		/* Exchange sizes when exchanging all data fork mappings. */
+		if (off == 0 && len == XFS_MAX_FILEOFF)
+			req->flags |= XFS_EXCHMAPS_SET_SIZES;
 		break;
 	}
-	req->blockcount = XFS_MAX_FILEOFF;
+	req->blockcount = len;
 
 	return 0;
 }
@@ -736,6 +752,7 @@ xrep_tempexch_reserve_quota(
 	 * or the two inodes have the same dquots.
 	 */
 	if (!XFS_IS_QUOTA_ON(tp->t_mountp) || req->ip1 == req->ip2 ||
+	    xfs_is_metadir_inode(req->ip1) ||
 	    (req->ip1->i_udquot == req->ip2->i_udquot &&
 	     req->ip1->i_gdquot == req->ip2->i_gdquot &&
 	     req->ip1->i_pdquot == req->ip2->i_pdquot))
@@ -782,6 +799,8 @@ int
 xrep_tempexch_trans_reserve(
 	struct xfs_scrub	*sc,
 	int			whichfork,
+	xfs_fileoff_t		off,
+	xfs_filblks_t		len,
 	struct xrep_tempexch	*tx)
 {
 	int			error;
@@ -790,7 +809,7 @@ xrep_tempexch_trans_reserve(
 	xfs_assert_ilocked(sc->ip, XFS_ILOCK_EXCL);
 	xfs_assert_ilocked(sc->tempip, XFS_ILOCK_EXCL);
 
-	error = xrep_tempexch_prep_request(sc, whichfork, tx);
+	error = xrep_tempexch_prep_request(sc, whichfork, off, len, tx);
 	if (error)
 		return error;
 
@@ -828,7 +847,8 @@ xrep_tempexch_trans_alloc(
 	ASSERT(sc->tp == NULL);
 	ASSERT(xfs_has_exchange_range(sc->mp));
 
-	error = xrep_tempexch_prep_request(sc, whichfork, tx);
+	error = xrep_tempexch_prep_request(sc, whichfork, 0, XFS_MAX_FILEOFF,
+			tx);
 	if (error)
 		return error;
 
@@ -945,10 +965,13 @@ xrep_is_tempfile(
 
 	/*
 	 * Files in the metadata directory tree also have S_PRIVATE set and
-	 * IOP_XATTR unset, so we must distinguish them separately.
+	 * IOP_XATTR unset, so we must distinguish them separately.  We (ab)use
+	 * the IRECOVERY flag to mark temporary metadir inodes knowing that the
+	 * end of log recovery clears IRECOVERY, so the only ones that can
+	 * exist during online repair are the ones we create.
 	 */
 	if (xfs_has_metadir(mp) && (ip->i_diflags2 & XFS_DIFLAG2_METADATA))
-		return false;
+		return __xfs_iflags_test(ip, XFS_IRECOVERY);
 
 	if (IS_PRIVATE(inode) && !(inode->i_opflags & IOP_XATTR))
 		return true;

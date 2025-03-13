@@ -15,6 +15,8 @@ enum mlx5hws_rule_status {
 	MLX5HWS_RULE_STATUS_UNKNOWN,
 	MLX5HWS_RULE_STATUS_CREATING,
 	MLX5HWS_RULE_STATUS_CREATED,
+	MLX5HWS_RULE_STATUS_UPDATING,
+	MLX5HWS_RULE_STATUS_UPDATED,
 	MLX5HWS_RULE_STATUS_DELETING,
 	MLX5HWS_RULE_STATUS_DELETED,
 	MLX5HWS_RULE_STATUS_FAILING,
@@ -41,13 +43,17 @@ struct mlx5hws_rule_match_tag {
 	};
 };
 
+struct mlx5hws_rule_action_ste_info {
+	struct mlx5hws_pool *pool;
+	int index; /* STE array index */
+	u8 num_stes;
+};
+
 struct mlx5hws_rule_resize_info {
-	struct mlx5hws_pool *action_ste_pool[2];
 	u32 rtc_0;
 	u32 rtc_1;
 	u32 rule_idx;
 	u8 state;
-	u8 max_stes;
 	u8 ctrl_seg[MLX5HWS_WQE_SZ_GTA_CTRL]; /* Ctrl segment of STE: 48 bytes */
 	u8 data_seg[MLX5HWS_WQE_SZ_GTA_DATA]; /* Data segment of STE: 64 bytes */
 };
@@ -58,18 +64,18 @@ struct mlx5hws_rule {
 		struct mlx5hws_rule_match_tag tag;
 		struct mlx5hws_rule_resize_info *resize_info;
 	};
+	struct mlx5hws_rule_action_ste_info action_ste;
+	struct mlx5hws_rule_action_ste_info old_action_ste;
 	u32 rtc_0; /* The RTC into which the STE was inserted */
 	u32 rtc_1; /* The RTC into which the STE was inserted */
-	int action_ste_idx; /* STE array index */
 	u8 status; /* enum mlx5hws_rule_status */
-	u8 action_ste_selector; /* For rule update - which action STE is in use */
 	u8 pending_wqes;
 	bool skip_delete; /* For complex rules - another rule with same tag
 			   * still exists, so don't actually delete this rule.
 			   */
 };
 
-void mlx5hws_rule_free_action_ste(struct mlx5hws_rule *rule);
+void mlx5hws_rule_free_action_ste(struct mlx5hws_rule_action_ste_info *action_ste);
 
 int mlx5hws_rule_move_hws_remove(struct mlx5hws_rule *rule,
 				 void *queue, void *user_data);

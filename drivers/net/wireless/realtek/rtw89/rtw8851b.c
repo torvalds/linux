@@ -2298,7 +2298,8 @@ static void rtw8851b_query_ppdu(struct rtw89_dev *rtwdev,
 	u8 path;
 	u8 *rx_power = phy_ppdu->rssi;
 
-	status->signal = RTW89_RSSI_RAW_TO_DBM(rx_power[RF_PATH_A]);
+	if (!status->signal)
+		status->signal = RTW89_RSSI_RAW_TO_DBM(rx_power[RF_PATH_A]);
 
 	for (path = 0; path < rtwdev->chip->rf_path_num; path++) {
 		status->chains |= BIT(path);
@@ -2391,6 +2392,7 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.ctrl_btg_bt_rx		= rtw8851b_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8851b_query_ppdu,
 	.convert_rpl_to_rssi	= NULL,
+	.phy_rpt_to_rssi	= NULL,
 	.ctrl_nbtg_bt_tx	= rtw8851b_ctrl_nbtg_bt_tx,
 	.cfg_txrx_path		= rtw8851b_bb_cfg_txrx_path,
 	.set_txpwr_ul_tb_offset	= rtw8851b_set_txpwr_ul_tb_offset,
@@ -2464,6 +2466,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 	.nctl_post_table	= &rtw8851b_nctl_post_defs_tbl,
 	.dflt_parms		= &rtw89_8851b_dflt_parms,
 	.rfe_parms_conf		= rtw89_8851b_rfe_parms_conf,
+	.txpwr_factor_bb	= 3,
 	.txpwr_factor_rf	= 2,
 	.txpwr_factor_mac	= 1,
 	.dig_table		= NULL,
@@ -2479,6 +2482,7 @@ const struct rtw89_chip_info rtw8851b_chip_info = {
 				  BIT(NL80211_CHAN_WIDTH_40) |
 				  BIT(NL80211_CHAN_WIDTH_80),
 	.support_unii4		= true,
+	.support_ant_gain	= false,
 	.ul_tb_waveform_ctrl	= true,
 	.ul_tb_pwr_diff		= false,
 	.hw_sec_hdr		= false,

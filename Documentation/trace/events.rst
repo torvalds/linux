@@ -55,6 +55,30 @@ command::
 
 	# echo 'irq:*' > /sys/kernel/tracing/set_event
 
+The set_event file may also be used to enable events associated to only
+a specific module::
+
+	# echo ':mod:<module>' > /sys/kernel/tracing/set_event
+
+Will enable all events in the module ``<module>``.  If the module is not yet
+loaded, the string will be saved and when a module is that matches ``<module>``
+is loaded, then it will apply the enabling of events then.
+
+The text before ``:mod:`` will be parsed to specify specific events that the
+module creates::
+
+	# echo '<match>:mod:<module>' > /sys/kernel/tracing/set_event
+
+The above will enable any system or event that ``<match>`` matches. If
+``<match>`` is ``"*"`` then it will match all events.
+
+To enable only a specific event within a system::
+
+	# echo '<system>:<event>:mod:<module>' > /sys/kernel/tracing/set_event
+
+If ``<event>`` is ``"*"`` then it will match all events within the system
+for a given module.
+
 2.2 Via the 'enable' toggle
 ---------------------------
 

@@ -204,7 +204,7 @@ bool proc_thermal_check_wt_intr(struct proc_thermal_device *proc_priv)
 
 	return false;
 }
-EXPORT_SYMBOL_NS_GPL(proc_thermal_check_wt_intr, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(proc_thermal_check_wt_intr, "INT340X_THERMAL");
 
 /* Callback to notify user space */
 void proc_thermal_wt_intr_callback(struct pci_dev *pdev, struct proc_thermal_device *proc_priv)
@@ -217,7 +217,7 @@ void proc_thermal_wt_intr_callback(struct pci_dev *pdev, struct proc_thermal_dev
 
 	sysfs_notify(&pdev->dev.kobj, "workload_hint", "workload_type_index");
 }
-EXPORT_SYMBOL_NS_GPL(proc_thermal_wt_intr_callback, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(proc_thermal_wt_intr_callback, "INT340X_THERMAL");
 
 static bool workload_hint_created;
 
@@ -233,7 +233,7 @@ int proc_thermal_wt_hint_add(struct pci_dev *pdev, struct proc_thermal_device *p
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(proc_thermal_wt_hint_add, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(proc_thermal_wt_hint_add, "INT340X_THERMAL");
 
 void proc_thermal_wt_hint_remove(struct pci_dev *pdev)
 {
@@ -249,8 +249,8 @@ void proc_thermal_wt_hint_remove(struct pci_dev *pdev)
 
 	workload_hint_created = false;
 }
-EXPORT_SYMBOL_NS_GPL(proc_thermal_wt_hint_remove, INT340X_THERMAL);
+EXPORT_SYMBOL_NS_GPL(proc_thermal_wt_hint_remove, "INT340X_THERMAL");
 
-MODULE_IMPORT_NS(INT340X_THERMAL);
+MODULE_IMPORT_NS("INT340X_THERMAL");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Processor Thermal Work Load type hint Interface");

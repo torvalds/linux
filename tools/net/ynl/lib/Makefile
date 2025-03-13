@@ -19,7 +19,6 @@ ynl.a: $(OBJS)
 
 clean:
 	rm -f *.o *.d *~
-	rm -rf __pycache__
 
 distclean: clean
 	rm -f *.a

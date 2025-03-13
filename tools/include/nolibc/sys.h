@@ -23,6 +23,7 @@
 #include <linux/prctl.h>
 #include <linux/resource.h>
 #include <linux/utsname.h>
+#include <linux/signal.h>
 
 #include "arch.h"
 #include "errno.h"
@@ -1222,6 +1223,23 @@ static __attribute__((unused))
 pid_t waitpid(pid_t pid, int *status, int options)
 {
 	return __sysret(sys_wait4(pid, status, options, NULL));
+}
+
+
+/*
+ * int waitid(idtype_t idtype, id_t id, siginfo_t *infop, int options);
+ */
+
+static __attribute__((unused))
+int sys_waitid(int which, pid_t pid, siginfo_t *infop, int options, struct rusage *rusage)
+{
+	return my_syscall5(__NR_waitid, which, pid, infop, options, rusage);
+}
+
+static __attribute__((unused))
+int waitid(int which, pid_t pid, siginfo_t *infop, int options)
+{
+	return __sysret(sys_waitid(which, pid, infop, options, NULL));
 }
 
 

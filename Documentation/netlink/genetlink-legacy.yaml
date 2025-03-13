@@ -117,6 +117,9 @@ properties:
         name-prefix:
           description: For enum the prefix of the values, optional.
           type: string
+        enum-cnt-name:
+          description: Name of the render-max counter enum entry.
+          type: string
         # End genetlink-c
         # Start genetlink-legacy
         members:

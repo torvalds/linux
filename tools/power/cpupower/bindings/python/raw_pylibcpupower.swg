@@ -134,6 +134,9 @@ void cpufreq_put_stats(struct cpufreq_stats *stats);
 
 unsigned long cpufreq_get_transitions(unsigned int cpu);
 
+char *cpufreq_get_energy_performance_preference(unsigned int cpu);
+void cpufreq_put_energy_performance_preference(char *ptr);
+
 int cpufreq_set_policy(unsigned int cpu, struct cpufreq_policy *policy);
 
 int cpufreq_modify_policy_min(unsigned int cpu, unsigned long min_freq);
@@ -159,6 +162,8 @@ int cpuidle_is_state_disabled(unsigned int cpu,
 int cpuidle_state_disable(unsigned int cpu, unsigned int idlestate,
 				   unsigned int disable);
 unsigned long cpuidle_state_latency(unsigned int cpu,
+						unsigned int idlestate);
+unsigned long cpuidle_state_residency(unsigned int cpu,
 						unsigned int idlestate);
 unsigned long cpuidle_state_usage(unsigned int cpu,
 					unsigned int idlestate);

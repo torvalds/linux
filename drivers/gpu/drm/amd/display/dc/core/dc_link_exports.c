@@ -125,6 +125,14 @@ uint32_t dc_link_bandwidth_kbps(
 	return link->dc->link_srv->dp_link_bandwidth_kbps(link, link_settings);
 }
 
+uint32_t dc_link_required_hblank_size_bytes(
+	const struct dc_link *link,
+	struct dp_audio_bandwidth_params *audio_params)
+{
+	return link->dc->link_srv->dp_required_hblank_size_bytes(link,
+			audio_params);
+}
+
 void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map)
 {
 	dc->link_srv->get_cur_res_map(dc, map);

@@ -19,14 +19,19 @@ static void pci_free_resources(struct pci_dev *dev)
 
 static void pci_pwrctrl_unregister(struct device *dev)
 {
+	struct device_node *np;
 	struct platform_device *pdev;
 
-	pdev = of_find_device_by_node(dev_of_node(dev));
+	np = dev_of_node(dev);
+	if (!np)
+		return;
+
+	pdev = of_find_device_by_node(np);
 	if (!pdev)
 		return;
 
 	of_device_unregister(pdev);
-	of_node_clear_flag(dev_of_node(dev), OF_POPULATED);
+	of_node_clear_flag(np, OF_POPULATED);
 }
 
 static void pci_stop_dev(struct pci_dev *dev)

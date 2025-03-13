@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_DISK_ACCOUNTING_H
 #define _BCACHEFS_DISK_ACCOUNTING_H
 
+#include "btree_update.h"
 #include "eytzinger.h"
 #include "sb-members.h"
 
@@ -62,27 +63,32 @@ static inline void fs_usage_data_type_to_base(struct bch_fs_usage_base *fs_usage
 
 static inline void bpos_to_disk_accounting_pos(struct disk_accounting_pos *acc, struct bpos p)
 {
-	acc->_pad = p;
+	BUILD_BUG_ON(sizeof(*acc) != sizeof(p));
+
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-	bch2_bpos_swab(&acc->_pad);
+	acc->_pad = p;
+#else
+	memcpy_swab(acc, &p, sizeof(p));
 #endif
 }
 
-static inline struct bpos disk_accounting_pos_to_bpos(struct disk_accounting_pos *k)
+static inline struct bpos disk_accounting_pos_to_bpos(struct disk_accounting_pos *acc)
 {
-	struct bpos ret = k->_pad;
-
+	struct bpos p;
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-	bch2_bpos_swab(&ret);
+	p = acc->_pad;
+#else
+	memcpy_swab(&p, acc, sizeof(p));
 #endif
-	return ret;
+	return p;
 }
 
 int bch2_disk_accounting_mod(struct btree_trans *, struct disk_accounting_pos *,
 			     s64 *, unsigned, bool);
 int bch2_mod_dev_cached_sectors(struct btree_trans *, unsigned, s64, bool);
 
-int bch2_accounting_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_accounting_validate(struct bch_fs *, struct bkey_s_c,
+			     struct bkey_validate_context);
 void bch2_accounting_key_to_text(struct printbuf *, struct disk_accounting_pos *);
 void bch2_accounting_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 void bch2_accounting_swab(struct bkey_s);
@@ -112,6 +118,12 @@ enum bch_accounting_mode {
 int bch2_accounting_mem_insert(struct bch_fs *, struct bkey_s_c_accounting, enum bch_accounting_mode);
 void bch2_accounting_mem_gc(struct bch_fs *);
 
+static inline bool bch2_accounting_is_mem(struct disk_accounting_pos acc)
+{
+	return acc.type < BCH_DISK_ACCOUNTING_TYPE_NR &&
+		acc.type != BCH_DISK_ACCOUNTING_inum;
+}
+
 /*
  * Update in memory counters so they match the btree update we're doing; called
  * from transaction commit path
@@ -126,9 +138,10 @@ static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans,
 	bpos_to_disk_accounting_pos(&acc_k, a.k->p);
 	bool gc = mode == BCH_ACCOUNTING_gc;
 
-	EBUG_ON(gc && !acc->gc_running);
+	if (gc && !acc->gc_running)
+		return 0;
 
-	if (acc_k.type == BCH_DISK_ACCOUNTING_inum)
+	if (!bch2_accounting_is_mem(acc_k))
 		return 0;
 
 	if (mode == BCH_ACCOUNTING_normal) {
@@ -141,7 +154,7 @@ static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans,
 			break;
 		case BCH_DISK_ACCOUNTING_dev_data_type:
 			rcu_read_lock();
-			struct bch_dev *ca = bch2_dev_rcu(c, acc_k.dev_data_type.dev);
+			struct bch_dev *ca = bch2_dev_rcu_noerror(c, acc_k.dev_data_type.dev);
 			if (ca) {
 				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].buckets, a.v->d[0]);
 				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].sectors, a.v->d[1]);
@@ -197,16 +210,54 @@ static inline void bch2_accounting_mem_read_counters(struct bch_accounting_mem *
 static inline void bch2_accounting_mem_read(struct bch_fs *c, struct bpos p,
 					    u64 *v, unsigned nr)
 {
+	percpu_down_read(&c->mark_lock);
 	struct bch_accounting_mem *acc = &c->accounting;
 	unsigned idx = eytzinger0_find(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
 				       accounting_pos_cmp, &p);
 
 	bch2_accounting_mem_read_counters(acc, idx, v, nr, false);
+	percpu_up_read(&c->mark_lock);
+}
+
+static inline struct bversion journal_pos_to_bversion(struct journal_res *res, unsigned offset)
+{
+	EBUG_ON(!res->ref);
+
+	return (struct bversion) {
+		.hi = res->seq >> 32,
+		.lo = (res->seq << 32) | (res->offset + offset),
+	};
+}
+
+static inline int bch2_accounting_trans_commit_hook(struct btree_trans *trans,
+						    struct bkey_i_accounting *a,
+						    unsigned commit_flags)
+{
+	a->k.bversion = journal_pos_to_bversion(&trans->journal_res,
+						(u64 *) a - (u64 *) trans->journal_entries);
+
+	EBUG_ON(bversion_zero(a->k.bversion));
+
+	return likely(!(commit_flags & BCH_TRANS_COMMIT_skip_accounting_apply))
+		? bch2_accounting_mem_mod_locked(trans, accounting_i_to_s_c(a), BCH_ACCOUNTING_normal)
+		: 0;
+}
+
+static inline void bch2_accounting_trans_commit_revert(struct btree_trans *trans,
+						       struct bkey_i_accounting *a_i,
+						       unsigned commit_flags)
+{
+	if (likely(!(commit_flags & BCH_TRANS_COMMIT_skip_accounting_apply))) {
+		struct bkey_s_accounting a = accounting_i_to_s(a_i);
+
+		bch2_accounting_neg(a);
+		bch2_accounting_mem_mod_locked(trans, a.c, BCH_ACCOUNTING_normal);
+		bch2_accounting_neg(a);
+	}
 }
 
 int bch2_fs_replicas_usage_read(struct bch_fs *, darray_char *);
 int bch2_fs_accounting_read(struct bch_fs *, darray_char *, unsigned);
-void bch2_fs_accounting_to_text(struct printbuf *, struct bch_fs *);
 
 int bch2_gc_accounting_start(struct bch_fs *);
 int bch2_gc_accounting_done(struct bch_fs *);

@@ -165,40 +165,66 @@ static inline unsigned long decode_bar(struct pci_dev *dev, u32 bar)
 #define PCI_COMMAND_DECODE_ENABLE	(PCI_COMMAND_MEMORY | PCI_COMMAND_IO)
 
 /**
+ * __pci_size_bars - Read the raw BAR mask for a range of PCI BARs
+ * @dev: the PCI device
+ * @count: number of BARs to size
+ * @pos: starting config space position
+ * @sizes: array to store mask values
+ * @rom: indicate whether to use ROM mask, which avoids enabling ROM BARs
+ *
+ * Provided @sizes array must be sufficiently sized to store results for
+ * @count u32 BARs.  Caller is responsible for disabling decode to specified
+ * BAR range around calling this function.  This function is intended to avoid
+ * disabling decode around sizing each BAR individually, which can result in
+ * non-trivial overhead in virtualized environments with very large PCI BARs.
+ */
+static void __pci_size_bars(struct pci_dev *dev, int count,
+			    unsigned int pos, u32 *sizes, bool rom)
+{
+	u32 orig, mask = rom ? PCI_ROM_ADDRESS_MASK : ~0;
+	int i;
+
+	for (i = 0; i < count; i++, pos += 4, sizes++) {
+		pci_read_config_dword(dev, pos, &orig);
+		pci_write_config_dword(dev, pos, mask);
+		pci_read_config_dword(dev, pos, sizes);
+		pci_write_config_dword(dev, pos, orig);
+	}
+}
+
+void __pci_size_stdbars(struct pci_dev *dev, int count,
+			unsigned int pos, u32 *sizes)
+{
+	__pci_size_bars(dev, count, pos, sizes, false);
+}
+
+static void __pci_size_rom(struct pci_dev *dev, unsigned int pos, u32 *sizes)
+{
+	__pci_size_bars(dev, 1, pos, sizes, true);
+}
+
+/**
  * __pci_read_base - Read a PCI BAR
  * @dev: the PCI device
  * @type: type of the BAR
  * @res: resource buffer to be filled in
  * @pos: BAR position in the config space
+ * @sizes: array of one or more pre-read BAR masks
  *
  * Returns 1 if the BAR is 64-bit, or 0 if 32-bit.
  */
 int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
-		    struct resource *res, unsigned int pos)
+		    struct resource *res, unsigned int pos, u32 *sizes)
 {
-	u32 l = 0, sz = 0, mask;
+	u32 l = 0, sz;
 	u64 l64, sz64, mask64;
-	u16 orig_cmd;
 	struct pci_bus_region region, inverted_region;
 	const char *res_name = pci_resource_name(dev, res - dev->resource);
-
-	mask = type ? PCI_ROM_ADDRESS_MASK : ~0;
-
-	/* No printks while decoding is disabled! */
-	if (!dev->mmio_always_on) {
-		pci_read_config_word(dev, PCI_COMMAND, &orig_cmd);
-		if (orig_cmd & PCI_COMMAND_DECODE_ENABLE) {
-			pci_write_config_word(dev, PCI_COMMAND,
-				orig_cmd & ~PCI_COMMAND_DECODE_ENABLE);
-		}
-	}
 
 	res->name = pci_name(dev);
 
 	pci_read_config_dword(dev, pos, &l);
-	pci_write_config_dword(dev, pos, l | mask);
-	pci_read_config_dword(dev, pos, &sz);
-	pci_write_config_dword(dev, pos, l);
+	sz = sizes[0];
 
 	/*
 	 * All bits set in sz means the device isn't working properly.
@@ -238,17 +264,12 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 
 	if (res->flags & IORESOURCE_MEM_64) {
 		pci_read_config_dword(dev, pos + 4, &l);
-		pci_write_config_dword(dev, pos + 4, ~0);
-		pci_read_config_dword(dev, pos + 4, &sz);
-		pci_write_config_dword(dev, pos + 4, l);
+		sz = sizes[1];
 
 		l64 |= ((u64)l << 32);
 		sz64 |= ((u64)sz << 32);
 		mask64 |= ((u64)~0 << 32);
 	}
-
-	if (!dev->mmio_always_on && (orig_cmd & PCI_COMMAND_DECODE_ENABLE))
-		pci_write_config_word(dev, PCI_COMMAND, orig_cmd);
 
 	if (!sz64)
 		goto fail;
@@ -318,9 +339,14 @@ out:
 	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
 }
 
-static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
+static __always_inline void pci_read_bases(struct pci_dev *dev,
+					   unsigned int howmany, int rom)
 {
+	u32 rombar, stdbars[PCI_STD_NUM_BARS];
 	unsigned int pos, reg;
+	u16 orig_cmd;
+
+	BUILD_BUG_ON(statically_true(howmany > PCI_STD_NUM_BARS));
 
 	if (dev->non_compliant_bars)
 		return;
@@ -329,10 +355,28 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 	if (dev->is_virtfn)
 		return;
 
+	/* No printks while decoding is disabled! */
+	if (!dev->mmio_always_on) {
+		pci_read_config_word(dev, PCI_COMMAND, &orig_cmd);
+		if (orig_cmd & PCI_COMMAND_DECODE_ENABLE) {
+			pci_write_config_word(dev, PCI_COMMAND,
+				orig_cmd & ~PCI_COMMAND_DECODE_ENABLE);
+		}
+	}
+
+	__pci_size_stdbars(dev, howmany, PCI_BASE_ADDRESS_0, stdbars);
+	if (rom)
+		__pci_size_rom(dev, rom, &rombar);
+
+	if (!dev->mmio_always_on &&
+	    (orig_cmd & PCI_COMMAND_DECODE_ENABLE))
+		pci_write_config_word(dev, PCI_COMMAND, orig_cmd);
+
 	for (pos = 0; pos < howmany; pos++) {
 		struct resource *res = &dev->resource[pos];
 		reg = PCI_BASE_ADDRESS_0 + (pos << 2);
-		pos += __pci_read_base(dev, pci_bar_unknown, res, reg);
+		pos += __pci_read_base(dev, pci_bar_unknown,
+				       res, reg, &stdbars[pos]);
 	}
 
 	if (rom) {
@@ -340,7 +384,7 @@ static void pci_read_bases(struct pci_dev *dev, unsigned int howmany, int rom)
 		dev->rom_base_reg = rom;
 		res->flags = IORESOURCE_MEM | IORESOURCE_PREFETCH |
 				IORESOURCE_READONLY | IORESOURCE_SIZEALIGN;
-		__pci_read_base(dev, pci_bar_mem32, res, rom);
+		__pci_read_base(dev, pci_bar_mem32, res, rom, &rombar);
 	}
 }
 
@@ -2251,8 +2295,8 @@ static void pci_configure_relaxed_ordering(struct pci_dev *dev)
 
 static void pci_configure_eetlp_prefix(struct pci_dev *dev)
 {
-#ifdef CONFIG_PCI_PASID
 	struct pci_dev *bridge;
+	unsigned int eetlp_max;
 	int pcie_type;
 	u32 cap;
 
@@ -2264,15 +2308,19 @@ static void pci_configure_eetlp_prefix(struct pci_dev *dev)
 		return;
 
 	pcie_type = pci_pcie_type(dev);
+
+	eetlp_max = FIELD_GET(PCI_EXP_DEVCAP2_EE_PREFIX_MAX, cap);
+	/* 00b means 4 */
+	eetlp_max = eetlp_max ?: 4;
+
 	if (pcie_type == PCI_EXP_TYPE_ROOT_PORT ||
 	    pcie_type == PCI_EXP_TYPE_RC_END)
-		dev->eetlp_prefix_path = 1;
+		dev->eetlp_prefix_max = eetlp_max;
 	else {
 		bridge = pci_upstream_bridge(dev);
-		if (bridge && bridge->eetlp_prefix_path)
-			dev->eetlp_prefix_path = 1;
+		if (bridge && bridge->eetlp_prefix_max)
+			dev->eetlp_prefix_max = eetlp_max;
 	}
-#endif
 }
 
 static void pci_configure_serr(struct pci_dev *dev)

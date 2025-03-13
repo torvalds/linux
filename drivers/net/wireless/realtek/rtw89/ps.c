@@ -8,6 +8,7 @@
 #include "debug.h"
 #include "fw.h"
 #include "mac.h"
+#include "phy.h"
 #include "ps.h"
 #include "reg.h"
 #include "util.h"
@@ -62,11 +63,8 @@ static void rtw89_ps_power_mode_change(struct rtw89_dev *rtwdev, bool enter)
 		rtw89_mac_power_mode_change(rtwdev, enter);
 }
 
-void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link)
+void __rtw89_enter_ps_mode(struct rtw89_dev *rtwdev)
 {
-	if (rtwvif_link->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT)
-		return;
-
 	if (!rtwdev->ps_mode)
 		return;
 
@@ -85,8 +83,8 @@ void __rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
 		rtw89_ps_power_mode_change(rtwdev, false);
 }
 
-static void __rtw89_enter_lps(struct rtw89_dev *rtwdev,
-			      struct rtw89_vif_link *rtwvif_link)
+static void __rtw89_enter_lps_link(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif_link *rtwvif_link)
 {
 	struct rtw89_lps_parm lps_param = {
 		.macid = rtwvif_link->mac_id,
@@ -96,7 +94,6 @@ static void __rtw89_enter_lps(struct rtw89_dev *rtwdev,
 
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_FW_CTRL);
 	rtw89_fw_h2c_lps_parm(rtwdev, &lps_param);
-	rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif_link);
 }
 
 static void __rtw89_leave_lps(struct rtw89_dev *rtwdev,
@@ -121,17 +118,32 @@ void rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
 	__rtw89_leave_ps_mode(rtwdev);
 }
 
-void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif_link *rtwvif_link,
+void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		     bool ps_mode)
 {
+	struct rtw89_vif_link *rtwvif_link;
+	bool can_ps_mode = true;
+	unsigned int link_id;
+
 	lockdep_assert_held(&rtwdev->mutex);
 
 	if (test_and_set_bit(RTW89_FLAG_LEISURE_PS, rtwdev->flags))
 		return;
 
-	__rtw89_enter_lps(rtwdev, rtwvif_link);
-	if (ps_mode)
-		__rtw89_enter_ps_mode(rtwdev, rtwvif_link);
+	rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id) {
+		__rtw89_enter_lps_link(rtwdev, rtwvif_link);
+
+		if (rtwvif_link->wifi_role == RTW89_WIFI_ROLE_P2P_CLIENT)
+			can_ps_mode = false;
+	}
+
+	if (RTW89_CHK_FW_FEATURE(LPS_CH_INFO, &rtwdev->fw))
+		rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
+	else
+		rtw89_fw_h2c_lps_ml_cmn_info(rtwdev, rtwvif);
+
+	if (ps_mode && can_ps_mode)
+		__rtw89_enter_ps_mode(rtwdev);
 }
 
 static void rtw89_leave_lps_vif(struct rtw89_dev *rtwdev,
@@ -156,6 +168,8 @@ void rtw89_leave_lps(struct rtw89_dev *rtwdev)
 		return;
 
 	__rtw89_leave_ps_mode(rtwdev);
+
+	rtw89_phy_dm_reinit(rtwdev);
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		rtw89_vif_for_each_link(rtwvif, rtwvif_link, link_id)
@@ -281,12 +295,6 @@ void rtw89_recalc_lps(struct rtw89_dev *rtwdev)
 	struct rtw89_vif *rtwvif;
 	enum rtw89_entity_mode mode;
 	int count = 0;
-
-	/* FIXME: Fix rtw89_enter_lps() and __rtw89_enter_ps_mode()
-	 * to take MLO cases into account before doing the following.
-	 */
-	if (rtwdev->support_mlo)
-		goto disable_lps;
 
 	mode = rtw89_get_entity_mode(rtwdev);
 	if (mode == RTW89_ENTITY_MODE_MCC)

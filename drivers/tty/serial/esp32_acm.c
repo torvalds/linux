@@ -423,7 +423,7 @@ static void esp32s3_acm_remove(struct platform_device *pdev)
 
 static struct platform_driver esp32s3_acm_driver = {
 	.probe		= esp32s3_acm_probe,
-	.remove_new	= esp32s3_acm_remove,
+	.remove		= esp32s3_acm_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table	= esp32s3_acm_dt_ids,

@@ -23,7 +23,6 @@ static int hws_context_pools_init(struct mlx5hws_context *ctx)
 	struct mlx5hws_pool_attr pool_attr = {0};
 	u8 max_log_sz;
 	int ret;
-	int i;
 
 	ret = mlx5hws_pat_init_pattern_cache(&ctx->pattern_cache);
 	if (ret)
@@ -39,23 +38,17 @@ static int hws_context_pools_init(struct mlx5hws_context *ctx)
 	max_log_sz = min(MLX5HWS_POOL_STC_LOG_SZ, ctx->caps->stc_alloc_log_max);
 	pool_attr.alloc_log_sz = max(max_log_sz, ctx->caps->stc_alloc_log_gran);
 
-	for (i = 0; i < MLX5HWS_TABLE_TYPE_MAX; i++) {
-		pool_attr.table_type = i;
-		ctx->stc_pool[i] = mlx5hws_pool_create(ctx, &pool_attr);
-		if (!ctx->stc_pool[i]) {
-			mlx5hws_err(ctx, "Failed to allocate STC pool [%d]", i);
-			ret = -ENOMEM;
-			goto free_stc_pools;
-		}
+	pool_attr.table_type = MLX5HWS_TABLE_TYPE_FDB;
+	ctx->stc_pool = mlx5hws_pool_create(ctx, &pool_attr);
+	if (!ctx->stc_pool) {
+		mlx5hws_err(ctx, "Failed to allocate STC pool\n");
+		ret = -ENOMEM;
+		goto uninit_cache;
 	}
 
 	return 0;
 
-free_stc_pools:
-	for (i = 0; i < MLX5HWS_TABLE_TYPE_MAX; i++)
-		if (ctx->stc_pool[i])
-			mlx5hws_pool_destroy(ctx->stc_pool[i]);
-
+uninit_cache:
 	mlx5hws_definer_uninit_cache(ctx->definer_cache);
 uninit_pat_cache:
 	mlx5hws_pat_uninit_pattern_cache(ctx->pattern_cache);
@@ -64,12 +57,8 @@ uninit_pat_cache:
 
 static void hws_context_pools_uninit(struct mlx5hws_context *ctx)
 {
-	int i;
-
-	for (i = 0; i < MLX5HWS_TABLE_TYPE_MAX; i++) {
-		if (ctx->stc_pool[i])
-			mlx5hws_pool_destroy(ctx->stc_pool[i]);
-	}
+	if (ctx->stc_pool)
+		mlx5hws_pool_destroy(ctx->stc_pool);
 
 	mlx5hws_definer_uninit_cache(ctx->definer_cache);
 	mlx5hws_pat_uninit_pattern_cache(ctx->pattern_cache);
@@ -161,8 +150,10 @@ static int hws_context_init_hws(struct mlx5hws_context *ctx,
 	if (ret)
 		goto uninit_pd;
 
-	if (attr->bwc)
-		ctx->flags |= MLX5HWS_CONTEXT_FLAG_BWC_SUPPORT;
+	/* Context has support for backward compatible API,
+	 * and does not have support for native HWS API.
+	 */
+	ctx->flags |= MLX5HWS_CONTEXT_FLAG_BWC_SUPPORT;
 
 	ret = mlx5hws_send_queues_open(ctx, attr->queues, attr->queue_size);
 	if (ret)

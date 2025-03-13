@@ -10,6 +10,7 @@
 .. toctree::
    :maxdepth: 1
 
+   development-process
    submitting-patches
    kernel-docs
    coding-style
@@ -28,5 +29,4 @@
    management-style
    submit-checklist
    howto
-   development-process
    maintainer-kvm-x86

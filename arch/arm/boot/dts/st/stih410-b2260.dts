@@ -206,5 +206,9 @@
 		sata1: sata@9b28000 {
 			status = "okay";
 		};
+
+		gpu: gpu@9f00000 {
+			status = "okay";
+		};
 	};
 };

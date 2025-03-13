@@ -88,6 +88,23 @@ struct ifa6_config {
 	u16			scope;
 };
 
+enum addr_type_t {
+	UNICAST_ADDR,
+	MULTICAST_ADDR,
+	ANYCAST_ADDR,
+};
+
+struct inet6_fill_args {
+	u32 portid;
+	u32 seq;
+	int event;
+	unsigned int flags;
+	int netnsid;
+	int ifindex;
+	enum addr_type_t type;
+	bool force_rt_scope_universe;
+};
+
 int addrconf_init(void);
 void addrconf_cleanup(void);
 
@@ -330,6 +347,11 @@ static inline struct inet6_dev *__in6_dev_get(const struct net_device *dev)
 	return rcu_dereference_rtnl(dev->ip6_ptr);
 }
 
+static inline struct inet6_dev *__in6_dev_get_rtnl_net(const struct net_device *dev)
+{
+	return rtnl_net_dereference(dev_net(dev), dev->ip6_ptr);
+}
+
 /**
  * __in6_dev_stats_get - get inet6_dev pointer for stats
  * @dev: network device
@@ -525,4 +547,11 @@ int if6_proc_init(void);
 void if6_proc_exit(void);
 #endif
 
+int inet6_fill_ifmcaddr(struct sk_buff *skb,
+			const struct ifmcaddr6 *ifmca,
+			struct inet6_fill_args *args);
+
+int inet6_fill_ifacaddr(struct sk_buff *skb,
+			const struct ifacaddr6 *ifaca,
+			struct inet6_fill_args *args);
 #endif

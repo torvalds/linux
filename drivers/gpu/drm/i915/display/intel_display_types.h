@@ -45,6 +45,7 @@
 #include "i915_vma_types.h"
 #include "intel_bios.h"
 #include "intel_display.h"
+#include "intel_display_conversion.h"
 #include "intel_display_limits.h"
 #include "intel_display_power.h"
 #include "intel_dpll_mgr.h"
@@ -301,6 +302,15 @@ struct intel_panel_bl_funcs {
 	u32 (*hz_to_pwm)(struct intel_connector *connector, u32 hz);
 };
 
+/* in 100us units */
+struct intel_pps_delays {
+	u16 power_up;      /* eDP: T1+T3,   LVDS: T1+T2 */
+	u16 backlight_on;  /* eDP: T8,      LVDS: T5 */
+	u16 backlight_off; /* eDP: T9,      LVDS: T6/TX */
+	u16 power_down;    /* eDP: T10,     LVDS: T3 */
+	u16 power_cycle;   /* eDP: T11+T12, LVDS: T7+T4 */
+};
+
 enum drrs_type {
 	DRRS_TYPE_NONE,
 	DRRS_TYPE_STATIC,
@@ -328,7 +338,7 @@ struct intel_vbt_panel_data {
 		int preemphasis;
 		int vswing;
 		int bpp;
-		struct edp_power_seq pps;
+		struct intel_pps_delays pps;
 		u8 drrs_msa_timing_delay;
 		bool low_vswing;
 		bool hobl;
@@ -587,6 +597,8 @@ struct intel_atomic_state {
 	bool skip_intermediate_wm;
 
 	bool rps_interactive;
+
+	struct work_struct cleanup_work;
 };
 
 struct intel_plane_state {
@@ -697,8 +709,8 @@ struct intel_initial_plane_config {
 };
 
 struct intel_scaler {
-	int in_use;
 	u32 mode;
+	bool in_use;
 };
 
 struct intel_crtc_scaler_state {
@@ -769,6 +781,7 @@ struct skl_wm_level {
 	u8 lines;
 	bool enable;
 	bool ignore_lines;
+	bool auto_min_alloc_wm_enable;
 	bool can_sagv;
 };
 
@@ -863,6 +876,13 @@ struct intel_crtc_wm_state {
 			struct skl_ddb_entry plane_ddb[I915_MAX_PLANES];
 			/* pre-icl: for planar Y */
 			struct skl_ddb_entry plane_ddb_y[I915_MAX_PLANES];
+
+			/*
+			 * xe3: Minimum amount of display blocks and minimum
+			 * sagv allocation required for async flip
+			 */
+			u16 plane_min_ddb[I915_MAX_PLANES];
+			u16 plane_interim_ddb[I915_MAX_PLANES];
 		} skl;
 
 		struct {
@@ -1140,8 +1160,6 @@ struct intel_crtc_state {
 
 	bool double_wide;
 
-	int pbn;
-
 	struct intel_crtc_scaler_state scaler_state;
 
 	/* w/a for waiting 2 vblanks during crtc enable */
@@ -1235,7 +1253,7 @@ struct intel_crtc_state {
 	/* Display Stream compression state */
 	struct {
 		bool compression_enable;
-		bool dsc_split;
+		int num_streams;
 		/* Compressed Bpp in U6.4 format (first 4 bits for fractional part) */
 		u16 compressed_bpp_x16;
 		u8 slice_count;
@@ -1568,8 +1586,8 @@ struct intel_pps {
 	 * requiring a reinitialization. Only relevant on BXT+.
 	 */
 	bool bxt_pps_reset;
-	struct edp_power_seq pps_delays;
-	struct edp_power_seq bios_pps_delays;
+	struct intel_pps_delays pps_delays;
+	struct intel_pps_delays bios_pps_delays;
 };
 
 struct intel_psr {
@@ -1803,11 +1821,13 @@ struct intel_lspcon {
 
 struct intel_digital_port {
 	struct intel_encoder base;
-	u32 saved_port_bits;
 	struct intel_dp dp;
 	struct intel_hdmi hdmi;
 	struct intel_lspcon lspcon;
 	enum irqreturn (*hpd_pulse)(struct intel_digital_port *, bool);
+
+	bool lane_reversal;
+	bool ddi_a_4_lanes;
 	bool release_cl2_override;
 	u8 max_lanes;
 	/* Used for DP and ICL+ TypeC/DP and TypeC/HDMI ports. */
@@ -1941,6 +1961,19 @@ static inline bool intel_encoder_is_dp(struct intel_encoder *encoder)
 	case INTEL_OUTPUT_DDI:
 		/* Skip pure HDMI/DVI DDI encoders */
 		return i915_mmio_reg_valid(enc_to_intel_dp(encoder)->output_reg);
+	default:
+		return false;
+	}
+}
+
+static inline bool intel_encoder_is_hdmi(struct intel_encoder *encoder)
+{
+	switch (encoder->type) {
+	case INTEL_OUTPUT_HDMI:
+		return true;
+	case INTEL_OUTPUT_DDI:
+		/* See if the HDMI encoder is valid. */
+		return i915_mmio_reg_valid(enc_to_intel_hdmi(encoder)->hdmi_reg);
 	default:
 		return false;
 	}
@@ -2086,7 +2119,7 @@ to_intel_frontbuffer(struct drm_framebuffer *fb)
  * intel_display pointer.
  */
 #define __drm_device_to_intel_display(p) \
-	((p) ? &to_i915(p)->display : NULL)
+	((p) ? __drm_to_display(p) : NULL)
 #define __device_to_intel_display(p)				\
 	__drm_device_to_intel_display(dev_get_drvdata(p))
 #define __pci_dev_to_intel_display(p)				\

@@ -25,10 +25,12 @@
 #include "cache.h"
 
 static const struct nfsd_localio_operations nfsd_localio_ops = {
-	.nfsd_serv_try_get  = nfsd_serv_try_get,
-	.nfsd_serv_put  = nfsd_serv_put,
+	.nfsd_net_try_get  = nfsd_net_try_get,
+	.nfsd_net_put  = nfsd_net_put,
 	.nfsd_open_local_fh = nfsd_open_local_fh,
 	.nfsd_file_put_local = nfsd_file_put_local,
+	.nfsd_file_get = nfsd_file_get,
+	.nfsd_file_put = nfsd_file_put,
 	.nfsd_file_file = nfsd_file_file,
 };
 
@@ -52,7 +54,7 @@ void nfsd_localio_ops_init(void)
  * avoid all the NFS overhead with reads, writes and commits.
  *
  * On successful return, returned nfsd_file will have its nf_net member
- * set. Caller (NFS client) is responsible for calling nfsd_serv_put and
+ * set. Caller (NFS client) is responsible for calling nfsd_net_put and
  * nfsd_file_put (via nfs_to_nfsd_file_put_local).
  */
 struct nfsd_file *
@@ -114,6 +116,7 @@ static __be32 localio_proc_uuid_is_local(struct svc_rqst *rqstp)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	nfs_uuid_is_local(&argp->uuid, &nn->local_clients,
+			  &nn->local_clients_lock,
 			  net, rqstp->rq_client, THIS_MODULE);
 
 	return rpc_success;

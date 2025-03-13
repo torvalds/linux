@@ -347,4 +347,4 @@ module_driver(vfio_cdx_driver, cdx_driver_register, cdx_driver_unregister);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("VFIO for CDX devices - User Level meta-driver");
-MODULE_IMPORT_NS(CDX_BUS);
+MODULE_IMPORT_NS("CDX_BUS");

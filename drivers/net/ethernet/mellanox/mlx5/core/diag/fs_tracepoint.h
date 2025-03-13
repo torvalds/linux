@@ -292,7 +292,7 @@ TRACE_EVENT(mlx5_fs_add_rule,
 			   if (rule->dest_attr.type &
 			       MLX5_FLOW_DESTINATION_TYPE_COUNTER)
 				__entry->counter_id =
-					rule->dest_attr.counter_id;
+					mlx5_fc_id(rule->dest_attr.counter);
 	    ),
 	    TP_printk("rule=%p fte=%p index=%u sw_action=<%s> [dst] %s\n",
 		      __entry->rule, __entry->fte, __entry->index,

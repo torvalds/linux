@@ -37,6 +37,8 @@ static int process_legacy_output(struct snd_ump_endpoint *ump,
 				 u32 *buffer, int count);
 static void process_legacy_input(struct snd_ump_endpoint *ump, const u32 *src,
 				 int words);
+static void ump_legacy_set_rawmidi_name(struct snd_ump_endpoint *ump);
+static void update_legacy_names(struct snd_ump_endpoint *ump);
 #else
 static inline int process_legacy_output(struct snd_ump_endpoint *ump,
 					u32 *buffer, int count)
@@ -47,7 +49,41 @@ static inline void process_legacy_input(struct snd_ump_endpoint *ump,
 					const u32 *src, int words)
 {
 }
+static inline void ump_legacy_set_rawmidi_name(struct snd_ump_endpoint *ump)
+{
+}
+static inline void update_legacy_names(struct snd_ump_endpoint *ump)
+{
+}
 #endif
+
+/* copy a string safely with stripping non-printable letters */
+static void safe_copy_string(void *dst, size_t max_dst_size,
+			     const void *src, size_t max_src_size)
+{
+	const unsigned char *s = src;
+	unsigned char *d = dst;
+
+	if (!max_dst_size--)
+		return;
+	for (s = src; max_dst_size && *s && max_src_size--; s++) {
+		if (!isascii(*s) || !isprint(*s))
+			continue;
+		*d++ = *s;
+		max_dst_size--;
+	}
+	*d = 0;
+}
+
+/* append a string safely with stripping non-printable letters */
+static void safe_append_string(void *dst, size_t max_dst_size,
+			       const void *src, size_t max_src_size)
+{
+	unsigned char *d = dst;
+	size_t len = strlen(d);
+
+	safe_copy_string(d + len, max_dst_size - len, src, max_src_size);
+}
 
 static const struct snd_rawmidi_global_ops snd_ump_rawmidi_ops = {
 	.dev_register = snd_ump_dev_register,
@@ -561,16 +597,10 @@ void snd_ump_update_group_attrs(struct snd_ump_endpoint *ump)
 			}
 			if (!*fb->info.name)
 				continue;
-			if (!*group->name) {
-				/* store the first matching name */
-				strscpy(group->name, fb->info.name,
-					sizeof(group->name));
-			} else {
-				/* when overlapping, concat names */
+			if (*group->name)
 				strlcat(group->name, ", ", sizeof(group->name));
-				strlcat(group->name, fb->info.name,
-					sizeof(group->name));
-			}
+			safe_append_string(group->name, sizeof(group->name),
+					   fb->info.name, sizeof(fb->info.name));
 		}
 	}
 }
@@ -665,6 +695,15 @@ static void choose_default_protocol(struct snd_ump_endpoint *ump)
 		ump->info.protocol |= SNDRV_UMP_EP_INFO_PROTO_MIDI1;
 }
 
+/* notify the EP info/name change to sequencer */
+static void seq_notify_ep_change(struct snd_ump_endpoint *ump)
+{
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
+	if (ump->parsed && ump->seq_ops && ump->seq_ops->notify_ep_change)
+		ump->seq_ops->notify_ep_change(ump);
+#endif
+}
+
 /* handle EP info stream message; update the UMP attributes */
 static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
@@ -689,6 +728,7 @@ static int ump_handle_ep_info_msg(struct snd_ump_endpoint *ump,
 
 	ump->info.protocol &= ump->info.protocol_caps;
 	choose_default_protocol(ump);
+	seq_notify_ep_change(ump);
 
 	return 1; /* finished */
 }
@@ -711,24 +751,46 @@ static int ump_handle_device_info_msg(struct snd_ump_endpoint *ump,
 		ump->info.family_id,
 		ump->info.model_id,
 		ump->info.sw_revision);
+	seq_notify_ep_change(ump);
 	return 1; /* finished */
+}
+
+/* set up the core rawmidi name from UMP EP name string */
+static void ump_set_rawmidi_name(struct snd_ump_endpoint *ump)
+{
+	safe_copy_string(ump->core.name, sizeof(ump->core.name),
+			 ump->info.name, sizeof(ump->info.name));
 }
 
 /* handle EP name stream message; update the UMP name string */
 static int ump_handle_ep_name_msg(struct snd_ump_endpoint *ump,
 				  const union snd_ump_stream_msg *buf)
 {
-	return ump_append_string(ump, ump->info.name, sizeof(ump->info.name),
-				 buf->raw, 2);
+	int ret;
+
+	ret = ump_append_string(ump, ump->info.name, sizeof(ump->info.name),
+				buf->raw, 2);
+	if (ret && ump->parsed) {
+		ump_set_rawmidi_name(ump);
+		ump_legacy_set_rawmidi_name(ump);
+		seq_notify_ep_change(ump);
+	}
+
+	return ret;
 }
 
 /* handle EP product id stream message; update the UMP product_id string */
 static int ump_handle_product_id_msg(struct snd_ump_endpoint *ump,
 				     const union snd_ump_stream_msg *buf)
 {
-	return ump_append_string(ump, ump->info.product_id,
-				 sizeof(ump->info.product_id),
-				 buf->raw, 2);
+	int ret;
+
+	ret = ump_append_string(ump, ump->info.product_id,
+				sizeof(ump->info.product_id),
+				buf->raw, 2);
+	if (ret)
+		seq_notify_ep_change(ump);
+	return ret;
 }
 
 /* notify the protocol change to sequencer */
@@ -861,6 +923,7 @@ static int ump_handle_fb_info_msg(struct snd_ump_endpoint *ump,
 		fill_fb_info(ump, &fb->info, buf);
 		if (ump->parsed) {
 			snd_ump_update_group_attrs(ump);
+			update_legacy_names(ump);
 			seq_notify_fb_change(ump, fb);
 		}
 	}
@@ -893,6 +956,7 @@ static int ump_handle_fb_name_msg(struct snd_ump_endpoint *ump,
 	/* notify the FB name update to sequencer, too */
 	if (ret > 0 && ump->parsed) {
 		snd_ump_update_group_attrs(ump);
+		update_legacy_names(ump);
 		seq_notify_fb_change(ump, fb);
 	}
 	return ret;
@@ -1039,6 +1103,8 @@ int snd_ump_parse_endpoint(struct snd_ump_endpoint *ump)
 	if (err < 0)
 		ump_dbg(ump, "Unable to get UMP EP name string\n");
 
+	ump_set_rawmidi_name(ump);
+
 	/* Request Endpoint Product ID */
 	err = ump_req_msg(ump, msg, UMP_STREAM_MSG_REQUEST_PRODUCT_ID,
 			  UMP_STREAM_MSG_STATUS_PRODUCT_ID);
@@ -1087,6 +1153,8 @@ static int snd_ump_legacy_open(struct snd_rawmidi_substream *substream)
 	guard(mutex)(&ump->open_mutex);
 	if (ump->legacy_substreams[dir][group])
 		return -EBUSY;
+	if (!ump->groups[group].active)
+		return -ENODEV;
 	if (dir == SNDRV_RAWMIDI_STREAM_OUTPUT) {
 		if (!ump->legacy_out_opens) {
 			err = snd_rawmidi_kernel_open(&ump->core, 0,
@@ -1236,14 +1304,14 @@ static int fill_legacy_mapping(struct snd_ump_endpoint *ump)
 
 	num = 0;
 	for (i = 0; i < SNDRV_UMP_MAX_GROUPS; i++)
-		if ((group_maps & (1U << i)) && ump->groups[i].valid)
+		if (group_maps & (1U << i))
 			ump->legacy_mapping[num++] = i;
 
 	return num;
 }
 
-static void fill_substream_names(struct snd_ump_endpoint *ump,
-				 struct snd_rawmidi *rmidi, int dir)
+static void update_legacy_substreams(struct snd_ump_endpoint *ump,
+				     struct snd_rawmidi *rmidi, int dir)
 {
 	struct snd_rawmidi_substream *s;
 	const char *name;
@@ -1253,10 +1321,28 @@ static void fill_substream_names(struct snd_ump_endpoint *ump,
 		idx = ump->legacy_mapping[s->number];
 		name = ump->groups[idx].name;
 		if (!*name)
-			name = ump->info.name;
-		snprintf(s->name, sizeof(s->name), "Group %d (%.16s)",
-			 idx + 1, name);
+			name = ump->core.name;
+		scnprintf(s->name, sizeof(s->name), "Group %d (%.16s)%s",
+			  idx + 1, name,
+			  ump->groups[idx].active ? "" : " [Inactive]");
+		s->inactive = !ump->groups[idx].active;
 	}
+}
+
+static void update_legacy_names(struct snd_ump_endpoint *ump)
+{
+	struct snd_rawmidi *rmidi = ump->legacy_rmidi;
+
+	update_legacy_substreams(ump, rmidi, SNDRV_RAWMIDI_STREAM_INPUT);
+	update_legacy_substreams(ump, rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT);
+}
+
+static void ump_legacy_set_rawmidi_name(struct snd_ump_endpoint *ump)
+{
+	struct snd_rawmidi *rmidi = ump->legacy_rmidi;
+
+	snprintf(rmidi->name, sizeof(rmidi->name), "%.68s (MIDI 1.0)",
+		 ump->core.name);
 }
 
 int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
@@ -1289,16 +1375,14 @@ int snd_ump_attach_legacy_rawmidi(struct snd_ump_endpoint *ump,
 	if (output)
 		snd_rawmidi_set_ops(rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT,
 				    &snd_ump_legacy_output_ops);
-	snprintf(rmidi->name, sizeof(rmidi->name), "%.68s (MIDI 1.0)",
-		 ump->info.name);
 	rmidi->info_flags = ump->core.info_flags & ~SNDRV_RAWMIDI_INFO_UMP;
 	rmidi->ops = &snd_ump_legacy_ops;
 	rmidi->private_data = ump;
 	ump->legacy_rmidi = rmidi;
-	if (input)
-		fill_substream_names(ump, rmidi, SNDRV_RAWMIDI_STREAM_INPUT);
-	if (output)
-		fill_substream_names(ump, rmidi, SNDRV_RAWMIDI_STREAM_OUTPUT);
+	ump_legacy_set_rawmidi_name(ump);
+	update_legacy_names(ump);
+
+	snd_rawmidi_tie_devices(rmidi, &ump->core);
 
 	ump_dbg(ump, "Created a legacy rawmidi #%d (%s)\n", device, id);
 	return 0;

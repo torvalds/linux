@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/thermal.h>
 
 #include "etnaviv_cmdbuf.h"
@@ -168,6 +169,29 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 		DBG("%s: invalid param: %u", dev_name(gpu->dev), param);
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int etnaviv_gpu_reset_deassert(struct etnaviv_gpu *gpu)
+{
+	int ret;
+
+	/*
+	 * 32 core clock cycles (slowest clock) required before deassertion
+	 * 1 microsecond might match all implementations without computation
+	 */
+	usleep_range(1, 2);
+
+	ret = reset_control_deassert(gpu->rst);
+	if (ret)
+		return ret;
+
+	/*
+	 * 128 core clock cycles (slowest clock) required before any activity on AHB
+	 * 1 microsecond might match all implementations without computation
+	 */
+	usleep_range(1, 2);
 
 	return 0;
 }
@@ -797,6 +821,12 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 	if (ret < 0) {
 		dev_err(gpu->dev, "Failed to enable GPU power domain\n");
 		goto pm_put;
+	}
+
+	ret = etnaviv_gpu_reset_deassert(gpu);
+	if (ret) {
+		dev_err(gpu->dev, "GPU reset deassert failed\n");
+		goto fail;
 	}
 
 	etnaviv_hw_identify(gpu);
@@ -1860,6 +1890,17 @@ static int etnaviv_gpu_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(gpu->mmio))
 		return PTR_ERR(gpu->mmio);
 
+
+	/* Get Reset: */
+	gpu->rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(gpu->rst))
+		return dev_err_probe(dev, PTR_ERR(gpu->rst),
+				     "failed to get reset\n");
+
+	err = reset_control_assert(gpu->rst);
+	if (err)
+		return dev_err_probe(dev, err, "failed to assert reset\n");
+
 	/* Get Interrupt: */
 	gpu->irq = platform_get_irq(pdev, 0);
 	if (gpu->irq < 0)
@@ -1985,6 +2026,6 @@ struct platform_driver etnaviv_gpu_driver = {
 		.of_match_table = etnaviv_gpu_match,
 	},
 	.probe = etnaviv_gpu_platform_probe,
-	.remove_new = etnaviv_gpu_platform_remove,
+	.remove = etnaviv_gpu_platform_remove,
 	.id_table = gpu_ids,
 };

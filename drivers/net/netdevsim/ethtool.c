@@ -2,8 +2,8 @@
 // Copyright (c) 2020 Facebook
 
 #include <linux/debugfs.h>
-#include <linux/ethtool.h>
 #include <linux/random.h>
+#include <net/netdev_queues.h>
 
 #include "netdevsim.h"
 
@@ -72,6 +72,10 @@ static void nsim_get_ringparam(struct net_device *dev,
 	struct netdevsim *ns = netdev_priv(dev);
 
 	memcpy(ring, &ns->ethtool.ring, sizeof(ns->ethtool.ring));
+	kernel_ring->hds_thresh_max = NSIM_HDS_THRESHOLD_MAX;
+
+	if (dev->cfg->hds_config == ETHTOOL_TCP_DATA_SPLIT_UNKNOWN)
+		kernel_ring->tcp_data_split = ETHTOOL_TCP_DATA_SPLIT_ENABLED;
 }
 
 static int nsim_set_ringparam(struct net_device *dev,
@@ -103,10 +107,10 @@ nsim_set_channels(struct net_device *dev, struct ethtool_channels *ch)
 	struct netdevsim *ns = netdev_priv(dev);
 	int err;
 
-	mutex_lock(&dev->lock);
+	netdev_lock(dev);
 	err = netif_set_real_num_queues(dev, ch->combined_count,
 					ch->combined_count);
-	mutex_unlock(&dev->lock);
+	netdev_unlock(dev);
 	if (err)
 		return err;
 
@@ -161,6 +165,8 @@ static int nsim_get_ts_info(struct net_device *dev,
 
 static const struct ethtool_ops nsim_ethtool_ops = {
 	.supported_coalesce_params	= ETHTOOL_COALESCE_ALL_PARAMS,
+	.supported_ring_params		= ETHTOOL_RING_USE_TCP_DATA_SPLIT |
+					  ETHTOOL_RING_USE_HDS_THRS,
 	.get_pause_stats	        = nsim_get_pause_stats,
 	.get_pauseparam		        = nsim_get_pauseparam,
 	.set_pauseparam		        = nsim_set_pauseparam,
@@ -178,9 +184,11 @@ static const struct ethtool_ops nsim_ethtool_ops = {
 
 static void nsim_ethtool_ring_init(struct netdevsim *ns)
 {
+	ns->ethtool.ring.rx_pending = 512;
 	ns->ethtool.ring.rx_max_pending = 4096;
 	ns->ethtool.ring.rx_jumbo_max_pending = 4096;
 	ns->ethtool.ring.rx_mini_max_pending = 4096;
+	ns->ethtool.ring.tx_pending = 512;
 	ns->ethtool.ring.tx_max_pending = 4096;
 }
 

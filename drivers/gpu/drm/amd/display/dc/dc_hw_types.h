@@ -341,89 +341,101 @@ enum swizzle_mode_addr3_values {
 	DC_ADDR3_SW_UNKNOWN = DC_ADDR3_SW_MAX
 };
 
-union dc_tiling_info {
+enum dc_gfxversion {
+	DcGfxVersion7 = 0,
+	DcGfxVersion8,
+	DcGfxVersion9,
+	DcGfxVersion10,
+	DcGfxVersion11,
+	DcGfxAddr3,
+	DcGfxVersionUnknown
+};
 
-	struct {
-		/* Specifies the number of memory banks for tiling
-		 *	purposes.
-		 * Only applies to 2D and 3D tiling modes.
-		 *	POSSIBLE VALUES: 2,4,8,16
-		 */
-		unsigned int num_banks;
-		/* Specifies the number of tiles in the x direction
-		 *	to be incorporated into the same bank.
-		 * Only applies to 2D and 3D tiling modes.
-		 *	POSSIBLE VALUES: 1,2,4,8
-		 */
-		unsigned int bank_width;
-		unsigned int bank_width_c;
-		/* Specifies the number of tiles in the y direction to
-		 *	be incorporated into the same bank.
-		 * Only applies to 2D and 3D tiling modes.
-		 *	POSSIBLE VALUES: 1,2,4,8
-		 */
-		unsigned int bank_height;
-		unsigned int bank_height_c;
-		/* Specifies the macro tile aspect ratio. Only applies
-		 * to 2D and 3D tiling modes.
-		 */
-		unsigned int tile_aspect;
-		unsigned int tile_aspect_c;
-		/* Specifies the number of bytes that will be stored
-		 *	contiguously for each tile.
-		 * If the tile data requires more storage than this
-		 *	amount, it is split into multiple slices.
-		 * This field must not be larger than
-		 *	GB_ADDR_CONFIG.DRAM_ROW_SIZE.
-		 * Only applies to 2D and 3D tiling modes.
-		 * For color render targets, TILE_SPLIT >= 256B.
-		 */
-		enum tile_split_values tile_split;
-		enum tile_split_values tile_split_c;
-		/* Specifies the addressing within a tile.
-		 *	0x0 - DISPLAY_MICRO_TILING
-		 *	0x1 - THIN_MICRO_TILING
-		 *	0x2 - DEPTH_MICRO_TILING
-		 *	0x3 - ROTATED_MICRO_TILING
-		 */
-		enum tile_mode_values tile_mode;
-		enum tile_mode_values tile_mode_c;
-		/* Specifies the number of pipes and how they are
-		 *	interleaved in the surface.
-		 * Refer to memory addressing document for complete
-		 *	details and constraints.
-		 */
-		unsigned int pipe_config;
-		/* Specifies the tiling mode of the surface.
-		 * THIN tiles use an 8x8x1 tile size.
-		 * THICK tiles use an 8x8x4 tile size.
-		 * 2D tiling modes rotate banks for successive Z slices
-		 * 3D tiling modes rotate pipes and banks for Z slices
-		 * Refer to memory addressing document for complete
-		 *	details and constraints.
-		 */
-		enum array_mode_values array_mode;
-	} gfx8;
+ struct dc_tiling_info {
+	unsigned int gfxversion;     // Specifies which part of the union to use. Must use DalGfxVersion enum
+	union {
+		struct {
+			/* Specifies the number of memory banks for tiling
+			 *	purposes.
+			 * Only applies to 2D and 3D tiling modes.
+			 *	POSSIBLE VALUES: 2,4,8,16
+			 */
+			unsigned int num_banks;
+			/* Specifies the number of tiles in the x direction
+			 *	to be incorporated into the same bank.
+			 * Only applies to 2D and 3D tiling modes.
+			 *	POSSIBLE VALUES: 1,2,4,8
+			 */
+			unsigned int bank_width;
+			unsigned int bank_width_c;
+			/* Specifies the number of tiles in the y direction to
+			 *	be incorporated into the same bank.
+			 * Only applies to 2D and 3D tiling modes.
+			 *	POSSIBLE VALUES: 1,2,4,8
+			 */
+			unsigned int bank_height;
+			unsigned int bank_height_c;
+			/* Specifies the macro tile aspect ratio. Only applies
+			 * to 2D and 3D tiling modes.
+			 */
+			unsigned int tile_aspect;
+			unsigned int tile_aspect_c;
+			/* Specifies the number of bytes that will be stored
+			 *	contiguously for each tile.
+			 * If the tile data requires more storage than this
+			 *	amount, it is split into multiple slices.
+			 * This field must not be larger than
+			 *	GB_ADDR_CONFIG.DRAM_ROW_SIZE.
+			 * Only applies to 2D and 3D tiling modes.
+			 * For color render targets, TILE_SPLIT >= 256B.
+			 */
+			enum tile_split_values tile_split;
+			enum tile_split_values tile_split_c;
+			/* Specifies the addressing within a tile.
+			 *	0x0 - DISPLAY_MICRO_TILING
+			 *	0x1 - THIN_MICRO_TILING
+			 *	0x2 - DEPTH_MICRO_TILING
+			 *	0x3 - ROTATED_MICRO_TILING
+			 */
+			enum tile_mode_values tile_mode;
+			enum tile_mode_values tile_mode_c;
+			/* Specifies the number of pipes and how they are
+			 *	interleaved in the surface.
+			 * Refer to memory addressing document for complete
+			 *	details and constraints.
+			 */
+			unsigned int pipe_config;
+			/* Specifies the tiling mode of the surface.
+			 * THIN tiles use an 8x8x1 tile size.
+			 * THICK tiles use an 8x8x4 tile size.
+			 * 2D tiling modes rotate banks for successive Z slices
+			 * 3D tiling modes rotate pipes and banks for Z slices
+			 * Refer to memory addressing document for complete
+			 *	details and constraints.
+			 */
+			enum array_mode_values array_mode;
+		} gfx8;
 
-	struct {
-		enum swizzle_mode_values swizzle;
-		unsigned int num_pipes;
-		unsigned int max_compressed_frags;
-		unsigned int pipe_interleave;
+		struct {
+			enum swizzle_mode_values swizzle;
+			unsigned int num_pipes;
+			unsigned int max_compressed_frags;
+			unsigned int pipe_interleave;
 
-		unsigned int num_banks;
-		unsigned int num_shader_engines;
-		unsigned int num_rb_per_se;
-		bool shaderEnable;
+			unsigned int num_banks;
+			unsigned int num_shader_engines;
+			unsigned int num_rb_per_se;
+			bool shaderEnable;
 
-		bool meta_linear;
-		bool rb_aligned;
-		bool pipe_aligned;
-		unsigned int num_pkrs;
-	} gfx9;/*gfx9, gfx10 and above*/
-	struct {
-		enum swizzle_mode_addr3_values swizzle;
-	} gfx_addr3;/*gfx with addr3 and above*/
+			bool meta_linear;
+			bool rb_aligned;
+			bool pipe_aligned;
+			unsigned int num_pkrs;
+		} gfx9;/*gfx9, gfx10 and above*/
+		struct {
+			enum swizzle_mode_addr3_values swizzle;
+		} gfx_addr3;/*gfx with addr3 and above*/
+	};
 };
 
 /* Rotation angle */
@@ -975,6 +987,9 @@ struct dc_crtc_timing {
 	struct dc_crtc_timing_flags flags;
 	uint32_t dsc_fixed_bits_per_pixel_x16; /* DSC target bitrate in 1/16 of bpp (e.g. 128 -> 8bpp) */
 	struct dc_dsc_config dsc_cfg;
+
+	/* The number of pixels that HBlank has been expanded by from the original EDID timing. */
+	uint32_t expanded_hblank;
 };
 
 enum trigger_delay {

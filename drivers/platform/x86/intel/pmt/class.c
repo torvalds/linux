@@ -33,7 +33,7 @@ bool intel_pmt_is_early_client_hw(struct device *dev)
 	 */
 	return !!(ivdev->quirks & VSEC_QUIRK_EARLY_HW);
 }
-EXPORT_SYMBOL_NS_GPL(intel_pmt_is_early_client_hw, INTEL_PMT);
+EXPORT_SYMBOL_NS_GPL(intel_pmt_is_early_client_hw, "INTEL_PMT");
 
 static inline int
 pmt_memcpy64_fromio(void *to, const u64 __iomem *from, size_t count)
@@ -74,14 +74,14 @@ int pmt_telem_read_mmio(struct pci_dev *pdev, struct pmt_callbacks *cb, u32 guid
 
 	return count;
 }
-EXPORT_SYMBOL_NS_GPL(pmt_telem_read_mmio, INTEL_PMT);
+EXPORT_SYMBOL_NS_GPL(pmt_telem_read_mmio, "INTEL_PMT");
 
 /*
  * sysfs
  */
 static ssize_t
 intel_pmt_read(struct file *filp, struct kobject *kobj,
-	       struct bin_attribute *attr, char *buf, loff_t off,
+	       const struct bin_attribute *attr, char *buf, loff_t off,
 	       size_t count)
 {
 	struct intel_pmt_entry *entry = container_of(attr,
@@ -308,7 +308,7 @@ static int intel_pmt_dev_register(struct intel_pmt_entry *entry,
 	entry->pmt_bin_attr.attr.name = ns->name;
 	entry->pmt_bin_attr.attr.mode = 0440;
 	entry->pmt_bin_attr.mmap = intel_pmt_mmap;
-	entry->pmt_bin_attr.read = intel_pmt_read;
+	entry->pmt_bin_attr.read_new = intel_pmt_read;
 	entry->pmt_bin_attr.size = entry->size;
 
 	ret = sysfs_create_bin_file(&dev->kobj, &entry->pmt_bin_attr);
@@ -359,7 +359,7 @@ int intel_pmt_dev_create(struct intel_pmt_entry *entry, struct intel_pmt_namespa
 
 	return intel_pmt_dev_register(entry, ns, dev);
 }
-EXPORT_SYMBOL_NS_GPL(intel_pmt_dev_create, INTEL_PMT);
+EXPORT_SYMBOL_NS_GPL(intel_pmt_dev_create, "INTEL_PMT");
 
 void intel_pmt_dev_destroy(struct intel_pmt_entry *entry,
 			   struct intel_pmt_namespace *ns)
@@ -375,7 +375,7 @@ void intel_pmt_dev_destroy(struct intel_pmt_entry *entry,
 	device_unregister(dev);
 	xa_erase(ns->xa, entry->devid);
 }
-EXPORT_SYMBOL_NS_GPL(intel_pmt_dev_destroy, INTEL_PMT);
+EXPORT_SYMBOL_NS_GPL(intel_pmt_dev_destroy, "INTEL_PMT");
 
 static int __init pmt_class_init(void)
 {

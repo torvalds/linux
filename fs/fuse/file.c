@@ -955,8 +955,10 @@ static void fuse_readpages_end(struct fuse_mount *fm, struct fuse_args *args,
 		fuse_invalidate_atime(inode);
 	}
 
-	for (i = 0; i < ap->num_folios; i++)
+	for (i = 0; i < ap->num_folios; i++) {
 		folio_end_read(ap->folios[i], !err);
+		folio_put(ap->folios[i]);
+	}
 	if (ia->ff)
 		fuse_file_put(ia->ff, false);
 
@@ -1048,7 +1050,14 @@ static void fuse_readahead(struct readahead_control *rac)
 		ap = &ia->ap;
 
 		while (ap->num_folios < cur_pages) {
-			folio = readahead_folio(rac);
+			/*
+			 * This returns a folio with a ref held on it.
+			 * The ref needs to be held until the request is
+			 * completed, since the splice case (see
+			 * fuse_try_move_page()) drops the ref after it's
+			 * replaced in the page cache.
+			 */
+			folio = __readahead_folio(rac);
 			ap->folios[ap->num_folios] = folio;
 			ap->descs[ap->num_folios].length = folio_size(folio);
 			ap->num_folios++;
@@ -1541,8 +1550,10 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 	 */
 	struct page **pages = kzalloc(max_pages * sizeof(struct page *),
 				      GFP_KERNEL);
-	if (!pages)
-		return -ENOMEM;
+	if (!pages) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	while (nbytes < *nbytesp && nr_pages < max_pages) {
 		unsigned nfolios, i;
@@ -1557,18 +1568,22 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 
 		nbytes += ret;
 
-		ret += start;
-		/* Currently, all folios in FUSE are one page */
-		nfolios = DIV_ROUND_UP(ret, PAGE_SIZE);
+		nfolios = DIV_ROUND_UP(ret + start, PAGE_SIZE);
 
-		ap->descs[ap->num_folios].offset = start;
-		fuse_folio_descs_length_init(ap->descs, ap->num_folios, nfolios);
-		for (i = 0; i < nfolios; i++)
-			ap->folios[i + ap->num_folios] = page_folio(pages[i]);
+		for (i = 0; i < nfolios; i++) {
+			struct folio *folio = page_folio(pages[i]);
+			unsigned int offset = start +
+				(folio_page_idx(folio, pages[i]) << PAGE_SHIFT);
+			unsigned int len = min_t(unsigned int, ret, PAGE_SIZE - start);
 
-		ap->num_folios += nfolios;
-		ap->descs[ap->num_folios - 1].length -=
-			(PAGE_SIZE - ret) & (PAGE_SIZE - 1);
+			ap->descs[ap->num_folios].offset = offset;
+			ap->descs[ap->num_folios].length = len;
+			ap->folios[ap->num_folios] = folio;
+			start = 0;
+			ret -= len;
+			ap->num_folios++;
+		}
+
 		nr_pages += nfolios;
 	}
 	kfree(pages);
@@ -1584,6 +1599,7 @@ static int fuse_get_user_pages(struct fuse_args_pages *ap, struct iov_iter *ii,
 	else
 		ap->args.out_pages = true;
 
+out:
 	*nbytesp = nbytes;
 
 	return ret < 0 ? ret : 0;

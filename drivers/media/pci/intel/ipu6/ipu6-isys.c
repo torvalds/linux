@@ -1133,6 +1133,7 @@ static int isys_probe(struct auxiliary_device *auxdev,
 free_fw_msg_bufs:
 	free_fw_msg_bufs(isys);
 out_remove_pkg_dir_shared_buffer:
+	cpu_latency_qos_remove_request(&isys->pm_qos);
 	if (!isp->secure_mode)
 		ipu6_cpd_free_pkg_dir(adev);
 remove_shared_buffer:
@@ -1377,5 +1378,5 @@ MODULE_AUTHOR("Yunliang Ding <yunliang.ding@intel.com>");
 MODULE_AUTHOR("Hongju Wang <hongju.wang@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Intel IPU6 input system driver");
-MODULE_IMPORT_NS(INTEL_IPU6);
-MODULE_IMPORT_NS(INTEL_IPU_BRIDGE);
+MODULE_IMPORT_NS("INTEL_IPU6");
+MODULE_IMPORT_NS("INTEL_IPU_BRIDGE");

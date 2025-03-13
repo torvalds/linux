@@ -176,7 +176,7 @@ Configuring the kernel
                         values without prompting.
 
      "make defconfig"   Create a ./.config file by using the default
-                        symbol values from either arch/$ARCH/defconfig
+                        symbol values from either arch/$ARCH/configs/defconfig
                         or arch/$ARCH/configs/${PLATFORM}_defconfig,
                         depending on the architecture.
 
@@ -356,5 +356,5 @@ instructions at 'Documentation/admin-guide/reporting-issues.rst'.
 
 Hints on understanding kernel bug reports are in
 'Documentation/admin-guide/bug-hunting.rst'. More on debugging the kernel
-with gdb is in 'Documentation/dev-tools/gdb-kernel-debugging.rst' and
-'Documentation/dev-tools/kgdb.rst'.
+with gdb is in 'Documentation/process/debugging/gdb-kernel-debugging.rst' and
+'Documentation/process/debugging/kgdb.rst'.

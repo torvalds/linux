@@ -506,6 +506,32 @@ struct regmap_range_cfg {
 	unsigned int window_len;
 };
 
+/**
+ * struct regmap_sdw_mbq_cfg - Configuration for Multi-Byte Quantities
+ *
+ * @mbq_size: Callback returning the actual size of the given register.
+ * @deferrable: Callback returning true if the hardware can defer
+ *              transactions to the given register. Deferral should
+ *              only be used by SDCA parts and typically which controls
+ *              are deferrable will be specified in either as a hard
+ *              coded list or from the DisCo tables in the platform
+ *              firmware.
+ *
+ * @timeout_us: The time in microseconds after which waiting for a deferred
+ *              transaction should time out.
+ * @retry_us: The time in microseconds between polls of the function busy
+ *            status whilst waiting for an opportunity to retry a deferred
+ *            transaction.
+ *
+ * Provides additional configuration required for SoundWire MBQ register maps.
+ */
+struct regmap_sdw_mbq_cfg {
+	int (*mbq_size)(struct device *dev, unsigned int reg);
+	bool (*deferrable)(struct device *dev, unsigned int reg);
+	unsigned long timeout_us;
+	unsigned long retry_us;
+};
+
 struct regmap_async;
 
 typedef int (*regmap_hw_write)(void *context, const void *data,
@@ -652,6 +678,7 @@ struct regmap *__regmap_init_sdw(struct sdw_slave *sdw,
 				 const char *lock_name);
 struct regmap *__regmap_init_sdw_mbq(struct sdw_slave *sdw,
 				     const struct regmap_config *config,
+				     const struct regmap_sdw_mbq_cfg *mbq_config,
 				     struct lock_class_key *lock_key,
 				     const char *lock_name);
 struct regmap *__regmap_init_spi_avmm(struct spi_device *spi,
@@ -713,6 +740,7 @@ struct regmap *__devm_regmap_init_sdw(struct sdw_slave *sdw,
 				 const char *lock_name);
 struct regmap *__devm_regmap_init_sdw_mbq(struct sdw_slave *sdw,
 					  const struct regmap_config *config,
+					  const struct regmap_sdw_mbq_cfg *mbq_config,
 					  struct lock_class_key *lock_key,
 					  const char *lock_name);
 struct regmap *__devm_regmap_init_slimbus(struct slim_device *slimbus,
@@ -942,7 +970,22 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
  */
 #define regmap_init_sdw_mbq(sdw, config)					\
 	__regmap_lockdep_wrapper(__regmap_init_sdw_mbq, #config,		\
-				sdw, config)
+				sdw, config, NULL)
+
+/**
+ * regmap_init_sdw_mbq_cfg() - Initialise MBQ SDW register map with config
+ *
+ * @sdw: Device that will be interacted with
+ * @config: Configuration for register map
+ * @mbq_config: Properties for the MBQ registers
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap. The regmap will be automatically freed by the
+ * device management code.
+ */
+#define regmap_init_sdw_mbq_cfg(sdw, config, mbq_config)		\
+	__regmap_lockdep_wrapper(__regmap_init_sdw_mbq, #config,	\
+				sdw, config, mbq_config)
 
 /**
  * regmap_init_spi_avmm() - Initialize register map for Intel SPI Slave
@@ -1155,7 +1198,22 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
  */
 #define devm_regmap_init_sdw_mbq(sdw, config)			\
 	__regmap_lockdep_wrapper(__devm_regmap_init_sdw_mbq, #config,   \
-				sdw, config)
+				sdw, config, NULL)
+
+/**
+ * devm_regmap_init_sdw_mbq_cfg() - Initialise managed MBQ SDW register map with config
+ *
+ * @sdw: Device that will be interacted with
+ * @config: Configuration for register map
+ * @mbq_config: Properties for the MBQ registers
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap. The regmap will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_sdw_mbq_cfg(sdw, config, mbq_config)	\
+	__regmap_lockdep_wrapper(__devm_regmap_init_sdw_mbq,	\
+				#config, sdw, config, mbq_config)
 
 /**
  * devm_regmap_init_slimbus() - Initialise managed register map
@@ -1244,7 +1302,7 @@ int regmap_noinc_read(struct regmap *map, unsigned int reg,
 		      void *val, size_t val_len);
 int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		     size_t val_count);
-int regmap_multi_reg_read(struct regmap *map, unsigned int *reg, void *val,
+int regmap_multi_reg_read(struct regmap *map, const unsigned int *reg, void *val,
 			  size_t val_count);
 int regmap_update_bits_base(struct regmap *map, unsigned int reg,
 			    unsigned int mask, unsigned int val,

@@ -53,10 +53,10 @@ unevaluatedProperties: false
 
 examples:
   - |
-   codec {
-       compatible = "everest,es7134";
-       #sound-dai-cells = <0>;
-       VDD-supply = <&vdd_supply>;
-   };
+    codec {
+        compatible = "everest,es7134";
+        #sound-dai-cells = <0>;
+        VDD-supply = <&vdd_supply>;
+    };
 
 ...

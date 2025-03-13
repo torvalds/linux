@@ -83,7 +83,7 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 
 	if (unlikely(sg_policy->limits_changed)) {
 		sg_policy->limits_changed = false;
-		sg_policy->need_freq_update = true;
+		sg_policy->need_freq_update = cpufreq_driver_test_flags(CPUFREQ_NEED_UPDATE_LIMITS);
 		return true;
 	}
 
@@ -96,7 +96,7 @@ static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 				   unsigned int next_freq)
 {
 	if (sg_policy->need_freq_update)
-		sg_policy->need_freq_update = cpufreq_driver_test_flags(CPUFREQ_NEED_UPDATE_LIMITS);
+		sg_policy->need_freq_update = false;
 	else if (sg_policy->next_freq == next_freq)
 		return false;
 
@@ -604,31 +604,6 @@ static const struct kobj_type sugov_tunables_ktype = {
 
 /********************** cpufreq governor interface *********************/
 
-#ifdef CONFIG_ENERGY_MODEL
-static void rebuild_sd_workfn(struct work_struct *work)
-{
-	rebuild_sched_domains_energy();
-}
-
-static DECLARE_WORK(rebuild_sd_work, rebuild_sd_workfn);
-
-/*
- * EAS shouldn't be attempted without sugov, so rebuild the sched_domains
- * on governor changes to make sure the scheduler knows about it.
- */
-static void sugov_eas_rebuild_sd(void)
-{
-	/*
-	 * When called from the cpufreq_register_driver() path, the
-	 * cpu_hotplug_lock is already held, so use a work item to
-	 * avoid nested locking in rebuild_sched_domains().
-	 */
-	schedule_work(&rebuild_sd_work);
-}
-#else
-static inline void sugov_eas_rebuild_sd(void) { };
-#endif
-
 struct cpufreq_governor schedutil_gov;
 
 static struct sugov_policy *sugov_policy_alloc(struct cpufreq_policy *policy)
@@ -691,7 +666,11 @@ static int sugov_kthread_create(struct sugov_policy *sg_policy)
 	}
 
 	sg_policy->thread = thread;
-	kthread_bind_mask(thread, policy->related_cpus);
+	if (policy->dvfs_possible_from_any_cpu)
+		set_cpus_allowed_ptr(thread, policy->related_cpus);
+	else
+		kthread_bind_mask(thread, policy->related_cpus);
+
 	init_irq_work(&sg_policy->irq_work, sugov_irq_work);
 	mutex_init(&sg_policy->work_lock);
 
@@ -784,7 +763,11 @@ static int sugov_init(struct cpufreq_policy *policy)
 		goto fail;
 
 out:
-	sugov_eas_rebuild_sd();
+	/*
+	 * Schedutil is the preferred governor for EAS, so rebuild sched domains
+	 * on governor changes to make sure the scheduler knows about them.
+	 */
+	em_rebuild_sched_domains();
 	mutex_unlock(&global_tunables_lock);
 	return 0;
 
@@ -826,7 +809,7 @@ static void sugov_exit(struct cpufreq_policy *policy)
 	sugov_policy_free(sg_policy);
 	cpufreq_disable_fast_switch(policy);
 
-	sugov_eas_rebuild_sd();
+	em_rebuild_sched_domains();
 }
 
 static int sugov_start(struct cpufreq_policy *policy)

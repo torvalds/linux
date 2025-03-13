@@ -409,12 +409,31 @@ static void enetc_port_assign_rfs_entries(struct enetc_si *si)
 	enetc_port_wr(hw, ENETC_PRFSMR, ENETC_PRFSMR_RFSE);
 }
 
+static void enetc_port_get_caps(struct enetc_si *si)
+{
+	struct enetc_hw *hw = &si->hw;
+	u32 val;
+
+	val = enetc_port_rd(hw, ENETC_PCAPR0);
+
+	if (val & ENETC_PCAPR0_QBV)
+		si->hw_features |= ENETC_SI_F_QBV;
+
+	if (val & ENETC_PCAPR0_QBU)
+		si->hw_features |= ENETC_SI_F_QBU;
+
+	if (val & ENETC_PCAPR0_PSFP)
+		si->hw_features |= ENETC_SI_F_PSFP;
+}
+
 static void enetc_port_si_configure(struct enetc_si *si)
 {
 	struct enetc_pf *pf = enetc_si_priv(si);
 	struct enetc_hw *hw = &si->hw;
 	int num_rings, i;
 	u32 val;
+
+	enetc_port_get_caps(si);
 
 	val = enetc_port_rd(hw, ENETC_PCAPR0);
 	num_rings = min(ENETC_PCAPR0_RXBDR(val), ENETC_PCAPR0_TXBDR(val));

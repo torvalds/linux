@@ -735,7 +735,7 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 /**
  * memblock_validate_numa_coverage - check if amount of memory with
  * no node ID assigned is less than a threshold
- * @threshold_bytes: maximal number of pages that can have unassigned node
+ * @threshold_bytes: maximal memory size that can have unassigned node
  * ID (in bytes).
  *
  * A buggy firmware may report memory that does not belong to any node.
@@ -755,7 +755,7 @@ bool __init_memblock memblock_validate_numa_coverage(unsigned long threshold_byt
 			nr_pages += end_pfn - start_pfn;
 	}
 
-	if ((nr_pages << PAGE_SHIFT) >= threshold_bytes) {
+	if ((nr_pages << PAGE_SHIFT) > threshold_bytes) {
 		mem_size_mb = memblock_phys_mem_size() >> 20;
 		pr_err("NUMA: no nodes coverage for %luMB of %luMB RAM\n",
 		       (nr_pages << PAGE_SHIFT) >> 20, mem_size_mb);
@@ -1689,6 +1689,26 @@ void * __init memblock_alloc_try_nid(
 		memset(ptr, 0, size);
 
 	return ptr;
+}
+
+/**
+ * __memblock_alloc_or_panic - Try to allocate memory and panic on failure
+ * @size: size of memory block to be allocated in bytes
+ * @align: alignment of the region and block's size
+ * @func: caller func name
+ *
+ * This function attempts to allocate memory using memblock_alloc,
+ * and in case of failure, it calls panic with the formatted message.
+ * This function should not be used directly, please use the macro memblock_alloc_or_panic.
+ */
+void *__init __memblock_alloc_or_panic(phys_addr_t size, phys_addr_t align,
+				       const char *func)
+{
+	void *addr = memblock_alloc(size, align);
+
+	if (unlikely(!addr))
+		panic("%s: Failed to allocate %pap bytes\n", func, &size);
+	return addr;
 }
 
 /**

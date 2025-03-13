@@ -527,12 +527,12 @@ EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
 
 #if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST) || IS_ENABLED(CONFIG_LOCK_TORTURE_TEST) || IS_MODULE(CONFIG_LOCK_TORTURE_TEST)
 /* Get rcutorture access to sched_setaffinity(). */
-long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
+long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask, bool dowarn)
 {
 	int ret;
 
 	ret = sched_setaffinity(pid, in_mask);
-	WARN_ONCE(ret, "%s: sched_setaffinity(%d) returned %d\n", __func__, pid, ret);
+	WARN_ONCE(dowarn && ret, "%s: sched_setaffinity(%d) returned %d\n", __func__, pid, ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(torture_sched_setaffinity);

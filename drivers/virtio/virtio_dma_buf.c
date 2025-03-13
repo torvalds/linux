@@ -87,4 +87,4 @@ EXPORT_SYMBOL(virtio_dma_buf_get_uuid);
 
 MODULE_DESCRIPTION("dma-bufs for virtio exported objects");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");

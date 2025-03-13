@@ -145,57 +145,57 @@ both.
 Memory
 ^^^^^^
 
-- drm-memory-<region>: <uint> [KiB|MiB]
-
-Each possible memory type which can be used to store buffer objects by the
-GPU in question shall be given a stable and unique name to be returned as the
-string here.
+Each possible memory type which can be used to store buffer objects by the GPU
+in question shall be given a stable and unique name to be used as the "<region>"
+string.
 
 The region name "memory" is reserved to refer to normal system memory.
 
-Value shall reflect the amount of storage currently consumed by the buffer
+The value shall reflect the amount of storage currently consumed by the buffer
 objects belong to this client, in the respective memory region.
 
 Default unit shall be bytes with optional unit specifiers of 'KiB' or 'MiB'
 indicating kibi- or mebi-bytes.
 
-This key is deprecated and is an alias for drm-resident-<region>. Only one of
-the two should be present in the output.
+- drm-total-<region>: <uint> [KiB|MiB]
+
+The total size of all requested buffers, including both shared and private
+memory. The backing store for the buffers does not need to be currently
+instantiated to count under this category. To avoid double-counting, if a buffer
+has multiple regions where it can be allocated to, the implementation should
+consistently select a single region for accounting purposes.
 
 - drm-shared-<region>: <uint> [KiB|MiB]
 
-The total size of buffers that are shared with another file (e.g., have more
-than a single handle).
-
-- drm-total-<region>: <uint> [KiB|MiB]
-
-The total size of all created buffers including shared and private memory. The
-backing store for the buffers does not have to be currently instantiated to be
-counted under this category.
+The total size of buffers that are shared with another file (i.e., have more
+than one handle). The same requirement to avoid double-counting that applies to
+drm-total-<region> also applies here.
 
 - drm-resident-<region>: <uint> [KiB|MiB]
 
-The total size of buffers that are resident (have their backing store present or
-instantiated) in the specified region.
+The total size of buffers that are resident (i.e., have their backing store
+present or instantiated) in the specified region.
 
-This is an alias for drm-memory-<region> and only one of the two should be
-present in the output.
+- drm-memory-<region>: <uint> [KiB|MiB]
+
+This key is deprecated and is only printed by amdgpu; it is an alias for
+drm-resident-<region>.
 
 - drm-purgeable-<region>: <uint> [KiB|MiB]
 
-The total size of buffers that are purgeable.
+The total size of buffers that are resident and purgeable.
 
-For example drivers which implement a form of 'madvise' like functionality can
-here count buffers which have instantiated backing store, but have been marked
-with an equivalent of MADV_DONTNEED.
+For example, drivers that implement functionality similar to 'madvise' can count
+buffers that have instantiated backing stores but have been marked with an
+equivalent of MADV_DONTNEED.
 
 - drm-active-<region>: <uint> [KiB|MiB]
 
 The total size of buffers that are active on one or more engines.
 
-One practical example of this can be presence of unsignaled fences in an GEM
-buffer reservation object. Therefore the active category is a subset of
-resident.
+One practical example of this could be the presence of unsignaled fences in a
+GEM buffer reservation object. Therefore, the active category is a subset of the
+resident category.
 
 Implementation Details
 ======================

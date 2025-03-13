@@ -10,6 +10,7 @@
  */
 
 #include <linux/efi.h>
+#include <linux/screen_info.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -53,25 +54,16 @@ void __weak free_screen_info(struct screen_info *si)
 
 static struct screen_info *setup_graphics(void)
 {
-	efi_guid_t gop_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
-	efi_status_t status;
-	unsigned long size;
-	void **gop_handle = NULL;
-	struct screen_info *si = NULL;
+	struct screen_info *si, tmp = {};
 
-	size = 0;
-	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-			     &gop_proto, NULL, &size, gop_handle);
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		si = alloc_screen_info();
-		if (!si)
-			return NULL;
-		status = efi_setup_gop(si, &gop_proto, size);
-		if (status != EFI_SUCCESS) {
-			free_screen_info(si);
-			return NULL;
-		}
-	}
+	if (efi_setup_gop(&tmp) != EFI_SUCCESS)
+		return NULL;
+
+	si = alloc_screen_info();
+	if (!si)
+		return NULL;
+
+	*si = tmp;
 	return si;
 }
 
@@ -112,8 +104,8 @@ static u32 get_supported_rt_services(void)
 
 efi_status_t efi_handle_cmdline(efi_loaded_image_t *image, char **cmdline_ptr)
 {
+	char *cmdline __free(efi_pool) = NULL;
 	efi_status_t status;
-	char *cmdline;
 
 	/*
 	 * Get the command line from EFI, using the LOADED_IMAGE
@@ -128,25 +120,24 @@ efi_status_t efi_handle_cmdline(efi_loaded_image_t *image, char **cmdline_ptr)
 
 	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
 		status = efi_parse_options(cmdline);
-		if (status != EFI_SUCCESS)
-			goto fail_free_cmdline;
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to parse EFI load options\n");
+			return status;
+		}
 	}
 
 	if (IS_ENABLED(CONFIG_CMDLINE_EXTEND) ||
 	    IS_ENABLED(CONFIG_CMDLINE_FORCE) ||
 	    cmdline[0] == 0) {
 		status = efi_parse_options(CONFIG_CMDLINE);
-		if (status != EFI_SUCCESS)
-			goto fail_free_cmdline;
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to parse built-in command line\n");
+			return status;
+		}
 	}
 
-	*cmdline_ptr = cmdline;
+	*cmdline_ptr = no_free_ptr(cmdline);
 	return EFI_SUCCESS;
-
-fail_free_cmdline:
-	efi_err("Failed to parse options\n");
-	efi_bs_call(free_pool, cmdline);
-	return status;
 }
 
 efi_status_t efi_stub_common(efi_handle_t handle,

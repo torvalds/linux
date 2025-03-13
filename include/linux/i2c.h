@@ -321,6 +321,8 @@ struct i2c_driver {
  *	calls it to pass on slave events to the slave driver.
  * @devres_group_id: id of the devres group that will be created for resources
  *	acquired when probing this device.
+ * @debugfs: pointer to the debugfs subdirectory which the I2C core created
+ *	for this client.
  *
  * An i2c_client identifies a single device (i.e. chip) connected to an
  * i2c bus. The behaviour exposed to Linux is defined by the driver
@@ -350,6 +352,7 @@ struct i2c_client {
 	i2c_slave_cb_t slave_cb;	/* callback for slave mode	*/
 #endif
 	void *devres_group_id;		/* ID of probe devres group	*/
+	struct dentry *debugfs;		/* per-client debugfs dir	*/
 };
 #define to_i2c_client(d) container_of(d, struct i2c_client, dev)
 

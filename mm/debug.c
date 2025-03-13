@@ -124,19 +124,22 @@ static void __dump_page(const struct page *page)
 {
 	struct folio *foliop, folio;
 	struct page precise;
+	unsigned long head;
 	unsigned long pfn = page_to_pfn(page);
 	unsigned long idx, nr_pages = 1;
 	int loops = 5;
 
 again:
 	memcpy(&precise, page, sizeof(*page));
-	foliop = page_folio(&precise);
-	if (foliop == (struct folio *)&precise) {
+	head = precise.compound_head;
+	if ((head & 1) == 0) {
+		foliop = (struct folio *)&precise;
 		idx = 0;
 		if (!folio_test_large(foliop))
 			goto dump;
 		foliop = (struct folio *)page;
 	} else {
+		foliop = (struct folio *)(head - 1);
 		idx = folio_page_idx(foliop, page);
 	}
 
@@ -245,6 +248,77 @@ void dump_mm(const struct mm_struct *mm)
 	);
 }
 EXPORT_SYMBOL(dump_mm);
+
+void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
+{
+	if (reason)
+		pr_warn("vmg %px dumped because: %s\n", vmg, reason);
+
+	if (!vmg) {
+		pr_warn("vmg %px state: (NULL)\n", vmg);
+		return;
+	}
+
+	pr_warn("vmg %px state: mm %px pgoff %lx\n"
+		"vmi %px [%lx,%lx)\n"
+		"prev %px next %px vma %px\n"
+		"start %lx end %lx flags %lx\n"
+		"file %px anon_vma %px policy %px\n"
+		"uffd_ctx %px\n"
+		"anon_name %px\n"
+		"merge_flags %x state %x\n",
+		vmg, vmg->mm, vmg->pgoff,
+		vmg->vmi, vmg->vmi ? vma_iter_addr(vmg->vmi) : 0,
+		vmg->vmi ? vma_iter_end(vmg->vmi) : 0,
+		vmg->prev, vmg->next, vmg->vma,
+		vmg->start, vmg->end, vmg->flags,
+		vmg->file, vmg->anon_vma, vmg->policy,
+#ifdef CONFIG_USERFAULTFD
+		vmg->uffd_ctx.ctx,
+#else
+		(void *)0,
+#endif
+		vmg->anon_name,
+		(int)vmg->merge_flags, (int)vmg->state);
+
+	if (vmg->mm) {
+		pr_warn("vmg %px mm:\n", vmg);
+		dump_mm(vmg->mm);
+	} else {
+		pr_warn("vmg %px mm: (NULL)\n", vmg);
+	}
+
+	if (vmg->vma) {
+		pr_warn("vmg %px vma:\n", vmg);
+		dump_vma(vmg->vma);
+	} else {
+		pr_warn("vmg %px vma: (NULL)\n", vmg);
+	}
+
+	if (vmg->prev) {
+		pr_warn("vmg %px prev:\n", vmg);
+		dump_vma(vmg->prev);
+	} else {
+		pr_warn("vmg %px prev: (NULL)\n", vmg);
+	}
+
+	if (vmg->next) {
+		pr_warn("vmg %px next:\n", vmg);
+		dump_vma(vmg->next);
+	} else {
+		pr_warn("vmg %px next: (NULL)\n", vmg);
+	}
+
+#ifdef CONFIG_DEBUG_VM_MAPLE_TREE
+	if (vmg->vmi) {
+		pr_warn("vmg %px vmi:\n", vmg);
+		vma_iter_dump_tree(vmg->vmi);
+	} else {
+		pr_warn("vmg %px vmi: (NULL)\n", vmg);
+	}
+#endif
+}
+EXPORT_SYMBOL(dump_vmg);
 
 static bool page_init_poisoning __read_mostly = true;
 

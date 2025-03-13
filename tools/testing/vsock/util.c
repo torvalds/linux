@@ -96,41 +96,57 @@ void vsock_wait_remote_close(int fd)
 	close(epollfd);
 }
 
-/* Bind to <bind_port>, connect to <cid, port> and return the file descriptor. */
-int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_port, int type)
+/* Create socket <type>, bind to <cid, port> and return the file descriptor. */
+int vsock_bind(unsigned int cid, unsigned int port, int type)
 {
-	struct sockaddr_vm sa_client = {
-		.svm_family = AF_VSOCK,
-		.svm_cid = VMADDR_CID_ANY,
-		.svm_port = bind_port,
-	};
-	struct sockaddr_vm sa_server = {
+	struct sockaddr_vm sa = {
 		.svm_family = AF_VSOCK,
 		.svm_cid = cid,
 		.svm_port = port,
 	};
+	int fd;
 
-	int client_fd, ret;
-
-	client_fd = socket(AF_VSOCK, type, 0);
-	if (client_fd < 0) {
+	fd = socket(AF_VSOCK, type, 0);
+	if (fd < 0) {
 		perror("socket");
 		exit(EXIT_FAILURE);
 	}
 
-	if (bind(client_fd, (struct sockaddr *)&sa_client, sizeof(sa_client))) {
+	if (bind(fd, (struct sockaddr *)&sa, sizeof(sa))) {
 		perror("bind");
 		exit(EXIT_FAILURE);
 	}
 
+	return fd;
+}
+
+int vsock_connect_fd(int fd, unsigned int cid, unsigned int port)
+{
+	struct sockaddr_vm sa = {
+		.svm_family = AF_VSOCK,
+		.svm_cid = cid,
+		.svm_port = port,
+	};
+	int ret;
+
 	timeout_begin(TIMEOUT);
 	do {
-		ret = connect(client_fd, (struct sockaddr *)&sa_server, sizeof(sa_server));
+		ret = connect(fd, (struct sockaddr *)&sa, sizeof(sa));
 		timeout_check("connect");
 	} while (ret < 0 && errno == EINTR);
 	timeout_end();
 
-	if (ret < 0) {
+	return ret;
+}
+
+/* Bind to <bind_port>, connect to <cid, port> and return the file descriptor. */
+int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_port, int type)
+{
+	int client_fd;
+
+	client_fd = vsock_bind(VMADDR_CID_ANY, bind_port, type);
+
+	if (vsock_connect_fd(client_fd, cid, port)) {
 		perror("connect");
 		exit(EXIT_FAILURE);
 	}
@@ -141,17 +157,6 @@ int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_po
 /* Connect to <cid, port> and return the file descriptor. */
 int vsock_connect(unsigned int cid, unsigned int port, int type)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = port,
-			.svm_cid = cid,
-		},
-	};
-	int ret;
 	int fd;
 
 	control_expectln("LISTENING");
@@ -162,20 +167,14 @@ int vsock_connect(unsigned int cid, unsigned int port, int type)
 		exit(EXIT_FAILURE);
 	}
 
-	timeout_begin(TIMEOUT);
-	do {
-		ret = connect(fd, &addr.sa, sizeof(addr.svm));
-		timeout_check("connect");
-	} while (ret < 0 && errno == EINTR);
-	timeout_end();
-
-	if (ret < 0) {
+	if (vsock_connect_fd(fd, cid, port)) {
 		int old_errno = errno;
 
 		close(fd);
 		fd = -1;
 		errno = old_errno;
 	}
+
 	return fd;
 }
 
@@ -192,28 +191,9 @@ int vsock_seqpacket_connect(unsigned int cid, unsigned int port)
 /* Listen on <cid, port> and return the file descriptor. */
 static int vsock_listen(unsigned int cid, unsigned int port, int type)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = port,
-			.svm_cid = cid,
-		},
-	};
 	int fd;
 
-	fd = socket(AF_VSOCK, type, 0);
-	if (fd < 0) {
-		perror("socket");
-		exit(EXIT_FAILURE);
-	}
-
-	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
+	fd = vsock_bind(cid, port, type);
 
 	if (listen(fd, 1) < 0) {
 		perror("listen");
@@ -401,7 +381,7 @@ void recv_buf(int fd, void *buf, size_t len, int flags, ssize_t expected_ret)
  */
 void send_byte(int fd, int expected_ret, int flags)
 {
-	const uint8_t byte = 'A';
+	static const uint8_t byte = 'A';
 
 	send_buf(fd, &byte, sizeof(byte), flags, expected_ret);
 }
@@ -420,7 +400,7 @@ void recv_byte(int fd, int expected_ret, int flags)
 	recv_buf(fd, &byte, sizeof(byte), flags, expected_ret);
 
 	if (byte != 'A') {
-		fprintf(stderr, "unexpected byte read %c\n", byte);
+		fprintf(stderr, "unexpected byte read 0x%02x\n", byte);
 		exit(EXIT_FAILURE);
 	}
 }
@@ -486,8 +466,7 @@ void list_tests(const struct test_case *test_cases)
 	exit(EXIT_FAILURE);
 }
 
-void skip_test(struct test_case *test_cases, size_t test_cases_len,
-	       const char *test_id_str)
+static unsigned long parse_test_id(const char *test_id_str, size_t test_cases_len)
 {
 	unsigned long test_id;
 	char *endptr = NULL;
@@ -505,7 +484,33 @@ void skip_test(struct test_case *test_cases, size_t test_cases_len,
 		exit(EXIT_FAILURE);
 	}
 
+	return test_id;
+}
+
+void skip_test(struct test_case *test_cases, size_t test_cases_len,
+	       const char *test_id_str)
+{
+	unsigned long test_id = parse_test_id(test_id_str, test_cases_len);
 	test_cases[test_id].skip = true;
+}
+
+void pick_test(struct test_case *test_cases, size_t test_cases_len,
+	       const char *test_id_str)
+{
+	static bool skip_all = true;
+	unsigned long test_id;
+
+	if (skip_all) {
+		unsigned long i;
+
+		for (i = 0; i < test_cases_len; ++i)
+			test_cases[i].skip = true;
+
+		skip_all = false;
+	}
+
+	test_id = parse_test_id(test_id_str, test_cases_len);
+	test_cases[test_id].skip = false;
 }
 
 unsigned long hash_djb2(const void *data, size_t len)
@@ -650,4 +655,146 @@ void free_test_iovec(const struct iovec *test_iovec,
 	}
 
 	free(iovec);
+}
+
+/* Set "unsigned long long" socket option and check that it's indeed set */
+void setsockopt_ull_check(int fd, int level, int optname,
+			  unsigned long long val, char const *errmsg)
+{
+	unsigned long long chkval;
+	socklen_t chklen;
+	int err;
+
+	err = setsockopt(fd, level, optname, &val, sizeof(val));
+	if (err) {
+		fprintf(stderr, "setsockopt err: %s (%d)\n",
+			strerror(errno), errno);
+		goto fail;
+	}
+
+	chkval = ~val; /* just make storage != val */
+	chklen = sizeof(chkval);
+
+	err = getsockopt(fd, level, optname, &chkval, &chklen);
+	if (err) {
+		fprintf(stderr, "getsockopt err: %s (%d)\n",
+			strerror(errno), errno);
+		goto fail;
+	}
+
+	if (chklen != sizeof(chkval)) {
+		fprintf(stderr, "size mismatch: set %zu got %d\n", sizeof(val),
+			chklen);
+		goto fail;
+	}
+
+	if (chkval != val) {
+		fprintf(stderr, "value mismatch: set %llu got %llu\n", val,
+			chkval);
+		goto fail;
+	}
+	return;
+fail:
+	fprintf(stderr, "%s  val %llu\n", errmsg, val);
+	exit(EXIT_FAILURE);
+;
+}
+
+/* Set "int" socket option and check that it's indeed set */
+void setsockopt_int_check(int fd, int level, int optname, int val,
+			  char const *errmsg)
+{
+	int chkval;
+	socklen_t chklen;
+	int err;
+
+	err = setsockopt(fd, level, optname, &val, sizeof(val));
+	if (err) {
+		fprintf(stderr, "setsockopt err: %s (%d)\n",
+			strerror(errno), errno);
+		goto fail;
+	}
+
+	chkval = ~val; /* just make storage != val */
+	chklen = sizeof(chkval);
+
+	err = getsockopt(fd, level, optname, &chkval, &chklen);
+	if (err) {
+		fprintf(stderr, "getsockopt err: %s (%d)\n",
+			strerror(errno), errno);
+		goto fail;
+	}
+
+	if (chklen != sizeof(chkval)) {
+		fprintf(stderr, "size mismatch: set %zu got %d\n", sizeof(val),
+			chklen);
+		goto fail;
+	}
+
+	if (chkval != val) {
+		fprintf(stderr, "value mismatch: set %d got %d\n", val, chkval);
+		goto fail;
+	}
+	return;
+fail:
+	fprintf(stderr, "%s val %d\n", errmsg, val);
+	exit(EXIT_FAILURE);
+}
+
+static void mem_invert(unsigned char *mem, size_t size)
+{
+	size_t i;
+
+	for (i = 0; i < size; i++)
+		mem[i] = ~mem[i];
+}
+
+/* Set "timeval" socket option and check that it's indeed set */
+void setsockopt_timeval_check(int fd, int level, int optname,
+			      struct timeval val, char const *errmsg)
+{
+	struct timeval chkval;
+	socklen_t chklen;
+	int err;
+
+	err = setsockopt(fd, level, optname, &val, sizeof(val));
+	if (err) {
+		fprintf(stderr, "setsockopt err: %s (%d)\n",
+			strerror(errno), errno);
+		goto fail;
+	}
+
+	 /* just make storage != val */
+	chkval = val;
+	mem_invert((unsigned char *)&chkval, sizeof(chkval));
+	chklen = sizeof(chkval);
+
+	err = getsockopt(fd, level, optname, &chkval, &chklen);
+	if (err) {
+		fprintf(stderr, "getsockopt err: %s (%d)\n",
+			strerror(errno), errno);
+		goto fail;
+	}
+
+	if (chklen != sizeof(chkval)) {
+		fprintf(stderr, "size mismatch: set %zu got %d\n", sizeof(val),
+			chklen);
+		goto fail;
+	}
+
+	if (memcmp(&chkval, &val, sizeof(val)) != 0) {
+		fprintf(stderr, "value mismatch: set %ld:%ld got %ld:%ld\n",
+			val.tv_sec, val.tv_usec, chkval.tv_sec, chkval.tv_usec);
+		goto fail;
+	}
+	return;
+fail:
+	fprintf(stderr, "%s val %ld:%ld\n", errmsg, val.tv_sec, val.tv_usec);
+	exit(EXIT_FAILURE);
+}
+
+void enable_so_zerocopy_check(int fd)
+{
+	setsockopt_int_check(fd, SOL_SOCKET, SO_ZEROCOPY, 1,
+			     "setsockopt SO_ZEROCOPY");
 }

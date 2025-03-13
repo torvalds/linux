@@ -11,7 +11,7 @@
 #include <linux/of_address.h>
 #include <linux/uaccess.h>
 
-#include <drm/drm_client_setup.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
@@ -538,7 +538,7 @@ static int msm_ioctl_gem_info_set_iova(struct drm_device *dev,
 
 	/* Only supported if per-process address space is supported: */
 	if (priv->gpu->aspace == ctx->aspace)
-		return -EOPNOTSUPP;
+		return UERR(EOPNOTSUPP, dev, "requires per-process pgtables");
 
 	if (should_fail(&fail_gem_iova, obj->size))
 		return -ENOMEM;
@@ -910,7 +910,6 @@ static const struct drm_driver msm_driver = {
 	.fops               = &fops,
 	.name               = "msm",
 	.desc               = "MSM Snapdragon DRM",
-	.date               = "20130625",
 	.major              = MSM_VERSION_MAJOR,
 	.minor              = MSM_VERSION_MINOR,
 	.patchlevel         = MSM_VERSION_PATCHLEVEL,
@@ -1111,7 +1110,7 @@ static void msm_pdev_remove(struct platform_device *pdev)
 
 static struct platform_driver msm_platform_driver = {
 	.probe      = msm_pdev_probe,
-	.remove_new = msm_pdev_remove,
+	.remove     = msm_pdev_remove,
 	.driver     = {
 		.name   = "msm",
 	},

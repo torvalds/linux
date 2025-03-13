@@ -21,7 +21,7 @@ phys_addr_t phys_initrd_start __initdata;
 unsigned long phys_initrd_size __initdata;
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table kern_do_mounts_initrd_table[] = {
+static const struct ctl_table kern_do_mounts_initrd_table[] = {
 	{
 		.procname       = "real-root-dev",
 		.data           = &real_root_dev,
@@ -89,7 +89,7 @@ static void __init handle_initrd(char *root_device_name)
 	extern char *envp_init[];
 	int error;
 
-	pr_warn("using deprecated initrd support, will be removed in 2021.\n");
+	pr_warn("using deprecated initrd support, will be removed soon.\n");
 
 	real_root_dev = new_encode_dev(ROOT_DEV);
 	create_dev("/dev/root.old", Root_RAM0);

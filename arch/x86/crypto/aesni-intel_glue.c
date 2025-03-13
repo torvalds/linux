@@ -505,7 +505,7 @@ static int xts_setkey_aesni(struct crypto_skcipher *tfm, const u8 *key,
 typedef void (*xts_encrypt_iv_func)(const struct crypto_aes_ctx *tweak_key,
 				    u8 iv[AES_BLOCK_SIZE]);
 typedef void (*xts_crypt_func)(const struct crypto_aes_ctx *key,
-			       const u8 *src, u8 *dst, unsigned int len,
+			       const u8 *src, u8 *dst, int len,
 			       u8 tweak[AES_BLOCK_SIZE]);
 
 /* This handles cases where the source and/or destination span pages. */
@@ -624,14 +624,14 @@ static void aesni_xts_encrypt_iv(const struct crypto_aes_ctx *tweak_key,
 }
 
 static void aesni_xts_encrypt(const struct crypto_aes_ctx *key,
-			      const u8 *src, u8 *dst, unsigned int len,
+			      const u8 *src, u8 *dst, int len,
 			      u8 tweak[AES_BLOCK_SIZE])
 {
 	aesni_xts_enc(key, dst, src, len, tweak);
 }
 
 static void aesni_xts_decrypt(const struct crypto_aes_ctx *key,
-			      const u8 *src, u8 *dst, unsigned int len,
+			      const u8 *src, u8 *dst, int len,
 			      u8 tweak[AES_BLOCK_SIZE])
 {
 	aesni_xts_dec(key, dst, src, len, tweak);
@@ -790,10 +790,10 @@ asmlinkage void aes_xts_encrypt_iv(const struct crypto_aes_ctx *tweak_key,
 									       \
 asmlinkage void								       \
 aes_xts_encrypt_##suffix(const struct crypto_aes_ctx *key, const u8 *src,      \
-			 u8 *dst, unsigned int len, u8 tweak[AES_BLOCK_SIZE]); \
+			 u8 *dst, int len, u8 tweak[AES_BLOCK_SIZE]);	       \
 asmlinkage void								       \
 aes_xts_decrypt_##suffix(const struct crypto_aes_ctx *key, const u8 *src,      \
-			 u8 *dst, unsigned int len, u8 tweak[AES_BLOCK_SIZE]); \
+			 u8 *dst, int len, u8 tweak[AES_BLOCK_SIZE]);	       \
 									       \
 static int xts_encrypt_##suffix(struct skcipher_request *req)		       \
 {									       \

@@ -75,11 +75,11 @@ static inline bool tcf_block_non_null_shared(struct tcf_block *block)
 }
 
 #ifdef CONFIG_NET_CLS_ACT
-DECLARE_STATIC_KEY_FALSE(tcf_bypass_check_needed_key);
+DECLARE_STATIC_KEY_FALSE(tcf_sw_enabled_key);
 
 static inline bool tcf_block_bypass_sw(struct tcf_block *block)
 {
-	return block && block->bypass_wanted;
+	return block && !atomic_read(&block->useswcnt);
 }
 #endif
 
@@ -319,7 +319,7 @@ tcf_exts_hw_stats_update(const struct tcf_exts *exts,
  * tcf_exts_has_actions - check if at least one action is present
  * @exts: tc filter extensions handle
  *
- * Returns true if at least one action is present.
+ * Returns: true if at least one action is present.
  */
 static inline bool tcf_exts_has_actions(struct tcf_exts *exts)
 {
@@ -501,7 +501,7 @@ int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
  * through all ematches respecting their logic relations returning
  * as soon as the result is obvious.
  *
- * Returns 1 if the ematch tree as-one matches, no ematches are configured
+ * Returns: 1 if the ematch tree as-one matches, no ematches are configured
  * or ematch is not enabled in the kernel, otherwise 0 is returned.
  */
 static inline int tcf_em_tree_match(struct sk_buff *skb,
@@ -758,6 +758,15 @@ tc_cls_common_offload_init(struct flow_cls_common_offload *cls_common,
 	cls_common->skip_sw = tc_skip_sw(flags);
 	if (tc_skip_sw(flags) || flags & TCA_CLS_FLAGS_VERBOSE)
 		cls_common->extack = extack;
+}
+
+static inline void tcf_proto_update_usesw(struct tcf_proto *tp, u32 flags)
+{
+	if (tp->usesw)
+		return;
+	if (tc_skip_sw(flags) && tc_in_hw(flags))
+		return;
+	tp->usesw = true;
 }
 
 #if IS_ENABLED(CONFIG_NET_TC_SKB_EXT)

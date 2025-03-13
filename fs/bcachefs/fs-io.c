@@ -167,6 +167,34 @@ void __bch2_i_sectors_acct(struct bch_fs *c, struct bch_inode_info *inode,
 
 /* fsync: */
 
+static int bch2_get_inode_journal_seq_trans(struct btree_trans *trans, subvol_inum inum,
+					    u64 *seq)
+{
+	struct printbuf buf = PRINTBUF;
+	struct bch_inode_unpacked u;
+	struct btree_iter iter;
+	int ret = bch2_inode_peek(trans, &iter, &u, inum, 0);
+	if (ret)
+		return ret;
+
+	u64 cur_seq = journal_cur_seq(&trans->c->journal);
+	*seq = min(cur_seq, u.bi_journal_seq);
+
+	if (fsck_err_on(u.bi_journal_seq > cur_seq,
+			trans, inode_journal_seq_in_future,
+			"inode journal seq in future (currently at %llu)\n%s",
+			cur_seq,
+			(bch2_inode_unpacked_to_text(&buf, &u),
+			buf.buf))) {
+		u.bi_journal_seq = cur_seq;
+		ret = bch2_inode_write(trans, &iter, &u);
+	}
+fsck_err:
+	bch2_trans_iter_exit(trans, &iter);
+	printbuf_exit(&buf);
+	return ret;
+}
+
 /*
  * inode->ei_inode.bi_journal_seq won't be up to date since it's set in an
  * insert trigger: look up the btree inode instead
@@ -180,9 +208,10 @@ static int bch2_flush_inode(struct bch_fs *c,
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_fsync))
 		return -EROFS;
 
-	struct bch_inode_unpacked u;
-	int ret = bch2_inode_find_by_inum(c, inode_inum(inode), &u) ?:
-		  bch2_journal_flush_seq(&c->journal, u.bi_journal_seq, TASK_INTERRUPTIBLE) ?:
+	u64 seq;
+	int ret = bch2_trans_commit_do(c, NULL, NULL, 0,
+			bch2_get_inode_journal_seq_trans(trans, inode_inum(inode), &seq)) ?:
+		  bch2_journal_flush_seq(&c->journal, seq, TASK_INTERRUPTIBLE) ?:
 		  bch2_inode_flush_nocow_writes(c, inode);
 	bch2_write_ref_put(c, BCH_WRITE_REF_fsync);
 	return ret;
@@ -222,7 +251,7 @@ static inline int range_has_data(struct bch_fs *c, u32 subvol,
 				 struct bpos end)
 {
 	return bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents, start, end,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_extents, start, end,
 						    subvol, 0, k, ({
 			bkey_extent_is_data(k.k) && !bkey_extent_is_unwritten(k);
 		})));
@@ -256,7 +285,7 @@ static int __bch2_truncate_folio(struct bch_inode_info *inode,
 
 		folio = __filemap_get_folio(mapping, index,
 					    FGP_LOCK|FGP_CREAT, GFP_KERNEL);
-		if (IS_ERR_OR_NULL(folio)) {
+		if (IS_ERR(folio)) {
 			ret = -ENOMEM;
 			goto out;
 		}
@@ -437,6 +466,7 @@ int bchfs_truncate(struct mnt_idmap *idmap,
 	ret = bch2_truncate_folio(inode, iattr->ia_size);
 	if (unlikely(ret < 0))
 		goto err;
+	ret = 0;
 
 	truncate_setsize(&inode->v, iattr->ia_size);
 
@@ -806,7 +836,7 @@ static int quota_reserve_range(struct bch_inode_info *inode,
 	u64 sectors = end - start;
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter,
+		for_each_btree_key_in_subvolume_max(trans, iter,
 				BTREE_ID_extents,
 				POS(inode->v.i_ino, start),
 				POS(inode->v.i_ino, end - 1),
@@ -877,11 +907,18 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	bch2_mark_pagecache_unallocated(src, pos_src >> 9,
 				   (pos_src + aligned_len) >> 9);
 
+	/*
+	 * XXX: we'd like to be telling bch2_remap_range() if we have
+	 * permission to write to the source file, and thus if io path option
+	 * changes should be propagated through the copy, but we need mnt_idmap
+	 * from the pathwalk, awkward
+	 */
 	ret = bch2_remap_range(c,
 			       inode_inum(dst), pos_dst >> 9,
 			       inode_inum(src), pos_src >> 9,
 			       aligned_len >> 9,
-			       pos_dst + len, &i_sectors_delta);
+			       pos_dst + len, &i_sectors_delta,
+			       false);
 	if (ret < 0)
 		goto err;
 
@@ -922,7 +959,7 @@ static loff_t bch2_seek_data(struct file *file, u64 offset)
 		return -ENXIO;
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_extents,
 				   POS(inode->v.i_ino, offset >> 9),
 				   POS(inode->v.i_ino, U64_MAX),
 				   inum.subvol, 0, k, ({
@@ -958,7 +995,7 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 		return -ENXIO;
 
 	int ret = bch2_trans_run(c,
-		for_each_btree_key_in_subvolume_upto(trans, iter, BTREE_ID_extents,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_extents,
 				   POS(inode->v.i_ino, offset >> 9),
 				   POS(inode->v.i_ino, U64_MAX),
 				   inum.subvol, BTREE_ITER_slots, k, ({

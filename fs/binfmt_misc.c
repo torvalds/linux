@@ -1001,7 +1001,7 @@ static int bm_fill_super(struct super_block *sb, struct fs_context *fc)
 		/*
 		 * If it turns out that most user namespaces actually want to
 		 * register their own binary type handler and therefore all
-		 * create their own separate binfm_misc mounts we should
+		 * create their own separate binfmt_misc mounts we should
 		 * consider turning this into a kmem cache.
 		 */
 		misc = kzalloc(sizeof(struct binfmt_misc), GFP_KERNEL);

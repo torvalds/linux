@@ -145,7 +145,7 @@ static struct phy_driver cis820x_driver[] = {
 
 module_phy_driver(cis820x_driver);
 
-static struct mdio_device_id __maybe_unused cicada_tbl[] = {
+static const struct mdio_device_id __maybe_unused cicada_tbl[] = {
 	{ 0x000fc410, 0x000ffff0 },
 	{ 0x000fc440, 0x000fffc0 },
 	{ }

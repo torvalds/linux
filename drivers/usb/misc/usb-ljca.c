@@ -372,7 +372,7 @@ int ljca_transfer(struct ljca_client *client, u8 cmd, const u8 *obuf,
 			 obuf, obuf_len, ibuf, ibuf_len, true,
 			 LJCA_WRITE_ACK_TIMEOUT_MS);
 }
-EXPORT_SYMBOL_NS_GPL(ljca_transfer, LJCA);
+EXPORT_SYMBOL_NS_GPL(ljca_transfer, "LJCA");
 
 int ljca_transfer_noack(struct ljca_client *client, u8 cmd, const u8 *obuf,
 			u8 obuf_len)
@@ -380,7 +380,7 @@ int ljca_transfer_noack(struct ljca_client *client, u8 cmd, const u8 *obuf,
 	return ljca_send(client->adapter, client->type, cmd, obuf,
 			 obuf_len, NULL, 0, false, LJCA_WRITE_ACK_TIMEOUT_MS);
 }
-EXPORT_SYMBOL_NS_GPL(ljca_transfer_noack, LJCA);
+EXPORT_SYMBOL_NS_GPL(ljca_transfer_noack, "LJCA");
 
 int ljca_register_event_cb(struct ljca_client *client, ljca_event_cb_t event_cb,
 			   void *context)
@@ -404,7 +404,7 @@ int ljca_register_event_cb(struct ljca_client *client, ljca_event_cb_t event_cb,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ljca_register_event_cb, LJCA);
+EXPORT_SYMBOL_NS_GPL(ljca_register_event_cb, "LJCA");
 
 void ljca_unregister_event_cb(struct ljca_client *client)
 {
@@ -417,7 +417,7 @@ void ljca_unregister_event_cb(struct ljca_client *client)
 
 	spin_unlock_irqrestore(&client->event_cb_lock, flags);
 }
-EXPORT_SYMBOL_NS_GPL(ljca_unregister_event_cb, LJCA);
+EXPORT_SYMBOL_NS_GPL(ljca_unregister_event_cb, "LJCA");
 
 static int ljca_match_device_ids(struct acpi_device *adev, void *data)
 {

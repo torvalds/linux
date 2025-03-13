@@ -572,7 +572,7 @@ static int twl_rtc_probe(struct platform_device *pdev)
 		return ret;
 
 	platform_set_drvdata(pdev, twl_rtc);
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	twl_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 					&twl_rtc_ops, THIS_MODULE);
@@ -673,7 +673,7 @@ MODULE_DEVICE_TABLE(of, twl_rtc_of_match);
 
 static struct platform_driver twl4030rtc_driver = {
 	.probe		= twl_rtc_probe,
-	.remove_new	= twl_rtc_remove,
+	.remove		= twl_rtc_remove,
 	.shutdown	= twl_rtc_shutdown,
 	.driver		= {
 		.name		= "twl_rtc",

@@ -328,4 +328,4 @@ module_platform_driver(dw_spi_bt1_driver);
 MODULE_AUTHOR("Serge Semin <Sergey.Semin@baikalelectronics.ru>");
 MODULE_DESCRIPTION("Baikal-T1 System Boot SPI Controller driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(SPI_DW_CORE);
+MODULE_IMPORT_NS("SPI_DW_CORE");

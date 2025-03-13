@@ -147,7 +147,7 @@ int mt7663s_mcu_init(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
-	dev->mt76.mcu_ops = &mt7663s_mcu_ops,
+	dev->mt76.mcu_ops = &mt7663s_mcu_ops;
 
 	ret = mt76_get_field(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_N9_RDY);
 	if (ret) {

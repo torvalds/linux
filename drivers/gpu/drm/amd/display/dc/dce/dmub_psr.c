@@ -390,8 +390,7 @@ static bool dmub_psr_copy_settings(struct dmub_psr *dmub,
 		!memcmp(link->dpcd_caps.sink_dev_id_str, DP_SINK_DEVICE_STR_ID_1,
 			sizeof(DP_SINK_DEVICE_STR_ID_1)))
 		link->psr_settings.force_ffu_mode = 1;
-	else
-		link->psr_settings.force_ffu_mode = 0;
+
 	copy_settings_data->force_ffu_mode = link->psr_settings.force_ffu_mode;
 
 	if (((link->dpcd_caps.fec_cap.bits.FEC_CAPABLE &&

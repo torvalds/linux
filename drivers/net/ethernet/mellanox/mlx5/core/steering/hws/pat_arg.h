@@ -31,7 +31,7 @@ struct mlx5hws_pattern_cache_item {
 		u8 *data;
 		u16 num_of_actions;
 	} mh_data;
-	u32 refcount;
+	u32 refcount; /* protected by pattern_cache lock */
 	struct list_head ptrn_list_node;
 };
 

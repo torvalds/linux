@@ -200,23 +200,6 @@ config S390_PRNG
 
 	  It is available as of z9.
 
-config CRYPTO_DEV_NIAGARA2
-	tristate "Niagara2 Stream Processing Unit driver"
-	select CRYPTO_LIB_DES
-	select CRYPTO_SKCIPHER
-	select CRYPTO_HASH
-	select CRYPTO_MD5
-	select CRYPTO_SHA1
-	select CRYPTO_SHA256
-	depends on SPARC64
-	help
-	  Each core of a Niagara2 processor contains a Stream
-	  Processing Unit, which itself contains several cryptographic
-	  sub-units.  One set provides the Modular Arithmetic Unit,
-	  used for SSL offload.  The other set provides the Cipher
-	  Group, which can perform encryption, decryption, hashing,
-	  checksumming, and raw copies.
-
 config CRYPTO_DEV_SL3516
 	tristate "Storlink SL3516 crypto offloader"
 	depends on ARCH_GEMINI || COMPILE_TEST

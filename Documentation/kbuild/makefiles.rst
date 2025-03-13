@@ -449,6 +449,20 @@ $(obj)
   to prerequisites are referenced with $(src) (because they are not
   generated files).
 
+$(srcroot)
+  $(srcroot) refers to the root of the source you are building, which can be
+  either the kernel source or the external modules source, depending on whether
+  KBUILD_EXTMOD is set. This can be either a relative or an absolute path, but
+  if KBUILD_ABS_SRCTREE=1 is set, it is always an absolute path.
+
+$(srctree)
+  $(srctree) refers to the root of the kernel source tree. When building the
+  kernel, this is the same as $(srcroot).
+
+$(objtree)
+  $(objtree) refers to the root of the kernel object tree. It is ``.`` when
+  building the kernel, but it is different when building external modules.
+
 $(kecho)
   echoing information to user in a rule is often a good practice
   but when execution ``make -s`` one does not expect to see any output

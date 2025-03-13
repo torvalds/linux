@@ -140,21 +140,21 @@ examples:
     #include <dt-bindings/reset/imx8mp-reset.h>
 
     xcvr: xcvr@30cc0000 {
-           compatible = "fsl,imx8mp-xcvr";
-           reg = <0x30cc0000 0x800>,
-                 <0x30cc0800 0x400>,
-                 <0x30cc0c00 0x080>,
-                 <0x30cc0e00 0x080>;
-           reg-names = "ram", "regs", "rxfifo", "txfifo";
-           interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
-           clocks = <&audiomix_clk IMX8MP_CLK_AUDIOMIX_EARC_IPG>,
-                    <&audiomix_clk IMX8MP_CLK_AUDIOMIX_EARC_PHY>,
-                    <&audiomix_clk IMX8MP_CLK_AUDIOMIX_SPBA2_ROOT>,
-                    <&audiomix_clk IMX8MP_CLK_AUDIOMIX_AUDPLL_ROOT>;
-           clock-names = "ipg", "phy", "spba", "pll_ipg";
-           dmas = <&sdma2 30 2 0>, <&sdma2 31 2 0>;
-           dma-names = "rx", "tx";
-           resets = <&audiomix_reset 0>;
+        compatible = "fsl,imx8mp-xcvr";
+        reg = <0x30cc0000 0x800>,
+              <0x30cc0800 0x400>,
+              <0x30cc0c00 0x080>,
+              <0x30cc0e00 0x080>;
+        reg-names = "ram", "regs", "rxfifo", "txfifo";
+        interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 129 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&audiomix_clk IMX8MP_CLK_AUDIOMIX_EARC_IPG>,
+                 <&audiomix_clk IMX8MP_CLK_AUDIOMIX_EARC_PHY>,
+                 <&audiomix_clk IMX8MP_CLK_AUDIOMIX_SPBA2_ROOT>,
+                 <&audiomix_clk IMX8MP_CLK_AUDIOMIX_AUDPLL_ROOT>;
+        clock-names = "ipg", "phy", "spba", "pll_ipg";
+        dmas = <&sdma2 30 2 0>, <&sdma2 31 2 0>;
+        dma-names = "rx", "tx";
+        resets = <&audiomix_reset 0>;
     };

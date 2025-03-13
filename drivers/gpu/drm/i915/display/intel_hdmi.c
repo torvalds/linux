@@ -1600,14 +1600,12 @@ static
 bool intel_hdmi_hdcp_check_link(struct intel_digital_port *dig_port,
 				struct intel_connector *connector)
 {
-	struct intel_display *display = to_intel_display(dig_port);
 	int retry;
 
 	for (retry = 0; retry < 3; retry++)
 		if (intel_hdmi_hdcp_check_link_once(dig_port, connector))
 			return true;
 
-	drm_err(display->drm, "Link check failed\n");
 	return false;
 }
 
@@ -2556,10 +2554,10 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	if (!intel_display_device_enabled(dev_priv))
+	if (!intel_display_device_enabled(display))
 		return connector_status_disconnected;
 
-	if (!intel_display_driver_check_access(dev_priv))
+	if (!intel_display_driver_check_access(display))
 		return connector->status;
 
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
@@ -2586,12 +2584,11 @@ static void
 intel_hdmi_force(struct drm_connector *connector)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
-	struct drm_i915_private *i915 = to_i915(connector->dev);
 
 	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
-	if (!intel_display_driver_check_access(i915))
+	if (!intel_display_driver_check_access(display))
 		return;
 
 	intel_hdmi_unset_edid(connector);
@@ -3042,7 +3039,7 @@ void intel_infoframe_init(struct intel_digital_port *dig_port)
 	}
 }
 
-void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
+bool intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 			       struct intel_connector *intel_connector)
 {
 	struct intel_display *display = to_intel_display(dig_port);
@@ -3059,17 +3056,17 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 		    intel_encoder->base.base.id, intel_encoder->base.name);
 
 	if (DISPLAY_VER(display) < 12 && drm_WARN_ON(dev, port == PORT_A))
-		return;
+		return false;
 
 	if (drm_WARN(dev, dig_port->max_lanes < 4,
 		     "Not enough lanes (%d) for HDMI on [ENCODER:%d:%s]\n",
 		     dig_port->max_lanes, intel_encoder->base.base.id,
 		     intel_encoder->base.name))
-		return;
+		return false;
 
 	ddc_pin = intel_hdmi_ddc_pin(intel_encoder);
 	if (!ddc_pin)
-		return;
+		return false;
 
 	drm_connector_init_with_ddc(dev, connector,
 				    &intel_hdmi_connector_funcs,
@@ -3114,6 +3111,8 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 					   &conn_info);
 	if (!intel_hdmi->cec_notifier)
 		drm_dbg_kms(display->drm, "CEC notifier get failed\n");
+
+	return true;
 }
 
 /*

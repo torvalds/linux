@@ -159,4 +159,4 @@ module_platform_driver(iio_sd_mod_adc);
 MODULE_DESCRIPTION("Basic sigma delta modulator");
 MODULE_AUTHOR("Arnaud Pouliquen <arnaud.pouliquen@st.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_BACKEND);
+MODULE_IMPORT_NS("IIO_BACKEND");

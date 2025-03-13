@@ -216,14 +216,14 @@ int ipu6_cpd_create_pkg_dir(struct ipu6_bus_device *adev, const void *src)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_cpd_create_pkg_dir, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_cpd_create_pkg_dir, "INTEL_IPU6");
 
 void ipu6_cpd_free_pkg_dir(struct ipu6_bus_device *adev)
 {
 	ipu6_dma_free(adev, adev->pkg_dir_size, adev->pkg_dir,
 		      adev->pkg_dir_dma_addr, 0);
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_cpd_free_pkg_dir, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_cpd_free_pkg_dir, "INTEL_IPU6");
 
 static int ipu6_cpd_validate_cpd(struct ipu6_device *isp, const void *cpd,
 				 unsigned long cpd_size,
@@ -275,7 +275,7 @@ static int ipu6_cpd_validate_moduledata(struct ipu6_device *isp,
 		return -EINVAL;
 	}
 
-	dev_info(&isp->pdev->dev, "FW version: %x\n", mod_hdr->fw_pkg_date);
+	dev_dbg(&isp->pdev->dev, "FW version: %x\n", mod_hdr->fw_pkg_date);
 	ret = ipu6_cpd_validate_cpd(isp, moduledata + mod_hdr->hdr_len,
 				    moduledata_size - mod_hdr->hdr_len,
 				    moduledata_size);

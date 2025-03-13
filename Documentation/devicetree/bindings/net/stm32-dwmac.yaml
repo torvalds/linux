@@ -154,56 +154,56 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     #include <dt-bindings/clock/stm32mp1-clks.h>
     //Example 1
-     ethernet0: ethernet@5800a000 {
-           compatible = "st,stm32mp1-dwmac", "snps,dwmac-4.20a";
-           reg = <0x5800a000 0x2000>;
-           reg-names = "stmmaceth";
-           interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
-           interrupt-names = "macirq";
-           clock-names = "stmmaceth",
-                     "mac-clk-tx",
-                     "mac-clk-rx",
-                     "ethstp",
-                     "eth-ck";
-           clocks = <&rcc ETHMAC>,
-                <&rcc ETHTX>,
-                <&rcc ETHRX>,
-                <&rcc ETHSTP>,
-                <&rcc ETHCK_K>;
-           st,syscon = <&syscfg 0x4>;
-           snps,pbl = <2>;
-           snps,axi-config = <&stmmac_axi_config_0>;
-           snps,tso;
-           phy-mode = "rgmii";
-       };
+    ethernet0: ethernet@5800a000 {
+        compatible = "st,stm32mp1-dwmac", "snps,dwmac-4.20a";
+        reg = <0x5800a000 0x2000>;
+        reg-names = "stmmaceth";
+        interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "macirq";
+        clock-names = "stmmaceth",
+                      "mac-clk-tx",
+                      "mac-clk-rx",
+                      "ethstp",
+                      "eth-ck";
+        clocks = <&rcc ETHMAC>,
+                 <&rcc ETHTX>,
+                 <&rcc ETHRX>,
+                 <&rcc ETHSTP>,
+                 <&rcc ETHCK_K>;
+        st,syscon = <&syscfg 0x4>;
+        snps,pbl = <2>;
+        snps,axi-config = <&stmmac_axi_config_0>;
+        snps,tso;
+        phy-mode = "rgmii";
+    };
 
   - |
     //Example 2 (MCU example)
-     ethernet1: ethernet@40028000 {
-           compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
-           reg = <0x40028000 0x8000>;
-           reg-names = "stmmaceth";
-           interrupts = <0 61 0>, <0 62 0>;
-           interrupt-names = "macirq", "eth_wake_irq";
-           clock-names = "stmmaceth", "mac-clk-tx", "mac-clk-rx";
-           clocks = <&rcc 0 25>, <&rcc 0 26>, <&rcc 0 27>;
-           st,syscon = <&syscfg 0x4>;
-           snps,pbl = <8>;
-           snps,mixed-burst;
-           phy-mode = "mii";
-       };
+    ethernet1: ethernet@40028000 {
+        compatible = "st,stm32-dwmac", "snps,dwmac-3.50a";
+        reg = <0x40028000 0x8000>;
+        reg-names = "stmmaceth";
+        interrupts = <0 61 0>, <0 62 0>;
+        interrupt-names = "macirq", "eth_wake_irq";
+        clock-names = "stmmaceth", "mac-clk-tx", "mac-clk-rx";
+        clocks = <&rcc 0 25>, <&rcc 0 26>, <&rcc 0 27>;
+        st,syscon = <&syscfg 0x4>;
+        snps,pbl = <8>;
+        snps,mixed-burst;
+        phy-mode = "mii";
+    };
 
   - |
     //Example 3
-     ethernet2: ethernet@40027000 {
-           compatible = "st,stm32-dwmac", "snps,dwmac-4.10a";
-           reg = <0x40028000 0x8000>;
-           reg-names = "stmmaceth";
-           interrupts = <61>;
-           interrupt-names = "macirq";
-           clock-names = "stmmaceth", "mac-clk-tx", "mac-clk-rx";
-           clocks = <&rcc 62>, <&rcc 61>, <&rcc 60>;
-           st,syscon = <&syscfg 0x4>;
-           snps,pbl = <8>;
-           phy-mode = "mii";
-       };
+    ethernet2: ethernet@40027000 {
+        compatible = "st,stm32-dwmac", "snps,dwmac-4.10a";
+        reg = <0x40028000 0x8000>;
+        reg-names = "stmmaceth";
+        interrupts = <61>;
+        interrupt-names = "macirq";
+        clock-names = "stmmaceth", "mac-clk-tx", "mac-clk-rx";
+        clocks = <&rcc 62>, <&rcc 61>, <&rcc 60>;
+        st,syscon = <&syscfg 0x4>;
+        snps,pbl = <8>;
+        phy-mode = "mii";
+    };

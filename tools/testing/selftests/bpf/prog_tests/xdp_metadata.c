@@ -10,7 +10,7 @@
 #include <linux/errqueue.h>
 #include <linux/if_link.h>
 #include <linux/net_tstamp.h>
-#include <linux/udp.h>
+#include <netinet/udp.h>
 #include <sys/mman.h>
 #include <net/if.h>
 #include <poll.h>
@@ -133,23 +133,6 @@ static void close_xsk(struct xsk *xsk)
 	munmap(xsk->umem_area, UMEM_SIZE);
 }
 
-static void ip_csum(struct iphdr *iph)
-{
-	__u32 sum = 0;
-	__u16 *p;
-	int i;
-
-	iph->check = 0;
-	p = (void *)iph;
-	for (i = 0; i < sizeof(*iph) / sizeof(*p); i++)
-		sum += p[i];
-
-	while (sum >> 16)
-		sum = (sum & 0xffff) + (sum >> 16);
-
-	iph->check = ~sum;
-}
-
 static int generate_packet(struct xsk *xsk, __u16 dst_port)
 {
 	struct xsk_tx_metadata *meta;
@@ -192,7 +175,7 @@ static int generate_packet(struct xsk *xsk, __u16 dst_port)
 	iph->protocol = IPPROTO_UDP;
 	ASSERT_EQ(inet_pton(FAMILY, TX_ADDR, &iph->saddr), 1, "inet_pton(TX_ADDR)");
 	ASSERT_EQ(inet_pton(FAMILY, RX_ADDR, &iph->daddr), 1, "inet_pton(RX_ADDR)");
-	ip_csum(iph);
+	iph->check = build_ip_csum(iph);
 
 	udph->source = htons(UDP_SOURCE_PORT);
 	udph->dest = htons(dst_port);

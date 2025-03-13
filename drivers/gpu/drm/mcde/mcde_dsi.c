@@ -1229,5 +1229,5 @@ struct platform_driver mcde_dsi_driver = {
 		.of_match_table = mcde_dsi_of_match,
 	},
 	.probe = mcde_dsi_probe,
-	.remove_new = mcde_dsi_remove,
+	.remove = mcde_dsi_remove,
 };

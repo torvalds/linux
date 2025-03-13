@@ -96,6 +96,13 @@
 
 #define _PAGE_IOREMAP		pgprot_val(PAGE_KERNEL_SUC)
 
+#define pgprot_nx pgprot_nx
+
+static inline pgprot_t pgprot_nx(pgprot_t _prot)
+{
+	return __pgprot(pgprot_val(_prot) | _PAGE_NO_EXEC);
+}
+
 #define pgprot_noncached pgprot_noncached
 
 static inline pgprot_t pgprot_noncached(pgprot_t _prot)

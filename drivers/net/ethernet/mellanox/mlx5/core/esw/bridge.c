@@ -570,7 +570,8 @@ mlx5_esw_bridge_egress_table_cleanup(struct mlx5_esw_bridge *bridge)
 
 static struct mlx5_flow_handle *
 mlx5_esw_bridge_ingress_flow_with_esw_create(u16 vport_num, const unsigned char *addr,
-					     struct mlx5_esw_bridge_vlan *vlan, u32 counter_id,
+					     struct mlx5_esw_bridge_vlan *vlan,
+					     struct mlx5_fc *counter,
 					     struct mlx5_esw_bridge *bridge,
 					     struct mlx5_eswitch *esw)
 {
@@ -628,7 +629,7 @@ mlx5_esw_bridge_ingress_flow_with_esw_create(u16 vport_num, const unsigned char 
 	dests[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dests[0].ft = bridge->egress_ft;
 	dests[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dests[1].counter_id = counter_id;
+	dests[1].counter = counter;
 
 	handle = mlx5_add_flow_rules(br_offloads->ingress_ft, rule_spec, &flow_act, dests,
 				     ARRAY_SIZE(dests));
@@ -639,17 +640,19 @@ mlx5_esw_bridge_ingress_flow_with_esw_create(u16 vport_num, const unsigned char 
 
 static struct mlx5_flow_handle *
 mlx5_esw_bridge_ingress_flow_create(u16 vport_num, const unsigned char *addr,
-				    struct mlx5_esw_bridge_vlan *vlan, u32 counter_id,
+				    struct mlx5_esw_bridge_vlan *vlan,
+				    struct mlx5_fc *counter,
 				    struct mlx5_esw_bridge *bridge)
 {
-	return mlx5_esw_bridge_ingress_flow_with_esw_create(vport_num, addr, vlan, counter_id,
+	return mlx5_esw_bridge_ingress_flow_with_esw_create(vport_num, addr, vlan, counter,
 							    bridge, bridge->br_offloads->esw);
 }
 
 static struct mlx5_flow_handle *
 mlx5_esw_bridge_ingress_flow_peer_create(u16 vport_num, u16 esw_owner_vhca_id,
 					 const unsigned char *addr,
-					 struct mlx5_esw_bridge_vlan *vlan, u32 counter_id,
+					 struct mlx5_esw_bridge_vlan *vlan,
+					 struct mlx5_fc *counter,
 					 struct mlx5_esw_bridge *bridge)
 {
 	struct mlx5_devcom_comp_dev *devcom = bridge->br_offloads->esw->devcom, *pos;
@@ -671,7 +674,7 @@ mlx5_esw_bridge_ingress_flow_peer_create(u16 vport_num, u16 esw_owner_vhca_id,
 		goto out;
 	}
 
-	handle = mlx5_esw_bridge_ingress_flow_with_esw_create(vport_num, addr, vlan, counter_id,
+	handle = mlx5_esw_bridge_ingress_flow_with_esw_create(vport_num, addr, vlan, counter,
 							      bridge, peer_esw);
 
 out:
@@ -1385,10 +1388,9 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, u16 esw_ow
 
 	handle = peer ?
 		mlx5_esw_bridge_ingress_flow_peer_create(vport_num, esw_owner_vhca_id,
-							 addr, vlan, mlx5_fc_id(counter),
-							 bridge) :
+							 addr, vlan, counter, bridge) :
 		mlx5_esw_bridge_ingress_flow_create(vport_num, addr, vlan,
-						    mlx5_fc_id(counter), bridge);
+						    counter, bridge);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		esw_warn(esw->dev, "Failed to create ingress flow(vport=%u,err=%d,peer=%d)\n",

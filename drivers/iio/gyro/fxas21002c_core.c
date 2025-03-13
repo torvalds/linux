@@ -730,13 +730,20 @@ static irqreturn_t fxas21002c_trigger_handler(int irq, void *p)
 	int ret;
 
 	mutex_lock(&data->lock);
-	ret = regmap_bulk_read(data->regmap, FXAS21002C_REG_OUT_X_MSB,
-			       data->buffer, CHANNEL_SCAN_MAX * sizeof(s16));
+	ret = fxas21002c_pm_get(data);
 	if (ret < 0)
 		goto out_unlock;
 
+	ret = regmap_bulk_read(data->regmap, FXAS21002C_REG_OUT_X_MSB,
+			       data->buffer, CHANNEL_SCAN_MAX * sizeof(s16));
+	if (ret < 0)
+		goto out_pm_put;
+
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   data->timestamp);
+
+out_pm_put:
+	fxas21002c_pm_put(data);
 
 out_unlock:
 	mutex_unlock(&data->lock);
@@ -997,7 +1004,7 @@ pm_disable:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(fxas21002c_core_probe, IIO_FXAS21002C);
+EXPORT_SYMBOL_NS_GPL(fxas21002c_core_probe, "IIO_FXAS21002C");
 
 void fxas21002c_core_remove(struct device *dev)
 {
@@ -1008,7 +1015,7 @@ void fxas21002c_core_remove(struct device *dev)
 	pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 }
-EXPORT_SYMBOL_NS_GPL(fxas21002c_core_remove, IIO_FXAS21002C);
+EXPORT_SYMBOL_NS_GPL(fxas21002c_core_remove, "IIO_FXAS21002C");
 
 static int fxas21002c_suspend(struct device *dev)
 {

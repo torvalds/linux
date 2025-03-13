@@ -245,7 +245,10 @@ early_memremap_prot(resource_size_t phys_addr, unsigned long size,
 
 #define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
 
-void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
+/*
+ * If no empty slot, handle that and return -ENOMEM.
+ */
+int __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
 {
 	unsigned long slop, clen;
 	char *p;
@@ -256,12 +259,15 @@ void __init copy_from_early_mem(void *dest, phys_addr_t src, unsigned long size)
 		if (clen > MAX_MAP_CHUNK - slop)
 			clen = MAX_MAP_CHUNK - slop;
 		p = early_memremap(src & PAGE_MASK, clen + slop);
+		if (!p)
+			return -ENOMEM;
 		memcpy(dest, p + slop, clen);
 		early_memunmap(p, clen + slop);
 		dest += clen;
 		src += clen;
 		size -= clen;
 	}
+	return 0;
 }
 
 #else /* CONFIG_MMU */

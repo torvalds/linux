@@ -988,7 +988,7 @@ int fw_device_set_broadcast_channel(struct device *dev, void *gen)
 	return 0;
 }
 
-static int compare_configuration_rom(struct device *dev, void *data)
+static int compare_configuration_rom(struct device *dev, const void *data)
 {
 	const struct fw_device *old = fw_device(dev);
 	const u32 *config_rom = data;
@@ -1039,7 +1039,7 @@ static void fw_device_init(struct work_struct *work)
 	//
 	// serialize config_rom access.
 	scoped_guard(rwsem_read, &fw_device_rwsem) {
-		found = device_find_child(card->device, (void *)device->config_rom,
+		found = device_find_child(card->device, device->config_rom,
 					  compare_configuration_rom);
 	}
 	if (found) {

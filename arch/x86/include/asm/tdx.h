@@ -66,6 +66,9 @@ int tdx_mcall_get_report0(u8 *reportdata, u8 *tdreport);
 
 u64 tdx_hcall_get_quote(u8 *buf, size_t size);
 
+void __init tdx_dump_attributes(u64 td_attr);
+void __init tdx_dump_td_ctls(u64 td_ctls);
+
 #else
 
 static inline void tdx_early_init(void) { };

@@ -1100,10 +1100,9 @@ static const struct regmap_range ksz9896_valid_regs[] = {
 	regmap_reg_range(0x1030, 0x1030),
 	regmap_reg_range(0x1100, 0x1115),
 	regmap_reg_range(0x111a, 0x111f),
-	regmap_reg_range(0x1122, 0x1127),
-	regmap_reg_range(0x112a, 0x112b),
-	regmap_reg_range(0x1136, 0x1139),
-	regmap_reg_range(0x113e, 0x113f),
+	regmap_reg_range(0x1120, 0x112b),
+	regmap_reg_range(0x1134, 0x113b),
+	regmap_reg_range(0x113c, 0x113f),
 	regmap_reg_range(0x1400, 0x1401),
 	regmap_reg_range(0x1403, 0x1403),
 	regmap_reg_range(0x1410, 0x1417),
@@ -1130,10 +1129,9 @@ static const struct regmap_range ksz9896_valid_regs[] = {
 	regmap_reg_range(0x2030, 0x2030),
 	regmap_reg_range(0x2100, 0x2115),
 	regmap_reg_range(0x211a, 0x211f),
-	regmap_reg_range(0x2122, 0x2127),
-	regmap_reg_range(0x212a, 0x212b),
-	regmap_reg_range(0x2136, 0x2139),
-	regmap_reg_range(0x213e, 0x213f),
+	regmap_reg_range(0x2120, 0x212b),
+	regmap_reg_range(0x2134, 0x213b),
+	regmap_reg_range(0x213c, 0x213f),
 	regmap_reg_range(0x2400, 0x2401),
 	regmap_reg_range(0x2403, 0x2403),
 	regmap_reg_range(0x2410, 0x2417),
@@ -1160,10 +1158,9 @@ static const struct regmap_range ksz9896_valid_regs[] = {
 	regmap_reg_range(0x3030, 0x3030),
 	regmap_reg_range(0x3100, 0x3115),
 	regmap_reg_range(0x311a, 0x311f),
-	regmap_reg_range(0x3122, 0x3127),
-	regmap_reg_range(0x312a, 0x312b),
-	regmap_reg_range(0x3136, 0x3139),
-	regmap_reg_range(0x313e, 0x313f),
+	regmap_reg_range(0x3120, 0x312b),
+	regmap_reg_range(0x3134, 0x313b),
+	regmap_reg_range(0x313c, 0x313f),
 	regmap_reg_range(0x3400, 0x3401),
 	regmap_reg_range(0x3403, 0x3403),
 	regmap_reg_range(0x3410, 0x3417),
@@ -1190,10 +1187,9 @@ static const struct regmap_range ksz9896_valid_regs[] = {
 	regmap_reg_range(0x4030, 0x4030),
 	regmap_reg_range(0x4100, 0x4115),
 	regmap_reg_range(0x411a, 0x411f),
-	regmap_reg_range(0x4122, 0x4127),
-	regmap_reg_range(0x412a, 0x412b),
-	regmap_reg_range(0x4136, 0x4139),
-	regmap_reg_range(0x413e, 0x413f),
+	regmap_reg_range(0x4120, 0x412b),
+	regmap_reg_range(0x4134, 0x413b),
+	regmap_reg_range(0x413c, 0x413f),
 	regmap_reg_range(0x4400, 0x4401),
 	regmap_reg_range(0x4403, 0x4403),
 	regmap_reg_range(0x4410, 0x4417),
@@ -1220,10 +1216,9 @@ static const struct regmap_range ksz9896_valid_regs[] = {
 	regmap_reg_range(0x5030, 0x5030),
 	regmap_reg_range(0x5100, 0x5115),
 	regmap_reg_range(0x511a, 0x511f),
-	regmap_reg_range(0x5122, 0x5127),
-	regmap_reg_range(0x512a, 0x512b),
-	regmap_reg_range(0x5136, 0x5139),
-	regmap_reg_range(0x513e, 0x513f),
+	regmap_reg_range(0x5120, 0x512b),
+	regmap_reg_range(0x5134, 0x513b),
+	regmap_reg_range(0x513c, 0x513f),
 	regmap_reg_range(0x5400, 0x5401),
 	regmap_reg_range(0x5403, 0x5403),
 	regmap_reg_range(0x5410, 0x5417),
@@ -1250,10 +1245,9 @@ static const struct regmap_range ksz9896_valid_regs[] = {
 	regmap_reg_range(0x6030, 0x6030),
 	regmap_reg_range(0x6100, 0x6115),
 	regmap_reg_range(0x611a, 0x611f),
-	regmap_reg_range(0x6122, 0x6127),
-	regmap_reg_range(0x612a, 0x612b),
-	regmap_reg_range(0x6136, 0x6139),
-	regmap_reg_range(0x613e, 0x613f),
+	regmap_reg_range(0x6120, 0x612b),
+	regmap_reg_range(0x6134, 0x613b),
+	regmap_reg_range(0x613c, 0x613f),
 	regmap_reg_range(0x6300, 0x6301),
 	regmap_reg_range(0x6400, 0x6401),
 	regmap_reg_range(0x6403, 0x6403),
@@ -1345,6 +1339,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rgmii = {false, false, true},
 		.internal_phy = {true, true, false},
 		.gbit_capable = {false, false, true},
+		.ptp_capable = true,
 		.wr_table = &ksz8563_register_set,
 		.rd_table = &ksz8563_register_set,
 	},
@@ -1556,6 +1551,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.internal_phy	= {true, true, true, true,
 				   true, false, false},
 		.gbit_capable	= {true, true, true, true, true, true, true},
+		.ptp_capable = true,
 		.wr_table = &ksz9477_register_set,
 		.rd_table = &ksz9477_register_set,
 	},
@@ -1683,6 +1679,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rgmii = {false, false, true},
 		.internal_phy = {true, true, false},
 		.gbit_capable = {true, true, true},
+		.ptp_capable = true,
 	},
 
 	[KSZ8567] = {
@@ -1718,6 +1715,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   true, false, false},
 		.gbit_capable	= {false, false, false, false, false,
 				   true, true},
+		.ptp_capable = true,
 	},
 
 	[KSZ9567] = {
@@ -1750,6 +1748,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.internal_phy	= {true, true, true, true,
 				   true, false, false},
 		.gbit_capable	= {true, true, true, true, true, true, true},
+		.ptp_capable = true,
 	},
 
 	[LAN9370] = {
@@ -1779,6 +1778,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
 		.internal_phy = {true, true, true, true, false},
+		.ptp_capable = true,
 	},
 
 	[LAN9371] = {
@@ -1808,6 +1808,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.supports_rmii = {false, false, false, false, true, true},
 		.supports_rgmii = {false, false, false, false, true, true},
 		.internal_phy = {true, true, true, true, false, false},
+		.ptp_capable = true,
 	},
 
 	[LAN9372] = {
@@ -1841,6 +1842,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   true, true, false, false},
 		.internal_phy	= {true, true, true, true,
 				   false, false, true, true},
+		.ptp_capable = true,
 	},
 
 	[LAN9373] = {
@@ -1874,6 +1876,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   true, true, false, false},
 		.internal_phy	= {true, true, true, false,
 				   false, false, true, true},
+		.ptp_capable = true,
 	},
 
 	[LAN9374] = {
@@ -1907,6 +1910,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 				   true, true, false, false},
 		.internal_phy	= {true, true, true, true,
 				   false, false, true, true},
+		.ptp_capable = true,
 	},
 
 	[LAN9646] = {
@@ -2550,7 +2554,11 @@ static int ksz_mdio_register(struct ksz_device *dev)
 		bus->read = ksz_sw_mdio_read;
 		bus->write = ksz_sw_mdio_write;
 		bus->name = "ksz user smi";
-		snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+		if (ds->dst->index != 0) {
+			snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d-%d", ds->dst->index, ds->index);
+		} else {
+			snprintf(bus->id, MII_BUS_ID_SIZE, "SMI-%d", ds->index);
+		}
 	}
 
 	ret = ksz_parse_dt_phy_config(dev, bus, mdio_np);
@@ -2811,16 +2819,21 @@ static int ksz_setup(struct dsa_switch *ds)
 			if (ret)
 				goto out_girq;
 
-			ret = ksz_ptp_irq_setup(ds, dp->index);
-			if (ret)
-				goto out_pirq;
+			if (dev->info->ptp_capable) {
+				ret = ksz_ptp_irq_setup(ds, dp->index);
+				if (ret)
+					goto out_pirq;
+			}
 		}
 	}
 
-	ret = ksz_ptp_clock_register(ds);
-	if (ret) {
-		dev_err(dev->dev, "Failed to register PTP clock: %d\n", ret);
-		goto out_ptpirq;
+	if (dev->info->ptp_capable) {
+		ret = ksz_ptp_clock_register(ds);
+		if (ret) {
+			dev_err(dev->dev, "Failed to register PTP clock: %d\n",
+				ret);
+			goto out_ptpirq;
+		}
 	}
 
 	ret = ksz_mdio_register(dev);
@@ -2840,9 +2853,10 @@ static int ksz_setup(struct dsa_switch *ds)
 	return 0;
 
 out_ptp_clock_unregister:
-	ksz_ptp_clock_unregister(ds);
+	if (dev->info->ptp_capable)
+		ksz_ptp_clock_unregister(ds);
 out_ptpirq:
-	if (dev->irq > 0)
+	if (dev->irq > 0 && dev->info->ptp_capable)
 		dsa_switch_for_each_user_port(dp, dev->ds)
 			ksz_ptp_irq_free(ds, dp->index);
 out_pirq:
@@ -2861,11 +2875,13 @@ static void ksz_teardown(struct dsa_switch *ds)
 	struct ksz_device *dev = ds->priv;
 	struct dsa_port *dp;
 
-	ksz_ptp_clock_unregister(ds);
+	if (dev->info->ptp_capable)
+		ksz_ptp_clock_unregister(ds);
 
 	if (dev->irq > 0) {
 		dsa_switch_for_each_user_port(dp, dev->ds) {
-			ksz_ptp_irq_free(ds, dp->index);
+			if (dev->info->ptp_capable)
+				ksz_ptp_irq_free(ds, dp->index);
 
 			ksz_irq_free(&dev->ports[dp->index].pirq);
 		}
@@ -3450,12 +3466,12 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 	return -EOPNOTSUPP;
 }
 
-static int ksz_validate_eee(struct dsa_switch *ds, int port)
+static bool ksz_support_eee(struct dsa_switch *ds, int port)
 {
 	struct ksz_device *dev = ds->priv;
 
 	if (!dev->info->internal_phy[port])
-		return -EOPNOTSUPP;
+		return false;
 
 	switch (dev->chip_id) {
 	case KSZ8563_CHIP_ID:
@@ -3467,41 +3483,16 @@ static int ksz_validate_eee(struct dsa_switch *ds, int port)
 	case KSZ9896_CHIP_ID:
 	case KSZ9897_CHIP_ID:
 	case LAN9646_CHIP_ID:
-		return 0;
+		return true;
 	}
 
-	return -EOPNOTSUPP;
-}
-
-static int ksz_get_mac_eee(struct dsa_switch *ds, int port,
-			   struct ethtool_keee *e)
-{
-	int ret;
-
-	ret = ksz_validate_eee(ds, port);
-	if (ret)
-		return ret;
-
-	/* There is no documented control of Tx LPI configuration. */
-	e->tx_lpi_enabled = true;
-
-	/* There is no documented control of Tx LPI timer. According to tests
-	 * Tx LPI timer seems to be set by default to minimal value.
-	 */
-	e->tx_lpi_timer = 0;
-
-	return 0;
+	return false;
 }
 
 static int ksz_set_mac_eee(struct dsa_switch *ds, int port,
 			   struct ethtool_keee *e)
 {
 	struct ksz_device *dev = ds->priv;
-	int ret;
-
-	ret = ksz_validate_eee(ds, port);
-	if (ret)
-		return ret;
 
 	if (!e->tx_lpi_enabled) {
 		dev_err(dev->dev, "Disabling EEE Tx LPI is not supported\n");
@@ -4599,6 +4590,23 @@ static int ksz_hsr_leave(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static int ksz_suspend(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+
+	cancel_delayed_work_sync(&dev->mib_read);
+	return 0;
+}
+
+static int ksz_resume(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (dev->mib_read_interval)
+		schedule_delayed_work(&dev->mib_read, dev->mib_read_interval);
+	return 0;
+}
+
 static const struct dsa_switch_ops ksz_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
 	.connect_tag_protocol   = ksz_connect_tag_protocol,
@@ -4639,6 +4647,8 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_max_mtu		= ksz_max_mtu,
 	.get_wol		= ksz_get_wol,
 	.set_wol		= ksz_set_wol,
+	.suspend		= ksz_suspend,
+	.resume			= ksz_resume,
 	.get_ts_info		= ksz_get_ts_info,
 	.port_hwtstamp_get	= ksz_hwtstamp_get,
 	.port_hwtstamp_set	= ksz_hwtstamp_set,
@@ -4647,7 +4657,7 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.cls_flower_add		= ksz_cls_flower_add,
 	.cls_flower_del		= ksz_cls_flower_del,
 	.port_setup_tc		= ksz_setup_tc,
-	.get_mac_eee		= ksz_get_mac_eee,
+	.support_eee		= ksz_support_eee,
 	.set_mac_eee		= ksz_set_mac_eee,
 	.port_get_default_prio	= ksz_port_get_default_prio,
 	.port_set_default_prio	= ksz_port_set_default_prio,
@@ -5137,6 +5147,24 @@ void ksz_switch_remove(struct ksz_device *dev)
 
 }
 EXPORT_SYMBOL(ksz_switch_remove);
+
+#ifdef CONFIG_PM_SLEEP
+int ksz_switch_suspend(struct device *dev)
+{
+	struct ksz_device *priv = dev_get_drvdata(dev);
+
+	return dsa_switch_suspend(priv->ds);
+}
+EXPORT_SYMBOL(ksz_switch_suspend);
+
+int ksz_switch_resume(struct device *dev)
+{
+	struct ksz_device *priv = dev_get_drvdata(dev);
+
+	return dsa_switch_resume(priv->ds);
+}
+EXPORT_SYMBOL(ksz_switch_resume);
+#endif
 
 MODULE_AUTHOR("Woojung Huh <Woojung.Huh@microchip.com>");
 MODULE_DESCRIPTION("Microchip KSZ Series Switch DSA Driver");

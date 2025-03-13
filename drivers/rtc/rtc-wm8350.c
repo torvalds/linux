@@ -420,7 +420,7 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 		}
 	}
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	wm_rtc->rtc = devm_rtc_device_register(&pdev->dev, "wm8350",
 					&wm8350_rtc_ops, THIS_MODULE);
@@ -459,7 +459,7 @@ static SIMPLE_DEV_PM_OPS(wm8350_rtc_pm_ops, wm8350_rtc_suspend,
 
 static struct platform_driver wm8350_rtc_driver = {
 	.probe = wm8350_rtc_probe,
-	.remove_new = wm8350_rtc_remove,
+	.remove = wm8350_rtc_remove,
 	.driver = {
 		.name = "wm8350-rtc",
 		.pm = &wm8350_rtc_pm_ops,

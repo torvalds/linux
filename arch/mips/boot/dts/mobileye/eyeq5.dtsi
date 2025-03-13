@@ -49,6 +49,28 @@
 		mhm_reserved_0: the-mhm-reserved-0@0 {
 			reg = <0x8 0x00000000 0x0 0x0000800>;
 		};
+
+		nvram@461fe00 {
+			compatible = "mobileye,eyeq5-bootloader-config", "nvmem-rmem";
+			reg = <0x0 0x0461fe00 0x0 0x200>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			no-map;
+
+			nvmem-layout {
+				compatible = "fixed-layout";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				eth0_mac: mac@7c {
+					reg = <0x7c 0x6>;
+				};
+
+				eth1_mac: mac@82 {
+					reg = <0x82 0x6>;
+				};
+			};
+		};
 	};
 
 	aliases {

@@ -238,7 +238,7 @@ static int mt8186_run(struct snd_sof_dev *sdev)
 
 static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 {
-	struct platform_device *pdev = container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	struct adsp_priv *priv;
 	int ret;
 
@@ -668,5 +668,5 @@ module_platform_driver(snd_sof_of_mt8186_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for MT8186/MT8188 platforms");
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
-MODULE_IMPORT_NS(SND_SOC_SOF_MTK_COMMON);
+MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");
+MODULE_IMPORT_NS("SND_SOC_SOF_MTK_COMMON");

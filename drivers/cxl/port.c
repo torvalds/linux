@@ -98,7 +98,7 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 	struct cxl_port *root;
 	int rc;
 
-	rc = cxl_dvsec_rr_decode(cxlds->dev, port, &info);
+	rc = cxl_dvsec_rr_decode(cxlds, &info);
 	if (rc < 0)
 		return rc;
 
@@ -226,5 +226,5 @@ module_exit(cxl_port_exit);
 
 MODULE_DESCRIPTION("CXL: Port enumeration and services");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("CXL");
 MODULE_ALIAS_CXL(CXL_DEVICE_PORT);

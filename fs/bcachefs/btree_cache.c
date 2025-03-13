@@ -24,7 +24,10 @@ do {						 \
 } while (0)
 
 const char * const bch2_btree_node_flags[] = {
-#define x(f)	#f,
+	"typebit",
+	"typebit",
+	"typebit",
+#define x(f)	[BTREE_NODE_##f] = #f,
 	BTREE_FLAGS()
 #undef x
 	NULL
@@ -200,7 +203,7 @@ struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *c)
 		return NULL;
 	}
 
-	bch2_btree_lock_init(&b->c, 0);
+	bch2_btree_lock_init(&b->c, 0, GFP_KERNEL);
 
 	__bch2_btree_node_to_freelist(bc, b);
 	return b;
@@ -222,7 +225,6 @@ void bch2_node_pin(struct bch_fs *c, struct btree *b)
 	struct btree_cache *bc = &c->btree_cache;
 
 	mutex_lock(&bc->lock);
-	BUG_ON(!__btree_node_pinned(bc, b));
 	if (b != btree_node_root(c, b) && !btree_node_pinned(b)) {
 		set_btree_node_pinned(b);
 		list_move(&b->list, &bc->live[1].list);
@@ -326,7 +328,7 @@ void bch2_btree_node_update_key_early(struct btree_trans *trans,
 	if (!IS_ERR_OR_NULL(b)) {
 		mutex_lock(&c->btree_cache.lock);
 
-		bch2_btree_node_hash_remove(&c->btree_cache, b);
+		__bch2_btree_node_hash_remove(&c->btree_cache, b);
 
 		bkey_copy(&b->key, new);
 		ret = __bch2_btree_node_hash_insert(&c->btree_cache, b);
@@ -793,16 +795,17 @@ struct btree *bch2_btree_node_mem_alloc(struct btree_trans *trans, bool pcpu_rea
 		}
 
 	b = __btree_node_mem_alloc(c, GFP_NOWAIT|__GFP_NOWARN);
-	if (!b) {
+	if (b) {
+		bch2_btree_lock_init(&b->c, pcpu_read_locks ? SIX_LOCK_INIT_PCPU : 0, GFP_NOWAIT);
+	} else {
 		mutex_unlock(&bc->lock);
 		bch2_trans_unlock(trans);
 		b = __btree_node_mem_alloc(c, GFP_KERNEL);
 		if (!b)
 			goto err;
+		bch2_btree_lock_init(&b->c, pcpu_read_locks ? SIX_LOCK_INIT_PCPU : 0, GFP_KERNEL);
 		mutex_lock(&bc->lock);
 	}
-
-	bch2_btree_lock_init(&b->c, pcpu_read_locks ? SIX_LOCK_INIT_PCPU : 0);
 
 	BUG_ON(!six_trylock_intent(&b->c.lock));
 	BUG_ON(!six_trylock_write(&b->c.lock));
@@ -1004,16 +1007,14 @@ static noinline void btree_bad_header(struct bch_fs *c, struct btree *b)
 		return;
 
 	prt_printf(&buf,
-	       "btree node header doesn't match ptr\n"
-	       "btree %s level %u\n"
-	       "ptr: ",
-	       bch2_btree_id_str(b->c.btree_id), b->c.level);
+		   "btree node header doesn't match ptr: ");
+	bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
+	prt_str(&buf, "\nptr: ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
-	prt_printf(&buf, "\nheader: btree %s level %llu\n"
-	       "min ",
-	       bch2_btree_id_str(BTREE_NODE_ID(b->data)),
-	       BTREE_NODE_LEVEL(b->data));
+	prt_str(&buf, "\nheader: ");
+	bch2_btree_id_level_to_text(&buf, BTREE_NODE_ID(b->data), BTREE_NODE_LEVEL(b->data));
+	prt_str(&buf, "\nmin ");
 	bch2_bpos_to_text(&buf, b->data->min_key);
 
 	prt_printf(&buf, "\nmax ");
@@ -1133,7 +1134,7 @@ retry:
 
 	if (unlikely(btree_node_read_error(b))) {
 		six_unlock_type(&b->c.lock, lock_type);
-		return ERR_PTR(-BCH_ERR_btree_node_read_error);
+		return ERR_PTR(-BCH_ERR_btree_node_read_err_cached);
 	}
 
 	EBUG_ON(b->c.btree_id != path->btree_id);
@@ -1223,7 +1224,7 @@ struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *
 
 	if (unlikely(btree_node_read_error(b))) {
 		six_unlock_type(&b->c.lock, lock_type);
-		return ERR_PTR(-BCH_ERR_btree_node_read_error);
+		return ERR_PTR(-BCH_ERR_btree_node_read_err_cached);
 	}
 
 	EBUG_ON(b->c.btree_id != path->btree_id);
@@ -1305,7 +1306,7 @@ lock_node:
 
 	if (unlikely(btree_node_read_error(b))) {
 		six_unlock_read(&b->c.lock);
-		b = ERR_PTR(-BCH_ERR_btree_node_read_error);
+		b = ERR_PTR(-BCH_ERR_btree_node_read_err_cached);
 		goto out;
 	}
 
@@ -1398,13 +1399,31 @@ void bch2_btree_id_to_text(struct printbuf *out, enum btree_id btree)
 		prt_printf(out, "(unknown btree %u)", btree);
 }
 
+void bch2_btree_id_level_to_text(struct printbuf *out, enum btree_id btree, unsigned level)
+{
+	prt_str(out, "btree=");
+	bch2_btree_id_to_text(out, btree);
+	prt_printf(out, " level=%u", level);
+}
+
+void __bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c,
+			      enum btree_id btree, unsigned level, struct bkey_s_c k)
+{
+	bch2_btree_id_to_text(out, btree);
+	prt_printf(out, " level %u/", level);
+	struct btree_root *r = bch2_btree_id_root(c, btree);
+	if (r)
+		prt_printf(out, "%u", r->level);
+	else
+		prt_printf(out, "(unknown)");
+	prt_printf(out, "\n  ");
+
+	bch2_bkey_val_to_text(out, c, k);
+}
+
 void bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
 {
-	prt_printf(out, "%s level %u/%u\n  ",
-	       bch2_btree_id_str(b->c.btree_id),
-	       b->c.level,
-	       bch2_btree_id_root(c, b->c.btree_id)->level);
-	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
+	__bch2_btree_pos_to_text(out, c, b->c.btree_id, b->c.level, bkey_i_to_s_c(&b->key));
 }
 
 void bch2_btree_node_to_text(struct printbuf *out, struct bch_fs *c, const struct btree *b)
@@ -1478,8 +1497,12 @@ void bch2_btree_cache_to_text(struct printbuf *out, const struct btree_cache *bc
 	prt_printf(out, "cannibalize lock:\t%p\n",	bc->alloc_lock);
 	prt_newline(out);
 
-	for (unsigned i = 0; i < ARRAY_SIZE(bc->nr_by_btree); i++)
-		prt_btree_cache_line(out, c, bch2_btree_id_str(i), bc->nr_by_btree[i]);
+	for (unsigned i = 0; i < ARRAY_SIZE(bc->nr_by_btree); i++) {
+		bch2_btree_id_to_text(out, i);
+		prt_printf(out, "\t");
+		prt_human_readable_u64(out, bc->nr_by_btree[i] * c->opts.btree_node_size);
+		prt_printf(out, " (%zu)\n", bc->nr_by_btree[i]);
+	}
 
 	prt_newline(out);
 	prt_printf(out, "freed:\t%zu\n", bc->nr_freed);

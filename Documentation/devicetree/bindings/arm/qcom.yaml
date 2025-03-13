@@ -19,29 +19,42 @@ description: |
 
         apq8016
         apq8026
+        apq8064
         apq8074
         apq8084
+        apq8094
         apq8096
         ipq4018
+        ipq4019
         ipq5018
         ipq5332
+        ipq5424
         ipq6018
+        ipq8064
         ipq8074
         ipq9574
         mdm9615
         msm8226
+        msm8660
         msm8916
+        msm8917
+        msm8926
+        msm8929
         msm8939
         msm8953
         msm8956
         msm8960
         msm8974
+        msm8974pro
         msm8976
         msm8992
         msm8994
         msm8996
+        msm8996pro
         msm8998
         qcs404
+        qcs615
+        qcs8300
         qcs8550
         qcm2290
         qcm6490
@@ -53,6 +66,7 @@ description: |
         sa8155p
         sa8540p
         sa8775p
+        sar2130p
         sc7180
         sc7280
         sc8180x
@@ -84,7 +98,10 @@ description: |
         sm8450
         sm8550
         sm8650
+        sm8750
+        x1e78100
         x1e80100
+        x1p42100
 
   There are many devices in the list below that run the standard ChromeOS
   bootloader setup and use the open source depthcharge bootloader to boot the
@@ -252,6 +269,11 @@ properties:
 
       - items:
           - enum:
+              - xiaomi,riva
+          - const: qcom,msm8917
+
+      - items:
+          - enum:
               - motorola,potter
               - xiaomi,daisy
               - xiaomi,mido
@@ -354,6 +376,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,ipq5424-rdp466
+          - const: qcom,ipq5424
+
+      - items:
+          - enum:
               - mikrotik,rb3011
               - qcom,ipq8064-ap148
           - const: qcom,ipq8064
@@ -407,6 +434,12 @@ properties:
           - enum:
               - qcom,qru1000-idp
           - const: qcom,qru1000
+
+      - description: Qualcomm AR2 Gen1 platform
+        items:
+          - enum:
+              - qcom,qar2130p
+          - const: qcom,sar2130p
 
       - items:
           - enum:
@@ -822,8 +855,10 @@ properties:
 
       - items:
           - enum:
+              - huawei,gaokun3
               - lenovo,thinkpad-x13s
               - microsoft,arcata
+              - microsoft,blackrock
               - qcom,sc8280xp-crd
               - qcom,sc8280xp-qrd
           - const: qcom,sc8280xp
@@ -897,6 +932,16 @@ properties:
               - qcom,qcs404-evb-4000
           - const: qcom,qcs404-evb
           - const: qcom,qcs404
+
+      - items:
+          - enum:
+              - qcom,qcs8300-ride
+          - const: qcom,qcs8300
+
+      - items:
+          - enum:
+              - qcom,qcs615-ride
+          - const: qcom,qcs615
 
       - items:
           - enum:
@@ -1066,6 +1111,18 @@ properties:
 
       - items:
           - enum:
+              - qcom,sm8750-mtp
+              - qcom,sm8750-qrd
+          - const: qcom,sm8750
+
+      - items:
+          - enum:
+              - qcom,x1e001de-devkit
+          - const: qcom,x1e001de
+          - const: qcom,x1e80100
+
+      - items:
+          - enum:
               - lenovo,thinkpad-t14s
           - const: qcom,x1e78100
           - const: qcom,x1e80100
@@ -1074,12 +1131,18 @@ properties:
           - enum:
               - asus,vivobook-s15
               - dell,xps13-9345
+              - hp,omnibook-x14
               - lenovo,yoga-slim7x
               - microsoft,romulus13
               - microsoft,romulus15
               - qcom,x1e80100-crd
               - qcom,x1e80100-qcp
           - const: qcom,x1e80100
+
+      - items:
+          - enum:
+              - qcom,x1p42100-crd
+          - const: qcom,x1p42100
 
   # Board compatibles go above
 
@@ -1158,6 +1221,7 @@ allOf:
               - qcom,apq8026
               - qcom,apq8094
               - qcom,apq8096
+              - qcom,msm8917
               - qcom,msm8939
               - qcom,msm8953
               - qcom,msm8956

@@ -256,29 +256,15 @@
 
 void hubp401_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor);
 
-void hubp401_vready_at_or_After_vsync(struct hubp *hubp,
-		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
-
-void hubp401_program_requestor(
-		struct hubp *hubp,
-		struct _vcs_dpi_display_rq_regs_st *rq_regs);
-
-void hubp401_program_deadline(
-		struct hubp *hubp,
-		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
-		struct _vcs_dpi_display_ttu_regs_st *ttu_attr);
-
 void hubp401_setup(
 		struct hubp *hubp,
-		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
-		struct _vcs_dpi_display_ttu_regs_st *ttu_attr,
-		struct _vcs_dpi_display_rq_regs_st *rq_regs,
-		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
+	    struct dml2_dchub_per_pipe_register_set *pipe_regs,
+		union dml2_global_sync_programming *pipe_global_sync,
+		struct dc_crtc_timing *timing);
 
 void hubp401_setup_interdependent(
 		struct hubp *hubp,
-		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
-		struct _vcs_dpi_display_ttu_regs_st *ttu_attr);
+		struct dml2_dchub_per_pipe_register_set *pipe_regs);
 
 bool hubp401_program_surface_flip_and_addr(
 	struct hubp *hubp,
@@ -290,7 +276,7 @@ void hubp401_dcc_control(struct hubp *hubp,
 
 void hubp401_program_tiling(
 	struct dcn20_hubp *hubp2,
-	const union dc_tiling_info *info,
+	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format);
 
 void hubp401_program_size(
@@ -302,7 +288,7 @@ void hubp401_program_size(
 void hubp401_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -339,5 +325,43 @@ void hubp401_init(struct hubp *hubp);
 int hubp401_get_3dlut_fl_done(struct hubp *hubp);
 
 void hubp401_set_unbounded_requesting(struct hubp *hubp, bool enable);
+
+void hubp401_update_3dlut_fl_bias_scale(struct hubp *hubp, uint16_t bias, uint16_t scale);
+
+void hubp401_program_3dlut_fl_crossbar(struct hubp *hubp,
+	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_y_g,
+	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cb_b,
+	enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cr_r);
+
+void hubp401_program_3dlut_fl_tmz_protected(struct hubp *hubp, bool protection_enabled);
+
+void hubp401_program_3dlut_fl_width(struct hubp *hubp, enum hubp_3dlut_fl_width width);
+
+void hubp401_program_3dlut_fl_addressing_mode(struct hubp *hubp, enum hubp_3dlut_fl_addressing_mode addr_mode);
+
+void hubp401_enable_3dlut_fl(struct hubp *hubp, bool enable);
+
+void hubp401_program_3dlut_fl_dlg_param(struct hubp *hubp, int refcyc_per_3dlut_group);
+
+void hubp401_program_3dlut_fl_addr(struct hubp *hubp, const struct dc_plane_address address);
+
+void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_format format);
+
+void hubp401_program_3dlut_fl_mode(struct hubp *hubp, enum hubp_3dlut_fl_mode mode);
+
+void hubp401_clear_tiling(struct hubp *hubp);
+
+void hubp401_vready_at_or_After_vsync(struct hubp *hubp,
+	union dml2_global_sync_programming *pipe_global_sync,
+	struct dc_crtc_timing *timing);
+
+void hubp401_program_requestor(
+	struct hubp *hubp,
+	struct dml2_display_rq_regs *rq_regs);
+
+void hubp401_program_deadline(
+	struct hubp *hubp,
+	struct dml2_display_dlg_regs *dlg_attr,
+	struct dml2_display_ttu_regs *ttu_attr);
 
 #endif /* __DC_HUBP_DCN401_H__ */

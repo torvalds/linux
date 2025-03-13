@@ -12,11 +12,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syscall.h>
-#include <sys/mount.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #include "../kselftest.h"
+#include "../clone3/clone3_selftests.h"
 
 #ifndef P_PIDFD
 #define P_PIDFD 3
@@ -68,6 +68,11 @@
 #define PIDFD_SKIP 3
 #define PIDFD_XFAIL 4
 
+static inline int sys_waitid(int which, pid_t pid, siginfo_t *info, int options)
+{
+	return syscall(__NR_waitid, which, pid, info, options, NULL);
+}
+
 static inline int wait_for_pid(pid_t pid)
 {
 	int status, ret;
@@ -112,6 +117,39 @@ static inline int sys_pidfd_getfd(int pidfd, int fd, int flags)
 static inline int sys_memfd_create(const char *name, unsigned int flags)
 {
 	return syscall(__NR_memfd_create, name, flags);
+}
+
+static inline pid_t create_child(int *pidfd, unsigned flags)
+{
+	struct __clone_args args = {
+		.flags		= CLONE_PIDFD | flags,
+		.exit_signal	= SIGCHLD,
+		.pidfd		= ptr_to_u64(pidfd),
+	};
+
+	return sys_clone3(&args, sizeof(struct __clone_args));
+}
+
+static inline ssize_t read_nointr(int fd, void *buf, size_t count)
+{
+	ssize_t ret;
+
+	do {
+		ret = read(fd, buf, count);
+	} while (ret < 0 && errno == EINTR);
+
+	return ret;
+}
+
+static inline ssize_t write_nointr(int fd, const void *buf, size_t count)
+{
+	ssize_t ret;
+
+	do {
+		ret = write(fd, buf, count);
+	} while (ret < 0 && errno == EINTR);
+
+	return ret;
 }
 
 #endif /* __PIDFD_H */

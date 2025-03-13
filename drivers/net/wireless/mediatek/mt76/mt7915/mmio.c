@@ -138,6 +138,7 @@ static const u32 mt7915_offs[] = {
 	[AGG_ACR0]		= 0x084,
 	[AGG_ACR4]		= 0x08c,
 	[AGG_MRCR]		= 0x098,
+	[AGG_ATCR0]		= 0x0ec,
 	[AGG_ATCR1]		= 0x0f0,
 	[AGG_ATCR3]		= 0x0f4,
 	[LPON_UTTR0]		= 0x080,
@@ -212,6 +213,7 @@ static const u32 mt7916_offs[] = {
 	[AGG_ACR0]		= 0x054,
 	[AGG_ACR4]		= 0x05c,
 	[AGG_MRCR]		= 0x068,
+	[AGG_ATCR0]		= 0x1a4,
 	[AGG_ATCR1]		= 0x1a8,
 	[AGG_ATCR3]		= 0x080,
 	[LPON_UTTR0]		= 0x360,
@@ -484,7 +486,7 @@ static u32 __mt7915_reg_addr(struct mt7915_dev *dev, u32 addr)
 			continue;
 
 		ofs = addr - dev->reg.map[i].phys;
-		if (ofs > dev->reg.map[i].size)
+		if (ofs >= dev->reg.map[i].size)
 			continue;
 
 		return dev->reg.map[i].maps + ofs;

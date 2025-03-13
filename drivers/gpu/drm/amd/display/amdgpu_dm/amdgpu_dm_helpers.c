@@ -885,6 +885,12 @@ bool dm_helpers_dp_write_dsc_enable(
 	return ret;
 }
 
+bool dm_helpers_dp_write_hblank_reduction(struct dc_context *ctx, const struct dc_stream_state *stream)
+{
+	// TODO
+	return false;
+}
+
 bool dm_helpers_is_dp_sink_present(struct dc_link *link)
 {
 	bool dp_sink_present;
@@ -907,14 +913,14 @@ dm_helpers_probe_acpi_edid(void *data, u8 *buf, unsigned int block, size_t len)
 	struct drm_connector *connector = data;
 	struct acpi_device *acpidev = ACPI_COMPANION(connector->dev->dev);
 	unsigned char start = block * EDID_LENGTH;
-	void *edid;
+	struct edid *edid;
 	int r;
 
 	if (!acpidev)
 		return -ENODEV;
 
 	/* fetch the entire edid from BIOS */
-	r = acpi_video_get_edid(acpidev, ACPI_VIDEO_DISPLAY_LCD, -1, &edid);
+	r = acpi_video_get_edid(acpidev, ACPI_VIDEO_DISPLAY_LCD, -1, (void *)&edid);
 	if (r < 0) {
 		drm_dbg(connector->dev, "Failed to get EDID from ACPI: %d\n", r);
 		return r;
@@ -924,7 +930,14 @@ dm_helpers_probe_acpi_edid(void *data, u8 *buf, unsigned int block, size_t len)
 		goto cleanup;
 	}
 
-	memcpy(buf, edid + start, len);
+	/* sanity check */
+	if (edid->revision < 4 || !(edid->input & DRM_EDID_INPUT_DIGITAL) ||
+	    (edid->input & DRM_EDID_DIGITAL_TYPE_MASK) == DRM_EDID_DIGITAL_TYPE_UNDEF) {
+		r = -EINVAL;
+		goto cleanup;
+	}
+
+	memcpy(buf, (void *)edid + start, len);
 	r = 0;
 
 cleanup:

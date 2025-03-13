@@ -3,10 +3,11 @@
  * HE handling
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2019 - 2023 Intel Corporation
+ * Copyright(c) 2019 - 2024 Intel Corporation
  */
 
 #include "ieee80211_i.h"
+#include "rate.h"
 
 static void
 ieee80211_update_from_he_6ghz_capa(const struct ieee80211_he_6ghz_capa *he_6ghz_capa,
@@ -248,3 +249,119 @@ ieee80211_he_spr_ie_to_bss_conf(struct ieee80211_vif *vif,
 		he_obss_pd->enable = true;
 	}
 }
+
+static void ieee80211_link_sta_rc_update_omi(struct ieee80211_link_data *link,
+					     struct link_sta_info *link_sta)
+{
+	struct ieee80211_sub_if_data *sdata = link->sdata;
+	struct ieee80211_supported_band *sband;
+	enum ieee80211_sta_rx_bandwidth new_bw;
+	enum nl80211_band band;
+
+	band = link->conf->chanreq.oper.chan->band;
+	sband = sdata->local->hw.wiphy->bands[band];
+
+	new_bw = ieee80211_sta_cur_vht_bw(link_sta);
+	if (link_sta->pub->bandwidth == new_bw)
+		return;
+
+	link_sta->pub->bandwidth = new_bw;
+	rate_control_rate_update(sdata->local, sband, link_sta,
+				 IEEE80211_RC_BW_CHANGED);
+}
+
+bool ieee80211_prepare_rx_omi_bw(struct ieee80211_link_sta *pub_link_sta,
+				 enum ieee80211_sta_rx_bandwidth bw)
+{
+	struct sta_info *sta = container_of(pub_link_sta->sta,
+					    struct sta_info, sta);
+	struct ieee80211_local *local = sta->sdata->local;
+	struct link_sta_info *link_sta =
+		sdata_dereference(sta->link[pub_link_sta->link_id], sta->sdata);
+	struct ieee80211_link_data *link =
+		sdata_dereference(sta->sdata->link[pub_link_sta->link_id],
+				  sta->sdata);
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *chanctx;
+	bool ret;
+
+	if (WARN_ON(!link || !link_sta || link_sta->pub != pub_link_sta))
+		return false;
+
+	conf = sdata_dereference(link->conf->chanctx_conf, sta->sdata);
+	if (WARN_ON(!conf))
+		return false;
+
+	trace_api_prepare_rx_omi_bw(local, sta->sdata, link_sta, bw);
+
+	chanctx = container_of(conf, typeof(*chanctx), conf);
+
+	if (link_sta->rx_omi_bw_staging == bw) {
+		ret = false;
+		goto trace;
+	}
+
+	/* must call this API in pairs */
+	if (WARN_ON(link_sta->rx_omi_bw_tx != link_sta->rx_omi_bw_staging ||
+		    link_sta->rx_omi_bw_rx != link_sta->rx_omi_bw_staging)) {
+		ret = false;
+		goto trace;
+	}
+
+	if (bw < link_sta->rx_omi_bw_staging) {
+		link_sta->rx_omi_bw_tx = bw;
+		ieee80211_link_sta_rc_update_omi(link, link_sta);
+	} else {
+		link_sta->rx_omi_bw_rx = bw;
+		ieee80211_recalc_chanctx_min_def(local, chanctx, NULL, false);
+	}
+
+	link_sta->rx_omi_bw_staging = bw;
+	ret = true;
+trace:
+	trace_api_return_bool(local, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ieee80211_prepare_rx_omi_bw);
+
+void ieee80211_finalize_rx_omi_bw(struct ieee80211_link_sta *pub_link_sta)
+{
+	struct sta_info *sta = container_of(pub_link_sta->sta,
+					    struct sta_info, sta);
+	struct ieee80211_local *local = sta->sdata->local;
+	struct link_sta_info *link_sta =
+		sdata_dereference(sta->link[pub_link_sta->link_id], sta->sdata);
+	struct ieee80211_link_data *link =
+		sdata_dereference(sta->sdata->link[pub_link_sta->link_id],
+				  sta->sdata);
+	struct ieee80211_chanctx_conf *conf;
+	struct ieee80211_chanctx *chanctx;
+
+	if (WARN_ON(!link || !link_sta || link_sta->pub != pub_link_sta))
+		return;
+
+	conf = sdata_dereference(link->conf->chanctx_conf, sta->sdata);
+	if (WARN_ON(!conf))
+		return;
+
+	trace_api_finalize_rx_omi_bw(local, sta->sdata, link_sta);
+
+	chanctx = container_of(conf, typeof(*chanctx), conf);
+
+	if (link_sta->rx_omi_bw_tx != link_sta->rx_omi_bw_staging) {
+		/* rate control in finalize only when widening bandwidth */
+		WARN_ON(link_sta->rx_omi_bw_tx > link_sta->rx_omi_bw_staging);
+		link_sta->rx_omi_bw_tx = link_sta->rx_omi_bw_staging;
+		ieee80211_link_sta_rc_update_omi(link, link_sta);
+	}
+
+	if (link_sta->rx_omi_bw_rx != link_sta->rx_omi_bw_staging) {
+		/* channel context in finalize only when narrowing bandwidth */
+		WARN_ON(link_sta->rx_omi_bw_rx < link_sta->rx_omi_bw_staging);
+		link_sta->rx_omi_bw_rx = link_sta->rx_omi_bw_staging;
+		ieee80211_recalc_chanctx_min_def(local, chanctx, NULL, false);
+	}
+
+	trace_api_return_void(local);
+}
+EXPORT_SYMBOL_GPL(ieee80211_finalize_rx_omi_bw);

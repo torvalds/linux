@@ -7,32 +7,44 @@ ifeq ("$(DEBUG)","1")
   CFLAGS += -g -fsanitize=address -fsanitize=leak -static-libasan
 endif
 
+INSTALL     ?= install
+prefix      ?= /usr
+datarootdir ?= $(prefix)/share
+docdir      ?= $(datarootdir)/doc
+includedir  ?= $(prefix)/include
+
 include ../Makefile.deps
 
 YNL_GEN_ARG_ethtool:=--user-header linux/ethtool_netlink.h \
 	--exclude-op stats-get
 
-TOOL:=../ynl-gen-c.py
+TOOL:=../pyynl/ynl_gen_c.py
+TOOL_RST:=../pyynl/ynl_gen_rst.py
 
+SPECS_DIR:=../../../../Documentation/netlink/specs
 GENS_PATHS=$(shell grep -nrI --files-without-match \
 		'protocol: netlink' \
-		../../../../Documentation/netlink/specs/)
-GENS=$(patsubst ../../../../Documentation/netlink/specs/%.yaml,%,${GENS_PATHS})
+		$(SPECS_DIR))
+GENS=$(patsubst $(SPECS_DIR)/%.yaml,%,${GENS_PATHS})
 SRCS=$(patsubst %,%-user.c,${GENS})
 HDRS=$(patsubst %,%-user.h,${GENS})
 OBJS=$(patsubst %,%-user.o,${GENS})
 
-all: protos.a $(HDRS) $(SRCS) $(KHDRS) $(KSRCS) $(UAPI)
+SPECS_PATHS=$(wildcard $(SPECS_DIR)/*.yaml)
+SPECS=$(patsubst $(SPECS_DIR)/%.yaml,%,${SPECS_PATHS})
+RSTS=$(patsubst %,%.rst,${SPECS})
+
+all: protos.a $(HDRS) $(SRCS) $(KHDRS) $(KSRCS) $(UAPI) $(RSTS)
 
 protos.a: $(OBJS)
 	@echo -e "\tAR $@"
 	@ar rcs $@ $(OBJS)
 
-%-user.h: ../../../../Documentation/netlink/specs/%.yaml $(TOOL)
+%-user.h: $(SPECS_DIR)/%.yaml $(TOOL)
 	@echo -e "\tGEN $@"
 	@$(TOOL) --mode user --header --spec $< -o $@ $(YNL_GEN_ARG_$*)
 
-%-user.c: ../../../../Documentation/netlink/specs/%.yaml $(TOOL)
+%-user.c: $(SPECS_DIR)/%.yaml $(TOOL)
 	@echo -e "\tGEN $@"
 	@$(TOOL) --mode user --source --spec $< -o $@ $(YNL_GEN_ARG_$*)
 
@@ -40,14 +52,37 @@ protos.a: $(OBJS)
 	@echo -e "\tCC $@"
 	@$(COMPILE.c) $(CFLAGS_$*) -o $@ $<
 
+%.rst: $(SPECS_DIR)/%.yaml $(TOOL_RST)
+	@echo -e "\tGEN_RST $@"
+	@$(TOOL_RST) -o $@ -i $<
+
 clean:
 	rm -f *.o
 
 distclean: clean
-	rm -f *.c *.h *.a
+	rm -f *.c *.h *.a *.rst
 
 regen:
 	@../ynl-regen.sh
 
-.PHONY: all clean distclean regen
+install-headers: $(HDRS)
+	@echo -e "\tINSTALL generated headers"
+	@$(INSTALL) -d $(DESTDIR)$(includedir)/ynl
+	@$(INSTALL) -m 0644 *.h $(DESTDIR)$(includedir)/ynl/
+
+install-rsts: $(RSTS)
+	@echo -e "\tINSTALL generated docs"
+	@$(INSTALL) -d $(DESTDIR)$(docdir)/ynl
+	@$(INSTALL) -m 0644 $(RSTS) $(DESTDIR)$(docdir)/ynl/
+
+install-specs:
+	@echo -e "\tINSTALL specs"
+	@$(INSTALL) -d $(DESTDIR)$(datarootdir)/ynl
+	@$(INSTALL) -m 0644 ../../../../Documentation/netlink/*.yaml $(DESTDIR)$(datarootdir)/ynl/
+	@$(INSTALL) -d $(DESTDIR)$(datarootdir)/ynl/specs
+	@$(INSTALL) -m 0644 $(SPECS_DIR)/*.yaml $(DESTDIR)$(datarootdir)/ynl/specs/
+
+install: install-headers install-rsts install-specs
+
+.PHONY: all clean distclean regen install install-headers install-rsts install-specs
 .DEFAULT_GOAL: all

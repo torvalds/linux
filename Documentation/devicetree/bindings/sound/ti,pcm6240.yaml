@@ -159,19 +159,21 @@ additionalProperties: false
 
 examples:
   - |
-   #include <dt-bindings/gpio/gpio.h>
-   i2c {
-     /* example for two devices with interrupt support */
-     #address-cells = <1>;
-     #size-cells = <0>;
-     pcm6240: audio-codec@48 {
-       compatible = "ti,pcm6240";
-       reg = <0x48>, /* primary-device */
-             <0x4b>; /* secondary-device */
-       #sound-dai-cells = <0>;
-       reset-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-       interrupt-parent = <&gpio1>;
-       interrupts = <15>;
-     };
-   };
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        /* example for two devices with interrupt support */
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        audio-codec@48 {
+            compatible = "ti,pcm6240";
+            reg = <0x48>, /* primary-device */
+                  <0x4b>; /* secondary-device */
+            #sound-dai-cells = <0>;
+            reset-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <15>;
+        };
+    };
 ...

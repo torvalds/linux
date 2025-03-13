@@ -9,9 +9,9 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
@@ -113,7 +113,6 @@ static const struct drm_driver tidss_driver = {
 	DRM_FBDEV_DMA_DRIVER_OPS,
 	.name			= "tidss",
 	.desc			= "TI Keystone DSS",
-	.date			= "20180215",
 	.major			= 1,
 	.minor			= 0,
 };
@@ -140,7 +139,7 @@ static int tidss_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tidss);
 
-	spin_lock_init(&tidss->wait_lock);
+	spin_lock_init(&tidss->irq_lock);
 
 	ret = dispc_init(tidss);
 	if (ret) {
@@ -252,7 +251,7 @@ MODULE_DEVICE_TABLE(of, tidss_of_table);
 
 static struct platform_driver tidss_platform_driver = {
 	.probe		= tidss_probe,
-	.remove_new	= tidss_remove,
+	.remove		= tidss_remove,
 	.shutdown	= tidss_shutdown,
 	.driver		= {
 		.name	= "tidss",

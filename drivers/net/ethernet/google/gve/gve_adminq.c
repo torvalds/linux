@@ -1128,20 +1128,6 @@ int gve_adminq_unregister_page_list(struct gve_priv *priv, u32 page_list_id)
 	return gve_adminq_execute_cmd(priv, &cmd);
 }
 
-int gve_adminq_set_mtu(struct gve_priv *priv, u64 mtu)
-{
-	union gve_adminq_command cmd;
-
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.opcode = cpu_to_be32(GVE_ADMINQ_SET_DRIVER_PARAMETER);
-	cmd.set_driver_param = (struct gve_adminq_set_driver_parameter) {
-		.parameter_type = cpu_to_be32(GVE_SET_PARAM_MTU),
-		.parameter_value = cpu_to_be64(mtu),
-	};
-
-	return gve_adminq_execute_cmd(priv, &cmd);
-}
-
 int gve_adminq_report_stats(struct gve_priv *priv, u64 stats_report_len,
 			    dma_addr_t stats_report_addr, u64 interval)
 {

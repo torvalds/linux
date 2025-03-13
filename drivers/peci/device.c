@@ -230,13 +230,13 @@ int __peci_driver_register(struct peci_driver *driver, struct module *owner,
 
 	return driver_register(&driver->driver);
 }
-EXPORT_SYMBOL_NS_GPL(__peci_driver_register, PECI);
+EXPORT_SYMBOL_NS_GPL(__peci_driver_register, "PECI");
 
 void peci_driver_unregister(struct peci_driver *driver)
 {
 	driver_unregister(&driver->driver);
 }
-EXPORT_SYMBOL_NS_GPL(peci_driver_unregister, PECI);
+EXPORT_SYMBOL_NS_GPL(peci_driver_unregister, "PECI");
 
 static void peci_device_release(struct device *dev)
 {

@@ -1714,38 +1714,6 @@ TRACE_EVENT(nfs_local_open_fh,
 		)
 );
 
-DECLARE_EVENT_CLASS(nfs_local_client_event,
-		TP_PROTO(
-			const struct nfs_client *clp
-		),
-
-		TP_ARGS(clp),
-
-		TP_STRUCT__entry(
-			__field(unsigned int, protocol)
-			__string(server, clp->cl_hostname)
-		),
-
-		TP_fast_assign(
-			__entry->protocol = clp->rpc_ops->version;
-			__assign_str(server);
-		),
-
-		TP_printk(
-			"server=%s NFSv%u", __get_str(server), __entry->protocol
-		)
-);
-
-#define DEFINE_NFS_LOCAL_CLIENT_EVENT(name) \
-	DEFINE_EVENT(nfs_local_client_event, name, \
-			TP_PROTO( \
-				const struct nfs_client *clp \
-			), \
-			TP_ARGS(clp))
-
-DEFINE_NFS_LOCAL_CLIENT_EVENT(nfs_local_enable);
-DEFINE_NFS_LOCAL_CLIENT_EVENT(nfs_local_disable);
-
 DECLARE_EVENT_CLASS(nfs_xdr_event,
 		TP_PROTO(
 			const struct xdr_stream *xdr,

@@ -85,7 +85,7 @@
 static unsigned int oops_limit = 10000;
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table kern_exit_table[] = {
+static const struct ctl_table kern_exit_table[] = {
 	{
 		.procname       = "oops_limit",
 		.data           = &oops_limit,

@@ -52,16 +52,7 @@ _LPP_OFFSET	= __LC_LPP
 		ALT_FACILITY(193)
 	.endm
 
-	.macro	CHECK_STACK savearea, lowcore
-#ifdef CONFIG_CHECK_STACK
-	tml	%r15,THREAD_SIZE - CONFIG_STACK_GUARD
-	la	%r14,\savearea(\lowcore)
-	jz	stack_overflow
-#endif
-	.endm
-
 	.macro	CHECK_VMAP_STACK savearea, lowcore, oklabel
-#ifdef CONFIG_VMAP_STACK
 	lgr	%r14,%r15
 	nill	%r14,0x10000 - THREAD_SIZE
 	oill	%r14,STACK_INIT_OFFSET
@@ -77,9 +68,6 @@ _LPP_OFFSET	= __LC_LPP
 	je	\oklabel
 	la	%r14,\savearea(\lowcore)
 	j	stack_overflow
-#else
-	j	\oklabel
-#endif
 	.endm
 
 	/*
@@ -326,8 +314,7 @@ SYM_CODE_START(pgm_check_handler)
 	jnz	2f			# -> enabled, can't be a double fault
 	tm	__LC_PGM_ILC+3(%r13),0x80	# check for per exception
 	jnz	.Lpgm_svcper		# -> single stepped svc
-2:	CHECK_STACK __LC_SAVE_AREA,%r13
-	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
+2:	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	# CHECK_VMAP_STACK branches to stack_overflow or 4f
 	CHECK_VMAP_STACK __LC_SAVE_AREA,%r13,4f
 3:	lg	%r15,__LC_KERNEL_STACK(%r13)
@@ -394,8 +381,7 @@ SYM_CODE_START(\name)
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 	SIEEXIT __SF_SIE_CONTROL(%r15),%r13
 #endif
-0:	CHECK_STACK __LC_SAVE_AREA,%r13
-	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
+0:	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	2f
 1:	lctlg	%c1,%c1,__LC_KERNEL_ASCE(%r13)
 	lg	%r15,__LC_KERNEL_STACK(%r13)
@@ -603,7 +589,6 @@ SYM_CODE_END(early_pgm_check_handler)
 
 	.section .kprobes.text, "ax"
 
-#if defined(CONFIG_CHECK_STACK) || defined(CONFIG_VMAP_STACK)
 /*
  * The synchronous or the asynchronous stack overflowed. We are dead.
  * No need to properly save the registers, we are going to panic anyway.
@@ -621,7 +606,6 @@ SYM_CODE_START(stack_overflow)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	jg	kernel_stack_overflow
 SYM_CODE_END(stack_overflow)
-#endif
 
 	.section .data, "aw"
 	.balign	4

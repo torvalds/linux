@@ -33,7 +33,13 @@
 #define HSMP_WR			true
 #define HSMP_RD			false
 
-#define DRIVER_VERSION		"2.3"
+#define DRIVER_VERSION		"2.4"
+
+/*
+ * When same message numbers are used for both GET and SET operation,
+ * bit:31 indicates whether its SET or GET operation.
+ */
+#define CHECK_GET_BIT		BIT(31)
 
 static struct hsmp_plat_device hsmp_pdev;
 
@@ -167,11 +173,28 @@ static int validate_message(struct hsmp_message *msg)
 	if (hsmp_msg_desc_table[msg->msg_id].type == HSMP_RSVD)
 		return -ENOMSG;
 
-	/* num_args and response_sz against the HSMP spec */
-	if (msg->num_args != hsmp_msg_desc_table[msg->msg_id].num_args ||
-	    msg->response_sz != hsmp_msg_desc_table[msg->msg_id].response_sz)
+	/*
+	 * num_args passed by user should match the num_args specified in
+	 * message description table.
+	 */
+	if (msg->num_args != hsmp_msg_desc_table[msg->msg_id].num_args)
 		return -EINVAL;
 
+	/*
+	 * Some older HSMP SET messages are updated to add GET in the same message.
+	 * In these messages, GET returns the current value and SET also returns
+	 * the successfully set value. To support this GET and SET in same message
+	 * while maintaining backward compatibility for the HSMP users,
+	 * hsmp_msg_desc_table[] indicates only maximum allowed response_sz.
+	 */
+	if (hsmp_msg_desc_table[msg->msg_id].type == HSMP_SET_GET) {
+		if (msg->response_sz > hsmp_msg_desc_table[msg->msg_id].response_sz)
+			return -EINVAL;
+	} else {
+		/* only HSMP_SET or HSMP_GET messages go through this strict check */
+		if (msg->response_sz != hsmp_msg_desc_table[msg->msg_id].response_sz)
+			return -EINVAL;
+	}
 	return 0;
 }
 
@@ -206,7 +229,7 @@ int hsmp_send_message(struct hsmp_message *msg)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(hsmp_send_message, AMD_HSMP);
+EXPORT_SYMBOL_NS_GPL(hsmp_send_message, "AMD_HSMP");
 
 int hsmp_test(u16 sock_ind, u32 value)
 {
@@ -237,7 +260,19 @@ int hsmp_test(u16 sock_ind, u32 value)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(hsmp_test, AMD_HSMP);
+EXPORT_SYMBOL_NS_GPL(hsmp_test, "AMD_HSMP");
+
+static bool is_get_msg(struct hsmp_message *msg)
+{
+	if (hsmp_msg_desc_table[msg->msg_id].type == HSMP_GET)
+		return true;
+
+	if (hsmp_msg_desc_table[msg->msg_id].type == HSMP_SET_GET &&
+	    (msg->args[0] & CHECK_GET_BIT))
+		return true;
+
+	return false;
+}
 
 long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 {
@@ -261,7 +296,7 @@ long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		 * Device is opened in O_WRONLY mode
 		 * Execute only set/configure commands
 		 */
-		if (hsmp_msg_desc_table[msg.msg_id].type != HSMP_SET)
+		if (is_get_msg(&msg))
 			return -EPERM;
 		break;
 	case FMODE_READ:
@@ -269,7 +304,7 @@ long hsmp_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		 * Device is opened in O_RDONLY mode
 		 * Execute only get/monitor commands
 		 */
-		if (hsmp_msg_desc_table[msg.msg_id].type != HSMP_GET)
+		if (!is_get_msg(&msg))
 			return -EPERM;
 		break;
 	case FMODE_READ | FMODE_WRITE:
@@ -319,7 +354,7 @@ ssize_t hsmp_metric_tbl_read(struct hsmp_socket *sock, char *buf, size_t size)
 
 	return size;
 }
-EXPORT_SYMBOL_NS_GPL(hsmp_metric_tbl_read, AMD_HSMP);
+EXPORT_SYMBOL_NS_GPL(hsmp_metric_tbl_read, "AMD_HSMP");
 
 int hsmp_get_tbl_dram_base(u16 sock_ind)
 {
@@ -353,7 +388,7 @@ int hsmp_get_tbl_dram_base(u16 sock_ind)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(hsmp_get_tbl_dram_base, AMD_HSMP);
+EXPORT_SYMBOL_NS_GPL(hsmp_get_tbl_dram_base, "AMD_HSMP");
 
 int hsmp_cache_proto_ver(u16 sock_ind)
 {
@@ -370,7 +405,7 @@ int hsmp_cache_proto_ver(u16 sock_ind)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(hsmp_cache_proto_ver, AMD_HSMP);
+EXPORT_SYMBOL_NS_GPL(hsmp_cache_proto_ver, "AMD_HSMP");
 
 static const struct file_operations hsmp_fops = {
 	.owner		= THIS_MODULE,
@@ -389,19 +424,19 @@ int hsmp_misc_register(struct device *dev)
 
 	return misc_register(&hsmp_pdev.mdev);
 }
-EXPORT_SYMBOL_NS_GPL(hsmp_misc_register, AMD_HSMP);
+EXPORT_SYMBOL_NS_GPL(hsmp_misc_register, "AMD_HSMP");
 
 void hsmp_misc_deregister(void)
 {
 	misc_deregister(&hsmp_pdev.mdev);
 }
-EXPORT_SYMBOL_NS_GPL(hsmp_misc_deregister, AMD_HSMP);
+EXPORT_SYMBOL_NS_GPL(hsmp_misc_deregister, "AMD_HSMP");
 
 struct hsmp_plat_device *get_hsmp_pdev(void)
 {
 	return &hsmp_pdev;
 }
-EXPORT_SYMBOL_NS_GPL(get_hsmp_pdev, AMD_HSMP);
+EXPORT_SYMBOL_NS_GPL(get_hsmp_pdev, "AMD_HSMP");
 
 MODULE_DESCRIPTION("AMD HSMP Common driver");
 MODULE_VERSION(DRIVER_VERSION);

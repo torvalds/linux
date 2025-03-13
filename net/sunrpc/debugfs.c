@@ -74,6 +74,9 @@ tasks_stop(struct seq_file *f, void *v)
 {
 	struct rpc_clnt *clnt = f->private;
 	spin_unlock(&clnt->cl_lock);
+	seq_printf(f, "clnt[%pISpc] RPC tasks[%d]\n",
+		   (struct sockaddr *)&clnt->cl_xprt->addr,
+		   atomic_read(&clnt->cl_task_count));
 }
 
 static const struct seq_operations tasks_seq_operations = {
@@ -179,6 +182,18 @@ xprt_info_show(struct seq_file *f, void *v)
 	seq_printf(f, "addr:  %s\n", xprt->address_strings[RPC_DISPLAY_ADDR]);
 	seq_printf(f, "port:  %s\n", xprt->address_strings[RPC_DISPLAY_PORT]);
 	seq_printf(f, "state: 0x%lx\n", xprt->state);
+	seq_printf(f, "netns: %u\n", xprt->xprt_net->ns.inum);
+
+	if (xprt->ops->get_srcaddr) {
+		int ret, buflen;
+		char buf[INET6_ADDRSTRLEN];
+
+		buflen = ARRAY_SIZE(buf);
+		ret = xprt->ops->get_srcaddr(xprt, buf, buflen);
+		if (ret < 0)
+			ret = sprintf(buf, "<closed>");
+		seq_printf(f, "saddr: %.*s\n", ret, buf);
+	}
 	return 0;
 }
 

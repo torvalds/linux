@@ -56,6 +56,7 @@ static struct perf_event_attr make_event_attr(void)
 
 #ifdef HAVE_BPF_SKEL
 #include <bpf/btf.h>
+#include <util/btf.h>
 
 static struct btf *btf;
 
@@ -73,21 +74,6 @@ static void btf__exit(void)
 	btf = NULL;
 }
 
-static const struct btf_member *__btf_type__find_member_by_name(int type_id, const char *member_name)
-{
-	const struct btf_type *t = btf__type_by_id(btf, type_id);
-	const struct btf_member *m;
-	int i;
-
-	for (i = 0, m = btf_members(t); i < btf_vlen(t); i++, m++) {
-		const char *current_member_name = btf__name_by_offset(btf, m->name_off);
-		if (!strcmp(current_member_name, member_name))
-			return m;
-	}
-
-	return NULL;
-}
-
 static bool attr_has_sigtrap(void)
 {
 	int id;
@@ -101,7 +87,7 @@ static bool attr_has_sigtrap(void)
 	if (id < 0)
 		return false;
 
-	return __btf_type__find_member_by_name(id, "sigtrap") != NULL;
+	return __btf_type__find_member_by_name(btf, id, "sigtrap") != NULL;
 }
 
 static bool kernel_with_sleepable_spinlocks(void)
@@ -119,7 +105,7 @@ static bool kernel_with_sleepable_spinlocks(void)
 		return false;
 
 	// Only RT has a "lock" member for "struct spinlock"
-	member = __btf_type__find_member_by_name(id, "lock");
+	member = __btf_type__find_member_by_name(btf, id, "lock");
 	if (member == NULL)
 		return false;
 

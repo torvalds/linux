@@ -134,8 +134,9 @@ patternProperties:
         description:
           Describes the common mode channel for single channels. 0xFF is REFGND
           and OxFE is COM. Macros are available for these values in
-          dt-bindings/iio/adi,ad4695.h. Values 1 to 15 correspond to INx inputs.
-          Only odd numbered INx inputs can be used as common mode channels.
+          dt-bindings/iio/adc/adi,ad4695.h. Values 1 to 15 correspond to INx
+          inputs. Only odd numbered INx inputs can be used as common mode
+          channels.
         enum: [1, 3, 5, 7, 9, 11, 13, 15, 0xFE, 0xFF]
         default: 0xFF
 
@@ -209,7 +210,7 @@ unevaluatedProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    #include <dt-bindings/iio/adi,ad4695.h>
+    #include <dt-bindings/iio/adc/adi,ad4695.h>
 
     spi {
         #address-cells = <1>;

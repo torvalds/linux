@@ -181,7 +181,6 @@ static int dw_mci_hi3798mv200_init(struct dw_mci *host)
 {
 	struct dw_mci_hi3798mv200_priv *priv;
 	struct device_node *np = host->dev->of_node;
-	int ret;
 
 	priv = devm_kzalloc(host->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -199,14 +198,11 @@ static int dw_mci_hi3798mv200_init(struct dw_mci *host)
 		return dev_err_probe(host->dev, PTR_ERR(priv->drive_clk),
 				     "failed to get enabled ciu-drive clock\n");
 
-	priv->crg_reg = syscon_regmap_lookup_by_phandle(np, "hisilicon,sap-dll-reg");
+	priv->crg_reg = syscon_regmap_lookup_by_phandle_args(np, "hisilicon,sap-dll-reg",
+							     1, &priv->sap_dll_offset);
 	if (IS_ERR(priv->crg_reg))
 		return dev_err_probe(host->dev, PTR_ERR(priv->crg_reg),
 				     "failed to get CRG reg\n");
-
-	ret = of_property_read_u32_index(np, "hisilicon,sap-dll-reg", 1, &priv->sap_dll_offset);
-	if (ret)
-		return dev_err_probe(host->dev, ret, "failed to get sample DLL register offset\n");
 
 	host->priv = priv;
 	return 0;

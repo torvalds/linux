@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test tx timestamping for partial writes (IPv4).
+`./defaults.sh
+`
+
+// Create a socket and set it to non-blocking.
+    0	socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0	fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
+   +0	fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+// Establish connection and verify that there was no error.
+   +0	connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+   +0	> S 0:0(0) <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8>
+ +.01	< S. 0:0(0) ack 1 win 2000 <mss 1000,sackOK,TS val 700 ecr 100,nop,wscale 7>
+   +0	> . 1:1(0) ack 1 <nop,nop,TS val 200 ecr 700>
+   +0	getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0
+
+   +0	setsockopt(3, SOL_SOCKET, SO_SNDBUF, [1000], 4) = 0
+   +0	setsockopt(3, SOL_SOCKET, SO_TIMESTAMPING,
+		   [SOF_TIMESTAMPING_TX_SCHED | SOF_TIMESTAMPING_TX_SOFTWARE |
+		    SOF_TIMESTAMPING_TX_ACK | SOF_TIMESTAMPING_SOFTWARE |
+		    SOF_TIMESTAMPING_OPT_ID], 4) = 0
+
+// We have a partial write.
+   +0	write(3, ..., 10000) = 2964
+   +0	> . 1:989(988) ack 1 <nop,nop,TS val 110 ecr 700>
+   +0	> P. 989:1977(988) ack 1 <nop,nop,TS val 110 ecr 700>
+ +.01	< . 1:1(0) ack 1977 win 92 <nop,nop,TS val 800 ecr 200>
+   +0	> P. 1977:2965(988) ack 1 <nop,nop,TS val 114 ecr 800>
+ +.01	< . 1:1(0) ack 2965 win 92 <nop,nop,TS val 800 ecr 200>
+
+// Make sure that internal TCP timestamps are not overwritten and we have sane
+// RTT measurement.
+   +0	%{
+assert 5000 <= tcpi_rtt <= 20000, 'srtt=%d us' % tcpi_rtt
+}%
+
+// SCM_TSTAMP_SCHED for the first chunk should be received almost immediately
+// after the first ack at t=20ms.
+   +0	recvmsg(3, {msg_name(...)=...,
+		    msg_iov(1)=[{...,0}],
+                    msg_flags=MSG_ERRQUEUE|MSG_TRUNC,
+                    msg_control=[
+			{cmsg_level=SOL_SOCKET,
+			 cmsg_type=SCM_TIMESTAMPING,
+			 cmsg_data={scm_sec=0,scm_nsec=20000000}},
+			{cmsg_level=CMSG_LEVEL_IP,
+			 cmsg_type=CMSG_TYPE_RECVERR,
+			 cmsg_data={ee_errno=ENOMSG,
+				    ee_origin=SO_EE_ORIGIN_TIMESTAMPING,
+				    ee_type=0,
+				    ee_code=0,
+				    ee_info=SCM_TSTAMP_SCHED,
+				    ee_data=2963}}
+		    ]}, MSG_ERRQUEUE) = 0
+// SCM_TSTAMP_SND for the first chunk should be received almost immediately
+// after the first ack at t=20ms.
+   +0	recvmsg(3, {msg_name(...)=...,
+		    msg_iov(1)=[{...,0}],
+                    msg_flags=MSG_ERRQUEUE|MSG_TRUNC,
+                    msg_control=[
+			{cmsg_level=SOL_SOCKET,
+			 cmsg_type=SCM_TIMESTAMPING,
+			 cmsg_data={scm_sec=0,scm_nsec=20000000}},
+			{cmsg_level=CMSG_LEVEL_IP,
+			 cmsg_type=CMSG_TYPE_RECVERR,
+			 cmsg_data={ee_errno=ENOMSG,
+				    ee_origin=SO_EE_ORIGIN_TIMESTAMPING,
+				    ee_type=0,
+				    ee_code=0,
+				    ee_info=SCM_TSTAMP_SND,
+				    ee_data=2963}}
+		    ]}, MSG_ERRQUEUE) = 0
+// SCM_TSTAMP_ACK for the first chunk should be received after the last ack at
+// t=30ms.
+   +0	recvmsg(3, {msg_name(...)=...,
+		    msg_iov(1)=[{...,0}],
+                    msg_flags=MSG_ERRQUEUE|MSG_TRUNC,
+                    msg_control=[
+			{cmsg_level=SOL_SOCKET,
+			 cmsg_type=SCM_TIMESTAMPING,
+			 cmsg_data={scm_sec=0,scm_nsec=30000000}},
+			{cmsg_level=CMSG_LEVEL_IP,
+			 cmsg_type=CMSG_TYPE_RECVERR,
+			 cmsg_data={ee_errno=ENOMSG,
+				    ee_origin=SO_EE_ORIGIN_TIMESTAMPING,
+				    ee_type=0,
+				    ee_code=0,
+				    ee_info=SCM_TSTAMP_ACK,
+				    ee_data=2963}}
+		    ]}, MSG_ERRQUEUE) = 0

@@ -83,6 +83,7 @@ struct snd_ump_ops {
 struct snd_seq_ump_ops {
 	void (*input_receive)(struct snd_ump_endpoint *ump,
 			      const u32 *data, int words);
+	int (*notify_ep_change)(struct snd_ump_endpoint *ump);
 	int (*notify_fb_change)(struct snd_ump_endpoint *ump,
 				struct snd_ump_block *fb);
 	int (*switch_protocol)(struct snd_ump_endpoint *ump);

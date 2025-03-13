@@ -348,6 +348,6 @@ static struct platform_driver sunxi_de2_clk_driver = {
 };
 module_platform_driver(sunxi_de2_clk_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner SoCs DE2 CCU");
 MODULE_LICENSE("GPL");

@@ -292,7 +292,7 @@ static int hiperdispatch_ctl_handler(const struct ctl_table *ctl, int write,
 	return 0;
 }
 
-static struct ctl_table hiperdispatch_ctl_table[] = {
+static const struct ctl_table hiperdispatch_ctl_table[] = {
 	{
 		.procname	= "hiperdispatch",
 		.mode		= 0644,

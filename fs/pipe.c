@@ -210,11 +210,10 @@ static const struct pipe_buf_operations anon_pipe_buf_ops = {
 /* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
 static inline bool pipe_readable(const struct pipe_inode_info *pipe)
 {
-	unsigned int head = READ_ONCE(pipe->head);
-	unsigned int tail = READ_ONCE(pipe->tail);
+	union pipe_index idx = { .head_tail = READ_ONCE(pipe->head_tail) };
 	unsigned int writers = READ_ONCE(pipe->writers);
 
-	return !pipe_empty(head, tail) || !writers;
+	return !pipe_empty(idx.head, idx.tail) || !writers;
 }
 
 static inline unsigned int pipe_update_tail(struct pipe_inode_info *pipe,
@@ -253,7 +252,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 	size_t total_len = iov_iter_count(to);
 	struct file *filp = iocb->ki_filp;
 	struct pipe_inode_info *pipe = filp->private_data;
-	bool was_full, wake_next_reader = false;
+	bool wake_writer = false, wake_next_reader = false;
 	ssize_t ret;
 
 	/* Null read succeeds. */
@@ -264,14 +263,13 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 	mutex_lock(&pipe->mutex);
 
 	/*
-	 * We only wake up writers if the pipe was full when we started
-	 * reading in order to avoid unnecessary wakeups.
+	 * We only wake up writers if the pipe was full when we started reading
+	 * and it is no longer full after reading to avoid unnecessary wakeups.
 	 *
 	 * But when we do wake up writers, we do so using a sync wakeup
 	 * (WF_SYNC), because we want them to get going and generate more
 	 * data for us.
 	 */
-	was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
 	for (;;) {
 		/* Read ->head with a barrier vs post_one_notification() */
 		unsigned int head = smp_load_acquire(&pipe->head);
@@ -340,8 +338,10 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 				buf->len = 0;
 			}
 
-			if (!buf->len)
+			if (!buf->len) {
+				wake_writer |= pipe_full(head, tail, pipe->max_usage);
 				tail = pipe_update_tail(pipe, buf, tail);
+			}
 			total_len -= chars;
 			if (!total_len)
 				break;	/* common path: read succeeded */
@@ -377,7 +377,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		 * _very_ unlikely case that the pipe was full, but we got
 		 * no data.
 		 */
-		if (unlikely(was_full))
+		if (unlikely(wake_writer))
 			wake_up_interruptible_sync_poll(&pipe->wr_wait, EPOLLOUT | EPOLLWRNORM);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 
@@ -390,15 +390,15 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		if (wait_event_interruptible_exclusive(pipe->rd_wait, pipe_readable(pipe)) < 0)
 			return -ERESTARTSYS;
 
-		mutex_lock(&pipe->mutex);
-		was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
+		wake_writer = false;
 		wake_next_reader = true;
+		mutex_lock(&pipe->mutex);
 	}
-	if (pipe_empty(pipe->head, pipe->tail))
+	if (pipe_is_empty(pipe))
 		wake_next_reader = false;
 	mutex_unlock(&pipe->mutex);
 
-	if (was_full)
+	if (wake_writer)
 		wake_up_interruptible_sync_poll(&pipe->wr_wait, EPOLLOUT | EPOLLWRNORM);
 	if (wake_next_reader)
 		wake_up_interruptible_sync_poll(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM);
@@ -416,11 +416,10 @@ static inline int is_packetized(struct file *file)
 /* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
 static inline bool pipe_writable(const struct pipe_inode_info *pipe)
 {
-	unsigned int head = READ_ONCE(pipe->head);
-	unsigned int tail = READ_ONCE(pipe->tail);
+	union pipe_index idx = { .head_tail = READ_ONCE(pipe->head_tail) };
 	unsigned int max_usage = READ_ONCE(pipe->max_usage);
 
-	return !pipe_full(head, tail, max_usage) ||
+	return !pipe_full(idx.head, idx.tail, max_usage) ||
 		!READ_ONCE(pipe->readers);
 }
 
@@ -578,11 +577,11 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		wait_event_interruptible_exclusive(pipe->wr_wait, pipe_writable(pipe));
 		mutex_lock(&pipe->mutex);
-		was_empty = pipe_empty(pipe->head, pipe->tail);
+		was_empty = pipe_is_empty(pipe);
 		wake_next_writer = true;
 	}
 out:
-	if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
+	if (pipe_is_full(pipe))
 		wake_next_writer = false;
 	mutex_unlock(&pipe->mutex);
 
@@ -615,7 +614,7 @@ out:
 static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct pipe_inode_info *pipe = filp->private_data;
-	unsigned int count, head, tail, mask;
+	unsigned int count, head, tail;
 
 	switch (cmd) {
 	case FIONREAD:
@@ -623,10 +622,9 @@ static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		count = 0;
 		head = pipe->head;
 		tail = pipe->tail;
-		mask = pipe->ring_size - 1;
 
-		while (tail != head) {
-			count += pipe->bufs[tail & mask].len;
+		while (!pipe_empty(head, tail)) {
+			count += pipe_buf(pipe, tail)->len;
 			tail++;
 		}
 		mutex_unlock(&pipe->mutex);
@@ -658,7 +656,7 @@ pipe_poll(struct file *filp, poll_table *wait)
 {
 	__poll_t mask;
 	struct pipe_inode_info *pipe = filp->private_data;
-	unsigned int head, tail;
+	union pipe_index idx;
 
 	/* Epoll has some historical nasty semantics, this enables them */
 	WRITE_ONCE(pipe->poll_usage, true);
@@ -679,19 +677,18 @@ pipe_poll(struct file *filp, poll_table *wait)
 	 * if something changes and you got it wrong, the poll
 	 * table entry will wake you up and fix it.
 	 */
-	head = READ_ONCE(pipe->head);
-	tail = READ_ONCE(pipe->tail);
+	idx.head_tail = READ_ONCE(pipe->head_tail);
 
 	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
-		if (!pipe_empty(head, tail))
+		if (!pipe_empty(idx.head, idx.tail))
 			mask |= EPOLLIN | EPOLLRDNORM;
 		if (!pipe->writers && filp->f_pipe != pipe->w_counter)
 			mask |= EPOLLHUP;
 	}
 
 	if (filp->f_mode & FMODE_WRITE) {
-		if (!pipe_full(head, tail, pipe->max_usage))
+		if (!pipe_full(idx.head, idx.tail, pipe->max_usage))
 			mask |= EPOLLOUT | EPOLLWRNORM;
 		/*
 		 * Most Unices do not set EPOLLERR for FIFOs but on Linux they
@@ -959,6 +956,12 @@ int create_pipe_files(struct file **res, int flags)
 	res[1] = f;
 	stream_open(inode, res[0]);
 	stream_open(inode, res[1]);
+	/*
+	 * Disable permission and pre-content events, but enable legacy
+	 * inotify events for legacy users.
+	 */
+	file_set_fsnotify_mode(res[0], FMODE_NONOTIFY_PERM);
+	file_set_fsnotify_mode(res[1], FMODE_NONOTIFY_PERM);
 	return 0;
 }
 
@@ -1477,7 +1480,7 @@ static int proc_dopipe_max_size(const struct ctl_table *table, int write,
 				 do_proc_dopipe_max_size_conv, NULL);
 }
 
-static struct ctl_table fs_pipe_sysctls[] = {
+static const struct ctl_table fs_pipe_sysctls[] = {
 	{
 		.procname	= "pipe-max-size",
 		.data		= &pipe_max_size,

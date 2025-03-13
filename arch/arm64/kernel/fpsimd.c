@@ -562,7 +562,7 @@ static int vec_proc_do_default_vl(const struct ctl_table *table, int write,
 	return 0;
 }
 
-static struct ctl_table sve_default_vl_table[] = {
+static const struct ctl_table sve_default_vl_table[] = {
 	{
 		.procname	= "sve_default_vector_length",
 		.mode		= 0644,
@@ -585,7 +585,7 @@ static int __init sve_sysctl_init(void) { return 0; }
 #endif /* ! (CONFIG_ARM64_SVE && CONFIG_SYSCTL) */
 
 #if defined(CONFIG_ARM64_SME) && defined(CONFIG_SYSCTL)
-static struct ctl_table sme_default_vl_table[] = {
+static const struct ctl_table sme_default_vl_table[] = {
 	{
 		.procname	= "sme_default_vector_length",
 		.mode		= 0644,
@@ -1692,31 +1692,6 @@ void fpsimd_signal_preserve_current_state(void)
 	fpsimd_preserve_current_state();
 	if (current->thread.fp_type == FP_STATE_SVE)
 		sve_to_fpsimd(current);
-}
-
-/*
- * Called by KVM when entering the guest.
- */
-void fpsimd_kvm_prepare(void)
-{
-	if (!system_supports_sve())
-		return;
-
-	/*
-	 * KVM does not save host SVE state since we can only enter
-	 * the guest from a syscall so the ABI means that only the
-	 * non-saved SVE state needs to be saved.  If we have left
-	 * SVE enabled for performance reasons then update the task
-	 * state to be FPSIMD only.
-	 */
-	get_cpu_fpsimd_context();
-
-	if (test_and_clear_thread_flag(TIF_SVE)) {
-		sve_to_fpsimd(current);
-		current->thread.fp_type = FP_STATE_FPSIMD;
-	}
-
-	put_cpu_fpsimd_context();
 }
 
 /*

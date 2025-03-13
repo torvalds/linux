@@ -247,6 +247,13 @@ static enum nl80211_chan_width ieee80211_get_sta_bw(struct sta_info *sta,
 	if (!link_sta)
 		return NL80211_CHAN_WIDTH_20_NOHT;
 
+	/*
+	 * We assume that TX/RX might be asymmetric (so e.g. VHT operating
+	 * mode notification changes what a STA wants to receive, but not
+	 * necessarily what it will transmit to us), and therefore use the
+	 * capabilities here. Calling it RX bandwidth capability is a bit
+	 * wrong though, since capabilities are in fact symmetric.
+	 */
 	width = ieee80211_sta_cap_rx_bw(link_sta);
 
 	switch (width) {

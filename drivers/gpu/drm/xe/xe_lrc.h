@@ -25,8 +25,10 @@ struct xe_lrc_snapshot {
 	unsigned long lrc_size, lrc_offset;
 
 	u32 context_desc;
+	u32 ring_addr;
 	u32 indirect_context_desc;
 	u32 head;
+	u32 start;
 	struct {
 		u32 internal;
 		u32 memory;
@@ -40,7 +42,7 @@ struct xe_lrc_snapshot {
 #define LRC_PPHWSP_SCRATCH_ADDR (0x34 * 4)
 
 struct xe_lrc *xe_lrc_create(struct xe_hw_engine *hwe, struct xe_vm *vm,
-			     u32 ring_size);
+			     u32 ring_size, u16 msix_vec);
 void xe_lrc_destroy(struct kref *ref);
 
 /**
@@ -77,6 +79,8 @@ void xe_lrc_set_ring_head(struct xe_lrc *lrc, u32 head);
 u32 xe_lrc_ring_head(struct xe_lrc *lrc);
 u32 xe_lrc_ring_space(struct xe_lrc *lrc);
 void xe_lrc_write_ring(struct xe_lrc *lrc, const void *data, size_t size);
+
+bool xe_lrc_ring_is_idle(struct xe_lrc *lrc);
 
 u32 xe_lrc_indirect_ring_ggtt_addr(struct xe_lrc *lrc);
 u32 xe_lrc_ggtt_addr(struct xe_lrc *lrc);

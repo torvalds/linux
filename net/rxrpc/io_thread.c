@@ -338,7 +338,6 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 	struct rxrpc_channel *chan;
 	struct rxrpc_call *call = NULL;
 	unsigned int channel;
-	bool ret;
 
 	if (sp->hdr.securityIndex != conn->security_ix)
 		return rxrpc_direct_abort(skb, rxrpc_eproto_wrong_security,
@@ -363,6 +362,12 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 	/* It's a connection-level packet if the call number is 0. */
 	if (sp->hdr.callNumber == 0)
 		return rxrpc_input_conn_packet(conn, skb);
+
+	/* Deal with path MTU discovery probing. */
+	if (sp->hdr.type == RXRPC_PACKET_TYPE_ACK &&
+	    conn->pmtud_probe &&
+	    after_eq(sp->ack.acked_serial, conn->pmtud_probe))
+		rxrpc_input_probe_for_pmtud(conn, sp->ack.acked_serial, false);
 
 	/* Call-bound packets are routed by connection channel. */
 	channel = sp->hdr.cid & RXRPC_CHANNELMASK;
@@ -419,9 +424,9 @@ static int rxrpc_input_packet_on_conn(struct rxrpc_connection *conn,
 					       peer_srx, skb);
 	}
 
-	ret = rxrpc_input_call_event(call, skb);
+	rxrpc_queue_rx_call_packet(call, skb);
 	rxrpc_put_call(call, rxrpc_call_put_input);
-	return ret;
+	return true;
 }
 
 /*
@@ -438,6 +443,8 @@ int rxrpc_io_thread(void *data)
 	ktime_t now;
 #endif
 	bool should_stop;
+	LIST_HEAD(conn_attend_q);
+	LIST_HEAD(call_attend_q);
 
 	complete(&local->io_thread_ready);
 
@@ -448,43 +455,26 @@ int rxrpc_io_thread(void *data)
 	for (;;) {
 		rxrpc_inc_stat(local->rxnet, stat_io_loop);
 
-		/* Deal with connections that want immediate attention. */
-		conn = list_first_entry_or_null(&local->conn_attend_q,
-						struct rxrpc_connection,
-						attend_link);
-		if (conn) {
-			spin_lock_bh(&local->lock);
-			list_del_init(&conn->attend_link);
-			spin_unlock_bh(&local->lock);
+		/* Inject a delay into packets if requested. */
+#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
+		now = ktime_get_real();
+		while ((skb = skb_peek(&local->rx_delay_queue))) {
+			if (ktime_before(now, skb->tstamp))
+				break;
+			skb = skb_dequeue(&local->rx_delay_queue);
+			skb_queue_tail(&local->rx_queue, skb);
+		}
+#endif
 
-			rxrpc_input_conn_event(conn, NULL);
-			rxrpc_put_connection(conn, rxrpc_conn_put_poke);
-			continue;
+		if (!skb_queue_empty(&local->rx_queue)) {
+			spin_lock_irq(&local->rx_queue.lock);
+			skb_queue_splice_tail_init(&local->rx_queue, &rx_queue);
+			spin_unlock_irq(&local->rx_queue.lock);
+			trace_rxrpc_iothread_rx(local, skb_queue_len(&rx_queue));
 		}
 
-		if (test_and_clear_bit(RXRPC_CLIENT_CONN_REAP_TIMER,
-				       &local->client_conn_flags))
-			rxrpc_discard_expired_client_conns(local);
-
-		/* Deal with calls that want immediate attention. */
-		if ((call = list_first_entry_or_null(&local->call_attend_q,
-						     struct rxrpc_call,
-						     attend_link))) {
-			spin_lock_bh(&local->lock);
-			list_del_init(&call->attend_link);
-			spin_unlock_bh(&local->lock);
-
-			trace_rxrpc_call_poked(call);
-			rxrpc_input_call_event(call, NULL);
-			rxrpc_put_call(call, rxrpc_call_put_poke);
-			continue;
-		}
-
-		if (!list_empty(&local->new_client_calls))
-			rxrpc_connect_client_calls(local);
-
-		/* Process received packets and errors. */
-		if ((skb = __skb_dequeue(&rx_queue))) {
+		/* Distribute packets and errors. */
+		while ((skb = __skb_dequeue(&rx_queue))) {
 			struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 			switch (skb->mark) {
 			case RXRPC_SKB_MARK_PACKET:
@@ -508,26 +498,45 @@ int rxrpc_io_thread(void *data)
 				rxrpc_free_skb(skb, rxrpc_skb_put_unknown);
 				break;
 			}
-			continue;
 		}
 
-		/* Inject a delay into packets if requested. */
-#ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
-		now = ktime_get_real();
-		while ((skb = skb_peek(&local->rx_delay_queue))) {
-			if (ktime_before(now, skb->tstamp))
-				break;
-			skb = skb_dequeue(&local->rx_delay_queue);
-			skb_queue_tail(&local->rx_queue, skb);
-		}
-#endif
+		/* Deal with connections that want immediate attention. */
+		spin_lock_irq(&local->lock);
+		list_splice_tail_init(&local->conn_attend_q, &conn_attend_q);
+		spin_unlock_irq(&local->lock);
 
-		if (!skb_queue_empty(&local->rx_queue)) {
-			spin_lock_irq(&local->rx_queue.lock);
-			skb_queue_splice_tail_init(&local->rx_queue, &rx_queue);
-			spin_unlock_irq(&local->rx_queue.lock);
-			continue;
+		while ((conn = list_first_entry_or_null(&conn_attend_q,
+							struct rxrpc_connection,
+							attend_link))) {
+			spin_lock_irq(&local->lock);
+			list_del_init(&conn->attend_link);
+			spin_unlock_irq(&local->lock);
+			rxrpc_input_conn_event(conn, NULL);
+			rxrpc_put_connection(conn, rxrpc_conn_put_poke);
 		}
+
+		if (test_and_clear_bit(RXRPC_CLIENT_CONN_REAP_TIMER,
+				       &local->client_conn_flags))
+			rxrpc_discard_expired_client_conns(local);
+
+		/* Deal with calls that want immediate attention. */
+		spin_lock_irq(&local->lock);
+		list_splice_tail_init(&local->call_attend_q, &call_attend_q);
+		spin_unlock_irq(&local->lock);
+
+		while ((call = list_first_entry_or_null(&call_attend_q,
+							struct rxrpc_call,
+							attend_link))) {
+			spin_lock_irq(&local->lock);
+			list_del_init(&call->attend_link);
+			spin_unlock_irq(&local->lock);
+			trace_rxrpc_call_poked(call);
+			rxrpc_input_call_event(call);
+			rxrpc_put_call(call, rxrpc_call_put_poke);
+		}
+
+		if (!list_empty(&local->new_client_calls))
+			rxrpc_connect_client_calls(local);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		should_stop = kthread_should_stop();
@@ -558,7 +567,7 @@ int rxrpc_io_thread(void *data)
 			}
 
 			timeout = nsecs_to_jiffies(delay_ns);
-			timeout = max(timeout, 1UL);
+			timeout = umax(timeout, 1);
 			schedule_timeout(timeout);
 			__set_current_state(TASK_RUNNING);
 			continue;

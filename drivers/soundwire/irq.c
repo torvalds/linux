@@ -46,14 +46,18 @@ void sdw_irq_delete(struct sdw_bus *bus)
 	irq_domain_remove(bus->domain);
 }
 
+static void sdw_irq_dispose_mapping(void *data)
+{
+	struct sdw_slave *slave = data;
+
+	irq_dispose_mapping(irq_find_mapping(slave->bus->domain, slave->dev_num));
+}
+
 void sdw_irq_create_mapping(struct sdw_slave *slave)
 {
 	slave->irq = irq_create_mapping(slave->bus->domain, slave->dev_num);
 	if (!slave->irq)
 		dev_warn(&slave->dev, "Failed to map IRQ\n");
-}
 
-void sdw_irq_dispose_mapping(struct sdw_slave *slave)
-{
-	irq_dispose_mapping(irq_find_mapping(slave->bus->domain, slave->dev_num));
+	devm_add_action_or_reset(&slave->dev, sdw_irq_dispose_mapping, slave);
 }

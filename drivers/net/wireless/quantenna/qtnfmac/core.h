@@ -102,7 +102,7 @@ struct qtnf_wmac {
 	struct qtnf_mac_info macinfo;
 	struct qtnf_vif iflist[QTNF_MAX_INTF];
 	struct cfg80211_scan_request *scan_req;
-	struct mutex mac_lock;	/* lock during wmac speicific ops */
+	struct mutex mac_lock;	/* lock during wmac specific ops */
 	struct delayed_work scan_timeout;
 	struct ieee80211_regdomain *rd;
 	struct platform_device *pdev;

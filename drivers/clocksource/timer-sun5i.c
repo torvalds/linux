@@ -318,7 +318,7 @@ MODULE_DEVICE_TABLE(of, sun5i_timer_of_match);
 
 static struct platform_driver sun5i_timer_driver = {
 	.probe		= sun5i_timer_probe,
-	.remove_new	= sun5i_timer_remove,
+	.remove		= sun5i_timer_remove,
 	.driver	= {
 		.name	= "sun5i-timer",
 		.of_match_table = sun5i_timer_of_match,

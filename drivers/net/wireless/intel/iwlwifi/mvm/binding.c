@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2012-2014, 2020 Intel Corporation
  * Copyright (C) 2016 Intel Deutschland GmbH
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022, 2024 Intel Corporation
  */
 #include <net/mac80211.h>
 #include "fw-api.h"
@@ -158,9 +158,8 @@ int iwl_mvm_binding_remove_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	ret = iwl_mvm_binding_update(mvm, vif, mvmvif->deflink.phy_ctxt,
 				     false);
 
-	if (!ret)
-		if (iwl_mvm_sf_update(mvm, vif, true))
-			IWL_ERR(mvm, "Failed to update SF state\n");
+	if (!ret && iwl_mvm_sf_update(mvm, vif, true))
+		IWL_ERR(mvm, "Failed to update SF state\n");
 
 	return ret;
 }

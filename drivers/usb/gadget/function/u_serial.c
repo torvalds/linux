@@ -21,6 +21,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/console.h>
@@ -579,9 +580,12 @@ static int gs_start_io(struct gs_port *port)
 		 * we didn't in gs_start_tx() */
 		tty_wakeup(port->port.tty);
 	} else {
-		gs_free_requests(ep, head, &port->read_allocated);
-		gs_free_requests(port->port_usb->in, &port->write_pool,
-			&port->write_allocated);
+		/* Free reqs only if we are still connected */
+		if (port->port_usb) {
+			gs_free_requests(ep, head, &port->read_allocated);
+			gs_free_requests(port->port_usb->in, &port->write_pool,
+				&port->write_allocated);
+		}
 		status = -EIO;
 	}
 
@@ -1542,7 +1546,7 @@ static int __init userial_init(void)
 
 	pr_debug("%s: registered %d ttyGS* device%s\n", __func__,
 			MAX_U_SERIAL_PORTS,
-			(MAX_U_SERIAL_PORTS == 1) ? "" : "s");
+			str_plural(MAX_U_SERIAL_PORTS));
 
 	return status;
 fail:

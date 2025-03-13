@@ -10,7 +10,7 @@
 
 static ssize_t
 qla4_8xxx_sysfs_read_fw_dump(struct file *filep, struct kobject *kobj,
-			     struct bin_attribute *ba, char *buf, loff_t off,
+			     const struct bin_attribute *ba, char *buf, loff_t off,
 			     size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
@@ -28,7 +28,7 @@ qla4_8xxx_sysfs_read_fw_dump(struct file *filep, struct kobject *kobj,
 
 static ssize_t
 qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
-			      struct bin_attribute *ba, char *buf, loff_t off,
+			      const struct bin_attribute *ba, char *buf, loff_t off,
 			      size_t count)
 {
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
@@ -104,19 +104,19 @@ qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute sysfs_fw_dump_attr = {
+static const struct bin_attribute sysfs_fw_dump_attr = {
 	.attr = {
 		.name = "fw_dump",
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read = qla4_8xxx_sysfs_read_fw_dump,
-	.write = qla4_8xxx_sysfs_write_fw_dump,
+	.read_new = qla4_8xxx_sysfs_read_fw_dump,
+	.write_new = qla4_8xxx_sysfs_write_fw_dump,
 };
 
 static struct sysfs_entry {
 	char *name;
-	struct bin_attribute *attr;
+	const struct bin_attribute *attr;
 } bin_file_entries[] = {
 	{ "fw_dump", &sysfs_fw_dump_attr },
 	{ NULL },

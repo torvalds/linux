@@ -87,4 +87,4 @@ MODULE_AUTHOR("Tony Ao <tony_ao@wiwynn.com>");
 MODULE_AUTHOR("Alex Vdovydchenko <xzeol@yahoo.com>");
 MODULE_DESCRIPTION("PMBus driver for MP5920 HSC");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

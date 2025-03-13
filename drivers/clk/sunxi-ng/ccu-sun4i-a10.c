@@ -1493,6 +1493,6 @@ static struct platform_driver sun4i_a10_ccu_driver = {
 };
 module_platform_driver(sun4i_a10_ccu_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner A10/A20 CCU");
 MODULE_LICENSE("GPL");

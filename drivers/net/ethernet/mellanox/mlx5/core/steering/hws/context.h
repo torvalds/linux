@@ -8,6 +8,7 @@ enum mlx5hws_context_flags {
 	MLX5HWS_CONTEXT_FLAG_HWS_SUPPORT = 1 << 0,
 	MLX5HWS_CONTEXT_FLAG_PRIVATE_PD = 1 << 1,
 	MLX5HWS_CONTEXT_FLAG_BWC_SUPPORT = 1 << 2,
+	MLX5HWS_CONTEXT_FLAG_NATIVE_SUPPORT = 1 << 3,
 };
 
 enum mlx5hws_context_shared_stc_type {
@@ -37,8 +38,8 @@ struct mlx5hws_context {
 	struct mlx5_core_dev *mdev;
 	struct mlx5hws_cmd_query_caps *caps;
 	u32 pd_num;
-	struct mlx5hws_pool *stc_pool[MLX5HWS_TABLE_TYPE_MAX];
-	struct mlx5hws_context_common_res common_res[MLX5HWS_TABLE_TYPE_MAX];
+	struct mlx5hws_pool *stc_pool;
+	struct mlx5hws_context_common_res common_res;
 	struct mlx5hws_pattern_cache *pattern_cache;
 	struct mlx5hws_definer_cache *definer_cache;
 	struct mutex ctrl_lock; /* control lock to protect the whole context */
@@ -56,6 +57,11 @@ struct mlx5hws_context {
 static inline bool mlx5hws_context_bwc_supported(struct mlx5hws_context *ctx)
 {
 	return ctx->flags & MLX5HWS_CONTEXT_FLAG_BWC_SUPPORT;
+}
+
+static inline bool mlx5hws_context_native_supported(struct mlx5hws_context *ctx)
+{
+	return ctx->flags & MLX5HWS_CONTEXT_FLAG_NATIVE_SUPPORT;
 }
 
 bool mlx5hws_context_cap_dynamic_reparse(struct mlx5hws_context *ctx);

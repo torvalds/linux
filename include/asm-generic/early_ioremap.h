@@ -35,7 +35,7 @@ extern void early_ioremap_reset(void);
 /*
  * Early copy from unmapped memory to kernel mapped memory.
  */
-extern void copy_from_early_mem(void *dest, phys_addr_t src,
+extern int copy_from_early_mem(void *dest, phys_addr_t src,
 				unsigned long size);
 
 #else

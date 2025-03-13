@@ -89,7 +89,6 @@ static int add_new_free_space_info(struct btrfs_trans_handle *trans,
 			      struct btrfs_free_space_info);
 	btrfs_set_free_space_extent_count(leaf, info, 0);
 	btrfs_set_free_space_flags(leaf, info, 0);
-	btrfs_mark_buffer_dirty(trans, leaf);
 
 	ret = 0;
 out:
@@ -287,7 +286,6 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 	flags |= BTRFS_FREE_SPACE_USING_BITMAPS;
 	btrfs_set_free_space_flags(leaf, info, flags);
 	expected_extent_count = btrfs_free_space_extent_count(leaf, info);
-	btrfs_mark_buffer_dirty(trans, leaf);
 	btrfs_release_path(path);
 
 	if (extent_count != expected_extent_count) {
@@ -324,7 +322,6 @@ int convert_free_space_to_bitmaps(struct btrfs_trans_handle *trans,
 		ptr = btrfs_item_ptr_offset(leaf, path->slots[0]);
 		write_extent_buffer(leaf, bitmap_cursor, ptr,
 				    data_size);
-		btrfs_mark_buffer_dirty(trans, leaf);
 		btrfs_release_path(path);
 
 		i += extent_size;
@@ -430,7 +427,6 @@ int convert_free_space_to_extents(struct btrfs_trans_handle *trans,
 	flags &= ~BTRFS_FREE_SPACE_USING_BITMAPS;
 	btrfs_set_free_space_flags(leaf, info, flags);
 	expected_extent_count = btrfs_free_space_extent_count(leaf, info);
-	btrfs_mark_buffer_dirty(trans, leaf);
 	btrfs_release_path(path);
 
 	nrbits = block_group->length >> block_group->fs_info->sectorsize_bits;
@@ -495,7 +491,6 @@ static int update_free_space_extent_count(struct btrfs_trans_handle *trans,
 
 	extent_count += new_extents;
 	btrfs_set_free_space_extent_count(path->nodes[0], info, extent_count);
-	btrfs_mark_buffer_dirty(trans, path->nodes[0]);
 	btrfs_release_path(path);
 
 	if (!(flags & BTRFS_FREE_SPACE_USING_BITMAPS) &&
@@ -1349,6 +1344,12 @@ int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info)
 			btrfs_abort_transaction(trans, ret);
 			btrfs_end_transaction(trans);
 			return ret;
+		}
+		if (btrfs_should_end_transaction(trans)) {
+			btrfs_end_transaction(trans);
+			trans = btrfs_start_transaction(free_space_root, 1);
+			if (IS_ERR(trans))
+				return PTR_ERR(trans);
 		}
 		node = rb_next(node);
 	}

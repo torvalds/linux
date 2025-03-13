@@ -1172,7 +1172,7 @@ static void samsung_banks_node_get(struct device *dev, struct samsung_pinctrl_dr
 		else
 			dev_warn(dev, "Missing node for bank %s - invalid DTB\n",
 				 bank->name);
-		/* child reference dropped in samsung_drop_banks_of_node() */
+		/* child reference dropped in samsung_banks_node_put() */
 	}
 }
 
@@ -1272,7 +1272,7 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 
 	ret = platform_get_irq_optional(pdev, 0);
 	if (ret < 0 && ret != -ENXIO)
-		return ret;
+		goto err_put_banks;
 	if (ret > 0)
 		drvdata->irq = ret;
 

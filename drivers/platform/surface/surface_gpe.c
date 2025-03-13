@@ -278,7 +278,7 @@ static void surface_gpe_remove(struct platform_device *pdev)
 
 static struct platform_driver surface_gpe_driver = {
 	.probe = surface_gpe_probe,
-	.remove_new = surface_gpe_remove,
+	.remove = surface_gpe_remove,
 	.driver = {
 		.name = "surface_gpe",
 		.pm = &surface_gpe_pm,

@@ -371,7 +371,7 @@ void xe_gt_mcr_get_dss_steering(struct xe_gt *gt, unsigned int dss, u16 *group, 
  * @group: steering group ID
  * @instance: steering instance ID
  *
- * Return: the coverted DSS id.
+ * Return: the converted DSS id.
  */
 u32 xe_gt_mcr_steering_info_to_dss_id(struct xe_gt *gt, u16 group, u16 instance)
 {
@@ -550,9 +550,9 @@ void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
  * Returns true if the caller should steer to the @group/@instance values
  * returned.  Returns false if the caller need not perform any steering
  */
-static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
-						 struct xe_reg_mcr reg_mcr,
-						 u8 *group, u8 *instance)
+bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
+					  struct xe_reg_mcr reg_mcr,
+					  u8 *group, u8 *instance)
 {
 	const struct xe_reg reg = to_xe_reg(reg_mcr);
 	const struct xe_mmio_range *implicit_ranges;

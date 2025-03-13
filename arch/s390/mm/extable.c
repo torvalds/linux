@@ -7,6 +7,7 @@
 #include <linux/panic.h>
 #include <asm/asm-extable.h>
 #include <asm/extable.h>
+#include <asm/fpu.h>
 
 const struct exception_table_entry *s390_search_extables(unsigned long addr)
 {
@@ -26,23 +27,11 @@ static bool ex_handler_fixup(const struct exception_table_entry *ex, struct pt_r
 	return true;
 }
 
-static bool ex_handler_ua_store(const struct exception_table_entry *ex, struct pt_regs *regs)
+static bool ex_handler_ua_fault(const struct exception_table_entry *ex, struct pt_regs *regs)
 {
 	unsigned int reg_err = FIELD_GET(EX_DATA_REG_ERR, ex->data);
 
 	regs->gprs[reg_err] = -EFAULT;
-	regs->psw.addr = extable_fixup(ex);
-	return true;
-}
-
-static bool ex_handler_ua_load_mem(const struct exception_table_entry *ex, struct pt_regs *regs)
-{
-	unsigned int reg_addr = FIELD_GET(EX_DATA_REG_ADDR, ex->data);
-	unsigned int reg_err = FIELD_GET(EX_DATA_REG_ERR, ex->data);
-	size_t len = FIELD_GET(EX_DATA_LEN, ex->data);
-
-	regs->gprs[reg_err] = -EFAULT;
-	memset((void *)regs->gprs[reg_addr], 0, len);
 	regs->psw.addr = extable_fixup(ex);
 	return true;
 }
@@ -77,6 +66,13 @@ static bool ex_handler_zeropad(const struct exception_table_entry *ex, struct pt
 	return true;
 }
 
+static bool ex_handler_fpc(const struct exception_table_entry *ex, struct pt_regs *regs)
+{
+	fpu_sfpc(0);
+	regs->psw.addr = extable_fixup(ex);
+	return true;
+}
+
 bool fixup_exception(struct pt_regs *regs)
 {
 	const struct exception_table_entry *ex;
@@ -89,16 +85,16 @@ bool fixup_exception(struct pt_regs *regs)
 		return ex_handler_fixup(ex, regs);
 	case EX_TYPE_BPF:
 		return ex_handler_bpf(ex, regs);
-	case EX_TYPE_UA_STORE:
-		return ex_handler_ua_store(ex, regs);
-	case EX_TYPE_UA_LOAD_MEM:
-		return ex_handler_ua_load_mem(ex, regs);
+	case EX_TYPE_UA_FAULT:
+		return ex_handler_ua_fault(ex, regs);
 	case EX_TYPE_UA_LOAD_REG:
 		return ex_handler_ua_load_reg(ex, false, regs);
 	case EX_TYPE_UA_LOAD_REGPAIR:
 		return ex_handler_ua_load_reg(ex, true, regs);
 	case EX_TYPE_ZEROPAD:
 		return ex_handler_zeropad(ex, regs);
+	case EX_TYPE_FPC:
+		return ex_handler_fpc(ex, regs);
 	}
 	panic("invalid exception table entry");
 }

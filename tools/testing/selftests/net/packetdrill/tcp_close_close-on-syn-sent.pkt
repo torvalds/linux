@@ -1,0 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test to make sure no RST is being sent when close()
+// is called on a socket with SYN_SENT state.
+
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+   +0 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+   +0 > S 0:0(0) <...>
+
+// Application decideds to close the socket in SYN_SENT state
+// Make sure no RST is sent after close().
+   +0 close(3) = 0
+
+// Receive syn-ack to trigger the send side packet examination:
+// If a RESET were sent right after close(), it would have failed with
+// a mismatched timestamp.
+  +.1 < S. 0:0(0) ack 1 win 32000 <mss 1460,nop,wscale 7>
+   +0 > R 1:1(0)

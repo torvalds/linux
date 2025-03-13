@@ -93,7 +93,7 @@ static struct phy_driver mtk_gephy_driver[] = {
 
 module_phy_driver(mtk_gephy_driver);
 
-static struct mdio_device_id __maybe_unused mtk_gephy_tbl[] = {
+static const struct mdio_device_id __maybe_unused mtk_gephy_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7530) },
 	{ PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7531) },
 	{ }

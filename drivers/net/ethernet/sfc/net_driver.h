@@ -831,6 +831,7 @@ struct efx_arfs_rule {
 /**
  * struct efx_async_filter_insertion - Request to asynchronously insert a filter
  * @net_dev: Reference to the netdevice
+ * @net_dev_tracker: reference tracker entry for @net_dev
  * @spec: The filter to insert
  * @work: Workitem for this request
  * @rxq_index: Identifies the channel for which this request was made
@@ -838,6 +839,7 @@ struct efx_arfs_rule {
  */
 struct efx_async_filter_insertion {
 	struct net_device *net_dev;
+	netdevice_tracker net_dev_tracker;
 	struct efx_filter_spec spec;
 	struct work_struct work;
 	u16 rxq_index;

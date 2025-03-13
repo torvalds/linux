@@ -397,14 +397,12 @@ static int ufs_renesas_probe(struct platform_device *pdev)
 
 static void ufs_renesas_remove(struct platform_device *pdev)
 {
-	struct ufs_hba *hba = platform_get_drvdata(pdev);
-
-	ufshcd_remove(hba);
+	ufshcd_pltfrm_remove(pdev);
 }
 
 static struct platform_driver ufs_renesas_platform = {
 	.probe	= ufs_renesas_probe,
-	.remove_new = ufs_renesas_remove,
+	.remove = ufs_renesas_remove,
 	.driver	= {
 		.name	= "ufshcd-renesas",
 		.of_match_table	= of_match_ptr(ufs_renesas_of_match),

@@ -299,6 +299,8 @@ struct ceph_mds_request {
 	struct inode *r_target_inode;       /* resulting inode */
 	struct inode *r_new_inode;	    /* new inode (for creates) */
 
+	const struct qstr *r_dname;	    /* stable name (for ->d_revalidate) */
+
 #define CEPH_MDS_R_DIRECT_IS_HASH	(1) /* r_direct_hash is valid */
 #define CEPH_MDS_R_ABORTED		(2) /* call was aborted */
 #define CEPH_MDS_R_GOT_UNSAFE		(3) /* got an unsafe reply */
@@ -634,8 +636,6 @@ extern void ceph_mdsc_handle_fsmap(struct ceph_mds_client *mdsc,
 
 extern struct ceph_mds_session *
 ceph_mdsc_open_export_target_session(struct ceph_mds_client *mdsc, int target);
-extern void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
-					  struct ceph_mds_session *session);
 
 extern int ceph_trim_caps(struct ceph_mds_client *mdsc,
 			  struct ceph_mds_session *session,

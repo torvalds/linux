@@ -156,5 +156,5 @@ int aqr_phy_led_polarity_set(struct phy_device *phydev, int index, unsigned long
 	if (force_active_high || force_active_low)
 		return aqr_phy_led_active_low_set(phydev, index, force_active_low);
 
-	unreachable();
+	return -EINVAL;
 }

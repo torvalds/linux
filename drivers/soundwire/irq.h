@@ -16,7 +16,6 @@ int sdw_irq_create(struct sdw_bus *bus,
 		   struct fwnode_handle *fwnode);
 void sdw_irq_delete(struct sdw_bus *bus);
 void sdw_irq_create_mapping(struct sdw_slave *slave);
-void sdw_irq_dispose_mapping(struct sdw_slave *slave);
 
 #else /* CONFIG_IRQ_DOMAIN */
 
@@ -31,10 +30,6 @@ static inline void sdw_irq_delete(struct sdw_bus *bus)
 }
 
 static inline void sdw_irq_create_mapping(struct sdw_slave *slave)
-{
-}
-
-static inline void sdw_irq_dispose_mapping(struct sdw_slave *slave)
 {
 }
 

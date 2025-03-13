@@ -74,28 +74,28 @@ unevaluatedProperties: false
 
 examples:
   - |
-     #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
-     #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
+    #include <dt-bindings/clock/qcom,rpmh.h>
 
-     dsi-phy@ae94400 {
-         compatible = "qcom,dsi-phy-10nm";
-         reg = <0x0ae94400 0x200>,
-               <0x0ae94600 0x280>,
-               <0x0ae94a00 0x1e0>;
-         reg-names = "dsi_phy",
-                     "dsi_phy_lane",
-                     "dsi_pll";
+    dsi-phy@ae94400 {
+        compatible = "qcom,dsi-phy-10nm";
+        reg = <0x0ae94400 0x200>,
+              <0x0ae94600 0x280>,
+              <0x0ae94a00 0x1e0>;
+        reg-names = "dsi_phy",
+                    "dsi_phy_lane",
+                    "dsi_pll";
 
-         #clock-cells = <1>;
-         #phy-cells = <0>;
+        #clock-cells = <1>;
+        #phy-cells = <0>;
 
-         vdds-supply = <&vdda_mipi_dsi0_pll>;
-         clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
-                  <&rpmhcc RPMH_CXO_CLK>;
-         clock-names = "iface", "ref";
+        vdds-supply = <&vdda_mipi_dsi0_pll>;
+        clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
+                 <&rpmhcc RPMH_CXO_CLK>;
+        clock-names = "iface", "ref";
 
-         qcom,phy-rescode-offset-top = /bits/ 8 <0 0 0 0 0>;
-         qcom,phy-rescode-offset-bot = /bits/ 8 <0 0 0 0 0>;
-         qcom,phy-drive-ldo-level = <400>;
-     };
+        qcom,phy-rescode-offset-top = /bits/ 8 <0 0 0 0 0>;
+        qcom,phy-rescode-offset-bot = /bits/ 8 <0 0 0 0 0>;
+        qcom,phy-drive-ldo-level = <400>;
+    };
 ...

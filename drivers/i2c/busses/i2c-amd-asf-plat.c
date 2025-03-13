@@ -293,6 +293,7 @@ static irqreturn_t amd_asf_irq_handler(int irq, void *ptr)
 		amd_asf_update_ioport_target(piix4_smba, ASF_SLV_INTR, SMBHSTSTS, true);
 	}
 
+	iowrite32(irq, dev->eoi_base);
 	return IRQ_HANDLED;
 }
 
@@ -364,6 +365,6 @@ static struct platform_driver amd_asf_driver = {
 };
 module_platform_driver(amd_asf_driver);
 
-MODULE_IMPORT_NS(PIIX4_SMBUS);
+MODULE_IMPORT_NS("PIIX4_SMBUS");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("AMD Alert Standard Format Driver");

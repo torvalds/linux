@@ -31,8 +31,13 @@ config HAVE_FUNCTION_GRAPH_TRACER
 	help
 	  See Documentation/trace/ftrace-design.rst
 
-config HAVE_FUNCTION_GRAPH_RETVAL
+config HAVE_FUNCTION_GRAPH_FREGS
 	bool
+
+config HAVE_FTRACE_GRAPH_FUNC
+	bool
+	help
+	  True if ftrace_graph_func() is defined.
 
 config HAVE_DYNAMIC_FTRACE
 	bool
@@ -56,6 +61,12 @@ config HAVE_DYNAMIC_FTRACE_WITH_ARGS
 	 by default, even without setting the REGS flag in the ftrace_ops.
 	 This allows for use of ftrace_regs_get_argument() and
 	 ftrace_regs_get_stack_pointer().
+
+config HAVE_FTRACE_REGS_HAVING_PT_REGS
+	bool
+	help
+	 If this is set, ftrace_regs has pt_regs, thus it can convert to
+	 pt_regs without allocating memory.
 
 config HAVE_DYNAMIC_FTRACE_NO_PATCHABLE
 	bool
@@ -232,7 +243,7 @@ config FUNCTION_GRAPH_TRACER
 
 config FUNCTION_GRAPH_RETVAL
 	bool "Kernel Function Graph Return Value"
-	depends on HAVE_FUNCTION_GRAPH_RETVAL
+	depends on HAVE_FUNCTION_GRAPH_FREGS
 	depends on FUNCTION_GRAPH_TRACER
 	default n
 	help
@@ -296,10 +307,9 @@ config DYNAMIC_FTRACE_WITH_ARGS
 
 config FPROBE
 	bool "Kernel Function Probe (fprobe)"
-	depends on FUNCTION_TRACER
-	depends on DYNAMIC_FTRACE_WITH_REGS
-	depends on HAVE_RETHOOK
-	select RETHOOK
+	depends on HAVE_FUNCTION_GRAPH_FREGS && HAVE_FTRACE_GRAPH_FUNC
+	depends on DYNAMIC_FTRACE_WITH_ARGS
+	select FUNCTION_GRAPH_TRACER
 	default n
 	help
 	  This option enables kernel function probe (fprobe) based on ftrace.

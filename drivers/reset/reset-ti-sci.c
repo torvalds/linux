@@ -246,7 +246,7 @@ static void ti_sci_reset_remove(struct platform_device *pdev)
 
 static struct platform_driver ti_sci_reset_driver = {
 	.probe = ti_sci_reset_probe,
-	.remove_new = ti_sci_reset_remove,
+	.remove = ti_sci_reset_remove,
 	.driver = {
 		.name = "ti-sci-reset",
 		.of_match_table = ti_sci_reset_of_match,

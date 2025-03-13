@@ -23,6 +23,9 @@ enum ath12k_fw_features {
 	 */
 	ATH12K_FW_FEATURE_MULTI_QRTR_ID = 0,
 
+	/* The firmware supports MLO capability */
+	ATH12K_FW_FEATURE_MLO,
+
 	/* keep last */
 	ATH12K_FW_FEATURE_COUNT,
 };

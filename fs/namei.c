@@ -921,10 +921,11 @@ out_dput:
 	return false;
 }
 
-static inline int d_revalidate(struct dentry *dentry, unsigned int flags)
+static inline int d_revalidate(struct inode *dir, const struct qstr *name,
+			       struct dentry *dentry, unsigned int flags)
 {
 	if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
-		return dentry->d_op->d_revalidate(dentry, flags);
+		return dentry->d_op->d_revalidate(dir, name, dentry, flags);
 	else
 		return 1;
 }
@@ -1099,7 +1100,7 @@ static int sysctl_protected_fifos __read_mostly;
 static int sysctl_protected_regular __read_mostly;
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table namei_sysctls[] = {
+static const struct ctl_table namei_sysctls[] = {
 	{
 		.procname	= "protected_symlinks",
 		.data		= &sysctl_protected_symlinks,
@@ -1652,7 +1653,7 @@ static struct dentry *lookup_dcache(const struct qstr *name,
 {
 	struct dentry *dentry = d_lookup(dir, name);
 	if (dentry) {
-		int error = d_revalidate(dentry, flags);
+		int error = d_revalidate(dir->d_inode, name, dentry, flags);
 		if (unlikely(error <= 0)) {
 			if (!error)
 				d_invalidate(dentry);
@@ -1737,19 +1738,20 @@ static struct dentry *lookup_fast(struct nameidata *nd)
 		if (read_seqcount_retry(&parent->d_seq, nd->seq))
 			return ERR_PTR(-ECHILD);
 
-		status = d_revalidate(dentry, nd->flags);
+		status = d_revalidate(nd->inode, &nd->last, dentry, nd->flags);
 		if (likely(status > 0))
 			return dentry;
 		if (!try_to_unlazy_next(nd, dentry))
 			return ERR_PTR(-ECHILD);
 		if (status == -ECHILD)
 			/* we'd been told to redo it in non-rcu mode */
-			status = d_revalidate(dentry, nd->flags);
+			status = d_revalidate(nd->inode, &nd->last,
+					      dentry, nd->flags);
 	} else {
 		dentry = __d_lookup(parent, &nd->last);
 		if (unlikely(!dentry))
 			return NULL;
-		status = d_revalidate(dentry, nd->flags);
+		status = d_revalidate(nd->inode, &nd->last, dentry, nd->flags);
 	}
 	if (unlikely(status <= 0)) {
 		if (!status)
@@ -1777,7 +1779,7 @@ again:
 	if (IS_ERR(dentry))
 		return dentry;
 	if (unlikely(!d_in_lookup(dentry))) {
-		int error = d_revalidate(dentry, flags);
+		int error = d_revalidate(inode, name, dentry, flags);
 		if (unlikely(error <= 0)) {
 			if (!error) {
 				d_invalidate(dentry);
@@ -3575,7 +3577,7 @@ static struct dentry *lookup_open(struct nameidata *nd, struct file *file,
 		if (d_in_lookup(dentry))
 			break;
 
-		error = d_revalidate(dentry, nd->flags);
+		error = d_revalidate(dir_inode, &nd->last, dentry, nd->flags);
 		if (likely(error > 0))
 			break;
 		if (error)
@@ -5272,19 +5274,16 @@ SYSCALL_DEFINE2(rename, const char __user *, oldname, const char __user *, newna
 				getname(newname), 0);
 }
 
-int readlink_copy(char __user *buffer, int buflen, const char *link)
+int readlink_copy(char __user *buffer, int buflen, const char *link, int linklen)
 {
-	int len = PTR_ERR(link);
-	if (IS_ERR(link))
-		goto out;
+	int copylen;
 
-	len = strlen(link);
-	if (len > (unsigned) buflen)
-		len = buflen;
-	if (copy_to_user(buffer, link, len))
-		len = -EFAULT;
-out:
-	return len;
+	copylen = linklen;
+	if (unlikely(copylen > (unsigned) buflen))
+		copylen = buflen;
+	if (copy_to_user(buffer, link, copylen))
+		copylen = -EFAULT;
+	return copylen;
 }
 
 /**
@@ -5304,6 +5303,9 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 	const char *link;
 	int res;
 
+	if (inode->i_opflags & IOP_CACHED_LINK)
+		return readlink_copy(buffer, buflen, inode->i_link, inode->i_linklen);
+
 	if (unlikely(!(inode->i_opflags & IOP_DEFAULT_READLINK))) {
 		if (unlikely(inode->i_op->readlink))
 			return inode->i_op->readlink(dentry, buffer, buflen);
@@ -5322,7 +5324,7 @@ int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 		if (IS_ERR(link))
 			return PTR_ERR(link);
 	}
-	res = readlink_copy(buffer, buflen, link);
+	res = readlink_copy(buffer, buflen, link, strlen(link));
 	do_delayed_call(&done);
 	return res;
 }
@@ -5354,10 +5356,9 @@ const char *vfs_get_link(struct dentry *dentry, struct delayed_call *done)
 EXPORT_SYMBOL(vfs_get_link);
 
 /* get the link contents into pagecache */
-const char *page_get_link(struct dentry *dentry, struct inode *inode,
-			  struct delayed_call *callback)
+static char *__page_get_link(struct dentry *dentry, struct inode *inode,
+			     struct delayed_call *callback)
 {
-	char *kaddr;
 	struct page *page;
 	struct address_space *mapping = inode->i_mapping;
 
@@ -5376,8 +5377,23 @@ const char *page_get_link(struct dentry *dentry, struct inode *inode,
 	}
 	set_delayed_call(callback, page_put_link, page);
 	BUG_ON(mapping_gfp_mask(mapping) & __GFP_HIGHMEM);
-	kaddr = page_address(page);
-	nd_terminate_link(kaddr, inode->i_size, PAGE_SIZE - 1);
+	return page_address(page);
+}
+
+const char *page_get_link_raw(struct dentry *dentry, struct inode *inode,
+			      struct delayed_call *callback)
+{
+	return __page_get_link(dentry, inode, callback);
+}
+EXPORT_SYMBOL_GPL(page_get_link_raw);
+
+const char *page_get_link(struct dentry *dentry, struct inode *inode,
+					struct delayed_call *callback)
+{
+	char *kaddr = __page_get_link(dentry, inode, callback);
+
+	if (!IS_ERR(kaddr))
+		nd_terminate_link(kaddr, inode->i_size, PAGE_SIZE - 1);
 	return kaddr;
 }
 
@@ -5391,10 +5407,14 @@ EXPORT_SYMBOL(page_put_link);
 
 int page_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 {
+	const char *link;
+	int res;
+
 	DEFINE_DELAYED_CALL(done);
-	int res = readlink_copy(buffer, buflen,
-				page_get_link(dentry, d_inode(dentry),
-					      &done));
+	link = page_get_link(dentry, d_inode(dentry), &done);
+	res = PTR_ERR(link);
+	if (!IS_ERR(link))
+		res = readlink_copy(buffer, buflen, link, strlen(link));
 	do_delayed_call(&done);
 	return res;
 }

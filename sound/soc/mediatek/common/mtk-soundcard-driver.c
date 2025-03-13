@@ -221,7 +221,7 @@ int mtk_soundcard_common_probe(struct platform_device *pdev)
 		card->name = pdata->card_name;
 	}
 
-	needs_legacy_probe = !of_property_read_bool(pdev->dev.of_node, "audio-routing");
+	needs_legacy_probe = !of_property_present(pdev->dev.of_node, "audio-routing");
 	if (needs_legacy_probe) {
 		/*
 		 * If we have no .soc_probe() callback there's no way of using
@@ -262,7 +262,7 @@ int mtk_soundcard_common_probe(struct platform_device *pdev)
 		adsp_node = NULL;
 
 	if (adsp_node) {
-		if (of_property_read_bool(pdev->dev.of_node, "mediatek,dai-link")) {
+		if (of_property_present(pdev->dev.of_node, "mediatek,dai-link")) {
 			ret = mtk_sof_dailink_parse_of(card, pdev->dev.of_node,
 						       "mediatek,dai-link",
 						       card->dai_link, card->num_links);

@@ -171,8 +171,8 @@ static ssize_t kovaplus_sysfs_write(struct file *fp, struct kobject *kobj,
 
 #define KOVAPLUS_SYSFS_W(thingy, THINGY) \
 static ssize_t kovaplus_sysfs_write_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
+		struct kobject *kobj, const struct bin_attribute *attr, \
+		char *buf, loff_t off, size_t count) \
 { \
 	return kovaplus_sysfs_write(fp, kobj, buf, off, count, \
 			KOVAPLUS_SIZE_ ## THINGY, KOVAPLUS_COMMAND_ ## THINGY); \
@@ -180,8 +180,8 @@ static ssize_t kovaplus_sysfs_write_ ## thingy(struct file *fp, \
 
 #define KOVAPLUS_SYSFS_R(thingy, THINGY) \
 static ssize_t kovaplus_sysfs_read_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
+		struct kobject *kobj, const struct bin_attribute *attr, \
+		char *buf, loff_t off, size_t count) \
 { \
 	return kovaplus_sysfs_read(fp, kobj, buf, off, count, \
 			KOVAPLUS_SIZE_ ## THINGY, KOVAPLUS_COMMAND_ ## THINGY); \
@@ -193,19 +193,19 @@ KOVAPLUS_SYSFS_R(thingy, THINGY)
 
 #define KOVAPLUS_BIN_ATTRIBUTE_RW(thingy, THINGY) \
 KOVAPLUS_SYSFS_RW(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
+static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = KOVAPLUS_SIZE_ ## THINGY, \
-	.read = kovaplus_sysfs_read_ ## thingy, \
-	.write = kovaplus_sysfs_write_ ## thingy \
+	.read_new = kovaplus_sysfs_read_ ## thingy, \
+	.write_new = kovaplus_sysfs_write_ ## thingy \
 }
 
 #define KOVAPLUS_BIN_ATTRIBUTE_W(thingy, THINGY) \
 KOVAPLUS_SYSFS_W(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
+static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = KOVAPLUS_SIZE_ ## THINGY, \
-	.write = kovaplus_sysfs_write_ ## thingy \
+	.write_new = kovaplus_sysfs_write_ ## thingy \
 }
 KOVAPLUS_BIN_ATTRIBUTE_W(control, CONTROL);
 KOVAPLUS_BIN_ATTRIBUTE_RW(info, INFO);
@@ -213,8 +213,8 @@ KOVAPLUS_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS);
 KOVAPLUS_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS);
 
 static ssize_t kovaplus_sysfs_read_profilex_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
+		struct kobject *kobj, const struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
@@ -231,8 +231,8 @@ static ssize_t kovaplus_sysfs_read_profilex_settings(struct file *fp,
 }
 
 static ssize_t kovaplus_sysfs_read_profilex_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
+		struct kobject *kobj, const struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
@@ -249,16 +249,16 @@ static ssize_t kovaplus_sysfs_read_profilex_buttons(struct file *fp,
 }
 
 #define PROFILE_ATTR(number)						\
-static struct bin_attribute bin_attr_profile##number##_settings = {	\
+static const struct bin_attribute bin_attr_profile##number##_settings = {	\
 	.attr = { .name = "profile" #number "_settings", .mode = 0440 },	\
 	.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,				\
-	.read = kovaplus_sysfs_read_profilex_settings,			\
+	.read_new = kovaplus_sysfs_read_profilex_settings,			\
 	.private = &profile_numbers[number-1],				\
 };									\
-static struct bin_attribute bin_attr_profile##number##_buttons = {	\
+static const struct bin_attribute bin_attr_profile##number##_buttons = {	\
 	.attr = { .name = "profile" #number "_buttons", .mode = 0440 },	\
 	.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,				\
-	.read = kovaplus_sysfs_read_profilex_buttons,			\
+	.read_new = kovaplus_sysfs_read_profilex_buttons,			\
 	.private = &profile_numbers[number-1],				\
 };
 PROFILE_ATTR(1);
@@ -379,7 +379,7 @@ static struct attribute *kovaplus_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *kovaplus_bin_attributes[] = {
+static const struct bin_attribute *const kovaplus_bin_attributes[] = {
 	&bin_attr_control,
 	&bin_attr_info,
 	&bin_attr_profile_settings,
@@ -399,7 +399,7 @@ static struct bin_attribute *kovaplus_bin_attributes[] = {
 
 static const struct attribute_group kovaplus_group = {
 	.attrs = kovaplus_attrs,
-	.bin_attrs = kovaplus_bin_attributes,
+	.bin_attrs_new = kovaplus_bin_attributes,
 };
 
 static const struct attribute_group *kovaplus_groups[] = {

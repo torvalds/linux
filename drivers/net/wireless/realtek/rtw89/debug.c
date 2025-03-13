@@ -9,6 +9,7 @@
 #include "fw.h"
 #include "mac.h"
 #include "pci.h"
+#include "phy.h"
 #include "ps.h"
 #include "reg.h"
 #include "sar.h"
@@ -811,6 +812,9 @@ static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev,
 	case_REGD(MEXICO);
 	case_REGD(UKRAINE);
 	case_REGD(CN);
+	case_REGD(QATAR);
+	case_REGD(UK);
+	case_REGD(THAILAND);
 	}
 }
 
@@ -881,6 +885,9 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 
 	seq_puts(m, "[TAS]\n");
 	rtw89_print_tas(m, rtwdev);
+
+	seq_puts(m, "[DAG]\n");
+	rtw89_print_ant_gain(m, rtwdev, chan);
 
 	tbl = dbgfs_txpwr_tables[chip_gen];
 	if (!tbl) {

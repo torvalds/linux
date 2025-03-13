@@ -43,7 +43,6 @@
 
 #define DRIVER_NAME		"ast"
 #define DRIVER_DESC		"AST"
-#define DRIVER_DATE		"20120228"
 
 #define DRIVER_MAJOR		0
 #define DRIVER_MINOR		1

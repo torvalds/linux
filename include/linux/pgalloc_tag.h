@@ -231,7 +231,7 @@ static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr)
 }
 
 void pgalloc_tag_split(struct folio *folio, int old_order, int new_order);
-void pgalloc_tag_copy(struct folio *new, struct folio *old);
+void pgalloc_tag_swap(struct folio *new, struct folio *old);
 
 void __init alloc_tag_sec_init(void);
 
@@ -245,7 +245,7 @@ static inline struct alloc_tag *pgalloc_tag_get(struct page *page) { return NULL
 static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr) {}
 static inline void alloc_tag_sec_init(void) {}
 static inline void pgalloc_tag_split(struct folio *folio, int old_order, int new_order) {}
-static inline void pgalloc_tag_copy(struct folio *new, struct folio *old) {}
+static inline void pgalloc_tag_swap(struct folio *new, struct folio *old) {}
 
 #endif /* CONFIG_MEM_ALLOC_PROFILING */
 

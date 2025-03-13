@@ -6,6 +6,9 @@
  *
  * Copyright (C) 2016 Synopsys Inc.
  */
+
+#define DEFAULT_SYMBOL_NAMESPACE	"I2C_DW"
+
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -15,8 +18,6 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
-
-#define DEFAULT_SYMBOL_NAMESPACE	I2C_DW
 
 #include "i2c-designware-core.h"
 
@@ -282,4 +283,4 @@ EXPORT_SYMBOL_GPL(i2c_dw_probe_slave);
 MODULE_AUTHOR("Luis Oliveira <lolivei@synopsys.com>");
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus slave adapter");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(I2C_DW_COMMON);
+MODULE_IMPORT_NS("I2C_DW_COMMON");

@@ -78,7 +78,7 @@ struct max44000_data {
 	/* Ensure naturally aligned timestamp */
 	struct {
 		u16 channels[2];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

@@ -18,6 +18,7 @@ properties:
   compatible:
     enum:
       - awinic,aw88081
+      - awinic,aw88083
       - awinic,aw88261
       - awinic,aw88395
       - awinic,aw88399
@@ -58,6 +59,7 @@ allOf:
           contains:
             enum:
               - awinic,aw88081
+              - awinic,aw88083
               - awinic,aw88261
     then:
       properties:

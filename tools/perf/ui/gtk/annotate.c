@@ -3,6 +3,7 @@
 #include "util/sort.h"
 #include "util/debug.h"
 #include "util/annotate.h"
+#include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/map.h"
 #include "util/dso.h"
@@ -26,7 +27,7 @@ static const char *const col_names[] = {
 };
 
 static int perf_gtk__get_percent(char *buf, size_t size, struct symbol *sym,
-				 struct disasm_line *dl, int evidx)
+				 struct disasm_line *dl, const struct evsel *evsel)
 {
 	struct annotation *notes;
 	struct sym_hist *symhist;
@@ -42,8 +43,8 @@ static int perf_gtk__get_percent(char *buf, size_t size, struct symbol *sym,
 		return 0;
 
 	notes = symbol__annotation(sym);
-	symhist = annotation__histogram(notes, evidx);
-	entry = annotated_source__hist_entry(notes->src, evidx, dl->al.offset);
+	symhist = annotation__histogram(notes, evsel);
+	entry = annotated_source__hist_entry(notes->src, evsel, dl->al.offset);
 	if (entry)
 		nr_samples = entry->nr_samples;
 
@@ -139,16 +140,17 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct map_symbol *ms,
 		gtk_list_store_append(store, &iter);
 
 		if (evsel__is_group_event(evsel)) {
-			for (i = 0; i < evsel->core.nr_members; i++) {
+			struct evsel *cur_evsel;
+
+			for_each_group_evsel(cur_evsel, evsel__leader(evsel)) {
 				ret += perf_gtk__get_percent(s + ret,
 							     sizeof(s) - ret,
 							     sym, pos,
-							     evsel->core.idx + i);
+							     cur_evsel);
 				ret += scnprintf(s + ret, sizeof(s) - ret, " ");
 			}
 		} else {
-			ret = perf_gtk__get_percent(s, sizeof(s), sym, pos,
-						    evsel->core.idx);
+			ret = perf_gtk__get_percent(s, sizeof(s), sym, pos, evsel);
 		}
 
 		if (ret)

@@ -1960,8 +1960,8 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 			 * address of _start and the second entry is the TOC
 			 * value we need to use.
 			 */
-			__get_user(entry, (unsigned long __user *)start);
-			__get_user(toc, (unsigned long __user *)start+1);
+			get_user(entry, (unsigned long __user *)start);
+			get_user(toc, (unsigned long __user *)start+1);
 
 			/* Check whether the e_entry function descriptor entries
 			 * need to be relocated before we can use them.

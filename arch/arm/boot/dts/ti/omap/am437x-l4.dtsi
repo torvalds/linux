@@ -180,8 +180,7 @@
 			      <0x9058 0x4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
-					 SYSC_OMAP2_SOFTRESET |
-					 SYSC_OMAP2_AUTOIDLE)>;
+					 SYSC_OMAP2_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
 					<SYSC_IDLE_NO>,
 					<SYSC_IDLE_SMART>,
@@ -698,8 +697,7 @@
 			      <0x22058 0x4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
-					 SYSC_OMAP2_SOFTRESET |
-					 SYSC_OMAP2_AUTOIDLE)>;
+					 SYSC_OMAP2_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
 					<SYSC_IDLE_NO>,
 					<SYSC_IDLE_SMART>,
@@ -726,8 +724,7 @@
 			      <0x24058 0x4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
-					 SYSC_OMAP2_SOFTRESET |
-					 SYSC_OMAP2_AUTOIDLE)>;
+					 SYSC_OMAP2_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
 					<SYSC_IDLE_NO>,
 					<SYSC_IDLE_SMART>,
@@ -1385,8 +1382,7 @@
 			      <0xa6058 0x4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
-					 SYSC_OMAP2_SOFTRESET |
-					 SYSC_OMAP2_AUTOIDLE)>;
+					 SYSC_OMAP2_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
 					<SYSC_IDLE_NO>,
 					<SYSC_IDLE_SMART>,
@@ -1413,8 +1409,7 @@
 			      <0xa8058 0x4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
-					 SYSC_OMAP2_SOFTRESET |
-					 SYSC_OMAP2_AUTOIDLE)>;
+					 SYSC_OMAP2_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
 					<SYSC_IDLE_NO>,
 					<SYSC_IDLE_SMART>,
@@ -1441,8 +1436,7 @@
 			      <0xaa058 0x4>;
 			reg-names = "rev", "sysc", "syss";
 			ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
-					 SYSC_OMAP2_SOFTRESET |
-					 SYSC_OMAP2_AUTOIDLE)>;
+					 SYSC_OMAP2_SOFTRESET)>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
 					<SYSC_IDLE_NO>,
 					<SYSC_IDLE_SMART>,

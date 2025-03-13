@@ -5,6 +5,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/interconnect-provider.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -12,6 +13,7 @@
 #include <linux/regmap.h>
 
 #include <dt-bindings/clock/qcom,ipq5424-gcc.h>
+#include <dt-bindings/interconnect/qcom,ipq5424.h>
 #include <dt-bindings/reset/qcom,ipq5424-gcc.h>
 
 #include "clk-alpha-pll.h"
@@ -322,6 +324,24 @@ static struct clk_rcg2 gcc_xo_clk_src = {
 		.parent_data = &gcc_parent_data_xo,
 		.num_parents = 1,
 		.ops = &clk_rcg2_ops,
+	},
+};
+
+static struct clk_branch gcc_xo_clk = {
+	.halt_reg = 0x34018,
+	.halt_check = BRANCH_HALT,
+	.clkr = {
+		.enable_reg = 0x34018,
+		.enable_mask = BIT(0),
+		.hw.init = &(const struct clk_init_data) {
+			.name = "gcc_xo_clk",
+			.parent_hws = (const struct clk_hw*[]) {
+				&gcc_xo_clk_src.clkr.hw,
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
 	},
 };
 
@@ -1089,24 +1109,6 @@ static struct clk_branch gcc_adss_pwm_clk = {
 			.name = "gcc_adss_pwm_clk",
 			.parent_hws = (const struct clk_hw*[]) {
 				&gcc_adss_pwm_clk_src.clkr.hw,
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch gcc_apss_dbg_clk = {
-	.halt_reg = 0x2402c,
-	.halt_check = BRANCH_HALT_VOTED,
-	.clkr = {
-		.enable_reg = 0x2402c,
-		.enable_mask = BIT(0),
-		.hw.init = &(const struct clk_init_data) {
-			.name = "gcc_apss_dbg_clk",
-			.parent_hws = (const struct clk_hw*[]) {
-				&gcc_qdss_dap_sync_clk_src.hw
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -2785,7 +2787,6 @@ static struct clk_branch gcc_pcie3_rchng_clk = {
 static struct clk_regmap *gcc_ipq5424_clocks[] = {
 	[GCC_ADSS_PWM_CLK] = &gcc_adss_pwm_clk.clkr,
 	[GCC_ADSS_PWM_CLK_SRC] = &gcc_adss_pwm_clk_src.clkr,
-	[GCC_APSS_DBG_CLK] = &gcc_apss_dbg_clk.clkr,
 	[GCC_CNOC_PCIE0_1LANE_S_CLK] = &gcc_cnoc_pcie0_1lane_s_clk.clkr,
 	[GCC_CNOC_PCIE1_1LANE_S_CLK] = &gcc_cnoc_pcie1_1lane_s_clk.clkr,
 	[GCC_CNOC_PCIE2_2LANE_S_CLK] = &gcc_cnoc_pcie2_2lane_s_clk.clkr,
@@ -2920,6 +2921,7 @@ static struct clk_regmap *gcc_ipq5424_clocks[] = {
 	[GCC_QPIC_CLK_SRC] = &gcc_qpic_clk_src.clkr,
 	[GCC_QPIC_AHB_CLK] = &gcc_qpic_ahb_clk.clkr,
 	[GCC_XO_CLK_SRC] = &gcc_xo_clk_src.clkr,
+	[GCC_XO_CLK] = &gcc_xo_clk.clkr,
 	[GCC_QDSS_DAP_CLK] = &gcc_qdss_dap_clk.clkr,
 	[GCC_QDSS_AT_CLK] = &gcc_qdss_at_clk.clkr,
 	[GPLL0] = &gpll0.clkr,
@@ -3230,6 +3232,20 @@ static const struct qcom_reset_map gcc_ipq5424_resets[] = {
 	[GCC_QUSB2_1_PHY_BCR] = { 0x3C030, 0 },
 };
 
+#define IPQ_APPS_ID			5424	/* some unique value */
+
+static const struct qcom_icc_hws_data icc_ipq5424_hws[] = {
+	{ MASTER_ANOC_PCIE0, SLAVE_ANOC_PCIE0, GCC_ANOC_PCIE0_1LANE_M_CLK },
+	{ MASTER_CNOC_PCIE0, SLAVE_CNOC_PCIE0, GCC_CNOC_PCIE0_1LANE_S_CLK },
+	{ MASTER_ANOC_PCIE1, SLAVE_ANOC_PCIE1, GCC_ANOC_PCIE1_1LANE_M_CLK },
+	{ MASTER_CNOC_PCIE1, SLAVE_CNOC_PCIE1, GCC_CNOC_PCIE1_1LANE_S_CLK },
+	{ MASTER_ANOC_PCIE2, SLAVE_ANOC_PCIE2, GCC_ANOC_PCIE2_2LANE_M_CLK },
+	{ MASTER_CNOC_PCIE2, SLAVE_CNOC_PCIE2, GCC_CNOC_PCIE2_2LANE_S_CLK },
+	{ MASTER_ANOC_PCIE3, SLAVE_ANOC_PCIE3, GCC_ANOC_PCIE3_2LANE_M_CLK },
+	{ MASTER_CNOC_PCIE3, SLAVE_CNOC_PCIE3, GCC_CNOC_PCIE3_2LANE_S_CLK },
+	{ MASTER_CNOC_USB, SLAVE_CNOC_USB, GCC_CNOC_USB_CLK },
+};
+
 static const struct of_device_id gcc_ipq5424_match_table[] = {
 	{ .compatible = "qcom,ipq5424-gcc" },
 	{ }
@@ -3260,6 +3276,8 @@ static const struct qcom_cc_desc gcc_ipq5424_desc = {
 	.num_resets = ARRAY_SIZE(gcc_ipq5424_resets),
 	.clk_hws = gcc_ipq5424_hws,
 	.num_clk_hws = ARRAY_SIZE(gcc_ipq5424_hws),
+	.icc_hws = icc_ipq5424_hws,
+	.num_icc_hws = ARRAY_SIZE(icc_ipq5424_hws),
 };
 
 static int gcc_ipq5424_probe(struct platform_device *pdev)
@@ -3272,6 +3290,7 @@ static struct platform_driver gcc_ipq5424_driver = {
 	.driver = {
 		.name   = "qcom,gcc-ipq5424",
 		.of_match_table = gcc_ipq5424_match_table,
+		.sync_state = icc_sync_state,
 	},
 };
 

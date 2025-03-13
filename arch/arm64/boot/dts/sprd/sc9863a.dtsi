@@ -163,18 +163,18 @@
 		ap_clk: clock-controller@21500000 {
 			compatible = "sprd,sc9863a-ap-clk";
 			reg = <0 0x21500000 0 0x1000>;
-			clocks = <&ext_32k>, <&ext_26m>;
-			clock-names = "ext-32k", "ext-26m";
+			clocks = <&ext_26m>, <&ext_32k>;
+			clock-names = "ext-26m", "ext-32k";
 			#clock-cells = <1>;
 		};
 
 		aon_clk: clock-controller@402d0000 {
 			compatible = "sprd,sc9863a-aon-clk";
 			reg = <0 0x402d0000 0 0x1000>;
-			clocks = <&ext_26m>, <&rco_100m>,
-				 <&ext_32k>, <&ext_4m>;
-			clock-names = "ext-26m", "rco-100m",
-				      "ext-32k", "ext-4m";
+			clocks = <&ext_26m>, <&ext_32k>,
+				 <&ext_4m>, <&rco_100m>;
+			clock-names = "ext-26m", "ext-32k",
+				      "ext-4m", "rco-100m";
 			#clock-cells = <1>;
 		};
 
@@ -288,7 +288,7 @@
 				};
 			};
 
-			in-port {
+			in-ports {
 				port {
 					etf_little_in: endpoint {
 						remote-endpoint =

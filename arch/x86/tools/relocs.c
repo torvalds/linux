@@ -841,10 +841,10 @@ static int is_percpu_sym(ElfW(Sym) *sym, const char *symname)
 static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 		      const char *symname)
 {
+	int headtext = !strcmp(sec_name(sec->shdr.sh_info), ".head.text");
 	unsigned r_type = ELF64_R_TYPE(rel->r_info);
 	ElfW(Addr) offset = rel->r_offset;
 	int shn_abs = (sym->st_shndx == SHN_ABS) && !is_reloc(S_REL, symname);
-
 	if (sym->st_shndx == SHN_UNDEF)
 		return 0;
 
@@ -897,6 +897,12 @@ static int do_reloc64(struct section *sec, Elf_Rel *rel, ElfW(Sym) *sym,
 				break;
 
 			die("Invalid absolute %s relocation: %s\n", rel_type(r_type), symname);
+			break;
+		}
+
+		if (headtext) {
+			die("Absolute reference to symbol '%s' not permitted in .head.text\n",
+			    symname);
 			break;
 		}
 

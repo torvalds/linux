@@ -100,7 +100,6 @@ xfs_trans_dup(
 	/*
 	 * Initialize the new transaction structure.
 	 */
-	ntp->t_magic = XFS_TRANS_HEADER_MAGIC;
 	ntp->t_mountp = tp->t_mountp;
 	INIT_LIST_HEAD(&ntp->t_items);
 	INIT_LIST_HEAD(&ntp->t_busy);
@@ -275,7 +274,6 @@ retry:
 	ASSERT(!(flags & XFS_TRANS_RES_FDBLKS) ||
 	       xfs_has_lazysbcount(mp));
 
-	tp->t_magic = XFS_TRANS_HEADER_MAGIC;
 	tp->t_flags = flags;
 	tp->t_mountp = mp;
 	INIT_LIST_HEAD(&tp->t_items);
@@ -860,29 +858,17 @@ __xfs_trans_commit(
 
 	trace_xfs_trans_commit(tp, _RET_IP_);
 
-	error = xfs_trans_run_precommits(tp);
-	if (error) {
-		if (tp->t_flags & XFS_TRANS_PERM_LOG_RES)
-			xfs_defer_cancel(tp);
-		goto out_unreserve;
-	}
-
 	/*
-	 * Finish deferred items on final commit. Only permanent transactions
-	 * should ever have deferred ops.
+	 * Commit per-transaction changes that are not already tracked through
+	 * log items.  This can add dirty log items to the transaction.
 	 */
-	WARN_ON_ONCE(!list_empty(&tp->t_dfops) &&
-		     !(tp->t_flags & XFS_TRANS_PERM_LOG_RES));
-	if (!regrant && (tp->t_flags & XFS_TRANS_PERM_LOG_RES)) {
-		error = xfs_defer_finish_noroll(&tp);
-		if (error)
-			goto out_unreserve;
+	if (tp->t_flags & XFS_TRANS_SB_DIRTY)
+		xfs_trans_apply_sb_deltas(tp);
+	xfs_trans_apply_dquot_deltas(tp);
 
-		/* Run precommits from final tx in defer chain. */
-		error = xfs_trans_run_precommits(tp);
-		if (error)
-			goto out_unreserve;
-	}
+	error = xfs_trans_run_precommits(tp);
+	if (error)
+		goto out_unreserve;
 
 	/*
 	 * If there is nothing to be logged by the transaction,
@@ -906,13 +892,6 @@ __xfs_trans_commit(
 	}
 
 	ASSERT(tp->t_ticket != NULL);
-
-	/*
-	 * If we need to update the superblock, then do it now.
-	 */
-	if (tp->t_flags & XFS_TRANS_SB_DIRTY)
-		xfs_trans_apply_sb_deltas(tp);
-	xfs_trans_apply_dquot_deltas(tp);
 
 	xlog_cil_commit(log, tp, &commit_seq, regrant);
 
@@ -939,7 +918,7 @@ out_unreserve:
 	 * the dqinfo portion to be.  All that means is that we have some
 	 * (non-persistent) quota reservations that need to be unreserved.
 	 */
-	xfs_trans_unreserve_and_mod_dquots(tp);
+	xfs_trans_unreserve_and_mod_dquots(tp, true);
 	if (tp->t_ticket) {
 		if (regrant && !xlog_is_shutdown(log))
 			xfs_log_ticket_regrant(log, tp->t_ticket);
@@ -958,6 +937,20 @@ int
 xfs_trans_commit(
 	struct xfs_trans	*tp)
 {
+	/*
+	 * Finish deferred items on final commit. Only permanent transactions
+	 * should ever have deferred ops.
+	 */
+	WARN_ON_ONCE(!list_empty(&tp->t_dfops) &&
+		     !(tp->t_flags & XFS_TRANS_PERM_LOG_RES));
+	if (tp->t_flags & XFS_TRANS_PERM_LOG_RES) {
+		int error = xfs_defer_finish_noroll(&tp);
+		if (error) {
+			xfs_trans_cancel(tp);
+			return error;
+		}
+	}
+
 	return __xfs_trans_commit(tp, false);
 }
 
@@ -1019,7 +1012,7 @@ xfs_trans_cancel(
 	}
 #endif
 	xfs_trans_unreserve_and_mod_sb(tp);
-	xfs_trans_unreserve_and_mod_dquots(tp);
+	xfs_trans_unreserve_and_mod_dquots(tp, false);
 
 	if (tp->t_ticket) {
 		xfs_log_ticket_ungrant(log, tp->t_ticket);
@@ -1271,6 +1264,9 @@ retry:
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
+	if (xfs_is_metadir_inode(ip))
+		goto out;
+
 	error = xfs_qm_dqattach_locked(ip, false);
 	if (error) {
 		/* Caller should have allocated the dquots! */
@@ -1339,6 +1335,7 @@ retry:
 			goto out_cancel;
 	}
 
+out:
 	*tpp = tp;
 	return 0;
 
@@ -1435,5 +1432,8 @@ done:
 
 out_cancel:
 	xfs_trans_cancel(tp);
+	xfs_iunlock(dp, XFS_ILOCK_EXCL);
+	if (dp != ip)
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }

@@ -57,7 +57,7 @@ enum {
 char _license[] SEC("license") = "GPL";
 
 const volatile u32 nr_cpus = 32;	/* !0 for veristat, set during init */
-const volatile u64 cgrp_slice_ns = SCX_SLICE_DFL;
+const volatile u64 cgrp_slice_ns;
 const volatile bool fifo_sched;
 
 u64 cvtime_now;
@@ -135,11 +135,6 @@ u64 hweight_gen = 1;
 static u64 div_round_up(u64 dividend, u64 divisor)
 {
 	return (dividend + divisor - 1) / divisor;
-}
-
-static bool vtime_before(u64 a, u64 b)
-{
-	return (s64)(a - b) < 0;
 }
 
 static bool cgv_node_less(struct bpf_rb_node *a, const struct bpf_rb_node *b)
@@ -271,7 +266,7 @@ static void cgrp_cap_budget(struct cgv_node *cgv_node, struct fcg_cgrp_ctx *cgc)
 	 */
 	max_budget = (cgrp_slice_ns * nr_cpus * cgc->hweight) /
 		(2 * FCG_HWEIGHT_ONE);
-	if (vtime_before(cvtime, cvtime_now - max_budget))
+	if (time_before(cvtime, cvtime_now - max_budget))
 		cvtime = cvtime_now - max_budget;
 
 	cgv_node->cvtime = cvtime;
@@ -401,7 +396,7 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
 		 * Limit the amount of budget that an idling task can accumulate
 		 * to one slice.
 		 */
-		if (vtime_before(tvtime, cgc->tvtime_now - SCX_SLICE_DFL))
+		if (time_before(tvtime, cgc->tvtime_now - SCX_SLICE_DFL))
 			tvtime = cgc->tvtime_now - SCX_SLICE_DFL;
 
 		scx_bpf_dsq_insert_vtime(p, cgrp->kn->id, SCX_SLICE_DFL,
@@ -535,7 +530,7 @@ void BPF_STRUCT_OPS(fcg_running, struct task_struct *p)
 		 * from multiple CPUs and thus racy. Any error should be
 		 * contained and temporary. Let's just live with it.
 		 */
-		if (vtime_before(cgc->tvtime_now, p->scx.dsq_vtime))
+		if (time_before(cgc->tvtime_now, p->scx.dsq_vtime))
 			cgc->tvtime_now = p->scx.dsq_vtime;
 	}
 	bpf_cgroup_release(cgrp);
@@ -645,7 +640,7 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 	cgv_node = container_of(rb_node, struct cgv_node, rb_node);
 	cgid = cgv_node->cgid;
 
-	if (vtime_before(cvtime_now, cgv_node->cvtime))
+	if (time_before(cvtime_now, cgv_node->cvtime))
 		cvtime_now = cgv_node->cvtime;
 
 	/*
@@ -734,7 +729,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
 	struct fcg_cpu_ctx *cpuc;
 	struct fcg_cgrp_ctx *cgc;
 	struct cgroup *cgrp;
-	u64 now = bpf_ktime_get_ns();
+	u64 now = scx_bpf_now();
 	bool picked_next = false;
 
 	cpuc = find_cpu_ctx();
@@ -744,7 +739,7 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
 	if (!cpuc->cur_cgid)
 		goto pick_next_cgroup;
 
-	if (vtime_before(now, cpuc->cur_at + cgrp_slice_ns)) {
+	if (time_before(now, cpuc->cur_at + cgrp_slice_ns)) {
 		if (scx_bpf_dsq_move_to_local(cpuc->cur_cgid)) {
 			stat_inc(FCG_STAT_CNS_KEEP);
 			return;
@@ -920,14 +915,14 @@ void BPF_STRUCT_OPS(fcg_cgroup_move, struct task_struct *p,
 		    struct cgroup *from, struct cgroup *to)
 {
 	struct fcg_cgrp_ctx *from_cgc, *to_cgc;
-	s64 vtime_delta;
+	s64 delta;
 
 	/* find_cgrp_ctx() triggers scx_ops_error() on lookup failures */
 	if (!(from_cgc = find_cgrp_ctx(from)) || !(to_cgc = find_cgrp_ctx(to)))
 		return;
 
-	vtime_delta = p->scx.dsq_vtime - from_cgc->tvtime_now;
-	p->scx.dsq_vtime = to_cgc->tvtime_now + vtime_delta;
+	delta = time_delta(p->scx.dsq_vtime, from_cgc->tvtime_now);
+	p->scx.dsq_vtime = to_cgc->tvtime_now + delta;
 }
 
 s32 BPF_STRUCT_OPS_SLEEPABLE(fcg_init)

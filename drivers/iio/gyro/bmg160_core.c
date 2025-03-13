@@ -99,7 +99,7 @@ struct bmg160_data {
 	/* Ensure naturally aligned timestamp */
 	struct {
 		s16 chans[3];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	u32 dps_range;
 	int ev_enable_state;

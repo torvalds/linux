@@ -8,7 +8,7 @@
 #include "../mvm.h"
 #include <kunit/test.h>
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static struct wiphy wiphy = {
 	.mtx = __MUTEX_INITIALIZER(wiphy.mtx),
@@ -262,7 +262,7 @@ static const struct valid_link_pair_case {
 		.desc = "LB + HB, no BT.",
 		.chan_a = &chan_2ghz,
 		.chan_b = &chan_5ghz,
-		.valid = false,
+		.valid = true,
 	},
 	{
 		.desc = "LB + HB, with BT.",

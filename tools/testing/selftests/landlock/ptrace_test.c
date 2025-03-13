@@ -22,8 +22,6 @@
 /* Copied from security/yama/yama_lsm.c */
 #define YAMA_SCOPE_DISABLED 0
 #define YAMA_SCOPE_RELATIONAL 1
-#define YAMA_SCOPE_CAPABILITY 2
-#define YAMA_SCOPE_NO_ATTACH 3
 
 static void create_domain(struct __test_metadata *const _metadata)
 {

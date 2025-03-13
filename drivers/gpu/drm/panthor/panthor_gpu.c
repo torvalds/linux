@@ -77,6 +77,12 @@ static const struct panthor_model gpu_models[] = {
 	 GPU_IRQ_RESET_COMPLETED | \
 	 GPU_IRQ_CLEAN_CACHES_COMPLETED)
 
+static void panthor_gpu_coherency_set(struct panthor_device *ptdev)
+{
+	gpu_write(ptdev, GPU_COHERENCY_PROTOCOL,
+		ptdev->coherent ? GPU_COHERENCY_PROT_BIT(ACE_LITE) : GPU_COHERENCY_NONE);
+}
+
 static void panthor_gpu_init_info(struct panthor_device *ptdev)
 {
 	const struct panthor_model *model;
@@ -174,7 +180,8 @@ void panthor_gpu_unplug(struct panthor_device *ptdev)
 	unsigned long flags;
 
 	/* Make sure the IRQ handler is not running after that point. */
-	panthor_gpu_irq_suspend(&ptdev->gpu->irq);
+	if (!IS_ENABLED(CONFIG_PM) || pm_runtime_active(ptdev->base.dev))
+		panthor_gpu_irq_suspend(&ptdev->gpu->irq);
 
 	/* Wake-up all waiters. */
 	spin_lock_irqsave(&ptdev->gpu->reqs_lock, flags);
@@ -365,6 +372,9 @@ int panthor_gpu_l2_power_on(struct panthor_device *ptdev)
 			      hweight64(ptdev->gpu_info.shader_present));
 	}
 
+	/* Set the desired coherency mode before the power up of L2 */
+	panthor_gpu_coherency_set(ptdev);
+
 	return panthor_gpu_power_on(ptdev, L2, 1, 20000);
 }
 
@@ -460,11 +470,12 @@ int panthor_gpu_soft_reset(struct panthor_device *ptdev)
  */
 void panthor_gpu_suspend(struct panthor_device *ptdev)
 {
-	/*
-	 * It may be preferable to simply power down the L2, but for now just
-	 * soft-reset which will leave the L2 powered down.
-	 */
-	panthor_gpu_soft_reset(ptdev);
+	/* On a fast reset, simply power down the L2. */
+	if (!ptdev->reset.fast)
+		panthor_gpu_soft_reset(ptdev);
+	else
+		panthor_gpu_power_off(ptdev, L2, 1, 20000);
+
 	panthor_gpu_irq_suspend(&ptdev->gpu->irq);
 }
 

@@ -5,6 +5,8 @@
 
 #include <linux/log2.h>
 #include <linux/math64.h>
+
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_cx0_phy.h"
 #include "intel_cx0_phy_regs.h"
@@ -2115,14 +2117,6 @@ static void intel_c10_pll_program(struct intel_display *display,
 		      0, C10_VDR_CTRL_MSGBUS_ACCESS,
 		      MB_WRITE_COMMITTED);
 
-	/* Custom width needs to be programmed to 0 for both the phy lanes */
-	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CUSTOM_WIDTH,
-		      C10_VDR_CUSTOM_WIDTH_MASK, C10_VDR_CUSTOM_WIDTH_8_10,
-		      MB_WRITE_COMMITTED);
-	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CONTROL(1),
-		      0, C10_VDR_CTRL_UPDATE_CFG,
-		      MB_WRITE_COMMITTED);
-
 	/* Program the pll values only for the master lane */
 	for (i = 0; i < ARRAY_SIZE(pll_state->pll); i++)
 		intel_cx0_write(encoder, INTEL_CX0_LANE0, PHY_C10_VDR_PLL(i),
@@ -2132,6 +2126,10 @@ static void intel_c10_pll_program(struct intel_display *display,
 	intel_cx0_write(encoder, INTEL_CX0_LANE0, PHY_C10_VDR_CMN(0), pll_state->cmn, MB_WRITE_COMMITTED);
 	intel_cx0_write(encoder, INTEL_CX0_LANE0, PHY_C10_VDR_TX(0), pll_state->tx, MB_WRITE_COMMITTED);
 
+	/* Custom width needs to be programmed to 0 for both the phy lanes */
+	intel_cx0_rmw(encoder, INTEL_CX0_BOTH_LANES, PHY_C10_VDR_CUSTOM_WIDTH,
+		      C10_VDR_CUSTOM_WIDTH_MASK, C10_VDR_CUSTOM_WIDTH_8_10,
+		      MB_WRITE_COMMITTED);
 	intel_cx0_rmw(encoder, INTEL_CX0_LANE0, PHY_C10_VDR_CONTROL(1),
 		      0, C10_VDR_CTRL_MASTER_LANE | C10_VDR_CTRL_UPDATE_CFG,
 		      MB_WRITE_COMMITTED);
@@ -2987,7 +2985,7 @@ static void intel_cx0pll_enable(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	bool lane_reversal = dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL;
+	bool lane_reversal = dig_port->lane_reversal;
 	u8 maxpclk_lane = lane_reversal ? INTEL_CX0_LANE1 :
 					  INTEL_CX0_LANE0;
 	intel_wakeref_t wakeref = intel_cx0_phy_transaction_begin(encoder);
@@ -3070,7 +3068,10 @@ int intel_mtl_tbt_calc_port_clock(struct intel_encoder *encoder)
 
 	val = intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port));
 
-	clock = REG_FIELD_GET(XELPDP_DDI_CLOCK_SELECT_MASK, val);
+	if (DISPLAY_VER(display) >= 30)
+		clock = REG_FIELD_GET(XE3_DDI_CLOCK_SELECT_MASK, val);
+	else
+		clock = REG_FIELD_GET(XELPDP_DDI_CLOCK_SELECT_MASK, val);
 
 	drm_WARN_ON(display->drm, !(val & XELPDP_FORWARD_CLOCK_UNGATE));
 	drm_WARN_ON(display->drm, !(val & XELPDP_TBT_CLOCK_REQUEST));
@@ -3085,13 +3086,18 @@ int intel_mtl_tbt_calc_port_clock(struct intel_encoder *encoder)
 		return 540000;
 	case XELPDP_DDI_CLOCK_SELECT_TBT_810:
 		return 810000;
+	case XELPDP_DDI_CLOCK_SELECT_TBT_312_5:
+		return 1000000;
+	case XELPDP_DDI_CLOCK_SELECT_TBT_625:
+		return 2000000;
 	default:
 		MISSING_CASE(clock);
 		return 162000;
 	}
 }
 
-static int intel_mtl_tbt_clock_select(int clock)
+static int intel_mtl_tbt_clock_select(struct intel_display *display,
+				      int clock)
 {
 	switch (clock) {
 	case 162000:
@@ -3102,6 +3108,18 @@ static int intel_mtl_tbt_clock_select(int clock)
 		return XELPDP_DDI_CLOCK_SELECT_TBT_540;
 	case 810000:
 		return XELPDP_DDI_CLOCK_SELECT_TBT_810;
+	case 1000000:
+		if (DISPLAY_VER(display) < 30) {
+			drm_WARN_ON(display->drm, "UHBR10 not supported for the platform\n");
+			return XELPDP_DDI_CLOCK_SELECT_TBT_162;
+		}
+		return XELPDP_DDI_CLOCK_SELECT_TBT_312_5;
+	case 2000000:
+		if (DISPLAY_VER(display) < 30) {
+			drm_WARN_ON(display->drm, "UHBR20 not supported for the platform\n");
+			return XELPDP_DDI_CLOCK_SELECT_TBT_162;
+		}
+		return XELPDP_DDI_CLOCK_SELECT_TBT_625;
 	default:
 		MISSING_CASE(clock);
 		return XELPDP_DDI_CLOCK_SELECT_TBT_162;
@@ -3114,15 +3132,26 @@ static void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	u32 val = 0;
+	u32 mask;
 
 	/*
 	 * 1. Program PORT_CLOCK_CTL REGISTER to configure
 	 * clock muxes, gating and SSC
 	 */
-	val |= XELPDP_DDI_CLOCK_SELECT(intel_mtl_tbt_clock_select(crtc_state->port_clock));
+
+	if (DISPLAY_VER(display) >= 30) {
+		mask = XE3_DDI_CLOCK_SELECT_MASK;
+		val |= XE3_DDI_CLOCK_SELECT(intel_mtl_tbt_clock_select(display, crtc_state->port_clock));
+	} else {
+		mask = XELPDP_DDI_CLOCK_SELECT_MASK;
+		val |= XELPDP_DDI_CLOCK_SELECT(intel_mtl_tbt_clock_select(display, crtc_state->port_clock));
+	}
+
+	mask |= XELPDP_FORWARD_CLOCK_UNGATE;
 	val |= XELPDP_FORWARD_CLOCK_UNGATE;
+
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
-		     XELPDP_DDI_CLOCK_SELECT_MASK | XELPDP_FORWARD_CLOCK_UNGATE, val);
+		     mask, val);
 
 	/* 2. Read back PORT_CLOCK_CTL REGISTER */
 	val = intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port));

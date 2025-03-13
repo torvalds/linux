@@ -33,14 +33,14 @@ DEFINE_CLK(0, "mcfuart.0", 24, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfuart.1", 25, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfuart.2", 26, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfuart.3", 27, MCF_BUSCLK);
-DEFINE_CLK(0, "mcftmr.0", 28, MCF_CLK);
-DEFINE_CLK(0, "mcftmr.1", 29, MCF_CLK);
-DEFINE_CLK(0, "mcftmr.2", 30, MCF_CLK);
-DEFINE_CLK(0, "mcftmr.3", 31, MCF_CLK);
-DEFINE_CLK(0, "mcfpit.0", 32, MCF_CLK);
-DEFINE_CLK(0, "mcfpit.1", 33, MCF_CLK);
-DEFINE_CLK(0, "mcfpit.2", 34, MCF_CLK);
-DEFINE_CLK(0, "mcfpit.3", 35, MCF_CLK);
+DEFINE_CLK(0, "mcftmr.0", 28, MCF_BUSCLK);
+DEFINE_CLK(0, "mcftmr.1", 29, MCF_BUSCLK);
+DEFINE_CLK(0, "mcftmr.2", 30, MCF_BUSCLK);
+DEFINE_CLK(0, "mcftmr.3", 31, MCF_BUSCLK);
+DEFINE_CLK(0, "mcfpit.0", 32, MCF_BUSCLK);
+DEFINE_CLK(0, "mcfpit.1", 33, MCF_BUSCLK);
+DEFINE_CLK(0, "mcfpit.2", 34, MCF_BUSCLK);
+DEFINE_CLK(0, "mcfpit.3", 35, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfeport.0", 37, MCF_CLK);
 DEFINE_CLK(0, "mcfadc.0", 38, MCF_CLK);
 DEFINE_CLK(0, "mcfdac.0", 39, MCF_CLK);
@@ -167,8 +167,8 @@ static struct clk * const disable_clks[] __initconst = {
 	&__clk_0_14, /* i2c.1 */
 	&__clk_0_22, /* i2c.0 */
 	&__clk_0_23, /* dspi.0 */
-	&__clk_0_28, /* tmr.1 */
-	&__clk_0_29, /* tmr.2 */
+	&__clk_0_28, /* tmr.0 */
+	&__clk_0_29, /* tmr.1 */
 	&__clk_0_30, /* tmr.2 */
 	&__clk_0_31, /* tmr.3 */
 	&__clk_0_32, /* pit.0 */

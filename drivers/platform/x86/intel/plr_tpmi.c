@@ -262,7 +262,7 @@ static int intel_plr_probe(struct auxiliary_device *auxdev, const struct auxilia
 	struct resource *res;
 	struct tpmi_plr *plr;
 	void __iomem *base;
-	char name[16];
+	char name[17];
 	int err;
 
 	plat_info = tpmi_get_platform_data(auxdev);
@@ -348,7 +348,7 @@ static struct auxiliary_driver intel_plr_aux_driver = {
 };
 module_auxiliary_driver(intel_plr_aux_driver);
 
-MODULE_IMPORT_NS(INTEL_TPMI);
-MODULE_IMPORT_NS(INTEL_TPMI_POWER_DOMAIN);
+MODULE_IMPORT_NS("INTEL_TPMI");
+MODULE_IMPORT_NS("INTEL_TPMI_POWER_DOMAIN");
 MODULE_DESCRIPTION("Intel TPMI PLR Driver");
 MODULE_LICENSE("GPL");

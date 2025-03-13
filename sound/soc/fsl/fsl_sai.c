@@ -885,7 +885,7 @@ static int fsl_sai_startup(struct snd_pcm_substream *substream,
 					   sai->dma_params_rx.maxburst);
 
 	ret = snd_pcm_hw_constraint_list(substream->runtime, 0,
-			SNDRV_PCM_HW_PARAM_RATE, &fsl_sai_rate_constraints);
+					 SNDRV_PCM_HW_PARAM_RATE, &sai->constraint_rates);
 
 	return ret;
 }
@@ -994,10 +994,10 @@ static struct snd_soc_dai_driver fsl_sai_dai_template[] = {
 	{
 		.name = "sai-tx",
 		.playback = {
-			.stream_name = "CPU-Playback",
+			.stream_name = "SAI-Playback",
 			.channels_min = 1,
 			.channels_max = 32,
-				.rate_min = 8000,
+			.rate_min = 8000,
 			.rate_max = 2822400,
 			.rates = SNDRV_PCM_RATE_KNOT,
 			.formats = FSL_SAI_FORMATS,
@@ -1007,7 +1007,7 @@ static struct snd_soc_dai_driver fsl_sai_dai_template[] = {
 	{
 		.name = "sai-rx",
 		.capture = {
-			.stream_name = "CPU-Capture",
+			.stream_name = "SAI-Capture",
 			.channels_min = 1,
 			.channels_max = 32,
 			.rate_min = 8000,
@@ -1441,6 +1441,11 @@ static int fsl_sai_probe(struct platform_device *pdev)
 
 	fsl_asoc_get_pll_clocks(&pdev->dev, &sai->pll8k_clk,
 				&sai->pll11k_clk);
+
+	fsl_asoc_constrain_rates(&sai->constraint_rates,
+				 &fsl_sai_rate_constraints,
+				 sai->pll8k_clk, sai->pll11k_clk, NULL,
+				 sai->constraint_rates_list);
 
 	/* Use Multi FIFO mode depending on the support from SDMA script */
 	ret = of_property_read_u32_array(np, "dmas", dmas, 4);

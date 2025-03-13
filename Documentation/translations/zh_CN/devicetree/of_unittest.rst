@@ -40,7 +40,7 @@ OF Selftest被设计用来测试提供给设备驱动开发者的接口（includ
     drivers/of/unittest-data/tests-phandle.dtsi
     drivers/of/unittest-data/tests-match.dtsi
 
-当内核在启用OF_SELFTEST的情况下被构建时，那么下面的make规则::
+当内核在启用CONFIG_OF_UNITTEST的情况下被构建时，那么下面的make规则::
 
     $(obj)/%.dtb: $(src)/%.dts FORCE
 	    $(call if_changed_dep, dtc)

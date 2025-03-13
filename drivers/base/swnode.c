@@ -677,6 +677,7 @@ static const struct fwnode_operations software_node_ops = {
 	.get = software_node_get,
 	.put = software_node_put,
 	.property_present = software_node_property_present,
+	.property_read_bool = software_node_property_present,
 	.property_read_int_array = software_node_read_int_array,
 	.property_read_string_array = software_node_read_string_array,
 	.get_name = software_node_get_name,

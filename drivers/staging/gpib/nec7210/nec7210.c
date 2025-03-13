@@ -1035,7 +1035,7 @@ EXPORT_SYMBOL(nec7210_board_online);
 /* wrappers for io */
 uint8_t nec7210_ioport_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
-	return inb((unsigned long)(priv->iobase) + register_num * priv->offset);
+	return inb(priv->iobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL(nec7210_ioport_read_byte);
 
@@ -1047,7 +1047,7 @@ void nec7210_ioport_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned
 		 */
 		nec7210_locking_ioport_write_byte(priv, data, register_num);
 	else
-		outb(data, (unsigned long)(priv->iobase) + register_num * priv->offset);
+		outb(data, priv->iobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL(nec7210_ioport_write_byte);
 
@@ -1058,7 +1058,7 @@ uint8_t nec7210_locking_ioport_read_byte(struct nec7210_priv *priv, unsigned int
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->register_page_lock, flags);
-	retval = inb((unsigned long)(priv->iobase) + register_num * priv->offset);
+	retval = inb(priv->iobase + register_num * priv->offset);
 	spin_unlock_irqrestore(&priv->register_page_lock, flags);
 	return retval;
 }
@@ -1072,7 +1072,7 @@ void nec7210_locking_ioport_write_byte(struct nec7210_priv *priv, uint8_t data,
 	spin_lock_irqsave(&priv->register_page_lock, flags);
 	if (register_num == AUXMR)
 		udelay(1);
-	outb(data, (unsigned long)(priv->iobase) + register_num * priv->offset);
+	outb(data, priv->iobase + register_num * priv->offset);
 	spin_unlock_irqrestore(&priv->register_page_lock, flags);
 }
 EXPORT_SYMBOL(nec7210_locking_ioport_write_byte);
@@ -1080,7 +1080,7 @@ EXPORT_SYMBOL(nec7210_locking_ioport_write_byte);
 
 uint8_t nec7210_iomem_read_byte(struct nec7210_priv *priv, unsigned int register_num)
 {
-	return readb(priv->iobase + register_num * priv->offset);
+	return readb(priv->mmiobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL(nec7210_iomem_read_byte);
 
@@ -1092,7 +1092,7 @@ void nec7210_iomem_write_byte(struct nec7210_priv *priv, uint8_t data, unsigned 
 		 */
 		nec7210_locking_iomem_write_byte(priv, data, register_num);
 	else
-		writeb(data, priv->iobase + register_num * priv->offset);
+		writeb(data, priv->mmiobase + register_num * priv->offset);
 }
 EXPORT_SYMBOL(nec7210_iomem_write_byte);
 
@@ -1102,7 +1102,7 @@ uint8_t nec7210_locking_iomem_read_byte(struct nec7210_priv *priv, unsigned int 
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->register_page_lock, flags);
-	retval = readb(priv->iobase + register_num * priv->offset);
+	retval = readb(priv->mmiobase + register_num * priv->offset);
 	spin_unlock_irqrestore(&priv->register_page_lock, flags);
 	return retval;
 }
@@ -1116,7 +1116,7 @@ void nec7210_locking_iomem_write_byte(struct nec7210_priv *priv, uint8_t data,
 	spin_lock_irqsave(&priv->register_page_lock, flags);
 	if (register_num == AUXMR)
 		udelay(1);
-	writeb(data, priv->iobase + register_num * priv->offset);
+	writeb(data, priv->mmiobase + register_num * priv->offset);
 	spin_unlock_irqrestore(&priv->register_page_lock, flags);
 }
 EXPORT_SYMBOL(nec7210_locking_iomem_write_byte);

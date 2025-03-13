@@ -127,6 +127,7 @@ choice
 		  repeating for all types and padding except float and double
 		  which use 0xFF repeating (-NaN). Clang on 32-bit uses 0xFF
 		  repeating for all types and padding.
+		  GCC uses 0xFE repeating for all types, and zero for padding.
 
 	config INIT_STACK_ALL_ZERO
 		bool "zero-init everything (strongest and safest)"

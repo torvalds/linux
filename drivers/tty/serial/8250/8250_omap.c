@@ -365,7 +365,7 @@ static void omap8250_restore_regs(struct uart_8250_port *up)
 
 	if (up->port.rs485.flags & SER_RS485_ENABLED &&
 	    up->port.rs485_config == serial8250_em485_config)
-		serial8250_em485_stop_tx(up);
+		serial8250_em485_stop_tx(up, true);
 }
 
 /*
@@ -412,7 +412,13 @@ static void omap_8250_set_termios(struct uart_port *port,
 	 */
 	uart_update_timeout(port, termios->c_cflag, baud);
 
-	up->port.read_status_mask = UART_LSR_OE | UART_LSR_THRE | UART_LSR_DR;
+	/*
+	 * Specify which conditions may be considered for error
+	 * handling and the ignoring of characters. The actual
+	 * ignoring of characters only occurs if the bit is set
+	 * in @ignore_status_mask as well.
+	 */
+	up->port.read_status_mask = UART_LSR_OE | UART_LSR_DR;
 	if (termios->c_iflag & INPCK)
 		up->port.read_status_mask |= UART_LSR_FE | UART_LSR_PE;
 	if (termios->c_iflag & (IGNBRK | PARMRK))
@@ -776,11 +782,11 @@ static void omap_8250_shutdown(struct uart_port *port)
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct omap8250_priv *priv = port->private_data;
 
+	pm_runtime_get_sync(port->dev);
+
 	flush_work(&priv->qos_work);
 	if (up->dma)
 		omap_8250_rx_dma_flush(up);
-
-	pm_runtime_get_sync(port->dev);
 
 	serial_out(up, UART_OMAP_WER, 0);
 	if (priv->habit & UART_HAS_EFR2)
@@ -838,7 +844,6 @@ static void omap_8250_unthrottle(struct uart_port *port)
 	if (up->dma)
 		up->dma->rx_dma(up);
 	up->ier |= UART_IER_RLSI | UART_IER_RDI;
-	port->read_status_mask |= UART_LSR_DR;
 	serial_out(up, UART_IER, up->ier);
 	uart_port_unlock_irqrestore(port, flags);
 
@@ -1304,7 +1309,7 @@ static void am654_8250_handle_rx_dma(struct uart_8250_port *up, u8 iir,
 
 /*
  * This is mostly serial8250_handle_irq(). We have a slightly different DMA
- * hoook for RX/TX and need different logic for them in the ISR. Therefore we
+ * hook for RX/TX and need different logic for them in the ISR. Therefore we
  * use the default routine in the non-DMA case and this one for with DMA.
  */
 static int omap_8250_dma_handle_irq(struct uart_port *port)
@@ -1338,7 +1343,7 @@ static int omap_8250_dma_handle_irq(struct uart_port *port)
 			serial8250_tx_chars(up);
 		} else  {
 			/*
-			 * try again due to an earlier failer which
+			 * try again due to an earlier failure which
 			 * might have been resolved by now.
 			 */
 			if (omap_8250_tx_dma(up))
@@ -1867,7 +1872,7 @@ static struct platform_driver omap8250_platform_driver = {
 		.of_match_table = omap8250_dt_ids,
 	},
 	.probe			= omap8250_probe,
-	.remove_new		= omap8250_remove,
+	.remove			= omap8250_remove,
 };
 module_platform_driver(omap8250_platform_driver);
 

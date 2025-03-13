@@ -427,19 +427,6 @@ xfs_qm_scall_getquota_fill_qc(
 		dst->d_ino_timer = 0;
 		dst->d_rt_spc_timer = 0;
 	}
-
-#ifdef DEBUG
-	if (xfs_dquot_is_enforced(dqp) && dqp->q_id != 0) {
-		if ((dst->d_space > dst->d_spc_softlimit) &&
-		    (dst->d_spc_softlimit > 0)) {
-			ASSERT(dst->d_spc_timer != 0);
-		}
-		if ((dst->d_ino_count > dqp->q_ino.softlimit) &&
-		    (dqp->q_ino.softlimit > 0)) {
-			ASSERT(dst->d_ino_timer != 0);
-		}
-	}
-#endif
 }
 
 /* Return the quota information for the dquot matching id. */

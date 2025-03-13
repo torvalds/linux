@@ -21,6 +21,7 @@
 #include <stdbool.h>
 #include <errno.h>
 
+#include <hash.h>
 #include <hashtable.h>
 #include <list.h>
 #include <xalloc.h>
@@ -32,6 +33,10 @@ static bool module_enabled;
 static bool modversions;
 /* Is CONFIG_MODULE_SRCVERSION_ALL set? */
 static bool all_versions;
+/* Is CONFIG_BASIC_MODVERSIONS set? */
+static bool basic_modversions;
+/* Is CONFIG_EXTENDED_MODVERSIONS set? */
+static bool extended_modversions;
 /* If we are modposting external module set to 1 */
 static bool external_module;
 /* Only warn about unresolved symbols */
@@ -154,12 +159,13 @@ char *get_line(char **stringp)
 /* A list of all modules we processed */
 LIST_HEAD(modules);
 
-static struct module *find_module(const char *modname)
+static struct module *find_module(const char *filename, const char *modname)
 {
 	struct module *mod;
 
 	list_for_each_entry(mod, &modules, list) {
-		if (strcmp(mod->name, modname) == 0)
+		if (!strcmp(mod->dump_file, filename) &&
+		    !strcmp(mod->name, modname))
 			return mod;
 	}
 	return NULL;
@@ -176,6 +182,7 @@ static struct module *new_module(const char *name, size_t namelen)
 	INIT_LIST_HEAD(&mod->unresolved_symbols);
 	INIT_LIST_HEAD(&mod->missing_namespaces);
 	INIT_LIST_HEAD(&mod->imported_namespaces);
+	INIT_LIST_HEAD(&mod->aliases);
 
 	memcpy(mod->name, name, namelen);
 	mod->name[namelen] = '\0';
@@ -183,8 +190,8 @@ static struct module *new_module(const char *name, size_t namelen)
 
 	/*
 	 * Set mod->is_gpl_compatible to true by default. If MODULE_LICENSE()
-	 * is missing, do not check the use for EXPORT_SYMBOL_GPL() becasue
-	 * modpost will exit wiht error anyway.
+	 * is missing, do not check the use for EXPORT_SYMBOL_GPL() because
+	 * modpost will exit with an error anyway.
 	 */
 	mod->is_gpl_compatible = true;
 
@@ -209,19 +216,6 @@ struct symbol {
 
 static HASHTABLE_DEFINE(symbol_hashtable, 1U << 10);
 
-/* This is based on the hash algorithm from gdbm, via tdb */
-static inline unsigned int tdb_hash(const char *name)
-{
-	unsigned value;	/* Used to compute the hash value.  */
-	unsigned   i;	/* Used to cycle through random values. */
-
-	/* Set the initial value from the key size. */
-	for (value = 0x238F13AF * strlen(name), i = 0; name[i]; i++)
-		value = (value + (((unsigned char *)name)[i] << (i*5 % 24)));
-
-	return (1103515243 * value + 12345);
-}
-
 /**
  * Allocate a new symbols for use in the hash of exported symbols or
  * the list of unresolved symbols per module
@@ -239,7 +233,7 @@ static struct symbol *alloc_symbol(const char *name)
 /* For the hash of exported symbols */
 static void hash_add_symbol(struct symbol *sym)
 {
-	hash_add(symbol_hashtable, &sym->hnode, tdb_hash(sym->name));
+	hash_add(symbol_hashtable, &sym->hnode, hash_str(sym->name));
 }
 
 static void sym_add_unresolved(const char *name, struct module *mod, bool weak)
@@ -260,7 +254,7 @@ static struct symbol *sym_find_with_module(const char *name, struct module *mod)
 	if (name[0] == '.')
 		name++;
 
-	hash_for_each_possible(symbol_hashtable, s, hnode, tdb_hash(name)) {
+	hash_for_each_possible(symbol_hashtable, s, hnode, hash_str(name)) {
 		if (strcmp(s->name, name) == 0 && (!mod || s->module == mod))
 			return s;
 	}
@@ -339,8 +333,6 @@ static const char *sec_name(const struct elf_info *info, unsigned int secindex)
 
 	return sech_name(info, &info->sechdrs[secindex]);
 }
-
-#define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
 
 static struct symbol *sym_add_exported(const char *name, struct module *mod,
 				       bool gpl_only, const char *namespace)
@@ -515,6 +507,9 @@ static int parse_elf(struct elf_info *info, const char *filename)
 			info->modinfo_len = sechdrs[i].sh_size;
 		} else if (!strcmp(secname, ".export_symbol")) {
 			info->export_symbol_secndx = i;
+		} else if (!strcmp(secname, ".no_trim_symbol")) {
+			info->no_trim_symbol = (void *)hdr + sechdrs[i].sh_offset;
+			info->no_trim_symbol_len = sechdrs[i].sh_size;
 		}
 
 		if (sechdrs[i].sh_type == SHT_SYMTAB) {
@@ -785,7 +780,7 @@ static void check_section(const char *modname, struct elf_info *elf,
 		".ltext", ".ltext.*"
 #define OTHER_TEXT_SECTIONS ".ref.text", ".head.text", ".spinlock.text", \
 		".fixup", ".entry.text", ".exception.text", \
-		".coldtext", ".softirqentry.text"
+		".coldtext", ".softirqentry.text", ".irqentry.text"
 
 #define ALL_TEXT_SECTIONS  ".init.text", ".exit.text", \
 		TEXT_SECTIONS, OTHER_TEXT_SECTIONS
@@ -1150,9 +1145,9 @@ static Elf_Addr addend_386_rel(uint32_t *location, unsigned int r_type)
 {
 	switch (r_type) {
 	case R_386_32:
-		return TO_NATIVE(*location);
+		return get_unaligned_native(location);
 	case R_386_PC32:
-		return TO_NATIVE(*location) + 4;
+		return get_unaligned_native(location) + 4;
 	}
 
 	return (Elf_Addr)(-1);
@@ -1173,24 +1168,24 @@ static Elf_Addr addend_arm_rel(void *loc, Elf_Sym *sym, unsigned int r_type)
 	switch (r_type) {
 	case R_ARM_ABS32:
 	case R_ARM_REL32:
-		inst = TO_NATIVE(*(uint32_t *)loc);
+		inst = get_unaligned_native((uint32_t *)loc);
 		return inst + sym->st_value;
 	case R_ARM_MOVW_ABS_NC:
 	case R_ARM_MOVT_ABS:
-		inst = TO_NATIVE(*(uint32_t *)loc);
+		inst = get_unaligned_native((uint32_t *)loc);
 		offset = sign_extend32(((inst & 0xf0000) >> 4) | (inst & 0xfff),
 				       15);
 		return offset + sym->st_value;
 	case R_ARM_PC24:
 	case R_ARM_CALL:
 	case R_ARM_JUMP24:
-		inst = TO_NATIVE(*(uint32_t *)loc);
+		inst = get_unaligned_native((uint32_t *)loc);
 		offset = sign_extend32((inst & 0x00ffffff) << 2, 25);
 		return offset + sym->st_value + 8;
 	case R_ARM_THM_MOVW_ABS_NC:
 	case R_ARM_THM_MOVT_ABS:
-		upper = TO_NATIVE(*(uint16_t *)loc);
-		lower = TO_NATIVE(*((uint16_t *)loc + 1));
+		upper = get_unaligned_native((uint16_t *)loc);
+		lower = get_unaligned_native((uint16_t *)loc + 1);
 		offset = sign_extend32(((upper & 0x000f) << 12) |
 				       ((upper & 0x0400) << 1) |
 				       ((lower & 0x7000) >> 4) |
@@ -1207,8 +1202,8 @@ static Elf_Addr addend_arm_rel(void *loc, Elf_Sym *sym, unsigned int r_type)
 		 * imm11 = lower[10:0]
 		 * imm32 = SignExtend(S:J2:J1:imm6:imm11:'0')
 		 */
-		upper = TO_NATIVE(*(uint16_t *)loc);
-		lower = TO_NATIVE(*((uint16_t *)loc + 1));
+		upper = get_unaligned_native((uint16_t *)loc);
+		lower = get_unaligned_native((uint16_t *)loc + 1);
 
 		sign = (upper >> 10) & 1;
 		j1 = (lower >> 13) & 1;
@@ -1231,8 +1226,8 @@ static Elf_Addr addend_arm_rel(void *loc, Elf_Sym *sym, unsigned int r_type)
 		 * I2    = NOT(J2 XOR S)
 		 * imm32 = SignExtend(S:I1:I2:imm10:imm11:'0')
 		 */
-		upper = TO_NATIVE(*(uint16_t *)loc);
-		lower = TO_NATIVE(*((uint16_t *)loc + 1));
+		upper = get_unaligned_native((uint16_t *)loc);
+		lower = get_unaligned_native((uint16_t *)loc + 1);
 
 		sign = (upper >> 10) & 1;
 		j1 = (lower >> 13) & 1;
@@ -1253,7 +1248,7 @@ static Elf_Addr addend_mips_rel(uint32_t *location, unsigned int r_type)
 {
 	uint32_t inst;
 
-	inst = TO_NATIVE(*location);
+	inst = get_unaligned_native(location);
 	switch (r_type) {
 	case R_MIPS_LO16:
 		return inst & 0xffff;
@@ -1574,6 +1569,14 @@ static void read_symbols(const char *modname)
 	/* strip trailing .o */
 	mod = new_module(modname, strlen(modname) - strlen(".o"));
 
+	/* save .no_trim_symbol section for later use */
+	if (info.no_trim_symbol_len) {
+		mod->no_trim_symbol = xmalloc(info.no_trim_symbol_len);
+		memcpy(mod->no_trim_symbol, info.no_trim_symbol,
+		       info.no_trim_symbol_len);
+		mod->no_trim_symbol_len = info.no_trim_symbol_len;
+	}
+
 	if (!mod->is_vmlinux) {
 		license = get_modinfo(&info, "license");
 		if (!license)
@@ -1736,6 +1739,28 @@ static void handle_white_list_exports(const char *white_list)
 	free(buf);
 }
 
+/*
+ * Keep symbols recorded in the .no_trim_symbol section. This is necessary to
+ * prevent CONFIG_TRIM_UNUSED_KSYMS from dropping EXPORT_SYMBOL because
+ * symbol_get() relies on the symbol being present in the ksymtab for lookups.
+ */
+static void keep_no_trim_symbols(struct module *mod)
+{
+	unsigned long size = mod->no_trim_symbol_len;
+
+	for (char *s = mod->no_trim_symbol; s; s = next_string(s , &size)) {
+		struct symbol *sym;
+
+		/*
+		 * If find_symbol() returns NULL, this symbol is not provided
+		 * by any module, and symbol_get() will fail.
+		 */
+		sym = find_symbol(s);
+		if (sym)
+			sym->used = true;
+	}
+}
+
 static void check_modname_len(struct module *mod)
 {
 	const char *mod_name;
@@ -1818,13 +1843,56 @@ static void add_exported_symbols(struct buffer *buf, struct module *mod)
 }
 
 /**
+ * Record CRCs for unresolved symbols, supporting long names
+ */
+static void add_extended_versions(struct buffer *b, struct module *mod)
+{
+	struct symbol *s;
+
+	if (!extended_modversions)
+		return;
+
+	buf_printf(b, "\n");
+	buf_printf(b, "static const u32 ____version_ext_crcs[]\n");
+	buf_printf(b, "__used __section(\"__version_ext_crcs\") = {\n");
+	list_for_each_entry(s, &mod->unresolved_symbols, list) {
+		if (!s->module)
+			continue;
+		if (!s->crc_valid) {
+			warn("\"%s\" [%s.ko] has no CRC!\n",
+				s->name, mod->name);
+			continue;
+		}
+		buf_printf(b, "\t0x%08x,\n", s->crc);
+	}
+	buf_printf(b, "};\n");
+
+	buf_printf(b, "static const char ____version_ext_names[]\n");
+	buf_printf(b, "__used __section(\"__version_ext_names\") =\n");
+	list_for_each_entry(s, &mod->unresolved_symbols, list) {
+		if (!s->module)
+			continue;
+		if (!s->crc_valid)
+			/*
+			 * We already warned on this when producing the crc
+			 * table.
+			 * We need to skip its name too, as the indexes in
+			 * both tables need to align.
+			 */
+			continue;
+		buf_printf(b, "\t\"%s\\0\"\n", s->name);
+	}
+	buf_printf(b, ";\n");
+}
+
+/**
  * Record CRCs for unresolved symbols
  **/
 static void add_versions(struct buffer *b, struct module *mod)
 {
 	struct symbol *s;
 
-	if (!modversions)
+	if (!basic_modversions)
 		return;
 
 	buf_printf(b, "\n");
@@ -1840,11 +1908,16 @@ static void add_versions(struct buffer *b, struct module *mod)
 			continue;
 		}
 		if (strlen(s->name) >= MODULE_NAME_LEN) {
-			error("too long symbol \"%s\" [%s.ko]\n",
-			      s->name, mod->name);
-			break;
+			if (extended_modversions) {
+				/* this symbol will only be in the extended info */
+				continue;
+			} else {
+				error("too long symbol \"%s\" [%s.ko]\n",
+				      s->name, mod->name);
+				break;
+			}
 		}
-		buf_printf(b, "\t{ %#8x, \"%s\" },\n",
+		buf_printf(b, "\t{ 0x%08x, \"%s\" },\n",
 			   s->crc, s->name);
 	}
 
@@ -1966,14 +2039,23 @@ static void write_vmlinux_export_c_file(struct module *mod)
 static void write_mod_c_file(struct module *mod)
 {
 	struct buffer buf = { };
+	struct module_alias *alias, *next;
 	char fname[PATH_MAX];
 	int ret;
 
 	add_header(&buf, mod);
 	add_exported_symbols(&buf, mod);
 	add_versions(&buf, mod);
+	add_extended_versions(&buf, mod);
 	add_depends(&buf, mod);
-	add_moddevtable(&buf, mod);
+
+	buf_printf(&buf, "\n");
+	list_for_each_entry_safe(alias, next, &mod->aliases, node) {
+		buf_printf(&buf, "MODULE_ALIAS(\"%s\");\n", alias->str);
+		list_del(&alias->node);
+		free(alias);
+	}
+
 	add_srcversion(&buf, mod);
 
 	ret = snprintf(fname, sizeof(fname), "%s.mod.c", mod->name);
@@ -2035,10 +2117,10 @@ static void read_dump(const char *fname)
 			continue;
 		}
 
-		mod = find_module(modname);
+		mod = find_module(fname, modname);
 		if (!mod) {
 			mod = new_module(modname, strlen(modname));
-			mod->from_dump = true;
+			mod->dump_file = fname;
 		}
 		s = sym_add_exported(symname, mod, gpl_only, namespace);
 		sym_set_crc(s, crc);
@@ -2057,7 +2139,7 @@ static void write_dump(const char *fname)
 	struct symbol *sym;
 
 	list_for_each_entry(mod, &modules, list) {
-		if (mod->from_dump)
+		if (mod->dump_file)
 			continue;
 		list_for_each_entry(sym, &mod->exported_symbols, list) {
 			if (trim_unused_exports && !sym->used)
@@ -2081,7 +2163,7 @@ static void write_namespace_deps_files(const char *fname)
 
 	list_for_each_entry(mod, &modules, list) {
 
-		if (mod->from_dump || list_empty(&mod->missing_namespaces))
+		if (mod->dump_file || list_empty(&mod->missing_namespaces))
 			continue;
 
 		buf_printf(&ns_deps_buf, "%s.ko:", mod->name);
@@ -2130,7 +2212,7 @@ int main(int argc, char **argv)
 	LIST_HEAD(dump_lists);
 	struct dump_list *dl, *dl2;
 
-	while ((opt = getopt(argc, argv, "ei:MmnT:to:au:WwENd:")) != -1) {
+	while ((opt = getopt(argc, argv, "ei:MmnT:to:au:WwENd:xb")) != -1) {
 		switch (opt) {
 		case 'e':
 			external_module = true;
@@ -2179,6 +2261,12 @@ int main(int argc, char **argv)
 		case 'd':
 			missing_namespace_deps = optarg;
 			break;
+		case 'b':
+			basic_modversions = true;
+			break;
+		case 'x':
+			extended_modversions = true;
+			break;
 		default:
 			exit(1);
 		}
@@ -2199,7 +2287,9 @@ int main(int argc, char **argv)
 		read_symbols_from_files(files_source);
 
 	list_for_each_entry(mod, &modules, list) {
-		if (mod->from_dump || mod->is_vmlinux)
+		keep_no_trim_symbols(mod);
+
+		if (mod->dump_file || mod->is_vmlinux)
 			continue;
 
 		check_modname_len(mod);
@@ -2210,7 +2300,7 @@ int main(int argc, char **argv)
 		handle_white_list_exports(unused_exports_white_list);
 
 	list_for_each_entry(mod, &modules, list) {
-		if (mod->from_dump)
+		if (mod->dump_file)
 			continue;
 
 		if (mod->is_vmlinux)

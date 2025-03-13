@@ -1,0 +1,24 @@
+What: /sys/bus/event_source/devices/<pmu>
+Date: 2014/02/24
+Contact:	Linux kernel mailing list <linux-kernel@vger.kernel.org>
+Description:	Performance Monitoring Unit (<pmu>)
+
+		Each <pmu> directory, for a PMU device, is a name
+		optionally followed by an underscore and then either a
+		decimal or hexadecimal number. For example, cpu is a
+		PMU name without a suffix as is intel_bts,
+		uncore_imc_0 is a PMU name with a 0 numeric suffix,
+		ddr_pmu_87e1b0000000 is a PMU name with a hex
+		suffix. The hex suffix must be more than two
+		characters long to avoid ambiguity with PMUs like the
+		S390 cpum_cf.
+
+		Tools can treat PMUs with the same name that differ by
+		suffix as instances of the same PMU for the sake of,
+		for example, opening an event. For example, the PMUs
+		uncore_imc_free_running_0 and
+		uncore_imc_free_running_1 have an event data_read;
+		opening the data_read event on a PMU specified as
+		uncore_imc_free_running should be treated as opening
+		the data_read event on PMU uncore_imc_free_running_0
+		and PMU uncore_imc_free_running_1.

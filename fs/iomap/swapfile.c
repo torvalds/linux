@@ -189,7 +189,6 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
 	*pagespan = 1 + isi.highest_ppage - isi.lowest_ppage;
 	sis->max = isi.nr_pages;
 	sis->pages = isi.nr_pages - 1;
-	sis->highest_bit = isi.nr_pages - 1;
 	return isi.nr_extents;
 }
 EXPORT_SYMBOL_GPL(iomap_swapfile_activate);

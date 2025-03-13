@@ -174,7 +174,7 @@ static int xgene_rtc_probe(struct platform_device *pdev)
 	/* Turn on the clock and the crystal */
 	writel(RTC_CCR_EN, pdata->csr_base + RTC_CCR);
 
-	ret = device_init_wakeup(&pdev->dev, 1);
+	ret = device_init_wakeup(&pdev->dev, true);
 	if (ret) {
 		clk_disable_unprepare(pdata->clk);
 		return ret;
@@ -197,7 +197,7 @@ static void xgene_rtc_remove(struct platform_device *pdev)
 	struct xgene_rtc_dev *pdata = platform_get_drvdata(pdev);
 
 	xgene_rtc_alarm_irq_enable(&pdev->dev, 0);
-	device_init_wakeup(&pdev->dev, 0);
+	device_init_wakeup(&pdev->dev, false);
 	clk_disable_unprepare(pdata->clk);
 }
 
@@ -263,7 +263,7 @@ MODULE_DEVICE_TABLE(of, xgene_rtc_of_match);
 
 static struct platform_driver xgene_rtc_driver = {
 	.probe		= xgene_rtc_probe,
-	.remove_new	= xgene_rtc_remove,
+	.remove		= xgene_rtc_remove,
 	.driver		= {
 		.name	= "xgene-rtc",
 		.pm = &xgene_rtc_pm_ops,

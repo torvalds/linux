@@ -85,7 +85,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 
 	__enable_user_access();
 	__asm__ __volatile__ (
-	"1:	lr.w.aqrl %[v],%[u]			\n"
+	"1:	lr.w %[v],%[u]			        \n"
 	"	bne %[v],%z[ov],3f			\n"
 	"2:	sc.w.aqrl %[t],%z[nv],%[u]		\n"
 	"	bnez %[t],1b				\n"
@@ -93,7 +93,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 		_ASM_EXTABLE_UACCESS_ERR(1b, 3b, %[r])	\
 		_ASM_EXTABLE_UACCESS_ERR(2b, 3b, %[r])	\
 	: [r] "+r" (ret), [v] "=&r" (val), [u] "+m" (*uaddr), [t] "=&r" (tmp)
-	: [ov] "Jr" (oldval), [nv] "Jr" (newval)
+	: [ov] "Jr" ((long)(int)oldval), [nv] "Jr" (newval)
 	: "memory");
 	__disable_user_access();
 

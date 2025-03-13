@@ -18,6 +18,8 @@
 #define SNDRV_CTL_TLVT_CHMAP_VAR	0x102	/* channels freely swappable */
 #define SNDRV_CTL_TLVT_CHMAP_PAIRED	0x103	/* pair-wise swappable */
 
+#define SNDRV_CTL_TLVT_FCP_CHANNEL_LABELS	0x110	/* channel labels */
+
 /*
  * TLV structure is right behind the struct snd_ctl_tlv:
  *   unsigned int type  	- see SNDRV_CTL_TLVT_*

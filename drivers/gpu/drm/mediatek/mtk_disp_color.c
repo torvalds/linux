@@ -159,7 +159,7 @@ MODULE_DEVICE_TABLE(of, mtk_disp_color_driver_dt_match);
 
 struct platform_driver mtk_disp_color_driver = {
 	.probe		= mtk_disp_color_probe,
-	.remove_new	= mtk_disp_color_remove,
+	.remove		= mtk_disp_color_remove,
 	.driver		= {
 		.name	= "mediatek-disp-color",
 		.of_match_table = mtk_disp_color_driver_dt_match,

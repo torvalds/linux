@@ -74,20 +74,14 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 				  struct move_bucket *b, u64 time)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bch_alloc_v4 _a;
-	const struct bch_alloc_v4 *a;
-	int ret;
 
-	if (bch2_bucket_is_open(trans->c,
-				b->k.bucket.inode,
-				b->k.bucket.offset))
+	if (bch2_bucket_is_open(c, b->k.bucket.inode, b->k.bucket.offset))
 		return 0;
 
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
-			       b->k.bucket, BTREE_ITER_cached);
-	ret = bkey_err(k);
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
+				       b->k.bucket, BTREE_ITER_cached);
+	int ret = bkey_err(k);
 	if (ret)
 		return ret;
 
@@ -95,13 +89,18 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 	if (!ca)
 		goto out;
 
-	a = bch2_alloc_to_v4(k, &_a);
+	if (ca->mi.state != BCH_MEMBER_STATE_rw ||
+	    !bch2_dev_is_online(ca))
+		goto out_put;
+
+	struct bch_alloc_v4 _a;
+	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
 	b->k.gen	= a->gen;
 	b->sectors	= bch2_bucket_sectors_dirty(*a);
 	u64 lru_idx	= alloc_lru_idx_fragmentation(*a, ca);
 
 	ret = lru_idx && lru_idx <= time;
-
+out_put:
 	bch2_dev_put(ca);
 out:
 	bch2_trans_iter_exit(trans, &iter);
@@ -167,7 +166,7 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 
 	bch2_trans_begin(trans);
 
-	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_lru,
+	ret = for_each_btree_key_max(trans, iter, BTREE_ID_lru,
 				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),
 				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
 				  0, k, ({
@@ -215,7 +214,8 @@ static int bch2_copygc(struct moving_context *ctxt,
 	};
 	move_buckets buckets = { 0 };
 	struct move_bucket_in_flight *f;
-	u64 moved = atomic64_read(&ctxt->stats->sectors_moved);
+	u64 sectors_seen	= atomic64_read(&ctxt->stats->sectors_seen);
+	u64 sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved);
 	int ret = 0;
 
 	ret = bch2_copygc_get_buckets(ctxt, buckets_in_flight, &buckets);
@@ -245,7 +245,6 @@ static int bch2_copygc(struct moving_context *ctxt,
 		*did_work = true;
 	}
 err:
-	darray_exit(&buckets);
 
 	/* no entries in LRU btree found, or got to end: */
 	if (bch2_err_matches(ret, ENOENT))
@@ -254,8 +253,11 @@ err:
 	if (ret < 0 && !bch2_err_matches(ret, EROFS))
 		bch_err_msg(c, ret, "from bch2_move_data()");
 
-	moved = atomic64_read(&ctxt->stats->sectors_moved) - moved;
-	trace_and_count(c, copygc, c, moved, 0, 0, 0);
+	sectors_seen	= atomic64_read(&ctxt->stats->sectors_seen) - sectors_seen;
+	sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved) - sectors_moved;
+	trace_and_count(c, copygc, c, buckets.nr, sectors_seen, sectors_moved);
+
+	darray_exit(&buckets);
 	return ret;
 }
 
@@ -350,9 +352,9 @@ static int bch2_copygc_thread(void *arg)
 		bch2_trans_unlock_long(ctxt.trans);
 		cond_resched();
 
-		if (!c->copy_gc_enabled) {
+		if (!c->opts.copygc_enabled) {
 			move_buckets_wait(&ctxt, buckets, true);
-			kthread_wait_freezable(c->copy_gc_enabled ||
+			kthread_wait_freezable(c->opts.copygc_enabled ||
 					       kthread_should_stop());
 		}
 

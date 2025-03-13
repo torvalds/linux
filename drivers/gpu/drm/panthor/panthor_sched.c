@@ -611,6 +611,16 @@ struct panthor_group {
 	bool timedout;
 
 	/**
+	 * @innocent: True when the group becomes unusable because the group suspension
+	 * failed during a reset.
+	 *
+	 * Sometimes the FW was put in a bad state by other groups, causing the group
+	 * suspension happening in the reset path to fail. In that case, we consider the
+	 * group innocent.
+	 */
+	bool innocent;
+
+	/**
 	 * @syncobjs: Pool of per-queue synchronization objects.
 	 *
 	 * One sync object per queue. The position of the sync object is
@@ -2354,7 +2364,7 @@ static void tick_work(struct work_struct *work)
 	if (!drm_dev_enter(&ptdev->base, &cookie))
 		return;
 
-	ret = pm_runtime_resume_and_get(ptdev->base.dev);
+	ret = panthor_device_resume_and_get(ptdev);
 	if (drm_WARN_ON(&ptdev->base, ret))
 		goto out_dev_exit;
 
@@ -2689,6 +2699,12 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 		while (slot_mask) {
 			u32 csg_id = ffs(slot_mask) - 1;
 			struct panthor_csg_slot *csg_slot = &sched->csg_slots[csg_id];
+
+			/* If the group was still usable before that point, we consider
+			 * it innocent.
+			 */
+			if (group_can_run(csg_slot->group))
+				csg_slot->group->innocent = true;
 
 			/* We consider group suspension failures as fatal and flag the
 			 * group as unusable by setting timedout=true.
@@ -3115,7 +3131,7 @@ queue_run_job(struct drm_sched_job *sched_job)
 		return dma_fence_get(job->done_fence);
 	}
 
-	ret = pm_runtime_resume_and_get(ptdev->base.dev);
+	ret = panthor_device_resume_and_get(ptdev);
 	if (drm_WARN_ON(&ptdev->base, ret))
 		return ERR_PTR(ret);
 
@@ -3570,6 +3586,8 @@ int panthor_group_get_state(struct panthor_file *pfile,
 		get_state->state |= DRM_PANTHOR_GROUP_STATE_FATAL_FAULT;
 		get_state->fatal_queues = group->fatal_queues;
 	}
+	if (group->innocent)
+		get_state->state |= DRM_PANTHOR_GROUP_STATE_INNOCENT;
 	mutex_unlock(&sched->lock);
 
 	group_put(group);

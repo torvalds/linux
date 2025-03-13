@@ -94,7 +94,6 @@ static struct crypto_alg bf_cipher_alg = {
 	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		= BF_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct bf_ctx),
-	.cra_alignmask		= 0,
 	.cra_module		= THIS_MODULE,
 	.cra_u = {
 		.cipher = {

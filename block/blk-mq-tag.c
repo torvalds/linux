@@ -544,30 +544,11 @@ static int bt_alloc(struct sbitmap_queue *bt, unsigned int depth,
 				       node);
 }
 
-int blk_mq_init_bitmaps(struct sbitmap_queue *bitmap_tags,
-			struct sbitmap_queue *breserved_tags,
-			unsigned int queue_depth, unsigned int reserved,
-			int node, int alloc_policy)
-{
-	unsigned int depth = queue_depth - reserved;
-	bool round_robin = alloc_policy == BLK_TAG_ALLOC_RR;
-
-	if (bt_alloc(bitmap_tags, depth, round_robin, node))
-		return -ENOMEM;
-	if (bt_alloc(breserved_tags, reserved, round_robin, node))
-		goto free_bitmap_tags;
-
-	return 0;
-
-free_bitmap_tags:
-	sbitmap_queue_free(bitmap_tags);
-	return -ENOMEM;
-}
-
 struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
-				     unsigned int reserved_tags,
-				     int node, int alloc_policy)
+		unsigned int reserved_tags, unsigned int flags, int node)
 {
+	unsigned int depth = total_tags - reserved_tags;
+	bool round_robin = flags & BLK_MQ_F_TAG_RR;
 	struct blk_mq_tags *tags;
 
 	if (total_tags > BLK_MQ_TAG_MAX) {
@@ -582,14 +563,18 @@ struct blk_mq_tags *blk_mq_init_tags(unsigned int total_tags,
 	tags->nr_tags = total_tags;
 	tags->nr_reserved_tags = reserved_tags;
 	spin_lock_init(&tags->lock);
+	if (bt_alloc(&tags->bitmap_tags, depth, round_robin, node))
+		goto out_free_tags;
+	if (bt_alloc(&tags->breserved_tags, reserved_tags, round_robin, node))
+		goto out_free_bitmap_tags;
 
-	if (blk_mq_init_bitmaps(&tags->bitmap_tags, &tags->breserved_tags,
-				total_tags, reserved_tags, node,
-				alloc_policy) < 0) {
-		kfree(tags);
-		return NULL;
-	}
 	return tags;
+
+out_free_bitmap_tags:
+	sbitmap_queue_free(&tags->bitmap_tags);
+out_free_tags:
+	kfree(tags);
+	return NULL;
 }
 
 void blk_mq_free_tags(struct blk_mq_tags *tags)

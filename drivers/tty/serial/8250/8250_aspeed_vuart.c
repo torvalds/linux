@@ -569,7 +569,7 @@ static struct platform_driver aspeed_vuart_driver = {
 		.of_match_table = aspeed_vuart_table,
 	},
 	.probe = aspeed_vuart_probe,
-	.remove_new = aspeed_vuart_remove,
+	.remove = aspeed_vuart_remove,
 };
 
 module_platform_driver(aspeed_vuart_driver);

@@ -21,6 +21,7 @@ int xe_guc_pc_unset_gucrc_mode(struct xe_guc_pc *pc);
 u32 xe_guc_pc_get_act_freq(struct xe_guc_pc *pc);
 int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq);
 u32 xe_guc_pc_get_rp0_freq(struct xe_guc_pc *pc);
+u32 xe_guc_pc_get_rpa_freq(struct xe_guc_pc *pc);
 u32 xe_guc_pc_get_rpe_freq(struct xe_guc_pc *pc);
 u32 xe_guc_pc_get_rpn_freq(struct xe_guc_pc *pc);
 int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq);

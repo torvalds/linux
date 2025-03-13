@@ -1,0 +1,97 @@
+[
+    {
+        "EventCode": "0x0880",
+        "EventName": "GCYCLES",
+        "BriefDescription": "This event counts the number of cycles at 100MHz."
+    },
+    {
+        "EventCode": "0x0890",
+        "EventName": "FL0_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 0."
+    },
+    {
+        "EventCode": "0x0891",
+        "EventName": "FL1_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 1."
+    },
+    {
+        "EventCode": "0x0892",
+        "EventName": "FL2_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 2."
+    },
+    {
+        "EventCode": "0x0893",
+        "EventName": "FL3_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 3."
+    },
+    {
+        "EventCode": "0x0894",
+        "EventName": "FL4_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 4."
+    },
+    {
+        "EventCode": "0x0895",
+        "EventName": "FL5_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 5."
+    },
+    {
+        "EventCode": "0x0896",
+        "EventName": "FL6_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 6."
+    },
+    {
+        "EventCode": "0x0897",
+        "EventName": "FL7_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 7."
+    },
+    {
+        "EventCode": "0x0898",
+        "EventName": "FL8_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 8."
+    },
+    {
+        "EventCode": "0x0899",
+        "EventName": "FL9_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 9."
+    },
+    {
+        "EventCode": "0x089A",
+        "EventName": "FL10_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 10."
+    },
+    {
+        "EventCode": "0x089B",
+        "EventName": "FL11_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 11."
+    },
+    {
+        "EventCode": "0x089C",
+        "EventName": "FL12_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 12."
+    },
+    {
+        "EventCode": "0x089D",
+        "EventName": "FL13_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 13."
+    },
+    {
+        "EventCode": "0x089E",
+        "EventName": "FL14_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 14."
+    },
+    {
+        "EventCode": "0x089F",
+        "EventName": "FL15_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the Frequency Level 15."
+    },
+    {
+        "EventCode": "0x08A0",
+        "EventName": "RETENTION_GCYCLES",
+        "BriefDescription": "This event counts the number of cycles where the measured core is staying in the RETENTION state."
+    },
+    {
+        "EventCode": "0x08A1",
+        "EventName": "RETENTION_COUNT",
+        "BriefDescription": "This event counts the number of changes from the normal state to the RETENTION state."
+    }
+]

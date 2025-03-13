@@ -79,15 +79,14 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     mmc {
-         #address-cells = <1>;
-         #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-         wifi@1 {
-             compatible = "marvell,sd8897";
-             reg = <1>;
-             interrupt-parent = <&pio>;
-             interrupts = <38 IRQ_TYPE_LEVEL_LOW>;
-             marvell,wakeup-pin = <3>;
+        wifi@1 {
+            compatible = "marvell,sd8897";
+            reg = <1>;
+            interrupt-parent = <&pio>;
+            interrupts = <38 IRQ_TYPE_LEVEL_LOW>;
+            marvell,wakeup-pin = <3>;
         };
     };
-

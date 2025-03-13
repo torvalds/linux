@@ -134,7 +134,7 @@
 	};
 
 	esai1: esai@59810000 {
-		compatible = "fsl,imx8qm-esai";
+		compatible = "fsl,imx8qm-esai", "fsl,imx6ull-esai";
 		reg = <0x59810000 0x10000>;
 		interrupts = <GIC_SPI 411 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&esai1_lpcg IMX_LPCG_CLK_0>,

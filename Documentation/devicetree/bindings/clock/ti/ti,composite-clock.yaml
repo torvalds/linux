@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti/ti,composite-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments composite clock
+
+maintainers:
+  - Tero Kristo <kristo@kernel.org>
+
+description: |
+  *Deprecated design pattern: one node per clock*
+
+  This binding assumes a register-mapped composite clock with multiple
+  different sub-types:
+
+    a multiplexer clock with multiple input clock signals or parents, one
+    of which can be selected as output, this behaves exactly as [1].
+
+    an adjustable clock rate divider, this behaves exactly as [2].
+
+    a gating function which can be used to enable and disable the output
+    clock, this behaves exactly as [3].
+
+  The binding must provide a list of the component clocks that shall be
+  merged to this clock. The component clocks shall be of one of the
+  "ti,*composite*-clock" types.
+
+  [1] Documentation/devicetree/bindings/clock/ti/ti,mux-clock.yaml
+  [2] Documentation/devicetree/bindings/clock/ti/ti,divider-clock.yaml
+  [3] Documentation/devicetree/bindings/clock/ti/ti,gate-clock.yaml
+
+properties:
+  compatible:
+    const: ti,composite-clock
+
+  "#clock-cells":
+    const: 0
+
+  clocks: true
+
+  clock-output-names:
+    maxItems: 1
+
+required:
+  - compatible
+  - "#clock-cells"
+  - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      usb_l4_gate_ick: clock-controller@a10 {
+        #clock-cells = <0>;
+        compatible = "ti,composite-gate-clock";
+        clocks = <&l4_ick>;
+        ti,bit-shift = <5>;
+        reg = <0x0a10>;
+      };
+
+      usb_l4_div_ick: clock-controller@a40 {
+        #clock-cells = <0>;
+        compatible = "ti,composite-divider-clock";
+        clocks = <&l4_ick>;
+        ti,bit-shift = <4>;
+        ti,max-div = <1>;
+        reg = <0x0a40>;
+        ti,index-starts-at-one;
+      };
+    };
+
+    clock-controller {
+      #clock-cells = <0>;
+      compatible = "ti,composite-clock";
+      clocks = <&usb_l4_gate_ick>, <&usb_l4_div_ick>;
+    };

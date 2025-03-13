@@ -86,8 +86,6 @@ struct pv_cpu_ops {
 	void (*update_io_bitmap)(void);
 #endif
 
-	void (*wbinvd)(void);
-
 	/* cpuid emulation, mostly so that caps bits can be disabled */
 	void (*cpuid)(unsigned int *eax, unsigned int *ebx,
 		      unsigned int *ecx, unsigned int *edx);

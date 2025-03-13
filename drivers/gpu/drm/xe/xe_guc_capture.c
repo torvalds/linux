@@ -102,6 +102,7 @@ struct __guc_capture_parsed_output {
  *                   A 64 bit register define requires 2 consecutive entries,
  *                   with low dword first and hi dword the second.
  *     2. Register name: null for incompleted define
+ *     3. Incorrect order will trigger XE_WARN.
  */
 #define COMMON_XELP_BASE_GLOBAL \
 	{ FORCEWAKE_GT,			REG_32BIT,	0,	0,	"FORCEWAKE_GT"}
@@ -1675,10 +1676,10 @@ snapshot_print_by_list_order(struct xe_hw_engine_snapshot *snapshot, struct drm_
 	struct xe_devcoredump *devcoredump = &xe->devcoredump;
 	struct xe_devcoredump_snapshot *devcore_snapshot = &devcoredump->snapshot;
 	struct gcap_reg_list_info *reginfo = NULL;
-	u32 last_value, i;
-	bool is_ext;
+	u32 i, last_value = 0;
+	bool is_ext, low32_ready = false;
 
-	if (!list || list->num_regs == 0)
+	if (!list || !list->list || list->num_regs == 0)
 		return;
 	XE_WARN_ON(!devcore_snapshot->matched_node);
 
@@ -1701,29 +1702,75 @@ snapshot_print_by_list_order(struct xe_hw_engine_snapshot *snapshot, struct drm_
 			continue;
 
 		value = reg->value;
-		if (reg_desc->data_type == REG_64BIT_LOW_DW) {
+		switch (reg_desc->data_type) {
+		case REG_64BIT_LOW_DW:
 			last_value = value;
+
+			/*
+			 * A 64 bit register define requires 2 consecutive
+			 * entries in register list, with low dword first
+			 * and hi dword the second, like:
+			 *  { XXX_REG_LO(0), REG_64BIT_LOW_DW, 0, 0, NULL},
+			 *  { XXX_REG_HI(0), REG_64BIT_HI_DW,  0, 0, "XXX_REG"},
+			 *
+			 * Incorrect order will trigger XE_WARN.
+			 *
+			 * Possible double low here, for example:
+			 *  { XXX_REG_LO(0), REG_64BIT_LOW_DW, 0, 0, NULL},
+			 *  { XXX_REG_LO(0), REG_64BIT_LOW_DW, 0, 0, NULL},
+			 */
+			XE_WARN_ON(low32_ready);
+			low32_ready = true;
 			/* Low 32 bit dword saved, continue for high 32 bit */
-			continue;
-		} else if (reg_desc->data_type == REG_64BIT_HI_DW) {
+			break;
+
+		case REG_64BIT_HI_DW: {
 			u64 value_qw = ((u64)value << 32) | last_value;
 
+			/*
+			 * Incorrect 64bit register order. Possible missing low.
+			 * for example:
+			 *  { XXX_REG(0), REG_32BIT, 0, 0, NULL},
+			 *  { XXX_REG_HI(0), REG_64BIT_HI_DW, 0, 0, NULL},
+			 */
+			XE_WARN_ON(!low32_ready);
+			low32_ready = false;
+
 			drm_printf(p, "\t%s: 0x%016llx\n", reg_desc->regname, value_qw);
-			continue;
+			break;
 		}
 
-		if (is_ext) {
-			int dss, group, instance;
+		case REG_32BIT:
+			/*
+			 * Incorrect 64bit register order. Possible missing high.
+			 * for example:
+			 *  { XXX_REG_LO(0), REG_64BIT_LOW_DW, 0, 0, NULL},
+			 *  { XXX_REG(0), REG_32BIT, 0, 0, "XXX_REG"},
+			 */
+			XE_WARN_ON(low32_ready);
 
-			group = FIELD_GET(GUC_REGSET_STEERING_GROUP, reg_desc->flags);
-			instance = FIELD_GET(GUC_REGSET_STEERING_INSTANCE, reg_desc->flags);
-			dss = xe_gt_mcr_steering_info_to_dss_id(gt, group, instance);
+			if (is_ext) {
+				int dss, group, instance;
 
-			drm_printf(p, "\t%s[%u]: 0x%08x\n", reg_desc->regname, dss, value);
-		} else {
-			drm_printf(p, "\t%s: 0x%08x\n", reg_desc->regname, value);
+				group = FIELD_GET(GUC_REGSET_STEERING_GROUP, reg_desc->flags);
+				instance = FIELD_GET(GUC_REGSET_STEERING_INSTANCE, reg_desc->flags);
+				dss = xe_gt_mcr_steering_info_to_dss_id(gt, group, instance);
+
+				drm_printf(p, "\t%s[%u]: 0x%08x\n", reg_desc->regname, dss, value);
+			} else {
+				drm_printf(p, "\t%s: 0x%08x\n", reg_desc->regname, value);
+			}
+			break;
 		}
 	}
+
+	/*
+	 * Incorrect 64bit register order. Possible missing high.
+	 * for example:
+	 *  { XXX_REG_LO(0), REG_64BIT_LOW_DW, 0, 0, NULL},
+	 *  } // <- Register list end
+	 */
+	XE_WARN_ON(low32_ready);
 }
 
 /**
@@ -1759,7 +1806,6 @@ void xe_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot, struct drm
 	if (!devcore_snapshot->matched_node)
 		return;
 
-	xe_gt_assert(gt, snapshot->source <= XE_ENGINE_CAPTURE_SOURCE_GUC);
 	xe_gt_assert(gt, snapshot->hwe);
 
 	capture_class = xe_engine_class_to_guc_capture_class(snapshot->hwe->class);
@@ -1768,7 +1814,8 @@ void xe_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot, struct drm
 		   snapshot->name ? snapshot->name : "",
 		   snapshot->logical_instance);
 	drm_printf(p, "\tCapture_source: %s\n",
-		   snapshot->source == XE_ENGINE_CAPTURE_SOURCE_GUC ? "GuC" : "Manual");
+		   devcore_snapshot->matched_node->source == XE_ENGINE_CAPTURE_SOURCE_GUC ?
+		   "GuC" : "Manual");
 	drm_printf(p, "\tCoverage: %s\n", grptype[devcore_snapshot->matched_node->is_partial]);
 	drm_printf(p, "\tForcewake: domain 0x%x, ref %d\n",
 		   snapshot->forcewake.domain, snapshot->forcewake.ref);
@@ -1793,29 +1840,24 @@ void xe_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot, struct drm
 }
 
 /**
- * xe_guc_capture_get_matching_and_lock - Matching GuC capture for the job.
- * @job: The job object.
+ * xe_guc_capture_get_matching_and_lock - Matching GuC capture for the queue.
+ * @q: The exec queue object
  *
- * Search within the capture outlist for the job, could be used for check if
- * GuC capture is ready for the job.
+ * Search within the capture outlist for the queue, could be used for check if
+ * GuC capture is ready for the queue.
  * If found, the locked boolean of the node will be flagged.
  *
  * Returns: found guc-capture node ptr else NULL
  */
 struct __guc_capture_parsed_output *
-xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
+xe_guc_capture_get_matching_and_lock(struct xe_exec_queue *q)
 {
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
-	struct xe_exec_queue *q;
 	struct xe_device *xe;
 	u16 guc_class = GUC_LAST_ENGINE_CLASS + 1;
 	struct xe_devcoredump_snapshot *ss;
 
-	if (!job)
-		return NULL;
-
-	q = job->q;
 	if (!q || !q->gt)
 		return NULL;
 
@@ -1827,7 +1869,7 @@ xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
 	if (ss->matched_node && ss->matched_node->source == XE_ENGINE_CAPTURE_SOURCE_GUC)
 		return ss->matched_node;
 
-	/* Find hwe for the job */
+	/* Find hwe for the queue */
 	for_each_hw_engine(hwe, q->gt, id) {
 		if (hwe != q->hwe)
 			continue;
@@ -1859,17 +1901,16 @@ xe_guc_capture_get_matching_and_lock(struct xe_sched_job *job)
 }
 
 /**
- * xe_engine_snapshot_capture_for_job - Take snapshot of associated engine
- * @job: The job object
+ * xe_engine_snapshot_capture_for_queue - Take snapshot of associated engine
+ * @q: The exec queue object
  *
  * Take snapshot of associated HW Engine
  *
  * Returns: None.
  */
 void
-xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
+xe_engine_snapshot_capture_for_queue(struct xe_exec_queue *q)
 {
-	struct xe_exec_queue *q = job->q;
 	struct xe_device *xe = gt_to_xe(q->gt);
 	struct xe_devcoredump *coredump = &xe->devcoredump;
 	struct xe_hw_engine *hwe;
@@ -1887,11 +1928,12 @@ xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
 		}
 
 		if (!coredump->snapshot.hwe[id]) {
-			coredump->snapshot.hwe[id] = xe_hw_engine_snapshot_capture(hwe, job);
+			coredump->snapshot.hwe[id] =
+				xe_hw_engine_snapshot_capture(hwe, q);
 		} else {
 			struct __guc_capture_parsed_output *new;
 
-			new = xe_guc_capture_get_matching_and_lock(job);
+			new = xe_guc_capture_get_matching_and_lock(q);
 			if (new) {
 				struct xe_guc *guc =  &q->gt->uc.guc;
 
@@ -1913,7 +1955,7 @@ xe_engine_snapshot_capture_for_job(struct xe_sched_job *job)
 }
 
 /*
- * xe_guc_capture_put_matched_nodes - Cleanup macthed nodes
+ * xe_guc_capture_put_matched_nodes - Cleanup matched nodes
  * @guc: The GuC object
  *
  * Free matched node and all nodes with the equal guc_id from

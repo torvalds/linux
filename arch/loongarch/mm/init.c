@@ -174,9 +174,7 @@ pte_t * __init populate_kernel_pte(unsigned long addr)
 	pmd_t *pmd;
 
 	if (p4d_none(p4dp_get(p4d))) {
-		pud = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-		if (!pud)
-			panic("%s: Failed to allocate memory\n", __func__);
+		pud = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 		p4d_populate(&init_mm, p4d, pud);
 #ifndef __PAGETABLE_PUD_FOLDED
 		pud_init(pud);
@@ -185,9 +183,7 @@ pte_t * __init populate_kernel_pte(unsigned long addr)
 
 	pud = pud_offset(p4d, addr);
 	if (pud_none(pudp_get(pud))) {
-		pmd = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-		if (!pmd)
-			panic("%s: Failed to allocate memory\n", __func__);
+		pmd = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 		pud_populate(&init_mm, pud, pmd);
 #ifndef __PAGETABLE_PMD_FOLDED
 		pmd_init(pmd);
@@ -198,10 +194,7 @@ pte_t * __init populate_kernel_pte(unsigned long addr)
 	if (!pmd_present(pmdp_get(pmd))) {
 		pte_t *pte;
 
-		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-		if (!pte)
-			panic("%s: Failed to allocate memory\n", __func__);
-
+		pte = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 		pmd_populate_kernel(&init_mm, pmd, pte);
 		kernel_pte_init(pte);
 	}

@@ -17,6 +17,7 @@
 #include <linux/dma-map-ops.h>
 #include <linux/export.h>
 #include <linux/pci_ids.h>
+#include <linux/string_choices.h>
 #include <asm/bootinfo.h>
 #include <loongson.h>
 #include <boot_param.h>
@@ -162,7 +163,7 @@ void __init prom_lefi_init_env(void)
 		dma_default_coherent = !eirq_source->dma_noncoherent;
 	}
 
-	pr_info("Firmware: Coherent DMA: %s\n", dma_default_coherent ? "on" : "off");
+	pr_info("Firmware: Coherent DMA: %s\n", str_on_off(dma_default_coherent));
 
 	loongson_sysconf.restart_addr = boot_p->reset_system.ResetWarm;
 	loongson_sysconf.poweroff_addr = boot_p->reset_system.Shutdown;

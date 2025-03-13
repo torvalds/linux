@@ -2832,7 +2832,7 @@ netxen_sysfs_validate_crb(struct netxen_adapter *adapter,
 
 static ssize_t
 netxen_sysfs_read_crb(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
+		const struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -2860,7 +2860,7 @@ netxen_sysfs_read_crb(struct file *filp, struct kobject *kobj,
 
 static ssize_t
 netxen_sysfs_write_crb(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
+		const struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -2901,7 +2901,7 @@ netxen_sysfs_validate_mem(struct netxen_adapter *adapter,
 
 static ssize_t
 netxen_sysfs_read_mem(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
+		const struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -2922,7 +2922,7 @@ netxen_sysfs_read_mem(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t netxen_sysfs_write_mem(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf,
+		const struct bin_attribute *attr, char *buf,
 		loff_t offset, size_t size)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -2946,20 +2946,20 @@ static ssize_t netxen_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 static const struct bin_attribute bin_attr_crb = {
 	.attr = { .name = "crb", .mode = 0644 },
 	.size = 0,
-	.read = netxen_sysfs_read_crb,
-	.write = netxen_sysfs_write_crb,
+	.read_new = netxen_sysfs_read_crb,
+	.write_new = netxen_sysfs_write_crb,
 };
 
 static const struct bin_attribute bin_attr_mem = {
 	.attr = { .name = "mem", .mode = 0644 },
 	.size = 0,
-	.read = netxen_sysfs_read_mem,
-	.write = netxen_sysfs_write_mem,
+	.read_new = netxen_sysfs_read_mem,
+	.write_new = netxen_sysfs_write_mem,
 };
 
 static ssize_t
 netxen_sysfs_read_dimm(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
+		const struct bin_attribute *attr,
 		char *buf, loff_t offset, size_t size)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -3082,7 +3082,7 @@ out:
 static const struct bin_attribute bin_attr_dimm = {
 	.attr = { .name = "dimm", .mode = 0644 },
 	.size = sizeof(struct netxen_dimm_cfg),
-	.read = netxen_sysfs_read_dimm,
+	.read_new = netxen_sysfs_read_dimm,
 };
 
 

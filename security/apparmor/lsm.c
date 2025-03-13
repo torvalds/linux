@@ -2038,7 +2038,7 @@ static int apparmor_dointvec(const struct ctl_table *table, int write,
 	return proc_dointvec(table, write, buffer, lenp, ppos);
 }
 
-static struct ctl_table apparmor_sysctl_table[] = {
+static const struct ctl_table apparmor_sysctl_table[] = {
 #ifdef CONFIG_USER_NS
 	{
 		.procname       = "unprivileged_userns_apparmor_policy",

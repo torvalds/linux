@@ -929,7 +929,6 @@ static const struct drm_driver ade_driver = {
 	DRM_FBDEV_DMA_DRIVER_OPS,
 	.name = "kirin",
 	.desc = "Hisilicon Kirin620 SoC DRM Driver",
-	.date = "20150718",
 	.major = 1,
 	.minor = 0,
 };

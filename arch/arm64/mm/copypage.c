@@ -30,10 +30,12 @@ void copy_highpage(struct page *to, struct page *from)
 	if (!system_supports_mte())
 		return;
 
-	if (folio_test_hugetlb(src) &&
-	    folio_test_hugetlb_mte_tagged(src)) {
-		if (!folio_try_hugetlb_mte_tagging(dst))
+	if (folio_test_hugetlb(src)) {
+		if (!folio_test_hugetlb_mte_tagged(src) ||
+		    from != folio_page(src, 0))
 			return;
+
+		WARN_ON_ONCE(!folio_try_hugetlb_mte_tagging(dst));
 
 		/*
 		 * Populate tags for all subpages.

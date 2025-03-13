@@ -1097,7 +1097,7 @@ static int serial_txx9_resume(struct platform_device *dev)
 
 static struct platform_driver serial_txx9_plat_driver = {
 	.probe		= serial_txx9_probe,
-	.remove_new	= serial_txx9_remove,
+	.remove		= serial_txx9_remove,
 #ifdef CONFIG_PM
 	.suspend	= serial_txx9_suspend,
 	.resume		= serial_txx9_resume,

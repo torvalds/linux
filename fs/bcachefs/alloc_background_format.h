@@ -58,7 +58,7 @@ LE32_BITMASK(BCH_ALLOC_V3_NEED_INC_GEN,struct bch_alloc_v3, flags,  1,  2)
 
 struct bch_alloc_v4 {
 	struct bch_val		v;
-	__u64			journal_seq;
+	__u64			journal_seq_nonempty;
 	__u32			flags;
 	__u8			gen;
 	__u8			oldest_gen;
@@ -70,7 +70,7 @@ struct bch_alloc_v4 {
 	__u32			stripe;
 	__u32			nr_external_backpointers;
 	/* end of fields in original version of alloc_v4 */
-	__u64			_fragmentation_lru; /* obsolete */
+	__u64			journal_seq_empty;
 	__u32			stripe_sectors;
 	__u32			pad;
 } __packed __aligned(8);

@@ -57,7 +57,7 @@ __setup_param("vdso=", vdso_setup, vdso32_setup, 0);
 /* Register vsyscall32 into the ABI table */
 #include <linux/sysctl.h>
 
-static struct ctl_table abi_table2[] = {
+static const struct ctl_table abi_table2[] = {
 	{
 		.procname	= "vsyscall32",
 		.data		= &vdso32_enabled,

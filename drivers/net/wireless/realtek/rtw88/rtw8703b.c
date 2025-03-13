@@ -903,7 +903,7 @@ static void rtw8703b_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		rtw_write32_mask(rtwdev, REG_FPGA0_RFMOD, BIT_MASK_RFMOD, 0x0);
 		rtw_write32_mask(rtwdev, REG_FPGA1_RFMOD, BIT_MASK_RFMOD, 0x0);
 		rtw_write32_mask(rtwdev, REG_OFDM0_TX_PSD_NOISE,
-				 GENMASK(31, 20), 0x0);
+				 GENMASK(31, 30), 0x0);
 		rtw_write32(rtwdev, REG_BBRX_DFIR, 0x4A880000);
 		rtw_write32(rtwdev, REG_OFDM0_A_TX_AFE, 0x19F60000);
 		break;
@@ -1198,9 +1198,9 @@ static u8 rtw8703b_iqk_rx_path(struct rtw_dev *rtwdev,
 	rtw_write32(rtwdev, REG_RXIQK_TONE_A_11N, 0x38008c1c);
 	rtw_write32(rtwdev, REG_TX_IQK_TONE_B, 0x38008c1c);
 	rtw_write32(rtwdev, REG_RX_IQK_TONE_B, 0x38008c1c);
-	rtw_write32(rtwdev, REG_TXIQK_PI_A_11N, 0x8216000f);
+	rtw_write32(rtwdev, REG_TXIQK_PI_A_11N, 0x8214030f);
 	rtw_write32(rtwdev, REG_RXIQK_PI_A_11N, 0x28110000);
-	rtw_write32(rtwdev, REG_TXIQK_PI_B, 0x28110000);
+	rtw_write32(rtwdev, REG_TXIQK_PI_B, 0x82110000);
 	rtw_write32(rtwdev, REG_RXIQK_PI_B, 0x28110000);
 
 	/* LOK setting */
@@ -1372,7 +1372,7 @@ void rtw8703b_iqk_fill_a_matrix(struct rtw_dev *rtwdev, const s32 result[])
 		return;
 
 	tmp_rx_iqi |= FIELD_PREP(BIT_MASK_RXIQ_S1_X, result[IQK_S1_RX_X]);
-	tmp_rx_iqi |= FIELD_PREP(BIT_MASK_RXIQ_S1_Y1, result[IQK_S1_RX_X]);
+	tmp_rx_iqi |= FIELD_PREP(BIT_MASK_RXIQ_S1_Y1, result[IQK_S1_RX_Y]);
 	rtw_write32(rtwdev, REG_A_RXIQI, tmp_rx_iqi);
 	rtw_write32_mask(rtwdev, REG_RXIQK_MATRIX_LSB_11N, BIT_MASK_RXIQ_S1_Y2,
 			 BIT_SET_RXIQ_S1_Y2(result[IQK_S1_RX_Y]));

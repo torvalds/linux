@@ -414,12 +414,7 @@ void
 lpfc_check_nlp_post_devloss(struct lpfc_vport *vport,
 			    struct lpfc_nodelist *ndlp)
 {
-	unsigned long iflags;
-
-	spin_lock_irqsave(&ndlp->lock, iflags);
-	if (ndlp->save_flags & NLP_IN_RECOV_POST_DEV_LOSS) {
-		ndlp->save_flags &= ~NLP_IN_RECOV_POST_DEV_LOSS;
-		spin_unlock_irqrestore(&ndlp->lock, iflags);
+	if (test_and_clear_bit(NLP_IN_RECOV_POST_DEV_LOSS, &ndlp->save_flags)) {
 		lpfc_nlp_get(ndlp);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY | LOG_NODE,
 				 "8438 Devloss timeout reversed on DID x%x "
@@ -427,9 +422,7 @@ lpfc_check_nlp_post_devloss(struct lpfc_vport *vport,
 				 "port_state = x%x\n",
 				 ndlp->nlp_DID, kref_read(&ndlp->kref), ndlp,
 				 ndlp->nlp_flag, vport->port_state);
-		return;
 	}
-	spin_unlock_irqrestore(&ndlp->lock, iflags);
 }
 
 /**
@@ -546,9 +539,7 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 					 ndlp->nlp_DID, kref_read(&ndlp->kref),
 					 ndlp, ndlp->nlp_flag,
 					 vport->port_state);
-			spin_lock_irqsave(&ndlp->lock, iflags);
-			ndlp->save_flags |= NLP_IN_RECOV_POST_DEV_LOSS;
-			spin_unlock_irqrestore(&ndlp->lock, iflags);
+			set_bit(NLP_IN_RECOV_POST_DEV_LOSS, &ndlp->save_flags);
 			return fcf_inuse;
 		} else if (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 			/* Fabric node fully recovered before this dev_loss_tmo

@@ -132,10 +132,8 @@ static int force_reset(struct xe_gt *gt, struct drm_printer *p)
 static int force_reset_sync(struct xe_gt *gt, struct drm_printer *p)
 {
 	xe_pm_runtime_get(gt_to_xe(gt));
-	xe_gt_reset_async(gt);
+	xe_gt_reset(gt);
 	xe_pm_runtime_put(gt_to_xe(gt));
-
-	flush_work(&gt->reset.worker);
 
 	return 0;
 }

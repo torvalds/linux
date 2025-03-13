@@ -29,7 +29,10 @@ int __init numa_cleanup_meminfo(struct numa_meminfo *mi);
 int __init numa_memblks_init(int (*init_func)(void),
 			     bool memblock_force_top_down);
 
+extern int numa_distance_cnt;
+
 #ifdef CONFIG_NUMA_EMU
+extern int emu_nid_to_phys[MAX_NUMNODES];
 int numa_emu_cmdline(char *str);
 void __init numa_emu_update_cpu_to_node(int *emu_nid_to_phys,
 					unsigned int nr_emu_nids);

@@ -272,4 +272,4 @@ int sdw_of_find_slaves(struct sdw_bus *bus)
 	return 0;
 }
 
-MODULE_IMPORT_NS(SND_SOC_SDCA);
+MODULE_IMPORT_NS("SND_SOC_SDCA");

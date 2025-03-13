@@ -109,4 +109,4 @@ module_platform_driver(ocelot_ext_switch_driver);
 
 MODULE_DESCRIPTION("External Ocelot Switch driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(MFD_OCELOT);
+MODULE_IMPORT_NS("MFD_OCELOT");

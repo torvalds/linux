@@ -570,7 +570,7 @@ MODULE_DEVICE_TABLE(of, imx8qm_ldb_dt_ids);
 
 static struct platform_driver imx8qm_ldb_driver = {
 	.probe	= imx8qm_ldb_probe,
-	.remove_new = imx8qm_ldb_remove,
+	.remove = imx8qm_ldb_remove,
 	.driver	= {
 		.pm = pm_ptr(&imx8qm_ldb_pm_ops),
 		.name = DRIVER_NAME,

@@ -312,7 +312,16 @@ def massage_argv(argv: Sequence[str]) -> Sequence[str]:
 	return list(map(massage_arg, argv))
 
 def get_default_jobs() -> int:
-	return len(os.sched_getaffinity(0))
+	if sys.version_info >= (3, 13):
+		if (ncpu := os.process_cpu_count()) is not None:
+			return ncpu
+		raise RuntimeError("os.process_cpu_count() returned None")
+	 # See https://github.com/python/cpython/blob/b61fece/Lib/os.py#L1175-L1186.
+	if sys.platform != "darwin":
+		return len(os.sched_getaffinity(0))
+	if (ncpu := os.cpu_count()) is not None:
+		return ncpu
+	raise RuntimeError("os.cpu_count() returned None")
 
 def add_common_opts(parser: argparse.ArgumentParser) -> None:
 	parser.add_argument('--build_dir',

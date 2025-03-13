@@ -20,6 +20,7 @@ properties:
           - enum:
               - qcom,ipq5018-apcs-apps-global
               - qcom,ipq5332-apcs-apps-global
+              - qcom,ipq5424-apcs-apps-global
               - qcom,ipq8074-apcs-apps-global
               - qcom,ipq9574-apcs-apps-global
           - const: qcom,ipq6018-apcs-apps-global
@@ -44,6 +45,7 @@ properties:
           - const: qcom,msm8994-apcs-kpss-global
       - items:
           - enum:
+              - qcom,qcs615-apss-shared
               - qcom,sc7180-apss-shared
               - qcom,sc8180x-apss-shared
               - qcom,sm8150-apss-shared

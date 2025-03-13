@@ -95,7 +95,7 @@ Nella sezione :menuselection:`Sending Preferences`:
 - :menuselection:`Strip Whitespace Before Sending` deve essere ``disabled``
 
 Quando state scrivendo un messaggio, il cursore dev'essere posizionato
-dove volete che la patch inizi, poi premendo :kbd:`CTRL-R` vi verrà chiesto
+dove volete che la patch inizi, poi premendo `CTRL-R` vi verrà chiesto
 di selezionare il file patch da inserire nel messaggio.
 
 Claws Mail (GUI)
@@ -104,7 +104,7 @@ Claws Mail (GUI)
 Funziona. Alcune persone riescono ad usarlo con successo per inviare le patch.
 
 Per inserire una patch usate :menuselection:`Messaggio-->Inserisci file`
-(:kbd:`CTRL-I`) oppure un editor esterno.
+(`CTRL-I`) oppure un editor esterno.
 
 Se la patch che avete inserito dev'essere modificata usando la finestra di
 scrittura di Claws, allora assicuratevi che l'"auto-interruzione" sia
@@ -117,10 +117,10 @@ Alcune persone riescono ad usarlo con successo per inviare le patch.
 
 Quando state scrivendo una lettera selezionate: Preformattato
   da :menuselection:`Formato-->Stile del paragrafo-->Preformattato`
-  (:kbd:`CTRL-7`) o dalla barra degli strumenti
+  (`CTRL-7`) o dalla barra degli strumenti
 
 Poi per inserire la patch usate:
-:menuselection:`Inserisci--> File di testo...` (:kbd:`ALT-N x`)
+:menuselection:`Inserisci--> File di testo...` (`ALT-N x`)
 
 Potete anche eseguire ``diff -Nru old.c new.c | xclip``, selezionare
 :menuselection:`Preformattato`, e poi usare il tasto centrale del mouse.

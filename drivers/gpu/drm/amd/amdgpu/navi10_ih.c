@@ -434,9 +434,8 @@ static u32 navi10_ih_get_wptr(struct amdgpu_device *adev,
 	 * this should allow us to catch up.
 	 */
 	tmp = (wptr + 32) & ih->ptr_mask;
-	dev_warn(adev->dev, "IH ring buffer overflow "
-		 "(0x%08X, 0x%08X, 0x%08X)\n",
-		 wptr, ih->rptr, tmp);
+	dev_warn(adev->dev, "%s ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
+		 amdgpu_ih_ring_name(adev, ih), wptr, ih->rptr, tmp);
 	ih->rptr = tmp;
 
 	tmp = RREG32_NO_KIQ(ih_regs->ih_rb_cntl);
@@ -667,17 +666,17 @@ static void navi10_ih_update_clockgating_state(struct amdgpu_device *adev,
 	}
 }
 
-static int navi10_ih_set_clockgating_state(void *handle,
+static int navi10_ih_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 					   enum amd_clockgating_state state)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	navi10_ih_update_clockgating_state(adev,
 				state == AMD_CG_STATE_GATE);
 	return 0;
 }
 
-static int navi10_ih_set_powergating_state(void *handle,
+static int navi10_ih_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					   enum amd_powergating_state state)
 {
 	return 0;

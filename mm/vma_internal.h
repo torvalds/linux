@@ -35,6 +35,7 @@
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
 #include <linux/perf_event.h>
+#include <linux/personality.h>
 #include <linux/pfn.h>
 #include <linux/rcupdate.h>
 #include <linux/rmap.h>

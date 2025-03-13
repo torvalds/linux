@@ -727,8 +727,6 @@
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x0 0xf7106000 0x0 0x1000>;
 			interrupts = <0 50 4>;
-			bus-id = <0>;
-			enable-dma = <0>;
 			clocks = <&sys_ctrl HI6220_SPI_CLK>, <&sys_ctrl HI6220_SPI_CLK>;
 			clock-names = "sspclk", "apb_pclk";
 			pinctrl-names = "default";

@@ -80,9 +80,9 @@ static int virtio_gpu_map_ioctl(struct drm_device *dev, void *data,
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct drm_virtgpu_map *virtio_gpu_map = data;
 
-	return virtio_gpu_mode_dumb_mmap(file, vgdev->ddev,
-					 virtio_gpu_map->handle,
-					 &virtio_gpu_map->offset);
+	return drm_gem_dumb_map_offset(file, vgdev->ddev,
+				       virtio_gpu_map->handle,
+				       &virtio_gpu_map->offset);
 }
 
 static int virtio_gpu_getparam_ioctl(struct drm_device *dev, void *data,

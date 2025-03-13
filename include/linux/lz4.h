@@ -645,4 +645,10 @@ int LZ4_decompress_safe_usingDict(const char *source, char *dest,
 int LZ4_decompress_fast_usingDict(const char *source, char *dest,
 	int originalSize, const char *dictStart, int dictSize);
 
+#define LZ4_DECOMPRESS_INPLACE_MARGIN(compressedSize)          (((compressedSize) >> 8) + 32)
+
+#ifndef LZ4_DISTANCE_MAX	/* history window size; can be user-defined at compile time */
+#define LZ4_DISTANCE_MAX 65535	/* set to maximum value by default */
+#endif
+
 #endif

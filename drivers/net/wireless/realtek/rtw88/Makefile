@@ -20,6 +20,8 @@ rtw88_core-y += main.o \
 
 rtw88_core-$(CONFIG_PM) += wow.o
 
+rtw88_core-$(CONFIG_RTW88_LEDS) += led.o
+
 obj-$(CONFIG_RTW88_8822B)	+= rtw88_8822b.o
 rtw88_8822b-objs		:= rtw8822b.o rtw8822b_table.o
 

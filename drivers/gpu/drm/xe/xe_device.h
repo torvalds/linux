@@ -157,8 +157,7 @@ static inline bool xe_device_has_sriov(struct xe_device *xe)
 
 static inline bool xe_device_has_msix(struct xe_device *xe)
 {
-	/* TODO: change this when MSI-X support is fully integrated */
-	return false;
+	return xe->irq.msix.nvec > 0;
 }
 
 static inline bool xe_device_has_memirq(struct xe_device *xe)

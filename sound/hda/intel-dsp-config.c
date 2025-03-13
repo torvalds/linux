@@ -539,6 +539,11 @@ static const struct config_entry config_table[] = {
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
 		.device = PCI_DEVICE_ID_INTEL_HDA_PTL,
 	},
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC_OR_SOUNDWIRE,
+		.device = PCI_DEVICE_ID_INTEL_HDA_PTL_H,
+	},
+
 #endif
 
 };
@@ -801,4 +806,4 @@ EXPORT_SYMBOL_GPL(snd_intel_acpi_dsp_driver_probe);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel DSP config driver");
-MODULE_IMPORT_NS(SND_INTEL_SOUNDWIRE_ACPI);
+MODULE_IMPORT_NS("SND_INTEL_SOUNDWIRE_ACPI");

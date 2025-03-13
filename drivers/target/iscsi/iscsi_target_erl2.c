@@ -25,54 +25,6 @@
 /*
  *	FIXME: Does RData SNACK apply here as well?
  */
-void iscsit_create_conn_recovery_datain_values(
-	struct iscsit_cmd *cmd,
-	__be32 exp_data_sn)
-{
-	u32 data_sn = 0;
-	struct iscsit_conn *conn = cmd->conn;
-
-	cmd->next_burst_len = 0;
-	cmd->read_data_done = 0;
-
-	while (be32_to_cpu(exp_data_sn) > data_sn) {
-		if ((cmd->next_burst_len +
-		     conn->conn_ops->MaxRecvDataSegmentLength) <
-		     conn->sess->sess_ops->MaxBurstLength) {
-			cmd->read_data_done +=
-			       conn->conn_ops->MaxRecvDataSegmentLength;
-			cmd->next_burst_len +=
-			       conn->conn_ops->MaxRecvDataSegmentLength;
-		} else {
-			cmd->read_data_done +=
-				(conn->sess->sess_ops->MaxBurstLength -
-				cmd->next_burst_len);
-			cmd->next_burst_len = 0;
-		}
-		data_sn++;
-	}
-}
-
-void iscsit_create_conn_recovery_dataout_values(
-	struct iscsit_cmd *cmd)
-{
-	u32 write_data_done = 0;
-	struct iscsit_conn *conn = cmd->conn;
-
-	cmd->data_sn = 0;
-	cmd->next_burst_len = 0;
-
-	while (cmd->write_data_done > write_data_done) {
-		if ((write_data_done + conn->sess->sess_ops->MaxBurstLength) <=
-		     cmd->write_data_done)
-			write_data_done += conn->sess->sess_ops->MaxBurstLength;
-		else
-			break;
-	}
-
-	cmd->write_data_done = write_data_done;
-}
-
 static int iscsit_attach_active_connection_recovery_entry(
 	struct iscsit_session *sess,
 	struct iscsi_conn_recovery *cr)

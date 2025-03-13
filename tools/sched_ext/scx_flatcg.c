@@ -137,6 +137,7 @@ restart:
 	skel = SCX_OPS_OPEN(flatcg_ops, scx_flatcg);
 
 	skel->rodata->nr_cpus = libbpf_num_possible_cpus();
+	skel->rodata->cgrp_slice_ns = __COMPAT_ENUM_OR_ZERO("scx_public_consts", "SCX_SLICE_DFL");
 
 	while ((opt = getopt(argc, argv, "s:i:dfvh")) != -1) {
 		double v;

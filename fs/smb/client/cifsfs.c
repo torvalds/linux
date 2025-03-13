@@ -157,6 +157,7 @@ struct workqueue_struct	*fileinfo_put_wq;
 struct workqueue_struct	*cifsoplockd_wq;
 struct workqueue_struct	*deferredclose_wq;
 struct workqueue_struct	*serverclose_wq;
+struct workqueue_struct	*cfid_put_wq;
 __u32 cifs_lock_secret;
 
 /*
@@ -397,7 +398,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode = alloc_inode_sb(sb, cifs_inode_cachep, GFP_KERNEL);
 	if (!cifs_inode)
 		return NULL;
-	cifs_inode->cifsAttrs = 0x20;	/* default */
+	cifs_inode->cifsAttrs = ATTR_ARCHIVE;	/* default */
 	cifs_inode->time = 0;
 	/*
 	 * Until the file is open and we have gotten oplock info back from the
@@ -714,6 +715,12 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 					    cifs_sb->ctx->backupgid));
 	seq_show_option(s, "reparse",
 			cifs_reparse_type_str(cifs_sb->ctx->reparse_type));
+	if (cifs_sb->ctx->nonativesocket)
+		seq_puts(s, ",nonativesocket");
+	else
+		seq_puts(s, ",nativesocket");
+	seq_show_option(s, "symlink",
+			cifs_symlink_type_str(get_cifs_symlink_type(cifs_sb)));
 
 	seq_printf(s, ",rsize=%u", cifs_sb->ctx->rsize);
 	seq_printf(s, ",wsize=%u", cifs_sb->ctx->wsize);
@@ -1920,9 +1927,16 @@ init_cifs(void)
 		goto out_destroy_deferredclose_wq;
 	}
 
+	cfid_put_wq = alloc_workqueue("cfid_put_wq",
+				      WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!cfid_put_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_serverclose_wq;
+	}
+
 	rc = cifs_init_inodecache();
 	if (rc)
-		goto out_destroy_serverclose_wq;
+		goto out_destroy_cfid_put_wq;
 
 	rc = cifs_init_netfs();
 	if (rc)
@@ -1990,6 +2004,8 @@ out_destroy_netfs:
 	cifs_destroy_netfs();
 out_destroy_inodecache:
 	cifs_destroy_inodecache();
+out_destroy_cfid_put_wq:
+	destroy_workqueue(cfid_put_wq);
 out_destroy_serverclose_wq:
 	destroy_workqueue(serverclose_wq);
 out_destroy_deferredclose_wq:
@@ -2033,6 +2049,7 @@ exit_cifs(void)
 	destroy_workqueue(decrypt_wq);
 	destroy_workqueue(fileinfo_put_wq);
 	destroy_workqueue(serverclose_wq);
+	destroy_workqueue(cfid_put_wq);
 	destroy_workqueue(cifsiod_wq);
 	cifs_proc_clean();
 }

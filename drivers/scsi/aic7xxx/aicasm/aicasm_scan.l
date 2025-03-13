@@ -64,6 +64,9 @@ static char *string_buf_ptr;
 static int  parren_count;
 static int  quote_count;
 static char buf[255];
+void mm_switch_to_buffer(YY_BUFFER_STATE);
+void mmparse();
+void mm_delete_buffer(YY_BUFFER_STATE);
 %}
 
 PATH		([/]*[-A-Za-z0-9_.])+

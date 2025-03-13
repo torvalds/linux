@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
@@ -2322,10 +2323,10 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 	case CS42L92:
 	case CS47L92:
 	case CS47L93:
-		out_up_delay = 6;
+		out_up_delay = 6000;
 		break;
 	default:
-		out_up_delay = 17;
+		out_up_delay = 17000;
 		break;
 	}
 
@@ -2356,7 +2357,7 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 		case MADERA_OUT3R_ENA_SHIFT:
 			priv->out_up_pending--;
 			if (!priv->out_up_pending) {
-				msleep(priv->out_up_delay);
+				fsleep(priv->out_up_delay);
 				priv->out_up_delay = 0;
 			}
 			break;
@@ -2375,7 +2376,7 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 		case MADERA_OUT3L_ENA_SHIFT:
 		case MADERA_OUT3R_ENA_SHIFT:
 			priv->out_down_pending++;
-			priv->out_down_delay++;
+			priv->out_down_delay += 1000;
 			break;
 		default:
 			break;
@@ -2392,7 +2393,7 @@ int madera_out_ev(struct snd_soc_dapm_widget *w,
 		case MADERA_OUT3R_ENA_SHIFT:
 			priv->out_down_pending--;
 			if (!priv->out_down_pending) {
-				msleep(priv->out_down_delay);
+				fsleep(priv->out_down_delay);
 				priv->out_down_delay = 0;
 			}
 			break;
@@ -3965,7 +3966,7 @@ static int madera_enable_fll(struct madera_fll *fll)
 	}
 
 	madera_fll_dbg(fll, "Enabling FLL, initially %s\n",
-		       already_enabled ? "enabled" : "disabled");
+		       str_enabled_disabled(already_enabled));
 
 	if (fll->fout < MADERA_FLL_MIN_FOUT ||
 	    fll->fout > MADERA_FLL_MAX_FOUT) {
@@ -4252,7 +4253,7 @@ static int madera_enable_fll_ao(struct madera_fll *fll,
 		pm_runtime_get_sync(madera->dev);
 
 	madera_fll_dbg(fll, "Enabling FLL_AO, initially %s\n",
-		       already_enabled ? "enabled" : "disabled");
+		       str_enabled_disabled(already_enabled));
 
 	/* FLL_AO_HOLD must be set before configuring any registers */
 	regmap_update_bits(fll->madera->regmap,
@@ -4576,7 +4577,7 @@ static int madera_fllhj_enable(struct madera_fll *fll)
 		pm_runtime_get_sync(madera->dev);
 
 	madera_fll_dbg(fll, "Enabling FLL, initially %s\n",
-		       already_enabled ? "enabled" : "disabled");
+		       str_enabled_disabled(already_enabled));
 
 	/* FLLn_HOLD must be set before configuring any registers */
 	regmap_update_bits(fll->madera->regmap,

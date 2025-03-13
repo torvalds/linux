@@ -135,14 +135,33 @@ static int pf_update_policy_u32(struct xe_gt *gt, u16 key, u32 *policy, u32 valu
 	return 0;
 }
 
-static int pf_provision_sched_if_idle(struct xe_gt *gt, bool enable)
+static void pf_bulk_reset_sched_priority(struct xe_gt *gt, u32 priority)
 {
+	unsigned int total_vfs = 1 + xe_gt_sriov_pf_get_totalvfs(gt);
+	unsigned int n;
+
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
 	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
 
-	return pf_update_policy_bool(gt, GUC_KLV_VGT_POLICY_SCHED_IF_IDLE_KEY,
-				     &gt->sriov.pf.policy.guc.sched_if_idle,
-				     enable);
+	for (n = 0; n < total_vfs; n++)
+		gt->sriov.pf.vfs[n].config.sched_priority = priority;
+}
+
+static int pf_provision_sched_if_idle(struct xe_gt *gt, bool enable)
+{
+	int err;
+
+	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+	lockdep_assert_held(xe_gt_sriov_pf_master_mutex(gt));
+
+	err = pf_update_policy_bool(gt, GUC_KLV_VGT_POLICY_SCHED_IF_IDLE_KEY,
+				    &gt->sriov.pf.policy.guc.sched_if_idle,
+				    enable);
+
+	if (!err)
+		pf_bulk_reset_sched_priority(gt, enable ? GUC_SCHED_PRIORITY_NORMAL :
+					     GUC_SCHED_PRIORITY_LOW);
+	return err;
 }
 
 static int pf_reprovision_sched_if_idle(struct xe_gt *gt)

@@ -1098,7 +1098,7 @@ static struct phy_driver at803x_driver[] = {
 
 module_phy_driver(at803x_driver);
 
-static struct mdio_device_id __maybe_unused atheros_tbl[] = {
+static const struct mdio_device_id __maybe_unused atheros_tbl[] = {
 	{ ATH8030_PHY_ID, AT8030_PHY_ID_MASK },
 	{ PHY_ID_MATCH_EXACT(ATH8031_PHY_ID) },
 	{ PHY_ID_MATCH_EXACT(ATH8032_PHY_ID) },

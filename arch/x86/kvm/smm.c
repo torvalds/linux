@@ -283,7 +283,7 @@ void enter_smm(struct kvm_vcpu *vcpu)
 	memset(smram.bytes, 0, sizeof(smram.bytes));
 
 #ifdef CONFIG_X86_64
-	if (guest_cpuid_has(vcpu, X86_FEATURE_LM))
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_LM))
 		enter_smm_save_state_64(vcpu, &smram.smram64);
 	else
 #endif
@@ -353,7 +353,7 @@ void enter_smm(struct kvm_vcpu *vcpu)
 	kvm_set_segment(vcpu, &ds, VCPU_SREG_SS);
 
 #ifdef CONFIG_X86_64
-	if (guest_cpuid_has(vcpu, X86_FEATURE_LM))
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_LM))
 		if (kvm_x86_call(set_efer)(vcpu, 0))
 			goto error;
 #endif
@@ -586,7 +586,7 @@ int emulator_leave_smm(struct x86_emulate_ctxt *ctxt)
 	 * supports long mode.
 	 */
 #ifdef CONFIG_X86_64
-	if (guest_cpuid_has(vcpu, X86_FEATURE_LM)) {
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_LM)) {
 		struct kvm_segment cs_desc;
 		unsigned long cr4;
 
@@ -609,7 +609,7 @@ int emulator_leave_smm(struct x86_emulate_ctxt *ctxt)
 		kvm_set_cr0(vcpu, cr0 & ~(X86_CR0_PG | X86_CR0_PE));
 
 #ifdef CONFIG_X86_64
-	if (guest_cpuid_has(vcpu, X86_FEATURE_LM)) {
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_LM)) {
 		unsigned long cr4, efer;
 
 		/* Clear CR4.PAE before clearing EFER.LME. */
@@ -634,7 +634,7 @@ int emulator_leave_smm(struct x86_emulate_ctxt *ctxt)
 		return X86EMUL_UNHANDLEABLE;
 
 #ifdef CONFIG_X86_64
-	if (guest_cpuid_has(vcpu, X86_FEATURE_LM))
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_LM))
 		ret = rsm_load_state_64(ctxt, &smram.smram64);
 	else
 #endif

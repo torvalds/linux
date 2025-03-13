@@ -725,7 +725,7 @@ static void default_mock_decoder(struct cxl_decoder *cxld)
 	cxld->reset = mock_decoder_reset;
 }
 
-static int first_decoder(struct device *dev, void *data)
+static int first_decoder(struct device *dev, const void *data)
 {
 	struct cxl_decoder *cxld;
 
@@ -1531,5 +1531,5 @@ MODULE_PARM_DESC(interleave_arithmetic, "Modulo:0, XOR:1");
 module_init(cxl_test_init);
 module_exit(cxl_test_exit);
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(ACPI);
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("ACPI");
+MODULE_IMPORT_NS("CXL");

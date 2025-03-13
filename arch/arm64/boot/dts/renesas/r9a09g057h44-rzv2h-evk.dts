@@ -7,7 +7,7 @@
 
 /dts-v1/;
 
-#include <dt-bindings/pinctrl/rzg2l-pinctrl.h>
+#include <dt-bindings/pinctrl/renesas,r9a09g057-pinctrl.h>
 #include <dt-bindings/gpio/gpio.h>
 #include "r9a09g057.dtsi"
 
@@ -56,7 +56,7 @@
 	vqmmc_sdhi1: regulator-vccq-sdhi1 {
 		compatible = "regulator-gpio";
 		regulator-name = "SDHI1 VccQ";
-		gpios = <&pinctrl RZG2L_GPIO(10, 2) GPIO_ACTIVE_HIGH>;
+		gpios = <&pinctrl RZV2H_GPIO(A, 2) GPIO_ACTIVE_HIGH>;
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
 		gpios-states = <0>;
@@ -158,38 +158,38 @@
 
 &pinctrl {
 	i2c0_pins: i2c0 {
-		pinmux = <RZG2L_PORT_PINMUX(3, 0, 1)>, /* I2C0_SDA */
-			 <RZG2L_PORT_PINMUX(3, 1, 1)>; /* I2C0_SCL */
+		pinmux = <RZV2H_PORT_PINMUX(3, 0, 1)>, /* I2C0_SDA */
+			 <RZV2H_PORT_PINMUX(3, 1, 1)>; /* I2C0_SCL */
 	};
 
 	i2c1_pins: i2c1 {
-		pinmux = <RZG2L_PORT_PINMUX(3, 2, 1)>, /* I2C1_SDA */
-			 <RZG2L_PORT_PINMUX(3, 3, 1)>; /* I2C1_SCL */
+		pinmux = <RZV2H_PORT_PINMUX(3, 2, 1)>, /* I2C1_SDA */
+			 <RZV2H_PORT_PINMUX(3, 3, 1)>; /* I2C1_SCL */
 	};
 
 	i2c2_pins: i2c2 {
-		pinmux = <RZG2L_PORT_PINMUX(2, 0, 4)>, /* I2C2_SDA */
-			 <RZG2L_PORT_PINMUX(2, 1, 4)>; /* I2C2_SCL */
+		pinmux = <RZV2H_PORT_PINMUX(2, 0, 4)>, /* I2C2_SDA */
+			 <RZV2H_PORT_PINMUX(2, 1, 4)>; /* I2C2_SCL */
 	};
 
 	i2c3_pins: i2c3 {
-		pinmux = <RZG2L_PORT_PINMUX(3, 6, 1)>, /* I2C3_SDA */
-			 <RZG2L_PORT_PINMUX(3, 7, 1)>; /* I2C3_SCL */
+		pinmux = <RZV2H_PORT_PINMUX(3, 6, 1)>, /* I2C3_SDA */
+			 <RZV2H_PORT_PINMUX(3, 7, 1)>; /* I2C3_SCL */
 	};
 
 	i2c6_pins: i2c6 {
-		pinmux = <RZG2L_PORT_PINMUX(4, 4, 1)>, /* I2C6_SDA */
-			 <RZG2L_PORT_PINMUX(4, 5, 1)>; /* I2C6_SCL */
+		pinmux = <RZV2H_PORT_PINMUX(4, 4, 1)>, /* I2C6_SDA */
+			 <RZV2H_PORT_PINMUX(4, 5, 1)>; /* I2C6_SCL */
 	};
 
 	i2c7_pins: i2c7 {
-		pinmux = <RZG2L_PORT_PINMUX(4, 6, 1)>, /* I2C7_SDA */
-			 <RZG2L_PORT_PINMUX(4, 7, 1)>; /* I2C7_SCL */
+		pinmux = <RZV2H_PORT_PINMUX(4, 6, 1)>, /* I2C7_SDA */
+			 <RZV2H_PORT_PINMUX(4, 7, 1)>; /* I2C7_SCL */
 	};
 
 	i2c8_pins: i2c8 {
-		pinmux = <RZG2L_PORT_PINMUX(0, 6, 1)>, /* I2C8_SDA */
-			 <RZG2L_PORT_PINMUX(0, 7, 1)>; /* I2C8_SCL */
+		pinmux = <RZV2H_PORT_PINMUX(0, 6, 1)>, /* I2C8_SDA */
+			 <RZV2H_PORT_PINMUX(0, 7, 1)>; /* I2C8_SCL */
 	};
 
 	scif_pins: scif {
@@ -199,7 +199,7 @@
 
 	sd1-pwr-en-hog {
 		gpio-hog;
-		gpios = <RZG2L_GPIO(10, 3) GPIO_ACTIVE_HIGH>;
+		gpios = <RZV2H_GPIO(A, 3) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "sd1_pwr_en";
 	};
@@ -219,7 +219,7 @@
 		};
 
 		sd1_cd {
-			pinmux = <RZG2L_PORT_PINMUX(9, 4, 14)>; /* SD1_CD */
+			pinmux = <RZV2H_PORT_PINMUX(9, 4, 14)>; /* SD1_CD */
 		};
 	};
 };

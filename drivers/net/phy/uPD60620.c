@@ -90,7 +90,7 @@ static struct phy_driver upd60620_driver[1] = { {
 
 module_phy_driver(upd60620_driver);
 
-static struct mdio_device_id __maybe_unused upd60620_tbl[] = {
+static const struct mdio_device_id __maybe_unused upd60620_tbl[] = {
 	{ UPD60620_PHY_ID, 0xfffffffe },
 	{ }
 };

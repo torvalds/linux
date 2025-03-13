@@ -470,7 +470,7 @@ out:
 	return rc;
 }
 
-static struct pci_device_id efct_pci_table[] = {
+static const struct pci_device_id efct_pci_table[] = {
 	{PCI_DEVICE(EFCT_VENDOR_ID, EFCT_DEVICE_LANCER_G6), 0},
 	{PCI_DEVICE(EFCT_VENDOR_ID, EFCT_DEVICE_LANCER_G7), 0},
 	{}	/* terminate list */

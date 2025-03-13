@@ -23,7 +23,7 @@ if [ $# -ne 1 ]; then
 	ktap_exit_fail_msg "usage: $0 <script>"
 	exit "$KSFT_FAIL"
 fi
-script="$1"
+script="$(basename $1)"
 
 if [ -z "$(which packetdrill)" ]; then
 	ktap_skip_all "packetdrill not found in PATH"
@@ -31,16 +31,32 @@ if [ -z "$(which packetdrill)" ]; then
 fi
 
 declare -a optargs
+failfunc=ktap_test_fail
+
 if [[ -n "${KSFT_MACHINE_SLOW}" ]]; then
 	optargs+=('--tolerance_usecs=14000')
+
+	# xfail tests that are known flaky with dbg config, not fixable.
+	# still run them for coverage (and expect 100% pass without dbg).
+	declare -ar xfail_list=(
+		"tcp_eor_no-coalesce-retrans.pkt"
+		"tcp_fast_recovery_prr-ss.*.pkt"
+		"tcp_slow_start_slow-start-after-win-update.pkt"
+		"tcp_timestamping.*.pkt"
+		"tcp_user_timeout_user-timeout-probe.pkt"
+		"tcp_zerocopy_epoll_.*.pkt"
+		"tcp_tcp_info_tcp-info-.*-limited.pkt"
+	)
+	readonly xfail_regex="^($(printf '%s|' "${xfail_list[@]}"))$"
+	[[ "$script" =~ ${xfail_regex} ]] && failfunc=ktap_test_xfail
 fi
 
 ktap_print_header
 ktap_set_plan 2
 
-unshare -n packetdrill ${ipv4_args[@]} ${optargs[@]} $(basename $script) > /dev/null \
-	&& ktap_test_pass "ipv4" || ktap_test_fail "ipv4"
-unshare -n packetdrill ${ipv6_args[@]} ${optargs[@]} $(basename $script) > /dev/null \
-	&& ktap_test_pass "ipv6" || ktap_test_fail "ipv6"
+unshare -n packetdrill ${ipv4_args[@]} ${optargs[@]} $script > /dev/null \
+	&& ktap_test_pass "ipv4" || $failfunc "ipv4"
+unshare -n packetdrill ${ipv6_args[@]} ${optargs[@]} $script > /dev/null \
+	&& ktap_test_pass "ipv6" || $failfunc "ipv6"
 
 ktap_finished

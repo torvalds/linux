@@ -464,12 +464,8 @@ static void ki2c_unregister_devices(struct ki2c *ki2c)
 {
 	int i;
 
-	for (i = 0; i < ki2c->client_size; i++) {
-		struct i2c_client *client = ki2c->client[i];
-
-		if (client)
-			i2c_unregister_device(client);
-	}
+	for (i = 0; i < ki2c->client_size; i++)
+		i2c_unregister_device(ki2c->client[i]);
 }
 
 static int ki2c_register_devices(struct ki2c *ki2c)

@@ -49,12 +49,12 @@ static int __init hyperv_init(void)
 	hv_set_vpreg(HV_REGISTER_GUEST_OS_ID, guest_id);
 
 	/* Get the features and hints from Hyper-V */
-	hv_get_vpreg_128(HV_REGISTER_FEATURES, &result);
+	hv_get_vpreg_128(HV_REGISTER_PRIVILEGES_AND_FEATURES_INFO, &result);
 	ms_hyperv.features = result.as32.a;
 	ms_hyperv.priv_high = result.as32.b;
 	ms_hyperv.misc_features = result.as32.c;
 
-	hv_get_vpreg_128(HV_REGISTER_ENLIGHTENMENTS, &result);
+	hv_get_vpreg_128(HV_REGISTER_FEATURES_INFO, &result);
 	ms_hyperv.hints = result.as32.a;
 
 	pr_info("Hyper-V: privilege flags low 0x%x, high 0x%x, hints 0x%x, misc 0x%x\n",

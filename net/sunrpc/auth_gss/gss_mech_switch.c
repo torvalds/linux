@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/oid_registry.h>
 #include <linux/sunrpc/msg_prot.h>
-#include <linux/sunrpc/gss_asn1.h>
 #include <linux/sunrpc/auth_gss.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/gss_err.h>

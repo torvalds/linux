@@ -18,7 +18,8 @@ struct cxl_event_record_hdr {
 	__le16 related_handle;
 	__le64 timestamp;
 	u8 maint_op_class;
-	u8 reserved[15];
+	u8 maint_op_sub_class;
+	u8 reserved[14];
 } __packed;
 
 struct cxl_event_media_hdr {
@@ -44,19 +45,22 @@ struct cxl_event_generic {
 
 /*
  * General Media Event Record
- * CXL rev 3.0 Section 8.2.9.2.1.1; Table 8-43
+ * CXL rev 3.1 Section 8.2.9.2.1.1; Table 8-45
  */
 #define CXL_EVENT_GEN_MED_COMP_ID_SIZE	0x10
 struct cxl_event_gen_media {
 	struct cxl_event_media_hdr media_hdr;
 	u8 device[3];
 	u8 component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
-	u8 reserved[46];
+	u8 cme_threshold_ev_flags;
+	u8 cme_count[3];
+	u8 sub_type;
+	u8 reserved[41];
 } __packed;
 
 /*
  * DRAM Event Record - DER
- * CXL rev 3.0 section 8.2.9.2.1.2; Table 3-44
+ * CXL rev 3.1 section 8.2.9.2.1.2; Table 8-46
  */
 #define CXL_EVENT_DER_CORRECTION_MASK_SIZE	0x20
 struct cxl_event_dram {
@@ -67,12 +71,17 @@ struct cxl_event_dram {
 	u8 row[3];
 	u8 column[2];
 	u8 correction_mask[CXL_EVENT_DER_CORRECTION_MASK_SIZE];
-	u8 reserved[0x17];
+	u8 component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
+	u8 sub_channel;
+	u8 cme_threshold_ev_flags;
+	u8 cvme_count[3];
+	u8 sub_type;
+	u8 reserved;
 } __packed;
 
 /*
  * Get Health Info Record
- * CXL rev 3.0 section 8.2.9.8.3.1; Table 8-100
+ * CXL rev 3.1 section 8.2.9.9.3.1; Table 8-133
  */
 struct cxl_get_health_info {
 	u8 health_status;
@@ -87,13 +96,16 @@ struct cxl_get_health_info {
 
 /*
  * Memory Module Event Record
- * CXL rev 3.0 section 8.2.9.2.1.3; Table 8-45
+ * CXL rev 3.1 section 8.2.9.2.1.3; Table 8-47
  */
 struct cxl_event_mem_module {
 	struct cxl_event_record_hdr hdr;
 	u8 event_type;
 	struct cxl_get_health_info info;
-	u8 reserved[0x3d];
+	u8 validity_flags[2];
+	u8 component_id[CXL_EVENT_GEN_MED_COMP_ID_SIZE];
+	u8 event_sub_type;
+	u8 reserved[0x2a];
 } __packed;
 
 union cxl_event {

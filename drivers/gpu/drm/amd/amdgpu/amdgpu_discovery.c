@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2018-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -104,7 +104,9 @@
 #include "smuio_v13_0_6.h"
 #include "smuio_v14_0_2.h"
 #include "vcn_v5_0_0.h"
+#include "vcn_v5_0_1.h"
 #include "jpeg_v5_0_0.h"
+#include "jpeg_v5_0_1.h"
 
 #include "amdgpu_vpe.h"
 #if defined(CONFIG_DRM_AMD_ISP)
@@ -1340,7 +1342,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				 */
 				if (adev->vcn.num_vcn_inst <
 				    AMDGPU_MAX_VCN_INSTANCES) {
-					adev->vcn.vcn_config[adev->vcn.num_vcn_inst] =
+					adev->vcn.inst[adev->vcn.num_vcn_inst].vcn_config =
 						ip->revision & 0xc0;
 					adev->vcn.num_vcn_inst++;
 					adev->vcn.inst_mask |=
@@ -1705,7 +1707,7 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 		 * so this won't overflow.
 		 */
 		for (v = 0; v < adev->vcn.num_vcn_inst; v++) {
-			adev->vcn.vcn_codec_disable_mask[v] =
+			adev->vcn.inst[v].vcn_codec_disable_mask =
 				le32_to_cpu(vcn_info->v1.instance_info[v].fuse_data.all_bits);
 		}
 		break;
@@ -1836,6 +1838,7 @@ static int amdgpu_discovery_set_common_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 2):
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		break;
 	case IP_VERSION(10, 1, 10):
@@ -1890,6 +1893,7 @@ static int amdgpu_discovery_set_gmc_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 2):
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
 		break;
 	case IP_VERSION(10, 1, 10):
@@ -2013,6 +2017,7 @@ static int amdgpu_discovery_set_psp_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(13, 0, 8):
 	case IP_VERSION(13, 0, 10):
 	case IP_VERSION(13, 0, 11):
+	case IP_VERSION(13, 0, 12):
 	case IP_VERSION(13, 0, 14):
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
@@ -2184,6 +2189,7 @@ static int amdgpu_discovery_set_gc_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		amdgpu_device_ip_block_add(adev, &gfx_v9_4_3_ip_block);
 		break;
 	case IP_VERSION(10, 1, 10):
@@ -2238,6 +2244,7 @@ static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(4, 4, 2):
 	case IP_VERSION(4, 4, 5):
+	case IP_VERSION(4, 4, 4):
 		amdgpu_device_ip_block_add(adev, &sdma_v4_4_2_ip_block);
 		break;
 	case IP_VERSION(5, 0, 0):
@@ -2361,6 +2368,10 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &vcn_v5_0_0_ip_block);
 			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_0_ip_block);
 			break;
+		case IP_VERSION(5, 0, 1):
+			amdgpu_device_ip_block_add(adev, &vcn_v5_0_1_ip_block);
+			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_1_ip_block);
+			break;
 		default:
 			dev_err(adev->dev,
 				"Failed to add vcn/jpeg ip block(UVD_HWIP:0x%x)\n",
@@ -2405,6 +2416,7 @@ static void amdgpu_discovery_init_soc_config(struct amdgpu_device *adev)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		aqua_vanjaram_init_soc_config(adev);
 		break;
 	default:
@@ -2652,6 +2664,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 2):
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		adev->family = AMDGPU_FAMILY_AI;
 		break;
 	case IP_VERSION(9, 1, 0):

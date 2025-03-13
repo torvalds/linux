@@ -93,7 +93,7 @@ static char *ocfs2_lock_type_strings[] = {
 	[OCFS2_LOCK_TYPE_DATA] = "Data",
 	[OCFS2_LOCK_TYPE_SUPER] = "Super",
 	[OCFS2_LOCK_TYPE_RENAME] = "Rename",
-	/* Need to differntiate from [R]ename.. serializing writes is the
+	/* Need to differentiate from [R]ename.. serializing writes is the
 	 * important job it does, anyway. */
 	[OCFS2_LOCK_TYPE_RW] = "Write/Read",
 	[OCFS2_LOCK_TYPE_DENTRY] = "Dentry",

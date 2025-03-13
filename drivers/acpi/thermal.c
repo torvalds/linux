@@ -1082,7 +1082,7 @@ static void __exit acpi_thermal_exit(void)
 module_init(acpi_thermal_init);
 module_exit(acpi_thermal_exit);
 
-MODULE_IMPORT_NS(ACPI_THERMAL);
+MODULE_IMPORT_NS("ACPI_THERMAL");
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI Thermal Zone Driver");
 MODULE_LICENSE("GPL");

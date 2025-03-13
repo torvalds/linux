@@ -41,6 +41,12 @@ const char *usb_ep_type_string(int ep_type)
 }
 EXPORT_SYMBOL_GPL(usb_ep_type_string);
 
+/**
+ * usb_otg_state_string() - returns human readable name of OTG state.
+ * @state: the OTG state to return the human readable name of. If it's not
+ *    any of the states defined in usb_otg_state enum, 'UNDEFINED' will be
+ *    returned.
+ */
 const char *usb_otg_state_string(enum usb_otg_state state)
 {
 	static const char *const names[] = {
@@ -179,6 +185,14 @@ static const char *const usb_dr_modes[] = {
 	[USB_DR_MODE_OTG]		= "otg",
 };
 
+/**
+ * usb_get_dr_mode_from_string() - Get dual role mode for given string
+ * @str: String to find the corresponding dual role mode for
+ *
+ * This function performs a lookup for the given string and returns the
+ * corresponding enum usb_dr_mode. If no match for the string could be found,
+ * 'USB_DR_MODE_UNKNOWN' is returned.
+ */
 static enum usb_dr_mode usb_get_dr_mode_from_string(const char *str)
 {
 	int ret;

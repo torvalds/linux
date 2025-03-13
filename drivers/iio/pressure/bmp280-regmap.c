@@ -39,7 +39,7 @@ const struct regmap_config bmp180_regmap_config = {
 	.writeable_reg = bmp180_is_writeable_reg,
 	.volatile_reg = bmp180_is_volatile_reg,
 };
-EXPORT_SYMBOL_NS(bmp180_regmap_config, IIO_BMP280);
+EXPORT_SYMBOL_NS(bmp180_regmap_config, "IIO_BMP280");
 
 static bool bme280_is_writeable_reg(struct device *dev, unsigned int reg)
 {
@@ -200,7 +200,7 @@ const struct regmap_config bmp280_regmap_config = {
 	.writeable_reg = bmp280_is_writeable_reg,
 	.volatile_reg = bmp280_is_volatile_reg,
 };
-EXPORT_SYMBOL_NS(bmp280_regmap_config, IIO_BMP280);
+EXPORT_SYMBOL_NS(bmp280_regmap_config, "IIO_BMP280");
 
 const struct regmap_config bme280_regmap_config = {
 	.reg_bits = 8,
@@ -212,7 +212,7 @@ const struct regmap_config bme280_regmap_config = {
 	.writeable_reg = bme280_is_writeable_reg,
 	.volatile_reg = bme280_is_volatile_reg,
 };
-EXPORT_SYMBOL_NS(bme280_regmap_config, IIO_BMP280);
+EXPORT_SYMBOL_NS(bme280_regmap_config, "IIO_BMP280");
 
 const struct regmap_config bmp380_regmap_config = {
 	.reg_bits = 8,
@@ -224,7 +224,7 @@ const struct regmap_config bmp380_regmap_config = {
 	.writeable_reg = bmp380_is_writeable_reg,
 	.volatile_reg = bmp380_is_volatile_reg,
 };
-EXPORT_SYMBOL_NS(bmp380_regmap_config, IIO_BMP280);
+EXPORT_SYMBOL_NS(bmp380_regmap_config, "IIO_BMP280");
 
 const struct regmap_config bmp580_regmap_config = {
 	.reg_bits = 8,
@@ -236,4 +236,4 @@ const struct regmap_config bmp580_regmap_config = {
 	.writeable_reg = bmp580_is_writeable_reg,
 	.volatile_reg = bmp580_is_volatile_reg,
 };
-EXPORT_SYMBOL_NS(bmp580_regmap_config, IIO_BMP280);
+EXPORT_SYMBOL_NS(bmp580_regmap_config, "IIO_BMP280");

@@ -12,32 +12,6 @@
 #include <linux/module.h>
 #include <asm/io.h>
 
-/* Copies a block of memory to a device in an efficient manner.
- * Assumes the device can cope with 32-bit transfers.  If it can't,
- * don't use this function.
- */
-void memcpy_toio(volatile void __iomem *dst, const void *src, int count)
-{
-	if (((unsigned long)dst & 3) != ((unsigned long)src & 3))
-		goto bytecopy;
-	while ((unsigned long)dst & 3) {
-		writeb(*(char *)src, dst++);
-		src++;
-		count--;
-	}
-	while (count > 3) {
-		__raw_writel(*(u32 *)src, dst);
-		src += 4;
-		dst += 4;
-		count -= 4;
-	}
- bytecopy:
-	while (count--) {
-		writeb(*(char *)src, dst++);
-		src++;
-	}
-}
-
 /*
 ** Copies a block of memory from a device in an efficient manner.
 ** Assumes the device can cope with 32-bit transfers.  If it can't,
@@ -96,27 +70,6 @@ void memcpy_fromio(void *dst, const volatile void __iomem *src, int count)
 		*(char *)dst = readb(src);
 		src++;
 		dst++;
-	}
-}
-
-/* Sets a block of memory on a device to a given value.
- * Assumes the device can cope with 32-bit transfers.  If it can't,
- * don't use this function.
- */
-void memset_io(volatile void __iomem *addr, unsigned char val, int count)
-{
-	u32 val32 = (val << 24) | (val << 16) | (val << 8) | val;
-	while ((unsigned long)addr & 3) {
-		writeb(val, addr++);
-		count--;
-	}
-	while (count > 3) {
-		__raw_writel(val32, addr);
-		addr += 4;
-		count -= 4;
-	}
-	while (count--) {
-		writeb(val, addr++);
 	}
 }
 

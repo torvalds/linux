@@ -670,6 +670,9 @@ static ssize_t read_req_latency_avg_show(struct device *dev,
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 	struct ufs_hba_monitor *m = &hba->monitor;
 
+	if (!m->nr_req[READ])
+		return sysfs_emit(buf, "0\n");
+
 	return sysfs_emit(buf, "%llu\n", div_u64(ktime_to_us(m->lat_sum[READ]),
 						 m->nr_req[READ]));
 }
@@ -736,6 +739,9 @@ static ssize_t write_req_latency_avg_show(struct device *dev,
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 	struct ufs_hba_monitor *m = &hba->monitor;
+
+	if (!m->nr_req[WRITE])
+		return sysfs_emit(buf, "0\n");
 
 	return sysfs_emit(buf, "%llu\n", div_u64(ktime_to_us(m->lat_sum[WRITE]),
 						 m->nr_req[WRITE]));
@@ -1433,6 +1439,7 @@ static ssize_t max_number_of_rtt_store(struct device *dev,
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 	struct ufs_dev_info *dev_info = &hba->dev_info;
 	struct scsi_device *sdev;
+	unsigned int memflags;
 	unsigned int rtt;
 	int ret;
 
@@ -1452,14 +1459,16 @@ static ssize_t max_number_of_rtt_store(struct device *dev,
 
 	ufshcd_rpm_get_sync(hba);
 
+	memflags = memalloc_noio_save();
 	shost_for_each_device(sdev, hba->host)
-		blk_mq_freeze_queue(sdev->request_queue);
+		blk_mq_freeze_queue_nomemsave(sdev->request_queue);
 
 	ret = ufshcd_query_attr(hba, UPIU_QUERY_OPCODE_WRITE_ATTR,
 		QUERY_ATTR_IDN_MAX_NUM_OF_RTT, 0, 0, &rtt);
 
 	shost_for_each_device(sdev, hba->host)
-		blk_mq_unfreeze_queue(sdev->request_queue);
+		blk_mq_unfreeze_queue_nomemrestore(sdev->request_queue);
+	memalloc_noio_restore(memflags);
 
 	ufshcd_rpm_put_sync(hba);
 

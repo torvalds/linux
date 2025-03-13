@@ -52,10 +52,3 @@ examples:
 
         #qca,ddr-wb-channel-cells = <1>;
     };
-
-    interrupt-controller {
-        // ...
-        qca,ddr-wb-channel-interrupts = <2>, <3>, <4>, <5>;
-        qca,ddr-wb-channels = <&ddr_ctrl 3>, <&ddr_ctrl 2>,
-                              <&ddr_ctrl 0>, <&ddr_ctrl 1>;
-    };

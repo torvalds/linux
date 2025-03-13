@@ -82,4 +82,12 @@ struct bulk_cs_wrap {
 #define US_BULK_RESET_REQUEST   0xff
 #define US_BULK_GET_MAX_LUN     0xfe
 
+/*
+ * If 4 LUNs are supported then the LUNs would be
+ * numbered from 0 to 3, and the return value for
+ * US_BULK_GET_MAX_LUN request would be 3. The valid
+ * LUN field is 4 bits wide, the upper limit is 0x0f.
+ */
+#define US_BULK_MAX_LUN_LIMIT   0x0f
+
 #endif

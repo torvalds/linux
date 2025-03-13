@@ -112,22 +112,24 @@ unevaluatedProperties: false
 
 examples:
   - |
-   i2c {
-     #address-cells = <1>;
-     #size-cells = <0>;
+    #include <dt-bindings/gpio/gpio.h>
 
-     codec@2a {
-       compatible = "ti,tas5717";
-       reg = <0x2a>;
-       #sound-dai-cells = <0>;
-       reset-gpios = <&gpio1 15 0>;
-       pdn-gpios = <&gpio1 15 0>;
-       AVDD-supply = <&avdd_supply>;
-       DVDD-supply = <&dvdd_supply>;
-       HPVDD-supply = <&hpvdd_supply>;
-       PVDD_AB-supply = <&pvdd_ab_supply>;
-       PVDD_CD-supply = <&pvdd_cd_supply>;
-     };
-   };
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        codec@2a {
+            compatible = "ti,tas5717";
+            reg = <0x2a>;
+            #sound-dai-cells = <0>;
+            reset-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+            pdn-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+            AVDD-supply = <&avdd_supply>;
+            DVDD-supply = <&dvdd_supply>;
+            HPVDD-supply = <&hpvdd_supply>;
+            PVDD_AB-supply = <&pvdd_ab_supply>;
+            PVDD_CD-supply = <&pvdd_cd_supply>;
+        };
+    };
 
 ...

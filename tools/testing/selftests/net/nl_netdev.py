@@ -18,6 +18,23 @@ def lo_check(nf) -> None:
     ksft_eq(len(lo_info['xdp-rx-metadata-features']), 0)
 
 
+def napi_list_check(nf) -> None:
+    with NetdevSimDev(queue_count=100) as nsimdev:
+        nsim = nsimdev.nsims[0]
+
+        ip(f"link set dev {nsim.ifname} up")
+
+        napis = nf.napi_get({'ifindex': nsim.ifindex}, dump=True)
+        ksft_eq(len(napis), 100)
+
+        for q in [50, 0, 99]:
+            for i in range(4):
+                nsim.dfs_write("queue_reset", f"{q} {i}")
+                napis = nf.napi_get({'ifindex': nsim.ifindex}, dump=True)
+                ksft_eq(len(napis), 100,
+                        comment=f"queue count after reset queue {q} mode {i}")
+
+
 def page_pool_check(nf) -> None:
     with NetdevSimDev() as nsimdev:
         nsim = nsimdev.nsims[0]
@@ -89,7 +106,7 @@ def page_pool_check(nf) -> None:
 
 def main() -> None:
     nf = NetdevFamily()
-    ksft_run([empty_check, lo_check, page_pool_check],
+    ksft_run([empty_check, lo_check, page_pool_check, napi_list_check],
              args=(nf, ))
     ksft_exit()
 

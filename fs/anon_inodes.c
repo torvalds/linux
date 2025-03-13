@@ -60,14 +60,14 @@ static struct inode *anon_inode_make_secure_inode(
 	const struct inode *context_inode)
 {
 	struct inode *inode;
-	const struct qstr qname = QSTR_INIT(name, strlen(name));
 	int error;
 
 	inode = alloc_anon_inode(anon_inode_mnt->mnt_sb);
 	if (IS_ERR(inode))
 		return inode;
 	inode->i_flags &= ~S_PRIVATE;
-	error =	security_inode_init_security_anon(inode, &qname, context_inode);
+	error =	security_inode_init_security_anon(inode, &QSTR(name),
+						  context_inode);
 	if (error) {
 		iput(inode);
 		return ERR_PTR(error);

@@ -275,8 +275,9 @@ EXPORT_SYMBOL(match_hex);
  *
  * Description: Parse the string @str to check if matches wildcard
  * pattern @pattern. The pattern may contain two types of wildcards:
- *   '*' - matches zero or more characters
- *   '?' - matches one character
+ *
+ * * '*' - matches zero or more characters
+ * * '?' - matches one character
  *
  * Return: If the @str matches the @pattern, return true, else return false.
  */

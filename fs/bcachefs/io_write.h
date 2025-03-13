@@ -20,6 +20,8 @@ static inline void bch2_latency_acct(struct bch_dev *ca, u64 submit_time, int rw
 void bch2_submit_wbio_replicas(struct bch_write_bio *, struct bch_fs *,
 			       enum bch_data_type, const struct bkey_i *, bool);
 
+void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op);
+
 #define BCH_WRITE_FLAGS()		\
 	x(ALLOC_NOWAIT)			\
 	x(CACHED)			\

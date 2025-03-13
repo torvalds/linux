@@ -6,9 +6,8 @@
  * the ARM64 architecture.  See include/asm-generic/mshyperv.h for
  * definitions are that architecture independent.
  *
- * Definitions that are specified in the Hyper-V Top Level Functional
- * Spec (TLFS) should not go in this file, but should instead go in
- * hyperv-tlfs.h.
+ * Definitions that are derived from Hyper-V code or headers should not go in
+ * this file, but should instead go in the relevant files in include/hyperv.
  *
  * Copyright (C) 2021, Microsoft, Inc.
  *
@@ -20,7 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/arm-smccc.h>
-#include <asm/hyperv-tlfs.h>
+#include <hyperv/hvhdk.h>
 
 /*
  * Declare calls to get and set Hyper-V VP register values on ARM64, which

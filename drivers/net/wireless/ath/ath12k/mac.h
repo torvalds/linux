@@ -14,6 +14,7 @@
 struct ath12k;
 struct ath12k_base;
 struct ath12k_hw;
+struct ath12k_hw_group;
 struct ath12k_pdev_map;
 
 struct ath12k_generic_iter {
@@ -44,6 +45,12 @@ struct ath12k_generic_iter {
 #define ATH12K_DEFAULT_LINK_ID	0
 #define ATH12K_INVALID_LINK_ID	255
 
+/* Default link after the IEEE802.11 defined Max link id limit
+ * for driver usage purpose.
+ */
+#define ATH12K_DEFAULT_SCAN_LINK	IEEE80211_MLD_MAX_NUM_LINKS
+#define ATH12K_NUM_MAX_LINKS		(IEEE80211_MLD_MAX_NUM_LINKS + 1)
+
 enum ath12k_supported_bw {
 	ATH12K_BW_20    = 0,
 	ATH12K_BW_40    = 1,
@@ -52,12 +59,17 @@ enum ath12k_supported_bw {
 	ATH12K_BW_320   = 4,
 };
 
+struct ath12k_mac_get_any_chanctx_conf_arg {
+	struct ath12k *ar;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+};
+
 extern const struct htt_rx_ring_tlv_filter ath12k_mac_mon_status_filter_default;
 
-void ath12k_mac_destroy(struct ath12k_base *ab);
-void ath12k_mac_unregister(struct ath12k_base *ab);
-int ath12k_mac_register(struct ath12k_base *ab);
-int ath12k_mac_allocate(struct ath12k_base *ab);
+void ath12k_mac_destroy(struct ath12k_hw_group *ag);
+void ath12k_mac_unregister(struct ath12k_hw_group *ag);
+int ath12k_mac_register(struct ath12k_hw_group *ag);
+int ath12k_mac_allocate(struct ath12k_hw_group *ag);
 int ath12k_mac_hw_ratecode_to_legacy_rate(u8 hw_rc, u8 preamble, u8 *rateidx,
 					  u16 *rate);
 u8 ath12k_mac_bitrate_to_idx(const struct ieee80211_supported_band *sband,
@@ -89,5 +101,12 @@ int ath12k_mac_vif_set_keepalive(struct ath12k_link_vif *arvif,
 				 enum wmi_sta_keepalive_method method,
 				 u32 interval);
 u8 ath12k_mac_get_target_pdev_id(struct ath12k *ar);
+int ath12k_mac_mlo_setup(struct ath12k_hw_group *ag);
+int ath12k_mac_mlo_ready(struct ath12k_hw_group *ag);
+void ath12k_mac_mlo_teardown(struct ath12k_hw_group *ag);
+int ath12k_mac_vdev_stop(struct ath12k_link_vif *arvif);
+void ath12k_mac_get_any_chanctx_conf_iter(struct ieee80211_hw *hw,
+					  struct ieee80211_chanctx_conf *conf,
+					  void *data);
 
 #endif

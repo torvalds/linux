@@ -491,8 +491,12 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 				list_del(&wait->list);
 			raw_spin_unlock(&lock->wait_lock);
 
-			if (unlikely(acquired))
+			if (unlikely(acquired)) {
 				do_six_unlock_type(lock, type);
+			} else if (type == SIX_LOCK_write) {
+				six_clear_bitmask(lock, SIX_LOCK_HELD_write);
+				six_lock_wakeup(lock, atomic_read(&lock->state), SIX_LOCK_read);
+			}
 			break;
 		}
 
@@ -501,10 +505,6 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 
 	__set_current_state(TASK_RUNNING);
 out:
-	if (ret && type == SIX_LOCK_write) {
-		six_clear_bitmask(lock, SIX_LOCK_HELD_write);
-		six_lock_wakeup(lock, atomic_read(&lock->state), SIX_LOCK_read);
-	}
 	trace_contention_end(lock, 0);
 
 	return ret;
@@ -616,14 +616,21 @@ void six_unlock_ip(struct six_lock *lock, enum six_lock_type type, unsigned long
 
 	if (type != SIX_LOCK_write)
 		six_release(&lock->dep_map, ip);
-	else
-		lock->seq++;
 
 	if (type == SIX_LOCK_intent &&
 	    lock->intent_lock_recurse) {
 		--lock->intent_lock_recurse;
 		return;
 	}
+
+	if (type == SIX_LOCK_write &&
+	    lock->write_lock_recurse) {
+		--lock->write_lock_recurse;
+		return;
+	}
+
+	if (type == SIX_LOCK_write)
+		lock->seq++;
 
 	do_six_unlock_type(lock, type);
 }
@@ -735,12 +742,12 @@ void six_lock_increment(struct six_lock *lock, enum six_lock_type type)
 			atomic_add(l[type].lock_val, &lock->state);
 		}
 		break;
+	case SIX_LOCK_write:
+		lock->write_lock_recurse++;
+		fallthrough;
 	case SIX_LOCK_intent:
 		EBUG_ON(!(atomic_read(&lock->state) & SIX_LOCK_HELD_intent));
 		lock->intent_lock_recurse++;
-		break;
-	case SIX_LOCK_write:
-		BUG();
 		break;
 	}
 }
@@ -843,7 +850,8 @@ void six_lock_exit(struct six_lock *lock)
 EXPORT_SYMBOL_GPL(six_lock_exit);
 
 void __six_lock_init(struct six_lock *lock, const char *name,
-		     struct lock_class_key *key, enum six_lock_init_flags flags)
+		     struct lock_class_key *key, enum six_lock_init_flags flags,
+		     gfp_t gfp)
 {
 	atomic_set(&lock->state, 0);
 	raw_spin_lock_init(&lock->wait_lock);
@@ -866,7 +874,7 @@ void __six_lock_init(struct six_lock *lock, const char *name,
 		 * failure if they wish by checking lock->readers, but generally
 		 * will not want to treat it as an error.
 		 */
-		lock->readers = alloc_percpu(unsigned);
+		lock->readers = alloc_percpu_gfp(unsigned, gfp);
 	}
 #endif
 }

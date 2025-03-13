@@ -293,6 +293,17 @@ Rawmidi API Extensions
   status 0x05).  When UMP core receives such a message, it updates the
   UMP EP info and the corresponding sequencer clients as well.
 
+* The legacy rawmidi device number is found in the new `tied_device`
+  field of the rawmidi info.
+  On the other hand, the UMP rawmidi device number is found in
+  `tied_device` field of the legacy rawmidi info, too.
+
+* Each substream of the legacy rawmidi may be enabled / disabled
+  dynamically depending on the UMP FB state.
+  When the selected substream is inactive, it's indicated by the bit
+  0x10 (`SNDRV_RAWMIDI_INFO_STREAM_INACTIVE`) in the `flags` field of
+  the legacy rawmidi info.
+
 
 Control API Extensions
 ======================
@@ -376,6 +387,13 @@ Sequencer API Extensions
   name and attributes accordingly, and notifies the changes via the
   announcement to the ALSA sequencer system port, similarly like the
   normal port change notification.
+
+* There are two extended event types for notifying the UMP Endpoint and
+  Function Block changes via the system announcement port:
+  type 68 (`SNDRV_SEQ_EVENT_UMP_EP_CHANGE`) and type 69
+  (`SNDRV_SEQ_EVENT_UMP_BLOCK_CHANGE`). They take the new type,
+  `snd_seq_ev_ump_notify` in the payload, indicating the client number
+  and the FB number that are changed.
 
 
 MIDI2 USB Gadget Function Driver

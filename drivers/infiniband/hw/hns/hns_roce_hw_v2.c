@@ -468,7 +468,7 @@ static inline int set_ud_wqe(struct hns_roce_qp *qp,
 	valid_num_sge = calc_wr_sge_num(wr, &msg_len);
 
 	ret = set_ud_opcode(ud_sq_wqe, wr);
-	if (WARN_ON(ret))
+	if (WARN_ON_ONCE(ret))
 		return ret;
 
 	ud_sq_wqe->msg_len = cpu_to_le32(msg_len);
@@ -572,7 +572,7 @@ static inline int set_rc_wqe(struct hns_roce_qp *qp,
 	rc_sq_wqe->msg_len = cpu_to_le32(msg_len);
 
 	ret = set_rc_opcode(hr_dev, rc_sq_wqe, wr);
-	if (WARN_ON(ret))
+	if (WARN_ON_ONCE(ret))
 		return ret;
 
 	hr_reg_write(rc_sq_wqe, RC_SEND_WQE_SO,
@@ -670,6 +670,10 @@ static void write_dwqe(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 #define HNS_ROCE_SL_SHIFT 2
 	struct hns_roce_v2_rc_send_wqe *rc_sq_wqe = wqe;
 
+	if (unlikely(qp->state == IB_QPS_ERR)) {
+		flush_cqe(hr_dev, qp);
+		return;
+	}
 	/* All kinds of DirectWQE have the same header field layout */
 	hr_reg_enable(rc_sq_wqe, RC_SEND_WQE_FLAG);
 	hr_reg_write(rc_sq_wqe, RC_SEND_WQE_DB_SL_L, qp->sl);
@@ -1282,10 +1286,8 @@ static u32 hns_roce_cmdq_tx_timeout(u16 opcode, u32 tx_timeout)
 	return tx_timeout;
 }
 
-static void hns_roce_wait_csq_done(struct hns_roce_dev *hr_dev, u16 opcode)
+static void hns_roce_wait_csq_done(struct hns_roce_dev *hr_dev, u32 tx_timeout)
 {
-	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	u32 tx_timeout = hns_roce_cmdq_tx_timeout(opcode, priv->cmq.tx_timeout);
 	u32 timeout = 0;
 
 	do {
@@ -1295,8 +1297,9 @@ static void hns_roce_wait_csq_done(struct hns_roce_dev *hr_dev, u16 opcode)
 	} while (++timeout < tx_timeout);
 }
 
-static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
-			       struct hns_roce_cmq_desc *desc, int num)
+static int __hns_roce_cmq_send_one(struct hns_roce_dev *hr_dev,
+				   struct hns_roce_cmq_desc *desc,
+				   int num, u32 tx_timeout)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
@@ -1304,8 +1307,6 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 	u32 tail;
 	int ret;
 	int i;
-
-	spin_lock_bh(&csq->lock);
 
 	tail = csq->head;
 
@@ -1320,22 +1321,17 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 
 	atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_CMDS_CNT]);
 
-	hns_roce_wait_csq_done(hr_dev, le16_to_cpu(desc->opcode));
+	hns_roce_wait_csq_done(hr_dev, tx_timeout);
 	if (hns_roce_cmq_csq_done(hr_dev)) {
 		ret = 0;
 		for (i = 0; i < num; i++) {
 			/* check the result of hardware write back */
-			desc[i] = csq->desc[tail++];
+			desc_ret = le16_to_cpu(csq->desc[tail++].retval);
 			if (tail == csq->desc_num)
 				tail = 0;
-
-			desc_ret = le16_to_cpu(desc[i].retval);
 			if (likely(desc_ret == CMD_EXEC_SUCCESS))
 				continue;
 
-			dev_err_ratelimited(hr_dev->dev,
-					    "Cmdq IO error, opcode = 0x%x, return = 0x%x.\n",
-					    desc->opcode, desc_ret);
 			ret = hns_roce_cmd_err_convert_errno(desc_ret);
 		}
 	} else {
@@ -1350,10 +1346,50 @@ static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 		ret = -EAGAIN;
 	}
 
-	spin_unlock_bh(&csq->lock);
-
 	if (ret)
 		atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_CMDS_ERR_CNT]);
+
+	return ret;
+}
+
+static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_cmq_desc *desc, int num)
+{
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
+	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
+	u16 opcode = le16_to_cpu(desc->opcode);
+	u32 tx_timeout = hns_roce_cmdq_tx_timeout(opcode, priv->cmq.tx_timeout);
+	u8 try_cnt = HNS_ROCE_OPC_POST_MB_TRY_CNT;
+	u32 rsv_tail;
+	int ret;
+	int i;
+
+	while (try_cnt) {
+		try_cnt--;
+
+		spin_lock_bh(&csq->lock);
+		rsv_tail = csq->head;
+		ret = __hns_roce_cmq_send_one(hr_dev, desc, num, tx_timeout);
+		if (opcode == HNS_ROCE_OPC_POST_MB && ret == -ETIME &&
+		    try_cnt) {
+			spin_unlock_bh(&csq->lock);
+			mdelay(HNS_ROCE_OPC_POST_MB_RETRY_GAP_MSEC);
+			continue;
+		}
+
+		for (i = 0; i < num; i++) {
+			desc[i] = csq->desc[rsv_tail++];
+			if (rsv_tail == csq->desc_num)
+				rsv_tail = 0;
+		}
+		spin_unlock_bh(&csq->lock);
+		break;
+	}
+
+	if (ret)
+		dev_err_ratelimited(hr_dev->dev,
+				    "Cmdq IO error, opcode = 0x%x, return = %d.\n",
+				    opcode, ret);
 
 	return ret;
 }
@@ -5619,6 +5655,9 @@ static void put_dip_ctx_idx(struct hns_roce_dev *hr_dev,
 {
 	struct hns_roce_dip *hr_dip = hr_qp->dip;
 
+	if (!hr_dip)
+		return;
+
 	xa_lock(&hr_dev->qp_table.dip_xa);
 
 	hr_dip->qp_cnt--;
@@ -7178,9 +7217,22 @@ static int hns_roce_hw_v2_reset_notify(struct hnae3_handle *handle,
 	return ret;
 }
 
+static void hns_roce_hw_v2_link_status_change(struct hnae3_handle *handle,
+					      bool linkup)
+{
+	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
+	struct net_device *netdev = handle->rinfo.netdev;
+
+	if (linkup || !hr_dev)
+		return;
+
+	ib_dispatch_port_state_event(&hr_dev->ib_dev, netdev);
+}
+
 static const struct hnae3_client_ops hns_roce_hw_v2_ops = {
 	.init_instance = hns_roce_hw_v2_init_instance,
 	.uninit_instance = hns_roce_hw_v2_uninit_instance,
+	.link_status_change = hns_roce_hw_v2_link_status_change,
 	.reset_notify = hns_roce_hw_v2_reset_notify,
 };
 

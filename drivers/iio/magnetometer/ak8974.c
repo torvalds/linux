@@ -197,7 +197,7 @@ struct ak8974 {
 	/* Ensure timestamp is naturally aligned */
 	struct {
 		__le16 channels[3];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

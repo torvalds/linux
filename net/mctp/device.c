@@ -20,8 +20,7 @@
 #include <net/sock.h>
 
 struct mctp_dump_cb {
-	int h;
-	int idx;
+	unsigned long ifindex;
 	size_t a_idx;
 };
 
@@ -115,43 +114,29 @@ static int mctp_dump_addrinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct mctp_dump_cb *mcb = (void *)cb->ctx;
 	struct net *net = sock_net(skb->sk);
-	struct hlist_head *head;
 	struct net_device *dev;
 	struct ifaddrmsg *hdr;
 	struct mctp_dev *mdev;
-	int ifindex;
-	int idx = 0, rc;
+	int ifindex, rc;
 
 	hdr = nlmsg_data(cb->nlh);
 	// filter by ifindex if requested
 	ifindex = hdr->ifa_index;
 
 	rcu_read_lock();
-	for (; mcb->h < NETDEV_HASHENTRIES; mcb->h++, mcb->idx = 0) {
-		idx = 0;
-		head = &net->dev_index_head[mcb->h];
-		hlist_for_each_entry_rcu(dev, head, index_hlist) {
-			if (idx >= mcb->idx &&
-			    (ifindex == 0 || ifindex == dev->ifindex)) {
-				mdev = __mctp_dev_get(dev);
-				if (mdev) {
-					rc = mctp_dump_dev_addrinfo(mdev,
-								    skb, cb);
-					mctp_dev_put(mdev);
-					// Error indicates full buffer, this
-					// callback will get retried.
-					if (rc < 0)
-						goto out;
-				}
-			}
-			idx++;
-			// reset for next iteration
-			mcb->a_idx = 0;
-		}
+	for_each_netdev_dump(net, dev, mcb->ifindex) {
+		if (ifindex && ifindex != dev->ifindex)
+			continue;
+		mdev = __mctp_dev_get(dev);
+		if (!mdev)
+			continue;
+		rc = mctp_dump_dev_addrinfo(mdev, skb, cb);
+		mctp_dev_put(mdev);
+		if (rc < 0)
+			break;
+		mcb->a_idx = 0;
 	}
-out:
 	rcu_read_unlock();
-	mcb->idx = idx;
 
 	return skb->len;
 }
@@ -531,9 +516,12 @@ static struct notifier_block mctp_dev_nb = {
 };
 
 static const struct rtnl_msg_handler mctp_device_rtnl_msg_handlers[] = {
-	{THIS_MODULE, PF_MCTP, RTM_NEWADDR, mctp_rtm_newaddr, NULL, 0},
-	{THIS_MODULE, PF_MCTP, RTM_DELADDR, mctp_rtm_deladdr, NULL, 0},
-	{THIS_MODULE, PF_MCTP, RTM_GETADDR, NULL, mctp_dump_addrinfo, 0},
+	{.owner = THIS_MODULE, .protocol = PF_MCTP, .msgtype = RTM_NEWADDR,
+	 .doit = mctp_rtm_newaddr},
+	{.owner = THIS_MODULE, .protocol = PF_MCTP, .msgtype = RTM_DELADDR,
+	 .doit = mctp_rtm_deladdr},
+	{.owner = THIS_MODULE, .protocol = PF_MCTP, .msgtype = RTM_GETADDR,
+	 .dumpit = mctp_dump_addrinfo},
 };
 
 int __init mctp_device_init(void)

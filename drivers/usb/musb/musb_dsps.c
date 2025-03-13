@@ -24,6 +24,7 @@
 #include <linux/usb/usb_phy_generic.h>
 #include <linux/platform_data/usb-omap.h>
 #include <linux/sizes.h>
+#include <linux/string_choices.h>
 
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -378,7 +379,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 
 		/* NOTE: this must complete power-on within 100 ms. */
 		dev_dbg(musb->controller, "VBUS %s (%s)%s, devctl %02x\n",
-				drvvbus ? "on" : "off",
+				str_on_off(drvvbus),
 				usb_otg_state_string(musb->xceiv->otg->state),
 				err ? " ERROR" : "",
 				devctl);

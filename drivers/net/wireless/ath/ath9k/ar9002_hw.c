@@ -395,7 +395,7 @@ static void ar9002_hw_init_hang_checks(struct ath_hw *ah)
 		ah->config.hw_hang_checks |= HW_MAC_HANG;
 }
 
-/* Sets up the AR5008/AR9001/AR9002 hardware familiy callbacks */
+/* Sets up the AR5008/AR9001/AR9002 hardware family callbacks */
 int ar9002_hw_attach_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);

@@ -72,6 +72,7 @@
 #include <linux/kobject.h>
 #include <linux/prefetch.h>
 #include <linux/platform_device.h>
+#include <linux/string_choices.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/dma-mapping.h>
@@ -1937,7 +1938,7 @@ vbus_show(struct device *dev, struct device_attribute *attr, char *buf)
 	pm_runtime_put_sync(dev);
 
 	return sprintf(buf, "Vbus %s, timeout %lu msec\n",
-			vbus ? "on" : "off", val);
+			str_on_off(vbus), val);
 }
 static DEVICE_ATTR_RW(vbus);
 

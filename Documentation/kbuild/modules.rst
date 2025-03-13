@@ -59,6 +59,12 @@ Command Syntax
 
 		$ make -C /lib/modules/`uname -r`/build M=$PWD modules_install
 
+	Starting from Linux 6.13, you can use the -f option instead of -C. This
+	will avoid unnecessary change of the working directory. The external
+	module will be output to the directory where you invoke make.
+
+		$ make -f /lib/modules/`uname -r`/build/Makefile M=$PWD
+
 Options
 -------
 
@@ -66,7 +72,10 @@ Options
 	of the kernel output directory if the kernel was built in a separate
 	build directory.)
 
-	make -C $KDIR M=$PWD
+	You can optionally pass MO= option if you want to build the modules in
+	a separate directory.
+
+	make -C $KDIR M=$PWD [MO=$BUILD_DIR]
 
 	-C $KDIR
 		The directory that contains the kernel and relevant build
@@ -79,6 +88,9 @@ Options
 		The value given to "M" is the absolute path of the
 		directory where the external module (kbuild file) is
 		located.
+
+	MO=$BUILD_DIR
+		Specifies a separate output directory for the external module.
 
 Targets
 -------
@@ -214,6 +226,21 @@ Separate Kbuild File and Makefile
 	each file; however, some external modules use makefiles
 	consisting of several hundred lines, and here it really pays
 	off to separate the kbuild part from the rest.
+
+	Linux 6.13 and later support another way. The external module Makefile
+	can include the kernel Makefile directly, rather than invoking sub Make.
+
+	Example 3::
+
+		--> filename: Kbuild
+		obj-m  := 8123.o
+		8123-y := 8123_if.o 8123_pci.o
+
+		--> filename: Makefile
+		KDIR ?= /lib/modules/$(shell uname -r)/build
+		export KBUILD_EXTMOD := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
+		include $(KDIR)/Makefile
+
 
 Building Multiple Modules
 -------------------------
@@ -395,6 +422,26 @@ Symbols From the Kernel (vmlinux + modules)
 
 	1) It lists all exported symbols from vmlinux and all modules.
 	2) It lists the CRC if CONFIG_MODVERSIONS is enabled.
+
+Version Information Formats
+---------------------------
+
+	Exported symbols have information stored in __ksymtab or __ksymtab_gpl
+	sections. Symbol names and namespaces are stored in __ksymtab_strings,
+	using a format similar to the string table used for ELF. If
+	CONFIG_MODVERSIONS is enabled, the CRCs corresponding to exported
+	symbols will be added to the __kcrctab or __kcrctab_gpl.
+
+	If CONFIG_BASIC_MODVERSIONS is enabled (default with
+	CONFIG_MODVERSIONS), imported symbols will have their symbol name and
+	CRC stored in the __versions section of the importing module. This
+	mode only supports symbols of length up to 64 bytes.
+
+	If CONFIG_EXTENDED_MODVERSIONS is enabled (required to enable both
+	CONFIG_MODVERSIONS and CONFIG_RUST at the same time), imported symbols
+	will have their symbol name recorded in the __version_ext_names
+	section as a series of concatenated, null-terminated strings. CRCs for
+	these symbols will be recorded in the __version_ext_crcs section.
 
 Symbols and External Modules
 ----------------------------

@@ -908,3 +908,20 @@ int em_update_performance_limits(struct em_perf_domain *pd,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(em_update_performance_limits);
+
+static void rebuild_sd_workfn(struct work_struct *work)
+{
+	rebuild_sched_domains_energy();
+}
+
+void em_rebuild_sched_domains(void)
+{
+	static DECLARE_WORK(rebuild_sd_work, rebuild_sd_workfn);
+
+	/*
+	 * When called from the cpufreq_register_driver() path, the
+	 * cpu_hotplug_lock is already held, so use a work item to
+	 * avoid nested locking in rebuild_sched_domains().
+	 */
+	schedule_work(&rebuild_sd_work);
+}

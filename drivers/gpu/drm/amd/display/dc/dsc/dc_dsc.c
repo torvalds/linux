@@ -30,6 +30,9 @@
 #include "rc_calc.h"
 #include "fixed31_32.h"
 
+#define DC_LOGGER \
+	dsc->ctx->logger
+
 /* This module's internal functions */
 
 /* default DSC policy target bitrate limit is 16bpp */
@@ -478,6 +481,48 @@ bool dc_dsc_compute_bandwidth_range(
 				config.num_slices_h, &dsc_common_caps, timing, link_encoding, range);
 
 	return is_dsc_possible;
+}
+
+void dc_dsc_dump_encoder_caps(const struct display_stream_compressor *dsc,
+			      const struct dc_crtc_timing *timing)
+{
+	struct dsc_enc_caps dsc_enc_caps;
+
+	get_dsc_enc_caps(dsc, &dsc_enc_caps, timing->pix_clk_100hz);
+
+	DC_LOG_DSC("dsc encoder caps:");
+	DC_LOG_DSC("\tdsc_version 0x%x", dsc_enc_caps.dsc_version);
+	DC_LOG_DSC("\tslice_caps 0x%x", dsc_enc_caps.slice_caps.raw);
+	DC_LOG_DSC("\tlb_bit_depth %d", dsc_enc_caps.lb_bit_depth);
+	DC_LOG_DSC("\tis_block_pred_supported %d", dsc_enc_caps.is_block_pred_supported);
+	DC_LOG_DSC("\tcolor_formats 0x%x", dsc_enc_caps.color_formats.raw);
+	DC_LOG_DSC("\tcolor_depth 0x%x", dsc_enc_caps.color_depth.raw);
+	DC_LOG_DSC("\tmax_total_throughput_mps %d", dsc_enc_caps.max_total_throughput_mps);
+	DC_LOG_DSC("\tmax_slice_width %d", dsc_enc_caps.max_slice_width);
+	DC_LOG_DSC("\tbpp_increment_div %d", dsc_enc_caps.bpp_increment_div);
+}
+
+void dc_dsc_dump_decoder_caps(const struct display_stream_compressor *dsc,
+			      const struct dsc_dec_dpcd_caps *dsc_sink_caps)
+{
+	DC_LOG_DSC("dsc decoder caps:");
+	DC_LOG_DSC("\tis_dsc_supported %d", dsc_sink_caps->is_dsc_supported);
+	DC_LOG_DSC("\tdsc_version 0x%x", dsc_sink_caps->dsc_version);
+	DC_LOG_DSC("\trc_buffer_size %d", dsc_sink_caps->rc_buffer_size);
+	DC_LOG_DSC("\tslice_caps1 0x%x", dsc_sink_caps->slice_caps1.raw);
+	DC_LOG_DSC("\tslice_caps2 0x%x", dsc_sink_caps->slice_caps2.raw);
+	DC_LOG_DSC("\tlb_bit_depth %d", dsc_sink_caps->lb_bit_depth);
+	DC_LOG_DSC("\tis_block_pred_supported %d", dsc_sink_caps->is_block_pred_supported);
+	DC_LOG_DSC("\tedp_max_bits_per_pixel %d", dsc_sink_caps->edp_max_bits_per_pixel);
+	DC_LOG_DSC("\tcolor_formats 0x%x", dsc_sink_caps->color_formats.raw);
+	DC_LOG_DSC("\tthroughput_mode_0_mps %d", dsc_sink_caps->throughput_mode_0_mps);
+	DC_LOG_DSC("\tthroughput_mode_1_mps %d", dsc_sink_caps->throughput_mode_1_mps);
+	DC_LOG_DSC("\tmax_slice_width %d", dsc_sink_caps->max_slice_width);
+	DC_LOG_DSC("\tbpp_increment_div %d", dsc_sink_caps->bpp_increment_div);
+	DC_LOG_DSC("\tbranch_overall_throughput_0_mps %d", dsc_sink_caps->branch_overall_throughput_0_mps);
+	DC_LOG_DSC("\tbranch_overall_throughput_1_mps %d", dsc_sink_caps->branch_overall_throughput_1_mps);
+	DC_LOG_DSC("\tbranch_max_line_width %d", dsc_sink_caps->branch_max_line_width);
+	DC_LOG_DSC("\tis_dp %d", dsc_sink_caps->is_dp);
 }
 
 static void get_dsc_enc_caps(

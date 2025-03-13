@@ -6,14 +6,16 @@
 #ifndef __INTEL_DE_H__
 #define __INTEL_DE_H__
 
-#include "i915_drv.h"
-#include "i915_trace.h"
+#include "intel_display_conversion.h"
+#include "intel_display_core.h"
+#include "intel_dmc_wl.h"
 #include "intel_dsb.h"
 #include "intel_uncore.h"
+#include "intel_uncore_trace.h"
 
 static inline struct intel_uncore *__to_uncore(struct intel_display *display)
 {
-	return &to_i915(display->drm)->uncore;
+	return to_intel_uncore(display->drm);
 }
 
 static inline u32
@@ -115,6 +117,16 @@ __intel_de_wait_for_register_nowl(struct intel_display *display,
 {
 	return intel_wait_for_register(__to_uncore(display), reg, mask,
 				       value, timeout);
+}
+
+static inline int
+__intel_de_wait_for_register_atomic_nowl(struct intel_display *display,
+					 i915_reg_t reg,
+					 u32 mask, u32 value,
+					 unsigned int fast_timeout_us)
+{
+	return __intel_wait_for_register(__to_uncore(display), reg, mask,
+					 value, fast_timeout_us, 0, NULL);
 }
 
 static inline int

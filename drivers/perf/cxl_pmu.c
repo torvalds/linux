@@ -977,7 +977,7 @@ static __exit void cxl_pmu_exit(void)
 
 MODULE_DESCRIPTION("CXL Performance Monitor Driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("CXL");
 module_init(cxl_pmu_init);
 module_exit(cxl_pmu_exit);
 MODULE_ALIAS_CXL(CXL_DEVICE_PMU);

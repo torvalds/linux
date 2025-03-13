@@ -26,8 +26,8 @@ struct xfs_defer_drain {
 void xfs_defer_drain_init(struct xfs_defer_drain *dr);
 void xfs_defer_drain_free(struct xfs_defer_drain *dr);
 
-void xfs_drain_wait_disable(void);
-void xfs_drain_wait_enable(void);
+void xfs_defer_drain_wait_disable(void);
+void xfs_defer_drain_wait_enable(void);
 
 /*
  * Deferred Work Intent Drains
@@ -61,6 +61,9 @@ void xfs_drain_wait_enable(void);
  * All functions that create work items must increment the intent counter as
  * soon as the item is added to the transaction and cannot drop the counter
  * until the item is finished or cancelled.
+ *
+ * The same principles apply to realtime groups because the rt metadata inode
+ * ILOCKs are not held across transaction rolls.
  */
 struct xfs_group *xfs_group_intent_get(struct xfs_mount *mp,
 		xfs_fsblock_t fsbno, enum xfs_group_type type);

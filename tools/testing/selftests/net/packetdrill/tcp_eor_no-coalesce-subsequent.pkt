@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test TCP does not append any data from consequent writes to the tail
+// skb created for the chunk even though we have 10 back-to-back small
+// writes.
+`./defaults.sh
+`
+
+// Initialize connection
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 10>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+ +.01 < . 1:1(0) ack 1 win 514
+
+   +0 accept(3, ..., ...) = 4
+
+// Write a 10400B chunk to fill the ICW, and have a 400 byte skb sitting on
+// the tail.
+   +0 write(4, ..., 10400) = 10400
+
+// Write 10 400B chunks with no coalescing options.
+   +0 send(4, ..., 400, MSG_EOR) = 400
+   +0 send(4, ..., 400, MSG_EOR) = 400
+   +0 send(4, ..., 400, MSG_EOR) = 400
+   +0 send(4, ..., 400, MSG_EOR) = 400
+   +0 send(4, ..., 400, MSG_EOR) = 400
+   +0 send(4, ..., 400, MSG_EOR) = 400
+   +0 send(4, ..., 400, MSG_EOR) = 400
+   +0 send(4, ..., 400, MSG_EOR) = 400
+   +0 send(4, ..., 400, MSG_EOR) = 400
+   +0 send(4, ..., 400, MSG_EOR) = 400
+// This chunk should not be appended to the skbs created for the previous chunk.
+   +0 write(4, ..., 10000) = 10000
+
+   +0 > P. 1:10001(10000) ack 1
++.001 < .  1:1(0) ack 10001 win 514
+// Now we have enough room to send out the 2 x 400B packets out.
+   +0 > P. 10001:10801(800) ack 1
+// The 9 remaining 400B chunks should be sent as individual packets.
+   +0 > P. 10801:11201(400) ack 1
+   +0 > P. 11201:11601(400) ack 1
+   +0 > P. 11601:12001(400) ack 1
+   +0 > P. 12001:12401(400) ack 1
+   +0 > P. 12401:12801(400) ack 1
+   +0 > P. 12801:13201(400) ack 1
+   +0 > P. 13201:13601(400) ack 1
+   +0 > P. 13601:14001(400) ack 1
+   +0 > P. 14001:14401(400) ack 1
+// The last 10KB chunk should be sent separately.
+   +0 > P. 14401:24401(10000) ack 1
+
++.001 < .  1:1(0) ack 10401 win 514
++.001 < .  1:1(0) ack 10801 win 514
++.001 < .  1:1(0) ack 11201 win 514
++.001 < .  1:1(0) ack 11601 win 514
++.001 < .  1:1(0) ack 12001 win 514
++.001 < .  1:1(0) ack 12401 win 514
++.001 < .  1:1(0) ack 12801 win 514
++.001 < .  1:1(0) ack 13201 win 514
++.001 < .  1:1(0) ack 13601 win 514
++.001 < .  1:1(0) ack 14001 win 514
++.001 < .  1:1(0) ack 14401 win 514
++.001 < .  1:1(0) ack 24401 win 514

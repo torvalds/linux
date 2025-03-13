@@ -17,6 +17,7 @@
 #include <linux/jiffies.h>
 #include <linux/err.h>
 #include <linux/acpi.h>
+#include <linux/string_choices.h>
 
 #define ATK_HID "ATK0110"
 
@@ -441,7 +442,7 @@ static void atk_print_sensor(struct atk_data *data, union acpi_object *obj)
 			flags->integer.value,
 			name->string.pointer,
 			limit1->integer.value, limit2->integer.value,
-			enable->integer.value ? "enabled" : "disabled");
+			str_enabled_disabled(enable->integer.value));
 #endif
 }
 
@@ -1074,8 +1075,7 @@ static int atk_ec_enabled(struct atk_data *data)
 		err = -EIO;
 	} else {
 		err = (buf->value != 0);
-		dev_dbg(dev, "EC is %sabled\n",
-				err ? "en" : "dis");
+		dev_dbg(dev, "EC is %s\n", str_enabled_disabled(err));
 	}
 
 	ACPI_FREE(obj);
@@ -1096,18 +1096,15 @@ static int atk_ec_ctl(struct atk_data *data, int enable)
 
 	obj = atk_sitm(data, &sitm);
 	if (IS_ERR(obj)) {
-		dev_err(dev, "Failed to %sable the EC\n",
-				enable ? "en" : "dis");
+		dev_err(dev, "Failed to %s the EC\n", str_enable_disable(enable));
 		return PTR_ERR(obj);
 	}
 	ec_ret = (struct atk_acpi_ret_buffer *)obj->buffer.pointer;
 	if (ec_ret->flags == 0) {
-		dev_err(dev, "Failed to %sable the EC\n",
-				enable ? "en" : "dis");
+		dev_err(dev, "Failed to %s the EC\n", str_enable_disable(enable));
 		err = -EIO;
 	} else {
-		dev_info(dev, "EC %sabled\n",
-				enable ? "en" : "dis");
+		dev_info(dev, "EC %s\n", str_enabled_disabled(enable));
 	}
 
 	ACPI_FREE(obj);

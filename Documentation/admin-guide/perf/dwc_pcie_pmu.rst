@@ -60,7 +60,7 @@ description of available events and configuration options in sysfs, see
 The "format" directory describes format of the config fields of the
 perf_event_attr structure. The "events" directory provides configuration
 templates for all documented events.  For example,
-"Rx_PCIe_TLP_Data_Payload" is an equivalent of "eventid=0x22,type=0x1".
+"rx_pcie_tlp_data_payload" is an equivalent of "eventid=0x21,type=0x0".
 
 The "perf list" command shall list the available events from sysfs, e.g.::
 
@@ -79,8 +79,8 @@ Example usage of counting PCIe RX TLP data payload (Units of bytes)::
 
 The average RX/TX bandwidth can be calculated using the following formula:
 
-    PCIe RX Bandwidth = Rx_PCIe_TLP_Data_Payload / Measure_Time_Window
-    PCIe TX Bandwidth = Tx_PCIe_TLP_Data_Payload / Measure_Time_Window
+    PCIe RX Bandwidth = rx_pcie_tlp_data_payload / Measure_Time_Window
+    PCIe TX Bandwidth = tx_pcie_tlp_data_payload / Measure_Time_Window
 
 Lane Event Usage
 -------------------------------

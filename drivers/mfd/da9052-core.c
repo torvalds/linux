@@ -585,6 +585,7 @@ static int da9052_clear_fault_log(struct da9052 *da9052)
 				"Cannot reset FAULT_LOG values %d\n", ret);
 	}
 
+	da9052->fault_log = fault_log;
 	return ret;
 }
 

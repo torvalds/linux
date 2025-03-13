@@ -636,7 +636,6 @@ static const struct drm_driver panfrost_drm_driver = {
 	.fops			= &panfrost_drm_driver_fops,
 	.name			= "panfrost",
 	.desc			= "panfrost DRM",
-	.date			= "20180908",
 	.major			= 1,
 	.minor			= 3,
 
@@ -866,7 +865,7 @@ MODULE_DEVICE_TABLE(of, dt_match);
 
 static struct platform_driver panfrost_driver = {
 	.probe		= panfrost_probe,
-	.remove_new	= panfrost_remove,
+	.remove		= panfrost_remove,
 	.driver		= {
 		.name	= "panfrost",
 		.pm	= pm_ptr(&panfrost_pm_ops),

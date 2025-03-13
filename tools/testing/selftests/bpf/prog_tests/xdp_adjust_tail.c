@@ -82,6 +82,8 @@ static void test_xdp_adjust_tail_grow2(void)
 	/* SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) */
 #if defined(__s390x__)
 	int tailroom = 512;
+#elif defined(__powerpc__)
+	int tailroom = 384;
 #else
 	int tailroom = 320;
 #endif

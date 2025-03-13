@@ -275,7 +275,7 @@ static struct test {
 		}
 	},
 	{
-		/* Parse a 32-bit value split accross two consecutives 64-bit
+		/* Parse a 32-bit value split across two consecutives 64-bit
 		 * input values.
 		 */
 		"vphn: 16-bit value followed by 2 x 32-bit values",

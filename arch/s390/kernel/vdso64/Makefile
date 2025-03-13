@@ -5,7 +5,7 @@
 include $(srctree)/lib/vdso/Makefile
 obj-vdso64 = vdso_user_wrapper.o note.o vgetrandom-chacha.o
 obj-cvdso64 = vdso64_generic.o getcpu.o vgetrandom.o
-VDSO_CFLAGS_REMOVE := -pg $(CC_FLAGS_FTRACE) $(CC_FLAGS_EXPOLINE) $(CC_FLAGS_CHECK_STACK)
+VDSO_CFLAGS_REMOVE := -pg $(CC_FLAGS_FTRACE) $(CC_FLAGS_EXPOLINE)
 CFLAGS_REMOVE_getcpu.o = $(VDSO_CFLAGS_REMOVE)
 CFLAGS_REMOVE_vgetrandom.o = $(VDSO_CFLAGS_REMOVE)
 CFLAGS_REMOVE_vdso64_generic.o = $(VDSO_CFLAGS_REMOVE)

@@ -116,7 +116,7 @@ static int ioa_create(struct path_selector *ps, unsigned int argc, char **argv)
 	if (!s)
 		return -ENOMEM;
 
-	s->path_map = kzalloc(nr_cpu_ids * sizeof(struct path_info *),
+	s->path_map = kcalloc(nr_cpu_ids, sizeof(struct path_info *),
 			      GFP_KERNEL);
 	if (!s->path_map)
 		goto free_selector;

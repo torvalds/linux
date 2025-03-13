@@ -285,6 +285,7 @@ static const struct mpc8xxx_gpio_devtype mpc8xxx_gpio_devtype_default = {
 };
 
 static const struct of_device_id mpc8xxx_gpio_ids[] = {
+	{ .compatible = "fsl,mpc8314-gpio", },
 	{ .compatible = "fsl,mpc8349-gpio", },
 	{ .compatible = "fsl,mpc8572-gpio", .data = &mpc8572_gpio_devtype, },
 	{ .compatible = "fsl,mpc8610-gpio", },

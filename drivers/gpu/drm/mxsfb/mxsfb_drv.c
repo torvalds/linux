@@ -17,9 +17,9 @@
 #include <linux/property.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
@@ -336,7 +336,6 @@ static const struct drm_driver mxsfb_driver = {
 	.fops	= &fops,
 	.name	= "mxsfb-drm",
 	.desc	= "MXSFB Controller DRM",
-	.date	= "20160824",
 	.major	= 1,
 	.minor	= 0,
 };
@@ -417,7 +416,7 @@ static const struct dev_pm_ops mxsfb_pm_ops = {
 
 static struct platform_driver mxsfb_platform_driver = {
 	.probe		= mxsfb_probe,
-	.remove_new	= mxsfb_remove,
+	.remove		= mxsfb_remove,
 	.shutdown	= mxsfb_shutdown,
 	.driver	= {
 		.name		= "mxsfb",

@@ -174,12 +174,4 @@ static inline void sk_mark_napi_id_once(struct sock *sk,
 #endif
 }
 
-static inline void sk_mark_napi_id_once_xdp(struct sock *sk,
-					    const struct xdp_buff *xdp)
-{
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	__sk_mark_napi_id_once(sk, xdp->rxq->napi_id);
-#endif
-}
-
 #endif /* _LINUX_NET_BUSY_POLL_H */

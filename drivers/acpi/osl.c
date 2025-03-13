@@ -607,7 +607,27 @@ acpi_status acpi_os_remove_interrupt_handler(u32 gsi, acpi_osd_handler handler)
 
 void acpi_os_sleep(u64 ms)
 {
-	msleep(ms);
+	u64 usec = ms * USEC_PER_MSEC, delta_us = 50;
+
+	/*
+	 * Use a hrtimer because the timer wheel timers are optimized for
+	 * cancelation before they expire and this timer is not going to be
+	 * canceled.
+	 *
+	 * Set the delta between the requested sleep time and the effective
+	 * deadline to at least 50 us in case there is an opportunity for timer
+	 * coalescing.
+	 *
+	 * Moreover, longer sleeps can be assumed to need somewhat less timer
+	 * precision, so sacrifice some of it for making the timer a more likely
+	 * candidate for coalescing by setting the delta to 1% of the sleep time
+	 * if it is above 5 ms (this value is chosen so that the delta is a
+	 * continuous function of the sleep time).
+	 */
+	if (ms > 5)
+		delta_us = (USEC_PER_MSEC / 100) * ms;
+
+	usleep_range(usec, usec + delta_us);
 }
 
 void acpi_os_stall(u32 us)

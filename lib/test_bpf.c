@@ -478,7 +478,7 @@ static int __bpf_ld_imm64(struct bpf_insn insns[2], u8 reg, s64 imm64)
  * to overflow the field size of the native instruction, triggering
  * a branch conversion mechanism in some JITs.
  */
-static int __bpf_fill_max_jmp(struct bpf_test *self, int jmp, int imm)
+static int __bpf_fill_max_jmp(struct bpf_test *self, int jmp, int imm, bool alu32)
 {
 	struct bpf_insn *insns;
 	int len = S16_MAX + 5;
@@ -501,7 +501,7 @@ static int __bpf_fill_max_jmp(struct bpf_test *self, int jmp, int imm)
 		};
 		int op = ops[(i >> 1) % ARRAY_SIZE(ops)];
 
-		if (i & 1)
+		if ((i & 1) || alu32)
 			insns[i++] = BPF_ALU32_REG(op, R0, R1);
 		else
 			insns[i++] = BPF_ALU64_REG(op, R0, R1);
@@ -516,27 +516,47 @@ static int __bpf_fill_max_jmp(struct bpf_test *self, int jmp, int imm)
 }
 
 /* Branch taken by runtime decision */
+static int bpf_fill_max_jmp_taken_32(struct bpf_test *self)
+{
+	return __bpf_fill_max_jmp(self, BPF_JEQ, 1, true);
+}
+
 static int bpf_fill_max_jmp_taken(struct bpf_test *self)
 {
-	return __bpf_fill_max_jmp(self, BPF_JEQ, 1);
+	return __bpf_fill_max_jmp(self, BPF_JEQ, 1, false);
 }
 
 /* Branch not taken by runtime decision */
+static int bpf_fill_max_jmp_not_taken_32(struct bpf_test *self)
+{
+	return __bpf_fill_max_jmp(self, BPF_JEQ, 0, true);
+}
+
 static int bpf_fill_max_jmp_not_taken(struct bpf_test *self)
 {
-	return __bpf_fill_max_jmp(self, BPF_JEQ, 0);
+	return __bpf_fill_max_jmp(self, BPF_JEQ, 0, false);
 }
 
 /* Branch always taken, known at JIT time */
+static int bpf_fill_max_jmp_always_taken_32(struct bpf_test *self)
+{
+	return __bpf_fill_max_jmp(self, BPF_JGE, 0, true);
+}
+
 static int bpf_fill_max_jmp_always_taken(struct bpf_test *self)
 {
-	return __bpf_fill_max_jmp(self, BPF_JGE, 0);
+	return __bpf_fill_max_jmp(self, BPF_JGE, 0, false);
 }
 
 /* Branch never taken, known at JIT time */
+static int bpf_fill_max_jmp_never_taken_32(struct bpf_test *self)
+{
+	return __bpf_fill_max_jmp(self, BPF_JLT, 0, true);
+}
+
 static int bpf_fill_max_jmp_never_taken(struct bpf_test *self)
 {
-	return __bpf_fill_max_jmp(self, BPF_JLT, 0);
+	return __bpf_fill_max_jmp(self, BPF_JLT, 0, false);
 }
 
 /* ALU result computation used in tests */
@@ -14233,6 +14253,38 @@ static struct bpf_test tests[] = {
 		{ { 0, 0 } },
 	},
 	/* Conditional branch conversions */
+	{
+		"Long conditional jump: taken at runtime (32 bits)",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_max_jmp_taken_32,
+	},
+	{
+		"Long conditional jump: not taken at runtime (32 bits)",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 2 } },
+		.fill_helper = bpf_fill_max_jmp_not_taken_32,
+	},
+	{
+		"Long conditional jump: always taken, known at JIT time (32 bits)",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 1 } },
+		.fill_helper = bpf_fill_max_jmp_always_taken_32,
+	},
+	{
+		"Long conditional jump: never taken, known at JIT time (32 bits)",
+		{ },
+		INTERNAL | FLAG_NO_DATA,
+		{ },
+		{ { 0, 2 } },
+		.fill_helper = bpf_fill_max_jmp_never_taken_32,
+	},
 	{
 		"Long conditional jump: taken at runtime",
 		{ },

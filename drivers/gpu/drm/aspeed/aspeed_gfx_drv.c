@@ -13,8 +13,8 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_device.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_dma_helper.h>
@@ -252,7 +252,6 @@ static const struct drm_driver aspeed_gfx_driver = {
 	.fops = &fops,
 	.name = "aspeed-gfx-drm",
 	.desc = "ASPEED GFX DRM",
-	.date = "20180319",
 	.major = 1,
 	.minor = 0,
 };
@@ -368,7 +367,7 @@ static void aspeed_gfx_shutdown(struct platform_device *pdev)
 
 static struct platform_driver aspeed_gfx_platform_driver = {
 	.probe		= aspeed_gfx_probe,
-	.remove_new	= aspeed_gfx_remove,
+	.remove		= aspeed_gfx_remove,
 	.shutdown	= aspeed_gfx_shutdown,
 	.driver = {
 		.name = "aspeed_gfx",

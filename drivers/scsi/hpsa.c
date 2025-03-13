@@ -283,9 +283,10 @@ static int hpsa_scan_finished(struct Scsi_Host *sh,
 static int hpsa_change_queue_depth(struct scsi_device *sdev, int qdepth);
 
 static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd);
-static int hpsa_slave_alloc(struct scsi_device *sdev);
-static int hpsa_slave_configure(struct scsi_device *sdev);
-static void hpsa_slave_destroy(struct scsi_device *sdev);
+static int hpsa_sdev_init(struct scsi_device *sdev);
+static int hpsa_sdev_configure(struct scsi_device *sdev,
+			       struct queue_limits *lim);
+static void hpsa_sdev_destroy(struct scsi_device *sdev);
 
 static void hpsa_update_scsi_devices(struct ctlr_info *h);
 static int check_for_unit_attention(struct ctlr_info *h,
@@ -978,9 +979,9 @@ static const struct scsi_host_template hpsa_driver_template = {
 	.this_id		= -1,
 	.eh_device_reset_handler = hpsa_eh_device_reset_handler,
 	.ioctl			= hpsa_ioctl,
-	.slave_alloc		= hpsa_slave_alloc,
-	.slave_configure	= hpsa_slave_configure,
-	.slave_destroy		= hpsa_slave_destroy,
+	.sdev_init		= hpsa_sdev_init,
+	.sdev_configure		= hpsa_sdev_configure,
+	.sdev_destroy		= hpsa_sdev_destroy,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= hpsa_compat_ioctl,
 #endif
@@ -2107,7 +2108,7 @@ static struct hpsa_scsi_dev_t *lookup_hpsa_scsi_dev(struct ctlr_info *h,
 	return NULL;
 }
 
-static int hpsa_slave_alloc(struct scsi_device *sdev)
+static int hpsa_sdev_init(struct scsi_device *sdev)
 {
 	struct hpsa_scsi_dev_t *sd = NULL;
 	unsigned long flags;
@@ -2142,7 +2143,8 @@ static int hpsa_slave_alloc(struct scsi_device *sdev)
 
 /* configure scsi device based on internal per-device structure */
 #define CTLR_TIMEOUT (120 * HZ)
-static int hpsa_slave_configure(struct scsi_device *sdev)
+static int hpsa_sdev_configure(struct scsi_device *sdev,
+			       struct queue_limits *lim)
 {
 	struct hpsa_scsi_dev_t *sd;
 	int queue_depth;
@@ -2173,7 +2175,7 @@ static int hpsa_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
-static void hpsa_slave_destroy(struct scsi_device *sdev)
+static void hpsa_sdev_destroy(struct scsi_device *sdev)
 {
 	struct hpsa_scsi_dev_t *hdev = NULL;
 

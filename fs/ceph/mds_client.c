@@ -827,7 +827,7 @@ static void destroy_reply_info(struct ceph_mds_reply_info_parsed *info)
  * And the worst case is that for the none async openc request it will
  * successfully open the file if the CDentry hasn't been unlinked yet,
  * but later the previous delayed async unlink request will remove the
- * CDenty. That means the just created file is possiblly deleted later
+ * CDentry. That means the just created file is possibly deleted later
  * by accident.
  *
  * We need to wait for the inflight async unlink requests to finish
@@ -1747,14 +1747,6 @@ static void __open_export_target_sessions(struct ceph_mds_client *mdsc,
 	}
 }
 
-void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
-					   struct ceph_mds_session *session)
-{
-	mutex_lock(&mdsc->mutex);
-	__open_export_target_sessions(mdsc, session);
-	mutex_unlock(&mdsc->mutex);
-}
-
 /*
  * session caps
  */
@@ -2362,7 +2354,7 @@ again:
 		item->ino = cpu_to_le64(cap->cap_ino);
 		item->cap_id = cpu_to_le64(cap->cap_id);
 		item->migrate_seq = cpu_to_le32(cap->mseq);
-		item->seq = cpu_to_le32(cap->issue_seq);
+		item->issue_seq = cpu_to_le32(cap->issue_seq);
 		msg->front.iov_len += sizeof(*item);
 
 		ceph_put_cap(mdsc, cap);
@@ -2629,6 +2621,7 @@ static u8 *get_fscrypt_altname(const struct ceph_mds_request *req, u32 *plen)
 {
 	struct inode *dir = req->r_parent;
 	struct dentry *dentry = req->r_dentry;
+	const struct qstr *name = req->r_dname;
 	u8 *cryptbuf = NULL;
 	u32 len = 0;
 	int ret = 0;
@@ -2649,8 +2642,10 @@ static u8 *get_fscrypt_altname(const struct ceph_mds_request *req, u32 *plen)
 	if (!fscrypt_has_encryption_key(dir))
 		goto success;
 
-	if (!fscrypt_fname_encrypted_size(dir, dentry->d_name.len, NAME_MAX,
-					  &len)) {
+	if (!name)
+		name = &dentry->d_name;
+
+	if (!fscrypt_fname_encrypted_size(dir, name->len, NAME_MAX, &len)) {
 		WARN_ON_ONCE(1);
 		return ERR_PTR(-ENAMETOOLONG);
 	}
@@ -2665,7 +2660,7 @@ static u8 *get_fscrypt_altname(const struct ceph_mds_request *req, u32 *plen)
 	if (!cryptbuf)
 		return ERR_PTR(-ENOMEM);
 
-	ret = fscrypt_fname_encrypt(dir, &dentry->d_name, cryptbuf, len);
+	ret = fscrypt_fname_encrypt(dir, name, cryptbuf, len);
 	if (ret) {
 		kfree(cryptbuf);
 		return ERR_PTR(ret);
@@ -2808,12 +2803,11 @@ retry:
 
 	if (pos < 0) {
 		/*
-		 * A rename didn't occur, but somehow we didn't end up where
-		 * we thought we would. Throw a warning and try again.
+		 * The path is longer than PATH_MAX and this function
+		 * cannot ever succeed.  Creating paths that long is
+		 * possible with Ceph, but Linux cannot use them.
 		 */
-		pr_warn_client(cl, "did not end path lookup where expected (pos = %d)\n",
-			       pos);
-		goto retry;
+		return ERR_PTR(-ENAMETOOLONG);
 	}
 
 	*pbase = base;
@@ -2954,12 +2948,12 @@ static struct ceph_mds_request_head_legacy *
 find_legacy_request_head(void *p, u64 features)
 {
 	bool legacy = !(features & CEPH_FEATURE_FS_BTIME);
-	struct ceph_mds_request_head_old *ohead;
+	struct ceph_mds_request_head *head;
 
 	if (legacy)
 		return (struct ceph_mds_request_head_legacy *)p;
-	ohead = (struct ceph_mds_request_head_old *)p;
-	return (struct ceph_mds_request_head_legacy *)&ohead->oldest_client_tid;
+	head = (struct ceph_mds_request_head *)p;
+	return (struct ceph_mds_request_head_legacy *)&head->oldest_client_tid;
 }
 
 /*
@@ -3029,7 +3023,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 	if (legacy)
 		len = sizeof(struct ceph_mds_request_head_legacy);
 	else if (request_head_version == 1)
-		len = sizeof(struct ceph_mds_request_head_old);
+		len = offsetofend(struct ceph_mds_request_head, args);
 	else if (request_head_version == 2)
 		len = offsetofend(struct ceph_mds_request_head, ext_num_fwd);
 	else
@@ -3113,11 +3107,11 @@ static struct ceph_msg *create_request_message(struct ceph_mds_session *session,
 		msg->hdr.version = cpu_to_le16(3);
 		p = msg->front.iov_base + sizeof(*lhead);
 	} else if (request_head_version == 1) {
-		struct ceph_mds_request_head_old *ohead = msg->front.iov_base;
+		struct ceph_mds_request_head *nhead = msg->front.iov_base;
 
 		msg->hdr.version = cpu_to_le16(4);
-		ohead->version = cpu_to_le16(1);
-		p = msg->front.iov_base + sizeof(*ohead);
+		nhead->version = cpu_to_le16(1);
+		p = msg->front.iov_base + offsetofend(struct ceph_mds_request_head, args);
 	} else if (request_head_version == 2) {
 		struct ceph_mds_request_head *nhead = msg->front.iov_base;
 
@@ -3269,12 +3263,12 @@ static int __prepare_send_request(struct ceph_mds_session *session,
 				     &session->s_features);
 
 	/*
-	 * Avoid inifinite retrying after overflow. The client will
+	 * Avoid infinite retrying after overflow. The client will
 	 * increase the retry count and if the MDS is old version,
 	 * so we limit to retry at most 256 times.
 	 */
 	if (req->r_attempts) {
-	       old_max_retry = sizeof_field(struct ceph_mds_request_head_old,
+	       old_max_retry = sizeof_field(struct ceph_mds_request_head,
 					    num_retry);
 	       old_max_retry = 1 << (old_max_retry * BITS_PER_BYTE);
 	       if ((old_version && req->r_attempts >= old_max_retry) ||
@@ -3522,7 +3516,7 @@ static void __do_request(struct ceph_mds_client *mdsc,
 
 	/*
 	 * For async create we will choose the auth MDS of frag in parent
-	 * directory to send the request and ususally this works fine, but
+	 * directory to send the request and usually this works fine, but
 	 * if the migrated the dirtory to another MDS before it could handle
 	 * it the request will be forwarded.
 	 *
@@ -4033,7 +4027,7 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 		__unregister_request(mdsc, req);
 	} else if (fwd_seq <= req->r_num_fwd || (uint32_t)fwd_seq >= U32_MAX) {
 		/*
-		 * Avoid inifinite retrying after overflow.
+		 * Avoid infinite retrying after overflow.
 		 *
 		 * The MDS will increase the fwd count and in client side
 		 * if the num_fwd is less than the one saved in request
@@ -5609,9 +5603,9 @@ void send_flush_mdlog(struct ceph_mds_session *s)
 
 static int ceph_mds_auth_match(struct ceph_mds_client *mdsc,
 			       struct ceph_mds_cap_auth *auth,
+			       const struct cred *cred,
 			       char *tpath)
 {
-	const struct cred *cred = get_current_cred();
 	u32 caller_uid = from_kuid(&init_user_ns, cred->fsuid);
 	u32 caller_gid = from_kgid(&init_user_ns, cred->fsgid);
 	struct ceph_client *cl = mdsc->fsc->client;
@@ -5699,18 +5693,18 @@ static int ceph_mds_auth_match(struct ceph_mds_client *mdsc,
 			 *
 			 * All the other cases                       --> mismatch
 			 */
+			bool path_matched = true;
 			char *first = strstr(_tpath, auth->match.path);
-			if (first != _tpath) {
-				if (free_tpath)
-					kfree(_tpath);
-				return 0;
+			if (first != _tpath ||
+			    (tlen > len && _tpath[len] != '/')) {
+				path_matched = false;
 			}
 
-			if (tlen > len && _tpath[len] != '/') {
-				if (free_tpath)
-					kfree(_tpath);
+			if (free_tpath)
+				kfree(_tpath);
+
+			if (!path_matched)
 				return 0;
-			}
 		}
 	}
 
@@ -5734,11 +5728,12 @@ int ceph_mds_check_access(struct ceph_mds_client *mdsc, char *tpath, int mask)
 	for (i = 0; i < mdsc->s_cap_auths_num; i++) {
 		struct ceph_mds_cap_auth *s = &mdsc->s_cap_auths[i];
 
-		err = ceph_mds_auth_match(mdsc, s, tpath);
+		err = ceph_mds_auth_match(mdsc, s, cred, tpath);
 		if (err < 0) {
+			put_cred(cred);
 			return err;
 		} else if (err > 0) {
-			/* always follow the last auth caps' permision */
+			/* always follow the last auth caps' permission */
 			root_squash_perms = true;
 			rw_perms_s = NULL;
 			if ((mask & MAY_WRITE) && s->writeable &&
@@ -5750,6 +5745,8 @@ int ceph_mds_check_access(struct ceph_mds_client *mdsc, char *tpath, int mask)
 				rw_perms_s = s;
 		}
 	}
+
+	put_cred(cred);
 
 	doutc(cl, "root_squash_perms %d, rw_perms_s %p\n", root_squash_perms,
 	      rw_perms_s);

@@ -32,7 +32,7 @@
 #include "qaic_timesync.h"
 #include "sahara.h"
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 #define PCI_DEV_AIC080			0xa080
 #define PCI_DEV_AIC100			0xa100
@@ -208,7 +208,6 @@ static const struct drm_driver qaic_accel_driver = {
 
 	.name			= QAIC_NAME,
 	.desc			= QAIC_DESC,
-	.date			= "20190618",
 
 	.fops			= &qaic_accel_fops,
 	.open			= qaic_open,

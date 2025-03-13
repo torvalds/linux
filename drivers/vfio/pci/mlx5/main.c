@@ -1446,7 +1446,7 @@ static struct pci_driver mlx5vf_pci_driver = {
 
 module_pci_driver(mlx5vf_pci_driver);
 
-MODULE_IMPORT_NS(IOMMUFD);
+MODULE_IMPORT_NS("IOMMUFD");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Max Gurtovoy <mgurtovoy@nvidia.com>");
 MODULE_AUTHOR("Yishai Hadas <yishaih@nvidia.com>");

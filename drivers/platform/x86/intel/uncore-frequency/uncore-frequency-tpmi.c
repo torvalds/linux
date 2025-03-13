@@ -629,7 +629,7 @@ static struct auxiliary_driver intel_uncore_aux_driver = {
 
 module_auxiliary_driver(intel_uncore_aux_driver);
 
-MODULE_IMPORT_NS(INTEL_TPMI);
-MODULE_IMPORT_NS(INTEL_UNCORE_FREQUENCY);
+MODULE_IMPORT_NS("INTEL_TPMI");
+MODULE_IMPORT_NS("INTEL_UNCORE_FREQUENCY");
 MODULE_DESCRIPTION("Intel TPMI UFS Driver");
 MODULE_LICENSE("GPL");

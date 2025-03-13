@@ -55,14 +55,16 @@ Tested Boards and Firmware Versions
 The driver has been reported to work with the following boards and
 firmware versions.
 
-=============== ===============================================
-Board		Firmware version
-=============== ===============================================
-Intel DH87RL	NCT6683D EC firmware version 1.0 build 04/03/13
-Intel DH87MC	NCT6683D EC firmware version 1.0 build 04/03/13
-Intel DB85FL	NCT6683D EC firmware version 1.0 build 04/03/13
-ASRock X570	NCT6683D EC firmware version 1.0 build 06/28/19
-ASRock X670E	NCT6686D EC firmware version 1.0 build 05/19/22
-MSI B550	NCT6687D EC firmware version 1.0 build 05/07/20
-MSI X670-P	NCT6687D EC firmware version 0.0 build 09/27/22
-=============== ===============================================
+===============================	===============================================
+Board				Firmware version
+===============================	===============================================
+Intel DH87RL			NCT6683D EC firmware version 1.0 build 04/03/13
+Intel DH87MC			NCT6683D EC firmware version 1.0 build 04/03/13
+Intel DB85FL			NCT6683D EC firmware version 1.0 build 04/03/13
+ASRock X570			NCT6683D EC firmware version 1.0 build 06/28/19
+ASRock X670E			NCT6686D EC firmware version 1.0 build 05/19/22
+ASRock B650 Steel Legend WiFi	NCT6686D EC firmware version 1.0 build 11/09/23
+MSI B550			NCT6687D EC firmware version 1.0 build 05/07/20
+MSI X670-P			NCT6687D EC firmware version 0.0 build 09/27/22
+MSI X870E			NCT6687D EC firmware version 0.0 build 11/13/24
+===============================	===============================================

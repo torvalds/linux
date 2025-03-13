@@ -13,9 +13,9 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
@@ -29,7 +29,6 @@
 
 #define DRIVER_NAME	"sti"
 #define DRIVER_DESC	"STMicroelectronics SoC DRM"
-#define DRIVER_DATE	"20140601"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
@@ -143,7 +142,6 @@ static const struct drm_driver sti_driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = DRIVER_MAJOR,
 	.minor = DRIVER_MINOR,
 };
@@ -270,7 +268,7 @@ MODULE_DEVICE_TABLE(of, sti_dt_ids);
 
 static struct platform_driver sti_platform_driver = {
 	.probe = sti_platform_probe,
-	.remove_new = sti_platform_remove,
+	.remove = sti_platform_remove,
 	.shutdown = sti_platform_shutdown,
 	.driver = {
 		.name = DRIVER_NAME,

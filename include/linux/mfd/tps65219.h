@@ -10,13 +10,8 @@
 
 #include <linux/bitops.h>
 #include <linux/notifier.h>
+#include <linux/regmap.h>
 #include <linux/regulator/driver.h>
-
-struct regmap;
-struct regmap_irq_chip_data;
-
-#define TPS65219_1V35					1350000
-#define TPS65219_1V8					1800000
 
 /* TPS chip id list */
 #define TPS65219					0xF0

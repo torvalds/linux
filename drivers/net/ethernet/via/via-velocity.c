@@ -2320,7 +2320,8 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		if (ret < 0)
 			goto out_free_tmp_vptr_1;
 
-		napi_disable(&vptr->napi);
+		netdev_lock(dev);
+		napi_disable_locked(&vptr->napi);
 
 		spin_lock_irqsave(&vptr->lock, flags);
 
@@ -2342,12 +2343,13 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 
 		velocity_give_many_rx_descs(vptr);
 
-		napi_enable(&vptr->napi);
+		napi_enable_locked(&vptr->napi);
 
 		mac_enable_int(vptr->mac_regs);
 		netif_start_queue(dev);
 
 		spin_unlock_irqrestore(&vptr->lock, flags);
+		netdev_unlock(dev);
 
 		velocity_free_rings(tmp_vptr);
 

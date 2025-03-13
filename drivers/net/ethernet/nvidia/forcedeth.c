@@ -1120,20 +1120,6 @@ static void nv_disable_hw_interrupts(struct net_device *dev, u32 mask)
 	}
 }
 
-static void nv_napi_enable(struct net_device *dev)
-{
-	struct fe_priv *np = get_nvpriv(dev);
-
-	napi_enable(&np->napi);
-}
-
-static void nv_napi_disable(struct net_device *dev)
-{
-	struct fe_priv *np = get_nvpriv(dev);
-
-	napi_disable(&np->napi);
-}
-
 #define MII_READ	(-1)
 /* mii_rw: read/write a register on the PHY.
  *
@@ -3114,7 +3100,7 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		 * Changing the MTU is a rare event, it shouldn't matter.
 		 */
 		nv_disable_irq(dev);
-		nv_napi_disable(dev);
+		napi_disable(&np->napi);
 		netif_tx_lock_bh(dev);
 		netif_addr_lock(dev);
 		spin_lock(&np->lock);
@@ -3143,7 +3129,7 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 		spin_unlock(&np->lock);
 		netif_addr_unlock(dev);
 		netif_tx_unlock_bh(dev);
-		nv_napi_enable(dev);
+		napi_enable(&np->napi);
 		nv_enable_irq(dev);
 	}
 	return 0;
@@ -4731,7 +4717,7 @@ static int nv_set_ringparam(struct net_device *dev,
 
 	if (netif_running(dev)) {
 		nv_disable_irq(dev);
-		nv_napi_disable(dev);
+		napi_disable(&np->napi);
 		netif_tx_lock_bh(dev);
 		netif_addr_lock(dev);
 		spin_lock(&np->lock);
@@ -4784,7 +4770,7 @@ static int nv_set_ringparam(struct net_device *dev,
 		spin_unlock(&np->lock);
 		netif_addr_unlock(dev);
 		netif_tx_unlock_bh(dev);
-		nv_napi_enable(dev);
+		napi_enable(&np->napi);
 		nv_enable_irq(dev);
 	}
 	return 0;
@@ -5277,7 +5263,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
 		if (netif_running(dev)) {
 			netif_stop_queue(dev);
-			nv_napi_disable(dev);
+			napi_disable(&np->napi);
 			netif_tx_lock_bh(dev);
 			netif_addr_lock(dev);
 			spin_lock_irq(&np->lock);
@@ -5334,7 +5320,7 @@ static void nv_self_test(struct net_device *dev, struct ethtool_test *test, u64 
 			/* restart rx engine */
 			nv_start_rxtx(dev);
 			netif_start_queue(dev);
-			nv_napi_enable(dev);
+			napi_enable(&np->napi);
 			nv_enable_hw_interrupts(dev, np->irqmask);
 		}
 	}
@@ -5576,6 +5562,7 @@ static int nv_open(struct net_device *dev)
 	/* ask for interrupts */
 	nv_enable_hw_interrupts(dev, np->irqmask);
 
+	netdev_lock(dev);
 	spin_lock_irq(&np->lock);
 	writel(NVREG_MCASTADDRA_FORCE, base + NvRegMulticastAddrA);
 	writel(0, base + NvRegMulticastAddrB);
@@ -5594,7 +5581,7 @@ static int nv_open(struct net_device *dev)
 	ret = nv_update_linkspeed(dev);
 	nv_start_rxtx(dev);
 	netif_start_queue(dev);
-	nv_napi_enable(dev);
+	napi_enable_locked(&np->napi);
 
 	if (ret) {
 		netif_carrier_on(dev);
@@ -5611,6 +5598,7 @@ static int nv_open(struct net_device *dev)
 			round_jiffies(jiffies + STATS_INTERVAL));
 
 	spin_unlock_irq(&np->lock);
+	netdev_unlock(dev);
 
 	/* If the loopback feature was set while the device was down, make sure
 	 * that it's set correctly now.
@@ -5632,7 +5620,7 @@ static int nv_close(struct net_device *dev)
 	spin_lock_irq(&np->lock);
 	np->in_shutdown = 1;
 	spin_unlock_irq(&np->lock);
-	nv_napi_disable(dev);
+	napi_disable(&np->napi);
 	synchronize_irq(np->pci_dev->irq);
 
 	del_timer_sync(&np->oom_kick);

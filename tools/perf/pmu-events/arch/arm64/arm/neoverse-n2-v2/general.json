@@ -5,6 +5,6 @@
     },
     {
         "ArchStdEvent": "CNT_CYCLES",
-        "PublicDescription": "Counts constant frequency cycles"
+        "PublicDescription": "Increments at a constant frequency equal to the rate of increment of the System Counter, CNTPCT_EL0."
     }
 ]

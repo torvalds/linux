@@ -5,12 +5,7 @@
 /*
  * This version of the "BD86801 scalable PMIC"'s driver supports only very
  * basic set of the PMIC features. Most notably, there is no support for
- * the ERRB interrupt and the configurations which should be done when the
- * PMIC is in STBY mode.
- *
- * Supporting the ERRB interrupt would require dropping the regmap-IRQ
- * usage or working around (or accepting a presense of) a naming conflict
- * in debugFS IRQs.
+ * the configurations which should be done when the PMIC is in STBY mode.
  *
  * Being able to reliably do the configurations like changing the
  * regulator safety limits (like limits for the over/under -voltages, over
@@ -22,16 +17,14 @@
  * be the need to configure these safety limits. Hence it's not simple to
  * come up with a generic solution.
  *
- * Users who require the ERRB handling and STBY state configurations can
- * have a look at the original RFC:
+ * Users who require the STBY state configurations can have a look at the
+ * original RFC:
  * https://lore.kernel.org/all/cover.1712920132.git.mazziesaccount@gmail.com/
- * which implements a workaround to debugFS naming conflict and some of
- * the safety limit configurations - but leaves the state change handling
- * and synchronization to be implemented.
+ * which implements some of the safety limit configurations - but leaves the
+ * state change handling and synchronization to be implemented.
  *
  * It would be great to hear (and receive a patch!) if you implement the
- * STBY configuration support or a proper fix to the debugFS naming
- * conflict in your downstream driver ;)
+ * STBY configuration support in your downstream driver ;)
  */
 
 #include <linux/cleanup.h>
@@ -728,6 +721,95 @@ static int initialize_pmic_data(struct device *dev,
 	return 0;
 }
 
+static int bd96801_map_event_all(int irq, struct regulator_irq_data *rid,
+			  unsigned long *dev_mask)
+{
+	int i;
+
+	for (i = 0; i < rid->num_states; i++) {
+		rid->states[i].notifs = REGULATOR_EVENT_FAIL;
+		rid->states[i].errors = REGULATOR_ERROR_FAIL;
+		*dev_mask |= BIT(i);
+	}
+
+	return 0;
+}
+
+static int bd96801_rdev_errb_irqs(struct platform_device *pdev,
+				  struct regulator_dev *rdev)
+{
+	int i;
+	void *retp;
+	static const char * const single_out_errb_irqs[] = {
+		"bd96801-%s-pvin-err", "bd96801-%s-ovp-err",
+		"bd96801-%s-uvp-err", "bd96801-%s-shdn-err",
+	};
+
+	for (i = 0; i < ARRAY_SIZE(single_out_errb_irqs); i++) {
+		struct regulator_irq_desc id = {
+			.map_event = bd96801_map_event_all,
+			.irq_off_ms = 1000,
+		};
+		struct regulator_dev *rdev_arr[1];
+		char tmp[255];
+		int irq;
+
+		snprintf(tmp, 255, single_out_errb_irqs[i], rdev->desc->name);
+		tmp[254] = 0;
+		id.name = tmp;
+
+		irq = platform_get_irq_byname(pdev, tmp);
+		if (irq < 0)
+			continue;
+
+		rdev_arr[0] = rdev;
+		retp = devm_regulator_irq_helper(&pdev->dev, &id, irq, 0,
+						 REGULATOR_ERROR_FAIL, NULL,
+						 rdev_arr, 1);
+		if (IS_ERR(retp))
+			return PTR_ERR(retp);
+
+	}
+	return 0;
+}
+
+static int bd96801_global_errb_irqs(struct platform_device *pdev,
+				    struct regulator_dev **rdev, int num_rdev)
+{
+	int i, num_irqs;
+	void *retp;
+	static const char * const global_errb_irqs[] = {
+		"bd96801-otp-err", "bd96801-dbist-err", "bd96801-eep-err",
+		"bd96801-abist-err", "bd96801-prstb-err", "bd96801-drmoserr1",
+		"bd96801-drmoserr2", "bd96801-slave-err", "bd96801-vref-err",
+		"bd96801-tsd", "bd96801-uvlo-err", "bd96801-ovlo-err",
+		"bd96801-osc-err", "bd96801-pon-err", "bd96801-poff-err",
+		"bd96801-cmd-shdn-err", "bd96801-int-shdn-err"
+	};
+
+	num_irqs = ARRAY_SIZE(global_errb_irqs);
+	for (i = 0; i < num_irqs; i++) {
+		int irq;
+		struct regulator_irq_desc id = {
+			.name = global_errb_irqs[i],
+			.map_event = bd96801_map_event_all,
+			.irq_off_ms = 1000,
+		};
+
+		irq = platform_get_irq_byname(pdev, global_errb_irqs[i]);
+		if (irq < 0)
+			continue;
+
+		retp = devm_regulator_irq_helper(&pdev->dev, &id, irq, 0,
+						 REGULATOR_ERROR_FAIL, NULL,
+						  rdev, num_rdev);
+		if (IS_ERR(retp))
+			return PTR_ERR(retp);
+	}
+
+	return 0;
+}
+
 static int bd96801_rdev_intb_irqs(struct platform_device *pdev,
 				  struct bd96801_pmic_data *pdata,
 				  struct bd96801_irqinfo *iinfo,
@@ -783,11 +865,10 @@ static int bd96801_rdev_intb_irqs(struct platform_device *pdev,
 	return 0;
 }
 
-
-
 static int bd96801_probe(struct platform_device *pdev)
 {
 	struct regulator_dev *ldo_errs_rdev_arr[BD96801_NUM_LDOS];
+	struct regulator_dev *all_rdevs[BD96801_NUM_REGULATORS];
 	struct bd96801_regulator_data *rdesc;
 	struct regulator_config config = {};
 	int ldo_errs_arr[BD96801_NUM_LDOS];
@@ -795,6 +876,7 @@ static int bd96801_probe(struct platform_device *pdev)
 	int temp_notif_ldos = 0;
 	struct device *parent;
 	int i, ret;
+	bool use_errb;
 	void *retp;
 
 	parent = pdev->dev.parent;
@@ -819,6 +901,13 @@ static int bd96801_probe(struct platform_device *pdev)
 	config.regmap = pdata->regmap;
 	config.dev = parent;
 
+	ret = of_property_match_string(pdev->dev.parent->of_node,
+				       "interrupt-names", "errb");
+	if (ret < 0)
+		use_errb = false;
+	else
+		use_errb = true;
+
 	ret = bd96801_walk_regulator_dt(&pdev->dev, pdata->regmap, rdesc,
 					BD96801_NUM_REGULATORS);
 	if (ret)
@@ -837,6 +926,7 @@ static int bd96801_probe(struct platform_device *pdev)
 				rdesc[i].desc.name);
 			return PTR_ERR(rdev);
 		}
+		all_rdevs[i] = rdev;
 		/*
 		 * LDOs don't have own temperature monitoring. If temperature
 		 * notification was requested for this LDO from DT then we will
@@ -853,6 +943,12 @@ static int bd96801_probe(struct platform_device *pdev)
 		for (j = 0; j < idesc->num_irqs; j++) {
 			ret = bd96801_rdev_intb_irqs(pdev, pdata,
 						     &idesc->irqinfo[j], rdev);
+			if (ret)
+				return ret;
+		}
+		/* Register per regulator ERRB notifiers */
+		if (use_errb) {
+			ret = bd96801_rdev_errb_irqs(pdev, rdev);
 			if (ret)
 				return ret;
 		}
@@ -876,6 +972,10 @@ static int bd96801_probe(struct platform_device *pdev)
 		if (IS_ERR(retp))
 			return PTR_ERR(retp);
 	}
+
+	if (use_errb)
+		return bd96801_global_errb_irqs(pdev, all_rdevs,
+						ARRAY_SIZE(all_rdevs));
 
 	return 0;
 }

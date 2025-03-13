@@ -164,5 +164,5 @@ Mailing-list:
 
 You can also contact the Authors:
 
-* Marek Lindner <mareklindner@neomailbox.ch>
+* Marek Lindner <marek.lindner@mailbox.org>
 * Simon Wunderlich <sw@simonwunderlich.de>

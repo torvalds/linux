@@ -34,7 +34,7 @@
  */
 
 
-#define TASKSTATS_VERSION	14
+#define TASKSTATS_VERSION	15
 #define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
 					 * in linux/sched.h */
 
@@ -72,6 +72,8 @@ struct taskstats {
 	 */
 	__u64	cpu_count __attribute__((aligned(8)));
 	__u64	cpu_delay_total;
+	__u64	cpu_delay_max;
+	__u64	cpu_delay_min;
 
 	/* Following four fields atomically updated using task->delays->lock */
 
@@ -80,10 +82,14 @@ struct taskstats {
 	 */
 	__u64	blkio_count;
 	__u64	blkio_delay_total;
+	__u64	blkio_delay_max;
+	__u64	blkio_delay_min;
 
 	/* Delay waiting for page fault I/O (swap in only) */
 	__u64	swapin_count;
 	__u64	swapin_delay_total;
+	__u64	swapin_delay_max;
+	__u64	swapin_delay_min;
 
 	/* cpu "wall-clock" running time
 	 * On some architectures, value will adjust for cpu time stolen
@@ -166,10 +172,14 @@ struct taskstats {
 	/* Delay waiting for memory reclaim */
 	__u64	freepages_count;
 	__u64	freepages_delay_total;
+	__u64	freepages_delay_max;
+	__u64	freepages_delay_min;
 
 	/* Delay waiting for thrashing page */
 	__u64	thrashing_count;
 	__u64	thrashing_delay_total;
+	__u64	thrashing_delay_max;
+	__u64	thrashing_delay_min;
 
 	/* v10: 64-bit btime to avoid overflow */
 	__u64	ac_btime64;		/* 64-bit begin time */
@@ -177,6 +187,8 @@ struct taskstats {
 	/* v11: Delay waiting for memory compact */
 	__u64	compact_count;
 	__u64	compact_delay_total;
+	__u64	compact_delay_max;
+	__u64	compact_delay_min;
 
 	/* v12 begin */
 	__u32   ac_tgid;	/* thread group ID */
@@ -198,10 +210,15 @@ struct taskstats {
 	/* v13: Delay waiting for write-protect copy */
 	__u64    wpcopy_count;
 	__u64    wpcopy_delay_total;
+	__u64    wpcopy_delay_max;
+	__u64    wpcopy_delay_min;
 
 	/* v14: Delay waiting for IRQ/SOFTIRQ */
 	__u64    irq_count;
 	__u64    irq_delay_total;
+	__u64    irq_delay_max;
+	__u64    irq_delay_min;
+	/* v15: add Delay max */
 };
 
 

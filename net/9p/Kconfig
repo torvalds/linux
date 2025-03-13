@@ -41,8 +41,8 @@ config NET_9P_XEN
 	  two Xen domains.
 
 config NET_9P_USBG
-	bool "9P USB Gadget Transport"
-	depends on USB_GADGET=y || USB_GADGET=NET_9P
+	tristate "9P USB Gadget Transport"
+	depends on USB_GADGET
 	select CONFIGFS_FS
 	select USB_LIBCOMPOSITE
 	help

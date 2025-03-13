@@ -155,6 +155,11 @@ do_transfer()
 		sleep 1
 	fi
 
+	NSTAT_HISTORY=/tmp/${ns3}.nstat ip netns exec ${ns3} \
+		nstat -n
+	NSTAT_HISTORY=/tmp/${ns1}.nstat ip netns exec ${ns1} \
+		nstat -n
+
 	timeout ${timeout_test} \
 		ip netns exec ${ns3} \
 			./mptcp_connect -jt ${timeout_poll} -l -p $port -T $max_time \
@@ -180,25 +185,27 @@ do_transfer()
 		kill ${cappid_connector}
 	fi
 
+	NSTAT_HISTORY=/tmp/${ns3}.nstat ip netns exec ${ns3} \
+		nstat | grep Tcp > /tmp/${ns3}.out
+	NSTAT_HISTORY=/tmp/${ns1}.nstat ip netns exec ${ns1} \
+		nstat | grep Tcp > /tmp/${ns1}.out
+
 	cmp $sin $cout > /dev/null 2>&1
 	local cmps=$?
 	cmp $cin $sout > /dev/null 2>&1
 	local cmpc=$?
 
-	printf "%-16s" " max $max_time "
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ] && \
 	   [ $cmpc -eq 0 ] && [ $cmps -eq 0 ]; then
+		printf "%-16s" " max $max_time "
 		mptcp_lib_pr_ok
 		cat "$capout"
 		return 0
 	fi
 
-	mptcp_lib_pr_fail
-	echo "client exit code $retc, server $rets" 1>&2
-	echo -e "\nnetns ${ns3} socket stat for $port:" 1>&2
-	ip netns exec ${ns3} ss -nita 1>&2 -o "sport = :$port"
-	echo -e "\nnetns ${ns1} socket stat for $port:" 1>&2
-	ip netns exec ${ns1} ss -nita 1>&2 -o "dport = :$port"
+	mptcp_lib_pr_fail "client exit code $retc, server $rets"
+	mptcp_lib_pr_err_stats "${ns3}" "${ns1}" "${port}" \
+		"/tmp/${ns3}.out" "/tmp/${ns1}.out"
 	ls -l $sin $cout
 	ls -l $cin $sout
 

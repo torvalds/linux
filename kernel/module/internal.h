@@ -47,16 +47,16 @@ struct kernel_symbol {
 extern struct mutex module_mutex;
 extern struct list_head modules;
 
-extern struct module_attribute *modinfo_attrs[];
-extern size_t modinfo_attrs_count;
+extern const struct module_attribute *const modinfo_attrs[];
+extern const size_t modinfo_attrs_count;
 
 /* Provided by the linker */
 extern const struct kernel_symbol __start___ksymtab[];
 extern const struct kernel_symbol __stop___ksymtab[];
 extern const struct kernel_symbol __start___ksymtab_gpl[];
 extern const struct kernel_symbol __stop___ksymtab_gpl[];
-extern const s32 __start___kcrctab[];
-extern const s32 __start___kcrctab_gpl[];
+extern const u32 __start___kcrctab[];
+extern const u32 __start___kcrctab_gpl[];
 
 struct load_info {
 	const char *name;
@@ -86,6 +86,8 @@ struct load_info {
 		unsigned int vers;
 		unsigned int info;
 		unsigned int pcpu;
+		unsigned int vers_ext_crc;
+		unsigned int vers_ext_name;
 	} index;
 };
 
@@ -102,7 +104,7 @@ struct find_symbol_arg {
 
 	/* Output */
 	struct module *owner;
-	const s32 *crc;
+	const u32 *crc;
 	const struct kernel_symbol *sym;
 	enum mod_license license;
 };
@@ -327,7 +329,8 @@ static inline struct module *mod_find(unsigned long addr, struct mod_tree_root *
 }
 #endif /* CONFIG_MODULES_TREE_LOOKUP */
 
-int module_enable_rodata_ro(const struct module *mod, bool after_init);
+int module_enable_rodata_ro(const struct module *mod);
+int module_enable_rodata_ro_after_init(const struct module *mod);
 int module_enable_data_nx(const struct module *mod);
 int module_enable_text_rox(const struct module *mod);
 int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
@@ -384,16 +387,25 @@ static inline void init_param_lock(struct module *mod) { }
 
 #ifdef CONFIG_MODVERSIONS
 int check_version(const struct load_info *info,
-		  const char *symname, struct module *mod, const s32 *crc);
+		  const char *symname, struct module *mod, const u32 *crc);
 void module_layout(struct module *mod, struct modversion_info *ver, struct kernel_param *kp,
 		   struct kernel_symbol *ks, struct tracepoint * const *tp);
 int check_modstruct_version(const struct load_info *info, struct module *mod);
 int same_magic(const char *amagic, const char *bmagic, bool has_crcs);
+struct modversion_info_ext {
+	size_t remaining;
+	const u32 *crc;
+	const char *name;
+};
+void modversion_ext_start(const struct load_info *info, struct modversion_info_ext *ver);
+void modversion_ext_advance(struct modversion_info_ext *ver);
+#define for_each_modversion_info_ext(ver, info) \
+	for (modversion_ext_start(info, &ver); ver.remaining > 0; modversion_ext_advance(&ver))
 #else /* !CONFIG_MODVERSIONS */
 static inline int check_version(const struct load_info *info,
 				const char *symname,
 				struct module *mod,
-				const s32 *crc)
+				const u32 *crc)
 {
 	return 1;
 }

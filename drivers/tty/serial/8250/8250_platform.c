@@ -112,7 +112,6 @@ static int serial8250_probe_acpi(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct uart_8250_port uart = { };
 	struct resource *regs;
-	unsigned char iotype;
 	int ret, line;
 
 	regs = platform_get_mem_or_io(pdev, 0);
@@ -122,13 +121,11 @@ static int serial8250_probe_acpi(struct platform_device *pdev)
 	switch (resource_type(regs)) {
 	case IORESOURCE_IO:
 		uart.port.iobase = regs->start;
-		iotype = UPIO_PORT;
 		break;
 	case IORESOURCE_MEM:
 		uart.port.mapbase = regs->start;
 		uart.port.mapsize = resource_size(regs);
 		uart.port.flags = UPF_IOREMAP;
-		iotype = UPIO_MEM;
 		break;
 	default:
 		return -EINVAL;
@@ -146,12 +143,6 @@ static int serial8250_probe_acpi(struct platform_device *pdev)
 		ret = 0;
 	if (ret)
 		return ret;
-
-	/*
-	 * The previous call may not set iotype correctly when reg-io-width
-	 * property is absent and it doesn't support IO port resource.
-	 */
-	uart.port.iotype = iotype;
 
 	line = serial8250_register_8250_port(&uart);
 	if (line < 0)
@@ -285,7 +276,7 @@ MODULE_DEVICE_TABLE(acpi, acpi_platform_serial_table);
 
 static struct platform_driver serial8250_isa_driver = {
 	.probe		= serial8250_probe,
-	.remove_new	= serial8250_remove,
+	.remove		= serial8250_remove,
 	.suspend	= serial8250_suspend,
 	.resume		= serial8250_resume,
 	.driver		= {

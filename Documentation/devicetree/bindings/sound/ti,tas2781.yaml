@@ -101,22 +101,24 @@ additionalProperties: false
 
 examples:
   - |
-   #include <dt-bindings/gpio/gpio.h>
-   i2c {
-     /* example with quad tas2781s, such as tablet or pad device */
-     #address-cells = <1>;
-     #size-cells = <0>;
-     quad_tas2781: tas2781@38 {
-       compatible = "ti,tas2781";
-       reg = <0x38>, /* Audio slot 0 */
-             <0x3a>, /* Audio slot 1 */
-             <0x39>, /* Audio slot 2 */
-             <0x3b>; /* Audio slot 3 */
+    #include <dt-bindings/gpio/gpio.h>
 
-       #sound-dai-cells = <0>;
-       reset-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-       interrupt-parent = <&gpio1>;
-       interrupts = <15>;
-     };
-   };
+    i2c {
+        /* example with quad tas2781s, such as tablet or pad device */
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        audio-codec@38 {
+            compatible = "ti,tas2781";
+            reg = <0x38>, /* Audio slot 0 */
+                  <0x3a>, /* Audio slot 1 */
+                  <0x39>, /* Audio slot 2 */
+                  <0x3b>; /* Audio slot 3 */
+
+            #sound-dai-cells = <0>;
+            reset-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <15>;
+        };
+    };
 ...

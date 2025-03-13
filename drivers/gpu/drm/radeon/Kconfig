@@ -13,6 +13,7 @@ config DRM_RADEON
         select DRM_TTM
 	select DRM_TTM_HELPER
 	select FB_IOMEM_HELPERS if DRM_FBDEV_EMULATION
+	select DRM_EXEC
 	select SND_HDA_COMPONENT if SND_HDA_CORE
 	select POWER_SUPPLY
 	select HWMON

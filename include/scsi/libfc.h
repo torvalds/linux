@@ -963,7 +963,7 @@ int fc_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 int fc_eh_abort(struct scsi_cmnd *);
 int fc_eh_device_reset(struct scsi_cmnd *);
 int fc_eh_host_reset(struct scsi_cmnd *);
-int fc_slave_alloc(struct scsi_device *);
+int fc_sdev_init(struct scsi_device *);
 
 /*
  * ELS/CT interface

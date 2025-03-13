@@ -85,8 +85,6 @@ const char *can_get_state_str(const enum can_state state)
 	default:
 		return "<unknown>";
 	}
-
-	return "<unknown>";
 }
 EXPORT_SYMBOL_GPL(can_get_state_str);
 
@@ -468,7 +466,7 @@ static int can_set_termination(struct net_device *ndev, u16 term)
 	else
 		set = 0;
 
-	gpiod_set_value(priv->termination_gpio, set);
+	gpiod_set_value_cansleep(priv->termination_gpio, set);
 
 	return 0;
 }

@@ -208,7 +208,6 @@ struct edma_desc {
 struct edma_cc;
 
 struct edma_tc {
-	struct device_node		*node;
 	u16				id;
 };
 
@@ -2460,19 +2459,19 @@ static int edma_probe(struct platform_device *pdev)
 			goto err_reg1;
 		}
 
-		for (i = 0;; i++) {
+		for (i = 0; i < ecc->num_tc; i++) {
 			ret = of_parse_phandle_with_fixed_args(node, "ti,tptcs",
 							       1, i, &tc_args);
-			if (ret || i == ecc->num_tc)
+			if (ret)
 				break;
 
-			ecc->tc_list[i].node = tc_args.np;
 			ecc->tc_list[i].id = i;
 			queue_priority_mapping[i][1] = tc_args.args[0];
 			if (queue_priority_mapping[i][1] > lowest_priority) {
 				lowest_priority = queue_priority_mapping[i][1];
 				info->default_queue = i;
 			}
+			of_node_put(tc_args.np);
 		}
 
 		/* See if we have optional dma-channel-mask array */

@@ -167,7 +167,7 @@ static int process_rdma(struct rnbd_srv_session *srv_sess,
 	bio->bi_iter.bi_sector = le64_to_cpu(msg->sector);
 	prio = srv_sess->ver < RNBD_PROTO_VER_MAJOR ||
 	       usrlen < sizeof(*msg) ? 0 : le16_to_cpu(msg->prio);
-	bio_set_prio(bio, prio);
+	bio->bi_ioprio = prio;
 
 	submit_bio(bio);
 

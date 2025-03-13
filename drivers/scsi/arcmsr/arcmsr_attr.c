@@ -60,7 +60,7 @@
 
 static ssize_t arcmsr_sysfs_iop_message_read(struct file *filp,
 					     struct kobject *kobj,
-					     struct bin_attribute *bin,
+					     const struct bin_attribute *bin,
 					     char *buf, loff_t off,
 					     size_t count)
 {
@@ -107,7 +107,7 @@ static ssize_t arcmsr_sysfs_iop_message_read(struct file *filp,
 
 static ssize_t arcmsr_sysfs_iop_message_write(struct file *filp,
 					      struct kobject *kobj,
-					      struct bin_attribute *bin,
+					      const struct bin_attribute *bin,
 					      char *buf, loff_t off,
 					      size_t count)
 {
@@ -155,7 +155,7 @@ static ssize_t arcmsr_sysfs_iop_message_write(struct file *filp,
 
 static ssize_t arcmsr_sysfs_iop_message_clear(struct file *filp,
 					      struct kobject *kobj,
-					      struct bin_attribute *bin,
+					      const struct bin_attribute *bin,
 					      char *buf, loff_t off,
 					      size_t count)
 {
@@ -194,7 +194,7 @@ static const struct bin_attribute arcmsr_sysfs_message_read_attr = {
 		.mode = S_IRUSR ,
 	},
 	.size = ARCMSR_API_DATA_BUFLEN,
-	.read = arcmsr_sysfs_iop_message_read,
+	.read_new = arcmsr_sysfs_iop_message_read,
 };
 
 static const struct bin_attribute arcmsr_sysfs_message_write_attr = {
@@ -203,7 +203,7 @@ static const struct bin_attribute arcmsr_sysfs_message_write_attr = {
 		.mode = S_IWUSR,
 	},
 	.size = ARCMSR_API_DATA_BUFLEN,
-	.write = arcmsr_sysfs_iop_message_write,
+	.write_new = arcmsr_sysfs_iop_message_write,
 };
 
 static const struct bin_attribute arcmsr_sysfs_message_clear_attr = {
@@ -212,7 +212,7 @@ static const struct bin_attribute arcmsr_sysfs_message_clear_attr = {
 		.mode = S_IWUSR,
 	},
 	.size = 1,
-	.write = arcmsr_sysfs_iop_message_clear,
+	.write_new = arcmsr_sysfs_iop_message_clear,
 };
 
 int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *acb)

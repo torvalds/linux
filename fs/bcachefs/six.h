@@ -137,6 +137,7 @@ struct six_lock {
 	atomic_t		state;
 	u32			seq;
 	unsigned		intent_lock_recurse;
+	unsigned		write_lock_recurse;
 	struct task_struct	*owner;
 	unsigned __percpu	*readers;
 	raw_spinlock_t		wait_lock;
@@ -163,18 +164,19 @@ enum six_lock_init_flags {
 };
 
 void __six_lock_init(struct six_lock *lock, const char *name,
-		     struct lock_class_key *key, enum six_lock_init_flags flags);
+		     struct lock_class_key *key, enum six_lock_init_flags flags,
+		     gfp_t gfp);
 
 /**
  * six_lock_init - initialize a six lock
  * @lock:	lock to initialize
  * @flags:	optional flags, i.e. SIX_LOCK_INIT_PCPU
  */
-#define six_lock_init(lock, flags)					\
+#define six_lock_init(lock, flags, gfp)					\
 do {									\
 	static struct lock_class_key __key;				\
 									\
-	__six_lock_init((lock), #lock, &__key, flags);			\
+	__six_lock_init((lock), #lock, &__key, flags, gfp);			\
 } while (0)
 
 /**

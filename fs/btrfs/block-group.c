@@ -173,43 +173,41 @@ void btrfs_put_block_group(struct btrfs_block_group *cache)
 	}
 }
 
+static int btrfs_bg_start_cmp(const struct rb_node *new,
+			      const struct rb_node *exist)
+{
+	const struct btrfs_block_group *new_bg =
+		rb_entry(new, struct btrfs_block_group, cache_node);
+	const struct btrfs_block_group *exist_bg =
+		rb_entry(exist, struct btrfs_block_group, cache_node);
+
+	if (new_bg->start < exist_bg->start)
+		return -1;
+	if (new_bg->start > exist_bg->start)
+		return 1;
+	return 0;
+}
+
 /*
  * This adds the block group to the fs_info rb tree for the block group cache
  */
 static int btrfs_add_block_group_cache(struct btrfs_fs_info *info,
 				       struct btrfs_block_group *block_group)
 {
-	struct rb_node **p;
-	struct rb_node *parent = NULL;
-	struct btrfs_block_group *cache;
-	bool leftmost = true;
+	struct rb_node *exist;
+	int ret = 0;
 
 	ASSERT(block_group->length != 0);
 
 	write_lock(&info->block_group_cache_lock);
-	p = &info->block_group_cache_tree.rb_root.rb_node;
 
-	while (*p) {
-		parent = *p;
-		cache = rb_entry(parent, struct btrfs_block_group, cache_node);
-		if (block_group->start < cache->start) {
-			p = &(*p)->rb_left;
-		} else if (block_group->start > cache->start) {
-			p = &(*p)->rb_right;
-			leftmost = false;
-		} else {
-			write_unlock(&info->block_group_cache_lock);
-			return -EEXIST;
-		}
-	}
-
-	rb_link_node(&block_group->cache_node, parent, p);
-	rb_insert_color_cached(&block_group->cache_node,
-			       &info->block_group_cache_tree, leftmost);
-
+	exist = rb_find_add_cached(&block_group->cache_node,
+			&info->block_group_cache_tree, btrfs_bg_start_cmp);
+	if (exist)
+		ret = -EEXIST;
 	write_unlock(&info->block_group_cache_lock);
 
-	return 0;
+	return ret;
 }
 
 /*
@@ -1223,7 +1221,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	block_group->space_info->total_bytes -= block_group->length;
 	block_group->space_info->bytes_readonly -=
 		(block_group->length - block_group->zone_unusable);
-	btrfs_space_info_update_bytes_zone_unusable(fs_info, block_group->space_info,
+	btrfs_space_info_update_bytes_zone_unusable(block_group->space_info,
 						    -block_group->zone_unusable);
 	block_group->space_info->disk_total -= block_group->length * factor;
 
@@ -1396,8 +1394,7 @@ static int inc_block_group_ro(struct btrfs_block_group *cache, int force)
 		if (btrfs_is_zoned(cache->fs_info)) {
 			/* Migrate zone_unusable bytes to readonly */
 			sinfo->bytes_readonly += cache->zone_unusable;
-			btrfs_space_info_update_bytes_zone_unusable(cache->fs_info, sinfo,
-								    -cache->zone_unusable);
+			btrfs_space_info_update_bytes_zone_unusable(sinfo, -cache->zone_unusable);
 			cache->zone_unusable = 0;
 		}
 		cache->ro++;
@@ -1645,8 +1642,7 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 		spin_lock(&space_info->lock);
 		spin_lock(&block_group->lock);
 
-		btrfs_space_info_update_bytes_pinned(fs_info, space_info,
-						     -block_group->pinned);
+		btrfs_space_info_update_bytes_pinned(space_info, -block_group->pinned);
 		space_info->bytes_readonly += block_group->pinned;
 		block_group->pinned = 0;
 
@@ -2672,7 +2668,6 @@ static int insert_dev_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_dev_extent_chunk_offset(leaf, extent, chunk_offset);
 
 	btrfs_set_dev_extent_length(leaf, extent, num_bytes);
-	btrfs_mark_buffer_dirty(trans, leaf);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -3060,8 +3055,7 @@ void btrfs_dec_block_group_ro(struct btrfs_block_group *cache)
 				(cache->alloc_offset - cache->used - cache->pinned -
 				 cache->reserved) +
 				(cache->length - cache->zone_capacity);
-			btrfs_space_info_update_bytes_zone_unusable(cache->fs_info, sinfo,
-								    cache->zone_unusable);
+			btrfs_space_info_update_bytes_zone_unusable(sinfo, cache->zone_unusable);
 			sinfo->bytes_readonly -= cache->zone_unusable;
 		}
 		num_bytes = cache->length - cache->reserved -
@@ -3123,7 +3117,6 @@ static int update_block_group_item(struct btrfs_trans_handle *trans,
 						   cache->global_root_id);
 	btrfs_set_stack_block_group_flags(&bgi, cache->flags);
 	write_extent_buffer(leaf, &bgi, bi, sizeof(bgi));
-	btrfs_mark_buffer_dirty(trans, leaf);
 fail:
 	btrfs_release_path(path);
 	/*
@@ -3699,7 +3692,7 @@ int btrfs_update_block_group(struct btrfs_trans_handle *trans,
 		old_val -= num_bytes;
 		cache->used = old_val;
 		cache->pinned += num_bytes;
-		btrfs_space_info_update_bytes_pinned(info, space_info, num_bytes);
+		btrfs_space_info_update_bytes_pinned(space_info, num_bytes);
 		space_info->bytes_used -= num_bytes;
 		space_info->disk_used -= num_bytes * factor;
 		if (READ_ONCE(space_info->periodic_reclaim))
@@ -3781,8 +3774,7 @@ int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
 	space_info->bytes_reserved += num_bytes;
 	trace_btrfs_space_reservation(cache->fs_info, "space_info",
 				      space_info->flags, num_bytes, 1);
-	btrfs_space_info_update_bytes_may_use(cache->fs_info,
-					      space_info, -ram_bytes);
+	btrfs_space_info_update_bytes_may_use(space_info, -ram_bytes);
 	if (delalloc)
 		cache->delalloc_bytes += num_bytes;
 

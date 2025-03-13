@@ -22,7 +22,7 @@
 #include <linux/timer.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
-
+#include <linux/string_choices.h>
 
 #include "../cluster/heartbeat.h"
 #include "../cluster/nodemanager.h"
@@ -207,7 +207,7 @@ void dlm_complete_recovery_thread(struct dlm_ctxt *dlm)
  * 1) all recovery threads cluster wide will work on recovering
  *    ONE node at a time
  * 2) negotiate who will take over all the locks for the dead node.
- *    thats right... ALL the locks.
+ *    that's right... ALL the locks.
  * 3) once a new master is chosen, everyone scans all locks
  *    and moves aside those mastered by the dead guy
  * 4) each of these locks should be locked until recovery is done
@@ -581,8 +581,7 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 							   msecs_to_jiffies(1000));
 					mlog(0, "waited 1 sec for %u, "
 					     "dead? %s\n", ndata->node_num,
-					     dlm_is_node_dead(dlm, ndata->node_num) ?
-					     "yes" : "no");
+					     str_yes_no(dlm_is_node_dead(dlm, ndata->node_num)));
 				} else {
 					/* -ENOMEM on the other node */
 					mlog(0, "%s: node %u returned "
@@ -677,7 +676,7 @@ static int dlm_remaster_locks(struct dlm_ctxt *dlm, u8 dead_node)
 		spin_unlock(&dlm_reco_state_lock);
 
 		mlog(0, "pass #%d, all_nodes_done?: %s\n", ++pass,
-		     all_nodes_done?"yes":"no");
+		     str_yes_no(all_nodes_done));
 		if (all_nodes_done) {
 			int ret;
 
@@ -1469,7 +1468,7 @@ int dlm_mig_lockres_handler(struct o2net_msg *msg, u32 len, void *data,
 		 * The first one is handled at the end of this function. The
 		 * other two are handled in the worker thread after locks have
 		 * been attached. Yes, we don't wait for purge time to match
-		 * kref_init. The lockres will still have atleast one ref
+		 * kref_init. The lockres will still have at least one ref
 		 * added because it is in the hash __dlm_insert_lockres() */
 		extra_refs++;
 
@@ -1735,7 +1734,7 @@ int dlm_master_requery_handler(struct o2net_msg *msg, u32 len, void *data,
 				spin_unlock(&res->spinlock);
 			}
 		} else {
-			/* put.. incase we are not the master */
+			/* put.. in case we are not the master */
 			spin_unlock(&res->spinlock);
 			dlm_lockres_put(res);
 		}

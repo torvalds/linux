@@ -115,6 +115,7 @@
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&eth_default>;
 	pinctrl-1 = <&eth_sleep>;
+	mediatek,mac-wol;
 	status = "okay";
 
 	mdio {

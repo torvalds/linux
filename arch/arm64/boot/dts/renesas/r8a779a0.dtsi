@@ -765,8 +765,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_ds1 1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -814,8 +812,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_ds1 2>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -863,8 +859,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_ds1 3>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -912,8 +906,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_ds1 4>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
@@ -961,8 +953,6 @@
 			rx-internal-delay-ps = <0>;
 			tx-internal-delay-ps = <0>;
 			iommus = <&ipmmu_ds1 11>;
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 

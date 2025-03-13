@@ -20,11 +20,11 @@
 #include <linux/pm.h>
 #include <linux/regmap.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_bridge_connector.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_damage_helper.h>
@@ -953,7 +953,6 @@ static const struct drm_driver ingenic_drm_driver_data = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name			= "ingenic-drm",
 	.desc			= "DRM module for Ingenic SoCs",
-	.date			= "20200716",
 	.major			= 1,
 	.minor			= 1,
 	.patchlevel		= 0,
@@ -1632,7 +1631,7 @@ static struct platform_driver ingenic_drm_driver = {
 		.of_match_table = of_match_ptr(ingenic_drm_of_match),
 	},
 	.probe = ingenic_drm_probe,
-	.remove_new = ingenic_drm_remove,
+	.remove = ingenic_drm_remove,
 	.shutdown = ingenic_drm_shutdown,
 };
 

@@ -103,6 +103,19 @@ struct testcase testcases_v4[] = {
 		.r_num_mss = 1,
 	},
 	{
+		/* datalen <= MSS < gso_len: will fall back to no GSO */
+		.tlen = CONST_MSS_V4,
+		.gso_len = CONST_MSS_V4 + 1,
+		.r_num_mss = 0,
+		.r_len_last = CONST_MSS_V4,
+	},
+	{
+		/* MSS < datalen < gso_len: fail */
+		.tlen = CONST_MSS_V4 + 1,
+		.gso_len = CONST_MSS_V4 + 2,
+		.tfail = true,
+	},
+	{
 		/* send a single MSS + 1B */
 		.tlen = CONST_MSS_V4 + 1,
 		.gso_len = CONST_MSS_V4,
@@ -204,6 +217,19 @@ struct testcase testcases_v6[] = {
 		.tlen = CONST_MSS_V6,
 		.gso_len = CONST_MSS_V6,
 		.r_num_mss = 1,
+	},
+	{
+		/* datalen <= MSS < gso_len: will fall back to no GSO */
+		.tlen = CONST_MSS_V6,
+		.gso_len = CONST_MSS_V6 + 1,
+		.r_num_mss = 0,
+		.r_len_last = CONST_MSS_V6,
+	},
+	{
+		/* MSS < datalen < gso_len: fail */
+		.tlen = CONST_MSS_V6 + 1,
+		.gso_len = CONST_MSS_V6 + 2,
+		.tfail = true
 	},
 	{
 		/* send a single MSS + 1B */

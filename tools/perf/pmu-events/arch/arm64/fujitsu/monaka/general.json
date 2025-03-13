@@ -1,0 +1,10 @@
+[
+    {
+        "ArchStdEvent": "CPU_CYCLES",
+        "BriefDescription": "This event counts every cycle."
+    },
+    {
+        "ArchStdEvent": "CNT_CYCLES",
+        "BriefDescription": "This event counts the constant frequency cycles counter increments at a constant frequency equal to the rate of increment of the System counter."
+    }
+]

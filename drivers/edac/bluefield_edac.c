@@ -474,7 +474,7 @@ static struct platform_driver bluefield_edac_mc_driver = {
 		.acpi_match_table = bluefield_mc_acpi_ids,
 	},
 	.probe = bluefield_edac_mc_probe,
-	.remove_new = bluefield_edac_mc_remove,
+	.remove = bluefield_edac_mc_remove,
 };
 
 module_platform_driver(bluefield_edac_mc_driver);

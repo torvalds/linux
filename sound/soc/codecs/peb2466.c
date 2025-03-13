@@ -26,8 +26,7 @@ struct peb2466_lookup {
 	unsigned int count;
 };
 
-#define PEB2466_TLV_SIZE  (sizeof((unsigned int []){TLV_DB_SCALE_ITEM(0, 0, 0)}) / \
-			   sizeof(unsigned int))
+#define PEB2466_TLV_SIZE ARRAY_SIZE(((unsigned int[]){TLV_DB_SCALE_ITEM(0, 0, 0)}))
 
 struct peb2466_lkup_ctrl {
 	int reg;

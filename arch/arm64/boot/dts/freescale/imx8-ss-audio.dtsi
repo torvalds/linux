@@ -165,7 +165,7 @@ audio_subsys: bus@59000000 {
 	};
 
 	esai0: esai@59010000 {
-		compatible = "fsl,imx8qm-esai";
+		compatible = "fsl,imx8qm-esai", "fsl,imx6ull-esai";
 		reg = <0x59010000 0x10000>;
 		interrupts = <GIC_SPI 409 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&esai0_lpcg IMX_LPCG_CLK_4>,

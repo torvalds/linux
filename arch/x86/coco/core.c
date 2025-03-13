@@ -65,7 +65,6 @@ static __maybe_unused __always_inline bool amd_cc_platform_vtom(enum cc_attr att
  * up under SME the trampoline area cannot be encrypted, whereas under SEV
  * the trampoline area must be encrypted.
  */
-
 static bool noinstr amd_cc_platform_has(enum cc_attr attr)
 {
 #ifdef CONFIG_AMD_MEM_ENCRYPT
@@ -96,6 +95,9 @@ static bool noinstr amd_cc_platform_has(enum cc_attr attr)
 
 	case CC_ATTR_GUEST_SEV_SNP:
 		return sev_status & MSR_AMD64_SEV_SNP_ENABLED;
+
+	case CC_ATTR_GUEST_SNP_SECURE_TSC:
+		return sev_status & MSR_AMD64_SNP_SECURE_TSC;
 
 	case CC_ATTR_HOST_SEV_SNP:
 		return cc_flags.host_sev_snp;

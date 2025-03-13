@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
+msrv = "1.78.0"
+
 check-private-items = true
 
 disallowed-macros = [

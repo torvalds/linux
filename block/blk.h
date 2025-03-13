@@ -13,6 +13,9 @@
 
 struct elevator_type;
 
+#define	BLK_DEV_MAX_SECTORS	(LLONG_MAX >> 9)
+#define	BLK_MIN_SEGMENT_SIZE	4096
+
 /* Max future timer expiry for timeouts */
 #define BLK_MAX_TIMEOUT		(5 * HZ)
 
@@ -356,8 +359,12 @@ struct bio *bio_split_zone_append(struct bio *bio,
 static inline bool bio_may_need_split(struct bio *bio,
 		const struct queue_limits *lim)
 {
-	return lim->chunk_sectors || bio->bi_vcnt != 1 ||
-		bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset > PAGE_SIZE;
+	if (lim->chunk_sectors)
+		return true;
+	if (bio->bi_vcnt != 1)
+		return true;
+	return bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset >
+		lim->min_segment_size;
 }
 
 /**
@@ -556,14 +563,6 @@ void bdev_set_nr_sectors(struct block_device *bdev, sector_t sectors);
 struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
 		struct lock_class_key *lkclass);
 
-int bio_add_hw_page(struct request_queue *q, struct bio *bio,
-		struct page *page, unsigned int len, unsigned int offset,
-		unsigned int max_sectors, bool *same_page);
-
-int bio_add_hw_folio(struct request_queue *q, struct bio *bio,
-		struct folio *folio, size_t len, size_t offset,
-		unsigned int max_sectors, bool *same_page);
-
 /*
  * Clean up a page appropriately, where the page may be pinned, may have a
  * ref taken on it or neither.
@@ -720,22 +719,29 @@ void blk_integrity_verify(struct bio *bio);
 void blk_integrity_prepare(struct request *rq);
 void blk_integrity_complete(struct request *rq, unsigned int nr_bytes);
 
-static inline void blk_freeze_acquire_lock(struct request_queue *q, bool
-		disk_dead, bool queue_dying)
+#ifdef CONFIG_LOCKDEP
+static inline void blk_freeze_acquire_lock(struct request_queue *q)
 {
-	if (!disk_dead)
+	if (!q->mq_freeze_disk_dead)
 		rwsem_acquire(&q->io_lockdep_map, 0, 1, _RET_IP_);
-	if (!queue_dying)
+	if (!q->mq_freeze_queue_dying)
 		rwsem_acquire(&q->q_lockdep_map, 0, 1, _RET_IP_);
 }
 
-static inline void blk_unfreeze_release_lock(struct request_queue *q, bool
-		disk_dead, bool queue_dying)
+static inline void blk_unfreeze_release_lock(struct request_queue *q)
 {
-	if (!queue_dying)
+	if (!q->mq_freeze_queue_dying)
 		rwsem_release(&q->q_lockdep_map, _RET_IP_);
-	if (!disk_dead)
+	if (!q->mq_freeze_disk_dead)
 		rwsem_release(&q->io_lockdep_map, _RET_IP_);
 }
+#else
+static inline void blk_freeze_acquire_lock(struct request_queue *q)
+{
+}
+static inline void blk_unfreeze_release_lock(struct request_queue *q)
+{
+}
+#endif
 
 #endif /* BLK_INTERNAL_H */

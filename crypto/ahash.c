@@ -27,6 +27,93 @@
 
 #define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000e
 
+struct crypto_hash_walk {
+	char *data;
+
+	unsigned int offset;
+	unsigned int flags;
+
+	struct page *pg;
+	unsigned int entrylen;
+
+	unsigned int total;
+	struct scatterlist *sg;
+};
+
+static int hash_walk_next(struct crypto_hash_walk *walk)
+{
+	unsigned int offset = walk->offset;
+	unsigned int nbytes = min(walk->entrylen,
+				  ((unsigned int)(PAGE_SIZE)) - offset);
+
+	walk->data = kmap_local_page(walk->pg);
+	walk->data += offset;
+	walk->entrylen -= nbytes;
+	return nbytes;
+}
+
+static int hash_walk_new_entry(struct crypto_hash_walk *walk)
+{
+	struct scatterlist *sg;
+
+	sg = walk->sg;
+	walk->offset = sg->offset;
+	walk->pg = sg_page(walk->sg) + (walk->offset >> PAGE_SHIFT);
+	walk->offset = offset_in_page(walk->offset);
+	walk->entrylen = sg->length;
+
+	if (walk->entrylen > walk->total)
+		walk->entrylen = walk->total;
+	walk->total -= walk->entrylen;
+
+	return hash_walk_next(walk);
+}
+
+static int crypto_hash_walk_first(struct ahash_request *req,
+				  struct crypto_hash_walk *walk)
+{
+	walk->total = req->nbytes;
+
+	if (!walk->total) {
+		walk->entrylen = 0;
+		return 0;
+	}
+
+	walk->sg = req->src;
+	walk->flags = req->base.flags;
+
+	return hash_walk_new_entry(walk);
+}
+
+static int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
+{
+	walk->data -= walk->offset;
+
+	kunmap_local(walk->data);
+	crypto_yield(walk->flags);
+
+	if (err)
+		return err;
+
+	if (walk->entrylen) {
+		walk->offset = 0;
+		walk->pg++;
+		return hash_walk_next(walk);
+	}
+
+	if (!walk->total)
+		return 0;
+
+	walk->sg = sg_next(walk->sg);
+
+	return hash_walk_new_entry(walk);
+}
+
+static inline int crypto_hash_walk_last(struct crypto_hash_walk *walk)
+{
+	return !(walk->entrylen | walk->total);
+}
+
 /*
  * For an ahash tfm that is using an shash algorithm (instead of an ahash
  * algorithm), this returns the underlying shash tfm.
@@ -136,77 +223,6 @@ static int crypto_init_ahash_using_shash(struct crypto_tfm *tfm)
 
 	return 0;
 }
-
-static int hash_walk_next(struct crypto_hash_walk *walk)
-{
-	unsigned int offset = walk->offset;
-	unsigned int nbytes = min(walk->entrylen,
-				  ((unsigned int)(PAGE_SIZE)) - offset);
-
-	walk->data = kmap_local_page(walk->pg);
-	walk->data += offset;
-	walk->entrylen -= nbytes;
-	return nbytes;
-}
-
-static int hash_walk_new_entry(struct crypto_hash_walk *walk)
-{
-	struct scatterlist *sg;
-
-	sg = walk->sg;
-	walk->offset = sg->offset;
-	walk->pg = sg_page(walk->sg) + (walk->offset >> PAGE_SHIFT);
-	walk->offset = offset_in_page(walk->offset);
-	walk->entrylen = sg->length;
-
-	if (walk->entrylen > walk->total)
-		walk->entrylen = walk->total;
-	walk->total -= walk->entrylen;
-
-	return hash_walk_next(walk);
-}
-
-int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err)
-{
-	walk->data -= walk->offset;
-
-	kunmap_local(walk->data);
-	crypto_yield(walk->flags);
-
-	if (err)
-		return err;
-
-	if (walk->entrylen) {
-		walk->offset = 0;
-		walk->pg++;
-		return hash_walk_next(walk);
-	}
-
-	if (!walk->total)
-		return 0;
-
-	walk->sg = sg_next(walk->sg);
-
-	return hash_walk_new_entry(walk);
-}
-EXPORT_SYMBOL_GPL(crypto_hash_walk_done);
-
-int crypto_hash_walk_first(struct ahash_request *req,
-			   struct crypto_hash_walk *walk)
-{
-	walk->total = req->nbytes;
-
-	if (!walk->total) {
-		walk->entrylen = 0;
-		return 0;
-	}
-
-	walk->sg = req->src;
-	walk->flags = req->base.flags;
-
-	return hash_walk_new_entry(walk);
-}
-EXPORT_SYMBOL_GPL(crypto_hash_walk_first);
 
 static int ahash_nosetkey(struct crypto_ahash *tfm, const u8 *key,
 			  unsigned int keylen)

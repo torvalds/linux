@@ -291,7 +291,6 @@ static struct crypto_alg des3_ede_cipher = {
 	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		= DES3_EDE_BLOCK_SIZE,
 	.cra_ctxsize		= sizeof(struct des3_ede_x86_ctx),
-	.cra_alignmask		= 0,
 	.cra_module		= THIS_MODULE,
 	.cra_u = {
 		.cipher = {

@@ -754,6 +754,6 @@ const struct sdw_intel_hw_ops sdw_intel_lnl_hw_ops = {
 
 	.program_sdi = intel_program_sdi,
 };
-EXPORT_SYMBOL_NS(sdw_intel_lnl_hw_ops, SOUNDWIRE_INTEL);
+EXPORT_SYMBOL_NS(sdw_intel_lnl_hw_ops, "SOUNDWIRE_INTEL");
 
-MODULE_IMPORT_NS(SND_SOC_SOF_HDA_MLINK);
+MODULE_IMPORT_NS("SND_SOC_SOF_HDA_MLINK");

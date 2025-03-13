@@ -241,6 +241,11 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	printing using the existing 'perf trace' syscall arg beautifiers to map integer
 	arguments to strings (pid to comm, syscall id to syscall name, etc).
 
+--force-btf::
+	Use btf_dump to pretty print syscall argument data, instead of using hand-crafted pretty
+	printers. This option is intended for testing BTF integration in perf trace. btf_dump-based
+	pretty-printing serves as a fallback to hand-crafted pretty printers, as the latter can
+	better pretty-print integer flags and struct pointers.
 
 PAGEFAULTS
 ----------

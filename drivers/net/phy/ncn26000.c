@@ -159,7 +159,7 @@ static struct phy_driver ncn26000_driver[] = {
 
 module_phy_driver(ncn26000_driver);
 
-static struct mdio_device_id __maybe_unused ncn26000_tbl[] = {
+static const struct mdio_device_id __maybe_unused ncn26000_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_NCN26000) },
 	{ }
 };

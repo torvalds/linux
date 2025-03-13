@@ -120,8 +120,6 @@ int ishtp_cl_alloc_rx_ring(struct ishtp_cl *cl);
 int ishtp_cl_alloc_tx_ring(struct ishtp_cl *cl);
 void ishtp_cl_free_rx_ring(struct ishtp_cl *cl);
 void ishtp_cl_free_tx_ring(struct ishtp_cl *cl);
-int ishtp_cl_get_tx_free_buffer_size(struct ishtp_cl *cl);
-int ishtp_cl_get_tx_free_rings(struct ishtp_cl *cl);
 
 /* DMA I/F functions */
 void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,

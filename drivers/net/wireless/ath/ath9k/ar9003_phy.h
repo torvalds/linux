@@ -246,7 +246,7 @@
 
 
 /*
- * MRC Feild Definitions
+ * MRC Field Definitions
  */
 #define AR_PHY_SGI_DSC_MAN   0x0007FFF0
 #define AR_PHY_SGI_DSC_MAN_S 4

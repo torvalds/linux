@@ -332,6 +332,7 @@ struct snd_sof_pcm_stream {
 	struct work_struct period_elapsed_work;
 	struct snd_soc_dapm_widget_list *list; /* list of connected DAPM widgets */
 	bool d0i3_compatible; /* DSP can be in D0I3 when this pcm is opened */
+	bool pause_supported; /* PCM device supports PAUSE operation */
 	unsigned int dsp_max_burst_size_in_ms; /* The maximum size of the host DMA burst in ms */
 	/*
 	 * flag to indicate that the DSP pipelines should be kept

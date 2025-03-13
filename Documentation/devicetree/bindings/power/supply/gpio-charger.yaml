@@ -58,6 +58,10 @@ properties:
             charge-current-limit-gpios property. Bit 1 second to last
             GPIO and so on.
 
+  charge-current-limit-default-microamp:
+    description: Default charge current limit. Must be listed in
+      charge-current-limit-mapping.
+
 required:
   - compatible
 
@@ -72,6 +76,7 @@ anyOf:
 dependencies:
   charge-current-limit-gpios: [ charge-current-limit-mapping ]
   charge-current-limit-mapping: [ charge-current-limit-gpios ]
+  charge-current-limit-default-microamp: [charge-current-limit-mapping]
 
 additionalProperties: false
 
@@ -91,4 +96,5 @@ examples:
       charge-current-limit-mapping = <2500000 0x00>, // 2.5 A => both GPIOs low
                                      <700000 0x01>, // 700 mA => GPIO A.12 high
                                      <0 0x02>; // 0 mA => GPIO A.11 high
+      charge-current-limit-default-microamp = <700000>;
     };

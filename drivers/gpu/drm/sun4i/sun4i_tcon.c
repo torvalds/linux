@@ -1568,7 +1568,7 @@ EXPORT_SYMBOL(sun4i_tcon_of_table);
 
 static struct platform_driver sun4i_tcon_platform_driver = {
 	.probe		= sun4i_tcon_probe,
-	.remove_new	= sun4i_tcon_remove,
+	.remove		= sun4i_tcon_remove,
 	.driver		= {
 		.name		= "sun4i-tcon",
 		.of_match_table	= sun4i_tcon_of_table,

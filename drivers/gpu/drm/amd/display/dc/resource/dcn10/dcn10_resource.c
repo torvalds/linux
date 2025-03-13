@@ -1258,6 +1258,11 @@ struct stream_encoder *dcn10_find_first_free_match_stream_enc_for_link(
 	return NULL;
 }
 
+unsigned int dcn10_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx)
+{
+	return pipe_ctx->pipe_dlg_param.vstartup_start;
+}
+
 static const struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = dcn10_get_dcc_compression_cap
 };
@@ -1272,7 +1277,8 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_global = dcn10_validate_global,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
 	.patch_unknown_plane_state = dcn10_patch_unknown_plane_state,
-	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
+	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
 };
 
 static uint32_t read_pipe_fuses(struct dc_context *ctx)

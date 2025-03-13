@@ -755,12 +755,12 @@ static struct fman_mac *pcs_to_dtsec(struct phylink_pcs *pcs)
 	return container_of(pcs, struct fman_mac, pcs);
 }
 
-static void dtsec_pcs_get_state(struct phylink_pcs *pcs,
+static void dtsec_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 				struct phylink_link_state *state)
 {
 	struct fman_mac *dtsec = pcs_to_dtsec(pcs);
 
-	phylink_mii_c22_pcs_get_state(dtsec->tbidev, state);
+	phylink_mii_c22_pcs_get_state(dtsec->tbidev, neg_mode, state);
 }
 
 static int dtsec_pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,

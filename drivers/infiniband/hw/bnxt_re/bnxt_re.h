@@ -187,7 +187,6 @@ struct bnxt_re_dev {
 #define BNXT_RE_FLAG_ISSUE_ROCE_STATS          29
 	struct net_device		*netdev;
 	struct auxiliary_device         *adev;
-	struct notifier_block		nb;
 	unsigned int			version, major, minor;
 	struct bnxt_qplib_chip_ctx	*chip_ctx;
 	struct bnxt_en_dev		*en_dev;
@@ -204,7 +203,7 @@ struct bnxt_re_dev {
 	struct bnxt_re_nq_record	*nqr;
 
 	/* Device Resources */
-	struct bnxt_qplib_dev_attr	dev_attr;
+	struct bnxt_qplib_dev_attr	*dev_attr;
 	struct bnxt_qplib_ctx		qplib_ctx;
 	struct bnxt_qplib_res		qplib_res;
 	struct bnxt_qplib_dpi		dpi_privileged;
@@ -229,6 +228,9 @@ struct bnxt_re_dev {
 	DECLARE_HASHTABLE(srq_hash, MAX_SRQ_HASH_BITS);
 	struct dentry			*dbg_root;
 	struct dentry			*qp_debugfs;
+	unsigned long			event_bitmap;
+	struct bnxt_qplib_cc_param	cc_param;
+	struct workqueue_struct		*dcb_wq;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\

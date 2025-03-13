@@ -100,7 +100,7 @@ struct Scsi_Host;
 
 struct sysfs_bin_attrs {
 	char *name;
-	struct bin_attribute *attr;
+	const struct bin_attribute *attr;
 };
 
 extern int qedf_alloc_grc_dump_buf(uint8_t **buf, uint32_t len);

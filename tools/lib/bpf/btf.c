@@ -283,7 +283,7 @@ static int btf_parse_str_sec(struct btf *btf)
 		return -EINVAL;
 	}
 	if (!btf->base_btf && start[0]) {
-		pr_debug("Invalid BTF string section\n");
+		pr_debug("Malformed BTF string section, did you forget to provide base BTF?\n");
 		return -EINVAL;
 	}
 	return 0;
@@ -1186,6 +1186,7 @@ static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 
 	elf = elf_begin(fd, ELF_C_READ, NULL);
 	if (!elf) {
+		err = -LIBBPF_ERRNO__FORMAT;
 		pr_warn("failed to open %s as ELF file\n", path);
 		goto done;
 	}

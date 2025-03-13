@@ -69,40 +69,18 @@ static struct user_threshold *__thermal_thresholds_find(const struct list_head *
 	return NULL;
 }
 
-static bool __thermal_threshold_is_crossed(struct user_threshold *threshold, int temperature,
-					   int last_temperature, int direction,
-					   int *low, int *high)
-{
-
-	if (temperature >= threshold->temperature) {
-		if (threshold->temperature > *low &&
-		    THERMAL_THRESHOLD_WAY_DOWN & threshold->direction)
-			*low = threshold->temperature;
-
-		if (last_temperature < threshold->temperature &&
-		    threshold->direction & direction)
-			return true;
-	} else {
-		if (threshold->temperature < *high && THERMAL_THRESHOLD_WAY_UP
-		    & threshold->direction)
-			*high = threshold->temperature;
-
-		if (last_temperature >= threshold->temperature &&
-		    threshold->direction & direction)
-			return true;
-	}
-
-	return false;
-}
-
 static bool thermal_thresholds_handle_raising(struct list_head *thresholds, int temperature,
-					      int last_temperature, int *low, int *high)
+					      int last_temperature)
 {
 	struct user_threshold *t;
 
 	list_for_each_entry(t, thresholds, list_node) {
-		if (__thermal_threshold_is_crossed(t, temperature, last_temperature,
-						   THERMAL_THRESHOLD_WAY_UP, low, high))
+
+		if (!(t->direction & THERMAL_THRESHOLD_WAY_UP))
+		    continue;
+
+		if (temperature >= t->temperature &&
+		    last_temperature < t->temperature)
 			return true;
 	}
 
@@ -110,17 +88,41 @@ static bool thermal_thresholds_handle_raising(struct list_head *thresholds, int 
 }
 
 static bool thermal_thresholds_handle_dropping(struct list_head *thresholds, int temperature,
-					       int last_temperature, int *low, int *high)
+					       int last_temperature)
 {
 	struct user_threshold *t;
 
 	list_for_each_entry_reverse(t, thresholds, list_node) {
-		if (__thermal_threshold_is_crossed(t, temperature, last_temperature,
-						   THERMAL_THRESHOLD_WAY_DOWN, low, high))
+
+		if (!(t->direction & THERMAL_THRESHOLD_WAY_DOWN))
+		    continue;
+
+		if (temperature <= t->temperature &&
+		    last_temperature > t->temperature)
 			return true;
 	}
 
 	return false;
+}
+
+static void thermal_threshold_find_boundaries(struct list_head *thresholds, int temperature,
+					      int *low, int *high)
+{
+	struct user_threshold *t;
+
+	list_for_each_entry(t, thresholds, list_node) {
+		if (temperature < t->temperature &&
+		    (t->direction & THERMAL_THRESHOLD_WAY_UP) &&
+		    *high > t->temperature)
+			*high = t->temperature;
+	}
+
+	list_for_each_entry_reverse(t, thresholds, list_node) {
+		if (temperature > t->temperature &&
+		    (t->direction & THERMAL_THRESHOLD_WAY_DOWN) &&
+		    *low < t->temperature)
+			*low = t->temperature;
+	}
 }
 
 void thermal_thresholds_handle(struct thermal_zone_device *tz, int *low, int *high)
@@ -131,6 +133,8 @@ void thermal_thresholds_handle(struct thermal_zone_device *tz, int *low, int *hi
 	int last_temperature = tz->last_temperature;
 
 	lockdep_assert_held(&tz->lock);
+
+	thermal_threshold_find_boundaries(thresholds, temperature, low, high);
 
 	/*
 	 * We need a second update in order to detect a threshold being crossed
@@ -151,12 +155,12 @@ void thermal_thresholds_handle(struct thermal_zone_device *tz, int *low, int *hi
 	 * - decreased : thresholds are crossed the way down
 	 */
 	if (temperature > last_temperature) {
-		if (thermal_thresholds_handle_raising(thresholds, temperature,
-						      last_temperature, low, high))
+		if (thermal_thresholds_handle_raising(thresholds,
+						      temperature, last_temperature))
 			thermal_notify_threshold_up(tz);
 	} else {
-		if (thermal_thresholds_handle_dropping(thresholds, temperature,
-						       last_temperature, low, high))
+		if (thermal_thresholds_handle_dropping(thresholds,
+						       temperature, last_temperature))
 			thermal_notify_threshold_down(tz);
 	}
 }

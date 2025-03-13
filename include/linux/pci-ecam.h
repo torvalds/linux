@@ -45,6 +45,10 @@ struct pci_ecam_ops {
 	unsigned int			bus_shift;
 	struct pci_ops			pci_ops;
 	int				(*init)(struct pci_config_window *);
+	int				(*enable_device)(struct pci_host_bridge *,
+							 struct pci_dev *);
+	void				(*disable_device)(struct pci_host_bridge *,
+							  struct pci_dev *);
 };
 
 /*

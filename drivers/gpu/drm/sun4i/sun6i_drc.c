@@ -112,7 +112,7 @@ MODULE_DEVICE_TABLE(of, sun6i_drc_of_table);
 
 static struct platform_driver sun6i_drc_platform_driver = {
 	.probe		= sun6i_drc_probe,
-	.remove_new	= sun6i_drc_remove,
+	.remove		= sun6i_drc_remove,
 	.driver		= {
 		.name		= "sun6i-drc",
 		.of_match_table	= sun6i_drc_of_table,

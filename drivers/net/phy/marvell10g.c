@@ -1484,7 +1484,7 @@ static struct phy_driver mv3310_drivers[] = {
 
 module_phy_driver(mv3310_drivers);
 
-static struct mdio_device_id __maybe_unused mv3310_tbl[] = {
+static const struct mdio_device_id __maybe_unused mv3310_tbl[] = {
 	{ MARVELL_PHY_ID_88X3310, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88E2110, MARVELL_PHY_ID_MASK },
 	{ },

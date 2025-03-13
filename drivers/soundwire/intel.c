@@ -1111,4 +1111,4 @@ const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
 	.sync_go = intel_shim_sync_go,
 	.sync_check_cmdsync_unlocked = intel_check_cmdsync_unlocked,
 };
-EXPORT_SYMBOL_NS(sdw_intel_cnl_hw_ops, SOUNDWIRE_INTEL);
+EXPORT_SYMBOL_NS(sdw_intel_cnl_hw_ops, "SOUNDWIRE_INTEL");

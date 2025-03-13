@@ -81,8 +81,9 @@ static int ionic_error_to_errno(enum ionic_status_code code)
 	case IONIC_RC_EQTYPE:
 	case IONIC_RC_EQID:
 	case IONIC_RC_EINVAL:
-	case IONIC_RC_ENOSUPP:
 		return -EINVAL;
+	case IONIC_RC_ENOSUPP:
+		return -EOPNOTSUPP;
 	case IONIC_RC_EPERM:
 		return -EPERM;
 	case IONIC_RC_ENOENT:

@@ -453,7 +453,7 @@ static struct pci_driver otx2_cptvf_pci_driver = {
 
 module_pci_driver(otx2_cptvf_pci_driver);
 
-MODULE_IMPORT_NS(CRYPTO_DEV_OCTEONTX2_CPT);
+MODULE_IMPORT_NS("CRYPTO_DEV_OCTEONTX2_CPT");
 
 MODULE_AUTHOR("Marvell");
 MODULE_DESCRIPTION("Marvell RVU CPT Virtual Function Driver");

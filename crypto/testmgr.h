@@ -59,8 +59,6 @@ struct hash_testvec {
  * @wk:		Does the test need CRYPTO_TFM_REQ_FORBID_WEAK_KEYS?
  * 		( e.g. test needs to fail due to a weak key )
  * @fips_skip:	Skip the test vector in FIPS mode
- * @generates_iv: Encryption should ignore the given IV, and output @iv_out.
- *		  Decryption takes @iv_out.  Needed for AES Keywrap ("kw(aes)").
  * @setkey_error: Expected error from setkey()
  * @crypt_error: Expected error from encrypt() and decrypt()
  */
@@ -74,7 +72,6 @@ struct cipher_testvec {
 	unsigned short klen;
 	unsigned int len;
 	bool fips_skip;
-	bool generates_iv;
 	int setkey_error;
 	int crypt_error;
 };
@@ -8559,159 +8556,6 @@ static const struct hash_testvec aes_xcbc128_tv_template[] = {
 		.psize	= 34,
 		.ksize	= 16,
 	}
-};
-
-static const char vmac64_string1[144] = {
-	'\0',     '\0',   '\0',   '\0',   '\0',   '\0',   '\0',   '\0',
-	'\0',     '\0',   '\0',   '\0',   '\0',   '\0',   '\0',   '\0',
-	'\x01', '\x01', '\x01', '\x01', '\x02', '\x03', '\x02', '\x02',
-	'\x02', '\x04', '\x01', '\x07', '\x04', '\x01', '\x04', '\x03',
-};
-
-static const char vmac64_string2[144] = {
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	 'a',  'b',  'c',
-};
-
-static const char vmac64_string3[144] = {
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	 'a',  'b',  'c',  'a',  'b',  'c',  'a',  'b',
-	 'c',  'a',  'b',  'c',  'a',  'b',  'c',  'a',
-	 'b',  'c',  'a',  'b',  'c',  'a',  'b',  'c',
-	 'a',  'b',  'c',  'a',  'b',  'c',  'a',  'b',
-	 'c',  'a',  'b',  'c',  'a',  'b',  'c',  'a',
-	 'b',  'c',  'a',  'b',  'c',  'a',  'b',  'c',
-};
-
-static const char vmac64_string4[33] = {
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	'b',   'c',  'e',  'f',  'i',  'j',  'l',  'm',
-	'o',   'p',  'r',  's',  't',  'u',  'w',  'x',
-	'z',
-};
-
-static const char vmac64_string5[143] = {
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	 'r',  'm',  'b',  't',  'c',  'o',  'l',  'k',
-	 ']',  '%',  '9',  '2',  '7',  '!',  'A',
-};
-
-static const char vmac64_string6[145] = {
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	'\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
-	 'p',  't',  '*',  '7',  'l',  'i',  '!',  '#',
-	 'w',  '0',  'z',  '/',  '4',  'A',  'n',
-};
-
-static const struct hash_testvec vmac64_aes_tv_template[] = {
-	{ /* draft-krovetz-vmac-01 test vector 1 */
-		.key	= "abcdefghijklmnop",
-		.ksize	= 16,
-		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi",
-		.psize	= 16,
-		.digest	= "\x25\x76\xbe\x1c\x56\xd8\xb8\x1b",
-	}, { /* draft-krovetz-vmac-01 test vector 2 */
-		.key	= "abcdefghijklmnop",
-		.ksize	= 16,
-		.plaintext = "\0\0\0\0\0\0\0\0bcdefghiabc",
-		.psize	= 19,
-		.digest	= "\x2d\x37\x6c\xf5\xb1\x81\x3c\xe5",
-	}, { /* draft-krovetz-vmac-01 test vector 3 */
-		.key	= "abcdefghijklmnop",
-		.ksize	= 16,
-		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi"
-			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc",
-		.psize	= 64,
-		.digest	= "\xe8\x42\x1f\x61\xd5\x73\xd2\x98",
-	}, { /* draft-krovetz-vmac-01 test vector 4 */
-		.key	= "abcdefghijklmnop",
-		.ksize	= 16,
-		.plaintext = "\0\0\0\0\0\0\0\0bcdefghi"
-			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
-			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
-			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
-			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
-			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabcabc"
-			  "abcabcabcabcabcabcabcabcabcabcabcabcabcabcabc",
-		.psize	= 316,
-		.digest	= "\x44\x92\xdf\x6c\x5c\xac\x1b\xbe",
-	}, {
-		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
-			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-		.ksize	= 16,
-		.plaintext = "\x00\x00\x00\x00\x00\x00\x00\x00"
-			  "\x00\x00\x00\x00\x00\x00\x00\x00",
-		.psize	= 16,
-		.digest	= "\x54\x7b\xa4\x77\x35\x80\x58\x07",
-	}, {
-		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
-			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-		.ksize	= 16,
-		.plaintext = vmac64_string1,
-		.psize	= sizeof(vmac64_string1),
-		.digest	= "\xa1\x8c\x68\xae\xd3\x3c\xf5\xce",
-	}, {
-		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
-			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-		.ksize	= 16,
-		.plaintext = vmac64_string2,
-		.psize	= sizeof(vmac64_string2),
-		.digest	= "\x2d\x14\xbd\x81\x73\xb0\x27\xc9",
-	}, {
-		.key	= "\x00\x01\x02\x03\x04\x05\x06\x07"
-			  "\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f",
-		.ksize	= 16,
-		.plaintext = vmac64_string3,
-		.psize	= sizeof(vmac64_string3),
-		.digest	= "\x19\x0b\x47\x98\x8c\x95\x1a\x8d",
-	}, {
-		.key	= "abcdefghijklmnop",
-		.ksize	= 16,
-		.plaintext = "\x00\x00\x00\x00\x00\x00\x00\x00"
-			  "\x00\x00\x00\x00\x00\x00\x00\x00",
-		.psize	= 16,
-		.digest	= "\x84\x8f\x55\x9e\x26\xa1\x89\x3b",
-	}, {
-		.key	= "abcdefghijklmnop",
-		.ksize	= 16,
-		.plaintext = vmac64_string1,
-		.psize	= sizeof(vmac64_string1),
-		.digest	= "\xc2\x74\x8d\xf6\xb0\xab\x5e\xab",
-	}, {
-		.key	= "abcdefghijklmnop",
-		.ksize	= 16,
-		.plaintext = vmac64_string2,
-		.psize	= sizeof(vmac64_string2),
-		.digest	= "\xdf\x09\x7b\x3d\x42\x68\x15\x11",
-	}, {
-		.key	= "abcdefghijklmnop",
-		.ksize	= 16,
-		.plaintext = vmac64_string3,
-		.psize	= sizeof(vmac64_string3),
-		.digest	= "\xd4\xfa\x8f\xed\xe1\x8f\x32\x8b",
-	}, {
-		.key	= "a09b5cd!f#07K\x00\x00\x00",
-		.ksize	= 16,
-		.plaintext = vmac64_string4,
-		.psize	= sizeof(vmac64_string4),
-		.digest	= "\x5f\xa1\x4e\x42\xea\x0f\xa5\xab",
-	}, {
-		.key	= "a09b5cd!f#07K\x00\x00\x00",
-		.ksize	= 16,
-		.plaintext = vmac64_string5,
-		.psize	= sizeof(vmac64_string5),
-		.digest	= "\x60\x67\xe8\x1d\xbc\x98\x31\x25",
-	}, {
-		.key	= "a09b5cd!f#07K\x00\x00\x00",
-		.ksize	= 16,
-		.plaintext = vmac64_string6,
-		.psize	= sizeof(vmac64_string6),
-		.digest	= "\x41\xeb\x65\x95\x47\x9b\xae\xc4",
-	},
 };
 
 /*
@@ -24345,42 +24189,6 @@ static const struct aead_testvec aegis128_tv_template[] = {
 			  "\xf5\x57\x0f\x2f\x49\x0e\x11\x3b"
 			  "\x78\x93\xec\xfc\xf4\xff\xe1\x2d",
 		.clen	= 24,
-	},
-};
-
-/*
- * All key wrapping test vectors taken from
- * http://csrc.nist.gov/groups/STM/cavp/documents/mac/kwtestvectors.zip
- *
- * Note: as documented in keywrap.c, the ivout for encryption is the first
- * semiblock of the ciphertext from the test vector. For decryption, iv is
- * the first semiblock of the ciphertext.
- */
-static const struct cipher_testvec aes_kw_tv_template[] = {
-	{
-		.key	= "\x75\x75\xda\x3a\x93\x60\x7c\xc2"
-			  "\xbf\xd8\xce\xc7\xaa\xdf\xd9\xa6",
-		.klen	= 16,
-		.ptext	= "\x42\x13\x6d\x3c\x38\x4a\x3e\xea"
-			  "\xc9\x5a\x06\x6f\xd2\x8f\xed\x3f",
-		.ctext	= "\xf6\x85\x94\x81\x6f\x64\xca\xa3"
-			  "\xf5\x6f\xab\xea\x25\x48\xf5\xfb",
-		.len	= 16,
-		.iv_out	= "\x03\x1f\x6b\xd7\xe6\x1e\x64\x3d",
-		.generates_iv = true,
-	}, {
-		.key	= "\x80\xaa\x99\x73\x27\xa4\x80\x6b"
-			  "\x6a\x7a\x41\xa5\x2b\x86\xc3\x71"
-			  "\x03\x86\xf9\x32\x78\x6e\xf7\x96"
-			  "\x76\xfa\xfb\x90\xb8\x26\x3c\x5f",
-		.klen	= 32,
-		.ptext	= "\x0a\x25\x6b\xa7\x5c\xfa\x03\xaa"
-			  "\xa0\x2b\xa9\x42\x03\xf1\x5b\xaa",
-		.ctext	= "\xd3\x3d\x3d\x97\x7b\xf0\xa9\x15"
-			  "\x59\xf9\x9c\x8a\xcd\x29\x3d\x43",
-		.len	= 16,
-		.iv_out	= "\x42\x3c\x96\x0d\x8a\x2a\xc4\xc1",
-		.generates_iv = true,
 	},
 };
 

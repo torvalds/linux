@@ -32,7 +32,7 @@ static void __init kasan_populate_pte(pmd_t *pmd, unsigned long vaddr, unsigned 
 	pte_t *ptep, *p;
 
 	if (pmd_none(pmdp_get(pmd))) {
-		p = memblock_alloc(PTRS_PER_PTE * sizeof(pte_t), PAGE_SIZE);
+		p = memblock_alloc_or_panic(PTRS_PER_PTE * sizeof(pte_t), PAGE_SIZE);
 		set_pmd(pmd, pfn_pmd(PFN_DOWN(__pa(p)), PAGE_TABLE));
 	}
 
@@ -54,7 +54,7 @@ static void __init kasan_populate_pmd(pud_t *pud, unsigned long vaddr, unsigned 
 	unsigned long next;
 
 	if (pud_none(pudp_get(pud))) {
-		p = memblock_alloc(PTRS_PER_PMD * sizeof(pmd_t), PAGE_SIZE);
+		p = memblock_alloc_or_panic(PTRS_PER_PMD * sizeof(pmd_t), PAGE_SIZE);
 		set_pud(pud, pfn_pud(PFN_DOWN(__pa(p)), PAGE_TABLE));
 	}
 
@@ -85,7 +85,7 @@ static void __init kasan_populate_pud(p4d_t *p4d,
 	unsigned long next;
 
 	if (p4d_none(p4dp_get(p4d))) {
-		p = memblock_alloc(PTRS_PER_PUD * sizeof(pud_t), PAGE_SIZE);
+		p = memblock_alloc_or_panic(PTRS_PER_PUD * sizeof(pud_t), PAGE_SIZE);
 		set_p4d(p4d, pfn_p4d(PFN_DOWN(__pa(p)), PAGE_TABLE));
 	}
 
@@ -116,7 +116,7 @@ static void __init kasan_populate_p4d(pgd_t *pgd,
 	unsigned long next;
 
 	if (pgd_none(pgdp_get(pgd))) {
-		p = memblock_alloc(PTRS_PER_P4D * sizeof(p4d_t), PAGE_SIZE);
+		p = memblock_alloc_or_panic(PTRS_PER_P4D * sizeof(p4d_t), PAGE_SIZE);
 		set_pgd(pgd, pfn_pgd(PFN_DOWN(__pa(p)), PAGE_TABLE));
 	}
 
@@ -385,7 +385,7 @@ static void __init kasan_shallow_populate_pud(p4d_t *p4d,
 		next = pud_addr_end(vaddr, end);
 
 		if (pud_none(pudp_get(pud_k))) {
-			p = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+			p = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 			set_pud(pud_k, pfn_pud(PFN_DOWN(__pa(p)), PAGE_TABLE));
 			continue;
 		}
@@ -405,7 +405,7 @@ static void __init kasan_shallow_populate_p4d(pgd_t *pgd,
 		next = p4d_addr_end(vaddr, end);
 
 		if (p4d_none(p4dp_get(p4d_k))) {
-			p = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+			p = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 			set_p4d(p4d_k, pfn_p4d(PFN_DOWN(__pa(p)), PAGE_TABLE));
 			continue;
 		}
@@ -424,7 +424,7 @@ static void __init kasan_shallow_populate_pgd(unsigned long vaddr, unsigned long
 		next = pgd_addr_end(vaddr, end);
 
 		if (pgd_none(pgdp_get(pgd_k))) {
-			p = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+			p = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 			set_pgd(pgd_k, pfn_pgd(PFN_DOWN(__pa(p)), PAGE_TABLE));
 			continue;
 		}

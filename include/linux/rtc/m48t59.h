@@ -56,6 +56,9 @@ struct m48t59_plat_data {
 	void __iomem *ioaddr;
 	/* offset to RTC registers, automatically set according to the type */
 	unsigned int offset;
+
+	/* YY digits (in RTC) are offset, i.e. year is 1900 + yy_offset + YY */
+	int yy_offset;
 };
 
 #endif /* _LINUX_RTC_M48T59_H_ */

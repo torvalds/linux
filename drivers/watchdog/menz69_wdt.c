@@ -164,4 +164,4 @@ MODULE_AUTHOR("Johannes Thumshirn <jth@kernel.org>");
 MODULE_DESCRIPTION("Watchdog driver for the MEN z069 IP-Core");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("mcb:16z069");
-MODULE_IMPORT_NS(MCB);
+MODULE_IMPORT_NS("MCB");

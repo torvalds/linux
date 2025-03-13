@@ -1065,7 +1065,7 @@ static struct platform_driver hid_sensor_custom_platform_driver = {
 		.name	= KBUILD_MODNAME,
 	},
 	.probe		= hid_sensor_custom_probe,
-	.remove_new	= hid_sensor_custom_remove,
+	.remove		= hid_sensor_custom_remove,
 };
 module_platform_driver(hid_sensor_custom_platform_driver);
 

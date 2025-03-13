@@ -144,11 +144,13 @@ enum btree_write_flags {
 void __bch2_btree_node_write(struct bch_fs *, struct btree *, unsigned);
 void bch2_btree_node_write(struct bch_fs *, struct btree *,
 			   enum six_lock_type, unsigned);
+void bch2_btree_node_write_trans(struct btree_trans *, struct btree *,
+				 enum six_lock_type, unsigned);
 
-static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
+static inline void btree_node_write_if_need(struct btree_trans *trans, struct btree *b,
 					    enum six_lock_type lock_held)
 {
-	bch2_btree_node_write(c, b, lock_held, BTREE_WRITE_ONLY_IF_NEED);
+	bch2_btree_node_write_trans(trans, b, lock_held, BTREE_WRITE_ONLY_IF_NEED);
 }
 
 bool bch2_btree_flush_all_reads(struct bch_fs *);

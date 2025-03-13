@@ -22,6 +22,7 @@ properties:
       - items:
           - enum:
               - microchip,sam9x7-sdhci
+              - microchip,sama7d65-sdhci
               - microchip,sama7g5-sdhci
           - const: microchip,sam9x60-sdhci
 

@@ -25,6 +25,7 @@
 static const struct i2c_device_id max15301_id[] = {
 	{ "bmr461" },
 	{ "max15301" },
+	{ "max15303" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, max15301_id);
@@ -97,4 +98,4 @@ module_i2c_driver(max15301_driver);
 MODULE_AUTHOR("Erik Rosen <erik.rosen@metormote.com>");
 MODULE_DESCRIPTION("PMBus driver for Maxim MAX15301");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

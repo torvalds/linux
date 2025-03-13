@@ -168,6 +168,11 @@ static __always_inline unsigned long ftrace_regs_get_stack_pointer(const struct 
 	return arch_ftrace_regs(fregs)->sp;
 }
 
+static __always_inline unsigned long ftrace_regs_get_frame_pointer(const struct ftrace_regs *fregs)
+{
+	return arch_ftrace_regs(fregs)->s0;
+}
+
 static __always_inline unsigned long ftrace_regs_get_argument(struct ftrace_regs *fregs,
 							      unsigned int n)
 {
@@ -181,6 +186,11 @@ static __always_inline unsigned long ftrace_regs_get_return_value(const struct f
 	return arch_ftrace_regs(fregs)->a0;
 }
 
+static __always_inline unsigned long ftrace_regs_get_return_address(const struct ftrace_regs *fregs)
+{
+	return arch_ftrace_regs(fregs)->ra;
+}
+
 static __always_inline void ftrace_regs_set_return_value(struct ftrace_regs *fregs,
 							 unsigned long ret)
 {
@@ -190,6 +200,20 @@ static __always_inline void ftrace_regs_set_return_value(struct ftrace_regs *fre
 static __always_inline void ftrace_override_function_with_return(struct ftrace_regs *fregs)
 {
 	arch_ftrace_regs(fregs)->epc = arch_ftrace_regs(fregs)->ra;
+}
+
+static __always_inline struct pt_regs *
+ftrace_partial_regs(const struct ftrace_regs *fregs, struct pt_regs *regs)
+{
+	struct __arch_ftrace_regs *afregs = arch_ftrace_regs(fregs);
+
+	memcpy(&regs->a0, afregs->args, sizeof(afregs->args));
+	regs->epc = afregs->epc;
+	regs->ra = afregs->ra;
+	regs->sp = afregs->sp;
+	regs->s0 = afregs->s0;
+	regs->t1 = afregs->t1;
+	return regs;
 }
 
 int ftrace_regs_query_register_offset(const char *name);
@@ -207,26 +231,5 @@ static inline void arch_ftrace_set_direct_caller(struct ftrace_regs *fregs, unsi
 #endif /* __ASSEMBLY__ */
 
 #endif /* CONFIG_DYNAMIC_FTRACE */
-
-#ifndef __ASSEMBLY__
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-struct fgraph_ret_regs {
-	unsigned long a1;
-	unsigned long a0;
-	unsigned long s0;
-	unsigned long ra;
-};
-
-static inline unsigned long fgraph_ret_regs_return_value(struct fgraph_ret_regs *ret_regs)
-{
-	return ret_regs->a0;
-}
-
-static inline unsigned long fgraph_ret_regs_frame_pointer(struct fgraph_ret_regs *ret_regs)
-{
-	return ret_regs->s0;
-}
-#endif /* ifdef CONFIG_FUNCTION_GRAPH_TRACER */
-#endif
 
 #endif /* _ASM_RISCV_FTRACE_H */

@@ -20,6 +20,7 @@
 #include <asm/fpu/signal.h>
 #include <asm/fpu/xcr.h>
 
+#include <asm/cpuid.h>
 #include <asm/tlbflush.h>
 #include <asm/prctl.h>
 #include <asm/elf.h>
@@ -232,7 +233,7 @@ static void __init setup_xstate_cache(void)
 						       xmm_space);
 
 	for_each_extended_xfeature(i, fpu_kernel_cfg.max_features) {
-		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
+		cpuid_count(CPUID_LEAF_XSTATE, i, &eax, &ebx, &ecx, &edx);
 
 		xstate_sizes[i] = eax;
 		xstate_flags[i] = ecx;
@@ -398,7 +399,7 @@ int xfeature_size(int xfeature_nr)
 	u32 eax, ebx, ecx, edx;
 
 	CHECK_XFEATURE(xfeature_nr);
-	cpuid_count(XSTATE_CPUID, xfeature_nr, &eax, &ebx, &ecx, &edx);
+	cpuid_count(CPUID_LEAF_XSTATE, xfeature_nr, &eax, &ebx, &ecx, &edx);
 	return eax;
 }
 
@@ -441,9 +442,9 @@ static void __init __xstate_dump_leaves(void)
 	 * just in case there are some goodies up there
 	 */
 	for (i = 0; i < XFEATURE_MAX + 10; i++) {
-		cpuid_count(XSTATE_CPUID, i, &eax, &ebx, &ecx, &edx);
+		cpuid_count(CPUID_LEAF_XSTATE, i, &eax, &ebx, &ecx, &edx);
 		pr_warn("CPUID[%02x, %02x]: eax=%08x ebx=%08x ecx=%08x edx=%08x\n",
-			XSTATE_CPUID, i, eax, ebx, ecx, edx);
+			CPUID_LEAF_XSTATE, i, eax, ebx, ecx, edx);
 	}
 }
 
@@ -484,7 +485,7 @@ static int __init check_xtile_data_against_struct(int size)
 	 * Check the maximum palette id:
 	 *   eax: the highest numbered palette subleaf.
 	 */
-	cpuid_count(TILE_CPUID, 0, &max_palid, &ebx, &ecx, &edx);
+	cpuid_count(CPUID_LEAF_TILE, 0, &max_palid, &ebx, &ecx, &edx);
 
 	/*
 	 * Cross-check each tile size and find the maximum number of
@@ -498,7 +499,7 @@ static int __init check_xtile_data_against_struct(int size)
 		 *   eax[31:16]:  bytes per title
 		 *   ebx[31:16]:  the max names (or max number of tiles)
 		 */
-		cpuid_count(TILE_CPUID, palid, &eax, &ebx, &edx, &edx);
+		cpuid_count(CPUID_LEAF_TILE, palid, &eax, &ebx, &edx, &edx);
 		tile_size = eax >> 16;
 		max = ebx >> 16;
 
@@ -633,7 +634,7 @@ static unsigned int __init get_compacted_size(void)
 	 * are no supervisor states, but XSAVEC still uses compacted
 	 * format.
 	 */
-	cpuid_count(XSTATE_CPUID, 1, &eax, &ebx, &ecx, &edx);
+	cpuid_count(CPUID_LEAF_XSTATE, 1, &eax, &ebx, &ecx, &edx);
 	return ebx;
 }
 
@@ -674,7 +675,7 @@ static unsigned int __init get_xsave_size_user(void)
 	 *    containing all the *user* state components
 	 *    corresponding to bits currently set in XCR0.
 	 */
-	cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
+	cpuid_count(CPUID_LEAF_XSTATE, 0, &eax, &ebx, &ecx, &edx);
 	return ebx;
 }
 
@@ -763,21 +764,16 @@ void __init fpu__init_system_xstate(unsigned int legacy_size)
 		return;
 	}
 
-	if (boot_cpu_data.cpuid_level < XSTATE_CPUID) {
-		WARN_ON_FPU(1);
-		return;
-	}
-
 	/*
 	 * Find user xstates supported by the processor.
 	 */
-	cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
+	cpuid_count(CPUID_LEAF_XSTATE, 0, &eax, &ebx, &ecx, &edx);
 	fpu_kernel_cfg.max_features = eax + ((u64)edx << 32);
 
 	/*
 	 * Find supervisor xstates supported by the processor.
 	 */
-	cpuid_count(XSTATE_CPUID, 1, &eax, &ebx, &ecx, &edx);
+	cpuid_count(CPUID_LEAF_XSTATE, 1, &eax, &ebx, &ecx, &edx);
 	fpu_kernel_cfg.max_features |= ecx + ((u64)edx << 32);
 
 	if ((fpu_kernel_cfg.max_features & XFEATURE_MASK_FPSSE) != XFEATURE_MASK_FPSSE) {

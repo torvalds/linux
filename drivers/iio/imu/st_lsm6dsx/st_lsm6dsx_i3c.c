@@ -9,7 +9,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/i3c/device.h>
-#include <linux/i3c/master.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
 
@@ -30,15 +29,16 @@ static int st_lsm6dsx_i3c_probe(struct i3c_device *i3cdev)
 	};
 	const struct i3c_device_id *id = i3c_device_match_id(i3cdev,
 							    st_lsm6dsx_i3c_ids);
+	struct device *dev = i3cdev_to_dev(i3cdev);
 	struct regmap *regmap;
 
 	regmap = devm_regmap_init_i3c(i3cdev, &st_lsm6dsx_i3c_regmap_config);
 	if (IS_ERR(regmap)) {
-		dev_err(&i3cdev->dev, "Failed to register i3c regmap %ld\n", PTR_ERR(regmap));
+		dev_err(dev, "Failed to register i3c regmap %ld\n", PTR_ERR(regmap));
 		return PTR_ERR(regmap);
 	}
 
-	return st_lsm6dsx_probe(&i3cdev->dev, 0, (uintptr_t)id->data, regmap);
+	return st_lsm6dsx_probe(dev, 0, (uintptr_t)id->data, regmap);
 }
 
 static struct i3c_driver st_lsm6dsx_driver = {
@@ -54,4 +54,4 @@ module_i3c_driver(st_lsm6dsx_driver);
 MODULE_AUTHOR("Vitor Soares <vitor.soares@synopsys.com>");
 MODULE_DESCRIPTION("STMicroelectronics st_lsm6dsx i3c driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_LSM6DSX);
+MODULE_IMPORT_NS("IIO_LSM6DSX");

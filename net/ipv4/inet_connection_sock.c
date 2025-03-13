@@ -1561,20 +1561,13 @@ EXPORT_SYMBOL_GPL(inet_csk_addr2sockaddr);
 static struct dst_entry *inet_csk_rebuild_route(struct sock *sk, struct flowi *fl)
 {
 	const struct inet_sock *inet = inet_sk(sk);
-	const struct ip_options_rcu *inet_opt;
-	__be32 daddr = inet->inet_daddr;
 	struct flowi4 *fl4;
 	struct rtable *rt;
 
 	rcu_read_lock();
-	inet_opt = rcu_dereference(inet->inet_opt);
-	if (inet_opt && inet_opt->opt.srr)
-		daddr = inet_opt->opt.faddr;
 	fl4 = &fl->u.ip4;
-	rt = ip_route_output_ports(sock_net(sk), fl4, sk, daddr,
-				   inet->inet_saddr, inet->inet_dport,
-				   inet->inet_sport, sk->sk_protocol,
-				   ip_sock_rt_tos(sk), sk->sk_bound_dev_if);
+	inet_sk_init_flowi4(inet, fl4);
+	rt = ip_route_output_flow(sock_net(sk), fl4, sk);
 	if (IS_ERR(rt))
 		rt = NULL;
 	if (rt)

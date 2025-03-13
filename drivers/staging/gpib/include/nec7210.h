@@ -18,7 +18,10 @@
 
 /* struct used to provide variables local to a nec7210 chip */
 struct nec7210_priv {
-	void *iobase;
+#ifdef CONFIG_HAS_IOPORT
+	u32 iobase;
+#endif
+	void __iomem *mmiobase;
 	unsigned int offset;	// offset between successive nec7210 io addresses
 	unsigned int dma_channel;
 	u8 *dma_buffer;

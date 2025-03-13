@@ -9,6 +9,7 @@ u64 bch2_recovery_passes_from_stable(u64 v);
 u64 bch2_fsck_recovery_passes(void);
 
 int bch2_run_explicit_recovery_pass(struct bch_fs *, enum bch_recovery_pass);
+int bch2_run_explicit_recovery_pass_persistent_locked(struct bch_fs *, enum bch_recovery_pass);
 int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *, enum bch_recovery_pass);
 
 int bch2_run_online_recovery_passes(struct bch_fs *);

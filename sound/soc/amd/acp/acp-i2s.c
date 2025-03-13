@@ -181,6 +181,7 @@ static int acp_i2s_set_tdm_slot(struct snd_soc_dai *dai, u32 tx_mask, u32 rx_mas
 			break;
 		default:
 			dev_err(dev, "Unknown chip revision %d\n", chip->acp_rev);
+			spin_unlock_irq(&adata->acp_lock);
 			return -EINVAL;
 		}
 	}
@@ -694,7 +695,7 @@ const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops = {
 	.set_fmt	= acp_i2s_set_fmt,
 	.set_tdm_slot	= acp_i2s_set_tdm_slot,
 };
-EXPORT_SYMBOL_NS_GPL(asoc_acp_cpu_dai_ops, SND_SOC_ACP_COMMON);
+EXPORT_SYMBOL_NS_GPL(asoc_acp_cpu_dai_ops, "SND_SOC_ACP_COMMON");
 
 MODULE_DESCRIPTION("AMD ACP Audio I2S controller");
 MODULE_LICENSE("Dual BSD/GPL");

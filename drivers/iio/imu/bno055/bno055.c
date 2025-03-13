@@ -207,7 +207,7 @@ struct bno055_priv {
 	bool sw_reset;
 	struct {
 		__le16 chans[BNO055_SCAN_CH_COUNT];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} buf;
 	struct dentry *debugfs;
 };
@@ -292,7 +292,7 @@ const struct regmap_config bno055_regmap_config = {
 	.readable_reg = bno055_regmap_readable,
 	.cache_type = REGCACHE_RBTREE,
 };
-EXPORT_SYMBOL_NS_GPL(bno055_regmap_config, IIO_BNO055);
+EXPORT_SYMBOL_NS_GPL(bno055_regmap_config, "IIO_BNO055");
 
 /* must be called in configuration mode */
 static int bno055_calibration_load(struct bno055_priv *priv, const u8 *data, int len)
@@ -1193,7 +1193,7 @@ static ssize_t serialnumber_show(struct device *dev,
 }
 
 static ssize_t calibration_data_read(struct file *filp, struct kobject *kobj,
-				     struct bin_attribute *bin_attr, char *buf,
+				     const struct bin_attribute *bin_attr, char *buf,
 				     loff_t pos, size_t count)
 {
 	struct bno055_priv *priv = iio_priv(dev_to_iio_dev(kobj_to_dev(kobj)));
@@ -1348,16 +1348,16 @@ static struct attribute *bno055_attrs[] = {
 	NULL
 };
 
-static BIN_ATTR_RO(calibration_data, BNO055_CALDATA_LEN);
+static const BIN_ATTR_RO(calibration_data, BNO055_CALDATA_LEN);
 
-static struct bin_attribute *bno055_bin_attrs[] = {
+static const struct bin_attribute *const bno055_bin_attrs[] = {
 	&bin_attr_calibration_data,
 	NULL
 };
 
 static const struct attribute_group bno055_attrs_group = {
 	.attrs = bno055_attrs,
-	.bin_attrs = bno055_bin_attrs,
+	.bin_attrs_new = bno055_bin_attrs,
 };
 
 static const struct iio_info bno055_info = {
@@ -1678,7 +1678,7 @@ int bno055_probe(struct device *dev, struct regmap *regmap,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(bno055_probe, IIO_BNO055);
+EXPORT_SYMBOL_NS_GPL(bno055_probe, "IIO_BNO055");
 
 MODULE_AUTHOR("Andrea Merello <andrea.merello@iit.it>");
 MODULE_DESCRIPTION("Bosch BNO055 driver");

@@ -10,14 +10,26 @@
 
 #include <asm/byteorder.h>
 
+#define BCH_SB_READ_SCRATCH_BUF_SIZE		4096
+
 static inline bool bch2_version_compatible(u16 version)
 {
 	return BCH_VERSION_MAJOR(version) <= BCH_VERSION_MAJOR(bcachefs_metadata_version_current) &&
 		version >= bcachefs_metadata_version_min;
 }
 
-void bch2_version_to_text(struct printbuf *, unsigned);
-unsigned bch2_latest_compatible_version(unsigned);
+void bch2_version_to_text(struct printbuf *, enum bcachefs_metadata_version);
+enum bcachefs_metadata_version bch2_latest_compatible_version(enum bcachefs_metadata_version);
+
+bool bch2_set_version_incompat(struct bch_fs *, enum bcachefs_metadata_version);
+
+static inline bool bch2_request_incompat_feature(struct bch_fs *c,
+						 enum bcachefs_metadata_version version)
+{
+	return likely(version <= c->sb.version_incompat)
+		? true
+		: bch2_set_version_incompat(c, version);
+}
 
 static inline size_t bch2_sb_field_bytes(struct bch_sb_field *f)
 {
@@ -92,7 +104,7 @@ static inline void bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 }
 
 bool bch2_check_version_downgrade(struct bch_fs *);
-void bch2_sb_upgrade(struct bch_fs *, unsigned);
+void bch2_sb_upgrade(struct bch_fs *, unsigned, bool);
 
 void __bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
 			     struct bch_sb_field *);

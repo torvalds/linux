@@ -206,7 +206,7 @@ END {
 
 # Currently this is effectivey a comment, in future we may want to emit
 # defines for the fields.
-/^Fields/ && block_current() == "Sysreg" {
+(/^Fields/ || /^Mapping/) && block_current() == "Sysreg" {
 	expect_fields(2)
 
 	if (next_bit != 63)

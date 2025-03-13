@@ -10,16 +10,31 @@
 
 
 /* entry points for broadcasting system events */
-void snd_seq_system_broadcast(int client, int port, int type);
+void snd_seq_system_broadcast(int client, int port, int type, bool atomic);
 
-#define snd_seq_system_client_ev_client_start(client) snd_seq_system_broadcast(client, 0, SNDRV_SEQ_EVENT_CLIENT_START)
-#define snd_seq_system_client_ev_client_exit(client) snd_seq_system_broadcast(client, 0, SNDRV_SEQ_EVENT_CLIENT_EXIT)
-#define snd_seq_system_client_ev_client_change(client) snd_seq_system_broadcast(client, 0, SNDRV_SEQ_EVENT_CLIENT_CHANGE)
-#define snd_seq_system_client_ev_port_start(client, port) snd_seq_system_broadcast(client, port, SNDRV_SEQ_EVENT_PORT_START)
-#define snd_seq_system_client_ev_port_exit(client, port) snd_seq_system_broadcast(client, port, SNDRV_SEQ_EVENT_PORT_EXIT)
-#define snd_seq_system_client_ev_port_change(client, port) snd_seq_system_broadcast(client, port, SNDRV_SEQ_EVENT_PORT_CHANGE)
+/* normal system notification event broadcast */
+#define notify_event(client, port, type) \
+	snd_seq_system_broadcast(client, port, type, false)
 
-int snd_seq_system_notify(int client, int port, struct snd_seq_event *ev);
+/* notify UMP EP/FB change event */
+static inline void snd_seq_system_ump_notify(int client, int block, int type,
+					     bool atomic)
+{
+	/* reuse the existing snd_seq_system_broadcast():
+	 * struct snd_seq_ev_ump_notify is compatible with struct snd_seq_addr
+	 */
+	snd_seq_system_broadcast(client, block, type, atomic);
+}
+
+#define snd_seq_system_client_ev_client_start(client) notify_event(client, 0, SNDRV_SEQ_EVENT_CLIENT_START)
+#define snd_seq_system_client_ev_client_exit(client) notify_event(client, 0, SNDRV_SEQ_EVENT_CLIENT_EXIT)
+#define snd_seq_system_client_ev_client_change(client) notify_event(client, 0, SNDRV_SEQ_EVENT_CLIENT_CHANGE)
+#define snd_seq_system_client_ev_port_start(client, port) notify_event(client, port, SNDRV_SEQ_EVENT_PORT_START)
+#define snd_seq_system_client_ev_port_exit(client, port) notify_event(client, port, SNDRV_SEQ_EVENT_PORT_EXIT)
+#define snd_seq_system_client_ev_port_change(client, port) notify_event(client, port, SNDRV_SEQ_EVENT_PORT_CHANGE)
+
+int snd_seq_system_notify(int client, int port, struct snd_seq_event *ev,
+			  bool atomic);
 
 /* register our internal client */
 int snd_seq_system_client_init(void);

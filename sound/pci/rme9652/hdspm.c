@@ -4927,14 +4927,14 @@ snd_hdspm_proc_read_madi(struct snd_info_entry *entry,
 		x, (unsigned long) hdspm->period_bytes);
 
 	snd_iprintf(buffer, "Line out: %s\n",
-		(hdspm->control_register & HDSPM_LineOut) ? "on " : "off");
+		    str_on_off(hdspm->control_register & HDSPM_LineOut));
 
 	snd_iprintf(buffer,
 		"ClearTrackMarker = %s, Transmit in %s Channel Mode, "
 		"Auto Input %s\n",
-		(hdspm->control_register & HDSPM_clr_tms) ? "on" : "off",
+		str_on_off(hdspm->control_register & HDSPM_clr_tms),
 		(hdspm->control_register & HDSPM_TX_64ch) ? "64" : "56",
-		(hdspm->control_register & HDSPM_AutoInp) ? "on" : "off");
+		str_on_off(hdspm->control_register & HDSPM_AutoInp));
 
 
 	if (!(hdspm->control_register & HDSPM_ClockModeMaster))
@@ -5088,12 +5088,9 @@ snd_hdspm_proc_read_aes32(struct snd_info_entry * entry,
 
 	snd_iprintf(buffer,
 		    "ClearTrackMarker %s, Emphasis %s, Dolby %s\n",
-		    (hdspm->
-		     control_register & HDSPM_clr_tms) ? "on" : "off",
-		    (hdspm->
-		     control_register & HDSPM_Emphasis) ? "on" : "off",
-		    (hdspm->
-		     control_register & HDSPM_Dolby) ? "on" : "off");
+		    str_on_off(hdspm->control_register & HDSPM_clr_tms),
+		    str_on_off(hdspm->control_register & HDSPM_Emphasis),
+		    str_on_off(hdspm->control_register & HDSPM_Dolby));
 
 
 	pref_syncref = hdspm_pref_sync_ref(hdspm);

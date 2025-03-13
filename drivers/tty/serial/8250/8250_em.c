@@ -219,7 +219,7 @@ static struct platform_driver serial8250_em_platform_driver = {
 		.of_match_table = serial8250_em_dt_ids,
 	},
 	.probe			= serial8250_em_probe,
-	.remove_new		= serial8250_em_remove,
+	.remove			= serial8250_em_remove,
 };
 
 module_platform_driver(serial8250_em_platform_driver);

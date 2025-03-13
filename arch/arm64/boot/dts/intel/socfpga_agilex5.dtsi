@@ -222,6 +222,26 @@
 			status = "disabled";
 		};
 
+		gpio0: gpio@ffc03200 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0xffc03200 0x100>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			resets = <&rst GPIO0_RESET>;
+			status = "disabled";
+
+			porta: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				reg = <0>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <24>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
 		gpio1: gpio@10c03300 {
 			compatible = "snps,dw-apb-gpio";
 			reg = <0x10c03300 0x100>;
@@ -314,7 +334,7 @@
 			reg-io-width = <4>;
 			num-cs = <4>;
 			clocks = <&clkmgr AGILEX5_L4_MAIN_CLK>;
-			dmas = <&dmac0 2>, <&dmac0 3>;
+			dmas = <&dmac0 16>, <&dmac0 17>;
 			dma-names = "tx", "rx";
 			status = "disabled";
 
@@ -331,6 +351,8 @@
 			reg-io-width = <4>;
 			num-cs = <4>;
 			clocks = <&clkmgr AGILEX5_L4_MAIN_CLK>;
+			dmas = <&dmac0 20>, <&dmac0 21>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 

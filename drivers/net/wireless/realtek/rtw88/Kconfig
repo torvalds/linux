@@ -238,4 +238,9 @@ config RTW88_DEBUGFS
 
 	  If unsure, say Y to simplify debug problems
 
+config RTW88_LEDS
+	bool
+	depends on LEDS_CLASS=y || LEDS_CLASS=MAC80211
+	default y
+
 endif

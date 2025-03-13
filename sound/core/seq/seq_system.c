@@ -49,12 +49,14 @@ static int sysclient = -1;
 /* port id numbers for this client */
 static int announce_port = -1;
 
+/* number of subscriptions to announce port */
+static int announce_subscribed;
 
 
 /* fill standard header data, source port & channel are filled in */
 static int setheader(struct snd_seq_event * ev, int client, int port)
 {
-	if (announce_port < 0)
+	if (announce_port < 0 || !announce_subscribed)
 		return -ENODEV;
 
 	memset(ev, 0, sizeof(struct snd_seq_event));
@@ -76,32 +78,49 @@ static int setheader(struct snd_seq_event * ev, int client, int port)
 
 
 /* entry points for broadcasting system events */
-void snd_seq_system_broadcast(int client, int port, int type)
+void snd_seq_system_broadcast(int client, int port, int type, bool atomic)
 {
 	struct snd_seq_event ev;
 	
 	if (setheader(&ev, client, port) < 0)
 		return;
 	ev.type = type;
-	snd_seq_kernel_client_dispatch(sysclient, &ev, 0, 0);
+	snd_seq_kernel_client_dispatch(sysclient, &ev, atomic, 0);
 }
 EXPORT_SYMBOL_GPL(snd_seq_system_broadcast);
 
 /* entry points for broadcasting system events */
-int snd_seq_system_notify(int client, int port, struct snd_seq_event *ev)
+int snd_seq_system_notify(int client, int port, struct snd_seq_event *ev,
+			  bool atomic)
 {
 	ev->flags = SNDRV_SEQ_EVENT_LENGTH_FIXED;
 	ev->source.client = sysclient;
 	ev->source.port = announce_port;
 	ev->dest.client = client;
 	ev->dest.port = port;
-	return snd_seq_kernel_client_dispatch(sysclient, ev, 0, 0);
+	return snd_seq_kernel_client_dispatch(sysclient, ev, atomic, 0);
 }
 
 /* call-back handler for timer events */
 static int event_input_timer(struct snd_seq_event * ev, int direct, void *private_data, int atomic, int hop)
 {
 	return snd_seq_control_queue(ev, atomic, hop);
+}
+
+static int sys_announce_subscribe(void *private_data,
+				  struct snd_seq_port_subscribe *info)
+{
+	announce_subscribed++;
+	return 0;
+}
+
+static int sys_announce_unsubscribe(void *private_data,
+				    struct snd_seq_port_subscribe *info)
+{
+	if (snd_BUG_ON(!announce_subscribed))
+		return 0;
+	announce_subscribed--;
+	return 0;
 }
 
 /* register our internal client */
@@ -143,7 +162,10 @@ int __init snd_seq_system_client_init(void)
 	/* register announcement port */
 	strcpy(port->name, "Announce");
 	port->capability = SNDRV_SEQ_PORT_CAP_READ|SNDRV_SEQ_PORT_CAP_SUBS_READ; /* for broadcast only */
-	port->kernel = NULL;
+	pcallbacks.event_input = NULL;
+	pcallbacks.subscribe = sys_announce_subscribe;
+	pcallbacks.unsubscribe = sys_announce_unsubscribe;
+	port->kernel = &pcallbacks;
 	port->type = 0;
 	port->flags = SNDRV_SEQ_PORT_FLG_GIVEN_PORT;
 	port->addr.client = sysclient;

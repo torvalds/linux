@@ -17,7 +17,7 @@
 #include "network_helpers.h"
 #include <linux/if_bonding.h>
 #include <linux/limits.h>
-#include <linux/udp.h>
+#include <netinet/udp.h>
 #include <uapi/linux/netdev.h>
 
 #include "xdp_dummy.skel.h"

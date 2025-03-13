@@ -476,7 +476,7 @@ static struct kobj_type sclp_sd_file_ktype = {
  * on EOF.
  */
 static ssize_t data_read(struct file *file, struct kobject *kobj,
-			 struct bin_attribute *attr, char *buffer,
+			 const struct bin_attribute *attr, char *buffer,
 			 loff_t off, size_t size)
 {
 	struct sclp_sd_file *sd_file = to_sd_file(kobj);
@@ -539,7 +539,7 @@ static __init struct sclp_sd_file *sclp_sd_file_create(const char *name, u8 di)
 	sysfs_bin_attr_init(&sd_file->data_attr);
 	sd_file->data_attr.attr.name = "data";
 	sd_file->data_attr.attr.mode = 0444;
-	sd_file->data_attr.read = data_read;
+	sd_file->data_attr.read_new = data_read;
 
 	rc = sysfs_create_bin_file(&sd_file->kobj, &sd_file->data_attr);
 	if (rc) {

@@ -3933,17 +3933,12 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 		return -ENODEV;
 	}
 
-	if (np && of_property_read_bool(np, "syscon-pol")) {
-		dispc.syscon_pol = syscon_regmap_lookup_by_phandle(np, "syscon-pol");
+	if (np && of_property_present(np, "syscon-pol")) {
+		dispc.syscon_pol = syscon_regmap_lookup_by_phandle_args(np, "syscon-pol",
+									1, &dispc.syscon_pol_offset);
 		if (IS_ERR(dispc.syscon_pol)) {
 			dev_err(&pdev->dev, "failed to get syscon-pol regmap\n");
 			return PTR_ERR(dispc.syscon_pol);
-		}
-
-		if (of_property_read_u32_index(np, "syscon-pol", 1,
-				&dispc.syscon_pol_offset)) {
-			dev_err(&pdev->dev, "failed to get syscon-pol offset\n");
-			return -EINVAL;
 		}
 	}
 

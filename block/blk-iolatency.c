@@ -749,9 +749,11 @@ static void blkiolatency_enable_work_fn(struct work_struct *work)
 	 */
 	enabled = atomic_read(&blkiolat->enable_cnt);
 	if (enabled != blkiolat->enabled) {
-		blk_mq_freeze_queue(blkiolat->rqos.disk->queue);
+		unsigned int memflags;
+
+		memflags = blk_mq_freeze_queue(blkiolat->rqos.disk->queue);
 		blkiolat->enabled = enabled;
-		blk_mq_unfreeze_queue(blkiolat->rqos.disk->queue);
+		blk_mq_unfreeze_queue(blkiolat->rqos.disk->queue, memflags);
 	}
 }
 

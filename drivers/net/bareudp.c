@@ -84,7 +84,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 		if (skb_copy_bits(skb, BAREUDP_BASE_HLEN, &ipversion,
 				  sizeof(ipversion))) {
-			dev_core_stats_rx_dropped_inc(bareudp->dev);
+			dev_dstats_rx_dropped(bareudp->dev);
 			goto drop;
 		}
 		ipversion >>= 4;
@@ -94,7 +94,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		} else if (ipversion == 6 && bareudp->multi_proto_mode) {
 			proto = htons(ETH_P_IPV6);
 		} else {
-			dev_core_stats_rx_dropped_inc(bareudp->dev);
+			dev_dstats_rx_dropped(bareudp->dev);
 			goto drop;
 		}
 	} else if (bareudp->ethertype == htons(ETH_P_MPLS_UC)) {
@@ -108,7 +108,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 				   ipv4_is_multicast(tunnel_hdr->daddr)) {
 				proto = htons(ETH_P_MPLS_MC);
 			} else {
-				dev_core_stats_rx_dropped_inc(bareudp->dev);
+				dev_dstats_rx_dropped(bareudp->dev);
 				goto drop;
 			}
 		} else {
@@ -124,7 +124,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 				   (addr_type & IPV6_ADDR_MULTICAST)) {
 				proto = htons(ETH_P_MPLS_MC);
 			} else {
-				dev_core_stats_rx_dropped_inc(bareudp->dev);
+				dev_dstats_rx_dropped(bareudp->dev);
 				goto drop;
 			}
 		}
@@ -136,7 +136,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 				 proto,
 				 !net_eq(bareudp->net,
 				 dev_net(bareudp->dev)))) {
-		dev_core_stats_rx_dropped_inc(bareudp->dev);
+		dev_dstats_rx_dropped(bareudp->dev);
 		goto drop;
 	}
 
@@ -144,7 +144,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 	tun_dst = udp_tun_rx_dst(skb, family, key, 0, 0);
 	if (!tun_dst) {
-		dev_core_stats_rx_dropped_inc(bareudp->dev);
+		dev_dstats_rx_dropped(bareudp->dev);
 		goto drop;
 	}
 	skb_dst_set(skb, &tun_dst->dst);
@@ -194,7 +194,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	len = skb->len;
 	err = gro_cells_receive(&bareudp->gro_cells, skb);
 	if (likely(err == NET_RX_SUCCESS))
-		dev_sw_netstats_rx_add(bareudp->dev, len);
+		dev_dstats_rx_add(bareudp->dev, len);
 
 	return 0;
 drop:
@@ -589,7 +589,7 @@ static void bareudp_setup(struct net_device *dev)
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->lltx = true;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
-	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_DSTATS;
 }
 
 static int bareudp_validate(struct nlattr *tb[], struct nlattr *data[],

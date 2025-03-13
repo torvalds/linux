@@ -103,6 +103,7 @@ struct iwl_mvm_phy_ctxt {
 	u32 center_freq1;
 	bool rlc_disabled;
 	u32 channel_load_by_us;
+	u32 channel_load_not_by_us;
 };
 
 struct iwl_mvm_time_event_data {
@@ -1174,8 +1175,6 @@ struct iwl_mvm {
 
 	struct ieee80211_bss_conf __rcu *link_id_to_link_conf[IWL_FW_MAX_LINK_ID + 1];
 
-	/* -1 for always, 0 for never, >0 for that many times */
-	s8 fw_restart;
 	u8 *error_recovery_buf;
 
 #ifdef CONFIG_IWLWIFI_LEDS
@@ -1401,8 +1400,6 @@ DEFINE_GUARD(mvm, struct iwl_mvm *, mutex_lock(&_T->mutex), mutex_unlock(&_T->mu
  * @IWL_MVM_STATUS_IN_D3: in D3 (or at least about to go into it)
  * @IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE: suppress one error log
  *	if this is set, when intentionally triggered
- * @IWL_MVM_STATUS_STARTING: starting mac,
- *	used to disable restart flow while in STARTING state
  */
 enum iwl_mvm_status {
 	IWL_MVM_STATUS_HW_RFKILL,
@@ -1414,7 +1411,6 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_FIRMWARE_RUNNING,
 	IWL_MVM_STATUS_IN_D3,
 	IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,
-	IWL_MVM_STATUS_STARTING,
 };
 
 struct iwl_mvm_csme_conn_info {
@@ -1736,12 +1732,19 @@ static inline bool iwl_mvm_is_ctdp_supported(struct iwl_mvm *mvm)
 
 static inline bool iwl_mvm_is_esr_supported(struct iwl_trans *trans)
 {
-	if ((CSR_HW_RFID_TYPE(trans->hw_rf_id) == IWL_CFG_RF_TYPE_FM) &&
-	    !CSR_HW_RFID_IS_CDB(trans->hw_rf_id))
+	if (CSR_HW_RFID_IS_CDB(trans->hw_rf_id))
+		return false;
+
+	switch (CSR_HW_RFID_TYPE(trans->hw_rf_id)) {
+	case IWL_CFG_RF_TYPE_FM:
 		/* Step A doesn't support eSR */
 		return CSR_HW_RFID_STEP(trans->hw_rf_id);
-
-	return false;
+	case IWL_CFG_RF_TYPE_WH:
+	case IWL_CFG_RF_TYPE_PE:
+		return true;
+	default:
+		return false;
+	}
 }
 
 static inline int iwl_mvm_max_active_links(struct iwl_mvm *mvm,
@@ -1824,7 +1827,6 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx);
 void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, int clock_type, u32 *gp2,
 			   u64 *boottime, ktime_t *realtime);
 u32 iwl_mvm_get_systime(struct iwl_mvm *mvm);
-u32 iwl_mvm_find_ie_offset(u8 *beacon, u8 eid, u32 frame_size);
 
 /* Tx / Host Commands */
 int __must_check iwl_mvm_send_cmd(struct iwl_mvm *mvm,
@@ -2591,7 +2593,6 @@ void iwl_mvm_tcm_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 void iwl_mvm_tcm_rm_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 u8 iwl_mvm_tcm_load_percentage(u32 airtime, u32 elapsed);
 
-void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error);
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif);
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -2996,18 +2997,11 @@ int iwl_mvm_set_hw_timestamp(struct ieee80211_hw *hw,
 			     struct cfg80211_set_hw_timestamp *hwts);
 int iwl_mvm_update_mu_groups(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 bool iwl_mvm_enable_fils(struct iwl_mvm *mvm,
+			 struct ieee80211_vif *vif,
 			 struct ieee80211_chanctx_conf *ctx);
-bool iwl_mvm_is_ftm_responder_chanctx(struct iwl_mvm *mvm,
-				      struct ieee80211_chanctx_conf *ctx);
 
-static inline struct cfg80211_chan_def *
-iwl_mvm_chanctx_def(struct iwl_mvm *mvm, struct ieee80211_chanctx_conf *ctx)
-{
-	bool use_def = iwl_mvm_is_ftm_responder_chanctx(mvm, ctx) ||
-		iwl_mvm_enable_fils(mvm, ctx);
-
-	return use_def ? &ctx->def : &ctx->min_def;
-}
+struct cfg80211_chan_def *
+iwl_mvm_chanctx_def(struct iwl_mvm *mvm, struct ieee80211_chanctx_conf *ctx);
 
 void iwl_mvm_roc_duration_and_delay(struct ieee80211_vif *vif,
 				    u32 duration_ms,

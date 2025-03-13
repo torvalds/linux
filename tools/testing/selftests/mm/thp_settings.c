@@ -87,7 +87,7 @@ int write_file(const char *path, const char *buf, size_t buflen)
 	return (unsigned int) numwritten;
 }
 
-const unsigned long read_num(const char *path)
+unsigned long read_num(const char *path)
 {
 	char buf[21];
 
@@ -172,7 +172,7 @@ void thp_write_string(const char *name, const char *val)
 	}
 }
 
-const unsigned long thp_read_num(const char *name)
+unsigned long thp_read_num(const char *name)
 {
 	char path[PATH_MAX];
 	int ret;

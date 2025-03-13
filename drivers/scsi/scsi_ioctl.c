@@ -37,8 +37,10 @@
  * @host:	host to identify
  * @buffer:	userspace buffer for identification
  *
- * Return an identifying string at @buffer, if @buffer is non-NULL, filling
- * to the length stored at * (int *) @buffer.
+ * Return:
+ * * if successful, %1 and an identifying string at @buffer, if @buffer
+ * is non-NULL, filling to the length stored at * (int *) @buffer.
+ * * <0 error code on failure.
  */
 static int ioctl_probe(struct Scsi_Host *host, void __user *buffer)
 {
@@ -121,6 +123,16 @@ out:
 	return result;
 }
 
+/**
+ * scsi_set_medium_removal() - send command to allow or prevent medium removal
+ * @sdev: target scsi device
+ * @state: removal state to set (prevent or allow)
+ *
+ * Returns:
+ * * %0 if @sdev is not removable or not lockable or successful.
+ * * non-%0 is a SCSI result code if > 0 or kernel error code if < 0.
+ * * Sets @sdev->locked to the new state on success.
+ */
 int scsi_set_medium_removal(struct scsi_device *sdev, char state)
 {
 	char scsi_cmd[MAX_COMMAND_SIZE];
@@ -242,11 +254,15 @@ static int scsi_send_start_stop(struct scsi_device *sdev, int data)
 				      NORMAL_RETRIES);
 }
 
-/*
- * Check if the given command is allowed.
+/**
+ * scsi_cmd_allowed() - Check if the given command is allowed.
+ * @cmd:            SCSI command to check
+ * @open_for_write: is the file / block device opened for writing?
  *
  * Only a subset of commands are allowed for unprivileged users. Commands used
  * to format the media, update the firmware, etc. are not permitted.
+ *
+ * Return: %true if the cmd is allowed, otherwise @false.
  */
 bool scsi_cmd_allowed(unsigned char *cmd, bool open_for_write)
 {
@@ -859,6 +875,8 @@ static int scsi_ioctl_sg_io(struct scsi_device *sdev, bool open_for_write,
  * Description: The scsi_ioctl() function differs from most ioctls in that it
  * does not take a major/minor number as the dev field.  Rather, it takes
  * a pointer to a &struct scsi_device.
+ *
+ * Return: varies depending on the @cmd
  */
 int scsi_ioctl(struct scsi_device *sdev, bool open_for_write, int cmd,
 		void __user *arg)
@@ -941,8 +959,15 @@ int scsi_ioctl(struct scsi_device *sdev, bool open_for_write, int cmd,
 }
 EXPORT_SYMBOL(scsi_ioctl);
 
-/*
+/**
+ * scsi_ioctl_block_when_processing_errors - prevent commands from being queued
+ * @sdev: target scsi device
+ * @cmd: which ioctl is it
+ * @ndelay: no delay (non-blocking)
+ *
  * We can process a reset even when a device isn't fully operable.
+ *
+ * Return: %0 on success, <0 error code.
  */
 int scsi_ioctl_block_when_processing_errors(struct scsi_device *sdev, int cmd,
 		bool ndelay)

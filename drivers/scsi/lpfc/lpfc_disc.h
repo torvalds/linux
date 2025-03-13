@@ -85,13 +85,13 @@ enum lpfc_fc4_xpt_flags {
 	NLP_XPT_HAS_HH		= 0x10
 };
 
-enum lpfc_nlp_save_flags {
+enum lpfc_nlp_save_flags { /* mask bits */
 	/* devloss occurred during recovery */
-	NLP_IN_RECOV_POST_DEV_LOSS	= 0x1,
+	NLP_IN_RECOV_POST_DEV_LOSS,
 	/* wait for outstanding LOGO to cmpl */
-	NLP_WAIT_FOR_LOGO		= 0x2,
+	NLP_WAIT_FOR_LOGO,
 	/* wait for outstanding DA_ID to finish */
-	NLP_WAIT_FOR_DA_ID              = 0x4
+	NLP_WAIT_FOR_DA_ID
 };
 
 struct lpfc_nodelist {
@@ -154,7 +154,7 @@ struct lpfc_nodelist {
 	uint32_t fc4_prli_sent;
 
 	/* flags to keep ndlp alive until special conditions are met */
-	enum lpfc_nlp_save_flags save_flags;
+	unsigned long save_flags;
 
 	enum lpfc_fc4_xpt_flags fc4_xpt_flags;
 
@@ -208,7 +208,6 @@ enum lpfc_nlp_flag {
 					   NPR list */
 	NLP_RM_DFLT_RPI    = 26,        /* need to remove leftover dflt RPI */
 	NLP_NODEV_REMOVE   = 27,        /* Defer removal till discovery ends */
-	NLP_TARGET_REMOVE  = 28,        /* Target remove in process */
 	NLP_SC_REQ         = 29,        /* Target requires authentication */
 	NLP_FIRSTBURST     = 30,        /* Target supports FirstBurst */
 	NLP_RPI_REGISTERED = 31         /* nlp_rpi is valid */

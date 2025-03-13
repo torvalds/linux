@@ -903,4 +903,4 @@ MODULE_AUTHOR("Biju Das <biju.das.jz@bp.renesas.com>");
 MODULE_ALIAS("platform:rz-mtu3-counter");
 MODULE_DESCRIPTION("Renesas RZ/G2L MTU3a counter driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(COUNTER);
+MODULE_IMPORT_NS("COUNTER");

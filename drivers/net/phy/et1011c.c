@@ -94,7 +94,7 @@ static struct phy_driver et1011c_driver[] = { {
 
 module_phy_driver(et1011c_driver);
 
-static struct mdio_device_id __maybe_unused et1011c_tbl[] = {
+static const struct mdio_device_id __maybe_unused et1011c_tbl[] = {
 	{ 0x0282f014, 0xfffffff0 },
 	{ }
 };

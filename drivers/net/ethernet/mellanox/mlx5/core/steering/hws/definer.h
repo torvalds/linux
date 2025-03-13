@@ -785,7 +785,7 @@ struct mlx5hws_definer_cache {
 
 struct mlx5hws_definer_cache_item {
 	struct mlx5hws_definer definer;
-	u32 refcount;
+	u32 refcount; /* protected by context ctrl lock */
 	struct list_head list_node;
 };
 

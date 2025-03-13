@@ -219,7 +219,7 @@ int snd_soc_card_set_bias_level(struct snd_soc_card *card,
 {
 	int ret = 0;
 
-	if (card && card->set_bias_level)
+	if (card->set_bias_level)
 		ret = card->set_bias_level(card, dapm, level);
 
 	return soc_card_ret(card, ret);
@@ -231,7 +231,7 @@ int snd_soc_card_set_bias_level_post(struct snd_soc_card *card,
 {
 	int ret = 0;
 
-	if (card && card->set_bias_level_post)
+	if (card->set_bias_level_post)
 		ret = card->set_bias_level_post(card, dapm, level);
 
 	return soc_card_ret(card, ret);

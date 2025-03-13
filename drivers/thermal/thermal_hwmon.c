@@ -284,4 +284,4 @@ int devm_thermal_add_hwmon_sysfs(struct device *dev, struct thermal_zone_device 
 }
 EXPORT_SYMBOL_GPL(devm_thermal_add_hwmon_sysfs);
 
-MODULE_IMPORT_NS(HWMON_THERMAL);
+MODULE_IMPORT_NS("HWMON_THERMAL");

@@ -501,18 +501,18 @@ static inline bool kasan_byte_accessible(const void *addr)
 
 /**
  * kasan_poison - mark the memory range as inaccessible
- * @addr - range start address, must be aligned to KASAN_GRANULE_SIZE
- * @size - range size, must be aligned to KASAN_GRANULE_SIZE
- * @value - value that's written to metadata for the range
- * @init - whether to initialize the memory range (only for hardware tag-based)
+ * @addr: range start address, must be aligned to KASAN_GRANULE_SIZE
+ * @size: range size, must be aligned to KASAN_GRANULE_SIZE
+ * @value: value that's written to metadata for the range
+ * @init: whether to initialize the memory range (only for hardware tag-based)
  */
 void kasan_poison(const void *addr, size_t size, u8 value, bool init);
 
 /**
  * kasan_unpoison - mark the memory range as accessible
- * @addr - range start address, must be aligned to KASAN_GRANULE_SIZE
- * @size - range size, can be unaligned
- * @init - whether to initialize the memory range (only for hardware tag-based)
+ * @addr: range start address, must be aligned to KASAN_GRANULE_SIZE
+ * @size: range size, can be unaligned
+ * @init: whether to initialize the memory range (only for hardware tag-based)
  *
  * For the tag-based modes, the @size gets aligned to KASAN_GRANULE_SIZE before
  * marking the range.
@@ -530,8 +530,8 @@ bool kasan_byte_accessible(const void *addr);
 /**
  * kasan_poison_last_granule - mark the last granule of the memory range as
  * inaccessible
- * @addr - range start address, must be aligned to KASAN_GRANULE_SIZE
- * @size - range size
+ * @address: range start address, must be aligned to KASAN_GRANULE_SIZE
+ * @size: range size
  *
  * This function is only available for the generic mode, as it's the only mode
  * that has partially poisoned memory granules.

@@ -91,6 +91,17 @@ HOSTRUSTFLAGS
 -------------
 Additional flags to be passed to $(HOSTRUSTC) when building host programs.
 
+PROCMACROLDFLAGS
+----------------
+Flags to be passed when linking Rust proc macros. Since proc macros are loaded
+by rustc at build time, they must be linked in a way that is compatible with
+the rustc toolchain being used.
+
+For instance, it can be useful when rustc uses a different C library than
+the one the user wants to use for host programs.
+
+If unset, it defaults to the flags passed when linking host programs.
+
 HOSTLDFLAGS
 -----------
 Additional flags to be passed when linking host programs.
@@ -137,11 +148,17 @@ Specify the output directory when building the kernel.
 This variable can also be used to point to the kernel output directory when
 building external modules against a pre-built kernel in a separate build
 directory. Please note that this does NOT specify the output directory for the
-external modules themselves.
+external modules themselves. (Use KBUILD_EXTMOD_OUTPUT for that purpose.)
 
 The output directory can also be specified using "O=...".
 
 Setting "O=..." takes precedence over KBUILD_OUTPUT.
+
+KBUILD_EXTMOD_OUTPUT
+--------------------
+Specify the output directory for external modules.
+
+Setting "MO=..." takes precedence over KBUILD_EXTMOD_OUTPUT.
 
 KBUILD_EXTRA_WARN
 -----------------

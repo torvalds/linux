@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test the MSG_MORE flag will correctly corks the tiny writes
+`./defaults.sh`
+
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,wscale 8>
+ +.01 < . 1:1(0) ack 1 win 257
+   +0 accept(3, ..., ...) = 4
+// Disable Nagle by default on this socket.
+   +0 setsockopt(4, SOL_TCP, TCP_NODELAY, [1], 4) = 0
+
+// Test the basic case: MSG_MORE overwrites TCP_NODELAY and enables Nagle.
+   +0 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 40}], msg_flags=0}, MSG_MORE) = 40
+ +.21~+.215 > P. 1:41(40) ack 1
+ +.01 < . 1:1(0) ack 41 win 257
+
+// Test unsetting MSG_MORE releases the packet
+   +0 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 100}], msg_flags=0}, MSG_MORE) = 100
++.005 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 160}], msg_flags=0}, MSG_MORE) = 160
+ +.01 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(3)=[{..., 100}, {..., 200}, {..., 195}],
+		  msg_flags=0}, MSG_MORE) = 495
++.008 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 5}], msg_flags=0}, 0) = 5
+   +0 > P. 41:801(760) ack 1
+ +.02 < . 1:1(0) ack 801 win 257
+
+
+// Test >MSS write will unleash MSS packets but hold on the remaining data.
+  +.1 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 3100}], msg_flags=0}, MSG_MORE) = 3100
+   +0 > . 801:3801(3000) ack 1
++.003 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 50}], msg_flags=0}, MSG_MORE) = 50
+
+ +.01 < . 1:1(0) ack 2801 win 257
+// Err... we relase the remaining right after the ACK? note that PUSH is reset
+   +0 > . 3801:3951(150) ack 1
+
+// Test we'll hold on the subsequent writes when inflight (3801:3951) > 0
++.001 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 1}], msg_flags=0}, MSG_MORE) = 1
++.002 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 2}], msg_flags=0}, MSG_MORE) = 2
++.003 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 3}], msg_flags=0}, MSG_MORE) = 3
++.004 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 4}], msg_flags=0}, MSG_MORE) = 4
+ +.02 < . 1:1(0) ack 3951 win 257
+   +0 > . 3951:3961(10) ack 1
+ +.02 < . 1:1(0) ack 3961 win 257
+
+
+// Test the case a MSG_MORE send followed by a write flushes the data
+   +0 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{..., 20}], msg_flags=0}, MSG_MORE) = 20
+ +.05 write(4, ..., 20) = 20
+   +0 > P. 3961:4001(40) ack 1

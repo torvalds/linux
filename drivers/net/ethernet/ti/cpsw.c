@@ -635,6 +635,8 @@ static void cpsw_slave_open(struct cpsw_slave *slave, struct cpsw_priv *priv)
 
 	slave->phy = phy;
 
+	phy_disable_eee(slave->phy);
+
 	phy_attached_info(slave->phy);
 
 	phy_start(slave->phy);
@@ -684,7 +686,7 @@ static void cpsw_init_host_port(struct cpsw_priv *priv)
 	soft_reset("cpsw", &cpsw->regs->soft_reset);
 	cpsw_ale_start(cpsw->ale);
 
-	/* switch to vlan unaware mode */
+	/* switch to vlan aware mode */
 	cpsw_ale_control_set(cpsw->ale, HOST_PORT_NUM, ALE_VLAN_AWARE,
 			     CPSW_ALE_VLAN_AWARE);
 	control_reg = readl(&cpsw->regs->control);
@@ -1225,7 +1227,6 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_link_ksettings	= cpsw_get_link_ksettings,
 	.set_link_ksettings	= cpsw_set_link_ksettings,
 	.get_eee	= cpsw_get_eee,
-	.set_eee	= cpsw_set_eee,
 	.nway_reset	= cpsw_nway_reset,
 	.get_ringparam = cpsw_get_ringparam,
 	.set_ringparam = cpsw_set_ringparam,

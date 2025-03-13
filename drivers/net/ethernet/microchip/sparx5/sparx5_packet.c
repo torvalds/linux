@@ -232,8 +232,11 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 	struct net_device_stats *stats = &dev->stats;
 	struct sparx5_port *port = netdev_priv(dev);
 	struct sparx5 *sparx5 = port->sparx5;
+	const struct sparx5_ops *ops;
 	u32 ifh[IFH_LEN];
 	netdev_tx_t ret;
+
+	ops = sparx5->data->ops;
 
 	memset(ifh, 0, IFH_LEN * 4);
 	sparx5_set_port_ifh(sparx5, ifh, port->portno);
@@ -254,7 +257,7 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 	skb_tx_timestamp(skb);
 	spin_lock(&sparx5->tx_lock);
 	if (sparx5->fdma_irq > 0)
-		ret = sparx5_fdma_xmit(sparx5, ifh, skb);
+		ret = ops->fdma_xmit(sparx5, ifh, skb, dev);
 	else
 		ret = sparx5_inject(sparx5, ifh, skb, dev);
 	spin_unlock(&sparx5->tx_lock);
@@ -263,6 +266,12 @@ netdev_tx_t sparx5_port_xmit_impl(struct sk_buff *skb, struct net_device *dev)
 		goto busy;
 	if (ret < 0)
 		goto drop;
+
+	if (!is_sparx5(sparx5))
+		/* When lan969x and TX_OK, stats and SKB consumption is handled
+		 * in the TX completion loop, so dont go any further.
+		 */
+		return NETDEV_TX_OK;
 
 	stats->tx_bytes += skb->len;
 	stats->tx_packets++;

@@ -10,7 +10,7 @@
 
 #define MODULE_NAME "wwnr"
 
-#include <trace/events/rv.h>
+#include <rv_trace.h>
 #include <trace/events/sched.h>
 
 #include "wwnr.h"

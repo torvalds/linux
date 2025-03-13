@@ -26,7 +26,7 @@ enum reserved_range_type {
 	RR_AMODE31,
 	RR_IPLREPORT,
 	RR_CERT_COMP_LIST,
-	RR_MEM_DETECT_EXTENDED,
+	RR_MEM_DETECT_EXT,
 	RR_VMEM,
 	RR_MAX
 };
@@ -128,7 +128,7 @@ static inline const char *get_rr_type_name(enum reserved_range_type t)
 	RR_TYPE_NAME(AMODE31);
 	RR_TYPE_NAME(IPLREPORT);
 	RR_TYPE_NAME(CERT_COMP_LIST);
-	RR_TYPE_NAME(MEM_DETECT_EXTENDED);
+	RR_TYPE_NAME(MEM_DETECT_EXT);
 	RR_TYPE_NAME(VMEM);
 	default:
 		return "UNKNOWN";

@@ -264,7 +264,7 @@ bool hubp3_program_surface_flip_and_addr(
 void hubp3_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -280,7 +280,7 @@ void hubp3_setup(
 
 void hubp3_program_tiling(
 		struct dcn20_hubp *hubp2,
-		const union dc_tiling_info *info,
+		const struct dc_tiling_info *info,
 		const enum surface_pixel_format pixel_format);
 
 void hubp3_dcc_control(struct hubp *hubp, bool enable,
@@ -296,6 +296,8 @@ void hubp3_dmdata_set_attributes(
 void hubp3_read_state(struct hubp *hubp);
 
 void hubp3_init(struct hubp *hubp);
+
+void hubp3_clear_tiling(struct hubp *hubp);
 
 #endif /* __DC_HUBP_DCN30_H__ */
 

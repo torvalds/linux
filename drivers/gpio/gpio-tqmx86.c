@@ -29,17 +29,21 @@
 #define TQMX86_GPIIC	3	/* GPI Interrupt Configuration Register */
 #define TQMX86_GPIIS	4	/* GPI Interrupt Status Register */
 
-#define TQMX86_GPII_NONE	0
-#define TQMX86_GPII_FALLING	BIT(0)
-#define TQMX86_GPII_RISING	BIT(1)
-/* Stored in irq_type as a trigger type, but not actually valid as a register
- * value, so the name doesn't use "GPII"
+/*
+ * NONE, FALLING and RISING use the same bit patterns that can be programmed to
+ * the GPII register (after passing them to the TQMX86_GPII_ macros to shift
+ * them to the right position)
  */
-#define TQMX86_INT_BOTH		(BIT(0) | BIT(1))
-#define TQMX86_GPII_MASK	(BIT(0) | BIT(1))
-#define TQMX86_GPII_BITS	2
+#define TQMX86_INT_TRIG_NONE	0
+#define TQMX86_INT_TRIG_FALLING	BIT(0)
+#define TQMX86_INT_TRIG_RISING	BIT(1)
+#define TQMX86_INT_TRIG_BOTH	(BIT(0) | BIT(1))
+#define TQMX86_INT_TRIG_MASK	(BIT(0) | BIT(1))
 /* Stored in irq_type with GPII bits */
 #define TQMX86_INT_UNMASKED	BIT(2)
+
+#define TQMX86_GPIIC_CONFIG(i, v)	((v) << (2 * (i)))
+#define TQMX86_GPIIC_MASK(i)		TQMX86_GPIIC_CONFIG(i, TQMX86_INT_TRIG_MASK)
 
 struct tqmx86_gpio_data {
 	struct gpio_chip	chip;
@@ -48,7 +52,7 @@ struct tqmx86_gpio_data {
 	/* Lock must be held for accessing output and irq_type fields */
 	raw_spinlock_t		spinlock;
 	DECLARE_BITMAP(output, TQMX86_NGPIO);
-	u8			irq_type[TQMX86_NGPI];
+	u8			irq_type[TQMX86_NGPIO];
 };
 
 static u8 tqmx86_gpio_read(struct tqmx86_gpio_data *gd, unsigned int reg)
@@ -62,6 +66,18 @@ static void tqmx86_gpio_write(struct tqmx86_gpio_data *gd, u8 val,
 	iowrite8(val, gd->io_base + reg);
 }
 
+static void tqmx86_gpio_clrsetbits(struct tqmx86_gpio_data *gpio,
+				   u8 clr, u8 set, unsigned int reg)
+	__must_hold(&gpio->spinlock)
+{
+	u8 val = tqmx86_gpio_read(gpio, reg);
+
+	val &= ~clr;
+	val |= set;
+
+	tqmx86_gpio_write(gpio, val, reg);
+}
+
 static int tqmx86_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tqmx86_gpio_data *gpio = gpiochip_get_data(chip);
@@ -69,127 +85,137 @@ static int tqmx86_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return !!(tqmx86_gpio_read(gpio, TQMX86_GPIOD) & BIT(offset));
 }
 
+static void _tqmx86_gpio_set(struct tqmx86_gpio_data *gpio, unsigned int offset,
+			     int value)
+	__must_hold(&gpio->spinlock)
+{
+	__assign_bit(offset, gpio->output, value);
+	tqmx86_gpio_write(gpio, bitmap_get_value8(gpio->output, 0), TQMX86_GPIOD);
+}
+
 static void tqmx86_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			    int value)
 {
 	struct tqmx86_gpio_data *gpio = gpiochip_get_data(chip);
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&gpio->spinlock, flags);
-	__assign_bit(offset, gpio->output, value);
-	tqmx86_gpio_write(gpio, bitmap_get_value8(gpio->output, 0), TQMX86_GPIOD);
-	raw_spin_unlock_irqrestore(&gpio->spinlock, flags);
+	guard(raw_spinlock_irqsave)(&gpio->spinlock);
+
+	_tqmx86_gpio_set(gpio, offset, value);
 }
 
 static int tqmx86_gpio_direction_input(struct gpio_chip *chip,
 				       unsigned int offset)
 {
-	/* Direction cannot be changed. Validate is an input. */
-	if (BIT(offset) & TQMX86_DIR_INPUT_MASK)
-		return 0;
-	else
-		return -EINVAL;
+	struct tqmx86_gpio_data *gpio = gpiochip_get_data(chip);
+
+	guard(raw_spinlock_irqsave)(&gpio->spinlock);
+
+	tqmx86_gpio_clrsetbits(gpio, BIT(offset), 0, TQMX86_GPIODD);
+
+	return 0;
 }
 
 static int tqmx86_gpio_direction_output(struct gpio_chip *chip,
 					unsigned int offset,
 					int value)
 {
-	/* Direction cannot be changed, validate is an output */
-	if (BIT(offset) & TQMX86_DIR_INPUT_MASK)
-		return -EINVAL;
+	struct tqmx86_gpio_data *gpio = gpiochip_get_data(chip);
 
-	tqmx86_gpio_set(chip, offset, value);
+	guard(raw_spinlock_irqsave)(&gpio->spinlock);
+
+	_tqmx86_gpio_set(gpio, offset, value);
+	tqmx86_gpio_clrsetbits(gpio, 0, BIT(offset), TQMX86_GPIODD);
+
 	return 0;
 }
 
 static int tqmx86_gpio_get_direction(struct gpio_chip *chip,
 				     unsigned int offset)
 {
-	if (TQMX86_DIR_INPUT_MASK & BIT(offset))
-		return GPIO_LINE_DIRECTION_IN;
+	struct tqmx86_gpio_data *gpio = gpiochip_get_data(chip);
+	u8 val;
 
-	return GPIO_LINE_DIRECTION_OUT;
+	val = tqmx86_gpio_read(gpio, TQMX86_GPIODD);
+
+	if (val & BIT(offset))
+		return GPIO_LINE_DIRECTION_OUT;
+
+	return GPIO_LINE_DIRECTION_IN;
 }
 
-static void tqmx86_gpio_irq_config(struct tqmx86_gpio_data *gpio, int offset)
+static void tqmx86_gpio_irq_config(struct tqmx86_gpio_data *gpio, int hwirq)
 	__must_hold(&gpio->spinlock)
 {
-	u8 type = TQMX86_GPII_NONE, gpiic;
+	u8 type = TQMX86_INT_TRIG_NONE;
+	int gpiic_irq = hwirq - TQMX86_NGPO;
 
-	if (gpio->irq_type[offset] & TQMX86_INT_UNMASKED) {
-		type = gpio->irq_type[offset] & TQMX86_GPII_MASK;
+	if (gpio->irq_type[hwirq] & TQMX86_INT_UNMASKED) {
+		type = gpio->irq_type[hwirq] & TQMX86_INT_TRIG_MASK;
 
-		if (type == TQMX86_INT_BOTH)
-			type = tqmx86_gpio_get(&gpio->chip, offset + TQMX86_NGPO)
-				? TQMX86_GPII_FALLING
-				: TQMX86_GPII_RISING;
+		if (type == TQMX86_INT_TRIG_BOTH)
+			type = tqmx86_gpio_get(&gpio->chip, hwirq)
+				? TQMX86_INT_TRIG_FALLING
+				: TQMX86_INT_TRIG_RISING;
 	}
 
-	gpiic = tqmx86_gpio_read(gpio, TQMX86_GPIIC);
-	gpiic &= ~(TQMX86_GPII_MASK << (offset * TQMX86_GPII_BITS));
-	gpiic |= type << (offset * TQMX86_GPII_BITS);
-	tqmx86_gpio_write(gpio, gpiic, TQMX86_GPIIC);
+	tqmx86_gpio_clrsetbits(gpio,
+			       TQMX86_GPIIC_MASK(gpiic_irq),
+			       TQMX86_GPIIC_CONFIG(gpiic_irq, type),
+			       TQMX86_GPIIC);
 }
 
 static void tqmx86_gpio_irq_mask(struct irq_data *data)
 {
-	unsigned int offset = (data->hwirq - TQMX86_NGPO);
 	struct tqmx86_gpio_data *gpio = gpiochip_get_data(
 		irq_data_get_irq_chip_data(data));
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&gpio->spinlock, flags);
-	gpio->irq_type[offset] &= ~TQMX86_INT_UNMASKED;
-	tqmx86_gpio_irq_config(gpio, offset);
-	raw_spin_unlock_irqrestore(&gpio->spinlock, flags);
+	scoped_guard(raw_spinlock_irqsave, &gpio->spinlock) {
+		gpio->irq_type[data->hwirq] &= ~TQMX86_INT_UNMASKED;
+		tqmx86_gpio_irq_config(gpio, data->hwirq);
+	}
 
 	gpiochip_disable_irq(&gpio->chip, irqd_to_hwirq(data));
 }
 
 static void tqmx86_gpio_irq_unmask(struct irq_data *data)
 {
-	unsigned int offset = (data->hwirq - TQMX86_NGPO);
 	struct tqmx86_gpio_data *gpio = gpiochip_get_data(
 		irq_data_get_irq_chip_data(data));
-	unsigned long flags;
 
 	gpiochip_enable_irq(&gpio->chip, irqd_to_hwirq(data));
 
-	raw_spin_lock_irqsave(&gpio->spinlock, flags);
-	gpio->irq_type[offset] |= TQMX86_INT_UNMASKED;
-	tqmx86_gpio_irq_config(gpio, offset);
-	raw_spin_unlock_irqrestore(&gpio->spinlock, flags);
+	guard(raw_spinlock_irqsave)(&gpio->spinlock);
+
+	gpio->irq_type[data->hwirq] |= TQMX86_INT_UNMASKED;
+	tqmx86_gpio_irq_config(gpio, data->hwirq);
 }
 
 static int tqmx86_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 {
 	struct tqmx86_gpio_data *gpio = gpiochip_get_data(
 		irq_data_get_irq_chip_data(data));
-	unsigned int offset = (data->hwirq - TQMX86_NGPO);
 	unsigned int edge_type = type & IRQF_TRIGGER_MASK;
-	unsigned long flags;
 	u8 new_type;
 
 	switch (edge_type) {
 	case IRQ_TYPE_EDGE_RISING:
-		new_type = TQMX86_GPII_RISING;
+		new_type = TQMX86_INT_TRIG_RISING;
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		new_type = TQMX86_GPII_FALLING;
+		new_type = TQMX86_INT_TRIG_FALLING;
 		break;
 	case IRQ_TYPE_EDGE_BOTH:
-		new_type = TQMX86_INT_BOTH;
+		new_type = TQMX86_INT_TRIG_BOTH;
 		break;
 	default:
 		return -EINVAL; /* not supported */
 	}
 
-	raw_spin_lock_irqsave(&gpio->spinlock, flags);
-	gpio->irq_type[offset] &= ~TQMX86_GPII_MASK;
-	gpio->irq_type[offset] |= new_type;
-	tqmx86_gpio_irq_config(gpio, offset);
-	raw_spin_unlock_irqrestore(&gpio->spinlock, flags);
+	guard(raw_spinlock_irqsave)(&gpio->spinlock);
+
+	gpio->irq_type[data->hwirq] &= ~TQMX86_INT_TRIG_MASK;
+	gpio->irq_type[data->hwirq] |= new_type;
+	tqmx86_gpio_irq_config(gpio, data->hwirq);
 
 	return 0;
 }
@@ -199,8 +225,8 @@ static void tqmx86_gpio_irq_handler(struct irq_desc *desc)
 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
 	struct tqmx86_gpio_data *gpio = gpiochip_get_data(chip);
 	struct irq_chip *irq_chip = irq_desc_get_chip(desc);
-	unsigned long irq_bits, flags;
-	int i;
+	unsigned long irq_bits;
+	int i, hwirq;
 	u8 irq_status;
 
 	chained_irq_enter(irq_chip, desc);
@@ -210,32 +236,38 @@ static void tqmx86_gpio_irq_handler(struct irq_desc *desc)
 
 	irq_bits = irq_status;
 
-	raw_spin_lock_irqsave(&gpio->spinlock, flags);
-	for_each_set_bit(i, &irq_bits, TQMX86_NGPI) {
-		/*
-		 * Edge-both triggers are implemented by flipping the edge
-		 * trigger after each interrupt, as the controller only supports
-		 * either rising or falling edge triggers, but not both.
-		 *
-		 * Internally, the TQMx86 GPIO controller has separate status
-		 * registers for rising and falling edge interrupts. GPIIC
-		 * configures which bits from which register are visible in the
-		 * interrupt status register GPIIS and defines what triggers the
-		 * parent IRQ line. Writing to GPIIS always clears both rising
-		 * and falling interrupt flags internally, regardless of the
-		 * currently configured trigger.
-		 *
-		 * In consequence, we can cleanly implement the edge-both
-		 * trigger in software by first clearing the interrupt and then
-		 * setting the new trigger based on the current GPIO input in
-		 * tqmx86_gpio_irq_config() - even if an edge arrives between
-		 * reading the input and setting the trigger, we will have a new
-		 * interrupt pending.
-		 */
-		if ((gpio->irq_type[i] & TQMX86_GPII_MASK) == TQMX86_INT_BOTH)
-			tqmx86_gpio_irq_config(gpio, i);
+	scoped_guard(raw_spinlock_irqsave, &gpio->spinlock) {
+		for_each_set_bit(i, &irq_bits, TQMX86_NGPI) {
+			hwirq = i + TQMX86_NGPO;
+
+			/*
+			 * Edge-both triggers are implemented by flipping the
+			 * edge trigger after each interrupt, as the controller
+			 * only supports either rising or falling edge triggers,
+			 * but not both.
+			 *
+			 * Internally, the TQMx86 GPIO controller has separate
+			 * status registers for rising and falling edge
+			 * interrupts. GPIIC configures which bits from which
+			 * register are visible in the interrupt status register
+			 * GPIIS and defines what triggers the parent IRQ line.
+			 * Writing to GPIIS always clears both rising and
+			 * falling interrupt flags internally, regardless of the
+			 * currently configured trigger.
+			 *
+			 * In consequence, we can cleanly implement the
+			 * edge-both trigger in software by first clearing the
+			 * interrupt and then setting the new trigger based on
+			 * the current GPIO input in tqmx86_gpio_irq_config() -
+			 * even if an edge arrives between reading the input and
+			 * setting the trigger, we will have a new interrupt
+			 * pending.
+			 */
+			if ((gpio->irq_type[hwirq] & TQMX86_INT_TRIG_MASK) ==
+			    TQMX86_INT_TRIG_BOTH)
+				tqmx86_gpio_irq_config(gpio, hwirq);
+		}
 	}
-	raw_spin_unlock_irqrestore(&gpio->spinlock, flags);
 
 	for_each_set_bit(i, &irq_bits, TQMX86_NGPI)
 		generic_handle_domain_irq(gpio->chip.irq.domain,

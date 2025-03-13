@@ -9,6 +9,7 @@
 #include <linux/ptp_classify.h>
 #include <linux/skbuff.h>
 #include <linux/export.h>
+#include <linux/ptp_clock_kernel.h>
 
 static unsigned int classify(const struct sk_buff *skb)
 {
@@ -21,19 +22,39 @@ static unsigned int classify(const struct sk_buff *skb)
 
 void skb_clone_tx_timestamp(struct sk_buff *skb)
 {
+	struct hwtstamp_provider *hwprov;
 	struct mii_timestamper *mii_ts;
+	struct phy_device *phydev;
 	struct sk_buff *clone;
 	unsigned int type;
 
-	if (!skb->sk || !skb->dev ||
-	    !phy_is_default_hwtstamp(skb->dev->phydev))
+	if (!skb->sk || !skb->dev)
 		return;
+
+	rcu_read_lock();
+	hwprov = rcu_dereference(skb->dev->hwprov);
+	if (hwprov) {
+		if (hwprov->source != HWTSTAMP_SOURCE_PHYLIB ||
+		    !hwprov->phydev) {
+			rcu_read_unlock();
+			return;
+		}
+
+		phydev = hwprov->phydev;
+	} else {
+		phydev = skb->dev->phydev;
+		if (!phy_is_default_hwtstamp(phydev)) {
+			rcu_read_unlock();
+			return;
+		}
+	}
+	rcu_read_unlock();
 
 	type = classify(skb);
 	if (type == PTP_CLASS_NONE)
 		return;
 
-	mii_ts = skb->dev->phydev->mii_ts;
+	mii_ts = phydev->mii_ts;
 	if (likely(mii_ts->txtstamp)) {
 		clone = skb_clone_sk(skb);
 		if (!clone)
@@ -45,11 +66,32 @@ EXPORT_SYMBOL_GPL(skb_clone_tx_timestamp);
 
 bool skb_defer_rx_timestamp(struct sk_buff *skb)
 {
+	struct hwtstamp_provider *hwprov;
 	struct mii_timestamper *mii_ts;
+	struct phy_device *phydev;
 	unsigned int type;
 
-	if (!skb->dev || !phy_is_default_hwtstamp(skb->dev->phydev))
+	if (!skb->dev)
 		return false;
+
+	rcu_read_lock();
+	hwprov = rcu_dereference(skb->dev->hwprov);
+	if (hwprov) {
+		if (hwprov->source != HWTSTAMP_SOURCE_PHYLIB ||
+		    !hwprov->phydev) {
+			rcu_read_unlock();
+			return false;
+		}
+
+		phydev = hwprov->phydev;
+	} else {
+		phydev = skb->dev->phydev;
+		if (!phy_is_default_hwtstamp(phydev)) {
+			rcu_read_unlock();
+			return false;
+		}
+	}
+	rcu_read_unlock();
 
 	if (skb_headroom(skb) < ETH_HLEN)
 		return false;
@@ -63,7 +105,7 @@ bool skb_defer_rx_timestamp(struct sk_buff *skb)
 	if (type == PTP_CLASS_NONE)
 		return false;
 
-	mii_ts = skb->dev->phydev->mii_ts;
+	mii_ts = phydev->mii_ts;
 	if (likely(mii_ts->rxtstamp))
 		return mii_ts->rxtstamp(mii_ts, skb, type);
 

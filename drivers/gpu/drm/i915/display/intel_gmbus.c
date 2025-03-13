@@ -496,14 +496,13 @@ static int
 gmbus_xfer_read(struct intel_display *display, struct i2c_msg *msg,
 		u32 gmbus0_reg, u32 gmbus1_index)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u8 *buf = msg->buf;
 	unsigned int rx_size = msg->len;
 	unsigned int len;
 	int ret;
 
 	do {
-		if (HAS_GMBUS_BURST_READ(i915))
+		if (HAS_GMBUS_BURST_READ(display))
 			len = min(rx_size, INTEL_GMBUS_BURST_READ_MAX_LEN);
 		else
 			len = min(rx_size, gmbus_max_xfer_size(display));

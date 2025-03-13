@@ -21,7 +21,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet2>;
 	phy-mode = "rgmii-id";
-	phy-supply = <&reg_fec2_pwdn>;
 	phy-handle = <&ethphy2_0>;
 	fsl,magic-packet;
 	status = "okay";
@@ -42,6 +41,8 @@
 			reset-gpios = <&gpio2 28 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <500>;
+			interrupt-parent = <&gpio2>;
+			interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
 		};
 	};
 };

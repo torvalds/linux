@@ -17,23 +17,10 @@
 #include <linux/of_fdt.h>
 #include <linux/sizes.h>
 
-/* Max address size we deal with */
-#define OF_MAX_ADDR_CELLS	4
-#define OF_CHECK_COUNTS(na, ns)	((na) > 0 && (na) <= OF_MAX_ADDR_CELLS && \
-			(ns) > 0)
+/* Uncomment me to enable of_dump_addr() debugging output */
+// #define DEBUG
 
-/* Debug utility */
-#ifdef DEBUG
-static void __init of_dump_addr(const char *s, const __be32 *addr, int na)
-{
-	pr_debug("%s", s);
-	while(na--)
-		pr_cont(" %08x", *(addr++));
-	pr_cont("\n");
-}
-#else
-static void __init of_dump_addr(const char *s, const __be32 *addr, int na) { }
-#endif
+#include "of_private.h"
 
 /* Callbacks for bus specific translators */
 struct of_bus {

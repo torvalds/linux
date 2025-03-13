@@ -14,6 +14,7 @@
 #include <linux/input.h>
 #include <linux/gameport.h>
 #include <linux/jiffies.h>
+#include <linux/string_choices.h>
 
 #define DRIVER_DESC	"Microsoft SideWinder joystick family driver"
 
@@ -677,7 +678,7 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 				case 48:				/* Ambiguous */
 					if (j == 14) {			/* ID length 14*3 -> FFP */
 						sw->type = SW_ID_FFP;
-						sprintf(comment, " [AC %s]", sw_get_bits(idbuf,38,1,3) ? "off" : "on");
+						sprintf(comment, " [AC %s]", str_off_on(sw_get_bits(idbuf,38,1,3)));
 					} else
 						sw->type = SW_ID_PP;
 					break;

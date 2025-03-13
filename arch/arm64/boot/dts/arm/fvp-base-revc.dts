@@ -233,7 +233,7 @@
 		#interrupt-cells = <0x1>;
 		compatible = "pci-host-ecam-generic";
 		device_type = "pci";
-		bus-range = <0x0 0x1>;
+		bus-range = <0x0 0xff>;
 		reg = <0x0 0x40000000 0x0 0x10000000>;
 		ranges = <0x2000000 0x0 0x50000000 0x0 0x50000000 0x0 0x10000000>;
 		interrupt-map = <0 0 0 1 &gic 0 0 GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,

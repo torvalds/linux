@@ -667,6 +667,9 @@ struct mlx4_uverbs_ex_query_device {
 	__u32 reserved;
 };
 
+/* 4k - 4G */
+#define MLX4_PAGE_SIZE_SUPPORTED	((unsigned long)GENMASK_ULL(31, 12))
+
 static inline struct mlx4_ib_dev *to_mdev(struct ib_device *ibdev)
 {
 	return container_of(ibdev, struct mlx4_ib_dev, ib_dev);
@@ -936,8 +939,19 @@ mlx4_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table)
 {
 	return 0;
 }
-int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem, u64 start_va,
-				       int *num_of_mtts);
+static inline int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem,
+						     u64 start,
+						     int *num_of_mtts)
+{
+	unsigned long pg_sz;
+
+	pg_sz = ib_umem_find_best_pgsz(umem, MLX4_PAGE_SIZE_SUPPORTED, start);
+	if (!pg_sz)
+		return -EOPNOTSUPP;
+
+	*num_of_mtts = ib_umem_num_dma_blocks(umem, pg_sz);
+	return order_base_2(pg_sz);
+}
 
 int mlx4_ib_cm_init(void);
 void mlx4_ib_cm_destroy(void);

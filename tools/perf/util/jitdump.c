@@ -737,7 +737,7 @@ jit_inject(struct jit_buf_desc *jd, const char *path)
  * as captured in the RECORD_MMAP record
  */
 static int
-jit_detect(const char *mmap_name, pid_t pid, struct nsinfo *nsi)
+jit_detect(const char *mmap_name, pid_t pid, struct nsinfo *nsi, bool *in_pidns)
  {
 	char *p;
 	char *end = NULL;
@@ -773,11 +773,16 @@ jit_detect(const char *mmap_name, pid_t pid, struct nsinfo *nsi)
 	if (!end)
 		return -1;
 
+	*in_pidns = pid == nsinfo__nstgid(nsi);
 	/*
 	 * pid does not match mmap pid
 	 * pid==0 in system-wide mode (synthesized)
+	 *
+	 * If the pid in the file name is equal to the nstgid, then
+	 * the agent ran inside a container and perf outside the
+	 * container, so record it for further use in jit_inject().
 	 */
-	if (pid && pid2 != nsinfo__nstgid(nsi))
+	if (pid && !(pid2 == pid || *in_pidns))
 		return -1;
 	/*
 	 * validate suffix
@@ -830,6 +835,7 @@ jit_process(struct perf_session *session,
 	struct nsinfo *nsi;
 	struct evsel *first;
 	struct jit_buf_desc jd;
+	bool in_pidns = false;
 	int ret;
 
 	thread = machine__findnew_thread(machine, pid, tid);
@@ -844,7 +850,7 @@ jit_process(struct perf_session *session,
 	/*
 	 * first, detect marker mmap (i.e., the jitdump mmap)
 	 */
-	if (jit_detect(filename, pid, nsi)) {
+	if (jit_detect(filename, pid, nsi, &in_pidns)) {
 		nsinfo__put(nsi);
 
 		/*
@@ -865,6 +871,9 @@ jit_process(struct perf_session *session,
 	jd.output  = output;
 	jd.machine = machine;
 	jd.nsi = nsi;
+
+	if (in_pidns)
+		nsinfo__set_in_pidns(nsi);
 
 	/*
 	 * track sample_type to compute id_all layout

@@ -7,6 +7,7 @@
  * Author: Peter Rosin <peda@axentia.se>
  */
 
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/iio.h>
@@ -237,49 +238,18 @@ static ssize_t mux_write_ext_info(struct iio_dev *indio_dev, uintptr_t private,
 	return ret;
 }
 
-static int mux_configure_channel(struct device *dev, struct mux *mux,
-				 u32 state, const char *label, int idx)
+static int mux_configure_chan_ext_info(struct device *dev, struct mux *mux,
+				       int idx, int num_ext_info)
 {
 	struct mux_child *child = &mux->child[idx];
-	struct iio_chan_spec *chan = &mux->chan[idx];
 	struct iio_chan_spec const *pchan = mux->parent->channel;
-	char *page = NULL;
-	int num_ext_info;
 	int i;
 	int ret;
 
-	chan->indexed = 1;
-	chan->output = pchan->output;
-	chan->datasheet_name = label;
-	chan->ext_info = mux->ext_info;
+	char *page __free(kfree) = kzalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
 
-	ret = iio_get_channel_type(mux->parent, &chan->type);
-	if (ret < 0) {
-		dev_err(dev, "failed to get parent channel type\n");
-		return ret;
-	}
-
-	if (iio_channel_has_info(pchan, IIO_CHAN_INFO_RAW))
-		chan->info_mask_separate |= BIT(IIO_CHAN_INFO_RAW);
-	if (iio_channel_has_info(pchan, IIO_CHAN_INFO_SCALE))
-		chan->info_mask_separate |= BIT(IIO_CHAN_INFO_SCALE);
-
-	if (iio_channel_has_available(pchan, IIO_CHAN_INFO_RAW))
-		chan->info_mask_separate_available |= BIT(IIO_CHAN_INFO_RAW);
-
-	if (state >= mux_control_states(mux->control)) {
-		dev_err(dev, "too many channels\n");
-		return -EINVAL;
-	}
-
-	chan->channel = state;
-
-	num_ext_info = iio_get_channel_ext_info_count(mux->parent);
-	if (num_ext_info) {
-		page = devm_kzalloc(dev, PAGE_SIZE, GFP_KERNEL);
-		if (!page)
-			return -ENOMEM;
-	}
 	child->ext_info_cache = devm_kcalloc(dev,
 					     num_ext_info,
 					     sizeof(*child->ext_info_cache),
@@ -318,8 +288,46 @@ static int mux_configure_channel(struct device *dev, struct mux *mux,
 		child->ext_info_cache[i].size = ret;
 	}
 
-	if (page)
-		devm_kfree(dev, page);
+	return 0;
+}
+
+static int mux_configure_channel(struct device *dev, struct mux *mux, u32 state,
+				 const char *label, int idx)
+{
+	struct iio_chan_spec *chan = &mux->chan[idx];
+	struct iio_chan_spec const *pchan = mux->parent->channel;
+	int num_ext_info;
+	int ret;
+
+	chan->indexed = 1;
+	chan->output = pchan->output;
+	chan->datasheet_name = label;
+	chan->ext_info = mux->ext_info;
+
+	ret = iio_get_channel_type(mux->parent, &chan->type);
+	if (ret < 0) {
+		dev_err(dev, "failed to get parent channel type\n");
+		return ret;
+	}
+
+	if (iio_channel_has_info(pchan, IIO_CHAN_INFO_RAW))
+		chan->info_mask_separate |= BIT(IIO_CHAN_INFO_RAW);
+	if (iio_channel_has_info(pchan, IIO_CHAN_INFO_SCALE))
+		chan->info_mask_separate |= BIT(IIO_CHAN_INFO_SCALE);
+
+	if (iio_channel_has_available(pchan, IIO_CHAN_INFO_RAW))
+		chan->info_mask_separate_available |= BIT(IIO_CHAN_INFO_RAW);
+
+	if (state >= mux_control_states(mux->control)) {
+		dev_err(dev, "too many channels\n");
+		return -EINVAL;
+	}
+
+	chan->channel = state;
+
+	num_ext_info = iio_get_channel_ext_info_count(mux->parent);
+	if (num_ext_info)
+		return mux_configure_chan_ext_info(dev, mux, idx, num_ext_info);
 
 	return 0;
 }

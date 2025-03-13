@@ -529,7 +529,7 @@ static int imx_card_parse_of(struct imx_card_data *data)
 	}
 
 	/* DAPM routes */
-	if (of_property_read_bool(dev->of_node, "audio-routing")) {
+	if (of_property_present(dev->of_node, "audio-routing")) {
 		ret = snd_soc_of_parse_audio_routing(card, "audio-routing");
 		if (ret)
 			return ret;

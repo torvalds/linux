@@ -9,11 +9,13 @@ config CXL_BASE
 	select PPC_64S_HASH_MMU
 
 config CXL
-	tristate "Support for IBM Coherent Accelerators (CXL)"
+	tristate "Support for IBM Coherent Accelerators (CXL) (DEPRECATED)"
 	depends on PPC_POWERNV && PCI_MSI && EEH
 	select CXL_BASE
-	default m
 	help
+	  The cxl driver is deprecated and will be removed in a future
+	  kernel release.
+
 	  Select this option to enable driver support for IBM Coherent
 	  Accelerators (CXL).  CXL is otherwise known as Coherent Accelerator
 	  Processor Interface (CAPI).  CAPI allows accelerators in FPGAs to be

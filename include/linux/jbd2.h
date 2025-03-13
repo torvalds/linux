@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/bit_spinlock.h>
 #include <linux/blkdev.h>
-#include <crypto/hash.h>
+#include <linux/crc32c.h>
 #endif
 
 #define journal_oom_retry 1
@@ -1242,13 +1242,6 @@ struct journal_s
 	void *j_private;
 
 	/**
-	 * @j_chksum_driver:
-	 *
-	 * Reference to checksum algorithm driver via cryptoapi.
-	 */
-	struct crypto_shash *j_chksum_driver;
-
-	/**
 	 * @j_csum_seed:
 	 *
 	 * Precomputed journal UUID checksum for seeding other checksums.
@@ -1750,10 +1743,7 @@ static inline bool jbd2_journal_has_csum_v2or3_feature(journal_t *j)
 
 static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
 {
-	WARN_ON_ONCE(jbd2_journal_has_csum_v2or3_feature(journal) &&
-		     journal->j_chksum_driver == NULL);
-
-	return journal->j_chksum_driver != NULL;
+	return jbd2_journal_has_csum_v2or3_feature(journal);
 }
 
 static inline int jbd2_journal_get_num_fc_blks(journal_superblock_t *jsb)
@@ -1790,27 +1780,10 @@ static inline unsigned long jbd2_log_space_left(journal_t *journal)
 #define BJ_Reserved	4	/* Buffer is reserved for access by journal */
 #define BJ_Types	5
 
-/* JBD uses a CRC32 checksum */
-#define JBD_MAX_CHECKSUM_SIZE 4
-
 static inline u32 jbd2_chksum(journal_t *journal, u32 crc,
 			      const void *address, unsigned int length)
 {
-	DEFINE_RAW_FLEX(struct shash_desc, desc, __ctx,
-		DIV_ROUND_UP(JBD_MAX_CHECKSUM_SIZE,
-			     sizeof(*((struct shash_desc *)0)->__ctx)));
-	int err;
-
-	BUG_ON(crypto_shash_descsize(journal->j_chksum_driver) >
-		JBD_MAX_CHECKSUM_SIZE);
-
-	desc->tfm = journal->j_chksum_driver;
-	*(u32 *)desc->__ctx = crc;
-
-	err = crypto_shash_update(desc, address, length);
-	BUG_ON(err);
-
-	return *(u32 *)desc->__ctx;
+	return crc32c(crc, address, length);
 }
 
 /* Return most recent uncommitted transaction */

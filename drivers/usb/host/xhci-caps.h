@@ -83,3 +83,9 @@
 #define	HCC2_CIC(p)		((p) & (1 << 5))
 /* true: HC support Extended TBC Capability, Isoc burst count > 65535 */
 #define	HCC2_ETC(p)		((p) & (1 << 6))
+/* true: HC support Extended TBC TRB Status Capability */
+#define HCC2_ETC_TSC(p)         ((p) & (1 << 7))
+/* true: HC support Get/Set Extended Property Capability */
+#define HCC2_GSC(p)             ((p) & (1 << 8))
+/* true: HC support Virtualization Based Trusted I/O Capability */
+#define HCC2_VTC(p)             ((p) & (1 << 9))

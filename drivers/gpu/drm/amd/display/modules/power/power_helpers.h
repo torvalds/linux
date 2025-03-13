@@ -62,7 +62,7 @@ void set_replay_defer_update_coasting_vtotal(struct dc_link *link,
 	uint32_t vtotal);
 void update_replay_coasting_vtotal_from_defer(struct dc_link *link,
 	enum replay_coasting_vtotal_type type);
-void set_replay_ips_full_screen_video_src_vtotal(struct dc_link *link, uint16_t vtotal);
+void set_replay_low_rr_full_screen_video_src_vtotal(struct dc_link *link, uint16_t vtotal);
 void calculate_replay_link_off_frame_count(struct dc_link *link,
 	uint16_t vtotal, uint16_t htotal);
 
@@ -78,4 +78,5 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 
 bool fill_custom_backlight_caps(unsigned int config_no,
 		struct dm_acpi_atif_backlight_caps *caps);
+void reset_replay_dsync_error_count(struct dc_link *link);
 #endif /* MODULES_POWER_POWER_HELPERS_H_ */

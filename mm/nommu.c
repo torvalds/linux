@@ -1613,6 +1613,13 @@ int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 }
 EXPORT_SYMBOL(remap_vmalloc_range);
 
+vm_fault_t filemap_fsnotify_fault(struct vm_fault *vmf)
+{
+	BUG();
+	return 0;
+}
+EXPORT_SYMBOL_GPL(filemap_fsnotify_fault);
+
 vm_fault_t filemap_fault(struct vm_fault *vmf)
 {
 	BUG();

@@ -40,7 +40,7 @@ The '$HOME/.perfconfig' file is used to store a per-user configuration.
 The file '$(sysconfdir)/perfconfig' can be used to
 store a system-wide default configuration.
 
-One an disable reading config files by setting the PERF_CONFIG environment
+One can disable reading config files by setting the PERF_CONFIG environment
 variable to /dev/null, or provide an alternate config file by setting that
 variable.
 

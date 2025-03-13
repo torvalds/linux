@@ -28,6 +28,7 @@
 #define ACPI_WPFC_METHOD	"WPFC"
 #define ACPI_GLAI_METHOD	"GLAI"
 #define ACPI_WBEM_METHOD	"WBEM"
+#define ACPI_DSBR_METHOD	"DSBR"
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
@@ -76,6 +77,13 @@
 #define ACPI_WBEM_WIFI_DATA_SIZE	2
 /*
  * One element for domain type,
+ * and one for DSBR response data
+ */
+#define ACPI_DSBR_WIFI_DATA_SIZE	2
+#define ACPI_DSBR_WIFI_DATA_REV		1
+
+/*
+ * One element for domain type,
  * and one for the status
  */
 #define ACPI_GLAI_WIFI_DATA_SIZE	2
@@ -101,6 +109,30 @@
 
 #define ACPI_DSM_REV 0
 
+#define DSM_INTERNAL_FUNC_GET_PLAT_INFO	1
+/* TBD: VPRO is BIT(0) in the result, but what's the result? */
+
+#define DSM_INTERNAL_FUNC_PRODUCT_RESET	2
+
+/* DSM_INTERNAL_FUNC_PRODUCT_RESET - product reset (aka "PLDR") */
+enum iwl_dsm_internal_product_reset_cmds {
+	DSM_INTERNAL_PLDR_CMD_GET_MODE = 1,
+	DSM_INTERNAL_PLDR_CMD_SET_MODE = 2,
+	DSM_INTERNAL_PLDR_CMD_GET_STATUS = 3,
+};
+
+enum iwl_dsm_internal_product_reset_mode {
+	DSM_INTERNAL_PLDR_MODE_EN_PROD_RESET	= BIT(0),
+	DSM_INTERNAL_PLDR_MODE_EN_WIFI_FLR	= BIT(1),
+	DSM_INTERNAL_PLDR_MODE_EN_BT_OFF_ON	= BIT(2),
+};
+
+struct iwl_dsm_internal_product_reset_cmd {
+	/* cmd is from enum iwl_dsm_internal_product_reset_cmds */
+	u16 cmd;
+	u16 value;
+} __packed;
+
 #define IWL_ACPI_WBEM_REV0_MASK (BIT(0) | BIT(1))
 #define IWL_ACPI_WBEM_REVISION 0
 
@@ -109,6 +141,10 @@
 struct iwl_fw_runtime;
 
 extern const guid_t iwl_guid;
+
+union acpi_object *iwl_acpi_get_dsm_object(struct device *dev, int rev,
+					   int func, union acpi_object *args,
+					   const guid_t *guid);
 
 /**
  * iwl_acpi_get_mcc - read MCC from ACPI, if available
@@ -153,10 +189,14 @@ int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 		     enum iwl_dsm_funcs func, u32 *value);
 
 int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value);
+
+int iwl_acpi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value);
+
 #else /* CONFIG_ACPI */
 
-static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
-					    int func, union acpi_object *args)
+static inline union acpi_object *
+iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
+			union acpi_object *args, const guid_t *guid)
 {
 	return ERR_PTR(-ENOENT);
 }
@@ -218,6 +258,11 @@ static inline int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 }
 
 static inline int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_acpi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
 {
 	return -ENOENT;
 }

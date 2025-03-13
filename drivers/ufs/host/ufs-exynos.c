@@ -1992,8 +1992,7 @@ static void exynos_ufs_remove(struct platform_device *pdev)
 	struct ufs_hba *hba =  platform_get_drvdata(pdev);
 	struct exynos_ufs *ufs = ufshcd_get_variant(hba);
 
-	pm_runtime_get_sync(&(pdev)->dev);
-	ufshcd_remove(hba);
+	ufshcd_pltfrm_remove(pdev);
 
 	phy_power_off(ufs->phy);
 	phy_exit(ufs->phy);
@@ -2166,7 +2165,7 @@ static const struct dev_pm_ops exynos_ufs_pm_ops = {
 
 static struct platform_driver exynos_ufs_pltform = {
 	.probe	= exynos_ufs_probe,
-	.remove_new = exynos_ufs_remove,
+	.remove = exynos_ufs_remove,
 	.driver	= {
 		.name	= "exynos-ufshc",
 		.pm	= &exynos_ufs_pm_ops,

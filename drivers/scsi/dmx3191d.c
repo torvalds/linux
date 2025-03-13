@@ -127,7 +127,7 @@ static void dmx3191d_remove_one(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static struct pci_device_id dmx3191d_pci_tbl[] = {
+static const struct pci_device_id dmx3191d_pci_tbl[] = {
 	{PCI_VENDOR_ID_DOMEX, PCI_DEVICE_ID_DOMEX_DMX3191D,
 		PCI_ANY_ID, PCI_ANY_ID, 0, 0, 4},
 	{ }

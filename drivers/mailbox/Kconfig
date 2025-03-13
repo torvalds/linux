@@ -36,6 +36,17 @@ config ARM_MHU_V3
 	  that provides different means of transports: supported extensions
 	  will be discovered and possibly managed at probe-time.
 
+config EXYNOS_MBOX
+	tristate "Exynos Mailbox"
+	depends on ARCH_EXYNOS || COMPILE_TEST
+	help
+	  Say Y here if you want to build the Samsung Exynos Mailbox controller
+	  driver. The controller has 16 flag bits for hardware interrupt
+	  generation and a shared register for passing mailbox messages.
+	  When the controller is used by the ACPM interface the shared register
+	  is ignored and the mailbox controller acts as a doorbell that raises
+	  the interrupt to the ACPM firmware.
+
 config IMX_MBOX
 	tristate "i.MX Mailbox"
 	depends on ARCH_MXC || COMPILE_TEST
@@ -175,6 +186,19 @@ config POLARFIRE_SOC_MAILBOX
 
 	  To compile this driver as a module, choose M here. the
 	  module will be called mailbox-mpfs.
+
+	  If unsure, say N.
+
+config MCHP_SBI_IPC_MBOX
+	tristate "Microchip Inter-processor Communication (IPC) SBI driver"
+	depends on RISCV_SBI || COMPILE_TEST
+	depends on ARCH_MICROCHIP
+	help
+	  Mailbox implementation for Microchip devices with an
+	  Inter-process communication (IPC) controller.
+
+	  To compile this driver as a module, choose M here. the
+	  module will be called mailbox-mchp-ipc-sbi.
 
 	  If unsure, say N.
 

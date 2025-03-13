@@ -53,6 +53,9 @@ parameters.
        * ``smfs`` Software managed flow steering. In SMFS mode, the HW
          steering entities are created and manage through the driver without
          firmware intervention.
+       * ``hmfs`` Hardware managed flow steering. In HMFS mode, the driver
+         is configuring steering rules directly to the HW using Work Queues with
+         a special new type of WQE (Work Queue Element).
 
        SMFS mode is faster and provides better rule insertion rate compared to
        default DMFS mode.

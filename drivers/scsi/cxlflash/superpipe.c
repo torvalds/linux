@@ -966,7 +966,7 @@ static int cxlflash_disk_detach(struct scsi_device *sdev, void *detach)
  *
  * This routine is the release handler for the fops registered with
  * the CXL services on an initial attach for a context. It is called
- * when a close (explicity by the user or as part of a process tear
+ * when a close (explicitly by the user or as part of a process tear
  * down) is performed on the adapter file descriptor returned to the
  * user. The user should be aware that explicitly performing a close
  * considered catastrophic and subsequent usage of the superpipe API

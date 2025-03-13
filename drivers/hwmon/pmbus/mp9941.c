@@ -316,4 +316,4 @@ module_i2c_driver(mp9941_driver);
 MODULE_AUTHOR("Noah Wang <noahwang.wang@outlook.com>");
 MODULE_DESCRIPTION("PMBus driver for MPS MP9941");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

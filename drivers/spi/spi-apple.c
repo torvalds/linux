@@ -493,6 +493,7 @@ static int apple_spi_probe(struct platform_device *pdev)
 	ctlr->prepare_message = apple_spi_prepare_message;
 	ctlr->set_cs = apple_spi_set_cs;
 	ctlr->transfer_one = apple_spi_transfer_one;
+	ctlr->use_gpio_descriptors = true;
 	ctlr->auto_runtime_pm = true;
 
 	pm_runtime_set_active(&pdev->dev);

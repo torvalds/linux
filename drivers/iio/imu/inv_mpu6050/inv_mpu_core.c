@@ -277,6 +277,14 @@ static const struct inv_mpu6050_hw hw_info[] = {
 		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
 		.startup_time = {INV_ICM20690_GYRO_STARTUP_TIME, INV_ICM20690_ACCEL_STARTUP_TIME},
 	},
+	{	.whoami = INV_IAM20380_WHOAMI_VALUE,
+		.name = "IAM20380",
+		.reg = &reg_set_6500,
+		.config = &chip_config_6500,
+		.fifo_size = 512,
+		.temp = {INV_ICM20608_TEMP_OFFSET, INV_ICM20608_TEMP_SCALE},
+		.startup_time = {INV_MPU6500_GYRO_STARTUP_TIME, INV_MPU6500_ACCEL_STARTUP_TIME},
+	},
 	{
 		.whoami = INV_IAM20680_WHOAMI_VALUE,
 		.name = "IAM20680",
@@ -1519,6 +1527,14 @@ static const struct iio_chan_spec inv_mpu6050_channels[] = {
 	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_MPU6050_SCAN_ACCL_Z),
 };
 
+static const struct iio_chan_spec inv_iam20380_channels[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU6050_SCAN_TIMESTAMP),
+
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_X, INV_MPU6050_SCAN_GYRO_X),
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Y, INV_MPU6050_SCAN_GYRO_Y),
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Z, INV_MPU6050_SCAN_GYRO_Z),
+};
+
 static const struct iio_chan_spec inv_mpu6500_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU6050_SCAN_TIMESTAMP),
 
@@ -1622,6 +1638,10 @@ static const struct iio_chan_spec inv_mpu9250_channels[] = {
 	(BIT(INV_MPU9X50_SCAN_MAGN_X)		\
 	| BIT(INV_MPU9X50_SCAN_MAGN_Y)		\
 	| BIT(INV_MPU9X50_SCAN_MAGN_Z))
+
+static const unsigned long inv_iam20380_scan_masks[] = {
+	INV_MPU6050_SCAN_MASK_3AXIS_GYRO,
+};
 
 static const unsigned long inv_mpu9x50_scan_masks[] = {
 	/* 3-axis accel */
@@ -2026,6 +2046,11 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		indio_dev->num_channels = ARRAY_SIZE(inv_mpu9250_channels);
 		indio_dev->available_scan_masks = inv_mpu9x50_scan_masks;
 		break;
+	case INV_IAM20380:
+		indio_dev->channels = inv_iam20380_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_iam20380_channels);
+		indio_dev->available_scan_masks = inv_iam20380_scan_masks;
+		break;
 	case INV_ICM20600:
 	case INV_ICM20602:
 		indio_dev->channels = inv_mpu6500_channels;
@@ -2092,7 +2117,7 @@ error_power_off:
 	inv_mpu6050_set_power_itg(st, false);
 	return result;
 }
-EXPORT_SYMBOL_NS_GPL(inv_mpu_core_probe, IIO_MPU6050);
+EXPORT_SYMBOL_NS_GPL(inv_mpu_core_probe, "IIO_MPU6050");
 
 static int inv_mpu_resume(struct device *dev)
 {
@@ -2243,4 +2268,4 @@ EXPORT_NS_GPL_DEV_PM_OPS(inv_mpu_pmops, IIO_MPU6050) = {
 MODULE_AUTHOR("Invensense Corporation");
 MODULE_DESCRIPTION("Invensense device MPU6050 driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_INV_SENSORS_TIMESTAMP);
+MODULE_IMPORT_NS("IIO_INV_SENSORS_TIMESTAMP");

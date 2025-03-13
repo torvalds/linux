@@ -759,7 +759,7 @@ static ssize_t bq24257_show_ovp_voltage(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq24257_device *bq = power_supply_get_drvdata(psy);
 
 	return sysfs_emit(buf, "%u\n", bq24257_vovp_map[bq->init_data.vovp]);
@@ -769,7 +769,7 @@ static ssize_t bq24257_show_in_dpm_voltage(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq24257_device *bq = power_supply_get_drvdata(psy);
 
 	return sysfs_emit(buf, "%u\n", bq24257_vindpm_map[bq->init_data.vindpm]);
@@ -779,7 +779,7 @@ static ssize_t bq24257_sysfs_show_enable(struct device *dev,
 					 struct device_attribute *attr,
 					 char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq24257_device *bq = power_supply_get_drvdata(psy);
 	int ret;
 
@@ -801,7 +801,7 @@ static ssize_t bq24257_sysfs_set_enable(struct device *dev,
 					const char *buf,
 					size_t count)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct bq24257_device *bq = power_supply_get_drvdata(psy);
 	long val;
 	int ret;

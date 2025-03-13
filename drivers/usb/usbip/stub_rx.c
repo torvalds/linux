@@ -269,7 +269,7 @@ static int stub_recv_cmd_unlink(struct stub_device *sdev,
 		return 0;
 	}
 
-	usbip_dbg_stub_rx("seqnum %d is not pending\n",
+	usbip_dbg_stub_rx("seqnum %u is not pending\n",
 			  pdu->u.cmd_unlink.seqnum);
 
 	/*

@@ -1482,4 +1482,4 @@ MODULE_AUTHOR("Wen Wang <wen.w.wang@intel.com>");
 MODULE_AUTHOR("Xiaolin Zhang <xiaolin.zhang@intel.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Intel ATOM Platform ISP Driver");
-MODULE_IMPORT_NS(INTEL_IPU_BRIDGE);
+MODULE_IMPORT_NS("INTEL_IPU_BRIDGE");

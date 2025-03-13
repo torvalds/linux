@@ -108,11 +108,11 @@ static const struct part_id_gts_multiplier apds9306_gts_mul[] = {
 	{
 		.part_id = 0xB1,
 		.max_scale_int = 16,
-		.max_scale_nano = 3264320,
+		.max_scale_nano = 326432000,
 	}, {
 		.part_id = 0xB3,
 		.max_scale_int = 14,
-		.max_scale_nano = 9712000,
+		.max_scale_nano = 97120000,
 	},
 };
 
@@ -1355,4 +1355,4 @@ module_i2c_driver(apds9306_driver);
 MODULE_AUTHOR("Subhajit Ghosh <subhajit.ghosh@tweaklogic.com>");
 MODULE_DESCRIPTION("APDS9306 Ambient Light Sensor driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_GTS_HELPER);
+MODULE_IMPORT_NS("IIO_GTS_HELPER");

@@ -1573,7 +1573,7 @@ static struct platform_driver cpm_uart_driver = {
 		.of_match_table = cpm_uart_match,
 	},
 	.probe = cpm_uart_probe,
-	.remove_new = cpm_uart_remove,
+	.remove = cpm_uart_remove,
  };
 
 static int __init cpm_uart_init(void)

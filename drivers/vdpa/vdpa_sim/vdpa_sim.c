@@ -229,7 +229,7 @@ struct vdpasim *vdpasim_create(struct vdpasim_dev_attr *dev_attr,
 	dev = &vdpasim->vdpa.dev;
 
 	kthread_init_work(&vdpasim->work, vdpasim_work_fn);
-	vdpasim->worker = kthread_create_worker(0, "vDPA sim worker: %s",
+	vdpasim->worker = kthread_run_worker(0, "vDPA sim worker: %s",
 						dev_attr->name);
 	if (IS_ERR(vdpasim->worker))
 		goto err_iommu;

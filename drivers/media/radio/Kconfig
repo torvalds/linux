@@ -221,10 +221,6 @@ config USB_RAREMONO
 source "drivers/media/radio/si470x/Kconfig"
 source "drivers/media/radio/si4713/Kconfig"
 
-# TI's ST based wl128x FM radio
-
-source "drivers/media/radio/wl128x/Kconfig"
-
 #
 # ISA drivers configuration
 #

@@ -22,11 +22,16 @@
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <linux/sockios.h>
+#include <linux/time64.h>
 
 #include "vsock_test_zerocopy.h"
 #include "timeout.h"
 #include "control.h"
 #include "util.h"
+
+/* Basic messages for control_writeulong(), control_readulong() */
+#define CONTROL_CONTINUE	1
+#define CONTROL_DONE		0
 
 static void test_stream_connection_reset(const struct test_opts *opts)
 {
@@ -108,24 +113,9 @@ static void test_stream_bind_only_client(const struct test_opts *opts)
 
 static void test_stream_bind_only_server(const struct test_opts *opts)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = opts->peer_port,
-			.svm_cid = VMADDR_CID_ANY,
-		},
-	};
 	int fd;
 
-	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
-
-	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
+	fd = vsock_bind(VMADDR_CID_ANY, opts->peer_port, SOCK_STREAM);
 
 	/* Notify the client that the server is ready */
 	control_writeln("BIND");
@@ -429,7 +419,7 @@ static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 
 static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 {
-	unsigned long sock_buf_size;
+	unsigned long long sock_buf_size;
 	unsigned long remote_hash;
 	unsigned long curr_hash;
 	int fd;
@@ -444,17 +434,13 @@ static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 
 	sock_buf_size = SOCK_BUF_SIZE;
 
-	if (setsockopt(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_MAX_SIZE,
-		       &sock_buf_size, sizeof(sock_buf_size))) {
-		perror("setsockopt(SO_VM_SOCKETS_BUFFER_MAX_SIZE)");
-		exit(EXIT_FAILURE);
-	}
+	setsockopt_ull_check(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_MAX_SIZE,
+			     sock_buf_size,
+			     "setsockopt(SO_VM_SOCKETS_BUFFER_MAX_SIZE)");
 
-	if (setsockopt(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_SIZE,
-		       &sock_buf_size, sizeof(sock_buf_size))) {
-		perror("setsockopt(SO_VM_SOCKETS_BUFFER_SIZE)");
-		exit(EXIT_FAILURE);
-	}
+	setsockopt_ull_check(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_SIZE,
+			     sock_buf_size,
+			     "setsockopt(SO_VM_SOCKETS_BUFFER_SIZE)");
 
 	/* Ready to receive data. */
 	control_writeln("SRVREADY");
@@ -563,7 +549,7 @@ static time_t current_nsec(void)
 		exit(EXIT_FAILURE);
 	}
 
-	return (ts.tv_sec * 1000000000ULL) + ts.tv_nsec;
+	return (ts.tv_sec * NSEC_PER_SEC) + ts.tv_nsec;
 }
 
 #define RCVTIMEO_TIMEOUT_SEC 1
@@ -586,10 +572,8 @@ static void test_seqpacket_timeout_client(const struct test_opts *opts)
 	tv.tv_sec = RCVTIMEO_TIMEOUT_SEC;
 	tv.tv_usec = 0;
 
-	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (void *)&tv, sizeof(tv)) == -1) {
-		perror("setsockopt(SO_RCVTIMEO)");
-		exit(EXIT_FAILURE);
-	}
+	setsockopt_timeval_check(fd, SOL_SOCKET, SO_RCVTIMEO, tv,
+				 "setsockopt(SO_RCVTIMEO)");
 
 	read_enter_ns = current_nsec();
 
@@ -605,7 +589,7 @@ static void test_seqpacket_timeout_client(const struct test_opts *opts)
 	}
 
 	read_overhead_ns = current_nsec() - read_enter_ns -
-			1000000000ULL * RCVTIMEO_TIMEOUT_SEC;
+			   NSEC_PER_SEC * RCVTIMEO_TIMEOUT_SEC;
 
 	if (read_overhead_ns > READ_OVERHEAD_NSEC) {
 		fprintf(stderr,
@@ -634,7 +618,8 @@ static void test_seqpacket_timeout_server(const struct test_opts *opts)
 
 static void test_seqpacket_bigmsg_client(const struct test_opts *opts)
 {
-	unsigned long sock_buf_size;
+	unsigned long long sock_buf_size;
+	size_t buf_size;
 	socklen_t len;
 	void *data;
 	int fd;
@@ -655,13 +640,20 @@ static void test_seqpacket_bigmsg_client(const struct test_opts *opts)
 
 	sock_buf_size++;
 
-	data = malloc(sock_buf_size);
+	/* size_t can be < unsigned long long */
+	buf_size = (size_t)sock_buf_size;
+	if (buf_size != sock_buf_size) {
+		fprintf(stderr, "Returned BUFFER_SIZE too large\n");
+		exit(EXIT_FAILURE);
+	}
+
+	data = malloc(buf_size);
 	if (!data) {
 		perror("malloc");
 		exit(EXIT_FAILURE);
 	}
 
-	send_buf(fd, data, sock_buf_size, 0, -EMSGSIZE);
+	send_buf(fd, data, buf_size, 0, -EMSGSIZE);
 
 	control_writeln("CLISENT");
 
@@ -835,7 +827,7 @@ static void test_stream_poll_rcvlowat_server(const struct test_opts *opts)
 
 static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 {
-	unsigned long lowat_val = RCVLOWAT_BUF_SIZE;
+	int lowat_val = RCVLOWAT_BUF_SIZE;
 	char buf[RCVLOWAT_BUF_SIZE];
 	struct pollfd fds;
 	short poll_flags;
@@ -847,11 +839,8 @@ static void test_stream_poll_rcvlowat_client(const struct test_opts *opts)
 		exit(EXIT_FAILURE);
 	}
 
-	if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT,
-		       &lowat_val, sizeof(lowat_val))) {
-		perror("setsockopt(SO_RCVLOWAT)");
-		exit(EXIT_FAILURE);
-	}
+	setsockopt_int_check(fd, SOL_SOCKET, SO_RCVLOWAT,
+			     lowat_val, "setsockopt(SO_RCVLOWAT)");
 
 	control_expectln("SRVSENT");
 
@@ -1357,9 +1346,10 @@ static void test_stream_rcvlowat_def_cred_upd_client(const struct test_opts *opt
 static void test_stream_credit_update_test(const struct test_opts *opts,
 					   bool low_rx_bytes_test)
 {
-	size_t recv_buf_size;
+	int recv_buf_size;
 	struct pollfd fds;
 	size_t buf_size;
+	unsigned long long sock_buf_size;
 	void *buf;
 	int fd;
 
@@ -1371,11 +1361,12 @@ static void test_stream_credit_update_test(const struct test_opts *opts,
 
 	buf_size = RCVLOWAT_CREDIT_UPD_BUF_SIZE;
 
-	if (setsockopt(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_SIZE,
-		       &buf_size, sizeof(buf_size))) {
-		perror("setsockopt(SO_VM_SOCKETS_BUFFER_SIZE)");
-		exit(EXIT_FAILURE);
-	}
+	/* size_t can be < unsigned long long */
+	sock_buf_size = buf_size;
+
+	setsockopt_ull_check(fd, AF_VSOCK, SO_VM_SOCKETS_BUFFER_SIZE,
+			     sock_buf_size,
+			     "setsockopt(SO_VM_SOCKETS_BUFFER_SIZE)");
 
 	if (low_rx_bytes_test) {
 		/* Set new SO_RCVLOWAT here. This enables sending credit
@@ -1384,11 +1375,8 @@ static void test_stream_credit_update_test(const struct test_opts *opts,
 		 */
 		recv_buf_size = 1 + VIRTIO_VSOCK_MAX_PKT_BUF_SIZE;
 
-		if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT,
-			       &recv_buf_size, sizeof(recv_buf_size))) {
-			perror("setsockopt(SO_RCVLOWAT)");
-			exit(EXIT_FAILURE);
-		}
+		setsockopt_int_check(fd, SOL_SOCKET, SO_RCVLOWAT,
+				     recv_buf_size, "setsockopt(SO_RCVLOWAT)");
 	}
 
 	/* Send one dummy byte here, because 'setsockopt()' above also
@@ -1430,11 +1418,8 @@ static void test_stream_credit_update_test(const struct test_opts *opts,
 		recv_buf_size++;
 
 		/* Updating SO_RCVLOWAT will send credit update. */
-		if (setsockopt(fd, SOL_SOCKET, SO_RCVLOWAT,
-			       &recv_buf_size, sizeof(recv_buf_size))) {
-			perror("setsockopt(SO_RCVLOWAT)");
-			exit(EXIT_FAILURE);
-		}
+		setsockopt_int_check(fd, SOL_SOCKET, SO_RCVLOWAT,
+				     recv_buf_size, "setsockopt(SO_RCVLOWAT)");
 	}
 
 	fds.fd = fd;
@@ -1476,6 +1461,367 @@ static void test_stream_cred_upd_on_low_rx_bytes(const struct test_opts *opts)
 static void test_stream_cred_upd_on_set_rcvlowat(const struct test_opts *opts)
 {
 	test_stream_credit_update_test(opts, false);
+}
+
+/* The goal of test leak_acceptq is to stress the race between connect() and
+ * close(listener). Implementation of client/server loops boils down to:
+ *
+ * client                server
+ * ------                ------
+ * write(CONTINUE)
+ *                       expect(CONTINUE)
+ *                       listen()
+ *                       write(LISTENING)
+ * expect(LISTENING)
+ * connect()             close()
+ */
+#define ACCEPTQ_LEAK_RACE_TIMEOUT 2 /* seconds */
+
+static void test_stream_leak_acceptq_client(const struct test_opts *opts)
+{
+	time_t tout;
+	int fd;
+
+	tout = current_nsec() + ACCEPTQ_LEAK_RACE_TIMEOUT * NSEC_PER_SEC;
+	do {
+		control_writeulong(CONTROL_CONTINUE);
+
+		fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+		if (fd >= 0)
+			close(fd);
+	} while (current_nsec() < tout);
+
+	control_writeulong(CONTROL_DONE);
+}
+
+/* Test for a memory leak. User is expected to run kmemleak scan, see README. */
+static void test_stream_leak_acceptq_server(const struct test_opts *opts)
+{
+	int fd;
+
+	while (control_readulong() == CONTROL_CONTINUE) {
+		fd = vsock_stream_listen(VMADDR_CID_ANY, opts->peer_port);
+		control_writeln("LISTENING");
+		close(fd);
+	}
+}
+
+/* Test for a memory leak. User is expected to run kmemleak scan, see README. */
+static void test_stream_msgzcopy_leak_errq_client(const struct test_opts *opts)
+{
+	struct pollfd fds = { 0 };
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	enable_so_zerocopy_check(fd);
+	send_byte(fd, 1, MSG_ZEROCOPY);
+
+	fds.fd = fd;
+	fds.events = 0;
+	if (poll(&fds, 1, -1) < 0) {
+		perror("poll");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+static void test_stream_msgzcopy_leak_errq_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	recv_byte(fd, 1, 0);
+	vsock_wait_remote_close(fd);
+	close(fd);
+}
+
+/* Test msgzcopy_leak_zcskb is meant to exercise sendmsg() error handling path,
+ * that might leak an skb. The idea is to fail virtio_transport_init_zcopy_skb()
+ * by hitting net.core.optmem_max limit in sock_omalloc(), specifically
+ *
+ *   vsock_connectible_sendmsg
+ *     virtio_transport_stream_enqueue
+ *       virtio_transport_send_pkt_info
+ *         virtio_transport_init_zcopy_skb
+ *         . msg_zerocopy_realloc
+ *         .   msg_zerocopy_alloc
+ *         .     sock_omalloc
+ *         .       sk_omem_alloc + size > sysctl_optmem_max
+ *         return -ENOMEM
+ *
+ * We abuse the implementation detail of net/socket.c:____sys_sendmsg().
+ * sk_omem_alloc can be precisely bumped by sock_kmalloc(), as it is used to
+ * fetch user-provided control data.
+ *
+ * While this approach works for now, it relies on assumptions regarding the
+ * implementation and configuration (for example, order of net.core.optmem_max
+ * can not exceed MAX_PAGE_ORDER), which may not hold in the future. A more
+ * resilient testing could be implemented by leveraging the Fault injection
+ * framework (CONFIG_FAULT_INJECTION), e.g.
+ *
+ *   client# echo N > /sys/kernel/debug/failslab/ignore-gfp-wait
+ *   client# echo 0 > /sys/kernel/debug/failslab/verbose
+ *
+ *   void client(const struct test_opts *opts)
+ *   {
+ *       char buf[16];
+ *       int f, s, i;
+ *
+ *       f = open("/proc/self/fail-nth", O_WRONLY);
+ *
+ *       for (i = 1; i < 32; i++) {
+ *           control_writeulong(CONTROL_CONTINUE);
+ *
+ *           s = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+ *           enable_so_zerocopy_check(s);
+ *
+ *           sprintf(buf, "%d", i);
+ *           write(f, buf, strlen(buf));
+ *
+ *           send(s, &(char){ 0 }, 1, MSG_ZEROCOPY);
+ *
+ *           write(f, "0", 1);
+ *           close(s);
+ *       }
+ *
+ *       control_writeulong(CONTROL_DONE);
+ *       close(f);
+ *   }
+ *
+ *   void server(const struct test_opts *opts)
+ *   {
+ *       int fd;
+ *
+ *       while (control_readulong() == CONTROL_CONTINUE) {
+ *           fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+ *           vsock_wait_remote_close(fd);
+ *           close(fd);
+ *       }
+ *   }
+ *
+ * Refer to Documentation/fault-injection/fault-injection.rst.
+ */
+#define MAX_PAGE_ORDER	10	/* usually */
+#define PAGE_SIZE	4096
+
+/* Test for a memory leak. User is expected to run kmemleak scan, see README. */
+static void test_stream_msgzcopy_leak_zcskb_client(const struct test_opts *opts)
+{
+	size_t optmem_max, ctl_len, chunk_size;
+	struct msghdr msg = { 0 };
+	struct iovec iov;
+	char *chunk;
+	int fd, res;
+	FILE *f;
+
+	f = fopen("/proc/sys/net/core/optmem_max", "r");
+	if (!f) {
+		perror("fopen(optmem_max)");
+		exit(EXIT_FAILURE);
+	}
+
+	if (fscanf(f, "%zu", &optmem_max) != 1) {
+		fprintf(stderr, "fscanf(optmem_max) failed\n");
+		exit(EXIT_FAILURE);
+	}
+
+	fclose(f);
+
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	enable_so_zerocopy_check(fd);
+
+	ctl_len = optmem_max - 1;
+	if (ctl_len > PAGE_SIZE << MAX_PAGE_ORDER) {
+		fprintf(stderr, "Try with net.core.optmem_max = 100000\n");
+		exit(EXIT_FAILURE);
+	}
+
+	chunk_size = CMSG_SPACE(ctl_len);
+	chunk = malloc(chunk_size);
+	if (!chunk) {
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+	memset(chunk, 0, chunk_size);
+
+	iov.iov_base = &(char){ 0 };
+	iov.iov_len = 1;
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = chunk;
+	msg.msg_controllen = ctl_len;
+
+	errno = 0;
+	res = sendmsg(fd, &msg, MSG_ZEROCOPY);
+	if (res >= 0 || errno != ENOMEM) {
+		fprintf(stderr, "Expected ENOMEM, got errno=%d res=%d\n",
+			errno, res);
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+static void test_stream_msgzcopy_leak_zcskb_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	vsock_wait_remote_close(fd);
+	close(fd);
+}
+
+#define MAX_PORT_RETRIES	24	/* net/vmw_vsock/af_vsock.c */
+
+/* Test attempts to trigger a transport release for an unbound socket. This can
+ * lead to a reference count mishandling.
+ */
+static void test_stream_transport_uaf_client(const struct test_opts *opts)
+{
+	int sockets[MAX_PORT_RETRIES];
+	struct sockaddr_vm addr;
+	int fd, i, alen;
+
+	fd = vsock_bind(VMADDR_CID_ANY, VMADDR_PORT_ANY, SOCK_STREAM);
+
+	alen = sizeof(addr);
+	if (getsockname(fd, (struct sockaddr *)&addr, &alen)) {
+		perror("getsockname");
+		exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < MAX_PORT_RETRIES; ++i)
+		sockets[i] = vsock_bind(VMADDR_CID_ANY, ++addr.svm_port,
+					SOCK_STREAM);
+
+	close(fd);
+	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
+
+	if (!vsock_connect_fd(fd, addr.svm_cid, addr.svm_port)) {
+		perror("Unexpected connect() #1 success");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Vulnerable system may crash now. */
+	if (!vsock_connect_fd(fd, VMADDR_CID_HOST, VMADDR_PORT_ANY)) {
+		perror("Unexpected connect() #2 success");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+	while (i--)
+		close(sockets[i]);
+
+	control_writeln("DONE");
+}
+
+static void test_stream_transport_uaf_server(const struct test_opts *opts)
+{
+	control_expectln("DONE");
+}
+
+static void test_stream_connect_retry_client(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
+
+	if (!vsock_connect_fd(fd, opts->peer_cid, opts->peer_port)) {
+		fprintf(stderr, "Unexpected connect() #1 success\n");
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("LISTEN");
+	control_expectln("LISTENING");
+
+	if (vsock_connect_fd(fd, opts->peer_cid, opts->peer_port)) {
+		perror("connect() #2");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+static void test_stream_connect_retry_server(const struct test_opts *opts)
+{
+	int fd;
+
+	control_expectln("LISTEN");
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	vsock_wait_remote_close(fd);
+	close(fd);
+}
+
+static void test_stream_linger_client(const struct test_opts *opts)
+{
+	struct linger optval = {
+		.l_onoff = 1,
+		.l_linger = 1
+	};
+	int fd;
+
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
+	if (fd < 0) {
+		perror("connect");
+		exit(EXIT_FAILURE);
+	}
+
+	if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &optval, sizeof(optval))) {
+		perror("setsockopt(SO_LINGER)");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+static void test_stream_linger_server(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	vsock_wait_remote_close(fd);
+	close(fd);
 }
 
 static struct test_case test_cases[] = {
@@ -1608,6 +1954,36 @@ static struct test_case test_cases[] = {
 		.run_client = test_seqpacket_unsent_bytes_client,
 		.run_server = test_seqpacket_unsent_bytes_server,
 	},
+	{
+		.name = "SOCK_STREAM leak accept queue",
+		.run_client = test_stream_leak_acceptq_client,
+		.run_server = test_stream_leak_acceptq_server,
+	},
+	{
+		.name = "SOCK_STREAM MSG_ZEROCOPY leak MSG_ERRQUEUE",
+		.run_client = test_stream_msgzcopy_leak_errq_client,
+		.run_server = test_stream_msgzcopy_leak_errq_server,
+	},
+	{
+		.name = "SOCK_STREAM MSG_ZEROCOPY leak completion skb",
+		.run_client = test_stream_msgzcopy_leak_zcskb_client,
+		.run_server = test_stream_msgzcopy_leak_zcskb_server,
+	},
+	{
+		.name = "SOCK_STREAM transport release use-after-free",
+		.run_client = test_stream_transport_uaf_client,
+		.run_server = test_stream_transport_uaf_server,
+	},
+	{
+		.name = "SOCK_STREAM retry failed connect()",
+		.run_client = test_stream_connect_retry_client,
+		.run_server = test_stream_connect_retry_server,
+	},
+	{
+		.name = "SOCK_STREAM SO_LINGER null-ptr-deref",
+		.run_client = test_stream_linger_client,
+		.run_server = test_stream_linger_server,
+	},
 	{},
 };
 
@@ -1649,6 +2025,11 @@ static const struct option longopts[] = {
 		.val = 's',
 	},
 	{
+		.name = "pick",
+		.has_arg = required_argument,
+		.val = 't',
+	},
+	{
 		.name = "help",
 		.has_arg = no_argument,
 		.val = '?',
@@ -1685,6 +2066,8 @@ static void usage(void)
 		"  --peer-cid <cid>       CID of the other side\n"
 		"  --peer-port <port>     AF_VSOCK port used for the test [default: %d]\n"
 		"  --list                 List of tests that will be executed\n"
+		"  --pick <test_id>       Test ID to execute selectively;\n"
+		"                         use multiple --pick options to select more tests\n"
 		"  --skip <test_id>       Test ID to skip;\n"
 		"                         use multiple --skip options to skip more tests\n",
 		DEFAULT_PEER_PORT
@@ -1739,6 +2122,10 @@ int main(int argc, char **argv)
 			break;
 		case 's':
 			skip_test(test_cases, ARRAY_SIZE(test_cases) - 1,
+				  optarg);
+			break;
+		case 't':
+			pick_test(test_cases, ARRAY_SIZE(test_cases) - 1,
 				  optarg);
 			break;
 		case '?':

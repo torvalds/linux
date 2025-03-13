@@ -239,6 +239,8 @@ handler:							;\
 
 /* =====================================================[ exceptions] === */
 
+	__REF
+
 /* ---[ 0x100: RESET exception ]----------------------------------------- */
 
 EXCEPTION_ENTRY(_tng_kernel_start)
@@ -712,6 +714,10 @@ _syscall_check_trace_leave:
  * interrupts that set NEED_RESCHED or SIGNALPENDING... really true? */
 
 _syscall_check_work:
+#ifdef CONFIG_DEBUG_RSEQ
+	l.jal	rseq_syscall
+	 l.ori	r3,r1,0
+#endif
 	/* Here we need to disable interrupts */
 	DISABLE_INTERRUPTS(r27,r29)
 	TRACE_IRQS_OFF

@@ -124,8 +124,6 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 		return ret;
 
 	card->dev = &pdev->dev;
-	if (!snd_soc_acpi_sof_parent(&pdev->dev))
-		card->disable_route_checks = true;
 
 	if (mach->mach_params.dmic_num > 0) {
 		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
@@ -164,4 +162,4 @@ MODULE_DESCRIPTION("SKL/KBL/BXT/APL HDA Generic Machine driver");
 MODULE_AUTHOR("Rakesh Ughreja <rakesh.a.ughreja@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:skl_hda_dsp_generic");
-MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);
+MODULE_IMPORT_NS("SND_SOC_INTEL_SOF_BOARD_HELPERS");

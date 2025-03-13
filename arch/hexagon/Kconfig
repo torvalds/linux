@@ -20,7 +20,6 @@ config HEXAGON
 	# select ARCH_HAS_CPU_IDLE_WAIT
 	# select GPIOLIB
 	# select HAVE_CLK
-	# select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_ATOMIC64
 	select HAVE_PERF_EVENTS
 	# GENERIC_ALLOCATOR is used by dma_alloc_coherent()

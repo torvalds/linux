@@ -113,11 +113,8 @@ allOf:
           maxItems: 1
 
   - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - fsl,imx95-usb-phy
+      required:
+        - orientation-switch
     then:
       $ref: /schemas/usb/usb-switch.yaml#
 

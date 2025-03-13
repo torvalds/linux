@@ -11,7 +11,7 @@
 
 #include "omap_drv.h"
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 /* -----------------------------------------------------------------------------
  * DMABUF Export

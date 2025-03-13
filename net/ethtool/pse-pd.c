@@ -19,7 +19,7 @@ struct pse_req_info {
 
 struct pse_reply_data {
 	struct ethnl_reply_data	base;
-	struct pse_control_status status;
+	struct ethtool_pse_control_status status;
 };
 
 #define PSE_REPDATA(__reply_base) \
@@ -64,7 +64,7 @@ static int pse_prepare_data(const struct ethnl_req_info *req_base,
 	if (ret < 0)
 		return ret;
 
-	phydev = ethnl_req_get_phydev(req_base, tb[ETHTOOL_A_PSE_HEADER],
+	phydev = ethnl_req_get_phydev(req_base, tb, ETHTOOL_A_PSE_HEADER,
 				      info->extack);
 	if (IS_ERR(phydev))
 		return -ENODEV;
@@ -80,7 +80,7 @@ static int pse_reply_size(const struct ethnl_req_info *req_base,
 			  const struct ethnl_reply_data *reply_base)
 {
 	const struct pse_reply_data *data = PSE_REPDATA(reply_base);
-	const struct pse_control_status *st = &data->status;
+	const struct ethtool_pse_control_status *st = &data->status;
 	int len = 0;
 
 	if (st->podl_admin_state > 0)
@@ -114,7 +114,7 @@ static int pse_reply_size(const struct ethnl_req_info *req_base,
 }
 
 static int pse_put_pw_limit_ranges(struct sk_buff *skb,
-				   const struct pse_control_status *st)
+				   const struct ethtool_pse_control_status *st)
 {
 	const struct ethtool_c33_pse_pw_limit_range *pw_limit_ranges;
 	int i;
@@ -146,7 +146,7 @@ static int pse_fill_reply(struct sk_buff *skb,
 			  const struct ethnl_reply_data *reply_base)
 {
 	const struct pse_reply_data *data = PSE_REPDATA(reply_base);
-	const struct pse_control_status *st = &data->status;
+	const struct ethtool_pse_control_status *st = &data->status;
 
 	if (st->podl_admin_state > 0 &&
 	    nla_put_u32(skb, ETHTOOL_A_PODL_PSE_ADMIN_STATE,
@@ -261,7 +261,7 @@ ethnl_set_pse(struct ethnl_req_info *req_info, struct genl_info *info)
 	struct phy_device *phydev;
 	int ret;
 
-	phydev = ethnl_req_get_phydev(req_info, tb[ETHTOOL_A_PSE_HEADER],
+	phydev = ethnl_req_get_phydev(req_info, tb, ETHTOOL_A_PSE_HEADER,
 				      info->extack);
 	ret = ethnl_set_pse_validate(phydev, info);
 	if (ret)
