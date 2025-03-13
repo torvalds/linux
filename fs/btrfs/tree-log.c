@@ -7036,7 +7036,7 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret = 0;
-	bool log_dentries = false;
+	bool log_dentries;
 
 	if (btrfs_test_opt(fs_info, NOTREELOG)) {
 		ret = BTRFS_LOG_FORCE_COMMIT;
@@ -7090,8 +7090,11 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 		goto end_trans;
 	}
 
-	if (S_ISDIR(inode->vfs_inode.i_mode) && ctx->log_new_dentries)
-		log_dentries = true;
+	/*
+	 * Track if we need to log dentries because ctx->log_new_dentries can
+	 * be modified in the call chains below.
+	 */
+	log_dentries = ctx->log_new_dentries;
 
 	/*
 	 * On unlink we must make sure all our current and old parent directory
