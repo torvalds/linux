@@ -6621,8 +6621,12 @@ __bpf_kfunc u32 scx_bpf_reenqueue_local(void)
 		 * CPUs disagree, they use %ENQUEUE_RESTORE which is bypassed to
 		 * the current local DSQ for running tasks and thus are not
 		 * visible to the BPF scheduler.
+		 *
+		 * Also skip re-enqueueing tasks that can only run on this
+		 * CPU, as they would just be re-added to the same local
+		 * DSQ without any benefit.
 		 */
-		if (p->migration_pending)
+		if (p->migration_pending || is_migration_disabled(p) || p->nr_cpus_allowed == 1)
 			continue;
 
 		dispatch_dequeue(rq, p);
