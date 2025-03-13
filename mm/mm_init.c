@@ -2734,11 +2734,16 @@ static void __init mem_init_print_info(void)
 		);
 }
 
+void __init __weak arch_mm_preinit(void)
+{
+}
+
 /*
  * Set up kernel memory allocators
  */
 void __init mm_core_init(void)
 {
+	arch_mm_preinit();
 	hugetlb_bootmem_alloc();
 
 	/* Initializations relying on SMP setup */

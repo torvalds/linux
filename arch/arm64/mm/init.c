@@ -357,12 +357,7 @@ void __init bootmem_init(void)
 	memblock_dump_all();
 }
 
-/*
- * mem_init() marks the free areas in the mem_map and tells us how much memory
- * is free.  This is done after various parts of the system have claimed their
- * memory after the kernel image.
- */
-void __init mem_init(void)
+void __init arch_mm_preinit(void)
 {
 	unsigned int flags = SWIOTLB_VERBOSE;
 	bool swiotlb = max_pfn > PFN_DOWN(arm64_dma_phys_limit);
@@ -385,9 +380,6 @@ void __init mem_init(void)
 
 	swiotlb_init(swiotlb, flags);
 	swiotlb_update_mem_attributes();
-
-	/* this will put all unused low memory onto the freelists */
-	memblock_free_all();
 
 	/*
 	 * Check boundaries twice: Some fundamental inconsistencies can be
@@ -412,6 +404,17 @@ void __init mem_init(void)
 		 */
 		sysctl_overcommit_memory = OVERCOMMIT_ALWAYS;
 	}
+}
+
+/*
+ * mem_init() marks the free areas in the mem_map and tells us how much memory
+ * is free.  This is done after various parts of the system have claimed their
+ * memory after the kernel image.
+ */
+void __init mem_init(void)
+{
+	/* this will put all unused low memory onto the freelists */
+	memblock_free_all();
 }
 
 void free_initmem(void)

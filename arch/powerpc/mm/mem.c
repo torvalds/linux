@@ -273,7 +273,7 @@ void __init paging_init(void)
 	mark_nonram_nosave();
 }
 
-void __init mem_init(void)
+void __init arch_mm_preinit(void)
 {
 	/*
 	 * book3s is limited to 16 page sizes due to encoding this in
@@ -294,8 +294,6 @@ void __init mem_init(void)
 #endif
 
 	kasan_late_init();
-
-	memblock_free_all();
 
 #if defined(CONFIG_PPC_E500) && !defined(CONFIG_SMP)
 	/*
@@ -327,6 +325,11 @@ void __init mem_init(void)
 		MODULES_VADDR, MODULES_END);
 #endif
 #endif /* CONFIG_PPC32 */
+}
+
+void __init mem_init(void)
+{
+	memblock_free_all();
 }
 
 void free_initmem(void)
