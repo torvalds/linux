@@ -9398,7 +9398,7 @@ allocate_trace_buffer(struct trace_array *tr, struct array_buffer *buf, int size
 {
 	enum ring_buffer_flags rb_flags;
 	struct trace_scratch *tscratch;
-	unsigned int scratch_size;
+	unsigned int scratch_size = 0;
 
 	rb_flags = tr->trace_flags & TRACE_ITER_OVERWRITE ? RB_FL_OVERWRITE : 0;
 
