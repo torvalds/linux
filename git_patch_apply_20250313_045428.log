@@ -207,3 +207,45 @@ warning: 2 lines add whitespace errors.
  2 files changed, 120 insertions(+), 21 deletions(-)
 error: repository lacks the necessary blob to perform 3-way merge.
 Falling back to direct application...
+[lmi-mainline-v6.12.0rc6 27e2203c3] Applied patch: 0022-drivers-spmi-spmi-pmic-arb.c-remove-warnings.patch
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: sound/soc/codecs/wm_adsp.c:828
+error: sound/soc/codecs/wm_adsp.c: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/input/touchscreen/nt36523/nt36xxx.c:1496
+error: drivers/input/touchscreen/nt36523/nt36xxx.c: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/drm_mipi_dsi.c:824
+error: drivers/gpu/drm/drm_mipi_dsi.c: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: include/drm/drm_mipi_dsi.h:289
+error: include/drm/drm_mipi_dsi.h: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/panel/Kconfig:620
+error: drivers/gpu/drm/panel/Kconfig: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/gpu/drm/panel/Makefile:62
+error: drivers/gpu/drm/panel/Makefile: patch does not apply
+Performing three-way merge...
+Applied patch to 'drivers/gpu/drm/panel/panel-samsung-amb655x.c' cleanly.
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/input/touchscreen/Kconfig:504
+error: drivers/input/touchscreen/Kconfig: patch does not apply
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
+error: patch failed: drivers/input/touchscreen/Makefile:85
+error: drivers/input/touchscreen/Makefile: patch does not apply
+Performing three-way merge...
+/sd/1DMP/Videos//0027-Input-touchscreen-add-Synaptics-TCM-oncell-S3908.patch:637: new blank line at EOF.
++
+Applied patch to 'drivers/input/touchscreen/synaptics_tcm_oncell.c' cleanly.
+Falling back to direct application...
+Falling back to direct application...

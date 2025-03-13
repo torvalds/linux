@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/*
+ * Copyright (c) 2024, Caleb Connolly <caleb.connolly@linaro.org>
+ */
+
+#include "sm8250-oneplus-common.dtsi"
+
+/ {
+	model = "OnePlus 8T";
+	compatible = "oneplus,kebab", "qcom,sm8250";
+};
+
+&display_panel {
+	compatible = "samsung,amb655x";
+	status = "okay";
+};
+
+&i2c13 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	touchscreen@4b {
+		compatible = "syna,s3908";
+		reg = <0x4B>;
+
+		pinctrl-0 = <&touch_irq_active &touch_rst_active>;
+		pinctrl-names = "default";
+
+		interrupts-extended = <&tlmm 39 0x2008>;
+
+		reset-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
+
+		vdd-supply = <&vreg_l13a_ts_3p0>;
+		vcc-supply = <&vreg_l1c_1p8>;
+	};
+};
