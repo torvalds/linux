@@ -64,129 +64,58 @@ initial_plane_memory_type(struct drm_i915_private *i915)
 }
 
 static bool
-initial_plane_phys_lmem(struct intel_display *display,
-			struct intel_initial_plane_config *plane_config)
-{
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
-	struct intel_memory_region *mem;
-	enum intel_memory_type mem_type;
-	bool is_present, is_local;
-	dma_addr_t dma_addr;
-	u32 base;
-
-	mem_type = initial_plane_memory_type(i915);
-	mem = intel_memory_region_by_type(i915, mem_type);
-	if (!mem) {
-		drm_dbg_kms(display->drm,
-			    "Initial plane memory region (type %s) not initialized\n",
-			    intel_memory_type_str(mem_type));
-		return false;
-	}
-
-	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
-
-	dma_addr = intel_ggtt_read_entry(&ggtt->vm, base, &is_present, &is_local);
-
-	if (!is_present) {
-		drm_err(display->drm,
-			"Initial plane FB PTE not present\n");
-		return false;
-	}
-
-	if (intel_memory_type_is_local(mem->type) != is_local) {
-		drm_err(display->drm,
-			"Initial plane FB PTE unsuitable for %s\n",
-			mem->region.name);
-		return false;
-	}
-
-	/*
-	 * On lmem we don't currently expect this to
-	 * ever be placed in the stolen portion.
-	 */
-	if (dma_addr < mem->region.start || dma_addr > mem->region.end) {
-		drm_err(display->drm,
-			"Initial plane programming using invalid range, dma_addr=%pa (%s [%pa-%pa])\n",
-			&dma_addr, mem->region.name, &mem->region.start, &mem->region.end);
-		return false;
-	}
-
-	drm_dbg(display->drm,
-		"Using dma_addr=%pa, based on initial plane programming\n",
-		&dma_addr);
-
-	plane_config->phys_base = dma_addr - mem->region.start;
-	plane_config->mem = mem;
-
-	return true;
-}
-
-static bool
-initial_plane_phys_smem(struct intel_display *display,
-			struct intel_initial_plane_config *plane_config)
-{
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
-	struct intel_memory_region *mem;
-	enum intel_memory_type mem_type;
-	bool is_present, is_local;
-	dma_addr_t dma_addr;
-	u32 base;
-
-	mem_type = initial_plane_memory_type(i915);
-	mem = intel_memory_region_by_type(i915, mem_type);
-	if (!mem) {
-		drm_dbg_kms(display->drm,
-			    "Initial plane memory region (type %s) not initialized\n",
-			    intel_memory_type_str(mem_type));
-		return false;
-	}
-
-	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
-
-	dma_addr = intel_ggtt_read_entry(&ggtt->vm, base, &is_present, &is_local);
-
-	if (!is_present) {
-		drm_err(display->drm,
-			"Initial plane FB PTE not present\n");
-		return false;
-	}
-
-	if (intel_memory_type_is_local(mem->type) != is_local) {
-		drm_err(display->drm,
-			"Initial plane FB PTE unsuitable for %s\n",
-			mem->region.name);
-		return false;
-	}
-
-	if (dma_addr < mem->region.start || dma_addr > mem->region.end) {
-		drm_err(display->drm,
-			"Initial plane programming using invalid range, dma_addr=%pa (%s [%pa-%pa])\n",
-			&dma_addr, mem->region.name, &mem->region.start, &mem->region.end);
-		return false;
-	}
-
-	drm_dbg(display->drm,
-		"Using dma_addr=%pa, based on initial plane programming\n",
-		&dma_addr);
-
-	plane_config->phys_base = dma_addr - mem->region.start;
-	plane_config->mem = mem;
-
-	return true;
-}
-
-static bool
 initial_plane_phys(struct intel_display *display,
 		   struct intel_initial_plane_config *plane_config)
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
+	struct intel_memory_region *mem;
+	enum intel_memory_type mem_type;
+	bool is_present, is_local;
+	dma_addr_t dma_addr;
+	u32 base;
 
-	if (IS_DGFX(i915) || HAS_LMEMBAR_SMEM_STOLEN(i915))
-		return initial_plane_phys_lmem(display, plane_config);
-	else
-		return initial_plane_phys_smem(display, plane_config);
+	mem_type = initial_plane_memory_type(i915);
+	mem = intel_memory_region_by_type(i915, mem_type);
+	if (!mem) {
+		drm_dbg_kms(display->drm,
+			    "Initial plane memory region (type %s) not initialized\n",
+			    intel_memory_type_str(mem_type));
+		return false;
+	}
+
+	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
+
+	dma_addr = intel_ggtt_read_entry(&ggtt->vm, base, &is_present, &is_local);
+
+	if (!is_present) {
+		drm_err(display->drm,
+			"Initial plane FB PTE not present\n");
+		return false;
+	}
+
+	if (intel_memory_type_is_local(mem->type) != is_local) {
+		drm_err(display->drm,
+			"Initial plane FB PTE unsuitable for %s\n",
+			mem->region.name);
+		return false;
+	}
+
+	if (dma_addr < mem->region.start || dma_addr > mem->region.end) {
+		drm_err(display->drm,
+			"Initial plane programming using invalid range, dma_addr=%pa (%s [%pa-%pa])\n",
+			&dma_addr, mem->region.name, &mem->region.start, &mem->region.end);
+		return false;
+	}
+
+	drm_dbg(display->drm,
+		"Using dma_addr=%pa, based on initial plane programming\n",
+		&dma_addr);
+
+	plane_config->phys_base = dma_addr - mem->region.start;
+	plane_config->mem = mem;
+
+	return true;
 }
 
 static struct i915_vma *
