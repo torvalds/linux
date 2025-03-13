@@ -36,6 +36,7 @@ struct pmc_ipc_rbuf {
  */
 static inline int intel_pmc_ipc(struct pmc_ipc_cmd *ipc_cmd, struct pmc_ipc_rbuf *rbuf)
 {
+#ifdef CONFIG_ACPI
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object params[PMC_IPCS_PARAM_COUNT] = {
 		{.type = ACPI_TYPE_INTEGER,},
@@ -89,6 +90,9 @@ static inline int intel_pmc_ipc(struct pmc_ipc_cmd *ipc_cmd, struct pmc_ipc_rbuf
 	}
 
 	return 0;
+#else
+	return -ENODEV;
+#endif /* CONFIG_ACPI */
 }
 
 #endif /* INTEL_PMC_IPC_H */
