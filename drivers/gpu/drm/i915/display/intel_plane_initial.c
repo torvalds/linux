@@ -52,6 +52,17 @@ intel_reuse_initial_plane_obj(struct intel_crtc *this,
 	return false;
 }
 
+static enum intel_memory_type
+initial_plane_memory_type(struct drm_i915_private *i915)
+{
+	if (IS_DGFX(i915))
+		return INTEL_MEMORY_LOCAL;
+	else if (HAS_LMEMBAR_SMEM_STOLEN(i915))
+		return INTEL_MEMORY_STOLEN_LOCAL;
+	else
+		return INTEL_MEMORY_STOLEN_SYSTEM;
+}
+
 static bool
 initial_plane_phys_lmem(struct intel_display *display,
 			struct intel_initial_plane_config *plane_config)
@@ -59,6 +70,7 @@ initial_plane_phys_lmem(struct intel_display *display,
 	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct intel_memory_region *mem;
+	enum intel_memory_type mem_type;
 	bool is_present, is_local;
 	dma_addr_t dma_addr;
 	u32 base;
@@ -79,13 +91,12 @@ initial_plane_phys_lmem(struct intel_display *display,
 		return false;
 	}
 
-	if (IS_DGFX(i915))
-		mem = i915->mm.regions[INTEL_REGION_LMEM_0];
-	else
-		mem = i915->mm.stolen_region;
+	mem_type = initial_plane_memory_type(i915);
+	mem = intel_memory_region_by_type(i915, mem_type);
 	if (!mem) {
 		drm_dbg_kms(display->drm,
-			    "Initial plane memory region not initialized\n");
+			    "Initial plane memory region (type %s) not initialized\n",
+			    intel_memory_type_str(mem_type));
 		return false;
 	}
 
@@ -117,6 +128,7 @@ initial_plane_phys_smem(struct intel_display *display,
 	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct intel_memory_region *mem;
+	enum intel_memory_type mem_type;
 	bool is_present, is_local;
 	dma_addr_t dma_addr;
 	u32 base;
@@ -137,10 +149,12 @@ initial_plane_phys_smem(struct intel_display *display,
 		return false;
 	}
 
-	mem = i915->mm.stolen_region;
+	mem_type = initial_plane_memory_type(i915);
+	mem = intel_memory_region_by_type(i915, mem_type);
 	if (!mem) {
 		drm_dbg_kms(display->drm,
-			    "Initial plane memory region not initialized\n");
+			    "Initial plane memory region (type %s) not initialized\n",
+			    intel_memory_type_str(mem_type));
 		return false;
 	}
 
