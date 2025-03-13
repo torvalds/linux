@@ -20,7 +20,6 @@
 #include <linux/blkdev.h>
 #include <linux/migrate.h>
 #include <linux/vmalloc.h>
-#include <linux/swap_slots.h>
 #include <linux/huge_mm.h>
 #include <linux/shmem_fs.h>
 #include "internal.h"
@@ -447,13 +446,8 @@ struct folio *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 
 		/*
 		 * Just skip read ahead for unused swap slot.
-		 * During swap_off when swap_slot_cache is disabled,
-		 * we have to handle the race between putting
-		 * swap entry in swap cache and marking swap slot
-		 * as SWAP_HAS_CACHE.  That's done in later part of code or
-		 * else swap_off will be aborted if we return NULL.
 		 */
-		if (!swap_entry_swapped(si, entry) && swap_slot_cache_enabled)
+		if (!swap_entry_swapped(si, entry))
 			goto put_and_return;
 
 		/*
