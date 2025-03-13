@@ -97,8 +97,8 @@ vmlinux_link()
 		ldflags="${ldflags} ${wl}--strip-debug"
 	fi
 
-	if is_enabled CONFIG_VMLINUX_MAP; then
-		ldflags="${ldflags} ${wl}-Map=${output}.map"
+	if [ -n "${generate_map}" ];  then
+		ldflags="${ldflags} ${wl}-Map=vmlinux.map"
 	fi
 
 	${ld} ${ldflags} -o ${output}					\
@@ -210,6 +210,7 @@ fi
 btf_vmlinux_bin_o=
 kallsymso=
 strip_debug=
+generate_map=
 
 if is_enabled CONFIG_KALLSYMS; then
 	true > .tmp_vmlinux0.syms
@@ -277,6 +278,10 @@ if is_enabled CONFIG_KALLSYMS; then
 fi
 
 strip_debug=
+
+if is_enabled CONFIG_VMLINUX_MAP; then
+	generate_map=1
+fi
 
 vmlinux_link vmlinux
 
