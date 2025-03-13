@@ -36,7 +36,6 @@ struct adxl345_state {
 	struct regmap *regmap;
 	bool fifo_delay; /* delay: delay is needed for SPI */
 	int irq;
-	u8 intio;
 	u8 int_map;
 	u8 watermark;
 	u8 fifo_mode;
@@ -76,6 +75,25 @@ static const unsigned long adxl345_scan_masks[] = {
 	0
 };
 
+bool adxl345_is_volatile_reg(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case ADXL345_REG_DATA_AXIS(0):
+	case ADXL345_REG_DATA_AXIS(1):
+	case ADXL345_REG_DATA_AXIS(2):
+	case ADXL345_REG_DATA_AXIS(3):
+	case ADXL345_REG_DATA_AXIS(4):
+	case ADXL345_REG_DATA_AXIS(5):
+	case ADXL345_REG_ACT_TAP_STATUS:
+	case ADXL345_REG_FIFO_STATUS:
+	case ADXL345_REG_INT_SOURCE:
+		return true;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_NS_GPL(adxl345_is_volatile_reg, "IIO_ADXL345");
+
 /**
  * adxl345_set_measure_en() - Enable and disable measuring.
  *
@@ -98,22 +116,7 @@ static int adxl345_set_measure_en(struct adxl345_state *st, bool en)
 
 static int adxl345_set_interrupts(struct adxl345_state *st)
 {
-	int ret;
-	unsigned int int_enable = st->int_map;
-	unsigned int int_map;
-
-	/*
-	 * Any bits set to 0 in the INT map register send their respective
-	 * interrupts to the INT1 pin, whereas bits set to 1 send their respective
-	 * interrupts to the INT2 pin. The intio shall convert this accordingly.
-	 */
-	int_map = st->intio ? st->int_map : ~st->int_map;
-
-	ret = regmap_write(st->regmap, ADXL345_REG_INT_MAP, int_map);
-	if (ret)
-		return ret;
-
-	return regmap_write(st->regmap, ADXL345_REG_INT_ENABLE, int_enable);
+	return regmap_write(st->regmap, ADXL345_REG_INT_ENABLE, st->int_map);
 }
 
 static int adxl345_read_raw(struct iio_dev *indio_dev,
@@ -265,6 +268,7 @@ static const struct attribute_group adxl345_attrs_group = {
 
 static int adxl345_set_fifo(struct adxl345_state *st)
 {
+	unsigned int intio;
 	int ret;
 
 	/* FIFO should only be configured while in standby mode */
@@ -272,11 +276,14 @@ static int adxl345_set_fifo(struct adxl345_state *st)
 	if (ret < 0)
 		return ret;
 
+	ret = regmap_read(st->regmap, ADXL345_REG_INT_MAP, &intio);
+	if (ret)
+		return ret;
+
 	ret = regmap_write(st->regmap, ADXL345_REG_FIFO_CTL,
 			   FIELD_PREP(ADXL345_FIFO_CTL_SAMPLES_MSK,
 				      st->watermark) |
-			   FIELD_PREP(ADXL345_FIFO_CTL_TRIGGER_MSK,
-				      st->intio) |
+			   FIELD_PREP(ADXL345_FIFO_CTL_TRIGGER_MSK, intio) |
 			   FIELD_PREP(ADXL345_FIFO_CTL_MODE_MSK,
 				      st->fifo_mode));
 	if (ret < 0)
@@ -492,6 +499,7 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	struct adxl345_state *st;
 	struct iio_dev *indio_dev;
 	u32 regval;
+	u8 intio = ADXL345_INT1;
 	unsigned int data_format_mask = (ADXL345_DATA_FORMAT_RANGE |
 					 ADXL345_DATA_FORMAT_JUSTIFY |
 					 ADXL345_DATA_FORMAT_FULL_RES |
@@ -556,16 +564,26 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	if (ret < 0)
 		return ret;
 
-	st->intio = ADXL345_INT1;
 	st->irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT1");
 	if (st->irq < 0) {
-		st->intio = ADXL345_INT2;
+		intio = ADXL345_INT2;
 		st->irq = fwnode_irq_get_byname(dev_fwnode(dev), "INT2");
 		if (st->irq < 0)
-			st->intio = ADXL345_INT_NONE;
+			intio = ADXL345_INT_NONE;
 	}
 
-	if (st->intio != ADXL345_INT_NONE) {
+	if (intio != ADXL345_INT_NONE) {
+		/*
+		 * Any bits set to 0 in the INT map register send their respective
+		 * interrupts to the INT1 pin, whereas bits set to 1 send their respective
+		 * interrupts to the INT2 pin. The intio shall convert this accordingly.
+		 */
+		regval = intio ? 0xff : 0;
+
+		ret = regmap_write(st->regmap, ADXL345_REG_INT_MAP, regval);
+		if (ret)
+			return ret;
+
 		/* FIFO_STREAM mode is going to be activated later */
 		ret = devm_iio_kfifo_buffer_setup(dev, indio_dev, &adxl345_buffer_ops);
 		if (ret)
