@@ -63,16 +63,11 @@ static const struct hwmon_chip_info rtl822x_hwmon_chip_info = {
 int rtl822x_hwmon_init(struct phy_device *phydev)
 {
 	struct device *hwdev, *dev = &phydev->mdio.dev;
-	const char *name;
 
 	/* Ensure over-temp alarm is reset. */
 	phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2, RTL822X_VND2_TSALRM, 3);
 
-	name = devm_hwmon_sanitize_name(dev, dev_name(dev));
-	if (IS_ERR(name))
-		return PTR_ERR(name);
-
-	hwdev = devm_hwmon_device_register_with_info(dev, name, phydev,
+	hwdev = devm_hwmon_device_register_with_info(dev, NULL, phydev,
 						     &rtl822x_hwmon_chip_info,
 						     NULL);
 	return PTR_ERR_OR_ZERO(hwdev);
