@@ -112,6 +112,7 @@ allOf:
             enum:
               - qcom,qcm2290-cpufreq-hw
               - qcom,sar2130p-cpufreq-epss
+              - qcom,sdx75-cpufreq-epss
     then:
       properties:
         reg:
@@ -133,6 +134,7 @@ allOf:
             enum:
               - qcom,qdu1000-cpufreq-epss
               - qcom,sa8255p-cpufreq-epss
+              - qcom,sa8775p-cpufreq-epss
               - qcom,sc7180-cpufreq-hw
               - qcom,sc8180x-cpufreq-hw
               - qcom,sc8280xp-cpufreq-epss
@@ -214,6 +216,29 @@ allOf:
           minItems: 2
           maxItems: 2
 
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sm8650-cpufreq-epss
+    then:
+      properties:
+        reg:
+          minItems: 4
+          maxItems: 4
+
+        reg-names:
+          minItems: 4
+          maxItems: 4
+
+        interrupts:
+          minItems: 4
+          maxItems: 4
+
+        interrupt-names:
+          minItems: 4
+          maxItems: 4
 
 examples:
   - |
