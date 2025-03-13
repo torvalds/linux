@@ -344,6 +344,10 @@ config JOYSTICK_MAPLE
 	  To compile this as a module choose M here: the module will be called
 	  maplecontrol.
 
+config JOYSTICK_ODIN2
+	tristate "AYN Odin2 gamepad"
+	depends on SERIAL_DEV_BUS
+
 config JOYSTICK_PSXPAD_SPI
 	tristate "PlayStation 1/2 joypads via SPI interface"
 	depends on SPI
