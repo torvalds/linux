@@ -688,25 +688,18 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 	if (ret == 0 &&
 	    (found_type == BTRFS_FILE_EXTENT_REG ||
 	     found_type == BTRFS_FILE_EXTENT_PREALLOC)) {
-		struct btrfs_file_extent_item cmp1;
-		struct btrfs_file_extent_item cmp2;
-		struct btrfs_file_extent_item *existing;
-		struct extent_buffer *leaf;
+		struct btrfs_file_extent_item existing;
+		unsigned long ptr;
 
-		leaf = path->nodes[0];
-		existing = btrfs_item_ptr(leaf, path->slots[0],
-					  struct btrfs_file_extent_item);
-
-		read_extent_buffer(eb, &cmp1, (unsigned long)item,
-				   sizeof(cmp1));
-		read_extent_buffer(leaf, &cmp2, (unsigned long)existing,
-				   sizeof(cmp2));
+		ptr = btrfs_item_ptr_offset(path->nodes[0], path->slots[0]);
+		read_extent_buffer(path->nodes[0], &existing, ptr, sizeof(existing));
 
 		/*
 		 * we already have a pointer to this exact extent,
 		 * we don't have to do anything
 		 */
-		if (memcmp(&cmp1, &cmp2, sizeof(cmp1)) == 0) {
+		if (memcmp_extent_buffer(eb, &existing, (unsigned long)item,
+					 sizeof(existing)) == 0) {
 			btrfs_release_path(path);
 			goto out;
 		}
