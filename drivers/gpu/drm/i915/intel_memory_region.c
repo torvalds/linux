@@ -171,6 +171,17 @@ intel_memory_region_by_type(struct drm_i915_private *i915,
 	return NULL;
 }
 
+bool intel_memory_type_is_local(enum intel_memory_type mem_type)
+{
+	switch (mem_type) {
+	case INTEL_MEMORY_LOCAL:
+	case INTEL_MEMORY_STOLEN_LOCAL:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /**
  * intel_memory_region_reserve - Reserve a memory range
  * @mem: The region for which we want to reserve a range.
