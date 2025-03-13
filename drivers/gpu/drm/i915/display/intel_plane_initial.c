@@ -57,24 +57,27 @@ initial_plane_phys_lmem(struct intel_display *display,
 			struct intel_initial_plane_config *plane_config)
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);
-	gen8_pte_t __iomem *gte = to_gt(i915)->ggtt->gsm;
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 	struct intel_memory_region *mem;
+	bool is_present, is_local;
 	dma_addr_t dma_addr;
-	gen8_pte_t pte;
 	u32 base;
 
 	base = round_down(plane_config->base, I915_GTT_MIN_ALIGNMENT);
 
-	gte += base / I915_GTT_PAGE_SIZE;
+	dma_addr = intel_ggtt_read_entry(&ggtt->vm, base, &is_present, &is_local);
 
-	pte = ioread64(gte);
-	if (!(pte & GEN12_GGTT_PTE_LM)) {
+	if (!is_present) {
 		drm_err(display->drm,
-			"Initial plane programming missing PTE_LM bit\n");
+			"Initial plane FB PTE not present\n");
 		return false;
 	}
 
-	dma_addr = pte & GEN12_GGTT_PTE_ADDR_MASK;
+	if (!is_local) {
+		drm_err(display->drm,
+			"Initial plane FB PTE not LMEM\n");
+		return false;
+	}
 
 	if (IS_DGFX(i915))
 		mem = i915->mm.regions[INTEL_REGION_LMEM_0];
