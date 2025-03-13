@@ -59,7 +59,7 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 	}
 	rcu_read_unlock();
 
-	return bch2_rand_range(nr * CONGESTED_MAX) < total;
+	return get_random_u32_below(nr * CONGESTED_MAX) < total;
 }
 
 #else
