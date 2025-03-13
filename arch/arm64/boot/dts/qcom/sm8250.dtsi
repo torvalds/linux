@@ -1153,6 +1153,23 @@
 				status = "disabled";
 			};
 
+			uart16: serial@888000 {
+				compatible = "qcom,geni-uart";
+				reg = <0 0x00888000 0 0x4000>;
+				clock-names = "se";
+				clocks = <&gcc GCC_QUPV3_WRAP2_S2_CLK>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&qup_uart16_default>;
+				interrupts = <GIC_SPI 584 IRQ_TYPE_LEVEL_HIGH>;
+				power-domains = <&rpmhpd RPMHPD_CX>;
+				operating-points-v2 = <&qup_opp_table>;
+				interconnects = <&qup_virt MASTER_QUP_CORE_2 0 &qup_virt SLAVE_QUP_CORE_2 0>,
+						<&gem_noc MASTER_AMPSS_M0 0 &config_noc SLAVE_QUP_2 0>;
+				interconnect-names = "qup-core",
+						     "qup-config";
+				status = "disabled";
+			};
+
 			i2c17: i2c@88c000 {
 				compatible = "qcom,geni-i2c";
 				reg = <0 0x0088c000 0 0x4000>;
@@ -5727,6 +5744,11 @@
 			qup_uart12_default: qup-uart12-default-state {
 				pins = "gpio34", "gpio35";
 				function = "qup12";
+			};
+
+			qup_uart16_default: qup-uart16-default-state {
+				pins = "gpio50", "gpio51";
+				function = "qup16";
 			};
 
 			qup_uart17_default: qup-uart17-default-state {
