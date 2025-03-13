@@ -401,6 +401,8 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 	int save_old_i_size = 0;
 	unsigned long src_ptr;
 	unsigned long dst_ptr;
+	struct extent_buffer *dst_eb;
+	int dst_slot;
 	bool inode_item = key->type == BTRFS_INODE_ITEM_KEY;
 
 	/*
@@ -420,10 +422,13 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		return ret;
 
+	dst_eb = path->nodes[0];
+	dst_slot = path->slots[0];
+
 	if (ret == 0) {
 		char *src_copy;
-		u32 dst_size = btrfs_item_size(path->nodes[0],
-						  path->slots[0]);
+		const u32 dst_size = btrfs_item_size(dst_eb, dst_slot);
+
 		if (dst_size != item_size)
 			goto insert;
 
@@ -438,8 +443,8 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 		}
 
 		read_extent_buffer(eb, src_copy, src_ptr, item_size);
-		dst_ptr = btrfs_item_ptr_offset(path->nodes[0], path->slots[0]);
-		ret = memcmp_extent_buffer(path->nodes[0], src_copy, dst_ptr, item_size);
+		dst_ptr = btrfs_item_ptr_offset(dst_eb, dst_slot);
+		ret = memcmp_extent_buffer(dst_eb, src_copy, dst_ptr, item_size);
 
 		kfree(src_copy);
 		/*
@@ -462,9 +467,9 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 			u64 nbytes;
 			u32 mode;
 
-			item = btrfs_item_ptr(path->nodes[0], path->slots[0],
+			item = btrfs_item_ptr(dst_eb, dst_slot,
 					      struct btrfs_inode_item);
-			nbytes = btrfs_inode_nbytes(path->nodes[0], item);
+			nbytes = btrfs_inode_nbytes(dst_eb, item);
 			item = btrfs_item_ptr(eb, slot,
 					      struct btrfs_inode_item);
 			btrfs_set_inode_nbytes(eb, item, nbytes);
@@ -506,11 +511,13 @@ insert:
 				      key, item_size);
 	path->skip_release_on_error = 0;
 
+	dst_eb = path->nodes[0];
+	dst_slot = path->slots[0];
+
 	/* make sure any existing item is the correct size */
 	if (ret == -EEXIST || ret == -EOVERFLOW) {
-		u32 found_size;
-		found_size = btrfs_item_size(path->nodes[0],
-						path->slots[0]);
+		const u32 found_size = btrfs_item_size(dst_eb, dst_slot);
+
 		if (found_size > item_size)
 			btrfs_truncate_item(trans, path, item_size, 1);
 		else if (found_size < item_size)
@@ -518,8 +525,7 @@ insert:
 	} else if (ret) {
 		return ret;
 	}
-	dst_ptr = btrfs_item_ptr_offset(path->nodes[0],
-					path->slots[0]);
+	dst_ptr = btrfs_item_ptr_offset(dst_eb, dst_slot);
 
 	/* don't overwrite an existing inode if the generation number
 	 * was logged as zero.  This is done when the tree logging code
@@ -538,7 +544,6 @@ insert:
 		dst_item = (struct btrfs_inode_item *)dst_ptr;
 
 		if (btrfs_inode_generation(eb, src_item) == 0) {
-			struct extent_buffer *dst_eb = path->nodes[0];
 			const u64 ino_size = btrfs_inode_size(eb, src_item);
 
 			/*
@@ -556,30 +561,28 @@ insert:
 		}
 
 		if (S_ISDIR(btrfs_inode_mode(eb, src_item)) &&
-		    S_ISDIR(btrfs_inode_mode(path->nodes[0], dst_item))) {
+		    S_ISDIR(btrfs_inode_mode(dst_eb, dst_item))) {
 			save_old_i_size = 1;
-			saved_i_size = btrfs_inode_size(path->nodes[0],
-							dst_item);
+			saved_i_size = btrfs_inode_size(dst_eb, dst_item);
 		}
 	}
 
-	copy_extent_buffer(path->nodes[0], eb, dst_ptr,
-			   src_ptr, item_size);
+	copy_extent_buffer(dst_eb, eb, dst_ptr, src_ptr, item_size);
 
 	if (save_old_i_size) {
 		struct btrfs_inode_item *dst_item;
+
 		dst_item = (struct btrfs_inode_item *)dst_ptr;
-		btrfs_set_inode_size(path->nodes[0], dst_item, saved_i_size);
+		btrfs_set_inode_size(dst_eb, dst_item, saved_i_size);
 	}
 
 	/* make sure the generation is filled in */
 	if (key->type == BTRFS_INODE_ITEM_KEY) {
 		struct btrfs_inode_item *dst_item;
+
 		dst_item = (struct btrfs_inode_item *)dst_ptr;
-		if (btrfs_inode_generation(path->nodes[0], dst_item) == 0) {
-			btrfs_set_inode_generation(path->nodes[0], dst_item,
-						   trans->transid);
-		}
+		if (btrfs_inode_generation(dst_eb, dst_item) == 0)
+			btrfs_set_inode_generation(dst_eb, dst_item, trans->transid);
 	}
 no_copy:
 	btrfs_release_path(path);
