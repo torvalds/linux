@@ -1256,14 +1256,6 @@ static int rk_iommu_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	err = iommu_device_sysfs_add(&iommu->iommu, dev, NULL, dev_name(dev));
-	if (err)
-		goto err_unprepare_clocks;
-
-	err = iommu_device_register(&iommu->iommu, &rk_iommu_ops, dev);
-	if (err)
-		goto err_remove_sysfs;
-
 	/*
 	 * Use the first registered IOMMU device for domain to use with DMA
 	 * API, since a domain might not physically correspond to a single
@@ -1290,12 +1282,19 @@ static int rk_iommu_probe(struct platform_device *pdev)
 
 	dma_set_mask_and_coherent(dev, rk_ops->dma_bit_mask);
 
+	err = iommu_device_sysfs_add(&iommu->iommu, dev, NULL, dev_name(dev));
+	if (err)
+		goto err_pm_disable;
+
+	err = iommu_device_register(&iommu->iommu, &rk_iommu_ops, dev);
+	if (err)
+		goto err_remove_sysfs;
+
 	return 0;
-err_pm_disable:
-	pm_runtime_disable(dev);
 err_remove_sysfs:
 	iommu_device_sysfs_remove(&iommu->iommu);
-err_unprepare_clocks:
+err_pm_disable:
+	pm_runtime_disable(dev);
 	clk_bulk_unprepare(iommu->num_clocks, iommu->clocks);
 	return err;
 }
