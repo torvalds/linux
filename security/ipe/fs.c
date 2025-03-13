@@ -133,6 +133,8 @@ static ssize_t getenforce(struct file *f, char __user *data,
  * * %-ERANGE			- Policy version number overflow
  * * %-EINVAL			- Policy version parsing error
  * * %-EEXIST			- Same name policy already deployed
+ * * %-ENOKEY			- Policy signing key not found
+ * * %-EKEYREJECTED		- Policy signature verification failed
  */
 static ssize_t new_policy(struct file *f, const char __user *data,
 			  size_t len, loff_t *offset)
@@ -141,12 +143,17 @@ static ssize_t new_policy(struct file *f, const char __user *data,
 	char *copy = NULL;
 	int rc = 0;
 
-	if (!file_ns_capable(f, &init_user_ns, CAP_MAC_ADMIN))
-		return -EPERM;
+	if (!file_ns_capable(f, &init_user_ns, CAP_MAC_ADMIN)) {
+		rc = -EPERM;
+		goto out;
+	}
 
 	copy = memdup_user_nul(data, len);
-	if (IS_ERR(copy))
-		return PTR_ERR(copy);
+	if (IS_ERR(copy)) {
+		rc = PTR_ERR(copy);
+		copy = NULL;
+		goto out;
+	}
 
 	p = ipe_new_policy(NULL, 0, copy, len);
 	if (IS_ERR(p)) {
@@ -158,12 +165,14 @@ static ssize_t new_policy(struct file *f, const char __user *data,
 	if (rc)
 		goto out;
 
-	ipe_audit_policy_load(p);
-
 out:
-	if (rc < 0)
-		ipe_free_policy(p);
 	kfree(copy);
+	if (rc < 0) {
+		ipe_free_policy(p);
+		ipe_audit_policy_load(ERR_PTR(rc));
+	} else {
+		ipe_audit_policy_load(p);
+	}
 	return (rc < 0) ? rc : len;
 }
 
