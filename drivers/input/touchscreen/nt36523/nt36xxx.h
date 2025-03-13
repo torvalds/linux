@@ -235,6 +235,7 @@ int32_t nvt_read_pid(void);
 bool nvt_get_dbgfw_status(void);
 int32_t nvt_set_pocket_palm_switch(uint8_t pocket_palm_switch);
 void Boot_Update_Firmware(struct work_struct *work);
+int32_t disable_pen_input_device(bool disable);
 #if NVT_TOUCH_ESD_PROTECT
 extern void nvt_esd_check_enable(uint8_t enable);
 #endif /* #if NVT_TOUCH_ESD_PROTECT */

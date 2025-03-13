@@ -1173,6 +1173,43 @@ static int8_t nvt_ts_check_chip_ver_trim(uint32_t chip_ver_trim_addr)
 	return 0;
 }
 
+int32_t disable_pen_input_device(bool disable) {
+	uint8_t buf[8] = {0};
+	int32_t ret = 0;
+
+	NVT_LOG("++\n");
+	if (!bTouchIsAwake || !ts) {
+		NVT_LOG("touch suspend, stop set pen state %s", disable ? "DISABLE" : "ENABLE");
+		goto nvt_set_pen_enable_out;
+	}
+
+	msleep(35);
+	disable = (!(ts->pen_input_dev_enable) || ts->pen_is_charge) ? true : disable;
+
+	//---set xdata index to EVENT BUF ADDR---
+	ret = nvt_set_page(ts->mmap->EVENT_BUF_ADDR | EVENT_MAP_HOST_CMD);
+	if (ret < 0) {
+		NVT_ERR("Set event buffer index fail!\n");
+		goto nvt_set_pen_enable_out;
+	}
+
+	buf[0] = EVENT_MAP_HOST_CMD;
+	buf[1] = 0x7B;
+	buf[2] = !!disable;
+	ret = CTP_SPI_WRITE(ts->client, buf, 3);
+	if (ret < 0) {
+		NVT_ERR("set pen %s failed!\n", disable ? "DISABLE" : "ENABLE");
+		goto nvt_set_pen_enable_out;
+	}
+	NVT_LOG("pen charge state is %s, %s pen input device\n",
+	ts->pen_is_charge ? "ENABLE" : "DISABLE",
+	disable ? "DISABLE" : "ENABLE");
+
+nvt_set_pen_enable_out:
+	NVT_LOG("--\n");
+	return ret;
+}
+
 static void nvt_suspend_work(struct work_struct *work)
 {
 	struct nvt_ts_data *ts_core = container_of(work, struct nvt_ts_data, suspend_work);
@@ -1437,11 +1474,11 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 	init_completion(&ts->dev_pm_suspend_completion);
 	ts->fw_debug = false;
 
-#ifdef CONFIG_FACTORY_BUILD
+//#ifdef CONFIG_FACTORY_BUILD
 	ts->pen_input_dev_enable = 1;
-#else
-	ts->pen_input_dev_enable = 0;
-#endif
+//#else
+//	ts->pen_input_dev_enable = 0;
+//#endif
 
 #if BOOT_UPDATE_FIRMWARE
 	nvt_fwu_wq = alloc_workqueue("nvt_fwu_wq", WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
@@ -1701,6 +1738,7 @@ static int32_t nvt_ts_suspend(struct device *dev)
 
 	if (ts->pen_input_dev_enable) {
 		NVT_LOG("if enable pen,will close it");
+		disable_pen_input_device(true);
 	}
 
 	if (ts->db_wakeup) {
@@ -1798,6 +1836,7 @@ static int32_t nvt_ts_resume(struct device *dev)
 
 	mutex_unlock(&ts->lock);
 
+	disable_pen_input_device(false);
 	if (likely(ts->ic_state == NVT_IC_RESUME_IN)) {
 		ts->ic_state = NVT_IC_RESUME_OUT;
 	} else {
