@@ -26,9 +26,8 @@
 
 /* bch_extent_rebalance: */
 
-static const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c k)
+static const struct bch_extent_rebalance *bch2_bkey_ptrs_rebalance_opts(struct bkey_ptrs_c ptrs)
 {
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 
 	bkey_extent_entry_for_each(ptrs, entry)
@@ -36,6 +35,11 @@ static const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s
 			return &entry->rebalance;
 
 	return NULL;
+}
+
+static const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c k)
+{
+	return bch2_bkey_ptrs_rebalance_opts(bch2_bkey_ptrs_c(k));
 }
 
 static inline unsigned bch2_bkey_ptrs_need_compress(struct bch_fs *c,
@@ -97,11 +101,12 @@ static unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c,
 
 u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *c, struct bkey_s_c k)
 {
-	const struct bch_extent_rebalance *opts = bch2_bkey_rebalance_opts(k);
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+
+	const struct bch_extent_rebalance *opts = bch2_bkey_ptrs_rebalance_opts(ptrs);
 	if (!opts)
 		return 0;
 
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 	u64 sectors = 0;
