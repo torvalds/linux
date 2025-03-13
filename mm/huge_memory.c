@@ -3262,25 +3262,25 @@ static void remap_page(struct folio *folio, unsigned long nr, int flags)
 	}
 }
 
-static void lru_add_page_tail(struct folio *folio, struct page *tail,
+static void lru_add_split_folio(struct folio *folio, struct folio *new_folio,
 		struct lruvec *lruvec, struct list_head *list)
 {
-	VM_BUG_ON_FOLIO(PageLRU(tail), folio);
+	VM_BUG_ON_FOLIO(folio_test_lru(new_folio), folio);
 	lockdep_assert_held(&lruvec->lru_lock);
 
 	if (list) {
 		/* page reclaim is reclaiming a huge page */
 		VM_WARN_ON(folio_test_lru(folio));
-		get_page(tail);
-		list_add_tail(&tail->lru, list);
+		folio_get(new_folio);
+		list_add_tail(&new_folio->lru, list);
 	} else {
 		/* head is still on lru (and we have it frozen) */
 		VM_WARN_ON(!folio_test_lru(folio));
 		if (folio_test_unevictable(folio))
-			tail->mlock_count = 0;
+			new_folio->mlock_count = 0;
 		else
-			list_add_tail(&tail->lru, &folio->lru);
-		SetPageLRU(tail);
+			list_add_tail(&new_folio->lru, &folio->lru);
+		folio_set_lru(new_folio);
 	}
 }
 
@@ -3581,8 +3581,8 @@ after_split:
 					((mapping || swap_cache) ?
 						folio_nr_pages(release) : 0));
 
-			lru_add_page_tail(origin_folio, &release->page,
-						lruvec, list);
+			lru_add_split_folio(origin_folio, release, lruvec,
+					list);
 
 			/* Some pages can be beyond EOF: drop them from cache */
 			if (release->index >= end) {
