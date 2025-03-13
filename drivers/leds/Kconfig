@@ -211,6 +211,16 @@ config LEDS_EXPRESSWIRE
 	bool
 	depends on GPIOLIB
 
+config LEDS_HTR3212
+	tristate "HEROIC HTR3212 LED driver"
+	depends on LEDS_CLASS && I2C
+	select REGMAP_I2C
+	help
+	  Driver for HEROIC HTR3212 LED controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-htr3212.
+
 config LEDS_TURRIS_OMNIA
 	tristate "LED support for CZ.NIC's Turris Omnia"
 	depends on LEDS_CLASS_MULTICOLOR
