@@ -924,7 +924,8 @@ config LEDS_USER
 config LEDS_NIC78BX
 	tristate "LED support for NI PXI NIC78bx devices"
 	depends on LEDS_CLASS
-	depends on X86 && ACPI
+	depends on HAS_IOPORT
+	depends on X86 || COMPILE_TEST
 	help
 	  This option enables support for the User1 and User2 LEDs on NI
 	  PXI NIC78bx devices.

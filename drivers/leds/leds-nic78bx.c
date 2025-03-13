@@ -3,11 +3,19 @@
  * Copyright (C) 2016 National Instruments Corp.
  */
 
-#include <linux/acpi.h>
+#include <linux/array_size.h>
+#include <linux/bits.h>
+#include <linux/container_of.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/io.h>
+#include <linux/ioport.h>
 #include <linux/leds.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/types.h>
 
 #define NIC78BX_USER1_LED_MASK		0x3
 #define NIC78BX_USER1_GREEN_LED		BIT(0)
@@ -181,8 +189,8 @@ static int nic78bx_probe(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id led_device_ids[] = {
-	{"NIC78B3", 0},
-	{"", 0},
+	{ "NIC78B3" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, led_device_ids);
 
@@ -190,7 +198,7 @@ static struct platform_driver led_driver = {
 	.probe = nic78bx_probe,
 	.driver = {
 		.name = KBUILD_MODNAME,
-		.acpi_match_table = ACPI_PTR(led_device_ids),
+		.acpi_match_table = led_device_ids,
 	},
 };
 
