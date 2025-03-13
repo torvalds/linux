@@ -8,6 +8,17 @@
 
 #include "mlx5_ib.h"
 
+
+struct mlx5_rdma_counter {
+	struct rdma_counter rdma_counter;
+};
+
+static inline struct mlx5_rdma_counter *
+to_mcounter(struct rdma_counter *counter)
+{
+	return container_of(counter, struct mlx5_rdma_counter, rdma_counter);
+}
+
 int mlx5_ib_counters_init(struct mlx5_ib_dev *dev);
 void mlx5_ib_counters_cleanup(struct mlx5_ib_dev *dev);
 void mlx5_ib_counters_clear_description(struct ib_counters *counters);

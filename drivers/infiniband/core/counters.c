@@ -149,12 +149,14 @@ static struct rdma_counter *alloc_and_bind(struct ib_device *dev, u32 port,
 	if (!dev->ops.counter_dealloc || !dev->ops.counter_alloc_stats)
 		return NULL;
 
-	counter = kzalloc(sizeof(*counter), GFP_KERNEL);
+	counter = rdma_zalloc_drv_obj(dev, rdma_counter);
 	if (!counter)
 		return NULL;
 
 	counter->device    = dev;
 	counter->port      = port;
+
+	dev->ops.counter_init(counter);
 
 	rdma_restrack_new(&counter->res, RDMA_RESTRACK_COUNTER);
 	counter->stats = dev->ops.counter_alloc_stats(counter);

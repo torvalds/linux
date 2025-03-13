@@ -1105,6 +1105,8 @@ out:
 	return 0;
 }
 
+static void mlx5_ib_counter_init(struct rdma_counter *counter) {}
+
 static const struct ib_device_ops hw_stats_ops = {
 	.alloc_hw_port_stats = mlx5_ib_alloc_hw_port_stats,
 	.get_hw_stats = mlx5_ib_get_hw_stats,
@@ -1115,6 +1117,9 @@ static const struct ib_device_ops hw_stats_ops = {
 	.counter_update_stats = mlx5_ib_counter_update_stats,
 	.modify_hw_stat = IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS) ?
 			  mlx5_ib_modify_stat : NULL,
+	.counter_init = mlx5_ib_counter_init,
+
+	INIT_RDMA_OBJ_SIZE(rdma_counter, mlx5_rdma_counter, rdma_counter),
 };
 
 static const struct ib_device_ops hw_switchdev_vport_op = {
@@ -1129,6 +1134,9 @@ static const struct ib_device_ops hw_switchdev_stats_ops = {
 	.counter_dealloc = mlx5_ib_counter_dealloc,
 	.counter_alloc_stats = mlx5_ib_counter_alloc_stats,
 	.counter_update_stats = mlx5_ib_counter_update_stats,
+	.counter_init = mlx5_ib_counter_init,
+
+	INIT_RDMA_OBJ_SIZE(rdma_counter, mlx5_rdma_counter, rdma_counter),
 };
 
 static const struct ib_device_ops counters_ops = {
