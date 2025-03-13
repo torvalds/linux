@@ -50,10 +50,6 @@ static inline const char *bch2_d_type_str(unsigned d_type)
  * apply the options from that struct that are defined.
  */
 
-/* dummy option, for options that aren't stored in the superblock */
-u64 BCH2_NO_SB_OPT(const struct bch_sb *);
-void SET_BCH2_NO_SB_OPT(struct bch_sb *, u64);
-
 /* When can be set: */
 enum opt_flags {
 	OPT_FS			= BIT(0),	/* Filesystem option */
@@ -318,11 +314,6 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Don't kick drives out when splitbrain detected")\
-	x(discard,			u8,				\
-	  OPT_FS|OPT_MOUNT|OPT_DEVICE,					\
-	  OPT_BOOL(),							\
-	  BCH2_NO_SB_OPT,		true,				\
-	  NULL,		"Enable discard/TRIM support")			\
 	x(verbose,			u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
@@ -503,38 +494,43 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Skip submit_bio() for data reads and writes, "	\
 			"for performance testing purposes")		\
+	x(state,			u64,				\
+	  OPT_DEVICE,							\
+	  OPT_STR(bch2_member_states),					\
+	  BCH_MEMBER_STATE,		BCH_MEMBER_STATE_rw,		\
+	  "state",	"rw,ro,failed,spare")				\
 	x(fs_size,			u64,				\
-	  OPT_DEVICE,							\
+	  OPT_DEVICE|OPT_HIDDEN,					\
 	  OPT_UINT(0, S64_MAX),						\
-	  BCH2_NO_SB_OPT,		0,				\
+	  BCH2_NO_MEMBER_OPT,		0,				\
 	  "size",	"Size of filesystem on device")			\
-	x(bucket,			u32,				\
-	  OPT_DEVICE,							\
+	x(bucket_size,			u32,				\
+	  OPT_DEVICE|OPT_HUMAN_READABLE|OPT_SB_FIELD_SECTORS,		\
 	  OPT_UINT(0, S64_MAX),						\
-	  BCH2_NO_SB_OPT,		0,				\
+	  BCH_MEMBER_BUCKET_SIZE,	0,				\
 	  "size",	"Specifies the bucket size; must be greater than the btree node size")\
 	x(durability,			u8,				\
-	  OPT_DEVICE|OPT_SB_FIELD_ONE_BIAS,				\
+	  OPT_DEVICE|OPT_RUNTIME|OPT_SB_FIELD_ONE_BIAS,			\
 	  OPT_UINT(0, BCH_REPLICAS_MAX),				\
-	  BCH2_NO_SB_OPT,		1,				\
+	  BCH_MEMBER_DURABILITY,	1,				\
 	  "n",		"Data written to this device will be considered\n"\
 			"to have already been replicated n times")	\
 	x(data_allowed,			u8,				\
 	  OPT_DEVICE,							\
 	  OPT_BITFIELD(__bch2_data_types),				\
-	  BCH2_NO_SB_OPT,		BIT(BCH_DATA_journal)|BIT(BCH_DATA_btree)|BIT(BCH_DATA_user),\
+	  BCH_MEMBER_DATA_ALLOWED,	BIT(BCH_DATA_journal)|BIT(BCH_DATA_btree)|BIT(BCH_DATA_user),\
 	  "types",	"Allowed data types for this device: journal, btree, and/or user")\
+	x(discard,			u8,				\
+	  OPT_MOUNT|OPT_DEVICE|OPT_RUNTIME,				\
+	  OPT_BOOL(),							\
+	  BCH_MEMBER_DISCARD,		true,				\
+	  NULL,		"Enable discard/TRIM support")			\
 	x(btree_node_prefetch,		u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		true,				\
 	  NULL,		"BTREE_ITER_prefetch casuse btree nodes to be\n"\
 	  " prefetched sequentially")
-
-#define BCH_DEV_OPT_SETTERS()						\
-	x(discard,		BCH_MEMBER_DISCARD)			\
-	x(durability,		BCH_MEMBER_DURABILITY)			\
-	x(data_allowed,		BCH_MEMBER_DATA_ALLOWED)
 
 struct bch_opts {
 #define x(_name, _bits, ...)	unsigned _name##_defined:1;
@@ -592,8 +588,6 @@ struct printbuf;
 
 struct bch_option {
 	struct attribute	attr;
-	u64			(*get_sb)(const struct bch_sb *);
-	void			(*set_sb)(struct bch_sb *, u64);
 	enum opt_type		type;
 	enum opt_flags		flags;
 	u64			min, max;
@@ -605,6 +599,12 @@ struct bch_option {
 	const char		*hint;
 	const char		*help;
 
+	u64			(*get_sb)(const struct bch_sb *);
+	void			(*set_sb)(struct bch_sb *, u64);
+
+	u64			(*get_member)(const struct bch_member *);
+	void			(*set_member)(struct bch_member *, u64);
+
 };
 
 extern const struct bch_option bch2_opt_table[];
@@ -613,7 +613,7 @@ bool bch2_opt_defined_by_id(const struct bch_opts *, enum bch_opt_id);
 u64 bch2_opt_get_by_id(const struct bch_opts *, enum bch_opt_id);
 void bch2_opt_set_by_id(struct bch_opts *, enum bch_opt_id, u64);
 
-u64 bch2_opt_from_sb(struct bch_sb *, enum bch_opt_id);
+u64 bch2_opt_from_sb(struct bch_sb *, enum bch_opt_id, int);
 int bch2_opts_from_sb(struct bch_opts *, struct bch_sb *);
 void __bch2_opt_set_sb(struct bch_sb *, int, const struct bch_option *, u64);
 
