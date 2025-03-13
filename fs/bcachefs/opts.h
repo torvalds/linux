@@ -495,7 +495,7 @@ enum fsck_err_opts {
 	  NULL,		"Skip submit_bio() for data reads and writes, "	\
 			"for performance testing purposes")		\
 	x(state,			u64,				\
-	  OPT_DEVICE,							\
+	  OPT_DEVICE|OPT_RUNTIME,					\
 	  OPT_STR(bch2_member_states),					\
 	  BCH_MEMBER_STATE,		BCH_MEMBER_STATE_rw,		\
 	  "state",	"rw,ro,failed,spare")				\

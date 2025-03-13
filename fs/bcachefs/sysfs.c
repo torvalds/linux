@@ -631,6 +631,8 @@ static ssize_t sysfs_opt_store(struct bch_fs *c,
 	if (unlikely(!bch2_write_ref_tryget(c, BCH_WRITE_REF_sysfs)))
 		return -EROFS;
 
+	down_write(&c->state_lock);
+
 	char *tmp = kstrdup(buf, GFP_KERNEL);
 	if (!tmp) {
 		ret = -ENOMEM;
@@ -664,6 +666,7 @@ static ssize_t sysfs_opt_store(struct bch_fs *c,
 
 	ret = size;
 err:
+	up_write(&c->state_lock);
 	bch2_write_ref_put(c, BCH_WRITE_REF_sysfs);
 	return ret;
 }
