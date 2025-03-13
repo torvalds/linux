@@ -37,6 +37,7 @@ static struct {
 	struct ctl_table_header *test_h_mnterror;
 	struct ctl_table_header *empty_add;
 	struct ctl_table_header *empty;
+	struct ctl_table_header *test_u8;
 } sysctl_test_headers;
 
 struct test_sysctl_data {
@@ -239,6 +240,65 @@ static int test_sysctl_run_register_empty(void)
 	return 0;
 }
 
+static const struct ctl_table table_u8_over[] = {
+	{
+		.procname	= "u8_over",
+		.data		= &test_data.uint_0001,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+		.extra1		= SYSCTL_FOUR,
+		.extra2		= SYSCTL_ONE_THOUSAND,
+	},
+};
+
+static const struct ctl_table table_u8_under[] = {
+	{
+		.procname	= "u8_under",
+		.data		= &test_data.uint_0001,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+		.extra1		= SYSCTL_NEG_ONE,
+		.extra2		= SYSCTL_ONE_HUNDRED,
+	},
+};
+
+static const struct ctl_table table_u8_valid[] = {
+	{
+		.procname	= "u8_valid",
+		.data		= &test_data.uint_0001,
+		.maxlen		= sizeof(u8),
+		.mode		= 0644,
+		.proc_handler	= proc_dou8vec_minmax,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_TWO_HUNDRED,
+	},
+};
+
+static int test_sysctl_register_u8_extra(void)
+{
+	/* should fail because it's over */
+	sysctl_test_headers.test_u8
+		= register_sysctl("debug/test_sysctl", table_u8_over);
+	if (sysctl_test_headers.test_u8)
+		return -ENOMEM;
+
+	/* should fail because it's under */
+	sysctl_test_headers.test_u8
+		= register_sysctl("debug/test_sysctl", table_u8_under);
+	if (sysctl_test_headers.test_u8)
+		return -ENOMEM;
+
+	/* should not fail because it's valid */
+	sysctl_test_headers.test_u8
+		= register_sysctl("debug/test_sysctl", table_u8_valid);
+	if (!sysctl_test_headers.test_u8)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int __init test_sysctl_init(void)
 {
 	int err;
@@ -256,6 +316,10 @@ static int __init test_sysctl_init(void)
 		goto out;
 
 	err = test_sysctl_run_register_empty();
+	if (err)
+		goto out;
+
+	err = test_sysctl_register_u8_extra();
 
 out:
 	return err;
@@ -275,6 +339,8 @@ static void __exit test_sysctl_exit(void)
 		unregister_sysctl_table(sysctl_test_headers.empty);
 	if (sysctl_test_headers.empty_add)
 		unregister_sysctl_table(sysctl_test_headers.empty_add);
+	if (sysctl_test_headers.test_u8)
+		unregister_sysctl_table(sysctl_test_headers.test_u8);
 }
 
 module_exit(test_sysctl_exit);
