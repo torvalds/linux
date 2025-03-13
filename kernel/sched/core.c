@@ -8229,7 +8229,7 @@ static void cpuset_cpu_active(void)
 		 * operation in the resume sequence, just build a single sched
 		 * domain, ignoring cpusets.
 		 */
-		partition_sched_domains(1, NULL, NULL);
+		cpuset_reset_sched_domains();
 		if (--num_cpus_frozen)
 			return;
 		/*
@@ -8248,7 +8248,7 @@ static void cpuset_cpu_inactive(unsigned int cpu)
 		cpuset_update_active_cpus();
 	} else {
 		num_cpus_frozen++;
-		partition_sched_domains(1, NULL, NULL);
+		cpuset_reset_sched_domains();
 	}
 }
 

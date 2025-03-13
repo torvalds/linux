@@ -128,6 +128,7 @@ extern bool current_cpuset_is_being_rebound(void);
 extern void rebuild_sched_domains(void);
 
 extern void cpuset_print_current_mems_allowed(void);
+extern void cpuset_reset_sched_domains(void);
 
 /*
  * read_mems_allowed_begin is required when making decisions involving
@@ -260,6 +261,11 @@ static inline bool current_cpuset_is_being_rebound(void)
 }
 
 static inline void rebuild_sched_domains(void)
+{
+	partition_sched_domains(1, NULL, NULL);
+}
+
+static inline void cpuset_reset_sched_domains(void)
 {
 	partition_sched_domains(1, NULL, NULL);
 }
