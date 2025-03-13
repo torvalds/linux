@@ -590,7 +590,18 @@ static int bch2_rebalance_thread(void *arg)
 
 void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 {
+	printbuf_tabstop_push(out, 32);
+
 	struct bch_fs_rebalance *r = &c->rebalance;
+
+	/* print pending work */
+	struct disk_accounting_pos acc = { .type = BCH_DISK_ACCOUNTING_rebalance_work, };
+	u64 v;
+	bch2_accounting_mem_read(c, disk_accounting_pos_to_bpos(&acc), &v, 1);
+
+	prt_printf(out, "pending work:\t");
+	prt_human_readable_u64(out, v);
+	prt_printf(out, "\n\n");
 
 	prt_str(out, bch2_rebalance_state_strs[r->state]);
 	prt_newline(out);
@@ -600,15 +611,15 @@ void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 	case BCH_REBALANCE_waiting: {
 		u64 now = atomic64_read(&c->io_clock[WRITE].now);
 
-		prt_str(out, "io wait duration:  ");
+		prt_printf(out, "io wait duration:\t");
 		bch2_prt_human_readable_s64(out, (r->wait_iotime_end - r->wait_iotime_start) << 9);
 		prt_newline(out);
 
-		prt_str(out, "io wait remaining: ");
+		prt_printf(out, "io wait remaining:\t");
 		bch2_prt_human_readable_s64(out, (r->wait_iotime_end - now) << 9);
 		prt_newline(out);
 
-		prt_str(out, "duration waited:   ");
+		prt_printf(out, "duration waited:\t");
 		bch2_pr_time_units(out, ktime_get_real_ns() - r->wait_wallclock_start);
 		prt_newline(out);
 		break;
@@ -621,6 +632,18 @@ void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 		break;
 	}
 	prt_newline(out);
+
+	rcu_read_lock();
+	struct task_struct *t = rcu_dereference(c->rebalance.thread);
+	if (t)
+		get_task_struct(t);
+	rcu_read_unlock();
+
+	if (t) {
+		bch2_prt_task_backtrace(out, t, 0, GFP_KERNEL);
+		put_task_struct(t);
+	}
+
 	printbuf_indent_sub(out, 2);
 }
 

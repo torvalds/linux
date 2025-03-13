@@ -317,6 +317,17 @@ void bch2_copygc_wait_to_text(struct printbuf *out, struct bch_fs *c)
 	prt_printf(out, "Currently calculated wait:\t");
 	prt_human_readable_u64(out, bch2_copygc_wait_amount(c));
 	prt_newline(out);
+
+	rcu_read_lock();
+	struct task_struct *t = rcu_dereference(c->copygc_thread);
+	if (t)
+		get_task_struct(t);
+	rcu_read_unlock();
+
+	if (t) {
+		bch2_prt_task_backtrace(out, t, 0, GFP_KERNEL);
+		put_task_struct(t);
+	}
 }
 
 static int bch2_copygc_thread(void *arg)
