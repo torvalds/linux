@@ -107,7 +107,7 @@ struct attribute_group {
 					    int);
 	struct attribute	**attrs;
 	union {
-		struct bin_attribute		**bin_attrs;
+		const struct bin_attribute	*const *bin_attrs;
 		const struct bin_attribute	*const *bin_attrs_new;
 	};
 };
