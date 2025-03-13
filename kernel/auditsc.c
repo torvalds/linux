@@ -2207,10 +2207,8 @@ __audit_reusename(const __user char *uptr)
 	list_for_each_entry(n, &context->names_list, list) {
 		if (!n->name)
 			continue;
-		if (n->name->uptr == uptr) {
-			atomic_inc(&n->name->refcnt);
-			return n->name;
-		}
+		if (n->name->uptr == uptr)
+			return refname(n->name);
 	}
 	return NULL;
 }
@@ -2237,7 +2235,7 @@ void __audit_getname(struct filename *name)
 	n->name = name;
 	n->name_len = AUDIT_NAME_FULL;
 	name->aname = n;
-	atomic_inc(&name->refcnt);
+	refname(name);
 }
 
 static inline int audit_copy_fcaps(struct audit_names *name,
@@ -2369,7 +2367,7 @@ out_alloc:
 		return;
 	if (name) {
 		n->name = name;
-		atomic_inc(&name->refcnt);
+		refname(name);
 	}
 
 out:
@@ -2496,7 +2494,7 @@ void __audit_inode_child(struct inode *parent,
 		if (found_parent) {
 			found_child->name = found_parent->name;
 			found_child->name_len = AUDIT_NAME_FULL;
-			atomic_inc(&found_child->name->refcnt);
+			refname(found_child->name);
 		}
 	}
 
