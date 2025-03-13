@@ -579,12 +579,12 @@ static int access_mem(unw_addr_space_t __maybe_unused as,
 	int ret;
 
 	/* Don't support write, probably not needed. */
-	if (__write || !stack || !ui->sample->user_regs.regs) {
+	if (__write || !stack || !ui->sample->user_regs || !ui->sample->user_regs->regs) {
 		*valp = 0;
 		return 0;
 	}
 
-	ret = perf_reg_value(&start, &ui->sample->user_regs,
+	ret = perf_reg_value(&start, perf_sample__user_regs(ui->sample),
 			     perf_arch_reg_sp(arch));
 	if (ret)
 		return ret;
@@ -628,7 +628,7 @@ static int access_reg(unw_addr_space_t __maybe_unused as,
 		return 0;
 	}
 
-	if (!ui->sample->user_regs.regs) {
+	if (!ui->sample->user_regs || !ui->sample->user_regs->regs) {
 		*valp = 0;
 		return 0;
 	}
@@ -637,7 +637,7 @@ static int access_reg(unw_addr_space_t __maybe_unused as,
 	if (id < 0)
 		return -EINVAL;
 
-	ret = perf_reg_value(&val, &ui->sample->user_regs, id);
+	ret = perf_reg_value(&val, perf_sample__user_regs(ui->sample), id);
 	if (ret) {
 		if (!ui->best_effort)
 			pr_err("unwind: can't read reg %d\n", regnum);
@@ -741,7 +741,7 @@ static int get_entries(struct unwind_info *ui, unwind_entry_cb_t cb,
 	unw_cursor_t c;
 	int ret, i = 0;
 
-	ret = perf_reg_value(&val, &ui->sample->user_regs,
+	ret = perf_reg_value(&val, perf_sample__user_regs(ui->sample),
 			     perf_arch_reg_ip(arch));
 	if (ret)
 		return ret;
@@ -808,7 +808,7 @@ static int _unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 		.best_effort  = best_effort
 	};
 
-	if (!data->user_regs.regs)
+	if (!data->user_regs || !data->user_regs->regs)
 		return -EINVAL;
 
 	if (max_stack <= 0)
