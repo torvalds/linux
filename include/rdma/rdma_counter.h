@@ -51,7 +51,7 @@ int rdma_counter_set_auto_mode(struct ib_device *dev, u32 port,
 			       bool bind_opcnt,
 			       struct netlink_ext_ack *extack);
 int rdma_counter_bind_qp_auto(struct ib_qp *qp, u32 port);
-int rdma_counter_unbind_qp(struct ib_qp *qp, bool force);
+int rdma_counter_unbind_qp(struct ib_qp *qp, u32 port, bool force);
 
 int rdma_counter_query_stats(struct rdma_counter *counter);
 u64 rdma_counter_get_hwstat_value(struct ib_device *dev, u32 port, u32 index);

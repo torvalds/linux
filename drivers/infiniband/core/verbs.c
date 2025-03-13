@@ -2105,7 +2105,7 @@ int ib_destroy_qp_user(struct ib_qp *qp, struct ib_udata *udata)
 	if (!qp->uobject)
 		rdma_rw_cleanup_mrs(qp);
 
-	rdma_counter_unbind_qp(qp, true);
+	rdma_counter_unbind_qp(qp, qp->port, true);
 	ret = qp->device->ops.destroy_qp(qp, udata);
 	if (ret) {
 		if (sec)

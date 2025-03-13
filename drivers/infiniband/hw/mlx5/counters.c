@@ -562,7 +562,7 @@ static int mlx5_ib_counter_dealloc(struct rdma_counter *counter)
 }
 
 static int mlx5_ib_counter_bind_qp(struct rdma_counter *counter,
-				   struct ib_qp *qp)
+				   struct ib_qp *qp, u32 port)
 {
 	struct mlx5_ib_dev *dev = to_mdev(qp->device);
 	int err;
@@ -594,7 +594,7 @@ fail_set_counter:
 	return err;
 }
 
-static int mlx5_ib_counter_unbind_qp(struct ib_qp *qp)
+static int mlx5_ib_counter_unbind_qp(struct ib_qp *qp, u32 port)
 {
 	return mlx5_ib_qp_set_counter(qp, NULL);
 }

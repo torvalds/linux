@@ -2644,12 +2644,13 @@ struct ib_device_ops {
 	 * @counter - The counter to be bound. If counter->id is zero then
 	 *   the driver needs to allocate a new counter and set counter->id
 	 */
-	int (*counter_bind_qp)(struct rdma_counter *counter, struct ib_qp *qp);
+	int (*counter_bind_qp)(struct rdma_counter *counter, struct ib_qp *qp,
+			       u32 port);
 	/**
 	 * counter_unbind_qp - Unbind the qp from the dynamically-allocated
 	 *   counter and bind it onto the default one
 	 */
-	int (*counter_unbind_qp)(struct ib_qp *qp);
+	int (*counter_unbind_qp)(struct ib_qp *qp, u32 port);
 	/**
 	 * counter_dealloc -De-allocate the hw counter
 	 */
