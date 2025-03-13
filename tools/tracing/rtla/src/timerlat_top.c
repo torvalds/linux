@@ -1295,7 +1295,8 @@ int timerlat_top_main(int argc, char *argv[])
 		if (!params->no_aa)
 			timerlat_auto_analysis(params->stop_us, params->stop_total_us);
 
-		save_trace_to_file(record->trace.inst, params->trace_output);
+		save_trace_to_file(record ? record->trace.inst : NULL,
+				   params->trace_output);
 	} else if (params->aa_only) {
 		/*
 		 * If the trace did not stop with --aa-only, at least print the

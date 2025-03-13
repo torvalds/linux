@@ -75,7 +75,7 @@ int save_trace_to_file(struct tracefs_instance *inst, const char *filename)
 	int out_fd, in_fd;
 	int retval = -1;
 
-	if (!filename)
+	if (!inst || !filename)
 		return 0;
 
 	in_fd = tracefs_instance_file_open(inst, file, O_RDONLY);
