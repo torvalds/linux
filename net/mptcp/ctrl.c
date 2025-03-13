@@ -200,6 +200,9 @@ static int mptcp_set_path_manager(char *path_manager, const char *name)
 static int proc_path_manager(const struct ctl_table *ctl, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos)
 {
+	struct mptcp_pernet *pernet = container_of(ctl->data,
+						   struct mptcp_pernet,
+						   path_manager);
 	char (*path_manager)[MPTCP_PM_NAME_MAX] = ctl->data;
 	char pm_name[MPTCP_PM_NAME_MAX];
 	const struct ctl_table tbl = {
@@ -211,8 +214,18 @@ static int proc_path_manager(const struct ctl_table *ctl, int write,
 	strscpy(pm_name, *path_manager, MPTCP_PM_NAME_MAX);
 
 	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
-	if (write && ret == 0)
+	if (write && ret == 0) {
 		ret = mptcp_set_path_manager(*path_manager, pm_name);
+		if (ret == 0) {
+			u8 pm_type = __MPTCP_PM_TYPE_NR;
+
+			if (strncmp(pm_name, "kernel", MPTCP_PM_NAME_MAX) == 0)
+				pm_type = MPTCP_PM_TYPE_KERNEL;
+			else if (strncmp(pm_name, "userspace", MPTCP_PM_NAME_MAX) == 0)
+				pm_type = MPTCP_PM_TYPE_USERSPACE;
+			pernet->pm_type = pm_type;
+		}
+	}
 
 	return ret;
 }
