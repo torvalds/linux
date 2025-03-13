@@ -425,6 +425,7 @@ static void sg2044_spifmc_init(struct sg2044_spifmc *spifmc)
 
 static int sg2044_spifmc_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct spi_controller *ctrl;
 	struct sg2044_spifmc *spifmc;
 	void __iomem *base;
@@ -435,7 +436,6 @@ static int sg2044_spifmc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	spifmc = spi_controller_get_devdata(ctrl);
-	dev_set_drvdata(&pdev->dev, ctrl);
 
 	spifmc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(spifmc->clk))
@@ -457,26 +457,20 @@ static int sg2044_spifmc_probe(struct platform_device *pdev)
 	ctrl->mem_ops = &sg2044_spifmc_mem_ops;
 	ctrl->mode_bits = SPI_RX_DUAL | SPI_TX_DUAL | SPI_RX_QUAD | SPI_TX_QUAD;
 
-	mutex_init(&spifmc->lock);
+	ret = devm_mutex_init(dev, &spifmc->lock);
+	if (ret)
+		return ret;
 
 	sg2044_spifmc_init(spifmc);
 	sg2044_spifmc_init_reg(spifmc);
 
 	ret = devm_spi_register_controller(&pdev->dev, ctrl);
 	if (ret) {
-		mutex_destroy(&spifmc->lock);
 		dev_err(&pdev->dev, "spi_register_controller failed\n");
 		return ret;
 	}
 
 	return 0;
-}
-
-static void sg2044_spifmc_remove(struct platform_device *pdev)
-{
-	struct sg2044_spifmc *spifmc = platform_get_drvdata(pdev);
-
-	mutex_destroy(&spifmc->lock);
 }
 
 static const struct of_device_id sg2044_spifmc_match[] = {
@@ -491,7 +485,6 @@ static struct platform_driver sg2044_nor_driver = {
 		.of_match_table = sg2044_spifmc_match,
 	},
 	.probe = sg2044_spifmc_probe,
-	.remove = sg2044_spifmc_remove,
 };
 module_platform_driver(sg2044_nor_driver);
 
