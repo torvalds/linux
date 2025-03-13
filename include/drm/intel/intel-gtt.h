@@ -28,6 +28,8 @@ void intel_gmch_gtt_insert_sg_entries(struct sg_table *st,
 				      unsigned int pg_start,
 				      unsigned int flags);
 void intel_gmch_gtt_clear_range(unsigned int first_entry, unsigned int num_entries);
+dma_addr_t intel_gmch_gtt_read_entry(unsigned int pg,
+				     bool *is_present, bool *is_local);
 
 /* Special gtt memory types */
 #define AGP_DCACHE_MEMORY	1
