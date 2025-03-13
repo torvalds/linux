@@ -1147,6 +1147,7 @@ static inline u8 subflow_get_local_id(const struct mptcp_subflow_context *subflo
 	return local_id;
 }
 
+void __init mptcp_pm_kernel_register(void);
 void __init mptcp_pm_nl_init(void);
 void mptcp_pm_worker(struct mptcp_sock *msk);
 void __mptcp_pm_kernel_worker(struct mptcp_sock *msk);
