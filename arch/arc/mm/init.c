@@ -160,11 +160,7 @@ void __init setup_arch_memory(void)
 static void __init highmem_init(void)
 {
 #ifdef CONFIG_HIGHMEM
-	unsigned long tmp;
-
 	memblock_phys_free(high_mem_start, high_mem_sz);
-	for (tmp = min_high_pfn; tmp < max_high_pfn; tmp++)
-		free_highmem_page(pfn_to_page(tmp));
 #endif
 }
 
@@ -176,8 +172,8 @@ static void __init highmem_init(void)
  */
 void __init mem_init(void)
 {
-	memblock_free_all();
 	highmem_init();
+	memblock_free_all();
 
 	BUILD_BUG_ON((PTRS_PER_PGD * sizeof(pgd_t)) > PAGE_SIZE);
 	BUILD_BUG_ON((PTRS_PER_PUD * sizeof(pud_t)) > PAGE_SIZE);

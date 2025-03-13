@@ -425,25 +425,6 @@ void __init paging_init(void)
 static struct kcore_list kcore_kseg0;
 #endif
 
-static inline void __init mem_init_free_highmem(void)
-{
-#ifdef CONFIG_HIGHMEM
-	unsigned long tmp;
-
-	if (cpu_has_dc_aliases)
-		return;
-
-	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
-		struct page *page = pfn_to_page(tmp);
-
-		if (!memblock_is_memory(PFN_PHYS(tmp)))
-			SetPageReserved(page);
-		else
-			free_highmem_page(page);
-	}
-#endif
-}
-
 void __init mem_init(void)
 {
 	/*
@@ -454,7 +435,6 @@ void __init mem_init(void)
 
 	maar_init();
 	setup_zero_pages();	/* Setup zeroed pages.  */
-	mem_init_free_highmem();
 	memblock_free_all();
 
 #ifdef CONFIG_64BIT
