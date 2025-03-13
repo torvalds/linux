@@ -128,6 +128,7 @@ allOf:
 
         interrupt-names:
           minItems: 1
+          maxItems: 1
 
   - if:
       properties:
@@ -161,6 +162,7 @@ allOf:
 
         interrupt-names:
           minItems: 2
+          maxItems: 2
 
   - if:
       properties:
@@ -189,6 +191,7 @@ allOf:
 
         interrupt-names:
           minItems: 3
+          maxItems: 3
 
   - if:
       properties:
@@ -213,6 +216,7 @@ allOf:
 
         interrupt-names:
           minItems: 2
+          maxItems: 2
 
 
 examples:
