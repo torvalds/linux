@@ -289,3 +289,7 @@ warning: 1 line adds whitespace errors.
  create mode 100644 drivers/power/supply/qcom_fg.c
 error: repository lacks the necessary blob to perform 3-way merge.
 Falling back to direct application...
+[lmi-mainline-v6.12.0rc6 9d7411c99] Applied patch: 0034-arm64-dts-qcom-pm8150b-Add-a-charger-Signed-off-by-T.patch
+ 2 files changed, 38 insertions(+)
+error: repository lacks the necessary blob to perform 3-way merge.
+Falling back to direct application...
