@@ -828,10 +828,14 @@ EXPORT_SYMBOL(drm_sched_job_init);
  *
  * This arms a scheduler job for execution. Specifically it initializes the
  * &drm_sched_job.s_fence of @job, so that it can be attached to struct dma_resv
- * or other places that need to track the completion of this job.
+ * or other places that need to track the completion of this job. It also
+ * initializes sequence numbers, which are fundamental for fence ordering.
  *
  * Refer to drm_sched_entity_push_job() documentation for locking
  * considerations.
+ *
+ * Once this function was called, you *must* submit @job with
+ * drm_sched_entity_push_job().
  *
  * This can only be called if drm_sched_job_init() succeeded.
  */
@@ -1017,9 +1021,12 @@ EXPORT_SYMBOL(drm_sched_job_has_dependency);
  * Drivers should call this from their error unwind code if @job is aborted
  * before drm_sched_job_arm() is called.
  *
- * After that point of no return @job is committed to be executed by the
- * scheduler, and this function should be called from the
- * &drm_sched_backend_ops.free_job callback.
+ * drm_sched_job_arm() is a point of no return since it initializes the fences
+ * and their sequence number etc. Once that function has been called, you *must*
+ * submit it with drm_sched_entity_push_job() and cannot simply abort it by
+ * calling drm_sched_job_cleanup().
+ *
+ * This function should be called in the &drm_sched_backend_ops.free_job callback.
  */
 void drm_sched_job_cleanup(struct drm_sched_job *job)
 {
@@ -1027,10 +1034,15 @@ void drm_sched_job_cleanup(struct drm_sched_job *job)
 	unsigned long index;
 
 	if (kref_read(&job->s_fence->finished.refcount)) {
-		/* drm_sched_job_arm() has been called */
+		/* The job has been processed by the scheduler, i.e.,
+		 * drm_sched_job_arm() and drm_sched_entity_push_job() have
+		 * been called.
+		 */
 		dma_fence_put(&job->s_fence->finished);
 	} else {
-		/* aborted job before committing to run it */
+		/* The job was aborted before it has been committed to be run;
+		 * notably, drm_sched_job_arm() has not been called.
+		 */
 		drm_sched_fence_free(job->s_fence);
 	}
 
