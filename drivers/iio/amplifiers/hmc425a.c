@@ -398,7 +398,6 @@ static int hmc425a_probe(struct platform_device *pdev)
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
-/* Match table for of_platform binding */
 static const struct of_device_id hmc425a_of_match[] = {
 	{ .compatible = "adi,hmc425a",
 	  .data = &hmc425a_chip_info_tbl[ID_HMC425A]},
