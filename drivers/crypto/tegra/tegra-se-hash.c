@@ -340,7 +340,7 @@ static int tegra_sha_prep_cmd(struct tegra_sha_ctx *ctx, u32 *cpuvaddr,
 	cpuvaddr[i++] = host1x_uclass_incr_syncpt_cond_f(1) |
 			host1x_uclass_incr_syncpt_indx_f(se->syncpt_id);
 
-	dev_dbg(se->dev, "msg len %llu msg left %llu sz %lu cfg %#x",
+	dev_dbg(se->dev, "msg len %llu msg left %llu sz %zd cfg %#x",
 		msg_len, msg_left, rctx->datbuf.size, rctx->config);
 
 	return i;
