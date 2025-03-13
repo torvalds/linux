@@ -506,6 +506,42 @@ static void tlmm_test_thread_falling_in_handler(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, atomic_read(&priv->thread_count), 10);
 }
 
+/*
+ * Validate that edge interrupts occurring while irq is disabled is delivered
+ * once the interrupt is reenabled.
+ */
+static void tlmm_test_rising_while_disabled(struct kunit *test)
+{
+	struct tlmm_test_priv *priv = test->priv;
+	unsigned int after_edge;
+	unsigned int before_edge;
+
+	priv->intr_op = TLMM_TEST_COUNT;
+	atomic_set(&priv->thread_op_remain, 10);
+
+	tlmm_output_low();
+
+	tlmm_test_request_hard_irq(test, IRQF_TRIGGER_RISING);
+	msleep(20);
+
+	disable_irq(tlmm_suite.irq);
+	before_edge = atomic_read(&priv->intr_count);
+
+	tlmm_output_high();
+	msleep(20);
+	after_edge = atomic_read(&priv->intr_count);
+
+	msleep(20);
+	enable_irq(tlmm_suite.irq);
+	msleep(20);
+
+	free_irq(tlmm_suite.irq, priv);
+
+	KUNIT_ASSERT_EQ(test, before_edge, 0);
+	KUNIT_ASSERT_EQ(test, after_edge, 0);
+	KUNIT_ASSERT_EQ(test, atomic_read(&priv->intr_count), 1);
+}
+
 static int tlmm_test_init(struct kunit *test)
 {
 	struct tlmm_test_priv *priv;
@@ -609,6 +645,7 @@ static struct kunit_case tlmm_test_cases[] = {
 	KUNIT_CASE(tlmm_test_thread_low),
 	KUNIT_CASE(tlmm_test_thread_rising_in_handler),
 	KUNIT_CASE(tlmm_test_thread_falling_in_handler),
+	KUNIT_CASE(tlmm_test_rising_while_disabled),
 	{}
 };
 
