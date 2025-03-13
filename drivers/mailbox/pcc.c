@@ -292,7 +292,7 @@ static void check_and_ack(struct pcc_chan_info *pchan, struct mbox_chan *chan)
 	 *
 	 * The PCC master subspace channel clears chan_in_use to free channel.
 	 */
-	if (le32_to_cpup(&pcc_hdr.flags) & PCC_ACK_FLAG_MASK)
+	if (pcc_hdr.flags & PCC_CMD_COMPLETION_NOTIFY)
 		pcc_send_data(chan, NULL);
 	else
 		pcc_chan_reg_read_modify_write(&pchan->cmd_update);
