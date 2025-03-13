@@ -478,8 +478,6 @@ int ipu6_buttress_power(struct device *dev, struct ipu6_buttress_ctrl *ctrl,
 		dev_err(&isp->pdev->dev,
 			"Change power status timeout with 0x%x\n", val);
 
-	ctrl->started = !ret && on;
-
 	mutex_unlock(&isp->buttress.power_mutex);
 
 	return ret;

@@ -26,7 +26,6 @@ struct ipu6_buttress_ctrl {
 	u32 freq_ctl, pwr_sts_shift, pwr_sts_mask, pwr_sts_on, pwr_sts_off;
 	unsigned int ratio;
 	unsigned int qos_floor;
-	bool started;
 };
 
 struct ipu6_buttress_ipc {
