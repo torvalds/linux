@@ -439,9 +439,7 @@ static int sg2044_spifmc_probe(struct platform_device *pdev)
 
 	spifmc->clk = devm_clk_get_enabled(&pdev->dev, NULL);
 	if (IS_ERR(spifmc->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(spifmc->clk),
-				     "%s: Cannot get and enable AHB clock\n",
-				     __func__);
+		return dev_err_probe(dev, PTR_ERR(spifmc->clk), "Cannot get and enable AHB clock\n");
 
 	spifmc->dev = &pdev->dev;
 	spifmc->ctrl = ctrl;
@@ -465,10 +463,8 @@ static int sg2044_spifmc_probe(struct platform_device *pdev)
 	sg2044_spifmc_init_reg(spifmc);
 
 	ret = devm_spi_register_controller(&pdev->dev, ctrl);
-	if (ret) {
-		dev_err(&pdev->dev, "spi_register_controller failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "spi_register_controller failed\n");
 
 	return 0;
 }
