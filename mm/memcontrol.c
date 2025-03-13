@@ -2643,7 +2643,8 @@ static void obj_cgroup_uncharge_pages(struct obj_cgroup *objcg,
 
 	mod_memcg_state(memcg, MEMCG_KMEM, -nr_pages);
 	memcg1_account_kmem(memcg, -nr_pages);
-	refill_stock(memcg, nr_pages);
+	if (!mem_cgroup_is_root(memcg))
+		refill_stock(memcg, nr_pages);
 
 	css_put(&memcg->css);
 }
