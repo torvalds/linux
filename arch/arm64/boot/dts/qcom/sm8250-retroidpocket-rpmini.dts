@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2024, Retroid Pocket.
+ */
+
+/dts-v1/;
+
+#include "sm8250-retroidpocket-common.dtsi"
+
+/ {
+	model = "Retroid Pocket Mini";
+	compatible = "retroidpocket,rpmini", "qcom,sm8250";
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer: framebuffer@9c000000 {
+			compatible = "simple-framebuffer";
+			reg = <0x0 0x9c000000 0x0 0x2300000>;
+			width = <960>;
+			height = <1280>;
+			stride = <(960 * 4)>;
+			format = "a8r8g8b8";
+		};
+	};
+
+	multi-ledr1 {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = "r1";
+		leds = <&ledr_r1>, <&ledr_g1>, <&ledr_b1>;
+	};
+
+	multi-ledl1 {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = "l1";
+		leds = <&ledl_r1>, <&ledl_g1>, <&ledl_b1>;
+	};
+
+	multi-ledr2 {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = "r2";
+		leds = <&ledr_r2>, <&ledr_g2>, <&ledr_b2>;
+	};
+
+	multi-ledl2 {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = "l2";
+		leds = <&ledl_r2>, <&ledl_g2>, <&ledl_b2>;
+	};
+
+	multi-ledr3 {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = "r3";
+		leds = <&ledr_r3>, <&ledr_g3>, <&ledr_b3>;
+	};
+
+	multi-ledl3 {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = "l3";
+		leds = <&ledl_r3>, <&ledl_g3>, <&ledl_b3>;
+	};
+
+	multi-ledr4 {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = "r4";
+		leds = <&ledr_r4>, <&ledr_g4>, <&ledr_b4>;
+	};
+
+	multi-ledl4 {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = "l4";
+		leds = <&ledl_r4>, <&ledl_g4>, <&ledl_b4>;
+	};
+};
+
+&i2c13 {
+	touchscreen@38 {
+		touchscreen-size-x = <960>;
+		touchscreen-size-y = <1280>;
+	};
+};
+
+&mdss_dsi0 {
+	panel@0 {
+		compatible = "ch13726a,rpmini";
+		rotation = <90>;
+	};
+};
