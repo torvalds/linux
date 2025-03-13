@@ -55,6 +55,7 @@ void ___pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 	pagetable_pte_dtor(page_ptdesc(pte));
 	paravirt_release_pte(page_to_pfn(pte));
 	paravirt_tlb_remove_table(tlb, pte);
+	current->pte_free_count++;
 }
 
 #if CONFIG_PGTABLE_LEVELS > 2
@@ -71,6 +72,7 @@ void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 #endif
 	pagetable_pmd_dtor(ptdesc);
 	paravirt_tlb_remove_table(tlb, ptdesc_page(ptdesc));
+	current->pmd_free_count++;
 }
 
 #if CONFIG_PGTABLE_LEVELS > 3
@@ -81,6 +83,7 @@ void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
 	pagetable_pud_dtor(ptdesc);
 	paravirt_release_pud(__pa(pud) >> PAGE_SHIFT);
 	paravirt_tlb_remove_table(tlb, virt_to_page(pud));
+	current->pud_free_count++;
 }
 
 #if CONFIG_PGTABLE_LEVELS > 4
@@ -116,6 +119,7 @@ static inline void pgd_list_del(pgd_t *pgd)
 static void pgd_set_mm(pgd_t *pgd, struct mm_struct *mm)
 {
 	virt_to_ptdesc(pgd)->pt_mm = mm;
+	current->pgd_set_count++;
 }
 
 struct mm_struct *pgd_page_get_mm(struct page *page)
@@ -195,6 +199,7 @@ void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 	/* Note: almost everything apart from _PAGE_PRESENT is
 	   reserved at the pmd (PDPT) level. */
 	set_pud(pudp, __pud(__pa(pmd) | _PAGE_PRESENT));
+	current->pud_set_count++;
 
 	/*
 	 * According to Intel App note "TLBs, Paging-Structure Caches,
@@ -203,6 +208,7 @@ void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 	 * TLB via cr3 if the top-level pgd is changed...
 	 */
 	flush_tlb_mm(mm);
+	current->pud_alloc_count++;
 }
 #else  /* !CONFIG_X86_PAE */
 
@@ -441,6 +447,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	if (pgd == NULL)
 		goto out;
 
+	current->pgd_alloc_count++;
 	mm->pgd = pgd;
 
 	if (sizeof(pmds) != 0 &&
@@ -490,6 +497,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 	pgd_dtor(pgd);
 	paravirt_pgd_free(mm, pgd);
 	_pgd_free(pgd);
+	current->pgd_free_count++;
 }
 
 /*
@@ -505,8 +513,11 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 {
 	int changed = !pte_same(*ptep, entry);
 
-	if (changed && dirty)
+	if (changed && dirty) {
 		set_pte(ptep, entry);
+		current->pte_set_count++;
+	}
+	current->pte_alloc_count++;
 
 	return changed;
 }
@@ -522,6 +533,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma,
 
 	if (changed && dirty) {
 		set_pmd(pmdp, entry);
+		current->pmd_set_count++;
 		/*
 		 * We had a write-protection fault here and changed the pmd
 		 * to to more permissive. No need to flush the TLB for that,
@@ -542,6 +554,7 @@ int pudp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 
 	if (changed && dirty) {
 		set_pud(pudp, entry);
+		current->pud_set_count++;
 		/*
 		 * We had a write-protection fault here and changed the pud
 		 * to to more permissive. No need to flush the TLB for that,
@@ -751,6 +764,7 @@ int pud_set_huge(pud_t *pud, phys_addr_t addr, pgprot_t prot)
 	set_pte((pte_t *)pud, pfn_pte(
 		(u64)addr >> PAGE_SHIFT,
 		__pgprot(protval_4k_2_large(pgprot_val(prot)) | _PAGE_PSE)));
+	current->pte_set_count++;
 
 	return 1;
 }
@@ -780,7 +794,9 @@ int pmd_set_huge(pmd_t *pmd, phys_addr_t addr, pgprot_t prot)
 	set_pte((pte_t *)pmd, pfn_pte(
 		(u64)addr >> PAGE_SHIFT,
 		__pgprot(protval_4k_2_large(pgprot_val(prot)) | _PAGE_PSE)));
+	current->pte_set_count++;
 
+	current->pmd_alloc_count++;
 	return 1;
 }
 
