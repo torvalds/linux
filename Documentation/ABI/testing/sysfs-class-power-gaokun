@@ -1,0 +1,27 @@
+What:		/sys/class/power_supply/gaokun-ec-battery/smart_charge_delay
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	Pengyu Luo <mitltlatltl@gmail.com>
+Description:
+		This entry allows configuration of smart charging delay.
+
+		Smart charging behavior: when the power adapter is connected
+		for delay hours, battery charging will follow the rules of
+		charge_control_start_threshold and charge_control_end_threshold.
+		For more information about charge control, please refer to
+		sysfs-class-power.
+
+		Access: Read, Write
+
+		Valid values: In hours (non-negative)
+
+What:		/sys/class/power_supply/gaokun-ec-battery/battery_adaptive_charge
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	Pengyu Luo <mitltlatltl@gmail.com>
+Description:
+		This entry allows enabling battery adaptive charging.
+
+		Access: Read, Write
+
+		Valid values: 0 (disabled) or 1 (enabled)

@@ -173,6 +173,16 @@ config BATTERY_DS2782
 	  Say Y here to enable support for the DS2782/DS2786 standalone battery
 	  gas-gauge.
 
+config BATTERY_HUAWEI_GAOKUN
+	tristate "Huawei Matebook E Go power supply"
+	depends on EC_HUAWEI_GAOKUN
+	help
+	  This driver enables battery and adapter support on the Huawei Matebook
+	  E Go, which is a sc8280xp-based 2-in-1 tablet.
+
+	  To compile the driver as a module, choose M here: the module will be
+	  called huawei-gaokun-battery.
+
 config BATTERY_LEGO_EV3
 	tristate "LEGO MINDSTORMS EV3 battery"
 	depends on OF && IIO && GPIOLIB && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
