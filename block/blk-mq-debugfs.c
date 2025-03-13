@@ -402,13 +402,12 @@ static int hctx_tags_show(void *data, struct seq_file *m)
 
 	res = mutex_lock_interruptible(&q->elevator_lock);
 	if (res)
-		goto out;
+		return res;
 	if (hctx->tags)
 		blk_mq_debugfs_tags_show(m, hctx->tags);
 	mutex_unlock(&q->elevator_lock);
 
-out:
-	return res;
+	return 0;
 }
 
 static int hctx_tags_bitmap_show(void *data, struct seq_file *m)
@@ -419,13 +418,12 @@ static int hctx_tags_bitmap_show(void *data, struct seq_file *m)
 
 	res = mutex_lock_interruptible(&q->elevator_lock);
 	if (res)
-		goto out;
+		return res;
 	if (hctx->tags)
 		sbitmap_bitmap_show(&hctx->tags->bitmap_tags.sb, m);
 	mutex_unlock(&q->elevator_lock);
 
-out:
-	return res;
+	return 0;
 }
 
 static int hctx_sched_tags_show(void *data, struct seq_file *m)
@@ -436,13 +434,12 @@ static int hctx_sched_tags_show(void *data, struct seq_file *m)
 
 	res = mutex_lock_interruptible(&q->elevator_lock);
 	if (res)
-		goto out;
+		return res;
 	if (hctx->sched_tags)
 		blk_mq_debugfs_tags_show(m, hctx->sched_tags);
 	mutex_unlock(&q->elevator_lock);
 
-out:
-	return res;
+	return 0;
 }
 
 static int hctx_sched_tags_bitmap_show(void *data, struct seq_file *m)
@@ -453,13 +450,12 @@ static int hctx_sched_tags_bitmap_show(void *data, struct seq_file *m)
 
 	res = mutex_lock_interruptible(&q->elevator_lock);
 	if (res)
-		goto out;
+		return res;
 	if (hctx->sched_tags)
 		sbitmap_bitmap_show(&hctx->sched_tags->bitmap_tags.sb, m);
 	mutex_unlock(&q->elevator_lock);
 
-out:
-	return res;
+	return 0;
 }
 
 static int hctx_active_show(void *data, struct seq_file *m)
