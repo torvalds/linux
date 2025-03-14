@@ -29,7 +29,6 @@ struct opts {
 
 	/* options: */
 	bool backtrace;
-	bool backup;
 	bool dryrun;
 	bool link;
 	bool mnop;

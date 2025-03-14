@@ -20,64 +20,6 @@ bool help;
 
 static struct objtool_file file;
 
-static bool objtool_create_backup(const char *_objname)
-{
-	int len = strlen(_objname);
-	char *buf, *base, *name = malloc(len+6);
-	int s, d, l, t;
-
-	if (!name) {
-		perror("failed backup name malloc");
-		return false;
-	}
-
-	strcpy(name, _objname);
-	strcpy(name + len, ".orig");
-
-	d = open(name, O_CREAT|O_WRONLY|O_TRUNC, 0644);
-	if (d < 0) {
-		perror("failed to create backup file");
-		return false;
-	}
-
-	s = open(_objname, O_RDONLY);
-	if (s < 0) {
-		perror("failed to open orig file");
-		return false;
-	}
-
-	buf = malloc(4096);
-	if (!buf) {
-		perror("failed backup data malloc");
-		return false;
-	}
-
-	while ((l = read(s, buf, 4096)) > 0) {
-		base = buf;
-		do {
-			t = write(d, base, l);
-			if (t < 0) {
-				perror("failed backup write");
-				return false;
-			}
-			base += t;
-			l -= t;
-		} while (l);
-	}
-
-	if (l < 0) {
-		perror("failed backup read");
-		return false;
-	}
-
-	free(name);
-	free(buf);
-	close(d);
-	close(s);
-
-	return true;
-}
-
 struct objtool_file *objtool_open_read(const char *filename)
 {
 	if (file.elf) {
@@ -88,11 +30,6 @@ struct objtool_file *objtool_open_read(const char *filename)
 	file.elf = elf_open_read(filename, O_RDWR);
 	if (!file.elf)
 		return NULL;
-
-	if (opts.backup && !objtool_create_backup(objname)) {
-		WARN("can't create backup file");
-		return NULL;
-	}
 
 	hash_init(file.insn_hash);
 	INIT_LIST_HEAD(&file.retpoline_call_list);

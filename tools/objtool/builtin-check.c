@@ -91,7 +91,6 @@ static const struct option check_options[] = {
 
 	OPT_GROUP("Options:"),
 	OPT_BOOLEAN(0,   "backtrace", &opts.backtrace, "unwind on error"),
-	OPT_BOOLEAN(0,   "backup", &opts.backup, "create .orig files before modification"),
 	OPT_BOOLEAN(0,   "dry-run", &opts.dryrun, "don't write modifications"),
 	OPT_BOOLEAN(0,   "link", &opts.link, "object is a linked object"),
 	OPT_BOOLEAN(0,   "module", &opts.module, "object is part of a kernel module"),
@@ -228,10 +227,39 @@ static int copy_file(const char *src, const char *dst)
 	return 0;
 }
 
+static char **save_argv(int argc, const char **argv)
+{
+	char **orig_argv;
+
+	orig_argv = calloc(argc, sizeof(char *));
+	if (!orig_argv) {
+		perror("calloc");
+		return NULL;
+	}
+
+	for (int i = 0; i < argc; i++) {
+		orig_argv[i] = strdup(argv[i]);
+		if (!orig_argv[i]) {
+			perror("strdup");
+			return NULL;
+		}
+	};
+
+	return orig_argv;
+}
+
+#define ORIG_SUFFIX ".orig"
+
 int objtool_run(int argc, const char **argv)
 {
 	struct objtool_file *file;
-	int ret;
+	char *backup = NULL;
+	char **orig_argv;
+	int ret = 0;
+
+	orig_argv = save_argv(argc, argv);
+	if (!orig_argv)
+		return 1;
 
 	cmd_parse_options(argc, argv, check_usage);
 
@@ -271,8 +299,42 @@ int objtool_run(int argc, const char **argv)
 	return 0;
 
 err:
-	if (opts.output)
+	if (opts.dryrun)
+		goto err_msg;
+
+	if (opts.output) {
 		unlink(opts.output);
+		goto err_msg;
+	}
+
+	/*
+	 * Make a backup before kbuild deletes the file so the error
+	 * can be recreated without recompiling or relinking.
+	 */
+	backup = malloc(strlen(objname) + strlen(ORIG_SUFFIX) + 1);
+	if (!backup) {
+		perror("malloc");
+		return 1;
+	}
+
+	strcpy(backup, objname);
+	strcat(backup, ORIG_SUFFIX);
+	if (copy_file(objname, backup))
+		return 1;
+
+err_msg:
+	fprintf(stderr, "%s", orig_argv[0]);
+
+	for (int i = 1; i < argc; i++) {
+		char *arg = orig_argv[i];
+
+		if (backup && !strcmp(arg, objname))
+			fprintf(stderr, " %s -o %s", backup, objname);
+		else
+			fprintf(stderr, " %s", arg);
+	}
+
+	fprintf(stderr, "\n");
 
 	return 1;
 }
