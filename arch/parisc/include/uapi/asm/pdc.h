@@ -361,7 +361,7 @@
 /* size of the pdc_result buffer for firmware.c */
 #define NUM_PDC_RESULT	32
 
-#if !defined(__ASSEMBLY__)
+#if !defined(__ASSEMBLER__)
 
 /* flags for hardware_path */
 #define	PF_AUTOBOOT	0x80
@@ -741,6 +741,6 @@ struct pdc_firm_test_get_rtn_block {   /* PDC_MODEL/PDC_FIRM_TEST_GET */
 #define PIRANHA_CPU_ID		0x13
 #define MAKO_CPU_ID		0x14
 
-#endif /* !defined(__ASSEMBLY__) */
+#endif /* !defined(__ASSEMBLER__) */
 
 #endif /* _UAPI_PARISC_PDC_H */

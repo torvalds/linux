@@ -61,7 +61,7 @@
 #define _NSIG_BPW	(sizeof(unsigned long) * 8)
 #define _NSIG_WORDS	(_NSIG / _NSIG_BPW)
 
-# ifndef __ASSEMBLY__
+# ifndef __ASSEMBLER__
 
 #  include <linux/types.h>
 
@@ -80,5 +80,5 @@ typedef struct sigaltstack {
 	__kernel_size_t ss_size;
 } stack_t;
 
-#endif /* !__ASSEMBLY */
+#endif /* !__ASSEMBLER__ */
 #endif /* _UAPI_ASM_PARISC_SIGNAL_H */
