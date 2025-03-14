@@ -319,14 +319,12 @@ the objtool maintainers.
    a just a bad person, you can tell objtool to ignore it.  See the
    "Adding exceptions" section below.
 
-   If it's not actually in a callable function (e.g. kernel entry code),
-   change ENDPROC to END.
+3. file.o: warning: objtool: foo+0x48c: bar() missing __noreturn in .c/.h or NORETURN() in noreturns.h
 
-3. file.o: warning: objtool: foo+0x48c: bar() is missing a __noreturn annotation
-
-   The call from foo() to bar() doesn't return, but bar() is missing the
-   __noreturn annotation.  NOTE: In addition to annotating the function
-   with __noreturn, please also add it to tools/objtool/noreturns.h.
+   The call from foo() to bar() doesn't return, but bar() is incorrectly
+   annotated.  A noreturn function must be marked __noreturn in both its
+   declaration and its definition, and must have a NORETURN() annotation
+   in tools/objtool/noreturns.h.
 
 4. file.o: warning: objtool: func(): can't find starting instruction
    or
