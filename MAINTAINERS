@@ -11141,7 +11141,7 @@ S:	Maintained
 F:	drivers/i2c/busses/i2c-icy.c
 
 IDEAPAD LAPTOP EXTRAS DRIVER
-M:	Ike Panhc <ike.pan@canonical.com>
+M:	Ike Panhc <ikepanhc@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 W:	http://launchpad.net/ideapad-laptop
