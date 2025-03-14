@@ -622,11 +622,12 @@ static void i915_driver_hw_remove(struct drm_i915_private *dev_priv)
  * Perform any steps necessary to make the driver available via kernel
  * internal or userspace interfaces.
  */
-static void i915_driver_register(struct drm_i915_private *dev_priv)
+static int i915_driver_register(struct drm_i915_private *dev_priv)
 {
 	struct intel_display *display = &dev_priv->display;
 	struct intel_gt *gt;
 	unsigned int i;
+	int ret;
 
 	i915_gem_driver_register(dev_priv);
 	i915_pmu_register(dev_priv);
@@ -634,10 +635,14 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	intel_vgpu_register(dev_priv);
 
 	/* Reveal our presence to userspace */
-	if (drm_dev_register(&dev_priv->drm, 0)) {
+	ret = drm_dev_register(&dev_priv->drm, 0);
+	if (ret) {
 		i915_probe_error(dev_priv,
 				 "Failed to register driver for userspace access!\n");
-		return;
+		drm_dev_unregister(&dev_priv->drm);
+		i915_pmu_unregister(dev_priv);
+		i915_gem_driver_unregister(dev_priv);
+		return ret;
 	}
 
 	i915_debugfs_register(dev_priv);
@@ -660,6 +665,8 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 
 	if (i915_switcheroo_register(dev_priv))
 		drm_err(&dev_priv->drm, "Failed to register vga switcheroo!\n");
+
+	return 0;
 }
 
 /**
@@ -834,7 +841,9 @@ int i915_driver_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto out_cleanup_gem;
 
-	i915_driver_register(i915);
+	ret = i915_driver_register(i915);
+	if (ret)
+		goto out_cleanup_gem;
 
 	enable_rpm_wakeref_asserts(&i915->runtime_pm);
 
