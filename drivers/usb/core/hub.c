@@ -4160,7 +4160,7 @@ static int usb_set_device_initiated_lpm(struct usb_device *udev,
 				"for unconfigured device.\n",
 				__func__, str_enable_disable(enable),
 				usb3_lpm_names[state]);
-		return 0;
+		return -EINVAL;
 	}
 
 	if (enable) {
@@ -4341,13 +4341,6 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 		return;
 	}
 
-	/*
-	 * Enable device initiated U1/U2 with a SetFeature(U1/U2_ENABLE) request
-	 * if system exit latency is short enough and device is configured
-	 */
-	if (usb_device_may_initiate_lpm(udev, state))
-		usb_set_device_initiated_lpm(udev, state, true);
-
 	if (state == USB3_LPM_U1)
 		udev->usb3_lpm_u1_enabled = 1;
 	else if (state == USB3_LPM_U2)
@@ -4508,6 +4501,18 @@ void usb_enable_lpm(struct usb_device *udev)
 
 	if (port_dev->usb3_lpm_u2_permit)
 		usb_enable_link_state(hcd, udev, USB3_LPM_U2);
+
+	/*
+	 * Enable device initiated U1/U2 with a SetFeature(U1/U2_ENABLE) request
+	 * if system exit latency is short enough and device is configured
+	 */
+	if (usb_device_may_initiate_lpm(udev, USB3_LPM_U1)) {
+		if (usb_set_device_initiated_lpm(udev, USB3_LPM_U1, true))
+			return;
+
+		if (usb_device_may_initiate_lpm(udev, USB3_LPM_U2))
+			usb_set_device_initiated_lpm(udev, USB3_LPM_U2, true);
+	}
 }
 EXPORT_SYMBOL_GPL(usb_enable_lpm);
 
