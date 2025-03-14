@@ -1178,6 +1178,7 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 		of_node_put(rcfg.of_node);
 		if (IS_ERR(rdev)) {
 			dev_err(dev, "regulator register failed err=%ld", PTR_ERR(rdev));
+			ret = PTR_ERR(rdev);
 			goto efree;
 		}
 		priv->rdev = rdev;
