@@ -272,6 +272,31 @@ Example::
 In this example, the message was generated while "echo" was the current
 scheduled process.
 
+Kernel release auto population in userdata
+------------------------------------------
+
+Within the netconsole configfs hierarchy, there is a file named `release_enabled`
+located in the `userdata` directory. This file controls the kernel release
+(version) auto-population feature, which appends the kernel release information
+to userdata dictionary in every message sent.
+
+To enable the release auto-population::
+
+  echo 1 > /sys/kernel/config/netconsole/target1/userdata/release_enabled
+
+Example::
+
+  echo "This is a message" > /dev/kmsg
+  12,607,22085407756,-;This is a message
+   release=6.14.0-rc6-01219-g3c027fbd941d
+
+.. note::
+
+   This feature provides the same data as the "release prepend" feature.
+   However, in this case, the release information is appended to the userdata
+   dictionary rather than being included in the message header.
+
+
 CPU number auto population in userdata
 --------------------------------------
 
