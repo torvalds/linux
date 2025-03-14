@@ -298,6 +298,19 @@ static inline int cpumask_to_vpset_skip(struct hv_vpset *vpset,
 	return __cpumask_to_vpset(vpset, cpus, func);
 }
 
+#define _hv_status_fmt(fmt) "%s: Hyper-V status: %#x = %s: " fmt
+#define hv_status_printk(level, status, fmt, ...) \
+do { \
+	u64 __status = (status); \
+	pr_##level(_hv_status_fmt(fmt), __func__, hv_result(__status), \
+		   hv_result_to_string(__status), ##__VA_ARGS__); \
+} while (0)
+#define hv_status_err(status, fmt, ...) \
+	hv_status_printk(err, status, fmt, ##__VA_ARGS__)
+#define hv_status_debug(status, fmt, ...) \
+	hv_status_printk(debug, status, fmt, ##__VA_ARGS__)
+
+const char *hv_result_to_string(u64 hv_status);
 int hv_result_to_errno(u64 status);
 void hyperv_report_panic(struct pt_regs *regs, long err, bool in_die);
 bool hv_is_hyperv_initialized(void);
