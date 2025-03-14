@@ -460,18 +460,26 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 
 	atomic_inc(&vcn_inst->total_submission_cnt);
 
-	if (!cancel_delayed_work_sync(&vcn_inst->idle_work)) {
-		mutex_lock(&adev->vcn.workload_profile_mutex);
-		if (!adev->vcn.workload_profile_active) {
-			r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
-							    true);
-			if (r)
-				dev_warn(adev->dev, "(%d) failed to switch to video power profile mode\n", r);
-			adev->vcn.workload_profile_active = true;
-		}
-		mutex_unlock(&adev->vcn.workload_profile_mutex);
-	}
+	cancel_delayed_work_sync(&vcn_inst->idle_work);
 
+	/* We can safely return early here because we've cancelled the
+	 * the delayed work so there is no one else to set it to false
+	 * and we don't care if someone else sets it to true.
+	 */
+	if (adev->vcn.workload_profile_active)
+		goto pg_lock;
+
+	mutex_lock(&adev->vcn.workload_profile_mutex);
+	if (!adev->vcn.workload_profile_active) {
+		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
+						    true);
+		if (r)
+			dev_warn(adev->dev, "(%d) failed to switch to video power profile mode\n", r);
+		adev->vcn.workload_profile_active = true;
+	}
+	mutex_unlock(&adev->vcn.workload_profile_mutex);
+
+pg_lock:
 	mutex_lock(&vcn_inst->vcn_pg_lock);
 	vcn_inst->set_pg_state(vcn_inst, AMD_PG_STATE_UNGATE);
 
