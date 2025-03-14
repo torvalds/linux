@@ -1236,6 +1236,41 @@ EXPORT_SYMBOL_GPL(dpm_resume_end);
 
 /*------------------------- Suspend routines -------------------------*/
 
+static bool dpm_leaf_device(struct device *dev)
+{
+	struct device *child;
+
+	lockdep_assert_held(&dpm_list_mtx);
+
+	child = device_find_any_child(dev);
+	if (child) {
+		put_device(child);
+
+		return false;
+	}
+
+	return true;
+}
+
+static void dpm_async_suspend_parent(struct device *dev, async_func_t func)
+{
+	guard(mutex)(&dpm_list_mtx);
+
+	/*
+	 * If the device is suspended asynchronously and the parent's callback
+	 * deletes both the device and the parent itself, the parent object may
+	 * be freed while this function is running, so avoid that by checking
+	 * if the device has been deleted already as the parent cannot be
+	 * deleted before it.
+	 */
+	if (!device_pm_initialized(dev))
+		return;
+
+	/* Start processing the device's parent if it is "async". */
+	if (dev->parent)
+		dpm_async_with_cleanup(dev->parent, func);
+}
+
 /**
  * resume_event - Return a "resume" message for given "suspend" sleep state.
  * @sleep_state: PM message representing a sleep state.
@@ -1661,6 +1696,8 @@ static void dpm_clear_superiors_direct_complete(struct device *dev)
 	device_links_read_unlock(idx);
 }
 
+static void async_suspend(void *data, async_cookie_t cookie);
+
 /**
  * device_suspend - Execute "suspend" callbacks for given device.
  * @dev: Device to handle.
@@ -1790,7 +1827,13 @@ static int device_suspend(struct device *dev, pm_message_t state, bool async)
 
 	complete_all(&dev->power.completion);
 	TRACE_SUSPEND(error);
-	return error;
+
+	if (error || async_error)
+		return error;
+
+	dpm_async_suspend_parent(dev, async_suspend);
+
+	return 0;
 }
 
 static void async_suspend(void *data, async_cookie_t cookie)
@@ -1808,6 +1851,7 @@ static void async_suspend(void *data, async_cookie_t cookie)
 int dpm_suspend(pm_message_t state)
 {
 	ktime_t starttime = ktime_get();
+	struct device *dev;
 	int error = 0;
 
 	trace_suspend_resume(TPS("dpm_suspend"), state.event, true);
@@ -1821,12 +1865,21 @@ int dpm_suspend(pm_message_t state)
 
 	mutex_lock(&dpm_list_mtx);
 
+	/*
+	 * Start processing "async" leaf devices upfront so they don't need to
+	 * wait for the "sync" devices they don't depend on.
+	 */
+	list_for_each_entry_reverse(dev, &dpm_prepared_list, power.entry) {
+		dpm_clear_async_state(dev);
+		if (dpm_leaf_device(dev))
+			dpm_async_with_cleanup(dev, async_suspend);
+	}
+
 	while (!list_empty(&dpm_prepared_list)) {
-		struct device *dev = to_device(dpm_prepared_list.prev);
+		dev = to_device(dpm_prepared_list.prev);
 
 		list_move(&dev->power.entry, &dpm_suspended_list);
 
-		dpm_clear_async_state(dev);
 		if (dpm_async_fn(dev, async_suspend))
 			continue;
 
@@ -1840,8 +1893,14 @@ int dpm_suspend(pm_message_t state)
 
 		mutex_lock(&dpm_list_mtx);
 
-		if (error || async_error)
+		if (error || async_error) {
+			/*
+			 * Move all devices to the target list to resume them
+			 * properly.
+			 */
+			list_splice(&dpm_prepared_list, &dpm_suspended_list);
 			break;
+		}
 	}
 
 	mutex_unlock(&dpm_list_mtx);
