@@ -1884,7 +1884,6 @@ static void fdls_fdmi_register_hba(struct fnic_iport_s *iport)
 	if (fnic->subsys_desc_len >= FNIC_FDMI_MODEL_LEN)
 		fnic->subsys_desc_len = FNIC_FDMI_MODEL_LEN - 1;
 	strscpy_pad(data, fnic->subsys_desc, FNIC_FDMI_MODEL_LEN);
-	data[FNIC_FDMI_MODEL_LEN - 1] = 0;
 	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_MODEL, FNIC_FDMI_MODEL_LEN,
 		data, &attr_off_bytes);
 
@@ -2047,7 +2046,6 @@ static void fdls_fdmi_register_pa(struct fnic_iport_s *iport)
 	snprintf(tmp_data, FNIC_FDMI_OS_NAME_LEN - 1, "host%d",
 		 fnic->host->host_no);
 	strscpy_pad(data, tmp_data, FNIC_FDMI_OS_NAME_LEN);
-	data[FNIC_FDMI_OS_NAME_LEN - 1] = 0;
 	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_OS_NAME,
 		FNIC_FDMI_OS_NAME_LEN, data, &attr_off_bytes);
 
@@ -2057,7 +2055,6 @@ static void fdls_fdmi_register_pa(struct fnic_iport_s *iport)
 	sprintf(fc_host_system_hostname(fnic->host), "%s", utsname()->nodename);
 	strscpy_pad(data, fc_host_system_hostname(fnic->host),
 					FNIC_FDMI_HN_LEN);
-	data[FNIC_FDMI_HN_LEN - 1] = 0;
 	fnic_fdmi_attr_set(fdmi_attr, FNIC_FDMI_TYPE_HOST_NAME,
 		FNIC_FDMI_HN_LEN, data, &attr_off_bytes);
 
