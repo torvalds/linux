@@ -738,6 +738,65 @@ struct drm_bridge_funcs {
 				      bool enable, int direction);
 
 	/**
+	 * @dp_audio_startup:
+	 *
+	 * Called when ASoC starts a DisplayPort audio stream setup.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_DP_AUDIO flag in their &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
+	int (*dp_audio_startup)(struct drm_connector *connector,
+				struct drm_bridge *bridge);
+
+	/**
+	 * @dp_audio_prepare:
+	 * Configures DisplayPort audio stream. Can be called multiple
+	 * times for each setup.
+	 *
+	 * This callback is optional but it must be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_DP_AUDIO flag in their &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
+	int (*dp_audio_prepare)(struct drm_connector *connector,
+				struct drm_bridge *bridge,
+				struct hdmi_codec_daifmt *fmt,
+				struct hdmi_codec_params *hparms);
+
+	/**
+	 * @dp_audio_shutdown:
+	 *
+	 * Shut down the DisplayPort audio stream.
+	 *
+	 * This callback is optional but it must be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_DP_AUDIO flag in their &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
+	void (*dp_audio_shutdown)(struct drm_connector *connector,
+				  struct drm_bridge *bridge);
+
+	/**
+	 * @dp_audio_mute_stream:
+	 *
+	 * Mute/unmute DisplayPort audio stream.
+	 *
+	 * This callback is optional, it can be implemented by bridges that
+	 * set the @DRM_BRIDGE_OP_DP_AUDIO flag in their &drm_bridge->ops.
+	 *
+	 * Returns:
+	 * 0 on success, a negative error code otherwise
+	 */
+	int (*dp_audio_mute_stream)(struct drm_connector *connector,
+				    struct drm_bridge *bridge,
+				    bool enable, int direction);
+
+	/**
 	 * @debugfs_init:
 	 *
 	 * Allows bridges to create bridge-specific debugfs files.
@@ -830,9 +889,24 @@ enum drm_bridge_ops {
 	 *
 	 * Note: currently there can be at most one bridge in a chain that sets
 	 * this bit. This is to simplify corresponding glue code in connector
-	 * drivers.
+	 * drivers. Also it is not possible to have a bridge in the chain that
+	 * sets @DRM_BRIDGE_OP_DP_AUDIO if there is a bridge that sets this
+	 * flag.
 	 */
 	DRM_BRIDGE_OP_HDMI_AUDIO = BIT(5),
+	/**
+	 * @DRM_BRIDGE_OP_DP_AUDIO: The bridge provides DisplayPort audio operations.
+	 * Bridges that set this flag must implement the
+	 * &drm_bridge_funcs->dp_audio_prepare and
+	 * &drm_bridge_funcs->dp_audio_shutdown callbacks.
+	 *
+	 * Note: currently there can be at most one bridge in a chain that sets
+	 * this bit. This is to simplify corresponding glue code in connector
+	 * drivers. Also it is not possible to have a bridge in the chain that
+	 * sets @DRM_BRIDGE_OP_HDMI_AUDIO if there is a bridge that sets this
+	 * flag.
+	 */
+	DRM_BRIDGE_OP_DP_AUDIO = BIT(6),
 };
 
 /**
@@ -946,25 +1020,27 @@ struct drm_bridge {
 
 	/**
 	 * @hdmi_audio_dev: device to be used as a parent for the HDMI Codec if
-	 * @DRM_BRIDGE_OP_HDMI_AUDIO is set.
+	 * either of @DRM_BRIDGE_OP_HDMI_AUDIO or @DRM_BRIDGE_OP_DP_AUDIO is set.
 	 */
 	struct device *hdmi_audio_dev;
 
 	/**
 	 * @hdmi_audio_max_i2s_playback_channels: maximum number of playback
-	 * I2S channels for the bridge that sets @DRM_BRIDGE_OP_HDMI_AUDIO.
+	 * I2S channels for the @DRM_BRIDGE_OP_HDMI_AUDIO or
+	 * @DRM_BRIDGE_OP_DP_AUDIO.
 	 */
 	int hdmi_audio_max_i2s_playback_channels;
 
 	/**
 	 * @hdmi_audio_spdif_playback: set if this bridge has S/PDIF playback
-	 * port for @DRM_BRIDGE_OP_HDMI_AUDIO
+	 * port for @DRM_BRIDGE_OP_HDMI_AUDIO or @DRM_BRIDGE_OP_DP_AUDIO.
 	 */
 	unsigned int hdmi_audio_spdif_playback : 1;
 
 	/**
-	 * @hdmi_audio_dai_port: sound DAI port for @DRM_BRIDGE_OP_HDMI_AUDIO,
-	 * -1 if it is not used.
+	 * @hdmi_audio_dai_port: sound DAI port for either of
+	 * @DRM_BRIDGE_OP_HDMI_AUDIO and @DRM_BRIDGE_OP_DP_AUDIO, -1 if it is
+	 * not used.
 	 */
 	int hdmi_audio_dai_port;
 };
