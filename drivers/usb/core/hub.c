@@ -4292,7 +4292,7 @@ static bool usb_device_may_initiate_lpm(struct usb_device *udev,
  * driver know about it.  If that call fails, it should be harmless, and just
  * take up more slightly more bus bandwidth for unnecessary U1/U2 exit latency.
  */
-static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
+static int usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 		enum usb3_link_state state)
 {
 	int timeout;
@@ -4301,7 +4301,7 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 
 	/* Skip if the device BOS descriptor couldn't be read */
 	if (!udev->bos)
-		return;
+		return -EINVAL;
 
 	u1_mel = udev->bos->ss_cap->bU1devExitLat;
 	u2_mel = udev->bos->ss_cap->bU2DevExitLat;
@@ -4312,7 +4312,7 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 	 */
 	if ((state == USB3_LPM_U1 && u1_mel == 0) ||
 			(state == USB3_LPM_U2 && u2_mel == 0))
-		return;
+		return -EINVAL;
 
 	/* We allow the host controller to set the U1/U2 timeout internally
 	 * first, so that it can change its schedule to account for the
@@ -4323,13 +4323,13 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 
 	/* xHCI host controller doesn't want to enable this LPM state. */
 	if (timeout == 0)
-		return;
+		return -EINVAL;
 
 	if (timeout < 0) {
 		dev_warn(&udev->dev, "Could not enable %s link state, "
 				"xHCI error %i.\n", usb3_lpm_names[state],
 				timeout);
-		return;
+		return timeout;
 	}
 
 	if (usb_set_lpm_timeout(udev, state, timeout)) {
@@ -4338,13 +4338,15 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 		 * host know that this link state won't be enabled.
 		 */
 		hcd->driver->disable_usb3_lpm_timeout(hcd, udev, state);
-		return;
+		return -EBUSY;
 	}
 
 	if (state == USB3_LPM_U1)
 		udev->usb3_lpm_u1_enabled = 1;
 	else if (state == USB3_LPM_U2)
 		udev->usb3_lpm_u2_enabled = 1;
+
+	return 0;
 }
 /*
  * Disable the hub-initiated U1/U2 idle timeouts, and disable device-initiated
@@ -4497,10 +4499,12 @@ void usb_enable_lpm(struct usb_device *udev)
 	port_dev = hub->ports[udev->portnum - 1];
 
 	if (port_dev->usb3_lpm_u1_permit)
-		usb_enable_link_state(hcd, udev, USB3_LPM_U1);
+		if (usb_enable_link_state(hcd, udev, USB3_LPM_U1))
+			return;
 
 	if (port_dev->usb3_lpm_u2_permit)
-		usb_enable_link_state(hcd, udev, USB3_LPM_U2);
+		if (usb_enable_link_state(hcd, udev, USB3_LPM_U2))
+			return;
 
 	/*
 	 * Enable device initiated U1/U2 with a SetFeature(U1/U2_ENABLE) request
