@@ -85,7 +85,7 @@ static const struct of_device_id imx_scu_reset_ids[] = {
 	{ .compatible = "fsl,imx-scu-reset", },
 	{}
 };
-MODULE_DEVICE_TABLE(platform, imx_scu_reset_ids);
+MODULE_DEVICE_TABLE(of, imx_scu_reset_ids);
 
 static struct platform_driver imx_scu_reset_driver = {
 	.probe          = imx_scu_reset_probe,
