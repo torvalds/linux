@@ -1060,6 +1060,9 @@ static int dpu_plane_virtual_atomic_check(struct drm_plane *plane,
 	struct drm_crtc_state *crtc_state;
 	int ret;
 
+	if (IS_ERR(plane_state))
+		return PTR_ERR(plane_state);
+
 	if (plane_state->crtc)
 		crtc_state = drm_atomic_get_new_crtc_state(state,
 							   plane_state->crtc);
