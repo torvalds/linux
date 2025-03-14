@@ -59,7 +59,7 @@ static bool bch2_target_congested(struct bch_fs *c, u16 target)
 	}
 	rcu_read_unlock();
 
-	return bch2_rand_range(nr * CONGESTED_MAX) < total;
+	return get_random_u32_below(nr * CONGESTED_MAX) < total;
 }
 
 #else
@@ -951,12 +951,6 @@ retry_pick:
 		goto retry_pick;
 	}
 
-	/*
-	 * Unlock the iterator while the btree node's lock is still in
-	 * cache, before doing the IO:
-	 */
-	bch2_trans_unlock(trans);
-
 	if (flags & BCH_READ_NODECODE) {
 		/*
 		 * can happen if we retry, and the extent we were going to read
@@ -1113,6 +1107,15 @@ get_bio:
 		trace_and_count(c, read_split, &orig->bio);
 	}
 
+	/*
+	 * Unlock the iterator while the btree node's lock is still in
+	 * cache, before doing the IO:
+	 */
+	if (!(flags & BCH_READ_IN_RETRY))
+		bch2_trans_unlock(trans);
+	else
+		bch2_trans_unlock_long(trans);
+
 	if (!rbio->pick.idx) {
 		if (unlikely(!rbio->have_ioref)) {
 			struct printbuf buf = PRINTBUF;
@@ -1160,6 +1163,8 @@ out:
 	if (likely(!(flags & BCH_READ_IN_RETRY))) {
 		return 0;
 	} else {
+		bch2_trans_unlock(trans);
+
 		int ret;
 
 		rbio->context = RBIO_CONTEXT_UNBOUND;

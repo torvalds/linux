@@ -738,12 +738,11 @@ static const struct net_device_ops mana_devops = {
 static void mana_cleanup_port_context(struct mana_port_context *apc)
 {
 	/*
-	 * at this point all dir/files under the vport directory
-	 * are already cleaned up.
-	 * We are sure the apc->mana_port_debugfs remove will not
-	 * cause any freed memory access issues
+	 * make sure subsequent cleanup attempts don't end up removing already
+	 * cleaned dentry pointer
 	 */
 	debugfs_remove(apc->mana_port_debugfs);
+	apc->mana_port_debugfs = NULL;
 	kfree(apc->rxqs);
 	apc->rxqs = NULL;
 }
@@ -1254,6 +1253,7 @@ static void mana_destroy_eq(struct mana_context *ac)
 		return;
 
 	debugfs_remove_recursive(ac->mana_eqs_debugfs);
+	ac->mana_eqs_debugfs = NULL;
 
 	for (i = 0; i < gc->max_num_queues; i++) {
 		eq = ac->eqs[i].eq;
@@ -1914,6 +1914,7 @@ static void mana_destroy_txq(struct mana_port_context *apc)
 
 	for (i = 0; i < apc->num_queues; i++) {
 		debugfs_remove_recursive(apc->tx_qp[i].mana_tx_debugfs);
+		apc->tx_qp[i].mana_tx_debugfs = NULL;
 
 		napi = &apc->tx_qp[i].tx_cq.napi;
 		if (apc->tx_qp[i].txq.napi_initialized) {
@@ -2099,6 +2100,7 @@ static void mana_destroy_rxq(struct mana_port_context *apc,
 		return;
 
 	debugfs_remove_recursive(rxq->mana_rx_debugfs);
+	rxq->mana_rx_debugfs = NULL;
 
 	napi = &rxq->rx_cq.napi;
 
