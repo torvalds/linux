@@ -171,6 +171,7 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 		regulator-always-on;
+		bootph-all;
 	};
 };
 
@@ -275,6 +276,7 @@
 			AM64X_IOPAD(0x0294, PIN_INPUT_PULLUP, 0)	/* (J19) MMC1_CMD */
 			AM64X_IOPAD(0x0298, PIN_INPUT_PULLUP, 0)	/* (D19) MMC1_SDCD */
 		>;
+		bootph-all;
 	};
 
 	main_spi0_pins_default: main-spi0-default-pins {
@@ -291,6 +293,7 @@
 			AM64X_IOPAD(0x0230, PIN_INPUT, 0)	/* (D15) UART0_RXD */
 			AM64X_IOPAD(0x0234, PIN_OUTPUT, 0)	/* (C16) UART0_TXD */
 		>;
+		bootph-all;
 	};
 
 	main_uart1_pins_default: main-uart1-default-pins {
@@ -349,10 +352,10 @@
 };
 
 &main_i2c1 {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_i2c1_pins_default>;
 	clock-frequency = <400000>;
+	status = "okay";
 
 	eeprom@51 {
 		compatible = "atmel,24c02";
@@ -382,25 +385,25 @@
 };
 
 &main_mcan0 {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan0_pins_default>;
 	phys = <&can_tc1>;
+	status = "okay";
 };
 
 &main_mcan1 {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mcan1_pins_default>;
 	phys = <&can_tc2>;
+	status = "okay";
 };
 
 &main_spi0 {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_spi0_pins_default>;
 	cs-gpios = <0>, <&main_gpio1 43 GPIO_ACTIVE_LOW>;
 	ti,pindir-d0-out-d1-in;
+	status = "okay";
 
 	tpm@1 {
 		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
@@ -410,25 +413,27 @@
 };
 
 &main_uart0 {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
+	bootph-all;
+	status = "okay";
 };
 
 &main_uart1 {
-	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart1_pins_default>;
 	uart-has-rtscts;
+	status = "okay";
 };
 
 &sdhci1 {
-	status = "okay";
 	vmmc-supply = <&vcc_3v3_mmc>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;
 	disable-wp;
 	no-1-8-v;
+	bootph-all;
+	status = "okay";
 };
 
 &serdes0 {
