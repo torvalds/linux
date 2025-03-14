@@ -3394,6 +3394,9 @@ static void __split_folio_to_order(struct folio *folio, int old_order,
 			folio_set_young(new_folio);
 		if (folio_test_idle(folio))
 			folio_set_idle(new_folio);
+#ifdef CONFIG_MEMCG
+		new_folio->memcg_data = folio->memcg_data;
+#endif
 
 		folio_xchg_last_cpupid(new_folio, folio_last_cpupid(folio));
 	}
@@ -3525,18 +3528,7 @@ static int __split_unmapped_folio(struct folio *folio, int new_order,
 			}
 		}
 
-		/*
-		 * Reset any memcg data overlay in the tail pages.
-		 * folio_nr_pages() is unreliable until prep_compound_page()
-		 * was called again.
-		 */
-#ifdef NR_PAGES_IN_LARGE_FOLIO
-		folio->_nr_pages = 0;
-#endif
-
-
-		/* complete memcg works before add pages to LRU */
-		split_page_memcg(&folio->page, old_order, split_order);
+		folio_split_memcg_refs(folio, old_order, split_order);
 		split_page_owner(&folio->page, old_order, split_order);
 		pgalloc_tag_split(folio, old_order, split_order);
 

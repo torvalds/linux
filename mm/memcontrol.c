@@ -3081,10 +3081,19 @@ void split_page_memcg(struct page *head, int old_order, int new_order)
 	for (i = new_nr; i < old_nr; i += new_nr)
 		folio_page(folio, i)->memcg_data = folio->memcg_data;
 
-	if (folio_memcg_kmem(folio))
-		obj_cgroup_get_many(__folio_objcg(folio), old_nr / new_nr - 1);
-	else
-		css_get_many(&folio_memcg(folio)->css, old_nr / new_nr - 1);
+	obj_cgroup_get_many(__folio_objcg(folio), old_nr / new_nr - 1);
+}
+
+void folio_split_memcg_refs(struct folio *folio, unsigned old_order,
+		unsigned new_order)
+{
+	unsigned new_refs;
+
+	if (mem_cgroup_disabled() || !folio_memcg_charged(folio))
+		return;
+
+	new_refs = (1 << (old_order - new_order)) - 1;
+	css_get_many(&__folio_memcg(folio)->css, new_refs);
 }
 
 unsigned long mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
