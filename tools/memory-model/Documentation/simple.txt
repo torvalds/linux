@@ -134,7 +134,7 @@ Packaged primitives: Sequence locking
 Lockless programming is considered by many to be more difficult than
 lock-based programming, but there are a few lockless design patterns that
 have been built out into an API.  One of these APIs is sequence locking.
-Although this APIs can be used in extremely complex ways, there are simple
+Although this API can be used in extremely complex ways, there are simple
 and effective ways of using it that avoid the need to pay attention to
 memory ordering.
 
@@ -205,7 +205,7 @@ If you want to keep things simple, use the initialization and read-out
 operations from the previous section only when there are no racing
 accesses.  Otherwise, use only fully ordered operations when accessing
 or modifying the variable.  This approach guarantees that code prior
-to a given access to that variable will be seen by all CPUs has having
+to a given access to that variable will be seen by all CPUs as having
 happened before any code following any later access to that same variable.
 
 Please note that per-CPU functions are not atomic operations and
