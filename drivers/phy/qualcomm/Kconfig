@@ -157,6 +157,7 @@ config PHY_QCOM_M31_USB
 config PHY_QCOM_UNIPHY_PCIE_28LP
 	bool "PCIE UNIPHY 28LP PHY driver"
 	depends on ARCH_QCOM
+	depends on COMMON_CLK
 	depends on HAS_IOMEM
 	depends on OF
 	select GENERIC_PHY
