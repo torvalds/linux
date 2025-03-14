@@ -143,6 +143,10 @@ debian-arm64-release:
   rules:
     - when: never
 
+debian-arm64-ubsan:
+  rules:
+    - when: never
+
 debian-build-testing:
   rules:
     - when: never
@@ -180,6 +184,10 @@ debian-testing-asan:
     - when: never
 
 debian-testing-msan:
+  rules:
+    - when: never
+
+debian-testing-ubsan:
   rules:
     - when: never
 

@@ -112,7 +112,7 @@
     - kvm
   script:
     - ln -sf $CI_PROJECT_DIR/install /install
-    - mv install/bzImage /lava-files/bzImage
+    - mv install/bzImage /kernel/bzImage
     - mkdir -p /lib/modules
     - install/crosvm-runner.sh install/igt_runner.sh
   needs:

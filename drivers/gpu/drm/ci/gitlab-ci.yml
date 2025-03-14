@@ -1,6 +1,6 @@
 variables:
   DRM_CI_PROJECT_PATH: &drm-ci-project-path mesa/mesa
-  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha 7d3062470f3ccc6cb40540e772e902c7e2248024
+  DRM_CI_COMMIT_SHA: &drm-ci-commit-sha 82ab58f6c6f94fa80ca7e1615146f08356e3ba69
 
   UPSTREAM_REPO: https://gitlab.freedesktop.org/drm/kernel.git
   TARGET_BRANCH: drm-next
@@ -182,6 +182,36 @@ stages:
     # Build everything in scheduled pipelines
     - if: *is-scheduled-pipeline
       when: on_success
+    # Allow building everything in fork pipelines, but build nothing unless
+    # manually triggered
+    - when: manual
+
+
+# Repeat of the above but with `when: on_success` replaced with
+# `when: delayed` + `start_in:`, for build-only jobs.
+# Note: make sure the branches in this list are the same as in
+# `.container+build-rules` above.
+.build-only-delayed-rules:
+  rules:
+    - !reference [.common-rules, rules]
+    # Run when re-enabling a disabled farm, but not when disabling it
+    - !reference [.disable-farm-mr-rules, rules]
+    # Never run immediately after merging, as we just ran everything
+    - !reference [.never-post-merge-rules, rules]
+    # Build everything in merge pipelines
+    - if: *is-merge-attempt
+      when: delayed
+      start_in: &build-delay 5 minutes
+    # Same as above, but for pre-merge pipelines
+    - if: *is-pre-merge
+      when: manual
+    # Build everything after someone bypassed the CI
+    - if: *is-direct-push
+      when: manual
+    # Build everything in scheduled pipelines
+    - if: *is-scheduled-pipeline
+      when: delayed
+      start_in: *build-delay
     # Allow building everything in fork pipelines, but build nothing unless
     # manually triggered
     - when: manual
