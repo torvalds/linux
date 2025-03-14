@@ -96,6 +96,7 @@ enum imx_dsp_rp_mbox_messages {
 /**
  * struct imx_dsp_rproc - DSP remote processor state
  * @regmap: regmap handler
+ * @run_stall: reset control handle used for Run/Stall operation
  * @rproc: rproc handler
  * @dsp_dcfg: device configuration pointer
  * @clks: clocks needed by this device
