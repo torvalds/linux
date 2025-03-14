@@ -172,6 +172,8 @@ static int can_create(struct net *net, struct socket *sock, int protocol,
 		sock_orphan(sk);
 		sock_put(sk);
 		sock->sk = NULL;
+	} else {
+		sock_prot_inuse_add(net, sk->sk_prot, 1);
 	}
 
  errout:
