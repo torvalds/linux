@@ -151,11 +151,6 @@ static bool opts_valid(void)
 		return true;
 	}
 
-	if (opts.unret && !opts.rethunk) {
-		ERROR("--unret requires --rethunk");
-		return false;
-	}
-
 	if (opts.dump_orc)
 		return true;
 
