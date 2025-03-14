@@ -60,7 +60,8 @@ int live_rc6_manual(void *arg)
 
 	/* Force RC6 off for starters */
 	__intel_rc6_disable(rc6);
-	msleep(1); /* wakeup is not immediate, takes about 100us on icl */
+	/* wakeup is not immediate, takes about 100us on icl */
+	usleep_range(1000, 2000);
 
 	res[0] = rc6_residency(rc6);
 
