@@ -1418,10 +1418,6 @@ static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 	struct icp_qat_simg_ae_mode *simg_ae_mode;
 	struct icp_firml_dram_desc img_desc;
 
-	if (size > (ICP_QAT_AE_IMG_OFFSET(handle) + ICP_QAT_CSS_RSA4K_MAX_IMAGE_LEN)) {
-		pr_err("QAT: error, input image size overflow %d\n", size);
-		return -EINVAL;
-	}
 	length = (css_hdr->fw_type == CSS_AE_FIRMWARE) ?
 		 ICP_QAT_CSS_AE_SIMG_LEN(handle) + simg_offset :
 		 size + ICP_QAT_CSS_FWSK_PAD_LEN(handle) + simg_offset;
