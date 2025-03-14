@@ -24,30 +24,25 @@
 	};
 
 	leds {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "gpio-leds";
 		status = "okay";
 
-		led@1 {
+		led-1 {
 			label = "sps1-1:yellow:user";
 			gpios = <&gpio0 6 0>;
 			linux,default-trigger = "heartbeat";
-			reg = <0>;
 		};
 
-		led@2 {
+		led-2 {
 			label = "sps1-2:red:user";
 			gpios = <&gpio0 3 0>;
 			linux,default-trigger = "heartbeat";
-			reg = <1>;
 		};
 
-		led@3 {
+		led-3 {
 			label = "sps1-3:red:user";
 			gpios = <&gpio0 0 0>;
-			default-trigger = "heartbeat";
-			reg = <2>;
+			linux,default-trigger = "heartbeat";
 		};
 
 	};

@@ -10,7 +10,6 @@
 
 / {
 	model = "Toradex Colibri iMX6DL/S Module";
-	compatible = "toradex,colibri_imx6dl", "fsl,imx6dl";
 
 	aliases {
 		mmc0 = &usdhc3; /* eMMC */
@@ -588,7 +587,6 @@
 			st,settling = <3>;
 			/* 5 ms touch detect interrupt delay */
 			st,touch-det-delay = <5>;
-			status = "disabled";
 		};
 
 		stmpe_adc: stmpe_adc {

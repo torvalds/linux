@@ -119,7 +119,7 @@
 	status = "okay";
 
 	spidev0@0 {
-		compatible = "lwn,bk4";
+		compatible = "lwn,bk4-spi";
 		spi-max-frequency = <30000000>;
 		reg = <0>;
 		fsl,spi-cs-sck-delay = <200>;
@@ -136,7 +136,7 @@
 	#address-cells = <0>;
 
 	slave {
-		compatible = "lwn,bk4";
+		compatible = "lwn,bk4-spi";
 		spi-max-frequency = <30000000>;
 	};
 };
