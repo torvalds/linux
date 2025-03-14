@@ -43,8 +43,10 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 
 #define WARN(format, ...)				\
 	fprintf(stderr,					\
-		"%s: warning: objtool: " format "\n",	\
-		objname, ##__VA_ARGS__)
+		"%s: %s: objtool: " format "\n",	\
+		objname,				\
+		opts.werror ? "error" : "warning",	\
+		##__VA_ARGS__)
 
 #define WARN_FUNC(format, sec, offset, ...)		\
 ({							\
