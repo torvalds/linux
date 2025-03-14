@@ -418,6 +418,10 @@ int pm_config_dequeue_wait_counts(struct packet_manager *pm,
 	    !pm->pmf->config_dequeue_wait_counts_size)
 		return 0;
 
+	if (cmd == KFD_DEQUEUE_WAIT_INIT && (KFD_GC_VERSION(pm->dqm->dev) < IP_VERSION(9, 4, 1) ||
+	   KFD_GC_VERSION(pm->dqm->dev) >= IP_VERSION(10, 0, 0)))
+		return 0;
+
 	size = pm->pmf->config_dequeue_wait_counts_size;
 
 	mutex_lock(&pm->lock);
@@ -436,16 +440,16 @@ int pm_config_dequeue_wait_counts(struct packet_manager *pm,
 
 		retval = pm->pmf->config_dequeue_wait_counts(pm, buffer,
 							     cmd, value);
-		if (!retval)
+		if (!retval) {
 			retval = kq_submit_packet(pm->priv_queue);
-		else
+
+			/* If default value is modified, cache that in dqm->wait_times */
+			if (!retval && cmd == KFD_DEQUEUE_WAIT_INIT)
+				update_dqm_wait_times(pm->dqm);
+		} else {
 			kq_rollback_packet(pm->priv_queue);
+		}
 	}
-
-	/* If default value is modified, cache that value in dqm->wait_times */
-	if (!retval && cmd == KFD_DEQUEUE_WAIT_INIT)
-		update_dqm_wait_times(pm->dqm);
-
 out:
 	mutex_unlock(&pm->lock);
 	return retval;
