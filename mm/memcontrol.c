@@ -2677,6 +2677,23 @@ out:
 	return ret;
 }
 
+static struct obj_cgroup *page_objcg(const struct page *page)
+{
+	unsigned long memcg_data = page->memcg_data;
+
+	if (mem_cgroup_disabled() || !memcg_data)
+		return NULL;
+
+	VM_BUG_ON_PAGE((memcg_data & OBJEXTS_FLAGS_MASK) != MEMCG_DATA_KMEM,
+			page);
+	return (struct obj_cgroup *)(memcg_data - MEMCG_DATA_KMEM);
+}
+
+static void page_set_objcg(struct page *page, const struct obj_cgroup *objcg)
+{
+	page->memcg_data = (unsigned long)objcg | MEMCG_DATA_KMEM;
+}
+
 /**
  * __memcg_kmem_charge_page: charge a kmem page to the current memory cgroup
  * @page: page to charge
@@ -2695,8 +2712,7 @@ int __memcg_kmem_charge_page(struct page *page, gfp_t gfp, int order)
 		ret = obj_cgroup_charge_pages(objcg, gfp, 1 << order);
 		if (!ret) {
 			obj_cgroup_get(objcg);
-			page->memcg_data = (unsigned long)objcg |
-				MEMCG_DATA_KMEM;
+			page_set_objcg(page, objcg);
 			return 0;
 		}
 	}
@@ -3069,18 +3085,18 @@ void __memcg_slab_free_hook(struct kmem_cache *s, struct slab *slab,
  * The objcg is only set on the first page, so transfer it to all the
  * other pages.
  */
-void split_page_memcg(struct page *first, unsigned order)
+void split_page_memcg(struct page *page, unsigned order)
 {
-	struct folio *folio = page_folio(first);
+	struct obj_cgroup *objcg = page_objcg(page);
 	unsigned int i, nr = 1 << order;
 
-	if (mem_cgroup_disabled() || !folio_memcg_charged(folio))
+	if (!objcg)
 		return;
 
 	for (i = 1; i < nr; i++)
-		folio_page(folio, i)->memcg_data = folio->memcg_data;
+		page_set_objcg(&page[i], objcg);
 
-	obj_cgroup_get_many(__folio_objcg(folio), nr - 1);
+	obj_cgroup_get_many(objcg, nr - 1);
 }
 
 void folio_split_memcg_refs(struct folio *folio, unsigned old_order,
