@@ -580,10 +580,9 @@ EXPORT_SYMBOL_NS_GPL(is_cxl_memdev, "CXL");
 void set_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 				unsigned long *cmds)
 {
-	down_write(&cxl_memdev_rwsem);
+	guard(rwsem_write)(&cxl_memdev_rwsem);
 	bitmap_or(mds->exclusive_cmds, mds->exclusive_cmds, cmds,
 		  CXL_MEM_COMMAND_ID_MAX);
-	up_write(&cxl_memdev_rwsem);
 }
 EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, "CXL");
 
@@ -595,10 +594,9 @@ EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, "CXL");
 void clear_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 				  unsigned long *cmds)
 {
-	down_write(&cxl_memdev_rwsem);
+	guard(rwsem_write)(&cxl_memdev_rwsem);
 	bitmap_andnot(mds->exclusive_cmds, mds->exclusive_cmds, cmds,
 		      CXL_MEM_COMMAND_ID_MAX);
-	up_write(&cxl_memdev_rwsem);
 }
 EXPORT_SYMBOL_NS_GPL(clear_exclusive_cxl_commands, "CXL");
 
@@ -606,9 +604,8 @@ static void cxl_memdev_shutdown(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 
-	down_write(&cxl_memdev_rwsem);
+	guard(rwsem_write)(&cxl_memdev_rwsem);
 	cxlmd->cxlds = NULL;
-	up_write(&cxl_memdev_rwsem);
 }
 
 static void cxl_memdev_unregister(void *_cxlmd)
@@ -687,15 +684,13 @@ static long cxl_memdev_ioctl(struct file *file, unsigned int cmd,
 {
 	struct cxl_memdev *cxlmd = file->private_data;
 	struct cxl_dev_state *cxlds;
-	int rc = -ENXIO;
 
-	down_read(&cxl_memdev_rwsem);
+	guard(rwsem_read)(&cxl_memdev_rwsem);
 	cxlds = cxlmd->cxlds;
 	if (cxlds && cxlds->type == CXL_DEVTYPE_CLASSMEM)
-		rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
-	up_read(&cxl_memdev_rwsem);
+		return __cxl_memdev_ioctl(cxlmd, cmd, arg);
 
-	return rc;
+	return -ENXIO;
 }
 
 static int cxl_memdev_open(struct inode *inode, struct file *file)

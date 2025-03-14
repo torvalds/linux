@@ -559,13 +559,9 @@ static ssize_t decoders_committed_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
 	struct cxl_port *port = to_cxl_port(dev);
-	int rc;
 
-	down_read(&cxl_region_rwsem);
-	rc = sysfs_emit(buf, "%d\n", cxl_num_decoders_committed(port));
-	up_read(&cxl_region_rwsem);
-
-	return rc;
+	guard(rwsem_read)(&cxl_region_rwsem);
+	return sysfs_emit(buf, "%d\n", cxl_num_decoders_committed(port));
 }
 
 static DEVICE_ATTR_RO(decoders_committed);
