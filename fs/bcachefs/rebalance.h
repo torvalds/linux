@@ -54,4 +54,6 @@ void bch2_rebalance_stop(struct bch_fs *);
 int bch2_rebalance_start(struct bch_fs *);
 void bch2_fs_rebalance_init(struct bch_fs *);
 
+int bch2_check_rebalance_work(struct bch_fs *);
+
 #endif /* _BCACHEFS_REBALANCE_H */

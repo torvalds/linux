@@ -712,3 +712,119 @@ void bch2_fs_rebalance_init(struct bch_fs *c)
 {
 	bch2_pd_controller_init(&c->rebalance.pd);
 }
+
+static int check_rebalance_work_one(struct btree_trans *trans,
+				    struct btree_iter *extent_iter,
+				    struct btree_iter *rebalance_iter,
+				    struct bkey_buf *last_flushed)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_s_c extent_k, rebalance_k;
+	struct printbuf buf = PRINTBUF;
+
+	int ret = bkey_err(extent_k	= bch2_btree_iter_peek(trans, extent_iter)) ?:
+		  bkey_err(rebalance_k	= bch2_btree_iter_peek(trans, rebalance_iter));
+	if (ret)
+		return ret;
+
+	if (!extent_k.k &&
+	    extent_iter->btree_id == BTREE_ID_reflink &&
+	    (!rebalance_k.k ||
+	     rebalance_k.k->p.inode >= BCACHEFS_ROOT_INO)) {
+		bch2_trans_iter_exit(trans, extent_iter);
+		bch2_trans_iter_init(trans, extent_iter,
+				     BTREE_ID_extents, POS_MIN,
+				     BTREE_ITER_prefetch|
+				     BTREE_ITER_all_snapshots);
+		return -BCH_ERR_transaction_restart_nested;
+	}
+
+	if (!extent_k.k && !rebalance_k.k)
+		return 1;
+
+	int cmp = bpos_cmp(extent_k.k	 ? extent_k.k->p    : SPOS_MAX,
+			   rebalance_k.k ? rebalance_k.k->p : SPOS_MAX);
+
+	struct bkey deleted;
+	bkey_init(&deleted);
+
+	if (cmp < 0) {
+		deleted.p = extent_k.k->p;
+		rebalance_k.k = &deleted;
+	} else if (cmp > 0) {
+		deleted.p = rebalance_k.k->p;
+		extent_k.k = &deleted;
+	}
+
+	bool should_have_rebalance =
+		bch2_bkey_sectors_need_rebalance(c, extent_k) != 0;
+	bool have_rebalance = rebalance_k.k->type == KEY_TYPE_set;
+
+	if (should_have_rebalance != have_rebalance) {
+		ret = bch2_btree_write_buffer_maybe_flush(trans, extent_k, last_flushed);
+		if (ret)
+			return ret;
+
+		bch2_bkey_val_to_text(&buf, c, extent_k);
+	}
+
+	if (fsck_err_on(!should_have_rebalance && have_rebalance,
+			trans, rebalance_work_incorrectly_set,
+			"rebalance work incorrectly set\n%s", buf.buf)) {
+		ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_rebalance_work,
+						  extent_k.k->p, false);
+		if (ret)
+			goto err;
+	}
+
+	if (fsck_err_on(should_have_rebalance && !have_rebalance,
+			trans, rebalance_work_incorrectly_unset,
+			"rebalance work incorrectly unset\n%s", buf.buf)) {
+		ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_rebalance_work,
+						  extent_k.k->p, true);
+		if (ret)
+			goto err;
+	}
+
+	if (cmp <= 0)
+		bch2_btree_iter_advance(trans, extent_iter);
+	if (cmp >= 0)
+		bch2_btree_iter_advance(trans, rebalance_iter);
+err:
+fsck_err:
+	printbuf_exit(&buf);
+	return ret;
+}
+
+int bch2_check_rebalance_work(struct bch_fs *c)
+{
+	struct btree_trans *trans = bch2_trans_get(c);
+	struct btree_iter rebalance_iter, extent_iter;
+	int ret = 0;
+
+	bch2_trans_iter_init(trans, &extent_iter,
+			     BTREE_ID_reflink, POS_MIN,
+			     BTREE_ITER_prefetch);
+	bch2_trans_iter_init(trans, &rebalance_iter,
+			     BTREE_ID_rebalance_work, POS_MIN,
+			     BTREE_ITER_prefetch);
+
+	struct bkey_buf last_flushed;
+	bch2_bkey_buf_init(&last_flushed);
+	bkey_init(&last_flushed.k->k);
+
+	while (!ret) {
+		bch2_trans_begin(trans);
+
+		ret = check_rebalance_work_one(trans, &extent_iter, &rebalance_iter, &last_flushed);
+
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			ret = 0;
+	}
+
+	bch2_bkey_buf_exit(&last_flushed, c);
+	bch2_trans_iter_exit(trans, &extent_iter);
+	bch2_trans_iter_exit(trans, &rebalance_iter);
+	bch2_trans_put(trans);
+	return ret < 0 ? ret : 0;
+}
