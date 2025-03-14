@@ -713,7 +713,6 @@ int oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 }
 EXPORT_SYMBOL(oxygen_pci_probe);
 
-#ifdef CONFIG_PM_SLEEP
 static int oxygen_pci_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
@@ -789,9 +788,7 @@ static int oxygen_pci_resume(struct device *dev)
 	return 0;
 }
 
-SIMPLE_DEV_PM_OPS(oxygen_pci_pm, oxygen_pci_suspend, oxygen_pci_resume);
-EXPORT_SYMBOL(oxygen_pci_pm);
-#endif /* CONFIG_PM_SLEEP */
+EXPORT_SIMPLE_DEV_PM_OPS(oxygen_pci_pm, oxygen_pci_suspend, oxygen_pci_resume);
 
 void oxygen_pci_shutdown(struct pci_dev *pci)
 {
