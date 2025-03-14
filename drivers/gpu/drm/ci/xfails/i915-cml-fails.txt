@@ -1,4 +1,4 @@
-core_setmaster@master-drop-set-shared-fd,Fail
+core_setmaster_vs_auth,Fail
 i915_module_load@load,Fail
 i915_module_load@reload,Fail
 i915_module_load@reload-no-display,Fail
@@ -8,8 +8,9 @@ i915_pipe_stress@stress-xrgb8888-ytiled,Fail
 i915_pm_rpm@gem-execbuf-stress,Timeout
 i915_pm_rpm@module-reload,Fail
 i915_pm_rpm@system-suspend-execbuf,Timeout
-kms_async_flips@test-time-stamp,Timeout
-kms_ccs@crc-sprite-planes-basic-y-tiled-ccs,Timeout
+kms_ccs@ccs-on-another-bo-y-tiled-gen12-rc-ccs-cc,Timeout
+kms_cursor_crc@cursor-suspend,Timeout
+kms_fb_coherency@memset-crc,Crash
 kms_flip@busy-flip,Timeout
 kms_flip_scaled_crc@flip-32bpp-linear-to-64bpp-linear-downscaling,Fail
 kms_flip_scaled_crc@flip-32bpp-linear-to-64bpp-linear-upscaling,Fail
@@ -34,17 +35,22 @@ kms_flip_scaled_crc@flip-64bpp-ytile-to-32bpp-ytile-upscaling,Fail
 kms_flip_scaled_crc@flip-64bpp-ytile-to-32bpp-ytilegen12rcccs-upscaling,Fail
 kms_flip_scaled_crc@flip-64bpp-ytile-to-32bpp-ytilercccs-downscaling,Fail
 kms_lease@lease-uevent,Fail
-kms_lease@page-flip-implicit-plane,Timeout
+kms_pipe_stress@stress-xrgb8888-untiled,Fail
+kms_pipe_stress@stress-xrgb8888-ytiled,Fail
 kms_plane_alpha_blend@alpha-basic,Fail
 kms_plane_alpha_blend@alpha-opaque-fb,Fail
 kms_plane_alpha_blend@alpha-transparent-fb,Fail
 kms_plane_alpha_blend@constant-alpha-max,Fail
+kms_plane_scaling@planes-upscale-factor-0-25,Timeout
+kms_pm_backlight@brightness-with-dpms,Crash
+kms_pm_backlight@fade,Crash
+kms_prop_blob@invalid-set-prop-any,Fail
+kms_properties@connector-properties-legacy,Timeout
 kms_psr2_sf@cursor-plane-update-sf,Fail
 kms_psr2_sf@overlay-plane-update-continuous-sf,Fail
 kms_psr2_sf@overlay-plane-update-sf-dmg-area,Fail
 kms_psr2_sf@overlay-primary-update-sf-dmg-area,Fail
 kms_psr2_sf@plane-move-sf-dmg-area,Fail
-kms_psr2_sf@pr-cursor-plane-update-sf,Timeout
 kms_psr2_sf@primary-plane-update-sf-dmg-area,Fail
 kms_psr2_sf@primary-plane-update-sf-dmg-area-big-fb,Fail
 kms_psr2_sf@psr2-cursor-plane-update-sf,Fail
@@ -57,6 +63,7 @@ kms_psr2_sf@psr2-primary-plane-update-sf-dmg-area-big-fb,Fail
 kms_psr2_su@page_flip-NV12,Fail
 kms_psr2_su@page_flip-P010,Fail
 kms_setmode@basic,Fail
+kms_universal_plane@disable-primary-vs-flip,Timeout
 perf@i915-ref-count,Fail
 perf_pmu@module-unload,Fail
 perf_pmu@rc6,Crash
@@ -65,6 +72,3 @@ sysfs_heartbeat_interval@long,Timeout
 sysfs_heartbeat_interval@off,Timeout
 sysfs_preempt_timeout@off,Timeout
 sysfs_timeslice_duration@off,Timeout
-xe_module_load@force-load,Fail
-xe_module_load@load,Fail
-xe_module_load@many-reload,Fail

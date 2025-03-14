@@ -18,6 +18,7 @@ nouveau_.*
 gem_.*
 i915_.*
 tools_test.*
+kms_dp_link_training.*
 
 # Currently fails and causes coverage loss for other tests
 # since core_getversion also fails.
@@ -35,3 +36,315 @@ kms_content_protection@uevent
 # https://gitlab.freedesktop.org/drm/igt-gpu-tools/-/issues/162
 kms_display_modes@extended-mode-basic
 kms_display_modes@mst-extended-mode-negative
+
+# Kernel panic
+msm/msm_recovery@hangcheck
+# DEBUG - Begin test msm/msm_recovery@hangcheck
+# Console: switching to colour dummy device 80x25
+# [  489.526286] [IGT] msm_recovery: executing
+# [  489.531926] [IGT] msm_recovery: starting subtest hangcheck
+# [  492.808574] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  492.820358] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  492.831154] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  493.832570] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  493.844177] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  493.854971] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  494.824633] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  494.836237] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  494.847034] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  495.816570] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  495.828170] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  495.838966] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  496.804643] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  496.816246] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  496.827041] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  497.832570] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  497.844170] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  497.854963] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  498.820636] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  498.832232] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  498.843024] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  499.816568] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  499.828163] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  499.838958] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  500.808570] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  500.820165] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  500.830960] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  501.832570] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  501.844175] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  501.854965] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  502.824568] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  502.836171] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  502.846965] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  503.816570] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  503.828176] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  503.838969] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  504.804640] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  504.816237] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  504.827033] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  505.828643] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  505.840247] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  505.851043] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  506.820637] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  506.832233] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  506.843026] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  507.816567] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  507.828171] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  507.838965] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  508.808568] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  508.820173] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  508.830969] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  509.832568] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  509.844173] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  509.854967] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  510.824568] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  510.836162] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  510.846954] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  511.816569] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  511.828173] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  511.838968] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  512.804641] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  512.816246] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  512.827040] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  513.828641] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  513.840239] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  513.851035] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  514.824568] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  514.836164] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  514.846959] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  515.812640] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  515.824235] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  515.835030] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  515.912427] rcu: INFO: rcu_preempt self-detected stall on CPU
+# [  515.918398] rcu: 	0-....: (6452 ticks this GP) idle=6afc/1/0x4000000000000000 softirq=12492/12697 fqs=3179
+# [  515.929296] rcu: 	(t=6505 jiffies g=36205 q=58 ncpus=8)
+# [  515.934709] CPU: 0 UID: 0 PID: 126 Comm: sugov:0 Tainted: G        W          6.14.0-rc4-gdddf15cff632 #1
+# [  515.934727] Tainted: [W]=WARN
+# [  515.934732] Hardware name: Google Cheza (rev3+) (DT)
+# [  515.934739] pstate: 00400009 (nzcv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+# [  515.934751] pc : rcu_core+0x59c/0xe68
+# [  515.934769] lr : rcu_core+0x74/0xe68
+# [  515.934781] sp : ffff800080003e50
+# [  515.934785] x29: ffff800080003e50 x28: ffff225d038e9bc0 x27: 0000000000000002
+# [  515.934805] x26: ffffc171a8ee6108 x25: ffffc171a85bc2c0 x24: ffff60ecd691e000
+# [  515.934820] x23: ffffc171a85d15c0 x22: ffffc171a8f8d780 x21: ffff225e7eeef5c0
+# [  515.934835] x20: ffffc171a8ef0e80 x19: ffffc171a85d15d1 x18: ffffc171a9461e70
+# [  515.934850] x17: ffff60ecd691e000 x16: ffff800080000000 x15: 0000000000000000
+# [  515.934866] x14: ffffc171a85d0780 x13: 0000000000000400 x12: 0000000000000000
+# [  515.934880] x11: ffffc171a85ce900 x10: ffffc171a8ef5000 x9 : ffffc171a8ef0000
+# [  515.934894] x8 : ffff800080003d88 x7 : ffffc171a8ee6100 x6 : ffff800080003de0
+# [  515.934909] x5 : ffff800080003dc8 x4 : 0000000000000003 x3 : 0000000000000000
+# [  515.934923] x2 : 0000000000000101 x1 : 0000000000000000 x0 : ffff225d038e9bc0
+# [  515.934939] Call trace:
+# [  515.934945]  rcu_core+0x59c/0xe68 (P)
+# [  515.934962]  rcu_core_si+0x10/0x1c
+# [  515.934976]  handle_softirqs+0x118/0x4b8
+# [  515.934994]  __do_softirq+0x14/0x20
+# [  515.935007]  ____do_softirq+0x10/0x1c
+# [  515.935021]  call_on_irq_stack+0x24/0x4c
+# [  515.935034]  do_softirq_own_stack+0x1c/0x28
+# [  515.935048]  __irq_exit_rcu+0x174/0x1b4
+# [  515.935063]  irq_exit_rcu+0x10/0x38
+# [  515.935077]  el1_interrupt+0x38/0x64
+# [  515.935092]  el1h_64_irq_handler+0x18/0x24
+# [  515.935104]  el1h_64_irq+0x6c/0x70
+# [  515.935115]  lock_acquire+0x1e0/0x338 (P)
+# [  515.935129]  __mutex_lock+0xa8/0x4b8
+# [  515.935144]  mutex_lock_nested+0x24/0x30
+# [  515.935159]  _find_opp_table_unlocked+0x40/0xfc
+# [  515.935174]  _find_key+0x64/0x16c
+# [  515.935184]  dev_pm_opp_find_freq_exact+0x4c/0x74
+# [  515.935197]  qcom_cpufreq_hw_target_index+0xe8/0x128
+# [  515.935211]  __cpufreq_driver_target+0x144/0x29c
+# [  515.935227]  sugov_work+0x58/0x74
+# [  515.935239]  kthread_worker_fn+0xf4/0x324
+# [  515.935254]  kthread+0x12c/0x208
+# [  515.935266]  ret_from_fork+0x10/0x20
+# [  516.808569] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  516.820174] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  516.830968] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  517.828641] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  517.840236] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  517.851032] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  518.820642] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  518.832237] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  518.843030] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  519.812636] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  519.824231] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  519.835026] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  520.808570] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  520.820165] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  520.830959] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  521.828643] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  521.840238] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  521.851033] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  522.820636] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  522.832232] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  522.843027] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  523.812639] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  523.824239] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  523.835034] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  524.804640] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  524.816235] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  524.827026] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  525.828641] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  525.840236] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  525.851031] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  526.820641] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  526.832244] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  526.843041] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  527.812642] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  527.824242] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  527.835038] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  528.804639] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  528.816234] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  528.827027] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  529.832634] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  529.844231] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  529.855017] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  530.820646] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  530.832270] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  530.843065] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  531.812640] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  531.824238] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  531.835030] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  532.804640] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  532.816237] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  532.827031] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  533.828640] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  533.840243] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  533.851037] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  534.820640] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  534.832245] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  534.843038] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  535.812641] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  535.824238] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  535.835033] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  536.804639] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  536.816235] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  536.827030] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  537.828640] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  537.840234] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  537.851020] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  538.820640] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  538.832235] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  538.843027] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  539.812644] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2: hangcheck detected gpu lockup rb 0!
+# [  539.824247] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     completed fence: 45605
+# [  539.835040] msm_dpu ae01000.display-controller: [drm:hangcheck_handler] *ERROR* 6.3.0.2:     submitted fence: 45611
+# [  540.124426] watchdog: BUG: soft lockup - CPU#0 stuck for 49s! [sugov:0:126]
+# [  540.124439] Modules linked in:
+# [  540.124448] irq event stamp: 9912389
+# [  540.124453] hardirqs last  enabled at (9912388): [<ffffc171a767a24c>] exit_to_kernel_mode+0x38/0x130
+# [  540.124473] hardirqs last disabled at (9912389): [<ffffc171a767a368>] el1_interrupt+0x24/0x64
+# [  540.124486] softirqs last  enabled at (9898068): [<ffffc171a62bc290>] handle_softirqs+0x4a0/0x4b8
+# [  540.124505] softirqs last disabled at (9898071): [<ffffc171a62105b0>] __do_softirq+0x14/0x20
+# [  540.124525] CPU: 0 UID: 0 PID: 126 Comm: sugov:0 Tainted: G        W          6.14.0-rc4-gdddf15cff632 #1
+# [  540.124540] Tainted: [W]=WARN
+# [  540.124544] Hardware name: Google Cheza (rev3+) (DT)
+# [  540.124549] pstate: 60400009 (nZCv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+# [  540.124560] pc : xhci_urb_enqueue+0xbc/0x32c
+# [  540.124573] lr : xhci_urb_enqueue+0xb4/0x32c
+# [  540.124581] sp : ffff800080003c20
+# [  540.124586] x29: ffff800080003c20 x28: 0000000000000000 x27: ffff225d00b1e6a0
+# [  540.124602] x26: ffff225d01c3d800 x25: 0000000000000001 x24: 0000000000000006
+# [  540.124617] x23: ffff225d044dc000 x22: ffff225d044dc000 x21: 0000000000000001
+# [  540.124632] x20: ffff225d002d7280 x19: ffff225d0573a780 x18: ffff225e7eff0f50
+# [  540.124647] x17: 000000000000cab0 x16: 0000000000000000 x15: ffff225d0353a000
+# [  540.124661] x14: 0000000000000000 x13: 0000000000000820 x12: 0000000000000000
+# [  540.124674] x11: ffff800080003a30 x10: 0000000000000001 x9 : 0000000000000000
+# [  540.124689] x8 : ffff225d002d7300 x7 : 0000000000000000 x6 : 000000000000003f
+# [  540.124702] x5 : 00000000ffffffff x4 : 0000000000000920 x3 : 0000000000000080
+# [  540.124716] x2 : 0000000000000000 x1 : 0000000000000000 x0 : ffff225d002d7280
+# [  540.124731] Call trace:
+# [  540.124736]  xhci_urb_enqueue+0xbc/0x32c (P)
+# [  540.124751]  usb_hcd_submit_urb+0x98/0x7fc
+# [  540.124766]  usb_submit_urb+0x294/0x560
+# [  540.124780]  intr_callback+0x78/0x1fc
+# [  540.124798]  __usb_hcd_giveback_urb+0x68/0x128
+# [  540.124812]  usb_giveback_urb_bh+0xa8/0x140
+# [  540.124825]  process_one_work+0x208/0x5e8
+# [  540.124840]  bh_worker+0x1a8/0x20c
+# [  540.124853]  workqueue_softirq_action+0x78/0x88
+# [  540.124868]  tasklet_hi_action+0x14/0x3c
+# [  540.124883]  handle_softirqs+0x118/0x4b8
+# [  540.124897]  __do_softirq+0x14/0x20
+# [  540.124908]  ____do_softirq+0x10/0x1c
+# [  540.124922]  call_on_irq_stack+0x24/0x4c
+# [  540.124934]  do_softirq_own_stack+0x1c/0x28
+# [  540.124947]  __irq_exit_rcu+0x174/0x1b4
+# [  540.124961]  irq_exit_rcu+0x10/0x38
+# [  540.124976]  el1_interrupt+0x38/0x64
+# [  540.124987]  el1h_64_irq_handler+0x18/0x24
+# [  540.124998]  el1h_64_irq+0x6c/0x70
+# [  540.125009]  lock_acquire+0x1e0/0x338 (P)
+# [  540.125023]  __mutex_lock+0xa8/0x4b8
+# [  540.125038]  mutex_lock_nested+0x24/0x30
+# [  540.125052]  _find_opp_table_unlocked+0x40/0xfc
+# [  540.125067]  _find_key+0x64/0x16c
+# [  540.125078]  dev_pm_opp_find_freq_exact+0x4c/0x74
+# [  540.125090]  qcom_cpufreq_hw_target_index+0xe8/0x128
+# [  540.125105]  __cpufreq_driver_target+0x144/0x29c
+# [  540.125121]  sugov_work+0x58/0x74
+# [  540.125133]  kthread_worker_fn+0xf4/0x324
+# [  540.125148]  kthread+0x12c/0x208
+# [  540.125160]  ret_from_fork+0x10/0x20
+# [  540.125176] Kernel panic - not syncing: softlockup: hung tasks
+# [  540.423567] CPU: 0 UID: 0 PID: 126 Comm: sugov:0 Tainted: G        W    L     6.14.0-rc4-gdddf15cff632 #1
+# [  540.433411] Tainted: [W]=WARN, [L]=SOFTLOCKUP
+# [  540.437901] Hardware name: Google Cheza (rev3+) (DT)
+# [  540.443022] Call trace:
+# [  540.445559]  show_stack+0x18/0x24 (C)
+# [  540.449357]  dump_stack_lvl+0x38/0xd0
+# [  540.453157]  dump_stack+0x18/0x24
+# [  540.456599]  panic+0x3bc/0x41c
+# [  540.459767]  watchdog_timer_fn+0x254/0x2e4
+# [  540.464005]  __hrtimer_run_queues+0x3c4/0x440
+# [  540.468508]  hrtimer_interrupt+0xe4/0x244
+# [  540.472662]  arch_timer_handler_phys+0x2c/0x44
+# [  540.477256]  handle_percpu_devid_irq+0x90/0x1f0
+# [  540.481943]  handle_irq_desc+0x40/0x58
+# [  540.485829]  generic_handle_domain_irq+0x1c/0x28
+# [  540.490604]  gic_handle_irq+0x4c/0x11c
+# [  540.494483]  do_interrupt_handler+0x50/0x84
+# [  540.498811]  el1_interrupt+0x34/0x64
+# [  540.502518]  el1h_64_irq_handler+0x18/0x24
+# [  540.506758]  el1h_64_irq+0x6c/0x70
+# [  540.510279]  xhci_urb_enqueue+0xbc/0x32c (P)
+# [  540.514693]  usb_hcd_submit_urb+0x98/0x7fc
+# [  540.518932]  usb_submit_urb+0x294/0x560
+# [  540.522901]  intr_callback+0x78/0x1fc
+# [  540.526700]  __usb_hcd_giveback_urb+0x68/0x128
+# [  540.531288]  usb_giveback_urb_bh+0xa8/0x140
+# [  540.535614]  process_one_work+0x208/0x5e8
+# [  540.539769]  bh_worker+0x1a8/0x20c
+# [  540.543293]  workqueue_softirq_action+0x78/0x88
+# [  540.547980]  tasklet_hi_action+0x14/0x3c
+# [  540.552038]  handle_softirqs+0x118/0x4b8
+# [  540.556096]  __do_softirq+0x14/0x20
+# [  540.559705]  ____do_softirq+0x10/0x1c
+# [  540.563500]  call_on_irq_stack+0x24/0x4c
+# [  540.567554]  do_softirq_own_stack+0x1c/0x28
+# [  540.571878]  __irq_exit_rcu+0x174/0x1b4
+# [  540.575849]  irq_exit_rcu+0x10/0x38
+# [  540.579462]  el1_interrupt+0x38/0x64
+# [  540.583158]  el1h_64_irq_handler+0x18/0x24
+# [  540.587397]  el1h_64_irq+0x6c/0x70
+# [  540.590918]  lock_acquire+0x1e0/0x338 (P)
+# [  540.595060]  __mutex_lock+0xa8/0x4b8
+# [  540.598760]  mutex_lock_nested+0x24/0x30
+# [  540.602818]  _find_opp_table_unlocked+0x40/0xfc
+# [  540.607503]  _find_key+0x64/0x16c
+# [  540.610940]  dev_pm_opp_find_freq_exact+0x4c/0x74
+# [  540.615798]  qcom_cpufreq_hw_target_index+0xe8/0x128
+# [  540.620924]  __cpufreq_driver_target+0x144/0x29c
+# [  540.625698]  sugov_work+0x58/0x74
+# [  540.629134]  kthread_worker_fn+0xf4/0x324
+# [  540.633278]  kthread+0x12c/0x208
+# [  540.636619]  ret_from_fork+0x10/0x20
+# [  540.640321] SMP: stopping secondary CPUs
+# [  540.644518] Kernel Offset: 0x417126200000 from 0xffff800080000000
+# [  540.650848] PHYS_OFFSET: 0xfff0dda400000000
+# [  540.655170] CPU features: 0x000,00000100,00901250,8200721b
+# [  540.660829] Memory Limit: none
+# [  540.663999] ---[ end Kernel panic - not syncing: softlockup: hung tasks ]---

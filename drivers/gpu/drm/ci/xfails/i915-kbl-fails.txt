@@ -21,8 +21,3 @@ sysfs_heartbeat_interval@long,Timeout
 sysfs_heartbeat_interval@off,Timeout
 sysfs_preempt_timeout@off,Timeout
 sysfs_timeslice_duration@off,Timeout
-xe_module_load@force-load,Fail
-xe_module_load@load,Fail
-xe_module_load@many-reload,Fail
-xe_module_load@reload,Fail
-xe_module_load@reload-no-display,Fail
