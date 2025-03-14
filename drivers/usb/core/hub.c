@@ -4345,17 +4345,8 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 	 * Enable device initiated U1/U2 with a SetFeature(U1/U2_ENABLE) request
 	 * if system exit latency is short enough and device is configured
 	 */
-	if (usb_device_may_initiate_lpm(udev, state)) {
-		if (usb_set_device_initiated_lpm(udev, state, true)) {
-			/*
-			 * Request to enable device initiated U1/U2 failed,
-			 * better to turn off lpm in this case.
-			 */
-			usb_set_lpm_timeout(udev, state, 0);
-			hcd->driver->disable_usb3_lpm_timeout(hcd, udev, state);
-			return;
-		}
-	}
+	if (usb_device_may_initiate_lpm(udev, state))
+		usb_set_device_initiated_lpm(udev, state, true);
 
 	if (state == USB3_LPM_U1)
 		udev->usb3_lpm_u1_enabled = 1;
