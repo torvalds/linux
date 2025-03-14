@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2014 - 2020 Intel Corporation */
+#include <linux/align.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/kernel.h>
@@ -1414,16 +1415,21 @@ static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 	struct icp_qat_fw_auth_desc *auth_desc;
 	struct icp_qat_auth_chunk *auth_chunk;
 	u64 virt_addr,  bus_addr, virt_base;
-	unsigned int length, simg_offset = sizeof(*auth_chunk);
+	unsigned int simg_offset = sizeof(*auth_chunk);
 	struct icp_qat_simg_ae_mode *simg_ae_mode;
 	struct icp_firml_dram_desc img_desc;
+	int ret;
 
-	length = (css_hdr->fw_type == CSS_AE_FIRMWARE) ?
-		 ICP_QAT_CSS_AE_SIMG_LEN(handle) + simg_offset :
-		 size + ICP_QAT_CSS_FWSK_PAD_LEN(handle) + simg_offset;
-	if (qat_uclo_simg_alloc(handle, &img_desc, length)) {
+	ret = qat_uclo_simg_alloc(handle, &img_desc, ICP_QAT_CSS_RSA4K_MAX_IMAGE_LEN);
+	if (ret) {
 		pr_err("QAT: error, allocate continuous dram fail\n");
-		return -ENOMEM;
+		return ret;
+	}
+
+	if (!IS_ALIGNED(img_desc.dram_size, 8) || !img_desc.dram_bus_addr) {
+		pr_debug("QAT: invalid address\n");
+		qat_uclo_simg_free(handle, &img_desc);
+		return -EINVAL;
 	}
 
 	auth_chunk = img_desc.dram_base_addr_v;
@@ -1481,6 +1487,13 @@ static int qat_uclo_map_auth_fw(struct icp_qat_fw_loader_handle *handle,
 	auth_desc->img_high = (unsigned int)(bus_addr >> BITS_IN_DWORD);
 	auth_desc->img_low = (unsigned int)bus_addr;
 	auth_desc->img_len = size - ICP_QAT_AE_IMG_OFFSET(handle);
+	if (bus_addr + auth_desc->img_len > img_desc.dram_bus_addr +
+					    ICP_QAT_CSS_RSA4K_MAX_IMAGE_LEN) {
+		pr_err("QAT: insufficient memory size for authentication data\n");
+		qat_uclo_simg_free(handle, &img_desc);
+		return -ENOMEM;
+	}
+
 	memcpy((void *)(uintptr_t)virt_addr,
 	       (void *)(image + ICP_QAT_AE_IMG_OFFSET(handle)),
 	       auth_desc->img_len);
