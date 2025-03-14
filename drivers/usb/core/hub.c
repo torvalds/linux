@@ -4234,9 +4234,9 @@ static int usb_set_lpm_timeout(struct usb_device *udev,
 }
 
 /*
- * Don't allow device intiated U1/U2 if the system exit latency + one bus
- * interval is greater than the minimum service interval of any active
- * periodic endpoint. See USB 3.2 section 9.4.9
+ * Don't allow device intiated U1/U2 if device isn't in the configured state,
+ * or the system exit latency + one bus interval is greater than the minimum
+ * service interval of any active periodic endpoint. See USB 3.2 section 9.4.9
  */
 static bool usb_device_may_initiate_lpm(struct usb_device *udev,
 					enum usb3_link_state state)
@@ -4244,7 +4244,7 @@ static bool usb_device_may_initiate_lpm(struct usb_device *udev,
 	unsigned int sel;		/* us */
 	int i, j;
 
-	if (!udev->lpm_devinit_allow)
+	if (!udev->lpm_devinit_allow || !udev->actconfig)
 		return false;
 
 	if (state == USB3_LPM_U1)
@@ -4341,11 +4341,11 @@ static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 		return;
 	}
 
-	/* Only a configured device will accept the Set Feature
-	 * U1/U2_ENABLE
+	/*
+	 * Enable device initiated U1/U2 with a SetFeature(U1/U2_ENABLE) request
+	 * if system exit latency is short enough and device is configured
 	 */
-	if (udev->actconfig &&
-	    usb_device_may_initiate_lpm(udev, state)) {
+	if (usb_device_may_initiate_lpm(udev, state)) {
 		if (usb_set_device_initiated_lpm(udev, state, true)) {
 			/*
 			 * Request to enable device initiated U1/U2 failed,
