@@ -1238,6 +1238,14 @@ static int sysdata_append_taskname(struct netconsole_target *nt, int offset)
 			 MAX_EXTRADATA_ENTRY_LEN, " taskname=%s\n",
 			 current->comm);
 }
+
+static int sysdata_append_release(struct netconsole_target *nt, int offset)
+{
+	return scnprintf(&nt->extradata_complete[offset],
+			 MAX_EXTRADATA_ENTRY_LEN, " release=%s\n",
+			 init_utsname()->release);
+}
+
 /*
  * prepare_extradata - append sysdata at extradata_complete in runtime
  * @nt: target to send message to
@@ -1259,6 +1267,8 @@ static int prepare_extradata(struct netconsole_target *nt)
 		extradata_len += sysdata_append_cpu_nr(nt, extradata_len);
 	if (nt->sysdata_fields & SYSDATA_TASKNAME)
 		extradata_len += sysdata_append_taskname(nt, extradata_len);
+	if (nt->sysdata_fields & SYSDATA_RELEASE)
+		extradata_len += sysdata_append_release(nt, extradata_len);
 
 	WARN_ON_ONCE(extradata_len >
 		     MAX_EXTRADATA_ENTRY_LEN * MAX_EXTRADATA_ITEMS);
