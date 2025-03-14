@@ -142,6 +142,8 @@ struct genpd_governor_data {
 	bool max_off_time_changed;
 	ktime_t next_wakeup;
 	ktime_t next_hrtimer;
+	ktime_t last_enter;
+	bool reflect_residency;
 	bool cached_power_down_ok;
 	bool cached_power_down_state_idx;
 };
@@ -153,6 +155,8 @@ struct genpd_power_state {
 	s64 residency_ns;
 	u64 usage;
 	u64 rejected;
+	u64 above;
+	u64 below;
 	struct fwnode_handle *fwnode;
 	u64 idle_time;
 	void *data;
