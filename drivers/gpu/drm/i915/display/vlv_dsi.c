@@ -1019,7 +1019,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	unsigned int lane_count = intel_dsi->lane_count;
 	unsigned int bpp, fmt;
 	enum port port;
-	u16 hactive, hfp, hsync, hbp, vfp, vsync;
+	u16 hactive, hfp, hsync, hbp, vfp, vsync, vbp;
 	u16 hfp_sw, hsync_sw, hbp_sw;
 	u16 crtc_htotal_sw, crtc_hsync_start_sw, crtc_hsync_end_sw,
 				crtc_hblank_start_sw, crtc_hblank_end_sw;
@@ -1083,6 +1083,7 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 
 	/* vertical values are in terms of lines */
 	vfp = intel_de_read(display, MIPI_VFP_COUNT(display, port));
+	vbp = intel_de_read(display, MIPI_VBP_COUNT(display, port));
 	vsync = intel_de_read(display, MIPI_VSYNC_PADDING_COUNT(display, port));
 
 	adjusted_mode->crtc_htotal = hactive + hfp + hsync + hbp;
@@ -1091,6 +1092,8 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	adjusted_mode->crtc_hblank_start = adjusted_mode->crtc_hdisplay;
 	adjusted_mode->crtc_hblank_end = adjusted_mode->crtc_htotal;
 
+	drm_WARN_ON(display->drm, adjusted_mode->crtc_vdisplay +
+		    vfp + vsync + vbp != adjusted_mode->crtc_vtotal);
 	adjusted_mode->crtc_vsync_start = vfp + adjusted_mode->crtc_vdisplay;
 	adjusted_mode->crtc_vsync_end = vsync + adjusted_mode->crtc_vsync_start;
 	adjusted_mode->crtc_vblank_start = adjusted_mode->crtc_vdisplay;
