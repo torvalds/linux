@@ -532,7 +532,6 @@ void amdgpu_sdma_register_on_reset_callbacks(struct amdgpu_device *adev, struct 
  * amdgpu_sdma_reset_engine - Reset a specific SDMA engine
  * @adev: Pointer to the AMDGPU device
  * @instance_id: ID of the SDMA engine instance to reset
- * @suspend_user_queues: check if suspend user queue.
  *
  * This function performs the following steps:
  * 1. Calls all registered pre_reset callbacks to allow KFD and AMDGPU to save their state.
@@ -541,7 +540,7 @@ void amdgpu_sdma_register_on_reset_callbacks(struct amdgpu_device *adev, struct 
  *
  * Returns: 0 on success, or a negative error code on failure.
  */
-int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id, bool suspend_user_queues)
+int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id)
 {
 	struct sdma_on_reset_funcs *funcs;
 	int ret = 0;
@@ -550,13 +549,7 @@ int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id, b
 	struct amdgpu_ring *page_ring = &sdma_instance->page;
 	bool gfx_sched_stopped = false, page_sched_stopped = false;
 
-	/* Suspend KFD if suspend_user_queues is true.
-	 * prevent the destruction of in-flight healthy user queue packets and
-	 * avoid race conditions between KFD and KGD during the reset process.
-	 */
-	if (suspend_user_queues)
-		amdgpu_amdkfd_suspend(adev, false);
-
+	mutex_lock(&sdma_instance->engine_reset_mutex);
 	/* Stop the scheduler's work queue for the GFX and page rings if they are running.
 	* This ensures that no new tasks are submitted to the queues while
 	* the reset is in progress.
@@ -617,9 +610,7 @@ exit:
 			drm_sched_wqueue_start(&page_ring->sched);
 		}
 	}
-
-	if (suspend_user_queues)
-		amdgpu_amdkfd_resume(adev, false);
+	mutex_unlock(&sdma_instance->engine_reset_mutex);
 
 	return ret;
 }

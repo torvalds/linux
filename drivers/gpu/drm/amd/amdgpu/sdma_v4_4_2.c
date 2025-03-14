@@ -1445,6 +1445,7 @@ static int sdma_v4_4_2_sw_init(struct amdgpu_ip_block *ip_block)
 	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
+		mutex_init(&adev->sdma.instance[i].engine_reset_mutex);
 		ring = &adev->sdma.instance[i].ring;
 		ring->ring_obj = NULL;
 		ring->use_doorbell = true;
@@ -1666,11 +1667,16 @@ static int sdma_v4_4_2_reset_queue(struct amdgpu_ring *ring, unsigned int vmid)
 {
 	struct amdgpu_device *adev = ring->adev;
 	u32 id = GET_INST(SDMA0, ring->me);
+	int r;
 
 	if (!(adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
 		return -EOPNOTSUPP;
 
-	return amdgpu_sdma_reset_engine(adev, id, true);
+	amdgpu_amdkfd_suspend(adev, false);
+	r = amdgpu_sdma_reset_engine(adev, id);
+	amdgpu_amdkfd_resume(adev, false);
+
+	return r;
 }
 
 static int sdma_v4_4_2_stop_queue(struct amdgpu_device *adev, uint32_t instance_id)
