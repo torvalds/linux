@@ -238,7 +238,8 @@ DEFINE_FREDENTRY_RAW(int80_emulation)
 	instrumentation_end();
 	syscall_exit_to_user_mode(regs);
 }
-#endif
+#endif /* CONFIG_X86_FRED */
+
 #else /* CONFIG_IA32_EMULATION */
 
 /* Handles int $0x80 on a 32bit kernel */
