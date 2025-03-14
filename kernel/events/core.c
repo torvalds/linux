@@ -55,6 +55,7 @@
 #include <linux/pgtable.h>
 #include <linux/buildid.h>
 #include <linux/task_work.h>
+#include <linux/percpu-rwsem.h>
 
 #include "internal.h"
 
@@ -5217,6 +5218,225 @@ static void unaccount_freq_event(void)
 		atomic_dec(&nr_freq_events);
 }
 
+
+static struct perf_ctx_data *
+alloc_perf_ctx_data(struct kmem_cache *ctx_cache, bool global)
+{
+	struct perf_ctx_data *cd;
+
+	cd = kzalloc(sizeof(*cd), GFP_KERNEL);
+	if (!cd)
+		return NULL;
+
+	cd->data = kmem_cache_zalloc(ctx_cache, GFP_KERNEL);
+	if (!cd->data) {
+		kfree(cd);
+		return NULL;
+	}
+
+	cd->global = global;
+	cd->ctx_cache = ctx_cache;
+	refcount_set(&cd->refcount, 1);
+
+	return cd;
+}
+
+static void free_perf_ctx_data(struct perf_ctx_data *cd)
+{
+	kmem_cache_free(cd->ctx_cache, cd->data);
+	kfree(cd);
+}
+
+static void __free_perf_ctx_data_rcu(struct rcu_head *rcu_head)
+{
+	struct perf_ctx_data *cd;
+
+	cd = container_of(rcu_head, struct perf_ctx_data, rcu_head);
+	free_perf_ctx_data(cd);
+}
+
+static inline void perf_free_ctx_data_rcu(struct perf_ctx_data *cd)
+{
+	call_rcu(&cd->rcu_head, __free_perf_ctx_data_rcu);
+}
+
+static int
+attach_task_ctx_data(struct task_struct *task, struct kmem_cache *ctx_cache,
+		     bool global)
+{
+	struct perf_ctx_data *cd, *old = NULL;
+
+	cd = alloc_perf_ctx_data(ctx_cache, global);
+	if (!cd)
+		return -ENOMEM;
+
+	for (;;) {
+		if (try_cmpxchg((struct perf_ctx_data **)&task->perf_ctx_data, &old, cd)) {
+			if (old)
+				perf_free_ctx_data_rcu(old);
+			return 0;
+		}
+
+		if (!old) {
+			/*
+			 * After seeing a dead @old, we raced with
+			 * removal and lost, try again to install @cd.
+			 */
+			continue;
+		}
+
+		if (refcount_inc_not_zero(&old->refcount)) {
+			free_perf_ctx_data(cd); /* unused */
+			return 0;
+		}
+
+		/*
+		 * @old is a dead object, refcount==0 is stable, try and
+		 * replace it with @cd.
+		 */
+	}
+	return 0;
+}
+
+static void __detach_global_ctx_data(void);
+DEFINE_STATIC_PERCPU_RWSEM(global_ctx_data_rwsem);
+static refcount_t global_ctx_data_ref;
+
+static int
+attach_global_ctx_data(struct kmem_cache *ctx_cache)
+{
+	struct task_struct *g, *p;
+	struct perf_ctx_data *cd;
+	int ret;
+
+	if (refcount_inc_not_zero(&global_ctx_data_ref))
+		return 0;
+
+	guard(percpu_write)(&global_ctx_data_rwsem);
+	if (refcount_inc_not_zero(&global_ctx_data_ref))
+		return 0;
+again:
+	/* Allocate everything */
+	scoped_guard (rcu) {
+		for_each_process_thread(g, p) {
+			cd = rcu_dereference(p->perf_ctx_data);
+			if (cd && !cd->global) {
+				cd->global = 1;
+				if (!refcount_inc_not_zero(&cd->refcount))
+					cd = NULL;
+			}
+			if (!cd) {
+				get_task_struct(p);
+				goto alloc;
+			}
+		}
+	}
+
+	refcount_set(&global_ctx_data_ref, 1);
+
+	return 0;
+alloc:
+	ret = attach_task_ctx_data(p, ctx_cache, true);
+	put_task_struct(p);
+	if (ret) {
+		__detach_global_ctx_data();
+		return ret;
+	}
+	goto again;
+}
+
+static int
+attach_perf_ctx_data(struct perf_event *event)
+{
+	struct task_struct *task = event->hw.target;
+	struct kmem_cache *ctx_cache = event->pmu->task_ctx_cache;
+	int ret;
+
+	if (!ctx_cache)
+		return -ENOMEM;
+
+	if (task)
+		return attach_task_ctx_data(task, ctx_cache, false);
+
+	ret = attach_global_ctx_data(ctx_cache);
+	if (ret)
+		return ret;
+
+	event->attach_state |= PERF_ATTACH_GLOBAL_DATA;
+	return 0;
+}
+
+static void
+detach_task_ctx_data(struct task_struct *p)
+{
+	struct perf_ctx_data *cd;
+
+	scoped_guard (rcu) {
+		cd = rcu_dereference(p->perf_ctx_data);
+		if (!cd || !refcount_dec_and_test(&cd->refcount))
+			return;
+	}
+
+	/*
+	 * The old ctx_data may be lost because of the race.
+	 * Nothing is required to do for the case.
+	 * See attach_task_ctx_data().
+	 */
+	if (try_cmpxchg((struct perf_ctx_data **)&p->perf_ctx_data, &cd, NULL))
+		perf_free_ctx_data_rcu(cd);
+}
+
+static void __detach_global_ctx_data(void)
+{
+	struct task_struct *g, *p;
+	struct perf_ctx_data *cd;
+
+again:
+	scoped_guard (rcu) {
+		for_each_process_thread(g, p) {
+			cd = rcu_dereference(p->perf_ctx_data);
+			if (!cd || !cd->global)
+				continue;
+			cd->global = 0;
+			get_task_struct(p);
+			goto detach;
+		}
+	}
+	return;
+detach:
+	detach_task_ctx_data(p);
+	put_task_struct(p);
+	goto again;
+}
+
+static void detach_global_ctx_data(void)
+{
+	if (refcount_dec_not_one(&global_ctx_data_ref))
+		return;
+
+	guard(percpu_write)(&global_ctx_data_rwsem);
+	if (!refcount_dec_and_test(&global_ctx_data_ref))
+		return;
+
+	/* remove everything */
+	__detach_global_ctx_data();
+}
+
+static void detach_perf_ctx_data(struct perf_event *event)
+{
+	struct task_struct *task = event->hw.target;
+
+	event->attach_state &= ~PERF_ATTACH_TASK_DATA;
+
+	if (task)
+		return detach_task_ctx_data(task);
+
+	if (event->attach_state & PERF_ATTACH_GLOBAL_DATA) {
+		detach_global_ctx_data();
+		event->attach_state &= ~PERF_ATTACH_GLOBAL_DATA;
+	}
+}
+
 static void unaccount_event(struct perf_event *event)
 {
 	bool dec = false;
@@ -5397,6 +5617,9 @@ static void __free_event(struct perf_event *event)
 
 	if (is_cgroup_event(event))
 		perf_detach_cgroup(event);
+
+	if (event->attach_state & PERF_ATTACH_TASK_DATA)
+		detach_perf_ctx_data(event);
 
 	if (event->destroy)
 		event->destroy(event);
@@ -8607,10 +8830,58 @@ static void perf_event_task(struct task_struct *task,
 		       task_ctx);
 }
 
+/*
+ * Allocate data for a new task when profiling system-wide
+ * events which require PMU specific data
+ */
+static void
+perf_event_alloc_task_data(struct task_struct *child,
+			   struct task_struct *parent)
+{
+	struct kmem_cache *ctx_cache = NULL;
+	struct perf_ctx_data *cd;
+
+	if (!refcount_read(&global_ctx_data_ref))
+		return;
+
+	scoped_guard (rcu) {
+		cd = rcu_dereference(parent->perf_ctx_data);
+		if (cd)
+			ctx_cache = cd->ctx_cache;
+	}
+
+	if (!ctx_cache)
+		return;
+
+	guard(percpu_read)(&global_ctx_data_rwsem);
+	scoped_guard (rcu) {
+		cd = rcu_dereference(child->perf_ctx_data);
+		if (!cd) {
+			/*
+			 * A system-wide event may be unaccount,
+			 * when attaching the perf_ctx_data.
+			 */
+			if (!refcount_read(&global_ctx_data_ref))
+				return;
+			goto attach;
+		}
+
+		if (!cd->global) {
+			cd->global = 1;
+			refcount_inc(&cd->refcount);
+		}
+	}
+
+	return;
+attach:
+	attach_task_ctx_data(child, ctx_cache, true);
+}
+
 void perf_event_fork(struct task_struct *task)
 {
 	perf_event_task(task, NULL, 1);
 	perf_event_namespaces(task);
+	perf_event_alloc_task_data(task, current);
 }
 
 /*
@@ -12491,6 +12762,18 @@ perf_event_alloc(struct perf_event_attr *attr, int cpu,
 		return (void*)pmu;
 
 	/*
+	 * The PERF_ATTACH_TASK_DATA is set in the event_init()->hw_config().
+	 * The attach should be right after the perf_init_event().
+	 * Otherwise, the __free_event() would mistakenly detach the non-exist
+	 * perf_ctx_data because of the other errors between them.
+	 */
+	if (event->attach_state & PERF_ATTACH_TASK_DATA) {
+		err = attach_perf_ctx_data(event);
+		if (err)
+			return ERR_PTR(err);
+	}
+
+	/*
 	 * Disallow uncore-task events. Similarly, disallow uncore-cgroup
 	 * events (they don't make sense as the cgroup will be different
 	 * on other CPUs in the uncore mask).
@@ -13637,6 +13920,12 @@ void perf_event_exit_task(struct task_struct *child)
 	 * At this point we need to send EXIT events to cpu contexts.
 	 */
 	perf_event_task(child, NULL, 0);
+
+	/*
+	 * Detach the perf_ctx_data for the system-wide event.
+	 */
+	guard(percpu_read)(&global_ctx_data_rwsem);
+	detach_task_ctx_data(child);
 }
 
 static void perf_free_event(struct perf_event *event,
