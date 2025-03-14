@@ -996,6 +996,9 @@ ice_eswitch_add_tc_fltr(struct ice_vsi *vsi, struct ice_tc_flower_fltr *fltr)
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unable to add filter because it already exist");
 		ret = -EINVAL;
 		goto exit;
+	} else if (ret == -ENOSPC) {
+		NL_SET_ERR_MSG_MOD(fltr->extack, "Unable to add filter: insufficient space available.");
+		goto exit;
 	} else if (ret) {
 		NL_SET_ERR_MSG_MOD(fltr->extack, "Unable to add filter due to error");
 		goto exit;
@@ -1227,6 +1230,10 @@ ice_add_tc_flower_adv_fltr(struct ice_vsi *vsi,
 		NL_SET_ERR_MSG_MOD(tc_fltr->extack,
 				   "Unable to add filter because it already exist");
 		ret = -EINVAL;
+		goto exit;
+	} else if (ret == -ENOSPC) {
+		NL_SET_ERR_MSG_MOD(tc_fltr->extack,
+				   "Unable to add filter: insufficient space available.");
 		goto exit;
 	} else if (ret) {
 		NL_SET_ERR_MSG_MOD(tc_fltr->extack,
