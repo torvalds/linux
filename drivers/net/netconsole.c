@@ -106,6 +106,8 @@ enum sysdata_feature {
 	SYSDATA_CPU_NR = BIT(0),
 	/* Populate the task name (as in current->comm) in sysdata */
 	SYSDATA_TASKNAME = BIT(1),
+	/* Kernel release/version as part of sysdata */
+	SYSDATA_RELEASE = BIT(2),
 };
 
 /**
@@ -718,6 +720,8 @@ static size_t count_extradata_entries(struct netconsole_target *nt)
 	if (nt->sysdata_fields & SYSDATA_CPU_NR)
 		entries += 1;
 	if (nt->sysdata_fields & SYSDATA_TASKNAME)
+		entries += 1;
+	if (nt->sysdata_fields & SYSDATA_RELEASE)
 		entries += 1;
 
 	return entries;
