@@ -13,7 +13,7 @@ jobs:
         include:
           - type: all
           - type: bindeb-pkg
-    runs-on: ubuntu-latest
+    runs-on: [ubuntu-latest, ubuntu-24.04-arm]
 
     steps:
     - uses: actions/checkout@v4
