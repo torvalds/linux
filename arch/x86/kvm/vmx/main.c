@@ -10,6 +10,10 @@
 #include "tdx.h"
 #include "tdx_arch.h"
 
+#ifdef CONFIG_KVM_INTEL_TDX
+static_assert(offsetof(struct vcpu_vmx, vt) == offsetof(struct vcpu_tdx, vt));
+#endif
+
 static void vt_disable_virtualization_cpu(void)
 {
 	/* Note, TDX *and* VMX need to be disabled if TDX is enabled. */

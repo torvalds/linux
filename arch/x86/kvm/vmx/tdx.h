@@ -6,6 +6,8 @@
 #include "tdx_errno.h"
 
 #ifdef CONFIG_KVM_INTEL_TDX
+#include "common.h"
+
 int tdx_bringup(void);
 void tdx_cleanup(void);
 
@@ -45,6 +47,7 @@ enum vcpu_tdx_state {
 
 struct vcpu_tdx {
 	struct kvm_vcpu	vcpu;
+	struct vcpu_vt vt;
 
 	struct tdx_vp vp;
 
@@ -56,16 +59,6 @@ struct vcpu_tdx {
 void tdh_vp_rd_failed(struct vcpu_tdx *tdx, char *uclass, u32 field, u64 err);
 void tdh_vp_wr_failed(struct vcpu_tdx *tdx, char *uclass, char *op, u32 field,
 		      u64 val, u64 err);
-
-static inline bool is_td(struct kvm *kvm)
-{
-	return kvm->arch.vm_type == KVM_X86_TDX_VM;
-}
-
-static inline bool is_td_vcpu(struct kvm_vcpu *vcpu)
-{
-	return is_td(vcpu->kvm);
-}
 
 static __always_inline u64 td_tdcs_exec_read64(struct kvm_tdx *kvm_tdx, u32 field)
 {
@@ -175,9 +168,6 @@ struct kvm_tdx {
 struct vcpu_tdx {
 	struct kvm_vcpu	vcpu;
 };
-
-static inline bool is_td(struct kvm *kvm) { return false; }
-static inline bool is_td_vcpu(struct kvm_vcpu *vcpu) { return false; }
 
 #endif
 

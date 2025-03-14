@@ -3,8 +3,77 @@
 #define __KVM_X86_VMX_COMMON_H
 
 #include <linux/kvm_host.h>
+#include <asm/posted_intr.h>
 
 #include "mmu.h"
+
+union vmx_exit_reason {
+	struct {
+		u32	basic			: 16;
+		u32	reserved16		: 1;
+		u32	reserved17		: 1;
+		u32	reserved18		: 1;
+		u32	reserved19		: 1;
+		u32	reserved20		: 1;
+		u32	reserved21		: 1;
+		u32	reserved22		: 1;
+		u32	reserved23		: 1;
+		u32	reserved24		: 1;
+		u32	reserved25		: 1;
+		u32	bus_lock_detected	: 1;
+		u32	enclave_mode		: 1;
+		u32	smi_pending_mtf		: 1;
+		u32	smi_from_vmx_root	: 1;
+		u32	reserved30		: 1;
+		u32	failed_vmentry		: 1;
+	};
+	u32 full;
+};
+
+struct vcpu_vt {
+	/* Posted interrupt descriptor */
+	struct pi_desc pi_desc;
+
+	/* Used if this vCPU is waiting for PI notification wakeup. */
+	struct list_head pi_wakeup_list;
+
+	union vmx_exit_reason exit_reason;
+
+	unsigned long	exit_qualification;
+	u32		exit_intr_info;
+
+	/*
+	 * If true, guest state has been loaded into hardware, and host state
+	 * saved into vcpu_{vt,vmx,tdx}.  If false, host state is loaded into
+	 * hardware.
+	 */
+	bool		guest_state_loaded;
+
+#ifdef CONFIG_X86_64
+	u64		msr_host_kernel_gs_base;
+#endif
+
+	unsigned long	host_debugctlmsr;
+};
+
+#ifdef CONFIG_KVM_INTEL_TDX
+
+static __always_inline bool is_td(struct kvm *kvm)
+{
+	return kvm->arch.vm_type == KVM_X86_TDX_VM;
+}
+
+static __always_inline bool is_td_vcpu(struct kvm_vcpu *vcpu)
+{
+	return is_td(vcpu->kvm);
+}
+
+#else
+
+static inline bool is_td(struct kvm *kvm) { return false; }
+static inline bool is_td_vcpu(struct kvm_vcpu *vcpu) { return false; }
+
+#endif
 
 static inline bool vt_is_tdx_private_gpa(struct kvm *kvm, gpa_t gpa)
 {
