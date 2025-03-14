@@ -635,8 +635,8 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 
 	/* Reveal our presence to userspace */
 	if (drm_dev_register(&dev_priv->drm, 0)) {
-		drm_err(&dev_priv->drm,
-			"Failed to register driver for userspace access!\n");
+		i915_probe_error(dev_priv,
+				 "Failed to register driver for userspace access!\n");
 		return;
 	}
 
