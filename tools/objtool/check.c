@@ -4756,9 +4756,18 @@ int check(struct objtool_file *file)
 
 out:
 	/*
-	 *  For now, don't fail the kernel build on fatal warnings.  These
-	 *  errors are still fairly common due to the growing matrix of
-	 *  supported toolchains and their recent pace of change.
+	 * CONFIG_OBJTOOL_WERROR upgrades all warnings (and errors) to actual
+	 * errors.
+	 *
+	 * Note that even "fatal" type errors don't actually return an error
+	 * without CONFIG_OBJTOOL_WERROR.  That probably needs improved at some
+	 * point.
 	 */
+	if (opts.werror && (ret || warnings)) {
+		if (warnings)
+			WARN("%d warning(s) upgraded to errors", warnings);
+		return 1;
+	}
+
 	return 0;
 }
