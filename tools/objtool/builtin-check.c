@@ -6,6 +6,10 @@
 #include <subcmd/parse-options.h>
 #include <string.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/sendfile.h>
 #include <objtool/builtin.h>
 #include <objtool/objtool.h>
 
@@ -13,6 +17,8 @@
 	fprintf(stderr,					\
 		"error: objtool: " format "\n",		\
 		##__VA_ARGS__)
+
+const char *objname;
 
 struct opts opts;
 
@@ -71,7 +77,7 @@ static const struct option check_options[] = {
 	OPT_BOOLEAN('i', "ibt", &opts.ibt, "validate and annotate IBT"),
 	OPT_BOOLEAN('m', "mcount", &opts.mcount, "annotate mcount/fentry calls for ftrace"),
 	OPT_BOOLEAN('n', "noinstr", &opts.noinstr, "validate noinstr rules"),
-	OPT_BOOLEAN('o', "orc", &opts.orc, "generate ORC metadata"),
+	OPT_BOOLEAN(0,   "orc", &opts.orc, "generate ORC metadata"),
 	OPT_BOOLEAN('r', "retpoline", &opts.retpoline, "validate and annotate retpoline usage"),
 	OPT_BOOLEAN(0,   "rethunk", &opts.rethunk, "validate and annotate rethunk usage"),
 	OPT_BOOLEAN(0,   "unret", &opts.unret, "validate entry unret placement"),
@@ -84,15 +90,16 @@ static const struct option check_options[] = {
 	OPT_CALLBACK_OPTARG(0, "dump", NULL, NULL, "orc", "dump metadata", parse_dump),
 
 	OPT_GROUP("Options:"),
-	OPT_BOOLEAN(0, "backtrace", &opts.backtrace, "unwind on error"),
-	OPT_BOOLEAN(0, "backup", &opts.backup, "create .orig files before modification"),
-	OPT_BOOLEAN(0, "dry-run", &opts.dryrun, "don't write modifications"),
-	OPT_BOOLEAN(0, "link", &opts.link, "object is a linked object"),
-	OPT_BOOLEAN(0, "module", &opts.module, "object is part of a kernel module"),
-	OPT_BOOLEAN(0, "mnop", &opts.mnop, "nop out mcount call sites"),
-	OPT_BOOLEAN(0, "no-unreachable", &opts.no_unreachable, "skip 'unreachable instruction' warnings"),
-	OPT_BOOLEAN(0, "sec-address", &opts.sec_address, "print section addresses in warnings"),
-	OPT_BOOLEAN(0, "stats", &opts.stats, "print statistics"),
+	OPT_BOOLEAN(0,   "backtrace", &opts.backtrace, "unwind on error"),
+	OPT_BOOLEAN(0,   "backup", &opts.backup, "create .orig files before modification"),
+	OPT_BOOLEAN(0,   "dry-run", &opts.dryrun, "don't write modifications"),
+	OPT_BOOLEAN(0,   "link", &opts.link, "object is a linked object"),
+	OPT_BOOLEAN(0,   "module", &opts.module, "object is part of a kernel module"),
+	OPT_BOOLEAN(0,   "mnop", &opts.mnop, "nop out mcount call sites"),
+	OPT_BOOLEAN(0,   "no-unreachable", &opts.no_unreachable, "skip 'unreachable instruction' warnings"),
+	OPT_STRING('o',  "output", &opts.output, "file", "output file name"),
+	OPT_BOOLEAN(0,   "sec-address", &opts.sec_address, "print section addresses in warnings"),
+	OPT_BOOLEAN(0,   "stats", &opts.stats, "print statistics"),
 	OPT_BOOLEAN('v', "verbose", &opts.verbose, "verbose warnings"),
 
 	OPT_END(),
@@ -178,24 +185,75 @@ static bool opts_valid(void)
 	return false;
 }
 
+static int copy_file(const char *src, const char *dst)
+{
+	size_t to_copy, copied;
+	int dst_fd, src_fd;
+	struct stat stat;
+	off_t offset = 0;
+
+	src_fd = open(src, O_RDONLY);
+	if (src_fd == -1) {
+		ERROR("can't open '%s' for reading", src);
+		return 1;
+	}
+
+	dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC);
+	if (dst_fd == -1) {
+		ERROR("can't open '%s' for writing", dst);
+		return 1;
+	}
+
+	if (fstat(src_fd, &stat) == -1) {
+		perror("fstat");
+		return 1;
+	}
+
+	if (fchmod(dst_fd, stat.st_mode) == -1) {
+		perror("fchmod");
+		return 1;
+	}
+
+	for (to_copy = stat.st_size; to_copy > 0; to_copy -= copied) {
+		copied = sendfile(dst_fd, src_fd, &offset, to_copy);
+		if (copied == -1) {
+			perror("sendfile");
+			return 1;
+		}
+	}
+
+	close(dst_fd);
+	close(src_fd);
+	return 0;
+}
+
 int objtool_run(int argc, const char **argv)
 {
-	const char *objname;
 	struct objtool_file *file;
 	int ret;
 
-	argc = cmd_parse_options(argc, argv, check_usage);
-	objname = argv[0];
+	cmd_parse_options(argc, argv, check_usage);
 
 	if (!opts_valid())
 		return 1;
 
+	objname = argv[0];
+
 	if (opts.dump_orc)
 		return orc_dump(objname);
 
+	if (!opts.dryrun && opts.output) {
+		/* copy original .o file to output file */
+		if (copy_file(objname, opts.output))
+			return 1;
+
+		/* from here on, work directly on the output file */
+		objname = opts.output;
+	}
+
 	file = objtool_open_read(objname);
 	if (!file)
-		return 1;
+		goto err;
 
 	if (!opts.link && has_multiple_files(file->elf)) {
 		ERROR("Linked object requires --link");
@@ -204,10 +262,16 @@ int objtool_run(int argc, const char **argv)
 
 	ret = check(file);
 	if (ret)
-		return ret;
+		goto err;
 
-	if (file->elf->changed)
-		return elf_write(file->elf);
+	if (!opts.dryrun && file->elf->changed && elf_write(file->elf))
+		goto err;
 
 	return 0;
+
+err:
+	if (opts.output)
+		unlink(opts.output);
+
+	return 1;
 }

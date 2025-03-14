@@ -18,7 +18,6 @@
 
 bool help;
 
-const char *objname;
 static struct objtool_file file;
 
 static bool objtool_create_backup(const char *_objname)
@@ -79,18 +78,14 @@ static bool objtool_create_backup(const char *_objname)
 	return true;
 }
 
-struct objtool_file *objtool_open_read(const char *_objname)
+struct objtool_file *objtool_open_read(const char *filename)
 {
-	if (objname) {
-		if (strcmp(objname, _objname)) {
-			WARN("won't handle more than one file at a time");
-			return NULL;
-		}
-		return &file;
+	if (file.elf) {
+		WARN("won't handle more than one file at a time");
+		return NULL;
 	}
-	objname = _objname;
 
-	file.elf = elf_open_read(objname, O_RDWR);
+	file.elf = elf_open_read(filename, O_RDWR);
 	if (!file.elf)
 		return NULL;
 
