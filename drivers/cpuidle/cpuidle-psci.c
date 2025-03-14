@@ -36,19 +36,28 @@ struct psci_cpuidle_data {
 	struct device *dev;
 };
 
+struct psci_cpuidle_domain_state {
+	u32 state;
+};
+
 static DEFINE_PER_CPU_READ_MOSTLY(struct psci_cpuidle_data, psci_cpuidle_data);
-static DEFINE_PER_CPU(u32, domain_state);
+static DEFINE_PER_CPU(struct psci_cpuidle_domain_state, psci_domain_state);
 static bool psci_cpuidle_use_syscore;
 static bool psci_cpuidle_use_cpuhp;
 
 void psci_set_domain_state(u32 state)
 {
-	__this_cpu_write(domain_state, state);
+	__this_cpu_write(psci_domain_state.state, state);
 }
 
 static inline u32 psci_get_domain_state(void)
 {
-	return __this_cpu_read(domain_state);
+	return __this_cpu_read(psci_domain_state.state);
+}
+
+static inline void psci_clear_domain_state(void)
+{
+	__this_cpu_write(psci_domain_state.state, 0);
 }
 
 static __cpuidle int __psci_enter_domain_idle_state(struct cpuidle_device *dev,
@@ -87,7 +96,7 @@ static __cpuidle int __psci_enter_domain_idle_state(struct cpuidle_device *dev,
 	cpu_pm_exit();
 
 	/* Clear the domain state to start fresh when back from idle. */
-	psci_set_domain_state(0);
+	psci_clear_domain_state();
 	return ret;
 }
 
@@ -121,7 +130,7 @@ static int psci_idle_cpuhp_down(unsigned int cpu)
 	if (pd_dev) {
 		pm_runtime_put_sync(pd_dev);
 		/* Clear domain state to start fresh at next online. */
-		psci_set_domain_state(0);
+		psci_clear_domain_state();
 	}
 
 	return 0;
@@ -147,7 +156,7 @@ static void psci_idle_syscore_switch(bool suspend)
 
 			/* Clear domain state to re-start fresh. */
 			if (!cleared) {
-				psci_set_domain_state(0);
+				psci_clear_domain_state();
 				cleared = true;
 			}
 		}
