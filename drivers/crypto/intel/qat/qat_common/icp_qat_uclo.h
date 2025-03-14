@@ -404,8 +404,6 @@ struct icp_qat_suof_img_hdr {
 	char          *simg_buf;
 	unsigned long simg_len;
 	char          *css_header;
-	char          *css_key;
-	char          *css_signature;
 	char          *css_simg;
 	unsigned long simg_size;
 	unsigned int  ae_num;

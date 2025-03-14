@@ -1064,6 +1064,7 @@ static void qat_uclo_map_simg(struct icp_qat_fw_loader_handle *handle,
 			      struct icp_qat_suof_chunk_hdr *suof_chunk_hdr)
 {
 	struct icp_qat_suof_handle *suof_handle = handle->sobj_handle;
+	unsigned int offset = ICP_QAT_AE_IMG_OFFSET(handle);
 	struct icp_qat_simg_ae_mode *ae_mode;
 	struct icp_qat_suof_objhdr *suof_objhdr;
 
@@ -1075,13 +1076,7 @@ static void qat_uclo_map_simg(struct icp_qat_fw_loader_handle *handle,
 				   suof_chunk_hdr->offset))->img_length;
 
 	suof_img_hdr->css_header = suof_img_hdr->simg_buf;
-	suof_img_hdr->css_key = (suof_img_hdr->css_header +
-				 sizeof(struct icp_qat_css_hdr));
-	suof_img_hdr->css_signature = suof_img_hdr->css_key +
-				      ICP_QAT_CSS_FWSK_MODULUS_LEN(handle) +
-				      ICP_QAT_CSS_FWSK_EXPONENT_LEN(handle);
-	suof_img_hdr->css_simg = suof_img_hdr->css_signature +
-				 ICP_QAT_CSS_SIGNATURE_LEN(handle);
+	suof_img_hdr->css_simg = suof_img_hdr->css_header + offset;
 
 	ae_mode = (struct icp_qat_simg_ae_mode *)(suof_img_hdr->css_simg);
 	suof_img_hdr->ae_mask = ae_mode->ae_mask;
