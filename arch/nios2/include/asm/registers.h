@@ -6,7 +6,7 @@
 #ifndef _ASM_NIOS2_REGISTERS_H
 #define _ASM_NIOS2_REGISTERS_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <asm/cpuinfo.h>
 #endif
 
@@ -44,7 +44,7 @@
 
 /* tlbmisc register bits */
 #define TLBMISC_PID_SHIFT	4
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define TLBMISC_PID_MASK	((1UL << cpuinfo.tlb_pid_num_bits) - 1)
 #endif
 #define TLBMISC_WAY_MASK	0xf

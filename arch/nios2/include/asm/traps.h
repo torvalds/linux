@@ -12,7 +12,7 @@
 
 #define TRAP_ID_SYSCALL		0
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 void _exception(int signo, struct pt_regs *regs, int code, unsigned long addr);
 void do_page_fault(struct pt_regs *regs, unsigned long cause,
 		   unsigned long address);
