@@ -53,6 +53,7 @@
 #include "xe_pxp.h"
 #include "xe_query.h"
 #include "xe_shrinker.h"
+#include "xe_survivability_mode.h"
 #include "xe_sriov.h"
 #include "xe_tile.h"
 #include "xe_ttm_stolen_mgr.h"
@@ -705,8 +706,20 @@ int xe_device_probe_early(struct xe_device *xe)
 	sriov_update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
-	if (err)
-		return err;
+	if (err) {
+		int save_err = err;
+
+		/*
+		 * Try to leave device in survivability mode if device is
+		 * possible, but still return the previous error for error
+		 * propagation
+		 */
+		err = xe_survivability_mode_enable(xe);
+		if (err)
+			return err;
+
+		return save_err;
+	}
 
 	err = wait_for_lmem_ready(xe);
 	if (err)

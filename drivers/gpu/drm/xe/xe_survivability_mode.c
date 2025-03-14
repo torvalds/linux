@@ -178,15 +178,16 @@ bool xe_survivability_mode_is_enabled(struct xe_device *xe)
 	return xe->survivability.mode;
 }
 
-/**
- * xe_survivability_mode_required - checks if survivability mode is required
- * @xe: xe device instance
+/*
+ * survivability_mode_requested - check if it's possible to enable
+ * survivability mode and that was requested by firmware
  *
- * This function reads the boot status from Pcode
+ * This function reads the boot status from Pcode.
  *
- * Return: true if boot status indicates failure, false otherwise
+ * Return: true if platform support is available and boot status indicates
+ * failure, false otherwise.
  */
-bool xe_survivability_mode_required(struct xe_device *xe)
+static bool survivability_mode_requested(struct xe_device *xe)
 {
 	struct xe_survivability *survivability = &xe->survivability;
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
@@ -208,13 +209,17 @@ bool xe_survivability_mode_required(struct xe_device *xe)
  *
  * Initialize survivability information and enable survivability mode
  *
- * Return: 0 for success, negative error code otherwise.
+ * Return: 0 if survivability mode is enabled or not requested; negative error
+ * code otherwise.
  */
 int xe_survivability_mode_enable(struct xe_device *xe)
 {
 	struct xe_survivability *survivability = &xe->survivability;
 	struct xe_survivability_info *info;
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+
+	if (!survivability_mode_requested(xe))
+		return 0;
 
 	survivability->size = MAX_SCRATCH_MMIO;
 
