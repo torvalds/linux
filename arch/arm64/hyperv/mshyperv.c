@@ -26,6 +26,7 @@ int hv_get_hypervisor_version(union hv_hypervisor_version_info *info)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(hv_get_hypervisor_version);
 
 static int __init hyperv_init(void)
 {

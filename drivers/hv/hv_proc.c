@@ -107,6 +107,7 @@ free_buf:
 	kfree(counts);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hv_call_deposit_pages);
 
 int hv_call_add_logical_proc(int node, u32 lp_index, u32 apic_id)
 {
@@ -191,4 +192,4 @@ int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags)
 
 	return ret;
 }
-
+EXPORT_SYMBOL_GPL(hv_call_create_vp);
