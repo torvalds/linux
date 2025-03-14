@@ -4,8 +4,10 @@
 #define __CPUIDLE_PSCI_H
 
 struct device_node;
+struct generic_pm_domain;
 
-void psci_set_domain_state(u32 state);
+void psci_set_domain_state(struct generic_pm_domain *pd, unsigned int state_idx,
+			   u32 state);
 int psci_dt_parse_state_node(struct device_node *np, u32 *state);
 
 #endif /* __CPUIDLE_PSCI_H */
