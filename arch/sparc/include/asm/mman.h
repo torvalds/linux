@@ -4,7 +4,7 @@
 
 #include <uapi/asm/mman.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #define arch_mmap_check(addr,len,flags)	sparc_mmap_check(addr,len)
 int sparc_mmap_check(unsigned long addr, unsigned long len);
 
@@ -87,5 +87,5 @@ static inline bool arch_validate_flags(vm_flags_t vm_flags)
 }
 #endif /* CONFIG_SPARC64 */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __SPARC_MMAN_H__ */
