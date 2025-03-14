@@ -183,7 +183,7 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 			       IRQF_SHARED, "ACP_I2S_IRQ", chip);
 	if (ret) {
 		dev_err(&pci->dev, "ACP I2S IRQ request failed %d\n", ret);
-		return ret;
+		goto de_init;
 	}
 
 	check_acp_config(pci, chip);
