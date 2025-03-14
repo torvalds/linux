@@ -304,6 +304,24 @@ static void load_segments(void)
 		);
 }
 
+static void prepare_debug_idt(unsigned long control_page, unsigned long vec_ofs)
+{
+	gate_desc idtentry = { 0 };
+	int i;
+
+	idtentry.bits.p		= 1;
+	idtentry.bits.type	= GATE_TRAP;
+	idtentry.segment	= __KERNEL_CS;
+	idtentry.offset_low	= (control_page & 0xFFFF) + vec_ofs;
+	idtentry.offset_middle	= (control_page >> 16) & 0xFFFF;
+	idtentry.offset_high	= control_page >> 32;
+
+	for (i = 0; i < 16; i++) {
+		kexec_debug_idt[i] = idtentry;
+		idtentry.offset_low += KEXEC_DEBUG_EXC_HANDLER_SIZE;
+	}
+}
+
 int machine_kexec_prepare(struct kimage *image)
 {
 	void *control_page = page_address(image->control_code_page);
@@ -320,6 +338,9 @@ int machine_kexec_prepare(struct kimage *image)
 
 	if (image->type == KEXEC_TYPE_DEFAULT)
 		kexec_pa_swap_page = page_to_pfn(image->swap_page) << PAGE_SHIFT;
+
+	prepare_debug_idt((unsigned long)__pa(control_page),
+			  (unsigned long)kexec_debug_exc_vectors - reloc_start);
 
 	__memcpy(control_page, __relocate_kernel_start, reloc_end - reloc_start);
 
