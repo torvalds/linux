@@ -43,6 +43,16 @@ config ADUX1020
 	 To compile this driver as a module, choose M here: the
 	 module will be called adux1020.
 
+config AL3000A
+	tristate "AL3000a ambient light sensor"
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Dyna Image AL3000a
+	  ambient light sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called al3000a.
+
 config AL3010
 	tristate "AL3010 ambient light sensor"
 	depends on I2C
@@ -62,6 +72,17 @@ config AL3320A
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called al3320a.
+
+config APDS9160
+	tristate "APDS9160 combined als and proximity sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	   Say Y here if you want to build support for a Broadcom APDS9160
+	   combined ambient light and proximity sensor.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called apds9160.
 
 config APDS9300
 	tristate "APDS9300 ambient light sensor"
@@ -683,6 +704,7 @@ config VEML6030
 	select REGMAP_I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
+	select IIO_GTS_HELPER
 	depends on I2C
 	help
 	  Say Y here if you want to build a driver for the Vishay VEML6030

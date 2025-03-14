@@ -19,6 +19,31 @@
 #include "ad3552r.h"
 #include "ad3552r-hs.h"
 
+/*
+ * Important notes for register map access:
+ * ========================================
+ *
+ * Register address space is divided in 2 regions, primary (config) and
+ * secondary (DAC). Primary region can only be accessed in simple SPI mode,
+ * with exception for ad355x models where setting QSPI pin high allows QSPI
+ * access to both the regions.
+ *
+ * Due to the fact that ad3541/2r do not implement QSPI, for proper device
+ * detection, HDL keeps "QSPI" pin level low at boot (see ad3552r manual, rev B
+ * table 7, pin 31, digital input). For this reason, actually the working mode
+ * between SPI, DSPI and QSPI must be set via software, configuring the target
+ * DAC appropriately, together with the backend API to configure the bus mode
+ * accordingly.
+ *
+ * Also, important to note that none of the three modes allow to read in DDR.
+ *
+ * In non-buffering operations, mode is set to simple SPI SDR for all primary
+ * and secondary region r/w accesses, to avoid to switch the mode each time DAC
+ * register is accessed (raw accesses, r/w), and to be able to dump registers
+ * content (possible as non DDR only).
+ * In buffering mode, driver sets best possible mode, D/QSPI and DDR.
+ */
+
 struct ad3552r_hs_state {
 	const struct ad3552r_model_data *model_data;
 	struct gpio_desc *reset_gpio;
@@ -27,16 +52,26 @@ struct ad3552r_hs_state {
 	bool single_channel;
 	struct ad3552r_ch_data ch_data[AD3552R_MAX_CH];
 	struct ad3552r_hs_platform_data *data;
+	/* INTERFACE_CONFIG_D register cache, in DDR we cannot read values. */
+	u32 config_d;
 };
 
-static int ad3552r_qspi_update_reg_bits(struct ad3552r_hs_state *st,
-					u32 reg, u32 mask, u32 val,
-					size_t xfer_size)
+static int ad3552r_hs_reg_read(struct ad3552r_hs_state *st, u32 reg, u32 *val,
+			       size_t xfer_size)
+{
+	/* No chip in the family supports DDR read. Informing of this. */
+	WARN_ON_ONCE(st->config_d & AD3552R_MASK_SPI_CONFIG_DDR);
+
+	return st->data->bus_reg_read(st->back, reg, val, xfer_size);
+}
+
+static int ad3552r_hs_update_reg_bits(struct ad3552r_hs_state *st, u32 reg,
+				      u32 mask, u32 val, size_t xfer_size)
 {
 	u32 rval;
 	int ret;
 
-	ret = st->data->bus_reg_read(st->back, reg, &rval, xfer_size);
+	ret = ad3552r_hs_reg_read(st, reg, &rval, xfer_size);
 	if (ret)
 		return ret;
 
@@ -56,16 +91,20 @@ static int ad3552r_hs_read_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		/*
-		 * Using 4 lanes (QSPI), then using 2 as DDR mode is
-		 * considered always on (considering buffering mode always).
+		 * Using a "num_spi_data_lanes" variable since ad3541/2 have
+		 * only DSPI interface, while ad355x is QSPI. Then using 2 as
+		 * DDR mode is considered always on (considering buffering
+		 * mode always).
 		 */
 		*val = DIV_ROUND_CLOSEST(st->data->bus_sample_data_clock_hz *
-					 4 * 2, chan->scan_type.realbits);
+					 st->model_data->num_spi_data_lanes * 2,
+					 chan->scan_type.realbits);
 
 		return IIO_VAL_INT;
 
 	case IIO_CHAN_INFO_RAW:
-		ret = st->data->bus_reg_read(st->back,
+		/* For RAW accesses, stay always in simple-spi. */
+		ret = ad3552r_hs_reg_read(st,
 				AD3552R_REG_ADDR_CH_DAC_16B(chan->channel),
 				val, 2);
 		if (ret)
@@ -90,18 +129,58 @@ static int ad3552r_hs_write_raw(struct iio_dev *indio_dev,
 				int val, int val2, long mask)
 {
 	struct ad3552r_hs_state *st = iio_priv(indio_dev);
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			return st->data->bus_reg_write(st->back,
-				    AD3552R_REG_ADDR_CH_DAC_16B(chan->channel),
-				    val, 2);
-		}
-		unreachable();
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
+		/* For RAW accesses, stay always in simple-spi. */
+		ret = st->data->bus_reg_write(st->back,
+			AD3552R_REG_ADDR_CH_DAC_16B(chan->channel),
+			val, 2);
+
+		iio_device_release_direct(indio_dev);
+		return ret;
 	default:
 		return -EINVAL;
 	}
+}
+
+static int ad3552r_hs_set_bus_io_mode_hs(struct ad3552r_hs_state *st)
+{
+	int bus_mode;
+
+	if (st->model_data->num_spi_data_lanes == 4)
+		bus_mode = AD3552R_IO_MODE_QSPI;
+	else
+		bus_mode = AD3552R_IO_MODE_DSPI;
+
+	return st->data->bus_set_io_mode(st->back, bus_mode);
+}
+
+static int ad3552r_hs_set_target_io_mode_hs(struct ad3552r_hs_state *st)
+{
+	u32 mode_target;
+
+	/*
+	 * Best access for secondary reg area, QSPI where possible,
+	 * else as DSPI.
+	 */
+	if (st->model_data->num_spi_data_lanes == 4)
+		mode_target = AD3552R_QUAD_SPI;
+	else
+		mode_target = AD3552R_DUAL_SPI;
+
+	/*
+	 * Better to not use update here, since generally it is already
+	 * set as DDR mode, and it's not possible to read in DDR mode.
+	 */
+	return st->data->bus_reg_write(st->back,
+				AD3552R_REG_ADDR_TRANSFER_REGISTER,
+				FIELD_PREP(AD3552R_MASK_MULTI_IO_MODE,
+					   mode_target) |
+				AD3552R_MASK_STREAM_LENGTH_KEEP_VALUE, 1);
 }
 
 static int ad3552r_hs_buffer_postenable(struct iio_dev *indio_dev)
@@ -132,47 +211,110 @@ static int ad3552r_hs_buffer_postenable(struct iio_dev *indio_dev)
 		return -EINVAL;
 	}
 
-	ret = st->data->bus_reg_write(st->back, AD3552R_REG_ADDR_STREAM_MODE,
+	/*
+	 * With ad3541/2r support, QSPI pin is held low at reset from HDL,
+	 * streaming start sequence must respect strictly the order below.
+	 */
+
+	/* Primary region access, set streaming mode (now in SPI + SDR). */
+	ret = ad3552r_hs_update_reg_bits(st,
+					 AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+					 AD3552R_MASK_SINGLE_INST, 0, 1);
+	if (ret)
+		return ret;
+
+	/*
+	 * Set target loop len, keeping the value: streaming writes at address
+	 * 0x2c or 0x2a, in descending loop (2 or 4 bytes), keeping loop len
+	 * value so that it's not cleared hereafter when _CS is deasserted.
+	 */
+	ret = ad3552r_hs_update_reg_bits(st, AD3552R_REG_ADDR_TRANSFER_REGISTER,
+					 AD3552R_MASK_STREAM_LENGTH_KEEP_VALUE,
+					 AD3552R_MASK_STREAM_LENGTH_KEEP_VALUE,
+					 1);
+	if (ret)
+		goto exit_err_streaming;
+
+	ret = st->data->bus_reg_write(st->back,
+				      AD3552R_REG_ADDR_STREAM_MODE,
 				      loop_len, 1);
 	if (ret)
-		return ret;
+		goto exit_err_streaming;
 
-	/* Inform DAC chip to switch into DDR mode */
-	ret = ad3552r_qspi_update_reg_bits(st,
-					   AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
-					   AD3552R_MASK_SPI_CONFIG_DDR,
-					   AD3552R_MASK_SPI_CONFIG_DDR, 1);
+	st->config_d |= AD3552R_MASK_SPI_CONFIG_DDR;
+	ret = st->data->bus_reg_write(st->back,
+				      AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
+				      st->config_d, 1);
 	if (ret)
-		return ret;
+		goto exit_err_streaming;
 
-	/* Inform DAC IP to go for DDR mode from now on */
 	ret = iio_backend_ddr_enable(st->back);
-	if (ret) {
-		dev_err(st->dev, "could not set DDR mode, not streaming");
-		goto exit_err;
-	}
+	if (ret)
+		goto exit_err_ddr_mode_target;
 
+	/*
+	 * From here onward mode is DDR, so reading any register is not possible
+	 * anymore, including calling "ad3552r_hs_update_reg_bits" function.
+	 */
+
+	/* Set target to best high speed mode (D or QSPI). */
+	ret = ad3552r_hs_set_target_io_mode_hs(st);
+	if (ret)
+		goto exit_err_ddr_mode;
+
+	/* Set bus to best high speed mode (D or QSPI). */
+	ret = ad3552r_hs_set_bus_io_mode_hs(st);
+	if (ret)
+		goto exit_err_bus_mode_target;
+
+	/*
+	 * Backend setup must be done now only, or related register values will
+	 * be disrupted by previous bus accesses.
+	 */
 	ret = iio_backend_data_transfer_addr(st->back, val);
 	if (ret)
-		goto exit_err;
+		goto exit_err_bus_mode_target;
 
 	ret = iio_backend_data_format_set(st->back, 0, &fmt);
 	if (ret)
-		goto exit_err;
+		goto exit_err_bus_mode_target;
 
 	ret = iio_backend_data_stream_enable(st->back);
 	if (ret)
-		goto exit_err;
+		goto exit_err_bus_mode_target;
 
 	return 0;
 
-exit_err:
-	ad3552r_qspi_update_reg_bits(st,
-				     AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
-				     AD3552R_MASK_SPI_CONFIG_DDR,
-				     0, 1);
+exit_err_bus_mode_target:
+	/* Back to simple SPI, not using update to avoid read. */
+	st->data->bus_reg_write(st->back, AD3552R_REG_ADDR_TRANSFER_REGISTER,
+				FIELD_PREP(AD3552R_MASK_MULTI_IO_MODE,
+					   AD3552R_SPI) |
+				AD3552R_MASK_STREAM_LENGTH_KEEP_VALUE, 1);
 
+	/*
+	 * Back bus to simple SPI, this must be executed together with above
+	 * target mode unwind, and can be done only after it.
+	 */
+	st->data->bus_set_io_mode(st->back, AD3552R_IO_MODE_SPI);
+
+exit_err_ddr_mode:
 	iio_backend_ddr_disable(st->back);
+
+exit_err_ddr_mode_target:
+	/*
+	 * Back to SDR. In DDR we cannot read, whatever the mode is, so not
+	 * using update.
+	 */
+	st->config_d &= ~AD3552R_MASK_SPI_CONFIG_DDR;
+	st->data->bus_reg_write(st->back, AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
+				st->config_d, 1);
+
+exit_err_streaming:
+	/* Back to single instruction mode, disabling loop. */
+	st->data->bus_reg_write(st->back, AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+				AD3552R_MASK_SINGLE_INST |
+				AD3552R_MASK_SHORT_INSTRUCTION, 1);
 
 	return ret;
 }
@@ -186,15 +328,44 @@ static int ad3552r_hs_buffer_predisable(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	/* Inform DAC to set in SDR mode */
-	ret = ad3552r_qspi_update_reg_bits(st,
-					   AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
-					   AD3552R_MASK_SPI_CONFIG_DDR,
-					   0, 1);
+	/*
+	 * Set us to simple SPI, even if still in ddr, so to be able to write
+	 * in primary region.
+	 */
+	ret = st->data->bus_set_io_mode(st->back, AD3552R_IO_MODE_SPI);
+	if (ret)
+		return ret;
+
+	/*
+	 * Back to SDR (in DDR we cannot read, whatever the mode is, so not
+	 * using update).
+	 */
+	st->config_d &= ~AD3552R_MASK_SPI_CONFIG_DDR;
+	ret = st->data->bus_reg_write(st->back,
+				      AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
+				      st->config_d, 1);
 	if (ret)
 		return ret;
 
 	ret = iio_backend_ddr_disable(st->back);
+	if (ret)
+		return ret;
+
+	/*
+	 * Back to simple SPI for secondary region too now, so to be able to
+	 * dump/read registers there too if needed.
+	 */
+	ret = ad3552r_hs_update_reg_bits(st, AD3552R_REG_ADDR_TRANSFER_REGISTER,
+					 AD3552R_MASK_MULTI_IO_MODE,
+					 AD3552R_SPI, 1);
+	if (ret)
+		return ret;
+
+	/* Back to single instruction mode, disabling loop. */
+	ret = ad3552r_hs_update_reg_bits(st,
+					 AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+					 AD3552R_MASK_SINGLE_INST,
+					 AD3552R_MASK_SINGLE_INST, 1);
 	if (ret)
 		return ret;
 
@@ -211,10 +382,10 @@ static inline int ad3552r_hs_set_output_range(struct ad3552r_hs_state *st,
 	else
 		val = FIELD_PREP(AD3552R_MASK_CH1_RANGE, mode);
 
-	return ad3552r_qspi_update_reg_bits(st,
-					AD3552R_REG_ADDR_CH0_CH1_OUTPUT_RANGE,
-					AD3552R_MASK_CH_OUTPUT_RANGE_SEL(ch),
-					val, 1);
+	return ad3552r_hs_update_reg_bits(st,
+					  AD3552R_REG_ADDR_CH0_CH1_OUTPUT_RANGE,
+					  AD3552R_MASK_CH_OUTPUT_RANGE_SEL(ch),
+					  val, 1);
 }
 
 static int ad3552r_hs_reset(struct ad3552r_hs_state *st)
@@ -230,10 +401,10 @@ static int ad3552r_hs_reset(struct ad3552r_hs_state *st)
 		fsleep(10);
 		gpiod_set_value_cansleep(st->reset_gpio, 0);
 	} else {
-		ret = ad3552r_qspi_update_reg_bits(st,
-					AD3552R_REG_ADDR_INTERFACE_CONFIG_A,
-					AD3552R_MASK_SOFTWARE_RESET,
-					AD3552R_MASK_SOFTWARE_RESET, 1);
+		ret = ad3552r_hs_update_reg_bits(st,
+			AD3552R_REG_ADDR_INTERFACE_CONFIG_A,
+			AD3552R_MASK_SOFTWARE_RESET,
+			AD3552R_MASK_SOFTWARE_RESET, 1);
 		if (ret)
 			return ret;
 	}
@@ -304,7 +475,15 @@ static int ad3552r_hs_setup(struct ad3552r_hs_state *st)
 	if (ret)
 		return ret;
 
+	/* HDL starts with DDR enabled, disabling it. */
 	ret = iio_backend_ddr_disable(st->back);
+	if (ret)
+		return ret;
+
+	ret = st->data->bus_reg_write(st->back,
+				      AD3552R_REG_ADDR_INTERFACE_CONFIG_B,
+				      AD3552R_MASK_SINGLE_INST |
+				      AD3552R_MASK_SHORT_INSTRUCTION, 1);
 	if (ret)
 		return ret;
 
@@ -312,22 +491,33 @@ static int ad3552r_hs_setup(struct ad3552r_hs_state *st)
 	if (ret)
 		return ret;
 
-	ret = st->data->bus_reg_read(st->back, AD3552R_REG_ADDR_PRODUCT_ID_L,
-				     &val, 1);
+	/*
+	 * Caching config_d, needed to restore it after streaming,
+	 * and also, to detect possible DDR read, that's not allowed.
+	 */
+	ret = st->data->bus_reg_read(st->back,
+				     AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
+				     &st->config_d, 1);
+	if (ret)
+		return ret;
+
+	ret = ad3552r_hs_reg_read(st, AD3552R_REG_ADDR_PRODUCT_ID_L, &val, 1);
 	if (ret)
 		return ret;
 
 	id = val;
 
-	ret = st->data->bus_reg_read(st->back, AD3552R_REG_ADDR_PRODUCT_ID_H,
-				     &val, 1);
+	ret = ad3552r_hs_reg_read(st, AD3552R_REG_ADDR_PRODUCT_ID_H, &val, 1);
 	if (ret)
 		return ret;
 
 	id |= val << 8;
 	if (id != st->model_data->chip_id)
-		dev_info(st->dev, "Chip ID error. Expected 0x%x, Read 0x%x\n",
-			 AD3552R_ID, id);
+		dev_warn(st->dev,
+			 "chip ID mismatch, detected 0x%x but expected 0x%x\n",
+			 id, st->model_data->chip_id);
+
+	dev_dbg(st->dev, "chip id %s detected", st->model_data->model_name);
 
 	/* Clear reset error flag, see ad3552r manual, rev B table 38. */
 	ret = st->data->bus_reg_write(st->back, AD3552R_REG_ADDR_ERR_STATUS,
@@ -338,14 +528,6 @@ static int ad3552r_hs_setup(struct ad3552r_hs_state *st)
 	ret = st->data->bus_reg_write(st->back,
 				      AD3552R_REG_ADDR_SH_REFERENCE_CONFIG,
 				      0, 1);
-	if (ret)
-		return ret;
-
-	ret = st->data->bus_reg_write(st->back,
-				AD3552R_REG_ADDR_TRANSFER_REGISTER,
-				FIELD_PREP(AD3552R_MASK_MULTI_IO_MODE,
-					   AD3552R_QUAD_SPI) |
-				AD3552R_MASK_STREAM_LENGTH_KEEP_VALUE, 1);
 	if (ret)
 		return ret;
 
@@ -363,19 +545,21 @@ static int ad3552r_hs_setup(struct ad3552r_hs_state *st)
 
 	val = ret;
 
-	ret = ad3552r_qspi_update_reg_bits(st,
-				AD3552R_REG_ADDR_SH_REFERENCE_CONFIG,
-				AD3552R_MASK_REFERENCE_VOLTAGE_SEL,
-				val, 1);
+	ret = ad3552r_hs_update_reg_bits(st,
+					 AD3552R_REG_ADDR_SH_REFERENCE_CONFIG,
+					 AD3552R_MASK_REFERENCE_VOLTAGE_SEL,
+					 val, 1);
 	if (ret)
 		return ret;
 
 	ret = ad3552r_get_drive_strength(st->dev, &val);
 	if (!ret) {
-		ret = ad3552r_qspi_update_reg_bits(st,
+		st->config_d |=
+			FIELD_PREP(AD3552R_MASK_SDO_DRIVE_STRENGTH, val);
+
+		ret = st->data->bus_reg_write(st->back,
 					AD3552R_REG_ADDR_INTERFACE_CONFIG_D,
-					AD3552R_MASK_SDO_DRIVE_STRENGTH,
-					val, 1);
+					st->config_d, 1);
 		if (ret)
 			return ret;
 	}
@@ -504,15 +688,10 @@ static int ad3552r_hs_probe(struct platform_device *pdev)
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
 
-static const struct ad3552r_model_data ad3552r_model_data = {
-	.model_name = "ad3552r",
-	.chip_id = AD3552R_ID,
-	.num_hw_channels = 2,
-	.ranges_table = ad3552r_ch_ranges,
-	.num_ranges = ARRAY_SIZE(ad3552r_ch_ranges),
-};
-
 static const struct of_device_id ad3552r_hs_of_id[] = {
+	{ .compatible = "adi,ad3541r", .data = &ad3541r_model_data },
+	{ .compatible = "adi,ad3542r", .data = &ad3542r_model_data },
+	{ .compatible = "adi,ad3551r", .data = &ad3551r_model_data },
 	{ .compatible = "adi,ad3552r", .data = &ad3552r_model_data },
 	{ }
 };

@@ -4,14 +4,16 @@
 $id: http://devicetree.org/schemas/iio/light/dynaimage,al3010.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Dyna-Image AL3010 sensor
+title: Dyna-Image AL3000a/AL3010 sensor
 
 maintainers:
   - David Heidelberg <david@ixit.cz>
 
 properties:
   compatible:
-    const: dynaimage,al3010
+    enum:
+      - dynaimage,al3000a
+      - dynaimage,al3010
 
   reg:
     maxItems: 1

@@ -9,7 +9,7 @@
 
 #include <linux/device.h>
 #include <linux/cdev.h>
-#include <linux/cleanup.h>
+#include <linux/compiler_types.h>
 #include <linux/slab.h>
 #include <linux/iio/types.h>
 /* IIO TODO LIST */
@@ -663,30 +663,29 @@ int iio_device_claim_direct_mode(struct iio_dev *indio_dev);
 void iio_device_release_direct_mode(struct iio_dev *indio_dev);
 
 /*
- * This autocleanup logic is normally used via
- * iio_device_claim_direct_scoped().
+ * Helper functions that allow claim and release of direct mode
+ * in a fashion that doesn't generate many false positives from sparse.
+ * Note this must remain static inline in the header so that sparse
+ * can see the __acquire() marking. Revisit when sparse supports
+ * __cond_acquires()
  */
-DEFINE_GUARD(iio_claim_direct, struct iio_dev *, iio_device_claim_direct_mode(_T),
-	     iio_device_release_direct_mode(_T))
+static inline bool iio_device_claim_direct(struct iio_dev *indio_dev)
+{
+	int ret = iio_device_claim_direct_mode(indio_dev);
 
-DEFINE_GUARD_COND(iio_claim_direct, _try, ({
-			struct iio_dev *dev;
-			int d = iio_device_claim_direct_mode(_T);
+	if (ret)
+		return false;
 
-			if (d < 0)
-				dev = NULL;
-			else
-				dev = _T;
-			dev;
-		}))
+	__acquire(iio_dev);
 
-/**
- * iio_device_claim_direct_scoped() - Scoped call to iio_device_claim_direct.
- * @fail: What to do on failure to claim device.
- * @iio_dev: Pointer to the IIO devices structure
- */
-#define iio_device_claim_direct_scoped(fail, iio_dev) \
-	scoped_cond_guard(iio_claim_direct_try, fail, iio_dev)
+	return true;
+}
+
+static inline void iio_device_release_direct(struct iio_dev *indio_dev)
+{
+	iio_device_release_direct_mode(indio_dev);
+	__release(indio_dev);
+}
 
 int iio_device_claim_buffer_mode(struct iio_dev *indio_dev);
 void iio_device_release_buffer_mode(struct iio_dev *indio_dev);

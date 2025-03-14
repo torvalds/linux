@@ -85,19 +85,25 @@ static int tmp006_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		if (channel->type == IIO_VOLTAGE) {
 			/* LSB is 156.25 nV */
-			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-				ret = tmp006_read_measurement(data, TMP006_VOBJECT);
-				if (ret < 0)
-					return ret;
-			}
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
+
+			ret = tmp006_read_measurement(data, TMP006_VOBJECT);
+			iio_device_release_direct(indio_dev);
+			if (ret < 0)
+				return ret;
+
 			*val = sign_extend32(ret, 15);
 		} else if (channel->type == IIO_TEMP) {
 			/* LSB is 0.03125 degrees Celsius */
-			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-				ret = tmp006_read_measurement(data, TMP006_TAMBIENT);
-				if (ret < 0)
-					return ret;
-			}
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
+
+			ret = tmp006_read_measurement(data, TMP006_TAMBIENT);
+			iio_device_release_direct(indio_dev);
+			if (ret < 0)
+				return ret;
+
 			*val = sign_extend32(ret, 15) >> TMP006_TAMBIENT_SHIFT;
 		} else {
 			break;
@@ -142,9 +148,8 @@ static int tmp006_write_raw(struct iio_dev *indio_dev,
 	for (i = 0; i < ARRAY_SIZE(tmp006_freqs); i++)
 		if ((val == tmp006_freqs[i][0]) &&
 		    (val2 == tmp006_freqs[i][1])) {
-			ret = iio_device_claim_direct_mode(indio_dev);
-			if (ret)
-				return ret;
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
 
 			data->config &= ~TMP006_CONFIG_CR_MASK;
 			data->config |= i << TMP006_CONFIG_CR_SHIFT;
@@ -153,7 +158,7 @@ static int tmp006_write_raw(struct iio_dev *indio_dev,
 							   TMP006_CONFIG,
 							   data->config);
 
-			iio_device_release_direct_mode(indio_dev);
+			iio_device_release_direct(indio_dev);
 			return ret;
 		}
 	return -EINVAL;
