@@ -382,12 +382,7 @@ impl Device {
     /// Enable memory resources for this device.
     pub fn enable_device_mem(&self) -> Result {
         // SAFETY: `self.as_raw` is guaranteed to be a pointer to a valid `struct pci_dev`.
-        let ret = unsafe { bindings::pci_enable_device_mem(self.as_raw()) };
-        if ret != 0 {
-            Err(Error::from_errno(ret))
-        } else {
-            Ok(())
-        }
+        to_result(unsafe { bindings::pci_enable_device_mem(self.as_raw()) })
     }
 
     /// Enable bus-mastering for this device.
