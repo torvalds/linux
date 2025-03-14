@@ -155,13 +155,21 @@ static int enable_survivability_mode(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
+	/* Make sure xe_heci_gsc_init() knows about survivability mode */
+	survivability->mode = true;
+
 	ret = xe_heci_gsc_init(xe);
-	if (ret)
+	if (ret) {
+		/*
+		 * But if it fails, device can't enter survivability
+		 * so move it back for correct error handling
+		 */
+		survivability->mode = false;
 		return ret;
+	}
 
 	xe_vsec_init(xe);
 
-	survivability->mode = true;
 	dev_err(dev, "In Survivability Mode\n");
 
 	return 0;
