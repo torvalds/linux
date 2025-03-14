@@ -204,8 +204,8 @@ static int ctcu_probe(struct platform_device *pdev)
 	dev->platform_data = pdata;
 
 	base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
-	if (!base)
-		return -ENOMEM;
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	drvdata->apb_clk = coresight_get_enable_apb_pclk(dev);
 	if (IS_ERR(drvdata->apb_clk))
