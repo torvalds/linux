@@ -25,7 +25,7 @@
 
 #define PTE_SHIFT	(PAGE_SHIFT - 2)	/* 1024 ptes per page */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * PAGE_OFFSET -- the first address of the first page of memory. With MMU
@@ -100,7 +100,7 @@ extern int page_is_ram(unsigned long pfn);
 #  define page_to_virt(page)   __va(page_to_pfn(page) << PAGE_SHIFT)
 
 #  define ARCH_PFN_OFFSET	(memory_start >> PAGE_SHIFT)
-# endif /* __ASSEMBLY__ */
+# endif /* __ASSEMBLER__ */
 
 /* Convert between virtual and physical address for MMU. */
 /* Handle MicroBlaze processor with virtual memory. */
@@ -113,7 +113,7 @@ extern int page_is_ram(unsigned long pfn);
 #define tovirt(rd, rs) \
 	addik rd, rs, (CONFIG_KERNEL_START - CONFIG_KERNEL_BASE_ADDR)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 # define __pa(x)	__virt_to_phys((unsigned long)(x))
 # define __va(x)	((void *)__phys_to_virt((unsigned long)(x)))
@@ -130,7 +130,7 @@ static inline const void *pfn_to_virt(unsigned long pfn)
 
 #define	virt_addr_valid(vaddr)	(pfn_valid(virt_to_pfn(vaddr)))
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #define TOPHYS(addr)  __virt_to_phys(addr)
 
