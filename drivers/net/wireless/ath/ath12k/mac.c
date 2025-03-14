@@ -7688,7 +7688,7 @@ static int ath12k_mac_start(struct ath12k *ar)
 					1, pdev->pdev_id);
 
 	if (ret) {
-		ath12k_err(ab, "failed to enable PMF QOS: (%d\n", ret);
+		ath12k_err(ab, "failed to enable PMF QOS: %d\n", ret);
 		goto err;
 	}
 
