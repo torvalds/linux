@@ -138,13 +138,17 @@ static int xe_build_sg(struct xe_device *xe, struct hmm_range *range,
 		i += size;
 
 		if (unlikely(j == st->nents - 1)) {
+			xe_assert(xe, i >= npages);
 			if (i > npages)
 				size -= (i - npages);
+
 			sg_mark_end(sgl);
+		} else {
+			xe_assert(xe, i < npages);
 		}
+
 		sg_set_page(sgl, page, size << PAGE_SHIFT, 0);
 	}
-	xe_assert(xe, i == npages);
 
 	return dma_map_sgtable(dev, st, write ? DMA_BIDIRECTIONAL : DMA_TO_DEVICE,
 			       DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_NO_KERNEL_MAPPING);
