@@ -4393,8 +4393,6 @@ static int usb_disable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 	if (usb_set_lpm_timeout(udev, state, 0))
 		return -EBUSY;
 
-	usb_set_device_initiated_lpm(udev, state, false);
-
 	if (hcd->driver->disable_usb3_lpm_timeout(hcd, udev, state))
 		dev_warn(&udev->dev, "Could not disable xHCI %s timeout, "
 				"bus schedule bandwidth may be impacted.\n",
@@ -4424,6 +4422,7 @@ static int usb_disable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 int usb_disable_lpm(struct usb_device *udev)
 {
 	struct usb_hcd *hcd;
+	int err;
 
 	if (!udev || !udev->parent ||
 			udev->speed < USB_SPEED_SUPER ||
@@ -4441,14 +4440,19 @@ int usb_disable_lpm(struct usb_device *udev)
 
 	/* If LPM is enabled, attempt to disable it. */
 	if (usb_disable_link_state(hcd, udev, USB3_LPM_U1))
-		goto enable_lpm;
+		goto disable_failed;
 	if (usb_disable_link_state(hcd, udev, USB3_LPM_U2))
-		goto enable_lpm;
+		goto disable_failed;
+
+	err = usb_set_device_initiated_lpm(udev, USB3_LPM_U1, false);
+	if (!err)
+		usb_set_device_initiated_lpm(udev, USB3_LPM_U2, false);
 
 	return 0;
 
-enable_lpm:
-	usb_enable_lpm(udev);
+disable_failed:
+	udev->lpm_disable_count--;
+
 	return -EBUSY;
 }
 EXPORT_SYMBOL_GPL(usb_disable_lpm);
