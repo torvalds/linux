@@ -196,7 +196,12 @@ static struct spl_rect calculate_mpc_slice_in_timing_active(
 	int epimo = mpc_slice_count - plane_clip_rec->width % mpc_slice_count - 1;
 	struct spl_rect mpc_rec;
 
-	if (use_recout_width_aligned) {
+	if (spl_in->basic_in.custom_width != 0) {
+		mpc_rec.width = spl_in->basic_in.custom_width;
+		mpc_rec.x = spl_in->basic_in.custom_x;
+		mpc_rec.height = plane_clip_rec->height;
+		mpc_rec.y = plane_clip_rec->y;
+	} else if (use_recout_width_aligned) {
 		mpc_rec.width = recout_width_align;
 		if ((mpc_rec.width * (mpc_slice_idx + 1)) > plane_clip_rec->width) {
 			mpc_rec.width = plane_clip_rec->width % recout_width_align;
@@ -219,7 +224,7 @@ static struct spl_rect calculate_mpc_slice_in_timing_active(
 	/* extra pixels in the division remainder need to go to pipes after
 	 * the extra pixel index minus one(epimo) defined here as:
 	 */
-	if (mpc_slice_idx > epimo) {
+	if (mpc_slice_idx > epimo && spl_in->basic_in.custom_width == 0) {
 		mpc_rec.x += mpc_slice_idx - epimo - 1;
 		mpc_rec.width += 1;
 	}
@@ -252,10 +257,10 @@ static struct spl_rect calculate_odm_slice_in_timing_active(struct spl_in *spl_i
 
 		odm_rec.x = odm_slice_width * odm_slice_idx;
 		odm_rec.width = is_last_odm_slice ?
-				/* last slice width is the reminder of h_active */
-				h_active - odm_slice_width * (odm_slice_count - 1) :
-				/* odm slice width is the floor of h_active / count */
-				odm_slice_width;
+			/* last slice width is the reminder of h_active */
+			h_active - odm_slice_width * (odm_slice_count - 1) :
+			/* odm slice width is the floor of h_active / count */
+			odm_slice_width;
 		odm_rec.y = 0;
 		odm_rec.height = v_active;
 
