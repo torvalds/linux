@@ -36,6 +36,52 @@ enum hv_scheduler_type {
 	HV_SCHEDULER_TYPE_MAX
 };
 
+/* HV_STATS_AREA_TYPE */
+enum hv_stats_area_type {
+	HV_STATS_AREA_SELF = 0,
+	HV_STATS_AREA_PARENT = 1,
+	HV_STATS_AREA_INTERNAL = 2,
+	HV_STATS_AREA_COUNT
+};
+
+enum hv_stats_object_type {
+	HV_STATS_OBJECT_HYPERVISOR		= 0x00000001,
+	HV_STATS_OBJECT_LOGICAL_PROCESSOR	= 0x00000002,
+	HV_STATS_OBJECT_PARTITION		= 0x00010001,
+	HV_STATS_OBJECT_VP			= 0x00010002
+};
+
+union hv_stats_object_identity {
+	/* hv_stats_hypervisor */
+	struct {
+		u8 reserved[15];
+		u8 stats_area_type;
+	} __packed hv;
+
+	/* hv_stats_logical_processor */
+	struct {
+		u32 lp_index;
+		u8 reserved[11];
+		u8 stats_area_type;
+	} __packed lp;
+
+	/* hv_stats_partition */
+	struct {
+		u64 partition_id;
+		u8  reserved[7];
+		u8  stats_area_type;
+	} __packed partition;
+
+	/* hv_stats_vp */
+	struct {
+		u64 partition_id;
+		u32 vp_index;
+		u16 flags;
+		u8  reserved;
+		u8  stats_area_type;
+	} __packed vp;
+};
+
 enum hv_partition_property_code {
 	/* Privilege properties */
 	HV_PARTITION_PROPERTY_PRIVILEGE_FLAGS			= 0x00010000,
@@ -47,19 +93,45 @@ enum hv_partition_property_code {
 
 	/* Compatibility properties */
 	HV_PARTITION_PROPERTY_PROCESSOR_XSAVE_FEATURES		= 0x00060002,
+	HV_PARTITION_PROPERTY_XSAVE_STATES                      = 0x00060007,
 	HV_PARTITION_PROPERTY_MAX_XSAVE_DATA_SIZE		= 0x00060008,
 	HV_PARTITION_PROPERTY_PROCESSOR_CLOCK_FREQUENCY		= 0x00060009,
+};
+
+enum hv_snp_status {
+	HV_SNP_STATUS_NONE = 0,
+	HV_SNP_STATUS_AVAILABLE = 1,
+	HV_SNP_STATUS_INCOMPATIBLE = 2,
+	HV_SNP_STATUS_PSP_UNAVAILABLE = 3,
+	HV_SNP_STATUS_PSP_INIT_FAILED = 4,
+	HV_SNP_STATUS_PSP_BAD_FW_VERSION = 5,
+	HV_SNP_STATUS_BAD_CONFIGURATION = 6,
+	HV_SNP_STATUS_PSP_FW_UPDATE_IN_PROGRESS = 7,
+	HV_SNP_STATUS_PSP_RB_INIT_FAILED = 8,
+	HV_SNP_STATUS_PSP_PLATFORM_STATUS_FAILED = 9,
+	HV_SNP_STATUS_PSP_INIT_LATE_FAILED = 10,
 };
 
 enum hv_system_property {
 	/* Add more values when needed */
 	HV_SYSTEM_PROPERTY_SCHEDULER_TYPE = 15,
+	HV_DYNAMIC_PROCESSOR_FEATURE_PROPERTY = 21,
+};
+
+enum hv_dynamic_processor_feature_property {
+	/* Add more values when needed */
+	HV_X64_DYNAMIC_PROCESSOR_FEATURE_MAX_ENCRYPTED_PARTITIONS = 13,
+	HV_X64_DYNAMIC_PROCESSOR_FEATURE_SNP_STATUS = 16,
 };
 
 struct hv_input_get_system_property {
 	u32 property_id; /* enum hv_system_property */
 	union {
 		u32 as_uint32;
+#if IS_ENABLED(CONFIG_X86)
+		/* enum hv_dynamic_processor_feature_property */
+		u32 hv_processor_feature;
+#endif
 		/* More fields to be filled in when needed */
 	};
 } __packed;
@@ -67,7 +139,26 @@ struct hv_input_get_system_property {
 struct hv_output_get_system_property {
 	union {
 		u32 scheduler_type; /* enum hv_scheduler_type */
+#if IS_ENABLED(CONFIG_X86)
+		u64 hv_processor_feature_value;
+#endif
 	};
+} __packed;
+
+struct hv_input_map_stats_page {
+	u32 type; /* enum hv_stats_object_type */
+	u32 padding;
+	union hv_stats_object_identity identity;
+} __packed;
+
+struct hv_output_map_stats_page {
+	u64 map_location;
+} __packed;
+
+struct hv_input_unmap_stats_page {
+	u32 type; /* enum hv_stats_object_type */
+	u32 padding;
+	union hv_stats_object_identity identity;
 } __packed;
 
 struct hv_proximity_domain_flags {
