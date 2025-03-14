@@ -411,21 +411,25 @@ void scx_idle_update_selcpu_topology(struct sched_ext_ops *ops)
  *
  * 5. Pick any idle CPU usable by the task.
  *
- * Step 3 and 4 are performed only if the system has, respectively, multiple
- * LLC domains / multiple NUMA nodes (see scx_selcpu_topo_llc and
- * scx_selcpu_topo_numa).
+ * Step 3 and 4 are performed only if the system has, respectively,
+ * multiple LLCs / multiple NUMA nodes (see scx_selcpu_topo_llc and
+ * scx_selcpu_topo_numa) and they don't contain the same subset of CPUs.
+ *
+ * If %SCX_OPS_BUILTIN_IDLE_PER_NODE is enabled, the search will always
+ * begin in @prev_cpu's node and proceed to other nodes in order of
+ * increasing distance.
+ *
+ * Return the picked CPU if idle, or a negative value otherwise.
  *
  * NOTE: tasks that can only run on 1 CPU are excluded by this logic, because
  * we never call ops.select_cpu() for them, see select_task_rq().
  */
-s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 flags, bool *found)
+s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 flags)
 {
 	const struct cpumask *llc_cpus = NULL;
 	const struct cpumask *numa_cpus = NULL;
 	int node = scx_cpu_node_if_enabled(prev_cpu);
 	s32 cpu;
-
-	*found = false;
 
 	/*
 	 * This is necessary to protect llc_cpus.
@@ -465,7 +469,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 		if (cpus_share_cache(cpu, prev_cpu) &&
 		    scx_idle_test_and_clear_cpu(prev_cpu)) {
 			cpu = prev_cpu;
-			goto cpu_found;
+			goto out_unlock;
 		}
 
 		/*
@@ -487,7 +491,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 		    (!(flags & SCX_PICK_IDLE_IN_NODE) || (waker_node == node)) &&
 		    !cpumask_empty(idle_cpumask(waker_node)->cpu)) {
 			if (cpumask_test_cpu(cpu, p->cpus_ptr))
-				goto cpu_found;
+				goto out_unlock;
 		}
 	}
 
@@ -502,7 +506,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 		if (cpumask_test_cpu(prev_cpu, idle_cpumask(node)->smt) &&
 		    scx_idle_test_and_clear_cpu(prev_cpu)) {
 			cpu = prev_cpu;
-			goto cpu_found;
+			goto out_unlock;
 		}
 
 		/*
@@ -511,7 +515,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 		if (llc_cpus) {
 			cpu = pick_idle_cpu_in_node(llc_cpus, node, SCX_PICK_IDLE_CORE);
 			if (cpu >= 0)
-				goto cpu_found;
+				goto out_unlock;
 		}
 
 		/*
@@ -520,7 +524,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 		if (numa_cpus) {
 			cpu = pick_idle_cpu_in_node(numa_cpus, node, SCX_PICK_IDLE_CORE);
 			if (cpu >= 0)
-				goto cpu_found;
+				goto out_unlock;
 		}
 
 		/*
@@ -533,7 +537,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 		 */
 		cpu = scx_pick_idle_cpu(p->cpus_ptr, node, flags | SCX_PICK_IDLE_CORE);
 		if (cpu >= 0)
-			goto cpu_found;
+			goto out_unlock;
 
 		/*
 		 * Give up if we're strictly looking for a full-idle SMT
@@ -550,7 +554,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 	 */
 	if (scx_idle_test_and_clear_cpu(prev_cpu)) {
 		cpu = prev_cpu;
-		goto cpu_found;
+		goto out_unlock;
 	}
 
 	/*
@@ -559,7 +563,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 	if (llc_cpus) {
 		cpu = pick_idle_cpu_in_node(llc_cpus, node, 0);
 		if (cpu >= 0)
-			goto cpu_found;
+			goto out_unlock;
 	}
 
 	/*
@@ -568,7 +572,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 	if (numa_cpus) {
 		cpu = pick_idle_cpu_in_node(numa_cpus, node, 0);
 		if (cpu >= 0)
-			goto cpu_found;
+			goto out_unlock;
 	}
 
 	/*
@@ -581,13 +585,8 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 	 */
 	cpu = scx_pick_idle_cpu(p->cpus_ptr, node, flags);
 	if (cpu >= 0)
-		goto cpu_found;
+		goto out_unlock;
 
-	cpu = prev_cpu;
-	goto out_unlock;
-
-cpu_found:
-	*found = true;
 out_unlock:
 	rcu_read_unlock();
 
@@ -819,6 +818,9 @@ __bpf_kfunc int scx_bpf_cpu_node(s32 cpu)
 __bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 				       u64 wake_flags, bool *is_idle)
 {
+#ifdef CONFIG_SMP
+	s32 cpu;
+#endif
 	if (!ops_cpu_valid(prev_cpu, NULL))
 		goto prev_cpu;
 
@@ -829,7 +831,11 @@ __bpf_kfunc s32 scx_bpf_select_cpu_dfl(struct task_struct *p, s32 prev_cpu,
 		goto prev_cpu;
 
 #ifdef CONFIG_SMP
-	return scx_select_cpu_dfl(p, prev_cpu, wake_flags, 0, is_idle);
+	cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags, 0);
+	if (cpu >= 0) {
+		*is_idle = true;
+		return cpu;
+	}
 #endif
 
 prev_cpu:
