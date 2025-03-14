@@ -542,6 +542,7 @@ struct cxl_nvdimm {
 	struct device dev;
 	struct cxl_memdev *cxlmd;
 	u8 dev_id[CXL_DEV_ID_LEN]; /* for nvdimm, string of 'serial' */
+	u64 dirty_shutdowns;
 };
 
 struct cxl_pmem_region_mapping {
@@ -589,6 +590,7 @@ struct cxl_dax_region {
  * @cdat: Cached CDAT data
  * @cdat_available: Should a CDAT attribute be available in sysfs
  * @pci_latency: Upstream latency in picoseconds
+ * @gpf_dvsec: Cached GPF port DVSEC
  */
 struct cxl_port {
 	struct device dev;
@@ -612,6 +614,7 @@ struct cxl_port {
 	} cdat;
 	bool cdat_available;
 	long pci_latency;
+	int gpf_dvsec;
 };
 
 /**
@@ -898,5 +901,7 @@ bool cxl_endpoint_decoder_reset_detected(struct cxl_port *port);
 #ifndef __mock
 #define __mock static
 #endif
+
+u16 cxl_gpf_get_dvsec(struct device *dev, bool is_port);
 
 #endif /* __CXL_H__ */

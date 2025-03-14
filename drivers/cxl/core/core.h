@@ -117,5 +117,6 @@ int cxl_port_get_switch_dport_bandwidth(struct cxl_port *port,
 
 int cxl_ras_init(void);
 void cxl_ras_exit(void);
+int cxl_gpf_port_setup(struct device *dport_dev, struct cxl_port *port);
 
 #endif /* __CXL_CORE_H__ */
