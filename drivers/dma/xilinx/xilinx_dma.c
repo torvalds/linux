@@ -3115,6 +3115,8 @@ static int xilinx_dma_probe(struct platform_device *pdev)
 		}
 	}
 
+	dma_set_max_seg_size(xdev->dev, xdev->max_buffer_len);
+
 	if (xdev->dma_config->dmatype == XDMA_TYPE_AXIDMA) {
 		xdev->has_axistream_connected =
 			of_property_read_bool(node, "xlnx,axistream-connected");
