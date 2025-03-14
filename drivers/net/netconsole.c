@@ -1224,7 +1224,7 @@ static void populate_configfs_item(struct netconsole_target *nt,
 	init_target_config_group(nt, target_name);
 }
 
-static int append_cpu_nr(struct netconsole_target *nt, int offset)
+static int sysdata_append_cpu_nr(struct netconsole_target *nt, int offset)
 {
 	/* Append cpu=%d at extradata_complete after userdata str */
 	return scnprintf(&nt->extradata_complete[offset],
@@ -1232,7 +1232,7 @@ static int append_cpu_nr(struct netconsole_target *nt, int offset)
 			 raw_smp_processor_id());
 }
 
-static int append_taskname(struct netconsole_target *nt, int offset)
+static int sysdata_append_taskname(struct netconsole_target *nt, int offset)
 {
 	return scnprintf(&nt->extradata_complete[offset],
 			 MAX_EXTRADATA_ENTRY_LEN, " taskname=%s\n",
@@ -1256,9 +1256,9 @@ static int prepare_extradata(struct netconsole_target *nt)
 		goto out;
 
 	if (nt->sysdata_fields & SYSDATA_CPU_NR)
-		extradata_len += append_cpu_nr(nt, extradata_len);
+		extradata_len += sysdata_append_cpu_nr(nt, extradata_len);
 	if (nt->sysdata_fields & SYSDATA_TASKNAME)
-		extradata_len += append_taskname(nt, extradata_len);
+		extradata_len += sysdata_append_taskname(nt, extradata_len);
 
 	WARN_ON_ONCE(extradata_len >
 		     MAX_EXTRADATA_ENTRY_LEN * MAX_EXTRADATA_ITEMS);
