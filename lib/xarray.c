@@ -1135,6 +1135,28 @@ void xas_split(struct xa_state *xas, void *entry, unsigned int order)
 EXPORT_SYMBOL_GPL(xas_split);
 
 /**
+ * xas_try_split_min_order() - Minimal split order xas_try_split() can accept
+ * @order: Current entry order.
+ *
+ * xas_try_split() can split a multi-index entry to smaller than @order - 1 if
+ * no new xa_node is needed. This function provides the minimal order
+ * xas_try_split() supports.
+ *
+ * Return: the minimal order xas_try_split() supports
+ *
+ * Context: Any context.
+ *
+ */
+unsigned int xas_try_split_min_order(unsigned int order)
+{
+	if (order % XA_CHUNK_SHIFT == 0)
+		return order == 0 ? 0 : order - 1;
+
+	return order - (order % XA_CHUNK_SHIFT);
+}
+EXPORT_SYMBOL_GPL(xas_try_split_min_order);
+
+/**
  * xas_try_split() - Try to split a multi-index entry.
  * @xas: XArray operation state.
  * @entry: New entry to store in the array.
@@ -1144,6 +1166,9 @@ EXPORT_SYMBOL_GPL(xas_split);
  * copied to all the replacement entries. If and only if one new xa_node is
  * needed, the function will use GFP_NOWAIT to get one if xas->xa_alloc is
  * NULL. If more new xa_node are needed, the function gives EINVAL error.
+ *
+ * NOTE: use xas_try_split_min_order() to get next split order instead of
+ * @order - 1 if you want to minmize xas_try_split() calls.
  *
  * Context: Any context.  The caller should hold the xa_lock.
  */
