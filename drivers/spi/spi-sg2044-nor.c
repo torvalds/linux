@@ -427,7 +427,6 @@ static int sg2044_spifmc_probe(struct platform_device *pdev)
 {
 	struct spi_controller *ctrl;
 	struct sg2044_spifmc *spifmc;
-	void __iomem *base;
 	int ret;
 
 	ctrl = devm_spi_alloc_host(&pdev->dev, sizeof(*spifmc));
@@ -447,8 +446,8 @@ static int sg2044_spifmc_probe(struct platform_device *pdev)
 	spifmc->ctrl = ctrl;
 
 	spifmc->io_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (IS_ERR(spifmc->io_base))
+		return PTR_ERR(spifmc->io_base);
 
 	ctrl->num_chipselect = 1;
 	ctrl->dev.of_node = pdev->dev.of_node;
