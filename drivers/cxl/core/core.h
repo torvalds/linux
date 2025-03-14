@@ -115,4 +115,7 @@ bool cxl_need_node_perf_attrs_update(int nid);
 int cxl_port_get_switch_dport_bandwidth(struct cxl_port *port,
 					struct access_coordinate *c);
 
+int cxl_ras_init(void);
+void cxl_ras_exit(void);
+
 #endif /* __CXL_CORE_H__ */
