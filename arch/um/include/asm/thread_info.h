@@ -9,7 +9,7 @@
 #define THREAD_SIZE_ORDER CONFIG_KERNEL_STACK_ORDER
 #define THREAD_SIZE ((1 << CONFIG_KERNEL_STACK_ORDER) * PAGE_SIZE)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <asm/types.h>
 #include <asm/page.h>
