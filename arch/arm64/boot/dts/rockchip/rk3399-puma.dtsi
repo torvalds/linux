@@ -183,7 +183,6 @@
 	snps,reset-delays-us = <0 10000 50000>;
 	tx_delay = <0x10>;
 	rx_delay = <0x23>;
-	status = "okay";
 };
 
 &gpu {
@@ -389,6 +388,14 @@
 	};
 };
 
+&hdmi {
+	ddc-i2c-bus = <&i2c3>;
+};
+
+&i2c6 {
+	clock-frequency = <400000>;
+};
+
 &i2c7 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -439,7 +446,6 @@
 	pinctrl-1 = <&i2s0_2ch_bus_bclk_off>;
 	rockchip,playback-channels = <2>;
 	rockchip,capture-channels = <2>;
-	status = "okay";
 };
 
 /*

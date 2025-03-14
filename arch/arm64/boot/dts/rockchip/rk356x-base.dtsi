@@ -1032,6 +1032,11 @@
 		status = "disabled";
 	};
 
+	/*
+	 * Testing showed that the HWRNG found in RK3566 produces unacceptably
+	 * low quality of random data, so the HWRNG isn't enabled for all RK356x
+	 * SoC variants despite its presence.
+	 */
 	rng: rng@fe388000 {
 		compatible = "rockchip,rk3568-rng";
 		reg = <0x0 0xfe388000 0x0 0x4000>;

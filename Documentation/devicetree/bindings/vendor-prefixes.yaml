@@ -147,6 +147,8 @@ patternProperties:
     description: Arctic Sand
   "^arcx,.*":
     description: arcx Inc. / Archronix Inc.
+  "^ariaboard,.*":
+    description: Shanghai Novotech Co., Ltd. (Ariaboard)
   "^aries,.*":
     description: Aries Embedded GmbH
   "^arm,.*":
@@ -1267,7 +1269,7 @@ patternProperties:
   "^riscv,.*":
     description: RISC-V Foundation
   "^rockchip,.*":
-    description: Fuzhou Rockchip Electronics Co., Ltd
+    description: Rockchip Electronics Co., Ltd.
   "^rocktech,.*":
     description: ROCKTECH DISPLAYS LIMITED
   "^rohm,.*":
