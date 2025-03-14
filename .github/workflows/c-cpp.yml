@@ -12,8 +12,14 @@ jobs:
       matrix:
         include:
           - type: all
+            os: ubuntu-latest
+          - type: all
+            os: ubuntu-24.04-arm
           - type: bindeb-pkg
-    runs-on: [ubuntu-latest, ubuntu-24.04-arm]
+            os: ubuntu-latest
+          - type: bindeb-pkg
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
