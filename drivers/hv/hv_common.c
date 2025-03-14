@@ -69,6 +69,16 @@ static void hv_kmsg_dump_unregister(void);
 static struct ctl_table_header *hv_ctl_table_hdr;
 
 /*
+ * Per-cpu array holding the tail pointer for the SynIC event ring buffer
+ * for each SINT.
+ *
+ * We cannot maintain this in mshv driver because the tail pointer should
+ * persist even if the mshv driver is unloaded.
+ */
+u8 * __percpu *hv_synic_eventring_tail;
+EXPORT_SYMBOL_GPL(hv_synic_eventring_tail);
+
+/*
  * Hyper-V specific initialization and shutdown code that is
  * common across all architectures.  Called from architecture
  * specific initialization functions.
@@ -90,6 +100,9 @@ void __init hv_common_free(void)
 
 	free_percpu(hyperv_pcpu_input_arg);
 	hyperv_pcpu_input_arg = NULL;
+
+	free_percpu(hv_synic_eventring_tail);
+	hv_synic_eventring_tail = NULL;
 }
 
 /*
@@ -372,6 +385,11 @@ int __init hv_common_init(void)
 		BUG_ON(!hyperv_pcpu_output_arg);
 	}
 
+	if (hv_root_partition()) {
+		hv_synic_eventring_tail = alloc_percpu(u8 *);
+		BUG_ON(!hv_synic_eventring_tail);
+	}
+
 	hv_vp_index = kmalloc_array(nr_cpu_ids, sizeof(*hv_vp_index),
 				    GFP_KERNEL);
 	if (!hv_vp_index) {
@@ -460,11 +478,12 @@ error:
 int hv_common_cpu_init(unsigned int cpu)
 {
 	void **inputarg, **outputarg;
+	u8 **synic_eventring_tail;
 	u64 msr_vp_index;
 	gfp_t flags;
 	const int pgcount = hv_output_page_exists() ? 2 : 1;
 	void *mem;
-	int ret;
+	int ret = 0;
 
 	/* hv_cpu_init() can be called with IRQs disabled from hv_resume() */
 	flags = irqs_disabled() ? GFP_ATOMIC : GFP_KERNEL;
@@ -472,8 +491,8 @@ int hv_common_cpu_init(unsigned int cpu)
 	inputarg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
 
 	/*
-	 * hyperv_pcpu_input_arg and hyperv_pcpu_output_arg memory is already
-	 * allocated if this CPU was previously online and then taken offline
+	 * The per-cpu memory is already allocated if this CPU was previously
+	 * online and then taken offline
 	 */
 	if (!*inputarg) {
 		mem = kmalloc(pgcount * HV_HYP_PAGE_SIZE, flags);
@@ -520,11 +539,21 @@ int hv_common_cpu_init(unsigned int cpu)
 	if (msr_vp_index > hv_max_vp_index)
 		hv_max_vp_index = msr_vp_index;
 
-	return 0;
+	if (hv_root_partition()) {
+		synic_eventring_tail = (u8 **)this_cpu_ptr(hv_synic_eventring_tail);
+		*synic_eventring_tail = kcalloc(HV_SYNIC_SINT_COUNT,
+						sizeof(u8), flags);
+		/* No need to unwind any of the above on failure here */
+		if (unlikely(!*synic_eventring_tail))
+			ret = -ENOMEM;
+	}
+
+	return ret;
 }
 
 int hv_common_cpu_die(unsigned int cpu)
 {
+	u8 **synic_eventring_tail;
 	/*
 	 * The hyperv_pcpu_input_arg and hyperv_pcpu_output_arg memory
 	 * is not freed when the CPU goes offline as the hyperv_pcpu_input_arg
@@ -536,6 +565,10 @@ int hv_common_cpu_die(unsigned int cpu)
 	 * If a previously offlined CPU is brought back online again, the
 	 * originally allocated memory is reused in hv_common_cpu_init().
 	 */
+
+	synic_eventring_tail = this_cpu_ptr(hv_synic_eventring_tail);
+	kfree(*synic_eventring_tail);
+	*synic_eventring_tail = NULL;
 
 	return 0;
 }
