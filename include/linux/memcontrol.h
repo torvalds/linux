@@ -438,9 +438,7 @@ static inline struct mem_cgroup *folio_memcg(struct folio *folio)
  */
 static inline bool folio_memcg_charged(struct folio *folio)
 {
-	if (folio_memcg_kmem(folio))
-		return __folio_objcg(folio) != NULL;
-	return __folio_memcg(folio) != NULL;
+	return folio->memcg_data != 0;
 }
 
 /*
