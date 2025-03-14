@@ -216,7 +216,7 @@ static ssize_t sg2044_spifmc_write(struct sg2044_spifmc *spifmc,
 	size_t xfer_size;
 	const u8 *dout = op->data.buf.out;
 	int i, offset;
-	size_t ret;
+	int ret;
 	u32 reg;
 
 	reg = sg2044_spifmc_init_reg(spifmc);
