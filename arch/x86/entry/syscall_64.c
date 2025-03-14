@@ -38,7 +38,7 @@ long x64_sys_call(const struct pt_regs *regs, unsigned int nr)
 	#include <asm/syscalls_64.h>
 	default: return __x64_sys_ni_syscall(regs);
 	}
-};
+}
 
 #ifdef CONFIG_X86_X32_ABI
 long x32_sys_call(const struct pt_regs *regs, unsigned int nr)
@@ -47,7 +47,7 @@ long x32_sys_call(const struct pt_regs *regs, unsigned int nr)
 	#include <asm/syscalls_x32.h>
 	default: return __x64_sys_ni_syscall(regs);
 	}
-};
+}
 #endif
 
 static __always_inline bool do_syscall_x64(struct pt_regs *regs, int nr)

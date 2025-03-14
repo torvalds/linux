@@ -47,7 +47,7 @@ long ia32_sys_call(const struct pt_regs *regs, unsigned int nr)
 	#include <asm/syscalls_32.h>
 	default: return __ia32_sys_ni_syscall(regs);
 	}
-};
+}
 
 static __always_inline int syscall_32_enter(struct pt_regs *regs)
 {
