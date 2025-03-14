@@ -4547,7 +4547,7 @@ static int disas_warned_funcs(struct objtool_file *file)
 	char *funcs = NULL, *tmp;
 
 	for_each_sym(file, sym) {
-		if (sym->warned) {
+		if (sym->warnings) {
 			if (!funcs) {
 				funcs = malloc(strlen(sym->name) + 1);
 				strcpy(funcs, sym->name);
