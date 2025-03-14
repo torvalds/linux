@@ -33,8 +33,7 @@ static const struct v4l2_frmsize_discrete webcam_sizes[] = {
 };
 
 /*
- * Intervals must be in increasing order and there must be twice as many
- * elements in this array as there are in webcam_sizes.
+ * Intervals must be in increasing order.
  */
 static const struct v4l2_fract webcam_intervals[] = {
 	{  1, 1 },
