@@ -8,7 +8,7 @@
 #include <linux/types.h>
 #include <linux/compiler.h>
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define PS_S	0x80000000 /* Supervisor Mode */
 
@@ -98,5 +98,5 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
 
 asmlinkage int syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void syscall_trace_exit(struct pt_regs *regs);
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 #endif /* __ASM_CSKY_PTRACE_H */

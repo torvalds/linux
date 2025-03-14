@@ -3,7 +3,7 @@
 #ifndef __ASM_CSKY_JUMP_LABEL_H
 #define __ASM_CSKY_JUMP_LABEL_H
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 
@@ -48,5 +48,5 @@ void arch_jump_label_transform_static(struct jump_entry *entry,
 				      enum jump_label_type type);
 #define arch_jump_label_transform_static arch_jump_label_transform_static
 
-#endif  /* __ASSEMBLY__ */
+#endif  /* __ASSEMBLER__ */
 #endif	/* __ASM_CSKY_JUMP_LABEL_H */

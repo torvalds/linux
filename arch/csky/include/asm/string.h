@@ -3,7 +3,7 @@
 #ifndef _CSKY_STRING_MM_H_
 #define _CSKY_STRING_MM_H_
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/types.h>
 #include <linux/compiler.h>
 #include <abi/string.h>
