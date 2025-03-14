@@ -10182,7 +10182,7 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
-		wdev->links[0].ap.chandef = chandef;
+		wdev->links[link_id].ap.chandef = chandef;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		wdev->u.ibss.chandef = chandef;
