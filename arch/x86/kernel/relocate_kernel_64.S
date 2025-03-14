@@ -379,6 +379,69 @@ SYM_CODE_START_LOCAL_NOALIGN(swap_pages)
 	int3
 SYM_CODE_END(swap_pages)
 
+/*
+ * Generic 'print character' routine (as yet unimplemented)
+ *  - %al: Character to be printed (may clobber %rax)
+ *  - %rdx: MMIO address or port.
+ */
+SYM_CODE_START_LOCAL_NOALIGN(pr_char)
+	UNWIND_HINT_FUNC
+	ANNOTATE_NOENDBR
+	ANNOTATE_UNRET_SAFE
+	ret
+SYM_CODE_END(pr_char)
+
+/*
+ * Load pr_char function pointer into %rsi and load %rdx with whatever
+ * that function wants to see there (typically port/MMIO address).
+ */
+.macro	pr_setup
+	/* No output; pr_char just returns */
+	leaq	pr_char(%rip), %rsi
+.endm
+
+/* Print the nybble in %bl, clobber %rax */
+SYM_CODE_START_LOCAL_NOALIGN(pr_nybble)
+	UNWIND_HINT_FUNC
+	movb	%bl, %al
+	nop
+	andb	$0x0f, %al
+	addb	$0x30, %al
+	cmpb	$0x3a, %al
+	jb	1f
+	addb	$('a' - '0' - 10), %al
+	ANNOTATE_RETPOLINE_SAFE
+1:	jmp	*%rsi
+SYM_CODE_END(pr_nybble)
+
+SYM_CODE_START_LOCAL_NOALIGN(pr_qword)
+	UNWIND_HINT_FUNC
+	movq	$16, %rcx
+1:	rolq	$4, %rbx
+	call	pr_nybble
+	loop	1b
+	movb	$'\n', %al
+	ANNOTATE_RETPOLINE_SAFE
+	jmp	*%rsi
+SYM_CODE_END(pr_qword)
+
+.macro print_reg a, b, c, d, r
+	movb	$\a, %al
+	ANNOTATE_RETPOLINE_SAFE
+	call	*%rsi
+	movb	$\b, %al
+	ANNOTATE_RETPOLINE_SAFE
+	call	*%rsi
+	movb	$\c, %al
+	ANNOTATE_RETPOLINE_SAFE
+	call	*%rsi
+	movb	$\d, %al
+	ANNOTATE_RETPOLINE_SAFE
+	call	*%rsi
+	movq	\r, %rbx
+	call	pr_qword
+.endm
+
 SYM_CODE_START_NOALIGN(kexec_debug_exc_vectors)
 	/* Each of these is 6 bytes. */
 .macro vec_err exc
@@ -422,16 +485,62 @@ SYM_CODE_START_LOCAL_NOALIGN(exc_handler)
 	VALIDATE_UNRET_END
 
 	pushq	%rax
+	pushq	%rbx
+	pushq	%rcx
 	pushq	%rdx
-	movw	$0x3f8, %dx
-	movb	$'A', %al
-	outb	%al, %dx
-	popq	%rdx
-	popq	%rax
+	pushq	%rsi
+
+	/* Stack frame */
+#define EXC_SS		0x58 /* Architectural... */
+#define EXC_RSP		0x50
+#define EXC_EFLAGS	0x48
+#define EXC_CS		0x40
+#define EXC_RIP		0x38
+#define EXC_ERRORCODE	0x30 /* Either architectural or zero pushed by handler */
+#define EXC_EXCEPTION	0x28 /* Pushed by handler entry point */
+#define EXC_RAX		0x20 /* Pushed just above in exc_handler */
+#define EXC_RBX		0x18
+#define EXC_RCX		0x10
+#define EXC_RDX		0x08
+#define EXC_RSI		0x00
+
+	/* Set up %rdx/%rsi for debug output */
+	pr_setup
+
+	/* rip and exception info */
+	print_reg 'E', 'x', 'c', ':', EXC_EXCEPTION(%rsp)
+	print_reg 'E', 'r', 'r', ':', EXC_ERRORCODE(%rsp)
+	print_reg 'r', 'i', 'p', ':', EXC_RIP(%rsp)
+	print_reg 'r', 's', 'p', ':', EXC_RSP(%rsp)
+
+	/* We spilled these to the stack */
+	print_reg 'r', 'a', 'x', ':', EXC_RAX(%rsp)
+	print_reg 'r', 'b', 'x', ':', EXC_RBX(%rsp)
+	print_reg 'r', 'c', 'x', ':', EXC_RCX(%rsp)
+	print_reg 'r', 'd', 'x', ':', EXC_RDX(%rsp)
+	print_reg 'r', 's', 'i', ':', EXC_RSI(%rsp)
+
+	/* Other registers untouched */
+	print_reg 'r', 'd', 'i', ':', %rdi
+	print_reg 'r', '8', ' ', ':', %r8
+	print_reg 'r', '9', ' ', ':', %r9
+	print_reg 'r', '1', '0', ':', %r10
+	print_reg 'r', '1', '1', ':', %r11
+	print_reg 'r', '1', '2', ':', %r12
+	print_reg 'r', '1', '3', ':', %r13
+	print_reg 'r', '1', '4', ':', %r14
+	print_reg 'r', '1', '5', ':', %r15
+	print_reg 'c', 'r', '2', ':', %cr2
 
 	/* Only return from INT3 */
-	cmpq	$3, (%rsp)
+	cmpq	$3, EXC_EXCEPTION(%rsp)
 	jne	.Ldie
+
+	popq	%rsi
+	popq	%rdx
+	popq	%rcx
+	popq	%rbx
+	popq	%rax
 
 	addq	$16, %rsp
 	iretq
