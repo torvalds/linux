@@ -100,11 +100,15 @@ static inline void scatterwalk_get_sglist(struct scatter_walk *walk,
 static inline void scatterwalk_map(struct scatter_walk *walk)
 {
 	struct page *base_page = sg_page(walk->sg);
+	unsigned int offset = walk->offset;
+	void *addr;
 
 	if (IS_ENABLED(CONFIG_HIGHMEM)) {
-		walk->__addr = kmap_local_page(base_page +
-					       (walk->offset >> PAGE_SHIFT)) +
-			       offset_in_page(walk->offset);
+		struct page *page;
+
+		page = nth_page(base_page, offset >> PAGE_SHIFT);
+		offset = offset_in_page(offset);
+		addr = kmap_local_page(page) + offset;
 	} else {
 		/*
 		 * When !HIGHMEM we allow the walker to return segments that
@@ -117,8 +121,10 @@ static inline void scatterwalk_map(struct scatter_walk *walk)
 		 * in the direct map, but this makes it clearer what is really
 		 * going on.
 		 */
-		walk->__addr = page_address(base_page) + walk->offset;
+		addr = page_address(base_page) + offset;
 	}
+
+	walk->__addr = addr;
 }
 
 /**
@@ -189,14 +195,18 @@ static inline void scatterwalk_done_dst(struct scatter_walk *walk,
 	 * reliably optimized out or not.
 	 */
 	if (ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE) {
-		struct page *base_page, *start_page, *end_page, *page;
+		struct page *base_page;
+		unsigned int offset;
+		int start, end, i;
 
 		base_page = sg_page(walk->sg);
-		start_page = base_page + (walk->offset >> PAGE_SHIFT);
-		end_page = base_page + ((walk->offset + nbytes +
-					 PAGE_SIZE - 1) >> PAGE_SHIFT);
-		for (page = start_page; page < end_page; page++)
-			flush_dcache_page(page);
+		offset = walk->offset;
+		start = offset >> PAGE_SHIFT;
+		end = start + (nbytes >> PAGE_SHIFT);
+		end += (offset_in_page(offset) + offset_in_page(nbytes) +
+			PAGE_SIZE - 1) >> PAGE_SHIFT;
+		for (i = start; i < end; i++)
+			flush_dcache_page(nth_page(base_page, i));
 	}
 	scatterwalk_advance(walk, nbytes);
 }
