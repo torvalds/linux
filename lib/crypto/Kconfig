@@ -63,7 +63,7 @@ config CRYPTO_LIB_CHACHA_INTERNAL
 	select CRYPTO_LIB_CHACHA_GENERIC if CRYPTO_ARCH_HAVE_LIB_CHACHA=n
 
 config CRYPTO_LIB_CHACHA
-	tristate "ChaCha library interface"
+	tristate
 	select CRYPTO
 	select CRYPTO_LIB_CHACHA_INTERNAL
 	help
@@ -93,7 +93,7 @@ config CRYPTO_LIB_CURVE25519_INTERNAL
 	select CRYPTO_LIB_CURVE25519_GENERIC if CRYPTO_ARCH_HAVE_LIB_CURVE25519=n
 
 config CRYPTO_LIB_CURVE25519
-	tristate "Curve25519 scalar multiplication library"
+	tristate
 	select CRYPTO
 	select CRYPTO_LIB_CURVE25519_INTERNAL
 	help
@@ -132,7 +132,7 @@ config CRYPTO_LIB_POLY1305_INTERNAL
 	select CRYPTO_LIB_POLY1305_GENERIC if CRYPTO_ARCH_HAVE_LIB_POLY1305=n
 
 config CRYPTO_LIB_POLY1305
-	tristate "Poly1305 library interface"
+	tristate
 	select CRYPTO
 	select CRYPTO_LIB_POLY1305_INTERNAL
 	help
@@ -141,7 +141,7 @@ config CRYPTO_LIB_POLY1305
 	  is available and enabled.
 
 config CRYPTO_LIB_CHACHA20POLY1305
-	tristate "ChaCha20-Poly1305 AEAD support (8-byte nonce library version)"
+	tristate
 	select CRYPTO_LIB_CHACHA
 	select CRYPTO_LIB_POLY1305
 	select CRYPTO_LIB_UTILS
