@@ -36,6 +36,7 @@ enum hv_partition_type {
 struct ms_hyperv_info {
 	u32 features;
 	u32 priv_high;
+	u32 ext_features;
 	u32 misc_features;
 	u32 hints;
 	u32 nested_features;
