@@ -107,6 +107,7 @@ void hv_set_msr(unsigned int reg, u64 value)
 }
 EXPORT_SYMBOL_GPL(hv_set_msr);
 
+static void (*mshv_handler)(void);
 static void (*vmbus_handler)(void);
 static void (*hv_stimer0_handler)(void);
 static void (*hv_kexec_handler)(void);
@@ -117,6 +118,9 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_callback)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	inc_irq_stat(irq_hv_callback_count);
+	if (mshv_handler)
+		mshv_handler();
+
 	if (vmbus_handler)
 		vmbus_handler();
 
@@ -124,6 +128,11 @@ DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_callback)
 		apic_eoi();
 
 	set_irq_regs(old_regs);
+}
+
+void hv_setup_mshv_handler(void (*handler)(void))
+{
+	mshv_handler = handler;
 }
 
 void hv_setup_vmbus_handler(void (*handler)(void))
