@@ -377,15 +377,27 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 	if (ret)
 		return ret;
 
-	if (sb->features[1] ||
-	    (le64_to_cpu(sb->features[0]) & (~0ULL << BCH_FEATURE_NR))) {
-		prt_printf(out, "Filesystem has incompatible features");
+	u64 incompat = le64_to_cpu(sb->features[0]) & (~0ULL << BCH_FEATURE_NR);
+	unsigned incompat_bit = 0;
+	if (incompat)
+		incompat_bit = __ffs64(incompat);
+	else if (sb->features[1])
+		incompat_bit = 64 + __ffs64(le64_to_cpu(sb->features[1]));
+
+	if (incompat_bit) {
+		prt_printf(out, "Filesystem has incompatible feature bit %u, highest supported %s (%u)",
+			   incompat_bit,
+			   bch2_sb_features[BCH_FEATURE_NR - 1],
+			   BCH_FEATURE_NR - 1);
 		return -BCH_ERR_invalid_sb_features;
 	}
 
 	if (BCH_VERSION_MAJOR(le16_to_cpu(sb->version)) > BCH_VERSION_MAJOR(bcachefs_metadata_version_current) ||
 	    BCH_SB_VERSION_INCOMPAT(sb) > bcachefs_metadata_version_current) {
-		prt_printf(out, "Filesystem has incompatible version");
+		prt_str(out, "Filesystem has incompatible version ");
+		bch2_version_to_text(out, le16_to_cpu(sb->version));
+		prt_str(out, ", current version ");
+		bch2_version_to_text(out, bcachefs_metadata_version_current);
 		return -BCH_ERR_invalid_sb_features;
 	}
 
