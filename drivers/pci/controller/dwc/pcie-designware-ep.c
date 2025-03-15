@@ -904,6 +904,15 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 
 	INIT_LIST_HEAD(&ep->func_list);
 
+	epc = devm_pci_epc_create(dev, &epc_ops);
+	if (IS_ERR(epc)) {
+		dev_err(dev, "Failed to create epc device\n");
+		return PTR_ERR(epc);
+	}
+
+	ep->epc = epc;
+	epc_set_drvdata(epc, ep);
+
 	ret = dw_pcie_get_resources(pci);
 	if (ret)
 		return ret;
@@ -917,15 +926,6 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep)
 
 	if (ep->ops->pre_init)
 		ep->ops->pre_init(ep);
-
-	epc = devm_pci_epc_create(dev, &epc_ops);
-	if (IS_ERR(epc)) {
-		dev_err(dev, "Failed to create epc device\n");
-		return PTR_ERR(epc);
-	}
-
-	ep->epc = epc;
-	epc_set_drvdata(epc, ep);
 
 	ret = of_property_read_u8(np, "max-functions", &epc->max_functions);
 	if (ret < 0)
