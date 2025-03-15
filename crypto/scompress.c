@@ -12,8 +12,10 @@
 #include <crypto/scatterwalk.h>
 #include <linux/cryptouser.h>
 #include <linux/err.h>
+#include <linux/highmem.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/overflow.h>
 #include <linux/scatterlist.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -23,9 +25,14 @@
 
 #include "compress.h"
 
+#define SCOMP_SCRATCH_SIZE 65400
+
 struct scomp_scratch {
 	spinlock_t	lock;
-	void		*src;
+	union {
+		void	*src;
+		unsigned long saddr;
+	};
 	void		*dst;
 };
 
@@ -66,7 +73,7 @@ static void crypto_scomp_free_scratches(void)
 	for_each_possible_cpu(i) {
 		scratch = per_cpu_ptr(&scomp_scratch, i);
 
-		vfree(scratch->src);
+		free_page(scratch->saddr);
 		vfree(scratch->dst);
 		scratch->src = NULL;
 		scratch->dst = NULL;
@@ -79,14 +86,15 @@ static int crypto_scomp_alloc_scratches(void)
 	int i;
 
 	for_each_possible_cpu(i) {
+		struct page *page;
 		void *mem;
 
 		scratch = per_cpu_ptr(&scomp_scratch, i);
 
-		mem = vmalloc_node(SCOMP_SCRATCH_SIZE, cpu_to_node(i));
-		if (!mem)
+		page = alloc_pages_node(cpu_to_node(i), GFP_KERNEL, 0);
+		if (!page)
 			goto error;
-		scratch->src = mem;
+		scratch->src = page_address(page);
 		mem = vmalloc_node(SCOMP_SCRATCH_SIZE, cpu_to_node(i));
 		if (!mem)
 			goto error;
@@ -161,76 +169,88 @@ unlock:
 
 static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 {
+	struct scomp_scratch *scratch = raw_cpu_ptr(&scomp_scratch);
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
-	void **tfm_ctx = acomp_tfm_ctx(tfm);
+	struct crypto_scomp **tfm_ctx = acomp_tfm_ctx(tfm);
 	struct crypto_scomp *scomp = *tfm_ctx;
 	struct crypto_acomp_stream *stream;
-	struct scomp_scratch *scratch;
+	unsigned int slen = req->slen;
+	unsigned int dlen = req->dlen;
+	struct page *spage, *dpage;
+	unsigned int soff, doff;
 	void *src, *dst;
-	unsigned int dlen;
+	unsigned int n;
 	int ret;
 
-	if (!req->src || !req->slen || req->slen > SCOMP_SCRATCH_SIZE)
+	if (!req->src || !slen)
 		return -EINVAL;
 
-	if (req->dst && !req->dlen)
+	if (!req->dst || !dlen)
 		return -EINVAL;
 
-	if (!req->dlen || req->dlen > SCOMP_SCRATCH_SIZE)
-		req->dlen = SCOMP_SCRATCH_SIZE;
+	soff = req->src->offset;
+	spage = nth_page(sg_page(req->src), soff / PAGE_SIZE);
+	soff = offset_in_page(soff);
 
-	dlen = req->dlen;
-
-	scratch = raw_cpu_ptr(&scomp_scratch);
-	spin_lock_bh(&scratch->lock);
-
-	if (sg_nents(req->src) == 1 && !PageHighMem(sg_page(req->src))) {
-		src = page_to_virt(sg_page(req->src)) + req->src->offset;
-	} else {
-		scatterwalk_map_and_copy(scratch->src, req->src, 0,
-					 req->slen, 0);
+	n = slen / PAGE_SIZE;
+	n += (offset_in_page(slen) + soff - 1) / PAGE_SIZE;
+	if (slen <= req->src->length && (!PageHighMem(nth_page(spage, n)) ||
+					 size_add(soff, slen) <= PAGE_SIZE))
+		src = kmap_local_page(spage) + soff;
+	else
 		src = scratch->src;
+
+	doff = req->dst->offset;
+	dpage = nth_page(sg_page(req->dst), doff / PAGE_SIZE);
+	doff = offset_in_page(doff);
+
+	n = dlen / PAGE_SIZE;
+	n += (offset_in_page(dlen) + doff - 1) / PAGE_SIZE;
+	if (dlen <= req->dst->length && (!PageHighMem(nth_page(dpage, n)) ||
+					 size_add(doff, dlen) <= PAGE_SIZE))
+		dst = kmap_local_page(dpage) + doff;
+	else {
+		if (dlen > SCOMP_SCRATCH_SIZE)
+			dlen = SCOMP_SCRATCH_SIZE;
+		dst = scratch->dst;
 	}
 
-	if (req->dst && sg_nents(req->dst) == 1 && !PageHighMem(sg_page(req->dst)))
-		dst = page_to_virt(sg_page(req->dst)) + req->dst->offset;
-	else
-		dst = scratch->dst;
+	spin_lock_bh(&scratch->lock);
+
+	if (src == scratch->src)
+		memcpy_from_sglist(src, req->src, 0, slen);
 
 	stream = raw_cpu_ptr(crypto_scomp_alg(scomp)->stream);
 	spin_lock(&stream->lock);
 	if (dir)
-		ret = crypto_scomp_compress(scomp, src, req->slen,
-					    dst, &req->dlen, stream->ctx);
+		ret = crypto_scomp_compress(scomp, src, slen,
+					    dst, &dlen, stream->ctx);
 	else
-		ret = crypto_scomp_decompress(scomp, src, req->slen,
-					      dst, &req->dlen, stream->ctx);
-	spin_unlock(&stream->lock);
-	if (!ret) {
-		if (!req->dst) {
-			req->dst = sgl_alloc(req->dlen, GFP_ATOMIC, NULL);
-			if (!req->dst) {
-				ret = -ENOMEM;
-				goto out;
-			}
-		} else if (req->dlen > dlen) {
-			ret = -ENOSPC;
-			goto out;
-		}
-		if (dst == scratch->dst) {
-			scatterwalk_map_and_copy(scratch->dst, req->dst, 0,
-						 req->dlen, 1);
-		} else {
-			int nr_pages = DIV_ROUND_UP(req->dst->offset + req->dlen, PAGE_SIZE);
-			int i;
-			struct page *dst_page = sg_page(req->dst);
+		ret = crypto_scomp_decompress(scomp, src, slen,
+					      dst, &dlen, stream->ctx);
 
-			for (i = 0; i < nr_pages; i++)
-				flush_dcache_page(dst_page + i);
+	if (dst == scratch->dst)
+		memcpy_to_sglist(req->dst, 0, dst, dlen);
+
+	spin_unlock(&stream->lock);
+	spin_unlock_bh(&scratch->lock);
+
+	req->dlen = dlen;
+
+	if (dst != scratch->dst) {
+		kunmap_local(dst);
+		dlen += doff;
+		for (;;) {
+			flush_dcache_page(dpage);
+			if (dlen <= PAGE_SIZE)
+				break;
+			dlen -= PAGE_SIZE;
+			dpage = nth_page(dpage, 1);
 		}
 	}
-out:
-	spin_unlock_bh(&scratch->lock);
+	if (src != scratch->src)
+		kunmap_local(src);
+
 	return ret;
 }
 
@@ -277,7 +297,6 @@ int crypto_init_scomp_ops_async(struct crypto_tfm *tfm)
 
 	crt->compress = scomp_acomp_compress;
 	crt->decompress = scomp_acomp_decompress;
-	crt->dst_free = sgl_free;
 
 	return 0;
 }
