@@ -97,6 +97,9 @@ int ipcomp_input(struct xfrm_state *x, struct sk_buff *skb)
 	int err = -ENOMEM;
 	struct ip_comp_hdr *ipch;
 
+	if (!pskb_may_pull(skb, sizeof(*ipch)))
+		return -EINVAL;
+
 	if (skb_linearize_cow(skb))
 		goto out;
 
