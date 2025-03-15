@@ -787,6 +787,9 @@ static int htab_lru_map_gen_lookup(struct bpf_map *map,
 static void check_and_free_fields(struct bpf_htab *htab,
 				  struct htab_elem *elem)
 {
+	if (IS_ERR_OR_NULL(htab->map.record))
+		return;
+
 	if (htab_is_percpu(htab)) {
 		void __percpu *pptr = htab_elem_get_ptr(elem, htab->map.key_size);
 		int cpu;
