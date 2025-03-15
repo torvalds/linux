@@ -15,7 +15,7 @@
  * decompression.
  */
 
-#include <linux/crypto.h>
+#include <crypto/acompress.h>
 #include "ubifs.h"
 
 /* Fake description object for the "none" compressor */
@@ -26,11 +26,8 @@ static struct ubifs_compressor none_compr = {
 };
 
 #ifdef CONFIG_UBIFS_FS_LZO
-static DEFINE_MUTEX(lzo_mutex);
-
 static struct ubifs_compressor lzo_compr = {
 	.compr_type = UBIFS_COMPR_LZO,
-	.comp_mutex = &lzo_mutex,
 	.name = "lzo",
 	.capi_name = "lzo",
 };
@@ -42,13 +39,8 @@ static struct ubifs_compressor lzo_compr = {
 #endif
 
 #ifdef CONFIG_UBIFS_FS_ZLIB
-static DEFINE_MUTEX(deflate_mutex);
-static DEFINE_MUTEX(inflate_mutex);
-
 static struct ubifs_compressor zlib_compr = {
 	.compr_type = UBIFS_COMPR_ZLIB,
-	.comp_mutex = &deflate_mutex,
-	.decomp_mutex = &inflate_mutex,
 	.name = "zlib",
 	.capi_name = "deflate",
 };
@@ -60,13 +52,8 @@ static struct ubifs_compressor zlib_compr = {
 #endif
 
 #ifdef CONFIG_UBIFS_FS_ZSTD
-static DEFINE_MUTEX(zstd_enc_mutex);
-static DEFINE_MUTEX(zstd_dec_mutex);
-
 static struct ubifs_compressor zstd_compr = {
 	.compr_type = UBIFS_COMPR_ZSTD,
-	.comp_mutex = &zstd_enc_mutex,
-	.decomp_mutex = &zstd_dec_mutex,
 	.name = "zstd",
 	.capi_name = "zstd",
 };
@@ -79,6 +66,30 @@ static struct ubifs_compressor zstd_compr = {
 
 /* All UBIFS compressors */
 struct ubifs_compressor *ubifs_compressors[UBIFS_COMPR_TYPES_CNT];
+
+static int ubifs_compress_req(const struct ubifs_info *c,
+			      struct acomp_req *req,
+			      void *out_buf, int *out_len,
+			      const char *compr_name)
+{
+	struct crypto_wait wait;
+	int in_len = req->slen;
+	int dlen = *out_len;
+	int err;
+
+	dlen = min(dlen, in_len - UBIFS_MIN_COMPRESS_DIFF);
+
+	crypto_init_wait(&wait);
+	acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				   crypto_req_done, &wait);
+	acomp_request_set_dst_dma(req, out_buf, dlen);
+	err = crypto_acomp_compress(req);
+	err = crypto_wait_req(err, &wait);
+	*out_len = req->dlen;
+	acomp_request_free(req);
+
+	return err;
+}
 
 /**
  * ubifs_compress - compress data.
@@ -112,23 +123,14 @@ void ubifs_compress(const struct ubifs_info *c, const void *in_buf,
 	if (in_len < UBIFS_MIN_COMPR_LEN)
 		goto no_compr;
 
-	if (compr->comp_mutex)
-		mutex_lock(compr->comp_mutex);
-	err = crypto_comp_compress(compr->cc, in_buf, in_len, out_buf,
-				   (unsigned int *)out_len);
-	if (compr->comp_mutex)
-		mutex_unlock(compr->comp_mutex);
-	if (unlikely(err)) {
-		ubifs_warn(c, "cannot compress %d bytes, compressor %s, error %d, leave data uncompressed",
-			   in_len, compr->name, err);
-		goto no_compr;
+	{
+		ACOMP_REQUEST_ALLOC(req, compr->cc, GFP_NOFS | __GFP_NOWARN);
+
+		acomp_request_set_src_nondma(req, in_buf, in_len);
+		err = ubifs_compress_req(c, req, out_buf, out_len, compr->name);
 	}
 
-	/*
-	 * If the data compressed only slightly, it is better to leave it
-	 * uncompressed to improve read speed.
-	 */
-	if (in_len - *out_len < UBIFS_MIN_COMPRESS_DIFF)
+	if (err)
 		goto no_compr;
 
 	return;
@@ -137,6 +139,31 @@ no_compr:
 	memcpy(out_buf, in_buf, in_len);
 	*out_len = in_len;
 	*compr_type = UBIFS_COMPR_NONE;
+}
+
+static int ubifs_decompress_req(const struct ubifs_info *c,
+				struct acomp_req *req,
+				const void *in_buf, int in_len, int *out_len,
+				const char *compr_name)
+{
+	struct crypto_wait wait;
+	int err;
+
+	crypto_init_wait(&wait);
+	acomp_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				   crypto_req_done, &wait);
+	acomp_request_set_src_dma(req, in_buf, in_len);
+	err = crypto_acomp_decompress(req);
+	err = crypto_wait_req(err, &wait);
+	*out_len = req->dlen;
+
+	if (err)
+		ubifs_err(c, "cannot decompress %d bytes, compressor %s, error %d",
+			  in_len, compr_name, err);
+
+	acomp_request_free(req);
+
+	return err;
 }
 
 /**
@@ -155,7 +182,6 @@ no_compr:
 int ubifs_decompress(const struct ubifs_info *c, const void *in_buf,
 		     int in_len, void *out_buf, int *out_len, int compr_type)
 {
-	int err;
 	struct ubifs_compressor *compr;
 
 	if (unlikely(compr_type < 0 || compr_type >= UBIFS_COMPR_TYPES_CNT)) {
@@ -176,17 +202,13 @@ int ubifs_decompress(const struct ubifs_info *c, const void *in_buf,
 		return 0;
 	}
 
-	if (compr->decomp_mutex)
-		mutex_lock(compr->decomp_mutex);
-	err = crypto_comp_decompress(compr->cc, in_buf, in_len, out_buf,
-				     (unsigned int *)out_len);
-	if (compr->decomp_mutex)
-		mutex_unlock(compr->decomp_mutex);
-	if (err)
-		ubifs_err(c, "cannot decompress %d bytes, compressor %s, error %d",
-			  in_len, compr->name, err);
+	{
+		ACOMP_REQUEST_ALLOC(req, compr->cc, GFP_NOFS | __GFP_NOWARN);
 
-	return err;
+		acomp_request_set_dst_nondma(req, out_buf, *out_len);
+		return ubifs_decompress_req(c, req, in_buf, in_len, out_len,
+					    compr->name);
+	}
 }
 
 /**
@@ -199,7 +221,7 @@ int ubifs_decompress(const struct ubifs_info *c, const void *in_buf,
 static int __init compr_init(struct ubifs_compressor *compr)
 {
 	if (compr->capi_name) {
-		compr->cc = crypto_alloc_comp(compr->capi_name, 0, 0);
+		compr->cc = crypto_alloc_acomp(compr->capi_name, 0, 0);
 		if (IS_ERR(compr->cc)) {
 			pr_err("UBIFS error (pid %d): cannot initialize compressor %s, error %ld",
 			       current->pid, compr->name, PTR_ERR(compr->cc));
@@ -218,7 +240,7 @@ static int __init compr_init(struct ubifs_compressor *compr)
 static void compr_exit(struct ubifs_compressor *compr)
 {
 	if (compr->capi_name)
-		crypto_free_comp(compr->cc);
+		crypto_free_acomp(compr->cc);
 }
 
 /**
