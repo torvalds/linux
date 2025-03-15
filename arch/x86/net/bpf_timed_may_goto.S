@@ -11,6 +11,16 @@
 SYM_FUNC_START(arch_bpf_timed_may_goto)
 	ANNOTATE_NOENDBR
 
+	/*
+	 * r10 passes us stack depth, load the pointer to count and timestamp
+	 * into r10 by adding it to BPF frame pointer.
+	 */
+	leaq (%rbp, %r10, 1), %r10
+
+	/* Setup frame. */
+	pushq %rbp
+	movq %rsp, %rbp
+
 	/* Save r0-r5. */
 	pushq %rax
 	pushq %rdi
@@ -20,10 +30,10 @@ SYM_FUNC_START(arch_bpf_timed_may_goto)
 	pushq %r8
 
 	/*
-	 * r10 passes us stack depth, load the pointer to count and timestamp as
-	 * first argument to the call below.
+	 * r10 has the pointer to count and timestamp, pass it as first
+	 * argument.
 	 */
-	leaq (%rbp, %r10, 1), %rdi
+	movq %r10, %rdi
 
 	/* Emit call depth accounting for call below. */
 	CALL_DEPTH_ACCOUNT
@@ -40,5 +50,6 @@ SYM_FUNC_START(arch_bpf_timed_may_goto)
 	popq %rdi
 	popq %rax
 
+	leave
 	RET
 SYM_FUNC_END(arch_bpf_timed_may_goto)
