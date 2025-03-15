@@ -12,6 +12,12 @@
 #include <crypto/acompress.h>
 #include <crypto/algapi.h>
 
+#define ACOMP_REQUEST_ON_STACK(name, tfm) \
+        char __##name##_req[sizeof(struct acomp_req) + \
+                            MAX_SYNC_COMP_REQSIZE] CRYPTO_MINALIGN_ATTR; \
+        struct acomp_req *name = acomp_request_on_stack_init( \
+                __##name##_req, (tfm), 0, true)
+
 /**
  * struct acomp_alg - asynchronous compression algorithm
  *

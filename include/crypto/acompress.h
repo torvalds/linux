@@ -10,9 +10,11 @@
 #define _CRYPTO_ACOMP_H
 
 #include <linux/atomic.h>
+#include <linux/args.h>
 #include <linux/compiler_types.h>
 #include <linux/container_of.h>
 #include <linux/crypto.h>
+#include <linux/err.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/spinlock_types.h>
@@ -31,6 +33,14 @@
 #define CRYPTO_ACOMP_REQ_DST_NONDMA	0x00000010
 
 #define CRYPTO_ACOMP_DST_MAX		131072
+
+#define	MAX_SYNC_COMP_REQSIZE		0
+
+#define ACOMP_REQUEST_ALLOC(name, tfm, gfp) \
+        char __##name##_req[sizeof(struct acomp_req) + \
+                            MAX_SYNC_COMP_REQSIZE] CRYPTO_MINALIGN_ATTR; \
+        struct acomp_req *name = acomp_request_on_stack_init( \
+                __##name##_req, (tfm), (gfp), false)
 
 struct acomp_req;
 
@@ -83,12 +93,14 @@ struct acomp_req {
  * @compress:		Function performs a compress operation
  * @decompress:		Function performs a de-compress operation
  * @reqsize:		Context size for (de)compression requests
+ * @fb:			Synchronous fallback tfm
  * @base:		Common crypto API algorithm data structure
  */
 struct crypto_acomp {
 	int (*compress)(struct acomp_req *req);
 	int (*decompress)(struct acomp_req *req);
 	unsigned int reqsize;
+	struct crypto_acomp *fb;
 	struct crypto_tfm base;
 };
 
@@ -210,23 +222,67 @@ static inline int crypto_has_acomp(const char *alg_name, u32 type, u32 mask)
 	return crypto_has_alg(alg_name, type, mask);
 }
 
+static inline const char *crypto_acomp_alg_name(struct crypto_acomp *tfm)
+{
+	return crypto_tfm_alg_name(crypto_acomp_tfm(tfm));
+}
+
+static inline const char *crypto_acomp_driver_name(struct crypto_acomp *tfm)
+{
+	return crypto_tfm_alg_driver_name(crypto_acomp_tfm(tfm));
+}
+
 /**
  * acomp_request_alloc() -- allocates asynchronous (de)compression request
  *
  * @tfm:	ACOMPRESS tfm handle allocated with crypto_alloc_acomp()
+ * @gfp:	gfp to pass to kzalloc (defaults to GFP_KERNEL)
  *
  * Return:	allocated handle in case of success or NULL in case of an error
  */
-static inline struct acomp_req *acomp_request_alloc_noprof(struct crypto_acomp *tfm)
+static inline struct acomp_req *acomp_request_alloc_extra_noprof(
+	struct crypto_acomp *tfm, size_t extra, gfp_t gfp)
 {
 	struct acomp_req *req;
+	size_t len;
 
-	req = kzalloc_noprof(sizeof(*req) + crypto_acomp_reqsize(tfm), GFP_KERNEL);
+	len = ALIGN(sizeof(*req) + crypto_acomp_reqsize(tfm), CRYPTO_MINALIGN);
+	if (check_add_overflow(len, extra, &len))
+		return NULL;
+
+	req = kzalloc_noprof(len, gfp);
 	if (likely(req))
 		acomp_request_set_tfm(req, tfm);
 	return req;
 }
+#define acomp_request_alloc_noprof(tfm, ...) \
+	CONCATENATE(acomp_request_alloc_noprof_, COUNT_ARGS(__VA_ARGS__))( \
+		tfm, ##__VA_ARGS__)
+#define acomp_request_alloc_noprof_0(tfm) \
+	acomp_request_alloc_noprof_1(tfm, GFP_KERNEL)
+#define acomp_request_alloc_noprof_1(tfm, gfp) \
+	acomp_request_alloc_extra_noprof(tfm, 0, gfp)
 #define acomp_request_alloc(...)	alloc_hooks(acomp_request_alloc_noprof(__VA_ARGS__))
+
+/**
+ * acomp_request_alloc_extra() -- allocate acomp request with extra memory
+ *
+ * @tfm:	ACOMPRESS tfm handle allocated with crypto_alloc_acomp()
+ * @extra:	amount of extra memory
+ * @gfp:	gfp to pass to kzalloc
+ *
+ * Return:	allocated handle in case of success or NULL in case of an error
+ */
+#define acomp_request_alloc_extra(...)	alloc_hooks(acomp_request_alloc_extra_noprof(__VA_ARGS__))
+
+static inline void *acomp_request_extra(struct acomp_req *req)
+{
+	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
+	size_t len;
+
+	len = ALIGN(sizeof(*req) + crypto_acomp_reqsize(tfm), CRYPTO_MINALIGN);
+	return (void *)((char *)req + len);
+}
 
 /**
  * acomp_request_free() -- zeroize and free asynchronous (de)compression
@@ -237,6 +293,8 @@ static inline struct acomp_req *acomp_request_alloc_noprof(struct crypto_acomp *
  */
 static inline void acomp_request_free(struct acomp_req *req)
 {
+	if (!req || (req->base.flags & CRYPTO_TFM_REQ_ON_STACK))
+		return;
 	kfree_sensitive(req);
 }
 
@@ -257,7 +315,8 @@ static inline void acomp_request_set_callback(struct acomp_req *req,
 					      void *data)
 {
 	u32 keep = CRYPTO_ACOMP_REQ_SRC_VIRT | CRYPTO_ACOMP_REQ_SRC_NONDMA |
-		   CRYPTO_ACOMP_REQ_DST_VIRT | CRYPTO_ACOMP_REQ_DST_NONDMA;
+		   CRYPTO_ACOMP_REQ_DST_VIRT | CRYPTO_ACOMP_REQ_DST_NONDMA |
+		   CRYPTO_TFM_REQ_ON_STACK;
 
 	req->base.complete = cmpl;
 	req->base.data = data;
@@ -445,5 +504,20 @@ int crypto_acomp_compress(struct acomp_req *req);
  * Return:	zero on success; error code in case of error
  */
 int crypto_acomp_decompress(struct acomp_req *req);
+
+static inline struct acomp_req *acomp_request_on_stack_init(
+	char *buf, struct crypto_acomp *tfm, gfp_t gfp, bool stackonly)
+{
+	struct acomp_req *req;
+
+	if (!stackonly && (req = acomp_request_alloc(tfm, gfp)))
+		return req;
+
+	req = (void *)buf;
+	acomp_request_set_tfm(req, tfm->fb);
+	req->base.flags = CRYPTO_TFM_REQ_ON_STACK;
+
+	return req;
+}
 
 #endif

@@ -60,28 +60,56 @@ static void crypto_acomp_exit_tfm(struct crypto_tfm *tfm)
 	struct crypto_acomp *acomp = __crypto_acomp_tfm(tfm);
 	struct acomp_alg *alg = crypto_acomp_alg(acomp);
 
-	alg->exit(acomp);
+	if (alg->exit)
+		alg->exit(acomp);
+
+	if (acomp_is_async(acomp))
+		crypto_free_acomp(acomp->fb);
 }
 
 static int crypto_acomp_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_acomp *acomp = __crypto_acomp_tfm(tfm);
 	struct acomp_alg *alg = crypto_acomp_alg(acomp);
+	struct crypto_acomp *fb = NULL;
+	int err;
+
+	acomp->fb = acomp;
 
 	if (tfm->__crt_alg->cra_type != &crypto_acomp_type)
 		return crypto_init_scomp_ops_async(tfm);
+
+	if (acomp_is_async(acomp)) {
+		fb = crypto_alloc_acomp(crypto_acomp_alg_name(acomp), 0,
+					CRYPTO_ALG_ASYNC);
+		if (IS_ERR(fb))
+			return PTR_ERR(fb);
+
+		err = -EINVAL;
+		if (crypto_acomp_reqsize(fb) > MAX_SYNC_COMP_REQSIZE)
+			goto out_free_fb;
+
+		acomp->fb = fb;
+	}
 
 	acomp->compress = alg->compress;
 	acomp->decompress = alg->decompress;
 	acomp->reqsize = alg->reqsize;
 
-	if (alg->exit)
-		acomp->base.exit = crypto_acomp_exit_tfm;
+	acomp->base.exit = crypto_acomp_exit_tfm;
 
-	if (alg->init)
-		return alg->init(acomp);
+	if (!alg->init)
+		return 0;
+
+	err = alg->init(acomp);
+	if (err)
+		goto out_free_fb;
 
 	return 0;
+
+out_free_fb:
+	crypto_free_acomp(fb);
+	return err;
 }
 
 static unsigned int crypto_acomp_extsize(struct crypto_alg *alg)
