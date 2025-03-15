@@ -452,6 +452,12 @@ static int dw_pcie_host_get_resources(struct dw_pcie_rp *pp)
 		pp->io_base = pci_pio_to_address(win->res->start);
 	}
 
+	/*
+	 * visconti_pcie_cpu_addr_fixup() uses pp->io_base, so we have to
+	 * call dw_pcie_parent_bus_offset() after setting pp->io_base.
+	 */
+	pci->parent_bus_offset = dw_pcie_parent_bus_offset(pci, "config",
+							   pp->cfg0_base);
 	return 0;
 }
 

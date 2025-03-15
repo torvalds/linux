@@ -445,6 +445,7 @@ struct dw_pcie {
 	void __iomem		*atu_base;
 	resource_size_t		atu_phys_addr;
 	size_t			atu_size;
+	resource_size_t		parent_bus_offset;
 	u32			num_ib_windows;
 	u32			num_ob_windows;
 	u32			region_align;
