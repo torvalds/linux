@@ -663,7 +663,8 @@ u64 bch2_get_random_u64_below(u64 ceil)
 	u64 mult = ceil * rand;
 
 	if (unlikely(mult < ceil)) {
-		u64 bound = -ceil % ceil;
+		u64 bound;
+		div64_u64_rem(-ceil, ceil, &bound);
 		while (unlikely(mult < bound)) {
 			rand = get_random_u64();
 			mult = ceil * rand;
