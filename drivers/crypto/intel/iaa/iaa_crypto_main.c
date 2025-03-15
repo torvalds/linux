@@ -33,8 +33,6 @@ static unsigned int nr_cpus_per_node;
 /* Number of physical cpus sharing each iaa instance */
 static unsigned int cpus_per_iaa;
 
-static struct crypto_comp *deflate_generic_tfm;
-
 /* Per-cpu lookup table for balanced wqs */
 static struct wq_table_entry __percpu *wq_table;
 
@@ -1001,17 +999,14 @@ out:
 
 static int deflate_generic_decompress(struct acomp_req *req)
 {
-	void *src, *dst;
+	ACOMP_REQUEST_ON_STACK(fbreq, crypto_acomp_reqtfm(req));
 	int ret;
 
-	src = kmap_local_page(sg_page(req->src)) + req->src->offset;
-	dst = kmap_local_page(sg_page(req->dst)) + req->dst->offset;
-
-	ret = crypto_comp_decompress(deflate_generic_tfm,
-				     src, req->slen, dst, &req->dlen);
-
-	kunmap_local(src);
-	kunmap_local(dst);
+	acomp_request_set_callback(fbreq, 0, NULL, NULL);
+	acomp_request_set_params(fbreq, req->src, req->dst, req->slen,
+				 req->dlen);
+	ret = crypto_acomp_decompress(fbreq);
+	req->dlen = fbreq->dlen;
 
 	update_total_sw_decomp_calls();
 
@@ -1898,15 +1893,6 @@ static int __init iaa_crypto_init_module(void)
 	}
 	nr_cpus_per_node = nr_cpus / nr_nodes;
 
-	if (crypto_has_comp("deflate-generic", 0, 0))
-		deflate_generic_tfm = crypto_alloc_comp("deflate-generic", 0, 0);
-
-	if (IS_ERR_OR_NULL(deflate_generic_tfm)) {
-		pr_err("IAA could not alloc %s tfm: errcode = %ld\n",
-		       "deflate-generic", PTR_ERR(deflate_generic_tfm));
-		return -ENOMEM;
-	}
-
 	ret = iaa_aecs_init_fixed();
 	if (ret < 0) {
 		pr_debug("IAA fixed compression mode init failed\n");
@@ -1948,7 +1934,6 @@ err_verify_attr_create:
 err_driver_reg:
 	iaa_aecs_cleanup_fixed();
 err_aecs_init:
-	crypto_free_comp(deflate_generic_tfm);
 
 	goto out;
 }
@@ -1965,7 +1950,6 @@ static void __exit iaa_crypto_cleanup_module(void)
 			   &driver_attr_verify_compress);
 	idxd_driver_unregister(&iaa_crypto_driver);
 	iaa_aecs_cleanup_fixed();
-	crypto_free_comp(deflate_generic_tfm);
 
 	pr_debug("cleaned up\n");
 }
