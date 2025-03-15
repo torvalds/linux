@@ -2516,7 +2516,8 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu)
 	kvm_arch_vcpu_load(vcpu, smp_processor_id());
 	preempt_enable();
 
-	kvm_pmu_nested_transition(vcpu);
+	if (kvm_vcpu_has_pmu(vcpu))
+		kvm_pmu_nested_transition(vcpu);
 }
 
 static void kvm_inject_el2_exception(struct kvm_vcpu *vcpu, u64 esr_el2,
@@ -2599,7 +2600,8 @@ static int kvm_inject_nested(struct kvm_vcpu *vcpu, u64 esr_el2,
 	kvm_arch_vcpu_load(vcpu, smp_processor_id());
 	preempt_enable();
 
-	kvm_pmu_nested_transition(vcpu);
+	if (kvm_vcpu_has_pmu(vcpu))
+		kvm_pmu_nested_transition(vcpu);
 
 	return 1;
 }
