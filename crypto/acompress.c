@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/page-flags.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -189,17 +190,24 @@ static void acomp_reqchain_virt(struct acomp_req_chain *state, int err)
 	req->base.err = err;
 	state = &req->chain;
 
-	if (state->src)
+	if (state->flags & CRYPTO_ACOMP_REQ_SRC_VIRT)
 		acomp_request_set_src_dma(req, state->src, slen);
-	if (state->dst)
+	else if (state->flags & CRYPTO_ACOMP_REQ_SRC_FOLIO)
+		acomp_request_set_src_folio(req, state->sfolio, state->soff, slen);
+	if (state->flags & CRYPTO_ACOMP_REQ_DST_VIRT)
 		acomp_request_set_dst_dma(req, state->dst, dlen);
-	state->src = NULL;
-	state->dst = NULL;
+	else if (state->flags & CRYPTO_ACOMP_REQ_DST_FOLIO)
+		acomp_request_set_dst_folio(req, state->dfolio, state->doff, dlen);
 }
 
 static void acomp_virt_to_sg(struct acomp_req *req)
 {
 	struct acomp_req_chain *state = &req->chain;
+
+	state->flags = req->base.flags & (CRYPTO_ACOMP_REQ_SRC_VIRT |
+					  CRYPTO_ACOMP_REQ_DST_VIRT |
+					  CRYPTO_ACOMP_REQ_SRC_FOLIO |
+					  CRYPTO_ACOMP_REQ_DST_FOLIO);
 
 	if (acomp_request_src_isvirt(req)) {
 		unsigned int slen = req->slen;
@@ -207,6 +215,17 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 
 		state->src = svirt;
 		sg_init_one(&state->ssg, svirt, slen);
+		acomp_request_set_src_sg(req, &state->ssg, slen);
+	} else if (acomp_request_src_isfolio(req)) {
+		struct folio *folio = req->sfolio;
+		unsigned int slen = req->slen;
+		size_t off = req->soff;
+
+		state->sfolio = folio;
+		state->soff = off;
+		sg_init_table(&state->ssg, 1);
+		sg_set_page(&state->ssg, folio_page(folio, off / PAGE_SIZE),
+			    slen, off % PAGE_SIZE);
 		acomp_request_set_src_sg(req, &state->ssg, slen);
 	}
 
@@ -217,6 +236,17 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 		state->dst = dvirt;
 		sg_init_one(&state->dsg, dvirt, dlen);
 		acomp_request_set_dst_sg(req, &state->dsg, dlen);
+	} else if (acomp_request_dst_isfolio(req)) {
+		struct folio *folio = req->dfolio;
+		unsigned int dlen = req->dlen;
+		size_t off = req->doff;
+
+		state->dfolio = folio;
+		state->doff = off;
+		sg_init_table(&state->dsg, 1);
+		sg_set_page(&state->dsg, folio_page(folio, off / PAGE_SIZE),
+			    dlen, off % PAGE_SIZE);
+		acomp_request_set_src_sg(req, &state->dsg, dlen);
 	}
 }
 
@@ -328,7 +358,7 @@ static int acomp_do_req_chain(struct acomp_req *req,
 	int err;
 
 	if (crypto_acomp_req_chain(tfm) ||
-	    (!acomp_request_chained(req) && !acomp_request_isvirt(req)))
+	    (!acomp_request_chained(req) && acomp_request_issg(req)))
 		return op(req);
 
 	if (acomp_is_async(tfm)) {

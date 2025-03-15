@@ -103,6 +103,14 @@ static inline bool acomp_request_chained(struct acomp_req *req)
 	return crypto_request_chained(&req->base);
 }
 
+static inline bool acomp_request_issg(struct acomp_req *req)
+{
+	return !(req->base.flags & (CRYPTO_ACOMP_REQ_SRC_VIRT |
+				    CRYPTO_ACOMP_REQ_DST_VIRT |
+				    CRYPTO_ACOMP_REQ_SRC_FOLIO |
+				    CRYPTO_ACOMP_REQ_DST_FOLIO));
+}
+
 static inline bool acomp_request_src_isvirt(struct acomp_req *req)
 {
 	return req->base.flags & CRYPTO_ACOMP_REQ_SRC_VIRT;
@@ -133,6 +141,16 @@ static inline bool acomp_request_isnondma(struct acomp_req *req)
 {
 	return req->base.flags & (CRYPTO_ACOMP_REQ_SRC_NONDMA |
 				  CRYPTO_ACOMP_REQ_DST_NONDMA);
+}
+
+static inline bool acomp_request_src_isfolio(struct acomp_req *req)
+{
+	return req->base.flags & CRYPTO_ACOMP_REQ_SRC_FOLIO;
+}
+
+static inline bool acomp_request_dst_isfolio(struct acomp_req *req)
+{
+	return req->base.flags & CRYPTO_ACOMP_REQ_DST_FOLIO;
 }
 
 static inline bool crypto_acomp_req_chain(struct crypto_acomp *tfm)

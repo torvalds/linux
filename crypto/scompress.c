@@ -177,9 +177,10 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	unsigned int slen = req->slen;
 	unsigned int dlen = req->dlen;
 	struct page *spage, *dpage;
-	unsigned int soff, doff;
 	unsigned int n;
 	const u8 *src;
+	size_t soff;
+	size_t doff;
 	u8 *dst;
 	int ret;
 
@@ -192,38 +193,57 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	if (acomp_request_src_isvirt(req))
 		src = req->svirt;
 	else {
-		soff = req->src->offset;
-		spage = nth_page(sg_page(req->src), soff / PAGE_SIZE);
-		soff = offset_in_page(soff);
+		src = scratch->src;
+		do {
+			if (acomp_request_src_isfolio(req)) {
+				spage = folio_page(req->sfolio, 0);
+				soff = req->soff;
+			} else if (slen <= req->src->length) {
+				spage = sg_page(req->src);
+				soff = req->src->offset;
+			} else
+				break;
 
-		n = slen / PAGE_SIZE;
-		n += (offset_in_page(slen) + soff - 1) / PAGE_SIZE;
-		if (slen <= req->src->length &&
-		    (!PageHighMem(nth_page(spage, n)) ||
-		     size_add(soff, slen) <= PAGE_SIZE))
+			spage = nth_page(spage, soff / PAGE_SIZE);
+			soff = offset_in_page(soff);
+
+			n = slen / PAGE_SIZE;
+			n += (offset_in_page(slen) + soff - 1) / PAGE_SIZE;
+			if (PageHighMem(nth_page(spage, n)) &&
+			    size_add(soff, slen) > PAGE_SIZE)
+				break;
 			src = kmap_local_page(spage) + soff;
-		else
-			src = scratch->src;
+		} while (0);
 	}
 
 	if (acomp_request_dst_isvirt(req))
 		dst = req->dvirt;
 	else {
-		doff = req->dst->offset;
-		dpage = nth_page(sg_page(req->dst), doff / PAGE_SIZE);
-		doff = offset_in_page(doff);
+		unsigned int max = SCOMP_SCRATCH_SIZE;
 
-		n = dlen / PAGE_SIZE;
-		n += (offset_in_page(dlen) + doff - 1) / PAGE_SIZE;
-		if (dlen <= req->dst->length &&
-		    (!PageHighMem(nth_page(dpage, n)) ||
-		     size_add(doff, dlen) <= PAGE_SIZE))
+		dst = scratch->dst;
+		do {
+			if (acomp_request_dst_isfolio(req)) {
+				dpage = folio_page(req->dfolio, 0);
+				doff = req->doff;
+			} else if (dlen <= req->dst->length) {
+				dpage = sg_page(req->dst);
+				doff = req->dst->offset;
+			} else
+				break;
+
+			dpage = nth_page(dpage, doff / PAGE_SIZE);
+			doff = offset_in_page(doff);
+
+			n = dlen / PAGE_SIZE;
+			n += (offset_in_page(dlen) + doff - 1) / PAGE_SIZE;
+			if (PageHighMem(dpage + n) &&
+			    size_add(doff, dlen) > PAGE_SIZE)
+				break;
 			dst = kmap_local_page(dpage) + doff;
-		else {
-			if (dlen > SCOMP_SCRATCH_SIZE)
-				dlen = SCOMP_SCRATCH_SIZE;
-			dst = scratch->dst;
-		}
+			max = dlen;
+		} while (0);
+		dlen = min(dlen, max);
 	}
 
 	spin_lock_bh(&scratch->lock);
