@@ -152,20 +152,6 @@ struct crypto_acomp *crypto_alloc_acomp_node(const char *alg_name, u32 type,
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_acomp_node);
 
-static bool acomp_request_has_nondma(struct acomp_req *req)
-{
-	struct acomp_req *r2;
-
-	if (acomp_request_isnondma(req))
-		return true;
-
-	list_for_each_entry(r2, &req->base.list, base.list)
-		if (acomp_request_isnondma(r2))
-			return true;
-
-	return false;
-}
-
 static void acomp_save_req(struct acomp_req *req, crypto_completion_t cplt)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
@@ -234,6 +220,45 @@ static void acomp_virt_to_sg(struct acomp_req *req)
 	}
 }
 
+static int acomp_do_nondma(struct acomp_req_chain *state,
+			   struct acomp_req *req)
+{
+	u32 keep = CRYPTO_ACOMP_REQ_SRC_VIRT |
+		   CRYPTO_ACOMP_REQ_SRC_NONDMA |
+		   CRYPTO_ACOMP_REQ_DST_VIRT |
+		   CRYPTO_ACOMP_REQ_DST_NONDMA;
+	ACOMP_REQUEST_ON_STACK(fbreq, crypto_acomp_reqtfm(req));
+	int err;
+
+	acomp_request_set_callback(fbreq, req->base.flags, NULL, NULL);
+	fbreq->base.flags &= ~keep;
+	fbreq->base.flags |= req->base.flags & keep;
+	fbreq->src = req->src;
+	fbreq->dst = req->dst;
+	fbreq->slen = req->slen;
+	fbreq->dlen = req->dlen;
+
+	if (state->op == crypto_acomp_reqtfm(req)->compress)
+		err = crypto_acomp_compress(fbreq);
+	else
+		err = crypto_acomp_decompress(fbreq);
+
+	req->dlen = fbreq->dlen;
+	return err;
+}
+
+static int acomp_do_one_req(struct acomp_req_chain *state,
+			    struct acomp_req *req)
+{
+	state->cur = req;
+
+	if (acomp_request_isnondma(req))
+		return acomp_do_nondma(state, req);
+
+	acomp_virt_to_sg(req);
+	return state->op(req);
+}
+
 static int acomp_reqchain_finish(struct acomp_req_chain *state,
 				 int err, u32 mask)
 {
@@ -252,10 +277,8 @@ static int acomp_reqchain_finish(struct acomp_req_chain *state,
 		req->base.flags &= mask;
 		req->base.complete = acomp_reqchain_done;
 		req->base.data = state;
-		state->cur = req;
 
-		acomp_virt_to_sg(req);
-		err = state->op(req);
+		err = acomp_do_one_req(state, req);
 
 		if (err == -EINPROGRESS) {
 			if (!list_empty(&state->head))
@@ -308,27 +331,17 @@ static int acomp_do_req_chain(struct acomp_req *req,
 	    (!acomp_request_chained(req) && !acomp_request_isvirt(req)))
 		return op(req);
 
-	/*
-	 * There are no in-kernel users that do this.  If and ever
-	 * such users come into being then we could add a fall-back
-	 * path.
-	 */
-	if (acomp_request_has_nondma(req))
-		return -EINVAL;
-
 	if (acomp_is_async(tfm)) {
 		acomp_save_req(req, acomp_reqchain_done);
 		state = req->base.data;
 	}
 
 	state->op = op;
-	state->cur = req;
 	state->src = NULL;
 	INIT_LIST_HEAD(&state->head);
 	list_splice_init(&req->base.list, &state->head);
 
-	acomp_virt_to_sg(req);
-	err = op(req);
+	err = acomp_do_one_req(state, req);
 	if (err == -EBUSY || err == -EINPROGRESS)
 		return -EBUSY;
 
