@@ -782,21 +782,6 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 			btrfs_ino(inode));
 		return 0;
 	}
-	/*
-	 * Only enable sector perfect compression for experimental builds.
-	 *
-	 * This is a big feature change for subpage cases, and can hit
-	 * different corner cases, so only limit this feature for
-	 * experimental build for now.
-	 *
-	 * ETA for moving this out of experimental builds is 6.15.
-	 */
-	if (fs_info->sectorsize < PAGE_SIZE &&
-	    !IS_ENABLED(CONFIG_BTRFS_EXPERIMENTAL)) {
-		if (!PAGE_ALIGNED(start) ||
-		    !PAGE_ALIGNED(end + 1))
-			return 0;
-	}
 
 	/* force compress */
 	if (btrfs_test_opt(fs_info, FORCE_COMPRESS))
