@@ -899,7 +899,7 @@ use_clean:
 	 * journal sequence numbers:
 	 */
 	if (!c->sb.clean)
-		journal_seq += 8;
+		journal_seq += JOURNAL_BUF_NR * 4;
 
 	if (blacklist_seq != journal_seq) {
 		ret =   bch2_journal_log_msg(c, "blacklisting entries %llu-%llu",
