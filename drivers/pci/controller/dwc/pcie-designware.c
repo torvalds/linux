@@ -16,6 +16,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/ioport.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
 #include <linux/types.h>
@@ -1104,4 +1105,26 @@ void dw_pcie_setup(struct dw_pcie *pci)
 	dw_pcie_writel_dbi(pci, PCIE_PORT_LINK_CONTROL, val);
 
 	dw_pcie_link_set_max_link_width(pci, pci->num_lanes);
+}
+
+resource_size_t dw_pcie_parent_bus_offset(struct dw_pcie *pci,
+					  const char *reg_name,
+					  resource_size_t cpu_phys_addr)
+{
+	struct device *dev = pci->dev;
+	struct device_node *np = dev->of_node;
+	int index;
+	u64 reg_addr;
+
+	/* Look up reg_name address on parent bus */
+	index = of_property_match_string(np, "reg-names", reg_name);
+
+	if (index < 0) {
+		dev_err(dev, "No %s in devicetree \"reg\" property\n", reg_name);
+		return 0;
+	}
+
+	of_property_read_reg(np, index, &reg_addr, NULL);
+
+	return cpu_phys_addr - reg_addr;
 }
