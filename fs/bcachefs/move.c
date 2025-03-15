@@ -101,13 +101,25 @@ static void move_free(struct moving_io *io)
 static void move_write_done(struct bch_write_op *op)
 {
 	struct moving_io *io = container_of(op, struct moving_io, write.op);
+	struct bch_fs *c = op->c;
 	struct moving_context *ctxt = io->write.ctxt;
 
-	if (io->write.op.error)
-		ctxt->write_error = true;
+	if (op->error) {
+		if (trace_io_move_write_fail_enabled()) {
+			struct printbuf buf = PRINTBUF;
 
-	atomic_sub(io->write_sectors, &io->write.ctxt->write_sectors);
-	atomic_dec(&io->write.ctxt->write_ios);
+			bch2_write_op_to_text(&buf, op);
+			prt_printf(&buf, "ret\t%s\n", bch2_err_str(op->error));
+			trace_io_move_write_fail(c, buf.buf);
+			printbuf_exit(&buf);
+		}
+		this_cpu_inc(c->counters[BCH_COUNTER_io_move_write_fail]);
+
+		ctxt->write_error = true;
+	}
+
+	atomic_sub(io->write_sectors, &ctxt->write_sectors);
+	atomic_dec(&ctxt->write_ios);
 	move_free(io);
 	closure_put(&ctxt->cl);
 }

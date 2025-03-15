@@ -846,6 +846,11 @@ DEFINE_EVENT(fs_str, io_move_fail,
 	TP_ARGS(c, str)
 );
 
+DEFINE_EVENT(fs_str, io_move_write_fail,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
+);
+
 DEFINE_EVENT(fs_str, io_move_start_fail,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)

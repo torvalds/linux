@@ -22,6 +22,7 @@ enum counters_flags {
 	x(io_move_write,				36,	TYPE_SECTORS)	\
 	x(io_move_finish,				37,	TYPE_SECTORS)	\
 	x(io_move_fail,					38,	TYPE_COUNTER)	\
+	x(io_move_write_fail,				82,	TYPE_COUNTER)	\
 	x(io_move_start_fail,				39,	TYPE_COUNTER)	\
 	x(bucket_invalidate,				3,	TYPE_COUNTER)	\
 	x(bucket_discard,				4,	TYPE_COUNTER)	\

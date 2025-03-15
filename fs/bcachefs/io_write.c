@@ -1742,20 +1742,26 @@ static const char * const bch2_write_flags[] = {
 
 void bch2_write_op_to_text(struct printbuf *out, struct bch_write_op *op)
 {
-	prt_str(out, "pos: ");
+	if (!out->nr_tabstops)
+		printbuf_tabstop_push(out, 32);
+
+	prt_printf(out, "pos:\t");
 	bch2_bpos_to_text(out, op->pos);
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
 
-	prt_str(out, "started: ");
+	prt_printf(out, "started:\t");
 	bch2_pr_time_units(out, local_clock() - op->start_time);
 	prt_newline(out);
 
-	prt_str(out, "flags: ");
+	prt_printf(out, "flags:\t");
 	prt_bitflags(out, bch2_write_flags, op->flags);
 	prt_newline(out);
 
-	prt_printf(out, "ref: %u\n", closure_nr_remaining(&op->cl));
+	prt_printf(out, "nr_replicas:\t%u\n", op->nr_replicas);
+	prt_printf(out, "nr_replicas_required:\t%u\n", op->nr_replicas_required);
+
+	prt_printf(out, "ref:\t%u\n", closure_nr_remaining(&op->cl));
 
 	printbuf_indent_sub(out, 2);
 }
