@@ -203,6 +203,7 @@ struct th1520_aon_chan *th1520_aon_init(struct device *dev)
 {
 	struct th1520_aon_chan *aon_chan;
 	struct mbox_client *cl;
+	int ret;
 
 	aon_chan = kzalloc(sizeof(*aon_chan), GFP_KERNEL);
 	if (!aon_chan)
@@ -217,8 +218,9 @@ struct th1520_aon_chan *th1520_aon_init(struct device *dev)
 	aon_chan->ch = mbox_request_channel_byname(cl, "aon");
 	if (IS_ERR(aon_chan->ch)) {
 		dev_err(dev, "Failed to request aon mbox chan\n");
+		ret = PTR_ERR(aon_chan->ch);
 		kfree(aon_chan);
-		return ERR_CAST(aon_chan->ch);
+		return ERR_PTR(ret);
 	}
 
 	mutex_init(&aon_chan->transaction_lock);
