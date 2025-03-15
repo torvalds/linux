@@ -1168,12 +1168,12 @@ impl<'a, K, V> RawVacantEntry<'a, K, V> {
     fn insert(self, node: RBTreeNode<K, V>) -> &'a mut V {
         let node = KBox::into_raw(node.node);
 
-        // SAFETY: `node` is valid at least until we call `Box::from_raw`, which only happens when
+        // SAFETY: `node` is valid at least until we call `KBox::from_raw`, which only happens when
         // the node is removed or replaced.
         let node_links = unsafe { addr_of_mut!((*node).links) };
 
         // INVARIANT: We are linking in a new node, which is valid. It remains valid because we
-        // "forgot" it with `Box::into_raw`.
+        // "forgot" it with `KBox::into_raw`.
         // SAFETY: The type invariants of `RawVacantEntry` are exactly the safety requirements of `rb_link_node`.
         unsafe { bindings::rb_link_node(node_links, self.parent, self.child_field_of_parent) };
 
@@ -1259,7 +1259,7 @@ impl<'a, K, V> OccupiedEntry<'a, K, V> {
     fn replace(self, node: RBTreeNode<K, V>) -> RBTreeNode<K, V> {
         let node = KBox::into_raw(node.node);
 
-        // SAFETY: `node` is valid at least until we call `Box::from_raw`, which only happens when
+        // SAFETY: `node` is valid at least until we call `KBox::from_raw`, which only happens when
         // the node is removed or replaced.
         let new_node_links = unsafe { addr_of_mut!((*node).links) };
 
