@@ -1,4 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0
-
-generated-y += unistd_32.h
-generic-y += ucontext.h

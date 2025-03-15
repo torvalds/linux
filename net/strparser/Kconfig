@@ -1,3 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-config STREAM_PARSER
-	def_bool n

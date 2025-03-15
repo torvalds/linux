@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-
-config SOC_TEGRA_POWERGATE_BPMP
-	def_bool y
-	depends on PM_GENERIC_DOMAINS
-	depends on TEGRA_BPMP

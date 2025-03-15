@@ -1,9 +1,0 @@
-#!/bin/sh
-# SPDX-License-Identifier: GPL-2.0
-# description: Basic test for tracers
-# flags: instance
-test -f available_tracers
-for t in `cat available_tracers`; do
-  echo $t > current_tracer
-done
-echo nop > current_tracer

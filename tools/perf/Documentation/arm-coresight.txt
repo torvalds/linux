@@ -1,5 +1,0 @@
-Arm CoreSight Support
-=====================
-
-For full documentation, see Documentation/trace/coresight/coresight-perf.rst
-in the kernel tree.

@@ -1,8 +1,0 @@
-cat <<EOF
-	if (__native_word(${atomic}_t)) {
-		smp_store_release(&(v)->counter, i);
-	} else {
-		__atomic_release_fence();
-		raw_${atomic}_set(v, i);
-	}
-EOF
