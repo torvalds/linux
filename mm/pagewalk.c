@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/pagewalk.h>
-#include <linux/highmem.h>
-#include <linux/sched.h>
-#include <linux/hugetlb.h>
-#include <linux/mmu_context.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
+#include <winux/pagewalk.h>
+#include <winux/highmem.h>
+#include <winux/sched.h>
+#include <winux/hugetlb.h>
+#include <winux/mmu_context.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
 
 #include <asm/tlbflush.h>
 
@@ -515,7 +515,7 @@ int walk_page_range_mm(struct mm_struct *mm, unsigned long start,
  * page table walk.
  *
  * This check is performed on all functions which are parameterised by walk
- * operations and exposed in include/linux/pagewalk.h.
+ * operations and exposed in include/winux/pagewalk.h.
  *
  * Internal memory management code can use the walk_page_range_mm() function to
  * be able to use all page walking operations.

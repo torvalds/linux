@@ -9,11 +9,11 @@
  */
 
 #include <crypto/algapi.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/unaligned.h>
+#include <winux/module.h>
+#include <winux/init.h>
+#include <winux/types.h>
+#include <winux/errno.h>
+#include <winux/unaligned.h>
 
 #define SEED_NUM_KCONSTANTS	16
 #define SEED_KEY_SIZE		16

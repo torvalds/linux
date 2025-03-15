@@ -3,10 +3,10 @@
  * Out-of-line refcount functions.
  */
 
-#include <linux/mutex.h>
-#include <linux/refcount.h>
-#include <linux/spinlock.h>
-#include <linux/bug.h>
+#include <winux/mutex.h>
+#include <winux/refcount.h>
+#include <winux/spinlock.h>
+#include <winux/bug.h>
 
 #define REFCOUNT_WARN(str)	WARN_ONCE(1, "refcount_t: " str ".\n")
 

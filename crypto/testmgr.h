@@ -3,7 +3,7 @@
  * Algorithm testing framework and tests.
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
- * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
+ * Copyright (c) 2002 Jean-Francois Dive <jef@winuxbe.org>
  * Copyright (c) 2007 Nokia Siemens Networks
  * Copyright (c) 2008 Herbert Xu <herbert@gondor.apana.org.au>
  * Copyright (c) 2019 Google LLC
@@ -20,7 +20,7 @@
 #ifndef _CRYPTO_TESTMGR_H
 #define _CRYPTO_TESTMGR_H
 
-#include <linux/oid_registry.h>
+#include <winux/oid_registry.h>
 #include <crypto/internal/ecc.h>
 
 #define MAX_IVLEN		32

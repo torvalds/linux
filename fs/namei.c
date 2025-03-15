@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/namei.c
+ *  winux/fs/namei.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
@@ -15,31 +15,31 @@
 /* [Feb-Apr 2000, AV] Rewrite to the new namespace architecture.
  */
 
-#include <linux/init.h>
-#include <linux/export.h>
-#include <linux/slab.h>
-#include <linux/wordpart.h>
-#include <linux/fs.h>
-#include <linux/filelock.h>
-#include <linux/namei.h>
-#include <linux/pagemap.h>
-#include <linux/sched/mm.h>
-#include <linux/fsnotify.h>
-#include <linux/personality.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/mount.h>
-#include <linux/audit.h>
-#include <linux/capability.h>
-#include <linux/file.h>
-#include <linux/fcntl.h>
-#include <linux/device_cgroup.h>
-#include <linux/fs_struct.h>
-#include <linux/posix_acl.h>
-#include <linux/hash.h>
-#include <linux/bitops.h>
-#include <linux/init_task.h>
-#include <linux/uaccess.h>
+#include <winux/init.h>
+#include <winux/export.h>
+#include <winux/slab.h>
+#include <winux/wordpart.h>
+#include <winux/fs.h>
+#include <winux/filelock.h>
+#include <winux/namei.h>
+#include <winux/pagemap.h>
+#include <winux/sched/mm.h>
+#include <winux/fsnotify.h>
+#include <winux/personality.h>
+#include <winux/security.h>
+#include <winux/syscalls.h>
+#include <winux/mount.h>
+#include <winux/audit.h>
+#include <winux/capability.h>
+#include <winux/file.h>
+#include <winux/fcntl.h>
+#include <winux/device_cgroup.h>
+#include <winux/fs_struct.h>
+#include <winux/posix_acl.h>
+#include <winux/hash.h>
+#include <winux/bitops.h>
+#include <winux/init_task.h>
+#include <winux/uaccess.h>
 
 #include "internal.h"
 #include "mount.h"
@@ -86,7 +86,7 @@
  * "old" one. Personally, I think the new semantics is much more logical.
  * Note that "ln old new" where "new" is a symlink pointing to a non-existing
  * file does succeed in both HP-UX and SunOs, but not in Solaris
- * and in the old Linux semantics.
+ * and in the old Winux semantics.
  */
 
 /* [16-Dec-97 Kevin Buhr] For security reasons, we change some symlink
@@ -4813,7 +4813,7 @@ EXPORT_SYMBOL(vfs_link);
  * newname.  --KAB
  *
  * We don't follow them on the oldname either to be compatible
- * with linux 2.0, and to avoid hard-linking to directories
+ * with winux 2.0, and to avoid hard-linking to directories
  * and other special files.  --ADM
  */
 int do_linkat(int olddfd, struct filename *old, int newdfd,

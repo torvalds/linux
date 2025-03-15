@@ -2,7 +2,7 @@
 #ifndef LINUX_KALLSYMS_INTERNAL_H_
 #define LINUX_KALLSYMS_INTERNAL_H_
 
-#include <linux/types.h>
+#include <winux/types.h>
 
 extern const int kallsyms_offsets[];
 extern const u8 kallsyms_names[];

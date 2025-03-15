@@ -6,13 +6,13 @@
  *  Copyright (C) 2001 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  *  Copyright (C) 2023 Intel Corp.
  */
-#include <linux/errno.h>
-#include <linux/acpi.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/types.h>
-#include <linux/fw_table.h>
+#include <winux/errno.h>
+#include <winux/acpi.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/string.h>
+#include <winux/types.h>
+#include <winux/fw_table.h>
 
 enum acpi_subtable_type {
 	ACPI_SUBTABLE_COMMON,

@@ -2,7 +2,7 @@
 #ifndef LINUX_KEXEC_INTERNAL_H
 #define LINUX_KEXEC_INTERNAL_H
 
-#include <linux/kexec.h>
+#include <winux/kexec.h>
 
 struct kexec_segment;
 
@@ -32,7 +32,7 @@ static inline void kexec_unlock(void)
 }
 
 #ifdef CONFIG_KEXEC_FILE
-#include <linux/purgatory.h>
+#include <winux/purgatory.h>
 void kimage_file_post_load_cleanup(struct kimage *image);
 extern char kexec_purgatory[];
 extern size_t kexec_purgatory_size;

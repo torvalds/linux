@@ -2,32 +2,32 @@
 /*
  * Slab allocator functions that are independent of the allocator strategy
  *
- * (C) 2012 Christoph Lameter <cl@linux.com>
+ * (C) 2012 Christoph Lameter <cl@winux.com>
  */
-#include <linux/slab.h>
+#include <winux/slab.h>
 
-#include <linux/mm.h>
-#include <linux/poison.h>
-#include <linux/interrupt.h>
-#include <linux/memory.h>
-#include <linux/cache.h>
-#include <linux/compiler.h>
-#include <linux/kfence.h>
-#include <linux/module.h>
-#include <linux/cpu.h>
-#include <linux/uaccess.h>
-#include <linux/seq_file.h>
-#include <linux/dma-mapping.h>
-#include <linux/swiotlb.h>
-#include <linux/proc_fs.h>
-#include <linux/debugfs.h>
-#include <linux/kmemleak.h>
-#include <linux/kasan.h>
+#include <winux/mm.h>
+#include <winux/poison.h>
+#include <winux/interrupt.h>
+#include <winux/memory.h>
+#include <winux/cache.h>
+#include <winux/compiler.h>
+#include <winux/kfence.h>
+#include <winux/module.h>
+#include <winux/cpu.h>
+#include <winux/uaccess.h>
+#include <winux/seq_file.h>
+#include <winux/dma-mapping.h>
+#include <winux/swiotlb.h>
+#include <winux/proc_fs.h>
+#include <winux/debugfs.h>
+#include <winux/kmemleak.h>
+#include <winux/kasan.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
-#include <linux/memcontrol.h>
-#include <linux/stackdepot.h>
+#include <winux/memcontrol.h>
+#include <winux/stackdepot.h>
 #include <trace/events/rcu.h>
 
 #include "../kernel/rcu/rcu.h"
@@ -1260,7 +1260,7 @@ size_t ksize(const void *objp)
 EXPORT_SYMBOL(ksize);
 
 #ifdef CONFIG_BPF_SYSCALL
-#include <linux/btf.h>
+#include <winux/btf.h>
 
 __bpf_kfunc_start_defs();
 

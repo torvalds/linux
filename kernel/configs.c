@@ -9,12 +9,12 @@
  * Copyright (C) 2002 Hewlett-Packard Company
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/init.h>
-#include <linux/uaccess.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/init.h>
+#include <winux/uaccess.h>
 
 /*
  * "IKCFG_ST" and "IKCFG_ED" are used to extract the config data from

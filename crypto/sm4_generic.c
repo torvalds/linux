@@ -9,12 +9,12 @@
 
 #include <crypto/algapi.h>
 #include <crypto/sm4.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/errno.h>
+#include <winux/module.h>
+#include <winux/init.h>
+#include <winux/types.h>
+#include <winux/errno.h>
 #include <asm/byteorder.h>
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 
 /**
  * sm4_setkey - Set the SM4 key.

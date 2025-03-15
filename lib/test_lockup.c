@@ -4,17 +4,17 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/sched.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/clock.h>
-#include <linux/cpu.h>
-#include <linux/nmi.h>
-#include <linux/mm.h>
-#include <linux/uaccess.h>
-#include <linux/file.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/delay.h>
+#include <winux/sched.h>
+#include <winux/sched/signal.h>
+#include <winux/sched/clock.h>
+#include <winux/cpu.h>
+#include <winux/nmi.h>
+#include <winux/mm.h>
+#include <winux/uaccess.h>
+#include <winux/file.h>
 
 static unsigned int time_secs;
 module_param(time_secs, uint, 0600);

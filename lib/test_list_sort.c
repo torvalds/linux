@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <kunit/test.h>
 
-#include <linux/kernel.h>
-#include <linux/list_sort.h>
-#include <linux/list.h>
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/slab.h>
-#include <linux/random.h>
+#include <winux/kernel.h>
+#include <winux/list_sort.h>
+#include <winux/list.h>
+#include <winux/module.h>
+#include <winux/printk.h>
+#include <winux/slab.h>
+#include <winux/random.h>
 
 /*
  * The pattern of set bits in the list length determines which cases

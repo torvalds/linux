@@ -27,12 +27,12 @@
 
 #include <crypto/algapi.h>
 #include <crypto/twofish.h>
-#include <linux/bitops.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/types.h>
+#include <winux/bitops.h>
+#include <winux/errno.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/types.h>
 
 
 /* The large precomputed tables for the Twofish cipher (twofish.c)

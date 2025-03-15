@@ -303,8 +303,8 @@ $(obj)/%.rs: $(obj)/%.rs.S FORCE
 #
 # These mirror gensymtypes_c and co above, keep them in synch.
 getasmexports =								\
-   { echo "\#include <linux/kernel.h>" ;				\
-     echo "\#include <linux/string.h>" ;				\
+   { echo "\#include <winux/kernel.h>" ;				\
+     echo "\#include <winux/string.h>" ;				\
      echo "\#include <asm/asm-prototypes.h>" ;				\
      $(call getexportsymbols,EXPORT_SYMBOL(\1);) ; }
 

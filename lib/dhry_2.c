@@ -18,7 +18,7 @@
 
 #include "dhry.h"
 
-#include <linux/string.h>
+#include <winux/string.h>
 
 
 static Boolean Func_3(Enumeration Enum_Par_Val)

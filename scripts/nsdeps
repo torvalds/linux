@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
-# Linux kernel symbol namespace import generator
+# Winux kernel symbol namespace import generator
 #
 # This script requires a minimum spatch version.
 SPATCH_REQ_VERSION="1.0.4"

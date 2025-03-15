@@ -12,16 +12,16 @@
  *
  * This file is released under the GPL.
  */
-#include <linux/errno.h>
-#include <linux/stddef.h>
-#include <linux/slab.h>
-#include <linux/export.h>
-#include <linux/string.h>
-#include <linux/relay.h>
-#include <linux/vmalloc.h>
-#include <linux/mm.h>
-#include <linux/cpu.h>
-#include <linux/splice.h>
+#include <winux/errno.h>
+#include <winux/stddef.h>
+#include <winux/slab.h>
+#include <winux/export.h>
+#include <winux/string.h>
+#include <winux/relay.h>
+#include <winux/vmalloc.h>
+#include <winux/mm.h>
+#include <winux/cpu.h>
+#include <winux/splice.h>
 
 /* list of open channels, for cpu hotplug */
 static DEFINE_MUTEX(relay_channels_mutex);

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 PHONY := __default
-__default: vmlinux
+__default: vmwinux
 
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
@@ -20,7 +20,7 @@ targets :=
 
 quiet_cmd_wrap_dtbs = WRAP    $@
       cmd_wrap_dtbs = {							\
-	echo '\#include <asm-generic/vmlinux.lds.h>';			\
+	echo '\#include <asm-generic/vmwinux.lds.h>';			\
 	echo '.section .dtb.init.rodata,"a"';				\
 	while read dtb; do						\
 		symbase=__dtb_$$(basename -s .dtb "$${dtb}" | tr - _);	\
@@ -47,36 +47,36 @@ targets += .builtin-dtbs-list
 
 ifdef CONFIG_GENERIC_BUILTIN_DTB
 targets += .builtin-dtbs.S .builtin-dtbs.o
-vmlinux: .builtin-dtbs.o
+vmwinux: .builtin-dtbs.o
 endif
 
-# vmlinux
+# vmwinux
 # ---------------------------------------------------------------------------
 
 ifdef CONFIG_MODULES
-targets += .vmlinux.export.o
-vmlinux: .vmlinux.export.o
+targets += .vmwinux.export.o
+vmwinux: .vmwinux.export.o
 endif
 
 ifdef CONFIG_ARCH_WANTS_PRE_LINK_VMLINUX
-vmlinux: arch/$(SRCARCH)/tools/vmlinux.arch.o
+vmwinux: arch/$(SRCARCH)/tools/vmwinux.arch.o
 
-arch/$(SRCARCH)/tools/vmlinux.arch.o: vmlinux.o FORCE
+arch/$(SRCARCH)/tools/vmwinux.arch.o: vmwinux.o FORCE
 	$(Q)$(MAKE) $(build)=arch/$(SRCARCH)/tools $@
 endif
 
 ARCH_POSTLINK := $(wildcard $(srctree)/arch/$(SRCARCH)/Makefile.postlink)
 
-# Final link of vmlinux with optional arch pass after final link
-cmd_link_vmlinux =							\
-	$< "$(LD)" "$(KBUILD_LDFLAGS)" "$(LDFLAGS_vmlinux)";		\
+# Final link of vmwinux with optional arch pass after final link
+cmd_link_vmwinux =							\
+	$< "$(LD)" "$(KBUILD_LDFLAGS)" "$(LDFLAGS_vmwinux)";		\
 	$(if $(ARCH_POSTLINK), $(MAKE) -f $(ARCH_POSTLINK) $@, true)
 
-targets += vmlinux
-vmlinux: scripts/link-vmlinux.sh vmlinux.o $(KBUILD_LDS) FORCE
-	+$(call if_changed_dep,link_vmlinux)
+targets += vmwinux
+vmwinux: scripts/link-vmwinux.sh vmwinux.o $(KBUILD_LDS) FORCE
+	+$(call if_changed_dep,link_vmwinux)
 ifdef CONFIG_DEBUG_INFO_BTF
-vmlinux: $(RESOLVE_BTFIDS)
+vmwinux: $(RESOLVE_BTFIDS)
 endif
 
 # module.builtin.ranges
@@ -89,10 +89,10 @@ quiet_cmd_modules_builtin_ranges = GEN     $@
 
 targets += modules.builtin.ranges
 modules.builtin.ranges: $(srctree)/scripts/generate_builtin_ranges.awk \
-			modules.builtin vmlinux.map vmlinux.o.map FORCE
+			modules.builtin vmwinux.map vmwinux.o.map FORCE
 	$(call if_changed,modules_builtin_ranges)
 
-vmlinux.map: vmlinux
+vmwinux.map: vmwinux
 	@:
 
 endif

@@ -6,10 +6,10 @@
  *
  * Copyright (C) 2012, Red Hat, Inc.  Rafael Aquini <aquini@redhat.com>
  */
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/export.h>
-#include <linux/balloon_compaction.h>
+#include <winux/mm.h>
+#include <winux/slab.h>
+#include <winux/export.h>
+#include <winux/balloon_compaction.h>
 
 static void balloon_page_enqueue_one(struct balloon_dev_info *b_dev_info,
 				     struct page *page)

@@ -11,8 +11,8 @@ config BINFMT_ELF
 	  ELF (Executable and Linkable Format) is a format for libraries and
 	  executables used across different architectures and operating
 	  systems. Saying Y here will enable your kernel to run ELF binaries
-	  and enlarge it by about 13 KB. ELF support under Linux has now all
-	  but replaced the traditional Linux a.out formats (QMAGIC and ZMAGIC)
+	  and enlarge it by about 13 KB. ELF support under Winux has now all
+	  but replaced the traditional Winux a.out formats (QMAGIC and ZMAGIC)
 	  because it is portable (this does *not* mean that you will be able
 	  to run executables from different architectures or operating systems
 	  however) and makes building run-time libraries very easy. Many new
@@ -22,7 +22,7 @@ config BINFMT_ELF
 	  Information about ELF is contained in the ELF HOWTO available from
 	  <http://www.tldp.org/docs.html#howto>.
 
-	  If you find that after upgrading from Linux kernel 1.2 and saying Y
+	  If you find that after upgrading from Winux kernel 1.2 and saying Y
 	  here, you still can't run any ELF binaries (they just crash), then
 	  you'll have to install the newest ELF runtime libraries, including
 	  ld.so (check the file <file:Documentation/Changes> for location and
@@ -67,7 +67,7 @@ config BINFMT_ELF_FDPIC
 	  MMU is available as it still permits text segments to be shared,
 	  even if data segments are not.
 
-	  It is also possible to run FDPIC ELF binaries on MMU linux also.
+	  It is also possible to run FDPIC ELF binaries on MMU winux also.
 
 config ELFCORE
 	bool
@@ -117,7 +117,7 @@ config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
 	depends on ARCH_HAS_BINFMT_FLAT
 	help
-	  Support uClinux FLAT format binaries.
+	  Support uCwinux FLAT format binaries.
 
 config BINFMT_FLAT_ARGVP_ENVP_ON_STACK
 	bool
@@ -132,7 +132,7 @@ config BINFMT_FLAT_OLD
 	bool "Enable support for very old legacy flat binaries"
 	depends on BINFMT_FLAT
 	help
-	  Support decade old uClinux FLAT format binaries.  Unless you know
+	  Support decade old uCwinux FLAT format binaries.  Unless you know
 	  you have some of those say N here.
 
 config BINFMT_ZFLAT
@@ -149,10 +149,10 @@ config BINFMT_MISC
 	  formats into the kernel. You will like this especially when you use
 	  programs that need an interpreter to run like Java, Python, .NET or
 	  Emacs-Lisp. It's also useful if you often run DOS executables under
-	  the Linux DOS emulator DOSEMU (read the DOSEMU-HOWTO, available from
+	  the Winux DOS emulator DOSEMU (read the DOSEMU-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>). Once you have
 	  registered such a binary class with the kernel, you can start one of
-	  those programs simply by typing in its name at a shell prompt; Linux
+	  those programs simply by typing in its name at a shell prompt; Winux
 	  will automatically feed it to the correct interpreter.
 
 	  You can do other nice things, too. Read the file

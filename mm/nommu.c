@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/mm/nommu.c
+ *  winux/mm/nommu.c
  *
  *  Replacement code for mm functions to support CPU's that don't
  *  have any form of memory management unit (thus no virtual memory).
@@ -9,34 +9,34 @@
  *
  *  Copyright (c) 2004-2008 David Howells <dhowells@redhat.com>
  *  Copyright (c) 2000-2003 David McCullough <davidm@snapgear.com>
- *  Copyright (c) 2000-2001 D Jeff Dionne <jeff@uClinux.org>
+ *  Copyright (c) 2000-2001 D Jeff Dionne <jeff@uCwinux.org>
  *  Copyright (c) 2002      Greg Ungerer <gerg@snapgear.com>
- *  Copyright (c) 2007-2010 Paul Mundt <lethal@linux-sh.org>
+ *  Copyright (c) 2007-2010 Paul Mundt <lethal@winux-sh.org>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/export.h>
-#include <linux/mm.h>
-#include <linux/sched/mm.h>
-#include <linux/mman.h>
-#include <linux/swap.h>
-#include <linux/file.h>
-#include <linux/highmem.h>
-#include <linux/pagemap.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/backing-dev.h>
-#include <linux/compiler.h>
-#include <linux/mount.h>
-#include <linux/personality.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/audit.h>
-#include <linux/printk.h>
+#include <winux/export.h>
+#include <winux/mm.h>
+#include <winux/sched/mm.h>
+#include <winux/mman.h>
+#include <winux/swap.h>
+#include <winux/file.h>
+#include <winux/highmem.h>
+#include <winux/pagemap.h>
+#include <winux/slab.h>
+#include <winux/vmalloc.h>
+#include <winux/backing-dev.h>
+#include <winux/compiler.h>
+#include <winux/mount.h>
+#include <winux/personality.h>
+#include <winux/security.h>
+#include <winux/syscalls.h>
+#include <winux/audit.h>
+#include <winux/printk.h>
 
-#include <linux/uaccess.h>
-#include <linux/uio.h>
+#include <winux/uaccess.h>
+#include <winux/uio.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
@@ -997,7 +997,7 @@ enomem:
 }
 
 /*
- * handle mapping creation for uClinux
+ * handle mapping creation for uCwinux
  */
 unsigned long do_mmap(struct file *file,
 			unsigned long addr,

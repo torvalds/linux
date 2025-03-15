@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	linux/mm/mincore.c
+ *	winux/mm/mincore.c
  *
  * Copyright (C) 1994-2006  Linus Torvalds
  */
@@ -8,18 +8,18 @@
 /*
  * The mincore() system call.
  */
-#include <linux/pagemap.h>
-#include <linux/gfp.h>
-#include <linux/pagewalk.h>
-#include <linux/mman.h>
-#include <linux/syscalls.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
-#include <linux/shmem_fs.h>
-#include <linux/hugetlb.h>
-#include <linux/pgtable.h>
+#include <winux/pagemap.h>
+#include <winux/gfp.h>
+#include <winux/pagewalk.h>
+#include <winux/mman.h>
+#include <winux/syscalls.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
+#include <winux/shmem_fs.h>
+#include <winux/hugetlb.h>
+#include <winux/pgtable.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 #include "swap.h"
 
 static int mincore_hugetlb(pte_t *pte, unsigned long hmask, unsigned long addr,

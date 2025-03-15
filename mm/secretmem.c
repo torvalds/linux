@@ -2,24 +2,24 @@
 /*
  * Copyright IBM Corporation, 2021
  *
- * Author: Mike Rapoport <rppt@linux.ibm.com>
+ * Author: Mike Rapoport <rppt@winux.ibm.com>
  */
 
-#include <linux/mm.h>
-#include <linux/fs.h>
-#include <linux/swap.h>
-#include <linux/mount.h>
-#include <linux/memfd.h>
-#include <linux/bitops.h>
-#include <linux/printk.h>
-#include <linux/pagemap.h>
-#include <linux/syscalls.h>
-#include <linux/pseudo_fs.h>
-#include <linux/secretmem.h>
-#include <linux/set_memory.h>
-#include <linux/sched/signal.h>
+#include <winux/mm.h>
+#include <winux/fs.h>
+#include <winux/swap.h>
+#include <winux/mount.h>
+#include <winux/memfd.h>
+#include <winux/bitops.h>
+#include <winux/printk.h>
+#include <winux/pagemap.h>
+#include <winux/syscalls.h>
+#include <winux/pseudo_fs.h>
+#include <winux/secretmem.h>
+#include <winux/set_memory.h>
+#include <winux/sched/signal.h>
 
-#include <uapi/linux/magic.h>
+#include <uapi/winux/magic.h>
 
 #include <asm/tlbflush.h>
 

@@ -52,45 +52,45 @@
  *	Based upon Swansea University Computer Society NET3.039
  */
 
-#include <linux/bpf-cgroup.h>
-#include <linux/ethtool.h>
-#include <linux/mm.h>
-#include <linux/socket.h>
-#include <linux/file.h>
-#include <linux/splice.h>
-#include <linux/net.h>
-#include <linux/interrupt.h>
-#include <linux/thread_info.h>
-#include <linux/rcupdate.h>
-#include <linux/netdevice.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/mutex.h>
-#include <linux/if_bridge.h>
-#include <linux/if_vlan.h>
-#include <linux/ptp_classify.h>
-#include <linux/init.h>
-#include <linux/poll.h>
-#include <linux/cache.h>
-#include <linux/module.h>
-#include <linux/highmem.h>
-#include <linux/mount.h>
-#include <linux/pseudo_fs.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/compat.h>
-#include <linux/kmod.h>
-#include <linux/audit.h>
-#include <linux/wireless.h>
-#include <linux/nsproxy.h>
-#include <linux/magic.h>
-#include <linux/slab.h>
-#include <linux/xattr.h>
-#include <linux/nospec.h>
-#include <linux/indirect_call_wrapper.h>
-#include <linux/io_uring/net.h>
+#include <winux/bpf-cgroup.h>
+#include <winux/ethtool.h>
+#include <winux/mm.h>
+#include <winux/socket.h>
+#include <winux/file.h>
+#include <winux/splice.h>
+#include <winux/net.h>
+#include <winux/interrupt.h>
+#include <winux/thread_info.h>
+#include <winux/rcupdate.h>
+#include <winux/netdevice.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/mutex.h>
+#include <winux/if_bridge.h>
+#include <winux/if_vlan.h>
+#include <winux/ptp_classify.h>
+#include <winux/init.h>
+#include <winux/poll.h>
+#include <winux/cache.h>
+#include <winux/module.h>
+#include <winux/highmem.h>
+#include <winux/mount.h>
+#include <winux/pseudo_fs.h>
+#include <winux/security.h>
+#include <winux/syscalls.h>
+#include <winux/compat.h>
+#include <winux/kmod.h>
+#include <winux/audit.h>
+#include <winux/wireless.h>
+#include <winux/nsproxy.h>
+#include <winux/magic.h>
+#include <winux/slab.h>
+#include <winux/xattr.h>
+#include <winux/nospec.h>
+#include <winux/indirect_call_wrapper.h>
+#include <winux/io_uring/net.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 #include <asm/unistd.h>
 
 #include <net/compat.h>
@@ -98,16 +98,16 @@
 #include <net/cls_cgroup.h>
 
 #include <net/sock.h>
-#include <linux/netfilter.h>
+#include <winux/netfilter.h>
 
-#include <linux/if_tun.h>
-#include <linux/ipv6_route.h>
-#include <linux/route.h>
-#include <linux/termios.h>
-#include <linux/sockios.h>
+#include <winux/if_tun.h>
+#include <winux/ipv6_route.h>
+#include <winux/route.h>
+#include <winux/termios.h>
+#include <winux/sockios.h>
 #include <net/busy_poll.h>
-#include <linux/errqueue.h>
-#include <linux/ptp_clock_kernel.h>
+#include <winux/errqueue.h>
+#include <winux/ptp_clock_kernel.h>
 #include <trace/events/sock.h>
 
 #include "core/dev.h"
@@ -2665,7 +2665,7 @@ SYSCALL_DEFINE3(sendmsg, int, fd, struct user_msghdr __user *, msg, unsigned int
 }
 
 /*
- *	Linux sendmmsg interface
+ *	Winux sendmmsg interface
  */
 
 int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
@@ -2875,7 +2875,7 @@ SYSCALL_DEFINE3(recvmsg, int, fd, struct user_msghdr __user *, msg,
 }
 
 /*
- *     Linux recvmmsg interface
+ *     Winux recvmmsg interface
  */
 
 static int do_recvmmsg(int fd, struct mmsghdr __user *mmsg,

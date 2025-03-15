@@ -5,14 +5,14 @@
  * Copyright (c) 2008 Neil Horman <nhorman@tuxdriver.com>
  */
 
-#include <linux/export.h>
-#include <linux/fips.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/sysctl.h>
-#include <linux/notifier.h>
-#include <linux/string_choices.h>
+#include <winux/export.h>
+#include <winux/fips.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/kernel.h>
+#include <winux/sysctl.h>
+#include <winux/notifier.h>
+#include <winux/string_choices.h>
 #include <generated/utsrelease.h>
 
 int fips_enabled;

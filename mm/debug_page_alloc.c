@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/mm.h>
-#include <linux/page-isolation.h>
+#include <winux/mm.h>
+#include <winux/page-isolation.h>
 
 unsigned int _debug_guardpage_minorder;
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/audit.h>
+#include <winux/init.h>
+#include <winux/types.h>
+#include <winux/audit.h>
 #include <asm/unistd.h>
 
 static unsigned dir_class[] = {

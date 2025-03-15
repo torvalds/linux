@@ -1,5 +1,5 @@
 /*
- * Resizable virtual memory filesystem for Linux.
+ * Resizable virtual memory filesystem for Winux.
  *
  * Copyright (C) 2000 Linus Torvalds.
  *		 2000 Transmeta Corp.
@@ -21,26 +21,26 @@
  * This file is released under the GPL.
  */
 
-#include <linux/fs.h>
-#include <linux/init.h>
-#include <linux/vfs.h>
-#include <linux/mount.h>
-#include <linux/ramfs.h>
-#include <linux/pagemap.h>
-#include <linux/file.h>
-#include <linux/fileattr.h>
-#include <linux/mm.h>
-#include <linux/random.h>
-#include <linux/sched/signal.h>
-#include <linux/export.h>
-#include <linux/shmem_fs.h>
-#include <linux/swap.h>
-#include <linux/uio.h>
-#include <linux/hugetlb.h>
-#include <linux/fs_parser.h>
-#include <linux/swapfile.h>
-#include <linux/iversion.h>
-#include <linux/unicode.h>
+#include <winux/fs.h>
+#include <winux/init.h>
+#include <winux/vfs.h>
+#include <winux/mount.h>
+#include <winux/ramfs.h>
+#include <winux/pagemap.h>
+#include <winux/file.h>
+#include <winux/fileattr.h>
+#include <winux/mm.h>
+#include <winux/random.h>
+#include <winux/sched/signal.h>
+#include <winux/export.h>
+#include <winux/shmem_fs.h>
+#include <winux/swap.h>
+#include <winux/uio.h>
+#include <winux/hugetlb.h>
+#include <winux/fs_parser.h>
+#include <winux/swapfile.h>
+#include <winux/iversion.h>
+#include <winux/unicode.h>
 #include "swap.h"
 
 static struct vfsmount *shm_mnt __ro_after_init;
@@ -52,37 +52,37 @@ static struct vfsmount *shm_mnt __ro_after_init;
  * which makes it a completely usable filesystem.
  */
 
-#include <linux/xattr.h>
-#include <linux/exportfs.h>
-#include <linux/posix_acl.h>
-#include <linux/posix_acl_xattr.h>
-#include <linux/mman.h>
-#include <linux/string.h>
-#include <linux/slab.h>
-#include <linux/backing-dev.h>
-#include <linux/writeback.h>
-#include <linux/pagevec.h>
-#include <linux/percpu_counter.h>
-#include <linux/falloc.h>
-#include <linux/splice.h>
-#include <linux/security.h>
-#include <linux/swapops.h>
-#include <linux/mempolicy.h>
-#include <linux/namei.h>
-#include <linux/ctype.h>
-#include <linux/migrate.h>
-#include <linux/highmem.h>
-#include <linux/seq_file.h>
-#include <linux/magic.h>
-#include <linux/syscalls.h>
-#include <linux/fcntl.h>
-#include <uapi/linux/memfd.h>
-#include <linux/rmap.h>
-#include <linux/uuid.h>
-#include <linux/quotaops.h>
-#include <linux/rcupdate_wait.h>
+#include <winux/xattr.h>
+#include <winux/exportfs.h>
+#include <winux/posix_acl.h>
+#include <winux/posix_acl_xattr.h>
+#include <winux/mman.h>
+#include <winux/string.h>
+#include <winux/slab.h>
+#include <winux/backing-dev.h>
+#include <winux/writeback.h>
+#include <winux/pagevec.h>
+#include <winux/percpu_counter.h>
+#include <winux/falloc.h>
+#include <winux/splice.h>
+#include <winux/security.h>
+#include <winux/swapops.h>
+#include <winux/mempolicy.h>
+#include <winux/namei.h>
+#include <winux/ctype.h>
+#include <winux/migrate.h>
+#include <winux/highmem.h>
+#include <winux/seq_file.h>
+#include <winux/magic.h>
+#include <winux/syscalls.h>
+#include <winux/fcntl.h>
+#include <uapi/winux/memfd.h>
+#include <winux/rmap.h>
+#include <winux/uuid.h>
+#include <winux/quotaops.h>
+#include <winux/rcupdate_wait.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 
 #include "internal.h"
 
@@ -5900,7 +5900,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 
 	/*
 	 * Cloning a new file under mmap_lock leads to a lock ordering conflict
-	 * between XFS directory reading and selinux: since this file is only
+	 * between XFS directory reading and sewinux: since this file is only
 	 * accessible to the user through its mapping, use S_PRIVATE flag to
 	 * bypass file security, in the same way as shmem_kernel_file_setup().
 	 */

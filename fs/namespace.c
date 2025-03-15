@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/namespace.c
+ *  winux/fs/namespace.c
  *
  * (C) Copyright Al Viro 2000, 2001
  *
@@ -8,31 +8,31 @@
  * Heavily rewritten.
  */
 
-#include <linux/syscalls.h>
-#include <linux/export.h>
-#include <linux/capability.h>
-#include <linux/mnt_namespace.h>
-#include <linux/user_namespace.h>
-#include <linux/namei.h>
-#include <linux/security.h>
-#include <linux/cred.h>
-#include <linux/idr.h>
-#include <linux/init.h>		/* init_rootfs */
-#include <linux/fs_struct.h>	/* get_fs_root et.al. */
-#include <linux/fsnotify.h>	/* fsnotify_vfsmount_delete */
-#include <linux/file.h>
-#include <linux/uaccess.h>
-#include <linux/proc_ns.h>
-#include <linux/magic.h>
-#include <linux/memblock.h>
-#include <linux/proc_fs.h>
-#include <linux/task_work.h>
-#include <linux/sched/task.h>
-#include <uapi/linux/mount.h>
-#include <linux/fs_context.h>
-#include <linux/shmem_fs.h>
-#include <linux/mnt_idmapping.h>
-#include <linux/pidfs.h>
+#include <winux/syscalls.h>
+#include <winux/export.h>
+#include <winux/capability.h>
+#include <winux/mnt_namespace.h>
+#include <winux/user_namespace.h>
+#include <winux/namei.h>
+#include <winux/security.h>
+#include <winux/cred.h>
+#include <winux/idr.h>
+#include <winux/init.h>		/* init_rootfs */
+#include <winux/fs_struct.h>	/* get_fs_root et.al. */
+#include <winux/fsnotify.h>	/* fsnotify_vfsmount_delete */
+#include <winux/file.h>
+#include <winux/uaccess.h>
+#include <winux/proc_ns.h>
+#include <winux/magic.h>
+#include <winux/memblock.h>
+#include <winux/proc_fs.h>
+#include <winux/task_work.h>
+#include <winux/sched/task.h>
+#include <uapi/winux/mount.h>
+#include <winux/fs_context.h>
+#include <winux/shmem_fs.h>
+#include <winux/mnt_idmapping.h>
+#include <winux/pidfs.h>
 
 #include "pnode.h"
 #include "internal.h"

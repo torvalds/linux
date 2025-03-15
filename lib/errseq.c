@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/err.h>
-#include <linux/bug.h>
-#include <linux/atomic.h>
-#include <linux/errseq.h>
-#include <linux/log2.h>
+#include <winux/err.h>
+#include <winux/bug.h>
+#include <winux/atomic.h>
+#include <winux/errseq.h>
+#include <winux/log2.h>
 
 /*
  * An errseq_t is a way of recording errors in one place, and allowing any

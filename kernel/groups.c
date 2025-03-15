@@ -2,15 +2,15 @@
 /*
  * Supplementary group IDs
  */
-#include <linux/cred.h>
-#include <linux/export.h>
-#include <linux/slab.h>
-#include <linux/security.h>
-#include <linux/sort.h>
-#include <linux/syscalls.h>
-#include <linux/user_namespace.h>
-#include <linux/vmalloc.h>
-#include <linux/uaccess.h>
+#include <winux/cred.h>
+#include <winux/export.h>
+#include <winux/slab.h>
+#include <winux/security.h>
+#include <winux/sort.h>
+#include <winux/syscalls.h>
+#include <winux/user_namespace.h>
+#include <winux/vmalloc.h>
+#include <winux/uaccess.h>
 
 struct group_info *groups_alloc(int gidsetsize)
 {

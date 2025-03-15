@@ -5,7 +5,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <kunit/test.h>
-#include <linux/compiler.h>
+#include <winux/compiler.h>
 
 enum unsigned_enum {
 	constant_a = 3,

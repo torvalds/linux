@@ -22,8 +22,8 @@
  * every new min and overwrites 2nd & 3rd choices. The same property
  * holds for 2nd & 3rd best.
  */
-#include <linux/module.h>
-#include <linux/win_minmax.h>
+#include <winux/module.h>
+#include <winux/win_minmax.h>
 
 /* As time advances, update the 1st, 2nd, and 3rd choices. */
 static u32 minmax_subwin_update(struct minmax *m, u32 win,

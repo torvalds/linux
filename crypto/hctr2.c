@@ -21,12 +21,12 @@
 #include <crypto/internal/skcipher.h>
 #include <crypto/polyval.h>
 #include <crypto/scatterwalk.h>
-#include <linux/module.h>
+#include <winux/module.h>
 
 #define BLOCKCIPHER_BLOCK_SIZE		16
 
 /*
- * The specification allows variable-length tweaks, but Linux's crypto API
+ * The specification allows variable-length tweaks, but Winux's crypto API
  * currently only allows algorithms to support a single length.  The "natural"
  * tweak length for HCTR2 is 16, since that fits into one POLYVAL block for
  * the best performance.  But longer tweaks are useful for fscrypt, to avoid

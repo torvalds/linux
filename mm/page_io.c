@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/mm/page_io.c
+ *  winux/mm/page_io.c
  *
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
  *
@@ -11,20 +11,20 @@
  *  Always use brw_page, life becomes simpler. 12 May 1998 Eric Biederman
  */
 
-#include <linux/mm.h>
-#include <linux/kernel_stat.h>
-#include <linux/gfp.h>
-#include <linux/pagemap.h>
-#include <linux/swap.h>
-#include <linux/bio.h>
-#include <linux/swapops.h>
-#include <linux/writeback.h>
-#include <linux/blkdev.h>
-#include <linux/psi.h>
-#include <linux/uio.h>
-#include <linux/sched/task.h>
-#include <linux/delayacct.h>
-#include <linux/zswap.h>
+#include <winux/mm.h>
+#include <winux/kernel_stat.h>
+#include <winux/gfp.h>
+#include <winux/pagemap.h>
+#include <winux/swap.h>
+#include <winux/bio.h>
+#include <winux/swapops.h>
+#include <winux/writeback.h>
+#include <winux/blkdev.h>
+#include <winux/psi.h>
+#include <winux/uio.h>
+#include <winux/sched/task.h>
+#include <winux/delayacct.h>
+#include <winux/zswap.h>
 #include "swap.h"
 
 static void __end_swap_bio_write(struct bio *bio)

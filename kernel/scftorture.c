@@ -8,32 +8,32 @@
 
 #define pr_fmt(fmt) fmt
 
-#include <linux/atomic.h>
-#include <linux/bitops.h>
-#include <linux/completion.h>
-#include <linux/cpu.h>
-#include <linux/delay.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/kthread.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/notifier.h>
-#include <linux/percpu.h>
-#include <linux/rcupdate.h>
-#include <linux/rcupdate_trace.h>
-#include <linux/reboot.h>
-#include <linux/sched.h>
-#include <linux/spinlock.h>
-#include <linux/smp.h>
-#include <linux/stat.h>
-#include <linux/srcu.h>
-#include <linux/slab.h>
-#include <linux/torture.h>
-#include <linux/types.h>
+#include <winux/atomic.h>
+#include <winux/bitops.h>
+#include <winux/completion.h>
+#include <winux/cpu.h>
+#include <winux/delay.h>
+#include <winux/err.h>
+#include <winux/init.h>
+#include <winux/interrupt.h>
+#include <winux/kthread.h>
+#include <winux/kernel.h>
+#include <winux/mm.h>
+#include <winux/module.h>
+#include <winux/moduleparam.h>
+#include <winux/notifier.h>
+#include <winux/percpu.h>
+#include <winux/rcupdate.h>
+#include <winux/rcupdate_trace.h>
+#include <winux/reboot.h>
+#include <winux/sched.h>
+#include <winux/spinlock.h>
+#include <winux/smp.h>
+#include <winux/stat.h>
+#include <winux/srcu.h>
+#include <winux/slab.h>
+#include <winux/torture.h>
+#include <winux/types.h>
 
 #define SCFTORT_STRING "scftorture"
 #define SCFTORT_FLAG SCFTORT_STRING ": "

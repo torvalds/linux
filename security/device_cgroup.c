@@ -5,16 +5,16 @@
  * Copyright 2007 IBM Corp
  */
 
-#include <linux/bpf-cgroup.h>
-#include <linux/device_cgroup.h>
-#include <linux/cgroup.h>
-#include <linux/ctype.h>
-#include <linux/list.h>
-#include <linux/uaccess.h>
-#include <linux/seq_file.h>
-#include <linux/slab.h>
-#include <linux/rcupdate.h>
-#include <linux/mutex.h>
+#include <winux/bpf-cgroup.h>
+#include <winux/device_cgroup.h>
+#include <winux/cgroup.h>
+#include <winux/ctype.h>
+#include <winux/list.h>
+#include <winux/uaccess.h>
+#include <winux/seq_file.h>
+#include <winux/slab.h>
+#include <winux/rcupdate.h>
+#include <winux/mutex.h>
 
 #ifdef CONFIG_CGROUP_DEVICE
 

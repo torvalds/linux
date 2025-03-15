@@ -5,30 +5,30 @@
  * Userspace programs can register with the driver to mirror their own address
  * space and can use the device to read/write any valid virtual address.
  */
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/cdev.h>
-#include <linux/device.h>
-#include <linux/memremap.h>
-#include <linux/mutex.h>
-#include <linux/rwsem.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/highmem.h>
-#include <linux/delay.h>
-#include <linux/pagemap.h>
-#include <linux/hmm.h>
-#include <linux/vmalloc.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
-#include <linux/sched/mm.h>
-#include <linux/platform_device.h>
-#include <linux/rmap.h>
-#include <linux/mmu_notifier.h>
-#include <linux/migrate.h>
+#include <winux/init.h>
+#include <winux/fs.h>
+#include <winux/mm.h>
+#include <winux/module.h>
+#include <winux/kernel.h>
+#include <winux/cdev.h>
+#include <winux/device.h>
+#include <winux/memremap.h>
+#include <winux/mutex.h>
+#include <winux/rwsem.h>
+#include <winux/sched.h>
+#include <winux/slab.h>
+#include <winux/highmem.h>
+#include <winux/delay.h>
+#include <winux/pagemap.h>
+#include <winux/hmm.h>
+#include <winux/vmalloc.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
+#include <winux/sched/mm.h>
+#include <winux/platform_device.h>
+#include <winux/rmap.h>
+#include <winux/mmu_notifier.h>
+#include <winux/migrate.h>
 
 #include "test_hmm_uapi.h"
 

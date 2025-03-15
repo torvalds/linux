@@ -5,19 +5,19 @@
  *
  * Copyright (C) 2017 ARM Limited or its affiliates.
  * Written by Gilad Ben-Yossef <gilad@benyossef.com>
- * Copyright (C) 2021 Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
+ * Copyright (C) 2021 Tianjia Zhang <tianjia.zhang@winux.alibaba.com>
  */
 
 #include <crypto/internal/hash.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/types.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/mm.h>
+#include <winux/types.h>
 #include <crypto/sm3.h>
 #include <crypto/sm3_base.h>
-#include <linux/bitops.h>
+#include <winux/bitops.h>
 #include <asm/byteorder.h>
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 
 const u8 sm3_zero_message_hash[SM3_DIGEST_SIZE] = {
 	0x1A, 0xB2, 0x1D, 0x83, 0x55, 0xCF, 0xA1, 0x7F,

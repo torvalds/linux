@@ -20,11 +20,11 @@
  *
  */
 #include <crypto/internal/hash.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/mm.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/mm.h>
 #include <asm/byteorder.h>
-#include <linux/types.h>
+#include <winux/types.h>
 
 #define WP512_DIGEST_SIZE 64
 #define WP384_DIGEST_SIZE 48

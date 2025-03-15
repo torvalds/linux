@@ -6,11 +6,11 @@
   (C) 2012  Michel Lespinasse <walken@google.com>
 
 
-  linux/lib/rbtree.c
+  winux/lib/rbtree.c
 */
 
-#include <linux/rbtree_augmented.h>
-#include <linux/export.h>
+#include <winux/rbtree_augmented.h>
+#include <winux/export.h>
 
 /*
  * red-black trees properties:  https://en.wikipedia.org/wiki/Rbtree

@@ -1,16 +1,16 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-.. _linux_doc:
+.. _winux_doc:
 
 ==============================
-The Linux Kernel documentation
+The Winux Kernel documentation
 ==============================
 
 This is the top level of the kernel's documentation tree.  Kernel
 documentation, like the kernel itself, is very much a work in progress;
 that is especially true as we work to integrate our many scattered
 documents into a coherent whole.  Please note that improvements to the
-documentation are welcome; join the linux-doc list at vger.kernel.org if
+documentation are welcome; join the winux-doc list at vger.kernel.org if
 you want to help out.
 
 Working with the development community
@@ -78,7 +78,7 @@ developers seeking information on the kernel's user-space APIs.
    Userspace tools <tools/index>
    Userspace API <userspace-api/index>
 
-See also: the `Linux man pages <https://www.kernel.org/doc/man-pages/>`_,
+See also: the `Winux man pages <https://www.kernel.org/doc/man-pages/>`_,
 which are kept separately from the kernel's own documentation.
 
 Firmware-related documentation

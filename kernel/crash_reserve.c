@@ -4,16 +4,16 @@
  * Copyright (C) 2002-2004 Eric Biederman  <ebiederm@xmission.com>
  */
 
-#include <linux/buildid.h>
-#include <linux/init.h>
-#include <linux/utsname.h>
-#include <linux/vmalloc.h>
-#include <linux/sizes.h>
-#include <linux/kexec.h>
-#include <linux/memory.h>
-#include <linux/cpuhotplug.h>
-#include <linux/memblock.h>
-#include <linux/kmemleak.h>
+#include <winux/buildid.h>
+#include <winux/init.h>
+#include <winux/utsname.h>
+#include <winux/vmalloc.h>
+#include <winux/sizes.h>
+#include <winux/kexec.h>
+#include <winux/memory.h>
+#include <winux/cpuhotplug.h>
+#include <winux/memblock.h>
+#include <winux/kmemleak.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>

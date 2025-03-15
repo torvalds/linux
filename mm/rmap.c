@@ -52,29 +52,29 @@
  *         folio_lock
  */
 
-#include <linux/mm.h>
-#include <linux/sched/mm.h>
-#include <linux/sched/task.h>
-#include <linux/pagemap.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/ksm.h>
-#include <linux/rmap.h>
-#include <linux/rcupdate.h>
-#include <linux/export.h>
-#include <linux/memcontrol.h>
-#include <linux/mmu_notifier.h>
-#include <linux/migrate.h>
-#include <linux/hugetlb.h>
-#include <linux/huge_mm.h>
-#include <linux/backing-dev.h>
-#include <linux/page_idle.h>
-#include <linux/memremap.h>
-#include <linux/userfaultfd_k.h>
-#include <linux/mm_inline.h>
-#include <linux/oom.h>
+#include <winux/mm.h>
+#include <winux/sched/mm.h>
+#include <winux/sched/task.h>
+#include <winux/pagemap.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
+#include <winux/slab.h>
+#include <winux/init.h>
+#include <winux/ksm.h>
+#include <winux/rmap.h>
+#include <winux/rcupdate.h>
+#include <winux/export.h>
+#include <winux/memcontrol.h>
+#include <winux/mmu_notifier.h>
+#include <winux/migrate.h>
+#include <winux/hugetlb.h>
+#include <winux/huge_mm.h>
+#include <winux/backing-dev.h>
+#include <winux/page_idle.h>
+#include <winux/memremap.h>
+#include <winux/userfaultfd_k.h>
+#include <winux/mm_inline.h>
+#include <winux/oom.h>
 
 #include <asm/tlbflush.h>
 

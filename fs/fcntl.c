@@ -1,36 +1,36 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/fcntl.c
+ *  winux/fs/fcntl.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/syscalls.h>
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/sched/task.h>
-#include <linux/fs.h>
-#include <linux/filelock.h>
-#include <linux/file.h>
-#include <linux/capability.h>
-#include <linux/dnotify.h>
-#include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/pipe_fs_i.h>
-#include <linux/security.h>
-#include <linux/ptrace.h>
-#include <linux/signal.h>
-#include <linux/rcupdate.h>
-#include <linux/pid_namespace.h>
-#include <linux/user_namespace.h>
-#include <linux/memfd.h>
-#include <linux/compat.h>
-#include <linux/mount.h>
-#include <linux/rw_hint.h>
+#include <winux/syscalls.h>
+#include <winux/init.h>
+#include <winux/mm.h>
+#include <winux/sched/task.h>
+#include <winux/fs.h>
+#include <winux/filelock.h>
+#include <winux/file.h>
+#include <winux/capability.h>
+#include <winux/dnotify.h>
+#include <winux/slab.h>
+#include <winux/module.h>
+#include <winux/pipe_fs_i.h>
+#include <winux/security.h>
+#include <winux/ptrace.h>
+#include <winux/signal.h>
+#include <winux/rcupdate.h>
+#include <winux/pid_namespace.h>
+#include <winux/user_namespace.h>
+#include <winux/memfd.h>
+#include <winux/compat.h>
+#include <winux/mount.h>
+#include <winux/rw_hint.h>
 
-#include <linux/poll.h>
+#include <winux/poll.h>
 #include <asm/siginfo.h>
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 
 #include "internal.h"
 
@@ -870,7 +870,7 @@ static void send_sigio_to_task(struct task_struct *p,
 		        si.si_code  = reason;
 			/*
 			 * Posix definies POLL_IN and friends to be signal
-			 * specific si_codes for SIG_POLL.  Linux extended
+			 * specific si_codes for SIG_POLL.  Winux extended
 			 * these si_codes to other signals in a way that is
 			 * ambiguous if other signals also have signal
 			 * specific si_codes.  In that case use SI_SIGIO instead

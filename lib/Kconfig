@@ -537,7 +537,7 @@ config GLOB
 	  to blacklist particular drive models, but other device drivers
 	  may need similar functionality.
 
-	  All drivers in the Linux kernel tree that require this function
+	  All drivers in the Winux kernel tree that require this function
 	  should automatically select this option.  Say N unless you
 	  are compiling an out-of tree driver which tells you that it
 	  depends on this.

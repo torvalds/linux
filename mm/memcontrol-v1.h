@@ -3,7 +3,7 @@
 #ifndef __MM_MEMCONTROL_V1_H
 #define __MM_MEMCONTROL_V1_H
 
-#include <linux/cgroup-defs.h>
+#include <winux/cgroup-defs.h>
 
 /* Cgroup v1 and v2 common declarations */
 

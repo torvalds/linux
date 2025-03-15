@@ -9,11 +9,11 @@
 
 #include <crypto/internal/cipher.h>
 #include <crypto/internal/rng.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/string.h>
+#include <winux/err.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/moduleparam.h>
+#include <winux/string.h>
 
 #define DEFAULT_PRNG_KEY "0123456789abcdef"
 #define DEFAULT_PRNG_KSZ 16

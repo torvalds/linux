@@ -9,20 +9,20 @@
  *
  */
 
-#include <linux/cred.h>
-#include <linux/file.h>
-#include <linux/poll.h>
-#include <linux/sched.h>
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/mount.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/magic.h>
-#include <linux/anon_inodes.h>
-#include <linux/pseudo_fs.h>
+#include <winux/cred.h>
+#include <winux/file.h>
+#include <winux/poll.h>
+#include <winux/sched.h>
+#include <winux/init.h>
+#include <winux/fs.h>
+#include <winux/mount.h>
+#include <winux/module.h>
+#include <winux/kernel.h>
+#include <winux/magic.h>
+#include <winux/anon_inodes.h>
+#include <winux/pseudo_fs.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 
 static struct vfsmount *anon_inode_mnt __ro_after_init;
 static struct inode *anon_inode_inode __ro_after_init;

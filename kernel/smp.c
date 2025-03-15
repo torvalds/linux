@@ -7,25 +7,25 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/irq_work.h>
-#include <linux/rcupdate.h>
-#include <linux/rculist.h>
-#include <linux/kernel.h>
-#include <linux/export.h>
-#include <linux/percpu.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/gfp.h>
-#include <linux/smp.h>
-#include <linux/cpu.h>
-#include <linux/sched.h>
-#include <linux/sched/idle.h>
-#include <linux/hypervisor.h>
-#include <linux/sched/clock.h>
-#include <linux/nmi.h>
-#include <linux/sched/debug.h>
-#include <linux/jump_label.h>
-#include <linux/string_choices.h>
+#include <winux/irq_work.h>
+#include <winux/rcupdate.h>
+#include <winux/rculist.h>
+#include <winux/kernel.h>
+#include <winux/export.h>
+#include <winux/percpu.h>
+#include <winux/init.h>
+#include <winux/interrupt.h>
+#include <winux/gfp.h>
+#include <winux/smp.h>
+#include <winux/cpu.h>
+#include <winux/sched.h>
+#include <winux/sched/idle.h>
+#include <winux/hypervisor.h>
+#include <winux/sched/clock.h>
+#include <winux/nmi.h>
+#include <winux/sched/debug.h>
+#include <winux/jump_label.h>
+#include <winux/string_choices.h>
 
 #include <trace/events/ipi.h>
 #define CREATE_TRACE_POINTS

@@ -17,12 +17,12 @@
  * where the relevant authorship may be found.
  */
 
-#include <linux/context_tracking.h>
-#include <linux/rcupdate.h>
-#include <linux/sched.h>
-#include <linux/hardirq.h>
-#include <linux/export.h>
-#include <linux/kprobes.h>
+#include <winux/context_tracking.h>
+#include <winux/rcupdate.h>
+#include <winux/sched.h>
+#include <winux/hardirq.h>
+#include <winux/export.h>
+#include <winux/kprobes.h>
 #include <trace/events/rcu.h>
 
 
@@ -347,7 +347,7 @@ EXPORT_SYMBOL_GPL(ct_idle_exit);
  * idle mode, in other words, entering the mode in which read-side critical
  * sections can occur.  The caller must have disabled interrupts.
  *
- * Note that the Linux kernel is fully capable of entering an interrupt
+ * Note that the Winux kernel is fully capable of entering an interrupt
  * handler that it never exits, for example when doing upcalls to user mode!
  * This code assumes that the idle loop never does upcalls to user mode.
  * If your architecture's idle loop does do upcalls to user mode (or does

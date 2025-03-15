@@ -10,15 +10,15 @@
 #include <crypto/internal/acompress.h>
 #include <crypto/internal/scompress.h>
 #include <crypto/scatterwalk.h>
-#include <linux/cryptouser.h>
-#include <linux/err.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/scatterlist.h>
-#include <linux/seq_file.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/vmalloc.h>
+#include <winux/cryptouser.h>
+#include <winux/err.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/scatterlist.h>
+#include <winux/seq_file.h>
+#include <winux/slab.h>
+#include <winux/string.h>
+#include <winux/vmalloc.h>
 #include <net/netlink.h>
 
 #include "compress.h"

@@ -11,8 +11,8 @@
  * __c[lt]z[sd]i2 can be overridden by linking arch-specific versions.
  */
 
-#include <linux/export.h>
-#include <linux/kernel.h>
+#include <winux/export.h>
+#include <winux/kernel.h>
 
 int __weak __ctzsi2(int val);
 int __weak __ctzsi2(int val)

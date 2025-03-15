@@ -43,7 +43,7 @@ config STACKTRACE_BUILD_ID
 	  stacktraces printed with the printk format '%p[SR]b'.
 
 	  This option is intended for distros where debuginfo is not easily
-	  accessible but can be downloaded given the build ID of the vmlinux or
+	  accessible but can be downloaded given the build ID of the vmwinux or
 	  kernel module where the function is located.
 
 config CONSOLE_LOGLEVEL_DEFAULT
@@ -420,7 +420,7 @@ config MODULE_ALLOW_BTF_MISMATCH
 	bool "Allow loading modules with non-matching BTF type info"
 	depends on DEBUG_INFO_BTF_MODULES
 	help
-	  For modules whose split BTF does not match vmlinux, load without
+	  For modules whose split BTF does not match vmwinux, load without
 	  BTF rather than refusing to load. The default behavior with
 	  module BTF enabled is to reject modules with such mismatches;
 	  this option will still load module BTF where possible but ignore
@@ -430,9 +430,9 @@ config GDB_SCRIPTS
 	bool "Provide GDB scripts for kernel debugging"
 	help
 	  This creates the required links to GDB helper scripts in the
-	  build directory. If you load vmlinux into gdb, the helper
+	  build directory. If you load vmwinux into gdb, the helper
 	  scripts will be automatically imported by gdb as well, and
-	  additional functions are available to analyze a Linux kernel
+	  additional functions are available to analyze a Winux kernel
 	  instance. See Documentation/process/debugging/gdb-kernel-debugging.rst
 	  for further details.
 
@@ -491,7 +491,7 @@ config DEBUG_SECTION_MISMATCH
 	  any use of code/data previously in these sections would
 	  most likely result in an oops.
 	  In the code, functions and variables are annotated with
-	  __init,, etc. (see the full list in include/linux/init.h),
+	  __init,, etc. (see the full list in include/winux/init.h),
 	  which results in the code/data being placed in specific sections.
 	  The section mismatch analysis is always performed after a full
 	  kernel build, and enabling this option causes the following
@@ -564,11 +564,11 @@ config NOINSTR_VALIDATION
 	default y
 
 config VMLINUX_MAP
-	bool "Generate vmlinux.map file when linking"
+	bool "Generate vmwinux.map file when linking"
 	depends on EXPERT
 	help
-	  Selecting this option will pass "-Map=vmlinux.map" to ld
-	  when linking vmlinux. That file can be useful for verifying
+	  Selecting this option will pass "-Map=vmwinux.map" to ld
+	  when linking vmwinux. That file can be useful for verifying
 	  and debugging magic section games, and for seeing which
 	  pieces of code get eliminated with
 	  CONFIG_LD_DEAD_CODE_DATA_ELIMINATION.
@@ -1694,7 +1694,7 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  Say Y here if you want to receive warnings for all uses of
 	  unseeded randomness.  This will be of use primarily for
 	  those developers interested in improving the security of
-	  Linux kernels running on their architecture (or
+	  Winux kernels running on their architecture (or
 	  subarchitecture).
 
 config DEBUG_KOBJECT
@@ -2231,7 +2231,7 @@ config TEST_DHRY
 	  If unsure, say N.
 
 config LKDTM
-	tristate "Linux Kernel Dump Test Tool Module"
+	tristate "Winux Kernel Dump Test Tool Module"
 	depends on DEBUG_FS
 	help
 	This module enables testing of the different dumping mechanisms by
@@ -2652,8 +2652,8 @@ config HASH_KUNIT_TEST
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
 	help
-	  Enable this option to test the kernel's string (<linux/stringhash.h>), and
-	  integer (<linux/hash.h>) hash functions on boot.
+	  Enable this option to test the kernel's string (<winux/stringhash.h>), and
+	  integer (<winux/hash.h>) hash functions on boot.
 
 	  KUnit tests run during boot and output the results to the debug log
 	  in TAP format (https://testanything.org/). Only useful for kernel devs
@@ -2717,7 +2717,7 @@ config HASHTABLE_KUNIT_TEST
 	help
 	  This builds the hashtable KUnit test suite.
 	  It tests the basic functionality of the API defined in
-	  include/linux/hashtable.h. For more information on KUnit and
+	  include/winux/hashtable.h. For more information on KUnit and
 	  unit tests in general please refer to the KUnit documentation
 	  in Documentation/dev-tools/kunit/.
 
@@ -2873,7 +2873,7 @@ config SIPHASH_KUNIT_TEST
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
 	help
-	  Enable this option to test the kernel's siphash (<linux/siphash.h>) hash
+	  Enable this option to test the kernel's siphash (<winux/siphash.h>) hash
 	  functions on boot (or module load).
 
 	  This is intended to help people writing architecture-specific
@@ -2926,7 +2926,7 @@ config TEST_KMOD
 	select BTRFS_FS
 	help
 	  Test the kernel's module loading mechanism: kmod. kmod implements
-	  support to load modules using the Linux kernel's usermode helper.
+	  support to load modules using the Winux kernel's usermode helper.
 	  This test provides a series of tests against kmod.
 
 	  Although technically you can either build test_kmod as a module or

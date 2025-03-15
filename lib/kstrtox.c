@@ -12,13 +12,13 @@
  *
  * If -E is returned, result is not touched.
  */
-#include <linux/ctype.h>
-#include <linux/errno.h>
-#include <linux/export.h>
-#include <linux/kstrtox.h>
-#include <linux/math64.h>
-#include <linux/types.h>
-#include <linux/uaccess.h>
+#include <winux/ctype.h>
+#include <winux/errno.h>
+#include <winux/export.h>
+#include <winux/kstrtox.h>
+#include <winux/math64.h>
+#include <winux/types.h>
+#include <winux/uaccess.h>
 
 #include "kstrtox.h"
 

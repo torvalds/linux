@@ -13,29 +13,29 @@
 
 #define pr_fmt(fmt) "dyndbg: " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/kallsyms.h>
-#include <linux/types.h>
-#include <linux/mutex.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/list.h>
-#include <linux/sysctl.h>
-#include <linux/ctype.h>
-#include <linux/string.h>
-#include <linux/parser.h>
-#include <linux/string_helpers.h>
-#include <linux/uaccess.h>
-#include <linux/dynamic_debug.h>
-#include <linux/debugfs.h>
-#include <linux/slab.h>
-#include <linux/jump_label.h>
-#include <linux/hardirq.h>
-#include <linux/sched.h>
-#include <linux/device.h>
-#include <linux/netdevice.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/moduleparam.h>
+#include <winux/kallsyms.h>
+#include <winux/types.h>
+#include <winux/mutex.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/list.h>
+#include <winux/sysctl.h>
+#include <winux/ctype.h>
+#include <winux/string.h>
+#include <winux/parser.h>
+#include <winux/string_helpers.h>
+#include <winux/uaccess.h>
+#include <winux/dynamic_debug.h>
+#include <winux/debugfs.h>
+#include <winux/slab.h>
+#include <winux/jump_label.h>
+#include <winux/hardirq.h>
+#include <winux/sched.h>
+#include <winux/device.h>
+#include <winux/netdevice.h>
 
 #include <rdma/ib_verbs.h>
 

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/debugfs.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/memblock.h>
-#include <linux/stacktrace.h>
-#include <linux/page_owner.h>
-#include <linux/jump_label.h>
-#include <linux/migrate.h>
-#include <linux/stackdepot.h>
-#include <linux/seq_file.h>
-#include <linux/memcontrol.h>
-#include <linux/sched/clock.h>
+#include <winux/debugfs.h>
+#include <winux/mm.h>
+#include <winux/slab.h>
+#include <winux/uaccess.h>
+#include <winux/memblock.h>
+#include <winux/stacktrace.h>
+#include <winux/page_owner.h>
+#include <winux/jump_label.h>
+#include <winux/migrate.h>
+#include <winux/stackdepot.h>
+#include <winux/seq_file.h>
+#include <winux/memcontrol.h>
+#include <winux/sched/clock.h>
 
 #include "internal.h"
 

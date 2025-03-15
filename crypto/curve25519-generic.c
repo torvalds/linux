@@ -3,8 +3,8 @@
 #include <crypto/curve25519.h>
 #include <crypto/internal/kpp.h>
 #include <crypto/kpp.h>
-#include <linux/module.h>
-#include <linux/scatterlist.h>
+#include <winux/module.h>
+#include <winux/scatterlist.h>
 
 static int curve25519_set_secret(struct crypto_kpp *tfm, const void *buf,
 				 unsigned int len)

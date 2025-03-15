@@ -2,7 +2,7 @@
 #ifndef INT_BLK_MQ_H
 #define INT_BLK_MQ_H
 
-#include <linux/blk-mq.h>
+#include <winux/blk-mq.h>
 #include "blk-stat.h"
 
 struct blk_mq_tag_set;

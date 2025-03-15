@@ -1,6 +1,6 @@
 /*
  * Non-physical true random number generator based on timing jitter --
- * Linux Kernel Crypto API specific code
+ * Winux Kernel Crypto API specific code
  *
  * Copyright Stephan Mueller <smueller@chronox.de>, 2015 - 2023
  *
@@ -39,11 +39,11 @@
 
 #include <crypto/hash.h>
 #include <crypto/sha3.h>
-#include <linux/fips.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/time.h>
+#include <winux/fips.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/time.h>
 #include <crypto/internal/rng.h>
 
 #include "jitterentropy.h"

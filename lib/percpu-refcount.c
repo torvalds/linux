@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/wait.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/percpu-refcount.h>
+#include <winux/kernel.h>
+#include <winux/sched.h>
+#include <winux/wait.h>
+#include <winux/slab.h>
+#include <winux/mm.h>
+#include <winux/percpu-refcount.h>
 
 /*
  * Initially, a percpu refcount is just a set of percpu counters. Initially, we

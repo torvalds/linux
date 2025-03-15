@@ -4,12 +4,12 @@
  *	      Information.
  */
 
-#include <linux/t10-pi.h>
-#include <linux/blk-integrity.h>
-#include <linux/crc-t10dif.h>
-#include <linux/crc64.h>
+#include <winux/t10-pi.h>
+#include <winux/blk-integrity.h>
+#include <winux/crc-t10dif.h>
+#include <winux/crc64.h>
 #include <net/checksum.h>
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 #include "blk.h"
 
 struct blk_integrity_iter {

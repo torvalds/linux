@@ -2,12 +2,12 @@
  *
  * Copyright (C) IBM Corporation, 2015
  *
- * Author: Mehmet Kayaalp <mkayaalp@linux.vnet.ibm.com>
+ * Author: Mehmet Kayaalp <mkayaalp@winux.vnet.ibm.com>
  *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
- * Usage: insert-sys-cert [-s <System.map> -b <vmlinux> -c <certfile>
+ * Usage: insert-sys-cert [-s <System.map> -b <vmwinux> -c <certfile>
  */
 
 #define _GNU_SOURCE
@@ -267,15 +267,15 @@ static void print_sym(Elf_Ehdr *hdr, struct sym *s)
 
 static void print_usage(char *e)
 {
-	printf("Usage %s [-s <System.map>] -b <vmlinux> -c <certfile>\n", e);
+	printf("Usage %s [-s <System.map>] -b <vmwinux> -c <certfile>\n", e);
 }
 
 int main(int argc, char **argv)
 {
 	char *system_map_file = NULL;
-	char *vmlinux_file = NULL;
+	char *vmwinux_file = NULL;
 	char *cert_file = NULL;
-	int vmlinux_size;
+	int vmwinux_size;
 	int cert_size;
 	Elf_Ehdr *hdr;
 	char *cert;
@@ -292,7 +292,7 @@ int main(int argc, char **argv)
 			system_map_file = optarg;
 			break;
 		case 'b':
-			vmlinux_file = optarg;
+			vmwinux_file = optarg;
 			break;
 		case 'c':
 			cert_file = optarg;
@@ -302,7 +302,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (!vmlinux_file || !cert_file) {
+	if (!vmwinux_file || !cert_file) {
 		print_usage(argv[0]);
 		exit(EXIT_FAILURE);
 	}
@@ -311,11 +311,11 @@ int main(int argc, char **argv)
 	if (!cert)
 		exit(EXIT_FAILURE);
 
-	hdr = map_file(vmlinux_file, &vmlinux_size);
+	hdr = map_file(vmwinux_file, &vmwinux_size);
 	if (!hdr)
 		exit(EXIT_FAILURE);
 
-	if (vmlinux_size < sizeof(*hdr)) {
+	if (vmwinux_size < sizeof(*hdr)) {
 		err("Invalid ELF file.\n");
 		exit(EXIT_FAILURE);
 	}
@@ -338,7 +338,7 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	if (hdr->e_shoff > vmlinux_size) {
+	if (hdr->e_shoff > vmwinux_size) {
 		err("Could not find section header.\n");
 		exit(EXIT_FAILURE);
 	}

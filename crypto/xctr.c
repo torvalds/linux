@@ -22,11 +22,11 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/cipher.h>
 #include <crypto/internal/skcipher.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
+#include <winux/err.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/slab.h>
 
 /* For now this implementation is limited to 16-byte blocks for simplicity */
 #define XCTR_BLOCKSIZE 16

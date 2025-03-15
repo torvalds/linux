@@ -15,12 +15,12 @@
 
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/scatterlist.h>
-#include <linux/slab.h>
+#include <winux/err.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/scatterlist.h>
+#include <winux/slab.h>
 
 #include <crypto/b128ops.h>
 #include <crypto/gf128mul.h>

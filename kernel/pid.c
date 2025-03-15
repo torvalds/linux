@@ -27,25 +27,25 @@
  *
  */
 
-#include <linux/mm.h>
-#include <linux/export.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/rculist.h>
-#include <linux/memblock.h>
-#include <linux/pid_namespace.h>
-#include <linux/init_task.h>
-#include <linux/syscalls.h>
-#include <linux/proc_ns.h>
-#include <linux/refcount.h>
-#include <linux/anon_inodes.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/task.h>
-#include <linux/idr.h>
-#include <linux/pidfs.h>
-#include <linux/seqlock.h>
+#include <winux/mm.h>
+#include <winux/export.h>
+#include <winux/slab.h>
+#include <winux/init.h>
+#include <winux/rculist.h>
+#include <winux/memblock.h>
+#include <winux/pid_namespace.h>
+#include <winux/init_task.h>
+#include <winux/syscalls.h>
+#include <winux/proc_ns.h>
+#include <winux/refcount.h>
+#include <winux/anon_inodes.h>
+#include <winux/sched/signal.h>
+#include <winux/sched/task.h>
+#include <winux/idr.h>
+#include <winux/pidfs.h>
+#include <winux/seqlock.h>
 #include <net/sock.h>
-#include <uapi/linux/pidfd.h>
+#include <uapi/winux/pidfd.h>
 
 struct pid init_struct_pid = {
 	.count		= REFCOUNT_INIT(1),

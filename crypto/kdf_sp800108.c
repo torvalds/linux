@@ -6,8 +6,8 @@
  * Copyright (C) 2021, Stephan Mueller <smueller@chronox.de>
  */
 
-#include <linux/fips.h>
-#include <linux/module.h>
+#include <winux/fips.h>
+#include <winux/module.h>
 #include <crypto/kdf_sp800108.h>
 #include <crypto/internal/kdf_selftest.h>
 

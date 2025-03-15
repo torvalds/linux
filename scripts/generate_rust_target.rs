@@ -221,7 +221,7 @@ fn main() {
             features += ",+harden-sls-ret";
         }
         ts.push("features", features);
-        ts.push("llvm-target", "x86_64-linux-gnu");
+        ts.push("llvm-target", "x86_64-winux-gnu");
         ts.push("supported-sanitizers", ["kcfi", "kernel-address"]);
         ts.push("target-pointer-width", "64");
     } else if cfg.has("X86_32") {
@@ -242,7 +242,7 @@ fn main() {
             features += ",+retpoline-external-thunk";
         }
         ts.push("features", features);
-        ts.push("llvm-target", "i386-unknown-linux-gnu");
+        ts.push("llvm-target", "i386-unknown-winux-gnu");
         ts.push("target-pointer-width", "32");
     } else if cfg.has("LOONGARCH") {
         panic!("loongarch uses the builtin rustc loongarch64-unknown-none-softfloat target");

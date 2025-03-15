@@ -12,12 +12,12 @@
  * be used in the "frags" portion of skb_shared_info.
  */
 
-#include <linux/build_bug.h>
-#include <linux/export.h>
-#include <linux/gfp_types.h>
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/page_frag_cache.h>
+#include <winux/build_bug.h>
+#include <winux/export.h>
+#include <winux/gfp_types.h>
+#include <winux/init.h>
+#include <winux/mm.h>
+#include <winux/page_frag_cache.h>
 #include "internal.h"
 
 static unsigned long encoded_page_create(struct page *page, unsigned int order,

@@ -16,12 +16,12 @@
 #include <crypto/internal/geniv.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/skcipher.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/string.h>
+#include <winux/err.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/string.h>
 
 static int echainiv_encrypt(struct aead_request *req)
 {

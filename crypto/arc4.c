@@ -9,10 +9,10 @@
 
 #include <crypto/arc4.h>
 #include <crypto/internal/skcipher.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/sched.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/sched.h>
 
 #define ARC4_ALIGN __alignof__(struct arc4_ctx)
 

@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/file.h>
-#include <linux/io_uring/cmd.h>
-#include <linux/io_uring/net.h>
-#include <linux/security.h>
-#include <linux/nospec.h>
+#include <winux/kernel.h>
+#include <winux/errno.h>
+#include <winux/file.h>
+#include <winux/io_uring/cmd.h>
+#include <winux/io_uring/net.h>
+#include <winux/security.h>
+#include <winux/nospec.h>
 #include <net/sock.h>
 
-#include <uapi/linux/io_uring.h>
+#include <uapi/winux/io_uring.h>
 #include <asm/ioctls.h>
 
 #include "io_uring.h"

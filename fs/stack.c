@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/export.h>
-#include <linux/fs.h>
-#include <linux/fs_stack.h>
+#include <winux/export.h>
+#include <winux/fs.h>
+#include <winux/fs_stack.h>
 
 /* does _NOT_ require i_mutex to be held.
  *
@@ -15,7 +15,7 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 
 	/*
 	 * i_size_read() includes its own seqlocking and protection from
-	 * preemption (see include/linux/fs.h): we need nothing extra for
+	 * preemption (see include/winux/fs.h): we need nothing extra for
 	 * that here, and prefer to avoid nesting locks than attempt to keep
 	 * i_size and i_blocks in sync together.
 	 */
@@ -41,7 +41,7 @@ void fsstack_copy_inode_size(struct inode *dst, struct inode *src)
 	 * If CONFIG_SMP or CONFIG_PREEMPTION on 32-bit, it's vital for
 	 * fsstack_copy_inode_size() to hold some lock around
 	 * i_size_write(), otherwise i_size_read() may spin forever (see
-	 * include/linux/fs.h).  We don't necessarily hold i_mutex when this
+	 * include/winux/fs.h).  We don't necessarily hold i_mutex when this
 	 * is called, so take i_lock for that case.
 	 *
 	 * And if on 32-bit, continue our effort to keep the two halves of

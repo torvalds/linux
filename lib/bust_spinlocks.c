@@ -9,13 +9,13 @@
  * and panic() information from reaching the user.
  */
 
-#include <linux/kernel.h>
-#include <linux/printk.h>
-#include <linux/spinlock.h>
-#include <linux/tty.h>
-#include <linux/wait.h>
-#include <linux/vt_kern.h>
-#include <linux/console.h>
+#include <winux/kernel.h>
+#include <winux/printk.h>
+#include <winux/spinlock.h>
+#include <winux/tty.h>
+#include <winux/wait.h>
+#include <winux/vt_kern.h>
+#include <winux/console.h>
 
 void bust_spinlocks(int yes)
 {

@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/init.h>
-#include <linux/async.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/types.h>
-#include <linux/fcntl.h>
-#include <linux/delay.h>
-#include <linux/string.h>
-#include <linux/dirent.h>
-#include <linux/syscalls.h>
-#include <linux/utime.h>
-#include <linux/file.h>
-#include <linux/kstrtox.h>
-#include <linux/memblock.h>
-#include <linux/mm.h>
-#include <linux/namei.h>
-#include <linux/init_syscalls.h>
-#include <linux/umh.h>
-#include <linux/security.h>
+#include <winux/init.h>
+#include <winux/async.h>
+#include <winux/fs.h>
+#include <winux/slab.h>
+#include <winux/types.h>
+#include <winux/fcntl.h>
+#include <winux/delay.h>
+#include <winux/string.h>
+#include <winux/dirent.h>
+#include <winux/syscalls.h>
+#include <winux/utime.h>
+#include <winux/file.h>
+#include <winux/kstrtox.h>
+#include <winux/memblock.h>
+#include <winux/mm.h>
+#include <winux/namei.h>
+#include <winux/init_syscalls.h>
+#include <winux/umh.h>
+#include <winux/security.h>
 
 #include "do_mounts.h"
 
@@ -495,7 +495,7 @@ static long __init flush_buffer(void *bufv, unsigned long len)
 
 static unsigned long my_inptr __initdata; /* index of next byte to be processed in inbuf */
 
-#include <linux/decompress/generic.h>
+#include <winux/decompress/generic.h>
 
 static char * __init unpack_to_rootfs(char *buf, unsigned long len)
 {
@@ -588,8 +588,8 @@ __setup("initramfs_async=", initramfs_async_setup);
 
 extern char __initramfs_start[];
 extern unsigned long __initramfs_size;
-#include <linux/initrd.h>
-#include <linux/kexec.h>
+#include <winux/initrd.h>
+#include <winux/kexec.h>
 
 static BIN_ATTR(initrd, 0440, sysfs_bin_attr_simple_read, NULL, 0);
 

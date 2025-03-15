@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *	linux/lib/crc-ccitt.c
+ *	winux/lib/crc-ccitt.c
  */
 
-#include <linux/types.h>
-#include <linux/module.h>
-#include <linux/crc-ccitt.h>
+#include <winux/types.h>
+#include <winux/module.h>
+#include <winux/crc-ccitt.h>
 
 /*
  * This mysterious table is just the CRC of each possible byte. It can be

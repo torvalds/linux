@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# The Linux Kernel documentation build configuration file, created by
+# The Winux Kernel documentation build configuration file, created by
 # sphinx-quickstart on Fri Feb 12 13:51:46 2016.
 #
 # This file is execfile()d with the current directory set to its
@@ -66,7 +66,7 @@ if major >= 3:
             # GCC Compiler types not parsed by Sphinx:
             "__restrict__",
 
-            # include/linux/compiler_types.h:
+            # include/winux/compiler_types.h:
             "__iomem",
             "__kernel",
             "noinstr",
@@ -78,7 +78,7 @@ if major >= 3:
             "__counted_by_le",
             "__counted_by_be",
 
-            # include/linux/compiler_attributes.h:
+            # include/winux/compiler_attributes.h:
             "__alias",
             "__aligned",
             "__aligned_largest",
@@ -110,18 +110,18 @@ if major >= 3:
             "__fix_address",
             "__counted_by",
 
-            # include/linux/memblock.h:
+            # include/winux/memblock.h:
             "__init_memblock",
             "__meminit",
 
-            # include/linux/init.h:
+            # include/winux/init.h:
             "__init",
             "__ref",
 
-            # include/linux/linkage.h:
+            # include/winux/linkage.h:
             "asmlinkage",
 
-            # include/linux/btf.h
+            # include/winux/btf.h
             "__bpf_kfunc",
         ]
 
@@ -174,7 +174,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'The Linux Kernel'
+project = 'The Winux Kernel'
 copyright = 'The kernel development community'
 author = 'The kernel development community'
 
@@ -365,7 +365,7 @@ if html_theme == 'alabaster':
 html_logo = 'images/logo.svg'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'TheLinuxKerneldoc'
+htmlhelp_basename = 'TheWinuxKerneldoc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -457,7 +457,7 @@ for fn in os.listdir('.'):
                 break
         if not has:
             latex_documents.append((doc, fn + '.tex',
-                                    'Linux %s Documentation' % fn.capitalize(),
+                                    'Winux %s Documentation' % fn.capitalize(),
                                     'The kernel development community',
                                     'manual'))
 
@@ -492,7 +492,7 @@ latex_additional_files = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'thelinuxkernel', 'The Linux Kernel Documentation',
+    (master_doc, 'thewinuxkernel', 'The Winux Kernel Documentation',
      [author], 1)
 ]
 
@@ -506,8 +506,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'TheLinuxKernel', 'The Linux Kernel Documentation',
-     author, 'TheLinuxKernel', 'One line description of project.',
+    (master_doc, 'TheWinuxKernel', 'The Winux Kernel Documentation',
+     author, 'TheWinuxKernel', 'One line description of project.',
      'Miscellaneous'),
 ]
 

@@ -18,24 +18,24 @@
  * Copyright (C) 2006 Ingo Molnar <mingo@elte.hu>
  *
  */
-#include <linux/bvec.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/pagemap.h>
-#include <linux/splice.h>
-#include <linux/memcontrol.h>
-#include <linux/mm_inline.h>
-#include <linux/swap.h>
-#include <linux/writeback.h>
-#include <linux/export.h>
-#include <linux/syscalls.h>
-#include <linux/uio.h>
-#include <linux/fsnotify.h>
-#include <linux/security.h>
-#include <linux/gfp.h>
-#include <linux/net.h>
-#include <linux/socket.h>
-#include <linux/sched/signal.h>
+#include <winux/bvec.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/pagemap.h>
+#include <winux/splice.h>
+#include <winux/memcontrol.h>
+#include <winux/mm_inline.h>
+#include <winux/swap.h>
+#include <winux/writeback.h>
+#include <winux/export.h>
+#include <winux/syscalls.h>
+#include <winux/uio.h>
+#include <winux/fsnotify.h>
+#include <winux/security.h>
+#include <winux/gfp.h>
+#include <winux/net.h>
+#include <winux/socket.h>
+#include <winux/sched/signal.h>
 
 #include "internal.h"
 

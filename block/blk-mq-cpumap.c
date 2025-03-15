@@ -4,14 +4,14 @@
  *
  * Copyright (C) 2013-2014 Jens Axboe
  */
-#include <linux/kernel.h>
-#include <linux/threads.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/smp.h>
-#include <linux/cpu.h>
-#include <linux/group_cpus.h>
-#include <linux/device/bus.h>
+#include <winux/kernel.h>
+#include <winux/threads.h>
+#include <winux/module.h>
+#include <winux/mm.h>
+#include <winux/smp.h>
+#include <winux/cpu.h>
+#include <winux/group_cpus.h>
+#include <winux/device/bus.h>
 
 #include "blk.h"
 #include "blk-mq.h"

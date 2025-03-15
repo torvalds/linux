@@ -2,8 +2,8 @@
 #ifndef _ELEVATOR_H
 #define _ELEVATOR_H
 
-#include <linux/percpu.h>
-#include <linux/hashtable.h>
+#include <winux/percpu.h>
+#include <winux/hashtable.h>
 #include "blk-mq.h"
 
 struct io_cq;

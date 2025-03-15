@@ -9,12 +9,12 @@
 
 #define pr_fmt(fmt) "blk-crypto: " fmt
 
-#include <linux/bio.h>
-#include <linux/blkdev.h>
-#include <linux/blk-crypto-profile.h>
-#include <linux/module.h>
-#include <linux/ratelimit.h>
-#include <linux/slab.h>
+#include <winux/bio.h>
+#include <winux/blkdev.h>
+#include <winux/blk-crypto-profile.h>
+#include <winux/module.h>
+#include <winux/ratelimit.h>
+#include <winux/slab.h>
 
 #include "blk-crypto-internal.h"
 

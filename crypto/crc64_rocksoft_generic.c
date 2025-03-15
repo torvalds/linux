@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <linux/crc64.h>
-#include <linux/module.h>
+#include <winux/crc64.h>
+#include <winux/module.h>
 #include <crypto/internal/hash.h>
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 
 static int chksum_init(struct shash_desc *desc)
 {

@@ -1,40 +1,40 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/mm/memory_hotplug.c
+ *  winux/mm/memory_hotplug.c
  *
  *  Copyright (C)
  */
 
-#include <linux/stddef.h>
-#include <linux/mm.h>
-#include <linux/sched/signal.h>
-#include <linux/swap.h>
-#include <linux/interrupt.h>
-#include <linux/pagemap.h>
-#include <linux/compiler.h>
-#include <linux/export.h>
-#include <linux/writeback.h>
-#include <linux/slab.h>
-#include <linux/sysctl.h>
-#include <linux/cpu.h>
-#include <linux/memory.h>
-#include <linux/memremap.h>
-#include <linux/memory_hotplug.h>
-#include <linux/vmalloc.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-#include <linux/migrate.h>
-#include <linux/page-isolation.h>
-#include <linux/pfn.h>
-#include <linux/suspend.h>
-#include <linux/mm_inline.h>
-#include <linux/firmware-map.h>
-#include <linux/stop_machine.h>
-#include <linux/hugetlb.h>
-#include <linux/memblock.h>
-#include <linux/compaction.h>
-#include <linux/rmap.h>
-#include <linux/module.h>
+#include <winux/stddef.h>
+#include <winux/mm.h>
+#include <winux/sched/signal.h>
+#include <winux/swap.h>
+#include <winux/interrupt.h>
+#include <winux/pagemap.h>
+#include <winux/compiler.h>
+#include <winux/export.h>
+#include <winux/writeback.h>
+#include <winux/slab.h>
+#include <winux/sysctl.h>
+#include <winux/cpu.h>
+#include <winux/memory.h>
+#include <winux/memremap.h>
+#include <winux/memory_hotplug.h>
+#include <winux/vmalloc.h>
+#include <winux/ioport.h>
+#include <winux/delay.h>
+#include <winux/migrate.h>
+#include <winux/page-isolation.h>
+#include <winux/pfn.h>
+#include <winux/suspend.h>
+#include <winux/mm_inline.h>
+#include <winux/firmware-map.h>
+#include <winux/stop_machine.h>
+#include <winux/hugetlb.h>
+#include <winux/memblock.h>
+#include <winux/compaction.h>
+#include <winux/rmap.h>
+#include <winux/module.h>
 
 #include <asm/tlbflush.h>
 

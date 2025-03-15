@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/kernel/ptrace.c
+ * winux/kernel/ptrace.c
  *
  * (C) Copyright 1999 Linus Torvalds
  *
@@ -8,31 +8,31 @@
  * to continually duplicate across every architecture.
  */
 
-#include <linux/capability.h>
-#include <linux/export.h>
-#include <linux/sched.h>
-#include <linux/sched/mm.h>
-#include <linux/sched/coredump.h>
-#include <linux/sched/task.h>
-#include <linux/errno.h>
-#include <linux/mm.h>
-#include <linux/highmem.h>
-#include <linux/pagemap.h>
-#include <linux/ptrace.h>
-#include <linux/security.h>
-#include <linux/signal.h>
-#include <linux/uio.h>
-#include <linux/audit.h>
-#include <linux/pid_namespace.h>
-#include <linux/syscalls.h>
-#include <linux/uaccess.h>
-#include <linux/regset.h>
-#include <linux/hw_breakpoint.h>
-#include <linux/cn_proc.h>
-#include <linux/compat.h>
-#include <linux/sched/signal.h>
-#include <linux/minmax.h>
-#include <linux/syscall_user_dispatch.h>
+#include <winux/capability.h>
+#include <winux/export.h>
+#include <winux/sched.h>
+#include <winux/sched/mm.h>
+#include <winux/sched/coredump.h>
+#include <winux/sched/task.h>
+#include <winux/errno.h>
+#include <winux/mm.h>
+#include <winux/highmem.h>
+#include <winux/pagemap.h>
+#include <winux/ptrace.h>
+#include <winux/security.h>
+#include <winux/signal.h>
+#include <winux/uio.h>
+#include <winux/audit.h>
+#include <winux/pid_namespace.h>
+#include <winux/syscalls.h>
+#include <winux/uaccess.h>
+#include <winux/regset.h>
+#include <winux/hw_breakpoint.h>
+#include <winux/cn_proc.h>
+#include <winux/compat.h>
+#include <winux/sched/signal.h>
+#include <winux/minmax.h>
+#include <winux/syscall_user_dispatch.h>
 
 #include <asm/syscall.h>	/* for syscall_get_* */
 
@@ -908,7 +908,7 @@ static int ptrace_regset(struct task_struct *task, int req, unsigned int type,
 }
 
 /*
- * This is declared in linux/regset.h and defined in machine-dependent
+ * This is declared in winux/regset.h and defined in machine-dependent
  * code.  We put the export here, near the primary machine-neutral use,
  * to ensure no machine forgets it.
  */

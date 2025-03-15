@@ -3,14 +3,14 @@
  * Routines that mimic syscalls, but don't use the user address space or file
  * descriptors.  Only for init/ and related early init code.
  */
-#include <linux/init.h>
-#include <linux/mount.h>
-#include <linux/namei.h>
-#include <linux/fs.h>
-#include <linux/fs_struct.h>
-#include <linux/file.h>
-#include <linux/init_syscalls.h>
-#include <linux/security.h>
+#include <winux/init.h>
+#include <winux/mount.h>
+#include <winux/namei.h>
+#include <winux/fs.h>
+#include <winux/fs_struct.h>
+#include <winux/file.h>
+#include <winux/init_syscalls.h>
+#include <winux/security.h>
 #include "internal.h"
 
 int __init init_mount(const char *dev_name, const char *dir_name,

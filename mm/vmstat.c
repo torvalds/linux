@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/mm/vmstat.c
+ *  winux/mm/vmstat.c
  *
  *  Manages VM statistics
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
@@ -10,24 +10,24 @@
  *		Christoph Lameter <christoph@lameter.com>
  *  Copyright (C) 2008-2014 Christoph Lameter
  */
-#include <linux/fs.h>
-#include <linux/mm.h>
-#include <linux/err.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/cpu.h>
-#include <linux/cpumask.h>
-#include <linux/vmstat.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/debugfs.h>
-#include <linux/sched.h>
-#include <linux/math64.h>
-#include <linux/writeback.h>
-#include <linux/compaction.h>
-#include <linux/mm_inline.h>
-#include <linux/page_owner.h>
-#include <linux/sched/isolation.h>
+#include <winux/fs.h>
+#include <winux/mm.h>
+#include <winux/err.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/cpu.h>
+#include <winux/cpumask.h>
+#include <winux/vmstat.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/debugfs.h>
+#include <winux/sched.h>
+#include <winux/math64.h>
+#include <winux/writeback.h>
+#include <winux/compaction.h>
+#include <winux/mm_inline.h>
+#include <winux/page_owner.h>
+#include <winux/sched/isolation.h>
 
 #include "internal.h"
 

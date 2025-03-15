@@ -14,27 +14,27 @@
 
 #define pr_fmt(fmt) "stackdepot: " fmt
 
-#include <linux/debugfs.h>
-#include <linux/gfp.h>
-#include <linux/jhash.h>
-#include <linux/kernel.h>
-#include <linux/kmsan.h>
-#include <linux/list.h>
-#include <linux/mm.h>
-#include <linux/mutex.h>
-#include <linux/poison.h>
-#include <linux/printk.h>
-#include <linux/rculist.h>
-#include <linux/rcupdate.h>
-#include <linux/refcount.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/stacktrace.h>
-#include <linux/stackdepot.h>
-#include <linux/string.h>
-#include <linux/types.h>
-#include <linux/memblock.h>
-#include <linux/kasan-enabled.h>
+#include <winux/debugfs.h>
+#include <winux/gfp.h>
+#include <winux/jhash.h>
+#include <winux/kernel.h>
+#include <winux/kmsan.h>
+#include <winux/list.h>
+#include <winux/mm.h>
+#include <winux/mutex.h>
+#include <winux/poison.h>
+#include <winux/printk.h>
+#include <winux/rculist.h>
+#include <winux/rcupdate.h>
+#include <winux/refcount.h>
+#include <winux/slab.h>
+#include <winux/spinlock.h>
+#include <winux/stacktrace.h>
+#include <winux/stackdepot.h>
+#include <winux/string.h>
+#include <winux/types.h>
+#include <winux/memblock.h>
+#include <winux/kasan-enabled.h>
 
 #define DEPOT_POOLS_CAP 8192
 /* The pool_index is offset by 1 so the first record does not have a 0 handle. */

@@ -11,7 +11,7 @@ config CC_VERSION_TEXT
 	    When the compiler is updated, Kconfig will be invoked.
 
 	  - Ensure full rebuild when the compiler is updated
-	    include/linux/compiler-version.h contains this option in the comment
+	    include/winux/compiler-version.h contains this option in the comment
 	    line so fixdep adds include/config/CC_VERSION_TEXT into the
 	    auto-generated dependency. When the compiler is updated, syncconfig
 	    will touch it and then every file will be rebuilt.
@@ -283,7 +283,7 @@ choice
 	default KERNEL_GZIP
 	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_XZ || HAVE_KERNEL_LZO || HAVE_KERNEL_LZ4 || HAVE_KERNEL_ZSTD || HAVE_KERNEL_UNCOMPRESSED
 	help
-	  The linux kernel is a kind of self-extracting executable.
+	  The winux kernel is a kind of self-extracting executable.
 	  Several compression algorithms are available, which differ
 	  in efficiency, compression and decompression speed.
 	  Compression speed is only relevant when building a kernel.
@@ -409,12 +409,12 @@ config SYSVIPC
 	  system calls which let processes (running programs) synchronize and
 	  exchange information. It is generally considered to be a good thing,
 	  and some programs won't run unless you say Y here. In particular, if
-	  you want to run the DOS emulator dosemu under Linux (read the
+	  you want to run the DOS emulator dosemu under Winux (read the
 	  DOSEMU-HOWTO, available from <http://www.tldp.org/docs.html#howto>),
 	  you'll need to say Y here.
 
 	  You can find documentation about IPC with "info ipc" and also in
-	  section 6.4 of the Linux Programmer's Guide, available from
+	  section 6.4 of the Winux Programmer's Guide, available from
 	  <http://www.tldp.org/guides.html>.
 
 config SYSVIPC_SYSCTL
@@ -486,7 +486,7 @@ config AUDIT
 	depends on NET
 	help
 	  Enable auditing infrastructure that can be used with another
-	  kernel subsystem, such as SELinux (which requires this for
+	  kernel subsystem, such as SEWinux (which requires this for
 	  logging of avc messages output).  System call auditing is included
 	  on architectures which support it.
 
@@ -602,7 +602,7 @@ config BSD_PROCESS_ACCT
 	  that process will be appended to the file by the kernel.  The
 	  information includes things such as creation time, owning user,
 	  command name, memory usage, controlling terminal etc. (the complete
-	  list is in the struct acct in <file:include/linux/acct.h>).  It is
+	  list is in the struct acct in <file:include/winux/acct.h>).  It is
 	  up to the user level program to do useful things with this
 	  information.  This is generally a good idea, so say Y.
 
@@ -721,7 +721,7 @@ source "kernel/rcu/Kconfig"
 config IKCONFIG
 	tristate "Kernel .config support"
 	help
-	  This option enables the complete Linux kernel ".config" file
+	  This option enables the complete Winux kernel ".config" file
 	  contents to be saved in the kernel. It provides documentation
 	  of which kernel options are used in a running kernel or in an
 	  on-disk kernel.  This information can be extracted from the kernel
@@ -1918,7 +1918,7 @@ config PERF_EVENTS
 	  when a threshold number of events have passed - and can thus be
 	  used to profile the code that runs on that CPU.
 
-	  The Linux Performance Event subsystem provides an abstraction of
+	  The Winux Performance Event subsystem provides an abstraction of
 	  these software and hardware event capabilities, available via a
 	  system call and used by the "perf" utility in tools/perf/. It
 	  provides per task and per CPU counters, and it provides event
@@ -2071,8 +2071,8 @@ config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
 	bool
 
 # It may be useful for an architecture to override the definitions of the
-# SYSCALL_DEFINE() and __SYSCALL_DEFINEx() macros in <linux/syscalls.h>
-# and the COMPAT_ variants in <linux/compat.h>, in particular to use a
+# SYSCALL_DEFINE() and __SYSCALL_DEFINEx() macros in <winux/syscalls.h>
+# and the COMPAT_ variants in <winux/compat.h>, in particular to use a
 # different calling convention for syscalls. They can also override the
 # macros for not-implemented syscalls in kernel/sys_ni.c and
 # kernel/time/posix-stubs.c. All these overrides need to be available in

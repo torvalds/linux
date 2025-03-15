@@ -6,7 +6,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <kunit/test.h>
-#include <linux/bitfield.h>
+#include <winux/bitfield.h>
 
 #define CHECK_ENC_GET_U(tp, v, field, res) do {				\
 		{							\

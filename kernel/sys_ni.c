@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/linkage.h>
-#include <linux/errno.h>
+#include <winux/linkage.h>
+#include <winux/errno.h>
 
 #include <asm/unistd.h>
 
@@ -10,7 +10,7 @@
 #include <asm/syscall_wrapper.h>
 #endif /* CONFIG_ARCH_HAS_SYSCALL_WRAPPER */
 
-/*  we can't #include <linux/syscalls.h> here,
+/*  we can't #include <winux/syscalls.h> here,
     but tell gcc to not warn with -Wmissing-prototypes  */
 asmlinkage long sys_ni_syscall(void);
 

@@ -8,7 +8,7 @@
 
 #define pr_fmt(fmt) "test_dd: " fmt
 
-#include <linux/module.h>
+#include <winux/module.h>
 
 /* run tests by reading or writing sysfs node: do_prints */
 

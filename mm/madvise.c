@@ -1,36 +1,36 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	linux/mm/madvise.c
+ *	winux/mm/madvise.c
  *
  * Copyright (C) 1999  Linus Torvalds
  * Copyright (C) 2002  Christoph Hellwig
  */
 
-#include <linux/mman.h>
-#include <linux/pagemap.h>
-#include <linux/syscalls.h>
-#include <linux/mempolicy.h>
-#include <linux/page-isolation.h>
-#include <linux/page_idle.h>
-#include <linux/userfaultfd_k.h>
-#include <linux/hugetlb.h>
-#include <linux/falloc.h>
-#include <linux/fadvise.h>
-#include <linux/sched.h>
-#include <linux/sched/mm.h>
-#include <linux/mm_inline.h>
-#include <linux/string.h>
-#include <linux/uio.h>
-#include <linux/ksm.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/blkdev.h>
-#include <linux/backing-dev.h>
-#include <linux/pagewalk.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
-#include <linux/shmem_fs.h>
-#include <linux/mmu_notifier.h>
+#include <winux/mman.h>
+#include <winux/pagemap.h>
+#include <winux/syscalls.h>
+#include <winux/mempolicy.h>
+#include <winux/page-isolation.h>
+#include <winux/page_idle.h>
+#include <winux/userfaultfd_k.h>
+#include <winux/hugetlb.h>
+#include <winux/falloc.h>
+#include <winux/fadvise.h>
+#include <winux/sched.h>
+#include <winux/sched/mm.h>
+#include <winux/mm_inline.h>
+#include <winux/string.h>
+#include <winux/uio.h>
+#include <winux/ksm.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/blkdev.h>
+#include <winux/backing-dev.h>
+#include <winux/pagewalk.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
+#include <winux/shmem_fs.h>
+#include <winux/mmu_notifier.h>
 
 #include <asm/tlb.h>
 

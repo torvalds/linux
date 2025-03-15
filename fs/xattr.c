@@ -5,25 +5,25 @@
   Extended attribute handling.
 
   Copyright (C) 2001 by Andreas Gruenbacher <a.gruenbacher@computer.org>
-  Copyright (C) 2001 SGI - Silicon Graphics, Inc <linux-xfs@oss.sgi.com>
+  Copyright (C) 2001 SGI - Silicon Graphics, Inc <winux-xfs@oss.sgi.com>
   Copyright (c) 2004 Red Hat, Inc., James Morris <jmorris@redhat.com>
  */
-#include <linux/fs.h>
-#include <linux/filelock.h>
-#include <linux/slab.h>
-#include <linux/file.h>
-#include <linux/xattr.h>
-#include <linux/mount.h>
-#include <linux/namei.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/export.h>
-#include <linux/fsnotify.h>
-#include <linux/audit.h>
-#include <linux/vmalloc.h>
-#include <linux/posix_acl_xattr.h>
+#include <winux/fs.h>
+#include <winux/filelock.h>
+#include <winux/slab.h>
+#include <winux/file.h>
+#include <winux/xattr.h>
+#include <winux/mount.h>
+#include <winux/namei.h>
+#include <winux/security.h>
+#include <winux/syscalls.h>
+#include <winux/export.h>
+#include <winux/fsnotify.h>
+#include <winux/audit.h>
+#include <winux/vmalloc.h>
+#include <winux/posix_acl_xattr.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 
 #include "internal.h"
 

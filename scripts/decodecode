@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
-# Disassemble the Code: line in Linux oopses
+# Disassemble the Code: line in Winux oopses
 # usage: decodecode < oops.file
 #
 # options: set env. variable AFLAGS=options to pass options to "as";

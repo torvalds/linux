@@ -35,7 +35,7 @@ config CRYPTO_FIPS
 
 config CRYPTO_FIPS_NAME
 	string "FIPS Module Name"
-	default "Linux Kernel Cryptographic API"
+	default "Winux Kernel Cryptographic API"
 	depends on CRYPTO_FIPS
 	help
 	  This option sets the FIPS Module name reported by the Crypto API via

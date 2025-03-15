@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/syscalls.h>
-#include <linux/export.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/mount.h>
-#include <linux/namei.h>
-#include <linux/statfs.h>
-#include <linux/security.h>
-#include <linux/uaccess.h>
-#include <linux/compat.h>
+#include <winux/syscalls.h>
+#include <winux/export.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/mount.h>
+#include <winux/namei.h>
+#include <winux/statfs.h>
+#include <winux/security.h>
+#include <winux/uaccess.h>
+#include <winux/compat.h>
 #include "internal.h"
 
 static int flags_by_mnt(int mnt_flags)

@@ -2,11 +2,11 @@
 /*
  * NUMA emulation
  */
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/topology.h>
-#include <linux/memblock.h>
-#include <linux/numa_memblks.h>
+#include <winux/kernel.h>
+#include <winux/errno.h>
+#include <winux/topology.h>
+#include <winux/memblock.h>
+#include <winux/numa_memblks.h>
 #include <asm/numa.h>
 #include <acpi/acpi_numa.h>
 

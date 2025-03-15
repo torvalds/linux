@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <linux/types.h>
-#include <linux/module.h>
-#include <linux/crc64.h>
-#include <linux/err.h>
-#include <linux/init.h>
+#include <winux/types.h>
+#include <winux/module.h>
+#include <winux/crc64.h>
+#include <winux/err.h>
+#include <winux/init.h>
 #include <crypto/hash.h>
 #include <crypto/algapi.h>
-#include <linux/static_key.h>
-#include <linux/notifier.h>
+#include <winux/static_key.h>
+#include <winux/notifier.h>
 
 static struct crypto_shash __rcu *crc64_rocksoft_tfm;
 static DEFINE_STATIC_KEY_TRUE(crc64_rocksoft_fallback);

@@ -5,17 +5,17 @@
  * This is really horribly ugly, and new architectures should just wire up
  * the individual syscalls instead.
  */
-#include <linux/unistd.h>
-#include <linux/syscalls.h>
-#include <linux/security.h>
-#include <linux/ipc_namespace.h>
+#include <winux/unistd.h>
+#include <winux/syscalls.h>
+#include <winux/security.h>
+#include <winux/ipc_namespace.h>
 #include "util.h"
 
 #ifdef __ARCH_WANT_SYS_IPC
-#include <linux/errno.h>
-#include <linux/ipc.h>
-#include <linux/shm.h>
-#include <linux/uaccess.h>
+#include <winux/errno.h>
+#include <winux/ipc.h>
+#include <winux/shm.h>
+#include <winux/uaccess.h>
 
 int ksys_ipc(unsigned int call, int first, unsigned long second,
 	unsigned long third, void __user * ptr, long fifth)
@@ -115,7 +115,7 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 #endif
 
 #ifdef CONFIG_COMPAT
-#include <linux/compat.h>
+#include <winux/compat.h>
 
 #ifndef COMPAT_SHMLBA
 #define COMPAT_SHMLBA	SHMLBA

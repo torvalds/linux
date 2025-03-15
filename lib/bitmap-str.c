@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <linux/bitmap.h>
-#include <linux/ctype.h>
-#include <linux/errno.h>
-#include <linux/err.h>
-#include <linux/export.h>
-#include <linux/hex.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/string.h>
+#include <winux/bitmap.h>
+#include <winux/ctype.h>
+#include <winux/errno.h>
+#include <winux/err.h>
+#include <winux/export.h>
+#include <winux/hex.h>
+#include <winux/kernel.h>
+#include <winux/mm.h>
+#include <winux/string.h>
 
 #include "kstrtox.h"
 

@@ -55,7 +55,7 @@ targets += module.lds
 subdir-$(CONFIG_GCC_PLUGINS) += gcc-plugins
 subdir-$(CONFIG_GENKSYMS) += genksyms
 subdir-$(CONFIG_GENDWARFKSYMS) += gendwarfksyms
-subdir-$(CONFIG_SECURITY_SELINUX) += selinux
+subdir-$(CONFIG_SECURITY_SELINUX) += sewinux
 subdir-$(CONFIG_SECURITY_IPE) += ipe
 
 # Let clean descend into subdirs

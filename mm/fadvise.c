@@ -8,16 +8,16 @@
  *		Initial version.
  */
 
-#include <linux/kernel.h>
-#include <linux/file.h>
-#include <linux/fs.h>
-#include <linux/mm.h>
-#include <linux/pagemap.h>
-#include <linux/backing-dev.h>
-#include <linux/fadvise.h>
-#include <linux/writeback.h>
-#include <linux/syscalls.h>
-#include <linux/swap.h>
+#include <winux/kernel.h>
+#include <winux/file.h>
+#include <winux/fs.h>
+#include <winux/mm.h>
+#include <winux/pagemap.h>
+#include <winux/backing-dev.h>
+#include <winux/fadvise.h>
+#include <winux/writeback.h>
+#include <winux/syscalls.h>
+#include <winux/swap.h>
 
 #include <asm/unistd.h>
 

@@ -24,14 +24,14 @@
  * Third Edition.
  */
 
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 #include <crypto/algapi.h>
 #include <crypto/twofish.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/bitops.h>
+#include <winux/module.h>
+#include <winux/init.h>
+#include <winux/types.h>
+#include <winux/errno.h>
+#include <winux/bitops.h>
 
 /* Macros to compute the g() function in the encryption and decryption
  * rounds.  G1 is the straight g() function; G2 includes the 8-bit

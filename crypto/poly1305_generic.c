@@ -14,10 +14,10 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/poly1305.h>
-#include <linux/crypto.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/unaligned.h>
+#include <winux/crypto.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/unaligned.h>
 
 static int crypto_poly1305_init(struct shash_desc *desc)
 {

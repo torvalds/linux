@@ -4,11 +4,11 @@
  *
  * (C) Copyright 2004 Linus Torvalds
  */
-#include <linux/pci.h>
-#include <linux/io.h>
-#include <linux/kmsan-checks.h>
+#include <winux/pci.h>
+#include <winux/io.h>
+#include <winux/kmsan-checks.h>
 
-#include <linux/export.h>
+#include <winux/export.h>
 
 /*
  * Read/write from/to an (offsettable) iomem cookie. It might be a PIO

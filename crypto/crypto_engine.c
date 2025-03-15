@@ -13,12 +13,12 @@
 #include <crypto/internal/hash.h>
 #include <crypto/internal/kpp.h>
 #include <crypto/internal/skcipher.h>
-#include <linux/err.h>
-#include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <uapi/linux/sched/types.h>
+#include <winux/err.h>
+#include <winux/delay.h>
+#include <winux/device.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <uapi/winux/sched/types.h>
 #include "internal.h"
 
 #define CRYPTO_ENGINE_MAX_QLEN 10

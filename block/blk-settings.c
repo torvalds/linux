@@ -2,18 +2,18 @@
 /*
  * Functions related to setting various queue properties from drivers
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/bio.h>
-#include <linux/blk-integrity.h>
-#include <linux/pagemap.h>
-#include <linux/backing-dev-defs.h>
-#include <linux/gcd.h>
-#include <linux/lcm.h>
-#include <linux/jiffies.h>
-#include <linux/gfp.h>
-#include <linux/dma-mapping.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/init.h>
+#include <winux/bio.h>
+#include <winux/blk-integrity.h>
+#include <winux/pagemap.h>
+#include <winux/backing-dev-defs.h>
+#include <winux/gcd.h>
+#include <winux/lcm.h>
+#include <winux/jiffies.h>
+#include <winux/gfp.h>
+#include <winux/dma-mapping.h>
 
 #include "blk.h"
 #include "blk-rq-qos.h"

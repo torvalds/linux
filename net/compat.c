@@ -2,8 +2,8 @@
 /*
  * 32bit Socket syscall emulation. Based on arch/sparc64/kernel/sys_sparc32.c.
  *
- * Copyright (C) 2000		VA Linux Co
- * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
+ * Copyright (C) 2000		VA Winux Co
+ * Copyright (C) 2000		Don Dugger <n0ano@vawinux.com>
  * Copyright (C) 1999 		Arun Sharma <arun.sharma@intel.com>
  * Copyright (C) 1997,1998 	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Copyright (C) 1997 		David S. Miller (davem@caip.rutgers.edu)
@@ -12,25 +12,25 @@
  * Copyright (C) 2000,2001	Andi Kleen, SuSE Labs
  */
 
-#include <linux/kernel.h>
-#include <linux/gfp.h>
-#include <linux/fs.h>
-#include <linux/types.h>
-#include <linux/file.h>
-#include <linux/icmpv6.h>
-#include <linux/socket.h>
-#include <linux/syscalls.h>
-#include <linux/filter.h>
-#include <linux/compat.h>
-#include <linux/security.h>
-#include <linux/audit.h>
-#include <linux/export.h>
+#include <winux/kernel.h>
+#include <winux/gfp.h>
+#include <winux/fs.h>
+#include <winux/types.h>
+#include <winux/file.h>
+#include <winux/icmpv6.h>
+#include <winux/socket.h>
+#include <winux/syscalls.h>
+#include <winux/filter.h>
+#include <winux/compat.h>
+#include <winux/security.h>
+#include <winux/audit.h>
+#include <winux/export.h>
 
 #include <net/scm.h>
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 #include <net/compat.h>
 
 int __get_compat_msghdr(struct msghdr *kmsg,

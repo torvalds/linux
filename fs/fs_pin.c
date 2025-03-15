@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/fs.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
+#include <winux/fs.h>
+#include <winux/sched.h>
+#include <winux/slab.h>
 #include "internal.h"
 #include "mount.h"
 

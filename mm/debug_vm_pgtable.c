@@ -10,27 +10,27 @@
  */
 #define pr_fmt(fmt) "debug_vm_pgtable: [%-25s]: " fmt, __func__
 
-#include <linux/gfp.h>
-#include <linux/highmem.h>
-#include <linux/hugetlb.h>
-#include <linux/kernel.h>
-#include <linux/kconfig.h>
-#include <linux/memblock.h>
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/mm_types.h>
-#include <linux/module.h>
-#include <linux/pfn_t.h>
-#include <linux/printk.h>
-#include <linux/pgtable.h>
-#include <linux/random.h>
-#include <linux/spinlock.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
-#include <linux/start_kernel.h>
-#include <linux/sched/mm.h>
-#include <linux/io.h>
-#include <linux/vmalloc.h>
+#include <winux/gfp.h>
+#include <winux/highmem.h>
+#include <winux/hugetlb.h>
+#include <winux/kernel.h>
+#include <winux/kconfig.h>
+#include <winux/memblock.h>
+#include <winux/mm.h>
+#include <winux/mman.h>
+#include <winux/mm_types.h>
+#include <winux/module.h>
+#include <winux/pfn_t.h>
+#include <winux/printk.h>
+#include <winux/pgtable.h>
+#include <winux/random.h>
+#include <winux/spinlock.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
+#include <winux/start_kernel.h>
+#include <winux/sched/mm.h>
+#include <winux/io.h>
+#include <winux/vmalloc.h>
 
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>

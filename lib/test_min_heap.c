@@ -5,11 +5,11 @@
  * Test cases for the min max heap.
  */
 
-#include <linux/log2.h>
-#include <linux/min_heap.h>
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/random.h>
+#include <winux/log2.h>
+#include <winux/min_heap.h>
+#include <winux/module.h>
+#include <winux/printk.h>
+#include <winux/random.h>
 
 DEFINE_MIN_HEAP(int, min_heap_test);
 

@@ -4,9 +4,9 @@
  *
  * Copyright (C) 2016 Jens Axboe
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/list_sort.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/list_sort.h>
 
 #include <trace/events/block.h>
 

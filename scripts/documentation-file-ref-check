@@ -88,7 +88,7 @@ while (<IN>) {
 	my $f = $1;
 	my $ln = $2;
 
-	# On linux-next, discard the Next/ directory
+	# On winux-next, discard the Next/ directory
 	next if ($f =~ m,^Next/,);
 
 	# Makefiles and scripts contain nasty expressions to parse docs
@@ -110,7 +110,7 @@ while (<IN>) {
 		my $extra = $3;
 
 		# some file references are like:
-		# /usr/src/linux/Documentation/DMA-{API,mapping}.txt
+		# /usr/src/winux/Documentation/DMA-{API,mapping}.txt
 		# For now, ignore them
 		next if ($extra =~ m/^{/);
 

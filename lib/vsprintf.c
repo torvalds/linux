@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/lib/vsprintf.c
+ *  winux/lib/vsprintf.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
@@ -17,43 +17,43 @@
  * - scnprintf and vscnprintf
  */
 
-#include <linux/stdarg.h>
-#include <linux/build_bug.h>
-#include <linux/clk.h>
-#include <linux/clk-provider.h>
-#include <linux/errname.h>
-#include <linux/module.h>	/* for KSYM_SYMBOL_LEN */
-#include <linux/types.h>
-#include <linux/string.h>
-#include <linux/ctype.h>
-#include <linux/kernel.h>
-#include <linux/kallsyms.h>
-#include <linux/math64.h>
-#include <linux/uaccess.h>
-#include <linux/ioport.h>
-#include <linux/dcache.h>
-#include <linux/cred.h>
-#include <linux/rtc.h>
-#include <linux/sprintf.h>
-#include <linux/time.h>
-#include <linux/uuid.h>
-#include <linux/of.h>
+#include <winux/stdarg.h>
+#include <winux/build_bug.h>
+#include <winux/clk.h>
+#include <winux/clk-provider.h>
+#include <winux/errname.h>
+#include <winux/module.h>	/* for KSYM_SYMBOL_LEN */
+#include <winux/types.h>
+#include <winux/string.h>
+#include <winux/ctype.h>
+#include <winux/kernel.h>
+#include <winux/kallsyms.h>
+#include <winux/math64.h>
+#include <winux/uaccess.h>
+#include <winux/ioport.h>
+#include <winux/dcache.h>
+#include <winux/cred.h>
+#include <winux/rtc.h>
+#include <winux/sprintf.h>
+#include <winux/time.h>
+#include <winux/uuid.h>
+#include <winux/of.h>
 #include <net/addrconf.h>
-#include <linux/siphash.h>
-#include <linux/compiler.h>
-#include <linux/property.h>
-#include <linux/notifier.h>
+#include <winux/siphash.h>
+#include <winux/compiler.h>
+#include <winux/property.h>
+#include <winux/notifier.h>
 #ifdef CONFIG_BLOCK
-#include <linux/blkdev.h>
+#include <winux/blkdev.h>
 #endif
 
 #include "../mm/internal.h"	/* For the trace_print_flags arrays */
 
 #include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/byteorder.h>	/* cpu_to_le16 */
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 
-#include <linux/string_helpers.h>
+#include <winux/string_helpers.h>
 #include "kstrtox.h"
 
 /* Disable pointer hashing if requested */

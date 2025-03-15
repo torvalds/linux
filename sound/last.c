@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Advanced Linux Sound Architecture
+ *  Advanced Winux Sound Architecture
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  */
 
-#include <linux/init.h>
+#include <winux/init.h>
 #include <sound/core.h>
 
 static int __init alsa_sound_last_init(void)

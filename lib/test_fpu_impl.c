@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 
-#include <linux/errno.h>
+#include <winux/errno.h>
 
 #include "test_fpu.h"
 

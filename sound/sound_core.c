@@ -8,11 +8,11 @@
 /*
  * First, the common part.
  */
-#include <linux/module.h>
-#include <linux/device.h>
-#include <linux/err.h>
-#include <linux/kdev_t.h>
-#include <linux/major.h>
+#include <winux/module.h>
+#include <winux/device.h>
+#include <winux/err.h>
+#include <winux/kdev_t.h>
+#include <winux/major.h>
 #include <sound/core.h>
 
 #ifdef CONFIG_SOUND_OSS_CORE
@@ -98,12 +98,12 @@ module_exit(cleanup_soundcore);
  *	locking at some point in 2.3.x.
  */
 
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/sound.h>
-#include <linux/kmod.h>
+#include <winux/init.h>
+#include <winux/slab.h>
+#include <winux/types.h>
+#include <winux/kernel.h>
+#include <winux/sound.h>
+#include <winux/kmod.h>
 
 #define SOUND_STEP 16
 

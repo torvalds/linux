@@ -7,8 +7,8 @@
  * Copyright (c) 2015 - 2024 Intel Corporation
  */
 
-#include <linux/module.h>
-#include <linux/scatterlist.h>
+#include <winux/module.h>
+#include <winux/scatterlist.h>
 #include <crypto/akcipher.h>
 #include <crypto/algapi.h>
 #include <crypto/hash.h>

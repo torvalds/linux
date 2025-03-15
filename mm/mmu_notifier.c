@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/mm/mmu_notifier.c
+ *  winux/mm/mmu_notifier.c
  *
  *  Copyright (C) 2008  Qumranet, Inc.
  *  Copyright (C) 2008  SGI
- *             Christoph Lameter <cl@linux.com>
+ *             Christoph Lameter <cl@winux.com>
  */
 
-#include <linux/rculist.h>
-#include <linux/mmu_notifier.h>
-#include <linux/export.h>
-#include <linux/mm.h>
-#include <linux/err.h>
-#include <linux/interval_tree.h>
-#include <linux/srcu.h>
-#include <linux/rcupdate.h>
-#include <linux/sched.h>
-#include <linux/sched/mm.h>
-#include <linux/slab.h>
+#include <winux/rculist.h>
+#include <winux/mmu_notifier.h>
+#include <winux/export.h>
+#include <winux/mm.h>
+#include <winux/err.h>
+#include <winux/interval_tree.h>
+#include <winux/srcu.h>
+#include <winux/rcupdate.h>
+#include <winux/sched.h>
+#include <winux/sched/mm.h>
+#include <winux/slab.h>
 
 #include "vma.h"
 

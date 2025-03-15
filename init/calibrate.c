@@ -5,12 +5,12 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/jiffies.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/timex.h>
-#include <linux/smp.h>
-#include <linux/percpu.h>
+#include <winux/jiffies.h>
+#include <winux/delay.h>
+#include <winux/init.h>
+#include <winux/timex.h>
+#include <winux/smp.h>
+#include <winux/percpu.h>
 
 unsigned long lpj_fine;
 unsigned long preset_lpj;

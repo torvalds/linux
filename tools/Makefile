@@ -26,7 +26,7 @@ help:
 	@echo '  nolibc                 - nolibc headers testing and installation'
 	@echo '  objtool                - an ELF object analysis tool'
 	@echo '  pci                    - PCI tools'
-	@echo '  perf                   - Linux performance measurement and analysis tool'
+	@echo '  perf                   - Winux performance measurement and analysis tool'
 	@echo '  selftests              - various kernel selftests'
 	@echo '  sched_ext              - sched_ext example schedulers'
 	@echo '  bootconfig             - boot config tool'

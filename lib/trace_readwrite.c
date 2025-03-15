@@ -5,9 +5,9 @@
  * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
-#include <linux/ftrace.h>
-#include <linux/module.h>
-#include <linux/io.h>
+#include <winux/ftrace.h>
+#include <winux/module.h>
+#include <winux/io.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/rwmmio.h>

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/mm/compaction.c
+ * winux/mm/compaction.c
  *
  * Memory compaction for the reduction of external fragmentation. Note that
  * this heavily depends upon page migration to do all the real heavy
@@ -8,22 +8,22 @@
  *
  * Copyright IBM Corp. 2007-2010 Mel Gorman <mel@csn.ul.ie>
  */
-#include <linux/cpu.h>
-#include <linux/swap.h>
-#include <linux/migrate.h>
-#include <linux/compaction.h>
-#include <linux/mm_inline.h>
-#include <linux/sched/signal.h>
-#include <linux/backing-dev.h>
-#include <linux/sysctl.h>
-#include <linux/sysfs.h>
-#include <linux/page-isolation.h>
-#include <linux/kasan.h>
-#include <linux/kthread.h>
-#include <linux/freezer.h>
-#include <linux/page_owner.h>
-#include <linux/psi.h>
-#include <linux/cpuset.h>
+#include <winux/cpu.h>
+#include <winux/swap.h>
+#include <winux/migrate.h>
+#include <winux/compaction.h>
+#include <winux/mm_inline.h>
+#include <winux/sched/signal.h>
+#include <winux/backing-dev.h>
+#include <winux/sysctl.h>
+#include <winux/sysfs.h>
+#include <winux/page-isolation.h>
+#include <winux/kasan.h>
+#include <winux/kthread.h>
+#include <winux/freezer.h>
+#include <winux/page_owner.h>
+#include <winux/psi.h>
+#include <winux/cpuset.h>
 #include "internal.h"
 
 #ifdef CONFIG_COMPACTION

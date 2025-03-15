@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/kernel/profile.c
+ *  winux/kernel/profile.c
  *  Simple profiling. Manages a direct-mapped profile hit count buffer,
  *  with configurable resolution, support for restricting the cpus on
  *  which profiling is done, and switching between cpu time and
@@ -15,18 +15,18 @@
  *	Oracle, 2004
  */
 
-#include <linux/export.h>
-#include <linux/profile.h>
-#include <linux/memblock.h>
-#include <linux/notifier.h>
-#include <linux/mm.h>
-#include <linux/cpumask.h>
-#include <linux/cpu.h>
-#include <linux/highmem.h>
-#include <linux/mutex.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/sched/stat.h>
+#include <winux/export.h>
+#include <winux/profile.h>
+#include <winux/memblock.h>
+#include <winux/notifier.h>
+#include <winux/mm.h>
+#include <winux/cpumask.h>
+#include <winux/cpu.h>
+#include <winux/highmem.h>
+#include <winux/mutex.h>
+#include <winux/slab.h>
+#include <winux/vmalloc.h>
+#include <winux/sched/stat.h>
 
 #include <asm/sections.h>
 #include <asm/irq_regs.h>
@@ -140,9 +140,9 @@ void profile_tick(int type)
 }
 
 #ifdef CONFIG_PROC_FS
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/uaccess.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/uaccess.h>
 
 /*
  * This function accesses profiling information. The returned data is

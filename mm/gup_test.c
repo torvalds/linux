@@ -1,10 +1,10 @@
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/ktime.h>
-#include <linux/debugfs.h>
-#include <linux/highmem.h>
+#include <winux/kernel.h>
+#include <winux/mm.h>
+#include <winux/slab.h>
+#include <winux/uaccess.h>
+#include <winux/ktime.h>
+#include <winux/debugfs.h>
+#include <winux/highmem.h>
 #include "gup_test.h"
 
 static void put_back_pages(unsigned int cmd, struct page **pages,

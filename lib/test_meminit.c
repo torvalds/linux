@@ -4,13 +4,13 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/vmalloc.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/mm.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/string.h>
+#include <winux/vmalloc.h>
 
 #define GARBAGE_INT (0x09A7BA9E)
 #define GARBAGE_BYTE (0x9E)

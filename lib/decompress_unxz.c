@@ -94,7 +94,7 @@
 
 /*
  * STATIC is defined to "static" if we are being built for kernel
- * decompression (pre-boot code). <linux/decompress/mm.h> will define
+ * decompression (pre-boot code). <winux/decompress/mm.h> will define
  * STATIC to empty if it wasn't already defined. Since we will need to
  * know later if we are being used for kernel decompression, we define
  * XZ_PREBOOT here.
@@ -102,15 +102,15 @@
 #ifdef STATIC
 #	define XZ_PREBOOT
 #else
-#	include <linux/decompress/unxz.h>
+#	include <winux/decompress/unxz.h>
 #endif
 #ifdef __KERNEL__
-#	include <linux/decompress/mm.h>
+#	include <winux/decompress/mm.h>
 #endif
 
 #ifndef XZ_PREBOOT
-#	include <linux/slab.h>
-#	include <linux/xz.h>
+#	include <winux/slab.h>
+#	include <winux/xz.h>
 #else
 /*
  * Use the internal CRC32 code instead of kernel's CRC32 module, which
@@ -153,7 +153,7 @@
 
 /*
  * Replace the normal allocation functions with the versions from
- * <linux/decompress/mm.h>. vfree() needs to support vfree(NULL)
+ * <winux/decompress/mm.h>. vfree() needs to support vfree(NULL)
  * when XZ_DYNALLOC is used, but the pre-boot free() doesn't support it.
  * Workaround it here because the other decompressors don't need it.
  */
@@ -207,7 +207,7 @@ static void memzero(void *buf, size_t size)
 #endif
 
 #ifndef memmove
-/* Not static to avoid a conflict with the prototype in the Linux headers. */
+/* Not static to avoid a conflict with the prototype in the Winux headers. */
 void *memmove(void *dest, const void *src, size_t size)
 {
 	uint8_t *d = dest;
@@ -248,7 +248,7 @@ void *memmove(void *dest, const void *src, size_t size)
 #define XZ_IOBUF_SIZE 4096
 
 /*
- * This function implements the API defined in <linux/decompress/generic.h>.
+ * This function implements the API defined in <winux/decompress/generic.h>.
  *
  * This wrapper will automatically choose single-call or multi-call mode
  * of the native XZ decoder API. The single-call mode can be used only when

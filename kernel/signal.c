@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/kernel/signal.c
+ *  winux/kernel/signal.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -11,49 +11,49 @@
  *		to allow signals to be sent reliably.
  */
 
-#include <linux/slab.h>
-#include <linux/export.h>
-#include <linux/init.h>
-#include <linux/sched/mm.h>
-#include <linux/sched/user.h>
-#include <linux/sched/debug.h>
-#include <linux/sched/task.h>
-#include <linux/sched/task_stack.h>
-#include <linux/sched/cputime.h>
-#include <linux/file.h>
-#include <linux/fs.h>
-#include <linux/mm.h>
-#include <linux/proc_fs.h>
-#include <linux/tty.h>
-#include <linux/binfmts.h>
-#include <linux/coredump.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/ptrace.h>
-#include <linux/signal.h>
-#include <linux/signalfd.h>
-#include <linux/ratelimit.h>
-#include <linux/task_work.h>
-#include <linux/capability.h>
-#include <linux/freezer.h>
-#include <linux/pid_namespace.h>
-#include <linux/nsproxy.h>
-#include <linux/user_namespace.h>
-#include <linux/uprobes.h>
-#include <linux/compat.h>
-#include <linux/cn_proc.h>
-#include <linux/compiler.h>
-#include <linux/posix-timers.h>
-#include <linux/cgroup.h>
-#include <linux/audit.h>
-#include <linux/sysctl.h>
-#include <uapi/linux/pidfd.h>
+#include <winux/slab.h>
+#include <winux/export.h>
+#include <winux/init.h>
+#include <winux/sched/mm.h>
+#include <winux/sched/user.h>
+#include <winux/sched/debug.h>
+#include <winux/sched/task.h>
+#include <winux/sched/task_stack.h>
+#include <winux/sched/cputime.h>
+#include <winux/file.h>
+#include <winux/fs.h>
+#include <winux/mm.h>
+#include <winux/proc_fs.h>
+#include <winux/tty.h>
+#include <winux/binfmts.h>
+#include <winux/coredump.h>
+#include <winux/security.h>
+#include <winux/syscalls.h>
+#include <winux/ptrace.h>
+#include <winux/signal.h>
+#include <winux/signalfd.h>
+#include <winux/ratelimit.h>
+#include <winux/task_work.h>
+#include <winux/capability.h>
+#include <winux/freezer.h>
+#include <winux/pid_namespace.h>
+#include <winux/nsproxy.h>
+#include <winux/user_namespace.h>
+#include <winux/uprobes.h>
+#include <winux/compat.h>
+#include <winux/cn_proc.h>
+#include <winux/compiler.h>
+#include <winux/posix-timers.h>
+#include <winux/cgroup.h>
+#include <winux/audit.h>
+#include <winux/sysctl.h>
+#include <uapi/winux/pidfd.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
 
 #include <asm/param.h>
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/siginfo.h>
 #include <asm/cacheflush.h>
@@ -4978,7 +4978,7 @@ void __init signals_init(void)
 }
 
 #ifdef CONFIG_KGDB_KDB
-#include <linux/kdb.h>
+#include <winux/kdb.h>
 /*
  * kdb_send_sig - Allows kdb to send signals without exposing
  * signal internals.  This function checks if the required locks are

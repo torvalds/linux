@@ -3,7 +3,7 @@
 #ifndef _BLOCK_BLK_PM_H_
 #define _BLOCK_BLK_PM_H_
 
-#include <linux/pm_runtime.h>
+#include <winux/pm_runtime.h>
 
 #ifdef CONFIG_PM
 static inline int blk_pm_resume_queue(const bool pm, struct request_queue *q)

@@ -4,11 +4,11 @@
  * https://tools.ietf.org/id/draft-ribose-cfrg-sm4-10.html
  *
  * Copyright (C) 2018 ARM Limited or its affiliates.
- * Copyright (c) 2021 Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
+ * Copyright (c) 2021 Tianjia Zhang <tianjia.zhang@winux.alibaba.com>
  */
 
-#include <linux/module.h>
-#include <linux/unaligned.h>
+#include <winux/module.h>
+#include <winux/unaligned.h>
 #include <crypto/sm4.h>
 
 static const u32 ____cacheline_aligned fk[4] = {

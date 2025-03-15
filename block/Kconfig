@@ -31,7 +31,7 @@ config BLOCK_LEGACY_AUTOLOAD
 	default y
 	help
 	  Enable loading modules and creating block device instances based on
-	  accesses through their device special file.  This is a historic Linux
+	  accesses through their device special file.  This is a historic Winux
 	  feature and makes no sense in a udev world where device files are
 	  created on demand, but scripts that manually create device nodes and
 	  then call losetup might rely on this behavior.

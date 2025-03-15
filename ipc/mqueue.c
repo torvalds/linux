@@ -1,5 +1,5 @@
 /*
- * POSIX message queues filesystem for Linux.
+ * POSIX message queues filesystem for Winux.
  *
  * Copyright (C) 2003,2004  Krzysztof Benedyczak    (golbi@mat.uni.torun.pl)
  *                          Michal Wronski          (michal.wronski@gmail.com)
@@ -13,32 +13,32 @@
  * This file is released under the GPL.
  */
 
-#include <linux/capability.h>
-#include <linux/init.h>
-#include <linux/pagemap.h>
-#include <linux/file.h>
-#include <linux/mount.h>
-#include <linux/fs_context.h>
-#include <linux/namei.h>
-#include <linux/sysctl.h>
-#include <linux/poll.h>
-#include <linux/mqueue.h>
-#include <linux/msg.h>
-#include <linux/skbuff.h>
-#include <linux/vmalloc.h>
-#include <linux/netlink.h>
-#include <linux/syscalls.h>
-#include <linux/audit.h>
-#include <linux/signal.h>
-#include <linux/mutex.h>
-#include <linux/nsproxy.h>
-#include <linux/pid.h>
-#include <linux/ipc_namespace.h>
-#include <linux/user_namespace.h>
-#include <linux/slab.h>
-#include <linux/sched/wake_q.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/user.h>
+#include <winux/capability.h>
+#include <winux/init.h>
+#include <winux/pagemap.h>
+#include <winux/file.h>
+#include <winux/mount.h>
+#include <winux/fs_context.h>
+#include <winux/namei.h>
+#include <winux/sysctl.h>
+#include <winux/poll.h>
+#include <winux/mqueue.h>
+#include <winux/msg.h>
+#include <winux/skbuff.h>
+#include <winux/vmalloc.h>
+#include <winux/netlink.h>
+#include <winux/syscalls.h>
+#include <winux/audit.h>
+#include <winux/signal.h>
+#include <winux/mutex.h>
+#include <winux/nsproxy.h>
+#include <winux/pid.h>
+#include <winux/ipc_namespace.h>
+#include <winux/user_namespace.h>
+#include <winux/slab.h>
+#include <winux/sched/wake_q.h>
+#include <winux/sched/signal.h>
+#include <winux/sched/user.h>
 
 #include <net/sock.h>
 #include "util.h"

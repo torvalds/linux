@@ -4,7 +4,7 @@
  *
  * Copyright 2001 David Brownell
  * Copyright 2007 Intel Corporation
- *   Author: Matthew Wilcox <willy@linux.intel.com>
+ *   Author: Matthew Wilcox <willy@winux.intel.com>
  *
  * This allocator returns small blocks of a given size which are DMA-able by
  * the given device.  It uses the dma_alloc_coherent page allocator to get
@@ -19,22 +19,22 @@
  * keep a count of how many are currently allocated from each page.
  */
 
-#include <linux/device.h>
-#include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
-#include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/export.h>
-#include <linux/mutex.h>
-#include <linux/poison.h>
-#include <linux/sched.h>
-#include <linux/sched/mm.h>
-#include <linux/slab.h>
-#include <linux/stat.h>
-#include <linux/spinlock.h>
-#include <linux/string.h>
-#include <linux/types.h>
-#include <linux/wait.h>
+#include <winux/device.h>
+#include <winux/dma-mapping.h>
+#include <winux/dmapool.h>
+#include <winux/kernel.h>
+#include <winux/list.h>
+#include <winux/export.h>
+#include <winux/mutex.h>
+#include <winux/poison.h>
+#include <winux/sched.h>
+#include <winux/sched/mm.h>
+#include <winux/slab.h>
+#include <winux/stat.h>
+#include <winux/spinlock.h>
+#include <winux/string.h>
+#include <winux/types.h>
+#include <winux/wait.h>
 
 #ifdef CONFIG_SLUB_DEBUG_ON
 #define DMAPOOL_DEBUG 1

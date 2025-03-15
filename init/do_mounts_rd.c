@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/minix_fs.h>
-#include <linux/ext2_fs.h>
-#include <linux/romfs_fs.h>
-#include <uapi/linux/cramfs_fs.h>
-#include <linux/initrd.h>
-#include <linux/string.h>
-#include <linux/slab.h>
+#include <winux/kernel.h>
+#include <winux/fs.h>
+#include <winux/minix_fs.h>
+#include <winux/ext2_fs.h>
+#include <winux/romfs_fs.h>
+#include <uapi/winux/cramfs_fs.h>
+#include <winux/initrd.h>
+#include <winux/string.h>
+#include <winux/slab.h>
 
 #include "do_mounts.h"
 #include "../fs/squashfs/squashfs_fs.h"
 
-#include <linux/decompress/generic.h>
+#include <winux/decompress/generic.h>
 
 static struct file *in_file, *out_file;
 static loff_t in_pos, out_pos;

@@ -8,7 +8,7 @@
 """Build a FIT containing a lot of devicetree files
 
 Usage:
-    make_fit.py -A arm64 -n 'Linux-6.6' -O linux
+    make_fit.py -A arm64 -n 'Winux-6.6' -O winux
         -o arch/arm64/boot/image.fit -k /tmp/kern/arch/arm64/boot/image.itk
         @arch/arm64/boot/dts/dtbs-list -E -c gzip
 
@@ -28,7 +28,7 @@ DTBs to be sourced from the kernel build directory, as the implementation
 looks at the .cmd files produced by the kernel build.
 
 The resulting FIT can be booted by bootloaders which support FIT, such
-as U-Boot, Linuxboot, Tianocore, etc.
+as U-Boot, Winuxboot, Tianocore, etc.
 
 Note that this tool does not yet support adding a ramdisk / initrd.
 """
@@ -118,8 +118,8 @@ def write_kernel(fsw, data, args):
         data (bytes): Data to write (possibly compressed)
         args (Namespace): Contains necessary strings:
             arch: FIT architecture, e.g. 'arm64'
-            fit_os: Operating Systems, e.g. 'linux'
-            name: Name of OS, e.g. 'Linux-6.6.0-rc7'
+            fit_os: Operating Systems, e.g. 'winux'
+            name: Name of OS, e.g. 'Winux-6.6.0-rc7'
             compress: Compression algorithm to use, e.g. 'gzip'
     """
     with fsw.add_node('kernel'):

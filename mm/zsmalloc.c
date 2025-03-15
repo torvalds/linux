@@ -23,32 +23,32 @@
  *	zspage->lock
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/bitops.h>
-#include <linux/errno.h>
-#include <linux/highmem.h>
-#include <linux/string.h>
-#include <linux/slab.h>
-#include <linux/pgtable.h>
+#include <winux/module.h>
+#include <winux/kernel.h>
+#include <winux/sched.h>
+#include <winux/bitops.h>
+#include <winux/errno.h>
+#include <winux/highmem.h>
+#include <winux/string.h>
+#include <winux/slab.h>
+#include <winux/pgtable.h>
 #include <asm/tlbflush.h>
-#include <linux/cpumask.h>
-#include <linux/cpu.h>
-#include <linux/vmalloc.h>
-#include <linux/preempt.h>
-#include <linux/spinlock.h>
-#include <linux/sprintf.h>
-#include <linux/shrinker.h>
-#include <linux/types.h>
-#include <linux/debugfs.h>
-#include <linux/zsmalloc.h>
-#include <linux/zpool.h>
-#include <linux/migrate.h>
-#include <linux/wait.h>
-#include <linux/pagemap.h>
-#include <linux/fs.h>
-#include <linux/local_lock.h>
+#include <winux/cpumask.h>
+#include <winux/cpu.h>
+#include <winux/vmalloc.h>
+#include <winux/preempt.h>
+#include <winux/spinlock.h>
+#include <winux/sprintf.h>
+#include <winux/shrinker.h>
+#include <winux/types.h>
+#include <winux/debugfs.h>
+#include <winux/zsmalloc.h>
+#include <winux/zpool.h>
+#include <winux/migrate.h>
+#include <winux/wait.h>
+#include <winux/pagemap.h>
+#include <winux/fs.h>
+#include <winux/local_lock.h>
 #include "zpdesc.h"
 
 #define ZSPAGE_MAGIC	0x58

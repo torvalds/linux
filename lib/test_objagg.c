@@ -3,11 +3,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/random.h>
-#include <linux/objagg.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/random.h>
+#include <winux/objagg.h>
 
 struct tokey {
 	unsigned int id;

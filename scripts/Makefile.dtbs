@@ -40,7 +40,7 @@ builtin-dtb-section = $(if $(filter arch/$(SRCARCH)/boot/dts%, $(obj)),.dtb.init
 quiet_cmd_wrap_S_dtb = WRAP    $@
       cmd_wrap_S_dtb = {								\
 		symbase=__$(patsubst .%,%,$(suffix $<))_$(subst -,_,$(notdir $*));	\
-		echo '\#include <asm-generic/vmlinux.lds.h>';				\
+		echo '\#include <asm-generic/vmwinux.lds.h>';				\
 		echo '.section $(builtin-dtb-section),"a"';				\
 		echo '.balign STRUCT_ALIGNMENT';					\
 		echo ".global $${symbase}_begin";					\

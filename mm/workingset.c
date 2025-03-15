@@ -5,17 +5,17 @@
  * Copyright (C) 2013 Red Hat, Inc., Johannes Weiner
  */
 
-#include <linux/memcontrol.h>
-#include <linux/mm_inline.h>
-#include <linux/writeback.h>
-#include <linux/shmem_fs.h>
-#include <linux/pagemap.h>
-#include <linux/atomic.h>
-#include <linux/module.h>
-#include <linux/swap.h>
-#include <linux/dax.h>
-#include <linux/fs.h>
-#include <linux/mm.h>
+#include <winux/memcontrol.h>
+#include <winux/mm_inline.h>
+#include <winux/writeback.h>
+#include <winux/shmem_fs.h>
+#include <winux/pagemap.h>
+#include <winux/atomic.h>
+#include <winux/module.h>
+#include <winux/swap.h>
+#include <winux/dax.h>
+#include <winux/fs.h>
+#include <winux/mm.h>
 #include "internal.h"
 
 /*

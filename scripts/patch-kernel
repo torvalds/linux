@@ -2,14 +2,14 @@
 # SPDX-License-Identifier: GPL-2.0
 # Script to apply kernel patches.
 #   usage: patch-kernel [ sourcedir [ patchdir [ stopversion ] [ -acxx ] ] ]
-#     The source directory defaults to /usr/src/linux, and the patch
+#     The source directory defaults to /usr/src/winux, and the patch
 #     directory defaults to the current directory.
 # e.g.
 #   scripts/patch-kernel . ..
 #      Update the kernel tree in the current directory using patches in the
 #      directory above to the latest Linus kernel
 #   scripts/patch-kernel . .. -ac
-#      Get the latest Linux kernel and patch it with the latest ac patch
+#      Get the latest Winux kernel and patch it with the latest ac patch
 #   scripts/patch-kernel . .. 2.4.9
 #      Gets standard kernel 2.4.9
 #   scripts/patch-kernel . .. 2.4.9 -ac
@@ -34,13 +34,13 @@
 #
 # Added ability to stop at a given version number
 # Put the full version number (i.e. 2.3.31) as the last parameter
-#       Dave Gilbert <linux@treblig.org>, 11th December 1999.
+#       Dave Gilbert <winux@treblig.org>, 11th December 1999.
 
 # Fixed previous patch so that if we are already at the correct version
 # not to patch up.
 #
 # Added -ac option, use -ac or -ac9 (say) to stop at a particular version
-#       Dave Gilbert <linux@treblig.org>, 29th September 2001.
+#       Dave Gilbert <winux@treblig.org>, 29th September 2001.
 #
 # Add support for (use of) EXTRAVERSION (to support 2.6.8.x, e.g.);
 # update usage message;
@@ -62,14 +62,14 @@
 PNAME=patch-kernel
 
 # Set directories from arguments, or use defaults.
-sourcedir=${1-/usr/src/linux}
+sourcedir=${1-/usr/src/winux}
 patchdir=${2-.}
 stopvers=${3-default}
 
 if [ "$1" = -h -o "$1" = --help -o ! -r "$sourcedir/Makefile" ]; then
 cat << USAGE
 usage: $PNAME [-h] [ sourcedir [ patchdir [ stopversion ] [ -acxx ] ] ]
-  source directory defaults to /usr/src/linux,
+  source directory defaults to /usr/src/winux,
   patch directory defaults to the current directory,
   stopversion defaults to <all in patchdir>.
 USAGE

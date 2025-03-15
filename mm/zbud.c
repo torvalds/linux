@@ -44,14 +44,14 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/atomic.h>
-#include <linux/list.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/preempt.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/zpool.h>
+#include <winux/atomic.h>
+#include <winux/list.h>
+#include <winux/mm.h>
+#include <winux/module.h>
+#include <winux/preempt.h>
+#include <winux/slab.h>
+#include <winux/spinlock.h>
+#include <winux/zpool.h>
 
 /*****************
  * Structures

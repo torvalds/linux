@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include <linux/syscalls.h>
-#include <linux/export.h>
-#include <linux/uaccess.h>
-#include <linux/fs_struct.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/prefetch.h>
+#include <winux/syscalls.h>
+#include <winux/export.h>
+#include <winux/uaccess.h>
+#include <winux/fs_struct.h>
+#include <winux/fs.h>
+#include <winux/slab.h>
+#include <winux/prefetch.h>
 #include "mount.h"
 #include "internal.h"
 

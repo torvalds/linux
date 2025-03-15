@@ -5,7 +5,7 @@
  * Copyright (c) 2013 Dmitry Kasatkin <d.kasatkin@samsung.com>
  */
 
-#include <linux/export.h>
+#include <winux/export.h>
 #include <crypto/hash_info.h>
 
 const char *const hash_algo_name[HASH_ALGO__LAST] = {

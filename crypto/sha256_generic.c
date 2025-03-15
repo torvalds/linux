@@ -8,14 +8,14 @@
  * SHA224 Support Copyright 2007 Intel Corporation <jonathan.lynch@intel.com>
  */
 #include <crypto/internal/hash.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/types.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/mm.h>
+#include <winux/types.h>
 #include <crypto/sha2.h>
 #include <crypto/sha256_base.h>
 #include <asm/byteorder.h>
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 
 const u8 sha224_zero_message_hash[SHA224_DIGEST_SIZE] = {
 	0xd1, 0x4a, 0x02, 0x8c, 0x2a, 0x3a, 0x2b, 0xc9, 0x47,

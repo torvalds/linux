@@ -1,50 +1,50 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/slab.h>
-#include <linux/file.h>
-#include <linux/fdtable.h>
-#include <linux/freezer.h>
-#include <linux/mm.h>
-#include <linux/stat.h>
-#include <linux/fcntl.h>
-#include <linux/swap.h>
-#include <linux/ctype.h>
-#include <linux/string.h>
-#include <linux/init.h>
-#include <linux/pagemap.h>
-#include <linux/perf_event.h>
-#include <linux/highmem.h>
-#include <linux/spinlock.h>
-#include <linux/key.h>
-#include <linux/personality.h>
-#include <linux/binfmts.h>
-#include <linux/coredump.h>
-#include <linux/sort.h>
-#include <linux/sched/coredump.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/task_stack.h>
-#include <linux/utsname.h>
-#include <linux/pid_namespace.h>
-#include <linux/module.h>
-#include <linux/namei.h>
-#include <linux/mount.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/tsacct_kern.h>
-#include <linux/cn_proc.h>
-#include <linux/audit.h>
-#include <linux/kmod.h>
-#include <linux/fsnotify.h>
-#include <linux/fs_struct.h>
-#include <linux/pipe_fs_i.h>
-#include <linux/oom.h>
-#include <linux/compat.h>
-#include <linux/fs.h>
-#include <linux/path.h>
-#include <linux/timekeeping.h>
-#include <linux/sysctl.h>
-#include <linux/elf.h>
+#include <winux/slab.h>
+#include <winux/file.h>
+#include <winux/fdtable.h>
+#include <winux/freezer.h>
+#include <winux/mm.h>
+#include <winux/stat.h>
+#include <winux/fcntl.h>
+#include <winux/swap.h>
+#include <winux/ctype.h>
+#include <winux/string.h>
+#include <winux/init.h>
+#include <winux/pagemap.h>
+#include <winux/perf_event.h>
+#include <winux/highmem.h>
+#include <winux/spinlock.h>
+#include <winux/key.h>
+#include <winux/personality.h>
+#include <winux/binfmts.h>
+#include <winux/coredump.h>
+#include <winux/sort.h>
+#include <winux/sched/coredump.h>
+#include <winux/sched/signal.h>
+#include <winux/sched/task_stack.h>
+#include <winux/utsname.h>
+#include <winux/pid_namespace.h>
+#include <winux/module.h>
+#include <winux/namei.h>
+#include <winux/mount.h>
+#include <winux/security.h>
+#include <winux/syscalls.h>
+#include <winux/tsacct_kern.h>
+#include <winux/cn_proc.h>
+#include <winux/audit.h>
+#include <winux/kmod.h>
+#include <winux/fsnotify.h>
+#include <winux/fs_struct.h>
+#include <winux/pipe_fs_i.h>
+#include <winux/oom.h>
+#include <winux/compat.h>
+#include <winux/fs.h>
+#include <winux/path.h>
+#include <winux/timekeeping.h>
+#include <winux/sysctl.h>
+#include <winux/elf.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
 #include <asm/exec.h>
@@ -526,7 +526,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
 	struct core_state core_state;
 	struct core_name cn;
 	struct mm_struct *mm = current->mm;
-	struct linux_binfmt * binfmt;
+	struct winux_binfmt * binfmt;
 	const struct cred *old_cred;
 	struct cred *cred;
 	int retval = 0;

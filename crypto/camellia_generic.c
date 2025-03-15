@@ -10,12 +10,12 @@
  */
 
 #include <crypto/algapi.h>
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/bitops.h>
-#include <linux/unaligned.h>
+#include <winux/errno.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/bitops.h>
+#include <winux/unaligned.h>
 
 static const u32 camellia_sp1110[256] = {
 	0x70707000, 0x82828200, 0x2c2c2c00, 0xececec00,

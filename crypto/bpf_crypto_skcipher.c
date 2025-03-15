@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2024 Meta, Inc */
-#include <linux/types.h>
-#include <linux/module.h>
-#include <linux/bpf_crypto.h>
+#include <winux/types.h>
+#include <winux/module.h>
+#include <winux/bpf_crypto.h>
 #include <crypto/skcipher.h>
 
 static void *bpf_crypto_lskcipher_alloc_tfm(const char *algo)

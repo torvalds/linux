@@ -10,13 +10,13 @@
  */
 
 
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 #include <crypto/algapi.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/types.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/errno.h>
+#include <winux/string.h>
+#include <winux/types.h>
 #include <crypto/cast6.h>
 
 #define s1 cast_s1

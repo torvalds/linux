@@ -5,8 +5,8 @@
  * Copyright (C) 1997,1998	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  * Copyright (C) 1997		David S. Miller (davem@caip.rutgers.edu)
  * Copyright (C) 1999		Arun Sharma <arun.sharma@intel.com>
- * Copyright (C) 2000		VA Linux Co
- * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
+ * Copyright (C) 2000		VA Winux Co
+ * Copyright (C) 2000		Don Dugger <n0ano@vawinux.com>
  * Copyright (C) 2000           Hewlett-Packard Co.
  * Copyright (C) 2000           David Mosberger-Tang <davidm@hpl.hp.com>
  * Copyright (C) 2000           Gerhard Tonn (ton@de.ibm.com)
@@ -21,17 +21,17 @@
  * by Jakub Jelinek.
  *
  */
-#include <linux/compat.h>
-#include <linux/errno.h>
-#include <linux/highuid.h>
-#include <linux/init.h>
-#include <linux/msg.h>
-#include <linux/shm.h>
-#include <linux/syscalls.h>
-#include <linux/ptrace.h>
+#include <winux/compat.h>
+#include <winux/errno.h>
+#include <winux/highuid.h>
+#include <winux/init.h>
+#include <winux/msg.h>
+#include <winux/shm.h>
+#include <winux/syscalls.h>
+#include <winux/ptrace.h>
 
-#include <linux/mutex.h>
-#include <linux/uaccess.h>
+#include <winux/mutex.h>
+#include <winux/uaccess.h>
 
 #include "util.h"
 

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/eventfd.h>
-#include <linux/eventpoll.h>
-#include <linux/io_uring.h>
-#include <linux/io_uring_types.h>
+#include <winux/kernel.h>
+#include <winux/errno.h>
+#include <winux/mm.h>
+#include <winux/slab.h>
+#include <winux/eventfd.h>
+#include <winux/eventpoll.h>
+#include <winux/io_uring.h>
+#include <winux/io_uring_types.h>
 
 #include "io-wq.h"
 #include "eventfd.h"

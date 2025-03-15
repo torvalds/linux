@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Linux VM pressure
+ * Winux VM pressure
  *
  * Copyright 2012 Linaro Ltd.
  *		  Anton Vorontsov <anton.vorontsov@linaro.org>
@@ -9,17 +9,17 @@
  * Leonid Moiseichuk, Mel Gorman, Minchan Kim and Pekka Enberg.
  */
 
-#include <linux/cgroup.h>
-#include <linux/fs.h>
-#include <linux/log2.h>
-#include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/vmstat.h>
-#include <linux/eventfd.h>
-#include <linux/slab.h>
-#include <linux/swap.h>
-#include <linux/printk.h>
-#include <linux/vmpressure.h>
+#include <winux/cgroup.h>
+#include <winux/fs.h>
+#include <winux/log2.h>
+#include <winux/sched.h>
+#include <winux/mm.h>
+#include <winux/vmstat.h>
+#include <winux/eventfd.h>
+#include <winux/slab.h>
+#include <winux/swap.h>
+#include <winux/printk.h>
+#include <winux/vmpressure.h>
 
 /*
  * The window size (vmpressure_win) is the number of scanned pages before

@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/slab.h>
-#include <linux/stat.h>
-#include <linux/sched/xacct.h>
-#include <linux/fcntl.h>
-#include <linux/file.h>
-#include <linux/uio.h>
-#include <linux/fsnotify.h>
-#include <linux/security.h>
-#include <linux/export.h>
-#include <linux/syscalls.h>
-#include <linux/pagemap.h>
-#include <linux/splice.h>
-#include <linux/compat.h>
-#include <linux/mount.h>
-#include <linux/fs.h>
-#include <linux/dax.h>
-#include <linux/overflow.h>
+#include <winux/slab.h>
+#include <winux/stat.h>
+#include <winux/sched/xacct.h>
+#include <winux/fcntl.h>
+#include <winux/file.h>
+#include <winux/uio.h>
+#include <winux/fsnotify.h>
+#include <winux/security.h>
+#include <winux/export.h>
+#include <winux/syscalls.h>
+#include <winux/pagemap.h>
+#include <winux/splice.h>
+#include <winux/compat.h>
+#include <winux/mount.h>
+#include <winux/fs.h>
+#include <winux/dax.h>
+#include <winux/overflow.h>
 #include "internal.h"
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 #include <asm/unistd.h>
 
 /*

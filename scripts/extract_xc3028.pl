@@ -9,7 +9,7 @@
 #		wget http://www.twinhan.com/files/AW/BDA T/20080303_V1.0.6.7.zip
 #		or wget http://www.stefanringel.de/pub/20080303_V1.0.6.7.zip
 #	Version 2.7
-#		wget http://www.steventoth.net/linux/xc5000/HVR-12x0-14x0-17x0_1_25_25271_WHQL.zip
+#		wget http://www.steventoth.net/winux/xc5000/HVR-12x0-14x0-17x0_1_25_25271_WHQL.zip
 #	2) Extract the files from the zip into the current dir:
 #		unzip -j 20080303_V1.0.6.7.zip 20080303_v1.0.6.7/UDXTTM6000.sys
 #		unzip -j HVR-12x0-14x0-17x0_1_25_25271_WHQL.zip Driver85/hcw85bda.sys

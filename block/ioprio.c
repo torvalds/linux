@@ -20,15 +20,15 @@
  * See also Documentation/block/ioprio.rst
  *
  */
-#include <linux/gfp.h>
-#include <linux/kernel.h>
-#include <linux/ioprio.h>
-#include <linux/cred.h>
-#include <linux/blkdev.h>
-#include <linux/capability.h>
-#include <linux/syscalls.h>
-#include <linux/security.h>
-#include <linux/pid_namespace.h>
+#include <winux/gfp.h>
+#include <winux/kernel.h>
+#include <winux/ioprio.h>
+#include <winux/cred.h>
+#include <winux/blkdev.h>
+#include <winux/capability.h>
+#include <winux/syscalls.h>
+#include <winux/security.h>
+#include <winux/pid_namespace.h>
 
 int ioprio_check_cap(int ioprio)
 {
@@ -40,7 +40,7 @@ int ioprio_check_cap(int ioprio)
 			/*
 			 * Originally this only checked for CAP_SYS_ADMIN,
 			 * which was implicitly allowed for pid 0 by security
-			 * modules such as SELinux. Make sure we check
+			 * modules such as SEWinux. Make sure we check
 			 * CAP_SYS_ADMIN first to avoid a denial/avc for
 			 * possibly missing CAP_SYS_NICE permission.
 			 */

@@ -49,7 +49,7 @@ sub help {
 	print "  -I includedir\n";
 	print "\n";
 	print "To make nice graphs, try:\n";
-	print "  $0 --graph include/linux/kernel.h | dot -Tpng -o graph.png\n";
+	print "  $0 --graph include/winux/kernel.h | dot -Tpng -o graph.png\n";
 	exit;
 }
 

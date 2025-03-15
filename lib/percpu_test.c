@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/limits.h>
-#include <linux/module.h>
+#include <winux/limits.h>
+#include <winux/module.h>
 
 /* validate @native and @pcp counter values match @expected */
 #define CHECK(native, pcp, expected)                                    \

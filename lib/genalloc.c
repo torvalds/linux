@@ -26,16 +26,16 @@
  * Copyright 2005 (C) Jes Sorensen <jes@trained-monkey.org>
  */
 
-#include <linux/slab.h>
-#include <linux/export.h>
-#include <linux/bitmap.h>
-#include <linux/rculist.h>
-#include <linux/interrupt.h>
-#include <linux/genalloc.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
-#include <linux/platform_device.h>
-#include <linux/vmalloc.h>
+#include <winux/slab.h>
+#include <winux/export.h>
+#include <winux/bitmap.h>
+#include <winux/rculist.h>
+#include <winux/interrupt.h>
+#include <winux/genalloc.h>
+#include <winux/of.h>
+#include <winux/of_platform.h>
+#include <winux/platform_device.h>
+#include <winux/vmalloc.h>
 
 static inline size_t chunk_size(const struct gen_pool_chunk *chunk)
 {

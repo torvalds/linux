@@ -58,50 +58,50 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/task.h>
-#include <linux/sched/task_stack.h>
-#include <linux/jiffies.h>
-#include <linux/delay.h>
-#include <linux/export.h>
-#include <linux/kthread.h>
-#include <linux/rbtree.h>
-#include <linux/fs.h>
-#include <linux/debugfs.h>
-#include <linux/seq_file.h>
-#include <linux/cpumask.h>
-#include <linux/spinlock.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/rcupdate.h>
-#include <linux/stacktrace.h>
-#include <linux/stackdepot.h>
-#include <linux/cache.h>
-#include <linux/percpu.h>
-#include <linux/memblock.h>
-#include <linux/pfn.h>
-#include <linux/mmzone.h>
-#include <linux/slab.h>
-#include <linux/thread_info.h>
-#include <linux/err.h>
-#include <linux/uaccess.h>
-#include <linux/string.h>
-#include <linux/nodemask.h>
-#include <linux/mm.h>
-#include <linux/workqueue.h>
-#include <linux/crc32.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/list.h>
+#include <winux/sched/signal.h>
+#include <winux/sched/task.h>
+#include <winux/sched/task_stack.h>
+#include <winux/jiffies.h>
+#include <winux/delay.h>
+#include <winux/export.h>
+#include <winux/kthread.h>
+#include <winux/rbtree.h>
+#include <winux/fs.h>
+#include <winux/debugfs.h>
+#include <winux/seq_file.h>
+#include <winux/cpumask.h>
+#include <winux/spinlock.h>
+#include <winux/module.h>
+#include <winux/mutex.h>
+#include <winux/rcupdate.h>
+#include <winux/stacktrace.h>
+#include <winux/stackdepot.h>
+#include <winux/cache.h>
+#include <winux/percpu.h>
+#include <winux/memblock.h>
+#include <winux/pfn.h>
+#include <winux/mmzone.h>
+#include <winux/slab.h>
+#include <winux/thread_info.h>
+#include <winux/err.h>
+#include <winux/uaccess.h>
+#include <winux/string.h>
+#include <winux/nodemask.h>
+#include <winux/mm.h>
+#include <winux/workqueue.h>
+#include <winux/crc32.h>
 
 #include <asm/sections.h>
 #include <asm/processor.h>
-#include <linux/atomic.h>
+#include <winux/atomic.h>
 
-#include <linux/kasan.h>
-#include <linux/kfence.h>
-#include <linux/kmemleak.h>
-#include <linux/memory_hotplug.h>
+#include <winux/kasan.h>
+#include <winux/kfence.h>
+#include <winux/kmemleak.h>
+#include <winux/memory_hotplug.h>
 
 /*
  * Kmemleak configuration and common defines.

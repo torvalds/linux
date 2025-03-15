@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Load ELF vmlinux file for the kexec_file_load syscall.
+ * Load ELF vmwinux file for the kexec_file_load syscall.
  *
  * Copyright (C) 2004  Adam Litke (agl@us.ibm.com)
  * Copyright (C) 2004  IBM Corp.
@@ -10,16 +10,16 @@
  *
  * Based on kexec-tools' kexec-elf-exec.c and kexec-elf-ppc64.c.
  * Heavily modified for the kernel by
- * Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>.
+ * Thiago Jung Bauermann <bauerman@winux.vnet.ibm.com>.
  */
 
 #define pr_fmt(fmt)	"kexec_elf: " fmt
 
-#include <linux/elf.h>
-#include <linux/kexec.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/types.h>
+#include <winux/elf.h>
+#include <winux/kexec.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/types.h>
 
 static inline bool elf_is_elf_file(const struct elfhdr *ehdr)
 {
@@ -334,7 +334,7 @@ int kexec_build_elf_info(const char *buf, size_t len, struct elfhdr *ehdr,
 	if (ret)
 		return ret;
 
-	/* Big endian vmlinux has type ET_DYN. */
+	/* Big endian vmwinux has type ET_DYN. */
 	if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN) {
 		pr_err("Not an ELF executable.\n");
 		goto error;

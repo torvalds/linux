@@ -1,6 +1,6 @@
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
 
 #define for_each_test(i, test)	\
 	for (i = 0; i < ARRAY_SIZE(test); i++)

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/kernel.h>
-#include <linux/crash_dump.h>
-#include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/export.h>
+#include <winux/kernel.h>
+#include <winux/crash_dump.h>
+#include <winux/init.h>
+#include <winux/errno.h>
+#include <winux/export.h>
 
 /*
  * stores the physical address of elf header of crash image

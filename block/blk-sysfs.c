@@ -2,14 +2,14 @@
 /*
  * Functions related to sysfs handling
  */
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/module.h>
-#include <linux/bio.h>
-#include <linux/blkdev.h>
-#include <linux/backing-dev.h>
-#include <linux/blktrace_api.h>
-#include <linux/debugfs.h>
+#include <winux/kernel.h>
+#include <winux/slab.h>
+#include <winux/module.h>
+#include <winux/bio.h>
+#include <winux/blkdev.h>
+#include <winux/backing-dev.h>
+#include <winux/blktrace_api.h>
+#include <winux/debugfs.h>
 
 #include "blk.h"
 #include "blk-mq.h"

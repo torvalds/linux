@@ -6,7 +6,7 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  */
-#include <linux/crypto.h>
+#include <winux/crypto.h>
 #include "internal.h"
 
 int crypto_comp_compress(struct crypto_comp *comp,

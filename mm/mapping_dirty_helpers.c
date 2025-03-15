@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/pagewalk.h>
-#include <linux/hugetlb.h>
-#include <linux/bitops.h>
-#include <linux/mmu_notifier.h>
-#include <linux/mm_inline.h>
+#include <winux/pagewalk.h>
+#include <winux/hugetlb.h>
+#include <winux/bitops.h>
+#include <winux/mmu_notifier.h>
+#include <winux/mm_inline.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 

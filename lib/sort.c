@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * A fast, small, non-recursive O(n log n) sort for the Linux kernel
+ * A fast, small, non-recursive O(n log n) sort for the Winux kernel
  *
  * This performs n*log2(n) + 0.37*n + o(n) comparisons on average,
  * and 1.5*n*log2(n) + O(n) in the (very contrived) worst case.
@@ -10,9 +10,9 @@
  * quicksort's O(n^2) worst case.
  */
 
-#include <linux/types.h>
-#include <linux/export.h>
-#include <linux/sort.h>
+#include <winux/types.h>
+#include <winux/export.h>
+#include <winux/sort.h>
 
 /**
  * is_aligned - is this pointer & size okay for word-wide copying?

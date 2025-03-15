@@ -139,7 +139,7 @@ sub tda10046lifeview {
 
 sub av7110 {
     my $sourcefile = "dvb-ttpci-01.fw-261d";
-    my $url = "https://linuxtv.org/downloads/firmware/$sourcefile";
+    my $url = "https://winuxtv.org/downloads/firmware/$sourcefile";
     my $hash = "603431b6259715a8e88f376a53b64e2f";
     my $outfile = "dvb-ttpci-01.fw";
 
@@ -278,7 +278,7 @@ sub vp7041 {
 
 sub vp7049 {
     my $fwfile = "dvb-usb-vp7049-0.95.fw";
-    my $url = "http://ao2.it/sites/default/files/blog/2012/11/06/linux-support-digicom-digitune-s-vp7049-udtt7049/$fwfile";
+    my $url = "http://ao2.it/sites/default/files/blog/2012/11/06/winux-support-digicom-digitune-s-vp7049-udtt7049/$fwfile";
     my $hash = "5609fd295168aea88b25ff43a6f79c36";
 
     checkstandard();
@@ -290,7 +290,7 @@ sub vp7049 {
 }
 
 sub dibusb {
-	my $url = "https://linuxtv.org/downloads/firmware/dvb-usb-dibusb-5.0.0.11.fw";
+	my $url = "https://winuxtv.org/downloads/firmware/dvb-usb-dibusb-5.0.0.11.fw";
 	my $outfile = "dvb-dibusb-5.0.0.11.fw";
 	my $hash = "fa490295a527360ca16dcdf3224ca243";
 
@@ -338,7 +338,7 @@ sub nxt2004 {
 
 sub or51211 {
     my $fwfile = "dvb-fe-or51211.fw";
-    my $url = "https://linuxtv.org/downloads/firmware/$fwfile";
+    my $url = "https://winuxtv.org/downloads/firmware/$fwfile";
     my $hash = "d830949c771a289505bf9eafc225d491";
 
     checkstandard();
@@ -351,7 +351,7 @@ sub or51211 {
 
 sub cx231xx {
     my $fwfile = "v4l-cx231xx-avcore-01.fw";
-    my $url = "https://linuxtv.org/downloads/firmware/$fwfile";
+    my $url = "https://winuxtv.org/downloads/firmware/$fwfile";
     my $hash = "7d3bb956dc9df0eafded2b56ba57cc42";
 
     checkstandard();
@@ -363,7 +363,7 @@ sub cx231xx {
 }
 
 sub cx18 {
-    my $url = "https://linuxtv.org/downloads/firmware/";
+    my $url = "https://winuxtv.org/downloads/firmware/";
 
     my %files = (
 	'v4l-cx23418-apu.fw' => '588f081b562f5c653a3db1ad8f65939a',
@@ -437,7 +437,7 @@ sub mpc718 {
 }
 
 sub cx23885 {
-    my $url = "https://linuxtv.org/downloads/firmware/";
+    my $url = "https://winuxtv.org/downloads/firmware/";
 
     my %files = (
 	'v4l-cx23885-avcore-01.fw' => 'a9f8f5d901a7fb42f552e1ee6384f3bb',
@@ -459,7 +459,7 @@ sub cx23885 {
 }
 
 sub pvrusb2 {
-    my $url = "https://linuxtv.org/downloads/firmware/";
+    my $url = "https://winuxtv.org/downloads/firmware/";
 
     my %files = (
 	'v4l-cx25840.fw'           => 'dadb79e9904fc8af96e8111d9cb59320',
@@ -481,7 +481,7 @@ sub pvrusb2 {
 
 sub or51132_qam {
     my $fwfile = "dvb-fe-or51132-qam.fw";
-    my $url = "https://linuxtv.org/downloads/firmware/$fwfile";
+    my $url = "https://winuxtv.org/downloads/firmware/$fwfile";
     my $hash = "7702e8938612de46ccadfe9b413cb3b5";
 
     checkstandard();
@@ -494,7 +494,7 @@ sub or51132_qam {
 
 sub or51132_vsb {
     my $fwfile = "dvb-fe-or51132-vsb.fw";
-    my $url = "https://linuxtv.org/downloads/firmware/$fwfile";
+    my $url = "https://winuxtv.org/downloads/firmware/$fwfile";
     my $hash = "c16208e02f36fc439a557ad4c613364a";
 
     checkstandard();
@@ -506,7 +506,7 @@ sub or51132_vsb {
 }
 
 sub bluebird {
-	my $url = "https://linuxtv.org/download/dvb/firmware/dvb-usb-bluebird-01.fw";
+	my $url = "https://winuxtv.org/download/dvb/firmware/dvb-usb-bluebird-01.fw";
 	my $outfile = "dvb-usb-bluebird-01.fw";
 	my $hash = "658397cb9eba9101af9031302671f49d";
 
@@ -558,7 +558,7 @@ sub ngene {
     my $hash1 = "d798d5a757121174f0dbc5f2833c0c85";
     my $file2 = "ngene_17.fw";
     my $hash2 = "26b687136e127b8ac24b81e0eeafc20b";
-    my $url2 = "http://l4m-daten.de/downloads/firmware/dvb-s2/linux/all/";
+    my $url2 = "http://l4m-daten.de/downloads/firmware/dvb-s2/winux/all/";
     my $file3 = "ngene_18.fw";
     my $hash3 = "ebce3ea769a53e3e0b0197c3b3f127e3";
 
@@ -578,7 +578,7 @@ sub ngene {
 
 sub az6027{
     my $firmware = "dvb-usb-az6027-03.fw";
-    my $url = "http://linux.terratec.de/files/TERRATEC_S7/$firmware";
+    my $url = "http://winux.terratec.de/files/TERRATEC_S7/$firmware";
 
     wgetfile($firmware, $url);
 
@@ -664,7 +664,7 @@ sub drxk_hauppauge_hvr930c {
 }
 
 sub drxk_terratec_h5 {
-    my $url = "https://linuxtv.org/downloads/firmware/";
+    my $url = "https://winuxtv.org/downloads/firmware/";
     my $hash = "19000dada8e2741162ccc50cc91fa7f1";
     my $fwfile = "dvb-usb-terratec-h5-drxk.fw";
 
@@ -751,7 +751,7 @@ sub drxk_pctv {
 }
 
 sub sms1xxx_hcw {
-    my $url = "http://steventoth.net/linux/sms1xxx/";
+    my $url = "http://steventoth.net/winux/sms1xxx/";
     my %files = (
 	'sms1xxx-hcw-55xxx-dvbt-01.fw'  => "afb6f9fb9a71d64392e8564ef9577e5a",
 	'sms1xxx-hcw-55xxx-dvbt-02.fw'  => "b44807098ba26e52cbedeadc052ba58f",

@@ -42,7 +42,7 @@ def getsizes(file, format):
                 if name.startswith("__se_sys"): continue
                 if name.startswith("__se_compat_sys"): continue
                 if name.startswith("__addressable_"): continue
-                if name == "linux_banner": continue
+                if name == "winux_banner": continue
                 if name == "vermagic": continue
                 # statics and some other optimizations adds random .NUMBER
                 name = re_NUMBER.sub('', name)

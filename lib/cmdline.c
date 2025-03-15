@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/lib/cmdline.c
+ * winux/lib/cmdline.c
  * Helper functions generally used for parsing kernel command line
  * and module options.
  *
@@ -9,10 +9,10 @@
  * GNU Indent formatting options for this file: -kr -i8 -npsl -pcs
  */
 
-#include <linux/export.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/ctype.h>
+#include <winux/export.h>
+#include <winux/kernel.h>
+#include <winux/string.h>
+#include <winux/ctype.h>
 
 /*
  *	If a hyphen was found in get_option, this will handle the

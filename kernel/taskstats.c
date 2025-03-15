@@ -6,22 +6,22 @@
  *           (C) Balbir Singh,   IBM Corp. 2006
  */
 
-#include <linux/kernel.h>
-#include <linux/taskstats_kern.h>
-#include <linux/tsacct_kern.h>
-#include <linux/acct.h>
-#include <linux/delayacct.h>
-#include <linux/cpumask.h>
-#include <linux/percpu.h>
-#include <linux/slab.h>
-#include <linux/cgroupstats.h>
-#include <linux/cgroup.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/pid_namespace.h>
+#include <winux/kernel.h>
+#include <winux/taskstats_kern.h>
+#include <winux/tsacct_kern.h>
+#include <winux/acct.h>
+#include <winux/delayacct.h>
+#include <winux/cpumask.h>
+#include <winux/percpu.h>
+#include <winux/slab.h>
+#include <winux/cgroupstats.h>
+#include <winux/cgroup.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/pid_namespace.h>
 #include <net/genetlink.h>
-#include <linux/atomic.h>
-#include <linux/sched/cputime.h>
+#include <winux/atomic.h>
+#include <winux/sched/cputime.h>
 
 /*
  * Maximum length of a cpumask that can be specified in

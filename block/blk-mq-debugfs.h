@@ -4,7 +4,7 @@
 
 #ifdef CONFIG_BLK_DEBUG_FS
 
-#include <linux/seq_file.h>
+#include <winux/seq_file.h>
 
 struct blk_mq_hw_ctx;
 

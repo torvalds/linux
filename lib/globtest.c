@@ -2,10 +2,10 @@
  * Extracted fronm glob.c
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/glob.h>
-#include <linux/printk.h>
+#include <winux/module.h>
+#include <winux/moduleparam.h>
+#include <winux/glob.h>
+#include <winux/printk.h>
 
 /* Boot with "glob.verbose=1" to show successful tests, too */
 static bool verbose = false;

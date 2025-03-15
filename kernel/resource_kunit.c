@@ -4,11 +4,11 @@
  */
 
 #include <kunit/test.h>
-#include <linux/ioport.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/sizes.h>
-#include <linux/mm.h>
+#include <winux/ioport.h>
+#include <winux/kernel.h>
+#include <winux/string.h>
+#include <winux/sizes.h>
+#include <winux/mm.h>
 
 #define R0_START	0x0000
 #define R0_END		0xffff

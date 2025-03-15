@@ -8,23 +8,23 @@
  *	(C) Copyright 2002 Red Hat Inc, All Rights Reserved
  */
 
-#include <linux/mm.h>
-#include <linux/mm_inline.h>
-#include <linux/hugetlb.h>
-#include <linux/shm.h>
-#include <linux/ksm.h>
-#include <linux/mman.h>
-#include <linux/swap.h>
-#include <linux/capability.h>
-#include <linux/fs.h>
-#include <linux/swapops.h>
-#include <linux/highmem.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/mmu_notifier.h>
-#include <linux/uaccess.h>
-#include <linux/userfaultfd_k.h>
-#include <linux/mempolicy.h>
+#include <winux/mm.h>
+#include <winux/mm_inline.h>
+#include <winux/hugetlb.h>
+#include <winux/shm.h>
+#include <winux/ksm.h>
+#include <winux/mman.h>
+#include <winux/swap.h>
+#include <winux/capability.h>
+#include <winux/fs.h>
+#include <winux/swapops.h>
+#include <winux/highmem.h>
+#include <winux/security.h>
+#include <winux/syscalls.h>
+#include <winux/mmu_notifier.h>
+#include <winux/uaccess.h>
+#include <winux/userfaultfd_k.h>
+#include <winux/mempolicy.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlb.h>

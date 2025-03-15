@@ -36,30 +36,30 @@
 
 #define pr_fmt(fmt) "Memory failure: " fmt
 
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/page-flags.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/task.h>
-#include <linux/dax.h>
-#include <linux/ksm.h>
-#include <linux/rmap.h>
-#include <linux/export.h>
-#include <linux/pagemap.h>
-#include <linux/swap.h>
-#include <linux/backing-dev.h>
-#include <linux/migrate.h>
-#include <linux/slab.h>
-#include <linux/swapops.h>
-#include <linux/hugetlb.h>
-#include <linux/memory_hotplug.h>
-#include <linux/mm_inline.h>
-#include <linux/memremap.h>
-#include <linux/kfifo.h>
-#include <linux/ratelimit.h>
-#include <linux/pagewalk.h>
-#include <linux/shmem_fs.h>
-#include <linux/sysctl.h>
+#include <winux/kernel.h>
+#include <winux/mm.h>
+#include <winux/page-flags.h>
+#include <winux/sched/signal.h>
+#include <winux/sched/task.h>
+#include <winux/dax.h>
+#include <winux/ksm.h>
+#include <winux/rmap.h>
+#include <winux/export.h>
+#include <winux/pagemap.h>
+#include <winux/swap.h>
+#include <winux/backing-dev.h>
+#include <winux/migrate.h>
+#include <winux/slab.h>
+#include <winux/swapops.h>
+#include <winux/hugetlb.h>
+#include <winux/memory_hotplug.h>
+#include <winux/mm_inline.h>
+#include <winux/memremap.h>
+#include <winux/kfifo.h>
+#include <winux/ratelimit.h>
+#include <winux/pagewalk.h>
+#include <winux/shmem_fs.h>
+#include <winux/sysctl.h>
 #include "swap.h"
 #include "internal.h"
 #include "ras/ras_event.h"
@@ -2541,7 +2541,7 @@ core_initcall(memory_failure_init);
  * memory_failure() earlier.
  *
  * This is only done on the software-level, so it only works
- * for linux injected failures, not real hardware failures
+ * for winux injected failures, not real hardware failures
  *
  * Returns 0 for success, otherwise -errno.
  */

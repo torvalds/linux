@@ -12,7 +12,7 @@
  *
  * Made to use alloc_percpu by Christoph Lameter.
  *
- * Copyright (C) 2010		SUSE Linux Products GmbH
+ * Copyright (C) 2010		SUSE Winux Products GmbH
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
  *
  * This is the generic async execution mechanism.  Work items as are
@@ -25,36 +25,36 @@
  * Please read Documentation/core-api/workqueue.rst for details.
  */
 
-#include <linux/export.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/signal.h>
-#include <linux/completion.h>
-#include <linux/workqueue.h>
-#include <linux/slab.h>
-#include <linux/cpu.h>
-#include <linux/notifier.h>
-#include <linux/kthread.h>
-#include <linux/hardirq.h>
-#include <linux/mempolicy.h>
-#include <linux/freezer.h>
-#include <linux/debug_locks.h>
-#include <linux/lockdep.h>
-#include <linux/idr.h>
-#include <linux/jhash.h>
-#include <linux/hashtable.h>
-#include <linux/rculist.h>
-#include <linux/nodemask.h>
-#include <linux/moduleparam.h>
-#include <linux/uaccess.h>
-#include <linux/sched/isolation.h>
-#include <linux/sched/debug.h>
-#include <linux/nmi.h>
-#include <linux/kvm_para.h>
-#include <linux/delay.h>
-#include <linux/irq_work.h>
+#include <winux/export.h>
+#include <winux/kernel.h>
+#include <winux/sched.h>
+#include <winux/init.h>
+#include <winux/interrupt.h>
+#include <winux/signal.h>
+#include <winux/completion.h>
+#include <winux/workqueue.h>
+#include <winux/slab.h>
+#include <winux/cpu.h>
+#include <winux/notifier.h>
+#include <winux/kthread.h>
+#include <winux/hardirq.h>
+#include <winux/mempolicy.h>
+#include <winux/freezer.h>
+#include <winux/debug_locks.h>
+#include <winux/lockdep.h>
+#include <winux/idr.h>
+#include <winux/jhash.h>
+#include <winux/hashtable.h>
+#include <winux/rculist.h>
+#include <winux/nodemask.h>
+#include <winux/moduleparam.h>
+#include <winux/uaccess.h>
+#include <winux/sched/isolation.h>
+#include <winux/sched/debug.h>
+#include <winux/nmi.h>
+#include <winux/kvm_para.h>
+#include <winux/delay.h>
+#include <winux/irq_work.h>
 
 #include "workqueue_internal.h"
 

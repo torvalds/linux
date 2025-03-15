@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/mm/mmzone.c
+ * winux/mm/mmzone.c
  *
  * management codes for pgdats, zones and page flags
  */
 
 
-#include <linux/stddef.h>
-#include <linux/mm.h>
-#include <linux/mmzone.h>
+#include <winux/stddef.h>
+#include <winux/mm.h>
+#include <winux/mmzone.h>
 
 struct pglist_data *first_online_pgdat(void)
 {

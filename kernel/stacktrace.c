@@ -6,14 +6,14 @@
  *
  *  Copyright (C) 2006 Red Hat, Inc., Ingo Molnar <mingo@redhat.com>
  */
-#include <linux/sched/task_stack.h>
-#include <linux/sched/debug.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/export.h>
-#include <linux/kallsyms.h>
-#include <linux/stacktrace.h>
-#include <linux/interrupt.h>
+#include <winux/sched/task_stack.h>
+#include <winux/sched/debug.h>
+#include <winux/sched.h>
+#include <winux/kernel.h>
+#include <winux/export.h>
+#include <winux/kallsyms.h>
+#include <winux/stacktrace.h>
+#include <winux/interrupt.h>
 
 /**
  * stack_trace_print - Print the entries in the stack trace

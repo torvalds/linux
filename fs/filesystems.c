@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/filesystems.c
+ *  winux/fs/filesystems.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
  *  table of configured filesystems
  */
 
-#include <linux/syscalls.h>
-#include <linux/fs.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/kmod.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/fs_parser.h>
+#include <winux/syscalls.h>
+#include <winux/fs.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/kmod.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/uaccess.h>
+#include <winux/fs_parser.h>
 
 /*
  * Handling of filesystem drivers list.

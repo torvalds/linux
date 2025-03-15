@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /****************************************************************************/
 /*
- *  linux/fs/binfmt_flat.c
+ *  winux/fs/binfmt_flat.c
  *
  *	Copyright (C) 2000-2003 David McCullough <davidm@snapgear.com>
  *	Copyright (C) 2002 Greg Ungerer <gerg@snapgear.com>
@@ -9,37 +9,37 @@
  *	Copyright (C) 2000, 2001 Lineo, by David McCullough <davidm@lineo.com>
  *  based heavily on:
  *
- *  linux/fs/binfmt_aout.c:
+ *  winux/fs/binfmt_aout.c:
  *      Copyright (C) 1991, 1992, 1996  Linus Torvalds
- *  linux/fs/binfmt_flat.c for 2.0 kernel
+ *  winux/fs/binfmt_flat.c for 2.0 kernel
  *	    Copyright (C) 1998  Kenneth Albanowski <kjahds@kjahds.com>
  *	JAN/99 -- coded full program relocation (gerg@snapgear.com)
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/sched/task_stack.h>
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/errno.h>
-#include <linux/signal.h>
-#include <linux/string.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/ptrace.h>
-#include <linux/user.h>
-#include <linux/slab.h>
-#include <linux/binfmts.h>
-#include <linux/personality.h>
-#include <linux/init.h>
-#include <linux/flat.h>
-#include <linux/uaccess.h>
-#include <linux/vmalloc.h>
+#include <winux/kernel.h>
+#include <winux/sched.h>
+#include <winux/sched/task_stack.h>
+#include <winux/mm.h>
+#include <winux/mman.h>
+#include <winux/errno.h>
+#include <winux/signal.h>
+#include <winux/string.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/ptrace.h>
+#include <winux/user.h>
+#include <winux/slab.h>
+#include <winux/binfmts.h>
+#include <winux/personality.h>
+#include <winux/init.h>
+#include <winux/flat.h>
+#include <winux/uaccess.h>
+#include <winux/vmalloc.h>
 
 #include <asm/byteorder.h>
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 #include <asm/cacheflush.h>
 #include <asm/page.h>
 #include <asm/flat.h>
@@ -90,9 +90,9 @@ struct lib_info {
 	} lib_list[MAX_SHARED_LIBS];
 };
 
-static int load_flat_binary(struct linux_binprm *);
+static int load_flat_binary(struct winux_binprm *);
 
-static struct linux_binfmt flat_format = {
+static struct winux_binfmt flat_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_flat_binary,
 };
@@ -105,7 +105,7 @@ static struct linux_binfmt flat_format = {
  * addresses on the "stack", recording the new stack pointer value.
  */
 
-static int create_flat_tables(struct linux_binprm *bprm, unsigned long arg_start)
+static int create_flat_tables(struct winux_binprm *bprm, unsigned long arg_start)
 {
 	char __user *p;
 	unsigned long __user *sp;
@@ -166,7 +166,7 @@ static int create_flat_tables(struct linux_binprm *bprm, unsigned long arg_start
 
 #ifdef CONFIG_BINFMT_ZFLAT
 
-#include <linux/zlib.h>
+#include <winux/zlib.h>
 
 #define LBUFSIZE	4000
 
@@ -179,7 +179,7 @@ static int create_flat_tables(struct linux_binprm *bprm, unsigned long arg_start
 #define ENCRYPTED    0x20 /* bit 5 set: file is encrypted */
 #define RESERVED     0xC0 /* bit 6,7:   reserved */
 
-static int decompress_exec(struct linux_binprm *bprm, loff_t fpos, char *dst,
+static int decompress_exec(struct winux_binprm *bprm, loff_t fpos, char *dst,
 		long len, int fd)
 {
 	unsigned char *buf;
@@ -403,7 +403,7 @@ static inline u32 __user *skip_got_header(u32 __user *rp)
 	return rp;
 }
 
-static int load_flat_file(struct linux_binprm *bprm,
+static int load_flat_file(struct winux_binprm *bprm,
 		struct lib_info *libinfo, unsigned long *extra_stack)
 {
 	struct flat_hdr *hdr;
@@ -852,7 +852,7 @@ err:
  * libraries.  There is no binary dependent code anywhere else.
  */
 
-static int load_flat_binary(struct linux_binprm *bprm)
+static int load_flat_binary(struct winux_binprm *bprm)
 {
 	struct lib_info libinfo;
 	struct pt_regs *regs = current_pt_regs();

@@ -40,9 +40,9 @@ config SOUND_OSS_CORE_PRECLAIM
 source "sound/oss/dmasound/Kconfig"
 
 menuconfig SND
-	tristate "Advanced Linux Sound Architecture"
+	tristate "Advanced Winux Sound Architecture"
 	help
-	  Say 'Y' or 'M' to enable ALSA (Advanced Linux Sound Architecture),
+	  Say 'Y' or 'M' to enable ALSA (Advanced Winux Sound Architecture),
 	  the new base sound system.
 
 	  For more information, see <http://www.alsa-project.org/>

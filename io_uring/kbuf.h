@@ -2,8 +2,8 @@
 #ifndef IOU_KBUF_H
 #define IOU_KBUF_H
 
-#include <uapi/linux/io_uring.h>
-#include <linux/io_uring_types.h>
+#include <uapi/winux/io_uring.h>
+#include <winux/io_uring_types.h>
 
 enum {
 	/* ring mapped provided buffers */

@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/init.h>
-#include <linux/memblock.h>
-#include <linux/fs.h>
-#include <linux/sysfs.h>
-#include <linux/kobject.h>
-#include <linux/memory_hotplug.h>
-#include <linux/mm.h>
-#include <linux/mmzone.h>
-#include <linux/pagemap.h>
-#include <linux/rmap.h>
-#include <linux/mmu_notifier.h>
-#include <linux/page_ext.h>
-#include <linux/page_idle.h>
+#include <winux/init.h>
+#include <winux/memblock.h>
+#include <winux/fs.h>
+#include <winux/sysfs.h>
+#include <winux/kobject.h>
+#include <winux/memory_hotplug.h>
+#include <winux/mm.h>
+#include <winux/mmzone.h>
+#include <winux/pagemap.h>
+#include <winux/rmap.h>
+#include <winux/mmu_notifier.h>
+#include <winux/page_ext.h>
+#include <winux/page_idle.h>
 
 #include "internal.h"
 

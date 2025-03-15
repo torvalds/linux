@@ -6,7 +6,7 @@
 usage() {
 	echo "Usage:"
 	echo "	$0 -r <release>"
-	echo "	$0 [<vmlinux> [<base_path>|auto [<modules_path>]]]"
+	echo "	$0 [<vmwinux> [<base_path>|auto [<modules_path>]]]"
 	echo "	$0 -h"
 }
 
@@ -38,25 +38,25 @@ if [[ $1 == "-h" ]] ; then
 	usage
 	exit 0
 elif [[ $1 == "-r" ]] ; then
-	vmlinux=""
+	vmwinux=""
 	basepath="auto"
 	modpath=""
 	release=$2
 
-	for fn in {,/usr/lib/debug}/boot/vmlinux-$release{,.debug} /lib/modules/$release{,/build}/vmlinux ; do
+	for fn in {,/usr/lib/debug}/boot/vmwinux-$release{,.debug} /lib/modules/$release{,/build}/vmwinux ; do
 		if [ -e "$fn" ] ; then
-			vmlinux=$fn
+			vmwinux=$fn
 			break
 		fi
 	done
 
-	if [[ $vmlinux == "" ]] ; then
-		echo "ERROR! vmlinux image for release $release is not found" >&2
+	if [[ $vmwinux == "" ]] ; then
+		echo "ERROR! vmwinux image for release $release is not found" >&2
 		usage
 		exit 2
 	fi
 else
-	vmlinux=$1
+	vmwinux=$1
 	basepath=${2-auto}
 	modpath=$3
 	release=""
@@ -67,8 +67,8 @@ else
 		debuginfod=${1-only}
 	fi
 
-	if [[ $vmlinux == "" && -z $debuginfod ]] ; then
-		echo "ERROR! vmlinux image must be specified" >&2
+	if [[ $vmwinux == "" && -z $debuginfod ]] ; then
+		echo "ERROR! vmwinux image must be specified" >&2
 		usage
 		exit 1
 	fi
@@ -88,21 +88,21 @@ find_module() {
 			debuginfod-find debuginfo $modbuildid && return
 		fi
 
-		# Only using debuginfod so don't try to find vmlinux module path
+		# Only using debuginfod so don't try to find vmwinux module path
 		if [[ $debuginfod == "only" ]] ; then
 			return
 		fi
 	fi
 
 	if [ -z $release ] ; then
-		release=$(gdb -ex 'print init_uts_ns.name.release' -ex 'quit' -quiet -batch "$vmlinux" 2>/dev/null | sed -n 's/\$1 = "\(.*\)".*/\1/p')
+		release=$(gdb -ex 'print init_uts_ns.name.release' -ex 'quit' -quiet -batch "$vmwinux" 2>/dev/null | sed -n 's/\$1 = "\(.*\)".*/\1/p')
 	fi
 	if [ -n "${release}" ] ; then
 		release_dirs="/usr/lib/debug/lib/modules/$release /lib/modules/$release"
 	fi
 
 	found_without_debug_info=false
-	for dir in "$modpath" "$(dirname "$vmlinux")" ${release_dirs}; do
+	for dir in "$modpath" "$(dirname "$vmwinux")" ${release_dirs}; do
 		if [ -n "${dir}" ] && [ -e "${dir}" ]; then
 			for fn in $(find "$dir" -name "${module//_/[-_]}.ko*") ; do
 				if ${READELF} -WS "$fn" | grep -qwF .debug_line ; then
@@ -131,7 +131,7 @@ parse_symbol() {
 	#   do_basic_setup+0x9c/0xbf
 
 	if [[ $module == "" ]] ; then
-		local objfile=$vmlinux
+		local objfile=$vmwinux
 	elif [[ $aarray_support == true && "${modcache[$module]+isset}" == "isset" ]]; then
 		local objfile=${modcache[$module]}
 	else
@@ -158,7 +158,7 @@ parse_symbol() {
 	# Strip the symbol name so that we could look it up
 	local name=${symbol%+*}
 
-	# Use 'nm vmlinux' to figure out the base address of said symbol.
+	# Use 'nm vmwinux' to figure out the base address of said symbol.
 	# It's actually faster to call it every time than to load it
 	# all into bash.
 	if [[ $aarray_support == true && "${cache[$module,$name]+isset}" == "isset" ]]; then
@@ -219,23 +219,23 @@ parse_symbol() {
 	symbol="$segment$name ($code)"
 }
 
-debuginfod_get_vmlinux() {
-	local vmlinux_buildid=${1##* }
+debuginfod_get_vmwinux() {
+	local vmwinux_buildid=${1##* }
 
-	if [[ $vmlinux != "" ]]; then
+	if [[ $vmwinux != "" ]]; then
 		return
 	fi
 
-	if [[ $vmlinux_buildid =~ ^[0-9a-f]+ ]]; then
-		vmlinux=$(debuginfod-find debuginfo $vmlinux_buildid)
+	if [[ $vmwinux_buildid =~ ^[0-9a-f]+ ]]; then
+		vmwinux=$(debuginfod-find debuginfo $vmwinux_buildid)
 		if [[ $? -ne 0 ]] ; then
-			echo "ERROR! vmlinux image not found via debuginfod-find" >&2
+			echo "ERROR! vmwinux image not found via debuginfod-find" >&2
 			usage
 			exit 2
 		fi
 		return
 	fi
-	echo "ERROR! Build ID for vmlinux not found. Try passing -r or specifying vmlinux" >&2
+	echo "ERROR! Build ID for vmwinux not found. Try passing -r or specifying vmwinux" >&2
 	usage
 	exit 2
 }
@@ -247,7 +247,7 @@ decode_code() {
 }
 
 handle_line() {
-	if [[ $basepath == "auto" && $vmlinux != "" ]] ; then
+	if [[ $basepath == "auto" && $vmwinux != "" ]] ; then
 		module=""
 		symbol="kernel_init+0x0/0x0"
 		parse_symbol
@@ -345,7 +345,7 @@ while read line; do
 		decode_code "$line"
 	# Is it a version line?
 	elif [[ -n $debuginfod && $line =~ PID:\ [0-9]+\ Comm: ]]; then
-		debuginfod_get_vmlinux "$line"
+		debuginfod_get_vmwinux "$line"
 	else
 		# Nothing special in this line, show it as is
 		echo "$line"

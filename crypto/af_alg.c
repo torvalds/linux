@@ -7,21 +7,21 @@
  * Copyright (c) 2010 Herbert Xu <herbert@gondor.apana.org.au>
  */
 
-#include <linux/atomic.h>
+#include <winux/atomic.h>
 #include <crypto/if_alg.h>
-#include <linux/crypto.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/key.h>
-#include <linux/key-type.h>
-#include <linux/list.h>
-#include <linux/module.h>
-#include <linux/net.h>
-#include <linux/rwsem.h>
-#include <linux/sched.h>
-#include <linux/sched/signal.h>
-#include <linux/security.h>
-#include <linux/string.h>
+#include <winux/crypto.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/key.h>
+#include <winux/key-type.h>
+#include <winux/list.h>
+#include <winux/module.h>
+#include <winux/net.h>
+#include <winux/rwsem.h>
+#include <winux/sched.h>
+#include <winux/sched/signal.h>
+#include <winux/security.h>
+#include <winux/string.h>
 #include <keys/user-type.h>
 #include <keys/trusted-type.h>
 #include <keys/encrypted-type.h>

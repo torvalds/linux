@@ -3,18 +3,18 @@
  * Helpers for initial module or kernel cmdline parsing
  * Copyright (C) 2001 Rusty Russell.
  */
-#include <linux/ctype.h>
-#include <linux/device.h>
-#include <linux/err.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/kstrtox.h>
-#include <linux/module.h>
-#include <linux/moduleparam.h>
-#include <linux/overflow.h>
-#include <linux/security.h>
-#include <linux/slab.h>
-#include <linux/string.h>
+#include <winux/ctype.h>
+#include <winux/device.h>
+#include <winux/err.h>
+#include <winux/errno.h>
+#include <winux/kernel.h>
+#include <winux/kstrtox.h>
+#include <winux/module.h>
+#include <winux/moduleparam.h>
+#include <winux/overflow.h>
+#include <winux/security.h>
+#include <winux/slab.h>
+#include <winux/string.h>
 
 #ifdef CONFIG_SYSFS
 /* Protects all built-in parameters, modules use their own param_lock */

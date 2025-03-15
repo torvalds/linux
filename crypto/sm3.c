@@ -5,11 +5,11 @@
  *
  * Copyright (C) 2017 ARM Limited or its affiliates.
  * Copyright (C) 2017 Gilad Ben-Yossef <gilad@benyossef.com>
- * Copyright (C) 2021 Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
+ * Copyright (C) 2021 Tianjia Zhang <tianjia.zhang@winux.alibaba.com>
  */
 
-#include <linux/module.h>
-#include <linux/unaligned.h>
+#include <winux/module.h>
+#include <winux/unaligned.h>
 #include <crypto/sm3.h>
 
 static const u32 ____cacheline_aligned K[64] = {

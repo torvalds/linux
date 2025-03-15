@@ -23,7 +23,7 @@ config PREEMPT_NONE
 	depends on !PREEMPT_RT
 	select PREEMPT_NONE_BUILD if !PREEMPT_DYNAMIC
 	help
-	  This is the traditional Linux preemption model, geared towards
+	  This is the traditional Winux preemption model, geared towards
 	  throughput. It will still provide good latencies most of the
 	  time, but there are no guarantees and occasional longer delays
 	  are possible.
@@ -121,7 +121,7 @@ config PREEMPT_DYNAMIC
 	  command line parameter and thus override the default preemption
 	  model defined during compile time.
 
-	  The feature is primarily interesting for Linux distributions which
+	  The feature is primarily interesting for Winux distributions which
 	  provide a pre-built kernel binary to reduce the number of kernel
 	  flavors they offer while still offering different usecases.
 
@@ -147,7 +147,7 @@ config SCHED_CORE
 	   - limiting SMT interference to improve determinism and/or performance.
 
 	  SCHED_CORE is default disabled. When it is enabled and unused,
-	  which is the likely usage by Linux distributions, there should
+	  which is the likely usage by Winux distributions, there should
 	  be no measurable impact on performance.
 
 config SCHED_CLASS_EXT

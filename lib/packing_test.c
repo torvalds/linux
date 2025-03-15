@@ -3,7 +3,7 @@
  * Copyright (c) 2024, Intel Corporation.
  */
 #include <kunit/test.h>
-#include <linux/packing.h>
+#include <winux/packing.h>
 
 struct packing_test_case {
 	const char *desc;

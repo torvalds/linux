@@ -2,32 +2,32 @@
 /*
  * umh - the kernel usermode helper
  */
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/sched/task.h>
-#include <linux/binfmts.h>
-#include <linux/syscalls.h>
-#include <linux/unistd.h>
-#include <linux/kmod.h>
-#include <linux/slab.h>
-#include <linux/completion.h>
-#include <linux/cred.h>
-#include <linux/file.h>
-#include <linux/fs_struct.h>
-#include <linux/workqueue.h>
-#include <linux/security.h>
-#include <linux/mount.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/resource.h>
-#include <linux/notifier.h>
-#include <linux/suspend.h>
-#include <linux/rwsem.h>
-#include <linux/ptrace.h>
-#include <linux/async.h>
-#include <linux/uaccess.h>
-#include <linux/initrd.h>
-#include <linux/freezer.h>
+#include <winux/module.h>
+#include <winux/sched.h>
+#include <winux/sched/task.h>
+#include <winux/binfmts.h>
+#include <winux/syscalls.h>
+#include <winux/unistd.h>
+#include <winux/kmod.h>
+#include <winux/slab.h>
+#include <winux/completion.h>
+#include <winux/cred.h>
+#include <winux/file.h>
+#include <winux/fs_struct.h>
+#include <winux/workqueue.h>
+#include <winux/security.h>
+#include <winux/mount.h>
+#include <winux/kernel.h>
+#include <winux/init.h>
+#include <winux/resource.h>
+#include <winux/notifier.h>
+#include <winux/suspend.h>
+#include <winux/rwsem.h>
+#include <winux/ptrace.h>
+#include <winux/async.h>
+#include <winux/uaccess.h>
+#include <winux/initrd.h>
+#include <winux/freezer.h>
 
 #include <trace/events/module.h>
 

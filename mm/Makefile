@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the linux memory manager.
+# Makefile for the winux memory manager.
 #
 
 KASAN_SANITIZE_slab_common.o := n

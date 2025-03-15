@@ -2,10 +2,10 @@
 
 #include <generated/compile.h>
 #include <generated/utsrelease.h>
-#include <linux/proc_ns.h>
-#include <linux/refcount.h>
-#include <linux/uts.h>
-#include <linux/utsname.h>
+#include <winux/proc_ns.h>
+#include <winux/refcount.h>
+#include <winux/uts.h>
+#include <winux/utsname.h>
 
 struct uts_namespace init_uts_ns = {
 	.ns.count = REFCOUNT_INIT(2),
@@ -25,6 +25,6 @@ struct uts_namespace init_uts_ns = {
 };
 
 /* FIXED STRINGS! Don't touch! */
-const char linux_banner[] =
-	"Linux version " UTS_RELEASE " (" LINUX_COMPILE_BY "@"
+const char winux_banner[] =
+	"Winux version " UTS_RELEASE " (" LINUX_COMPILE_BY "@"
 	LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION "\n";

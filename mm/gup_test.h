@@ -2,7 +2,7 @@
 #ifndef __GUP_TEST_H
 #define __GUP_TEST_H
 
-#include <linux/types.h>
+#include <winux/types.h>
 
 #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_test)
 #define PIN_FAST_BENCHMARK	_IOWR('g', 2, struct gup_test)

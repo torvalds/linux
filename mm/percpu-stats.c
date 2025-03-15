@@ -7,12 +7,12 @@
  *
  * Prints statistics about the percpu allocator and backing chunks.
  */
-#include <linux/debugfs.h>
-#include <linux/list.h>
-#include <linux/percpu.h>
-#include <linux/seq_file.h>
-#include <linux/sort.h>
-#include <linux/vmalloc.h>
+#include <winux/debugfs.h>
+#include <winux/list.h>
+#include <winux/percpu.h>
+#include <winux/seq_file.h>
+#include <winux/sort.h>
+#include <winux/vmalloc.h>
 
 #include "percpu-internal.h"
 

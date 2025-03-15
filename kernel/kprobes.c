@@ -20,31 +20,31 @@
 
 #define pr_fmt(fmt) "kprobes: " fmt
 
-#include <linux/kprobes.h>
-#include <linux/hash.h>
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/stddef.h>
-#include <linux/export.h>
-#include <linux/kallsyms.h>
-#include <linux/freezer.h>
-#include <linux/seq_file.h>
-#include <linux/debugfs.h>
-#include <linux/sysctl.h>
-#include <linux/kdebug.h>
-#include <linux/memory.h>
-#include <linux/ftrace.h>
-#include <linux/cpu.h>
-#include <linux/jump_label.h>
-#include <linux/static_call.h>
-#include <linux/perf_event.h>
-#include <linux/execmem.h>
-#include <linux/cleanup.h>
+#include <winux/kprobes.h>
+#include <winux/hash.h>
+#include <winux/init.h>
+#include <winux/slab.h>
+#include <winux/stddef.h>
+#include <winux/export.h>
+#include <winux/kallsyms.h>
+#include <winux/freezer.h>
+#include <winux/seq_file.h>
+#include <winux/debugfs.h>
+#include <winux/sysctl.h>
+#include <winux/kdebug.h>
+#include <winux/memory.h>
+#include <winux/ftrace.h>
+#include <winux/cpu.h>
+#include <winux/jump_label.h>
+#include <winux/static_call.h>
+#include <winux/perf_event.h>
+#include <winux/execmem.h>
+#include <winux/cleanup.h>
 
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
 #include <asm/errno.h>
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 
 #define KPROBE_HASH_BITS 6
 #define KPROBE_TABLE_SIZE (1 << KPROBE_HASH_BITS)

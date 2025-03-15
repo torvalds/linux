@@ -4,7 +4,7 @@
 # Written by Kris Van Hees <kris.van.hees@oracle.com>
 #
 # Usage: verify_builtin_ranges.awk modules.builtin.ranges System.map \
-#				   modules.builtin vmlinux.map vmlinux.o.map
+#				   modules.builtin vmwinux.map vmwinux.o.map
 #
 
 # Return the module name(s) (if any) associated with the given object.
@@ -76,7 +76,7 @@ function addr2val(val) {
 BEGIN {
 	if (ARGC < 6) {
 		print "Syntax: verify_builtin_ranges.awk <ranges-file> <system-map>\n" \
-		      "          <builtin-file> <vmlinux-map> <vmlinux-o-map>\n" \
+		      "          <builtin-file> <vmwinux-map> <vmwinux-o-map>\n" \
 		      >"/dev/stderr";
 		total = 0;
 		exit(1);
@@ -159,12 +159,12 @@ ARGIND == 3 {
 
 # (4) Get a list of symbols (per object).
 #
-# Symbols by object are read from vmlinux.map, with fallback to vmlinux.o.map
-# if vmlinux is found to have inked in vmlinux.o.
+# Symbols by object are read from vmwinux.map, with fallback to vmwinux.o.map
+# if vmwinux is found to have inked in vmwinux.o.
 #
 
-# If we were able to get the data we need from vmlinux.map, there is no need to
-# process vmlinux.o.map.
+# If we were able to get the data we need from vmwinux.map, there is no need to
+# process vmwinux.o.map.
 #
 FNR == 1 && ARGIND == 5 && total > 0 {
 	if (dbg)
@@ -188,12 +188,12 @@ ARGIND >= 4 && map_is_lld && NF == 5 && /[0-9] [^ ]+$/ {
 # (LLD) Convert an object record from lld format to ld format.
 #
 ARGIND >= 4 && map_is_lld && NF == 5 && $5 ~ /:\(/ {
-	if (/\.a\(/ && !/ vmlinux\.a\(/)
+	if (/\.a\(/ && !/ vmwinux\.a\(/)
 		next;
 
 	gsub(/\)/, "");
 	sub(/:\(/, " ");
-	sub(/ vmlinux\.a\(/, " ");
+	sub(/ vmwinux\.a\(/, " ");
 	$0 = " "$6 " 0x"$1 " 0x"$3 " " $5;
 }
 
@@ -230,7 +230,7 @@ ARGIND >= 4 && /^\./ {
 	if ($1 ~ /^\.orc_/ || $1 ~ /_sites$/ || $1 ~ /\.percpu/)
 		next;
 
-	# Sections with a 0-address can be ignored as well (in vmlinux.map).
+	# Sections with a 0-address can be ignored as well (in vmwinux.map).
 	if (ARGIND == 4 && $2 ~ /^0x0+$/)
 		next;
 
@@ -256,7 +256,7 @@ ARGIND >= 4 && /^ [^ \*]/ && NF == 1 {
 }
 
 # Objects linked in from static libraries are ignored.
-# If the object is vmlinux.o, we need to consult vmlinux.o.map for per-object
+# If the object is vmwinux.o, we need to consult vmwinux.o.map for per-object
 # symbol information
 #
 ARGIND == 4 && /^ [^ ]/ && NF == 4 {
@@ -269,15 +269,15 @@ ARGIND == 4 && /^ [^ ]/ && NF == 4 {
 		if (dbg)
 			printf "ADDEND %s = %016x\n", idx, sect_addend[idx] >"/dev/stderr";
 	}
-	if ($4 == "vmlinux.o") {
+	if ($4 == "vmwinux.o") {
 		need_o_map = 1;
 		next;
 	}
 }
 
-# If data from vmlinux.o.map is needed, we only process section and object
-# records from vmlinux.map to determine which section we need to pay attention
-# to in vmlinux.o.map.  So skip everything else from vmlinux.map.
+# If data from vmwinux.o.map is needed, we only process section and object
+# records from vmwinux.map to determine which section we need to pay attention
+# to in vmwinux.o.map.  So skip everything else from vmwinux.map.
 #
 ARGIND == 4 && need_o_map {
 	next;
@@ -295,7 +295,7 @@ ARGIND >= 4 && /^ [^ ]/ && NF == 4 {
 
 # Process a symbol record.
 #
-# Evaluate the module information obtained from vmlinux.map (or vmlinux.o.map)
+# Evaluate the module information obtained from vmwinux.map (or vmwinux.o.map)
 # as follows:
 #  - For all symbols in a given object:
 #     - If the symbol is annotated with the same module name(s) that the object
@@ -315,7 +315,7 @@ ARGIND >= 4 && /^ / && NF == 2 && $1 ~ /^0x/ {
 	addr = addr2val($1);
 
 	# Handle the rare but annoying case where a 0-size symbol is placed at
-	# the byte *after* the module range.  Based on vmlinux.map it will be
+	# the byte *after* the module range.  Based on vmwinux.map it will be
 	# considered part of the current object, but it falls just beyond the
 	# module address range.  Unfortunately, its address could be at the
 	# start of another built-in module, so the only safe thing to do is to
@@ -323,7 +323,7 @@ ARGIND >= 4 && /^ / && NF == 2 && $1 ~ /^0x/ {
 	if (mod_name && addr == mod_eaddr)
 		next;
 
-	# If we are processing vmlinux.o.map, we need to apply the base address
+	# If we are processing vmwinux.o.map, we need to apply the base address
 	# of the section to the relative address on the record.
 	#
 	if (ARGIND == 5)

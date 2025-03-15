@@ -8,41 +8,41 @@
  *  Improving global KVA allocator, Uladzislau Rezki, Sony, May 2019
  */
 
-#include <linux/vmalloc.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/highmem.h>
-#include <linux/sched/signal.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/interrupt.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/set_memory.h>
-#include <linux/debugobjects.h>
-#include <linux/kallsyms.h>
-#include <linux/list.h>
-#include <linux/notifier.h>
-#include <linux/rbtree.h>
-#include <linux/xarray.h>
-#include <linux/io.h>
-#include <linux/rcupdate.h>
-#include <linux/pfn.h>
-#include <linux/kmemleak.h>
-#include <linux/atomic.h>
-#include <linux/compiler.h>
-#include <linux/memcontrol.h>
-#include <linux/llist.h>
-#include <linux/uio.h>
-#include <linux/bitops.h>
-#include <linux/rbtree_augmented.h>
-#include <linux/overflow.h>
-#include <linux/pgtable.h>
-#include <linux/hugetlb.h>
-#include <linux/sched/mm.h>
+#include <winux/vmalloc.h>
+#include <winux/mm.h>
+#include <winux/module.h>
+#include <winux/highmem.h>
+#include <winux/sched/signal.h>
+#include <winux/slab.h>
+#include <winux/spinlock.h>
+#include <winux/interrupt.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/set_memory.h>
+#include <winux/debugobjects.h>
+#include <winux/kallsyms.h>
+#include <winux/list.h>
+#include <winux/notifier.h>
+#include <winux/rbtree.h>
+#include <winux/xarray.h>
+#include <winux/io.h>
+#include <winux/rcupdate.h>
+#include <winux/pfn.h>
+#include <winux/kmemleak.h>
+#include <winux/atomic.h>
+#include <winux/compiler.h>
+#include <winux/memcontrol.h>
+#include <winux/llist.h>
+#include <winux/uio.h>
+#include <winux/bitops.h>
+#include <winux/rbtree_augmented.h>
+#include <winux/overflow.h>
+#include <winux/pgtable.h>
+#include <winux/hugetlb.h>
+#include <winux/sched/mm.h>
 #include <asm/tlbflush.h>
 #include <asm/shmparam.h>
-#include <linux/page_owner.h>
+#include <winux/page_owner.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/vmalloc.h>
@@ -1553,7 +1553,7 @@ find_vmap_lowest_match(struct rb_root *root, unsigned long size,
 }
 
 #if DEBUG_AUGMENT_LOWEST_MATCH_CHECK
-#include <linux/random.h>
+#include <winux/random.h>
 
 static struct vmap_area *
 find_vmap_lowest_linear_match(struct list_head *head, unsigned long size,

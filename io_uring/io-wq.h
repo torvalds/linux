@@ -1,8 +1,8 @@
 #ifndef INTERNAL_IO_WQ_H
 #define INTERNAL_IO_WQ_H
 
-#include <linux/refcount.h>
-#include <linux/io_uring_types.h>
+#include <winux/refcount.h>
+#include <winux/io_uring_types.h>
 
 struct io_wq;
 

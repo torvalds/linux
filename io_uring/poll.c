@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
-#include <linux/hashtable.h>
-#include <linux/io_uring.h>
+#include <winux/kernel.h>
+#include <winux/errno.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/mm.h>
+#include <winux/slab.h>
+#include <winux/poll.h>
+#include <winux/hashtable.h>
+#include <winux/io_uring.h>
 
 #include <trace/events/io_uring.h>
 
-#include <uapi/linux/io_uring.h>
+#include <uapi/winux/io_uring.h>
 
 #include "io_uring.h"
 #include "alloc_cache.h"

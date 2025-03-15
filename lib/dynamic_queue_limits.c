@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Dynamic byte queue limits.  See include/linux/dynamic_queue_limits.h
+ * Dynamic byte queue limits.  See include/winux/dynamic_queue_limits.h
  *
  * Copyright (c) 2011, Tom Herbert <therbert@google.com>
  */
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/jiffies.h>
-#include <linux/dynamic_queue_limits.h>
-#include <linux/compiler.h>
-#include <linux/export.h>
+#include <winux/types.h>
+#include <winux/kernel.h>
+#include <winux/jiffies.h>
+#include <winux/dynamic_queue_limits.h>
+#include <winux/compiler.h>
+#include <winux/export.h>
 #include <trace/events/napi.h>
 
 #define POSDIFF(A, B) ((int)((A) - (B)) > 0 ? (A) - (B) : 0)

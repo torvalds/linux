@@ -5,29 +5,29 @@
  *  Copyright (C) 2016 - 2020 Christoph Hellwig
  */
 
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/kmod.h>
-#include <linux/major.h>
-#include <linux/device_cgroup.h>
-#include <linux/blkdev.h>
-#include <linux/blk-integrity.h>
-#include <linux/backing-dev.h>
-#include <linux/module.h>
-#include <linux/blkpg.h>
-#include <linux/magic.h>
-#include <linux/buffer_head.h>
-#include <linux/swap.h>
-#include <linux/writeback.h>
-#include <linux/mount.h>
-#include <linux/pseudo_fs.h>
-#include <linux/uio.h>
-#include <linux/namei.h>
-#include <linux/security.h>
-#include <linux/part_stat.h>
-#include <linux/uaccess.h>
-#include <linux/stat.h>
+#include <winux/init.h>
+#include <winux/mm.h>
+#include <winux/slab.h>
+#include <winux/kmod.h>
+#include <winux/major.h>
+#include <winux/device_cgroup.h>
+#include <winux/blkdev.h>
+#include <winux/blk-integrity.h>
+#include <winux/backing-dev.h>
+#include <winux/module.h>
+#include <winux/blkpg.h>
+#include <winux/magic.h>
+#include <winux/buffer_head.h>
+#include <winux/swap.h>
+#include <winux/writeback.h>
+#include <winux/mount.h>
+#include <winux/pseudo_fs.h>
+#include <winux/uio.h>
+#include <winux/namei.h>
+#include <winux/security.h>
+#include <winux/part_stat.h>
+#include <winux/uaccess.h>
+#include <winux/stat.h>
 #include "../fs/internal.h"
 #include "blk.h"
 

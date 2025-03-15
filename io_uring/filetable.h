@@ -2,8 +2,8 @@
 #ifndef IOU_FILE_TABLE_H
 #define IOU_FILE_TABLE_H
 
-#include <linux/file.h>
-#include <linux/io_uring_types.h>
+#include <winux/file.h>
+#include <winux/io_uring_types.h>
 #include "rsrc.h"
 
 bool io_alloc_file_tables(struct io_ring_ctx *ctx, struct io_file_table *table, unsigned nr_files);

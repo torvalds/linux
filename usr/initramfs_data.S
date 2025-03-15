@@ -12,7 +12,7 @@
   -T initramfs_data.scr initramfs_data.cpio.gz -o initramfs_data.o
    ld -m elf_i386  -r -o built-in.a initramfs_data.o
 
-  For including the .init.ramfs sections, see include/asm-generic/vmlinux.lds.
+  For including the .init.ramfs sections, see include/asm-generic/vmwinux.lds.
 
   The above example is for i386 - the parameters vary from architectures.
   Eventually look up LDFLAGS_BLOB in an older version of the

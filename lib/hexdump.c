@@ -3,13 +3,13 @@
  * lib/hexdump.c
  */
 
-#include <linux/types.h>
-#include <linux/ctype.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/minmax.h>
-#include <linux/export.h>
-#include <linux/unaligned.h>
+#include <winux/types.h>
+#include <winux/ctype.h>
+#include <winux/errno.h>
+#include <winux/kernel.h>
+#include <winux/minmax.h>
+#include <winux/export.h>
+#include <winux/unaligned.h>
 
 const char hex_asc[] = "0123456789abcdef";
 EXPORT_SYMBOL(hex_asc);

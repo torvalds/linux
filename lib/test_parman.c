@@ -34,13 +34,13 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/bitops.h>
-#include <linux/err.h>
-#include <linux/prandom.h>
-#include <linux/parman.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/bitops.h>
+#include <winux/err.h>
+#include <winux/prandom.h>
+#include <winux/parman.h>
 
 #define TEST_PARMAN_PRIO_SHIFT 7 /* defines number of prios for testing */
 #define TEST_PARMAN_PRIO_COUNT BIT(TEST_PARMAN_PRIO_SHIFT)

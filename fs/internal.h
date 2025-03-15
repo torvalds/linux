@@ -9,7 +9,7 @@ struct super_block;
 struct file_system_type;
 struct iomap;
 struct iomap_ops;
-struct linux_binprm;
+struct winux_binprm;
 struct path;
 struct mount;
 struct shrink_control;

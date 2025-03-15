@@ -20,11 +20,11 @@
  */
 
 #include <crypto/algapi.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/unaligned.h>
-#include <linux/types.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/mm.h>
+#include <winux/unaligned.h>
+#include <winux/types.h>
 
 #define KHAZAD_KEY_SIZE		16
 #define KHAZAD_BLOCK_SIZE	8

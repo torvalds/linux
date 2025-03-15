@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
-#include <linux/user-return-notifier.h>
-#include <linux/percpu.h>
-#include <linux/sched.h>
-#include <linux/export.h>
+#include <winux/user-return-notifier.h>
+#include <winux/percpu.h>
+#include <winux/sched.h>
+#include <winux/export.h>
 
 static DEFINE_PER_CPU(struct hlist_head, return_notifier_list);
 

@@ -6,7 +6,7 @@
  * crypto capabilities of devices via /sys/block/$disk/queue/crypto/.
  */
 
-#include <linux/blk-crypto-profile.h>
+#include <winux/blk-crypto-profile.h>
 
 #include "blk-crypto-internal.h"
 

@@ -6,17 +6,17 @@
 # addr2line doesn't work with KASLR addresses.  This works similarly to
 # addr2line, but instead takes the 'func+0x123' format as input:
 #
-#   $ ./scripts/faddr2line ~/k/vmlinux meminfo_proc_show+0x5/0x568
+#   $ ./scripts/faddr2line ~/k/vmwinux meminfo_proc_show+0x5/0x568
 #   meminfo_proc_show+0x5/0x568:
 #   meminfo_proc_show at fs/proc/meminfo.c:27
 #
 # If the address is part of an inlined function, the full inline call chain is
 # printed:
 #
-#   $ ./scripts/faddr2line ~/k/vmlinux native_write_msr+0x6/0x27
+#   $ ./scripts/faddr2line ~/k/vmwinux native_write_msr+0x6/0x27
 #   native_write_msr+0x6/0x27:
 #   arch_static_branch at arch/x86/include/asm/msr.h:121
-#    (inlined by) static_key_false at include/linux/jump_label.h:125
+#    (inlined by) static_key_false at include/winux/jump_label.h:125
 #    (inlined by) native_write_msr at arch/x86/include/asm/msr.h:125
 #
 # The function size after the '/' in the input is optional, but recommended.
@@ -24,7 +24,7 @@
 # rarely.  If the size is omitted for a duplicate symbol then it's possible for
 # multiple code sites to be printed:
 #
-#   $ ./scripts/faddr2line ~/k/vmlinux raw_ioctl+0x5
+#   $ ./scripts/faddr2line ~/k/vmwinux raw_ioctl+0x5
 #   raw_ioctl+0x5/0x20:
 #   raw_ioctl at drivers/char/raw.c:122
 #
@@ -33,7 +33,7 @@
 #
 # Multiple addresses can be specified on a single command line:
 #
-#   $ ./scripts/faddr2line ~/k/vmlinux type_show+0x10/45 free_reserved_area+0x90
+#   $ ./scripts/faddr2line ~/k/vmwinux type_show+0x10/45 free_reserved_area+0x90
 #   type_show+0x10/0x2d:
 #   type_show at drivers/video/backlight/backlight.c:213
 #
@@ -82,7 +82,7 @@ command -v ${ADDR2LINE} >/dev/null 2>&1 || die "${ADDR2LINE} isn't installed"
 
 # Try to figure out the source directory prefix so we can remove it from the
 # addr2line output.  HACK ALERT: This assumes that start_kernel() is in
-# init/main.c!  This only works for vmlinux.  Otherwise it falls back to
+# init/main.c!  This only works for vmwinux.  Otherwise it falls back to
 # printing the absolute path.
 find_dir_prefix() {
 	local start_kernel_addr=$(echo "${ELF_SYMS}" | sed 's/\[.*\]//' |
@@ -117,8 +117,8 @@ run_readelf() {
 	ELF_SYMS=$(echo "${out}" | sed -n '/Symbol table .* contains [0-9]* entries:/,$p')
 }
 
-check_vmlinux() {
-	# vmlinux uses absolute addresses in the section table rather than
+check_vmwinux() {
+	# vmwinux uses absolute addresses in the section table rather than
 	# section offsets.
 	IS_VMLINUX=0
 	local file_type=$(echo "${ELF_FILEHEADER}" |
@@ -131,11 +131,11 @@ check_vmlinux() {
 init_addr2line() {
 	local objfile=$1
 
-	check_vmlinux
+	check_vmwinux
 
 	ADDR2LINE_ARGS="--functions --pretty-print --inlines --addresses --exe=$objfile"
 	if [[ $IS_VMLINUX = 1 ]]; then
-		# If the executable file is vmlinux, we don't pass section names to
+		# If the executable file is vmwinux, we don't pass section names to
 		# addr2line, so we can launch it now as a single long-running process.
 		coproc ADDR2LINE_PROC (${ADDR2LINE} ${ADDR2LINE_ARGS})
 	fi

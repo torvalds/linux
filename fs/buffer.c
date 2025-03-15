@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/buffer.c
+ *  winux/fs/buffer.c
  *
  *  Copyright (C) 1991, 1992, 2002  Linus Torvalds
  */
@@ -19,37 +19,37 @@
  * async buffer flushing, 1999 Andrea Arcangeli <andrea@suse.de>
  */
 
-#include <linux/kernel.h>
-#include <linux/sched/signal.h>
-#include <linux/syscalls.h>
-#include <linux/fs.h>
-#include <linux/iomap.h>
-#include <linux/mm.h>
-#include <linux/percpu.h>
-#include <linux/slab.h>
-#include <linux/capability.h>
-#include <linux/blkdev.h>
-#include <linux/file.h>
-#include <linux/quotaops.h>
-#include <linux/highmem.h>
-#include <linux/export.h>
-#include <linux/backing-dev.h>
-#include <linux/writeback.h>
-#include <linux/hash.h>
-#include <linux/suspend.h>
-#include <linux/buffer_head.h>
-#include <linux/task_io_accounting_ops.h>
-#include <linux/bio.h>
-#include <linux/cpu.h>
-#include <linux/bitops.h>
-#include <linux/mpage.h>
-#include <linux/bit_spinlock.h>
-#include <linux/pagevec.h>
-#include <linux/sched/mm.h>
+#include <winux/kernel.h>
+#include <winux/sched/signal.h>
+#include <winux/syscalls.h>
+#include <winux/fs.h>
+#include <winux/iomap.h>
+#include <winux/mm.h>
+#include <winux/percpu.h>
+#include <winux/slab.h>
+#include <winux/capability.h>
+#include <winux/blkdev.h>
+#include <winux/file.h>
+#include <winux/quotaops.h>
+#include <winux/highmem.h>
+#include <winux/export.h>
+#include <winux/backing-dev.h>
+#include <winux/writeback.h>
+#include <winux/hash.h>
+#include <winux/suspend.h>
+#include <winux/buffer_head.h>
+#include <winux/task_io_accounting_ops.h>
+#include <winux/bio.h>
+#include <winux/cpu.h>
+#include <winux/bitops.h>
+#include <winux/mpage.h>
+#include <winux/bit_spinlock.h>
+#include <winux/pagevec.h>
+#include <winux/sched/mm.h>
 #include <trace/events/block.h>
-#include <linux/fscrypt.h>
-#include <linux/fsverity.h>
-#include <linux/sched/isolation.h>
+#include <winux/fscrypt.h>
+#include <winux/fsverity.h>
+#include <winux/sched/isolation.h>
 
 #include "internal.h"
 

@@ -5,13 +5,13 @@
  *  Author: Eric Biederman <ebiederm@xmision.com>
  */
 
-#include <linux/export.h>
-#include <linux/uts.h>
-#include <linux/utsname.h>
-#include <linux/random.h>
-#include <linux/sysctl.h>
-#include <linux/wait.h>
-#include <linux/rwsem.h>
+#include <winux/export.h>
+#include <winux/uts.h>
+#include <winux/utsname.h>
+#include <winux/random.h>
+#include <winux/sysctl.h>
+#include <winux/wait.h>
+#include <winux/rwsem.h>
 
 #ifdef CONFIG_PROC_SYSCTL
 

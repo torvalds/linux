@@ -7,11 +7,11 @@
 
 #include <crypto/internal/cipher.h>
 #include <crypto/internal/skcipher.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/slab.h>
+#include <winux/err.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/slab.h>
 
 static int crypto_ecb_crypt(struct crypto_cipher *cipher, const u8 *src,
 			    u8 *dst, unsigned nbytes, bool final,

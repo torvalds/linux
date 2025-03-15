@@ -5,23 +5,23 @@
  * CONFIG_DEBUG_INFO_REDUCED. Please do not add actual code. However,
  * adding appropriate #includes is fine.
  */
-#include <linux/cred.h>
-#include <linux/crypto.h>
-#include <linux/dcache.h>
-#include <linux/device.h>
-#include <linux/fs.h>
-#include <linux/fscache-cache.h>
-#include <linux/io.h>
-#include <linux/kallsyms.h>
-#include <linux/kernel.h>
-#include <linux/kobject.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/net.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/stdarg.h>
-#include <linux/types.h>
+#include <winux/cred.h>
+#include <winux/crypto.h>
+#include <winux/dcache.h>
+#include <winux/device.h>
+#include <winux/fs.h>
+#include <winux/fscache-cache.h>
+#include <winux/io.h>
+#include <winux/kallsyms.h>
+#include <winux/kernel.h>
+#include <winux/kobject.h>
+#include <winux/mm.h>
+#include <winux/module.h>
+#include <winux/net.h>
+#include <winux/sched.h>
+#include <winux/slab.h>
+#include <winux/stdarg.h>
+#include <winux/types.h>
 #include <net/addrconf.h>
 #include <net/sock.h>
 #include <net/tcp.h>

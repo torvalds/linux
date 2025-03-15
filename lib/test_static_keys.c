@@ -8,8 +8,8 @@
  *      Jason Baron       <jbaron@akamai.com>
  */
 
-#include <linux/module.h>
-#include <linux/jump_label.h>
+#include <winux/module.h>
+#include <winux/jump_label.h>
 
 /* old keys */
 struct static_key old_true_key	= STATIC_KEY_INIT_TRUE;

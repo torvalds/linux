@@ -15,10 +15,10 @@
  * More information about BLAKE2 can be found at https://blake2.net.
  */
 
-#include <linux/unaligned.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/bitops.h>
+#include <winux/unaligned.h>
+#include <winux/module.h>
+#include <winux/kernel.h>
+#include <winux/bitops.h>
 #include <crypto/internal/blake2b.h>
 #include <crypto/internal/hash.h>
 

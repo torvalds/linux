@@ -8,13 +8,13 @@
  * (C) Copyright 1995 1996, 2014 Linus Torvalds
  *
  */
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/io.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/vmalloc.h>
+#include <winux/kernel.h>
+#include <winux/init.h>
+#include <winux/io.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/mm.h>
+#include <winux/vmalloc.h>
 #include <asm/fixmap.h>
 #include <asm/early_ioremap.h>
 #include "internal.h"

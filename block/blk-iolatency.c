@@ -64,16 +64,16 @@
  *
  * Copyright (C) 2018 Josef Bacik
  */
-#include <linux/kernel.h>
-#include <linux/blk_types.h>
-#include <linux/backing-dev.h>
-#include <linux/module.h>
-#include <linux/timer.h>
-#include <linux/memcontrol.h>
-#include <linux/sched/loadavg.h>
-#include <linux/sched/signal.h>
+#include <winux/kernel.h>
+#include <winux/blk_types.h>
+#include <winux/backing-dev.h>
+#include <winux/module.h>
+#include <winux/timer.h>
+#include <winux/memcontrol.h>
+#include <winux/sched/loadavg.h>
+#include <winux/sched/signal.h>
 #include <trace/events/block.h>
-#include <linux/blk-mq.h>
+#include <winux/blk-mq.h>
 #include "blk-rq-qos.h"
 #include "blk-stat.h"
 #include "blk-cgroup.h"

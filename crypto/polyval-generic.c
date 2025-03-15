@@ -44,15 +44,15 @@
  *
  */
 
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 #include <crypto/algapi.h>
 #include <crypto/gf128mul.h>
 #include <crypto/polyval.h>
 #include <crypto/internal/hash.h>
-#include <linux/crypto.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <winux/crypto.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
 
 struct polyval_tfm_ctx {
 	struct gf128mul_4k *gf128;

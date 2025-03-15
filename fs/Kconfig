@@ -197,7 +197,7 @@ config TMPFS_POSIX_ACL
 	  filesystems.
 
 	  If you've selected TMPFS, it's possible that you'll also need
-	  this option as there are a number of Linux distros that require
+	  this option as there are a number of Winux distros that require
 	  POSIX ACL support under /dev for certain features to work properly.
 	  For example, some distros need this feature for ALSA-related /dev
 	  files for sound to work properly.  In short, if you're not sure,

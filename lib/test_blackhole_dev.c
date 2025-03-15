@@ -9,13 +9,13 @@
  * Copyright (c) 2018, Mahesh Bandewar <maheshb@google.com>
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include <linux/udp.h>
-#include <linux/ipv6.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/printk.h>
+#include <winux/skbuff.h>
+#include <winux/netdevice.h>
+#include <winux/udp.h>
+#include <winux/ipv6.h>
 
 #include <net/dst.h>
 

@@ -4,45 +4,45 @@
  *
  * Copyright (C) IBM Corporation, 2014
  *
- * Author: Paul E. McKenney <paulmck@linux.ibm.com>
+ * Author: Paul E. McKenney <paulmck@winux.ibm.com>
  *	Based on kernel/rcu/torture.c.
  */
 
 #define pr_fmt(fmt) fmt
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/kthread.h>
-#include <linux/err.h>
-#include <linux/spinlock.h>
-#include <linux/smp.h>
-#include <linux/interrupt.h>
-#include <linux/sched.h>
-#include <linux/sched/clock.h>
-#include <linux/atomic.h>
-#include <linux/bitops.h>
-#include <linux/completion.h>
-#include <linux/moduleparam.h>
-#include <linux/percpu.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
-#include <linux/freezer.h>
-#include <linux/cpu.h>
-#include <linux/delay.h>
-#include <linux/stat.h>
-#include <linux/slab.h>
-#include <linux/trace_clock.h>
-#include <linux/ktime.h>
+#include <winux/types.h>
+#include <winux/kernel.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/kthread.h>
+#include <winux/err.h>
+#include <winux/spinlock.h>
+#include <winux/smp.h>
+#include <winux/interrupt.h>
+#include <winux/sched.h>
+#include <winux/sched/clock.h>
+#include <winux/atomic.h>
+#include <winux/bitops.h>
+#include <winux/completion.h>
+#include <winux/moduleparam.h>
+#include <winux/percpu.h>
+#include <winux/notifier.h>
+#include <winux/reboot.h>
+#include <winux/freezer.h>
+#include <winux/cpu.h>
+#include <winux/delay.h>
+#include <winux/stat.h>
+#include <winux/slab.h>
+#include <winux/trace_clock.h>
+#include <winux/ktime.h>
 #include <asm/byteorder.h>
-#include <linux/torture.h>
-#include <linux/sched/rt.h>
+#include <winux/torture.h>
+#include <winux/sched/rt.h>
 #include "rcu/rcu.h"
 
 MODULE_DESCRIPTION("Common functions for in-kernel torture tests");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.ibm.com>");
+MODULE_AUTHOR("Paul E. McKenney <paulmck@winux.ibm.com>");
 
 static bool disable_onoff_at_boot;
 module_param(disable_onoff_at_boot, bool, 0444);

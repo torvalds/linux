@@ -4,16 +4,16 @@
  *
  * Originally written by Jérôme Glisse.
  */
-#include <linux/export.h>
-#include <linux/memremap.h>
-#include <linux/migrate.h>
-#include <linux/mm.h>
-#include <linux/mm_inline.h>
-#include <linux/mmu_notifier.h>
-#include <linux/oom.h>
-#include <linux/pagewalk.h>
-#include <linux/rmap.h>
-#include <linux/swapops.h>
+#include <winux/export.h>
+#include <winux/memremap.h>
+#include <winux/migrate.h>
+#include <winux/mm.h>
+#include <winux/mm_inline.h>
+#include <winux/mmu_notifier.h>
+#include <winux/oom.h>
+#include <winux/pagewalk.h>
+#include <winux/rmap.h>
+#include <winux/swapops.h>
 #include <asm/tlbflush.h>
 #include "internal.h"
 

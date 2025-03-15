@@ -1,49 +1,49 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Memory Migration functionality - linux/mm/migrate.c
+ * Memory Migration functionality - winux/mm/migrate.c
  *
  * Copyright (C) 2006 Silicon Graphics, Inc., Christoph Lameter
  *
  * Page migration was first developed in the context of the memory hotplug
  * project. The main authors of the migration code are:
  *
- * IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
- * Hirokazu Takahashi <taka@valinux.co.jp>
+ * IWAMOTO Toshihiro <iwamoto@vawinux.co.jp>
+ * Hirokazu Takahashi <taka@vawinux.co.jp>
  * Dave Hansen <haveblue@us.ibm.com>
  * Christoph Lameter
  */
 
-#include <linux/migrate.h>
-#include <linux/export.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
-#include <linux/pagemap.h>
-#include <linux/buffer_head.h>
-#include <linux/mm_inline.h>
-#include <linux/ksm.h>
-#include <linux/rmap.h>
-#include <linux/topology.h>
-#include <linux/cpu.h>
-#include <linux/cpuset.h>
-#include <linux/writeback.h>
-#include <linux/mempolicy.h>
-#include <linux/vmalloc.h>
-#include <linux/security.h>
-#include <linux/backing-dev.h>
-#include <linux/compaction.h>
-#include <linux/syscalls.h>
-#include <linux/compat.h>
-#include <linux/hugetlb.h>
-#include <linux/gfp.h>
-#include <linux/pfn_t.h>
-#include <linux/page_idle.h>
-#include <linux/page_owner.h>
-#include <linux/sched/mm.h>
-#include <linux/ptrace.h>
-#include <linux/memory.h>
-#include <linux/sched/sysctl.h>
-#include <linux/memory-tiers.h>
-#include <linux/pagewalk.h>
+#include <winux/migrate.h>
+#include <winux/export.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
+#include <winux/pagemap.h>
+#include <winux/buffer_head.h>
+#include <winux/mm_inline.h>
+#include <winux/ksm.h>
+#include <winux/rmap.h>
+#include <winux/topology.h>
+#include <winux/cpu.h>
+#include <winux/cpuset.h>
+#include <winux/writeback.h>
+#include <winux/mempolicy.h>
+#include <winux/vmalloc.h>
+#include <winux/security.h>
+#include <winux/backing-dev.h>
+#include <winux/compaction.h>
+#include <winux/syscalls.h>
+#include <winux/compat.h>
+#include <winux/hugetlb.h>
+#include <winux/gfp.h>
+#include <winux/pfn_t.h>
+#include <winux/page_idle.h>
+#include <winux/page_owner.h>
+#include <winux/sched/mm.h>
+#include <winux/ptrace.h>
+#include <winux/memory.h>
+#include <winux/sched/sysctl.h>
+#include <winux/memory-tiers.h>
+#include <winux/pagewalk.h>
 
 #include <asm/tlbflush.h>
 

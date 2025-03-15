@@ -3,28 +3,28 @@
  * fs/dax.c - Direct Access filesystem code
  * Copyright (c) 2013-2014 Intel Corporation
  * Author: Matthew Wilcox <matthew.r.wilcox@intel.com>
- * Author: Ross Zwisler <ross.zwisler@linux.intel.com>
+ * Author: Ross Zwisler <ross.zwisler@winux.intel.com>
  */
 
-#include <linux/atomic.h>
-#include <linux/blkdev.h>
-#include <linux/buffer_head.h>
-#include <linux/dax.h>
-#include <linux/fs.h>
-#include <linux/highmem.h>
-#include <linux/memcontrol.h>
-#include <linux/mm.h>
-#include <linux/mutex.h>
-#include <linux/pagevec.h>
-#include <linux/sched.h>
-#include <linux/sched/signal.h>
-#include <linux/uio.h>
-#include <linux/vmstat.h>
-#include <linux/pfn_t.h>
-#include <linux/sizes.h>
-#include <linux/mmu_notifier.h>
-#include <linux/iomap.h>
-#include <linux/rmap.h>
+#include <winux/atomic.h>
+#include <winux/blkdev.h>
+#include <winux/buffer_head.h>
+#include <winux/dax.h>
+#include <winux/fs.h>
+#include <winux/highmem.h>
+#include <winux/memcontrol.h>
+#include <winux/mm.h>
+#include <winux/mutex.h>
+#include <winux/pagevec.h>
+#include <winux/sched.h>
+#include <winux/sched/signal.h>
+#include <winux/uio.h>
+#include <winux/vmstat.h>
+#include <winux/pfn_t.h>
+#include <winux/sizes.h>
+#include <winux/mmu_notifier.h>
+#include <winux/iomap.h>
+#include <winux/rmap.h>
 #include <asm/pgalloc.h>
 
 #define CREATE_TRACE_POINTS

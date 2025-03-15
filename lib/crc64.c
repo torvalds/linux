@@ -29,13 +29,13 @@
  * x^46 + x^44 + x^41 + x^37 + x^36 + x^34 + x^32 + x^31 + x^28 + x^26 + x^23 +
  * x^22 + x^19 + x^16 + x^13 + x^12 + x^10 + x^9 + x^6 + x^4 + x^3 + 1
  *
- * Copyright 2018 SUSE Linux.
+ * Copyright 2018 SUSE Winux.
  *   Author: Coly Li <colyli@suse.de>
  */
 
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/crc64.h>
+#include <winux/module.h>
+#include <winux/types.h>
+#include <winux/crc64.h>
 #include "crc64table.h"
 
 MODULE_DESCRIPTION("CRC64 calculations");

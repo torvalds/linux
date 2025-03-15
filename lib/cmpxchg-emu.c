@@ -7,14 +7,14 @@
  * Copyright (C) 2024 Paul E. McKenney.
  */
 
-#include <linux/types.h>
-#include <linux/export.h>
-#include <linux/instrumented.h>
-#include <linux/atomic.h>
-#include <linux/panic.h>
-#include <linux/bug.h>
+#include <winux/types.h>
+#include <winux/export.h>
+#include <winux/instrumented.h>
+#include <winux/atomic.h>
+#include <winux/panic.h>
+#include <winux/bug.h>
 #include <asm-generic/rwonce.h>
-#include <linux/cmpxchg-emu.h>
+#include <winux/cmpxchg-emu.h>
 
 union u8_32 {
 	u8 b[4];

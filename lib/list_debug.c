@@ -6,11 +6,11 @@
  * LIST_HARDENED and DEBUG_LIST.
  */
 
-#include <linux/export.h>
-#include <linux/list.h>
-#include <linux/bug.h>
-#include <linux/kernel.h>
-#include <linux/rculist.h>
+#include <winux/export.h>
+#include <winux/list.h>
+#include <winux/bug.h>
+#include <winux/kernel.h>
+#include <winux/rculist.h>
 
 /*
  * Check that the data structures for the list manipulations are reasonably

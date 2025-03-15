@@ -10,9 +10,9 @@
  *
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/polynomial.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/polynomial.h>
 
 /*
  * Originally this was part of drivers/hwmon/bt1-pvt.c.

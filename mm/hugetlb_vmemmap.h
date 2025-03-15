@@ -8,7 +8,7 @@
  */
 #ifndef _LINUX_HUGETLB_VMEMMAP_H
 #define _LINUX_HUGETLB_VMEMMAP_H
-#include <linux/hugetlb.h>
+#include <winux/hugetlb.h>
 
 /*
  * Reserve one vmemmap page, all vmemmap addresses are mapped to it. See

@@ -4,8 +4,8 @@
  * Copyright (C) 2006 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  */
-#include <linux/export.h>
-#include <linux/percpu.h>
+#include <winux/export.h>
+#include <winux/percpu.h>
 #include <asm/irq_regs.h>
 
 #ifndef ARCH_HAS_OWN_IRQ_REGS

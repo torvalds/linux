@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/fs/binfmt_elf.c
+ * winux/fs/binfmt_elf.c
  *
  * These are the functions used to load ELF format executables as used
  * on SVr4 machines.  Information on the format may be found in the book
@@ -10,43 +10,43 @@
  * Copyright 1993, 1994: Eric Youngdale (ericy@cais.com).
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/log2.h>
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/errno.h>
-#include <linux/signal.h>
-#include <linux/binfmts.h>
-#include <linux/string.h>
-#include <linux/file.h>
-#include <linux/slab.h>
-#include <linux/personality.h>
-#include <linux/elfcore.h>
-#include <linux/init.h>
-#include <linux/highuid.h>
-#include <linux/compiler.h>
-#include <linux/highmem.h>
-#include <linux/hugetlb.h>
-#include <linux/pagemap.h>
-#include <linux/vmalloc.h>
-#include <linux/security.h>
-#include <linux/random.h>
-#include <linux/elf.h>
-#include <linux/elf-randomize.h>
-#include <linux/utsname.h>
-#include <linux/coredump.h>
-#include <linux/sched.h>
-#include <linux/sched/coredump.h>
-#include <linux/sched/task_stack.h>
-#include <linux/sched/cputime.h>
-#include <linux/sizes.h>
-#include <linux/types.h>
-#include <linux/cred.h>
-#include <linux/dax.h>
-#include <linux/uaccess.h>
-#include <linux/rseq.h>
+#include <winux/module.h>
+#include <winux/kernel.h>
+#include <winux/fs.h>
+#include <winux/log2.h>
+#include <winux/mm.h>
+#include <winux/mman.h>
+#include <winux/errno.h>
+#include <winux/signal.h>
+#include <winux/binfmts.h>
+#include <winux/string.h>
+#include <winux/file.h>
+#include <winux/slab.h>
+#include <winux/personality.h>
+#include <winux/elfcore.h>
+#include <winux/init.h>
+#include <winux/highuid.h>
+#include <winux/compiler.h>
+#include <winux/highmem.h>
+#include <winux/hugetlb.h>
+#include <winux/pagemap.h>
+#include <winux/vmalloc.h>
+#include <winux/security.h>
+#include <winux/random.h>
+#include <winux/elf.h>
+#include <winux/elf-randomize.h>
+#include <winux/utsname.h>
+#include <winux/coredump.h>
+#include <winux/sched.h>
+#include <winux/sched/coredump.h>
+#include <winux/sched/task_stack.h>
+#include <winux/sched/cputime.h>
+#include <winux/sizes.h>
+#include <winux/types.h>
+#include <winux/cred.h>
+#include <winux/dax.h>
+#include <winux/uaccess.h>
+#include <winux/rseq.h>
 #include <asm/param.h>
 #include <asm/page.h>
 
@@ -66,7 +66,7 @@
 #define elf_check_fdpic(ex) false
 #endif
 
-static int load_elf_binary(struct linux_binprm *bprm);
+static int load_elf_binary(struct winux_binprm *bprm);
 
 #ifdef CONFIG_USELIB
 static int load_elf_library(struct file *);
@@ -98,7 +98,7 @@ static int elf_core_dump(struct coredump_params *cprm);
 #define ELF_PAGEOFFSET(_v) ((_v) & (ELF_MIN_ALIGN-1))
 #define ELF_PAGEALIGN(_v) (((_v) + ELF_MIN_ALIGN - 1) & ~(ELF_MIN_ALIGN - 1))
 
-static struct linux_binfmt elf_format = {
+static struct winux_binfmt elf_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_elf_binary,
 	.load_shlib	= load_elf_library,
@@ -153,7 +153,7 @@ static int padzero(unsigned long address)
 #endif
 
 static int
-create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
+create_elf_tables(struct winux_binprm *bprm, const struct elfhdr *exec,
 		unsigned long interp_load_addr,
 		unsigned long e_entry, unsigned long phdr_addr)
 {
@@ -822,7 +822,7 @@ static int parse_elf_properties(struct file *f, const struct elf_phdr *phdr,
 	return ret == -ENOENT ? 0 : ret;
 }
 
-static int load_elf_binary(struct linux_binprm *bprm)
+static int load_elf_binary(struct winux_binprm *bprm)
 {
 	struct file *interpreter = NULL; /* to shut gcc up */
 	unsigned long load_bias = 0, phdr_addr = 0;
@@ -1710,7 +1710,7 @@ static int fill_files_note(struct memelfnote *note, struct coredump_params *cprm
 	return 0;
 }
 
-#include <linux/regset.h>
+#include <winux/regset.h>
 
 struct elf_thread_core_info {
 	struct elf_thread_core_info *next;
@@ -2033,7 +2033,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	/* If segs > PN_XNUM(0xffff), then e_phnum overflows. To avoid
 	 * this, kernel supports extended numbering. Have a look at
-	 * include/linux/elf.h for further information. */
+	 * include/winux/elf.h for further information. */
 	e_phnum = segs > PN_XNUM ? PN_XNUM : segs;
 
 	/*

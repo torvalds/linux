@@ -1,7 +1,7 @@
-/* Lzma decompressor for Linux kernel. Shamelessly snarfed
+/* Lzma decompressor for Winux kernel. Shamelessly snarfed
  *from busybox 1.1.1
  *
- *Linux kernel adaptation
+ *Winux kernel adaptation
  *Copyright (C) 2006  Alain < alain@knaff.lu >
  *
  *Based on small lzma deflate implementation/Small range coder
@@ -32,10 +32,10 @@
 #ifdef STATIC
 #define PREBOOT
 #else
-#include <linux/decompress/unlzma.h>
+#include <winux/decompress/unlzma.h>
 #endif /* STATIC */
 
-#include <linux/decompress/mm.h>
+#include <winux/decompress/mm.h>
 
 #ifndef MIN
 #define	MIN(a, b) (((a) < (b)) ? (a) : (b))
@@ -62,7 +62,7 @@ static long long INIT read_int(unsigned char *ptr, int size)
  *Copyright (c) 1999-2005  Igor Pavlov
  */
 
-#include <linux/compiler.h>
+#include <winux/compiler.h>
 
 #define LZMA_IOBUF_SIZE	0x10000
 

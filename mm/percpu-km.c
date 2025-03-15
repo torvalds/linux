@@ -2,7 +2,7 @@
 /*
  * mm/percpu-km.c - kernel memory based chunk allocation
  *
- * Copyright (C) 2010		SUSE Linux Products GmbH
+ * Copyright (C) 2010		SUSE Winux Products GmbH
  * Copyright (C) 2010		Tejun Heo <tj@kernel.org>
  *
  * Chunks are allocated as a contiguous kernel memory using gfp
@@ -30,7 +30,7 @@
 #error "contiguous percpu allocation is incompatible with paged first chunk"
 #endif
 
-#include <linux/log2.h>
+#include <winux/log2.h>
 
 static void pcpu_post_unmap_tlb_flush(struct pcpu_chunk *chunk,
 				      int page_start, int page_end)

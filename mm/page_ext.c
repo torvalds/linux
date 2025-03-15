@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/mm.h>
-#include <linux/mmzone.h>
-#include <linux/memblock.h>
-#include <linux/page_ext.h>
-#include <linux/memory.h>
-#include <linux/vmalloc.h>
-#include <linux/kmemleak.h>
-#include <linux/page_owner.h>
-#include <linux/page_idle.h>
-#include <linux/page_table_check.h>
-#include <linux/rcupdate.h>
-#include <linux/pgalloc_tag.h>
+#include <winux/mm.h>
+#include <winux/mmzone.h>
+#include <winux/memblock.h>
+#include <winux/page_ext.h>
+#include <winux/memory.h>
+#include <winux/vmalloc.h>
+#include <winux/kmemleak.h>
+#include <winux/page_owner.h>
+#include <winux/page_idle.h>
+#include <winux/page_table_check.h>
+#include <winux/rcupdate.h>
+#include <winux/pgalloc_tag.h>
 
 /*
  * struct page extension

@@ -6,7 +6,7 @@
  * Copyright (c) 2007 Oracle Corporation.  All rights reserved.
  * Written by Martin K. Petersen <martin.petersen@oracle.com>
  * Copyright (C) 2013 Intel Corporation
- * Author: Tim Chen <tim.c.chen@linux.intel.com>
+ * Author: Tim Chen <tim.c.chen@winux.intel.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -24,11 +24,11 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/crc-t10dif.h>
+#include <winux/module.h>
+#include <winux/crc-t10dif.h>
 #include <crypto/internal/hash.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
 
 struct chksum_desc_ctx {
 	__u16 crc;
@@ -161,7 +161,7 @@ static void __exit crct10dif_mod_fini(void)
 subsys_initcall(crct10dif_mod_init);
 module_exit(crct10dif_mod_fini);
 
-MODULE_AUTHOR("Tim Chen <tim.c.chen@linux.intel.com>");
+MODULE_AUTHOR("Tim Chen <tim.c.chen@winux.intel.com>");
 MODULE_DESCRIPTION("T10 DIF CRC calculation.");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CRYPTO("crct10dif");

@@ -8,7 +8,7 @@
 #
 # What we want to end up with this is that each object file will have a
 # section called __mcount_loc that will hold the list of pointers to mcount
-# callers. After final linking, the vmlinux will have within .init.data the
+# callers. After final linking, the vmwinux will have within .init.data the
 # list of all callers to mcount between __start_mcount_loc and __stop_mcount_loc.
 # Later on boot up, the kernel will read this list, save the locations and turn
 # them into nops. When tracing or profiling is later enabled, these locations
@@ -231,11 +231,11 @@ if ($arch eq "x86_64") {
     $alignment = 2;
 
     # force flags for this arch
-    $ld .= " -m shlelf_linux";
+    $ld .= " -m shlelf_winux";
     if ($endian eq "big") {
-	$objcopy .= " -O elf32-shbig-linux";
+	$objcopy .= " -O elf32-shbig-winux";
     } else {
-	$objcopy .= " -O elf32-sh-linux";
+	$objcopy .= " -O elf32-sh-winux";
     }
 
 } elsif ($arch eq "powerpc") {

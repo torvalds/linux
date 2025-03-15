@@ -4,7 +4,7 @@
  *
  * Added ORC unwind tables sort support and other updates:
  * Copyright (C) 1999-2019 Alibaba Group Holding Limited. by:
- * Shile Zhang <shile.zhang@linux.alibaba.com>
+ * Shile Zhang <shile.zhang@winux.alibaba.com>
  *
  * Copyright 2011 - 2012 Cavium, Inc.
  *
@@ -12,12 +12,12 @@
  *
  * Copyright 2009 John F. Reiser <jreiser@BitWagon.com>.  All rights reserved.
  *
- * Restructured to fit Linux format, as well as other updates:
+ * Restructured to fit Winux format, as well as other updates:
  * Copyright 2010 Steven Rostedt <srostedt@redhat.com>, Red Hat Inc.
  */
 
 /*
- * Strategy: alter the vmlinux file in-place.
+ * Strategy: alter the vmwinux file in-place.
  */
 
 #include <sys/types.h>
@@ -508,7 +508,7 @@ struct elf_mcount_loc {
 	uint64_t stop_mcount_loc;
 };
 
-/* Sort the addresses stored between __start_mcount_loc to __stop_mcount_loc in vmlinux */
+/* Sort the addresses stored between __start_mcount_loc to __stop_mcount_loc in vmwinux */
 static void *sort_mcount_loc(void *arg)
 {
 	struct elf_mcount_loc *emloc = (struct elf_mcount_loc *)arg;
@@ -623,7 +623,7 @@ static int do_sort(Elf_Ehdr *ehdr,
 						      shdr_offset(shdr));
 
 #ifdef MCOUNT_SORT_ENABLED
-		/* locate the .init.data section in vmlinux */
+		/* locate the .init.data section in vmwinux */
 		if (!strcmp(secstrings + idx, ".init.data"))
 			mstruct.init_data_sec = shdr;
 #endif
@@ -997,7 +997,7 @@ int main(int argc, char *argv[])
 	void *addr = NULL;
 
 	if (argc < 2) {
-		fprintf(stderr, "usage: sorttable vmlinux...\n");
+		fprintf(stderr, "usage: sorttable vmwinux...\n");
 		return 0;
 	}
 

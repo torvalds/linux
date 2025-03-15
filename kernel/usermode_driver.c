@@ -2,12 +2,12 @@
 /*
  * umd - User mode driver support
  */
-#include <linux/shmem_fs.h>
-#include <linux/pipe_fs_i.h>
-#include <linux/mount.h>
-#include <linux/fs_struct.h>
-#include <linux/task_work.h>
-#include <linux/usermode_driver.h>
+#include <winux/shmem_fs.h>
+#include <winux/pipe_fs_i.h>
+#include <winux/mount.h>
+#include <winux/fs_struct.h>
+#include <winux/task_work.h>
+#include <winux/usermode_driver.h>
 
 static struct vfsmount *blob_to_mnt(const void *data, size_t len, const char *name)
 {

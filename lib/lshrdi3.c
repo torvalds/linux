@@ -3,8 +3,8 @@
  * lib/lshrdi3.c
  */
 
-#include <linux/module.h>
-#include <linux/libgcc.h>
+#include <winux/module.h>
+#include <winux/libgcc.h>
 
 long long notrace __lshrdi3(long long u, word_type b)
 {

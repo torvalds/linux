@@ -6,19 +6,19 @@
  * Copyright (C) 2001 Peter Bergner.
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/bitops.h>
-#include <linux/poison.h>
-#include <linux/pfn.h>
-#include <linux/debugfs.h>
-#include <linux/kmemleak.h>
-#include <linux/seq_file.h>
-#include <linux/memblock.h>
+#include <winux/kernel.h>
+#include <winux/slab.h>
+#include <winux/init.h>
+#include <winux/bitops.h>
+#include <winux/poison.h>
+#include <winux/pfn.h>
+#include <winux/debugfs.h>
+#include <winux/kmemleak.h>
+#include <winux/seq_file.h>
+#include <winux/memblock.h>
 
 #include <asm/sections.h>
-#include <linux/io.h>
+#include <winux/io.h>
 
 #include "internal.h"
 

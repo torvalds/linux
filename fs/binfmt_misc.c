@@ -10,23 +10,23 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/sched/mm.h>
-#include <linux/magic.h>
-#include <linux/binfmts.h>
-#include <linux/slab.h>
-#include <linux/ctype.h>
-#include <linux/string_helpers.h>
-#include <linux/file.h>
-#include <linux/pagemap.h>
-#include <linux/namei.h>
-#include <linux/mount.h>
-#include <linux/fs_context.h>
-#include <linux/syscalls.h>
-#include <linux/fs.h>
-#include <linux/uaccess.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/init.h>
+#include <winux/sched/mm.h>
+#include <winux/magic.h>
+#include <winux/binfmts.h>
+#include <winux/slab.h>
+#include <winux/ctype.h>
+#include <winux/string_helpers.h>
+#include <winux/file.h>
+#include <winux/pagemap.h>
+#include <winux/namei.h>
+#include <winux/mount.h>
+#include <winux/fs_context.h>
+#include <winux/syscalls.h>
+#include <winux/fs.h>
+#include <winux/uaccess.h>
 
 #include "internal.h"
 
@@ -88,7 +88,7 @@ static struct file_system_type bm_fs_type;
  * Return: binary type list entry on success, NULL on failure
  */
 static Node *search_binfmt_handler(struct binfmt_misc *misc,
-				   struct linux_binprm *bprm)
+				   struct winux_binprm *bprm)
 {
 	char *p = strrchr(bprm->interp, '.');
 	Node *e;
@@ -138,7 +138,7 @@ static Node *search_binfmt_handler(struct binfmt_misc *misc,
  * Return: binary type list entry on success, NULL on failure
  */
 static Node *get_binfmt_handler(struct binfmt_misc *misc,
-				struct linux_binprm *bprm)
+				struct winux_binprm *bprm)
 {
 	Node *e;
 
@@ -199,7 +199,7 @@ static struct binfmt_misc *load_binfmt_misc(void)
 /*
  * the loader itself
  */
-static int load_misc_binary(struct linux_binprm *bprm)
+static int load_misc_binary(struct winux_binprm *bprm)
 {
 	Node *fmt;
 	struct file *interp_file = NULL;
@@ -1056,7 +1056,7 @@ static int bm_init_fs_context(struct fs_context *fc)
 	return 0;
 }
 
-static struct linux_binfmt misc_format = {
+static struct winux_binfmt misc_format = {
 	.module = THIS_MODULE,
 	.load_binary = load_misc_binary,
 };

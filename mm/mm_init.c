@@ -6,30 +6,30 @@
  * Author Mel Gorman <mel@csn.ul.ie>
  *
  */
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/kobject.h>
-#include <linux/export.h>
-#include <linux/memory.h>
-#include <linux/notifier.h>
-#include <linux/sched.h>
-#include <linux/mman.h>
-#include <linux/memblock.h>
-#include <linux/page-isolation.h>
-#include <linux/padata.h>
-#include <linux/nmi.h>
-#include <linux/buffer_head.h>
-#include <linux/kmemleak.h>
-#include <linux/kfence.h>
-#include <linux/page_ext.h>
-#include <linux/pti.h>
-#include <linux/pgtable.h>
-#include <linux/stackdepot.h>
-#include <linux/swap.h>
-#include <linux/cma.h>
-#include <linux/crash_dump.h>
-#include <linux/execmem.h>
-#include <linux/vmstat.h>
+#include <winux/kernel.h>
+#include <winux/init.h>
+#include <winux/kobject.h>
+#include <winux/export.h>
+#include <winux/memory.h>
+#include <winux/notifier.h>
+#include <winux/sched.h>
+#include <winux/mman.h>
+#include <winux/memblock.h>
+#include <winux/page-isolation.h>
+#include <winux/padata.h>
+#include <winux/nmi.h>
+#include <winux/buffer_head.h>
+#include <winux/kmemleak.h>
+#include <winux/kfence.h>
+#include <winux/page_ext.h>
+#include <winux/pti.h>
+#include <winux/pgtable.h>
+#include <winux/stackdepot.h>
+#include <winux/swap.h>
+#include <winux/cma.h>
+#include <winux/crash_dump.h>
+#include <winux/execmem.h>
+#include <winux/vmstat.h>
 #include "internal.h"
 #include "slab.h"
 #include "shuffle.h"
@@ -1494,7 +1494,7 @@ void __init set_pageblock_order(void)
 /*
  * When CONFIG_HUGETLB_PAGE_SIZE_VARIABLE is not set, set_pageblock_order()
  * is unused as pageblock_order is set at compile-time. See
- * include/linux/pageblock-flags.h for the values of pageblock_order based on
+ * include/winux/pageblock-flags.h for the values of pageblock_order based on
  * the kernel config
  */
 void __init set_pageblock_order(void)
@@ -2602,7 +2602,7 @@ static void __init mem_init_print_info(void)
 	 * Detect special cases and adjust section sizes accordingly:
 	 * 1) .init.* may be embedded into .data sections
 	 * 2) .init.text.* may be out of [__init_begin, __init_end],
-	 *    please refer to arch/tile/kernel/vmlinux.lds.S.
+	 *    please refer to arch/tile/kernel/vmwinux.lds.S.
 	 * 3) .rodata.* may be embedded into .text or .data sections.
 	 */
 #define adj_init_size(start, end, size, pos, adj) \

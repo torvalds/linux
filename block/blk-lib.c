@@ -2,11 +2,11 @@
 /*
  * Functions related to generic helpers functions
  */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/bio.h>
-#include <linux/blkdev.h>
-#include <linux/scatterlist.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/bio.h>
+#include <winux/blkdev.h>
+#include <winux/scatterlist.h>
 
 #include "blk.h"
 

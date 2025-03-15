@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/mm/oom_kill.c
+ *  winux/mm/oom_kill.c
  * 
  *  Copyright (C)  1998,2000  Rik van Riel
  *	Thanks go out to Claus Fischer for some serious inspiration and
@@ -18,33 +18,33 @@
  *  kernel subsystems and hints as to where to find out what things do.
  */
 
-#include <linux/oom.h>
-#include <linux/mm.h>
-#include <linux/err.h>
-#include <linux/gfp.h>
-#include <linux/sched.h>
-#include <linux/sched/mm.h>
-#include <linux/sched/task.h>
-#include <linux/sched/debug.h>
-#include <linux/swap.h>
-#include <linux/syscalls.h>
-#include <linux/timex.h>
-#include <linux/jiffies.h>
-#include <linux/cpuset.h>
-#include <linux/export.h>
-#include <linux/notifier.h>
-#include <linux/memcontrol.h>
-#include <linux/mempolicy.h>
-#include <linux/security.h>
-#include <linux/ptrace.h>
-#include <linux/freezer.h>
-#include <linux/ftrace.h>
-#include <linux/ratelimit.h>
-#include <linux/kthread.h>
-#include <linux/init.h>
-#include <linux/mmu_notifier.h>
-#include <linux/cred.h>
-#include <linux/nmi.h>
+#include <winux/oom.h>
+#include <winux/mm.h>
+#include <winux/err.h>
+#include <winux/gfp.h>
+#include <winux/sched.h>
+#include <winux/sched/mm.h>
+#include <winux/sched/task.h>
+#include <winux/sched/debug.h>
+#include <winux/swap.h>
+#include <winux/syscalls.h>
+#include <winux/timex.h>
+#include <winux/jiffies.h>
+#include <winux/cpuset.h>
+#include <winux/export.h>
+#include <winux/notifier.h>
+#include <winux/memcontrol.h>
+#include <winux/mempolicy.h>
+#include <winux/security.h>
+#include <winux/ptrace.h>
+#include <winux/freezer.h>
+#include <winux/ftrace.h>
+#include <winux/ratelimit.h>
+#include <winux/kthread.h>
+#include <winux/init.h>
+#include <winux/mmu_notifier.h>
+#include <winux/cred.h>
+#include <winux/nmi.h>
 
 #include <asm/tlb.h>
 #include "internal.h"

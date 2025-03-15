@@ -6,12 +6,12 @@
  * Written by: Martin K. Petersen <martin.petersen@oracle.com>
  */
 
-#include <linux/blk-integrity.h>
-#include <linux/mempool.h>
-#include <linux/export.h>
-#include <linux/bio.h>
-#include <linux/workqueue.h>
-#include <linux/slab.h>
+#include <winux/blk-integrity.h>
+#include <winux/mempool.h>
+#include <winux/export.h>
+#include <winux/bio.h>
+#include <winux/workqueue.h>
+#include <winux/slab.h>
 #include "blk.h"
 
 static struct kmem_cache *bip_slab;

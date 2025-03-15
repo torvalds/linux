@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/ucs2_string.h>
-#include <linux/module.h>
+#include <winux/ucs2_string.h>
+#include <winux/module.h>
 
 /* Return the number of unicode characters in data */
 unsigned long

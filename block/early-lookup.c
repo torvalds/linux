@@ -3,8 +3,8 @@
  * Code for looking up block devices in the early boot code before mounting the
  * root file system.
  */
-#include <linux/blkdev.h>
-#include <linux/ctype.h>
+#include <winux/blkdev.h>
+#include <winux/ctype.h>
 
 struct uuidcmp {
 	const char *uuid;

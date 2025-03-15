@@ -11,24 +11,24 @@
 
 #define pr_fmt(fmt) "LSM: " fmt
 
-#include <linux/bpf.h>
-#include <linux/capability.h>
-#include <linux/dcache.h>
-#include <linux/export.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/kernel_read_file.h>
-#include <linux/lsm_hooks.h>
-#include <linux/mman.h>
-#include <linux/mount.h>
-#include <linux/personality.h>
-#include <linux/backing-dev.h>
-#include <linux/string.h>
-#include <linux/xattr.h>
-#include <linux/msg.h>
-#include <linux/overflow.h>
-#include <linux/perf_event.h>
-#include <linux/fs.h>
+#include <winux/bpf.h>
+#include <winux/capability.h>
+#include <winux/dcache.h>
+#include <winux/export.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/kernel_read_file.h>
+#include <winux/lsm_hooks.h>
+#include <winux/mman.h>
+#include <winux/mount.h>
+#include <winux/personality.h>
+#include <winux/backing-dev.h>
+#include <winux/string.h>
+#include <winux/xattr.h>
+#include <winux/msg.h>
+#include <winux/overflow.h>
+#include <winux/perf_event.h>
+#include <winux/fs.h>
 #include <net/flow.h>
 #include <net/sock.h>
 
@@ -36,7 +36,7 @@
 
 /*
  * Identifier for the LSM static calls.
- * HOOK is an LSM hook as defined in linux/lsm_hookdefs.h
+ * HOOK is an LSM hook as defined in winux/lsm_hookdefs.h
  * IDX is the index of the static call. 0 <= NUM < MAX_LSM_COUNT
  */
 #define LSM_STATIC_CALL(HOOK, IDX) lsm_static_call_##HOOK##_##IDX
@@ -125,7 +125,7 @@ static __initdata struct lsm_info *exclusive;
 
 #define LSM_HOOK(RET, DEFAULT, NAME, ...)				\
 	LSM_DEFINE_UNROLL(DEFINE_LSM_STATIC_CALL, NAME, RET, __VA_ARGS__)
-#include <linux/lsm_hook_defs.h>
+#include <winux/lsm_hook_defs.h>
 #undef LSM_HOOK
 #undef DEFINE_LSM_STATIC_CALL
 
@@ -152,7 +152,7 @@ struct lsm_static_calls_table
 	.NAME = {							\
 		LSM_DEFINE_UNROLL(INIT_LSM_STATIC_CALL, NAME)		\
 	},
-#include <linux/lsm_hook_defs.h>
+#include <winux/lsm_hook_defs.h>
 #undef LSM_HOOK
 #undef INIT_LSM_STATIC_CALL
 	};
@@ -918,7 +918,7 @@ out:
 }
 
 /*
- * The default value of the LSM hook is defined in linux/lsm_hook_defs.h and
+ * The default value of the LSM hook is defined in winux/lsm_hook_defs.h and
  * can be accessed with:
  *
  *	LSM_RET_DEFAULT(<hook_name>)
@@ -933,7 +933,7 @@ out:
 #define LSM_HOOK(RET, DEFAULT, NAME, ...) \
 	DECLARE_LSM_RET_DEFAULT_##RET(DEFAULT, NAME)
 
-#include <linux/lsm_hook_defs.h>
+#include <winux/lsm_hook_defs.h>
 #undef LSM_HOOK
 
 /*
@@ -1129,8 +1129,8 @@ int security_capset(struct cred *new, const struct cred *old,
  * @opts: capability check options
  *
  * Check whether the @tsk process has the @cap capability in the indicated
- * credentials.  @cap contains the capability <include/linux/capability.h>.
- * @opts contains options for the capable check <include/linux/security.h>.
+ * credentials.  @cap contains the capability <include/winux/capability.h>.
+ * @opts contains options for the capable check <include/winux/security.h>.
  *
  * Return: Returns 0 if the capability is granted.
  */
@@ -1192,7 +1192,7 @@ int security_syslog(int type)
  * @tz: timezone
  *
  * Check permission to change the system time, struct timespec64 is defined in
- * <include/linux/time64.h> and timezone is defined in <include/linux/time.h>.
+ * <include/winux/time64.h> and timezone is defined in <include/winux/time.h>.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -1246,7 +1246,7 @@ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
  * program.  This hook may also optionally check permissions (e.g. for
  * transitions between security domains).  The hook must set @bprm->secureexec
  * to 1 if AT_SECURE should be set to request libc enable secure mode.  @bprm
- * contains the linux_binprm structure.
+ * contains the winux_binprm structure.
  *
  * If execveat(2) is called with the AT_EXECVE_CHECK flag, bprm->is_check is
  * set.  The result must be the same as without this flag even if the execution
@@ -1256,13 +1256,13 @@ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
  *
  * Return: Returns 0 if the hook is successful and permission is granted.
  */
-int security_bprm_creds_for_exec(struct linux_binprm *bprm)
+int security_bprm_creds_for_exec(struct winux_binprm *bprm)
 {
 	return call_int_hook(bprm_creds_for_exec, bprm);
 }
 
 /**
- * security_bprm_creds_from_file() - Update linux_binprm creds based on file
+ * security_bprm_creds_from_file() - Update winux_binprm creds based on file
  * @bprm: binary program information
  * @file: associated file
  *
@@ -1275,12 +1275,12 @@ int security_bprm_creds_for_exec(struct linux_binprm *bprm)
  * transitions between security domains).  The hook must set @bprm->secureexec
  * to 1 if AT_SECURE should be set to request libc enable secure mode.  The
  * hook must add to @bprm->per_clear any personality flags that should be
- * cleared from current->personality.  @bprm contains the linux_binprm
+ * cleared from current->personality.  @bprm contains the winux_binprm
  * structure.
  *
  * Return: Returns 0 if the hook is successful and permission is granted.
  */
-int security_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file)
+int security_bprm_creds_from_file(struct winux_binprm *bprm, const struct file *file)
 {
 	return call_int_hook(bprm_creds_from_file, bprm, file);
 }
@@ -1293,11 +1293,11 @@ int security_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *
  * It allows a check against the @bprm->cred->security value which was set in
  * the preceding creds_for_exec call.  The argv list and envp list are reliably
  * available in @bprm.  This hook may be called multiple times during a single
- * execve.  @bprm contains the linux_binprm structure.
+ * execve.  @bprm contains the winux_binprm structure.
  *
  * Return: Returns 0 if the hook is successful and permission is granted.
  */
-int security_bprm_check(struct linux_binprm *bprm)
+int security_bprm_check(struct winux_binprm *bprm)
 {
 	return call_int_hook(bprm_check_security, bprm);
 }
@@ -1309,12 +1309,12 @@ int security_bprm_check(struct linux_binprm *bprm)
  * Prepare to install the new security attributes of a process being
  * transformed by an execve operation, based on the old credentials pointed to
  * by @current->cred and the information set in @bprm->cred by the
- * bprm_creds_for_exec hook.  @bprm points to the linux_binprm structure.  This
+ * bprm_creds_for_exec hook.  @bprm points to the winux_binprm structure.  This
  * hook is a good place to perform state changes on the process such as closing
  * open file descriptors to which access will no longer be granted when the
  * attributes are changed.  This is called immediately before commit_creds().
  */
-void security_bprm_committing_creds(const struct linux_binprm *bprm)
+void security_bprm_committing_creds(const struct winux_binprm *bprm)
 {
 	call_void_hook(bprm_committing_creds, bprm);
 }
@@ -1325,12 +1325,12 @@ void security_bprm_committing_creds(const struct linux_binprm *bprm)
  *
  * Tidy up after the installation of the new security attributes of a process
  * being transformed by an execve operation.  The new credentials have, by this
- * point, been set to @current->cred.  @bprm points to the linux_binprm
+ * point, been set to @current->cred.  @bprm points to the winux_binprm
  * structure.  This hook is a good place to perform state changes on the
  * process such as clearing out non-inheritable signal state.  This is called
  * immediately after commit_creds().
  */
-void security_bprm_committed_creds(const struct linux_binprm *bprm)
+void security_bprm_committed_creds(const struct winux_binprm *bprm)
 {
 	call_void_hook(bprm_committed_creds, bprm);
 }
@@ -1801,7 +1801,7 @@ EXPORT_SYMBOL(security_dentry_create_files_as);
  * lsm_get_xattr_slot() to retrieve the slots reserved by the security module
  * with the lbs_xattr_count field of the lsm_blob_sizes structure.  For each
  * slot, the hook function should set ->name to the attribute name suffix
- * (e.g. selinux), to allocate ->value (will be freed by the caller) and set it
+ * (e.g. sewinux), to allocate ->value (will be freed by the caller) and set it
  * to the attribute value, to set ->value_len to the length of the value.  If
  * the security module does not use security attributes or does not wish to put
  * a security attribute on this particular inode, then it should return
@@ -2052,7 +2052,7 @@ int security_path_truncate(const struct path *path)
  *
  * Check for permission to change a mode of the file @path. The new mode is
  * specified in @mode which is a bitmask of constants from
- * <include/uapi/linux/stat.h>.
+ * <include/uapi/winux/stat.h>.
  *
  * Return: Returns 0 if permission is granted.
  */
@@ -2309,8 +2309,8 @@ int security_inode_follow_link(struct dentry *dentry, struct inode *inode,
  * @mask: access mask
  *
  * Check permission before accessing an inode.  This hook is called by the
- * existing Linux permission function, so a security module can use it to
- * provide additional checking for existing Linux permission checks.  Notice
+ * existing Winux permission function, so a security module can use it to
+ * provide additional checking for existing Winux permission checks.  Notice
  * that this hook is called when a file is opened (as well as many other
  * operations), whereas the file_security_ops permission hook is called when
  * the actual read/write operations are performed.
@@ -4493,7 +4493,7 @@ int security_watch_key(struct key *key)
  * between @sock and @other.
  *
  * The @unix_stream_connect and @unix_may_send hooks were necessary because
- * Linux provides an alternative to the conventional file name space for Unix
+ * Winux provides an alternative to the conventional file name space for Unix
  * domain sockets.  Whereas binding and connecting to sockets in the file name
  * space is mediated by the typical file permissions (and caught by the mknod
  * and permission hooks in inode_security_ops), binding and connecting to
@@ -4520,7 +4520,7 @@ EXPORT_SYMBOL(security_unix_stream_connect);
  * @other.
  *
  * The @unix_stream_connect and @unix_may_send hooks were necessary because
- * Linux provides an alternative to the conventional file name space for Unix
+ * Winux provides an alternative to the conventional file name space for Unix
  * domain sockets.  Whereas binding and connecting to sockets in the file name
  * space is mediated by the typical file permissions (and caught by the mknod
  * and permission hooks in inode_security_ops), binding and connecting to
@@ -5426,7 +5426,7 @@ int security_xfrm_state_pol_flow_match(struct xfrm_state *x,
 	/*
 	 * Since this function is expected to return 0 or 1, the judgment
 	 * becomes difficult if multiple LSMs supply this call. Fortunately,
-	 * we can use the first LSM's judgment because currently only SELinux
+	 * we can use the first LSM's judgment because currently only SEWinux
 	 * supplies this call.
 	 *
 	 * For speed optimization, we explicitly break the loop rather than

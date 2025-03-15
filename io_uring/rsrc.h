@@ -2,7 +2,7 @@
 #ifndef IOU_RSRC_H
 #define IOU_RSRC_H
 
-#include <linux/lockdep.h>
+#include <winux/lockdep.h>
 
 enum {
 	IORING_RSRC_FILE		= 0,

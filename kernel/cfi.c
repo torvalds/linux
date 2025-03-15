@@ -5,7 +5,7 @@
  * Copyright (C) 2022 Google LLC
  */
 
-#include <linux/cfi.h>
+#include <winux/cfi.h>
 
 enum bug_trap_type report_cfi_failure(struct pt_regs *regs, unsigned long addr,
 				      unsigned long *target, u32 type)

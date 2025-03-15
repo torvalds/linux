@@ -1,6 +1,6 @@
 # Head objects
 #
-# The objects listed here are placed at the head of vmlinux. A typical use-case
+# The objects listed here are placed at the head of vmwinux. A typical use-case
 # is an object that contains the entry point. This is kept for compatibility
 # with head-y, which Kbuild used to support.
 #

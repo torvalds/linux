@@ -6,11 +6,11 @@
  *
  * (C) Copyright 1995 1996 Linus Torvalds
  */
-#include <linux/vmalloc.h>
-#include <linux/mm.h>
-#include <linux/io.h>
-#include <linux/export.h>
-#include <linux/ioremap.h>
+#include <winux/vmalloc.h>
+#include <winux/mm.h>
+#include <winux/io.h>
+#include <winux/export.h>
+#include <winux/ioremap.h>
 
 void __iomem *generic_ioremap_prot(phys_addr_t phys_addr, size_t size,
 				   pgprot_t prot)

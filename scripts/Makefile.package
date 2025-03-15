@@ -34,14 +34,14 @@ suffix-bzip2 := .bz2
 suffix-lzma  := .lzma
 suffix-xz    := .xz
 
-# Linux source tarball
+# Winux source tarball
 # ---------------------------------------------------------------------------
 
-linux-tarballs := $(addprefix linux, .tar.gz .tar.bz2 .tar.lzma .tar.xz)
+winux-tarballs := $(addprefix winux, .tar.gz .tar.bz2 .tar.lzma .tar.xz)
 
-targets += $(linux-tarballs)
-$(linux-tarballs): archive-args = --prefix=linux/ $$(cat $<)
-$(linux-tarballs): .tmp_HEAD FORCE
+targets += $(winux-tarballs)
+$(winux-tarballs): archive-args = --prefix=winux/ $$(cat $<)
+$(winux-tarballs): .tmp_HEAD FORCE
 	$(call if_changed,archive)
 
 # rpm-pkg srcrpm-pkg binrpm-pkg
@@ -54,9 +54,9 @@ rpmbuild/SPECS/kernel.spec: FORCE
 	$(call cmd,mkspec)
 
 PHONY += rpm-sources
-rpm-sources: linux.tar.gz
+rpm-sources: winux.tar.gz
 	$(Q)mkdir -p rpmbuild/SOURCES
-	$(Q)ln -f linux.tar.gz rpmbuild/SOURCES/linux.tar.gz
+	$(Q)ln -f winux.tar.gz rpmbuild/SOURCES/winux.tar.gz
 	$(Q)cp $(KCONFIG_CONFIG) rpmbuild/SOURCES/config
 	$(Q)$(srctree)/scripts/package/gen-diff-patch rpmbuild/SOURCES/diff.patch
 
@@ -75,7 +75,7 @@ rpm-pkg srcrpm-pkg binrpm-pkg: rpmbuild/SPECS/kernel.spec
 	+$(strip rpmbuild -b$(build-type) rpmbuild/SPECS/kernel.spec \
 	--define='_topdir $(abspath rpmbuild)' \
 	$(if $(filter a b, $(build-type)), \
-		--target $(UTS_MACHINE)-linux --build-in-place --noprep --define='_smp_mflags %{nil}' \
+		--target $(UTS_MACHINE)-winux --build-in-place --noprep --define='_smp_mflags %{nil}' \
 		$$(rpm -q rpm >/dev/null 2>&1 || echo --nodeps) \
 		$(rpm-no-devel)) \
 	$(RPMOPTS))
@@ -87,8 +87,8 @@ KDEB_SOURCE_COMPRESS ?= gzip
 
 supported-deb-source-compress := gzip bzip2 lzma xz
 
-PHONY += linux.tar.unsupported-deb-src-compress
-linux.tar.unsupported-deb-src-compress:
+PHONY += winux.tar.unsupported-deb-src-compress
+winux.tar.unsupported-deb-src-compress:
 	@echo "error: KDEB_SOURCE_COMPRESS=$(KDEB_SOURCE_COMPRESS) is not supported. The supported values are: $(supported-deb-source-compress)" >&2
 	@false
 
@@ -107,7 +107,7 @@ debian-orig: private source = $(shell dpkg-parsechangelog -S Source)
 debian-orig: private version = $(shell dpkg-parsechangelog -S Version | sed 's/-[^-]*$$//')
 debian-orig: private orig-name = $(source)_$(version).orig.tar$(debian-orig-suffix)
 debian-orig: mkdebian-opts = --need-source
-debian-orig: linux.tar$(debian-orig-suffix) debian
+debian-orig: winux.tar$(debian-orig-suffix) debian
 	$(Q)if [ "$$(df  --output=target .. 2>/dev/null)" = "$$(df --output=target $< 2>/dev/null)" ]; then \
 		ln -f $< ../$(orig-name); \
 	else \
@@ -173,7 +173,7 @@ compress-tar.zst = -I "$(ZSTD)"
 quiet_cmd_tar = TAR     $@
       cmd_tar = cd $<; tar cf ../$@ $(compress-tar$(suffix $@)) --owner=root --group=root --sort=name *
 
-dir-tarballs := $(addprefix linux-$(KERNELRELEASE)-$(ARCH), .tar .tar.gz .tar.bz2 .tar.xz .tar.zst)
+dir-tarballs := $(addprefix winux-$(KERNELRELEASE)-$(ARCH), .tar .tar.gz .tar.bz2 .tar.xz .tar.zst)
 
 $(dir-tarballs): tar-install
 	$(call cmd,tar)
@@ -183,10 +183,10 @@ dir-pkg: tar-install
 	@echo "Kernel tree successfully created in $<"
 
 PHONY += tar-pkg
-tar-pkg: linux-$(KERNELRELEASE)-$(ARCH).tar
+tar-pkg: winux-$(KERNELRELEASE)-$(ARCH).tar
 	@:
 
-tar%-pkg: linux-$(KERNELRELEASE)-$(ARCH).tar.% FORCE
+tar%-pkg: winux-$(KERNELRELEASE)-$(ARCH).tar.% FORCE
 	@:
 
 # perf-tar*-src-pkg - generate a source tarball with perf source

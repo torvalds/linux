@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/err.h>
-#include <linux/spinlock.h>
+#include <winux/kernel.h>
+#include <winux/errno.h>
+#include <winux/err.h>
+#include <winux/spinlock.h>
 
-#include <linux/mm.h>
-#include <linux/memfd.h>
-#include <linux/memremap.h>
-#include <linux/pagemap.h>
-#include <linux/rmap.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
-#include <linux/secretmem.h>
+#include <winux/mm.h>
+#include <winux/memfd.h>
+#include <winux/memremap.h>
+#include <winux/pagemap.h>
+#include <winux/rmap.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
+#include <winux/secretmem.h>
 
-#include <linux/sched/signal.h>
-#include <linux/rwsem.h>
-#include <linux/hugetlb.h>
-#include <linux/migrate.h>
-#include <linux/mm_inline.h>
-#include <linux/pagevec.h>
-#include <linux/sched/mm.h>
-#include <linux/shmem_fs.h>
+#include <winux/sched/signal.h>
+#include <winux/rwsem.h>
+#include <winux/hugetlb.h>
+#include <winux/migrate.h>
+#include <winux/mm_inline.h>
+#include <winux/pagevec.h>
+#include <winux/sched/mm.h>
+#include <winux/shmem_fs.h>
 
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
@@ -1055,7 +1055,7 @@ static struct page *follow_p4d_mask(struct vm_area_struct *vma,
  * @ctx: contains dev_pagemap for %ZONE_DEVICE memory pinning and a
  *       pointer to output page_mask
  *
- * @flags can have FOLL_ flags set, defined in <linux/mm.h>
+ * @flags can have FOLL_ flags set, defined in <winux/mm.h>
  *
  * When getting pages from ZONE_DEVICE memory, the @ctx->pgmap caches
  * the device's dev_pagemap metadata to avoid repeating expensive lookups.

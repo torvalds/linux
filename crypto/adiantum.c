@@ -38,7 +38,7 @@
 #include <crypto/internal/skcipher.h>
 #include <crypto/nhpoly1305.h>
 #include <crypto/scatterwalk.h>
-#include <linux/module.h>
+#include <winux/module.h>
 
 /*
  * Size of right-hand part of input data, in bytes; also the size of the block
@@ -53,7 +53,7 @@
 #define HASH_KEY_SIZE		(POLY1305_BLOCK_SIZE + NHPOLY1305_KEY_SIZE)
 
 /*
- * The specification allows variable-length tweaks, but Linux's crypto API
+ * The specification allows variable-length tweaks, but Winux's crypto API
  * currently only allows algorithms to support a single length.  The "natural"
  * tweak length for Adiantum is 16, since that fits into one Poly1305 block for
  * the best performance.  But longer tweaks are useful for fscrypt, to avoid

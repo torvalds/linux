@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <crypto/internal/hash.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/xxhash.h>
-#include <linux/unaligned.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/xxhash.h>
+#include <winux/unaligned.h>
 
 #define XXHASH64_BLOCK_SIZE	32
 #define XXHASH64_DIGEST_SIZE	8

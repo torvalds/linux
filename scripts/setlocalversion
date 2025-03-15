@@ -6,7 +6,7 @@
 #
 # If something goes wrong, send a mail the kernel build mailinglist
 # (see MAINTAINERS) and CC Nico Schottelius
-# <nico-linuxsetlocalversion -at- schottelius.org>.
+# <nico-winuxsetlocalversion -at- schottelius.org>.
 #
 #
 
@@ -91,7 +91,7 @@ scm_version()
 
 	# If a localversion* file exists, and the corresponding
 	# annotated tag exists and is an ancestor of HEAD, use
-	# it. This is the case in linux-next.
+	# it. This is the case in winux-next.
 	if [ -n "${file_localversion#-}" ] ; then
 		try_tag "${file_localversion#-}"
 	fi
@@ -99,7 +99,7 @@ scm_version()
 	# Otherwise, if a localversion* file exists, and the tag
 	# obtained by appending it to the tag derived from
 	# KERNELVERSION exists and is an ancestor of HEAD, use
-	# it. This is e.g. the case in linux-rt.
+	# it. This is e.g. the case in winux-rt.
 	if [ -z "${count}" ] && [ -n "${file_localversion}" ]; then
 		try_tag "${version_tag}${file_localversion}"
 	fi

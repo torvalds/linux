@@ -3,7 +3,7 @@
 #
 # Copyright © 2020, Microsoft Corporation. All rights reserved.
 #
-# Author: Mickaël Salaün <mic@linux.microsoft.com>
+# Author: Mickaël Salaün <mic@winux.microsoft.com>
 #
 # Check that a CONFIG_SYSTEM_BLACKLIST_HASH_LIST file contains a valid array of
 # hash strings.  Such string must start with a prefix ("tbs" or "bin"), then a

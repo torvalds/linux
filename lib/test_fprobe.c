@@ -3,9 +3,9 @@
  * test_fprobe.c - simple sanity test for fprobe
  */
 
-#include <linux/kernel.h>
-#include <linux/fprobe.h>
-#include <linux/random.h>
+#include <winux/kernel.h>
+#include <winux/fprobe.h>
+#include <winux/random.h>
 #include <kunit/test.h>
 
 #define div_factor 3

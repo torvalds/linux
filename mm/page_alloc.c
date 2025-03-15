@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/mm/page_alloc.c
+ *  winux/mm/page_alloc.c
  *
  *  Manages the free list, the system allocates free pages here.
  *  Note that kmalloc() lives in slab.c
@@ -15,46 +15,46 @@
  *          (lots of bits borrowed from Ingo Molnar & Andrew Morton)
  */
 
-#include <linux/stddef.h>
-#include <linux/mm.h>
-#include <linux/highmem.h>
-#include <linux/interrupt.h>
-#include <linux/jiffies.h>
-#include <linux/compiler.h>
-#include <linux/kernel.h>
-#include <linux/kasan.h>
-#include <linux/kmsan.h>
-#include <linux/module.h>
-#include <linux/suspend.h>
-#include <linux/ratelimit.h>
-#include <linux/oom.h>
-#include <linux/topology.h>
-#include <linux/sysctl.h>
-#include <linux/cpu.h>
-#include <linux/cpuset.h>
-#include <linux/pagevec.h>
-#include <linux/memory_hotplug.h>
-#include <linux/nodemask.h>
-#include <linux/vmstat.h>
-#include <linux/fault-inject.h>
-#include <linux/compaction.h>
+#include <winux/stddef.h>
+#include <winux/mm.h>
+#include <winux/highmem.h>
+#include <winux/interrupt.h>
+#include <winux/jiffies.h>
+#include <winux/compiler.h>
+#include <winux/kernel.h>
+#include <winux/kasan.h>
+#include <winux/kmsan.h>
+#include <winux/module.h>
+#include <winux/suspend.h>
+#include <winux/ratelimit.h>
+#include <winux/oom.h>
+#include <winux/topology.h>
+#include <winux/sysctl.h>
+#include <winux/cpu.h>
+#include <winux/cpuset.h>
+#include <winux/pagevec.h>
+#include <winux/memory_hotplug.h>
+#include <winux/nodemask.h>
+#include <winux/vmstat.h>
+#include <winux/fault-inject.h>
+#include <winux/compaction.h>
 #include <trace/events/kmem.h>
 #include <trace/events/oom.h>
-#include <linux/prefetch.h>
-#include <linux/mm_inline.h>
-#include <linux/mmu_notifier.h>
-#include <linux/migrate.h>
-#include <linux/sched/mm.h>
-#include <linux/page_owner.h>
-#include <linux/page_table_check.h>
-#include <linux/memcontrol.h>
-#include <linux/ftrace.h>
-#include <linux/lockdep.h>
-#include <linux/psi.h>
-#include <linux/khugepaged.h>
-#include <linux/delayacct.h>
-#include <linux/cacheinfo.h>
-#include <linux/pgalloc_tag.h>
+#include <winux/prefetch.h>
+#include <winux/mm_inline.h>
+#include <winux/mmu_notifier.h>
+#include <winux/migrate.h>
+#include <winux/sched/mm.h>
+#include <winux/page_owner.h>
+#include <winux/page_table_check.h>
+#include <winux/memcontrol.h>
+#include <winux/ftrace.h>
+#include <winux/lockdep.h>
+#include <winux/psi.h>
+#include <winux/khugepaged.h>
+#include <winux/delayacct.h>
+#include <winux/cacheinfo.h>
+#include <winux/pgalloc_tag.h>
 #include <asm/div64.h>
 #include "internal.h"
 #include "shuffle.h"
@@ -175,7 +175,7 @@ DEFINE_STATIC_KEY_TRUE(vm_numa_stat_key);
  * N.B., Do NOT reference the '_numa_mem_' per cpu variable directly.
  * It will not be defined when CONFIG_HAVE_MEMORYLESS_NODES is not defined.
  * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem()
- * defined in <linux/topology.h>.
+ * defined in <winux/topology.h>.
  */
 DEFINE_PER_CPU(int, _numa_mem_);		/* Kernel "local memory" node */
 EXPORT_PER_CPU_SYMBOL(_numa_mem_);

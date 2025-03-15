@@ -3,17 +3,17 @@
  * Contains the core associated with submission side polling of the SQ
  * ring, offloading submissions from the application to a kernel thread.
  */
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/file.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/audit.h>
-#include <linux/security.h>
-#include <linux/cpuset.h>
-#include <linux/io_uring.h>
+#include <winux/kernel.h>
+#include <winux/errno.h>
+#include <winux/file.h>
+#include <winux/mm.h>
+#include <winux/slab.h>
+#include <winux/audit.h>
+#include <winux/security.h>
+#include <winux/cpuset.h>
+#include <winux/io_uring.h>
 
-#include <uapi/linux/io_uring.h>
+#include <uapi/winux/io_uring.h>
 
 #include "io_uring.h"
 #include "napi.h"

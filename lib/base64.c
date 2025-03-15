@@ -9,11 +9,11 @@
  * modified to use the standard coding table from RFC4648 section 4.
  */
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/export.h>
-#include <linux/string.h>
-#include <linux/base64.h>
+#include <winux/kernel.h>
+#include <winux/types.h>
+#include <winux/export.h>
+#include <winux/string.h>
+#include <winux/base64.h>
 
 static const char base64_table[65] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

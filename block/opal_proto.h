@@ -6,7 +6,7 @@
  *    Rafael Antognolli <rafael.antognolli@intel.com>
  *    Scott  Bauer      <scott.bauer@intel.com>
  */
-#include <linux/types.h>
+#include <winux/types.h>
 
 #ifndef _OPAL_PROTO_H
 #define _OPAL_PROTO_H

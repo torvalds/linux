@@ -3,20 +3,20 @@
  * High-level sync()-related operations
  */
 
-#include <linux/blkdev.h>
-#include <linux/kernel.h>
-#include <linux/file.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/export.h>
-#include <linux/namei.h>
-#include <linux/sched.h>
-#include <linux/writeback.h>
-#include <linux/syscalls.h>
-#include <linux/linkage.h>
-#include <linux/pagemap.h>
-#include <linux/quotaops.h>
-#include <linux/backing-dev.h>
+#include <winux/blkdev.h>
+#include <winux/kernel.h>
+#include <winux/file.h>
+#include <winux/fs.h>
+#include <winux/slab.h>
+#include <winux/export.h>
+#include <winux/namei.h>
+#include <winux/sched.h>
+#include <winux/writeback.h>
+#include <winux/syscalls.h>
+#include <winux/linkage.h>
+#include <winux/pagemap.h>
+#include <winux/quotaops.h>
+#include <winux/backing-dev.h>
 #include "internal.h"
 
 #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \

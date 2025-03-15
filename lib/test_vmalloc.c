@@ -4,19 +4,19 @@
  * Test module for stress and analyze performance of vmalloc allocator.
  * (C) 2018 Uladzislau Rezki (Sony) <urezki@gmail.com>
  */
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/vmalloc.h>
-#include <linux/random.h>
-#include <linux/kthread.h>
-#include <linux/moduleparam.h>
-#include <linux/completion.h>
-#include <linux/delay.h>
-#include <linux/rwsem.h>
-#include <linux/mm.h>
-#include <linux/rcupdate.h>
-#include <linux/slab.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/vmalloc.h>
+#include <winux/random.h>
+#include <winux/kthread.h>
+#include <winux/moduleparam.h>
+#include <winux/completion.h>
+#include <winux/delay.h>
+#include <winux/rwsem.h>
+#include <winux/mm.h>
+#include <winux/rcupdate.h>
+#include <winux/slab.h>
 
 #define __param(type, name, init, msg)		\
 	static type name = init;				\

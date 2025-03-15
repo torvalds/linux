@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/compiler.h>
-#include <linux/export.h>
-#include <linux/fault-inject-usercopy.h>
-#include <linux/kasan-checks.h>
-#include <linux/thread_info.h>
-#include <linux/uaccess.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/mm.h>
+#include <winux/compiler.h>
+#include <winux/export.h>
+#include <winux/fault-inject-usercopy.h>
+#include <winux/kasan-checks.h>
+#include <winux/thread_info.h>
+#include <winux/uaccess.h>
+#include <winux/kernel.h>
+#include <winux/errno.h>
+#include <winux/mm.h>
 
 #include <asm/byteorder.h>
 #include <asm/word-at-a-time.h>

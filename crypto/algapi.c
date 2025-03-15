@@ -6,17 +6,17 @@
  */
 
 #include <crypto/algapi.h>
-#include <linux/err.h>
-#include <linux/errno.h>
-#include <linux/fips.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/module.h>
-#include <linux/rtnetlink.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/workqueue.h>
+#include <winux/err.h>
+#include <winux/errno.h>
+#include <winux/fips.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/list.h>
+#include <winux/module.h>
+#include <winux/rtnetlink.h>
+#include <winux/slab.h>
+#include <winux/string.h>
+#include <winux/workqueue.h>
 
 #include "internal.h"
 

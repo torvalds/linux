@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include <linux/objpool.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/atomic.h>
-#include <linux/irqflags.h>
-#include <linux/cpumask.h>
-#include <linux/log2.h>
+#include <winux/objpool.h>
+#include <winux/slab.h>
+#include <winux/vmalloc.h>
+#include <winux/atomic.h>
+#include <winux/irqflags.h>
+#include <winux/cpumask.h>
+#include <winux/log2.h>
 
 /*
  * objpool: ring-array based lockless MPMC/FIFO queues

@@ -20,7 +20,7 @@ BEGIN {
 	printversion("GNU C", version("gcc -dumpversion"))
 	printversion("GNU Make", version("make --version"))
 	printversion("Binutils", version("ld -v"))
-	printversion("Util-linux", version("mount --version"))
+	printversion("Util-winux", version("mount --version"))
 	printversion("Mount", version("mount --version"))
 	printversion("Module-init-tools", version("depmod -V"))
 	printversion("E2fsprogs", version("tune2fs"))
@@ -40,7 +40,7 @@ BEGIN {
 	while ("ldconfig -p 2>/dev/null" | getline > 0)
 		if ($NF ~ libc || $NF ~ libcpp)
 			if (!seen[ver = version("readlink " $NF)]++)
-				printversion("Linux C" ($NF ~ libcpp? "++" : "") " Library", ver)
+				printversion("Winux C" ($NF ~ libcpp? "++" : "") " Library", ver)
 
 	printversion("Dynamic linker (ldd)", version("ldd --version"))
 	printversion("Procps", version("ps --version"))

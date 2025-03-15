@@ -1,77 +1,77 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/kernel/sys.c
+ *  winux/kernel/sys.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/export.h>
-#include <linux/mm.h>
-#include <linux/mm_inline.h>
-#include <linux/utsname.h>
-#include <linux/mman.h>
-#include <linux/reboot.h>
-#include <linux/prctl.h>
-#include <linux/highuid.h>
-#include <linux/fs.h>
-#include <linux/kmod.h>
-#include <linux/ksm.h>
-#include <linux/perf_event.h>
-#include <linux/resource.h>
-#include <linux/kernel.h>
-#include <linux/workqueue.h>
-#include <linux/capability.h>
-#include <linux/device.h>
-#include <linux/key.h>
-#include <linux/times.h>
-#include <linux/posix-timers.h>
-#include <linux/security.h>
-#include <linux/random.h>
-#include <linux/suspend.h>
-#include <linux/tty.h>
-#include <linux/signal.h>
-#include <linux/cn_proc.h>
-#include <linux/getcpu.h>
-#include <linux/task_io_accounting_ops.h>
-#include <linux/seccomp.h>
-#include <linux/cpu.h>
-#include <linux/personality.h>
-#include <linux/ptrace.h>
-#include <linux/fs_struct.h>
-#include <linux/file.h>
-#include <linux/mount.h>
-#include <linux/gfp.h>
-#include <linux/syscore_ops.h>
-#include <linux/version.h>
-#include <linux/ctype.h>
-#include <linux/syscall_user_dispatch.h>
+#include <winux/export.h>
+#include <winux/mm.h>
+#include <winux/mm_inline.h>
+#include <winux/utsname.h>
+#include <winux/mman.h>
+#include <winux/reboot.h>
+#include <winux/prctl.h>
+#include <winux/highuid.h>
+#include <winux/fs.h>
+#include <winux/kmod.h>
+#include <winux/ksm.h>
+#include <winux/perf_event.h>
+#include <winux/resource.h>
+#include <winux/kernel.h>
+#include <winux/workqueue.h>
+#include <winux/capability.h>
+#include <winux/device.h>
+#include <winux/key.h>
+#include <winux/times.h>
+#include <winux/posix-timers.h>
+#include <winux/security.h>
+#include <winux/random.h>
+#include <winux/suspend.h>
+#include <winux/tty.h>
+#include <winux/signal.h>
+#include <winux/cn_proc.h>
+#include <winux/getcpu.h>
+#include <winux/task_io_accounting_ops.h>
+#include <winux/seccomp.h>
+#include <winux/cpu.h>
+#include <winux/personality.h>
+#include <winux/ptrace.h>
+#include <winux/fs_struct.h>
+#include <winux/file.h>
+#include <winux/mount.h>
+#include <winux/gfp.h>
+#include <winux/syscore_ops.h>
+#include <winux/version.h>
+#include <winux/ctype.h>
+#include <winux/syscall_user_dispatch.h>
 
-#include <linux/compat.h>
-#include <linux/syscalls.h>
-#include <linux/kprobes.h>
-#include <linux/user_namespace.h>
-#include <linux/time_namespace.h>
-#include <linux/binfmts.h>
+#include <winux/compat.h>
+#include <winux/syscalls.h>
+#include <winux/kprobes.h>
+#include <winux/user_namespace.h>
+#include <winux/time_namespace.h>
+#include <winux/binfmts.h>
 
-#include <linux/sched.h>
-#include <linux/sched/autogroup.h>
-#include <linux/sched/loadavg.h>
-#include <linux/sched/stat.h>
-#include <linux/sched/mm.h>
-#include <linux/sched/coredump.h>
-#include <linux/sched/task.h>
-#include <linux/sched/cputime.h>
-#include <linux/rcupdate.h>
-#include <linux/uidgid.h>
-#include <linux/cred.h>
+#include <winux/sched.h>
+#include <winux/sched/autogroup.h>
+#include <winux/sched/loadavg.h>
+#include <winux/sched/stat.h>
+#include <winux/sched/mm.h>
+#include <winux/sched/coredump.h>
+#include <winux/sched/task.h>
+#include <winux/sched/cputime.h>
+#include <winux/rcupdate.h>
+#include <winux/uidgid.h>
+#include <winux/cred.h>
 
-#include <linux/nospec.h>
+#include <winux/nospec.h>
 
-#include <linux/kmsg_dump.h>
+#include <winux/kmsg_dump.h>
 /* Move somewhere else to avoid recompiling? */
 #include <generated/utsrelease.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 #include <asm/io.h>
 #include <asm/unistd.h>
 
@@ -1283,7 +1283,7 @@ DECLARE_RWSEM(uts_sem);
 #endif
 
 /*
- * Work around broken programs that cannot handle "Linux 3.0".
+ * Work around broken programs that cannot handle "Winux 3.0".
  * Instead we map 3.x to 2.6.40+x, so e.g. 3.0 would be 2.6.40
  * And we map 4.x and later versions to 2.6.60+x, so 4.0/5.0/6.0/... would be
  * 2.6.60.

@@ -6,38 +6,38 @@
  *  Davide Libenzi <davidel@xmailserver.org>
  */
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/sched/signal.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/signal.h>
-#include <linux/errno.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/poll.h>
-#include <linux/string.h>
-#include <linux/list.h>
-#include <linux/hash.h>
-#include <linux/spinlock.h>
-#include <linux/syscalls.h>
-#include <linux/rbtree.h>
-#include <linux/wait.h>
-#include <linux/eventpoll.h>
-#include <linux/mount.h>
-#include <linux/bitops.h>
-#include <linux/mutex.h>
-#include <linux/anon_inodes.h>
-#include <linux/device.h>
-#include <linux/uaccess.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/sched/signal.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/signal.h>
+#include <winux/errno.h>
+#include <winux/mm.h>
+#include <winux/slab.h>
+#include <winux/poll.h>
+#include <winux/string.h>
+#include <winux/list.h>
+#include <winux/hash.h>
+#include <winux/spinlock.h>
+#include <winux/syscalls.h>
+#include <winux/rbtree.h>
+#include <winux/wait.h>
+#include <winux/eventpoll.h>
+#include <winux/mount.h>
+#include <winux/bitops.h>
+#include <winux/mutex.h>
+#include <winux/anon_inodes.h>
+#include <winux/device.h>
+#include <winux/uaccess.h>
 #include <asm/io.h>
 #include <asm/mman.h>
-#include <linux/atomic.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/compat.h>
-#include <linux/rculist.h>
-#include <linux/capability.h>
+#include <winux/atomic.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/compat.h>
+#include <winux/rculist.h>
+#include <winux/capability.h>
 #include <net/busy_poll.h>
 
 /*
@@ -313,7 +313,7 @@ static void unlist_file(struct epitems_head *head)
 
 #ifdef CONFIG_SYSCTL
 
-#include <linux/sysctl.h>
+#include <winux/sysctl.h>
 
 static long long_zero;
 static long long_max = LONG_MAX;
@@ -1368,7 +1368,7 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 
 	/*
 	 * If we are transferring events to userspace, we can hold no locks
-	 * (because we're accessing user memory, and because of linux f_op->poll()
+	 * (because we're accessing user memory, and because of winux f_op->poll()
 	 * semantics). All the events that happen during that period of time are
 	 * chained in ep->ovflist and requeued later on.
 	 */

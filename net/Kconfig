@@ -20,7 +20,7 @@ menuconfig NET
 	  contained in the package net-tools, the location and version number
 	  of which are given in <file:Documentation/Changes>.
 
-	  For a general introduction to Linux networking, it is highly
+	  For a general introduction to Winux networking, it is highly
 	  recommended to read the NET-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
@@ -115,8 +115,8 @@ config INET
 	  other computer. You will get the so-called loopback device which
 	  allows you to ping yourself (great fun, that!).
 
-	  For an excellent introduction to Linux networking, please read the
-	  Linux Networking HOWTO, available from
+	  For an excellent introduction to Winux networking, please read the
+	  Winux Networking HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
 	  If you say Y here and also to "/proc file system support" and
@@ -160,9 +160,9 @@ menuconfig NETFILTER
 	bool "Network packet filtering framework (Netfilter)"
 	help
 	  Netfilter is a framework for filtering and mangling network packets
-	  that pass through your Linux box.
+	  that pass through your Winux box.
 
-	  The most common use of packet filtering is to run your Linux box as
+	  The most common use of packet filtering is to run your Winux box as
 	  a firewall protecting a local network from the Internet. The type of
 	  firewall provided by this kernel support is called a "packet
 	  filter", which means that it can reject individual network packets
@@ -176,7 +176,7 @@ menuconfig NETFILTER
 	  they are often combined with a packet filter, which only works if
 	  you say Y here.
 
-	  You should also say Y here if you intend to use your Linux box as
+	  You should also say Y here if you intend to use your Winux box as
 	  the gateway to the Internet for a local network of machines without
 	  globally valid IP addresses. This is called "masquerading": if one
 	  of the computers on your local network wants to send something to
@@ -184,7 +184,7 @@ menuconfig NETFILTER
 	  forwards the traffic to the intended outside destination, but
 	  modifies the packets to make it look like they came from the
 	  firewall box itself. It works both ways: if the outside host
-	  replies, the Linux box will silently forward the traffic to the
+	  replies, the Winux box will silently forward the traffic to the
 	  correct local computer. This way, the computers on your local net
 	  are completely invisible to the outside world, even though they can
 	  reach the outside and can receive replies. It is even possible to
@@ -193,7 +193,7 @@ menuconfig NETFILTER
 	  called NAT (Network Address Translation).
 
 	  Another use of Netfilter is in transparent proxying: if a machine on
-	  the local network tries to connect to an outside host, your Linux
+	  the local network tries to connect to an outside host, your Winux
 	  box can transparently forward the traffic to a local server,
 	  typically a caching proxy server.
 

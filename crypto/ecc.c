@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013, 2014 Kenneth MacKay. All rights reserved.
- * Copyright (c) 2019 Vitaly Chikunov <vt@altlinux.org>
+ * Copyright (c) 2019 Vitaly Chikunov <vt@altwinux.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -25,16 +25,16 @@
  */
 
 #include <crypto/ecc_curve.h>
-#include <linux/module.h>
-#include <linux/random.h>
-#include <linux/slab.h>
-#include <linux/swab.h>
-#include <linux/fips.h>
+#include <winux/module.h>
+#include <winux/random.h>
+#include <winux/slab.h>
+#include <winux/swab.h>
+#include <winux/fips.h>
 #include <crypto/ecdh.h>
 #include <crypto/rng.h>
 #include <crypto/internal/ecc.h>
-#include <linux/unaligned.h>
-#include <linux/ratelimit.h>
+#include <winux/unaligned.h>
+#include <winux/ratelimit.h>
 
 #include "ecc_curve_defs.h"
 

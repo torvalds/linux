@@ -34,7 +34,7 @@
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
-#include <linux/module.h>
+#include <winux/module.h>
 
 #include "internal.h"
 

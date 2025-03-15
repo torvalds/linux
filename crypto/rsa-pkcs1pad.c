@@ -9,12 +9,12 @@
 #include <crypto/akcipher.h>
 #include <crypto/internal/akcipher.h>
 #include <crypto/internal/rsa.h>
-#include <linux/err.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/random.h>
-#include <linux/scatterlist.h>
+#include <winux/err.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/random.h>
+#include <winux/scatterlist.h>
 
 struct pkcs1pad_ctx {
 	struct crypto_akcipher *child;

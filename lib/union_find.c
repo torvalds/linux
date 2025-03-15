@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/union_find.h>
+#include <winux/union_find.h>
 
 /**
  * uf_find - Find the root of a node and perform path compression

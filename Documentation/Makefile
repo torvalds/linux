@@ -81,7 +81,7 @@ loop_cmd = $(echo-cmd) $(cmd_$(1)) || exit;
 #    * cache folder relative to $(BUILDDIR)/.doctrees
 # $4 dest subfolder e.g. "man" for man pages at userspace-api/media/man
 # $5 reST source folder relative to $(src),
-#    e.g. "userspace-api/media" for the linux-tv book-set at ./Documentation/userspace-api/media
+#    e.g. "userspace-api/media" for the winux-tv book-set at ./Documentation/userspace-api/media
 
 quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4)
       cmd_sphinx = $(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/userspace-api/media $2 && \
@@ -188,7 +188,7 @@ cleandocs:
 	$(Q)$(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/userspace-api/media clean
 
 dochelp:
-	@echo  ' Linux kernel internal documentation in different formats from ReST:'
+	@echo  ' Winux kernel internal documentation in different formats from ReST:'
 	@echo  '  htmldocs        - HTML'
 	@echo  '  texinfodocs     - Texinfo'
 	@echo  '  infodocs        - Info'

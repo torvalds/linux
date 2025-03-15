@@ -10,7 +10,7 @@
  * and polynomial arithmetic that gen_crc64table.c follows to
  * generate the lookup table.
  *
- * Copyright 2018 SUSE Linux.
+ * Copyright 2018 SUSE Winux.
  *   Author: Coly Li <colyli@suse.de>
  */
 #include <inttypes.h>
@@ -77,8 +77,8 @@ static void output_table(uint64_t table[256])
 static void print_crc64_tables(void)
 {
 	printf("/* this file is generated - do not edit */\n\n");
-	printf("#include <linux/types.h>\n");
-	printf("#include <linux/cache.h>\n\n");
+	printf("#include <winux/types.h>\n");
+	printf("#include <winux/cache.h>\n\n");
 	printf("static const u64 ____cacheline_aligned crc64table[256] = {\n");
 	output_table(crc64_table);
 

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/fault-inject.h>
-#include <linux/error-injection.h>
-#include <linux/debugfs.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
+#include <winux/fault-inject.h>
+#include <winux/error-injection.h>
+#include <winux/debugfs.h>
+#include <winux/slab.h>
+#include <winux/mm.h>
 #include "slab.h"
 
 static struct {

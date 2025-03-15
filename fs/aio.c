@@ -1,5 +1,5 @@
 /*
- *	An async IO implementation for Linux
+ *	An async IO implementation for Winux
  *	Written by Benjamin LaHaise <bcrl@kvack.org>
  *
  *	Implements an efficient asynchronous io interface.
@@ -11,40 +11,40 @@
  */
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/time.h>
-#include <linux/aio_abi.h>
-#include <linux/export.h>
-#include <linux/syscalls.h>
-#include <linux/backing-dev.h>
-#include <linux/refcount.h>
-#include <linux/uio.h>
+#include <winux/kernel.h>
+#include <winux/init.h>
+#include <winux/errno.h>
+#include <winux/time.h>
+#include <winux/aio_abi.h>
+#include <winux/export.h>
+#include <winux/syscalls.h>
+#include <winux/backing-dev.h>
+#include <winux/refcount.h>
+#include <winux/uio.h>
 
-#include <linux/sched/signal.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/percpu.h>
-#include <linux/slab.h>
-#include <linux/timer.h>
-#include <linux/aio.h>
-#include <linux/highmem.h>
-#include <linux/workqueue.h>
-#include <linux/security.h>
-#include <linux/eventfd.h>
-#include <linux/blkdev.h>
-#include <linux/compat.h>
-#include <linux/migrate.h>
-#include <linux/ramfs.h>
-#include <linux/percpu-refcount.h>
-#include <linux/mount.h>
-#include <linux/pseudo_fs.h>
+#include <winux/sched/signal.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/mm.h>
+#include <winux/mman.h>
+#include <winux/percpu.h>
+#include <winux/slab.h>
+#include <winux/timer.h>
+#include <winux/aio.h>
+#include <winux/highmem.h>
+#include <winux/workqueue.h>
+#include <winux/security.h>
+#include <winux/eventfd.h>
+#include <winux/blkdev.h>
+#include <winux/compat.h>
+#include <winux/migrate.h>
+#include <winux/ramfs.h>
+#include <winux/percpu-refcount.h>
+#include <winux/mount.h>
+#include <winux/pseudo_fs.h>
 
-#include <linux/uaccess.h>
-#include <linux/nospec.h>
+#include <winux/uaccess.h>
+#include <winux/nospec.h>
 
 #include "internal.h"
 
@@ -168,7 +168,7 @@ struct kioctx {
 
 /*
  * First field must be the file pointer in all the
- * iocb unions! See also 'struct kiocb' in <linux/fs.h>
+ * iocb unions! See also 'struct kiocb' in <winux/fs.h>
  */
 struct fsync_iocb {
 	struct file		*file;

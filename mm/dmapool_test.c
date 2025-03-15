@@ -1,10 +1,10 @@
-#include <linux/device.h>
-#include <linux/dma-map-ops.h>
-#include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
-#include <linux/kernel.h>
-#include <linux/ktime.h>
-#include <linux/module.h>
+#include <winux/device.h>
+#include <winux/dma-map-ops.h>
+#include <winux/dma-mapping.h>
+#include <winux/dmapool.h>
+#include <winux/kernel.h>
+#include <winux/ktime.h>
+#include <winux/module.h>
 
 #define NR_TESTS (100)
 

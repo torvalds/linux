@@ -21,18 +21,18 @@
  *
  * Copyright (C) 2023 Red Hat, Inc.
  */
-#include <linux/errno.h>
-#include <linux/fs.h>
-#include <linux/mount.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/rbtree.h>
-#include <linux/shmem_fs.h>
+#include <winux/errno.h>
+#include <winux/fs.h>
+#include <winux/mount.h>
+#include <winux/kernel.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/slab.h>
+#include <winux/rbtree.h>
+#include <winux/shmem_fs.h>
 
-#include <linux/quotaops.h>
-#include <linux/quota.h>
+#include <winux/quotaops.h>
+#include <winux/quota.h>
 
 /*
  * The following constants define the amount of time given a user

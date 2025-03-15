@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/locks.c
+ *  winux/fs/locks.c
  *
  * We implement four types of file locks: BSD locks, posix locks, open
  * file description locks, and leases.  For details about BSD locks,
@@ -48,26 +48,26 @@
  * children.
  *
  */
-#include <linux/capability.h>
-#include <linux/file.h>
-#include <linux/fdtable.h>
-#include <linux/filelock.h>
-#include <linux/fs.h>
-#include <linux/init.h>
-#include <linux/security.h>
-#include <linux/slab.h>
-#include <linux/syscalls.h>
-#include <linux/time.h>
-#include <linux/rcupdate.h>
-#include <linux/pid_namespace.h>
-#include <linux/hashtable.h>
-#include <linux/percpu.h>
-#include <linux/sysctl.h>
+#include <winux/capability.h>
+#include <winux/file.h>
+#include <winux/fdtable.h>
+#include <winux/filelock.h>
+#include <winux/fs.h>
+#include <winux/init.h>
+#include <winux/security.h>
+#include <winux/slab.h>
+#include <winux/syscalls.h>
+#include <winux/time.h>
+#include <winux/rcupdate.h>
+#include <winux/pid_namespace.h>
+#include <winux/hashtable.h>
+#include <winux/percpu.h>
+#include <winux/sysctl.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/filelock.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 
 static struct file_lock *file_lock(struct file_lock_core *flc)
 {
@@ -2746,8 +2746,8 @@ bool vfs_inode_has_locks(struct inode *inode)
 EXPORT_SYMBOL_GPL(vfs_inode_has_locks);
 
 #ifdef CONFIG_PROC_FS
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
 
 struct locks_iterator {
 	int	li_cpu;

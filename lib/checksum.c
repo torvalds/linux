@@ -28,7 +28,7 @@
 /* Revised by Kenneth Albanowski for m68knommu. Basic problem: unaligned access
  kills, so most of the assembly has to go. */
 
-#include <linux/export.h>
+#include <winux/export.h>
 #include <net/checksum.h>
 
 #include <asm/byteorder.h>

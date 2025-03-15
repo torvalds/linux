@@ -14,10 +14,10 @@
  * If the operations succeed, the read returns "1\n".
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/debugfs.h>
-#include <linux/fpu.h>
+#include <winux/module.h>
+#include <winux/kernel.h>
+#include <winux/debugfs.h>
+#include <winux/fpu.h>
 
 #include "test_fpu.h"
 

@@ -7,14 +7,14 @@ use Getopt::Long;
 
 # Copyright 2008, Intel Corporation
 #
-# This file is part of the Linux kernel
+# This file is part of the Winux kernel
 #
 # Authors:
-# 	Arjan van de Ven <arjan@linux.intel.com>
+# 	Arjan van de Ven <arjan@winux.intel.com>
 
 
 my $cross_compile = "";
-my $vmlinux_name = "";
+my $vmwinux_name = "";
 my $modulefile = "";
 
 # Get options
@@ -23,14 +23,14 @@ Getopt::Long::GetOptions(
 	'module|m=s'		=> \$modulefile,
 	'help|h'		=> \&usage,
 ) || usage ();
-my $vmlinux_name = $ARGV[0];
-if (!defined($vmlinux_name)) {
+my $vmwinux_name = $ARGV[0];
+if (!defined($vmwinux_name)) {
 	my $kerver = `uname -r`;
 	chomp($kerver);
-	$vmlinux_name = "/lib/modules/$kerver/build/vmlinux";
-	print "No vmlinux specified, assuming $vmlinux_name\n";
+	$vmwinux_name = "/lib/modules/$kerver/build/vmwinux";
+	print "No vmwinux specified, assuming $vmwinux_name\n";
 }
-my $filename = $vmlinux_name;
+my $filename = $vmwinux_name;
 
 # Parse the oops to find the EIP value
 

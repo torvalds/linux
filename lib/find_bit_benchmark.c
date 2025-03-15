@@ -16,12 +16,12 @@
  * - sparse bitmap with few set bits at random positions.
  */
 
-#include <linux/bitops.h>
-#include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/random.h>
+#include <winux/bitops.h>
+#include <winux/kernel.h>
+#include <winux/list.h>
+#include <winux/module.h>
+#include <winux/printk.h>
+#include <winux/random.h>
 
 #define BITMAP_LEN	(4096UL * 8 * 10)
 #define SPARSE		500

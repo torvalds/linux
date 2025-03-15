@@ -7,14 +7,14 @@
  * Copyright (c) 2015, Intel Corporation.
  */
 
-#include <linux/badblocks.h>
-#include <linux/seqlock.h>
-#include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/stddef.h>
-#include <linux/types.h>
-#include <linux/slab.h>
+#include <winux/badblocks.h>
+#include <winux/seqlock.h>
+#include <winux/device.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/stddef.h>
+#include <winux/types.h>
+#include <winux/slab.h>
 
 /*
  * The purpose of badblocks set/clear is to manage bad blocks ranges which are

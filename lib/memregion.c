@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* identifiers for device / performance-differentiated memory regions */
-#include <linux/idr.h>
-#include <linux/types.h>
-#include <linux/memregion.h>
+#include <winux/idr.h>
+#include <winux/types.h>
+#include <winux/memregion.h>
 
 static DEFINE_IDA(memregion_ids);
 

@@ -5,12 +5,12 @@
  * Copyright (C) 2014 Red Hat, Inc., Johannes Weiner
  */
 
-#include <linux/page_counter.h>
-#include <linux/atomic.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
-#include <linux/sched.h>
-#include <linux/bug.h>
+#include <winux/page_counter.h>
+#include <winux/atomic.h>
+#include <winux/kernel.h>
+#include <winux/string.h>
+#include <winux/sched.h>
+#include <winux/bug.h>
 #include <asm/page.h>
 
 static bool track_protection(struct page_counter *c)

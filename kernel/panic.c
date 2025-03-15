@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/kernel/panic.c
+ *  winux/kernel/panic.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
@@ -9,33 +9,33 @@
  * This function is used through-out the kernel (including mm and fs)
  * to indicate a major problem.
  */
-#include <linux/debug_locks.h>
-#include <linux/sched/debug.h>
-#include <linux/interrupt.h>
-#include <linux/kgdb.h>
-#include <linux/kmsg_dump.h>
-#include <linux/kallsyms.h>
-#include <linux/notifier.h>
-#include <linux/vt_kern.h>
-#include <linux/module.h>
-#include <linux/random.h>
-#include <linux/ftrace.h>
-#include <linux/reboot.h>
-#include <linux/delay.h>
-#include <linux/kexec.h>
-#include <linux/panic_notifier.h>
-#include <linux/sched.h>
-#include <linux/string_helpers.h>
-#include <linux/sysrq.h>
-#include <linux/init.h>
-#include <linux/nmi.h>
-#include <linux/console.h>
-#include <linux/bug.h>
-#include <linux/ratelimit.h>
-#include <linux/debugfs.h>
-#include <linux/sysfs.h>
-#include <linux/context_tracking.h>
-#include <linux/seq_buf.h>
+#include <winux/debug_locks.h>
+#include <winux/sched/debug.h>
+#include <winux/interrupt.h>
+#include <winux/kgdb.h>
+#include <winux/kmsg_dump.h>
+#include <winux/kallsyms.h>
+#include <winux/notifier.h>
+#include <winux/vt_kern.h>
+#include <winux/module.h>
+#include <winux/random.h>
+#include <winux/ftrace.h>
+#include <winux/reboot.h>
+#include <winux/delay.h>
+#include <winux/kexec.h>
+#include <winux/panic_notifier.h>
+#include <winux/sched.h>
+#include <winux/string_helpers.h>
+#include <winux/sysrq.h>
+#include <winux/init.h>
+#include <winux/nmi.h>
+#include <winux/console.h>
+#include <winux/bug.h>
+#include <winux/ratelimit.h>
+#include <winux/debugfs.h>
+#include <winux/sysfs.h>
+#include <winux/context_tracking.h>
+#include <winux/seq_buf.h>
 #include <trace/events/error_report.h>
 #include <asm/sections.h>
 

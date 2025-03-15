@@ -4,19 +4,19 @@
  *
  * Copyright (C) 2023 Jens Axboe
  */
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/syscalls.h>
-#include <linux/refcount.h>
-#include <linux/bits.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/nospec.h>
-#include <linux/compat.h>
-#include <linux/io_uring.h>
-#include <linux/io_uring_types.h>
+#include <winux/kernel.h>
+#include <winux/errno.h>
+#include <winux/syscalls.h>
+#include <winux/refcount.h>
+#include <winux/bits.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/slab.h>
+#include <winux/uaccess.h>
+#include <winux/nospec.h>
+#include <winux/compat.h>
+#include <winux/io_uring.h>
+#include <winux/io_uring_types.h>
 
 #include "io_uring.h"
 #include "opdef.h"

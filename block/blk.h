@@ -2,12 +2,12 @@
 #ifndef BLK_INTERNAL_H
 #define BLK_INTERNAL_H
 
-#include <linux/bio-integrity.h>
-#include <linux/blk-crypto.h>
-#include <linux/lockdep.h>
-#include <linux/memblock.h>	/* for max_pfn/max_low_pfn */
-#include <linux/sched/sysctl.h>
-#include <linux/timekeeping.h>
+#include <winux/bio-integrity.h>
+#include <winux/blk-crypto.h>
+#include <winux/lockdep.h>
+#include <winux/memblock.h>	/* for max_pfn/max_low_pfn */
+#include <winux/sched/sysctl.h>
+#include <winux/timekeeping.h>
 #include <xen/xen.h>
 #include "blk-crypto-internal.h"
 

@@ -4,28 +4,28 @@
  *	Library for filesystems writers.
  */
 
-#include <linux/blkdev.h>
-#include <linux/export.h>
-#include <linux/pagemap.h>
-#include <linux/slab.h>
-#include <linux/cred.h>
-#include <linux/mount.h>
-#include <linux/vfs.h>
-#include <linux/quotaops.h>
-#include <linux/mutex.h>
-#include <linux/namei.h>
-#include <linux/exportfs.h>
-#include <linux/iversion.h>
-#include <linux/writeback.h>
-#include <linux/buffer_head.h> /* sync_mapping_buffers */
-#include <linux/fs_context.h>
-#include <linux/pseudo_fs.h>
-#include <linux/fsnotify.h>
-#include <linux/unicode.h>
-#include <linux/fscrypt.h>
-#include <linux/pidfs.h>
+#include <winux/blkdev.h>
+#include <winux/export.h>
+#include <winux/pagemap.h>
+#include <winux/slab.h>
+#include <winux/cred.h>
+#include <winux/mount.h>
+#include <winux/vfs.h>
+#include <winux/quotaops.h>
+#include <winux/mutex.h>
+#include <winux/namei.h>
+#include <winux/exportfs.h>
+#include <winux/iversion.h>
+#include <winux/writeback.h>
+#include <winux/buffer_head.h> /* sync_mapping_buffers */
+#include <winux/fs_context.h>
+#include <winux/pseudo_fs.h>
+#include <winux/fsnotify.h>
+#include <winux/unicode.h>
+#include <winux/fscrypt.h>
+#include <winux/pidfs.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 
 #include "internal.h"
 
@@ -1447,7 +1447,7 @@ EXPORT_SYMBOL_GPL(generic_encode_ino32_fh);
  * @get_inode:	filesystem callback to retrieve inode
  *
  * This function decodes @fid as long as it has one of the well-known
- * Linux filehandle types and calls @get_inode on it to retrieve the
+ * Winux filehandle types and calls @get_inode on it to retrieve the
  * inode for the object specified in the file handle.
  */
 struct dentry *generic_fh_to_dentry(struct super_block *sb, struct fid *fid,
@@ -1479,7 +1479,7 @@ EXPORT_SYMBOL_GPL(generic_fh_to_dentry);
  * @get_inode:	filesystem callback to retrieve inode
  *
  * This function decodes @fid as long as it has one of the well-known
- * Linux filehandle types and calls @get_inode on it to retrieve the
+ * Winux filehandle types and calls @get_inode on it to retrieve the
  * inode for the _parent_ object specified in the file handle if it
  * is specified in the file handle, or NULL otherwise.
  */

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/slab.h>
-#include <linux/lockdep.h>
-#include <linux/sysfs.h>
-#include <linux/kobject.h>
-#include <linux/memory.h>
-#include <linux/memory-tiers.h>
-#include <linux/notifier.h>
-#include <linux/sched/sysctl.h>
+#include <winux/slab.h>
+#include <winux/lockdep.h>
+#include <winux/sysfs.h>
+#include <winux/kobject.h>
+#include <winux/memory.h>
+#include <winux/memory-tiers.h>
+#include <winux/notifier.h>
+#include <winux/sched/sysctl.h>
 
 #include "internal.h"
 

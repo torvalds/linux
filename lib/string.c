@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/lib/string.c
+ *  winux/lib/string.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
@@ -15,19 +15,19 @@
  */
 
 #define __NO_FORTIFY
-#include <linux/bits.h>
-#include <linux/bug.h>
-#include <linux/ctype.h>
-#include <linux/errno.h>
-#include <linux/limits.h>
-#include <linux/linkage.h>
-#include <linux/stddef.h>
-#include <linux/string.h>
-#include <linux/types.h>
+#include <winux/bits.h>
+#include <winux/bug.h>
+#include <winux/ctype.h>
+#include <winux/errno.h>
+#include <winux/limits.h>
+#include <winux/linkage.h>
+#include <winux/stddef.h>
+#include <winux/string.h>
+#include <winux/types.h>
 
 #include <asm/page.h>
 #include <asm/rwonce.h>
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 #include <asm/word-at-a-time.h>
 
 #ifndef __HAVE_ARCH_STRNCASECMP

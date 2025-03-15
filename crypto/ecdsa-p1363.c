@@ -5,8 +5,8 @@
  * Copyright (c) 2024 Intel Corporation
  */
 
-#include <linux/err.h>
-#include <linux/module.h>
+#include <winux/err.h>
+#include <winux/module.h>
 #include <crypto/algapi.h>
 #include <crypto/sig.h>
 #include <crypto/internal/ecc.h>

@@ -2,9 +2,9 @@
 /*
  * Access kernel or user memory without faulting.
  */
-#include <linux/export.h>
-#include <linux/mm.h>
-#include <linux/uaccess.h>
+#include <winux/export.h>
+#include <winux/mm.h>
+#include <winux/uaccess.h>
 #include <asm/tlb.h>
 
 bool __weak copy_from_kernel_nofault_allowed(const void *unsafe_src,

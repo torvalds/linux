@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/ipc/shm.c
+ * winux/ipc/shm.c
  * Copyright (C) 1992, 1993 Krishna Balasubramanian
  *	 Many improvements/fixes by Bruno Haible.
  * Replaced `struct shm_desc' by `struct vm_area_struct', July 1994.
@@ -25,28 +25,28 @@
  * Davidlohr Bueso <davidlohr.bueso@hp.com>, June 2013.
  */
 
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/hugetlb.h>
-#include <linux/shm.h>
-#include <uapi/linux/shm.h>
-#include <linux/init.h>
-#include <linux/file.h>
-#include <linux/mman.h>
-#include <linux/shmem_fs.h>
-#include <linux/security.h>
-#include <linux/syscalls.h>
-#include <linux/audit.h>
-#include <linux/capability.h>
-#include <linux/ptrace.h>
-#include <linux/seq_file.h>
-#include <linux/rwsem.h>
-#include <linux/nsproxy.h>
-#include <linux/mount.h>
-#include <linux/ipc_namespace.h>
-#include <linux/rhashtable.h>
+#include <winux/slab.h>
+#include <winux/mm.h>
+#include <winux/hugetlb.h>
+#include <winux/shm.h>
+#include <uapi/winux/shm.h>
+#include <winux/init.h>
+#include <winux/file.h>
+#include <winux/mman.h>
+#include <winux/shmem_fs.h>
+#include <winux/security.h>
+#include <winux/syscalls.h>
+#include <winux/audit.h>
+#include <winux/capability.h>
+#include <winux/ptrace.h>
+#include <winux/seq_file.h>
+#include <winux/rwsem.h>
+#include <winux/nsproxy.h>
+#include <winux/mount.h>
+#include <winux/ipc_namespace.h>
+#include <winux/rhashtable.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 
 #include "util.h"
 
@@ -1146,7 +1146,7 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 		err = 0;
 	} else {
 		/*
-		 * SHM_STAT and SHM_STAT_ANY (both Linux specific)
+		 * SHM_STAT and SHM_STAT_ANY (both Winux specific)
 		 * Return the full id, including the sequence number
 		 */
 		err = shp->shm_perm.id;

@@ -10,14 +10,14 @@
 #define pr_fmt(fmt) "blk-crypto-fallback: " fmt
 
 #include <crypto/skcipher.h>
-#include <linux/blk-crypto.h>
-#include <linux/blk-crypto-profile.h>
-#include <linux/blkdev.h>
-#include <linux/crypto.h>
-#include <linux/mempool.h>
-#include <linux/module.h>
-#include <linux/random.h>
-#include <linux/scatterlist.h>
+#include <winux/blk-crypto.h>
+#include <winux/blk-crypto-profile.h>
+#include <winux/blkdev.h>
+#include <winux/crypto.h>
+#include <winux/mempool.h>
+#include <winux/module.h>
+#include <winux/random.h>
+#include <winux/scatterlist.h>
 
 #include "blk-cgroup.h"
 #include "blk-crypto-internal.h"

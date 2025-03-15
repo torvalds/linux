@@ -2,9 +2,9 @@
 
 #include <kunit/test.h>
 
-#include <linux/sort.h>
-#include <linux/slab.h>
-#include <linux/module.h>
+#include <winux/sort.h>
+#include <winux/slab.h>
+#include <winux/module.h>
 
 /* a simple boot-time regression test */
 

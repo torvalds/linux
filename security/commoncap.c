@@ -2,30 +2,30 @@
 /* Common capabilities, needed by capability.o.
  */
 
-#include <linux/capability.h>
-#include <linux/audit.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/lsm_hooks.h>
-#include <linux/file.h>
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/pagemap.h>
-#include <linux/swap.h>
-#include <linux/skbuff.h>
-#include <linux/netlink.h>
-#include <linux/ptrace.h>
-#include <linux/xattr.h>
-#include <linux/hugetlb.h>
-#include <linux/mount.h>
-#include <linux/sched.h>
-#include <linux/prctl.h>
-#include <linux/securebits.h>
-#include <linux/user_namespace.h>
-#include <linux/binfmts.h>
-#include <linux/personality.h>
-#include <linux/mnt_idmapping.h>
-#include <uapi/linux/lsm.h>
+#include <winux/capability.h>
+#include <winux/audit.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/lsm_hooks.h>
+#include <winux/file.h>
+#include <winux/mm.h>
+#include <winux/mman.h>
+#include <winux/pagemap.h>
+#include <winux/swap.h>
+#include <winux/skbuff.h>
+#include <winux/netlink.h>
+#include <winux/ptrace.h>
+#include <winux/xattr.h>
+#include <winux/hugetlb.h>
+#include <winux/mount.h>
+#include <winux/sched.h>
+#include <winux/prctl.h>
+#include <winux/securebits.h>
+#include <winux/user_namespace.h>
+#include <winux/binfmts.h>
+#include <winux/personality.h>
+#include <winux/mnt_idmapping.h>
+#include <uapi/winux/lsm.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/capability.h>
@@ -110,7 +110,7 @@ static inline int cap_capable_helper(const struct cred *cred,
  * @cred: The credentials to use
  * @target_ns:  The user namespace of the resource being accessed
  * @cap: The capability to check for
- * @opts: Bitmask of options defined in include/linux/security.h (unused)
+ * @opts: Bitmask of options defined in include/winux/security.h (unused)
  *
  * Determine whether the nominated task has the specified capability amongst
  * its effective set, returning 0 if it does, -ve if it does not.
@@ -613,7 +613,7 @@ int cap_convert_nscap(struct mnt_idmap *idmap, struct dentry *dentry,
  * to a file.
  */
 static inline int bprm_caps_from_vfs_caps(struct cpu_vfs_cap_data *caps,
-					  struct linux_binprm *bprm,
+					  struct winux_binprm *bprm,
 					  bool *effective,
 					  bool *has_fcap)
 {
@@ -749,7 +749,7 @@ int get_vfs_caps_from_disk(struct mnt_idmap *idmap,
  * its xattrs and, if present, apply them to the proposed credentials being
  * constructed by execve().
  */
-static int get_file_caps(struct linux_binprm *bprm, const struct file *file,
+static int get_file_caps(struct winux_binprm *bprm, const struct file *file,
 			 bool *effective, bool *has_fcap)
 {
 	int rc = 0;
@@ -814,7 +814,7 @@ static inline bool __is_suid(kuid_t uid, struct cred *cred)
  * set UID root and nothing is changed.  If we are root, cap_permitted is
  * updated.  If we have become set UID root, the effective bit is set.
  */
-static void handle_privileged_root(struct linux_binprm *bprm, bool has_fcap,
+static void handle_privileged_root(struct winux_binprm *bprm, bool has_fcap,
 				   bool *effective, kuid_t root_uid)
 {
 	const struct cred *old = current_cred();
@@ -911,7 +911,7 @@ static inline bool nonroot_raised_pE(struct cred *new, const struct cred *old,
  *
  * Return: 0 if successful, -ve on error.
  */
-int cap_bprm_creds_from_file(struct linux_binprm *bprm, const struct file *file)
+int cap_bprm_creds_from_file(struct winux_binprm *bprm, const struct file *file)
 {
 	/* Process setpcap binaries and capabilities for uid 0 */
 	const struct cred *old = current_cred();

@@ -178,7 +178,7 @@ config KCSAN_STRICT
 	bool "Strict data-race checking"
 	help
 	  KCSAN will report data races with the strictest possible rules, which
-	  closely aligns with the rules defined by the Linux-kernel memory
+	  closely aligns with the rules defined by the Winux-kernel memory
 	  consistency model (LKMM).
 
 config KCSAN_WEAK_MEMORY

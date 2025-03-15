@@ -8,19 +8,19 @@
  *		Initial version.
  */
 
-#include <linux/kernel.h>
-#include <linux/backing-dev.h>
-#include <linux/dax.h>
-#include <linux/gfp.h>
-#include <linux/mm.h>
-#include <linux/swap.h>
-#include <linux/export.h>
-#include <linux/pagemap.h>
-#include <linux/highmem.h>
-#include <linux/pagevec.h>
-#include <linux/task_io_accounting_ops.h>
-#include <linux/shmem_fs.h>
-#include <linux/rmap.h>
+#include <winux/kernel.h>
+#include <winux/backing-dev.h>
+#include <winux/dax.h>
+#include <winux/gfp.h>
+#include <winux/mm.h>
+#include <winux/swap.h>
+#include <winux/export.h>
+#include <winux/pagemap.h>
+#include <winux/highmem.h>
+#include <winux/pagevec.h>
+#include <winux/task_io_accounting_ops.h>
+#include <winux/shmem_fs.h>
+#include <winux/rmap.h>
 #include "internal.h"
 
 static void clear_shadow_entries(struct address_space *mapping,

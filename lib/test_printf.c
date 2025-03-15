@@ -5,25 +5,25 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/random.h>
-#include <linux/rtc.h>
-#include <linux/slab.h>
-#include <linux/sprintf.h>
-#include <linux/string.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/printk.h>
+#include <winux/random.h>
+#include <winux/rtc.h>
+#include <winux/slab.h>
+#include <winux/sprintf.h>
+#include <winux/string.h>
 
-#include <linux/bitmap.h>
-#include <linux/dcache.h>
-#include <linux/socket.h>
-#include <linux/in.h>
+#include <winux/bitmap.h>
+#include <winux/dcache.h>
+#include <winux/socket.h>
+#include <winux/in.h>
 
-#include <linux/gfp.h>
-#include <linux/mm.h>
+#include <winux/gfp.h>
+#include <winux/mm.h>
 
-#include <linux/property.h>
+#include <winux/property.h>
 
 #include "../tools/testing/selftests/kselftest_module.h"
 
@@ -858,6 +858,6 @@ static void __init selftest(void)
 }
 
 KSTM_MODULE_LOADERS(test_printf);
-MODULE_AUTHOR("Rasmus Villemoes <linux@rasmusvillemoes.dk>");
+MODULE_AUTHOR("Rasmus Villemoes <winux@rasmusvillemoes.dk>");
 MODULE_DESCRIPTION("Test cases for printf facility");
 MODULE_LICENSE("GPL");

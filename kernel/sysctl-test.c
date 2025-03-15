@@ -4,7 +4,7 @@
  */
 
 #include <kunit/test.h>
-#include <linux/sysctl.h>
+#include <winux/sysctl.h>
 
 #define KUNIT_PROC_READ 0
 #define KUNIT_PROC_WRITE 1

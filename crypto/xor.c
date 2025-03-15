@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * xor.c : Multiple Devices driver for Linux
+ * xor.c : Multiple Devices driver for Winux
  *
  * Copyright (C) 1996, 1997, 1998, 1999, 2000,
  * Ingo Molnar, Matti Aarnio, Jakub Jelinek, Richard Henderson.
@@ -9,11 +9,11 @@
  */
 
 #define BH_TRACE 0
-#include <linux/module.h>
-#include <linux/gfp.h>
-#include <linux/raid/xor.h>
-#include <linux/jiffies.h>
-#include <linux/preempt.h>
+#include <winux/module.h>
+#include <winux/gfp.h>
+#include <winux/raid/xor.h>
+#include <winux/jiffies.h>
+#include <winux/preempt.h>
 #include <asm/xor.h>
 
 #ifndef XOR_SELECT_TEMPLATE

@@ -1,38 +1,38 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/fs/open.c
+ *  winux/fs/open.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/file.h>
-#include <linux/fdtable.h>
-#include <linux/fsnotify.h>
-#include <linux/module.h>
-#include <linux/tty.h>
-#include <linux/namei.h>
-#include <linux/backing-dev.h>
-#include <linux/capability.h>
-#include <linux/securebits.h>
-#include <linux/security.h>
-#include <linux/mount.h>
-#include <linux/fcntl.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
-#include <linux/fs.h>
-#include <linux/personality.h>
-#include <linux/pagemap.h>
-#include <linux/syscalls.h>
-#include <linux/rcupdate.h>
-#include <linux/audit.h>
-#include <linux/falloc.h>
-#include <linux/fs_struct.h>
-#include <linux/dnotify.h>
-#include <linux/compat.h>
-#include <linux/mnt_idmapping.h>
-#include <linux/filelock.h>
+#include <winux/string.h>
+#include <winux/mm.h>
+#include <winux/file.h>
+#include <winux/fdtable.h>
+#include <winux/fsnotify.h>
+#include <winux/module.h>
+#include <winux/tty.h>
+#include <winux/namei.h>
+#include <winux/backing-dev.h>
+#include <winux/capability.h>
+#include <winux/securebits.h>
+#include <winux/security.h>
+#include <winux/mount.h>
+#include <winux/fcntl.h>
+#include <winux/slab.h>
+#include <winux/uaccess.h>
+#include <winux/fs.h>
+#include <winux/personality.h>
+#include <winux/pagemap.h>
+#include <winux/syscalls.h>
+#include <winux/rcupdate.h>
+#include <winux/audit.h>
+#include <winux/falloc.h>
+#include <winux/fs_struct.h>
+#include <winux/dnotify.h>
+#include <winux/compat.h>
+#include <winux/mnt_idmapping.h>
+#include <winux/filelock.h>
 
 #include "internal.h"
 

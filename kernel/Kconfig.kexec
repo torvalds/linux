@@ -25,7 +25,7 @@ config KEXEC
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel. It is like a reboot
 	  but it is independent of the system firmware. And like a reboot
-	  you can start any kernel with it, not just Linux.
+	  you can start any kernel with it, not just Winux.
 
 	  The name comes from the similarity to the exec system call.
 

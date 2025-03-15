@@ -12,23 +12,23 @@
 
 #define pr_fmt(fmt) "watchdog: " fmt
 
-#include <linux/cpu.h>
-#include <linux/init.h>
-#include <linux/irq.h>
-#include <linux/irqdesc.h>
-#include <linux/kernel_stat.h>
-#include <linux/kvm_para.h>
-#include <linux/math64.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/nmi.h>
-#include <linux/stop_machine.h>
-#include <linux/sysctl.h>
-#include <linux/tick.h>
+#include <winux/cpu.h>
+#include <winux/init.h>
+#include <winux/irq.h>
+#include <winux/irqdesc.h>
+#include <winux/kernel_stat.h>
+#include <winux/kvm_para.h>
+#include <winux/math64.h>
+#include <winux/mm.h>
+#include <winux/module.h>
+#include <winux/nmi.h>
+#include <winux/stop_machine.h>
+#include <winux/sysctl.h>
+#include <winux/tick.h>
 
-#include <linux/sched/clock.h>
-#include <linux/sched/debug.h>
-#include <linux/sched/isolation.h>
+#include <winux/sched/clock.h>
+#include <winux/sched/debug.h>
+#include <winux/sched/isolation.h>
 
 #include <asm/irq_regs.h>
 

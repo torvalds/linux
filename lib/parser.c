@@ -3,13 +3,13 @@
  * lib/parser.c - simple parser for mount, etc. options.
  */
 
-#include <linux/ctype.h>
-#include <linux/types.h>
-#include <linux/export.h>
-#include <linux/kstrtox.h>
-#include <linux/parser.h>
-#include <linux/slab.h>
-#include <linux/string.h>
+#include <winux/ctype.h>
+#include <winux/types.h>
+#include <winux/export.h>
+#include <winux/kstrtox.h>
+#include <winux/parser.h>
+#include <winux/slab.h>
+#include <winux/string.h>
 
 /*
  * max size needed by different bases to express U64

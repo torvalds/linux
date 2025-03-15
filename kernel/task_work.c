@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/irq_work.h>
-#include <linux/spinlock.h>
-#include <linux/task_work.h>
-#include <linux/resume_user_mode.h>
+#include <winux/irq_work.h>
+#include <winux/spinlock.h>
+#include <winux/task_work.h>
+#include <winux/resume_user_mode.h>
 
 static struct callback_head work_exited; /* all we need is ->next == NULL */
 

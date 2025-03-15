@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/bcd.h>
-#include <linux/export.h>
+#include <winux/bcd.h>
+#include <winux/export.h>
 
 unsigned _bcd2bin(unsigned char val)
 {

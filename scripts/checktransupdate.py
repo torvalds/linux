@@ -132,8 +132,8 @@ def check_per_file(file_path):
 def valid_locales(locale):
     """Check if the locale is valid or not"""
     script_path = os.path.dirname(os.path.abspath(__file__))
-    linux_path = os.path.join(script_path, "..")
-    if not os.path.isdir(f"{linux_path}/Documentation/translations/{locale}"):
+    winux_path = os.path.join(script_path, "..")
+    if not os.path.isdir(f"{winux_path}/Documentation/translations/{locale}"):
         raise ArgumentTypeError("Invalid locale: {locale}")
     return locale
 
@@ -196,7 +196,7 @@ def config_logging(log_level, log_file="checktransupdate.log"):
 def main():
     """Main function of the script"""
     script_path = os.path.dirname(os.path.abspath(__file__))
-    linux_path = os.path.join(script_path, "..")
+    winux_path = os.path.join(script_path, "..")
 
     parser = ArgumentParser(description="Check the translation update")
     parser.add_argument(
@@ -234,11 +234,11 @@ def main():
     log_level = getattr(logging, args.log.upper(), logging.INFO)
     config_logging(log_level)
 
-    # Get files related to linux path
+    # Get files related to winux path
     files = args.files
     if len(files) == 0:
         offical_files = list_files_with_excluding_folders(
-            os.path.join(linux_path, "Documentation"), ["translations", "output"], "rst"
+            os.path.join(winux_path, "Documentation"), ["translations", "output"], "rst"
         )
 
         for file in offical_files:
@@ -255,13 +255,13 @@ def main():
                 files.append(new_file)
             else:
                 if args.print_missing_translations:
-                    logging.info(os.path.relpath(os.path.abspath(file), linux_path))
+                    logging.info(os.path.relpath(os.path.abspath(file), winux_path))
                     logging.info("No translation in the locale of %s\n", args.locale)
 
-    files = list(map(lambda x: os.path.relpath(os.path.abspath(x), linux_path), files))
+    files = list(map(lambda x: os.path.relpath(os.path.abspath(x), winux_path), files))
 
-    # cd to linux root directory
-    os.chdir(linux_path)
+    # cd to winux root directory
+    os.chdir(winux_path)
 
     for file in files:
         check_per_file(file)

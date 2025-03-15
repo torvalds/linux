@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/audit_arch.h>
+#include <winux/init.h>
+#include <winux/types.h>
+#include <winux/audit_arch.h>
 #include <asm/unistd32.h>
 
 unsigned compat_dir_class[] = {

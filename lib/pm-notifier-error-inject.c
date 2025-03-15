@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/suspend.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/suspend.h>
 
 #include "notifier-error-inject.h"
 

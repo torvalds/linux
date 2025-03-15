@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 PHONY := __default
-__default: vmlinux.o modules.builtin.modinfo modules.builtin
+__default: vmwinux.o modules.builtin.modinfo modules.builtin
 
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
@@ -18,7 +18,7 @@ quiet_cmd_gen_initcalls_lds = GEN     $@
 	$(PERL) $(real-prereqs) > $@
 
 .tmp_initcalls.lds: $(srctree)/scripts/generate_initcall_order.pl \
-		vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
+		vmwinux.a $(KBUILD_VMLINUX_LIBS) FORCE
 	$(call if_changed,gen_initcalls_lds)
 
 targets := .tmp_initcalls.lds
@@ -27,44 +27,44 @@ ifdef CONFIG_LTO_CLANG
 initcalls-lds := .tmp_initcalls.lds
 endif
 
-# objtool for vmlinux.o
+# objtool for vmwinux.o
 # ---------------------------------------------------------------------------
 #
 # For LTO and IBT, objtool doesn't run on individual translation units.
-# Run everything on vmlinux instead.
+# Run everything on vmwinux instead.
 
 objtool-enabled := $(or $(delay-objtool),$(CONFIG_NOINSTR_VALIDATION))
 
-vmlinux-objtool-args-$(delay-objtool)			+= $(objtool-args-y)
-vmlinux-objtool-args-$(CONFIG_GCOV_KERNEL)		+= --no-unreachable
-vmlinux-objtool-args-$(CONFIG_NOINSTR_VALIDATION)	+= --noinstr \
+vmwinux-objtool-args-$(delay-objtool)			+= $(objtool-args-y)
+vmwinux-objtool-args-$(CONFIG_GCOV_KERNEL)		+= --no-unreachable
+vmwinux-objtool-args-$(CONFIG_NOINSTR_VALIDATION)	+= --noinstr \
 							   $(if $(or $(CONFIG_MITIGATION_UNRET_ENTRY),$(CONFIG_MITIGATION_SRSO)), --unret)
 
-objtool-args = $(vmlinux-objtool-args-y) --link
+objtool-args = $(vmwinux-objtool-args-y) --link
 
-# Link of vmlinux.o used for section mismatch analysis
+# Link of vmwinux.o used for section mismatch analysis
 # ---------------------------------------------------------------------------
 
-vmlinux-o-ld-args-$(CONFIG_BUILTIN_MODULE_RANGES)	+= -Map=$@.map
+vmwinux-o-ld-args-$(CONFIG_BUILTIN_MODULE_RANGES)	+= -Map=$@.map
 
-quiet_cmd_ld_vmlinux.o = LD      $@
-      cmd_ld_vmlinux.o = \
+quiet_cmd_ld_vmwinux.o = LD      $@
+      cmd_ld_vmwinux.o = \
 	$(LD) ${KBUILD_LDFLAGS} -r -o $@ \
-	$(vmlinux-o-ld-args-y) \
+	$(vmwinux-o-ld-args-y) \
 	$(addprefix -T , $(initcalls-lds)) \
-	--whole-archive vmlinux.a --no-whole-archive \
+	--whole-archive vmwinux.a --no-whole-archive \
 	--start-group $(KBUILD_VMLINUX_LIBS) --end-group \
 	$(cmd_objtool)
 
-define rule_ld_vmlinux.o
-	$(call cmd_and_savecmd,ld_vmlinux.o)
+define rule_ld_vmwinux.o
+	$(call cmd_and_savecmd,ld_vmwinux.o)
 	$(call cmd,gen_objtooldep)
 endef
 
-vmlinux.o: $(initcalls-lds) vmlinux.a $(KBUILD_VMLINUX_LIBS) FORCE
-	$(call if_changed_rule,ld_vmlinux.o)
+vmwinux.o: $(initcalls-lds) vmwinux.a $(KBUILD_VMLINUX_LIBS) FORCE
+	$(call if_changed_rule,ld_vmwinux.o)
 
-targets += vmlinux.o
+targets += vmwinux.o
 
 # module.builtin.modinfo
 # ---------------------------------------------------------------------------
@@ -72,7 +72,7 @@ targets += vmlinux.o
 OBJCOPYFLAGS_modules.builtin.modinfo := -j .modinfo -O binary
 
 targets += modules.builtin.modinfo
-modules.builtin.modinfo: vmlinux.o FORCE
+modules.builtin.modinfo: vmwinux.o FORCE
 	$(call if_changed,objcopy)
 
 # module.builtin

@@ -3,8 +3,8 @@
 # generate_builtin_ranges.awk: Generate address range data for builtin modules
 # Written by Kris Van Hees <kris.van.hees@oracle.com>
 #
-# Usage: generate_builtin_ranges.awk modules.builtin vmlinux.map \
-#		vmlinux.o.map > modules.builtin.ranges
+# Usage: generate_builtin_ranges.awk modules.builtin vmwinux.map \
+#		vmwinux.o.map > modules.builtin.ranges
 #
 
 # Return the module name(s) (if any) associated with the given object.
@@ -84,7 +84,7 @@ ARGIND == 1 {
 
 # (2) Collect address information for each section.
 #
-# The second file argument is used as input (vmlinux.map).
+# The second file argument is used as input (vmwinux.map).
 #
 # We collect the base address of the section in order to convert all addresses
 # in the section into offset values.
@@ -95,16 +95,16 @@ ARGIND == 1 {
 #
 # We collect the start address of any sub-section (section included in the top
 # level section being processed).  This is needed when the final linking was
-# done using vmlinux.a because then the list of objects contained in each
-# section is to be obtained from vmlinux.o.map.  The offset of the sub-section
-# is recorded here, to be used as an addend when processing vmlinux.o.map
+# done using vmwinux.a because then the list of objects contained in each
+# section is to be obtained from vmwinux.o.map.  The offset of the sub-section
+# is recorded here, to be used as an addend when processing vmwinux.o.map
 # later.
 #
 
 # Both GNU ld and LLVM lld linker map format are supported by converting LLVM
 # lld linker map records into equivalent GNU ld linker map records.
 #
-# The first record of the vmlinux.map file provides enough information to know
+# The first record of the vmwinux.map file provides enough information to know
 # which format we are dealing with.
 #
 ARGIND == 2 && FNR == 1 && NF == 7 && $1 == "VMA" && $7 == "Symbol" {
@@ -136,13 +136,13 @@ ARGIND == 2 && map_is_lld && !anchor && NF == 7 && raw_addr == "0x"$1 && $6 == "
 
 # (LLD) Convert an object record from lld format to ld format.
 #
-# lld:            11480            11480     1f07    16         vmlinux.a(arch/x86/events/amd/uncore.o):(.text)
+# lld:            11480            11480     1f07    16         vmwinux.a(arch/x86/events/amd/uncore.o):(.text)
 #  ->
 # ld:   .text          0x0000000000011480     0x1f07 arch/x86/events/amd/uncore.o
 #
 ARGIND == 2 && map_is_lld && NF == 5 && $5 ~ /:\(/ {
 	gsub(/\)/, "");
-	sub(/ vmlinux\.a\(/, " ");
+	sub(/ vmwinux\.a\(/, " ");
 	sub(/:\(/, " ");
 	$0 = " "$6 " 0x"$1 " 0x"$3 " " $5;
 }
@@ -184,7 +184,7 @@ ARGIND == 2 && !map_is_lld && NF == 1 && /^[^ ]/ {
 #      section name for which the remainder of the record can be found on the
 #      next line.
 #
-# (This is also needed for vmlinux.o.map, when used.)
+# (This is also needed for vmwinux.o.map, when used.)
 #
 ARGIND >= 2 && !map_is_lld && NF == 1 && /^ [^ \*]/ {
 	s = $0;
@@ -275,7 +275,7 @@ ARGIND == 2 && !anchor && NF == 2 && $1 ~ /^0x/ && $2 !~ /^0x/ {
 
 # The first occurrence of a section name in an object record establishes the
 # addend (often 0) for that section.  This information is needed to handle
-# sections that get combined in the final linking of vmlinux (e.g. .head.text
+# sections that get combined in the final linking of vmwinux (e.g. .head.text
 # getting included at the start of .text).
 #
 # If the section does not have a base yet, use the base of the encapsulating
@@ -298,23 +298,23 @@ ARGIND == 2 && sect && NF == 4 && /^ [^ \*]/ && !($1 in sect_addend) {
 	if (dbg)
 		printf "[%s] ADDEND %016x - %016x = %016x\n",  $1, addr, base, sect_addend[$1] >"/dev/stderr";
 
-	# If the object is vmlinux.o then we will need vmlinux.o.map to get the
+	# If the object is vmwinux.o then we will need vmwinux.o.map to get the
 	# actual offsets of objects.
-	if ($4 == "vmlinux.o")
+	if ($4 == "vmwinux.o")
 		need_o_map = 1;
 }
 
 # (3) Collect offset ranges (relative to the section base address) for built-in
 # modules.
 #
-# If the final link was done using the actual objects, vmlinux.map contains all
+# If the final link was done using the actual objects, vmwinux.map contains all
 # the information we need (see section (3a)).
-# If linking was done using vmlinux.a as intermediary, we will need to process
-# vmlinux.o.map (see section (3b)).
+# If linking was done using vmwinux.a as intermediary, we will need to process
+# vmwinux.o.map (see section (3b)).
 
-# (3a) Determine offset range info using vmlinux.map.
+# (3a) Determine offset range info using vmwinux.map.
 #
-# Since we are already processing vmlinux.map, the top level section that is
+# Since we are already processing vmwinux.map, the top level section that is
 # being processed is already known.  If we do not have a base address for it,
 # we do not need to process records for it.
 #
@@ -386,7 +386,7 @@ ARGIND == 2 && !need_o_map && /^ [^ ]/ && NF == 4 && $3 != "0x0" {
 	next;
 }
 
-# If we do not need to parse the vmlinux.o.map file, we are done.
+# If we do not need to parse the vmwinux.o.map file, we are done.
 #
 ARGIND == 3 && !need_o_map {
 	if (dbg)
@@ -408,11 +408,11 @@ ARGIND == 3 && map_is_lld && NF == 5 && $5 ~ /:\(/ {
 	if (!(sect in sect_addend))
 		next;
 
-	sub(/ vmlinux\.a\(/, " ");
+	sub(/ vmwinux\.a\(/, " ");
 	$0 = " "sect " 0x"$1 " 0x"$3 " " $5;
 }
 
-# (3b) Determine offset range info using vmlinux.o.map.
+# (3b) Determine offset range info using vmwinux.o.map.
 #
 # If we do not know an addend for the object's section, we are interested in
 # anything within that section.

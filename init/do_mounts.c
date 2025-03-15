@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/module.h>
-#include <linux/sched.h>
-#include <linux/ctype.h>
-#include <linux/fd.h>
-#include <linux/tty.h>
-#include <linux/suspend.h>
-#include <linux/root_dev.h>
-#include <linux/security.h>
-#include <linux/delay.h>
-#include <linux/mount.h>
-#include <linux/device.h>
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/initrd.h>
-#include <linux/async.h>
-#include <linux/fs_struct.h>
-#include <linux/slab.h>
-#include <linux/ramfs.h>
-#include <linux/shmem_fs.h>
-#include <linux/ktime.h>
+#include <winux/module.h>
+#include <winux/sched.h>
+#include <winux/ctype.h>
+#include <winux/fd.h>
+#include <winux/tty.h>
+#include <winux/suspend.h>
+#include <winux/root_dev.h>
+#include <winux/security.h>
+#include <winux/delay.h>
+#include <winux/mount.h>
+#include <winux/device.h>
+#include <winux/init.h>
+#include <winux/fs.h>
+#include <winux/initrd.h>
+#include <winux/async.h>
+#include <winux/fs_struct.h>
+#include <winux/slab.h>
+#include <winux/ramfs.h>
+#include <winux/shmem_fs.h>
+#include <winux/ktime.h>
 
-#include <linux/nfs_fs.h>
-#include <linux/nfs_fs_sb.h>
-#include <linux/nfs_mount.h>
-#include <linux/raid/detect.h>
-#include <uapi/linux/mount.h>
+#include <winux/nfs_fs.h>
+#include <winux/nfs_fs_sb.h>
+#include <winux/nfs_mount.h>
+#include <winux/raid/detect.h>
+#include <uapi/winux/mount.h>
 
 #include "do_mounts.h"
 

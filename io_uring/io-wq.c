@@ -5,19 +5,19 @@
  * Copyright (C) 2019 Jens Axboe
  *
  */
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/sched/signal.h>
-#include <linux/percpu.h>
-#include <linux/slab.h>
-#include <linux/rculist_nulls.h>
-#include <linux/cpu.h>
-#include <linux/cpuset.h>
-#include <linux/task_work.h>
-#include <linux/audit.h>
-#include <linux/mmu_context.h>
-#include <uapi/linux/io_uring.h>
+#include <winux/kernel.h>
+#include <winux/init.h>
+#include <winux/errno.h>
+#include <winux/sched/signal.h>
+#include <winux/percpu.h>
+#include <winux/slab.h>
+#include <winux/rculist_nulls.h>
+#include <winux/cpu.h>
+#include <winux/cpuset.h>
+#include <winux/task_work.h>
+#include <winux/audit.h>
+#include <winux/mmu_context.h>
+#include <uapi/winux/io_uring.h>
 
 #include "io-wq.h"
 #include "slist.h"

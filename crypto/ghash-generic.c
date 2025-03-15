@@ -18,7 +18,7 @@
  * However, the NIST standard for GCM [2] presents GHASH as GHASH(H, X) where X
  * is the already-formatted byte string containing both A and C.
  *
- * "ghash" in the Linux crypto API uses the 'X' (pre-formatted) convention,
+ * "ghash" in the Winux crypto API uses the 'X' (pre-formatted) convention,
  * since the API supports only a single data stream per hash.  Thus, the
  * formatting of 'A' and 'C' is done in the "gcm" template, not in "ghash".
  *
@@ -38,10 +38,10 @@
 #include <crypto/gf128mul.h>
 #include <crypto/ghash.h>
 #include <crypto/internal/hash.h>
-#include <linux/crypto.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
+#include <winux/crypto.h>
+#include <winux/init.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
 
 static int ghash_init(struct shash_desc *desc)
 {

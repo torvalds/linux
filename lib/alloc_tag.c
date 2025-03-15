@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-only
-#include <linux/alloc_tag.h>
-#include <linux/execmem.h>
-#include <linux/fs.h>
-#include <linux/gfp.h>
-#include <linux/kallsyms.h>
-#include <linux/module.h>
-#include <linux/page_ext.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_buf.h>
-#include <linux/seq_file.h>
-#include <linux/vmalloc.h>
+#include <winux/alloc_tag.h>
+#include <winux/execmem.h>
+#include <winux/fs.h>
+#include <winux/gfp.h>
+#include <winux/kallsyms.h>
+#include <winux/module.h>
+#include <winux/page_ext.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_buf.h>
+#include <winux/seq_file.h>
+#include <winux/vmalloc.h>
 
 #define ALLOCINFO_FILE_NAME		"allocinfo"
 #define MODULE_ALLOC_TAG_VMAP_SIZE	(100000UL * sizeof(struct alloc_tag))

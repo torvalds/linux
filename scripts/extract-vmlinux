@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-only
 # ----------------------------------------------------------------------
-# extract-vmlinux - Extract uncompressed vmlinux from a kernel image
+# extract-vmwinux - Extract uncompressed vmwinux from a kernel image
 #
 # Inspired from extract-ikconfig
 # (c) 2009,2010 Dick Streefland <dick@streefland.net>
@@ -10,10 +10,10 @@
 #
 # ----------------------------------------------------------------------
 
-check_vmlinux()
+check_vmwinux()
 {
 	# Use readelf to check if it's a valid ELF
-	# TODO: find a better to way to check that it's really vmlinux
+	# TODO: find a better to way to check that it's really vmwinux
 	#       and not just an elf
 	readelf -h $1 > /dev/null 2>&1 || return 1
 
@@ -31,7 +31,7 @@ try_decompress()
 	do
 		pos=${pos%%:*}
 		tail -c+$pos "$img" | $3 > $tmp 2> /dev/null
-		check_vmlinux $tmp
+		check_vmwinux $tmp
 	done
 }
 
@@ -45,7 +45,7 @@ then
 fi
 
 # Prepare temp files:
-tmp=$(mktemp /tmp/vmlinux-XXX)
+tmp=$(mktemp /tmp/vmwinux-XXX)
 trap "rm -f $tmp" 0
 
 # That didn't work, so retry after decompression.
@@ -58,7 +58,7 @@ try_decompress '\002!L\030'   xxx   'lz4 -d'
 try_decompress '(\265/\375'   xxx   unzstd
 
 # Finally check for uncompressed images or objects:
-check_vmlinux $img
+check_vmwinux $img
 
 # Bail out:
-echo "$me: Cannot find vmlinux." >&2
+echo "$me: Cannot find vmwinux." >&2

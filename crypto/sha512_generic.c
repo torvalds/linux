@@ -6,17 +6,17 @@
  * Copyright (c) 2003 Kyle McMartin <kyle@debian.org>
  */
 #include <crypto/internal/hash.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/mm.h>
-#include <linux/init.h>
-#include <linux/crypto.h>
-#include <linux/types.h>
+#include <winux/kernel.h>
+#include <winux/module.h>
+#include <winux/mm.h>
+#include <winux/init.h>
+#include <winux/crypto.h>
+#include <winux/types.h>
 #include <crypto/sha2.h>
 #include <crypto/sha512_base.h>
-#include <linux/percpu.h>
+#include <winux/percpu.h>
 #include <asm/byteorder.h>
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 
 const u8 sha384_zero_message_hash[SHA384_DIGEST_SIZE] = {
 	0x38, 0xb0, 0x60, 0xa7, 0x51, 0xac, 0x96, 0x38,

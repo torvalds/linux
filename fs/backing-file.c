@@ -8,10 +8,10 @@
  * Copyright (C) 2023 CTERA Networks.
  */
 
-#include <linux/fs.h>
-#include <linux/backing-file.h>
-#include <linux/splice.h>
-#include <linux/mm.h>
+#include <winux/fs.h>
+#include <winux/backing-file.h>
+#include <winux/splice.h>
+#include <winux/mm.h>
 
 #include "internal.h"
 

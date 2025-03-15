@@ -11,15 +11,15 @@
  * However, if you change this file, please make sure the tools/bootconfig
  * has no issue on building and running.
  */
-#include <linux/bootconfig.h>
+#include <winux/bootconfig.h>
 
 #ifdef __KERNEL__
-#include <linux/bug.h>
-#include <linux/ctype.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
-#include <linux/memblock.h>
-#include <linux/string.h>
+#include <winux/bug.h>
+#include <winux/ctype.h>
+#include <winux/errno.h>
+#include <winux/kernel.h>
+#include <winux/memblock.h>
+#include <winux/string.h>
 
 #ifdef CONFIG_BOOT_CONFIG_EMBED
 /* embedded_bootconfig_data is defined in bootconfig-data.S */

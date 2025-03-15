@@ -9,11 +9,11 @@
  *               Ard Biesheuvel <ard.biesheuvel@linaro.org>
  */
 #include <crypto/internal/hash.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/types.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/types.h>
 #include <crypto/sha3.h>
-#include <linux/unaligned.h>
+#include <winux/unaligned.h>
 
 /*
  * On some 32-bit architectures (h8300), GCC ends up using

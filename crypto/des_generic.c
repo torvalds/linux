@@ -9,10 +9,10 @@
 
 #include <asm/byteorder.h>
 #include <crypto/algapi.h>
-#include <linux/bitops.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/errno.h>
+#include <winux/bitops.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/errno.h>
 
 #include <crypto/internal/des.h>
 

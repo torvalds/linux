@@ -6,7 +6,7 @@
  * (e.g. a char device).
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
- * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
+ * Copyright (c) 2002 Jean-Francois Dive <jef@winuxbe.org>
  * Copyright (c) 2007 Nokia Siemens Networks
  */
 #ifndef _CRYPTO_TCRYPT_H

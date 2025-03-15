@@ -39,43 +39,43 @@
  * Copyright (C) 2018-2019 Jens Axboe
  * Copyright (c) 2018-2019 Christoph Hellwig
  */
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/errno.h>
-#include <linux/syscalls.h>
+#include <winux/kernel.h>
+#include <winux/init.h>
+#include <winux/errno.h>
+#include <winux/syscalls.h>
 #include <net/compat.h>
-#include <linux/refcount.h>
-#include <linux/uio.h>
-#include <linux/bits.h>
+#include <winux/refcount.h>
+#include <winux/uio.h>
+#include <winux/bits.h>
 
-#include <linux/sched/signal.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/mm.h>
-#include <linux/mman.h>
-#include <linux/percpu.h>
-#include <linux/slab.h>
-#include <linux/bvec.h>
-#include <linux/net.h>
+#include <winux/sched/signal.h>
+#include <winux/fs.h>
+#include <winux/file.h>
+#include <winux/mm.h>
+#include <winux/mman.h>
+#include <winux/percpu.h>
+#include <winux/slab.h>
+#include <winux/bvec.h>
+#include <winux/net.h>
 #include <net/sock.h>
-#include <linux/anon_inodes.h>
-#include <linux/sched/mm.h>
-#include <linux/uaccess.h>
-#include <linux/nospec.h>
-#include <linux/fsnotify.h>
-#include <linux/fadvise.h>
-#include <linux/task_work.h>
-#include <linux/io_uring.h>
-#include <linux/io_uring/cmd.h>
-#include <linux/audit.h>
-#include <linux/security.h>
-#include <linux/jump_label.h>
+#include <winux/anon_inodes.h>
+#include <winux/sched/mm.h>
+#include <winux/uaccess.h>
+#include <winux/nospec.h>
+#include <winux/fsnotify.h>
+#include <winux/fadvise.h>
+#include <winux/task_work.h>
+#include <winux/io_uring.h>
+#include <winux/io_uring/cmd.h>
+#include <winux/audit.h>
+#include <winux/security.h>
+#include <winux/jump_label.h>
 #include <asm/shmparam.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
 
-#include <uapi/linux/io_uring.h>
+#include <uapi/winux/io_uring.h>
 
 #include "io-wq.h"
 

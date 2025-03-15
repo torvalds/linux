@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/mm_types.h>
-#include <linux/tracepoint.h>
+#include <winux/mm_types.h>
+#include <winux/tracepoint.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/page_ref.h>

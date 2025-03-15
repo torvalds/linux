@@ -2,7 +2,7 @@
 /* memcontrol.c - Memory Controller
  *
  * Copyright IBM Corporation, 2007
- * Author Balbir Singh <balbir@linux.vnet.ibm.com>
+ * Author Balbir Singh <balbir@winux.vnet.ibm.com>
  *
  * Copyright 2007 OpenVZ SWsoft Inc
  * Author: Pavel Emelianov <xemul@openvz.org>
@@ -25,51 +25,51 @@
  * Copyright (C) 2020 Alibaba, Inc, Alex Shi
  */
 
-#include <linux/cgroup-defs.h>
-#include <linux/page_counter.h>
-#include <linux/memcontrol.h>
-#include <linux/cgroup.h>
-#include <linux/sched/mm.h>
-#include <linux/shmem_fs.h>
-#include <linux/hugetlb.h>
-#include <linux/pagemap.h>
-#include <linux/pagevec.h>
-#include <linux/vm_event_item.h>
-#include <linux/smp.h>
-#include <linux/page-flags.h>
-#include <linux/backing-dev.h>
-#include <linux/bit_spinlock.h>
-#include <linux/rcupdate.h>
-#include <linux/limits.h>
-#include <linux/export.h>
-#include <linux/list.h>
-#include <linux/mutex.h>
-#include <linux/rbtree.h>
-#include <linux/slab.h>
-#include <linux/swapops.h>
-#include <linux/spinlock.h>
-#include <linux/fs.h>
-#include <linux/seq_file.h>
-#include <linux/parser.h>
-#include <linux/vmpressure.h>
-#include <linux/memremap.h>
-#include <linux/mm_inline.h>
-#include <linux/swap_cgroup.h>
-#include <linux/cpu.h>
-#include <linux/oom.h>
-#include <linux/lockdep.h>
-#include <linux/resume_user_mode.h>
-#include <linux/psi.h>
-#include <linux/seq_buf.h>
-#include <linux/sched/isolation.h>
-#include <linux/kmemleak.h>
+#include <winux/cgroup-defs.h>
+#include <winux/page_counter.h>
+#include <winux/memcontrol.h>
+#include <winux/cgroup.h>
+#include <winux/sched/mm.h>
+#include <winux/shmem_fs.h>
+#include <winux/hugetlb.h>
+#include <winux/pagemap.h>
+#include <winux/pagevec.h>
+#include <winux/vm_event_item.h>
+#include <winux/smp.h>
+#include <winux/page-flags.h>
+#include <winux/backing-dev.h>
+#include <winux/bit_spinlock.h>
+#include <winux/rcupdate.h>
+#include <winux/limits.h>
+#include <winux/export.h>
+#include <winux/list.h>
+#include <winux/mutex.h>
+#include <winux/rbtree.h>
+#include <winux/slab.h>
+#include <winux/swapops.h>
+#include <winux/spinlock.h>
+#include <winux/fs.h>
+#include <winux/seq_file.h>
+#include <winux/parser.h>
+#include <winux/vmpressure.h>
+#include <winux/memremap.h>
+#include <winux/mm_inline.h>
+#include <winux/swap_cgroup.h>
+#include <winux/cpu.h>
+#include <winux/oom.h>
+#include <winux/lockdep.h>
+#include <winux/resume_user_mode.h>
+#include <winux/psi.h>
+#include <winux/seq_buf.h>
+#include <winux/sched/isolation.h>
+#include <winux/kmemleak.h>
 #include "internal.h"
 #include <net/sock.h>
 #include <net/ip.h>
 #include "slab.h"
 #include "memcontrol-v1.h"
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/memcg.h>
@@ -5132,7 +5132,7 @@ static int __init setup_swap_account(char *s)
 	if (!kstrtobool(s, &res) && !res)
 		pr_warn_once("The swapaccount=0 commandline option is deprecated "
 			     "in favor of configuring swap control via cgroupfs. "
-			     "Please report your usecase to linux-mm@kvack.org if you "
+			     "Please report your usecase to winux-mm@kvack.org if you "
 			     "depend on this functionality.\n");
 	return 1;
 }

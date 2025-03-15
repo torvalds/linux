@@ -7,7 +7,7 @@
  * Copyright © 2012 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
  */
 
-#include <linux/module.h>
+#include <winux/module.h>
 #include <crypto/cast_common.h>
 
 __visible const u32 cast_s1[256] = {

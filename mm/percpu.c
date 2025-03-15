@@ -2,7 +2,7 @@
 /*
  * mm/percpu.c - percpu memory allocator
  *
- * Copyright (C) 2009		SUSE Linux Products GmbH
+ * Copyright (C) 2009		SUSE Winux Products GmbH
  * Copyright (C) 2009		Tejun Heo <tj@kernel.org>
  *
  * Copyright (C) 2017		Facebook Inc.
@@ -68,25 +68,25 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/bitmap.h>
-#include <linux/cpumask.h>
-#include <linux/memblock.h>
-#include <linux/err.h>
-#include <linux/list.h>
-#include <linux/log2.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-#include <linux/percpu.h>
-#include <linux/pfn.h>
-#include <linux/slab.h>
-#include <linux/spinlock.h>
-#include <linux/vmalloc.h>
-#include <linux/workqueue.h>
-#include <linux/kmemleak.h>
-#include <linux/sched.h>
-#include <linux/sched/mm.h>
-#include <linux/memcontrol.h>
+#include <winux/bitmap.h>
+#include <winux/cpumask.h>
+#include <winux/memblock.h>
+#include <winux/err.h>
+#include <winux/list.h>
+#include <winux/log2.h>
+#include <winux/mm.h>
+#include <winux/module.h>
+#include <winux/mutex.h>
+#include <winux/percpu.h>
+#include <winux/pfn.h>
+#include <winux/slab.h>
+#include <winux/spinlock.h>
+#include <winux/vmalloc.h>
+#include <winux/workqueue.h>
+#include <winux/kmemleak.h>
+#include <winux/sched.h>
+#include <winux/sched/mm.h>
+#include <winux/memcontrol.h>
 
 #include <asm/cacheflush.h>
 #include <asm/sections.h>

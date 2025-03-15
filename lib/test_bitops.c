@@ -5,11 +5,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/cleanup.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/printk.h>
-#include <linux/slab.h>
+#include <winux/cleanup.h>
+#include <winux/init.h>
+#include <winux/module.h>
+#include <winux/printk.h>
+#include <winux/slab.h>
 
 /* a tiny module only meant to test
  *

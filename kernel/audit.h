@@ -9,13 +9,13 @@
 #ifndef _KERNEL_AUDIT_H_
 #define _KERNEL_AUDIT_H_
 
-#include <linux/fs.h>
-#include <linux/audit.h>
-#include <linux/security.h>
-#include <linux/skbuff.h>
-#include <uapi/linux/mqueue.h>
-#include <linux/tty.h>
-#include <uapi/linux/openat2.h> // struct open_how
+#include <winux/fs.h>
+#include <winux/audit.h>
+#include <winux/security.h>
+#include <winux/skbuff.h>
+#include <uapi/winux/mqueue.h>
+#include <winux/tty.h>
+#include <uapi/winux/openat2.h> // struct open_how
 
 /* AUDIT_NAMES is the number of slots we reserve in the audit_context
  * for saving names from getname().  If we get more names we will allocate

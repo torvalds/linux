@@ -1,30 +1,30 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	linux/mm/mlock.c
+ *	winux/mm/mlock.c
  *
  *  (C) Copyright 1995 Linus Torvalds
  *  (C) Copyright 2002 Christoph Hellwig
  */
 
-#include <linux/capability.h>
-#include <linux/mman.h>
-#include <linux/mm.h>
-#include <linux/sched/user.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
-#include <linux/pagemap.h>
-#include <linux/pagevec.h>
-#include <linux/pagewalk.h>
-#include <linux/mempolicy.h>
-#include <linux/syscalls.h>
-#include <linux/sched.h>
-#include <linux/export.h>
-#include <linux/rmap.h>
-#include <linux/mmzone.h>
-#include <linux/hugetlb.h>
-#include <linux/memcontrol.h>
-#include <linux/mm_inline.h>
-#include <linux/secretmem.h>
+#include <winux/capability.h>
+#include <winux/mman.h>
+#include <winux/mm.h>
+#include <winux/sched/user.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
+#include <winux/pagemap.h>
+#include <winux/pagevec.h>
+#include <winux/pagewalk.h>
+#include <winux/mempolicy.h>
+#include <winux/syscalls.h>
+#include <winux/sched.h>
+#include <winux/export.h>
+#include <winux/rmap.h>
+#include <winux/mmzone.h>
+#include <winux/hugetlb.h>
+#include <winux/memcontrol.h>
+#include <winux/mm_inline.h>
+#include <winux/secretmem.h>
 
 #include "internal.h"
 

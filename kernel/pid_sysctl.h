@@ -2,7 +2,7 @@
 #ifndef LINUX_PID_SYSCTL_H
 #define LINUX_PID_SYSCTL_H
 
-#include <linux/pid_namespace.h>
+#include <winux/pid_namespace.h>
 
 #if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
 static int pid_mfd_noexec_dointvec_minmax(const struct ctl_table *table,

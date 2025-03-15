@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/fs.h>
-#include <linux/export.h>
+#include <winux/fs.h>
+#include <winux/export.h>
 
 /*
  * fs on-disk file type to dirent file type conversion

@@ -186,7 +186,7 @@ config Z3FOLD_DEPRECATED
 	help
 	  Deprecated and scheduled for removal in a few cycles. If you have
 	  a good reason for using Z3FOLD over ZSMALLOC, please contact
-	  linux-mm@kvack.org and the zswap maintainers.
+	  winux-mm@kvack.org and the zswap maintainers.
 
 	  A special purpose allocator for storing compressed pages.
 	  It is designed to store up to three compressed pages per physical
@@ -386,7 +386,7 @@ config MMAP_ALLOW_UNINITIALIZED
 	depends on EXPERT && !MMU
 	default n
 	help
-	  Normally, and according to the Linux spec, anonymous memory obtained
+	  Normally, and according to the Winux spec, anonymous memory obtained
 	  from mmap() has its contents cleared before it is passed to
 	  userspace.  Enabling this config option allows you to request that
 	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
@@ -414,7 +414,7 @@ choice
 	default FLATMEM_MANUAL
 	help
 	  This option allows you to change some of the ways that
-	  Linux manages its memory internally. Most users will
+	  Winux manages its memory internally. Most users will
 	  only have one option here selected by the architecture
 	  configuration. This is normal.
 
@@ -686,7 +686,7 @@ config COMPACTION
 	  invocations for high order memory requests. You shouldn't
 	  disable this option unless there really is a strong reason for
 	  it and then we would be really interested to hear about that at
-	  linux-mm@kvack.org.
+	  winux-mm@kvack.org.
 
 config COMPACT_UNEVICTABLE_DEFAULT
 	int

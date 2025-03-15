@@ -8,16 +8,16 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/kernel.h>
-#include <linux/audit.h>
-#include <linux/kthread.h>
-#include <linux/mutex.h>
-#include <linux/fs.h>
-#include <linux/namei.h>
-#include <linux/netlink.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/security.h>
+#include <winux/kernel.h>
+#include <winux/audit.h>
+#include <winux/kthread.h>
+#include <winux/mutex.h>
+#include <winux/fs.h>
+#include <winux/namei.h>
+#include <winux/netlink.h>
+#include <winux/sched.h>
+#include <winux/slab.h>
+#include <winux/security.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include "audit.h"
@@ -35,7 +35,7 @@
  *		be written directly provided audit_filter_mutex is held.
  */
 
-/* Audit filter lists, defined in <linux/audit.h> */
+/* Audit filter lists, defined in <winux/audit.h> */
 struct list_head audit_filter_list[AUDIT_NR_FILTERS] = {
 	LIST_HEAD_INIT(audit_filter_list[0]),
 	LIST_HEAD_INIT(audit_filter_list[1]),
@@ -359,7 +359,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_ARG1:
 	case AUDIT_ARG2:
 	case AUDIT_ARG3:
-	case AUDIT_PERS: /* <uapi/linux/personality.h> */
+	case AUDIT_PERS: /* <uapi/winux/personality.h> */
 	case AUDIT_DEVMINOR:
 		/* all ops are valid */
 		break;

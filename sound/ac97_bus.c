@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Linux driver model AC97 bus interface
+ * Winux driver model AC97 bus interface
  *
  * Author:	Nicolas Pitre
  * Created:	Jan 14, 2005
  * Copyright:	(C) MontaVista Software Inc.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/string.h>
+#include <winux/module.h>
+#include <winux/init.h>
+#include <winux/device.h>
+#include <winux/string.h>
 #include <sound/ac97_codec.h>
 
 /*

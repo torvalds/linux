@@ -1,52 +1,52 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/mm/swapfile.c
+ *  winux/mm/swapfile.c
  *
  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
  *  Swap reorganised 29.12.95, Stephen Tweedie
  */
 
-#include <linux/blkdev.h>
-#include <linux/mm.h>
-#include <linux/sched/mm.h>
-#include <linux/sched/task.h>
-#include <linux/hugetlb.h>
-#include <linux/mman.h>
-#include <linux/slab.h>
-#include <linux/kernel_stat.h>
-#include <linux/swap.h>
-#include <linux/vmalloc.h>
-#include <linux/pagemap.h>
-#include <linux/namei.h>
-#include <linux/shmem_fs.h>
-#include <linux/blk-cgroup.h>
-#include <linux/random.h>
-#include <linux/writeback.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/init.h>
-#include <linux/ksm.h>
-#include <linux/rmap.h>
-#include <linux/security.h>
-#include <linux/backing-dev.h>
-#include <linux/mutex.h>
-#include <linux/capability.h>
-#include <linux/syscalls.h>
-#include <linux/memcontrol.h>
-#include <linux/poll.h>
-#include <linux/oom.h>
-#include <linux/swapfile.h>
-#include <linux/export.h>
-#include <linux/swap_slots.h>
-#include <linux/sort.h>
-#include <linux/completion.h>
-#include <linux/suspend.h>
-#include <linux/zswap.h>
-#include <linux/plist.h>
+#include <winux/blkdev.h>
+#include <winux/mm.h>
+#include <winux/sched/mm.h>
+#include <winux/sched/task.h>
+#include <winux/hugetlb.h>
+#include <winux/mman.h>
+#include <winux/slab.h>
+#include <winux/kernel_stat.h>
+#include <winux/swap.h>
+#include <winux/vmalloc.h>
+#include <winux/pagemap.h>
+#include <winux/namei.h>
+#include <winux/shmem_fs.h>
+#include <winux/blk-cgroup.h>
+#include <winux/random.h>
+#include <winux/writeback.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/init.h>
+#include <winux/ksm.h>
+#include <winux/rmap.h>
+#include <winux/security.h>
+#include <winux/backing-dev.h>
+#include <winux/mutex.h>
+#include <winux/capability.h>
+#include <winux/syscalls.h>
+#include <winux/memcontrol.h>
+#include <winux/poll.h>
+#include <winux/oom.h>
+#include <winux/swapfile.h>
+#include <winux/export.h>
+#include <winux/swap_slots.h>
+#include <winux/sort.h>
+#include <winux/completion.h>
+#include <winux/suspend.h>
+#include <winux/zswap.h>
+#include <winux/plist.h>
 
 #include <asm/tlbflush.h>
-#include <linux/swapops.h>
-#include <linux/swap_cgroup.h>
+#include <winux/swapops.h>
+#include <winux/swap_cgroup.h>
 #include "internal.h"
 #include "swap.h"
 

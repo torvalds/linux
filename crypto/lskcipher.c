@@ -7,13 +7,13 @@
  * Copyright (c) 2023 Herbert Xu <herbert@gondor.apana.org.au>
  */
 
-#include <linux/cryptouser.h>
-#include <linux/err.h>
-#include <linux/export.h>
-#include <linux/kernel.h>
-#include <linux/seq_file.h>
-#include <linux/slab.h>
-#include <linux/string.h>
+#include <winux/cryptouser.h>
+#include <winux/err.h>
+#include <winux/export.h>
+#include <winux/kernel.h>
+#include <winux/seq_file.h>
+#include <winux/slab.h>
+#include <winux/string.h>
 #include <net/netlink.h>
 #include "skcipher.h"
 

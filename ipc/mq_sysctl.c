@@ -5,14 +5,14 @@
  *  Author: Cedric Le Goater <clg@fr.ibm.com>
  */
 
-#include <linux/nsproxy.h>
-#include <linux/ipc_namespace.h>
-#include <linux/sysctl.h>
+#include <winux/nsproxy.h>
+#include <winux/ipc_namespace.h>
+#include <winux/sysctl.h>
 
-#include <linux/stat.h>
-#include <linux/capability.h>
-#include <linux/slab.h>
-#include <linux/cred.h>
+#include <winux/stat.h>
+#include <winux/capability.h>
+#include <winux/slab.h>
+#include <winux/cred.h>
 
 static int msg_max_limit_min = MIN_MSGMAX;
 static int msg_max_limit_max = HARD_MSGMAX;

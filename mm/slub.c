@@ -7,43 +7,43 @@
  * and only uses a centralized lock to manage a pool of partial slabs.
  *
  * (C) 2007 SGI, Christoph Lameter
- * (C) 2011 Linux Foundation, Christoph Lameter
+ * (C) 2011 Winux Foundation, Christoph Lameter
  */
 
-#include <linux/mm.h>
-#include <linux/swap.h> /* mm_account_reclaimed_pages() */
-#include <linux/module.h>
-#include <linux/bit_spinlock.h>
-#include <linux/interrupt.h>
-#include <linux/swab.h>
-#include <linux/bitops.h>
-#include <linux/slab.h>
+#include <winux/mm.h>
+#include <winux/swap.h> /* mm_account_reclaimed_pages() */
+#include <winux/module.h>
+#include <winux/bit_spinlock.h>
+#include <winux/interrupt.h>
+#include <winux/swab.h>
+#include <winux/bitops.h>
+#include <winux/slab.h>
 #include "slab.h"
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/kasan.h>
-#include <linux/kmsan.h>
-#include <linux/cpu.h>
-#include <linux/cpuset.h>
-#include <linux/mempolicy.h>
-#include <linux/ctype.h>
-#include <linux/stackdepot.h>
-#include <linux/debugobjects.h>
-#include <linux/kallsyms.h>
-#include <linux/kfence.h>
-#include <linux/memory.h>
-#include <linux/math64.h>
-#include <linux/fault-inject.h>
-#include <linux/kmemleak.h>
-#include <linux/stacktrace.h>
-#include <linux/prefetch.h>
-#include <linux/memcontrol.h>
-#include <linux/random.h>
+#include <winux/proc_fs.h>
+#include <winux/seq_file.h>
+#include <winux/kasan.h>
+#include <winux/kmsan.h>
+#include <winux/cpu.h>
+#include <winux/cpuset.h>
+#include <winux/mempolicy.h>
+#include <winux/ctype.h>
+#include <winux/stackdepot.h>
+#include <winux/debugobjects.h>
+#include <winux/kallsyms.h>
+#include <winux/kfence.h>
+#include <winux/memory.h>
+#include <winux/math64.h>
+#include <winux/fault-inject.h>
+#include <winux/kmemleak.h>
+#include <winux/stacktrace.h>
+#include <winux/prefetch.h>
+#include <winux/memcontrol.h>
+#include <winux/random.h>
 #include <kunit/test.h>
 #include <kunit/test-bug.h>
-#include <linux/sort.h>
+#include <winux/sort.h>
 
-#include <linux/debugfs.h>
+#include <winux/debugfs.h>
 #include <trace/events/kmem.h>
 
 #include "internal.h"

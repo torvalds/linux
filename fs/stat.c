@@ -1,26 +1,26 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/fs/stat.c
+ *  winux/fs/stat.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#include <linux/blkdev.h>
-#include <linux/export.h>
-#include <linux/mm.h>
-#include <linux/errno.h>
-#include <linux/file.h>
-#include <linux/highuid.h>
-#include <linux/fs.h>
-#include <linux/namei.h>
-#include <linux/security.h>
-#include <linux/cred.h>
-#include <linux/syscalls.h>
-#include <linux/pagemap.h>
-#include <linux/compat.h>
-#include <linux/iversion.h>
+#include <winux/blkdev.h>
+#include <winux/export.h>
+#include <winux/mm.h>
+#include <winux/errno.h>
+#include <winux/file.h>
+#include <winux/highuid.h>
+#include <winux/fs.h>
+#include <winux/namei.h>
+#include <winux/security.h>
+#include <winux/cred.h>
+#include <winux/syscalls.h>
+#include <winux/pagemap.h>
+#include <winux/compat.h>
+#include <winux/iversion.h>
 
-#include <linux/uaccess.h>
+#include <winux/uaccess.h>
 #include <asm/unistd.h>
 
 #include <trace/events/timestamp.h>

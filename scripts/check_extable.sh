@@ -21,7 +21,7 @@ suspicious_relocs=$(objdump -rj __ex_table ${obj}  | tail -n +6 |
 
 # After this point, something is seriously wrong since we just found out we
 # have some relocations in __ex_table which point to sections which aren't
-# white listed.  If you're adding a new section in the Linux kernel, and
+# white listed.  If you're adding a new section in the Winux kernel, and
 # you're expecting this section to contain code which can fault (i.e. the
 # __ex_table relocation to your new section is expected), simply add your
 # new section to the white_list variable above.  If not, you're probably

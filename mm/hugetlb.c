@@ -3,52 +3,52 @@
  * Generic hugetlb support.
  * (C) Nadia Yvette Chambers, April 2004
  */
-#include <linux/list.h>
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/seq_file.h>
-#include <linux/sysctl.h>
-#include <linux/highmem.h>
-#include <linux/mmu_notifier.h>
-#include <linux/nodemask.h>
-#include <linux/pagemap.h>
-#include <linux/mempolicy.h>
-#include <linux/compiler.h>
-#include <linux/cpuset.h>
-#include <linux/mutex.h>
-#include <linux/memblock.h>
-#include <linux/sysfs.h>
-#include <linux/slab.h>
-#include <linux/sched/mm.h>
-#include <linux/mmdebug.h>
-#include <linux/sched/signal.h>
-#include <linux/rmap.h>
-#include <linux/string_helpers.h>
-#include <linux/swap.h>
-#include <linux/swapops.h>
-#include <linux/jhash.h>
-#include <linux/numa.h>
-#include <linux/llist.h>
-#include <linux/cma.h>
-#include <linux/migrate.h>
-#include <linux/nospec.h>
-#include <linux/delayacct.h>
-#include <linux/memory.h>
-#include <linux/mm_inline.h>
-#include <linux/padata.h>
+#include <winux/list.h>
+#include <winux/init.h>
+#include <winux/mm.h>
+#include <winux/seq_file.h>
+#include <winux/sysctl.h>
+#include <winux/highmem.h>
+#include <winux/mmu_notifier.h>
+#include <winux/nodemask.h>
+#include <winux/pagemap.h>
+#include <winux/mempolicy.h>
+#include <winux/compiler.h>
+#include <winux/cpuset.h>
+#include <winux/mutex.h>
+#include <winux/memblock.h>
+#include <winux/sysfs.h>
+#include <winux/slab.h>
+#include <winux/sched/mm.h>
+#include <winux/mmdebug.h>
+#include <winux/sched/signal.h>
+#include <winux/rmap.h>
+#include <winux/string_helpers.h>
+#include <winux/swap.h>
+#include <winux/swapops.h>
+#include <winux/jhash.h>
+#include <winux/numa.h>
+#include <winux/llist.h>
+#include <winux/cma.h>
+#include <winux/migrate.h>
+#include <winux/nospec.h>
+#include <winux/delayacct.h>
+#include <winux/memory.h>
+#include <winux/mm_inline.h>
+#include <winux/padata.h>
 
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 
-#include <linux/io.h>
-#include <linux/hugetlb.h>
-#include <linux/hugetlb_cgroup.h>
-#include <linux/node.h>
-#include <linux/page_owner.h>
+#include <winux/io.h>
+#include <winux/hugetlb.h>
+#include <winux/hugetlb_cgroup.h>
+#include <winux/node.h>
+#include <winux/page_owner.h>
 #include "internal.h"
 #include "hugetlb_vmemmap.h"
-#include <linux/page-isolation.h>
+#include <winux/page-isolation.h>
 
 int hugetlb_max_hstate __read_mostly;
 unsigned int default_hstate_idx;

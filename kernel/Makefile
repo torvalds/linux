@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 #
-# Makefile for the linux kernel.
+# Makefile for the winux kernel.
 #
 
 obj-y     = fork.o exec_domain.o panic.o \

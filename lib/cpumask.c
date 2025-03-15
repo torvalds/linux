@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/slab.h>
-#include <linux/kernel.h>
-#include <linux/bitops.h>
-#include <linux/cpumask.h>
-#include <linux/export.h>
-#include <linux/memblock.h>
-#include <linux/numa.h>
+#include <winux/slab.h>
+#include <winux/kernel.h>
+#include <winux/bitops.h>
+#include <winux/cpumask.h>
+#include <winux/export.h>
+#include <winux/memblock.h>
+#include <winux/numa.h>
 
 /**
  * cpumask_next_wrap - helper to implement for_each_cpu_wrap
@@ -48,7 +48,7 @@ EXPORT_SYMBOL(cpumask_next_wrap);
  * @node: memory node from which to allocate or %NUMA_NO_NODE
  *
  * Only defined when CONFIG_CPUMASK_OFFSTACK=y, otherwise is
- * a nop returning a constant 1 (in <linux/cpumask.h>).
+ * a nop returning a constant 1 (in <winux/cpumask.h>).
  *
  * Return: TRUE if memory allocation succeeded, FALSE otherwise.
  *
@@ -77,7 +77,7 @@ EXPORT_SYMBOL(alloc_cpumask_var_node);
  * @mask: pointer to cpumask_var_t where the cpumask is returned
  *
  * Only defined when CONFIG_CPUMASK_OFFSTACK=y, otherwise is
- * a nop (in <linux/cpumask.h>).
+ * a nop (in <winux/cpumask.h>).
  * Either returns an allocated (zero-filled) cpumask, or causes the
  * system to panic.
  */
