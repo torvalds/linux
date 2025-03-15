@@ -178,8 +178,9 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	unsigned int dlen = req->dlen;
 	struct page *spage, *dpage;
 	unsigned int soff, doff;
-	void *src, *dst;
 	unsigned int n;
+	const u8 *src;
+	u8 *dst;
 	int ret;
 
 	if (!req->src || !slen)
@@ -188,37 +189,47 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	if (!req->dst || !dlen)
 		return -EINVAL;
 
-	soff = req->src->offset;
-	spage = nth_page(sg_page(req->src), soff / PAGE_SIZE);
-	soff = offset_in_page(soff);
-
-	n = slen / PAGE_SIZE;
-	n += (offset_in_page(slen) + soff - 1) / PAGE_SIZE;
-	if (slen <= req->src->length && (!PageHighMem(nth_page(spage, n)) ||
-					 size_add(soff, slen) <= PAGE_SIZE))
-		src = kmap_local_page(spage) + soff;
-	else
-		src = scratch->src;
-
-	doff = req->dst->offset;
-	dpage = nth_page(sg_page(req->dst), doff / PAGE_SIZE);
-	doff = offset_in_page(doff);
-
-	n = dlen / PAGE_SIZE;
-	n += (offset_in_page(dlen) + doff - 1) / PAGE_SIZE;
-	if (dlen <= req->dst->length && (!PageHighMem(nth_page(dpage, n)) ||
-					 size_add(doff, dlen) <= PAGE_SIZE))
-		dst = kmap_local_page(dpage) + doff;
+	if (acomp_request_src_isvirt(req))
+		src = req->svirt;
 	else {
-		if (dlen > SCOMP_SCRATCH_SIZE)
-			dlen = SCOMP_SCRATCH_SIZE;
-		dst = scratch->dst;
+		soff = req->src->offset;
+		spage = nth_page(sg_page(req->src), soff / PAGE_SIZE);
+		soff = offset_in_page(soff);
+
+		n = slen / PAGE_SIZE;
+		n += (offset_in_page(slen) + soff - 1) / PAGE_SIZE;
+		if (slen <= req->src->length &&
+		    (!PageHighMem(nth_page(spage, n)) ||
+		     size_add(soff, slen) <= PAGE_SIZE))
+			src = kmap_local_page(spage) + soff;
+		else
+			src = scratch->src;
+	}
+
+	if (acomp_request_dst_isvirt(req))
+		dst = req->dvirt;
+	else {
+		doff = req->dst->offset;
+		dpage = nth_page(sg_page(req->dst), doff / PAGE_SIZE);
+		doff = offset_in_page(doff);
+
+		n = dlen / PAGE_SIZE;
+		n += (offset_in_page(dlen) + doff - 1) / PAGE_SIZE;
+		if (dlen <= req->dst->length &&
+		    (!PageHighMem(nth_page(dpage, n)) ||
+		     size_add(doff, dlen) <= PAGE_SIZE))
+			dst = kmap_local_page(dpage) + doff;
+		else {
+			if (dlen > SCOMP_SCRATCH_SIZE)
+				dlen = SCOMP_SCRATCH_SIZE;
+			dst = scratch->dst;
+		}
 	}
 
 	spin_lock_bh(&scratch->lock);
 
 	if (src == scratch->src)
-		memcpy_from_sglist(src, req->src, 0, slen);
+		memcpy_from_sglist(scratch->src, req->src, 0, slen);
 
 	stream = raw_cpu_ptr(crypto_scomp_alg(scomp)->stream);
 	spin_lock(&stream->lock);
@@ -237,7 +248,7 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 
 	req->dlen = dlen;
 
-	if (dst != scratch->dst) {
+	if (!acomp_request_dst_isvirt(req) && dst != scratch->dst) {
 		kunmap_local(dst);
 		dlen += doff;
 		for (;;) {
@@ -248,20 +259,34 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 			dpage = nth_page(dpage, 1);
 		}
 	}
-	if (src != scratch->src)
+	if (!acomp_request_src_isvirt(req) && src != scratch->src)
 		kunmap_local(src);
 
 	return ret;
 }
 
+static int scomp_acomp_chain(struct acomp_req *req, int dir)
+{
+	struct acomp_req *r2;
+	int err;
+
+	err = scomp_acomp_comp_decomp(req, dir);
+	req->base.err = err;
+
+	list_for_each_entry(r2, &req->base.list, base.list)
+		r2->base.err = scomp_acomp_comp_decomp(r2, dir);
+
+	return err;
+}
+
 static int scomp_acomp_compress(struct acomp_req *req)
 {
-	return scomp_acomp_comp_decomp(req, 1);
+	return scomp_acomp_chain(req, 1);
 }
 
 static int scomp_acomp_decompress(struct acomp_req *req)
 {
-	return scomp_acomp_comp_decomp(req, 0);
+	return scomp_acomp_chain(req, 0);
 }
 
 static void crypto_exit_scomp_ops_async(struct crypto_tfm *tfm)
@@ -322,11 +347,20 @@ static const struct crypto_type crypto_scomp_type = {
 	.tfmsize = offsetof(struct crypto_scomp, base),
 };
 
-int crypto_register_scomp(struct scomp_alg *alg)
+static void scomp_prepare_alg(struct scomp_alg *alg)
 {
 	struct crypto_alg *base = &alg->calg.base;
 
 	comp_prepare_alg(&alg->calg);
+
+	base->cra_flags |= CRYPTO_ALG_REQ_CHAIN;
+}
+
+int crypto_register_scomp(struct scomp_alg *alg)
+{
+	struct crypto_alg *base = &alg->calg.base;
+
+	scomp_prepare_alg(alg);
 
 	base->cra_type = &crypto_scomp_type;
 	base->cra_flags |= CRYPTO_ALG_TYPE_SCOMPRESS;
