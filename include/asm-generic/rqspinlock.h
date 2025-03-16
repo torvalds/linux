@@ -10,10 +10,16 @@
 #define __ASM_GENERIC_RQSPINLOCK_H
 
 #include <linux/types.h>
+#include <vdso/time64.h>
 
 struct qspinlock;
 typedef struct qspinlock rqspinlock_t;
 
 extern void resilient_queued_spin_lock_slowpath(rqspinlock_t *lock, u32 val);
+
+/*
+ * Default timeout for waiting loops is 0.25 seconds
+ */
+#define RES_DEF_TIMEOUT (NSEC_PER_SEC / 4)
 
 #endif /* __ASM_GENERIC_RQSPINLOCK_H */
