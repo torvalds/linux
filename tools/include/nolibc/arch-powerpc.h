@@ -201,7 +201,6 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 
 	__asm__ volatile (
 		"mr     3, 1\n"         /* save stack pointer to r3, as arg1 of _start_c */
-		"clrrdi 1, 1, 4\n"      /* align the stack to 16 bytes                   */
 		"li     0, 0\n"         /* zero the frame pointer                        */
 		"stdu   1, -32(1)\n"    /* the initial stack frame                       */
 		"bl     _start_c\n"     /* transfer to c runtime                         */
@@ -209,7 +208,6 @@ void __attribute__((weak, noreturn)) __nolibc_entrypoint __no_stack_protector _s
 #else
 	__asm__ volatile (
 		"mr     3, 1\n"         /* save stack pointer to r3, as arg1 of _start_c */
-		"clrrwi 1, 1, 4\n"      /* align the stack to 16 bytes                   */
 		"li     0, 0\n"         /* zero the frame pointer                        */
 		"stwu   1, -16(1)\n"    /* the initial stack frame                       */
 		"bl     _start_c\n"     /* transfer to c runtime                         */
