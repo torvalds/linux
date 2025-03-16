@@ -107,7 +107,7 @@ static int mux_mmio_probe(struct platform_device *pdev)
 		fields[i] = devm_regmap_field_alloc(dev, regmap, field);
 		if (IS_ERR(fields[i])) {
 			ret = PTR_ERR(fields[i]);
-			dev_err(dev, "bitfield %d: failed allocate: %d\n",
+			dev_err(dev, "bitfield %d: failed to allocate: %d\n",
 				i, ret);
 			return ret;
 		}
