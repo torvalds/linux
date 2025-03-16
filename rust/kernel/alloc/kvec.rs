@@ -556,6 +556,33 @@ impl<T: Clone, A: Allocator> Vec<T, A> {
 
         Ok(v)
     }
+
+    /// Resizes the [`Vec`] so that `len` is equal to `new_len`.
+    ///
+    /// If `new_len` is smaller than `len`, the `Vec` is [`Vec::truncate`]d.
+    /// If `new_len` is larger, each new slot is filled with clones of `value`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut v = kernel::kvec![1, 2, 3]?;
+    /// v.resize(1, 42, GFP_KERNEL)?;
+    /// assert_eq!(&v, &[1]);
+    ///
+    /// v.resize(3, 42, GFP_KERNEL)?;
+    /// assert_eq!(&v, &[1, 42, 42]);
+    ///
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn resize(&mut self, new_len: usize, value: T, flags: Flags) -> Result<(), AllocError> {
+        match new_len.checked_sub(self.len()) {
+            Some(n) => self.extend_with(n, value, flags),
+            None => {
+                self.truncate(new_len);
+                Ok(())
+            }
+        }
+    }
 }
 
 impl<T, A> Drop for Vec<T, A>
