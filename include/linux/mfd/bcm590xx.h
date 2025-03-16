@@ -43,7 +43,6 @@ struct bcm590xx {
 	struct i2c_client *i2c_sec;
 	struct regmap *regmap_pri;
 	struct regmap *regmap_sec;
-	unsigned int id;
 
 	/* PMU ID value; also used as device type */
 	u8 pmu_id;
