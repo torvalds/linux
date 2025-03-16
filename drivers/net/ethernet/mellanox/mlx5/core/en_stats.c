@@ -1250,12 +1250,22 @@ pport_phy_statistical_err_lanes_stats_desc[] = {
 	{ "rx_err_lane_3_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits_lane3) },
 };
 
+#define PPORT_PHY_RECOVERY_OFF(c) \
+	MLX5_BYTE_OFF(ppcnt_reg, counter_set.phys_layer_recovery_cntrs.c)
+static const struct counter_desc
+pport_phy_recovery_cntrs_stats_desc[] = {
+	{ "total_success_recovery_phy",
+	  PPORT_PHY_RECOVERY_OFF(total_successful_recovery_events) }
+};
+
 #define NUM_PPORT_PHY_LAYER_COUNTERS \
 	ARRAY_SIZE(pport_phy_layer_cntrs_stats_desc)
 #define NUM_PPORT_PHY_STATISTICAL_COUNTERS \
 	ARRAY_SIZE(pport_phy_statistical_stats_desc)
 #define NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS \
 	ARRAY_SIZE(pport_phy_statistical_err_lanes_stats_desc)
+#define NUM_PPORT_PHY_RECOVERY_COUNTERS \
+	ARRAY_SIZE(pport_phy_recovery_cntrs_stats_desc)
 
 #define NUM_PPORT_PHY_STATISTICAL_LOOPBACK_COUNTERS(dev) \
 	(MLX5_CAP_PCAM_FEATURE(dev, ppcnt_statistical_group) ? \
@@ -1263,6 +1273,9 @@ pport_phy_statistical_err_lanes_stats_desc[] = {
 #define NUM_PPORT_PHY_STATISTICAL_PER_LANE_LOOPBACK_COUNTERS(dev) \
 	(MLX5_CAP_PCAM_FEATURE(dev, per_lane_error_counters) ? \
 	NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS : 0)
+#define NUM_PPORT_PHY_RECOVERY_LOOPBACK_COUNTERS(dev) \
+	(MLX5_CAP_PCAM_FEATURE(dev, ppcnt_recovery_counters) ? \
+	NUM_PPORT_PHY_RECOVERY_COUNTERS : 0)
 
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(phy)
 {
@@ -1275,6 +1288,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(phy)
 
 	num_stats += NUM_PPORT_PHY_STATISTICAL_PER_LANE_LOOPBACK_COUNTERS(mdev);
 
+	num_stats += NUM_PPORT_PHY_RECOVERY_LOOPBACK_COUNTERS(mdev);
 	return num_stats;
 }
 
@@ -1295,6 +1309,10 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(phy)
 		ethtool_puts(data,
 			     pport_phy_statistical_err_lanes_stats_desc[i]
 			     .format);
+
+	for (i = 0; i < NUM_PPORT_PHY_RECOVERY_LOOPBACK_COUNTERS(mdev); i++)
+		ethtool_puts(data,
+			     pport_phy_recovery_cntrs_stats_desc[i].format);
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(phy)
@@ -1324,6 +1342,13 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(phy)
 			MLX5E_READ_CTR64_BE(
 				&priv->stats.pport.phy_statistical_counters,
 				pport_phy_statistical_err_lanes_stats_desc, i));
+
+	for (i = 0; i < NUM_PPORT_PHY_RECOVERY_LOOPBACK_COUNTERS(mdev); i++)
+		mlx5e_ethtool_put_stat(
+			data,
+			MLX5E_READ_CTR32_BE(
+				&priv->stats.pport.phy_recovery_counters,
+				pport_phy_recovery_cntrs_stats_desc, i));
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(phy)
@@ -1339,12 +1364,21 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(phy)
 	MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_COUNTERS_GROUP);
 	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
 
-	if (!MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
-		return;
+	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group)) {
+		out = pstats->phy_statistical_counters;
+		MLX5_SET(ppcnt_reg, in, grp,
+			 MLX5_PHYSICAL_LAYER_STATISTICAL_GROUP);
+		mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0,
+				     0);
+	}
 
-	out = pstats->phy_statistical_counters;
-	MLX5_SET(ppcnt_reg, in, grp, MLX5_PHYSICAL_LAYER_STATISTICAL_GROUP);
-	mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0, 0);
+	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_recovery_counters)) {
+		out = pstats->phy_recovery_counters;
+		MLX5_SET(ppcnt_reg, in, grp,
+			 MLX5_PHYSICAL_LAYER_RECOVERY_GROUP);
+		mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPCNT, 0,
+				     0);
+	}
 }
 
 void mlx5e_get_link_ext_stats(struct net_device *dev,
