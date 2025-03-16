@@ -2480,7 +2480,8 @@ static inline void end_dir_add(struct inode *dir, unsigned int n,
 {
 	smp_store_release(&dir->i_dir_seq, n + 2);
 	preempt_enable_nested();
-	wake_up_all(d_wait);
+	if (wq_has_sleeper(d_wait))
+		wake_up_all(d_wait);
 }
 
 static void d_wait_lookup(struct dentry *dentry)
