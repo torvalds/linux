@@ -21,7 +21,9 @@
 #include <linux/mutex.h>
 #include <linux/prefetch.h>
 #include <asm/byteorder.h>
+#ifdef CONFIG_QUEUED_SPINLOCKS
 #include <asm/qspinlock.h>
+#endif
 #include <trace/events/lock.h>
 #include <asm/rqspinlock.h>
 #include <linux/timekeeping.h>
@@ -29,9 +31,12 @@
 /*
  * Include queued spinlock definitions and statistics code
  */
+#ifdef CONFIG_QUEUED_SPINLOCKS
 #include "../locking/qspinlock.h"
 #include "../locking/lock_events.h"
 #include "rqspinlock.h"
+#include "../locking/mcs_spinlock.h"
+#endif
 
 /*
  * The basic principle of a queue-based spinlock can best be understood
@@ -69,8 +74,6 @@
  *      atomic operations on smaller 8-bit and 16-bit data types.
  *
  */
-
-#include "../locking/mcs_spinlock.h"
 
 struct rqspinlock_timeout {
 	u64 timeout_end;
@@ -262,6 +265,43 @@ static noinline int check_timeout(rqspinlock_t *lock, u32 mask,
  * Duration is defined for each spin attempt, so set it here.
  */
 #define RES_RESET_TIMEOUT(ts, _duration) ({ (ts).timeout_end = 0; (ts).duration = _duration; })
+
+/*
+ * Provide a test-and-set fallback for cases when queued spin lock support is
+ * absent from the architecture.
+ */
+int __lockfunc resilient_tas_spin_lock(rqspinlock_t *lock)
+{
+	struct rqspinlock_timeout ts;
+	int val, ret = 0;
+
+	RES_INIT_TIMEOUT(ts);
+	grab_held_lock_entry(lock);
+
+	/*
+	 * Since the waiting loop's time is dependent on the amount of
+	 * contention, a short timeout unlike rqspinlock waiting loops
+	 * isn't enough. Choose a second as the timeout value.
+	 */
+	RES_RESET_TIMEOUT(ts, NSEC_PER_SEC);
+retry:
+	val = atomic_read(&lock->val);
+
+	if (val || !atomic_try_cmpxchg(&lock->val, &val, 1)) {
+		if (RES_CHECK_TIMEOUT(ts, ret, ~0u))
+			goto out;
+		cpu_relax();
+		goto retry;
+	}
+
+	return 0;
+out:
+	release_held_lock_entry();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(resilient_tas_spin_lock);
+
+#ifdef CONFIG_QUEUED_SPINLOCKS
 
 /*
  * Per-CPU queue node structures; we can never have more than 4 nested
@@ -616,3 +656,5 @@ err_release_entry:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(resilient_queued_spin_lock_slowpath);
+
+#endif /* CONFIG_QUEUED_SPINLOCKS */
