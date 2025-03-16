@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2023 Rivos Inc.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: patchwork
+
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
+
+on: pull_request
+
+concurrency:
+  group: ci-test-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  patchwork_ci:
+    if:  ${{ startsWith(github.head_ref, 'pw') }}
+    runs-on: self-hosted
+    timeout-minutes: 50400 # 35 days
+    container:
+      image: ghcr.io/linux-riscv/pw-builder:latest
+      volumes:
+        - /home/github/ramdisk/build:/build
+        - /home/github/ccache:/build/ccache
+        - /home/github/gitref:/build/gitref
+    steps:
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory '*'
+          git config --global user.name "Linux RISC-V bot"
+          git config --global user.email "linux.riscv.bot@gmail.com"
+
+      - name: Checkout git
+        run: |
+          mkdir -p /build/linux
+          cd /build/linux
+          git clone --filter=tree:0 --reference /build/gitref https://github.com/${{ github.repository }} .
+          git fetch origin ${{ github.event.pull_request.head.sha }}
+          git reset --hard ${{ github.event.pull_request.head.sha }}
+          git log -1
+
+      - name: Create and activate virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          echo "PATH=$PATH" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          pip install -r /build/linux/.github/scripts/requirements.txt
+
+      - name: Run checks
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACTION_TOKEN }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          PATCHWORK_TOKEN: ${{ secrets.PATCHWORK_TOKEN }}
+          PATCHWORK_USER: ""
+          EMAIL_TOKEN: ${{ secrets.EMAIL_TOKEN }}
+        run: |
+          cd /build/linux
+          ./.github/scripts/pw_ci.py -c ./.github/scripts/config.json -s /build/linux linux-riscv/linux
+

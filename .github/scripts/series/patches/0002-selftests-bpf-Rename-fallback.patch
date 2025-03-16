@@ -1,0 +1,70 @@
+From af4e24f21714ca1ffdedeba5fd2e587328b35823 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Thu, 22 Aug 2024 16:26:22 +0000
+Subject: [PATCH 2/6] selftests: bpf: Rename fallback
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+There's a clash:
+
+arch/riscv/lib/crc32.c
+154:typedef u32 (*fallback)(u32 crc, unsigned char const *p, size_t len);
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/bpf/prog_tests/bpf_tcp_ca.c | 2 +-
+ tools/testing/selftests/bpf/progs/bpf_dctcp.c       | 8 ++++----
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/prog_tests/bpf_tcp_ca.c b/tools/testing/selftests/bpf/prog_tests/bpf_tcp_ca.c
+index 63422f4f3896..860df52717f0 100644
+--- a/tools/testing/selftests/bpf/prog_tests/bpf_tcp_ca.c
++++ b/tools/testing/selftests/bpf/prog_tests/bpf_tcp_ca.c
+@@ -285,7 +285,7 @@ static void test_dctcp_fallback(void)
+ 	dctcp_skel = bpf_dctcp__open();
+ 	if (!ASSERT_OK_PTR(dctcp_skel, "dctcp_skel"))
+ 		return;
+-	strcpy(dctcp_skel->rodata->fallback, "cubic");
++	strcpy(dctcp_skel->rodata->fallback_s, "cubic");
+ 	if (!ASSERT_OK(bpf_dctcp__load(dctcp_skel), "bpf_dctcp__load"))
+ 		goto done;
+ 
+diff --git a/tools/testing/selftests/bpf/progs/bpf_dctcp.c b/tools/testing/selftests/bpf/progs/bpf_dctcp.c
+index 02f552e7fd4d..aaa74d5fbd86 100644
+--- a/tools/testing/selftests/bpf/progs/bpf_dctcp.c
++++ b/tools/testing/selftests/bpf/progs/bpf_dctcp.c
+@@ -26,7 +26,7 @@ static bool before(__u32 seq1, __u32 seq2)
+ 
+ char _license[] SEC("license") = "GPL";
+ 
+-volatile const char fallback[TCP_CA_NAME_MAX];
++volatile const char fallback_s[TCP_CA_NAME_MAX];
+ const char bpf_dctcp[] = "bpf_dctcp";
+ const char tcp_cdg[] = "cdg";
+ char cc_res[TCP_CA_NAME_MAX];
+@@ -71,10 +71,10 @@ void BPF_PROG(bpf_dctcp_init, struct sock *sk)
+ 	struct bpf_dctcp *ca = inet_csk_ca(sk);
+ 	int *stg;
+ 
+-	if (!(tp->ecn_flags & TCP_ECN_OK) && fallback[0]) {
++	if (!(tp->ecn_flags & TCP_ECN_OK) && fallback_s[0]) {
+ 		/* Switch to fallback */
+ 		if (bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+-				   (void *)fallback, sizeof(fallback)) == -EBUSY)
++				   (void *)fallback_s, sizeof(fallback_s)) == -EBUSY)
+ 			ebusy_cnt++;
+ 
+ 		/* Switch back to myself and the recurred bpf_dctcp_init()
+@@ -87,7 +87,7 @@ void BPF_PROG(bpf_dctcp_init, struct sock *sk)
+ 
+ 		/* Switch back to fallback */
+ 		if (bpf_setsockopt(sk, SOL_TCP, TCP_CONGESTION,
+-				   (void *)fallback, sizeof(fallback)) == -EBUSY)
++				   (void *)fallback_s, sizeof(fallback_s)) == -EBUSY)
+ 			ebusy_cnt++;
+ 
+ 		/* Expecting -ENOTSUPP for tcp_cdg_res */
+-- 
+2.43.0
+

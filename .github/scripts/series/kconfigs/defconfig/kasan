@@ -1,0 +1,2 @@
+CONFIG_KASAN=y
+# CONFIG_KASAN_VMALLOC is not set
