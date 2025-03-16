@@ -108,9 +108,6 @@ void pci_save_aspm_l1ss_state(struct pci_dev *pdev)
 	pci_read_config_dword(pdev, pdev->l1ss + PCI_L1SS_CTL2, cap++);
 	pci_read_config_dword(pdev, pdev->l1ss + PCI_L1SS_CTL1, cap++);
 
-	if (parent->state_saved)
-		return;
-
 	/*
 	 * Save parent's L1 substate configuration so we have it for
 	 * pci_restore_aspm_l1ss_state(pdev) to restore.

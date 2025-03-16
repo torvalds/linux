@@ -589,7 +589,7 @@ struct nvmet_alloc_ctrl_args {
 	const struct nvmet_fabrics_ops *ops;
 	struct device		*p2p_client;
 	u32			kato;
-	u32			result;
+	__le32			result;
 	u16			error_loc;
 	u16			status;
 };

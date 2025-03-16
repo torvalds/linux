@@ -1191,24 +1191,18 @@ static pm_message_t resume_event(pm_message_t sleep_state)
 	return PMSG_ON;
 }
 
-static void dpm_superior_set_must_resume(struct device *dev, bool set_active)
+static void dpm_superior_set_must_resume(struct device *dev)
 {
 	struct device_link *link;
 	int idx;
 
-	if (dev->parent) {
+	if (dev->parent)
 		dev->parent->power.must_resume = true;
-		if (set_active)
-			dev->parent->power.set_active = true;
-	}
 
 	idx = device_links_read_lock();
 
-	list_for_each_entry_rcu_locked(link, &dev->links.suppliers, c_node) {
+	list_for_each_entry_rcu_locked(link, &dev->links.suppliers, c_node)
 		link->supplier->power.must_resume = true;
-		if (set_active)
-			link->supplier->power.set_active = true;
-	}
 
 	device_links_read_unlock(idx);
 }
@@ -1287,9 +1281,12 @@ Skip:
 		dev->power.must_resume = true;
 
 	if (dev->power.must_resume) {
-		dev->power.set_active = dev->power.set_active ||
-			dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND);
-		dpm_superior_set_must_resume(dev, dev->power.set_active);
+		if (dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND)) {
+			dev->power.set_active = true;
+			if (dev->parent && !dev->parent->power.ignore_children)
+				dev->parent->power.set_active = true;
+		}
+		dpm_superior_set_must_resume(dev);
 	}
 
 Complete:

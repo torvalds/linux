@@ -91,11 +91,34 @@ static void fpsimd_sve_sync(struct kvm_vcpu *vcpu)
 	*host_data_ptr(fp_owner) = FP_STATE_HOST_OWNED;
 }
 
+static void flush_debug_state(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+	hyp_vcpu->vcpu.arch.debug_owner = host_vcpu->arch.debug_owner;
+
+	if (kvm_guest_owns_debug_regs(&hyp_vcpu->vcpu))
+		hyp_vcpu->vcpu.arch.vcpu_debug_state = host_vcpu->arch.vcpu_debug_state;
+	else if (kvm_host_owns_debug_regs(&hyp_vcpu->vcpu))
+		hyp_vcpu->vcpu.arch.external_debug_state = host_vcpu->arch.external_debug_state;
+}
+
+static void sync_debug_state(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+	if (kvm_guest_owns_debug_regs(&hyp_vcpu->vcpu))
+		host_vcpu->arch.vcpu_debug_state = hyp_vcpu->vcpu.arch.vcpu_debug_state;
+	else if (kvm_host_owns_debug_regs(&hyp_vcpu->vcpu))
+		host_vcpu->arch.external_debug_state = hyp_vcpu->vcpu.arch.external_debug_state;
+}
+
 static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
 
 	fpsimd_sve_flush();
+	flush_debug_state(hyp_vcpu);
 
 	hyp_vcpu->vcpu.arch.ctxt	= host_vcpu->arch.ctxt;
 
@@ -123,6 +146,7 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	unsigned int i;
 
 	fpsimd_sve_sync(&hyp_vcpu->vcpu);
+	sync_debug_state(hyp_vcpu);
 
 	host_vcpu->arch.ctxt		= hyp_vcpu->vcpu.arch.ctxt;
 
