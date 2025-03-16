@@ -101,6 +101,7 @@
 #include <trace/events/oom.h>
 #include "internal.h"
 #include "fd.h"
+#include <linux/sched.h>
 
 #include "../../lib/kstrtox.h"
 
@@ -522,6 +523,17 @@ static int proc_pid_schedstat(struct seq_file *m, struct pid_namespace *ns,
 	return 0;
 }
 #endif
+
+/*
+ * Provides /proc/PID/fault_stats
+ */
+static int proc_pid_fault_stats(struct seq_file *m, struct pid_namespace *ns, 
+				struct pid *pid, struct task_struct *task) {
+	seq_printf(m, "write %llu\nuser %llu\ninstruction %llu\ncow %llu\nmlocked %llu\n",
+	task->fault_write, task->fault_user, task->fault_instruction, task->fault_cow, task->fault_mlocked);
+
+	return 0;
+}
 
 #ifdef CONFIG_LATENCYTOP
 static int lstats_show_proc(struct seq_file *m, void *v)
@@ -3363,6 +3375,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 #ifdef CONFIG_SCHED_INFO
 	ONE("schedstat",  S_IRUGO, proc_pid_schedstat),
 #endif
+	ONE("fault_stats", S_IRUGO, proc_pid_fault_stats),
 #ifdef CONFIG_LATENCYTOP
 	REG("latency",  S_IRUGO, proc_lstats_operations),
 #endif
@@ -3712,6 +3725,7 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef CONFIG_SCHED_INFO
 	ONE("schedstat", S_IRUGO, proc_pid_schedstat),
 #endif
+	ONE("fault_stats", S_IRUGO, proc_pid_fault_stats),
 #ifdef CONFIG_LATENCYTOP
 	REG("latency",  S_IRUGO, proc_lstats_operations),
 #endif

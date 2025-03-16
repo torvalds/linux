@@ -1622,6 +1622,12 @@ struct task_struct {
 	u64 pte_alloc_count;
 	u64 pte_free_count;
 	u64 pte_set_count;
+	
+	u64 fault_write;       /* count of write faults */
+	u64 fault_user;        /* count of user faults */
+	u64 fault_instruction; /* count of instruction faults */
+	u64 fault_cow;         /* count of copy-on-write faults */
+	u64 fault_mlocked;     /* count of mlocked faults */
 
 	/*
 	 * New fields for task_struct should be added above here, so that

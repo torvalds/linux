@@ -3213,6 +3213,8 @@ static vm_fault_t fault_dirty_shared_page(struct vm_fault *vmf)
 	 */
 	mapping = folio_raw_mapping(folio);
 	folio_unlock(folio);
+	if (vma->vm_flags & VM_LOCKED)
+		current->fault_mlocked++;
 
 	if (!page_mkwrite)
 		file_update_time(vma->vm_file);
@@ -3743,6 +3745,7 @@ static vm_fault_t do_wp_page(struct vm_fault *vmf)
 			return 0;
 		}
 		wp_page_reuse(vmf, folio);
+		current->fault_write++;
 		return 0;
 	}
 	/*
@@ -4598,6 +4601,7 @@ check_folio:
 	arch_do_swap_page_nr(vma->vm_mm, vma, address,
 			pte, pte, nr_pages);
 
+	current->fault_user++;
 	folio_unlock(folio);
 	if (folio != swapcache && swapcache) {
 		/*
@@ -5362,6 +5366,8 @@ static vm_fault_t do_cow_fault(struct vm_fault *vmf)
 	__folio_mark_uptodate(folio);
 
 	ret |= finish_fault(vmf);
+
+	current->fault_cow++;
 unlock:
 	unlock_page(vmf->page);
 	put_page(vmf->page);
@@ -6111,6 +6117,8 @@ vm_fault_t handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 	else
 		ret = __handle_mm_fault(vma, address, flags);
 
+	if (flags & FAULT_FLAG_INSTRUCTION)
+		current->fault_instruction++;
 	/*
 	 * Warning: It is no longer safe to dereference vma-> after this point,
 	 * because mmap_lock might have been dropped by __handle_mm_fault(), so
