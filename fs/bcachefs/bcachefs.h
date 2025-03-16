@@ -979,7 +979,6 @@ struct bch_fs {
 	mempool_t		compress_workspace[BCH_COMPRESSION_OPT_NR];
 	size_t			zstd_workspace_size;
 
-	struct crypto_shash	*sha256;
 	struct crypto_sync_skcipher *chacha20;
 	struct crypto_shash	*poly1305;
 

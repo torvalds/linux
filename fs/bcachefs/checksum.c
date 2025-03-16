@@ -801,8 +801,6 @@ void bch2_fs_encryption_exit(struct bch_fs *c)
 		crypto_free_shash(c->poly1305);
 	if (c->chacha20)
 		crypto_free_sync_skcipher(c->chacha20);
-	if (c->sha256)
-		crypto_free_shash(c->sha256);
 }
 
 int bch2_fs_encryption_init(struct bch_fs *c)
@@ -810,14 +808,6 @@ int bch2_fs_encryption_init(struct bch_fs *c)
 	struct bch_sb_field_crypt *crypt;
 	struct bch_key key;
 	int ret = 0;
-
-	c->sha256 = crypto_alloc_shash("sha256", 0, 0);
-	ret = PTR_ERR_OR_ZERO(c->sha256);
-	if (ret) {
-		c->sha256 = NULL;
-		bch_err(c, "error requesting sha256 module: %s", bch2_err_str(ret));
-		goto out;
-	}
 
 	crypt = bch2_sb_field_get(c->disk_sb.sb, crypt);
 	if (!crypt)

@@ -16,7 +16,7 @@ config BCACHEFS_FS
 	select ZSTD_COMPRESS
 	select ZSTD_DECOMPRESS
 	select CRYPTO
-	select CRYPTO_SHA256
+	select CRYPTO_LIB_SHA256
 	select CRYPTO_CHACHA20
 	select CRYPTO_POLY1305
 	select KEYS

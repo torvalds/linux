@@ -12,7 +12,6 @@
 #include "super.h"
 
 #include <linux/crc32c.h>
-#include <crypto/hash.h>
 #include <crypto/sha2.h>
 
 static inline enum bch_str_hash_type
@@ -55,13 +54,10 @@ bch2_hash_info_init(struct bch_fs *c, const struct bch_inode_unpacked *bi)
 	};
 
 	if (unlikely(info.type == BCH_STR_HASH_siphash_old)) {
-		SHASH_DESC_ON_STACK(desc, c->sha256);
 		u8 digest[SHA256_DIGEST_SIZE];
 
-		desc->tfm = c->sha256;
-
-		crypto_shash_digest(desc, (void *) &bi->bi_hash_seed,
-				    sizeof(bi->bi_hash_seed), digest);
+		sha256((const u8 *)&bi->bi_hash_seed,
+		       sizeof(bi->bi_hash_seed), digest);
 		memcpy(&info.siphash_key, digest, sizeof(info.siphash_key));
 	}
 
