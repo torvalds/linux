@@ -1257,6 +1257,13 @@ pport_phy_statistical_err_lanes_stats_desc[] = {
 #define NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS \
 	ARRAY_SIZE(pport_phy_statistical_err_lanes_stats_desc)
 
+#define NUM_PPORT_PHY_STATISTICAL_LOOPBACK_COUNTERS(dev) \
+	(MLX5_CAP_PCAM_FEATURE(dev, ppcnt_statistical_group) ? \
+	NUM_PPORT_PHY_STATISTICAL_COUNTERS : 0)
+#define NUM_PPORT_PHY_STATISTICAL_PER_LANE_LOOPBACK_COUNTERS(dev) \
+	(MLX5_CAP_PCAM_FEATURE(dev, per_lane_error_counters) ? \
+	NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS : 0)
+
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(phy)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -1264,11 +1271,9 @@ static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(phy)
 
 	num_stats = NUM_PPORT_PHY_LAYER_COUNTERS;
 
-	num_stats += MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group) ?
-		     NUM_PPORT_PHY_STATISTICAL_COUNTERS : 0;
+	num_stats += NUM_PPORT_PHY_STATISTICAL_LOOPBACK_COUNTERS(mdev);
 
-	num_stats += MLX5_CAP_PCAM_FEATURE(mdev, per_lane_error_counters) ?
-		     NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS : 0;
+	num_stats += NUM_PPORT_PHY_STATISTICAL_PER_LANE_LOOPBACK_COUNTERS(mdev);
 
 	return num_stats;
 }
@@ -1281,14 +1286,15 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(phy)
 	for (i = 0; i < NUM_PPORT_PHY_LAYER_COUNTERS; i++)
 		ethtool_puts(data, pport_phy_layer_cntrs_stats_desc[i].format);
 
-	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
-		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
-			ethtool_puts(data, pport_phy_statistical_stats_desc[i].format);
+	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_LOOPBACK_COUNTERS(mdev); i++)
+		ethtool_puts(data, pport_phy_statistical_stats_desc[i].format);
 
-	if (MLX5_CAP_PCAM_FEATURE(mdev, per_lane_error_counters))
-		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS; i++)
-			ethtool_puts(data,
-				     pport_phy_statistical_err_lanes_stats_desc[i].format);
+	for (i = 0;
+	     i < NUM_PPORT_PHY_STATISTICAL_PER_LANE_LOOPBACK_COUNTERS(mdev);
+	     i++)
+		ethtool_puts(data,
+			     pport_phy_statistical_err_lanes_stats_desc[i]
+			     .format);
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(phy)
@@ -1303,23 +1309,21 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(phy)
 					.phy_counters,
 					pport_phy_layer_cntrs_stats_desc, i));
 
-	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
-		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
-			mlx5e_ethtool_put_stat(
-				data,
-				MLX5E_READ_CTR64_BE(
-					&priv->stats.pport.phy_statistical_counters,
-					pport_phy_statistical_stats_desc, i));
+	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_LOOPBACK_COUNTERS(mdev); i++)
+		mlx5e_ethtool_put_stat(
+			data,
+			MLX5E_READ_CTR64_BE(
+				&priv->stats.pport.phy_statistical_counters,
+				pport_phy_statistical_stats_desc, i));
 
-	if (MLX5_CAP_PCAM_FEATURE(mdev, per_lane_error_counters))
-		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS; i++)
-			mlx5e_ethtool_put_stat(
-				data,
-				MLX5E_READ_CTR64_BE(
-					&priv->stats.pport
-						 .phy_statistical_counters,
-					pport_phy_statistical_err_lanes_stats_desc,
-					i));
+	for (i = 0;
+	     i < NUM_PPORT_PHY_STATISTICAL_PER_LANE_LOOPBACK_COUNTERS(mdev);
+	     i++)
+		mlx5e_ethtool_put_stat(
+			data,
+			MLX5E_READ_CTR64_BE(
+				&priv->stats.pport.phy_statistical_counters,
+				pport_phy_statistical_err_lanes_stats_desc, i));
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(phy)
