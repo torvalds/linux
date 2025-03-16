@@ -15,7 +15,7 @@
 struct qspinlock;
 typedef struct qspinlock rqspinlock_t;
 
-extern void resilient_queued_spin_lock_slowpath(rqspinlock_t *lock, u32 val);
+extern int resilient_queued_spin_lock_slowpath(rqspinlock_t *lock, u32 val);
 
 /*
  * Default timeout for waiting loops is 0.25 seconds
