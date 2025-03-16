@@ -40,7 +40,6 @@
 #include "ivsrcid/gfx/irqsrcs_gfx_11_0_0.h"
 
 #include "soc15.h"
-#include "soc15d.h"
 #include "clearstate_gfx12.h"
 #include "v12_structs.h"
 #include "gfx_v12_1.h"

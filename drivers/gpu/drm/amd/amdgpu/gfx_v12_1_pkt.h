@@ -369,9 +369,11 @@
 #define	PACKET3_HDP_FLUSH				0x95
 #define	PACKET3_COPY_DATA_RB				0x96
 #define	PACKET3_INVALIDATE_TLBS				0x98
-#              define PACKET3_INVALIDATE_TLBS_DST_SEL(x)     ((x) << 0)
-#              define PACKET3_INVALIDATE_TLBS_ALL_HUB(x)     ((x) << 4)
-#              define PACKET3_INVALIDATE_TLBS_PASID(x)       ((x) << 5)
+#define PACKET3_INVALIDATE_TLBS_DST_SEL(x)     ((x) << 0)
+#define PACKET3_INVALIDATE_TLBS_ALL_HUB(x)     ((x) << 4)
+#define PACKET3_INVALIDATE_TLBS_PASID(x)       ((x) << 5)
+#define PACKET3_INVALIDATE_TLBS_FLUSH_TYPE(x)  ((x) << 29)
+
 #define	PACKET3_AQL_PACKET				0x99
 #define	PACKET3_DMA_DATA_FILL_MULTI			0x9A
 #define	PACKET3_SET_SH_REG_INDEX			0x9B
