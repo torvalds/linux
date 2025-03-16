@@ -1594,7 +1594,9 @@ p9_client_read_once(struct p9_fid *fid, u64 offset, struct iov_iter *to,
 	}
 	if (rsize < received) {
 		pr_err("bogus RREAD count (%u > %u)\n", received, rsize);
-		received = rsize;
+		*err = -EIO;
+		p9_req_put(clnt, req);
+		return 0;
 	}
 
 	p9_debug(P9_DEBUG_9P, "<<< RREAD count %u\n", received);
@@ -1661,7 +1663,10 @@ p9_client_write(struct p9_fid *fid, u64 offset, struct iov_iter *from, int *err)
 		}
 		if (rsize < written) {
 			pr_err("bogus RWRITE count (%u > %u)\n", written, rsize);
-			written = rsize;
+			*err = -EIO;
+			iov_iter_revert(from, count - iov_iter_count(from));
+			p9_req_put(clnt, req);
+			break;
 		}
 
 		p9_debug(P9_DEBUG_9P, "<<< RWRITE count %u\n", written);
@@ -1713,7 +1718,7 @@ p9_client_write_subreq(struct netfs_io_subrequest *subreq)
 
 	if (written > len) {
 		pr_err("bogus RWRITE count (%d > %u)\n", written, len);
-		written = len;
+		written = -EIO;
 	}
 
 	p9_debug(P9_DEBUG_9P, "<<< RWRITE count %d\n", len);
@@ -2145,7 +2150,8 @@ int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 	}
 	if (rsize < count) {
 		pr_err("bogus RREADDIR count (%u > %u)\n", count, rsize);
-		count = rsize;
+		err = -EIO;
+		goto free_and_error;
 	}
 
 	p9_debug(P9_DEBUG_9P, "<<< RREADDIR count %u\n", count);
