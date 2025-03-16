@@ -1227,6 +1227,13 @@ out:
 	mutex_unlock(&priv->state_lock);
 }
 
+#define PPORT_PHY_LAYER_OFF(c) \
+	MLX5_BYTE_OFF(ppcnt_reg, \
+		      counter_set.phys_layer_cntrs.c)
+static const struct counter_desc pport_phy_layer_cntrs_stats_desc[] = {
+	{ "link_down_events_phy", PPORT_PHY_LAYER_OFF(link_down_events) }
+};
+
 #define PPORT_PHY_STATISTICAL_OFF(c) \
 	MLX5_BYTE_OFF(ppcnt_reg, \
 		      counter_set.phys_layer_statistical_cntrs.c##_high)
@@ -1243,6 +1250,8 @@ pport_phy_statistical_err_lanes_stats_desc[] = {
 	{ "rx_err_lane_3_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits_lane3) },
 };
 
+#define NUM_PPORT_PHY_LAYER_COUNTERS \
+	ARRAY_SIZE(pport_phy_layer_cntrs_stats_desc)
 #define NUM_PPORT_PHY_STATISTICAL_COUNTERS \
 	ARRAY_SIZE(pport_phy_statistical_stats_desc)
 #define NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS \
@@ -1253,8 +1262,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(phy)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int num_stats;
 
-	/* "1" for link_down_events special counter */
-	num_stats = 1;
+	num_stats = NUM_PPORT_PHY_LAYER_COUNTERS;
 
 	num_stats += MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group) ?
 		     NUM_PPORT_PHY_STATISTICAL_COUNTERS : 0;
@@ -1270,7 +1278,8 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(phy)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int i;
 
-	ethtool_puts(data, "link_down_events_phy");
+	for (i = 0; i < NUM_PPORT_PHY_LAYER_COUNTERS; i++)
+		ethtool_puts(data, pport_phy_layer_cntrs_stats_desc[i].format);
 
 	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
 		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
@@ -1287,10 +1296,12 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(phy)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int i;
 
-	/* link_down_events_phy has special handling since it is not stored in __be64 format */
-	mlx5e_ethtool_put_stat(
-		data, MLX5_GET(ppcnt_reg, priv->stats.pport.phy_counters,
-			       counter_set.phys_layer_cntrs.link_down_events));
+	for (i = 0; i < NUM_PPORT_PHY_LAYER_COUNTERS; i++)
+		mlx5e_ethtool_put_stat(
+				data,
+				MLX5E_READ_CTR32_BE(&priv->stats.pport
+					.phy_counters,
+					pport_phy_layer_cntrs_stats_desc, i));
 
 	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
 		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
