@@ -92,12 +92,21 @@ static noinline int check_timeout(struct rqspinlock_timeout *ts)
 	return 0;
 }
 
+/*
+ * Do not amortize with spins when res_smp_cond_load_acquire is defined,
+ * as the macro does internal amortization for us.
+ */
+#ifndef res_smp_cond_load_acquire
 #define RES_CHECK_TIMEOUT(ts, ret)                    \
 	({                                            \
 		if (!(ts).spin++)                     \
 			(ret) = check_timeout(&(ts)); \
 		(ret);                                \
 	})
+#else
+#define RES_CHECK_TIMEOUT(ts, ret, mask)	      \
+	({ (ret) = check_timeout(&(ts)); })
+#endif
 
 /*
  * Initialize the 'spin' member.
@@ -117,6 +126,12 @@ static noinline int check_timeout(struct rqspinlock_timeout *ts)
  * Exactly fits one 64-byte cacheline on a 64-bit architecture.
  */
 static DEFINE_PER_CPU_ALIGNED(struct qnode, rqnodes[_Q_MAX_NODES]);
+
+#ifndef res_smp_cond_load_acquire
+#define res_smp_cond_load_acquire(v, c) smp_cond_load_acquire(v, c)
+#endif
+
+#define res_atomic_cond_read_acquire(v, c) res_smp_cond_load_acquire(&(v)->counter, (c))
 
 /**
  * resilient_queued_spin_lock_slowpath - acquire the queued spinlock
