@@ -1272,11 +1272,9 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(phy)
 
 	ethtool_puts(data, "link_down_events_phy");
 
-	if (!MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
-		return;
-
-	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
-		ethtool_puts(data, pport_phy_statistical_stats_desc[i].format);
+	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
+		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
+			ethtool_puts(data, pport_phy_statistical_stats_desc[i].format);
 
 	if (MLX5_CAP_PCAM_FEATURE(mdev, per_lane_error_counters))
 		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS; i++)
@@ -1294,15 +1292,13 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(phy)
 		data, MLX5_GET(ppcnt_reg, priv->stats.pport.phy_counters,
 			       counter_set.phys_layer_cntrs.link_down_events));
 
-	if (!MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
-		return;
-
-	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
-		mlx5e_ethtool_put_stat(
-			data,
-			MLX5E_READ_CTR64_BE(
-				&priv->stats.pport.phy_statistical_counters,
-				pport_phy_statistical_stats_desc, i));
+	if (MLX5_CAP_PCAM_FEATURE(mdev, ppcnt_statistical_group))
+		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
+			mlx5e_ethtool_put_stat(
+				data,
+				MLX5E_READ_CTR64_BE(
+					&priv->stats.pport.phy_statistical_counters,
+					pport_phy_statistical_stats_desc, i));
 
 	if (MLX5_CAP_PCAM_FEATURE(mdev, per_lane_error_counters))
 		for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_PER_LANE_COUNTERS; i++)
