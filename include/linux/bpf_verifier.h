@@ -115,6 +115,14 @@ struct bpf_reg_state {
 			int depth:30;
 		} iter;
 
+		/* For irq stack slots */
+		struct {
+			enum {
+				IRQ_NATIVE_KFUNC,
+				IRQ_LOCK_KFUNC,
+			} kfunc_class;
+		} irq;
+
 		/* Max size from any of the above. */
 		struct {
 			unsigned long raw1;
@@ -255,9 +263,11 @@ struct bpf_reference_state {
 	 * default to pointer reference on zero initialization of a state.
 	 */
 	enum ref_state_type {
-		REF_TYPE_PTR	= 1,
-		REF_TYPE_IRQ	= 2,
-		REF_TYPE_LOCK	= 3,
+		REF_TYPE_PTR		= (1 << 1),
+		REF_TYPE_IRQ		= (1 << 2),
+		REF_TYPE_LOCK		= (1 << 3),
+		REF_TYPE_RES_LOCK 	= (1 << 4),
+		REF_TYPE_RES_LOCK_IRQ	= (1 << 5),
 	} type;
 	/* Track each reference created with a unique id, even if the same
 	 * instruction creates the reference multiple times (eg, via CALL).
