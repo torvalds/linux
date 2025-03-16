@@ -638,40 +638,6 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 }
 
-static bool can_allocate_without_blocking(struct bch_fs *c,
-					  struct data_update *m)
-{
-	if (unlikely(c->open_buckets_nr_free <= bch2_open_buckets_reserved(m->op.watermark)))
-		return false;
-
-	unsigned target = m->op.flags & BCH_WRITE_only_specified_devs
-		? m->op.target
-		: 0;
-	struct bch_devs_mask devs = target_rw_devs(c, BCH_DATA_user, target);
-
-	darray_for_each(m->op.devs_have, i)
-		__clear_bit(*i, devs.d);
-
-	rcu_read_lock();
-	unsigned nr_replicas = 0, i;
-	for_each_set_bit(i, devs.d, BCH_SB_MEMBERS_MAX) {
-		struct bch_dev *ca = bch2_dev_rcu(c, i);
-
-		struct bch_dev_usage usage;
-		bch2_dev_usage_read_fast(ca, &usage);
-
-		if (!dev_buckets_free(ca, usage, m->op.watermark))
-			continue;
-
-		nr_replicas += ca->mi.durability;
-		if (nr_replicas >= m->op.nr_replicas)
-			break;
-	}
-	rcu_read_unlock();
-
-	return nr_replicas >= m->op.nr_replicas;
-}
-
 int bch2_data_update_bios_init(struct data_update *m, struct bch_fs *c,
 			       struct bch_io_opts *io_opts)
 {
@@ -707,16 +673,42 @@ int bch2_data_update_bios_init(struct data_update *m, struct bch_fs *c,
 	return 0;
 }
 
-static bool can_write_extent(struct bch_fs *c,
-			     struct bch_devs_list *devs_have,
-			     unsigned target)
+static int can_write_extent(struct bch_fs *c, struct data_update *m)
 {
+	if ((m->op.flags & BCH_WRITE_alloc_nowait) &&
+	    unlikely(c->open_buckets_nr_free <= bch2_open_buckets_reserved(m->op.watermark)))
+		return -BCH_ERR_data_update_done_would_block;
+
+	unsigned target = m->op.flags & BCH_WRITE_only_specified_devs
+		? m->op.target
+		: 0;
 	struct bch_devs_mask devs = target_rw_devs(c, BCH_DATA_user, target);
 
-	darray_for_each(*devs_have, i)
+	darray_for_each(m->op.devs_have, i)
 		__clear_bit(*i, devs.d);
 
-	return !bch2_is_zero(&devs, sizeof(devs));
+	rcu_read_lock();
+	unsigned nr_replicas = 0, i;
+	for_each_set_bit(i, devs.d, BCH_SB_MEMBERS_MAX) {
+		struct bch_dev *ca = bch2_dev_rcu(c, i);
+
+		struct bch_dev_usage usage;
+		bch2_dev_usage_read_fast(ca, &usage);
+
+		if (!dev_buckets_free(ca, usage, m->op.watermark))
+			continue;
+
+		nr_replicas += ca->mi.durability;
+		if (nr_replicas >= m->op.nr_replicas)
+			break;
+	}
+	rcu_read_unlock();
+
+	if (!nr_replicas)
+		return -BCH_ERR_data_update_done_no_rw_devs;
+	if (nr_replicas < m->op.nr_replicas)
+		return -BCH_ERR_insufficient_devices;
+	return 0;
 }
 
 int bch2_data_update_init(struct btree_trans *trans,
@@ -800,20 +792,6 @@ int bch2_data_update_init(struct btree_trans *trans,
 		ptr_bit <<= 1;
 	}
 
-	if (!can_write_extent(c, &m->op.devs_have,
-			      m->op.flags & BCH_WRITE_only_specified_devs ? m->op.target : 0)) {
-		/*
-		 * Check if we have rw devices not in devs_have: this can happen
-		 * if we're trying to move data on a ro or failed device
-		 *
-		 * If we can't move it, we need to clear the rebalance_work bit,
-		 * if applicable
-		 *
-		 * Also, copygc should skip ro/failed devices:
-		 */
-		return -BCH_ERR_data_update_done_no_rw_devs;
-	}
-
 	unsigned durability_required = max(0, (int) (io_opts->data_replicas - durability_have));
 
 	/*
@@ -853,11 +831,22 @@ int bch2_data_update_init(struct btree_trans *trans,
 		goto out_bkey_buf_exit;
 	}
 
-	if ((m->op.flags & BCH_WRITE_alloc_nowait) &&
-	    !can_allocate_without_blocking(c, m)) {
-		ret = -BCH_ERR_data_update_done_would_block;
+	/*
+	 * Check if the allocation will succeed, to avoid getting an error later
+	 * in bch2_write() -> bch2_alloc_sectors_start() and doing a useless
+	 * read:
+	 *
+	 * This guards against
+	 * - BCH_WRITE_alloc_nowait allocations failing (promotes)
+	 * - Destination target full
+	 * - Device(s) in destination target offline
+	 * - Insufficient durability available in destination target
+	 *   (i.e. trying to move a durability=2 replica to a target with a
+	 *   single durability=2 device)
+	 */
+	ret = can_write_extent(c, m);
+	if (ret)
 		goto out_bkey_buf_exit;
-	}
 
 	if (reserve_sectors) {
 		ret = bch2_disk_reservation_add(c, &m->op.res, reserve_sectors,
