@@ -320,7 +320,7 @@ impl Task {
 
     /// Wakes up the task.
     pub fn wake_up(&self) {
-        // SAFETY: It's always safe to call `signal_pending` on a valid task, even if the task
+        // SAFETY: It's always safe to call `wake_up_process` on a valid task, even if the task
         // running.
         unsafe { bindings::wake_up_process(self.as_ptr()) };
     }
