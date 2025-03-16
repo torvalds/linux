@@ -753,8 +753,49 @@ static int pidfs_export_permission(struct handle_to_path_ctx *ctx,
 	return 0;
 }
 
+static inline bool pidfs_pid_valid(struct pid *pid, const struct path *path,
+				   unsigned int flags)
+{
+	enum pid_type type;
+
+	if (flags & PIDFD_CLONE)
+		return true;
+
+	/*
+	 * Make sure that if a pidfd is created PIDFD_INFO_EXIT
+	 * information will be available. So after an inode for the
+	 * pidfd has been allocated perform another check that the pid
+	 * is still alive. If it is exit information is available even
+	 * if the task gets reaped before the pidfd is returned to
+	 * userspace. The only exception is PIDFD_CLONE where no task
+	 * linkage has been established for @pid yet and the kernel is
+	 * in the middle of process creation so there's nothing for
+	 * pidfs to miss.
+	 */
+	if (flags & PIDFD_THREAD)
+		type = PIDTYPE_PID;
+	else
+		type = PIDTYPE_TGID;
+
+	/*
+	 * Since pidfs_exit() is called before struct pid's task linkage
+	 * is removed the case where the task got reaped but a dentry
+	 * was already attached to struct pid and exit information was
+	 * recorded and published can be handled correctly.
+	 */
+	if (unlikely(!pid_has_task(pid, type))) {
+		struct inode *inode = d_inode(path->dentry);
+		return !!READ_ONCE(pidfs_i(inode)->exit_info);
+	}
+
+	return true;
+}
+
 static struct file *pidfs_export_open(struct path *path, unsigned int oflags)
 {
+	if (!pidfs_pid_valid(d_inode(path->dentry)->i_private, path, oflags))
+		return ERR_PTR(-ESRCH);
+
 	/*
 	 * Clear O_LARGEFILE as open_by_handle_at() forces it and raise
 	 * O_RDWR as pidfds always are.
@@ -818,21 +859,30 @@ static struct file_system_type pidfs_type = {
 
 struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 {
-
 	struct file *pidfd_file;
-	struct path path;
+	struct path path __free(path_put) = {};
 	int ret;
+
+	/*
+	 * Ensure that PIDFD_CLONE can be passed as a flag without
+	 * overloading other uapi pidfd flags.
+	 */
+	BUILD_BUG_ON(PIDFD_CLONE == PIDFD_THREAD);
+	BUILD_BUG_ON(PIDFD_CLONE == PIDFD_NONBLOCK);
 
 	ret = path_from_stashed(&pid->stashed, pidfs_mnt, get_pid(pid), &path);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
+	if (!pidfs_pid_valid(pid, &path, flags))
+		return ERR_PTR(-ESRCH);
+
+	flags &= ~PIDFD_CLONE;
 	pidfd_file = dentry_open(&path, flags, current_cred());
 	/* Raise PIDFD_THREAD explicitly as do_dentry_open() strips it. */
 	if (!IS_ERR(pidfd_file))
 		pidfd_file->f_flags |= (flags & PIDFD_THREAD);
 
-	path_put(&path);
 	return pidfd_file;
 }
 

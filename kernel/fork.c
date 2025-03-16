@@ -2425,8 +2425,11 @@ __latent_entropy struct task_struct *copy_process(
 	if (clone_flags & CLONE_PIDFD) {
 		int flags = (clone_flags & CLONE_THREAD) ? PIDFD_THREAD : 0;
 
-		/* Note that no task has been attached to @pid yet. */
-		retval = __pidfd_prepare(pid, flags, &pidfile);
+		/*
+		 * Note that no task has been attached to @pid yet indicate
+		 * that via CLONE_PIDFD.
+		 */
+		retval = __pidfd_prepare(pid, flags | PIDFD_CLONE, &pidfile);
 		if (retval < 0)
 			goto bad_fork_free_pid;
 		pidfd = retval;
