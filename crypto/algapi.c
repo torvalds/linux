@@ -464,8 +464,7 @@ void crypto_unregister_alg(struct crypto_alg *alg)
 	if (WARN_ON(refcount_read(&alg->cra_refcnt) != 1))
 		return;
 
-	if (alg->cra_destroy)
-		alg->cra_destroy(alg);
+	crypto_alg_put(alg);
 
 	crypto_remove_final(&list);
 }
