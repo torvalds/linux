@@ -24,16 +24,6 @@ static DEFINE_SPINLOCK(crypto_default_null_skcipher_lock);
 static struct crypto_sync_skcipher *crypto_default_null_skcipher;
 static int crypto_default_null_skcipher_refcnt;
 
-static int null_compress(struct crypto_tfm *tfm, const u8 *src,
-			 unsigned int slen, u8 *dst, unsigned int *dlen)
-{
-	if (slen > *dlen)
-		return -EINVAL;
-	memcpy(dst, src, slen);
-	*dlen = slen;
-	return 0;
-}
-
 static int null_init(struct shash_desc *desc)
 {
 	return 0;
@@ -121,7 +111,7 @@ static struct skcipher_alg skcipher_null = {
 	.decrypt		=	null_skcipher_crypt,
 };
 
-static struct crypto_alg null_algs[] = { {
+static struct crypto_alg cipher_null = {
 	.cra_name		=	"cipher_null",
 	.cra_driver_name	=	"cipher_null-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
@@ -134,19 +124,8 @@ static struct crypto_alg null_algs[] = { {
 	.cia_setkey		= 	null_setkey,
 	.cia_encrypt		=	null_crypt,
 	.cia_decrypt		=	null_crypt } }
-}, {
-	.cra_name		=	"compress_null",
-	.cra_driver_name	=	"compress_null-generic",
-	.cra_flags		=	CRYPTO_ALG_TYPE_COMPRESS,
-	.cra_blocksize		=	NULL_BLOCK_SIZE,
-	.cra_ctxsize		=	0,
-	.cra_module		=	THIS_MODULE,
-	.cra_u			=	{ .compress = {
-	.coa_compress		=	null_compress,
-	.coa_decompress		=	null_compress } }
-} };
+};
 
-MODULE_ALIAS_CRYPTO("compress_null");
 MODULE_ALIAS_CRYPTO("digest_null");
 MODULE_ALIAS_CRYPTO("cipher_null");
 
@@ -202,7 +181,7 @@ static int __init crypto_null_mod_init(void)
 {
 	int ret = 0;
 
-	ret = crypto_register_algs(null_algs, ARRAY_SIZE(null_algs));
+	ret = crypto_register_alg(&cipher_null);
 	if (ret < 0)
 		goto out;
 
@@ -219,14 +198,14 @@ static int __init crypto_null_mod_init(void)
 out_unregister_shash:
 	crypto_unregister_shash(&digest_null);
 out_unregister_algs:
-	crypto_unregister_algs(null_algs, ARRAY_SIZE(null_algs));
+	crypto_unregister_alg(&cipher_null);
 out:
 	return ret;
 }
 
 static void __exit crypto_null_mod_fini(void)
 {
-	crypto_unregister_algs(null_algs, ARRAY_SIZE(null_algs));
+	crypto_unregister_alg(&cipher_null);
 	crypto_unregister_shash(&digest_null);
 	crypto_unregister_skcipher(&skcipher_null);
 }

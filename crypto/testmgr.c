@@ -4727,9 +4727,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(sm4_cmac128_tv_template)
 		}
 	}, {
-		.alg = "compress_null",
-		.test = alg_test_null,
-	}, {
 		.alg = "crc32",
 		.test = alg_test_hash,
 		.fips_allowed = 1,
