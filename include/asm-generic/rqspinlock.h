@@ -153,4 +153,91 @@ dec:
 	this_cpu_dec(rqspinlock_held_locks.cnt);
 }
 
+#ifdef CONFIG_QUEUED_SPINLOCKS
+
+/**
+ * res_spin_lock - acquire a queued spinlock
+ * @lock: Pointer to queued spinlock structure
+ *
+ * Return:
+ * * 0		- Lock was acquired successfully.
+ * * -EDEADLK	- Lock acquisition failed because of AA/ABBA deadlock.
+ * * -ETIMEDOUT - Lock acquisition failed because of timeout.
+ */
+static __always_inline int res_spin_lock(rqspinlock_t *lock)
+{
+	int val = 0;
+
+	if (likely(atomic_try_cmpxchg_acquire(&lock->val, &val, _Q_LOCKED_VAL))) {
+		grab_held_lock_entry(lock);
+		return 0;
+	}
+	return resilient_queued_spin_lock_slowpath(lock, val);
+}
+
+#else
+
+#define res_spin_lock(lock) resilient_tas_spin_lock(lock)
+
+#endif /* CONFIG_QUEUED_SPINLOCKS */
+
+static __always_inline void res_spin_unlock(rqspinlock_t *lock)
+{
+	struct rqspinlock_held *rqh = this_cpu_ptr(&rqspinlock_held_locks);
+
+	if (unlikely(rqh->cnt > RES_NR_HELD))
+		goto unlock;
+	WRITE_ONCE(rqh->locks[rqh->cnt - 1], NULL);
+unlock:
+	/*
+	 * Release barrier, ensures correct ordering. See release_held_lock_entry
+	 * for details.  Perform release store instead of queued_spin_unlock,
+	 * since we use this function for test-and-set fallback as well. When we
+	 * have CONFIG_QUEUED_SPINLOCKS=n, we clear the full 4-byte lockword.
+	 *
+	 * Like release_held_lock_entry, we can do the release before the dec.
+	 * We simply care about not seeing the 'lock' in our table from a remote
+	 * CPU once the lock has been released, which doesn't rely on the dec.
+	 *
+	 * Unlike smp_wmb(), release is not a two way fence, hence it is
+	 * possible for a inc to move up and reorder with our clearing of the
+	 * entry. This isn't a problem however, as for a misdiagnosis of ABBA,
+	 * the remote CPU needs to hold this lock, which won't be released until
+	 * the store below is done, which would ensure the entry is overwritten
+	 * to NULL, etc.
+	 */
+	smp_store_release(&lock->locked, 0);
+	this_cpu_dec(rqspinlock_held_locks.cnt);
+}
+
+#ifdef CONFIG_QUEUED_SPINLOCKS
+#define raw_res_spin_lock_init(lock) ({ *(lock) = (rqspinlock_t)__ARCH_SPIN_LOCK_UNLOCKED; })
+#else
+#define raw_res_spin_lock_init(lock) ({ *(lock) = (rqspinlock_t){0}; })
+#endif
+
+#define raw_res_spin_lock(lock)                    \
+	({                                         \
+		int __ret;                         \
+		preempt_disable();                 \
+		__ret = res_spin_lock(lock);	   \
+		if (__ret)                         \
+			preempt_enable();          \
+		__ret;                             \
+	})
+
+#define raw_res_spin_unlock(lock) ({ res_spin_unlock(lock); preempt_enable(); })
+
+#define raw_res_spin_lock_irqsave(lock, flags)    \
+	({                                        \
+		int __ret;                        \
+		local_irq_save(flags);            \
+		__ret = raw_res_spin_lock(lock);  \
+		if (__ret)                        \
+			local_irq_restore(flags); \
+		__ret;                            \
+	})
+
+#define raw_res_spin_unlock_irqrestore(lock, flags) ({ raw_res_spin_unlock(lock); local_irq_restore(flags); })
+
 #endif /* __ASM_GENERIC_RQSPINLOCK_H */
