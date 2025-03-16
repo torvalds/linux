@@ -117,7 +117,7 @@ static void scomp_free_streams(struct scomp_alg *alg)
 		if (!ps->ctx)
 			break;
 
-		alg->free_ctx(ps);
+		alg->free_ctx(ps->ctx);
 	}
 
 	free_percpu(stream);
