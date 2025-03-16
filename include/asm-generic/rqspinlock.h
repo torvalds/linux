@@ -35,6 +35,20 @@ extern int resilient_tas_spin_lock(rqspinlock_t *lock);
 extern int resilient_queued_spin_lock_slowpath(rqspinlock_t *lock, u32 val);
 #endif
 
+#ifndef resilient_virt_spin_lock_enabled
+static __always_inline bool resilient_virt_spin_lock_enabled(void)
+{
+	return false;
+}
+#endif
+
+#ifndef resilient_virt_spin_lock
+static __always_inline int resilient_virt_spin_lock(rqspinlock_t *lock)
+{
+	return 0;
+}
+#endif
+
 /*
  * Default timeout for waiting loops is 0.25 seconds
  */
