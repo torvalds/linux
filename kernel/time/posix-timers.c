@@ -526,7 +526,6 @@ static int do_timer_create(clockid_t which_clock, struct sigevent *event,
 	} else {
 		new_timer->it_sigev_notify     = SIGEV_SIGNAL;
 		new_timer->sigq.info.si_signo = SIGALRM;
-		memset(&new_timer->sigq.info.si_value, 0, sizeof(sigval_t));
 		new_timer->sigq.info.si_value.sival_int = new_timer->it_id;
 		new_timer->it_pid = get_pid(task_tgid(current));
 	}
