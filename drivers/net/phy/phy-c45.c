@@ -1479,6 +1479,9 @@ int genphy_c45_eee_is_active(struct phy_device *phydev, unsigned long *lp)
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
 	int ret;
 
+	if (!phydev->eee_cfg.eee_enabled)
+		return 0;
+
 	ret = genphy_c45_read_eee_lpa(phydev, tmp_lp);
 	if (ret)
 		return ret;
