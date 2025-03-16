@@ -190,16 +190,6 @@ Rust abstraction for debugfs APIs.
 | Reference: Export GSP log buffers
 | Complexity: Intermediate
 
-Vec extensions
---------------
-
-Implement ``Vec::truncate`` and ``Vec::resize``.
-
-Currently this is used for some experimental code to parse the vBIOS.
-
-| Reference vBIOS support
-| Complexity: Beginner
-
 GPU (general)
 =============
 
