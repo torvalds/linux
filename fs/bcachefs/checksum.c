@@ -693,6 +693,14 @@ static int bch2_alloc_ciphers(struct bch_fs *c)
 	return 0;
 }
 
+#if 0
+
+/*
+ * This seems to be duplicating code in cmd_remove_passphrase() in
+ * bcachefs-tools, but we might want to switch userspace to use this - and
+ * perhaps add an ioctl for calling this at runtime, so we can take the
+ * passphrase off of a mounted filesystem (which has come up).
+ */
 int bch2_disable_encryption(struct bch_fs *c)
 {
 	struct bch_sb_field_crypt *crypt;
@@ -725,6 +733,10 @@ out:
 	return ret;
 }
 
+/*
+ * For enabling encryption on an existing filesystem: not hooked up yet, but it
+ * should be
+ */
 int bch2_enable_encryption(struct bch_fs *c, bool keyed)
 {
 	struct bch_encrypted_key key;
@@ -781,6 +793,7 @@ err:
 	memzero_explicit(&key, sizeof(key));
 	return ret;
 }
+#endif
 
 void bch2_fs_encryption_exit(struct bch_fs *c)
 {
