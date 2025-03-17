@@ -680,7 +680,6 @@ void wm8804_remove(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(wm8804_remove);
 
-#if IS_ENABLED(CONFIG_PM)
 static int wm8804_runtime_resume(struct device *dev)
 {
 	struct wm8804_priv *wm8804 = dev_get_drvdata(dev);
@@ -713,12 +712,10 @@ static int wm8804_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
-const struct dev_pm_ops wm8804_pm = {
-	SET_RUNTIME_PM_OPS(wm8804_runtime_suspend, wm8804_runtime_resume, NULL)
+EXPORT_GPL_DEV_PM_OPS(wm8804_pm) = {
+	RUNTIME_PM_OPS(wm8804_runtime_suspend, wm8804_runtime_resume, NULL)
 };
-EXPORT_SYMBOL_GPL(wm8804_pm);
 
 MODULE_DESCRIPTION("ASoC WM8804 driver");
 MODULE_AUTHOR("Dimitris Papastamos <dp@opensource.wolfsonmicro.com>");
