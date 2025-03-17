@@ -2916,6 +2916,9 @@ static void amd_iommu_get_resv_regions(struct device *dev,
 		return;
 	list_add_tail(&region->list, head);
 
+	if (amd_iommu_ht_range_ignore())
+		return;
+
 	region = iommu_alloc_resv_region(HT_RANGE_START,
 					 HT_RANGE_END - HT_RANGE_START + 1,
 					 0, IOMMU_RESV_RESERVED, GFP_KERNEL);
