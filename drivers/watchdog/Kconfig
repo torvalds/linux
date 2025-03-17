@@ -1372,6 +1372,17 @@ config INTEL_MID_WATCHDOG
 
 	  To compile this driver as a module, choose M here.
 
+config INTEL_OC_WATCHDOG
+	tristate "Intel OC Watchdog"
+	depends on (X86 || COMPILE_TEST) && ACPI && HAS_IOPORT
+	select WATCHDOG_CORE
+	help
+	  Hardware driver for Intel Over-Clocking watchdog present in
+	  Platform Controller Hub (PCH) chipsets.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called intel_oc_wdt.
+
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
 	depends on X86 && PCI
