@@ -854,13 +854,14 @@ static struct folio *defrag_prepare_one_folio(struct btrfs_inode *inode, pgoff_t
 {
 	struct address_space *mapping = inode->vfs_inode.i_mapping;
 	gfp_t mask = btrfs_alloc_write_mask(mapping);
-	u64 page_start = (u64)index << PAGE_SHIFT;
-	u64 page_end = page_start + PAGE_SIZE - 1;
+	u64 folio_start;
+	u64 folio_end;
 	struct extent_state *cached_state = NULL;
 	struct folio *folio;
 	int ret;
 
 again:
+	/* TODO: Add order fgp order flags when large folios are fully enabled. */
 	folio = __filemap_get_folio(mapping, index,
 				    FGP_LOCK | FGP_ACCESSED | FGP_CREAT, mask);
 	if (IS_ERR(folio))
@@ -868,13 +869,16 @@ again:
 
 	/*
 	 * Since we can defragment files opened read-only, we can encounter
-	 * transparent huge pages here (see CONFIG_READ_ONLY_THP_FOR_FS). We
-	 * can't do I/O using huge pages yet, so return an error for now.
+	 * transparent huge pages here (see CONFIG_READ_ONLY_THP_FOR_FS).
+	 *
+	 * The IO for such large folios is not fully tested, thus return
+	 * an error to reject such folios unless it's an experimental build.
+	 *
 	 * Filesystem transparent huge pages are typically only used for
 	 * executables that explicitly enable them, so this isn't very
 	 * restrictive.
 	 */
-	if (folio_test_large(folio)) {
+	if (!IS_ENABLED(CONFIG_BTRFS_EXPERIMENTAL) && folio_test_large(folio)) {
 		folio_unlock(folio);
 		folio_put(folio);
 		return ERR_PTR(-ETXTBSY);
@@ -887,14 +891,15 @@ again:
 		return ERR_PTR(ret);
 	}
 
+	folio_start = folio_pos(folio);
+	folio_end = folio_pos(folio) + folio_size(folio) - 1;
 	/* Wait for any existing ordered extent in the range */
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
 
-		btrfs_lock_extent(&inode->io_tree, page_start, page_end, &cached_state);
-		ordered = btrfs_lookup_ordered_range(inode, page_start, PAGE_SIZE);
-		btrfs_unlock_extent(&inode->io_tree, page_start, page_end,
-				    &cached_state);
+		btrfs_lock_extent(&inode->io_tree, folio_start, folio_end, &cached_state);
+		ordered = btrfs_lookup_ordered_range(inode, folio_start, folio_size(folio));
+		btrfs_unlock_extent(&inode->io_tree, folio_start, folio_end, &cached_state);
 		if (!ordered)
 			break;
 
@@ -1159,13 +1164,7 @@ static int defrag_one_locked_target(struct btrfs_inode *inode,
 	struct extent_changeset *data_reserved = NULL;
 	const u64 start = target->start;
 	const u64 len = target->len;
-	unsigned long last_index = (start + len - 1) >> PAGE_SHIFT;
-	unsigned long start_index = start >> PAGE_SHIFT;
-	unsigned long first_index = folios[0]->index;
 	int ret = 0;
-	int i;
-
-	ASSERT(last_index - first_index + 1 <= nr_pages);
 
 	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, start, len);
 	if (ret < 0)
@@ -1176,10 +1175,20 @@ static int defrag_one_locked_target(struct btrfs_inode *inode,
 	btrfs_set_extent_bit(&inode->io_tree, start, start + len - 1,
 			     EXTENT_DELALLOC | EXTENT_DEFRAG, cached_state);
 
-	/* Update the page status */
-	for (i = start_index - first_index; i <= last_index - first_index; i++) {
-		folio_clear_checked(folios[i]);
-		btrfs_folio_clamp_set_dirty(fs_info, folios[i], start, len);
+	/*
+	 * Update the page status.
+	 * Due to possible large folios, we have to check all folios one by one.
+	 */
+	for (int i = 0; i < nr_pages && folios[i]; i++) {
+		struct folio *folio = folios[i];
+
+		if (!folio)
+			break;
+		if (start >= folio_pos(folio) + folio_size(folio) ||
+		    start + len <= folio_pos(folio))
+			continue;
+		btrfs_folio_clamp_clear_checked(fs_info, folio, start, len);
+		btrfs_folio_clamp_set_dirty(fs_info, folio, start, len);
 	}
 	btrfs_delalloc_release_extents(inode, len);
 	extent_changeset_free(data_reserved);
@@ -1197,11 +1206,10 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 	LIST_HEAD(target_list);
 	struct folio **folios;
 	const u32 sectorsize = inode->root->fs_info->sectorsize;
-	u64 last_index = (start + len - 1) >> PAGE_SHIFT;
-	u64 start_index = start >> PAGE_SHIFT;
-	unsigned int nr_pages = last_index - start_index + 1;
+	u64 cur = start;
+	const unsigned int nr_pages = ((start + len - 1) >> PAGE_SHIFT) -
+				      (start >> PAGE_SHIFT) + 1;
 	int ret = 0;
-	int i;
 
 	ASSERT(nr_pages <= CLUSTER_SIZE / PAGE_SIZE);
 	ASSERT(IS_ALIGNED(start, sectorsize) && IS_ALIGNED(len, sectorsize));
@@ -1211,21 +1219,25 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 		return -ENOMEM;
 
 	/* Prepare all pages */
-	for (i = 0; i < nr_pages; i++) {
-		folios[i] = defrag_prepare_one_folio(inode, start_index + i);
+	for (int i = 0; cur < start + len && i < nr_pages; i++) {
+		folios[i] = defrag_prepare_one_folio(inode, cur >> PAGE_SHIFT);
 		if (IS_ERR(folios[i])) {
 			ret = PTR_ERR(folios[i]);
-			nr_pages = i;
+			folios[i] = NULL;
 			goto free_folios;
 		}
+		cur = folio_pos(folios[i]) + folio_size(folios[i]);
 	}
-	for (i = 0; i < nr_pages; i++)
+	for (int i = 0; i < nr_pages; i++) {
+		if (!folios[i])
+			break;
 		folio_wait_writeback(folios[i]);
+	}
 
+	/* We should get at least one folio. */
+	ASSERT(folios[0]);
 	/* Lock the pages range */
-	btrfs_lock_extent(&inode->io_tree, start_index << PAGE_SHIFT,
-			  (last_index << PAGE_SHIFT) + PAGE_SIZE - 1,
-			  &cached_state);
+	btrfs_lock_extent(&inode->io_tree, folio_pos(folios[0]), cur - 1, &cached_state);
 	/*
 	 * Now we have a consistent view about the extent map, re-check
 	 * which range really needs to be defragged.
@@ -1251,11 +1263,11 @@ static int defrag_one_range(struct btrfs_inode *inode, u64 start, u32 len,
 		kfree(entry);
 	}
 unlock_extent:
-	btrfs_unlock_extent(&inode->io_tree, start_index << PAGE_SHIFT,
-			    (last_index << PAGE_SHIFT) + PAGE_SIZE - 1,
-			    &cached_state);
+	btrfs_unlock_extent(&inode->io_tree, folio_pos(folios[0]), cur - 1, &cached_state);
 free_folios:
-	for (i = 0; i < nr_pages; i++) {
+	for (int i = 0; i < nr_pages; i++) {
+		if (!folios[i])
+			break;
 		folio_unlock(folios[i]);
 		folio_put(folios[i]);
 	}
