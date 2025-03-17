@@ -358,7 +358,8 @@ static int smb5_apsd_get_charger_type(struct smb5_chip *chip, int *val)
 	}
 	if (!(apsd_stat & APSD_DTC_STATUS_DONE_BIT)) {
 		dev_err(chip->dev, "Apsd not ready");
-		return -EAGAIN;
+		*val = POWER_SUPPLY_USB_TYPE_DCP;
+		return 0;
 	}
 
 	rc = regmap_read(chip->regmap, chip->base + APSD_RESULT_STATUS, &stat);
