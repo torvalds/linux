@@ -3984,6 +3984,11 @@ static int merge_sched_in(struct perf_event *event, void *data)
 		if (event->attr.pinned) {
 			perf_cgroup_event_disable(event, ctx);
 			perf_event_set_state(event, PERF_EVENT_STATE_ERROR);
+
+			if (*perf_event_fasync(event))
+				event->pending_kill = POLL_HUP;
+
+			perf_event_wakeup(event);
 		} else {
 			struct perf_cpu_pmu_context *cpc = this_cpc(event->pmu_ctx->pmu);
 
@@ -5923,6 +5928,10 @@ static __poll_t perf_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &event->waitq, wait);
 
 	if (is_event_hup(event))
+		return events;
+
+	if (unlikely(READ_ONCE(event->state) == PERF_EVENT_STATE_ERROR &&
+		     event->attr.pinned))
 		return events;
 
 	/*
