@@ -3460,7 +3460,7 @@ u64 cxl_port_get_spa_cache_alias(struct cxl_port *endpoint, u64 spa)
 			if (!p->cache_size)
 				return ~0ULL;
 
-			if (spa > p->res->start + p->cache_size)
+			if (spa >= p->res->start + p->cache_size)
 				return spa - p->cache_size;
 
 			return spa + p->cache_size;
