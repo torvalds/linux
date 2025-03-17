@@ -44,6 +44,11 @@ struct sdca_function_desc;
  */
 #define SDCA_MAX_DELAY_COUNT 256
 
+/*
+ * Sanity check on size of affected controls data, can be expanded if needed.
+ */
+#define SDCA_MAX_AFFECTED_COUNT 2048
+
 /**
  * enum sdca_function_type - SDCA Function Type codes
  * @SDCA_FUNCTION_TYPE_SMART_AMP: Amplifier with protection features.
@@ -601,6 +606,27 @@ enum sdca_entity0_controls {
 #define SDCA_CTL_DEVICE_SDCA_VERSION_NAME		"Device SDCA Version"
 
 /**
+ * enum sdca_control_datatype - SDCA Control Data Types
+ *
+ * Data Types as described in the SDCA specification v1.0 section
+ * 7.3.
+ */
+enum sdca_control_datatype {
+	SDCA_CTL_DATATYPE_ONEBIT,
+	SDCA_CTL_DATATYPE_INTEGER,
+	SDCA_CTL_DATATYPE_SPEC_ENCODED_VALUE,
+	SDCA_CTL_DATATYPE_BCD,
+	SDCA_CTL_DATATYPE_Q7P8DB,
+	SDCA_CTL_DATATYPE_BYTEINDEX,
+	SDCA_CTL_DATATYPE_POSTURENUMBER,
+	SDCA_CTL_DATATYPE_DP_INDEX,
+	SDCA_CTL_DATATYPE_BITINDEX,
+	SDCA_CTL_DATATYPE_BITMAP,
+	SDCA_CTL_DATATYPE_GUID,
+	SDCA_CTL_DATATYPE_IMPDEF,
+};
+
+/**
  * enum sdca_access_mode - SDCA Control access mode
  *
  * Access modes as described in the SDCA specification v1.0 section
@@ -653,6 +679,7 @@ struct sdca_control_range {
  * @cn_list: A bitmask showing the valid Control Numbers within this Control,
  * Control Numbers typically represent channels.
  * @range: Buffer describing valid range of values for the Control.
+ * @type: Format of the data in the Control.
  * @mode: Access mode of the Control.
  * @layers: Bitmask of access layers of the Control.
  * @deferrable: Indicates if the access to the Control can be deferred.
@@ -669,6 +696,7 @@ struct sdca_control {
 	u64 cn_list;
 
 	struct sdca_control_range range;
+	enum sdca_control_datatype type;
 	enum sdca_access_mode mode;
 	u8 layers;
 
@@ -905,10 +933,50 @@ enum sdca_entity_type {
 };
 
 /**
+ * struct sdca_ge_control - control entry in the affected controls list
+ * @id: Entity ID of the Control affected.
+ * @sel: Control Selector of the Control affected.
+ * @cn: Control Number of the Control affected.
+ * @val: Value written to Control for this Mode.
+ */
+struct sdca_ge_control {
+	int id;
+	int sel;
+	int cn;
+	int val;
+};
+
+/**
+ * struct sdca_ge_mode - mode entry in the affected controls list
+ * @controls: Dynamically allocated array of controls written for this Mode.
+ * @num_controls: Number of controls written in this Mode.
+ * @val: GE Selector Mode value.
+ */
+struct sdca_ge_mode {
+	struct sdca_ge_control *controls;
+	int num_controls;
+	int val;
+};
+
+/**
+ * struct sdca_entity_ge - information specific to Group Entities
+ * @kctl: ALSA control pointer that can be used by linked Entities.
+ * @modes: Dynamically allocated array of Modes and the Controls written
+ * in each mode.
+ * @num_modes: Number of Modes.
+ */
+struct sdca_entity_ge {
+	struct snd_kcontrol_new *kctl;
+	struct sdca_ge_mode *modes;
+	int num_modes;
+};
+
+/**
  * struct sdca_entity - information for one SDCA Entity
  * @label: String such as "OT 12".
  * @id: Identifier used for addressing.
  * @type: Type code for the Entity.
+ * @group: Pointer to Group Entity controlling this one, NULL if N/A.
  * @sources: Dynamically allocated array pointing to each input Entity
  * connected to this Entity.
  * @controls: Dynamically allocated array of Controls.
@@ -917,12 +985,14 @@ enum sdca_entity_type {
  * @iot: Input/Output Terminal specific Entity properties.
  * @cs: Clock Source specific Entity properties.
  * @pde: Power Domain Entity specific Entity properties.
+ * @ge: Group Entity specific Entity properties.
  */
 struct sdca_entity {
 	const char *label;
 	int id;
 	enum sdca_entity_type type;
 
+	struct sdca_entity *group;
 	struct sdca_entity **sources;
 	struct sdca_control *controls;
 	int num_sources;
@@ -931,6 +1001,7 @@ struct sdca_entity {
 		struct sdca_entity_iot iot;
 		struct sdca_entity_cs cs;
 		struct sdca_entity_pde pde;
+		struct sdca_entity_ge ge;
 	};
 };
 
@@ -1112,6 +1183,25 @@ struct sdca_function_data {
 
 	unsigned int busy_max_delay;
 };
+
+static inline u32 sdca_range(struct sdca_control_range *range,
+			     unsigned int col, unsigned int row)
+{
+	return range->data[(row * range->cols) + col];
+}
+
+static inline u32 sdca_range_search(struct sdca_control_range *range,
+				    int search_col, int value, int result_col)
+{
+	int i;
+
+	for (i = 0; i < range->rows; i++) {
+		if (sdca_range(range, search_col, i) == value)
+			return sdca_range(range, result_col, i);
+	}
+
+	return 0;
+}
 
 int sdca_parse_function(struct device *dev,
 			struct sdca_function_desc *desc,

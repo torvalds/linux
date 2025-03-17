@@ -10,6 +10,7 @@
 
 #include <linux/acpi.h>
 #include <linux/byteorder/generic.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
 #include <linux/module.h>
@@ -186,14 +187,18 @@ void sdca_lookup_functions(struct sdw_slave *slave)
 }
 EXPORT_SYMBOL_NS(sdca_lookup_functions, "SND_SOC_SDCA");
 
+struct raw_init_write {
+	__le32 addr;
+	u8 val;
+} __packed;
+
 static int find_sdca_init_table(struct device *dev,
 				struct fwnode_handle *function_node,
 				struct sdca_function_data *function)
 {
+	struct raw_init_write *raw __free(kfree) = NULL;
 	struct sdca_init_write *init_write;
-	int write_size = sizeof(init_write->addr) + sizeof(init_write->val);
-	u8 *init_list, *init_iter;
-	int num_init_writes;
+	int i, num_init_writes;
 
 	num_init_writes = fwnode_property_count_u8(function_node,
 						   "mipi-sdca-function-initialization-table");
@@ -203,7 +208,7 @@ static int find_sdca_init_table(struct device *dev,
 		dev_err(dev, "%pfwP: failed to read initialization table: %d\n",
 			function_node, num_init_writes);
 		return num_init_writes;
-	} else if (num_init_writes % write_size != 0) {
+	} else if (num_init_writes % sizeof(*raw) != 0) {
 		dev_err(dev, "%pfwP: init table size invalid\n", function_node);
 		return -EINVAL;
 	} else if (num_init_writes > SDCA_MAX_INIT_COUNT) {
@@ -211,38 +216,33 @@ static int find_sdca_init_table(struct device *dev,
 		return -EINVAL;
 	}
 
-	init_write = devm_kcalloc(dev, num_init_writes / write_size,
-				  sizeof(*init_write), GFP_KERNEL);
-	if (!init_write)
-		return -ENOMEM;
-
-	init_list = kcalloc(num_init_writes, sizeof(*init_list), GFP_KERNEL);
-	if (!init_list)
+	raw = kzalloc(num_init_writes, GFP_KERNEL);
+	if (!raw)
 		return -ENOMEM;
 
 	fwnode_property_read_u8_array(function_node,
 				      "mipi-sdca-function-initialization-table",
-				      init_list, num_init_writes);
+				      (u8 *)raw, num_init_writes);
+
+	num_init_writes /= sizeof(*raw);
+
+	init_write = devm_kcalloc(dev, num_init_writes, sizeof(*init_write), GFP_KERNEL);
+	if (!init_write)
+		return -ENOMEM;
+
+	for (i = 0; i < num_init_writes; i++) {
+		init_write[i].addr = le32_to_cpu(raw[i].addr);
+		init_write[i].val = raw[i].val;
+	}
 
 	function->num_init_table = num_init_writes;
 	function->init_table = init_write;
 
-	for (init_iter = init_list; init_iter < init_list + num_init_writes;) {
-		u32 *addr = (u32 *)init_iter;
-
-		init_write->addr = le32_to_cpu(*addr);
-		init_iter += sizeof(init_write->addr);
-
-		init_write->val = *init_iter;
-		init_iter += sizeof(init_write->val);
-	}
-
-	kfree(init_list);
-
 	return 0;
 }
 
-static const char *find_sdca_control_label(const struct sdca_entity *entity,
+static const char *find_sdca_control_label(struct device *dev,
+					   const struct sdca_entity *entity,
 					   const struct sdca_control *control)
 {
 	switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
@@ -531,7 +531,7 @@ static const char *find_sdca_control_label(const struct sdca_entity *entity,
 	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_SDCA_VERSION):
 		return SDCA_CTL_DEVICE_SDCA_VERSION_NAME;
 	default:
-		return NULL;
+		return devm_kasprintf(dev, GFP_KERNEL, "Imp-Def %#x", control->sel);
 	}
 }
 
@@ -600,6 +600,178 @@ static unsigned int find_sdca_control_bits(const struct sdca_entity *entity,
 		return 1;
 	default:
 		return 8;
+	}
+}
+
+static enum sdca_control_datatype
+find_sdca_control_datatype(const struct sdca_entity *entity,
+			   const struct sdca_control *control)
+{
+	switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
+	case SDCA_CTL_TYPE_S(XU, BYPASS):
+	case SDCA_CTL_TYPE_S(MFPU, BYPASS):
+	case SDCA_CTL_TYPE_S(FU, MUTE):
+	case SDCA_CTL_TYPE_S(FU, AGC):
+	case SDCA_CTL_TYPE_S(FU, BASS_BOOST):
+	case SDCA_CTL_TYPE_S(FU, LOUDNESS):
+		return SDCA_CTL_DATATYPE_ONEBIT;
+	case SDCA_CTL_TYPE_S(IT, LATENCY):
+	case SDCA_CTL_TYPE_S(OT, LATENCY):
+	case SDCA_CTL_TYPE_S(MU, LATENCY):
+	case SDCA_CTL_TYPE_S(SU, LATENCY):
+	case SDCA_CTL_TYPE_S(FU, LATENCY):
+	case SDCA_CTL_TYPE_S(XU, LATENCY):
+	case SDCA_CTL_TYPE_S(CRU, LATENCY):
+	case SDCA_CTL_TYPE_S(UDMPU, LATENCY):
+	case SDCA_CTL_TYPE_S(MFPU, LATENCY):
+	case SDCA_CTL_TYPE_S(SMPU, LATENCY):
+	case SDCA_CTL_TYPE_S(SAPU, LATENCY):
+	case SDCA_CTL_TYPE_S(PPU, LATENCY):
+	case SDCA_CTL_TYPE_S(SU, SELECTOR):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_0):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_1):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_2):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_3):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_4):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_5):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_6):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_7):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_8):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_9):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_10):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_11):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_12):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_13):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_14):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_15):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_16):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_17):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_18):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_19):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_20):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_21):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_22):
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_23):
+	case SDCA_CTL_TYPE_S(SAPU, PROTECTION_MODE):
+	case SDCA_CTL_TYPE_S(SMPU, HIST_BUFFER_PREAMBLE):
+	case SDCA_CTL_TYPE_S(XU, FDL_HOST_REQUEST):
+	case SDCA_CTL_TYPE_S(XU, XU_ID):
+	case SDCA_CTL_TYPE_S(CX, CLOCK_SELECT):
+	case SDCA_CTL_TYPE_S(TG, TONE_DIVIDER):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_MANUFACTURER_ID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_ID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_EXTENSION_ID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_MANUFACTURER_ID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_PART_ID):
+	case SDCA_CTL_TYPE_S(XU, FDL_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(XU, FDL_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SPE, AUTHTX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SPE, AUTHTX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SPE, AUTHRX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SPE, AUTHRX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(MFPU, AE_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(MFPU, AE_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SMPU, HIST_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SMPU, HIST_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SMPU, DTODTX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SMPU, DTODTX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SMPU, DTODRX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SMPU, DTODRX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SAPU, DTODTX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SAPU, DTODTX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SAPU, DTODRX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SAPU, DTODRX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(HIDE, HIDTX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(HIDE, HIDTX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(HIDE, HIDRX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(HIDE, HIDRX_MESSAGELENGTH):
+		return SDCA_CTL_DATATYPE_INTEGER;
+	case SDCA_CTL_TYPE_S(IT, MIC_BIAS):
+	case SDCA_CTL_TYPE_S(SMPU, HIST_BUFFER_MODE):
+	case SDCA_CTL_TYPE_S(PDE, REQUESTED_PS):
+	case SDCA_CTL_TYPE_S(PDE, ACTUAL_PS):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_TYPE):
+		return SDCA_CTL_DATATYPE_SPEC_ENCODED_VALUE;
+	case SDCA_CTL_TYPE_S(XU, XU_VERSION):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_SDCA_VERSION):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_VERSION):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_EXTENSION_VERSION):
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_VERSION):
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_SDCA_VERSION):
+		return SDCA_CTL_DATATYPE_BCD;
+	case SDCA_CTL_TYPE_S(FU, CHANNEL_VOLUME):
+	case SDCA_CTL_TYPE_S(FU, GAIN):
+	case SDCA_CTL_TYPE_S(MU, MIXER):
+	case SDCA_CTL_TYPE_S(PPU, HORIZONTALBALANCE):
+	case SDCA_CTL_TYPE_S(PPU, VERTICALBALANCE):
+	case SDCA_CTL_TYPE_S(MFPU, ULTRASOUND_LEVEL):
+	case SDCA_CTL_TYPE_S(UDMPU, ACOUSTIC_ENERGY_LEVEL_MONITOR):
+	case SDCA_CTL_TYPE_S(UDMPU, ULTRASOUND_LOOP_GAIN):
+		return SDCA_CTL_DATATYPE_Q7P8DB;
+	case SDCA_CTL_TYPE_S(IT, USAGE):
+	case SDCA_CTL_TYPE_S(OT, USAGE):
+	case SDCA_CTL_TYPE_S(IT, CLUSTERINDEX):
+	case SDCA_CTL_TYPE_S(CRU, CLUSTERINDEX):
+	case SDCA_CTL_TYPE_S(UDMPU, CLUSTERINDEX):
+	case SDCA_CTL_TYPE_S(MFPU, CLUSTERINDEX):
+	case SDCA_CTL_TYPE_S(MFPU, CENTER_FREQUENCY_INDEX):
+	case SDCA_CTL_TYPE_S(MFPU, AE_NUMBER):
+	case SDCA_CTL_TYPE_S(SAPU, OPAQUESETREQ_INDEX):
+	case SDCA_CTL_TYPE_S(XU, FDL_SET_INDEX):
+	case SDCA_CTL_TYPE_S(CS, SAMPLERATEINDEX):
+	case SDCA_CTL_TYPE_S(GE, SELECTED_MODE):
+	case SDCA_CTL_TYPE_S(GE, DETECTED_MODE):
+		return SDCA_CTL_DATATYPE_BYTEINDEX;
+	case SDCA_CTL_TYPE_S(PPU, POSTURENUMBER):
+		return SDCA_CTL_DATATYPE_POSTURENUMBER;
+	case SDCA_CTL_TYPE_S(IT, DATAPORT_SELECTOR):
+	case SDCA_CTL_TYPE_S(OT, DATAPORT_SELECTOR):
+		return SDCA_CTL_DATATYPE_DP_INDEX;
+	case SDCA_CTL_TYPE_S(MFPU, ALGORITHM_READY):
+	case SDCA_CTL_TYPE_S(MFPU, ALGORITHM_ENABLE):
+	case SDCA_CTL_TYPE_S(MFPU, ALGORITHM_PREPARE):
+	case SDCA_CTL_TYPE_S(SAPU, PROTECTION_STATUS):
+	case SDCA_CTL_TYPE_S(SMPU, TRIGGER_ENABLE):
+	case SDCA_CTL_TYPE_S(SMPU, TRIGGER_STATUS):
+	case SDCA_CTL_TYPE_S(SMPU, TRIGGER_READY):
+	case SDCA_CTL_TYPE_S(SPE, PRIVACY_POLICY):
+	case SDCA_CTL_TYPE_S(SPE, PRIVACY_OWNER):
+		return SDCA_CTL_DATATYPE_BITINDEX;
+	case SDCA_CTL_TYPE_S(IT, KEEP_ALIVE):
+	case SDCA_CTL_TYPE_S(OT, KEEP_ALIVE):
+	case SDCA_CTL_TYPE_S(IT, NDAI_STREAM):
+	case SDCA_CTL_TYPE_S(OT, NDAI_STREAM):
+	case SDCA_CTL_TYPE_S(IT, NDAI_CATEGORY):
+	case SDCA_CTL_TYPE_S(OT, NDAI_CATEGORY):
+	case SDCA_CTL_TYPE_S(IT, NDAI_CODINGTYPE):
+	case SDCA_CTL_TYPE_S(OT, NDAI_CODINGTYPE):
+	case SDCA_CTL_TYPE_S(IT, NDAI_PACKETTYPE):
+	case SDCA_CTL_TYPE_S(OT, NDAI_PACKETTYPE):
+	case SDCA_CTL_TYPE_S(SMPU, HIST_ERROR):
+	case SDCA_CTL_TYPE_S(XU, FDL_STATUS):
+	case SDCA_CTL_TYPE_S(CS, CLOCK_VALID):
+	case SDCA_CTL_TYPE_S(SPE, PRIVACY_LOCKSTATE):
+	case SDCA_CTL_TYPE_S(ENTITY_0, COMMIT_GROUP_MASK):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_STATUS):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_ACTION):
+	case SDCA_CTL_TYPE_S(XU, FDL_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(SPE, AUTHTX_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(SPE, AUTHRX_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(MFPU, AE_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(SMPU, HIST_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(SMPU, DTODTX_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(SMPU, DTODRX_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(SAPU, DTODTX_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(SAPU, DTODRX_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(HIDE, HIDTX_CURRENTOWNER):
+	case SDCA_CTL_TYPE_S(HIDE, HIDRX_CURRENTOWNER):
+		return SDCA_CTL_DATATYPE_BITMAP;
+	case SDCA_CTL_TYPE_S(IT, MATCHING_GUID):
+	case SDCA_CTL_TYPE_S(OT, MATCHING_GUID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, MATCHING_GUID):
+		return SDCA_CTL_DATATYPE_GUID;
+	default:
+		return SDCA_CTL_DATATYPE_IMPDEF;
 	}
 }
 
@@ -740,13 +912,11 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 	if (!ret)
 		control->interrupt_position = tmp;
 
-	control->label = find_sdca_control_label(entity, control);
-	if (!control->label) {
-		dev_err(dev, "%s: control %#x: name not found\n",
-			entity->label, control->sel);
-		return -EINVAL;
-	}
+	control->label = find_sdca_control_label(dev, entity, control);
+	if (!control->label)
+		return -ENOMEM;
 
+	control->type = find_sdca_control_datatype(entity, control);
 	control->nbits = find_sdca_control_bits(entity, control);
 
 	dev_info(dev, "%s: %s: control %#x mode %#x layers %#x cn %#llx int %d value %#x %s\n",
@@ -914,9 +1084,9 @@ static int find_sdca_entity_pde(struct device *dev,
 {
 	static const int mult_delay = 3;
 	struct sdca_entity_pde *power = &entity->pde;
+	u32 *delay_list __free(kfree) = NULL;
 	struct sdca_pde_delay *delays;
 	int num_delays;
-	u32 *delay_list;
 	int i, j;
 
 	num_delays = fwnode_property_count_u32(entity_node,
@@ -963,9 +1133,93 @@ static int find_sdca_entity_pde(struct device *dev,
 	power->num_max_delay = num_delays;
 	power->max_delay = delays;
 
-	kfree(delay_list);
+	return 0;
+}
+
+struct raw_ge_mode {
+	u8 val;
+	u8 num_controls;
+	struct {
+		u8 id;
+		u8 sel;
+		u8 cn;
+		__le32 val;
+	} __packed controls[] __counted_by(num_controls);
+} __packed;
+
+static int find_sdca_entity_ge(struct device *dev,
+			       struct fwnode_handle *entity_node,
+			       struct sdca_entity *entity)
+{
+	struct sdca_entity_ge *group = &entity->ge;
+	u8 *affected_list __free(kfree) = NULL;
+	u8 *affected_iter;
+	int num_affected;
+	int i, j;
+
+	num_affected = fwnode_property_count_u8(entity_node,
+						"mipi-sdca-ge-selectedmode-controls-affected");
+	if (!num_affected || num_affected == -EINVAL) {
+		return 0;
+	} else if (num_affected < 0) {
+		dev_err(dev, "%s: failed to read affected controls: %d\n",
+			entity->label, num_affected);
+		return num_affected;
+	} else if (num_affected > SDCA_MAX_AFFECTED_COUNT) {
+		dev_err(dev, "%s: maximum affected controls size exceeded\n",
+			entity->label);
+		return -EINVAL;
+	}
+
+	affected_list = kcalloc(num_affected, sizeof(*affected_list), GFP_KERNEL);
+	if (!affected_list)
+		return -ENOMEM;
+
+	fwnode_property_read_u8_array(entity_node,
+				      "mipi-sdca-ge-selectedmode-controls-affected",
+				      affected_list, num_affected);
+
+	group->num_modes = *affected_list;
+	affected_iter = affected_list + 1;
+
+	group->modes = devm_kcalloc(dev, group->num_modes, sizeof(*group->modes),
+				    GFP_KERNEL);
+	if (!group->modes)
+		return -ENOMEM;
+
+	for (i = 0; i < group->num_modes; i++) {
+		struct raw_ge_mode *raw = (struct raw_ge_mode *)affected_iter;
+		struct sdca_ge_mode *mode = &group->modes[i];
+
+		affected_iter += sizeof(*raw);
+		if (affected_iter > affected_list + num_affected)
+			goto bad_list;
+
+		mode->val = raw->val;
+		mode->num_controls = raw->num_controls;
+
+		affected_iter += mode->num_controls * sizeof(raw->controls[0]);
+		if (affected_iter > affected_list + num_affected)
+			goto bad_list;
+
+		mode->controls = devm_kcalloc(dev, mode->num_controls,
+					      sizeof(*mode->controls), GFP_KERNEL);
+		if (!mode->controls)
+			return -ENOMEM;
+
+		for (j = 0; j < mode->num_controls; j++) {
+			mode->controls[j].id = raw->controls[j].id;
+			mode->controls[j].sel = raw->controls[j].sel;
+			mode->controls[j].cn = raw->controls[j].cn;
+			mode->controls[j].val = le32_to_cpu(raw->controls[j].val);
+		}
+	}
 
 	return 0;
+
+bad_list:
+	dev_err(dev, "%s: malformed affected controls list\n", entity->label);
+	return -EINVAL;
 }
 
 static int find_sdca_entity(struct device *dev,
@@ -1006,6 +1260,9 @@ static int find_sdca_entity(struct device *dev,
 	case SDCA_ENTITY_TYPE_PDE:
 		ret = find_sdca_entity_pde(dev, entity_node, entity);
 		break;
+	case SDCA_ENTITY_TYPE_GE:
+		ret = find_sdca_entity_ge(dev, entity_node, entity);
+		break;
 	default:
 		break;
 	}
@@ -1023,8 +1280,8 @@ static int find_sdca_entities(struct device *dev,
 			      struct fwnode_handle *function_node,
 			      struct sdca_function_data *function)
 {
+	u32 *entity_list __free(kfree) = NULL;
 	struct sdca_entity *entities;
-	u32 *entity_list;
 	int num_entities;
 	int i, ret;
 
@@ -1054,8 +1311,6 @@ static int find_sdca_entities(struct device *dev,
 
 	for (i = 0; i < num_entities; i++)
 		entities[i].id = entity_list[i];
-
-	kfree(entity_list);
 
 	/* now read subproperties */
 	for (i = 0; i < num_entities; i++) {
@@ -1171,8 +1426,8 @@ static int find_sdca_entity_connection_pde(struct device *dev,
 					   struct sdca_entity *entity)
 {
 	struct sdca_entity_pde *power = &entity->pde;
+	u32 *managed_list __free(kfree) = NULL;
 	struct sdca_entity **managed;
-	u32 *managed_list;
 	int num_managed;
 	int i;
 
@@ -1206,17 +1461,50 @@ static int find_sdca_entity_connection_pde(struct device *dev,
 		if (!managed[i]) {
 			dev_err(dev, "%s: failed to find entity with id %#x\n",
 				entity->label, managed_list[i]);
-			kfree(managed_list);
 			return -EINVAL;
 		}
 
 		dev_info(dev, "%s -> %s\n", managed[i]->label, entity->label);
 	}
 
-	kfree(managed_list);
-
 	power->num_managed = num_managed;
 	power->managed = managed;
+
+	return 0;
+}
+
+static int find_sdca_entity_connection_ge(struct device *dev,
+					  struct sdca_function_data *function,
+					  struct fwnode_handle *entity_node,
+					  struct sdca_entity *entity)
+{
+	int i, j;
+
+	for (i = 0; i < entity->ge.num_modes; i++) {
+		struct sdca_ge_mode *mode = &entity->ge.modes[i];
+
+		for (j = 0; j < mode->num_controls; j++) {
+			struct sdca_ge_control *affected = &mode->controls[j];
+			struct sdca_entity *managed;
+
+			managed = find_sdca_entity_by_id(function, affected->id);
+			if (!managed) {
+				dev_err(dev, "%s: failed to find entity with id %#x\n",
+					entity->label, affected->id);
+				return -EINVAL;
+			}
+
+			if (managed->group && managed->group != entity) {
+				dev_err(dev,
+					"%s: entity controlled by two groups %s, %s\n",
+					managed->label, managed->group->label,
+					entity->label);
+				return -EINVAL;
+			}
+
+			managed->group = entity;
+		}
+	}
 
 	return 0;
 }
@@ -1240,6 +1528,10 @@ static int find_sdca_entity_connection(struct device *dev,
 	case SDCA_ENTITY_TYPE_PDE:
 		ret = find_sdca_entity_connection_pde(dev, function,
 						      entity_node, entity);
+		break;
+	case SDCA_ENTITY_TYPE_GE:
+		ret = find_sdca_entity_connection_ge(dev, function,
+						     entity_node, entity);
 		break;
 	default:
 		ret = 0;
@@ -1454,9 +1746,9 @@ static int find_sdca_clusters(struct device *dev,
 			      struct fwnode_handle *function_node,
 			      struct sdca_function_data *function)
 {
+	u32 *cluster_list __free(kfree) = NULL;
 	struct sdca_cluster *clusters;
 	int num_clusters;
-	u32 *cluster_list;
 	int i, ret;
 
 	num_clusters = fwnode_property_count_u32(function_node, "mipi-sdca-cluster-id-list");
@@ -1484,8 +1776,6 @@ static int find_sdca_clusters(struct device *dev,
 
 	for (i = 0; i < num_clusters; i++)
 		clusters[i].id = cluster_list[i];
-
-	kfree(cluster_list);
 
 	/* now read subproperties */
 	for (i = 0; i < num_clusters; i++) {
