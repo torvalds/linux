@@ -1817,10 +1817,8 @@ disable_bus_clk:
 }
 
 static const struct dev_pm_ops fsl_sai_pm_ops = {
-	SET_RUNTIME_PM_OPS(fsl_sai_runtime_suspend,
-			   fsl_sai_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(fsl_sai_runtime_suspend, fsl_sai_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver fsl_sai_driver = {
@@ -1828,7 +1826,7 @@ static struct platform_driver fsl_sai_driver = {
 	.remove = fsl_sai_remove,
 	.driver = {
 		.name = "fsl-sai",
-		.pm = &fsl_sai_pm_ops,
+		.pm = pm_ptr(&fsl_sai_pm_ops),
 		.of_match_table = fsl_sai_ids,
 	},
 };
