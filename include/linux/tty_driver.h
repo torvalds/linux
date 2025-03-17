@@ -81,26 +81,26 @@ enum tty_driver_flag {
 	TTY_DRIVER_UNNUMBERED_NODE	= BIT(7),
 };
 
-/* tty driver types */
-#define TTY_DRIVER_TYPE_SYSTEM		0x0001
-#define TTY_DRIVER_TYPE_CONSOLE		0x0002
-#define TTY_DRIVER_TYPE_SERIAL		0x0003
-#define TTY_DRIVER_TYPE_PTY		0x0004
-#define TTY_DRIVER_TYPE_SCC		0x0005	/* scc driver */
-#define TTY_DRIVER_TYPE_SYSCONS		0x0006
+enum tty_driver_type {
+	TTY_DRIVER_TYPE_SYSTEM,
+	TTY_DRIVER_TYPE_CONSOLE,
+	TTY_DRIVER_TYPE_SERIAL,
+	TTY_DRIVER_TYPE_PTY,
+	TTY_DRIVER_TYPE_SCC,
+	TTY_DRIVER_TYPE_SYSCONS,
+};
 
-/* system subtypes (magic, used by tty_io.c) */
-#define SYSTEM_TYPE_TTY			0x0001
-#define SYSTEM_TYPE_CONSOLE		0x0002
-#define SYSTEM_TYPE_SYSCONS		0x0003
-#define SYSTEM_TYPE_SYSPTMX		0x0004
+enum tty_driver_subtype {
+	SYSTEM_TYPE_TTY = 1,
+	SYSTEM_TYPE_CONSOLE,
+	SYSTEM_TYPE_SYSCONS,
+	SYSTEM_TYPE_SYSPTMX,
 
-/* pty subtypes (magic, used by tty_io.c) */
-#define PTY_TYPE_MASTER			0x0001
-#define PTY_TYPE_SLAVE			0x0002
+	PTY_TYPE_MASTER = 1,
+	PTY_TYPE_SLAVE,
 
-/* serial subtype definitions */
-#define SERIAL_TYPE_NORMAL	1
+	SERIAL_TYPE_NORMAL = 1,
+};
 
 /**
  * struct tty_operations -- interface between driver and tty
@@ -500,8 +500,8 @@ struct tty_operations {
  * @major: major /dev device number (zero for autoassignment)
  * @minor_start: the first minor /dev device number
  * @num: number of devices allocated
- * @type: type of tty driver (%TTY_DRIVER_TYPE_)
- * @subtype: subtype of tty driver (%SYSTEM_TYPE_, %PTY_TYPE_, %SERIAL_TYPE_)
+ * @type: type of tty driver (enum tty_driver_type)
+ * @subtype: subtype of tty driver (enum tty_driver_subtype)
  * @init_termios: termios to set to each tty initially (e.g. %tty_std_termios)
  * @flags: tty driver flags (%TTY_DRIVER_)
  * @proc_entry: proc fs entry, used internally
@@ -533,8 +533,8 @@ struct tty_driver {
 	int	major;
 	int	minor_start;
 	unsigned int	num;
-	short	type;
-	short	subtype;
+	enum tty_driver_type type;
+	enum tty_driver_subtype subtype;
 	struct ktermios init_termios;
 	unsigned long	flags;
 	struct proc_dir_entry *proc_entry;
