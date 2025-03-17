@@ -65,6 +65,10 @@ struct amdgpu_sdma_instance {
 	uint64_t		sdma_fw_gpu_addr;
 	uint32_t		*sdma_fw_ptr;
 	struct mutex		engine_reset_mutex;
+	/* track guilty state of GFX and PAGE queues */
+	bool			gfx_guilty;
+	bool			page_guilty;
+
 };
 
 enum amdgpu_sdma_ras_memory_id {
@@ -127,9 +131,6 @@ struct amdgpu_sdma {
 	uint32_t		*ip_dump;
 	uint32_t 		supported_reset;
 	struct list_head	reset_callback_list;
-	/* track guilty state of GFX and PAGE queues */
-	bool gfx_guilty;
-	bool page_guilty;
 };
 
 /*
