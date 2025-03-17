@@ -816,23 +816,16 @@ static void evict(struct inode *inode)
 	/*
 	 * Wake up waiters in __wait_on_freeing_inode().
 	 *
-	 * Lockless hash lookup may end up finding the inode before we removed
-	 * it above, but only lock it *after* we are done with the wakeup below.
-	 * In this case the potential waiter cannot safely block.
+	 * It is an invariant that any thread we need to wake up is already
+	 * accounted for before remove_inode_hash() acquires ->i_lock -- both
+	 * sides take the lock and sleep is aborted if the inode is found
+	 * unhashed. Thus either the sleeper wins and goes off CPU, or removal
+	 * wins and the sleeper aborts after testing with the lock.
 	 *
-	 * The inode being unhashed after the call to remove_inode_hash() is
-	 * used as an indicator whether blocking on it is safe.
+	 * This also means we don't need any fences for the call below.
 	 */
-	spin_lock(&inode->i_lock);
-	/*
-	 * Pairs with the barrier in prepare_to_wait_event() to make sure
-	 * ___wait_var_event() either sees the bit cleared or
-	 * waitqueue_active() check in wake_up_var() sees the waiter.
-	 */
-	smp_mb__after_spinlock();
 	inode_wake_up_bit(inode, __I_NEW);
 	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
-	spin_unlock(&inode->i_lock);
 
 	destroy_inode(inode);
 }
