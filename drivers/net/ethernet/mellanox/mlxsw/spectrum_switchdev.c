@@ -2950,22 +2950,42 @@ static void __mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
 
 int mlxsw_sp_bridge_vxlan_join(struct mlxsw_sp *mlxsw_sp,
 			       const struct net_device *br_dev,
-			       const struct net_device *vxlan_dev, u16 vid,
+			       struct net_device *vxlan_dev, u16 vid,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_bridge_device *bridge_device;
+	struct mlxsw_sp_port *mlxsw_sp_port;
+	int err;
 
 	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
 	if (WARN_ON(!bridge_device))
 		return -EINVAL;
 
-	return bridge_device->ops->vxlan_join(bridge_device, vxlan_dev, vid,
-					      extack);
+	mlxsw_sp_port = mlxsw_sp_port_dev_lower_find(bridge_device->dev);
+	if (!mlxsw_sp_port)
+		return -EINVAL;
+
+	err = bridge_device->ops->vxlan_join(bridge_device, vxlan_dev, vid,
+					     extack);
+	if (err)
+		return err;
+
+	err = switchdev_bridge_port_offload(vxlan_dev, mlxsw_sp_port->dev,
+					    NULL, NULL, NULL, false, extack);
+	if (err)
+		goto err_bridge_port_offload;
+
+	return 0;
+
+err_bridge_port_offload:
+	__mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, vxlan_dev);
+	return err;
 }
 
 void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
-				 const struct net_device *vxlan_dev)
+				 struct net_device *vxlan_dev)
 {
+	switchdev_bridge_port_unoffload(vxlan_dev, NULL, NULL, NULL);
 	__mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, vxlan_dev);
 }
 
