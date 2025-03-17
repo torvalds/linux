@@ -1714,18 +1714,13 @@ static int __init reserve_setup(char *str)
 			 * I/O port space; otherwise assume it's memory.
 			 */
 			if (io_start < 0x10000) {
-				res->flags = IORESOURCE_IO;
+				*res = DEFINE_RES_IO_NAMED(io_start, io_num, "reserved");
 				parent = &ioport_resource;
 			} else {
-				res->flags = IORESOURCE_MEM;
+				*res = DEFINE_RES_MEM_NAMED(io_start, io_num, "reserved");
 				parent = &iomem_resource;
 			}
-			res->name = "reserved";
-			res->start = io_start;
-			res->end = io_start + io_num - 1;
 			res->flags |= IORESOURCE_BUSY;
-			res->desc = IORES_DESC_NONE;
-			res->child = NULL;
 			if (request_resource(parent, res) == 0)
 				reserved = x+1;
 		}
