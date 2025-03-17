@@ -703,15 +703,5 @@ void crypto_req_done(void *data, int err)
 }
 EXPORT_SYMBOL_GPL(crypto_req_done);
 
-void crypto_destroy_alg(struct crypto_alg *alg)
-{
-	if (alg->cra_type && alg->cra_type->destroy)
-		alg->cra_type->destroy(alg);
-
-	if (alg->cra_destroy)
-		alg->cra_destroy(alg);
-}
-EXPORT_SYMBOL_GPL(crypto_destroy_alg);
-
 MODULE_DESCRIPTION("Cryptographic core API");
 MODULE_LICENSE("GPL");

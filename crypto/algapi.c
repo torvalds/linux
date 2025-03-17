@@ -66,7 +66,13 @@ static int crypto_check_alg(struct crypto_alg *alg)
 
 static void crypto_free_instance(struct crypto_instance *inst)
 {
-	inst->alg.cra_type->free(inst);
+	struct crypto_alg *alg = &inst->alg;
+	const struct crypto_type *type;
+
+	type = alg->cra_type;
+	if (type->destroy)
+		type->destroy(alg);
+	type->free(inst);
 }
 
 static void crypto_destroy_instance_workfn(struct work_struct *w)
@@ -150,7 +156,6 @@ static void crypto_remove_instance(struct crypto_instance *inst,
 	list_del_init(&inst->alg.cra_list);
 	hlist_del(&inst->list);
 	hlist_add_head(&inst->list, &tmpl->dead);
-	inst->alg.cra_destroy = crypto_destroy_instance;
 
 	BUG_ON(!list_empty(&inst->alg.cra_users));
 
@@ -479,7 +484,8 @@ void crypto_unregister_alg(struct crypto_alg *alg)
 	if (WARN_ON(refcount_read(&alg->cra_refcnt) != 1))
 		return;
 
-	crypto_alg_put(alg);
+	if (alg->cra_type && alg->cra_type->destroy)
+		alg->cra_type->destroy(alg);
 
 	crypto_remove_final(&list);
 }
@@ -637,6 +643,7 @@ int crypto_register_instance(struct crypto_template *tmpl,
 
 	inst->alg.cra_module = tmpl->module;
 	inst->alg.cra_flags |= CRYPTO_ALG_INSTANCE;
+	inst->alg.cra_destroy = crypto_destroy_instance;
 
 	down_write(&crypto_alg_sem);
 

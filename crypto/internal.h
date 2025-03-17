@@ -128,7 +128,6 @@ void *crypto_create_tfm_node(struct crypto_alg *alg,
 			const struct crypto_type *frontend, int node);
 void *crypto_clone_tfm(const struct crypto_type *frontend,
 		       struct crypto_tfm *otfm);
-void crypto_destroy_alg(struct crypto_alg *alg);
 
 static inline void *crypto_create_tfm(struct crypto_alg *alg,
 			const struct crypto_type *frontend)
@@ -166,7 +165,7 @@ static inline struct crypto_alg *crypto_alg_get(struct crypto_alg *alg)
 static inline void crypto_alg_put(struct crypto_alg *alg)
 {
 	if (refcount_dec_and_test(&alg->cra_refcnt))
-		crypto_destroy_alg(alg);
+		alg->cra_destroy(alg);
 }
 
 static inline int crypto_tmpl_get(struct crypto_template *tmpl)
