@@ -210,7 +210,7 @@ config SERIAL_NONSTANDARD
 
 config MOXA_INTELLIO
 	tristate "Moxa Intellio support"
-	depends on SERIAL_NONSTANDARD && (ISA || EISA || PCI)
+	depends on SERIAL_NONSTANDARD && PCI
 	select FW_LOADER
 	help
 	  Say Y here if you have a Moxa Intellio multiport serial card.
