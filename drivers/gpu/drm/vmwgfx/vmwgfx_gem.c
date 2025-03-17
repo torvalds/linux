@@ -84,7 +84,7 @@ static int vmw_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(obj);
 	int ret;
 
-	if (obj->import_attach) {
+	if (drm_gem_is_imported(obj)) {
 		ret = dma_buf_vmap(obj->import_attach->dmabuf, map);
 		if (!ret) {
 			if (drm_WARN_ON(obj->dev, map->is_iomem)) {
@@ -101,7 +101,7 @@ static int vmw_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 
 static void vmw_gem_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
-	if (obj->import_attach)
+	if (drm_gem_is_imported(obj))
 		dma_buf_vunmap(obj->import_attach->dmabuf, map);
 	else
 		drm_gem_ttm_vunmap(obj, map);
@@ -111,7 +111,7 @@ static int vmw_gem_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
 	int ret;
 
-	if (obj->import_attach) {
+	if (drm_gem_is_imported(obj)) {
 		/*
 		 * Reset both vm_ops and vm_private_data, so we don't end up with
 		 * vm_ops pointing to our implementation if the dma-buf backend
