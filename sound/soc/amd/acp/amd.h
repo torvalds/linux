@@ -238,44 +238,10 @@ enum acp_config {
 	ACP_CONFIG_20,
 };
 
-struct acp_resource rn_rsrc = {
-	.offset = 20,
-	.no_of_ctrls = 1,
-	.irqp_used = 0,
-	.irq_reg_offset = 0x1800,
-	.scratch_reg_offset = 0x12800,
-	.sram_pte_offset = 0x02052800,
-};
-
-struct acp_resource rmb_rsrc = {
-	.offset = 0,
-	.no_of_ctrls = 2,
-	.irqp_used = 1,
-	.soc_mclk = true,
-	.irq_reg_offset = 0x1a00,
-	.scratch_reg_offset = 0x12800,
-	.sram_pte_offset = 0x03802800,
-};
-
-struct acp_resource acp63_rsrc = {
-	.offset = 0,
-	.no_of_ctrls = 2,
-	.irqp_used = 1,
-	.soc_mclk = true,
-	.irq_reg_offset = 0x1a00,
-	.scratch_reg_offset = 0x12800,
-	.sram_pte_offset = 0x03802800,
-};
-
-struct acp_resource acp70_rsrc = {
-	.offset = 0,
-	.no_of_ctrls = 2,
-	.irqp_used = 1,
-	.soc_mclk = true,
-	.irq_reg_offset = 0x1a00,
-	.scratch_reg_offset = 0x10000,
-	.sram_pte_offset = 0x03800000,
-};
+extern struct acp_resource rn_rsrc;
+extern struct acp_resource rmb_rsrc;
+extern struct acp_resource acp63_rsrc;
+extern struct acp_resource acp70_rsrc;
 
 extern struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines;
 extern struct snd_soc_acpi_mach snd_soc_acpi_amd_rmb_acp_machines;
