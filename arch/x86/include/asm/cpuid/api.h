@@ -1,16 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-
 #ifndef _ASM_X86_CPUID_API_H
 #define _ASM_X86_CPUID_API_H
+
+#include <asm/cpuid/types.h>
 
 #include <linux/build_bug.h>
 #include <linux/types.h>
 
-#include <asm/cpuid/types.h>
 #include <asm/string.h>
 
 /*
- * Raw CPUID accessors
+ * Raw CPUID accessors:
  */
 
 #ifdef CONFIG_X86_32
@@ -21,6 +21,7 @@ static inline bool have_cpuid_p(void)
 	return true;
 }
 #endif
+
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 				unsigned int *ecx, unsigned int *edx)
 {
@@ -34,7 +35,7 @@ static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 	    : "memory");
 }
 
-#define native_cpuid_reg(reg)					\
+#define NATIVE_CPUID_REG(reg)					\
 static inline unsigned int native_cpuid_##reg(unsigned int op)	\
 {								\
 	unsigned int eax = op, ebx, ecx = 0, edx;		\
@@ -45,22 +46,23 @@ static inline unsigned int native_cpuid_##reg(unsigned int op)	\
 }
 
 /*
- * Native CPUID functions returning a single datum.
+ * Native CPUID functions returning a single datum:
  */
-native_cpuid_reg(eax)
-native_cpuid_reg(ebx)
-native_cpuid_reg(ecx)
-native_cpuid_reg(edx)
+NATIVE_CPUID_REG(eax)
+NATIVE_CPUID_REG(ebx)
+NATIVE_CPUID_REG(ecx)
+NATIVE_CPUID_REG(edx)
 
 #ifdef CONFIG_PARAVIRT_XXL
-#include <asm/paravirt.h>
+# include <asm/paravirt.h>
 #else
-#define __cpuid			native_cpuid
+# define __cpuid native_cpuid
 #endif
 
 /*
  * Generic CPUID function
- * clear %ecx since some cpus (Cyrix MII) do not set or clear %ecx
+ *
+ * Clear ECX since some CPUs (Cyrix MII) do not set or clear ECX
  * resulting in stale register contents being returned.
  */
 static inline void cpuid(unsigned int op,
@@ -72,7 +74,7 @@ static inline void cpuid(unsigned int op,
 	__cpuid(eax, ebx, ecx, edx);
 }
 
-/* Some CPUID calls want 'count' to be placed in ecx */
+/* Some CPUID calls want 'count' to be placed in ECX */
 static inline void cpuid_count(unsigned int op, int count,
 			       unsigned int *eax, unsigned int *ebx,
 			       unsigned int *ecx, unsigned int *edx)
@@ -83,7 +85,7 @@ static inline void cpuid_count(unsigned int op, int count,
 }
 
 /*
- * CPUID functions returning a single datum
+ * CPUID functions returning a single datum:
  */
 
 static inline unsigned int cpuid_eax(unsigned int op)
