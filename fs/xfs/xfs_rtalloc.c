@@ -839,7 +839,7 @@ xfs_growfs_rt_init_rtsb(
 		return 0;
 
 	error = xfs_buf_get_uncached(mp->m_rtdev_targp, XFS_FSB_TO_BB(mp, 1),
-			0, &rtsb_bp);
+			&rtsb_bp);
 	if (error)
 		return error;
 

@@ -810,7 +810,7 @@ xfs_buf_read_uncached(
 
 	*bpp = NULL;
 
-	error = xfs_buf_get_uncached(target, numblks, 0, &bp);
+	error = xfs_buf_get_uncached(target, numblks, &bp);
 	if (error)
 		return error;
 
@@ -836,13 +836,12 @@ int
 xfs_buf_get_uncached(
 	struct xfs_buftarg	*target,
 	size_t			numblks,
-	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
 	int			error;
 	DEFINE_SINGLE_BUF_MAP(map, XFS_BUF_DADDR_NULL, numblks);
 
-	error = xfs_buf_alloc(target, &map, 1, flags, bpp);
+	error = xfs_buf_alloc(target, &map, 1, 0, bpp);
 	if (!error)
 		trace_xfs_buf_get_uncached(*bpp, _RET_IP_);
 	return error;
