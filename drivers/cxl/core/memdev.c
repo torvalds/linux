@@ -580,9 +580,11 @@ EXPORT_SYMBOL_NS_GPL(is_cxl_memdev, "CXL");
 void set_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 				unsigned long *cmds)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
+
 	guard(rwsem_write)(&cxl_memdev_rwsem);
-	bitmap_or(mds->exclusive_cmds, mds->exclusive_cmds, cmds,
-		  CXL_MEM_COMMAND_ID_MAX);
+	bitmap_or(cxl_mbox->exclusive_cmds, cxl_mbox->exclusive_cmds,
+		  cmds, CXL_MEM_COMMAND_ID_MAX);
 }
 EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, "CXL");
 
@@ -594,9 +596,11 @@ EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, "CXL");
 void clear_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 				  unsigned long *cmds)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
+
 	guard(rwsem_write)(&cxl_memdev_rwsem);
-	bitmap_andnot(mds->exclusive_cmds, mds->exclusive_cmds, cmds,
-		      CXL_MEM_COMMAND_ID_MAX);
+	bitmap_andnot(cxl_mbox->exclusive_cmds, cxl_mbox->exclusive_cmds,
+		      cmds, CXL_MEM_COMMAND_ID_MAX);
 }
 EXPORT_SYMBOL_NS_GPL(clear_exclusive_cxl_commands, "CXL");
 
@@ -669,11 +673,14 @@ err:
 static long __cxl_memdev_ioctl(struct cxl_memdev *cxlmd, unsigned int cmd,
 			       unsigned long arg)
 {
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
+
 	switch (cmd) {
 	case CXL_MEM_QUERY_COMMANDS:
-		return cxl_query_cmd(cxlmd, (void __user *)arg);
+		return cxl_query_cmd(cxl_mbox, (void __user *)arg);
 	case CXL_MEM_SEND_COMMAND:
-		return cxl_send_cmd(cxlmd, (void __user *)arg);
+		return cxl_send_cmd(cxl_mbox, (void __user *)arg);
 	default:
 		return -ENOTTY;
 	}
@@ -1005,10 +1012,11 @@ static void cxl_remove_fw_upload(void *fwl)
 int devm_cxl_setup_fw_upload(struct device *host, struct cxl_memdev_state *mds)
 {
 	struct cxl_dev_state *cxlds = &mds->cxlds;
+	struct cxl_mailbox *cxl_mbox = &cxlds->cxl_mbox;
 	struct device *dev = &cxlds->cxlmd->dev;
 	struct fw_upload *fwl;
 
-	if (!test_bit(CXL_MEM_COMMAND_ID_GET_FW_INFO, mds->enabled_cmds))
+	if (!test_bit(CXL_MEM_COMMAND_ID_GET_FW_INFO, cxl_mbox->enabled_cmds))
 		return 0;
 
 	fwl = firmware_upload_register(THIS_MODULE, dev, dev_name(dev),
