@@ -186,7 +186,7 @@ xfs_readsb(
 	 */
 reread:
 	error = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
-				      BTOBB(sector_size), 0, &bp, buf_ops);
+				      BTOBB(sector_size), &bp, buf_ops);
 	if (error) {
 		if (loud)
 			xfs_warn(mp, "SB validate failed with error %d.", error);
@@ -414,7 +414,7 @@ xfs_check_sizes(
 	}
 	error = xfs_buf_read_uncached(mp->m_ddev_targp,
 					d - XFS_FSS_TO_BB(mp, 1),
-					XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
+					XFS_FSS_TO_BB(mp, 1), &bp, NULL);
 	if (error) {
 		xfs_warn(mp, "last sector read failed");
 		return error;
@@ -431,7 +431,7 @@ xfs_check_sizes(
 	}
 	error = xfs_buf_read_uncached(mp->m_logdev_targp,
 					d - XFS_FSB_TO_BB(mp, 1),
-					XFS_FSB_TO_BB(mp, 1), 0, &bp, NULL);
+					XFS_FSB_TO_BB(mp, 1), &bp, NULL);
 	if (error) {
 		xfs_warn(mp, "log device read failed");
 		return error;

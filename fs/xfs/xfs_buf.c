@@ -802,7 +802,6 @@ xfs_buf_read_uncached(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		daddr,
 	size_t			numblks,
-	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp,
 	const struct xfs_buf_ops *ops)
 {
@@ -811,7 +810,7 @@ xfs_buf_read_uncached(
 
 	*bpp = NULL;
 
-	error = xfs_buf_get_uncached(target, numblks, flags, &bp);
+	error = xfs_buf_get_uncached(target, numblks, 0, &bp);
 	if (error)
 		return error;
 

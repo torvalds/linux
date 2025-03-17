@@ -111,7 +111,7 @@ xfs_growfs_data_private(
 	if (nb > mp->m_sb.sb_dblocks) {
 		error = xfs_buf_read_uncached(mp->m_ddev_targp,
 				XFS_FSB_TO_BB(mp, nb) - XFS_FSS_TO_BB(mp, 1),
-				XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
+				XFS_FSS_TO_BB(mp, 1), &bp, NULL);
 		if (error)
 			return error;
 		xfs_buf_relse(bp);

@@ -1350,7 +1350,7 @@ xfs_rt_check_size(
 
 	error = xfs_buf_read_uncached(mp->m_rtdev_targp,
 			XFS_FSB_TO_BB(mp, mp->m_sb.sb_rtstart) + daddr,
-			XFS_FSB_TO_BB(mp, 1), 0, &bp, NULL);
+			XFS_FSB_TO_BB(mp, 1), &bp, NULL);
 	if (error)
 		xfs_warn(mp, "cannot read last RT device sector (%lld)",
 				last_block);
@@ -1511,7 +1511,7 @@ xfs_rtmount_readsb(
 
 	/* m_blkbb_log is not set up yet */
 	error = xfs_buf_read_uncached(mp->m_rtdev_targp, XFS_RTSB_DADDR,
-			mp->m_sb.sb_blocksize >> BBSHIFT, 0, &bp,
+			mp->m_sb.sb_blocksize >> BBSHIFT, &bp,
 			&xfs_rtsb_buf_ops);
 	if (error) {
 		xfs_warn(mp, "rt sb validate failed with error %d.", error);

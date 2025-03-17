@@ -275,7 +275,7 @@ xfs_buf_readahead(
 int xfs_buf_get_uncached(struct xfs_buftarg *target, size_t numblks,
 		xfs_buf_flags_t flags, struct xfs_buf **bpp);
 int xfs_buf_read_uncached(struct xfs_buftarg *target, xfs_daddr_t daddr,
-		size_t numblks, xfs_buf_flags_t flags, struct xfs_buf **bpp,
+		size_t numblks, struct xfs_buf **bpp,
 		const struct xfs_buf_ops *ops);
 int _xfs_buf_read(struct xfs_buf *bp);
 void xfs_buf_hold(struct xfs_buf *bp);
