@@ -1124,7 +1124,7 @@ static const struct sdw_device_id wcd9370_slave_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, wcd9370_slave_id);
 
-static int __maybe_unused wcd937x_sdw_runtime_suspend(struct device *dev)
+static int wcd937x_sdw_runtime_suspend(struct device *dev)
 {
 	struct wcd937x_sdw_priv *wcd = dev_get_drvdata(dev);
 
@@ -1136,7 +1136,7 @@ static int __maybe_unused wcd937x_sdw_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused wcd937x_sdw_runtime_resume(struct device *dev)
+static int wcd937x_sdw_runtime_resume(struct device *dev)
 {
 	struct wcd937x_sdw_priv *wcd = dev_get_drvdata(dev);
 
@@ -1149,7 +1149,7 @@ static int __maybe_unused wcd937x_sdw_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops wcd937x_sdw_pm_ops = {
-	SET_RUNTIME_PM_OPS(wcd937x_sdw_runtime_suspend, wcd937x_sdw_runtime_resume, NULL)
+	RUNTIME_PM_OPS(wcd937x_sdw_runtime_suspend, wcd937x_sdw_runtime_resume, NULL)
 };
 
 static struct sdw_driver wcd9370_codec_driver = {
@@ -1159,7 +1159,7 @@ static struct sdw_driver wcd9370_codec_driver = {
 	.id_table = wcd9370_slave_id,
 	.driver = {
 		.name = "wcd9370-codec",
-		.pm = &wcd937x_sdw_pm_ops,
+		.pm = pm_ptr(&wcd937x_sdw_pm_ops),
 	}
 };
 module_sdw_driver(wcd9370_codec_driver);
