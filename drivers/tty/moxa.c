@@ -347,8 +347,6 @@
 #define	MX_PARMARK	0xA0
 #define	MX_PARSPACE	0x20
 
-#define MOXA_VERSION		"6.0k"
-
 #define MOXA_FW_HDRLEN		32
 
 #define MOXAMAJOR		172
@@ -1326,9 +1324,6 @@ static int __init moxa_init(void)
 	int retval = 0;
 	struct moxa_board_conf *brd = moxa_boards;
 	unsigned int i;
-
-	printk(KERN_INFO "MOXA Intellio family driver version %s\n",
-			MOXA_VERSION);
 
 	tty_port_init(&moxa_service_port);
 
