@@ -564,7 +564,13 @@ struct tty_driver *tty_find_polling_driver(char *name, int *line);
 
 void tty_driver_kref_put(struct tty_driver *driver);
 
-/* Use TTY_DRIVER_* flags below */
+/**
+ * tty_alloc_driver - allocate tty driver
+ * @lines: count of lines this driver can handle at most
+ * @flags: some of enum tty_driver_flag, will be set in driver->flags
+ *
+ * Returns: struct tty_driver or a PTR-encoded error (use IS_ERR() and friends).
+ */
 #define tty_alloc_driver(lines, flags) \
 		__tty_alloc_driver(lines, THIS_MODULE, flags)
 

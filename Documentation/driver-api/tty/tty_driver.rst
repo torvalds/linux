@@ -25,6 +25,8 @@ freed.
 For reference, both allocation and deallocation functions are explained here in
 detail:
 
+.. kernel-doc:: include/linux/tty_driver.h
+   :identifiers: tty_alloc_driver
 .. kernel-doc:: drivers/tty/tty_io.c
    :identifiers: __tty_alloc_driver tty_driver_kref_put
 
