@@ -895,8 +895,8 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 {
 	struct uart_port *uport = uart_port_check(state);
 	unsigned long new_port;
-	unsigned int change_irq, change_port, closing_wait;
-	unsigned int old_custom_divisor, close_delay;
+	unsigned int old_custom_divisor, close_delay, closing_wait;
+	bool change_irq, change_port;
 	upf_t old_flags, new_flags;
 	int retval;
 
