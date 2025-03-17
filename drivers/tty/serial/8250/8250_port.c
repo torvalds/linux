@@ -2966,7 +2966,6 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 {
 	unsigned int size = serial8250_port_size(up);
 	struct uart_port *port = &up->port;
-	int ret = 0;
 
 	switch (port->iotype) {
 	case UPIO_AU:
@@ -2975,32 +2974,28 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 	case UPIO_MEM32BE:
 	case UPIO_MEM16:
 	case UPIO_MEM:
-		if (!port->mapbase) {
-			ret = -EINVAL;
-			break;
-		}
+		if (!port->mapbase)
+			return -EINVAL;
 
-		if (!request_mem_region(port->mapbase, size, "serial")) {
-			ret = -EBUSY;
-			break;
-		}
+		if (!request_mem_region(port->mapbase, size, "serial"))
+			return -EBUSY;
 
 		if (port->flags & UPF_IOREMAP) {
 			port->membase = ioremap(port->mapbase, size);
 			if (!port->membase) {
 				release_mem_region(port->mapbase, size);
-				ret = -ENOMEM;
+				return -ENOMEM;
 			}
 		}
-		break;
-
+		return 0;
 	case UPIO_HUB6:
 	case UPIO_PORT:
 		if (!request_region(port->iobase, size, "serial"))
-			ret = -EBUSY;
-		break;
+			return -EBUSY;
+		return 0;
 	}
-	return ret;
+
+	return 0;
 }
 
 static void serial8250_release_std_resource(struct uart_8250_port *up)
