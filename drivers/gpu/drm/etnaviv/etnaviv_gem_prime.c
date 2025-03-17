@@ -39,7 +39,7 @@ int etnaviv_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 
 int etnaviv_gem_prime_pin(struct drm_gem_object *obj)
 {
-	if (!obj->import_attach) {
+	if (!drm_gem_is_imported(obj)) {
 		struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 
 		mutex_lock(&etnaviv_obj->lock);
@@ -51,7 +51,7 @@ int etnaviv_gem_prime_pin(struct drm_gem_object *obj)
 
 void etnaviv_gem_prime_unpin(struct drm_gem_object *obj)
 {
-	if (!obj->import_attach) {
+	if (!drm_gem_is_imported(obj)) {
 		struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 
 		mutex_lock(&etnaviv_obj->lock);
