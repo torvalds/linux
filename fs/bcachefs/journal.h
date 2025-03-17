@@ -161,7 +161,7 @@ static inline int journal_state_count(union journal_res_state s, int idx)
 static inline int journal_state_seq_count(struct journal *j,
 					  union journal_res_state s, u64 seq)
 {
-	if (journal_cur_seq(j) - seq <= JOURNAL_STATE_BUF_NR)
+	if (journal_cur_seq(j) - seq < JOURNAL_STATE_BUF_NR)
 		return journal_state_count(s, seq & JOURNAL_STATE_BUF_MASK);
 	else
 		return 0;
