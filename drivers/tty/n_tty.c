@@ -2111,6 +2111,39 @@ static int job_control(struct tty_struct *tty, struct file *file)
 	return __tty_check_change(tty, SIGTTIN);
 }
 
+/*
+ * We still hold the atomic_read_lock and the termios_rwsem, and can just
+ * continue to copy data.
+ */
+static ssize_t n_tty_continue_cookie(struct tty_struct *tty, u8 *kbuf,
+				   size_t nr, void **cookie)
+{
+	struct n_tty_data *ldata = tty->disc_data;
+	u8 *kb = kbuf;
+
+	if (ldata->icanon && !L_EXTPROC(tty)) {
+		/*
+		 * If we have filled the user buffer, see if we should skip an
+		 * EOF character before releasing the lock and returning done.
+		 */
+		if (!nr)
+			canon_skip_eof(ldata);
+		else if (canon_copy_from_read_buf(tty, &kb, &nr))
+			return kb - kbuf;
+	} else {
+		if (copy_from_read_buf(tty, &kb, &nr))
+			return kb - kbuf;
+	}
+
+	/* No more data - release locks and stop retries */
+	n_tty_kick_worker(tty);
+	n_tty_check_unthrottle(tty);
+	up_read(&tty->termios_rwsem);
+	mutex_unlock(&ldata->atomic_read_lock);
+	*cookie = NULL;
+
+	return kb - kbuf;
+}
 
 /**
  * n_tty_read		-	read function for tty
@@ -2144,36 +2177,9 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
 	bool packet;
 	size_t old_tail;
 
-	/*
-	 * Is this a continuation of a read started earler?
-	 *
-	 * If so, we still hold the atomic_read_lock and the
-	 * termios_rwsem, and can just continue to copy data.
-	 */
-	if (*cookie) {
-		if (ldata->icanon && !L_EXTPROC(tty)) {
-			/*
-			 * If we have filled the user buffer, see
-			 * if we should skip an EOF character before
-			 * releasing the lock and returning done.
-			 */
-			if (!nr)
-				canon_skip_eof(ldata);
-			else if (canon_copy_from_read_buf(tty, &kb, &nr))
-				return kb - kbuf;
-		} else {
-			if (copy_from_read_buf(tty, &kb, &nr))
-				return kb - kbuf;
-		}
-
-		/* No more data - release locks and stop retries */
-		n_tty_kick_worker(tty);
-		n_tty_check_unthrottle(tty);
-		up_read(&tty->termios_rwsem);
-		mutex_unlock(&ldata->atomic_read_lock);
-		*cookie = NULL;
-		return kb - kbuf;
-	}
+	/* Is this a continuation of a read started earlier? */
+	if (*cookie)
+		return n_tty_continue_cookie(tty, kbuf, nr, cookie);
 
 	retval = job_control(tty, file);
 	if (retval < 0)
