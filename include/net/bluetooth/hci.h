@@ -879,6 +879,11 @@ struct hci_cp_remote_name_req_cancel {
 	bdaddr_t bdaddr;
 } __packed;
 
+struct hci_rp_remote_name_req_cancel {
+	__u8     status;
+	bdaddr_t bdaddr;
+} __packed;
+
 #define HCI_OP_READ_REMOTE_FEATURES	0x041b
 struct hci_cp_read_remote_features {
 	__le16   handle;

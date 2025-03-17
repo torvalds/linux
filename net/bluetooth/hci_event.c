@@ -151,7 +151,7 @@ static u8 hci_cc_exit_periodic_inq(struct hci_dev *hdev, void *data,
 static u8 hci_cc_remote_name_req_cancel(struct hci_dev *hdev, void *data,
 					struct sk_buff *skb)
 {
-	struct hci_ev_status *rp = data;
+	struct hci_rp_remote_name_req_cancel *rp = data;
 
 	bt_dev_dbg(hdev, "status 0x%2.2x", rp->status);
 
@@ -4015,8 +4015,8 @@ static const struct hci_cc {
 	HCI_CC_STATUS(HCI_OP_INQUIRY_CANCEL, hci_cc_inquiry_cancel),
 	HCI_CC_STATUS(HCI_OP_PERIODIC_INQ, hci_cc_periodic_inq),
 	HCI_CC_STATUS(HCI_OP_EXIT_PERIODIC_INQ, hci_cc_exit_periodic_inq),
-	HCI_CC_STATUS(HCI_OP_REMOTE_NAME_REQ_CANCEL,
-		      hci_cc_remote_name_req_cancel),
+	HCI_CC(HCI_OP_REMOTE_NAME_REQ_CANCEL, hci_cc_remote_name_req_cancel,
+	       sizeof(struct hci_rp_remote_name_req_cancel)),
 	HCI_CC(HCI_OP_ROLE_DISCOVERY, hci_cc_role_discovery,
 	       sizeof(struct hci_rp_role_discovery)),
 	HCI_CC(HCI_OP_READ_LINK_POLICY, hci_cc_read_link_policy,
