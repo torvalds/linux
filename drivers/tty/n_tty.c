@@ -519,17 +519,15 @@ static ssize_t process_output_block(struct tty_struct *tty,
 				    const u8 *buf, unsigned int nr)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	unsigned int space;
-	int i;
+	unsigned int space, i;
 	const u8 *cp;
 
-	mutex_lock(&ldata->output_lock);
+	guard(mutex)(&ldata->output_lock);
 
 	space = tty_write_room(tty);
-	if (space == 0) {
-		mutex_unlock(&ldata->output_lock);
+	if (space == 0)
 		return 0;
-	}
+
 	if (nr > space)
 		nr = space;
 
@@ -541,18 +539,18 @@ static ssize_t process_output_block(struct tty_struct *tty,
 			if (O_ONLRET(tty))
 				ldata->column = 0;
 			if (O_ONLCR(tty))
-				goto break_out;
+				goto do_write;
 			ldata->canon_column = ldata->column;
 			break;
 		case '\r':
 			if (O_ONOCR(tty) && ldata->column == 0)
-				goto break_out;
+				goto do_write;
 			if (O_OCRNL(tty))
-				goto break_out;
+				goto do_write;
 			ldata->canon_column = ldata->column = 0;
 			break;
 		case '\t':
-			goto break_out;
+			goto do_write;
 		case '\b':
 			if (ldata->column > 0)
 				ldata->column--;
@@ -560,18 +558,15 @@ static ssize_t process_output_block(struct tty_struct *tty,
 		default:
 			if (!iscntrl(c)) {
 				if (O_OLCUC(tty))
-					goto break_out;
+					goto do_write;
 				if (!is_continuation(c, tty))
 					ldata->column++;
 			}
 			break;
 		}
 	}
-break_out:
-	i = tty->ops->write(tty, buf, i);
-
-	mutex_unlock(&ldata->output_lock);
-	return i;
+do_write:
+	return tty->ops->write(tty, buf, i);
 }
 
 static int n_tty_process_echo_ops(struct tty_struct *tty, size_t *tail,
