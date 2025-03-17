@@ -709,8 +709,8 @@ fail:
 		mod->name, PTR_ERR(clk));
 }
 
-static int rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
-			    unsigned long id)
+static int __rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
+			      unsigned long id, bool assert)
 {
 	struct rzv2h_cpg_priv *priv = rcdev_to_priv(rcdev);
 	unsigned int reg = GET_RST_OFFSET(priv->resets[id].reset_index);
@@ -718,35 +718,31 @@ static int rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
 	u8 monbit = priv->resets[id].mon_bit;
 	u32 value = mask << 16;
 
-	dev_dbg(rcdev->dev, "assert id:%ld offset:0x%x\n", id, reg);
+	dev_dbg(rcdev->dev, "%s id:%ld offset:0x%x\n",
+		assert ? "assert" : "deassert", id, reg);
 
+	if (!assert)
+		value |= mask;
 	writel(value, priv->base + reg);
 
 	reg = GET_RST_MON_OFFSET(priv->resets[id].mon_index);
 	mask = BIT(monbit);
 
 	return readl_poll_timeout_atomic(priv->base + reg, value,
-					 value & mask, 10, 200);
+					 assert ? (value & mask) : !(value & mask),
+					 10, 200);
+}
+
+static int rzv2h_cpg_assert(struct reset_controller_dev *rcdev,
+			    unsigned long id)
+{
+	return __rzv2h_cpg_assert(rcdev, id, true);
 }
 
 static int rzv2h_cpg_deassert(struct reset_controller_dev *rcdev,
 			      unsigned long id)
 {
-	struct rzv2h_cpg_priv *priv = rcdev_to_priv(rcdev);
-	unsigned int reg = GET_RST_OFFSET(priv->resets[id].reset_index);
-	u32 mask = BIT(priv->resets[id].reset_bit);
-	u8 monbit = priv->resets[id].mon_bit;
-	u32 value = (mask << 16) | mask;
-
-	dev_dbg(rcdev->dev, "deassert id:%ld offset:0x%x\n", id, reg);
-
-	writel(value, priv->base + reg);
-
-	reg = GET_RST_MON_OFFSET(priv->resets[id].mon_index);
-	mask = BIT(monbit);
-
-	return readl_poll_timeout_atomic(priv->base + reg, value,
-					 !(value & mask), 10, 200);
+	return __rzv2h_cpg_assert(rcdev, id, false);
 }
 
 static int rzv2h_cpg_reset(struct reset_controller_dev *rcdev,
