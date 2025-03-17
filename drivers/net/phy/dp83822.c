@@ -833,7 +833,6 @@ static int dp83822_of_init(struct phy_device *phydev)
 		dp83822->set_gpio2_clk_out = true;
 	}
 
-	dp83822->tx_amplitude_100base_tx_index = -1;
 	ret = phy_get_tx_amplitude_gain(phydev, dev,
 					ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 					&val);
@@ -931,6 +930,7 @@ static int dp8382x_probe(struct phy_device *phydev)
 	if (!dp83822)
 		return -ENOMEM;
 
+	dp83822->tx_amplitude_100base_tx_index = -1;
 	phydev->priv = dp83822;
 
 	return 0;
