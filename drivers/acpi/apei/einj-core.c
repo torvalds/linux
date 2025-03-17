@@ -21,7 +21,7 @@
 #include <linux/nmi.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
-#include <linux/platform_device.h>
+#include <linux/device/faux.h>
 #include <linux/unaligned.h>
 
 #include "apei-internal.h"
@@ -749,7 +749,7 @@ static int einj_check_table(struct acpi_table_einj *einj_tab)
 	return 0;
 }
 
-static int __init einj_probe(struct platform_device *pdev)
+static int __init einj_probe(struct faux_device *fdev)
 {
 	int rc;
 	acpi_status status;
@@ -851,7 +851,7 @@ err_put_table:
 	return rc;
 }
 
-static void __exit einj_remove(struct platform_device *pdev)
+static void __exit einj_remove(struct faux_device *fdev)
 {
 	struct apei_exec_context ctx;
 
@@ -872,34 +872,25 @@ static void __exit einj_remove(struct platform_device *pdev)
 	acpi_put_table((struct acpi_table_header *)einj_tab);
 }
 
-static struct platform_device *einj_dev;
+static struct faux_device *einj_dev;
 /*
  * einj_remove() lives in .exit.text. For drivers registered via
  * platform_driver_probe() this is ok because they cannot get unbound at
  * runtime. So mark the driver struct with __refdata to prevent modpost
  * triggering a section mismatch warning.
  */
-static struct platform_driver einj_driver __refdata = {
+static struct faux_device_ops einj_device_ops __refdata = {
+	.probe = einj_probe,
 	.remove = __exit_p(einj_remove),
-	.driver = {
-		.name = "acpi-einj",
-	},
 };
 
 static int __init einj_init(void)
 {
-	struct platform_device_info einj_dev_info = {
-		.name = "acpi-einj",
-		.id = -1,
-	};
-	int rc;
+	einj_dev = faux_device_create("acpi-einj", NULL, &einj_device_ops);
+	if (!einj_dev)
+		return -ENODEV;
 
-	einj_dev = platform_device_register_full(&einj_dev_info);
-	if (IS_ERR(einj_dev))
-		return PTR_ERR(einj_dev);
-
-	rc = platform_driver_probe(&einj_driver, einj_probe);
-	einj_initialized = rc == 0;
+	einj_initialized = true;
 
 	return 0;
 }
@@ -907,9 +898,8 @@ static int __init einj_init(void)
 static void __exit einj_exit(void)
 {
 	if (einj_initialized)
-		platform_driver_unregister(&einj_driver);
+		faux_device_destroy(einj_dev);
 
-	platform_device_unregister(einj_dev);
 }
 
 module_init(einj_init);
