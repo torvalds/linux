@@ -2409,8 +2409,6 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	/* Multicast Router Traps */
 	MLXSW_SP_RXL_MARK(ACL1, TRAP_TO_CPU, MULTICAST, false),
 	MLXSW_SP_RXL_L3_MARK(ACL2, TRAP_TO_CPU, MULTICAST, false),
-	/* NVE traps */
-	MLXSW_SP_RXL_MARK(NVE_ENCAP_ARP, TRAP_TO_CPU, NEIGH_DISCOVERY, false),
 };
 
 static const struct mlxsw_listener mlxsw_sp1_listener[] = {
