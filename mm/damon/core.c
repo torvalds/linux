@@ -373,6 +373,7 @@ struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
 	 * or damon_attrs are updated.
 	 */
 	scheme->next_apply_sis = 0;
+	scheme->walk_completed = false;
 	INIT_LIST_HEAD(&scheme->filters);
 	scheme->stat = (struct damos_stat){};
 	INIT_LIST_HEAD(&scheme->list);
@@ -1429,9 +1430,13 @@ static bool damos_filter_out(struct damon_ctx *ctx, struct damon_target *t,
 {
 	struct damos_filter *filter;
 
+	s->core_filters_allowed = false;
 	damos_for_each_filter(filter, s) {
-		if (damos_filter_match(ctx, t, r, filter))
+		if (damos_filter_match(ctx, t, r, filter)) {
+			if (filter->allow)
+				s->core_filters_allowed = true;
 			return !filter->allow;
+		}
 	}
 	return false;
 }
