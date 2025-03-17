@@ -561,8 +561,7 @@ static int __region_intersects(struct resource *parent, resource_size_t start,
 	struct resource res, o;
 	bool covered;
 
-	res.start = start;
-	res.end = start + size - 1;
+	res = DEFINE_RES(start, size, 0);
 
 	for (p = parent->child; p ; p = p->sibling) {
 		if (!resource_intersection(p, &res, &o))
