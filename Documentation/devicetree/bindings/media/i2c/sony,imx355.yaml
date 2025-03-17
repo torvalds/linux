@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/sony,imx355.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sony IMX355 Sensor
+
+maintainers:
+  - Richard Acayan <mailingradian@gmail.com>
+
+description:
+  The IMX355 sensor is a 3280x2464 image sensor, commonly found as the front
+  camera in smartphones.
+
+allOf:
+  - $ref: /schemas/media/video-interface-devices.yaml#
+
+properties:
+  compatible:
+    const: sony,imx355
+
+  reg:
+    maxItems: 1
+
+  assigned-clocks: true
+  assigned-clock-rates: true
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: mclk
+
+  clock-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: External clock frequency.
+
+  vana-supply:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Analog power supply.
+
+  vdig-supply:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Analog power supply.
+
+  vio-supply:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: Interface power supply.
+
+  reset-gpios:
+    maxItems: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    description:
+      CSI output port.
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml
+        description:
+          CSI endpoint for the sensor output.
+
+        unevaluatedProperties: false
+
+        required:
+          - link-frequencies
+
+    unevaluatedProperties: false
+
+    required:
+      - endpoint
+
+unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - clock-frequency
+
+examples:
+  - |
+    camera@1a {
+        compatible = "sony,imx355";
+        reg = <0x1a>;
+
+        clocks = <&camcc CAM_CC_MCLK2_CLK>;
+        clock-names = "mclk";
+
+        clock-frequency = <19200000>;
+
+        assigned-clocks = <&camcc CAM_CC_MCLK2_CLK>;
+        assigned-clock-rates = <24000000>;
+
+        reset-gpios = <&tlmm 9 GPIO_ACTIVE_HIGH>;
+
+        vana-supply = <&cam_front_ldo>;
+        vdig-supply = <&cam_front_ldo>;
+        vio-supply = <&cam_vio_ldo>;
+
+        pinctrl-names = "default";
+        pinctrl-0 = <&cam_front_default>;
+
+        rotation = <270>;
+        orientation = <0>;
+
+        port {
+            cam_front_endpoint: endpoint {
+                data-lanes = <0 1 2 3>;
+                link-frequencies = /bits/ 64 <360000000>;
+                remote-endpoint = <&camss_endpoint1>;
+            };
+        };
+    };
