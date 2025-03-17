@@ -2815,9 +2815,9 @@ extern struct static_key_false tcp_have_smc;
 #endif
 
 #if IS_ENABLED(CONFIG_TLS_DEVICE)
-void clean_acked_data_enable(struct inet_connection_sock *icsk,
+void clean_acked_data_enable(struct tcp_sock *tp,
 			     void (*cad)(struct sock *sk, u32 ack_seq));
-void clean_acked_data_disable(struct inet_connection_sock *icsk);
+void clean_acked_data_disable(struct tcp_sock *tp);
 void clean_acked_data_flush(void);
 #endif
 

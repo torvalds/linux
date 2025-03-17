@@ -244,6 +244,9 @@ struct tcp_sock {
 	struct  minmax rtt_min;
 	/* OOO segments go in this rbtree. Socket lock must be held. */
 	struct rb_root	out_of_order_queue;
+#if defined(CONFIG_TLS_DEVICE)
+	void (*tcp_clean_acked)(struct sock *sk, u32 acked_seq);
+#endif
 	u32	snd_ssthresh;	/* Slow start size threshold		*/
 	u8	recvmsg_inq : 1;/* Indicate # of bytes in queue upon recvmsg */
 	__cacheline_group_end(tcp_sock_read_rx);

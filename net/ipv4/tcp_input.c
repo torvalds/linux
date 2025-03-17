@@ -119,18 +119,18 @@ int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 #if IS_ENABLED(CONFIG_TLS_DEVICE)
 static DEFINE_STATIC_KEY_DEFERRED_FALSE(clean_acked_data_enabled, HZ);
 
-void clean_acked_data_enable(struct inet_connection_sock *icsk,
+void clean_acked_data_enable(struct tcp_sock *tp,
 			     void (*cad)(struct sock *sk, u32 ack_seq))
 {
-	icsk->icsk_clean_acked = cad;
+	tp->tcp_clean_acked = cad;
 	static_branch_deferred_inc(&clean_acked_data_enabled);
 }
 EXPORT_SYMBOL_GPL(clean_acked_data_enable);
 
-void clean_acked_data_disable(struct inet_connection_sock *icsk)
+void clean_acked_data_disable(struct tcp_sock *tp)
 {
 	static_branch_slow_dec_deferred(&clean_acked_data_enabled);
-	icsk->icsk_clean_acked = NULL;
+	tp->tcp_clean_acked = NULL;
 }
 EXPORT_SYMBOL_GPL(clean_acked_data_disable);
 
@@ -3987,8 +3987,8 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 #if IS_ENABLED(CONFIG_TLS_DEVICE)
 		if (static_branch_unlikely(&clean_acked_data_enabled.key))
-			if (icsk->icsk_clean_acked)
-				icsk->icsk_clean_acked(sk, ack);
+			if (tp->tcp_clean_acked)
+				tp->tcp_clean_acked(sk, ack);
 #endif
 	}
 
