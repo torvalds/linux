@@ -17,13 +17,19 @@ struct serial_icounter_struct;
 struct serial_struct;
 
 /**
- * DOC: TTY Driver Flags
+ * enum tty_driver_flag -- TTY Driver Flags
  *
- * TTY_DRIVER_RESET_TERMIOS
+ * These are flags passed to tty_alloc_driver().
+ *
+ * @TTY_DRIVER_INSTALLED:
+ *	Whether this driver was succesfully installed. This is a tty internal
+ *	flag. Do not touch.
+ *
+ * @TTY_DRIVER_RESET_TERMIOS:
  *	Requests the tty layer to reset the termios setting when the last
  *	process has closed the device. Used for PTYs, in particular.
  *
- * TTY_DRIVER_REAL_RAW
+ * @TTY_DRIVER_REAL_RAW:
  *	Indicates that the driver will guarantee not to set any special
  *	character handling flags if this is set for the tty:
  *
@@ -35,7 +41,7 @@ struct serial_struct;
  *	this case if this flag is set.  (Note that there is also a promise, if
  *	the above case is true, not to signal overruns, either.)
  *
- * TTY_DRIVER_DYNAMIC_DEV
+ * @TTY_DRIVER_DYNAMIC_DEV:
  *	The individual tty devices need to be registered with a call to
  *	tty_register_device() when the device is found in the system and
  *	unregistered with a call to tty_unregister_device() so the devices will
@@ -45,33 +51,35 @@ struct serial_struct;
  *	appear and disappear while the main tty driver is registered with the
  *	tty core.
  *
- * TTY_DRIVER_DEVPTS_MEM
+ * @TTY_DRIVER_DEVPTS_MEM:
  *	Don't use the standard arrays (&tty_driver.ttys and
  *	&tty_driver.termios), instead use dynamic memory keyed through the
  *	devpts filesystem. This is only applicable to the PTY driver.
  *
- * TTY_DRIVER_HARDWARE_BREAK
+ * @TTY_DRIVER_HARDWARE_BREAK:
  *	Hardware handles break signals. Pass the requested timeout to the
  *	&tty_operations.break_ctl instead of using a simple on/off interface.
  *
- * TTY_DRIVER_DYNAMIC_ALLOC
+ * @TTY_DRIVER_DYNAMIC_ALLOC:
  *	Do not allocate structures which are needed per line for this driver
  *	(&tty_driver.ports) as it would waste memory. The driver will take
  *	care. This is only applicable to the PTY driver.
  *
- * TTY_DRIVER_UNNUMBERED_NODE
+ * @TTY_DRIVER_UNNUMBERED_NODE:
  *	Do not create numbered ``/dev`` nodes. For example, create
  *	``/dev/ttyprintk`` and not ``/dev/ttyprintk0``. Applicable only when a
  *	driver for a single tty device is being allocated.
  */
-#define TTY_DRIVER_INSTALLED		0x0001
-#define TTY_DRIVER_RESET_TERMIOS	0x0002
-#define TTY_DRIVER_REAL_RAW		0x0004
-#define TTY_DRIVER_DYNAMIC_DEV		0x0008
-#define TTY_DRIVER_DEVPTS_MEM		0x0010
-#define TTY_DRIVER_HARDWARE_BREAK	0x0020
-#define TTY_DRIVER_DYNAMIC_ALLOC	0x0040
-#define TTY_DRIVER_UNNUMBERED_NODE	0x0080
+enum tty_driver_flag {
+	TTY_DRIVER_INSTALLED		= BIT(0),
+	TTY_DRIVER_RESET_TERMIOS	= BIT(1),
+	TTY_DRIVER_REAL_RAW		= BIT(2),
+	TTY_DRIVER_DYNAMIC_DEV		= BIT(3),
+	TTY_DRIVER_DEVPTS_MEM		= BIT(4),
+	TTY_DRIVER_HARDWARE_BREAK	= BIT(5),
+	TTY_DRIVER_DYNAMIC_ALLOC	= BIT(6),
+	TTY_DRIVER_UNNUMBERED_NODE	= BIT(7),
+};
 
 /* tty driver types */
 #define TTY_DRIVER_TYPE_SYSTEM		0x0001

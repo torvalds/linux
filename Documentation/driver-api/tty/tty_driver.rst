@@ -35,7 +35,7 @@ Here comes the documentation of flags accepted by tty_alloc_driver() (or
 __tty_alloc_driver()):
 
 .. kernel-doc:: include/linux/tty_driver.h
-   :doc: TTY Driver Flags
+   :identifiers: tty_driver_flag
 
 ----
 
