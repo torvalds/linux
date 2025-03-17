@@ -120,8 +120,6 @@ static int copy_data_into_buffer(struct address_space *mapping,
 		ret = btrfs_compress_filemap_get_folio(mapping, cur, &folio);
 		if (ret < 0)
 			return ret;
-		/* No large folio support yet. */
-		ASSERT(!folio_test_large(folio));
 
 		offset = offset_in_folio(folio, cur);
 		copy_length = min(folio_size(folio) - offset,
