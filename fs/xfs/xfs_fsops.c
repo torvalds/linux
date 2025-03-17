@@ -311,20 +311,20 @@ xfs_growfs_data(
 	/* we can't grow the data section when an internal RT section exists */
 	if (in->newblocks != mp->m_sb.sb_dblocks && mp->m_sb.sb_rtstart) {
 		error = -EINVAL;
-		goto out_error;
+		goto out_unlock;
 	}
 
 	/* update imaxpct separately to the physical grow of the filesystem */
 	if (in->imaxpct != mp->m_sb.sb_imax_pct) {
 		error = xfs_growfs_imaxpct(mp, in->imaxpct);
 		if (error)
-			goto out_error;
+			goto out_unlock;
 	}
 
 	if (in->newblocks != mp->m_sb.sb_dblocks) {
 		error = xfs_growfs_data_private(mp, in);
 		if (error)
-			goto out_error;
+			goto out_unlock;
 	}
 
 	/* Post growfs calculations needed to reflect new state in operations */
@@ -338,13 +338,12 @@ xfs_growfs_data(
 	/* Update secondary superblocks now the physical grow has completed */
 	error = xfs_update_secondary_sbs(mp);
 
-out_error:
 	/*
-	 * Increment the generation unconditionally, the error could be from
-	 * updating the secondary superblocks, in which case the new size
-	 * is live already.
+	 * Increment the generation unconditionally, after trying to update the
+	 * secondary superblocks, as the new size is live already at this point.
 	 */
 	mp->m_generation++;
+out_unlock:
 	mutex_unlock(&mp->m_growlock);
 	return error;
 }
