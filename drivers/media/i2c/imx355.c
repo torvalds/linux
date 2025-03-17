@@ -3,9 +3,14 @@
 
 #include <linux/unaligned.h>
 #include <linux/acpi.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-event.h>
@@ -121,6 +126,16 @@ struct imx355 {
 	 * Protect access to sensor v4l2 controls.
 	 */
 	struct mutex mutex;
+
+	struct clk *mclk;
+	struct gpio_desc *reset_gpio;
+	struct regulator_bulk_data supplies[3];
+};
+
+static const char *imx355_supply_names[] = {
+	"vana",
+	"vdig",
+	"vio",
 };
 
 static const struct imx355_reg imx355_global_regs[] = {
@@ -1683,6 +1698,7 @@ out_err:
 static int imx355_probe(struct i2c_client *client)
 {
 	struct imx355 *imx355;
+	size_t i;
 	int ret;
 
 	imx355 = devm_kzalloc(&client->dev, sizeof(*imx355), GFP_KERNEL);
@@ -1693,6 +1709,42 @@ static int imx355_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx355->sd, client, &imx355_subdev_ops);
+
+	for (i = 0; i < ARRAY_SIZE(imx355_supply_names); i++)
+		imx355->supplies[i].supply = imx355_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&client->dev,
+				      ARRAY_SIZE(imx355->supplies),
+				      imx355->supplies);
+	if (ret) {
+		dev_err_probe(&client->dev, ret, "could not get regulators");
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(imx355->supplies),
+				    imx355->supplies);
+	if (ret) {
+		dev_err(&client->dev, "failed to enable regulators: %d\n", ret);
+		return ret;
+	}
+
+	imx355->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+						     GPIOD_OUT_HIGH);
+	if (IS_ERR(imx355->reset_gpio)) {
+		ret = PTR_ERR(imx355->reset_gpio);
+		dev_err_probe(&client->dev, ret, "failed to get gpios");
+		goto error_vreg_disable;
+	}
+
+	imx355->mclk = devm_clk_get(&client->dev, "mclk");
+	if (IS_ERR(imx355->mclk)) {
+		ret = PTR_ERR(imx355->mclk);
+		dev_err_probe(&client->dev, ret, "failed to get mclk");
+		goto error_vreg_disable;
+	}
+
+	clk_prepare_enable(imx355->mclk);
+	usleep_range(12000, 13000);
 
 	/* Check module identity */
 	ret = imx355_identify_module(imx355);
@@ -1756,6 +1808,10 @@ error_handler_free:
 
 error_probe:
 	mutex_destroy(&imx355->mutex);
+	clk_disable_unprepare(imx355->mclk);
+
+error_vreg_disable:
+	regulator_bulk_disable(ARRAY_SIZE(imx355->supplies), imx355->supplies);
 
 	return ret;
 }
@@ -1781,10 +1837,17 @@ static const struct acpi_device_id imx355_acpi_ids[] __maybe_unused = {
 };
 MODULE_DEVICE_TABLE(acpi, imx355_acpi_ids);
 
+static const struct of_device_id imx355_match_table[] __maybe_unused = {
+	{ .compatible = "sony,imx355", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, imx355_match_table);
+
 static struct i2c_driver imx355_i2c_driver = {
 	.driver = {
 		.name = "imx355",
 		.acpi_match_table = ACPI_PTR(imx355_acpi_ids),
+		.of_match_table = of_match_ptr(imx355_match_table),
 	},
 	.probe = imx355_probe,
 	.remove = imx355_remove,
