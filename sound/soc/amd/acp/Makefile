@@ -11,6 +11,7 @@ snd-acp-pdm-y     := acp-pdm.o
 snd-acp-legacy-common-y   := acp-legacy-common.o
 snd-acp-pci-y     := acp-pci.o
 snd-amd-sdw-acpi-y := amd-sdw-acpi.o
+snd-amd-acpi-mach-y	   := amd-acpi-mach.o
 
 #platform specific driver
 snd-acp-renoir-y     := acp-renoir.o
@@ -32,6 +33,7 @@ obj-$(CONFIG_SND_SOC_AMD_ACP_I2S) += snd-acp-i2s.o
 obj-$(CONFIG_SND_SOC_AMD_ACP_PDM) += snd-acp-pdm.o
 obj-$(CONFIG_SND_SOC_AMD_ACP_LEGACY_COMMON) += snd-acp-legacy-common.o
 obj-$(CONFIG_SND_SOC_AMD_ACP_PCI) += snd-acp-pci.o
+obj-$(CONFIG_SND_SOC_AMD_ACPI_MACH) += snd-amd-acpi-mach.o
 
 obj-$(CONFIG_SND_AMD_ASOC_RENOIR) += snd-acp-renoir.o
 obj-$(CONFIG_SND_AMD_ASOC_REMBRANDT) += snd-acp-rembrandt.o
