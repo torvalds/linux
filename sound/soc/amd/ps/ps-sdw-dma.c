@@ -767,7 +767,7 @@ static int acp70_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
 	return 0;
 }
 
-static int __maybe_unused acp63_sdw_pcm_resume(struct device *dev)
+static int acp63_sdw_pcm_resume(struct device *dev)
 {
 	struct sdw_dma_dev_data *sdw_data;
 
@@ -779,7 +779,7 @@ static int __maybe_unused acp63_sdw_pcm_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops acp63_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(NULL, acp63_sdw_pcm_resume)
+	SYSTEM_SLEEP_PM_OPS(NULL, acp63_sdw_pcm_resume)
 };
 
 static struct platform_driver acp63_sdw_dma_driver = {
@@ -787,7 +787,7 @@ static struct platform_driver acp63_sdw_dma_driver = {
 	.remove = acp63_sdw_platform_remove,
 	.driver = {
 		.name = "amd_ps_sdw_dma",
-		.pm = &acp63_pm_ops,
+		.pm = pm_ptr(&acp63_pm_ops),
 	},
 };
 
