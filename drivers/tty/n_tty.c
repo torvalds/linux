@@ -2281,21 +2281,8 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
 				nr--;
 			}
 
-			/*
-			 * Copy data, and if there is more to be had
-			 * and we have nothing more to wait for, then
-			 * let's mark us for retries.
-			 *
-			 * NOTE! We return here with both the termios_sem
-			 * and atomic_read_lock still held, the retries
-			 * will release them when done.
-			 */
-			if (copy_from_read_buf(tty, &kb, &nr) && kb - kbuf >= minimum) {
-more_to_be_read:
-				remove_wait_queue(&tty->read_wait, &wait);
-				*cookie = cookie;
-				return kb - kbuf;
-			}
+			if (copy_from_read_buf(tty, &kb, &nr) && kb - kbuf >= minimum)
+				goto more_to_be_read;
 		}
 
 		n_tty_check_unthrottle(tty);
@@ -2322,6 +2309,18 @@ more_to_be_read:
 		retval = kb - kbuf;
 
 	return retval;
+more_to_be_read:
+	/*
+	 * There is more to be had and we have nothing more to wait for, so
+	 * let's mark us for retries.
+	 *
+	 * NOTE! We return here with both the termios_sem and atomic_read_lock
+	 * still held, the retries will release them when done.
+	 */
+	remove_wait_queue(&tty->read_wait, &wait);
+	*cookie = cookie;
+
+	return kb - kbuf;
 }
 
 /**
