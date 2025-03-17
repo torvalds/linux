@@ -874,8 +874,6 @@ again:
 			ret = PTR_ERR(folio);
 		return ret;
 	}
-	/* Only support page sized folio yet. */
-	ASSERT(folio_order(folio) == 0);
 	ret = set_folio_extent_mapped(folio);
 	if (ret < 0) {
 		folio_unlock(folio);
