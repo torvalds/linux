@@ -107,11 +107,23 @@ static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
 	return value;
 }
 
+/*
+ * This function is being called as part of the uart_port::serial_out()
+ * routine. Hence, it must not call serial_port_out() or serial_out()
+ * against the modified registers here, i.e. LCR.
+ */
 static void dw8250_force_idle(struct uart_port *p)
 {
 	struct uart_8250_port *up = up_to_u8250p(p);
 	unsigned int lsr;
 
+	/*
+	 * The following call currently performs serial_out()
+	 * against the FCR register. Because it differs to LCR
+	 * there will be no infinite loop, but if it ever gets
+	 * modified, we might need a new custom version of it
+	 * that avoids infinite recursion.
+	 */
 	serial8250_clear_and_reinit_fifos(up);
 
 	/*
@@ -128,6 +140,11 @@ static void dw8250_force_idle(struct uart_port *p)
 	serial_port_in(p, UART_RX);
 }
 
+/*
+ * This function is being called as part of the uart_port::serial_out()
+ * routine. Hence, it must not call serial_port_out() or serial_out()
+ * against the modified registers here, i.e. LCR.
+ */
 static void dw8250_check_lcr(struct uart_port *p, int offset, int value)
 {
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
