@@ -1082,22 +1082,22 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 		if (stream_disp_cfg_index >= disp_cfg_index_max)
 			continue;
 
-		if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_bypass) {
-			scratch.odm_info.odm_factor = 1;
-		} else if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_combine_2to1) {
-			scratch.odm_info.odm_factor = 2;
-		} else if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_combine_4to1) {
-			scratch.odm_info.odm_factor = 4;
-		} else {
-			ASSERT(false);
-			scratch.odm_info.odm_factor = 1;
-		}
-
+		if (ctx->architecture == dml2_architecture_20) {
+			if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_bypass) {
+				scratch.odm_info.odm_factor = 1;
+			} else if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_combine_2to1) {
+				scratch.odm_info.odm_factor = 2;
+			} else if (ODMMode[stream_disp_cfg_index] == dml_odm_mode_combine_4to1) {
+				scratch.odm_info.odm_factor = 4;
+			} else {
+				ASSERT(false);
+				scratch.odm_info.odm_factor = 1;
+			}
+		} else if (ctx->architecture == dml2_architecture_21) {
 		/* After DML2.1 update, ODM interpretation needs to change and is no longer same as for DML2.0.
 		 * This is not an issue with new resource management logic. This block ensure backcompat
 		 * with legacy pipe management with updated DML.
 		 * */
-		if (ctx->architecture == dml2_architecture_21) {
 			if (ODMMode[stream_disp_cfg_index] == 1) {
 				scratch.odm_info.odm_factor = 1;
 			} else if (ODMMode[stream_disp_cfg_index] == 2) {
