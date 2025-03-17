@@ -2109,8 +2109,15 @@ static int nvmet_pci_epf_configure_bar(struct nvmet_pci_epf *nvme_epf)
 		return -ENODEV;
 	}
 
-	if (epc_features->bar[BAR_0].only_64bit)
-		epf->bar[BAR_0].flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
+	/*
+	 * While NVMe PCIe Transport Specification 1.1, section 2.1.10, claims
+	 * that the BAR0 type is Implementation Specific, in NVMe 1.1, the type
+	 * is required to be 64-bit. Thus, for interoperability, always set the
+	 * type to 64-bit. In the rare case that the PCI EPC does not support
+	 * configuring BAR0 as 64-bit, the call to pci_epc_set_bar() will fail,
+	 * and we will return failure back to the user.
+	 */
+	epf->bar[BAR_0].flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
 
 	/*
 	 * Calculate the size of the register bar: NVMe registers first with
