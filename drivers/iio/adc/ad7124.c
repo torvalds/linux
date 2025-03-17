@@ -309,32 +309,6 @@ static int ad7124_get_3db_filter_freq(struct ad7124_state *st,
 	}
 }
 
-static void ad7124_set_3db_filter_freq(struct ad7124_state *st, unsigned int channel,
-				       unsigned int freq)
-{
-	unsigned int sinc4_3db_odr;
-	unsigned int sinc3_3db_odr;
-	unsigned int new_filter;
-	unsigned int new_odr;
-
-	sinc4_3db_odr = DIV_ROUND_CLOSEST(freq * 1000, 230);
-	sinc3_3db_odr = DIV_ROUND_CLOSEST(freq * 1000, 262);
-
-	if (sinc4_3db_odr > sinc3_3db_odr) {
-		new_filter = AD7124_SINC3_FILTER;
-		new_odr = sinc4_3db_odr;
-	} else {
-		new_filter = AD7124_SINC4_FILTER;
-		new_odr = sinc3_3db_odr;
-	}
-
-	if (new_odr != st->channels[channel].cfg.odr)
-		st->channels[channel].cfg.live = false;
-
-	st->channels[channel].cfg.filter_type = new_filter;
-	st->channels[channel].cfg.odr = new_odr;
-}
-
 static struct ad7124_channel_config *ad7124_find_similar_live_cfg(struct ad7124_state *st,
 								  struct ad7124_channel_config *cfg)
 {
@@ -739,16 +713,8 @@ static int ad7124_write_raw(struct iio_dev *indio_dev,
 
 		st->channels[chan->address].cfg.pga_bits = res;
 		break;
-	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
-		if (val2 != 0) {
-			ret = -EINVAL;
-			break;
-		}
-
-		ad7124_set_3db_filter_freq(st, chan->address, val);
-		break;
 	default:
-		ret =  -EINVAL;
+		ret = -EINVAL;
 	}
 
 	mutex_unlock(&st->cfgs_lock);
