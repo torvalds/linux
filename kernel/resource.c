@@ -1975,11 +1975,7 @@ get_free_mem_region(struct device *dev, struct resource *base,
 			 */
 			revoke_iomem(res);
 		} else {
-			res->start = addr;
-			res->end = addr + size - 1;
-			res->name = name;
-			res->desc = desc;
-			res->flags = IORESOURCE_MEM;
+			*res = DEFINE_RES_NAMED_DESC(addr, size, name, IORESOURCE_MEM, desc);
 
 			/*
 			 * Only succeed if the resource hosts an exclusive
