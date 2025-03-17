@@ -853,7 +853,7 @@ static const struct regmap_config cs35l33_regmap = {
 	.use_single_write = true,
 };
 
-static int __maybe_unused cs35l33_runtime_resume(struct device *dev)
+static int cs35l33_runtime_resume(struct device *dev)
 {
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
 	int ret;
@@ -891,7 +891,7 @@ err:
 	return ret;
 }
 
-static int __maybe_unused cs35l33_runtime_suspend(struct device *dev)
+static int cs35l33_runtime_suspend(struct device *dev)
 {
 	struct cs35l33_private *cs35l33 = dev_get_drvdata(dev);
 
@@ -909,9 +909,7 @@ static int __maybe_unused cs35l33_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops cs35l33_pm_ops = {
-	SET_RUNTIME_PM_OPS(cs35l33_runtime_suspend,
-			   cs35l33_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(cs35l33_runtime_suspend, cs35l33_runtime_resume, NULL)
 };
 
 static int cs35l33_get_hg_data(const struct device_node *np,
@@ -1273,7 +1271,7 @@ MODULE_DEVICE_TABLE(i2c, cs35l33_id);
 static struct i2c_driver cs35l33_i2c_driver = {
 	.driver = {
 		.name = "cs35l33",
-		.pm = &cs35l33_pm_ops,
+		.pm = pm_ptr(&cs35l33_pm_ops),
 		.of_match_table = cs35l33_of_match,
 
 		},
