@@ -853,13 +853,22 @@ out_error:
 	bio_io_error(&ioend->io_bio);
 }
 
+/*
+ * Wake up all threads waiting for a zoned space allocation when the file system
+ * is shut down.
+ */
 void
 xfs_zoned_wake_all(
 	struct xfs_mount	*mp)
 {
-	if (!(mp->m_super->s_flags & SB_ACTIVE))
-		return; /* can happen during log recovery */
-	wake_up_all(&mp->m_zone_info->zi_zone_wait);
+	/*
+	 * Don't wake up if there is no m_zone_info.  This is complicated by the
+	 * fact that unmount can't atomically clear m_zone_info and thus we need
+	 * to check SB_ACTIVE for that, but mount temporarily enables SB_ACTIVE
+	 * during log recovery so we can't entirely rely on that either.
+	 */
+	if ((mp->m_super->s_flags & SB_ACTIVE) && mp->m_zone_info)
+		wake_up_all(&mp->m_zone_info->zi_zone_wait);
 }
 
 /*
