@@ -5,11 +5,14 @@
 #include <linux/types.h>
 
 /*
- * Types for raw CPUID access
+ * Types for raw CPUID access:
  */
 
 struct cpuid_regs {
-	u32 eax, ebx, ecx, edx;
+	u32 eax;
+	u32 ebx;
+	u32 ecx;
+	u32 edx;
 };
 
 enum cpuid_regs_idx {
@@ -19,8 +22,8 @@ enum cpuid_regs_idx {
 	CPUID_EDX,
 };
 
-#define CPUID_LEAF_MWAIT	0x5
-#define CPUID_LEAF_DCA		0x9
+#define CPUID_LEAF_MWAIT	0x05
+#define CPUID_LEAF_DCA		0x09
 #define CPUID_LEAF_XSTATE	0x0d
 #define CPUID_LEAF_TSC		0x15
 #define CPUID_LEAF_FREQ		0x16
