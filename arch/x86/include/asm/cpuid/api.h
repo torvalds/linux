@@ -22,8 +22,8 @@ static inline bool have_cpuid_p(void)
 }
 #endif
 
-static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
-				unsigned int *ecx, unsigned int *edx)
+static inline void native_cpuid(u32 *eax, u32 *ebx,
+				u32 *ecx, u32 *edx)
 {
 	/* ecx is often an input as well as an output. */
 	asm volatile("cpuid"
@@ -36,9 +36,9 @@ static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 }
 
 #define NATIVE_CPUID_REG(reg)					\
-static inline unsigned int native_cpuid_##reg(unsigned int op)	\
+static inline u32 native_cpuid_##reg(u32 op)	\
 {								\
-	unsigned int eax = op, ebx, ecx = 0, edx;		\
+	u32 eax = op, ebx, ecx = 0, edx;		\
 								\
 	native_cpuid(&eax, &ebx, &ecx, &edx);			\
 								\
@@ -65,9 +65,9 @@ NATIVE_CPUID_REG(edx)
  * Clear ECX since some CPUs (Cyrix MII) do not set or clear ECX
  * resulting in stale register contents being returned.
  */
-static inline void cpuid(unsigned int op,
-			 unsigned int *eax, unsigned int *ebx,
-			 unsigned int *ecx, unsigned int *edx)
+static inline void cpuid(u32 op,
+			 u32 *eax, u32 *ebx,
+			 u32 *ecx, u32 *edx)
 {
 	*eax = op;
 	*ecx = 0;
@@ -75,9 +75,9 @@ static inline void cpuid(unsigned int op,
 }
 
 /* Some CPUID calls want 'count' to be placed in ECX */
-static inline void cpuid_count(unsigned int op, int count,
-			       unsigned int *eax, unsigned int *ebx,
-			       unsigned int *ecx, unsigned int *edx)
+static inline void cpuid_count(u32 op, int count,
+			       u32 *eax, u32 *ebx,
+			       u32 *ecx, u32 *edx)
 {
 	*eax = op;
 	*ecx = count;
@@ -88,43 +88,43 @@ static inline void cpuid_count(unsigned int op, int count,
  * CPUID functions returning a single datum:
  */
 
-static inline unsigned int cpuid_eax(unsigned int op)
+static inline u32 cpuid_eax(u32 op)
 {
-	unsigned int eax, ebx, ecx, edx;
+	u32 eax, ebx, ecx, edx;
 
 	cpuid(op, &eax, &ebx, &ecx, &edx);
 
 	return eax;
 }
 
-static inline unsigned int cpuid_ebx(unsigned int op)
+static inline u32 cpuid_ebx(u32 op)
 {
-	unsigned int eax, ebx, ecx, edx;
+	u32 eax, ebx, ecx, edx;
 
 	cpuid(op, &eax, &ebx, &ecx, &edx);
 
 	return ebx;
 }
 
-static inline unsigned int cpuid_ecx(unsigned int op)
+static inline u32 cpuid_ecx(u32 op)
 {
-	unsigned int eax, ebx, ecx, edx;
+	u32 eax, ebx, ecx, edx;
 
 	cpuid(op, &eax, &ebx, &ecx, &edx);
 
 	return ecx;
 }
 
-static inline unsigned int cpuid_edx(unsigned int op)
+static inline u32 cpuid_edx(u32 op)
 {
-	unsigned int eax, ebx, ecx, edx;
+	u32 eax, ebx, ecx, edx;
 
 	cpuid(op, &eax, &ebx, &ecx, &edx);
 
 	return edx;
 }
 
-static inline void __cpuid_read(unsigned int leaf, unsigned int subleaf, u32 *regs)
+static inline void __cpuid_read(u32 leaf, u32 subleaf, u32 *regs)
 {
 	regs[CPUID_EAX] = leaf;
 	regs[CPUID_ECX] = subleaf;
@@ -141,7 +141,7 @@ static inline void __cpuid_read(unsigned int leaf, unsigned int subleaf, u32 *re
 	__cpuid_read(leaf, 0, (u32 *)(regs));		\
 }
 
-static inline void __cpuid_read_reg(unsigned int leaf, unsigned int subleaf,
+static inline void __cpuid_read_reg(u32 leaf, u32 subleaf,
 				    enum cpuid_regs_idx regidx, u32 *reg)
 {
 	u32 regs[4];
