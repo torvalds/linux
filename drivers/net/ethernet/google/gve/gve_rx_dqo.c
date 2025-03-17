@@ -114,7 +114,8 @@ void gve_rx_stop_ring_dqo(struct gve_priv *priv, int idx)
 	if (!gve_rx_was_added_to_block(priv, idx))
 		return;
 
-	page_pool_disable_direct_recycling(rx->dqo.page_pool);
+	if (rx->dqo.page_pool)
+		page_pool_disable_direct_recycling(rx->dqo.page_pool);
 	gve_remove_napi(priv, ntfy_idx);
 	gve_rx_remove_from_block(priv, idx);
 	gve_rx_reset_ring_dqo(priv, idx);
