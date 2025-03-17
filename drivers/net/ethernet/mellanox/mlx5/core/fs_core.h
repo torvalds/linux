@@ -347,16 +347,10 @@ struct mlx5_fc {
 	u64 lastbytes;
 };
 
-struct mlx5_fc_bulk_hws_data {
-	struct mlx5hws_action *hws_action;
-	struct mutex lock; /* protects hws_action */
-	refcount_t hws_action_refcount;
-};
-
 struct mlx5_fc_bulk {
 	struct mlx5_fs_bulk fs_bulk;
 	u32 base_id;
-	struct mlx5_fc_bulk_hws_data hws_data;
+	struct mlx5_fs_hws_data hws_data;
 	struct mlx5_fc fcs[];
 };
 

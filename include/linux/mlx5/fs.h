@@ -244,6 +244,7 @@ void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);
 
 struct mlx5_exe_aso {
 	u32 object_id;
+	int base_id;
 	u8 type;
 	u8 return_reg_id;
 	union {
