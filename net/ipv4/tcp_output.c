@@ -4179,7 +4179,7 @@ u32 tcp_delack_max(const struct sock *sk)
 {
 	u32 delack_from_rto_min = max(tcp_rto_min(sk), 2) - 1;
 
-	return min(inet_csk(sk)->icsk_delack_max, delack_from_rto_min);
+	return min(READ_ONCE(inet_csk(sk)->icsk_delack_max), delack_from_rto_min);
 }
 
 /* Send out a delayed ack, the caller does the policy checking
