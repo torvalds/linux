@@ -97,11 +97,7 @@ static void do_test(int fd, size_t size, enum test_type type, bool shared)
 
 	if (ftruncate(fd, size)) {
 		if (errno == ENOENT) {
-			/*
-			 * This can happen if the file has been unlinked and the
-			 * filesystem doesn't support truncating unlinked files.
-			 */
-			ksft_test_result_skip("ftruncate() failed with ENOENT\n");
+			skip_test_dodgy_fs("ftruncate()");
 		} else {
 			ksft_test_result_fail("ftruncate() failed (%s)\n", strerror(errno));
 		}

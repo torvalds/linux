@@ -18,6 +18,8 @@
 #include <unistd.h>
 #include "../kselftest.h"
 
+#include "vm_util.h"
+
 #define MMAP_SZ		4096
 
 #define BUG_ON(condition, description)						\
@@ -88,11 +90,7 @@ int main(int argc, char **argv)
 
 	ret = ftruncate(fileno(ftmp), MMAP_SZ);
 	if (ret < 0 && errno == ENOENT) {
-		/*
-		 * This probably means tmpfile() made a file on a filesystem
-		 * that doesn't handle temporary files the way we want.
-		 */
-		ksft_exit_skip("ftruncate(fileno(tmpfile())) gave ENOENT, weird filesystem?\n");
+		skip_test_dodgy_fs("ftruncate()");
 	}
 	BUG_ON(ret, "ftruncate()");
 
