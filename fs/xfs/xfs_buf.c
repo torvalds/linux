@@ -89,22 +89,13 @@ xfs_buf_stale(
 }
 
 static void
-xfs_buf_free_maps(
-	struct xfs_buf	*bp)
-{
-	if (bp->b_maps != &bp->__b_map) {
-		kfree(bp->b_maps);
-		bp->b_maps = NULL;
-	}
-}
-
-static void
 xfs_buf_free_callback(
 	struct callback_head	*cb)
 {
 	struct xfs_buf		*bp = container_of(cb, struct xfs_buf, b_rcu);
 
-	xfs_buf_free_maps(bp);
+	if (bp->b_maps != &bp->__b_map)
+		kfree(bp->b_maps);
 	kmem_cache_free(xfs_buf_cache, bp);
 }
 
