@@ -8,7 +8,7 @@
  *
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
 #include <linux/kernel.h>
