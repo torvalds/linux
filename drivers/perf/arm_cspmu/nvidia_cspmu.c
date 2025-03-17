@@ -6,6 +6,7 @@
 
 /* Support for NVIDIA specific attributes. */
 
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/topology.h>
 
