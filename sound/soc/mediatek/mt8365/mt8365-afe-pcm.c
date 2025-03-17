@@ -1957,7 +1957,7 @@ err_irq:
 	return IRQ_HANDLED;
 }
 
-static int __maybe_unused mt8365_afe_runtime_suspend(struct device *dev)
+static int mt8365_afe_runtime_suspend(struct device *dev)
 {
 	return 0;
 }
@@ -1967,7 +1967,7 @@ static int mt8365_afe_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mt8365_afe_suspend(struct device *dev)
+static int mt8365_afe_suspend(struct device *dev)
 {
 	struct mtk_base_afe *afe = dev_get_drvdata(dev);
 	struct regmap *regmap = afe->regmap;
@@ -1989,7 +1989,7 @@ static int __maybe_unused mt8365_afe_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mt8365_afe_resume(struct device *dev)
+static int mt8365_afe_resume(struct device *dev)
 {
 	struct mtk_base_afe *afe = dev_get_drvdata(dev);
 	struct regmap *regmap = afe->regmap;
@@ -2009,7 +2009,7 @@ static int __maybe_unused mt8365_afe_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mt8365_afe_dev_runtime_suspend(struct device *dev)
+static int mt8365_afe_dev_runtime_suspend(struct device *dev)
 {
 	struct mtk_base_afe *afe = dev_get_drvdata(dev);
 
@@ -2021,7 +2021,7 @@ static int __maybe_unused mt8365_afe_dev_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mt8365_afe_dev_runtime_resume(struct device *dev)
+static int mt8365_afe_dev_runtime_resume(struct device *dev)
 {
 	struct mtk_base_afe *afe = dev_get_drvdata(dev);
 
@@ -2250,17 +2250,16 @@ static const struct of_device_id mt8365_afe_pcm_dt_match[] = {
 MODULE_DEVICE_TABLE(of, mt8365_afe_pcm_dt_match);
 
 static const struct dev_pm_ops mt8365_afe_pm_ops = {
-	SET_RUNTIME_PM_OPS(mt8365_afe_dev_runtime_suspend,
-			   mt8365_afe_dev_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(mt8365_afe_suspend,
-				mt8365_afe_resume)
+	RUNTIME_PM_OPS(mt8365_afe_dev_runtime_suspend,
+		       mt8365_afe_dev_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(mt8365_afe_suspend, mt8365_afe_resume)
 };
 
 static struct platform_driver mt8365_afe_pcm_driver = {
 	.driver = {
 		   .name = "mt8365-afe-pcm",
 		   .of_match_table = mt8365_afe_pcm_dt_match,
-		   .pm = &mt8365_afe_pm_ops,
+		   .pm = pm_ptr(&mt8365_afe_pm_ops),
 	},
 	.probe = mt8365_afe_pcm_dev_probe,
 	.remove = mt8365_afe_pcm_dev_remove,
