@@ -68,15 +68,16 @@ struct crypto_instance {
 		struct crypto_spawn *spawns;
 	};
 
-	struct work_struct free_work;
-
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
 struct crypto_template {
 	struct list_head list;
 	struct hlist_head instances;
+	struct hlist_head dead;
 	struct module *module;
+
+	struct work_struct free_work;
 
 	int (*create)(struct crypto_template *tmpl, struct rtattr **tb);
 

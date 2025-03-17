@@ -71,12 +71,23 @@ static void crypto_free_instance(struct crypto_instance *inst)
 
 static void crypto_destroy_instance_workfn(struct work_struct *w)
 {
-	struct crypto_instance *inst = container_of(w, struct crypto_instance,
+	struct crypto_template *tmpl = container_of(w, struct crypto_template,
 						    free_work);
-	struct crypto_template *tmpl = inst->tmpl;
+	struct crypto_instance *inst;
+	struct hlist_node *n;
+	HLIST_HEAD(list);
 
-	crypto_free_instance(inst);
-	crypto_tmpl_put(tmpl);
+	down_write(&crypto_alg_sem);
+	hlist_for_each_entry_safe(inst, n, &tmpl->dead, list) {
+		if (refcount_read(&inst->alg.cra_refcnt) != -1)
+			continue;
+		hlist_del(&inst->list);
+		hlist_add_head(&inst->list, &list);
+	}
+	up_write(&crypto_alg_sem);
+
+	hlist_for_each_entry_safe(inst, n, &list, list)
+		crypto_free_instance(inst);
 }
 
 static void crypto_destroy_instance(struct crypto_alg *alg)
@@ -84,9 +95,10 @@ static void crypto_destroy_instance(struct crypto_alg *alg)
 	struct crypto_instance *inst = container_of(alg,
 						    struct crypto_instance,
 						    alg);
+	struct crypto_template *tmpl = inst->tmpl;
 
-	INIT_WORK(&inst->free_work, crypto_destroy_instance_workfn);
-	schedule_work(&inst->free_work);
+	refcount_set(&alg->cra_refcnt, -1);
+	schedule_work(&tmpl->free_work);
 }
 
 /*
@@ -132,14 +144,17 @@ static void crypto_remove_instance(struct crypto_instance *inst,
 
 	inst->alg.cra_flags |= CRYPTO_ALG_DEAD;
 
-	if (!tmpl || !crypto_tmpl_get(tmpl))
+	if (!tmpl)
 		return;
 
-	list_move(&inst->alg.cra_list, list);
+	list_del_init(&inst->alg.cra_list);
 	hlist_del(&inst->list);
+	hlist_add_head(&inst->list, &tmpl->dead);
 	inst->alg.cra_destroy = crypto_destroy_instance;
 
 	BUG_ON(!list_empty(&inst->alg.cra_users));
+
+	crypto_alg_put(&inst->alg);
 }
 
 /*
@@ -504,6 +519,8 @@ int crypto_register_template(struct crypto_template *tmpl)
 	struct crypto_template *q;
 	int err = -EEXIST;
 
+	INIT_WORK(&tmpl->free_work, crypto_destroy_instance_workfn);
+
 	down_write(&crypto_alg_sem);
 
 	crypto_check_module_sig(tmpl->module);
@@ -565,6 +582,8 @@ void crypto_unregister_template(struct crypto_template *tmpl)
 		crypto_free_instance(inst);
 	}
 	crypto_remove_final(&users);
+
+	flush_work(&tmpl->free_work);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_template);
 
