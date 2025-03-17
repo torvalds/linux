@@ -467,7 +467,7 @@ static struct platform_driver snd_sof_acpi_intel_byt_driver = {
 	.remove = sof_acpi_remove,
 	.driver = {
 		.name = "sof-audio-acpi-intel-byt",
-		.pm = &sof_acpi_pm,
+		.pm = pm_ptr(&sof_acpi_pm),
 		.acpi_match_table = sof_baytrail_match,
 	},
 };
