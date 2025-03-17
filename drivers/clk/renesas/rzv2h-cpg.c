@@ -329,12 +329,6 @@ static int rzv2h_ddiv_set_rate(struct clk_hw *hw, unsigned long rate,
 	writel(val, divider->reg);
 
 	ret = rzv2h_cpg_wait_ddiv_clk_update_done(priv->base, ddiv->mon);
-	if (ret)
-		goto ddiv_timeout;
-
-	spin_unlock_irqrestore(divider->lock, flags);
-
-	return 0;
 
 ddiv_timeout:
 	spin_unlock_irqrestore(divider->lock, flags);
