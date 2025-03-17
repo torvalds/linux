@@ -856,6 +856,9 @@ static ssize_t get_imix_entries(const char __user *buffer,
 		if (pkt_dev->n_imix_entries >= MAX_IMIX_ENTRIES)
 			return -E2BIG;
 
+		if (i >= maxlen)
+			return -EINVAL;
+
 		max = min(10, maxlen - i);
 		len = num_arg(&buffer[i], max, &size);
 		if (len < 0)
@@ -869,6 +872,8 @@ static ssize_t get_imix_entries(const char __user *buffer,
 		if (c != ',')
 			return -EINVAL;
 		i++;
+		if (i >= maxlen)
+			return -EINVAL;
 
 		if (size < 14 + 20 + 8)
 			size = 14 + 20 + 8;
@@ -910,6 +915,9 @@ static ssize_t get_labels(const char __user *buffer,
 
 		if (n >= MAX_MPLS_LABELS)
 			return -E2BIG;
+
+		if (i >= maxlen)
+			return -EINVAL;
 
 		max = min(8, maxlen - i);
 		len = hex32_arg(&buffer[i], max, &tmp);
