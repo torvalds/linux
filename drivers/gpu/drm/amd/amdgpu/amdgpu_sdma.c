@@ -609,7 +609,7 @@ exit:
 	 * if they were stopped by this function. This allows new tasks
 	 * to be submitted to the queues after the reset is complete.
 	 */
-	if (ret) {
+	if (!ret) {
 		if (gfx_sched_stopped && amdgpu_ring_sched_ready(gfx_ring)) {
 			drm_sched_wqueue_start(&gfx_ring->sched);
 		}
