@@ -301,7 +301,7 @@ xfs_growfs_data(
 	struct xfs_mount	*mp,
 	struct xfs_growfs_data	*in)
 {
-	int			error = 0;
+	int			error;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -309,8 +309,10 @@ xfs_growfs_data(
 		return -EWOULDBLOCK;
 
 	/* we can't grow the data section when an internal RT section exists */
-	if (in->newblocks != mp->m_sb.sb_dblocks && mp->m_sb.sb_rtstart)
-		return -EINVAL;
+	if (in->newblocks != mp->m_sb.sb_dblocks && mp->m_sb.sb_rtstart) {
+		error = -EINVAL;
+		goto out_error;
+	}
 
 	/* update imaxpct separately to the physical grow of the filesystem */
 	if (in->imaxpct != mp->m_sb.sb_imax_pct) {
