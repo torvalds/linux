@@ -365,10 +365,8 @@ static int bch2_sb_compatible(struct bch_sb *sb, struct printbuf *out)
 	return 0;
 }
 
-static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
-			    enum bch_validate_flags flags, struct printbuf *out)
+int bch2_sb_validate(struct bch_sb *sb, enum bch_validate_flags flags, struct printbuf *out)
 {
-	struct bch_sb *sb = disk_sb->sb;
 	struct bch_sb_field_members_v1 *mi;
 	enum bch_opt_id opt_id;
 	int ret;
@@ -890,7 +888,7 @@ got_super:
 
 	sb->have_layout = true;
 
-	ret = bch2_sb_validate(sb, 0, &err);
+	ret = bch2_sb_validate(sb->sb, 0, &err);
 	if (ret) {
 		bch2_print_opts(opts, KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
 				path, err.buf);
@@ -1047,7 +1045,7 @@ int bch2_write_super(struct bch_fs *c)
 	darray_for_each(online_devices, ca) {
 		printbuf_reset(&err);
 
-		ret = bch2_sb_validate(&(*ca)->disk_sb, BCH_VALIDATE_write, &err);
+		ret = bch2_sb_validate((*ca)->disk_sb.sb, BCH_VALIDATE_write, &err);
 		if (ret) {
 			bch2_fs_inconsistent(c, "sb invalid before write: %s", err.buf);
 			goto out;

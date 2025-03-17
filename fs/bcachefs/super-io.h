@@ -92,6 +92,8 @@ int bch2_sb_from_fs(struct bch_fs *, struct bch_dev *);
 void bch2_free_super(struct bch_sb_handle *);
 int bch2_sb_realloc(struct bch_sb_handle *, unsigned);
 
+int bch2_sb_validate(struct bch_sb *, enum bch_validate_flags, struct printbuf *);
+
 int bch2_read_super(const char *, struct bch_opts *, struct bch_sb_handle *);
 int bch2_read_super_silent(const char *, struct bch_opts *, struct bch_sb_handle *);
 int bch2_write_super(struct bch_fs *);
