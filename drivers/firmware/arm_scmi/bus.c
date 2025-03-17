@@ -207,8 +207,10 @@ static int scmi_dev_match_by_id_table(struct scmi_device *scmi_dev,
 	if (!id_table || !id_table->name)
 		return 0;
 
+	/* Always skip transport devices from matching */
 	for (; id_table->protocol_id && id_table->name; id_table++)
 		if (id_table->protocol_id == scmi_dev->protocol_id &&
+		    strncmp(scmi_dev->name, "__scmi_transport_device", 23) &&
 		    !strcmp(id_table->name, scmi_dev->name))
 			return 1;
 	return 0;

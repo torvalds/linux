@@ -2819,9 +2819,8 @@ static int scmi_bus_notifier(struct notifier_block *nb,
 	struct scmi_info *info = bus_nb_to_scmi_info(nb);
 	struct scmi_device *sdev = to_scmi_dev(data);
 
-	/* Skip transport devices and devices of different SCMI instances */
-	if (!strncmp(sdev->name, "__scmi_transport_device", 23) ||
-	    sdev->dev.parent != info->dev)
+	/* Skip devices of different SCMI instances */
+	if (sdev->dev.parent != info->dev)
 		return NOTIFY_DONE;
 
 	switch (action) {
