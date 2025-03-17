@@ -187,9 +187,9 @@ static __always_inline bool cpuid_function_is_indexed(u32 function)
 #define for_each_possible_hypervisor_cpuid_base(function) \
 	for (function = 0x40000000; function < 0x40010000; function += 0x100)
 
-static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
+static inline u32 hypervisor_cpuid_base(const char *sig, u32 leaves)
 {
-	uint32_t base, eax, signature[3];
+	u32 base, eax, signature[3];
 
 	for_each_possible_hypervisor_cpuid_base(base) {
 		cpuid(base, &eax, &signature[0], &signature[1], &signature[2]);
