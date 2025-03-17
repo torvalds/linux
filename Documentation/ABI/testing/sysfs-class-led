@@ -72,6 +72,12 @@ Description:
 		/sys/class/leds/<led> once a given trigger is selected. For
 		their documentation see `sysfs-class-led-trigger-*`.
 
+		Writing "none" removes the trigger for this LED.
+
+		Writing "default" sets the trigger to the LED's default trigger
+		(which would often be configured in the device tree for the
+		hardware).
+
 What:		/sys/class/leds/<led>/inverted
 Date:		January 2011
 KernelVersion:	2.6.38
