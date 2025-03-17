@@ -2145,6 +2145,33 @@ static ssize_t n_tty_continue_cookie(struct tty_struct *tty, u8 *kbuf,
 	return kb - kbuf;
 }
 
+static int n_tty_wait_for_input(struct tty_struct *tty, struct file *file,
+				struct wait_queue_entry *wait, long *timeout)
+{
+	if (test_bit(TTY_OTHER_CLOSED, &tty->flags))
+		return -EIO;
+	if (tty_hung_up_p(file))
+		return 0;
+	/*
+	 * Abort readers for ttys which never actually get hung up.
+	 * See __tty_hangup().
+	 */
+	if (test_bit(TTY_HUPPING, &tty->flags))
+		return 0;
+	if (!*timeout)
+		return 0;
+	if (tty_io_nonblock(tty, file))
+		return -EAGAIN;
+	if (signal_pending(current))
+		return -ERESTARTSYS;
+
+	up_read(&tty->termios_rwsem);
+	*timeout = wait_woken(wait, TASK_INTERRUPTIBLE, *timeout);
+	down_read(&tty->termios_rwsem);
+
+	return 1;
+}
+
 /**
  * n_tty_read		-	read function for tty
  * @tty: tty device
@@ -2234,34 +2261,12 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
 			tty_buffer_flush_work(tty->port);
 			down_read(&tty->termios_rwsem);
 			if (!input_available_p(tty, 0)) {
-				if (test_bit(TTY_OTHER_CLOSED, &tty->flags)) {
-					retval = -EIO;
+				int ret = n_tty_wait_for_input(tty, file, &wait,
+							       &timeout);
+				if (ret <= 0) {
+					retval = ret;
 					break;
 				}
-				if (tty_hung_up_p(file))
-					break;
-				/*
-				 * Abort readers for ttys which never actually
-				 * get hung up.  See __tty_hangup().
-				 */
-				if (test_bit(TTY_HUPPING, &tty->flags))
-					break;
-				if (!timeout)
-					break;
-				if (tty_io_nonblock(tty, file)) {
-					retval = -EAGAIN;
-					break;
-				}
-				if (signal_pending(current)) {
-					retval = -ERESTARTSYS;
-					break;
-				}
-				up_read(&tty->termios_rwsem);
-
-				timeout = wait_woken(&wait, TASK_INTERRUPTIBLE,
-						timeout);
-
-				down_read(&tty->termios_rwsem);
 				continue;
 			}
 		}
