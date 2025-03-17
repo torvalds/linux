@@ -26,6 +26,7 @@
 #define SMU_13_0_6_UMD_PSTATE_GFXCLK_LEVEL 0x2
 #define SMU_13_0_6_UMD_PSTATE_SOCCLK_LEVEL 0x4
 #define SMU_13_0_6_UMD_PSTATE_MCLK_LEVEL 0x2
+#define SMU_CAP(x) SMU_13_0_6_CAPS_##x
 
 typedef enum {
 /*0*/   METRICS_VERSION_V0                  = 0,
@@ -51,6 +52,23 @@ struct PPTable_t {
 	bool Init;
 };
 
+enum smu_v13_0_6_caps {
+	SMU_CAP(DPM),
+	SMU_CAP(DPM_POLICY),
+	SMU_CAP(OTHER_END_METRICS),
+	SMU_CAP(SET_UCLK_MAX),
+	SMU_CAP(PCIE_METRICS),
+	SMU_CAP(MCA_DEBUG_MODE),
+	SMU_CAP(PER_INST_METRICS),
+	SMU_CAP(CTF_LIMIT),
+	SMU_CAP(RMA_MSG),
+	SMU_CAP(ACA_SYND),
+	SMU_CAP(SDMA_RESET),
+	SMU_CAP(STATIC_METRICS),
+	SMU_CAP(ALL),
+};
+
 extern void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu);
+bool smu_v13_0_6_cap_supported(struct smu_context *smu, enum smu_v13_0_6_caps cap);
 
 #endif

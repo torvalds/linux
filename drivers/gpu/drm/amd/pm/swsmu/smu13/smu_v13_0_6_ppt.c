@@ -101,24 +101,6 @@ MODULE_FIRMWARE("amdgpu/smu_13_0_14.bin");
 #define MCA_BANK_IPID(_ip, _hwid, _type) \
 	[AMDGPU_MCA_IP_##_ip] = { .hwid = _hwid, .mcatype = _type, }
 
-#define SMU_CAP(x) SMU_13_0_6_CAPS_##x
-
-enum smu_v13_0_6_caps {
-	SMU_CAP(DPM),
-	SMU_CAP(DPM_POLICY),
-	SMU_CAP(OTHER_END_METRICS),
-	SMU_CAP(SET_UCLK_MAX),
-	SMU_CAP(PCIE_METRICS),
-	SMU_CAP(MCA_DEBUG_MODE),
-	SMU_CAP(PER_INST_METRICS),
-	SMU_CAP(CTF_LIMIT),
-	SMU_CAP(RMA_MSG),
-	SMU_CAP(ACA_SYND),
-	SMU_CAP(SDMA_RESET),
-	SMU_CAP(STATIC_METRICS),
-	SMU_CAP(ALL),
-};
-
 struct mca_bank_ipid {
 	enum amdgpu_mca_ip ip;
 	uint16_t hwid;
@@ -299,8 +281,8 @@ static inline void smu_v13_0_6_cap_clear(struct smu_context *smu,
 	dpm_context->caps &= ~BIT_ULL(cap);
 }
 
-static inline bool smu_v13_0_6_cap_supported(struct smu_context *smu,
-					     enum smu_v13_0_6_caps cap)
+bool smu_v13_0_6_cap_supported(struct smu_context *smu,
+			       enum smu_v13_0_6_caps cap)
 {
 	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 
