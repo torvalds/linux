@@ -528,6 +528,37 @@ int bch2_move_ratelimit(struct moving_context *ctxt)
 	return 0;
 }
 
+/*
+ * Move requires non extents iterators, and there's also no need for it to
+ * signal indirect_extent_missing_error:
+ */
+static struct bkey_s_c bch2_lookup_indirect_extent_for_move(struct btree_trans *trans,
+					    struct btree_iter *iter,
+					    struct bkey_s_c_reflink_p p)
+{
+	if (unlikely(REFLINK_P_ERROR(p.v)))
+		return bkey_s_c_null;
+
+	struct bpos reflink_pos = POS(0, REFLINK_P_IDX(p.v));
+
+	bch2_trans_iter_init(trans, iter,
+			     BTREE_ID_reflink, reflink_pos,
+			     BTREE_ITER_not_extents);
+
+	struct bkey_s_c k = bch2_btree_iter_peek(iter);
+	if (!k.k || bkey_err(k)) {
+		bch2_trans_iter_exit(trans, iter);
+		return k;
+	}
+
+	if (bkey_lt(reflink_pos, bkey_start_pos(k.k))) {
+		bch2_trans_iter_exit(trans, iter);
+		return bkey_s_c_null;
+	}
+
+	return k;
+}
+
 static int bch2_move_data_btree(struct moving_context *ctxt,
 				struct bpos start,
 				struct bpos end,
@@ -592,17 +623,16 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 		    k.k->type == KEY_TYPE_reflink_p &&
 		    REFLINK_P_MAY_UPDATE_OPTIONS(bkey_s_c_to_reflink_p(k).v)) {
 			struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
-			s64 offset_into_extent	= 0;
 
 			bch2_trans_iter_exit(trans, &reflink_iter);
-			k = bch2_lookup_indirect_extent(trans, &reflink_iter, &offset_into_extent, p, true, 0);
+			k = bch2_lookup_indirect_extent_for_move(trans, &reflink_iter, p);
 			ret = bkey_err(k);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;
 			if (ret)
 				break;
 
-			if (bkey_deleted(k.k))
+			if (!k.k)
 				goto next_nondata;
 
 			/*
@@ -611,7 +641,6 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 			 * pointer - need to fixup iter->k
 			 */
 			extent_iter = &reflink_iter;
-			offset_into_extent = 0;
 		}
 
 		if (!bkey_extent_is_direct_data(k.k))
