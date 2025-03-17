@@ -237,6 +237,12 @@ properties:
               - amlogic,aq222
           - const: amlogic,s4
 
+      - description: Boards with the Amlogic S6 S905X5 SoC
+        items:
+          - enum:
+              - amlogic,bl209
+          - const: amlogic,s6
+
       - description: Boards with the Amlogic T7 A311D2 SoC
         items:
           - enum:
