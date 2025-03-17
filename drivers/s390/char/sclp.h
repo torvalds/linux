@@ -318,7 +318,7 @@ static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile(
+	asm_inline volatile(
 		"0:	.insn	rre,0xb2200000,%[cmd],%[sccb]\n" /* servc */
 		"1:	lhi	%[exc],0\n"
 		"2:\n"

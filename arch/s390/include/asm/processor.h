@@ -416,7 +416,11 @@ static __always_inline bool regs_irqs_disabled(struct pt_regs *regs)
 
 static __always_inline void bpon(void)
 {
-	asm volatile(ALTERNATIVE("nop", ".insn	rrf,0xb2e80000,0,0,13,0", ALT_SPEC(82)));
+	asm_inline volatile(
+		ALTERNATIVE("	nop\n",
+			    "	.insn	rrf,0xb2e80000,0,0,13,0\n",
+			    ALT_SPEC(82))
+		);
 }
 
 #endif /* __ASSEMBLY__ */

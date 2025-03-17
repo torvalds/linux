@@ -257,7 +257,7 @@ static void __init test_monitor_call(void)
 
 	if (!IS_ENABLED(CONFIG_BUG))
 		return;
-	asm volatile(
+	asm_inline volatile(
 		"	mc	0,0\n"
 		"0:	xgr	%0,%0\n"
 		"1:\n"

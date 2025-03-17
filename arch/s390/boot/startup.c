@@ -77,7 +77,7 @@ static void detect_diag9c(void)
 	int rc = 1;
 
 	cpu = stap();
-	asm volatile(
+	asm_inline volatile(
 		"	diag	%[cpu],%%r0,0x9c\n"
 		"0:	lhi	%[rc],0\n"
 		"1:\n"
@@ -138,7 +138,7 @@ static int cmma_test_essa(void)
 	int rc = 1;
 
 	/* Test ESSA_GET_STATE */
-	asm volatile(
+	asm_inline volatile(
 		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
 		"0:	lhi	%[rc],0\n"
 		"1:\n"

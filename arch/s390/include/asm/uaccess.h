@@ -147,7 +147,7 @@ __put_user_##type##_noinstr(unsigned type __user *to,			\
 {									\
 	int rc;								\
 									\
-	asm volatile(							\
+	asm_inline volatile(						\
 		"	llilh	%%r0,%[spec]\n"				\
 		"0:	mvcos	%[to],%[from],%[size]\n"		\
 		"1:	lhi	%[rc],0\n"				\
@@ -263,7 +263,7 @@ __get_user_##type##_noinstr(unsigned type *to,				\
 {									\
 	int rc;								\
 									\
-	asm volatile(							\
+	asm_inline volatile(						\
 		"	lhi	%%r0,%[spec]\n"				\
 		"0:	mvcos	%[to],%[from],%[size]\n"		\
 		"1:	lhi	%[rc],0\n"				\
@@ -490,7 +490,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 		_old = ((unsigned int)old & 0xff) << shift;
 		_new = ((unsigned int)new & 0xff) << shift;
 		mask = ~(0xff << shift);
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"	llill	%[count],%[max_loops]\n"
@@ -538,7 +538,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 		_old = ((unsigned int)old & 0xffff) << shift;
 		_new = ((unsigned int)new & 0xffff) << shift;
 		mask = ~(0xffff << shift);
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"	llill	%[count],%[max_loops]\n"
@@ -580,7 +580,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 	case 4:	{
 		unsigned int prev = old;
 
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"0:	cs	%[prev],%[new],%[address]\n"
@@ -601,7 +601,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 	case 8: {
 		unsigned long prev = old;
 
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"0:	csg	%[prev],%[new],%[address]\n"
@@ -622,7 +622,7 @@ static __always_inline int __cmpxchg_user_key(unsigned long address, void *uval,
 	case 16: {
 		__uint128_t prev = old;
 
-		asm volatile(
+		asm_inline volatile(
 			"	spka	0(%[key])\n"
 			"	sacf	256\n"
 			"0:	cdsg	%[prev],%[new],%[address]\n"

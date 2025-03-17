@@ -76,7 +76,7 @@ static inline int __dia250(void *iob, int cmd)
 	} addr_type;
 
 	exception = 1;
-	asm volatile(
+	asm_inline volatile(
 		"	diag	%[rx],%[cmd],0x250\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"

@@ -67,7 +67,7 @@ static int __diag260(unsigned long rx1, unsigned long rx2)
 	rx.odd	= rx2;
 	ry = 0x10; /* storage configuration */
 	exception = 1;
-	asm volatile(
+	asm_inline volatile(
 		"	diag	%[rx],%[ry],0x260\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"
@@ -105,7 +105,7 @@ static int diag500_storage_limit(unsigned long *max_physmem_end)
 {
 	unsigned long storage_limit;
 
-	asm volatile(
+	asm_inline volatile(
 		"	lghi	%%r1,%[subcode]\n"
 		"	lghi	%%r2,0\n"
 		"	diag	%%r2,%%r4,0x500\n"
@@ -126,7 +126,7 @@ static int tprot(unsigned long addr)
 	int cc, exception;
 
 	exception = 1;
-	asm volatile(
+	asm_inline volatile(
 		"	tprot	0(%[addr]),0\n"
 		"0:	lhi	%[exc],0\n"
 		"1:\n"

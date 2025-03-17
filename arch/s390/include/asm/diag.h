@@ -66,7 +66,7 @@ static inline void diag10_range(unsigned long start_pfn, unsigned long num_pfn)
 	end_addr = pfn_to_phys(start_pfn + num_pfn - 1);
 
 	diag_stat_inc(DIAG_STAT_X010);
-	asm volatile(
+	asm_inline volatile(
 		"0:	diag	%0,%1,0x10\n"
 		"1:	nopr	%%r7\n"
 		EX_TABLE(0b, 1b)

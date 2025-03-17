@@ -186,7 +186,7 @@ static inline int __diag308(unsigned long subcode, unsigned long addr)
 
 	r1.even = addr;
 	r1.odd	= 0;
-	asm volatile(
+	asm_inline volatile(
 		"	diag	%[r1],%[subcode],0x308\n"
 		"0:	nopr	%%r7\n"
 		EX_TABLE(0b,0b)
