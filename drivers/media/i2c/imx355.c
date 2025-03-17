@@ -1580,6 +1580,7 @@ static int imx355_resume(struct device *dev)
 	gpiod_set_value_cansleep(imx355->reset_gpio, 1);
 
 	clk_prepare_enable(imx355->mclk);
+	usleep_range(12000, 13000);
 
 	return 0;
 }
