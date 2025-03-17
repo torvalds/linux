@@ -1716,8 +1716,12 @@ static void ena_free_io_irq(struct ena_adapter *adapter)
 	int i;
 
 	for (i = ENA_IO_IRQ_FIRST_IDX; i < ENA_MAX_MSIX_VEC(io_queue_count); i++) {
+		struct ena_napi *ena_napi;
+
 		irq = &adapter->irq_tbl[i];
 		irq_set_affinity_hint(irq->vector, NULL);
+		ena_napi = irq->data;
+		netif_napi_set_irq(&ena_napi->napi, -1);
 		free_irq(irq->vector, irq->data);
 	}
 }
