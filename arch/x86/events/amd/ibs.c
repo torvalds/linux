@@ -1128,8 +1128,13 @@ fail:
 		regs.flags |= PERF_EFLAGS_EXACT;
 	}
 
+	if (perf_ibs == &perf_ibs_op)
+		perf_ibs_parse_ld_st_data(event->attr.sample_type, &ibs_data, &data);
+
 	if ((event->attr.config2 & IBS_SW_FILTER_MASK) &&
-	    perf_exclude_event(event, &regs)) {
+	    (perf_exclude_event(event, &regs) ||
+	     ((data.sample_flags & PERF_SAMPLE_ADDR) &&
+	      event->attr.exclude_kernel && kernel_ip(data.addr)))) {
 		throttle = perf_event_account_interrupt(event);
 		goto out;
 	}
@@ -1143,9 +1148,6 @@ fail:
 		};
 		perf_sample_save_raw_data(&data, event, &raw);
 	}
-
-	if (perf_ibs == &perf_ibs_op)
-		perf_ibs_parse_ld_st_data(event->attr.sample_type, &ibs_data, &data);
 
 	/*
 	 * rip recorded by IbsOpRip will not be consistent with rsp and rbp
