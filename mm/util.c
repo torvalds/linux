@@ -23,6 +23,7 @@
 #include <linux/processor.h>
 #include <linux/sizes.h>
 #include <linux/compat.h>
+#include <linux/fsnotify.h>
 
 #include <linux/uaccess.h>
 
@@ -569,6 +570,8 @@ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
 	LIST_HEAD(uf);
 
 	ret = security_mmap_file(file, prot, flag);
+	if (!ret)
+		ret = fsnotify_mmap_perm(file, prot, pgoff >> PAGE_SHIFT, len);
 	if (!ret) {
 		if (mmap_write_lock_killable(mm))
 			return -EINTR;

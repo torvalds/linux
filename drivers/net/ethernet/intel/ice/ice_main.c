@@ -5065,16 +5065,16 @@ static int ice_init_devlink(struct ice_pf *pf)
 		return err;
 
 	ice_devlink_init_regions(pf);
-	ice_health_init(pf);
 	ice_devlink_register(pf);
+	ice_health_init(pf);
 
 	return 0;
 }
 
 static void ice_deinit_devlink(struct ice_pf *pf)
 {
-	ice_devlink_unregister(pf);
 	ice_health_deinit(pf);
+	ice_devlink_unregister(pf);
 	ice_devlink_destroy_regions(pf);
 	ice_devlink_unregister_params(pf);
 }

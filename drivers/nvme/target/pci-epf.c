@@ -1265,14 +1265,11 @@ static u16 nvmet_pci_epf_create_cq(struct nvmet_ctrl *tctrl,
 	struct nvmet_pci_epf_queue *cq = &ctrl->cq[cqid];
 	u16 status;
 
-	if (test_and_set_bit(NVMET_PCI_EPF_Q_LIVE, &cq->flags))
+	if (test_bit(NVMET_PCI_EPF_Q_LIVE, &cq->flags))
 		return NVME_SC_QID_INVALID | NVME_STATUS_DNR;
 
 	if (!(flags & NVME_QUEUE_PHYS_CONTIG))
 		return NVME_SC_INVALID_QUEUE | NVME_STATUS_DNR;
-
-	if (flags & NVME_CQ_IRQ_ENABLED)
-		set_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags);
 
 	cq->pci_addr = pci_addr;
 	cq->qid = cqid;
@@ -1290,15 +1287,18 @@ static u16 nvmet_pci_epf_create_cq(struct nvmet_ctrl *tctrl,
 		cq->qes = ctrl->io_cqes;
 	cq->pci_size = cq->qes * cq->depth;
 
-	cq->iv = nvmet_pci_epf_add_irq_vector(ctrl, vector);
-	if (!cq->iv) {
-		status = NVME_SC_INTERNAL | NVME_STATUS_DNR;
-		goto err;
+	if (flags & NVME_CQ_IRQ_ENABLED) {
+		cq->iv = nvmet_pci_epf_add_irq_vector(ctrl, vector);
+		if (!cq->iv)
+			return NVME_SC_INTERNAL | NVME_STATUS_DNR;
+		set_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags);
 	}
 
 	status = nvmet_cq_create(tctrl, &cq->nvme_cq, cqid, cq->depth);
 	if (status != NVME_SC_SUCCESS)
 		goto err;
+
+	set_bit(NVMET_PCI_EPF_Q_LIVE, &cq->flags);
 
 	dev_dbg(ctrl->dev, "CQ[%u]: %u entries of %zu B, IRQ vector %u\n",
 		cqid, qsize, cq->qes, cq->vector);
@@ -1306,8 +1306,8 @@ static u16 nvmet_pci_epf_create_cq(struct nvmet_ctrl *tctrl,
 	return NVME_SC_SUCCESS;
 
 err:
-	clear_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags);
-	clear_bit(NVMET_PCI_EPF_Q_LIVE, &cq->flags);
+	if (test_and_clear_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags))
+		nvmet_pci_epf_remove_irq_vector(ctrl, cq->vector);
 	return status;
 }
 
@@ -1333,7 +1333,7 @@ static u16 nvmet_pci_epf_create_sq(struct nvmet_ctrl *tctrl,
 	struct nvmet_pci_epf_queue *sq = &ctrl->sq[sqid];
 	u16 status;
 
-	if (test_and_set_bit(NVMET_PCI_EPF_Q_LIVE, &sq->flags))
+	if (test_bit(NVMET_PCI_EPF_Q_LIVE, &sq->flags))
 		return NVME_SC_QID_INVALID | NVME_STATUS_DNR;
 
 	if (!(flags & NVME_QUEUE_PHYS_CONTIG))
@@ -1355,7 +1355,7 @@ static u16 nvmet_pci_epf_create_sq(struct nvmet_ctrl *tctrl,
 
 	status = nvmet_sq_create(tctrl, &sq->nvme_sq, sqid, sq->depth);
 	if (status != NVME_SC_SUCCESS)
-		goto out_clear_bit;
+		return status;
 
 	sq->iod_wq = alloc_workqueue("sq%d_wq", WQ_UNBOUND,
 				min_t(int, sq->depth, WQ_MAX_ACTIVE), sqid);
@@ -1365,6 +1365,8 @@ static u16 nvmet_pci_epf_create_sq(struct nvmet_ctrl *tctrl,
 		goto out_destroy_sq;
 	}
 
+	set_bit(NVMET_PCI_EPF_Q_LIVE, &sq->flags);
+
 	dev_dbg(ctrl->dev, "SQ[%u]: %u entries of %zu B\n",
 		sqid, qsize, sq->qes);
 
@@ -1372,8 +1374,6 @@ static u16 nvmet_pci_epf_create_sq(struct nvmet_ctrl *tctrl,
 
 out_destroy_sq:
 	nvmet_sq_destroy(&sq->nvme_sq);
-out_clear_bit:
-	clear_bit(NVMET_PCI_EPF_Q_LIVE, &sq->flags);
 	return status;
 }
 

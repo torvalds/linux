@@ -1075,7 +1075,8 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		}
 	}
 
-	ATOMIC_INIT_NOTIFIER_HEAD(&gdev->line_state_notifier);
+	rwlock_init(&gdev->line_state_lock);
+	RAW_INIT_NOTIFIER_HEAD(&gdev->line_state_notifier);
 	BLOCKING_INIT_NOTIFIER_HEAD(&gdev->device_notifier);
 
 	ret = init_srcu_struct(&gdev->srcu);
@@ -4361,8 +4362,9 @@ EXPORT_SYMBOL_GPL(gpiod_set_array_value_cansleep);
 
 void gpiod_line_state_notify(struct gpio_desc *desc, unsigned long action)
 {
-	atomic_notifier_call_chain(&desc->gdev->line_state_notifier,
-				   action, desc);
+	guard(read_lock_irqsave)(&desc->gdev->line_state_lock);
+
+	raw_notifier_call_chain(&desc->gdev->line_state_notifier, action, desc);
 }
 
 /**
