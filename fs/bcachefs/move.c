@@ -561,6 +561,7 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 	bch2_trans_begin(trans);
 	bch2_trans_iter_init(trans, &iter, btree_id, start,
 			     BTREE_ITER_prefetch|
+			     BTREE_ITER_not_extents|
 			     BTREE_ITER_all_snapshots);
 
 	if (ctxt->rate)
