@@ -1108,7 +1108,7 @@ drm_atomic_helper_connector_hdmi_update(struct drm_connector *connector,
  * @status: Connection status
  *
  * This function should be called as a part of the .detect() / .detect_ctx()
- * callbacks, updating the HDMI-specific connector's data.
+ * callbacks for all status changes.
  */
 void drm_atomic_helper_connector_hdmi_hotplug(struct drm_connector *connector,
 					      enum drm_connector_status status)
