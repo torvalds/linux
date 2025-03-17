@@ -39,6 +39,10 @@ static const char dev_cmd_pkt_size_0[] = "pkt_size 300";
 static const char dev_cmd_imix_weights_0[] = "imix_weights 0,7 576,4 1500,1";
 static const char dev_cmd_imix_weights_1[] = "imix_weights 101,1 102,2 103,3 104,4 105,5 106,6 107,7 108,8 109,9 110,10 111,11 112,12 113,13 114,14 115,15 116,16 117,17 118,18 119,19 120,20";
 static const char dev_cmd_imix_weights_2[] = "imix_weights 100,1 102,2 103,3 104,4 105,5 106,6 107,7 108,8 109,9 110,10 111,11 112,12 113,13 114,14 115,15 116,16 117,17 118,18 119,19 120,20 121,21";
+static const char dev_cmd_imix_weights_3[] = "imix_weights";
+static const char dev_cmd_imix_weights_4[] = "imix_weights ";
+static const char dev_cmd_imix_weights_5[] = "imix_weights 0";
+static const char dev_cmd_imix_weights_6[] = "imix_weights 0,";
 static const char dev_cmd_debug_0[] = "debug 1";
 static const char dev_cmd_debug_1[] = "debug 0";
 static const char dev_cmd_frags_0[] = "frags 100";
@@ -284,6 +288,46 @@ TEST_F(proc_net_pktgen, dev_cmd_imix_weights) {
 	len = write(self->dev_fd, dev_cmd_imix_weights_2, sizeof(dev_cmd_imix_weights_2));
 	EXPECT_EQ(len, -1);
 	EXPECT_EQ(errno, E2BIG);
+
+	/* with trailing '\0' */
+	len = write(self->dev_fd, dev_cmd_imix_weights_3, sizeof(dev_cmd_imix_weights_3));
+	EXPECT_EQ(len, -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	/* without trailing '\0' */
+	len = write(self->dev_fd, dev_cmd_imix_weights_3, sizeof(dev_cmd_imix_weights_3) - 1);
+	EXPECT_EQ(len, -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	/* with trailing '\0' */
+	len = write(self->dev_fd, dev_cmd_imix_weights_4, sizeof(dev_cmd_imix_weights_4));
+	EXPECT_EQ(len, -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	/* without trailing '\0' */
+	len = write(self->dev_fd, dev_cmd_imix_weights_4, sizeof(dev_cmd_imix_weights_4) - 1);
+	EXPECT_EQ(len, -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	/* with trailing '\0' */
+	len = write(self->dev_fd, dev_cmd_imix_weights_5, sizeof(dev_cmd_imix_weights_5));
+	EXPECT_EQ(len, -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	/* without trailing '\0' */
+	len = write(self->dev_fd, dev_cmd_imix_weights_5, sizeof(dev_cmd_imix_weights_5) - 1);
+	EXPECT_EQ(len, -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	/* with trailing '\0' */
+	len = write(self->dev_fd, dev_cmd_imix_weights_6, sizeof(dev_cmd_imix_weights_6));
+	EXPECT_EQ(len, -1);
+	EXPECT_EQ(errno, EINVAL);
+
+	/* without trailing '\0' */
+	len = write(self->dev_fd, dev_cmd_imix_weights_6, sizeof(dev_cmd_imix_weights_6) - 1);
+	EXPECT_EQ(len, -1);
+	EXPECT_EQ(errno, EINVAL);
 }
 
 TEST_F(proc_net_pktgen, dev_cmd_debug) {
