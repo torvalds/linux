@@ -20,6 +20,8 @@
 #define IMX355_MODE_STANDBY		0x00
 #define IMX355_MODE_STREAMING		0x01
 
+#define IMX355_REG_RESET		0x0103
+
 /* Chip ID */
 #define IMX355_REG_CHIP_ID		0x0016
 #define IMX355_CHIP_ID			0x0355
@@ -1403,6 +1405,15 @@ static int imx355_start_streaming(struct imx355 *imx355)
 	struct i2c_client *client = v4l2_get_subdevdata(&imx355->sd);
 	const struct imx355_reg_list *reg_list;
 	int ret;
+
+	ret = imx355_write_reg(imx355, IMX355_REG_RESET, 0x01, 0x01);
+	if (ret) {
+		dev_err(&client->dev, "%s failed to reset sensor\n", __func__);
+		return ret;
+	}
+
+	/* 12ms is required from poweron to standby */
+	fsleep(12000);
 
 	/* Global Setting */
 	reg_list = &imx355_global_setting;
