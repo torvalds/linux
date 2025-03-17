@@ -155,7 +155,7 @@ static enum drm_gem_object_status panthor_gem_status(struct drm_gem_object *obj)
 	struct panthor_gem_object *bo = to_panthor_bo(obj);
 	enum drm_gem_object_status res = 0;
 
-	if (bo->base.base.import_attach || bo->base.pages)
+	if (drm_gem_is_imported(&bo->base.base) || bo->base.pages)
 		res |= DRM_GEM_OBJECT_RESIDENT;
 
 	return res;
