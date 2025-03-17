@@ -200,4 +200,6 @@
 #define ZAWRS_WRS_NTO	".4byte 0x00d00073"
 #define ZAWRS_WRS_STO	".4byte 0x01d00073"
 
+#define RISCV_INSN_NOP	0x00000013U
+
 #endif /* __ASM_INSN_DEF_H */
