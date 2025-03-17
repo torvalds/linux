@@ -507,7 +507,7 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_7);
+	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_8);
 	smu_table->gpu_metrics_table =
 		kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table) {
@@ -2468,8 +2468,8 @@ static int smu_v13_0_6_get_current_pcie_link_speed(struct smu_context *smu)
 static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct gpu_metrics_v1_7 *gpu_metrics =
-		(struct gpu_metrics_v1_7 *)smu_table->gpu_metrics_table;
+	struct gpu_metrics_v1_8 *gpu_metrics =
+		(struct gpu_metrics_v1_8 *)smu_table->gpu_metrics_table;
 	int version = smu_v13_0_6_get_metrics_version(smu);
 	int ret = 0, xcc_id, inst, i, j, k, idx;
 	struct amdgpu_device *adev = smu->adev;
@@ -2495,7 +2495,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	metrics_v1 = (MetricsTableV1_t *)metrics_v0;
 	metrics_v2 = (MetricsTableV2_t *)metrics_v0;
 
-	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 7);
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 8);
 
 	gpu_metrics->temperature_hotspot =
 		SMUQ10_ROUND(GET_METRIC_FIELD(MaxSocketTemperature, version));
@@ -2648,6 +2648,20 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 				gpu_metrics->xcp_stats[i].gfx_busy_acc[idx] =
 					SMUQ10_ROUND(GET_GPU_METRIC_FIELD(GfxBusyAcc,
 									  version)[inst]);
+				if (smu_v13_0_6_cap_supported(smu, SMU_CAP(HST_LIMIT_METRICS))) {
+					gpu_metrics->xcp_stats[i].gfx_below_host_limit_ppt_acc[idx] =
+						SMUQ10_ROUND
+						(metrics_v0->GfxclkBelowHostLimitPptAcc[inst]);
+					gpu_metrics->xcp_stats[i].gfx_below_host_limit_thm_acc[idx] =
+						SMUQ10_ROUND
+						(metrics_v0->GfxclkBelowHostLimitThmAcc[inst]);
+					gpu_metrics->xcp_stats[i].gfx_low_utilization_acc[idx] =
+						SMUQ10_ROUND
+						(metrics_v0->GfxclkLowUtilizationAcc[inst]);
+					gpu_metrics->xcp_stats[i].gfx_below_host_limit_total_acc[idx] =
+						SMUQ10_ROUND
+						(metrics_v0->GfxclkBelowHostLimitTotalAcc[inst]);
+				}
 				idx++;
 			}
 		}
