@@ -243,6 +243,12 @@ properties:
               - amlogic,bl209
           - const: amlogic,s6
 
+      - description: Boards with the Amlogic S7 S805X3 SoC
+        items:
+          - enum:
+              - amlogic,bp201
+          - const: amlogic,s7
+
       - description: Boards with the Amlogic T7 A311D2 SoC
         items:
           - enum:
