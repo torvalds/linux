@@ -849,7 +849,6 @@ void pcm3168a_remove(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(pcm3168a_remove);
 
-#ifdef CONFIG_PM
 static int pcm3168a_rt_resume(struct device *dev)
 {
 	struct pcm3168a_priv *pcm3168a = dev_get_drvdata(dev);
@@ -905,12 +904,10 @@ static int pcm3168a_rt_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
-const struct dev_pm_ops pcm3168a_pm_ops = {
-	SET_RUNTIME_PM_OPS(pcm3168a_rt_suspend, pcm3168a_rt_resume, NULL)
+EXPORT_GPL_DEV_PM_OPS(pcm3168a_pm_ops) = {
+	RUNTIME_PM_OPS(pcm3168a_rt_suspend, pcm3168a_rt_resume, NULL)
 };
-EXPORT_SYMBOL_GPL(pcm3168a_pm_ops);
 
 MODULE_DESCRIPTION("PCM3168A codec driver");
 MODULE_AUTHOR("Damien Horsley <Damien.Horsley@imgtec.com>");
