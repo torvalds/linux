@@ -27,6 +27,9 @@
 #define RTQ2208_REG_LDO1_CFG			0xB1
 #define RTQ2208_REG_LDO2_CFG			0xC1
 #define RTQ2208_REG_LDO_DVS_CTRL		0xD0
+#define RTQ2208_REG_HIDDEN_BUCKPH		0x55
+#define RTQ2208_REG_HIDDEN0			0xFE
+#define RTQ2208_REG_HIDDEN1			0xFF
 
 /* Mask */
 #define RTQ2208_BUCK_NR_MTP_SEL_MASK		GENMASK(7, 0)
@@ -45,6 +48,8 @@
 #define RTQ2208_LDO1_VOSEL_SD_MASK		BIT(5)
 #define RTQ2208_LDO2_DISCHG_EN_MASK		BIT(6)
 #define RTQ2208_LDO2_VOSEL_SD_MASK		BIT(7)
+#define RTQ2208_MASK_BUCKPH_GROUP1		GENMASK(6, 4)
+#define RTQ2208_MASK_BUCKPH_GROUP2		GENMASK(2, 0)
 
 /* Size */
 #define RTQ2208_VOUT_MAXNUM			256
@@ -524,27 +529,75 @@ static int rtq2208_parse_regulator_dt_data(int n_regulator, const unsigned int *
 
 }
 
-/** different slave address corresponds different used bucks
- * slave address 0x10: BUCK[BCA FGE]
- * slave address 0x20: BUCK[BC FGHE]
- * slave address 0x40: BUCK[C G]
- */
-static int rtq2208_regulator_check(int slave_addr, int *num,
+static int rtq2208_regulator_check(struct device *dev, int *num,
 				int *regulator_idx_table, unsigned int *buck_masks)
 {
-	static bool rtq2208_used_table[3][RTQ2208_LDO_MAX] = {
-		/* BUCK[BCA FGE], LDO[12] */
-		{1, 1, 0, 1, 1, 1, 0, 1, 1, 1},
-		/* BUCK[BC FGHE], LDO[12]*/
-		{1, 1, 0, 0, 1, 1, 1, 1, 1, 1},
-		/* BUCK[C G], LDO[12] */
-		{0, 1, 0, 0, 0, 1, 0, 0, 1, 1},
-	};
-	int i, idx = ffs(slave_addr >> 4) - 1;
+	struct regmap *regmap = dev_get_regmap(dev, NULL);
+	bool rtq2208_used_table[RTQ2208_LDO_MAX] = {0};
+	u8 entry_key[] = { 0x69, 0x01 };
+	unsigned int buck_phase;
+	int i, ret;
 	u8 mask;
 
+	ret = regmap_raw_write(regmap, RTQ2208_REG_HIDDEN0, entry_key, ARRAY_SIZE(entry_key));
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enter hidden page\n");
+
+	ret = regmap_read(regmap, RTQ2208_REG_HIDDEN_BUCKPH, &buck_phase);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to read buck phase configuration\n");
+
+	ret = regmap_write(regmap, RTQ2208_REG_HIDDEN1, 0x00);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to exit hidden page\n");
+
+	dev_info(dev, "BUCK Phase 0x%x\n", buck_phase);
+	/*
+	 * Use buck phase configuration to assign used table mask
+	 *                                 GROUP1       GROUP2
+	 * 0      -> 2P + 2P                BC           FG
+	 * 1      -> 2P + 1P + 1P           BCA          FGE
+	 * 2      -> 1P + 1P + 1P + 1P      BCDA         FGHE
+	 * 3      -> 3P + 1P                BC           FG
+	 * others -> 4P                     C            G
+	 */
+	switch (FIELD_GET(RTQ2208_MASK_BUCKPH_GROUP1, buck_phase)) {
+	case 2:
+		rtq2208_used_table[RTQ2208_BUCK_D] = true;
+		fallthrough;
+	case 1:
+		rtq2208_used_table[RTQ2208_BUCK_A] = true;
+		fallthrough;
+	case 0:
+	case 3:
+		rtq2208_used_table[RTQ2208_BUCK_B] = true;
+		fallthrough;
+	default:
+		rtq2208_used_table[RTQ2208_BUCK_C] = true;
+		break;
+	}
+
+	switch (FIELD_GET(RTQ2208_MASK_BUCKPH_GROUP2, buck_phase)) {
+	case 2:
+		rtq2208_used_table[RTQ2208_BUCK_F] = true;
+		fallthrough;
+	case 1:
+		rtq2208_used_table[RTQ2208_BUCK_E] = true;
+		fallthrough;
+	case 0:
+	case 3:
+		rtq2208_used_table[RTQ2208_BUCK_H] = true;
+		fallthrough;
+	default:
+		rtq2208_used_table[RTQ2208_BUCK_G] = true;
+		break;
+	}
+
+	/* By default, LDO1 & LDO2 are always used */
+	rtq2208_used_table[RTQ2208_LDO1] = rtq2208_used_table[RTQ2208_LDO2] = true;
+
 	for (i = 0; i < RTQ2208_LDO_MAX; i++) {
-		if (!rtq2208_used_table[idx][i])
+		if (!rtq2208_used_table[i])
 			continue;
 
 		regulator_idx_table[(*num)++] = i;
@@ -559,7 +612,7 @@ static int rtq2208_regulator_check(int slave_addr, int *num,
 static const struct regmap_config rtq2208_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.max_register = 0xEF,
+	.max_register = 0xFF,
 };
 
 static int rtq2208_probe(struct i2c_client *i2c)
@@ -583,7 +636,7 @@ static int rtq2208_probe(struct i2c_client *i2c)
 		return dev_err_probe(dev, PTR_ERR(regmap), "Failed to allocate regmap\n");
 
 	/* get needed regulator */
-	ret = rtq2208_regulator_check(i2c->addr, &n_regulator, regulator_idx_table, buck_masks);
+	ret = rtq2208_regulator_check(dev, &n_regulator, regulator_idx_table, buck_masks);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to check used regulators\n");
 
