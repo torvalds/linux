@@ -109,6 +109,10 @@ static inline int update_pkru_in_sigframe(struct xregs_state __user *buf, u64 ma
 /*
  * After this @err contains 0 on success or the trap number when the
  * operation raises an exception.
+ *
+ * The [xa] input parameter below represents the struct xregs_state pointer
+ * and the asm symbolic name for the argument used in the XSAVE/XRSTOR insns
+ * above.
  */
 #define XSTATE_OP(op, st, lmask, hmask, err)				\
 	asm volatile("1:" op "\n\t"					\
