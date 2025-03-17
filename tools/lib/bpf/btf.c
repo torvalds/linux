@@ -1619,12 +1619,18 @@ exit_free:
 	return btf;
 }
 
-struct btf *btf__load_from_kernel_by_id_split(__u32 id, struct btf *base_btf)
+struct btf *btf_load_from_kernel(__u32 id, struct btf *base_btf, int token_fd)
 {
 	struct btf *btf;
 	int btf_fd;
+	LIBBPF_OPTS(bpf_get_fd_by_id_opts, opts);
 
-	btf_fd = bpf_btf_get_fd_by_id(id);
+	if (token_fd) {
+		opts.open_flags |= BPF_F_TOKEN_FD;
+		opts.token_fd = token_fd;
+	}
+
+	btf_fd = bpf_btf_get_fd_by_id_opts(id, &opts);
 	if (btf_fd < 0)
 		return libbpf_err_ptr(-errno);
 
@@ -1632,6 +1638,11 @@ struct btf *btf__load_from_kernel_by_id_split(__u32 id, struct btf *base_btf)
 	close(btf_fd);
 
 	return libbpf_ptr(btf);
+}
+
+struct btf *btf__load_from_kernel_by_id_split(__u32 id, struct btf *base_btf)
+{
+	return btf_load_from_kernel(id, base_btf, 0);
 }
 
 struct btf *btf__load_from_kernel_by_id(__u32 id)
