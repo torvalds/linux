@@ -97,7 +97,7 @@ static struct pci_driver snd_sof_pci_amd_rn_driver = {
 	.probe = acp_pci_rn_probe,
 	.remove = acp_pci_rn_remove,
 	.driver = {
-		.pm = &sof_pci_pm,
+		.pm = pm_ptr(&sof_pci_pm),
 	},
 };
 module_pci_driver(snd_sof_pci_amd_rn_driver);
