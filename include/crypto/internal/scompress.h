@@ -11,11 +11,18 @@
 
 #include <crypto/acompress.h>
 #include <crypto/algapi.h>
+#include <linux/cpumask_types.h>
+#include <linux/workqueue_types.h>
 
 struct acomp_req;
 
 struct crypto_scomp {
 	struct crypto_tfm base;
+};
+
+struct crypto_acomp_stream {
+	spinlock_t lock;
+	void *ctx;
 };
 
 /**
@@ -27,6 +34,8 @@ struct crypto_scomp {
  * @decompress:	Function performs a de-compress operation
  * @base:	Common crypto API algorithm data structure
  * @stream:	Per-cpu memory for algorithm
+ * @stream_work:	Work struct to allocate stream memmory
+ * @stream_want:	CPU mask for allocating stream memory
  * @calg:	Cmonn algorithm data structure shared with acomp
  */
 struct scomp_alg {
@@ -38,6 +47,10 @@ struct scomp_alg {
 	int (*decompress)(struct crypto_scomp *tfm, const u8 *src,
 			  unsigned int slen, u8 *dst, unsigned int *dlen,
 			  void *ctx);
+
+	struct crypto_acomp_stream __percpu *stream;
+	struct work_struct stream_work;
+	cpumask_t stream_want;
 
 	union {
 		struct COMP_ALG_COMMON;

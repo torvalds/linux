@@ -130,14 +130,8 @@ struct crypto_acomp {
 	struct crypto_tfm base;
 };
 
-struct crypto_acomp_stream {
-	spinlock_t lock;
-	void *ctx;
-};
-
 #define COMP_ALG_COMMON {			\
 	struct crypto_alg base;			\
-	struct crypto_acomp_stream __percpu *stream;	\
 }
 struct comp_alg_common COMP_ALG_COMMON;
 
