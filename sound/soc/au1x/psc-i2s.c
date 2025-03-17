@@ -354,7 +354,6 @@ static void au1xpsc_i2s_drvremove(struct platform_device *pdev)
 	wmb(); /* drain writebuffer */
 }
 
-#ifdef CONFIG_PM
 static int au1xpsc_i2s_drvsuspend(struct device *dev)
 {
 	struct au1xpsc_audio_data *wd = dev_get_drvdata(dev);
@@ -385,23 +384,13 @@ static int au1xpsc_i2s_drvresume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops au1xpsci2s_pmops = {
-	.suspend	= au1xpsc_i2s_drvsuspend,
-	.resume		= au1xpsc_i2s_drvresume,
-};
-
-#define AU1XPSCI2S_PMOPS &au1xpsci2s_pmops
-
-#else
-
-#define AU1XPSCI2S_PMOPS NULL
-
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(au1xpsci2s_pmops, au1xpsc_i2s_drvsuspend,
+				au1xpsc_i2s_drvresume);
 
 static struct platform_driver au1xpsc_i2s_driver = {
 	.driver		= {
 		.name	= "au1xpsc_i2s",
-		.pm	= AU1XPSCI2S_PMOPS,
+		.pm	= pm_ptr(&au1xpsci2s_pmops),
 	},
 	.probe		= au1xpsc_i2s_drvprobe,
 	.remove		= au1xpsc_i2s_drvremove,

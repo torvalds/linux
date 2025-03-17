@@ -221,7 +221,7 @@ disable_pci:
 	return ret;
 };
 
-static int __maybe_unused snd_acp_suspend(struct device *dev)
+static int snd_acp_suspend(struct device *dev)
 {
 	struct acp_chip_info *chip;
 	int ret;
@@ -233,7 +233,7 @@ static int __maybe_unused snd_acp_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused snd_acp_resume(struct device *dev)
+static int snd_acp_resume(struct device *dev)
 {
 	struct acp_chip_info *chip;
 	int ret;
@@ -251,8 +251,8 @@ static int __maybe_unused snd_acp_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops acp_pm_ops = {
-	SET_RUNTIME_PM_OPS(snd_acp_suspend, snd_acp_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(snd_acp_suspend, snd_acp_resume)
+	RUNTIME_PM_OPS(snd_acp_suspend, snd_acp_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(snd_acp_suspend, snd_acp_resume)
 };
 
 static void acp_pci_remove(struct pci_dev *pci)
@@ -289,7 +289,7 @@ static struct pci_driver snd_amd_acp_pci_driver = {
 	.probe = acp_pci_probe,
 	.remove = acp_pci_remove,
 	.driver = {
-		.pm = &acp_pm_ops,
+		.pm = pm_ptr(&acp_pm_ops),
 	},
 };
 module_pci_driver(snd_amd_acp_pci_driver);

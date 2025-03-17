@@ -860,7 +860,7 @@ static void cs4234_i2c_remove(struct i2c_client *i2c_client)
 	cs4234_shutdown(cs4234);
 }
 
-static int __maybe_unused cs4234_runtime_resume(struct device *dev)
+static int cs4234_runtime_resume(struct device *dev)
 {
 	struct cs4234 *cs4234 = dev_get_drvdata(dev);
 	int ret;
@@ -881,7 +881,7 @@ static int __maybe_unused cs4234_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused cs4234_runtime_suspend(struct device *dev)
+static int cs4234_runtime_suspend(struct device *dev)
 {
 	struct cs4234 *cs4234 = dev_get_drvdata(dev);
 
@@ -891,7 +891,7 @@ static int __maybe_unused cs4234_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops cs4234_pm = {
-	SET_RUNTIME_PM_OPS(cs4234_runtime_suspend, cs4234_runtime_resume, NULL)
+	RUNTIME_PM_OPS(cs4234_runtime_suspend, cs4234_runtime_resume, NULL)
 };
 
 static const struct of_device_id cs4234_of_match[] = {
@@ -903,7 +903,7 @@ MODULE_DEVICE_TABLE(of, cs4234_of_match);
 static struct i2c_driver cs4234_i2c_driver = {
 	.driver = {
 		.name = "cs4234",
-		.pm = &cs4234_pm,
+		.pm = pm_ptr(&cs4234_pm),
 		.of_match_table = cs4234_of_match,
 	},
 	.probe =	cs4234_i2c_probe,

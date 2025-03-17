@@ -180,7 +180,7 @@ static void acp_acp70_audio_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int __maybe_unused acp70_pcm_resume(struct device *dev)
+static int acp70_pcm_resume(struct device *dev)
 {
 	struct acp_chip_info *chip = dev_get_platdata(dev);
 	struct acp_stream *stream;
@@ -207,7 +207,7 @@ static int __maybe_unused acp70_pcm_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops acp70_dma_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(NULL, acp70_pcm_resume)
+	SYSTEM_SLEEP_PM_OPS(NULL, acp70_pcm_resume)
 };
 
 static struct platform_driver acp70_driver = {
@@ -215,7 +215,7 @@ static struct platform_driver acp70_driver = {
 	.remove = acp_acp70_audio_remove,
 	.driver = {
 		.name = "acp_asoc_acp70",
-		.pm = &acp70_dma_pm_ops,
+		.pm = pm_ptr(&acp70_dma_pm_ops),
 	},
 };
 

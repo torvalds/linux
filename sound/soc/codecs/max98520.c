@@ -621,7 +621,7 @@ static int max98520_probe(struct snd_soc_component *component)
 	return 0;
 }
 
-static int __maybe_unused max98520_suspend(struct device *dev)
+static int max98520_suspend(struct device *dev)
 {
 	struct max98520_priv *max98520 = dev_get_drvdata(dev);
 
@@ -630,7 +630,7 @@ static int __maybe_unused max98520_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused max98520_resume(struct device *dev)
+static int max98520_resume(struct device *dev)
 {
 	struct max98520_priv *max98520 = dev_get_drvdata(dev);
 
@@ -641,7 +641,7 @@ static int __maybe_unused max98520_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops max98520_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(max98520_suspend, max98520_resume)
+	SYSTEM_SLEEP_PM_OPS(max98520_suspend, max98520_resume)
 };
 
 static const struct snd_soc_component_driver soc_codec_dev_max98520 = {
@@ -752,7 +752,7 @@ static struct i2c_driver max98520_i2c_driver = {
 	.driver = {
 		.name = "max98520",
 		.of_match_table = of_match_ptr(max98520_of_match),
-		.pm = &max98520_pm,
+		.pm = pm_ptr(&max98520_pm),
 	},
 	.probe = max98520_i2c_probe,
 	.id_table = max98520_i2c_id,

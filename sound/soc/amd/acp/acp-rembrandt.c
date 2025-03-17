@@ -197,7 +197,7 @@ static void rembrandt_audio_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int __maybe_unused rmb_pcm_resume(struct device *dev)
+static int rmb_pcm_resume(struct device *dev)
 {
 	struct acp_chip_info *chip = dev_get_platdata(dev);
 	struct acp_stream *stream;
@@ -227,7 +227,7 @@ static int __maybe_unused rmb_pcm_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rmb_dma_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(NULL, rmb_pcm_resume)
+	SYSTEM_SLEEP_PM_OPS(NULL, rmb_pcm_resume)
 };
 
 static struct platform_driver rembrandt_driver = {
@@ -235,7 +235,7 @@ static struct platform_driver rembrandt_driver = {
 	.remove = rembrandt_audio_remove,
 	.driver = {
 		.name = "acp_asoc_rembrandt",
-		.pm = &rmb_dma_pm_ops,
+		.pm = pm_ptr(&rmb_dma_pm_ops),
 	},
 };
 

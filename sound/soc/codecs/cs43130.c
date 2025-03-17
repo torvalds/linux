@@ -2672,7 +2672,7 @@ static void cs43130_i2c_remove(struct i2c_client *client)
 	regulator_bulk_disable(CS43130_NUM_SUPPLIES, cs43130->supplies);
 }
 
-static int __maybe_unused cs43130_runtime_suspend(struct device *dev)
+static int cs43130_runtime_suspend(struct device *dev)
 {
 	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
 
@@ -2691,7 +2691,7 @@ static int __maybe_unused cs43130_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused cs43130_runtime_resume(struct device *dev)
+static int cs43130_runtime_resume(struct device *dev)
 {
 	struct cs43130_private *cs43130 = dev_get_drvdata(dev);
 	int ret;
@@ -2727,8 +2727,7 @@ err:
 }
 
 static const struct dev_pm_ops cs43130_runtime_pm = {
-	SET_RUNTIME_PM_OPS(cs43130_runtime_suspend, cs43130_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(cs43130_runtime_suspend, cs43130_runtime_resume, NULL)
 };
 
 #if IS_ENABLED(CONFIG_OF)
@@ -2768,7 +2767,7 @@ static struct i2c_driver cs43130_i2c_driver = {
 		.name			= "cs43130",
 		.of_match_table		= of_match_ptr(cs43130_of_match),
 		.acpi_match_table	= ACPI_PTR(cs43130_acpi_match),
-		.pm			= &cs43130_runtime_pm,
+		.pm			= pm_ptr(&cs43130_runtime_pm),
 	},
 	.id_table	= cs43130_i2c_id,
 	.probe		= cs43130_i2c_probe,

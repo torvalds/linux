@@ -126,7 +126,7 @@ static struct platform_driver snd_sof_of_imx9_driver = {
 	.remove = sof_of_remove,
 	.driver = {
 		.name = "sof-audio-of-imx9",
-		.pm = &sof_of_pm,
+		.pm = pm_ptr(&sof_of_pm),
 		.of_match_table = sof_of_imx9_ids,
 	},
 };

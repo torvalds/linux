@@ -805,7 +805,7 @@ void cs42l51_remove(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(cs42l51_remove);
 
-int __maybe_unused cs42l51_suspend(struct device *dev)
+int cs42l51_suspend(struct device *dev)
 {
 	struct cs42l51_private *cs42l51 = dev_get_drvdata(dev);
 
@@ -816,7 +816,7 @@ int __maybe_unused cs42l51_suspend(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(cs42l51_suspend);
 
-int __maybe_unused cs42l51_resume(struct device *dev)
+int cs42l51_resume(struct device *dev)
 {
 	struct cs42l51_private *cs42l51 = dev_get_drvdata(dev);
 

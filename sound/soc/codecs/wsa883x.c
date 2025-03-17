@@ -1636,7 +1636,7 @@ err:
 
 }
 
-static int __maybe_unused wsa883x_runtime_suspend(struct device *dev)
+static int wsa883x_runtime_suspend(struct device *dev)
 {
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
 
@@ -1646,7 +1646,7 @@ static int __maybe_unused wsa883x_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused wsa883x_runtime_resume(struct device *dev)
+static int wsa883x_runtime_resume(struct device *dev)
 {
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
 
@@ -1657,7 +1657,7 @@ static int __maybe_unused wsa883x_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops wsa883x_pm_ops = {
-	SET_RUNTIME_PM_OPS(wsa883x_runtime_suspend, wsa883x_runtime_resume, NULL)
+	RUNTIME_PM_OPS(wsa883x_runtime_suspend, wsa883x_runtime_resume, NULL)
 };
 
 static const struct sdw_device_id wsa883x_swr_id[] = {
@@ -1670,7 +1670,7 @@ MODULE_DEVICE_TABLE(sdw, wsa883x_swr_id);
 static struct sdw_driver wsa883x_codec_driver = {
 	.driver = {
 		.name = "wsa883x-codec",
-		.pm = &wsa883x_pm_ops,
+		.pm = pm_ptr(&wsa883x_pm_ops),
 		.suppress_bind_attrs = true,
 	},
 	.probe = wsa883x_probe,

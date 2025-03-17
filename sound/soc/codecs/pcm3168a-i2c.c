@@ -59,7 +59,7 @@ static struct i2c_driver pcm3168a_i2c_driver = {
 		.name	= "pcm3168a",
 		.acpi_match_table = pcm3168a_acpi_match,
 		.of_match_table = pcm3168a_of_match,
-		.pm		= &pcm3168a_pm_ops,
+		.pm		= pm_ptr(&pcm3168a_pm_ops),
 	},
 };
 module_i2c_driver(pcm3168a_i2c_driver);

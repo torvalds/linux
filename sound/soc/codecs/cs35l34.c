@@ -1116,7 +1116,7 @@ static void cs35l34_i2c_remove(struct i2c_client *client)
 		cs35l34->core_supplies);
 }
 
-static int __maybe_unused cs35l34_runtime_resume(struct device *dev)
+static int cs35l34_runtime_resume(struct device *dev)
 {
 	struct cs35l34_private *cs35l34 = dev_get_drvdata(dev);
 	int ret;
@@ -1149,7 +1149,7 @@ err:
 	return ret;
 }
 
-static int __maybe_unused cs35l34_runtime_suspend(struct device *dev)
+static int cs35l34_runtime_suspend(struct device *dev)
 {
 	struct cs35l34_private *cs35l34 = dev_get_drvdata(dev);
 
@@ -1165,9 +1165,7 @@ static int __maybe_unused cs35l34_runtime_suspend(struct device *dev)
 }
 
 static const struct dev_pm_ops cs35l34_pm_ops = {
-	SET_RUNTIME_PM_OPS(cs35l34_runtime_suspend,
-			   cs35l34_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(cs35l34_runtime_suspend, cs35l34_runtime_resume, NULL)
 };
 
 static const struct of_device_id cs35l34_of_match[] = {
@@ -1185,7 +1183,7 @@ MODULE_DEVICE_TABLE(i2c, cs35l34_id);
 static struct i2c_driver cs35l34_i2c_driver = {
 	.driver = {
 		.name = "cs35l34",
-		.pm = &cs35l34_pm_ops,
+		.pm = pm_ptr(&cs35l34_pm_ops),
 		.of_match_table = cs35l34_of_match,
 
 		},

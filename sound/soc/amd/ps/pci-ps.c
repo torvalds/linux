@@ -668,24 +668,24 @@ disable_pci:
 	return ret;
 }
 
-static int __maybe_unused snd_acp_suspend(struct device *dev)
+static int snd_acp_suspend(struct device *dev)
 {
 	return acp_hw_suspend(dev);
 }
 
-static int __maybe_unused snd_acp_runtime_resume(struct device *dev)
+static int snd_acp_runtime_resume(struct device *dev)
 {
 	return acp_hw_runtime_resume(dev);
 }
 
-static int __maybe_unused snd_acp_resume(struct device *dev)
+static int snd_acp_resume(struct device *dev)
 {
 	return acp_hw_resume(dev);
 }
 
 static const struct dev_pm_ops acp63_pm_ops = {
-	SET_RUNTIME_PM_OPS(snd_acp_suspend, snd_acp_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(snd_acp_suspend, snd_acp_resume)
+	RUNTIME_PM_OPS(snd_acp_suspend, snd_acp_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(snd_acp_suspend, snd_acp_resume)
 };
 
 static void snd_acp63_remove(struct pci_dev *pci)
@@ -727,7 +727,7 @@ static struct pci_driver ps_acp63_driver  = {
 	.probe = snd_acp63_probe,
 	.remove = snd_acp63_remove,
 	.driver = {
-		.pm = &acp63_pm_ops,
+		.pm = pm_ptr(&acp63_pm_ops),
 	}
 };
 
