@@ -25,6 +25,7 @@
 #include "subvolume.h"
 #include "trace.h"
 
+#include <linux/random.h>
 #include <linux/sched/mm.h>
 
 #ifdef CONFIG_BCACHEFS_DEBUG
