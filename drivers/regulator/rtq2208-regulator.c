@@ -28,6 +28,8 @@
 #define RTQ2208_REG_LDO2_CFG			0xC1
 #define RTQ2208_REG_LDO_DVS_CTRL		0xD0
 #define RTQ2208_REG_HIDDEN_BUCKPH		0x55
+#define RTQ2208_REG_HIDDEN_LDOCFG0		0x8F
+#define RTQ2208_REG_HIDDEN_LDOCFG1		0x96
 #define RTQ2208_REG_HIDDEN0			0xFE
 #define RTQ2208_REG_HIDDEN1			0xFF
 
@@ -50,6 +52,9 @@
 #define RTQ2208_LDO2_VOSEL_SD_MASK		BIT(7)
 #define RTQ2208_MASK_BUCKPH_GROUP1		GENMASK(6, 4)
 #define RTQ2208_MASK_BUCKPH_GROUP2		GENMASK(2, 0)
+#define RTQ2208_MASK_LDO2_OPT0			BIT(7)
+#define RTQ2208_MASK_LDO2_OPT1			BIT(6)
+#define RTQ2208_MASK_LDO1_FIXED			BIT(6)
 
 /* Size */
 #define RTQ2208_VOUT_MAXNUM			256
@@ -250,11 +255,6 @@ static const unsigned int rtq2208_ldo_volt_table[] = {
 	3300000,
 };
 
-static struct of_regulator_match rtq2208_ldo_match[] = {
-	{.name = "ldo2", },
-	{.name = "ldo1", },
-};
-
 static unsigned int rtq2208_of_map_mode(unsigned int mode)
 {
 	switch (mode) {
@@ -349,59 +349,6 @@ static irqreturn_t rtq2208_irq_handler(int irqno, void *devid)
 	return IRQ_HANDLED;
 }
 
-static int rtq2208_of_get_ldo_dvs_ability(struct device *dev)
-{
-	struct device_node *np;
-	struct of_regulator_match *match;
-	struct regulator_desc *desc;
-	struct regulator_init_data *init_data;
-	u32 fixed_uV;
-	int ret, i;
-
-	if (!dev->of_node)
-		return -ENODEV;
-
-	np = of_get_child_by_name(dev->of_node, "regulators");
-	if (!np)
-		np = dev->of_node;
-
-	ret = of_regulator_match(dev, np, rtq2208_ldo_match, ARRAY_SIZE(rtq2208_ldo_match));
-
-	of_node_put(np);
-
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < ARRAY_SIZE(rtq2208_ldo_match); i++) {
-		match = rtq2208_ldo_match + i;
-		init_data = match->init_data;
-		desc = (struct regulator_desc *)match->desc;
-
-		if (!init_data || !desc)
-			continue;
-
-		/* specify working fixed voltage if the propery exists */
-		ret = of_property_read_u32(match->of_node, "richtek,fixed-microvolt", &fixed_uV);
-
-		if (!ret) {
-			if (fixed_uV != init_data->constraints.min_uV ||
-				fixed_uV != init_data->constraints.max_uV)
-				return -EINVAL;
-			desc->n_voltages = 1;
-			desc->fixed_uV = fixed_uV;
-			desc->fixed_uV = init_data->constraints.min_uV;
-			desc->ops = &rtq2208_regulator_ldo_fix_ops;
-		} else {
-			desc->n_voltages = ARRAY_SIZE(rtq2208_ldo_volt_table);
-			desc->volt_table = rtq2208_ldo_volt_table;
-			desc->ops = &rtq2208_regulator_ldo_adj_ops;
-		}
-	}
-
-	return 0;
-}
-
-
 #define BUCK_INFO(_name, _id)						\
 {									\
 	.name = _name,							\
@@ -429,9 +376,11 @@ static const struct linear_range rtq2208_vout_range[] = {
 	REGULATOR_LINEAR_RANGE(1310000, 181, 255, 10000),
 };
 
-static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, int mtp_sel, int idx)
+static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, int mtp_sel, int idx,
+					unsigned int ldo1_fixed, unsigned int ldo2_fixed)
 {
 	struct regulator_desc *desc;
+	unsigned int fixed_uV;
 	static const struct {
 		char *name;
 		int base;
@@ -467,7 +416,8 @@ static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, in
 
 	rdesc->mode_mask = RTQ2208_BUCK_NRMODE_MASK;
 
-	if (idx >= RTQ2208_BUCK_B && idx <= RTQ2208_BUCK_E) {
+	switch (idx) {
+	case RTQ2208_BUCK_B ... RTQ2208_BUCK_E:
 		/* init buck desc */
 		desc->ops = &rtq2208_regulator_buck_ops;
 		desc->vsel_reg = curr_info->base + VSEL_SHIFT(mtp_sel);
@@ -485,7 +435,19 @@ static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, in
 		rdesc->suspend_config_reg = BUCK_RG_SHIFT(curr_info->base, 4);
 		rdesc->suspend_enable_mask = RTQ2208_BUCK_EN_STR_MASK;
 		rdesc->suspend_mode_mask = RTQ2208_BUCK_STRMODE_MASK;
-	} else {
+		break;
+	default:
+		fixed_uV = idx == RTQ2208_LDO2 ? ldo2_fixed : ldo1_fixed;
+		if (fixed_uV) {
+			desc->n_voltages = 1;
+			desc->fixed_uV = fixed_uV;
+			desc->ops = &rtq2208_regulator_ldo_fix_ops;
+		} else {
+			desc->n_voltages = ARRAY_SIZE(rtq2208_ldo_volt_table);
+			desc->volt_table = rtq2208_ldo_volt_table;
+			desc->ops = &rtq2208_regulator_ldo_adj_ops;
+		}
+
 		/* init ldo desc */
 		desc->active_discharge_reg = RTQ2208_REG_LDO_DVS_CTRL;
 		desc->active_discharge_on = curr_info->dis_on;
@@ -495,13 +457,15 @@ static void rtq2208_init_regulator_desc(struct rtq2208_regulator_desc *rdesc, in
 
 		rdesc->suspend_config_reg = curr_info->base;
 		rdesc->suspend_enable_mask = RTQ2208_LDO_EN_STR_MASK;
+		break;
 	}
 }
 
 static int rtq2208_parse_regulator_dt_data(int n_regulator, const unsigned int *regulator_idx_table,
-		struct rtq2208_regulator_desc *rdesc[RTQ2208_LDO_MAX], struct device *dev)
+		struct rtq2208_regulator_desc *rdesc[RTQ2208_LDO_MAX], struct device *dev,
+		unsigned int ldo1_fixed, unsigned int ldo2_fixed)
 {
-	int mtp_sel, i, idx, ret;
+	int mtp_sel, i, idx;
 
 	/* get mtp_sel0 or mtp_sel1 */
 	mtp_sel = device_property_read_bool(dev, "richtek,mtp-sel-high");
@@ -513,29 +477,21 @@ static int rtq2208_parse_regulator_dt_data(int n_regulator, const unsigned int *
 		if (!rdesc[i])
 			return -ENOMEM;
 
-		rtq2208_init_regulator_desc(rdesc[i], mtp_sel, idx);
-
-		/* init ldo dvs ability */
-		if (idx >= RTQ2208_LDO2)
-			rtq2208_ldo_match[idx - RTQ2208_LDO2].desc = &rdesc[i]->desc;
+		rtq2208_init_regulator_desc(rdesc[i], mtp_sel, idx, ldo1_fixed, ldo2_fixed);
 	}
-
-	/* init ldo fixed_uV */
-	ret = rtq2208_of_get_ldo_dvs_ability(dev);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get ldo fixed_uV\n");
 
 	return 0;
 
 }
 
-static int rtq2208_regulator_check(struct device *dev, int *num,
-				int *regulator_idx_table, unsigned int *buck_masks)
+static int rtq2208_regulator_check(struct device *dev, int *num, int *regulator_idx_table,
+				   unsigned int *buck_masks, unsigned int *ldo1_fixed_uV,
+				   unsigned int *ldo2_fixed_uV)
 {
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
 	bool rtq2208_used_table[RTQ2208_LDO_MAX] = {0};
 	u8 entry_key[] = { 0x69, 0x01 };
-	unsigned int buck_phase;
+	unsigned int buck_phase, ldo_cfg0, ldo_cfg1;
 	int i, ret;
 	u8 mask;
 
@@ -546,6 +502,14 @@ static int rtq2208_regulator_check(struct device *dev, int *num,
 	ret = regmap_read(regmap, RTQ2208_REG_HIDDEN_BUCKPH, &buck_phase);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to read buck phase configuration\n");
+
+	ret = regmap_read(regmap, RTQ2208_REG_HIDDEN_LDOCFG0, &ldo_cfg0);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to read ldo cfg0\n");
+
+	ret = regmap_read(regmap, RTQ2208_REG_HIDDEN_LDOCFG1, &ldo_cfg1);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to read ldo cfg1\n");
 
 	ret = regmap_write(regmap, RTQ2208_REG_HIDDEN1, 0x00);
 	if (ret)
@@ -593,6 +557,16 @@ static int rtq2208_regulator_check(struct device *dev, int *num,
 		break;
 	}
 
+	*ldo1_fixed_uV = FIELD_GET(RTQ2208_MASK_LDO1_FIXED, ldo_cfg1) ? 1200000 : 0;
+
+	if (!FIELD_GET(RTQ2208_MASK_LDO2_OPT0, ldo_cfg0) &&
+	    !FIELD_GET(RTQ2208_MASK_LDO2_OPT1, ldo_cfg1))
+		*ldo2_fixed_uV = 0;
+	else if (FIELD_GET(RTQ2208_MASK_LDO2_OPT1, ldo_cfg1))
+		*ldo2_fixed_uV = 900000;
+	else
+		*ldo2_fixed_uV = 1200000;
+
 	/* By default, LDO1 & LDO2 are always used */
 	rtq2208_used_table[RTQ2208_LDO1] = rtq2208_used_table[RTQ2208_LDO2] = true;
 
@@ -626,6 +600,7 @@ static int rtq2208_probe(struct i2c_client *i2c)
 	int i, ret = 0, idx, n_regulator = 0;
 	unsigned int regulator_idx_table[RTQ2208_LDO_MAX],
 		     buck_masks[RTQ2208_BUCK_NUM_IRQ_REGS] = {0x33, 0x33, 0x33, 0x33, 0x33};
+	unsigned int ldo1_fixed_uV, ldo2_fixed_uV;
 
 	rdev_map = devm_kzalloc(dev, sizeof(struct rtq2208_rdev_map), GFP_KERNEL);
 	if (!rdev_map)
@@ -636,7 +611,8 @@ static int rtq2208_probe(struct i2c_client *i2c)
 		return dev_err_probe(dev, PTR_ERR(regmap), "Failed to allocate regmap\n");
 
 	/* get needed regulator */
-	ret = rtq2208_regulator_check(dev, &n_regulator, regulator_idx_table, buck_masks);
+	ret = rtq2208_regulator_check(dev, &n_regulator, regulator_idx_table, buck_masks,
+				      &ldo1_fixed_uV, &ldo2_fixed_uV);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to check used regulators\n");
 
@@ -646,7 +622,8 @@ static int rtq2208_probe(struct i2c_client *i2c)
 	cfg.dev = dev;
 
 	/* init regulator desc */
-	ret = rtq2208_parse_regulator_dt_data(n_regulator, regulator_idx_table, rdesc, dev);
+	ret = rtq2208_parse_regulator_dt_data(n_regulator, regulator_idx_table, rdesc, dev,
+					      ldo1_fixed_uV, ldo2_fixed_uV);
 	if (ret)
 		return ret;
 
