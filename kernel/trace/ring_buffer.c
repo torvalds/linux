@@ -1949,7 +1949,6 @@ static void rb_meta_validate_events(struct ring_buffer_per_cpu *cpu_buffer)
 static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages, int scratch_size)
 {
 	struct ring_buffer_cpu_meta *meta;
-	struct ring_buffer_meta *bmeta;
 	unsigned long *subbuf_mask;
 	unsigned long delta;
 	void *subbuf;
@@ -1963,8 +1962,6 @@ static void rb_range_meta_init(struct trace_buffer *buffer, int nr_pages, int sc
 
 	if (rb_meta_init(buffer, scratch_size))
 		valid = true;
-
-	bmeta = buffer->meta;
 
 	for (cpu = 0; cpu < nr_cpu_ids; cpu++) {
 		void *next_meta;
