@@ -67,7 +67,7 @@ struct acp_resource acp70_rsrc = {
 };
 EXPORT_SYMBOL_NS_GPL(acp70_rsrc, "SND_SOC_ACP_COMMON");
 
-const struct snd_acp_hw_ops acp_common_hw_ops = {
+static const struct snd_acp_hw_ops acp_common_hw_ops = {
 	/* ACP hardware initilizations */
 	.acp_init = acp_init,
 	.acp_deinit = acp_deinit,
@@ -77,7 +77,6 @@ const struct snd_acp_hw_ops acp_common_hw_ops = {
 	.en_interrupts = acp_enable_interrupts,
 	.dis_interrupts = acp_disable_interrupts,
 };
-EXPORT_SYMBOL_NS_GPL(acp_common_hw_ops, "SND_SOC_ACP_COMMON");
 
 irqreturn_t acp_irq_handler(int irq, void *data)
 {
