@@ -231,6 +231,7 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_csum)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_block_size)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_uuid)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_offset)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_too_many_members)		\
 	x(BCH_ERR_invalid_sb,		invalid_sb_dev_idx)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_time_precision)		\

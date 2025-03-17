@@ -365,7 +365,8 @@ static int bch2_sb_compatible(struct bch_sb *sb, struct printbuf *out)
 	return 0;
 }
 
-int bch2_sb_validate(struct bch_sb *sb, enum bch_validate_flags flags, struct printbuf *out)
+int bch2_sb_validate(struct bch_sb *sb, u64 read_offset,
+		     enum bch_validate_flags flags, struct printbuf *out)
 {
 	struct bch_sb_field_members_v1 *mi;
 	enum bch_opt_id opt_id;
@@ -407,6 +408,13 @@ int bch2_sb_validate(struct bch_sb *sb, enum bch_validate_flags flags, struct pr
 	if (bch2_is_zero(sb->uuid.b, sizeof(sb->uuid))) {
 		prt_printf(out, "Bad internal UUID (got zeroes)");
 		return -BCH_ERR_invalid_sb_uuid;
+	}
+
+	if (!(flags & BCH_VALIDATE_write) &&
+	    le64_to_cpu(sb->offset) != read_offset) {
+		prt_printf(out, "Bad sb offset (got %llu, read from %llu)",
+			   le64_to_cpu(sb->offset), read_offset);
+		return -BCH_ERR_invalid_sb_offset;
 	}
 
 	if (!sb->nr_devices ||
@@ -888,7 +896,7 @@ got_super:
 
 	sb->have_layout = true;
 
-	ret = bch2_sb_validate(sb->sb, 0, &err);
+	ret = bch2_sb_validate(sb->sb, offset, 0, &err);
 	if (ret) {
 		bch2_print_opts(opts, KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
 				path, err.buf);
@@ -1045,7 +1053,7 @@ int bch2_write_super(struct bch_fs *c)
 	darray_for_each(online_devices, ca) {
 		printbuf_reset(&err);
 
-		ret = bch2_sb_validate((*ca)->disk_sb.sb, BCH_VALIDATE_write, &err);
+		ret = bch2_sb_validate((*ca)->disk_sb.sb, 0, BCH_VALIDATE_write, &err);
 		if (ret) {
 			bch2_fs_inconsistent(c, "sb invalid before write: %s", err.buf);
 			goto out;
