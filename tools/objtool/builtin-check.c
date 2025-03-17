@@ -198,7 +198,7 @@ static int copy_file(const char *src, const char *dst)
 		return 1;
 	}
 
-	dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC);
+	dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0400);
 	if (dst_fd == -1) {
 		ERROR("can't open '%s' for writing", dst);
 		return 1;
