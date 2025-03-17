@@ -983,7 +983,6 @@ found:
 	return best;
 }
 
-#ifdef CONFIG_SCHED_DEBUG
 struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *last = rb_last(&cfs_rq->tasks_timeline.rb_root);
@@ -1009,7 +1008,6 @@ int sched_update_scaling(void)
 
 	return 0;
 }
-#endif
 #endif
 
 static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
@@ -13668,7 +13666,6 @@ DEFINE_SCHED_CLASS(fair) = {
 #endif
 };
 
-#ifdef CONFIG_SCHED_DEBUG
 void print_cfs_stats(struct seq_file *m, int cpu)
 {
 	struct cfs_rq *cfs_rq, *pos;
@@ -13702,7 +13699,6 @@ void show_numa_stats(struct task_struct *p, struct seq_file *m)
 	rcu_read_unlock();
 }
 #endif /* CONFIG_NUMA_BALANCING */
-#endif /* CONFIG_SCHED_DEBUG */
 
 __init void init_sched_fair_class(void)
 {

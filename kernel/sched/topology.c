@@ -19,8 +19,6 @@ void sched_domains_mutex_unlock(void)
 static cpumask_var_t sched_domains_tmpmask;
 static cpumask_var_t sched_domains_tmpmask2;
 
-#ifdef CONFIG_SCHED_DEBUG
-
 static int __init sched_debug_setup(char *str)
 {
 	sched_debug_verbose = true;
@@ -159,15 +157,6 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 			break;
 	}
 }
-#else /* !CONFIG_SCHED_DEBUG */
-
-# define sched_debug_verbose 0
-# define sched_domain_debug(sd, cpu) do { } while (0)
-static inline bool sched_debug(void)
-{
-	return false;
-}
-#endif /* CONFIG_SCHED_DEBUG */
 
 /* Generate a mask of SD flags with the SDF_NEEDS_GROUPS metaflag */
 #define SD_FLAG(name, mflags) (name * !!((mflags) & SDF_NEEDS_GROUPS)) |
@@ -2283,9 +2272,7 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 			if (!sgc)
 				return -ENOMEM;
 
-#ifdef CONFIG_SCHED_DEBUG
 			sgc->id = j;
-#endif
 
 			*per_cpu_ptr(sdd->sgc, j) = sgc;
 		}
