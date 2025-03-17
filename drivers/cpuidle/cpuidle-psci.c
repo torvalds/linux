@@ -16,7 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/platform_device.h>
+#include <linux/device/faux.h>
 #include <linux/psci.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
@@ -407,14 +407,14 @@ deinit:
  * to register cpuidle driver then rollback to cancel all CPUs
  * registration.
  */
-static int psci_cpuidle_probe(struct platform_device *pdev)
+static int psci_cpuidle_probe(struct faux_device *fdev)
 {
 	int cpu, ret;
 	struct cpuidle_driver *drv;
 	struct cpuidle_device *dev;
 
 	for_each_present_cpu(cpu) {
-		ret = psci_idle_init_cpu(&pdev->dev, cpu);
+		ret = psci_idle_init_cpu(&fdev->dev, cpu);
 		if (ret)
 			goto out_fail;
 	}
@@ -434,26 +434,18 @@ out_fail:
 	return ret;
 }
 
-static struct platform_driver psci_cpuidle_driver = {
+static struct faux_device_ops psci_cpuidle_ops = {
 	.probe = psci_cpuidle_probe,
-	.driver = {
-		.name = "psci-cpuidle",
-	},
 };
 
 static int __init psci_idle_init(void)
 {
-	struct platform_device *pdev;
-	int ret;
+	struct faux_device *fdev;
 
-	ret = platform_driver_register(&psci_cpuidle_driver);
-	if (ret)
-		return ret;
-
-	pdev = platform_device_register_simple("psci-cpuidle", -1, NULL, 0);
-	if (IS_ERR(pdev)) {
-		platform_driver_unregister(&psci_cpuidle_driver);
-		return PTR_ERR(pdev);
+	fdev = faux_device_create("psci-cpuidle", NULL, &psci_cpuidle_ops);
+	if (!fdev) {
+		pr_err("Failed to create psci-cpuidle device\n");
+		return -ENODEV;
 	}
 
 	return 0;
