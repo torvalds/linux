@@ -421,7 +421,7 @@ static bool efivarfs_actor(struct dir_context *ctx, const char *name, int len,
 	if (err)
 		size = 0;
 
-	inode_lock(inode);
+	inode_lock_nested(inode, I_MUTEX_CHILD);
 	i_size_write(inode, size);
 	inode_unlock(inode);
 
