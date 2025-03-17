@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2018, 2021 Intel Corporation
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/dongwoon,dw9800-vcm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Dongwoon Anatech DW9800 Voice Coil Motor (VCM) Lens
+
+maintainers:
+  - Vitalii Skorkin <nikroksm@mail.ru>
+
+description: |
+  The Dongwoon DW9800 is a 10-bit DAC with current sink capability. It is intended for
+  controlling voice coil lenses in camera modules.
+
+properties:
+  compatible:
+    const: dongwoon,dw9800
+
+  reg:
+    maxItems: 1
+
+  vin-supply:
+    description:
+      Definition of the regulator used as Digital I/O voltage supply.
+
+  vdd-supply:
+    description:
+      Definition of the regulator used as Digital core voltage supply.
+
+  dongwoon,sac-mode:
+    description:
+      Indication of SAC mode select.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0    #  SAC2 mode
+      - 1    #  SAC3 mode
+      - 2    #  SAC4 mode
+      - 3    #  SAC5 mode
+    default: 1
+
+  dongwoon,sac-timing:
+    description:
+      Number of SAC Timing count that controlled by one 6-bit period of
+      vibration register AACT[5:0], the unit of which is 100 us.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0x25
+    minimum: 0x00
+    maximum: 0x3f
+
+  dongwoon,clock-presc:
+    description:
+      Indication of VCM internal clock dividing rate select, as one multiple
+      factor to calculate VCM ring periodic time Tvib.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0    #  Dividing Rate -  2
+      - 1    #  Dividing Rate -  1
+      - 2    #  Dividing Rate -  1/2
+      - 3    #  Dividing Rate -  1/4
+      - 4    #  Dividing Rate -  8
+      - 5    #  Dividing Rate -  4
+    default: 1
+
+required:
+  - compatible
+  - reg
+  - vin-supply
+  - vdd-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        dw9800: camera-lens@c {
+            compatible = "dongwoon,dw9800";
+            reg = <0x0c>;
+
+            vin-supply = <&vreg_l5c_1p8>;
+            vdd-supply = <&vreg_l7c_2p85>;
+        };
+    };
+...
