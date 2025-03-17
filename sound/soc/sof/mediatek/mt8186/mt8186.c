@@ -660,7 +660,7 @@ static struct platform_driver snd_sof_of_mt8186_driver = {
 	.shutdown = sof_of_shutdown,
 	.driver = {
 	.name = "sof-audio-of-mt8186",
-		.pm = &sof_of_pm,
+		.pm = pm_ptr(&sof_of_pm),
 		.of_match_table = sof_of_mt8186_ids,
 	},
 };
