@@ -220,7 +220,7 @@ static const struct regmap_config tegra186_admaif_regmap_config = {
 	.cache_type		= REGCACHE_FLAT,
 };
 
-static int __maybe_unused tegra_admaif_runtime_suspend(struct device *dev)
+static int tegra_admaif_runtime_suspend(struct device *dev)
 {
 	struct tegra_admaif *admaif = dev_get_drvdata(dev);
 
@@ -230,7 +230,7 @@ static int __maybe_unused tegra_admaif_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tegra_admaif_runtime_resume(struct device *dev)
+static int tegra_admaif_runtime_resume(struct device *dev)
 {
 	struct tegra_admaif *admaif = dev_get_drvdata(dev);
 
@@ -877,10 +877,9 @@ static void tegra_admaif_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops tegra_admaif_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra_admaif_runtime_suspend,
-			   tegra_admaif_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(tegra_admaif_runtime_suspend,
+		       tegra_admaif_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver tegra_admaif_driver = {
@@ -889,7 +888,7 @@ static struct platform_driver tegra_admaif_driver = {
 	.driver = {
 		.name = "tegra210-admaif",
 		.of_match_table = tegra_admaif_of_match,
-		.pm = &tegra_admaif_pm_ops,
+		.pm = pm_ptr(&tegra_admaif_pm_ops),
 	},
 };
 module_platform_driver(tegra_admaif_driver);
