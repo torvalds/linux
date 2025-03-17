@@ -2406,28 +2406,26 @@ int serial8250_do_startup(struct uart_port *port)
 	 * test if we receive TX irq.  This way, we'll never enable
 	 * UART_BUG_TXEN.
 	 */
-	if (up->port.quirks & UPQ_NO_TXEN_TEST)
-		goto dont_test_tx_en;
+	if (!(up->port.quirks & UPQ_NO_TXEN_TEST)) {
+		/*
+		 * Do a quick test to see if we receive an interrupt when we
+		 * enable the TX irq.
+		 */
+		serial_port_out(port, UART_IER, UART_IER_THRI);
+		lsr = serial_port_in(port, UART_LSR);
+		iir = serial_port_in(port, UART_IIR);
+		serial_port_out(port, UART_IER, 0);
 
-	/*
-	 * Do a quick test to see if we receive an interrupt when we enable
-	 * the TX irq.
-	 */
-	serial_port_out(port, UART_IER, UART_IER_THRI);
-	lsr = serial_port_in(port, UART_LSR);
-	iir = serial_port_in(port, UART_IIR);
-	serial_port_out(port, UART_IER, 0);
-
-	if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT) {
-		if (!(up->bugs & UART_BUG_TXEN)) {
-			up->bugs |= UART_BUG_TXEN;
-			dev_dbg(port->dev, "enabling bad tx status workarounds\n");
+		if (lsr & UART_LSR_TEMT && iir & UART_IIR_NO_INT) {
+			if (!(up->bugs & UART_BUG_TXEN)) {
+				up->bugs |= UART_BUG_TXEN;
+				dev_dbg(port->dev, "enabling bad tx status workarounds\n");
+			}
+		} else {
+			up->bugs &= ~UART_BUG_TXEN;
 		}
-	} else {
-		up->bugs &= ~UART_BUG_TXEN;
 	}
 
-dont_test_tx_en:
 	uart_port_unlock_irqrestore(port, flags);
 
 	/*
