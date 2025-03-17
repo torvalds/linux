@@ -81,14 +81,6 @@
 #define ECHO_BLOCK		256
 #define ECHO_DISCARD_WATERMARK	N_TTY_BUF_SIZE - (ECHO_BLOCK + 32)
 
-
-#undef N_TTY_TRACE
-#ifdef N_TTY_TRACE
-# define n_tty_trace(f, args...)	trace_printk(f, ##args)
-#else
-# define n_tty_trace(f, args...)	no_printk(f, ##args)
-#endif
-
 struct n_tty_data {
 	/* producer-published */
 	size_t read_head;
@@ -2026,9 +2018,6 @@ static bool canon_copy_from_read_buf(const struct tty_struct *tty, u8 **kbp,
 	tail = MASK(ldata->read_tail);
 	size = min_t(size_t, tail + n, N_TTY_BUF_SIZE);
 
-	n_tty_trace("%s: nr:%zu tail:%zu n:%zu size:%zu\n",
-		    __func__, *nr, tail, n, size);
-
 	eol = find_next_bit(ldata->read_flags, size, tail);
 	more = n - (size - tail);
 	if (eol == N_TTY_BUF_SIZE && more) {
@@ -2045,9 +2034,6 @@ static bool canon_copy_from_read_buf(const struct tty_struct *tty, u8 **kbp,
 
 	if (!found || read_buf(ldata, eol) != __DISABLED_CHAR)
 		n = c;
-
-	n_tty_trace("%s: eol:%zu found:%d n:%zu c:%zu tail:%zu more:%zu\n",
-		    __func__, eol, found, n, c, tail, more);
 
 	tty_copy(tty, *kbp, tail, n);
 	*kbp += n;
