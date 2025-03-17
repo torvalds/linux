@@ -909,8 +909,14 @@
 			      <0x10000f20 0xa8>,
 			      <0x10001000 0x1000>,
 			      <0x000f8000 0x4000>,
-			      <0x10100000 0x1000>;
-			reg-names = "dbi", "elbi", "atu", "parf", "config";
+			      <0x10100000 0x1000>,
+			      <0x000fe000 0x1000>;
+			reg-names = "dbi",
+				    "elbi",
+				    "atu",
+				    "parf",
+				    "config",
+				    "mhi";
 			device_type = "pci";
 			linux,pci-domain = <1>;
 			bus-range = <0x00 0xff>;
@@ -989,8 +995,14 @@
 			      <0x18000f20 0xa8>,
 			      <0x18001000 0x1000>,
 			      <0x000f0000 0x4000>,
-			      <0x18100000 0x1000>;
-			reg-names = "dbi", "elbi", "atu", "parf", "config";
+			      <0x18100000 0x1000>,
+			      <0x000f6000 0x1000>;
+			reg-names = "dbi",
+				    "elbi",
+				    "atu",
+				    "parf",
+				    "config",
+				    "mhi";
 			device_type = "pci";
 			linux,pci-domain = <3>;
 			bus-range = <0x00 0xff>;
@@ -1069,8 +1081,14 @@
 			      <0x20000f20 0xa8>,
 			      <0x20001000 0x1000>,
 			      <0x00088000 0x4000>,
-			      <0x20100000 0x1000>;
-			reg-names = "dbi", "elbi", "atu", "parf", "config";
+			      <0x20100000 0x1000>,
+			      <0x0008e000 0x1000>;
+			reg-names = "dbi",
+				    "elbi",
+				    "atu",
+				    "parf",
+				    "config",
+				    "mhi";
 			device_type = "pci";
 			linux,pci-domain = <2>;
 			bus-range = <0x00 0xff>;
@@ -1149,8 +1167,14 @@
 			      <0x28000f20 0xa8>,
 			      <0x28001000 0x1000>,
 			      <0x00080000 0x4000>,
-			      <0x28100000 0x1000>;
-			reg-names = "dbi", "elbi", "atu", "parf", "config";
+			      <0x28100000 0x1000>,
+			      <0x00086000 0x1000>;
+			reg-names = "dbi",
+				    "elbi",
+				    "atu",
+				    "parf",
+				    "config",
+				    "mhi";
 			device_type = "pci";
 			linux,pci-domain = <0>;
 			bus-range = <0x00 0xff>;
