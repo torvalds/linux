@@ -1462,6 +1462,15 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 	hrtimer_init(&vcpu->arch.swtimer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED_HARD);
 	vcpu->arch.swtimer.function = kvm_swtimer_wakeup;
 
+	/* Get GPA (=HVA) of PGD for kvm hypervisor */
+	vcpu->arch.kvm_pgd = __pa(vcpu->kvm->arch.pgd);
+
+	/*
+	 * Get PGD for primary mmu, virtual address is used since there is
+	 * memory access after loading from CSR_PGD in tlb exception fast path.
+	 */
+	vcpu->arch.host_pgd = (unsigned long)vcpu->kvm->mm->pgd;
+
 	vcpu->arch.handle_exit = kvm_handle_exit;
 	vcpu->arch.guest_eentry = (unsigned long)kvm_loongarch_ops->exc_entry;
 	vcpu->arch.csr = kzalloc(sizeof(struct loongarch_csrs), GFP_KERNEL);

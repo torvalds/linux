@@ -176,6 +176,9 @@ struct kvm_vcpu_arch {
 	/* Pointers stored here for easy accessing from assembly code */
 	int (*handle_exit)(struct kvm_run *run, struct kvm_vcpu *vcpu);
 
+	/* GPA (=HVA) of PGD for secondary mmu */
+	unsigned long kvm_pgd;
+
 	/* Host registers preserved across guest mode execution */
 	unsigned long host_sp;
 	unsigned long host_tp;
