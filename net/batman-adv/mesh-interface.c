@@ -4,7 +4,7 @@
  * Marek Lindner, Simon Wunderlich
  */
 
-#include "soft-interface.h"
+#include "mesh-interface.h"
 #include "main.h"
 
 #include <linux/atomic.h>
@@ -91,7 +91,7 @@ static int batadv_interface_release(struct net_device *dev)
 
 /**
  * batadv_sum_counter() - Sum the cpu-local counters for index 'idx'
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  * @idx: index of counter to sum up
  *
  * Return: sum of all cpu-local counters
@@ -125,7 +125,7 @@ static struct net_device_stats *batadv_interface_stats(struct net_device *dev)
 static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
-	struct batadv_softif_vlan *vlan;
+	struct batadv_meshif_vlan *vlan;
 	struct sockaddr *addr = p;
 	u8 old_addr[ETH_ALEN];
 
@@ -140,7 +140,7 @@ static int batadv_interface_set_mac_addr(struct net_device *dev, void *p)
 		return 0;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(vlan, &bat_priv->softif_vlan_list, list) {
+	hlist_for_each_entry_rcu(vlan, &bat_priv->meshif_vlan_list, list) {
 		batadv_tt_local_remove(bat_priv, old_addr, vlan->vid,
 				       "mac address changed", false);
 		batadv_tt_local_add(dev, addr->sa_data, vlan->vid,
@@ -170,7 +170,7 @@ static int batadv_interface_change_mtu(struct net_device *dev, int new_mtu)
  * @dev: registered network device to modify
  *
  * We do not actually need to set any rx filters for the virtual batman
- * soft interface. However a dummy handler enables a user to set static
+ * mesh interface. However a dummy handler enables a user to set static
  * multicast listeners for instance.
  */
 static void batadv_interface_set_rx_mode(struct net_device *dev)
@@ -178,10 +178,10 @@ static void batadv_interface_set_rx_mode(struct net_device *dev)
 }
 
 static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
-				       struct net_device *soft_iface)
+				       struct net_device *mesh_iface)
 {
 	struct ethhdr *ethhdr;
-	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(mesh_iface);
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_bcast_packet *bcast_packet;
 	static const u8 stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00,
@@ -209,7 +209,7 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 	/* reset control block to avoid left overs from previous users */
 	memset(skb->cb, 0, sizeof(struct batadv_skb_cb));
 
-	netif_trans_update(soft_iface);
+	netif_trans_update(mesh_iface);
 	vid = batadv_get_vid(skb, 0);
 
 	skb_reset_mac_header(skb);
@@ -246,7 +246,7 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 	/* Register the client MAC in the transtable */
 	if (!is_multicast_ether_addr(ethhdr->h_source) &&
 	    !batadv_bla_is_loopdetect_mac(ethhdr->h_source)) {
-		client_added = batadv_tt_local_add(soft_iface, ethhdr->h_source,
+		client_added = batadv_tt_local_add(mesh_iface, ethhdr->h_source,
 						   vid, skb->skb_iif,
 						   skb->mark);
 		if (!client_added)
@@ -397,12 +397,12 @@ end:
 
 /**
  * batadv_interface_rx() - receive ethernet frame on local batman-adv interface
- * @soft_iface: local interface which will receive the ethernet frame
- * @skb: ethernet frame for @soft_iface
+ * @mesh_iface: local interface which will receive the ethernet frame
+ * @skb: ethernet frame for @mesh_iface
  * @hdr_size: size of already parsed batman-adv header
  * @orig_node: originator from which the batman-adv packet was sent
  *
- * Sends an ethernet frame to the receive path of the local @soft_iface.
+ * Sends an ethernet frame to the receive path of the local @mesh_iface.
  * skb->data has still point to the batman-adv header with the size @hdr_size.
  * The caller has to have parsed this header already and made sure that at least
  * @hdr_size bytes are still available for pull in @skb.
@@ -412,12 +412,12 @@ end:
  * unicast packets will be dropped directly when it was sent between two
  * isolated clients.
  */
-void batadv_interface_rx(struct net_device *soft_iface,
+void batadv_interface_rx(struct net_device *mesh_iface,
 			 struct sk_buff *skb, int hdr_size,
 			 struct batadv_orig_node *orig_node)
 {
 	struct batadv_bcast_packet *batadv_bcast_packet;
-	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(mesh_iface);
 	struct vlan_ethhdr *vhdr;
 	struct ethhdr *ethhdr;
 	unsigned short vid;
@@ -457,7 +457,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	}
 
 	/* skb->dev & skb->pkt_type are set here */
-	skb->protocol = eth_type_trans(skb, soft_iface);
+	skb->protocol = eth_type_trans(skb, mesh_iface);
 	skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_RX);
@@ -502,38 +502,38 @@ out:
 }
 
 /**
- * batadv_softif_vlan_release() - release vlan from lists and queue for free
+ * batadv_meshif_vlan_release() - release vlan from lists and queue for free
  *  after rcu grace period
  * @ref: kref pointer of the vlan object
  */
-void batadv_softif_vlan_release(struct kref *ref)
+void batadv_meshif_vlan_release(struct kref *ref)
 {
-	struct batadv_softif_vlan *vlan;
+	struct batadv_meshif_vlan *vlan;
 
-	vlan = container_of(ref, struct batadv_softif_vlan, refcount);
+	vlan = container_of(ref, struct batadv_meshif_vlan, refcount);
 
-	spin_lock_bh(&vlan->bat_priv->softif_vlan_list_lock);
+	spin_lock_bh(&vlan->bat_priv->meshif_vlan_list_lock);
 	hlist_del_rcu(&vlan->list);
-	spin_unlock_bh(&vlan->bat_priv->softif_vlan_list_lock);
+	spin_unlock_bh(&vlan->bat_priv->meshif_vlan_list_lock);
 
 	kfree_rcu(vlan, rcu);
 }
 
 /**
- * batadv_softif_vlan_get() - get the vlan object for a specific vid
- * @bat_priv: the bat priv with all the soft interface information
+ * batadv_meshif_vlan_get() - get the vlan object for a specific vid
+ * @bat_priv: the bat priv with all the mesh interface information
  * @vid: the identifier of the vlan object to retrieve
  *
  * Return: the private data of the vlan matching the vid passed as argument or
  * NULL otherwise. The refcounter of the returned object is incremented by 1.
  */
-struct batadv_softif_vlan *batadv_softif_vlan_get(struct batadv_priv *bat_priv,
+struct batadv_meshif_vlan *batadv_meshif_vlan_get(struct batadv_priv *bat_priv,
 						  unsigned short vid)
 {
-	struct batadv_softif_vlan *vlan_tmp, *vlan = NULL;
+	struct batadv_meshif_vlan *vlan_tmp, *vlan = NULL;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(vlan_tmp, &bat_priv->softif_vlan_list, list) {
+	hlist_for_each_entry_rcu(vlan_tmp, &bat_priv->meshif_vlan_list, list) {
 		if (vlan_tmp->vid != vid)
 			continue;
 
@@ -549,28 +549,28 @@ struct batadv_softif_vlan *batadv_softif_vlan_get(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_softif_create_vlan() - allocate the needed resources for a new vlan
- * @bat_priv: the bat priv with all the soft interface information
+ * batadv_meshif_create_vlan() - allocate the needed resources for a new vlan
+ * @bat_priv: the bat priv with all the mesh interface information
  * @vid: the VLAN identifier
  *
  * Return: 0 on success, a negative error otherwise.
  */
-int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
+int batadv_meshif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 {
-	struct batadv_softif_vlan *vlan;
+	struct batadv_meshif_vlan *vlan;
 
-	spin_lock_bh(&bat_priv->softif_vlan_list_lock);
+	spin_lock_bh(&bat_priv->meshif_vlan_list_lock);
 
-	vlan = batadv_softif_vlan_get(bat_priv, vid);
+	vlan = batadv_meshif_vlan_get(bat_priv, vid);
 	if (vlan) {
-		batadv_softif_vlan_put(vlan);
-		spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
+		batadv_meshif_vlan_put(vlan);
+		spin_unlock_bh(&bat_priv->meshif_vlan_list_lock);
 		return -EEXIST;
 	}
 
 	vlan = kzalloc(sizeof(*vlan), GFP_ATOMIC);
 	if (!vlan) {
-		spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
+		spin_unlock_bh(&bat_priv->meshif_vlan_list_lock);
 		return -ENOMEM;
 	}
 
@@ -581,37 +581,37 @@ int batadv_softif_create_vlan(struct batadv_priv *bat_priv, unsigned short vid)
 	atomic_set(&vlan->ap_isolation, 0);
 
 	kref_get(&vlan->refcount);
-	hlist_add_head_rcu(&vlan->list, &bat_priv->softif_vlan_list);
-	spin_unlock_bh(&bat_priv->softif_vlan_list_lock);
+	hlist_add_head_rcu(&vlan->list, &bat_priv->meshif_vlan_list);
+	spin_unlock_bh(&bat_priv->meshif_vlan_list_lock);
 
 	/* add a new TT local entry. This one will be marked with the NOPURGE
 	 * flag
 	 */
-	batadv_tt_local_add(bat_priv->soft_iface,
-			    bat_priv->soft_iface->dev_addr, vid,
+	batadv_tt_local_add(bat_priv->mesh_iface,
+			    bat_priv->mesh_iface->dev_addr, vid,
 			    BATADV_NULL_IFINDEX, BATADV_NO_MARK);
 
-	/* don't return reference to new softif_vlan */
-	batadv_softif_vlan_put(vlan);
+	/* don't return reference to new meshif_vlan */
+	batadv_meshif_vlan_put(vlan);
 
 	return 0;
 }
 
 /**
- * batadv_softif_destroy_vlan() - remove and destroy a softif_vlan object
- * @bat_priv: the bat priv with all the soft interface information
+ * batadv_meshif_destroy_vlan() - remove and destroy a meshif_vlan object
+ * @bat_priv: the bat priv with all the mesh interface information
  * @vlan: the object to remove
  */
-static void batadv_softif_destroy_vlan(struct batadv_priv *bat_priv,
-				       struct batadv_softif_vlan *vlan)
+static void batadv_meshif_destroy_vlan(struct batadv_priv *bat_priv,
+				       struct batadv_meshif_vlan *vlan)
 {
 	/* explicitly remove the associated TT local entry because it is marked
 	 * with the NOPURGE flag
 	 */
-	batadv_tt_local_remove(bat_priv, bat_priv->soft_iface->dev_addr,
+	batadv_tt_local_remove(bat_priv, bat_priv->mesh_iface->dev_addr,
 			       vlan->vid, "vlan interface destroyed", false);
 
-	batadv_softif_vlan_put(vlan);
+	batadv_meshif_vlan_put(vlan);
 }
 
 /**
@@ -629,7 +629,7 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 				    unsigned short vid)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
-	struct batadv_softif_vlan *vlan;
+	struct batadv_meshif_vlan *vlan;
 
 	/* only 802.1Q vlans are supported.
 	 * batman-adv does not know how to handle other types
@@ -648,21 +648,21 @@ static int batadv_interface_add_vid(struct net_device *dev, __be16 proto,
 	vid |= BATADV_VLAN_HAS_TAG;
 
 	/* if a new vlan is getting created and it already exists, it means that
-	 * it was not deleted yet. batadv_softif_vlan_get() increases the
+	 * it was not deleted yet. batadv_meshif_vlan_get() increases the
 	 * refcount in order to revive the object.
 	 *
 	 * if it does not exist then create it.
 	 */
-	vlan = batadv_softif_vlan_get(bat_priv, vid);
+	vlan = batadv_meshif_vlan_get(bat_priv, vid);
 	if (!vlan)
-		return batadv_softif_create_vlan(bat_priv, vid);
+		return batadv_meshif_create_vlan(bat_priv, vid);
 
 	/* add a new TT local entry. This one will be marked with the NOPURGE
 	 * flag. This must be added again, even if the vlan object already
 	 * exists, because the entry was deleted by kill_vid()
 	 */
-	batadv_tt_local_add(bat_priv->soft_iface,
-			    bat_priv->soft_iface->dev_addr, vid,
+	batadv_tt_local_add(bat_priv->mesh_iface,
+			    bat_priv->mesh_iface->dev_addr, vid,
 			    BATADV_NULL_IFINDEX, BATADV_NO_MARK);
 
 	return 0;
@@ -684,7 +684,7 @@ static int batadv_interface_kill_vid(struct net_device *dev, __be16 proto,
 				     unsigned short vid)
 {
 	struct batadv_priv *bat_priv = netdev_priv(dev);
-	struct batadv_softif_vlan *vlan;
+	struct batadv_meshif_vlan *vlan;
 
 	/* only 802.1Q vlans are supported. batman-adv does not know how to
 	 * handle other types
@@ -693,19 +693,19 @@ static int batadv_interface_kill_vid(struct net_device *dev, __be16 proto,
 		return -EINVAL;
 
 	/* "priority tag" frames are handled like "untagged" frames
-	 * and no softif_vlan needs to be destroyed
+	 * and no meshif_vlan needs to be destroyed
 	 */
 	if (vid == 0)
 		return 0;
 
-	vlan = batadv_softif_vlan_get(bat_priv, vid | BATADV_VLAN_HAS_TAG);
+	vlan = batadv_meshif_vlan_get(bat_priv, vid | BATADV_VLAN_HAS_TAG);
 	if (!vlan)
 		return -ENOENT;
 
-	batadv_softif_destroy_vlan(bat_priv, vlan);
+	batadv_meshif_destroy_vlan(bat_priv, vlan);
 
 	/* finally free the vlan object */
-	batadv_softif_vlan_put(vlan);
+	batadv_meshif_vlan_put(vlan);
 
 	return 0;
 }
@@ -741,12 +741,12 @@ static void batadv_set_lockdep_class(struct net_device *dev)
 }
 
 /**
- * batadv_softif_init_late() - late stage initialization of soft interface
+ * batadv_meshif_init_late() - late stage initialization of mesh interface
  * @dev: registered network device to modify
  *
  * Return: error code on failures
  */
-static int batadv_softif_init_late(struct net_device *dev)
+static int batadv_meshif_init_late(struct net_device *dev)
 {
 	struct batadv_priv *bat_priv;
 	u32 random_seqno;
@@ -756,7 +756,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 	batadv_set_lockdep_class(dev);
 
 	bat_priv = netdev_priv(dev);
-	bat_priv->soft_iface = dev;
+	bat_priv->mesh_iface = dev;
 
 	/* batadv_interface_stats() needs to be available as soon as
 	 * register_netdevice() has been called
@@ -790,7 +790,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 	atomic_set(&bat_priv->log_level, 0);
 #endif
 	atomic_set(&bat_priv->fragmentation, 1);
-	atomic_set(&bat_priv->packet_size_max, ETH_DATA_LEN);
+	atomic_set(&bat_priv->packet_size_max, BATADV_MAX_MTU);
 	atomic_set(&bat_priv->bcast_queue_left, BATADV_BCAST_QUEUE_LEN);
 	atomic_set(&bat_priv->batman_queue_left, BATADV_BATMAN_QUEUE_LEN);
 
@@ -837,14 +837,14 @@ free_bat_counters:
 }
 
 /**
- * batadv_softif_slave_add() - Add a slave interface to a batadv_soft_interface
- * @dev: batadv_soft_interface used as master interface
+ * batadv_meshif_slave_add() - Add a slave interface to a batadv_mesh_interface
+ * @dev: batadv_mesh_interface used as master interface
  * @slave_dev: net_device which should become the slave interface
  * @extack: extended ACK report struct
  *
  * Return: 0 if successful or error otherwise.
  */
-static int batadv_softif_slave_add(struct net_device *dev,
+static int batadv_meshif_slave_add(struct net_device *dev,
 				   struct net_device *slave_dev,
 				   struct netlink_ext_ack *extack)
 {
@@ -852,7 +852,7 @@ static int batadv_softif_slave_add(struct net_device *dev,
 	int ret = -EINVAL;
 
 	hard_iface = batadv_hardif_get_by_netdev(slave_dev);
-	if (!hard_iface || hard_iface->soft_iface)
+	if (!hard_iface || hard_iface->mesh_iface)
 		goto out;
 
 	ret = batadv_hardif_enable_interface(hard_iface, dev);
@@ -863,13 +863,13 @@ out:
 }
 
 /**
- * batadv_softif_slave_del() - Delete a slave iface from a batadv_soft_interface
- * @dev: batadv_soft_interface used as master interface
+ * batadv_meshif_slave_del() - Delete a slave iface from a batadv_mesh_interface
+ * @dev: batadv_mesh_interface used as master interface
  * @slave_dev: net_device which should be removed from the master interface
  *
  * Return: 0 if successful or error otherwise.
  */
-static int batadv_softif_slave_del(struct net_device *dev,
+static int batadv_meshif_slave_del(struct net_device *dev,
 				   struct net_device *slave_dev)
 {
 	struct batadv_hard_iface *hard_iface;
@@ -877,7 +877,7 @@ static int batadv_softif_slave_del(struct net_device *dev,
 
 	hard_iface = batadv_hardif_get_by_netdev(slave_dev);
 
-	if (!hard_iface || hard_iface->soft_iface != dev)
+	if (!hard_iface || hard_iface->mesh_iface != dev)
 		goto out;
 
 	batadv_hardif_disable_interface(hard_iface);
@@ -889,7 +889,7 @@ out:
 }
 
 static const struct net_device_ops batadv_netdev_ops = {
-	.ndo_init = batadv_softif_init_late,
+	.ndo_init = batadv_meshif_init_late,
 	.ndo_open = batadv_interface_open,
 	.ndo_stop = batadv_interface_release,
 	.ndo_get_stats = batadv_interface_stats,
@@ -900,8 +900,8 @@ static const struct net_device_ops batadv_netdev_ops = {
 	.ndo_set_rx_mode = batadv_interface_set_rx_mode,
 	.ndo_start_xmit = batadv_interface_tx,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_add_slave = batadv_softif_slave_add,
-	.ndo_del_slave = batadv_softif_slave_del,
+	.ndo_add_slave = batadv_meshif_slave_add,
+	.ndo_del_slave = batadv_meshif_slave_del,
 };
 
 static void batadv_get_drvinfo(struct net_device *dev,
@@ -1009,10 +1009,10 @@ static const struct ethtool_ops batadv_ethtool_ops = {
 };
 
 /**
- * batadv_softif_free() - Deconstructor of batadv_soft_interface
+ * batadv_meshif_free() - Deconstructor of batadv_mesh_interface
  * @dev: Device to cleanup and remove
  */
-static void batadv_softif_free(struct net_device *dev)
+static void batadv_meshif_free(struct net_device *dev)
 {
 	batadv_mesh_free(dev);
 
@@ -1024,16 +1024,16 @@ static void batadv_softif_free(struct net_device *dev)
 }
 
 /**
- * batadv_softif_init_early() - early stage initialization of soft interface
+ * batadv_meshif_init_early() - early stage initialization of mesh interface
  * @dev: registered network device to modify
  */
-static void batadv_softif_init_early(struct net_device *dev)
+static void batadv_meshif_init_early(struct net_device *dev)
 {
 	ether_setup(dev);
 
 	dev->netdev_ops = &batadv_netdev_ops;
 	dev->needs_free_netdev = true;
-	dev->priv_destructor = batadv_softif_free;
+	dev->priv_destructor = batadv_meshif_free;
 	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->lltx = true;
@@ -1043,6 +1043,7 @@ static void batadv_softif_init_early(struct net_device *dev)
 	 * have not been initialized yet
 	 */
 	dev->mtu = ETH_DATA_LEN;
+	dev->max_mtu = BATADV_MAX_MTU;
 
 	/* generate random address */
 	eth_hw_addr_random(dev);
@@ -1051,14 +1052,14 @@ static void batadv_softif_init_early(struct net_device *dev)
 }
 
 /**
- * batadv_softif_validate() - validate configuration of new batadv link
+ * batadv_meshif_validate() - validate configuration of new batadv link
  * @tb: IFLA_INFO_DATA netlink attributes
  * @data: enum batadv_ifla_attrs attributes
  * @extack: extended ACK report struct
  *
  * Return: 0 if successful or error otherwise.
  */
-static int batadv_softif_validate(struct nlattr *tb[], struct nlattr *data[],
+static int batadv_meshif_validate(struct nlattr *tb[], struct nlattr *data[],
 				  struct netlink_ext_ack *extack)
 {
 	struct batadv_algo_ops *algo_ops;
@@ -1076,14 +1077,14 @@ static int batadv_softif_validate(struct nlattr *tb[], struct nlattr *data[],
 }
 
 /**
- * batadv_softif_newlink() - pre-initialize and register new batadv link
+ * batadv_meshif_newlink() - pre-initialize and register new batadv link
  * @dev: network device to register
  * @params: rtnl newlink parameters
  * @extack: extended ACK report struct
  *
  * Return: 0 if successful or error otherwise.
  */
-static int batadv_softif_newlink(struct net_device *dev,
+static int batadv_meshif_newlink(struct net_device *dev,
 				 struct rtnl_newlink_params *params,
 				 struct netlink_ext_ack *extack)
 {
@@ -1103,40 +1104,40 @@ static int batadv_softif_newlink(struct net_device *dev,
 }
 
 /**
- * batadv_softif_destroy_netlink() - deletion of batadv_soft_interface via
+ * batadv_meshif_destroy_netlink() - deletion of batadv_mesh_interface via
  *  netlink
- * @soft_iface: the to-be-removed batman-adv interface
+ * @mesh_iface: the to-be-removed batman-adv interface
  * @head: list pointer
  */
-static void batadv_softif_destroy_netlink(struct net_device *soft_iface,
+static void batadv_meshif_destroy_netlink(struct net_device *mesh_iface,
 					  struct list_head *head)
 {
-	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(mesh_iface);
 	struct batadv_hard_iface *hard_iface;
-	struct batadv_softif_vlan *vlan;
+	struct batadv_meshif_vlan *vlan;
 
 	list_for_each_entry(hard_iface, &batadv_hardif_list, list) {
-		if (hard_iface->soft_iface == soft_iface)
+		if (hard_iface->mesh_iface == mesh_iface)
 			batadv_hardif_disable_interface(hard_iface);
 	}
 
 	/* destroy the "untagged" VLAN */
-	vlan = batadv_softif_vlan_get(bat_priv, BATADV_NO_FLAGS);
+	vlan = batadv_meshif_vlan_get(bat_priv, BATADV_NO_FLAGS);
 	if (vlan) {
-		batadv_softif_destroy_vlan(bat_priv, vlan);
-		batadv_softif_vlan_put(vlan);
+		batadv_meshif_destroy_vlan(bat_priv, vlan);
+		batadv_meshif_vlan_put(vlan);
 	}
 
-	unregister_netdevice_queue(soft_iface, head);
+	unregister_netdevice_queue(mesh_iface, head);
 }
 
 /**
- * batadv_softif_is_valid() - Check whether device is a batadv soft interface
+ * batadv_meshif_is_valid() - Check whether device is a batadv mesh interface
  * @net_dev: device which should be checked
  *
  * Return: true when net_dev is a batman-adv interface, false otherwise
  */
-bool batadv_softif_is_valid(const struct net_device *net_dev)
+bool batadv_meshif_is_valid(const struct net_device *net_dev)
 {
 	if (net_dev->netdev_ops->ndo_start_xmit == batadv_interface_tx)
 		return true;
@@ -1151,10 +1152,10 @@ static const struct nla_policy batadv_ifla_policy[IFLA_BATADV_MAX + 1] = {
 struct rtnl_link_ops batadv_link_ops __read_mostly = {
 	.kind		= "batadv",
 	.priv_size	= sizeof(struct batadv_priv),
-	.setup		= batadv_softif_init_early,
+	.setup		= batadv_meshif_init_early,
 	.maxtype	= IFLA_BATADV_MAX,
 	.policy		= batadv_ifla_policy,
-	.validate	= batadv_softif_validate,
-	.newlink	= batadv_softif_newlink,
-	.dellink	= batadv_softif_destroy_netlink,
+	.validate	= batadv_meshif_validate,
+	.newlink	= batadv_meshif_newlink,
+	.dellink	= batadv_meshif_destroy_netlink,
 };
