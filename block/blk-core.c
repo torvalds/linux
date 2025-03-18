@@ -456,6 +456,12 @@ struct request_queue *blk_alloc_queue(struct queue_limits *lim, int node_id)
 	lockdep_init_map(&q->q_lockdep_map, "&q->q_usage_counter(queue)",
 			 &q->q_lock_cls_key, 0);
 
+	/* Teach lockdep about lock ordering (reclaim WRT queue freeze lock). */
+	fs_reclaim_acquire(GFP_KERNEL);
+	rwsem_acquire_read(&q->io_lockdep_map, 0, 0, _RET_IP_);
+	rwsem_release(&q->io_lockdep_map, _RET_IP_);
+	fs_reclaim_release(GFP_KERNEL);
+
 	q->nr_requests = BLKDEV_DEFAULT_RQ;
 
 	return q;
