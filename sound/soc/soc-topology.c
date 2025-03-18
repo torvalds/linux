@@ -132,7 +132,7 @@ static const struct snd_soc_tplg_kcontrol_ops io_ops[] = {
 	{SND_SOC_TPLG_CTL_BYTES, snd_soc_bytes_get,
 		snd_soc_bytes_put, snd_soc_bytes_info},
 	{SND_SOC_TPLG_CTL_RANGE, snd_soc_get_volsw_range,
-		snd_soc_put_volsw_range, snd_soc_info_volsw_range},
+		snd_soc_put_volsw_range, snd_soc_info_volsw},
 	{SND_SOC_TPLG_CTL_VOLSW_XR_SX, snd_soc_get_xr_sx,
 		snd_soc_put_xr_sx, snd_soc_info_xr_sx},
 	{SND_SOC_TPLG_CTL_STROBE, snd_soc_get_strobe,

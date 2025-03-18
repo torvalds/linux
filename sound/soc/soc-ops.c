@@ -169,12 +169,12 @@ static int soc_mixer_sx_mask(struct soc_mixer_control *mc)
 }
 
 /**
- * snd_soc_info_volsw - single mixer info callback
+ * snd_soc_info_volsw - single mixer info callback with range.
  * @kcontrol: mixer control
  * @uinfo: control element information
  *
- * Callback to provide information about a single mixer control, or a double
- * mixer control that spans 2 registers.
+ * Callback to provide information, with a range, about a single mixer control,
+ * or a double mixer control that spans 2 registers.
  *
  * Returns 0 for success.
  */
@@ -449,36 +449,6 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_sx);
-
-/**
- * snd_soc_info_volsw_range - single mixer info callback with range.
- * @kcontrol: mixer control
- * @uinfo: control element information
- *
- * Callback to provide information, within a range, about a single
- * mixer control.
- *
- * returns 0 for success.
- */
-int snd_soc_info_volsw_range(struct snd_kcontrol *kcontrol,
-			     struct snd_ctl_elem_info *uinfo)
-{
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	int max;
-
-	max = mc->max - mc->min;
-	if (mc->platform_max && mc->platform_max < max)
-		max = mc->platform_max;
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = snd_soc_volsw_is_stereo(mc) ? 2 : 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = max;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_info_volsw_range);
 
 /**
  * snd_soc_put_volsw_range - single mixer put value callback with range.
