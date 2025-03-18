@@ -348,6 +348,8 @@ int drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem,
 	struct drm_gem_object *obj = &shmem->base;
 	int ret = 0;
 
+	dma_resv_assert_held(obj->resv);
+
 	if (drm_gem_is_imported(obj)) {
 		ret = dma_buf_vmap(obj->dma_buf, map);
 	} else {
@@ -407,6 +409,8 @@ void drm_gem_shmem_vunmap_locked(struct drm_gem_shmem_object *shmem,
 				 struct iosys_map *map)
 {
 	struct drm_gem_object *obj = &shmem->base;
+
+	dma_resv_assert_held(obj->resv);
 
 	if (drm_gem_is_imported(obj)) {
 		dma_buf_vunmap(obj->dma_buf, map);
