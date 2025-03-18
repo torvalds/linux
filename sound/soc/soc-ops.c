@@ -846,9 +846,10 @@ EXPORT_SYMBOL_GPL(snd_soc_bytes_tlv_callback);
  * @kcontrol: mreg control
  * @uinfo: control element information
  *
- * Callback to provide information of a control that can
- * span multiple codec registers which together
- * forms a single signed value in a MSB/LSB manner.
+ * Callback to provide information of a control that can span multiple
+ * codec registers which together forms a single signed value. Note
+ * that unlike the non-xr variant of sx controls these may or may not
+ * include the sign bit, depending on nbits, and there is no shift.
  *
  * Returns 0 for success.
  */
@@ -872,11 +873,12 @@ EXPORT_SYMBOL_GPL(snd_soc_info_xr_sx);
  * @kcontrol: mreg control
  * @ucontrol: control element information
  *
- * Callback to get the value of a control that can span
- * multiple codec registers which together forms a single
- * signed value in a MSB/LSB manner. The control supports
- * specifying total no of bits used to allow for bitfields
- * across the multiple codec registers.
+ * Callback to get the value of a control that can span multiple codec
+ * registers which together forms a single signed value. The control
+ * supports specifying total no of bits used to allow for bitfields
+ * across the multiple codec registers. Note that unlike the non-xr
+ * variant of sx controls these may or may not include the sign bit,
+ * depending on nbits, and there is no shift.
  *
  * Returns 0 for success.
  */
@@ -918,11 +920,12 @@ EXPORT_SYMBOL_GPL(snd_soc_get_xr_sx);
  * @kcontrol: mreg control
  * @ucontrol: control element information
  *
- * Callback to set the value of a control that can span
- * multiple codec registers which together forms a single
- * signed value in a MSB/LSB manner. The control supports
- * specifying total no of bits used to allow for bitfields
- * across the multiple codec registers.
+ * Callback to set the value of a control that can span multiple codec
+ * registers which together forms a single signed value. The control
+ * supports specifying total no of bits used to allow for bitfields
+ * across the multiple codec registers. Note that unlike the non-xr
+ * variant of sx controls these may or may not include the sign bit,
+ * depending on nbits, and there is no shift.
  *
  * Returns 0 for success.
  */
