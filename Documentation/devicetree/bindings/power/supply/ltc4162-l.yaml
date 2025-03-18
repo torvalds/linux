@@ -61,13 +61,13 @@ additionalProperties: false
 examples:
   - |
     i2c {
-      #address-cells = <1>;
-      #size-cells = <0>;
-      charger: battery-charger@68 {
-              compatible = "lltc,ltc4162-l";
-              reg = <0x68>;
-              lltc,rsnsb-micro-ohms = <10000>;
-              lltc,rsnsi-micro-ohms = <16000>;
-              lltc,cell-count = <2>;
-      };
+        #address-cells = <1>;
+        #size-cells = <0>;
+        charger: battery-charger@68 {
+            compatible = "lltc,ltc4162-l";
+            reg = <0x68>;
+            lltc,rsnsb-micro-ohms = <10000>;
+            lltc,rsnsi-micro-ohms = <16000>;
+            lltc,cell-count = <2>;
+        };
     };
