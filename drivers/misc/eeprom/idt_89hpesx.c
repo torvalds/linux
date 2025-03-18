@@ -61,11 +61,6 @@ MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("T-platforms");
 
 /*
- * csr_dbgdir - CSR read/write operations Debugfs directory
- */
-static struct dentry *csr_dbgdir;
-
-/*
  * struct idt_89hpesx_dev - IDT 89HPESx device data structure
  * @eesize:	Size of EEPROM in bytes (calculated from "idt,eecompatible")
  * @eero:	EEPROM Read-only flag
@@ -1325,35 +1320,6 @@ static void idt_remove_sysfs_files(struct idt_89hpesx_dev *pdev)
 }
 
 /*
- * idt_create_dbgfs_files() - create debugfs files
- * @pdev:	Pointer to the driver data
- */
-#define CSRNAME_LEN	((size_t)32)
-static void idt_create_dbgfs_files(struct idt_89hpesx_dev *pdev)
-{
-	struct i2c_client *cli = pdev->client;
-	char fname[CSRNAME_LEN];
-
-	/* Create Debugfs directory for CSR file */
-	snprintf(fname, CSRNAME_LEN, "%d-%04hx", cli->adapter->nr, cli->addr);
-	pdev->csr_dir = debugfs_create_dir(fname, csr_dbgdir);
-
-	/* Create Debugfs file for CSR read/write operations */
-	debugfs_create_file(cli->name, 0600, pdev->csr_dir, pdev,
-			    &csr_dbgfs_ops);
-}
-
-/*
- * idt_remove_dbgfs_files() - remove debugfs files
- * @pdev:	Pointer to the driver data
- */
-static void idt_remove_dbgfs_files(struct idt_89hpesx_dev *pdev)
-{
-	/* Remove CSR directory and it sysfs-node */
-	debugfs_remove_recursive(pdev->csr_dir);
-}
-
-/*
  * idt_probe() - IDT 89HPESx driver probe() callback method
  */
 static int idt_probe(struct i2c_client *client)
@@ -1382,7 +1348,7 @@ static int idt_probe(struct i2c_client *client)
 		goto err_free_pdev;
 
 	/* Create debugfs files */
-	idt_create_dbgfs_files(pdev);
+	debugfs_create_file(pdev->client->name, 0600, client->debugfs, pdev, &csr_dbgfs_ops);
 
 	return 0;
 
@@ -1398,9 +1364,6 @@ err_free_pdev:
 static void idt_remove(struct i2c_client *client)
 {
 	struct idt_89hpesx_dev *pdev = i2c_get_clientdata(client);
-
-	/* Remove debugfs files first */
-	idt_remove_dbgfs_files(pdev);
 
 	/* Remove sysfs files */
 	idt_remove_sysfs_files(pdev);
@@ -1550,38 +1513,4 @@ static struct i2c_driver idt_driver = {
 	.remove = idt_remove,
 	.id_table = idt_ids,
 };
-
-/*
- * idt_init() - IDT 89HPESx driver init() callback method
- */
-static int __init idt_init(void)
-{
-	int ret;
-
-	/* Create Debugfs directory first */
-	if (debugfs_initialized())
-		csr_dbgdir = debugfs_create_dir("idt_csr", NULL);
-
-	/* Add new i2c-device driver */
-	ret = i2c_add_driver(&idt_driver);
-	if (ret) {
-		debugfs_remove_recursive(csr_dbgdir);
-		return ret;
-	}
-
-	return 0;
-}
-module_init(idt_init);
-
-/*
- * idt_exit() - IDT 89HPESx driver exit() callback method
- */
-static void __exit idt_exit(void)
-{
-	/* Discard debugfs directory and all files if any */
-	debugfs_remove_recursive(csr_dbgdir);
-
-	/* Unregister i2c-device driver */
-	i2c_del_driver(&idt_driver);
-}
-module_exit(idt_exit);
+module_i2c_driver(idt_driver);
