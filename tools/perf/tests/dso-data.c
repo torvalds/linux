@@ -114,6 +114,17 @@ static int dso__data_fd(struct dso *dso, struct machine *machine)
 	return fd;
 }
 
+static void dsos__delete(struct dsos *dsos)
+{
+	for (unsigned int i = 0; i < dsos->cnt; i++) {
+		struct dso *dso = dsos->dsos[i];
+
+		dso__data_close(dso);
+		unlink(dso__name(dso));
+	}
+	dsos__exit(dsos);
+}
+
 static int test__dso_data(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machine machine;
@@ -172,7 +183,7 @@ static int test__dso_data(struct test_suite *test __maybe_unused, int subtest __
 	}
 
 	dso__put(dso);
-	dsos__exit(&machine.dsos);
+	dsos__delete(&machine.dsos);
 	unlink(file);
 	return 0;
 }
@@ -220,17 +231,6 @@ static int dsos__create(int cnt, int size, struct dsos *dsos)
 	}
 
 	return 0;
-}
-
-static void dsos__delete(struct dsos *dsos)
-{
-	for (unsigned int i = 0; i < dsos->cnt; i++) {
-		struct dso *dso = dsos->dsos[i];
-
-		dso__data_close(dso);
-		unlink(dso__name(dso));
-	}
-	dsos__exit(dsos);
 }
 
 static int set_fd_limit(int n)
