@@ -761,7 +761,6 @@ void bch2_journal_entry_res_resize(struct journal *j,
 		goto out;
 
 	j->cur_entry_u64s = max_t(int, 0, j->cur_entry_u64s - d);
-	smp_mb();
 	state = READ_ONCE(j->reservations);
 
 	if (state.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL &&
