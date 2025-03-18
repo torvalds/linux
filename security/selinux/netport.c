@@ -47,12 +47,6 @@ struct sel_netport {
 	struct rcu_head rcu;
 };
 
-/* NOTE: we are using a combined hash table for both IPv4 and IPv6, the reason
- * for this is that I suspect most users will not make heavy use of both
- * address families at the same time so one table will usually end up wasted,
- * if this becomes a problem we can always add a hash table for each address
- * family later */
-
 static DEFINE_SPINLOCK(sel_netport_lock);
 static struct sel_netport_bkt sel_netport_hash[SEL_NETPORT_HASH_SIZE];
 
