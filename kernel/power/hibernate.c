@@ -757,7 +757,7 @@ int hibernate(void)
 	 * Query for the compression algorithm support if compression is enabled.
 	 */
 	if (!nocompress) {
-		strscpy(hib_comp_algo, hibernate_compressor, sizeof(hib_comp_algo));
+		strscpy(hib_comp_algo, hibernate_compressor);
 		if (!crypto_has_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC)) {
 			pr_err("%s compression is not available\n", hib_comp_algo);
 			return -EOPNOTSUPP;
@@ -1006,9 +1006,9 @@ static int software_resume(void)
 	 */
 	if (!(swsusp_header_flags & SF_NOCOMPRESS_MODE)) {
 		if (swsusp_header_flags & SF_COMPRESSION_ALG_LZ4)
-			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZ4, sizeof(hib_comp_algo));
+			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZ4);
 		else
-			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZO, sizeof(hib_comp_algo));
+			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZO);
 		if (!crypto_has_acomp(hib_comp_algo, 0, CRYPTO_ALG_ASYNC)) {
 			pr_err("%s compression is not available\n", hib_comp_algo);
 			error = -EOPNOTSUPP;
@@ -1456,8 +1456,7 @@ static int hibernate_compressor_param_set(const char *compressor,
 	if (index >= 0) {
 		ret = param_set_copystring(comp_alg_enabled[index], kp);
 		if (!ret)
-			strscpy(hib_comp_algo, comp_alg_enabled[index],
-				sizeof(hib_comp_algo));
+			strscpy(hib_comp_algo, comp_alg_enabled[index]);
 	} else {
 		ret = index;
 	}
