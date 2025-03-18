@@ -9887,7 +9887,7 @@ static int check_map_func_compatibility(struct bpf_verifier_env *env,
 		if (map->map_type != BPF_MAP_TYPE_PROG_ARRAY)
 			goto error;
 		if (env->subprog_cnt > 1 && !allow_tail_call_in_subprogs(env)) {
-			verbose(env, "tail_calls are not allowed in non-JITed programs with bpf-to-bpf calls\n");
+			verbose(env, "mixing of tail_calls and bpf-to-bpf calls is not supported\n");
 			return -EINVAL;
 		}
 		break;
