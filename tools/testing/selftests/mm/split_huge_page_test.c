@@ -5,6 +5,7 @@
  */
 
 #define _GNU_SOURCE
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -398,6 +399,7 @@ int create_pagecache_thp_and_fd(const char *testfile, size_t fd_size, int *fd,
 {
 	size_t i;
 	int dummy = 0;
+	unsigned char buf[1024];
 
 	srand(time(NULL));
 
@@ -405,11 +407,12 @@ int create_pagecache_thp_and_fd(const char *testfile, size_t fd_size, int *fd,
 	if (*fd == -1)
 		ksft_exit_fail_msg("Failed to create a file at %s\n", testfile);
 
-	for (i = 0; i < fd_size; i++) {
-		unsigned char byte = (unsigned char)i;
+	assert(fd_size % sizeof(buf) == 0);
+	for (i = 0; i < sizeof(buf); i++)
+		buf[i] = (unsigned char)i;
+	for (i = 0; i < fd_size; i += sizeof(buf))
+		write(*fd, buf, sizeof(buf));
 
-		write(*fd, &byte, sizeof(byte));
-	}
 	close(*fd);
 	sync();
 	*fd = open("/proc/sys/vm/drop_caches", O_WRONLY);
