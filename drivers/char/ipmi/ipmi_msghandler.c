@@ -496,6 +496,12 @@ struct ipmi_smi {
 	int curr_seq;
 
 	/*
+	 * Messages queued for deliver to the user.
+	 */
+	struct mutex user_msgs_mutex;
+	struct list_head user_msgs;
+
+	/*
 	 * Messages queued for delivery.  If delivery fails (out of memory
 	 * for instance), They will stay in here to be processed later in a
 	 * periodic timer interrupt.  The workqueue is for handling received
@@ -525,7 +531,6 @@ struct ipmi_smi {
 	spinlock_t       events_lock; /* For dealing with event stuff. */
 	struct list_head waiting_events;
 	unsigned int     waiting_events_count; /* How many events in queue? */
-	char             delivering_events;
 	char             event_msg_printed;
 
 	/* How many users are waiting for events? */
@@ -945,9 +950,13 @@ static int deliver_response(struct ipmi_smi *intf, struct ipmi_recv_msg *msg)
 		struct ipmi_user *user = acquire_ipmi_user(msg->user, &index);
 
 		if (user) {
-			atomic_dec(&user->nr_msgs);
-			user->handler->ipmi_recv_hndl(msg, user->handler_data);
+			/* Deliver it in smi_work. */
+			kref_get(&user->refcount);
+			mutex_lock(&intf->user_msgs_mutex);
+			list_add_tail(&msg->link, &intf->user_msgs);
+			mutex_unlock(&intf->user_msgs_mutex);
 			release_ipmi_user(user, index);
+			queue_work(system_bh_wq, &intf->smi_work);
 		} else {
 			/* User went away, give up. */
 			ipmi_free_recv_msg(msg);
@@ -1610,13 +1619,6 @@ int ipmi_set_gets_events(struct ipmi_user *user, bool val)
 		atomic_dec(&intf->event_waiters);
 	}
 
-	if (intf->delivering_events)
-		/*
-		 * Another thread is delivering events for this, so
-		 * let it handle any new events.
-		 */
-		goto out;
-
 	/* Deliver any queued events. */
 	while (user->gets_events && !list_empty(&intf->waiting_events)) {
 		list_for_each_entry_safe(msg, msg2, &intf->waiting_events, link)
@@ -1627,17 +1629,11 @@ int ipmi_set_gets_events(struct ipmi_user *user, bool val)
 			intf->event_msg_printed = 0;
 		}
 
-		intf->delivering_events = 1;
-		spin_unlock_irqrestore(&intf->events_lock, flags);
-
 		list_for_each_entry_safe(msg, msg2, &msgs, link) {
 			msg->user = user;
 			kref_get(&user->refcount);
 			deliver_local_response(intf, msg);
 		}
-
-		spin_lock_irqsave(&intf->events_lock, flags);
-		intf->delivering_events = 0;
 	}
 
  out:
@@ -3590,6 +3586,8 @@ int ipmi_add_smi(struct module         *owner,
 	}
 	if (slave_addr != 0)
 		intf->addrinfo[0].address = slave_addr;
+	INIT_LIST_HEAD(&intf->user_msgs);
+	mutex_init(&intf->user_msgs_mutex);
 	INIT_LIST_HEAD(&intf->users);
 	atomic_set(&intf->nr_users, 0);
 	intf->handlers = handlers;
@@ -4814,6 +4812,7 @@ static void smi_work(struct work_struct *t)
 	struct ipmi_smi *intf = from_work(intf, t, smi_work);
 	int run_to_completion = READ_ONCE(intf->run_to_completion);
 	struct ipmi_smi_msg *newmsg = NULL;
+	struct ipmi_recv_msg *msg, *msg2;
 
 	/*
 	 * Start the next message if available.
@@ -4851,6 +4850,16 @@ static void smi_work(struct work_struct *t)
 	rcu_read_unlock();
 
 	handle_new_recv_msgs(intf);
+
+	mutex_lock(&intf->user_msgs_mutex);
+	list_for_each_entry_safe(msg, msg2, &intf->user_msgs, link) {
+		struct ipmi_user *user = msg->user;
+
+		atomic_dec(&user->nr_msgs);
+		user->handler->ipmi_recv_hndl(msg, user->handler_data);
+		kref_put(&user->refcount, free_user);
+	}
+	mutex_unlock(&intf->user_msgs_mutex);
 }
 
 /* Handle a new message from the lower layer. */
