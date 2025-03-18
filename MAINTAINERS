@@ -8896,6 +8896,9 @@ F:	include/linux/fs.h
 F:	include/linux/fs_types.h
 F:	include/uapi/linux/fs.h
 F:	include/uapi/linux/openat2.h
+F:	Documentation/driver-api/early-userspace/buffer-format.rst
+F:	init/do_mounts*
+F:	init/*initramfs*
 
 FILESYSTEMS [EXPORTFS]
 M:	Chuck Lever <chuck.lever@oracle.com>
