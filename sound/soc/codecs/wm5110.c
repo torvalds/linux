@@ -497,7 +497,7 @@ static int wm5110_in_pga_put(struct snd_kcontrol *kcontrol,
 	 */
 	snd_soc_dapm_mutex_lock(dapm);
 
-	ret = snd_soc_put_volsw_range(kcontrol, ucontrol);
+	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
 	snd_soc_dapm_mutex_unlock(dapm);
 

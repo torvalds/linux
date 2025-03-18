@@ -289,12 +289,12 @@ int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_get_volsw);
 
 /**
- * snd_soc_put_volsw - single mixer put callback
+ * snd_soc_put_volsw - single mixer put callback with range
  * @kcontrol: mixer control
  * @ucontrol: control element information
  *
- * Callback to set the value of a single mixer control, or a double mixer
- * control that spans 2 registers.
+ * Callback to set the value , within a range, of a single mixer control, or
+ * a double mixer control that spans 2 registers.
  *
  * Returns 0 for success.
  */
@@ -449,62 +449,6 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_sx);
-
-/**
- * snd_soc_put_volsw_range - single mixer put value callback with range.
- * @kcontrol: mixer control
- * @ucontrol: control element information
- *
- * Callback to set the value, within a range, for a single mixer control.
- *
- * Returns 0 for success.
- */
-int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_value *ucontrol)
-{
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	unsigned int reg = mc->reg;
-	unsigned int rreg = mc->rreg;
-	int max = mc->max - mc->min;
-	unsigned int mask = soc_mixer_mask(mc);
-	unsigned int val_mask = mask << mc->shift;
-	unsigned int val;
-	int err, ret;
-
-	ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[0],
-				  mc->max - mc->min);
-	if (ret)
-		return ret;
-
-	val = soc_mixer_ctl_to_reg(mc, ucontrol->value.integer.value[0],
-				   mask, mc->shift, max);
-
-	err = snd_soc_component_update_bits(component, reg, val_mask, val);
-	if (err < 0)
-		return err;
-	ret = err;
-
-	if (snd_soc_volsw_is_stereo(mc)) {
-		ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[1],
-					  max);
-		if (ret)
-			return ret;
-
-		val = soc_mixer_ctl_to_reg(mc, ucontrol->value.integer.value[1],
-					   mask, mc->shift, max);
-
-		err = snd_soc_component_update_bits(component, rreg, val_mask,
-						    val);
-		/* Don't discard any error code or drop change flag */
-		if (ret == 0 || err < 0)
-			ret = err;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(snd_soc_put_volsw_range);
 
 static int snd_soc_clip_to_platform_max(struct snd_kcontrol *kctl)
 {
