@@ -2,10 +2,10 @@
 #ifndef __LINUX_NET_AFUNIX_H
 #define __LINUX_NET_AFUNIX_H
 
-#include <linux/socket.h>
-#include <linux/un.h>
 #include <linux/mutex.h>
 #include <linux/refcount.h>
+#include <linux/socket.h>
+#include <linux/un.h>
 #include <net/sock.h>
 
 #if IS_ENABLED(CONFIG_UNIX)
