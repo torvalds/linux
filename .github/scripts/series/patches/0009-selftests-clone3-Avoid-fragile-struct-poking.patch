@@ -1,0 +1,66 @@
+From c70c39b2ee707075b40c91e5047cf33406f30f30 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Thu, 12 Sep 2024 19:20:34 +0000
+Subject: [PATCH] selftests: clone3: Avoid fragile struct poking
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+To: Adrian Reber <areber@redhat.com>,
+    Christian Brauner <brauner@kernel.org>,
+    Shuah Khan <shuah@kernel.org>,
+    linux-kselftest@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+
+The struct libcap in the selftest, and the what libcap is actually
+using doesn't match, so the test fail. Libcap internals have changed,
+but the selftest hasn't.
+
+Fix by avoid poking the libcap internals.
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ .../clone3/clone3_cap_checkpoint_restore.c      | 17 +++--------------
+ 1 file changed, 3 insertions(+), 14 deletions(-)
+
+diff --git a/tools/testing/selftests/clone3/clone3_cap_checkpoint_restore.c b/tools/testing/selftests/clone3/clone3_cap_checkpoint_restore.c
+index 31b56d625655..9e6ee8c5316e 100644
+--- a/tools/testing/selftests/clone3/clone3_cap_checkpoint_restore.c
++++ b/tools/testing/selftests/clone3/clone3_cap_checkpoint_restore.c
+@@ -89,14 +89,9 @@ static int test_clone3_set_tid(struct __test_metadata *_metadata,
+ 	return ret;
+ }
+ 
+-struct libcap {
+-	struct __user_cap_header_struct hdr;
+-	struct __user_cap_data_struct data[2];
+-};
+-
+ static int set_capability(void)
+ {
+-	cap_value_t cap_values[] = { CAP_SETUID, CAP_SETGID };
++	cap_value_t cap_values[] = { CAP_SETUID, CAP_SETGID, CAP_CHECKPOINT_RESTORE };
+ 	struct libcap *cap;
+ 	int ret = -1;
+ 	cap_t caps;
+@@ -113,14 +108,8 @@ static int set_capability(void)
+ 		goto out;
+ 	}
+ 
+-	cap_set_flag(caps, CAP_EFFECTIVE, 2, cap_values, CAP_SET);
+-	cap_set_flag(caps, CAP_PERMITTED, 2, cap_values, CAP_SET);
+-
+-	cap = (struct libcap *) caps;
+-
+-	/* 40 -> CAP_CHECKPOINT_RESTORE */
+-	cap->data[1].effective |= 1 << (40 - 32);
+-	cap->data[1].permitted |= 1 << (40 - 32);
++	cap_set_flag(caps, CAP_EFFECTIVE, 3, cap_values, CAP_SET);
++	cap_set_flag(caps, CAP_PERMITTED, 3, cap_values, CAP_SET);
+ 
+ 	if (cap_set_proc(caps)) {
+ 		perror("cap_set_proc");
+
+base-commit: 075dbe9f6e3c21596c5245826a4ee1f1c1676eb8
+-- 
+2.43.0
+

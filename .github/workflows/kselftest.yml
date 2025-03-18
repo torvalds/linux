@@ -1,0 +1,59 @@
+# SPDX-FileCopyrightText: 2024 Rivos Inc.
+#
+# SPDX-License-Identifier: Apache-2.0
+
+name: linux-riscv-ci-kselftest
+
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
+
+on: pull_request
+
+concurrency:
+  group: ci-test-${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build-series:
+    if:  ${{ startsWith(github.head_ref, 'linus') || endsWith(github.head_ref, '_manual') }}
+    runs-on: self-hosted
+    timeout-minutes: 50400 # 35 days
+    container:
+      image: ghcr.io/linux-riscv/pw-builder:latest
+      volumes:
+        - /home/github/ramdisk/build:/build
+        - /home/github/ccache:/build/ccache
+        - /home/github/gitref:/build/gitref
+    steps:
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory '*'
+      - name: Checkout git
+        run: |
+          mkdir -p /build/my-linux
+          cd /build/my-linux
+          git clone --filter=tree:0 --reference /build/gitref https://github.com/${{ github.repository }} .
+          git fetch origin ${{ github.event.pull_request.head.sha }}
+          git reset --hard ${{ github.event.pull_request.head.sha }}
+          git log -1
+      - name: Run checks
+        continue-on-error: true
+        run: |
+          cd /build/my-linux && bash .github/scripts/kselftest.sh
+      - name: Collect logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: /build/logs/*
+      - name: Publish to SQUAD
+        env:
+          SQUAD_TOKEN: ${{ secrets.SQUAD_TOKEN }}
+          GITHUB_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          /build/my-linux/.github/scripts/series/post_to_squad.py \
+            --toplevel-log=/build/logs/kselftest.log  \
+            --selftest-bpf-log=/build/logs/test_kernel___rv64__kselftest__plain__gcc___ubuntu___server64__uboot_uefi__dt__kselftest-bpf.log \
+            --selftest-log-dir=/build/logs/ \
+            --job-url="${GITHUB_JOB_URL}" \
+            --branch="${{ github.head_ref || github.ref_name }}"

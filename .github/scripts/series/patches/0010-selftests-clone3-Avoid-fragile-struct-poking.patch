@@ -1,0 +1,48 @@
+From dd9191caeafccf7fd4b282aa8a516e594b2cc4fe Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Fri, 27 Sep 2024 15:01:25 +0200
+Subject: [PATCH bpf-next 1/2] libbpf: Add missing per-arch include path
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+To: Andrii Nakryiko <andrii@kernel.org>,
+    Eduard Zingerman <eddyz87@gmail.com>,
+    Mykola Lysenko <mykolal@fb.com>,
+    bpf@vger.kernel.org,
+    netdev@vger.kernel.org
+Cc: linux-kselftest@vger.kernel.org,
+    linux-kernel@vger.kernel.org,
+    linux-riscv@lists.infradead.org,
+    Charlie Jenkins <charlie@rivosinc.com>
+
+libbpf does not include the per-arch tools include path, e.g.
+tools/arch/riscv/include. Some architectures depend those files to
+build properly.
+
+Include tools/arch/$(SUBARCH)/include in the libbpf build.
+
+Fixes: 6d74d178fe6e ("tools: Add riscv barrier implementation")
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/lib/bpf/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tools/lib/bpf/Makefile b/tools/lib/bpf/Makefile
+index 1b22f0f37288..857a5f7b413d 100644
+--- a/tools/lib/bpf/Makefile
++++ b/tools/lib/bpf/Makefile
+@@ -61,7 +61,8 @@ ifndef VERBOSE
+ endif
+ 
+ INCLUDES = -I$(or $(OUTPUT),.) \
+-	   -I$(srctree)/tools/include -I$(srctree)/tools/include/uapi
++	   -I$(srctree)/tools/include -I$(srctree)/tools/include/uapi \
++	   -I$(srctree)/tools/arch/$(SRCARCH)/include
+ 
+ export prefix libdir src obj
+ 
+
+base-commit: db5ca265e3334b48c4e3fa07eef79e8bc578c430
+-- 
+2.43.0
+
