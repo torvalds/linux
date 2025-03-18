@@ -174,6 +174,11 @@ static inline char iwl_drv_get_step(int step)
 	return 'a' + step;
 }
 
+static bool iwl_drv_is_wifi7_supported(struct iwl_trans *trans)
+{
+	return CSR_HW_RFID_TYPE(trans->hw_rf_id) >= IWL_CFG_RF_TYPE_FM;
+}
+
 const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 {
 	char mac_step, rf_step;
@@ -1730,10 +1735,12 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 #if IS_ENABLED(CONFIG_IWLMLD)
-	if (pieces->major >= IWL_MLD_SUPPORTED_FW_VERSION)
+	if (pieces->major >= IWL_MLD_SUPPORTED_FW_VERSION &&
+	    iwl_drv_is_wifi7_supported(drv->trans))
 		op = &iwlwifi_opmode_table[MLD_OP_MODE];
 #else
-	if (pieces->major >= IWL_MLD_SUPPORTED_FW_VERSION) {
+	if (pieces->major >= IWL_MLD_SUPPORTED_FW_VERSION &&
+	    iwl_drv_is_wifi7_supported(drv->trans)) {
 		IWL_ERR(drv,
 			"IWLMLD needs to be compiled to support this firmware\n");
 		mutex_unlock(&iwlwifi_opmode_table_mtx);
