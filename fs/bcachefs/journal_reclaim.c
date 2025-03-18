@@ -226,7 +226,7 @@ void bch2_journal_space_available(struct journal *j)
 
 		bch_err(c, "%s", buf.buf);
 		printbuf_exit(&buf);
-		ret = JOURNAL_ERR_insufficient_devices;
+		ret = -BCH_ERR_insufficient_journal_devices;
 		goto out;
 	}
 
@@ -240,7 +240,7 @@ void bch2_journal_space_available(struct journal *j)
 	total		= j->space[journal_space_total].total;
 
 	if (!j->space[journal_space_discarded].next_entry)
-		ret = JOURNAL_ERR_journal_full;
+		ret = -BCH_ERR_journal_full;
 
 	if ((j->space[journal_space_clean_ondisk].next_entry <
 	     j->space[journal_space_clean_ondisk].total) &&

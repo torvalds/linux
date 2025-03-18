@@ -151,25 +151,6 @@ enum journal_flags {
 #undef x
 };
 
-/* Reasons we may fail to get a journal reservation: */
-#define JOURNAL_ERRORS()		\
-	x(ok)				\
-	x(retry)			\
-	x(blocked)			\
-	x(max_in_flight)		\
-	x(max_open)			\
-	x(journal_full)			\
-	x(journal_pin_full)		\
-	x(journal_stuck)		\
-	x(enomem)			\
-	x(insufficient_devices)
-
-enum journal_errors {
-#define x(n)	JOURNAL_ERR_##n,
-	JOURNAL_ERRORS()
-#undef x
-};
-
 typedef DARRAY(u64)		darray_u64;
 
 struct journal_bio {
@@ -204,7 +185,7 @@ struct journal {
 	 * 0, or -ENOSPC if waiting on journal reclaim, or -EROFS if
 	 * insufficient devices:
 	 */
-	enum journal_errors	cur_entry_error;
+	int			cur_entry_error;
 	unsigned		cur_entry_offset_if_blocked;
 
 	unsigned		buf_size_want;

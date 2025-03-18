@@ -880,6 +880,24 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 	struct bch_fs *c = trans->c;
 	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
 
+	if (bch2_err_matches(ret, BCH_ERR_journal_res_blocked)) {
+		/*
+		 * XXX: this should probably be a separate BTREE_INSERT_NONBLOCK
+		 * flag
+		 */
+		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
+		    watermark < BCH_WATERMARK_reclaim) {
+			ret = -BCH_ERR_journal_reclaim_would_deadlock;
+			goto out;
+		}
+
+		ret = drop_locks_do(trans,
+			bch2_trans_journal_res_get(trans,
+					(flags & BCH_WATERMARK_MASK)|
+					JOURNAL_RES_GET_CHECK));
+		goto out;
+	}
+
 	switch (ret) {
 	case -BCH_ERR_btree_insert_btree_node_full:
 		ret = bch2_btree_split_leaf(trans, i->path, flags);
@@ -890,22 +908,6 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 	case -BCH_ERR_btree_insert_need_mark_replicas:
 		ret = drop_locks_do(trans,
 			bch2_accounting_update_sb(trans));
-		break;
-	case -BCH_ERR_journal_res_get_blocked:
-		/*
-		 * XXX: this should probably be a separate BTREE_INSERT_NONBLOCK
-		 * flag
-		 */
-		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
-		    watermark < BCH_WATERMARK_reclaim) {
-			ret = -BCH_ERR_journal_reclaim_would_deadlock;
-			break;
-		}
-
-		ret = drop_locks_do(trans,
-			bch2_trans_journal_res_get(trans,
-					(flags & BCH_WATERMARK_MASK)|
-					JOURNAL_RES_GET_CHECK));
 		break;
 	case -BCH_ERR_btree_insert_need_journal_reclaim:
 		bch2_trans_unlock(trans);
@@ -927,7 +929,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		BUG_ON(ret >= 0);
 		break;
 	}
-
+out:
 	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart) != !!trans->restarted);
 
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOSPC) &&

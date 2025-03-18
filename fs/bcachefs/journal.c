@@ -20,13 +20,6 @@
 #include "journal_seq_blacklist.h"
 #include "trace.h"
 
-static const char * const bch2_journal_errors[] = {
-#define x(n)	#n,
-	JOURNAL_ERRORS()
-#undef x
-	NULL
-};
-
 static inline bool journal_seq_unwritten(struct journal *j, u64 seq)
 {
 	return seq > j->seq_ondisk;
@@ -149,8 +142,8 @@ journal_error_check_stuck(struct journal *j, int error, unsigned flags)
 	bool stuck = false;
 	struct printbuf buf = PRINTBUF;
 
-	if (!(error == JOURNAL_ERR_journal_full ||
-	      error == JOURNAL_ERR_journal_pin_full) ||
+	if (!(error == -BCH_ERR_journal_full ||
+	      error == -BCH_ERR_journal_pin_full) ||
 	    nr_unwritten_journal_entries(j) ||
 	    (flags & BCH_WATERMARK_MASK) != BCH_WATERMARK_reclaim)
 		return stuck;
@@ -177,7 +170,7 @@ journal_error_check_stuck(struct journal *j, int error, unsigned flags)
 	spin_unlock(&j->lock);
 
 	bch_err(c, "Journal stuck! Hava a pre-reservation but journal full (error %s)",
-		bch2_journal_errors[error]);
+		bch2_err_str(error));
 	bch2_journal_debug_to_text(&buf, j);
 	bch_err(c, "%s", buf.buf);
 
@@ -388,32 +381,33 @@ static int journal_entry_open(struct journal *j)
 	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
 
 	if (j->blocked)
-		return JOURNAL_ERR_blocked;
+		return -BCH_ERR_journal_blocked;
 
 	if (j->cur_entry_error)
 		return j->cur_entry_error;
 
-	if (bch2_journal_error(j))
-		return JOURNAL_ERR_insufficient_devices; /* -EROFS */
+	int ret = bch2_journal_error(j);
+	if (unlikely(ret))
+		return ret;
 
 	if (!fifo_free(&j->pin))
-		return JOURNAL_ERR_journal_pin_full;
+		return -BCH_ERR_journal_pin_full;
 
 	if (nr_unwritten_journal_entries(j) == ARRAY_SIZE(j->buf))
-		return JOURNAL_ERR_max_in_flight;
+		return -BCH_ERR_journal_max_in_flight;
 
 	if (atomic64_read(&j->seq) - j->seq_write_started == JOURNAL_STATE_BUF_NR)
-		return JOURNAL_ERR_max_open;
+		return -BCH_ERR_journal_max_open;
 
 	if (journal_cur_seq(j) >= JOURNAL_SEQ_MAX) {
 		bch_err(c, "cannot start: journal seq overflow");
 		if (bch2_fs_emergency_read_only_locked(c))
 			bch_err(c, "fatal error - emergency read only");
-		return JOURNAL_ERR_insufficient_devices; /* -EROFS */
+		return -BCH_ERR_journal_shutdown;
 	}
 
 	if (!j->free_buf && !buf->data)
-		return JOURNAL_ERR_enomem; /* will retry after write completion frees up a buf */
+		return -BCH_ERR_journal_buf_enomem; /* will retry after write completion frees up a buf */
 
 	BUG_ON(!j->cur_entry_sectors);
 
@@ -437,7 +431,7 @@ static int journal_entry_open(struct journal *j)
 	u64s = clamp_t(int, u64s, 0, JOURNAL_ENTRY_CLOSED_VAL - 1);
 
 	if (u64s <= (ssize_t) j->early_journal_entries.nr)
-		return JOURNAL_ERR_journal_full;
+		return -BCH_ERR_journal_full;
 
 	if (fifo_empty(&j->pin) && j->reclaim_thread)
 		wake_up_process(j->reclaim_thread);
@@ -574,20 +568,21 @@ retry:
 	if (journal_res_get_fast(j, res, flags))
 		return 0;
 
-	if (bch2_journal_error(j))
-		return -BCH_ERR_erofs_journal_err;
+	ret = bch2_journal_error(j);
+	if (unlikely(ret))
+		return ret;
 
 	if (j->blocked)
-		return -BCH_ERR_journal_res_get_blocked;
+		return -BCH_ERR_journal_blocked;
 
 	if ((flags & BCH_WATERMARK_MASK) < j->watermark) {
-		ret = JOURNAL_ERR_journal_full;
+		ret = -BCH_ERR_journal_full;
 		can_discard = j->can_discard;
 		goto out;
 	}
 
 	if (nr_unwritten_journal_entries(j) == ARRAY_SIZE(j->buf) && !journal_entry_is_open(j)) {
-		ret = JOURNAL_ERR_max_in_flight;
+		ret = -BCH_ERR_journal_max_in_flight;
 		goto out;
 	}
 
@@ -617,20 +612,20 @@ retry:
 		j->buf_size_want = max(j->buf_size_want, buf->buf_size << 1);
 
 	__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, false);
-	ret = journal_entry_open(j) ?: JOURNAL_ERR_retry;
+	ret = journal_entry_open(j) ?: -BCH_ERR_journal_retry_open;
 unlock:
 	can_discard = j->can_discard;
 	spin_unlock(&j->lock);
 out:
 	if (likely(!ret))
 		return 0;
-	if (ret == JOURNAL_ERR_retry)
+	if (ret == -BCH_ERR_journal_retry_open)
 		goto retry;
 
 	if (journal_error_check_stuck(j, ret, flags))
-		ret = -BCH_ERR_journal_res_get_blocked;
+		ret = -BCH_ERR_journal_stuck;
 
-	if (ret == JOURNAL_ERR_max_in_flight &&
+	if (ret == -BCH_ERR_journal_max_in_flight &&
 	    track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight], true) &&
 	    trace_journal_entry_full_enabled()) {
 		struct printbuf buf = PRINTBUF;
@@ -647,7 +642,7 @@ out:
 		count_event(c, journal_entry_full);
 	}
 
-	if (ret == JOURNAL_ERR_max_open &&
+	if (ret == -BCH_ERR_journal_max_open &&
 	    track_event_change(&c->times[BCH_TIME_blocked_journal_max_open], true) &&
 	    trace_journal_entry_full_enabled()) {
 		struct printbuf buf = PRINTBUF;
@@ -668,8 +663,8 @@ out:
 	 * Journal is full - can't rely on reclaim from work item due to
 	 * freezing:
 	 */
-	if ((ret == JOURNAL_ERR_journal_full ||
-	     ret == JOURNAL_ERR_journal_pin_full) &&
+	if ((ret == -BCH_ERR_journal_full ||
+	     ret == -BCH_ERR_journal_pin_full) &&
 	    !(flags & JOURNAL_RES_GET_NONBLOCK)) {
 		if (can_discard) {
 			bch2_journal_do_discards(j);
@@ -682,9 +677,7 @@ out:
 		}
 	}
 
-	return ret == JOURNAL_ERR_insufficient_devices
-		? -BCH_ERR_erofs_journal_err
-		: -BCH_ERR_journal_res_get_blocked;
+	return ret;
 }
 
 static unsigned max_dev_latency(struct bch_fs *c)
@@ -714,7 +707,7 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 	int ret;
 
 	if (closure_wait_event_timeout(&j->async_wait,
-		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
+		   !bch2_err_matches(ret = __journal_res_get(j, res, flags), BCH_ERR_operation_blocked) ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK),
 		   HZ))
 		return ret;
@@ -728,7 +721,7 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 	remaining_wait = max(0, remaining_wait - HZ);
 
 	if (closure_wait_event_timeout(&j->async_wait,
-		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
+		   !bch2_err_matches(ret = __journal_res_get(j, res, flags), BCH_ERR_operation_blocked) ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK),
 		   remaining_wait))
 		return ret;
@@ -740,7 +733,7 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 	printbuf_exit(&buf);
 
 	closure_wait_event(&j->async_wait,
-		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
+		   !bch2_err_matches(ret = __journal_res_get(j, res, flags), BCH_ERR_operation_blocked) ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK));
 	return ret;
 }
@@ -1647,7 +1640,7 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	       ? jiffies_to_msecs(j->next_reclaim - jiffies) : 0);
 	prt_printf(out, "blocked:\t%u\n",			j->blocked);
 	prt_printf(out, "current entry sectors:\t%u\n",		j->cur_entry_sectors);
-	prt_printf(out, "current entry error:\t%s\n",		bch2_journal_errors[j->cur_entry_error]);
+	prt_printf(out, "current entry error:\t%s\n",		bch2_err_str(j->cur_entry_error));
 	prt_printf(out, "current entry:\t");
 
 	switch (s.cur_entry_offset) {
