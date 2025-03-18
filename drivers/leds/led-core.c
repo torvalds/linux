@@ -529,6 +529,7 @@ int led_compose_name(struct device *dev, struct led_init_data *init_data,
 	struct led_properties props = {};
 	struct fwnode_handle *fwnode = init_data->fwnode;
 	const char *devicename = init_data->devicename;
+	int n;
 
 	if (!led_classdev_name)
 		return -EINVAL;
@@ -542,44 +543,48 @@ int led_compose_name(struct device *dev, struct led_init_data *init_data,
 		 * Otherwise the label is prepended with devicename to compose
 		 * the final LED class device name.
 		 */
-		if (!devicename) {
-			strscpy(led_classdev_name, props.label,
-				LED_MAX_NAME_SIZE);
+		if (devicename) {
+			n = snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s:%s",
+				     devicename, props.label);
 		} else {
-			snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s:%s",
-				 devicename, props.label);
+			n = snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s", props.label);
 		}
 	} else if (props.function || props.color_present) {
 		char tmp_buf[LED_MAX_NAME_SIZE];
 
 		if (props.func_enum_present) {
-			snprintf(tmp_buf, LED_MAX_NAME_SIZE, "%s:%s-%d",
-				 props.color_present ? led_colors[props.color] : "",
-				 props.function ?: "", props.func_enum);
+			n = snprintf(tmp_buf, LED_MAX_NAME_SIZE, "%s:%s-%d",
+				     props.color_present ? led_colors[props.color] : "",
+				     props.function ?: "", props.func_enum);
 		} else {
-			snprintf(tmp_buf, LED_MAX_NAME_SIZE, "%s:%s",
-				 props.color_present ? led_colors[props.color] : "",
-				 props.function ?: "");
+			n = snprintf(tmp_buf, LED_MAX_NAME_SIZE, "%s:%s",
+				     props.color_present ? led_colors[props.color] : "",
+				     props.function ?: "");
 		}
-		if (init_data->devname_mandatory) {
-			snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s:%s",
-				 devicename, tmp_buf);
-		} else {
-			strscpy(led_classdev_name, tmp_buf, LED_MAX_NAME_SIZE);
+		if (n >= LED_MAX_NAME_SIZE)
+			return -E2BIG;
 
+		if (init_data->devname_mandatory) {
+			n = snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s:%s",
+				     devicename, tmp_buf);
+		} else {
+			n = snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s", tmp_buf);
 		}
 	} else if (init_data->default_label) {
 		if (!devicename) {
 			dev_err(dev, "Legacy LED naming requires devicename segment");
 			return -EINVAL;
 		}
-		snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s:%s",
-			 devicename, init_data->default_label);
+		n = snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s:%s",
+			     devicename, init_data->default_label);
 	} else if (is_of_node(fwnode)) {
-		strscpy(led_classdev_name, to_of_node(fwnode)->name,
-			LED_MAX_NAME_SIZE);
+		n = snprintf(led_classdev_name, LED_MAX_NAME_SIZE, "%s",
+			     to_of_node(fwnode)->name);
 	} else
 		return -EINVAL;
+
+	if (n >= LED_MAX_NAME_SIZE)
+		return -E2BIG;
 
 	return 0;
 }
