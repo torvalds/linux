@@ -85,8 +85,15 @@
 	trackpad@2c {
 		compatible = "hid-over-i2c";
 		reg = <0x2c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&trackpad_pins>;
 		hid-descr-addr = <0x20>;
 		interrupts-extended = <&pio 15 IRQ_TYPE_LEVEL_LOW>;
 		wakeup-source;
+		status = "fail-needs-probe";
 	};
+};
+
+&trackpad {
+	status = "fail-needs-probe";
 };
