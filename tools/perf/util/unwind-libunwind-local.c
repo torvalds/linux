@@ -330,8 +330,7 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 	int ret, fd;
 
 	if (dso__data(dso)->eh_frame_hdr_offset == 0) {
-		fd = dso__data_get_fd(dso, ui->machine);
-		if (fd < 0)
+		if (!dso__data_get_fd(dso, ui->machine, &fd))
 			return -EINVAL;
 
 		/* Check the .eh_frame section for unwinding info */
@@ -372,8 +371,7 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 	 *    has to be pointed by symsrc_filename
 	 */
 	if (ofs == 0) {
-		fd = dso__data_get_fd(dso, machine);
-		if (fd >= 0) {
+		if (dso__data_get_fd(dso, machine, &fd) {
 			ofs = elf_section_offset(fd, ".debug_frame");
 			dso__data_put_fd(dso);
 		}
@@ -485,14 +483,16 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	/* Check the .debug_frame section for unwinding info */
 	if (ret < 0 &&
 	    !read_unwind_spec_debug_frame(dso, ui->machine, &segbase)) {
-		int fd = dso__data_get_fd(dso, ui->machine);
-		int is_exec = elf_is_exec(fd, dso__name(dso));
+		int fd;
 		u64 start = map__start(map);
-		unw_word_t base = is_exec ? 0 : start;
+		unw_word_t base = start;
 		const char *symfile;
 
-		if (fd >= 0)
+		if (dso__data_get_fd(dso, ui->machine, &fd)) {
+			if (elf_is_exec(fd, dso__name(dso)))
+				base = 0;
 			dso__data_put_fd(dso);
+		}
 
 		symfile = dso__symsrc_filename(dso) ?: dso__name(dso);
 
