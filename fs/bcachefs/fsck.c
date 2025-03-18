@@ -823,6 +823,7 @@ struct inode_walker_entry {
 	struct bch_inode_unpacked inode;
 	u32			snapshot;
 	u64			count;
+	u64			i_size;
 };
 
 struct inode_walker {
@@ -910,8 +911,9 @@ found:
 	if (k.k->p.snapshot != i->snapshot && !is_whiteout) {
 		struct inode_walker_entry new = *i;
 
-		new.snapshot = k.k->p.snapshot;
-		new.count = 0;
+		new.snapshot	= k.k->p.snapshot;
+		new.count	= 0;
+		new.i_size	= 0;
 
 		struct printbuf buf = PRINTBUF;
 		bch2_bkey_val_to_text(&buf, c, k);
@@ -1116,37 +1118,6 @@ err:
 	return ret;
 }
 
-static int check_directory_size(struct btree_trans *trans,
-				struct bch_inode_unpacked *inode_u,
-				struct bkey_s_c inode_k, bool *write_inode)
-{
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	u64 new_size = 0;
-	int ret;
-
-	for_each_btree_key_max_norestart(trans, iter, BTREE_ID_dirents,
-			SPOS(inode_k.k->p.offset, 0, inode_k.k->p.snapshot),
-			POS(inode_k.k->p.offset, U64_MAX),
-			0, k, ret) {
-		if (k.k->type != KEY_TYPE_dirent)
-			continue;
-
-		struct bkey_s_c_dirent dirent = bkey_s_c_to_dirent(k);
-		struct qstr name = bch2_dirent_get_name(dirent);
-
-		new_size += dirent_occupied_size(&name);
-	}
-	bch2_trans_iter_exit(trans, &iter);
-
-	if (!ret && inode_u->bi_size != new_size) {
-		inode_u->bi_size = new_size;
-		*write_inode = true;
-	}
-
-	return ret;
-}
-
 static int check_inode(struct btree_trans *trans,
 		       struct btree_iter *iter,
 		       struct bkey_s_c k,
@@ -1334,16 +1305,6 @@ static int check_inode(struct btree_trans *trans,
 			buf.buf))) {
 		u.bi_journal_seq = journal_cur_seq(&c->journal);
 		do_update = true;
-	}
-
-	if (S_ISDIR(u.bi_mode)) {
-		ret = check_directory_size(trans, &u, k, &do_update);
-
-		fsck_err_on(ret,
-			    trans, directory_size_mismatch,
-			    "directory inode %llu:%u with the mismatch directory size",
-			    u.bi_inum, k.k->p.snapshot);
-		ret = 0;
 	}
 do_update:
 	if (do_update) {
@@ -2017,7 +1978,7 @@ fsck_err:
 	return ret;
 }
 
-static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
+static int check_subdir_dirents_count(struct btree_trans *trans, struct inode_walker *w)
 {
 	u32 restart_count = trans->restart_count;
 	return check_subdir_count_notnested(trans, w) ?:
@@ -2367,7 +2328,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		goto out;
 
 	if (dir->last_pos.inode != k.k->p.inode && dir->have_inodes) {
-		ret = check_subdir_count(trans, dir);
+		ret = check_subdir_dirents_count(trans, dir);
 		if (ret)
 			goto err;
 	}
@@ -2457,9 +2418,11 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret)
 		goto err;
 
-	if (d.v->d_type == DT_DIR)
-		for_each_visible_inode(c, s, dir, d.k->p.snapshot, i)
+	for_each_visible_inode(c, s, dir, d.k->p.snapshot, i) {
+		if (d.v->d_type == DT_DIR)
 			i->count++;
+		i->i_size += bkey_bytes(d.k);
+	}
 out:
 err:
 fsck_err:

@@ -2,7 +2,7 @@
 //
 // TAS2781 HDA SPI driver
 //
-// Copyright 2024 Texas Instruments, Inc.
+// Copyright 2024-2025 Texas Instruments, Inc.
 //
 // Author: Baojun Xu <baojun.xu@ti.com>
 
@@ -771,19 +771,19 @@ static int tasdevice_process_block(void *context, unsigned char *data,
 	switch (subblk_typ) {
 	case TASDEVICE_CMD_SING_W:
 		subblk_offset = tasdevice_single_byte_wr(tas_priv,
-			dev_idx & 0x4f, data, sublocksize);
+			dev_idx & 0x3f, data, sublocksize);
 		break;
 	case TASDEVICE_CMD_BURST:
 		subblk_offset = tasdevice_burst_wr(tas_priv,
-			dev_idx & 0x4f, data, sublocksize);
+			dev_idx & 0x3f, data, sublocksize);
 		break;
 	case TASDEVICE_CMD_DELAY:
 		subblk_offset = tasdevice_delay(tas_priv,
-			dev_idx & 0x4f, data, sublocksize);
+			dev_idx & 0x3f, data, sublocksize);
 		break;
 	case TASDEVICE_CMD_FIELD_W:
 		subblk_offset = tasdevice_field_wr(tas_priv,
-			dev_idx & 0x4f, data, sublocksize);
+			dev_idx & 0x3f, data, sublocksize);
 		break;
 	default:
 		subblk_offset = 2;

@@ -540,6 +540,9 @@ bool iwl_fwrt_read_err_table(struct iwl_trans *trans, u32 base, u32 *err_id)
 	} err_info = {};
 	int ret;
 
+	if (err_id)
+		*err_id = 0;
+
 	if (!base)
 		return false;
 

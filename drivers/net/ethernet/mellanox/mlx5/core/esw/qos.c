@@ -564,6 +564,9 @@ static int esw_qos_vport_enable(struct mlx5_vport *vport, struct mlx5_esw_sched_
 		return err;
 
 	esw_qos_normalize_min_rate(parent->esw, parent, extack);
+	trace_mlx5_esw_vport_qos_create(vport->dev, vport,
+					vport->qos.sched_node->max_rate,
+					vport->qos.sched_node->bw_share);
 
 	return 0;
 }
@@ -591,8 +594,11 @@ static int mlx5_esw_qos_vport_enable(struct mlx5_vport *vport, enum sched_node_t
 	sched_node->vport = vport;
 	vport->qos.sched_node = sched_node;
 	err = esw_qos_vport_enable(vport, parent, extack);
-	if (err)
+	if (err) {
+		__esw_qos_free_node(sched_node);
 		esw_qos_put(esw);
+		vport->qos.sched_node = NULL;
+	}
 
 	return err;
 }

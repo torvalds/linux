@@ -176,7 +176,7 @@ Configuring the kernel
                         values without prompting.
 
      "make defconfig"   Create a ./.config file by using the default
-                        symbol values from either arch/$ARCH/defconfig
+                        symbol values from either arch/$ARCH/configs/defconfig
                         or arch/$ARCH/configs/${PLATFORM}_defconfig,
                         depending on the architecture.
 

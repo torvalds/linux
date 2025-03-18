@@ -47,6 +47,7 @@ struct nfs4_acl {
 struct nfs4_label {
 	uint32_t	lfs;
 	uint32_t	pi;
+	u32		lsmid;
 	u32		len;
 	char	*label;
 };

@@ -325,7 +325,7 @@ to_fsl_samsung_hdmi_phy(struct clk_hw *hw)
 	return container_of(hw, struct fsl_samsung_hdmi_phy, hw);
 }
 
-static void
+static int
 fsl_samsung_hdmi_phy_configure_pll_lock_det(struct fsl_samsung_hdmi_phy *phy,
 					    const struct phy_config *cfg)
 {
@@ -340,6 +340,9 @@ fsl_samsung_hdmi_phy_configure_pll_lock_det(struct fsl_samsung_hdmi_phy *phy,
 		if (int_pllclk < (50 * MHZ))
 			break;
 	}
+
+	if (unlikely(div == 4))
+		return -EINVAL;
 
 	writeb(FIELD_PREP(REG12_CK_DIV_MASK, div), phy->regs + PHY_REG(12));
 
@@ -364,6 +367,8 @@ fsl_samsung_hdmi_phy_configure_pll_lock_det(struct fsl_samsung_hdmi_phy *phy,
 	       FIELD_PREP(REG14_RP_CODE_MASK, 2) |
 	       FIELD_PREP(REG14_TG_CODE_HIGH_MASK, fld_tg_code >> 8),
 	       phy->regs + PHY_REG(14));
+
+	return 0;
 }
 
 static unsigned long fsl_samsung_hdmi_phy_find_pms(unsigned long fout, u8 *p, u16 *m, u8 *s)
@@ -466,7 +471,11 @@ static int fsl_samsung_hdmi_phy_configure(struct fsl_samsung_hdmi_phy *phy,
 	writeb(REG21_SEL_TX_CK_INV | FIELD_PREP(REG21_PMS_S_MASK,
 	       cfg->pll_div_regs[2] >> 4), phy->regs + PHY_REG(21));
 
-	fsl_samsung_hdmi_phy_configure_pll_lock_det(phy, cfg);
+	ret = fsl_samsung_hdmi_phy_configure_pll_lock_det(phy, cfg);
+	if (ret) {
+		dev_err(phy->dev, "pixclock too large\n");
+		return ret;
+	}
 
 	writeb(REG33_FIX_DA | REG33_MODE_SET_DONE, phy->regs + PHY_REG(33));
 

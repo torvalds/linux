@@ -10,6 +10,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/spi/spi.h>
 #include <linux/types.h>
 #include <sound/cs-amp-lib.h>
 
@@ -303,6 +304,79 @@ void cs35l56_wait_min_reset_pulse(void)
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_wait_min_reset_pulse, "SND_SOC_CS35L56_SHARED");
 
+static const struct {
+	u32 addr;
+	u32 value;
+} cs35l56_spi_system_reset_stages[] = {
+	{ .addr = CS35L56_DSP_VIRTUAL1_MBOX_1, .value = CS35L56_MBOX_CMD_SYSTEM_RESET },
+	/* The next write is necessary to delimit the soft reset */
+	{ .addr = CS35L56_DSP_MBOX_1_RAW, .value = CS35L56_MBOX_CMD_PING },
+};
+
+static void cs35l56_spi_issue_bus_locked_reset(struct cs35l56_base *cs35l56_base,
+					       struct spi_device *spi)
+{
+	struct cs35l56_spi_payload *buf = cs35l56_base->spi_payload_buf;
+	struct spi_transfer t = {
+		.tx_buf		= buf,
+		.len		= sizeof(*buf),
+	};
+	struct spi_message m;
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(cs35l56_spi_system_reset_stages); i++) {
+		buf->addr = cpu_to_be32(cs35l56_spi_system_reset_stages[i].addr);
+		buf->value = cpu_to_be32(cs35l56_spi_system_reset_stages[i].value);
+		spi_message_init_with_transfers(&m, &t, 1);
+		ret = spi_sync_locked(spi, &m);
+		if (ret)
+			dev_warn(cs35l56_base->dev, "spi_sync failed: %d\n", ret);
+
+		usleep_range(CS35L56_SPI_RESET_TO_PORT_READY_US,
+			     2 * CS35L56_SPI_RESET_TO_PORT_READY_US);
+	}
+}
+
+static void cs35l56_spi_system_reset(struct cs35l56_base *cs35l56_base)
+{
+	struct spi_device *spi = to_spi_device(cs35l56_base->dev);
+	unsigned int val;
+	int read_ret, ret;
+
+	/*
+	 * There must not be any other SPI bus activity while the amp is
+	 * soft-resetting.
+	 */
+	ret = spi_bus_lock(spi->controller);
+	if (ret) {
+		dev_warn(cs35l56_base->dev, "spi_bus_lock failed: %d\n", ret);
+		return;
+	}
+
+	cs35l56_spi_issue_bus_locked_reset(cs35l56_base, spi);
+	spi_bus_unlock(spi->controller);
+
+	/*
+	 * Check firmware boot by testing for a response in MBOX_2.
+	 * HALO_STATE cannot be trusted yet because the reset sequence
+	 * can leave it with stale state. But MBOX is reset.
+	 * The regmap must remain in cache-only until the chip has
+	 * booted, so use a bypassed read.
+	 */
+	ret = read_poll_timeout(regmap_read_bypassed, read_ret,
+				(val > 0) && (val < 0xffffffff),
+				CS35L56_HALO_STATE_POLL_US,
+				CS35L56_HALO_STATE_TIMEOUT_US,
+				false,
+				cs35l56_base->regmap,
+				CS35L56_DSP_VIRTUAL1_MBOX_2,
+				&val);
+	if (ret) {
+		dev_err(cs35l56_base->dev, "SPI reboot timed out(%d): MBOX2=%#x\n",
+			read_ret, val);
+	}
+}
+
 static const struct reg_sequence cs35l56_system_reset_seq[] = {
 	REG_SEQ0(CS35L56_DSP1_HALO_STATE, 0),
 	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_SYSTEM_RESET),
@@ -315,6 +389,12 @@ void cs35l56_system_reset(struct cs35l56_base *cs35l56_base, bool is_soundwire)
 	 * accesses other than the controlled system reset sequence below.
 	 */
 	regcache_cache_only(cs35l56_base->regmap, true);
+
+	if (cs35l56_is_spi(cs35l56_base)) {
+		cs35l56_spi_system_reset(cs35l56_base);
+		return;
+	}
+
 	regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
 					cs35l56_system_reset_seq,
 					ARRAY_SIZE(cs35l56_system_reset_seq));
