@@ -2059,6 +2059,8 @@ int bpf_prog_calc_tag(struct bpf_prog *fp);
 const struct bpf_func_proto *bpf_get_trace_printk_proto(void);
 const struct bpf_func_proto *bpf_get_trace_vprintk_proto(void);
 
+const struct bpf_func_proto *bpf_get_perf_event_read_value_proto(void);
+
 typedef unsigned long (*bpf_ctx_copy_t)(void *dst, const void *src,
 					unsigned long off, unsigned long len);
 typedef u32 (*bpf_convert_ctx_access_t)(enum bpf_access_type type,

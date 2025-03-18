@@ -607,6 +607,11 @@ static const struct bpf_func_proto bpf_perf_event_read_value_proto = {
 	.arg4_type	= ARG_CONST_SIZE,
 };
 
+const struct bpf_func_proto *bpf_get_perf_event_read_value_proto(void)
+{
+	return &bpf_perf_event_read_value_proto;
+}
+
 static __always_inline u64
 __bpf_perf_event_output(struct pt_regs *regs, struct bpf_map *map,
 			u64 flags, struct perf_raw_record *raw,
