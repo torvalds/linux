@@ -44,12 +44,10 @@ struct inet_connection_sock_af_ops {
 				      struct request_sock *req_unhash,
 				      bool *own_req);
 	u16	    net_header_len;
-	u16	    sockaddr_len;
 	int	    (*setsockopt)(struct sock *sk, int level, int optname,
 				  sockptr_t optval, unsigned int optlen);
 	int	    (*getsockopt)(struct sock *sk, int level, int optname,
 				  char __user *optval, int __user *optlen);
-	void	    (*addr2sockaddr)(struct sock *sk, struct sockaddr *);
 	void	    (*mtu_reduced)(struct sock *sk);
 };
 
@@ -314,8 +312,6 @@ static inline __poll_t inet_csk_listen_poll(const struct sock *sk)
 
 int inet_csk_listen_start(struct sock *sk);
 void inet_csk_listen_stop(struct sock *sk);
-
-void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr);
 
 /* update the fast reuse flag when adding a socket */
 void inet_csk_update_fastreuse(struct inet_bind_bucket *tb,

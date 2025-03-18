@@ -1553,17 +1553,6 @@ skip_child_forget:
 }
 EXPORT_SYMBOL_GPL(inet_csk_listen_stop);
 
-void inet_csk_addr2sockaddr(struct sock *sk, struct sockaddr *uaddr)
-{
-	struct sockaddr_in *sin = (struct sockaddr_in *)uaddr;
-	const struct inet_sock *inet = inet_sk(sk);
-
-	sin->sin_family		= AF_INET;
-	sin->sin_addr.s_addr	= inet->inet_daddr;
-	sin->sin_port		= inet->inet_dport;
-}
-EXPORT_SYMBOL_GPL(inet_csk_addr2sockaddr);
-
 static struct dst_entry *inet_csk_rebuild_route(struct sock *sk, struct flowi *fl)
 {
 	const struct inet_sock *inet = inet_sk(sk);

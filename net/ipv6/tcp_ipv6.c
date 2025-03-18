@@ -2068,8 +2068,6 @@ const struct inet_connection_sock_af_ops ipv6_specific = {
 	.net_header_len	   = sizeof(struct ipv6hdr),
 	.setsockopt	   = ipv6_setsockopt,
 	.getsockopt	   = ipv6_getsockopt,
-	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
-	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 	.mtu_reduced	   = tcp_v6_mtu_reduced,
 };
 
@@ -2102,8 +2100,6 @@ static const struct inet_connection_sock_af_ops ipv6_mapped = {
 	.net_header_len	   = sizeof(struct iphdr),
 	.setsockopt	   = ipv6_setsockopt,
 	.getsockopt	   = ipv6_getsockopt,
-	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
-	.sockaddr_len	   = sizeof(struct sockaddr_in6),
 	.mtu_reduced	   = tcp_v4_mtu_reduced,
 };
 

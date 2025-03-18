@@ -2477,8 +2477,6 @@ const struct inet_connection_sock_af_ops ipv4_specific = {
 	.net_header_len	   = sizeof(struct iphdr),
 	.setsockopt	   = ip_setsockopt,
 	.getsockopt	   = ip_getsockopt,
-	.addr2sockaddr	   = inet_csk_addr2sockaddr,
-	.sockaddr_len	   = sizeof(struct sockaddr_in),
 	.mtu_reduced	   = tcp_v4_mtu_reduced,
 };
 EXPORT_IPV6_MOD(ipv4_specific);
