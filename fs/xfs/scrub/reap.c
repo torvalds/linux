@@ -935,10 +935,13 @@ xrep_reap_metadir_fsblocks(
 	if (error)
 		return error;
 
-	if (xreap_dirty(&rs))
-		return xrep_defer_finish(sc);
+	if (xreap_dirty(&rs)) {
+		error = xrep_defer_finish(sc);
+		if (error)
+			return error;
+	}
 
-	return 0;
+	return xrep_reset_metafile_resv(sc);
 }
 
 /*

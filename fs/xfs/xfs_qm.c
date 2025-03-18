@@ -1711,7 +1711,8 @@ xfs_qm_mount_quotas(
 	 * immediately.  We only support rtquota if rtgroups are enabled to
 	 * avoid problems with older kernels.
 	 */
-	if (mp->m_sb.sb_rextents && !xfs_has_rtgroups(mp)) {
+	if (mp->m_sb.sb_rextents &&
+	    (!xfs_has_rtgroups(mp) || xfs_has_zoned(mp))) {
 		xfs_notice(mp, "Cannot turn on quotas for realtime filesystem");
 		mp->m_qflags = 0;
 		goto write_changes;

@@ -26,13 +26,13 @@ void xfs_metafile_clear_iflag(struct xfs_trans *tp, struct xfs_inode *ip);
 /* Space reservations for metadata inodes. */
 struct xfs_alloc_arg;
 
-bool xfs_metafile_resv_critical(struct xfs_inode *ip);
+bool xfs_metafile_resv_critical(struct xfs_mount *mp);
 void xfs_metafile_resv_alloc_space(struct xfs_inode *ip,
 		struct xfs_alloc_arg *args);
 void xfs_metafile_resv_free_space(struct xfs_inode *ip, struct xfs_trans *tp,
 		xfs_filblks_t len);
-void xfs_metafile_resv_free(struct xfs_inode *ip);
-int xfs_metafile_resv_init(struct xfs_inode *ip, xfs_filblks_t ask);
+void xfs_metafile_resv_free(struct xfs_mount *mp);
+int xfs_metafile_resv_init(struct xfs_mount *mp);
 
 /* Code specific to kernel/userspace; must be provided externally. */
 

@@ -37,14 +37,32 @@ struct xfs_rtgroup {
 	xfs_rtxnum_t		rtg_extents;
 
 	/*
-	 * Cache of rt summary level per bitmap block with the invariant that
-	 * rtg_rsum_cache[bbno] > the maximum i for which rsum[i][bbno] != 0,
-	 * or 0 if rsum[i][bbno] == 0 for all i.
-	 *
+	 * For bitmap based RT devices this points to a cache of rt summary
+	 * level per bitmap block with the invariant that rtg_rsum_cache[bbno]
+	 * > the maximum i for which rsum[i][bbno] != 0, or 0 if
+	 * rsum[i][bbno] == 0 for all i.
 	 * Reads and writes are serialized by the rsumip inode lock.
+	 *
+	 * For zoned RT devices this points to the open zone structure for
+	 * a group that is open for writers, or is NULL.
 	 */
-	uint8_t			*rtg_rsum_cache;
+	union {
+		uint8_t			*rtg_rsum_cache;
+		struct xfs_open_zone	*rtg_open_zone;
+	};
 };
+
+/*
+ * For zoned RT devices this is set on groups that have no written blocks
+ * and can be picked by the allocator for opening.
+ */
+#define XFS_RTG_FREE			XA_MARK_0
+
+/*
+ * For zoned RT devices this is set on groups that are fully written and that
+ * have unused blocks.  Used by the garbage collection to pick targets.
+ */
+#define XFS_RTG_RECLAIMABLE		XA_MARK_1
 
 static inline struct xfs_rtgroup *to_rtg(struct xfs_group *xg)
 {
@@ -64,6 +82,11 @@ static inline struct xfs_mount *rtg_mount(const struct xfs_rtgroup *rtg)
 static inline xfs_rgnumber_t rtg_rgno(const struct xfs_rtgroup *rtg)
 {
 	return rtg->rtg_group.xg_gno;
+}
+
+static inline xfs_rgblock_t rtg_blocks(const struct xfs_rtgroup *rtg)
+{
+	return rtg->rtg_group.xg_block_count;
 }
 
 static inline struct xfs_inode *rtg_bitmap(const struct xfs_rtgroup *rtg)
@@ -222,10 +245,14 @@ xfs_rtb_to_daddr(
 	xfs_rtblock_t		rtbno)
 {
 	struct xfs_groups	*g = &mp->m_groups[XG_TYPE_RTG];
-	xfs_rgnumber_t		rgno = xfs_rtb_to_rgno(mp, rtbno);
-	uint64_t		start_bno = (xfs_rtblock_t)rgno * g->blocks;
 
-	return XFS_FSB_TO_BB(mp, start_bno + (rtbno & g->blkmask));
+	if (xfs_has_rtgroups(mp) && !g->has_daddr_gaps) {
+		xfs_rgnumber_t	rgno = xfs_rtb_to_rgno(mp, rtbno);
+
+		rtbno = (xfs_rtblock_t)rgno * g->blocks + (rtbno & g->blkmask);
+	}
+
+	return XFS_FSB_TO_BB(mp, g->start_fsb + rtbno);
 }
 
 static inline xfs_rtblock_t
@@ -233,10 +260,11 @@ xfs_daddr_to_rtb(
 	struct xfs_mount	*mp,
 	xfs_daddr_t		daddr)
 {
-	xfs_rfsblock_t		bno = XFS_BB_TO_FSBT(mp, daddr);
+	struct xfs_groups	*g = &mp->m_groups[XG_TYPE_RTG];
+	xfs_rfsblock_t		bno;
 
-	if (xfs_has_rtgroups(mp)) {
-		struct xfs_groups *g = &mp->m_groups[XG_TYPE_RTG];
+	bno = XFS_BB_TO_FSBT(mp, daddr) - g->start_fsb;
+	if (xfs_has_rtgroups(mp) && !g->has_daddr_gaps) {
 		xfs_rgnumber_t	rgno;
 		uint32_t	rgbno;
 
