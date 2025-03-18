@@ -52,7 +52,6 @@ PROVIDE(__pi_cavium_erratum_27456_cpus	= cavium_erratum_27456_cpus);
 PROVIDE(__pi_is_midr_in_range_list	= is_midr_in_range_list);
 #endif
 PROVIDE(__pi__ctype			= _ctype);
-PROVIDE(__pi_memstart_offset_seed	= memstart_offset_seed);
 
 PROVIDE(__pi_init_idmap_pg_dir		= init_idmap_pg_dir);
 PROVIDE(__pi_init_idmap_pg_end		= init_idmap_pg_end);
