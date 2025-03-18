@@ -233,3 +233,10 @@ impl AsRef<device::Device> for Device {
         unsafe { device::Device::as_ref(dev) }
     }
 }
+
+// SAFETY: A `Device` is always reference-counted and can be released from any thread.
+unsafe impl Send for Device {}
+
+// SAFETY: `Device` can be shared among threads because all methods of `Device`
+// (i.e. `Device<Normal>) are thread safe.
+unsafe impl Sync for Device {}
