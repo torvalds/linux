@@ -2534,10 +2534,10 @@ void evlist__warn_user_requested_cpus(struct evlist *evlist, const char *cpu_lis
 		return;
 
 	evlist__for_each_entry(evlist, pos) {
-		struct perf_cpu_map *intersect, *to_test;
+		struct perf_cpu_map *intersect, *to_test, *online = cpu_map__online();
 		const struct perf_pmu *pmu = evsel__find_pmu(pos);
 
-		to_test = pmu && pmu->is_core ? pmu->cpus : cpu_map__online();
+		to_test = pmu && pmu->is_core ? pmu->cpus : online;
 		intersect = perf_cpu_map__intersect(to_test, user_requested_cpus);
 		if (!perf_cpu_map__equal(intersect, user_requested_cpus)) {
 			char buf[128];
@@ -2547,6 +2547,7 @@ void evlist__warn_user_requested_cpus(struct evlist *evlist, const char *cpu_lis
 				cpu_list, pmu ? pmu->name : "cpu", buf, evsel__name(pos));
 		}
 		perf_cpu_map__put(intersect);
+		perf_cpu_map__put(online);
 	}
 	perf_cpu_map__put(user_requested_cpus);
 }

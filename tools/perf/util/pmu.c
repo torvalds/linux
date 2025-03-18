@@ -779,7 +779,7 @@ static struct perf_cpu_map *pmu_cpumask(int dirfd, const char *pmu_name, bool is
 	}
 
 	/* Nothing found, for core PMUs assume this means all CPUs. */
-	return is_core ? perf_cpu_map__get(cpu_map__online()) : NULL;
+	return is_core ? cpu_map__online() : NULL;
 }
 
 static bool pmu_is_uncore(int dirfd, const char *name)

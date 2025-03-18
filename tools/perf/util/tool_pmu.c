@@ -355,6 +355,7 @@ bool tool_pmu__read_event(enum tool_pmu_event ev, u64 *result)
 
 		if (online) {
 			*result = perf_cpu_map__nr(online);
+			perf_cpu_map__put(online);
 			return true;
 		}
 		return false;

@@ -722,7 +722,7 @@ struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
 	if (!online)
 		online = perf_cpu_map__new_online_cpus(); /* from /sys/devices/system/cpu/online */
 
-	return online;
+	return perf_cpu_map__get(online);
 }
 
 bool aggr_cpu_id__equal(const struct aggr_cpu_id *a, const struct aggr_cpu_id *b)
