@@ -12,6 +12,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_types.h>
 #include <linux/mutex.h>
+#include <linux/perf_event.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
 #include <linux/types.h>
@@ -291,6 +292,8 @@ static inline int kvm_get_pmu_num(struct kvm_vcpu_arch *arch)
 {
 	return (arch->cpucfg[6] & CPUCFG6_PMNUM) >> CPUCFG6_PMNUM_SHIFT;
 }
+
+bool kvm_arch_pmi_in_guest(struct kvm_vcpu *vcpu);
 
 /* Debug: dump vcpu state */
 int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu);
