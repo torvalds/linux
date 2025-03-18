@@ -158,6 +158,20 @@ static void snd_soc_read_signed(struct snd_soc_component *component,
 	*signed_val = ret;
 }
 
+static int soc_mixer_mask(struct soc_mixer_control *mc)
+{
+	if (mc->sign_bit)
+		return GENMASK(mc->sign_bit, 0);
+	else
+		return GENMASK(fls(mc->max) - 1, 0);
+}
+
+static int soc_mixer_sx_mask(struct soc_mixer_control *mc)
+{
+	// min + max will take us 1-bit over the size of the mask
+	return GENMASK(fls(mc->min + mc->max) - 2, 0);
+}
+
 /**
  * snd_soc_info_volsw - single mixer info callback
  * @kcontrol: mixer control
@@ -260,12 +274,9 @@ int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	int max = mc->max;
 	int min = mc->min;
 	int sign_bit = mc->sign_bit;
-	unsigned int mask = (1ULL << fls(max)) - 1;
+	unsigned int mask = soc_mixer_mask(mc);
 	unsigned int invert = mc->invert;
 	int val;
-
-	if (sign_bit)
-		mask = BIT(sign_bit + 1) - 1;
 
 	snd_soc_read_signed(component, reg, mask, shift, sign_bit, &val);
 
@@ -312,16 +323,12 @@ int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int rshift = mc->rshift;
 	int max = mc->max;
 	int min = mc->min;
-	unsigned int sign_bit = mc->sign_bit;
-	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int mask = soc_mixer_mask(mc);
 	unsigned int invert = mc->invert;
 	int err, ret;
 	bool type_2r = false;
 	unsigned int val2 = 0;
 	unsigned int val, val_mask;
-
-	if (sign_bit)
-		mask = BIT(sign_bit + 1) - 1;
 
 	if (ucontrol->value.integer.value[0] < 0)
 		return -EINVAL;
@@ -391,9 +398,8 @@ int snd_soc_get_volsw_sx(struct snd_kcontrol *kcontrol,
 	unsigned int reg2 = mc->rreg;
 	unsigned int shift = mc->shift;
 	unsigned int rshift = mc->rshift;
-	int max = mc->max;
 	int min = mc->min;
-	unsigned int mask = (1U << (fls(min + max) - 1)) - 1;
+	unsigned int mask = soc_mixer_sx_mask(mc);
 	unsigned int val;
 
 	val = snd_soc_component_read(component, reg);
@@ -431,7 +437,7 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	unsigned int val, val_mask;
 	int max = mc->max;
 	int min = mc->min;
-	unsigned int mask = (1U << (fls(min + max) - 1)) - 1;
+	unsigned int mask = soc_mixer_sx_mask(mc);
 	int err = 0;
 	int ret;
 
@@ -525,7 +531,7 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 	unsigned int shift = mc->shift;
 	int min = mc->min;
 	int max = mc->max;
-	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int mask = soc_mixer_mask(mc);
 	unsigned int invert = mc->invert;
 	unsigned int val, val_mask;
 	int err, ret, tmp;
@@ -597,7 +603,7 @@ int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
 	unsigned int shift = mc->shift;
 	int min = mc->min;
 	int max = mc->max;
-	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int mask = soc_mixer_mask(mc);
 	unsigned int invert = mc->invert;
 	unsigned int val;
 
@@ -891,9 +897,9 @@ int snd_soc_get_xr_sx(struct snd_kcontrol *kcontrol,
 	unsigned int regbase = mc->regbase;
 	unsigned int regcount = mc->regcount;
 	unsigned int regwshift = component->val_bytes * BITS_PER_BYTE;
-	unsigned int regwmask = (1UL << regwshift) - 1;
+	unsigned int regwmask = GENMASK(regwshift - 1, 0);
+	unsigned long mask = GENMASK(mc->nbits - 1, 0);
 	unsigned int invert = mc->invert;
-	unsigned long mask = (1UL << mc->nbits) - 1;
 	long min = mc->min;
 	long max = mc->max;
 	long val = 0;
@@ -938,9 +944,9 @@ int snd_soc_put_xr_sx(struct snd_kcontrol *kcontrol,
 	unsigned int regbase = mc->regbase;
 	unsigned int regcount = mc->regcount;
 	unsigned int regwshift = component->val_bytes * BITS_PER_BYTE;
-	unsigned int regwmask = (1UL << regwshift) - 1;
+	unsigned int regwmask = GENMASK(regwshift - 1, 0);
+	unsigned long mask = GENMASK(mc->nbits - 1, 0);
 	unsigned int invert = mc->invert;
-	unsigned long mask = (1UL << mc->nbits) - 1;
 	long max = mc->max;
 	long val = ucontrol->value.integer.value[0];
 	int ret = 0;
@@ -986,7 +992,7 @@ int snd_soc_get_strobe(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int reg = mc->reg;
 	unsigned int shift = mc->shift;
-	unsigned int mask = 1 << shift;
+	unsigned int mask = BIT(shift);
 	unsigned int invert = mc->invert != 0;
 	unsigned int val;
 
@@ -1019,7 +1025,7 @@ int snd_soc_put_strobe(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int reg = mc->reg;
 	unsigned int shift = mc->shift;
-	unsigned int mask = 1 << shift;
+	unsigned int mask = BIT(shift);
 	unsigned int invert = mc->invert != 0;
 	unsigned int strobe = ucontrol->value.enumerated.item[0] != 0;
 	unsigned int val1 = (strobe ^ invert) ? mask : 0;
