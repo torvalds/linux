@@ -45,7 +45,6 @@
 		.type = IIO_VOLTAGE,				\
 		.indexed = 1,					\
 		.channel = num,					\
-		.address = num,					\
 		.info_mask_separate = mask_sep,			\
 		.info_mask_separate_available =			\
 			mask_sep_avail,				\

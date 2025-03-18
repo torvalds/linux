@@ -776,14 +776,14 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_RAW:
 		if (!iio_device_claim_direct(indio_dev))
 			return -EBUSY;
-		ret = ad7606_scan_direct(indio_dev, chan->address, val);
+		ret = ad7606_scan_direct(indio_dev, chan->scan_index, val);
 		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		if (st->sw_mode_en)
-			ch = chan->address;
+			ch = chan->scan_index;
 		cs = &st->chan_scales[ch];
 		*val = cs->scale_avail[cs->range][0];
 		*val2 = cs->scale_avail[cs->range][1];
@@ -865,7 +865,7 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		if (st->sw_mode_en)
-			ch = chan->address;
+			ch = chan->scan_index;
 		cs = &st->chan_scales[ch];
 		for (i = 0; i < cs->num_scales; i++) {
 			scale_avail_uv[i] = cs->scale_avail[i][0] * MICRO +
@@ -1072,7 +1072,7 @@ static int ad7606_read_avail(struct iio_dev *indio_dev,
 
 	case IIO_CHAN_INFO_SCALE:
 		if (st->sw_mode_en)
-			ch = chan->address;
+			ch = chan->scan_index;
 
 		cs = &st->chan_scales[ch];
 		*vals = (int *)cs->scale_avail;
