@@ -77,10 +77,12 @@ allOf:
           items:
             - description: hub register
             - description: core0 register
+            - description: SMS state manager register
         reg-names:
           items:
             - const: hub
             - const: core0
+            - const: sms
   - if:
       properties:
         compatible:
