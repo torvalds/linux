@@ -59,16 +59,11 @@ static int cros_ec_mkbp_proximity_parse_state(const void *data)
 static int cros_ec_mkbp_proximity_query(struct cros_ec_device *ec_dev,
 					int *state)
 {
-	struct {
-		struct cros_ec_command msg;
-		union {
-			struct ec_params_mkbp_info params;
-			u32 switches;
-		};
-	} __packed buf = { };
-	struct ec_params_mkbp_info *params = &buf.params;
-	struct cros_ec_command *msg = &buf.msg;
-	u32 *switches = &buf.switches;
+	DEFINE_RAW_FLEX(struct cros_ec_command, buf, data,
+			MAX(sizeof(u32), sizeof(struct ec_params_mkbp_info)));
+	struct ec_params_mkbp_info *params = (struct ec_params_mkbp_info *)buf->data;
+	struct cros_ec_command *msg = buf;
+	u32 *switches = (u32 *)buf->data;
 	size_t insize = sizeof(*switches);
 	int ret;
 
