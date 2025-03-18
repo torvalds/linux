@@ -344,6 +344,7 @@ static struct damon_sysfs_scheme_filter *damon_sysfs_scheme_filter_alloc(
 /* Should match with enum damos_filter_type */
 static const char * const damon_sysfs_scheme_filter_type_strs[] = {
 	"anon",
+	"active",
 	"memcg",
 	"young",
 	"hugepage_size",

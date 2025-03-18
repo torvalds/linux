@@ -217,6 +217,9 @@ static bool damos_pa_filter_match(struct damos_filter *filter,
 	case DAMOS_FILTER_TYPE_ANON:
 		matched = folio_test_anon(folio);
 		break;
+	case DAMOS_FILTER_TYPE_ACTIVE:
+		matched = folio_test_active(folio);
+		break;
 	case DAMOS_FILTER_TYPE_MEMCG:
 		rcu_read_lock();
 		memcg = folio_memcg_check(folio);
