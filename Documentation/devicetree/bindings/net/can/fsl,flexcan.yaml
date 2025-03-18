@@ -45,6 +45,10 @@ properties:
           - enum:
               - nxp,s32g3-flexcan
           - const: nxp,s32g2-flexcan
+      - items:
+          - enum:
+              - fsl,imx94-flexcan
+          - const: fsl,imx95-flexcan
 
   reg:
     maxItems: 1
@@ -76,6 +80,9 @@ properties:
 
   xceiver-supply:
     description: Regulator that powers the CAN transceiver.
+
+  phys:
+    maxItems: 1
 
   big-endian:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -171,6 +178,12 @@ allOf:
         interrupts:
           maxItems: 1
         interrupt-names: false
+  - if:
+      required:
+        - xceiver-supply
+    then:
+      properties:
+        phys: false
 
 additionalProperties: false
 
