@@ -1089,7 +1089,8 @@ union replay_low_refresh_rate_enable_options {
 	struct {
 	//BIT[0-3]: Replay Low Hz Support control
 		unsigned int ENABLE_LOW_RR_SUPPORT          :1;
-		unsigned int RESERVED_1_3                   :3;
+		unsigned int SKIP_ASIC_CHECK                :1;
+		unsigned int RESERVED_2_3                   :2;
 	//BIT[4-15]: Replay Low Hz Enable Scenarios
 		unsigned int ENABLE_STATIC_SCREEN           :1;
 		unsigned int ENABLE_FULL_SCREEN_VIDEO       :1;
@@ -1129,6 +1130,8 @@ struct replay_config {
 	union replay_low_refresh_rate_enable_options low_rr_enable_options;
 	/* Replay coasting vtotal is within low refresh rate range. */
 	bool low_rr_activated;
+	/* Replay low refresh rate supported*/
+	bool low_rr_supported;
 };
 
 /* Replay feature flags*/
