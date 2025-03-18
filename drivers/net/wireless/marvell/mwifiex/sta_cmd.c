@@ -1507,6 +1507,7 @@ static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
 	u32 len;
 	u8 *data = (u8 *)cmd + S_DS_GEN;
 	int ret;
+	struct host_cmd_ds_802_11_cfg_data *pcfg_data;
 
 	if (prop) {
 		len = prop->length;
@@ -1514,12 +1515,20 @@ static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
 						data, len);
 		if (ret)
 			return ret;
+
+		cmd->size = cpu_to_le16(S_DS_GEN + len);
 		mwifiex_dbg(adapter, INFO,
 			    "download cfg_data from device tree: %s\n",
 			    prop->name);
 	} else if (adapter->cal_data->data && adapter->cal_data->size > 0) {
 		len = mwifiex_parse_cal_cfg((u8 *)adapter->cal_data->data,
-					    adapter->cal_data->size, data);
+					    adapter->cal_data->size,
+					    data + sizeof(*pcfg_data));
+		pcfg_data = &cmd->params.cfg_data;
+		pcfg_data->action = cpu_to_le16(HOST_CMD_ACT_GEN_SET);
+		pcfg_data->type = cpu_to_le16(MWIFIEX_CFG_TYPE_CAL);
+		pcfg_data->data_len = cpu_to_le16(len);
+		cmd->size = cpu_to_le16(S_DS_GEN + sizeof(*pcfg_data) + len);
 		mwifiex_dbg(adapter, INFO,
 			    "download cfg_data from config file\n");
 	} else {
@@ -1527,7 +1536,6 @@ static int mwifiex_cmd_cfg_data(struct mwifiex_private *priv,
 	}
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_CFG_DATA);
-	cmd->size = cpu_to_le16(S_DS_GEN + len);
 
 	return 0;
 }
