@@ -512,7 +512,6 @@ static void tps65010_remove(struct i2c_client *client)
 	if (client->irq > 0)
 		free_irq(client->irq, tps);
 	cancel_delayed_work_sync(&tps->work);
-	debugfs_remove(tps->file);
 	the_tps = NULL;
 }
 
@@ -608,7 +607,7 @@ static int tps65010_probe(struct i2c_client *client)
 
 	tps65010_work(&tps->work.work);
 
-	tps->file = debugfs_create_file(DRIVER_NAME, S_IRUGO, NULL,
+	tps->file = debugfs_create_file(DRIVER_NAME, S_IRUGO, client->debugfs,
 				tps, DEBUG_FOPS);
 
 	/* optionally register GPIOs */
