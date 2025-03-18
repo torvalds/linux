@@ -47,9 +47,10 @@
  * - 1.19 - Add a new ioctl to craete secondary kfd processes
  * - 1.20 - Trap handler support for expert scheduling mode available
  * - 1.21 - Debugger support to subscribe to LDS out-of-address exceptions
+ * - 1.22 - Add queue creation with metadata ring base address
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 21
+#define KFD_IOCTL_MINOR_VERSION 22
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -87,7 +88,7 @@ struct kfd_ioctl_create_queue_args {
 	__u32 ctx_save_restore_size;	/* to KFD */
 	__u32 ctl_stack_size;		/* to KFD */
 	__u32 sdma_engine_id;		/* to KFD */
-	__u32 pad;
+	__u32 metadata_ring_size;	/* to KFD */
 };
 
 struct kfd_ioctl_destroy_queue_args {

@@ -247,9 +247,12 @@ int kfd_queue_acquire_buffers(struct kfd_process_device *pdd, struct queue_prope
 	    properties->format == KFD_QUEUE_FORMAT_AQL &&
 	    topo_dev->node_props.gfx_target_version >= 70000 &&
 	    topo_dev->node_props.gfx_target_version < 90000)
-		expected_queue_size = properties->queue_size / 2;
+		/* metadata_queue_size not supported on GFX7/GFX8 */
+		expected_queue_size =
+			properties->queue_size / 2;
 	else
-		expected_queue_size = properties->queue_size;
+		expected_queue_size =
+			properties->queue_size + properties->metadata_queue_size;
 
 	vm = drm_priv_to_vm(pdd->drm_priv);
 	err = amdgpu_bo_reserve(vm->root.bo, false);

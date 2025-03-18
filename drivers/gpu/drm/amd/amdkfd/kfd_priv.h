@@ -506,7 +506,8 @@ struct queue_properties {
 	enum kfd_queue_format format;
 	unsigned int queue_id;
 	uint64_t queue_address;
-	uint64_t  queue_size;
+	uint64_t queue_size;
+	uint64_t metadata_queue_size;
 	uint32_t priority;
 	uint32_t queue_percent;
 	void __user *read_ptr;

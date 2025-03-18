@@ -266,6 +266,27 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 	m->cp_hqd_pq_base_lo = lower_32_bits((uint64_t)q->queue_address >> 8);
 	m->cp_hqd_pq_base_hi = upper_32_bits((uint64_t)q->queue_address >> 8);
 
+	if (q->metadata_queue_size) {
+		/* On GC 12.1 is 64 DWs which is 4 times size of AQL packet */
+		if (q->metadata_queue_size == q->queue_size * 4) {
+			/*
+			 * User application allocates main queue ring and metadata queue ring
+			 * with a single allocation. metadata queue ring starts after main
+			 * queue ring.
+			 */
+			m->cp_hqd_kd_base =
+				lower_32_bits((q->queue_address + q->queue_size) >> 8);
+			m->cp_hqd_kd_base_hi =
+				upper_32_bits((q->queue_address + q->queue_size) >> 8);
+
+			m->cp_hqd_kd_cntl |= CP_HQD_KD_CNTL__KD_FETCHER_ENABLE_MASK;
+			/* KD_SIZE = 2 for metadata packet = 64 DWs */
+			m->cp_hqd_kd_cntl |= 2 << CP_HQD_KD_CNTL__KD_SIZE__SHIFT;
+		} else {
+			pr_warn("Invalid metadata ring size, metadata queue will be ignored\n");
+		}
+	}
+
 	m->cp_hqd_pq_rptr_report_addr_lo = lower_32_bits((uint64_t)q->read_ptr);
 	m->cp_hqd_pq_rptr_report_addr_hi = upper_32_bits((uint64_t)q->read_ptr);
 	m->cp_hqd_pq_wptr_poll_addr_lo = lower_32_bits((uint64_t)q->write_ptr);

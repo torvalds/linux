@@ -221,6 +221,11 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 		pr_debug("Size lower. clamped to KFD_MIN_QUEUE_RING_SIZE");
 	}
 
+	if ((args->metadata_ring_size != 0) && !is_power_of_2(args->metadata_ring_size)) {
+		pr_err("Metadata ring size must be a power of 2 or 0\n");
+		return -EINVAL;
+	}
+
 	if (!access_ok((const void __user *) args->read_pointer_address,
 			sizeof(uint32_t))) {
 		pr_err("Can't access read pointer\n");
@@ -255,6 +260,9 @@ static int set_queue_properties_from_user(struct queue_properties *q_properties,
 	q_properties->priority = args->queue_priority;
 	q_properties->queue_address = args->ring_base_address;
 	q_properties->queue_size = args->ring_size;
+	if (args->queue_type == KFD_IOC_QUEUE_TYPE_COMPUTE_AQL)
+		q_properties->metadata_queue_size = args->metadata_ring_size;
+
 	q_properties->read_ptr = (void __user *)args->read_pointer_address;
 	q_properties->write_ptr = (void __user *)args->write_pointer_address;
 	q_properties->eop_ring_buffer_address = args->eop_buffer_address;
