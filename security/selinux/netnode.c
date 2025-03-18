@@ -253,7 +253,7 @@ int sel_netnode_sid(const void *addr, u16 family, u32 *sid)
 
 	rcu_read_lock();
 	node = sel_netnode_find(addr, family);
-	if (node != NULL) {
+	if (likely(node != NULL)) {
 		*sid = node->nsec.sid;
 		rcu_read_unlock();
 		return 0;

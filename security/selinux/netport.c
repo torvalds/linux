@@ -186,7 +186,7 @@ int sel_netport_sid(u8 protocol, u16 pnum, u32 *sid)
 
 	rcu_read_lock();
 	port = sel_netport_find(protocol, pnum);
-	if (port != NULL) {
+	if (likely(port != NULL)) {
 		*sid = port->psec.sid;
 		rcu_read_unlock();
 		return 0;

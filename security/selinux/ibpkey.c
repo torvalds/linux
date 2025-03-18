@@ -184,7 +184,7 @@ int sel_ib_pkey_sid(u64 subnet_prefix, u16 pkey_num, u32 *sid)
 
 	rcu_read_lock();
 	pkey = sel_ib_pkey_find(subnet_prefix, pkey_num);
-	if (pkey) {
+	if (likely(pkey)) {
 		*sid = pkey->psec.sid;
 		rcu_read_unlock();
 		return 0;
