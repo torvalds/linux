@@ -1882,13 +1882,12 @@ static void smi_send(struct ipmi_smi *intf,
 		     const struct ipmi_smi_handlers *handlers,
 		     struct ipmi_smi_msg *smi_msg, int priority)
 {
-	int run_to_completion = intf->run_to_completion;
+	int run_to_completion = READ_ONCE(intf->run_to_completion);
 	unsigned long flags = 0;
 
 	if (!run_to_completion)
 		spin_lock_irqsave(&intf->xmit_msgs_lock, flags);
 	smi_msg = smi_add_send_msg(intf, smi_msg, priority);
-
 	if (!run_to_completion)
 		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
 
@@ -4753,10 +4752,10 @@ process_response_response:
  */
 static void handle_new_recv_msgs(struct ipmi_smi *intf)
 {
-	struct ipmi_smi_msg  *smi_msg;
-	unsigned long        flags = 0;
-	int                  rv;
-	int                  run_to_completion = intf->run_to_completion;
+	struct ipmi_smi_msg *smi_msg;
+	unsigned long flags = 0;
+	int rv;
+	int run_to_completion = READ_ONCE(intf->run_to_completion);
 
 	/* See if any waiting messages need to be processed. */
 	if (!run_to_completion)
@@ -4813,7 +4812,7 @@ static void smi_recv_work(struct work_struct *t)
 {
 	unsigned long flags = 0; /* keep us warning-free. */
 	struct ipmi_smi *intf = from_work(intf, t, recv_work);
-	int run_to_completion = intf->run_to_completion;
+	int run_to_completion = READ_ONCE(intf->run_to_completion);
 	struct ipmi_smi_msg *newmsg = NULL;
 
 	/*
@@ -4843,9 +4842,9 @@ static void smi_recv_work(struct work_struct *t)
 			intf->curr_msg = newmsg;
 		}
 	}
-
 	if (!run_to_completion)
 		spin_unlock_irqrestore(&intf->xmit_msgs_lock, flags);
+
 	if (newmsg)
 		intf->handlers->sender(intf->send_info, newmsg);
 
@@ -4859,7 +4858,7 @@ void ipmi_smi_msg_received(struct ipmi_smi *intf,
 			   struct ipmi_smi_msg *msg)
 {
 	unsigned long flags = 0; /* keep us warning-free. */
-	int run_to_completion = intf->run_to_completion;
+	int run_to_completion = READ_ONCE(intf->run_to_completion);
 
 	/*
 	 * To preserve message order, we keep a queue and deliver from
