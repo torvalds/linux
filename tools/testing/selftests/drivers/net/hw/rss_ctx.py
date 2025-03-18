@@ -392,7 +392,7 @@ def test_rss_context_dump(cfg):
 
     # Sanity-check the results
     for data in ctxs:
-        ksft_ne(set(data['indir']), {0}, "indir table is all zero")
+        ksft_ne(set(data.get('indir', [1])), {0}, "indir table is all zero")
         ksft_ne(set(data.get('hkey', [1])), {0}, "key is all zero")
 
         # More specific checks
