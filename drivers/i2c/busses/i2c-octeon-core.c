@@ -45,7 +45,7 @@ static bool octeon_i2c_test_iflg(struct octeon_i2c *i2c)
  * octeon_i2c_wait - wait for the IFLG to be set
  * @i2c: The struct octeon_i2c
  *
- * Returns 0 on success, otherwise a negative errno.
+ * Returns: 0 on success, otherwise a negative errno.
  */
 static int octeon_i2c_wait(struct octeon_i2c *i2c)
 {
@@ -139,7 +139,7 @@ static void octeon_i2c_hlc_disable(struct octeon_i2c *i2c)
  * octeon_i2c_hlc_wait - wait for an HLC operation to complete
  * @i2c: The struct octeon_i2c
  *
- * Returns 0 on success, otherwise -ETIMEDOUT.
+ * Returns: 0 on success, otherwise -ETIMEDOUT.
  */
 static int octeon_i2c_hlc_wait(struct octeon_i2c *i2c)
 {
@@ -273,7 +273,7 @@ static int octeon_i2c_recovery(struct octeon_i2c *i2c)
  * octeon_i2c_start - send START to the bus
  * @i2c: The struct octeon_i2c
  *
- * Returns 0 on success, otherwise a negative errno.
+ * Returns: 0 on success, otherwise a negative errno.
  */
 static int octeon_i2c_start(struct octeon_i2c *i2c)
 {
@@ -314,7 +314,7 @@ static void octeon_i2c_stop(struct octeon_i2c *i2c)
  *
  * The address is sent over the bus, then the data is read.
  *
- * Returns 0 on success, otherwise a negative errno.
+ * Returns: 0 on success, otherwise a negative errno.
  */
 static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
 			   u8 *data, u16 *rlength, bool recv_len)
@@ -382,7 +382,7 @@ static int octeon_i2c_read(struct octeon_i2c *i2c, int target,
  *
  * The address is sent over the bus, then the data.
  *
- * Returns 0 on success, otherwise a negative errno.
+ * Returns: 0 on success, otherwise a negative errno.
  */
 static int octeon_i2c_write(struct octeon_i2c *i2c, int target,
 			    const u8 *data, int length)
@@ -625,7 +625,7 @@ err:
  * @msgs: Pointer to the messages to be processed
  * @num: Length of the MSGS array
  *
- * Returns the number of messages processed, or a negative errno on failure.
+ * Returns: the number of messages processed, or a negative errno on failure.
  */
 int octeon_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
