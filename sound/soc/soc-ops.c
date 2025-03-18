@@ -158,6 +158,20 @@ static void snd_soc_read_signed(struct snd_soc_component *component,
 	*signed_val = ret;
 }
 
+static int soc_mixer_valid_ctl(struct soc_mixer_control *mc, long val, int max)
+{
+	if (val < 0)
+		return -EINVAL;
+
+	if (mc->platform_max && val > mc->platform_max)
+		return -EINVAL;
+
+	if (val > max)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int soc_mixer_mask(struct soc_mixer_control *mc)
 {
 	if (mc->sign_bit)
@@ -330,26 +344,24 @@ int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int val2 = 0;
 	unsigned int val, val_mask;
 
-	if (ucontrol->value.integer.value[0] < 0)
-		return -EINVAL;
+	ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[0],
+				  mc->max - mc->min);
+	if (ret)
+		return ret;
+
 	val = ucontrol->value.integer.value[0];
-	if (mc->platform_max && val > mc->platform_max)
-		return -EINVAL;
-	if (val > max - min)
-		return -EINVAL;
 	val = (val + min) & mask;
 	if (invert)
 		val = max - val;
 	val_mask = mask << shift;
 	val = val << shift;
 	if (snd_soc_volsw_is_stereo(mc)) {
-		if (ucontrol->value.integer.value[1] < 0)
-			return -EINVAL;
+		ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[1],
+					  mc->max - mc->min);
+		if (ret)
+			return ret;
+
 		val2 = ucontrol->value.integer.value[1];
-		if (mc->platform_max && val2 > mc->platform_max)
-			return -EINVAL;
-		if (val2 > max - min)
-			return -EINVAL;
 		val2 = (val2 + min) & mask;
 		if (invert)
 			val2 = max - val2;
@@ -435,19 +447,16 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	unsigned int shift = mc->shift;
 	unsigned int rshift = mc->rshift;
 	unsigned int val, val_mask;
-	int max = mc->max;
 	int min = mc->min;
 	unsigned int mask = soc_mixer_sx_mask(mc);
 	int err = 0;
 	int ret;
 
-	if (ucontrol->value.integer.value[0] < 0)
-		return -EINVAL;
+	ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[0], mc->max);
+	if (ret)
+		return ret;
+
 	val = ucontrol->value.integer.value[0];
-	if (mc->platform_max && val > mc->platform_max)
-		return -EINVAL;
-	if (val > max)
-		return -EINVAL;
 	val_mask = mask << shift;
 	val = (val + min) & mask;
 	val = val << shift;
@@ -458,13 +467,14 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	ret = err;
 
 	if (snd_soc_volsw_is_stereo(mc)) {
-		unsigned int val2 = ucontrol->value.integer.value[1];
+		unsigned int val2;
 
-		if (mc->platform_max && val2 > mc->platform_max)
-			return -EINVAL;
-		if (val2 > max)
-			return -EINVAL;
+		ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[1],
+					  mc->max);
+		if (ret)
+			return ret;
 
+		val2 = ucontrol->value.integer.value[1];
 		val_mask = mask << rshift;
 		val2 = (val2 + min) & mask;
 		val2 = val2 << rshift;
@@ -534,15 +544,12 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 	unsigned int mask = soc_mixer_mask(mc);
 	unsigned int invert = mc->invert;
 	unsigned int val, val_mask;
-	int err, ret, tmp;
+	int err, ret;
 
-	tmp = ucontrol->value.integer.value[0];
-	if (tmp < 0)
-		return -EINVAL;
-	if (mc->platform_max && tmp > mc->platform_max)
-		return -EINVAL;
-	if (tmp > mc->max - mc->min)
-		return -EINVAL;
+	ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[0],
+				  mc->max - mc->min);
+	if (ret)
+		return ret;
 
 	if (invert)
 		val = (max - ucontrol->value.integer.value[0]) & mask;
@@ -557,13 +564,10 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 	ret = err;
 
 	if (snd_soc_volsw_is_stereo(mc)) {
-		tmp = ucontrol->value.integer.value[1];
-		if (tmp < 0)
-			return -EINVAL;
-		if (mc->platform_max && tmp > mc->platform_max)
-			return -EINVAL;
-		if (tmp > mc->max - mc->min)
-			return -EINVAL;
+		ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[1],
+					  mc->max - mc->min);
+		if (ret)
+			return ret;
 
 		if (invert)
 			val = (max - ucontrol->value.integer.value[1]) & mask;
