@@ -1155,8 +1155,10 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 
 	if (is_shadow_present_pte(iter->old_spte) &&
 	    (fault->prefetch || is_access_allowed(fault, iter->old_spte)) &&
-	    is_last_spte(iter->old_spte, iter->level))
+	    is_last_spte(iter->old_spte, iter->level)) {
+		WARN_ON_ONCE(fault->pfn != spte_to_pfn(iter->old_spte));
 		return RET_PF_SPURIOUS;
+	}
 
 	if (unlikely(!fault->slot))
 		new_spte = make_mmio_spte(vcpu, iter->gfn, ACC_ALL);
