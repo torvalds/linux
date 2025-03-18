@@ -103,12 +103,14 @@ static void stdio_restore(void)
 	pthread_mutex_lock(&stdout_lock);
 
 	if (env.subtest_state) {
-		fclose(env.subtest_state->stdout_saved);
+		if (env.subtest_state->stdout_saved)
+			fclose(env.subtest_state->stdout_saved);
 		env.subtest_state->stdout_saved = NULL;
 		stdout = env.test_state->stdout_saved;
 		stderr = env.test_state->stdout_saved;
 	} else {
-		fclose(env.test_state->stdout_saved);
+		if (env.test_state->stdout_saved)
+			fclose(env.test_state->stdout_saved);
 		env.test_state->stdout_saved = NULL;
 		stdout = env.stdout_saved;
 		stderr = env.stderr_saved;
