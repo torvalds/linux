@@ -42,6 +42,7 @@ void igc_ethtool_set_ops(struct net_device *);
 
 struct igc_fpe_t {
 	struct ethtool_mmsv mmsv;
+	u32 tx_min_frag_size;
 };
 
 enum igc_mac_filter_type {
