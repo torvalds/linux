@@ -544,10 +544,14 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 
 void __ioread64_copy(void *to, const void __iomem *from, size_t count);
 
-#ifdef CONFIG_PCI_DRIVERS_LEGACY
+#if defined(CONFIG_PCI) && defined(CONFIG_PCI_DRIVERS_LEGACY)
 struct pci_dev;
 void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
 #define pci_iounmap pci_iounmap
+#endif
+
+#ifndef PCI_IOBASE
+#define PCI_IOBASE ((void __iomem *)mips_io_port_base)
 #endif
 
 #include <asm-generic/io.h>
