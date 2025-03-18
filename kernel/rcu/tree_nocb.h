@@ -1564,6 +1564,9 @@ static void show_rcu_nocb_state(struct rcu_data *rdp)
 	if (rdp->nocb_gp_rdp == rdp)
 		show_rcu_nocb_gp_state(rdp);
 
+	if (!rcu_segcblist_is_offloaded(&rdp->cblist))
+		return;
+
 	nocb_next_rdp = list_next_or_null_rcu(&rdp->nocb_gp_rdp->nocb_head_rdp,
 					      &rdp->nocb_entry_rdp,
 					      typeof(*rdp),
