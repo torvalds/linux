@@ -240,7 +240,7 @@ static int vt_complete_emulated_msr(struct kvm_vcpu *vcpu, int err)
 	if (is_td_vcpu(vcpu))
 		return tdx_complete_emulated_msr(vcpu, err);
 
-	return kvm_complete_insn_gp(vcpu, err);
+	return vmx_complete_emulated_msr(vcpu, err);
 }
 
 #ifdef CONFIG_KVM_SMM
