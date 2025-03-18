@@ -514,8 +514,8 @@ IOMAP_WRITE`` with any combination of the following enhancements:
    if the mapping is unwritten and the filesystem cannot handle zeroing
    the unaligned regions without exposing stale contents.
 
- * ``IOMAP_ATOMIC``: This write is being issued with torn-write
-   protection.
+ * ``IOMAP_ATOMIC_HW``: This write is being issued with torn-write
+   protection based on HW-offload support.
    Only a single bio can be created for the write, and the write must
    not be split into multiple I/O requests, i.e. flag REQ_ATOMIC must be
    set.
@@ -526,8 +526,20 @@ IOMAP_WRITE`` with any combination of the following enhancements:
    conversion or copy on write), all updates for the entire file range
    must be committed atomically as well.
    Only one space mapping is allowed per untorn write.
-   Untorn writes must be aligned to, and must not be longer than, a
-   single file block.
+   Untorn writes may be longer than a single file block. In all cases,
+   the mapping start disk block must have at least the same alignment as
+   the write offset.
+
+ * ``IOMAP_ATOMIC_SW``: This write is being issued with torn-write
+   protection via a software mechanism provided by the filesystem.
+   All the disk block alignment and single bio restrictions which apply
+   to IOMAP_ATOMIC_HW do not apply here.
+   SW-based untorn writes would typically be used as a fallback when
+   HW-based untorn writes may not be issued, e.g. the range of the write
+   covers multiple extents, meaning that it is not possible to issue
+   a single bio.
+   All filesystem metadata updates for the entire file range must be
+   committed atomically as well.
 
 Callers commonly hold ``i_rwsem`` in shared or exclusive mode before
 calling this function.

@@ -3467,7 +3467,7 @@ static inline bool ext4_want_directio_fallback(unsigned flags, ssize_t written)
 		return false;
 
 	/* atomic writes are all-or-nothing */
-	if (flags & IOMAP_ATOMIC)
+	if (flags & IOMAP_ATOMIC_HW)
 		return false;
 
 	/* can only try again if we wrote nothing */
