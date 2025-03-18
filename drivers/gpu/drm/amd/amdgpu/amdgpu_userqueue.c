@@ -555,7 +555,10 @@ unlock_all:
 static void amdgpu_userqueue_resume_worker(struct work_struct *work)
 {
 	struct amdgpu_userq_mgr *uq_mgr = work_to_uq_mgr(work, resume_work.work);
+	struct amdgpu_fpriv *fpriv = uq_mgr_to_fpriv(uq_mgr);
 	int ret;
+
+	flush_work(&fpriv->evf_mgr.suspend_work.work);
 
 	mutex_lock(&uq_mgr->userq_mutex);
 

@@ -52,6 +52,9 @@ amdgpu_eviction_fence_replace_fence(struct amdgpu_eviction_fence_mgr *evf_mgr,
 	unsigned long index;
 	int ret;
 
+	if (evf_mgr->ev_fence &&
+	    !dma_fence_is_signaled(&evf_mgr->ev_fence->base))
+		return 0;
 	/*
 	 * Steps to replace eviction fence:
 	 * * lock all objects in exec (caller)
