@@ -919,7 +919,7 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (!ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)) {
 		if (cfg80211_chandef_identical(&local->monitor_chanreq.oper,
-						   &chanreq.oper))
+					       &chanreq.oper))
 			return 0;
 
 		sdata = wiphy_dereference(wiphy, local->monitor_sdata);
@@ -928,7 +928,7 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 	}
 
 	if (rcu_access_pointer(sdata->deflink.conf->chanctx_conf) &&
-		cfg80211_chandef_identical(&sdata->vif.bss_conf.chanreq.oper,
+	    cfg80211_chandef_identical(&sdata->vif.bss_conf.chanreq.oper,
 				       &chanreq.oper))
 		return 0;
 
