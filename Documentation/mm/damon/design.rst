@@ -656,6 +656,8 @@ Below ``type`` of filters are currently supported.
 - Operations layer handled, supported by only ``paddr`` operations set.
     - anon
         - Applied to pages that containing data that not stored in files.
+    - active
+        - Applied to active pages.
     - memcg
         - Applied to pages that belonging to a given cgroup.
     - young
