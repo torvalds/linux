@@ -151,7 +151,11 @@ static int sel_netport_sid_slow(u8 protocol, u16 pnum, u32 *sid)
 	ret = security_port_sid(protocol, pnum, sid);
 	if (ret != 0)
 		goto out;
-	new = kzalloc(sizeof(*new), GFP_ATOMIC);
+
+	/* If this memory allocation fails still return 0. The SID
+	 * is valid, it just won't be added to the cache.
+	 */
+	new = kmalloc(sizeof(*new), GFP_ATOMIC);
 	if (new) {
 		new->psec.port = pnum;
 		new->psec.protocol = protocol;
