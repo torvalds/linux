@@ -40,76 +40,6 @@
 #define AD7606_RANGE_CH_ADDR(ch)	(0x03 + ((ch) >> 1))
 #define AD7606_OS_MODE			0x08
 
-#define AD760X_CHANNEL(num, mask_sep, mask_type, mask_all,	\
-		mask_sep_avail, mask_all_avail, bits) {		\
-		.type = IIO_VOLTAGE,				\
-		.indexed = 1,					\
-		.channel = num,					\
-		.info_mask_separate = mask_sep,			\
-		.info_mask_separate_available =			\
-			mask_sep_avail,				\
-		.info_mask_shared_by_type = mask_type,		\
-		.info_mask_shared_by_all = mask_all,		\
-		.info_mask_shared_by_all_available =		\
-			mask_all_avail,				\
-		.scan_index = num,				\
-		.scan_type = {					\
-			.sign = 's',				\
-			.realbits = (bits),			\
-			.storagebits = (bits) > 16 ? 32 : 16,	\
-			.endianness = IIO_CPU,			\
-		},						\
-}
-
-#define AD7606_SW_CHANNEL(num, bits)			\
-	AD760X_CHANNEL(num,				\
-		/* mask separate */			\
-		BIT(IIO_CHAN_INFO_RAW) |		\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		/* mask type */				\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		/* mask all */				\
-		0,					\
-		/* mask separate available */		\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		/* mask all available */		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		bits)
-
-#define AD7605_CHANNEL(num)				\
-	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW),	\
-		BIT(IIO_CHAN_INFO_SCALE), 0, 0, 0, 16)
-
-#define AD7606_CHANNEL(num, bits)			\
-	AD760X_CHANNEL(num, BIT(IIO_CHAN_INFO_RAW),	\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		0, 0, bits)
-
-#define AD7616_CHANNEL(num)	AD7606_SW_CHANNEL(num, 16)
-
-#define AD7606_BI_CHANNEL(num)				\
-	AD760X_CHANNEL(num, 0,				\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),  \
-		0, 0, 16)
-
-#define AD7606_BI_SW_CHANNEL(num)			\
-	AD760X_CHANNEL(num,				\
-		/* mask separate */			\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		/* mask type */				\
-		0,					\
-		/* mask all */				\
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		/* mask separate available */		\
-		BIT(IIO_CHAN_INFO_SCALE),		\
-		/* mask all available */		\
-		BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO),	\
-		16)
-
 struct ad7606_state;
 
 typedef int (*ad7606_scale_setup_cb_t)(struct iio_dev *indio_dev,
@@ -118,11 +48,10 @@ typedef int (*ad7606_sw_setup_cb_t)(struct iio_dev *indio_dev);
 
 /**
  * struct ad7606_chip_info - chip specific information
- * @channels:		channel specification
  * @max_samplerate:	maximum supported sample rate
  * @name:		device name
+ * @bits:		data width in bits
  * @num_adc_channels:	the number of physical voltage inputs
- * @num_channels:	number of IIO channels
  * @scale_setup_cb:	callback to setup the scales for each channel
  * @sw_setup_cb:	callback to setup the software mode if available.
  * @oversampling_avail:	pointer to the array which stores the available
@@ -133,11 +62,10 @@ typedef int (*ad7606_sw_setup_cb_t)(struct iio_dev *indio_dev);
  *			after a restart
  */
 struct ad7606_chip_info {
-	const struct iio_chan_spec	*channels;
 	unsigned int			max_samplerate;
 	const char			*name;
+	unsigned int			bits;
 	unsigned int			num_adc_channels;
-	unsigned int			num_channels;
 	ad7606_scale_setup_cb_t		scale_setup_cb;
 	ad7606_sw_setup_cb_t		sw_setup_cb;
 	const unsigned int		*oversampling_avail;

@@ -95,92 +95,6 @@ static const unsigned int ad7616_oversampling_avail[8] = {
 	1, 2, 4, 8, 16, 32, 64, 128,
 };
 
-static const struct iio_chan_spec ad7605_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(4),
-	AD7605_CHANNEL(0),
-	AD7605_CHANNEL(1),
-	AD7605_CHANNEL(2),
-	AD7605_CHANNEL(3),
-};
-
-static const struct iio_chan_spec ad7606_channels_16bit[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_CHANNEL(0, 16),
-	AD7606_CHANNEL(1, 16),
-	AD7606_CHANNEL(2, 16),
-	AD7606_CHANNEL(3, 16),
-	AD7606_CHANNEL(4, 16),
-	AD7606_CHANNEL(5, 16),
-	AD7606_CHANNEL(6, 16),
-	AD7606_CHANNEL(7, 16),
-};
-
-static const struct iio_chan_spec ad7606_channels_18bit[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_CHANNEL(0, 18),
-	AD7606_CHANNEL(1, 18),
-	AD7606_CHANNEL(2, 18),
-	AD7606_CHANNEL(3, 18),
-	AD7606_CHANNEL(4, 18),
-	AD7606_CHANNEL(5, 18),
-	AD7606_CHANNEL(6, 18),
-	AD7606_CHANNEL(7, 18),
-};
-
-static const struct iio_chan_spec ad7607_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_CHANNEL(0, 14),
-	AD7606_CHANNEL(1, 14),
-	AD7606_CHANNEL(2, 14),
-	AD7606_CHANNEL(3, 14),
-	AD7606_CHANNEL(4, 14),
-	AD7606_CHANNEL(5, 14),
-	AD7606_CHANNEL(6, 14),
-	AD7606_CHANNEL(7, 14),
-};
-
-static const struct iio_chan_spec ad7608_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_CHANNEL(0, 18),
-	AD7606_CHANNEL(1, 18),
-	AD7606_CHANNEL(2, 18),
-	AD7606_CHANNEL(3, 18),
-	AD7606_CHANNEL(4, 18),
-	AD7606_CHANNEL(5, 18),
-	AD7606_CHANNEL(6, 18),
-	AD7606_CHANNEL(7, 18),
-};
-
-/*
- * The current assumption that this driver makes for AD7616, is that it's
- * working in Hardware Mode with Serial, Burst and Sequencer modes activated.
- * To activate them, following pins must be pulled high:
- *	-SER/PAR
- *	-SEQEN
- * And following pins must be pulled low:
- *	-WR/BURST
- *	-DB4/SER1W
- */
-static const struct iio_chan_spec ad7616_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(16),
-	AD7606_CHANNEL(0, 16),
-	AD7606_CHANNEL(1, 16),
-	AD7606_CHANNEL(2, 16),
-	AD7606_CHANNEL(3, 16),
-	AD7606_CHANNEL(4, 16),
-	AD7606_CHANNEL(5, 16),
-	AD7606_CHANNEL(6, 16),
-	AD7606_CHANNEL(7, 16),
-	AD7606_CHANNEL(8, 16),
-	AD7606_CHANNEL(9, 16),
-	AD7606_CHANNEL(10, 16),
-	AD7606_CHANNEL(11, 16),
-	AD7606_CHANNEL(12, 16),
-	AD7606_CHANNEL(13, 16),
-	AD7606_CHANNEL(14, 16),
-	AD7606_CHANNEL(15, 16),
-};
-
 static int ad7606c_18bit_chan_scale_setup(struct iio_dev *indio_dev,
 					  struct iio_chan_spec *chan);
 static int ad7606c_16bit_chan_scale_setup(struct iio_dev *indio_dev,
@@ -198,20 +112,18 @@ static int ad7606b_sw_mode_setup(struct iio_dev *indio_dev);
 
 const struct ad7606_chip_info ad7605_4_info = {
 	.max_samplerate = 300 * KILO,
-	.channels = ad7605_channels,
 	.name = "ad7605-4",
+	.bits = 16,
 	.num_adc_channels = 4,
-	.num_channels = 5,
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
 };
 EXPORT_SYMBOL_NS_GPL(ad7605_4_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_8_info = {
 	.max_samplerate = 200 * KILO,
-	.channels = ad7606_channels_16bit,
 	.name = "ad7606-8",
+	.bits = 16,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
@@ -220,10 +132,9 @@ EXPORT_SYMBOL_NS_GPL(ad7606_8_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_6_info = {
 	.max_samplerate = 200 * KILO,
-	.channels = ad7606_channels_16bit,
 	.name = "ad7606-6",
+	.bits = 16,
 	.num_adc_channels = 6,
-	.num_channels = 7,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
@@ -232,10 +143,9 @@ EXPORT_SYMBOL_NS_GPL(ad7606_6_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_4_info = {
 	.max_samplerate = 200 * KILO,
-	.channels = ad7606_channels_16bit,
 	.name = "ad7606-4",
+	.bits = 16,
 	.num_adc_channels = 4,
-	.num_channels = 5,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
@@ -243,11 +153,10 @@ const struct ad7606_chip_info ad7606_4_info = {
 EXPORT_SYMBOL_NS_GPL(ad7606_4_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606b_info = {
-	.channels = ad7606_channels_16bit,
 	.max_samplerate = 800 * KILO,
 	.name = "ad7606b",
+	.bits = 16,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606_16bit_chan_scale_setup,
@@ -257,10 +166,9 @@ EXPORT_SYMBOL_NS_GPL(ad7606b_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606c_16_info = {
 	.max_samplerate = 1 * MEGA,
-	.channels = ad7606_channels_16bit,
 	.name = "ad7606c16",
+	.bits = 16,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606c_16bit_chan_scale_setup,
@@ -270,10 +178,9 @@ EXPORT_SYMBOL_NS_GPL(ad7606c_16_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7607_info = {
 	.max_samplerate = 200 * KILO,
-	.channels = ad7607_channels,
 	.name = "ad7607",
+	.bits = 14,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7607_chan_scale_setup,
@@ -282,10 +189,9 @@ EXPORT_SYMBOL_NS_GPL(ad7607_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7608_info = {
 	.max_samplerate = 200 * KILO,
-	.channels = ad7608_channels,
 	.name = "ad7608",
+	.bits = 18,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7608_chan_scale_setup,
@@ -294,10 +200,9 @@ EXPORT_SYMBOL_NS_GPL(ad7608_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7609_info = {
 	.max_samplerate = 200 * KILO,
-	.channels = ad7608_channels,
 	.name = "ad7609",
+	.bits = 18,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7609_chan_scale_setup,
@@ -306,10 +211,9 @@ EXPORT_SYMBOL_NS_GPL(ad7609_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606c_18_info = {
 	.max_samplerate = 1 * MEGA,
-	.channels = ad7606_channels_18bit,
 	.name = "ad7606c18",
+	.bits = 18,
 	.num_adc_channels = 8,
-	.num_channels = 9,
 	.oversampling_avail = ad7606_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7606_oversampling_avail),
 	.scale_setup_cb = ad7606c_18bit_chan_scale_setup,
@@ -319,11 +223,10 @@ EXPORT_SYMBOL_NS_GPL(ad7606c_18_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7616_info = {
 	.max_samplerate = 1 * MEGA,
-	.channels = ad7616_channels,
 	.init_delay_ms = 15,
 	.name = "ad7616",
+	.bits = 16,
 	.num_adc_channels = 16,
-	.num_channels = 17,
 	.oversampling_avail = ad7616_oversampling_avail,
 	.oversampling_num = ARRAY_SIZE(ad7616_oversampling_avail),
 	.os_req_reset = true,
@@ -373,7 +276,6 @@ static int ad7606_get_chan_config(struct iio_dev *indio_dev, int ch,
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned int num_channels = st->chip_info->num_adc_channels;
-	unsigned int offset = indio_dev->num_channels - st->chip_info->num_adc_channels;
 	struct device *dev = st->dev;
 	int ret;
 
@@ -389,7 +291,7 @@ static int ad7606_get_chan_config(struct iio_dev *indio_dev, int ch,
 			continue;
 
 		/* channel number (here) is from 1 to num_channels */
-		if (reg < offset || reg > num_channels) {
+		if (reg < 1 || reg > num_channels) {
 			dev_warn(dev,
 				 "Invalid channel number (ignoring): %d\n", reg);
 			continue;
@@ -706,8 +608,8 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 			      int *val)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	unsigned int realbits = st->chip_info->channels[1].scan_type.realbits;
 	const struct iio_chan_spec *chan;
+	unsigned int realbits;
 	int ret;
 
 	if (st->gpio_convst) {
@@ -739,7 +641,9 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch,
 	if (ret)
 		goto error_ret;
 
-	chan = &indio_dev->channels[ch + 1];
+	chan = &indio_dev->channels[ch];
+	realbits = chan->scan_type.realbits;
+
 	if (chan->scan_type.sign == 'u') {
 		if (realbits > 16)
 			*val = st->data.buf32[ch];
@@ -1284,28 +1188,83 @@ static int ad7606b_sw_mode_setup(struct iio_dev *indio_dev)
 	return st->bops->sw_mode_config(indio_dev);
 }
 
-static int ad7606_chan_scales_setup(struct iio_dev *indio_dev)
+static int ad7606_probe_channels(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	unsigned int offset = indio_dev->num_channels - st->chip_info->num_adc_channels;
-	struct iio_chan_spec *chans;
-	size_t size;
-	int ch, ret;
+	struct device *dev = indio_dev->dev.parent;
+	struct iio_chan_spec *channels;
+	bool slow_bus;
+	int ret, i;
 
-	/* Clone IIO channels, since some may be differential */
-	size = indio_dev->num_channels * sizeof(*indio_dev->channels);
-	chans = devm_kzalloc(st->dev, size, GFP_KERNEL);
-	if (!chans)
+	slow_bus = !st->bops->iio_backend_config;
+	indio_dev->num_channels = st->chip_info->num_adc_channels;
+
+	/* Slow buses also get 1 more channel for soft timestamp */
+	if (slow_bus)
+		indio_dev->num_channels++;
+
+	channels = devm_kcalloc(dev, indio_dev->num_channels, sizeof(*channels),
+				GFP_KERNEL);
+	if (!channels)
 		return -ENOMEM;
 
-	memcpy(chans, indio_dev->channels, size);
-	indio_dev->channels = chans;
+	for (i = 0; i < st->chip_info->num_adc_channels; i++) {
+		struct iio_chan_spec *chan = &channels[i];
 
-	for (ch = 0; ch < st->chip_info->num_adc_channels; ch++) {
-		ret = st->chip_info->scale_setup_cb(indio_dev, &chans[ch + offset]);
+		chan->type = IIO_VOLTAGE;
+		chan->indexed = 1;
+		chan->channel = i;
+		chan->scan_index = i;
+		chan->scan_type.sign = 's';
+		chan->scan_type.realbits = st->chip_info->bits;
+		chan->scan_type.storagebits = st->chip_info->bits > 16 ? 32 : 16;
+		chan->scan_type.endianness = IIO_CPU;
+
+		if (indio_dev->modes & INDIO_DIRECT_MODE)
+			chan->info_mask_separate |= BIT(IIO_CHAN_INFO_RAW);
+
+		if (st->sw_mode_en) {
+			chan->info_mask_separate |= BIT(IIO_CHAN_INFO_SCALE);
+			chan->info_mask_separate_available |=
+				BIT(IIO_CHAN_INFO_SCALE);
+
+			/*
+			 * All chips with software mode support oversampling,
+			 * so we skip the oversampling_available check. And the
+			 * shared_by_type instead of shared_by_all on slow
+			 * buses is for backward compatibility.
+			 */
+			if (slow_bus)
+				chan->info_mask_shared_by_type |=
+					BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+			else
+				chan->info_mask_shared_by_all |=
+					BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+
+			chan->info_mask_shared_by_all_available |=
+				BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+		} else {
+			chan->info_mask_shared_by_type |=
+				BIT(IIO_CHAN_INFO_SCALE);
+
+			if (st->chip_info->oversampling_avail)
+				chan->info_mask_shared_by_all |=
+					BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
+		}
+
+		if (!slow_bus)
+			chan->info_mask_shared_by_all |=
+				BIT(IIO_CHAN_INFO_SAMP_FREQ);
+
+		ret = st->chip_info->scale_setup_cb(indio_dev, chan);
 		if (ret)
 			return ret;
 	}
+
+	if (slow_bus)
+		channels[i] = (struct iio_chan_spec)IIO_CHAN_SOFT_TIMESTAMP(i);
+
+	indio_dev->channels = channels;
 
 	return 0;
 }
@@ -1338,6 +1297,11 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->bops = bops;
 	st->base_address = base_address;
 	st->oversampling = 1;
+	st->sw_mode_en = device_property_read_bool(dev, "adi,sw-mode");
+
+	if (st->sw_mode_en && !chip_info->sw_setup_cb)
+		return dev_err_probe(dev, -EINVAL,
+			"Software mode is not supported for this chip\n");
 
 	ret = devm_regulator_get_enable(dev, "avcc");
 	if (ret)
@@ -1366,10 +1330,14 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		else
 			indio_dev->info = &ad7606_info_no_os_or_range;
 	}
-	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	/* AXI ADC backend doesn't support single read. */
+	indio_dev->modes = st->bops->iio_backend_config ? 0 : INDIO_DIRECT_MODE;
 	indio_dev->name = chip_info->name;
-	indio_dev->channels = st->chip_info->channels;
-	indio_dev->num_channels = st->chip_info->num_channels;
+
+	ret = ad7606_probe_channels(indio_dev);
+	if (ret)
+		return ret;
 
 	ret = ad7606_reset(st);
 	if (ret)
@@ -1460,16 +1428,10 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	st->write_scale = ad7606_write_scale_hw;
 	st->write_os = ad7606_write_os_hw;
 
-	st->sw_mode_en = st->chip_info->sw_setup_cb &&
-			 device_property_present(st->dev, "adi,sw-mode");
 	if (st->sw_mode_en) {
 		indio_dev->info = &ad7606_info_sw_mode;
 		st->chip_info->sw_setup_cb(indio_dev);
 	}
-
-	ret = ad7606_chan_scales_setup(indio_dev);
-	if (ret)
-		return ret;
 
 	return devm_iio_device_register(dev, indio_dev);
 }

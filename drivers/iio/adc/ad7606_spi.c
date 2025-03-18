@@ -15,50 +15,6 @@
 
 #define MAX_SPI_FREQ_HZ		23500000	/* VDRIVE above 4.75 V */
 
-static const struct iio_chan_spec ad7616_sw_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(16),
-	AD7616_CHANNEL(0),
-	AD7616_CHANNEL(1),
-	AD7616_CHANNEL(2),
-	AD7616_CHANNEL(3),
-	AD7616_CHANNEL(4),
-	AD7616_CHANNEL(5),
-	AD7616_CHANNEL(6),
-	AD7616_CHANNEL(7),
-	AD7616_CHANNEL(8),
-	AD7616_CHANNEL(9),
-	AD7616_CHANNEL(10),
-	AD7616_CHANNEL(11),
-	AD7616_CHANNEL(12),
-	AD7616_CHANNEL(13),
-	AD7616_CHANNEL(14),
-	AD7616_CHANNEL(15),
-};
-
-static const struct iio_chan_spec ad7606b_sw_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_SW_CHANNEL(0, 16),
-	AD7606_SW_CHANNEL(1, 16),
-	AD7606_SW_CHANNEL(2, 16),
-	AD7606_SW_CHANNEL(3, 16),
-	AD7606_SW_CHANNEL(4, 16),
-	AD7606_SW_CHANNEL(5, 16),
-	AD7606_SW_CHANNEL(6, 16),
-	AD7606_SW_CHANNEL(7, 16),
-};
-
-static const struct iio_chan_spec ad7606c_18_sw_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(8),
-	AD7606_SW_CHANNEL(0, 18),
-	AD7606_SW_CHANNEL(1, 18),
-	AD7606_SW_CHANNEL(2, 18),
-	AD7606_SW_CHANNEL(3, 18),
-	AD7606_SW_CHANNEL(4, 18),
-	AD7606_SW_CHANNEL(5, 18),
-	AD7606_SW_CHANNEL(6, 18),
-	AD7606_SW_CHANNEL(7, 18),
-};
-
 static u16 ad7616_spi_rd_wr_cmd(int addr, char is_write_op)
 {
 	/*
@@ -160,48 +116,13 @@ static int ad7606_spi_reg_write(struct ad7606_state *st,
 	return spi_write(spi, &st->d16[0], sizeof(st->d16[0]));
 }
 
-static int ad7616_sw_mode_config(struct iio_dev *indio_dev)
-{
-	/*
-	 * Scale can be configured individually for each channel
-	 * in software mode.
-	 */
-	indio_dev->channels = ad7616_sw_channels;
-
-	return 0;
-}
-
 static int ad7606b_sw_mode_config(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
-	int ret;
 
 	/* Configure device spi to output on a single channel */
-	ret = st->bops->reg_write(st, AD7606_CONFIGURATION_REGISTER,
-				  AD7606_SINGLE_DOUT);
-	if (ret)
-		return ret;
-
-	/*
-	 * Scale can be configured individually for each channel
-	 * in software mode.
-	 */
-	indio_dev->channels = ad7606b_sw_channels;
-
-	return 0;
-}
-
-static int ad7606c_18_sw_mode_config(struct iio_dev *indio_dev)
-{
-	int ret;
-
-	ret = ad7606b_sw_mode_config(indio_dev);
-	if (ret)
-		return ret;
-
-	indio_dev->channels = ad7606c_18_sw_channels;
-
-	return 0;
+	return st->bops->reg_write(st, AD7606_CONFIGURATION_REGISTER,
+				   AD7606_SINGLE_DOUT);
 }
 
 static const struct ad7606_bus_ops ad7606_spi_bops = {
@@ -221,7 +142,6 @@ static const struct ad7606_bus_ops ad7616_spi_bops = {
 	.reg_read = ad7606_spi_reg_read,
 	.reg_write = ad7606_spi_reg_write,
 	.rd_wr_cmd = ad7616_spi_rd_wr_cmd,
-	.sw_mode_config = ad7616_sw_mode_config,
 };
 
 static const struct ad7606_bus_ops ad7606b_spi_bops = {
@@ -237,7 +157,7 @@ static const struct ad7606_bus_ops ad7606c_18_spi_bops = {
 	.reg_read = ad7606_spi_reg_read,
 	.reg_write = ad7606_spi_reg_write,
 	.rd_wr_cmd = ad7606b_spi_rd_wr_cmd,
-	.sw_mode_config = ad7606c_18_sw_mode_config,
+	.sw_mode_config = ad7606b_sw_mode_config,
 };
 
 static const struct ad7606_bus_info ad7605_4_bus_info = {
