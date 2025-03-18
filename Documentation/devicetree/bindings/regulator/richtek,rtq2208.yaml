@@ -39,7 +39,7 @@ properties:
 
   interrupts:
     maxItems: 1
-    
+
   richtek,mtp-sel-high:
     type: boolean
     description:
