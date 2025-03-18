@@ -205,7 +205,14 @@ union hv_reference_tsc_msr {
 /* The number of vCPUs in one sparse bank */
 #define HV_VCPUS_PER_SPARSE_BANK (64)
 
-/* Some of Hyper-V structs do not use hv_vpset where linux uses them */
+/*
+ * Some of Hyper-V structs do not use hv_vpset where linux uses them.
+ *
+ * struct hv_vpset is usually used as part of hypercall input. The portion
+ * that counts as "fixed size input header" vs. "variable size input header"
+ * varies per hypercall. See comments at relevant hypercall call sites as to
+ * how the "valid_bank_mask" field should be accounted.
+ */
 struct hv_vpset {	 /* HV_VP_SET */
 	u64 format;
 	u64 valid_bank_mask;
