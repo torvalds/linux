@@ -3044,7 +3044,6 @@ again:
 			goto again;
 	}
 	check_buffer_tree_ref(eb);
-	set_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags);
 
 	return eb;
 free_eb:
@@ -3364,7 +3363,6 @@ again:
 	}
 	/* add one reference for the tree */
 	check_buffer_tree_ref(eb);
-	set_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags);
 
 	/*
 	 * Now it's safe to unlock the pages because any calls to
@@ -3428,18 +3426,14 @@ static int release_extent_buffer(struct extent_buffer *eb)
 
 	WARN_ON(atomic_read(&eb->refs) == 0);
 	if (atomic_dec_and_test(&eb->refs)) {
-		if (test_and_clear_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags)) {
-			struct btrfs_fs_info *fs_info = eb->fs_info;
+		struct btrfs_fs_info *fs_info = eb->fs_info;
 
-			spin_unlock(&eb->refs_lock);
+		spin_unlock(&eb->refs_lock);
 
-			spin_lock(&fs_info->buffer_lock);
-			radix_tree_delete(&fs_info->buffer_radix,
-					  eb->start >> fs_info->sectorsize_bits);
-			spin_unlock(&fs_info->buffer_lock);
-		} else {
-			spin_unlock(&eb->refs_lock);
-		}
+		spin_lock(&fs_info->buffer_lock);
+		radix_tree_delete_item(&fs_info->buffer_radix,
+				       eb->start >> fs_info->sectorsize_bits, eb);
+		spin_unlock(&fs_info->buffer_lock);
 
 		btrfs_leak_debug_del_eb(eb);
 		/* Should be safe to release folios at this point. */

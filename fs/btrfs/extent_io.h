@@ -42,7 +42,6 @@ enum {
 	EXTENT_BUFFER_STALE,
 	EXTENT_BUFFER_WRITEBACK,
 	EXTENT_BUFFER_UNMAPPED,
-	EXTENT_BUFFER_IN_TREE,
 	/* write IO error */
 	EXTENT_BUFFER_WRITE_ERR,
 	/* Indicate the extent buffer is written zeroed out (for zoned) */
