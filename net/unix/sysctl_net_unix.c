@@ -5,10 +5,11 @@
  * Authors:	Mike Shaver.
  */
 
-#include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/sysctl.h>
 #include <net/af_unix.h>
+#include <net/net_namespace.h>
 
 #include "af_unix.h"
 
