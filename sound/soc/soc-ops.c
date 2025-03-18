@@ -248,12 +248,12 @@ int snd_soc_info_volsw_sx(struct snd_kcontrol *kcontrol,
 EXPORT_SYMBOL_GPL(snd_soc_info_volsw_sx);
 
 /**
- * snd_soc_get_volsw - single mixer get callback
+ * snd_soc_get_volsw - single mixer get callback with range
  * @kcontrol: mixer control
  * @ucontrol: control element information
  *
- * Callback to get the value of a single mixer control, or a double mixer
- * control that spans 2 registers.
+ * Callback to get the value, within a range, of a single mixer control, or a
+ * double mixer control that spans 2 registers.
  *
  * Returns 0 for success.
  */
@@ -505,42 +505,6 @@ int snd_soc_put_volsw_range(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_range);
-
-/**
- * snd_soc_get_volsw_range - single mixer get callback with range
- * @kcontrol: mixer control
- * @ucontrol: control element information
- *
- * Callback to get the value, within a range, of a single mixer control.
- *
- * Returns 0 for success.
- */
-int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
-			    struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	int max = mc->max - mc->min;
-	unsigned int mask = soc_mixer_mask(mc);
-	unsigned int reg_val;
-	int val;
-
-	reg_val = snd_soc_component_read(component, mc->reg);
-	val = soc_mixer_reg_to_ctl(mc, reg_val, mask, mc->shift, max);
-
-	ucontrol->value.integer.value[0] = val;
-
-	if (snd_soc_volsw_is_stereo(mc)) {
-		reg_val = snd_soc_component_read(component, mc->rreg);
-		val = soc_mixer_reg_to_ctl(mc, reg_val, mask, mc->shift, max);
-
-		ucontrol->value.integer.value[1] = val;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_get_volsw_range);
 
 static int snd_soc_clip_to_platform_max(struct snd_kcontrol *kctl)
 {
