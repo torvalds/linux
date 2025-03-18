@@ -6,6 +6,8 @@
 #include <net/af_unix.h>
 #include <net/sock.h>
 
+#include "af_unix.h"
+
 #define unix_sk_has_data(__sk, __psock)					\
 		({	!skb_queue_empty(&__sk->sk_receive_queue) ||	\
 			!skb_queue_empty(&__psock->ingress_skb) ||	\
