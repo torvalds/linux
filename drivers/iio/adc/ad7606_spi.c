@@ -59,16 +59,16 @@ static const struct iio_chan_spec ad7606c_18_sw_channels[] = {
 	AD7606_SW_CHANNEL(7, 18),
 };
 
-static u16 ad7616_spi_rd_wr_cmd(int addr, char isWriteOp)
+static u16 ad7616_spi_rd_wr_cmd(int addr, char is_write_op)
 {
 	/*
 	 * The address of register consist of one w/r bit
 	 * 6 bits of address followed by one reserved bit.
 	 */
-	return ((addr & 0x7F) << 1) | ((isWriteOp & 0x1) << 7);
+	return ((addr & 0x7F) << 1) | ((is_write_op & 0x1) << 7);
 }
 
-static u16 ad7606B_spi_rd_wr_cmd(int addr, char is_write_op)
+static u16 ad7606b_spi_rd_wr_cmd(int addr, char is_write_op)
 {
 	/*
 	 * The address of register consists of one bit which
@@ -171,7 +171,7 @@ static int ad7616_sw_mode_config(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int ad7606B_sw_mode_config(struct iio_dev *indio_dev)
+static int ad7606b_sw_mode_config(struct iio_dev *indio_dev)
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 	int ret;
@@ -195,7 +195,7 @@ static int ad7606c_18_sw_mode_config(struct iio_dev *indio_dev)
 {
 	int ret;
 
-	ret = ad7606B_sw_mode_config(indio_dev);
+	ret = ad7606b_sw_mode_config(indio_dev);
 	if (ret)
 		return ret;
 
@@ -228,15 +228,15 @@ static const struct ad7606_bus_ops ad7606b_spi_bops = {
 	.read_block = ad7606_spi_read_block,
 	.reg_read = ad7606_spi_reg_read,
 	.reg_write = ad7606_spi_reg_write,
-	.rd_wr_cmd = ad7606B_spi_rd_wr_cmd,
-	.sw_mode_config = ad7606B_sw_mode_config,
+	.rd_wr_cmd = ad7606b_spi_rd_wr_cmd,
+	.sw_mode_config = ad7606b_sw_mode_config,
 };
 
 static const struct ad7606_bus_ops ad7606c_18_spi_bops = {
 	.read_block = ad7606_spi_read_block18to32,
 	.reg_read = ad7606_spi_reg_read,
 	.reg_write = ad7606_spi_reg_write,
-	.rd_wr_cmd = ad7606B_spi_rd_wr_cmd,
+	.rd_wr_cmd = ad7606b_spi_rd_wr_cmd,
 	.sw_mode_config = ad7606c_18_sw_mode_config,
 };
 

@@ -254,7 +254,7 @@ struct ad7606_bus_ops {
 				unsigned int addr,
 				unsigned int val);
 	int (*update_scan_mode)(struct iio_dev *indio_dev, const unsigned long *scan_mask);
-	u16 (*rd_wr_cmd)(int addr, char isWriteOp);
+	u16 (*rd_wr_cmd)(int addr, char is_write_op);
 };
 
 /**
