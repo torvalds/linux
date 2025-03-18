@@ -238,7 +238,6 @@ static struct fuse_ring *fuse_uring_create(struct fuse_conn *fc)
 	ring->nr_queues = nr_queues;
 	ring->fc = fc;
 	ring->max_payload_sz = max_payload_size;
-	atomic_set(&ring->queue_refs, 0);
 	smp_store_release(&fc->ring, ring);
 
 	spin_unlock(&fc->lock);
