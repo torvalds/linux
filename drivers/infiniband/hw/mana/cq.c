@@ -39,7 +39,8 @@ int mana_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 
 		is_rnic_cq = !!(ucmd.flags & MANA_IB_CREATE_RNIC_CQ);
 
-		if (!is_rnic_cq && attr->cqe > mdev->adapter_caps.max_qp_wr) {
+		if ((!is_rnic_cq && attr->cqe > mdev->adapter_caps.max_qp_wr) ||
+		    attr->cqe > U32_MAX / COMP_ENTRY_SIZE) {
 			ibdev_dbg(ibdev, "CQE %d exceeding limit\n", attr->cqe);
 			return -EINVAL;
 		}
