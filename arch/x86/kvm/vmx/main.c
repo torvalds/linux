@@ -315,14 +315,6 @@ static void vt_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 	return vmx_set_virtual_apic_mode(vcpu);
 }
 
-static void vt_apicv_pre_state_restore(struct kvm_vcpu *vcpu)
-{
-	struct pi_desc *pi = vcpu_to_pi_desc(vcpu);
-
-	pi_clear_on(pi);
-	memset(pi->pir, 0, sizeof(pi->pir));
-}
-
 static void vt_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr)
 {
 	if (is_td_vcpu(vcpu))
@@ -983,7 +975,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.set_apic_access_page_addr = vt_set_apic_access_page_addr,
 	.refresh_apicv_exec_ctrl = vt_refresh_apicv_exec_ctrl,
 	.load_eoi_exitmap = vt_load_eoi_exitmap,
-	.apicv_pre_state_restore = vt_apicv_pre_state_restore,
+	.apicv_pre_state_restore = pi_apicv_pre_state_restore,
 	.required_apicv_inhibits = VMX_REQUIRED_APICV_INHIBITS,
 	.hwapic_isr_update = vt_hwapic_isr_update,
 	.sync_pir_to_irr = vt_sync_pir_to_irr,

@@ -34,7 +34,7 @@ static DEFINE_PER_CPU(raw_spinlock_t, wakeup_vcpus_on_cpu_lock);
 
 #define PI_LOCK_SCHED_OUT SINGLE_DEPTH_NESTING
 
-struct pi_desc *vcpu_to_pi_desc(struct kvm_vcpu *vcpu)
+static struct pi_desc *vcpu_to_pi_desc(struct kvm_vcpu *vcpu)
 {
 	return &(to_vt(vcpu)->pi_desc);
 }
@@ -262,6 +262,14 @@ void __init pi_init_cpu(int cpu)
 {
 	INIT_LIST_HEAD(&per_cpu(wakeup_vcpus_on_cpu, cpu));
 	raw_spin_lock_init(&per_cpu(wakeup_vcpus_on_cpu_lock, cpu));
+}
+
+void pi_apicv_pre_state_restore(struct kvm_vcpu *vcpu)
+{
+	struct pi_desc *pi = vcpu_to_pi_desc(vcpu);
+
+	pi_clear_on(pi);
+	memset(pi->pir, 0, sizeof(pi->pir));
 }
 
 bool pi_has_pending_interrupt(struct kvm_vcpu *vcpu)
