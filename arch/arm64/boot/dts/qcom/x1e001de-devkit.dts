@@ -787,7 +787,7 @@
 		vddat-supply = <&vreg_rtmr2_1p15>;
 		vddio-supply = <&vreg_rtmr2_1p8>;
 
-		reset-gpios = <&tlmm 185 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 185 GPIO_ACTIVE_LOW>;
 
 		orientation-switch;
 		retimer-switch;
@@ -841,7 +841,7 @@
 		vddat-supply = <&vreg_rtmr0_1p15>;
 		vddio-supply = <&vreg_rtmr0_1p8>;
 
-		reset-gpios = <&pm8550_gpios 10 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&pm8550_gpios 10 GPIO_ACTIVE_LOW>;
 
 		retimer-switch;
 		orientation-switch;
@@ -895,7 +895,7 @@
 		vddat-supply = <&vreg_rtmr1_1p15>;
 		vddio-supply = <&vreg_rtmr1_1p8>;
 
-		reset-gpios = <&tlmm 176 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&tlmm 176 GPIO_ACTIVE_LOW>;
 
 		retimer-switch;
 		orientation-switch;
