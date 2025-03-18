@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1732,7 +1732,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 #if IS_ENABLED(CONFIG_IWLMLD)
 	if (pieces->major >= IWL_MLD_SUPPORTED_FW_VERSION)
 		op = &iwlwifi_opmode_table[MLD_OP_MODE];
-	else
 #else
 	if (pieces->major >= IWL_MLD_SUPPORTED_FW_VERSION) {
 		IWL_ERR(drv,
