@@ -609,8 +609,10 @@ static int atmel_pctl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		if (ret)
 			goto exit;
 
-		pinctrl_utils_add_map_mux(pctldev, map, reserved_maps, num_maps,
+		ret = pinctrl_utils_add_map_mux(pctldev, map, reserved_maps, num_maps,
 					  group, func);
+		if (ret)
+			goto exit;
 
 		if (num_configs) {
 			ret = pinctrl_utils_add_map_configs(pctldev, map,
