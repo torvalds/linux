@@ -168,6 +168,30 @@ static int soc_mixer_sx_mask(struct soc_mixer_control *mc)
 	return GENMASK(fls(mc->min + mc->max) - 2, 0);
 }
 
+static int soc_info_volsw(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_info *uinfo,
+			  struct soc_mixer_control *mc, int max)
+{
+	if (mc->platform_max && mc->platform_max < max)
+		max = mc->platform_max;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+
+	if (max == 1) {
+		/* Even two value controls ending in Volume should be integer */
+		const char *vol_string = strstr(kcontrol->id.name, " Volume");
+
+		if (!vol_string || strcmp(vol_string, " Volume"))
+			uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	}
+
+	uinfo->count = snd_soc_volsw_is_stereo(mc) ? 2 : 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = max;
+
+	return 0;
+}
+
 /**
  * snd_soc_info_volsw - single mixer info callback with range.
  * @kcontrol: mixer control
@@ -183,29 +207,8 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	const char *vol_string = NULL;
-	int max;
 
-	max = uinfo->value.integer.max = mc->max - mc->min;
-	if (mc->platform_max && mc->platform_max < max)
-		max = mc->platform_max;
-
-	if (max == 1) {
-		/* Even two value controls ending in Volume should always be integer */
-		vol_string = strstr(kcontrol->id.name, " Volume");
-		if (vol_string && !strcmp(vol_string, " Volume"))
-			uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-		else
-			uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	} else {
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	}
-
-	uinfo->count = snd_soc_volsw_is_stereo(mc) ? 2 : 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = max;
-
-	return 0;
+	return soc_info_volsw(kcontrol, uinfo, mc, mc->max - mc->min);
 }
 EXPORT_SYMBOL_GPL(snd_soc_info_volsw);
 
@@ -227,23 +230,8 @@ int snd_soc_info_volsw_sx(struct snd_kcontrol *kcontrol,
 {
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	int max;
 
-	if (mc->platform_max)
-		max = mc->platform_max;
-	else
-		max = mc->max;
-
-	if (max == 1 && !strstr(kcontrol->id.name, " Volume"))
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	else
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-
-	uinfo->count = snd_soc_volsw_is_stereo(mc) ? 2 : 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = max;
-
-	return 0;
+	return soc_info_volsw(kcontrol, uinfo, mc, mc->max);
 }
 EXPORT_SYMBOL_GPL(snd_soc_info_volsw_sx);
 
