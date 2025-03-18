@@ -50,11 +50,11 @@
  *   num_bytes we want to reserve.
  *
  *   ->reserve
- *     space_info->bytes_may_reserve += num_bytes
+ *     space_info->bytes_may_use += num_bytes
  *
  *   ->extent allocation
  *     Call btrfs_add_reserved_bytes() which does
- *     space_info->bytes_may_reserve -= num_bytes
+ *     space_info->bytes_may_use -= num_bytes
  *     space_info->bytes_reserved += extent_bytes
  *
  *   ->insert reference
