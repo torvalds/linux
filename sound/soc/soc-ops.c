@@ -110,52 +110,20 @@ int snd_soc_put_enum_double(struct snd_kcontrol *kcontrol,
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_enum_double);
 
-/**
- * snd_soc_read_signed - Read a codec register and interpret as signed value
- * @component: component
- * @reg: Register to read
- * @mask: Mask to use after shifting the register value
- * @shift: Right shift of register value
- * @sign_bit: Bit that describes if a number is negative or not.
- * @signed_val: Pointer to where the read value should be stored
- *
- * This functions reads a codec register. The register value is shifted right
- * by 'shift' bits and masked with the given 'mask'. Afterwards it translates
- * the given registervalue into a signed integer if sign_bit is non-zero.
- */
-static void snd_soc_read_signed(struct snd_soc_component *component,
-				unsigned int reg, unsigned int mask,
-				unsigned int shift, unsigned int sign_bit,
-				int *signed_val)
+static int soc_mixer_reg_to_ctl(struct soc_mixer_control *mc, unsigned int reg_val,
+				unsigned int mask, unsigned int shift, int max)
 {
-	int ret;
-	unsigned int val;
+	int val = (reg_val >> shift) & mask;
 
-	val = snd_soc_component_read(component, reg);
-	val = (val >> shift) & mask;
+	if (mc->sign_bit)
+		val = sign_extend32(val, mc->sign_bit);
 
-	if (!sign_bit) {
-		*signed_val = val;
-		return;
-	}
+	val -= mc->min;
 
-	/* non-negative number */
-	if (!(val & BIT(sign_bit))) {
-		*signed_val = val;
-		return;
-	}
+	if (mc->invert)
+		val = max - val;
 
-	ret = val;
-
-	/*
-	 * The register most probably does not contain a full-sized int.
-	 * Instead we have an arbitrary number of bits in a signed
-	 * representation which has to be translated into a full-sized int.
-	 * This is done by filling up all bits above the sign-bit.
-	 */
-	ret |= ~((int)(BIT(sign_bit) - 1));
-
-	*signed_val = ret;
+	return val & mask;
 }
 
 static int soc_mixer_valid_ctl(struct soc_mixer_control *mc, long val, int max)
@@ -281,34 +249,25 @@ int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg = mc->reg;
-	unsigned int reg2 = mc->rreg;
-	unsigned int shift = mc->shift;
-	unsigned int rshift = mc->rshift;
-	int max = mc->max;
-	int min = mc->min;
-	int sign_bit = mc->sign_bit;
+	int max = mc->max - mc->min;
 	unsigned int mask = soc_mixer_mask(mc);
-	unsigned int invert = mc->invert;
+	unsigned int reg_val;
 	int val;
 
-	snd_soc_read_signed(component, reg, mask, shift, sign_bit, &val);
+	reg_val = snd_soc_component_read(component, mc->reg);
+	val = soc_mixer_reg_to_ctl(mc, reg_val, mask, mc->shift, max);
 
-	ucontrol->value.integer.value[0] = val - min;
-	if (invert)
-		ucontrol->value.integer.value[0] =
-			max - ucontrol->value.integer.value[0];
+	ucontrol->value.integer.value[0] = val;
 
 	if (snd_soc_volsw_is_stereo(mc)) {
-		if (reg == reg2)
-			snd_soc_read_signed(component, reg, mask, rshift, sign_bit, &val);
-		else
-			snd_soc_read_signed(component, reg2, mask, shift, sign_bit, &val);
+		if (mc->reg == mc->rreg) {
+			val = soc_mixer_reg_to_ctl(mc, reg_val, mask, mc->rshift, max);
+		} else {
+			reg_val = snd_soc_component_read(component, mc->rreg);
+			val = soc_mixer_reg_to_ctl(mc, reg_val, mask, mc->shift, max);
+		}
 
-		ucontrol->value.integer.value[1] = val - min;
-		if (invert)
-			ucontrol->value.integer.value[1] =
-				max - ucontrol->value.integer.value[1];
+		ucontrol->value.integer.value[1] = val;
 	}
 
 	return 0;
@@ -408,18 +367,19 @@ int snd_soc_get_volsw_sx(struct snd_kcontrol *kcontrol,
 		(struct soc_mixer_control *)kcontrol->private_value;
 	unsigned int reg = mc->reg;
 	unsigned int reg2 = mc->rreg;
-	unsigned int shift = mc->shift;
-	unsigned int rshift = mc->rshift;
-	int min = mc->min;
 	unsigned int mask = soc_mixer_sx_mask(mc);
-	unsigned int val;
+	unsigned int reg_val;
+	int val;
 
-	val = snd_soc_component_read(component, reg);
-	ucontrol->value.integer.value[0] = ((val >> shift) - min) & mask;
+	reg_val = snd_soc_component_read(component, reg);
+	val = soc_mixer_reg_to_ctl(mc, reg_val, mask, mc->shift, mc->max);
+
+	ucontrol->value.integer.value[0] = val;
 
 	if (snd_soc_volsw_is_stereo(mc)) {
-		val = snd_soc_component_read(component, reg2);
-		val = ((val >> rshift) - min) & mask;
+		reg_val = snd_soc_component_read(component, reg2);
+		val = soc_mixer_reg_to_ctl(mc, reg_val, mask, mc->rshift, mc->max);
+
 		ucontrol->value.integer.value[1] = val;
 	}
 
@@ -602,33 +562,21 @@ int snd_soc_get_volsw_range(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg = mc->reg;
-	unsigned int rreg = mc->rreg;
-	unsigned int shift = mc->shift;
-	int min = mc->min;
-	int max = mc->max;
+	int max = mc->max - mc->min;
 	unsigned int mask = soc_mixer_mask(mc);
-	unsigned int invert = mc->invert;
-	unsigned int val;
+	unsigned int reg_val;
+	int val;
 
-	val = snd_soc_component_read(component, reg);
-	ucontrol->value.integer.value[0] = (val >> shift) & mask;
-	if (invert)
-		ucontrol->value.integer.value[0] =
-			max - ucontrol->value.integer.value[0];
-	else
-		ucontrol->value.integer.value[0] =
-			ucontrol->value.integer.value[0] - min;
+	reg_val = snd_soc_component_read(component, mc->reg);
+	val = soc_mixer_reg_to_ctl(mc, reg_val, mask, mc->shift, max);
+
+	ucontrol->value.integer.value[0] = val;
 
 	if (snd_soc_volsw_is_stereo(mc)) {
-		val = snd_soc_component_read(component, rreg);
-		ucontrol->value.integer.value[1] = (val >> shift) & mask;
-		if (invert)
-			ucontrol->value.integer.value[1] =
-				max - ucontrol->value.integer.value[1];
-		else
-			ucontrol->value.integer.value[1] =
-				ucontrol->value.integer.value[1] - min;
+		reg_val = snd_soc_component_read(component, mc->rreg);
+		val = soc_mixer_reg_to_ctl(mc, reg_val, mask, mc->shift, max);
+
+		ucontrol->value.integer.value[1] = val;
 	}
 
 	return 0;
