@@ -1153,7 +1153,8 @@ static int tdp_mmu_map_handle_target_level(struct kvm_vcpu *vcpu,
 	if (WARN_ON_ONCE(sp->role.level != fault->goal_level))
 		return RET_PF_RETRY;
 
-	if (fault->prefetch && is_shadow_present_pte(iter->old_spte))
+	if (fault->prefetch && is_shadow_present_pte(iter->old_spte) &&
+	    is_last_spte(iter->old_spte, iter->level))
 		return RET_PF_SPURIOUS;
 
 	if (is_shadow_present_pte(iter->old_spte) &&
