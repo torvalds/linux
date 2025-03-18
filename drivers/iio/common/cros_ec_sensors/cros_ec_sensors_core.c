@@ -34,25 +34,19 @@
 static int cros_ec_get_host_cmd_version_mask(struct cros_ec_device *ec_dev,
 					     u16 cmd_offset, u16 cmd, u32 *mask)
 {
+	DEFINE_RAW_FLEX(struct cros_ec_command, buf, data,
+			MAX(sizeof(struct ec_response_get_cmd_versions),
+			    sizeof(struct ec_params_get_cmd_versions)));
 	int ret;
-	struct {
-		struct cros_ec_command msg;
-		union {
-			struct ec_params_get_cmd_versions params;
-			struct ec_response_get_cmd_versions resp;
-		};
-	} __packed buf = {
-		.msg = {
-			.command = EC_CMD_GET_CMD_VERSIONS + cmd_offset,
-			.insize = sizeof(struct ec_response_get_cmd_versions),
-			.outsize = sizeof(struct ec_params_get_cmd_versions)
-			},
-		.params = {.cmd = cmd}
-	};
 
-	ret = cros_ec_cmd_xfer_status(ec_dev, &buf.msg);
+	buf->command = EC_CMD_GET_CMD_VERSIONS + cmd_offset;
+	buf->insize = sizeof(struct ec_response_get_cmd_versions);
+	buf->outsize = sizeof(struct ec_params_get_cmd_versions);
+	((struct ec_params_get_cmd_versions *)buf->data)->cmd = cmd;
+
+	ret = cros_ec_cmd_xfer_status(ec_dev, buf);
 	if (ret >= 0)
-		*mask = buf.resp.version_mask;
+		*mask = ((struct ec_response_get_cmd_versions *)buf->data)->version_mask;
 	return ret;
 }
 
