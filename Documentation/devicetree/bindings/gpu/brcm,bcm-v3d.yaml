@@ -22,20 +22,12 @@ properties:
       - brcm,7278-v3d
 
   reg:
-    items:
-      - description: hub register (required)
-      - description: core0 register (required)
-      - description: GCA cache controller register (if GCA controller present)
-      - description: bridge register (if no external reset controller)
     minItems: 2
+    maxItems: 4
 
   reg-names:
-    items:
-      - const: hub
-      - const: core0
-      - enum: [ bridge, gca ]
-      - enum: [ bridge, gca ]
     minItems: 2
+    maxItems: 4
 
   interrupts:
     items:
@@ -58,6 +50,74 @@ required:
   - reg-names
   - interrupts
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,2711-v3d
+    then:
+      properties:
+        reg:
+          items:
+            - description: hub register
+            - description: core0 register
+        reg-names:
+          items:
+            - const: hub
+            - const: core0
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,2712-v3d
+    then:
+      properties:
+        reg:
+          items:
+            - description: hub register
+            - description: core0 register
+        reg-names:
+          items:
+            - const: hub
+            - const: core0
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,7268-v3d
+    then:
+      properties:
+        reg:
+          items:
+            - description: hub register
+            - description: core0 register
+            - description: GCA cache controller register
+            - description: bridge register
+        reg-names:
+          items:
+            - const: hub
+            - const: core0
+            - const: gca
+            - const: bridge
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: brcm,7278-v3d
+    then:
+      properties:
+        reg:
+          items:
+            - description: hub register
+            - description: core0 register
+            - description: bridge register
+        reg-names:
+          items:
+            - const: hub
+            - const: core0
+            - const: bridge
+
 additionalProperties: false
 
 examples:
@@ -66,9 +126,9 @@ examples:
       compatible = "brcm,7268-v3d";
       reg = <0xf1200000 0x4000>,
             <0xf1208000 0x4000>,
-            <0xf1204000 0x100>,
-            <0xf1204100 0x100>;
-      reg-names = "hub", "core0", "bridge", "gca";
+            <0xf1204100 0x100>,
+            <0xf1204000 0x100>;
+      reg-names = "hub", "core0", "gca", "bridge";
       interrupts = <0 78 4>,
                    <0 77 4>;
     };
