@@ -9831,7 +9831,7 @@ F:	drivers/media/usb/go7007/
 GOCONTROLL MODULINE MODULE SLOT
 M:	Maud Spierings <maudspierings@gocontroll.com>
 S:	Maintained
-F:	Documentation/connector/gocontroll,moduline-module-slot.yaml
+F:	Documentation/devicetree/bindings/connector/gocontroll,moduline-module-slot.yaml
 
 GOODIX TOUCHSCREEN
 M:	Hans de Goede <hdegoede@redhat.com>
