@@ -192,6 +192,57 @@ static int soc_info_volsw(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int soc_put_volsw(struct snd_kcontrol *kcontrol,
+			 struct snd_ctl_elem_value *ucontrol,
+			 struct soc_mixer_control *mc, int mask, int max)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	unsigned int val1, val_mask;
+	unsigned int val2 = 0;
+	bool double_r = false;
+	int ret;
+
+	ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[0], max);
+	if (ret)
+		return ret;
+
+	val1 = soc_mixer_ctl_to_reg(mc, ucontrol->value.integer.value[0],
+				    mask, mc->shift, max);
+	val_mask = mask << mc->shift;
+
+	if (snd_soc_volsw_is_stereo(mc)) {
+		ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[1], max);
+		if (ret)
+			return ret;
+
+		if (mc->reg == mc->rreg) {
+			val1 |= soc_mixer_ctl_to_reg(mc,
+						     ucontrol->value.integer.value[1],
+						     mask, mc->rshift, max);
+			val_mask |= mask << mc->rshift;
+		} else {
+			val2 = soc_mixer_ctl_to_reg(mc,
+						    ucontrol->value.integer.value[1],
+						    mask, mc->shift, max);
+			double_r = true;
+		}
+	}
+
+	ret = snd_soc_component_update_bits(component, mc->reg, val_mask, val1);
+	if (ret < 0)
+		return ret;
+
+	if (double_r) {
+		int err = snd_soc_component_update_bits(component, mc->rreg,
+							val_mask, val2);
+		/* Don't drop change flag */
+		if (err)
+			return err;
+	}
+
+	return ret;
+}
+
 /**
  * snd_soc_info_volsw - single mixer info callback with range.
  * @kcontrol: mixer control
@@ -289,57 +340,11 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw);
 int snd_soc_put_volsw(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg = mc->reg;
-	unsigned int reg2 = mc->rreg;
-	int max = mc->max - mc->min;
 	unsigned int mask = soc_mixer_mask(mc);
-	int err, ret;
-	bool type_2r = false;
-	unsigned int val2 = 0;
-	unsigned int val, val_mask;
 
-	ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[0], max);
-	if (ret)
-		return ret;
-
-	val = soc_mixer_ctl_to_reg(mc, ucontrol->value.integer.value[0],
-				   mask, mc->shift, max);
-	val_mask = mask << mc->shift;
-
-	if (snd_soc_volsw_is_stereo(mc)) {
-		ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[1], max);
-		if (ret)
-			return ret;
-
-		if (reg == reg2) {
-			val |= soc_mixer_ctl_to_reg(mc,
-						    ucontrol->value.integer.value[1],
-						    mask, mc->rshift, max);
-			val_mask |= mask << mc->rshift;
-		} else {
-			val2 = soc_mixer_ctl_to_reg(mc,
-						    ucontrol->value.integer.value[1],
-						    mask, mc->shift, max);
-			type_2r = true;
-		}
-	}
-	err = snd_soc_component_update_bits(component, reg, val_mask, val);
-	if (err < 0)
-		return err;
-	ret = err;
-
-	if (type_2r) {
-		err = snd_soc_component_update_bits(component, reg2, val_mask,
-						    val2);
-		/* Don't discard any error code or drop change flag */
-		if (ret == 0 || err < 0)
-			ret = err;
-	}
-
-	return ret;
+	return soc_put_volsw(kcontrol, ucontrol, mc, mask, mc->max - mc->min);
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw);
 
@@ -393,48 +398,11 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_sx);
 int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
-	unsigned int reg = mc->reg;
-	unsigned int reg2 = mc->rreg;
-	unsigned int val, val_mask;
 	unsigned int mask = soc_mixer_sx_mask(mc);
-	int err = 0;
-	int ret;
 
-	ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[0], mc->max);
-	if (ret)
-		return ret;
-
-	val = soc_mixer_ctl_to_reg(mc, ucontrol->value.integer.value[0],
-				   mask, mc->shift, mc->max);
-	val_mask = mask << mc->shift;
-
-	err = snd_soc_component_update_bits(component, reg, val_mask, val);
-	if (err < 0)
-		return err;
-	ret = err;
-
-	if (snd_soc_volsw_is_stereo(mc)) {
-		ret = soc_mixer_valid_ctl(mc, ucontrol->value.integer.value[1],
-					  mc->max);
-		if (ret)
-			return ret;
-
-		val = soc_mixer_ctl_to_reg(mc, ucontrol->value.integer.value[1],
-					   mask, mc->rshift, mc->max);
-		val_mask = mask << mc->rshift;
-
-		err = snd_soc_component_update_bits(component, reg2, val_mask,
-						    val);
-
-		/* Don't discard any error code or drop change flag */
-		if (ret == 0 || err < 0)
-			ret = err;
-	}
-
-	return ret;
+	return soc_put_volsw(kcontrol, ucontrol, mc, mask, mc->max);
 }
 EXPORT_SYMBOL_GPL(snd_soc_put_volsw_sx);
 
