@@ -35,6 +35,7 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
+#define SN_DEVICE_ID_REGS			0x00	/* up to 0x07 */
 #define SN_DEVICE_REV_REG			0x08
 #define SN_DPPLL_SRC_REG			0x0A
 #define  DPPLL_CLK_SRC_DSICLK			BIT(0)
@@ -1898,6 +1899,7 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ti_sn65dsi86 *pdata;
+	u8 id_buf[8];
 	int ret;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -1940,6 +1942,16 @@ static int ti_sn65dsi86_probe(struct i2c_client *client)
 	ret = devm_add_action_or_reset(dev, ti_sn65dsi86_runtime_disable, dev);
 	if (ret)
 		return ret;
+
+	pm_runtime_get_sync(dev);
+	ret = regmap_bulk_read(pdata->regmap, SN_DEVICE_ID_REGS, id_buf, ARRAY_SIZE(id_buf));
+	pm_runtime_put_autosuspend(dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to read device id\n");
+
+	/* The ID string is stored backwards */
+	if (strncmp(id_buf, "68ISD   ", ARRAY_SIZE(id_buf)))
+		return dev_err_probe(dev, -EOPNOTSUPP, "unsupported device id\n");
 
 	/*
 	 * Break ourselves up into a collection of aux devices. The only real
