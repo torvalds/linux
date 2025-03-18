@@ -421,16 +421,11 @@ static int octeon_i2c_hlc_read(struct octeon_i2c *i2c, struct i2c_msg *msgs)
 	octeon_i2c_hlc_enable(i2c);
 	octeon_i2c_hlc_int_clear(i2c);
 
-	cmd = SW_TWSI_V | SW_TWSI_R | SW_TWSI_SOVR;
+	cmd = SW_TWSI_V | SW_TWSI_R | SW_TWSI_SOVR | SW_TWSI_OP_7;
 	/* SIZE */
 	cmd |= (u64)(msgs[0].len - 1) << SW_TWSI_SIZE_SHIFT;
 	/* A */
 	cmd |= (u64)(msgs[0].addr & 0x7full) << SW_TWSI_ADDR_SHIFT;
-
-	if (msgs[0].flags & I2C_M_TEN)
-		cmd |= SW_TWSI_OP_10;
-	else
-		cmd |= SW_TWSI_OP_7;
 
 	octeon_i2c_writeq_flush(cmd, i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	ret = octeon_i2c_hlc_wait(i2c);
@@ -463,16 +458,11 @@ static int octeon_i2c_hlc_write(struct octeon_i2c *i2c, struct i2c_msg *msgs)
 	octeon_i2c_hlc_enable(i2c);
 	octeon_i2c_hlc_int_clear(i2c);
 
-	cmd = SW_TWSI_V | SW_TWSI_SOVR;
+	cmd = SW_TWSI_V | SW_TWSI_SOVR | SW_TWSI_OP_7;
 	/* SIZE */
 	cmd |= (u64)(msgs[0].len - 1) << SW_TWSI_SIZE_SHIFT;
 	/* A */
 	cmd |= (u64)(msgs[0].addr & 0x7full) << SW_TWSI_ADDR_SHIFT;
-
-	if (msgs[0].flags & I2C_M_TEN)
-		cmd |= SW_TWSI_OP_10;
-	else
-		cmd |= SW_TWSI_OP_7;
 
 	for (i = 0, j = msgs[0].len - 1; i  < msgs[0].len && i < 4; i++, j--)
 		cmd |= (u64)msgs[0].buf[j] << (8 * i);
@@ -513,11 +503,6 @@ static bool octeon_i2c_hlc_ext(struct octeon_i2c *i2c, struct i2c_msg msg, u64 *
 	bool set_ext = false;
 	u64 cmd = 0;
 
-	if (msg.flags & I2C_M_TEN)
-		cmd |= SW_TWSI_OP_10_IA;
-	else
-		cmd |= SW_TWSI_OP_7_IA;
-
 	if (msg.len == 2) {
 		cmd |= SW_TWSI_EIA;
 		*ext = (u64)msg.buf[0] << SW_TWSI_IA_SHIFT;
@@ -550,7 +535,7 @@ static int octeon_i2c_hlc_comp_read(struct octeon_i2c *i2c, struct i2c_msg *msgs
 
 	octeon_i2c_hlc_enable(i2c);
 
-	cmd = SW_TWSI_V | SW_TWSI_R | SW_TWSI_SOVR;
+	cmd = SW_TWSI_V | SW_TWSI_R | SW_TWSI_SOVR | SW_TWSI_OP_7_IA;
 	/* SIZE */
 	cmd |= (u64)(msgs[1].len - 1) << SW_TWSI_SIZE_SHIFT;
 	/* A */
@@ -587,7 +572,7 @@ static int octeon_i2c_hlc_comp_write(struct octeon_i2c *i2c, struct i2c_msg *msg
 
 	octeon_i2c_hlc_enable(i2c);
 
-	cmd = SW_TWSI_V | SW_TWSI_SOVR;
+	cmd = SW_TWSI_V | SW_TWSI_SOVR | SW_TWSI_OP_7_IA;
 	/* SIZE */
 	cmd |= (u64)(msgs[1].len - 1) << SW_TWSI_SIZE_SHIFT;
 	/* A */
