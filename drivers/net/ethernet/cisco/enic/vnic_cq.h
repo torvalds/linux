@@ -56,45 +56,18 @@ struct vnic_cq {
 	ktime_t prev_ts;
 };
 
-static inline unsigned int vnic_cq_service(struct vnic_cq *cq,
-	unsigned int work_to_do,
-	int (*q_service)(struct vnic_dev *vdev, struct cq_desc *cq_desc,
-	u8 type, u16 q_number, u16 completed_index, void *opaque),
-	void *opaque)
+static inline void *vnic_cq_to_clean(struct vnic_cq *cq)
 {
-	struct cq_desc *cq_desc;
-	unsigned int work_done = 0;
-	u16 q_number, completed_index;
-	u8 type, color;
+	return ((u8 *)cq->ring.descs + cq->ring.desc_size * cq->to_clean);
+}
 
-	cq_desc = (struct cq_desc *)((u8 *)cq->ring.descs +
-		cq->ring.desc_size * cq->to_clean);
-	cq_desc_dec(cq_desc, &type, &color,
-		&q_number, &completed_index);
-
-	while (color != cq->last_color) {
-
-		if ((*q_service)(cq->vdev, cq_desc, type,
-			q_number, completed_index, opaque))
-			break;
-
-		cq->to_clean++;
-		if (cq->to_clean == cq->ring.desc_count) {
-			cq->to_clean = 0;
-			cq->last_color = cq->last_color ? 0 : 1;
-		}
-
-		cq_desc = (struct cq_desc *)((u8 *)cq->ring.descs +
-			cq->ring.desc_size * cq->to_clean);
-		cq_desc_dec(cq_desc, &type, &color,
-			&q_number, &completed_index);
-
-		work_done++;
-		if (work_done >= work_to_do)
-			break;
+static inline void vnic_cq_inc_to_clean(struct vnic_cq *cq)
+{
+	cq->to_clean++;
+	if (cq->to_clean == cq->ring.desc_count) {
+		cq->to_clean = 0;
+		cq->last_color = cq->last_color ? 0 : 1;
 	}
-
-	return work_done;
 }
 
 void vnic_cq_free(struct vnic_cq *cq);

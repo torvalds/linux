@@ -33,6 +33,7 @@ enum {
 	ERN_RECVERR,
 	ERN_CMSG_RD,
 	ERN_CMSG_RCV,
+	ERN_SEND_MORE,
 };
 
 struct option_cmsg_u32 {
@@ -46,6 +47,7 @@ struct options {
 	const char *service;
 	unsigned int size;
 	unsigned int num_pkt;
+	bool msg_more;
 	struct {
 		unsigned int mark;
 		unsigned int dontfrag;
@@ -94,7 +96,8 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\t\t-S      send() size\n"
 	       "\t\t-4/-6   Force IPv4 / IPv6 only\n"
 	       "\t\t-p prot Socket protocol\n"
-	       "\t\t        (u = UDP (default); i = ICMP; r = RAW)\n"
+	       "\t\t        (u = UDP (default); i = ICMP; r = RAW;\n"
+	       "\t\t         U = UDP with MSG_MORE)\n"
 	       "\n"
 	       "\t\t-m val  Set SO_MARK with given value\n"
 	       "\t\t-M val  Set SO_MARK via setsockopt\n"
@@ -109,8 +112,8 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\t\t-l val  Set TTL/HOPLIMIT via cmsg\n"
 	       "\t\t-L val  Set TTL/HOPLIMIT via setsockopt\n"
 	       "\t\t-H type Add an IPv6 header option\n"
-	       "\t\t        (h = HOP; d = DST; r = RTDST)"
-	       "");
+	       "\t\t        (h = HOP; d = DST; r = RTDST)\n"
+	       "\n");
 	exit(ERN_HELP);
 }
 
@@ -133,8 +136,11 @@ static void cs_parse_args(int argc, char *argv[])
 			opt.sock.family = AF_INET6;
 			break;
 		case 'p':
-			if (*optarg == 'u' || *optarg == 'U') {
+			if (*optarg == 'u') {
 				opt.sock.proto = IPPROTO_UDP;
+			} else if (*optarg == 'U') {
+				opt.sock.proto = IPPROTO_UDP;
+				opt.msg_more = true;
 			} else if (*optarg == 'i' || *optarg == 'I') {
 				opt.sock.proto = IPPROTO_ICMP;
 			} else if (*optarg == 'r') {
@@ -531,7 +537,7 @@ int main(int argc, char *argv[])
 	cs_write_cmsg(fd, &msg, cbuf, sizeof(cbuf));
 
 	for (i = 0; i < opt.num_pkt; i++) {
-		err = sendmsg(fd, &msg, 0);
+		err = sendmsg(fd, &msg, opt.msg_more ? MSG_MORE : 0);
 		if (err < 0) {
 			if (!opt.silent_send)
 				fprintf(stderr, "send failed: %s\n", strerror(errno));
@@ -541,6 +547,14 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "short send\n");
 			err = ERN_SEND_SHORT;
 			goto err_out;
+		}
+		if (opt.msg_more) {
+			err = write(fd, NULL, 0);
+			if (err < 0) {
+				fprintf(stderr, "send more: %s\n", strerror(errno));
+				err = ERN_SEND_MORE;
+				goto err_out;
+			}
 		}
 	}
 	err = ERN_SUCCESS;

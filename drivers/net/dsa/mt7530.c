@@ -2050,131 +2050,6 @@ mt7530_setup_gpio(struct mt7530_priv *priv)
 }
 #endif /* CONFIG_GPIOLIB */
 
-static irqreturn_t
-mt7530_irq_thread_fn(int irq, void *dev_id)
-{
-	struct mt7530_priv *priv = dev_id;
-	bool handled = false;
-	u32 val;
-	int p;
-
-	mt7530_mutex_lock(priv);
-	val = mt7530_mii_read(priv, MT7530_SYS_INT_STS);
-	mt7530_mii_write(priv, MT7530_SYS_INT_STS, val);
-	mt7530_mutex_unlock(priv);
-
-	for (p = 0; p < MT7530_NUM_PHYS; p++) {
-		if (BIT(p) & val) {
-			unsigned int irq;
-
-			irq = irq_find_mapping(priv->irq_domain, p);
-			handle_nested_irq(irq);
-			handled = true;
-		}
-	}
-
-	return IRQ_RETVAL(handled);
-}
-
-static void
-mt7530_irq_mask(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	priv->irq_enable &= ~BIT(d->hwirq);
-}
-
-static void
-mt7530_irq_unmask(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	priv->irq_enable |= BIT(d->hwirq);
-}
-
-static void
-mt7530_irq_bus_lock(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	mt7530_mutex_lock(priv);
-}
-
-static void
-mt7530_irq_bus_sync_unlock(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	mt7530_mii_write(priv, MT7530_SYS_INT_EN, priv->irq_enable);
-	mt7530_mutex_unlock(priv);
-}
-
-static struct irq_chip mt7530_irq_chip = {
-	.name = KBUILD_MODNAME,
-	.irq_mask = mt7530_irq_mask,
-	.irq_unmask = mt7530_irq_unmask,
-	.irq_bus_lock = mt7530_irq_bus_lock,
-	.irq_bus_sync_unlock = mt7530_irq_bus_sync_unlock,
-};
-
-static int
-mt7530_irq_map(struct irq_domain *domain, unsigned int irq,
-	       irq_hw_number_t hwirq)
-{
-	irq_set_chip_data(irq, domain->host_data);
-	irq_set_chip_and_handler(irq, &mt7530_irq_chip, handle_simple_irq);
-	irq_set_nested_thread(irq, true);
-	irq_set_noprobe(irq);
-
-	return 0;
-}
-
-static const struct irq_domain_ops mt7530_irq_domain_ops = {
-	.map = mt7530_irq_map,
-	.xlate = irq_domain_xlate_onecell,
-};
-
-static void
-mt7988_irq_mask(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	priv->irq_enable &= ~BIT(d->hwirq);
-	mt7530_mii_write(priv, MT7530_SYS_INT_EN, priv->irq_enable);
-}
-
-static void
-mt7988_irq_unmask(struct irq_data *d)
-{
-	struct mt7530_priv *priv = irq_data_get_irq_chip_data(d);
-
-	priv->irq_enable |= BIT(d->hwirq);
-	mt7530_mii_write(priv, MT7530_SYS_INT_EN, priv->irq_enable);
-}
-
-static struct irq_chip mt7988_irq_chip = {
-	.name = KBUILD_MODNAME,
-	.irq_mask = mt7988_irq_mask,
-	.irq_unmask = mt7988_irq_unmask,
-};
-
-static int
-mt7988_irq_map(struct irq_domain *domain, unsigned int irq,
-	       irq_hw_number_t hwirq)
-{
-	irq_set_chip_data(irq, domain->host_data);
-	irq_set_chip_and_handler(irq, &mt7988_irq_chip, handle_simple_irq);
-	irq_set_nested_thread(irq, true);
-	irq_set_noprobe(irq);
-
-	return 0;
-}
-
-static const struct irq_domain_ops mt7988_irq_domain_ops = {
-	.map = mt7988_irq_map,
-	.xlate = irq_domain_xlate_onecell,
-};
-
 static void
 mt7530_setup_mdio_irq(struct mt7530_priv *priv)
 {
@@ -2191,49 +2066,72 @@ mt7530_setup_mdio_irq(struct mt7530_priv *priv)
 	}
 }
 
+static const struct regmap_irq mt7530_irqs[] = {
+	REGMAP_IRQ_REG_LINE(0, 32),  /* PHY0_LC */
+	REGMAP_IRQ_REG_LINE(1, 32),  /* PHY1_LC */
+	REGMAP_IRQ_REG_LINE(2, 32),  /* PHY2_LC */
+	REGMAP_IRQ_REG_LINE(3, 32),  /* PHY3_LC */
+	REGMAP_IRQ_REG_LINE(4, 32),  /* PHY4_LC */
+	REGMAP_IRQ_REG_LINE(5, 32),  /* PHY5_LC */
+	REGMAP_IRQ_REG_LINE(6, 32),  /* PHY6_LC */
+	REGMAP_IRQ_REG_LINE(16, 32), /* MAC_PC */
+	REGMAP_IRQ_REG_LINE(17, 32), /* BMU */
+	REGMAP_IRQ_REG_LINE(18, 32), /* MIB */
+	REGMAP_IRQ_REG_LINE(22, 32), /* ARL_COL_FULL_COL */
+	REGMAP_IRQ_REG_LINE(23, 32), /* ARL_COL_FULL */
+	REGMAP_IRQ_REG_LINE(24, 32), /* ARL_TBL_ERR */
+	REGMAP_IRQ_REG_LINE(25, 32), /* ARL_PKT_QERR */
+	REGMAP_IRQ_REG_LINE(26, 32), /* ARL_EQ_ERR */
+	REGMAP_IRQ_REG_LINE(27, 32), /* ARL_PKT_BC */
+	REGMAP_IRQ_REG_LINE(28, 32), /* ARL_SEC_IG1X */
+	REGMAP_IRQ_REG_LINE(29, 32), /* ARL_SEC_VLAN */
+	REGMAP_IRQ_REG_LINE(30, 32), /* ARL_SEC_TAG */
+	REGMAP_IRQ_REG_LINE(31, 32), /* ACL */
+};
+
+static const struct regmap_irq_chip mt7530_regmap_irq_chip = {
+	.name = KBUILD_MODNAME,
+	.status_base = MT7530_SYS_INT_STS,
+	.unmask_base = MT7530_SYS_INT_EN,
+	.ack_base = MT7530_SYS_INT_STS,
+	.init_ack_masked = true,
+	.irqs = mt7530_irqs,
+	.num_irqs = ARRAY_SIZE(mt7530_irqs),
+	.num_regs = 1,
+};
+
 static int
 mt7530_setup_irq(struct mt7530_priv *priv)
 {
+	struct regmap_irq_chip_data *irq_data;
 	struct device *dev = priv->dev;
 	struct device_node *np = dev->of_node;
-	int ret;
+	int irq, ret;
 
 	if (!of_property_read_bool(np, "interrupt-controller")) {
 		dev_info(dev, "no interrupt support\n");
 		return 0;
 	}
 
-	priv->irq = of_irq_get(np, 0);
-	if (priv->irq <= 0) {
-		dev_err(dev, "failed to get parent IRQ: %d\n", priv->irq);
-		return priv->irq ? : -EINVAL;
-	}
-
-	if (priv->id == ID_MT7988 || priv->id == ID_EN7581)
-		priv->irq_domain = irq_domain_add_linear(np, MT7530_NUM_PHYS,
-							 &mt7988_irq_domain_ops,
-							 priv);
-	else
-		priv->irq_domain = irq_domain_add_linear(np, MT7530_NUM_PHYS,
-							 &mt7530_irq_domain_ops,
-							 priv);
-
-	if (!priv->irq_domain) {
-		dev_err(dev, "failed to create IRQ domain\n");
-		return -ENOMEM;
+	irq = of_irq_get(np, 0);
+	if (irq <= 0) {
+		dev_err(dev, "failed to get parent IRQ: %d\n", irq);
+		return irq ? : -EINVAL;
 	}
 
 	/* This register must be set for MT7530 to properly fire interrupts */
 	if (priv->id == ID_MT7530 || priv->id == ID_MT7621)
 		mt7530_set(priv, MT7530_TOP_SIG_CTRL, TOP_SIG_CTRL_NORMAL);
 
-	ret = request_threaded_irq(priv->irq, NULL, mt7530_irq_thread_fn,
-				   IRQF_ONESHOT, KBUILD_MODNAME, priv);
-	if (ret) {
-		irq_domain_remove(priv->irq_domain);
-		dev_err(dev, "failed to request IRQ: %d\n", ret);
+	ret = devm_regmap_add_irq_chip_fwnode(dev, dev_fwnode(dev),
+					      priv->regmap, irq,
+					      IRQF_ONESHOT,
+					      0, &mt7530_regmap_irq_chip,
+					      &irq_data);
+	if (ret)
 		return ret;
-	}
+
+	priv->irq_domain = regmap_irq_get_domain(irq_data);
 
 	return 0;
 }
@@ -2251,26 +2149,6 @@ mt7530_free_mdio_irq(struct mt7530_priv *priv)
 			irq_dispose_mapping(irq);
 		}
 	}
-}
-
-static void
-mt7530_free_irq_common(struct mt7530_priv *priv)
-{
-	free_irq(priv->irq, priv);
-	irq_domain_remove(priv->irq_domain);
-}
-
-static void
-mt7530_free_irq(struct mt7530_priv *priv)
-{
-	struct device_node *mnp, *np = priv->dev->of_node;
-
-	mnp = of_get_child_by_name(np, "mdio");
-	if (!mnp)
-		mt7530_free_mdio_irq(priv);
-	of_node_put(mnp);
-
-	mt7530_free_irq_common(priv);
 }
 
 static int
@@ -2307,13 +2185,13 @@ mt7530_setup_mdio(struct mt7530_priv *priv)
 	bus->parent = dev;
 	bus->phy_mask = ~ds->phys_mii_mask;
 
-	if (priv->irq && !mnp)
+	if (priv->irq_domain && !mnp)
 		mt7530_setup_mdio_irq(priv);
 
 	ret = devm_of_mdiobus_register(dev, bus, mnp);
 	if (ret) {
 		dev_err(dev, "failed to register MDIO bus: %d\n", ret);
-		if (priv->irq && !mnp)
+		if (priv->irq_domain && !mnp)
 			mt7530_free_mdio_irq(priv);
 	}
 
@@ -2596,7 +2474,8 @@ mt7531_setup_common(struct dsa_switch *ds)
 	if (ret < 0)
 		return ret;
 
-	return 0;
+	/* Setup VLAN ID 0 for VLAN-unaware bridges */
+	return mt7530_setup_vlan0(priv);
 }
 
 static int
@@ -2689,11 +2568,6 @@ mt7531_setup(struct dsa_switch *ds)
 	}
 
 	ret = mt7531_setup_common(ds);
-	if (ret)
-		return ret;
-
-	/* Setup VLAN ID 0 for VLAN-unaware bridges */
-	ret = mt7530_setup_vlan0(priv);
 	if (ret)
 		return ret;
 
@@ -3101,8 +2975,6 @@ mt753x_setup(struct dsa_switch *ds)
 		return ret;
 
 	ret = mt7530_setup_mdio(priv);
-	if (ret && priv->irq)
-		mt7530_free_irq_common(priv);
 	if (ret)
 		return ret;
 
@@ -3113,11 +2985,11 @@ mt753x_setup(struct dsa_switch *ds)
 		priv->pcs[i].port = i;
 	}
 
-	if (priv->create_sgmii) {
+	if (priv->create_sgmii)
 		ret = priv->create_sgmii(priv);
-		if (ret && priv->irq)
-			mt7530_free_irq(priv);
-	}
+
+	if (ret && priv->irq_domain)
+		mt7530_free_mdio_irq(priv);
 
 	return ret;
 }
@@ -3361,8 +3233,8 @@ EXPORT_SYMBOL_GPL(mt7530_probe_common);
 void
 mt7530_remove_common(struct mt7530_priv *priv)
 {
-	if (priv->irq)
-		mt7530_free_irq(priv);
+	if (priv->irq_domain)
+		mt7530_free_mdio_irq(priv);
 
 	dsa_unregister_switch(priv->ds);
 

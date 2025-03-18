@@ -4,37 +4,50 @@
 
 #include <bpf/bpf_helpers.h>
 
-#define __round_mask(x, y) ((__typeof__(x))((y) - 1))
-#define round_up(x, y) ((((x) - 1) | __round_mask(x, y)) + 1)
+#define META_SIZE 32
+
 #define ctx_ptr(ctx, mem) (void *)(unsigned long)ctx->mem
+
+/* Demonstrates how metadata can be passed from an XDP program to a TC program
+ * using bpf_xdp_adjust_meta.
+ * For the sake of testing the metadata support in drivers, the XDP program uses
+ * a fixed-size payload after the Ethernet header as metadata. The TC program
+ * copies the metadata it receives into a map so it can be checked from
+ * userspace.
+ */
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, __u32);
+	__uint(value_size, META_SIZE);
+} test_result SEC(".maps");
 
 SEC("tc")
 int ing_cls(struct __sk_buff *ctx)
 {
-	__u8 *data, *data_meta, *data_end;
-	__u32 diff = 0;
+	__u8 *data, *data_meta;
+	__u32 key = 0;
 
 	data_meta = ctx_ptr(ctx, data_meta);
-	data_end  = ctx_ptr(ctx, data_end);
 	data      = ctx_ptr(ctx, data);
 
-	if (data + ETH_ALEN > data_end ||
-	    data_meta + round_up(ETH_ALEN, 4) > data)
+	if (data_meta + META_SIZE > data)
 		return TC_ACT_SHOT;
 
-	diff |= ((__u32 *)data_meta)[0] ^ ((__u32 *)data)[0];
-	diff |= ((__u16 *)data_meta)[2] ^ ((__u16 *)data)[2];
+	bpf_map_update_elem(&test_result, &key, data_meta, BPF_ANY);
 
-	return diff ? TC_ACT_SHOT : TC_ACT_OK;
+	return TC_ACT_SHOT;
 }
 
 SEC("xdp")
 int ing_xdp(struct xdp_md *ctx)
 {
-	__u8 *data, *data_meta, *data_end;
+	__u8 *data, *data_meta, *data_end, *payload;
+	struct ethhdr *eth;
 	int ret;
 
-	ret = bpf_xdp_adjust_meta(ctx, -round_up(ETH_ALEN, 4));
+	ret = bpf_xdp_adjust_meta(ctx, -META_SIZE);
 	if (ret < 0)
 		return XDP_DROP;
 
@@ -42,11 +55,21 @@ int ing_xdp(struct xdp_md *ctx)
 	data_end  = ctx_ptr(ctx, data_end);
 	data      = ctx_ptr(ctx, data);
 
-	if (data + ETH_ALEN > data_end ||
-	    data_meta + round_up(ETH_ALEN, 4) > data)
+	eth = (struct ethhdr *)data;
+	payload = data + sizeof(struct ethhdr);
+
+	if (payload + META_SIZE > data_end ||
+	    data_meta + META_SIZE > data)
 		return XDP_DROP;
 
-	__builtin_memcpy(data_meta, data, ETH_ALEN);
+	/* The Linux networking stack may send other packets on the test
+	 * interface that interfere with the test. Just drop them.
+	 * The test packets can be recognized by their ethertype of zero.
+	 */
+	if (eth->h_proto != 0)
+		return XDP_DROP;
+
+	__builtin_memcpy(data_meta, payload, META_SIZE);
 	return XDP_PASS;
 }
 

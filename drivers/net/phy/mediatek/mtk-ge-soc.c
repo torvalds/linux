@@ -8,6 +8,7 @@
 #include <linux/phy.h>
 #include <linux/regmap.h>
 
+#include "../phylib.h"
 #include "mtk.h"
 
 #define MTK_GPHY_ID_MT7981			0x03a29461
@@ -1278,7 +1279,7 @@ static int mt798x_phy_led_hw_control_set(struct phy_device *phydev, u8 index,
 
 static bool mt7988_phy_led_get_polarity(struct phy_device *phydev, int led_num)
 {
-	struct mtk_socphy_shared *priv = phydev->shared->priv;
+	struct mtk_socphy_shared *priv = phy_package_get_priv(phydev);
 	u32 polarities;
 
 	if (led_num == 0)
@@ -1317,7 +1318,7 @@ static int mt7988_phy_fix_leds_polarities(struct phy_device *phydev)
 static int mt7988_phy_probe_shared(struct phy_device *phydev)
 {
 	struct device_node *np = dev_of_node(&phydev->mdio.bus->dev);
-	struct mtk_socphy_shared *shared = phydev->shared->priv;
+	struct mtk_socphy_shared *shared = phy_package_get_priv(phydev);
 	struct regmap *regmap;
 	u32 reg;
 	int ret;
@@ -1368,7 +1369,7 @@ static int mt7988_phy_probe(struct phy_device *phydev)
 			return err;
 	}
 
-	shared = phydev->shared->priv;
+	shared = phy_package_get_priv(phydev);
 	priv = &shared->priv[phydev->mdio.addr];
 
 	phydev->priv = priv;

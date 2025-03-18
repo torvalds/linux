@@ -20,7 +20,7 @@
 #define AIROHA_MAX_DSA_PORTS		7
 #define AIROHA_MAX_NUM_RSTS		3
 #define AIROHA_MAX_NUM_XSI_RSTS		5
-#define AIROHA_MAX_MTU			2000
+#define AIROHA_MAX_MTU			9216
 #define AIROHA_MAX_PACKET_SIZE		2048
 #define AIROHA_NUM_QOS_CHANNELS		4
 #define AIROHA_NUM_QOS_QUEUES		8
@@ -176,6 +176,7 @@ struct airoha_queue {
 
 	struct napi_struct napi;
 	struct page_pool *page_pool;
+	struct sk_buff *skb;
 };
 
 struct airoha_tx_irq_queue {

@@ -476,6 +476,24 @@ static int gve_rx_copy_ondemand(struct gve_rx_ring *rx,
 	return 0;
 }
 
+static void gve_skb_add_rx_frag(struct gve_rx_ring *rx,
+				struct gve_rx_buf_state_dqo *buf_state,
+				int num_frags, u16 buf_len)
+{
+	if (rx->dqo.page_pool) {
+		skb_add_rx_frag_netmem(rx->ctx.skb_tail, num_frags,
+				       buf_state->page_info.netmem,
+				       buf_state->page_info.page_offset,
+				       buf_len,
+				       buf_state->page_info.buf_size);
+	} else {
+		skb_add_rx_frag(rx->ctx.skb_tail, num_frags,
+				buf_state->page_info.page,
+				buf_state->page_info.page_offset,
+				buf_len, buf_state->page_info.buf_size);
+	}
+}
+
 /* Chains multi skbs for single rx packet.
  * Returns 0 if buffer is appended, -1 otherwise.
  */
@@ -513,10 +531,7 @@ static int gve_rx_append_frags(struct napi_struct *napi,
 	if (gve_rx_should_trigger_copy_ondemand(rx))
 		return gve_rx_copy_ondemand(rx, buf_state, buf_len);
 
-	skb_add_rx_frag(rx->ctx.skb_tail, num_frags,
-			buf_state->page_info.page,
-			buf_state->page_info.page_offset,
-			buf_len, buf_state->page_info.buf_size);
+	gve_skb_add_rx_frag(rx, buf_state, num_frags, buf_len);
 	gve_reuse_buffer(rx, buf_state);
 	return 0;
 }
@@ -561,7 +576,12 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	/* Page might have not been used for awhile and was likely last written
 	 * by a different thread.
 	 */
-	prefetch(buf_state->page_info.page);
+	if (rx->dqo.page_pool) {
+		if (!netmem_is_net_iov(buf_state->page_info.netmem))
+			prefetch(netmem_to_page(buf_state->page_info.netmem));
+	} else {
+		prefetch(buf_state->page_info.page);
+	}
 
 	/* Copy the header into the skb in the case of header split */
 	if (hsplit) {
@@ -632,9 +652,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	if (rx->dqo.page_pool)
 		skb_mark_for_recycle(rx->ctx.skb_head);
 
-	skb_add_rx_frag(rx->ctx.skb_head, 0, buf_state->page_info.page,
-			buf_state->page_info.page_offset, buf_len,
-			buf_state->page_info.buf_size);
+	gve_skb_add_rx_frag(rx, buf_state, 0, buf_len);
 	gve_reuse_buffer(rx, buf_state);
 	return 0;
 

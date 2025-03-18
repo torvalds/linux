@@ -595,6 +595,14 @@ void pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
  * The %neg_mode argument should be tested via the phylink_mode_*() family of
  * functions, or for PCS that set pcs->neg_mode true, should be tested
  * against the PHYLINK_PCS_NEG_* definitions.
+ *
+ * pcs_config() will be called when configuration of the PCS is required
+ * or when the advertisement is possibly updated. It must not unnecessarily
+ * disrupt an established link.
+ *
+ * When an autonegotiation restart is required for 802.3z modes, .pcs_config()
+ * should return a positive non-zero integer (e.g. 1) to indicate to phylink
+ * to call the pcs_an_restart() method.
  */
 int pcs_config(struct phylink_pcs *pcs, unsigned int neg_mode,
 	       phy_interface_t interface, const unsigned long *advertising,
@@ -714,7 +722,6 @@ void phylink_ethtool_get_pauseparam(struct phylink *,
 int phylink_ethtool_set_pauseparam(struct phylink *,
 				   struct ethtool_pauseparam *);
 int phylink_get_eee_err(struct phylink *);
-int phylink_init_eee(struct phylink *, bool);
 int phylink_ethtool_get_eee(struct phylink *link, struct ethtool_keee *eee);
 int phylink_ethtool_set_eee(struct phylink *link, struct ethtool_keee *eee);
 int phylink_mii_ioctl(struct phylink *, struct ifreq *, int);

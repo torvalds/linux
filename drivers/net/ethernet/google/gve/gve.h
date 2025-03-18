@@ -105,7 +105,13 @@ struct gve_rx_desc_queue {
 
 /* The page info for a single slot in the RX data queue */
 struct gve_rx_slot_page_info {
-	struct page *page;
+	/* netmem is used for DQO RDA mode
+	 * page is used in all other modes
+	 */
+	union {
+		struct page *page;
+		netmem_ref netmem;
+	};
 	void *page_address;
 	u32 page_offset; /* offset to write to in page */
 	unsigned int buf_size;

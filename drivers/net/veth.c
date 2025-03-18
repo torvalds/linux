@@ -17,6 +17,7 @@
 
 #include <net/rtnetlink.h>
 #include <net/dst.h>
+#include <net/netdev_lock.h>
 #include <net/xfrm.h>
 #include <net/xdp.h>
 #include <linux/veth.h>

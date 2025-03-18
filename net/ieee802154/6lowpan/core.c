@@ -50,6 +50,7 @@
 #include <linux/if_arp.h>
 
 #include <net/ipv6.h>
+#include <net/netdev_lock.h>
 
 #include "6lowpan_i.h"
 

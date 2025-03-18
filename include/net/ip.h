@@ -357,7 +357,7 @@ static inline void inet_get_local_port_range(const struct net *net, int *low, in
 bool inet_sk_get_local_port_range(const struct sock *sk, int *low, int *high);
 
 #ifdef CONFIG_SYSCTL
-static inline bool inet_is_local_reserved_port(struct net *net, unsigned short port)
+static inline bool inet_is_local_reserved_port(const struct net *net, unsigned short port)
 {
 	if (!net->ipv4.sysctl_local_reserved_ports)
 		return false;

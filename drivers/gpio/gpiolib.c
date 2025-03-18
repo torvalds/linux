@@ -2712,7 +2712,7 @@ EXPORT_SYMBOL_GPL(gpiod_direction_input);
 
 int gpiod_direction_input_nonotify(struct gpio_desc *desc)
 {
-	int ret = 0;
+	int ret = 0, dir;
 
 	CLASS(gpio_chip_guard, guard)(desc);
 	if (!guard.gc)
@@ -2740,12 +2740,12 @@ int gpiod_direction_input_nonotify(struct gpio_desc *desc)
 		ret = guard.gc->direction_input(guard.gc,
 						gpio_chip_hwgpio(desc));
 	} else if (guard.gc->get_direction) {
-		ret = guard.gc->get_direction(guard.gc,
+		dir = guard.gc->get_direction(guard.gc,
 					      gpio_chip_hwgpio(desc));
-		if (ret < 0)
-			return ret;
+		if (dir < 0)
+			return dir;
 
-		if (ret != GPIO_LINE_DIRECTION_IN) {
+		if (dir != GPIO_LINE_DIRECTION_IN) {
 			gpiod_warn(desc,
 				   "%s: missing direction_input() operation and line is output\n",
 				    __func__);
@@ -2764,7 +2764,7 @@ int gpiod_direction_input_nonotify(struct gpio_desc *desc)
 
 static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 {
-	int val = !!value, ret = 0;
+	int val = !!value, ret = 0, dir;
 
 	CLASS(gpio_chip_guard, guard)(desc);
 	if (!guard.gc)
@@ -2788,12 +2788,12 @@ static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 	} else {
 		/* Check that we are in output mode if we can */
 		if (guard.gc->get_direction) {
-			ret = guard.gc->get_direction(guard.gc,
+			dir = guard.gc->get_direction(guard.gc,
 						      gpio_chip_hwgpio(desc));
-			if (ret < 0)
-				return ret;
+			if (dir < 0)
+				return dir;
 
-			if (ret != GPIO_LINE_DIRECTION_OUT) {
+			if (dir != GPIO_LINE_DIRECTION_OUT) {
 				gpiod_warn(desc,
 					   "%s: missing direction_output() operation\n",
 					   __func__);

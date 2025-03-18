@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <linux/netdevice.h>
+#include <net/netdev_lock.h>
 #include <net/netdev_queues.h>
 #include <net/netdev_rx_queue.h>
 #include <net/page_pool/memory_provider.h>
@@ -18,7 +19,7 @@ int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
 	    !qops->ndo_queue_mem_alloc || !qops->ndo_queue_start)
 		return -EOPNOTSUPP;
 
-	ASSERT_RTNL();
+	netdev_assert_locked(dev);
 
 	new_mem = kvzalloc(qops->ndo_queue_mem_size, GFP_KERNEL);
 	if (!new_mem)
@@ -113,9 +114,9 @@ int net_mp_open_rxq(struct net_device *dev, unsigned ifq_idx,
 {
 	int ret;
 
-	rtnl_lock();
+	netdev_lock(dev);
 	ret = __net_mp_open_rxq(dev, ifq_idx, p);
-	rtnl_unlock();
+	netdev_unlock(dev);
 	return ret;
 }
 
@@ -148,7 +149,7 @@ static void __net_mp_close_rxq(struct net_device *dev, unsigned ifq_idx,
 void net_mp_close_rxq(struct net_device *dev, unsigned ifq_idx,
 		      struct pp_memory_provider_params *old_p)
 {
-	rtnl_lock();
+	netdev_lock(dev);
 	__net_mp_close_rxq(dev, ifq_idx, old_p);
-	rtnl_unlock();
+	netdev_unlock(dev);
 }

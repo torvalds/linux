@@ -3187,7 +3187,8 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 		}
 
 		cfg->nh_encap_type = nla_get_u16(tb[NHA_ENCAP_TYPE]);
-		err = lwtunnel_valid_encap_type(cfg->nh_encap_type, extack);
+		err = lwtunnel_valid_encap_type(cfg->nh_encap_type,
+						extack, true);
 		if (err < 0)
 			goto out;
 

@@ -33,6 +33,7 @@ struct netpoll {
 	u16 local_port, remote_port;
 	u8 remote_mac[ETH_ALEN];
 	struct sk_buff_head skb_pool;
+	struct work_struct refill_wq;
 };
 
 struct netpoll_info {

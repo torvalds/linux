@@ -648,6 +648,7 @@ esw_setup_meter(struct mlx5_flow_attr *attr, struct mlx5_flow_act *flow_act)
 	meter = attr->meter_attr.meter;
 	flow_act->exe_aso.type = attr->exe_aso_type;
 	flow_act->exe_aso.object_id = meter->obj_id;
+	flow_act->exe_aso.base_id = mlx5e_flow_meter_get_base_id(meter);
 	flow_act->exe_aso.flow_meter.meter_idx = meter->idx;
 	flow_act->exe_aso.flow_meter.init_color = MLX5_FLOW_METER_COLOR_GREEN;
 	/* use metadata reg 5 for packet color */
@@ -2828,9 +2829,9 @@ static int esw_set_master_egress_rule(struct mlx5_core_dev *master,
 	if (IS_ERR(vport))
 		return PTR_ERR(vport);
 
-	egress_ns = mlx5_get_flow_vport_acl_namespace(master,
-						      MLX5_FLOW_NAMESPACE_ESW_EGRESS,
-						      vport->index);
+	egress_ns = mlx5_get_flow_vport_namespace(master,
+						  MLX5_FLOW_NAMESPACE_ESW_EGRESS,
+						  vport->index);
 	if (!egress_ns)
 		return -EINVAL;
 

@@ -282,7 +282,6 @@ struct stmmac_priv {
 	/* Generic channel for NAPI */
 	struct stmmac_channel channel[STMMAC_CH_MAX];
 
-	int speed;
 	unsigned int pause_time;
 	struct mii_bus *mii;
 

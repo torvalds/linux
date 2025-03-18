@@ -191,6 +191,113 @@ static int fbnic_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+static void
+fbnic_get_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
+		    struct kernel_ethtool_ringparam *kernel_ring,
+		    struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	ring->rx_max_pending = FBNIC_QUEUE_SIZE_MAX;
+	ring->rx_mini_max_pending = FBNIC_QUEUE_SIZE_MAX;
+	ring->rx_jumbo_max_pending = FBNIC_QUEUE_SIZE_MAX;
+	ring->tx_max_pending = FBNIC_QUEUE_SIZE_MAX;
+
+	ring->rx_pending = fbn->rcq_size;
+	ring->rx_mini_pending = fbn->hpq_size;
+	ring->rx_jumbo_pending = fbn->ppq_size;
+	ring->tx_pending = fbn->txq_size;
+}
+
+static void fbnic_set_rings(struct fbnic_net *fbn,
+			    struct ethtool_ringparam *ring)
+{
+	fbn->rcq_size = ring->rx_pending;
+	fbn->hpq_size = ring->rx_mini_pending;
+	fbn->ppq_size = ring->rx_jumbo_pending;
+	fbn->txq_size = ring->tx_pending;
+}
+
+static int
+fbnic_set_ringparam(struct net_device *netdev, struct ethtool_ringparam *ring,
+		    struct kernel_ethtool_ringparam *kernel_ring,
+		    struct netlink_ext_ack *extack)
+
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	struct fbnic_net *clone;
+	int err;
+
+	ring->rx_pending	= roundup_pow_of_two(ring->rx_pending);
+	ring->rx_mini_pending	= roundup_pow_of_two(ring->rx_mini_pending);
+	ring->rx_jumbo_pending	= roundup_pow_of_two(ring->rx_jumbo_pending);
+	ring->tx_pending	= roundup_pow_of_two(ring->tx_pending);
+
+	/* These are absolute minimums allowing the device and driver to operate
+	 * but not necessarily guarantee reasonable performance. Settings below
+	 * Rx queue size of 128 and BDQs smaller than 64 are likely suboptimal
+	 * at best.
+	 */
+	if (ring->rx_pending < max(FBNIC_QUEUE_SIZE_MIN, FBNIC_RX_DESC_MIN) ||
+	    ring->rx_mini_pending < FBNIC_QUEUE_SIZE_MIN ||
+	    ring->rx_jumbo_pending < FBNIC_QUEUE_SIZE_MIN ||
+	    ring->tx_pending < max(FBNIC_QUEUE_SIZE_MIN, FBNIC_TX_DESC_MIN)) {
+		NL_SET_ERR_MSG_MOD(extack, "requested ring size too small");
+		return -EINVAL;
+	}
+
+	if (!netif_running(netdev)) {
+		fbnic_set_rings(fbn, ring);
+		return 0;
+	}
+
+	clone = fbnic_clone_create(fbn);
+	if (!clone)
+		return -ENOMEM;
+
+	fbnic_set_rings(clone, ring);
+
+	err = fbnic_alloc_napi_vectors(clone);
+	if (err)
+		goto err_free_clone;
+
+	err = fbnic_alloc_resources(clone);
+	if (err)
+		goto err_free_napis;
+
+	fbnic_down_noidle(fbn);
+	err = fbnic_wait_all_queues_idle(fbn->fbd, true);
+	if (err)
+		goto err_start_stack;
+
+	err = fbnic_set_netif_queues(clone);
+	if (err)
+		goto err_start_stack;
+
+	/* Nothing can fail past this point */
+	fbnic_flush(fbn);
+
+	fbnic_clone_swap(fbn, clone);
+
+	fbnic_up(fbn);
+
+	fbnic_free_resources(clone);
+	fbnic_free_napi_vectors(clone);
+	fbnic_clone_free(clone);
+
+	return 0;
+
+err_start_stack:
+	fbnic_flush(fbn);
+	fbnic_up(fbn);
+	fbnic_free_resources(clone);
+err_free_napis:
+	fbnic_free_napi_vectors(clone);
+err_free_clone:
+	fbnic_clone_free(clone);
+	return err;
+}
+
 static void fbnic_get_strings(struct net_device *dev, u32 sset, u8 *data)
 {
 	int i;
@@ -1351,6 +1458,8 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_regs		= fbnic_get_regs,
 	.get_coalesce		= fbnic_get_coalesce,
 	.set_coalesce		= fbnic_set_coalesce,
+	.get_ringparam		= fbnic_get_ringparam,
+	.set_ringparam		= fbnic_set_ringparam,
 	.get_strings		= fbnic_get_strings,
 	.get_ethtool_stats	= fbnic_get_ethtool_stats,
 	.get_sset_count		= fbnic_get_sset_count,

@@ -23,6 +23,7 @@
 #include <linux/rtnetlink.h>
 #include <net/rtnetlink.h>
 #include <net/genetlink.h>
+#include <net/netdev_lock.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
 #include <linux/if_team.h>
