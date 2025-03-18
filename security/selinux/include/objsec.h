@@ -82,7 +82,7 @@ struct ipc_security_struct {
 };
 
 struct netif_security_struct {
-	struct net *ns; /* network namespace */
+	const struct net *ns; /* network namespace */
 	int ifindex; /* device index */
 	u32 sid; /* SID for this interface */
 };
