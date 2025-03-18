@@ -2643,7 +2643,7 @@ static bool match_ipv6_addrmask(const u32 input[4], const u32 addr[4], const u32
  * @out_sid: security identifier
  */
 int security_node_sid(u16 domain,
-		      void *addrp,
+		      const void *addrp,
 		      u32 addrlen,
 		      u32 *out_sid)
 {
@@ -2672,7 +2672,7 @@ retry:
 		if (addrlen != sizeof(u32))
 			goto out;
 
-		addr = *((u32 *)addrp);
+		addr = *((const u32 *)addrp);
 
 		c = policydb->ocontexts[OCON_NODE];
 		while (c) {
