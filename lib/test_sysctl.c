@@ -30,16 +30,17 @@ static int i_zero;
 static int i_one_hundred = 100;
 static int match_int_ok = 1;
 
+enum {
+	TEST_H_SETUP_NODE,
+	TEST_H_MNT,
+	TEST_H_MNTERROR,
+	TEST_H_EMPTY_ADD,
+	TEST_H_EMPTY,
+	TEST_H_U8,
+	TEST_H_SIZE /* Always at the end */
+};
 
-static struct {
-	struct ctl_table_header *test_h_setup_node;
-	struct ctl_table_header *test_h_mnt;
-	struct ctl_table_header *test_h_mnterror;
-	struct ctl_table_header *empty_add;
-	struct ctl_table_header *empty;
-	struct ctl_table_header *test_u8;
-} sysctl_test_headers;
-
+static struct ctl_table_header *ctl_headers[TEST_H_SIZE] = {};
 struct test_sysctl_data {
 	int int_0001;
 	int int_0002;
@@ -168,8 +169,8 @@ static int test_sysctl_setup_node_tests(void)
 	test_data.bitmap_0001 = kzalloc(SYSCTL_TEST_BITMAP_SIZE/8, GFP_KERNEL);
 	if (!test_data.bitmap_0001)
 		return -ENOMEM;
-	sysctl_test_headers.test_h_setup_node = register_sysctl("debug/test_sysctl", test_table);
-	if (!sysctl_test_headers.test_h_setup_node) {
+	ctl_headers[TEST_H_SETUP_NODE] = register_sysctl("debug/test_sysctl", test_table);
+	if (!ctl_headers[TEST_H_SETUP_NODE]) {
 		kfree(test_data.bitmap_0001);
 		return -ENOMEM;
 	}
@@ -203,12 +204,12 @@ static int test_sysctl_run_unregister_nested(void)
 
 static int test_sysctl_run_register_mount_point(void)
 {
-	sysctl_test_headers.test_h_mnt
+	ctl_headers[TEST_H_MNT]
 		= register_sysctl_mount_point("debug/test_sysctl/mnt");
-	if (!sysctl_test_headers.test_h_mnt)
+	if (!ctl_headers[TEST_H_MNT])
 		return -ENOMEM;
 
-	sysctl_test_headers.test_h_mnterror
+	ctl_headers[TEST_H_MNTERROR]
 		= register_sysctl("debug/test_sysctl/mnt/mnt_error",
 				  test_table_unregister);
 	/*
@@ -226,15 +227,15 @@ static const struct ctl_table test_table_empty[] = { };
 static int test_sysctl_run_register_empty(void)
 {
 	/* Tets that an empty dir can be created */
-	sysctl_test_headers.empty_add
+	ctl_headers[TEST_H_EMPTY_ADD]
 		= register_sysctl("debug/test_sysctl/empty_add", test_table_empty);
-	if (!sysctl_test_headers.empty_add)
+	if (!ctl_headers[TEST_H_EMPTY_ADD])
 		return -ENOMEM;
 
 	/* Test that register on top of an empty dir works */
-	sysctl_test_headers.empty
+	ctl_headers[TEST_H_EMPTY]
 		= register_sysctl("debug/test_sysctl/empty_add/empty", test_table_empty);
-	if (!sysctl_test_headers.empty)
+	if (!ctl_headers[TEST_H_EMPTY])
 		return -ENOMEM;
 
 	return 0;
@@ -279,21 +280,21 @@ static const struct ctl_table table_u8_valid[] = {
 static int test_sysctl_register_u8_extra(void)
 {
 	/* should fail because it's over */
-	sysctl_test_headers.test_u8
+	ctl_headers[TEST_H_U8]
 		= register_sysctl("debug/test_sysctl", table_u8_over);
-	if (sysctl_test_headers.test_u8)
+	if (ctl_headers[TEST_H_U8])
 		return -ENOMEM;
 
 	/* should fail because it's under */
-	sysctl_test_headers.test_u8
+	ctl_headers[TEST_H_U8]
 		= register_sysctl("debug/test_sysctl", table_u8_under);
-	if (sysctl_test_headers.test_u8)
+	if (ctl_headers[TEST_H_U8])
 		return -ENOMEM;
 
 	/* should not fail because it's valid */
-	sysctl_test_headers.test_u8
+	ctl_headers[TEST_H_U8]
 		= register_sysctl("debug/test_sysctl", table_u8_valid);
-	if (!sysctl_test_headers.test_u8)
+	if (!ctl_headers[TEST_H_U8])
 		return -ENOMEM;
 
 	return 0;
@@ -321,18 +322,10 @@ module_init(test_sysctl_init);
 static void __exit test_sysctl_exit(void)
 {
 	kfree(test_data.bitmap_0001);
-	if (sysctl_test_headers.test_h_setup_node)
-		unregister_sysctl_table(sysctl_test_headers.test_h_setup_node);
-	if (sysctl_test_headers.test_h_mnt)
-		unregister_sysctl_table(sysctl_test_headers.test_h_mnt);
-	if (sysctl_test_headers.test_h_mnterror)
-		unregister_sysctl_table(sysctl_test_headers.test_h_mnterror);
-	if (sysctl_test_headers.empty)
-		unregister_sysctl_table(sysctl_test_headers.empty);
-	if (sysctl_test_headers.empty_add)
-		unregister_sysctl_table(sysctl_test_headers.empty_add);
-	if (sysctl_test_headers.test_u8)
-		unregister_sysctl_table(sysctl_test_headers.test_u8);
+	for (int i = 0; i < TEST_H_SIZE; i++) {
+		if (ctl_headers[i])
+			unregister_sysctl_table(ctl_headers[i]);
+	}
 }
 
 module_exit(test_sysctl_exit);
