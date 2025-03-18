@@ -350,8 +350,10 @@ static inline int journal_res_get_fast(struct journal *j,
 
 		/*
 		 * Check if there is still room in the current journal
-		 * entry:
+		 * entry, smp_rmb() guarantees that reads from reservations.counter
+		 * occur before accessing cur_entry_u64s:
 		 */
+		smp_rmb();
 		if (new.cur_entry_offset + res->u64s > j->cur_entry_u64s)
 			return 0;
 
