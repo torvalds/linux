@@ -66,18 +66,13 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
-#include <linux/mutex.h>
-#include <linux/net.h>
 #include <linux/netdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
 #include <linux/socket.h>
 #include <linux/string.h>
-#include <linux/un.h>
-#include <linux/wait.h>
 #include <net/af_unix.h>
 #include <net/scm.h>
-#include <net/sock.h>
 #include <net/tcp_states.h>
 
 #include "af_unix.h"

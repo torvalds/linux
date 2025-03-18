@@ -4,7 +4,6 @@
 #include <linux/bpf.h>
 #include <linux/skmsg.h>
 #include <net/af_unix.h>
-#include <net/sock.h>
 
 #include "af_unix.h"
 

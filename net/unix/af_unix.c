@@ -92,7 +92,6 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/net.h>
 #include <linux/netdevice.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
@@ -110,12 +109,10 @@
 #include <linux/string.h>
 #include <linux/termios.h>
 #include <linux/uaccess.h>
-#include <linux/un.h>
 #include <net/af_unix.h>
 #include <net/checksum.h>
 #include <net/net_namespace.h>
 #include <net/scm.h>
-#include <net/sock.h>
 #include <net/tcp_states.h>
 
 #include "af_unix.h"

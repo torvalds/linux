@@ -2,11 +2,15 @@
 #ifndef __LINUX_NET_AFUNIX_H
 #define __LINUX_NET_AFUNIX_H
 
+#include <linux/atomic.h>
 #include <linux/mutex.h>
+#include <linux/net.h>
+#include <linux/path.h>
 #include <linux/refcount.h>
-#include <linux/socket.h>
-#include <linux/un.h>
+#include <linux/spinlock.h>
+#include <linux/wait.h>
 #include <net/sock.h>
+#include <uapi/linux/un.h>
 
 #if IS_ENABLED(CONFIG_UNIX)
 struct unix_sock *unix_get_socket(struct file *filp);

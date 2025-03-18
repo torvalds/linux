@@ -3,13 +3,10 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/sock_diag.h>
-#include <linux/spinlock.h>
 #include <linux/types.h>
-#include <linux/uidgid.h>
 #include <linux/unix_diag.h>
 #include <net/af_unix.h>
 #include <net/netlink.h>
-#include <net/sock.h>
 #include <net/tcp_states.h>
 
 #include "af_unix.h"
