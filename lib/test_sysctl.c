@@ -301,27 +301,19 @@ static int test_sysctl_register_u8_extra(void)
 
 static int __init test_sysctl_init(void)
 {
-	int err;
+	int err = 0;
 
-	err = test_sysctl_setup_node_tests();
-	if (err)
-		goto out;
+	int (*func_array[])(void) = {
+		test_sysctl_setup_node_tests,
+		test_sysctl_run_unregister_nested,
+		test_sysctl_run_register_mount_point,
+		test_sysctl_run_register_empty,
+		test_sysctl_register_u8_extra
+	};
 
-	err = test_sysctl_run_unregister_nested();
-	if (err)
-		goto out;
+	for (int i = 0; !err && i < ARRAY_SIZE(func_array); i++)
+		err = func_array[i]();
 
-	err = test_sysctl_run_register_mount_point();
-	if (err)
-		goto out;
-
-	err = test_sysctl_run_register_empty();
-	if (err)
-		goto out;
-
-	err = test_sysctl_register_u8_extra();
-
-out:
 	return err;
 }
 module_init(test_sysctl_init);
