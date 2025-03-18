@@ -794,9 +794,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	if (!ethqos)
 		return -ENOMEM;
 
-	ret = of_get_phy_mode(np, &ethqos->phy_mode);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to get phy mode\n");
+	ethqos->phy_mode = plat_dat->phy_interface;
 	switch (ethqos->phy_mode) {
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
