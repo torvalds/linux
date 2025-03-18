@@ -2773,6 +2773,7 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 			CMD(update_ft_ies, UPDATE_FT_IES);
 			if (rdev->wiphy.sar_capa)
 				CMD(set_sar_specs, SET_SAR_SPECS);
+			CMD(assoc_ml_reconf, ASSOC_MLO_RECONF);
 		}
 #undef CMD
 
@@ -16557,7 +16558,7 @@ static int nl80211_assoc_ml_reconf(struct sk_buff *skb, struct genl_info *info)
 		req.ext_mld_capa_ops =
 			nla_get_u16(info->attrs[NL80211_ATTR_ASSOC_MLD_EXT_CAPA_OPS]);
 
-	err = -EOPNOTSUPP;
+	err = cfg80211_assoc_ml_reconf(rdev, dev, &req);
 
 out:
 	for (link_id = 0; link_id < ARRAY_SIZE(req.add_links); link_id++)
