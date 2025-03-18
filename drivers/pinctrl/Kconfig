@@ -51,6 +51,7 @@ config PINCTRL_AMD
 
 config PINCTRL_AMDISP
 	tristate "AMDISP GPIO pin control"
+	depends on DRM_AMD_ISP || COMPILE_TEST
 	depends on HAS_IOMEM
 	select GPIOLIB
 	select PINCONF
