@@ -196,6 +196,7 @@ static int ad7616_sw_mode_setup(struct iio_dev *indio_dev);
 static int ad7606b_sw_mode_setup(struct iio_dev *indio_dev);
 
 const struct ad7606_chip_info ad7605_4_info = {
+	.max_samplerate = 300 * KILO,
 	.channels = ad7605_channels,
 	.name = "ad7605-4",
 	.num_adc_channels = 4,
@@ -205,6 +206,7 @@ const struct ad7606_chip_info ad7605_4_info = {
 EXPORT_SYMBOL_NS_GPL(ad7605_4_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_8_info = {
+	.max_samplerate = 200 * KILO,
 	.channels = ad7606_channels_16bit,
 	.name = "ad7606-8",
 	.num_adc_channels = 8,
@@ -216,6 +218,7 @@ const struct ad7606_chip_info ad7606_8_info = {
 EXPORT_SYMBOL_NS_GPL(ad7606_8_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_6_info = {
+	.max_samplerate = 200 * KILO,
 	.channels = ad7606_channels_16bit,
 	.name = "ad7606-6",
 	.num_adc_channels = 6,
@@ -227,6 +230,7 @@ const struct ad7606_chip_info ad7606_6_info = {
 EXPORT_SYMBOL_NS_GPL(ad7606_6_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606_4_info = {
+	.max_samplerate = 200 * KILO,
 	.channels = ad7606_channels_16bit,
 	.name = "ad7606-4",
 	.num_adc_channels = 4,
@@ -251,6 +255,7 @@ const struct ad7606_chip_info ad7606b_info = {
 EXPORT_SYMBOL_NS_GPL(ad7606b_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606c_16_info = {
+	.max_samplerate = 1 * MEGA,
 	.channels = ad7606_channels_16bit,
 	.name = "ad7606c16",
 	.num_adc_channels = 8,
@@ -263,6 +268,7 @@ const struct ad7606_chip_info ad7606c_16_info = {
 EXPORT_SYMBOL_NS_GPL(ad7606c_16_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7607_info = {
+	.max_samplerate = 200 * KILO,
 	.channels = ad7607_channels,
 	.name = "ad7607",
 	.num_adc_channels = 8,
@@ -274,6 +280,7 @@ const struct ad7606_chip_info ad7607_info = {
 EXPORT_SYMBOL_NS_GPL(ad7607_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7608_info = {
+	.max_samplerate = 200 * KILO,
 	.channels = ad7608_channels,
 	.name = "ad7608",
 	.num_adc_channels = 8,
@@ -285,6 +292,7 @@ const struct ad7606_chip_info ad7608_info = {
 EXPORT_SYMBOL_NS_GPL(ad7608_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7609_info = {
+	.max_samplerate = 200 * KILO,
 	.channels = ad7608_channels,
 	.name = "ad7609",
 	.num_adc_channels = 8,
@@ -296,6 +304,7 @@ const struct ad7606_chip_info ad7609_info = {
 EXPORT_SYMBOL_NS_GPL(ad7609_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7606c_18_info = {
+	.max_samplerate = 1 * MEGA,
 	.channels = ad7606_channels_18bit,
 	.name = "ad7606c18",
 	.num_adc_channels = 8,
@@ -308,6 +317,7 @@ const struct ad7606_chip_info ad7606c_18_info = {
 EXPORT_SYMBOL_NS_GPL(ad7606c_18_info, "IIO_AD7606");
 
 const struct ad7606_chip_info ad7616_info = {
+	.max_samplerate = 1 * MEGA,
 	.channels = ad7616_channels,
 	.init_delay_ms = 15,
 	.name = "ad7616",
@@ -1396,8 +1406,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 * If there is a backend, the PWM should not overpass the maximum sampling
 		 * frequency the chip supports.
 		 */
-		ret = ad7606_set_sampling_freq(st,
-					       chip_info->max_samplerate ? : 2 * KILO);
+		ret = ad7606_set_sampling_freq(st, chip_info->max_samplerate);
 		if (ret)
 			return ret;
 
