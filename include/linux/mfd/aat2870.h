@@ -133,9 +133,6 @@ struct aat2870_data {
 	int (*read)(struct aat2870_data *aat2870, u8 addr, u8 *val);
 	int (*write)(struct aat2870_data *aat2870, u8 addr, u8 val);
 	int (*update)(struct aat2870_data *aat2870, u8 addr, u8 mask, u8 val);
-
-	/* for debugfs */
-	struct dentry *dentry_root;
 };
 
 struct aat2870_subdev_info {
