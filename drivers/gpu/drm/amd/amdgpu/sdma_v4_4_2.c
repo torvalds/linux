@@ -1666,6 +1666,10 @@ static int sdma_v4_4_2_reset_queue(struct amdgpu_ring *ring, unsigned int vmid)
 {
 	struct amdgpu_device *adev = ring->adev;
 	u32 id = GET_INST(SDMA0, ring->me);
+
+	if (!(adev->sdma.supported_reset & AMDGPU_RESET_TYPE_PER_QUEUE))
+		return -EOPNOTSUPP;
+
 	return amdgpu_sdma_reset_engine(adev, id, true);
 }
 
@@ -2347,6 +2351,9 @@ static void sdma_v4_4_2_set_vm_pte_funcs(struct amdgpu_device *adev)
  */
 static void sdma_v4_4_2_update_reset_mask(struct amdgpu_device *adev)
 {
+	/* per queue reset not supported for SRIOV */
+	if (amdgpu_sriov_vf(adev))
+		return;
 
 	/*
 	 * the user queue relies on MEC fw and pmfw when the sdma queue do reset.
