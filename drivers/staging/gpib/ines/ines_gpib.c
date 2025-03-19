@@ -25,7 +25,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for Ines iGPIB 72010");
 
-int ines_line_status(const gpib_board_t *board)
+int ines_line_status(const struct gpib_board *board)
 {
 	int status = VALID_ALL;
 	int bcm_bits;
@@ -65,7 +65,7 @@ void ines_set_xfer_counter(struct ines_priv *priv, unsigned int count)
 	ines_outb(priv, count & 0xff, XFER_COUNT_LOWER);
 }
 
-unsigned int ines_t1_delay(gpib_board_t *board, unsigned int nano_sec)
+unsigned int ines_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	struct ines_priv *ines_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &ines_priv->nec7210_priv;
@@ -95,7 +95,7 @@ static inline unsigned short num_in_fifo_bytes(struct ines_priv *ines_priv)
 	return ines_inb(ines_priv, IN_FIFO_COUNT);
 }
 
-static ssize_t pio_read(gpib_board_t *board, struct ines_priv *ines_priv, uint8_t *buffer,
+static ssize_t pio_read(struct gpib_board *board, struct ines_priv *ines_priv, uint8_t *buffer,
 			size_t length, size_t *nbytes)
 {
 	ssize_t retval = 0;
@@ -133,7 +133,7 @@ static ssize_t pio_read(gpib_board_t *board, struct ines_priv *ines_priv, uint8_
 	return retval;
 }
 
-int ines_accel_read(gpib_board_t *board, uint8_t *buffer,
+int ines_accel_read(struct gpib_board *board, uint8_t *buffer,
 		    size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -190,7 +190,7 @@ static inline unsigned short num_out_fifo_bytes(struct ines_priv *ines_priv)
 	return ines_inb(ines_priv, OUT_FIFO_COUNT);
 }
 
-static int ines_write_wait(gpib_board_t *board, struct ines_priv *ines_priv,
+static int ines_write_wait(struct gpib_board *board, struct ines_priv *ines_priv,
 			   unsigned int fifo_threshold)
 {
 	struct nec7210_priv *nec_priv = &ines_priv->nec7210_priv;
@@ -213,7 +213,7 @@ static int ines_write_wait(gpib_board_t *board, struct ines_priv *ines_priv,
 	return 0;
 }
 
-int ines_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+int ines_accel_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 		     int send_eoi, size_t *bytes_written)
 {
 	size_t count = 0;
@@ -266,7 +266,7 @@ int ines_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 
 irqreturn_t ines_pci_interrupt(int irq, void *arg)
 {
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	struct ines_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
 
@@ -281,7 +281,7 @@ irqreturn_t ines_pci_interrupt(int irq, void *arg)
 	return ines_interrupt(board);
 }
 
-irqreturn_t ines_interrupt(gpib_board_t *board)
+irqreturn_t ines_interrupt(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -313,12 +313,12 @@ irqreturn_t ines_interrupt(gpib_board_t *board)
 	return IRQ_HANDLED;
 }
 
-static int ines_pci_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int ines_pci_accel_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int ines_isa_attach(gpib_board_t *board, const gpib_board_config_t *config);
+static int ines_pci_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int ines_pci_accel_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int ines_isa_attach(struct gpib_board *board, const gpib_board_config_t *config);
 
-static void ines_pci_detach(gpib_board_t *board);
-static void ines_isa_detach(gpib_board_t *board);
+static void ines_pci_detach(struct gpib_board *board);
+static void ines_isa_detach(struct gpib_board *board);
 
 enum ines_pci_vendor_ids {
 	PCI_VENDOR_ID_INES_QUICKLOGIC = 0x16da
@@ -393,7 +393,8 @@ static struct ines_pci_id pci_ids[] = {
 static const int num_pci_chips = ARRAY_SIZE(pci_ids);
 
 // wrappers for interface functions
-int ines_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, size_t *bytes_read)
+int ines_read(struct gpib_board *board, uint8_t *buffer, size_t length,
+	      int *end, size_t *bytes_read)
 {
 	struct ines_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -411,7 +412,7 @@ int ines_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end, siz
 	return retval;
 }
 
-int ines_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
+int ines_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
 	       size_t *bytes_written)
 {
 	struct ines_priv *priv = board->private_data;
@@ -419,119 +420,119 @@ int ines_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-int ines_command(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written)
+int ines_command(struct gpib_board *board, uint8_t *buffer, size_t length, size_t *bytes_written)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_command(board, &priv->nec7210_priv, buffer, length, bytes_written);
 }
 
-int ines_take_control(gpib_board_t *board, int synchronous)
+int ines_take_control(struct gpib_board *board, int synchronous)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_take_control(board, &priv->nec7210_priv, synchronous);
 }
 
-int ines_go_to_standby(gpib_board_t *board)
+int ines_go_to_standby(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-void ines_request_system_control(gpib_board_t *board, int request_control)
+void ines_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_request_system_control(board, &priv->nec7210_priv, request_control);
 }
 
-void ines_interface_clear(gpib_board_t *board, int assert)
+void ines_interface_clear(struct gpib_board *board, int assert)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_interface_clear(board, &priv->nec7210_priv, assert);
 }
 
-void ines_remote_enable(gpib_board_t *board, int enable)
+void ines_remote_enable(struct gpib_board *board, int enable)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-int ines_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
+int ines_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_enable_eos(board, &priv->nec7210_priv, eos_byte, compare_8_bits);
 }
 
-void ines_disable_eos(gpib_board_t *board)
+void ines_disable_eos(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_disable_eos(board, &priv->nec7210_priv);
 }
 
-unsigned int ines_update_status(gpib_board_t *board, unsigned int clear_mask)
+unsigned int ines_update_status(struct gpib_board *board, unsigned int clear_mask)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_update_status(board, &priv->nec7210_priv, clear_mask);
 }
 
-int ines_primary_address(gpib_board_t *board, unsigned int address)
+int ines_primary_address(struct gpib_board *board, unsigned int address)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_primary_address(board, &priv->nec7210_priv, address);
 }
 
-int ines_secondary_address(gpib_board_t *board, unsigned int address, int enable)
+int ines_secondary_address(struct gpib_board *board, unsigned int address, int enable)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-int ines_parallel_poll(gpib_board_t *board, uint8_t *result)
+int ines_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_parallel_poll(board, &priv->nec7210_priv, result);
 }
 
-void ines_parallel_poll_configure(gpib_board_t *board, uint8_t config)
+void ines_parallel_poll_configure(struct gpib_board *board, uint8_t config)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_parallel_poll_configure(board, &priv->nec7210_priv, config);
 }
 
-void ines_parallel_poll_response(gpib_board_t *board, int ist)
+void ines_parallel_poll_response(struct gpib_board *board, int ist)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_parallel_poll_response(board, &priv->nec7210_priv, ist);
 }
 
-void ines_serial_poll_response(gpib_board_t *board, uint8_t status)
+void ines_serial_poll_response(struct gpib_board *board, uint8_t status)
 {
 	struct ines_priv *priv = board->private_data;
 
 	nec7210_serial_poll_response(board, &priv->nec7210_priv, status);
 }
 
-uint8_t ines_serial_poll_status(gpib_board_t *board)
+uint8_t ines_serial_poll_status(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 
 	return nec7210_serial_poll_status(board, &priv->nec7210_priv);
 }
 
-void ines_return_to_local(gpib_board_t *board)
+void ines_return_to_local(struct gpib_board *board)
 {
 	struct ines_priv *priv = board->private_data;
 
@@ -650,7 +651,7 @@ static gpib_interface_t ines_isa_interface = {
 	.return_to_local = ines_return_to_local,
 };
 
-static int ines_allocate_private(gpib_board_t *board)
+static int ines_allocate_private(struct gpib_board *board)
 {
 	struct ines_priv *priv;
 
@@ -663,13 +664,13 @@ static int ines_allocate_private(gpib_board_t *board)
 	return 0;
 }
 
-void ines_free_private(gpib_board_t *board)
+void ines_free_private(struct gpib_board *board)
 {
 	kfree(board->private_data);
 	board->private_data = NULL;
 }
 
-int ines_generic_attach(gpib_board_t *board)
+int ines_generic_attach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv;
 	struct nec7210_priv *nec_priv;
@@ -689,7 +690,7 @@ int ines_generic_attach(gpib_board_t *board)
 	return 0;
 }
 
-void ines_online(struct ines_priv *ines_priv, const gpib_board_t *board, int use_accel)
+void ines_online(struct ines_priv *ines_priv, const struct gpib_board *board, int use_accel)
 {
 	struct nec7210_priv *nec_priv = &ines_priv->nec7210_priv;
 
@@ -723,7 +724,7 @@ void ines_online(struct ines_priv *ines_priv, const gpib_board_t *board, int use
 		nec7210_set_reg_bits(nec_priv, IMR1, HR_DOIE | HR_DIIE, 0);
 }
 
-static int ines_common_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int ines_common_pci_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	struct nec7210_priv *nec_priv;
@@ -851,7 +852,7 @@ static int ines_common_pci_attach(gpib_board_t *board, const gpib_board_config_t
 	return 0;
 }
 
-int ines_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_pci_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	int retval;
@@ -866,7 +867,7 @@ int ines_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return 0;
 }
 
-int ines_pci_accel_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_pci_accel_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	int retval;
@@ -883,7 +884,7 @@ int ines_pci_accel_attach(gpib_board_t *board, const gpib_board_config_t *config
 
 static const int ines_isa_iosize = 0x20;
 
-int ines_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	struct nec7210_priv *nec_priv;
@@ -914,7 +915,7 @@ int ines_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return 0;
 }
 
-void ines_pci_detach(gpib_board_t *board)
+void ines_pci_detach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -948,7 +949,7 @@ void ines_pci_detach(gpib_board_t *board)
 	ines_free_private(board);
 }
 
-void ines_isa_detach(gpib_board_t *board)
+void ines_isa_detach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -999,11 +1000,11 @@ static const int ines_pcmcia_iosize = 0x20;
 
 static int ines_gpib_config(struct pcmcia_device  *link);
 static void ines_gpib_release(struct pcmcia_device  *link);
-static int ines_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int ines_pcmcia_accel_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static void ines_pcmcia_detach(gpib_board_t *board);
+static int ines_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int ines_pcmcia_accel_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static void ines_pcmcia_detach(struct gpib_board *board);
 static irqreturn_t ines_pcmcia_interrupt(int irq, void *arg);
-static int ines_common_pcmcia_attach(gpib_board_t *board);
+static int ines_common_pcmcia_attach(struct gpib_board *board);
 /*
  * A linked list of "instances" of the gpib device.  Each actual
  *  PCMCIA card corresponds to one device instance, and is described
@@ -1035,7 +1036,7 @@ static struct pcmcia_device *curr_dev;
 
 struct local_info {
 	struct pcmcia_device	*p_dev;
-	gpib_board_t		*dev;
+	struct gpib_board		*dev;
 	u_short manfid;
 	u_short cardid;
 };
@@ -1086,7 +1087,7 @@ static int ines_gpib_probe(struct pcmcia_device *link)
 static void ines_gpib_remove(struct pcmcia_device *link)
 {
 	struct local_info *info = link->priv;
-	//struct gpib_board_t *dev = info->dev;
+	//struct struct gpib_board *dev = info->dev;
 
 	if (info->dev)
 		ines_pcmcia_detach(info->dev);
@@ -1171,7 +1172,7 @@ static void ines_gpib_release(struct pcmcia_device *link)
 static int ines_gpib_suspend(struct pcmcia_device *link)
 {
 	//struct local_info *info = link->priv;
-	//struct gpib_board_t *dev = info->dev;
+	//struct struct gpib_board *dev = info->dev;
 
 	if (link->open)
 		dev_err(&link->dev, "Device still open\n");
@@ -1183,7 +1184,7 @@ static int ines_gpib_suspend(struct pcmcia_device *link)
 static int ines_gpib_resume(struct pcmcia_device *link)
 {
 	//struct local_info_t *info = link->priv;
-	//struct gpib_board_t *dev = info->dev;
+	//struct struct gpib_board *dev = info->dev;
 
 	/*if (link->open) {
 	 *	ni_gpib_probe(dev);	/ really?
@@ -1300,12 +1301,12 @@ static gpib_interface_t ines_pcmcia_interface = {
 
 irqreturn_t ines_pcmcia_interrupt(int irq, void *arg)
 {
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 
 	return ines_interrupt(board);
 }
 
-int ines_common_pcmcia_attach(gpib_board_t *board)
+int ines_common_pcmcia_attach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv;
 	struct nec7210_priv *nec_priv;
@@ -1344,7 +1345,7 @@ int ines_common_pcmcia_attach(gpib_board_t *board)
 	return 0;
 }
 
-int ines_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	int retval;
@@ -1359,7 +1360,7 @@ int ines_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return 0;
 }
 
-int ines_pcmcia_accel_attach(gpib_board_t *board, const gpib_board_config_t *config)
+int ines_pcmcia_accel_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct ines_priv *ines_priv;
 	int retval;
@@ -1374,7 +1375,7 @@ int ines_pcmcia_accel_attach(gpib_board_t *board, const gpib_board_config_t *con
 	return 0;
 }
 
-void ines_pcmcia_detach(gpib_board_t *board)
+void ines_pcmcia_detach(struct gpib_board *board)
 {
 	struct ines_priv *ines_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
