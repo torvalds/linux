@@ -1203,3 +1203,12 @@ should use d_drop();d_splice_alias() and return the result of the latter.
 If a positive dentry cannot be returned for some reason, in-kernel
 clients such as cachefiles, nfsd, smb/server may not perform ideally but
 will fail-safe.
+
+---
+
+** mandatory**
+
+lookup_one(), lookup_one_unlocked(), lookup_one_positive_unlocked() now
+take a qstr instead of a name and len.  These, not the "one_len"
+versions, should be used whenever accessing a filesystem from outside
+that filesysmtem, through a mount point - which will have a mnt_idmap.

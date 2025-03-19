@@ -2922,19 +2922,17 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 EXPORT_SYMBOL(lookup_one_len);
 
 /**
- * lookup_one - filesystem helper to lookup single pathname component
+ * lookup_one - lookup single pathname component
  * @idmap:	idmap of the mount the lookup is performed from
- * @name:	pathname component to lookup
+ * @name:	qstr holding pathname component to lookup
  * @base:	base directory to lookup from
- * @len:	maximum length @len should be interpreted to
  *
- * Note that this routine is purely a helper for filesystem usage and should
- * not be called by generic code.
+ * This can be used for in-kernel filesystem clients such as file servers.
  *
  * The caller must hold base->i_mutex.
  */
-struct dentry *lookup_one(struct mnt_idmap *idmap, const char *name,
-			  struct dentry *base, int len)
+struct dentry *lookup_one(struct mnt_idmap *idmap, struct qstr *name,
+			  struct dentry *base)
 {
 	struct dentry *dentry;
 	struct qstr this;
@@ -2942,7 +2940,7 @@ struct dentry *lookup_one(struct mnt_idmap *idmap, const char *name,
 
 	WARN_ON_ONCE(!inode_is_locked(base->d_inode));
 
-	err = lookup_one_common(idmap, name, base, len, &this);
+	err = lookup_one_common(idmap, name->name, base, name->len, &this);
 	if (err)
 		return ERR_PTR(err);
 
@@ -2952,27 +2950,24 @@ struct dentry *lookup_one(struct mnt_idmap *idmap, const char *name,
 EXPORT_SYMBOL(lookup_one);
 
 /**
- * lookup_one_unlocked - filesystem helper to lookup single pathname component
+ * lookup_one_unlocked - lookup single pathname component
  * @idmap:	idmap of the mount the lookup is performed from
- * @name:	pathname component to lookup
+ * @name:	qstr olding pathname component to lookup
  * @base:	base directory to lookup from
- * @len:	maximum length @len should be interpreted to
  *
- * Note that this routine is purely a helper for filesystem usage and should
- * not be called by generic code.
+ * This can be used for in-kernel filesystem clients such as file servers.
  *
  * Unlike lookup_one_len, it should be called without the parent
- * i_mutex held, and will take the i_mutex itself if necessary.
+ * i_rwsem held, and will take the i_rwsem itself if necessary.
  */
 struct dentry *lookup_one_unlocked(struct mnt_idmap *idmap,
-				   const char *name, struct dentry *base,
-				   int len)
+				   struct qstr *name, struct dentry *base)
 {
 	struct qstr this;
 	int err;
 	struct dentry *ret;
 
-	err = lookup_one_common(idmap, name, base, len, &this);
+	err = lookup_one_common(idmap, name->name, base, name->len, &this);
 	if (err)
 		return ERR_PTR(err);
 
@@ -2984,12 +2979,10 @@ struct dentry *lookup_one_unlocked(struct mnt_idmap *idmap,
 EXPORT_SYMBOL(lookup_one_unlocked);
 
 /**
- * lookup_one_positive_unlocked - filesystem helper to lookup single
- *				  pathname component
+ * lookup_one_positive_unlocked - lookup single pathname component
  * @idmap:	idmap of the mount the lookup is performed from
- * @name:	pathname component to lookup
+ * @name:	qstr holding pathname component to lookup
  * @base:	base directory to lookup from
- * @len:	maximum length @len should be interpreted to
  *
  * This helper will yield ERR_PTR(-ENOENT) on negatives. The helper returns
  * known positive or ERR_PTR(). This is what most of the users want.
@@ -2998,16 +2991,15 @@ EXPORT_SYMBOL(lookup_one_unlocked);
  * time, so callers of lookup_one_unlocked() need to be very careful; pinned
  * positives have >d_inode stable, so this one avoids such problems.
  *
- * Note that this routine is purely a helper for filesystem usage and should
- * not be called by generic code.
+ * This can be used for in-kernel filesystem clients such as file servers.
  *
- * The helper should be called without i_mutex held.
+ * The helper should be called without i_rwsem held.
  */
 struct dentry *lookup_one_positive_unlocked(struct mnt_idmap *idmap,
-					    const char *name,
-					    struct dentry *base, int len)
+					    struct qstr *name,
+					    struct dentry *base)
 {
-	struct dentry *ret = lookup_one_unlocked(idmap, name, base, len);
+	struct dentry *ret = lookup_one_unlocked(idmap, name, base);
 
 	if (!IS_ERR(ret) && d_flags_negative(smp_load_acquire(&ret->d_flags))) {
 		dput(ret);
@@ -3032,7 +3024,7 @@ EXPORT_SYMBOL(lookup_one_positive_unlocked);
 struct dentry *lookup_one_len_unlocked(const char *name,
 				       struct dentry *base, int len)
 {
-	return lookup_one_unlocked(&nop_mnt_idmap, name, base, len);
+	return lookup_one_unlocked(&nop_mnt_idmap, &QSTR_LEN(name, len), base);
 }
 EXPORT_SYMBOL(lookup_one_len_unlocked);
 
@@ -3047,7 +3039,8 @@ EXPORT_SYMBOL(lookup_one_len_unlocked);
 struct dentry *lookup_positive_unlocked(const char *name,
 				       struct dentry *base, int len)
 {
-	return lookup_one_positive_unlocked(&nop_mnt_idmap, name, base, len);
+	return lookup_one_positive_unlocked(&nop_mnt_idmap,
+					    &QSTR_LEN(name, len), base);
 }
 EXPORT_SYMBOL(lookup_positive_unlocked);
 
