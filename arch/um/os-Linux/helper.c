@@ -122,6 +122,10 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 	unsigned long stack, sp;
 	int pid, status, err;
 
+	/* To share memory space, use os_run_helper_thread() instead. */
+	if (flags & CLONE_VM)
+		return -EINVAL;
+
 	stack = alloc_stack(0, __uml_cant_sleep());
 	if (stack == 0)
 		return -ENOMEM;
