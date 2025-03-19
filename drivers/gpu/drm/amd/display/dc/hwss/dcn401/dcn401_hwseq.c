@@ -2646,3 +2646,47 @@ void dcn401_plane_atomic_power_down(struct dc *dc,
 	if (hws->funcs.dpp_root_clock_control)
 		hws->funcs.dpp_root_clock_control(hws, dpp->inst, false);
 }
+
+/*
+ * apply_front_porch_workaround
+ *
+ * This is a workaround for a bug that has existed since R5xx and has not been
+ * fixed keep Front porch at minimum 2 for Interlaced mode or 1 for progressive.
+ */
+static void apply_front_porch_workaround(
+	struct dc_crtc_timing *timing)
+{
+	if (timing->flags.INTERLACE == 1) {
+		if (timing->v_front_porch < 2)
+			timing->v_front_porch = 2;
+	} else {
+		if (timing->v_front_porch < 1)
+			timing->v_front_porch = 1;
+	}
+}
+
+int dcn401_get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx)
+{
+	const struct dc_crtc_timing *dc_crtc_timing = &pipe_ctx->stream->timing;
+	struct dc_crtc_timing patched_crtc_timing;
+	int vesa_sync_start;
+	int asic_blank_end;
+	int interlace_factor;
+
+	patched_crtc_timing = *dc_crtc_timing;
+	apply_front_porch_workaround(&patched_crtc_timing);
+
+	interlace_factor = patched_crtc_timing.flags.INTERLACE ? 2 : 1;
+
+	vesa_sync_start = patched_crtc_timing.v_addressable +
+			patched_crtc_timing.v_border_bottom +
+			patched_crtc_timing.v_front_porch;
+
+	asic_blank_end = (patched_crtc_timing.v_total -
+			vesa_sync_start -
+			patched_crtc_timing.v_border_top)
+			* interlace_factor;
+
+	return asic_blank_end -
+			pipe_ctx->global_sync.dcn4x.vstartup_lines + 1;
+}
