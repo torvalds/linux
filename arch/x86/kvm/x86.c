@@ -2574,6 +2574,9 @@ EXPORT_SYMBOL_GPL(kvm_calc_nested_tsc_multiplier);
 
 static void kvm_vcpu_write_tsc_offset(struct kvm_vcpu *vcpu, u64 l1_offset)
 {
+	if (vcpu->arch.guest_tsc_protected)
+		return;
+
 	trace_kvm_write_tsc_offset(vcpu->vcpu_id,
 				   vcpu->arch.l1_tsc_offset,
 				   l1_offset);
@@ -2631,11 +2634,17 @@ static inline bool kvm_check_tsc_unstable(void)
  * participates in.
  */
 static void __kvm_synchronize_tsc(struct kvm_vcpu *vcpu, u64 offset, u64 tsc,
-				  u64 ns, bool matched)
+				  u64 ns, bool matched, bool user_set_tsc)
 {
 	struct kvm *kvm = vcpu->kvm;
 
 	lockdep_assert_held(&kvm->arch.tsc_write_lock);
+
+	if (vcpu->arch.guest_tsc_protected)
+		return;
+
+	if (user_set_tsc)
+		vcpu->kvm->arch.user_set_tsc = true;
 
 	/*
 	 * We also track th most recent recorded KHZ, write and time to
@@ -2722,8 +2731,6 @@ static void kvm_synchronize_tsc(struct kvm_vcpu *vcpu, u64 *user_value)
 		}
 	}
 
-	if (user_value)
-		kvm->arch.user_set_tsc = true;
 
 	/*
 	 * For a reliable TSC, we can match TSC offsets, and for an unstable
@@ -2743,7 +2750,7 @@ static void kvm_synchronize_tsc(struct kvm_vcpu *vcpu, u64 *user_value)
 		matched = true;
 	}
 
-	__kvm_synchronize_tsc(vcpu, offset, data, ns, matched);
+	__kvm_synchronize_tsc(vcpu, offset, data, ns, matched, !!user_value);
 	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 }
 
@@ -3923,7 +3930,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_IA32_TSC:
 		if (msr_info->host_initiated) {
 			kvm_synchronize_tsc(vcpu, &data);
-		} else {
+		} else if (!vcpu->arch.guest_tsc_protected) {
 			u64 adj = kvm_compute_l1_tsc_offset(vcpu, data) - vcpu->arch.l1_tsc_offset;
 			adjust_tsc_offset_guest(vcpu, adj);
 			vcpu->arch.ia32_tsc_adjust_msr += adj;
@@ -4590,6 +4597,11 @@ static bool kvm_is_vm_type_supported(unsigned long type)
 	return type < 32 && (kvm_caps.supported_vm_types & BIT(type));
 }
 
+static inline u32 kvm_sync_valid_fields(struct kvm *kvm)
+{
+	return kvm && kvm->arch.has_protected_state ? 0 : KVM_SYNC_X86_VALID_FIELDS;
+}
+
 int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 {
 	int r = 0;
@@ -4698,7 +4710,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 #endif
 	case KVM_CAP_SYNC_REGS:
-		r = KVM_SYNC_X86_VALID_FIELDS;
+		r = kvm_sync_valid_fields(kvm);
 		break;
 	case KVM_CAP_ADJUST_CLOCK:
 		r = KVM_CLOCK_VALID_FLAGS;
@@ -5003,7 +5015,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			u64 offset = kvm_compute_l1_tsc_offset(vcpu,
 						vcpu->arch.last_guest_tsc);
 			kvm_vcpu_write_tsc_offset(vcpu, offset);
-			vcpu->arch.tsc_catchup = 1;
+			if (!vcpu->arch.guest_tsc_protected)
+				vcpu->arch.tsc_catchup = 1;
 		}
 
 		if (kvm_lapic_hv_timer_in_use(vcpu))
@@ -5742,8 +5755,7 @@ static int kvm_arch_tsc_set_attr(struct kvm_vcpu *vcpu,
 		tsc = kvm_scale_tsc(rdtsc(), vcpu->arch.l1_tsc_scaling_ratio) + offset;
 		ns = get_kvmclock_base_ns();
 
-		kvm->arch.user_set_tsc = true;
-		__kvm_synchronize_tsc(vcpu, offset, tsc, ns, matched);
+		__kvm_synchronize_tsc(vcpu, offset, tsc, ns, matched, true);
 		raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 
 		r = 0;
@@ -11480,6 +11492,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_queued_exception *ex = &vcpu->arch.exception;
 	struct kvm_run *kvm_run = vcpu->run;
+	u32 sync_valid_fields;
 	int r;
 
 	r = kvm_mmu_post_init_vm(vcpu->kvm);
@@ -11525,8 +11538,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	if ((kvm_run->kvm_valid_regs & ~KVM_SYNC_X86_VALID_FIELDS) ||
-	    (kvm_run->kvm_dirty_regs & ~KVM_SYNC_X86_VALID_FIELDS)) {
+	sync_valid_fields = kvm_sync_valid_fields(vcpu->kvm);
+	if ((kvm_run->kvm_valid_regs & ~sync_valid_fields) ||
+	    (kvm_run->kvm_dirty_regs & ~sync_valid_fields)) {
 		r = -EINVAL;
 		goto out;
 	}
@@ -11584,7 +11598,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 out:
 	kvm_put_guest_fpu(vcpu);
-	if (kvm_run->kvm_valid_regs)
+	if (kvm_run->kvm_valid_regs && likely(!vcpu->arch.guest_state_protected))
 		store_regs(vcpu);
 	post_kvm_run_save(vcpu);
 	kvm_vcpu_srcu_read_unlock(vcpu);
@@ -12874,7 +12888,6 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		mutex_unlock(&kvm->slots_lock);
 	}
 	kvm_destroy_vcpus(kvm);
-	kvm_x86_call(vm_destroy)(kvm);
 	kvm_free_msr_filter(srcu_dereference_check(kvm->arch.msr_filter, &kvm->srcu, 1));
 	kvm_pic_destroy(kvm);
 	kvm_ioapic_destroy(kvm);
@@ -12884,6 +12897,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_page_track_cleanup(kvm);
 	kvm_xen_destroy_vm(kvm);
 	kvm_hv_destroy_vm(kvm);
+	kvm_x86_call(vm_destroy)(kvm);
 }
 
 static void memslot_rmap_free(struct kvm_memory_slot *slot)

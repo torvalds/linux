@@ -1056,6 +1056,7 @@ struct kvm_vcpu_arch {
 
 	/* Protected Guests */
 	bool guest_state_protected;
+	bool guest_tsc_protected;
 
 	/*
 	 * Set when PDPTS were loaded directly by the userspace without
