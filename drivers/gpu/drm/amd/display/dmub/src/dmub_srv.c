@@ -157,6 +157,9 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 {
 	struct dmub_srv_hw_funcs *funcs = &dmub->hw_funcs;
 
+	/* default to specifying now inbox type */
+	enum dmub_inbox_cmd_interface_type default_inbox_type = DMUB_CMD_INTERFACE_DEFAULT;
+
 	switch (asic) {
 	case DMUB_ASIC_DCN20:
 	case DMUB_ASIC_DCN21:
@@ -395,10 +398,15 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 
 		funcs->get_current_time = dmub_dcn401_get_current_time;
 		funcs->get_diagnostic_data = dmub_dcn401_get_diagnostic_data;
+
 		funcs->send_reg_inbox0_cmd_msg = dmub_dcn401_send_reg_inbox0_cmd_msg;
 		funcs->read_reg_inbox0_rsp_int_status = dmub_dcn401_read_reg_inbox0_rsp_int_status;
 		funcs->read_reg_inbox0_cmd_rsp = dmub_dcn401_read_reg_inbox0_cmd_rsp;
 		funcs->write_reg_inbox0_rsp_int_ack = dmub_dcn401_write_reg_inbox0_rsp_int_ack;
+		funcs->clear_reg_inbox0_rsp_int_ack = dmub_dcn401_clear_reg_inbox0_rsp_int_ack;
+		funcs->enable_reg_inbox0_rsp_int = dmub_dcn401_enable_reg_inbox0_rsp_int;
+		default_inbox_type = DMUB_CMD_INTERFACE_FB; // still default to FB for now
+
 		funcs->write_reg_outbox0_rdy_int_ack = dmub_dcn401_write_reg_outbox0_rdy_int_ack;
 		funcs->read_reg_outbox0_msg = dmub_dcn401_read_reg_outbox0_msg;
 		funcs->write_reg_outbox0_rsp = dmub_dcn401_write_reg_outbox0_rsp;
@@ -409,6 +417,20 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		break;
 	default:
 		return false;
+	}
+
+	/* set default inbox type if not overriden */
+	if (dmub->inbox_type == DMUB_CMD_INTERFACE_DEFAULT) {
+		if (default_inbox_type != DMUB_CMD_INTERFACE_DEFAULT) {
+			/* use default inbox type as specified by DCN rev */
+			dmub->inbox_type = default_inbox_type;
+		} else if (funcs->send_reg_inbox0_cmd_msg) {
+			/* prefer reg as default inbox type if present */
+			dmub->inbox_type = DMUB_CMD_INTERFACE_REG;
+		} else {
+			/* use fb as fallback */
+			dmub->inbox_type = DMUB_CMD_INTERFACE_FB;
+		}
 	}
 
 	return true;
@@ -426,6 +448,7 @@ enum dmub_status dmub_srv_create(struct dmub_srv *dmub,
 	dmub->asic = params->asic;
 	dmub->fw_version = params->fw_version;
 	dmub->is_virtual = params->is_virtual;
+	dmub->inbox_type = params->inbox_type;
 
 	/* Setup asic dependent hardware funcs. */
 	if (!dmub_srv_hw_setup(dmub, params->asic)) {
@@ -695,7 +718,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	inbox1.base = cw4.region.base;
 	inbox1.top = cw4.region.base + DMUB_RB_SIZE;
 	outbox1.base = inbox1.top;
-	outbox1.top = cw4.region.top;
+	outbox1.top = inbox1.top + DMUB_RB_SIZE;
 
 	cw5.offset.quad_part = tracebuff_fb->gpu_addr;
 	cw5.region.base = DMUB_CW5_BASE;
@@ -737,7 +760,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	rb_params.ctx = dmub;
 	rb_params.base_address = mail_fb->cpu_addr;
 	rb_params.capacity = DMUB_RB_SIZE;
-	dmub_rb_init(&dmub->inbox1_rb, &rb_params);
+	dmub_rb_init(&dmub->inbox1.rb, &rb_params);
 
 	// Initialize outbox1 ring buffer
 	rb_params.ctx = dmub;
@@ -768,27 +791,6 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	return DMUB_STATUS_OK;
 }
 
-enum dmub_status dmub_srv_sync_inbox1(struct dmub_srv *dmub)
-{
-	if (!dmub->sw_init)
-		return DMUB_STATUS_INVALID;
-
-	if (dmub->hw_funcs.get_inbox1_rptr && dmub->hw_funcs.get_inbox1_wptr) {
-		uint32_t rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
-		uint32_t wptr = dmub->hw_funcs.get_inbox1_wptr(dmub);
-
-		if (rptr > dmub->inbox1_rb.capacity || wptr > dmub->inbox1_rb.capacity) {
-			return DMUB_STATUS_HW_FAILURE;
-		} else {
-			dmub->inbox1_rb.rptr = rptr;
-			dmub->inbox1_rb.wrpt = wptr;
-			dmub->inbox1_last_wptr = dmub->inbox1_rb.wrpt;
-		}
-	}
-
-	return DMUB_STATUS_OK;
-}
-
 enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub)
 {
 	if (!dmub->sw_init)
@@ -799,8 +801,13 @@ enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub)
 
 	/* mailboxes have been reset in hw, so reset the sw state as well */
 	dmub->inbox1_last_wptr = 0;
-	dmub->inbox1_rb.wrpt = 0;
-	dmub->inbox1_rb.rptr = 0;
+	dmub->inbox1.rb.wrpt = 0;
+	dmub->inbox1.rb.rptr = 0;
+	dmub->inbox1.num_reported = 0;
+	dmub->inbox1.num_submitted = 0;
+	dmub->reg_inbox0.num_reported = 0;
+	dmub->reg_inbox0.num_submitted = 0;
+	dmub->reg_inbox0.is_pending = 0;
 	dmub->outbox0_rb.wrpt = 0;
 	dmub->outbox0_rb.rptr = 0;
 	dmub->outbox1_rb.wrpt = 0;
@@ -811,7 +818,7 @@ enum dmub_status dmub_srv_hw_reset(struct dmub_srv *dmub)
 	return DMUB_STATUS_OK;
 }
 
-enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
+enum dmub_status dmub_srv_fb_cmd_queue(struct dmub_srv *dmub,
 				    const union dmub_rb_cmd *cmd)
 {
 	if (!dmub->hw_init)
@@ -820,18 +827,20 @@ enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
 	if (dmub->power_state != DMUB_POWER_STATE_D0)
 		return DMUB_STATUS_POWER_STATE_D3;
 
-	if (dmub->inbox1_rb.rptr > dmub->inbox1_rb.capacity ||
-	    dmub->inbox1_rb.wrpt > dmub->inbox1_rb.capacity) {
+	if (dmub->inbox1.rb.rptr > dmub->inbox1.rb.capacity ||
+	    dmub->inbox1.rb.wrpt > dmub->inbox1.rb.capacity) {
 		return DMUB_STATUS_HW_FAILURE;
 	}
 
-	if (dmub_rb_push_front(&dmub->inbox1_rb, cmd))
+	if (dmub_rb_push_front(&dmub->inbox1.rb, cmd)) {
+		dmub->inbox1.num_submitted++;
 		return DMUB_STATUS_OK;
+	}
 
 	return DMUB_STATUS_QUEUE_FULL;
 }
 
-enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
+enum dmub_status dmub_srv_fb_cmd_execute(struct dmub_srv *dmub)
 {
 	struct dmub_rb flush_rb;
 
@@ -846,13 +855,13 @@ enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 	 * been flushed to framebuffer memory. Otherwise DMCUB might
 	 * read back stale, fully invalid or partially invalid data.
 	 */
-	flush_rb = dmub->inbox1_rb;
+	flush_rb = dmub->inbox1.rb;
 	flush_rb.rptr = dmub->inbox1_last_wptr;
 	dmub_rb_flush_pending(&flush_rb);
 
-		dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1_rb.wrpt);
+		dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1.rb.wrpt);
 
-	dmub->inbox1_last_wptr = dmub->inbox1_rb.wrpt;
+	dmub->inbox1_last_wptr = dmub->inbox1.rb.wrpt;
 
 	return DMUB_STATUS_OK;
 }
@@ -910,26 +919,97 @@ enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
 	return DMUB_STATUS_TIMEOUT;
 }
 
+static void dmub_srv_update_reg_inbox0_status(struct dmub_srv *dmub)
+{
+	if (dmub->reg_inbox0.is_pending) {
+		dmub->reg_inbox0.is_pending = dmub->hw_funcs.read_reg_inbox0_rsp_int_status &&
+				!dmub->hw_funcs.read_reg_inbox0_rsp_int_status(dmub);
+
+		if (!dmub->reg_inbox0.is_pending) {
+			/* ack the rsp interrupt */
+			if (dmub->hw_funcs.write_reg_inbox0_rsp_int_ack)
+				dmub->hw_funcs.write_reg_inbox0_rsp_int_ack(dmub);
+
+			/* only update the reported count if commands aren't being batched */
+			if (!dmub->reg_inbox0.is_pending && !dmub->reg_inbox0.is_multi_pending) {
+				dmub->reg_inbox0.num_reported = dmub->reg_inbox0.num_submitted;
+			}
+		}
+	}
+}
+
+enum dmub_status dmub_srv_wait_for_pending(struct dmub_srv *dmub,
+					uint32_t timeout_us)
+{
+	uint32_t i;
+	const uint32_t polling_interval_us = 1;
+	struct dmub_srv_inbox scratch_reg_inbox0 = dmub->reg_inbox0;
+	struct dmub_srv_inbox scratch_inbox1 = dmub->inbox1;
+	const volatile struct dmub_srv_inbox *reg_inbox0 = &dmub->reg_inbox0;
+	const volatile struct dmub_srv_inbox *inbox1 = &dmub->inbox1;
+
+	if (!dmub->hw_init ||
+			!dmub->hw_funcs.get_inbox1_wptr)
+		return DMUB_STATUS_INVALID;
+
+	/* take a snapshot of the required mailbox state */
+	scratch_inbox1.rb.wrpt = dmub->hw_funcs.get_inbox1_wptr(dmub);
+
+	for (i = 0; i <= timeout_us; i += polling_interval_us) {
+			scratch_inbox1.rb.rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+
+		scratch_reg_inbox0.is_pending = scratch_reg_inbox0.is_pending &&
+				dmub->hw_funcs.read_reg_inbox0_rsp_int_status &&
+				!dmub->hw_funcs.read_reg_inbox0_rsp_int_status(dmub);
+
+		if (scratch_inbox1.rb.rptr > dmub->inbox1.rb.capacity)
+			return DMUB_STATUS_HW_FAILURE;
+
+		/* check current HW state first, but use command submission vs reported as a fallback */
+		if ((dmub_rb_empty(&scratch_inbox1.rb) ||
+				inbox1->num_reported >= scratch_inbox1.num_submitted) &&
+				(!scratch_reg_inbox0.is_pending ||
+				reg_inbox0->num_reported >= scratch_reg_inbox0.num_submitted))
+			return DMUB_STATUS_OK;
+
+		udelay(polling_interval_us);
+	}
+
+	return DMUB_STATUS_TIMEOUT;
+}
+
 enum dmub_status dmub_srv_wait_for_idle(struct dmub_srv *dmub,
 					uint32_t timeout_us)
 {
 	uint32_t i, rptr;
+	const uint32_t polling_interval_us = 1;
 
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
-	for (i = 0; i <= timeout_us; ++i) {
+	for (i = 0; i < timeout_us; i += polling_interval_us) {
+		/* update inbox1 state */
 			rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
 
-		if (rptr > dmub->inbox1_rb.capacity)
+		if (rptr > dmub->inbox1.rb.capacity)
 			return DMUB_STATUS_HW_FAILURE;
 
-		dmub->inbox1_rb.rptr = rptr;
+		if (dmub->inbox1.rb.rptr > rptr) {
+			/* rb wrapped */
+			dmub->inbox1.num_reported += (rptr + dmub->inbox1.rb.capacity - dmub->inbox1.rb.rptr) / DMUB_RB_CMD_SIZE;
+		} else {
+			dmub->inbox1.num_reported += (rptr - dmub->inbox1.rb.rptr) / DMUB_RB_CMD_SIZE;
+		}
+		dmub->inbox1.rb.rptr = rptr;
 
-		if (dmub_rb_empty(&dmub->inbox1_rb))
+		/* update reg_inbox0 */
+		dmub_srv_update_reg_inbox0_status(dmub);
+
+		/* check for idle */
+		if (dmub_rb_empty(&dmub->inbox1.rb) && !dmub->reg_inbox0.is_pending)
 			return DMUB_STATUS_OK;
 
-		udelay(1);
+		udelay(polling_interval_us);
 	}
 
 	return DMUB_STATUS_TIMEOUT;
@@ -1040,35 +1120,6 @@ enum dmub_status dmub_srv_set_skip_panel_power_sequence(struct dmub_srv *dmub,
 	return DMUB_STATUS_OK;
 }
 
-enum dmub_status dmub_srv_cmd_with_reply_data(struct dmub_srv *dmub,
-					      union dmub_rb_cmd *cmd)
-{
-	enum dmub_status status = DMUB_STATUS_OK;
-
-	// Queue command
-	status = dmub_srv_cmd_queue(dmub, cmd);
-
-	if (status != DMUB_STATUS_OK)
-		return status;
-
-	// Execute command
-	status = dmub_srv_cmd_execute(dmub);
-
-	if (status != DMUB_STATUS_OK)
-		return status;
-
-	// Wait for DMUB to process command
-	status = dmub_srv_wait_for_idle(dmub, 100000);
-
-	if (status != DMUB_STATUS_OK)
-		return status;
-
-	// Copy data back from ring buffer into command
-	dmub_rb_get_return_data(&dmub->inbox1_rb, cmd);
-
-	return status;
-}
-
 static inline bool dmub_rb_out_trace_buffer_front(struct dmub_rb *rb,
 				 void *entry)
 {
@@ -1160,47 +1211,105 @@ void dmub_srv_subvp_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_
 	}
 }
 
-
-enum dmub_status dmub_srv_send_reg_inbox0_cmd(
-		struct dmub_srv *dmub,
-		union dmub_rb_cmd *cmd,
-		bool with_reply, uint32_t timeout_us)
-{
-	uint32_t rsp_ready = 0;
-	uint32_t i;
-
-	dmub->hw_funcs.send_reg_inbox0_cmd_msg(dmub, cmd);
-
-	for (i = 0; i < timeout_us; i++) {
-		rsp_ready = dmub->hw_funcs.read_reg_inbox0_rsp_int_status(dmub);
-		if (rsp_ready)
-			break;
-		udelay(1);
-	}
-	if (rsp_ready == 0)
-		return DMUB_STATUS_TIMEOUT;
-
-	if (with_reply)
-		dmub->hw_funcs.read_reg_inbox0_cmd_rsp(dmub, cmd);
-
-	dmub->hw_funcs.write_reg_inbox0_rsp_int_ack(dmub);
-
-	/* wait for rsp int status is cleared to initial state before exit */
-	for (; i <= timeout_us; i++) {
-		rsp_ready = dmub->hw_funcs.read_reg_inbox0_rsp_int_status(dmub);
-		if (rsp_ready == 0)
-			break;
-		udelay(1);
-	}
-	ASSERT(rsp_ready == 0);
-
-	return DMUB_STATUS_OK;
-}
-
 void dmub_srv_set_power_state(struct dmub_srv *dmub, enum dmub_srv_power_state_type dmub_srv_power_state)
 {
 	if (!dmub || !dmub->hw_init)
 		return;
 
 	dmub->power_state = dmub_srv_power_state;
+}
+
+enum dmub_status dmub_srv_reg_cmd_execute(struct dmub_srv *dmub, union dmub_rb_cmd *cmd)
+{
+	uint32_t num_pending = 0;
+
+	if (!dmub->hw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->power_state != DMUB_POWER_STATE_D0)
+		return DMUB_STATUS_POWER_STATE_D3;
+
+	if (!dmub->hw_funcs.send_reg_inbox0_cmd_msg ||
+			!dmub->hw_funcs.clear_reg_inbox0_rsp_int_ack)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->reg_inbox0.num_submitted >= dmub->reg_inbox0.num_reported)
+		num_pending = dmub->reg_inbox0.num_submitted - dmub->reg_inbox0.num_reported;
+	else
+		/* num_submitted wrapped */
+		num_pending = DMUB_REG_INBOX0_RB_MAX_ENTRY -
+				(dmub->reg_inbox0.num_reported - dmub->reg_inbox0.num_submitted);
+
+	if (num_pending >= DMUB_REG_INBOX0_RB_MAX_ENTRY)
+		return DMUB_STATUS_QUEUE_FULL;
+
+	/* clear last rsp ack and send message */
+	dmub->hw_funcs.clear_reg_inbox0_rsp_int_ack(dmub);
+	dmub->hw_funcs.send_reg_inbox0_cmd_msg(dmub, cmd);
+
+	dmub->reg_inbox0.num_submitted++;
+	dmub->reg_inbox0.is_pending = true;
+	dmub->reg_inbox0.is_multi_pending = cmd->cmd_common.header.multi_cmd_pending;
+
+	return DMUB_STATUS_OK;
+}
+
+void dmub_srv_cmd_get_response(struct dmub_srv *dmub,
+		union dmub_rb_cmd *cmd_rsp)
+{
+	if (dmub) {
+		if (dmub->inbox_type == DMUB_CMD_INTERFACE_REG &&
+				dmub->hw_funcs.read_reg_inbox0_cmd_rsp) {
+			dmub->hw_funcs.read_reg_inbox0_cmd_rsp(dmub, cmd_rsp);
+		} else {
+			dmub_rb_get_return_data(&dmub->inbox1.rb, cmd_rsp);
+		}
+	}
+}
+
+static enum dmub_status dmub_srv_sync_reg_inbox0(struct dmub_srv *dmub)
+{
+	if (!dmub || !dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	dmub->reg_inbox0.is_pending = 0;
+	dmub->reg_inbox0.is_multi_pending = 0;
+
+	return DMUB_STATUS_OK;
+}
+
+static enum dmub_status dmub_srv_sync_inbox1(struct dmub_srv *dmub)
+{
+	if (!dmub->sw_init)
+		return DMUB_STATUS_INVALID;
+
+	if (dmub->hw_funcs.get_inbox1_rptr && dmub->hw_funcs.get_inbox1_wptr) {
+		uint32_t rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+		uint32_t wptr = dmub->hw_funcs.get_inbox1_wptr(dmub);
+
+		if (rptr > dmub->inbox1.rb.capacity || wptr > dmub->inbox1.rb.capacity) {
+			return DMUB_STATUS_HW_FAILURE;
+		} else {
+			dmub->inbox1.rb.rptr = rptr;
+			dmub->inbox1.rb.wrpt = wptr;
+			dmub->inbox1_last_wptr = dmub->inbox1.rb.wrpt;
+		}
+	}
+
+	return DMUB_STATUS_OK;
+}
+
+enum dmub_status dmub_srv_sync_inboxes(struct dmub_srv *dmub)
+{
+	enum dmub_status status;
+
+	status = dmub_srv_sync_reg_inbox0(dmub);
+	if (status != DMUB_STATUS_OK)
+		return status;
+
+	status = dmub_srv_sync_inbox1(dmub);
+	if (status != DMUB_STATUS_OK)
+		return status;
+
+	return DMUB_STATUS_OK;
 }

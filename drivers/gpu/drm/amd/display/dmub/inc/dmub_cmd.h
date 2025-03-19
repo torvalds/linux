@@ -5993,6 +5993,9 @@ static inline uint32_t dmub_rb_num_free(struct dmub_rb *rb)
 	else
 		data_count = rb->capacity - (rb->rptr - rb->wrpt);
 
+	/* +1 because 1 entry is always unusable */
+	data_count += DMUB_RB_CMD_SIZE;
+
 	return (rb->capacity - data_count) / DMUB_RB_CMD_SIZE;
 }
 
@@ -6012,6 +6015,7 @@ static inline bool dmub_rb_full(struct dmub_rb *rb)
 	else
 		data_count = rb->capacity - (rb->rptr - rb->wrpt);
 
+	/* -1 because 1 entry is always unusable */
 	return (data_count == (rb->capacity - DMUB_RB_CMD_SIZE));
 }
 
