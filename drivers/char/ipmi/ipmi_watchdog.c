@@ -150,7 +150,7 @@ static char preaction[16] = "pre_none";
 static unsigned char preop_val = WDOG_PREOP_NONE;
 
 static char preop[16] = "preop_none";
-static DEFINE_SPINLOCK(ipmi_read_lock);
+static DEFINE_MUTEX(ipmi_read_mutex);
 static char data_to_read;
 static DECLARE_WAIT_QUEUE_HEAD(read_q);
 static struct fasync_struct *fasync_q;
@@ -793,7 +793,7 @@ static ssize_t ipmi_read(struct file *file,
 	 * Reading returns if the pretimeout has gone off, and it only does
 	 * it once per pretimeout.
 	 */
-	spin_lock_irq(&ipmi_read_lock);
+	mutex_lock(&ipmi_read_mutex);
 	if (!data_to_read) {
 		if (file->f_flags & O_NONBLOCK) {
 			rv = -EAGAIN;
@@ -804,9 +804,9 @@ static ssize_t ipmi_read(struct file *file,
 		add_wait_queue(&read_q, &wait);
 		while (!data_to_read && !signal_pending(current)) {
 			set_current_state(TASK_INTERRUPTIBLE);
-			spin_unlock_irq(&ipmi_read_lock);
+			mutex_unlock(&ipmi_read_mutex);
 			schedule();
-			spin_lock_irq(&ipmi_read_lock);
+			mutex_lock(&ipmi_read_mutex);
 		}
 		remove_wait_queue(&read_q, &wait);
 
@@ -818,7 +818,7 @@ static ssize_t ipmi_read(struct file *file,
 	data_to_read = 0;
 
  out:
-	spin_unlock_irq(&ipmi_read_lock);
+	mutex_unlock(&ipmi_read_mutex);
 
 	if (rv == 0) {
 		if (copy_to_user(buf, &data_to_read, 1))
@@ -856,10 +856,10 @@ static __poll_t ipmi_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &read_q, wait);
 
-	spin_lock_irq(&ipmi_read_lock);
+	mutex_lock(&ipmi_read_mutex);
 	if (data_to_read)
 		mask |= (EPOLLIN | EPOLLRDNORM);
-	spin_unlock_irq(&ipmi_read_lock);
+	mutex_unlock(&ipmi_read_mutex);
 
 	return mask;
 }
@@ -932,13 +932,11 @@ static void ipmi_wdog_pretimeout_handler(void *handler_data)
 			if (atomic_inc_and_test(&preop_panic_excl))
 				panic("Watchdog pre-timeout");
 		} else if (preop_val == WDOG_PREOP_GIVE_DATA) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&ipmi_read_lock, flags);
+			mutex_lock(&ipmi_read_mutex);
 			data_to_read = 1;
 			wake_up_interruptible(&read_q);
 			kill_fasync(&fasync_q, SIGIO, POLL_IN);
-			spin_unlock_irqrestore(&ipmi_read_lock, flags);
+			mutex_unlock(&ipmi_read_mutex);
 		}
 	}
 
