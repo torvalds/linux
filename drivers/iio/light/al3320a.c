@@ -20,8 +20,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#define AL3320A_DRV_NAME "al3320a"
-
 #define AL3320A_REG_CONFIG		0x00
 #define AL3320A_REG_STATUS		0x01
 #define AL3320A_REG_INT			0x02
@@ -202,7 +200,7 @@ static int al3320a_probe(struct i2c_client *client)
 	data->client = client;
 
 	indio_dev->info = &al3320a_info;
-	indio_dev->name = AL3320A_DRV_NAME;
+	indio_dev->name = "al3320a";
 	indio_dev->channels = al3320a_channels;
 	indio_dev->num_channels = ARRAY_SIZE(al3320a_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -255,7 +253,7 @@ MODULE_DEVICE_TABLE(acpi, al3320a_acpi_match);
 
 static struct i2c_driver al3320a_driver = {
 	.driver = {
-		.name = AL3320A_DRV_NAME,
+		.name = "al3320a",
 		.of_match_table = al3320a_of_match,
 		.pm = pm_sleep_ptr(&al3320a_pm_ops),
 		.acpi_match_table = al3320a_acpi_match,
