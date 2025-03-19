@@ -1032,10 +1032,11 @@ EXPORT_SYMBOL_GPL(of_dma_is_coherent);
 static bool of_mmio_is_nonposted(const struct device_node *np)
 {
 	struct device_node *parent __free(device_node) = of_get_parent(np);
-	if (!parent)
-		return false;
 
-	return of_property_read_bool(parent, "nonposted-mmio");
+	if (of_property_read_bool(np, "nonposted-mmio"))
+		return true;
+
+	return parent && of_property_read_bool(parent, "nonposted-mmio");
 }
 
 static int __of_address_to_resource(struct device_node *dev, int index, int bar_no,
