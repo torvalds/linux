@@ -801,7 +801,7 @@ unsigned int ipic_get_irq(void)
 	if (irq == 0)    /* 0 --> no irq is pending */
 		return 0;
 
-	return irq_linear_revmap(primary_ipic->irqhost, irq);
+	return irq_find_mapping(primary_ipic->irqhost, irq);
 }
 
 #ifdef CONFIG_SUSPEND

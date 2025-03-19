@@ -245,7 +245,7 @@ unsigned int gef_pic_get_irq(void)
 			if (active & (0x1 << hwirq))
 				break;
 		}
-		virq = irq_linear_revmap(gef_pic_irq_host,
+		virq = irq_find_mapping(gef_pic_irq_host,
 			(irq_hw_number_t)hwirq);
 	}
 

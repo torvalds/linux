@@ -207,7 +207,7 @@ unsigned int cpm2_get_irq(void)
 
 	if (irq == 0)
 		return(-1);
-	return irq_linear_revmap(cpm2_pic_host, irq);
+	return irq_find_mapping(cpm2_pic_host, irq);
 }
 
 static int cpm2_pic_host_map(struct irq_domain *h, unsigned int virq,
