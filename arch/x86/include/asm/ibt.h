@@ -21,7 +21,7 @@
 
 #define HAS_KERNEL_IBT	1
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #ifdef CONFIG_X86_64
 #define ASM_ENDBR	"endbr64\n\t"
@@ -82,7 +82,7 @@ extern __noendbr bool is_endbr(u32 *val);
 extern __noendbr u64 ibt_save(bool disable);
 extern __noendbr void ibt_restore(u64 save);
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 #ifdef CONFIG_X86_64
 #define ENDBR	endbr64
@@ -90,13 +90,13 @@ extern __noendbr void ibt_restore(u64 save);
 #define ENDBR	endbr32
 #endif
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #else /* !IBT */
 
 #define HAS_KERNEL_IBT	0
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define ASM_ENDBR
 #define IBT_NOSEAL(name)
@@ -108,11 +108,11 @@ static inline bool is_endbr(u32 *val) { return false; }
 static inline u64 ibt_save(bool disable) { return 0; }
 static inline void ibt_restore(u64 save) { }
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 #define ENDBR
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* CONFIG_X86_KERNEL_IBT */
 

@@ -63,7 +63,7 @@
  */
 #define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 /*
  * This much address space is reserved for vmalloc() and iomap()
@@ -75,6 +75,6 @@ extern int sysctl_legacy_va_layout;
 extern void find_low_pfn_range(void);
 extern void setup_bootmem_allocator(void);
 
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #endif /* _ASM_X86_PAGE_32_DEFS_H */

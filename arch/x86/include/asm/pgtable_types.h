@@ -166,7 +166,7 @@
  * to have the WB mode at index 0 (all bits clear). This is the default
  * right now and likely would break too much if changed.
  */
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 enum page_cache_mode {
 	_PAGE_CACHE_MODE_WB       = 0,
 	_PAGE_CACHE_MODE_WC       = 1,
@@ -241,7 +241,7 @@ enum page_cache_mode {
 #define __PAGE_KERNEL_IO_NOCACHE	__PAGE_KERNEL_NOCACHE
 
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #define __PAGE_KERNEL_ENC	(__PAGE_KERNEL    | _ENC)
 #define __PAGE_KERNEL_ENC_WP	(__PAGE_KERNEL_WP | _ENC)
@@ -264,7 +264,7 @@ enum page_cache_mode {
 #define PAGE_KERNEL_IO		__pgprot_mask(__PAGE_KERNEL_IO)
 #define PAGE_KERNEL_IO_NOCACHE	__pgprot_mask(__PAGE_KERNEL_IO_NOCACHE)
 
-#endif	/* __ASSEMBLY__ */
+#endif	/* __ASSEMBLER__ */
 
 /*
  * early identity mapping  pte attrib macros.
@@ -283,7 +283,7 @@ enum page_cache_mode {
 # include <asm/pgtable_64_types.h>
 #endif
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 
@@ -582,6 +582,6 @@ extern int __init kernel_map_pages_in_pgd(pgd_t *pgd, u64 pfn,
 					  unsigned long page_flags);
 extern int __init kernel_unmap_pages_in_pgd(pgd_t *pgd, unsigned long address,
 					    unsigned long numpages);
-#endif	/* !__ASSEMBLY__ */
+#endif	/* !__ASSEMBLER__ */
 
 #endif /* _ASM_X86_PGTABLE_DEFS_H */

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_SMP_H
 #define _ASM_X86_SMP_H
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
 
@@ -171,7 +171,7 @@ extern void nmi_selftest(void);
 extern unsigned int smpboot_control;
 extern unsigned long apic_mmio_base;
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /* Control bits for startup_64 */
 #define STARTUP_READ_APICID	0x80000000

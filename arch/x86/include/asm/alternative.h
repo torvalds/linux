@@ -15,7 +15,7 @@
 #define ALT_DIRECT_CALL(feature) ((ALT_FLAG_DIRECT_CALL << ALT_FLAGS_SHIFT) | (feature))
 #define ALT_CALL_ALWAYS		ALT_DIRECT_CALL(X86_FEATURE_ALWAYS)
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/stddef.h>
 
@@ -277,7 +277,7 @@ static inline int alternatives_text_reserved(void *start, void *end)
 void BUG_func(void);
 void nop_func(void);
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 #ifdef CONFIG_SMP
 	.macro LOCK_PREFIX
@@ -360,6 +360,6 @@ void nop_func(void);
 	ALTERNATIVE_2 oldinstr, newinstr_no, X86_FEATURE_ALWAYS,	\
 	newinstr_yes, ft_flags
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_ALTERNATIVE_H */

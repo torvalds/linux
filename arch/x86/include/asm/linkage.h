@@ -38,7 +38,7 @@
 #define ASM_FUNC_ALIGN		__stringify(__FUNC_ALIGN)
 #define SYM_F_ALIGN		__FUNC_ALIGN
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #if defined(CONFIG_MITIGATION_RETHUNK) && !defined(__DISABLE_EXPORTS) && !defined(BUILD_VDSO)
 #define RET	jmp __x86_return_thunk
@@ -50,7 +50,7 @@
 #endif
 #endif /* CONFIG_MITIGATION_RETPOLINE */
 
-#else /* __ASSEMBLY__ */
+#else /* __ASSEMBLER__ */
 
 #if defined(CONFIG_MITIGATION_RETHUNK) && !defined(__DISABLE_EXPORTS) && !defined(BUILD_VDSO)
 #define ASM_RET	"jmp __x86_return_thunk\n\t"
@@ -62,7 +62,7 @@
 #endif
 #endif /* CONFIG_MITIGATION_RETPOLINE */
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 /*
  * Depending on -fpatchable-function-entry=N,N usage (CONFIG_CALL_PADDING) the

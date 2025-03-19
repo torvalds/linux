@@ -27,7 +27,7 @@
 #define OLD_CL_ADDRESS		0x020	/* Relative to real mode data */
 #define NEW_CL_POINTER		0x228	/* Relative to real mode data */
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 #include <linux/cache.h>
 
 #include <asm/bootparam.h>
@@ -142,7 +142,7 @@ extern bool builtin_cmdline_added __ro_after_init;
 #define builtin_cmdline_added 0
 #endif
 
-#else  /* __ASSEMBLY */
+#else  /* __ASSEMBLER__ */
 
 .macro __RESERVE_BRK name, size
 	.pushsection .bss..brk, "aw"
@@ -154,6 +154,6 @@ SYM_DATA_END(__brk_\name)
 
 #define RESERVE_BRK(name, size) __RESERVE_BRK name, size
 
-#endif /* __ASSEMBLY__ */
+#endif /* __ASSEMBLER__ */
 
 #endif /* _ASM_X86_SETUP_H */

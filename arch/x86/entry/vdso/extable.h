@@ -7,7 +7,7 @@
  * vDSO uses a dedicated handler the addresses are relative to the overall
  * exception table, not each individual entry.
  */
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 #define _ASM_VDSO_EXTABLE_HANDLE(from, to)	\
 	ASM_VDSO_EXTABLE_HANDLE from to
 

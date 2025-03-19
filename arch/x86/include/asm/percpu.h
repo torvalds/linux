@@ -10,7 +10,7 @@
 # define __percpu_rel
 #endif
 
-#ifdef __ASSEMBLY__
+#ifdef __ASSEMBLER__
 
 #ifdef CONFIG_SMP
 # define __percpu		%__percpu_seg:
@@ -588,7 +588,7 @@ do {									\
 /* We can use this directly for local CPU (faster). */
 DECLARE_PER_CPU_CACHE_HOT(unsigned long, this_cpu_off);
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 #ifdef CONFIG_SMP
 
