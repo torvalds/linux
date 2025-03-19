@@ -91,9 +91,9 @@ static void serve_interfered(int sk)
 		return;
 	}
 #ifdef TEST_ICMPS_ACCEPT
-	test_tcp_ao_counters_cmp(NULL, &ao_cnt1, &ao_cnt2, TEST_CNT_GOOD);
+	test_assert_counters(NULL, &ao_cnt1, &ao_cnt2, TEST_CNT_GOOD);
 #else
-	test_tcp_ao_counters_cmp(NULL, &ao_cnt1, &ao_cnt2, TEST_CNT_GOOD | TEST_CNT_AO_DROPPED_ICMP);
+	test_assert_counters(NULL, &ao_cnt1, &ao_cnt2, TEST_CNT_GOOD | TEST_CNT_AO_DROPPED_ICMP);
 #endif
 	if (icmp_ignored_a >= icmp_ignored_b) {
 		test_icmps_fail("%s counter didn't change: %" PRIu64 " >= %" PRIu64,

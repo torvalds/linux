@@ -93,7 +93,7 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 		return;
 	}
 
-	if (test_tcp_ao_counters_cmp(tst, &before_ao, &after_ao, TEST_CNT_GOOD)) {
+	if (test_assert_counters(tst, &before_ao, &after_ao, TEST_CNT_GOOD)) {
 		close(sk);
 		return;
 	}

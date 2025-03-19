@@ -78,7 +78,7 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 	close(lsk);
 
 	if (pwd)
-		test_tcp_ao_counters_cmp(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
+		test_assert_counters(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
 
 	if (!cnt_name)
 		goto out;
@@ -204,7 +204,7 @@ static void try_connect(const char *tst_name, unsigned int port,
 	if (pwd && ret > 0) {
 		if (test_get_tcp_ao_counters(sk, &ao_cnt2))
 			test_error("test_get_tcp_ao_counters()");
-		test_tcp_ao_counters_cmp(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
+		test_assert_counters(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
 	}
 out:
 	synchronize_threads(); /* close() */

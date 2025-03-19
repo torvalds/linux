@@ -140,7 +140,7 @@ static void *server_fn(void *arg)
 		test_error("test_get_tcp_ao_counters()");
 	after_good = netstat_get_one("TCPAOGood", NULL);
 
-	test_tcp_ao_counters_cmp(NULL, &ao1, &ao2, TEST_CNT_GOOD);
+	test_assert_counters(NULL, &ao1, &ao2, TEST_CNT_GOOD);
 
 	if (after_good <= before_good) {
 		test_fail("TCPAOGood counter did not increase: %" PRIu64 " <= %" PRIu64,
@@ -226,7 +226,7 @@ static void *client_fn(void *arg)
 		test_error("test_get_tcp_ao_counters()");
 	after_good = netstat_get_one("TCPAOGood", NULL);
 
-	test_tcp_ao_counters_cmp(NULL, &ao1, &ao2, TEST_CNT_GOOD);
+	test_assert_counters(NULL, &ao1, &ao2, TEST_CNT_GOOD);
 
 	if (after_good <= before_good) {
 		test_fail("TCPAOGood counter did not increase: %" PRIu64 " <= %" PRIu64,

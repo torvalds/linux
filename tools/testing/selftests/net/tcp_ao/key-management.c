@@ -633,7 +633,7 @@ static void verify_counters(const char *tst_name, bool is_listen_sk, bool server
 {
 	unsigned int i;
 
-	__test_tcp_ao_counters_cmp(tst_name, a, b, TEST_CNT_GOOD);
+	test_assert_counters_ao(tst_name, a, b, TEST_CNT_GOOD);
 
 	for (i = 0; i < collection.nr_keys; i++) {
 		struct test_key *key = &collection.keys[i];
@@ -652,9 +652,9 @@ static void verify_counters(const char *tst_name, bool is_listen_sk, bool server
 			rx_cnt_expected = key->used_on_server_tx;
 		}
 
-		test_tcp_ao_key_counters_cmp(tst_name, a, b,
-					     rx_cnt_expected ? TEST_CNT_KEY_GOOD : 0,
-					     sndid, rcvid);
+		test_assert_counters_key(tst_name, a, b,
+					 rx_cnt_expected ? TEST_CNT_KEY_GOOD : 0,
+					 sndid, rcvid);
 	}
 	test_tcp_ao_counters_free(a);
 	test_tcp_ao_counters_free(b);

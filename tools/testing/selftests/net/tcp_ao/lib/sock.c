@@ -403,55 +403,66 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 	return 0;
 }
 
-int __test_tcp_ao_counters_cmp(const char *tst_name,
-			       struct tcp_ao_counters *before,
-			       struct tcp_ao_counters *after,
-			       test_cnt expected)
+int test_cmp_counters(struct tcp_ao_counters *before, struct tcp_ao_counters *after)
 {
-#define __cmp_ao(cnt, expecting_inc)					\
+#define __cmp(cnt, e_cnt)						\
+do {									\
+	if (before->cnt > after->cnt)					\
+		return -1;						\
+	if (before->cnt != after->cnt)					\
+		ret |= e_cnt;						\
+} while (0)
+
+	int ret = 0;
+	size_t i;
+
+	if (before->nr_keys != after->nr_keys)
+		return -1;
+
+	_for_each_counter(__cmp);
+
+	i = before->nr_keys;
+	while (i--) {
+		__cmp(key_cnts[i].pkt_good, TEST_CNT_KEY_GOOD);
+		__cmp(key_cnts[i].pkt_bad, TEST_CNT_KEY_BAD);
+	}
+#undef __cmp
+	return ret;
+}
+
+int test_assert_counters_ao(const char *tst_name,
+			    struct tcp_ao_counters *before,
+			    struct tcp_ao_counters *after,
+			    test_cnt expected)
+{
+#define __cmp_ao(cnt, e_cnt)						\
 do {									\
 	if (before->cnt > after->cnt) {					\
 		test_fail("%s: Decreased counter " __stringify(cnt) " %" PRIu64 " > %" PRIu64, \
-			  tst_name ?: "", before->cnt, after->cnt);		\
+			  tst_name ?: "", before->cnt, after->cnt);	\
 		return -1;						\
 	}								\
-	if ((before->cnt != after->cnt) != (expecting_inc)) {		\
+	if ((before->cnt != after->cnt) != !!(expected & e_cnt)) {	\
 		test_fail("%s: Counter " __stringify(cnt) " was %sexpected to increase %" PRIu64 " => %" PRIu64, \
-			  tst_name ?: "", (expecting_inc) ? "" : "not ",	\
+			  tst_name ?: "", (expected & e_cnt) ? "" : "not ",	\
 			  before->cnt, after->cnt);			\
 		return -1;						\
 	}								\
-} while(0)
+} while (0)
 
 	errno = 0;
-	/* per-netns */
-	__cmp_ao(netns_ao_good, !!(expected & TEST_CNT_NS_GOOD));
-	__cmp_ao(netns_ao_bad, !!(expected & TEST_CNT_NS_BAD));
-	__cmp_ao(netns_ao_key_not_found,
-		 !!(expected & TEST_CNT_NS_KEY_NOT_FOUND));
-	__cmp_ao(netns_ao_required, !!(expected & TEST_CNT_NS_AO_REQUIRED));
-	__cmp_ao(netns_ao_dropped_icmp,
-		 !!(expected & TEST_CNT_NS_DROPPED_ICMP));
-	/* per-socket */
-	__cmp_ao(ao_info_pkt_good, !!(expected & TEST_CNT_SOCK_GOOD));
-	__cmp_ao(ao_info_pkt_bad, !!(expected & TEST_CNT_SOCK_BAD));
-	__cmp_ao(ao_info_pkt_key_not_found,
-		 !!(expected & TEST_CNT_SOCK_KEY_NOT_FOUND));
-	__cmp_ao(ao_info_pkt_ao_required, !!(expected & TEST_CNT_SOCK_AO_REQUIRED));
-	__cmp_ao(ao_info_pkt_dropped_icmp,
-		 !!(expected & TEST_CNT_SOCK_DROPPED_ICMP));
+	_for_each_counter(__cmp_ao);
 	return 0;
 #undef __cmp_ao
 }
 
-int test_tcp_ao_key_counters_cmp(const char *tst_name,
-				 struct tcp_ao_counters *before,
-				 struct tcp_ao_counters *after,
-				 test_cnt expected,
-				 int sndid, int rcvid)
+int test_assert_counters_key(const char *tst_name,
+			     struct tcp_ao_counters *before,
+			     struct tcp_ao_counters *after,
+			     test_cnt expected, int sndid, int rcvid)
 {
 	size_t i;
-#define __cmp_ao(i, cnt, expecting_inc)					\
+#define __cmp_ao(i, cnt, e_cnt)					\
 do {									\
 	if (before->key_cnts[i].cnt > after->key_cnts[i].cnt) {		\
 		test_fail("%s: Decreased counter " __stringify(cnt) " %" PRIu64 " > %" PRIu64 " for key %u:%u", \
@@ -461,16 +472,16 @@ do {									\
 			  before->key_cnts[i].rcvid);			\
 		return -1;						\
 	}								\
-	if ((before->key_cnts[i].cnt != after->key_cnts[i].cnt) != (expecting_inc)) {		\
+	if ((before->key_cnts[i].cnt != after->key_cnts[i].cnt) != !!(expected & e_cnt)) {		\
 		test_fail("%s: Counter " __stringify(cnt) " was %sexpected to increase %" PRIu64 " => %" PRIu64 " for key %u:%u", \
-			  tst_name ?: "", (expecting_inc) ? "" : "not ",\
+			  tst_name ?: "", (expected & e_cnt) ? "" : "not ",\
 			  before->key_cnts[i].cnt,			\
 			  after->key_cnts[i].cnt,			\
 			  before->key_cnts[i].sndid,			\
 			  before->key_cnts[i].rcvid);			\
 		return -1;						\
 	}								\
-} while(0)
+} while (0)
 
 	if (before->nr_keys != after->nr_keys) {
 		test_fail("%s: Keys changed on the socket %zu != %zu",
@@ -485,8 +496,8 @@ do {									\
 			continue;
 		if (rcvid >= 0 && before->key_cnts[i].rcvid != rcvid)
 			continue;
-		__cmp_ao(i, pkt_good, !!(expected & TEST_CNT_KEY_GOOD));
-		__cmp_ao(i, pkt_bad, !!(expected & TEST_CNT_KEY_BAD));
+		__cmp_ao(i, pkt_good, TEST_CNT_KEY_GOOD);
+		__cmp_ao(i, pkt_bad, TEST_CNT_KEY_BAD);
 	}
 	return 0;
 #undef __cmp_ao

@@ -528,6 +528,22 @@ extern int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out);
 #define TEST_CNT_NS_DROPPED_ICMP	BIT(11)
 typedef uint16_t test_cnt;
 
+#define _for_each_counter(f)						\
+do {									\
+	/* per-netns */							\
+	f(netns_ao_good,		TEST_CNT_NS_GOOD);		\
+	f(netns_ao_bad,			TEST_CNT_NS_BAD);		\
+	f(netns_ao_key_not_found,	TEST_CNT_NS_KEY_NOT_FOUND);	\
+	f(netns_ao_required,		TEST_CNT_NS_AO_REQUIRED);	\
+	f(netns_ao_dropped_icmp,	TEST_CNT_NS_DROPPED_ICMP);	\
+	/* per-socket */						\
+	f(ao_info_pkt_good,		TEST_CNT_SOCK_GOOD);		\
+	f(ao_info_pkt_bad,		TEST_CNT_SOCK_BAD);		\
+	f(ao_info_pkt_key_not_found,	TEST_CNT_SOCK_KEY_NOT_FOUND);	\
+	f(ao_info_pkt_ao_required,	TEST_CNT_SOCK_AO_REQUIRED);	\
+	f(ao_info_pkt_dropped_icmp,	TEST_CNT_SOCK_DROPPED_ICMP);	\
+} while (0)
+
 #define TEST_CNT_AO_GOOD		(TEST_CNT_SOCK_GOOD | TEST_CNT_NS_GOOD)
 #define TEST_CNT_AO_BAD			(TEST_CNT_SOCK_BAD | TEST_CNT_NS_BAD)
 #define TEST_CNT_AO_KEY_NOT_FOUND	(TEST_CNT_SOCK_KEY_NOT_FOUND | \
@@ -539,10 +555,10 @@ typedef uint16_t test_cnt;
 #define TEST_CNT_GOOD			(TEST_CNT_KEY_GOOD | TEST_CNT_AO_GOOD)
 #define TEST_CNT_BAD			(TEST_CNT_KEY_BAD | TEST_CNT_AO_BAD)
 
-extern int __test_tcp_ao_counters_cmp(const char *tst_name,
+extern int test_assert_counters_ao(const char *tst_name,
 		struct tcp_ao_counters *before, struct tcp_ao_counters *after,
 		test_cnt expected);
-extern int test_tcp_ao_key_counters_cmp(const char *tst_name,
+extern int test_assert_counters_key(const char *tst_name,
 		struct tcp_ao_counters *before, struct tcp_ao_counters *after,
 		test_cnt expected, int sndid, int rcvid);
 extern void test_tcp_ao_counters_free(struct tcp_ao_counters *cnts);
@@ -552,18 +568,17 @@ extern void test_tcp_ao_counters_free(struct tcp_ao_counters *cnts);
  * to test_get_tcp_ao_counters(). Check key counters manually if they
  * may change.
  */
-static inline int test_tcp_ao_counters_cmp(const char *tst_name,
-					   struct tcp_ao_counters *before,
-					   struct tcp_ao_counters *after,
-					   test_cnt expected)
+static inline int test_assert_counters(const char *tst_name,
+				       struct tcp_ao_counters *before,
+				       struct tcp_ao_counters *after,
+				       test_cnt expected)
 {
 	int ret;
 
-	ret = __test_tcp_ao_counters_cmp(tst_name, before, after, expected);
+	ret = test_assert_counters_ao(tst_name, before, after, expected);
 	if (ret)
 		goto out;
-	ret = test_tcp_ao_key_counters_cmp(tst_name, before, after,
-					   expected, -1, -1);
+	ret = test_assert_counters_key(tst_name, before, after, expected, -1, -1);
 out:
 	test_tcp_ao_counters_free(before);
 	test_tcp_ao_counters_free(after);

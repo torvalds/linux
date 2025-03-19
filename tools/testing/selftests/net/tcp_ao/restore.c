@@ -69,7 +69,7 @@ static void try_server_run(const char *tst_name, unsigned int port,
 		test_error("test_get_tcp_ao_counters()");
 	after_cnt = netstat_get_one(cnt_name, NULL);
 
-	test_tcp_ao_counters_cmp(tst_name, &ao1, &ao2, cnt_expected);
+	test_assert_counters(tst_name, &ao1, &ao2, cnt_expected);
 
 	if (after_cnt <= before_cnt) {
 		test_fail("%s: %s counter did not increase: %" PRIu64 " <= %" PRIu64,
@@ -182,7 +182,7 @@ static void test_sk_restore(const char *tst_name, unsigned int server_port,
 		test_error("test_get_tcp_ao_counters()");
 	after_cnt = netstat_get_one(cnt_name, NULL);
 
-	test_tcp_ao_counters_cmp(tst_name, &ao1, &ao2, cnt_expected);
+	test_assert_counters(tst_name, &ao1, &ao2, cnt_expected);
 
 	if (after_cnt <= before_cnt) {
 		test_fail("%s: %s counter did not increase: %" PRIu64 " <= %" PRIu64,

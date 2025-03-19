@@ -71,7 +71,7 @@ static void *client_fn(void *arg)
 				nr_packets, after_aogood, before_aogood);
 		return NULL;
 	}
-	if (test_tcp_ao_counters_cmp("connect", &ao1, &ao2, TEST_CNT_GOOD))
+	if (test_assert_counters("connect", &ao1, &ao2, TEST_CNT_GOOD))
 		return NULL;
 
 	test_ok("connect TCPAOGood %" PRIu64 "/%" PRIu64 "/%" PRIu64 " => %" PRIu64 "/%" PRIu64 "/%" PRIu64 ", sent %zu",

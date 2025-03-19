@@ -120,7 +120,7 @@ static void test_server_active_rst(unsigned int port)
 	synchronize_threads(); /* 5: closed active sk */
 
 	synchronize_threads(); /* 6: counters checks */
-	if (test_tcp_ao_counters_cmp("active RST server", &cnt1, &cnt2, TEST_CNT_GOOD))
+	if (test_assert_counters("active RST server", &cnt1, &cnt2, TEST_CNT_GOOD))
 		test_fail("MKT counters (server) have not only good packets");
 	else
 		test_ok("MKT counters are good on server");
@@ -165,7 +165,7 @@ static void test_server_passive_rst(unsigned int port)
 	close(sk);
 
 	synchronize_threads(); /* 5: restore the socket, send more data */
-	test_tcp_ao_counters_cmp("passive RST server", &ao1, &ao2, TEST_CNT_GOOD);
+	test_assert_counters("passive RST server", &ao1, &ao2, TEST_CNT_GOOD);
 
 	synchronize_threads(); /* 6: server exits */
 }
@@ -431,7 +431,7 @@ static void test_client_passive_rst(unsigned int port)
 
 	synchronize_threads(); /* 6: server exits */
 	close(sk);
-	test_tcp_ao_counters_cmp("client passive RST", &ao1, &ao2, TEST_CNT_GOOD);
+	test_assert_counters("client passive RST", &ao1, &ao2, TEST_CNT_GOOD);
 }
 
 static void *client_fn(void *arg)

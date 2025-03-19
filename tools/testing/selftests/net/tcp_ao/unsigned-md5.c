@@ -108,7 +108,7 @@ static void try_accept(const char *tst_name, unsigned int port,
 			tst_name, cnt_name, before_cnt, after_cnt);
 	}
 	if (ao_addr)
-		test_tcp_ao_counters_cmp(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
+		test_assert_counters(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
 
 out:
 	synchronize_threads(); /* test_kill_sk() */
