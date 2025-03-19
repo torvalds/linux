@@ -1272,10 +1272,8 @@ static int nh_check_attr_group(struct net *net,
 			       u16 nh_grp_type, struct netlink_ext_ack *extack)
 {
 	unsigned int len = nla_len(tb[NHA_GROUP]);
-	u8 nh_family = AF_UNSPEC;
 	struct nexthop_grp *nhg;
 	unsigned int i, j;
-	u8 nhg_fdb = 0;
 
 	if (!len || len & (sizeof(struct nexthop_grp) - 1)) {
 		NL_SET_ERR_MSG(extack,
@@ -1307,10 +1305,41 @@ static int nh_check_attr_group(struct net *net,
 		}
 	}
 
-	if (tb[NHA_FDB])
-		nhg_fdb = 1;
 	nhg = nla_data(tb[NHA_GROUP]);
-	for (i = 0; i < len; ++i) {
+	for (i = NHA_GROUP_TYPE + 1; i < tb_size; ++i) {
+		if (!tb[i])
+			continue;
+		switch (i) {
+		case NHA_HW_STATS_ENABLE:
+		case NHA_FDB:
+			continue;
+		case NHA_RES_GROUP:
+			if (nh_grp_type == NEXTHOP_GRP_TYPE_RES)
+				continue;
+			break;
+		}
+		NL_SET_ERR_MSG(extack,
+			       "No other attributes can be set in nexthop groups");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int nh_check_attr_group_rtnl(struct net *net, struct nlattr *tb[],
+				    struct netlink_ext_ack *extack)
+{
+	u8 nh_family = AF_UNSPEC;
+	struct nexthop_grp *nhg;
+	unsigned int len;
+	unsigned int i;
+	u8 nhg_fdb;
+
+	len = nla_len(tb[NHA_GROUP]) / sizeof(*nhg);
+	nhg = nla_data(tb[NHA_GROUP]);
+	nhg_fdb = !!tb[NHA_FDB];
+
+	for (i = 0; i < len; i++) {
 		struct nexthop *nh;
 		bool is_fdb_nh;
 
@@ -1329,22 +1358,6 @@ static int nh_check_attr_group(struct net *net,
 			NL_SET_ERR_MSG(extack, "Non FDB nexthop group cannot have fdb nexthops");
 			return -EINVAL;
 		}
-	}
-	for (i = NHA_GROUP_TYPE + 1; i < tb_size; ++i) {
-		if (!tb[i])
-			continue;
-		switch (i) {
-		case NHA_HW_STATS_ENABLE:
-		case NHA_FDB:
-			continue;
-		case NHA_RES_GROUP:
-			if (nh_grp_type == NEXTHOP_GRP_TYPE_RES)
-				continue;
-			break;
-		}
-		NL_SET_ERR_MSG(extack,
-			       "No other attributes can be set in nexthop groups");
-		return -EINVAL;
 	}
 
 	return 0;
@@ -3202,6 +3215,15 @@ out:
 	return err;
 }
 
+static int rtm_to_nh_config_rtnl(struct net *net, struct nlattr **tb,
+				 struct netlink_ext_ack *extack)
+{
+	if (tb[NHA_GROUP])
+		return nh_check_attr_group_rtnl(net, tb, extack);
+
+	return 0;
+}
+
 /* rtnl */
 static int rtm_new_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 			   struct netlink_ext_ack *extack)
@@ -3219,6 +3241,10 @@ static int rtm_new_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 
 	err = rtm_to_nh_config(net, skb, nlh, tb, &cfg, extack);
+	if (err)
+		goto out;
+
+	err = rtm_to_nh_config_rtnl(net, tb, extack);
 	if (err)
 		goto out;
 
