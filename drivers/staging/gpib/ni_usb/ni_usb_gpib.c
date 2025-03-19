@@ -24,7 +24,7 @@ MODULE_DESCRIPTION("GPIB driver for National Instruments USB devices");
 static struct usb_interface *ni_usb_driver_interfaces[MAX_NUM_NI_USB_INTERFACES];
 
 static int ni_usb_parse_status_block(const u8 *buffer, struct ni_usb_status_block *status);
-static int ni_usb_set_interrupt_monitor(gpib_board_t *board, unsigned int monitored_bits);
+static int ni_usb_set_interrupt_monitor(struct gpib_board *board, unsigned int monitored_bits);
 static void ni_usb_stop(struct ni_usb_priv *ni_priv);
 
 static DEFINE_MUTEX(ni_usb_hotplug_lock);
@@ -310,7 +310,7 @@ static int ni_usb_receive_control_msg(struct ni_usb_priv *ni_priv, __u8 request,
 	return retval;
 }
 
-static void ni_usb_soft_update_status(gpib_board_t *board, unsigned int ni_usb_ibsta,
+static void ni_usb_soft_update_status(struct gpib_board *board, unsigned int ni_usb_ibsta,
 				      unsigned int clear_mask)
 {
 	static const unsigned int ni_usb_ibsta_mask = SRQI | ATN | CIC | REM | LACS | TACS | LOK;
@@ -586,7 +586,7 @@ static int ni_usb_write_registers(struct ni_usb_priv *ni_priv,
 }
 
 // interface functions
-static int ni_usb_read(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int ni_usb_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 		       int *end, size_t *bytes_read)
 {
 	int retval, parse_retval;
@@ -716,7 +716,7 @@ static int ni_usb_read(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return retval;
 }
 
-static int ni_usb_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int ni_usb_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 			int send_eoi, size_t *bytes_written)
 {
 	int retval;
@@ -819,7 +819,7 @@ static int ni_usb_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return retval;
 }
 
-static int ni_usb_command_chunk(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int ni_usb_command_chunk(struct gpib_board *board, uint8_t *buffer, size_t length,
 				size_t *command_bytes_written)
 {
 	int retval;
@@ -912,7 +912,7 @@ static int ni_usb_command_chunk(gpib_board_t *board, uint8_t *buffer, size_t len
 	return 0;
 }
 
-static int ni_usb_command(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int ni_usb_command(struct gpib_board *board, uint8_t *buffer, size_t length,
 			  size_t *bytes_written)
 {
 	size_t count;
@@ -929,7 +929,7 @@ static int ni_usb_command(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return 0;
 }
 
-static int ni_usb_take_control(gpib_board_t *board, int synchronous)
+static int ni_usb_take_control(struct gpib_board *board, int synchronous)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -990,7 +990,7 @@ static int ni_usb_take_control(gpib_board_t *board, int synchronous)
 	return retval;
 }
 
-static int ni_usb_go_to_standby(gpib_board_t *board)
+static int ni_usb_go_to_standby(struct gpib_board *board)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1049,7 +1049,7 @@ static int ni_usb_go_to_standby(gpib_board_t *board)
 	return 0;
 }
 
-static void ni_usb_request_system_control(gpib_board_t *board, int request_control)
+static void ni_usb_request_system_control(struct gpib_board *board, int request_control)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1100,7 +1100,7 @@ static void ni_usb_request_system_control(gpib_board_t *board, int request_contr
 }
 
 //FIXME maybe the interface should have a "pulse interface clear" function that can return an error?
-static void ni_usb_interface_clear(gpib_board_t *board, int assert)
+static void ni_usb_interface_clear(struct gpib_board *board, int assert)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1149,7 +1149,7 @@ static void ni_usb_interface_clear(gpib_board_t *board, int assert)
 	ni_usb_soft_update_status(board, status.ibsta, 0);
 }
 
-static void ni_usb_remote_enable(gpib_board_t *board, int enable)
+static void ni_usb_remote_enable(struct gpib_board *board, int enable)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1176,7 +1176,7 @@ static void ni_usb_remote_enable(gpib_board_t *board, int enable)
 	return;// 0;
 }
 
-static int ni_usb_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
+static int ni_usb_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
 {
 	struct ni_usb_priv *ni_priv = board->private_data;
 
@@ -1189,7 +1189,7 @@ static int ni_usb_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_
 	return 0;
 }
 
-static void ni_usb_disable_eos(gpib_board_t *board)
+static void ni_usb_disable_eos(struct gpib_board *board)
 {
 	struct ni_usb_priv *ni_priv = board->private_data;
 	/* adapter gets unhappy if you don't zero all the bits
@@ -1199,7 +1199,7 @@ static void ni_usb_disable_eos(gpib_board_t *board)
 	ni_priv->eos_char = 0;
 }
 
-static unsigned int ni_usb_update_status(gpib_board_t *board, unsigned int clear_mask)
+static unsigned int ni_usb_update_status(struct gpib_board *board, unsigned int clear_mask)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1254,7 +1254,7 @@ static void ni_usb_stop(struct ni_usb_priv *ni_priv)
 	kfree(buffer);
 }
 
-static int ni_usb_primary_address(gpib_board_t *board, unsigned int address)
+static int ni_usb_primary_address(struct gpib_board *board, unsigned int address)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1312,7 +1312,7 @@ static int ni_usb_write_sad(struct ni_usb_register *writes, int address, int ena
 	return i;
 }
 
-static int ni_usb_secondary_address(gpib_board_t *board, unsigned int address, int enable)
+static int ni_usb_secondary_address(struct gpib_board *board, unsigned int address, int enable)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1334,7 +1334,7 @@ static int ni_usb_secondary_address(gpib_board_t *board, unsigned int address, i
 	return 0;
 }
 
-static int ni_usb_parallel_poll(gpib_board_t *board, uint8_t *result)
+static int ni_usb_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1389,7 +1389,7 @@ static int ni_usb_parallel_poll(gpib_board_t *board, uint8_t *result)
 	return retval;
 }
 
-static void ni_usb_parallel_poll_configure(gpib_board_t *board, uint8_t config)
+static void ni_usb_parallel_poll_configure(struct gpib_board *board, uint8_t config)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1414,7 +1414,7 @@ static void ni_usb_parallel_poll_configure(gpib_board_t *board, uint8_t config)
 	return;// 0;
 }
 
-static void ni_usb_parallel_poll_response(gpib_board_t *board, int ist)
+static void ni_usb_parallel_poll_response(struct gpib_board *board, int ist)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1442,7 +1442,7 @@ static void ni_usb_parallel_poll_response(gpib_board_t *board, int ist)
 	return;// 0;
 }
 
-static void ni_usb_serial_poll_response(gpib_board_t *board, u8 status)
+static void ni_usb_serial_poll_response(struct gpib_board *board, u8 status)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1467,12 +1467,12 @@ static void ni_usb_serial_poll_response(gpib_board_t *board, u8 status)
 	return;// 0;
 }
 
-static uint8_t ni_usb_serial_poll_status(gpib_board_t *board)
+static uint8_t ni_usb_serial_poll_status(struct gpib_board *board)
 {
 	return 0;
 }
 
-static void ni_usb_return_to_local(gpib_board_t *board)
+static void ni_usb_return_to_local(struct gpib_board *board)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1497,7 +1497,7 @@ static void ni_usb_return_to_local(gpib_board_t *board)
 	return;// 0;
 }
 
-static int ni_usb_line_status(const gpib_board_t *board)
+static int ni_usb_line_status(const struct gpib_board *board)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1616,7 +1616,7 @@ static int ni_usb_setup_t1_delay(struct ni_usb_register *reg, unsigned int nano_
 	return i;
 }
 
-static unsigned int ni_usb_t1_delay(gpib_board_t *board, unsigned int nano_sec)
+static unsigned int ni_usb_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1640,7 +1640,7 @@ static unsigned int ni_usb_t1_delay(gpib_board_t *board, unsigned int nano_sec)
 	return actual_ns;
 }
 
-static int ni_usb_allocate_private(gpib_board_t *board)
+static int ni_usb_allocate_private(struct gpib_board *board)
 {
 	struct ni_usb_priv *ni_priv;
 
@@ -1663,7 +1663,7 @@ static void ni_usb_free_private(struct ni_usb_priv *ni_priv)
 }
 
 #define NUM_INIT_WRITES 26
-static int ni_usb_setup_init(gpib_board_t *board, struct ni_usb_register *writes)
+static int ni_usb_setup_init(struct gpib_board *board, struct ni_usb_register *writes)
 {
 	struct ni_usb_priv *ni_priv = board->private_data;
 	struct usb_device *usb_dev = interface_to_usbdev(ni_priv->bus_interface);
@@ -1770,7 +1770,7 @@ static int ni_usb_setup_init(gpib_board_t *board, struct ni_usb_register *writes
 	return i;
 }
 
-static int ni_usb_init(gpib_board_t *board)
+static int ni_usb_init(struct gpib_board *board)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1799,7 +1799,7 @@ static int ni_usb_init(gpib_board_t *board)
 
 static void ni_usb_interrupt_complete(struct urb *urb)
 {
-	gpib_board_t *board = urb->context;
+	struct gpib_board *board = urb->context;
 	struct ni_usb_priv *ni_priv = board->private_data;
 	struct usb_device *usb_dev = interface_to_usbdev(ni_priv->bus_interface);
 	int retval;
@@ -1835,7 +1835,7 @@ static void ni_usb_interrupt_complete(struct urb *urb)
 		dev_err(&usb_dev->dev, "failed to resubmit interrupt urb\n");
 }
 
-static int ni_usb_set_interrupt_monitor(gpib_board_t *board, unsigned int monitored_bits)
+static int ni_usb_set_interrupt_monitor(struct gpib_board *board, unsigned int monitored_bits)
 {
 	int retval;
 	struct ni_usb_priv *ni_priv = board->private_data;
@@ -1866,7 +1866,7 @@ static int ni_usb_set_interrupt_monitor(gpib_board_t *board, unsigned int monito
 	return 0;
 }
 
-static int ni_usb_setup_urbs(gpib_board_t *board)
+static int ni_usb_setup_urbs(struct gpib_board *board)
 {
 	struct ni_usb_priv *ni_priv = board->private_data;
 	struct usb_device *usb_dev;
@@ -2205,7 +2205,7 @@ static inline int ni_usb_device_match(struct usb_interface *interface,
 	return 1;
 }
 
-static int ni_usb_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int ni_usb_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	int retval;
 	int i, index;
@@ -2338,7 +2338,7 @@ static int ni_usb_shutdown_hardware(struct ni_usb_priv *ni_priv)
 	return 0;
 }
 
-static void ni_usb_detach(gpib_board_t *board)
+static void ni_usb_detach(struct gpib_board *board)
 {
 	struct ni_usb_priv *ni_priv;
 
@@ -2445,7 +2445,7 @@ static void ni_usb_driver_disconnect(struct usb_interface *interface)
 	mutex_lock(&ni_usb_hotplug_lock);
 	for (i = 0; i < MAX_NUM_NI_USB_INTERFACES; i++)	{
 		if (ni_usb_driver_interfaces[i] == interface)	{
-			gpib_board_t *board = usb_get_intfdata(interface);
+			struct gpib_board *board = usb_get_intfdata(interface);
 
 			if (board) {
 				struct ni_usb_priv *ni_priv = board->private_data;
@@ -2474,7 +2474,7 @@ static void ni_usb_driver_disconnect(struct usb_interface *interface)
 static int ni_usb_driver_suspend(struct usb_interface *interface, pm_message_t message)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(interface);
-	gpib_board_t *board;
+	struct gpib_board *board;
 	int i, retval;
 
 	mutex_lock(&ni_usb_hotplug_lock);
@@ -2518,7 +2518,7 @@ static int ni_usb_driver_resume(struct usb_interface *interface)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(interface);
 
-	gpib_board_t *board;
+	struct gpib_board *board;
 	int i, retval;
 
 	mutex_lock(&ni_usb_hotplug_lock);
