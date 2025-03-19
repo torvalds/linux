@@ -34,10 +34,8 @@ int __test_listen_socket(int backlog, void *addr, size_t addr_sz)
 	return sk;
 }
 
-int test_wait_fd(int sk, time_t sec, bool write)
+static int __test_wait_fd(int sk, struct timeval *tv, bool write)
 {
-	struct timeval tv = { .tv_sec = sec };
-	struct timeval *ptv = NULL;
 	fd_set fds, efds;
 	int ret;
 	socklen_t slen = sizeof(ret);
@@ -47,14 +45,11 @@ int test_wait_fd(int sk, time_t sec, bool write)
 	FD_ZERO(&efds);
 	FD_SET(sk, &efds);
 
-	if (sec)
-		ptv = &tv;
-
 	errno = 0;
 	if (write)
-		ret = select(sk + 1, NULL, &fds, &efds, ptv);
+		ret = select(sk + 1, NULL, &fds, &efds, tv);
 	else
-		ret = select(sk + 1, &fds, NULL, &efds, ptv);
+		ret = select(sk + 1, &fds, NULL, &efds, tv);
 	if (ret < 0)
 		return -errno;
 	if (ret == 0) {
@@ -67,6 +62,52 @@ int test_wait_fd(int sk, time_t sec, bool write)
 	if (ret)
 		return -ret;
 	return 0;
+}
+
+int test_wait_fd(int sk, time_t sec, bool write)
+{
+	struct timeval tv = { .tv_sec = sec, };
+
+	return __test_wait_fd(sk, sec ? &tv : NULL, write);
+}
+
+static bool __skpair_poll_should_stop(int sk, struct tcp_counters *c,
+				      test_cnt condition)
+{
+	struct tcp_counters c2;
+	test_cnt diff;
+
+	if (test_get_tcp_counters(sk, &c2))
+		test_error("test_get_tcp_counters()");
+
+	diff = test_cmp_counters(c, &c2);
+	test_tcp_counters_free(&c2);
+	return (diff & condition) == condition;
+}
+
+/* How often wake up and check netns counters & paired (*err) */
+#define POLL_USEC	150
+static int __test_skpair_poll(int sk, bool write, uint64_t timeout,
+			      struct tcp_counters *c, test_cnt cond,
+			      volatile int *err)
+{
+	uint64_t t;
+
+	for (t = 0; t <= timeout * 1000000; t += POLL_USEC) {
+		struct timeval tv = { .tv_usec = POLL_USEC, };
+		int ret;
+
+		ret = __test_wait_fd(sk, &tv, write);
+		if (ret != -ETIMEDOUT)
+			return ret;
+		if (c && cond && __skpair_poll_should_stop(sk, c, cond))
+			break;
+		if (err && *err)
+			return *err;
+	}
+	if (err)
+		*err = -ETIMEDOUT;
+	return -ETIMEDOUT;
 }
 
 int __test_connect_socket(int sk, const char *device,
@@ -111,6 +152,43 @@ int __test_connect_socket(int sk, const char *device,
 out:
 	close(sk);
 	return err;
+}
+
+int test_skpair_wait_poll(int sk, bool write,
+			  test_cnt cond, volatile int *err)
+{
+	struct tcp_counters c;
+	int ret;
+
+	*err = 0;
+	if (test_get_tcp_counters(sk, &c))
+		test_error("test_get_tcp_counters()");
+	synchronize_threads(); /* 1: init skpair & read nscounters */
+
+	ret = __test_skpair_poll(sk, write, TEST_TIMEOUT_SEC, &c, cond, err);
+	test_tcp_counters_free(&c);
+	return ret;
+}
+
+int _test_skpair_connect_poll(int sk, const char *device,
+			      void *addr, size_t addr_sz,
+			      test_cnt condition, volatile int *err)
+{
+	struct tcp_counters c;
+	int ret;
+
+	*err = 0;
+	if (test_get_tcp_counters(sk, &c))
+		test_error("test_get_tcp_counters()");
+	synchronize_threads(); /* 1: init skpair & read nscounters */
+	ret = __test_connect_socket(sk, device, addr, addr_sz, -1);
+	if (ret < 0) {
+		test_tcp_counters_free(&c);
+		return (*err = ret);
+	}
+	ret = __test_skpair_poll(sk, 1, TEST_TIMEOUT_SEC, &c, condition, err);
+	test_tcp_counters_free(&c);
+	return ret;
 }
 
 int __test_set_md5(int sk, void *addr, size_t addr_sz, uint8_t prefix,
@@ -515,7 +593,9 @@ void test_tcp_counters_free(struct tcp_counters *cnts)
 }
 
 #define TEST_BUF_SIZE 4096
-ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
+static ssize_t _test_server_run(int sk, ssize_t quota, struct tcp_counters *c,
+				test_cnt cond, volatile int *err,
+				time_t timeout_sec)
 {
 	ssize_t total = 0;
 
@@ -524,7 +604,7 @@ ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
 		ssize_t bytes, sent;
 		int ret;
 
-		ret = test_wait_fd(sk, timeout_sec, 0);
+		ret = __test_skpair_poll(sk, 0, timeout_sec, c, cond, err);
 		if (ret)
 			return ret;
 
@@ -535,7 +615,7 @@ ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
 		if (bytes == 0)
 			break;
 
-		ret = test_wait_fd(sk, timeout_sec, 1);
+		ret = __test_skpair_poll(sk, 1, timeout_sec, c, cond, err);
 		if (ret)
 			return ret;
 
@@ -550,12 +630,40 @@ ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
 	return total;
 }
 
-ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
-			 const size_t msg_len, time_t timeout_sec)
+ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec)
+{
+	return _test_server_run(sk, quota, NULL, 0, NULL,
+				timeout_sec ?: TEST_TIMEOUT_SEC);
+}
+
+int test_skpair_server(int sk, ssize_t quota, test_cnt cond, volatile int *err)
+{
+	struct tcp_counters c;
+	ssize_t ret;
+
+	*err = 0;
+	if (test_get_tcp_counters(sk, &c))
+		test_error("test_get_tcp_counters()");
+	synchronize_threads(); /* 1: init skpair & read nscounters */
+
+	ret = _test_server_run(sk, quota, &c, cond, err, TEST_TIMEOUT_SEC);
+	test_tcp_counters_free(&c);
+	return ret;
+}
+
+static ssize_t test_client_loop(int sk, size_t buf_sz, const size_t msg_len,
+				struct tcp_counters *c, test_cnt cond,
+				volatile int *err, time_t timeout_sec)
 {
 	char msg[msg_len];
 	int nodelay = 1;
+	char *buf;
 	size_t i;
+
+	buf = alloca(buf_sz);
+	if (!buf)
+		return -ENOMEM;
+	randomize_buffer(buf, buf_sz);
 
 	if (setsockopt(sk, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof(nodelay)))
 		test_error("setsockopt(TCP_NODELAY)");
@@ -564,7 +672,7 @@ ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
 		size_t sent, bytes = min(msg_len, buf_sz - i);
 		int ret;
 
-		ret = test_wait_fd(sk, timeout_sec, 1);
+		ret = __test_skpair_poll(sk, 1, timeout_sec, c, cond, err);
 		if (ret)
 			return ret;
 
@@ -578,7 +686,7 @@ ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
 		do {
 			ssize_t got;
 
-			ret = test_wait_fd(sk, timeout_sec, 0);
+			ret = __test_skpair_poll(sk, 0, timeout_sec, c, cond, err);
 			if (ret)
 				return ret;
 
@@ -601,11 +709,29 @@ int test_client_verify(int sk, const size_t msg_len, const size_t nr,
 		       time_t timeout_sec)
 {
 	size_t buf_sz = msg_len * nr;
-	char *buf = alloca(buf_sz);
 	ssize_t ret;
 
-	randomize_buffer(buf, buf_sz);
-	ret = test_client_loop(sk, buf, buf_sz, msg_len, timeout_sec);
+	ret = test_client_loop(sk, buf_sz, msg_len, NULL, 0, NULL, timeout_sec);
+	if (ret < 0)
+		return (int)ret;
+	return ret != buf_sz ? -1 : 0;
+}
+
+int test_skpair_client(int sk, const size_t msg_len, const size_t nr,
+		       test_cnt cond, volatile int *err)
+{
+	struct tcp_counters c;
+	size_t buf_sz = msg_len * nr;
+	ssize_t ret;
+
+	*err = 0;
+	if (test_get_tcp_counters(sk, &c))
+		test_error("test_get_tcp_counters()");
+	synchronize_threads(); /* 1: init skpair & read nscounters */
+
+	ret = test_client_loop(sk, buf_sz, msg_len, &c, cond, err,
+			       TEST_TIMEOUT_SEC);
+	test_tcp_counters_free(&c);
 	if (ret < 0)
 		return (int)ret;
 	return ret != buf_sz ? -1 : 0;

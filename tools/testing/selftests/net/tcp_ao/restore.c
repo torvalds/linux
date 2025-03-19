@@ -16,11 +16,11 @@ const size_t quota = nr_packets * msg_len;
 static void try_server_run(const char *tst_name, unsigned int port,
 			   fault_t inj, test_cnt cnt_expected)
 {
+	test_cnt poll_cnt = (cnt_expected == TEST_CNT_GOOD) ? 0 : cnt_expected;
 	const char *cnt_name = "TCPAOGood";
 	struct tcp_counters cnt1, cnt2;
 	uint64_t before_cnt, after_cnt;
-	int sk, lsk;
-	time_t timeout;
+	int sk, lsk, dummy;
 	ssize_t bytes;
 
 	if (fault(TIMEOUT))
@@ -51,8 +51,7 @@ static void try_server_run(const char *tst_name, unsigned int port,
 	if (test_get_tcp_counters(sk, &cnt1))
 		test_error("test_get_tcp_counters()");
 
-	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
-	bytes = test_server_run(sk, quota, timeout);
+	bytes = test_skpair_server(sk, quota, poll_cnt, &dummy);
 	if (fault(TIMEOUT)) {
 		if (bytes > 0)
 			test_fail("%s: server served: %zd", tst_name, bytes);
@@ -139,11 +138,11 @@ static void test_sk_restore(const char *tst_name, unsigned int server_port,
 			    struct tcp_ao_repair *ao_img,
 			    fault_t inj, test_cnt cnt_expected)
 {
+	test_cnt poll_cnt = (cnt_expected == TEST_CNT_GOOD) ? 0 : cnt_expected;
 	const char *cnt_name = "TCPAOGood";
 	struct tcp_counters cnt1, cnt2;
 	uint64_t before_cnt, after_cnt;
-	time_t timeout;
-	int sk;
+	int sk, dummy;
 
 	if (fault(TIMEOUT))
 		cnt_name = "TCPAOBad";
@@ -165,18 +164,18 @@ static void test_sk_restore(const char *tst_name, unsigned int server_port,
 	test_disable_repair(sk);
 	test_sock_state_free(img);
 
-	timeout = fault(TIMEOUT) ? TEST_RETRANSMIT_SEC : TEST_TIMEOUT_SEC;
-	if (test_client_verify(sk, msg_len, nr_packets, timeout)) {
+	if (test_skpair_client(sk, msg_len, nr_packets, poll_cnt, &dummy)) {
 		if (fault(TIMEOUT))
 			test_ok("%s: post-migrate connection is broken", tst_name);
 		else
 			test_fail("%s: post-migrate connection is working", tst_name);
 	} else {
 		if (fault(TIMEOUT))
-			test_fail("%s: post-migrate connection still working", tst_name);
+			test_fail("%s: post-migrate connection is working", tst_name);
 		else
 			test_ok("%s: post-migrate connection is alive", tst_name);
 	}
+
 	synchronize_threads(); /* 3: counters checks */
 	if (test_get_tcp_counters(sk, &cnt2))
 		test_error("test_get_tcp_counters()");

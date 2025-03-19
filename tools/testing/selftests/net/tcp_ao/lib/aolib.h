@@ -331,6 +331,7 @@ static inline int test_listen_socket(const union tcp_addr taddr,
  * If set to 0 - kernel will try to retransmit SYN number of times, set in
  * /proc/sys/net/ipv4/tcp_syn_retries
  * By default set to 1 to make tests pass faster on non-busy machine.
+ * [in process of removal, don't use in new tests]
  */
 #ifndef TEST_RETRANSMIT_SEC
 #define TEST_RETRANSMIT_SEC	1
@@ -483,8 +484,6 @@ static inline int test_set_ao_flags(int sk, bool ao_required, bool accept_icmps)
 }
 
 extern ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec);
-extern ssize_t test_client_loop(int sk, char *buf, size_t buf_sz,
-				const size_t msg_len, time_t timeout_sec);
 extern int test_client_verify(int sk, const size_t msg_len, const size_t nr,
 			      time_t timeout_sec);
 
@@ -579,6 +578,40 @@ extern int test_assert_counters_key(const char *tst_name,
 		struct tcp_ao_counters *before, struct tcp_ao_counters *after,
 		test_cnt expected, int sndid, int rcvid);
 extern void test_tcp_counters_free(struct tcp_counters *cnts);
+
+/*
+ * Polling for netns and socket counters during select()/connect() and also
+ * client/server messaging. Instead of constant timeout on underlying select(),
+ * check the counters and return early. This allows to pass the tests where
+ * timeout is expected without waiting for that fixing timeout (tests speed-up).
+ * Previously shorter timeouts were used for tests expecting to time out,
+ * but that leaded to sporadic false positives on counter checks failures,
+ * as one second timeouts aren't enough for TCP retransmit.
+ *
+ * Two sides of the socketpair (client/server) should synchronize failures
+ * using a shared variable *err, so that they can detect the other side's
+ * failure.
+ */
+extern int test_skpair_wait_poll(int sk, bool write, test_cnt cond,
+				 volatile int *err);
+extern int _test_skpair_connect_poll(int sk, const char *device,
+				     void *addr, size_t addr_sz,
+				     test_cnt cond, volatile int *err);
+static inline int test_skpair_connect_poll(int sk, const union tcp_addr taddr,
+					   unsigned int port,
+					   test_cnt cond, volatile int *err)
+{
+	sockaddr_af addr;
+
+	tcp_addr_to_sockaddr_in(&addr, &taddr, htons(port));
+	return _test_skpair_connect_poll(sk, veth_name,
+					 (void *)&addr, sizeof(addr), cond, err);
+}
+
+extern int test_skpair_client(int sk, const size_t msg_len, const size_t nr,
+			      test_cnt cond, volatile int *err);
+extern int test_skpair_server(int sk, ssize_t quota,
+			      test_cnt cond, volatile int *err);
 
 /*
  * Frees buffers allocated in test_get_tcp_counters().
