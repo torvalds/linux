@@ -9,20 +9,10 @@
 #ifndef _CRYPTO_SCOMP_INT_H
 #define _CRYPTO_SCOMP_INT_H
 
-#include <crypto/acompress.h>
-#include <crypto/algapi.h>
-#include <linux/cpumask_types.h>
-#include <linux/workqueue_types.h>
-
-struct acomp_req;
+#include <crypto/internal/acompress.h>
 
 struct crypto_scomp {
 	struct crypto_tfm base;
-};
-
-struct crypto_acomp_stream {
-	spinlock_t lock;
-	void *ctx;
 };
 
 /**
@@ -33,14 +23,10 @@ struct crypto_acomp_stream {
  * @compress:	Function performs a compress operation
  * @decompress:	Function performs a de-compress operation
  * @base:	Common crypto API algorithm data structure
- * @stream:	Per-cpu memory for algorithm
- * @stream_work:	Work struct to allocate stream memmory
- * @stream_want:	CPU mask for allocating stream memory
+ * @streams:	Per-cpu memory for algorithm
  * @calg:	Cmonn algorithm data structure shared with acomp
  */
 struct scomp_alg {
-	void *(*alloc_ctx)(void);
-	void (*free_ctx)(void *ctx);
 	int (*compress)(struct crypto_scomp *tfm, const u8 *src,
 			unsigned int slen, u8 *dst, unsigned int *dlen,
 			void *ctx);
@@ -48,9 +34,13 @@ struct scomp_alg {
 			  unsigned int slen, u8 *dst, unsigned int *dlen,
 			  void *ctx);
 
-	struct crypto_acomp_stream __percpu *stream;
-	struct work_struct stream_work;
-	cpumask_t stream_want;
+	union {
+		struct {
+			void *(*alloc_ctx)(void);
+			void (*free_ctx)(void *ctx);
+		};
+		struct crypto_acomp_streams streams;
+	};
 
 	union {
 		struct COMP_ALG_COMMON;

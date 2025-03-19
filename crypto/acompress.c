@@ -9,13 +9,18 @@
 
 #include <crypto/internal/acompress.h>
 #include <linux/cryptouser.h>
+#include <linux/cpumask.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/page-flags.h>
+#include <linux/percpu.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
+#include <linux/workqueue.h>
 #include <net/netlink.h>
 
 #include "compress.h"
@@ -433,6 +438,113 @@ void crypto_unregister_acomps(struct acomp_alg *algs, int count)
 		crypto_unregister_acomp(&algs[i]);
 }
 EXPORT_SYMBOL_GPL(crypto_unregister_acomps);
+
+static void acomp_stream_workfn(struct work_struct *work)
+{
+	struct crypto_acomp_streams *s =
+		container_of(work, struct crypto_acomp_streams, stream_work);
+	struct crypto_acomp_stream __percpu *streams = s->streams;
+	int cpu;
+
+	for_each_cpu(cpu, &s->stream_want) {
+		struct crypto_acomp_stream *ps;
+		void *ctx;
+
+		ps = per_cpu_ptr(streams, cpu);
+		if (ps->ctx)
+			continue;
+
+		ctx = s->alloc_ctx();
+		if (IS_ERR(ctx))
+			break;
+
+		spin_lock_bh(&ps->lock);
+		ps->ctx = ctx;
+		spin_unlock_bh(&ps->lock);
+
+		cpumask_clear_cpu(cpu, &s->stream_want);
+	}
+}
+
+void crypto_acomp_free_streams(struct crypto_acomp_streams *s)
+{
+	struct crypto_acomp_stream __percpu *streams = s->streams;
+	void (*free_ctx)(void *);
+	int i;
+
+	cancel_work_sync(&s->stream_work);
+	free_ctx = s->free_ctx;
+
+	for_each_possible_cpu(i) {
+		struct crypto_acomp_stream *ps = per_cpu_ptr(streams, i);
+
+		if (!ps->ctx)
+			continue;
+
+		free_ctx(ps->ctx);
+	}
+
+	free_percpu(streams);
+}
+EXPORT_SYMBOL_GPL(crypto_acomp_free_streams);
+
+int crypto_acomp_alloc_streams(struct crypto_acomp_streams *s)
+{
+	struct crypto_acomp_stream __percpu *streams;
+	struct crypto_acomp_stream *ps;
+	unsigned int i;
+	void *ctx;
+
+	if (s->streams)
+		return 0;
+
+	streams = alloc_percpu(struct crypto_acomp_stream);
+	if (!streams)
+		return -ENOMEM;
+
+	ctx = s->alloc_ctx();
+	if (IS_ERR(ctx)) {
+		free_percpu(streams);
+		return PTR_ERR(ctx);
+	}
+
+	i = cpumask_first(cpu_possible_mask);
+	ps = per_cpu_ptr(streams, i);
+	ps->ctx = ctx;
+
+	for_each_possible_cpu(i) {
+		ps = per_cpu_ptr(streams, i);
+		spin_lock_init(&ps->lock);
+	}
+
+	s->streams = streams;
+
+	INIT_WORK(&s->stream_work, acomp_stream_workfn);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_acomp_alloc_streams);
+
+struct crypto_acomp_stream *crypto_acomp_lock_stream_bh(
+	struct crypto_acomp_streams *s) __acquires(stream)
+{
+	struct crypto_acomp_stream __percpu *streams = s->streams;
+	int cpu = raw_smp_processor_id();
+	struct crypto_acomp_stream *ps;
+
+	ps = per_cpu_ptr(streams, cpu);
+	spin_lock_bh(&ps->lock);
+	if (likely(ps->ctx))
+		return ps;
+	spin_unlock(&ps->lock);
+
+	cpumask_set_cpu(cpu, &s->stream_want);
+	schedule_work(&s->stream_work);
+
+	ps = per_cpu_ptr(streams, cpumask_first(cpu_possible_mask));
+	spin_lock(&ps->lock);
+	return ps;
+}
+EXPORT_SYMBOL_GPL(crypto_acomp_lock_stream_bh);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous compression type");

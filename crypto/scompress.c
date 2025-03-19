@@ -7,7 +7,6 @@
  * Author: Giovanni Cabiddu <giovanni.cabiddu@intel.com>
  */
 
-#include <crypto/internal/acompress.h>
 #include <crypto/internal/scompress.h>
 #include <crypto/scatterwalk.h>
 #include <linux/cpumask.h>
@@ -132,91 +131,15 @@ static int crypto_scomp_alloc_scratches(void)
 	return scomp_alloc_scratch(scratch, i);
 }
 
-static void scomp_free_streams(struct scomp_alg *alg)
-{
-	struct crypto_acomp_stream __percpu *stream = alg->stream;
-	int i;
-
-	for_each_possible_cpu(i) {
-		struct crypto_acomp_stream *ps = per_cpu_ptr(stream, i);
-
-		if (!ps->ctx)
-			continue;
-
-		alg->free_ctx(ps->ctx);
-	}
-
-	free_percpu(stream);
-}
-
-static int scomp_alloc_streams(struct scomp_alg *alg)
-{
-	struct crypto_acomp_stream __percpu *stream;
-	struct crypto_acomp_stream *ps;
-	unsigned int i;
-	void *ctx;
-
-	stream = alloc_percpu(struct crypto_acomp_stream);
-	if (!stream)
-		return -ENOMEM;
-
-	ctx = alg->alloc_ctx();
-	if (IS_ERR(ctx)) {
-		free_percpu(stream);
-		return PTR_ERR(ctx);
-	}
-
-	i = cpumask_first(cpu_possible_mask);
-	ps = per_cpu_ptr(stream, i);
-	ps->ctx = ctx;
-
-	for_each_possible_cpu(i) {
-		ps = per_cpu_ptr(stream, i);
-		spin_lock_init(&ps->lock);
-	}
-
-	alg->stream = stream;
-	return 0;
-}
-
-static void scomp_stream_workfn(struct work_struct *work)
-{
-	struct scomp_alg *alg = container_of(work, struct scomp_alg,
-					     stream_work);
-	struct crypto_acomp_stream __percpu *stream = alg->stream;
-	int cpu;
-
-	for_each_cpu(cpu, &alg->stream_want) {
-		struct crypto_acomp_stream *ps;
-		void *ctx;
-
-		ps = per_cpu_ptr(stream, cpu);
-		if (ps->ctx)
-			continue;
-
-		ctx = alg->alloc_ctx();
-		if (IS_ERR(ctx))
-			break;
-
-		spin_lock_bh(&ps->lock);
-		ps->ctx = ctx;
-		spin_unlock_bh(&ps->lock);
-
-		cpumask_clear_cpu(cpu, &alg->stream_want);
-	}
-}
-
 static int crypto_scomp_init_tfm(struct crypto_tfm *tfm)
 {
 	struct scomp_alg *alg = crypto_scomp_alg(__crypto_scomp_tfm(tfm));
 	int ret = 0;
 
 	mutex_lock(&scomp_lock);
-	if (!alg->stream) {
-		ret = scomp_alloc_streams(alg);
-		if (ret)
-			goto unlock;
-	}
+	ret = crypto_acomp_alloc_streams(&alg->streams);
+	if (ret)
+		goto unlock;
 	if (!scomp_scratch_users) {
 		ret = crypto_scomp_alloc_scratches();
 		if (ret)
@@ -229,13 +152,13 @@ unlock:
 	return ret;
 }
 
-static struct scomp_scratch *scomp_lock_scratch_bh(void) __acquires(scratch)
+static struct scomp_scratch *scomp_lock_scratch(void) __acquires(scratch)
 {
 	int cpu = raw_smp_processor_id();
 	struct scomp_scratch *scratch;
 
 	scratch = per_cpu_ptr(&scomp_scratch, cpu);
-	spin_lock_bh(&scratch->lock);
+	spin_lock(&scratch->lock);
 	if (likely(scratch->src))
 		return scratch;
 	spin_unlock(&scratch->lock);
@@ -248,39 +171,10 @@ static struct scomp_scratch *scomp_lock_scratch_bh(void) __acquires(scratch)
 	return scratch;
 }
 
-static inline void scomp_unlock_scratch_bh(struct scomp_scratch *scratch)
+static inline void scomp_unlock_scratch(struct scomp_scratch *scratch)
 	__releases(scratch)
 {
-	spin_unlock_bh(&scratch->lock);
-}
-
-static struct crypto_acomp_stream *scomp_lock_stream(struct crypto_scomp *tfm)
-	__acquires(stream)
-{
-	struct scomp_alg *alg = crypto_scomp_alg(tfm);
-	struct crypto_acomp_stream __percpu *stream;
-	int cpu = raw_smp_processor_id();
-	struct crypto_acomp_stream *ps;
-
-	stream = alg->stream;
-	ps = per_cpu_ptr(stream, cpu);
-	spin_lock(&ps->lock);
-	if (likely(ps->ctx))
-		return ps;
-	spin_unlock(&ps->lock);
-
-	cpumask_set_cpu(cpu, &alg->stream_want);
-	schedule_work(&alg->stream_work);
-
-	ps = per_cpu_ptr(stream, cpumask_first(cpu_possible_mask));
-	spin_lock(&ps->lock);
-	return ps;
-}
-
-static inline void scomp_unlock_stream(struct crypto_acomp_stream *stream)
-	__releases(stream)
-{
-	spin_unlock(&stream->lock);
+	spin_unlock(&scratch->lock);
 }
 
 static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
@@ -306,7 +200,8 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	if (!req->dst || !dlen)
 		return -EINVAL;
 
-	scratch = scomp_lock_scratch_bh();
+	stream = crypto_acomp_lock_stream_bh(&crypto_scomp_alg(scomp)->streams);
+	scratch = scomp_lock_scratch();
 
 	if (acomp_request_src_isvirt(req))
 		src = req->svirt;
@@ -367,7 +262,6 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 		dlen = min(dlen, max);
 	}
 
-	stream = scomp_lock_stream(scomp);
 	if (dir)
 		ret = crypto_scomp_compress(scomp, src, slen,
 					    dst, &dlen, stream->ctx);
@@ -378,8 +272,8 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	if (dst == scratch->dst)
 		memcpy_to_sglist(req->dst, 0, dst, dlen);
 
-	scomp_unlock_stream(stream);
-	scomp_unlock_scratch_bh(scratch);
+	scomp_unlock_scratch(scratch);
+	crypto_acomp_unlock_stream_bh(stream);
 
 	req->dlen = dlen;
 
@@ -466,8 +360,7 @@ static void crypto_scomp_destroy(struct crypto_alg *alg)
 {
 	struct scomp_alg *scomp = __crypto_scomp_alg(alg);
 
-	cancel_work_sync(&scomp->stream_work);
-	scomp_free_streams(scomp);
+	crypto_acomp_free_streams(&scomp->streams);
 }
 
 static const struct crypto_type crypto_scomp_type = {
@@ -493,8 +386,6 @@ static void scomp_prepare_alg(struct scomp_alg *alg)
 	comp_prepare_alg(&alg->calg);
 
 	base->cra_flags |= CRYPTO_ALG_REQ_CHAIN;
-
-	INIT_WORK(&alg->stream_work, scomp_stream_workfn);
 }
 
 int crypto_register_scomp(struct scomp_alg *alg)
