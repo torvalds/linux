@@ -15,16 +15,39 @@
 #include <string.h>
 #include "string2.h"
 
-#if __BITS_PER_LONG == 64
-  #include <asm/syscalls_64.h>
-#else
-  #include <asm/syscalls_32.h>
-#endif
+#include "trace/beauty/generated/syscalltbl.c"
 
-const char *syscalltbl__name(int e_machine __maybe_unused, int id)
+static const struct syscalltbl *find_table(int e_machine)
 {
-	if (id >= 0 && id <= (int)ARRAY_SIZE(syscall_num_to_name))
-		return syscall_num_to_name[id];
+	static const struct syscalltbl *last_table;
+	static int last_table_machine = EM_NONE;
+
+	/* Tables only exist for EM_SPARC. */
+	if (e_machine == EM_SPARCV9)
+		e_machine = EM_SPARC;
+
+	if (last_table_machine == e_machine && last_table != NULL)
+		return last_table;
+
+	for (size_t i = 0; i < ARRAY_SIZE(syscalltbls); i++) {
+		const struct syscalltbl *entry = &syscalltbls[i];
+
+		if (entry->e_machine != e_machine && entry->e_machine != EM_NONE)
+			continue;
+
+		last_table = entry;
+		last_table_machine = e_machine;
+		return entry;
+	}
+	return NULL;
+}
+
+const char *syscalltbl__name(int e_machine, int id)
+{
+	const struct syscalltbl *table = find_table(e_machine);
+
+	if (table && id >= 0 && id < table->num_to_name_len)
+		return table->num_to_name[id];
 	return NULL;
 }
 
@@ -41,38 +64,54 @@ static int syscallcmpname(const void *vkey, const void *ventry)
 	return strcmp(key->name, key->tbl[*entry]);
 }
 
-int syscalltbl__id(int e_machine __maybe_unused, const char *name)
+int syscalltbl__id(int e_machine, const char *name)
 {
-	struct syscall_cmp_key key = {
-		.name = name,
-		.tbl = syscall_num_to_name,
-	};
-	const int *id = bsearch(&key, syscall_sorted_names,
-				ARRAY_SIZE(syscall_sorted_names),
-				sizeof(syscall_sorted_names[0]),
-				syscallcmpname);
+	const struct syscalltbl *table = find_table(e_machine);
+	struct syscall_cmp_key key;
+	const uint16_t *id;
+
+	if (!table)
+		return -1;
+
+	key.name = name;
+	key.tbl = table->num_to_name;
+	id = bsearch(&key, table->sorted_names, table->sorted_names_len,
+		     sizeof(table->sorted_names[0]), syscallcmpname);
 
 	return id ? *id : -1;
 }
 
-int syscalltbl__num_idx(int e_machine __maybe_unused)
+int syscalltbl__num_idx(int e_machine)
 {
-	return ARRAY_SIZE(syscall_sorted_names);
+	const struct syscalltbl *table = find_table(e_machine);
+
+	if (!table)
+		return 0;
+
+	return table->sorted_names_len;
 }
 
-int syscalltbl__id_at_idx(int e_machine __maybe_unused, int idx)
+int syscalltbl__id_at_idx(int e_machine, int idx)
 {
-	return syscall_sorted_names[idx];
+	const struct syscalltbl *table = find_table(e_machine);
+
+	if (!table)
+		return -1;
+
+	assert(idx >= 0 && idx < table->sorted_names_len);
+	return table->sorted_names[idx];
 }
 
-int syscalltbl__strglobmatch_next(int e_machine __maybe_unused, const char *syscall_glob, int *idx)
+int syscalltbl__strglobmatch_next(int e_machine, const char *syscall_glob, int *idx)
 {
-	for (int i = *idx + 1; i < (int)ARRAY_SIZE(syscall_sorted_names); ++i) {
-		const char *name = syscall_num_to_name[syscall_sorted_names[i]];
+	const struct syscalltbl *table = find_table(e_machine);
+
+	for (int i = *idx + 1; table && i < table->sorted_names_len; ++i) {
+		const char *name = table->num_to_name[table->sorted_names[i]];
 
 		if (strglobmatch(name, syscall_glob)) {
 			*idx = i;
-			return syscall_sorted_names[i];
+			return table->sorted_names[i];
 		}
 	}
 
