@@ -445,6 +445,9 @@ static void dax_associate_entry(void *entry, struct address_space *mapping,
 	unsigned long size = dax_entry_size(entry), index;
 	struct folio *folio = dax_to_folio(entry);
 
+	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry))
+		return;
+
 	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
 		return;
 
@@ -471,6 +474,9 @@ static void dax_disassociate_entry(void *entry, struct address_space *mapping,
 	struct folio *folio = dax_to_folio(entry);
 
 	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
+		return;
+
+	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry))
 		return;
 
 	dax_folio_put(folio);
@@ -1074,8 +1080,7 @@ static void *dax_insert_entry(struct xa_state *xas, struct vm_fault *vmf,
 		void *old;
 
 		dax_disassociate_entry(entry, mapping, false);
-		if (!(flags & DAX_ZERO_PAGE))
-			dax_associate_entry(new_entry, mapping, vmf->vma,
+		dax_associate_entry(new_entry, mapping, vmf->vma,
 					vmf->address, shared);
 
 		/*
