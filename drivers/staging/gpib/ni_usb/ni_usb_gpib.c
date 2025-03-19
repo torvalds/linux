@@ -1561,21 +1561,21 @@ static int ni_usb_line_status(const gpib_board_t *board)
 	ni_usb_parse_register_read_block(in_data, &bsr_bits, 1);
 	kfree(in_data);
 	if (bsr_bits & BCSR_REN_BIT)
-		line_status |= BusREN;
+		line_status |= BUS_REN;
 	if (bsr_bits & BCSR_IFC_BIT)
-		line_status |= BusIFC;
+		line_status |= BUS_IFC;
 	if (bsr_bits & BCSR_SRQ_BIT)
-		line_status |= BusSRQ;
+		line_status |= BUS_SRQ;
 	if (bsr_bits & BCSR_EOI_BIT)
-		line_status |= BusEOI;
+		line_status |= BUS_EOI;
 	if (bsr_bits & BCSR_NRFD_BIT)
-		line_status |= BusNRFD;
+		line_status |= BUS_NRFD;
 	if (bsr_bits & BCSR_NDAC_BIT)
-		line_status |= BusNDAC;
+		line_status |= BUS_NDAC;
 	if (bsr_bits & BCSR_DAV_BIT)
-		line_status |= BusDAV;
+		line_status |= BUS_DAV;
 	if (bsr_bits & BCSR_ATN_BIT)
-		line_status |= BusATN;
+		line_status |= BUS_ATN;
 	return line_status;
 }
 

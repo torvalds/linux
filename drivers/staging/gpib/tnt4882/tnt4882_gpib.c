@@ -159,21 +159,21 @@ static int tnt4882_line_status(const gpib_board_t *board)
 	bcsr_bits = tnt_readb(tnt_priv, BSR);
 
 	if (bcsr_bits & BCSR_REN_BIT)
-		status |= BusREN;
+		status |= BUS_REN;
 	if (bcsr_bits & BCSR_IFC_BIT)
-		status |= BusIFC;
+		status |= BUS_IFC;
 	if (bcsr_bits & BCSR_SRQ_BIT)
-		status |= BusSRQ;
+		status |= BUS_SRQ;
 	if (bcsr_bits & BCSR_EOI_BIT)
-		status |= BusEOI;
+		status |= BUS_EOI;
 	if (bcsr_bits & BCSR_NRFD_BIT)
-		status |= BusNRFD;
+		status |= BUS_NRFD;
 	if (bcsr_bits & BCSR_NDAC_BIT)
-		status |= BusNDAC;
+		status |= BUS_NDAC;
 	if (bcsr_bits & BCSR_DAV_BIT)
-		status |= BusDAV;
+		status |= BUS_DAV;
 	if (bcsr_bits & BCSR_ATN_BIT)
-		status |= BusATN;
+		status |= BUS_ATN;
 
 	return status;
 }

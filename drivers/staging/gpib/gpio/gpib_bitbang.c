@@ -1034,21 +1034,21 @@ static int bb_line_status(const gpib_board_t *board)
 	int line_status = ValidALL;
 
 	if (gpiod_get_value(REN) == 0)
-		line_status |= BusREN;
+		line_status |= BUS_REN;
 	if (gpiod_get_value(IFC) == 0)
-		line_status |= BusIFC;
+		line_status |= BUS_IFC;
 	if (gpiod_get_value(NDAC) == 0)
-		line_status |= BusNDAC;
+		line_status |= BUS_NDAC;
 	if (gpiod_get_value(NRFD) == 0)
-		line_status |= BusNRFD;
+		line_status |= BUS_NRFD;
 	if (gpiod_get_value(DAV) == 0)
-		line_status |= BusDAV;
+		line_status |= BUS_DAV;
 	if (gpiod_get_value(EOI) == 0)
-		line_status |= BusEOI;
+		line_status |= BUS_EOI;
 	if (gpiod_get_value(_ATN) == 0)
-		line_status |= BusATN;
+		line_status |= BUS_ATN;
 	if (gpiod_get_value(SRQ) == 0)
-		line_status |= BusSRQ;
+		line_status |= BUS_SRQ;
 
 	dbg_printk(2, "status lines: %4x\n", line_status);
 

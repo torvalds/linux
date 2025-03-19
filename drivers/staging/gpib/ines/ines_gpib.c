@@ -36,21 +36,21 @@ int ines_line_status(const gpib_board_t *board)
 	bcm_bits = ines_inb(ines_priv, BUS_CONTROL_MONITOR);
 
 	if (bcm_bits & BCM_REN_BIT)
-		status |= BusREN;
+		status |= BUS_REN;
 	if (bcm_bits & BCM_IFC_BIT)
-		status |= BusIFC;
+		status |= BUS_IFC;
 	if (bcm_bits & BCM_SRQ_BIT)
-		status |= BusSRQ;
+		status |= BUS_SRQ;
 	if (bcm_bits & BCM_EOI_BIT)
-		status |= BusEOI;
+		status |= BUS_EOI;
 	if (bcm_bits & BCM_NRFD_BIT)
-		status |= BusNRFD;
+		status |= BUS_NRFD;
 	if (bcm_bits & BCM_NDAC_BIT)
-		status |= BusNDAC;
+		status |= BUS_NDAC;
 	if (bcm_bits & BCM_DAV_BIT)
-		status |= BusDAV;
+		status |= BUS_DAV;
 	if (bcm_bits & BCM_ATN_BIT)
-		status |= BusATN;
+		status |= BUS_ATN;
 
 	return status;
 }

@@ -396,21 +396,21 @@ int tms9914_line_status(const gpib_board_t *board, struct tms9914_priv *priv)
 	bsr_bits = read_byte(priv, BSR);
 
 	if (bsr_bits & BSR_REN_BIT)
-		status |= BusREN;
+		status |= BUS_REN;
 	if (bsr_bits & BSR_IFC_BIT)
-		status |= BusIFC;
+		status |= BUS_IFC;
 	if (bsr_bits & BSR_SRQ_BIT)
-		status |= BusSRQ;
+		status |= BUS_SRQ;
 	if (bsr_bits & BSR_EOI_BIT)
-		status |= BusEOI;
+		status |= BUS_EOI;
 	if (bsr_bits & BSR_NRFD_BIT)
-		status |= BusNRFD;
+		status |= BUS_NRFD;
 	if (bsr_bits & BSR_NDAC_BIT)
-		status |= BusNDAC;
+		status |= BUS_NDAC;
 	if (bsr_bits & BSR_DAV_BIT)
-		status |= BusDAV;
+		status |= BUS_DAV;
 	if (bsr_bits & BSR_ATN_BIT)
-		status |= BusATN;
+		status |= BUS_ATN;
 
 	return status;
 }

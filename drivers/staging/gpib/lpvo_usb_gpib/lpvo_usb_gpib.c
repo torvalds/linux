@@ -694,21 +694,21 @@ static int usb_gpib_line_status(const gpib_board_t *board)
 	}
 
 	if ((buffer & 0x01) == 0)
-		line_status |= BusREN;
+		line_status |= BUS_REN;
 	if ((buffer & 0x02) == 0)
-		line_status |= BusIFC;
+		line_status |= BUS_IFC;
 	if ((buffer & 0x04) == 0)
-		line_status |= BusNDAC;
+		line_status |= BUS_NDAC;
 	if ((buffer & 0x08) == 0)
-		line_status |= BusNRFD;
+		line_status |= BUS_NRFD;
 	if ((buffer & 0x10) == 0)
-		line_status |= BusDAV;
+		line_status |= BUS_DAV;
 	if ((buffer & 0x20) == 0)
-		line_status |= BusEOI;
+		line_status |= BUS_EOI;
 	if ((buffer & 0x40) == 0)
-		line_status |= BusATN;
+		line_status |= BUS_ATN;
 	if ((buffer & 0x80) == 0)
-		line_status |= BusSRQ;
+		line_status |= BUS_SRQ;
 
 	DIA_LOG(1, "done with %x %x\n", buffer, line_status);
 

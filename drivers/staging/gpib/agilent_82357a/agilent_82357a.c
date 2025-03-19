@@ -1030,21 +1030,21 @@ static int agilent_82357a_line_status(const gpib_board_t *board)
 		return retval;
 	}
 	if (bus_status.value & BSR_REN_BIT)
-		status |= BusREN;
+		status |= BUS_REN;
 	if (bus_status.value & BSR_IFC_BIT)
-		status |= BusIFC;
+		status |= BUS_IFC;
 	if (bus_status.value & BSR_SRQ_BIT)
-		status |= BusSRQ;
+		status |= BUS_SRQ;
 	if (bus_status.value & BSR_EOI_BIT)
-		status |= BusEOI;
+		status |= BUS_EOI;
 	if (bus_status.value & BSR_NRFD_BIT)
-		status |= BusNRFD;
+		status |= BUS_NRFD;
 	if (bus_status.value & BSR_NDAC_BIT)
-		status |= BusNDAC;
+		status |= BUS_NDAC;
 	if (bus_status.value & BSR_DAV_BIT)
-		status |= BusDAV;
+		status |= BUS_DAV;
 	if (bus_status.value & BSR_ATN_BIT)
-		status |= BusATN;
+		status |= BUS_ATN;
 	return status;
 }
 

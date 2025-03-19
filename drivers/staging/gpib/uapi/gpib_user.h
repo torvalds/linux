@@ -115,17 +115,6 @@ enum bus_control_line {
 	ValidATN = 0x40,
 	ValidEOI = 0x80,
 	ValidALL = 0xff,
-	BusDAV = 0x0100,		/* DAV	line status bit */
-	BusNDAC = 0x0200,		/* NDAC line status bit */
-	BusNRFD = 0x0400,		/* NRFD line status bit */
-	BusIFC = 0x0800,		/* IFC	line status bit */
-	BusREN = 0x1000,		/* REN	line status bit */
-	BusSRQ = 0x2000,		/* SRQ	line status bit */
-	BusATN = 0x4000,		/* ATN	line status bit */
-	BusEOI = 0x8000		/* EOI	line status bit */
-};
-
-enum old_bus_control_line {
 	BUS_DAV = 0x0100,		/* DAV	line status bit */
 	BUS_NDAC = 0x0200,		/* NDAC line status bit */
 	BUS_NRFD = 0x0400,		/* NRFD line status bit */

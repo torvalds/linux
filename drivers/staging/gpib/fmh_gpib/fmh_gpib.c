@@ -240,21 +240,21 @@ static int fmh_gpib_line_status(const gpib_board_t *board)
 	bsr_bits = read_byte(nec_priv, BUS_STATUS_REG);
 
 	if ((bsr_bits & BSR_REN_BIT) == 0)
-		status |= BusREN;
+		status |= BUS_REN;
 	if ((bsr_bits & BSR_IFC_BIT) == 0)
-		status |= BusIFC;
+		status |= BUS_IFC;
 	if ((bsr_bits & BSR_SRQ_BIT) == 0)
-		status |= BusSRQ;
+		status |= BUS_SRQ;
 	if ((bsr_bits & BSR_EOI_BIT) == 0)
-		status |= BusEOI;
+		status |= BUS_EOI;
 	if ((bsr_bits & BSR_NRFD_BIT) == 0)
-		status |= BusNRFD;
+		status |= BUS_NRFD;
 	if ((bsr_bits & BSR_NDAC_BIT) == 0)
-		status |= BusNDAC;
+		status |= BUS_NDAC;
 	if ((bsr_bits & BSR_DAV_BIT) == 0)
-		status |= BusDAV;
+		status |= BUS_DAV;
 	if ((bsr_bits & BSR_ATN_BIT) == 0)
-		status |= BusATN;
+		status |= BUS_ATN;
 
 	return status;
 }

@@ -158,7 +158,7 @@ static int restart_write_fifo(gpib_board_t *board, struct hp_82341_priv *hp_priv
 
 		//restart doesn't work if data holdoff is in effect
 		status = tms9914_line_status(board, tms_priv);
-		if ((status & BusNRFD) == 0) {
+		if ((status & BUS_NRFD) == 0) {
 			outb(RESTART_STREAM_BIT, hp_priv->iobase[0] + STREAM_STATUS_REG);
 			return 0;
 		}
