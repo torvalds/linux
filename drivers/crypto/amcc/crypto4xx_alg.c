@@ -72,7 +72,7 @@ static inline int crypto4xx_crypt(struct skcipher_request *req,
 {
 	struct crypto_skcipher *cipher = crypto_skcipher_reqtfm(req);
 	struct crypto4xx_ctx *ctx = crypto_skcipher_ctx(cipher);
-	__le32 iv[AES_IV_SIZE];
+	__le32 iv[AES_IV_SIZE / 4];
 
 	if (check_blocksize && !IS_ALIGNED(req->cryptlen, AES_BLOCK_SIZE))
 		return -EINVAL;
@@ -429,7 +429,7 @@ static int crypto4xx_crypt_aes_ccm(struct aead_request *req, bool decrypt)
 	struct crypto4xx_ctx *ctx  = crypto_tfm_ctx(req->base.tfm);
 	struct crypto4xx_aead_reqctx *rctx = aead_request_ctx(req);
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	__le32 iv[16];
+	__le32 iv[4];
 	u32 tmp_sa[SA_AES128_CCM_LEN + 4];
 	struct dynamic_sa_ctl *sa = (struct dynamic_sa_ctl *)tmp_sa;
 	unsigned int len = req->cryptlen;
