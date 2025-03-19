@@ -21,7 +21,7 @@
  * If fallback_to_async is non-zero, try to take control asynchronously
  * if synchronous attempt fails.
  */
-int ibcac(gpib_board_t *board, int sync, int fallback_to_async)
+int ibcac(struct gpib_board *board, int sync, int fallback_to_async)
 {
 	int status = ibstatus(board);
 	int retval;
@@ -61,7 +61,7 @@ int ibcac(gpib_board_t *board, int sync, int fallback_to_async)
  * set the skip_check_for_command_acceptors flag in their
  * gpib_interface_struct to avoid useless overhead.
  */
-static int check_for_command_acceptors(gpib_board_t *board)
+static int check_for_command_acceptors(struct gpib_board *board)
 {
 	int lines;
 
@@ -96,7 +96,7 @@ static int check_for_command_acceptors(gpib_board_t *board)
  *          must be called to initialize the GPIB and enable
  *          the interface to leave the controller idle state.
  */
-int ibcmd(gpib_board_t *board, uint8_t *buf, size_t length, size_t *bytes_written)
+int ibcmd(struct gpib_board *board, uint8_t *buf, size_t length, size_t *bytes_written)
 {
 	ssize_t ret = 0;
 	int status;
@@ -131,7 +131,7 @@ int ibcmd(gpib_board_t *board, uint8_t *buf, size_t length, size_t *bytes_writte
  * active state, i.e., turn ATN off.
  */
 
-int ibgts(gpib_board_t *board)
+int ibgts(struct gpib_board *board)
 {
 	int status = ibstatus(board);
 	int retval;
@@ -146,7 +146,7 @@ int ibgts(gpib_board_t *board)
 	return retval;
 }
 
-static int autospoll_wait_should_wake_up(gpib_board_t *board)
+static int autospoll_wait_should_wake_up(struct gpib_board *board)
 {
 	int retval;
 
@@ -162,7 +162,7 @@ static int autospoll_wait_should_wake_up(gpib_board_t *board)
 
 static int autospoll_thread(void *board_void)
 {
-	gpib_board_t *board = board_void;
+	struct gpib_board *board = board_void;
 	int retval = 0;
 
 	dev_dbg(board->gpib_dev, "entering autospoll thread\n");
@@ -199,7 +199,7 @@ static int autospoll_thread(void *board_void)
 	return retval;
 }
 
-int ibonline(gpib_board_t *board)
+int ibonline(struct gpib_board *board)
 {
 	int retval;
 
@@ -238,7 +238,7 @@ int ibonline(gpib_board_t *board)
 }
 
 /* XXX need to make sure board is generally not in use (grab board lock?) */
-int iboffline(gpib_board_t *board)
+int iboffline(struct gpib_board *board)
 {
 	int retval;
 
@@ -270,7 +270,7 @@ int iboffline(gpib_board_t *board)
  * Next LSB (bits 8-15) - STATUS lines mask (lines that are currently set).
  *
  */
-int iblines(const gpib_board_t *board, short *lines)
+int iblines(const struct gpib_board *board, short *lines)
 {
 	int retval;
 
@@ -297,7 +297,7 @@ int iblines(const gpib_board_t *board, short *lines)
  *          calling ibcmd.
  */
 
-int ibrd(gpib_board_t *board, uint8_t *buf, size_t length, int *end_flag, size_t *nbytes)
+int ibrd(struct gpib_board *board, uint8_t *buf, size_t length, int *end_flag, size_t *nbytes)
 {
 	ssize_t ret = 0;
 	int retval;
@@ -343,7 +343,7 @@ ibrd_out:
  *	1.  Prior to conducting the poll the interface is placed
  *	    in the controller active state.
  */
-int ibrpp(gpib_board_t *board, uint8_t *result)
+int ibrpp(struct gpib_board *board, uint8_t *result)
 {
 	int retval = 0;
 
@@ -358,7 +358,7 @@ int ibrpp(gpib_board_t *board, uint8_t *result)
 	return retval;
 }
 
-int ibppc(gpib_board_t *board, uint8_t configuration)
+int ibppc(struct gpib_board *board, uint8_t configuration)
 {
 	configuration &= 0x1f;
 	board->interface->parallel_poll_configure(board, configuration);
@@ -367,7 +367,7 @@ int ibppc(gpib_board_t *board, uint8_t configuration)
 	return 0;
 }
 
-int ibrsv2(gpib_board_t *board, uint8_t status_byte, int new_reason_for_service)
+int ibrsv2(struct gpib_board *board, uint8_t status_byte, int new_reason_for_service)
 {
 	int board_status = ibstatus(board);
 	const unsigned int MSS = status_byte & request_service_bit;
@@ -400,7 +400,7 @@ int ibrsv2(gpib_board_t *board, uint8_t status_byte, int new_reason_for_service)
  *	    ibcmd in order to initialize the bus and enable the
  *	    interface to leave the controller idle state.
  */
-int ibsic(gpib_board_t *board, unsigned int usec_duration)
+int ibsic(struct gpib_board *board, unsigned int usec_duration)
 {
 	if (board->master == 0)
 		return -EINVAL;
@@ -419,7 +419,7 @@ int ibsic(gpib_board_t *board, unsigned int usec_duration)
 }
 
 	/* FIXME make int */
-void ibrsc(gpib_board_t *board, int request_control)
+void ibrsc(struct gpib_board *board, int request_control)
 {
 	board->master = request_control != 0;
 	if (board->interface->request_system_control)
@@ -430,7 +430,7 @@ void ibrsc(gpib_board_t *board, int request_control)
  * IBSRE
  * Send REN true if v is non-zero or false if v is zero.
  */
-int ibsre(gpib_board_t *board, int enable)
+int ibsre(struct gpib_board *board, int enable)
 {
 	if (board->master == 0)
 		return -EINVAL;
@@ -447,7 +447,7 @@ int ibsre(gpib_board_t *board, int enable)
  * change the GPIB address of the interface board.  The address
  * must be 0 through 30.  ibonl resets the address to PAD.
  */
-int ibpad(gpib_board_t *board, unsigned int addr)
+int ibpad(struct gpib_board *board, unsigned int addr)
 {
 	if (addr > MAX_GPIB_PRIMARY_ADDRESS)
 		return -EINVAL;
@@ -465,7 +465,7 @@ int ibpad(gpib_board_t *board, unsigned int addr)
  * The address must be 0 through 30, or negative disables.  ibonl resets the
  * address to SAD.
  */
-int ibsad(gpib_board_t *board, int addr)
+int ibsad(struct gpib_board *board, int addr)
 {
 	if (addr > MAX_GPIB_SECONDARY_ADDRESS)
 		return -EINVAL;
@@ -486,7 +486,7 @@ int ibsad(gpib_board_t *board, int addr)
  * Set the end-of-string modes for I/O operations to v.
  *
  */
-int ibeos(gpib_board_t *board, int eos, int eosflags)
+int ibeos(struct gpib_board *board, int eos, int eosflags)
 {
 	int retval;
 
@@ -501,12 +501,12 @@ int ibeos(gpib_board_t *board, int eos, int eosflags)
 	return retval;
 }
 
-int ibstatus(gpib_board_t *board)
+int ibstatus(struct gpib_board *board)
 {
 	return general_ibstatus(board, NULL, 0, 0, NULL);
 }
 
-int general_ibstatus(gpib_board_t *board, const gpib_status_queue_t *device,
+int general_ibstatus(struct gpib_board *board, const gpib_status_queue_t *device,
 		     int clear_mask, int set_mask, gpib_descriptor_t *desc)
 {
 	int status = 0;
@@ -552,7 +552,7 @@ int general_ibstatus(gpib_board_t *board, const gpib_status_queue_t *device,
 }
 
 struct wait_info {
-	gpib_board_t *board;
+	struct gpib_board *board;
 	struct timer_list timer;
 	int timed_out;
 	unsigned long usec_timeout;
@@ -576,7 +576,7 @@ static void init_wait_info(struct wait_info *winfo)
 static int wait_satisfied(struct wait_info *winfo, gpib_status_queue_t *status_queue,
 			  int wait_mask, int *status, gpib_descriptor_t *desc)
 {
-	gpib_board_t *board = winfo->board;
+	struct gpib_board *board = winfo->board;
 	int temp_status;
 
 	if (mutex_lock_interruptible(&board->big_gpib_mutex))
@@ -622,7 +622,7 @@ static void remove_wait_timer(struct wait_info *winfo)
  * If the mask is 0 then
  * no condition is waited for.
  */
-int ibwait(gpib_board_t *board, int wait_mask, int clear_mask, int set_mask,
+int ibwait(struct gpib_board *board, int wait_mask, int clear_mask, int set_mask,
 	   int *status, unsigned long usec_timeout, gpib_descriptor_t *desc)
 {
 	int retval = 0;
@@ -677,7 +677,7 @@ int ibwait(gpib_board_t *board, int wait_mask, int clear_mask, int set_mask,
  *          well as the interface board itself must be
  *          addressed by calling ibcmd.
  */
-int ibwrt(gpib_board_t *board, uint8_t *buf, size_t cnt, int send_eoi, size_t *bytes_written)
+int ibwrt(struct gpib_board *board, uint8_t *buf, size_t cnt, int send_eoi, size_t *bytes_written)
 {
 	int ret = 0;
 	int retval;

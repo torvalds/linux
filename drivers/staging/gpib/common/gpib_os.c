@@ -26,53 +26,53 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB base support");
 MODULE_ALIAS_CHARDEV_MAJOR(GPIB_CODE);
 
-static int board_type_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board, unsigned long arg);
-static int read_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
+static int board_type_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board, unsigned long arg);
+static int read_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 		      unsigned long arg);
-static int write_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
+static int write_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 		       unsigned long arg);
-static int command_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
+static int command_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 			 unsigned long arg);
-static int open_dev_ioctl(struct file *filep, gpib_board_t *board, unsigned long arg);
-static int close_dev_ioctl(struct file *filep, gpib_board_t *board, unsigned long arg);
-static int serial_poll_ioctl(gpib_board_t *board, unsigned long arg);
-static int wait_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board, unsigned long arg);
-static int parallel_poll_ioctl(gpib_board_t *board, unsigned long arg);
-static int online_ioctl(gpib_board_t *board, unsigned long arg);
-static int remote_enable_ioctl(gpib_board_t *board, unsigned long arg);
-static int take_control_ioctl(gpib_board_t *board, unsigned long arg);
-static int line_status_ioctl(gpib_board_t *board, unsigned long arg);
-static int pad_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
+static int open_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned long arg);
+static int close_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned long arg);
+static int serial_poll_ioctl(struct gpib_board *board, unsigned long arg);
+static int wait_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board, unsigned long arg);
+static int parallel_poll_ioctl(struct gpib_board *board, unsigned long arg);
+static int online_ioctl(struct gpib_board *board, unsigned long arg);
+static int remote_enable_ioctl(struct gpib_board *board, unsigned long arg);
+static int take_control_ioctl(struct gpib_board *board, unsigned long arg);
+static int line_status_ioctl(struct gpib_board *board, unsigned long arg);
+static int pad_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 		     unsigned long arg);
-static int sad_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
+static int sad_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 		     unsigned long arg);
-static int eos_ioctl(gpib_board_t *board, unsigned long arg);
-static int request_service_ioctl(gpib_board_t *board, unsigned long arg);
-static int request_service2_ioctl(gpib_board_t *board, unsigned long arg);
+static int eos_ioctl(struct gpib_board *board, unsigned long arg);
+static int request_service_ioctl(struct gpib_board *board, unsigned long arg);
+static int request_service2_ioctl(struct gpib_board *board, unsigned long arg);
 static int iobase_ioctl(gpib_board_config_t *config, unsigned long arg);
 static int irq_ioctl(gpib_board_config_t *config, unsigned long arg);
 static int dma_ioctl(gpib_board_config_t *config, unsigned long arg);
-static int autospoll_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
+static int autospoll_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 			   unsigned long arg);
-static int mutex_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
+static int mutex_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 		       unsigned long arg);
-static int timeout_ioctl(gpib_board_t *board, unsigned long arg);
-static int status_bytes_ioctl(gpib_board_t *board, unsigned long arg);
-static int board_info_ioctl(const gpib_board_t *board, unsigned long arg);
-static int ppc_ioctl(gpib_board_t *board, unsigned long arg);
-static int set_local_ppoll_mode_ioctl(gpib_board_t *board, unsigned long arg);
-static int get_local_ppoll_mode_ioctl(gpib_board_t *board, unsigned long arg);
-static int query_board_rsv_ioctl(gpib_board_t *board, unsigned long arg);
-static int interface_clear_ioctl(gpib_board_t *board, unsigned long arg);
+static int timeout_ioctl(struct gpib_board *board, unsigned long arg);
+static int status_bytes_ioctl(struct gpib_board *board, unsigned long arg);
+static int board_info_ioctl(const struct gpib_board *board, unsigned long arg);
+static int ppc_ioctl(struct gpib_board *board, unsigned long arg);
+static int set_local_ppoll_mode_ioctl(struct gpib_board *board, unsigned long arg);
+static int get_local_ppoll_mode_ioctl(struct gpib_board *board, unsigned long arg);
+static int query_board_rsv_ioctl(struct gpib_board *board, unsigned long arg);
+static int interface_clear_ioctl(struct gpib_board *board, unsigned long arg);
 static int select_pci_ioctl(gpib_board_config_t *config, unsigned long arg);
 static int select_device_path_ioctl(gpib_board_config_t *config, unsigned long arg);
-static int event_ioctl(gpib_board_t *board, unsigned long arg);
-static int request_system_control_ioctl(gpib_board_t *board, unsigned long arg);
-static int t1_delay_ioctl(gpib_board_t *board, unsigned long arg);
+static int event_ioctl(struct gpib_board *board, unsigned long arg);
+static int request_system_control_ioctl(struct gpib_board *board, unsigned long arg);
+static int t1_delay_ioctl(struct gpib_board *board, unsigned long arg);
 
-static int cleanup_open_devices(gpib_file_private_t *file_priv, gpib_board_t *board);
+static int cleanup_open_devices(gpib_file_private_t *file_priv, struct gpib_board *board);
 
-static int pop_gpib_event_nolock(gpib_board_t *board, gpib_event_queue_t *queue, short *event_type);
+static int pop_gpib_event_nolock(struct gpib_board *board, gpib_event_queue_t *queue, short *event_type);
 
 /*
  * Timer functions
@@ -82,14 +82,14 @@ static int pop_gpib_event_nolock(gpib_board_t *board, gpib_event_queue_t *queue,
 
 static void watchdog_timeout(struct timer_list *t)
 {
-	gpib_board_t *board = from_timer(board, t, timer);
+	struct gpib_board *board = from_timer(board, t, timer);
 
 	set_bit(TIMO_NUM, &board->status);
 	wake_up_interruptible(&board->wait);
 }
 
 /* install timer interrupt handler */
-void os_start_timer(gpib_board_t *board, unsigned int usec_timeout)
+void os_start_timer(struct gpib_board *board, unsigned int usec_timeout)
 /* Starts the timeout task  */
 {
 	if (timer_pending(&board->timer)) {
@@ -105,14 +105,14 @@ void os_start_timer(gpib_board_t *board, unsigned int usec_timeout)
 	}
 }
 
-void os_remove_timer(gpib_board_t *board)
+void os_remove_timer(struct gpib_board *board)
 /* Removes the timeout task */
 {
 	if (timer_pending(&board->timer))
 		del_timer_sync(&board->timer);
 }
 
-int io_timed_out(gpib_board_t *board)
+int io_timed_out(struct gpib_board *board)
 {
 	if (test_bit(TIMO_NUM, &board->status))
 		return 1;
@@ -140,7 +140,7 @@ static void pseudo_irq_handler(struct timer_list *t)
 		mod_timer(&pseudo_irq->timer, jiffies + pseudo_irq_period());
 }
 
-int gpib_request_pseudo_irq(gpib_board_t *board, irqreturn_t (*handler)(int, void *))
+int gpib_request_pseudo_irq(struct gpib_board *board, irqreturn_t (*handler)(int, void *))
 {
 	if (timer_pending(&board->pseudo_irq.timer) || board->pseudo_irq.handler) {
 		dev_err(board->gpib_dev, "only one pseudo interrupt per board allowed\n");
@@ -159,7 +159,7 @@ int gpib_request_pseudo_irq(gpib_board_t *board, irqreturn_t (*handler)(int, voi
 }
 EXPORT_SYMBOL(gpib_request_pseudo_irq);
 
-void gpib_free_pseudo_irq(gpib_board_t *board)
+void gpib_free_pseudo_irq(struct gpib_board *board)
 {
 	atomic_set(&board->pseudo_irq.active, 0);
 
@@ -178,7 +178,7 @@ unsigned int num_status_bytes(const gpib_status_queue_t *dev)
 }
 
 // push status byte onto back of status byte fifo
-int push_status_byte(gpib_board_t *board, gpib_status_queue_t *device, u8 poll_byte)
+int push_status_byte(struct gpib_board *board, gpib_status_queue_t *device, u8 poll_byte)
 {
 	struct list_head *head = &device->status_bytes;
 	status_byte_t *status;
@@ -212,7 +212,7 @@ int push_status_byte(gpib_board_t *board, gpib_status_queue_t *device, u8 poll_b
 }
 
 // pop status byte from front of status byte fifo
-int pop_status_byte(gpib_board_t *board, gpib_status_queue_t *device, u8 *poll_byte)
+int pop_status_byte(struct gpib_board *board, gpib_status_queue_t *device, u8 *poll_byte)
 {
 	struct list_head *head = &device->status_bytes;
 	struct list_head *front = head->next;
@@ -243,7 +243,7 @@ int pop_status_byte(gpib_board_t *board, gpib_status_queue_t *device, u8 *poll_b
 	return 0;
 }
 
-gpib_status_queue_t *get_gpib_status_queue(gpib_board_t *board, unsigned int pad, int sad)
+gpib_status_queue_t *get_gpib_status_queue(struct gpib_board *board, unsigned int pad, int sad)
 {
 	gpib_status_queue_t *device;
 	struct list_head *list_ptr;
@@ -258,7 +258,7 @@ gpib_status_queue_t *get_gpib_status_queue(gpib_board_t *board, unsigned int pad
 	return NULL;
 }
 
-int get_serial_poll_byte(gpib_board_t *board, unsigned int pad, int sad, unsigned int usec_timeout,
+int get_serial_poll_byte(struct gpib_board *board, unsigned int pad, int sad, unsigned int usec_timeout,
 			 uint8_t *poll_byte)
 {
 	gpib_status_queue_t *device;
@@ -270,7 +270,7 @@ int get_serial_poll_byte(gpib_board_t *board, unsigned int pad, int sad, unsigne
 		return dvrsp(board, pad, sad, usec_timeout, poll_byte);
 }
 
-int autopoll_all_devices(gpib_board_t *board)
+int autopoll_all_devices(struct gpib_board *board)
 {
 	int retval;
 
@@ -301,7 +301,7 @@ int autopoll_all_devices(gpib_board_t *board)
 	return retval;
 }
 
-static int setup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
+static int setup_serial_poll(struct gpib_board *board, unsigned int usec_timeout)
 {
 	u8 cmd_string[8];
 	int i;
@@ -333,7 +333,7 @@ static int setup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
 	return 0;
 }
 
-static int read_serial_poll_byte(gpib_board_t *board, unsigned int pad,
+static int read_serial_poll_byte(struct gpib_board *board, unsigned int pad,
 				 int sad, unsigned int usec_timeout, uint8_t *result)
 {
 	u8 cmd_string[8];
@@ -378,7 +378,7 @@ static int read_serial_poll_byte(gpib_board_t *board, unsigned int pad,
 	return 0;
 }
 
-static int cleanup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
+static int cleanup_serial_poll(struct gpib_board *board, unsigned int usec_timeout)
 {
 	u8 cmd_string[8];
 	int ret;
@@ -404,7 +404,7 @@ static int cleanup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
 	return 0;
 }
 
-static int serial_poll_single(gpib_board_t *board, unsigned int pad, int sad,
+static int serial_poll_single(struct gpib_board *board, unsigned int pad, int sad,
 			      unsigned int usec_timeout, uint8_t *result)
 {
 	int retval, cleanup_retval;
@@ -422,7 +422,7 @@ static int serial_poll_single(gpib_board_t *board, unsigned int pad, int sad,
 	return 0;
 }
 
-int serial_poll_all(gpib_board_t *board, unsigned int usec_timeout)
+int serial_poll_all(struct gpib_board *board, unsigned int usec_timeout)
 {
 	int retval = 0;
 	struct list_head *cur;
@@ -469,7 +469,7 @@ int serial_poll_all(gpib_board_t *board, unsigned int usec_timeout)
  * SPD and UNT are sent at the completion of the poll.
  */
 
-int dvrsp(gpib_board_t *board, unsigned int pad, int sad,
+int dvrsp(struct gpib_board *board, unsigned int pad, int sad,
 	  unsigned int usec_timeout, uint8_t *result)
 {
 	int status = ibstatus(board);
@@ -521,7 +521,7 @@ static int init_gpib_file_private(gpib_file_private_t *priv)
 int ibopen(struct inode *inode, struct file *filep)
 {
 	unsigned int minor = iminor(inode);
-	gpib_board_t *board;
+	struct gpib_board *board;
 	gpib_file_private_t *priv;
 
 	if (minor >= GPIB_MAX_NUM_BOARDS) {
@@ -559,7 +559,7 @@ int ibopen(struct inode *inode, struct file *filep)
 int ibclose(struct inode *inode, struct file *filep)
 {
 	unsigned int minor = iminor(inode);
-	gpib_board_t *board;
+	struct gpib_board *board;
 	gpib_file_private_t *priv = filep->private_data;
 	gpib_descriptor_t *desc;
 
@@ -605,7 +605,7 @@ int ibclose(struct inode *inode, struct file *filep)
 long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	unsigned int minor = iminor(filep->f_path.dentry->d_inode);
-	gpib_board_t *board;
+	struct gpib_board *board;
 	gpib_file_private_t *file_priv = filep->private_data;
 	long retval = -ENOTTY;
 
@@ -806,7 +806,7 @@ done:
 	return retval;
 }
 
-static int board_type_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board, unsigned long arg)
+static int board_type_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board, unsigned long arg)
 {
 	struct list_head *list_ptr;
 	board_type_ioctl_t cmd;
@@ -857,7 +857,7 @@ static int board_type_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
 	return -EINVAL;
 }
 
-static int read_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
+static int read_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 		      unsigned long arg)
 {
 	read_write_ioctl_t read_cmd;
@@ -933,7 +933,7 @@ static int read_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
 }
 
 static int command_ioctl(gpib_file_private_t *file_priv,
-			 gpib_board_t *board, unsigned long arg)
+			 struct gpib_board *board, unsigned long arg)
 {
 	read_write_ioctl_t cmd;
 	u8 __user *userbuf;
@@ -1016,7 +1016,7 @@ static int command_ioctl(gpib_file_private_t *file_priv,
 	return retval;
 }
 
-static int write_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
+static int write_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 		       unsigned long arg)
 {
 	read_write_ioctl_t write_cmd;
@@ -1087,7 +1087,7 @@ static int write_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
 	return retval;
 }
 
-static int status_bytes_ioctl(gpib_board_t *board, unsigned long arg)
+static int status_bytes_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	gpib_status_queue_t *device;
 	spoll_bytes_ioctl_t cmd;
@@ -1110,7 +1110,7 @@ static int status_bytes_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int increment_open_device_count(gpib_board_t *board, struct list_head *head,
+static int increment_open_device_count(struct gpib_board *board, struct list_head *head,
 				       unsigned int pad, int sad)
 {
 	struct list_head *list_ptr;
@@ -1145,7 +1145,7 @@ static int increment_open_device_count(gpib_board_t *board, struct list_head *he
 	return 0;
 }
 
-static int subtract_open_device_count(gpib_board_t *board, struct list_head *head,
+static int subtract_open_device_count(struct gpib_board *board, struct list_head *head,
 				      unsigned int pad, int sad, unsigned int count)
 {
 	gpib_status_queue_t *device;
@@ -1174,13 +1174,13 @@ static int subtract_open_device_count(gpib_board_t *board, struct list_head *hea
 	return -EINVAL;
 }
 
-static inline int decrement_open_device_count(gpib_board_t *board, struct list_head *head,
+static inline int decrement_open_device_count(struct gpib_board *board, struct list_head *head,
 					      unsigned int pad, int sad)
 {
 	return subtract_open_device_count(board, head, pad, sad, 1);
 }
 
-static int cleanup_open_devices(gpib_file_private_t *file_priv, gpib_board_t *board)
+static int cleanup_open_devices(gpib_file_private_t *file_priv, struct gpib_board *board)
 {
 	int retval = 0;
 	int i;
@@ -1205,7 +1205,7 @@ static int cleanup_open_devices(gpib_file_private_t *file_priv, gpib_board_t *bo
 	return 0;
 }
 
-static int open_dev_ioctl(struct file *filep, gpib_board_t *board, unsigned long arg)
+static int open_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned long arg)
 {
 	open_dev_ioctl_t open_dev_cmd;
 	int retval;
@@ -1255,7 +1255,7 @@ static int open_dev_ioctl(struct file *filep, gpib_board_t *board, unsigned long
 	return 0;
 }
 
-static int close_dev_ioctl(struct file *filep, gpib_board_t *board, unsigned long arg)
+static int close_dev_ioctl(struct file *filep, struct gpib_board *board, unsigned long arg)
 {
 	close_dev_ioctl_t cmd;
 	gpib_file_private_t *file_priv = filep->private_data;
@@ -1282,7 +1282,7 @@ static int close_dev_ioctl(struct file *filep, gpib_board_t *board, unsigned lon
 	return 0;
 }
 
-static int serial_poll_ioctl(gpib_board_t *board, unsigned long arg)
+static int serial_poll_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	serial_poll_ioctl_t serial_cmd;
 	int retval;
@@ -1303,7 +1303,7 @@ static int serial_poll_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int wait_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
+static int wait_ioctl(gpib_file_private_t *file_priv, struct gpib_board *board,
 		      unsigned long arg)
 {
 	wait_ioctl_t wait_cmd;
@@ -1330,7 +1330,7 @@ static int wait_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
 	return 0;
 }
 
-static int parallel_poll_ioctl(gpib_board_t *board, unsigned long arg)
+static int parallel_poll_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	u8 poll_byte;
 	int retval;
@@ -1346,7 +1346,7 @@ static int parallel_poll_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int online_ioctl(gpib_board_t *board, unsigned long arg)
+static int online_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	online_ioctl_t online_cmd;
 	int retval;
@@ -1390,7 +1390,7 @@ static int online_ioctl(gpib_board_t *board, unsigned long arg)
 	return retval;
 }
 
-static int remote_enable_ioctl(gpib_board_t *board, unsigned long arg)
+static int remote_enable_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	int enable;
 	int retval;
@@ -1402,7 +1402,7 @@ static int remote_enable_ioctl(gpib_board_t *board, unsigned long arg)
 	return ibsre(board, enable);
 }
 
-static int take_control_ioctl(gpib_board_t *board, unsigned long arg)
+static int take_control_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	int synchronous;
 	int retval;
@@ -1414,7 +1414,7 @@ static int take_control_ioctl(gpib_board_t *board, unsigned long arg)
 	return ibcac(board, synchronous, 1);
 }
 
-static int line_status_ioctl(gpib_board_t *board, unsigned long arg)
+static int line_status_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	short lines;
 	int retval;
@@ -1430,7 +1430,7 @@ static int line_status_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int pad_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
+static int pad_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 		     unsigned long arg)
 {
 	pad_ioctl_t cmd;
@@ -1466,7 +1466,7 @@ static int pad_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 	return 0;
 }
 
-static int sad_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
+static int sad_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 		     unsigned long arg)
 {
 	sad_ioctl_t cmd;
@@ -1501,7 +1501,7 @@ static int sad_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 	return 0;
 }
 
-static int eos_ioctl(gpib_board_t *board, unsigned long arg)
+static int eos_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	eos_ioctl_t eos_cmd;
 	int retval;
@@ -1513,7 +1513,7 @@ static int eos_ioctl(gpib_board_t *board, unsigned long arg)
 	return ibeos(board, eos_cmd.eos, eos_cmd.eos_flags);
 }
 
-static int request_service_ioctl(gpib_board_t *board, unsigned long arg)
+static int request_service_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	u8 status_byte;
 	int retval;
@@ -1525,7 +1525,7 @@ static int request_service_ioctl(gpib_board_t *board, unsigned long arg)
 	return ibrsv2(board, status_byte, status_byte & request_service_bit);
 }
 
-static int request_service2_ioctl(gpib_board_t *board, unsigned long arg)
+static int request_service2_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	request_service2_t request_service2_cmd;
 	int retval;
@@ -1592,7 +1592,7 @@ static int dma_ioctl(gpib_board_config_t *config, unsigned long arg)
 	return 0;
 }
 
-static int autospoll_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
+static int autospoll_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 			   unsigned long arg)
 {
 	autospoll_ioctl_t enable;
@@ -1630,7 +1630,7 @@ static int autospoll_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 	return retval;
 }
 
-static int mutex_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
+static int mutex_ioctl(struct gpib_board *board, gpib_file_private_t *file_priv,
 		       unsigned long arg)
 {
 	int retval, lock_mutex;
@@ -1670,7 +1670,7 @@ static int mutex_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 	return 0;
 }
 
-static int timeout_ioctl(gpib_board_t *board, unsigned long arg)
+static int timeout_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	unsigned int timeout;
 	int retval;
@@ -1685,7 +1685,7 @@ static int timeout_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int ppc_ioctl(gpib_board_t *board, unsigned long arg)
+static int ppc_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	ppoll_config_ioctl_t cmd;
 	int retval;
@@ -1711,7 +1711,7 @@ static int ppc_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int set_local_ppoll_mode_ioctl(gpib_board_t *board, unsigned long arg)
+static int set_local_ppoll_mode_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	local_ppoll_mode_ioctl_t cmd;
 	int retval;
@@ -1728,7 +1728,7 @@ static int set_local_ppoll_mode_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int get_local_ppoll_mode_ioctl(gpib_board_t *board, unsigned long arg)
+static int get_local_ppoll_mode_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	local_ppoll_mode_ioctl_t cmd;
 	int retval;
@@ -1741,7 +1741,7 @@ static int get_local_ppoll_mode_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int query_board_rsv_ioctl(gpib_board_t *board, unsigned long arg)
+static int query_board_rsv_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	int status;
 	int retval;
@@ -1755,7 +1755,7 @@ static int query_board_rsv_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int board_info_ioctl(const gpib_board_t *board, unsigned long arg)
+static int board_info_ioctl(const struct gpib_board *board, unsigned long arg)
 {
 	board_info_ioctl_t info;
 	int retval;
@@ -1778,7 +1778,7 @@ static int board_info_ioctl(const gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int interface_clear_ioctl(gpib_board_t *board, unsigned long arg)
+static int interface_clear_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	unsigned int usec_duration;
 	int retval;
@@ -1841,7 +1841,7 @@ unsigned int num_gpib_events(const gpib_event_queue_t *queue)
 	return queue->num_events;
 }
 
-static int push_gpib_event_nolock(gpib_board_t *board, short event_type)
+static int push_gpib_event_nolock(struct gpib_board *board, short event_type)
 {
 	gpib_event_queue_t *queue = &board->event_queue;
 	struct list_head *head = &queue->event_head;
@@ -1879,7 +1879,7 @@ static int push_gpib_event_nolock(gpib_board_t *board, short event_type)
 }
 
 // push event onto back of event queue
-int push_gpib_event(gpib_board_t *board, short event_type)
+int push_gpib_event(struct gpib_board *board, short event_type)
 {
 	unsigned long flags;
 	int retval;
@@ -1897,7 +1897,7 @@ int push_gpib_event(gpib_board_t *board, short event_type)
 }
 EXPORT_SYMBOL(push_gpib_event);
 
-static int pop_gpib_event_nolock(gpib_board_t *board, gpib_event_queue_t *queue, short *event_type)
+static int pop_gpib_event_nolock(struct gpib_board *board, gpib_event_queue_t *queue, short *event_type)
 {
 	struct list_head *head = &queue->event_head;
 	struct list_head *front = head->next;
@@ -1931,7 +1931,7 @@ static int pop_gpib_event_nolock(gpib_board_t *board, gpib_event_queue_t *queue,
 }
 
 // pop event from front of event queue
-int pop_gpib_event(gpib_board_t *board, gpib_event_queue_t *queue, short *event_type)
+int pop_gpib_event(struct gpib_board *board, gpib_event_queue_t *queue, short *event_type)
 {
 	unsigned long flags;
 	int retval;
@@ -1942,7 +1942,7 @@ int pop_gpib_event(gpib_board_t *board, gpib_event_queue_t *queue, short *event_
 	return retval;
 }
 
-static int event_ioctl(gpib_board_t *board, unsigned long arg)
+static int event_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	event_ioctl_t user_event;
 	int retval;
@@ -1961,7 +1961,7 @@ static int event_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int request_system_control_ioctl(gpib_board_t *board, unsigned long arg)
+static int request_system_control_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	rsc_ioctl_t request_control;
 	int retval;
@@ -1975,7 +1975,7 @@ static int request_system_control_ioctl(gpib_board_t *board, unsigned long arg)
 	return 0;
 }
 
-static int t1_delay_ioctl(gpib_board_t *board, unsigned long arg)
+static int t1_delay_ioctl(struct gpib_board *board, unsigned long arg)
 {
 	t1_delay_ioctl_t cmd;
 	unsigned int delay;
@@ -2004,7 +2004,7 @@ static const struct file_operations ib_fops = {
 	.release = &ibclose,
 };
 
-gpib_board_t board_array[GPIB_MAX_NUM_BOARDS];
+struct gpib_board board_array[GPIB_MAX_NUM_BOARDS];
 
 LIST_HEAD(registered_drivers);
 
@@ -2039,7 +2039,7 @@ void gpib_unregister_driver(gpib_interface_t *interface)
 	struct list_head *list_ptr;
 
 	for (i = 0; i < GPIB_MAX_NUM_BOARDS; i++) {
-		gpib_board_t *board = &board_array[i];
+		struct gpib_board *board = &board_array[i];
 
 		if (board->interface == interface) {
 			if (board->use_count > 0)
@@ -2069,7 +2069,7 @@ static void init_gpib_board_config(gpib_board_config_t *config)
 	config->pci_slot = -1;
 }
 
-void init_gpib_board(gpib_board_t *board)
+void init_gpib_board(struct gpib_board *board)
 {
 	board->interface = NULL;
 	board->provider_module = NULL;
@@ -2104,7 +2104,7 @@ void init_gpib_board(gpib_board_t *board)
 	board->local_ppoll_mode = 0;
 }
 
-int gpib_allocate_board(gpib_board_t *board)
+int gpib_allocate_board(struct gpib_board *board)
 {
 	if (!board->buffer) {
 		board->buffer_length = 0x4000;
@@ -2117,7 +2117,7 @@ int gpib_allocate_board(gpib_board_t *board)
 	return 0;
 }
 
-void gpib_deallocate_board(gpib_board_t *board)
+void gpib_deallocate_board(struct gpib_board *board)
 {
 	short dummy;
 
@@ -2130,7 +2130,7 @@ void gpib_deallocate_board(gpib_board_t *board)
 		pop_gpib_event(board, &board->event_queue, &dummy);
 }
 
-static void init_board_array(gpib_board_t *board_array, unsigned int length)
+static void init_board_array(struct gpib_board *board_array, unsigned int length)
 {
 	int i;
 
