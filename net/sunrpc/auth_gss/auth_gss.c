@@ -1545,6 +1545,7 @@ static int gss_marshal(struct rpc_task *task, struct xdr_stream *xdr)
 	struct kvec	iov;
 	struct xdr_buf	verf_buf;
 	int status;
+	u32 seqno;
 
 	/* Credential */
 
@@ -1556,15 +1557,16 @@ static int gss_marshal(struct rpc_task *task, struct xdr_stream *xdr)
 	cred_len = p++;
 
 	spin_lock(&ctx->gc_seq_lock);
-	req->rq_seqno = (ctx->gc_seq < MAXSEQ) ? ctx->gc_seq++ : MAXSEQ;
+	seqno = (ctx->gc_seq < MAXSEQ) ? ctx->gc_seq++ : MAXSEQ;
+	xprt_rqst_add_seqno(req, seqno);
 	spin_unlock(&ctx->gc_seq_lock);
-	if (req->rq_seqno == MAXSEQ)
+	if (*req->rq_seqnos == MAXSEQ)
 		goto expired;
 	trace_rpcgss_seqno(task);
 
 	*p++ = cpu_to_be32(RPC_GSS_VERSION);
 	*p++ = cpu_to_be32(ctx->gc_proc);
-	*p++ = cpu_to_be32(req->rq_seqno);
+	*p++ = cpu_to_be32(*req->rq_seqnos);
 	*p++ = cpu_to_be32(gss_cred->gc_service);
 	p = xdr_encode_netobj(p, &ctx->gc_wire_ctx);
 	*cred_len = cpu_to_be32((p - (cred_len + 1)) << 2);
@@ -1678,17 +1680,31 @@ gss_refresh_null(struct rpc_task *task)
 	return 0;
 }
 
+static u32
+gss_validate_seqno_mic(struct gss_cl_ctx *ctx, u32 seqno, __be32 *seq, __be32 *p, u32 len)
+{
+	struct kvec iov;
+	struct xdr_buf verf_buf;
+	struct xdr_netobj mic;
+
+	*seq = cpu_to_be32(seqno);
+	iov.iov_base = seq;
+	iov.iov_len = 4;
+	xdr_buf_from_iov(&iov, &verf_buf);
+	mic.data = (u8 *)p;
+	mic.len = len;
+	return gss_verify_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
+}
+
 static int
 gss_validate(struct rpc_task *task, struct xdr_stream *xdr)
 {
 	struct rpc_cred *cred = task->tk_rqstp->rq_cred;
 	struct gss_cl_ctx *ctx = gss_cred_get_ctx(cred);
 	__be32		*p, *seq = NULL;
-	struct kvec	iov;
-	struct xdr_buf	verf_buf;
-	struct xdr_netobj mic;
 	u32		len, maj_stat;
 	int		status;
+	int		i = 1; /* don't recheck the first item */
 
 	p = xdr_inline_decode(xdr, 2 * sizeof(*p));
 	if (!p)
@@ -1705,13 +1721,10 @@ gss_validate(struct rpc_task *task, struct xdr_stream *xdr)
 	seq = kmalloc(4, GFP_KERNEL);
 	if (!seq)
 		goto validate_failed;
-	*seq = cpu_to_be32(task->tk_rqstp->rq_seqno);
-	iov.iov_base = seq;
-	iov.iov_len = 4;
-	xdr_buf_from_iov(&iov, &verf_buf);
-	mic.data = (u8 *)p;
-	mic.len = len;
-	maj_stat = gss_verify_mic(ctx->gc_gss_ctx, &verf_buf, &mic);
+	maj_stat = gss_validate_seqno_mic(ctx, task->tk_rqstp->rq_seqnos[0], seq, p, len);
+	/* RFC 2203 5.3.3.1 - compute the checksum of each sequence number in the cache */
+	while (unlikely(maj_stat == GSS_S_BAD_SIG && i < task->tk_rqstp->rq_seqno_count))
+		maj_stat = gss_validate_seqno_mic(ctx, task->tk_rqstp->rq_seqnos[i], seq, p, len);
 	if (maj_stat == GSS_S_CONTEXT_EXPIRED)
 		clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags);
 	if (maj_stat)
@@ -1750,7 +1763,7 @@ gss_wrap_req_integ(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	if (!p)
 		goto wrap_failed;
 	integ_len = p++;
-	*p = cpu_to_be32(rqstp->rq_seqno);
+	*p = cpu_to_be32(*rqstp->rq_seqnos);
 
 	if (rpcauth_wrap_req_encode(task, xdr))
 		goto wrap_failed;
@@ -1847,7 +1860,7 @@ gss_wrap_req_priv(struct rpc_cred *cred, struct gss_cl_ctx *ctx,
 	if (!p)
 		goto wrap_failed;
 	opaque_len = p++;
-	*p = cpu_to_be32(rqstp->rq_seqno);
+	*p = cpu_to_be32(*rqstp->rq_seqnos);
 
 	if (rpcauth_wrap_req_encode(task, xdr))
 		goto wrap_failed;
@@ -2001,7 +2014,7 @@ gss_unwrap_resp_integ(struct rpc_task *task, struct rpc_cred *cred,
 	offset = rcv_buf->len - xdr_stream_remaining(xdr);
 	if (xdr_stream_decode_u32(xdr, &seqno))
 		goto unwrap_failed;
-	if (seqno != rqstp->rq_seqno)
+	if (seqno != *rqstp->rq_seqnos)
 		goto bad_seqno;
 	if (xdr_buf_subsegment(rcv_buf, &gss_data, offset, len))
 		goto unwrap_failed;
@@ -2045,7 +2058,7 @@ unwrap_failed:
 	trace_rpcgss_unwrap_failed(task);
 	goto out;
 bad_seqno:
-	trace_rpcgss_bad_seqno(task, rqstp->rq_seqno, seqno);
+	trace_rpcgss_bad_seqno(task, *rqstp->rq_seqnos, seqno);
 	goto out;
 bad_mic:
 	trace_rpcgss_verify_mic(task, maj_stat);
@@ -2077,7 +2090,7 @@ gss_unwrap_resp_priv(struct rpc_task *task, struct rpc_cred *cred,
 	if (maj_stat != GSS_S_COMPLETE)
 		goto bad_unwrap;
 	/* gss_unwrap decrypted the sequence number */
-	if (be32_to_cpup(p++) != rqstp->rq_seqno)
+	if (be32_to_cpup(p++) != *rqstp->rq_seqnos)
 		goto bad_seqno;
 
 	/* gss_unwrap redacts the opaque blob from the head iovec.
@@ -2093,7 +2106,7 @@ unwrap_failed:
 	trace_rpcgss_unwrap_failed(task);
 	return -EIO;
 bad_seqno:
-	trace_rpcgss_bad_seqno(task, rqstp->rq_seqno, be32_to_cpup(--p));
+	trace_rpcgss_bad_seqno(task, *rqstp->rq_seqnos, be32_to_cpup(--p));
 	return -EIO;
 bad_unwrap:
 	trace_rpcgss_unwrap(task, maj_stat);
@@ -2118,14 +2131,14 @@ gss_xmit_need_reencode(struct rpc_task *task)
 	if (!ctx)
 		goto out;
 
-	if (gss_seq_is_newer(req->rq_seqno, READ_ONCE(ctx->gc_seq)))
+	if (gss_seq_is_newer(*req->rq_seqnos, READ_ONCE(ctx->gc_seq)))
 		goto out_ctx;
 
 	seq_xmit = READ_ONCE(ctx->gc_seq_xmit);
-	while (gss_seq_is_newer(req->rq_seqno, seq_xmit)) {
+	while (gss_seq_is_newer(*req->rq_seqnos, seq_xmit)) {
 		u32 tmp = seq_xmit;
 
-		seq_xmit = cmpxchg(&ctx->gc_seq_xmit, tmp, req->rq_seqno);
+		seq_xmit = cmpxchg(&ctx->gc_seq_xmit, tmp, *req->rq_seqnos);
 		if (seq_xmit == tmp) {
 			ret = false;
 			goto out_ctx;
@@ -2134,7 +2147,7 @@ gss_xmit_need_reencode(struct rpc_task *task)
 
 	win = ctx->gc_win;
 	if (win > 0)
-		ret = !gss_seq_is_newer(req->rq_seqno, seq_xmit - win);
+		ret = !gss_seq_is_newer(*req->rq_seqnos, seq_xmit - win);
 
 out_ctx:
 	gss_put_ctx(ctx);
