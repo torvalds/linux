@@ -16,6 +16,7 @@
    :maxdepth: 1
 
    credentials
+   snp-tdx-threat-model
    lsm
    sak
    self-protection
@@ -25,7 +26,6 @@
    landlock
 
 TODOLIST:
-* snp-tdx-threat-model
 * IMA-templates
 * keys/index
 * lsm-development
