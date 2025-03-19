@@ -652,10 +652,8 @@ static void stop_streaming(struct vb2_queue *q)
 }
 
 static unsigned int
-get_sof_sequence_by_timestamp(struct ipu6_isys_stream *stream,
-			      struct ipu6_fw_isys_resp_info_abi *info)
+get_sof_sequence_by_timestamp(struct ipu6_isys_stream *stream, u64 time)
 {
-	u64 time = (u64)info->timestamp[1] << 32 | info->timestamp[0];
 	struct ipu6_isys *isys = stream->isys;
 	struct device *dev = &isys->adev->auxdev.dev;
 	unsigned int i;
@@ -681,8 +679,7 @@ get_sof_sequence_by_timestamp(struct ipu6_isys_stream *stream,
 	return 0;
 }
 
-static u64 get_sof_ns_delta(struct ipu6_isys_video *av,
-			    struct ipu6_fw_isys_resp_info_abi *info)
+static u64 get_sof_ns_delta(struct ipu6_isys_video *av, u64 timestamp)
 {
 	struct ipu6_bus_device *adev = av->isys->adev;
 	struct ipu6_device *isp = adev->isp;
@@ -692,14 +689,13 @@ static u64 get_sof_ns_delta(struct ipu6_isys_video *av,
 	if (!tsc_now)
 		return 0;
 
-	delta = tsc_now - ((u64)info->timestamp[1] << 32 | info->timestamp[0]);
+	delta = tsc_now - timestamp;
 
 	return ipu6_buttress_tsc_ticks_to_ns(delta, isp);
 }
 
 static void
-ipu6_isys_buf_calc_sequence_time(struct ipu6_isys_buffer *ib,
-				 struct ipu6_fw_isys_resp_info_abi *info)
+ipu6_isys_buf_calc_sequence_time(struct ipu6_isys_buffer *ib, u64 time)
 {
 	struct vb2_buffer *vb = ipu6_isys_buffer_to_vb2_buffer(ib);
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -710,8 +706,8 @@ ipu6_isys_buf_calc_sequence_time(struct ipu6_isys_buffer *ib,
 	u64 ns;
 	u32 sequence;
 
-	ns = ktime_get_ns() - get_sof_ns_delta(av, info);
-	sequence = get_sof_sequence_by_timestamp(stream, info);
+	ns = ktime_get_ns() - get_sof_ns_delta(av, time);
+	sequence = get_sof_sequence_by_timestamp(stream, time);
 
 	vbuf->vb2_buf.timestamp = ns;
 	vbuf->sequence = sequence;
@@ -749,6 +745,7 @@ void ipu6_isys_queue_buf_ready(struct ipu6_isys_stream *stream,
 	unsigned long flags;
 	bool first = true;
 	struct vb2_v4l2_buffer *buf;
+	u64 time = (u64)info->timestamp[1] << 32 | info->timestamp[0];
 
 	spin_lock_irqsave(&aq->lock, flags);
 	if (list_empty(&aq->active)) {
@@ -791,7 +788,7 @@ void ipu6_isys_queue_buf_ready(struct ipu6_isys_stream *stream,
 		list_del(&ib->head);
 		spin_unlock_irqrestore(&aq->lock, flags);
 
-		ipu6_isys_buf_calc_sequence_time(ib, info);
+		ipu6_isys_buf_calc_sequence_time(ib, time);
 
 		ipu6_isys_queue_buf_done(ib);
 
