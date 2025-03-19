@@ -464,6 +464,25 @@ static int ad3552r_hs_setup_custom_gain(struct ad3552r_hs_state *st,
 				      gain, 1);
 }
 
+static int ad3552r_hs_reg_access(struct iio_dev *indio_dev, unsigned int reg,
+				 unsigned int writeval, unsigned int *readval)
+{
+	struct ad3552r_hs_state *st = iio_priv(indio_dev);
+
+	if (reg > st->model_data->max_reg_addr)
+		return -EINVAL;
+
+	/*
+	 * There are 8, 16 or 24 bit registers, but HDL supports only reading 8
+	 * or 16 bit data, not 24. So, also to avoid to check any proper read
+	 * alignment, supporting only 8-bit readings here.
+	 */
+	if (readval)
+		return ad3552r_hs_reg_read(st, reg, readval, 1);
+
+	return st->data->bus_reg_write(st->back, reg, writeval, 1);
+}
+
 static int ad3552r_hs_setup(struct ad3552r_hs_state *st)
 {
 	u16 id;
@@ -639,6 +658,7 @@ static const struct iio_chan_spec ad3552r_hs_channels[] = {
 static const struct iio_info ad3552r_hs_info = {
 	.read_raw = &ad3552r_hs_read_raw,
 	.write_raw = &ad3552r_hs_write_raw,
+	.debugfs_reg_access = &ad3552r_hs_reg_access,
 };
 
 static int ad3552r_hs_probe(struct platform_device *pdev)
