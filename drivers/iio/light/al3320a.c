@@ -80,24 +80,23 @@ static const struct attribute_group al3320a_attribute_group = {
 	.attrs = al3320a_attributes,
 };
 
-static int al3320a_set_pwr(struct i2c_client *client, bool pwr)
+static int al3320a_set_pwr_on(struct i2c_client *client)
 {
-	u8 val = pwr ? AL3320A_CONFIG_ENABLE : AL3320A_CONFIG_DISABLE;
-	return i2c_smbus_write_byte_data(client, AL3320A_REG_CONFIG, val);
+	return i2c_smbus_write_byte_data(client, AL3320A_REG_CONFIG, AL3320A_CONFIG_ENABLE);
 }
 
 static void al3320a_set_pwr_off(void *_data)
 {
 	struct al3320a_data *data = _data;
 
-	al3320a_set_pwr(data->client, false);
+	i2c_smbus_write_byte_data(data->client, AL3320A_REG_CONFIG, AL3320A_CONFIG_DISABLE);
 }
 
 static int al3320a_init(struct al3320a_data *data)
 {
 	int ret;
 
-	ret = al3320a_set_pwr(data->client, true);
+	ret = al3320a_set_pwr_on(data->client);
 
 	if (ret < 0)
 		return ret;
@@ -221,12 +220,15 @@ static int al3320a_probe(struct i2c_client *client)
 
 static int al3320a_suspend(struct device *dev)
 {
-	return al3320a_set_pwr(to_i2c_client(dev), false);
+	struct al3320a_data *data = iio_priv(dev_get_drvdata(dev));
+
+	al3320a_set_pwr_off(data);
+	return 0;
 }
 
 static int al3320a_resume(struct device *dev)
 {
-	return al3320a_set_pwr(to_i2c_client(dev), true);
+	return al3320a_set_pwr_on(to_i2c_client(dev));
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(al3320a_pm_ops, al3320a_suspend,
