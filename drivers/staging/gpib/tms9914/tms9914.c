@@ -27,9 +27,9 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB library for tms9914");
 
-static unsigned int update_status_nolock(gpib_board_t *board, struct tms9914_priv *priv);
+static unsigned int update_status_nolock(struct gpib_board *board, struct tms9914_priv *priv);
 
-int tms9914_take_control(gpib_board_t *board, struct tms9914_priv *priv, int synchronous)
+int tms9914_take_control(struct gpib_board *board, struct tms9914_priv *priv, int synchronous)
 {
 	int i;
 	const int timeout = 100;
@@ -66,7 +66,7 @@ EXPORT_SYMBOL_GPL(tms9914_take_control);
  * The rest of the tms9914 based drivers still use tms9914_take_control
  * directly (which does issue tcs).
  */
-int tms9914_take_control_workaround(gpib_board_t *board, struct tms9914_priv *priv, int synchronous)
+int tms9914_take_control_workaround(struct gpib_board *board, struct tms9914_priv *priv, int synchronous)
 {
 	if (synchronous)
 		return -ETIMEDOUT;
@@ -74,7 +74,7 @@ int tms9914_take_control_workaround(gpib_board_t *board, struct tms9914_priv *pr
 }
 EXPORT_SYMBOL_GPL(tms9914_take_control_workaround);
 
-int tms9914_go_to_standby(gpib_board_t *board, struct tms9914_priv *priv)
+int tms9914_go_to_standby(struct gpib_board *board, struct tms9914_priv *priv)
 {
 	int i;
 	const int timeout = 1000;
@@ -95,7 +95,7 @@ int tms9914_go_to_standby(gpib_board_t *board, struct tms9914_priv *priv)
 }
 EXPORT_SYMBOL_GPL(tms9914_go_to_standby);
 
-void tms9914_interface_clear(gpib_board_t *board, struct tms9914_priv *priv, int assert)
+void tms9914_interface_clear(struct gpib_board *board, struct tms9914_priv *priv, int assert)
 {
 	if (assert) {
 		write_byte(priv, AUX_SIC | AUX_CS, AUXCR);
@@ -107,7 +107,7 @@ void tms9914_interface_clear(gpib_board_t *board, struct tms9914_priv *priv, int
 }
 EXPORT_SYMBOL_GPL(tms9914_interface_clear);
 
-void tms9914_remote_enable(gpib_board_t *board, struct tms9914_priv *priv, int enable)
+void tms9914_remote_enable(struct gpib_board *board, struct tms9914_priv *priv, int enable)
 {
 	if (enable)
 		write_byte(priv, AUX_SRE | AUX_CS, AUXCR);
@@ -116,7 +116,7 @@ void tms9914_remote_enable(gpib_board_t *board, struct tms9914_priv *priv, int e
 }
 EXPORT_SYMBOL_GPL(tms9914_remote_enable);
 
-void tms9914_request_system_control(gpib_board_t *board, struct tms9914_priv *priv,
+void tms9914_request_system_control(struct gpib_board *board, struct tms9914_priv *priv,
 				    int request_control)
 {
 	if (request_control) {
@@ -128,7 +128,7 @@ void tms9914_request_system_control(gpib_board_t *board, struct tms9914_priv *pr
 }
 EXPORT_SYMBOL_GPL(tms9914_request_system_control);
 
-unsigned int tms9914_t1_delay(gpib_board_t *board, struct tms9914_priv *priv,
+unsigned int tms9914_t1_delay(struct gpib_board *board, struct tms9914_priv *priv,
 			      unsigned int nano_sec)
 {
 	static const int clock_period = 200;	// assuming 5Mhz input clock
@@ -154,7 +154,7 @@ unsigned int tms9914_t1_delay(gpib_board_t *board, struct tms9914_priv *priv,
 }
 EXPORT_SYMBOL_GPL(tms9914_t1_delay);
 
-void tms9914_return_to_local(const gpib_board_t *board, struct tms9914_priv *priv)
+void tms9914_return_to_local(const struct gpib_board *board, struct tms9914_priv *priv)
 {
 	write_byte(priv, AUX_RTL, AUXCR);
 }
@@ -192,7 +192,7 @@ void tms9914_release_holdoff(struct tms9914_priv *priv)
 }
 EXPORT_SYMBOL_GPL(tms9914_release_holdoff);
 
-int tms9914_enable_eos(gpib_board_t *board, struct tms9914_priv *priv, uint8_t eos_byte,
+int tms9914_enable_eos(struct gpib_board *board, struct tms9914_priv *priv, uint8_t eos_byte,
 		       int compare_8_bits)
 {
 	priv->eos = eos_byte;
@@ -203,13 +203,13 @@ int tms9914_enable_eos(gpib_board_t *board, struct tms9914_priv *priv, uint8_t e
 }
 EXPORT_SYMBOL(tms9914_enable_eos);
 
-void tms9914_disable_eos(gpib_board_t *board, struct tms9914_priv *priv)
+void tms9914_disable_eos(struct gpib_board *board, struct tms9914_priv *priv)
 {
 	priv->eos_flags &= ~REOS;
 }
 EXPORT_SYMBOL(tms9914_disable_eos);
 
-int tms9914_parallel_poll(gpib_board_t *board, struct tms9914_priv *priv, uint8_t *result)
+int tms9914_parallel_poll(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *result)
 {
 	// execute parallel poll
 	write_byte(priv, AUX_CS | AUX_RPP, AUXCR);
@@ -234,7 +234,7 @@ static void set_ppoll_reg(struct tms9914_priv *priv, int enable,
 	}
 }
 
-void tms9914_parallel_poll_configure(gpib_board_t *board,
+void tms9914_parallel_poll_configure(struct gpib_board *board,
 				     struct tms9914_priv *priv, uint8_t config)
 {
 	priv->ppoll_enable = (config & PPC_DISABLE) == 0;
@@ -244,14 +244,14 @@ void tms9914_parallel_poll_configure(gpib_board_t *board,
 }
 EXPORT_SYMBOL(tms9914_parallel_poll_configure);
 
-void tms9914_parallel_poll_response(gpib_board_t *board,
+void tms9914_parallel_poll_response(struct gpib_board *board,
 				    struct tms9914_priv *priv, int ist)
 {
 	set_ppoll_reg(priv, priv->ppoll_enable, priv->ppoll_line, priv->ppoll_sense, ist);
 }
 EXPORT_SYMBOL(tms9914_parallel_poll_response);
 
-void tms9914_serial_poll_response(gpib_board_t *board, struct tms9914_priv *priv, uint8_t status)
+void tms9914_serial_poll_response(struct gpib_board *board, struct tms9914_priv *priv, uint8_t status)
 {
 	unsigned long flags;
 
@@ -266,7 +266,7 @@ void tms9914_serial_poll_response(gpib_board_t *board, struct tms9914_priv *priv
 }
 EXPORT_SYMBOL(tms9914_serial_poll_response);
 
-uint8_t tms9914_serial_poll_status(gpib_board_t *board, struct tms9914_priv *priv)
+uint8_t tms9914_serial_poll_status(struct gpib_board *board, struct tms9914_priv *priv)
 {
 	u8 status;
 	unsigned long flags;
@@ -279,7 +279,7 @@ uint8_t tms9914_serial_poll_status(gpib_board_t *board, struct tms9914_priv *pri
 }
 EXPORT_SYMBOL(tms9914_serial_poll_status);
 
-int tms9914_primary_address(gpib_board_t *board, struct tms9914_priv *priv, unsigned int address)
+int tms9914_primary_address(struct gpib_board *board, struct tms9914_priv *priv, unsigned int address)
 {
 	// put primary address in address0
 	write_byte(priv, address & ADDRESS_MASK, ADR);
@@ -287,7 +287,7 @@ int tms9914_primary_address(gpib_board_t *board, struct tms9914_priv *priv, unsi
 }
 EXPORT_SYMBOL(tms9914_primary_address);
 
-int tms9914_secondary_address(gpib_board_t *board, struct tms9914_priv *priv,
+int tms9914_secondary_address(struct gpib_board *board, struct tms9914_priv *priv,
 			      unsigned int address, int enable)
 {
 	if (enable)
@@ -300,7 +300,7 @@ int tms9914_secondary_address(gpib_board_t *board, struct tms9914_priv *priv,
 }
 EXPORT_SYMBOL(tms9914_secondary_address);
 
-unsigned int tms9914_update_status(gpib_board_t *board, struct tms9914_priv *priv,
+unsigned int tms9914_update_status(struct gpib_board *board, struct tms9914_priv *priv,
 				   unsigned int clear_mask)
 {
 	unsigned long flags;
@@ -342,7 +342,7 @@ static void update_listener_state(struct tms9914_priv *priv, unsigned int addres
 	}
 }
 
-static unsigned int update_status_nolock(gpib_board_t *board, struct tms9914_priv *priv)
+static unsigned int update_status_nolock(struct gpib_board *board, struct tms9914_priv *priv)
 {
 	int address_status;
 	int bsr_bits;
@@ -388,7 +388,7 @@ static unsigned int update_status_nolock(gpib_board_t *board, struct tms9914_pri
 	return board->status;
 }
 
-int tms9914_line_status(const gpib_board_t *board, struct tms9914_priv *priv)
+int tms9914_line_status(const struct gpib_board *board, struct tms9914_priv *priv)
 {
 	int bsr_bits;
 	int status = VALID_ALL;
@@ -433,7 +433,7 @@ static int check_for_eos(struct tms9914_priv *priv, uint8_t byte)
 	return 0;
 }
 
-static int wait_for_read_byte(gpib_board_t *board, struct tms9914_priv *priv)
+static int wait_for_read_byte(struct gpib_board *board, struct tms9914_priv *priv)
 {
 	if (wait_event_interruptible(board->wait,
 				     test_bit(READ_READY_BN, &priv->state) ||
@@ -449,7 +449,7 @@ static int wait_for_read_byte(gpib_board_t *board, struct tms9914_priv *priv)
 	return 0;
 }
 
-static inline uint8_t tms9914_read_data_in(gpib_board_t *board, struct tms9914_priv *priv, int *end)
+static inline uint8_t tms9914_read_data_in(struct gpib_board *board, struct tms9914_priv *priv, int *end)
 {
 	unsigned long flags;
 	u8 data;
@@ -480,7 +480,7 @@ static inline uint8_t tms9914_read_data_in(gpib_board_t *board, struct tms9914_p
 	return data;
 }
 
-static int pio_read(gpib_board_t *board, struct tms9914_priv *priv, uint8_t *buffer,
+static int pio_read(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer,
 		    size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -501,7 +501,7 @@ static int pio_read(gpib_board_t *board, struct tms9914_priv *priv, uint8_t *buf
 	return retval;
 }
 
-int tms9914_read(gpib_board_t *board, struct tms9914_priv *priv, uint8_t *buffer,
+int tms9914_read(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer,
 		 size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -541,7 +541,7 @@ int tms9914_read(gpib_board_t *board, struct tms9914_priv *priv, uint8_t *buffer
 }
 EXPORT_SYMBOL(tms9914_read);
 
-static int pio_write_wait(gpib_board_t *board, struct tms9914_priv *priv)
+static int pio_write_wait(struct gpib_board *board, struct tms9914_priv *priv)
 {
 	// wait until next byte is ready to be sent
 	if (wait_event_interruptible(board->wait,
@@ -561,7 +561,7 @@ static int pio_write_wait(gpib_board_t *board, struct tms9914_priv *priv)
 	return 0;
 }
 
-static int pio_write(gpib_board_t *board, struct tms9914_priv *priv, uint8_t *buffer,
+static int pio_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer,
 		     size_t length, size_t *bytes_written)
 {
 	ssize_t retval = 0;
@@ -585,7 +585,7 @@ static int pio_write(gpib_board_t *board, struct tms9914_priv *priv, uint8_t *bu
 	return length;
 }
 
-int tms9914_write(gpib_board_t *board, struct tms9914_priv *priv, uint8_t *buffer, size_t length,
+int tms9914_write(struct gpib_board *board, struct tms9914_priv *priv, uint8_t *buffer, size_t length,
 		  int send_eoi, size_t *bytes_written)
 {
 	ssize_t retval = 0;
@@ -620,7 +620,7 @@ int tms9914_write(gpib_board_t *board, struct tms9914_priv *priv, uint8_t *buffe
 }
 EXPORT_SYMBOL(tms9914_write);
 
-static void check_my_address_state(gpib_board_t *board, struct tms9914_priv *priv, int cmd_byte)
+static void check_my_address_state(struct gpib_board *board, struct tms9914_priv *priv, int cmd_byte)
 {
 	if (cmd_byte == MLA(board->pad)) {
 		priv->primary_listen_addressed = 1;
@@ -655,7 +655,7 @@ static void check_my_address_state(gpib_board_t *board, struct tms9914_priv *pri
 	}
 }
 
-int tms9914_command(gpib_board_t *board, struct tms9914_priv *priv,  uint8_t *buffer,
+int tms9914_command(struct gpib_board *board, struct tms9914_priv *priv,  uint8_t *buffer,
 		    size_t length, size_t *bytes_written)
 {
 	int retval = 0;
@@ -692,7 +692,7 @@ int tms9914_command(gpib_board_t *board, struct tms9914_priv *priv,  uint8_t *bu
 }
 EXPORT_SYMBOL(tms9914_command);
 
-irqreturn_t tms9914_interrupt(gpib_board_t *board, struct tms9914_priv *priv)
+irqreturn_t tms9914_interrupt(struct gpib_board *board, struct tms9914_priv *priv)
 {
 	int status0, status1;
 
@@ -703,7 +703,7 @@ irqreturn_t tms9914_interrupt(gpib_board_t *board, struct tms9914_priv *priv)
 }
 EXPORT_SYMBOL(tms9914_interrupt);
 
-irqreturn_t tms9914_interrupt_have_status(gpib_board_t *board, struct tms9914_priv *priv,
+irqreturn_t tms9914_interrupt_have_status(struct gpib_board *board, struct tms9914_priv *priv,
 					  int status0, int status1)
 {
 	// record reception of END
@@ -837,7 +837,7 @@ void tms9914_board_reset(struct tms9914_priv *priv)
 }
 EXPORT_SYMBOL_GPL(tms9914_board_reset);
 
-void tms9914_online(gpib_board_t *board, struct tms9914_priv *priv)
+void tms9914_online(struct gpib_board *board, struct tms9914_priv *priv)
 {
 	/* set GPIB address */
 	tms9914_primary_address(board, priv, board->pad);
