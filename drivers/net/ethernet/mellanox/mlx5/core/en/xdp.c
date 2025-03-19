@@ -390,6 +390,7 @@ static void mlx5e_xdp_mpwqe_session_start(struct mlx5e_xdpsq *sq)
 		.wqe = wqe,
 		.bytes_count = 0,
 		.ds_count = MLX5E_TX_WQE_EMPTY_DS_COUNT,
+		.ds_count_max = sq->max_sq_mpw_wqebbs * MLX5_SEND_WQEBB_NUM_DS,
 		.pkt_count = 0,
 		.inline_on = mlx5e_xdp_get_inline_state(sq, session->inline_on),
 	};
@@ -501,7 +502,7 @@ mlx5e_xmit_xdp_frame_mpwqe(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptx
 
 	mlx5e_xdp_mpwqe_add_dseg(sq, p, stats);
 
-	if (unlikely(mlx5e_xdp_mpwqe_is_full(session, sq->max_sq_mpw_wqebbs)))
+	if (unlikely(mlx5e_xdp_mpwqe_is_full(session)))
 		mlx5e_xdp_mpwqe_complete(sq);
 
 	stats->xmit++;

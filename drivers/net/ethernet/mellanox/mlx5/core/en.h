@@ -398,6 +398,7 @@ struct mlx5e_tx_mpwqe {
 	struct mlx5e_tx_wqe *wqe;
 	u32 bytes_count;
 	u8 ds_count;
+	u8 ds_count_max;
 	u8 pkt_count;
 	u8 inline_on;
 };
