@@ -415,7 +415,7 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 	struct vgic_irq *irq;
 	struct its_vlpi_map map;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
 
 	if (!vgic_supports_direct_msis(kvm))
 		return 0;
@@ -430,10 +430,15 @@ int kvm_vgic_v4_set_forwarding(struct kvm *kvm, int virq,
 
 	mutex_lock(&its->its_lock);
 
-	/* Perform the actual DevID/EventID -> LPI translation. */
-	ret = vgic_its_resolve_lpi(kvm, its, irq_entry->msi.devid,
-				   irq_entry->msi.data, &irq);
-	if (ret)
+	/*
+	 * Perform the actual DevID/EventID -> LPI translation.
+	 *
+	 * Silently exit if translation fails as the guest (or userspace!) has
+	 * managed to do something stupid. Emulated LPI injection will still
+	 * work if the guest figures itself out at a later time.
+	 */
+	if (vgic_its_resolve_lpi(kvm, its, irq_entry->msi.devid,
+				 irq_entry->msi.data, &irq))
 		goto out;
 
 	/* Silently exit if the vLPI is already mapped */
@@ -512,7 +517,7 @@ int kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int virq,
 	if (ret)
 		goto out;
 
-	WARN_ON(!(irq->hw && irq->host_irq == virq));
+	WARN_ON(irq->hw && irq->host_irq != virq);
 	if (irq->hw) {
 		atomic_dec(&irq->target_vcpu->arch.vgic_cpu.vgic_v3.its_vpe.vlpi_count);
 		irq->hw = false;
