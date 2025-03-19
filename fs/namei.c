@@ -2834,13 +2834,12 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 }
 EXPORT_SYMBOL(vfs_path_lookup);
 
-static int lookup_noperm_common(const char *name, struct dentry *base,
-				  int len,
-				  struct qstr *this)
+static int lookup_noperm_common(struct qstr *qname, struct dentry *base)
 {
-	this->name = name;
-	this->len = len;
-	this->hash = full_name_hash(base, name, len);
+	const char *name = qname->name;
+	u32 len = qname->len;
+
+	qname->hash = full_name_hash(base, name, len);
 	if (!len)
 		return -EACCES;
 
@@ -2857,7 +2856,7 @@ static int lookup_noperm_common(const char *name, struct dentry *base,
 	 * to use its own hash..
 	 */
 	if (base->d_flags & DCACHE_OP_HASH) {
-		int err = base->d_op->d_hash(base, this);
+		int err = base->d_op->d_hash(base, qname);
 		if (err < 0)
 			return err;
 	}
@@ -2865,10 +2864,10 @@ static int lookup_noperm_common(const char *name, struct dentry *base,
 }
 
 static int lookup_one_common(struct mnt_idmap *idmap,
-			     const char *name, struct dentry *base, int len,
-			     struct qstr *this) {
+			     struct qstr *qname, struct dentry *base)
+{
 	int err;
-	err = lookup_noperm_common(name, base, len, this);
+	err = lookup_noperm_common(qname, base);
 	if (err < 0)
 		return err;
 	return inode_permission(idmap, base->d_inode, MAY_EXEC);
@@ -2890,14 +2889,12 @@ static int lookup_one_common(struct mnt_idmap *idmap,
  */
 struct dentry *try_lookup_noperm(struct qstr *name, struct dentry *base)
 {
-	struct qstr this;
 	int err;
 
-	err = lookup_noperm_common(name->name, base, name->len, &this);
+	err = lookup_noperm_common(name, base);
 	if (err)
 		return ERR_PTR(err);
 
-	name->hash = this.hash;
 	return lookup_dcache(name, base, 0);
 }
 EXPORT_SYMBOL(try_lookup_noperm);
@@ -2915,17 +2912,16 @@ EXPORT_SYMBOL(try_lookup_noperm);
 struct dentry *lookup_noperm(struct qstr *name, struct dentry *base)
 {
 	struct dentry *dentry;
-	struct qstr this;
 	int err;
 
 	WARN_ON_ONCE(!inode_is_locked(base->d_inode));
 
-	err = lookup_noperm_common(name->name, base, name->len, &this);
+	err = lookup_noperm_common(name, base);
 	if (err)
 		return ERR_PTR(err);
 
-	dentry = lookup_dcache(&this, base, 0);
-	return dentry ? dentry : __lookup_slow(&this, base, 0);
+	dentry = lookup_dcache(name, base, 0);
+	return dentry ? dentry : __lookup_slow(name, base, 0);
 }
 EXPORT_SYMBOL(lookup_noperm);
 
@@ -2943,17 +2939,16 @@ struct dentry *lookup_one(struct mnt_idmap *idmap, struct qstr *name,
 			  struct dentry *base)
 {
 	struct dentry *dentry;
-	struct qstr this;
 	int err;
 
 	WARN_ON_ONCE(!inode_is_locked(base->d_inode));
 
-	err = lookup_one_common(idmap, name->name, base, name->len, &this);
+	err = lookup_one_common(idmap, name, base);
 	if (err)
 		return ERR_PTR(err);
 
-	dentry = lookup_dcache(&this, base, 0);
-	return dentry ? dentry : __lookup_slow(&this, base, 0);
+	dentry = lookup_dcache(name, base, 0);
+	return dentry ? dentry : __lookup_slow(name, base, 0);
 }
 EXPORT_SYMBOL(lookup_one);
 
@@ -2968,20 +2963,19 @@ EXPORT_SYMBOL(lookup_one);
  * Unlike lookup_one, it should be called without the parent
  * i_rwsem held, and will take the i_rwsem itself if necessary.
  */
-struct dentry *lookup_one_unlocked(struct mnt_idmap *idmap,
-				   struct qstr *name, struct dentry *base)
+struct dentry *lookup_one_unlocked(struct mnt_idmap *idmap, struct qstr *name,
+				   struct dentry *base)
 {
-	struct qstr this;
 	int err;
 	struct dentry *ret;
 
-	err = lookup_one_common(idmap, name->name, base, name->len, &this);
+	err = lookup_one_common(idmap, name, base);
 	if (err)
 		return ERR_PTR(err);
 
-	ret = lookup_dcache(&this, base, 0);
+	ret = lookup_dcache(name, base, 0);
 	if (!ret)
-		ret = lookup_slow(&this, base, 0);
+		ret = lookup_slow(name, base, 0);
 	return ret;
 }
 EXPORT_SYMBOL(lookup_one_unlocked);
