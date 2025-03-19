@@ -3134,25 +3134,6 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 		goto out;
 	}
 
-	if (!cfg->nh_fdb && tb[NHA_OIF]) {
-		cfg->nh_ifindex = nla_get_u32(tb[NHA_OIF]);
-		if (cfg->nh_ifindex)
-			cfg->dev = __dev_get_by_index(net, cfg->nh_ifindex);
-
-		if (!cfg->dev) {
-			NL_SET_ERR_MSG(extack, "Invalid device index");
-			goto out;
-		} else if (!(cfg->dev->flags & IFF_UP)) {
-			NL_SET_ERR_MSG(extack, "Nexthop device is not up");
-			err = -ENETDOWN;
-			goto out;
-		} else if (!netif_carrier_ok(cfg->dev)) {
-			NL_SET_ERR_MSG(extack, "Carrier for nexthop device is down");
-			err = -ENETDOWN;
-			goto out;
-		}
-	}
-
 	err = -EINVAL;
 	if (tb[NHA_GATEWAY]) {
 		struct nlattr *gwa = tb[NHA_GATEWAY];
@@ -3216,10 +3197,32 @@ out:
 }
 
 static int rtm_to_nh_config_rtnl(struct net *net, struct nlattr **tb,
+				 struct nh_config *cfg,
 				 struct netlink_ext_ack *extack)
 {
 	if (tb[NHA_GROUP])
 		return nh_check_attr_group_rtnl(net, tb, extack);
+
+	if (tb[NHA_OIF]) {
+		cfg->nh_ifindex = nla_get_u32(tb[NHA_OIF]);
+		if (cfg->nh_ifindex)
+			cfg->dev = __dev_get_by_index(net, cfg->nh_ifindex);
+
+		if (!cfg->dev) {
+			NL_SET_ERR_MSG(extack, "Invalid device index");
+			return -EINVAL;
+		}
+
+		if (!(cfg->dev->flags & IFF_UP)) {
+			NL_SET_ERR_MSG(extack, "Nexthop device is not up");
+			return -ENETDOWN;
+		}
+
+		if (!netif_carrier_ok(cfg->dev)) {
+			NL_SET_ERR_MSG(extack, "Carrier for nexthop device is down");
+			return -ENETDOWN;
+		}
+	}
 
 	return 0;
 }
@@ -3244,7 +3247,7 @@ static int rtm_new_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err)
 		goto out;
 
-	err = rtm_to_nh_config_rtnl(net, tb, extack);
+	err = rtm_to_nh_config_rtnl(net, tb, &cfg, extack);
 	if (err)
 		goto out;
 
