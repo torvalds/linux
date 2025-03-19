@@ -27,7 +27,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver Measurement Computing boards using cb7210.2 and cbi488.2");
 
-static int cb7210_read(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int cb7210_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 		       int *end, size_t *bytes_read);
 
 	static inline int have_fifo_word(const struct cb7210_priv *cb_priv)
@@ -40,7 +40,7 @@ static int cb7210_read(gpib_board_t *board, uint8_t *buffer, size_t length,
 		return 0;
 }
 
-static inline void input_fifo_enable(gpib_board_t *board, int enable)
+static inline void input_fifo_enable(struct gpib_board *board, int enable)
 {
 	struct cb7210_priv *cb_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
@@ -76,7 +76,7 @@ static inline void input_fifo_enable(gpib_board_t *board, int enable)
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static int fifo_read(gpib_board_t *board, struct cb7210_priv *cb_priv, uint8_t *buffer,
+static int fifo_read(struct gpib_board *board, struct cb7210_priv *cb_priv, uint8_t *buffer,
 		     size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -170,7 +170,7 @@ static int fifo_read(gpib_board_t *board, struct cb7210_priv *cb_priv, uint8_t *
 	return retval;
 }
 
-static int cb7210_accel_read(gpib_board_t *board, uint8_t *buffer,
+static int cb7210_accel_read(struct gpib_board *board, uint8_t *buffer,
 			     size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval;
@@ -229,7 +229,7 @@ static int output_fifo_empty(const struct cb7210_priv *cb_priv)
 		return 0;
 }
 
-static inline void output_fifo_enable(gpib_board_t *board, int enable)
+static inline void output_fifo_enable(struct gpib_board *board, int enable)
 {
 	struct cb7210_priv *cb_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
@@ -264,7 +264,8 @@ static inline void output_fifo_enable(gpib_board_t *board, int enable)
 	spin_unlock_irqrestore(&board->spinlock, flags);
 }
 
-static int fifo_write(gpib_board_t *board, uint8_t *buffer, size_t length, size_t *bytes_written)
+static int fifo_write(struct gpib_board *board, uint8_t *buffer, size_t length,
+		      size_t *bytes_written)
 {
 	size_t count = 0;
 	ssize_t retval = 0;
@@ -349,8 +350,8 @@ static int fifo_write(gpib_board_t *board, uint8_t *buffer, size_t length, size_
 	return retval;
 }
 
-static int cb7210_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
-			      size_t *bytes_written)
+static int cb7210_accel_write(struct gpib_board *board, uint8_t *buffer,
+			      size_t length, int send_eoi, size_t *bytes_written)
 {
 	struct cb7210_priv *cb_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
@@ -377,7 +378,7 @@ static int cb7210_accel_write(gpib_board_t *board, uint8_t *buffer, size_t lengt
 	return retval;
 }
 
-static int cb7210_line_status(const gpib_board_t *board)
+static int cb7210_line_status(const struct gpib_board *board)
 {
 	int status = VALID_ALL;
 	int bsr_bits;
@@ -407,7 +408,7 @@ static int cb7210_line_status(const gpib_board_t *board)
 	return status;
 }
 
-static unsigned int cb7210_t1_delay(gpib_board_t *board, unsigned int nano_sec)
+static unsigned int cb7210_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	struct cb7210_priv *cb_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
@@ -424,7 +425,7 @@ static unsigned int cb7210_t1_delay(gpib_board_t *board, unsigned int nano_sec)
 	return retval;
 }
 
-static irqreturn_t cb7210_locked_internal_interrupt(gpib_board_t *board);
+static irqreturn_t cb7210_locked_internal_interrupt(struct gpib_board *board);
 
 /*
  * GPIB interrupt service routines
@@ -433,7 +434,7 @@ static irqreturn_t cb7210_locked_internal_interrupt(gpib_board_t *board);
 static irqreturn_t cb_pci_interrupt(int irq, void *arg)
 {
 	int bits;
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	struct cb7210_priv *priv = board->private_data;
 
 	// first task check if this is really our interrupt in a shared irq environment
@@ -462,7 +463,7 @@ static irqreturn_t cb_pci_interrupt(int irq, void *arg)
 	return cb7210_locked_internal_interrupt(arg);
 }
 
-static irqreturn_t cb7210_internal_interrupt(gpib_board_t *board)
+static irqreturn_t cb7210_internal_interrupt(struct gpib_board *board)
 {
 	int hs_status, status1, status2;
 	struct cb7210_priv *priv = board->private_data;
@@ -516,7 +517,7 @@ static irqreturn_t cb7210_internal_interrupt(gpib_board_t *board)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t cb7210_locked_internal_interrupt(gpib_board_t *board)
+static irqreturn_t cb7210_locked_internal_interrupt(struct gpib_board *board)
 {
 	unsigned long flags;
 	irqreturn_t retval;
@@ -532,14 +533,14 @@ static irqreturn_t cb7210_interrupt(int irq, void *arg)
 	return cb7210_internal_interrupt(arg);
 }
 
-static int cb_pci_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static int cb_isa_attach(gpib_board_t *board, const gpib_board_config_t *config);
+static int cb_pci_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static int cb_isa_attach(struct gpib_board *board, const gpib_board_config_t *config);
 
-static void cb_pci_detach(gpib_board_t *board);
-static void cb_isa_detach(gpib_board_t *board);
+static void cb_pci_detach(struct gpib_board *board);
+static void cb_isa_detach(struct gpib_board *board);
 
 // wrappers for interface functions
-static int cb7210_read(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int cb7210_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 		       int *end, size_t *bytes_read)
 {
 	struct cb7210_priv *priv = board->private_data;
@@ -547,7 +548,7 @@ static int cb7210_read(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return nec7210_read(board, &priv->nec7210_priv, buffer, length, end, bytes_read);
 }
 
-static int cb7210_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int cb7210_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 			int send_eoi, size_t *bytes_written)
 {
 	struct cb7210_priv *priv = board->private_data;
@@ -555,7 +556,7 @@ static int cb7210_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return nec7210_write(board, &priv->nec7210_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int cb7210_command(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int cb7210_command(struct gpib_board *board, uint8_t *buffer, size_t length,
 			  size_t *bytes_written)
 {
 	struct cb7210_priv *priv = board->private_data;
@@ -563,21 +564,21 @@ static int cb7210_command(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return nec7210_command(board, &priv->nec7210_priv, buffer, length, bytes_written);
 }
 
-static int cb7210_take_control(gpib_board_t *board, int synchronous)
+static int cb7210_take_control(struct gpib_board *board, int synchronous)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	return nec7210_take_control(board, &priv->nec7210_priv, synchronous);
 }
 
-static int cb7210_go_to_standby(gpib_board_t *board)
+static int cb7210_go_to_standby(struct gpib_board *board)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	return nec7210_go_to_standby(board, &priv->nec7210_priv);
 }
 
-static void cb7210_request_system_control(gpib_board_t *board, int request_control)
+static void cb7210_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct cb7210_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -591,91 +592,91 @@ static void cb7210_request_system_control(gpib_board_t *board, int request_contr
 	nec7210_request_system_control(board, nec_priv, request_control);
 }
 
-static void cb7210_interface_clear(gpib_board_t *board, int assert)
+static void cb7210_interface_clear(struct gpib_board *board, int assert)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	nec7210_interface_clear(board, &priv->nec7210_priv, assert);
 }
 
-static void cb7210_remote_enable(gpib_board_t *board, int enable)
+static void cb7210_remote_enable(struct gpib_board *board, int enable)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	nec7210_remote_enable(board, &priv->nec7210_priv, enable);
 }
 
-static int cb7210_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
+static int cb7210_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	return nec7210_enable_eos(board, &priv->nec7210_priv, eos_byte, compare_8_bits);
 }
 
-static void cb7210_disable_eos(gpib_board_t *board)
+static void cb7210_disable_eos(struct gpib_board *board)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	nec7210_disable_eos(board, &priv->nec7210_priv);
 }
 
-static unsigned int cb7210_update_status(gpib_board_t *board, unsigned int clear_mask)
+static unsigned int cb7210_update_status(struct gpib_board *board, unsigned int clear_mask)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	return nec7210_update_status(board, &priv->nec7210_priv, clear_mask);
 }
 
-static int cb7210_primary_address(gpib_board_t *board, unsigned int address)
+static int cb7210_primary_address(struct gpib_board *board, unsigned int address)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	return nec7210_primary_address(board, &priv->nec7210_priv, address);
 }
 
-static int cb7210_secondary_address(gpib_board_t *board, unsigned int address, int enable)
+static int cb7210_secondary_address(struct gpib_board *board, unsigned int address, int enable)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	return nec7210_secondary_address(board, &priv->nec7210_priv, address, enable);
 }
 
-static int cb7210_parallel_poll(gpib_board_t *board, uint8_t *result)
+static int cb7210_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	return nec7210_parallel_poll(board, &priv->nec7210_priv, result);
 }
 
-static void cb7210_parallel_poll_configure(gpib_board_t *board, uint8_t configuration)
+static void cb7210_parallel_poll_configure(struct gpib_board *board, uint8_t configuration)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	nec7210_parallel_poll_configure(board, &priv->nec7210_priv, configuration);
 }
 
-static void cb7210_parallel_poll_response(gpib_board_t *board, int ist)
+static void cb7210_parallel_poll_response(struct gpib_board *board, int ist)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	nec7210_parallel_poll_response(board, &priv->nec7210_priv, ist);
 }
 
-static void cb7210_serial_poll_response(gpib_board_t *board, uint8_t status)
+static void cb7210_serial_poll_response(struct gpib_board *board, uint8_t status)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	nec7210_serial_poll_response(board, &priv->nec7210_priv, status);
 }
 
-static uint8_t cb7210_serial_poll_status(gpib_board_t *board)
+static uint8_t cb7210_serial_poll_status(struct gpib_board *board)
 {
 	struct cb7210_priv *priv = board->private_data;
 
 	return nec7210_serial_poll_status(board, &priv->nec7210_priv);
 }
 
-static void cb7210_return_to_local(gpib_board_t *board)
+static void cb7210_return_to_local(struct gpib_board *board)
 {
 	struct cb7210_priv *priv = board->private_data;
 	struct nec7210_priv *nec_priv = &priv->nec7210_priv;
@@ -851,7 +852,7 @@ static gpib_interface_t cb_isa_accel_interface = {
 	.return_to_local = cb7210_return_to_local,
 };
 
-static int cb7210_allocate_private(gpib_board_t *board)
+static int cb7210_allocate_private(struct gpib_board *board)
 {
 	struct cb7210_priv *priv;
 
@@ -864,14 +865,14 @@ static int cb7210_allocate_private(gpib_board_t *board)
 	return 0;
 }
 
-static void cb7210_generic_detach(gpib_board_t *board)
+static void cb7210_generic_detach(struct gpib_board *board)
 {
 	kfree(board->private_data);
 	board->private_data = NULL;
 }
 
 // generic part of attach functions shared by all cb7210 boards
-static int cb7210_generic_attach(gpib_board_t *board)
+static int cb7210_generic_attach(struct gpib_board *board)
 {
 	struct cb7210_priv *cb_priv;
 	struct nec7210_priv *nec_priv;
@@ -889,7 +890,7 @@ static int cb7210_generic_attach(gpib_board_t *board)
 	return 0;
 }
 
-static int cb7210_init(struct cb7210_priv *cb_priv, gpib_board_t *board)
+static int cb7210_init(struct cb7210_priv *cb_priv, struct gpib_board *board)
 {
 	struct nec7210_priv *nec_priv = &cb_priv->nec7210_priv;
 
@@ -925,7 +926,7 @@ static int cb7210_init(struct cb7210_priv *cb_priv, gpib_board_t *board)
 	return 0;
 }
 
-static int cb_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int cb_pci_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct cb7210_priv *cb_priv;
 	struct nec7210_priv *nec_priv;
@@ -1007,7 +1008,7 @@ static int cb_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return cb7210_init(cb_priv, board);
 }
 
-static void cb_pci_detach(gpib_board_t *board)
+static void cb_pci_detach(struct gpib_board *board)
 {
 	struct cb7210_priv *cb_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -1030,7 +1031,7 @@ static void cb_pci_detach(gpib_board_t *board)
 	cb7210_generic_detach(board);
 }
 
-static int cb_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int cb_isa_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	int isr_flags = 0;
 	struct cb7210_priv *cb_priv;
@@ -1066,7 +1067,7 @@ static int cb_isa_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	return cb7210_init(cb_priv, board);
 }
 
-static void cb_isa_detach(gpib_board_t *board)
+static void cb_isa_detach(struct gpib_board *board)
 {
 	struct cb7210_priv *cb_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
@@ -1132,8 +1133,8 @@ static struct pci_driver cb7210_pci_driver = {
 
 static int cb_gpib_config(struct pcmcia_device	*link);
 static void cb_gpib_release(struct pcmcia_device  *link);
-static int cb_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config);
-static void cb_pcmcia_detach(gpib_board_t *board);
+static int cb_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config);
+static void cb_pcmcia_detach(struct gpib_board *board);
 
 /*
  *  A linked list of "instances" of the gpib device.  Each actual
@@ -1166,7 +1167,7 @@ static	struct pcmcia_device  *curr_dev;
 
 struct local_info {
 	struct pcmcia_device	*p_dev;
-	gpib_board_t		*dev;
+	struct gpib_board		*dev;
 };
 
 /*
@@ -1222,7 +1223,7 @@ static int cb_gpib_probe(struct pcmcia_device *link)
 static void cb_gpib_remove(struct pcmcia_device *link)
 {
 	struct local_info *info = link->priv;
-	//struct gpib_board_t *dev = info->dev;
+	//struct struct gpib_board *dev = info->dev;
 
 	if (info->dev)
 		cb_pcmcia_detach(info->dev);
@@ -1287,7 +1288,7 @@ static void cb_gpib_release(struct pcmcia_device *link)
 static int cb_gpib_suspend(struct pcmcia_device *link)
 {
 	//struct local_info *info = link->priv;
-	//struct gpib_board_t *dev = info->dev;
+	//struct struct gpib_board *dev = info->dev;
 
 	if (link->open)
 		dev_warn(&link->dev, "Device still open\n");
@@ -1299,7 +1300,7 @@ static int cb_gpib_suspend(struct pcmcia_device *link)
 static int cb_gpib_resume(struct pcmcia_device *link)
 {
 	//struct local_info *info = link->priv;
-	//struct gpib_board_t *dev = info->dev;
+	//struct struct gpib_board *dev = info->dev;
 
 	/*if (link->open) {
 	 *	ni_gpib_probe(dev);	/ really?
@@ -1416,7 +1417,7 @@ static gpib_interface_t cb_pcmcia_accel_interface = {
 	.return_to_local = cb7210_return_to_local,
 };
 
-static int cb_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int cb_pcmcia_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct cb7210_priv *cb_priv;
 	struct nec7210_priv *nec_priv;
@@ -1452,7 +1453,7 @@ static int cb_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *conf
 	return cb7210_init(cb_priv, board);
 }
 
-static void cb_pcmcia_detach(gpib_board_t *board)
+static void cb_pcmcia_detach(struct gpib_board *board)
 {
 	struct cb7210_priv *cb_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
