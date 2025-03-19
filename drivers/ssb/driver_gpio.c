@@ -148,8 +148,8 @@ static int ssb_gpio_irq_chipco_domain_init(struct ssb_bus *bus)
 	if (bus->bustype != SSB_BUSTYPE_SSB)
 		return 0;
 
-	bus->irq_domain = irq_domain_add_linear(NULL, chip->ngpio,
-						&irq_domain_simple_ops, chipco);
+	bus->irq_domain = irq_domain_create_linear(NULL, chip->ngpio, &irq_domain_simple_ops,
+						   chipco);
 	if (!bus->irq_domain) {
 		err = -ENODEV;
 		goto err_irq_domain;
@@ -347,8 +347,8 @@ static int ssb_gpio_irq_extif_domain_init(struct ssb_bus *bus)
 	if (bus->bustype != SSB_BUSTYPE_SSB)
 		return 0;
 
-	bus->irq_domain = irq_domain_add_linear(NULL, chip->ngpio,
-						&irq_domain_simple_ops, extif);
+	bus->irq_domain = irq_domain_create_linear(NULL, chip->ngpio, &irq_domain_simple_ops,
+						   extif);
 	if (!bus->irq_domain) {
 		err = -ENODEV;
 		goto err_irq_domain;
