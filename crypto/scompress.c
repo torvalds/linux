@@ -25,15 +25,12 @@
 
 #include "compress.h"
 
-#define SCOMP_SCRATCH_SIZE 65400
-
 struct scomp_scratch {
 	spinlock_t	lock;
 	union {
 		void	*src;
 		unsigned long saddr;
 	};
-	void		*dst;
 };
 
 static DEFINE_PER_CPU(struct scomp_scratch, scomp_scratch) = {
@@ -78,9 +75,7 @@ static void crypto_scomp_free_scratches(void)
 		scratch = per_cpu_ptr(&scomp_scratch, i);
 
 		free_page(scratch->saddr);
-		kvfree(scratch->dst);
 		scratch->src = NULL;
-		scratch->dst = NULL;
 	}
 }
 
@@ -88,19 +83,12 @@ static int scomp_alloc_scratch(struct scomp_scratch *scratch, int cpu)
 {
 	int node = cpu_to_node(cpu);
 	struct page *page;
-	void *mem;
 
-	mem = kvmalloc_node(SCOMP_SCRATCH_SIZE, GFP_KERNEL, node);
-	if (!mem)
-		return -ENOMEM;
 	page = alloc_pages_node(node, GFP_KERNEL, 0);
-	if (!page) {
-		kvfree(mem);
+	if (!page)
 		return -ENOMEM;
-	}
 	spin_lock_bh(&scratch->lock);
 	scratch->src = page_address(page);
-	scratch->dst = mem;
 	spin_unlock_bh(&scratch->lock);
 	return 0;
 }
@@ -181,6 +169,8 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
 	struct crypto_scomp **tfm_ctx = acomp_tfm_ctx(tfm);
+	bool src_isvirt = acomp_request_src_isvirt(req);
+	bool dst_isvirt = acomp_request_dst_isvirt(req);
 	struct crypto_scomp *scomp = *tfm_ctx;
 	struct crypto_acomp_stream *stream;
 	struct scomp_scratch *scratch;
@@ -200,13 +190,33 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 	if (!req->dst || !dlen)
 		return -EINVAL;
 
-	stream = crypto_acomp_lock_stream_bh(&crypto_scomp_alg(scomp)->streams);
-	scratch = scomp_lock_scratch();
+	if (dst_isvirt)
+		dst = req->dvirt;
+	else {
+		if (acomp_request_dst_isfolio(req)) {
+			dpage = folio_page(req->dfolio, 0);
+			doff = req->doff;
+		} else if (dlen <= req->dst->length) {
+			dpage = sg_page(req->dst);
+			doff = req->dst->offset;
+		} else
+			return -ENOSYS;
 
-	if (acomp_request_src_isvirt(req))
+		dpage = nth_page(dpage, doff / PAGE_SIZE);
+		doff = offset_in_page(doff);
+
+		n = dlen / PAGE_SIZE;
+		n += (offset_in_page(dlen) + doff - 1) / PAGE_SIZE;
+		if (PageHighMem(dpage + n) &&
+		    size_add(doff, dlen) > PAGE_SIZE)
+			return -ENOSYS;
+		dst = kmap_local_page(dpage) + doff;
+	}
+
+	if (src_isvirt)
 		src = req->svirt;
 	else {
-		src = scratch->src;
+		src = NULL;
 		do {
 			if (acomp_request_src_isfolio(req)) {
 				spage = folio_page(req->sfolio, 0);
@@ -227,57 +237,39 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 				break;
 			src = kmap_local_page(spage) + soff;
 		} while (0);
-
-		if (src == scratch->src)
-			memcpy_from_sglist(scratch->src, req->src, 0, slen);
 	}
 
-	if (acomp_request_dst_isvirt(req))
-		dst = req->dvirt;
-	else {
-		unsigned int max = SCOMP_SCRATCH_SIZE;
+	stream = crypto_acomp_lock_stream_bh(&crypto_scomp_alg(scomp)->streams);
 
-		dst = scratch->dst;
-		do {
-			if (acomp_request_dst_isfolio(req)) {
-				dpage = folio_page(req->dfolio, 0);
-				doff = req->doff;
-			} else if (dlen <= req->dst->length) {
-				dpage = sg_page(req->dst);
-				doff = req->dst->offset;
-			} else
-				break;
+	if (!src_isvirt && !src) {
+		const u8 *src;
 
-			dpage = nth_page(dpage, doff / PAGE_SIZE);
-			doff = offset_in_page(doff);
+		scratch = scomp_lock_scratch();
+		src = scratch->src;
+		memcpy_from_sglist(scratch->src, req->src, 0, slen);
 
-			n = dlen / PAGE_SIZE;
-			n += (offset_in_page(dlen) + doff - 1) / PAGE_SIZE;
-			if (PageHighMem(dpage + n) &&
-			    size_add(doff, dlen) > PAGE_SIZE)
-				break;
-			dst = kmap_local_page(dpage) + doff;
-			max = dlen;
-		} while (0);
-		dlen = min(dlen, max);
-	}
+		if (dir)
+			ret = crypto_scomp_compress(scomp, src, slen,
+						    dst, &dlen, stream->ctx);
+		else
+			ret = crypto_scomp_decompress(scomp, src, slen,
+						      dst, &dlen, stream->ctx);
 
-	if (dir)
+		scomp_unlock_scratch(scratch);
+	} else if (dir)
 		ret = crypto_scomp_compress(scomp, src, slen,
 					    dst, &dlen, stream->ctx);
 	else
 		ret = crypto_scomp_decompress(scomp, src, slen,
 					      dst, &dlen, stream->ctx);
 
-	if (dst == scratch->dst)
-		memcpy_to_sglist(req->dst, 0, dst, dlen);
-
-	scomp_unlock_scratch(scratch);
 	crypto_acomp_unlock_stream_bh(stream);
 
 	req->dlen = dlen;
 
-	if (!acomp_request_dst_isvirt(req) && dst != scratch->dst) {
+	if (!src_isvirt && src)
+		kunmap_local(src);
+	if (!dst_isvirt) {
 		kunmap_local(dst);
 		dlen += doff;
 		for (;;) {
@@ -288,8 +280,6 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 			dpage = nth_page(dpage, 1);
 		}
 	}
-	if (!acomp_request_src_isvirt(req) && src != scratch->src)
-		kunmap_local(src);
 
 	return ret;
 }
