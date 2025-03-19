@@ -51,5 +51,6 @@ void pci_iounmap(struct pci_dev *dev, void __iomem *addr)
 	if (addr < base || addr > (base + resource_size(ctrl->io_resource)))
 		iounmap(addr);
 }
+EXPORT_SYMBOL(pci_iounmap);
 
 #endif /* CONFIG_PCI_DRIVERS_LEGACY */
