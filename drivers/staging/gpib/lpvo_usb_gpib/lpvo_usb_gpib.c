@@ -146,7 +146,7 @@ struct usb_gpib_priv {		/* private data to the device */
 
 #define GPIB_DEV (((struct usb_gpib_priv *)board->private_data)->dev)
 
-static void show_status(gpib_board_t *board)
+static void show_status(struct gpib_board *board)
 {
 	DIA_LOG(2, "# - buffer_length %d\n", board->buffer_length);
 	DIA_LOG(2, "# - status %lx\n", board->status);
@@ -184,8 +184,8 @@ static struct mutex minors_lock;     /* operations on usb_minors are to be prote
 struct usb_skel;
 static ssize_t skel_do_write(struct usb_skel *, const char *, size_t);
 static ssize_t skel_do_read(struct usb_skel *, char *, size_t);
-static int skel_do_open(gpib_board_t *, int);
-static int skel_do_release(gpib_board_t *);
+static int skel_do_open(struct gpib_board *, int);
+static int skel_do_release(struct gpib_board *);
 
 /*
  *   usec_diff : take difference in MICROsec between two 'timespec'
@@ -237,7 +237,7 @@ static int write_loop(void *dev, char *msg, int leng)
  *	      it has to be given explicitly.
  */
 
-static int send_command(gpib_board_t *board, char *msg, int leng)
+static int send_command(struct gpib_board *board, char *msg, int leng)
 {
 	char buffer[64];
 	int nchar;
@@ -278,7 +278,7 @@ static int send_command(gpib_board_t *board, char *msg, int leng)
  *
  */
 
-static int set_control_line(gpib_board_t *board, int line, int value)
+static int set_control_line(struct gpib_board *board, int line, int value)
 {
 	char msg[] = USB_GPIB_SET_LINES;
 	int retval;
@@ -309,7 +309,7 @@ static int set_control_line(gpib_board_t *board, int line, int value)
  * @char_buf:	the routine private data structure
  */
 
-static int one_char(gpib_board_t *board, struct char_buf *b)
+static int one_char(struct gpib_board *board, struct char_buf *b)
 {
 	struct timespec64 before, after;
 
@@ -343,7 +343,7 @@ static int one_char(gpib_board_t *board, struct char_buf *b)
  *	   not supported.
  */
 
-static void set_timeout(gpib_board_t *board)
+static void set_timeout(struct gpib_board *board)
 {
 	int n, val;
 	char command[sizeof(USB_GPIB_TTMO) + 6];
@@ -391,7 +391,7 @@ static void set_timeout(gpib_board_t *board)
  * detach() will be called. Always.
  */
 
-static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int usb_gpib_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	int retval, j;
 	u32 base = config->ibbase;
@@ -510,7 +510,7 @@ static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *confi
  *
  */
 
-static void usb_gpib_detach(gpib_board_t *board)
+static void usb_gpib_detach(struct gpib_board *board)
 {
 	int retval;
 
@@ -537,7 +537,7 @@ static void usb_gpib_detach(gpib_board_t *board)
  *   Other functions follow in alphabetical order
  */
 /* command */
-static int usb_gpib_command(gpib_board_t *board,
+static int usb_gpib_command(struct gpib_board *board,
 			    u8 *buffer,
 			    size_t length,
 			    size_t *bytes_written)
@@ -570,7 +570,7 @@ static int usb_gpib_command(gpib_board_t *board,
  *   Cannot do nothing here, but remember for future use.
  */
 
-static void usb_gpib_disable_eos(gpib_board_t *board)
+static void usb_gpib_disable_eos(struct gpib_board *board)
 {
 	((struct usb_gpib_priv *)board->private_data)->eos_flags &= ~REOS;
 	DIA_LOG(1, "done: %x\n",
@@ -586,7 +586,7 @@ static void usb_gpib_disable_eos(gpib_board_t *board)
  *
  */
 
-static int usb_gpib_enable_eos(gpib_board_t *board,
+static int usb_gpib_enable_eos(struct gpib_board *board,
 			       u8 eos_byte,
 			       int compare_8_bits)
 {
@@ -606,7 +606,7 @@ static int usb_gpib_enable_eos(gpib_board_t *board,
  * @board:    the gpib_board data area for this gpib interface
  */
 
-static int usb_gpib_go_to_standby(gpib_board_t *board)
+static int usb_gpib_go_to_standby(struct gpib_board *board)
 {
 	int retval = set_control_line(board, IB_BUS_ATN, 0);
 
@@ -628,7 +628,7 @@ static int usb_gpib_go_to_standby(gpib_board_t *board)
  *    the de-assert request.
  */
 
-static void usb_gpib_interface_clear(gpib_board_t *board, int assert)
+static void usb_gpib_interface_clear(struct gpib_board *board, int assert)
 {
 	int retval = 0;
 
@@ -655,7 +655,7 @@ static void usb_gpib_interface_clear(gpib_board_t *board, int assert)
 #define WQH head
 #define WQE entry
 
-static int usb_gpib_line_status(const gpib_board_t *board)
+static int usb_gpib_line_status(const struct gpib_board *board)
 {
 	int buffer;
 	int line_status = VALID_ALL;   /* all lines will be read */
@@ -686,7 +686,7 @@ static int usb_gpib_line_status(const gpib_board_t *board)
 		msleep(sleep);
 	}
 
-	buffer = send_command((gpib_board_t *)board, USB_GPIB_STATUS, 0);
+	buffer = send_command((struct gpib_board *)board, USB_GPIB_STATUS, 0);
 
 	if (buffer < 0) {
 		dev_err(board->gpib_dev, "line status read failed with %d\n", buffer);
@@ -717,7 +717,7 @@ static int usb_gpib_line_status(const gpib_board_t *board)
 
 /* parallel_poll */
 
-static int usb_gpib_parallel_poll(gpib_board_t *board, uint8_t *result)
+static int usb_gpib_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	/* request parallel poll asserting ATN | EOI;
 	 * we suppose ATN already asserted
@@ -744,7 +744,7 @@ static int usb_gpib_parallel_poll(gpib_board_t *board, uint8_t *result)
 
 /* read */
 
-static int usb_gpib_read(gpib_board_t *board,
+static int usb_gpib_read(struct gpib_board *board,
 			 u8 *buffer,
 			 size_t length,
 			 int *end,
@@ -908,7 +908,7 @@ read_return:
 
 /* remote_enable */
 
-static void usb_gpib_remote_enable(gpib_board_t *board, int enable)
+static void usb_gpib_remote_enable(struct gpib_board *board, int enable)
 {
 	int retval;
 
@@ -921,7 +921,7 @@ static void usb_gpib_remote_enable(gpib_board_t *board, int enable)
 
 /* request_system_control */
 
-static void usb_gpib_request_system_control(gpib_board_t *board,
+static void usb_gpib_request_system_control(struct gpib_board *board,
 					    int request_control)
 {
 	if (request_control)
@@ -935,7 +935,7 @@ static void usb_gpib_request_system_control(gpib_board_t *board,
 /* take_control */
 /* beware: the sync flag is ignored; what is its real meaning? */
 
-static int usb_gpib_take_control(gpib_board_t *board, int sync)
+static int usb_gpib_take_control(struct gpib_board *board, int sync)
 {
 	int retval;
 
@@ -950,7 +950,7 @@ static int usb_gpib_take_control(gpib_board_t *board, int sync)
 
 /* update_status */
 
-static unsigned int usb_gpib_update_status(gpib_board_t *board,
+static unsigned int usb_gpib_update_status(struct gpib_board *board,
 					   unsigned int clear_mask)
 {
 	/* There is nothing we can do here, I guess */
@@ -965,7 +965,7 @@ static unsigned int usb_gpib_update_status(gpib_board_t *board,
 /* write */
 /* beware: DLE characters are not escaped - can only send ASCII data */
 
-static int usb_gpib_write(gpib_board_t *board,
+static int usb_gpib_write(struct gpib_board *board,
 			  u8 *buffer,
 			  size_t length,
 			  int send_eoi,
@@ -1008,33 +1008,33 @@ static int usb_gpib_write(gpib_board_t *board,
 
 /* parallel_poll configure */
 
-static void usb_gpib_parallel_poll_configure(gpib_board_t *board,
+static void usb_gpib_parallel_poll_configure(struct gpib_board *board,
 					     uint8_t configuration)
 {
 }
 
 /* parallel_poll_response */
 
-static void usb_gpib_parallel_poll_response(gpib_board_t *board, int ist)
+static void usb_gpib_parallel_poll_response(struct gpib_board *board, int ist)
 {
 }
 
 /* primary_address */
 
-static int  usb_gpib_primary_address(gpib_board_t *board, unsigned int address)
+static int  usb_gpib_primary_address(struct gpib_board *board, unsigned int address)
 {
 	return 0;
 }
 
 /* return_to_local */
 
-static	void usb_gpib_return_to_local(gpib_board_t *board)
+static	void usb_gpib_return_to_local(struct gpib_board *board)
 {
 }
 
 /* secondary_address */
 
-static int usb_gpib_secondary_address(gpib_board_t *board,
+static int usb_gpib_secondary_address(struct gpib_board *board,
 				      unsigned int address,
 				      int enable)
 {
@@ -1043,20 +1043,20 @@ static int usb_gpib_secondary_address(gpib_board_t *board,
 
 /* serial_poll_response */
 
-static void usb_gpib_serial_poll_response(gpib_board_t *board, uint8_t status)
+static void usb_gpib_serial_poll_response(struct gpib_board *board, uint8_t status)
 {
 }
 
 /* serial_poll_status */
 
-static uint8_t usb_gpib_serial_poll_status(gpib_board_t *board)
+static uint8_t usb_gpib_serial_poll_status(struct gpib_board *board)
 {
 	return 0;
 }
 
 /* t1_delay */
 
-static unsigned int usb_gpib_t1_delay(gpib_board_t *board, unsigned int nano_sec)
+static unsigned int usb_gpib_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	return 0;
 }
@@ -1295,7 +1295,7 @@ static void skel_delete(struct kref *kref)
  *   skel_do_open() - to be called by usb_gpib_attach
  */
 
-static int skel_do_open(gpib_board_t *board, int subminor)
+static int skel_do_open(struct gpib_board *board, int subminor)
 {
 	struct usb_skel *dev;
 	struct usb_interface *interface;
@@ -1332,7 +1332,7 @@ exit:
  *   skel_do_release() - to be called by usb_gpib_detach
  */
 
-static int skel_do_release(gpib_board_t *board)
+static int skel_do_release(struct gpib_board *board)
 {
 	struct usb_skel *dev;
 
