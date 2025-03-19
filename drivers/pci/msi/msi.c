@@ -350,7 +350,6 @@ static int msi_verify_entries(struct pci_dev *dev)
 static int msi_capability_init(struct pci_dev *dev, int nvec,
 			       struct irq_affinity *affd)
 {
-	struct irq_affinity_desc *masks = NULL;
 	struct msi_desc *entry, desc;
 	int ret;
 
@@ -361,8 +360,8 @@ static int msi_capability_init(struct pci_dev *dev, int nvec,
 	/* Disable MSI during setup in the hardware to erase stale state */
 	pci_msi_set_enable(dev, 0);
 
-	if (affd)
-		masks = irq_create_affinity_masks(nvec, affd);
+	struct irq_affinity_desc *masks __free(kfree) =
+		affd ? irq_create_affinity_masks(nvec, affd) : NULL;
 
 	msi_lock_descs(&dev->dev);
 	ret = msi_setup_msi_desc(dev, nvec, masks);
@@ -402,7 +401,6 @@ err:
 	pci_free_msi_irqs(dev);
 unlock:
 	msi_unlock_descs(&dev->dev);
-	kfree(masks);
 	return ret;
 }
 
@@ -661,11 +659,9 @@ static void msix_mask_all(void __iomem *base, int tsize)
 static int msix_setup_interrupts(struct pci_dev *dev, struct msix_entry *entries,
 				 int nvec, struct irq_affinity *affd)
 {
-	struct irq_affinity_desc *masks = NULL;
+	struct irq_affinity_desc *masks __free(kfree) =
+		affd ? irq_create_affinity_masks(nvec, affd) : NULL;
 	int ret;
-
-	if (affd)
-		masks = irq_create_affinity_masks(nvec, affd);
 
 	msi_lock_descs(&dev->dev);
 	ret = msix_setup_msi_descs(dev, entries, nvec, masks);
@@ -688,7 +684,6 @@ out_free:
 	pci_free_msi_irqs(dev);
 out_unlock:
 	msi_unlock_descs(&dev->dev);
-	kfree(masks);
 	return ret;
 }
 
