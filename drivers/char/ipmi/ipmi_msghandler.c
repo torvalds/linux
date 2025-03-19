@@ -4808,6 +4808,10 @@ static void smi_work(struct work_struct *t)
 
 	handle_new_recv_msgs(intf);
 
+	/* Nothing below applies during panic time. */
+	if (run_to_completion)
+		return;
+
 	/*
 	 * If the pretimout count is non-zero, decrement one from it and
 	 * deliver pretimeouts to all the users.
