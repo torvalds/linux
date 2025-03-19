@@ -8214,6 +8214,7 @@ F:	drivers/edac/aspeed_edac.c
 
 EDAC-BLUEFIELD
 M:	Shravan Kumar Ramani <shravankr@nvidia.com>
+M:	David Thompson <davthompson@nvidia.com>
 S:	Supported
 F:	drivers/edac/bluefield_edac.c
 
