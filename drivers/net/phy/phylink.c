@@ -72,8 +72,6 @@ struct phylink {
 	struct gpio_desc *link_gpio;
 	unsigned int link_irq;
 	struct timer_list link_poll;
-	void (*get_fixed_state)(struct net_device *dev,
-				struct phylink_link_state *s);
 
 	struct mutex state_mutex;
 	struct phylink_link_state phy_state;
