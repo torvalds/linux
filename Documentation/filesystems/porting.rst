@@ -1232,3 +1232,14 @@ checked that the caller has 'X' permission on the parent.  They must
 ONLY be used internally by a filesystem on itself when it knows that
 permissions are irrelevant or in a context where permission checks have
 already been performed such as after vfs_path_parent_lookup()
+
+---
+
+** mandatory**
+
+d_hash_and_lookup() is no longer exported or available outside the VFS.
+Use try_lookup_noperm() instead.  This adds name validation and takes
+arguments in the opposite order but is otherwise identical.
+
+Using try_lookup_noperm() will require linux/namei.h to be included.
+

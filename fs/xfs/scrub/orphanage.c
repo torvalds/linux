@@ -444,7 +444,7 @@ xrep_adoption_check_dcache(
 	if (!d_orphanage)
 		return 0;
 
-	d_child = d_hash_and_lookup(d_orphanage, &qname);
+	d_child = try_lookup_noperm(&qname, d_orphanage);
 	if (d_child) {
 		trace_xrep_adoption_check_child(sc->mp, d_child);
 
@@ -481,7 +481,7 @@ xrep_adoption_zap_dcache(
 	if (!d_orphanage)
 		return;
 
-	d_child = d_hash_and_lookup(d_orphanage, &qname);
+	d_child = try_lookup_noperm(&qname, d_orphanage);
 	while (d_child != NULL) {
 		trace_xrep_adoption_invalidate_child(sc->mp, d_child);
 
