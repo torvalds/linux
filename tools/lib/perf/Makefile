@@ -54,13 +54,6 @@ endif
 
 TEST_ARGS := $(if $(V),-v)
 
-# Set compile option CFLAGS
-ifdef EXTRA_CFLAGS
-  CFLAGS := $(EXTRA_CFLAGS)
-else
-  CFLAGS := -g -Wall
-endif
-
 INCLUDES = \
 -I$(srctree)/tools/lib/perf/include \
 -I$(srctree)/tools/lib/ \
@@ -70,11 +63,12 @@ INCLUDES = \
 -I$(srctree)/tools/include/uapi
 
 # Append required CFLAGS
-override CFLAGS += $(EXTRA_WARNINGS)
-override CFLAGS += -Werror -Wall
+override CFLAGS += -g -Werror -Wall
 override CFLAGS += -fPIC
 override CFLAGS += $(INCLUDES)
 override CFLAGS += -fvisibility=hidden
+override CFLAGS += $(EXTRA_WARNINGS)
+override CFLAGS += $(EXTRA_CFLAGS)
 
 all:
 
