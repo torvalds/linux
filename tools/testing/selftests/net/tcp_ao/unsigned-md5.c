@@ -157,80 +157,80 @@ static void *server_fn(void *arg)
 
 	server_add_routes();
 
-	try_accept("AO server (INADDR_ANY): AO client", port++, NULL, 0,
+	try_accept("[server] AO server (INADDR_ANY): AO client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPAOGood",
 		   TEST_CNT_GOOD, 0, 0);
-	try_accept("AO server (INADDR_ANY): MD5 client", port++, NULL, 0,
+	try_accept("[server] AO server (INADDR_ANY): MD5 client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPMD5Unexpected",
 		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
-	try_accept("AO server (INADDR_ANY): no sign client", port++, NULL, 0,
+	try_accept("[server] AO server (INADDR_ANY): no sign client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPAORequired",
 		   TEST_CNT_AO_REQUIRED, 0, FAULT_TIMEOUT);
-	try_accept("AO server (AO_REQUIRED): AO client", port++, NULL, 0,
+	try_accept("[server] AO server (AO_REQUIRED): AO client", port++, NULL, 0,
 		   &this_ip_dest, TEST_PREFIX, true,
 		   100, 100, 0, "TCPAOGood", TEST_CNT_GOOD, 0, 0);
-	try_accept("AO server (AO_REQUIRED): unsigned client", port++, NULL, 0,
+	try_accept("[server] AO server (AO_REQUIRED): unsigned client", port++, NULL, 0,
 		   &this_ip_dest, TEST_PREFIX, true,
 		   100, 100, 0, "TCPAORequired",
 		   TEST_CNT_AO_REQUIRED, 0, FAULT_TIMEOUT);
 
-	try_accept("MD5 server (INADDR_ANY): AO client", port++, &addr_any, 0,
+	try_accept("[server] MD5 server (INADDR_ANY): AO client", port++, &addr_any, 0,
 		   NULL, 0, 0, 0, 0, 0, "TCPAOKeyNotFound",
 		   TEST_CNT_NS_KEY_NOT_FOUND, 1, FAULT_TIMEOUT);
-	try_accept("MD5 server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
+	try_accept("[server] MD5 server (INADDR_ANY): MD5 client", port++, &addr_any, 0,
 		   NULL, 0, 0, 0, 0, 0, NULL, 0, 1, 0);
-	try_accept("MD5 server (INADDR_ANY): no sign client", port++, &addr_any,
+	try_accept("[server] MD5 server (INADDR_ANY): no sign client", port++, &addr_any,
 		   0, NULL, 0, 0, 0, 0, 0, "TCPMD5NotFound",
 		   TEST_CNT_NS_MD5_NOT_FOUND, 1, FAULT_TIMEOUT);
 
-	try_accept("no sign server: AO client", port++, NULL, 0,
+	try_accept("[server] no sign server: AO client", port++, NULL, 0,
 		   NULL, 0, 0, 0, 0, 0, "TCPAOKeyNotFound",
 		   TEST_CNT_NS_KEY_NOT_FOUND, 0, FAULT_TIMEOUT);
-	try_accept("no sign server: MD5 client", port++, NULL, 0,
+	try_accept("[server] no sign server: MD5 client", port++, NULL, 0,
 		   NULL, 0, 0, 0, 0, 0, "TCPMD5Unexpected",
 		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
-	try_accept("no sign server: no sign client", port++, NULL, 0,
+	try_accept("[server] no sign server: no sign client", port++, NULL, 0,
 		   NULL, 0, 0, 0, 0, 0, "CurrEstab", 0, 0, 0);
 
-	try_accept("AO+MD5 server: AO client (matching)", port++,
+	try_accept("[server] AO+MD5 server: AO client (matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPAOGood", TEST_CNT_GOOD, 1, 0);
-	try_accept("AO+MD5 server: AO client (misconfig, matching MD5)", port++,
+	try_accept("[server] AO+MD5 server: AO client (misconfig, matching MD5)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPAOKeyNotFound", TEST_CNT_AO_KEY_NOT_FOUND,
 		   1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: AO client (misconfig, non-matching)", port++,
+	try_accept("[server] AO+MD5 server: AO client (misconfig, non-matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPAOKeyNotFound", TEST_CNT_AO_KEY_NOT_FOUND,
 		   1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: MD5 client (matching)", port++,
+	try_accept("[server] AO+MD5 server: MD5 client (matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, NULL, 0, 1, 0);
-	try_accept("AO+MD5 server: MD5 client (misconfig, matching AO)", port++,
+	try_accept("[server] AO+MD5 server: MD5 client (misconfig, matching AO)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPMD5Unexpected",
 		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: MD5 client (misconfig, non-matching)", port++,
+	try_accept("[server] AO+MD5 server: MD5 client (misconfig, non-matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPMD5Unexpected",
 		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: no sign client (unmatched)", port++,
+	try_accept("[server] AO+MD5 server: no sign client (unmatched)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "CurrEstab", 0, 1, 0);
-	try_accept("AO+MD5 server: no sign client (misconfig, matching AO)",
+	try_accept("[server] AO+MD5 server: no sign client (misconfig, matching AO)",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPAORequired",
 		   TEST_CNT_AO_REQUIRED, 1, FAULT_TIMEOUT);
-	try_accept("AO+MD5 server: no sign client (misconfig, matching MD5)",
+	try_accept("[server] AO+MD5 server: no sign client (misconfig, matching MD5)",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "TCPMD5NotFound",
 		   TEST_CNT_NS_MD5_NOT_FOUND, 1, FAULT_TIMEOUT);
 
 	/* Key rejected by the other side, failing short through skpair */
-	try_accept("AO+MD5 server: client with both [TCP-MD5] and TCP-AO keys",
+	try_accept("[server] AO+MD5 server: client with both [TCP-MD5] and TCP-AO keys",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, NULL, 0, 1, FAULT_KEYREJECT);
-	try_accept("AO+MD5 server: client with both TCP-MD5 and [TCP-AO] keys",
+	try_accept("[server] AO+MD5 server: client with both TCP-MD5 and [TCP-AO] keys",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, NULL, 0, 1, FAULT_KEYREJECT);
 
