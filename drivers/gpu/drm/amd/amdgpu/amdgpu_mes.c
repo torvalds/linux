@@ -154,11 +154,9 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 		adev->mes.gfx_hqd_mask[i] = i ? 0 : 0xfffffffe;
 
 	for (i = 0; i < AMDGPU_MES_MAX_SDMA_PIPES; i++) {
-		/* zero sdma_hqd_mask for non-existent engine */
-		if (adev->sdma.num_instances == 1)
-			adev->mes.sdma_hqd_mask[i] = i ? 0 : 0xfc;
-		else
-			adev->mes.sdma_hqd_mask[i] = 0xfc;
+		if (i >= adev->sdma.num_instances)
+			break;
+		adev->mes.sdma_hqd_mask[i] = 0xfc;
 	}
 
 	for (i = 0; i < AMDGPU_MAX_MES_PIPES; i++) {
