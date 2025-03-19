@@ -2480,7 +2480,7 @@ static const struct irq_domain_ops wcd_domain_ops = {
 
 static int wcd937x_irq_init(struct wcd937x_priv *wcd, struct device *dev)
 {
-	wcd->virq = irq_domain_add_linear(NULL, 1, &wcd_domain_ops, NULL);
+	wcd->virq = irq_domain_create_linear(NULL, 1, &wcd_domain_ops, NULL);
 	if (!(wcd->virq)) {
 		dev_err(dev, "%s: Failed to add IRQ domain\n", __func__);
 		return -EINVAL;
