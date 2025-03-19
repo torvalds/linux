@@ -81,6 +81,11 @@ static inline bool pi_test_sn(struct pi_desc *pi_desc)
 	return test_bit(POSTED_INTR_SN, (unsigned long *)&pi_desc->control);
 }
 
+static inline bool pi_test_pir(int vector, struct pi_desc *pi_desc)
+{
+	return test_bit(vector, (unsigned long *)pi_desc->pir);
+}
+
 /* Non-atomic helpers */
 static inline void __pi_set_sn(struct pi_desc *pi_desc)
 {

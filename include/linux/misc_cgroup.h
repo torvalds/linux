@@ -18,6 +18,10 @@ enum misc_res_type {
 	/** @MISC_CG_RES_SEV_ES: AMD SEV-ES ASIDs resource */
 	MISC_CG_RES_SEV_ES,
 #endif
+#ifdef CONFIG_INTEL_TDX_HOST
+	/* Intel TDX HKIDs resource */
+	MISC_CG_RES_TDX,
+#endif
 	/** @MISC_CG_RES_TYPES: count of enum misc_res_type constants */
 	MISC_CG_RES_TYPES
 };

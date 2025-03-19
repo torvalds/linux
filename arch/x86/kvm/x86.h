@@ -10,6 +10,8 @@
 #include "kvm_emulate.h"
 #include "cpuid.h"
 
+#define KVM_MAX_MCE_BANKS 32
+
 struct kvm_caps {
 	/* control of guest tsc rate supported? */
 	bool has_tsc_control;
@@ -32,6 +34,9 @@ struct kvm_caps {
 	u64 supported_xcr0;
 	u64 supported_xss;
 	u64 supported_perf_cap;
+
+	u64 supported_quirks;
+	u64 inapplicable_quirks;
 };
 
 struct kvm_host_values {
@@ -629,25 +634,17 @@ static inline bool user_exit_on_hypercall(struct kvm *kvm, unsigned long hc_nr)
 	return kvm->arch.hypercall_exit_enabled & BIT(hc_nr);
 }
 
-int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, unsigned long nr,
-			      unsigned long a0, unsigned long a1,
-			      unsigned long a2, unsigned long a3,
-			      int op_64_bit, int cpl,
+int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, int cpl,
 			      int (*complete_hypercall)(struct kvm_vcpu *));
 
-#define __kvm_emulate_hypercall(_vcpu, nr, a0, a1, a2, a3, op_64_bit, cpl, complete_hypercall)	\
-({												\
-	int __ret;										\
-												\
-	__ret = ____kvm_emulate_hypercall(_vcpu,						\
-					  kvm_##nr##_read(_vcpu), kvm_##a0##_read(_vcpu),	\
-					  kvm_##a1##_read(_vcpu), kvm_##a2##_read(_vcpu),	\
-					  kvm_##a3##_read(_vcpu), op_64_bit, cpl,		\
-					  complete_hypercall);					\
-												\
-	if (__ret > 0)										\
-		__ret = complete_hypercall(_vcpu);						\
-	__ret;											\
+#define __kvm_emulate_hypercall(_vcpu, cpl, complete_hypercall)			\
+({										\
+	int __ret;								\
+	__ret = ____kvm_emulate_hypercall(_vcpu, cpl, complete_hypercall);	\
+										\
+	if (__ret > 0)								\
+		__ret = complete_hypercall(_vcpu);				\
+	__ret;									\
 })
 
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
