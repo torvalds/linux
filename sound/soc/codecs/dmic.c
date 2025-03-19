@@ -114,8 +114,12 @@ static int dmic_component_probe(struct snd_soc_component *component)
 		return -ENOMEM;
 
 	dmic->vref = devm_regulator_get_optional(component->dev, "vref");
-	if (IS_ERR(dmic->vref) && PTR_ERR(dmic->vref) != -ENODEV)
-		return dev_err_probe(component->dev, PTR_ERR(dmic->vref), "Failed to get vref\n");
+	if (IS_ERR(dmic->vref)) {
+		if (PTR_ERR(dmic->vref) != -ENODEV)
+			return dev_err_probe(component->dev, PTR_ERR(dmic->vref),
+					     "Failed to get vref\n");
+		dmic->vref = NULL;
+	}
 
 	dmic->gpio_en = devm_gpiod_get_optional(component->dev,
 						"dmicen", GPIOD_OUT_LOW);
