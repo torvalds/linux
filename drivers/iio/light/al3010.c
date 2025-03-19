@@ -22,8 +22,6 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-#define AL3010_DRV_NAME "al3010"
-
 #define AL3010_REG_SYSTEM		0x00
 #define AL3010_REG_DATA_LOW		0x0c
 #define AL3010_REG_CONFIG		0x10
@@ -184,7 +182,7 @@ static int al3010_probe(struct i2c_client *client)
 	data->client = client;
 
 	indio_dev->info = &al3010_info;
-	indio_dev->name = AL3010_DRV_NAME;
+	indio_dev->name = "al3010";
 	indio_dev->channels = al3010_channels;
 	indio_dev->num_channels = ARRAY_SIZE(al3010_channels);
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -224,7 +222,7 @@ MODULE_DEVICE_TABLE(of, al3010_of_match);
 
 static struct i2c_driver al3010_driver = {
 	.driver = {
-		.name = AL3010_DRV_NAME,
+		.name = "al3010",
 		.of_match_table = al3010_of_match,
 		.pm = pm_sleep_ptr(&al3010_pm_ops),
 	},
