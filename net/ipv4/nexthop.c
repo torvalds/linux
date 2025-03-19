@@ -3016,18 +3016,12 @@ static int rtm_to_nh_config_grp_res(struct nlattr *res, struct nh_config *cfg,
 }
 
 static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
-			    struct nlmsghdr *nlh, struct nh_config *cfg,
+			    struct nlmsghdr *nlh, struct nlattr **tb,
+			    struct nh_config *cfg,
 			    struct netlink_ext_ack *extack)
 {
 	struct nhmsg *nhm = nlmsg_data(nlh);
-	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_new)];
 	int err;
-
-	err = nlmsg_parse(nlh, sizeof(*nhm), tb,
-			  ARRAY_SIZE(rtm_nh_policy_new) - 1,
-			  rtm_nh_policy_new, extack);
-	if (err < 0)
-		return err;
 
 	err = -EINVAL;
 	if (nhm->resvd || nhm->nh_scope) {
@@ -3093,7 +3087,8 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 			NL_SET_ERR_MSG(extack, "Invalid group type");
 			goto out;
 		}
-		err = nh_check_attr_group(net, tb, ARRAY_SIZE(tb),
+
+		err = nh_check_attr_group(net, tb, ARRAY_SIZE(rtm_nh_policy_new),
 					  cfg->nh_grp_type, extack);
 		if (err)
 			goto out;
@@ -3211,18 +3206,26 @@ out:
 static int rtm_new_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 			   struct netlink_ext_ack *extack)
 {
+	struct nlattr *tb[ARRAY_SIZE(rtm_nh_policy_new)];
 	struct net *net = sock_net(skb->sk);
 	struct nh_config cfg;
 	struct nexthop *nh;
 	int err;
 
-	err = rtm_to_nh_config(net, skb, nlh, &cfg, extack);
-	if (!err) {
-		nh = nexthop_add(net, &cfg, extack);
-		if (IS_ERR(nh))
-			err = PTR_ERR(nh);
-	}
+	err = nlmsg_parse(nlh, sizeof(struct nhmsg), tb,
+			  ARRAY_SIZE(rtm_nh_policy_new) - 1,
+			  rtm_nh_policy_new, extack);
+	if (err < 0)
+		goto out;
 
+	err = rtm_to_nh_config(net, skb, nlh, tb, &cfg, extack);
+	if (err)
+		goto out;
+
+	nh = nexthop_add(net, &cfg, extack);
+	if (IS_ERR(nh))
+		err = PTR_ERR(nh);
+out:
 	return err;
 }
 
