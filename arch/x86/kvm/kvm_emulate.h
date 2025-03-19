@@ -44,7 +44,10 @@ struct x86_instruction_info {
 	u64 dst_val;            /* value of destination operand         */
 	u8  src_bytes;          /* size of source operand               */
 	u8  dst_bytes;          /* size of destination operand          */
+	u8  src_type;		/* type of source operand		*/
+	u8  dst_type;		/* type of destination operand		*/
 	u8  ad_bytes;           /* size of src/dst address              */
+	u64 rip;		/* rip of the instruction		*/
 	u64 next_rip;           /* rip following the instruction        */
 };
 
@@ -272,8 +275,10 @@ struct operand {
 	};
 };
 
+#define X86_MAX_INSTRUCTION_LENGTH	15
+
 struct fetch_cache {
-	u8 data[15];
+	u8 data[X86_MAX_INSTRUCTION_LENGTH];
 	u8 *ptr;
 	u8 *end;
 };

@@ -567,7 +567,7 @@ static void pic_irq_request(struct kvm *kvm, int level)
 {
 	struct kvm_pic *s = kvm->arch.vpic;
 
-	if (!s->output)
+	if (!s->output && level)
 		s->wakeup_needed = true;
 	s->output = level;
 }

@@ -3519,7 +3519,7 @@ void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	vmcs_writel(GUEST_CR4, hw_cr4);
 
 	if ((cr4 ^ old_cr4) & (X86_CR4_OSXSAVE | X86_CR4_PKE))
-		kvm_update_cpuid_runtime(vcpu);
+		vcpu->arch.cpuid_dynamic_bits_dirty = true;
 }
 
 void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
@@ -7157,13 +7157,17 @@ static void __vmx_complete_interrupts(struct kvm_vcpu *vcpu,
 	case INTR_TYPE_SOFT_EXCEPTION:
 		vcpu->arch.event_exit_inst_len = vmcs_read32(instr_len_field);
 		fallthrough;
-	case INTR_TYPE_HARD_EXCEPTION:
-		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK) {
-			u32 err = vmcs_read32(error_code_field);
-			kvm_requeue_exception_e(vcpu, vector, err);
-		} else
-			kvm_requeue_exception(vcpu, vector);
+	case INTR_TYPE_HARD_EXCEPTION: {
+		u32 error_code = 0;
+
+		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK)
+			error_code = vmcs_read32(error_code_field);
+
+		kvm_requeue_exception(vcpu, vector,
+				      idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK,
+				      error_code);
 		break;
+	}
 	case INTR_TYPE_SOFT_INTR:
 		vcpu->arch.event_exit_inst_len = vmcs_read32(instr_len_field);
 		fallthrough;
@@ -8005,22 +8009,14 @@ static __init void vmx_set_cpu_caps(void)
 		kvm_cpu_cap_check_and_set(X86_FEATURE_WAITPKG);
 }
 
-static int vmx_check_intercept_io(struct kvm_vcpu *vcpu,
-				  struct x86_instruction_info *info)
+static bool vmx_is_io_intercepted(struct kvm_vcpu *vcpu,
+				  struct x86_instruction_info *info,
+				  unsigned long *exit_qualification)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	unsigned short port;
-	bool intercept;
 	int size;
-
-	if (info->intercept == x86_intercept_in ||
-	    info->intercept == x86_intercept_ins) {
-		port = info->src_val;
-		size = info->dst_bytes;
-	} else {
-		port = info->dst_val;
-		size = info->src_bytes;
-	}
+	bool imm;
 
 	/*
 	 * If the 'use IO bitmaps' VM-execution control is 0, IO instruction
@@ -8030,13 +8026,33 @@ static int vmx_check_intercept_io(struct kvm_vcpu *vcpu,
 	 * Otherwise, IO instruction VM-exits are controlled by the IO bitmaps.
 	 */
 	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_IO_BITMAPS))
-		intercept = nested_cpu_has(vmcs12,
-					   CPU_BASED_UNCOND_IO_EXITING);
-	else
-		intercept = nested_vmx_check_io_bitmaps(vcpu, port, size);
+		return nested_cpu_has(vmcs12, CPU_BASED_UNCOND_IO_EXITING);
 
-	/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
-	return intercept ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE;
+	if (info->intercept == x86_intercept_in ||
+	    info->intercept == x86_intercept_ins) {
+		port = info->src_val;
+		size = info->dst_bytes;
+		imm  = info->src_type == OP_IMM;
+	} else {
+		port = info->dst_val;
+		size = info->src_bytes;
+		imm  = info->dst_type == OP_IMM;
+	}
+
+
+	*exit_qualification = ((unsigned long)port << 16) | (size - 1);
+
+	if (info->intercept == x86_intercept_ins ||
+	    info->intercept == x86_intercept_outs)
+		*exit_qualification |= BIT(4);
+
+	if (info->rep_prefix)
+		*exit_qualification |= BIT(5);
+
+	if (imm)
+		*exit_qualification |= BIT(6);
+
+	return nested_vmx_check_io_bitmaps(vcpu, port, size);
 }
 
 int vmx_check_intercept(struct kvm_vcpu *vcpu,
@@ -8045,26 +8061,34 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 			struct x86_exception *exception)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+	unsigned long exit_qualification = 0;
+	u32 vm_exit_reason;
+	u64 exit_insn_len;
 
 	switch (info->intercept) {
-	/*
-	 * RDPID causes #UD if disabled through secondary execution controls.
-	 * Because it is marked as EmulateOnUD, we need to intercept it here.
-	 * Note, RDPID is hidden behind ENABLE_RDTSCP.
-	 */
 	case x86_intercept_rdpid:
+		/*
+		 * RDPID causes #UD if not enabled through secondary execution
+		 * controls (ENABLE_RDTSCP).  Note, the implicit MSR access to
+		 * TSC_AUX is NOT subject to interception, i.e. checking only
+		 * the dedicated execution control is architecturally correct.
+		 */
 		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_RDTSCP)) {
 			exception->vector = UD_VECTOR;
 			exception->error_code_valid = false;
 			return X86EMUL_PROPAGATE_FAULT;
 		}
-		break;
+		return X86EMUL_CONTINUE;
 
 	case x86_intercept_in:
 	case x86_intercept_ins:
 	case x86_intercept_out:
 	case x86_intercept_outs:
-		return vmx_check_intercept_io(vcpu, info);
+		if (!vmx_is_io_intercepted(vcpu, info, &exit_qualification))
+			return X86EMUL_CONTINUE;
+
+		vm_exit_reason = EXIT_REASON_IO_INSTRUCTION;
+		break;
 
 	case x86_intercept_lgdt:
 	case x86_intercept_lidt:
@@ -8077,7 +8101,24 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_DESC))
 			return X86EMUL_CONTINUE;
 
-		/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
+		if (info->intercept == x86_intercept_lldt ||
+		    info->intercept == x86_intercept_ltr ||
+		    info->intercept == x86_intercept_sldt ||
+		    info->intercept == x86_intercept_str)
+			vm_exit_reason = EXIT_REASON_LDTR_TR;
+		else
+			vm_exit_reason = EXIT_REASON_GDTR_IDTR;
+		/*
+		 * FIXME: Decode the ModR/M to generate the correct exit
+		 *        qualification for memory operands.
+		 */
+		break;
+
+	case x86_intercept_hlt:
+		if (!nested_cpu_has(vmcs12, CPU_BASED_HLT_EXITING))
+			return X86EMUL_CONTINUE;
+
+		vm_exit_reason = EXIT_REASON_HLT;
 		break;
 
 	case x86_intercept_pause:
@@ -8090,17 +8131,24 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 		 * the PAUSE.
 		 */
 		if ((info->rep_prefix != REPE_PREFIX) ||
-		    !nested_cpu_has2(vmcs12, CPU_BASED_PAUSE_EXITING))
+		    !nested_cpu_has(vmcs12, CPU_BASED_PAUSE_EXITING))
 			return X86EMUL_CONTINUE;
 
+		vm_exit_reason = EXIT_REASON_PAUSE_INSTRUCTION;
 		break;
 
 	/* TODO: check more intercepts... */
 	default:
-		break;
+		return X86EMUL_UNHANDLEABLE;
 	}
 
-	return X86EMUL_UNHANDLEABLE;
+	exit_insn_len = abs_diff((s64)info->next_rip, (s64)info->rip);
+	if (!exit_insn_len || exit_insn_len > X86_MAX_INSTRUCTION_LENGTH)
+		return X86EMUL_UNHANDLEABLE;
+
+	__nested_vmx_vmexit(vcpu, vm_exit_reason, 0, exit_qualification,
+			    exit_insn_len);
+	return X86EMUL_INTERCEPTED;
 }
 
 #ifdef CONFIG_X86_64
