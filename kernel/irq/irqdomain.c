@@ -398,7 +398,7 @@ void irq_domain_remove(struct irq_domain *domain)
 	 * If the going away domain is the default one, reset it.
 	 */
 	if (unlikely(irq_default_domain == domain))
-		irq_set_default_host(NULL);
+		irq_set_default_domain(NULL);
 
 	mutex_unlock(&irq_domain_mutex);
 
@@ -573,7 +573,7 @@ struct irq_domain *irq_find_matching_fwspec(struct irq_fwspec *fwspec,
 EXPORT_SYMBOL_GPL(irq_find_matching_fwspec);
 
 /**
- * irq_set_default_host() - Set a "default" irq domain
+ * irq_set_default_domain() - Set a "default" irq domain
  * @domain: default domain pointer
  *
  * For convenience, it's possible to set a "default" domain that will be used
@@ -581,13 +581,13 @@ EXPORT_SYMBOL_GPL(irq_find_matching_fwspec);
  * platforms that want to manipulate a few hard coded interrupt numbers that
  * aren't properly represented in the device-tree.
  */
-void irq_set_default_host(struct irq_domain *domain)
+void irq_set_default_domain(struct irq_domain *domain)
 {
 	pr_debug("Default domain set to @0x%p\n", domain);
 
 	irq_default_domain = domain;
 }
-EXPORT_SYMBOL_GPL(irq_set_default_host);
+EXPORT_SYMBOL_GPL(irq_set_default_domain);
 
 /**
  * irq_get_default_host() - Retrieve the "default" irq domain

@@ -880,7 +880,7 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	}
 
 	if (mpic_is_ipi_available(mpic)) {
-		irq_set_default_host(mpic->domain);
+		irq_set_default_domain(mpic->domain);
 		set_handle_irq(mpic_handle_irq);
 #ifdef CONFIG_SMP
 		err = mpic_ipi_init(mpic, node);
