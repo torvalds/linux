@@ -170,10 +170,11 @@ static const struct iio_info al3010_info = {
 static int al3010_probe(struct i2c_client *client)
 {
 	struct al3010_data *data;
+	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
+	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -189,11 +190,11 @@ static int al3010_probe(struct i2c_client *client)
 
 	ret = al3010_init(data);
 	if (ret < 0) {
-		dev_err(&client->dev, "al3010 chip init failed\n");
+		dev_err(dev, "al3010 chip init failed\n");
 		return ret;
 	}
 
-	return devm_iio_device_register(&client->dev, indio_dev);
+	return devm_iio_device_register(dev, indio_dev);
 }
 
 static int al3010_suspend(struct device *dev)
