@@ -212,7 +212,7 @@ const volatile void * __must_check_fn(const volatile void *val)
 { return val; }
 
 #define no_free_ptr(p) \
-	((typeof(p)) __must_check_fn(__get_and_null(p, NULL)))
+	((typeof(p)) __must_check_fn((__force const volatile void *)__get_and_null(p, NULL)))
 
 #define return_ptr(p)	return no_free_ptr(p)
 

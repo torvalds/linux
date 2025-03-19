@@ -1186,7 +1186,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			     le64_to_cpu(i->journal_seq),
 			     b->written, b->written + sectors, ptr_written);
 
-		b->written += sectors;
+		b->written = min(b->written + sectors, btree_sectors(c));
 
 		if (blacklisted && !first)
 			continue;

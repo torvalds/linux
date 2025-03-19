@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -422,6 +422,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	/* if reached this point, Alive notification was received */
 	iwl_mei_alive_notif(true);
 
+	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
+
 	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait,
 			    &mvm->fw->ucode_capa);
 	if (ret) {
@@ -429,8 +431,6 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
 		return ret;
 	}
-
-	iwl_trans_fw_alive(mvm->trans, alive_data.scd_base_addr);
 
 	/*
 	 * Note: all the queues are enabled as part of the interface

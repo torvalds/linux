@@ -682,6 +682,7 @@ struct huge_bootmem_page {
 
 int isolate_or_dissolve_huge_page(struct page *page, struct list_head *list);
 int replace_free_hugepage_folios(unsigned long start_pfn, unsigned long end_pfn);
+void wait_for_freed_hugetlb_folios(void);
 struct folio *alloc_hugetlb_folio(struct vm_area_struct *vma,
 				unsigned long addr, bool cow_from_owner);
 struct folio *alloc_hugetlb_folio_nodemask(struct hstate *h, int preferred_nid,
@@ -1066,6 +1067,10 @@ static inline int replace_free_hugepage_folios(unsigned long start_pfn,
 		unsigned long end_pfn)
 {
 	return 0;
+}
+
+static inline void wait_for_freed_hugetlb_folios(void)
+{
 }
 
 static inline struct folio *alloc_hugetlb_folio(struct vm_area_struct *vma,

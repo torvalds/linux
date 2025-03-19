@@ -281,6 +281,7 @@ static int handle_response(int type, void *payload, size_t sz)
 		if (entry->type + 1 != type) {
 			pr_err("Waiting for IPC type %d, got %d. Ignore.\n",
 			       entry->type + 1, type);
+			continue;
 		}
 
 		entry->response = kvzalloc(sz, KSMBD_DEFAULT_GFP);
