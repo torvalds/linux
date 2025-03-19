@@ -246,17 +246,20 @@ extern int sysctl_mld_qrv;
 #define _DEVADD(net, statname, mod, idev, field, val)			\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
+	unsigned long _field = (field);					\
+	unsigned long _val = (val);					\
 	if (likely(_idev != NULL))					\
-		mod##SNMP_ADD_STATS((_idev)->stats.statname, (field), (val)); \
-	mod##SNMP_ADD_STATS((net)->mib.statname##_statistics, (field), (val));\
+		mod##SNMP_ADD_STATS((_idev)->stats.statname, _field,  _val); \
+	mod##SNMP_ADD_STATS((net)->mib.statname##_statistics, _field, _val);\
 })
 
 #define _DEVUPD(net, statname, mod, idev, field, val)			\
 ({									\
 	struct inet6_dev *_idev = (idev);				\
+	unsigned long _val = (val);					\
 	if (likely(_idev != NULL))					\
-		mod##SNMP_UPD_PO_STATS((_idev)->stats.statname, field, (val)); \
-	mod##SNMP_UPD_PO_STATS((net)->mib.statname##_statistics, field, (val));\
+		mod##SNMP_UPD_PO_STATS((_idev)->stats.statname, field, _val); \
+	mod##SNMP_UPD_PO_STATS((net)->mib.statname##_statistics, field, _val);\
 })
 
 /* MIBs */
