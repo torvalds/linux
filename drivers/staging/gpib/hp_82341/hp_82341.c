@@ -22,14 +22,14 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB driver for hp 82341a/b/c/d boards");
 
-static unsigned short read_and_clear_event_status(gpib_board_t *board);
+static unsigned short read_and_clear_event_status(struct gpib_board *board);
 static void set_transfer_counter(struct hp_82341_priv *hp_priv, int count);
 static int read_transfer_counter(struct hp_82341_priv *hp_priv);
-static int hp_82341_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
+static int hp_82341_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
 			  size_t *bytes_written);
 static irqreturn_t hp_82341_interrupt(int irq, void *arg);
 
-static int hp_82341_accel_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
+static int hp_82341_accel_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
 			       size_t *bytes_read)
 {
 	struct hp_82341_priv *hp_priv = board->private_data;
@@ -147,7 +147,7 @@ static int hp_82341_accel_read(gpib_board_t *board, uint8_t *buffer, size_t leng
 	return 0;
 }
 
-static int restart_write_fifo(gpib_board_t *board, struct hp_82341_priv *hp_priv)
+static int restart_write_fifo(struct gpib_board *board, struct hp_82341_priv *hp_priv)
 {
 	struct tms9914_priv *tms_priv = &hp_priv->tms9914_priv;
 
@@ -172,7 +172,7 @@ static int restart_write_fifo(gpib_board_t *board, struct hp_82341_priv *hp_priv
 	return 0;
 }
 
-static int hp_82341_accel_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int hp_82341_accel_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 				int send_eoi, size_t *bytes_written)
 {
 	struct hp_82341_priv *hp_priv = board->private_data;
@@ -250,12 +250,12 @@ static int hp_82341_accel_write(gpib_board_t *board, uint8_t *buffer, size_t len
 	return 0;
 }
 
-static int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *config);
+static int hp_82341_attach(struct gpib_board *board, const gpib_board_config_t *config);
 
-static void hp_82341_detach(gpib_board_t *board);
+static void hp_82341_detach(struct gpib_board *board);
 
 // wrappers for interface functions
-static int hp_82341_read(gpib_board_t *board, uint8_t *buffer, size_t length, int *end,
+static int hp_82341_read(struct gpib_board *board, uint8_t *buffer, size_t length, int *end,
 			 size_t *bytes_read)
 {
 	struct hp_82341_priv *priv = board->private_data;
@@ -263,7 +263,7 @@ static int hp_82341_read(gpib_board_t *board, uint8_t *buffer, size_t length, in
 	return tms9914_read(board, &priv->tms9914_priv, buffer, length, end, bytes_read);
 }
 
-static int hp_82341_write(gpib_board_t *board, uint8_t *buffer, size_t length, int send_eoi,
+static int hp_82341_write(struct gpib_board *board, uint8_t *buffer, size_t length, int send_eoi,
 			  size_t *bytes_written)
 {
 	struct hp_82341_priv *priv = board->private_data;
@@ -271,7 +271,7 @@ static int hp_82341_write(gpib_board_t *board, uint8_t *buffer, size_t length, i
 	return tms9914_write(board, &priv->tms9914_priv, buffer, length, send_eoi, bytes_written);
 }
 
-static int hp_82341_command(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int hp_82341_command(struct gpib_board *board, uint8_t *buffer, size_t length,
 			    size_t *bytes_written)
 {
 	struct hp_82341_priv *priv = board->private_data;
@@ -279,21 +279,21 @@ static int hp_82341_command(gpib_board_t *board, uint8_t *buffer, size_t length,
 	return tms9914_command(board, &priv->tms9914_priv, buffer, length, bytes_written);
 }
 
-static int hp_82341_take_control(gpib_board_t *board, int synchronous)
+static int hp_82341_take_control(struct gpib_board *board, int synchronous)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_take_control(board, &priv->tms9914_priv, synchronous);
 }
 
-static int hp_82341_go_to_standby(gpib_board_t *board)
+static int hp_82341_go_to_standby(struct gpib_board *board)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_go_to_standby(board, &priv->tms9914_priv);
 }
 
-static void hp_82341_request_system_control(gpib_board_t *board, int request_control)
+static void hp_82341_request_system_control(struct gpib_board *board, int request_control)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
@@ -305,105 +305,105 @@ static void hp_82341_request_system_control(gpib_board_t *board, int request_con
 	tms9914_request_system_control(board, &priv->tms9914_priv, request_control);
 }
 
-static void hp_82341_interface_clear(gpib_board_t *board, int assert)
+static void hp_82341_interface_clear(struct gpib_board *board, int assert)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	tms9914_interface_clear(board, &priv->tms9914_priv, assert);
 }
 
-static void hp_82341_remote_enable(gpib_board_t *board, int enable)
+static void hp_82341_remote_enable(struct gpib_board *board, int enable)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	tms9914_remote_enable(board, &priv->tms9914_priv, enable);
 }
 
-static int hp_82341_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
+static int hp_82341_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_enable_eos(board, &priv->tms9914_priv, eos_byte, compare_8_bits);
 }
 
-static void hp_82341_disable_eos(gpib_board_t *board)
+static void hp_82341_disable_eos(struct gpib_board *board)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	tms9914_disable_eos(board, &priv->tms9914_priv);
 }
 
-static unsigned int hp_82341_update_status(gpib_board_t *board, unsigned int clear_mask)
+static unsigned int hp_82341_update_status(struct gpib_board *board, unsigned int clear_mask)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_update_status(board, &priv->tms9914_priv, clear_mask);
 }
 
-static int hp_82341_primary_address(gpib_board_t *board, unsigned int address)
+static int hp_82341_primary_address(struct gpib_board *board, unsigned int address)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_primary_address(board, &priv->tms9914_priv, address);
 }
 
-static int hp_82341_secondary_address(gpib_board_t *board, unsigned int address, int enable)
+static int hp_82341_secondary_address(struct gpib_board *board, unsigned int address, int enable)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_secondary_address(board, &priv->tms9914_priv, address, enable);
 }
 
-static int hp_82341_parallel_poll(gpib_board_t *board, uint8_t *result)
+static int hp_82341_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_parallel_poll(board, &priv->tms9914_priv, result);
 }
 
-static void hp_82341_parallel_poll_configure(gpib_board_t *board, uint8_t config)
+static void hp_82341_parallel_poll_configure(struct gpib_board *board, uint8_t config)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	tms9914_parallel_poll_configure(board, &priv->tms9914_priv, config);
 }
 
-static void hp_82341_parallel_poll_response(gpib_board_t *board, int ist)
+static void hp_82341_parallel_poll_response(struct gpib_board *board, int ist)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	tms9914_parallel_poll_response(board, &priv->tms9914_priv, ist);
 }
 
-static void hp_82341_serial_poll_response(gpib_board_t *board, uint8_t status)
+static void hp_82341_serial_poll_response(struct gpib_board *board, uint8_t status)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	tms9914_serial_poll_response(board, &priv->tms9914_priv, status);
 }
 
-static uint8_t hp_82341_serial_poll_status(gpib_board_t *board)
+static uint8_t hp_82341_serial_poll_status(struct gpib_board *board)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_serial_poll_status(board, &priv->tms9914_priv);
 }
 
-static int hp_82341_line_status(const gpib_board_t *board)
+static int hp_82341_line_status(const struct gpib_board *board)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_line_status(board, &priv->tms9914_priv);
 }
 
-static unsigned int hp_82341_t1_delay(gpib_board_t *board, unsigned int nano_sec)
+static unsigned int hp_82341_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
 	return tms9914_t1_delay(board, &priv->tms9914_priv, nano_sec);
 }
 
-static void hp_82341_return_to_local(gpib_board_t *board)
+static void hp_82341_return_to_local(struct gpib_board *board)
 {
 	struct hp_82341_priv *priv = board->private_data;
 
@@ -465,7 +465,7 @@ static gpib_interface_t hp_82341_interface = {
 	.return_to_local = hp_82341_return_to_local,
 };
 
-static int hp_82341_allocate_private(gpib_board_t *board)
+static int hp_82341_allocate_private(struct gpib_board *board)
 {
 	board->private_data = kzalloc(sizeof(struct hp_82341_priv), GFP_KERNEL);
 	if (!board->private_data)
@@ -473,7 +473,7 @@ static int hp_82341_allocate_private(gpib_board_t *board)
 	return 0;
 }
 
-static void hp_82341_free_private(gpib_board_t *board)
+static void hp_82341_free_private(struct gpib_board *board)
 {
 	kfree(board->private_data);
 	board->private_data = NULL;
@@ -686,7 +686,7 @@ static int clear_xilinx(struct hp_82341_priv *hp_priv)
 	return 0;
 }
 
-static int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int hp_82341_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct hp_82341_priv *hp_priv;
 	struct tms9914_priv *tms_priv;
@@ -778,7 +778,7 @@ static int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *confi
 	return 0;
 }
 
-static void hp_82341_detach(gpib_board_t *board)
+static void hp_82341_detach(struct gpib_board *board)
 {
 	struct hp_82341_priv *hp_priv = board->private_data;
 	struct tms9914_priv *tms_priv;
@@ -844,7 +844,7 @@ module_exit(hp_82341_exit_module);
 /*
  * GPIB interrupt service routines
  */
-static unsigned short read_and_clear_event_status(gpib_board_t *board)
+static unsigned short read_and_clear_event_status(struct gpib_board *board)
 {
 	struct hp_82341_priv *hp_priv = board->private_data;
 	unsigned long flags;
@@ -860,7 +860,7 @@ static unsigned short read_and_clear_event_status(gpib_board_t *board)
 static irqreturn_t hp_82341_interrupt(int irq, void *arg)
 {
 	int status1, status2;
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	struct hp_82341_priv *hp_priv = board->private_data;
 	struct tms9914_priv *tms_priv = &hp_priv->tms9914_priv;
 	unsigned long flags;
