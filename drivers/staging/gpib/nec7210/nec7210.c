@@ -23,7 +23,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB library code for NEC uPD7210");
 
-int nec7210_enable_eos(gpib_board_t *board, struct nec7210_priv *priv, uint8_t eos_byte,
+int nec7210_enable_eos(struct gpib_board *board, struct nec7210_priv *priv, uint8_t eos_byte,
 		       int compare_8_bits)
 {
 	write_byte(priv, eos_byte, EOSR);
@@ -37,14 +37,14 @@ int nec7210_enable_eos(gpib_board_t *board, struct nec7210_priv *priv, uint8_t e
 }
 EXPORT_SYMBOL(nec7210_enable_eos);
 
-void nec7210_disable_eos(gpib_board_t *board, struct nec7210_priv *priv)
+void nec7210_disable_eos(struct gpib_board *board, struct nec7210_priv *priv)
 {
 	priv->auxa_bits &= ~HR_REOS;
 	write_byte(priv, priv->auxa_bits, AUXMR);
 }
 EXPORT_SYMBOL(nec7210_disable_eos);
 
-int nec7210_parallel_poll(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *result)
+int nec7210_parallel_poll(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *result)
 {
 	int ret;
 
@@ -64,14 +64,14 @@ int nec7210_parallel_poll(gpib_board_t *board, struct nec7210_priv *priv, uint8_
 }
 EXPORT_SYMBOL(nec7210_parallel_poll);
 
-void nec7210_parallel_poll_configure(gpib_board_t *board,
+void nec7210_parallel_poll_configure(struct gpib_board *board,
 				     struct nec7210_priv *priv, unsigned int configuration)
 {
 	write_byte(priv, PPR | configuration, AUXMR);
 }
 EXPORT_SYMBOL(nec7210_parallel_poll_configure);
 
-void nec7210_parallel_poll_response(gpib_board_t *board, struct nec7210_priv *priv, int ist)
+void nec7210_parallel_poll_response(struct gpib_board *board, struct nec7210_priv *priv, int ist)
 {
 	if (ist)
 		write_byte(priv, AUX_SPPF, AUXMR);
@@ -85,7 +85,8 @@ EXPORT_SYMBOL(nec7210_parallel_poll_response);
  * the 488.2 capability (for example with NI chips), or we need to implement the
  * 488.2 set srv state machine in the driver (if that is even viable).
  */
-void nec7210_serial_poll_response(gpib_board_t *board, struct nec7210_priv *priv, uint8_t status)
+void nec7210_serial_poll_response(struct gpib_board *board,
+				  struct nec7210_priv *priv, uint8_t status)
 {
 	unsigned long flags;
 
@@ -102,13 +103,13 @@ void nec7210_serial_poll_response(gpib_board_t *board, struct nec7210_priv *priv
 }
 EXPORT_SYMBOL(nec7210_serial_poll_response);
 
-uint8_t nec7210_serial_poll_status(gpib_board_t *board, struct nec7210_priv *priv)
+uint8_t nec7210_serial_poll_status(struct gpib_board *board, struct nec7210_priv *priv)
 {
 	return read_byte(priv, SPSR);
 }
 EXPORT_SYMBOL(nec7210_serial_poll_status);
 
-int nec7210_primary_address(const gpib_board_t *board, struct nec7210_priv *priv,
+int nec7210_primary_address(const struct gpib_board *board, struct nec7210_priv *priv,
 			    unsigned int address)
 {
 	// put primary address in address0
@@ -117,7 +118,7 @@ int nec7210_primary_address(const gpib_board_t *board, struct nec7210_priv *priv
 }
 EXPORT_SYMBOL(nec7210_primary_address);
 
-int nec7210_secondary_address(const gpib_board_t *board, struct nec7210_priv *priv,
+int nec7210_secondary_address(const struct gpib_board *board, struct nec7210_priv *priv,
 			      unsigned int address, int enable)
 {
 	if (enable) {
@@ -166,7 +167,7 @@ static void update_listener_state(struct nec7210_priv *priv, unsigned int addres
 	}
 }
 
-unsigned int nec7210_update_status_nolock(gpib_board_t *board, struct nec7210_priv *priv)
+unsigned int nec7210_update_status_nolock(struct gpib_board *board, struct nec7210_priv *priv)
 {
 	int address_status_bits;
 	u8 spoll_status;
@@ -209,7 +210,7 @@ unsigned int nec7210_update_status_nolock(gpib_board_t *board, struct nec7210_pr
 }
 EXPORT_SYMBOL(nec7210_update_status_nolock);
 
-unsigned int nec7210_update_status(gpib_board_t *board, struct nec7210_priv *priv,
+unsigned int nec7210_update_status(struct gpib_board *board, struct nec7210_priv *priv,
 				   unsigned int clear_mask)
 {
 	unsigned long flags;
@@ -234,7 +235,7 @@ unsigned int nec7210_set_reg_bits(struct nec7210_priv *priv, unsigned int reg,
 }
 EXPORT_SYMBOL(nec7210_set_reg_bits);
 
-void nec7210_set_handshake_mode(gpib_board_t *board, struct nec7210_priv *priv, int mode)
+void nec7210_set_handshake_mode(struct gpib_board *board, struct nec7210_priv *priv, int mode)
 {
 	unsigned long flags;
 
@@ -250,7 +251,7 @@ void nec7210_set_handshake_mode(gpib_board_t *board, struct nec7210_priv *priv, 
 }
 EXPORT_SYMBOL(nec7210_set_handshake_mode);
 
-uint8_t nec7210_read_data_in(gpib_board_t *board, struct nec7210_priv *priv, int *end)
+uint8_t nec7210_read_data_in(struct gpib_board *board, struct nec7210_priv *priv, int *end)
 {
 	unsigned long flags;
 	u8 data;
@@ -268,7 +269,7 @@ uint8_t nec7210_read_data_in(gpib_board_t *board, struct nec7210_priv *priv, int
 }
 EXPORT_SYMBOL(nec7210_read_data_in);
 
-int nec7210_take_control(gpib_board_t *board, struct nec7210_priv *priv, int syncronous)
+int nec7210_take_control(struct gpib_board *board, struct nec7210_priv *priv, int syncronous)
 {
 	int i;
 	const int timeout = 100;
@@ -295,7 +296,7 @@ int nec7210_take_control(gpib_board_t *board, struct nec7210_priv *priv, int syn
 }
 EXPORT_SYMBOL(nec7210_take_control);
 
-int nec7210_go_to_standby(gpib_board_t *board, struct nec7210_priv *priv)
+int nec7210_go_to_standby(struct gpib_board *board, struct nec7210_priv *priv)
 {
 	int i;
 	const int timeout = 1000;
@@ -329,7 +330,7 @@ int nec7210_go_to_standby(gpib_board_t *board, struct nec7210_priv *priv)
 }
 EXPORT_SYMBOL(nec7210_go_to_standby);
 
-void nec7210_request_system_control(gpib_board_t *board, struct nec7210_priv *priv,
+void nec7210_request_system_control(struct gpib_board *board, struct nec7210_priv *priv,
 				    int request_control)
 {
 	if (request_control == 0) {
@@ -340,7 +341,7 @@ void nec7210_request_system_control(gpib_board_t *board, struct nec7210_priv *pr
 }
 EXPORT_SYMBOL(nec7210_request_system_control);
 
-void nec7210_interface_clear(gpib_board_t *board, struct nec7210_priv *priv, int assert)
+void nec7210_interface_clear(struct gpib_board *board, struct nec7210_priv *priv, int assert)
 {
 	if (assert)
 		write_byte(priv, AUX_SIFC, AUXMR);
@@ -349,7 +350,7 @@ void nec7210_interface_clear(gpib_board_t *board, struct nec7210_priv *priv, int
 }
 EXPORT_SYMBOL(nec7210_interface_clear);
 
-void nec7210_remote_enable(gpib_board_t *board, struct nec7210_priv *priv, int enable)
+void nec7210_remote_enable(struct gpib_board *board, struct nec7210_priv *priv, int enable)
 {
 	if (enable)
 		write_byte(priv, AUX_SREN, AUXMR);
@@ -358,7 +359,7 @@ void nec7210_remote_enable(gpib_board_t *board, struct nec7210_priv *priv, int e
 }
 EXPORT_SYMBOL(nec7210_remote_enable);
 
-void nec7210_release_rfd_holdoff(gpib_board_t *board, struct nec7210_priv *priv)
+void nec7210_release_rfd_holdoff(struct gpib_board *board, struct nec7210_priv *priv)
 {
 	unsigned long flags;
 
@@ -372,7 +373,7 @@ void nec7210_release_rfd_holdoff(gpib_board_t *board, struct nec7210_priv *priv)
 }
 EXPORT_SYMBOL(nec7210_release_rfd_holdoff);
 
-unsigned int nec7210_t1_delay(gpib_board_t *board, struct nec7210_priv *priv,
+unsigned int nec7210_t1_delay(struct gpib_board *board, struct nec7210_priv *priv,
 			      unsigned int nano_sec)
 {
 	unsigned int retval;
@@ -390,13 +391,13 @@ unsigned int nec7210_t1_delay(gpib_board_t *board, struct nec7210_priv *priv,
 }
 EXPORT_SYMBOL(nec7210_t1_delay);
 
-void nec7210_return_to_local(const gpib_board_t *board, struct nec7210_priv *priv)
+void nec7210_return_to_local(const struct gpib_board *board, struct nec7210_priv *priv)
 {
 	write_byte(priv, AUX_RTL, AUXMR);
 }
 EXPORT_SYMBOL(nec7210_return_to_local);
 
-static inline short nec7210_atn_has_changed(gpib_board_t *board, struct nec7210_priv *priv)
+static inline short nec7210_atn_has_changed(struct gpib_board *board, struct nec7210_priv *priv)
 {
 	short address_status_bits = read_byte(priv, ADSR);
 
@@ -414,7 +415,7 @@ static inline short nec7210_atn_has_changed(gpib_board_t *board, struct nec7210_
 	return -1;
 }
 
-int nec7210_command(gpib_board_t *board, struct nec7210_priv *priv, uint8_t
+int nec7210_command(struct gpib_board *board, struct nec7210_priv *priv, uint8_t
 		    *buffer, size_t length, size_t *bytes_written)
 {
 	int retval = 0;
@@ -463,7 +464,7 @@ int nec7210_command(gpib_board_t *board, struct nec7210_priv *priv, uint8_t
 }
 EXPORT_SYMBOL(nec7210_command);
 
-static int pio_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buffer,
+static int pio_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
 		    size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -512,7 +513,7 @@ static int pio_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buf
 }
 
 #ifdef NEC_DMA
-static ssize_t __dma_read(gpib_board_t *board, struct nec7210_priv *priv, size_t length)
+static ssize_t __dma_read(struct gpib_board *board, struct nec7210_priv *priv, size_t length)
 {
 	ssize_t retval = 0;
 	size_t count = 0;
@@ -567,7 +568,7 @@ static ssize_t __dma_read(gpib_board_t *board, struct nec7210_priv *priv, size_t
 	return retval ? retval : count;
 }
 
-static ssize_t dma_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buffer,
+static ssize_t dma_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
 			size_t length)
 {
 	size_t remain = length;
@@ -594,7 +595,7 @@ static ssize_t dma_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t 
 }
 #endif
 
-int nec7210_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buffer,
+int nec7210_read(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
 		 size_t length, int *end, size_t *bytes_read)
 {
 	ssize_t retval = 0;
@@ -615,7 +616,7 @@ int nec7210_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buffer
 }
 EXPORT_SYMBOL(nec7210_read);
 
-static int pio_write_wait(gpib_board_t *board, struct nec7210_priv *priv,
+static int pio_write_wait(struct gpib_board *board, struct nec7210_priv *priv,
 			  short wake_on_lacs, short wake_on_atn, short wake_on_bus_error)
 {
 	// wait until byte is ready to be sent
@@ -641,7 +642,7 @@ static int pio_write_wait(gpib_board_t *board, struct nec7210_priv *priv,
 	return 0;
 }
 
-static int pio_write(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buffer,
+static int pio_write(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
 		     size_t length, size_t *bytes_written)
 {
 	size_t last_count = 0;
@@ -684,7 +685,7 @@ static int pio_write(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *bu
 }
 
 #ifdef NEC_DMA
-static ssize_t __dma_write(gpib_board_t *board, struct nec7210_priv *priv, dma_addr_t address,
+static ssize_t __dma_write(struct gpib_board *board, struct nec7210_priv *priv, dma_addr_t address,
 			   size_t length)
 {
 	unsigned long flags, dma_irq_flags;
@@ -741,7 +742,7 @@ static ssize_t __dma_write(gpib_board_t *board, struct nec7210_priv *priv, dma_a
 	return retval ? retval : length;
 }
 
-static ssize_t dma_write(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buffer,
+static ssize_t dma_write(struct gpib_board *board, struct nec7210_priv *priv, uint8_t *buffer,
 			 size_t length)
 {
 	size_t remain = length;
@@ -765,8 +766,9 @@ static ssize_t dma_write(gpib_board_t *board, struct nec7210_priv *priv, uint8_t
 	return length - remain;
 }
 #endif
-int nec7210_write(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buffer, size_t length,
-		  int send_eoi, size_t *bytes_written)
+int nec7210_write(struct gpib_board *board, struct nec7210_priv *priv,
+		  uint8_t *buffer, size_t length, int send_eoi,
+		  size_t *bytes_written)
 {
 	int retval = 0;
 
@@ -827,7 +829,7 @@ EXPORT_SYMBOL(nec7210_write);
 /*
  *  interrupt service routine
  */
-irqreturn_t nec7210_interrupt(gpib_board_t *board, struct nec7210_priv *priv)
+irqreturn_t nec7210_interrupt(struct gpib_board *board, struct nec7210_priv *priv)
 {
 	int status1, status2;
 
@@ -839,7 +841,7 @@ irqreturn_t nec7210_interrupt(gpib_board_t *board, struct nec7210_priv *priv)
 }
 EXPORT_SYMBOL(nec7210_interrupt);
 
-irqreturn_t nec7210_interrupt_have_status(gpib_board_t *board,
+irqreturn_t nec7210_interrupt_have_status(struct gpib_board *board,
 					  struct nec7210_priv *priv, int status1, int status2)
 {
 #ifdef NEC_DMA
@@ -957,7 +959,7 @@ irqreturn_t nec7210_interrupt_have_status(gpib_board_t *board,
 }
 EXPORT_SYMBOL(nec7210_interrupt_have_status);
 
-void nec7210_board_reset(struct nec7210_priv *priv, const gpib_board_t *board)
+void nec7210_board_reset(struct nec7210_priv *priv, const struct gpib_board *board)
 {
 	/* 7210 chip reset */
 	write_byte(priv, AUX_CR, AUXMR);
@@ -991,7 +993,7 @@ void nec7210_board_reset(struct nec7210_priv *priv, const gpib_board_t *board)
 }
 EXPORT_SYMBOL(nec7210_board_reset);
 
-void nec7210_board_online(struct nec7210_priv *priv, const gpib_board_t *board)
+void nec7210_board_online(struct nec7210_priv *priv, const struct gpib_board *board)
 {
 	/* set GPIB address */
 	nec7210_primary_address(board, priv, board->pad);
