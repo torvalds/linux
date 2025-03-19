@@ -4744,7 +4744,7 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 
 	ret = file_modified(file);
 	if (ret)
-		return ret;
+		goto out_inode_lock;
 
 	if ((mode & FALLOC_FL_MODE_MASK) == FALLOC_FL_ALLOCATE_RANGE) {
 		ret = ext4_do_fallocate(file, offset, len, mode);
