@@ -1242,7 +1242,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 		return 0;
 
 	mvchip->domain =
-	    irq_domain_add_linear(np, ngpios, &irq_generic_chip_ops, NULL);
+	    irq_domain_create_linear(of_fwnode_handle(np), ngpios, &irq_generic_chip_ops, NULL);
 	if (!mvchip->domain) {
 		dev_err(&pdev->dev, "couldn't allocate irq domain %s (DT).\n",
 			mvchip->chip.label);

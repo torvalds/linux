@@ -437,7 +437,7 @@ static int brcmstb_gpio_irq_setup(struct platform_device *pdev,
 	int err;
 
 	priv->irq_domain =
-		irq_domain_add_linear(np, priv->num_gpios,
+		irq_domain_create_linear(of_fwnode_handle(np), priv->num_gpios,
 				      &brcmstb_gpio_irq_domain_ops,
 				      priv);
 	if (!priv->irq_domain) {

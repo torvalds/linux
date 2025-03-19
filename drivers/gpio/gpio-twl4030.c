@@ -502,7 +502,6 @@ static void gpio_twl4030_power_off_action(void *data)
 static int gpio_twl4030_probe(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata;
-	struct device_node *node = pdev->dev.of_node;
 	struct gpio_twl4030_priv *priv;
 	int ret, irq_base;
 
@@ -524,8 +523,8 @@ static int gpio_twl4030_probe(struct platform_device *pdev)
 		return irq_base;
 	}
 
-	irq_domain_add_legacy(node, TWL4030_GPIO_MAX, irq_base, 0,
-			      &irq_domain_simple_ops, NULL);
+	irq_domain_create_legacy(of_fwnode_handle(pdev->dev.of_node), TWL4030_GPIO_MAX, irq_base, 0,
+				 &irq_domain_simple_ops, NULL);
 
 	ret = twl4030_sih_setup(&pdev->dev, TWL4030_MODULE_GPIO, irq_base);
 	if (ret < 0)

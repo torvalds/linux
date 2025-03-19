@@ -397,7 +397,7 @@ static int grgpio_probe(struct platform_device *ofdev)
 			return -EINVAL;
 		}
 
-		priv->domain = irq_domain_add_linear(np, gc->ngpio,
+		priv->domain = irq_domain_create_linear(of_fwnode_handle(np), gc->ngpio,
 						     &grgpio_irq_domain_ops,
 						     priv);
 		if (!priv->domain) {
