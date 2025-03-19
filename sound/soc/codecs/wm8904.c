@@ -2168,6 +2168,184 @@ static const struct of_device_id wm8904_of_match[] = {
 MODULE_DEVICE_TABLE(of, wm8904_of_match);
 #endif
 
+/**
+ * wm8904_read_cfg_reg_arr() - Reads a subarray from a DT u16 array
+ *
+ * @np: pointer to the device_node struct
+ * @regs_property: DT property of interest
+ * @size: size of subarrays within the array
+ * @idx: index of the subarray of interest
+ * @out: output
+ *
+ * Helper to read a subarray from a DT uint16-array,
+ *  divided into equally sized arrays of size `size`
+ *
+ * Subset starts at `idx * size` and is of size `size`
+ *
+ * Return: 0 on success, negative error code otherwise
+ */
+static int wm8904_read_cfg_reg_arr(const struct device_node *np,
+				   const char * const regs_property,
+				   int size, int idx,
+				   u16 * const out)
+{
+	int i, offset, ret;
+
+	offset = idx * size;
+
+	for (i = 0; i < size; i++) {
+		ret = of_property_read_u16_index(np, regs_property, i + offset, &out[i]);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+static int wm8904_parse_retune_cfg_regs(const struct device_node *np,
+					struct wm8904_pdata *pdata, int cfg_idx)
+{
+	return wm8904_read_cfg_reg_arr(np, "wlf,retune-mobile-cfg-regs",
+				       WM8904_EQ_REGS, cfg_idx,
+				       &pdata->retune_mobile_cfgs[cfg_idx].regs[0]);
+}
+
+static int wm8904_parse_drc_cfg_regs(const struct device_node *np,
+				     struct wm8904_pdata *pdata, int cfg_idx)
+{
+	return wm8904_read_cfg_reg_arr(np, "wlf,drc-cfg-regs",
+				       WM8904_DRC_REGS, cfg_idx,
+				       &pdata->drc_cfgs[cfg_idx].regs[0]);
+}
+
+static int wm8904_parse_drc_cfg_from_of(struct i2c_client *i2c,
+					struct wm8904_pdata *pdata)
+{
+	const struct device_node *np = i2c->dev.of_node;
+	int i, n_cfgs;
+
+	n_cfgs = of_property_count_strings(np, "wlf,drc-cfg-names");
+	if (n_cfgs == -EINVAL)
+		return 0;
+
+	if (n_cfgs <= 0) {
+		dev_err(&i2c->dev, "Could not get wlf,drc-cfg-names length: %d",
+			n_cfgs);
+		return n_cfgs;
+	}
+
+	pdata->drc_cfgs = devm_kzalloc(&i2c->dev,
+				       n_cfgs * sizeof(struct wm8904_drc_cfg),
+				       GFP_KERNEL);
+	if (!pdata->drc_cfgs)
+		return -ENOMEM;
+
+	for (i = 0; i < n_cfgs; i++) {
+		if (wm8904_parse_drc_cfg_regs(np, pdata, i)) {
+			dev_err(&i2c->dev,
+				"Invalid 'wlf,drc-cfg-regs[%i,:]'\n", i);
+			return -EINVAL;
+		}
+
+		if (of_property_read_string_index(np, "wlf,drc-cfg-names", i,
+						  &pdata->drc_cfgs[i].name)) {
+			dev_err(&i2c->dev,
+				"Invalid 'wlf,drc-cfg-names[%i]'\n", i);
+			return -EINVAL;
+		}
+	}
+
+	pdata->num_drc_cfgs = n_cfgs;
+	return 0;
+}
+
+static int wm8904_parse_retune_cfg_from_of(struct i2c_client *i2c,
+					   struct wm8904_pdata *pdata)
+{
+	const struct device_node *np = i2c->dev.of_node;
+	int i, n_cfgs;
+
+	n_cfgs = of_property_count_strings(np, "wlf,retune-mobile-cfg-names");
+	if (n_cfgs == -EINVAL)
+		return 0;
+
+	if (n_cfgs <= 0) {
+		dev_err(&i2c->dev,
+			"Could not get wlf,retune-mobile-cfg-names length: %d",
+			n_cfgs);
+		return n_cfgs;
+	}
+
+	pdata->retune_mobile_cfgs = devm_kzalloc(&i2c->dev,
+						 n_cfgs * sizeof(struct wm8904_retune_mobile_cfg),
+						 GFP_KERNEL);
+	if (!pdata->retune_mobile_cfgs)
+		return -ENOMEM;
+
+	for (i = 0; i < n_cfgs; i++) {
+		if (wm8904_parse_retune_cfg_regs(np, pdata, i)) {
+			dev_err(&i2c->dev,
+				"Invalid 'wlf,retune-mobile-cfg-regs[%i,:]'\n", i);
+			return -EINVAL;
+		}
+
+		if (of_property_read_u32_index(np, "wlf,retune-mobile-cfg-hz", i,
+					       &pdata->retune_mobile_cfgs[i].rate)) {
+			dev_err(&i2c->dev,
+				"Invalid 'wlf,retune-mobile-cfg-hz[%i]'\n", i);
+			return -EINVAL;
+		}
+
+		if (of_property_read_string_index(np, "wlf,retune-mobile-cfg-names", i,
+						  &pdata->retune_mobile_cfgs[i].name)) {
+			dev_err(&i2c->dev,
+				"Invalid 'wlf,retune-mobile-cfg-names[%i]'\n", i);
+			return -EINVAL;
+		}
+	}
+
+	pdata->num_retune_mobile_cfgs = n_cfgs;
+	return 0;
+}
+
+static int wm8904_set_pdata_from_of(struct i2c_client *i2c,
+				    struct wm8904_priv *wm8904)
+{
+	const struct device_node *np = i2c->dev.of_node;
+	struct wm8904_pdata *pdata;
+	int ret, i;
+
+	pdata = devm_kzalloc(&i2c->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	pdata->in1l_as_dmicdat1 =
+		of_property_read_bool(np, "wlf,in1l-as-dmicdat1");
+
+	pdata->in1r_as_dmicdat2 =
+		of_property_read_bool(np, "wlf,in1r-as-dmicdat2");
+
+	/* If absent, default to 0xFFFF for GPIO config (i.e.: don't set) */
+	for (i = 0; i < WM8904_GPIO_REGS; i++)
+		pdata->gpio_cfg[i] = 0xFFFF;
+
+	of_property_read_u32_array(np, "wlf,gpio-cfg", pdata->gpio_cfg,
+				   ARRAY_SIZE(pdata->gpio_cfg));
+
+	of_property_read_u32_array(np, "wlf,micbias-cfg", pdata->mic_cfg,
+				   ARRAY_SIZE(pdata->mic_cfg));
+
+	ret = wm8904_parse_drc_cfg_from_of(i2c, pdata);
+	if (ret)
+		return ret;
+
+	ret = wm8904_parse_retune_cfg_from_of(i2c, pdata);
+	if (ret)
+		return ret;
+
+	wm8904->pdata = pdata;
+	return 0;
+}
+
 static const struct i2c_device_id wm8904_i2c_id[];
 
 static int wm8904_i2c_probe(struct i2c_client *i2c)
@@ -2199,7 +2377,16 @@ static int wm8904_i2c_probe(struct i2c_client *i2c)
 	wm8904->devtype = (uintptr_t)i2c_get_match_data(i2c);
 
 	i2c_set_clientdata(i2c, wm8904);
-	wm8904->pdata = i2c->dev.platform_data;
+
+	if (i2c->dev.of_node) {
+		ret = wm8904_set_pdata_from_of(i2c, wm8904);
+		if (ret) {
+			dev_err(&i2c->dev, "Failed to set platform data from of: %d\n", ret);
+			return ret;
+		}
+	} else {
+		wm8904->pdata = i2c->dev.platform_data;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(wm8904->supplies); i++)
 		wm8904->supplies[i].supply = wm8904_supply_names[i];
