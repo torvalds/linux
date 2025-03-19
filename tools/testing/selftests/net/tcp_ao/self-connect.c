@@ -64,7 +64,7 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 		test_error("test_get_tcp_counters()");
 
 	if (__test_connect_socket(sk, "lo", (struct sockaddr *)&addr,
-				  sizeof(addr), TEST_TIMEOUT_SEC) < 0) {
+				  sizeof(addr), 0) < 0) {
 		ns_after = netstat_read();
 		netstat_print_diff(ns_before, ns_after);
 		test_error("failed to connect()");

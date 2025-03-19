@@ -289,7 +289,7 @@ extern int link_set_up(const char *intf);
 extern const unsigned int test_server_port;
 extern int test_wait_fd(int sk, time_t sec, bool write);
 extern int __test_connect_socket(int sk, const char *device,
-				 void *addr, size_t addr_sz, time_t timeout);
+				 void *addr, size_t addr_sz, bool async);
 extern int __test_listen_socket(int backlog, void *addr, size_t addr_sz);
 
 static inline int test_listen_socket(const union tcp_addr taddr,
@@ -338,19 +338,19 @@ static inline int test_listen_socket(const union tcp_addr taddr,
 #endif
 
 static inline int _test_connect_socket(int sk, const union tcp_addr taddr,
-				       unsigned int port, time_t timeout)
+				       unsigned int port, bool async)
 {
 	sockaddr_af addr;
 
 	tcp_addr_to_sockaddr_in(&addr, &taddr, htons(port));
 	return __test_connect_socket(sk, veth_name,
-				     (void *)&addr, sizeof(addr), timeout);
+				     (void *)&addr, sizeof(addr), async);
 }
 
 static inline int test_connect_socket(int sk, const union tcp_addr taddr,
 				      unsigned int port)
 {
-	return _test_connect_socket(sk, taddr, port, TEST_TIMEOUT_SEC);
+	return _test_connect_socket(sk, taddr, port, false);
 }
 
 extern int __test_set_md5(int sk, void *addr, size_t addr_sz,

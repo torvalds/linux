@@ -271,8 +271,7 @@ static void test_client_active_rst(unsigned int port)
 
 	synchronize_threads(); /* 1: MKT added */
 	for (i = 0; i < last; i++) {
-		err = _test_connect_socket(sk[i], this_ip_dest, port,
-					       (i == 0) ? TEST_TIMEOUT_SEC : -1);
+		err = _test_connect_socket(sk[i], this_ip_dest, port, i != 0);
 		if (err < 0)
 			test_error("failed to connect()");
 	}
@@ -283,7 +282,7 @@ static void test_client_active_rst(unsigned int port)
 		test_error("test_wait_fds(): %d", err);
 
 	/* async connect() with third sk to get into request_sock_queue */
-	err = _test_connect_socket(sk[last], this_ip_dest, port, -1);
+	err = _test_connect_socket(sk[last], this_ip_dest, port, 1);
 	if (err < 0)
 		test_error("failed to connect()");
 

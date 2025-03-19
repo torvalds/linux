@@ -111,7 +111,7 @@ static int __test_skpair_poll(int sk, bool write, uint64_t timeout,
 }
 
 int __test_connect_socket(int sk, const char *device,
-			  void *addr, size_t addr_sz, time_t timeout)
+			  void *addr, size_t addr_sz, bool async)
 {
 	long flags;
 	int err;
@@ -123,15 +123,6 @@ int __test_connect_socket(int sk, const char *device,
 			test_error("setsockopt(SO_BINDTODEVICE, %s)", device);
 	}
 
-	if (!timeout) {
-		err = connect(sk, addr, addr_sz);
-		if (err) {
-			err = -errno;
-			goto out;
-		}
-		return 0;
-	}
-
 	flags = fcntl(sk, F_GETFL);
 	if ((flags < 0) || (fcntl(sk, F_SETFL, flags | O_NONBLOCK) < 0))
 		test_error("fcntl()");
@@ -141,9 +132,9 @@ int __test_connect_socket(int sk, const char *device,
 			err = -errno;
 			goto out;
 		}
-		if (timeout < 0)
+		if (async)
 			return sk;
-		err = test_wait_fd(sk, timeout, 1);
+		err = test_wait_fd(sk, TEST_TIMEOUT_SEC, 1);
 		if (err)
 			goto out;
 	}
@@ -181,12 +172,14 @@ int _test_skpair_connect_poll(int sk, const char *device,
 	if (test_get_tcp_counters(sk, &c))
 		test_error("test_get_tcp_counters()");
 	synchronize_threads(); /* 1: init skpair & read nscounters */
-	ret = __test_connect_socket(sk, device, addr, addr_sz, -1);
+	ret = __test_connect_socket(sk, device, addr, addr_sz, true);
 	if (ret < 0) {
 		test_tcp_counters_free(&c);
 		return (*err = ret);
 	}
 	ret = __test_skpair_poll(sk, 1, TEST_TIMEOUT_SEC, &c, condition, err);
+	if (ret < 0)
+		close(sk);
 	test_tcp_counters_free(&c);
 	return ret;
 }
