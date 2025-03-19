@@ -75,13 +75,13 @@ static int rseq_ownership;
  * Use a union to ensure we allocate a TLS area of 1024 bytes to accomodate an
  * rseq registration that is larger than the current rseq ABI.
  */
-union rseq {
+union rseq_tls {
 	struct rseq_abi abi;
 	char dummy[RSEQ_THREAD_AREA_ALLOC_SIZE];
 };
 
 static
-__thread union rseq __rseq __attribute__((tls_model("initial-exec"))) = {
+__thread union rseq_tls __rseq __attribute__((tls_model("initial-exec"))) = {
 	.abi = {
 		.cpu_id = RSEQ_ABI_CPU_ID_UNINITIALIZED,
 	},
