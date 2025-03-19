@@ -2682,8 +2682,8 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 		}
 	}
 
-	gpu_metrics->xgmi_link_width = SMUQ10_ROUND(GET_METRIC_FIELD(XgmiWidth, version));
-	gpu_metrics->xgmi_link_speed = SMUQ10_ROUND(GET_METRIC_FIELD(XgmiBitrate, version));
+	gpu_metrics->xgmi_link_width = GET_METRIC_FIELD(XgmiWidth, version);
+	gpu_metrics->xgmi_link_speed = GET_METRIC_FIELD(XgmiBitrate, version);
 
 	gpu_metrics->firmware_timestamp = GET_METRIC_FIELD(Timestamp, version);
 
