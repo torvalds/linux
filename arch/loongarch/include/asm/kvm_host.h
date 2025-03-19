@@ -12,6 +12,7 @@
 #include <linux/kvm.h>
 #include <linux/kvm_types.h>
 #include <linux/mutex.h>
+#include <linux/perf_event.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
 #include <linux/types.h>
@@ -176,6 +177,9 @@ struct kvm_vcpu_arch {
 	/* Pointers stored here for easy accessing from assembly code */
 	int (*handle_exit)(struct kvm_run *run, struct kvm_vcpu *vcpu);
 
+	/* GPA (=HVA) of PGD for secondary mmu */
+	unsigned long kvm_pgd;
+
 	/* Host registers preserved across guest mode execution */
 	unsigned long host_sp;
 	unsigned long host_tp;
@@ -288,6 +292,8 @@ static inline int kvm_get_pmu_num(struct kvm_vcpu_arch *arch)
 {
 	return (arch->cpucfg[6] & CPUCFG6_PMNUM) >> CPUCFG6_PMNUM_SHIFT;
 }
+
+bool kvm_arch_pmi_in_guest(struct kvm_vcpu *vcpu);
 
 /* Debug: dump vcpu state */
 int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu);
