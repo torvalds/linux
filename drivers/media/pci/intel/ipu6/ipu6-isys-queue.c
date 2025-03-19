@@ -797,7 +797,7 @@ void ipu6_isys_queue_buf_ready(struct ipu6_isys_stream *stream,
 		return;
 	}
 
-	dev_err(dev, "Failed to find a matching video buffer");
+	dev_err(dev, "Failed to find a matching video buffer\n");
 
 	spin_unlock_irqrestore(&aq->lock, flags);
 }
