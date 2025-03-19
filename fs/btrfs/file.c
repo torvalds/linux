@@ -800,7 +800,7 @@ out:
  * On success return a locked folio and 0
  */
 static int prepare_uptodate_folio(struct inode *inode, struct folio *folio, u64 pos,
-				  u64 len, bool force_uptodate)
+				  u64 len)
 {
 	u64 clamp_start = max_t(u64, pos, folio_pos(folio));
 	u64 clamp_end = min_t(u64, pos + len, folio_pos(folio) + folio_size(folio));
@@ -810,8 +810,7 @@ static int prepare_uptodate_folio(struct inode *inode, struct folio *folio, u64 
 	if (folio_test_uptodate(folio))
 		return 0;
 
-	if (!force_uptodate &&
-	    IS_ALIGNED(clamp_start, blocksize) &&
+	if (IS_ALIGNED(clamp_start, blocksize) &&
 	    IS_ALIGNED(clamp_end, blocksize))
 		return 0;
 
@@ -858,7 +857,7 @@ static gfp_t get_prepare_gfp_flags(struct inode *inode, bool nowait)
  */
 static noinline int prepare_one_folio(struct inode *inode, struct folio **folio_ret,
 				      loff_t pos, size_t write_bytes,
-				      bool force_uptodate, bool nowait)
+				      bool nowait)
 {
 	unsigned long index = pos >> PAGE_SHIFT;
 	gfp_t mask = get_prepare_gfp_flags(inode, nowait);
@@ -883,7 +882,7 @@ again:
 		folio_put(folio);
 		return ret;
 	}
-	ret = prepare_uptodate_folio(inode, folio, pos, write_bytes, force_uptodate);
+	ret = prepare_uptodate_folio(inode, folio, pos, write_bytes);
 	if (ret) {
 		/* The folio is already unlocked. */
 		folio_put(folio);
@@ -1129,7 +1128,6 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 		size_t num_sectors;
 		struct folio *folio = NULL;
 		int extents_locked;
-		bool force_page_uptodate = false;
 
 		/*
 		 * Fault pages before locking them in prepare_one_folio()
@@ -1198,8 +1196,7 @@ again:
 			break;
 		}
 
-		ret = prepare_one_folio(inode, &folio, pos, write_bytes,
-					force_page_uptodate, false);
+		ret = prepare_one_folio(inode, &folio, pos, write_bytes, false);
 		if (ret) {
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
 						       reserve_bytes);
@@ -1242,12 +1239,8 @@ again:
 					fs_info->sectorsize);
 		dirty_sectors = BTRFS_BYTES_TO_BLKS(fs_info, dirty_sectors);
 
-		if (copied == 0) {
-			force_page_uptodate = true;
+		if (copied == 0)
 			dirty_sectors = 0;
-		} else {
-			force_page_uptodate = false;
-		}
 
 		if (num_sectors > dirty_sectors) {
 			/* release everything except the sectors we dirtied */
