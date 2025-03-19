@@ -1017,7 +1017,7 @@ static int agilent_82357a_line_status(const gpib_board_t *board)
 	struct usb_device *usb_dev;
 	struct agilent_82357a_register_pairlet bus_status;
 	int retval;
-	int status = ValidALL;
+	int status = VALID_ALL;
 
 	if (!a_priv->bus_interface)
 		return -ENODEV;

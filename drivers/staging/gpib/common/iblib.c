@@ -76,7 +76,7 @@ static int check_for_command_acceptors(gpib_board_t *board)
 	if (lines < 0)
 		return lines;
 
-	if ((lines & ValidNRFD) && (lines & ValidNDAC))	{
+	if ((lines & VALID_NRFD) && (lines & VALID_NDAC))	{
 		if ((lines & BUS_NRFD) == 0 && (lines & BUS_NDAC) == 0)
 			return -ENOTCONN;
 	}
@@ -520,7 +520,7 @@ int general_ibstatus(gpib_board_t *board, const gpib_status_queue_t *device,
 		status &= ~TIMO;
 		/* get real SRQI status if we can */
 		if (iblines(board, &line_status) == 0) {
-			if ((line_status & ValidSRQ)) {
+			if ((line_status & VALID_SRQ)) {
 				if ((line_status & BUS_SRQ))
 					status |= SRQI;
 				else

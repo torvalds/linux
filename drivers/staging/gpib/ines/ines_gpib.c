@@ -27,7 +27,7 @@ MODULE_DESCRIPTION("GPIB driver for Ines iGPIB 72010");
 
 int ines_line_status(const gpib_board_t *board)
 {
-	int status = ValidALL;
+	int status = VALID_ALL;
 	int bcm_bits;
 	struct ines_priv *ines_priv;
 

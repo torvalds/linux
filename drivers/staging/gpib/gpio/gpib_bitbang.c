@@ -1031,7 +1031,7 @@ static void bb_return_to_local(gpib_board_t *board)
 
 static int bb_line_status(const gpib_board_t *board)
 {
-	int line_status = ValidALL;
+	int line_status = VALID_ALL;
 
 	if (gpiod_get_value(REN) == 0)
 		line_status |= BUS_REN;

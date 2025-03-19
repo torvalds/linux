@@ -1508,7 +1508,7 @@ static int ni_usb_line_status(const gpib_board_t *board)
 	int bytes_written = 0, bytes_read = 0;
 	int i = 0;
 	unsigned int bsr_bits;
-	int line_status = ValidALL;
+	int line_status = VALID_ALL;
 	// NI windows driver reads 0xd(HSSEL), 0xc (ARD0), 0x1f (BSR)
 
 	if (!ni_priv->bus_interface)

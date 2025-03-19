@@ -658,7 +658,7 @@ static void usb_gpib_interface_clear(gpib_board_t *board, int assert)
 static int usb_gpib_line_status(const gpib_board_t *board)
 {
 	int buffer;
-	int line_status = ValidALL;   /* all lines will be read */
+	int line_status = VALID_ALL;   /* all lines will be read */
 	struct list_head *p, *q;
 	WQT *item;
 	unsigned long flags;

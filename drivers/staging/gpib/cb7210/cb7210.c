@@ -379,7 +379,7 @@ static int cb7210_accel_write(gpib_board_t *board, uint8_t *buffer, size_t lengt
 
 static int cb7210_line_status(const gpib_board_t *board)
 {
-	int status = ValidALL;
+	int status = VALID_ALL;
 	int bsr_bits;
 	struct cb7210_priv *cb_priv;
 
