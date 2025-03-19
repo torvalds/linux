@@ -146,6 +146,18 @@ properties:
     items:
       enum: [ qspi, qspi-ocp, rstc_ref ]
 
+patternProperties:
+  "^flash@[0-9a-f]+$":
+    type: object
+    $ref: cdns,qspi-nor-peripheral-props.yaml
+    additionalProperties: true
+    required:
+      - cdns,read-delay
+      - cdns,tshsl-ns
+      - cdns,tsd2d-ns
+      - cdns,tchsh-ns
+      - cdns,tslch-ns
+
 required:
   - compatible
   - reg
@@ -177,5 +189,10 @@ examples:
         flash@0 {
             compatible = "jedec,spi-nor";
             reg = <0x0>;
+            cdns,read-delay = <4>;
+            cdns,tshsl-ns = <60>;
+            cdns,tsd2d-ns = <60>;
+            cdns,tchsh-ns = <60>;
+            cdns,tslch-ns = <60>;
         };
     };
