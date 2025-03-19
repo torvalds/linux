@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 
 typedef struct gpib_interface_struct gpib_interface_t;
-typedef struct gpib_board_struct gpib_board_t;
+typedef struct gpib_board gpib_board_t;
 
 /* config parameters that are only used by driver attach functions */
 typedef struct {
@@ -220,7 +220,7 @@ typedef struct gpib_interface_list_struct {
  * It provides storage for variables local to each board, and interface
  * functions for performing operations on the board
  */
-struct gpib_board_struct {
+struct gpib_board {
 	/* functions used by this board */
 	gpib_interface_t *interface;
 	/* Pointer to module whose use count we should increment when
