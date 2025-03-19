@@ -60,18 +60,35 @@ static int zpci_iov_link_virtfn(struct pci_dev *pdev, struct pci_dev *virtfn, in
 	return 0;
 }
 
-int zpci_iov_setup_virtfn(struct zpci_bus *zbus, struct pci_dev *virtfn, int vfn)
+/**
+ * zpci_iov_find_parent_pf - Find the parent PF, if any, of the given function
+ * @zbus:	The bus that the PCI function is on, or would be added on
+ * @zdev:	The PCI function
+ *
+ * Finds the parent PF, if it exists and is configured, of the given PCI function
+ * and increments its refcount. Th PF is searched for on the provided bus so the
+ * caller has to ensure that this is the correct bus to search. This function may
+ * be used before adding the PCI function to a zbus.
+ *
+ * Return: Pointer to the struct pci_dev of the parent PF or NULL if it not
+ * found. If the function is not a VF or has no RequesterID information,
+ * NULL is returned as well.
+ */
+struct pci_dev *zpci_iov_find_parent_pf(struct zpci_bus *zbus, struct zpci_dev *zdev)
 {
-	int i, cand_devfn;
-	struct zpci_dev *zdev;
+	int i, vfid, devfn, cand_devfn;
 	struct pci_dev *pdev;
-	int vfid = vfn - 1; /* Linux' vfid's start at 0 vfn at 1*/
-	int rc = 0;
 
 	if (!zbus->multifunction)
-		return 0;
-
-	/* If the parent PF for the given VF is also configured in the
+		return NULL;
+	/* Non-VFs and VFs without RID available don't have a parent */
+	if (!zdev->vfn || !zdev->rid_available)
+		return NULL;
+	/* Linux vfid starts at 0 vfn at 1 */
+	vfid = zdev->vfn - 1;
+	devfn = zdev->rid & ZPCI_RID_MASK_DEVFN;
+	/*
+	 * If the parent PF for the given VF is also configured in the
 	 * instance, it must be on the same zbus.
 	 * We can then identify the parent PF by checking what
 	 * devfn the VF would have if it belonged to that PF using the PF's
@@ -85,15 +102,26 @@ int zpci_iov_setup_virtfn(struct zpci_bus *zbus, struct pci_dev *virtfn, int vfn
 			if (!pdev)
 				continue;
 			cand_devfn = pci_iov_virtfn_devfn(pdev, vfid);
-			if (cand_devfn == virtfn->devfn) {
-				rc = zpci_iov_link_virtfn(pdev, virtfn, vfid);
-				/* balance pci_get_slot() */
-				pci_dev_put(pdev);
-				break;
-			}
+			if (cand_devfn == devfn)
+				return pdev;
 			/* balance pci_get_slot() */
 			pci_dev_put(pdev);
 		}
+	}
+	return NULL;
+}
+
+int zpci_iov_setup_virtfn(struct zpci_bus *zbus, struct pci_dev *virtfn, int vfn)
+{
+	struct zpci_dev *zdev = to_zpci(virtfn);
+	struct pci_dev *pdev_pf;
+	int rc = 0;
+
+	pdev_pf = zpci_iov_find_parent_pf(zbus, zdev);
+	if (pdev_pf) {
+		/* Linux' vfids start at 0 while zdev->vfn starts at 1 */
+		rc = zpci_iov_link_virtfn(pdev_pf, virtfn, zdev->vfn - 1);
+		pci_dev_put(pdev_pf);
 	}
 	return rc;
 }

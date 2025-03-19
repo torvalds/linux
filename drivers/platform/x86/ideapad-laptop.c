@@ -1121,7 +1121,7 @@ static int ideapad_dytc_profile_init(struct ideapad_private *priv)
 
 	/* Create platform_profile structure and register */
 	priv->dytc->ppdev = devm_platform_profile_register(&priv->platform_device->dev,
-							   "ideapad-laptop", &priv->dytc,
+							   "ideapad-laptop", priv->dytc,
 							   &dytc_profile_ops);
 	if (IS_ERR(priv->dytc->ppdev)) {
 		err = PTR_ERR(priv->dytc->ppdev);

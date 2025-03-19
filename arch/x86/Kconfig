@@ -2599,7 +2599,8 @@ config MITIGATION_IBPB_ENTRY
 	depends on CPU_SUP_AMD && X86_64
 	default y
 	help
-	  Compile the kernel with support for the retbleed=ibpb mitigation.
+	  Compile the kernel with support for the retbleed=ibpb and
+	  spec_rstack_overflow={ibpb,ibpb-vmexit} mitigations.
 
 config MITIGATION_IBRS_ENTRY
 	bool "Enable IBRS on kernel entry"

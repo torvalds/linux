@@ -446,11 +446,20 @@ nfsd_file_dispose_list_delayed(struct list_head *dispose)
 						struct nfsd_file, nf_gc);
 		struct nfsd_net *nn = net_generic(nf->nf_net, nfsd_net_id);
 		struct nfsd_fcache_disposal *l = nn->fcache_disposal;
+		struct svc_serv *serv;
 
 		spin_lock(&l->lock);
 		list_move_tail(&nf->nf_gc, &l->freeme);
 		spin_unlock(&l->lock);
-		svc_wake_up(nn->nfsd_serv);
+
+		/*
+		 * The filecache laundrette is shut down after the
+		 * nn->nfsd_serv pointer is cleared, but before the
+		 * svc_serv is freed.
+		 */
+		serv = nn->nfsd_serv;
+		if (serv)
+			svc_wake_up(serv);
 	}
 }
 

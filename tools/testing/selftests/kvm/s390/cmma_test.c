@@ -444,7 +444,7 @@ static void assert_no_pages_cmma_dirty(struct kvm_vm *vm)
 			 );
 }
 
-static void test_get_inital_dirty(void)
+static void test_get_initial_dirty(void)
 {
 	struct kvm_vm *vm = create_vm_two_memslots();
 	struct kvm_vcpu *vcpu;
@@ -651,7 +651,7 @@ struct testdef {
 } testlist[] = {
 	{ "migration mode and dirty tracking", test_migration_mode },
 	{ "GET_CMMA_BITS: basic calls", test_get_cmma_basic },
-	{ "GET_CMMA_BITS: all pages are dirty initally", test_get_inital_dirty },
+	{ "GET_CMMA_BITS: all pages are dirty initially", test_get_initial_dirty },
 	{ "GET_CMMA_BITS: holes are skipped", test_get_skip_holes },
 };
 

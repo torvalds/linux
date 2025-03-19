@@ -2254,8 +2254,10 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 	 * queues a new work item to a wq after destroy_workqueue(wq).
 	 */
 	if (unlikely(wq->flags & (__WQ_DESTROYING | __WQ_DRAINING) &&
-		     WARN_ON_ONCE(!is_chained_work(wq))))
+		     WARN_ONCE(!is_chained_work(wq), "workqueue: cannot queue %ps on wq %s\n",
+			       work->func, wq->name))) {
 		return;
+	}
 	rcu_read_lock();
 retry:
 	/* pwq which will be used unless @work is executing elsewhere */
@@ -3517,12 +3519,6 @@ repeat:
 		}
 
 		/*
-		 * Put the reference grabbed by send_mayday().  @pool won't
-		 * go away while we're still attached to it.
-		 */
-		put_pwq(pwq);
-
-		/*
 		 * Leave this pool. Notify regular workers; otherwise, we end up
 		 * with 0 concurrency and stalling the execution.
 		 */
@@ -3531,6 +3527,12 @@ repeat:
 		raw_spin_unlock_irq(&pool->lock);
 
 		worker_detach_from_pool(rescuer);
+
+		/*
+		 * Put the reference grabbed by send_mayday().  @pool might
+		 * go away any time after it.
+		 */
+		put_pwq_unlocked(pwq);
 
 		raw_spin_lock_irq(&wq_mayday_lock);
 	}

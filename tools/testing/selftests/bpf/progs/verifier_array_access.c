@@ -713,4 +713,19 @@ unsigned int non_stack_key_lookup(void)
 	return val->index;
 }
 
+SEC("socket")
+__description("doesn't reject UINT64_MAX as s64 for irrelevant maps")
+__success __retval(42)
+unsigned int doesnt_reject_irrelevant_maps(void)
+{
+	__u64 key = 0xFFFFFFFFFFFFFFFF;
+	struct test_val *val;
+
+	val = bpf_map_lookup_elem(&map_hash_48b, &key);
+	if (val)
+		return val->index;
+
+	return 42;
+}
+
 char _license[] SEC("license") = "GPL";

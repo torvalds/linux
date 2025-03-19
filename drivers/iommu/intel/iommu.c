@@ -3146,7 +3146,14 @@ int __init intel_iommu_init(void)
 		iommu_device_sysfs_add(&iommu->iommu, NULL,
 				       intel_iommu_groups,
 				       "%s", iommu->name);
+		/*
+		 * The iommu device probe is protected by the iommu_probe_device_lock.
+		 * Release the dmar_global_lock before entering the device probe path
+		 * to avoid unnecessary lock order splat.
+		 */
+		up_read(&dmar_global_lock);
 		iommu_device_register(&iommu->iommu, &intel_iommu_ops, NULL);
+		down_read(&dmar_global_lock);
 
 		iommu_pmu_register(iommu);
 	}
@@ -4377,9 +4384,6 @@ static int context_setup_pass_through(struct device *dev, u8 bus, u8 devfn)
 static int context_setup_pass_through_cb(struct pci_dev *pdev, u16 alias, void *data)
 {
 	struct device *dev = data;
-
-	if (dev != &pdev->dev)
-		return 0;
 
 	return context_setup_pass_through(dev, PCI_BUS_NUM(alias), alias & 0xff);
 }

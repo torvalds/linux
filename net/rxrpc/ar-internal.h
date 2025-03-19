@@ -327,8 +327,8 @@ struct rxrpc_local {
 	 * packet with a maximum set of jumbo subpackets or a PING ACK padded
 	 * out to 64K with zeropages for PMTUD.
 	 */
-	struct kvec		kvec[RXRPC_MAX_NR_JUMBO > 3 + 16 ?
-				     RXRPC_MAX_NR_JUMBO : 3 + 16];
+	struct kvec		kvec[1 + RXRPC_MAX_NR_JUMBO > 3 + 16 ?
+				     1 + RXRPC_MAX_NR_JUMBO : 3 + 16];
 };
 
 /*
@@ -360,7 +360,6 @@ struct rxrpc_peer {
 	u8			pmtud_jumbo;	/* Max jumbo packets for the MTU */
 	bool			ackr_adv_pmtud;	/* T if the peer advertises path-MTU */
 	unsigned int		ackr_max_data;	/* Maximum data advertised by peer */
-	seqcount_t		mtu_lock;	/* Lockless MTU access management */
 	unsigned int		if_mtu;		/* Local interface MTU (- hdrsize) for this peer */
 	unsigned int		max_data;	/* Maximum packet data capacity for this peer */
 	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
@@ -582,6 +581,7 @@ enum rxrpc_call_flag {
 	RXRPC_CALL_EXCLUSIVE,		/* The call uses a once-only connection */
 	RXRPC_CALL_RX_IS_IDLE,		/* recvmsg() is idle - send an ACK */
 	RXRPC_CALL_RECVMSG_READ_ALL,	/* recvmsg() read all of the received data */
+	RXRPC_CALL_CONN_CHALLENGING,	/* The connection is being challenged */
 };
 
 /*
@@ -602,7 +602,6 @@ enum rxrpc_call_state {
 	RXRPC_CALL_CLIENT_AWAIT_REPLY,	/* - client awaiting reply */
 	RXRPC_CALL_CLIENT_RECV_REPLY,	/* - client receiving reply phase */
 	RXRPC_CALL_SERVER_PREALLOC,	/* - service preallocation */
-	RXRPC_CALL_SERVER_SECURING,	/* - server securing request connection */
 	RXRPC_CALL_SERVER_RECV_REQUEST,	/* - server receiving request */
 	RXRPC_CALL_SERVER_ACK_REQUEST,	/* - server pending ACK of request */
 	RXRPC_CALL_SERVER_SEND_REPLY,	/* - server sending reply */
@@ -874,8 +873,7 @@ struct rxrpc_txbuf {
 #define RXRPC_TXBUF_RESENT	0x100		/* Set if has been resent */
 	__be16			cksum;		/* Checksum to go in header */
 	bool			jumboable;	/* Can be non-terminal jumbo subpacket */
-	u8			nr_kvec;	/* Amount of kvec[] used */
-	struct kvec		kvec[1];
+	void			*data;		/* Data with preceding jumbo header */
 };
 
 static inline bool rxrpc_sending_to_server(const struct rxrpc_txbuf *txb)

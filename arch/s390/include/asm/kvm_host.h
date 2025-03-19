@@ -30,6 +30,8 @@
 #define KVM_S390_ESCA_CPU_SLOTS 248
 #define KVM_MAX_VCPUS 255
 
+#define KVM_INTERNAL_MEM_SLOTS 1
+
 /*
  * These seem to be used for allocating ->chip in the routing table, which we
  * don't use. 1 is as small as we can get to reduce the needed memory. If we
@@ -931,12 +933,14 @@ struct sie_page2 {
 	u8 reserved928[0x1000 - 0x928];			/* 0x0928 */
 };
 
+struct vsie_page;
+
 struct kvm_s390_vsie {
 	struct mutex mutex;
 	struct radix_tree_root addr_to_page;
 	int page_count;
 	int next;
-	struct page *pages[KVM_MAX_VCPUS];
+	struct vsie_page *pages[KVM_MAX_VCPUS];
 };
 
 struct kvm_s390_gisa_iam {

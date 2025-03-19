@@ -726,7 +726,7 @@ static int z_erofs_register_pcluster(struct z_erofs_frontend *fe)
 	if (IS_ERR(pcl))
 		return PTR_ERR(pcl);
 
-	lockref_init(&pcl->lockref, 1); /* one ref for this request */
+	lockref_init(&pcl->lockref); /* one ref for this request */
 	pcl->algorithmformat = map->m_algorithmformat;
 	pcl->length = 0;
 	pcl->partial = true;

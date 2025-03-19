@@ -7,7 +7,6 @@ menu "Intel THC HID Support"
 config INTEL_THC_HID
 	tristate "Intel Touch Host Controller"
 	depends on ACPI
-	select HID
 	help
 	  THC (Touch Host Controller) is the name of the IP block in PCH that
 	  interfaces with Touch Devices (ex: touchscreen, touchpad etc.). It

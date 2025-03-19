@@ -190,8 +190,8 @@ static struct module *new_module(const char *name, size_t namelen)
 
 	/*
 	 * Set mod->is_gpl_compatible to true by default. If MODULE_LICENSE()
-	 * is missing, do not check the use for EXPORT_SYMBOL_GPL() becasue
-	 * modpost will exit wiht error anyway.
+	 * is missing, do not check the use for EXPORT_SYMBOL_GPL() because
+	 * modpost will exit with an error anyway.
 	 */
 	mod->is_gpl_compatible = true;
 
@@ -507,6 +507,9 @@ static int parse_elf(struct elf_info *info, const char *filename)
 			info->modinfo_len = sechdrs[i].sh_size;
 		} else if (!strcmp(secname, ".export_symbol")) {
 			info->export_symbol_secndx = i;
+		} else if (!strcmp(secname, ".no_trim_symbol")) {
+			info->no_trim_symbol = (void *)hdr + sechdrs[i].sh_offset;
+			info->no_trim_symbol_len = sechdrs[i].sh_size;
 		}
 
 		if (sechdrs[i].sh_type == SHT_SYMTAB) {
@@ -1566,6 +1569,14 @@ static void read_symbols(const char *modname)
 	/* strip trailing .o */
 	mod = new_module(modname, strlen(modname) - strlen(".o"));
 
+	/* save .no_trim_symbol section for later use */
+	if (info.no_trim_symbol_len) {
+		mod->no_trim_symbol = xmalloc(info.no_trim_symbol_len);
+		memcpy(mod->no_trim_symbol, info.no_trim_symbol,
+		       info.no_trim_symbol_len);
+		mod->no_trim_symbol_len = info.no_trim_symbol_len;
+	}
+
 	if (!mod->is_vmlinux) {
 		license = get_modinfo(&info, "license");
 		if (!license)
@@ -1726,6 +1737,28 @@ static void handle_white_list_exports(const char *white_list)
 	}
 
 	free(buf);
+}
+
+/*
+ * Keep symbols recorded in the .no_trim_symbol section. This is necessary to
+ * prevent CONFIG_TRIM_UNUSED_KSYMS from dropping EXPORT_SYMBOL because
+ * symbol_get() relies on the symbol being present in the ksymtab for lookups.
+ */
+static void keep_no_trim_symbols(struct module *mod)
+{
+	unsigned long size = mod->no_trim_symbol_len;
+
+	for (char *s = mod->no_trim_symbol; s; s = next_string(s , &size)) {
+		struct symbol *sym;
+
+		/*
+		 * If find_symbol() returns NULL, this symbol is not provided
+		 * by any module, and symbol_get() will fail.
+		 */
+		sym = find_symbol(s);
+		if (sym)
+			sym->used = true;
+	}
 }
 
 static void check_modname_len(struct module *mod)
@@ -2254,6 +2287,8 @@ int main(int argc, char **argv)
 		read_symbols_from_files(files_source);
 
 	list_for_each_entry(mod, &modules, list) {
+		keep_no_trim_symbols(mod);
+
 		if (mod->dump_file || mod->is_vmlinux)
 			continue;
 

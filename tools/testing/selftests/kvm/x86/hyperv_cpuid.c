@@ -41,12 +41,18 @@ static bool smt_possible(void)
 	return res;
 }
 
-static void test_hv_cpuid(const struct kvm_cpuid2 *hv_cpuid_entries,
-			  bool evmcs_expected)
+static void test_hv_cpuid(struct kvm_vcpu *vcpu, bool evmcs_expected)
 {
+	const bool has_irqchip = !vcpu || vcpu->vm->has_irqchip;
+	const struct kvm_cpuid2 *hv_cpuid_entries;
 	int i;
 	int nent_expected = 10;
 	u32 test_val;
+
+	if (vcpu)
+		hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vcpu);
+	else
+		hv_cpuid_entries = kvm_get_supported_hv_cpuid();
 
 	TEST_ASSERT(hv_cpuid_entries->nent == nent_expected,
 		    "KVM_GET_SUPPORTED_HV_CPUID should return %d entries"
@@ -80,12 +86,19 @@ static void test_hv_cpuid(const struct kvm_cpuid2 *hv_cpuid_entries,
 				    entry->eax, evmcs_expected
 				);
 			break;
+		case 0x40000003:
+			TEST_ASSERT(has_irqchip || !(entry->edx & BIT(19)),
+				    "\"Direct\" Synthetic Timers should require in-kernel APIC");
+			break;
 		case 0x40000004:
 			test_val = entry->eax & (1UL << 18);
 
 			TEST_ASSERT(!!test_val == !smt_possible(),
 				    "NoNonArchitecturalCoreSharing bit"
 				    " doesn't reflect SMT setting");
+
+			TEST_ASSERT(has_irqchip || !(entry->eax & BIT(10)),
+				    "Cluster IPI (i.e. SEND_IPI) should require in-kernel APIC");
 			break;
 		case 0x4000000A:
 			TEST_ASSERT(entry->eax & (1UL << 19),
@@ -109,9 +122,16 @@ static void test_hv_cpuid(const struct kvm_cpuid2 *hv_cpuid_entries,
 		 *	entry->edx);
 		 */
 	}
+
+	/*
+	 * Note, the CPUID array returned by the system-scoped helper is a one-
+	 * time allocation, i.e. must not be freed.
+	 */
+	if (vcpu)
+		free((void *)hv_cpuid_entries);
 }
 
-void test_hv_cpuid_e2big(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
+static void test_hv_cpuid_e2big(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 {
 	static struct kvm_cpuid2 cpuid = {.nent = 0};
 	int ret;
@@ -129,19 +149,20 @@ void test_hv_cpuid_e2big(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
-	const struct kvm_cpuid2 *hv_cpuid_entries;
 	struct kvm_vcpu *vcpu;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_CPUID));
 
-	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
+	/* Test the vCPU ioctl without an in-kernel local APIC. */
+	vm = vm_create_barebones();
+	vcpu = __vm_vcpu_add(vm, 0);
+	test_hv_cpuid(vcpu, false);
+	kvm_vm_free(vm);
 
 	/* Test vCPU ioctl version */
+	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	test_hv_cpuid_e2big(vm, vcpu);
-
-	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vcpu);
-	test_hv_cpuid(hv_cpuid_entries, false);
-	free((void *)hv_cpuid_entries);
+	test_hv_cpuid(vcpu, false);
 
 	if (!kvm_cpu_has(X86_FEATURE_VMX) ||
 	    !kvm_has_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
@@ -149,9 +170,7 @@ int main(int argc, char *argv[])
 		goto do_sys;
 	}
 	vcpu_enable_evmcs(vcpu);
-	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vcpu);
-	test_hv_cpuid(hv_cpuid_entries, true);
-	free((void *)hv_cpuid_entries);
+	test_hv_cpuid(vcpu, true);
 
 do_sys:
 	/* Test system ioctl version */
@@ -161,9 +180,7 @@ do_sys:
 	}
 
 	test_hv_cpuid_e2big(vm, NULL);
-
-	hv_cpuid_entries = kvm_get_supported_hv_cpuid();
-	test_hv_cpuid(hv_cpuid_entries, kvm_cpu_has(X86_FEATURE_VMX));
+	test_hv_cpuid(NULL, kvm_cpu_has(X86_FEATURE_VMX));
 
 out:
 	kvm_vm_free(vm);

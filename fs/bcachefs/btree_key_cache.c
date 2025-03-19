@@ -156,7 +156,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path, unsigned k
 	}
 
 	if (ck) {
-		bch2_btree_lock_init(&ck->c, pcpu_readers ? SIX_LOCK_INIT_PCPU : 0);
+		bch2_btree_lock_init(&ck->c, pcpu_readers ? SIX_LOCK_INIT_PCPU : 0, GFP_KERNEL);
 		ck->c.cached = true;
 		goto lock;
 	}
@@ -748,7 +748,6 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 				rcu_read_unlock();
 				mutex_lock(&bc->table.mutex);
 				mutex_unlock(&bc->table.mutex);
-				rcu_read_lock();
 				continue;
 			}
 			for (i = 0; i < tbl->size; i++)

@@ -15,6 +15,7 @@ static enum scx_test_status setup(void **ctx)
 
 	skel = dsp_local_on__open();
 	SCX_FAIL_IF(!skel, "Failed to open");
+	SCX_ENUM_INIT(skel);
 
 	skel->rodata->nr_cpus = libbpf_num_possible_cpus();
 	SCX_FAIL_IF(dsp_local_on__load(skel), "Failed to load skel");
