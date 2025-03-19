@@ -197,6 +197,10 @@
 	};
 };
 
+&hdmi0_sound {
+	status = "okay";
+};
+
 &hdptxphy0 {
 	status = "okay";
 };
@@ -352,6 +356,10 @@
 	             &i2s1m0_lrck
 	             &i2s1m0_sdi1
 	             &i2s1m0_sdo3>;
+	status = "okay";
+};
+
+&i2s5_8ch {
 	status = "okay";
 };
 

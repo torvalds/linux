@@ -433,7 +433,7 @@
 };
 
 &pwm13 {
-	pinctrl-names = "active";
+	pinctrl-names = "default";
 	pinctrl-0 = <&pwm13m2_pins>;
 	status = "okay";
 };
