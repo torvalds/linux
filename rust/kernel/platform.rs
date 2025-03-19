@@ -149,7 +149,7 @@ macro_rules! module_platform_driver {
 ///     }
 /// }
 ///```
-pub trait Driver {
+pub trait Driver: Send {
     /// The type holding driver private data about each device id supported by the driver.
     ///
     /// TODO: Use associated_type_defaults once stabilized:
