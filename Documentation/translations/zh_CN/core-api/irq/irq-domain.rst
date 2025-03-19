@@ -83,7 +83,6 @@ irq_domain映射的类型
 
 ::
 
-	irq_domain_add_linear()
 	irq_domain_create_linear()
 
 线性反向映射维护了一个固定大小的表，该表以hwirq号为索引。 当一个hwirq被映射
@@ -104,7 +103,6 @@ irq_domain_add_linear()和irq_domain_create_linear()在功能上是等价的，
 
 ::
 
-	irq_domain_add_tree()
 	irq_domain_create_tree()
 
 irq_domain维护着从hwirq号到Linux IRQ的radix的树状映射。 当一个hwirq被映射时，
@@ -138,8 +136,6 @@ Linux IRQ号编入硬件本身，这样就不需要映射了。 调用irq_create
 
 ::
 
-	irq_domain_add_simple()
-	irq_domain_add_legacy()
 	irq_domain_create_simple()
 	irq_domain_create_legacy()
 

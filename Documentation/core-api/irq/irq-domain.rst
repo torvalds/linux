@@ -42,10 +42,9 @@ irq_domain usage
 ================
 
 An interrupt controller driver creates and registers an irq_domain by
-calling one of the irq_domain_add_*() or irq_domain_create_*() functions
-(each mapping method has a different allocator function, more on that later).
-The function will return a pointer to the irq_domain on success. The caller
-must provide the allocator function with an irq_domain_ops structure.
+calling one of the irq_domain_create_*() functions.  The function will
+return a pointer to the irq_domain on success. The caller must provide the
+allocator function with an irq_domain_ops structure.
 
 In most cases, the irq_domain will begin empty without any mappings
 between hwirq and IRQ numbers.  Mappings are added to the irq_domain
@@ -92,7 +91,6 @@ Linear
 
 ::
 
-	irq_domain_add_linear()
 	irq_domain_create_linear()
 
 The linear reverse map maintains a fixed size table indexed by the
@@ -105,11 +103,6 @@ map are fixed time lookup for IRQ numbers, and irq_descs are only
 allocated for in-use IRQs.  The disadvantage is that the table must be
 as large as the largest possible hwirq number.
 
-irq_domain_add_linear() and irq_domain_create_linear() are functionally
-equivalent, except for the first argument is different - the former
-accepts an Open Firmware specific 'struct device_node', while the latter
-accepts a more general abstraction 'struct fwnode_handle'.
-
 The majority of drivers should use the linear map.
 
 Tree
@@ -117,7 +110,6 @@ Tree
 
 ::
 
-	irq_domain_add_tree()
 	irq_domain_create_tree()
 
 The irq_domain maintains a radix tree map from hwirq numbers to Linux
@@ -128,11 +120,6 @@ The tree map is a good choice if the hwirq number can be very large
 since it doesn't need to allocate a table as large as the largest
 hwirq number.  The disadvantage is that hwirq to IRQ number lookup is
 dependent on how many entries are in the table.
-
-irq_domain_add_tree() and irq_domain_create_tree() are functionally
-equivalent, except for the first argument is different - the former
-accepts an Open Firmware specific 'struct device_node', while the latter
-accepts a more general abstraction 'struct fwnode_handle'.
 
 Very few drivers should need this mapping.
 
@@ -159,8 +146,6 @@ Legacy
 
 ::
 
-	irq_domain_add_simple()
-	irq_domain_add_legacy()
 	irq_domain_create_simple()
 	irq_domain_create_legacy()
 
@@ -189,13 +174,13 @@ supported.  For example, ISA controllers would use the legacy map for
 mapping Linux IRQs 0-15 so that existing ISA drivers get the correct IRQ
 numbers.
 
-Most users of legacy mappings should use irq_domain_add_simple() or
-irq_domain_create_simple() which will use a legacy domain only if an IRQ range
-is supplied by the system and will otherwise use a linear domain mapping.
-The semantics of this call are such that if an IRQ range is specified then
-descriptors will be allocated on-the-fly for it, and if no range is
-specified it will fall through to irq_domain_add_linear() or
-irq_domain_create_linear() which means *no* irq descriptors will be allocated.
+Most users of legacy mappings should use irq_domain_create_simple()
+which will use a legacy domain only if an IRQ range is supplied by the
+system and will otherwise use a linear domain mapping. The semantics of
+this call are such that if an IRQ range is specified then descriptors
+will be allocated on-the-fly for it, and if no range is specified it
+will fall through to irq_domain_create_linear() which means *no* irq
+descriptors will be allocated.
 
 A typical use case for simple domains is where an irqchip provider
 is supporting both dynamic and static IRQ assignments.
@@ -205,12 +190,6 @@ used and no descriptor gets allocated it is very important to make sure
 that the driver using the simple domain call irq_create_mapping()
 before any irq_find_mapping() since the latter will actually work
 for the static IRQ assignment case.
-
-irq_domain_add_simple() and irq_domain_create_simple() as well as
-irq_domain_add_legacy() and irq_domain_create_legacy() are functionally
-equivalent, except for the first argument is different - the former
-accepts an Open Firmware specific 'struct device_node', while the latter
-accepts a more general abstraction 'struct fwnode_handle'.
 
 Hierarchy IRQ domain
 --------------------

@@ -338,12 +338,6 @@ struct irq_domain *irq_domain_create_simple(struct fwnode_handle *fwnode,
 					    unsigned int first_irq,
 					    const struct irq_domain_ops *ops,
 					    void *host_data);
-struct irq_domain *irq_domain_add_legacy(struct device_node *of_node,
-					 unsigned int size,
-					 unsigned int first_irq,
-					 irq_hw_number_t first_hwirq,
-					 const struct irq_domain_ops *ops,
-					 void *host_data);
 struct irq_domain *irq_domain_create_legacy(struct fwnode_handle *fwnode,
 					    unsigned int size,
 					    unsigned int first_irq,
@@ -396,40 +390,6 @@ static inline struct irq_domain *irq_find_host(struct device_node *node)
 	return d;
 }
 
-static inline struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
-						       unsigned int size,
-						       unsigned int first_irq,
-						       const struct irq_domain_ops *ops,
-						       void *host_data)
-{
-	return irq_domain_create_simple(of_fwnode_handle(of_node), size, first_irq, ops, host_data);
-}
-
-/**
- * irq_domain_add_linear() - Allocate and register a linear revmap irq_domain.
- * @of_node: pointer to interrupt controller's device tree node.
- * @size: Number of interrupts in the domain.
- * @ops: map/unmap domain callbacks
- * @host_data: Controller private data pointer
- */
-static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
-					 unsigned int size,
-					 const struct irq_domain_ops *ops,
-					 void *host_data)
-{
-	struct irq_domain_info info = {
-		.fwnode		= of_fwnode_handle(of_node),
-		.size		= size,
-		.hwirq_max	= size,
-		.ops		= ops,
-		.host_data	= host_data,
-	};
-	struct irq_domain *d;
-
-	d = irq_domain_instantiate(&info);
-	return IS_ERR(d) ? NULL : d;
-}
-
 #ifdef CONFIG_IRQ_DOMAIN_NOMAP
 static inline struct irq_domain *irq_domain_create_nomap(struct fwnode_handle *fwnode,
 					 unsigned int max_irq,
@@ -451,22 +411,6 @@ static inline struct irq_domain *irq_domain_create_nomap(struct fwnode_handle *f
 
 unsigned int irq_create_direct_mapping(struct irq_domain *domain);
 #endif
-
-static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
-					 const struct irq_domain_ops *ops,
-					 void *host_data)
-{
-	struct irq_domain_info info = {
-		.fwnode		= of_fwnode_handle(of_node),
-		.hwirq_max	= ~0U,
-		.ops		= ops,
-		.host_data	= host_data,
-	};
-	struct irq_domain *d;
-
-	d = irq_domain_instantiate(&info);
-	return IS_ERR(d) ? NULL : d;
-}
 
 static inline struct irq_domain *irq_domain_create_linear(struct fwnode_handle *fwnode,
 					 unsigned int size,
@@ -631,18 +575,6 @@ static inline struct irq_domain *irq_domain_create_hierarchy(struct irq_domain *
 	return IS_ERR(d) ? NULL : d;
 }
 
-static inline struct irq_domain *irq_domain_add_hierarchy(struct irq_domain *parent,
-					    unsigned int flags,
-					    unsigned int size,
-					    struct device_node *node,
-					    const struct irq_domain_ops *ops,
-					    void *host_data)
-{
-	return irq_domain_create_hierarchy(parent, flags, size,
-					   of_fwnode_handle(node),
-					   ops, host_data);
-}
-
 int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
 			    unsigned int nr_irqs, int node, void *arg,
 			    bool realloc,
@@ -787,6 +719,40 @@ static inline void msi_device_domain_free_wired(struct irq_domain *domain, unsig
 static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
 {
 	return node ? &node->fwnode : NULL;
+}
+
+static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node,
+					 const struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(of_node),
+		.hwirq_max	= ~0U,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
+	struct irq_domain *d;
+
+	d = irq_domain_instantiate(&info);
+	return IS_ERR(d) ? NULL : d;
+}
+
+static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
+					 unsigned int size,
+					 const struct irq_domain_ops *ops,
+					 void *host_data)
+{
+	struct irq_domain_info info = {
+		.fwnode		= of_fwnode_handle(of_node),
+		.size		= size,
+		.hwirq_max	= size,
+		.ops		= ops,
+		.host_data	= host_data,
+	};
+	struct irq_domain *d;
+
+	d = irq_domain_instantiate(&info);
+	return IS_ERR(d) ? NULL : d;
 }
 
 #else /* CONFIG_IRQ_DOMAIN */
