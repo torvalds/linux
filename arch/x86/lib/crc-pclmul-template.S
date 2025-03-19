@@ -138,7 +138,7 @@
 .macro	_fold_vec	acc, data, consts, tmp
 	_pclmulqdq	\consts, HI64_TERMS, \acc, HI64_TERMS, \tmp
 	_pclmulqdq	\consts, LO64_TERMS, \acc, LO64_TERMS, \acc
-.if AVX_LEVEL < 10
+.if AVX_LEVEL <= 2
 	_cond_vex pxor,	\data, \tmp, \tmp
 	_cond_vex pxor,	\tmp, \acc, \acc
 .else
@@ -201,7 +201,7 @@
 // \vl is the maximum length of vector register to use in bytes: 16, 32, or 64.
 //
 // \avx_level is the level of AVX support to use: 0 for SSE only, 2 for AVX2, or
-// 10 for AVX10 or AVX512.
+// 512 for AVX512.
 //
 // If \vl == 16 && \avx_level == 0, the generated code requires:
 // PCLMULQDQ && SSE4.1.  (Note: all known CPUs with PCLMULQDQ also have SSE4.1.)
@@ -209,11 +209,8 @@
 // If \vl == 32 && \avx_level == 2, the generated code requires:
 // VPCLMULQDQ && AVX2.
 //
-// If \vl == 32 && \avx_level == 10, the generated code requires:
-// VPCLMULQDQ && (AVX10/256 || (AVX512BW && AVX512VL))
-//
-// If \vl == 64 && \avx_level == 10, the generated code requires:
-// VPCLMULQDQ && (AVX10/512 || (AVX512BW && AVX512VL))
+// If \vl == 64 && \avx_level == 512, the generated code requires:
+// VPCLMULQDQ && AVX512BW && AVX512VL.
 //
 // Other \vl and \avx_level combinations are either not supported or not useful.
 .macro	_crc_pclmul	n, lsb_crc, vl, avx_level
@@ -534,7 +531,7 @@
 .if LSB_CRC && \n == 64
 	_cond_vex punpcklqdq,	%xmm1, %xmm2, %xmm2
 	_pclmulqdq		CONSTS_XMM, LO64_TERMS, %xmm1, HI64_TERMS, %xmm1
-    .if AVX_LEVEL < 10
+    .if AVX_LEVEL <= 2
 	_cond_vex pxor,		%xmm2, %xmm0, %xmm0
 	_cond_vex pxor,		%xmm1, %xmm0, %xmm0
     .else
@@ -574,13 +571,9 @@ SYM_FUNC_START(prefix##_vpclmul_avx2);					\
 	_crc_pclmul	n=bits, lsb_crc=lsb, vl=32, avx_level=2;	\
 SYM_FUNC_END(prefix##_vpclmul_avx2);					\
 									\
-SYM_FUNC_START(prefix##_vpclmul_avx10_256);				\
-	_crc_pclmul	n=bits, lsb_crc=lsb, vl=32, avx_level=10;	\
-SYM_FUNC_END(prefix##_vpclmul_avx10_256);				\
-									\
-SYM_FUNC_START(prefix##_vpclmul_avx10_512);				\
-	_crc_pclmul	n=bits, lsb_crc=lsb, vl=64, avx_level=10;	\
-SYM_FUNC_END(prefix##_vpclmul_avx10_512);
+SYM_FUNC_START(prefix##_vpclmul_avx512);				\
+	_crc_pclmul	n=bits, lsb_crc=lsb, vl=64, avx_level=512;	\
+SYM_FUNC_END(prefix##_vpclmul_avx512);
 #else
 #define DEFINE_CRC_PCLMUL_FUNCS(prefix, bits, lsb)			\
 SYM_FUNC_START(prefix##_pclmul_sse);					\

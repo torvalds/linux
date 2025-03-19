@@ -21,10 +21,8 @@ crc_t prefix##_pclmul_sse(crc_t crc, const u8 *p, size_t len,		\
 			  const void *consts_ptr);			\
 crc_t prefix##_vpclmul_avx2(crc_t crc, const u8 *p, size_t len,		\
 			    const void *consts_ptr);			\
-crc_t prefix##_vpclmul_avx10_256(crc_t crc, const u8 *p, size_t len,	\
-				 const void *consts_ptr);		\
-crc_t prefix##_vpclmul_avx10_512(crc_t crc, const u8 *p, size_t len,	\
-				 const void *consts_ptr);		\
+crc_t prefix##_vpclmul_avx512(crc_t crc, const u8 *p, size_t len,	\
+			      const void *consts_ptr);			\
 DEFINE_STATIC_CALL(prefix##_pclmul, prefix##_pclmul_sse)
 
 #define INIT_CRC_PCLMUL(prefix)						\
@@ -35,13 +33,10 @@ do {									\
 	    cpu_has_xfeatures(XFEATURE_MASK_YMM, NULL)) {		\
 		if (boot_cpu_has(X86_FEATURE_AVX512BW) &&		\
 		    boot_cpu_has(X86_FEATURE_AVX512VL) &&		\
+		    !boot_cpu_has(X86_FEATURE_PREFER_YMM) &&		\
 		    cpu_has_xfeatures(XFEATURE_MASK_AVX512, NULL)) {	\
-			if (boot_cpu_has(X86_FEATURE_PREFER_YMM))	\
-				static_call_update(prefix##_pclmul,	\
-						   prefix##_vpclmul_avx10_256); \
-			else						\
-				static_call_update(prefix##_pclmul,	\
-						   prefix##_vpclmul_avx10_512); \
+			static_call_update(prefix##_pclmul,		\
+					   prefix##_vpclmul_avx512);	\
 		} else {						\
 			static_call_update(prefix##_pclmul,		\
 					   prefix##_vpclmul_avx2);	\
