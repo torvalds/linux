@@ -3812,7 +3812,9 @@ nfsd4_encode_entry4_fattr(struct nfsd4_readdir *cd, const char *name,
 	__be32 nfserr;
 	int ignore_crossmnt = 0;
 
-	dentry = lookup_positive_unlocked(name, cd->rd_fhp->fh_dentry, namlen);
+	dentry = lookup_one_positive_unlocked(&nop_mnt_idmap,
+					      &QSTR_LEN(name, namlen),
+					      cd->rd_fhp->fh_dentry);
 	if (IS_ERR(dentry))
 		return nfserrno(PTR_ERR(dentry));
 

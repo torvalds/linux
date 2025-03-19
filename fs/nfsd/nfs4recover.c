@@ -218,7 +218,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	/* lock the parent */
 	inode_lock(d_inode(dir));
 
-	dentry = lookup_one_len(dname, dir, HEXDIR_LEN-1);
+	dentry = lookup_one(&nop_mnt_idmap, &QSTR(dname), dir);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);
 		goto out_unlock;
@@ -316,7 +316,8 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 	list_for_each_entry_safe(entry, tmp, &ctx.names, list) {
 		if (!status) {
 			struct dentry *dentry;
-			dentry = lookup_one_len(entry->name, dir, HEXDIR_LEN-1);
+			dentry = lookup_one(&nop_mnt_idmap,
+					    &QSTR(entry->name), dir);
 			if (IS_ERR(dentry)) {
 				status = PTR_ERR(dentry);
 				break;
@@ -339,16 +340,16 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 }
 
 static int
-nfsd4_unlink_clid_dir(char *name, int namlen, struct nfsd_net *nn)
+nfsd4_unlink_clid_dir(char *name, struct nfsd_net *nn)
 {
 	struct dentry *dir, *dentry;
 	int status;
 
-	dprintk("NFSD: nfsd4_unlink_clid_dir. name %.*s\n", namlen, name);
+	dprintk("NFSD: nfsd4_unlink_clid_dir. name %s\n", name);
 
 	dir = nn->rec_file->f_path.dentry;
 	inode_lock_nested(d_inode(dir), I_MUTEX_PARENT);
-	dentry = lookup_one_len(name, dir, namlen);
+	dentry = lookup_one(&nop_mnt_idmap, &QSTR(name), dir);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);
 		goto out_unlock;
@@ -408,7 +409,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	if (status < 0)
 		goto out_drop_write;
 
-	status = nfsd4_unlink_clid_dir(dname, HEXDIR_LEN-1, nn);
+	status = nfsd4_unlink_clid_dir(dname, nn);
 	nfs4_reset_creds(original_cred);
 	if (status == 0) {
 		vfs_fsync(nn->rec_file, 0);
