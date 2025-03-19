@@ -243,7 +243,7 @@ static int pch_msi_of_init(struct device_node *node, struct device_node *parent)
 		return -EINVAL;
 	}
 
-	err = pch_msi_init(res.start, irq_base, irq_count, parent_domain, of_node_to_fwnode(node));
+	err = pch_msi_init(res.start, irq_base, irq_count, parent_domain, of_fwnode_handle(node));
 	if (err < 0)
 		return err;
 

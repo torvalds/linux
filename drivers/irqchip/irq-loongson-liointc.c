@@ -363,7 +363,7 @@ static int __init liointc_of_init(struct device_node *node,
 	}
 
 	err = liointc_init(res.start, resource_size(&res),
-			revision, of_node_to_fwnode(node), node);
+			revision, of_fwnode_handle(node), node);
 	if (err < 0)
 		return err;
 

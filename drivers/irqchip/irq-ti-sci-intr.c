@@ -149,7 +149,7 @@ static int ti_sci_intr_alloc_parent_irq(struct irq_domain *domain,
 		goto err_irqs;
 
 	parent_node = of_irq_find_parent(dev_of_node(intr->dev));
-	fwspec.fwnode = of_node_to_fwnode(parent_node);
+	fwspec.fwnode = of_fwnode_handle(parent_node);
 
 	if (of_device_is_compatible(parent_node, "arm,gic-v3")) {
 		/* Parent is GIC */

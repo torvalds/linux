@@ -213,7 +213,7 @@ static int alpine_msix_init_domains(struct alpine_msix_data *priv,
 		return -ENOMEM;
 	}
 
-	msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(node),
+	msi_domain = pci_msi_create_irq_domain(of_fwnode_handle(node),
 					       &alpine_msix_domain_info,
 					       middle_domain);
 	if (!msi_domain) {

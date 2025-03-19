@@ -531,7 +531,7 @@ static int stm32mp_exti_domain_alloc(struct irq_domain *dm,
 		if (ret)
 			return ret;
 		/* we only support one parent, so far */
-		if (of_node_to_fwnode(out_irq.np) != dm->parent->fwnode)
+		if (of_fwnode_handle(out_irq.np) != dm->parent->fwnode)
 			return -EINVAL;
 
 		of_phandle_args_to_fwspec(out_irq.np, out_irq.args,

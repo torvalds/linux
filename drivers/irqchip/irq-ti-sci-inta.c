@@ -233,7 +233,7 @@ static struct ti_sci_inta_vint_desc *ti_sci_inta_alloc_parent_irq(struct irq_dom
 	INIT_LIST_HEAD(&vint_desc->list);
 
 	parent_node = of_irq_find_parent(dev_of_node(&inta->pdev->dev));
-	parent_fwspec.fwnode = of_node_to_fwnode(parent_node);
+	parent_fwspec.fwnode = of_fwnode_handle(parent_node);
 
 	if (of_device_is_compatible(parent_node, "arm,gic-v3")) {
 		/* Parent is GIC */
@@ -709,7 +709,7 @@ static int ti_sci_inta_irq_domain_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	msi_domain = ti_sci_inta_msi_create_irq_domain(of_node_to_fwnode(node),
+	msi_domain = ti_sci_inta_msi_create_irq_domain(of_fwnode_handle(node),
 						&ti_sci_inta_msi_domain_info,
 						domain);
 	if (!msi_domain) {

@@ -249,7 +249,7 @@ static int __init exiu_dt_init(struct device_node *node,
 		return -ENXIO;
 	}
 
-	data = exiu_init(of_node_to_fwnode(node), &res);
+	data = exiu_init(of_fwnode_handle(node), &res);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 

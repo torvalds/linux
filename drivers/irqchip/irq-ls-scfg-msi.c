@@ -225,7 +225,7 @@ static int ls_scfg_msi_domains_init(struct ls_scfg_msi *msi_data)
 	}
 
 	msi_data->msi_domain = pci_msi_create_irq_domain(
-				of_node_to_fwnode(msi_data->pdev->dev.of_node),
+				of_fwnode_handle(msi_data->pdev->dev.of_node),
 				&ls_scfg_msi_domain_info,
 				msi_data->parent);
 	if (!msi_data->msi_domain) {

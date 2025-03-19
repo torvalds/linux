@@ -607,7 +607,7 @@ static int meson_gpio_irq_of_init(struct device_node *node, struct device_node *
 
 	domain = irq_domain_create_hierarchy(parent_domain, 0,
 					     ctl->params->nr_hwirq,
-					     of_node_to_fwnode(node),
+					     of_fwnode_handle(node),
 					     &meson_gpio_irq_domain_ops,
 					     ctl);
 	if (!domain) {

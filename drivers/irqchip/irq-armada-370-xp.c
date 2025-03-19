@@ -353,7 +353,7 @@ static int __init mpic_msi_init(struct mpic *mpic, struct device_node *node,
 	if (!mpic->msi_inner_domain)
 		return -ENOMEM;
 
-	mpic->msi_domain = pci_msi_create_irq_domain(of_node_to_fwnode(node), &mpic_msi_domain_info,
+	mpic->msi_domain = pci_msi_create_irq_domain(of_fwnode_handle(node), &mpic_msi_domain_info,
 						     mpic->msi_inner_domain);
 	if (!mpic->msi_domain) {
 		irq_domain_remove(mpic->msi_inner_domain);
@@ -492,7 +492,7 @@ static int __init mpic_ipi_init(struct mpic *mpic, struct device_node *node)
 {
 	int base_ipi;
 
-	mpic->ipi_domain = irq_domain_create_linear(of_node_to_fwnode(node), IPI_DOORBELL_NR,
+	mpic->ipi_domain = irq_domain_create_linear(of_fwnode_handle(node), IPI_DOORBELL_NR,
 						    &mpic_ipi_domain_ops, mpic);
 	if (WARN_ON(!mpic->ipi_domain))
 		return -ENOMEM;
