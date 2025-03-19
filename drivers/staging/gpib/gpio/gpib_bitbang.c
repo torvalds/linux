@@ -318,14 +318,14 @@ struct bb_priv {
 };
 
 static inline long usec_diff(struct timespec64 *a, struct timespec64 *b);
-static void bb_buffer_print(gpib_board_t *board, unsigned char *buffer, size_t length,
+static void bb_buffer_print(struct gpib_board *board, unsigned char *buffer, size_t length,
 			    int cmd, int eoi);
 static void set_data_lines(u8 byte);
 static u8 get_data_lines(void);
 static void set_data_lines_input(void);
 static void set_data_lines_output(void);
 static inline int check_for_eos(struct bb_priv *priv, uint8_t byte);
-static void set_atn(gpib_board_t *board, int atn_asserted);
+static void set_atn(struct gpib_board *board, int atn_asserted);
 
 static inline void SET_DIR_WRITE(struct bb_priv *priv);
 static inline void SET_DIR_READ(struct bb_priv *priv);
@@ -353,7 +353,7 @@ static char printable(char x)
  *									   *
  ***************************************************************************/
 
-static int bb_read(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int bb_read(struct gpib_board *board, uint8_t *buffer, size_t length,
 		   int *end, size_t *bytes_read)
 {
 	struct bb_priv *priv = board->private_data;
@@ -425,7 +425,7 @@ read_end:
 
 static irqreturn_t bb_DAV_interrupt(int irq, void *arg)
 {
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	struct bb_priv *priv = board->private_data;
 	int val;
 	unsigned long flags;
@@ -491,7 +491,7 @@ dav_exit:
  *									   *
  ***************************************************************************/
 
-static int bb_write(gpib_board_t *board, uint8_t *buffer, size_t length,
+static int bb_write(struct gpib_board *board, uint8_t *buffer, size_t length,
 		    int send_eoi, size_t *bytes_written)
 {
 	unsigned long flags;
@@ -580,7 +580,7 @@ write_end:
 
 static irqreturn_t bb_NRFD_interrupt(int irq, void *arg)
 {
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	struct bb_priv *priv = board->private_data;
 	unsigned long flags;
 	int nrfd;
@@ -653,7 +653,7 @@ nrfd_exit:
 
 static irqreturn_t bb_NDAC_interrupt(int irq, void *arg)
 {
-	gpib_board_t *board = arg;
+	struct gpib_board *board = arg;
 	struct bb_priv *priv = board->private_data;
 	unsigned long flags;
 	int ndac;
@@ -714,7 +714,7 @@ ndac_exit:
 
 static irqreturn_t bb_SRQ_interrupt(int irq, void *arg)
 {
-	gpib_board_t  *board = arg;
+	struct gpib_board  *board = arg;
 
 	int val = gpiod_get_value(SRQ);
 
@@ -728,7 +728,7 @@ static irqreturn_t bb_SRQ_interrupt(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int bb_command(gpib_board_t *board, uint8_t *buffer,
+static int bb_command(struct gpib_board *board, uint8_t *buffer,
 		      size_t length, size_t *bytes_written)
 {
 	size_t ret;
@@ -809,7 +809,7 @@ static char *cmd_string[32] = {
 	"CFE"  // 0x1f
 };
 
-static void bb_buffer_print(gpib_board_t *board, unsigned char *buffer, size_t length,
+static void bb_buffer_print(struct gpib_board *board, unsigned char *buffer, size_t length,
 			    int cmd, int eoi)
 {
 	int i;
@@ -842,7 +842,7 @@ static void bb_buffer_print(gpib_board_t *board, unsigned char *buffer, size_t l
  * STATUS Management							   *
  *									   *
  ***************************************************************************/
-static void set_atn(gpib_board_t *board, int atn_asserted)
+static void set_atn(struct gpib_board *board, int atn_asserted)
 {
 	struct bb_priv *priv = board->private_data;
 
@@ -867,7 +867,7 @@ static void set_atn(gpib_board_t *board, int atn_asserted)
 	priv->atn_asserted = atn_asserted;
 }
 
-static int bb_take_control(gpib_board_t *board, int synchronous)
+static int bb_take_control(struct gpib_board *board, int synchronous)
 {
 	dbg_printk(2, "%d\n", synchronous);
 	set_atn(board, 1);
@@ -875,14 +875,14 @@ static int bb_take_control(gpib_board_t *board, int synchronous)
 	return 0;
 }
 
-static int bb_go_to_standby(gpib_board_t *board)
+static int bb_go_to_standby(struct gpib_board *board)
 {
 	dbg_printk(2, "\n");
 	set_atn(board, 0);
 	return 0;
 }
 
-static void bb_request_system_control(gpib_board_t *board, int request_control)
+static void bb_request_system_control(struct gpib_board *board, int request_control)
 {
 	dbg_printk(2, "%d\n", request_control);
 	if (request_control) {
@@ -894,7 +894,7 @@ static void bb_request_system_control(gpib_board_t *board, int request_control)
 	}
 }
 
-static void bb_interface_clear(gpib_board_t *board, int assert)
+static void bb_interface_clear(struct gpib_board *board, int assert)
 {
 	struct bb_priv *priv = board->private_data;
 
@@ -908,7 +908,7 @@ static void bb_interface_clear(gpib_board_t *board, int assert)
 	}
 }
 
-static void bb_remote_enable(gpib_board_t *board, int enable)
+static void bb_remote_enable(struct gpib_board *board, int enable)
 {
 	dbg_printk(2, "%d\n", enable);
 	if (enable) {
@@ -920,7 +920,7 @@ static void bb_remote_enable(gpib_board_t *board, int enable)
 	}
 }
 
-static int bb_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bits)
+static int bb_enable_eos(struct gpib_board *board, uint8_t eos_byte, int compare_8_bits)
 {
 	struct bb_priv *priv = board->private_data;
 
@@ -933,7 +933,7 @@ static int bb_enable_eos(gpib_board_t *board, uint8_t eos_byte, int compare_8_bi
 	return 0;
 }
 
-static void bb_disable_eos(gpib_board_t *board)
+static void bb_disable_eos(struct gpib_board *board)
 {
 	struct bb_priv *priv = board->private_data;
 
@@ -941,7 +941,7 @@ static void bb_disable_eos(gpib_board_t *board)
 	priv->eos_flags &= ~REOS;
 }
 
-static unsigned int bb_update_status(gpib_board_t *board, unsigned int clear_mask)
+static unsigned int bb_update_status(struct gpib_board *board, unsigned int clear_mask)
 {
 	struct bb_priv *priv = board->private_data;
 
@@ -972,14 +972,14 @@ static unsigned int bb_update_status(gpib_board_t *board, unsigned int clear_mas
 	return board->status;
 }
 
-static int bb_primary_address(gpib_board_t *board, unsigned int address)
+static int bb_primary_address(struct gpib_board *board, unsigned int address)
 {
 	dbg_printk(2, "%d\n", address);
 	board->pad = address;
 	return 0;
 }
 
-static int bb_secondary_address(gpib_board_t *board, unsigned int address, int enable)
+static int bb_secondary_address(struct gpib_board *board, unsigned int address, int enable)
 {
 	dbg_printk(2, "%d %d\n", address, enable);
 	if (enable)
@@ -987,29 +987,29 @@ static int bb_secondary_address(gpib_board_t *board, unsigned int address, int e
 	return 0;
 }
 
-static int bb_parallel_poll(gpib_board_t *board, uint8_t *result)
+static int bb_parallel_poll(struct gpib_board *board, uint8_t *result)
 {
 	return -ENOENT;
 }
 
-static void bb_parallel_poll_configure(gpib_board_t *board, uint8_t config)
+static void bb_parallel_poll_configure(struct gpib_board *board, uint8_t config)
 {
 }
 
-static void bb_parallel_poll_response(gpib_board_t *board, int ist)
+static void bb_parallel_poll_response(struct gpib_board *board, int ist)
 {
 }
 
-static void bb_serial_poll_response(gpib_board_t *board, uint8_t status)
+static void bb_serial_poll_response(struct gpib_board *board, uint8_t status)
 {
 }
 
-static uint8_t bb_serial_poll_status(gpib_board_t *board)
+static uint8_t bb_serial_poll_status(struct gpib_board *board)
 {
 	return 0; // -ENOENT;
 }
 
-static unsigned int bb_t1_delay(gpib_board_t *board,  unsigned int nano_sec)
+static unsigned int bb_t1_delay(struct gpib_board *board,  unsigned int nano_sec)
 {
 	struct bb_priv *priv = board->private_data;
 
@@ -1025,11 +1025,11 @@ static unsigned int bb_t1_delay(gpib_board_t *board,  unsigned int nano_sec)
 	return priv->t1_delay;
 }
 
-static void bb_return_to_local(gpib_board_t *board)
+static void bb_return_to_local(struct gpib_board *board)
 {
 }
 
-static int bb_line_status(const gpib_board_t *board)
+static int bb_line_status(const struct gpib_board *board)
 {
 	int line_status = VALID_ALL;
 
@@ -1061,7 +1061,7 @@ static int bb_line_status(const gpib_board_t *board)
  *									   *
  ***************************************************************************/
 
-static int allocate_private(gpib_board_t *board)
+static int allocate_private(struct gpib_board *board)
 {
 	board->private_data = kzalloc(sizeof(struct bb_priv), GFP_KERNEL);
 	if (!board->private_data)
@@ -1069,13 +1069,13 @@ static int allocate_private(gpib_board_t *board)
 	return 0;
 }
 
-static void free_private(gpib_board_t *board)
+static void free_private(struct gpib_board *board)
 {
 	kfree(board->private_data);
 	board->private_data = NULL;
 }
 
-static int bb_get_irq(gpib_board_t *board, char *name,
+static int bb_get_irq(struct gpib_board *board, char *name,
 		      struct gpio_desc *gpio, int *irq,
 		      irq_handler_t handler, irq_handler_t thread_fn, unsigned long flags)
 {
@@ -1097,7 +1097,7 @@ static int bb_get_irq(gpib_board_t *board, char *name,
 	return 0;
 }
 
-static void bb_free_irq(gpib_board_t *board, int *irq, char *name)
+static void bb_free_irq(struct gpib_board *board, int *irq, char *name)
 {
 	if (*irq) {
 		free_irq(*irq, board);
@@ -1118,7 +1118,7 @@ static void release_gpios(void)
 	}
 }
 
-static int allocate_gpios(gpib_board_t *board)
+static int allocate_gpios(struct gpib_board *board)
 {
 	int j, retval = 0;
 	bool error = false;
@@ -1176,7 +1176,7 @@ try_again:
 	return retval;
 }
 
-static void bb_detach(gpib_board_t *board)
+static void bb_detach(struct gpib_board *board)
 {
 	struct bb_priv *priv = board->private_data;
 
@@ -1206,7 +1206,7 @@ static void bb_detach(gpib_board_t *board)
 	free_private(board);
 }
 
-static int bb_attach(gpib_board_t *board, const gpib_board_config_t *config)
+static int bb_attach(struct gpib_board *board, const gpib_board_config_t *config)
 {
 	struct bb_priv *priv;
 	int retval = 0;
