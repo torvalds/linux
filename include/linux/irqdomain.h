@@ -358,11 +358,6 @@ int irq_domain_alloc_descs(int virq, unsigned int nr_irqs,
 			   irq_hw_number_t hwirq, int node,
 			   const struct irq_affinity_desc *affinity);
 
-static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
-{
-	return node ? &node->fwnode : NULL;
-}
-
 extern const struct fwnode_operations irqchip_fwnode_ops;
 
 static inline bool is_fwnode_irqchip(const struct fwnode_handle *fwnode)
@@ -387,7 +382,7 @@ struct irq_domain *irq_find_matching_fwnode(struct fwnode_handle *fwnode,
 static inline struct irq_domain *irq_find_matching_host(struct device_node *node,
 							enum irq_domain_bus_token bus_token)
 {
-	return irq_find_matching_fwnode(of_node_to_fwnode(node), bus_token);
+	return irq_find_matching_fwnode(of_fwnode_handle(node), bus_token);
 }
 
 static inline struct irq_domain *irq_find_host(struct device_node *node)
@@ -407,7 +402,7 @@ static inline struct irq_domain *irq_domain_add_simple(struct device_node *of_no
 						       const struct irq_domain_ops *ops,
 						       void *host_data)
 {
-	return irq_domain_create_simple(of_node_to_fwnode(of_node), size, first_irq, ops, host_data);
+	return irq_domain_create_simple(of_fwnode_handle(of_node), size, first_irq, ops, host_data);
 }
 
 /**
@@ -423,7 +418,7 @@ static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_no
 					 void *host_data)
 {
 	struct irq_domain_info info = {
-		.fwnode		= of_node_to_fwnode(of_node),
+		.fwnode		= of_fwnode_handle(of_node),
 		.size		= size,
 		.hwirq_max	= size,
 		.ops		= ops,
@@ -442,7 +437,7 @@ static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_nod
 					 void *host_data)
 {
 	struct irq_domain_info info = {
-		.fwnode		= of_node_to_fwnode(of_node),
+		.fwnode		= of_fwnode_handle(of_node),
 		.hwirq_max	= max_irq,
 		.direct_max	= max_irq,
 		.ops		= ops,
@@ -462,7 +457,7 @@ static inline struct irq_domain *irq_domain_add_tree(struct device_node *of_node
 					 void *host_data)
 {
 	struct irq_domain_info info = {
-		.fwnode		= of_node_to_fwnode(of_node),
+		.fwnode		= of_fwnode_handle(of_node),
 		.hwirq_max	= ~0U,
 		.ops		= ops,
 		.host_data	= host_data,
@@ -611,7 +606,7 @@ static inline struct irq_domain *irq_domain_add_hierarchy(struct irq_domain *par
 					    void *host_data)
 {
 	return irq_domain_create_hierarchy(parent, flags, size,
-					   of_node_to_fwnode(node),
+					   of_fwnode_handle(node),
 					   ops, host_data);
 }
 
@@ -754,6 +749,12 @@ static inline void msi_device_domain_free_wired(struct irq_domain *domain, unsig
 	WARN_ON_ONCE(1);
 }
 #endif
+
+/* Deprecated functions. Will be removed in the merge window */
+static inline struct fwnode_handle *of_node_to_fwnode(struct device_node *node)
+{
+	return node ? &node->fwnode : NULL;
+}
 
 #else /* CONFIG_IRQ_DOMAIN */
 static inline void irq_dispose_mapping(unsigned int virq) { }
