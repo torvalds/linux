@@ -1183,8 +1183,13 @@ struct fd fdget_raw(unsigned int fd)
  */
 static inline bool file_needs_f_pos_lock(struct file *file)
 {
-	return (file->f_mode & FMODE_ATOMIC_POS) &&
-		(file_count(file) > 1 || file->f_op->iterate_shared);
+	if (!(file->f_mode & FMODE_ATOMIC_POS))
+		return false;
+	if (__file_ref_read_raw(&file->f_ref) != FILE_REF_ONEREF)
+		return true;
+	if (file->f_op->iterate_shared)
+		return true;
+	return false;
 }
 
 struct fd fdget_pos(unsigned int fd)
@@ -1192,7 +1197,7 @@ struct fd fdget_pos(unsigned int fd)
 	struct fd f = fdget(fd);
 	struct file *file = fd_file(f);
 
-	if (file && file_needs_f_pos_lock(file)) {
+	if (likely(file) && file_needs_f_pos_lock(file)) {
 		f.word |= FDPUT_POS_UNLOCK;
 		mutex_lock(&file->f_pos_lock);
 	}

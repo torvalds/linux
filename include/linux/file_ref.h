@@ -208,4 +208,18 @@ static inline unsigned long file_ref_read(file_ref_t *ref)
 	return c >= FILE_REF_RELEASED ? 0 : c + 1;
 }
 
+/*
+ * __file_ref_read_raw - Return the value stored in ref->refcnt
+ * @ref: Pointer to the reference count
+ *
+ * Return: The raw value found in the counter
+ *
+ * A hack for file_needs_f_pos_lock(), you probably want to use
+ * file_ref_read() instead.
+ */
+static inline unsigned long __file_ref_read_raw(file_ref_t *ref)
+{
+	return atomic_long_read(&ref->refcnt);
+}
+
 #endif
