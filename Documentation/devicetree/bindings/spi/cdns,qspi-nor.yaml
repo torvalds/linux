@@ -81,6 +81,7 @@ properties:
           # ie. also NAND flashes, not only NOR flashes.
           - const: cdns,qspi-nor
       - const: cdns,qspi-nor
+        deprecated: true
 
   reg:
     items:
@@ -160,7 +161,7 @@ unevaluatedProperties: false
 examples:
   - |
     qspi: spi@ff705000 {
-        compatible = "cdns,qspi-nor";
+        compatible = "intel,socfpga-qspi", "cdns,qspi-nor";
         #address-cells = <1>;
         #size-cells = <0>;
         reg = <0xff705000 0x1000>,
