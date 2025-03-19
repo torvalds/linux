@@ -214,10 +214,8 @@ static int __init vt8500_irq_init(struct device_node *node,
 		goto err_free;
 	}
 
-	intc->domain = irq_domain_add_linear(node,
-					     64,
-					     &vt8500_irq_domain_ops,
-					     intc);
+	intc->domain = irq_domain_create_linear(of_fwnode_handle(node), 64,
+						&vt8500_irq_domain_ops, intc);
 	if (!intc->domain) {
 		pr_err("%s: Unable to add irq domain!\n", __func__);
 		ret = -ENOMEM;
