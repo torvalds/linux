@@ -3229,8 +3229,10 @@ static ssize_t ioc_qos_write(struct kernfs_open_file *of, char *input,
 	blkg_conf_init(&ctx, input);
 
 	memflags = blkg_conf_open_bdev_frozen(&ctx);
-	if (IS_ERR_VALUE(memflags))
+	if (IS_ERR_VALUE(memflags)) {
+		ret = memflags;
 		goto err;
+	}
 
 	body = ctx.body;
 	disk = ctx.bdev->bd_disk;
