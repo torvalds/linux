@@ -124,7 +124,7 @@ static void test_get_sk_checkpoint(unsigned int server_port, sockaddr_af *saddr,
 		test_error("failed to connect()");
 
 	synchronize_threads(); /* 2: accepted => send data */
-	if (test_client_verify(sk, msg_len, nr_packets, TEST_TIMEOUT_SEC))
+	if (test_client_verify(sk, msg_len, nr_packets))
 		test_fail("pre-migrate verify failed");
 
 	test_enable_repair(sk);

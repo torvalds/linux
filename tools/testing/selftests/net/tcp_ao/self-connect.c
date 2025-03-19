@@ -70,7 +70,7 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 		test_error("failed to connect()");
 	}
 
-	if (test_client_verify(sk, 100, nr_packets, TEST_TIMEOUT_SEC)) {
+	if (test_client_verify(sk, 100, nr_packets)) {
 		test_fail("%s: tcp connection verify failed", tst);
 		close(sk);
 		return;
@@ -136,7 +136,7 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 	test_ao_restore(sk, &ao_img);
 	test_disable_repair(sk);
 	test_sock_state_free(&img);
-	if (test_client_verify(sk, 100, nr_packets, TEST_TIMEOUT_SEC)) {
+	if (test_client_verify(sk, 100, nr_packets)) {
 		test_fail("%s: tcp connection verify failed", tst);
 		close(sk);
 		return;

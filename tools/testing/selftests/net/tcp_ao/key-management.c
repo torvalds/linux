@@ -918,7 +918,7 @@ static int run_client(const char *tst_name, unsigned int port,
 	collection.keys[rnext_index].used_on_server_tx = 1;
 
 	synchronize_threads(); /* 3: accepted => send data */
-	if (test_client_verify(sk, msg_sz, msg_nr, TEST_TIMEOUT_SEC)) {
+	if (test_client_verify(sk, msg_sz, msg_nr)) {
 		test_fail("verify failed");
 		close(sk);
 		if (before)
@@ -1016,7 +1016,7 @@ static void try_unmatched_keys(int sk, int *rnext_index, unsigned int port)
 	trace_ao_event_expect(TCP_AO_RNEXT_REQUEST, this_ip_addr, this_ip_dest,
 			      -1, port, 0, -1, -1, -1, -1, -1,
 			      -1, key->server_keyid, -1);
-	if (test_client_verify(sk, msg_len, nr_packets, TEST_TIMEOUT_SEC))
+	if (test_client_verify(sk, msg_len, nr_packets))
 		test_fail("verify failed");
 	*rnext_index = i;
 }
@@ -1061,7 +1061,7 @@ static void check_current_back(const char *tst_name, unsigned int port,
 			      port, -1, 0, -1, -1, -1, -1, -1,
 			      collection.keys[rotate_to_index].client_keyid,
 			      collection.keys[current_index].client_keyid, -1);
-	if (test_client_verify(sk, msg_len, nr_packets, TEST_TIMEOUT_SEC))
+	if (test_client_verify(sk, msg_len, nr_packets))
 		test_fail("verify failed");
 	/* There is a race here: between setting the current_key with
 	 * setsockopt(TCP_AO_INFO) and starting to send some data - there
@@ -1099,7 +1099,7 @@ static void roll_over_keys(const char *tst_name, unsigned int port,
 				collection.keys[i].server_keyid, -1);
 		if (test_set_key(sk, -1, collection.keys[i].server_keyid))
 			test_error("Can't change the Rnext key");
-		if (test_client_verify(sk, msg_len, nr_packets, TEST_TIMEOUT_SEC)) {
+		if (test_client_verify(sk, msg_len, nr_packets)) {
 			test_fail("verify failed");
 			close(sk);
 			test_tcp_counters_free(&tmp);

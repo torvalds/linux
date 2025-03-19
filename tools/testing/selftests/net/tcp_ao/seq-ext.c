@@ -191,7 +191,7 @@ static void *client_fn(void *arg)
 		test_error("failed to connect()");
 
 	synchronize_threads(); /* 2: accepted => send data */
-	if (test_client_verify(sk, msg_len, nr_packets, TEST_TIMEOUT_SEC)) {
+	if (test_client_verify(sk, msg_len, nr_packets)) {
 		test_fail("pre-migrate verify failed");
 		return NULL;
 	}
@@ -216,7 +216,7 @@ static void *client_fn(void *arg)
 			     test_server_port + 1, &cnt1);
 
 	synchronize_threads(); /* 5: verify the connection during SEQ-number rollover */
-	if (test_client_verify(sk, msg_len, nr_packets, TEST_TIMEOUT_SEC))
+	if (test_client_verify(sk, msg_len, nr_packets))
 		test_fail("post-migrate verify failed");
 	else
 		test_ok("post-migrate connection alive");

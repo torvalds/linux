@@ -53,7 +53,7 @@ static void *client_fn(void *arg)
 	if (test_get_tcp_counters(sk, &ao1))
 		test_error("test_get_tcp_counters()");
 
-	if (test_client_verify(sk, 100, nr_packets, TEST_TIMEOUT_SEC)) {
+	if (test_client_verify(sk, 100, nr_packets)) {
 		test_fail("verify failed");
 		return NULL;
 	}

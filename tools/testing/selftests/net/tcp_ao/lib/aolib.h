@@ -484,8 +484,7 @@ static inline int test_set_ao_flags(int sk, bool ao_required, bool accept_icmps)
 }
 
 extern ssize_t test_server_run(int sk, ssize_t quota, time_t timeout_sec);
-extern int test_client_verify(int sk, const size_t msg_len, const size_t nr,
-			      time_t timeout_sec);
+extern int test_client_verify(int sk, const size_t msg_len, const size_t nr);
 
 struct tcp_ao_key_counters {
 	uint8_t sndid;

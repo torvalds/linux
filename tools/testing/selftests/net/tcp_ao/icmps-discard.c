@@ -395,7 +395,6 @@ static void icmp_interfere(const size_t nr, uint32_t rcv_nxt, void *src, void *d
 
 static void send_interfered(int sk)
 {
-	const unsigned int timeout = TEST_TIMEOUT_SEC;
 	struct sockaddr_in6 src, dst;
 	socklen_t addr_sz;
 
@@ -409,7 +408,7 @@ static void send_interfered(int sk)
 	while (1) {
 		uint32_t rcv_nxt;
 
-		if (test_client_verify(sk, packet_size, packets_nr, timeout)) {
+		if (test_client_verify(sk, packet_size, packets_nr)) {
 			test_fail("client: connection is broken");
 			return;
 		}

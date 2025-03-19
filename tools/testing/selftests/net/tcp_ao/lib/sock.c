@@ -646,7 +646,7 @@ int test_skpair_server(int sk, ssize_t quota, test_cnt cond, volatile int *err)
 
 static ssize_t test_client_loop(int sk, size_t buf_sz, const size_t msg_len,
 				struct tcp_counters *c, test_cnt cond,
-				volatile int *err, time_t timeout_sec)
+				volatile int *err)
 {
 	char msg[msg_len];
 	int nodelay = 1;
@@ -665,7 +665,7 @@ static ssize_t test_client_loop(int sk, size_t buf_sz, const size_t msg_len,
 		size_t sent, bytes = min(msg_len, buf_sz - i);
 		int ret;
 
-		ret = __test_skpair_poll(sk, 1, timeout_sec, c, cond, err);
+		ret = __test_skpair_poll(sk, 1, TEST_TIMEOUT_SEC, c, cond, err);
 		if (ret)
 			return ret;
 
@@ -679,7 +679,8 @@ static ssize_t test_client_loop(int sk, size_t buf_sz, const size_t msg_len,
 		do {
 			ssize_t got;
 
-			ret = __test_skpair_poll(sk, 0, timeout_sec, c, cond, err);
+			ret = __test_skpair_poll(sk, 0, TEST_TIMEOUT_SEC,
+						 c, cond, err);
 			if (ret)
 				return ret;
 
@@ -698,13 +699,12 @@ static ssize_t test_client_loop(int sk, size_t buf_sz, const size_t msg_len,
 	return i;
 }
 
-int test_client_verify(int sk, const size_t msg_len, const size_t nr,
-		       time_t timeout_sec)
+int test_client_verify(int sk, const size_t msg_len, const size_t nr)
 {
 	size_t buf_sz = msg_len * nr;
 	ssize_t ret;
 
-	ret = test_client_loop(sk, buf_sz, msg_len, NULL, 0, NULL, timeout_sec);
+	ret = test_client_loop(sk, buf_sz, msg_len, NULL, 0, NULL);
 	if (ret < 0)
 		return (int)ret;
 	return ret != buf_sz ? -1 : 0;
@@ -722,8 +722,7 @@ int test_skpair_client(int sk, const size_t msg_len, const size_t nr,
 		test_error("test_get_tcp_counters()");
 	synchronize_threads(); /* 1: init skpair & read nscounters */
 
-	ret = test_client_loop(sk, buf_sz, msg_len, &c, cond, err,
-			       TEST_TIMEOUT_SEC);
+	ret = test_client_loop(sk, buf_sz, msg_len, &c, cond, err);
 	test_tcp_counters_free(&c);
 	if (ret < 0)
 		return (int)ret;

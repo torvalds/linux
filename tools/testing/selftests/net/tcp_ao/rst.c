@@ -287,7 +287,7 @@ static void test_client_active_rst(unsigned int port)
 		test_error("failed to connect()");
 
 	synchronize_threads(); /* 3: close listen socket */
-	if (test_client_verify(sk[0], packet_sz, quota / packet_sz, TEST_TIMEOUT_SEC))
+	if (test_client_verify(sk[0], packet_sz, quota / packet_sz))
 		test_fail("Failed to send data on connected socket");
 	else
 		test_ok("Verified established tcp connection");
@@ -340,7 +340,7 @@ static void test_client_passive_rst(unsigned int port)
 		test_error("failed to connect()");
 
 	synchronize_threads(); /* 2: accepted => send data */
-	if (test_client_verify(sk, packet_sz, quota / packet_sz, TEST_TIMEOUT_SEC))
+	if (test_client_verify(sk, packet_sz, quota / packet_sz))
 		test_fail("Failed to send data on connected socket");
 	else
 		test_ok("Verified established tcp connection");
@@ -416,7 +416,7 @@ static void test_client_passive_rst(unsigned int port)
 	 * IP 10.0.254.1.7011 > 10.0.1.1.59772: Flags [R], seq 3215596252, win 0,
 	 *    options [tcp-ao keyid 100 rnextkeyid 100 mac 0x0bcfbbf497bce844312304b2], length 0
 	 */
-	err = test_client_verify(sk, packet_sz, quota / packet_sz, 2 * TEST_TIMEOUT_SEC);
+	err = test_client_verify(sk, packet_sz, quota / packet_sz);
 	/* Make sure that the connection was reset, not timeouted */
 	if (err && err == -ECONNRESET)
 		test_ok("client sock was passively reset post-seq-adjust");
