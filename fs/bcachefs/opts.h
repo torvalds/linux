@@ -128,13 +128,13 @@ enum fsck_err_opts {
 	  OPT_FS|OPT_FORMAT|						\
 	  OPT_HUMAN_READABLE|OPT_MUST_BE_POW_2|OPT_SB_FIELD_SECTORS,	\
 	  OPT_UINT(512, 1U << 16),					\
-	  BCH_SB_BLOCK_SIZE,		8,				\
+	  BCH_SB_BLOCK_SIZE,		4 << 10,			\
 	  "size",	NULL)						\
 	x(btree_node_size,		u32,				\
 	  OPT_FS|OPT_FORMAT|						\
 	  OPT_HUMAN_READABLE|OPT_MUST_BE_POW_2|OPT_SB_FIELD_SECTORS,	\
 	  OPT_UINT(512, 1U << 20),					\
-	  BCH_SB_BTREE_NODE_SIZE,	512,				\
+	  BCH_SB_BTREE_NODE_SIZE,	256 << 10,			\
 	  "size",	"Btree node size, default 256k")		\
 	x(errors,			u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
@@ -499,11 +499,6 @@ enum fsck_err_opts {
 	  OPT_STR(bch2_member_states),					\
 	  BCH_MEMBER_STATE,		BCH_MEMBER_STATE_rw,		\
 	  "state",	"rw,ro,failed,spare")				\
-	x(fs_size,			u64,				\
-	  OPT_DEVICE|OPT_HIDDEN,					\
-	  OPT_UINT(0, S64_MAX),						\
-	  BCH2_NO_MEMBER_OPT,		0,				\
-	  "size",	"Size of filesystem on device")			\
 	x(bucket_size,			u32,				\
 	  OPT_DEVICE|OPT_HUMAN_READABLE|OPT_SB_FIELD_SECTORS,		\
 	  OPT_UINT(0, S64_MAX),						\

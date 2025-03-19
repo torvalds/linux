@@ -684,12 +684,10 @@ void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
 	if (opt->flags & OPT_SB_FIELD_ONE_BIAS)
 		v++;
 
-	if ((opt->flags & OPT_FS) && opt->set_sb)
+	if ((opt->flags & OPT_FS) && opt->set_sb && dev_idx < 0)
 		opt->set_sb(sb, v);
 
-	if ((opt->flags & OPT_DEVICE) &&
-	    opt->set_member &&
-	    dev_idx >= 0) {
+	if ((opt->flags & OPT_DEVICE) && opt->set_member && dev_idx >= 0) {
 		if (WARN(!bch2_member_exists(sb, dev_idx),
 			 "tried to set device option %s on nonexistent device %i",
 			 opt->attr.name, dev_idx))
