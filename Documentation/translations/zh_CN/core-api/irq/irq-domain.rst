@@ -124,7 +124,7 @@ irq_domain_add_tree()和irq_domain_create_tree()在功能上是等价的，除�
 
 ::
 
-	irq_domain_add_nomap()
+	irq_domain_create_nomap()
 
 当硬件中的hwirq号是可编程的时候，就可以采用无映射类型。 在这种情况下，最好将
 Linux IRQ号编入硬件本身，这样就不需要映射了。 调用irq_create_direct_mapping()

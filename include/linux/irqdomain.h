@@ -431,13 +431,13 @@ static inline struct irq_domain *irq_domain_add_linear(struct device_node *of_no
 }
 
 #ifdef CONFIG_IRQ_DOMAIN_NOMAP
-static inline struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
+static inline struct irq_domain *irq_domain_create_nomap(struct fwnode_handle *fwnode,
 					 unsigned int max_irq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
 	struct irq_domain_info info = {
-		.fwnode		= of_fwnode_handle(of_node),
+		.fwnode		= fwnode,
 		.hwirq_max	= max_irq,
 		.direct_max	= max_irq,
 		.ops		= ops,

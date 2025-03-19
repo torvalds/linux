@@ -141,7 +141,7 @@ No Map
 
 ::
 
-	irq_domain_add_nomap()
+	irq_domain_create_nomap()
 
 The No Map mapping is to be used when the hwirq number is
 programmable in the hardware.  In this case it is best to program the
