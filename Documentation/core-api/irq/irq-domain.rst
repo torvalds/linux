@@ -3,8 +3,8 @@ The irq_domain Interrupt Number Mapping Library
 ===============================================
 
 The current design of the Linux kernel uses a single large number
-space where each separate IRQ source is assigned a different number.
-This is simple when there is only one interrupt controller, but in
+space where each separate IRQ source is assigned a unique number.
+This is simple when there is only one interrupt controller. But in
 systems with multiple interrupt controllers, the kernel must ensure
 that each one gets assigned non-overlapping allocations of Linux
 IRQ numbers.
@@ -15,44 +15,63 @@ such as GPIO controllers avoid reimplementing identical callback
 mechanisms as the IRQ core system by modelling their interrupt
 handlers as irqchips. I.e. in effect cascading interrupt controllers.
 
-Here the interrupt number loose all kind of correspondence to
-hardware interrupt numbers: whereas in the past, IRQ numbers could
-be chosen so they matched the hardware IRQ line into the root
-interrupt controller (i.e. the component actually fireing the
-interrupt line to the CPU) nowadays this number is just a number.
+So in the past, IRQ numbers could be chosen so that they match the
+hardware IRQ line into the root interrupt controller (i.e. the
+component actually firing the interrupt line to the CPU). Nowadays,
+this number is just a number and the number loose all kind of
+correspondence to hardware interrupt numbers.
 
 For this reason, we need a mechanism to separate controller-local
 interrupt numbers, called hardware IRQs, from Linux IRQ numbers.
 
 The irq_alloc_desc*() and irq_free_desc*() APIs provide allocation of
-irq numbers, but they don't provide any support for reverse mapping of
+IRQ numbers, but they don't provide any support for reverse mapping of
 the controller-local IRQ (hwirq) number into the Linux IRQ number
 space.
 
 The irq_domain library adds a mapping between hwirq and IRQ numbers on
-top of the irq_alloc_desc*() API.  An irq_domain to manage mapping is
-preferred over interrupt controller drivers open coding their own
+top of the irq_alloc_desc*() API. An irq_domain to manage the mapping
+is preferred over interrupt controller drivers open coding their own
 reverse mapping scheme.
 
-irq_domain also implements translation from an abstract irq_fwspec
-structure to hwirq numbers (Device Tree and ACPI GSI so far), and can
-be easily extended to support other IRQ topology data sources.
+irq_domain also implements a translation from an abstract struct
+irq_fwspec to hwirq numbers (Device Tree, non-DT firmware node, ACPI
+GSI, and software node so far), and can be easily extended to support
+other IRQ topology data sources. The implementation is performed
+without any extra platform support code.
 
 irq_domain Usage
 ================
+struct irq_domain could be defined as an irq domain controller. That
+is, it handles the mapping between hardware and virtual interrupt
+numbers for a given interrupt domain. The domain structure is
+generally created by the PIC code for a given PIC instance (though a
+domain can cover more than one PIC if they have a flat number model).
+It is the domain callbacks that are responsible for setting the
+irq_chip on a given irq_desc after it has been mapped.
 
-An interrupt controller driver creates and registers an irq_domain by
-calling one of the irq_domain_create_*() functions.  The function will
-return a pointer to the irq_domain on success. The caller must provide the
-allocator function with an irq_domain_ops structure.
+The host code and data structures use a fwnode_handle pointer to
+identify the domain. In some cases, and in order to preserve source
+code compatibility, this fwnode pointer is "upgraded" to a DT
+device_node. For those firmware infrastructures that do not provide a
+unique identifier for an interrupt controller, the irq_domain code
+offers a fwnode allocator.
+
+An interrupt controller driver creates and registers a struct irq_domain
+by calling one of the irq_domain_create_*() functions (each mapping
+method has a different allocator function, more on that later). The
+function will return a pointer to the struct irq_domain on success. The
+caller must provide the allocator function with a struct irq_domain_ops
+pointer.
 
 In most cases, the irq_domain will begin empty without any mappings
 between hwirq and IRQ numbers.  Mappings are added to the irq_domain
 by calling irq_create_mapping() which accepts the irq_domain and a
-hwirq number as arguments.  If a mapping for the hwirq doesn't already
-exist then it will allocate a new Linux irq_desc, associate it with
-the hwirq, and call the .map() callback so the driver can perform any
-required hardware setup.
+hwirq number as arguments. If a mapping for the hwirq doesn't already
+exist, irq_create_mapping() allocates a new Linux irq_desc, associates
+it with the hwirq, and calls the :c:member:`irq_domain_ops.map()`
+callback. In there, the driver can perform any required hardware
+setup.
 
 Once a mapping has been established, it can be retrieved or used via a
 variety of methods:
@@ -74,7 +93,8 @@ be allocated.
 
 If the driver has the Linux IRQ number or the irq_data pointer, and
 needs to know the associated hwirq number (such as in the irq_chip
-callbacks) then it can be directly obtained from irq_data->hwirq.
+callbacks) then it can be directly obtained from
+:c:member:`irq_data.hwirq`.
 
 Types of irq_domain Mappings
 ============================
@@ -230,20 +250,40 @@ There are four major interfaces to use hierarchy irq_domain:
 4) irq_domain_deactivate_irq(): deactivate interrupt controller hardware
    to stop delivering the interrupt.
 
-Following changes are needed to support hierarchy irq_domain:
+The following is needed to support hierarchy irq_domain:
 
-1) a new field 'parent' is added to struct irq_domain; it's used to
+1) The :c:member:`parent` field in struct irq_domain is used to
    maintain irq_domain hierarchy information.
-2) a new field 'parent_data' is added to struct irq_data; it's used to
-   build hierarchy irq_data to match hierarchy irq_domains. The irq_data
-   is used to store irq_domain pointer and hardware irq number.
-3) new callbacks are added to struct irq_domain_ops to support hierarchy
-   irq_domain operations.
+2) The :c:member:`parent_data` field in struct irq_data is used to
+   build hierarchy irq_data to match hierarchy irq_domains. The
+   irq_data is used to store irq_domain pointer and hardware irq
+   number.
+3) The :c:member:`alloc()`, :c:member:`free()`, and other callbacks in
+   struct irq_domain_ops to support hierarchy irq_domain operations.
 
-With support of hierarchy irq_domain and hierarchy irq_data ready, an
-irq_domain structure is built for each interrupt controller, and an
+With the support of hierarchy irq_domain and hierarchy irq_data ready,
+an irq_domain structure is built for each interrupt controller, and an
 irq_data structure is allocated for each irq_domain associated with an
-IRQ. Now we could go one step further to support stacked(hierarchy)
+IRQ.
+
+For an interrupt controller driver to support hierarchy irq_domain, it
+needs to:
+
+1) Implement irq_domain_ops.alloc() and irq_domain_ops.free()
+2) Optionally, implement irq_domain_ops.activate() and
+   irq_domain_ops.deactivate().
+3) Optionally, implement an irq_chip to manage the interrupt controller
+   hardware.
+4) There is no need to implement irq_domain_ops.map() and
+   irq_domain_ops.unmap(). They are unused with hierarchy irq_domain.
+
+Note the hierarchy irq_domain is in no way x86-specific, and is
+heavily used to support other architectures, such as ARM, ARM64 etc.
+
+Stacked irq_chip
+~~~~~~~~~~~~~~~~
+
+Now, we could go one step further to support stacked (hierarchy)
 irq_chip. That is, an irq_chip is associated with each irq_data along
 the hierarchy. A child irq_chip may implement a required action by
 itself or by cooperating with its parent irq_chip.
@@ -252,20 +292,6 @@ With stacked irq_chip, interrupt controller driver only needs to deal
 with the hardware managed by itself and may ask for services from its
 parent irq_chip when needed. So we could achieve a much cleaner
 software architecture.
-
-For an interrupt controller driver to support hierarchy irq_domain, it
-needs to:
-
-1) Implement irq_domain_ops.alloc and irq_domain_ops.free
-2) Optionally implement irq_domain_ops.activate and
-   irq_domain_ops.deactivate.
-3) Optionally implement an irq_chip to manage the interrupt controller
-   hardware.
-4) No need to implement irq_domain_ops.map and irq_domain_ops.unmap,
-   they are unused with hierarchy irq_domain.
-
-Hierarchy irq_domain is in no way x86 specific, and is heavily used to
-support other architectures, such as ARM, ARM64 etc.
 
 Debugging
 =========
