@@ -145,7 +145,7 @@ static int al3010_write_raw(struct iio_dev *indio_dev,
 			    int val2, long mask)
 {
 	struct al3010_data *data = iio_priv(indio_dev);
-	int i;
+	unsigned int i;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
