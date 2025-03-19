@@ -3169,7 +3169,7 @@ static int rtm_to_nh_config(struct net *net, struct sk_buff *skb,
 
 		cfg->nh_encap_type = nla_get_u16(tb[NHA_ENCAP_TYPE]);
 		err = lwtunnel_valid_encap_type(cfg->nh_encap_type,
-						extack, true);
+						extack, false);
 		if (err < 0)
 			goto out;
 
@@ -3245,13 +3245,18 @@ static int rtm_new_nexthop(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 	}
 
+	rtnl_net_lock(net);
+
 	err = rtm_to_nh_config_rtnl(net, tb, &cfg, extack);
 	if (err)
-		goto out;
+		goto unlock;
 
 	nh = nexthop_add(net, &cfg, extack);
 	if (IS_ERR(nh))
 		err = PTR_ERR(nh);
+
+unlock:
+	rtnl_net_unlock(net);
 out:
 	return err;
 }
@@ -4067,18 +4072,19 @@ static struct pernet_operations nexthop_net_ops = {
 };
 
 static const struct rtnl_msg_handler nexthop_rtnl_msg_handlers[] __initconst = {
-	{.msgtype = RTM_NEWNEXTHOP, .doit = rtm_new_nexthop},
+	{.msgtype = RTM_NEWNEXTHOP, .doit = rtm_new_nexthop,
+	 .flags = RTNL_FLAG_DOIT_PERNET},
 	{.msgtype = RTM_DELNEXTHOP, .doit = rtm_del_nexthop},
 	{.msgtype = RTM_GETNEXTHOP, .doit = rtm_get_nexthop,
 	 .dumpit = rtm_dump_nexthop},
 	{.msgtype = RTM_GETNEXTHOPBUCKET, .doit = rtm_get_nexthop_bucket,
 	 .dumpit = rtm_dump_nexthop_bucket},
 	{.protocol = PF_INET, .msgtype = RTM_NEWNEXTHOP,
-	 .doit = rtm_new_nexthop},
+	 .doit = rtm_new_nexthop, .flags = RTNL_FLAG_DOIT_PERNET},
 	{.protocol = PF_INET, .msgtype = RTM_GETNEXTHOP,
 	 .dumpit = rtm_dump_nexthop},
 	{.protocol = PF_INET6, .msgtype = RTM_NEWNEXTHOP,
-	 .doit = rtm_new_nexthop},
+	 .doit = rtm_new_nexthop, .flags = RTNL_FLAG_DOIT_PERNET},
 	{.protocol = PF_INET6, .msgtype = RTM_GETNEXTHOP,
 	 .dumpit = rtm_dump_nexthop},
 };
