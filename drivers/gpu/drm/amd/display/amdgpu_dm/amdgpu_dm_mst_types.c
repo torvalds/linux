@@ -1632,6 +1632,9 @@ int pre_validate_dsc(struct drm_atomic_state *state,
 			connector =
 				amdgpu_dm_find_first_crtc_matching_connector(state,
 									     state->crtcs[ind].ptr);
+			if (!connector)
+				continue;
+
 			drm_new_conn_state =
 				drm_atomic_get_new_connector_state(state,
 								   connector);

@@ -33,7 +33,6 @@
 #include "dml2_dc_resource_mgmt.h"
 #include "dml21_wrapper.h"
 
-
 static void initialize_dml2_ip_params(struct dml2_context *dml2, const struct dc *in_dc, struct ip_params_st *out)
 {
 	if (dml2->config.use_native_soc_bb_construction)
@@ -792,7 +791,7 @@ bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options
 	// TODO : Temporarily add DCN_VERSION_3_2 for N-1 validation. Remove DCN_VERSION_3_2 after N-1 validation phase is complete.
 	if ((in_dc->debug.using_dml21)
 			&& (in_dc->ctx->dce_version == DCN_VERSION_4_01
-				))
+		))
 		return dml21_create(in_dc, dml2, config);
 
 	// Allocate Mode Lib Ctx

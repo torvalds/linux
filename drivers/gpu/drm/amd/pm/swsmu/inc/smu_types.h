@@ -276,7 +276,8 @@
 	__SMU_DUMMY_MAP(SetThrottlingPolicy), \
 	__SMU_DUMMY_MAP(MALLPowerController), \
 	__SMU_DUMMY_MAP(MALLPowerState), \
-	__SMU_DUMMY_MAP(ResetSDMA),
+	__SMU_DUMMY_MAP(ResetSDMA), \
+	__SMU_DUMMY_MAP(GetStaticMetricsTable),
 
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	SMU_MSG_##type

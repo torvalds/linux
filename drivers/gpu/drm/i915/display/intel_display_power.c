@@ -1684,7 +1684,7 @@ static void icl_display_core_init(struct intel_display *display,
 
 	/* 8. Ensure PHYs have completed calibration and adaptation */
 	if (display->platform.dg2)
-		intel_snps_phy_wait_for_calibration(dev_priv);
+		intel_snps_phy_wait_for_calibration(display);
 
 	/* 9. XE2_HPD: Program CHICKEN_MISC_2 before any cursor or planes are enabled */
 	if (DISPLAY_VERx100(display) == 1401)
@@ -2316,6 +2316,9 @@ void intel_display_power_debug(struct intel_display *display, struct seq_file *m
 	int i;
 
 	mutex_lock(&power_domains->lock);
+
+	seq_printf(m, "Runtime power status: %s\n",
+		   str_enabled_disabled(!power_domains->init_wakeref));
 
 	seq_printf(m, "%-25s %s\n", "Power well/domain", "Use count");
 	for (i = 0; i < power_domains->power_well_count; i++) {

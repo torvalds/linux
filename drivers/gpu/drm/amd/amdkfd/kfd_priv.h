@@ -289,7 +289,6 @@ struct kfd_node {
 
 	/* Global GWS resource shared between processes */
 	void *gws;
-	bool gws_debug_workaround;
 
 	/* Clients watching SMI events */
 	struct list_head smi_clients;
@@ -1364,8 +1363,6 @@ int pqm_update_mqd(struct process_queue_manager *pqm, unsigned int qid,
 			struct mqd_update_info *minfo);
 int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 			void *gws);
-struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
-						unsigned int qid);
 struct queue *pqm_get_user_queue(struct process_queue_manager *pqm,
 						unsigned int qid);
 int pqm_get_wave_state(struct process_queue_manager *pqm,

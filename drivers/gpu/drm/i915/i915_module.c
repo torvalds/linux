@@ -71,8 +71,6 @@ static const struct {
 	{ .init = i915_vma_resource_module_init,
 	  .exit = i915_vma_resource_module_exit },
 	{ .init = i915_mock_selftests },
-	{ .init = i915_pmu_init,
-	  .exit = i915_pmu_exit },
 	{ .init = i915_pci_register_driver,
 	  .exit = i915_pci_unregister_driver },
 	{ .init = i915_perf_sysctl_register,

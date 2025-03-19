@@ -1978,31 +1978,10 @@ fsck_err:
 	return ret;
 }
 
-static int check_dir_i_size_notnested(struct btree_trans *trans, struct inode_walker *w)
-{
-	struct bch_fs *c = trans->c;
-	int ret = 0;
-
-	darray_for_each(w->inodes, i)
-		if (fsck_err_on(i->inode.bi_size != i->i_size,
-				trans, inode_dir_wrong_nlink,
-				"directory %llu:%u with wrong i_size: got %llu, should be %llu",
-				w->last_pos.inode, i->snapshot, i->inode.bi_size, i->i_size)) {
-			i->inode.bi_size = i->i_size;
-			ret = bch2_fsck_write_inode(trans, &i->inode);
-			if (ret)
-				break;
-		}
-fsck_err:
-	bch_err_fn(c, ret);
-	return ret;
-}
-
 static int check_subdir_dirents_count(struct btree_trans *trans, struct inode_walker *w)
 {
 	u32 restart_count = trans->restart_count;
 	return check_subdir_count_notnested(trans, w) ?:
-		check_dir_i_size_notnested(trans, w) ?:
 		trans_was_restarted(trans, restart_count);
 }
 

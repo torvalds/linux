@@ -51,6 +51,12 @@ int ethtool_check_max_channel(struct net_device *dev,
 			      struct ethtool_channels channels,
 			      struct genl_info *info);
 int ethtool_check_rss_ctx_busy(struct net_device *dev, u32 rss_context);
+
+void ethtool_ringparam_get_cfg(struct net_device *dev,
+			       struct ethtool_ringparam *param,
+			       struct kernel_ethtool_ringparam *kparam,
+			       struct netlink_ext_ack *extack);
+
 int __ethtool_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info);
 int ethtool_get_ts_info_by_phc(struct net_device *dev,
 			       struct kernel_ethtool_ts_info *info,

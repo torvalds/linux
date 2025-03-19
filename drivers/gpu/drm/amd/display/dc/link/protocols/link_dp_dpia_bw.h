@@ -108,4 +108,14 @@ bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, const unsigned
  */
 int link_dp_dpia_get_dp_overhead_in_dp_tunneling(struct dc_link *link);
 
+/*
+ * Handle DP BW allocation status register
+ *
+ * @link: pointer to the dc_link struct instance
+ * @status: content of DP tunneling status register
+ *
+ * return: none
+ */
+void link_dp_dpia_handle_bw_alloc_status(struct dc_link *link, uint8_t status);
+
 #endif /* DC_INC_LINK_DP_DPIA_BW_H_ */

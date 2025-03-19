@@ -1466,7 +1466,7 @@ skl_plane_update_arm(struct intel_dsb *dsb,
 	 * TODO: split into noarm+arm pair
 	 */
 	if (plane_state->scaler_id >= 0)
-		skl_program_plane_scaler(plane, crtc_state, plane_state);
+		skl_program_plane_scaler(dsb, plane, crtc_state, plane_state);
 
 	/*
 	 * The control register self-arms if the plane was previously
@@ -1646,7 +1646,7 @@ icl_plane_update_arm(struct intel_dsb *dsb,
 	 * TODO: split into noarm+arm pair
 	 */
 	if (plane_state->scaler_id >= 0)
-		skl_program_plane_scaler(plane, crtc_state, plane_state);
+		skl_program_plane_scaler(dsb, plane, crtc_state, plane_state);
 
 	icl_plane_update_sel_fetch_arm(dsb, plane, crtc_state, plane_state);
 
@@ -2258,16 +2258,53 @@ static bool skl_fb_scalable(const struct drm_framebuffer *fb)
 static void check_protection(struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	struct drm_gem_object *obj = intel_fb_bo(fb);
 
 	if (DISPLAY_VER(display) < 11)
 		return;
 
-	plane_state->decrypt = intel_pxp_key_check(i915->pxp, obj, false) == 0;
+	plane_state->decrypt = intel_pxp_key_check(obj, false) == 0;
 	plane_state->force_black = intel_bo_is_protected(obj) &&
 		!plane_state->decrypt;
+}
+
+static void
+make_damage_viewport_relative(struct intel_plane_state *plane_state)
+{
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	const struct drm_rect *src = &plane_state->uapi.src;
+	unsigned int rotation = plane_state->hw.rotation;
+	struct drm_rect *damage = &plane_state->damage;
+
+	if (!drm_rect_visible(damage))
+		return;
+
+	if (!fb || !plane_state->uapi.visible) {
+		plane_state->damage = DRM_RECT_INIT(0, 0, 0, 0);
+		return;
+	}
+
+	if (drm_rotation_90_or_270(rotation)) {
+		drm_rect_rotate(damage, fb->width, fb->height,
+				DRM_MODE_ROTATE_270);
+		drm_rect_translate(damage, -(src->y1 >> 16), -(src->x1 >> 16));
+	} else {
+		drm_rect_translate(damage, -(src->x1 >> 16), -(src->y1 >> 16));
+	}
+}
+
+static void clip_damage(struct intel_plane_state *plane_state)
+{
+	struct drm_rect *damage = &plane_state->damage;
+	struct drm_rect src;
+
+	if (!drm_rect_visible(damage))
+		return;
+
+	drm_rect_fp_to_int(&src, &plane_state->uapi.src);
+	drm_rect_translate(damage, src.x1, src.y1);
+	drm_rect_intersect(damage, &src);
 }
 
 static int skl_plane_check(struct intel_crtc_state *crtc_state,
@@ -2295,6 +2332,8 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
+	make_damage_viewport_relative(plane_state);
+
 	ret = skl_check_plane_surface(plane_state);
 	if (ret)
 		return ret;
@@ -2310,6 +2349,8 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	if (ret)
 		return ret;
 
+	clip_damage(plane_state);
+
 	ret = skl_plane_check_nv12_rotation(plane_state);
 	if (ret)
 		return ret;
@@ -2317,8 +2358,10 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	check_protection(plane_state);
 
 	/* HW only has 8 bits pixel precision, disable plane if invisible */
-	if (!(plane_state->hw.alpha >> 8))
+	if (!(plane_state->hw.alpha >> 8)) {
 		plane_state->uapi.visible = false;
+		plane_state->damage = DRM_RECT_INIT(0, 0, 0, 0);
+	}
 
 	plane_state->ctl = skl_plane_ctl(crtc_state, plane_state);
 

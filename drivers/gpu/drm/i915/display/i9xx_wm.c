@@ -3902,12 +3902,6 @@ static void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
-static void g4x_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
-{
-	g4x_wm_get_hw_state(i915);
-	g4x_wm_sanitize(i915);
-}
-
 static void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
 	struct vlv_wm_values *wm = &dev_priv->display.wm.vlv;
@@ -4055,12 +4049,6 @@ static void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->display.wm.wm_mutex);
 }
 
-static void vlv_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
-{
-	vlv_wm_get_hw_state(i915);
-	vlv_wm_sanitize(i915);
-}
-
 /*
  * FIXME should probably kill this and improve
  * the real watermark readout/sanitation instead
@@ -4122,14 +4110,16 @@ static const struct intel_wm_funcs vlv_wm_funcs = {
 	.initial_watermarks = vlv_initial_watermarks,
 	.optimize_watermarks = vlv_optimize_watermarks,
 	.atomic_update_watermarks = vlv_atomic_update_fifo,
-	.get_hw_state = vlv_wm_get_hw_state_and_sanitize,
+	.get_hw_state = vlv_wm_get_hw_state,
+	.sanitize = vlv_wm_sanitize,
 };
 
 static const struct intel_wm_funcs g4x_wm_funcs = {
 	.compute_watermarks = g4x_compute_watermarks,
 	.initial_watermarks = g4x_initial_watermarks,
 	.optimize_watermarks = g4x_optimize_watermarks,
-	.get_hw_state = g4x_wm_get_hw_state_and_sanitize,
+	.get_hw_state = g4x_wm_get_hw_state,
+	.sanitize = g4x_wm_sanitize,
 };
 
 static const struct intel_wm_funcs pnv_wm_funcs = {

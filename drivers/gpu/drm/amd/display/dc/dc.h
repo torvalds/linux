@@ -53,7 +53,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.321"
+#define DC_VER "3.2.323"
 
 /**
  * MAX_SURFACES - representative of the upper bound of surfaces that can be piped to a single CRTC
@@ -495,6 +495,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_FAMS2 = 19,
 	VISUAL_CONFIRM_HW_CURSOR = 20,
 	VISUAL_CONFIRM_VABC = 21,
+	VISUAL_CONFIRM_DCC = 22,
 };
 
 enum dc_psr_power_opts {
@@ -1083,6 +1084,7 @@ struct dc_debug_options {
 	unsigned int enable_oled_edp_power_up_opt;
 	bool enable_hblank_borrow;
 	bool force_subvp_df_throttle;
+	uint32_t acpi_transition_bitmasks[MAX_PIPES];
 };
 
 
@@ -1806,6 +1808,7 @@ struct dc_link {
 
 	struct dc_panel_config panel_config;
 	struct phy_state phy_state;
+	uint32_t phy_transition_bitmask;
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
 	bool skip_implict_edp_power_control;

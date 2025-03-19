@@ -3157,6 +3157,7 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 		dbuf_state->joined_mbus = intel_de_read(display, MBUS_CTL) & MBUS_JOIN;
 
 	dbuf_state->mdclk_cdclk_ratio = intel_mdclk_cdclk_ratio(display, &display->cdclk.hw);
+	dbuf_state->active_pipes = 0;
 
 	for_each_intel_crtc(display->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
@@ -3168,8 +3169,10 @@ static void skl_wm_get_hw_state(struct drm_i915_private *i915)
 
 		memset(&crtc_state->wm.skl.optimal, 0,
 		       sizeof(crtc_state->wm.skl.optimal));
-		if (crtc_state->hw.active)
+		if (crtc_state->hw.active) {
 			skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
+			dbuf_state->active_pipes |= BIT(pipe);
+		}
 		crtc_state->wm.skl.raw = crtc_state->wm.skl.optimal;
 
 		memset(&dbuf_state->ddb[pipe], 0, sizeof(dbuf_state->ddb[pipe]));
@@ -3837,12 +3840,54 @@ static void skl_dbuf_sanitize(struct drm_i915_private *i915)
 	}
 }
 
-static void skl_wm_get_hw_state_and_sanitize(struct drm_i915_private *i915)
+static void skl_wm_sanitize(struct drm_i915_private *i915)
 {
-	skl_wm_get_hw_state(i915);
-
 	skl_mbus_sanitize(i915);
 	skl_dbuf_sanitize(i915);
+}
+
+void skl_wm_crtc_disable_noatomic(struct intel_crtc *crtc)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+	struct intel_dbuf_state *dbuf_state =
+		to_intel_dbuf_state(display->dbuf.obj.state);
+	enum pipe pipe = crtc->pipe;
+
+	if (DISPLAY_VER(display) < 9)
+		return;
+
+	dbuf_state->active_pipes &= ~BIT(pipe);
+
+	dbuf_state->weight[pipe] = 0;
+	dbuf_state->slices[pipe] = 0;
+
+	memset(&dbuf_state->ddb[pipe], 0, sizeof(dbuf_state->ddb[pipe]));
+
+	memset(&crtc_state->wm.skl.ddb, 0, sizeof(crtc_state->wm.skl.ddb));
+}
+
+void skl_wm_plane_disable_noatomic(struct intel_crtc *crtc,
+				   struct intel_plane *plane)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	struct intel_crtc_state *crtc_state =
+		to_intel_crtc_state(crtc->base.state);
+
+	if (DISPLAY_VER(display) < 9)
+		return;
+
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[plane->id], 0, 0);
+	skl_ddb_entry_init(&crtc_state->wm.skl.plane_ddb[plane->id], 0, 0);
+
+	crtc_state->wm.skl.plane_min_ddb[plane->id] = 0;
+	crtc_state->wm.skl.plane_interim_ddb[plane->id] = 0;
+
+	memset(&crtc_state->wm.skl.raw.planes[plane->id], 0,
+	       sizeof(crtc_state->wm.skl.raw.planes[plane->id]));
+	memset(&crtc_state->wm.skl.optimal.planes[plane->id], 0,
+	       sizeof(crtc_state->wm.skl.optimal.planes[plane->id]));
 }
 
 void intel_wm_state_verify(struct intel_atomic_state *state,
@@ -3972,7 +4017,8 @@ void intel_wm_state_verify(struct intel_atomic_state *state,
 
 static const struct intel_wm_funcs skl_wm_funcs = {
 	.compute_global_watermarks = skl_compute_wm,
-	.get_hw_state = skl_wm_get_hw_state_and_sanitize,
+	.get_hw_state = skl_wm_get_hw_state,
+	.sanitize = skl_wm_sanitize,
 };
 
 void skl_wm_init(struct drm_i915_private *i915)

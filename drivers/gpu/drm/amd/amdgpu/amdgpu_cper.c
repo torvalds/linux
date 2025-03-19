@@ -57,6 +57,8 @@ void amdgpu_cper_entry_fill_hdr(struct amdgpu_device *adev,
 				enum amdgpu_cper_type type,
 				enum cper_error_severity sev)
 {
+	char record_id[16];
+
 	hdr->signature[0]		= 'C';
 	hdr->signature[1]		= 'P';
 	hdr->signature[2]		= 'E';
@@ -71,7 +73,13 @@ void amdgpu_cper_entry_fill_hdr(struct amdgpu_device *adev,
 
 	amdgpu_cper_get_timestamp(&hdr->timestamp);
 
-	snprintf(hdr->record_id, 8, "%d", atomic_inc_return(&adev->cper.unique_id));
+	snprintf(record_id, 9, "%d:%X",
+		 (adev->smuio.funcs && adev->smuio.funcs->get_socket_id) ?
+			 adev->smuio.funcs->get_socket_id(adev) :
+			 0,
+		 atomic_inc_return(&adev->cper.unique_id));
+	memcpy(hdr->record_id, record_id, 8);
+
 	snprintf(hdr->platform_id, 16, "0x%04X:0x%04X",
 		 adev->pdev->vendor, adev->pdev->device);
 	/* pmfw version should be part of creator_id according to CPER spec */
@@ -112,18 +120,15 @@ static int amdgpu_cper_entry_fill_section_desc(struct amdgpu_device *adev,
 	section_desc->revision_major		= CPER_SEC_MAJOR_REV_22;
 	section_desc->sec_offset		= section_offset;
 	section_desc->sec_length		= section_length;
-	section_desc->valid_bits.fru_id		= 1;
 	section_desc->valid_bits.fru_text	= 1;
 	section_desc->flag_bits.primary		= 1;
 	section_desc->severity			= sev;
 	section_desc->sec_type			= sec_type;
 
-	if (adev->smuio.funcs &&
-	    adev->smuio.funcs->get_socket_id)
-		snprintf(section_desc->fru_text, 20, "OAM%d",
-			 adev->smuio.funcs->get_socket_id(adev));
-	/* TODO: fru_id is 16 bytes in CPER spec, but driver defines it as 20 bytes */
-	snprintf(section_desc->fru_id, 16, "%llx", adev->unique_id);
+	snprintf(section_desc->fru_text, 20, "OAM%d",
+		 (adev->smuio.funcs && adev->smuio.funcs->get_socket_id) ?
+			 adev->smuio.funcs->get_socket_id(adev) :
+			 0);
 
 	if (bp_threshold)
 		section_desc->flag_bits.exceed_err_threshold = 1;
@@ -304,6 +309,7 @@ int amdgpu_cper_generate_ue_record(struct amdgpu_device *adev,
 		return ret;
 
 	amdgpu_cper_ring_write(ring, fatal, fatal->record_length);
+	kfree(fatal);
 
 	return 0;
 }
@@ -326,6 +332,7 @@ int amdgpu_cper_generate_bp_threshold_record(struct amdgpu_device *adev)
 		return ret;
 
 	amdgpu_cper_ring_write(ring, bp_threshold, bp_threshold->record_length);
+	kfree(bp_threshold);
 
 	return 0;
 }
@@ -376,7 +383,7 @@ int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
 
 	amdgpu_cper_entry_fill_hdr(adev, corrected, AMDGPU_CPER_TYPE_RUNTIME, sev);
 
-	/* Combine CE and UE in cper record */
+	/* Combine CE and DE in cper record */
 	list_for_each_entry(node, &banks->list, node) {
 		bank = &node->bank;
 		reg_data[CPER_ACA_REG_CTL_LO]    = lower_32_bits(bank->regs[ACA_REG_IDX_CTL]);
@@ -402,6 +409,7 @@ int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
 	}
 
 	amdgpu_cper_ring_write(ring, corrected, corrected->record_length);
+	kfree(corrected);
 
 	return 0;
 }
@@ -538,15 +546,23 @@ static int amdgpu_cper_ring_init(struct amdgpu_device *adev)
 
 int amdgpu_cper_init(struct amdgpu_device *adev)
 {
+	int r;
+
 	if (!amdgpu_aca_is_enabled(adev))
 		return 0;
+
+	r = amdgpu_cper_ring_init(adev);
+	if (r) {
+		dev_err(adev->dev, "failed to initialize cper ring, r = %d\n", r);
+		return r;
+	}
 
 	mutex_init(&adev->cper.cper_lock);
 
 	adev->cper.enabled = true;
 	adev->cper.max_count = CPER_MAX_ALLOWED_COUNT;
 
-	return amdgpu_cper_ring_init(adev);
+	return 0;
 }
 
 int amdgpu_cper_fini(struct amdgpu_device *adev)

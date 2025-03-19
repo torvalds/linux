@@ -88,7 +88,6 @@ Antonio Quartulli <antonio@mandelbit.com> <antonio@open-mesh.com>
 Antonio Quartulli <antonio@mandelbit.com> <antonio.quartulli@open-mesh.com>
 Antonio Quartulli <antonio@mandelbit.com> <ordex@autistici.org>
 Antonio Quartulli <antonio@mandelbit.com> <ordex@ritirata.org>
-Antonio Quartulli <antonio@mandelbit.com> <antonio@openvpn.net>
 Antonio Quartulli <antonio@mandelbit.com> <a@unstable.cc>
 Anup Patel <anup@brainfault.org> <anup.patel@wdc.com>
 Archit Taneja <archit@ti.com>
@@ -200,10 +199,11 @@ Dengcheng Zhu <dzhu@wavecomp.com> <dengcheng.zhu@imgtec.com>
 Dengcheng Zhu <dzhu@wavecomp.com> <dengcheng.zhu@mips.com>
 <dev.kurt@vandijck-laurijssen.be> <kurt.van.dijck@eia.be>
 Dikshita Agarwal <quic_dikshita@quicinc.com> <dikshita@codeaurora.org>
-Dmitry Baryshkov <dbaryshkov@gmail.com>
-Dmitry Baryshkov <dbaryshkov@gmail.com> <[dbaryshkov@gmail.com]>
-Dmitry Baryshkov <dbaryshkov@gmail.com> <dmitry_baryshkov@mentor.com>
-Dmitry Baryshkov <dbaryshkov@gmail.com> <dmitry_eremin@mentor.com>
+Dmitry Baryshkov <lumag@kernel.org> <dbaryshkov@gmail.com>
+Dmitry Baryshkov <lumag@kernel.org> <[dbaryshkov@gmail.com]>
+Dmitry Baryshkov <lumag@kernel.org> <dmitry_baryshkov@mentor.com>
+Dmitry Baryshkov <lumag@kernel.org> <dmitry_eremin@mentor.com>
+Dmitry Baryshkov <lumag@kernel.org> <dmitry.baryshkov@linaro.org>
 Dmitry Safonov <0x7f454c46@gmail.com> <dima@arista.com>
 Dmitry Safonov <0x7f454c46@gmail.com> <d.safonov@partner.samsung.com>
 Dmitry Safonov <0x7f454c46@gmail.com> <dsafonov@virtuozzo.com>
@@ -323,7 +323,8 @@ Jeff Johnson <jeff.johnson@oss.qualcomm.com> <quic_jjohnson@quicinc.com>
 Jeff Layton <jlayton@kernel.org> <jlayton@poochiereds.net>
 Jeff Layton <jlayton@kernel.org> <jlayton@primarydata.com>
 Jeff Layton <jlayton@kernel.org> <jlayton@redhat.com>
-Jeffrey Hugo <quic_jhugo@quicinc.com> <jhugo@codeaurora.org>
+Jeff Hugo <jeff.hugo@oss.qualcomm.com> <jhugo@codeaurora.org>
+Jeff Hugo <jeff.hugo@oss.qualcomm.com> <quic_jhugo@quicinc.com>
 Jens Axboe <axboe@kernel.dk> <axboe@suse.de>
 Jens Axboe <axboe@kernel.dk> <jens.axboe@oracle.com>
 Jens Axboe <axboe@kernel.dk> <axboe@fb.com>
@@ -522,6 +523,7 @@ Nadav Amit <nadav.amit@gmail.com> <namit@cs.technion.ac.il>
 Nadia Yvette Chambers <nyc@holomorphy.com> William Lee Irwin III <wli@holomorphy.com>
 Naoya Horiguchi <nao.horiguchi@gmail.com> <n-horiguchi@ah.jp.nec.com>
 Naoya Horiguchi <nao.horiguchi@gmail.com> <naoya.horiguchi@nec.com>
+Natalie Vock <natalie.vock@gmx.de> <friedrich.vock@gmx.de>
 Nathan Chancellor <nathan@kernel.org> <natechancellor@gmail.com>
 Naveen N Rao <naveen@kernel.org> <naveen.n.rao@linux.ibm.com>
 Naveen N Rao <naveen@kernel.org> <naveen.n.rao@linux.vnet.ibm.com>
@@ -613,6 +615,8 @@ Richard Leitner <richard.leitner@linux.dev> <me@g0hl1n.net>
 Richard Leitner <richard.leitner@linux.dev> <richard.leitner@skidata.com>
 Robert Foss <rfoss@kernel.org> <robert.foss@linaro.org>
 Rocky Liao <quic_rjliao@quicinc.com> <rjliao@codeaurora.org>
+Rodrigo Siqueira <siqueira@igalia.com> <rodrigosiqueiramelo@gmail.com>
+Rodrigo Siqueira <siqueira@igalia.com> <Rodrigo.Siqueira@amd.com>
 Roman Gushchin <roman.gushchin@linux.dev> <guro@fb.com>
 Roman Gushchin <roman.gushchin@linux.dev> <guroan@gmail.com>
 Roman Gushchin <roman.gushchin@linux.dev> <klamm@yandex-team.ru>
@@ -689,6 +693,7 @@ Subbaraman Narayanamurthy <quic_subbaram@quicinc.com> <subbaram@codeaurora.org>
 Subhash Jadavani <subhashj@codeaurora.org>
 Sudarshan Rajagopalan <quic_sudaraja@quicinc.com> <sudaraja@codeaurora.org>
 Sudeep Holla <sudeep.holla@arm.com> Sudeep KarkadaNagesha <sudeep.karkadanagesha@arm.com>
+Sumit Garg <sumit.garg@kernel.org> <sumit.garg@linaro.org>
 Sumit Semwal <sumit.semwal@ti.com>
 Surabhi Vishnoi <quic_svishnoi@quicinc.com> <svishnoi@codeaurora.org>
 Sven Eckelmann <sven@narfation.org> <seckelmann@datto.com>

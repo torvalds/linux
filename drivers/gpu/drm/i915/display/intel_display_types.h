@@ -40,9 +40,9 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank_work.h>
 #include <drm/intel/i915_hdcp_interface.h>
+#include <uapi/drm/i915_drm.h>
 
-#include "i915_vma.h"
-#include "i915_vma_types.h"
+#include "i915_gtt_view_types.h"
 #include "intel_bios.h"
 #include "intel_display.h"
 #include "intel_display_conversion.h"
@@ -534,10 +534,6 @@ struct intel_connector {
 	   state of connector->polled in case hotplug storm detection changes it */
 	u8 polled;
 
-	struct drm_dp_mst_port *port;
-
-	struct intel_dp *mst_port;
-
 	int force_joined_pipes;
 
 	struct {
@@ -548,6 +544,11 @@ struct intel_connector {
 		u8 dsc_hblank_expansion_quirk:1;
 		u8 dsc_decompression_enabled:1;
 	} dp;
+
+	struct {
+		struct drm_dp_mst_port *port;
+		struct intel_dp *dp;
+	} mst;
 
 	/* Work struct to schedule a uevent on link train failure */
 	struct work_struct modeset_retry_work;
@@ -692,6 +693,8 @@ struct intel_plane_state {
 	u64 ccval;
 
 	const char *no_fbc_reason;
+
+	struct drm_rect damage;
 };
 
 struct intel_initial_plane_config {
@@ -1724,7 +1727,6 @@ struct intel_dp {
 	struct intel_pps pps;
 
 	bool is_mst;
-	int active_mst_links;
 	enum drm_dp_mst_mode mst_detect;
 
 	/* connector directly attached - won't be use for modeset in mst world */
@@ -1734,9 +1736,11 @@ struct intel_dp {
 	struct drm_dp_tunnel *tunnel;
 	bool tunnel_suspended:1;
 
-	/* mst connector list */
-	struct intel_dp_mst_encoder *mst_encoders[I915_MAX_PIPES];
-	struct drm_dp_mst_topology_mgr mst_mgr;
+	struct {
+		struct intel_dp_mst_encoder *stream_encoders[I915_MAX_PIPES];
+		struct drm_dp_mst_topology_mgr mgr;
+		int active_links;
+	} mst;
 
 	u32 (*get_aux_clock_divider)(struct intel_dp *dp, int index);
 	/*
@@ -1847,16 +1851,18 @@ struct intel_digital_port {
 
 	struct intel_tc_port *tc;
 
-	/* protects num_hdcp_streams reference count, hdcp_port_data and hdcp_auth_status */
-	struct mutex hdcp_mutex;
-	/* the number of pipes using HDCP signalling out of this port */
-	unsigned int num_hdcp_streams;
-	/* port HDCP auth status */
-	bool hdcp_auth_status;
-	/* HDCP port data need to pass to security f/w */
-	struct hdcp_port_data hdcp_port_data;
-	/* Whether the MST topology supports HDCP Type 1 Content */
-	bool hdcp_mst_type1_capable;
+	struct {
+		/* protects num_streams reference count, port_data and auth_status */
+		struct mutex mutex;
+		/* the number of pipes using HDCP signalling out of this port */
+		unsigned int num_streams;
+		/* port HDCP auth status */
+		bool auth_status;
+		/* HDCP port data need to pass to security f/w */
+		struct hdcp_port_data port_data;
+		/* Whether the MST topology supports HDCP Type 1 Content */
+		bool mst_type1_capable;
+	} hdcp;
 
 	void (*write_infoframe)(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state,
@@ -1955,8 +1961,8 @@ static inline struct intel_dp *enc_to_intel_dp(struct intel_encoder *encoder)
 
 static inline struct intel_dp *intel_attached_dp(struct intel_connector *connector)
 {
-	if (connector->mst_port)
-		return connector->mst_port;
+	if (connector->mst.dp)
+		return connector->mst.dp;
 	else
 		return enc_to_intel_dp(intel_attached_encoder(connector));
 }
@@ -2098,11 +2104,6 @@ intel_crtc_needs_color_update(const struct intel_crtc_state *crtc_state)
 	return crtc_state->uapi.color_mgmt_changed ||
 		intel_crtc_needs_fastset(crtc_state) ||
 		intel_crtc_needs_modeset(crtc_state);
-}
-
-static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
-{
-	return i915_ggtt_offset(plane_state->ggtt_vma);
 }
 
 static inline struct intel_frontbuffer *

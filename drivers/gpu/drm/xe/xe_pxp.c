@@ -796,7 +796,6 @@ int xe_pxp_bo_key_check(struct xe_pxp *pxp, struct xe_bo *bo)
 
 /**
  * xe_pxp_obj_key_check - check if the key used by a drm_gem_obj is valid
- * @pxp: the xe->pxp pointer (it will be NULL if PXP is disabled)
  * @obj: the drm_gem_obj we want to check
  *
  * Checks whether a drm_gem_obj was encrypted with the current key or an
@@ -805,9 +804,13 @@ int xe_pxp_bo_key_check(struct xe_pxp *pxp, struct xe_bo *bo)
  * Returns: 0 if the key is valid, -ENODEV if PXP is disabled, -EINVAL if the
  * obj is not using PXP,  -ENOEXEC if the key is not valid.
  */
-int xe_pxp_obj_key_check(struct xe_pxp *pxp, struct drm_gem_object *obj)
+int xe_pxp_obj_key_check(struct drm_gem_object *obj)
 {
-	return xe_pxp_bo_key_check(pxp, gem_to_xe_bo(obj));
+	struct xe_bo *bo = gem_to_xe_bo(obj);
+	struct xe_device *xe = xe_bo_device(bo);
+	struct xe_pxp *pxp = xe->pxp;
+
+	return xe_pxp_bo_key_check(pxp, bo);
 }
 
 /**

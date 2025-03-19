@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: October 2024
+:Date: January 2025
 
 The goal of Landlock is to enable restriction of ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -329,11 +329,11 @@ non-sandboxed process, we can specify this restriction with
 A sandboxed process can connect to a non-sandboxed process when its domain is
 not scoped. If a process's domain is scoped, it can only connect to sockets
 created by processes in the same scope.
-Moreover, If a process is scoped to send signal to a non-scoped process, it can
+Moreover, if a process is scoped to send signal to a non-scoped process, it can
 only send signals to processes in the same scope.
 
 A connected datagram socket behaves like a stream socket when its domain is
-scoped, meaning if the domain is scoped after the socket is connected , it can
+scoped, meaning if the domain is scoped after the socket is connected, it can
 still :manpage:`send(2)` data just like a stream socket.  However, in the same
 scenario, a non-connected datagram socket cannot send data (with
 :manpage:`sendto(2)`) outside its scope.

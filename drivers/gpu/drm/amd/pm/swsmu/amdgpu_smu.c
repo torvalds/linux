@@ -2041,14 +2041,14 @@ static int smu_hw_fini(struct amdgpu_ip_block *ip_block)
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
 
-	for (i = 0; i < adev->vcn.num_vcn_inst; i++)
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 		smu_dpm_set_vcn_enable(smu, false, i);
+		adev->vcn.inst[i].cur_state = AMD_PG_STATE_GATE;
+	}
 	smu_dpm_set_jpeg_enable(smu, false);
+	adev->jpeg.cur_state = AMD_PG_STATE_GATE;
 	smu_dpm_set_vpe_enable(smu, false);
 	smu_dpm_set_umsch_mm_enable(smu, false);
-
-	adev->vcn.cur_state = AMD_PG_STATE_GATE;
-	adev->jpeg.cur_state = AMD_PG_STATE_GATE;
 
 	if (!smu->pm_enabled)
 		return 0;
@@ -2315,7 +2315,12 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 	if (smu_dpm_ctx->dpm_level != level) {
 		ret = smu_asic_set_performance_level(smu, level);
 		if (ret) {
-			dev_err(smu->adev->dev, "Failed to set performance level!");
+			if (ret == -EOPNOTSUPP)
+				dev_info(smu->adev->dev, "set performance level %d not supported",
+						level);
+			else
+				dev_err(smu->adev->dev, "Failed to set performance level %d",
+						level);
 			return ret;
 		}
 
@@ -3903,6 +3908,23 @@ int smu_send_rma_reason(struct smu_context *smu)
 
 	if (smu->ppt_funcs && smu->ppt_funcs->send_rma_reason)
 		ret = smu->ppt_funcs->send_rma_reason(smu);
+
+	return ret;
+}
+
+/**
+ * smu_reset_sdma_is_supported - Check if SDMA reset is supported by SMU
+ * @smu: smu_context pointer
+ *
+ * This function checks if the SMU supports resetting the SDMA engine.
+ * It returns true if supported, false otherwise.
+ */
+bool smu_reset_sdma_is_supported(struct smu_context *smu)
+{
+	bool ret = false;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->reset_sdma_is_supported)
+		ret = smu->ppt_funcs->reset_sdma_is_supported(smu);
 
 	return ret;
 }

@@ -36,6 +36,7 @@
 #include "kfd_kernel_queue.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_reset.h"
+#include "amdgpu_sdma.h"
 #include "mes_v11_api_def.h"
 #include "kfd_debug.h"
 
@@ -66,7 +67,8 @@ static inline void deallocate_hqd(struct device_queue_manager *dqm,
 static int allocate_hqd(struct device_queue_manager *dqm, struct queue *q);
 static int allocate_sdma_queue(struct device_queue_manager *dqm,
 				struct queue *q, const uint32_t *restore_sdma_id);
-static void kfd_process_hw_exception(struct work_struct *work);
+
+static int reset_queues_on_hws_hang(struct device_queue_manager *dqm, bool is_sdma);
 
 static inline
 enum KFD_MQD_TYPE get_mqd_type_from_queue_type(enum kfd_queue_type type)
@@ -170,7 +172,7 @@ static void kfd_hws_hang(struct device_queue_manager *dqm)
 	/*
 	 * Issue a GPU reset if HWS is unresponsive
 	 */
-	schedule_work(&dqm->hw_exception_work);
+	amdgpu_amdkfd_gpu_reset(dqm->dev->adev);
 }
 
 static int convert_to_mes_queue_type(int queue_type)
@@ -206,21 +208,6 @@ static int add_queue_mes(struct device_queue_manager *dqm, struct queue *q,
 		return 0;
 	if (!down_read_trylock(&adev->reset_domain->sem))
 		return -EIO;
-
-	if (!pdd->proc_ctx_cpu_ptr) {
-		r = amdgpu_amdkfd_alloc_gtt_mem(adev,
-				AMDGPU_MES_PROC_CTX_SIZE,
-				&pdd->proc_ctx_bo,
-				&pdd->proc_ctx_gpu_addr,
-				&pdd->proc_ctx_cpu_ptr,
-				false);
-		if (r) {
-			dev_err(adev->dev,
-				"failed to allocate process context bo\n");
-			return r;
-		}
-		memset(pdd->proc_ctx_cpu_ptr, 0, AMDGPU_MES_PROC_CTX_SIZE);
-	}
 
 	memset(&queue_input, 0x0, sizeof(struct mes_add_queue_input));
 	queue_input.process_id = pdd->pasid;
@@ -1755,7 +1742,6 @@ static int initialize_cpsch(struct device_queue_manager *dqm)
 	dqm->active_cp_queue_count = 0;
 	dqm->gws_queue_count = 0;
 	dqm->active_runlist = false;
-	INIT_WORK(&dqm->hw_exception_work, kfd_process_hw_exception);
 	dqm->trap_debug_vmid = 0;
 
 	init_sdma_bitmaps(dqm);
@@ -2222,8 +2208,7 @@ static struct queue *find_queue_by_address(struct device_queue_manager *dqm, uin
 	return NULL;
 }
 
-/* only for compute queue */
-static int reset_queues_on_hws_hang(struct device_queue_manager *dqm)
+static int reset_hung_queues(struct device_queue_manager *dqm)
 {
 	int r = 0, reset_count = 0, i;
 
@@ -2276,6 +2261,104 @@ reset_fail:
 	return r;
 }
 
+static bool sdma_has_hang(struct device_queue_manager *dqm)
+{
+	int engine_start = dqm->dev->node_id * get_num_all_sdma_engines(dqm);
+	int engine_end = engine_start + get_num_all_sdma_engines(dqm);
+	int num_queues_per_eng =  dqm->dev->kfd->device_info.num_sdma_queues_per_engine;
+	int i, j;
+
+	for (i = engine_start; i < engine_end; i++) {
+		for (j = 0; j < num_queues_per_eng; j++) {
+			if (!dqm->dev->kfd2kgd->hqd_sdma_get_doorbell(dqm->dev->adev, i, j))
+				continue;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool set_sdma_queue_as_reset(struct device_queue_manager *dqm,
+				    uint32_t doorbell_off)
+{
+	struct device_process_node *cur;
+	struct qcm_process_device *qpd;
+	struct queue *q;
+
+	list_for_each_entry(cur, &dqm->queues, list) {
+		qpd = cur->qpd;
+		list_for_each_entry(q, &qpd->queues_list, list) {
+			if ((q->properties.type == KFD_QUEUE_TYPE_SDMA ||
+			     q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI) &&
+			     q->properties.doorbell_off == doorbell_off) {
+				set_queue_as_reset(dqm, q, qpd);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+static int reset_hung_queues_sdma(struct device_queue_manager *dqm)
+{
+	int engine_start = dqm->dev->node_id * get_num_all_sdma_engines(dqm);
+	int engine_end = engine_start + get_num_all_sdma_engines(dqm);
+	int num_queues_per_eng =  dqm->dev->kfd->device_info.num_sdma_queues_per_engine;
+	int r = 0, i, j;
+
+	if (dqm->is_hws_hang)
+		return -EIO;
+
+	/* Scan for hung HW queues and reset engine. */
+	dqm->detect_hang_count = 0;
+	for (i = engine_start; i < engine_end; i++) {
+		for (j = 0; j < num_queues_per_eng; j++) {
+			uint32_t doorbell_off =
+				dqm->dev->kfd2kgd->hqd_sdma_get_doorbell(dqm->dev->adev, i, j);
+
+			if (!doorbell_off)
+				continue;
+
+			/* Reset engine and check. */
+			if (amdgpu_sdma_reset_engine(dqm->dev->adev, i, false) ||
+			    dqm->dev->kfd2kgd->hqd_sdma_get_doorbell(dqm->dev->adev, i, j) ||
+			    !set_sdma_queue_as_reset(dqm, doorbell_off)) {
+				r = -ENOTRECOVERABLE;
+				goto reset_fail;
+			}
+
+			/* Should only expect one queue active per engine */
+			dqm->detect_hang_count++;
+			break;
+		}
+	}
+
+	/* Signal process reset */
+	if (dqm->detect_hang_count)
+		kfd_signal_reset_event(dqm->dev);
+	else
+		r = -ENOTRECOVERABLE;
+
+reset_fail:
+	dqm->detect_hang_count = 0;
+
+	return r;
+}
+
+static int reset_queues_on_hws_hang(struct device_queue_manager *dqm, bool is_sdma)
+{
+	while (halt_if_hws_hang)
+		schedule();
+
+	if (!amdgpu_gpu_recovery)
+		return -ENOTRECOVERABLE;
+
+	return is_sdma ? reset_hung_queues_sdma(dqm) : reset_hung_queues(dqm);
+}
+
 /* dqm->lock mutex has to be locked before calling this function */
 static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 				enum kfd_unmap_queues_filter filter,
@@ -2326,16 +2409,13 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 	 * check those fields
 	 */
 	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ];
-	if (mqd_mgr->check_preemption_failed(mqd_mgr, dqm->packet_mgr.priv_queue->queue->mqd)) {
-		while (halt_if_hws_hang)
-			schedule();
-		if (reset_queues_on_hws_hang(dqm)) {
-			dqm->is_hws_hang = true;
-			kfd_hws_hang(dqm);
-			retval = -ETIME;
-			goto out;
-		}
-	}
+	if (mqd_mgr->check_preemption_failed(mqd_mgr, dqm->packet_mgr.priv_queue->queue->mqd) &&
+	    reset_queues_on_hws_hang(dqm, false))
+		goto reset_fail;
+
+	/* Check for SDMA hang and attempt SDMA reset */
+	if (sdma_has_hang(dqm) && reset_queues_on_hws_hang(dqm, true))
+		goto reset_fail;
 
 	/* We need to reset the grace period value for this device */
 	if (grace_period != USE_DEFAULT_GRACE_PERIOD) {
@@ -2346,10 +2426,15 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 
 	pm_release_ib(&dqm->packet_mgr);
 	dqm->active_runlist = false;
-
 out:
 	up_read(&dqm->dev->adev->reset_domain->sem);
 	return retval;
+
+reset_fail:
+	dqm->is_hws_hang = true;
+	kfd_hws_hang(dqm);
+	up_read(&dqm->dev->adev->reset_domain->sem);
+	return -ETIME;
 }
 
 /* only for compute queue */
@@ -2506,20 +2591,13 @@ failed_try_destroy_debugged_queue:
 	return retval;
 }
 
-/*
- * Low bits must be 0000/FFFF as required by HW, high bits must be 0 to
- * stay in user mode.
- */
-#define APE1_FIXED_BITS_MASK 0xFFFF80000000FFFFULL
-/* APE1 limit is inclusive and 64K aligned. */
-#define APE1_LIMIT_ALIGNMENT 0xFFFF
-
 static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 				   struct qcm_process_device *qpd,
 				   enum cache_policy default_policy,
 				   enum cache_policy alternate_policy,
 				   void __user *alternate_aperture_base,
-				   uint64_t alternate_aperture_size)
+				   uint64_t alternate_aperture_size,
+				   u32 misc_process_properties)
 {
 	bool retval = true;
 
@@ -2528,41 +2606,17 @@ static bool set_cache_memory_policy(struct device_queue_manager *dqm,
 
 	dqm_lock(dqm);
 
-	if (alternate_aperture_size == 0) {
-		/* base > limit disables APE1 */
-		qpd->sh_mem_ape1_base = 1;
-		qpd->sh_mem_ape1_limit = 0;
-	} else {
-		/*
-		 * In FSA64, APE1_Base[63:0] = { 16{SH_MEM_APE1_BASE[31]},
-		 *			SH_MEM_APE1_BASE[31:0], 0x0000 }
-		 * APE1_Limit[63:0] = { 16{SH_MEM_APE1_LIMIT[31]},
-		 *			SH_MEM_APE1_LIMIT[31:0], 0xFFFF }
-		 * Verify that the base and size parameters can be
-		 * represented in this format and convert them.
-		 * Additionally restrict APE1 to user-mode addresses.
-		 */
-
-		uint64_t base = (uintptr_t)alternate_aperture_base;
-		uint64_t limit = base + alternate_aperture_size - 1;
-
-		if (limit <= base || (base & APE1_FIXED_BITS_MASK) != 0 ||
-		   (limit & APE1_FIXED_BITS_MASK) != APE1_LIMIT_ALIGNMENT) {
-			retval = false;
-			goto out;
-		}
-
-		qpd->sh_mem_ape1_base = base >> 16;
-		qpd->sh_mem_ape1_limit = limit >> 16;
-	}
-
 	retval = dqm->asic_ops.set_cache_memory_policy(
 			dqm,
 			qpd,
 			default_policy,
 			alternate_policy,
 			alternate_aperture_base,
-			alternate_aperture_size);
+			alternate_aperture_size,
+			misc_process_properties);
+
+	if (retval)
+		goto out;
 
 	if ((dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS) && (qpd->vmid != 0))
 		program_sh_mem_settings(dqm, qpd);
@@ -3093,13 +3147,6 @@ int kfd_evict_process_device(struct kfd_process_device *pdd)
 		ret = dqm->ops.evict_process_queues(dqm, &pdd->qpd);
 
 	return ret;
-}
-
-static void kfd_process_hw_exception(struct work_struct *work)
-{
-	struct device_queue_manager *dqm = container_of(work,
-			struct device_queue_manager, hw_exception_work);
-	amdgpu_amdkfd_gpu_reset(dqm->dev->adev);
 }
 
 int reserve_debug_trap_vmid(struct device_queue_manager *dqm,

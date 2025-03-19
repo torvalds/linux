@@ -12,11 +12,8 @@
 #include "xe_pxp.h"
 
 struct drm_gem_object;
-struct xe_pxp;
 
-static inline int intel_pxp_key_check(struct xe_pxp *pxp,
-				      struct drm_gem_object *obj,
-				      bool assign)
+static inline int intel_pxp_key_check(struct drm_gem_object *obj, bool assign)
 {
 	/*
 	 * The assign variable is used in i915 to assign the key to the BO at
@@ -26,7 +23,7 @@ static inline int intel_pxp_key_check(struct xe_pxp *pxp,
 	if (assign)
 		return -EINVAL;
 
-	return xe_pxp_obj_key_check(pxp, obj);
+	return xe_pxp_obj_key_check(obj);
 }
 
 #endif

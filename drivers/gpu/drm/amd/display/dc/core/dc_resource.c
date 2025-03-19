@@ -1472,7 +1472,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
 	/* Invalid input */
-	if (!plane_state->dst_rect.width ||
+	if (!plane_state ||
+			!plane_state->dst_rect.width ||
 			!plane_state->dst_rect.height ||
 			!plane_state->src_rect.width ||
 			!plane_state->src_rect.height) {
@@ -4925,7 +4926,10 @@ bool pipe_need_reprogram(
 		return true;
 
 	/* DIG link encoder resource assignment for stream changed. */
-	if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
+	if (pipe_ctx_old->stream->ctx->dc->config.unify_link_enc_assignment) {
+		if (pipe_ctx_old->link_res.dio_link_enc != pipe_ctx->link_res.dio_link_enc)
+			return true;
+	} else if (pipe_ctx_old->stream->ctx->dc->res_pool->funcs->link_encs_assign) {
 		bool need_reprogram = false;
 		struct dc *dc = pipe_ctx_old->stream->ctx->dc;
 		struct link_encoder *link_enc_prev =
@@ -5191,7 +5195,7 @@ void get_audio_check(struct audio_info *aud_modes,
 	}
 }
 
-static struct link_encoder *get_temp_dio_link_enc(
+struct link_encoder *get_temp_dio_link_enc(
 		const struct resource_context *res_ctx,
 		const struct resource_pool *const pool,
 		const struct dc_link *link)

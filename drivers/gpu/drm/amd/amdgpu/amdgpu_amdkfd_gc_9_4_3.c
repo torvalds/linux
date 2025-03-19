@@ -509,6 +509,17 @@ static uint32_t kgd_gfx_v9_4_3_clear_address_watch(struct amdgpu_device *adev,
 	return 0;
 }
 
+static uint32_t kgd_gfx_v9_4_3_hqd_sdma_get_doorbell(struct amdgpu_device *adev,
+						     int engine, int queue)
+{
+	uint32_t reg_offset = get_sdma_rlc_reg_offset(adev, engine, queue);
+	uint32_t status = RREG32(regSDMA_RLC0_CONTEXT_STATUS + reg_offset);
+	uint32_t doorbell_off = RREG32(regSDMA_RLC0_DOORBELL_OFFSET + reg_offset);
+	bool is_active = !!REG_GET_FIELD(status, SDMA_RLC0_CONTEXT_STATUS, SELECTED);
+
+	return is_active ? doorbell_off >> 2 : 0;
+}
+
 const struct kfd2kgd_calls gc_9_4_3_kfd2kgd = {
 	.program_sh_mem_settings = kgd_gfx_v9_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_gfx_v9_4_3_set_pasid_vmid_mapping,
@@ -543,5 +554,6 @@ const struct kfd2kgd_calls gc_9_4_3_kfd2kgd = {
 	.set_address_watch = kgd_gfx_v9_4_3_set_address_watch,
 	.clear_address_watch = kgd_gfx_v9_4_3_clear_address_watch,
 	.hqd_get_pq_addr = kgd_gfx_v9_hqd_get_pq_addr,
-	.hqd_reset = kgd_gfx_v9_hqd_reset
+	.hqd_reset = kgd_gfx_v9_hqd_reset,
+	.hqd_sdma_get_doorbell = kgd_gfx_v9_4_3_hqd_sdma_get_doorbell
 };

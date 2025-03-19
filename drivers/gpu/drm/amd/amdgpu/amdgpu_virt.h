@@ -96,6 +96,7 @@ struct amdgpu_virt_ops {
 					enum amdgpu_ras_block block);
 	bool (*rcvd_ras_intr)(struct amdgpu_device *adev);
 	int (*req_ras_err_count)(struct amdgpu_device *adev);
+	int (*req_ras_cper_dump)(struct amdgpu_device *adev, u64 vf_rptr);
 };
 
 /*
@@ -140,6 +141,7 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_MES_INFO_ENABLE = (1 << 8),
 	AMDGIM_FEATURE_RAS_CAPS = (1 << 9),
 	AMDGIM_FEATURE_RAS_TELEMETRY = (1 << 10),
+	AMDGIM_FEATURE_RAS_CPER = (1 << 11),
 };
 
 enum AMDGIM_REG_ACCESS_FLAG {
@@ -242,6 +244,13 @@ struct amdgpu_virt_ras_err_handler_data {
 	int last_reserved;
 };
 
+struct amdgpu_virt_ras {
+	struct ratelimit_state ras_error_cnt_rs;
+	struct ratelimit_state ras_cper_dump_rs;
+	struct mutex ras_telemetry_mutex;
+	uint64_t cper_rptr;
+};
+
 /* GPU virtualization */
 struct amdgpu_virt {
 	uint32_t			caps;
@@ -284,8 +293,7 @@ struct amdgpu_virt {
 
 	union amd_sriov_ras_caps ras_en_caps;
 	union amd_sriov_ras_caps ras_telemetry_en_caps;
-
-	struct ratelimit_state ras_telemetry_rs;
+	struct amdgpu_virt_ras ras;
 	struct amd_sriov_ras_telemetry_error_count count_cache;
 };
 
@@ -340,6 +348,9 @@ struct amdgpu_video_codec_info;
 #define amdgpu_sriov_ras_telemetry_block_en(adev, sriov_blk) \
 (amdgpu_sriov_ras_telemetry_en((adev)) && (adev)->virt.ras_telemetry_en_caps.all & BIT(sriov_blk))
 
+#define amdgpu_sriov_ras_cper_en(adev) \
+((adev)->virt.gim_feature & AMDGIM_FEATURE_RAS_CPER)
+
 static inline bool is_virtual_machine(void)
 {
 #if defined(CONFIG_X86)
@@ -378,7 +389,7 @@ void amdgpu_virt_release_ras_err_handler_data(struct amdgpu_device *adev);
 void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev);
 void amdgpu_virt_exchange_data(struct amdgpu_device *adev);
 void amdgpu_virt_fini_data_exchange(struct amdgpu_device *adev);
-void amdgpu_detect_virtualization(struct amdgpu_device *adev);
+void amdgpu_virt_init(struct amdgpu_device *adev);
 
 bool amdgpu_virt_can_access_debugfs(struct amdgpu_device *adev);
 int amdgpu_virt_enable_access_debugfs(struct amdgpu_device *adev);
@@ -406,6 +417,7 @@ u32 amdgpu_virt_rlcg_reg_rw(struct amdgpu_device *adev, u32 offset, u32 v, u32 f
 bool amdgpu_virt_get_ras_capability(struct amdgpu_device *adev);
 int amdgpu_virt_req_ras_err_count(struct amdgpu_device *adev, enum amdgpu_ras_block block,
 				  struct ras_err_data *err_data);
+int amdgpu_virt_req_ras_cper_dump(struct amdgpu_device *adev, bool force_update);
 int amdgpu_virt_ras_telemetry_post_reset(struct amdgpu_device *adev);
 bool amdgpu_virt_ras_telemetry_block_en(struct amdgpu_device *adev,
 					enum amdgpu_ras_block block);

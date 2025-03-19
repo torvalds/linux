@@ -677,7 +677,7 @@ void intel_engines_release(struct intel_gt *gt)
 	 * in case we aborted before completely initialising the engines.
 	 */
 	GEM_BUG_ON(intel_gt_pm_is_awake(gt));
-	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
+	if (!intel_gt_gpu_reset_clobbers_display(gt))
 		intel_gt_reset_all_engines(gt);
 
 	/* Decouple the backend; but keep the layout for late GPU resets */

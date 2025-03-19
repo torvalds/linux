@@ -356,6 +356,32 @@ out:
 	return ret;
 }
 
+/*
+ * Handle DP BW allocation status register
+ *
+ * @link: pointer to the dc_link struct instance
+ * @status: content of DP tunneling status DPCD register
+ *
+ * return: none
+ */
+void link_dp_dpia_handle_bw_alloc_status(struct dc_link *link, uint8_t status)
+{
+	if (status & DP_TUNNELING_BW_REQUEST_SUCCEEDED) {
+		DC_LOG_DEBUG("%s: BW Allocation request succeeded on link(%d)",
+				__func__, link->link_index);
+	} else if (status & DP_TUNNELING_BW_REQUEST_FAILED) {
+		DC_LOG_DEBUG("%s: BW Allocation request failed on link(%d)  allocated/estimated BW=%d",
+				__func__, link->link_index, link->dpia_bw_alloc_config.estimated_bw);
+	} else if (status & DP_TUNNELING_ESTIMATED_BW_CHANGED) {
+		DC_LOG_DEBUG("%s: Estimated BW changed on link(%d)  new estimated BW=%d",
+				__func__, link->link_index, link->dpia_bw_alloc_config.estimated_bw);
+	}
+
+	core_link_write_dpcd(
+		link, DP_TUNNELING_STATUS,
+		&status, sizeof(status));
+}
+
 void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t result)
 {
 	int bw_needed = 0;

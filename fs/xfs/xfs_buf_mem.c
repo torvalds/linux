@@ -117,7 +117,7 @@ xmbuf_free(
 	struct xfs_buftarg	*btp)
 {
 	ASSERT(xfs_buftarg_is_mem(btp));
-	ASSERT(percpu_counter_sum(&btp->bt_io_count) == 0);
+	ASSERT(percpu_counter_sum(&btp->bt_readahead_count) == 0);
 
 	trace_xmbuf_free(btp);
 

@@ -1662,6 +1662,13 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	/* resizing on Dell G5 SE platforms causes problems with runtime pm */
+	if ((amdgpu_runtime_pm != 0) &&
+	    adev->pdev->vendor == PCI_VENDOR_ID_ATI &&
+	    adev->pdev->device == 0x731f &&
+	    adev->pdev->subsystem_vendor == PCI_VENDOR_ID_DELL)
+		return 0;
+
 	/* PCI_EXT_CAP_ID_VNDR extended capability is located at 0x100 */
 	if (!pci_find_ext_capability(adev->pdev, PCI_EXT_CAP_ID_VNDR))
 		DRM_WARN("System can't access extended configuration space, please check!!\n");
@@ -3098,7 +3105,8 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 
 	amdgpu_fru_get_product_info(adev);
 
-	r = amdgpu_cper_init(adev);
+	if (!amdgpu_sriov_vf(adev) || amdgpu_sriov_ras_cper_en(adev))
+		r = amdgpu_cper_init(adev);
 
 init_failed:
 
@@ -4332,10 +4340,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	 * for throttling interrupt) = 60 seconds.
 	 */
 	ratelimit_state_init(&adev->throttling_logging_rs, (60 - 1) * HZ, 1);
-	ratelimit_state_init(&adev->virt.ras_telemetry_rs, 5 * HZ, 1);
 
 	ratelimit_set_flags(&adev->throttling_logging_rs, RATELIMIT_MSG_ON_RELEASE);
-	ratelimit_set_flags(&adev->virt.ras_telemetry_rs, RATELIMIT_MSG_ON_RELEASE);
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
@@ -4367,7 +4373,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return -ENOMEM;
 
 	/* detect hw virtualization here */
-	amdgpu_detect_virtualization(adev);
+	amdgpu_virt_init(adev);
 
 	amdgpu_device_get_pcie_info(adev);
 

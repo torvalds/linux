@@ -515,9 +515,9 @@ static void jpeg_v2_6_dec_ring_insert_end(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, (1 << (ring->me * 2 + 14)));
 }
 
-static bool jpeg_v2_5_is_idle(void *handle)
+static bool jpeg_v2_5_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, ret = 1;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
@@ -563,7 +563,7 @@ static int jpeg_v2_5_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 			continue;
 
 		if (enable) {
-			if (!jpeg_v2_5_is_idle(adev))
+			if (!jpeg_v2_5_is_idle(ip_block))
 				return -EBUSY;
 			jpeg_v2_5_enable_clock_gating(adev, i);
 		} else {

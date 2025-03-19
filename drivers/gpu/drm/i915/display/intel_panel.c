@@ -32,6 +32,7 @@
 #include <linux/pwm.h>
 
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 
 #include "intel_backlight.h"
 #include "intel_connector.h"

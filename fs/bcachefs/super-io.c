@@ -69,14 +69,20 @@ enum bcachefs_metadata_version bch2_latest_compatible_version(enum bcachefs_meta
 	return v;
 }
 
-void bch2_set_version_incompat(struct bch_fs *c, enum bcachefs_metadata_version version)
+bool bch2_set_version_incompat(struct bch_fs *c, enum bcachefs_metadata_version version)
 {
-	mutex_lock(&c->sb_lock);
-	SET_BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb,
-		max(BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb), version));
-	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_FEATURE_incompat_version_field);
-	bch2_write_super(c);
-	mutex_unlock(&c->sb_lock);
+	bool ret = (c->sb.features & BIT_ULL(BCH_FEATURE_incompat_version_field)) &&
+		   version <= c->sb.version_incompat_allowed;
+
+	if (ret) {
+		mutex_lock(&c->sb_lock);
+		SET_BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb,
+			max(BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb), version));
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+	}
+
+	return ret;
 }
 
 const char * const bch2_sb_fields[] = {
@@ -1219,9 +1225,11 @@ void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version, bool incompat)
 	c->disk_sb.sb->version = cpu_to_le16(new_version);
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 
-	if (incompat)
+	if (incompat) {
 		SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb,
 			max(BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb), new_version));
+		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_FEATURE_incompat_version_field);
+	}
 }
 
 static int bch2_sb_ext_validate(struct bch_sb *sb, struct bch_sb_field *f,

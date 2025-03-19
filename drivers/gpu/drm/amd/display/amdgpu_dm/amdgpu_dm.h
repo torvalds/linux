@@ -151,6 +151,18 @@ struct idle_workqueue {
 	bool running;
 };
 
+#define MAX_LUMINANCE_DATA_POINTS 99
+
+/**
+ * struct amdgpu_dm_luminance_data - Custom luminance data
+ * @luminance: Luminance in percent
+ * @input_signal: Input signal in range 0-255
+ */
+struct amdgpu_dm_luminance_data {
+	u8 luminance;
+	u8 input_signal;
+} __packed;
+
 /**
  * struct amdgpu_dm_backlight_caps - Information about backlight
  *
@@ -195,6 +207,14 @@ struct amdgpu_dm_backlight_caps {
 	 * @dc_level: the default brightness if booted on DC
 	 */
 	u8 dc_level;
+	/**
+	 * @data_points: the number of custom luminance data points
+	 */
+	u8 data_points;
+	/**
+	 * @luminance_data: custom luminance data
+	 */
+	struct amdgpu_dm_luminance_data luminance_data[MAX_LUMINANCE_DATA_POINTS];
 };
 
 /**

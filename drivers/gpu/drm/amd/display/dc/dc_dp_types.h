@@ -300,6 +300,19 @@ union lane_align_status_updated {
 	uint8_t raw;
 };
 
+union link_service_irq_vector_esi0 {
+	struct {
+		uint8_t DP_LINK_RX_CAP_CHANGED:1;
+		uint8_t DP_LINK_STATUS_CHANGED:1;
+		uint8_t DP_LINK_STREAM_STATUS_CHANGED:1;
+		uint8_t DP_LINK_HDMI_LINK_STATUS_CHANGED:1;
+		uint8_t DP_LINK_CONNECTED_OFF_ENTRY_REQUESTED:1;
+		uint8_t DP_LINK_TUNNELING_IRQ:1;
+		uint8_t reserved:2;
+	} bits;
+	uint8_t raw;
+};
+
 union lane_adjust {
 	struct {
 		uint8_t VOLTAGE_SWING_LANE:2;
@@ -410,14 +423,6 @@ union dwnstream_port_caps_byte3_hdmi {
 	uint8_t raw;
 };
 
-union hdmi_sink_encoded_link_bw_support {
-	struct {
-		uint8_t HDMI_SINK_ENCODED_LINK_BW_SUPPORT:3;
-		uint8_t RESERVED:5;
-	} bits;
-	uint8_t raw;
-};
-
 union hdmi_encoded_link_bw {
 	struct {
 		uint8_t FRL_MODE:1; // Bit 0
@@ -470,8 +475,10 @@ union sink_status {
 	uint8_t raw;
 };
 
-/*6-byte structure corresponding to 6 registers (200h-205h)
-read during handling of HPD-IRQ*/
+/* 7-byte structure corresponding to 6 registers (200h-205h)
+ * and LINK_SERVICE_IRQ_ESI0 (2005h) for tunneling IRQ
+ * read during handling of HPD-IRQ
+ */
 union hpd_irq_data {
 	struct {
 		union sink_count sink_cnt;/* 200h */
@@ -479,9 +486,10 @@ union hpd_irq_data {
 		union lane_status lane01_status;/* 202h */
 		union lane_status lane23_status;/* 203h */
 		union lane_align_status_updated lane_status_updated;/* 204h */
-		union sink_status sink_status;
+		union sink_status sink_status;/* 205h */
+		union link_service_irq_vector_esi0 link_service_irq_esi0;/* 2005h */
 	} bytes;
-	uint8_t raw[6];
+	uint8_t raw[7];
 };
 
 union down_stream_port_count {
@@ -1128,6 +1136,8 @@ struct dc_lttpr_caps {
 	union dp_128b_132b_supported_lttpr_link_rates supported_128b_132b_rates;
 	union dp_alpm_lttpr_cap alpm;
 	uint8_t aux_rd_interval[MAX_REPEATER_CNT - 1];
+	uint8_t lttpr_ieee_oui[3];
+	uint8_t lttpr_device_id[6];
 };
 
 struct dc_dongle_dfp_cap_ext {
@@ -1218,6 +1228,8 @@ struct dpcd_caps {
 	struct replay_info pr_info;
 	uint16_t edp_oled_emission_rate;
 	union dp_receive_port0_cap receive_port0_cap;
+	/* Indicates the number of SST links supported by MSO (Multi-Stream Output) */
+	uint8_t mso_cap_sst_links_supported;
 };
 
 union dpcd_sink_ext_caps {
@@ -1391,6 +1403,12 @@ struct dp_trace {
 #ifndef DP_BRANCH_VENDOR_SPECIFIC_START
 #define DP_BRANCH_VENDOR_SPECIFIC_START     0x50C
 #endif
+#ifndef DP_LTTPR_IEEE_OUI
+#define DP_LTTPR_IEEE_OUI 0xF003D
+#endif
+#ifndef DP_LTTPR_DEVICE_ID
+#define DP_LTTPR_DEVICE_ID 0xF0040
+#endif
 /** USB4 DPCD BW Allocation Registers Chapter 10.7 **/
 #ifndef DP_TUNNELING_CAPABILITIES
 #define DP_TUNNELING_CAPABILITIES			0xE000D /* 1.4a */
@@ -1428,4 +1446,20 @@ struct dp_trace {
 #ifndef REQUESTED_BW
 #define REQUESTED_BW					0xE0031 /* 1.4a */
 #endif
+# ifndef DP_TUNNELING_BW_ALLOC_BITS_MASK
+# define DP_TUNNELING_BW_ALLOC_BITS_MASK		(0x0F << 0)
+# endif
+# ifndef DP_TUNNELING_BW_REQUEST_FAILED
+# define DP_TUNNELING_BW_REQUEST_FAILED			(1 << 0)
+# endif
+# ifndef DP_TUNNELING_BW_REQUEST_SUCCEEDED
+# define DP_TUNNELING_BW_REQUEST_SUCCEEDED		(1 << 1)
+# endif
+# ifndef DP_TUNNELING_ESTIMATED_BW_CHANGED
+# define DP_TUNNELING_ESTIMATED_BW_CHANGED		(1 << 2)
+# endif
+# ifndef DP_TUNNELING_BW_ALLOC_CAP_CHANGED
+# define DP_TUNNELING_BW_ALLOC_CAP_CHANGED		(1 << 3)
+# endif
+
 #endif /* DC_DP_TYPES_H */

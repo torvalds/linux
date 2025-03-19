@@ -715,7 +715,7 @@ bool g4x_hdmi_init(struct intel_display *display,
 
 	intel_encoder->devdata = devdata;
 
-	mutex_init(&dig_port->hdcp_mutex);
+	mutex_init(&dig_port->hdcp.mutex);
 
 	if (drm_encoder_init(display->drm, &intel_encoder->base,
 			     &intel_hdmi_enc_funcs, DRM_MODE_ENCODER_TMDS,

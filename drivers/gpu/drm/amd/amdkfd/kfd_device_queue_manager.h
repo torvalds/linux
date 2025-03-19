@@ -174,7 +174,8 @@ struct device_queue_manager_ops {
 					   enum cache_policy default_policy,
 					   enum cache_policy alternate_policy,
 					   void __user *alternate_aperture_base,
-					   uint64_t alternate_aperture_size);
+					   uint64_t alternate_aperture_size,
+					   u32 misc_process_properties);
 
 	int (*process_termination)(struct device_queue_manager *dqm,
 			struct qcm_process_device *qpd);
@@ -210,7 +211,8 @@ struct device_queue_manager_asic_ops {
 					   enum cache_policy default_policy,
 					   enum cache_policy alternate_policy,
 					   void __user *alternate_aperture_base,
-					   uint64_t alternate_aperture_size);
+					   uint64_t alternate_aperture_size,
+					   u32 misc_process_properties);
 	void	(*init_sdma_vm)(struct device_queue_manager *dqm,
 				struct queue *q,
 				struct qcm_process_device *qpd);
@@ -269,7 +271,6 @@ struct device_queue_manager {
 	/* hw exception  */
 	bool			is_hws_hang;
 	bool			is_resetting;
-	struct work_struct	hw_exception_work;
 	struct kfd_mem_obj	hiq_sdma_mqd;
 	bool			sched_running;
 	bool			sched_halt;

@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_fixed.h>
+#include <drm/drm_print.h>
 
 #include "intel_atomic.h"
 #include "intel_crtc.h"

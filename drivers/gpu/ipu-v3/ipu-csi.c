@@ -186,32 +186,6 @@ static inline void ipu_csi_write(struct ipu_csi *csi, u32 value,
 }
 
 /*
- * Set mclk division ratio for generating test mode mclk. Only used
- * for test generator.
- */
-static int ipu_csi_set_testgen_mclk(struct ipu_csi *csi, u32 pixel_clk,
-					u32 ipu_clk)
-{
-	u32 temp;
-	int div_ratio;
-
-	div_ratio = (ipu_clk / pixel_clk) - 1;
-
-	if (div_ratio > 0xFF || div_ratio < 0) {
-		dev_err(csi->ipu->dev,
-			"value of pixel_clk extends normal range\n");
-		return -EINVAL;
-	}
-
-	temp = ipu_csi_read(csi, CSI_SENS_CONF);
-	temp &= ~CSI_SENS_CONF_DIVRATIO_MASK;
-	ipu_csi_write(csi, temp | (div_ratio << CSI_SENS_CONF_DIVRATIO_SHIFT),
-			  CSI_SENS_CONF);
-
-	return 0;
-}
-
-/*
  * Find the CSI data format and data width for the given V4L2 media
  * bus pixel format code.
  */
@@ -538,56 +512,6 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(ipu_csi_init_interface);
 
-bool ipu_csi_is_interlaced(struct ipu_csi *csi)
-{
-	unsigned long flags;
-	u32 sensor_protocol;
-
-	spin_lock_irqsave(&csi->lock, flags);
-	sensor_protocol =
-		(ipu_csi_read(csi, CSI_SENS_CONF) &
-		 CSI_SENS_CONF_SENS_PRTCL_MASK) >>
-		CSI_SENS_CONF_SENS_PRTCL_SHIFT;
-	spin_unlock_irqrestore(&csi->lock, flags);
-
-	switch (sensor_protocol) {
-	case IPU_CSI_CLK_MODE_GATED_CLK:
-	case IPU_CSI_CLK_MODE_NONGATED_CLK:
-	case IPU_CSI_CLK_MODE_CCIR656_PROGRESSIVE:
-	case IPU_CSI_CLK_MODE_CCIR1120_PROGRESSIVE_DDR:
-	case IPU_CSI_CLK_MODE_CCIR1120_PROGRESSIVE_SDR:
-		return false;
-	case IPU_CSI_CLK_MODE_CCIR656_INTERLACED:
-	case IPU_CSI_CLK_MODE_CCIR1120_INTERLACED_DDR:
-	case IPU_CSI_CLK_MODE_CCIR1120_INTERLACED_SDR:
-		return true;
-	default:
-		dev_err(csi->ipu->dev,
-			"CSI %d sensor protocol unsupported\n", csi->id);
-		return false;
-	}
-}
-EXPORT_SYMBOL_GPL(ipu_csi_is_interlaced);
-
-void ipu_csi_get_window(struct ipu_csi *csi, struct v4l2_rect *w)
-{
-	unsigned long flags;
-	u32 reg;
-
-	spin_lock_irqsave(&csi->lock, flags);
-
-	reg = ipu_csi_read(csi, CSI_ACT_FRM_SIZE);
-	w->width = (reg & 0xFFFF) + 1;
-	w->height = (reg >> 16 & 0xFFFF) + 1;
-
-	reg = ipu_csi_read(csi, CSI_OUT_FRM_CTRL);
-	w->left = (reg & CSI_HSC_MASK) >> CSI_HSC_SHIFT;
-	w->top = (reg & CSI_VSC_MASK) >> CSI_VSC_SHIFT;
-
-	spin_unlock_irqrestore(&csi->lock, flags);
-}
-EXPORT_SYMBOL_GPL(ipu_csi_get_window);
-
 void ipu_csi_set_window(struct ipu_csi *csi, struct v4l2_rect *w)
 {
 	unsigned long flags;
@@ -623,38 +547,6 @@ void ipu_csi_set_downsize(struct ipu_csi *csi, bool horiz, bool vert)
 	spin_unlock_irqrestore(&csi->lock, flags);
 }
 EXPORT_SYMBOL_GPL(ipu_csi_set_downsize);
-
-void ipu_csi_set_test_generator(struct ipu_csi *csi, bool active,
-				u32 r_value, u32 g_value, u32 b_value,
-				u32 pix_clk)
-{
-	unsigned long flags;
-	u32 ipu_clk = clk_get_rate(csi->clk_ipu);
-	u32 temp;
-
-	spin_lock_irqsave(&csi->lock, flags);
-
-	temp = ipu_csi_read(csi, CSI_TST_CTRL);
-
-	if (!active) {
-		temp &= ~CSI_TEST_GEN_MODE_EN;
-		ipu_csi_write(csi, temp, CSI_TST_CTRL);
-	} else {
-		/* Set sensb_mclk div_ratio */
-		ipu_csi_set_testgen_mclk(csi, pix_clk, ipu_clk);
-
-		temp &= ~(CSI_TEST_GEN_R_MASK | CSI_TEST_GEN_G_MASK |
-			  CSI_TEST_GEN_B_MASK);
-		temp |= CSI_TEST_GEN_MODE_EN;
-		temp |= (r_value << CSI_TEST_GEN_R_SHIFT) |
-			(g_value << CSI_TEST_GEN_G_SHIFT) |
-			(b_value << CSI_TEST_GEN_B_SHIFT);
-		ipu_csi_write(csi, temp, CSI_TST_CTRL);
-	}
-
-	spin_unlock_irqrestore(&csi->lock, flags);
-}
-EXPORT_SYMBOL_GPL(ipu_csi_set_test_generator);
 
 int ipu_csi_set_mipi_datatype(struct ipu_csi *csi, u32 vc,
 			      struct v4l2_mbus_framefmt *mbus_fmt)

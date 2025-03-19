@@ -634,12 +634,6 @@ static void jpeg_v4_0_3_stop_inst(struct amdgpu_device *adev, int inst)
 		 UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK,
 		 ~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
 
-	WREG32_SOC15(JPEG, jpeg_inst, regUVD_PGFSM_CONFIG,
-		     2 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT);
-	SOC15_WAIT_ON_RREG(JPEG, jpeg_inst, regUVD_PGFSM_STATUS,
-			   UVD_PGFSM_STATUS__UVDJ_PWR_OFF <<
-			   UVD_PGFSM_STATUS__UVDJ_PWR_STATUS__SHIFT,
-			   UVD_PGFSM_STATUS__UVDJ_PWR_STATUS_MASK);
 }
 
 /**
@@ -692,7 +686,7 @@ static uint64_t jpeg_v4_0_3_dec_ring_get_wptr(struct amdgpu_ring *ring)
 				   jpeg_v4_0_3_core_reg_offset(ring->pipe));
 }
 
-static void jpeg_v4_0_3_ring_emit_hdp_flush(struct amdgpu_ring *ring)
+void jpeg_v4_0_3_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 {
 	/* JPEG engine access for HDP flush doesn't work when RRMT is enabled.
 	 * This is a workaround to avoid any HDP flush through JPEG ring.
@@ -960,9 +954,9 @@ void jpeg_v4_0_3_dec_ring_nop(struct amdgpu_ring *ring, uint32_t count)
 	}
 }
 
-static bool jpeg_v4_0_3_is_idle(void *handle)
+static bool jpeg_v4_0_3_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	bool ret = false;
 	int i, j;
 
@@ -1004,7 +998,7 @@ static int jpeg_v4_0_3_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (enable) {
-			if (!jpeg_v4_0_3_is_idle(adev))
+			if (!jpeg_v4_0_3_is_idle(ip_block))
 				return -EBUSY;
 			jpeg_v4_0_3_enable_clock_gating(adev, i);
 		} else {
@@ -1110,24 +1104,20 @@ static void jpeg_v4_0_3_core_stall_reset(struct amdgpu_ring *ring)
 	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
 			    regUVD_JMI0_UVD_JMI_CLIENT_STALL,
 			    reg_offset, 0x1F);
-	SOC15_WAIT_ON_RREG(JPEG, jpeg_inst,
-			   regUVD_JMI0_UVD_JMI_CLIENT_CLEAN_STATUS,
-			   0x1F, 0x1F);
+	SOC15_WAIT_ON_RREG_OFFSET(JPEG, jpeg_inst,
+				  regUVD_JMI0_UVD_JMI_CLIENT_CLEAN_STATUS,
+				  reg_offset, 0x1F, 0x1F);
 	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
 			    regUVD_JMI0_JPEG_LMI_DROP,
 			    reg_offset, 0x1F);
-	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-			    regJPEG_CORE_RST_CTRL,
-			    reg_offset, 1 << ring->pipe);
+	WREG32_SOC15(JPEG, jpeg_inst, regJPEG_CORE_RST_CTRL, 1 << ring->pipe);
 	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
 			    regUVD_JMI0_UVD_JMI_CLIENT_STALL,
 			    reg_offset, 0x00);
 	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
 			    regUVD_JMI0_JPEG_LMI_DROP,
 			    reg_offset, 0x00);
-	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-			    regJPEG_CORE_RST_CTRL,
-			    reg_offset, 0x00);
+	WREG32_SOC15(JPEG, jpeg_inst, regJPEG_CORE_RST_CTRL, 0x00);
 }
 
 static int jpeg_v4_0_3_ring_reset(struct amdgpu_ring *ring, unsigned int vmid)
@@ -1338,8 +1328,8 @@ static int jpeg_v4_0_3_aca_bank_parser(struct aca_handle *handle, struct aca_ban
 						     1ULL);
 		break;
 	case ACA_SMU_TYPE_CE:
-		bank->aca_err_type = ACA_ERROR_TYPE_CE;
-		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_CE,
+		bank->aca_err_type = ACA_BANK_ERR_CE_DE_DECODE(bank);
+		ret = aca_error_cache_log_bank_error(handle, &info, bank->aca_err_type,
 						     ACA_REG__MISC0__ERRCNT(misc0));
 		break;
 	default:

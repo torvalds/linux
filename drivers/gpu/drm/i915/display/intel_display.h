@@ -426,7 +426,7 @@ intel_mode_valid_max_plane_size(struct intel_display *display,
 enum drm_mode_status
 intel_cpu_transcoder_mode_valid(struct intel_display *display,
 				const struct drm_display_mode *mode);
-enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
+enum phy intel_port_to_phy(struct intel_display *display, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
 bool is_trans_port_sync_master(const struct intel_crtc_state *state);
 u8 intel_crtc_joined_pipe_mask(const struct intel_crtc_state *crtc_state);
@@ -457,18 +457,16 @@ int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 		      const char *name, u32 reg, int ref_freq);
 int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 			   const char *name, u32 reg);
-void intel_init_display_hooks(struct drm_i915_private *dev_priv);
-bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
+bool intel_has_pending_fb_unpin(struct intel_display *display);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
 void intel_encoder_get_config(struct intel_encoder *encoder,
 			      struct intel_crtc_state *crtc_state);
 bool intel_phy_is_combo(struct intel_display *display, enum phy phy);
-bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy);
-bool intel_phy_is_snps(struct drm_i915_private *dev_priv, enum phy phy);
-enum tc_port intel_port_to_tc(struct drm_i915_private *dev_priv,
-			      enum port port);
+bool intel_phy_is_tc(struct intel_display *display, enum phy phy);
+bool intel_phy_is_snps(struct intel_display *display, enum phy phy);
+enum tc_port intel_port_to_tc(struct intel_display *display, enum port port);
 
 enum phy intel_encoder_to_phy(struct intel_encoder *encoder);
 bool intel_encoder_is_combo(struct intel_encoder *encoder);
@@ -481,15 +479,15 @@ int ilk_get_lanes_required(int target_clock, int link_bw, int bpp);
 bool intel_fuzzy_clock_check(int clock1, int clock2);
 
 void intel_zero_m_n(struct intel_link_m_n *m_n);
-void intel_set_m_n(struct drm_i915_private *i915,
+void intel_set_m_n(struct intel_display *display,
 		   const struct intel_link_m_n *m_n,
 		   i915_reg_t data_m_reg, i915_reg_t data_n_reg,
 		   i915_reg_t link_m_reg, i915_reg_t link_n_reg);
-void intel_get_m_n(struct drm_i915_private *i915,
+void intel_get_m_n(struct intel_display *display,
 		   struct intel_link_m_n *m_n,
 		   i915_reg_t data_m_reg, i915_reg_t data_n_reg,
 		   i915_reg_t link_m_reg, i915_reg_t link_n_reg);
-bool intel_cpu_transcoder_has_m2_n2(struct drm_i915_private *dev_priv,
+bool intel_cpu_transcoder_has_m2_n2(struct intel_display *display,
 				    enum transcoder transcoder);
 void intel_cpu_transcoder_set_m1_n1(struct intel_crtc *crtc,
 				    enum transcoder cpu_transcoder,
@@ -510,8 +508,6 @@ enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port);
 void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state);
-void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
-
 int bdw_get_pipe_misc_bpp(struct intel_crtc *crtc);
 unsigned int intel_plane_fence_y_offset(const struct intel_plane_state *plane_state);
 
@@ -525,8 +521,6 @@ void intel_set_plane_visible(struct intel_crtc_state *crtc_state,
 			     bool visible);
 void intel_plane_fixup_bitmasks(struct intel_crtc_state *crtc_state);
 
-void intel_update_watermarks(struct drm_i915_private *i915);
-
 bool intel_crtc_vrr_disabling(struct intel_atomic_state *state,
 			      struct intel_crtc *crtc);
 
@@ -535,7 +529,7 @@ int intel_modeset_pipes_in_mask_early(struct intel_atomic_state *state,
 				      const char *reason, u8 pipe_mask);
 int intel_modeset_all_pipes_late(struct intel_atomic_state *state,
 				 const char *reason);
-int intel_modeset_commit_pipes(struct drm_i915_private *i915,
+int intel_modeset_commit_pipes(struct intel_display *display,
 			       u8 pipe_mask,
 			       struct drm_modeset_acquire_ctx *ctx);
 void intel_modeset_get_crtc_power_domains(struct intel_crtc_state *crtc_state,
@@ -544,11 +538,11 @@ void intel_modeset_put_crtc_power_domains(struct intel_crtc *crtc,
 					  struct intel_power_domain_mask *domains);
 
 /* interface for intel_display_driver.c */
-void intel_setup_outputs(struct drm_i915_private *i915);
-int intel_initial_commit(struct drm_device *dev);
-void intel_panel_sanitize_ssc(struct drm_i915_private *i915);
-void intel_update_czclk(struct drm_i915_private *i915);
-void intel_atomic_helper_free_state_worker(struct work_struct *work);
+void intel_init_display_hooks(struct intel_display *display);
+void intel_setup_outputs(struct intel_display *display);
+int intel_initial_commit(struct intel_display *display);
+void intel_panel_sanitize_ssc(struct intel_display *display);
+void intel_update_czclk(struct intel_display *display);
 enum drm_mode_status intel_mode_valid(struct drm_device *dev,
 				      const struct drm_display_mode *mode);
 int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,

@@ -4,6 +4,7 @@
  */
 
 #include <drm/display/drm_dp_tunnel.h>
+#include <drm/drm_print.h>
 
 #include "intel_atomic.h"
 #include "intel_display_core.h"

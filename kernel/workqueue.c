@@ -2254,8 +2254,10 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 	 * queues a new work item to a wq after destroy_workqueue(wq).
 	 */
 	if (unlikely(wq->flags & (__WQ_DESTROYING | __WQ_DRAINING) &&
-		     WARN_ON_ONCE(!is_chained_work(wq))))
+		     WARN_ONCE(!is_chained_work(wq), "workqueue: cannot queue %ps on wq %s\n",
+			       work->func, wq->name))) {
 		return;
+	}
 	rcu_read_lock();
 retry:
 	/* pwq which will be used unless @work is executing elsewhere */

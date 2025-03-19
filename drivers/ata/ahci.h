@@ -386,8 +386,12 @@ struct ahci_host_priv {
 static inline bool ahci_ignore_port(struct ahci_host_priv *hpriv,
 				    unsigned int portid)
 {
-	return portid >= hpriv->nports ||
-		!(hpriv->mask_port_map & (1 << portid));
+	if (portid >= hpriv->nports)
+		return true;
+	/* mask_port_map not set means that all ports are available */
+	if (!hpriv->mask_port_map)
+		return false;
+	return !(hpriv->mask_port_map & (1 << portid));
 }
 
 extern int ahci_ignore_sss;
