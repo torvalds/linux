@@ -299,38 +299,6 @@ static inline void __cgroup_rstat_unlock(struct cgroup *cgrp, int cpu_in_loop)
 	spin_unlock_irq(&cgroup_rstat_lock);
 }
 
-/* see cgroup_rstat_flush() */
-static void cgroup_rstat_flush_locked(struct cgroup *cgrp)
-	__releases(&cgroup_rstat_lock) __acquires(&cgroup_rstat_lock)
-{
-	int cpu;
-
-	lockdep_assert_held(&cgroup_rstat_lock);
-
-	for_each_possible_cpu(cpu) {
-		struct cgroup *pos = cgroup_rstat_updated_list(cgrp, cpu);
-
-		for (; pos; pos = pos->rstat_flush_next) {
-			struct cgroup_subsys_state *css;
-
-			cgroup_base_stat_flush(pos, cpu);
-			bpf_rstat_flush(pos, cgroup_parent(pos), cpu);
-
-			rcu_read_lock();
-			list_for_each_entry_rcu(css, &pos->rstat_css_list,
-						rstat_css_node)
-				css->ss->css_rstat_flush(css, cpu);
-			rcu_read_unlock();
-		}
-
-		/* play nice and avoid disabling interrupts for a long time */
-		__cgroup_rstat_unlock(cgrp, cpu);
-		if (!cond_resched())
-			cpu_relax();
-		__cgroup_rstat_lock(cgrp, cpu);
-	}
-}
-
 /**
  * cgroup_rstat_flush - flush stats in @cgrp's subtree
  * @cgrp: target cgroup
@@ -346,38 +314,30 @@ static void cgroup_rstat_flush_locked(struct cgroup *cgrp)
  */
 __bpf_kfunc void cgroup_rstat_flush(struct cgroup *cgrp)
 {
+	int cpu;
+
 	might_sleep();
+	for_each_possible_cpu(cpu) {
+		struct cgroup *pos = cgroup_rstat_updated_list(cgrp, cpu);
 
-	__cgroup_rstat_lock(cgrp, -1);
-	cgroup_rstat_flush_locked(cgrp);
-	__cgroup_rstat_unlock(cgrp, -1);
-}
+		/* Reacquire for each CPU to avoid disabling IRQs too long */
+		__cgroup_rstat_lock(cgrp, cpu);
+		for (; pos; pos = pos->rstat_flush_next) {
+			struct cgroup_subsys_state *css;
 
-/**
- * cgroup_rstat_flush_hold - flush stats in @cgrp's subtree and hold
- * @cgrp: target cgroup
- *
- * Flush stats in @cgrp's subtree and prevent further flushes.  Must be
- * paired with cgroup_rstat_flush_release().
- *
- * This function may block.
- */
-void cgroup_rstat_flush_hold(struct cgroup *cgrp)
-	__acquires(&cgroup_rstat_lock)
-{
-	might_sleep();
-	__cgroup_rstat_lock(cgrp, -1);
-	cgroup_rstat_flush_locked(cgrp);
-}
+			cgroup_base_stat_flush(pos, cpu);
+			bpf_rstat_flush(pos, cgroup_parent(pos), cpu);
 
-/**
- * cgroup_rstat_flush_release - release cgroup_rstat_flush_hold()
- * @cgrp: cgroup used by tracepoint
- */
-void cgroup_rstat_flush_release(struct cgroup *cgrp)
-	__releases(&cgroup_rstat_lock)
-{
-	__cgroup_rstat_unlock(cgrp, -1);
+			rcu_read_lock();
+			list_for_each_entry_rcu(css, &pos->rstat_css_list,
+						rstat_css_node)
+				css->ss->css_rstat_flush(css, cpu);
+			rcu_read_unlock();
+		}
+		__cgroup_rstat_unlock(cgrp, cpu);
+		if (!cond_resched())
+			cpu_relax();
+	}
 }
 
 int cgroup_rstat_init(struct cgroup *cgrp)
@@ -614,11 +574,12 @@ void cgroup_base_stat_cputime_show(struct seq_file *seq)
 	struct cgroup_base_stat bstat;
 
 	if (cgroup_parent(cgrp)) {
-		cgroup_rstat_flush_hold(cgrp);
+		cgroup_rstat_flush(cgrp);
+		__cgroup_rstat_lock(cgrp, -1);
 		bstat = cgrp->bstat;
 		cputime_adjust(&cgrp->bstat.cputime, &cgrp->prev_cputime,
 			       &bstat.cputime.utime, &bstat.cputime.stime);
-		cgroup_rstat_flush_release(cgrp);
+		__cgroup_rstat_unlock(cgrp, -1);
 	} else {
 		root_cgroup_cputime(&bstat);
 	}
