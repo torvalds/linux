@@ -6,15 +6,8 @@
  *
  */
 
-#ifndef _DT_BINDINGS_CLK_ZYNQMP_H
-#define _DT_BINDINGS_CLK_ZYNQMP_H
-
-/*
- * These bindings are deprecated, because they do not match the actual
- * concept of bindings but rather contain pure firmware values.
- * Instead include the header in the DTS source directory.
- */
-#warning "These bindings are deprecated. Instead use the header in the DTS source directory."
+#ifndef _XLNX_ZYNQMP_CLK_H
+#define _XLNX_ZYNQMP_CLK_H
 
 #define IOPLL			0
 #define RPLL			1
@@ -130,4 +123,4 @@
 #define GEM3_REF_UNG		111
 #define LPD_WDT			112
 
-#endif
+#endif /* _XLNX_ZYNQMP_CLK_H */
