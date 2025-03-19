@@ -680,24 +680,17 @@ static const struct acpm_handle *acpm_get_by_phandle(struct device *dev,
 		return ERR_PTR(-ENODEV);
 
 	pdev = of_find_device_by_node(acpm_np);
-	if (!pdev) {
-		dev_err(dev, "Cannot find device node %s\n", acpm_np->name);
-		of_node_put(acpm_np);
-		return ERR_PTR(-EPROBE_DEFER);
-	}
-
 	of_node_put(acpm_np);
+	if (!pdev)
+		return ERR_PTR(-EPROBE_DEFER);
 
 	acpm = platform_get_drvdata(pdev);
 	if (!acpm) {
-		dev_err(dev, "Cannot get drvdata from %s\n",
-			dev_name(&pdev->dev));
 		platform_device_put(pdev);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	if (!try_module_get(pdev->dev.driver->owner)) {
-		dev_err(dev, "Cannot get module reference.\n");
 		platform_device_put(pdev);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
