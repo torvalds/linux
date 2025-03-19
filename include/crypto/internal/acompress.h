@@ -11,6 +11,7 @@
 
 #include <crypto/acompress.h>
 #include <crypto/algapi.h>
+#include <crypto/scatterwalk.h>
 #include <linux/compiler_types.h>
 #include <linux/cpumask_types.h>
 #include <linux/spinlock.h>
@@ -73,6 +74,37 @@ struct crypto_acomp_streams {
 	struct crypto_acomp_stream __percpu *streams;
 	struct work_struct stream_work;
 	cpumask_t stream_want;
+};
+
+struct acomp_walk {
+	union {
+		/* Virtual address of the source. */
+		struct {
+			struct {
+				const void *const addr;
+			} virt;
+		} src;
+
+		/* Private field for the API, do not use. */
+		struct scatter_walk in;
+	};
+
+	union {
+		/* Virtual address of the destination. */
+		struct {
+			struct {
+				void *const addr;
+			} virt;
+		} dst;
+
+		/* Private field for the API, do not use. */
+		struct scatter_walk out;
+	};
+
+	unsigned int slen;
+	unsigned int dlen;
+
+	int flags;
 };
 
 /*
@@ -189,5 +221,17 @@ static inline void crypto_acomp_unlock_stream_bh(
 	struct crypto_acomp_stream *stream) __releases(stream)
 {
 	spin_unlock_bh(&stream->lock);
+}
+
+void acomp_walk_done_src(struct acomp_walk *walk, int used);
+void acomp_walk_done_dst(struct acomp_walk *walk, int used);
+int acomp_walk_next_src(struct acomp_walk *walk);
+int acomp_walk_next_dst(struct acomp_walk *walk);
+int acomp_walk_virt(struct acomp_walk *__restrict walk,
+		    struct acomp_req *__restrict req);
+
+static inline bool acomp_walk_more_src(const struct acomp_walk *walk, int cur)
+{
+	return walk->slen != cur;
 }
 #endif
