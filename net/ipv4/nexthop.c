@@ -2692,9 +2692,6 @@ static struct nexthop *nexthop_create_group(struct net *net,
 	int err;
 	int i;
 
-	if (WARN_ON(!num_nh))
-		return ERR_PTR(-EINVAL);
-
 	nh = nexthop_alloc();
 	if (!nh)
 		return ERR_PTR(-ENOMEM);
