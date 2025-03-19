@@ -433,7 +433,6 @@ int netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	udph->len = htons(udp_len);
 
 	if (np->ipv6) {
-		udph->check = 0;
 		udph->check = csum_ipv6_magic(&np->local_ip.in6,
 					      &np->remote_ip.in6,
 					      udp_len, IPPROTO_UDP,
