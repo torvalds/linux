@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 
 typedef struct gpib_interface_struct gpib_interface_t;
-typedef struct gpib_board gpib_board_t;
+struct gpib_board;
 
 /* config parameters that are only used by driver attach functions */
 typedef struct {
