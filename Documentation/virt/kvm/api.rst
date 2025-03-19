@@ -8258,6 +8258,24 @@ KVM exits with the register state of either the L1 or L2 guest
 depending on which executed at the time of an exit. Userspace must
 take care to differentiate between these cases.
 
+7.37 KVM_CAP_ARM_WRITABLE_IMP_ID_REGS
+-------------------------------------
+
+:Architectures: arm64
+:Target: VM
+:Parameters: None
+:Returns: 0 on success, -EINVAL if vCPUs have been created before enabling this
+          capability.
+
+This capability changes the behavior of the registers that identify a PE
+implementation of the Arm architecture: MIDR_EL1, REVIDR_EL1, and AIDR_EL1.
+By default, these registers are visible to userspace but treated as invariant.
+
+When this capability is enabled, KVM allows userspace to change the
+aforementioned registers before the first KVM_RUN. These registers are VM
+scoped, meaning that the same set of values are presented on all vCPUs in a
+given VM.
+
 8. Other capabilities.
 ======================
 

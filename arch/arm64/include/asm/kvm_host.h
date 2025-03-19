@@ -336,6 +336,8 @@ struct kvm_arch {
 #define KVM_ARCH_FLAG_FGU_INITIALIZED			8
 	/* SVE exposed to guest */
 #define KVM_ARCH_FLAG_GUEST_HAS_SVE			9
+	/* MIDR_EL1, REVIDR_EL1, and AIDR_EL1 are writable from userspace */
+#define KVM_ARCH_FLAG_WRITABLE_IMP_ID_REGS		10
 	unsigned long flags;
 
 	/* VM-wide vCPU feature set */
@@ -375,6 +377,9 @@ struct kvm_arch {
 #define KVM_ARM_ID_REG_NUM	(IDREG_IDX(sys_reg(3, 0, 0, 7, 7)) + 1)
 	u64 id_regs[KVM_ARM_ID_REG_NUM];
 
+	u64 midr_el1;
+	u64 revidr_el1;
+	u64 aidr_el1;
 	u64 ctr_el0;
 
 	/* Masks for VNCR-backed and general EL2 sysregs */
@@ -1489,6 +1494,12 @@ static inline u64 *__vm_id_reg(struct kvm_arch *ka, u32 reg)
 		return &ka->id_regs[IDREG_IDX(reg)];
 	case SYS_CTR_EL0:
 		return &ka->ctr_el0;
+	case SYS_MIDR_EL1:
+		return &ka->midr_el1;
+	case SYS_REVIDR_EL1:
+		return &ka->revidr_el1;
+	case SYS_AIDR_EL1:
+		return &ka->aidr_el1;
 	default:
 		WARN_ON_ONCE(1);
 		return NULL;
