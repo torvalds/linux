@@ -1,0 +1,30 @@
+From 06586b3f06e5f16504967407126684b5d78aed60 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Tue, 27 Aug 2024 17:27:18 +0000
+Subject: [PATCH 3/6] selftests: iommu: Add RISC-V specific config
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/iommu/config.riscv64 | 7 +++++++
+ 1 file changed, 7 insertions(+)
+ create mode 100644 tools/testing/selftests/iommu/config.riscv64
+
+diff --git a/tools/testing/selftests/iommu/config.riscv64 b/tools/testing/selftests/iommu/config.riscv64
+new file mode 100644
+index 000000000000..d218811ccadf
+--- /dev/null
++++ b/tools/testing/selftests/iommu/config.riscv64
+@@ -0,0 +1,7 @@
++# IOMMUFD
++CONFIG_IOMMUFD=y
++CONFIG_VFIO=y
++CONFIG_VFIO_CONTAINER=n
++CONFIG_IOMMUFD_VFIO_CONTAINER=y
++CONFIG_FAULT_INJECTION=y
++CONFIG_IOMMUFD_TEST=y
+-- 
+2.43.0
+

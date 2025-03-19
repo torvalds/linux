@@ -1,0 +1,11 @@
+gdb (ltp vma05)
+libnuma (ltp vma02-4)
+swap file (swapping01)
+fusermount (run_fuse_test.sh)
+libfuse (run_fuse_test.sh)
+mkisofs genisoimage xorrisofs (isofs.sh)
+all modules (binfmt_misc0X)
+mksquashfs
+LTP_TIMEOUT_MUL > 1 (starvation)
+libubsan ()
+XXX (ltp-aiodio MUST be added)
