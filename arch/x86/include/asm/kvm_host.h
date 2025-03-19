@@ -911,7 +911,8 @@ struct kvm_vcpu_arch {
 	int (*complete_userspace_io)(struct kvm_vcpu *vcpu);
 
 	gpa_t time;
-	struct pvclock_vcpu_time_info hv_clock;
+	s8  pvclock_tsc_shift;
+	u32 pvclock_tsc_mul;
 	unsigned int hw_tsc_khz;
 	struct gfn_to_pfn_cache pv_time;
 	/* set guest stopped flag in pvclock flags field */
