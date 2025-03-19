@@ -121,13 +121,13 @@ static int __init of_tb10x_init_irq(struct device_node *ictl,
 		goto ioremap_fail;
 	}
 
-	domain = irq_domain_add_linear(ictl, AB_IRQCTL_MAXIRQ,
-					&irq_generic_chip_ops, NULL);
+	domain = irq_domain_create_linear(of_fwnode_handle(ictl), AB_IRQCTL_MAXIRQ,
+					  &irq_generic_chip_ops, NULL);
 	if (!domain) {
 		ret = -ENOMEM;
 		pr_err("%pOFn: Could not register interrupt domain.\n",
 			ictl);
-		goto irq_domain_add_fail;
+		goto irq_domain_create_fail;
 	}
 
 	ret = irq_alloc_domain_generic_chips(domain, AB_IRQCTL_MAXIRQ,
@@ -174,7 +174,7 @@ static int __init of_tb10x_init_irq(struct device_node *ictl,
 
 gc_alloc_fail:
 	irq_domain_remove(domain);
-irq_domain_add_fail:
+irq_domain_create_fail:
 	iounmap(reg_base);
 ioremap_fail:
 	release_mem_region(mem.start, resource_size(&mem));

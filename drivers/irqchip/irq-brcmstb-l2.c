@@ -182,7 +182,7 @@ static int __init brcmstb_l2_intc_of_init(struct device_node *np,
 		goto out_unmap;
 	}
 
-	data->domain = irq_domain_add_linear(np, 32,
+	data->domain = irq_domain_create_linear(of_fwnode_handle(np), 32,
 				&irq_generic_chip_ops, NULL);
 	if (!data->domain) {
 		ret = -ENOMEM;

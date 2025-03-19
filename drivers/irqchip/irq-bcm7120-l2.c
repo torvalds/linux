@@ -264,7 +264,7 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 			goto out_free_l1_data;
 	}
 
-	data->domain = irq_domain_add_linear(dn, IRQS_PER_WORD * data->n_words,
+	data->domain = irq_domain_create_linear(of_fwnode_handle(dn), IRQS_PER_WORD * data->n_words,
 					     &irq_generic_chip_ops, NULL);
 	if (!data->domain) {
 		ret = -ENOMEM;

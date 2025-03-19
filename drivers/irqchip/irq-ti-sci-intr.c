@@ -274,8 +274,9 @@ static int ti_sci_intr_irq_domain_probe(struct platform_device *pdev)
 		return PTR_ERR(intr->out_irqs);
 	}
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, 0, dev_of_node(dev),
-					  &ti_sci_intr_irq_domain_ops, intr);
+	domain = irq_domain_create_hierarchy(parent_domain, 0, 0,
+					     of_fwnode_handle(dev_of_node(dev)),
+					     &ti_sci_intr_irq_domain_ops, intr);
 	if (!domain) {
 		dev_err(dev, "Failed to allocate IRQ domain\n");
 		return -ENOMEM;

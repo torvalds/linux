@@ -208,8 +208,8 @@ ls_extirq_of_init(struct device_node *node, struct device_node *parent)
 				      of_device_is_compatible(node, "fsl,ls1043a-extirq");
 	raw_spin_lock_init(&priv->lock);
 
-	domain = irq_domain_add_hierarchy(parent_domain, 0, priv->nirq, node,
-					  &extirq_domain_ops, priv);
+	domain = irq_domain_create_hierarchy(parent_domain, 0, priv->nirq, of_fwnode_handle(node),
+					     &extirq_domain_ops, priv);
 	if (!domain) {
 		ret = -ENOMEM;
 		goto err_add_hierarchy;

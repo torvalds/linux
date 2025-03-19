@@ -72,7 +72,7 @@ static int idt_pic_init(struct device_node *of_node, struct device_node *parent)
 		goto out_unmap_irq;
 	}
 
-	domain = irq_domain_add_linear(of_node, IDT_PIC_NR_IRQS,
+	domain = irq_domain_create_linear(of_fwnode_handle(of_node), IDT_PIC_NR_IRQS,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
 		pr_err("Failed to add irqdomain!\n");

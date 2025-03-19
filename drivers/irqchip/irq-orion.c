@@ -59,7 +59,7 @@ static int __init orion_irq_init(struct device_node *np,
 	/* count number of irq chips by valid reg addresses */
 	num_chips = of_address_count(np);
 
-	orion_irq_domain = irq_domain_add_linear(np,
+	orion_irq_domain = irq_domain_create_linear(of_fwnode_handle(np),
 				num_chips * ORION_IRQS_PER_CHIP,
 				&irq_generic_chip_ops, NULL);
 	if (!orion_irq_domain)
@@ -146,8 +146,8 @@ static int __init orion_bridge_irq_init(struct device_node *np,
 	/* get optional number of interrupts provided */
 	of_property_read_u32(np, "marvell,#interrupts", &nrirqs);
 
-	domain = irq_domain_add_linear(np, nrirqs,
-				       &irq_generic_chip_ops, NULL);
+	domain = irq_domain_create_linear(of_fwnode_handle(np), nrirqs,
+					  &irq_generic_chip_ops, NULL);
 	if (!domain) {
 		pr_err("%pOFn: unable to add irq domain\n", np);
 		return -ENOMEM;

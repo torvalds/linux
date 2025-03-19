@@ -114,7 +114,7 @@ ck_intc_init_comm(struct device_node *node, struct device_node *parent)
 		return -EINVAL;
 	}
 
-	root_domain = irq_domain_add_linear(node, nr_irq,
+	root_domain = irq_domain_create_linear(of_fwnode_handle(node), nr_irq,
 					    &irq_generic_chip_ops, NULL);
 	if (!root_domain) {
 		pr_err("C-SKY Intc irq_domain_add failed.\n");

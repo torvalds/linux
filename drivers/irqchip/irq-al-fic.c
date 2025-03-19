@@ -139,7 +139,7 @@ static int al_fic_register(struct device_node *node,
 	struct irq_chip_generic *gc;
 	int ret;
 
-	fic->domain = irq_domain_add_linear(node,
+	fic->domain = irq_domain_create_linear(of_fwnode_handle(node),
 					    NR_FIC_IRQS,
 					    &irq_generic_chip_ops,
 					    fic);

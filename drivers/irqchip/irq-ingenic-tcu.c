@@ -114,8 +114,8 @@ static int __init ingenic_tcu_irq_init(struct device_node *np,
 
 	tcu->nb_parent_irqs = irqs;
 
-	tcu->domain = irq_domain_add_linear(np, 32, &irq_generic_chip_ops,
-					    NULL);
+	tcu->domain = irq_domain_create_linear(of_fwnode_handle(np), 32, &irq_generic_chip_ops,
+					       NULL);
 	if (!tcu->domain) {
 		ret = -ENOMEM;
 		goto err_free_tcu;

@@ -215,10 +215,10 @@ static void ls_scfg_msi_irq_handler(struct irq_desc *desc)
 static int ls_scfg_msi_domains_init(struct ls_scfg_msi *msi_data)
 {
 	/* Initialize MSI domain parent */
-	msi_data->parent = irq_domain_add_linear(NULL,
-						 msi_data->irqs_num,
-						 &ls_scfg_msi_domain_ops,
-						 msi_data);
+	msi_data->parent = irq_domain_create_linear(NULL,
+						    msi_data->irqs_num,
+						    &ls_scfg_msi_domain_ops,
+						    msi_data);
 	if (!msi_data->parent) {
 		dev_err(&msi_data->pdev->dev, "failed to create IRQ domain\n");
 		return -ENOMEM;

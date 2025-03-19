@@ -158,8 +158,8 @@ static int __init starfive_intc_init(struct device_node *intc,
 
 	raw_spin_lock_init(&irqc->lock);
 
-	irqc->domain = irq_domain_add_linear(intc, STARFIVE_INTC_SRC_IRQ_NUM,
-					     &starfive_intc_domain_ops, irqc);
+	irqc->domain = irq_domain_create_linear(of_fwnode_handle(intc), STARFIVE_INTC_SRC_IRQ_NUM,
+						&starfive_intc_domain_ops, irqc);
 	if (!irqc->domain) {
 		pr_err("Unable to create IRQ domain\n");
 		ret = -EINVAL;

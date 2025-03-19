@@ -344,8 +344,8 @@ static int __init stm32_exti_init(const struct stm32_exti_drv_data *drv_data,
 	if (!host_data)
 		return -ENOMEM;
 
-	domain = irq_domain_add_linear(node, drv_data->bank_nr * IRQS_PER_BANK,
-				       &irq_exti_domain_ops, NULL);
+	domain = irq_domain_create_linear(of_fwnode_handle(node), drv_data->bank_nr * IRQS_PER_BANK,
+					  &irq_exti_domain_ops, NULL);
 	if (!domain) {
 		pr_err("%pOFn: Could not register interrupt domain.\n",
 		       node);

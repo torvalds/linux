@@ -254,7 +254,7 @@ static int imx_intmux_probe(struct platform_device *pdev)
 			goto out;
 		}
 
-		domain = irq_domain_add_linear(np, 32, &imx_intmux_domain_ops,
+		domain = irq_domain_create_linear(of_fwnode_handle(np), 32, &imx_intmux_domain_ops,
 					       &data->irqchip_data[i]);
 		if (!domain) {
 			ret = -ENOMEM;

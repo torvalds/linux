@@ -348,7 +348,7 @@ static int __init mpic_msi_init(struct mpic *mpic, struct device_node *node,
 		mpic->msi_doorbell_mask = PCI_MSI_FULL_DOORBELL_MASK;
 	}
 
-	mpic->msi_inner_domain = irq_domain_add_linear(NULL, mpic->msi_doorbell_size,
+	mpic->msi_inner_domain = irq_domain_create_linear(NULL, mpic->msi_doorbell_size,
 						       &mpic_msi_domain_ops, mpic);
 	if (!mpic->msi_inner_domain)
 		return -ENOMEM;
@@ -861,7 +861,7 @@ static int __init mpic_of_init(struct device_node *node, struct device_node *par
 	if (!mpic_is_ipi_available(mpic))
 		nr_irqs = MPIC_PER_CPU_IRQS_NR;
 
-	mpic->domain = irq_domain_add_linear(node, nr_irqs, &mpic_irq_ops, mpic);
+	mpic->domain = irq_domain_create_linear(of_fwnode_handle(node), nr_irqs, &mpic_irq_ops, mpic);
 	if (!mpic->domain) {
 		pr_err("%pOF: Unable to add IRQ domain\n", node);
 		return -ENOMEM;
