@@ -93,7 +93,8 @@ struct ipmi_user_hndl {
 
 	/*
 	 * Called when the interface detects a watchdog pre-timeout.  If
-	 * this is NULL, it will be ignored for the user.
+	 * this is NULL, it will be ignored for the user.  Note that you
+	 * can't do any IPMI calls from here, it's called with locks held.
 	 */
 	void (*ipmi_watchdog_pretimeout)(void *handler_data);
 
