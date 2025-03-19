@@ -2954,9 +2954,13 @@ static ssize_t slave_show(struct device *dev, struct device_attribute *attr,
 	struct spi_controller *ctlr = container_of(dev, struct spi_controller,
 						   dev);
 	struct device *child;
+	int ret;
 
 	child = device_find_any_child(&ctlr->dev);
-	return sysfs_emit(buf, "%s\n", child ? to_spi_device(child)->modalias : NULL);
+	ret = sysfs_emit(buf, "%s\n", child ? to_spi_device(child)->modalias : NULL);
+	put_device(child);
+
+	return ret;
 }
 
 static ssize_t slave_store(struct device *dev, struct device_attribute *attr,
