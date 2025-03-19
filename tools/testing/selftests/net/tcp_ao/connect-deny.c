@@ -34,7 +34,7 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 		       const char *cnt_name, test_cnt cnt_expected,
 		       fault_t inj)
 {
-	struct tcp_ao_counters ao_cnt1, ao_cnt2;
+	struct tcp_counters cnt1, cnt2;
 	uint64_t before_cnt = 0, after_cnt = 0; /* silence GCC */
 	int lsk, err, sk = 0;
 	time_t timeout;
@@ -46,8 +46,8 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 
 	if (cnt_name)
 		before_cnt = netstat_get_one(cnt_name, NULL);
-	if (pwd && test_get_tcp_ao_counters(lsk, &ao_cnt1))
-		test_error("test_get_tcp_ao_counters()");
+	if (pwd && test_get_tcp_counters(lsk, &cnt1))
+		test_error("test_get_tcp_counters()");
 
 	synchronize_threads(); /* preparations done */
 
@@ -72,13 +72,13 @@ static void try_accept(const char *tst_name, unsigned int port, const char *pwd,
 	}
 
 	synchronize_threads(); /* before counter checks */
-	if (pwd && test_get_tcp_ao_counters(lsk, &ao_cnt2))
-		test_error("test_get_tcp_ao_counters()");
+	if (pwd && test_get_tcp_counters(lsk, &cnt2))
+		test_error("test_get_tcp_counters()");
 
 	close(lsk);
 
 	if (pwd)
-		test_assert_counters(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
+		test_assert_counters(tst_name, &cnt1, &cnt2, cnt_expected);
 
 	if (!cnt_name)
 		goto out;
@@ -163,7 +163,7 @@ static void try_connect(const char *tst_name, unsigned int port,
 			uint8_t sndid, uint8_t rcvid,
 			test_cnt cnt_expected, fault_t inj)
 {
-	struct tcp_ao_counters ao_cnt1, ao_cnt2;
+	struct tcp_counters cnt1, cnt2;
 	time_t timeout;
 	int sk, ret;
 
@@ -174,8 +174,8 @@ static void try_connect(const char *tst_name, unsigned int port,
 	if (pwd && test_add_key(sk, pwd, addr, prefix, sndid, rcvid))
 		test_error("setsockopt(TCP_AO_ADD_KEY)");
 
-	if (pwd && test_get_tcp_ao_counters(sk, &ao_cnt1))
-		test_error("test_get_tcp_ao_counters()");
+	if (pwd && test_get_tcp_counters(sk, &cnt1))
+		test_error("test_get_tcp_counters()");
 
 	synchronize_threads(); /* preparations done */
 
@@ -202,9 +202,11 @@ static void try_connect(const char *tst_name, unsigned int port,
 	else
 		test_ok("%s: connected", tst_name);
 	if (pwd && ret > 0) {
-		if (test_get_tcp_ao_counters(sk, &ao_cnt2))
-			test_error("test_get_tcp_ao_counters()");
-		test_assert_counters(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
+		if (test_get_tcp_counters(sk, &cnt2))
+			test_error("test_get_tcp_counters()");
+		test_assert_counters(tst_name, &cnt1, &cnt2, cnt_expected);
+	} else if (pwd) {
+		test_tcp_counters_free(&cnt1);
 	}
 out:
 	synchronize_threads(); /* close() */

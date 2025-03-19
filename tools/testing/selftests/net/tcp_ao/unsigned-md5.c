@@ -41,7 +41,7 @@ static void try_accept(const char *tst_name, unsigned int port,
 		       const char *cnt_name, test_cnt cnt_expected,
 		       int needs_tcp_md5, fault_t inj)
 {
-	struct tcp_ao_counters ao_cnt1, ao_cnt2;
+	struct tcp_counters cnt1, cnt2;
 	uint64_t before_cnt = 0, after_cnt = 0; /* silence GCC */
 	int lsk, err, sk = 0;
 	time_t timeout;
@@ -63,8 +63,8 @@ static void try_accept(const char *tst_name, unsigned int port,
 
 	if (cnt_name)
 		before_cnt = netstat_get_one(cnt_name, NULL);
-	if (ao_addr && test_get_tcp_ao_counters(lsk, &ao_cnt1))
-		test_error("test_get_tcp_ao_counters()");
+	if (ao_addr && test_get_tcp_counters(lsk, &cnt1))
+		test_error("test_get_tcp_counters()");
 
 	synchronize_threads(); /* preparations done */
 
@@ -89,8 +89,8 @@ static void try_accept(const char *tst_name, unsigned int port,
 		}
 	}
 
-	if (ao_addr && test_get_tcp_ao_counters(lsk, &ao_cnt2))
-		test_error("test_get_tcp_ao_counters()");
+	if (ao_addr && test_get_tcp_counters(lsk, &cnt2))
+		test_error("test_get_tcp_counters()");
 	close(lsk);
 
 	if (!cnt_name) {
@@ -108,7 +108,7 @@ static void try_accept(const char *tst_name, unsigned int port,
 			tst_name, cnt_name, before_cnt, after_cnt);
 	}
 	if (ao_addr)
-		test_assert_counters(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
+		test_assert_counters(tst_name, &cnt1, &cnt2, cnt_expected);
 
 out:
 	synchronize_threads(); /* test_kill_sk() */
@@ -158,7 +158,7 @@ static void *server_fn(void *arg)
 		   TEST_CNT_GOOD, 0, 0);
 	try_accept("AO server (INADDR_ANY): MD5 client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPMD5Unexpected",
-		   0, 1, FAULT_TIMEOUT);
+		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
 	try_accept("AO server (INADDR_ANY): no sign client", port++, NULL, 0,
 		   &addr_any, 0, 0, 100, 100, 0, "TCPAORequired",
 		   TEST_CNT_AO_REQUIRED, 0, FAULT_TIMEOUT);
@@ -204,10 +204,12 @@ static void *server_fn(void *arg)
 		   100, 100, 0, NULL, 0, 1, 0);
 	try_accept("AO+MD5 server: MD5 client (misconfig, matching AO)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, "TCPMD5Unexpected", 0, 1, FAULT_TIMEOUT);
+		   100, 100, 0, "TCPMD5Unexpected",
+		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
 	try_accept("AO+MD5 server: MD5 client (misconfig, non-matching)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, "TCPMD5Unexpected", 0, 1, FAULT_TIMEOUT);
+		   100, 100, 0, "TCPMD5Unexpected",
+		   TEST_CNT_NS_MD5_UNEXPECTED, 1, FAULT_TIMEOUT);
 	try_accept("AO+MD5 server: no sign client (unmatched)", port++,
 		   &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
 		   100, 100, 0, "CurrEstab", 0, 1, 0);
@@ -217,7 +219,8 @@ static void *server_fn(void *arg)
 		   TEST_CNT_AO_REQUIRED, 1, FAULT_TIMEOUT);
 	try_accept("AO+MD5 server: no sign client (misconfig, matching MD5)",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,
-		   100, 100, 0, "TCPMD5NotFound", 0, 1, FAULT_TIMEOUT);
+		   100, 100, 0, "TCPMD5NotFound",
+		   TEST_CNT_NS_MD5_NOT_FOUND, 1, FAULT_TIMEOUT);
 
 	try_accept("AO+MD5 server: client with both [TCP-MD5] and TCP-AO keys",
 		   port++, &this_ip_dest, TEST_PREFIX, &client2, TEST_PREFIX, 0,

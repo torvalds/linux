@@ -512,7 +512,15 @@ struct tcp_ao_counters {
 	size_t nr_keys;
 	struct tcp_ao_key_counters *key_cnts;
 };
-extern int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out);
+
+struct tcp_counters {
+	struct tcp_ao_counters ao;
+	uint64_t netns_md5_notfound;
+	uint64_t netns_md5_unexpected;
+	uint64_t netns_md5_failure;
+};
+
+extern int test_get_tcp_counters(int sk, struct tcp_counters *out);
 
 #define TEST_CNT_KEY_GOOD		BIT(0)
 #define TEST_CNT_KEY_BAD		BIT(1)
@@ -526,22 +534,29 @@ extern int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out);
 #define TEST_CNT_NS_KEY_NOT_FOUND	BIT(9)
 #define TEST_CNT_NS_AO_REQUIRED		BIT(10)
 #define TEST_CNT_NS_DROPPED_ICMP	BIT(11)
+#define TEST_CNT_NS_MD5_NOT_FOUND	BIT(12)
+#define TEST_CNT_NS_MD5_UNEXPECTED	BIT(13)
+#define TEST_CNT_NS_MD5_FAILURE		BIT(14)
 typedef uint16_t test_cnt;
 
 #define _for_each_counter(f)						\
 do {									\
 	/* per-netns */							\
-	f(netns_ao_good,		TEST_CNT_NS_GOOD);		\
-	f(netns_ao_bad,			TEST_CNT_NS_BAD);		\
-	f(netns_ao_key_not_found,	TEST_CNT_NS_KEY_NOT_FOUND);	\
-	f(netns_ao_required,		TEST_CNT_NS_AO_REQUIRED);	\
-	f(netns_ao_dropped_icmp,	TEST_CNT_NS_DROPPED_ICMP);	\
+	f(ao.netns_ao_good,		TEST_CNT_NS_GOOD);		\
+	f(ao.netns_ao_bad,		TEST_CNT_NS_BAD);		\
+	f(ao.netns_ao_key_not_found,	TEST_CNT_NS_KEY_NOT_FOUND);	\
+	f(ao.netns_ao_required,		TEST_CNT_NS_AO_REQUIRED);	\
+	f(ao.netns_ao_dropped_icmp,	TEST_CNT_NS_DROPPED_ICMP);	\
 	/* per-socket */						\
-	f(ao_info_pkt_good,		TEST_CNT_SOCK_GOOD);		\
-	f(ao_info_pkt_bad,		TEST_CNT_SOCK_BAD);		\
-	f(ao_info_pkt_key_not_found,	TEST_CNT_SOCK_KEY_NOT_FOUND);	\
-	f(ao_info_pkt_ao_required,	TEST_CNT_SOCK_AO_REQUIRED);	\
-	f(ao_info_pkt_dropped_icmp,	TEST_CNT_SOCK_DROPPED_ICMP);	\
+	f(ao.ao_info_pkt_good,		TEST_CNT_SOCK_GOOD);		\
+	f(ao.ao_info_pkt_bad,		TEST_CNT_SOCK_BAD);		\
+	f(ao.ao_info_pkt_key_not_found,	TEST_CNT_SOCK_KEY_NOT_FOUND);	\
+	f(ao.ao_info_pkt_ao_required,	TEST_CNT_SOCK_AO_REQUIRED);	\
+	f(ao.ao_info_pkt_dropped_icmp,	TEST_CNT_SOCK_DROPPED_ICMP);	\
+	/* non-AO */							\
+	f(netns_md5_notfound,		TEST_CNT_NS_MD5_NOT_FOUND);	\
+	f(netns_md5_unexpected,		TEST_CNT_NS_MD5_UNEXPECTED);	\
+	f(netns_md5_failure,		TEST_CNT_NS_MD5_FAILURE);	\
 } while (0)
 
 #define TEST_CNT_AO_GOOD		(TEST_CNT_SOCK_GOOD | TEST_CNT_NS_GOOD)
@@ -555,33 +570,37 @@ do {									\
 #define TEST_CNT_GOOD			(TEST_CNT_KEY_GOOD | TEST_CNT_AO_GOOD)
 #define TEST_CNT_BAD			(TEST_CNT_KEY_BAD | TEST_CNT_AO_BAD)
 
-extern int test_assert_counters_ao(const char *tst_name,
-		struct tcp_ao_counters *before, struct tcp_ao_counters *after,
+extern test_cnt test_cmp_counters(struct tcp_counters *before,
+				  struct tcp_counters *after);
+extern int test_assert_counters_sk(const char *tst_name,
+		struct tcp_counters *before, struct tcp_counters *after,
 		test_cnt expected);
 extern int test_assert_counters_key(const char *tst_name,
 		struct tcp_ao_counters *before, struct tcp_ao_counters *after,
 		test_cnt expected, int sndid, int rcvid);
-extern void test_tcp_ao_counters_free(struct tcp_ao_counters *cnts);
+extern void test_tcp_counters_free(struct tcp_counters *cnts);
+
 /*
- * Frees buffers allocated in test_get_tcp_ao_counters().
+ * Frees buffers allocated in test_get_tcp_counters().
  * The function doesn't expect new keys or keys removed between calls
- * to test_get_tcp_ao_counters(). Check key counters manually if they
+ * to test_get_tcp_counters(). Check key counters manually if they
  * may change.
  */
 static inline int test_assert_counters(const char *tst_name,
-				       struct tcp_ao_counters *before,
-				       struct tcp_ao_counters *after,
+				       struct tcp_counters *before,
+				       struct tcp_counters *after,
 				       test_cnt expected)
 {
 	int ret;
 
-	ret = test_assert_counters_ao(tst_name, before, after, expected);
+	ret = test_assert_counters_sk(tst_name, before, after, expected);
 	if (ret)
 		goto out;
-	ret = test_assert_counters_key(tst_name, before, after, expected, -1, -1);
+	ret = test_assert_counters_key(tst_name, &before->ao, &after->ao,
+				       expected, -1, -1);
 out:
-	test_tcp_ao_counters_free(before);
-	test_tcp_ao_counters_free(after);
+	test_tcp_counters_free(before);
+	test_tcp_counters_free(after);
 	return ret;
 }
 

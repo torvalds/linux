@@ -84,15 +84,15 @@ static void close_forced(int sk)
 
 static void test_server_active_rst(unsigned int port)
 {
-	struct tcp_ao_counters cnt1, cnt2;
+	struct tcp_counters cnt1, cnt2;
 	ssize_t bytes;
 	int sk, lsk;
 
 	lsk = test_listen_socket(this_ip_addr, port, backlog);
 	if (test_add_key(lsk, DEFAULT_TEST_PASSWORD, this_ip_dest, -1, 100, 100))
 		test_error("setsockopt(TCP_AO_ADD_KEY)");
-	if (test_get_tcp_ao_counters(lsk, &cnt1))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(lsk, &cnt1))
+		test_error("test_get_tcp_counters()");
 
 	synchronize_threads(); /* 1: MKT added */
 	if (test_wait_fd(lsk, TEST_TIMEOUT_SEC, 0))
@@ -103,8 +103,8 @@ static void test_server_active_rst(unsigned int port)
 		test_error("accept()");
 
 	synchronize_threads(); /* 2: connection accept()ed, another queued */
-	if (test_get_tcp_ao_counters(lsk, &cnt2))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(lsk, &cnt2))
+		test_error("test_get_tcp_counters()");
 
 	synchronize_threads(); /* 3: close listen socket */
 	close(lsk);
@@ -128,7 +128,7 @@ static void test_server_active_rst(unsigned int port)
 
 static void test_server_passive_rst(unsigned int port)
 {
-	struct tcp_ao_counters ao1, ao2;
+	struct tcp_counters cnt1, cnt2;
 	int sk, lsk;
 	ssize_t bytes;
 
@@ -147,8 +147,8 @@ static void test_server_passive_rst(unsigned int port)
 
 	synchronize_threads(); /* 2: accepted => send data */
 	close(lsk);
-	if (test_get_tcp_ao_counters(sk, &ao1))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(sk, &cnt1))
+		test_error("test_get_tcp_counters()");
 
 	bytes = test_server_run(sk, quota, TEST_TIMEOUT_SEC);
 	if (bytes != quota) {
@@ -160,12 +160,12 @@ static void test_server_passive_rst(unsigned int port)
 
 	synchronize_threads(); /* 3: checkpoint the client */
 	synchronize_threads(); /* 4: close the server, creating twsk */
-	if (test_get_tcp_ao_counters(sk, &ao2))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(sk, &cnt2))
+		test_error("test_get_tcp_counters()");
 	close(sk);
 
 	synchronize_threads(); /* 5: restore the socket, send more data */
-	test_assert_counters("passive RST server", &ao1, &ao2, TEST_CNT_GOOD);
+	test_assert_counters("passive RST server", &cnt1, &cnt2, TEST_CNT_GOOD);
 
 	synchronize_threads(); /* 6: server exits */
 }
@@ -323,7 +323,7 @@ static void test_client_active_rst(unsigned int port)
 
 static void test_client_passive_rst(unsigned int port)
 {
-	struct tcp_ao_counters ao1, ao2;
+	struct tcp_counters cnt1, cnt2;
 	struct tcp_ao_repair ao_img;
 	struct tcp_sock_state img;
 	sockaddr_af saddr;
@@ -397,8 +397,8 @@ static void test_client_passive_rst(unsigned int port)
 		test_error("setsockopt(TCP_AO_ADD_KEY)");
 	test_ao_restore(sk, &ao_img);
 
-	if (test_get_tcp_ao_counters(sk, &ao1))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(sk, &cnt1))
+		test_error("test_get_tcp_counters()");
 
 	test_disable_repair(sk);
 	test_sock_state_free(&img);
@@ -426,12 +426,12 @@ static void test_client_passive_rst(unsigned int port)
 	else
 		test_fail("client sock is yet connected post-seq-adjust");
 
-	if (test_get_tcp_ao_counters(sk, &ao2))
-		test_error("test_get_tcp_ao_counters()");
+	if (test_get_tcp_counters(sk, &cnt2))
+		test_error("test_get_tcp_counters()");
 
 	synchronize_threads(); /* 6: server exits */
 	close(sk);
-	test_assert_counters("client passive RST", &ao1, &ao2, TEST_CNT_GOOD);
+	test_assert_counters("client passive RST", &cnt1, &cnt2, TEST_CNT_GOOD);
 }
 
 static void *client_fn(void *arg)

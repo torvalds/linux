@@ -333,12 +333,12 @@ do {									\
 	return 0;
 }
 
-int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
+int test_get_tcp_counters(int sk, struct tcp_counters *out)
 {
 	struct tcp_ao_getsockopt *key_dump;
 	socklen_t key_dump_sz = sizeof(*key_dump);
 	struct tcp_ao_info_opt info = {};
-	bool c1, c2, c3, c4, c5;
+	bool c1, c2, c3, c4, c5, c6, c7, c8;
 	struct netstat *ns;
 	int err, nr_keys;
 
@@ -346,25 +346,30 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 
 	/* per-netns */
 	ns = netstat_read();
-	out->netns_ao_good = netstat_get(ns, "TCPAOGood", &c1);
-	out->netns_ao_bad = netstat_get(ns, "TCPAOBad", &c2);
-	out->netns_ao_key_not_found = netstat_get(ns, "TCPAOKeyNotFound", &c3);
-	out->netns_ao_required = netstat_get(ns, "TCPAORequired", &c4);
-	out->netns_ao_dropped_icmp = netstat_get(ns, "TCPAODroppedIcmps", &c5);
+	out->ao.netns_ao_good = netstat_get(ns, "TCPAOGood", &c1);
+	out->ao.netns_ao_bad = netstat_get(ns, "TCPAOBad", &c2);
+	out->ao.netns_ao_key_not_found = netstat_get(ns, "TCPAOKeyNotFound", &c3);
+	out->ao.netns_ao_required = netstat_get(ns, "TCPAORequired", &c4);
+	out->ao.netns_ao_dropped_icmp = netstat_get(ns, "TCPAODroppedIcmps", &c5);
+	out->netns_md5_notfound = netstat_get(ns, "TCPMD5NotFound", &c6);
+	out->netns_md5_unexpected = netstat_get(ns, "TCPMD5Unexpected", &c7);
+	out->netns_md5_failure = netstat_get(ns, "TCPMD5Failure", &c8);
 	netstat_free(ns);
-	if (c1 || c2 || c3 || c4 || c5)
+	if (c1 || c2 || c3 || c4 || c5 || c6 || c7 || c8)
 		return -EOPNOTSUPP;
 
 	err = test_get_ao_info(sk, &info);
+	if (err == -ENOENT)
+		return 0;
 	if (err)
 		return err;
 
 	/* per-socket */
-	out->ao_info_pkt_good		= info.pkt_good;
-	out->ao_info_pkt_bad		= info.pkt_bad;
-	out->ao_info_pkt_key_not_found	= info.pkt_key_not_found;
-	out->ao_info_pkt_ao_required	= info.pkt_ao_required;
-	out->ao_info_pkt_dropped_icmp	= info.pkt_dropped_icmp;
+	out->ao.ao_info_pkt_good = info.pkt_good;
+	out->ao.ao_info_pkt_bad = info.pkt_bad;
+	out->ao.ao_info_pkt_key_not_found = info.pkt_key_not_found;
+	out->ao.ao_info_pkt_ao_required = info.pkt_ao_required;
+	out->ao.ao_info_pkt_dropped_icmp = info.pkt_dropped_icmp;
 
 	/* per-key */
 	nr_keys = test_get_ao_keys_nr(sk);
@@ -372,7 +377,7 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 		return nr_keys;
 	if (nr_keys == 0)
 		test_error("test_get_ao_keys_nr() == 0");
-	out->nr_keys = (size_t)nr_keys;
+	out->ao.nr_keys = (size_t)nr_keys;
 	key_dump = calloc(nr_keys, key_dump_sz);
 	if (!key_dump)
 		return -errno;
@@ -386,53 +391,54 @@ int test_get_tcp_ao_counters(int sk, struct tcp_ao_counters *out)
 		return -errno;
 	}
 
-	out->key_cnts = calloc(nr_keys, sizeof(out->key_cnts[0]));
-	if (!out->key_cnts) {
+	out->ao.key_cnts = calloc(nr_keys, sizeof(out->ao.key_cnts[0]));
+	if (!out->ao.key_cnts) {
 		free(key_dump);
 		return -errno;
 	}
 
 	while (nr_keys--) {
-		out->key_cnts[nr_keys].sndid = key_dump[nr_keys].sndid;
-		out->key_cnts[nr_keys].rcvid = key_dump[nr_keys].rcvid;
-		out->key_cnts[nr_keys].pkt_good = key_dump[nr_keys].pkt_good;
-		out->key_cnts[nr_keys].pkt_bad = key_dump[nr_keys].pkt_bad;
+		out->ao.key_cnts[nr_keys].sndid = key_dump[nr_keys].sndid;
+		out->ao.key_cnts[nr_keys].rcvid = key_dump[nr_keys].rcvid;
+		out->ao.key_cnts[nr_keys].pkt_good = key_dump[nr_keys].pkt_good;
+		out->ao.key_cnts[nr_keys].pkt_bad = key_dump[nr_keys].pkt_bad;
 	}
 	free(key_dump);
 
 	return 0;
 }
 
-int test_cmp_counters(struct tcp_ao_counters *before, struct tcp_ao_counters *after)
+test_cnt test_cmp_counters(struct tcp_counters *before,
+			   struct tcp_counters *after)
 {
 #define __cmp(cnt, e_cnt)						\
 do {									\
 	if (before->cnt > after->cnt)					\
-		return -1;						\
+		test_error("counter " __stringify(cnt) " decreased");	\
 	if (before->cnt != after->cnt)					\
 		ret |= e_cnt;						\
 } while (0)
 
-	int ret = 0;
+	test_cnt ret = 0;
 	size_t i;
 
-	if (before->nr_keys != after->nr_keys)
-		return -1;
+	if (before->ao.nr_keys != after->ao.nr_keys)
+		test_error("the number of keys has changed");
 
 	_for_each_counter(__cmp);
 
-	i = before->nr_keys;
+	i = before->ao.nr_keys;
 	while (i--) {
-		__cmp(key_cnts[i].pkt_good, TEST_CNT_KEY_GOOD);
-		__cmp(key_cnts[i].pkt_bad, TEST_CNT_KEY_BAD);
+		__cmp(ao.key_cnts[i].pkt_good, TEST_CNT_KEY_GOOD);
+		__cmp(ao.key_cnts[i].pkt_bad, TEST_CNT_KEY_BAD);
 	}
 #undef __cmp
 	return ret;
 }
 
-int test_assert_counters_ao(const char *tst_name,
-			    struct tcp_ao_counters *before,
-			    struct tcp_ao_counters *after,
+int test_assert_counters_sk(const char *tst_name,
+			    struct tcp_counters *before,
+			    struct tcp_counters *after,
 			    test_cnt expected)
 {
 #define __cmp_ao(cnt, e_cnt)						\
@@ -503,9 +509,9 @@ do {									\
 #undef __cmp_ao
 }
 
-void test_tcp_ao_counters_free(struct tcp_ao_counters *cnts)
+void test_tcp_counters_free(struct tcp_counters *cnts)
 {
-	free(cnts->key_cnts);
+	free(cnts->ao.key_cnts);
 }
 
 #define TEST_BUF_SIZE 4096
