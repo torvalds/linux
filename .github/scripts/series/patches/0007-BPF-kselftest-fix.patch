@@ -1,0 +1,32 @@
+From 597d0700c8c55ef6a627ff6ecbc2d3c51185d570 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Sat, 14 Sep 2024 09:49:14 +0200
+Subject: [PATCH 1/2] BPF kselftest fix
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Remove dead script
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/bpf/Makefile | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/tools/testing/selftests/bpf/Makefile b/tools/testing/selftests/bpf/Makefile
+index f04af11df8eb..df75f1beb731 100644
+--- a/tools/testing/selftests/bpf/Makefile
++++ b/tools/testing/selftests/bpf/Makefile
+@@ -132,7 +132,6 @@ TEST_PROGS := test_kmod.sh \
+ 	test_tunnel.sh \
+ 	test_lwt_seg6local.sh \
+ 	test_lirc_mode2.sh \
+-	test_skb_cgroup_id.sh \
+ 	test_flow_dissector.sh \
+ 	test_xdp_vlan_mode_generic.sh \
+ 	test_xdp_vlan_mode_native.sh \
+
+base-commit: 5277d130947ba8c0d54c16eed89eb97f0b6d2e5a
+-- 
+2.43.0
+
