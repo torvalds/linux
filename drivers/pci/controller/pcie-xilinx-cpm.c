@@ -395,17 +395,15 @@ static int xilinx_cpm_pcie_init_irq_domain(struct xilinx_cpm_pcie *port)
 		return -EINVAL;
 	}
 
-	port->cpm_domain = irq_domain_add_linear(pcie_intc_node, 32,
-						 &event_domain_ops,
-						 port);
+	port->cpm_domain = irq_domain_create_linear(of_fwnode_handle(pcie_intc_node), 32,
+						    &event_domain_ops, port);
 	if (!port->cpm_domain)
 		goto out;
 
 	irq_domain_update_bus_token(port->cpm_domain, DOMAIN_BUS_NEXUS);
 
-	port->intx_domain = irq_domain_add_linear(pcie_intc_node, PCI_NUM_INTX,
-						  &intx_domain_ops,
-						  port);
+	port->intx_domain = irq_domain_create_linear(of_fwnode_handle(pcie_intc_node), PCI_NUM_INTX,
+						     &intx_domain_ops, port);
 	if (!port->intx_domain)
 		goto out;
 
