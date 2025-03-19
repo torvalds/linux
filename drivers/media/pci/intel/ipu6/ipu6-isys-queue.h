@@ -20,7 +20,6 @@ struct ipu6_isys_stream;
 struct ipu6_isys_queue {
 	struct vb2_queue vbq;
 	struct list_head node;
-	struct device *dev;
 	/*
 	 * @lock: serialise access to queued and pre_streamon_queued
 	 */
