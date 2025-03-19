@@ -69,10 +69,10 @@ int vfs_path_parent_lookup(struct filename *filename, unsigned int flags,
 int vfs_path_lookup(struct dentry *, struct vfsmount *, const char *,
 		    unsigned int, struct path *);
 
-extern struct dentry *try_lookup_one_len(const char *, struct dentry *, int);
-extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
-extern struct dentry *lookup_one_len_unlocked(const char *, struct dentry *, int);
-extern struct dentry *lookup_positive_unlocked(const char *, struct dentry *, int);
+extern struct dentry *try_lookup_noperm(struct qstr *, struct dentry *);
+extern struct dentry *lookup_noperm(struct qstr *, struct dentry *);
+extern struct dentry *lookup_noperm_unlocked(struct qstr *, struct dentry *);
+extern struct dentry *lookup_noperm_positive_unlocked(struct qstr *, struct dentry *);
 struct dentry *lookup_one(struct mnt_idmap *, struct qstr *, struct dentry *);
 struct dentry *lookup_one_unlocked(struct mnt_idmap *idmap,
 				   struct qstr *name, struct dentry *base);

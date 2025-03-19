@@ -1212,3 +1212,23 @@ lookup_one(), lookup_one_unlocked(), lookup_one_positive_unlocked() now
 take a qstr instead of a name and len.  These, not the "one_len"
 versions, should be used whenever accessing a filesystem from outside
 that filesysmtem, through a mount point - which will have a mnt_idmap.
+
+---
+
+** mandatory**
+
+Functions try_lookup_one_len(), lookup_one_len(),
+lookup_one_len_unlocked() and lookup_positive_unlocked() have been
+renamed to try_lookup_noperm(), lookup_noperm(),
+lookup_noperm_unlocked(), lookup_noperm_positive_unlocked().  They now
+take a qstr instead of separate name and length.  QSTR() can be used
+when strlen() is needed for the length.
+
+For try_lookup_noperm() a reference to the qstr is passed in case the
+hash might subsequently be needed.
+
+These function no longer do any permission checking - they previously
+checked that the caller has 'X' permission on the parent.  They must
+ONLY be used internally by a filesystem on itself when it knows that
+permissions are irrelevant or in a context where permission checks have
+already been performed such as after vfs_path_parent_lookup()

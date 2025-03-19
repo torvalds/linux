@@ -153,8 +153,7 @@ xrep_orphanage_create(
 
 	/* Try to find the orphanage directory. */
 	inode_lock_nested(root_inode, I_MUTEX_PARENT);
-	orphanage_dentry = lookup_one_len(ORPHANAGE, root_dentry,
-			strlen(ORPHANAGE));
+	orphanage_dentry = lookup_noperm(&QSTR(ORPHANAGE), root_dentry);
 	if (IS_ERR(orphanage_dentry)) {
 		error = PTR_ERR(orphanage_dentry);
 		goto out_unlock_root;

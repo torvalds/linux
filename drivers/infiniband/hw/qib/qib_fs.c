@@ -90,7 +90,7 @@ static int create_file(const char *name, umode_t mode,
 	int error;
 
 	inode_lock(d_inode(parent));
-	*dentry = lookup_one_len(name, parent, strlen(name));
+	*dentry = lookup_noperm(&QSTR(name), parent);
 	if (!IS_ERR(*dentry))
 		error = qibfs_mknod(d_inode(parent), *dentry,
 				    mode, fops, data);
@@ -433,7 +433,7 @@ static int remove_device_files(struct super_block *sb,
 	char unit[10];
 
 	snprintf(unit, sizeof(unit), "%u", dd->unit);
-	dir = lookup_one_len_unlocked(unit, sb->s_root, strlen(unit));
+	dir = lookup_noperm_unlocked(&QSTR(unit), sb->s_root);
 
 	if (IS_ERR(dir)) {
 		pr_err("Lookup of %s failed\n", unit);
