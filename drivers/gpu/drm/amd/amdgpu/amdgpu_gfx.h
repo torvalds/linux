@@ -57,8 +57,8 @@ enum amdgpu_gfx_pipe_priority {
 #define AMDGPU_GFX_QUEUE_PRIORITY_MINIMUM  0
 #define AMDGPU_GFX_QUEUE_PRIORITY_MAXIMUM  15
 
-/* 10 millisecond timeout */
-#define GFX_PROFILE_IDLE_TIMEOUT	msecs_to_jiffies(10)
+/* 1 second timeout */
+#define GFX_PROFILE_IDLE_TIMEOUT	msecs_to_jiffies(1000)
 
 enum amdgpu_gfx_partition {
 	AMDGPU_SPX_PARTITION_MODE = 0,
