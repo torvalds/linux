@@ -172,9 +172,6 @@ static int soc_info_volsw(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_info *uinfo,
 			  struct soc_mixer_control *mc, int max)
 {
-	if (mc->platform_max && mc->platform_max < max)
-		max = mc->platform_max;
-
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 
 	if (max == 1) {
@@ -184,6 +181,9 @@ static int soc_info_volsw(struct snd_kcontrol *kcontrol,
 		if (!vol_string || strcmp(vol_string, " Volume"))
 			uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	}
+
+	if (mc->platform_max && mc->platform_max < max)
+		max = mc->platform_max;
 
 	uinfo->count = snd_soc_volsw_is_stereo(mc) ? 2 : 1;
 	uinfo->value.integer.min = 0;
