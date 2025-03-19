@@ -3169,7 +3169,7 @@ static void kvm_setup_guest_pvclock(struct pvclock_vcpu_time_info *ref_hv_clock,
 	trace_kvm_pvclock_update(vcpu->vcpu_id, &hv_clock);
 }
 
-static int kvm_guest_time_update(struct kvm_vcpu *v)
+int kvm_guest_time_update(struct kvm_vcpu *v)
 {
 	struct pvclock_vcpu_time_info hv_clock = {};
 	unsigned long flags, tgt_tsc_khz;
@@ -3242,7 +3242,6 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 				   &vcpu->pvclock_tsc_shift,
 				   &vcpu->pvclock_tsc_mul);
 		vcpu->hw_tsc_khz = tgt_tsc_khz;
-		kvm_xen_update_tsc_info(v);
 	}
 
 	hv_clock.tsc_shift = vcpu->pvclock_tsc_shift;
@@ -3282,7 +3281,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	 *
 	 * Note!  Clear TSC_STABLE only for Xen clocks, i.e. the order matters!
 	 */
-	if (ka->xen_hvm_config.flags & KVM_XEN_HVM_CONFIG_PVCLOCK_TSC_UNSTABLE)
+	if (ka->xen.hvm_config.flags & KVM_XEN_HVM_CONFIG_PVCLOCK_TSC_UNSTABLE)
 		hv_clock.flags &= ~PVCLOCK_TSC_STABLE_BIT;
 
 	if (vcpu->xen.vcpu_info_cache.active)
@@ -3745,7 +3744,13 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	u32 msr = msr_info->index;
 	u64 data = msr_info->data;
 
-	if (msr && msr == vcpu->kvm->arch.xen_hvm_config.msr)
+	/*
+	 * Do not allow host-initiated writes to trigger the Xen hypercall
+	 * page setup; it could incur locking paths which are not expected
+	 * if userspace sets the MSR in an unusual location.
+	 */
+	if (kvm_xen_is_hypercall_page_msr(vcpu->kvm, msr) &&
+	    !msr_info->host_initiated)
 		return kvm_xen_write_hypercall_page(vcpu, data);
 
 	switch (msr) {

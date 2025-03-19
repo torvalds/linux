@@ -1000,6 +1000,10 @@ blobs in userspace.  When the guest writes the MSR, kvm copies one
 page of a blob (32- or 64-bit, depending on the vcpu mode) to guest
 memory.
 
+The MSR index must be in the range [0x40000000, 0x4fffffff], i.e. must reside
+in the range that is unofficially reserved for use by hypervisors.  The min/max
+values are enumerated via KVM_XEN_MSR_MIN_INDEX and KVM_XEN_MSR_MAX_INDEX.
+
 ::
 
   struct kvm_xen_hvm_config {

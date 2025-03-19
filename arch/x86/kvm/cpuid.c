@@ -2008,6 +2008,22 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 		} else if (function == 0x80000007) {
 			if (kvm_hv_invtsc_suppressed(vcpu))
 				*edx &= ~feature_bit(CONSTANT_TSC);
+		} else if (IS_ENABLED(CONFIG_KVM_XEN) &&
+			   kvm_xen_is_tsc_leaf(vcpu, function)) {
+			/*
+			 * Update guest TSC frequency information if necessary.
+			 * Ignore failures, there is no sane value that can be
+			 * provided if KVM can't get the TSC frequency.
+			 */
+			if (kvm_check_request(KVM_REQ_CLOCK_UPDATE, vcpu))
+				kvm_guest_time_update(vcpu);
+
+			if (index == 1) {
+				*ecx = vcpu->arch.pvclock_tsc_mul;
+				*edx = vcpu->arch.pvclock_tsc_shift;
+			} else if (index == 2) {
+				*eax = vcpu->arch.hw_tsc_khz;
+			}
 		}
 	} else {
 		*eax = *ebx = *ecx = *edx = 0;
