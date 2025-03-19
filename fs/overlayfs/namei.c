@@ -205,8 +205,8 @@ static struct dentry *ovl_lookup_positive_unlocked(struct ovl_lookup_data *d,
 						   struct dentry *base, int len,
 						   bool drop_negative)
 {
-	struct dentry *ret = lookup_one_unlocked(mnt_idmap(d->layer->mnt), name,
-						 base, len);
+	struct dentry *ret = lookup_one_unlocked(mnt_idmap(d->layer->mnt),
+						 &QSTR_LEN(name, len), base);
 
 	if (!IS_ERR(ret) && d_flags_negative(smp_load_acquire(&ret->d_flags))) {
 		if (drop_negative && ret->d_lockref.count == 1) {
@@ -757,7 +757,7 @@ struct dentry *ovl_get_index_fh(struct ovl_fs *ofs, struct ovl_fh *fh)
 	if (err)
 		return ERR_PTR(err);
 
-	index = lookup_positive_unlocked(name.name, ofs->workdir, name.len);
+	index = lookup_noperm_positive_unlocked(&name, ofs->workdir);
 	kfree(name.name);
 	if (IS_ERR(index)) {
 		if (PTR_ERR(index) == -ENOENT)
@@ -789,8 +789,8 @@ struct dentry *ovl_lookup_index(struct ovl_fs *ofs, struct dentry *upper,
 	if (err)
 		return ERR_PTR(err);
 
-	index = lookup_one_positive_unlocked(ovl_upper_mnt_idmap(ofs), name.name,
-					     ofs->workdir, name.len);
+	index = lookup_one_positive_unlocked(ovl_upper_mnt_idmap(ofs), &name,
+					     ofs->workdir);
 	if (IS_ERR(index)) {
 		err = PTR_ERR(index);
 		if (err == -ENOENT) {
@@ -1371,7 +1371,7 @@ out:
 bool ovl_lower_positive(struct dentry *dentry)
 {
 	struct ovl_entry *poe = OVL_E(dentry->d_parent);
-	const struct qstr *name = &dentry->d_name;
+	struct qstr *name = &dentry->d_name;
 	const struct cred *old_cred;
 	unsigned int i;
 	bool positive = false;
@@ -1396,7 +1396,7 @@ bool ovl_lower_positive(struct dentry *dentry)
 
 		this = lookup_one_positive_unlocked(
 				mnt_idmap(parentpath->layer->mnt),
-				name->name, parentpath->dentry, name->len);
+				name, parentpath->dentry);
 		if (IS_ERR(this)) {
 			switch (PTR_ERR(this)) {
 			case -ENOENT:

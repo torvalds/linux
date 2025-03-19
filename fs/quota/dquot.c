@@ -2560,7 +2560,7 @@ int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
 	struct dentry *dentry;
 	int error;
 
-	dentry = lookup_positive_unlocked(qf_name, sb->s_root, strlen(qf_name));
+	dentry = lookup_noperm_positive_unlocked(&QSTR(qf_name), sb->s_root);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 

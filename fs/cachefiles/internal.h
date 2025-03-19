@@ -71,7 +71,6 @@ struct cachefiles_object {
 	int				debug_id;
 	spinlock_t			lock;
 	refcount_t			ref;
-	u8				d_name_len;	/* Length of filename */
 	enum cachefiles_content		content_info:8;	/* Info about content presence */
 	unsigned long			flags;
 #define CACHEFILES_OBJECT_USING_TMPFILE	0		/* Have an unlinked tmpfile */

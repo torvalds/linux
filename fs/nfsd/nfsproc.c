@@ -312,7 +312,8 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 	}
 
 	inode_lock_nested(dirfhp->fh_dentry->d_inode, I_MUTEX_PARENT);
-	dchild = lookup_one_len(argp->name, dirfhp->fh_dentry, argp->len);
+	dchild = lookup_one(&nop_mnt_idmap, &QSTR_LEN(argp->name, argp->len),
+			    dirfhp->fh_dentry);
 	if (IS_ERR(dchild)) {
 		resp->status = nfserrno(PTR_ERR(dchild));
 		goto out_unlock;
@@ -331,7 +332,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 		 */
 		resp->status = nfserr_acces;
 		if (!newfhp->fh_dentry) {
-			printk(KERN_WARNING 
+			printk(KERN_WARNING
 				"nfsd_proc_create: file handle not verified\n");
 			goto out_unlock;
 		}

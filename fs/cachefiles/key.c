@@ -132,7 +132,6 @@ bool cachefiles_cook_key(struct cachefiles_object *object)
 success:
 	name[len] = 0;
 	object->d_name = name;
-	object->d_name_len = len;
 	_leave(" = %s", object->d_name);
 	return true;
 }
