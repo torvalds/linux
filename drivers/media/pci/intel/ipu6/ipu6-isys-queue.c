@@ -697,8 +697,9 @@ static u64 get_sof_ns_delta(struct ipu6_isys_video *av,
 	return ipu6_buttress_tsc_ticks_to_ns(delta, isp);
 }
 
-void ipu6_isys_buf_calc_sequence_time(struct ipu6_isys_buffer *ib,
-				      struct ipu6_fw_isys_resp_info_abi *info)
+static void
+ipu6_isys_buf_calc_sequence_time(struct ipu6_isys_buffer *ib,
+				 struct ipu6_fw_isys_resp_info_abi *info)
 {
 	struct vb2_buffer *vb = ipu6_isys_buffer_to_vb2_buffer(ib);
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
@@ -721,7 +722,7 @@ void ipu6_isys_buf_calc_sequence_time(struct ipu6_isys_buffer *ib,
 		vbuf->vb2_buf.timestamp);
 }
 
-void ipu6_isys_queue_buf_done(struct ipu6_isys_buffer *ib)
+static void ipu6_isys_queue_buf_done(struct ipu6_isys_buffer *ib)
 {
 	struct vb2_buffer *vb = ipu6_isys_buffer_to_vb2_buffer(ib);
 
