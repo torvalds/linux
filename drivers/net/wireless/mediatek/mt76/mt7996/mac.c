@@ -2334,7 +2334,6 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
 
 		changed = msta_link->changed;
 		msta_link->changed = 0;
-		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
 		sta = wcid_to_sta(&msta_link->wcid);
 		link_id = msta_link->wcid.link_id;
@@ -2353,6 +2352,8 @@ void mt7996_mac_sta_rc_work(struct work_struct *work)
 		link_conf = rcu_dereference(vif->link_conf[link_id]);
 		if (!link_conf)
 			continue;
+
+		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
 		link = (struct mt7996_vif_link *)mlink;
 
