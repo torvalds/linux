@@ -318,7 +318,7 @@ struct io_ring_ctx {
 		struct io_alloc_cache	apoll_cache;
 		struct io_alloc_cache	netmsg_cache;
 		struct io_alloc_cache	rw_cache;
-		struct io_alloc_cache	uring_cache;
+		struct io_alloc_cache	cmd_cache;
 
 		/*
 		 * Any cancelable uring_cmd is added to this list in
