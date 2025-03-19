@@ -106,7 +106,8 @@ static void halter_guest_code(struct test_data_page *data)
 		data->halter_tpr = xapic_read_reg(APIC_TASKPRI);
 		data->halter_ppr = xapic_read_reg(APIC_PROCPRI);
 		data->hlt_count++;
-		asm volatile("sti; hlt; cli");
+		safe_halt();
+		cli();
 		data->wake_count++;
 	}
 }
