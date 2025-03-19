@@ -60,8 +60,6 @@ irq_domain和一个hwirq号作为参数。 如果hwirq的映射还不存在，�
 
 - irq_find_mapping()返回给定域和hwirq的Linux IRQ号，如果没有映射则返回0。
 
-- irq_linear_revmap()现与irq_find_mapping()相同，已被废弃。
-
 - generic_handle_domain_irq()处理一个由域和hwirq号描述的中断。
 
 请注意，irq域的查找必须发生在与RCU读临界区兼容的上下文中。

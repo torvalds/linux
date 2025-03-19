@@ -492,12 +492,6 @@ static inline unsigned int irq_find_mapping(struct irq_domain *domain,
 	return 0;
 }
 
-static inline unsigned int irq_linear_revmap(struct irq_domain *domain,
-					     irq_hw_number_t hwirq)
-{
-	return irq_find_mapping(domain, hwirq);
-}
-
 extern const struct irq_domain_ops irq_domain_simple_ops;
 
 /* stock xlate functions */
