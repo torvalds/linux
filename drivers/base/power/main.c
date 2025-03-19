@@ -1836,7 +1836,7 @@ static bool device_prepare_smart_suspend(struct device *dev)
 	idx = device_links_read_lock();
 
 	list_for_each_entry_rcu_locked(link, &dev->links.suppliers, c_node) {
-		if (!(link->flags | DL_FLAG_PM_RUNTIME))
+		if (!(link->flags & DL_FLAG_PM_RUNTIME))
 			continue;
 
 		if (!dev_pm_smart_suspend(link->supplier) &&
