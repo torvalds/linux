@@ -446,7 +446,7 @@ void __init mpc52xx_init_irq(void)
 	 * As last step, add an irq host to translate the real
 	 * hw irq information provided by the ofw to linux virq
 	 */
-	mpc52xx_irqhost = irq_domain_add_linear(picnode,
+	mpc52xx_irqhost = irq_domain_create_linear(of_fwnode_handle(picnode),
 	                                 MPC52xx_IRQ_HIGHTESTHWIRQ,
 	                                 &mpc52xx_irqhost_ops, NULL);
 

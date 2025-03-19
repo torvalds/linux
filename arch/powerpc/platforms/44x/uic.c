@@ -254,8 +254,9 @@ static struct uic * __init uic_init_one(struct device_node *node)
 	}
 	uic->dcrbase = *dcrreg;
 
-	uic->irqhost = irq_domain_add_linear(node, NR_UIC_INTS, &uic_host_ops,
-					     uic);
+	uic->irqhost = irq_domain_create_linear(of_fwnode_handle(node),
+						NR_UIC_INTS, &uic_host_ops,
+						uic);
 	if (! uic->irqhost)
 		return NULL; /* FIXME: panic? */
 

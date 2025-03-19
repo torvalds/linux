@@ -175,8 +175,9 @@ static struct irq_domain *__init hlwd_pic_init(struct device_node *np)
 
 	__hlwd_quiesce(io_base);
 
-	irq_domain = irq_domain_add_linear(np, HLWD_NR_IRQS,
-					   &hlwd_irq_domain_ops, io_base);
+	irq_domain = irq_domain_create_linear(of_fwnode_handle(np),
+					      HLWD_NR_IRQS,
+					      &hlwd_irq_domain_ops, io_base);
 	if (!irq_domain) {
 		pr_err("failed to allocate irq_domain\n");
 		iounmap(io_base);

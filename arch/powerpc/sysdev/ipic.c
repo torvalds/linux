@@ -711,8 +711,9 @@ struct ipic * __init ipic_init(struct device_node *node, unsigned int flags)
 	if (ipic == NULL)
 		return NULL;
 
-	ipic->irqhost = irq_domain_add_linear(node, NR_IPIC_INTS,
-					      &ipic_host_ops, ipic);
+	ipic->irqhost = irq_domain_create_linear(of_fwnode_handle(node),
+						 NR_IPIC_INTS,
+						 &ipic_host_ops, ipic);
 	if (ipic->irqhost == NULL) {
 		kfree(ipic);
 		return NULL;
