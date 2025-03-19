@@ -84,6 +84,21 @@ void dev_set_group(struct net_device *dev, int new_group)
 	netdev_unlock_ops(dev);
 }
 
+int dev_set_mac_address_user(struct net_device *dev, struct sockaddr *sa,
+			     struct netlink_ext_ack *extack)
+{
+	int ret;
+
+	down_write(&dev_addr_sem);
+	netdev_lock_ops(dev);
+	ret = netif_set_mac_address(dev, sa, extack);
+	netdev_unlock_ops(dev);
+	up_write(&dev_addr_sem);
+
+	return ret;
+}
+EXPORT_SYMBOL(dev_set_mac_address_user);
+
 /**
  * dev_change_net_namespace() - move device to different nethost namespace
  * @dev: device
@@ -299,9 +314,9 @@ int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa,
 {
 	int ret;
 
-	netdev_lock(dev);
+	netdev_lock_ops(dev);
 	ret = netif_set_mac_address(dev, sa, extack);
-	netdev_unlock(dev);
+	netdev_unlock_ops(dev);
 
 	return ret;
 }
