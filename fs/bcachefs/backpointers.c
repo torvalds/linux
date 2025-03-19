@@ -784,7 +784,7 @@ enum alloc_sector_counter {
 	ALLOC_SECTORS_NR
 };
 
-static enum alloc_sector_counter data_type_to_alloc_counter(enum bch_data_type t)
+static int data_type_to_alloc_counter(enum bch_data_type t)
 {
 	switch (t) {
 	case BCH_DATA_btree:
@@ -796,7 +796,7 @@ static enum alloc_sector_counter data_type_to_alloc_counter(enum bch_data_type t
 	case BCH_DATA_parity:
 		return ALLOC_stripe;
 	default:
-		BUG();
+		return -1;
 	}
 }
 
@@ -847,7 +847,11 @@ static int check_bucket_backpointer_mismatch(struct btree_trans *trans, struct b
 		if (bp.v->bucket_gen != a->gen)
 			continue;
 
-		sectors[data_type_to_alloc_counter(bp.v->data_type)] += bp.v->bucket_len;
+		int alloc_counter = data_type_to_alloc_counter(bp.v->data_type);
+		if (alloc_counter < 0)
+			continue;
+
+		sectors[alloc_counter] += bp.v->bucket_len;
 	};
 	bch2_trans_iter_exit(trans, &iter);
 	if (ret)
