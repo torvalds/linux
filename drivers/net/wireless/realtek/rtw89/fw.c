@@ -38,6 +38,16 @@ struct rtw89_arp_rsp {
 
 static const u8 mss_signature[] = {0x4D, 0x53, 0x53, 0x4B, 0x50, 0x4F, 0x4F, 0x4C};
 
+const struct rtw89_fw_blacklist rtw89_fw_blacklist_default = {
+	.ver = 0x00,
+	.list = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+		 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+	},
+};
+EXPORT_SYMBOL(rtw89_fw_blacklist_default);
+
 union rtw89_fw_element_arg {
 	size_t offset;
 	enum rtw89_rf_path rf_path;
@@ -314,7 +324,7 @@ static int __parse_formatted_mssc(struct rtw89_dev *rtwdev,
 	if (!sec->secure_boot)
 		goto out;
 
-	sb_sel_ver = le32_to_cpu(section_content->sb_sel_ver.v);
+	sb_sel_ver = get_unaligned_le32(&section_content->sb_sel_ver.v);
 	if (sb_sel_ver && sb_sel_ver != sec->sb_sel_mgn)
 		goto ignore;
 
@@ -344,6 +354,46 @@ ignore:
 	return 0;
 }
 
+static int __check_secure_blacklist(struct rtw89_dev *rtwdev,
+				    struct rtw89_fw_bin_info *info,
+				    struct rtw89_fw_hdr_section_info *section_info,
+				    const void *content)
+{
+	const struct rtw89_fw_blacklist *chip_blacklist = rtwdev->chip->fw_blacklist;
+	const union rtw89_fw_section_mssc_content *section_content = content;
+	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
+	u8 byte_idx;
+	u8 bit_mask;
+
+	if (!sec->secure_boot)
+		return 0;
+
+	if (!info->secure_section_exist || section_info->ignore)
+		return 0;
+
+	if (!chip_blacklist) {
+		rtw89_warn(rtwdev, "chip no blacklist for secure firmware\n");
+		return -ENOENT;
+	}
+
+	byte_idx = section_content->blacklist.bit_in_chip_list >> 3;
+	bit_mask = BIT(section_content->blacklist.bit_in_chip_list & 0x7);
+
+	if (section_content->blacklist.ver > chip_blacklist->ver) {
+		rtw89_warn(rtwdev, "chip blacklist out of date (%u, %u)\n",
+			   section_content->blacklist.ver, chip_blacklist->ver);
+		return -EINVAL;
+	}
+
+	if (chip_blacklist->list[byte_idx] & bit_mask) {
+		rtw89_warn(rtwdev, "firmware %u in chip blacklist\n",
+			   section_content->blacklist.ver);
+		return -EPERM;
+	}
+
+	return 0;
+}
+
 static int __parse_security_section(struct rtw89_dev *rtwdev,
 				    struct rtw89_fw_bin_info *info,
 				    struct rtw89_fw_hdr_section_info *section_info,
@@ -364,8 +414,11 @@ static int __parse_security_section(struct rtw89_dev *rtwdev,
 			*mssc_len += section_info->mssc * FWDL_SECURITY_CHKSUM_LEN;
 
 		if (sec->secure_boot) {
-			if (sec->mss_idx >= section_info->mssc)
+			if (sec->mss_idx >= section_info->mssc) {
+				rtw89_err(rtwdev, "unexpected MSS %d >= %d\n",
+					  sec->mss_idx, section_info->mssc);
 				return -EFAULT;
+			}
 			section_info->key_addr = content + section_info->len +
 						 sec->mss_idx * FWDL_SECURITY_SIGLEN;
 			section_info->key_len = FWDL_SECURITY_SIGLEN;
@@ -373,6 +426,9 @@ static int __parse_security_section(struct rtw89_dev *rtwdev,
 
 		info->secure_section_exist = true;
 	}
+
+	ret = __check_secure_blacklist(rtwdev, info, section_info, content);
+	WARN_ONCE(ret, "Current firmware in blacklist. Please update firmware.\n");
 
 	return 0;
 }
@@ -489,6 +545,23 @@ static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev,
 	}
 }
 
+static
+const struct rtw89_mfw_hdr *rtw89_mfw_get_hdr_ptr(struct rtw89_dev *rtwdev,
+						  const struct firmware *firmware)
+{
+	const struct rtw89_mfw_hdr *mfw_hdr;
+
+	if (sizeof(*mfw_hdr) > firmware->size)
+		return NULL;
+
+	mfw_hdr = (const struct rtw89_mfw_hdr *)firmware->data;
+
+	if (mfw_hdr->sig != RTW89_MFW_SIG)
+		return NULL;
+
+	return mfw_hdr;
+}
+
 static int rtw89_mfw_validate_hdr(struct rtw89_dev *rtwdev,
 				  const struct firmware *firmware,
 				  const struct rtw89_mfw_hdr *mfw_hdr)
@@ -519,14 +592,15 @@ int rtw89_mfw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
 {
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	const struct firmware *firmware = fw_info->req.firmware;
+	const struct rtw89_mfw_info *mfw_info = NULL, *tmp;
+	const struct rtw89_mfw_hdr *mfw_hdr;
 	const u8 *mfw = firmware->data;
 	u32 mfw_len = firmware->size;
-	const struct rtw89_mfw_hdr *mfw_hdr = (const struct rtw89_mfw_hdr *)mfw;
-	const struct rtw89_mfw_info *mfw_info = NULL, *tmp;
 	int ret;
 	int i;
 
-	if (mfw_hdr->sig != RTW89_MFW_SIG) {
+	mfw_hdr = rtw89_mfw_get_hdr_ptr(rtwdev, firmware);
+	if (!mfw_hdr) {
 		rtw89_debug(rtwdev, RTW89_DBG_FW, "use legacy firmware\n");
 		/* legacy firmware support normal type only */
 		if (type != RTW89_FW_NORMAL)
@@ -582,13 +656,13 @@ static u32 rtw89_mfw_get_size(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	const struct firmware *firmware = fw_info->req.firmware;
-	const struct rtw89_mfw_hdr *mfw_hdr =
-		(const struct rtw89_mfw_hdr *)firmware->data;
 	const struct rtw89_mfw_info *mfw_info;
+	const struct rtw89_mfw_hdr *mfw_hdr;
 	u32 size;
 	int ret;
 
-	if (mfw_hdr->sig != RTW89_MFW_SIG) {
+	mfw_hdr = rtw89_mfw_get_hdr_ptr(rtwdev, firmware);
+	if (!mfw_hdr) {
 		rtw89_warn(rtwdev, "not mfw format\n");
 		return 0;
 	}
@@ -775,6 +849,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 47, 0, CH_INFO_BE_V0),
 	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 49, 0, RFK_PRE_NOTIFY_V1),
 	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 51, 0, NO_PHYCAP_P1),
+	__CFG_FW_FEAT(RTL8922A, lt, 0, 35, 64, 0, NO_POWER_DIFFERENCE),
 };
 
 static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
@@ -1028,7 +1103,7 @@ int rtw89_build_txpwr_trk_tbl_from_elm(struct rtw89_dev *rtwdev,
 	bitmap = le32_to_cpu(elm->u.txpwr_trk.bitmap);
 
 	if ((bitmap & needed_bitmap) != needed_bitmap) {
-		rtw89_warn(rtwdev, "needed txpwr trk bitmap %08x but %0x8x\n",
+		rtw89_warn(rtwdev, "needed txpwr trk bitmap %08x but %08x\n",
 			   needed_bitmap, bitmap);
 		return -ENOENT;
 	}
@@ -1460,7 +1535,6 @@ static int __rtw89_fw_download_hdr(struct rtw89_dev *rtwdev,
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to send h2c\n");
-		ret = -1;
 		goto fail;
 	}
 
@@ -1547,7 +1621,6 @@ static int __rtw89_fw_download_main(struct rtw89_dev *rtwdev,
 		ret = rtw89_h2c_tx(rtwdev, skb, true);
 		if (ret) {
 			rtw89_err(rtwdev, "failed to send h2c\n");
-			ret = -1;
 			goto fail;
 		}
 
@@ -3435,9 +3508,10 @@ int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 			      CCTLINFO_G7_W5_NOMINAL_PKT_PADDING3 |
 			      CCTLINFO_G7_W5_NOMINAL_PKT_PADDING4);
 
-	h2c->w6 = le32_encode_bits(vif->type == NL80211_IFTYPE_STATION ? 1 : 0,
+	h2c->w6 = le32_encode_bits(vif->cfg.aid, CCTLINFO_G7_W6_AID12_PAID) |
+		  le32_encode_bits(vif->type == NL80211_IFTYPE_STATION ? 1 : 0,
 				   CCTLINFO_G7_W6_ULDL);
-	h2c->m6 = cpu_to_le32(CCTLINFO_G7_W6_ULDL);
+	h2c->m6 = cpu_to_le32(CCTLINFO_G7_W6_AID12_PAID | CCTLINFO_G7_W6_ULDL);
 
 	if (rtwsta_link) {
 		h2c->w8 = le32_encode_bits(link_sta->he_cap.has_he,
@@ -3573,6 +3647,61 @@ fail:
 
 	return ret;
 }
+EXPORT_SYMBOL(rtw89_fw_h2c_txtime_cmac_tbl);
+
+int rtw89_fw_h2c_txtime_cmac_tbl_g7(struct rtw89_dev *rtwdev,
+				    struct rtw89_sta_link *rtwsta_link)
+{
+	struct rtw89_h2c_cctlinfo_ud_g7 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for txtime_cmac_g7\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cctlinfo_ud_g7 *)skb->data;
+
+	h2c->c0 = le32_encode_bits(rtwsta_link->mac_id, CCTLINFO_G7_C0_MACID) |
+		  le32_encode_bits(1, CCTLINFO_G7_C0_OP);
+
+	if (rtwsta_link->cctl_tx_time) {
+		h2c->w3 |= le32_encode_bits(1, CCTLINFO_G7_W3_AMPDU_TIME_SEL);
+		h2c->m3 |= cpu_to_le32(CCTLINFO_G7_W3_AMPDU_TIME_SEL);
+
+		h2c->w2 |= le32_encode_bits(rtwsta_link->ampdu_max_time,
+					   CCTLINFO_G7_W2_AMPDU_MAX_TIME);
+		h2c->m2 |= cpu_to_le32(CCTLINFO_G7_W2_AMPDU_MAX_TIME);
+	}
+	if (rtwsta_link->cctl_tx_retry_limit) {
+		h2c->w2 |= le32_encode_bits(1, CCTLINFO_G7_W2_DATA_TXCNT_LMT_SEL) |
+			   le32_encode_bits(rtwsta_link->data_tx_cnt_lmt,
+					    CCTLINFO_G7_W2_DATA_TX_CNT_LMT);
+		h2c->m2 |= cpu_to_le32(CCTLINFO_G7_W2_DATA_TXCNT_LMT_SEL |
+				       CCTLINFO_G7_W2_DATA_TX_CNT_LMT);
+	}
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
+			      H2C_FUNC_MAC_CCTLINFO_UD_G7, 0, 1,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(rtw89_fw_h2c_txtime_cmac_tbl_g7);
 
 int rtw89_fw_h2c_txpath_cmac_tbl(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta_link *rtwsta_link)
@@ -3776,14 +3905,15 @@ fail:
 }
 EXPORT_SYMBOL(rtw89_fw_h2c_update_beacon_be);
 
-#define H2C_ROLE_MAINTAIN_LEN 4
 int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif_link *rtwvif_link,
 			       struct rtw89_sta_link *rtwsta_link,
 			       enum rtw89_upd_mode upd_mode)
 {
-	struct sk_buff *skb;
 	u8 mac_id = rtwsta_link ? rtwsta_link->mac_id : rtwvif_link->mac_id;
+	struct rtw89_h2c_role_maintain *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
 	u8 self_role;
 	int ret;
 
@@ -3796,21 +3926,27 @@ int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 		self_role = rtwvif_link->self_role;
 	}
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_ROLE_MAINTAIN_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c join\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_ROLE_MAINTAIN_LEN);
-	SET_FWROLE_MAINTAIN_MACID(skb->data, mac_id);
-	SET_FWROLE_MAINTAIN_SELF_ROLE(skb->data, self_role);
-	SET_FWROLE_MAINTAIN_UPD_MODE(skb->data, upd_mode);
-	SET_FWROLE_MAINTAIN_WIFI_ROLE(skb->data, rtwvif_link->wifi_role);
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_role_maintain *)skb->data;
+
+	h2c->w0 = le32_encode_bits(mac_id, RTW89_H2C_ROLE_MAINTAIN_W0_MACID) |
+		  le32_encode_bits(self_role, RTW89_H2C_ROLE_MAINTAIN_W0_SELF_ROLE) |
+		  le32_encode_bits(upd_mode, RTW89_H2C_ROLE_MAINTAIN_W0_UPD_MODE) |
+		  le32_encode_bits(rtwvif_link->wifi_role,
+				   RTW89_H2C_ROLE_MAINTAIN_W0_WIFI_ROLE) |
+		  le32_encode_bits(rtwvif_link->mac_idx,
+				   RTW89_H2C_ROLE_MAINTAIN_W0_BAND) |
+		  le32_encode_bits(rtwvif_link->port, RTW89_H2C_ROLE_MAINTAIN_W0_PORT);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_MEDIA_RPT,
 			      H2C_FUNC_MAC_FWROLE_MAINTAIN, 0, 1,
-			      H2C_ROLE_MAINTAIN_LEN);
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {

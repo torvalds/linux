@@ -2458,32 +2458,56 @@ void rtw_phy_config_swing_table(struct rtw_dev *rtwdev,
 			swing_table->n[RF_PATH_A] = tbl->pwrtrk_2g_ccka_n;
 			swing_table->p[RF_PATH_B] = tbl->pwrtrk_2g_cckb_p;
 			swing_table->n[RF_PATH_B] = tbl->pwrtrk_2g_cckb_n;
+			swing_table->p[RF_PATH_C] = tbl->pwrtrk_2g_cckc_p;
+			swing_table->n[RF_PATH_C] = tbl->pwrtrk_2g_cckc_n;
+			swing_table->p[RF_PATH_D] = tbl->pwrtrk_2g_cckd_p;
+			swing_table->n[RF_PATH_D] = tbl->pwrtrk_2g_cckd_n;
 		} else {
 			swing_table->p[RF_PATH_A] = tbl->pwrtrk_2ga_p;
 			swing_table->n[RF_PATH_A] = tbl->pwrtrk_2ga_n;
 			swing_table->p[RF_PATH_B] = tbl->pwrtrk_2gb_p;
 			swing_table->n[RF_PATH_B] = tbl->pwrtrk_2gb_n;
+			swing_table->p[RF_PATH_C] = tbl->pwrtrk_2gc_p;
+			swing_table->n[RF_PATH_C] = tbl->pwrtrk_2gc_n;
+			swing_table->p[RF_PATH_D] = tbl->pwrtrk_2gd_p;
+			swing_table->n[RF_PATH_D] = tbl->pwrtrk_2gd_n;
 		}
 	} else if (IS_CH_5G_BAND_1(channel) || IS_CH_5G_BAND_2(channel)) {
 		swing_table->p[RF_PATH_A] = tbl->pwrtrk_5ga_p[RTW_PWR_TRK_5G_1];
 		swing_table->n[RF_PATH_A] = tbl->pwrtrk_5ga_n[RTW_PWR_TRK_5G_1];
 		swing_table->p[RF_PATH_B] = tbl->pwrtrk_5gb_p[RTW_PWR_TRK_5G_1];
 		swing_table->n[RF_PATH_B] = tbl->pwrtrk_5gb_n[RTW_PWR_TRK_5G_1];
+		swing_table->p[RF_PATH_C] = tbl->pwrtrk_5gc_p[RTW_PWR_TRK_5G_1];
+		swing_table->n[RF_PATH_C] = tbl->pwrtrk_5gc_n[RTW_PWR_TRK_5G_1];
+		swing_table->p[RF_PATH_D] = tbl->pwrtrk_5gd_p[RTW_PWR_TRK_5G_1];
+		swing_table->n[RF_PATH_D] = tbl->pwrtrk_5gd_n[RTW_PWR_TRK_5G_1];
 	} else if (IS_CH_5G_BAND_3(channel)) {
 		swing_table->p[RF_PATH_A] = tbl->pwrtrk_5ga_p[RTW_PWR_TRK_5G_2];
 		swing_table->n[RF_PATH_A] = tbl->pwrtrk_5ga_n[RTW_PWR_TRK_5G_2];
 		swing_table->p[RF_PATH_B] = tbl->pwrtrk_5gb_p[RTW_PWR_TRK_5G_2];
 		swing_table->n[RF_PATH_B] = tbl->pwrtrk_5gb_n[RTW_PWR_TRK_5G_2];
+		swing_table->p[RF_PATH_C] = tbl->pwrtrk_5gc_p[RTW_PWR_TRK_5G_2];
+		swing_table->n[RF_PATH_C] = tbl->pwrtrk_5gc_n[RTW_PWR_TRK_5G_2];
+		swing_table->p[RF_PATH_D] = tbl->pwrtrk_5gd_p[RTW_PWR_TRK_5G_2];
+		swing_table->n[RF_PATH_D] = tbl->pwrtrk_5gd_n[RTW_PWR_TRK_5G_2];
 	} else if (IS_CH_5G_BAND_4(channel)) {
 		swing_table->p[RF_PATH_A] = tbl->pwrtrk_5ga_p[RTW_PWR_TRK_5G_3];
 		swing_table->n[RF_PATH_A] = tbl->pwrtrk_5ga_n[RTW_PWR_TRK_5G_3];
 		swing_table->p[RF_PATH_B] = tbl->pwrtrk_5gb_p[RTW_PWR_TRK_5G_3];
 		swing_table->n[RF_PATH_B] = tbl->pwrtrk_5gb_n[RTW_PWR_TRK_5G_3];
+		swing_table->p[RF_PATH_C] = tbl->pwrtrk_5gc_p[RTW_PWR_TRK_5G_3];
+		swing_table->n[RF_PATH_C] = tbl->pwrtrk_5gc_n[RTW_PWR_TRK_5G_3];
+		swing_table->p[RF_PATH_D] = tbl->pwrtrk_5gd_p[RTW_PWR_TRK_5G_3];
+		swing_table->n[RF_PATH_D] = tbl->pwrtrk_5gd_n[RTW_PWR_TRK_5G_3];
 	} else {
 		swing_table->p[RF_PATH_A] = tbl->pwrtrk_2ga_p;
 		swing_table->n[RF_PATH_A] = tbl->pwrtrk_2ga_n;
 		swing_table->p[RF_PATH_B] = tbl->pwrtrk_2gb_p;
 		swing_table->n[RF_PATH_B] = tbl->pwrtrk_2gb_n;
+		swing_table->p[RF_PATH_C] = tbl->pwrtrk_2gc_p;
+		swing_table->n[RF_PATH_C] = tbl->pwrtrk_2gc_n;
+		swing_table->p[RF_PATH_D] = tbl->pwrtrk_2gd_p;
+		swing_table->n[RF_PATH_D] = tbl->pwrtrk_2gd_n;
 	}
 }
 EXPORT_SYMBOL(rtw_phy_config_swing_table);

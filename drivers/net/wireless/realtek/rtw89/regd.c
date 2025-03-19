@@ -721,6 +721,31 @@ static void rtw89_regd_apply_policy_6ghz(struct rtw89_dev *rtwdev,
 		sband->channels[i].flags |= IEEE80211_CHAN_DISABLED;
 }
 
+static void rtw89_regd_apply_policy_tas(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	const struct rtw89_regd *regd = regulatory->regd;
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+
+	if (!tas->enable)
+		return;
+
+	tas->block_regd = !test_bit(RTW89_REGD_FUNC_TAS, regd->func_bitmap);
+}
+
+static void rtw89_regd_apply_policy_ant_gain(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_regulatory_info *regulatory = &rtwdev->regulatory;
+	struct rtw89_ant_gain_info *ant_gain = &rtwdev->ant_gain;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_regd *regd = regulatory->regd;
+
+	if (!chip->support_ant_gain)
+		return;
+
+	ant_gain->block_country = !test_bit(RTW89_REGD_FUNC_DAG, regd->func_bitmap);
+}
+
 static void rtw89_regd_notifier_apply(struct rtw89_dev *rtwdev,
 				      struct wiphy *wiphy,
 				      struct regulatory_request *request)
@@ -738,6 +763,8 @@ static void rtw89_regd_notifier_apply(struct rtw89_dev *rtwdev,
 
 	rtw89_regd_apply_policy_unii4(rtwdev, wiphy);
 	rtw89_regd_apply_policy_6ghz(rtwdev, wiphy);
+	rtw89_regd_apply_policy_tas(rtwdev);
+	rtw89_regd_apply_policy_ant_gain(rtwdev);
 }
 
 static

@@ -664,6 +664,11 @@ struct rtw89_fw_mss_pool_hdr {
 
 union rtw89_fw_section_mssc_content {
 	struct {
+		u8 pad[0x20];
+		u8 bit_in_chip_list;
+		u8 ver;
+	} __packed blacklist;
+	struct {
 		u8 pad[58];
 		__le32 v;
 	} __packed sb_sel_ver;
@@ -672,6 +677,13 @@ union rtw89_fw_section_mssc_content {
 		__le16 v;
 	} __packed key_sign_len;
 } __packed;
+
+struct rtw89_fw_blacklist {
+	u8 ver;
+	u8 list[32];
+};
+
+extern const struct rtw89_fw_blacklist rtw89_fw_blacklist_default;
 
 static inline void SET_CTRL_INFO_MACID(void *table, u32 val)
 {
@@ -1579,25 +1591,17 @@ struct rtw89_h2c_bcn_upd_be {
 #define RTW89_H2C_BCN_UPD_BE_W7_ECSA_OFST GENMASK(30, 16)
 #define RTW89_H2C_BCN_UPD_BE_W7_PROTECTION_KEY_ID BIT(31)
 
-static inline void SET_FWROLE_MAINTAIN_MACID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
-}
+struct rtw89_h2c_role_maintain {
+	__le32 w0;
+};
 
-static inline void SET_FWROLE_MAINTAIN_SELF_ROLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(9, 8));
-}
-
-static inline void SET_FWROLE_MAINTAIN_UPD_MODE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(12, 10));
-}
-
-static inline void SET_FWROLE_MAINTAIN_WIFI_ROLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(16, 13));
-}
+#define RTW89_H2C_ROLE_MAINTAIN_W0_MACID GENMASK(7, 0)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_SELF_ROLE GENMASK(9, 8)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_UPD_MODE GENMASK(12, 10)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_WIFI_ROLE GENMASK(16, 13)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_BAND GENMASK(18, 17)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_PORT GENMASK(21, 19)
+#define RTW89_H2C_ROLE_MAINTAIN_W0_MACID_EXT GENMASK(31, 24)
 
 enum rtw89_fw_sta_type { /* value of RTW89_H2C_JOININFO_W1_STA_TYPE */
 	RTW89_FW_N_AC_STA = 0,
@@ -4539,6 +4543,12 @@ struct rtw89_c2h_rfk_report {
 	u8 version;
 } __packed;
 
+struct rtw89_c2h_rf_tas_info {
+	struct rtw89_c2h_hdr hdr;
+	__le32 cur_idx;
+	__le16 txpwr_history[20];
+} __packed;
+
 #define RTW89_FW_RSVD_PLE_SIZE 0x800
 
 #define RTW89_FW_BACKTRACE_INFO_SIZE 8
@@ -4588,6 +4598,8 @@ int rtw89_fw_h2c_ampdu_cmac_tbl_g7(struct rtw89_dev *rtwdev,
 				   struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta_link *rtwsta_link);
+int rtw89_fw_h2c_txtime_cmac_tbl_g7(struct rtw89_dev *rtwdev,
+				    struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_txpath_cmac_tbl(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta_link *rtwsta_link);
 int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
@@ -4867,6 +4879,15 @@ static inline int rtw89_chip_h2c_ampdu_cmac_tbl(struct rtw89_dev *rtwdev,
 	}
 
 	return 0;
+}
+
+static inline
+int rtw89_chip_h2c_txtime_cmac_tbl(struct rtw89_dev *rtwdev,
+				   struct rtw89_sta_link *rtwsta_link)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
 }
 
 static inline

@@ -8,6 +8,7 @@
 #include "fw.h"
 #include "mac.h"
 #include "ps.h"
+#include "sar.h"
 #include "util.h"
 
 static void rtw89_swap_chanctx(struct rtw89_dev *rtwdev,
@@ -2673,6 +2674,7 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_entity_mgnt *mgnt = &hal->entity_mgnt;
 	struct rtw89_entity_weight w = {};
+	int ret;
 
 	rtwvif_link->chanctx_idx = cfg->idx;
 	rtwvif_link->chanctx_assigned = true;
@@ -2692,7 +2694,13 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 	rtw89_swap_chanctx(rtwdev, cfg->idx, RTW89_CHANCTX_0);
 
 out:
-	return rtw89_set_channel(rtwdev);
+	ret = rtw89_set_channel(rtwdev);
+	if (ret)
+		return ret;
+
+	rtw89_tas_reset(rtwdev, true);
+
+	return 0;
 }
 
 void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,

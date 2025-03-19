@@ -54,6 +54,9 @@ config RTW88_8812A
 	tristate
 	select RTW88_88XXA
 
+config RTW88_8814A
+	tristate
+
 config RTW88_8822BE
 	tristate "Realtek 8822BE PCI wireless network adapter"
 	depends on PCI
@@ -219,6 +222,28 @@ config RTW88_8812AU
 	select RTW88_8812A
 	help
 	  Select this option will enable support for 8812AU chipset
+
+	  802.11ac USB wireless network adapter
+
+config RTW88_8814AE
+	tristate "Realtek 8814AE PCI wireless network adapter"
+	depends on PCI
+	select RTW88_CORE
+	select RTW88_PCI
+	select RTW88_8814A
+	help
+	  Select this option will enable support for 8814AE chipset
+
+	  802.11ac PCIe wireless network adapter
+
+config RTW88_8814AU
+	tristate "Realtek 8814AU USB wireless network adapter"
+	depends on USB
+	select RTW88_CORE
+	select RTW88_USB
+	select RTW88_8814A
+	help
+	  Select this option will enable support for 8814AU chipset
 
 	  802.11ac USB wireless network adapter
 

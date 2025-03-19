@@ -12,6 +12,7 @@
 #include "rtw8852c.h"
 #include "rtw8852c_rfk.h"
 #include "rtw8852c_table.h"
+#include "sar.h"
 #include "util.h"
 
 #define RTW8852C_FW_FORMAT_MAX 1
@@ -2880,6 +2881,7 @@ static int rtw8852c_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 
 static const struct rtw89_chanctx_listener rtw8852c_chanctx_listener = {
 	.callbacks[RTW89_CHANCTX_CALLBACK_RFK] = rtw8852c_rfk_chanctx_cb,
+	.callbacks[RTW89_CHANCTX_CALLBACK_TAS] = rtw89_tas_chanctx_cb,
 };
 
 #ifdef CONFIG_PM
@@ -2941,6 +2943,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.h2c_default_cmac_tbl	= rtw89_fw_h2c_default_cmac_tbl,
 	.h2c_assoc_cmac_tbl	= rtw89_fw_h2c_assoc_cmac_tbl,
 	.h2c_ampdu_cmac_tbl	= NULL,
+	.h2c_txtime_cmac_tbl	= rtw89_fw_h2c_txtime_cmac_tbl,
 	.h2c_default_dmac_tbl	= NULL,
 	.h2c_update_beacon	= rtw89_fw_h2c_update_beacon,
 	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam,
@@ -2967,6 +2970,7 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.try_ce_fw		= false,
 	.bbmcu_nr		= 0,
 	.needed_fw_elms		= 0,
+	.fw_blacklist		= &rtw89_fw_blacklist_default,
 	.fifo_size		= 458752,
 	.small_fifo_size	= false,
 	.dle_scc_rsvd_size	= 0,
@@ -3009,10 +3013,13 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 				  BIT(NL80211_CHAN_WIDTH_160),
 	.support_unii4		= true,
 	.support_ant_gain	= true,
+	.support_tas		= true,
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= true,
+	.rx_freq_frome_ie	= false,
 	.hw_sec_hdr		= true,
 	.hw_mgmt_tx_encrypt	= true,
+	.hw_tkip_crypto		= true,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,
