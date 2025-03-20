@@ -915,7 +915,6 @@ skip_ctx_setup:
 
 void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 {
-	kfree(rcfw->qp_tbl);
 	kfree(rcfw->crsqe_tbl);
 	bnxt_qplib_free_hwq(rcfw->res, &rcfw->cmdq.hwq);
 	bnxt_qplib_free_hwq(rcfw->res, &rcfw->creq.hwq);
@@ -924,8 +923,7 @@ void bnxt_qplib_free_rcfw_channel(struct bnxt_qplib_rcfw *rcfw)
 
 int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 				  struct bnxt_qplib_rcfw *rcfw,
-				  struct bnxt_qplib_ctx *ctx,
-				  int qp_tbl_sz)
+				  struct bnxt_qplib_ctx *ctx)
 {
 	struct bnxt_qplib_hwq_attr hwq_attr = {};
 	struct bnxt_qplib_sg_info sginfo = {};
@@ -969,12 +967,6 @@ int bnxt_qplib_alloc_rcfw_channel(struct bnxt_qplib_res *res,
 	if (!rcfw->crsqe_tbl)
 		goto fail;
 
-	/* Allocate one extra to hold the QP1 entries */
-	rcfw->qp_tbl_size = qp_tbl_sz + 1;
-	rcfw->qp_tbl = kcalloc(rcfw->qp_tbl_size, sizeof(struct bnxt_qplib_qp_node),
-			       GFP_KERNEL);
-	if (!rcfw->qp_tbl)
-		goto fail;
 	spin_lock_init(&rcfw->tbl_lock);
 
 	rcfw->max_timeout = res->cctx->hwrm_cmd_max_timeout;

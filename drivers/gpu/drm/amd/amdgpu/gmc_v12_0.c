@@ -528,8 +528,9 @@ static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
 
 	bo_adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	coherent = bo->flags & AMDGPU_GEM_CREATE_COHERENT;
-	is_system = (bo->tbo.resource->mem_type == TTM_PL_TT) ||
-		(bo->tbo.resource->mem_type == AMDGPU_PL_PREEMPT);
+	is_system = bo->tbo.resource &&
+		(bo->tbo.resource->mem_type == TTM_PL_TT ||
+		 bo->tbo.resource->mem_type == AMDGPU_PL_PREEMPT);
 
 	if (bo && bo->flags & AMDGPU_GEM_CREATE_GFX12_DCC)
 		*flags |= AMDGPU_PTE_DCC;

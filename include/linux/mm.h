@@ -1458,7 +1458,10 @@ static inline void folio_get(struct folio *folio)
 
 static inline void get_page(struct page *page)
 {
-	folio_get(page_folio(page));
+	struct folio *folio = page_folio(page);
+	if (WARN_ON_ONCE(folio_test_slab(folio)))
+		return;
+	folio_get(folio);
 }
 
 static inline __must_check bool try_get_page(struct page *page)
@@ -1551,6 +1554,9 @@ static inline void folios_put(struct folio_batch *folios)
 static inline void put_page(struct page *page)
 {
 	struct folio *folio = page_folio(page);
+
+	if (folio_test_slab(folio))
+		return;
 
 	/*
 	 * For some devmap managed pages we need to catch refcount transition
@@ -3420,7 +3426,6 @@ extern vm_fault_t filemap_fault(struct vm_fault *vmf);
 extern vm_fault_t filemap_map_pages(struct vm_fault *vmf,
 		pgoff_t start_pgoff, pgoff_t end_pgoff);
 extern vm_fault_t filemap_page_mkwrite(struct vm_fault *vmf);
-extern vm_fault_t filemap_fsnotify_fault(struct vm_fault *vmf);
 
 extern unsigned long stack_guard_gap;
 /* Generic expand stack which grows the stack according to GROWS{UP,DOWN} */

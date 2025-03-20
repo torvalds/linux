@@ -2381,7 +2381,8 @@ static int __mmap_new_vma(struct mmap_state *map, struct vm_area_struct **vmap)
 	 * vma_merge_new_range() calls khugepaged_enter_vma() too, the below
 	 * call covers the non-merge case.
 	 */
-	khugepaged_enter_vma(vma, map->flags);
+	if (!vma_is_anonymous(vma))
+		khugepaged_enter_vma(vma, map->flags);
 	ksm_add_vma(vma);
 	*vmap = vma;
 	return 0;

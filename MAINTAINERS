@@ -2213,6 +2213,7 @@ ARM/APPLE MACHINE SUPPORT
 M:	Sven Peter <sven@svenpeter.dev>
 M:	Janne Grunau <j@jannau.net>
 R:	Alyssa Rosenzweig <alyssa@rosenzweig.io>
+R:	Neal Gompa <neal@gompa.dev>
 L:	asahi@lists.linux.dev
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
@@ -2237,6 +2238,7 @@ F:	Documentation/devicetree/bindings/pci/apple,pcie.yaml
 F:	Documentation/devicetree/bindings/pinctrl/apple,pinctrl.yaml
 F:	Documentation/devicetree/bindings/power/apple*
 F:	Documentation/devicetree/bindings/pwm/apple,s5l-fpwm.yaml
+F:	Documentation/devicetree/bindings/spi/apple,spi.yaml
 F:	Documentation/devicetree/bindings/watchdog/apple,wdt.yaml
 F:	arch/arm64/boot/dts/apple/
 F:	drivers/bluetooth/hci_bcm4377.c
@@ -2254,6 +2256,7 @@ F:	drivers/nvmem/apple-efuses.c
 F:	drivers/pinctrl/pinctrl-apple-gpio.c
 F:	drivers/pwm/pwm-apple.c
 F:	drivers/soc/apple/*
+F:	drivers/spi/spi-apple.c
 F:	drivers/watchdog/apple_wdt.c
 F:	include/dt-bindings/interrupt-controller/apple-aic.h
 F:	include/dt-bindings/pinctrl/apple.h
@@ -8644,7 +8647,6 @@ F:	rust/kernel/net/phy/reg.rs
 
 EXEC & BINFMT API, ELF
 M:	Kees Cook <kees@kernel.org>
-R:	Eric Biederman <ebiederm@xmission.com>
 L:	linux-mm@kvack.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kees/linux.git for-next/execve
@@ -9829,7 +9831,6 @@ S:	Maintained
 F:	drivers/media/usb/go7007/
 
 GOODIX TOUCHSCREEN
-M:	Bastien Nocera <hadess@hadess.net>
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
@@ -11141,7 +11142,7 @@ S:	Maintained
 F:	drivers/i2c/busses/i2c-icy.c
 
 IDEAPAD LAPTOP EXTRAS DRIVER
-M:	Ike Panhc <ike.pan@canonical.com>
+M:	Ike Panhc <ikepanhc@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 W:	http://launchpad.net/ideapad-laptop
@@ -12826,9 +12827,7 @@ F:	fs/kernfs/
 F:	include/linux/kernfs.h
 
 KEXEC
-M:	Eric Biederman <ebiederm@xmission.com>
 L:	kexec@lists.infradead.org
-S:	Maintained
 W:	http://kernel.org/pub/linux/utils/kernel/kexec/
 F:	include/linux/kexec.h
 F:	include/uapi/linux/kexec.h
@@ -13754,12 +13753,10 @@ F:	drivers/hwmon/ltc4282.c
 
 LTC4286 HARDWARE MONITOR DRIVER
 M:	Delphine CC Chiu <Delphine_CC_Chiu@Wiwynn.com>
-L:	linux-i2c@vger.kernel.org
+L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/hwmon/lltc,ltc4286.yaml
 F:	Documentation/hwmon/ltc4286.rst
-F:	drivers/hwmon/pmbus/Kconfig
-F:	drivers/hwmon/pmbus/Makefile
 F:	drivers/hwmon/pmbus/ltc4286.c
 
 LTC4306 I2C MULTIPLEXER DRIVER
@@ -16664,6 +16661,17 @@ F:	include/uapi/linux/mptcp*.h
 F:	net/mptcp/
 F:	tools/testing/selftests/bpf/*/*mptcp*.[ch]
 F:	tools/testing/selftests/net/mptcp/
+
+NETWORKING [SRv6]
+M:	Andrea Mayer <andrea.mayer@uniroma2.it>
+L:	netdev@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/netdev/net.git
+F:	include/linux/seg6*
+F:	include/net/seg6*
+F:	include/uapi/linux/seg6*
+F:	net/ipv6/seg6*
+F:	tools/testing/selftests/net/srv6*
 
 NETWORKING [TCP]
 M:	Eric Dumazet <edumazet@google.com>

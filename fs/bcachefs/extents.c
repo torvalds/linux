@@ -99,7 +99,7 @@ static inline bool ptr_better(struct bch_fs *c,
 
 		/* Pick at random, biased in favor of the faster device: */
 
-		return bch2_rand_range(l1 + l2) > l1;
+		return bch2_get_random_u64_below(l1 + l2) > l1;
 	}
 
 	if (bch2_force_reconstruct_read)

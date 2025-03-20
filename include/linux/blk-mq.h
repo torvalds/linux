@@ -852,12 +852,20 @@ static inline bool blk_mq_is_reserved_rq(struct request *rq)
 	return rq->rq_flags & RQF_RESV;
 }
 
-/*
+/**
+ * blk_mq_add_to_batch() - add a request to the completion batch
+ * @req: The request to add to batch
+ * @iob: The batch to add the request
+ * @is_error: Specify true if the request failed with an error
+ * @complete: The completaion handler for the request
+ *
  * Batched completions only work when there is no I/O error and no special
  * ->end_io handler.
+ *
+ * Return: true when the request was added to the batch, otherwise false
  */
 static inline bool blk_mq_add_to_batch(struct request *req,
-				       struct io_comp_batch *iob, int ioerror,
+				       struct io_comp_batch *iob, bool is_error,
 				       void (*complete)(struct io_comp_batch *))
 {
 	/*
@@ -865,7 +873,7 @@ static inline bool blk_mq_add_to_batch(struct request *req,
 	 * 1) No batch container
 	 * 2) Has scheduler data attached
 	 * 3) Not a passthrough request and end_io set
-	 * 4) Not a passthrough request and an ioerror
+	 * 4) Not a passthrough request and failed with an error
 	 */
 	if (!iob)
 		return false;
@@ -874,7 +882,7 @@ static inline bool blk_mq_add_to_batch(struct request *req,
 	if (!blk_rq_is_passthrough(req)) {
 		if (req->end_io)
 			return false;
-		if (ioerror < 0)
+		if (is_error)
 			return false;
 	}
 
