@@ -1052,10 +1052,6 @@ static int zynqmp_qspi_exec_op(struct spi_mem *mem,
 	u16 opcode = op->cmd.opcode;
 	u64 opaddr;
 
-	dev_dbg(xqspi->dev, "cmd:%#x mode:%d.%d.%d.%d\n",
-		op->cmd.opcode, op->cmd.buswidth, op->addr.buswidth,
-		op->dummy.buswidth, op->data.buswidth);
-
 	mutex_lock(&xqspi->op_lock);
 	zynqmp_qspi_config_op(xqspi, op);
 	zynqmp_qspi_chipselect(mem->spi, false);
