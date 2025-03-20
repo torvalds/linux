@@ -94,12 +94,14 @@ _remove_test_files()
 
 _show_result()
 {
-	if [ "$2" -eq 0 ]; then
-		echo "$1 : [PASS]"
-	elif [ "$2" -eq 4 ]; then
-		echo "$1 : [SKIP]"
-	else
-		echo "$1 : [FAIL]"
+	if [ "$UBLK_TEST_SHOW_RESULT" -ne 0 ]; then
+		if [ "$2" -eq 0 ]; then
+			echo "$1 : [PASS]"
+		elif [ "$2" -eq 4 ]; then
+			echo "$1 : [SKIP]"
+		else
+			echo "$1 : [FAIL]"
+		fi
 	fi
 	[ "$2" -ne 0 ] && exit "$2"
 	return 0
@@ -216,5 +218,7 @@ _ublk_test_top_dir()
 
 UBLK_PROG=$(_ublk_test_top_dir)/kublk
 UBLK_TEST_QUIET=1
+UBLK_TEST_SHOW_RESULT=1
 export UBLK_PROG
 export UBLK_TEST_QUIET
+export UBLK_TEST_SHOW_RESULT
