@@ -13,7 +13,6 @@
 #include <drm/drm_drv.h>
 
 #include "i915_utils.h"
-#include "intel_runtime_pm.h"
 #include "xe_device.h" /* for xe_device_has_flat_ccs() */
 #include "xe_device_types.h"
 
