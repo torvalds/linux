@@ -73,6 +73,7 @@
 #include "intel_de.h"
 #include "intel_display_driver.h"
 #include "intel_display_power.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
@@ -7229,7 +7230,7 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	struct drm_i915_private __maybe_unused *dev_priv = to_i915(display->drm);
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
 	struct intel_power_domain_mask put_domains[I915_MAX_PIPES] = {};
@@ -7443,7 +7444,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	 * toggling overhead at and above 60 FPS.
 	 */
 	intel_display_power_put_async_delay(display, POWER_DOMAIN_DC_OFF, wakeref, 17);
-	intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
+	intel_display_rpm_put(display, state->wakeref);
 
 	/*
 	 * Defer the cleanup of the old state to a separate worker to not
@@ -7515,10 +7516,9 @@ int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 {
 	struct intel_display *display = to_intel_display(dev);
 	struct intel_atomic_state *state = to_intel_atomic_state(_state);
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
-	state->wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	state->wakeref = intel_display_rpm_get(display);
 
 	/*
 	 * The intel_legacy_cursor_update() fast path takes care
@@ -7552,7 +7552,7 @@ int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 	if (ret) {
 		drm_dbg_atomic(display->drm,
 			       "Preparing state failed with %i\n", ret);
-		intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
+		intel_display_rpm_put(display, state->wakeref);
 		return ret;
 	}
 
@@ -7562,7 +7562,7 @@ int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 
 	if (ret) {
 		drm_atomic_helper_unprepare_planes(dev, &state->base);
-		intel_runtime_pm_put(&dev_priv->runtime_pm, state->wakeref);
+		intel_display_rpm_put(display, state->wakeref);
 		return ret;
 	}
 

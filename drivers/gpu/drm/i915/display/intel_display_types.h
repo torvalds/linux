@@ -581,7 +581,7 @@ struct dpll {
 struct intel_atomic_state {
 	struct drm_atomic_state base;
 
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	struct __intel_global_objs_state *global_objs;
 	int num_global_objs;
