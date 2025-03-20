@@ -625,3 +625,9 @@ struct genl_family mptcp_genl_family __ro_after_init = {
 	.mcgrps		= mptcp_pm_mcgrps,
 	.n_mcgrps	= ARRAY_SIZE(mptcp_pm_mcgrps),
 };
+
+void __init mptcp_pm_nl_init(void)
+{
+	if (genl_register_family(&mptcp_genl_family))
+		panic("Failed to register MPTCP PM netlink family\n");
+}

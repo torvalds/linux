@@ -710,11 +710,10 @@ int mptcp_pm_nl_get_local_id(struct mptcp_sock *msk,
 		return ret;
 
 	/* address not found, add to local list */
-	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	entry = kmemdup(skc, sizeof(*skc), GFP_ATOMIC);
 	if (!entry)
 		return -ENOMEM;
 
-	*entry = *skc;
 	entry->addr.port = 0;
 	ret = mptcp_pm_nl_append_new_local_addr(pernet, entry, true, false);
 	if (ret < 0)
@@ -817,13 +816,12 @@ int mptcp_pm_nl_add_addr_doit(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL_ACCOUNT);
+	entry = kmemdup(&addr, sizeof(addr), GFP_KERNEL_ACCOUNT);
 	if (!entry) {
 		GENL_SET_ERR_MSG(info, "can't allocate addr");
 		return -ENOMEM;
 	}
 
-	*entry = addr;
 	if (entry->addr.port) {
 		ret = mptcp_pm_nl_create_listen_socket(skb->sk, entry);
 		if (ret) {
@@ -1400,11 +1398,15 @@ static struct pernet_operations mptcp_pm_pernet_ops = {
 	.size = sizeof(struct pm_nl_pernet),
 };
 
-void __init mptcp_pm_nl_init(void)
+struct mptcp_pm_ops mptcp_pm_kernel = {
+	.name			= "kernel",
+	.owner			= THIS_MODULE,
+};
+
+void __init mptcp_pm_kernel_register(void)
 {
 	if (register_pernet_subsys(&mptcp_pm_pernet_ops) < 0)
 		panic("Failed to register MPTCP PM pernet subsystem.\n");
 
-	if (genl_register_family(&mptcp_genl_family))
-		panic("Failed to register MPTCP PM netlink family\n");
+	mptcp_pm_register(&mptcp_pm_kernel);
 }
