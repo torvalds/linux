@@ -40,6 +40,13 @@ struct landlock_cred_security {
 	 * landlock_restrict_self(2)).
 	 */
 	u16 domain_exec;
+	/**
+	 * @log_subdomains_off: Set if the domain descendants's log_status should be
+	 * set to %LANDLOCK_LOG_DISABLED.  This is not a landlock_hierarchy
+	 * configuration because it applies to future descendant domains and it does
+	 * not require a current domain.
+	 */
+	u8 log_subdomains_off : 1;
 #endif /* CONFIG_AUDIT */
 } __packed;
 
