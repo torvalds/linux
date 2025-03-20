@@ -270,24 +270,15 @@ int bch2_bio_uncompress_inplace(struct bch_write_op *op,
 
 	if (crc->uncompressed_size << 9	> c->opts.encoded_extent_max ||
 	    crc->compressed_size << 9	> c->opts.encoded_extent_max) {
-		struct printbuf buf = PRINTBUF;
-		bch2_write_op_error(&buf, op, op->pos.offset,
-				    "extent too big to decompress");
-		bch_err_ratelimited(c, "%s", buf.buf);
-		printbuf_exit(&buf);
+		bch2_write_op_error(op, op->pos.offset, "extent too big to decompress");
 		return -EIO;
 	}
 
 	data = __bounce_alloc(c, dst_len, WRITE);
 
 	if (__bio_uncompress(c, bio, data.b, *crc)) {
-		if (!c->opts.no_data_io) {
-			struct printbuf buf = PRINTBUF;
-			bch2_write_op_error(&buf, op, op->pos.offset,
-					    "decompression error");
-			bch_err_ratelimited(c, "%s", buf.buf);
-			printbuf_exit(&buf);
-		}
+		if (!c->opts.no_data_io)
+			bch2_write_op_error(op, op->pos.offset, "decompression error");
 		ret = -EIO;
 		goto err;
 	}
