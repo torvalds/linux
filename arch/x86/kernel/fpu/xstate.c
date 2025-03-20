@@ -1107,10 +1107,9 @@ void __copy_xstate_to_uabi_buf(struct membuf to, struct fpstate *fpstate,
 	const unsigned int off_mxcsr = offsetof(struct fxregs_state, mxcsr);
 	struct xregs_state *xinit = &init_fpstate.regs.xsave;
 	struct xregs_state *xsave = &fpstate->regs.xsave;
+	unsigned int zerofrom, i, xfeature;
 	struct xstate_header header;
-	unsigned int zerofrom;
 	u64 mask;
-	int i;
 
 	memset(&header, 0, sizeof(header));
 	header.xfeatures = xsave->header.xfeatures;
@@ -1179,15 +1178,16 @@ void __copy_xstate_to_uabi_buf(struct membuf to, struct fpstate *fpstate,
 	 */
 	mask = header.xfeatures;
 
-	for_each_extended_xfeature(i, mask) {
+	for_each_extended_xfeature_in_order(i, mask) {
+		xfeature = xfeature_uncompact_order[i];
 		/*
 		 * If there was a feature or alignment gap, zero the space
 		 * in the destination buffer.
 		 */
-		if (zerofrom < xstate_offsets[i])
-			membuf_zero(&to, xstate_offsets[i] - zerofrom);
+		if (zerofrom < xstate_offsets[xfeature])
+			membuf_zero(&to, xstate_offsets[xfeature] - zerofrom);
 
-		if (i == XFEATURE_PKRU) {
+		if (xfeature == XFEATURE_PKRU) {
 			struct pkru_state pkru = {0};
 			/*
 			 * PKRU is not necessarily up to date in the
@@ -1197,14 +1197,14 @@ void __copy_xstate_to_uabi_buf(struct membuf to, struct fpstate *fpstate,
 			membuf_write(&to, &pkru, sizeof(pkru));
 		} else {
 			membuf_write(&to,
-				     __raw_xsave_addr(xsave, i),
-				     xstate_sizes[i]);
+				     __raw_xsave_addr(xsave, xfeature),
+				     xstate_sizes[xfeature]);
 		}
 		/*
 		 * Keep track of the last copied state in the non-compacted
 		 * target buffer for gap zeroing.
 		 */
-		zerofrom = xstate_offsets[i] + xstate_sizes[i];
+		zerofrom = xstate_offsets[xfeature] + xstate_sizes[xfeature];
 	}
 
 out:
