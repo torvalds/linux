@@ -413,7 +413,7 @@ static void *pidfd_info_thread_exec(void *arg)
 
 TEST_F(pidfd_info, thread_group_exec)
 {
-	pid_t pid_leader, pid_thread;
+	pid_t pid_leader, pid_poller, pid_thread;
 	pthread_t thread;
 	int nevents, pidfd_leader, pidfd_leader_thread, pidfd_thread, ret;
 	int ipc_sockets[2];
@@ -439,6 +439,37 @@ TEST_F(pidfd_info, thread_group_exec)
 		syscall(__NR_exit, EXIT_SUCCESS);
 	}
 
+	/* Open a thread-specific pidfd for the thread-group leader. */
+	pidfd_leader_thread = sys_pidfd_open(pid_leader, PIDFD_THREAD);
+	ASSERT_GE(pidfd_leader_thread, 0);
+
+	pid_poller = fork();
+	ASSERT_GE(pid_poller, 0);
+	if (pid_poller == 0) {
+		/*
+		 * We can't poll and wait for the old thread-group
+		 * leader to exit using a thread-specific pidfd. The
+		 * thread-group leader exited prematurely and
+		 * notification is delayed until all subthreads have
+		 * exited.
+		 *
+		 * When the thread has execed it will taken over the old
+		 * thread-group leaders struct pid. Calling poll after
+		 * the thread execed will thus block again because a new
+		 * thread-group has started.
+		 */
+		fds.events = POLLIN;
+		fds.fd = pidfd_leader_thread;
+		nevents = poll(&fds, 1, 10000 /* wait 5 seconds */);
+		if (nevents != 0)
+			_exit(EXIT_FAILURE);
+		if (fds.revents & POLLIN)
+			_exit(EXIT_FAILURE);
+		if (fds.revents & POLLHUP)
+			_exit(EXIT_FAILURE);
+		_exit(EXIT_SUCCESS);
+	}
+
 	/* Retrieve the tid of the thread. */
 	EXPECT_EQ(close(ipc_sockets[1]), 0);
 	ASSERT_EQ(read_nointr(ipc_sockets[0], &pid_thread, sizeof(pid_thread)), sizeof(pid_thread));
@@ -447,32 +478,11 @@ TEST_F(pidfd_info, thread_group_exec)
 	pidfd_thread = sys_pidfd_open(pid_thread, PIDFD_THREAD);
 	ASSERT_GE(pidfd_thread, 0);
 
-	/* Open a thread-specific pidfd for the thread-group leader. */
-	pidfd_leader_thread = sys_pidfd_open(pid_leader, PIDFD_THREAD);
-	ASSERT_GE(pidfd_leader_thread, 0);
-
-	/*
-	 * We can poll and wait for the old thread-group leader to exit
-	 * using a thread-specific pidfd.
-	 *
-	 * This only works until the thread has execed. When the thread
-	 * has execed it will have taken over the old thread-group
-	 * leaders struct pid. Calling poll after the thread execed will
-	 * thus block again because a new thread-group has started (Yes,
-	 * it's fscked.).
-	 */
-	fds.events = POLLIN;
-	fds.fd = pidfd_leader_thread;
-	nevents = poll(&fds, 1, -1);
-	ASSERT_EQ(nevents, 1);
-	/* The thread-group leader has exited. */
-	ASSERT_TRUE(!!(fds.revents & POLLIN));
-	/* The thread-group leader hasn't been reaped. */
-	ASSERT_FALSE(!!(fds.revents & POLLHUP));
-
 	/* Now that we've opened a thread-specific pidfd the thread can exec. */
 	ASSERT_EQ(write_nointr(ipc_sockets[0], &pid_thread, sizeof(pid_thread)), sizeof(pid_thread));
 	EXPECT_EQ(close(ipc_sockets[0]), 0);
+
+	ASSERT_EQ(wait_for_pid(pid_poller), 0);
 
 	/* Wait until the kernel has SIGKILLed the thread. */
 	fds.events = POLLHUP;
@@ -506,6 +516,20 @@ TEST_F(pidfd_info, thread_group_exec)
 
 	/* Take down the thread-group leader. */
 	EXPECT_EQ(sys_pidfd_send_signal(pidfd_leader, SIGKILL, NULL, 0), 0);
+
+	/*
+	 * Afte the exec we're dealing with an empty thread-group so now
+	 * we must see an exit notification on the thread-specific pidfd
+	 * for the thread-group leader as there's no subthread that can
+	 * revive the struct pid.
+	 */
+	fds.events = POLLIN;
+	fds.fd = pidfd_leader_thread;
+	nevents = poll(&fds, 1, -1);
+	ASSERT_EQ(nevents, 1);
+	ASSERT_TRUE(!!(fds.revents & POLLIN));
+	ASSERT_FALSE(!!(fds.revents & POLLHUP));
+
 	EXPECT_EQ(sys_waitid(P_PIDFD, pidfd_leader, NULL, WEXITED), 0);
 
 	/* Retrieve exit information for the thread-group leader. */
