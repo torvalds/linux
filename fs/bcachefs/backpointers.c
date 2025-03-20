@@ -50,6 +50,8 @@ void bch2_backpointer_to_text(struct printbuf *out, struct bch_fs *c, struct bke
 	}
 
 	bch2_btree_id_level_to_text(out, bp.v->btree_id, bp.v->level);
+	prt_str(out, " data_type=");
+	bch2_prt_data_type(out, bp.v->data_type);
 	prt_printf(out, " suboffset=%u len=%u gen=%u pos=",
 		   (u32) bp.k->p.offset & ~(~0U << MAX_EXTENT_COMPRESS_RATIO_SHIFT),
 		   bp.v->bucket_len,
@@ -791,6 +793,7 @@ static enum alloc_sector_counter data_type_to_alloc_counter(enum bch_data_type t
 	case BCH_DATA_cached:
 		return ALLOC_cached;
 	case BCH_DATA_stripe:
+	case BCH_DATA_parity:
 		return ALLOC_stripe;
 	default:
 		BUG();
