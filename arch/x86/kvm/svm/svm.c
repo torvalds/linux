@@ -3522,6 +3522,59 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	       "excp_from:", save->last_excp_from,
 	       "excp_to:", save->last_excp_to);
 
+	if (sev_es_guest(vcpu->kvm)) {
+		struct sev_es_save_area *vmsa = (struct sev_es_save_area *)save;
+
+		pr_err("%-15s %016llx\n",
+		       "sev_features", vmsa->sev_features);
+
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "rax:", vmsa->rax, "rbx:", vmsa->rbx);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "rcx:", vmsa->rcx, "rdx:", vmsa->rdx);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "rsi:", vmsa->rsi, "rdi:", vmsa->rdi);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "rbp:", vmsa->rbp, "rsp:", vmsa->rsp);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "r8:", vmsa->r8, "r9:", vmsa->r9);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "r10:", vmsa->r10, "r11:", vmsa->r11);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "r12:", vmsa->r12, "r13:", vmsa->r13);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "r14:", vmsa->r14, "r15:", vmsa->r15);
+		pr_err("%-15s %016llx %-13s %016llx\n",
+		       "xcr0:", vmsa->xcr0, "xss:", vmsa->xss);
+	} else {
+		pr_err("%-15s %016llx %-13s %016lx\n",
+		       "rax:", save->rax, "rbx:",
+		       vcpu->arch.regs[VCPU_REGS_RBX]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "rcx:", vcpu->arch.regs[VCPU_REGS_RCX],
+		       "rdx:", vcpu->arch.regs[VCPU_REGS_RDX]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "rsi:", vcpu->arch.regs[VCPU_REGS_RSI],
+		       "rdi:", vcpu->arch.regs[VCPU_REGS_RDI]);
+		pr_err("%-15s %016lx %-13s %016llx\n",
+		       "rbp:", vcpu->arch.regs[VCPU_REGS_RBP],
+		       "rsp:", save->rsp);
+#ifdef CONFIG_X86_64
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "r8:", vcpu->arch.regs[VCPU_REGS_R8],
+		       "r9:", vcpu->arch.regs[VCPU_REGS_R9]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "r10:", vcpu->arch.regs[VCPU_REGS_R10],
+		       "r11:", vcpu->arch.regs[VCPU_REGS_R11]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "r12:", vcpu->arch.regs[VCPU_REGS_R12],
+		       "r13:", vcpu->arch.regs[VCPU_REGS_R13]);
+		pr_err("%-15s %016lx %-13s %016lx\n",
+		       "r14:", vcpu->arch.regs[VCPU_REGS_R14],
+		       "r15:", vcpu->arch.regs[VCPU_REGS_R15]);
+#endif
+	}
+
 no_vmsa:
 	if (sev_es_guest(vcpu->kvm))
 		sev_free_decrypted_vmsa(vcpu, save);
