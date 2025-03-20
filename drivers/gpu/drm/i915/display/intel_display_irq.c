@@ -1900,7 +1900,7 @@ void vlv_display_irq_reset(struct intel_display *display)
 
 void i9xx_display_irq_reset(struct intel_display *display)
 {
-	if (I915_HAS_HOTPLUG(display)) {
+	if (HAS_HOTPLUG(display)) {
 		i915_hotplug_interrupt_update(display, 0xffffffff, 0);
 		intel_de_rmw(display, PORT_HOTPLUG_STAT(display), 0, 0);
 	}

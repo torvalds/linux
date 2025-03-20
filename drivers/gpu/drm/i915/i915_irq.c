@@ -954,7 +954,7 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 		enable_mask |= I915_ASLE_INTERRUPT;
 	}
 
-	if (I915_HAS_HOTPLUG(dev_priv)) {
+	if (HAS_HOTPLUG(dev_priv)) {
 		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
 		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 	}
@@ -995,7 +995,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 		ret = IRQ_HANDLED;
 
-		if (I915_HAS_HOTPLUG(dev_priv) &&
+		if (HAS_HOTPLUG(dev_priv) &&
 		    iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(display);
 

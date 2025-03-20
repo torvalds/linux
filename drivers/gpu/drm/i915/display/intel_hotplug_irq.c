@@ -1481,7 +1481,7 @@ void intel_hotplug_irq_init(struct intel_display *display)
 	intel_hpd_init_early(display);
 
 	if (HAS_GMCH(display)) {
-		if (I915_HAS_HOTPLUG(display))
+		if (HAS_HOTPLUG(display))
 			display->funcs.hotplug = &i915_hpd_funcs;
 	} else {
 		if (HAS_PCH_DG2(i915))

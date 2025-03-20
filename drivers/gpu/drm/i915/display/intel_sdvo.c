@@ -2036,7 +2036,7 @@ static u16 intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 	struct intel_display *display = to_intel_display(&intel_sdvo->base);
 	u16 hotplug;
 
-	if (!I915_HAS_HOTPLUG(display))
+	if (!HAS_HOTPLUG(display))
 		return 0;
 
 	/*
