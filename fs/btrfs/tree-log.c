@@ -6583,6 +6583,19 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		btrfs_log_get_delayed_items(inode, &delayed_ins_list,
 					    &delayed_del_list);
 
+	/*
+	 * If we are fsyncing a file with 0 hard links, then commit the delayed
+	 * inode because the last inode ref (or extref) item may still be in the
+	 * subvolume tree and if we log it the file will still exist after a log
+	 * replay. So commit the delayed inode to delete that last ref and we
+	 * skip logging it.
+	 */
+	if (inode->vfs_inode.i_nlink == 0) {
+		ret = btrfs_commit_inode_delayed_inode(inode);
+		if (ret)
+			goto out_unlock;
+	}
+
 	ret = copy_inode_items_to_log(trans, inode, &min_key, &max_key,
 				      path, dst_path, logged_isize,
 				      inode_only, ctx,
@@ -7051,14 +7064,9 @@ static int btrfs_log_inode_parent(struct btrfs_trans_handle *trans,
 	if (btrfs_root_generation(&root->root_item) == trans->transid)
 		return BTRFS_LOG_FORCE_COMMIT;
 
-	/*
-	 * Skip already logged inodes or inodes corresponding to tmpfiles
-	 * (since logging them is pointless, a link count of 0 means they
-	 * will never be accessible).
-	 */
-	if ((btrfs_inode_in_log(inode, trans->transid) &&
-	     list_empty(&ctx->ordered_extents)) ||
-	    inode->vfs_inode.i_nlink == 0)
+	/* Skip already logged inodes and without new extents. */
+	if (btrfs_inode_in_log(inode, trans->transid) &&
+	    list_empty(&ctx->ordered_extents))
 		return BTRFS_NO_LOG_SYNC;
 
 	ret = start_log_trans(trans, root, ctx);
