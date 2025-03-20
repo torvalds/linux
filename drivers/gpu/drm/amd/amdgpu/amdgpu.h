@@ -829,6 +829,10 @@ struct amdgpu_mqd {
 			struct amdgpu_mqd_prop *p);
 };
 
+struct amdgpu_pcie_reset_ctx {
+	bool audio_suspended;
+};
+
 /*
  * Custom Init levels could be defined for different situations where a full
  * initialization of all hardware blocks are not expected. Sample cases are
@@ -1158,6 +1162,8 @@ struct amdgpu_device {
 	bool                            no_hw_access;
 	struct pci_saved_state          *pci_state;
 	pci_channel_state_t		pci_channel_state;
+
+	struct amdgpu_pcie_reset_ctx	pcie_reset_ctx;
 
 	/* Track auto wait count on s_barrier settings */
 	bool				barrier_has_auto_waitcnt;

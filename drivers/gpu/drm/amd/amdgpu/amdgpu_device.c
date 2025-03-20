@@ -5930,94 +5930,40 @@ static int amdgpu_device_health_check(struct list_head *device_list_handle)
 	return ret;
 }
 
-/**
- * amdgpu_device_gpu_recover - reset the asic and recover scheduler
- *
- * @adev: amdgpu_device pointer
- * @job: which job trigger hang
- * @reset_context: amdgpu reset context pointer
- *
- * Attempt to reset the GPU if it has hung (all asics).
- * Attempt to do soft-reset or full-reset and reinitialize Asic
- * Returns 0 for success or an error on failure.
- */
-
-int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
+static int amdgpu_device_halt_activities(struct amdgpu_device *adev,
 			      struct amdgpu_job *job,
-			      struct amdgpu_reset_context *reset_context)
+			      struct amdgpu_reset_context *reset_context,
+			      struct list_head *device_list,
+			      struct amdgpu_hive_info *hive,
+			      bool need_emergency_restart)
 {
-	struct list_head device_list, *device_list_handle =  NULL;
-	bool job_signaled = false;
-	struct amdgpu_hive_info *hive = NULL;
+	struct list_head *device_list_handle =  NULL;
 	struct amdgpu_device *tmp_adev = NULL;
 	int i, r = 0;
-	bool need_emergency_restart = false;
-	bool audio_suspended = false;
-	int retry_limit = AMDGPU_MAX_RETRY_LIMIT;
 
-	/*
-	 * If it reaches here because of hang/timeout and a RAS error is
-	 * detected at the same time, let RAS recovery take care of it.
-	 */
-	if (amdgpu_ras_is_err_state(adev, AMDGPU_RAS_BLOCK__ANY) &&
-	    !amdgpu_sriov_vf(adev) &&
-	    reset_context->src != AMDGPU_RESET_SRC_RAS) {
-		dev_dbg(adev->dev,
-			"Gpu recovery from source: %d yielding to RAS error recovery handling",
-			reset_context->src);
-		return 0;
-	}
-	/*
-	 * Special case: RAS triggered and full reset isn't supported
-	 */
-	need_emergency_restart = amdgpu_ras_need_emergency_restart(adev);
-
-	/*
-	 * Flush RAM to disk so that after reboot
-	 * the user can read log and see why the system rebooted.
-	 */
-	if (need_emergency_restart && amdgpu_ras_get_context(adev) &&
-		amdgpu_ras_get_context(adev)->reboot) {
-		DRM_WARN("Emergency reboot.");
-
-		ksys_sync_helper();
-		emergency_restart();
-	}
-
-	dev_info(adev->dev, "GPU %s begin!\n",
-		need_emergency_restart ? "jobs stop":"reset");
-
-	if (!amdgpu_sriov_vf(adev))
-		hive = amdgpu_get_xgmi_hive(adev);
-	if (hive)
-		mutex_lock(&hive->hive_lock);
-
-	reset_context->job = job;
-	reset_context->hive = hive;
 	/*
 	 * Build list of devices to reset.
 	 * In case we are in XGMI hive mode, resort the device list
 	 * to put adev in the 1st position.
 	 */
-	INIT_LIST_HEAD(&device_list);
 	if (!amdgpu_sriov_vf(adev) && (adev->gmc.xgmi.num_physical_nodes > 1) && hive) {
 		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
-			list_add_tail(&tmp_adev->reset_list, &device_list);
+			list_add_tail(&tmp_adev->reset_list, device_list);
 			if (adev->shutdown)
 				tmp_adev->shutdown = true;
 		}
-		if (!list_is_first(&adev->reset_list, &device_list))
-			list_rotate_to_front(&adev->reset_list, &device_list);
-		device_list_handle = &device_list;
+		if (!list_is_first(&adev->reset_list, device_list))
+			list_rotate_to_front(&adev->reset_list, device_list);
+		device_list_handle = device_list;
 	} else {
-		list_add_tail(&adev->reset_list, &device_list);
-		device_list_handle = &device_list;
+		list_add_tail(&adev->reset_list, device_list);
+		device_list_handle = device_list;
 	}
 
 	if (!amdgpu_sriov_vf(adev)) {
 		r = amdgpu_device_health_check(device_list_handle);
 		if (r)
-			goto end_reset;
+			return r;
 	}
 
 	/* We need to lock reset domain only once both for XGMI and single device */
@@ -6041,7 +5987,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		 * some audio codec errors.
 		 */
 		if (!amdgpu_device_suspend_display_audio(tmp_adev))
-			audio_suspended = true;
+			tmp_adev->pcie_reset_ctx.audio_suspended = true;
 
 		amdgpu_ras_set_error_query_ready(tmp_adev, false);
 
@@ -6076,23 +6022,19 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		atomic_inc(&tmp_adev->gpu_reset_counter);
 	}
 
-	if (need_emergency_restart)
-		goto skip_sched_resume;
+	return r;
+}
 
-	/*
-	 * Must check guilty signal here since after this point all old
-	 * HW fences are force signaled.
-	 *
-	 * job->base holds a reference to parent fence
-	 */
-	if (job && dma_fence_is_signaled(&job->hw_fence)) {
-		job_signaled = true;
-		dev_info(adev->dev, "Guilty job already signaled, skipping HW reset");
-		goto skip_hw_reset;
-	}
+static int amdgpu_device_asic_reset(struct amdgpu_device *adev,
+			      struct list_head *device_list,
+			      struct amdgpu_reset_context *reset_context)
+{
+	struct amdgpu_device *tmp_adev = NULL;
+	int retry_limit = AMDGPU_MAX_RETRY_LIMIT;
+	int r = 0;
 
 retry:	/* Rest of adevs pre asic reset from XGMI hive. */
-	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
+	list_for_each_entry(tmp_adev, device_list, reset_list) {
 		r = amdgpu_device_pre_asic_reset(tmp_adev, reset_context);
 		/*TODO Should we stop ?*/
 		if (r) {
@@ -6119,12 +6061,12 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		if (r)
 			adev->asic_reset_res = r;
 	} else {
-		r = amdgpu_do_asic_reset(device_list_handle, reset_context);
+		r = amdgpu_do_asic_reset(device_list, reset_context);
 		if (r && r == -EAGAIN)
 			goto retry;
 	}
 
-	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
+	list_for_each_entry(tmp_adev, device_list, reset_list) {
 		/*
 		 * Drop any pending non scheduler resets queued before reset is done.
 		 * Any reset scheduled after this point would be valid. Scheduler resets
@@ -6134,10 +6076,18 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		amdgpu_device_stop_pending_resets(tmp_adev);
 	}
 
-skip_hw_reset:
+	return r;
+}
+
+static int amdgpu_device_sched_resume(struct list_head *device_list,
+			      struct amdgpu_reset_context *reset_context,
+			      bool   job_signaled)
+{
+	struct amdgpu_device *tmp_adev = NULL;
+	int i, r = 0;
 
 	/* Post ASIC reset for all devs .*/
-	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
+	list_for_each_entry(tmp_adev, device_list, reset_list) {
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
@@ -6173,8 +6123,16 @@ skip_hw_reset:
 		}
 	}
 
-skip_sched_resume:
-	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
+	return r;
+}
+
+static void amdgpu_device_gpu_resume(struct amdgpu_device *adev,
+			      struct list_head *device_list,
+			      bool   need_emergency_restart)
+{
+	struct amdgpu_device *tmp_adev = NULL;
+
+	list_for_each_entry(tmp_adev, device_list, reset_list) {
 		/* unlock kfd: SRIOV would do it separately */
 		if (!need_emergency_restart && !amdgpu_sriov_vf(tmp_adev))
 			amdgpu_amdkfd_post_reset(tmp_adev);
@@ -6185,18 +6143,114 @@ skip_sched_resume:
 		if (!adev->kfd.init_complete)
 			amdgpu_amdkfd_device_init(adev);
 
-		if (audio_suspended)
+		if (tmp_adev->pcie_reset_ctx.audio_suspended)
 			amdgpu_device_resume_display_audio(tmp_adev);
 
 		amdgpu_device_unset_mp1_state(tmp_adev);
 
 		amdgpu_ras_set_error_query_ready(tmp_adev, true);
+
 	}
 
-	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
+	tmp_adev = list_first_entry(device_list, struct amdgpu_device,
 					    reset_list);
 	amdgpu_device_unlock_reset_domain(tmp_adev->reset_domain);
 
+}
+
+
+/**
+ * amdgpu_device_gpu_recover - reset the asic and recover scheduler
+ *
+ * @adev: amdgpu_device pointer
+ * @job: which job trigger hang
+ * @reset_context: amdgpu reset context pointer
+ *
+ * Attempt to reset the GPU if it has hung (all asics).
+ * Attempt to do soft-reset or full-reset and reinitialize Asic
+ * Returns 0 for success or an error on failure.
+ */
+
+int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
+			      struct amdgpu_job *job,
+			      struct amdgpu_reset_context *reset_context)
+{
+	struct list_head device_list;
+	bool job_signaled = false;
+	struct amdgpu_hive_info *hive = NULL;
+	int r = 0;
+	bool need_emergency_restart = false;
+
+	/*
+	 * If it reaches here because of hang/timeout and a RAS error is
+	 * detected at the same time, let RAS recovery take care of it.
+	 */
+	if (amdgpu_ras_is_err_state(adev, AMDGPU_RAS_BLOCK__ANY) &&
+	    !amdgpu_sriov_vf(adev) &&
+	    reset_context->src != AMDGPU_RESET_SRC_RAS) {
+		dev_dbg(adev->dev,
+			"Gpu recovery from source: %d yielding to RAS error recovery handling",
+			reset_context->src);
+		return 0;
+	}
+
+	/*
+	 * Special case: RAS triggered and full reset isn't supported
+	 */
+	need_emergency_restart = amdgpu_ras_need_emergency_restart(adev);
+
+	/*
+	 * Flush RAM to disk so that after reboot
+	 * the user can read log and see why the system rebooted.
+	 */
+	if (need_emergency_restart && amdgpu_ras_get_context(adev) &&
+		amdgpu_ras_get_context(adev)->reboot) {
+		DRM_WARN("Emergency reboot.");
+
+		ksys_sync_helper();
+		emergency_restart();
+	}
+
+	dev_info(adev->dev, "GPU %s begin!\n",
+		need_emergency_restart ? "jobs stop":"reset");
+
+	if (!amdgpu_sriov_vf(adev))
+		hive = amdgpu_get_xgmi_hive(adev);
+	if (hive)
+		mutex_lock(&hive->hive_lock);
+
+	reset_context->job = job;
+	reset_context->hive = hive;
+	INIT_LIST_HEAD(&device_list);
+
+	r = amdgpu_device_halt_activities(adev, job, reset_context, &device_list,
+					 hive, need_emergency_restart);
+	if (r)
+		goto end_reset;
+
+	if (need_emergency_restart)
+		goto skip_sched_resume;
+	/*
+	 * Must check guilty signal here since after this point all old
+	 * HW fences are force signaled.
+	 *
+	 * job->base holds a reference to parent fence
+	 */
+	if (job && dma_fence_is_signaled(&job->hw_fence)) {
+		job_signaled = true;
+		dev_info(adev->dev, "Guilty job already signaled, skipping HW reset");
+		goto skip_hw_reset;
+	}
+
+	r = amdgpu_device_asic_reset(adev, &device_list, reset_context);
+	if (r)
+		goto end_reset;
+skip_hw_reset:
+	r = amdgpu_device_sched_resume(&device_list, reset_context, job_signaled);
+	if (r)
+		goto end_reset;
+skip_sched_resume:
+	amdgpu_device_gpu_resume(adev, &device_list, need_emergency_restart);
 end_reset:
 	if (hive) {
 		mutex_unlock(&hive->hive_lock);
