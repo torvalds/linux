@@ -3408,8 +3408,8 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 		  sev_es_guest(vcpu->kvm) ? "SEV-ES" :
 		  sev_guest(vcpu->kvm) ? "SEV" : "SVM";
 
-	pr_err("%s VMCB %p, last attempted VMRUN on CPU %d\n",
-	       vm_type, svm->current_vmcb->ptr, vcpu->arch.last_vmentry_cpu);
+	pr_err("%s vCPU%u VMCB %p, last attempted VMRUN on CPU %d\n",
+	       vm_type, vcpu->vcpu_id, svm->current_vmcb->ptr, vcpu->arch.last_vmentry_cpu);
 	pr_err("VMCB Control Area:\n");
 	pr_err("%-20s%04x\n", "cr_read:", control->intercepts[INTERCEPT_CR] & 0xffff);
 	pr_err("%-20s%04x\n", "cr_write:", control->intercepts[INTERCEPT_CR] >> 16);
