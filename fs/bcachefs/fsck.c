@@ -2072,7 +2072,7 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 			goto err;
 	}
 
-	ret = bch2_check_dirent_target(trans, iter, d, &subvol_root);
+	ret = bch2_check_dirent_target(trans, iter, d, &subvol_root, true);
 	if (ret)
 		goto err;
 out:
@@ -2165,7 +2165,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		}
 
 		darray_for_each(target->inodes, i) {
-			ret = bch2_check_dirent_target(trans, iter, d, &i->inode);
+			ret = bch2_check_dirent_target(trans, iter, d, &i->inode, true);
 			if (ret)
 				goto err;
 		}

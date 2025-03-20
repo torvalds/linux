@@ -659,17 +659,10 @@ disconnected:
 
 /* fsck */
 
-static bool inode_points_to_dirent(struct bch_inode_unpacked *inode,
-				   struct bkey_s_c_dirent d)
-{
-	return  inode->bi_dir		== d.k->p.inode &&
-		inode->bi_dir_offset	== d.k->p.offset;
-}
-
 static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
-				   struct btree_iter *iter,
-				   struct bkey_s_c_dirent d,
-				   struct bch_inode_unpacked *target)
+					  struct bkey_s_c_dirent d,
+					  struct bch_inode_unpacked *target,
+					  bool in_fsck)
 {
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
@@ -725,52 +718,65 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 	bool backpointer_exists = !ret;
 	ret = 0;
 
-	if (fsck_err_on(!backpointer_exists,
-			trans, inode_wrong_backpointer,
-			"inode %llu:%u has wrong backpointer:\n"
-			"got       %llu:%llu\n"
-			"should be %llu:%llu",
-			target->bi_inum, target->bi_snapshot,
-			target->bi_dir,
-			target->bi_dir_offset,
-			d.k->p.inode,
-			d.k->p.offset)) {
-		target->bi_dir		= d.k->p.inode;
-		target->bi_dir_offset	= d.k->p.offset;
-		ret = __bch2_fsck_write_inode(trans, target);
-		goto out;
-	}
-
-	bch2_bkey_val_to_text(&buf, c, d.s_c);
-	prt_newline(&buf);
-	if (backpointer_exists)
+	if (!backpointer_exists) {
+		if (fsck_err(trans, inode_wrong_backpointer,
+			     "inode %llu:%u has wrong backpointer:\n"
+			     "got       %llu:%llu\n"
+			     "should be %llu:%llu",
+			     target->bi_inum, target->bi_snapshot,
+			     target->bi_dir,
+			     target->bi_dir_offset,
+			     d.k->p.inode,
+			     d.k->p.offset)) {
+			target->bi_dir		= d.k->p.inode;
+			target->bi_dir_offset	= d.k->p.offset;
+			ret = __bch2_fsck_write_inode(trans, target);
+		}
+	} else {
+		bch2_bkey_val_to_text(&buf, c, d.s_c);
+		prt_newline(&buf);
 		bch2_bkey_val_to_text(&buf, c, bp_dirent.s_c);
 
-	if (fsck_err_on(backpointer_exists &&
-			(S_ISDIR(target->bi_mode) ||
-			 target->bi_subvol),
-			trans, inode_dir_multiple_links,
-			"%s %llu:%u with multiple links\n%s",
-			S_ISDIR(target->bi_mode) ? "directory" : "subvolume",
-			target->bi_inum, target->bi_snapshot, buf.buf)) {
-		ret = bch2_fsck_remove_dirent(trans, d.k->p);
-		goto out;
-	}
+		if (S_ISDIR(target->bi_mode) || target->bi_subvol) {
+			/*
+			 * XXX: verify connectivity of the other dirent
+			 * up to the root before removing this one
+			 *
+			 * Additionally, bch2_lookup would need to cope with the
+			 * dirent it found being removed - or should we remove
+			 * the other one, even though the inode points to it?
+			 */
+			if (in_fsck) {
+				if (fsck_err(trans, inode_dir_multiple_links,
+					     "%s %llu:%u with multiple links\n%s",
+					     S_ISDIR(target->bi_mode) ? "directory" : "subvolume",
+					     target->bi_inum, target->bi_snapshot, buf.buf))
+					ret = bch2_fsck_remove_dirent(trans, d.k->p);
+			} else {
+				bch2_fs_inconsistent(c,
+						"%s %llu:%u with multiple links\n%s",
+						S_ISDIR(target->bi_mode) ? "directory" : "subvolume",
+						target->bi_inum, target->bi_snapshot, buf.buf);
+			}
 
-	/*
-	 * hardlinked file with nlink 0:
-	 * We're just adjusting nlink here so check_nlinks() will pick
-	 * it up, it ignores inodes with nlink 0
-	 */
-	if (fsck_err_on(backpointer_exists && !target->bi_nlink,
-			trans, inode_multiple_links_but_nlink_0,
-			"inode %llu:%u type %s has multiple links but i_nlink 0\n%s",
-			target->bi_inum, target->bi_snapshot, bch2_d_types[d.v->d_type], buf.buf)) {
-		target->bi_nlink++;
-		target->bi_flags &= ~BCH_INODE_unlinked;
-		ret = __bch2_fsck_write_inode(trans, target);
-		if (ret)
-			goto err;
+			goto out;
+		} else {
+			/*
+			 * hardlinked file with nlink 0:
+			 * We're just adjusting nlink here so check_nlinks() will pick
+			 * it up, it ignores inodes with nlink 0
+			 */
+			if (fsck_err_on(!target->bi_nlink,
+					trans, inode_multiple_links_but_nlink_0,
+					"inode %llu:%u type %s has multiple links but i_nlink 0\n%s",
+					target->bi_inum, target->bi_snapshot, bch2_d_types[d.v->d_type], buf.buf)) {
+				target->bi_nlink++;
+				target->bi_flags &= ~BCH_INODE_unlinked;
+				ret = __bch2_fsck_write_inode(trans, target);
+				if (ret)
+					goto err;
+			}
+		}
 	}
 out:
 err:
@@ -781,16 +787,17 @@ fsck_err:
 	return ret;
 }
 
-int bch2_check_dirent_target(struct btree_trans *trans,
-			     struct btree_iter *iter,
-			     struct bkey_s_c_dirent d,
-			     struct bch_inode_unpacked *target)
+int __bch2_check_dirent_target(struct btree_trans *trans,
+			       struct btree_iter *dirent_iter,
+			       struct bkey_s_c_dirent d,
+			       struct bch_inode_unpacked *target,
+			       bool in_fsck)
 {
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	ret = bch2_check_dirent_inode_dirent(trans, iter, d, target);
+	ret = bch2_check_dirent_inode_dirent(trans, d, target, in_fsck);
 	if (ret)
 		goto err;
 
@@ -815,11 +822,9 @@ int bch2_check_dirent_target(struct btree_trans *trans,
 			n->v.d_inum = cpu_to_le64(target->bi_inum);
 		}
 
-		ret = bch2_trans_update(trans, iter, &n->k_i, 0);
+		ret = bch2_trans_update(trans, dirent_iter, &n->k_i, 0);
 		if (ret)
 			goto err;
-
-		d = dirent_i_to_s_c(n);
 	}
 err:
 fsck_err:
