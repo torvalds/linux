@@ -19294,8 +19294,7 @@ F:	fs/qnx6/
 F:	include/linux/qnx6_fs.h
 
 QORIQ DPAA2 FSL-MC BUS DRIVER
-M:	Stuart Yoder <stuyoder@gmail.com>
-M:	Laurentiu Tudor <laurentiu.tudor@nxp.com>
+M:	Ioana Ciornei <ioana.ciornei@nxp.com>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/stable/sysfs-bus-fsl-mc
