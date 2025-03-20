@@ -229,11 +229,13 @@ void xe_display_driver_remove(struct xe_device *xe)
 
 void xe_display_irq_handler(struct xe_device *xe, u32 master_ctl)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
 	if (master_ctl & DISPLAY_IRQ)
-		gen11_display_irq_handler(xe);
+		gen11_display_irq_handler(display);
 }
 
 void xe_display_irq_enable(struct xe_device *xe, u32 gu_misc_iir)
@@ -249,19 +251,23 @@ void xe_display_irq_enable(struct xe_device *xe, u32 gu_misc_iir)
 
 void xe_display_irq_reset(struct xe_device *xe)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
-	gen11_display_irq_reset(xe);
+	gen11_display_irq_reset(display);
 }
 
 void xe_display_irq_postinstall(struct xe_device *xe, struct xe_gt *gt)
 {
+	struct intel_display *display = &xe->display;
+
 	if (!xe->info.probe_display)
 		return;
 
 	if (gt->info.id == XE_GT0)
-		gen11_de_irq_postinstall(xe);
+		gen11_de_irq_postinstall(display);
 }
 
 static bool suspend_to_idle(void)

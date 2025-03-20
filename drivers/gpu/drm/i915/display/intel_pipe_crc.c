@@ -281,6 +281,7 @@ static int ilk_pipe_crc_ctl_reg(enum intel_pipe_crc_source *source,
 static void
 intel_crtc_crc_setup_workarounds(struct intel_crtc *crtc, bool enable)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *pipe_config;
 	struct drm_atomic_state *state;
@@ -288,7 +289,7 @@ intel_crtc_crc_setup_workarounds(struct intel_crtc *crtc, bool enable)
 	int ret;
 
 	if (IS_I945GM(dev_priv) || IS_I915GM(dev_priv))
-		i915gm_irq_cstate_wa(dev_priv, enable);
+		i915gm_irq_cstate_wa(display, enable);
 
 	drm_modeset_acquire_init(&ctx, 0);
 

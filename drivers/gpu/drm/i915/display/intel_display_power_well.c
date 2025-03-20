@@ -186,22 +186,18 @@ int intel_power_well_refcount(struct i915_power_well *power_well)
 static void hsw_power_well_post_enable(struct intel_display *display,
 				       u8 irq_pipe_mask, bool has_vga)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (has_vga)
 		intel_vga_reset_io_mem(display);
 
 	if (irq_pipe_mask)
-		gen8_irq_power_well_post_enable(dev_priv, irq_pipe_mask);
+		gen8_irq_power_well_post_enable(display, irq_pipe_mask);
 }
 
 static void hsw_power_well_pre_disable(struct intel_display *display,
 				       u8 irq_pipe_mask)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
 	if (irq_pipe_mask)
-		gen8_irq_power_well_pre_disable(dev_priv, irq_pipe_mask);
+		gen8_irq_power_well_pre_disable(display, irq_pipe_mask);
 }
 
 #define ICL_AUX_PW_TO_PHY(pw_idx)	\
@@ -1226,7 +1222,7 @@ static void vlv_display_power_well_init(struct intel_display *display)
 	vlv_init_display_clock_gating(display);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	valleyview_enable_display_irqs(dev_priv);
+	valleyview_enable_display_irqs(display);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/*
@@ -1255,7 +1251,7 @@ static void vlv_display_power_well_deinit(struct intel_display *display)
 	struct drm_i915_private *dev_priv = to_i915(display->drm);
 
 	spin_lock_irq(&dev_priv->irq_lock);
-	valleyview_disable_display_irqs(dev_priv);
+	valleyview_disable_display_irqs(display);
 	spin_unlock_irq(&dev_priv->irq_lock);
 
 	/* make sure we're done processing display irqs */

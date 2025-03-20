@@ -758,13 +758,12 @@ static void ibx_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void ibx_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 hotplug_irqs, enabled_irqs;
 
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.pch_hpd);
 	hotplug_irqs = intel_hpd_hotplug_irqs(display, display->hotplug.pch_hpd);
 
-	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
+	ibx_display_interrupt_update(display, hotplug_irqs, enabled_irqs);
 
 	ibx_hpd_detection_setup(display);
 }
@@ -847,7 +846,6 @@ static void icp_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void icp_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 hotplug_irqs, enabled_irqs;
 
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.pch_hpd);
@@ -859,7 +857,7 @@ static void icp_hpd_irq_setup(struct intel_display *display)
 	 */
 	intel_de_write(display, SHPD_FILTER_CNT, SHPD_FILTER_CNT_250);
 
-	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
+	ibx_display_interrupt_update(display, hotplug_irqs, enabled_irqs);
 
 	icp_ddi_hpd_detection_setup(display);
 	icp_tc_hpd_detection_setup(display);
@@ -1061,7 +1059,6 @@ static void mtp_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void mtp_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 hotplug_irqs, enabled_irqs;
 
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.pch_hpd);
@@ -1074,7 +1071,7 @@ static void mtp_hpd_irq_setup(struct intel_display *display)
 	intel_de_write(display, SHPD_FILTER_CNT, SHPD_FILTER_CNT_250);
 
 	mtp_hpd_invert(display);
-	ibx_display_interrupt_update(i915, hotplug_irqs, enabled_irqs);
+	ibx_display_interrupt_update(display, hotplug_irqs, enabled_irqs);
 
 	mtp_ddi_hpd_detection_setup(display);
 	mtp_tc_hpd_detection_setup(display);
@@ -1082,13 +1079,12 @@ static void mtp_hpd_irq_setup(struct intel_display *display)
 
 static void xe2lpd_sde_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 hotplug_irqs, enabled_irqs;
 
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.pch_hpd);
 	hotplug_irqs = intel_hpd_hotplug_irqs(display, display->hotplug.pch_hpd);
 
-	ibx_display_interrupt_update(i915, hotplug_irqs, enabled_irqs);
+	ibx_display_interrupt_update(display, hotplug_irqs, enabled_irqs);
 
 	mtp_ddi_hpd_detection_setup(display);
 	mtp_tc_hpd_detection_setup(display);
@@ -1248,7 +1244,7 @@ static void spt_hpd_irq_setup(struct intel_display *display)
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.pch_hpd);
 	hotplug_irqs = intel_hpd_hotplug_irqs(display, display->hotplug.pch_hpd);
 
-	ibx_display_interrupt_update(dev_priv, hotplug_irqs, enabled_irqs);
+	ibx_display_interrupt_update(display, hotplug_irqs, enabled_irqs);
 
 	spt_hpd_detection_setup(display);
 }
@@ -1300,16 +1296,15 @@ static void ilk_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void ilk_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 hotplug_irqs, enabled_irqs;
 
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.hpd);
 	hotplug_irqs = intel_hpd_hotplug_irqs(display, display->hotplug.hpd);
 
 	if (DISPLAY_VER(display) >= 8)
-		bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
+		bdw_update_port_irq(display, hotplug_irqs, enabled_irqs);
 	else
-		ilk_update_display_irq(dev_priv, hotplug_irqs, enabled_irqs);
+		ilk_update_display_irq(display, hotplug_irqs, enabled_irqs);
 
 	ilk_hpd_detection_setup(display);
 
@@ -1373,13 +1368,12 @@ static void bxt_hpd_enable_detection(struct intel_encoder *encoder)
 
 static void bxt_hpd_irq_setup(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u32 hotplug_irqs, enabled_irqs;
 
 	enabled_irqs = intel_hpd_enabled_irqs(display, display->hotplug.hpd);
 	hotplug_irqs = intel_hpd_hotplug_irqs(display, display->hotplug.hpd);
 
-	bdw_update_port_irq(dev_priv, hotplug_irqs, enabled_irqs);
+	bdw_update_port_irq(display, hotplug_irqs, enabled_irqs);
 
 	bxt_hpd_detection_setup(display);
 }
