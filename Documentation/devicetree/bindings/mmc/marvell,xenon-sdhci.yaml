@@ -52,7 +52,12 @@ properties:
       - const: core
       - const: axi
 
+  dma-coherent: true
+
   interrupts:
+    maxItems: 1
+
+  iommus:
     maxItems: 1
 
   marvell,pad-type:
