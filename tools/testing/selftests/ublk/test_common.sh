@@ -64,7 +64,7 @@ _check_root() {
 
 _remove_ublk_devices() {
 	${UBLK_PROG} del -a
-	modprobe -r ublk_drv
+	modprobe -r ublk_drv > /dev/null 2>&1
 }
 
 _get_ublk_dev_state() {
@@ -79,7 +79,7 @@ _prep_test() {
 	_check_root
 	local type=$1
 	shift 1
-	modprobe ublk_drv
+	modprobe ublk_drv > /dev/null 2>&1
 	[ "$UBLK_TEST_QUIET" -eq 0 ] && echo "ublk $type: $*"
 }
 
