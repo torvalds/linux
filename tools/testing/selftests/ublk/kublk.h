@@ -21,6 +21,7 @@
 #include <sys/eventfd.h>
 #include <liburing.h>
 #include <linux/ublk_cmd.h>
+#include "ublk_dep.h"
 
 #define __maybe_unused __attribute__((unused))
 #define MAX_BACK_FILES   4
