@@ -1115,14 +1115,10 @@ static void npcm_i2c_master_abort(struct npcm_i2c *bus)
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
 static u8 npcm_i2c_get_slave_addr(struct npcm_i2c *bus, enum i2c_addr addr_type)
 {
-	u8 slave_add;
-
 	if (addr_type > I2C_SLAVE_ADDR2 && addr_type <= I2C_SLAVE_ADDR10)
 		dev_err(bus->dev, "get slave: try to use more than 2 SA not supported\n");
 
-	slave_add = ioread8(bus->reg + npcm_i2caddr[(int)addr_type]);
-
-	return slave_add;
+	return ioread8(bus->reg + npcm_i2caddr[addr_type]);
 }
 
 static int npcm_i2c_remove_slave_addr(struct npcm_i2c *bus, u8 slave_add)
