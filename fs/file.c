@@ -621,22 +621,14 @@ void put_unused_fd(unsigned int fd)
 
 EXPORT_SYMBOL(put_unused_fd);
 
-/*
- * Install a file pointer in the fd array.
- *
- * The VFS is full of places where we drop the files lock between
- * setting the open_fds bitmap and installing the file in the file
- * array.  At any such point, we are vulnerable to a dup2() race
- * installing a file in the array before us.  We need to detect this and
- * fput() the struct file we are about to overwrite in this case.
- *
- * It should never happen - if we allow dup2() do it, _really_ bad things
- * will follow.
+/**
+ * fd_install - install a file pointer in the fd array
+ * @fd: file descriptor to install the file in
+ * @file: the file to install
  *
  * This consumes the "file" refcount, so callers should treat it
  * as if they had called fput(file).
  */
-
 void fd_install(unsigned int fd, struct file *file)
 {
 	struct files_struct *files = current->files;
@@ -1249,8 +1241,28 @@ __releases(&files->file_lock)
 	struct fdtable *fdt;
 
 	/*
-	 * We need to detect attempts to do dup2() over allocated but still
-	 * not finished descriptor.
+	 * dup2() is expected to close the file installed in the target fd slot
+	 * (if any). However, userspace hand-picking a fd may be racing against
+	 * its own threads which happened to allocate it in open() et al but did
+	 * not populate it yet.
+	 *
+	 * Broadly speaking we may be racing against the following:
+	 * fd = get_unused_fd_flags();     // fd slot reserved, ->fd[fd] == NULL
+	 * file = hard_work_goes_here();
+	 * fd_install(fd, file);           // only now ->fd[fd] == file
+	 *
+	 * It is an invariant that a successfully allocated fd has a NULL entry
+	 * in the array until the matching fd_install().
+	 *
+	 * If we fit the window, we have the fd to populate, yet no target file
+	 * to close. Trying to ignore it and install our new file would violate
+	 * the invariant and make fd_install() overwrite our file.
+	 *
+	 * Things can be done(tm) to handle this. However, the issue does not
+	 * concern legitimate programs and we only need to make sure the kernel
+	 * does not trip over it.
+	 *
+	 * The simplest way out is to return an error if we find ourselves here.
 	 *
 	 * POSIX is silent on the issue, we return -EBUSY.
 	 */
