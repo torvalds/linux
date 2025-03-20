@@ -1300,8 +1300,8 @@ again:
 	}
 
 	if (set && unlikely(set(inode, data))) {
-		inode = NULL;
-		goto unlock;
+		spin_unlock(&inode_hash_lock);
+		return NULL;
 	}
 
 	/*
@@ -1313,14 +1313,14 @@ again:
 	hlist_add_head_rcu(&inode->i_hash, head);
 	spin_unlock(&inode->i_lock);
 
+	spin_unlock(&inode_hash_lock);
+
 	/*
 	 * Add inode to the sb list if it's not already. It has I_NEW at this
 	 * point, so it should be safe to test i_sb_list locklessly.
 	 */
 	if (list_empty(&inode->i_sb_list))
 		inode_sb_list_add(inode);
-unlock:
-	spin_unlock(&inode_hash_lock);
 
 	return inode;
 }
@@ -1449,8 +1449,8 @@ again:
 			inode->i_state = I_NEW;
 			hlist_add_head_rcu(&inode->i_hash, head);
 			spin_unlock(&inode->i_lock);
-			inode_sb_list_add(inode);
 			spin_unlock(&inode_hash_lock);
+			inode_sb_list_add(inode);
 
 			/* Return the locked inode with I_NEW set, the
 			 * caller is responsible for filling in the contents
