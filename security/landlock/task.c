@@ -302,22 +302,29 @@ static int hook_task_kill(struct task_struct *const p,
 static int hook_file_send_sigiotask(struct task_struct *tsk,
 				    struct fown_struct *fown, int signum)
 {
-	const struct landlock_ruleset *dom;
+	const struct landlock_cred_security *subject;
 	bool is_scoped = false;
 
 	/* Lock already held by send_sigio() and send_sigurg(). */
 	lockdep_assert_held(&fown->lock);
-	dom = landlock_get_applicable_domain(
-		landlock_file(fown->file)->fown_domain, signal_scope);
+	subject = &landlock_file(fown->file)->fown_subject;
 
-	/* Quick return for unowned socket. */
-	if (!dom)
+	/*
+	 * Quick return for unowned socket.
+	 *
+	 * subject->domain has already been filtered when saved by
+	 * hook_file_set_fowner(), so there is no need to call
+	 * landlock_get_applicable_subject() here.
+	 */
+	if (!subject->domain)
 		return 0;
 
-	rcu_read_lock();
-	is_scoped = domain_is_scoped(dom, landlock_get_task_domain(tsk),
-				     LANDLOCK_SCOPE_SIGNAL);
-	rcu_read_unlock();
+	scoped_guard(rcu)
+	{
+		is_scoped = domain_is_scoped(subject->domain,
+					     landlock_get_task_domain(tsk),
+					     signal_scope.scope);
+	}
 	if (is_scoped)
 		return -EPERM;
 
