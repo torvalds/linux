@@ -36,10 +36,17 @@ struct landlock_request {
 
 #ifdef CONFIG_AUDIT
 
+void landlock_log_drop_domain(const struct landlock_hierarchy *const hierarchy);
+
 void landlock_log_denial(const struct landlock_cred_security *const subject,
 			 const struct landlock_request *const request);
 
 #else /* CONFIG_AUDIT */
+
+static inline void
+landlock_log_drop_domain(const struct landlock_hierarchy *const hierarchy)
+{
+}
 
 static inline void
 landlock_log_denial(const struct landlock_cred_security *const subject,

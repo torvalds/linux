@@ -17,9 +17,10 @@
 #include <linux/workqueue.h>
 
 #include "access.h"
-#include "domain.h"
 #include "limits.h"
 #include "object.h"
+
+struct landlock_hierarchy;
 
 /**
  * struct landlock_layer - Access rights for a given layer
