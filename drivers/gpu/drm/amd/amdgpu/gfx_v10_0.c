@@ -4752,6 +4752,7 @@ static int gfx_v10_0_sw_init(struct amdgpu_ip_block *ip_block)
 	int i, j, k, r, ring_id = 0;
 	int xcc_id = 0;
 	struct amdgpu_device *adev = ip_block->adev;
+	int num_queue_per_pipe = 1; /* we only enable 1 KGQ per pipe */
 
 	INIT_DELAYED_WORK(&adev->gfx.idle_work, amdgpu_gfx_profile_idle_work_handler);
 
@@ -4916,7 +4917,7 @@ static int gfx_v10_0_sw_init(struct amdgpu_ip_block *ip_block)
 
 	/* set up the gfx ring */
 	for (i = 0; i < adev->gfx.me.num_me; i++) {
-		for (j = 0; j < adev->gfx.me.num_queue_per_pipe; j++) {
+		for (j = 0; j < num_queue_per_pipe; j++) {
 			for (k = 0; k < adev->gfx.me.num_pipe_per_me; k++) {
 				if (!amdgpu_gfx_is_me_queue_enabled(adev, i, k, j))
 					continue;

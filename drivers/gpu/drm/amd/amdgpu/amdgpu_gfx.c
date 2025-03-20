@@ -77,11 +77,12 @@ bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev,
 static int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev,
 				      int me, int pipe, int queue)
 {
+	int num_queue_per_pipe = 1; /* we only enable 1 KGQ per pipe */
 	int bit = 0;
 
 	bit += me * adev->gfx.me.num_pipe_per_me
-		* adev->gfx.me.num_queue_per_pipe;
-	bit += pipe * adev->gfx.me.num_queue_per_pipe;
+		* num_queue_per_pipe;
+	bit += pipe * num_queue_per_pipe;
 	bit += queue;
 
 	return bit;
@@ -238,8 +239,8 @@ void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
 {
 	int i, queue, pipe;
 	bool multipipe_policy = amdgpu_gfx_is_graphics_multipipe_capable(adev);
-	int max_queues_per_me = adev->gfx.me.num_pipe_per_me *
-					adev->gfx.me.num_queue_per_pipe;
+	int num_queue_per_pipe = 1; /* we only enable 1 KGQ per pipe */
+	int max_queues_per_me = adev->gfx.me.num_pipe_per_me * num_queue_per_pipe;
 
 	if (multipipe_policy) {
 		/* policy: amdgpu owns the first queue per pipe at this stage
@@ -247,9 +248,9 @@ void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
 		for (i = 0; i < max_queues_per_me; i++) {
 			pipe = i % adev->gfx.me.num_pipe_per_me;
 			queue = (i / adev->gfx.me.num_pipe_per_me) %
-				adev->gfx.me.num_queue_per_pipe;
+				num_queue_per_pipe;
 
-			set_bit(pipe * adev->gfx.me.num_queue_per_pipe + queue,
+			set_bit(pipe * num_queue_per_pipe + queue,
 				adev->gfx.me.queue_bitmap);
 		}
 	} else {
