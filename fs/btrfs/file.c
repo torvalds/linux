@@ -1094,6 +1094,61 @@ static void release_space(struct btrfs_inode *inode, struct extent_changeset *da
 	}
 }
 
+/*
+ * Reserve data and metadata space for this buffered write range.
+ *
+ * Return >0 for the number of bytes reserved, which is always block aligned.
+ * Return <0 for error.
+ */
+static ssize_t reserve_space(struct btrfs_inode *inode,
+			     struct extent_changeset **data_reserved,
+			     u64 start, size_t *len, bool nowait,
+			     bool *only_release_metadata)
+{
+	const struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	const unsigned int block_offset = (start & (fs_info->sectorsize - 1));
+	size_t reserve_bytes;
+	int ret;
+
+	ret = btrfs_check_data_free_space(inode, data_reserved, start, *len, nowait);
+	if (ret < 0) {
+		int can_nocow;
+
+		if (nowait && (ret == -ENOSPC || ret == -EAGAIN))
+			return -EAGAIN;
+
+		/*
+		 * If we don't have to COW at the offset, reserve metadata only.
+		 * write_bytes may get smaller than requested here.
+		 */
+		can_nocow = btrfs_check_nocow_lock(inode, start, len, nowait);
+		if (can_nocow < 0)
+			ret = can_nocow;
+		if (can_nocow > 0)
+			ret = 0;
+		if (ret)
+			return ret;
+		*only_release_metadata = true;
+	}
+
+	reserve_bytes = round_up(*len + block_offset, fs_info->sectorsize);
+	WARN_ON(reserve_bytes == 0);
+	ret = btrfs_delalloc_reserve_metadata(inode, reserve_bytes,
+					      reserve_bytes, nowait);
+	if (ret) {
+		if (!*only_release_metadata)
+			btrfs_free_reserved_data_space(inode, *data_reserved,
+						       start, *len);
+		else
+			btrfs_check_nocow_unlock(inode);
+
+		if (nowait && ret == -ENOSPC)
+			ret = -EAGAIN;
+		return ret;
+	}
+	return reserve_bytes;
+}
+
 ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 {
 	struct file *file = iocb->ki_filp;
@@ -1159,52 +1214,11 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 		sector_offset = pos & (fs_info->sectorsize - 1);
 
 		extent_changeset_release(data_reserved);
-		ret = btrfs_check_data_free_space(BTRFS_I(inode),
-						  &data_reserved, pos,
-						  write_bytes, nowait);
-		if (ret < 0) {
-			int can_nocow;
-
-			if (nowait && (ret == -ENOSPC || ret == -EAGAIN)) {
-				ret = -EAGAIN;
-				break;
-			}
-
-			/*
-			 * If we don't have to COW at the offset, reserve
-			 * metadata only. write_bytes may get smaller than
-			 * requested here.
-			 */
-			can_nocow = btrfs_check_nocow_lock(BTRFS_I(inode), pos,
-							   &write_bytes, nowait);
-			if (can_nocow < 0)
-				ret = can_nocow;
-			if (can_nocow > 0)
-				ret = 0;
-			if (ret)
-				break;
-			only_release_metadata = true;
-		}
-
-		reserve_bytes = round_up(write_bytes + sector_offset,
-					 fs_info->sectorsize);
-		WARN_ON(reserve_bytes == 0);
-		ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode),
-						      reserve_bytes,
-						      reserve_bytes, nowait);
-		if (ret) {
-			if (!only_release_metadata)
-				btrfs_free_reserved_data_space(BTRFS_I(inode),
-						data_reserved, pos,
-						write_bytes);
-			else
-				btrfs_check_nocow_unlock(BTRFS_I(inode));
-
-			if (nowait && ret == -ENOSPC)
-				ret = -EAGAIN;
+		ret = reserve_space(BTRFS_I(inode), &data_reserved, pos,
+				    &write_bytes, nowait, &only_release_metadata);
+		if (ret < 0)
 			break;
-		}
-
+		reserve_bytes = ret;
 		release_bytes = reserve_bytes;
 again:
 		ret = balance_dirty_pages_ratelimited_flags(inode->i_mapping, bdp_flags);
