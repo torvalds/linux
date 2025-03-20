@@ -592,29 +592,35 @@ static void bch2_extent_crc_pack(union bch_extent_crc *dst,
 				 struct bch_extent_crc_unpacked src,
 				 enum bch_extent_entry_type type)
 {
-#define set_common_fields(_dst, _src)					\
-		_dst.type		= 1 << type;			\
-		_dst.csum_type		= _src.csum_type,		\
-		_dst.compression_type	= _src.compression_type,	\
-		_dst._compressed_size	= _src.compressed_size - 1,	\
-		_dst._uncompressed_size	= _src.uncompressed_size - 1,	\
-		_dst.offset		= _src.offset
+#define common_fields(_src)						\
+		.type			= BIT(type),			\
+		.csum_type		= _src.csum_type,		\
+		.compression_type	= _src.compression_type,	\
+		._compressed_size	= _src.compressed_size - 1,	\
+		._uncompressed_size	= _src.uncompressed_size - 1,	\
+		.offset			= _src.offset
 
 	switch (type) {
 	case BCH_EXTENT_ENTRY_crc32:
-		set_common_fields(dst->crc32, src);
-		dst->crc32.csum		= (u32 __force) *((__le32 *) &src.csum.lo);
+		dst->crc32		= (struct bch_extent_crc32) {
+			common_fields(src),
+			.csum		= (u32 __force) *((__le32 *) &src.csum.lo),
+		};
 		break;
 	case BCH_EXTENT_ENTRY_crc64:
-		set_common_fields(dst->crc64, src);
-		dst->crc64.nonce	= src.nonce;
-		dst->crc64.csum_lo	= (u64 __force) src.csum.lo;
-		dst->crc64.csum_hi	= (u64 __force) *((__le16 *) &src.csum.hi);
+		dst->crc64		= (struct bch_extent_crc64) {
+			common_fields(src),
+			.nonce		= src.nonce,
+			.csum_lo	= (u64 __force) src.csum.lo,
+			.csum_hi	= (u64 __force) *((__le16 *) &src.csum.hi),
+		};
 		break;
 	case BCH_EXTENT_ENTRY_crc128:
-		set_common_fields(dst->crc128, src);
-		dst->crc128.nonce	= src.nonce;
-		dst->crc128.csum	= src.csum;
+		dst->crc128		= (struct bch_extent_crc128) {
+			common_fields(src),
+			.nonce		= src.nonce,
+			.csum		= src.csum,
+		};
 		break;
 	default:
 		BUG();
