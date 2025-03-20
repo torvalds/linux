@@ -594,6 +594,16 @@ Starting with the Landlock ABI version 6, it is possible to restrict
 :manpage:`signal(7)` sending by setting ``LANDLOCK_SCOPE_SIGNAL`` to the
 ``scoped`` ruleset attribute.
 
+Logging (ABI < 7)
+-----------------
+
+Starting with the Landlock ABI version 7, it is possible to control logging of
+Landlock audit events with the ``LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF``,
+``LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON``, and
+``LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF`` flags passed to
+sys_landlock_restrict_self().  See Documentation/admin-guide/LSM/landlock.rst
+for more details on audit.
+
 .. _kernel_support:
 
 Kernel support
@@ -682,9 +692,16 @@ fine-grained restrictions).  Moreover, their complexity can lead to security
 issues, especially when untrusted processes can manipulate them (cf.
 `Controlling access to user namespaces <https://lwn.net/Articles/673597/>`_).
 
+How to disable Landlock audit records?
+--------------------------------------
+
+You might want to put in place filters as explained here:
+Documentation/admin-guide/LSM/landlock.rst
+
 Additional documentation
 ========================
 
+* Documentation/admin-guide/LSM/landlock.rst
 * Documentation/security/landlock.rst
 * https://landlock.io
 
