@@ -83,7 +83,7 @@ static struct pci_driver xonar_driver = {
 	.id_table = xonar_ids,
 	.probe = xonar_probe,
 	.driver = {
-		.pm = pm_ptr(&oxygen_pci_pm),
+		.pm = pm_sleep_ptr(&oxygen_pci_pm),
 	},
 	.shutdown = oxygen_pci_shutdown,
 };
