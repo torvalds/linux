@@ -315,7 +315,7 @@ static void timerlat_hist_header(struct osnoise_tool *tool)
 		if (!params->no_thread)
 			trace_seq_printf(s, "   Thr-%03d", cpu);
 
-		if (params->user_hist)
+		if (params->user_data)
 			trace_seq_printf(s, "   Usr-%03d", cpu);
 	}
 	trace_seq_printf(s, "\n");
@@ -371,7 +371,7 @@ timerlat_print_summary(struct timerlat_params *params,
 			trace_seq_printf(trace->seq, "%9llu ",
 					data->hist[cpu].thread_count);
 
-		if (params->user_hist)
+		if (params->user_data)
 			trace_seq_printf(trace->seq, "%9llu ",
 					 data->hist[cpu].user_count);
 	}
@@ -399,7 +399,7 @@ timerlat_print_summary(struct timerlat_params *params,
 					     data->hist[cpu].min_thread,
 					     false);
 
-		if (params->user_hist)
+		if (params->user_data)
 			format_summary_value(trace->seq,
 					     data->hist[cpu].user_count,
 					     data->hist[cpu].min_user,
@@ -429,7 +429,7 @@ timerlat_print_summary(struct timerlat_params *params,
 					     data->hist[cpu].sum_thread,
 					     true);
 
-		if (params->user_hist)
+		if (params->user_data)
 			format_summary_value(trace->seq,
 					     data->hist[cpu].user_count,
 					     data->hist[cpu].sum_user,
@@ -459,7 +459,7 @@ timerlat_print_summary(struct timerlat_params *params,
 					     data->hist[cpu].max_thread,
 					     false);
 
-		if (params->user_hist)
+		if (params->user_data)
 			format_summary_value(trace->seq,
 					     data->hist[cpu].user_count,
 					     data->hist[cpu].max_user,
@@ -521,7 +521,7 @@ timerlat_print_stats_all(struct timerlat_params *params,
 	if (!params->no_thread)
 		trace_seq_printf(trace->seq, "       Thr");
 
-	if (params->user_hist)
+	if (params->user_data)
 		trace_seq_printf(trace->seq, "       Usr");
 
 	trace_seq_printf(trace->seq, "\n");
@@ -537,7 +537,7 @@ timerlat_print_stats_all(struct timerlat_params *params,
 		trace_seq_printf(trace->seq, "%9llu ",
 				 sum.thread_count);
 
-	if (params->user_hist)
+	if (params->user_data)
 		trace_seq_printf(trace->seq, "%9llu ",
 				 sum.user_count);
 
@@ -558,7 +558,7 @@ timerlat_print_stats_all(struct timerlat_params *params,
 				     sum.min_thread,
 				     false);
 
-	if (params->user_hist)
+	if (params->user_data)
 		format_summary_value(trace->seq,
 				     sum.user_count,
 				     sum.min_user,
@@ -581,7 +581,7 @@ timerlat_print_stats_all(struct timerlat_params *params,
 				     sum.sum_thread,
 				     true);
 
-	if (params->user_hist)
+	if (params->user_data)
 		format_summary_value(trace->seq,
 				     sum.user_count,
 				     sum.sum_user,
@@ -604,7 +604,7 @@ timerlat_print_stats_all(struct timerlat_params *params,
 				     sum.max_thread,
 				     false);
 
-	if (params->user_hist)
+	if (params->user_data)
 		format_summary_value(trace->seq,
 				     sum.user_count,
 				     sum.max_user,
@@ -654,7 +654,7 @@ timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *tool)
 						data->hist[cpu].thread[bucket]);
 			}
 
-			if (params->user_hist) {
+			if (params->user_data) {
 				total += data->hist[cpu].user[bucket];
 				trace_seq_printf(trace->seq, "%9d ",
 						data->hist[cpu].user[bucket]);
@@ -690,7 +690,7 @@ timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *tool)
 			trace_seq_printf(trace->seq, "%9d ",
 					 data->hist[cpu].thread[data->entries]);
 
-		if (params->user_hist)
+		if (params->user_data)
 			trace_seq_printf(trace->seq, "%9d ",
 					 data->hist[cpu].user[data->entries]);
 	}
@@ -965,7 +965,7 @@ static struct timerlat_params
 			params->user_workload = 1;
 			/* fallback: -u implies in -U */
 		case 'U':
-			params->user_hist = 1;
+			params->user_data = 1;
 			break;
 		case '0': /* no irq */
 			params->no_irq = 1;
@@ -1063,98 +1063,11 @@ static struct timerlat_params
 static int
 timerlat_hist_apply_config(struct osnoise_tool *tool, struct timerlat_params *params)
 {
-	int retval, i;
+	int retval;
 
-	if (!params->sleep_time)
-		params->sleep_time = 1;
-
-	if (params->cpus) {
-		retval = osnoise_set_cpus(tool->context, params->cpus);
-		if (retval) {
-			err_msg("Failed to apply CPUs config\n");
-			goto out_err;
-		}
-	} else {
-		for (i = 0; i < sysconf(_SC_NPROCESSORS_CONF); i++)
-			CPU_SET(i, &params->monitored_cpus);
-	}
-
-	if (params->stop_us) {
-		retval = osnoise_set_stop_us(tool->context, params->stop_us);
-		if (retval) {
-			err_msg("Failed to set stop us\n");
-			goto out_err;
-		}
-	}
-
-	if (params->stop_total_us) {
-		retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
-		if (retval) {
-			err_msg("Failed to set stop total us\n");
-			goto out_err;
-		}
-	}
-
-	if (params->timerlat_period_us) {
-		retval = osnoise_set_timerlat_period_us(tool->context, params->timerlat_period_us);
-		if (retval) {
-			err_msg("Failed to set timerlat period\n");
-			goto out_err;
-		}
-	}
-
-	if (params->print_stack) {
-		retval = osnoise_set_print_stack(tool->context, params->print_stack);
-		if (retval) {
-			err_msg("Failed to set print stack\n");
-			goto out_err;
-		}
-	}
-
-	if (params->hk_cpus) {
-		retval = sched_setaffinity(getpid(), sizeof(params->hk_cpu_set),
-					   &params->hk_cpu_set);
-		if (retval == -1) {
-			err_msg("Failed to set rtla to the house keeping CPUs\n");
-			goto out_err;
-		}
-	} else if (params->cpus) {
-		/*
-		 * Even if the user do not set a house-keeping CPU, try to
-		 * move rtla to a CPU set different to the one where the user
-		 * set the workload to run.
-		 *
-		 * No need to check results as this is an automatic attempt.
-		 */
-		auto_house_keeping(&params->monitored_cpus);
-	}
-
-	/*
-	 * If the user did not specify a type of thread, try user-threads first.
-	 * Fall back to kernel threads otherwise.
-	 */
-	if (!params->kernel_workload && !params->user_hist) {
-		retval = tracefs_file_exists(NULL, "osnoise/per_cpu/cpu0/timerlat_fd");
-		if (retval) {
-			debug_msg("User-space interface detected, setting user-threads\n");
-			params->user_workload = 1;
-			params->user_hist = 1;
-		} else {
-			debug_msg("User-space interface not detected, setting kernel-threads\n");
-			params->kernel_workload = 1;
-		}
-	}
-
-	/*
-	* Set workload according to type of thread if the kernel supports it.
-	* On kernels without support, user threads will have already failed
-	* on missing timerlat_fd, and kernel threads do not need it.
-	*/
-	retval = osnoise_set_workload(tool->context, params->kernel_workload);
-	if (retval < -1) {
-		err_msg("Failed to set OSNOISE_WORKLOAD option\n");
+	retval = timerlat_apply_config(tool, params);
+	if (retval)
 		goto out_err;
-	}
 
 	return 0;
 

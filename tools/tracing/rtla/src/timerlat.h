@@ -15,17 +15,15 @@ struct timerlat_params {
 	int			sleep_time;
 	int			output_divisor;
 	int			duration;
-	int			quiet;
 	int			set_sched;
 	int			dma_latency;
 	int			no_aa;
-	int			aa_only;
 	int			dump_tasks;
 	int			cgroup;
 	int			hk_cpus;
 	int			user_workload;
 	int			kernel_workload;
-	int			pretty_output;
+	int			user_data;
 	int			warmup;
 	int			buffer_size;
 	int			deepest_idle_state;
@@ -35,11 +33,12 @@ struct timerlat_params {
 	union {
 		struct {
 			/* top only */
-			int			user_top;
+			int			quiet;
+			int			aa_only;
+			int			pretty_output;
 		};
 		struct {
 			/* hist only */
-			int			user_hist;
 			char			no_irq;
 			char			no_thread;
 			char			no_header;
@@ -51,6 +50,8 @@ struct timerlat_params {
 		};
 	};
 };
+
+int timerlat_apply_config(struct osnoise_tool *tool, struct timerlat_params *params);
 
 int timerlat_hist_main(int argc, char *argv[]);
 int timerlat_top_main(int argc, char *argv[]);
