@@ -302,8 +302,6 @@ struct mt7996_phy {
 	s16 coverage_class;
 	u8 slottime;
 
-	u8 rdd_state;
-
 	u16 beacon_rate;
 
 	u32 rx_ampdu_ts;
@@ -426,10 +424,10 @@ enum {
 	__MT_WFDMA_MAX,
 };
 
-enum {
-	MT_RX_SEL0,
-	MT_RX_SEL1,
-	MT_RX_SEL2, /* monitor chain */
+enum rdd_idx {
+	MT_RDD_IDX_BAND2,	/* RDD idx for band idx 2 */
+	MT_RDD_IDX_BAND1,	/* RDD idx for band idx 1 */
+	MT_RDD_IDX_BACKGROUND,	/* RDD idx for background chain */
 };
 
 enum mt7996_rdd_cmd {
@@ -447,6 +445,21 @@ enum mt7996_rdd_cmd {
 	RDD_RESUME_BF,
 	RDD_IRQ_OFF,
 };
+
+static inline int
+mt7996_get_rdd_idx(struct mt7996_phy *phy, bool is_background)
+{
+	if (!phy->mt76->cap.has_5ghz)
+		return -1;
+
+	if (is_background)
+		return MT_RDD_IDX_BACKGROUND;
+
+	if (phy->mt76->band_idx == MT_BAND2)
+		return MT_RDD_IDX_BAND2;
+
+	return MT_RDD_IDX_BAND1;
+}
 
 static inline struct mt7996_dev *
 mt7996_hw_dev(struct ieee80211_hw *hw)
@@ -640,8 +653,7 @@ int mt7996_mcu_get_temperature(struct mt7996_phy *phy);
 int mt7996_mcu_set_thermal_throttling(struct mt7996_phy *phy, u8 state);
 int mt7996_mcu_set_thermal_protect(struct mt7996_phy *phy, bool enable);
 int mt7996_mcu_set_txpower_sku(struct mt7996_phy *phy);
-int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 index,
-		       u8 rx_sel, u8 val);
+int mt7996_mcu_rdd_cmd(struct mt7996_dev *dev, int cmd, u8 rdd_idx, u8 val);
 int mt7996_mcu_rdd_background_enable(struct mt7996_phy *phy,
 				     struct cfg80211_chan_def *chandef);
 int mt7996_mcu_set_fixed_rate_table(struct mt7996_phy *phy, u8 table_idx,

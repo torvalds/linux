@@ -2441,16 +2441,15 @@ void mt7996_mac_work(struct work_struct *work)
 static void mt7996_dfs_stop_radar_detector(struct mt7996_phy *phy)
 {
 	struct mt7996_dev *dev = phy->dev;
+	int rdd_idx = mt7996_get_rdd_idx(phy, false);
 
-	if (phy->rdd_state & BIT(0))
-		mt7996_mcu_rdd_cmd(dev, RDD_STOP, 0,
-				   MT_RX_SEL0, 0);
-	if (phy->rdd_state & BIT(1))
-		mt7996_mcu_rdd_cmd(dev, RDD_STOP, 1,
-				   MT_RX_SEL0, 0);
+	if (rdd_idx < 0)
+		return;
+
+	mt7996_mcu_rdd_cmd(dev, RDD_STOP, rdd_idx, 0);
 }
 
-static int mt7996_dfs_start_rdd(struct mt7996_dev *dev, int chain)
+static int mt7996_dfs_start_rdd(struct mt7996_dev *dev, int rdd_idx)
 {
 	int err, region;
 
@@ -2467,44 +2466,30 @@ static int mt7996_dfs_start_rdd(struct mt7996_dev *dev, int chain)
 		break;
 	}
 
-	err = mt7996_mcu_rdd_cmd(dev, RDD_START, chain,
-				 MT_RX_SEL0, region);
+	err = mt7996_mcu_rdd_cmd(dev, RDD_START, rdd_idx, region);
 	if (err < 0)
 		return err;
 
-	return mt7996_mcu_rdd_cmd(dev, RDD_DET_MODE, chain,
-				 MT_RX_SEL0, 1);
+	return mt7996_mcu_rdd_cmd(dev, RDD_DET_MODE, rdd_idx, 1);
 }
 
 static int mt7996_dfs_start_radar_detector(struct mt7996_phy *phy)
 {
-	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	struct mt7996_dev *dev = phy->dev;
-	u8 band_idx = phy->mt76->band_idx;
-	int err;
+	int err, rdd_idx;
+
+	rdd_idx = mt7996_get_rdd_idx(phy, false);
+	if (rdd_idx < 0)
+		return -EINVAL;
 
 	/* start CAC */
-	err = mt7996_mcu_rdd_cmd(dev, RDD_CAC_START, band_idx,
-				 MT_RX_SEL0, 0);
+	err = mt7996_mcu_rdd_cmd(dev, RDD_CAC_START, rdd_idx, 0);
 	if (err < 0)
 		return err;
 
-	err = mt7996_dfs_start_rdd(dev, band_idx);
-	if (err < 0)
-		return err;
+	err = mt7996_dfs_start_rdd(dev, rdd_idx);
 
-	phy->rdd_state |= BIT(band_idx);
-
-	if (chandef->width == NL80211_CHAN_WIDTH_160 ||
-	    chandef->width == NL80211_CHAN_WIDTH_80P80) {
-		err = mt7996_dfs_start_rdd(dev, 1);
-		if (err < 0)
-			return err;
-
-		phy->rdd_state |= BIT(1);
-	}
-
-	return 0;
+	return err;
 }
 
 static int
@@ -2545,12 +2530,12 @@ int mt7996_dfs_init_radar_detector(struct mt7996_phy *phy)
 {
 	struct mt7996_dev *dev = phy->dev;
 	enum mt76_dfs_state dfs_state, prev_state;
-	int err;
+	int err, rdd_idx = mt7996_get_rdd_idx(phy, false);
 
 	prev_state = phy->mt76->dfs_state;
 	dfs_state = mt76_phy_dfs_state(phy->mt76);
 
-	if (prev_state == dfs_state)
+	if (prev_state == dfs_state || rdd_idx < 0)
 		return 0;
 
 	if (prev_state == MT_DFS_STATE_UNKNOWN)
@@ -2574,8 +2559,7 @@ int mt7996_dfs_init_radar_detector(struct mt7996_phy *phy)
 	if (dfs_state == MT_DFS_STATE_CAC)
 		return 0;
 
-	err = mt7996_mcu_rdd_cmd(dev, RDD_CAC_END,
-				 phy->mt76->band_idx, MT_RX_SEL0, 0);
+	err = mt7996_mcu_rdd_cmd(dev, RDD_CAC_END, rdd_idx, 0);
 	if (err < 0) {
 		phy->mt76->dfs_state = MT_DFS_STATE_UNKNOWN;
 		return err;
@@ -2585,8 +2569,7 @@ int mt7996_dfs_init_radar_detector(struct mt7996_phy *phy)
 	return 0;
 
 stop:
-	err = mt7996_mcu_rdd_cmd(dev, RDD_NORMAL_START,
-				 phy->mt76->band_idx, MT_RX_SEL0, 0);
+	err = mt7996_mcu_rdd_cmd(dev, RDD_NORMAL_START, rdd_idx, 0);
 	if (err < 0)
 		return err;
 
