@@ -991,7 +991,7 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_dp_mst_suspend(display);
 
 	intel_irq_suspend(i915);
-	intel_hpd_cancel_work(i915);
+	intel_hpd_cancel_work(display);
 
 	if (HAS_DISPLAY(i915))
 		intel_display_driver_suspend_access(display);
@@ -1074,7 +1074,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	intel_display_driver_suspend(display);
 
 	intel_irq_suspend(dev_priv);
-	intel_hpd_cancel_work(dev_priv);
+	intel_hpd_cancel_work(display);
 
 	if (HAS_DISPLAY(dev_priv))
 		intel_display_driver_suspend_access(display);
@@ -1237,7 +1237,7 @@ static int i915_drm_resume(struct drm_device *dev)
 	if (HAS_DISPLAY(dev_priv))
 		intel_display_driver_resume_access(display);
 
-	intel_hpd_init(dev_priv);
+	intel_hpd_init(display);
 
 	intel_display_driver_resume(display);
 
@@ -1245,7 +1245,7 @@ static int i915_drm_resume(struct drm_device *dev)
 		intel_display_driver_enable_user_access(display);
 		drm_kms_helper_poll_enable(dev);
 	}
-	intel_hpd_poll_disable(dev_priv);
+	intel_hpd_poll_disable(display);
 
 	intel_opregion_resume(display);
 
@@ -1585,7 +1585,7 @@ static int intel_runtime_suspend(struct device *kdev)
 	assert_forcewakes_inactive(&dev_priv->uncore);
 
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv))
-		intel_hpd_poll_enable(dev_priv);
+		intel_hpd_poll_enable(display);
 
 	drm_dbg(&dev_priv->drm, "Device suspended\n");
 	return 0;
@@ -1643,8 +1643,8 @@ static int intel_runtime_resume(struct device *kdev)
 	 * everyone else do it here.
 	 */
 	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
-		intel_hpd_init(dev_priv);
-		intel_hpd_poll_disable(dev_priv);
+		intel_hpd_init(display);
+		intel_hpd_poll_disable(display);
 	}
 
 	skl_watermark_ipc_update(dev_priv);

@@ -472,7 +472,7 @@ void i9xx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_status)
 				   dev_priv->display.hotplug.hpd,
 				   i9xx_port_hotplug_long_detect);
 
-		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
+		intel_hpd_irq_handler(display, pin_mask, long_mask);
 	}
 
 	if ((IS_G4X(dev_priv) ||
@@ -483,6 +483,7 @@ void i9xx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_status)
 
 void ibx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
 
 	/*
@@ -509,7 +510,7 @@ void ibx_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
 			   dev_priv->display.hotplug.pch_hpd,
 			   pch_port_hotplug_long_detect);
 
-	intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
+	intel_hpd_irq_handler(display, pin_mask, long_mask);
 }
 
 void xelpdp_pica_irq_handler(struct drm_i915_private *i915, u32 iir)
@@ -543,7 +544,7 @@ void xelpdp_pica_irq_handler(struct drm_i915_private *i915, u32 iir)
 			"pica hotplug event received, stat 0x%08x, pins 0x%08x, long 0x%08x\n",
 			hotplug_trigger, pin_mask, long_mask);
 
-		intel_hpd_irq_handler(i915, pin_mask, long_mask);
+		intel_hpd_irq_handler(display, pin_mask, long_mask);
 	}
 
 	if (trigger_aux)
@@ -587,7 +588,7 @@ void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	}
 
 	if (pin_mask)
-		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
+		intel_hpd_irq_handler(display, pin_mask, long_mask);
 
 	if (pch_iir & SDE_GMBUS_ICP)
 		intel_gmbus_irq_handler(display);
@@ -624,7 +625,7 @@ void spt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	}
 
 	if (pin_mask)
-		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
+		intel_hpd_irq_handler(display, pin_mask, long_mask);
 
 	if (pch_iir & SDE_GMBUS_CPT)
 		intel_gmbus_irq_handler(display);
@@ -632,6 +633,7 @@ void spt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 
 void ilk_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
 
 	dig_hotplug_reg = intel_uncore_rmw(&dev_priv->uncore, DIGITAL_PORT_HOTPLUG_CNTRL, 0, 0);
@@ -641,11 +643,12 @@ void ilk_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
 			   dev_priv->display.hotplug.hpd,
 			   ilk_port_hotplug_long_detect);
 
-	intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
+	intel_hpd_irq_handler(display, pin_mask, long_mask);
 }
 
 void bxt_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 dig_hotplug_reg, pin_mask = 0, long_mask = 0;
 
 	dig_hotplug_reg = intel_uncore_rmw(&dev_priv->uncore, PCH_PORT_HOTPLUG, 0, 0);
@@ -655,11 +658,12 @@ void bxt_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 hotplug_trigger)
 			   dev_priv->display.hotplug.hpd,
 			   bxt_port_hotplug_long_detect);
 
-	intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
+	intel_hpd_irq_handler(display, pin_mask, long_mask);
 }
 
 void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 pin_mask = 0, long_mask = 0;
 	u32 trigger_tc = iir & GEN11_DE_TC_HOTPLUG_MASK;
 	u32 trigger_tbt = iir & GEN11_DE_TBT_HOTPLUG_MASK;
@@ -687,7 +691,7 @@ void gen11_hpd_irq_handler(struct drm_i915_private *dev_priv, u32 iir)
 	}
 
 	if (pin_mask)
-		intel_hpd_irq_handler(dev_priv, pin_mask, long_mask);
+		intel_hpd_irq_handler(display, pin_mask, long_mask);
 	else
 		drm_err(&dev_priv->drm,
 			"Unexpected DE HPD interrupt 0x%08x\n", iir);
@@ -1467,9 +1471,11 @@ void intel_hpd_irq_setup(struct drm_i915_private *i915)
 
 void intel_hotplug_irq_init(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
+
 	intel_hpd_init_pins(i915);
 
-	intel_hpd_init_early(i915);
+	intel_hpd_init_early(display);
 
 	if (HAS_GMCH(i915)) {
 		if (I915_HAS_HOTPLUG(i915))

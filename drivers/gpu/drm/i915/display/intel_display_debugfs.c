@@ -844,7 +844,7 @@ void intel_display_debugfs_register(struct intel_display *display)
 	intel_dmc_debugfs_register(display);
 	intel_dp_test_debugfs_register(display);
 	intel_fbc_debugfs_register(display);
-	intel_hpd_debugfs_register(i915);
+	intel_hpd_debugfs_register(display);
 	intel_opregion_debugfs_register(display);
 	intel_psr_debugfs_register(display);
 	intel_wm_debugfs_register(i915);

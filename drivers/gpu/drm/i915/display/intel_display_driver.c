@@ -315,11 +315,9 @@ static void set_display_access(struct intel_display *display,
  */
 void intel_display_driver_enable_user_access(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	set_display_access(display, true, NULL);
 
-	intel_hpd_enable_detection_work(i915);
+	intel_hpd_enable_detection_work(display);
 }
 
 /**
@@ -341,9 +339,7 @@ void intel_display_driver_enable_user_access(struct intel_display *display)
  */
 void intel_display_driver_disable_user_access(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
-	intel_hpd_disable_detection_work(i915);
+	intel_hpd_disable_detection_work(display);
 
 	set_display_access(display, false, current);
 }
@@ -524,7 +520,7 @@ int intel_display_driver_probe(struct intel_display *display)
 	intel_overlay_setup(display);
 
 	/* Only enable hotplug handling once the fbdev is fully set up. */
-	intel_hpd_init(i915);
+	intel_hpd_init(display);
 
 	skl_watermark_ipc_init(i915);
 
@@ -558,7 +554,7 @@ void intel_display_driver_register(struct intel_display *display)
 	 * fbdev->async_cookie.
 	 */
 	drm_kms_helper_poll_init(display->drm);
-	intel_hpd_poll_disable(i915);
+	intel_hpd_poll_disable(display);
 
 	intel_fbdev_setup(i915);
 
@@ -600,7 +596,7 @@ void intel_display_driver_remove_noirq(struct intel_display *display)
 	 * Due to the hpd irq storm handling the hotplug work can re-arm the
 	 * poll handlers. Hence disable polling after hpd handling is shut down.
 	 */
-	intel_hpd_poll_fini(i915);
+	intel_hpd_poll_fini(display);
 
 	intel_unregister_dsm_handler();
 
