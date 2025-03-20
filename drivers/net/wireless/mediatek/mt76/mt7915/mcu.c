@@ -303,17 +303,35 @@ mt7915_mcu_rx_radar_detected(struct mt7915_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt7915_mcu_rdd_report *r;
+	u32 sku;
 
 	r = (struct mt7915_mcu_rdd_report *)skb->data;
 
-	if (r->band_idx > MT_RX_SEL2)
+	switch (r->rdd_idx) {
+	case MT_RDD_IDX_BAND0:
+		break;
+	case MT_RDD_IDX_BAND1:
+		sku = mt7915_check_adie(dev, true);
+		/* the main phy is bound to band 1 for this sku */
+		if (is_mt7986(&dev->mt76) &&
+		    (sku == MT7975_ONE_ADIE || sku == MT7976_ONE_ADIE))
+			break;
+		mphy = dev->mt76.phys[MT_BAND1];
+		break;
+	case MT_RDD_IDX_BACKGROUND:
+		if (!dev->rdd2_phy)
+			return;
+		mphy = dev->rdd2_phy->mt76;
+		break;
+	default:
+		dev_err(dev->mt76.dev, "Unknown RDD idx %d\n", r->rdd_idx);
+		return;
+	}
+
+	if (!mphy)
 		return;
 
-	if ((r->band_idx && !dev->phy.mt76->band_idx) &&
-	    dev->mt76.phys[MT_BAND1])
-		mphy = dev->mt76.phys[MT_BAND1];
-
-	if (r->band_idx == MT_RX_SEL2)
+	if (r->rdd_idx == MT_RDD_IDX_BACKGROUND)
 		cfg80211_background_radar_event(mphy->hw->wiphy,
 						&dev->rdd2_chandef,
 						GFP_ATOMIC);
@@ -2697,11 +2715,14 @@ int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
 				     struct cfg80211_chan_def *chandef)
 {
 	struct mt7915_dev *dev = phy->dev;
-	int err, region;
+	int err, region, rdd_idx;
+
+	rdd_idx = mt7915_get_rdd_idx(phy, true);
+	if (rdd_idx < 0)
+		return -EINVAL;
 
 	if (!chandef) { /* disable offchain */
-		err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_STOP, MT_RX_SEL2,
-					      0, 0);
+		err = mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_STOP, rdd_idx, 0, 0);
 		if (err)
 			return err;
 
@@ -2727,8 +2748,7 @@ int mt7915_mcu_rdd_background_enable(struct mt7915_phy *phy,
 		break;
 	}
 
-	return mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_START, MT_RX_SEL2,
-				       0, region);
+	return mt76_connac_mcu_rdd_cmd(&dev->mt76, RDD_START, rdd_idx, 0, region);
 }
 
 int mt7915_mcu_set_chan_info(struct mt7915_phy *phy, int cmd)

@@ -215,8 +215,6 @@ struct mt7915_phy {
 	s16 coverage_class;
 	u8 slottime;
 
-	u8 rdd_state;
-
 	u32 trb_ts;
 
 	u32 rx_ampdu_ts;
@@ -331,10 +329,10 @@ enum {
 	__MT_WFDMA_MAX,
 };
 
-enum {
-	MT_RX_SEL0,
-	MT_RX_SEL1,
-	MT_RX_SEL2, /* monitor chain */
+enum rdd_idx {
+	MT_RDD_IDX_BAND0,	/* RDD idx for band idx 0 (single-band) */
+	MT_RDD_IDX_BAND1,	/* RDD idx for band idx 1 */
+	MT_RDD_IDX_BACKGROUND,	/* RDD idx for background chain */
 };
 
 enum mt7915_rdd_cmd {
@@ -353,6 +351,18 @@ enum mt7915_rdd_cmd {
 	RDD_RESUME_BF,
 	RDD_IRQ_OFF,
 };
+
+static inline int
+mt7915_get_rdd_idx(struct mt7915_phy *phy, bool is_background)
+{
+	if (!phy->mt76->cap.has_5ghz)
+		return -1;
+
+	if (is_background)
+		return MT_RDD_IDX_BACKGROUND;
+
+	return phy->mt76->band_idx;
+}
 
 static inline struct mt7915_phy *
 mt7915_hw_phy(struct ieee80211_hw *hw)
