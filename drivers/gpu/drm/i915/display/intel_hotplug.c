@@ -1202,8 +1202,8 @@ bool intel_hpd_schedule_detection(struct intel_display *display)
 
 static int i915_hpd_storm_ctl_show(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = m->private;
-	struct intel_display *display = &dev_priv->display;
+	struct intel_display *display = m->private;
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_hotplug *hotplug = &display->hotplug;
 
 	/* Synchronize with everything first in case there's been an HPD
@@ -1225,8 +1225,8 @@ static ssize_t i915_hpd_storm_ctl_write(struct file *file,
 					loff_t *offp)
 {
 	struct seq_file *m = file->private_data;
-	struct drm_i915_private *dev_priv = m->private;
-	struct intel_display *display = &dev_priv->display;
+	struct intel_display *display = m->private;
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_hotplug *hotplug = &display->hotplug;
 	unsigned int new_threshold;
 	int i;
@@ -1287,8 +1287,7 @@ static const struct file_operations i915_hpd_storm_ctl_fops = {
 
 static int i915_hpd_short_storm_ctl_show(struct seq_file *m, void *data)
 {
-	struct drm_i915_private *dev_priv = m->private;
-	struct intel_display *display = &dev_priv->display;
+	struct intel_display *display = m->private;
 
 	seq_printf(m, "Enabled: %s\n",
 		   str_yes_no(display->hotplug.hpd_short_storm_enabled));
@@ -1308,8 +1307,8 @@ static ssize_t i915_hpd_short_storm_ctl_write(struct file *file,
 					      size_t len, loff_t *offp)
 {
 	struct seq_file *m = file->private_data;
-	struct drm_i915_private *dev_priv = m->private;
-	struct intel_display *display = &dev_priv->display;
+	struct intel_display *display = m->private;
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_hotplug *hotplug = &display->hotplug;
 	char *newline;
 	char tmp[16];
@@ -1363,12 +1362,11 @@ static const struct file_operations i915_hpd_short_storm_ctl_fops = {
 void intel_hpd_debugfs_register(struct intel_display *display)
 {
 	struct drm_minor *minor = display->drm->primary;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 
 	debugfs_create_file("i915_hpd_storm_ctl", 0644, minor->debugfs_root,
-			    i915, &i915_hpd_storm_ctl_fops);
+			    display, &i915_hpd_storm_ctl_fops);
 	debugfs_create_file("i915_hpd_short_storm_ctl", 0644, minor->debugfs_root,
-			    i915, &i915_hpd_short_storm_ctl_fops);
+			    display, &i915_hpd_short_storm_ctl_fops);
 	debugfs_create_bool("i915_ignore_long_hpd", 0644, minor->debugfs_root,
 			    &display->hotplug.ignore_long_hpd);
 }
