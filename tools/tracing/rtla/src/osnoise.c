@@ -14,7 +14,6 @@
 #include <stdio.h>
 
 #include "osnoise.h"
-#include "utils.h"
 
 /*
  * osnoise_get_cpus - return the original "osnoise/cpus" content

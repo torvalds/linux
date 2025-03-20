@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "utils.h"
 #include "osnoise.h"
 
 struct timerlat_params {

@@ -14,37 +14,7 @@
 #include <time.h>
 #include <sched.h>
 
-#include "utils.h"
 #include "osnoise.h"
-
-struct osnoise_hist_params {
-	char			*cpus;
-	cpu_set_t		monitored_cpus;
-	char			*trace_output;
-	char			*cgroup_name;
-	unsigned long long	runtime;
-	unsigned long long	period;
-	long long		threshold;
-	long long		stop_us;
-	long long		stop_total_us;
-	int			sleep_time;
-	int			duration;
-	int			set_sched;
-	int			output_divisor;
-	int			cgroup;
-	int			hk_cpus;
-	cpu_set_t		hk_cpu_set;
-	struct sched_attr	sched_param;
-	struct trace_events	*events;
-	char			no_header;
-	char			no_summary;
-	char			no_index;
-	char			with_zeros;
-	int			bucket_size;
-	int			entries;
-	int			warmup;
-	int			buffer_size;
-};
 
 struct osnoise_hist_cpu {
 	int			*samples;
@@ -126,7 +96,7 @@ cleanup:
 static void osnoise_hist_update_multiple(struct osnoise_tool *tool, int cpu,
 					 unsigned long long duration, int count)
 {
-	struct osnoise_hist_params *params = tool->params;
+	struct osnoise_params *params = tool->params;
 	struct osnoise_hist_data *data = tool->data;
 	unsigned long long total_duration;
 	int entries = data->entries;
@@ -168,7 +138,7 @@ static void osnoise_destroy_trace_hist(struct osnoise_tool *tool)
  */
 static int osnoise_init_trace_hist(struct osnoise_tool *tool)
 {
-	struct osnoise_hist_params *params = tool->params;
+	struct osnoise_params *params = tool->params;
 	struct osnoise_hist_data *data = tool->data;
 	int bucket_size;
 	char buff[128];
@@ -253,7 +223,7 @@ static void osnoise_read_trace_hist(struct osnoise_tool *tool)
  */
 static void osnoise_hist_header(struct osnoise_tool *tool)
 {
-	struct osnoise_hist_params *params = tool->params;
+	struct osnoise_params *params = tool->params;
 	struct osnoise_hist_data *data = tool->data;
 	struct trace_seq *s = tool->trace.seq;
 	char duration[26];
@@ -292,7 +262,7 @@ static void osnoise_hist_header(struct osnoise_tool *tool)
  * osnoise_print_summary - print the summary of the hist data to the output
  */
 static void
-osnoise_print_summary(struct osnoise_hist_params *params,
+osnoise_print_summary(struct osnoise_params *params,
 		       struct trace_instance *trace,
 		       struct osnoise_hist_data *data)
 {
@@ -370,7 +340,7 @@ osnoise_print_summary(struct osnoise_hist_params *params,
  * osnoise_print_stats - print data for all CPUs
  */
 static void
-osnoise_print_stats(struct osnoise_hist_params *params, struct osnoise_tool *tool)
+osnoise_print_stats(struct osnoise_params *params, struct osnoise_tool *tool)
 {
 	struct osnoise_hist_data *data = tool->data;
 	struct trace_instance *trace = &tool->trace;
@@ -508,10 +478,10 @@ static void osnoise_hist_usage(char *usage)
 /*
  * osnoise_hist_parse_args - allocs, parse and fill the cmd line parameters
  */
-static struct osnoise_hist_params
+static struct osnoise_params
 *osnoise_hist_parse_args(int argc, char *argv[])
 {
-	struct osnoise_hist_params *params;
+	struct osnoise_params *params;
 	struct trace_events *tevent;
 	int retval;
 	int c;
@@ -731,7 +701,7 @@ static struct osnoise_hist_params
  * osnoise_hist_apply_config - apply the hist configs to the initialized tool
  */
 static int
-osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_hist_params *params)
+osnoise_hist_apply_config(struct osnoise_tool *tool, struct osnoise_params *params)
 {
 	int retval;
 
@@ -808,7 +778,7 @@ out_err:
  * osnoise_init_hist - initialize a osnoise hist tool with parameters
  */
 static struct osnoise_tool
-*osnoise_init_hist(struct osnoise_hist_params *params)
+*osnoise_init_hist(struct osnoise_params *params)
 {
 	struct osnoise_tool *tool;
 	int nr_cpus;
@@ -842,7 +812,7 @@ static void stop_hist(int sig)
  * osnoise_hist_set_signals - handles the signal to stop the tool
  */
 static void
-osnoise_hist_set_signals(struct osnoise_hist_params *params)
+osnoise_hist_set_signals(struct osnoise_params *params)
 {
 	signal(SIGINT, stop_hist);
 	if (params->duration) {
@@ -853,7 +823,7 @@ osnoise_hist_set_signals(struct osnoise_hist_params *params)
 
 int osnoise_hist_main(int argc, char *argv[])
 {
-	struct osnoise_hist_params *params;
+	struct osnoise_params *params;
 	struct osnoise_tool *record = NULL;
 	struct osnoise_tool *tool = NULL;
 	struct trace_instance *trace;
