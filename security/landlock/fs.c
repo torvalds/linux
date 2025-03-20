@@ -1698,8 +1698,8 @@ static int hook_file_truncate(struct file *const file)
 	return -EACCES;
 }
 
-static int hook_file_ioctl(struct file *file, unsigned int cmd,
-			   unsigned long arg)
+static int hook_file_ioctl_common(const struct file *const file,
+				  const unsigned int cmd, const bool is_compat)
 {
 	access_mask_t allowed_access = landlock_file(file)->allowed_access;
 
@@ -1715,33 +1715,23 @@ static int hook_file_ioctl(struct file *file, unsigned int cmd,
 	if (!is_device(file))
 		return 0;
 
-	if (is_masked_device_ioctl(cmd))
+	if (unlikely(is_compat) ? is_masked_device_ioctl_compat(cmd) :
+				  is_masked_device_ioctl(cmd))
 		return 0;
 
 	return -EACCES;
 }
 
+static int hook_file_ioctl(struct file *file, unsigned int cmd,
+			   unsigned long arg)
+{
+	return hook_file_ioctl_common(file, cmd, false);
+}
+
 static int hook_file_ioctl_compat(struct file *file, unsigned int cmd,
 				  unsigned long arg)
 {
-	access_mask_t allowed_access = landlock_file(file)->allowed_access;
-
-	/*
-	 * It is the access rights at the time of opening the file which
-	 * determine whether IOCTL can be used on the opened file later.
-	 *
-	 * The access right is attached to the opened file in hook_file_open().
-	 */
-	if (allowed_access & LANDLOCK_ACCESS_FS_IOCTL_DEV)
-		return 0;
-
-	if (!is_device(file))
-		return 0;
-
-	if (is_masked_device_ioctl_compat(cmd))
-		return 0;
-
-	return -EACCES;
+	return hook_file_ioctl_common(file, cmd, true);
 }
 
 /*
