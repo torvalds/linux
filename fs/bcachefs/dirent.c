@@ -729,3 +729,54 @@ int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 
 	return ret < 0 ? ret : 0;
 }
+
+/* fsck */
+
+static int lookup_first_inode(struct btree_trans *trans, u64 inode_nr,
+			      struct bch_inode_unpacked *inode)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_inodes, POS(0, inode_nr),
+				     BTREE_ITER_all_snapshots, k, ret) {
+		if (k.k->p.offset != inode_nr)
+			break;
+		if (!bkey_is_inode(k.k))
+			continue;
+		ret = bch2_inode_unpack(k, inode);
+		goto found;
+	}
+	ret = -BCH_ERR_ENOENT_inode;
+found:
+	bch_err_msg(trans->c, ret, "fetching inode %llu", inode_nr);
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_fsck_remove_dirent(struct btree_trans *trans, struct bpos pos)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter iter;
+	struct bch_inode_unpacked dir_inode;
+	struct bch_hash_info dir_hash_info;
+	int ret;
+
+	ret = lookup_first_inode(trans, pos.inode, &dir_inode);
+	if (ret)
+		goto err;
+
+	dir_hash_info = bch2_hash_info_init(c, &dir_inode);
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents, pos, BTREE_ITER_intent);
+
+	ret =   bch2_btree_iter_traverse(&iter) ?:
+		bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
+				    &dir_hash_info, &iter,
+				    BTREE_UPDATE_internal_snapshot_node);
+	bch2_trans_iter_exit(trans, &iter);
+err:
+	bch_err_fn(c, ret);
+	return ret;
+}
