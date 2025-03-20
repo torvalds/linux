@@ -138,7 +138,7 @@ static struct pci_driver se6x_driver = {
 	.id_table = se6x_ids,
 	.probe = se6x_probe,
 	.driver = {
-		.pm = pm_ptr(&oxygen_pci_pm),
+		.pm = pm_sleep_ptr(&oxygen_pci_pm),
 	},
 	.shutdown = oxygen_pci_shutdown,
 };

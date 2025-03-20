@@ -855,7 +855,7 @@ static struct pci_driver oxygen_driver = {
 	.id_table = oxygen_ids,
 	.probe = generic_oxygen_probe,
 	.driver = {
-		.pm = pm_ptr(&oxygen_pci_pm),
+		.pm = pm_sleep_ptr(&oxygen_pci_pm),
 	},
 };
 
