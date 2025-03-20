@@ -266,26 +266,41 @@ static int hook_unix_stream_connect(struct sock *const sock,
 				    struct sock *const other,
 				    struct sock *const newsk)
 {
+	size_t handle_layer;
 	const struct landlock_cred_security *const subject =
 		landlock_get_applicable_subject(current_cred(), unix_scope,
-						NULL);
+						&handle_layer);
 
 	/* Quick return for non-landlocked tasks. */
 	if (!subject)
 		return 0;
 
-	if (is_abstract_socket(other) && sock_is_scoped(other, subject->domain))
-		return -EPERM;
+	if (!is_abstract_socket(other))
+		return 0;
 
-	return 0;
+	if (!sock_is_scoped(other, subject->domain))
+		return 0;
+
+	landlock_log_denial(subject, &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET,
+		.audit = {
+			.type = LSM_AUDIT_DATA_NET,
+			.u.net = &(struct lsm_network_audit) {
+				.sk = other,
+			},
+		},
+		.layer_plus_one = handle_layer + 1,
+	});
+	return -EPERM;
 }
 
 static int hook_unix_may_send(struct socket *const sock,
 			      struct socket *const other)
 {
+	size_t handle_layer;
 	const struct landlock_cred_security *const subject =
 		landlock_get_applicable_subject(current_cred(), unix_scope,
-						NULL);
+						&handle_layer);
 
 	if (!subject)
 		return 0;
@@ -297,11 +312,23 @@ static int hook_unix_may_send(struct socket *const sock,
 	if (unix_peer(sock->sk) == other->sk)
 		return 0;
 
-	if (is_abstract_socket(other->sk) &&
-	    sock_is_scoped(other->sk, subject->domain))
-		return -EPERM;
+	if (!is_abstract_socket(other->sk))
+		return 0;
 
-	return 0;
+	if (!sock_is_scoped(other->sk, subject->domain))
+		return 0;
+
+	landlock_log_denial(subject, &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_SCOPE_ABSTRACT_UNIX_SOCKET,
+		.audit = {
+			.type = LSM_AUDIT_DATA_NET,
+			.u.net = &(struct lsm_network_audit) {
+				.sk = other->sk,
+			},
+		},
+		.layer_plus_one = handle_layer + 1,
+	});
+	return -EPERM;
 }
 
 static const struct access_masks signal_scope = {
@@ -313,6 +340,7 @@ static int hook_task_kill(struct task_struct *const p,
 			  const struct cred *cred)
 {
 	bool is_scoped;
+	size_t handle_layer;
 	const struct landlock_cred_security *subject;
 
 	if (!cred) {
@@ -331,7 +359,8 @@ static int hook_task_kill(struct task_struct *const p,
 		cred = current_cred();
 	}
 
-	subject = landlock_get_applicable_subject(cred, signal_scope, NULL);
+	subject = landlock_get_applicable_subject(cred, signal_scope,
+						  &handle_layer);
 
 	/* Quick return for non-landlocked tasks. */
 	if (!subject)
@@ -343,10 +372,19 @@ static int hook_task_kill(struct task_struct *const p,
 					     landlock_get_task_domain(p),
 					     signal_scope.scope);
 	}
-	if (is_scoped)
-		return -EPERM;
 
-	return 0;
+	if (!is_scoped)
+		return 0;
+
+	landlock_log_denial(subject, &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_SCOPE_SIGNAL,
+		.audit = {
+			.type = LSM_AUDIT_DATA_TASK,
+			.u.tsk = p,
+		},
+		.layer_plus_one = handle_layer + 1,
+	});
+	return -EPERM;
 }
 
 static int hook_file_send_sigiotask(struct task_struct *tsk,
@@ -375,10 +413,21 @@ static int hook_file_send_sigiotask(struct task_struct *tsk,
 					     landlock_get_task_domain(tsk),
 					     signal_scope.scope);
 	}
-	if (is_scoped)
-		return -EPERM;
 
-	return 0;
+	if (!is_scoped)
+		return 0;
+
+	landlock_log_denial(subject, &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_SCOPE_SIGNAL,
+		.audit = {
+			.type = LSM_AUDIT_DATA_TASK,
+			.u.tsk = tsk,
+		},
+#ifdef CONFIG_AUDIT
+		.layer_plus_one = landlock_file(fown->file)->fown_layer + 1,
+#endif /* CONFIG_AUDIT */
+	});
+	return -EPERM;
 }
 
 static struct security_hook_list landlock_hooks[] __ro_after_init = {

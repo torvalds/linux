@@ -10,6 +10,7 @@
 #ifndef _SECURITY_LANDLOCK_FS_H
 #define _SECURITY_LANDLOCK_FS_H
 
+#include <linux/build_bug.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/rcupdate.h>
@@ -62,6 +63,11 @@ struct landlock_file_security {
 	 * _LANDLOCK_ACCESS_FS_OPTIONAL).
 	 */
 	deny_masks_t deny_masks;
+	/**
+	 * @fown_layer: Layer level of @fown_subject->domain with
+	 * LANDLOCK_SCOPE_SIGNAL.
+	 */
+	u8 fown_layer;
 #endif /* CONFIG_AUDIT */
 
 	/**
@@ -73,6 +79,16 @@ struct landlock_file_security {
 	 */
 	struct landlock_cred_security fown_subject;
 };
+
+#ifdef CONFIG_AUDIT
+
+/* Makes sure all layers can be identified. */
+/* clang-format off */
+static_assert((typeof_member(struct landlock_file_security, fown_layer))~0 >=
+	      LANDLOCK_MAX_NUM_LAYERS);
+/* clang-format off */
+
+#endif /* CONFIG_AUDIT */
 
 /**
  * struct landlock_superblock_security - Superblock security blob
