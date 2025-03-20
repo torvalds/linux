@@ -407,31 +407,40 @@ int efx_reflash_flash_firmware(struct efx_nic *efx, const struct firmware *fw,
 		return -EOPNOTSUPP;
 	}
 
-	devlink_flash_update_status_notify(devlink, "Checking update", NULL, 0, 0);
-
-	rc = efx_reflash_parse_firmware_data(fw, &type, &data_subtype, &data,
-					     &data_size);
-	if (rc) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Firmware image validation check failed");
-		goto out;
-	}
-
 	mutex_lock(&efx->reflash_mutex);
 
-	rc = efx_mcdi_nvram_metadata(efx, type, &subtype, NULL, NULL, 0);
-	if (rc) {
-		NL_SET_ERR_MSG_FMT_MOD(extack,
-				       "Metadata query for NVRAM partition %#x failed",
-				       type);
-		goto out_unlock;
-	}
+	devlink_flash_update_status_notify(devlink, "Checking update", NULL, 0, 0);
 
-	if (subtype != data_subtype) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Firmware image is not appropriate for this adapter");
-		rc = -EINVAL;
-		goto out_unlock;
+	if (efx->type->flash_auto_partition) {
+		/* NIC wants entire FW file including headers;
+		 * FW will validate 'subtype' if there is one
+		 */
+		type = NVRAM_PARTITION_TYPE_AUTO;
+		data = fw->data;
+		data_size = fw->size;
+	} else {
+		rc = efx_reflash_parse_firmware_data(fw, &type, &data_subtype, &data,
+						     &data_size);
+		if (rc) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Firmware image validation check failed");
+			goto out_unlock;
+		}
+
+		rc = efx_mcdi_nvram_metadata(efx, type, &subtype, NULL, NULL, 0);
+		if (rc) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Metadata query for NVRAM partition %#x failed",
+					       type);
+			goto out_unlock;
+		}
+
+		if (subtype != data_subtype) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Firmware image is not appropriate for this adapter");
+			rc = -EINVAL;
+			goto out_unlock;
+		}
 	}
 
 	rc = efx_mcdi_nvram_info(efx, type, &size, &erase_align, &write_align,
@@ -506,7 +515,6 @@ out_update_finish:
 		rc = efx_mcdi_nvram_update_finish_polled(efx, type);
 out_unlock:
 	mutex_unlock(&efx->reflash_mutex);
-out:
 	devlink_flash_update_status_notify(devlink, rc ? "Update failed" :
 							 "Update complete",
 					   NULL, 0, 0);

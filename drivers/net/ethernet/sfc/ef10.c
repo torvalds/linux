@@ -4419,6 +4419,7 @@ const struct efx_nic_type efx_x4_nic_type = {
 	.can_rx_scatter = true,
 	.always_rx_scatter = true,
 	.option_descriptors = true,
+	.flash_auto_partition = true,
 	.min_interrupt_mode = EFX_INT_MODE_MSIX,
 	.timer_period_max = 1 << ERF_DD_EVQ_IND_TIMER_VAL_WIDTH,
 	.offload_features = EF10_OFFLOAD_FEATURES,
