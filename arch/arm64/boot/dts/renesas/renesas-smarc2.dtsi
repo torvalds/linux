@@ -29,6 +29,10 @@
 	};
 };
 
+&canfd {
+	status = "okay";
+};
+
 &scif0 {
 	status = "okay";
 };

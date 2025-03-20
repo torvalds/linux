@@ -6,12 +6,20 @@
  */
 
 /*
- * Please set the switch position SYS.1 on the SoM and the corresponding macro
- * SW_SD0_DEV_SEL on the board DTS:
+ * Please set the below switch position on the SoM and the corresponding macro
+ * on the board DTS:
  *
- * SW_SD0_DEV_SEL:
+ * Switch position SYS.1, Macro SW_SD0_DEV_SEL:
  *      0 - SD0 is connected to eMMC (default)
  *      1 - SD0 is connected to uSD0 card
+ *
+ * Switch position SYS.5, Macro SW_LCD_EN:
+ *      0 - Select Misc. Signals routing
+ *      1 - Select LCD
+ *
+ * Switch position BOOT.6, Macro SW_PDM_EN:
+ *      0 - Select CAN routing
+ *      1 - Select PDM
  */
 
 / {
