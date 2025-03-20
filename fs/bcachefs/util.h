@@ -431,7 +431,7 @@ static inline void memcpy_u64s_small(void *dst, const void *src,
 static inline void __memcpy_u64s(void *dst, const void *src,
 				 unsigned u64s)
 {
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_KMSAN)
 	long d0, d1, d2;
 
 	asm volatile("rep ; movsq"
@@ -508,7 +508,7 @@ static inline void __memmove_u64s_up(void *_dst, const void *_src,
 	u64 *dst = (u64 *) _dst + u64s - 1;
 	u64 *src = (u64 *) _src + u64s - 1;
 
-#ifdef CONFIG_X86_64
+#if defined(CONFIG_X86_64) && !defined(CONFIG_KMSAN)
 	long d0, d1, d2;
 
 	asm volatile("std ;\n"
