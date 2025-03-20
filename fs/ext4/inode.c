@@ -3290,6 +3290,10 @@ static void ext4_set_iomap(struct inode *inode, struct iomap *iomap,
 	if (map->m_flags & EXT4_MAP_NEW)
 		iomap->flags |= IOMAP_F_NEW;
 
+	/* HW-offload atomics are always used */
+	if (flags & IOMAP_ATOMIC)
+		iomap->flags |= IOMAP_F_ATOMIC_BIO;
+
 	if (flags & IOMAP_DAX)
 		iomap->dax_dev = EXT4_SB(inode->i_sb)->s_daxdev;
 	else
@@ -3467,7 +3471,7 @@ static inline bool ext4_want_directio_fallback(unsigned flags, ssize_t written)
 		return false;
 
 	/* atomic writes are all-or-nothing */
-	if (flags & IOMAP_ATOMIC_HW)
+	if (flags & IOMAP_ATOMIC)
 		return false;
 
 	/* can only try again if we wrote nothing */

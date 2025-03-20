@@ -828,6 +828,10 @@ xfs_direct_write_iomap_begin(
 	if (offset + length > i_size_read(inode))
 		iomap_flags |= IOMAP_F_DIRTY;
 
+	/* HW-offload atomics are always used in this path */
+	if (flags & IOMAP_ATOMIC)
+		iomap_flags |= IOMAP_F_ATOMIC_BIO;
+
 	/*
 	 * COW writes may allocate delalloc space or convert unwritten COW
 	 * extents, so we need to make sure to take the lock exclusively here.
