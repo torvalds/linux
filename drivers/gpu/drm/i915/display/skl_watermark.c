@@ -19,6 +19,7 @@
 #include "intel_de.h"
 #include "intel_display.h"
 #include "intel_display_power.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fixed.h"
@@ -4057,7 +4058,7 @@ static ssize_t skl_watermark_ipc_status_write(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct drm_i915_private *i915 = m->private;
-	intel_wakeref_t wakeref;
+	struct intel_display *display = &i915->display;
 	bool enable;
 	int ret;
 
@@ -4065,11 +4066,11 @@ static ssize_t skl_watermark_ipc_status_write(struct file *file,
 	if (ret < 0)
 		return ret;
 
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
+	with_intel_display_rpm(display) {
 		if (!skl_watermark_ipc_enabled(i915) && enable)
-			drm_info(&i915->drm,
+			drm_info(display->drm,
 				 "Enabling IPC: WM will be proper only after next commit\n");
-		i915->display.wm.ipc_enabled = enable;
+		display->wm.ipc_enabled = enable;
 		skl_watermark_ipc_update(i915);
 	}
 

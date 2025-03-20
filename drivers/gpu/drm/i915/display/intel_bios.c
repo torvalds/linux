@@ -37,6 +37,7 @@
 
 #include "i915_drv.h"
 #include "intel_display.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_gmbus.h"
 
@@ -3115,7 +3116,6 @@ static const struct vbt_header *intel_bios_get_vbt(struct intel_display *display
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct vbt_header *vbt = NULL;
-	intel_wakeref_t wakeref;
 
 	vbt = firmware_get_vbt(display, sizep);
 
@@ -3127,11 +3127,11 @@ static const struct vbt_header *intel_bios_get_vbt(struct intel_display *display
 	 * through MMIO or PCI mapping
 	 */
 	if (!vbt && IS_DGFX(i915))
-		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+		with_intel_display_rpm(display)
 			vbt = oprom_get_vbt(display, intel_rom_spi(i915), sizep, "SPI flash");
 
 	if (!vbt)
-		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+		with_intel_display_rpm(display)
 			vbt = oprom_get_vbt(display, intel_rom_pci(i915), sizep, "PCI ROM");
 
 	return vbt;
