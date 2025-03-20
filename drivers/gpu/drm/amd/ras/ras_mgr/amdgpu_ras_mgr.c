@@ -335,6 +335,11 @@ static int amdgpu_ras_mgr_hw_init(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
 	int ret;
 
+	/* Currently only debug mode can enable the ras module
+	 */
+	if (!adev->debug_enable_ras_aca)
+		return 0;
+
 	if (!ras_mgr || !ras_mgr->ras_core)
 		return -EINVAL;
 
@@ -346,6 +351,8 @@ static int amdgpu_ras_mgr_hw_init(struct amdgpu_ip_block *ip_block)
 
 	ras_mgr->ras_is_ready = true;
 
+	amdgpu_enable_uniras(adev, true);
+
 	RAS_DEV_INFO(adev, "AMDGPU RAS Is Ready.\n");
 	return 0;
 }
@@ -354,6 +361,11 @@ static int amdgpu_ras_mgr_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ras_mgr *ras_mgr = amdgpu_ras_mgr_get_context(adev);
+
+	/* Currently only debug mode can enable the ras module
+	 */
+	if (!adev->debug_enable_ras_aca)
+		return 0;
 
 	if (!ras_mgr || !ras_mgr->ras_core)
 		return -EINVAL;
