@@ -90,7 +90,7 @@ static void amdgpu_mes_doorbell_free(struct amdgpu_device *adev)
 
 int amdgpu_mes_init(struct amdgpu_device *adev)
 {
-	int i, r;
+	int i, r, num_pipes;
 
 	adev->mes.adev = adev;
 
@@ -108,8 +108,13 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 	adev->mes.vmid_mask_mmhub = 0xffffff00;
 	adev->mes.vmid_mask_gfxhub = 0xffffff00;
 
+	num_pipes = adev->gfx.me.num_pipe_per_me * adev->gfx.me.num_me;
+	if (num_pipes > AMDGPU_MES_MAX_GFX_PIPES)
+		dev_warn(adev->dev, "more gfx pipes than supported by MES! (%d vs %d)\n",
+			 num_pipes, AMDGPU_MES_MAX_GFX_PIPES);
+
 	for (i = 0; i < AMDGPU_MES_MAX_GFX_PIPES; i++) {
-		if (i >= adev->gfx.me.num_pipe_per_me * adev->gfx.me.num_me)
+		if (i >= num_pipes)
 			break;
 		if (amdgpu_ip_version(adev, GC_HWIP, 0) >=
 		    IP_VERSION(12, 0, 0))
@@ -129,14 +134,24 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 			adev->mes.gfx_hqd_mask[i] = 0x2;
 	}
 
+	num_pipes = adev->gfx.mec.num_pipe_per_mec * adev->gfx.mec.num_mec;
+	if (num_pipes > AMDGPU_MES_MAX_COMPUTE_PIPES)
+		dev_warn(adev->dev, "more compute pipes than supported by MES! (%d vs %d)\n",
+			 num_pipes, AMDGPU_MES_MAX_COMPUTE_PIPES);
+
 	for (i = 0; i < AMDGPU_MES_MAX_COMPUTE_PIPES; i++) {
-		if (i >= (adev->gfx.mec.num_pipe_per_mec * adev->gfx.mec.num_mec))
+		if (i >= num_pipes)
 			break;
 		adev->mes.compute_hqd_mask[i] = 0xc;
 	}
 
+	num_pipes = adev->sdma.num_instances;
+	if (num_pipes > AMDGPU_MES_MAX_SDMA_PIPES)
+		dev_warn(adev->dev, "more SDMA pipes than supported by MES! (%d vs %d)\n",
+			 num_pipes, AMDGPU_MES_MAX_SDMA_PIPES);
+
 	for (i = 0; i < AMDGPU_MES_MAX_SDMA_PIPES; i++) {
-		if (i >= adev->sdma.num_instances)
+		if (i >= num_pipes)
 			break;
 		adev->mes.sdma_hqd_mask[i] = 0xfc;
 	}
