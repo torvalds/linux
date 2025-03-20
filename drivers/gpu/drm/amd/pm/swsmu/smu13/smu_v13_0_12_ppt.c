@@ -478,8 +478,8 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
 		}
 	}
 
-	gpu_metrics->xgmi_link_width = SMUQ10_ROUND(metrics->XgmiWidth);
-	gpu_metrics->xgmi_link_speed = SMUQ10_ROUND(metrics->XgmiBitrate);
+	gpu_metrics->xgmi_link_width = metrics->XgmiWidth;
+	gpu_metrics->xgmi_link_speed = metrics->XgmiBitrate;
 
 	gpu_metrics->firmware_timestamp = metrics->Timestamp;
 
