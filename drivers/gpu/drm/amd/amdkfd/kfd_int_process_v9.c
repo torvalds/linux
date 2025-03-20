@@ -314,11 +314,12 @@ static bool event_interrupt_isr_v9(struct kfd_node *dev,
 					& ~pasid_mask) | pasid);
 	}
 
-	pr_debug("client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
-		 client_id, source_id, vmid, pasid);
-	pr_debug("%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
-		 data[0], data[1], data[2], data[3],
-		 data[4], data[5], data[6], data[7]);
+	dev_dbg(dev->adev->dev,
+		"client id 0x%x, source id %d, vmid %d, pasid 0x%x. raw data:\n",
+		client_id, source_id, vmid, pasid);
+	dev_dbg(dev->adev->dev, "%8X, %8X, %8X, %8X, %8X, %8X, %8X, %8X.\n",
+		data[0], data[1], data[2], data[3], data[4], data[5], data[6],
+		data[7]);
 
 	/* If there is no valid PASID, it's likely a bug */
 	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
@@ -379,28 +380,82 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 			encoding = REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, ENCODING);
 			switch (encoding) {
 			case SQ_INTERRUPT_WORD_ENCODING_AUTO:
-				pr_debug_ratelimited(
+				dev_dbg_ratelimited(
+					dev->adev->dev,
 					"sq_intr: auto, se %d, ttrace %d, wlt %d, ttrac_buf_full %d, reg_tms %d, cmd_tms %d, host_cmd_ovf %d, host_reg_ovf %d, immed_ovf %d, ttrace_utc_err %d\n",
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, SE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, THREAD_TRACE),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, WLT),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, THREAD_TRACE_BUF_FULL),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, REG_TIMESTAMP),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, CMD_TIMESTAMP),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, HOST_CMD_OVERFLOW),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, HOST_REG_OVERFLOW),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, IMMED_OVERFLOW),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID, THREAD_TRACE_UTC_ERROR));
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						SE_ID),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						THREAD_TRACE),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						WLT),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						THREAD_TRACE_BUF_FULL),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						REG_TIMESTAMP),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						CMD_TIMESTAMP),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						HOST_CMD_OVERFLOW),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						HOST_REG_OVERFLOW),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						IMMED_OVERFLOW),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_AUTO_CTXID,
+						THREAD_TRACE_UTC_ERROR));
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_INST:
-				pr_debug_ratelimited("sq_intr: inst, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, intr_data 0x%x\n",
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, DATA),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SH_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, PRIV),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, WAVE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SIMD_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, CU_ID),
+				dev_dbg_ratelimited(
+					dev->adev->dev,
+					"sq_intr: inst, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, intr_data 0x%x\n",
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						SE_ID),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						DATA),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						SH_ID),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						PRIV),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						WAVE_ID),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						SIMD_ID),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						CU_ID),
 					sq_int_data);
 				if (context_id0 & SQ_INTERRUPT_WORD_WAVE_CTXID__PRIV_MASK) {
 					if (kfd_set_dbg_ev_from_interrupt(dev, pasid,
@@ -412,14 +467,37 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 				break;
 			case SQ_INTERRUPT_WORD_ENCODING_ERROR:
 				sq_intr_err = REG_GET_FIELD(sq_int_data, KFD_SQ_INT_DATA, ERR_TYPE);
-				pr_warn_ratelimited("sq_intr: error, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, err_type %d\n",
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, DATA),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SH_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, PRIV),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, WAVE_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, SIMD_ID),
-					REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID, CU_ID),
+				dev_warn_ratelimited(
+					dev->adev->dev,
+					"sq_intr: error, se %d, data 0x%x, sh %d, priv %d, wave_id %d, simd_id %d, cu_id %d, err_type %d\n",
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						SE_ID),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						DATA),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						SH_ID),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						PRIV),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						WAVE_ID),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						SIMD_ID),
+					REG_GET_FIELD(
+						context_id0,
+						SQ_INTERRUPT_WORD_WAVE_CTXID,
+						CU_ID),
 					sq_intr_err);
 				if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
 					sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
