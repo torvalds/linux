@@ -208,6 +208,22 @@ enforce_ruleset(struct __test_metadata *const _metadata, const int ruleset_fd)
 	}
 }
 
+static void __maybe_unused
+drop_access_rights(struct __test_metadata *const _metadata,
+		   const struct landlock_ruleset_attr *const ruleset_attr)
+{
+	int ruleset_fd;
+
+	ruleset_fd =
+		landlock_create_ruleset(ruleset_attr, sizeof(*ruleset_attr), 0);
+	EXPECT_LE(0, ruleset_fd)
+	{
+		TH_LOG("Failed to create a ruleset: %s", strerror(errno));
+	}
+	enforce_ruleset(_metadata, ruleset_fd);
+	EXPECT_EQ(0, close(ruleset_fd));
+}
+
 struct protocol_variant {
 	int domain;
 	int type;

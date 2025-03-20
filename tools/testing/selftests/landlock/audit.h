@@ -208,6 +208,41 @@ static int audit_set_status(int fd, __u32 key, __u32 val)
 	return audit_request(fd, &msg, NULL);
 }
 
+/* Returns a pointer to the last filled character of @dst, which is `\0`.  */
+static __maybe_unused char *regex_escape(const char *const src, char *dst,
+					 size_t dst_size)
+{
+	char *d = dst;
+
+	for (const char *s = src; *s; s++) {
+		switch (*s) {
+		case '$':
+		case '*':
+		case '.':
+		case '[':
+		case '\\':
+		case ']':
+		case '^':
+			if (d >= dst + dst_size - 2)
+				return (char *)-ENOMEM;
+
+			*d++ = '\\';
+			*d++ = *s;
+			break;
+		default:
+			if (d >= dst + dst_size - 1)
+				return (char *)-ENOMEM;
+
+			*d++ = *s;
+		}
+	}
+	if (d >= dst + dst_size - 1)
+		return (char *)-ENOMEM;
+
+	*d = '\0';
+	return d;
+}
+
 /*
  * @domain_id: The domain ID extracted from the audit message (if the first part
  * of @pattern is REGEX_LANDLOCK_PREFIX).  It is set to 0 if the domain ID is
