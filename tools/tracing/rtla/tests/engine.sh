@@ -61,6 +61,32 @@ check() {
 	fi
 }
 
+check_with_osnoise_options() {
+	# Do the same as "check", but with pre-set osnoise options.
+	# Note: rtla should reset the osnoise options, this is used to test
+	# if it indeed does so.
+	# Save original arguments
+	arg1=$1
+	arg2=$2
+
+	# Apply osnoise options (if not dry run)
+	if [ -n "$TEST_COUNT" ]
+	then
+		[ "$NO_RESET_OSNOISE" == 1 ] || reset_osnoise
+		shift
+		while shift
+		do
+			[ "$1" == "" ] && continue
+			option=$(echo $1 | cut -d '=' -f 1)
+			value=$(echo $1 | cut -d '=' -f 2)
+			echo "option: $option, value: $value"
+			echo "$value" > "/sys/kernel/tracing/osnoise/$option" || return 1
+		done
+	fi
+
+	NO_RESET_OSNOISE=1 check "$arg1" "$arg2"
+}
+
 set_timeout() {
 	TIMEOUT="timeout -v -k 15s $1"
 }
