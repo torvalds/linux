@@ -20,4 +20,14 @@ config FWCTL_MLX5
 	  mainstream kernel.
 
 	  If you don't know what to do here, say N.
+
+config FWCTL_PDS
+	tristate "AMD/Pensando pds fwctl driver"
+	depends on PDS_CORE
+	help
+	  The pds_fwctl driver provides an fwctl interface for a user process
+	  to access the debug and configuration information of the AMD/Pensando
+	  DSC hardware family.
+
+	  If you don't know what to do here, say N.
 endif
