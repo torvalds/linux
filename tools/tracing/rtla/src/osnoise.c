@@ -1187,6 +1187,12 @@ osnoise_apply_config(struct osnoise_tool *tool, struct osnoise_params *params)
 		auto_house_keeping(&params->monitored_cpus);
 	}
 
+	retval = osnoise_set_workload(tool->context, true);
+	if (retval < -1) {
+		err_msg("Failed to set OSNOISE_WORKLOAD option\n");
+		goto out_err;
+	}
+
 	return 0;
 
 out_err:
