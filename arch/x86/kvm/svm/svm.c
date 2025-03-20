@@ -3397,14 +3397,19 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 	struct vmcb_control_area *control = &svm->vmcb->control;
 	struct vmcb_save_area *save = &svm->vmcb->save;
 	struct vmcb_save_area *save01 = &svm->vmcb01.ptr->save;
+	char *vm_type;
 
 	if (!dump_invalid_vmcb) {
 		pr_warn_ratelimited("set kvm_amd.dump_invalid_vmcb=1 to dump internal KVM state.\n");
 		return;
 	}
 
-	pr_err("VMCB %p, last attempted VMRUN on CPU %d\n",
-	       svm->current_vmcb->ptr, vcpu->arch.last_vmentry_cpu);
+	vm_type = sev_snp_guest(vcpu->kvm) ? "SEV-SNP" :
+		  sev_es_guest(vcpu->kvm) ? "SEV-ES" :
+		  sev_guest(vcpu->kvm) ? "SEV" : "SVM";
+
+	pr_err("%s VMCB %p, last attempted VMRUN on CPU %d\n",
+	       vm_type, svm->current_vmcb->ptr, vcpu->arch.last_vmentry_cpu);
 	pr_err("VMCB Control Area:\n");
 	pr_err("%-20s%04x\n", "cr_read:", control->intercepts[INTERCEPT_CR] & 0xffff);
 	pr_err("%-20s%04x\n", "cr_write:", control->intercepts[INTERCEPT_CR] >> 16);
