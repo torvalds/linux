@@ -641,7 +641,9 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = bch2_dirent_read_target(trans, dir, bkey_s_c_to_dirent(k), &inum);
+	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
+
+	ret = bch2_dirent_read_target(trans, dir, d, &inum);
 	if (ret > 0)
 		ret = -ENOENT;
 	if (ret)
@@ -651,30 +653,30 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	if (inode)
 		goto out;
 
+	/*
+	 * Note: if check/repair needs it, we commit before
+	 * bch2_inode_hash_init_insert(), as after that point we can't take a
+	 * restart - not in the top level loop with a commit_do(), like we
+	 * usually do:
+	 */
+
 	struct bch_subvolume subvol;
 	struct bch_inode_unpacked inode_u;
 	ret =   bch2_subvolume_get(trans, inum.subvol, true, &subvol) ?:
 		bch2_inode_find_by_inum_nowarn_trans(trans, inum, &inode_u) ?:
+		bch2_check_dirent_target(trans, &dirent_iter, d, &inode_u, false) ?:
+		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc) ?:
 		PTR_ERR_OR_ZERO(inode = bch2_inode_hash_init_insert(trans, inum, &inode_u, &subvol));
 
+	/*
+	 * don't remove it: check_inodes might find another inode that points
+	 * back to this dirent
+	 */
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
 				c, "dirent to missing inode:\n  %s",
-				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+				(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf));
 	if (ret)
 		goto err;
-
-	/* regular files may have hardlinks: */
-	if (bch2_fs_inconsistent_on(bch2_inode_should_have_single_bp(&inode_u) &&
-				    !bkey_eq(k.k->p, POS(inode_u.bi_dir, inode_u.bi_dir_offset)),
-				    c,
-				    "dirent points to inode that does not point back:\n  %s",
-				    (bch2_bkey_val_to_text(&buf, c, k),
-				     prt_printf(&buf, "\n  "),
-				     bch2_inode_unpacked_to_text(&buf, &inode_u),
-				     buf.buf))) {
-		ret = -ENOENT;
-		goto err;
-	}
 out:
 	bch2_trans_iter_exit(trans, &dirent_iter);
 	printbuf_exit(&buf);
