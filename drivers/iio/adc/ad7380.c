@@ -1211,6 +1211,9 @@ static int ad7380_offload_buffer_predisable(struct iio_dev *indio_dev)
 	struct ad7380_state *st = iio_priv(indio_dev);
 	int ret;
 
+	spi_offload_trigger_disable(st->offload, st->offload_trigger);
+	spi_unoptimize_message(&st->offload_msg);
+
 	if (st->seq) {
 		ret = regmap_update_bits(st->regmap,
 					 AD7380_REG_ADDR_CONFIG1,
@@ -1221,10 +1224,6 @@ static int ad7380_offload_buffer_predisable(struct iio_dev *indio_dev)
 
 		st->seq = false;
 	}
-
-	spi_offload_trigger_disable(st->offload, st->offload_trigger);
-
-	spi_unoptimize_message(&st->offload_msg);
 
 	return 0;
 }
