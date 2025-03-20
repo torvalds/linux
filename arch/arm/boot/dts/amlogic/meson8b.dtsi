@@ -403,8 +403,12 @@
 	};
 
 	pwm_ef: pwm@86c0 {
-		compatible = "amlogic,meson8b-pwm";
+		compatible = "amlogic,meson8b-pwm-v2", "amlogic,meson8-pwm-v2";
 		reg = <0x86c0 0x10>;
+		clocks = <&xtal>,
+			 <>, /* unknown/untested, the datasheet calls it "Video PLL" */
+			 <&clkc CLKID_FCLK_DIV4>,
+			 <&clkc CLKID_FCLK_DIV3>;
 		#pwm-cells = <3>;
 		status = "disabled";
 	};
@@ -674,11 +678,19 @@
 };
 
 &pwm_ab {
-	compatible = "amlogic,meson8b-pwm";
+	compatible = "amlogic,meson8b-pwm-v2", "amlogic,meson8-pwm-v2";
+	clocks = <&xtal>,
+		 <>, /* unknown/untested, the datasheet calls it "Video PLL" */
+		 <&clkc CLKID_FCLK_DIV4>,
+		 <&clkc CLKID_FCLK_DIV3>;
 };
 
 &pwm_cd {
-	compatible = "amlogic,meson8b-pwm";
+	compatible = "amlogic,meson8b-pwm-v2", "amlogic,meson8-pwm-v2";
+	clocks = <&xtal>,
+		 <>, /* unknown/untested, the datasheet calls it "Video PLL" */
+		 <&clkc CLKID_FCLK_DIV4>,
+		 <&clkc CLKID_FCLK_DIV3>;
 };
 
 &rtc {
