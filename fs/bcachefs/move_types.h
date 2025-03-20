@@ -32,7 +32,7 @@ struct bch_move_stats {
 
 struct move_bucket_key {
 	struct bpos		bucket;
-	u8			gen;
+	unsigned		gen;
 };
 
 struct move_bucket {
