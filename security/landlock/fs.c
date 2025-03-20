@@ -43,6 +43,7 @@
 #include "audit.h"
 #include "common.h"
 #include "cred.h"
+#include "domain.h"
 #include "fs.h"
 #include "limits.h"
 #include "object.h"
@@ -1671,6 +1672,11 @@ static int hook_file_open(struct file *const file)
 	 * file access rights in the opened struct file.
 	 */
 	landlock_file(file)->allowed_access = allowed_access;
+#ifdef CONFIG_AUDIT
+	landlock_file(file)->deny_masks = landlock_get_deny_masks(
+		_LANDLOCK_ACCESS_FS_OPTIONAL, optional_access, &layer_masks,
+		ARRAY_SIZE(layer_masks));
+#endif /* CONFIG_AUDIT */
 
 	if ((open_access_request & allowed_access) == open_access_request)
 		return 0;
@@ -1695,6 +1701,19 @@ static int hook_file_truncate(struct file *const file)
 	 */
 	if (landlock_file(file)->allowed_access & LANDLOCK_ACCESS_FS_TRUNCATE)
 		return 0;
+
+	landlock_log_denial(landlock_cred(file->f_cred), &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_FS_ACCESS,
+		.audit = {
+			.type = LSM_AUDIT_DATA_FILE,
+			.u.file = file,
+		},
+		.all_existing_optional_access = _LANDLOCK_ACCESS_FS_OPTIONAL,
+		.access = LANDLOCK_ACCESS_FS_TRUNCATE,
+#ifdef CONFIG_AUDIT
+		.deny_masks = landlock_file(file)->deny_masks,
+#endif /* CONFIG_AUDIT */
+	});
 	return -EACCES;
 }
 
@@ -1719,6 +1738,21 @@ static int hook_file_ioctl_common(const struct file *const file,
 				  is_masked_device_ioctl(cmd))
 		return 0;
 
+	landlock_log_denial(landlock_cred(file->f_cred), &(struct landlock_request) {
+		.type = LANDLOCK_REQUEST_FS_ACCESS,
+		.audit = {
+			.type = LSM_AUDIT_DATA_IOCTL_OP,
+			.u.op = &(struct lsm_ioctlop_audit) {
+				.path = file->f_path,
+				.cmd = cmd,
+			},
+		},
+		.all_existing_optional_access = _LANDLOCK_ACCESS_FS_OPTIONAL,
+		.access = LANDLOCK_ACCESS_FS_IOCTL_DEV,
+#ifdef CONFIG_AUDIT
+		.deny_masks = landlock_file(file)->deny_masks,
+#endif /* CONFIG_AUDIT */
+	});
 	return -EACCES;
 }
 
