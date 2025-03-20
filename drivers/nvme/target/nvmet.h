@@ -828,7 +828,7 @@ static inline u8 nvmet_cc_iocqes(u32 cc)
 /* Convert a 32-bit number to a 16-bit 0's based number */
 static inline __le16 to0based(u32 a)
 {
-	return cpu_to_le16(max(1U, min(1U << 16, a)) - 1);
+	return cpu_to_le16(clamp(a, 1U, 1U << 16) - 1);
 }
 
 static inline bool nvmet_ns_has_pi(struct nvmet_ns *ns)
