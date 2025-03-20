@@ -1412,18 +1412,19 @@ static int do_sys_openat2(int dfd, const char __user *filename,
 			  struct open_how *how)
 {
 	struct open_flags op;
-	int fd = build_open_flags(how, &op);
 	struct filename *tmp;
+	int err, fd;
 
-	if (fd)
-		return fd;
+	err = build_open_flags(how, &op);
+	if (unlikely(err))
+		return err;
 
 	tmp = getname(filename);
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
 
 	fd = get_unused_fd_flags(how->flags);
-	if (fd >= 0) {
+	if (likely(fd >= 0)) {
 		struct file *f = do_filp_open(dfd, tmp, &op);
 		if (IS_ERR(f)) {
 			put_unused_fd(fd);
