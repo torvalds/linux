@@ -19,6 +19,7 @@
 #include <linux/jump_label.h>
 #include <linux/pci.h>
 #include <linux/printk.h>
+#include <linux/dma-direct.h>
 
 #include <asm/pci_clp.h>
 #include <asm/pci_dma.h>
@@ -283,9 +284,33 @@ static struct zpci_bus *zpci_bus_alloc(int topo, bool topo_is_tid)
 	return zbus;
 }
 
+static void pci_dma_range_setup(struct pci_dev *pdev)
+{
+	struct zpci_dev *zdev = to_zpci(pdev);
+	struct bus_dma_region *map;
+	u64 aligned_end;
+
+	map = kzalloc(sizeof(*map), GFP_KERNEL);
+	if (!map)
+		return;
+
+	map->cpu_start = 0;
+	map->dma_start = PAGE_ALIGN(zdev->start_dma);
+	aligned_end = PAGE_ALIGN_DOWN(zdev->end_dma + 1);
+	if (aligned_end >= map->dma_start)
+		map->size = aligned_end - map->dma_start;
+	else
+		map->size = 0;
+	WARN_ON_ONCE(map->size == 0);
+
+	pdev->dev.dma_range_map = map;
+}
+
 void pcibios_bus_add_device(struct pci_dev *pdev)
 {
 	struct zpci_dev *zdev = to_zpci(pdev);
+
+	pci_dma_range_setup(pdev);
 
 	/*
 	 * With pdev->no_vf_scan the common PCI probing code does not
