@@ -74,8 +74,8 @@ bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev,
 			adev->gfx.mec_bitmap[xcc_id].queue_bitmap);
 }
 
-int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev,
-			       int me, int pipe, int queue)
+static int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev,
+				      int me, int pipe, int queue)
 {
 	int bit = 0;
 
