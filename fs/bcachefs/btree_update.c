@@ -512,6 +512,8 @@ static noinline int bch2_trans_update_get_key_cache(struct btree_trans *trans,
 int __must_check bch2_trans_update(struct btree_trans *trans, struct btree_iter *iter,
 				   struct bkey_i *k, enum btree_iter_update_trigger_flags flags)
 {
+	kmsan_check_memory(k, bkey_bytes(&k->k));
+
 	btree_path_idx_t path_idx = iter->update_path ?: iter->path;
 	int ret;
 

@@ -133,6 +133,8 @@ static inline int __must_check bch2_trans_update_buffered(struct btree_trans *tr
 					    enum btree_id btree,
 					    struct bkey_i *k)
 {
+	kmsan_check_memory(k, bkey_bytes(&k->k));
+
 	if (unlikely(!btree_type_uses_write_buffer(btree))) {
 		int ret = bch2_btree_write_buffer_insert_err(trans, btree, k);
 		dump_stack();

@@ -164,6 +164,7 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 	EBUG_ON(bpos_gt(insert->k.p, b->data->max_key));
 	EBUG_ON(insert->k.u64s > bch2_btree_keys_u64s_remaining(b));
 	EBUG_ON(!b->c.level && !bpos_eq(insert->k.p, path->pos));
+	kmsan_check_memory(insert, bkey_bytes(&insert->k));
 
 	k = bch2_btree_node_iter_peek_all(node_iter, b);
 	if (k && bkey_cmp_left_packed(b, k, &insert->k.p))
