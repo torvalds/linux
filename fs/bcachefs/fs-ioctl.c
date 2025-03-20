@@ -5,8 +5,8 @@
 #include "chardev.h"
 #include "dirent.h"
 #include "fs.h"
-#include "fs-common.h"
 #include "fs-ioctl.h"
+#include "namei.h"
 #include "quota.h"
 
 #include <linux/compat.h>

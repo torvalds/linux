@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _BCACHEFS_FS_COMMON_H
-#define _BCACHEFS_FS_COMMON_H
+#ifndef _BCACHEFS_NAMEI_H
+#define _BCACHEFS_NAMEI_H
 
 #include "dirent.h"
 
@@ -44,4 +44,4 @@ bool bch2_reinherit_attrs(struct bch_inode_unpacked *,
 
 int bch2_inum_to_path(struct btree_trans *, subvol_inum, struct printbuf *);
 
-#endif /* _BCACHEFS_FS_COMMON_H */
+#endif /* _BCACHEFS_NAMEI_H */

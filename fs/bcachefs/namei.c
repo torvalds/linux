@@ -4,8 +4,8 @@
 #include "acl.h"
 #include "btree_update.h"
 #include "dirent.h"
-#include "fs-common.h"
 #include "inode.h"
+#include "namei.h"
 #include "subvolume.h"
 #include "xattr.h"
 
