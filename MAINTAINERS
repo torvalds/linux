@@ -23633,7 +23633,7 @@ F:	drivers/thunderbolt/dma_test.c
 THUNDERBOLT DRIVER
 M:	Andreas Noever <andreas.noever@gmail.com>
 M:	Michael Jamet <michael.jamet@intel.com>
-M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+M:	Mika Westerberg <westeri@kernel.org>
 M:	Yehezkel Bernat <YehezkelShB@gmail.com>
 L:	linux-usb@vger.kernel.org
 S:	Maintained
@@ -23644,7 +23644,7 @@ F:	include/linux/thunderbolt.h
 
 THUNDERBOLT NETWORK DRIVER
 M:	Michael Jamet <michael.jamet@intel.com>
-M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+M:	Mika Westerberg <westeri@kernel.org>
 M:	Yehezkel Bernat <YehezkelShB@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
