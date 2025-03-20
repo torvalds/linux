@@ -147,7 +147,7 @@ properties:
       This property provides the re-tuning counter.
 
 allOf:
-  - $ref: mmc-controller.yaml#
+  - $ref: sdhci-common.yaml#
   - if:
       properties:
         compatible:
