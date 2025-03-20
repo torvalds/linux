@@ -510,5 +510,10 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	/* Replaces the old (prepared) domain. */
 	landlock_put_ruleset(new_llcred->domain);
 	new_llcred->domain = new_dom;
+
+#ifdef CONFIG_AUDIT
+	new_llcred->domain_exec |= 1 << (new_dom->num_layers - 1);
+#endif /* CONFIG_AUDIT */
+
 	return commit_creds(new_cred);
 }
