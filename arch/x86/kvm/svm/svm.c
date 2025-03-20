@@ -29,6 +29,7 @@
 #include <linux/cc_platform.h>
 #include <linux/smp.h>
 #include <linux/string_choices.h>
+#include <linux/mutex.h>
 
 #include <asm/apic.h>
 #include <asm/perf_event.h>
@@ -248,6 +249,8 @@ static u8 rsm_ins_bytes[] = "\x0f\xaa";
 static unsigned long iopm_base;
 
 DEFINE_PER_CPU(struct svm_cpu_data, svm_data);
+
+static DEFINE_MUTEX(vmcb_dump_mutex);
 
 /*
  * Only MSR_TSC_AUX is switched via the user return hook.  EFER is switched via
@@ -3403,6 +3406,8 @@ static void dump_vmcb(struct kvm_vcpu *vcpu)
 		pr_warn_ratelimited("set kvm_amd.dump_invalid_vmcb=1 to dump internal KVM state.\n");
 		return;
 	}
+
+	guard(mutex)(&vmcb_dump_mutex);
 
 	vm_type = sev_snp_guest(vcpu->kvm) ? "SEV-SNP" :
 		  sev_es_guest(vcpu->kvm) ? "SEV-ES" :
