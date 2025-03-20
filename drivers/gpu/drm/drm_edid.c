@@ -237,8 +237,9 @@ static const struct edid_quirk {
 	EDID_QUIRK('S', 'E', 'C', 0x144a, EDID_QUIRK_NON_DESKTOP),
 	EDID_QUIRK('A', 'U', 'S', 0xc102, EDID_QUIRK_NON_DESKTOP),
 
-	/* Sony PlayStation VR Headset */
+	/* Sony PlayStation VR Headsets */
 	EDID_QUIRK('S', 'N', 'Y', 0x0704, EDID_QUIRK_NON_DESKTOP),
+	EDID_QUIRK('S', 'N', 'Y', 0xB403, EDID_QUIRK_NON_DESKTOP)
 
 	/* Sensics VR Headsets */
 	EDID_QUIRK('S', 'E', 'N', 0x1019, EDID_QUIRK_NON_DESKTOP),
