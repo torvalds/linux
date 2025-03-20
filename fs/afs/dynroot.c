@@ -314,12 +314,23 @@ static const char *afs_atcell_get_link(struct dentry *dentry, struct inode *inod
 	const char *name;
 	bool dotted = vnode->fid.vnode == 3;
 
-	if (!net->ws_cell)
+	if (!dentry) {
+		/* We're in RCU-pathwalk. */
+		cell = rcu_dereference(net->ws_cell);
+		if (dotted)
+			name = cell->name - 1;
+		else
+			name = cell->name;
+		/* Shouldn't need to set a delayed call. */
+		return name;
+	}
+
+	if (!rcu_access_pointer(net->ws_cell))
 		return ERR_PTR(-ENOENT);
 
 	down_read(&net->cells_lock);
 
-	cell = net->ws_cell;
+	cell = rcu_dereference_protected(net->ws_cell, lockdep_is_held(&net->cells_lock));
 	if (dotted)
 		name = cell->name - 1;
 	else

@@ -19,6 +19,7 @@ properties:
       - imagis,ist3038
       - imagis,ist3038b
       - imagis,ist3038c
+      - imagis,ist3038h
 
   reg:
     maxItems: 1
