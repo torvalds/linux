@@ -243,36 +243,6 @@ landlock_union_access_masks(const struct landlock_ruleset *const domain)
 	return matches.masks;
 }
 
-/**
- * landlock_get_applicable_domain - Return @domain if it applies to (handles)
- *				    at least one of the access rights specified
- *				    in @masks
- *
- * @domain: Landlock ruleset (used as a domain)
- * @masks: access masks
- *
- * Returns: @domain if any access rights specified in @masks is handled, or
- * NULL otherwise.
- */
-static inline const struct landlock_ruleset *
-landlock_get_applicable_domain(const struct landlock_ruleset *const domain,
-			       const struct access_masks masks)
-{
-	const union access_masks_all masks_all = {
-		.masks = masks,
-	};
-	union access_masks_all merge = {};
-
-	if (!domain)
-		return NULL;
-
-	merge.masks = landlock_union_access_masks(domain);
-	if (merge.all & masks_all.all)
-		return domain;
-
-	return NULL;
-}
-
 static inline void
 landlock_add_fs_access_mask(struct landlock_ruleset *const ruleset,
 			    const access_mask_t fs_access_mask,
