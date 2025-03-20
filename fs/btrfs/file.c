@@ -1076,6 +1076,24 @@ int btrfs_write_check(struct kiocb *iocb, size_t count)
 	return 0;
 }
 
+static void release_space(struct btrfs_inode *inode, struct extent_changeset *data_reserved,
+			  u64 start, u64 len, bool only_release_metadata)
+{
+	if (len == 0)
+		return;
+
+	if (only_release_metadata) {
+		btrfs_check_nocow_unlock(inode);
+		btrfs_delalloc_release_metadata(inode, len, true);
+	} else {
+		const struct btrfs_fs_info *fs_info = inode->root->fs_info;
+
+		btrfs_delalloc_release_space(inode, data_reserved,
+					     round_down(start, fs_info->sectorsize),
+					     len, true);
+	}
+}
+
 ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 {
 	struct file *file = iocb->ki_filp;
@@ -1083,7 +1101,6 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 	struct inode *inode = file_inode(file);
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct extent_changeset *data_reserved = NULL;
-	u64 release_bytes = 0;
 	u64 lockstart;
 	u64 lockend;
 	size_t num_written = 0;
@@ -1092,7 +1109,6 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 	unsigned int ilock_flags = 0;
 	const bool nowait = (iocb->ki_flags & IOCB_NOWAIT);
 	unsigned int bdp_flags = (nowait ? BDP_ASYNC : 0);
-	bool only_release_metadata = false;
 
 	if (nowait)
 		ilock_flags |= BTRFS_ILOCK_TRY;
@@ -1127,7 +1143,9 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 		size_t dirty_sectors;
 		size_t num_sectors;
 		struct folio *folio = NULL;
+		u64 release_bytes;
 		int extents_locked;
+		bool only_release_metadata = false;
 
 		/*
 		 * Fault pages before locking them in prepare_one_folio()
@@ -1138,7 +1156,6 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 			break;
 		}
 
-		only_release_metadata = false;
 		sector_offset = pos & (fs_info->sectorsize - 1);
 
 		extent_changeset_release(data_reserved);
@@ -1193,6 +1210,8 @@ again:
 		ret = balance_dirty_pages_ratelimited_flags(inode->i_mapping, bdp_flags);
 		if (ret) {
 			btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes);
+			release_space(BTRFS_I(inode), data_reserved,
+				      pos, release_bytes, only_release_metadata);
 			break;
 		}
 
@@ -1200,6 +1219,8 @@ again:
 		if (ret) {
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
 						       reserve_bytes);
+			release_space(BTRFS_I(inode), data_reserved,
+				      pos, release_bytes, only_release_metadata);
 			break;
 		}
 
@@ -1212,6 +1233,8 @@ again:
 
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
 						       reserve_bytes);
+			release_space(BTRFS_I(inode), data_reserved,
+				      pos, release_bytes, only_release_metadata);
 			ret = extents_locked;
 			break;
 		}
@@ -1279,10 +1302,11 @@ again:
 		btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes);
 		if (ret) {
 			btrfs_drop_folio(fs_info, folio, pos, copied);
+			release_space(BTRFS_I(inode), data_reserved,
+				      pos, release_bytes, only_release_metadata);
 			break;
 		}
 
-		release_bytes = 0;
 		if (only_release_metadata)
 			btrfs_check_nocow_unlock(BTRFS_I(inode));
 
@@ -1292,19 +1316,6 @@ again:
 
 		pos += copied;
 		num_written += copied;
-	}
-
-	if (release_bytes) {
-		if (only_release_metadata) {
-			btrfs_check_nocow_unlock(BTRFS_I(inode));
-			btrfs_delalloc_release_metadata(BTRFS_I(inode),
-					release_bytes, true);
-		} else {
-			btrfs_delalloc_release_space(BTRFS_I(inode),
-					data_reserved,
-					round_down(pos, fs_info->sectorsize),
-					release_bytes, true);
-		}
 	}
 
 	extent_changeset_free(data_reserved);
