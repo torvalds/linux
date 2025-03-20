@@ -11,3 +11,4 @@ to securely construct and execute RPCs inside device firmware.
 
    fwctl
    fwctl-cxl
+   pds_fwctl
