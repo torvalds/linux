@@ -1149,21 +1149,158 @@ static ssize_t reserve_space(struct btrfs_inode *inode,
 	return reserve_bytes;
 }
 
+/*
+ * Do the heavy-lifting work to copy one range into one folio of the page cache.
+ *
+ * Return > 0 in case we copied all bytes or just some of them.
+ * Return 0 if no bytes were copied, in which case the caller should retry.
+ * Return <0 on error.
+ */
+static int copy_one_range(struct btrfs_inode *inode, struct iov_iter *iter,
+			  struct extent_changeset **data_reserved, u64 start,
+			  bool nowait)
+{
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct extent_state *cached_state = NULL;
+	const size_t block_offset = (start & (fs_info->sectorsize - 1));
+	size_t write_bytes = min(iov_iter_count(iter), PAGE_SIZE - offset_in_page(start));
+	size_t reserve_bytes;
+	size_t copied;
+	size_t dirty_blocks;
+	size_t num_blocks;
+	struct folio *folio = NULL;
+	u64 release_bytes;
+	int extents_locked;
+	u64 lockstart;
+	u64 lockend;
+	bool only_release_metadata = false;
+	const unsigned int bdp_flags = (nowait ? BDP_ASYNC : 0);
+	int ret;
+
+	/*
+	 * Fault all pages before locking them in prepare_one_folio() to avoid
+	 * recursive lock.
+	 */
+	if (unlikely(fault_in_iov_iter_readable(iter, write_bytes)))
+		return -EFAULT;
+	extent_changeset_release(*data_reserved);
+	ret = reserve_space(inode, data_reserved, start, &write_bytes, nowait,
+			    &only_release_metadata);
+	if (ret < 0)
+		return ret;
+	reserve_bytes = ret;
+	release_bytes = reserve_bytes;
+
+again:
+	ret = balance_dirty_pages_ratelimited_flags(inode->vfs_inode.i_mapping,
+						    bdp_flags);
+	if (ret) {
+		btrfs_delalloc_release_extents(inode, reserve_bytes);
+		release_space(inode, *data_reserved, start, release_bytes,
+			      only_release_metadata);
+		return ret;
+	}
+
+	ret = prepare_one_folio(&inode->vfs_inode, &folio, start, write_bytes, false);
+	if (ret) {
+		btrfs_delalloc_release_extents(inode, reserve_bytes);
+		release_space(inode, *data_reserved, start, release_bytes,
+			      only_release_metadata);
+		return ret;
+	}
+	extents_locked = lock_and_cleanup_extent_if_need(inode, folio, start,
+							 write_bytes, &lockstart,
+							 &lockend, nowait, &cached_state);
+	if (extents_locked < 0) {
+		if (!nowait && extents_locked == -EAGAIN)
+			goto again;
+
+		btrfs_delalloc_release_extents(inode, reserve_bytes);
+		release_space(inode, *data_reserved, start, release_bytes,
+			      only_release_metadata);
+		ret = extents_locked;
+		return ret;
+	}
+
+	copied = copy_folio_from_iter_atomic(folio, offset_in_folio(folio, start),
+					     write_bytes, iter);
+	flush_dcache_folio(folio);
+
+	/*
+	 * If we get a partial write, we can end up with partially uptodate
+	 * page. Although if sector size < page size we can handle it, but if
+	 * it's not sector aligned it can cause a lot of complexity, so make
+	 * sure they don't happen by forcing retry this copy.
+	 */
+	if (unlikely(copied < write_bytes)) {
+		if (!folio_test_uptodate(folio)) {
+			iov_iter_revert(iter, copied);
+			copied = 0;
+		}
+	}
+
+	num_blocks = BTRFS_BYTES_TO_BLKS(fs_info, reserve_bytes);
+	dirty_blocks = round_up(copied + block_offset, fs_info->sectorsize);
+	dirty_blocks = BTRFS_BYTES_TO_BLKS(fs_info, dirty_blocks);
+
+	if (copied == 0)
+		dirty_blocks = 0;
+
+	if (num_blocks > dirty_blocks) {
+		/* Release everything except the sectors we dirtied. */
+		release_bytes -= dirty_blocks << fs_info->sectorsize_bits;
+		if (only_release_metadata) {
+			btrfs_delalloc_release_metadata(inode, release_bytes, true);
+		} else {
+			const u64 release_start = round_up(start + copied,
+							   fs_info->sectorsize);
+
+			btrfs_delalloc_release_space(inode, *data_reserved,
+						     release_start, release_bytes,
+						     true);
+		}
+	}
+	release_bytes = round_up(copied + block_offset, fs_info->sectorsize);
+
+	ret = btrfs_dirty_folio(inode, folio, start, copied, &cached_state,
+				only_release_metadata);
+	/*
+	 * If we have not locked the extent range, because the range's start
+	 * offset is >= i_size, we might still have a non-NULL cached extent
+	 * state, acquired while marking the extent range as delalloc through
+	 * btrfs_dirty_page(). Therefore free any possible cached extent state
+	 * to avoid a memory leak.
+	 */
+	if (extents_locked)
+		unlock_extent(&inode->io_tree, lockstart, lockend, &cached_state);
+	else
+		free_extent_state(cached_state);
+
+	btrfs_delalloc_release_extents(inode, reserve_bytes);
+	if (ret) {
+		btrfs_drop_folio(fs_info, folio, start, copied);
+		release_space(inode, *data_reserved, start, release_bytes,
+			      only_release_metadata);
+		return ret;
+	}
+	if (only_release_metadata)
+		btrfs_check_nocow_unlock(inode);
+
+	btrfs_drop_folio(fs_info, folio, start, copied);
+	return copied;
+}
+
 ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 {
 	struct file *file = iocb->ki_filp;
 	loff_t pos;
 	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	struct extent_changeset *data_reserved = NULL;
-	u64 lockstart;
-	u64 lockend;
 	size_t num_written = 0;
 	ssize_t ret;
 	loff_t old_isize;
 	unsigned int ilock_flags = 0;
 	const bool nowait = (iocb->ki_flags & IOCB_NOWAIT);
-	unsigned int bdp_flags = (nowait ? BDP_ASYNC : 0);
 
 	if (nowait)
 		ilock_flags |= BTRFS_ILOCK_TRY;
@@ -1189,147 +1326,12 @@ ssize_t btrfs_buffered_write(struct kiocb *iocb, struct iov_iter *i)
 
 	pos = iocb->ki_pos;
 	while (iov_iter_count(i) > 0) {
-		struct extent_state *cached_state = NULL;
-		size_t offset = offset_in_page(pos);
-		size_t sector_offset;
-		size_t write_bytes = min(iov_iter_count(i), PAGE_SIZE - offset);
-		size_t reserve_bytes;
-		size_t copied;
-		size_t dirty_sectors;
-		size_t num_sectors;
-		struct folio *folio = NULL;
-		u64 release_bytes;
-		int extents_locked;
-		bool only_release_metadata = false;
-
-		/*
-		 * Fault pages before locking them in prepare_one_folio()
-		 * to avoid recursive lock
-		 */
-		if (unlikely(fault_in_iov_iter_readable(i, write_bytes))) {
-			ret = -EFAULT;
-			break;
-		}
-
-		sector_offset = pos & (fs_info->sectorsize - 1);
-
-		extent_changeset_release(data_reserved);
-		ret = reserve_space(BTRFS_I(inode), &data_reserved, pos,
-				    &write_bytes, nowait, &only_release_metadata);
+		ret = copy_one_range(BTRFS_I(inode), i, &data_reserved, pos, nowait);
 		if (ret < 0)
 			break;
-		reserve_bytes = ret;
-		release_bytes = reserve_bytes;
-again:
-		ret = balance_dirty_pages_ratelimited_flags(inode->i_mapping, bdp_flags);
-		if (ret) {
-			btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes);
-			release_space(BTRFS_I(inode), data_reserved,
-				      pos, release_bytes, only_release_metadata);
-			break;
-		}
-
-		ret = prepare_one_folio(inode, &folio, pos, write_bytes, false);
-		if (ret) {
-			btrfs_delalloc_release_extents(BTRFS_I(inode),
-						       reserve_bytes);
-			release_space(BTRFS_I(inode), data_reserved,
-				      pos, release_bytes, only_release_metadata);
-			break;
-		}
-
-		extents_locked = lock_and_cleanup_extent_if_need(BTRFS_I(inode),
-						folio, pos, write_bytes, &lockstart,
-						&lockend, nowait, &cached_state);
-		if (extents_locked < 0) {
-			if (!nowait && extents_locked == -EAGAIN)
-				goto again;
-
-			btrfs_delalloc_release_extents(BTRFS_I(inode),
-						       reserve_bytes);
-			release_space(BTRFS_I(inode), data_reserved,
-				      pos, release_bytes, only_release_metadata);
-			ret = extents_locked;
-			break;
-		}
-
-		copied = copy_folio_from_iter_atomic(folio,
-				offset_in_folio(folio, pos), write_bytes, i);
-		flush_dcache_folio(folio);
-
-		/*
-		 * If we get a partial write, we can end up with partially
-		 * uptodate page. Although if sector size < page size we can
-		 * handle it, but if it's not sector aligned it can cause
-		 * a lot of complexity, so make sure they don't happen by
-		 * forcing retry this copy.
-		 */
-		if (unlikely(copied < write_bytes)) {
-			if (!folio_test_uptodate(folio)) {
-				iov_iter_revert(i, copied);
-				copied = 0;
-			}
-		}
-
-		num_sectors = BTRFS_BYTES_TO_BLKS(fs_info, reserve_bytes);
-		dirty_sectors = round_up(copied + sector_offset,
-					fs_info->sectorsize);
-		dirty_sectors = BTRFS_BYTES_TO_BLKS(fs_info, dirty_sectors);
-
-		if (copied == 0)
-			dirty_sectors = 0;
-
-		if (num_sectors > dirty_sectors) {
-			/* release everything except the sectors we dirtied */
-			release_bytes -= dirty_sectors << fs_info->sectorsize_bits;
-			if (only_release_metadata) {
-				btrfs_delalloc_release_metadata(BTRFS_I(inode),
-							release_bytes, true);
-			} else {
-				u64 release_start = round_up(pos + copied,
-							     fs_info->sectorsize);
-				btrfs_delalloc_release_space(BTRFS_I(inode),
-						data_reserved, release_start,
-						release_bytes, true);
-			}
-		}
-
-		release_bytes = round_up(copied + sector_offset,
-					fs_info->sectorsize);
-
-		ret = btrfs_dirty_folio(BTRFS_I(inode), folio, pos, copied,
-					&cached_state, only_release_metadata);
-
-		/*
-		 * If we have not locked the extent range, because the range's
-		 * start offset is >= i_size, we might still have a non-NULL
-		 * cached extent state, acquired while marking the extent range
-		 * as delalloc through btrfs_dirty_page(). Therefore free any
-		 * possible cached extent state to avoid a memory leak.
-		 */
-		if (extents_locked)
-			unlock_extent(&BTRFS_I(inode)->io_tree, lockstart,
-				      lockend, &cached_state);
-		else
-			free_extent_state(cached_state);
-
-		btrfs_delalloc_release_extents(BTRFS_I(inode), reserve_bytes);
-		if (ret) {
-			btrfs_drop_folio(fs_info, folio, pos, copied);
-			release_space(BTRFS_I(inode), data_reserved,
-				      pos, release_bytes, only_release_metadata);
-			break;
-		}
-
-		if (only_release_metadata)
-			btrfs_check_nocow_unlock(BTRFS_I(inode));
-
-		btrfs_drop_folio(fs_info, folio, pos, copied);
-
+		pos += ret;
+		num_written += ret;
 		cond_resched();
-
-		pos += copied;
-		num_written += copied;
 	}
 
 	extent_changeset_free(data_reserved);
