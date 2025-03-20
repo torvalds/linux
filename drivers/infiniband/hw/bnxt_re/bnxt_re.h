@@ -53,12 +53,6 @@
 #define BNXT_RE_MAX_MR_SIZE_HIGH	BIT_ULL(39)
 #define BNXT_RE_MAX_MR_SIZE		BNXT_RE_MAX_MR_SIZE_HIGH
 
-#define BNXT_RE_MAX_QPC_COUNT		(64 * 1024)
-#define BNXT_RE_MAX_MRW_COUNT		(64 * 1024)
-#define BNXT_RE_MAX_SRQC_COUNT		(64 * 1024)
-#define BNXT_RE_MAX_CQ_COUNT		(64 * 1024)
-#define BNXT_RE_MAX_MRW_COUNT_64K	(64 * 1024)
-#define BNXT_RE_MAX_MRW_COUNT_256K	(256 * 1024)
 
 /* Number of MRs to reserve for PF, leaving remainder for VFs */
 #define BNXT_RE_RESVD_MR_FOR_PF         (32 * 1024)
