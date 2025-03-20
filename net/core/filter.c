@@ -5282,6 +5282,38 @@ static int sol_socket_sockopt(struct sock *sk, int optname,
 			     KERNEL_SOCKPTR(optval), *optlen);
 }
 
+static int bpf_sol_tcp_getsockopt(struct sock *sk, int optname,
+				  char *optval, int optlen)
+{
+	if (optlen != sizeof(int))
+		return -EINVAL;
+
+	switch (optname) {
+	case TCP_BPF_SOCK_OPS_CB_FLAGS: {
+		int cb_flags = tcp_sk(sk)->bpf_sock_ops_cb_flags;
+
+		memcpy(optval, &cb_flags, optlen);
+		break;
+	}
+	case TCP_BPF_RTO_MIN: {
+		int rto_min_us = jiffies_to_usecs(inet_csk(sk)->icsk_rto_min);
+
+		memcpy(optval, &rto_min_us, optlen);
+		break;
+	}
+	case TCP_BPF_DELACK_MAX: {
+		int delack_max_us = jiffies_to_usecs(inet_csk(sk)->icsk_delack_max);
+
+		memcpy(optval, &delack_max_us, optlen);
+		break;
+	}
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int bpf_sol_tcp_setsockopt(struct sock *sk, int optname,
 				  char *optval, int optlen)
 {
@@ -5415,20 +5447,9 @@ static int sol_tcp_sockopt(struct sock *sk, int optname,
 		if (*optlen < 1)
 			return -EINVAL;
 		break;
-	case TCP_BPF_SOCK_OPS_CB_FLAGS:
-		if (*optlen != sizeof(int))
-			return -EINVAL;
-		if (getopt) {
-			struct tcp_sock *tp = tcp_sk(sk);
-			int cb_flags = tp->bpf_sock_ops_cb_flags;
-
-			memcpy(optval, &cb_flags, *optlen);
-			return 0;
-		}
-		return bpf_sol_tcp_setsockopt(sk, optname, optval, *optlen);
 	default:
 		if (getopt)
-			return -EINVAL;
+			return bpf_sol_tcp_getsockopt(sk, optname, optval, *optlen);
 		return bpf_sol_tcp_setsockopt(sk, optname, optval, *optlen);
 	}
 
