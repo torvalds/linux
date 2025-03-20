@@ -117,7 +117,7 @@ struct pll_clk {
  * @on_index: register offset
  * @on_bit: ON/MON bit
  * @mon_index: monitor register offset
- * @mon_bit: montor bit
+ * @mon_bit: monitor bit
  */
 struct mod_clock {
 	struct rzv2h_cpg_priv *priv;
