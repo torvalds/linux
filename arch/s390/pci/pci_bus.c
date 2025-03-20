@@ -360,6 +360,9 @@ static bool zpci_bus_is_isolated_vf(struct zpci_bus *zbus, struct zpci_dev *zdev
 {
 	struct pci_dev *pdev;
 
+	if (!zdev->vfn)
+		return false;
+
 	pdev = zpci_iov_find_parent_pf(zbus, zdev);
 	if (!pdev)
 		return true;
