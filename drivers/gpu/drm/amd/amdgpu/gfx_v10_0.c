@@ -368,11 +368,6 @@ static const struct amdgpu_hwip_reg_entry gc_reg_list_10_1[] = {
 	SOC15_REG_ENTRY_STR(GC, 0, mmRLC_GPM_DEBUG_INST_ADDR),
 	SOC15_REG_ENTRY_STR(GC, 0, mmRLC_LX6_CORE_PDEBUG_INST),
 	/* cp header registers */
-	SOC15_REG_ENTRY_STR(GC, 0, mmCP_CE_HEADER_DUMP),
-	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME1_HEADER_DUMP),
-	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME2_HEADER_DUMP),
-	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
-	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MES_HEADER_DUMP),
 	/* SE status registers */
 	SOC15_REG_ENTRY_STR(GC, 0, mmGRBM_STATUS_SE0),
@@ -421,7 +416,16 @@ static const struct amdgpu_hwip_reg_entry gc_cp_reg_list_10[] = {
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_HQD_SUSPEND_CNTL_STACK_OFFSET),
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_HQD_SUSPEND_CNTL_STACK_DW_CNT),
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_HQD_SUSPEND_WG_STATE_OFFSET),
-	SOC15_REG_ENTRY_STR(GC, 0, mmCP_HQD_DEQUEUE_STATUS)
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_HQD_DEQUEUE_STATUS),
+	/* cp header registers */
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME1_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_MEC_ME1_HEADER_DUMP),
 };
 
 static const struct amdgpu_hwip_reg_entry gc_gfx_queue_reg_list_10[] = {
@@ -448,7 +452,32 @@ static const struct amdgpu_hwip_reg_entry gc_gfx_queue_reg_list_10[] = {
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_GFX_MQD_BASE_ADDR),
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_GFX_MQD_BASE_ADDR_HI),
 	SOC15_REG_ENTRY_STR(GC, 0, mmCP_RB_WPTR_POLL_ADDR_LO),
-	SOC15_REG_ENTRY_STR(GC, 0, mmCP_RB_WPTR_POLL_ADDR_HI)
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_RB_WPTR_POLL_ADDR_HI),
+	/* gfx header registers */
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_CE_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_CE_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_CE_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_CE_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_CE_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_CE_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_CE_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_CE_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_PFP_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
+	SOC15_REG_ENTRY_STR(GC, 0, mmCP_ME_HEADER_DUMP),
 };
 
 static const struct soc15_reg_golden golden_settings_gc_10_1[] = {
@@ -9674,9 +9703,14 @@ static void gfx_v10_ip_print(struct amdgpu_ip_block *ip_block, struct drm_printe
 			for (k = 0; k < adev->gfx.mec.num_queue_per_pipe; k++) {
 				drm_printf(p, "\nmec %d, pipe %d, queue %d\n", i, j, k);
 				for (reg = 0; reg < reg_count; reg++) {
-					drm_printf(p, "%-50s \t 0x%08x\n",
-						   gc_cp_reg_list_10[reg].reg_name,
-						   adev->gfx.ip_dump_compute_queues[index + reg]);
+					if (i && gc_cp_reg_list_10[reg].reg_offset == mmCP_MEC_ME1_HEADER_DUMP)
+						drm_printf(p, "%-50s \t 0x%08x\n",
+							   "mmCP_MEC_ME2_HEADER_DUMP",
+							   adev->gfx.ip_dump_compute_queues[index + reg]);
+					else
+						drm_printf(p, "%-50s \t 0x%08x\n",
+							   gc_cp_reg_list_10[reg].reg_name,
+							   adev->gfx.ip_dump_compute_queues[index + reg]);
 				}
 				index += reg_count;
 			}
@@ -9737,9 +9771,13 @@ static void gfx_v10_ip_dump(struct amdgpu_ip_block *ip_block)
 				nv_grbm_select(adev, adev->gfx.me.num_me + i, j, k, 0);
 
 				for (reg = 0; reg < reg_count; reg++) {
-					adev->gfx.ip_dump_compute_queues[index + reg] =
-						RREG32(SOC15_REG_ENTRY_OFFSET(
-							gc_cp_reg_list_10[reg]));
+					if (i && gc_cp_reg_list_10[reg].reg_offset == mmCP_MEC_ME1_HEADER_DUMP)
+						adev->gfx.ip_dump_compute_queues[index + reg] =
+							RREG32(SOC15_REG_OFFSET(GC, 0, mmCP_MEC_ME2_HEADER_DUMP));
+					else
+						adev->gfx.ip_dump_compute_queues[index + reg] =
+							RREG32(SOC15_REG_ENTRY_OFFSET(
+								       gc_cp_reg_list_10[reg]));
 				}
 				index += reg_count;
 			}
