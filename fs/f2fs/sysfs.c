@@ -494,12 +494,12 @@ out:
 		return ret;
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (a->struct_type == FAULT_INFO_TYPE) {
-		if (f2fs_build_fault_attr(sbi, 0, t))
+		if (f2fs_build_fault_attr(sbi, 0, t, FAULT_TYPE))
 			return -EINVAL;
 		return count;
 	}
 	if (a->struct_type == FAULT_INFO_RATE) {
-		if (f2fs_build_fault_attr(sbi, t, 0))
+		if (f2fs_build_fault_attr(sbi, t, 0, FAULT_RATE))
 			return -EINVAL;
 		return count;
 	}
