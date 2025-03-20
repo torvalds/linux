@@ -837,7 +837,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 	struct bch_dev *ca = bch2_dev_bucket_tryget(c, new.k->p);
 	if (!ca)
-		return -EIO;
+		return -BCH_ERR_trigger_alloc;
 
 	struct bch_alloc_v4 old_a_convert;
 	const struct bch_alloc_v4 *old_a = bch2_alloc_to_v4(old, &old_a_convert);
@@ -1031,7 +1031,7 @@ fsck_err:
 invalid_bucket:
 	bch2_fs_inconsistent(c, "reference to invalid bucket\n  %s",
 			     (bch2_bkey_val_to_text(&buf, c, new.s_c), buf.buf));
-	ret = -EIO;
+	ret = -BCH_ERR_trigger_alloc;
 	goto err;
 }
 

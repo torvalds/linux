@@ -1079,7 +1079,7 @@ retry:
 		bch2_fs_inconsistent(c,
 				     "inode %llu:%u not found when deleting",
 				     inum.inum, snapshot);
-		ret = -EIO;
+		ret = -BCH_ERR_ENOENT_inode;
 		goto err;
 	}
 
@@ -1243,7 +1243,7 @@ retry:
 		bch2_fs_inconsistent(c,
 				     "inode %llu:%u not found when deleting",
 				     inum, snapshot);
-		ret = -EIO;
+		ret = -BCH_ERR_ENOENT_inode;
 		goto err;
 	}
 

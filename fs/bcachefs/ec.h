@@ -249,7 +249,7 @@ int bch2_ec_read_extent(struct btree_trans *, struct bch_read_bio *, struct bkey
 
 void *bch2_writepoint_ec_buf(struct bch_fs *, struct write_point *);
 
-void bch2_ec_bucket_cancel(struct bch_fs *, struct open_bucket *);
+void bch2_ec_bucket_cancel(struct bch_fs *, struct open_bucket *, int);
 
 int bch2_ec_stripe_new_alloc(struct bch_fs *, struct ec_stripe_head *);
 

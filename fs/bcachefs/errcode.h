@@ -116,6 +116,7 @@
 	x(ENOENT,			ENOENT_snapshot_tree)			\
 	x(ENOENT,			ENOENT_dirent_doesnt_match_inode)	\
 	x(ENOENT,			ENOENT_dev_not_found)			\
+	x(ENOENT,			ENOENT_dev_bucket_not_found)		\
 	x(ENOENT,			ENOENT_dev_idx_not_found)		\
 	x(ENOENT,			ENOENT_inode_no_backpointer)		\
 	x(ENOENT,			ENOENT_no_snapshot_tree_subvol)		\
@@ -207,6 +208,7 @@
 	x(EINVAL,			no_resize_with_buckets_nouse)		\
 	x(EINVAL,			inode_unpack_error)			\
 	x(EINVAL,			varint_decode_error)			\
+	x(EINVAL,			erasure_coding_found_btree_node)	\
 	x(EOPNOTSUPP,			may_not_use_incompat_feature)		\
 	x(EROFS,			erofs_trans_commit)			\
 	x(EROFS,			erofs_no_writes)			\
@@ -267,6 +269,7 @@
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
 	x(EIO,				journal_shutdown)			\
 	x(EIO,				journal_flush_err)			\
+	x(EIO,				journal_write_err)			\
 	x(EIO,				btree_node_read_err)			\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_cached)		\
 	x(EIO,				sb_not_downgraded)			\
@@ -275,6 +278,7 @@
 	x(EIO,				btree_node_read_validate_error)		\
 	x(EIO,				btree_need_topology_repair)		\
 	x(EIO,				bucket_ref_update)			\
+	x(EIO,				trigger_alloc)				\
 	x(EIO,				trigger_pointer)			\
 	x(EIO,				trigger_stripe_pointer)			\
 	x(EIO,				metadata_bucket_inconsistency)		\
@@ -290,7 +294,19 @@
 	x(EIO,				EIO_fault_injected)			\
 	x(EIO,				ec_block_read)				\
 	x(EIO,				ec_block_write)				\
-	x(EIO,				data_read)				\
+	x(EIO,				recompute_checksum)			\
+	x(EIO,				decompress)				\
+	x(BCH_ERR_decompress,		decompress_exceeded_max_encoded_extent)	\
+	x(BCH_ERR_decompress,		decompress_lz4)				\
+	x(BCH_ERR_decompress,		decompress_gzip)			\
+	x(BCH_ERR_decompress,		decompress_zstd_src_len_bad)		\
+	x(BCH_ERR_decompress,		decompress_zstd)			\
+	x(EIO,				data_write)				\
+	x(BCH_ERR_data_write,		data_write_io)				\
+	x(BCH_ERR_data_write,		data_write_csum)			\
+	x(BCH_ERR_data_write,		data_write_invalid_ptr)			\
+	x(BCH_ERR_data_write,		data_write_misaligned)			\
+	x(BCH_ERR_decompress,		data_read)				\
 	x(BCH_ERR_data_read,		no_device_to_read_from)			\
 	x(BCH_ERR_data_read,		data_read_io_err)			\
 	x(BCH_ERR_data_read,		data_read_csum_err)			\

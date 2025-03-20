@@ -82,7 +82,7 @@ static inline struct open_bucket *ec_open_bucket(struct bch_fs *c,
 }
 
 void bch2_open_bucket_write_error(struct bch_fs *,
-			struct open_buckets *, unsigned);
+			struct open_buckets *, unsigned, int);
 
 void __bch2_open_bucket_put(struct bch_fs *, struct open_bucket *);
 

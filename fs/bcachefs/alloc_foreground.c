@@ -127,14 +127,14 @@ void __bch2_open_bucket_put(struct bch_fs *c, struct open_bucket *ob)
 
 void bch2_open_bucket_write_error(struct bch_fs *c,
 				  struct open_buckets *obs,
-				  unsigned dev)
+				  unsigned dev, int err)
 {
 	struct open_bucket *ob;
 	unsigned i;
 
 	open_bucket_for_each(c, obs, ob, i)
 		if (ob->dev == dev && ob->ec)
-			bch2_ec_bucket_cancel(c, ob);
+			bch2_ec_bucket_cancel(c, ob, err);
 }
 
 static struct open_bucket *bch2_open_bucket_alloc(struct bch_fs *c)

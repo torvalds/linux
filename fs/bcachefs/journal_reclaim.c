@@ -645,7 +645,6 @@ static u64 journal_seq_to_flush(struct journal *j)
  * @j:		journal object
  * @direct:	direct or background reclaim?
  * @kicked:	requested to run since we last ran?
- * Returns:	0 on success, or -EIO if the journal has been shutdown
  *
  * Background journal reclaim writes out btree nodes. It should be run
  * early enough so that we never completely run out of journal buckets.
@@ -685,10 +684,9 @@ static int __bch2_journal_reclaim(struct journal *j, bool direct, bool kicked)
 		if (kthread && kthread_should_stop())
 			break;
 
-		if (bch2_journal_error(j)) {
-			ret = -EIO;
+		ret = bch2_journal_error(j);
+		if (ret)
 			break;
-		}
 
 		bch2_journal_do_discards(j);
 

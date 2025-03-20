@@ -1124,7 +1124,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 
 		bch2_fs_inconsistent(c, "%s", buf.buf);
 		printbuf_exit(&buf);
-		return -EIO;
+		return -BCH_ERR_erasure_coding_found_btree_node;
 	}
 
 	k = bch2_backpointer_get_key(trans, bp, &iter, BTREE_ITER_intent, last_flushed);
@@ -1190,7 +1190,7 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 
 	struct bch_dev *ca = bch2_dev_tryget(c, ptr.dev);
 	if (!ca)
-		return -EIO;
+		return -BCH_ERR_ENOENT_dev_not_found;
 
 	struct bpos bucket_pos = PTR_BUCKET_POS(ca, &ptr);
 
@@ -1227,21 +1227,19 @@ static int ec_stripe_update_extents(struct bch_fs *c, struct ec_stripe_buf *s)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct bch_stripe *v = &bkey_i_to_stripe(&s->key)->v;
-	unsigned i, nr_data = v->nr_blocks - v->nr_redundant;
-	int ret = 0;
+	unsigned nr_data = v->nr_blocks - v->nr_redundant;
 
-	ret = bch2_btree_write_buffer_flush_sync(trans);
+	int ret = bch2_btree_write_buffer_flush_sync(trans);
 	if (ret)
 		goto err;
 
-	for (i = 0; i < nr_data; i++) {
+	for (unsigned i = 0; i < nr_data; i++) {
 		ret = ec_stripe_update_bucket(trans, s, i);
 		if (ret)
 			break;
 	}
 err:
 	bch2_trans_put(trans);
-
 	return ret;
 }
 
@@ -1451,11 +1449,11 @@ static void ec_stripe_new_cancel(struct bch_fs *c, struct ec_stripe_head *h, int
 	ec_stripe_new_set_pending(c, h);
 }
 
-void bch2_ec_bucket_cancel(struct bch_fs *c, struct open_bucket *ob)
+void bch2_ec_bucket_cancel(struct bch_fs *c, struct open_bucket *ob, int err)
 {
 	struct ec_stripe_new *s = ob->ec;
 
-	s->err = -EIO;
+	s->err = err;
 }
 
 void *bch2_writepoint_ec_buf(struct bch_fs *c, struct write_point *wp)

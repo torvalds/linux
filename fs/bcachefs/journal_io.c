@@ -1624,7 +1624,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 
 	if (!w->devs_written.nr) {
 		bch_err(c, "unable to write journal to sufficient devices");
-		err = -EIO;
+		err = -BCH_ERR_journal_write_err;
 	} else {
 		bch2_devlist_to_replicas(&replicas.e, BCH_DATA_journal,
 					 w->devs_written);

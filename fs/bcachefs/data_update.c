@@ -354,7 +354,7 @@ restart_drop_extra_replicas:
 			printbuf_exit(&buf);
 
 			bch2_fatal_error(c);
-			ret = -EIO;
+			ret = -BCH_ERR_invalid_bkey;
 			goto out;
 		}
 

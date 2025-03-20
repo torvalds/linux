@@ -535,7 +535,7 @@ static noinline int bch2_write_drop_io_error_ptrs(struct bch_write_op *op)
 					    test_bit(ptr->dev, op->failed.d));
 
 			if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(src)))
-				return -EIO;
+				return -BCH_ERR_data_write_io;
 		}
 
 		if (dst != src)
@@ -589,7 +589,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 out:
 	/* If some a bucket wasn't written, we can't erasure code it: */
 	for_each_set_bit(dev, op->failed.d, BCH_SB_MEMBERS_MAX)
-		bch2_open_bucket_write_error(c, &op->open_buckets, dev);
+		bch2_open_bucket_write_error(c, &op->open_buckets, dev, -BCH_ERR_data_write_io);
 
 	bch2_open_buckets_put(c, &op->open_buckets);
 	return;
@@ -920,7 +920,7 @@ static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct
 	return 0;
 csum_err:
 	bch2_write_csum_err_msg(op);
-	return -EIO;
+	return -BCH_ERR_data_write_csum;
 }
 
 static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
@@ -1127,7 +1127,7 @@ do_write:
 	return more;
 csum_err:
 	bch2_write_csum_err_msg(op);
-	ret = -EIO;
+	ret = -BCH_ERR_data_write_csum;
 err:
 	if (to_wbio(dst)->bounce)
 		bch2_bio_free_pages_pool(c, dst);
@@ -1233,7 +1233,7 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 static void __bch2_nocow_write_done(struct bch_write_op *op)
 {
 	if (unlikely(op->flags & BCH_WRITE_io_error)) {
-		op->error = -EIO;
+		op->error = -BCH_ERR_data_write_io;
 	} else if (unlikely(op->flags & BCH_WRITE_convert_unwritten))
 		bch2_nocow_write_convert_unwritten(op);
 }
@@ -1424,7 +1424,7 @@ err_bucket_stale:
 				    "pointer to invalid bucket in nocow path on device %llu\n  %s",
 				    stale_at->b.inode,
 				    (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
-		ret = -EIO;
+		ret = -BCH_ERR_data_write_invalid_ptr;
 	} else {
 		/* We can retry this: */
 		ret = -BCH_ERR_transaction_restart;
@@ -1632,7 +1632,7 @@ CLOSURE_CALLBACK(bch2_write)
 
 	if (unlikely(bio->bi_iter.bi_size & (c->opts.block_size - 1))) {
 		bch2_write_op_error(op, op->pos.offset, "misaligned write");
-		op->error = -EIO;
+		op->error = -BCH_ERR_data_write_misaligned;
 		goto err;
 	}
 

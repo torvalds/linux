@@ -466,7 +466,7 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 		prt_str(&buf, ")");
 		WARN_RATELIMIT(1, "%s", buf.buf);
 		printbuf_exit(&buf);
-		return -EIO;
+		return -BCH_ERR_recompute_checksum;
 	}
 
 	for (i = splits; i < splits + ARRAY_SIZE(splits); i++) {
