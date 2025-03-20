@@ -649,6 +649,14 @@ static int btree_update_nodes_written_trans(struct btree_trans *trans,
 	return 0;
 }
 
+/* If the node has been reused, we might be reading uninitialized memory - that's fine: */
+static noinline __no_kmsan_checks bool btree_node_seq_matches(struct btree *b, __le64 seq)
+{
+	struct btree_node *b_data = READ_ONCE(b->data);
+
+	return (b_data ? b_data->keys.seq : 0) == seq;
+}
+
 static void btree_update_nodes_written(struct btree_update *as)
 {
 	struct bch_fs *c = as->c;
@@ -677,17 +685,9 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 * on disk:
 	 */
 	for (i = 0; i < as->nr_old_nodes; i++) {
-		__le64 seq;
-
 		b = as->old_nodes[i];
 
-		bch2_trans_begin(trans);
-		btree_node_lock_nopath_nofail(trans, &b->c, SIX_LOCK_read);
-		seq = b->data ? b->data->keys.seq : 0;
-		six_unlock_read(&b->c.lock);
-		bch2_trans_unlock_long(trans);
-
-		if (seq == as->old_nodes_seq[i])
+		if (btree_node_seq_matches(b, as->old_nodes_seq[i]))
 			wait_on_bit_io(&b->flags, BTREE_NODE_write_in_flight_inner,
 				       TASK_UNINTERRUPTIBLE);
 	}
