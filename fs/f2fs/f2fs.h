@@ -73,6 +73,8 @@ struct f2fs_fault_info {
 	atomic_t inject_ops;
 	int inject_rate;
 	unsigned int inject_type;
+	/* Used to account total count of injection for each type */
+	unsigned int inject_count[FAULT_MAX];
 };
 
 extern const char *f2fs_fault_name[FAULT_MAX];
@@ -1902,6 +1904,7 @@ static inline bool __time_to_inject(struct f2fs_sb_info *sbi, int type,
 	atomic_inc(&ffi->inject_ops);
 	if (atomic_read(&ffi->inject_ops) >= ffi->inject_rate) {
 		atomic_set(&ffi->inject_ops, 0);
+		ffi->inject_count[type]++;
 		f2fs_info_ratelimited(sbi, "inject %s in %s of %pS",
 				f2fs_fault_name[type], func, parent_func);
 		return true;
