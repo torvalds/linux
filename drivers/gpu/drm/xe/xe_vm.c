@@ -3243,7 +3243,7 @@ static int xe_vm_bind_ioctl_validate_bo(struct xe_device *xe, struct xe_bo *bo,
 				 XE_64K_PAGE_MASK) ||
 		    XE_IOCTL_DBG(xe, addr & XE_64K_PAGE_MASK) ||
 		    XE_IOCTL_DBG(xe, range & XE_64K_PAGE_MASK)) {
-			return  -EINVAL;
+			return -EINVAL;
 		}
 	}
 
@@ -3251,7 +3251,7 @@ static int xe_vm_bind_ioctl_validate_bo(struct xe_device *xe, struct xe_bo *bo,
 	if (bo->cpu_caching) {
 		if (XE_IOCTL_DBG(xe, coh_mode == XE_COH_NONE &&
 				 bo->cpu_caching == DRM_XE_GEM_CPU_CACHING_WB)) {
-			return  -EINVAL;
+			return -EINVAL;
 		}
 	} else if (XE_IOCTL_DBG(xe, coh_mode == XE_COH_NONE)) {
 		/*
@@ -3260,7 +3260,7 @@ static int xe_vm_bind_ioctl_validate_bo(struct xe_device *xe, struct xe_bo *bo,
 		 * how it was mapped on the CPU. Just assume is it
 		 * potentially cached on CPU side.
 		 */
-		return  -EINVAL;
+		return -EINVAL;
 	}
 
 	/* If a BO is protected it can only be mapped if the key is still valid */
