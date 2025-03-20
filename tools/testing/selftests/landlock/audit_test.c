@@ -7,7 +7,9 @@
 
 #define _GNU_SOURCE
 #include <errno.h>
+#include <limits.h>
 #include <linux/landlock.h>
+#include <stdlib.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
@@ -327,6 +329,223 @@ TEST_F(audit_flags, signal)
 					&audit_tv_default,
 					sizeof(audit_tv_default)));
 	}
+}
+
+static int matches_log_fs_read_root(int audit_fd)
+{
+	return audit_match_record(
+		audit_fd, AUDIT_LANDLOCK_ACCESS,
+		REGEX_LANDLOCK_PREFIX
+		" blockers=fs\\.read_dir path=\"/\" dev=\"[^\"]\\+\" ino=[0-9]\\+$",
+		NULL);
+}
+
+FIXTURE(audit_exec)
+{
+	struct audit_filter audit_filter;
+	int audit_fd;
+};
+
+FIXTURE_VARIANT(audit_exec)
+{
+	const int restrict_flags;
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(audit_exec, default) {
+	/* clang-format on */
+	.restrict_flags = 0,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(audit_exec, same_exec_off) {
+	/* clang-format on */
+	.restrict_flags = LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(audit_exec, subdomains_off) {
+	/* clang-format on */
+	.restrict_flags = LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(audit_exec, cross_exec_on) {
+	/* clang-format on */
+	.restrict_flags = LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(audit_exec, subdomains_off_and_cross_exec_on) {
+	/* clang-format on */
+	.restrict_flags = LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF |
+			  LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON,
+};
+
+FIXTURE_SETUP(audit_exec)
+{
+	disable_caps(_metadata);
+	set_cap(_metadata, CAP_AUDIT_CONTROL);
+
+	self->audit_fd = audit_init();
+	EXPECT_LE(0, self->audit_fd)
+	{
+		const char *error_msg;
+
+		/* kill "$(auditctl -s | sed -ne 's/^pid \([0-9]\+\)$/\1/p')" */
+		if (self->audit_fd == -EEXIST)
+			error_msg = "socket already in use (e.g. auditd)";
+		else
+			error_msg = strerror(-self->audit_fd);
+		TH_LOG("Failed to initialize audit: %s", error_msg);
+	}
+
+	/* Applies test filter for the bin_wait_pipe_sandbox program. */
+	EXPECT_EQ(0, audit_init_filter_exe(&self->audit_filter,
+					   bin_wait_pipe_sandbox));
+	EXPECT_EQ(0, audit_filter_exe(self->audit_fd, &self->audit_filter,
+				      AUDIT_ADD_RULE));
+
+	clear_cap(_metadata, CAP_AUDIT_CONTROL);
+}
+
+FIXTURE_TEARDOWN(audit_exec)
+{
+	set_cap(_metadata, CAP_AUDIT_CONTROL);
+	EXPECT_EQ(0, audit_filter_exe(self->audit_fd, &self->audit_filter,
+				      AUDIT_DEL_RULE));
+	clear_cap(_metadata, CAP_AUDIT_CONTROL);
+	EXPECT_EQ(0, close(self->audit_fd));
+}
+
+TEST_F(audit_exec, signal_and_open)
+{
+	struct audit_records records;
+	int pipe_child[2], pipe_parent[2];
+	char buf_parent;
+	pid_t child;
+	int status;
+
+	ASSERT_EQ(0, pipe2(pipe_child, 0));
+	ASSERT_EQ(0, pipe2(pipe_parent, 0));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		const struct landlock_ruleset_attr layer1 = {
+			.scoped = LANDLOCK_SCOPE_SIGNAL,
+		};
+		char pipe_child_str[12], pipe_parent_str[12];
+		char *const argv[] = { (char *)bin_wait_pipe_sandbox,
+				       pipe_child_str, pipe_parent_str, NULL };
+		int ruleset_fd;
+
+		/* Passes the pipe FDs to the executed binary. */
+		EXPECT_EQ(0, close(pipe_child[0]));
+		EXPECT_EQ(0, close(pipe_parent[1]));
+		snprintf(pipe_child_str, sizeof(pipe_child_str), "%d",
+			 pipe_child[1]);
+		snprintf(pipe_parent_str, sizeof(pipe_parent_str), "%d",
+			 pipe_parent[0]);
+
+		ruleset_fd =
+			landlock_create_ruleset(&layer1, sizeof(layer1), 0);
+		if (ruleset_fd < 0) {
+			perror("Failed to create a ruleset");
+			_exit(1);
+		}
+		prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+		if (landlock_restrict_self(ruleset_fd,
+					   variant->restrict_flags)) {
+			perror("Failed to restrict self");
+			_exit(1);
+		}
+		close(ruleset_fd);
+
+		ASSERT_EQ(0, execve(argv[0], argv, NULL))
+		{
+			TH_LOG("Failed to execute \"%s\": %s", argv[0],
+			       strerror(errno));
+		};
+		_exit(1);
+		return;
+	}
+
+	EXPECT_EQ(0, close(pipe_child[1]));
+	EXPECT_EQ(0, close(pipe_parent[0]));
+
+	/* Waits for the child. */
+	EXPECT_EQ(1, read(pipe_child[0], &buf_parent, 1));
+
+	/* Tests that there was no denial until now. */
+	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
+	EXPECT_EQ(0, records.domain);
+
+	/*
+	 * Wait for the child to do a first denied action by layer1 and
+	 * sandbox itself with layer2.
+	 */
+	EXPECT_EQ(1, write(pipe_parent[1], ".", 1));
+	EXPECT_EQ(1, read(pipe_child[0], &buf_parent, 1));
+
+	/* Tests that the audit record only matches the child. */
+	if (variant->restrict_flags & LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON) {
+		/* Matches the current domain. */
+		EXPECT_EQ(0, matches_log_signal(_metadata, self->audit_fd,
+						getpid(), NULL));
+	}
+
+	/* Checks that we didn't miss anything. */
+	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
+
+	/*
+	 * Wait for the child to do a second denied action by layer1 and
+	 * layer2, and sandbox itself with layer3.
+	 */
+	EXPECT_EQ(1, write(pipe_parent[1], ".", 1));
+	EXPECT_EQ(1, read(pipe_child[0], &buf_parent, 1));
+
+	/* Tests that the audit record only matches the child. */
+	if (variant->restrict_flags & LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON) {
+		/* Matches the current domain. */
+		EXPECT_EQ(0, matches_log_signal(_metadata, self->audit_fd,
+						getpid(), NULL));
+	}
+
+	if (!(variant->restrict_flags &
+	      LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF)) {
+		/* Matches the child domain. */
+		EXPECT_EQ(0, matches_log_fs_read_root(self->audit_fd));
+	}
+
+	/* Checks that we didn't miss anything. */
+	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
+
+	/* Waits for the child to terminate. */
+	EXPECT_EQ(1, write(pipe_parent[1], ".", 1));
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	ASSERT_EQ(1, WIFEXITED(status));
+	ASSERT_EQ(0, WEXITSTATUS(status));
+
+	/* Tests that the audit record only matches the child. */
+	if (!(variant->restrict_flags &
+	      LANDLOCK_RESTRICT_SELF_LOG_SUBDOMAINS_OFF)) {
+		/*
+		 * Matches the child domains, which tests that the
+		 * llcred->domain_exec bitmask is correctly updated with a new
+		 * domain.
+		 */
+		EXPECT_EQ(0, matches_log_fs_read_root(self->audit_fd));
+		EXPECT_EQ(0, matches_log_signal(_metadata, self->audit_fd,
+						getpid(), NULL));
+	}
+
+	/* Checks that we didn't miss anything. */
+	EXPECT_EQ(0, audit_count_records(self->audit_fd, &records));
+	EXPECT_EQ(0, records.access);
 }
 
 TEST_HARNESS_MAIN
