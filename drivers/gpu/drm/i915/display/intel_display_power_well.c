@@ -13,6 +13,7 @@
 #include "intel_de.h"
 #include "intel_display_irq.h"
 #include "intel_display_power_well.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dkl_phy.h"
 #include "intel_dkl_phy_regs.h"
@@ -812,7 +813,8 @@ static void assert_can_enable_dc5(struct intel_display *display)
 		      (intel_de_read(display, DC_STATE_EN) &
 		       DC_STATE_EN_UPTO_DC5),
 		      "DC5 already programmed to be enabled.\n");
-	assert_rpm_wakelock_held(&dev_priv->runtime_pm);
+
+	assert_display_rpm_held(display);
 
 	assert_dmc_loaded(display);
 }
