@@ -434,6 +434,12 @@ void bch2_write_op_error(struct bch_write_op *op, u64 offset, const char *fmt, .
 	printbuf_exit(&buf);
 }
 
+static void bch2_write_csum_err_msg(struct bch_write_op *op)
+{
+	bch2_write_op_error(op, op->pos.offset,
+			    "error verifying existing checksum while rewriting existing data (memory corruption?)");
+}
+
 void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 			       enum bch_data_type type,
 			       const struct bkey_i *k,
@@ -809,7 +815,6 @@ static int bch2_write_rechecksum(struct bch_fs *c,
 {
 	struct bio *bio = &op->wbio.bio;
 	struct bch_extent_crc_unpacked new_crc;
-	int ret;
 
 	/* bch2_rechecksum_bio() can't encrypt or decrypt data: */
 
@@ -817,10 +822,10 @@ static int bch2_write_rechecksum(struct bch_fs *c,
 	    bch2_csum_type_is_encryption(new_csum_type))
 		new_csum_type = op->crc.csum_type;
 
-	ret = bch2_rechecksum_bio(c, bio, op->version, op->crc,
-				  NULL, &new_crc,
-				  op->crc.offset, op->crc.live_size,
-				  new_csum_type);
+	int ret = bch2_rechecksum_bio(c, bio, op->version, op->crc,
+				      NULL, &new_crc,
+				      op->crc.offset, op->crc.live_size,
+				      new_csum_type);
 	if (ret)
 		return ret;
 
@@ -830,44 +835,12 @@ static int bch2_write_rechecksum(struct bch_fs *c,
 	return 0;
 }
 
-static int bch2_write_decrypt(struct bch_write_op *op)
-{
-	struct bch_fs *c = op->c;
-	struct nonce nonce = extent_nonce(op->version, op->crc);
-	struct bch_csum csum;
-	int ret;
-
-	if (!bch2_csum_type_is_encryption(op->crc.csum_type))
-		return 0;
-
-	/*
-	 * If we need to decrypt data in the write path, we'll no longer be able
-	 * to verify the existing checksum (poly1305 mac, in this case) after
-	 * it's decrypted - this is the last point we'll be able to reverify the
-	 * checksum:
-	 */
-	csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, &op->wbio.bio);
-	if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
-		return -EIO;
-
-	ret = bch2_encrypt_bio(c, op->crc.csum_type, nonce, &op->wbio.bio);
-	op->crc.csum_type = 0;
-	op->crc.csum = (struct bch_csum) { 0, 0 };
-	return ret;
-}
-
-static enum prep_encoded_ret {
-	PREP_ENCODED_OK,
-	PREP_ENCODED_ERR,
-	PREP_ENCODED_CHECKSUM_ERR,
-	PREP_ENCODED_DO_WRITE,
-} bch2_write_prep_encoded_data(struct bch_write_op *op, struct write_point *wp)
+static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct write_point *wp)
 {
 	struct bch_fs *c = op->c;
 	struct bio *bio = &op->wbio.bio;
-
-	if (!(op->flags & BCH_WRITE_data_encoded))
-		return PREP_ENCODED_OK;
+	struct nonce nonce = extent_nonce(op->version, op->crc);
+	int ret = 0;
 
 	BUG_ON(bio_sectors(bio) != op->crc.compressed_size);
 
@@ -878,12 +851,13 @@ static enum prep_encoded_ret {
 	    (op->crc.compression_type == bch2_compression_opt_to_type(op->compression_opt) ||
 	     op->incompressible)) {
 		if (!crc_is_compressed(op->crc) &&
-		    op->csum_type != op->crc.csum_type &&
-		    bch2_write_rechecksum(c, op, op->csum_type) &&
-		    !c->opts.no_data_io)
-			return PREP_ENCODED_CHECKSUM_ERR;
+		    op->csum_type != op->crc.csum_type) {
+			ret = bch2_write_rechecksum(c, op, op->csum_type);
+			if (ret)
+				return ret;
+		}
 
-		return PREP_ENCODED_DO_WRITE;
+		return 1;
 	}
 
 	/*
@@ -891,20 +865,23 @@ static enum prep_encoded_ret {
 	 * is, we have to decompress it:
 	 */
 	if (crc_is_compressed(op->crc)) {
-		struct bch_csum csum;
-
-		if (bch2_write_decrypt(op))
-			return PREP_ENCODED_CHECKSUM_ERR;
-
 		/* Last point we can still verify checksum: */
-		csum = bch2_checksum_bio(c, op->crc.csum_type,
-					 extent_nonce(op->version, op->crc),
-					 bio);
+		struct bch_csum csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
 		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
-			return PREP_ENCODED_CHECKSUM_ERR;
+			goto csum_err;
 
-		if (bch2_bio_uncompress_inplace(op, bio))
-			return PREP_ENCODED_ERR;
+		if (bch2_csum_type_is_encryption(op->crc.csum_type)) {
+			ret = bch2_encrypt_bio(c, op->crc.csum_type, nonce, bio);
+			if (ret)
+				return ret;
+
+			op->crc.csum_type = 0;
+			op->crc.csum = (struct bch_csum) { 0, 0 };
+		}
+
+		ret = bch2_bio_uncompress_inplace(op, bio);
+		if (ret)
+			return ret;
 	}
 
 	/*
@@ -916,22 +893,34 @@ static enum prep_encoded_ret {
 	 * If the data is checksummed and we're only writing a subset,
 	 * rechecksum and adjust bio to point to currently live data:
 	 */
-	if ((op->crc.live_size != op->crc.uncompressed_size ||
-	     op->crc.csum_type != op->csum_type) &&
-	    bch2_write_rechecksum(c, op, op->csum_type) &&
-	    !c->opts.no_data_io)
-		return PREP_ENCODED_CHECKSUM_ERR;
+	if (op->crc.live_size != op->crc.uncompressed_size ||
+	    op->crc.csum_type != op->csum_type) {
+		ret = bch2_write_rechecksum(c, op, op->csum_type);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * If we want to compress the data, it has to be decrypted:
 	 */
-	if ((op->compression_opt ||
-	     bch2_csum_type_is_encryption(op->crc.csum_type) !=
-	     bch2_csum_type_is_encryption(op->csum_type)) &&
-	    bch2_write_decrypt(op))
-		return PREP_ENCODED_CHECKSUM_ERR;
+	if (bch2_csum_type_is_encryption(op->crc.csum_type) &&
+	    (op->compression_opt || op->crc.csum_type != op->csum_type)) {
+		struct bch_csum csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
+		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
+			goto csum_err;
 
-	return PREP_ENCODED_OK;
+		ret = bch2_encrypt_bio(c, op->crc.csum_type, nonce, bio);
+		if (ret)
+			return ret;
+
+		op->crc.csum_type = 0;
+		op->crc.csum = (struct bch_csum) { 0, 0 };
+	}
+
+	return 0;
+csum_err:
+	bch2_write_csum_err_msg(op);
+	return -EIO;
 }
 
 static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
@@ -950,25 +939,21 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 
 	ec_buf = bch2_writepoint_ec_buf(c, wp);
 
-	switch (bch2_write_prep_encoded_data(op, wp)) {
-	case PREP_ENCODED_OK:
-		break;
-	case PREP_ENCODED_ERR:
-		ret = -EIO;
-		goto err;
-	case PREP_ENCODED_CHECKSUM_ERR:
-		goto csum_err;
-	case PREP_ENCODED_DO_WRITE:
-		/* XXX look for bug here */
-		if (ec_buf) {
-			dst = bch2_write_bio_alloc(c, wp, src,
-						   &page_alloc_failed,
-						   ec_buf);
-			bio_copy_data(dst, src);
-			bounce = true;
+	if (unlikely(op->flags & BCH_WRITE_data_encoded)) {
+		ret = bch2_write_prep_encoded_data(op, wp);
+		if (ret < 0)
+			goto err;
+		if (ret) {
+			if (ec_buf) {
+				dst = bch2_write_bio_alloc(c, wp, src,
+							   &page_alloc_failed,
+							   ec_buf);
+				bio_copy_data(dst, src);
+				bounce = true;
+			}
+			init_append_extent(op, wp, op->version, op->crc);
+			goto do_write;
 		}
-		init_append_extent(op, wp, op->version, op->crc);
-		goto do_write;
 	}
 
 	if (ec_buf ||
@@ -1141,9 +1126,7 @@ do_write:
 	*_dst = dst;
 	return more;
 csum_err:
-	bch2_write_op_error(op, op->pos.offset,
-			    "error verifying existing checksum while rewriting existing data (memory corruption?)");
-
+	bch2_write_csum_err_msg(op);
 	ret = -EIO;
 err:
 	if (to_wbio(dst)->bounce)
