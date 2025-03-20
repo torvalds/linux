@@ -422,6 +422,9 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 			get_hierarchy(subject->domain, youngest_layer);
 	}
 
+	if (READ_ONCE(youngest_denied->log_status) == LANDLOCK_LOG_DISABLED)
+		return;
+
 	/*
 	 * Consistently keeps track of the number of denied access requests
 	 * even if audit is currently disabled, or if audit rules currently
@@ -433,9 +436,16 @@ void landlock_log_denial(const struct landlock_cred_security *const subject,
 	if (!audit_enabled)
 		return;
 
-	/* Ignores denials after an execution. */
-	if (!(subject->domain_exec & (1 << youngest_layer)))
-		return;
+	/* Checks if the current exec was restricting itself. */
+	if (subject->domain_exec & (1 << youngest_layer)) {
+		/* Ignores denials for the same execution. */
+		if (!youngest_denied->log_same_exec)
+			return;
+	} else {
+		/* Ignores denials after a new execution. */
+		if (!youngest_denied->log_new_exec)
+			return;
+	}
 
 	/* Uses consistent allocation flags wrt common_lsm_audit(). */
 	ab = audit_log_start(audit_context(), GFP_ATOMIC | __GFP_NOWARN,

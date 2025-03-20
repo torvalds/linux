@@ -4,6 +4,7 @@
  *
  * Copyright © 2017-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2018-2020 ANSSI
+ * Copyright © 2021-2025 Microsoft Corporation
  */
 
 #ifndef _UAPI_LINUX_LANDLOCK_H
@@ -62,6 +63,26 @@ struct landlock_ruleset_attr {
 /* clang-format off */
 #define LANDLOCK_CREATE_RULESET_VERSION			(1U << 0)
 #define LANDLOCK_CREATE_RULESET_ERRATA			(1U << 1)
+/* clang-format on */
+
+/*
+ * sys_landlock_restrict_self() flags:
+ *
+ * - %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF: Do not create any log related to the
+ *   enforced restrictions.  This should only be set by tools launching unknown
+ *   or untrusted programs (e.g. a sandbox tool, container runtime, system
+ *   service manager).  Because programs sandboxing themselves should fix any
+ *   denied access, they should not set this flag to be aware of potential
+ *   issues reported by system's logs (i.e. audit).
+ * - %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON: Explicitly ask to continue
+ *   logging denied access requests even after an :manpage:`execve(2)` call.
+ *   This flag should only be set if all the programs than can legitimately be
+ *   executed will not try to request a denied access (which could spam audit
+ *   logs).
+ */
+/* clang-format off */
+#define LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF		(1U << 0)
+#define LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON			(1U << 1)
 /* clang-format on */
 
 /**

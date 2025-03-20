@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Landlock LSM - System call implementations and user space interfaces
+ * Landlock - System call implementations and user space interfaces
  *
  * Copyright © 2016-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2018-2020 ANSSI
+ * Copyright © 2021-2025 Microsoft Corporation
  */
 
 #include <asm/current.h>
@@ -28,6 +29,7 @@
 #include <uapi/linux/landlock.h>
 
 #include "cred.h"
+#include "domain.h"
 #include "fs.h"
 #include "limits.h"
 #include "net.h"
@@ -151,7 +153,14 @@ static const struct file_operations ruleset_fops = {
 	.write = fop_dummy_write,
 };
 
-#define LANDLOCK_ABI_VERSION 6
+/*
+ * The Landlock ABI version should be incremented for each new Landlock-related
+ * user space visible change (e.g. Landlock syscalls).  This version should
+ * only be incremented once per Linux release, and the date in
+ * Documentation/userspace-api/landlock.rst should be updated to reflect the
+ * UAPI change.
+ */
+const int landlock_abi_version = 7;
 
 /**
  * sys_landlock_create_ruleset - Create a new ruleset
@@ -246,8 +255,6 @@ SYSCALL_DEFINE3(landlock_create_ruleset,
 		landlock_put_ruleset(ruleset);
 	return ruleset_fd;
 }
-
-const int landlock_abi_version = LANDLOCK_ABI_VERSION;
 
 /*
  * Returns an owned ruleset from a FD. It is thus needed to call
@@ -443,7 +450,10 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  * sys_landlock_restrict_self - Enforce a ruleset on the calling thread
  *
  * @ruleset_fd: File descriptor tied to the ruleset to merge with the target.
- * @flags: Must be 0.
+ * @flags: Supported values:
+ *
+ * - %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF
+ * - %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON
  *
  * This system call enables to enforce a Landlock ruleset on the current
  * thread.  Enforcing a ruleset requires that the task has %CAP_SYS_ADMIN in its
@@ -453,7 +463,7 @@ SYSCALL_DEFINE4(landlock_add_rule, const int, ruleset_fd,
  * Possible returned errors are:
  *
  * - %EOPNOTSUPP: Landlock is supported by the kernel but disabled at boot time;
- * - %EINVAL: @flags is not 0.
+ * - %EINVAL: @flags contains an unknown bit.
  * - %EBADF: @ruleset_fd is not a file descriptor for the current thread;
  * - %EBADFD: @ruleset_fd is not a ruleset file descriptor;
  * - %EPERM: @ruleset_fd has no read access to the underlying ruleset, or the
@@ -469,6 +479,7 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 		*ruleset __free(landlock_put_ruleset) = NULL;
 	struct cred *new_cred;
 	struct landlock_cred_security *new_llcred;
+	bool __maybe_unused log_same_exec, log_new_exec;
 
 	if (!is_initialized())
 		return -EOPNOTSUPP;
@@ -481,9 +492,14 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 	    !ns_capable_noaudit(current_user_ns(), CAP_SYS_ADMIN))
 		return -EPERM;
 
-	/* No flag for now. */
-	if (flags)
+	if ((flags | LANDLOCK_MASK_RESTRICT_SELF) !=
+	    LANDLOCK_MASK_RESTRICT_SELF)
 		return -EINVAL;
+
+	/* Translates "off" flag to boolean. */
+	log_same_exec = !(flags & LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF);
+	/* Translates "on" flag to boolean. */
+	log_new_exec = !!(flags & LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON);
 
 	/* Gets and checks the ruleset. */
 	ruleset = get_ruleset_from_fd(ruleset_fd, FMODE_CAN_READ);
@@ -506,6 +522,13 @@ SYSCALL_DEFINE2(landlock_restrict_self, const int, ruleset_fd, const __u32,
 		abort_creds(new_cred);
 		return PTR_ERR(new_dom);
 	}
+
+#ifdef CONFIG_AUDIT
+	new_dom->hierarchy->log_same_exec = log_same_exec;
+	new_dom->hierarchy->log_new_exec = log_new_exec;
+	if (!log_same_exec && !log_new_exec)
+		new_dom->hierarchy->log_status = LANDLOCK_LOG_DISABLED;
+#endif /* CONFIG_AUDIT */
 
 	/* Replaces the old (prepared) domain. */
 	landlock_put_ruleset(new_llcred->domain);

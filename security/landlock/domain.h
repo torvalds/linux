@@ -24,6 +24,7 @@
 enum landlock_log_status {
 	LANDLOCK_LOG_PENDING = 0,
 	LANDLOCK_LOG_RECORDED,
+	LANDLOCK_LOG_DISABLED,
 };
 
 /**
@@ -103,6 +104,16 @@ struct landlock_hierarchy {
 	 * @details: Information about the related domain.
 	 */
 	const struct landlock_details *details;
+	/**
+	 * @log_same_exec: Set if the domain is *not* configured with
+	 * %LANDLOCK_RESTRICT_SELF_LOG_SAME_EXEC_OFF.  Set to true by default.
+	 */
+	u32 log_same_exec : 1,
+		/**
+		 * @log_new_exec: Set if the domain is configured with
+		 * %LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON.  Set to false by default.
+		 */
+		log_new_exec : 1;
 #endif /* CONFIG_AUDIT */
 };
 
