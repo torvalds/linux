@@ -312,27 +312,20 @@ static int iomap_dio_zero(const struct iomap_iter *iter, struct iomap_dio *dio,
 }
 
 /*
- * Figure out the bio's operation flags from the dio request, the
- * mapping, and whether or not we want FUA.  Note that we can end up
- * clearing the WRITE_THROUGH flag in the dio request.
+ * Use a FUA write if we need datasync semantics and this is a pure data I/O
+ * that doesn't require any metadata updates (including after I/O completion
+ * such as unwritten extent conversion) and the underlying device either
+ * doesn't have a volatile write cache or supports FUA.
+ * This allows us to avoid cache flushes on I/O completion.
  */
-static inline blk_opf_t iomap_dio_bio_opflags(struct iomap_dio *dio,
-		const struct iomap *iomap, bool use_fua, bool atomic_hw)
+static inline bool iomap_dio_can_use_fua(const struct iomap *iomap,
+		struct iomap_dio *dio)
 {
-	blk_opf_t opflags = REQ_SYNC | REQ_IDLE;
-
-	if (!(dio->flags & IOMAP_DIO_WRITE))
-		return REQ_OP_READ;
-
-	opflags |= REQ_OP_WRITE;
-	if (use_fua)
-		opflags |= REQ_FUA;
-	else
-		dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
-	if (atomic_hw)
-		opflags |= REQ_ATOMIC;
-
-	return opflags;
+	if (iomap->flags & (IOMAP_F_SHARED | IOMAP_F_DIRTY))
+		return false;
+	if (!(dio->flags & IOMAP_DIO_WRITE_THROUGH))
+		return false;
+	return !bdev_write_cache(iomap->bdev) || bdev_fua(iomap->bdev);
 }
 
 static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
@@ -340,52 +333,64 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 	const struct iomap *iomap = &iter->iomap;
 	struct inode *inode = iter->inode;
 	unsigned int fs_block_size = i_blocksize(inode), pad;
-	bool atomic_hw = iter->flags & IOMAP_ATOMIC_HW;
 	const loff_t length = iomap_length(iter);
 	loff_t pos = iter->pos;
-	blk_opf_t bio_opf;
+	blk_opf_t bio_opf = REQ_SYNC | REQ_IDLE;
 	struct bio *bio;
 	bool need_zeroout = false;
-	bool use_fua = false;
 	int nr_pages, ret = 0;
 	u64 copied = 0;
 	size_t orig_count;
-
-	if (atomic_hw && length != iter->len)
-		return -EINVAL;
 
 	if ((pos | length) & (bdev_logical_block_size(iomap->bdev) - 1) ||
 	    !bdev_iter_is_aligned(iomap->bdev, dio->submit.iter))
 		return -EINVAL;
 
-	if (iomap->type == IOMAP_UNWRITTEN) {
-		dio->flags |= IOMAP_DIO_UNWRITTEN;
-		need_zeroout = true;
-	}
+	if (dio->flags & IOMAP_DIO_WRITE) {
+		bio_opf |= REQ_OP_WRITE;
 
-	if (iomap->flags & IOMAP_F_SHARED)
-		dio->flags |= IOMAP_DIO_COW;
+		if (iomap->flags & IOMAP_F_ATOMIC_BIO) {
+			/*
+			 * Ensure that the mapping covers the full write
+			 * length, otherwise it won't be submitted as a single
+			 * bio, which is required to use hardware atomics.
+			 */
+			if (length != iter->len)
+				return -EINVAL;
+			bio_opf |= REQ_ATOMIC;
+		}
 
-	if (iomap->flags & IOMAP_F_NEW) {
-		need_zeroout = true;
-	} else if (iomap->type == IOMAP_MAPPED) {
+		if (iomap->type == IOMAP_UNWRITTEN) {
+			dio->flags |= IOMAP_DIO_UNWRITTEN;
+			need_zeroout = true;
+		}
+
+		if (iomap->flags & IOMAP_F_SHARED)
+			dio->flags |= IOMAP_DIO_COW;
+
+		if (iomap->flags & IOMAP_F_NEW) {
+			need_zeroout = true;
+		} else if (iomap->type == IOMAP_MAPPED) {
+			if (iomap_dio_can_use_fua(iomap, dio))
+				bio_opf |= REQ_FUA;
+			else
+				dio->flags &= ~IOMAP_DIO_WRITE_THROUGH;
+		}
+
 		/*
-		 * Use a FUA write if we need datasync semantics, this is a pure
-		 * data IO that doesn't require any metadata updates (including
-		 * after IO completion such as unwritten extent conversion) and
-		 * the underlying device either supports FUA or doesn't have
-		 * a volatile write cache. This allows us to avoid cache flushes
-		 * on IO completion. If we can't use writethrough and need to
-		 * sync, disable in-task completions as dio completion will
-		 * need to call generic_write_sync() which will do a blocking
-		 * fsync / cache flush call.
+		 * We can only do deferred completion for pure overwrites that
+		 * don't require additional I/O at completion time.
+		 *
+		 * This rules out writes that need zeroing or extent conversion,
+		 * extend the file size, or issue metadata I/O or cache flushes
+		 * during completion processing.
 		 */
-		if (!(iomap->flags & (IOMAP_F_SHARED|IOMAP_F_DIRTY)) &&
-		    (dio->flags & IOMAP_DIO_WRITE_THROUGH) &&
-		    (bdev_fua(iomap->bdev) || !bdev_write_cache(iomap->bdev)))
-			use_fua = true;
-		else if (dio->flags & IOMAP_DIO_NEED_SYNC)
+		if (need_zeroout || (pos >= i_size_read(inode)) ||
+		    ((dio->flags & IOMAP_DIO_NEED_SYNC) &&
+		     !(bio_opf & REQ_FUA)))
 			dio->flags &= ~IOMAP_DIO_CALLER_COMP;
+	} else {
+		bio_opf |= REQ_OP_READ;
 	}
 
 	/*
@@ -398,18 +403,6 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 
 	if (!iov_iter_count(dio->submit.iter))
 		goto out;
-
-	/*
-	 * We can only do deferred completion for pure overwrites that
-	 * don't require additional IO at completion. This rules out
-	 * writes that need zeroing or extent conversion, extend
-	 * the file size, or issue journal IO or cache flushes
-	 * during completion processing.
-	 */
-	if (need_zeroout ||
-	    ((dio->flags & IOMAP_DIO_NEED_SYNC) && !use_fua) ||
-	    ((dio->flags & IOMAP_DIO_WRITE) && pos >= i_size_read(inode)))
-		dio->flags &= ~IOMAP_DIO_CALLER_COMP;
 
 	/*
 	 * The rules for polled IO completions follow the guidelines as the
@@ -427,8 +420,6 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 		if (ret)
 			goto out;
 	}
-
-	bio_opf = iomap_dio_bio_opflags(dio, iomap, use_fua, atomic_hw);
 
 	nr_pages = bio_iov_vecs_to_alloc(dio->submit.iter, BIO_MAX_VECS);
 	do {
@@ -461,9 +452,9 @@ static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 		}
 
 		n = bio->bi_iter.bi_size;
-		if (WARN_ON_ONCE(atomic_hw && n != length)) {
+		if (WARN_ON_ONCE((bio_opf & REQ_ATOMIC) && n != length)) {
 			/*
-			 * This bio should have covered the complete length,
+			 * An atomic write bio must cover the complete length,
 			 * which it doesn't, so error. We may need to zero out
 			 * the tail (complete FS block), similar to when
 			 * bio_iov_iter_get_pages() returns an error, above.
@@ -686,10 +677,8 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 			iomi.flags |= IOMAP_OVERWRITE_ONLY;
 		}
 
-		if (dio_flags & IOMAP_DIO_ATOMIC_SW)
-			iomi.flags |= IOMAP_ATOMIC_SW;
-		else if (iocb->ki_flags & IOCB_ATOMIC)
-			iomi.flags |= IOMAP_ATOMIC_HW;
+		if (iocb->ki_flags & IOCB_ATOMIC)
+			iomi.flags |= IOMAP_ATOMIC;
 
 		/* for data sync or sync, we need sync completion processing */
 		if (iocb_is_dsync(iocb)) {
