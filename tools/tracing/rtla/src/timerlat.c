@@ -16,6 +16,8 @@
 
 #include "timerlat.h"
 
+#define DEFAULT_TIMERLAT_PERIOD	1000			/* 1ms */
+
 /*
  * timerlat_apply_config - apply common configs to the initialized tool
  */
@@ -27,49 +29,44 @@ timerlat_apply_config(struct osnoise_tool *tool, struct timerlat_params *params)
 	if (!params->sleep_time)
 		params->sleep_time = 1;
 
-	if (params->cpus) {
-		retval = osnoise_set_cpus(tool->context, params->cpus);
-		if (retval) {
-			err_msg("Failed to apply CPUs config\n");
-			goto out_err;
-		}
-	} else {
+	retval = osnoise_set_cpus(tool->context, params->cpus ? params->cpus : "all");
+	if (retval) {
+		err_msg("Failed to apply CPUs config\n");
+		goto out_err;
+	}
+
+	if (!params->cpus) {
 		for (i = 0; i < sysconf(_SC_NPROCESSORS_CONF); i++)
 			CPU_SET(i, &params->monitored_cpus);
 	}
 
-	if (params->stop_us) {
-		retval = osnoise_set_stop_us(tool->context, params->stop_us);
-		if (retval) {
-			err_msg("Failed to set stop us\n");
-			goto out_err;
-		}
+	retval = osnoise_set_stop_us(tool->context, params->stop_us);
+	if (retval) {
+		err_msg("Failed to set stop us\n");
+		goto out_err;
 	}
 
-	if (params->stop_total_us) {
-		retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
-		if (retval) {
-			err_msg("Failed to set stop total us\n");
-			goto out_err;
-		}
+	retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
+	if (retval) {
+		err_msg("Failed to set stop total us\n");
+		goto out_err;
 	}
 
 
-	if (params->timerlat_period_us) {
-		retval = osnoise_set_timerlat_period_us(tool->context, params->timerlat_period_us);
-		if (retval) {
-			err_msg("Failed to set timerlat period\n");
-			goto out_err;
-		}
+	retval = osnoise_set_timerlat_period_us(tool->context,
+						params->timerlat_period_us ?
+						params->timerlat_period_us :
+						DEFAULT_TIMERLAT_PERIOD);
+	if (retval) {
+		err_msg("Failed to set timerlat period\n");
+		goto out_err;
 	}
 
 
-	if (params->print_stack) {
-		retval = osnoise_set_print_stack(tool->context, params->print_stack);
-		if (retval) {
-			err_msg("Failed to set print stack\n");
-			goto out_err;
-		}
+	retval = osnoise_set_print_stack(tool->context, params->print_stack);
+	if (retval) {
+		err_msg("Failed to set print stack\n");
+		goto out_err;
 	}
 
 	if (params->hk_cpus) {

@@ -17,6 +17,9 @@
 
 #include "osnoise.h"
 
+#define DEFAULT_SAMPLE_PERIOD	1000000			/* 1s */
+#define DEFAULT_SAMPLE_RUNTIME	1000000			/* 1s */
+
 /*
  * osnoise_get_cpus - return the original "osnoise/cpus" content
  *
@@ -1127,46 +1130,43 @@ osnoise_apply_config(struct osnoise_tool *tool, struct osnoise_params *params)
 	if (!params->sleep_time)
 		params->sleep_time = 1;
 
-	if (params->cpus) {
-		retval = osnoise_set_cpus(tool->context, params->cpus);
-		if (retval) {
-			err_msg("Failed to apply CPUs config\n");
-			goto out_err;
-		}
+	retval = osnoise_set_cpus(tool->context, params->cpus ? params->cpus : "all");
+	if (retval) {
+		err_msg("Failed to apply CPUs config\n");
+		goto out_err;
 	}
 
 	if (params->runtime || params->period) {
 		retval = osnoise_set_runtime_period(tool->context,
 						    params->runtime,
 						    params->period);
-		if (retval) {
-			err_msg("Failed to set runtime and/or period\n");
-			goto out_err;
-		}
+	} else {
+		retval = osnoise_set_runtime_period(tool->context,
+						    DEFAULT_SAMPLE_PERIOD,
+						    DEFAULT_SAMPLE_RUNTIME);
 	}
 
-	if (params->stop_us) {
-		retval = osnoise_set_stop_us(tool->context, params->stop_us);
-		if (retval) {
-			err_msg("Failed to set stop us\n");
-			goto out_err;
-		}
+	if (retval) {
+		err_msg("Failed to set runtime and/or period\n");
+		goto out_err;
 	}
 
-	if (params->stop_total_us) {
-		retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
-		if (retval) {
-			err_msg("Failed to set stop total us\n");
-			goto out_err;
-		}
+	retval = osnoise_set_stop_us(tool->context, params->stop_us);
+	if (retval) {
+		err_msg("Failed to set stop us\n");
+		goto out_err;
 	}
 
-	if (params->threshold) {
-		retval = osnoise_set_tracing_thresh(tool->context, params->threshold);
-		if (retval) {
-			err_msg("Failed to set tracing_thresh\n");
-			goto out_err;
-		}
+	retval = osnoise_set_stop_total_us(tool->context, params->stop_total_us);
+	if (retval) {
+		err_msg("Failed to set stop total us\n");
+		goto out_err;
+	}
+
+	retval = osnoise_set_tracing_thresh(tool->context, params->threshold);
+	if (retval) {
+		err_msg("Failed to set tracing_thresh\n");
+		goto out_err;
 	}
 
 	if (params->hk_cpus) {
