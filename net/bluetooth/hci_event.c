@@ -6060,8 +6060,17 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	 * a LE Direct Advertising Report event. In that case it is
 	 * important to see if the address is matching the local
 	 * controller address.
+	 *
+	 * If local privacy is not enable the controller shall not be
+	 * generating such event since according to its documentation it is only
+	 * valid for filter_policy 0x02 and 0x03, but the fact that it did
+	 * generate LE Direct Advertising Report means it is probably broken and
+	 * won't generate any other event which can potentially break
+	 * auto-connect logic so in case local privacy is not enable this
+	 * ignores the direct_addr so it works as a regular report.
 	 */
-	if (!hci_dev_test_flag(hdev, HCI_MESH) && direct_addr) {
+	if (!hci_dev_test_flag(hdev, HCI_MESH) && direct_addr &&
+	    hci_dev_test_flag(hdev, HCI_PRIVACY)) {
 		direct_addr_type = ev_bdaddr_type(hdev, direct_addr_type,
 						  &bdaddr_resolved);
 
@@ -6069,12 +6078,6 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 		 * kind of reports and others can be ignored.
 		 */
 		if (!hci_bdaddr_is_rpa(direct_addr, direct_addr_type))
-			return;
-
-		/* If the controller is not using resolvable random
-		 * addresses, then this report can be ignored.
-		 */
-		if (!hci_dev_test_flag(hdev, HCI_PRIVACY))
 			return;
 
 		/* If the local IRK of the controller does not match
