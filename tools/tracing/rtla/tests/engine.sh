@@ -8,12 +8,44 @@ test_begin() {
 	[ -n "$TEST_COUNT" ] && echo "1..$TEST_COUNT"
 }
 
+reset_osnoise() {
+	# Reset osnoise options to default and remove any dangling instances created
+	# by improperly exited rtla runs.
+	pushd /sys/kernel/tracing || return 1
+
+	# Remove dangling instances created by previous rtla run
+	echo 0 > tracing_thresh
+	cd instances
+	for i in osnoise_top osnoise_hist timerlat_top timerlat_hist
+	do
+		[ ! -d "$i" ] && continue
+		rmdir "$i"
+	done
+
+	# Reset options to default
+	# Note: those are copied from the default values of osnoise_data
+	# in kernel/trace/trace_osnoise.c
+	cd ../osnoise
+	echo all > cpus
+	echo DEFAULTS > options
+	echo 1000000 > period_us
+	echo 0 > print_stack
+	echo 1000000 > runtime_us
+	echo 0 > stop_tracing_total_us
+	echo 0 > stop_tracing_us
+	echo 1000 > timerlat_period_us
+
+	popd
+}
+
 check() {
 	# Simple check: run rtla with given arguments and test exit code.
 	# If TEST_COUNT is set, run the test. Otherwise, just count.
 	ctr=$(($ctr + 1))
 	if [ -n "$TEST_COUNT" ]
 	then
+		# Reset osnoise options before running test.
+		[ "$NO_RESET_OSNOISE" == 1 ] || reset_osnoise
 		# Run rtla; in case of failure, include its output as comment
 		# in the test results.
 		result=$(stdbuf -oL $TIMEOUT "$RTLA" $2 2>&1); exitcode=$?
@@ -35,6 +67,14 @@ set_timeout() {
 
 unset_timeout() {
 	unset TIMEOUT
+}
+
+set_no_reset_osnoise() {
+	NO_RESET_OSNOISE=1
+}
+
+unset_no_reset_osnoise() {
+	unset NO_RESET_OSNOISE
 }
 
 test_end() {
