@@ -5,4 +5,7 @@ landlock-y := setup.o syscalls.o object.o ruleset.o \
 
 landlock-$(CONFIG_INET) += net.o
 
-landlock-$(CONFIG_AUDIT) += id.o
+landlock-$(CONFIG_AUDIT) += \
+	id.o \
+	audit.o \
+	domain.o

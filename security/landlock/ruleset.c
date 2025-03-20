@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 
 #include "access.h"
+#include "audit.h"
 #include "domain.h"
 #include "limits.h"
 #include "object.h"
@@ -505,6 +506,7 @@ static void free_ruleset_work(struct work_struct *const work)
 	free_ruleset(ruleset);
 }
 
+/* Only called by hook_cred_free(). */
 void landlock_put_ruleset_deferred(struct landlock_ruleset *const ruleset)
 {
 	if (ruleset && refcount_dec_and_test(&ruleset->usage)) {
@@ -561,6 +563,10 @@ landlock_merge_ruleset(struct landlock_ruleset *const parent,
 
 	/* ...and including @ruleset. */
 	err = merge_ruleset(new_dom, ruleset);
+	if (err)
+		return ERR_PTR(err);
+
+	err = landlock_init_hierarchy_log(new_dom->hierarchy);
 	if (err)
 		return ERR_PTR(err);
 

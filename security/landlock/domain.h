@@ -4,6 +4,7 @@
  *
  * Copyright © 2016-2020 Mickaël Salaün <mic@digikod.net>
  * Copyright © 2018-2020 ANSSI
+ * Copyright © 2024-2025 Microsoft Corporation
  */
 
 #ifndef _SECURITY_LANDLOCK_DOMAIN_H
@@ -26,7 +27,28 @@ struct landlock_hierarchy {
 	 * domain.
 	 */
 	refcount_t usage;
+
+#ifdef CONFIG_AUDIT
+	/**
+	 * @id: Landlock domain ID, sets once at domain creation time.
+	 */
+	u64 id;
+#endif /* CONFIG_AUDIT */
 };
+
+#ifdef CONFIG_AUDIT
+
+int landlock_init_hierarchy_log(struct landlock_hierarchy *const hierarchy);
+
+#else /* CONFIG_AUDIT */
+
+static inline int
+landlock_init_hierarchy_log(struct landlock_hierarchy *const hierarchy)
+{
+	return 0;
+}
+
+#endif /* CONFIG_AUDIT */
 
 static inline void
 landlock_get_hierarchy(struct landlock_hierarchy *const hierarchy)
