@@ -675,7 +675,7 @@ static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	enum pipe pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK;
 
-	ibx_hpd_irq_handler(dev_priv, hotplug_trigger);
+	ibx_hpd_irq_handler(display, hotplug_trigger);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK) >>
@@ -812,7 +812,7 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	enum pipe pipe;
 	u32 hotplug_trigger = pch_iir & SDE_HOTPLUG_MASK_CPT;
 
-	ibx_hpd_irq_handler(dev_priv, hotplug_trigger);
+	ibx_hpd_irq_handler(display, hotplug_trigger);
 
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT) {
 		int port = ffs((pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
@@ -901,7 +901,7 @@ void ilk_display_irq_handler(struct drm_i915_private *dev_priv, u32 de_iir)
 	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG;
 
 	if (hotplug_trigger)
-		ilk_hpd_irq_handler(dev_priv, hotplug_trigger);
+		ilk_hpd_irq_handler(display, hotplug_trigger);
 
 	if (de_iir & DE_AUX_CHANNEL_A)
 		intel_dp_aux_irq_handler(display);
@@ -953,7 +953,7 @@ void ivb_display_irq_handler(struct drm_i915_private *dev_priv, u32 de_iir)
 	u32 hotplug_trigger = de_iir & DE_DP_A_HOTPLUG_IVB;
 
 	if (hotplug_trigger)
-		ilk_hpd_irq_handler(dev_priv, hotplug_trigger);
+		ilk_hpd_irq_handler(display, hotplug_trigger);
 
 	if (de_iir & DE_ERR_INT_IVB)
 		ivb_err_int_handler(dev_priv);
@@ -1382,7 +1382,7 @@ void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		iir = intel_de_read(display, GEN11_DE_HPD_IIR);
 		if (iir) {
 			intel_de_write(display, GEN11_DE_HPD_IIR, iir);
-			gen11_hpd_irq_handler(dev_priv, iir);
+			gen11_hpd_irq_handler(display, iir);
 		} else {
 			drm_err_ratelimited(&dev_priv->drm,
 					    "The master control interrupt lied, (DE HPD)!\n");
@@ -1405,14 +1405,14 @@ void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 				u32 hotplug_trigger = iir & BXT_DE_PORT_HOTPLUG_MASK;
 
 				if (hotplug_trigger) {
-					bxt_hpd_irq_handler(dev_priv, hotplug_trigger);
+					bxt_hpd_irq_handler(display, hotplug_trigger);
 					found = true;
 				}
 			} else if (IS_BROADWELL(dev_priv)) {
 				u32 hotplug_trigger = iir & BDW_DE_PORT_HOTPLUG_MASK;
 
 				if (hotplug_trigger) {
-					ilk_hpd_irq_handler(dev_priv, hotplug_trigger);
+					ilk_hpd_irq_handler(display, hotplug_trigger);
 					found = true;
 				}
 			}
@@ -1498,12 +1498,12 @@ void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 		gen8_read_and_ack_pch_irqs(dev_priv, &iir, &pica_iir);
 		if (iir) {
 			if (pica_iir)
-				xelpdp_pica_irq_handler(dev_priv, pica_iir);
+				xelpdp_pica_irq_handler(display, pica_iir);
 
 			if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-				icp_irq_handler(dev_priv, iir);
+				icp_irq_handler(display, iir);
 			else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
-				spt_irq_handler(dev_priv, iir);
+				spt_irq_handler(display, iir);
 			else
 				cpt_irq_handler(dev_priv, iir);
 		} else {
@@ -1904,7 +1904,7 @@ static void _vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 	gen2_error_reset(to_intel_uncore(display->drm),
 			 VLV_ERROR_REGS);
 
-	i915_hotplug_interrupt_update_locked(dev_priv, 0xffffffff, 0);
+	i915_hotplug_interrupt_update_locked(display, 0xffffffff, 0);
 	intel_de_rmw(display, PORT_HOTPLUG_STAT(dev_priv), 0, 0);
 
 	i9xx_pipestat_irq_reset(dev_priv);
@@ -1924,7 +1924,7 @@ void i9xx_display_irq_reset(struct drm_i915_private *i915)
 	struct intel_display *display = &i915->display;
 
 	if (I915_HAS_HOTPLUG(i915)) {
-		i915_hotplug_interrupt_update(i915, 0xffffffff, 0);
+		i915_hotplug_interrupt_update(display, 0xffffffff, 0);
 		intel_de_rmw(display, PORT_HOTPLUG_STAT(i915), 0, 0);
 	}
 
@@ -2348,10 +2348,11 @@ void dg1_de_irq_postinstall(struct drm_i915_private *i915)
 
 void intel_display_irq_init(struct drm_i915_private *i915)
 {
-	i915->drm.vblank_disable_immediate = true;
+	struct intel_display *display = &i915->display;
 
-	intel_hotplug_irq_init(i915);
+	display->drm->vblank_disable_immediate = true;
 
-	INIT_WORK(&i915->display.irq.vblank_dc_work,
-		  intel_display_vblank_dc_work);
+	intel_hotplug_irq_init(display);
+
+	INIT_WORK(&display->irq.vblank_dc_work, intel_display_vblank_dc_work);
 }

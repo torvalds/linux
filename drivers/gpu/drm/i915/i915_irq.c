@@ -277,7 +277,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			intel_uncore_write(&dev_priv->uncore, GEN6_PMIIR, pm_iir);
 
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
-			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
+			hotplug_status = i9xx_hpd_irq_ack(display);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			vlv_display_error_irq_ack(display, &eir, &dpinvgtt);
@@ -306,7 +306,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 			gen6_rps_irq_handler(&to_gt(dev_priv)->rps, pm_iir);
 
 		if (hotplug_status)
-			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
+			i9xx_hpd_irq_handler(display, hotplug_status);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			vlv_display_error_irq_handler(display, eir, dpinvgtt);
@@ -367,7 +367,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		gen8_gt_irq_handler(to_gt(dev_priv), master_ctl);
 
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
-			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
+			hotplug_status = i9xx_hpd_irq_ack(display);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			vlv_display_error_irq_ack(display, &eir, &dpinvgtt);
@@ -392,7 +392,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		intel_uncore_write(&dev_priv->uncore, GEN8_MASTER_IRQ, GEN8_MASTER_IRQ_CONTROL);
 
 		if (hotplug_status)
-			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
+			i9xx_hpd_irq_handler(display, hotplug_status);
 
 		if (iir & I915_MASTER_ERROR_INTERRUPT)
 			vlv_display_error_irq_handler(display, eir, dpinvgtt);
@@ -952,6 +952,7 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 static irqreturn_t i915_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
+	struct intel_display *display = &dev_priv->display;
 	irqreturn_t ret = IRQ_NONE;
 
 	if (!intel_irqs_enabled(dev_priv))
@@ -974,7 +975,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 
 		if (I915_HAS_HOTPLUG(dev_priv) &&
 		    iir & I915_DISPLAY_PORT_INTERRUPT)
-			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
+			hotplug_status = i9xx_hpd_irq_ack(display);
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in IIR */
@@ -992,7 +993,7 @@ static irqreturn_t i915_irq_handler(int irq, void *arg)
 			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
 
 		if (hotplug_status)
-			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
+			i9xx_hpd_irq_handler(display, hotplug_status);
 
 		i915_pipestat_irq_handler(dev_priv, iir, pipe_stats);
 	} while (0);
@@ -1075,6 +1076,7 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 static irqreturn_t i965_irq_handler(int irq, void *arg)
 {
 	struct drm_i915_private *dev_priv = arg;
+	struct intel_display *display = &dev_priv->display;
 	irqreturn_t ret = IRQ_NONE;
 
 	if (!intel_irqs_enabled(dev_priv))
@@ -1096,7 +1098,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 		ret = IRQ_HANDLED;
 
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
-			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
+			hotplug_status = i9xx_hpd_irq_ack(display);
 
 		/* Call regardless, as some status bits might not be
 		 * signalled in IIR */
@@ -1119,7 +1121,7 @@ static irqreturn_t i965_irq_handler(int irq, void *arg)
 			i9xx_error_irq_handler(dev_priv, eir, eir_stuck);
 
 		if (hotplug_status)
-			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
+			i9xx_hpd_irq_handler(display, hotplug_status);
 
 		i965_pipestat_irq_handler(dev_priv, iir, pipe_stats);
 	} while (0);

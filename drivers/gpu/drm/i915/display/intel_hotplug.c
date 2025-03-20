@@ -305,7 +305,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 			display->hotplug.stats[pin].state = HPD_ENABLED;
 	}
 
-	intel_hpd_irq_setup(dev_priv);
+	intel_hpd_irq_setup(display);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 
@@ -696,7 +696,7 @@ void intel_hpd_irq_handler(struct intel_display *display,
 	 * happens later in our hotplug work.
 	 */
 	if (storm_detected)
-		intel_hpd_irq_setup(dev_priv);
+		intel_hpd_irq_setup(display);
 
 	/*
 	 * Our hotplug handler can grab modeset locks (by calling down into the
@@ -745,7 +745,7 @@ void intel_hpd_init(struct intel_display *display)
 	 * just to make the assert_spin_locked checks happy.
 	 */
 	spin_lock_irq(&dev_priv->irq_lock);
-	intel_hpd_irq_setup(dev_priv);
+	intel_hpd_irq_setup(display);
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
 

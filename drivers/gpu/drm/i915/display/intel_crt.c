@@ -606,7 +606,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 
 	for (i = 0; i < tries ; i++) {
 		/* turn on the FORCE_DETECT */
-		i915_hotplug_interrupt_update(dev_priv,
+		i915_hotplug_interrupt_update(display,
 					      CRT_HOTPLUG_FORCE_DETECT,
 					      CRT_HOTPLUG_FORCE_DETECT);
 		/* wait for FORCE_DETECT to go off */
@@ -624,7 +624,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	intel_de_write(display, PORT_HOTPLUG_STAT(display),
 		       CRT_HOTPLUG_INT_STATUS);
 
-	i915_hotplug_interrupt_update(dev_priv, CRT_HOTPLUG_FORCE_DETECT, 0);
+	i915_hotplug_interrupt_update(display, CRT_HOTPLUG_FORCE_DETECT, 0);
 
 	return ret;
 }
