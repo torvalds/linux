@@ -1652,6 +1652,7 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 				   enum amd_pp_sensors sensor, void *data,
 				   uint32_t *size)
 {
+	struct smu_13_0_dpm_context *dpm_context = smu->smu_dpm.dpm_context;
 	int ret = 0;
 
 	if (amdgpu_ras_intr_triggered())
@@ -1696,6 +1697,15 @@ static int smu_v13_0_6_read_sensor(struct smu_context *smu,
 		ret = smu_v13_0_get_gfx_vdd(smu, (uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_VDDBOARD:
+		if (smu_v13_0_6_cap_supported(smu, SMU_CAP(BOARD_VOLTAGE))) {
+			*(uint32_t *)data = dpm_context->board_volt;
+			*size = 4;
+			break;
+		} else {
+			ret = -EOPNOTSUPP;
+			break;
+		}
 	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
 	default:
 		ret = -EOPNOTSUPP;
