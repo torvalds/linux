@@ -12,6 +12,7 @@
 
 #include "i915_drv.h"
 #include "intel_atomic_plane.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dpt.h"
 #include "intel_fb.h"
@@ -117,7 +118,7 @@ intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_gem_object *_obj = intel_fb_bo(fb);
 	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	struct i915_gem_ww_ctx ww;
 	struct i915_vma *vma;
 	unsigned int pinctl;
@@ -136,7 +137,7 @@ intel_fb_pin_to_ggtt(const struct drm_framebuffer *fb,
 	 * intel_runtime_pm_put(), so it is correct to wrap only the
 	 * pin/unpin/fence and not more.
 	 */
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	wakeref = intel_display_rpm_get(display);
 
 	atomic_inc(&display->restore.pending_fb_pin);
 
@@ -215,7 +216,7 @@ err:
 		vma = ERR_PTR(ret);
 
 	atomic_dec(&display->restore.pending_fb_pin);
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_display_rpm_put(display, wakeref);
 	return vma;
 }
 

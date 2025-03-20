@@ -28,6 +28,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
+#include "intel_display_rpm.h"
 #include "intel_dmc.h"
 #include "intel_dmc_regs.h"
 #include "intel_step.h"
@@ -595,7 +596,7 @@ void intel_dmc_load_program(struct intel_display *display)
 
 	disable_all_event_handlers(display);
 
-	assert_rpm_wakelock_held(&i915->runtime_pm);
+	assert_display_rpm_held(display);
 
 	preempt_disable();
 
@@ -1237,13 +1238,13 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 	struct intel_display *display = m->private;
 	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dmc *dmc = display_to_dmc(display);
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	i915_reg_t dc5_reg, dc6_reg = INVALID_MMIO_REG;
 
 	if (!HAS_DMC(display))
 		return -ENODEV;
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+	wakeref = intel_display_rpm_get(display);
 
 	seq_printf(m, "DMC initialized: %s\n", str_yes_no(dmc));
 	seq_printf(m, "fw loaded: %s\n",
@@ -1299,7 +1300,7 @@ out:
 		   intel_de_read(display, DMC_SSP_BASE));
 	seq_printf(m, "htp: 0x%08x\n", intel_de_read(display, DMC_HTP_SKL));
 
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	intel_display_rpm_put(display, wakeref);
 
 	return 0;
 }

@@ -62,6 +62,7 @@
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_driver.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_aux.h"
@@ -87,7 +88,6 @@
 #include "intel_pfit.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
-#include "intel_runtime_pm.h"
 #include "intel_quirks.h"
 #include "intel_tc.h"
 #include "intel_vdsc.h"
@@ -6144,13 +6144,12 @@ enum irqreturn
 intel_dp_hpd_pulse(struct intel_digital_port *dig_port, bool long_hpd)
 {
 	struct intel_display *display = to_intel_display(dig_port);
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	struct intel_dp *intel_dp = &dig_port->dp;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 
 	if (dig_port->base.type == INTEL_OUTPUT_EDP &&
 	    (long_hpd ||
-	     intel_runtime_pm_suspended(&i915->runtime_pm) ||
+	     intel_display_rpm_suspended(display) ||
 	     !intel_pps_have_panel_power_or_vdd(intel_dp))) {
 		/*
 		 * vdd off can generate a long/short pulse on eDP which

@@ -55,6 +55,7 @@
 #include "intel_cdclk.h"
 #include "intel_de.h"
 #include "intel_display_device.h"
+#include "intel_display_rpm.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_display_wa.h"
@@ -2120,13 +2121,12 @@ static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
 {
 	struct intel_fbc *fbc = m->private;
 	struct intel_display *display = fbc->display;
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_plane *plane;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
 	drm_modeset_lock_all(display->drm);
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
+	wakeref = intel_display_rpm_get(display);
 	mutex_lock(&fbc->lock);
 
 	if (fbc->active) {
@@ -2151,7 +2151,7 @@ static int intel_fbc_debugfs_status_show(struct seq_file *m, void *unused)
 	}
 
 	mutex_unlock(&fbc->lock);
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	intel_display_rpm_put(display, wakeref);
 
 	drm_modeset_unlock_all(display->drm);
 

@@ -36,6 +36,7 @@
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_aux.h"
@@ -3728,10 +3729,9 @@ static void intel_psr_print_mode(struct intel_dp *intel_dp,
 static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum transcoder cpu_transcoder = intel_dp->psr.transcoder;
 	struct intel_psr *psr = &intel_dp->psr;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 	bool enabled;
 	u32 val, psr2_ctl;
 
@@ -3740,7 +3740,7 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 	if (!(psr->sink_support || psr->sink_panel_replay_support))
 		return 0;
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	wakeref = intel_display_rpm_get(display);
 	mutex_lock(&psr->lock);
 
 	intel_psr_print_mode(intel_dp, m);
@@ -3822,7 +3822,7 @@ static int intel_psr_status(struct seq_file *m, struct intel_dp *intel_dp)
 
 unlock:
 	mutex_unlock(&psr->lock);
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_display_rpm_put(display, wakeref);
 
 	return 0;
 }
@@ -3853,9 +3853,7 @@ static int
 i915_edp_psr_debug_set(void *data, u64 val)
 {
 	struct intel_display *display = data;
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_encoder *encoder;
-	intel_wakeref_t wakeref;
 	int ret = -ENODEV;
 
 	if (!HAS_PSR(display))
@@ -3866,12 +3864,9 @@ i915_edp_psr_debug_set(void *data, u64 val)
 
 		drm_dbg_kms(display->drm, "Setting PSR debug to %llx\n", val);
 
-		wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
-
 		// TODO: split to each transcoder's PSR debug state
-		ret = intel_psr_debug_set(intel_dp, val);
-
-		intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+		with_intel_display_rpm(display)
+			ret = intel_psr_debug_set(intel_dp, val);
 	}
 
 	return ret;

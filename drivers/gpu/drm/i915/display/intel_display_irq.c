@@ -14,6 +14,7 @@
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_rpm.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"
 #include "intel_dmc_wl.h"
@@ -1517,10 +1518,9 @@ void gen11_gu_misc_irq_handler(struct intel_display *display, const u32 iir)
 
 void gen11_display_irq_handler(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	u32 disp_ctl;
 
-	disable_rpm_wakeref_asserts(&i915->runtime_pm);
+	intel_display_rpm_assert_block(display);
 	/*
 	 * GEN11_DISPLAY_INT_CTL has same format as GEN8_MASTER_IRQ
 	 * for the display related bits.
@@ -1531,7 +1531,7 @@ void gen11_display_irq_handler(struct intel_display *display)
 	gen8_de_irq_handler(display, disp_ctl);
 	intel_de_write(display, GEN11_DISPLAY_INT_CTL, GEN11_DISPLAY_IRQ_ENABLE);
 
-	enable_rpm_wakeref_asserts(&i915->runtime_pm);
+	intel_display_rpm_assert_unblock(display);
 }
 
 static void i915gm_irq_cstate_wa_enable(struct intel_display *display)

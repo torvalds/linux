@@ -24,6 +24,7 @@
 #include "intel_display_debugfs_params.h"
 #include "intel_display_power.h"
 #include "intel_display_power_well.h"
+#include "intel_display_rpm.h"
 #include "intel_display_types.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
@@ -580,13 +581,12 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 static int i915_display_info(struct seq_file *m, void *unused)
 {
 	struct intel_display *display = node_to_intel_display(m->private);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
-	intel_wakeref_t wakeref;
+	struct ref_tracker *wakeref;
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	wakeref = intel_display_rpm_get(display);
 
 	drm_modeset_lock_all(display->drm);
 
@@ -605,7 +605,7 @@ static int i915_display_info(struct seq_file *m, void *unused)
 
 	drm_modeset_unlock_all(display->drm);
 
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
+	intel_display_rpm_put(display, wakeref);
 
 	return 0;
 }
@@ -690,14 +690,11 @@ static bool
 intel_lpsp_power_well_enabled(struct intel_display *display,
 			      enum i915_power_well_id power_well_id)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-	intel_wakeref_t wakeref;
 	bool is_enabled;
 
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-	is_enabled = intel_display_power_well_is_enabled(display,
-							 power_well_id);
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+	with_intel_display_rpm(display)
+		is_enabled = intel_display_power_well_is_enabled(display,
+								 power_well_id);
 
 	return is_enabled;
 }
