@@ -10,6 +10,44 @@
 #include "xe_ggtt.h"
 #include "xe_tile.h"
 
+typedef int (*xe_pinned_fn)(struct xe_bo *bo);
+
+static int xe_bo_apply_to_pinned(struct xe_device *xe,
+				 struct list_head *pinned_list,
+				 struct list_head *new_list,
+				 const xe_pinned_fn pinned_fn)
+{
+	LIST_HEAD(still_in_list);
+	struct xe_bo *bo;
+	int ret = 0;
+
+	spin_lock(&xe->pinned.lock);
+	while (!ret) {
+		bo = list_first_entry_or_null(pinned_list, typeof(*bo),
+					      pinned_link);
+		if (!bo)
+			break;
+		xe_bo_get(bo);
+		list_move_tail(&bo->pinned_link, &still_in_list);
+		spin_unlock(&xe->pinned.lock);
+
+		xe_bo_lock(bo, false);
+		ret = pinned_fn(bo);
+		if (ret && pinned_list != new_list) {
+			spin_lock(&xe->pinned.lock);
+			list_move(&bo->pinned_link, pinned_list);
+			spin_unlock(&xe->pinned.lock);
+		}
+		xe_bo_unlock(bo);
+		xe_bo_put(bo);
+		spin_lock(&xe->pinned.lock);
+	}
+	list_splice_tail(&still_in_list, new_list);
+	spin_unlock(&xe->pinned.lock);
+
+	return ret;
+}
+
 /**
  * xe_bo_evict_all - evict all BOs from VRAM
  *
@@ -27,9 +65,7 @@
 int xe_bo_evict_all(struct xe_device *xe)
 {
 	struct ttm_device *bdev = &xe->ttm;
-	struct xe_bo *bo;
 	struct xe_tile *tile;
-	struct list_head still_in_list;
 	u32 mem_type;
 	u8 id;
 	int ret;
@@ -57,34 +93,9 @@ int xe_bo_evict_all(struct xe_device *xe)
 		}
 	}
 
-	/* Pinned user memory in VRAM */
-	INIT_LIST_HEAD(&still_in_list);
-	spin_lock(&xe->pinned.lock);
-	for (;;) {
-		bo = list_first_entry_or_null(&xe->pinned.external_vram,
-					      typeof(*bo), pinned_link);
-		if (!bo)
-			break;
-		xe_bo_get(bo);
-		list_move_tail(&bo->pinned_link, &still_in_list);
-		spin_unlock(&xe->pinned.lock);
-
-		xe_bo_lock(bo, false);
-		ret = xe_bo_evict_pinned(bo);
-		xe_bo_unlock(bo);
-		xe_bo_put(bo);
-		if (ret) {
-			spin_lock(&xe->pinned.lock);
-			list_splice_tail(&still_in_list,
-					 &xe->pinned.external_vram);
-			spin_unlock(&xe->pinned.lock);
-			return ret;
-		}
-
-		spin_lock(&xe->pinned.lock);
-	}
-	list_splice_tail(&still_in_list, &xe->pinned.external_vram);
-	spin_unlock(&xe->pinned.lock);
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.external_vram,
+				    &xe->pinned.external_vram,
+				    xe_bo_evict_pinned);
 
 	/*
 	 * Wait for all user BO to be evicted as those evictions depend on the
@@ -93,26 +104,42 @@ int xe_bo_evict_all(struct xe_device *xe)
 	for_each_tile(tile, xe, id)
 		xe_tile_migrate_wait(tile);
 
-	spin_lock(&xe->pinned.lock);
-	for (;;) {
-		bo = list_first_entry_or_null(&xe->pinned.kernel_bo_present,
-					      typeof(*bo), pinned_link);
-		if (!bo)
-			break;
-		xe_bo_get(bo);
-		list_move_tail(&bo->pinned_link, &xe->pinned.evicted);
-		spin_unlock(&xe->pinned.lock);
+	if (ret)
+		return ret;
 
-		xe_bo_lock(bo, false);
-		ret = xe_bo_evict_pinned(bo);
-		xe_bo_unlock(bo);
-		xe_bo_put(bo);
-		if (ret)
-			return ret;
+	return xe_bo_apply_to_pinned(xe, &xe->pinned.kernel_bo_present,
+				     &xe->pinned.evicted,
+				     xe_bo_evict_pinned);
+}
 
-		spin_lock(&xe->pinned.lock);
+static int xe_bo_restore_and_map_ggtt(struct xe_bo *bo)
+{
+	struct xe_device *xe = xe_bo_device(bo);
+	int ret;
+
+	ret = xe_bo_restore_pinned(bo);
+	if (ret)
+		return ret;
+
+	if (bo->flags & XE_BO_FLAG_GGTT) {
+		struct xe_tile *tile;
+		u8 id;
+
+		for_each_tile(tile, xe_bo_device(bo), id) {
+			if (tile != bo->tile && !(bo->flags & XE_BO_FLAG_GGTTx(tile)))
+				continue;
+
+			mutex_lock(&tile->mem.ggtt->lock);
+			xe_ggtt_map_bo(tile->mem.ggtt, bo);
+			mutex_unlock(&tile->mem.ggtt->lock);
+		}
 	}
-	spin_unlock(&xe->pinned.lock);
+
+	/*
+	 * We expect validate to trigger a move VRAM and our move code
+	 * should setup the iosys map.
+	 */
+	xe_assert(xe, !iosys_map_is_null(&bo->vmap));
 
 	return 0;
 }
@@ -130,54 +157,9 @@ int xe_bo_evict_all(struct xe_device *xe)
  */
 int xe_bo_restore_kernel(struct xe_device *xe)
 {
-	struct xe_bo *bo;
-	int ret;
-
-	spin_lock(&xe->pinned.lock);
-	for (;;) {
-		bo = list_first_entry_or_null(&xe->pinned.evicted,
-					      typeof(*bo), pinned_link);
-		if (!bo)
-			break;
-		xe_bo_get(bo);
-		list_move_tail(&bo->pinned_link, &xe->pinned.kernel_bo_present);
-		spin_unlock(&xe->pinned.lock);
-
-		xe_bo_lock(bo, false);
-		ret = xe_bo_restore_pinned(bo);
-		xe_bo_unlock(bo);
-		if (ret) {
-			xe_bo_put(bo);
-			return ret;
-		}
-
-		if (bo->flags & XE_BO_FLAG_GGTT) {
-			struct xe_tile *tile;
-			u8 id;
-
-			for_each_tile(tile, xe, id) {
-				if (tile != bo->tile && !(bo->flags & XE_BO_FLAG_GGTTx(tile)))
-					continue;
-
-				mutex_lock(&tile->mem.ggtt->lock);
-				xe_ggtt_map_bo(tile->mem.ggtt, bo);
-				mutex_unlock(&tile->mem.ggtt->lock);
-			}
-		}
-
-		/*
-		 * We expect validate to trigger a move VRAM and our move code
-		 * should setup the iosys map.
-		 */
-		xe_assert(xe, !iosys_map_is_null(&bo->vmap));
-
-		xe_bo_put(bo);
-
-		spin_lock(&xe->pinned.lock);
-	}
-	spin_unlock(&xe->pinned.lock);
-
-	return 0;
+	return xe_bo_apply_to_pinned(xe, &xe->pinned.evicted,
+				     &xe->pinned.kernel_bo_present,
+				     xe_bo_restore_and_map_ggtt);
 }
 
 /**
@@ -192,47 +174,20 @@ int xe_bo_restore_kernel(struct xe_device *xe)
  */
 int xe_bo_restore_user(struct xe_device *xe)
 {
-	struct xe_bo *bo;
 	struct xe_tile *tile;
-	struct list_head still_in_list;
-	u8 id;
-	int ret;
+	int ret, id;
 
 	if (!IS_DGFX(xe))
 		return 0;
 
 	/* Pinned user memory in VRAM should be validated on resume */
-	INIT_LIST_HEAD(&still_in_list);
-	spin_lock(&xe->pinned.lock);
-	for (;;) {
-		bo = list_first_entry_or_null(&xe->pinned.external_vram,
-					      typeof(*bo), pinned_link);
-		if (!bo)
-			break;
-		list_move_tail(&bo->pinned_link, &still_in_list);
-		xe_bo_get(bo);
-		spin_unlock(&xe->pinned.lock);
-
-		xe_bo_lock(bo, false);
-		ret = xe_bo_restore_pinned(bo);
-		xe_bo_unlock(bo);
-		xe_bo_put(bo);
-		if (ret) {
-			spin_lock(&xe->pinned.lock);
-			list_splice_tail(&still_in_list,
-					 &xe->pinned.external_vram);
-			spin_unlock(&xe->pinned.lock);
-			return ret;
-		}
-
-		spin_lock(&xe->pinned.lock);
-	}
-	list_splice_tail(&still_in_list, &xe->pinned.external_vram);
-	spin_unlock(&xe->pinned.lock);
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.external_vram,
+				    &xe->pinned.external_vram,
+				    xe_bo_restore_pinned);
 
 	/* Wait for restore to complete */
 	for_each_tile(tile, xe, id)
 		xe_tile_migrate_wait(tile);
 
-	return 0;
+	return ret;
 }
