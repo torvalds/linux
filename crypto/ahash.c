@@ -58,8 +58,9 @@ struct ahash_save_req_state {
 
 static void ahash_reqchain_done(void *data, int err);
 static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt);
-static void ahash_restore_req(struct ahash_save_req_state *state);
+static void ahash_restore_req(struct ahash_request *req);
 static void ahash_def_finup_done1(void *data, int err);
+static int ahash_def_finup_finish1(struct ahash_request *req, int err);
 static int ahash_def_finup(struct ahash_request *req);
 
 static int hash_walk_next(struct crypto_hash_walk *walk)
@@ -369,14 +370,15 @@ static int ahash_reqchain_virt(struct ahash_save_req_state *state,
 	return err;
 }
 
-static int ahash_reqchain_finish(struct ahash_save_req_state *state,
+static int ahash_reqchain_finish(struct ahash_request *req0,
+				 struct ahash_save_req_state *state,
 				 int err, u32 mask)
 {
-	struct ahash_request *req0 = state->req0;
 	struct ahash_request *req = state->cur;
 	struct crypto_ahash *tfm;
 	struct ahash_request *n;
 	bool update;
+	u8 *page;
 
 	err = ahash_reqchain_virt(state, err, mask);
 	if (err == -EINPROGRESS || err == -EBUSY)
@@ -430,7 +432,12 @@ static int ahash_reqchain_finish(struct ahash_save_req_state *state,
 		list_add_tail(&req->base.list, &req0->base.list);
 	}
 
-	ahash_restore_req(state);
+	page = state->page;
+	if (page) {
+		memset(page, 0, PAGE_SIZE);
+		free_page((unsigned long)page);
+	}
+	ahash_restore_req(req0);
 
 out:
 	return err;
@@ -449,7 +456,8 @@ static void ahash_reqchain_done(void *data, int err)
 		goto notify;
 	}
 
-	err = ahash_reqchain_finish(state, err, CRYPTO_TFM_REQ_MAY_BACKLOG);
+	err = ahash_reqchain_finish(state->req0, state, err,
+				    CRYPTO_TFM_REQ_MAY_BACKLOG);
 	if (err == -EBUSY)
 		return;
 
@@ -525,13 +533,10 @@ static int ahash_do_req_chain(struct ahash_request *req,
 	if (err == -EBUSY || err == -EINPROGRESS)
 		return -EBUSY;
 
-	return ahash_reqchain_finish(state, err, ~0);
+	return ahash_reqchain_finish(req, state, err, ~0);
 
 out_free_page:
-	if (page) {
-		memset(page, 0, PAGE_SIZE);
-		free_page((unsigned long)page);
-	}
+	free_page((unsigned long)page);
 
 out_set_chain:
 	req->base.err = err;
@@ -590,17 +595,14 @@ static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt)
 	req->base.complete = cplt;
 	req->base.data = state;
 	state->req0 = req;
-	state->page = NULL;
 
 	return 0;
 }
 
-static void ahash_restore_req(struct ahash_save_req_state *state)
+static void ahash_restore_req(struct ahash_request *req)
 {
-	struct ahash_request *req = state->req0;
+	struct ahash_save_req_state *state;
 	struct crypto_ahash *tfm;
-
-	free_page((unsigned long)state->page);
 
 	tfm = crypto_ahash_reqtfm(req);
 	if (!ahash_is_async(tfm))
@@ -692,9 +694,8 @@ int crypto_ahash_finup(struct ahash_request *req)
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_finup);
 
-static int ahash_def_digest_finish(struct ahash_save_req_state *state, int err)
+static int ahash_def_digest_finish(struct ahash_request *req, int err)
 {
-	struct ahash_request *req = state->req0;
 	struct crypto_ahash *tfm;
 
 	if (err)
@@ -708,8 +709,10 @@ static int ahash_def_digest_finish(struct ahash_save_req_state *state, int err)
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
+	return ahash_def_finup_finish1(req, err);
+
 out:
-	ahash_restore_req(state);
+	ahash_restore_req(req);
 	return err;
 }
 
@@ -726,7 +729,7 @@ static void ahash_def_digest_done(void *data, int err)
 
 	areq->base.flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	err = ahash_def_digest_finish(state0, err);
+	err = ahash_def_digest_finish(areq, err);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return;
 
@@ -736,20 +739,17 @@ out:
 
 static int ahash_def_digest(struct ahash_request *req)
 {
-	struct ahash_save_req_state *state;
 	int err;
 
 	err = ahash_save_req(req, ahash_def_digest_done);
 	if (err)
 		return err;
 
-	state = req->base.data;
-
 	err = crypto_ahash_init(req);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
-	return ahash_def_digest_finish(state, err);
+	return ahash_def_digest_finish(req, err);
 }
 
 int crypto_ahash_digest(struct ahash_request *req)
@@ -791,13 +791,12 @@ static void ahash_def_finup_done2(void *data, int err)
 	if (err == -EINPROGRESS)
 		return;
 
-	ahash_restore_req(state);
+	ahash_restore_req(areq);
 	ahash_request_complete(areq, err);
 }
 
-static int ahash_def_finup_finish1(struct ahash_save_req_state *state, int err)
+static int ahash_def_finup_finish1(struct ahash_request *req, int err)
 {
-	struct ahash_request *req = state->req0;
 	struct crypto_ahash *tfm;
 
 	if (err)
@@ -812,7 +811,7 @@ static int ahash_def_finup_finish1(struct ahash_save_req_state *state, int err)
 		return err;
 
 out:
-	ahash_restore_req(state);
+	ahash_restore_req(req);
 	return err;
 }
 
@@ -829,7 +828,7 @@ static void ahash_def_finup_done1(void *data, int err)
 
 	areq->base.flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
-	err = ahash_def_finup_finish1(state0, err);
+	err = ahash_def_finup_finish1(areq, err);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return;
 
@@ -839,20 +838,17 @@ out:
 
 static int ahash_def_finup(struct ahash_request *req)
 {
-	struct ahash_save_req_state *state;
 	int err;
 
 	err = ahash_save_req(req, ahash_def_finup_done1);
 	if (err)
 		return err;
 
-	state = req->base.data;
-
 	err = crypto_ahash_update(req);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
-	return ahash_def_finup_finish1(state, err);
+	return ahash_def_finup_finish1(req, err);
 }
 
 int crypto_ahash_export(struct ahash_request *req, void *out)
