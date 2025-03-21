@@ -29,6 +29,7 @@
 #include "gfx_v9_4_3.h"
 #include "gfxhub_v1_2.h"
 #include "sdma_v4_4_2.h"
+#include "amdgpu_ip.h"
 
 #define XCP_INST_MASK(num_inst, xcp_id)                                        \
 	(num_inst ? GENMASK(num_inst - 1, 0) << (xcp_id * num_inst) : 0)
@@ -217,77 +218,6 @@ static int aqua_vanjaram_select_scheds(
 	}
 
 	return 0;
-}
-
-static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
-					 enum amd_hw_ip_block_type block,
-					 int8_t inst)
-{
-	int8_t dev_inst;
-
-	switch (block) {
-	case GC_HWIP:
-	case SDMA0_HWIP:
-	/* Both JPEG and VCN as JPEG is only alias of VCN */
-	case VCN_HWIP:
-		dev_inst = adev->ip_map.dev_inst[block][inst];
-		break;
-	default:
-		/* For rest of the IPs, no look up required.
-		 * Assume 'logical instance == physical instance' for all configs. */
-		dev_inst = inst;
-		break;
-	}
-
-	return dev_inst;
-}
-
-static uint32_t aqua_vanjaram_logical_to_dev_mask(struct amdgpu_device *adev,
-					 enum amd_hw_ip_block_type block,
-					 uint32_t mask)
-{
-	uint32_t dev_mask = 0;
-	int8_t log_inst, dev_inst;
-
-	while (mask) {
-		log_inst = ffs(mask) - 1;
-		dev_inst = aqua_vanjaram_logical_to_dev_inst(adev, block, log_inst);
-		dev_mask |= (1 << dev_inst);
-		mask &= ~(1 << log_inst);
-	}
-
-	return dev_mask;
-}
-
-static void aqua_vanjaram_populate_ip_map(struct amdgpu_device *adev,
-					  enum amd_hw_ip_block_type ip_block,
-					  uint32_t inst_mask)
-{
-	int l = 0, i;
-
-	while (inst_mask) {
-		i = ffs(inst_mask) - 1;
-		adev->ip_map.dev_inst[ip_block][l++] = i;
-		inst_mask &= ~(1 << i);
-	}
-	for (; l < HWIP_MAX_INSTANCE; l++)
-		adev->ip_map.dev_inst[ip_block][l] = -1;
-}
-
-void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev)
-{
-	u32 ip_map[][2] = {
-		{ GC_HWIP, adev->gfx.xcc_mask },
-		{ SDMA0_HWIP, adev->sdma.sdma_mask },
-		{ VCN_HWIP, adev->vcn.inst_mask },
-	};
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(ip_map); ++i)
-		aqua_vanjaram_populate_ip_map(adev, ip_map[i][0], ip_map[i][1]);
-
-	adev->ip_map.logical_to_dev_inst = aqua_vanjaram_logical_to_dev_inst;
-	adev->ip_map.logical_to_dev_mask = aqua_vanjaram_logical_to_dev_mask;
 }
 
 /* Fixed pattern for smn addressing on different AIDs:
@@ -861,7 +791,7 @@ int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 	if (ret)
 		return ret;
 
-	aqua_vanjaram_ip_map_init(adev);
+	amdgpu_ip_map_init(adev);
 
 	return 0;
 }
