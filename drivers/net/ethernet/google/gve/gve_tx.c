@@ -959,13 +959,9 @@ static int gve_xsk_tx(struct gve_priv *priv, struct gve_tx_ring *tx,
 
 	spin_lock(&tx->xdp_lock);
 	while (sent < budget) {
-		if (!gve_can_tx(tx, GVE_TX_START_THRESH))
+		if (!gve_can_tx(tx, GVE_TX_START_THRESH) ||
+		    !xsk_tx_peek_desc(tx->xsk_pool, &desc))
 			goto out;
-
-		if (!xsk_tx_peek_desc(tx->xsk_pool, &desc)) {
-			tx->xdp_xsk_done = tx->xdp_xsk_wakeup;
-			goto out;
-		}
 
 		data = xsk_buff_raw_get_data(tx->xsk_pool, desc.addr);
 		nsegs = gve_tx_fill_xdp(priv, tx, data, desc.len, NULL, true);
