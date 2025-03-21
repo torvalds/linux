@@ -396,8 +396,8 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct iwl_mld *mld, char *buf,
 		.data[0] = &cmd,
 	};
 	struct iwl_dhc_tas_status_resp *resp = NULL;
+	u32 resp_len = 0;
 	ssize_t pos = 0;
-	u32 resp_len;
 	u32 status;
 	int ret;
 
