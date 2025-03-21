@@ -162,6 +162,16 @@ enum mt76_dfs_state {
 	MT_DFS_STATE_ACTIVE,
 };
 
+#define MT76_RNR_SCAN_MAX_BSSIDS       16
+struct mt76_scan_rnr_param {
+	u8 bssid[MT76_RNR_SCAN_MAX_BSSIDS][ETH_ALEN];
+	u8 channel[MT76_RNR_SCAN_MAX_BSSIDS];
+	u8 random_mac[ETH_ALEN];
+	u8 seq_num;
+	u8 bssid_num;
+	u32 sreq_flag;
+};
+
 struct mt76_queue_buf {
 	dma_addr_t addr;
 	u16 len:15,
@@ -940,6 +950,8 @@ struct mt76_dev {
 
 	char alpha2[3];
 	enum nl80211_dfs_regions region;
+
+	struct mt76_scan_rnr_param rnr;
 
 	u32 debugfs_reg;
 

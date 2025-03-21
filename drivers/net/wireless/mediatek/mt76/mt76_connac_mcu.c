@@ -1666,6 +1666,44 @@ int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_uni_add_bss);
 
+void mt76_connac_mcu_build_rnr_scan_param(struct mt76_dev *mdev,
+					  struct cfg80211_scan_request *sreq)
+{
+	struct ieee80211_channel **scan_list = sreq->channels;
+	int i, bssid_index = 0;
+
+	/* clear 6G active Scan BSSID table */
+	memset(&mdev->rnr, 0, sizeof(mdev->rnr));
+
+	for (i = 0; i < sreq->n_6ghz_params; i++) {
+		u8 ch_idx = sreq->scan_6ghz_params[i].channel_idx;
+		int k = 0;
+
+		/* Remove the duplicated BSSID */
+		for (k = 0; k < bssid_index; k++) {
+			if (!memcmp(&mdev->rnr.bssid[k],
+				    sreq->scan_6ghz_params[i].bssid,
+				    ETH_ALEN))
+				break;
+		}
+
+		if (k == bssid_index &&
+		    bssid_index < MT76_RNR_SCAN_MAX_BSSIDS) {
+			memcpy(&mdev->rnr.bssid[bssid_index++],
+			       sreq->scan_6ghz_params[i].bssid, ETH_ALEN);
+			mdev->rnr.channel[k] = scan_list[ch_idx]->hw_value;
+		}
+	}
+
+	mdev->rnr.bssid_num = bssid_index;
+
+	if (sreq->flags & NL80211_SCAN_FLAG_RANDOM_ADDR) {
+		memcpy(mdev->rnr.random_mac, sreq->mac_addr, ETH_ALEN);
+		mdev->rnr.sreq_flag = sreq->flags;
+	}
+}
+EXPORT_SYMBOL_GPL(mt76_connac_mcu_build_rnr_scan_param);
+
 #define MT76_CONNAC_SCAN_CHANNEL_TIME		60
 int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 			    struct ieee80211_scan_request *scan_req)

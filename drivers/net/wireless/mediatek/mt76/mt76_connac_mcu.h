@@ -869,6 +869,7 @@ enum {
 #define NETWORK_WDS			BIT(21)
 
 #define SCAN_FUNC_RANDOM_MAC		BIT(0)
+#define SCAN_FUNC_RNR_SCAN		BIT(3)
 #define SCAN_FUNC_SPLIT_SCAN		BIT(5)
 
 #define CONNECTION_INFRA_STA		(STA_TYPE_STA | NETWORK_INFRA)
@@ -1972,6 +1973,8 @@ int mt76_connac_mcu_start_patch(struct mt76_dev *dev);
 int mt76_connac_mcu_patch_sem_ctrl(struct mt76_dev *dev, bool get);
 int mt76_connac_mcu_start_firmware(struct mt76_dev *dev, u32 addr, u32 option);
 
+void mt76_connac_mcu_build_rnr_scan_param(struct mt76_dev *mdev,
+					  struct cfg80211_scan_request *sreq);
 int mt76_connac_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 			    struct ieee80211_scan_request *scan_req);
 int mt76_connac_mcu_cancel_hw_scan(struct mt76_phy *phy,
