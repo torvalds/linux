@@ -3365,6 +3365,9 @@ static void __iommu_remove_group_pasid(struct iommu_group *group,
  * @pasid: the pasid of the device.
  * @handle: the attach handle.
  *
+ * Caller should always provide a new handle to avoid race with the paths
+ * that have lockless reference to handle if it intends to pass a valid handle.
+ *
  * Return: 0 on success, or an error.
  */
 int iommu_attach_device_pasid(struct iommu_domain *domain,
@@ -3525,6 +3528,9 @@ EXPORT_SYMBOL_NS_GPL(iommu_attach_handle_get, "IOMMUFD_INTERNAL");
  * This is a variant of iommu_attach_group(). It allows the caller to provide
  * an attach handle and use it when the domain is attached. This is currently
  * used by IOMMUFD to deliver the I/O page faults.
+ *
+ * Caller should always provide a new handle to avoid race with the paths
+ * that have lockless reference to handle.
  */
 int iommu_attach_group_handle(struct iommu_domain *domain,
 			      struct iommu_group *group,
@@ -3594,6 +3600,9 @@ EXPORT_SYMBOL_NS_GPL(iommu_detach_group_handle, "IOMMUFD_INTERNAL");
  *
  * If the currently attached domain is a core domain (e.g. a default_domain),
  * it will act just like the iommu_attach_group_handle().
+ *
+ * Caller should always provide a new handle to avoid race with the paths
+ * that have lockless reference to handle.
  */
 int iommu_replace_group_handle(struct iommu_group *group,
 			       struct iommu_domain *new_domain,
