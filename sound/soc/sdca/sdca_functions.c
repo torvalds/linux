@@ -1159,7 +1159,7 @@ static int find_sdca_entity_ge(struct device *dev,
 
 	num_affected = fwnode_property_count_u8(entity_node,
 						"mipi-sdca-ge-selectedmode-controls-affected");
-	if (!num_affected || num_affected == -EINVAL) {
+	if (!num_affected) {
 		return 0;
 	} else if (num_affected < 0) {
 		dev_err(dev, "%s: failed to read affected controls: %d\n",
