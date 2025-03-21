@@ -631,10 +631,17 @@ struct gve_notify_block {
 	u32 irq;
 };
 
-/* Tracks allowed and current queue settings */
-struct gve_queue_config {
+/* Tracks allowed and current rx queue settings */
+struct gve_rx_queue_config {
 	u16 max_queues;
-	u16 num_queues; /* current */
+	u16 num_queues;
+};
+
+/* Tracks allowed and current tx queue settings */
+struct gve_tx_queue_config {
+	u16 max_queues;
+	u16 num_queues; /* number of TX queues, excluding XDP queues */
+	u16 num_xdp_queues;
 };
 
 /* Tracks the available and used qpl IDs */
@@ -658,11 +665,11 @@ struct gve_ptype_lut {
 
 /* Parameters for allocating resources for tx queues */
 struct gve_tx_alloc_rings_cfg {
-	struct gve_queue_config *qcfg;
+	struct gve_tx_queue_config *qcfg;
+
+	u16 num_xdp_rings;
 
 	u16 ring_size;
-	u16 start_idx;
-	u16 num_rings;
 	bool raw_addressing;
 
 	/* Allocated resources are returned here */
@@ -672,8 +679,8 @@ struct gve_tx_alloc_rings_cfg {
 /* Parameters for allocating resources for rx queues */
 struct gve_rx_alloc_rings_cfg {
 	/* tx config is also needed to determine QPL ids */
-	struct gve_queue_config *qcfg;
-	struct gve_queue_config *qcfg_tx;
+	struct gve_rx_queue_config *qcfg_rx;
+	struct gve_tx_queue_config *qcfg_tx;
 
 	u16 ring_size;
 	u16 packet_buffer_size;
@@ -764,9 +771,8 @@ struct gve_priv {
 	u32 rx_copybreak; /* copy packets smaller than this */
 	u16 default_num_queues; /* default num queues to set up */
 
-	u16 num_xdp_queues;
-	struct gve_queue_config tx_cfg;
-	struct gve_queue_config rx_cfg;
+	struct gve_tx_queue_config tx_cfg;
+	struct gve_rx_queue_config rx_cfg;
 	u32 num_ntfy_blks; /* spilt between TX and RX so must be even */
 
 	struct gve_registers __iomem *reg_bar0; /* see gve_register.h */
@@ -1039,27 +1045,16 @@ static inline bool gve_is_qpl(struct gve_priv *priv)
 }
 
 /* Returns the number of tx queue page lists */
-static inline u32 gve_num_tx_qpls(const struct gve_queue_config *tx_cfg,
-				  int num_xdp_queues,
+static inline u32 gve_num_tx_qpls(const struct gve_tx_queue_config *tx_cfg,
 				  bool is_qpl)
 {
 	if (!is_qpl)
 		return 0;
-	return tx_cfg->num_queues + num_xdp_queues;
-}
-
-/* Returns the number of XDP tx queue page lists
- */
-static inline u32 gve_num_xdp_qpls(struct gve_priv *priv)
-{
-	if (priv->queue_format != GVE_GQI_QPL_FORMAT)
-		return 0;
-
-	return priv->num_xdp_queues;
+	return tx_cfg->num_queues + tx_cfg->num_xdp_queues;
 }
 
 /* Returns the number of rx queue page lists */
-static inline u32 gve_num_rx_qpls(const struct gve_queue_config *rx_cfg,
+static inline u32 gve_num_rx_qpls(const struct gve_rx_queue_config *rx_cfg,
 				  bool is_qpl)
 {
 	if (!is_qpl)
@@ -1077,7 +1072,8 @@ static inline u32 gve_rx_qpl_id(struct gve_priv *priv, int rx_qid)
 	return priv->tx_cfg.max_queues + rx_qid;
 }
 
-static inline u32 gve_get_rx_qpl_id(const struct gve_queue_config *tx_cfg, int rx_qid)
+static inline u32 gve_get_rx_qpl_id(const struct gve_tx_queue_config *tx_cfg,
+				    int rx_qid)
 {
 	return tx_cfg->max_queues + rx_qid;
 }
@@ -1087,7 +1083,7 @@ static inline u32 gve_tx_start_qpl_id(struct gve_priv *priv)
 	return gve_tx_qpl_id(priv, 0);
 }
 
-static inline u32 gve_rx_start_qpl_id(const struct gve_queue_config *tx_cfg)
+static inline u32 gve_rx_start_qpl_id(const struct gve_tx_queue_config *tx_cfg)
 {
 	return gve_get_rx_qpl_id(tx_cfg, 0);
 }
@@ -1118,7 +1114,7 @@ static inline bool gve_is_gqi(struct gve_priv *priv)
 
 static inline u32 gve_num_tx_queues(struct gve_priv *priv)
 {
-	return priv->tx_cfg.num_queues + priv->num_xdp_queues;
+	return priv->tx_cfg.num_queues + priv->tx_cfg.num_xdp_queues;
 }
 
 static inline u32 gve_xdp_tx_queue_id(struct gve_priv *priv, u32 queue_id)
@@ -1234,8 +1230,8 @@ int gve_adjust_config(struct gve_priv *priv,
 		      struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
 		      struct gve_rx_alloc_rings_cfg *rx_alloc_cfg);
 int gve_adjust_queues(struct gve_priv *priv,
-		      struct gve_queue_config new_rx_config,
-		      struct gve_queue_config new_tx_config,
+		      struct gve_rx_queue_config new_rx_config,
+		      struct gve_tx_queue_config new_tx_config,
 		      bool reset_rss);
 /* flow steering rule */
 int gve_get_flow_rule_entry(struct gve_priv *priv, struct ethtool_rxnfc *cmd);

@@ -475,8 +475,8 @@ static int gve_set_channels(struct net_device *netdev,
 			    struct ethtool_channels *cmd)
 {
 	struct gve_priv *priv = netdev_priv(netdev);
-	struct gve_queue_config new_tx_cfg = priv->tx_cfg;
-	struct gve_queue_config new_rx_cfg = priv->rx_cfg;
+	struct gve_tx_queue_config new_tx_cfg = priv->tx_cfg;
+	struct gve_rx_queue_config new_rx_cfg = priv->rx_cfg;
 	struct ethtool_channels old_settings;
 	int new_tx = cmd->tx_count;
 	int new_rx = cmd->rx_count;
@@ -491,10 +491,17 @@ static int gve_set_channels(struct net_device *netdev,
 	if (!new_rx || !new_tx)
 		return -EINVAL;
 
-	if (priv->num_xdp_queues &&
-	    (new_tx != new_rx || (2 * new_tx > priv->tx_cfg.max_queues))) {
-		dev_err(&priv->pdev->dev, "XDP load failed: The number of configured RX queues should be equal to the number of configured TX queues and the number of configured RX/TX queues should be less than or equal to half the maximum number of RX/TX queues");
-		return -EINVAL;
+	if (priv->xdp_prog) {
+		if (new_tx != new_rx ||
+		    (2 * new_tx > priv->tx_cfg.max_queues)) {
+			dev_err(&priv->pdev->dev, "The number of configured RX queues should be equal to the number of configured TX queues and the number of configured RX/TX queues should be less than or equal to half the maximum number of RX/TX queues when XDP program is installed");
+			return -EINVAL;
+		}
+
+		/* One XDP TX queue per RX queue. */
+		new_tx_cfg.num_xdp_queues = new_rx;
+	} else {
+		new_tx_cfg.num_xdp_queues = 0;
 	}
 
 	if (new_rx != priv->rx_cfg.num_queues &&
