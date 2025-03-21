@@ -25,6 +25,10 @@ enum {
 	IOMMU_TEST_OP_TRIGGER_IOPF,
 	IOMMU_TEST_OP_DEV_CHECK_CACHE,
 	IOMMU_TEST_OP_TRIGGER_VEVENT,
+	IOMMU_TEST_OP_PASID_ATTACH,
+	IOMMU_TEST_OP_PASID_REPLACE,
+	IOMMU_TEST_OP_PASID_DETACH,
+	IOMMU_TEST_OP_PASID_CHECK_HWPT,
 };
 
 enum {
@@ -61,6 +65,9 @@ enum {
 	MOCK_DEV_CACHE_ID_MAX = 3,
 	MOCK_DEV_CACHE_NUM = 4,
 };
+
+/* Reserved for special pasid replace test */
+#define IOMMU_TEST_PASID_RESERVED 1024
 
 struct iommu_test_cmd {
 	__u32 size;
@@ -150,6 +157,25 @@ struct iommu_test_cmd {
 		struct {
 			__u32 dev_id;
 		} trigger_vevent;
+		struct {
+			__u32 pasid;
+			__u32 pt_id;
+			/* @id is stdev_id */
+		} pasid_attach;
+		struct {
+			__u32 pasid;
+			__u32 pt_id;
+			/* @id is stdev_id */
+		} pasid_replace;
+		struct {
+			__u32 pasid;
+			/* @id is stdev_id */
+		} pasid_detach;
+		struct {
+			__u32 pasid;
+			__u32 hwpt_id;
+			/* @id is stdev_id */
+		} pasid_check;
 	};
 	__u32 last;
 };

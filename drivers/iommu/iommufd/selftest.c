@@ -167,6 +167,7 @@ struct mock_dev {
 	unsigned long vdev_id;
 	int id;
 	u32 cache[MOCK_DEV_CACHE_NUM];
+	atomic_t pasid_1024_fake_error;
 };
 
 static inline struct mock_dev *to_mock_dev(struct device *dev)
@@ -227,6 +228,34 @@ static int mock_domain_set_dev_pasid_nop(struct iommu_domain *domain,
 					 struct device *dev, ioasid_t pasid,
 					 struct iommu_domain *old)
 {
+	struct mock_dev *mdev = to_mock_dev(dev);
+
+	/*
+	 * Per the first attach with pasid 1024, set the
+	 * mdev->pasid_1024_fake_error. Hence the second call of this op
+	 * can fake an error to validate the error path of the core. This
+	 * is helpful to test the case in which the iommu core needs to
+	 * rollback to the old domain due to driver failure. e.g. replace.
+	 * User should be careful about the third call of this op, it shall
+	 * succeed since the mdev->pasid_1024_fake_error is cleared in the
+	 * second call.
+	 */
+	if (pasid == 1024) {
+		if (domain->type == IOMMU_DOMAIN_BLOCKED) {
+			atomic_set(&mdev->pasid_1024_fake_error, 0);
+		} else if (atomic_read(&mdev->pasid_1024_fake_error)) {
+			/*
+			 * Clear the flag, and fake an error to fail the
+			 * replacement.
+			 */
+			atomic_set(&mdev->pasid_1024_fake_error, 0);
+			return -ENOMEM;
+		} else {
+			/* Set the flag to fake an error in next call */
+			atomic_set(&mdev->pasid_1024_fake_error, 1);
+		}
+	}
+
 	return 0;
 }
 
@@ -1685,6 +1714,131 @@ out_unlock:
 	return rc;
 }
 
+static inline struct iommufd_hw_pagetable *
+iommufd_get_hwpt(struct iommufd_ucmd *ucmd, u32 id)
+{
+	struct iommufd_object *pt_obj;
+
+	pt_obj = iommufd_get_object(ucmd->ictx, id, IOMMUFD_OBJ_ANY);
+	if (IS_ERR(pt_obj))
+		return ERR_CAST(pt_obj);
+
+	if (pt_obj->type != IOMMUFD_OBJ_HWPT_NESTED &&
+	    pt_obj->type != IOMMUFD_OBJ_HWPT_PAGING) {
+		iommufd_put_object(ucmd->ictx, pt_obj);
+		return ERR_PTR(-EINVAL);
+	}
+
+	return container_of(pt_obj, struct iommufd_hw_pagetable, obj);
+}
+
+static int iommufd_test_pasid_check_hwpt(struct iommufd_ucmd *ucmd,
+					 struct iommu_test_cmd *cmd)
+{
+	u32 hwpt_id = cmd->pasid_check.hwpt_id;
+	struct iommu_domain *attached_domain;
+	struct iommu_attach_handle *handle;
+	struct iommufd_hw_pagetable *hwpt;
+	struct selftest_obj *sobj;
+	struct mock_dev *mdev;
+	int rc = 0;
+
+	sobj = iommufd_test_get_selftest_obj(ucmd->ictx, cmd->id);
+	if (IS_ERR(sobj))
+		return PTR_ERR(sobj);
+
+	mdev = sobj->idev.mock_dev;
+
+	handle = iommu_attach_handle_get(mdev->dev.iommu_group,
+					 cmd->pasid_check.pasid, 0);
+	if (IS_ERR(handle))
+		attached_domain = NULL;
+	else
+		attached_domain = handle->domain;
+
+	/* hwpt_id == 0 means to check if pasid is detached */
+	if (!hwpt_id) {
+		if (attached_domain)
+			rc = -EINVAL;
+		goto out_sobj;
+	}
+
+	hwpt = iommufd_get_hwpt(ucmd, hwpt_id);
+	if (IS_ERR(hwpt)) {
+		rc = PTR_ERR(hwpt);
+		goto out_sobj;
+	}
+
+	if (attached_domain != hwpt->domain)
+		rc = -EINVAL;
+
+	iommufd_put_object(ucmd->ictx, &hwpt->obj);
+out_sobj:
+	iommufd_put_object(ucmd->ictx, &sobj->obj);
+	return rc;
+}
+
+static int iommufd_test_pasid_attach(struct iommufd_ucmd *ucmd,
+				     struct iommu_test_cmd *cmd)
+{
+	struct selftest_obj *sobj;
+	int rc;
+
+	sobj = iommufd_test_get_selftest_obj(ucmd->ictx, cmd->id);
+	if (IS_ERR(sobj))
+		return PTR_ERR(sobj);
+
+	rc = iommufd_device_attach(sobj->idev.idev, cmd->pasid_attach.pasid,
+				   &cmd->pasid_attach.pt_id);
+	if (rc)
+		goto out_sobj;
+
+	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+	if (rc)
+		iommufd_device_detach(sobj->idev.idev,
+				      cmd->pasid_attach.pasid);
+
+out_sobj:
+	iommufd_put_object(ucmd->ictx, &sobj->obj);
+	return rc;
+}
+
+static int iommufd_test_pasid_replace(struct iommufd_ucmd *ucmd,
+				      struct iommu_test_cmd *cmd)
+{
+	struct selftest_obj *sobj;
+	int rc;
+
+	sobj = iommufd_test_get_selftest_obj(ucmd->ictx, cmd->id);
+	if (IS_ERR(sobj))
+		return PTR_ERR(sobj);
+
+	rc = iommufd_device_replace(sobj->idev.idev, cmd->pasid_attach.pasid,
+				    &cmd->pasid_attach.pt_id);
+	if (rc)
+		goto out_sobj;
+
+	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
+
+out_sobj:
+	iommufd_put_object(ucmd->ictx, &sobj->obj);
+	return rc;
+}
+
+static int iommufd_test_pasid_detach(struct iommufd_ucmd *ucmd,
+				     struct iommu_test_cmd *cmd)
+{
+	struct selftest_obj *sobj;
+
+	sobj = iommufd_test_get_selftest_obj(ucmd->ictx, cmd->id);
+	if (IS_ERR(sobj))
+		return PTR_ERR(sobj);
+
+	iommufd_device_detach(sobj->idev.idev, cmd->pasid_detach.pasid);
+	iommufd_put_object(ucmd->ictx, &sobj->obj);
+	return 0;
+}
+
 void iommufd_selftest_destroy(struct iommufd_object *obj)
 {
 	struct selftest_obj *sobj = to_selftest_obj(obj);
@@ -1768,6 +1922,14 @@ int iommufd_test(struct iommufd_ucmd *ucmd)
 		return iommufd_test_trigger_iopf(ucmd, cmd);
 	case IOMMU_TEST_OP_TRIGGER_VEVENT:
 		return iommufd_test_trigger_vevent(ucmd, cmd);
+	case IOMMU_TEST_OP_PASID_ATTACH:
+		return iommufd_test_pasid_attach(ucmd, cmd);
+	case IOMMU_TEST_OP_PASID_REPLACE:
+		return iommufd_test_pasid_replace(ucmd, cmd);
+	case IOMMU_TEST_OP_PASID_DETACH:
+		return iommufd_test_pasid_detach(ucmd, cmd);
+	case IOMMU_TEST_OP_PASID_CHECK_HWPT:
+		return iommufd_test_pasid_check_hwpt(ucmd, cmd);
 	default:
 		return -EOPNOTSUPP;
 	}
