@@ -936,7 +936,6 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	intel_wakeref_t wakeref;
 	enum port port;
@@ -955,7 +954,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	 * machine. See BSpec North Display Engine registers/MIPI[BXT].
 	 */
 	if ((display->platform.geminilake || display->platform.broxton) &&
-	    !bxt_dsi_pll_is_enabled(dev_priv))
+	    !bxt_dsi_pll_is_enabled(display))
 		goto out_put_power;
 
 	/* XXX: this only works for one DSI output */

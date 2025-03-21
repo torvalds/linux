@@ -3834,7 +3834,6 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 					 struct intel_display_power_domain_set *power_domain_set)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder;
 	enum port port;
 	u32 tmp;
@@ -3856,7 +3855,7 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 		 * registers/MIPI[BXT]. We can break out here early, since we
 		 * need the same DSI PLL to be enabled for both DSI ports.
 		 */
-		if (!bxt_dsi_pll_is_enabled(dev_priv))
+		if (!bxt_dsi_pll_is_enabled(display))
 			break;
 
 		/* XXX: this works for video mode only */
