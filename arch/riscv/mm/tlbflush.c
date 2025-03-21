@@ -182,6 +182,13 @@ void flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	__flush_tlb_range(vma->vm_mm, mm_cpumask(vma->vm_mm),
 			  start, end - start, PMD_SIZE);
 }
+
+void flush_pud_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			 unsigned long end)
+{
+	__flush_tlb_range(vma->vm_mm, mm_cpumask(vma->vm_mm),
+			  start, end - start, PUD_SIZE);
+}
 #endif
 
 bool arch_tlbbatch_should_defer(struct mm_struct *mm)
