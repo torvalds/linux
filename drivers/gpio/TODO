@@ -136,17 +136,6 @@ try to cover any generic kind of irqchip cascaded from a GPIO.
   dry-code conversions to gpiolib irqchip for maintainers to test
 
 
-Increase integration with pin control
-
-There are already ways to use pin control as back-end for GPIO and
-it may make sense to bring these subsystems closer. One reason for
-creating pin control as its own subsystem was that we could avoid any
-use of the global GPIO numbers. Once the above is complete, it may
-make sense to simply join the subsystems into one and make pin
-multiplexing, pin configuration, GPIO, etc selectable options in one
-and the same pin control and GPIO subsystem.
-
-
 Moving over to immutable irq_chip structures
 
 Most of the gpio chips implementing interrupt support rely on gpiolib
