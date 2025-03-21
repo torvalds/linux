@@ -10,14 +10,18 @@
  * Copyright 2012-2023 National Instruments Corporation
  */
 
-#include <linux/acpi.h>
 #include <linux/bitfield.h>
+#include <linux/bits.h>
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/init.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/property.h>
-#include <linux/clk.h>
+#include <linux/serial_core.h>
+#include <linux/types.h>
 
 #include "8250.h"
 
@@ -392,7 +396,6 @@ static void ni16550_remove(struct platform_device *pdev)
 	serial8250_unregister_port(data->line);
 }
 
-#ifdef CONFIG_ACPI
 /* NI 16550 RS-485 Interface */
 static const struct ni16550_device_info nic7750 = {
 	.uartclk = 33333333,
@@ -417,20 +420,20 @@ static const struct ni16550_device_info nic7a69 = {
 	.uartclk = 29629629,
 	.prescaler = 0x09,
 };
+
 static const struct acpi_device_id ni16550_acpi_match[] = {
 	{ "NIC7750",	(kernel_ulong_t)&nic7750 },
 	{ "NIC7772",	(kernel_ulong_t)&nic7772 },
 	{ "NIC792B",	(kernel_ulong_t)&nic792b },
 	{ "NIC7A69",	(kernel_ulong_t)&nic7a69 },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, ni16550_acpi_match);
-#endif
 
 static struct platform_driver ni16550_driver = {
 	.driver = {
 		.name = "ni16550",
-		.acpi_match_table = ACPI_PTR(ni16550_acpi_match),
+		.acpi_match_table = ni16550_acpi_match,
 	},
 	.probe = ni16550_probe,
 	.remove = ni16550_remove,
