@@ -224,26 +224,26 @@ static int ni16550_get_regs(struct platform_device *pdev,
 {
 	struct resource *regs;
 
-	regs = platform_get_resource(pdev, IORESOURCE_IO, 0);
-	if (regs) {
+	regs = platform_get_mem_or_io(pdev, 0);
+	if (!regs)
+		return dev_err_probe(&pdev->dev, -EINVAL, "no registers defined\n");
+
+	switch (resource_type(regs)) {
+	case IORESOURCE_IO:
 		port->iotype = UPIO_PORT;
 		port->iobase = regs->start;
 
 		return 0;
-	}
-
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (regs) {
+	case IORESOURCE_MEM:
 		port->iotype = UPIO_MEM;
 		port->mapbase = regs->start;
 		port->mapsize = resource_size(regs);
 		port->flags |= UPF_IOREMAP;
 
 		return 0;
+	default:
+		return -EINVAL;
 	}
-
-	dev_err(&pdev->dev, "no registers defined\n");
-	return -EINVAL;
 }
 
 /*
