@@ -50,7 +50,7 @@ nvkm_ufault_map(struct nvkm_object *object, void *argv, u32 argc,
 	struct nvkm_fault_buffer *buffer = nvkm_fault_buffer(object);
 	struct nvkm_device *device = buffer->fault->subdev.device;
 	*type = NVKM_OBJECT_MAP_IO;
-	*addr = device->func->resource_addr(device, 3) + buffer->addr;
+	*addr = device->func->resource_addr(device, NVKM_BAR2_INST) + buffer->addr;
 	*size = nvkm_memory_size(buffer->mem);
 	return 0;
 }

@@ -303,7 +303,7 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 	}
 
 	/* Allocate USERD + BAR1 polling area. */
-	if (fifo->func->chan.func->userd->bar == 1) {
+	if (fifo->func->chan.func->userd->bar == NVKM_BAR1_FB) {
 		struct nvkm_vmm *bar1 = nvkm_bar_bar1_vmm(device);
 
 		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, fifo->chid->nr *

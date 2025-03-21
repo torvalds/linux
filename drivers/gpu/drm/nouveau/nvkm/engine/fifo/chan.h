@@ -24,7 +24,7 @@ struct nvkm_chan_func {
 	} *inst;
 
 	const struct nvkm_chan_func_userd {
-		int bar;
+		enum nvkm_bar_id bar;
 		u32 base;
 		u32 size;
 		void (*clear)(struct nvkm_chan *);

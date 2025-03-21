@@ -41,7 +41,7 @@ nv04_mem_map(struct nvkm_mmu *mmu, struct nvkm_memory *memory, void *argv,
 	if ((ret = nvif_unvers(ret, &argv, &argc, args->vn)))
 		return ret;
 
-	*paddr = device->func->resource_addr(device, 1) + addr;
+	*paddr = device->func->resource_addr(device, NVKM_BAR1_FB) + addr;
 	*psize = nvkm_memory_size(memory);
 	*pvma = ERR_PTR(-ENODEV);
 	return 0;

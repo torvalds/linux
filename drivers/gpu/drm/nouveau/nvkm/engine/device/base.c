@@ -3027,8 +3027,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	device->debug = nvkm_dbgopt(device->dbgopt, "device");
 	INIT_LIST_HEAD(&device->subdev);
 
-	mmio_base = device->func->resource_addr(device, 0);
-	mmio_size = device->func->resource_size(device, 0);
+	mmio_base = device->func->resource_addr(device, NVKM_BAR0_PRI);
+	mmio_size = device->func->resource_size(device, NVKM_BAR0_PRI);
 
 	device->pri = ioremap(mmio_base, mmio_size);
 	if (device->pri == NULL) {

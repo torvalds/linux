@@ -355,14 +355,14 @@ nvkm_chan_new_(const struct nvkm_chan_func *func, struct nvkm_runl *runl, int ru
 	/* Validate arguments against class requirements. */
 	if ((runq && runq >= runl->func->runqs) ||
 	    (!func->inst->vmm != !vmm) ||
-	    ((func->userd->bar < 0) == !userd) ||
+	    (!func->userd->bar == !userd) ||
 	    (!func->ramfc->ctxdma != !dmaobj) ||
 	    ((func->ramfc->devm < devm) && devm != BIT(0)) ||
 	    (!func->ramfc->priv && priv)) {
 		RUNL_DEBUG(runl, "args runq:%d:%d vmm:%d:%p userd:%d:%p "
 				 "push:%d:%p devm:%08x:%08x priv:%d:%d",
 			   runl->func->runqs, runq, func->inst->vmm, vmm,
-			   func->userd->bar < 0, userd, func->ramfc->ctxdma, dmaobj,
+			   func->userd->bar, userd, func->ramfc->ctxdma, dmaobj,
 			   func->ramfc->devm, devm, func->ramfc->priv, priv);
 		return -EINVAL;
 	}
@@ -439,7 +439,7 @@ nvkm_chan_new_(const struct nvkm_chan_func *func, struct nvkm_runl *runl, int ru
 	/* Allocate channel ID. */
 	chan->id = nvkm_chid_get(runl->chid, chan);
 	if (chan->id >= 0) {
-		if (func->userd->bar < 0) {
+		if (!func->userd->bar) {
 			if (ouserd + chan->func->userd->size >=
 				nvkm_memory_size(userd)) {
 				RUNL_DEBUG(runl, "ouserd %llx", ouserd);

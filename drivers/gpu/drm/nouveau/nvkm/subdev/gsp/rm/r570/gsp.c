@@ -153,9 +153,9 @@ r570_gsp_set_system_info(struct nvkm_gsp *gsp)
 	if (IS_ERR(info))
 		return PTR_ERR(info);
 
-	info->gpuPhysAddr = device->func->resource_addr(device, 0);
-	info->gpuPhysFbAddr = device->func->resource_addr(device, 1);
-	info->gpuPhysInstAddr = device->func->resource_addr(device, 3);
+	info->gpuPhysAddr = device->func->resource_addr(device, NVKM_BAR0_PRI);
+	info->gpuPhysFbAddr = device->func->resource_addr(device, NVKM_BAR1_FB);
+	info->gpuPhysInstAddr = device->func->resource_addr(device, NVKM_BAR2_INST);
 	info->nvDomainBusDeviceFunc = pci_dev_id(pdev);
 	info->maxUserVa = TASK_SIZE;
 	info->pciConfigMirrorBase = device->pci->func->cfg.addr;

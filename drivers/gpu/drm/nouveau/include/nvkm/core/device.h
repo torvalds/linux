@@ -77,6 +77,13 @@ struct nvkm_device {
 struct nvkm_subdev *nvkm_device_subdev(struct nvkm_device *, int type, int inst);
 struct nvkm_engine *nvkm_device_engine(struct nvkm_device *, int type, int inst);
 
+enum nvkm_bar_id {
+	NVKM_BAR_INVALID = 0,
+	NVKM_BAR0_PRI,
+	NVKM_BAR1_FB,
+	NVKM_BAR2_INST,
+};
+
 struct nvkm_device_func {
 	struct nvkm_device_pci *(*pci)(struct nvkm_device *);
 	struct nvkm_device_tegra *(*tegra)(struct nvkm_device *);
@@ -85,8 +92,8 @@ struct nvkm_device_func {
 	int (*init)(struct nvkm_device *);
 	void (*fini)(struct nvkm_device *, bool suspend);
 	int (*irq)(struct nvkm_device *);
-	resource_size_t (*resource_addr)(struct nvkm_device *, unsigned bar);
-	resource_size_t (*resource_size)(struct nvkm_device *, unsigned bar);
+	resource_size_t (*resource_addr)(struct nvkm_device *, enum nvkm_bar_id);
+	resource_size_t (*resource_size)(struct nvkm_device *, enum nvkm_bar_id);
 	bool cpu_coherent;
 };
 

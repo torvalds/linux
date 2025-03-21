@@ -1204,7 +1204,7 @@ retry:
 		fallthrough;	/* tiled memory */
 	case TTM_PL_VRAM:
 		reg->bus.offset = (reg->start << PAGE_SHIFT) +
-			device->func->resource_addr(device, 1);
+			device->func->resource_addr(device, NVKM_BAR1_FB);
 		reg->bus.is_iomem = true;
 
 		/* Some BARs do not support being ioremapped WC */
@@ -1295,7 +1295,7 @@ vm_fault_t nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 	struct nouveau_bo *nvbo = nouveau_bo(bo);
 	struct nvkm_device *device = nvxx_device(drm);
-	u32 mappable = device->func->resource_size(device, 1) >> PAGE_SHIFT;
+	u32 mappable = device->func->resource_size(device, NVKM_BAR1_FB) >> PAGE_SHIFT;
 	int i, ret;
 
 	/* as long as the bo isn't in vram, and isn't tiled, we've got
