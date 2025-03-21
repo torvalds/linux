@@ -239,11 +239,6 @@ static int ni16550_get_regs(struct platform_device *pdev,
 		port->mapsize = resource_size(regs);
 		port->flags |= UPF_IOREMAP;
 
-		port->membase = devm_ioremap(&pdev->dev, port->mapbase,
-					     port->mapsize);
-		if (!port->membase)
-			return -ENOMEM;
-
 		return 0;
 	}
 
