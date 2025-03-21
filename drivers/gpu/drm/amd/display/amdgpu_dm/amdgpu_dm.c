@@ -2241,8 +2241,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	adev_to_drm(adev)->mode_config.cursor_height = adev->dm.dc->caps.max_cursor_size;
 
 	if (drm_vblank_init(adev_to_drm(adev), adev->dm.display_indexes_num)) {
-		DRM_ERROR(
-		"amdgpu: failed to initialize sw for display support.\n");
+		dev_err(adev->dev,
+		"amdgpu: failed to initialize vblank sw for display support.\n");
 		goto error;
 	}
 
