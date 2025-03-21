@@ -154,7 +154,7 @@ static inline u64 _hv_do_fast_hypercall8(u64 control, u64 input1)
 				      : "cc", "edi", "esi");
 	}
 #endif
-		return hv_status;
+	return hv_status;
 }
 
 static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
