@@ -329,6 +329,13 @@ iommufd_group_setup_msi(struct iommufd_group *igroup,
 }
 #endif
 
+static bool
+iommufd_group_first_attach(struct iommufd_group *igroup, ioasid_t pasid)
+{
+	lockdep_assert_held(&igroup->lock);
+	return !igroup->hwpt;
+}
+
 static int
 iommufd_device_attach_reserved_iova(struct iommufd_device *idev,
 				    struct iommufd_hwpt_paging *hwpt_paging)
@@ -344,7 +351,7 @@ iommufd_device_attach_reserved_iova(struct iommufd_device *idev,
 	if (rc)
 		return rc;
 
-	if (list_empty(&igroup->device_list)) {
+	if (iommufd_group_first_attach(igroup, IOMMU_NO_PASID)) {
 		rc = iommufd_group_setup_msi(igroup, hwpt_paging);
 		if (rc) {
 			iopt_remove_reserved_iova(&hwpt_paging->ioas->iopt,
@@ -508,7 +515,7 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 	 * reserved regions are only updated during individual device
 	 * attachment.
 	 */
-	if (list_empty(&igroup->device_list)) {
+	if (iommufd_group_first_attach(igroup, pasid)) {
 		rc = iommufd_hwpt_attach_device(hwpt, idev, pasid);
 		if (rc)
 			goto err_unresv;
