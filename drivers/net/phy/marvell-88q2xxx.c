@@ -765,16 +765,10 @@ static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
 	struct mv88q2xxx_priv *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	struct device *hwmon;
-	char *hwmon_name;
 
 	priv->enable_temp = true;
-	hwmon_name = devm_hwmon_sanitize_name(dev, dev_name(dev));
-	if (IS_ERR(hwmon_name))
-		return PTR_ERR(hwmon_name);
 
-	hwmon = devm_hwmon_device_register_with_info(dev,
-						     hwmon_name,
-						     phydev,
+	hwmon = devm_hwmon_device_register_with_info(dev, NULL, phydev,
 						     &mv88q2xxx_hwmon_chip_info,
 						     NULL);
 

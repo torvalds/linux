@@ -87,8 +87,6 @@
 #define TJA110X_RMII_MODE_REFCLK_IN       BIT(0)
 
 struct tja11xx_priv {
-	char		*hwmon_name;
-	struct device	*hwmon_dev;
 	struct phy_device *phydev;
 	struct work_struct phy_register_work;
 	u32 flags;
@@ -508,19 +506,12 @@ static const struct hwmon_chip_info tja11xx_hwmon_chip_info = {
 static int tja11xx_hwmon_register(struct phy_device *phydev,
 				  struct tja11xx_priv *priv)
 {
-	struct device *dev = &phydev->mdio.dev;
+	struct device *hdev, *dev = &phydev->mdio.dev;
 
-	priv->hwmon_name = devm_hwmon_sanitize_name(dev, dev_name(dev));
-	if (IS_ERR(priv->hwmon_name))
-		return PTR_ERR(priv->hwmon_name);
-
-	priv->hwmon_dev =
-		devm_hwmon_device_register_with_info(dev, priv->hwmon_name,
-						     phydev,
-						     &tja11xx_hwmon_chip_info,
-						     NULL);
-
-	return PTR_ERR_OR_ZERO(priv->hwmon_dev);
+	hdev = devm_hwmon_device_register_with_info(dev, NULL, phydev,
+						    &tja11xx_hwmon_chip_info,
+						    NULL);
+	return PTR_ERR_OR_ZERO(hdev);
 }
 
 static int tja11xx_parse_dt(struct phy_device *phydev)
