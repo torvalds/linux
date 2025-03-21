@@ -542,16 +542,20 @@ config X86_EXTENDED_PLATFORM
 	  CONFIG_64BIT.
 
 	  32-bit platforms (CONFIG_64BIT=n):
-		Goldfish (Android emulator)
-		AMD Elan
+		Goldfish (mostly Android emulator)
+		Intel CE media processor (CE4100) SoC
+		Intel MID (Mobile Internet Device)
+		Intel Quark
 		RDC R-321x SoC
-		SGI 320/540 (Visual Workstation)
+		STA2X11-based (e.g. Northville)
 
 	  64-bit platforms (CONFIG_64BIT=y):
 		Numascale NumaChip
 		ScaleMP vSMP
 		SGI Ultraviolet
 		Merrifield/Moorefield MID devices
+		Goldfish (mostly Android emulator)
+		Intel MID (Mobile Internet Device)
 
 	  If you have one of these systems, or if you want to build a
 	  generic distribution kernel, say Y here - otherwise say N.
