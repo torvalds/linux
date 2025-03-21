@@ -1149,8 +1149,14 @@ static int gve_reg_xdp_info(struct gve_priv *priv, struct net_device *dev)
 				       napi->napi_id);
 		if (err)
 			goto err;
-		err = xdp_rxq_info_reg_mem_model(&rx->xdp_rxq,
-						 MEM_TYPE_PAGE_SHARED, NULL);
+		if (gve_is_qpl(priv))
+			err = xdp_rxq_info_reg_mem_model(&rx->xdp_rxq,
+							 MEM_TYPE_PAGE_SHARED,
+							 NULL);
+		else
+			err = xdp_rxq_info_reg_mem_model(&rx->xdp_rxq,
+							 MEM_TYPE_PAGE_POOL,
+							 rx->dqo.page_pool);
 		if (err)
 			goto err;
 		rx->xsk_pool = xsk_get_pool_from_qid(dev, i);
@@ -1226,6 +1232,7 @@ static void gve_rx_get_curr_alloc_cfg(struct gve_priv *priv,
 	cfg->ring_size = priv->rx_desc_cnt;
 	cfg->packet_buffer_size = priv->rx_cfg.packet_buffer_size;
 	cfg->rx = priv->rx;
+	cfg->xdp = !!cfg->qcfg_tx->num_xdp_queues;
 }
 
 void gve_get_curr_alloc_cfgs(struct gve_priv *priv,
@@ -1461,6 +1468,7 @@ static int gve_configure_rings_xdp(struct gve_priv *priv,
 	gve_get_curr_alloc_cfgs(priv, &tx_alloc_cfg, &rx_alloc_cfg);
 	tx_alloc_cfg.num_xdp_rings = num_xdp_rings;
 
+	rx_alloc_cfg.xdp = !!num_xdp_rings;
 	return gve_adjust_config(priv, &tx_alloc_cfg, &rx_alloc_cfg);
 }
 
@@ -1629,6 +1637,7 @@ static int gve_xsk_wakeup(struct net_device *dev, u32 queue_id, u32 flags)
 static int verify_xdp_configuration(struct net_device *dev)
 {
 	struct gve_priv *priv = netdev_priv(dev);
+	u16 max_xdp_mtu;
 
 	if (dev->features & NETIF_F_LRO) {
 		netdev_warn(dev, "XDP is not supported when LRO is on.\n");
@@ -1641,7 +1650,11 @@ static int verify_xdp_configuration(struct net_device *dev)
 		return -EOPNOTSUPP;
 	}
 
-	if (dev->mtu > GVE_DEFAULT_RX_BUFFER_SIZE - sizeof(struct ethhdr) - GVE_RX_PAD) {
+	max_xdp_mtu = priv->rx_cfg.packet_buffer_size - sizeof(struct ethhdr);
+	if (priv->queue_format == GVE_GQI_QPL_FORMAT)
+		max_xdp_mtu -= GVE_RX_PAD;
+
+	if (dev->mtu > max_xdp_mtu) {
 		netdev_warn(dev, "XDP is not supported for mtu %d.\n",
 			    dev->mtu);
 		return -EOPNOTSUPP;

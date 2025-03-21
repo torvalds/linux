@@ -59,6 +59,8 @@
 
 #define GVE_MAX_RX_BUFFER_SIZE 4096
 
+#define GVE_XDP_RX_BUFFER_SIZE_DQO 4096
+
 #define GVE_DEFAULT_RX_BUFFER_OFFSET 2048
 
 #define GVE_PAGE_POOL_SIZE_MULTIPLIER 4
@@ -227,7 +229,11 @@ struct gve_rx_cnts {
 /* Contains datapath state used to represent an RX queue. */
 struct gve_rx_ring {
 	struct gve_priv *gve;
-	u16 packet_buffer_size;
+
+	u16 packet_buffer_size;		/* Size of buffer posted to NIC */
+	u16 packet_buffer_truesize;	/* Total size of RX buffer */
+	u16 rx_headroom;
+
 	union {
 		/* GQI fields */
 		struct {
@@ -688,6 +694,7 @@ struct gve_rx_alloc_rings_cfg {
 	bool raw_addressing;
 	bool enable_header_split;
 	bool reset_rss;
+	bool xdp;
 
 	/* Allocated resources are returned here */
 	struct gve_rx_ring *rx;
@@ -1218,7 +1225,8 @@ void gve_free_buffer(struct gve_rx_ring *rx,
 		     struct gve_rx_buf_state_dqo *buf_state);
 int gve_alloc_buffer(struct gve_rx_ring *rx, struct gve_rx_desc_dqo *desc);
 struct page_pool *gve_rx_create_page_pool(struct gve_priv *priv,
-					  struct gve_rx_ring *rx);
+					  struct gve_rx_ring *rx,
+					  bool xdp);
 
 /* Reset */
 void gve_schedule_reset(struct gve_priv *priv);
