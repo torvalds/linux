@@ -458,20 +458,27 @@ config SMP
 	  If you don't know what to do here, say N.
 
 config X86_X2APIC
-	bool "Support x2apic"
+	bool "x2APIC interrupt controller architecture support"
 	depends on X86_LOCAL_APIC && X86_64 && (IRQ_REMAP || HYPERVISOR_GUEST)
+	default y
 	help
-	  This enables x2apic support on CPUs that have this feature.
+	  x2APIC is an interrupt controller architecture, a component of which
+	  (the local APIC) is present in the CPU. It allows faster access to
+	  the local APIC and supports a larger number of CPUs in the system
+	  than the predecessors.
 
-	  This allows 32-bit apic IDs (so it can support very large systems),
-	  and accesses the local apic via MSRs not via mmio.
+	  x2APIC was introduced in Intel CPUs around 2008 and in AMD EPYC CPUs
+	  in 2019, but it can be disabled by the BIOS. It is also frequently
+	  emulated in virtual machines, even when the host CPU does not support
+	  it. Support in the CPU can be checked by executing
+		cat /proc/cpuinfo | grep x2apic
 
-	  Some Intel systems circa 2022 and later are locked into x2APIC mode
-	  and can not fall back to the legacy APIC modes if SGX or TDX are
-	  enabled in the BIOS. They will boot with very reduced functionality
-	  without enabling this option.
+	  If this configuration option is disabled, the kernel will not boot on
+	  some platforms that have x2APIC enabled.
 
-	  If you don't know what to do here, say N.
+	  Say N if you know that your platform does not have x2APIC.
+
+	  Otherwise, say Y.
 
 config X86_POSTED_MSI
 	bool "Enable MSI and MSI-x delivery by posted interrupts"
