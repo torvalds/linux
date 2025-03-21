@@ -285,17 +285,12 @@ static int ni16550_probe(struct platform_device *pdev)
 	const char *portmode;
 	bool rs232_property;
 	int ret;
-	int irq;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	spin_lock_init(&uart.port.lock);
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
 
 	ret = ni16550_get_regs(pdev, &uart.port);
 	if (ret < 0)
@@ -307,10 +302,7 @@ static int ni16550_probe(struct platform_device *pdev)
 	info = device_get_match_data(dev);
 
 	uart.port.dev		= dev;
-	uart.port.irq		= irq;
-	uart.port.irqflags	= IRQF_SHARED;
-	uart.port.flags		= UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF
-					| UPF_FIXED_PORT | UPF_FIXED_TYPE;
+	uart.port.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_PORT | UPF_FIXED_TYPE;
 	uart.port.startup	= ni16550_port_startup;
 	uart.port.shutdown	= ni16550_port_shutdown;
 
@@ -332,12 +324,16 @@ static int ni16550_probe(struct platform_device *pdev)
 	/*
 	 * Declaration of the base clock frequency can come from one of:
 	 * - static declaration in this driver (for older ACPI IDs)
-	 * - a "clock-frquency" ACPI
+	 * - a "clock-frequency" ACPI
 	 */
 	if (info->uartclk)
 		uart.port.uartclk = info->uartclk;
-	if (device_property_read_u32(dev, "clock-frequency",
-				     &uart.port.uartclk)) {
+
+	ret = uart_read_port_properties(&uart.port);
+	if (ret)
+		return ret;
+
+	if (!uart.port.uartclk) {
 		data->clk = devm_clk_get_enabled(dev, NULL);
 		if (!IS_ERR(data->clk))
 			uart.port.uartclk = clk_get_rate(data->clk);
