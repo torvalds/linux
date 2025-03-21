@@ -8,11 +8,11 @@
 #define ASM_OFFSETS_C
 
 #include <linux/kbuild.h>
-#include <linux/kvm_host.h>
 #include <linux/sched.h>
 #include <linux/purgatory.h>
 #include <linux/pgtable.h>
 #include <linux/ftrace.h>
+#include <asm/kvm_host_types.h>
 #include <asm/stacktrace.h>
 
 int main(void)
