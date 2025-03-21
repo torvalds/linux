@@ -399,8 +399,28 @@ static int iommufd_hwpt_pasid_compat(struct iommufd_hw_pagetable *hwpt,
 				     struct iommufd_device *idev,
 				     ioasid_t pasid)
 {
-	if (pasid != IOMMU_NO_PASID && !hwpt->pasid_compat)
-		return -EINVAL;
+	struct iommufd_group *igroup = idev->igroup;
+
+	lockdep_assert_held(&igroup->lock);
+
+	if (pasid == IOMMU_NO_PASID) {
+		unsigned long start = IOMMU_NO_PASID;
+
+		if (!hwpt->pasid_compat &&
+		    xa_find_after(&igroup->pasid_attach,
+				  &start, UINT_MAX, XA_PRESENT))
+			return -EINVAL;
+	} else {
+		struct iommufd_attach *attach;
+
+		if (!hwpt->pasid_compat)
+			return -EINVAL;
+
+		attach = xa_load(&igroup->pasid_attach, IOMMU_NO_PASID);
+		if (attach && attach->hwpt && !attach->hwpt->pasid_compat)
+			return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -410,8 +430,6 @@ static int iommufd_hwpt_attach_device(struct iommufd_hw_pagetable *hwpt,
 {
 	struct iommufd_attach_handle *handle;
 	int rc;
-
-	lockdep_assert_held(&idev->igroup->lock);
 
 	rc = iommufd_hwpt_pasid_compat(hwpt, idev, pasid);
 	if (rc)
