@@ -341,6 +341,7 @@ EXPORT_SYMBOL(fb_set_var);
 
 int fb_blank(struct fb_info *info, int blank)
 {
+	int old_blank = info->blank;
 	struct fb_event event;
 	int ret;
 
@@ -353,13 +354,19 @@ int fb_blank(struct fb_info *info, int blank)
 	event.info = info;
 	event.data = &blank;
 
+	info->blank = blank;
+
 	ret = info->fbops->fb_blank(blank, info);
 	if (ret)
-		return ret;
+		goto err;
 
 	fb_notifier_call_chain(FB_EVENT_BLANK, &event);
 
 	return 0;
+
+err:
+	info->blank = old_blank;
+	return ret;
 }
 EXPORT_SYMBOL(fb_blank);
 
@@ -407,6 +414,14 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	refcount_set(&fb_info->count, 1);
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
+
+	/*
+	 * With an fb_blank callback present, we assume that the
+	 * display is blank, so that fb_blank() enables it on the
+	 * first modeset.
+	 */
+	if (fb_info->fbops->fb_blank)
+		fb_info->blank = FB_BLANK_POWERDOWN;
 
 	fb_device_create(fb_info);
 
