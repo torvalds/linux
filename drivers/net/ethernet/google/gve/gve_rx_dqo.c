@@ -546,6 +546,29 @@ static int gve_rx_append_frags(struct napi_struct *napi,
 	return 0;
 }
 
+static void gve_xdp_done_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
+			     struct xdp_buff *xdp, struct bpf_prog *xprog,
+			     int xdp_act,
+			     struct gve_rx_buf_state_dqo *buf_state)
+{
+	u64_stats_update_begin(&rx->statss);
+	switch (xdp_act) {
+	case XDP_ABORTED:
+	case XDP_DROP:
+	default:
+		rx->xdp_actions[xdp_act]++;
+		break;
+	case XDP_TX:
+		rx->xdp_tx_errors++;
+		break;
+	case XDP_REDIRECT:
+		rx->xdp_redirect_errors++;
+		break;
+	}
+	u64_stats_update_end(&rx->statss);
+	gve_free_buffer(rx, buf_state);
+}
+
 /* Returns 0 if descriptor is completed successfully.
  * Returns -EINVAL if descriptor is invalid.
  * Returns -ENOMEM if data cannot be copied to skb.
@@ -560,6 +583,7 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	const bool hsplit = compl_desc->split_header;
 	struct gve_rx_buf_state_dqo *buf_state;
 	struct gve_priv *priv = rx->gve;
+	struct bpf_prog *xprog;
 	u16 buf_len;
 	u16 hdr_len;
 
@@ -631,6 +655,34 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 			goto error;
 		}
 		return 0;
+	}
+
+	xprog = READ_ONCE(priv->xdp_prog);
+	if (xprog) {
+		struct xdp_buff xdp;
+		void *old_data;
+		int xdp_act;
+
+		xdp_init_buff(&xdp, buf_state->page_info.buf_size,
+			      &rx->xdp_rxq);
+		xdp_prepare_buff(&xdp,
+				 buf_state->page_info.page_address +
+				 buf_state->page_info.page_offset,
+				 buf_state->page_info.pad,
+				 buf_len, false);
+		old_data = xdp.data;
+		xdp_act = bpf_prog_run_xdp(xprog, &xdp);
+		buf_state->page_info.pad += xdp.data - old_data;
+		buf_len = xdp.data_end - xdp.data;
+		if (xdp_act != XDP_PASS) {
+			gve_xdp_done_dqo(priv, rx, &xdp, xprog, xdp_act,
+					 buf_state);
+			return 0;
+		}
+
+		u64_stats_update_begin(&rx->statss);
+		rx->xdp_actions[XDP_PASS]++;
+		u64_stats_update_end(&rx->statss);
 	}
 
 	if (eop && buf_len <= priv->rx_copybreak) {
