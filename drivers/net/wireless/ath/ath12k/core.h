@@ -162,6 +162,7 @@ enum ath12k_firmware_mode {
 
 #define ATH12K_IRQ_NUM_MAX 57
 #define ATH12K_EXT_IRQ_NUM_MAX	16
+#define ATH12K_MAX_TCL_RING_NUM	3
 
 struct ath12k_ext_irq_grp {
 	struct ath12k_base *ab;
@@ -1297,6 +1298,8 @@ static inline const char *ath12k_bus_str(enum ath12k_bus bus)
 	switch (bus) {
 	case ATH12K_BUS_PCI:
 		return "pci";
+	case ATH12K_BUS_AHB:
+		return "ahb";
 	}
 
 	return "unknown";

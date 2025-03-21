@@ -121,6 +121,7 @@ enum ath12k_hw_rate_ofdm {
 
 enum ath12k_bus {
 	ATH12K_BUS_PCI,
+	ATH12K_BUS_AHB,
 };
 
 #define ATH12K_EXT_IRQ_GRP_NUM_MAX 11
