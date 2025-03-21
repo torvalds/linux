@@ -333,11 +333,8 @@ static int ni16550_probe(struct platform_device *pdev)
 			uart.port.uartclk = clk_get_rate(data->clk);
 	}
 
-	if (!uart.port.uartclk) {
-		dev_err(dev, "unable to determine clock frequency!\n");
-		ret = -ENODEV;
-		goto err;
-	}
+	if (!uart.port.uartclk)
+		return dev_err_probe(dev, -ENODEV, "unable to determine clock frequency!\n");
 
 	prescaler = info->prescaler;
 	device_property_read_u32(dev, "clock-prescaler", &prescaler);
@@ -381,14 +378,11 @@ static int ni16550_probe(struct platform_device *pdev)
 
 	ret = serial8250_register_8250_port(&uart);
 	if (ret < 0)
-		goto err;
+		return ret;
 	data->line = ret;
 
 	platform_set_drvdata(pdev, data);
 	return 0;
-
-err:
-	return ret;
 }
 
 static void ni16550_remove(struct platform_device *pdev)
