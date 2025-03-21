@@ -106,6 +106,8 @@ enum sysdata_feature {
 	SYSDATA_CPU_NR = BIT(0),
 	/* Populate the task name (as in current->comm) in sysdata */
 	SYSDATA_TASKNAME = BIT(1),
+	/* Kernel release/version as part of sysdata */
+	SYSDATA_RELEASE = BIT(2),
 };
 
 /**
@@ -440,6 +442,19 @@ static ssize_t sysdata_taskname_enabled_show(struct config_item *item,
 	return sysfs_emit(buf, "%d\n", taskname_enabled);
 }
 
+static ssize_t sysdata_release_enabled_show(struct config_item *item,
+					    char *buf)
+{
+	struct netconsole_target *nt = to_target(item->ci_parent);
+	bool release_enabled;
+
+	mutex_lock(&dynamic_netconsole_mutex);
+	release_enabled = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
+	mutex_unlock(&dynamic_netconsole_mutex);
+
+	return sysfs_emit(buf, "%d\n", release_enabled);
+}
+
 /*
  * This one is special -- targets created through the configfs interface
  * are not enabled (and the corresponding netpoll activated) by default.
@@ -719,6 +734,8 @@ static size_t count_extradata_entries(struct netconsole_target *nt)
 		entries += 1;
 	if (nt->sysdata_fields & SYSDATA_TASKNAME)
 		entries += 1;
+	if (nt->sysdata_fields & SYSDATA_RELEASE)
+		entries += 1;
 
 	return entries;
 }
@@ -855,6 +872,40 @@ static void disable_sysdata_feature(struct netconsole_target *nt,
 	nt->extradata_complete[nt->userdata_length] = 0;
 }
 
+static ssize_t sysdata_release_enabled_store(struct config_item *item,
+					     const char *buf, size_t count)
+{
+	struct netconsole_target *nt = to_target(item->ci_parent);
+	bool release_enabled, curr;
+	ssize_t ret;
+
+	ret = kstrtobool(buf, &release_enabled);
+	if (ret)
+		return ret;
+
+	mutex_lock(&dynamic_netconsole_mutex);
+	curr = !!(nt->sysdata_fields & SYSDATA_RELEASE);
+	if (release_enabled == curr)
+		goto unlock_ok;
+
+	if (release_enabled &&
+	    count_extradata_entries(nt) >= MAX_EXTRADATA_ITEMS) {
+		ret = -ENOSPC;
+		goto unlock;
+	}
+
+	if (release_enabled)
+		nt->sysdata_fields |= SYSDATA_RELEASE;
+	else
+		disable_sysdata_feature(nt, SYSDATA_RELEASE);
+
+unlock_ok:
+	ret = strnlen(buf, count);
+unlock:
+	mutex_unlock(&dynamic_netconsole_mutex);
+	return ret;
+}
+
 static ssize_t sysdata_taskname_enabled_store(struct config_item *item,
 					      const char *buf, size_t count)
 {
@@ -935,6 +986,7 @@ unlock:
 CONFIGFS_ATTR(userdatum_, value);
 CONFIGFS_ATTR(sysdata_, cpu_nr_enabled);
 CONFIGFS_ATTR(sysdata_, taskname_enabled);
+CONFIGFS_ATTR(sysdata_, release_enabled);
 
 static struct configfs_attribute *userdatum_attrs[] = {
 	&userdatum_attr_value,
@@ -996,6 +1048,7 @@ static void userdatum_drop(struct config_group *group, struct config_item *item)
 static struct configfs_attribute *userdata_attrs[] = {
 	&sysdata_attr_cpu_nr_enabled,
 	&sysdata_attr_taskname_enabled,
+	&sysdata_attr_release_enabled,
 	NULL,
 };
 
@@ -1171,7 +1224,7 @@ static void populate_configfs_item(struct netconsole_target *nt,
 	init_target_config_group(nt, target_name);
 }
 
-static int append_cpu_nr(struct netconsole_target *nt, int offset)
+static int sysdata_append_cpu_nr(struct netconsole_target *nt, int offset)
 {
 	/* Append cpu=%d at extradata_complete after userdata str */
 	return scnprintf(&nt->extradata_complete[offset],
@@ -1179,12 +1232,20 @@ static int append_cpu_nr(struct netconsole_target *nt, int offset)
 			 raw_smp_processor_id());
 }
 
-static int append_taskname(struct netconsole_target *nt, int offset)
+static int sysdata_append_taskname(struct netconsole_target *nt, int offset)
 {
 	return scnprintf(&nt->extradata_complete[offset],
 			 MAX_EXTRADATA_ENTRY_LEN, " taskname=%s\n",
 			 current->comm);
 }
+
+static int sysdata_append_release(struct netconsole_target *nt, int offset)
+{
+	return scnprintf(&nt->extradata_complete[offset],
+			 MAX_EXTRADATA_ENTRY_LEN, " release=%s\n",
+			 init_utsname()->release);
+}
+
 /*
  * prepare_extradata - append sysdata at extradata_complete in runtime
  * @nt: target to send message to
@@ -1203,9 +1264,11 @@ static int prepare_extradata(struct netconsole_target *nt)
 		goto out;
 
 	if (nt->sysdata_fields & SYSDATA_CPU_NR)
-		extradata_len += append_cpu_nr(nt, extradata_len);
+		extradata_len += sysdata_append_cpu_nr(nt, extradata_len);
 	if (nt->sysdata_fields & SYSDATA_TASKNAME)
-		extradata_len += append_taskname(nt, extradata_len);
+		extradata_len += sysdata_append_taskname(nt, extradata_len);
+	if (nt->sysdata_fields & SYSDATA_RELEASE)
+		extradata_len += sysdata_append_release(nt, extradata_len);
 
 	WARN_ON_ONCE(extradata_len >
 		     MAX_EXTRADATA_ENTRY_LEN * MAX_EXTRADATA_ITEMS);

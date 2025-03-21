@@ -42,6 +42,17 @@ function set_taskname() {
 	echo 1 > "${NETCONS_PATH}/userdata/taskname_enabled"
 }
 
+# Enable the release to be appended to sysdata
+function set_release() {
+	if [[ ! -f "${NETCONS_PATH}/userdata/release_enabled" ]]
+	then
+		echo "Not able to enable release sysdata append. Configfs not available in ${NETCONS_PATH}/userdata/release_enabled" >&2
+		exit "${ksft_skip}"
+	fi
+
+	echo 1 > "${NETCONS_PATH}/userdata/release_enabled"
+}
+
 # Disable the sysdata cpu_nr feature
 function unset_cpu_nr() {
 	echo 0 > "${NETCONS_PATH}/userdata/cpu_nr_enabled"
@@ -50,6 +61,10 @@ function unset_cpu_nr() {
 # Once called, taskname=<..> will not be appended anymore
 function unset_taskname() {
 	echo 0 > "${NETCONS_PATH}/userdata/taskname_enabled"
+}
+
+function unset_release() {
+	echo 0 > "${NETCONS_PATH}/userdata/release_enabled"
 }
 
 # Test if MSG contains sysdata
@@ -93,6 +108,21 @@ function validate_sysdata() {
 	pkill_socat
 }
 
+function validate_release() {
+	RELEASE=$(uname -r)
+
+	if [ ! -f "$OUTPUT_FILE" ]; then
+		echo "FAIL: File was not generated." >&2
+		exit "${ksft_fail}"
+	fi
+
+	if ! grep -q "release=${RELEASE}" "${OUTPUT_FILE}"; then
+		echo "FAIL: 'release=${RELEASE}' not found in ${OUTPUT_FILE}" >&2
+		cat "${OUTPUT_FILE}" >&2
+		exit "${ksft_fail}"
+	fi
+}
+
 # Test if MSG content exists in OUTPUT_FILE but no `cpu=` and `taskname=`
 # strings
 function validate_no_sysdata() {
@@ -115,6 +145,12 @@ function validate_no_sysdata() {
 
 	if grep -q "taskname=" "${OUTPUT_FILE}"; then
 		echo "FAIL: 'taskname=  found in ${OUTPUT_FILE}" >&2
+		cat "${OUTPUT_FILE}" >&2
+		exit "${ksft_fail}"
+	fi
+
+	if grep -q "release=" "${OUTPUT_FILE}"; then
+		echo "FAIL: 'release=  found in ${OUTPUT_FILE}" >&2
 		cat "${OUTPUT_FILE}" >&2
 		exit "${ksft_fail}"
 	fi
@@ -169,9 +205,11 @@ MSG="Test #1 from CPU${CPU}"
 set_cpu_nr
 # Enable taskname to be appended to sysdata
 set_taskname
+set_release
 runtest
 # Make sure the message was received in the dst part
 # and exit
+validate_release
 validate_sysdata
 
 #====================================================
@@ -184,19 +222,19 @@ OUTPUT_FILE="/tmp/${TARGET}_2"
 MSG="Test #2 from CPU${CPU}"
 set_user_data
 runtest
+validate_release
 validate_sysdata
 
 # ===================================================
 # TEST #3
-# Unset cpu_nr, so, no CPU should be appended.
-# userdata is still set
+# Unset all sysdata, fail if any userdata is set
 # ===================================================
 CPU=$((RANDOM % $(nproc)))
 OUTPUT_FILE="/tmp/${TARGET}_3"
 MSG="Test #3 from CPU${CPU}"
-# Enable the auto population of cpu_nr
 unset_cpu_nr
 unset_taskname
+unset_release
 runtest
 # At this time, cpu= shouldn't be present in the msg
 validate_no_sysdata
