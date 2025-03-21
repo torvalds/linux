@@ -2902,6 +2902,19 @@ config PCI_MMCONFIG
 	default y
 	depends on PCI && (ACPI || JAILHOUSE_GUEST)
 	depends on X86_64 || (PCI_GOANY || PCI_GOMMCONFIG)
+	help
+	  Add support for accessing the PCI configuration space as a memory
+	  mapped area. It is the recommended method if the system supports
+	  this (it must have PCI Express and ACPI for it to be available).
+
+	  In the unlikely case that enabling this configuration option causes
+	  problems, the mechanism can be switched off with the 'pci=nommconf'
+	  command line parameter.
+
+	  Say N only if you are sure that your platform does not support this
+	  access method or you have problems caused by it.
+
+	  Say Y otherwise.
 
 config PCI_OLPC
 	def_bool y
