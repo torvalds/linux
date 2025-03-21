@@ -19,7 +19,7 @@ MODULE_PARM_DESC(
 
 struct iommufd_attach {
 	struct iommufd_hw_pagetable *hwpt;
-	struct list_head device_list;
+	struct xarray device_array;
 };
 
 static void iommufd_group_release(struct kref *kref)
@@ -297,6 +297,20 @@ u32 iommufd_device_to_id(struct iommufd_device *idev)
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_device_to_id, "IOMMUFD");
 
+static unsigned int iommufd_group_device_num(struct iommufd_group *igroup)
+{
+	struct iommufd_device *idev;
+	unsigned int count = 0;
+	unsigned long index;
+
+	lockdep_assert_held(&igroup->lock);
+
+	if (igroup->attach)
+		xa_for_each(&igroup->attach->device_array, index, idev)
+			count++;
+	return count;
+}
+
 #ifdef CONFIG_IRQ_MSI_IOMMU
 static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 				   struct iommufd_hwpt_paging *hwpt_paging)
@@ -371,12 +385,7 @@ iommufd_device_attach_reserved_iova(struct iommufd_device *idev,
 /* Check if idev is attached to igroup->hwpt */
 static bool iommufd_device_is_attached(struct iommufd_device *idev)
 {
-	struct iommufd_device *cur;
-
-	list_for_each_entry(cur, &idev->igroup->attach->device_list, group_item)
-		if (cur == idev)
-			return true;
-	return false;
+	return xa_load(&idev->igroup->attach->device_array, idev->obj.id);
 }
 
 static int iommufd_hwpt_attach_device(struct iommufd_hw_pagetable *hwpt,
@@ -510,20 +519,27 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 			rc = -ENOMEM;
 			goto err_unlock;
 		}
-		INIT_LIST_HEAD(&attach->device_list);
+		xa_init(&attach->device_array);
 	}
 
 	old_hwpt = attach->hwpt;
 
+	rc = xa_insert(&attach->device_array, idev->obj.id, XA_ZERO_ENTRY,
+		       GFP_KERNEL);
+	if (rc) {
+		WARN_ON(rc == -EBUSY && !old_hwpt);
+		goto err_free_attach;
+	}
+
 	if (old_hwpt && old_hwpt != hwpt) {
 		rc = -EINVAL;
-		goto err_free_attach;
+		goto err_release_devid;
 	}
 
 	if (attach_resv) {
 		rc = iommufd_device_attach_reserved_iova(idev, hwpt_paging);
 		if (rc)
-			goto err_free_attach;
+			goto err_release_devid;
 	}
 
 	/*
@@ -541,12 +557,15 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 		igroup->attach = attach;
 	}
 	refcount_inc(&hwpt->obj.users);
-	list_add_tail(&idev->group_item, &attach->device_list);
+	WARN_ON(xa_is_err(xa_store(&attach->device_array, idev->obj.id,
+				   idev, GFP_KERNEL)));
 	mutex_unlock(&igroup->lock);
 	return 0;
 err_unresv:
 	if (attach_resv)
 		iopt_remove_reserved_iova(&hwpt_paging->ioas->iopt, idev->dev);
+err_release_devid:
+	xa_release(&attach->device_array, idev->obj.id);
 err_free_attach:
 	if (iommufd_group_first_attach(igroup, pasid))
 		kfree(attach);
@@ -568,8 +587,8 @@ iommufd_hw_pagetable_detach(struct iommufd_device *idev, ioasid_t pasid)
 	hwpt = attach->hwpt;
 	hwpt_paging = find_hwpt_paging(hwpt);
 
-	list_del(&idev->group_item);
-	if (list_empty(&attach->device_list)) {
+	xa_erase(&attach->device_array, idev->obj.id);
+	if (xa_empty(&attach->device_array)) {
 		iommufd_hwpt_detach_device(hwpt, idev, pasid);
 		igroup->attach = NULL;
 		kfree(attach);
@@ -599,10 +618,11 @@ iommufd_group_remove_reserved_iova(struct iommufd_group *igroup,
 				   struct iommufd_hwpt_paging *hwpt_paging)
 {
 	struct iommufd_device *cur;
+	unsigned long index;
 
 	lockdep_assert_held(&igroup->lock);
 
-	list_for_each_entry(cur, &igroup->attach->device_list, group_item)
+	xa_for_each(&igroup->attach->device_array, index, cur)
 		iopt_remove_reserved_iova(&hwpt_paging->ioas->iopt, cur->dev);
 }
 
@@ -612,14 +632,14 @@ iommufd_group_do_replace_reserved_iova(struct iommufd_group *igroup,
 {
 	struct iommufd_hwpt_paging *old_hwpt_paging;
 	struct iommufd_device *cur;
+	unsigned long index;
 	int rc;
 
 	lockdep_assert_held(&igroup->lock);
 
 	old_hwpt_paging = find_hwpt_paging(igroup->attach->hwpt);
 	if (!old_hwpt_paging || hwpt_paging->ioas != old_hwpt_paging->ioas) {
-		list_for_each_entry(cur,
-				    &igroup->attach->device_list, group_item) {
+		xa_for_each(&igroup->attach->device_array, index, cur) {
 			rc = iopt_table_enforce_dev_resv_regions(
 				&hwpt_paging->ioas->iopt, cur->dev, NULL);
 			if (rc)
@@ -660,7 +680,7 @@ iommufd_device_do_replace(struct iommufd_device *idev, ioasid_t pasid,
 
 	old_hwpt = attach->hwpt;
 
-	WARN_ON(!old_hwpt || list_empty(&attach->device_list));
+	WARN_ON(!old_hwpt || xa_empty(&attach->device_array));
 
 	if (!iommufd_device_is_attached(idev)) {
 		rc = -EINVAL;
@@ -689,9 +709,9 @@ iommufd_device_do_replace(struct iommufd_device *idev, ioasid_t pasid,
 
 	attach->hwpt = hwpt;
 
-	num_devices = list_count_nodes(&attach->device_list);
+	num_devices = iommufd_group_device_num(igroup);
 	/*
-	 * Move the refcounts held by the device_list to the new hwpt. Retain a
+	 * Move the refcounts held by the device_array to the new hwpt. Retain a
 	 * refcount for this thread as the caller will free it.
 	 */
 	refcount_add(num_devices, &hwpt->obj.users);
