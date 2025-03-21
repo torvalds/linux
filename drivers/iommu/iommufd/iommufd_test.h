@@ -49,6 +49,7 @@ enum {
 enum {
 	MOCK_FLAGS_DEVICE_NO_DIRTY = 1 << 0,
 	MOCK_FLAGS_DEVICE_HUGE_IOVA = 1 << 1,
+	MOCK_FLAGS_DEVICE_PASID = 1 << 2,
 };
 
 enum {
@@ -153,6 +154,9 @@ struct iommu_test_cmd {
 	__u32 last;
 };
 #define IOMMU_TEST_CMD _IO(IOMMUFD_TYPE, IOMMUFD_CMD_BASE + 32)
+
+/* Mock device/iommu PASID width */
+#define MOCK_PASID_WIDTH 20
 
 /* Mock structs for IOMMU_DEVICE_GET_HW_INFO ioctl */
 #define IOMMU_HW_INFO_TYPE_SELFTEST	0xfeedbeef
