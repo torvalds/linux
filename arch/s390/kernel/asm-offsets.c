@@ -5,8 +5,6 @@
  * and format the required data.
  */
 
-#define ASM_OFFSETS_C
-
 #include <linux/kbuild.h>
 #include <linux/sched.h>
 #include <linux/purgatory.h>
