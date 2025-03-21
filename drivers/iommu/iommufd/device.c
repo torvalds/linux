@@ -428,9 +428,12 @@ static int iommufd_hwpt_attach_device(struct iommufd_hw_pagetable *hwpt,
 	}
 
 	handle->idev = idev;
-	WARN_ON(pasid != IOMMU_NO_PASID);
-	rc = iommu_attach_group_handle(hwpt->domain, idev->igroup->group,
-				       &handle->handle);
+	if (pasid == IOMMU_NO_PASID)
+		rc = iommu_attach_group_handle(hwpt->domain, idev->igroup->group,
+					       &handle->handle);
+	else
+		rc = iommu_attach_device_pasid(hwpt->domain, idev->dev, pasid,
+					       &handle->handle);
 	if (rc)
 		goto out_disable_iopf;
 
@@ -464,10 +467,12 @@ static void iommufd_hwpt_detach_device(struct iommufd_hw_pagetable *hwpt,
 {
 	struct iommufd_attach_handle *handle;
 
-	WARN_ON(pasid != IOMMU_NO_PASID);
-
 	handle = iommufd_device_get_attach_handle(idev, pasid);
-	iommu_detach_group_handle(hwpt->domain, idev->igroup->group);
+	if (pasid == IOMMU_NO_PASID)
+		iommu_detach_group_handle(hwpt->domain, idev->igroup->group);
+	else
+		iommu_detach_device_pasid(hwpt->domain, idev->dev, pasid);
+
 	if (hwpt->fault) {
 		iommufd_auto_response_faults(hwpt, handle);
 		iommufd_fault_iopf_disable(idev);
@@ -482,8 +487,6 @@ static int iommufd_hwpt_replace_device(struct iommufd_device *idev,
 {
 	struct iommufd_attach_handle *handle, *old_handle;
 	int rc;
-
-	WARN_ON(pasid != IOMMU_NO_PASID);
 
 	rc = iommufd_hwpt_pasid_compat(hwpt, idev, pasid);
 	if (rc)
@@ -502,8 +505,12 @@ static int iommufd_hwpt_replace_device(struct iommufd_device *idev,
 	}
 
 	handle->idev = idev;
-	rc = iommu_replace_group_handle(idev->igroup->group, hwpt->domain,
-					&handle->handle);
+	if (pasid == IOMMU_NO_PASID)
+		rc = iommu_replace_group_handle(idev->igroup->group,
+						hwpt->domain, &handle->handle);
+	else
+		rc = iommu_replace_device_pasid(hwpt->domain, idev->dev,
+						pasid, &handle->handle);
 	if (rc)
 		goto out_disable_iopf;
 
@@ -904,22 +911,25 @@ out_put_pt_obj:
 }
 
 /**
- * iommufd_device_attach - Connect a device to an iommu_domain
+ * iommufd_device_attach - Connect a device/pasid to an iommu_domain
  * @idev: device to attach
+ * @pasid: pasid to attach
  * @pt_id: Input a IOMMUFD_OBJ_IOAS, or IOMMUFD_OBJ_HWPT_PAGING
  *         Output the IOMMUFD_OBJ_HWPT_PAGING ID
  *
- * This connects the device to an iommu_domain, either automatically or manually
- * selected. Once this completes the device could do DMA.
+ * This connects the device/pasid to an iommu_domain, either automatically
+ * or manually selected. Once this completes the device could do DMA with
+ * @pasid. @pasid is IOMMU_NO_PASID if this attach is for no pasid usage.
  *
  * The caller should return the resulting pt_id back to userspace.
  * This function is undone by calling iommufd_device_detach().
  */
-int iommufd_device_attach(struct iommufd_device *idev, u32 *pt_id)
+int iommufd_device_attach(struct iommufd_device *idev, ioasid_t pasid,
+			  u32 *pt_id)
 {
 	int rc;
 
-	rc = iommufd_device_change_pt(idev, IOMMU_NO_PASID, pt_id,
+	rc = iommufd_device_change_pt(idev, pasid, pt_id,
 				      &iommufd_device_do_attach);
 	if (rc)
 		return rc;
@@ -934,8 +944,9 @@ int iommufd_device_attach(struct iommufd_device *idev, u32 *pt_id)
 EXPORT_SYMBOL_NS_GPL(iommufd_device_attach, "IOMMUFD");
 
 /**
- * iommufd_device_replace - Change the device's iommu_domain
+ * iommufd_device_replace - Change the device/pasid's iommu_domain
  * @idev: device to change
+ * @pasid: pasid to change
  * @pt_id: Input a IOMMUFD_OBJ_IOAS, or IOMMUFD_OBJ_HWPT_PAGING
  *         Output the IOMMUFD_OBJ_HWPT_PAGING ID
  *
@@ -946,27 +957,31 @@ EXPORT_SYMBOL_NS_GPL(iommufd_device_attach, "IOMMUFD");
  *
  * If it fails then no change is made to the attachment. The iommu driver may
  * implement this so there is no disruption in translation. This can only be
- * called if iommufd_device_attach() has already succeeded.
+ * called if iommufd_device_attach() has already succeeded. @pasid is
+ * IOMMU_NO_PASID for no pasid usage.
  */
-int iommufd_device_replace(struct iommufd_device *idev, u32 *pt_id)
+int iommufd_device_replace(struct iommufd_device *idev, ioasid_t pasid,
+			   u32 *pt_id)
 {
-	return iommufd_device_change_pt(idev, IOMMU_NO_PASID, pt_id,
+	return iommufd_device_change_pt(idev, pasid, pt_id,
 					&iommufd_device_do_replace);
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_device_replace, "IOMMUFD");
 
 /**
- * iommufd_device_detach - Disconnect a device to an iommu_domain
+ * iommufd_device_detach - Disconnect a device/device to an iommu_domain
  * @idev: device to detach
+ * @pasid: pasid to detach
  *
  * Undo iommufd_device_attach(). This disconnects the idev from the previously
  * attached pt_id. The device returns back to a blocked DMA translation.
+ * @pasid is IOMMU_NO_PASID for no pasid usage.
  */
-void iommufd_device_detach(struct iommufd_device *idev)
+void iommufd_device_detach(struct iommufd_device *idev, ioasid_t pasid)
 {
 	struct iommufd_hw_pagetable *hwpt;
 
-	hwpt = iommufd_hw_pagetable_detach(idev, IOMMU_NO_PASID);
+	hwpt = iommufd_hw_pagetable_detach(idev, pasid);
 	iommufd_hw_pagetable_put(idev->ictx, hwpt);
 	refcount_dec(&idev->obj.users);
 }

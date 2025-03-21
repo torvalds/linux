@@ -8,6 +8,7 @@
 
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/iommu.h>
 #include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/xarray.h>
@@ -54,9 +55,11 @@ struct iommufd_device *iommufd_device_bind(struct iommufd_ctx *ictx,
 					   struct device *dev, u32 *id);
 void iommufd_device_unbind(struct iommufd_device *idev);
 
-int iommufd_device_attach(struct iommufd_device *idev, u32 *pt_id);
-int iommufd_device_replace(struct iommufd_device *idev, u32 *pt_id);
-void iommufd_device_detach(struct iommufd_device *idev);
+int iommufd_device_attach(struct iommufd_device *idev, ioasid_t pasid,
+			  u32 *pt_id);
+int iommufd_device_replace(struct iommufd_device *idev, ioasid_t pasid,
+			   u32 *pt_id);
+void iommufd_device_detach(struct iommufd_device *idev, ioasid_t pasid);
 
 struct iommufd_ctx *iommufd_device_to_ictx(struct iommufd_device *idev);
 u32 iommufd_device_to_id(struct iommufd_device *idev);
