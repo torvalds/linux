@@ -695,54 +695,44 @@ void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 
 void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 {
-	struct drm_i915_private *i915 = to_i915(intel_dsi->base.base.dev);
+	struct intel_display *display = to_intel_display(&intel_dsi->base);
+	struct drm_printer p = drm_dbg_printer(display->drm, DRM_UT_KMS,
+					       "DSI parameters:");
 
-	drm_dbg_kms(&i915->drm, "Pclk %d\n", intel_dsi->pclk);
-	drm_dbg_kms(&i915->drm, "Pixel overlap %d\n",
-		    intel_dsi->pixel_overlap);
-	drm_dbg_kms(&i915->drm, "Lane count %d\n", intel_dsi->lane_count);
-	drm_dbg_kms(&i915->drm, "DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
-	drm_dbg_kms(&i915->drm, "Video mode format %s\n",
-		    intel_dsi->video_mode == NON_BURST_SYNC_PULSE ?
-		    "non-burst with sync pulse" :
-		    intel_dsi->video_mode == NON_BURST_SYNC_EVENTS ?
-		    "non-burst with sync events" :
-		    intel_dsi->video_mode == BURST_MODE ?
-		    "burst" : "<unknown>");
-	drm_dbg_kms(&i915->drm, "Burst mode ratio %d\n",
-		    intel_dsi->burst_mode_ratio);
-	drm_dbg_kms(&i915->drm, "Reset timer %d\n", intel_dsi->rst_timer_val);
-	drm_dbg_kms(&i915->drm, "Eot %s\n",
-		    str_enabled_disabled(intel_dsi->eotp_pkt));
-	drm_dbg_kms(&i915->drm, "Clockstop %s\n",
-		    str_enabled_disabled(!intel_dsi->clock_stop));
-	drm_dbg_kms(&i915->drm, "Mode %s\n",
-		    intel_dsi->operation_mode ? "command" : "video");
+	drm_printf(&p, "Pclk %d\n", intel_dsi->pclk);
+	drm_printf(&p, "Pixel overlap %d\n", intel_dsi->pixel_overlap);
+	drm_printf(&p, "Lane count %d\n", intel_dsi->lane_count);
+	drm_printf(&p, "DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
+	drm_printf(&p, "Video mode format %s\n",
+		   intel_dsi->video_mode == NON_BURST_SYNC_PULSE ?
+		   "non-burst with sync pulse" :
+		   intel_dsi->video_mode == NON_BURST_SYNC_EVENTS ?
+		   "non-burst with sync events" :
+		   intel_dsi->video_mode == BURST_MODE ?
+		   "burst" : "<unknown>");
+	drm_printf(&p, "Burst mode ratio %d\n", intel_dsi->burst_mode_ratio);
+	drm_printf(&p, "Reset timer %d\n", intel_dsi->rst_timer_val);
+	drm_printf(&p, "Eot %s\n", str_enabled_disabled(intel_dsi->eotp_pkt));
+	drm_printf(&p, "Clockstop %s\n", str_enabled_disabled(!intel_dsi->clock_stop));
+	drm_printf(&p, "Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
 	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
-		drm_dbg_kms(&i915->drm,
-			    "Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
+		drm_printf(&p, "Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
 	else if (intel_dsi->dual_link == DSI_DUAL_LINK_PIXEL_ALT)
-		drm_dbg_kms(&i915->drm,
-			    "Dual link: DSI_DUAL_LINK_PIXEL_ALT\n");
+		drm_printf(&p, "Dual link: DSI_DUAL_LINK_PIXEL_ALT\n");
 	else
-		drm_dbg_kms(&i915->drm, "Dual link: NONE\n");
-	drm_dbg_kms(&i915->drm, "Pixel Format %d\n", intel_dsi->pixel_format);
-	drm_dbg_kms(&i915->drm, "TLPX %d\n", intel_dsi->escape_clk_div);
-	drm_dbg_kms(&i915->drm, "LP RX Timeout 0x%x\n",
-		    intel_dsi->lp_rx_timeout);
-	drm_dbg_kms(&i915->drm, "Turnaround Timeout 0x%x\n",
-		    intel_dsi->turn_arnd_val);
-	drm_dbg_kms(&i915->drm, "Init Count 0x%x\n", intel_dsi->init_count);
-	drm_dbg_kms(&i915->drm, "HS to LP Count 0x%x\n",
-		    intel_dsi->hs_to_lp_count);
-	drm_dbg_kms(&i915->drm, "LP Byte Clock %d\n", intel_dsi->lp_byte_clk);
-	drm_dbg_kms(&i915->drm, "DBI BW Timer 0x%x\n", intel_dsi->bw_timer);
-	drm_dbg_kms(&i915->drm, "LP to HS Clock Count 0x%x\n",
-		    intel_dsi->clk_lp_to_hs_count);
-	drm_dbg_kms(&i915->drm, "HS to LP Clock Count 0x%x\n",
-		    intel_dsi->clk_hs_to_lp_count);
-	drm_dbg_kms(&i915->drm, "BTA %s\n",
-		    str_enabled_disabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
+		drm_printf(&p, "Dual link: NONE\n");
+	drm_printf(&p, "Pixel Format %d\n", intel_dsi->pixel_format);
+	drm_printf(&p, "TLPX %d\n", intel_dsi->escape_clk_div);
+	drm_printf(&p, "LP RX Timeout 0x%x\n", intel_dsi->lp_rx_timeout);
+	drm_printf(&p, "Turnaround Timeout 0x%x\n", intel_dsi->turn_arnd_val);
+	drm_printf(&p, "Init Count 0x%x\n", intel_dsi->init_count);
+	drm_printf(&p, "HS to LP Count 0x%x\n", intel_dsi->hs_to_lp_count);
+	drm_printf(&p, "LP Byte Clock %d\n", intel_dsi->lp_byte_clk);
+	drm_printf(&p, "DBI BW Timer 0x%x\n", intel_dsi->bw_timer);
+	drm_printf(&p, "LP to HS Clock Count 0x%x\n", intel_dsi->clk_lp_to_hs_count);
+	drm_printf(&p, "HS to LP Clock Count 0x%x\n", intel_dsi->clk_hs_to_lp_count);
+	drm_printf(&p, "BTA %s\n",
+		   str_enabled_disabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
 }
 
 static enum mipi_dsi_pixel_format vbt_to_dsi_pixel_format(unsigned int format)
