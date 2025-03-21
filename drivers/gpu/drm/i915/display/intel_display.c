@@ -7806,7 +7806,7 @@ void intel_setup_outputs(struct intel_display *display)
 			intel_lvds_init(dev_priv);
 
 		intel_crt_init(display);
-		intel_dvo_init(dev_priv);
+		intel_dvo_init(display);
 	}
 
 	for_each_intel_encoder(display->drm, encoder) {
