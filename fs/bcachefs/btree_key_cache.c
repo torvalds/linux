@@ -287,6 +287,19 @@ err:
 	return ret;
 }
 
+static noinline_for_stack void do_trace_key_cache_fill(struct btree_trans *trans,
+						       struct btree_path *ck_path,
+						       struct bkey_s_c k)
+{
+	struct printbuf buf = PRINTBUF;
+
+	bch2_bpos_to_text(&buf, ck_path->pos);
+	prt_char(&buf, ' ');
+	bch2_bkey_val_to_text(&buf, trans->c, k);
+	trace_key_cache_fill(trans, buf.buf);
+	printbuf_exit(&buf);
+}
+
 static noinline int btree_key_cache_fill(struct btree_trans *trans,
 					 struct btree_path *ck_path,
 					 unsigned flags)
@@ -320,15 +333,8 @@ static noinline int btree_key_cache_fill(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (trace_key_cache_fill_enabled()) {
-		struct printbuf buf = PRINTBUF;
-
-		bch2_bpos_to_text(&buf, ck_path->pos);
-		prt_char(&buf, ' ');
-		bch2_bkey_val_to_text(&buf, trans->c, k);
-		trace_key_cache_fill(trans, buf.buf);
-		printbuf_exit(&buf);
-	}
+	if (trace_key_cache_fill_enabled())
+		do_trace_key_cache_fill(trans, ck_path, k);
 out:
 	/* We're not likely to need this iterator again: */
 	bch2_set_btree_iter_dontneed(&iter);
