@@ -19,7 +19,12 @@ allOf:
 
 properties:
   compatible:
-    const: qcom,sm8550-iris
+    oneOf:
+      - items:
+          - enum:
+              - qcom,sa8775p-iris
+          - const: qcom,sm8550-iris
+      - const: qcom,sm8550-iris
 
   power-domains:
     maxItems: 4
