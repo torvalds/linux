@@ -22,7 +22,8 @@
 
 #include <linux/turris-signing-key.h>
 
-static int turris_signing_key_instantiate(struct key *, struct key_preparsed_payload *)
+static int turris_signing_key_instantiate(struct key *key,
+					  struct key_preparsed_payload *payload)
 {
 	return 0;
 }
