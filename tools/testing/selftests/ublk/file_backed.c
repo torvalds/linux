@@ -123,10 +123,7 @@ static int loop_queue_tgt_io(struct ublk_queue *q, int tag)
 		sqe = ublk_queue_alloc_sqe(q);
 		if (!sqe)
 			return -ENOMEM;
-		io_uring_prep_sync_file_range(sqe, 1 /*fds[1]*/,
-				iod->nr_sectors << 9,
-				iod->start_sector << 9,
-				IORING_FSYNC_DATASYNC);
+		io_uring_prep_fsync(sqe, 1 /*fds[1]*/, IORING_FSYNC_DATASYNC);
 		io_uring_sqe_set_flags(sqe, IOSQE_FIXED_FILE);
 		q->io_inflight++;
 		sqe->user_data = build_user_data(tag, ublk_op, UBLK_IO_TGT_NORMAL, 1);
@@ -187,6 +184,7 @@ static int ublk_loop_tgt_init(struct ublk_dev *dev)
 	struct ublk_params p = {
 		.types = UBLK_PARAM_TYPE_BASIC | UBLK_PARAM_TYPE_DMA_ALIGN,
 		.basic = {
+			.attrs = UBLK_ATTR_VOLATILE_CACHE,
 			.logical_bs_shift	= 9,
 			.physical_bs_shift	= 12,
 			.io_opt_shift	= 12,
