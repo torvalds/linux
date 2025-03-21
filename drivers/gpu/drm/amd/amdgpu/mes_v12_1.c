@@ -707,7 +707,7 @@ static int mes_v12_1_set_hw_resources(struct amdgpu_mes *mes,
 	if (amdgpu_mes_log_enable) {
 		mes_set_hw_res_pkt.enable_mes_event_int_logging = 1;
 		mes_set_hw_res_pkt.event_intr_history_gpu_mc_ptr =
-			mes->event_log_gpu_addr + pipe * AMDGPU_MES_LOG_BUFFER_SIZE;
+			mes->event_log_gpu_addr + MES_PIPE_INST(xcc_id, pipe) * AMDGPU_MES_LOG_BUFFER_SIZE;
 	}
 
 	if (adev->enforce_isolation[0] == AMDGPU_ENFORCE_ISOLATION_ENABLE)
