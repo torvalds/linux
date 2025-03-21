@@ -27,7 +27,7 @@ static void iommufd_group_release(struct kref *kref)
 	struct iommufd_group *igroup =
 		container_of(kref, struct iommufd_group, ref);
 
-	WARN_ON(igroup->attach);
+	WARN_ON(!xa_empty(&igroup->pasid_attach));
 
 	xa_cmpxchg(&igroup->ictx->groups, iommu_group_id(igroup->group), igroup,
 		   NULL, GFP_KERNEL);
@@ -94,6 +94,7 @@ static struct iommufd_group *iommufd_get_group(struct iommufd_ctx *ictx,
 
 	kref_init(&new_igroup->ref);
 	mutex_init(&new_igroup->lock);
+	xa_init(&new_igroup->pasid_attach);
 	new_igroup->sw_msi_start = PHYS_ADDR_MAX;
 	/* group reference moves into new_igroup */
 	new_igroup->group = group;
@@ -297,16 +298,19 @@ u32 iommufd_device_to_id(struct iommufd_device *idev)
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_device_to_id, "IOMMUFD");
 
-static unsigned int iommufd_group_device_num(struct iommufd_group *igroup)
+static unsigned int iommufd_group_device_num(struct iommufd_group *igroup,
+					     ioasid_t pasid)
 {
+	struct iommufd_attach *attach;
 	struct iommufd_device *idev;
 	unsigned int count = 0;
 	unsigned long index;
 
 	lockdep_assert_held(&igroup->lock);
 
-	if (igroup->attach)
-		xa_for_each(&igroup->attach->device_array, index, idev)
+	attach = xa_load(&igroup->pasid_attach, pasid);
+	if (attach)
+		xa_for_each(&attach->device_array, index, idev)
 			count++;
 	return count;
 }
@@ -351,7 +355,7 @@ static bool
 iommufd_group_first_attach(struct iommufd_group *igroup, ioasid_t pasid)
 {
 	lockdep_assert_held(&igroup->lock);
-	return !igroup->attach;
+	return !xa_load(&igroup->pasid_attach, pasid);
 }
 
 static int
@@ -382,10 +386,13 @@ iommufd_device_attach_reserved_iova(struct iommufd_device *idev,
 
 /* The device attach/detach/replace helpers for attach_handle */
 
-/* Check if idev is attached to igroup->hwpt */
-static bool iommufd_device_is_attached(struct iommufd_device *idev)
+static bool iommufd_device_is_attached(struct iommufd_device *idev,
+				       ioasid_t pasid)
 {
-	return xa_load(&idev->igroup->attach->device_array, idev->obj.id);
+	struct iommufd_attach *attach;
+
+	attach = xa_load(&idev->igroup->pasid_attach, pasid);
+	return xa_load(&attach->device_array, idev->obj.id);
 }
 
 static int iommufd_hwpt_attach_device(struct iommufd_hw_pagetable *hwpt,
@@ -512,12 +519,18 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 
 	mutex_lock(&igroup->lock);
 
-	attach = igroup->attach;
+	attach = xa_cmpxchg(&igroup->pasid_attach, pasid, NULL,
+			    XA_ZERO_ENTRY, GFP_KERNEL);
+	if (xa_is_err(attach)) {
+		rc = xa_err(attach);
+		goto err_unlock;
+	}
+
 	if (!attach) {
 		attach = kzalloc(sizeof(*attach), GFP_KERNEL);
 		if (!attach) {
 			rc = -ENOMEM;
-			goto err_unlock;
+			goto err_release_pasid;
 		}
 		xa_init(&attach->device_array);
 	}
@@ -554,7 +567,8 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 		if (rc)
 			goto err_unresv;
 		attach->hwpt = hwpt;
-		igroup->attach = attach;
+		WARN_ON(xa_is_err(xa_store(&igroup->pasid_attach, pasid, attach,
+					   GFP_KERNEL)));
 	}
 	refcount_inc(&hwpt->obj.users);
 	WARN_ON(xa_is_err(xa_store(&attach->device_array, idev->obj.id,
@@ -569,6 +583,9 @@ err_release_devid:
 err_free_attach:
 	if (iommufd_group_first_attach(igroup, pasid))
 		kfree(attach);
+err_release_pasid:
+	if (iommufd_group_first_attach(igroup, pasid))
+		xa_release(&igroup->pasid_attach, pasid);
 err_unlock:
 	mutex_unlock(&igroup->lock);
 	return rc;
@@ -583,14 +600,14 @@ iommufd_hw_pagetable_detach(struct iommufd_device *idev, ioasid_t pasid)
 	struct iommufd_attach *attach;
 
 	mutex_lock(&igroup->lock);
-	attach = igroup->attach;
+	attach = xa_load(&igroup->pasid_attach, pasid);
 	hwpt = attach->hwpt;
 	hwpt_paging = find_hwpt_paging(hwpt);
 
 	xa_erase(&attach->device_array, idev->obj.id);
 	if (xa_empty(&attach->device_array)) {
 		iommufd_hwpt_detach_device(hwpt, idev, pasid);
-		igroup->attach = NULL;
+		xa_erase(&igroup->pasid_attach, pasid);
 		kfree(attach);
 	}
 	if (hwpt_paging && pasid == IOMMU_NO_PASID)
@@ -617,12 +634,14 @@ static void
 iommufd_group_remove_reserved_iova(struct iommufd_group *igroup,
 				   struct iommufd_hwpt_paging *hwpt_paging)
 {
+	struct iommufd_attach *attach;
 	struct iommufd_device *cur;
 	unsigned long index;
 
 	lockdep_assert_held(&igroup->lock);
 
-	xa_for_each(&igroup->attach->device_array, index, cur)
+	attach = xa_load(&igroup->pasid_attach, IOMMU_NO_PASID);
+	xa_for_each(&attach->device_array, index, cur)
 		iopt_remove_reserved_iova(&hwpt_paging->ioas->iopt, cur->dev);
 }
 
@@ -631,15 +650,17 @@ iommufd_group_do_replace_reserved_iova(struct iommufd_group *igroup,
 				       struct iommufd_hwpt_paging *hwpt_paging)
 {
 	struct iommufd_hwpt_paging *old_hwpt_paging;
+	struct iommufd_attach *attach;
 	struct iommufd_device *cur;
 	unsigned long index;
 	int rc;
 
 	lockdep_assert_held(&igroup->lock);
 
-	old_hwpt_paging = find_hwpt_paging(igroup->attach->hwpt);
+	attach = xa_load(&igroup->pasid_attach, IOMMU_NO_PASID);
+	old_hwpt_paging = find_hwpt_paging(attach->hwpt);
 	if (!old_hwpt_paging || hwpt_paging->ioas != old_hwpt_paging->ioas) {
-		xa_for_each(&igroup->attach->device_array, index, cur) {
+		xa_for_each(&attach->device_array, index, cur) {
 			rc = iopt_table_enforce_dev_resv_regions(
 				&hwpt_paging->ioas->iopt, cur->dev, NULL);
 			if (rc)
@@ -672,7 +693,7 @@ iommufd_device_do_replace(struct iommufd_device *idev, ioasid_t pasid,
 
 	mutex_lock(&igroup->lock);
 
-	attach = igroup->attach;
+	attach = xa_load(&igroup->pasid_attach, pasid);
 	if (!attach) {
 		rc = -EINVAL;
 		goto err_unlock;
@@ -682,7 +703,7 @@ iommufd_device_do_replace(struct iommufd_device *idev, ioasid_t pasid,
 
 	WARN_ON(!old_hwpt || xa_empty(&attach->device_array));
 
-	if (!iommufd_device_is_attached(idev)) {
+	if (!iommufd_device_is_attached(idev, pasid)) {
 		rc = -EINVAL;
 		goto err_unlock;
 	}
@@ -709,7 +730,7 @@ iommufd_device_do_replace(struct iommufd_device *idev, ioasid_t pasid,
 
 	attach->hwpt = hwpt;
 
-	num_devices = iommufd_group_device_num(igroup);
+	num_devices = iommufd_group_device_num(igroup, pasid);
 	/*
 	 * Move the refcounts held by the device_array to the new hwpt. Retain a
 	 * refcount for this thread as the caller will free it.
