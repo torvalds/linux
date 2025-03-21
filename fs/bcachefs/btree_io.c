@@ -1909,7 +1909,8 @@ static void btree_node_scrub_work(struct work_struct *work)
 					  scrub->key.k->k.p, 0, scrub->level - 1, 0);
 
 		struct btree *b;
-		int ret = lockrestart_do(trans, PTR_ERR_OR_ZERO(b = bch2_btree_iter_peek_node(&iter)));
+		int ret = lockrestart_do(trans,
+			PTR_ERR_OR_ZERO(b = bch2_btree_iter_peek_node(trans, &iter)));
 		if (ret)
 			goto err;
 

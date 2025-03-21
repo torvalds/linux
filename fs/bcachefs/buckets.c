@@ -365,7 +365,7 @@ found:
 		struct btree_iter iter;
 		bch2_trans_node_iter_init(trans, &iter, btree, new->k.p, 0, level,
 					  BTREE_ITER_intent|BTREE_ITER_all_snapshots);
-		ret =   bch2_btree_iter_traverse(&iter) ?:
+		ret =   bch2_btree_iter_traverse(trans, &iter) ?:
 			bch2_trans_update(trans, &iter, new,
 					  BTREE_UPDATE_internal_snapshot_node|
 					  BTREE_TRIGGER_norun);

@@ -130,7 +130,7 @@ static int bch2_dev_metadata_drop(struct bch_fs *c,
 retry:
 		ret = 0;
 		while (bch2_trans_begin(trans),
-		       (b = bch2_btree_iter_peek_node(&iter)) &&
+		       (b = bch2_btree_iter_peek_node(trans, &iter)) &&
 		       !(ret = PTR_ERR_OR_ZERO(b))) {
 			bch2_progress_update_iter(trans, progress, &iter, "dropping metadata");
 
@@ -154,7 +154,7 @@ retry:
 			if (ret)
 				break;
 next:
-			bch2_btree_iter_next_node(&iter);
+			bch2_btree_iter_next_node(trans, &iter);
 		}
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;

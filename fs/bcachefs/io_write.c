@@ -168,9 +168,9 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 	*i_sectors_delta	= 0;
 	*disk_sectors_delta	= 0;
 
-	bch2_trans_copy_iter(&iter, extent_iter);
+	bch2_trans_copy_iter(trans, &iter, extent_iter);
 
-	for_each_btree_key_max_continue_norestart(iter,
+	for_each_btree_key_max_continue_norestart(trans, iter,
 				new->k.p, BTREE_ITER_slots, old, ret) {
 		s64 sectors = min(new->k.p.offset, old.k->p.offset) -
 			max(bkey_start_offset(&new->k),
@@ -292,7 +292,7 @@ int bch2_extent_update(struct btree_trans *trans,
 	 * path already traversed at iter->pos because
 	 * bch2_trans_extent_update() will use it to attempt extent merging
 	 */
-	ret = __bch2_btree_iter_traverse(iter);
+	ret = __bch2_btree_iter_traverse(trans, iter);
 	if (ret)
 		return ret;
 
@@ -337,7 +337,7 @@ int bch2_extent_update(struct btree_trans *trans,
 
 	if (i_sectors_delta_total)
 		*i_sectors_delta_total += i_sectors_delta;
-	bch2_btree_iter_set_pos(iter, next_pos);
+	bch2_btree_iter_set_pos(trans, iter, next_pos);
 	return 0;
 }
 
@@ -1305,7 +1305,7 @@ retry:
 		if (ret)
 			break;
 
-		k = bch2_btree_iter_peek_slot(&iter);
+		k = bch2_btree_iter_peek_slot(trans, &iter);
 		ret = bkey_err(k);
 		if (ret)
 			break;
@@ -1389,7 +1389,7 @@ retry:
 		bch2_keylist_push(&op->insert_keys);
 		if (op->flags & BCH_WRITE_submitted)
 			break;
-		bch2_btree_iter_advance(&iter);
+		bch2_btree_iter_advance(trans, &iter);
 	}
 out:
 	bch2_trans_iter_exit(trans, &iter);

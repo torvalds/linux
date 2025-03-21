@@ -909,7 +909,7 @@ static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 
 		prt_printf(&buf, "memory gen: %u", gen);
 
-		ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
+		ret = lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_slot(trans, &iter)));
 		if (!ret) {
 			prt_newline(&buf);
 			bch2_bkey_val_to_text(&buf, c, k);
@@ -1285,12 +1285,12 @@ int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 		if (ret)
 			goto err;
 
-		bch2_btree_iter_set_snapshot(&iter, snapshot);
+		bch2_btree_iter_set_snapshot(trans, &iter, snapshot);
 
-		bch2_btree_iter_set_pos(&iter,
+		bch2_btree_iter_set_pos(trans, &iter,
 				POS(inum.inum, bvec_iter.bi_sector));
 
-		k = bch2_btree_iter_peek_slot(&iter);
+		k = bch2_btree_iter_peek_slot(trans, &iter);
 		ret = bkey_err(k);
 		if (ret)
 			goto err;
