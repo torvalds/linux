@@ -7815,7 +7815,7 @@ void intel_setup_outputs(struct intel_display *display)
 			intel_encoder_possible_clones(encoder);
 	}
 
-	intel_init_pch_refclk(dev_priv);
+	intel_init_pch_refclk(display);
 
 	drm_helper_move_panel_connectors_to_head(display->drm);
 }

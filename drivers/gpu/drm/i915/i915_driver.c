@@ -1211,7 +1211,7 @@ static int i915_drm_resume(struct drm_device *dev)
 
 	intel_pps_unlock_regs_wa(display);
 
-	intel_init_pch_refclk(dev_priv);
+	intel_init_pch_refclk(display);
 
 	/*
 	 * Interrupts have to be enabled before any batches are run. If not the

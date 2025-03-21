@@ -1373,18 +1373,18 @@ static void hsw_enable_pc8(struct intel_display *display)
 		intel_de_rmw(display, SOUTH_DSPCLK_GATE_D,
 			     PCH_LP_PARTITION_LEVEL_DISABLE, 0);
 
-	lpt_disable_clkout_dp(dev_priv);
+	lpt_disable_clkout_dp(display);
 	hsw_disable_lcpll(display, true, true);
 }
 
 static void hsw_disable_pc8(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	struct drm_i915_private __maybe_unused *dev_priv = to_i915(display->drm);
 
 	drm_dbg_kms(display->drm, "Disabling package C8+\n");
 
 	hsw_restore_lcpll(display);
-	intel_init_pch_refclk(dev_priv);
+	intel_init_pch_refclk(display);
 
 	/* Many display registers don't survive PC8+ */
 #ifdef I915 /* FIXME */

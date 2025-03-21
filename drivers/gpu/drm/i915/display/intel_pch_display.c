@@ -613,18 +613,16 @@ void lpt_pch_disable(struct intel_atomic_state *state,
 		     struct intel_crtc *crtc)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	lpt_disable_pch_transcoder(display);
 
-	lpt_disable_iclkip(dev_priv);
+	lpt_disable_iclkip(display);
 }
 
 void lpt_pch_get_config(struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 tmp;
 
 	if ((intel_de_read(display, LPT_TRANSCONF) & TRANS_ENABLE) == 0)
@@ -639,7 +637,7 @@ void lpt_pch_get_config(struct intel_crtc_state *crtc_state)
 	intel_cpu_transcoder_get_m1_n1(crtc, crtc_state->cpu_transcoder,
 				       &crtc_state->fdi_m_n);
 
-	crtc_state->hw.adjusted_mode.crtc_clock = lpt_get_iclkip(dev_priv);
+	crtc_state->hw.adjusted_mode.crtc_clock = lpt_get_iclkip(display);
 }
 
 void intel_pch_sanitize(struct intel_display *display)

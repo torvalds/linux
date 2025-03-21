@@ -715,7 +715,6 @@ static void hsw_ddi_spll_enable(struct intel_display *display,
 static void hsw_ddi_wrpll_disable(struct intel_display *display,
 				  struct intel_shared_dpll *pll)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	const enum intel_dpll_id id = pll->info->id;
 
 	intel_de_rmw(display, WRPLL_CTL(id), WRPLL_PLL_ENABLE, 0);
@@ -726,13 +725,12 @@ static void hsw_ddi_wrpll_disable(struct intel_display *display,
 	 * that depend on it have been shut down.
 	 */
 	if (display->dpll.pch_ssc_use & BIT(id))
-		intel_init_pch_refclk(i915);
+		intel_init_pch_refclk(display);
 }
 
 static void hsw_ddi_spll_disable(struct intel_display *display,
 				 struct intel_shared_dpll *pll)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	enum intel_dpll_id id = pll->info->id;
 
 	intel_de_rmw(display, SPLL_CTL, SPLL_PLL_ENABLE, 0);
@@ -743,7 +741,7 @@ static void hsw_ddi_spll_disable(struct intel_display *display,
 	 * that depend on it have been shut down.
 	 */
 	if (display->dpll.pch_ssc_use & BIT(id))
-		intel_init_pch_refclk(i915);
+		intel_init_pch_refclk(display);
 }
 
 static bool hsw_ddi_wrpll_get_hw_state(struct intel_display *display,
