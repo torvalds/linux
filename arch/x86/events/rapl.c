@@ -730,6 +730,7 @@ static int __init init_rapl_pmus(struct rapl_pmus **rapl_pmus_ptr, int rapl_pmu_
 {
 	int nr_rapl_pmu = topology_max_packages();
 	struct rapl_pmus *rapl_pmus;
+	int ret;
 
 	/*
 	 * rapl_pmu_scope must be either PKG, DIE or CORE
@@ -761,7 +762,11 @@ static int __init init_rapl_pmus(struct rapl_pmus **rapl_pmus_ptr, int rapl_pmu_
 	rapl_pmus->pmu.module		= THIS_MODULE;
 	rapl_pmus->pmu.capabilities	= PERF_PMU_CAP_NO_EXCLUDE;
 
-	return init_rapl_pmu(rapl_pmus);
+	ret = init_rapl_pmu(rapl_pmus);
+	if (ret)
+		kfree(rapl_pmus);
+
+	return ret;
 }
 
 static struct rapl_model model_snb = {
