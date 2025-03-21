@@ -345,6 +345,7 @@ endif ## SND_SOC_SOF_HDA_GENERIC
 
 config SND_SOF_SOF_HDA_SDW_BPT
 	tristate
+	select SND_HDA_EXT_CORE
 	help
 	  This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level.
