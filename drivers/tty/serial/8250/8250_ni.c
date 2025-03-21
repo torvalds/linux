@@ -90,10 +90,10 @@ static int ni16550_disable_transceivers(struct uart_port *port)
 {
 	u8 pcr;
 
-	pcr = port->serial_in(port, NI16550_PCR_OFFSET);
+	pcr = serial_port_in(port, NI16550_PCR_OFFSET);
 	pcr &= ~NI16550_PCR_TXVR_ENABLE_BIT;
 	dev_dbg(port->dev, "disable transceivers: write pcr: 0x%02x\n", pcr);
-	port->serial_out(port, NI16550_PCR_OFFSET, pcr);
+	serial_port_out(port, NI16550_PCR_OFFSET, pcr);
 
 	return 0;
 }
@@ -105,7 +105,7 @@ static int ni16550_rs485_config(struct uart_port *port,
 	struct uart_8250_port *up = container_of(port, struct uart_8250_port, port);
 	u8 pcr;
 
-	pcr = serial_in(up, NI16550_PCR_OFFSET);
+	pcr = serial_port_in(port, NI16550_PCR_OFFSET);
 	pcr &= ~NI16550_PCR_WIRE_MODE_MASK;
 
 	if ((rs485->flags & SER_RS485_MODE_RS422) ||
@@ -120,7 +120,7 @@ static int ni16550_rs485_config(struct uart_port *port,
 	}
 
 	dev_dbg(port->dev, "config rs485: write pcr: 0x%02x, acr: %02x\n", pcr, up->acr);
-	serial_out(up, NI16550_PCR_OFFSET, pcr);
+	serial_port_out(port, NI16550_PCR_OFFSET, pcr);
 	serial_icr_write(up, UART_ACR, up->acr);
 
 	return 0;
