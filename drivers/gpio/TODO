@@ -86,15 +86,6 @@ Work items:
   CONFIG_OF_GPIO_MM_GPIOCHIP from the kernel.
 
 
-Get rid of <linux/gpio.h>
-
-This legacy header is a one stop shop for anything GPIO is closely tied
-to the global GPIO numberspace. The endgame of the above refactorings will
-be the removal of <linux/gpio.h> and from that point only the specialized
-headers under <linux/gpio/*.h> will be used. This requires all the above to
-be completed and is expected to take a long time.
-
-
 Collect drivers
 
 Collect GPIO drivers from arch/* and other places that should be placed
