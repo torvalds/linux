@@ -93,7 +93,7 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 				 pipe_name(pipe));
 
 	INTEL_DISPLAY_STATE_WARN(display,
-				 intel_lvds_port_enabled(dev_priv, PCH_LVDS, &port_pipe) && port_pipe == pipe,
+				 intel_lvds_port_enabled(display, PCH_LVDS, &port_pipe) && port_pipe == pipe,
 				 "PCH LVDS enabled on transcoder %c, should be disabled\n",
 				 pipe_name(pipe));
 

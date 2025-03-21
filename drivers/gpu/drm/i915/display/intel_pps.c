@@ -1855,7 +1855,7 @@ void assert_pps_unlocked(struct intel_display *display, enum pipe pipe)
 
 		switch (port_sel) {
 		case PANEL_PORT_SELECT_LVDS:
-			intel_lvds_port_enabled(dev_priv, PCH_LVDS, &panel_pipe);
+			intel_lvds_port_enabled(display, PCH_LVDS, &panel_pipe);
 			break;
 		case PANEL_PORT_SELECT_DPA:
 			g4x_dp_port_enabled(display, DP_A, PORT_A, &panel_pipe);
@@ -1883,7 +1883,7 @@ void assert_pps_unlocked(struct intel_display *display, enum pipe pipe)
 
 		drm_WARN_ON(display->drm,
 			    port_sel != PANEL_PORT_SELECT_LVDS);
-		intel_lvds_port_enabled(dev_priv, LVDS, &panel_pipe);
+		intel_lvds_port_enabled(display, LVDS, &panel_pipe);
 	}
 
 	val = intel_de_read(display, pp_reg);

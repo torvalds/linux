@@ -421,6 +421,7 @@ void i9xx_dpll_get_hw_state(struct intel_crtc *crtc,
 /* Returns the clock of the currently programmed mode of the given pipe. */
 void i9xx_crtc_clock_get(struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
@@ -476,7 +477,7 @@ void i9xx_crtc_clock_get(struct intel_crtc_state *crtc_state)
 		enum pipe lvds_pipe;
 
 		if (IS_I85X(dev_priv) &&
-		    intel_lvds_port_enabled(dev_priv, LVDS, &lvds_pipe) &&
+		    intel_lvds_port_enabled(display, LVDS, &lvds_pipe) &&
 		    lvds_pipe == crtc->pipe) {
 			u32 lvds = intel_de_read(dev_priv, LVDS);
 
@@ -620,7 +621,7 @@ i9xx_select_p2_div(const struct intel_limit *limit,
 		   const struct intel_crtc_state *crtc_state,
 		   int target)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		/*
@@ -628,7 +629,7 @@ i9xx_select_p2_div(const struct intel_limit *limit,
 		 * We haven't figured out how to reliably set up different
 		 * single/dual channel state, if we even can.
 		 */
-		if (intel_is_dual_link_lvds(dev_priv))
+		if (intel_is_dual_link_lvds(display))
 			return limit->p2.p2_fast;
 		else
 			return limit->p2.p2_slow;
@@ -1246,7 +1247,7 @@ static int ilk_fb_cb_factor(const struct intel_crtc_state *crtc_state)
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
 	    ((intel_panel_use_ssc(display) && i915->display.vbt.lvds_ssc_freq == 100000) ||
-	     (HAS_PCH_IBX(i915) && intel_is_dual_link_lvds(i915))))
+	     (HAS_PCH_IBX(i915) && intel_is_dual_link_lvds(display))))
 		return 25;
 
 	if (crtc_state->sdvo_tv_clock)
@@ -1381,7 +1382,7 @@ static int ilk_crtc_compute_clock(struct intel_atomic_state *state,
 			refclk = dev_priv->display.vbt.lvds_ssc_freq;
 		}
 
-		if (intel_is_dual_link_lvds(dev_priv)) {
+		if (intel_is_dual_link_lvds(display)) {
 			if (refclk == 100000)
 				limit = &ilk_limits_dual_lvds_100m;
 			else
@@ -1553,7 +1554,7 @@ static int g4x_crtc_compute_clock(struct intel_atomic_state *state,
 				    refclk);
 		}
 
-		if (intel_is_dual_link_lvds(dev_priv))
+		if (intel_is_dual_link_lvds(display))
 			limit = &intel_limits_g4x_dual_channel_lvds;
 		else
 			limit = &intel_limits_g4x_single_channel_lvds;
