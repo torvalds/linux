@@ -851,6 +851,9 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	if (cis_peripheral_capable(hdev))
 		settings |= MGMT_SETTING_CIS_PERIPHERAL;
 
+	if (ll_privacy_capable(hdev))
+		settings |= MGMT_SETTING_LL_PRIVACY;
+
 	settings |= MGMT_SETTING_PHY_CONFIGURATION;
 
 	return settings;
@@ -932,6 +935,9 @@ static u32 get_current_settings(struct hci_dev *hdev)
 
 	if (sync_recv_capable(hdev))
 		settings |= MGMT_SETTING_ISO_SYNC_RECEIVER;
+
+	if (ll_privacy_capable(hdev))
+		settings |= MGMT_SETTING_LL_PRIVACY;
 
 	return settings;
 }
