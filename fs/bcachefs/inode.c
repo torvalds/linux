@@ -731,10 +731,9 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		bkey_s_to_inode_v3(new).v->bi_journal_seq = cpu_to_le64(trans->journal_res.seq);
 	}
 
-	s64 nr = bkey_is_inode(new.k) - bkey_is_inode(old.k);
-	if ((flags & (BTREE_TRIGGER_transactional|BTREE_TRIGGER_gc)) && nr) {
-		struct disk_accounting_pos acc = { .type = BCH_DISK_ACCOUNTING_nr_inodes };
-		int ret = bch2_disk_accounting_mod(trans, &acc, &nr, 1, flags & BTREE_TRIGGER_gc);
+	s64 nr[1] = { bkey_is_inode(new.k) - bkey_is_inode(old.k) };
+	if ((flags & (BTREE_TRIGGER_transactional|BTREE_TRIGGER_gc)) && nr[0]) {
+		int ret = bch2_disk_accounting_mod2(trans, flags & BTREE_TRIGGER_gc, nr, nr_inodes);
 		if (ret)
 			return ret;
 	}

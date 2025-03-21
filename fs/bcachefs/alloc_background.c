@@ -777,14 +777,12 @@ static inline int bch2_dev_data_type_accounting_mod(struct btree_trans *trans, s
 						    s64 delta_sectors,
 						    s64 delta_fragmented, unsigned flags)
 {
-	struct disk_accounting_pos acc = {
-		.type = BCH_DISK_ACCOUNTING_dev_data_type,
-		.dev_data_type.dev		= ca->dev_idx,
-		.dev_data_type.data_type	= data_type,
-	};
 	s64 d[3] = { delta_buckets, delta_sectors, delta_fragmented };
 
-	return bch2_disk_accounting_mod(trans, &acc, d, 3, flags & BTREE_TRIGGER_gc);
+	return bch2_disk_accounting_mod2(trans, flags & BTREE_TRIGGER_gc,
+					 d, dev_data_type,
+					 .dev		= ca->dev_idx,
+					 .data_type	= data_type);
 }
 
 int bch2_alloc_key_to_dev_counters(struct btree_trans *trans, struct bch_dev *ca,
