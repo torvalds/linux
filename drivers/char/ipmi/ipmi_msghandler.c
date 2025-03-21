@@ -27,7 +27,6 @@
 #include <linux/ipmi_smi.h>
 #include <linux/notifier.h>
 #include <linux/init.h>
-#include <linux/proc_fs.h>
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
