@@ -9550,16 +9550,26 @@ static int ath12k_start_vdev_delay(struct ath12k *ar,
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_vif *ahvif = arvif->ahvif;
 	struct ieee80211_vif *vif = ath12k_ahvif_to_vif(arvif->ahvif);
+	struct ieee80211_chanctx_conf *chanctx;
+	struct ieee80211_bss_conf *link_conf;
 	int ret;
 
 	if (WARN_ON(arvif->is_started))
 		return -EBUSY;
 
-	ret = ath12k_mac_vdev_start(arvif, &arvif->chanctx);
+	link_conf = ath12k_mac_get_link_bss_conf(arvif);
+	if (!link_conf) {
+		ath12k_warn(ab, "failed to get link conf for vdev %u\n", arvif->vdev_id);
+		return -EINVAL;
+	}
+
+	chanctx	= wiphy_dereference(ath12k_ar_to_hw(arvif->ar)->wiphy,
+				    link_conf->chanctx_conf);
+	ret = ath12k_mac_vdev_start(arvif, chanctx);
 	if (ret) {
 		ath12k_warn(ab, "failed to start vdev %i addr %pM on freq %d: %d\n",
 			    arvif->vdev_id, vif->addr,
-			    arvif->chanctx.def.chan->center_freq, ret);
+			    chanctx->def.chan->center_freq, ret);
 		return ret;
 	}
 
@@ -9622,7 +9632,6 @@ ath12k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	    ahvif->vdev_type != WMI_VDEV_TYPE_AP &&
 	    ahvif->vdev_type != WMI_VDEV_TYPE_MONITOR &&
 	    !ath12k_peer_exist_by_vdev_id(ab, arvif->vdev_id)) {
-		memcpy(&arvif->chanctx, ctx, sizeof(*ctx));
 		ret = 0;
 		goto out;
 	}
