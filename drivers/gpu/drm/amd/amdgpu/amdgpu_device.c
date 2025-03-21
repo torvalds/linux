@@ -3172,6 +3172,7 @@ static bool amdgpu_device_check_vram_lost(struct amdgpu_device *adev)
 	 * always assumed to be lost.
 	 */
 	switch (amdgpu_asic_reset_method(adev)) {
+	case AMD_RESET_METHOD_LINK:
 	case AMD_RESET_METHOD_BACO:
 	case AMD_RESET_METHOD_MODE1:
 		return true;
@@ -5510,6 +5511,29 @@ mode1_reset_failed:
 	return ret;
 }
 
+int amdgpu_device_link_reset(struct amdgpu_device *adev)
+{
+	int ret = 0;
+
+	dev_info(adev->dev, "GPU link reset\n");
+
+	if (!adev->pcie_reset_ctx.occurs_dpc)
+		ret = amdgpu_dpm_link_reset(adev);
+
+	if (ret)
+		goto link_reset_failed;
+
+	ret = amdgpu_psp_wait_for_bootloader(adev);
+	if (ret)
+		goto link_reset_failed;
+
+	return 0;
+
+link_reset_failed:
+	dev_err(adev->dev, "GPU link reset failed\n");
+	return ret;
+}
+
 int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 				 struct amdgpu_reset_context *reset_context)
 {
@@ -5814,6 +5838,7 @@ static void amdgpu_device_set_mp1_state(struct amdgpu_device *adev)
 
 	switch (amdgpu_asic_reset_method(adev)) {
 	case AMD_RESET_METHOD_MODE1:
+	case AMD_RESET_METHOD_LINK:
 		adev->mp1_state = PP_MP1_STATE_SHUTDOWN;
 		break;
 	case AMD_RESET_METHOD_MODE2:
@@ -5951,6 +5976,8 @@ static int amdgpu_device_halt_activities(struct amdgpu_device *adev,
 			list_add_tail(&tmp_adev->reset_list, device_list);
 			if (adev->shutdown)
 				tmp_adev->shutdown = true;
+			if (adev->pcie_reset_ctx.occurs_dpc)
+				tmp_adev->pcie_reset_ctx.in_link_reset = true;
 		}
 		if (!list_is_first(&adev->reset_list, device_list))
 			list_rotate_to_front(&adev->reset_list, device_list);
@@ -5960,7 +5987,7 @@ static int amdgpu_device_halt_activities(struct amdgpu_device *adev,
 		device_list_handle = device_list;
 	}
 
-	if (!amdgpu_sriov_vf(adev)) {
+	if (!amdgpu_sriov_vf(adev) && (!adev->pcie_reset_ctx.occurs_dpc)) {
 		r = amdgpu_device_health_check(device_list_handle);
 		if (r)
 			return r;
@@ -6005,6 +6032,7 @@ static int amdgpu_device_halt_activities(struct amdgpu_device *adev,
 
 		/* disable ras on ALL IPs */
 		if (!need_emergency_restart &&
+		      (!adev->pcie_reset_ctx.occurs_dpc) &&
 		      amdgpu_device_ip_need_full_reset(tmp_adev))
 			amdgpu_ras_suspend(tmp_adev);
 
@@ -6035,7 +6063,11 @@ static int amdgpu_device_asic_reset(struct amdgpu_device *adev,
 
 retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	list_for_each_entry(tmp_adev, device_list, reset_list) {
+		if (adev->pcie_reset_ctx.occurs_dpc)
+			tmp_adev->no_hw_access = true;
 		r = amdgpu_device_pre_asic_reset(tmp_adev, reset_context);
+		if (adev->pcie_reset_ctx.occurs_dpc)
+			tmp_adev->no_hw_access = false;
 		/*TODO Should we stop ?*/
 		if (r) {
 			dev_err(tmp_adev->dev, "GPU pre asic reset failed with err, %d for drm dev, %s ",
@@ -6634,12 +6666,15 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = drm_to_adev(dev);
-	int i;
+	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
+	struct amdgpu_reset_context reset_context;
+	struct list_head device_list;
+	int r = 0;
 
-	DRM_INFO("PCI error: detected callback, state(%d)!!\n", state);
+	dev_info(adev->dev, "PCI error: detected callback!!\n");
 
-	if (adev->gmc.xgmi.num_physical_nodes > 1) {
-		DRM_WARN("No support for XGMI hive yet...");
+	if (!amdgpu_dpm_is_link_reset_supported(adev)) {
+		dev_warn(adev->dev, "No support for XGMI hive yet...\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -6647,32 +6682,30 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 
 	switch (state) {
 	case pci_channel_io_normal:
+		dev_info(adev->dev, "pci_channel_io_normal: state(%d)!!\n", state);
 		return PCI_ERS_RESULT_CAN_RECOVER;
-	/* Fatal error, prepare for slot reset */
 	case pci_channel_io_frozen:
-		/*
-		 * Locking adev->reset_domain->sem will prevent any external access
-		 * to GPU during PCI error recovery
-		 */
-		amdgpu_device_lock_reset_domain(adev->reset_domain);
-		amdgpu_device_set_mp1_state(adev);
+		/* Fatal error, prepare for slot reset */
+		dev_info(adev->dev, "pci_channel_io_frozen: state(%d)!!\n", state);
 
-		/*
-		 * Block any work scheduling as we do for regular GPU reset
-		 * for the duration of the recovery
-		 */
-		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-			struct amdgpu_ring *ring = adev->rings[i];
+		if (hive)
+			mutex_lock(&hive->hive_lock);
+		adev->pcie_reset_ctx.occurs_dpc = true;
+		memset(&reset_context, 0, sizeof(reset_context));
+		INIT_LIST_HEAD(&device_list);
 
-			if (!amdgpu_ring_sched_ready(ring))
-				continue;
-
-			drm_sched_stop(&ring->sched, NULL);
+		r = amdgpu_device_halt_activities(adev, NULL, &reset_context, &device_list,
+					 hive, false);
+		if (hive) {
+			mutex_unlock(&hive->hive_lock);
+			amdgpu_put_xgmi_hive(hive);
 		}
-		atomic_inc(&adev->gpu_reset_counter);
+		if (r)
+			return PCI_ERS_RESULT_DISCONNECT;
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
 		/* Permanent error, prepare for device removal */
+		dev_info(adev->dev, "pci_channel_io_perm_failure: state(%d)!!\n", state);
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
@@ -6685,8 +6718,10 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
  */
 pci_ers_result_t amdgpu_pci_mmio_enabled(struct pci_dev *pdev)
 {
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = drm_to_adev(dev);
 
-	DRM_INFO("PCI error: mmio enabled callback!!\n");
+	dev_info(adev->dev, "PCI error: mmio enabled callback!!\n");
 
 	/* TODO - dump whatever for debugging purposes */
 
@@ -6710,10 +6745,12 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = drm_to_adev(dev);
-	int r, i;
 	struct amdgpu_reset_context reset_context;
-	u32 memsize;
+	struct amdgpu_device *tmp_adev = NULL;
+	struct amdgpu_hive_info *hive = NULL;
 	struct list_head device_list;
+	int r = 0, i;
+	u32 memsize;
 
 	/* PCI error slot reset should be skipped During RAS recovery */
 	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
@@ -6721,15 +6758,12 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	    amdgpu_ras_in_recovery(adev))
 		return PCI_ERS_RESULT_RECOVERED;
 
-	DRM_INFO("PCI error: slot reset callback!!\n");
+	dev_info(adev->dev, "PCI error: slot reset callback!!\n");
 
 	memset(&reset_context, 0, sizeof(reset_context));
 
-	INIT_LIST_HEAD(&device_list);
-	list_add_tail(&adev->reset_list, &device_list);
-
 	/* wait for asic to come out of reset */
-	msleep(500);
+	msleep(700);
 
 	/* Restore PCI confspace */
 	amdgpu_device_load_pci_state(pdev);
@@ -6750,26 +6784,40 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	reset_context.method = AMD_RESET_METHOD_NONE;
 	reset_context.reset_req_dev = adev;
 	set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
-	set_bit(AMDGPU_SKIP_HW_RESET, &reset_context.flags);
+	set_bit(AMDGPU_SKIP_COREDUMP, &reset_context.flags);
+	INIT_LIST_HEAD(&device_list);
 
-	adev->no_hw_access = true;
-	r = amdgpu_device_pre_asic_reset(adev, &reset_context);
-	adev->no_hw_access = false;
-	if (r)
-		goto out;
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (hive) {
+		mutex_lock(&hive->hive_lock);
+		reset_context.hive = hive;
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+			tmp_adev->pcie_reset_ctx.in_link_reset = true;
+			list_add_tail(&tmp_adev->reset_list, &device_list);
+		}
+	} else {
+		set_bit(AMDGPU_SKIP_HW_RESET, &reset_context.flags);
+		list_add_tail(&adev->reset_list, &device_list);
+	}
 
-	r = amdgpu_do_asic_reset(&device_list, &reset_context);
-
+	r = amdgpu_device_asic_reset(adev, &device_list, &reset_context);
 out:
 	if (!r) {
 		if (amdgpu_device_cache_pci_state(adev->pdev))
 			pci_restore_state(adev->pdev);
-
-		DRM_INFO("PCIe error recovery succeeded\n");
+		dev_info(adev->dev, "PCIe error recovery succeeded\n");
 	} else {
-		DRM_ERROR("PCIe error recovery failed, err:%d", r);
-		amdgpu_device_unset_mp1_state(adev);
-		amdgpu_device_unlock_reset_domain(adev->reset_domain);
+		dev_err(adev->dev, "PCIe error recovery failed, err:%d\n", r);
+		if (tmp_adev) {
+			list_for_each_entry(tmp_adev, &device_list, reset_list)
+				amdgpu_device_unset_mp1_state(tmp_adev);
+			amdgpu_device_unlock_reset_domain(adev->reset_domain);
+		}
+	}
+
+	if (hive) {
+		mutex_unlock(&hive->hive_lock);
+		amdgpu_put_xgmi_hive(hive);
 	}
 
 	return r ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
@@ -6786,26 +6834,36 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct amdgpu_device *adev = drm_to_adev(dev);
-	int i;
+	struct list_head device_list;
+	struct amdgpu_hive_info *hive = NULL;
+	struct amdgpu_device *tmp_adev = NULL;
 
-
-	DRM_INFO("PCI error: resume callback!!\n");
+	dev_info(adev->dev, "PCI error: resume callback!!\n");
 
 	/* Only continue execution for the case of pci_channel_io_frozen */
 	if (adev->pci_channel_state != pci_channel_io_frozen)
 		return;
 
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
-		struct amdgpu_ring *ring = adev->rings[i];
+	INIT_LIST_HEAD(&device_list);
 
-		if (!amdgpu_ring_sched_ready(ring))
-			continue;
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (hive) {
+		mutex_lock(&hive->hive_lock);
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
+			tmp_adev->pcie_reset_ctx.in_link_reset = false;
+			list_add_tail(&tmp_adev->reset_list, &device_list);
+		}
+	} else
+		list_add_tail(&adev->reset_list, &device_list);
 
-		drm_sched_start(&ring->sched, 0);
+	amdgpu_device_sched_resume(&device_list, NULL, NULL);
+	amdgpu_device_gpu_resume(adev, &device_list, false);
+	adev->pcie_reset_ctx.occurs_dpc = false;
+
+	if (hive) {
+		mutex_unlock(&hive->hive_lock);
+		amdgpu_put_xgmi_hive(hive);
 	}
-
-	amdgpu_device_unset_mp1_state(adev);
-	amdgpu_device_unlock_reset_domain(adev->reset_domain);
 }
 
 bool amdgpu_device_cache_pci_state(struct pci_dev *pdev)
