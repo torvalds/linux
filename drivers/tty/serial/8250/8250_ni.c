@@ -275,7 +275,7 @@ static int ni16550_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct uart_8250_port uart = {};
 	unsigned int txfifosz, rxfifosz;
-	unsigned int prescaler = 0;
+	unsigned int prescaler;
 	struct ni16550_data *data;
 	const char *portmode;
 	bool rs232_property;
@@ -321,8 +321,7 @@ static int ni16550_probe(struct platform_device *pdev)
 	 * - static declaration in this driver (for older ACPI IDs)
 	 * - a "clock-frequency" ACPI
 	 */
-	if (info->uartclk)
-		uart.port.uartclk = info->uartclk;
+	uart.port.uartclk = info->uartclk;
 
 	ret = uart_read_port_properties(&uart.port);
 	if (ret)
@@ -340,11 +339,9 @@ static int ni16550_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (info->prescaler)
-		prescaler = info->prescaler;
+	prescaler = info->prescaler;
 	device_property_read_u32(dev, "clock-prescaler", &prescaler);
-
-	if (prescaler != 0) {
+	if (prescaler) {
 		uart.port.set_mctrl = ni16550_set_mctrl;
 		ni16550_config_prescaler(&uart, (u8)prescaler);
 	}
