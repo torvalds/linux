@@ -154,6 +154,7 @@ static bool amdgpu_sync_add_later(struct amdgpu_sync *sync, struct dma_fence *f)
  *
  * @sync: sync object to add fence to
  * @f: fence to sync to
+ * @flags: memory allocation flags to use when allocating sync entry
  *
  * Add the fence to the sync object.
  */
