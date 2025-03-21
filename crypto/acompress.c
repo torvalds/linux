@@ -155,11 +155,7 @@ EXPORT_SYMBOL_GPL(crypto_alloc_acomp_node);
 
 static void acomp_save_req(struct acomp_req *req, crypto_completion_t cplt)
 {
-	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
 	struct acomp_req_chain *state = &req->chain;
-
-	if (!acomp_is_async(tfm))
-		return;
 
 	state->compl = req->base.complete;
 	state->data = req->base.data;
@@ -168,14 +164,9 @@ static void acomp_save_req(struct acomp_req *req, crypto_completion_t cplt)
 	state->req0 = req;
 }
 
-static void acomp_restore_req(struct acomp_req_chain *state)
+static void acomp_restore_req(struct acomp_req *req)
 {
-	struct acomp_req *req = state->req0;
-	struct crypto_acomp *tfm;
-
-	tfm = crypto_acomp_reqtfm(req);
-	if (!acomp_is_async(tfm))
-		return;
+	struct acomp_req_chain *state = req->base.data;
 
 	req->base.complete = state->compl;
 	req->base.data = state->data;
@@ -289,10 +280,9 @@ static int acomp_do_one_req(struct acomp_req_chain *state,
 	return state->op(req);
 }
 
-static int acomp_reqchain_finish(struct acomp_req_chain *state,
-				 int err, u32 mask)
+static int acomp_reqchain_finish(struct acomp_req *req0, int err, u32 mask)
 {
-	struct acomp_req *req0 = state->req0;
+	struct acomp_req_chain *state = req0->base.data;
 	struct acomp_req *req = state->cur;
 	struct acomp_req *n;
 
@@ -323,7 +313,7 @@ static int acomp_reqchain_finish(struct acomp_req_chain *state,
 		list_add_tail(&req->base.list, &req0->base.list);
 	}
 
-	acomp_restore_req(state);
+	acomp_restore_req(req0);
 
 out:
 	return err;
@@ -342,7 +332,8 @@ static void acomp_reqchain_done(void *data, int err)
 		goto notify;
 	}
 
-	err = acomp_reqchain_finish(state, err, CRYPTO_TFM_REQ_MAY_BACKLOG);
+	err = acomp_reqchain_finish(state->req0, err,
+				    CRYPTO_TFM_REQ_MAY_BACKLOG);
 	if (err == -EBUSY)
 		return;
 
@@ -354,17 +345,15 @@ static int acomp_do_req_chain(struct acomp_req *req,
 			      int (*op)(struct acomp_req *req))
 {
 	struct crypto_acomp *tfm = crypto_acomp_reqtfm(req);
-	struct acomp_req_chain *state = &req->chain;
+	struct acomp_req_chain *state;
 	int err;
 
 	if (crypto_acomp_req_chain(tfm) ||
 	    (!acomp_request_chained(req) && acomp_request_issg(req)))
 		return op(req);
 
-	if (acomp_is_async(tfm)) {
-		acomp_save_req(req, acomp_reqchain_done);
-		state = req->base.data;
-	}
+	acomp_save_req(req, acomp_reqchain_done);
+	state = req->base.data;
 
 	state->op = op;
 	state->src = NULL;
@@ -375,7 +364,7 @@ static int acomp_do_req_chain(struct acomp_req *req,
 	if (err == -EBUSY || err == -EINPROGRESS)
 		return -EBUSY;
 
-	return acomp_reqchain_finish(state, err, ~0);
+	return acomp_reqchain_finish(req, err, ~0);
 }
 
 int crypto_acomp_compress(struct acomp_req *req)
