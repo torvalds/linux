@@ -1472,9 +1472,8 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	 * disabling PSR2, keep FBC disabled in case of selective update is on
 	 * until the selection logic is implemented.
 	 */
-	if (DISPLAY_VER(display) >= 12 && crtc_state->has_sel_update &&
-	    !crtc_state->has_panel_replay) {
-		plane_state->no_fbc_reason = "PSR2 enabled";
+	if (DISPLAY_VER(display) >= 12 && crtc_state->has_sel_update) {
+		plane_state->no_fbc_reason = "Selective update enabled";
 		return 0;
 	}
 
