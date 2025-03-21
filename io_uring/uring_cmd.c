@@ -16,6 +16,14 @@
 #include "rsrc.h"
 #include "uring_cmd.h"
 
+void io_cmd_cache_free(const void *entry)
+{
+	struct io_async_cmd *ac = (struct io_async_cmd *)entry;
+
+	io_vec_free(&ac->vec);
+	kfree(ac);
+}
+
 static void io_req_uring_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
@@ -29,11 +37,21 @@ static void io_req_uring_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (issue_flags & IO_URING_F_UNLOCKED)
 		return;
+
+	io_alloc_cache_vec_kasan(&ac->vec);
+	if (ac->vec.nr > IO_VEC_CACHE_SOFT_CAP)
+		io_vec_free(&ac->vec);
+
 	if (io_alloc_cache_put(&req->ctx->cmd_cache, cache)) {
 		ioucmd->sqe = NULL;
 		req->async_data = NULL;
-		req->flags &= ~REQ_F_ASYNC_DATA;
+		req->flags &= ~(REQ_F_ASYNC_DATA|REQ_F_NEED_CLEANUP);
 	}
+}
+
+void io_uring_cmd_cleanup(struct io_kiocb *req)
+{
+	io_req_uring_cleanup(req, 0);
 }
 
 bool io_uring_try_cancel_uring_cmd(struct io_ring_ctx *ctx,
