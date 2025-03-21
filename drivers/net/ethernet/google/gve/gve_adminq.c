@@ -731,6 +731,7 @@ static void gve_adminq_get_create_rx_queue_cmd(struct gve_priv *priv,
 		.ntfy_id = cpu_to_be32(rx->ntfy_id),
 		.queue_resources_addr = cpu_to_be64(rx->q_resources_bus),
 		.rx_ring_size = cpu_to_be16(priv->rx_desc_cnt),
+		.packet_buffer_size = cpu_to_be16(rx->packet_buffer_size),
 	};
 
 	if (gve_is_gqi(priv)) {
@@ -743,7 +744,6 @@ static void gve_adminq_get_create_rx_queue_cmd(struct gve_priv *priv,
 			cpu_to_be64(rx->data.data_bus);
 		cmd->create_rx_queue.index = cpu_to_be32(queue_index);
 		cmd->create_rx_queue.queue_page_list_id = cpu_to_be32(qpl_id);
-		cmd->create_rx_queue.packet_buffer_size = cpu_to_be16(rx->packet_buffer_size);
 	} else {
 		u32 qpl_id = 0;
 
@@ -756,8 +756,6 @@ static void gve_adminq_get_create_rx_queue_cmd(struct gve_priv *priv,
 			cpu_to_be64(rx->dqo.complq.bus);
 		cmd->create_rx_queue.rx_data_ring_addr =
 			cpu_to_be64(rx->dqo.bufq.bus);
-		cmd->create_rx_queue.packet_buffer_size =
-			cpu_to_be16(priv->data_buffer_size_dqo);
 		cmd->create_rx_queue.rx_buff_ring_size =
 			cpu_to_be16(priv->rx_desc_cnt);
 		cmd->create_rx_queue.enable_rsc =

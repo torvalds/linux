@@ -227,6 +227,7 @@ struct gve_rx_cnts {
 /* Contains datapath state used to represent an RX queue. */
 struct gve_rx_ring {
 	struct gve_priv *gve;
+	u16 packet_buffer_size;
 	union {
 		/* GQI fields */
 		struct {
@@ -235,7 +236,6 @@ struct gve_rx_ring {
 
 			/* threshold for posting new buffs and descs */
 			u32 db_threshold;
-			u16 packet_buffer_size;
 
 			u32 qpl_copy_pool_mask;
 			u32 qpl_copy_pool_head;
@@ -635,6 +635,7 @@ struct gve_notify_block {
 struct gve_rx_queue_config {
 	u16 max_queues;
 	u16 num_queues;
+	u16 packet_buffer_size;
 };
 
 /* Tracks allowed and current tx queue settings */
@@ -842,7 +843,6 @@ struct gve_priv {
 	struct gve_ptype_lut *ptype_lut_dqo;
 
 	/* Must be a power of two. */
-	u16 data_buffer_size_dqo;
 	u16 max_rx_buffer_size; /* device limit */
 
 	enum gve_queue_format queue_format;

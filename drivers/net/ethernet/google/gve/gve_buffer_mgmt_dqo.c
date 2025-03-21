@@ -139,7 +139,7 @@ int gve_alloc_qpl_page_dqo(struct gve_rx_ring *rx,
 	buf_state->page_info.page_offset = 0;
 	buf_state->page_info.page_address =
 		page_address(buf_state->page_info.page);
-	buf_state->page_info.buf_size = priv->data_buffer_size_dqo;
+	buf_state->page_info.buf_size = rx->packet_buffer_size;
 	buf_state->last_single_ref_offset = 0;
 
 	/* The page already has 1 ref. */
@@ -162,7 +162,7 @@ void gve_free_qpl_page_dqo(struct gve_rx_buf_state_dqo *buf_state)
 void gve_try_recycle_buf(struct gve_priv *priv, struct gve_rx_ring *rx,
 			 struct gve_rx_buf_state_dqo *buf_state)
 {
-	const u16 data_buffer_size = priv->data_buffer_size_dqo;
+	const u16 data_buffer_size = rx->packet_buffer_size;
 	int pagecount;
 
 	/* Can't reuse if we only fit one buffer per page */
@@ -217,10 +217,9 @@ void gve_free_to_page_pool(struct gve_rx_ring *rx,
 static int gve_alloc_from_page_pool(struct gve_rx_ring *rx,
 				    struct gve_rx_buf_state_dqo *buf_state)
 {
-	struct gve_priv *priv = rx->gve;
 	netmem_ref netmem;
 
-	buf_state->page_info.buf_size = priv->data_buffer_size_dqo;
+	buf_state->page_info.buf_size = rx->packet_buffer_size;
 	netmem = page_pool_alloc_netmem(rx->dqo.page_pool,
 					&buf_state->page_info.page_offset,
 					&buf_state->page_info.buf_size,

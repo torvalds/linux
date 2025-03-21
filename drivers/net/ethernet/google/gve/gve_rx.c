@@ -288,7 +288,7 @@ int gve_rx_alloc_ring_gqi(struct gve_priv *priv,
 
 	rx->gve = priv;
 	rx->q_num = idx;
-	rx->packet_buffer_size = GVE_DEFAULT_RX_BUFFER_SIZE;
+	rx->packet_buffer_size = cfg->packet_buffer_size;
 
 	rx->mask = slots - 1;
 	rx->data.raw_addressing = cfg->raw_addressing;
