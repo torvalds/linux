@@ -41,6 +41,10 @@ properties:
               - fsl,imx93-sai
               - fsl,imx95-sai
               - fsl,vf610-sai
+      - items:
+          - enum:
+              - fsl,imx94-sai
+          - const: fsl,imx95-sai
 
   reg:
     maxItems: 1
