@@ -2592,6 +2592,9 @@ static void amdgpu_discovery_init_soc_config(struct amdgpu_device *adev)
 	case IP_VERSION(9, 5, 0):
 		aqua_vanjaram_init_soc_config(adev);
 		break;
+	case IP_VERSION(12, 1, 0):
+		soc_v1_0_init_soc_config(adev);
+		break;
 	default:
 		break;
 	}

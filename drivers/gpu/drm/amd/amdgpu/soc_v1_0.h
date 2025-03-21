@@ -29,5 +29,6 @@ void soc_v1_0_grbm_select(struct amdgpu_device *adev,
 			  u32 me, u32 pipe,
 			  u32 queue, u32 vmid,
 			  int xcc_id);
+int soc_v1_0_init_soc_config(struct amdgpu_device *adev);
 
 #endif

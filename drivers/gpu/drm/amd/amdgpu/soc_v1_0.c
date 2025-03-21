@@ -24,6 +24,7 @@
 #include "soc15.h"
 #include "soc15_common.h"
 #include "soc_v1_0.h"
+#include "amdgpu_ip.h"
 
 #include "gc/gc_12_1_0_offset.h"
 #include "gc/gc_12_1_0_sh_mask.h"
@@ -334,3 +335,12 @@ const struct amdgpu_ip_block_version soc_v1_0_common_ip_block = {
 	.rev = 0,
 	.funcs = &soc_v1_0_common_ip_funcs,
 };
+
+int soc_v1_0_init_soc_config(struct amdgpu_device *adev)
+{
+	adev->sdma.num_inst_per_xcc = 2;
+
+	amdgpu_ip_map_init(adev);
+
+	return 0;
+}
