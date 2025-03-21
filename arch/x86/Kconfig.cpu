@@ -245,6 +245,20 @@ config MATOM
 
 endchoice
 
+config X86_NATIVE_CPU
+	bool "Build and optimize for local/native CPU"
+	depends on X86_64
+	default n
+	help
+	  Optimize for the current CPU used to compile the kernel.
+	  Use this option if you intend to build the kernel for your
+	  local machine.
+
+	  Note that such a kernel might not work optimally on a
+	  different x86 machine.
+
+	  If unsure, say N.
+
 config X86_GENERIC
 	bool "Generic x86 support"
 	depends on X86_32
