@@ -686,6 +686,8 @@ static void nvme_mpath_set_live(struct nvme_ns *ns)
 		kblockd_schedule_work(&head->partition_scan_work);
 	}
 
+	nvme_mpath_add_sysfs_link(ns->head);
+
 	mutex_lock(&head->lock);
 	if (nvme_path_is_optimized(ns)) {
 		int node, srcu_idx;
@@ -768,6 +770,25 @@ static void nvme_update_ns_ana_state(struct nvme_ana_group_desc *desc,
 	if (nvme_state_is_live(ns->ana_state) &&
 	    nvme_ctrl_state(ns->ctrl) == NVME_CTRL_LIVE)
 		nvme_mpath_set_live(ns);
+	else {
+		/*
+		 * Add sysfs link from multipath head gendisk node to path
+		 * device gendisk node.
+		 * If path's ana state is live (i.e. state is either optimized
+		 * or non-optimized) while we alloc the ns then sysfs link would
+		 * be created from nvme_mpath_set_live(). In that case we would
+		 * not fallthrough this code path. However for the path's ana
+		 * state other than live, we call nvme_mpath_set_live() only
+		 * after ana state transitioned to the live state. But we still
+		 * want to create the sysfs link from head node to a path device
+		 * irrespctive of the path's ana state.
+		 * If we reach through here then it means that path's ana state
+		 * is not live but still create the sysfs link to this path from
+		 * head node if head node of the path has already come alive.
+		 */
+		if (test_bit(NVME_NSHEAD_DISK_LIVE, &ns->head->flags))
+			nvme_mpath_add_sysfs_link(ns->head);
+	}
 }
 
 static int nvme_update_ana_state(struct nvme_ctrl *ctrl,
@@ -955,6 +976,45 @@ static ssize_t ana_state_show(struct device *dev, struct device_attribute *attr,
 }
 DEVICE_ATTR_RO(ana_state);
 
+static ssize_t queue_depth_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
+
+	if (ns->head->subsys->iopolicy != NVME_IOPOLICY_QD)
+		return 0;
+
+	return sysfs_emit(buf, "%d\n", atomic_read(&ns->ctrl->nr_active));
+}
+DEVICE_ATTR_RO(queue_depth);
+
+static ssize_t numa_nodes_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	int node, srcu_idx;
+	nodemask_t numa_nodes;
+	struct nvme_ns *current_ns;
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
+	struct nvme_ns_head *head = ns->head;
+
+	if (head->subsys->iopolicy != NVME_IOPOLICY_NUMA)
+		return 0;
+
+	nodes_clear(numa_nodes);
+
+	srcu_idx = srcu_read_lock(&head->srcu);
+	for_each_node(node) {
+		current_ns = srcu_dereference(head->current_path[node],
+				&head->srcu);
+		if (ns == current_ns)
+			node_set(node, numa_nodes);
+	}
+	srcu_read_unlock(&head->srcu, srcu_idx);
+
+	return sysfs_emit(buf, "%*pbl\n", nodemask_pr_args(&numa_nodes));
+}
+DEVICE_ATTR_RO(numa_nodes);
+
 static int nvme_lookup_ana_group_desc(struct nvme_ctrl *ctrl,
 		struct nvme_ana_group_desc *desc, void *data)
 {
@@ -965,6 +1025,84 @@ static int nvme_lookup_ana_group_desc(struct nvme_ctrl *ctrl,
 
 	*dst = *desc;
 	return -ENXIO; /* just break out of the loop */
+}
+
+void nvme_mpath_add_sysfs_link(struct nvme_ns_head *head)
+{
+	struct device *target;
+	int rc, srcu_idx;
+	struct nvme_ns *ns;
+	struct kobject *kobj;
+
+	/*
+	 * Ensure head disk node is already added otherwise we may get invalid
+	 * kobj for head disk node
+	 */
+	if (!test_bit(GD_ADDED, &head->disk->state))
+		return;
+
+	kobj = &disk_to_dev(head->disk)->kobj;
+
+	/*
+	 * loop through each ns chained through the head->list and create the
+	 * sysfs link from head node to the ns path node
+	 */
+	srcu_idx = srcu_read_lock(&head->srcu);
+
+	list_for_each_entry_rcu(ns, &head->list, siblings) {
+		/*
+		 * Avoid creating link if it already exists for the given path.
+		 * When path ana state transitions from optimized to non-
+		 * optimized or vice-versa, the nvme_mpath_set_live() is
+		 * invoked which in truns call this function. Now if the sysfs
+		 * link already exists for the given path and we attempt to re-
+		 * create the link then sysfs code would warn about it loudly.
+		 * So we evaluate NVME_NS_SYSFS_ATTR_LINK flag here to ensure
+		 * that we're not creating duplicate link.
+		 * The test_and_set_bit() is used because it is protecting
+		 * against multiple nvme paths being simultaneously added.
+		 */
+		if (test_and_set_bit(NVME_NS_SYSFS_ATTR_LINK, &ns->flags))
+			continue;
+
+		/*
+		 * Ensure that ns path disk node is already added otherwise we
+		 * may get invalid kobj name for target
+		 */
+		if (!test_bit(GD_ADDED, &ns->disk->state))
+			continue;
+
+		target = disk_to_dev(ns->disk);
+		/*
+		 * Create sysfs link from head gendisk kobject @kobj to the
+		 * ns path gendisk kobject @target->kobj.
+		 */
+		rc = sysfs_add_link_to_group(kobj, nvme_ns_mpath_attr_group.name,
+				&target->kobj, dev_name(target));
+		if (unlikely(rc)) {
+			dev_err(disk_to_dev(ns->head->disk),
+					"failed to create link to %s\n",
+					dev_name(target));
+			clear_bit(NVME_NS_SYSFS_ATTR_LINK, &ns->flags);
+		}
+	}
+
+	srcu_read_unlock(&head->srcu, srcu_idx);
+}
+
+void nvme_mpath_remove_sysfs_link(struct nvme_ns *ns)
+{
+	struct device *target;
+	struct kobject *kobj;
+
+	if (!test_bit(NVME_NS_SYSFS_ATTR_LINK, &ns->flags))
+		return;
+
+	target = disk_to_dev(ns->disk);
+	kobj = &disk_to_dev(ns->head->disk)->kobj;
+	sysfs_remove_link_from_group(kobj, nvme_ns_mpath_attr_group.name,
+			dev_name(target));
+	clear_bit(NVME_NS_SYSFS_ATTR_LINK, &ns->flags);
 }
 
 void nvme_mpath_add_disk(struct nvme_ns *ns, __le32 anagrpid)
