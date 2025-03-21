@@ -1,6 +1,7 @@
 This is a place for planning the ongoing long-term work in the GPIO
 subsystem.
 
+===============================================================================
 
 GPIO descriptors
 
@@ -48,6 +49,7 @@ Work items:
   numberspace accessors from <linux/gpio.h> and eventually delete
   <linux/gpio.h> altogether.
 
+-------------------------------------------------------------------------------
 
 Get rid of <linux/of_gpio.h>
 
@@ -75,6 +77,7 @@ Work items:
 - Delete <linux/of_gpio.h> when all the above is complete and everything
   uses <linux/gpio/consumer.h> or <linux/gpio/driver.h> instead.
 
+-------------------------------------------------------------------------------
 
 Get rid of <linux/gpio/legacy-of-mm-gpiochip.h>
 
@@ -85,6 +88,7 @@ Work items:
   to_of_mm_gpio_chip(), of_mm_gpiochip_add_data(), of_mm_gpiochip_remove(),
   CONFIG_OF_GPIO_MM_GPIOCHIP from the kernel.
 
+-------------------------------------------------------------------------------
 
 Collect drivers
 
@@ -99,6 +103,7 @@ At the same time it makes sense to get rid of code duplication in existing or
 new coming drivers. For example, gpio-ml-ioh should be incorporated into
 gpio-pch.
 
+-------------------------------------------------------------------------------
 
 Generic MMIO GPIO
 
@@ -119,6 +124,7 @@ Work items:
   helpers (x86 inb()/outb()) and convert port-mapped I/O drivers to use
   this with dry-coding and sending to maintainers to test
 
+-------------------------------------------------------------------------------
 
 Generic regmap GPIO
 
@@ -126,6 +132,7 @@ In the very similar way to Generic MMIO GPIO convert the users which can
 take advantage of using regmap over direct IO accessors. Note, even in
 MMIO case the regmap MMIO with gpio-regmap.c is preferable over gpio-mmio.c.
 
+-------------------------------------------------------------------------------
 
 GPIOLIB irqchip
 
@@ -135,6 +142,7 @@ try to cover any generic kind of irqchip cascaded from a GPIO.
 - Look over and identify any remaining easily converted drivers and
   dry-code conversions to gpiolib irqchip for maintainers to test
 
+-------------------------------------------------------------------------------
 
 Moving over to immutable irq_chip structures
 
