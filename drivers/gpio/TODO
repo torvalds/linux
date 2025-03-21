@@ -173,3 +173,16 @@ value back to the caller.
 We've now added new variants - set_rv() and set_multiple_rv() that return an
 integer. Let's convert all GPIO drivers treewide to use the new callbacks,
 remove the old ones and finally rename the new ones back to the old names.
+
+-------------------------------------------------------------------------------
+
+Extend the sysfs ABI to allow exporting lines by their HW offsets
+
+The need to support the sysfs GPIO class is one of the main obstacles to
+removing the global GPIO numberspace from the kernel. In order to wean users
+off using global numbers from user-space, extend the existing interface with
+new per-gpiochip export/unexport attributes that allow to refer to GPIOs using
+their hardware offsets within the chip.
+
+Encourage users to switch to using them and eventually remove the existing
+global export/unexport attribues.
