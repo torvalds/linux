@@ -379,7 +379,7 @@ int ath12k_mhi_register(struct ath12k_pci *ab_pci)
 		mhi_ctrl->irq_flags = IRQF_SHARED | IRQF_NOBALANCING;
 
 	mhi_ctrl->iova_start = 0;
-	mhi_ctrl->iova_stop = 0xffffffff;
+	mhi_ctrl->iova_stop = ab_pci->dma_mask;
 	mhi_ctrl->sbl_size = SZ_512K;
 	mhi_ctrl->seg_len = SZ_512K;
 	mhi_ctrl->fbc_download = true;
