@@ -379,26 +379,34 @@ static int ublk_queue_init(struct ublk_queue *q)
 	return -ENOMEM;
 }
 
+#define WAIT_USEC 	100000
+#define MAX_WAIT_USEC 	(3 * 1000000)
 static int ublk_dev_prep(struct ublk_dev *dev)
 {
 	int dev_id = dev->dev_info.dev_id;
+	unsigned int wait_usec = 0;
+	int ret = 0, fd = -1;
 	char buf[64];
-	int ret = 0;
 
 	snprintf(buf, 64, "%s%d", UBLKC_DEV, dev_id);
-	dev->fds[0] = open(buf, O_RDWR);
-	if (dev->fds[0] < 0) {
-		ret = -EBADF;
-		ublk_err("can't open %s, ret %d\n", buf, dev->fds[0]);
-		goto fail;
+
+	while (wait_usec < MAX_WAIT_USEC) {
+		fd = open(buf, O_RDWR);
+		if (fd >= 0)
+			break;
+		usleep(WAIT_USEC);
+		wait_usec += WAIT_USEC;
+	}
+	if (fd < 0) {
+		ublk_err("can't open %s %s\n", buf, strerror(errno));
+		return -1;
 	}
 
+	dev->fds[0] = fd;
 	if (dev->tgt.ops->init_tgt)
 		ret = dev->tgt.ops->init_tgt(dev);
-
-	return ret;
-fail:
-	close(dev->fds[0]);
+	if (ret)
+		close(dev->fds[0]);
 	return ret;
 }
 
@@ -856,6 +864,8 @@ static int __cmd_dev_add(const struct dev_ctx *ctx)
 
 	ret = ublk_start_daemon(ctx, dev);
 	ublk_dbg(UBLK_DBG_DEV, "%s: daemon exit %d\b", ret);
+	if (ret < 0)
+		ublk_ctrl_del_dev(dev);
 
 fail:
 	if (ret < 0)

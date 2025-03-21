@@ -196,10 +196,12 @@ static int ublk_loop_tgt_init(struct ublk_dev *dev)
 		},
 	};
 
-	assert(dev->tgt.nr_backing_files == 1);
 	ret = backing_file_tgt_init(dev);
 	if (ret)
 		return ret;
+
+	if (dev->tgt.nr_backing_files != 1)
+		return -EINVAL;
 
 	bytes = dev->tgt.backing_file_size[0];
 	dev->tgt.dev_size = bytes;
