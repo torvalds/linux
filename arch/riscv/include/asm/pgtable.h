@@ -902,6 +902,103 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 #define pmdp_collapse_flush pmdp_collapse_flush
 extern pmd_t pmdp_collapse_flush(struct vm_area_struct *vma,
 				 unsigned long address, pmd_t *pmdp);
+
+static inline pud_t pud_wrprotect(pud_t pud)
+{
+	return pte_pud(pte_wrprotect(pud_pte(pud)));
+}
+
+static inline int pud_trans_huge(pud_t pud)
+{
+	return pud_leaf(pud);
+}
+
+static inline int pud_dirty(pud_t pud)
+{
+	return pte_dirty(pud_pte(pud));
+}
+
+static inline pud_t pud_mkyoung(pud_t pud)
+{
+	return pte_pud(pte_mkyoung(pud_pte(pud)));
+}
+
+static inline pud_t pud_mkold(pud_t pud)
+{
+	return pte_pud(pte_mkold(pud_pte(pud)));
+}
+
+static inline pud_t pud_mkdirty(pud_t pud)
+{
+	return pte_pud(pte_mkdirty(pud_pte(pud)));
+}
+
+static inline pud_t pud_mkclean(pud_t pud)
+{
+	return pte_pud(pte_mkclean(pud_pte(pud)));
+}
+
+static inline pud_t pud_mkwrite(pud_t pud)
+{
+	return pte_pud(pte_mkwrite_novma(pud_pte(pud)));
+}
+
+static inline pud_t pud_mkhuge(pud_t pud)
+{
+	return pud;
+}
+
+static inline pud_t pud_mkdevmap(pud_t pud)
+{
+	return pte_pud(pte_mkdevmap(pud_pte(pud)));
+}
+
+static inline int pudp_set_access_flags(struct vm_area_struct *vma,
+					unsigned long address, pud_t *pudp,
+					pud_t entry, int dirty)
+{
+	return ptep_set_access_flags(vma, address, (pte_t *)pudp, pud_pte(entry), dirty);
+}
+
+static inline int pudp_test_and_clear_young(struct vm_area_struct *vma,
+					    unsigned long address, pud_t *pudp)
+{
+	return ptep_test_and_clear_young(vma, address, (pte_t *)pudp);
+}
+
+static inline int pud_young(pud_t pud)
+{
+	return pte_young(pud_pte(pud));
+}
+
+static inline void update_mmu_cache_pud(struct vm_area_struct *vma,
+					unsigned long address, pud_t *pudp)
+{
+	pte_t *ptep = (pte_t *)pudp;
+
+	update_mmu_cache(vma, address, ptep);
+}
+
+static inline pud_t pudp_establish(struct vm_area_struct *vma,
+				   unsigned long address, pud_t *pudp, pud_t pud)
+{
+	page_table_check_pud_set(vma->vm_mm, pudp, pud);
+	return __pud(atomic_long_xchg((atomic_long_t *)pudp, pud_val(pud)));
+}
+
+static inline pud_t pud_mkinvalid(pud_t pud)
+{
+	return __pud(pud_val(pud) & ~(_PAGE_PRESENT | _PAGE_PROT_NONE));
+}
+
+extern pud_t pudp_invalidate(struct vm_area_struct *vma, unsigned long address,
+			     pud_t *pudp);
+
+static inline pud_t pud_modify(pud_t pud, pgprot_t newprot)
+{
+	return pte_pud(pte_modify(pud_pte(pud), newprot));
+}
+
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /*
