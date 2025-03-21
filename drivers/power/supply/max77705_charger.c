@@ -545,20 +545,28 @@ static int max77705_charger_probe(struct i2c_client *i2c)
 		return dev_err_probe(dev, ret, "failed to add irq chip\n");
 
 	chg->wqueue = create_singlethread_workqueue(dev_name(dev));
-	if (IS_ERR(chg->wqueue))
-		return dev_err_probe(dev, PTR_ERR(chg->wqueue), "failed to create workqueue\n");
+	if (!chg->wqueue)
+		return dev_err_probe(dev, -ENOMEM, "failed to create workqueue\n");
 
 	ret = devm_work_autocancel(dev, &chg->chgin_work, max77705_chgin_isr_work);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to initialize interrupt work\n");
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to initialize interrupt work\n");
+		goto destroy_wq;
+	}
 
 	max77705_charger_initialize(chg);
 
 	ret = max77705_charger_enable(chg);
-	if (ret)
-		return dev_err_probe(dev, ret, "failed to enable charge\n");
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to enable charge\n");
+		goto destroy_wq;
+	}
 
 	return devm_add_action_or_reset(dev, max77705_charger_disable, chg);
+
+destroy_wq:
+	destroy_workqueue(chg->wqueue);
+	return ret;
 }
 
 static const struct of_device_id max77705_charger_of_match[] = {
