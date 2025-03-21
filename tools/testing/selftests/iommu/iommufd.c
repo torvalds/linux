@@ -2996,4 +2996,305 @@ TEST_F(iommufd_viommu, vdevice_cache)
 	}
 }
 
+FIXTURE(iommufd_device_pasid)
+{
+	int fd;
+	uint32_t ioas_id;
+	uint32_t hwpt_id;
+	uint32_t stdev_id;
+	uint32_t device_id;
+	uint32_t no_pasid_stdev_id;
+	uint32_t no_pasid_device_id;
+};
+
+FIXTURE_VARIANT(iommufd_device_pasid)
+{
+	bool pasid_capable;
+};
+
+FIXTURE_SETUP(iommufd_device_pasid)
+{
+	self->fd = open("/dev/iommu", O_RDWR);
+	ASSERT_NE(-1, self->fd);
+	test_ioctl_ioas_alloc(&self->ioas_id);
+
+	test_cmd_mock_domain_flags(self->ioas_id,
+				   MOCK_FLAGS_DEVICE_PASID,
+				   &self->stdev_id, &self->hwpt_id,
+				   &self->device_id);
+	if (!variant->pasid_capable)
+		test_cmd_mock_domain_flags(self->ioas_id, 0,
+					   &self->no_pasid_stdev_id, NULL,
+					   &self->no_pasid_device_id);
+}
+
+FIXTURE_TEARDOWN(iommufd_device_pasid)
+{
+	teardown_iommufd(self->fd, _metadata);
+}
+
+FIXTURE_VARIANT_ADD(iommufd_device_pasid, no_pasid)
+{
+	.pasid_capable = false,
+};
+
+FIXTURE_VARIANT_ADD(iommufd_device_pasid, has_pasid)
+{
+	.pasid_capable = true,
+};
+
+TEST_F(iommufd_device_pasid, pasid_attach)
+{
+	struct iommu_hwpt_selftest data = {
+		.iotlb =  IOMMU_TEST_IOTLB_DEFAULT,
+	};
+	uint32_t nested_hwpt_id[3] = {};
+	uint32_t parent_hwpt_id = 0;
+	uint32_t fault_id, fault_fd;
+	uint32_t s2_hwpt_id = 0;
+	uint32_t iopf_hwpt_id;
+	uint32_t pasid = 100;
+	uint32_t viommu_id;
+
+	/* Allocate two nested hwpts sharing one common parent hwpt */
+	test_cmd_hwpt_alloc(self->device_id, self->ioas_id,
+			    IOMMU_HWPT_ALLOC_NEST_PARENT,
+			    &parent_hwpt_id);
+	test_cmd_hwpt_alloc_nested(self->device_id, parent_hwpt_id,
+				   IOMMU_HWPT_ALLOC_PASID,
+				   &nested_hwpt_id[0],
+				   IOMMU_HWPT_DATA_SELFTEST,
+				   &data, sizeof(data));
+	test_cmd_hwpt_alloc_nested(self->device_id, parent_hwpt_id,
+				   IOMMU_HWPT_ALLOC_PASID,
+				   &nested_hwpt_id[1],
+				   IOMMU_HWPT_DATA_SELFTEST,
+				   &data, sizeof(data));
+
+	/* Fault related preparation */
+	test_ioctl_fault_alloc(&fault_id, &fault_fd);
+	test_cmd_hwpt_alloc_iopf(self->device_id, parent_hwpt_id, fault_id,
+				 IOMMU_HWPT_FAULT_ID_VALID | IOMMU_HWPT_ALLOC_PASID,
+				 &iopf_hwpt_id,
+				 IOMMU_HWPT_DATA_SELFTEST, &data,
+				 sizeof(data));
+
+	/* Allocate a regular nested hwpt based on viommu */
+	test_cmd_viommu_alloc(self->device_id, parent_hwpt_id,
+			      IOMMU_VIOMMU_TYPE_SELFTEST,
+			      &viommu_id);
+	test_cmd_hwpt_alloc_nested(self->device_id, viommu_id,
+				   IOMMU_HWPT_ALLOC_PASID,
+				   &nested_hwpt_id[2],
+				   IOMMU_HWPT_DATA_SELFTEST, &data,
+				   sizeof(data));
+
+	test_cmd_hwpt_alloc(self->device_id, self->ioas_id,
+			    IOMMU_HWPT_ALLOC_PASID,
+			    &s2_hwpt_id);
+
+	/* Attach RID to non-pasid compat domain, */
+	test_cmd_mock_domain_replace(self->stdev_id, parent_hwpt_id);
+	/* then attach to pasid should fail */
+	test_err_pasid_attach(EINVAL, pasid, s2_hwpt_id);
+
+	/* Attach RID to pasid compat domain, */
+	test_cmd_mock_domain_replace(self->stdev_id, s2_hwpt_id);
+	/* then attach to pasid should succeed, */
+	test_cmd_pasid_attach(pasid, nested_hwpt_id[0]);
+	/* but attach RID to non-pasid compat domain should fail now. */
+	test_err_mock_domain_replace(EINVAL, self->stdev_id, parent_hwpt_id);
+	/*
+	 * Detach hwpt from pasid 100, and check if the pasid 100
+	 * has null domain.
+	 */
+	test_cmd_pasid_detach(pasid);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, 0));
+	/* RID is attached to pasid-comapt domain, pasid path is not used */
+
+	if (!variant->pasid_capable) {
+		/*
+		 * PASID-compatible domain can be used by non-PASID-capable
+		 * device.
+		 */
+		test_cmd_mock_domain_replace(self->no_pasid_stdev_id, nested_hwpt_id[0]);
+		test_cmd_mock_domain_replace(self->no_pasid_stdev_id, self->ioas_id);
+		/*
+		 * Attach hwpt to pasid 100 of non-PASID-capable device,
+		 * should fail, no matter domain is pasid-comapt or not.
+		 */
+		EXPECT_ERRNO(EINVAL,
+			     _test_cmd_pasid_attach(self->fd, self->no_pasid_stdev_id,
+						    pasid, parent_hwpt_id));
+		EXPECT_ERRNO(EINVAL,
+			     _test_cmd_pasid_attach(self->fd, self->no_pasid_stdev_id,
+						    pasid, s2_hwpt_id));
+	}
+
+	/*
+	 * Attach non pasid compat hwpt to pasid-capable device, should
+	 * fail, and have null domain.
+	 */
+	test_err_pasid_attach(EINVAL, pasid, parent_hwpt_id);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, 0));
+
+	/*
+	 * Attach ioas to pasid 100, should fail, domain should
+	 * be null.
+	 */
+	test_err_pasid_attach(EINVAL, pasid, self->ioas_id);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, 0));
+
+	/*
+	 * Attach the s2_hwpt to pasid 100, should succeed, domain should
+	 * be valid.
+	 */
+	test_cmd_pasid_attach(pasid, s2_hwpt_id);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, s2_hwpt_id));
+
+	/*
+	 * Try attach pasid 100 with another hwpt, should FAIL
+	 * as attach does not allow overwrite, use REPLACE instead.
+	 */
+	test_err_pasid_attach(EBUSY, pasid, nested_hwpt_id[0]);
+
+	/*
+	 * Detach hwpt from pasid 100 for next test, should succeed,
+	 * and have null domain.
+	 */
+	test_cmd_pasid_detach(pasid);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, 0));
+
+	/*
+	 * Attach nested hwpt to pasid 100, should succeed, domain
+	 * should be valid.
+	 */
+	test_cmd_pasid_attach(pasid, nested_hwpt_id[0]);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, nested_hwpt_id[0]));
+
+	/* Attach to pasid 100 which has been attached, should fail. */
+	test_err_pasid_attach(EBUSY, pasid, nested_hwpt_id[0]);
+
+	/* cleanup pasid 100 */
+	test_cmd_pasid_detach(pasid);
+
+	/* Replace tests */
+
+	pasid = 200;
+	/*
+	 * Replace pasid 200 without attaching it, should fail
+	 * with -EINVAL.
+	 */
+	test_err_pasid_replace(EINVAL, pasid, s2_hwpt_id);
+
+	/*
+	 * Attach the s2 hwpt to pasid 200, should succeed, domain should
+	 * be valid.
+	 */
+	test_cmd_pasid_attach(pasid, s2_hwpt_id);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, s2_hwpt_id));
+
+	/*
+	 * Replace pasid 200 with self->ioas_id, should fail
+	 * and domain should be the prior s2 hwpt.
+	 */
+	test_err_pasid_replace(EINVAL, pasid, self->ioas_id);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, s2_hwpt_id));
+
+	/*
+	 * Replace a nested hwpt for pasid 200, should succeed,
+	 * and have valid domain.
+	 */
+	test_cmd_pasid_replace(pasid, nested_hwpt_id[0]);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, nested_hwpt_id[0]));
+
+	/*
+	 * Replace with another nested hwpt for pasid 200, should
+	 * succeed, and have valid domain.
+	 */
+	test_cmd_pasid_replace(pasid, nested_hwpt_id[1]);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, nested_hwpt_id[1]));
+
+	/* cleanup pasid 200 */
+	test_cmd_pasid_detach(pasid);
+
+	/* Negative Tests for pasid replace, use pasid 1024 */
+
+	/*
+	 * Attach the s2 hwpt to pasid 1024, should succeed, domain should
+	 * be valid.
+	 */
+	pasid = 1024;
+	test_cmd_pasid_attach(pasid, s2_hwpt_id);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, s2_hwpt_id));
+
+	/*
+	 * Replace pasid 1024 with nested_hwpt_id[0], should fail,
+	 * but have the old valid domain. This is a designed
+	 * negative case. Normally, this shall succeed.
+	 */
+	test_err_pasid_replace(ENOMEM, pasid, nested_hwpt_id[0]);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, s2_hwpt_id));
+
+	/* cleanup pasid 1024 */
+	test_cmd_pasid_detach(pasid);
+
+	/* Attach to iopf-capable hwpt */
+
+	/*
+	 * Attach an iopf hwpt to pasid 2048, should succeed, domain should
+	 * be valid.
+	 */
+	pasid = 2048;
+	test_cmd_pasid_attach(pasid, iopf_hwpt_id);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, iopf_hwpt_id));
+
+	test_cmd_trigger_iopf_pasid(self->device_id, pasid, fault_fd);
+
+	/*
+	 * Replace with s2_hwpt_id for pasid 2048, should
+	 * succeed, and have valid domain.
+	 */
+	test_cmd_pasid_replace(pasid, s2_hwpt_id);
+	ASSERT_EQ(0,
+		  test_cmd_pasid_check_hwpt(self->fd, self->stdev_id,
+					    pasid, s2_hwpt_id));
+
+	/* cleanup pasid 2048 */
+	test_cmd_pasid_detach(pasid);
+
+	test_ioctl_destroy(iopf_hwpt_id);
+	close(fault_fd);
+	test_ioctl_destroy(fault_id);
+
+	/* Detach the s2_hwpt_id from RID */
+	test_cmd_mock_domain_replace(self->stdev_id, self->ioas_id);
+}
+
 TEST_HARNESS_MAIN
