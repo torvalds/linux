@@ -7670,7 +7670,7 @@ void intel_setup_outputs(struct intel_display *display)
 		intel_bios_for_each_encoder(display, intel_ddi_init);
 
 		if (display->platform.geminilake || display->platform.broxton)
-			vlv_dsi_init(dev_priv);
+			vlv_dsi_init(display);
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		int found;
 
@@ -7754,7 +7754,7 @@ void intel_setup_outputs(struct intel_display *display)
 				g4x_hdmi_init(display, CHV_HDMID, PORT_D);
 		}
 
-		vlv_dsi_init(dev_priv);
+		vlv_dsi_init(display);
 	} else if (display->platform.pineview) {
 		intel_lvds_init(dev_priv);
 		intel_crt_init(display);
