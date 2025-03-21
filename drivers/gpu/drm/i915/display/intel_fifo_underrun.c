@@ -470,8 +470,6 @@ void intel_init_fifo_underrun_reporting(struct intel_display *display,
 					struct intel_crtc *crtc,
 					bool enable)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	crtc->cpu_fifo_underrun_disabled = !enable;
 
 	/*
@@ -483,6 +481,6 @@ void intel_init_fifo_underrun_reporting(struct intel_display *display,
 	 * PCH transcoders B and C would prevent enabling the south
 	 * error interrupt (see cpt_can_enable_serr_int()).
 	 */
-	if (intel_has_pch_trancoder(i915, crtc->pipe))
+	if (intel_has_pch_trancoder(display, crtc->pipe))
 		crtc->pch_fifo_underrun_disabled = !enable;
 }

@@ -947,7 +947,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	/* HW state is read out, now we need to sanitize this mess. */
 	get_encoder_power_domains(i915);
 
-	intel_pch_sanitize(i915);
+	intel_pch_sanitize(display);
 
 	intel_cmtg_sanitize(display);
 
