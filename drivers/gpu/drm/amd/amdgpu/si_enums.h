@@ -148,8 +148,6 @@
 #define WAIT_REG_MEM_FUNCTION(x)                ((x) << 0)
 #define WAIT_REG_MEM_ENGINE(x)                  ((x) << 8)
 
-#define GFX6_NUM_GFX_RINGS     1
-#define GFX6_NUM_COMPUTE_RINGS 2
 #define RLC_SAVE_AND_RESTORE_STARTING_OFFSET 0x90
 #define RLC_CLEAR_STATE_DESCRIPTOR_OFFSET    0x3D
 

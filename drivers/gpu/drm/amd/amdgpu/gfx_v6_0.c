@@ -53,6 +53,9 @@
 #define VERDE_GB_ADDR_CONFIG_GOLDEN         0x12010002
 #define HAINAN_GB_ADDR_CONFIG_GOLDEN        0x02010001
 
+#define GFX6_NUM_GFX_RINGS     1
+#define GFX6_NUM_COMPUTE_RINGS 2
+
 static void gfx_v6_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 static void gfx_v6_0_get_cu_info(struct amdgpu_device *adev);
