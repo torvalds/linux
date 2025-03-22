@@ -9,6 +9,7 @@ unsigned int ublk_dbg_mask = UBLK_LOG;
 static const struct ublk_tgt_ops *tgt_ops_list[] = {
 	&null_tgt_ops,
 	&loop_tgt_ops,
+	&stripe_tgt_ops,
 };
 
 static const struct ublk_tgt_ops *ublk_find_tgt(const char *name)
@@ -1060,8 +1061,9 @@ int main(int argc, char *argv[])
 		{ "depth",		1,	NULL, 'd' },
 		{ "debug_mask",		1,	NULL,  0  },
 		{ "quiet",		0,	NULL,  0  },
-		{ "zero_copy",          1,      NULL, 'z' },
+		{ "zero_copy",          0,      NULL, 'z' },
 		{ "foreground",		0,	NULL,  0  },
+		{ "chunk_size", 	1,	NULL,  0  },
 		{ 0, 0, 0, 0 }
 	};
 	int option_idx, opt;
@@ -1071,6 +1073,7 @@ int main(int argc, char *argv[])
 		.nr_hw_queues	=	2,
 		.dev_id		=	-1,
 		.tgt_type	=	"unknown",
+		.chunk_size 	= 	65536, 	/* def chunk size is 64K */
 	};
 	int ret = -EINVAL, i;
 
@@ -1107,6 +1110,8 @@ int main(int argc, char *argv[])
 				ublk_dbg_mask = 0;
 			if (!strcmp(longopts[option_idx].name, "foreground"))
 				ctx.fg = 1;
+			if (!strcmp(longopts[option_idx].name, "chunk_size"))
+				ctx.chunk_size = strtol(optarg, NULL, 10);
 		}
 	}
 

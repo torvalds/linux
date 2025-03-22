@@ -19,6 +19,7 @@
 #include <sys/inotify.h>
 #include <sys/wait.h>
 #include <sys/eventfd.h>
+#include <sys/uio.h>
 #include <liburing.h>
 #include <linux/ublk_cmd.h>
 #include "ublk_dep.h"
@@ -65,6 +66,9 @@ struct dev_ctx {
 	unsigned int	logging:1;
 	unsigned int	all:1;
 	unsigned int	fg:1;
+
+	/* stripe */
+	unsigned int    chunk_size;
 
 	int _evtfd;
 };
@@ -352,7 +356,15 @@ static inline int ublk_queue_use_zc(const struct ublk_queue *q)
 
 extern const struct ublk_tgt_ops null_tgt_ops;
 extern const struct ublk_tgt_ops loop_tgt_ops;
+extern const struct ublk_tgt_ops stripe_tgt_ops;
 
 void backing_file_tgt_deinit(struct ublk_dev *dev);
 int backing_file_tgt_init(struct ublk_dev *dev);
+
+static inline unsigned int ilog2(unsigned int x)
+{
+	if (x == 0)
+		return 0;
+	return (sizeof(x) * 8 - 1) - __builtin_clz(x);
+}
 #endif
