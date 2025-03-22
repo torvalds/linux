@@ -505,24 +505,23 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
  * Returns:	an open_bucket on success, or an ERR_PTR() on failure.
  */
 static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
-				      struct bch_dev *ca,
-				      enum bch_watermark watermark,
-				      enum bch_data_type data_type,
-				      struct closure *cl,
-				      bool nowait,
-				      struct bch_dev_usage *usage)
+						   struct alloc_request *req,
+						   struct bch_dev *ca,
+						   struct closure *cl,
+						   bool nowait,
+						   struct bch_dev_usage *usage)
 {
 	struct bch_fs *c = trans->c;
 	struct open_bucket *ob = NULL;
 	bool freespace = READ_ONCE(ca->mi.freespace_initialized);
 	u64 avail;
 	struct bucket_alloc_state s = {
-		.btree_bitmap = data_type == BCH_DATA_btree,
+		.btree_bitmap = req->data_type == BCH_DATA_btree,
 	};
 	bool waiting = nowait;
 again:
 	bch2_dev_usage_read_fast(ca, usage);
-	avail = dev_buckets_free(ca, *usage, watermark);
+	avail = dev_buckets_free(ca, *usage, req->watermark);
 
 	if (usage->buckets[BCH_DATA_need_discard] > avail)
 		bch2_dev_do_discards(ca);
@@ -534,7 +533,7 @@ again:
 		bch2_dev_do_invalidates(ca);
 
 	if (!avail) {
-		if (watermark > BCH_WATERMARK_normal &&
+		if (req->watermark > BCH_WATERMARK_normal &&
 		    c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_allocations)
 			goto alloc;
 
@@ -554,8 +553,8 @@ again:
 		closure_wake_up(&c->freelist_wait);
 alloc:
 	ob = likely(freespace)
-		? bch2_bucket_alloc_freelist(trans, ca, watermark, &s, cl)
-		: bch2_bucket_alloc_early(trans, ca, watermark, &s, cl);
+		? bch2_bucket_alloc_freelist(trans, ca, req->watermark, &s, cl)
+		: bch2_bucket_alloc_early(trans, ca, req->watermark, &s, cl);
 
 	if (s.need_journal_commit * 2 > avail)
 		bch2_journal_flush_async(&c->journal, NULL);
@@ -574,7 +573,7 @@ err:
 		ob = ERR_PTR(-BCH_ERR_no_buckets_found);
 
 	if (!IS_ERR(ob))
-		ob->data_type = data_type;
+		ob->data_type = req->data_type;
 
 	if (!IS_ERR(ob))
 		count_event(c, bucket_alloc);
@@ -584,7 +583,7 @@ err:
 	if (!IS_ERR(ob)
 	    ? trace_bucket_alloc_enabled()
 	    : trace_bucket_alloc_fail_enabled())
-		trace_bucket_alloc2(c, ca, watermark, data_type, cl, usage, &s, ob);
+		trace_bucket_alloc2(c, ca, req->watermark, req->data_type, cl, usage, &s, ob);
 
 	return ob;
 }
@@ -596,10 +595,13 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 {
 	struct bch_dev_usage usage;
 	struct open_bucket *ob;
+	struct alloc_request req = {
+		.watermark	= watermark,
+		.data_type	= data_type,
+	};
 
 	bch2_trans_do(c,
-		      PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(trans, ca, watermark,
-							data_type, cl, false, &usage)));
+		PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(trans, &req, ca, cl, false, &usage)));
 	return ob;
 }
 
@@ -735,9 +737,8 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 		}
 
 		struct bch_dev_usage usage;
-		struct open_bucket *ob = bch2_bucket_alloc_trans(trans, ca,
-							req->watermark, req->data_type,
-							cl, req->flags & BCH_WRITE_alloc_nowait,
+		struct open_bucket *ob = bch2_bucket_alloc_trans(trans, req, ca, cl,
+							req->flags & BCH_WRITE_alloc_nowait,
 							&usage);
 		if (!IS_ERR(ob))
 			bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
