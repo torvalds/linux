@@ -320,4 +320,6 @@ static inline int ublk_queue_use_zc(const struct ublk_queue *q)
 extern const struct ublk_tgt_ops null_tgt_ops;
 extern const struct ublk_tgt_ops loop_tgt_ops;
 
+void backing_file_tgt_deinit(struct ublk_dev *dev);
+int backing_file_tgt_init(struct ublk_dev *dev);
 #endif
