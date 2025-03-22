@@ -221,28 +221,22 @@ static inline void ublk_dbg(int level, const char *fmt, ...)
 	}
 }
 
-static inline struct io_uring_sqe *ublk_queue_alloc_sqe(struct ublk_queue *q)
+static inline int ublk_queue_alloc_sqes(struct ublk_queue *q,
+		struct io_uring_sqe *sqes[], int nr_sqes)
 {
 	unsigned left = io_uring_sq_space_left(&q->ring);
+	int i;
 
-	if (left < 1)
+	if (left < nr_sqes)
 		io_uring_submit(&q->ring);
-	return io_uring_get_sqe(&q->ring);
-}
 
-static inline void ublk_queue_alloc_sqe3(struct ublk_queue *q,
-		struct io_uring_sqe **sqe1, struct io_uring_sqe **sqe2,
-		struct io_uring_sqe **sqe3)
-{
-	struct io_uring *r = &q->ring;
-	unsigned left = io_uring_sq_space_left(r);
+	for (i = 0; i < nr_sqes; i++) {
+		sqes[i] = io_uring_get_sqe(&q->ring);
+		if (!sqes[i])
+			return i;
+	}
 
-	if (left < 3)
-		io_uring_submit(r);
-
-	*sqe1 = io_uring_get_sqe(r);
-	*sqe2 = io_uring_get_sqe(r);
-	*sqe3 = io_uring_get_sqe(r);
+	return nr_sqes;
 }
 
 static inline void io_uring_prep_buf_register(struct io_uring_sqe *sqe,

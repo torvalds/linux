@@ -69,44 +69,42 @@ static int loop_queue_tgt_rw_io(struct ublk_queue *q, const struct ublksrv_io_de
 {
 	int zc = ublk_queue_use_zc(q);
 	enum io_uring_op op = ublk_to_uring_op(iod, zc);
-	struct io_uring_sqe *reg;
-	struct io_uring_sqe *rw;
-	struct io_uring_sqe *ureg;
+	struct io_uring_sqe *sqe[3];
 
 	if (!zc) {
-		rw = ublk_queue_alloc_sqe(q);
-		if (!rw)
+		ublk_queue_alloc_sqes(q, sqe, 1);
+		if (!sqe[0])
 			return -ENOMEM;
 
-		io_uring_prep_rw(op, rw, 1 /*fds[1]*/,
+		io_uring_prep_rw(op, sqe[0], 1 /*fds[1]*/,
 				(void *)iod->addr,
 				iod->nr_sectors << 9,
 				iod->start_sector << 9);
-		io_uring_sqe_set_flags(rw, IOSQE_FIXED_FILE);
+		io_uring_sqe_set_flags(sqe[0], IOSQE_FIXED_FILE);
 		q->io_inflight++;
 		/* bit63 marks us as tgt io */
-		rw->user_data = build_user_data(tag, op, UBLK_IO_TGT_NORMAL, 1);
+		sqe[0]->user_data = build_user_data(tag, op, UBLK_IO_TGT_NORMAL, 1);
 		return 0;
 	}
 
-	ublk_queue_alloc_sqe3(q, &reg, &rw, &ureg);
+	ublk_queue_alloc_sqes(q, sqe, 3);
 
-	io_uring_prep_buf_register(reg, 0, tag, q->q_id, tag);
-	reg->user_data = build_user_data(tag, 0xfe, 1, 1);
-	reg->flags |= IOSQE_CQE_SKIP_SUCCESS;
-	reg->flags |= IOSQE_IO_LINK;
+	io_uring_prep_buf_register(sqe[0], 0, tag, q->q_id, tag);
+	sqe[0]->user_data = build_user_data(tag, 0xfe, 1, 1);
+	sqe[0]->flags |= IOSQE_CQE_SKIP_SUCCESS;
+	sqe[0]->flags |= IOSQE_IO_LINK;
 
-	io_uring_prep_rw(op, rw, 1 /*fds[1]*/, 0,
+	io_uring_prep_rw(op, sqe[1], 1 /*fds[1]*/, 0,
 		iod->nr_sectors << 9,
 		iod->start_sector << 9);
-	rw->buf_index = tag;
-	rw->flags |= IOSQE_FIXED_FILE;
-	rw->flags |= IOSQE_IO_LINK;
-	rw->user_data = build_user_data(tag, op, UBLK_IO_TGT_ZC_OP, 1);
+	sqe[1]->buf_index = tag;
+	sqe[1]->flags |= IOSQE_FIXED_FILE;
+	sqe[1]->flags |= IOSQE_IO_LINK;
+	sqe[1]->user_data = build_user_data(tag, op, UBLK_IO_TGT_ZC_OP, 1);
 	q->io_inflight++;
 
-	io_uring_prep_buf_unregister(ureg, 0, tag, q->q_id, tag);
-	ureg->user_data = build_user_data(tag, 0xff, UBLK_IO_TGT_ZC_BUF, 1);
+	io_uring_prep_buf_unregister(sqe[2], 0, tag, q->q_id, tag);
+	sqe[2]->user_data = build_user_data(tag, 0xff, UBLK_IO_TGT_ZC_BUF, 1);
 	q->io_inflight++;
 
 	return 0;
@@ -116,17 +114,17 @@ static int loop_queue_tgt_io(struct ublk_queue *q, int tag)
 {
 	const struct ublksrv_io_desc *iod = ublk_get_iod(q, tag);
 	unsigned ublk_op = ublksrv_get_op(iod);
-	struct io_uring_sqe *sqe;
+	struct io_uring_sqe *sqe[1];
 
 	switch (ublk_op) {
 	case UBLK_IO_OP_FLUSH:
-		sqe = ublk_queue_alloc_sqe(q);
-		if (!sqe)
+		ublk_queue_alloc_sqes(q, sqe, 1);
+		if (!sqe[0])
 			return -ENOMEM;
-		io_uring_prep_fsync(sqe, 1 /*fds[1]*/, IORING_FSYNC_DATASYNC);
-		io_uring_sqe_set_flags(sqe, IOSQE_FIXED_FILE);
+		io_uring_prep_fsync(sqe[0], 1 /*fds[1]*/, IORING_FSYNC_DATASYNC);
+		io_uring_sqe_set_flags(sqe[0], IOSQE_FIXED_FILE);
 		q->io_inflight++;
-		sqe->user_data = build_user_data(tag, ublk_op, UBLK_IO_TGT_NORMAL, 1);
+		sqe[0]->user_data = build_user_data(tag, ublk_op, UBLK_IO_TGT_NORMAL, 1);
 		break;
 	case UBLK_IO_OP_WRITE_ZEROES:
 	case UBLK_IO_OP_DISCARD:

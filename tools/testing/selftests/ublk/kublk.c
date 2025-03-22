@@ -420,7 +420,7 @@ static void ublk_dev_unprep(struct ublk_dev *dev)
 int ublk_queue_io_cmd(struct ublk_queue *q, struct ublk_io *io, unsigned tag)
 {
 	struct ublksrv_io_cmd *cmd;
-	struct io_uring_sqe *sqe;
+	struct io_uring_sqe *sqe[1];
 	unsigned int cmd_op = 0;
 	__u64 user_data;
 
@@ -441,24 +441,24 @@ int ublk_queue_io_cmd(struct ublk_queue *q, struct ublk_io *io, unsigned tag)
 	if (io_uring_sq_space_left(&q->ring) < 1)
 		io_uring_submit(&q->ring);
 
-	sqe = ublk_queue_alloc_sqe(q);
-	if (!sqe) {
+	ublk_queue_alloc_sqes(q, sqe, 1);
+	if (!sqe[0]) {
 		ublk_err("%s: run out of sqe %d, tag %d\n",
 				__func__, q->q_id, tag);
 		return -1;
 	}
 
-	cmd = (struct ublksrv_io_cmd *)ublk_get_sqe_cmd(sqe);
+	cmd = (struct ublksrv_io_cmd *)ublk_get_sqe_cmd(sqe[0]);
 
 	if (cmd_op == UBLK_U_IO_COMMIT_AND_FETCH_REQ)
 		cmd->result = io->result;
 
 	/* These fields should be written once, never change */
-	ublk_set_sqe_cmd_op(sqe, cmd_op);
-	sqe->fd		= 0;	/* dev->fds[0] */
-	sqe->opcode	= IORING_OP_URING_CMD;
-	sqe->flags	= IOSQE_FIXED_FILE;
-	sqe->rw_flags	= 0;
+	ublk_set_sqe_cmd_op(sqe[0], cmd_op);
+	sqe[0]->fd		= 0;	/* dev->fds[0] */
+	sqe[0]->opcode	= IORING_OP_URING_CMD;
+	sqe[0]->flags	= IOSQE_FIXED_FILE;
+	sqe[0]->rw_flags	= 0;
 	cmd->tag	= tag;
 	cmd->q_id	= q->q_id;
 	if (!(q->state & UBLKSRV_NO_BUF))
@@ -467,7 +467,7 @@ int ublk_queue_io_cmd(struct ublk_queue *q, struct ublk_io *io, unsigned tag)
 		cmd->addr	= 0;
 
 	user_data = build_user_data(tag, _IOC_NR(cmd_op), 0, 0);
-	io_uring_sqe_set_data64(sqe, user_data);
+	io_uring_sqe_set_data64(sqe[0], user_data);
 
 	io->flags = 0;
 
