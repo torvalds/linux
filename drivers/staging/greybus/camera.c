@@ -1165,8 +1165,8 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 		gcam->debugfs.buffers[i].length = 0;
 
 		debugfs_create_file_aux(entry->name, entry->mask,
-				    gcam->debugfs.root, gcam, entry,
-				    &gb_camera_debugfs_ops);
+					gcam->debugfs.root, gcam, entry,
+					&gb_camera_debugfs_ops);
 	}
 
 	return 0;
