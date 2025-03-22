@@ -594,22 +594,6 @@ static int __rpc_mkpipe_dentry(struct inode *dir, struct dentry *dentry,
 	return 0;
 }
 
-static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
-					  const char *name)
-{
-	struct qstr q = QSTR(name);
-	struct dentry *dentry = try_lookup_noperm(&q, parent);
-	if (!dentry) {
-		dentry = d_alloc(parent, &q);
-		if (!dentry)
-			return ERR_PTR(-ENOMEM);
-	}
-	if (d_really_is_negative(dentry))
-		return dentry;
-	dput(dentry);
-	return ERR_PTR(-EEXIST);
-}
-
 static int rpc_populate(struct dentry *parent,
 			const struct rpc_filelist *files,
 			int start, int eof,
@@ -619,9 +603,8 @@ static int rpc_populate(struct dentry *parent,
 	struct dentry *dentry;
 	int i, err;
 
-	inode_lock(dir);
 	for (i = start; i < eof; i++) {
-		dentry = __rpc_lookup_create_exclusive(parent, files[i].name);
+		dentry = simple_start_creating(parent, files[i].name);
 		err = PTR_ERR(dentry);
 		if (IS_ERR(dentry))
 			goto out_bad;
@@ -633,20 +616,20 @@ static int rpc_populate(struct dentry *parent,
 						files[i].mode,
 						files[i].i_fop,
 						private);
+				inode_unlock(dir);
 				break;
 			case S_IFDIR:
 				err = __rpc_mkdir(dir, dentry,
 						files[i].mode,
 						NULL,
 						private);
+				inode_unlock(dir);
 		}
 		if (err != 0)
 			goto out_bad;
 	}
-	inode_unlock(dir);
 	return 0;
 out_bad:
-	inode_unlock(dir);
 	printk(KERN_WARNING "%s: %s failed to populate directory %pd\n",
 			__FILE__, __func__, parent);
 	return err;
@@ -660,27 +643,21 @@ static struct dentry *rpc_mkdir_populate(struct dentry *parent,
 	struct inode *dir = d_inode(parent);
 	int error;
 
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	dentry = __rpc_lookup_create_exclusive(parent, name);
+	dentry = simple_start_creating(parent, name);
 	if (IS_ERR(dentry))
-		goto out;
+		return dentry;
 	error = __rpc_mkdir(dir, dentry, mode, NULL, private);
+	inode_unlock(dir);
 	if (error != 0)
-		goto out_err;
+		return ERR_PTR(error);
 	if (populate != NULL) {
 		error = populate(dentry, args_populate);
 		if (error) {
-			inode_unlock(dir);
 			simple_recursive_removal(dentry, NULL);
 			return ERR_PTR(error);
 		}
 	}
-out:
-	inode_unlock(dir);
 	return dentry;
-out_err:
-	dentry = ERR_PTR(error);
-	goto out;
 }
 
 /**
@@ -715,12 +692,9 @@ int rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 	if (pipe->ops->downcall == NULL)
 		umode &= ~0222;
 
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	dentry = __rpc_lookup_create_exclusive(parent, name);
-	if (IS_ERR(dentry)) {
-		inode_unlock(dir);
+	dentry = simple_start_creating(parent, name);
+	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
-	}
 	err = __rpc_mkpipe_dentry(dir, dentry, umode, &rpc_pipe_fops,
 				  private, pipe);
 	if (unlikely(err))
