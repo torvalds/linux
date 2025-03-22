@@ -997,7 +997,7 @@ static int amd_pstate_cpu_init(struct cpufreq_policy *policy)
 	if (ret)
 		goto free_cpudata1;
 
-	policy->boost_enabled = READ_ONCE(cpudata->boost_supported);
+	policy->boost_supported = READ_ONCE(cpudata->boost_supported);
 
 	/* It will be updated by governor */
 	policy->cur = policy->cpuinfo.min_freq;
@@ -1475,7 +1475,7 @@ static int amd_pstate_epp_cpu_init(struct cpufreq_policy *policy)
 	policy->cur = policy->cpuinfo.min_freq;
 
 
-	policy->boost_enabled = READ_ONCE(cpudata->boost_supported);
+	policy->boost_supported = READ_ONCE(cpudata->boost_supported);
 
 	/*
 	 * Set the policy to provide a valid fallback value in case
