@@ -856,7 +856,7 @@ static void init_bank_register_bit(struct aml_pinctrl *info,
 				break;
 			}
 		}
-	};
+	}
 
 	if (def_offs) {
 		for (i = 0; i < AML_NUM_REG; i++) {
