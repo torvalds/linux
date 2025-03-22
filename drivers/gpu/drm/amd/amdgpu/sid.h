@@ -1559,44 +1559,11 @@
 #define DMA0_REGISTER_OFFSET                              0x0 /* not a register */
 #define DMA1_REGISTER_OFFSET                              0x200 /* not a register */
 
-#define DMA_RB_CNTL                                       0x3400
-#       define DMA_RB_ENABLE                              (1 << 0)
-#       define DMA_RB_SIZE(x)                             ((x) << 1) /* log2 */
-#       define DMA_RB_SWAP_ENABLE                         (1 << 9) /* 8IN32 */
-#       define DMA_RPTR_WRITEBACK_ENABLE                  (1 << 12)
-#       define DMA_RPTR_WRITEBACK_SWAP_ENABLE             (1 << 13)  /* 8IN32 */
-#       define DMA_RPTR_WRITEBACK_TIMER(x)                ((x) << 16) /* log2 */
-#define DMA_RB_BASE                                       0x3401
-#define DMA_RB_RPTR                                       0x3402
-#define DMA_RB_WPTR                                       0x3403
-
-#define DMA_RB_RPTR_ADDR_HI                               0x3407
-#define DMA_RB_RPTR_ADDR_LO                               0x3408
-
-#define DMA_IB_CNTL                                       0x3409
-#       define DMA_IB_ENABLE                              (1 << 0)
-#       define DMA_IB_SWAP_ENABLE                         (1 << 4)
-#       define CMD_VMID_FORCE                             (1 << 31)
 #define DMA_IB_RPTR                                       0x340a
-#define DMA_CNTL                                          0x340b
-#       define TRAP_ENABLE                                (1 << 0)
-#       define SEM_INCOMPLETE_INT_ENABLE                  (1 << 1)
-#       define SEM_WAIT_INT_ENABLE                        (1 << 2)
-#       define DATA_SWAP_ENABLE                           (1 << 3)
-#       define FENCE_SWAP_ENABLE                          (1 << 4)
-#       define CTXEMPTY_INT_ENABLE                        (1 << 28)
-#define DMA_STATUS_REG                                    0x340d
-#       define DMA_IDLE                                   (1 << 0)
 #define DMA_TILING_CONFIG  				  0x342e
-
-#define	DMA_POWER_CNTL					0x342f
-#       define MEM_POWER_OVERRIDE                       (1 << 8)
-#define	DMA_CLK_CTRL					0x3430
 
 #define	DMA_PG						0x3435
 #	define PG_CNTL_ENABLE				(1 << 0)
-#define	DMA_PGFSM_CONFIG				0x3436
-#define	DMA_PGFSM_WRITE					0x3437
 
 #define DMA_PACKET(cmd, b, t, s, n)	((((cmd) & 0xF) << 28) |	\
 					 (((b) & 0x1) << 26) |		\
@@ -2035,10 +2002,7 @@
 #define DMA_SEM_INCOMPLETE_TIMER_CNTL                     0x3411
 #define DMA_SEM_WAIT_FAIL_TIMER_CNTL                      0x3412
 #define DMA_MODE                                          0x342f
-#define DMA_RB_RPTR_ADDR_HI                               0x3407
-#define DMA_RB_RPTR_ADDR_LO                               0x3408
 #define DMA_BUSY_MASK 0x20
-#define DMA1_BUSY_MASK 0X40
 #define SDMA_MAX_INSTANCE 2
 
 #define PCIE_BUS_CLK    10000

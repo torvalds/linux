@@ -40,17 +40,31 @@ static void si_dma_set_buffer_funcs(struct amdgpu_device *adev);
 static void si_dma_set_vm_pte_funcs(struct amdgpu_device *adev);
 static void si_dma_set_irq_funcs(struct amdgpu_device *adev);
 
+/**
+ * si_dma_ring_get_rptr - get the current read pointer
+ *
+ * @ring: amdgpu ring pointer
+ *
+ * Get the current rptr from the hardware (SI).
+ */
 static uint64_t si_dma_ring_get_rptr(struct amdgpu_ring *ring)
 {
 	return *ring->rptr_cpu_addr;
 }
 
+/**
+ * si_dma_ring_get_wptr - get the current write pointer
+ *
+ * @ring: amdgpu ring pointer
+ *
+ * Get the current wptr from the hardware (SI).
+ */
 static uint64_t si_dma_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-	return (RREG32(DMA_RB_WPTR + sdma_offsets[me]) & 0x3fffc) >> 2;
+	return (RREG32(mmDMA_GFX_RB_WPTR + sdma_offsets[me]) & 0x3fffc) >> 2;
 }
 
 static void si_dma_ring_set_wptr(struct amdgpu_ring *ring)
@@ -58,7 +72,7 @@ static void si_dma_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	u32 me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-	WREG32(DMA_RB_WPTR + sdma_offsets[me], (ring->wptr << 2) & 0x3fffc);
+	WREG32(mmDMA_GFX_RB_WPTR + sdma_offsets[me], (ring->wptr << 2) & 0x3fffc);
 }
 
 static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
@@ -119,9 +133,9 @@ static void si_dma_stop(struct amdgpu_device *adev)
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		/* dma0 */
-		rb_cntl = RREG32(DMA_RB_CNTL + sdma_offsets[i]);
-		rb_cntl &= ~DMA_RB_ENABLE;
-		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl);
+		rb_cntl = RREG32(mmDMA_GFX_RB_CNTL + sdma_offsets[i]);
+		rb_cntl &= ~DMA_GFX_RB_CNTL__RB_ENABLE_MASK;
+		WREG32(mmDMA_GFX_RB_CNTL + sdma_offsets[i], rb_cntl);
 	}
 }
 
@@ -142,37 +156,37 @@ static int si_dma_start(struct amdgpu_device *adev)
 		rb_bufsz = order_base_2(ring->ring_size / 4);
 		rb_cntl = rb_bufsz << 1;
 #ifdef __BIG_ENDIAN
-		rb_cntl |= DMA_RB_SWAP_ENABLE | DMA_RPTR_WRITEBACK_SWAP_ENABLE;
+		rb_cntl |= DMA_GFX_RB_CNTL__RB_SWAP_ENABLE_MASK | DMA_GFX_RB_CNTL__RPTR_WRITEBACK_SWAP_ENABLE_MASK;
 #endif
-		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl);
+		WREG32(mmDMA_GFX_RB_CNTL + sdma_offsets[i], rb_cntl);
 
 		/* Initialize the ring buffer's read and write pointers */
-		WREG32(DMA_RB_RPTR + sdma_offsets[i], 0);
-		WREG32(DMA_RB_WPTR + sdma_offsets[i], 0);
+		WREG32(mmDMA_GFX_RB_RPTR + sdma_offsets[i], 0);
+		WREG32(mmDMA_GFX_RB_WPTR + sdma_offsets[i], 0);
 
 		rptr_addr = ring->rptr_gpu_addr;
 
-		WREG32(DMA_RB_RPTR_ADDR_LO + sdma_offsets[i], lower_32_bits(rptr_addr));
-		WREG32(DMA_RB_RPTR_ADDR_HI + sdma_offsets[i], upper_32_bits(rptr_addr) & 0xFF);
+		WREG32(mmDMA_GFX_RB_RPTR_ADDR_LO + sdma_offsets[i], lower_32_bits(rptr_addr));
+		WREG32(mmDMA_GFX_RB_RPTR_ADDR_HI + sdma_offsets[i], upper_32_bits(rptr_addr) & 0xFF);
 
-		rb_cntl |= DMA_RPTR_WRITEBACK_ENABLE;
+		rb_cntl |= DMA_GFX_RB_CNTL__RPTR_WRITEBACK_ENABLE_MASK;
 
-		WREG32(DMA_RB_BASE + sdma_offsets[i], ring->gpu_addr >> 8);
+		WREG32(mmDMA_GFX_RB_BASE + sdma_offsets[i], ring->gpu_addr >> 8);
 
 		/* enable DMA IBs */
-		ib_cntl = DMA_IB_ENABLE | CMD_VMID_FORCE;
+		ib_cntl = DMA_GFX_IB_CNTL__IB_ENABLE_MASK | DMA_GFX_IB_CNTL__CMD_VMID_FORCE_MASK;
 #ifdef __BIG_ENDIAN
-		ib_cntl |= DMA_IB_SWAP_ENABLE;
+		ib_cntl |= DMA_GFX_IB_CNTL__IB_SWAP_ENABLE_MASK;
 #endif
-		WREG32(DMA_IB_CNTL + sdma_offsets[i], ib_cntl);
+		WREG32(mmDMA_GFX_IB_CNTL + sdma_offsets[i], ib_cntl);
 
-		dma_cntl = RREG32(DMA_CNTL + sdma_offsets[i]);
-		dma_cntl &= ~CTXEMPTY_INT_ENABLE;
-		WREG32(DMA_CNTL + sdma_offsets[i], dma_cntl);
+		dma_cntl = RREG32(mmDMA_CNTL + sdma_offsets[i]);
+		dma_cntl &= ~DMA_CNTL__CTXEMPTY_INT_ENABLE_MASK;
+		WREG32(mmDMA_CNTL + sdma_offsets[i], dma_cntl);
 
 		ring->wptr = 0;
-		WREG32(DMA_RB_WPTR + sdma_offsets[i], ring->wptr << 2);
-		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl | DMA_RB_ENABLE);
+		WREG32(mmDMA_GFX_RB_WPTR + sdma_offsets[i], ring->wptr << 2);
+		WREG32(mmDMA_GFX_RB_CNTL + sdma_offsets[i], rb_cntl | DMA_GFX_RB_CNTL__RB_ENABLE_MASK);
 
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
@@ -547,9 +561,9 @@ static bool si_dma_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 
-	u32 tmp = RREG32(SRBM_STATUS2);
+	u32 tmp = RREG32(mmSRBM_STATUS2);
 
-	if (tmp & (DMA_BUSY_MASK | DMA1_BUSY_MASK))
+	if (tmp & (SRBM_STATUS2__DMA_BUSY_MASK | SRBM_STATUS2__DMA1_BUSY_MASK))
 	    return false;
 
 	return true;
@@ -585,14 +599,14 @@ static int si_dma_set_trap_irq_state(struct amdgpu_device *adev,
 	case AMDGPU_SDMA_IRQ_INSTANCE0:
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
-			sdma_cntl = RREG32(DMA_CNTL + DMA0_REGISTER_OFFSET);
-			sdma_cntl &= ~TRAP_ENABLE;
-			WREG32(DMA_CNTL + DMA0_REGISTER_OFFSET, sdma_cntl);
+			sdma_cntl = RREG32(mmDMA_CNTL + DMA0_REGISTER_OFFSET);
+			sdma_cntl &= ~DMA_CNTL__TRAP_ENABLE_MASK;
+			WREG32(mmDMA_CNTL + DMA0_REGISTER_OFFSET, sdma_cntl);
 			break;
 		case AMDGPU_IRQ_STATE_ENABLE:
-			sdma_cntl = RREG32(DMA_CNTL + DMA0_REGISTER_OFFSET);
-			sdma_cntl |= TRAP_ENABLE;
-			WREG32(DMA_CNTL + DMA0_REGISTER_OFFSET, sdma_cntl);
+			sdma_cntl = RREG32(mmDMA_CNTL + DMA0_REGISTER_OFFSET);
+			sdma_cntl |= DMA_CNTL__TRAP_ENABLE_MASK;
+			WREG32(mmDMA_CNTL + DMA0_REGISTER_OFFSET, sdma_cntl);
 			break;
 		default:
 			break;
@@ -601,14 +615,14 @@ static int si_dma_set_trap_irq_state(struct amdgpu_device *adev,
 	case AMDGPU_SDMA_IRQ_INSTANCE1:
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
-			sdma_cntl = RREG32(DMA_CNTL + DMA1_REGISTER_OFFSET);
-			sdma_cntl &= ~TRAP_ENABLE;
-			WREG32(DMA_CNTL + DMA1_REGISTER_OFFSET, sdma_cntl);
+			sdma_cntl = RREG32(mmDMA_CNTL + DMA1_REGISTER_OFFSET);
+			sdma_cntl &= ~DMA_CNTL__TRAP_ENABLE_MASK;
+			WREG32(mmDMA_CNTL + DMA1_REGISTER_OFFSET, sdma_cntl);
 			break;
 		case AMDGPU_IRQ_STATE_ENABLE:
-			sdma_cntl = RREG32(DMA_CNTL + DMA1_REGISTER_OFFSET);
-			sdma_cntl |= TRAP_ENABLE;
-			WREG32(DMA_CNTL + DMA1_REGISTER_OFFSET, sdma_cntl);
+			sdma_cntl = RREG32(mmDMA_CNTL + DMA1_REGISTER_OFFSET);
+			sdma_cntl |= DMA_CNTL__TRAP_ENABLE_MASK;
+			WREG32(mmDMA_CNTL + DMA1_REGISTER_OFFSET, sdma_cntl);
 			break;
 		default:
 			break;
@@ -647,11 +661,11 @@ static int si_dma_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 				offset = DMA0_REGISTER_OFFSET;
 			else
 				offset = DMA1_REGISTER_OFFSET;
-			orig = data = RREG32(DMA_POWER_CNTL + offset);
-			data &= ~MEM_POWER_OVERRIDE;
+			orig = data = RREG32(mmDMA_POWER_CNTL + offset);
+			data &= ~DMA_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 			if (data != orig)
-				WREG32(DMA_POWER_CNTL + offset, data);
-			WREG32(DMA_CLK_CTRL + offset, 0x00000100);
+				WREG32(mmDMA_POWER_CNTL + offset, data);
+			WREG32(mmDMA_CLK_CTRL + offset, 0x00000100);
 		}
 	} else {
 		for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -659,15 +673,15 @@ static int si_dma_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 				offset = DMA0_REGISTER_OFFSET;
 			else
 				offset = DMA1_REGISTER_OFFSET;
-			orig = data = RREG32(DMA_POWER_CNTL + offset);
-			data |= MEM_POWER_OVERRIDE;
+			orig = data = RREG32(mmDMA_POWER_CNTL + offset);
+			data |= DMA_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 			if (data != orig)
-				WREG32(DMA_POWER_CNTL + offset, data);
+				WREG32(mmDMA_POWER_CNTL + offset, data);
 
-			orig = data = RREG32(DMA_CLK_CTRL + offset);
+			orig = data = RREG32(mmDMA_CLK_CTRL + offset);
 			data = 0xff000000;
 			if (data != orig)
-				WREG32(DMA_CLK_CTRL + offset, data);
+				WREG32(mmDMA_CLK_CTRL + offset, data);
 		}
 	}
 
@@ -681,11 +695,11 @@ static int si_dma_set_powergating_state(struct amdgpu_ip_block *ip_block,
 
 	struct amdgpu_device *adev = ip_block->adev;
 
-	WREG32(DMA_PGFSM_WRITE,  0x00002000);
-	WREG32(DMA_PGFSM_CONFIG, 0x100010ff);
+	WREG32(mmDMA_PGFSM_WRITE,  0x00002000);
+	WREG32(mmDMA_PGFSM_CONFIG, 0x100010ff);
 
 	for (tmp = 0; tmp < 5; tmp++)
-		WREG32(DMA_PGFSM_WRITE, 0);
+		WREG32(mmDMA_PGFSM_WRITE, 0);
 
 	return 0;
 }
