@@ -189,6 +189,20 @@ __naked void load_acquire_from_sock_pointer(void)
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("load-acquire with invalid register R15")
+__failure __failure_unpriv __msg("R15 is invalid")
+__naked void load_acquire_with_invalid_reg(void)
+{
+	asm volatile (
+	".8byte %[load_acquire_insn];" // r0 = load_acquire((u64 *)(r15 + 0));
+	"exit;"
+	:
+	: __imm_insn(load_acquire_insn,
+		     BPF_ATOMIC_OP(BPF_DW, BPF_LOAD_ACQ, BPF_REG_0, 15 /* invalid reg */, 0))
+	: __clobber_all);
+}
+
 #else /* CAN_USE_LOAD_ACQ_STORE_REL */
 
 SEC("socket")

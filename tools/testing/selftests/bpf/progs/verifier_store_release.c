@@ -257,6 +257,20 @@ __naked void store_release_leak_pointer_to_map(void)
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("store-release with invalid register R15")
+__failure __failure_unpriv __msg("R15 is invalid")
+__naked void store_release_with_invalid_reg(void)
+{
+	asm volatile (
+	".8byte %[store_release_insn];" // store_release((u64 *)(r15 + 0), r1);
+	"exit;"
+	:
+	: __imm_insn(store_release_insn,
+		     BPF_ATOMIC_OP(BPF_DW, BPF_STORE_REL, 15 /* invalid reg */, BPF_REG_1, 0))
+	: __clobber_all);
+}
+
 #else
 
 SEC("socket")
