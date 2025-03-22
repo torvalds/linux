@@ -1011,16 +1011,16 @@ static void dce_v6_0_program_watermarks(struct amdgpu_device *adev,
 	/* select wm A */
 	arb_control3 = RREG32(mmDPG_PIPE_ARBITRATION_CONTROL3 + amdgpu_crtc->crtc_offset);
 	tmp = arb_control3;
-	tmp &= ~LATENCY_WATERMARK_MASK(3);
-	tmp |= LATENCY_WATERMARK_MASK(1);
+	tmp &= ~(3 << DPG_PIPE_ARBITRATION_CONTROL3__URGENCY_WATERMARK_MASK__SHIFT);
+	tmp |= (1 << DPG_PIPE_ARBITRATION_CONTROL3__URGENCY_WATERMARK_MASK__SHIFT);
 	WREG32(mmDPG_PIPE_ARBITRATION_CONTROL3 + amdgpu_crtc->crtc_offset, tmp);
 	WREG32(mmDPG_PIPE_URGENCY_CONTROL + amdgpu_crtc->crtc_offset,
 	       ((latency_watermark_a << DPG_PIPE_URGENCY_CONTROL__URGENCY_LOW_WATERMARK__SHIFT)  |
 		(line_time << DPG_PIPE_URGENCY_CONTROL__URGENCY_HIGH_WATERMARK__SHIFT)));
 	/* select wm B */
 	tmp = RREG32(mmDPG_PIPE_ARBITRATION_CONTROL3 + amdgpu_crtc->crtc_offset);
-	tmp &= ~LATENCY_WATERMARK_MASK(3);
-	tmp |= LATENCY_WATERMARK_MASK(2);
+	tmp &= ~(3 << DPG_PIPE_ARBITRATION_CONTROL3__URGENCY_WATERMARK_MASK__SHIFT);
+	tmp |= (2 << DPG_PIPE_ARBITRATION_CONTROL3__URGENCY_WATERMARK_MASK__SHIFT);
 	WREG32(mmDPG_PIPE_ARBITRATION_CONTROL3 + amdgpu_crtc->crtc_offset, tmp);
 	WREG32(mmDPG_PIPE_URGENCY_CONTROL + amdgpu_crtc->crtc_offset,
 	       ((latency_watermark_b << DPG_PIPE_URGENCY_CONTROL__URGENCY_LOW_WATERMARK__SHIFT) |
@@ -1089,7 +1089,7 @@ static u32 dce_v6_0_line_buffer_adjust(struct amdgpu_device *adev,
 	}
 
 	WREG32(mmDC_LB_MEMORY_SPLIT + amdgpu_crtc->crtc_offset,
-	       DC_LB_MEMORY_CONFIG(tmp));
+	       (tmp << DC_LB_MEMORY_SPLIT__DC_LB_MEMORY_CONFIG__SHIFT));
 
 	WREG32(mmPIPE0_DMIF_BUFFER_CONTROL + pipe_offset,
 	       (buffer_alloc << PIPE0_DMIF_BUFFER_CONTROL__DMIF_BUFFERS_ALLOCATED__SHIFT));
@@ -1306,6 +1306,7 @@ static void dce_v6_0_audio_write_sad_regs(struct drm_encoder *encoder)
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct amdgpu_encoder_atom_dig *dig = amdgpu_encoder->enc_priv;
+	u32 offset;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter iter;
 	struct amdgpu_connector *amdgpu_connector = NULL;
@@ -1326,6 +1327,11 @@ static void dce_v6_0_audio_write_sad_regs(struct drm_encoder *encoder)
 		{ ixAZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR11, HDMI_AUDIO_CODING_TYPE_MLP },
 		{ ixAZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR13, HDMI_AUDIO_CODING_TYPE_WMA_PRO },
 	};
+
+	if (!dig || !dig->afmt || !dig->afmt->pin)
+		return;
+
+	offset = dig->afmt->pin->offset;
 
 	drm_connector_list_iter_begin(dev, &iter);
 	drm_for_each_connector_iter(connector, &iter) {
@@ -1348,7 +1354,7 @@ static void dce_v6_0_audio_write_sad_regs(struct drm_encoder *encoder)
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(eld_reg_to_type); i++) {
-		u32 tmp = 0;
+		u32 value = 0;
 		u8 stereo_freqs = 0;
 		int max_channels = -1;
 		int j;
@@ -1358,12 +1364,12 @@ static void dce_v6_0_audio_write_sad_regs(struct drm_encoder *encoder)
 
 			if (sad->format == eld_reg_to_type[i][1]) {
 				if (sad->channels > max_channels) {
-					tmp = REG_SET_FIELD(tmp, AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0,
-							MAX_CHANNELS, sad->channels);
-					tmp = REG_SET_FIELD(tmp, AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0,
-							DESCRIPTOR_BYTE_2, sad->byte2);
-					tmp = REG_SET_FIELD(tmp, AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0,
-							SUPPORTED_FREQUENCIES, sad->freq);
+					value = (sad->channels <<
+						AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__MAX_CHANNELS__SHIFT) |
+					       (sad->byte2 <<
+						AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__DESCRIPTOR_BYTE_2__SHIFT) |
+					       (sad->freq <<
+						AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__SUPPORTED_FREQUENCIES__SHIFT);
 					max_channels = sad->channels;
 				}
 
@@ -1374,13 +1380,13 @@ static void dce_v6_0_audio_write_sad_regs(struct drm_encoder *encoder)
 			}
 		}
 
-		tmp = REG_SET_FIELD(tmp, AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0,
-				SUPPORTED_FREQUENCIES_STEREO, stereo_freqs);
-		WREG32_AUDIO_ENDPT(dig->afmt->pin->offset, eld_reg_to_type[i][0], tmp);
+		value |= (stereo_freqs <<
+			AZALIA_F0_CODEC_PIN_CONTROL_AUDIO_DESCRIPTOR0__SUPPORTED_FREQUENCIES_STEREO__SHIFT);
+
+		WREG32_AUDIO_ENDPT(offset, eld_reg_to_type[i][0], value);
 	}
 
 	kfree(sads);
-
 }
 
 static void dce_v6_0_audio_enable(struct amdgpu_device *adev,
@@ -1886,7 +1892,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	struct amdgpu_bo *abo;
 	uint64_t fb_location, tiling_flags;
 	uint32_t fb_format, fb_pitch_pixels, pipe_config;
-	u32 fb_swap = GRPH_ENDIAN_SWAP(GRPH_ENDIAN_NONE);
+	u32 fb_swap = (GRPH_ENDIAN_NONE << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 	u32 viewport_w, viewport_h;
 	int r;
 	bool bypass_lut = false;
@@ -1926,76 +1932,76 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 
 	switch (target_fb->format->format) {
 	case DRM_FORMAT_C8:
-		fb_format = (GRPH_DEPTH(GRPH_DEPTH_8BPP) |
-			     GRPH_FORMAT(GRPH_FORMAT_INDEXED));
+		fb_format = ((GRPH_DEPTH_8BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
+			     (GRPH_FORMAT_INDEXED << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 		break;
 	case DRM_FORMAT_XRGB4444:
 	case DRM_FORMAT_ARGB4444:
-		fb_format = (GRPH_DEPTH(GRPH_DEPTH_16BPP) |
-			     GRPH_FORMAT(GRPH_FORMAT_ARGB4444));
+		fb_format = ((GRPH_DEPTH_16BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
+			     (GRPH_FORMAT_ARGB4444 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 #ifdef __BIG_ENDIAN
-		fb_swap = GRPH_ENDIAN_SWAP(GRPH_ENDIAN_8IN16);
+		fb_swap = (GRPH_ENDIAN_8IN16 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
 		break;
 	case DRM_FORMAT_XRGB1555:
 	case DRM_FORMAT_ARGB1555:
-		fb_format = (GRPH_DEPTH(GRPH_DEPTH_16BPP) |
-			     GRPH_FORMAT(GRPH_FORMAT_ARGB1555));
+		fb_format = ((GRPH_DEPTH_16BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
+			     (GRPH_FORMAT_ARGB1555 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 #ifdef __BIG_ENDIAN
-		fb_swap = GRPH_ENDIAN_SWAP(GRPH_ENDIAN_8IN16);
+		fb_swap = (GRPH_ENDIAN_8IN16 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
 		break;
 	case DRM_FORMAT_BGRX5551:
 	case DRM_FORMAT_BGRA5551:
-		fb_format = (GRPH_DEPTH(GRPH_DEPTH_16BPP) |
-			     GRPH_FORMAT(GRPH_FORMAT_BGRA5551));
+		fb_format = ((GRPH_DEPTH_16BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
+			     (GRPH_FORMAT_BGRA5551 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 #ifdef __BIG_ENDIAN
-		fb_swap = GRPH_ENDIAN_SWAP(GRPH_ENDIAN_8IN16);
+		fb_swap = (GRPH_ENDIAN_8IN16 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
 		break;
 	case DRM_FORMAT_RGB565:
-		fb_format = (GRPH_DEPTH(GRPH_DEPTH_16BPP) |
-			     GRPH_FORMAT(GRPH_FORMAT_ARGB565));
+		fb_format = ((GRPH_DEPTH_16BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
+			     (GRPH_FORMAT_ARGB565 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 #ifdef __BIG_ENDIAN
-		fb_swap = GRPH_ENDIAN_SWAP(GRPH_ENDIAN_8IN16);
+		fb_swap = (GRPH_ENDIAN_8IN16 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
 		break;
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_ARGB8888:
-		fb_format = (GRPH_DEPTH(GRPH_DEPTH_32BPP) |
-			     GRPH_FORMAT(GRPH_FORMAT_ARGB8888));
+		fb_format = ((GRPH_DEPTH_32BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
+			     (GRPH_FORMAT_ARGB8888 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 #ifdef __BIG_ENDIAN
-		fb_swap = GRPH_ENDIAN_SWAP(GRPH_ENDIAN_8IN32);
+		fb_swap = (GRPH_ENDIAN_8IN32 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
 		break;
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_ARGB2101010:
-		fb_format = (GRPH_DEPTH(GRPH_DEPTH_32BPP) |
-			     GRPH_FORMAT(GRPH_FORMAT_ARGB2101010));
+		fb_format = ((GRPH_DEPTH_32BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
+			     (GRPH_FORMAT_ARGB2101010 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 #ifdef __BIG_ENDIAN
-		fb_swap = GRPH_ENDIAN_SWAP(GRPH_ENDIAN_8IN32);
+		fb_swap = (GRPH_ENDIAN_8IN32 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
 		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
 		bypass_lut = true;
 		break;
 	case DRM_FORMAT_BGRX1010102:
 	case DRM_FORMAT_BGRA1010102:
-		fb_format = (GRPH_DEPTH(GRPH_DEPTH_32BPP) |
-			     GRPH_FORMAT(GRPH_FORMAT_BGRA1010102));
+		fb_format = ((GRPH_DEPTH_32BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
+			     (GRPH_FORMAT_BGRA1010102 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 #ifdef __BIG_ENDIAN
-		fb_swap = GRPH_ENDIAN_SWAP(GRPH_ENDIAN_8IN32);
+		fb_swap = (GRPH_ENDIAN_8IN32 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
 		/* Greater 8 bpc fb needs to bypass hw-lut to retain precision */
 		bypass_lut = true;
 		break;
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
-		fb_format = (GRPH_DEPTH(GRPH_DEPTH_32BPP) |
-			     GRPH_FORMAT(GRPH_FORMAT_ARGB8888));
+		fb_format = ((GRPH_DEPTH_32BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
+			     (GRPH_FORMAT_ARGB8888 << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
 		fb_swap = (GRPH_RED_CROSSBAR(GRPH_RED_SEL_B) |
 			   GRPH_BLUE_CROSSBAR(GRPH_BLUE_SEL_R));
 #ifdef __BIG_ENDIAN
-		fb_swap |= GRPH_ENDIAN_SWAP(GRPH_ENDIAN_8IN32);
+		fb_swap |= (GRPH_ENDIAN_8IN32 << GRPH_SWAP_CNTL__GRPH_ENDIAN_SWAP__SHIFT);
 #endif
 		break;
 	default:
@@ -2013,18 +2019,18 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 		tile_split = AMDGPU_TILING_GET(tiling_flags, TILE_SPLIT);
 		num_banks = AMDGPU_TILING_GET(tiling_flags, NUM_BANKS);
 
-		fb_format |= GRPH_NUM_BANKS(num_banks);
-		fb_format |= GRPH_ARRAY_MODE(GRPH_ARRAY_2D_TILED_THIN1);
-		fb_format |= GRPH_TILE_SPLIT(tile_split);
-		fb_format |= GRPH_BANK_WIDTH(bankw);
-		fb_format |= GRPH_BANK_HEIGHT(bankh);
-		fb_format |= GRPH_MACRO_TILE_ASPECT(mtaspect);
+		fb_format |= (num_banks << GRPH_CONTROL__GRPH_NUM_BANKS__SHIFT);
+		fb_format |= (GRPH_ARRAY_2D_TILED_THIN1 << GRPH_CONTROL__GRPH_ARRAY_MODE__SHIFT);
+		fb_format |= (tile_split << GRPH_CONTROL__GRPH_TILE_SPLIT__SHIFT);
+		fb_format |= (bankw << GRPH_CONTROL__GRPH_BANK_WIDTH__SHIFT);
+		fb_format |= (bankh << GRPH_CONTROL__GRPH_BANK_HEIGHT__SHIFT);
+		fb_format |= (mtaspect << GRPH_CONTROL__GRPH_MACRO_TILE_ASPECT__SHIFT);
 	} else if (AMDGPU_TILING_GET(tiling_flags, ARRAY_MODE) == ARRAY_1D_TILED_THIN1) {
-		fb_format |= GRPH_ARRAY_MODE(GRPH_ARRAY_1D_TILED_THIN1);
+		fb_format |= (GRPH_ARRAY_1D_TILED_THIN1 << GRPH_CONTROL__GRPH_ARRAY_MODE__SHIFT);
 	}
 
 	pipe_config = AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
-	fb_format |= GRPH_PIPE_CONFIG(pipe_config);
+	fb_format |= (pipe_config << GRPH_CONTROL__GRPH_PIPE_CONFIG__SHIFT);
 
 	dce_v6_0_vga_enable(crtc, false);
 
@@ -2115,7 +2121,6 @@ static void dce_v6_0_set_interleave(struct drm_crtc *crtc,
 
 static void dce_v6_0_crtc_load_lut(struct drm_crtc *crtc)
 {
-
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
@@ -2125,15 +2130,15 @@ static void dce_v6_0_crtc_load_lut(struct drm_crtc *crtc)
 	DRM_DEBUG_KMS("%d\n", amdgpu_crtc->crtc_id);
 
 	WREG32(mmINPUT_CSC_CONTROL + amdgpu_crtc->crtc_offset,
-	       ((0 << INPUT_CSC_CONTROL__INPUT_CSC_GRPH_MODE__SHIFT) |
-		(0 << INPUT_CSC_CONTROL__INPUT_CSC_OVL_MODE__SHIFT)));
+	       ((INPUT_CSC_BYPASS << INPUT_CSC_CONTROL__INPUT_CSC_GRPH_MODE__SHIFT) |
+		(INPUT_CSC_BYPASS << INPUT_CSC_CONTROL__INPUT_CSC_OVL_MODE__SHIFT)));
 	WREG32(mmPRESCALE_GRPH_CONTROL + amdgpu_crtc->crtc_offset,
 	       PRESCALE_GRPH_CONTROL__GRPH_PRESCALE_BYPASS_MASK);
 	WREG32(mmPRESCALE_OVL_CONTROL + amdgpu_crtc->crtc_offset,
 	       PRESCALE_OVL_CONTROL__OVL_PRESCALE_BYPASS_MASK);
 	WREG32(mmINPUT_GAMMA_CONTROL + amdgpu_crtc->crtc_offset,
-	       ((0 << INPUT_GAMMA_CONTROL__GRPH_INPUT_GAMMA_MODE__SHIFT) |
-		(0 << INPUT_GAMMA_CONTROL__OVL_INPUT_GAMMA_MODE__SHIFT)));
+	       ((INPUT_GAMMA_USE_LUT << INPUT_GAMMA_CONTROL__GRPH_INPUT_GAMMA_MODE__SHIFT) |
+		(INPUT_GAMMA_USE_LUT << INPUT_GAMMA_CONTROL__OVL_INPUT_GAMMA_MODE__SHIFT)));
 
 	WREG32(mmDC_LUT_CONTROL + amdgpu_crtc->crtc_offset, 0);
 
@@ -2160,19 +2165,19 @@ static void dce_v6_0_crtc_load_lut(struct drm_crtc *crtc)
 	}
 
 	WREG32(mmDEGAMMA_CONTROL + amdgpu_crtc->crtc_offset,
-	       ((0 << DEGAMMA_CONTROL__GRPH_DEGAMMA_MODE__SHIFT) |
-		(0 << DEGAMMA_CONTROL__OVL_DEGAMMA_MODE__SHIFT) |
-		(0 << DEGAMMA_CONTROL__ICON_DEGAMMA_MODE__SHIFT) |
-		(0 << DEGAMMA_CONTROL__CURSOR_DEGAMMA_MODE__SHIFT)));
+	       ((DEGAMMA_BYPASS << DEGAMMA_CONTROL__GRPH_DEGAMMA_MODE__SHIFT) |
+		(DEGAMMA_BYPASS << DEGAMMA_CONTROL__OVL_DEGAMMA_MODE__SHIFT) |
+		(DEGAMMA_BYPASS << DEGAMMA_CONTROL__ICON_DEGAMMA_MODE__SHIFT) |
+		(DEGAMMA_BYPASS << DEGAMMA_CONTROL__CURSOR_DEGAMMA_MODE__SHIFT)));
 	WREG32(mmGAMUT_REMAP_CONTROL + amdgpu_crtc->crtc_offset,
-	       ((0 << GAMUT_REMAP_CONTROL__GRPH_GAMUT_REMAP_MODE__SHIFT) |
-		(0 << GAMUT_REMAP_CONTROL__OVL_GAMUT_REMAP_MODE__SHIFT)));
+	       ((GAMUT_REMAP_BYPASS << GAMUT_REMAP_CONTROL__GRPH_GAMUT_REMAP_MODE__SHIFT) |
+		(GAMUT_REMAP_BYPASS << GAMUT_REMAP_CONTROL__OVL_GAMUT_REMAP_MODE__SHIFT)));
 	WREG32(mmREGAMMA_CONTROL + amdgpu_crtc->crtc_offset,
-	       ((0 << REGAMMA_CONTROL__GRPH_REGAMMA_MODE__SHIFT) |
-		(0 << REGAMMA_CONTROL__OVL_REGAMMA_MODE__SHIFT)));
+	       ((REGAMMA_BYPASS << REGAMMA_CONTROL__GRPH_REGAMMA_MODE__SHIFT) |
+		(REGAMMA_BYPASS << REGAMMA_CONTROL__OVL_REGAMMA_MODE__SHIFT)));
 	WREG32(mmOUTPUT_CSC_CONTROL + amdgpu_crtc->crtc_offset,
-	       ((0 << OUTPUT_CSC_CONTROL__OUTPUT_CSC_GRPH_MODE__SHIFT) |
-		(0 << OUTPUT_CSC_CONTROL__OUTPUT_CSC_OVL_MODE__SHIFT)));
+	       ((OUTPUT_CSC_BYPASS << OUTPUT_CSC_CONTROL__OUTPUT_CSC_GRPH_MODE__SHIFT) |
+		(OUTPUT_CSC_BYPASS << OUTPUT_CSC_CONTROL__OUTPUT_CSC_OVL_MODE__SHIFT)));
 	/* XXX match this to the depth of the crtc fmt block, move to modeset? */
 	WREG32(0x1a50 + amdgpu_crtc->crtc_offset, 0);
 
@@ -2267,8 +2272,6 @@ static void dce_v6_0_hide_cursor(struct drm_crtc *crtc)
 	WREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset,
 	       (CURSOR_24_8_PRE_MULT << CUR_CONTROL__CURSOR_MODE__SHIFT) |
 	       (CURSOR_URGENT_1_2 << CUR_CONTROL__CURSOR_URGENT_CONTROL__SHIFT));
-
-
 }
 
 static void dce_v6_0_show_cursor(struct drm_crtc *crtc)
@@ -2285,7 +2288,6 @@ static void dce_v6_0_show_cursor(struct drm_crtc *crtc)
 	       CUR_CONTROL__CURSOR_EN_MASK |
 	       (CURSOR_24_8_PRE_MULT << CUR_CONTROL__CURSOR_MODE__SHIFT) |
 	       (CURSOR_URGENT_1_2 << CUR_CONTROL__CURSOR_URGENT_CONTROL__SHIFT));
-
 }
 
 static int dce_v6_0_cursor_move_locked(struct drm_crtc *crtc,
@@ -2596,7 +2598,6 @@ static bool dce_v6_0_crtc_mode_fixup(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
 {
-
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *encoder;
@@ -2669,7 +2670,7 @@ static void dce_v6_0_panic_flush(struct drm_plane *plane)
 
 	/* Disable DC tiling */
 	fb_format = RREG32(mmGRPH_CONTROL + amdgpu_crtc->crtc_offset);
-	fb_format &= ~GRPH_ARRAY_MODE(0x7);
+	fb_format &= ~GRPH_CONTROL__GRPH_ARRAY_MODE_MASK;
 	WREG32(mmGRPH_CONTROL + amdgpu_crtc->crtc_offset, fb_format);
 
 }
@@ -2745,7 +2746,6 @@ static int dce_v6_0_early_init(struct amdgpu_ip_block *ip_block)
 static int dce_v6_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	int r, i;
-	bool ret;
 	struct amdgpu_device *adev = ip_block->adev;
 
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
@@ -2789,8 +2789,7 @@ static int dce_v6_0_sw_init(struct amdgpu_ip_block *ip_block)
 			return r;
 	}
 
-	ret = amdgpu_atombios_get_connector_info_from_object_table(adev);
-	if (ret)
+	if (amdgpu_atombios_get_connector_info_from_object_table(adev))
 		amdgpu_display_print_display_setup(adev_to_drm(adev));
 	else
 		return -EINVAL;
@@ -3172,7 +3171,7 @@ static int dce_v6_0_pageflip_irq(struct amdgpu_device *adev,
 
 	spin_lock_irqsave(&adev_to_drm(adev)->event_lock, flags);
 	works = amdgpu_crtc->pflip_works;
-	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED){
+	if (amdgpu_crtc->pflip_status != AMDGPU_FLIP_SUBMITTED) {
 		DRM_DEBUG_DRIVER("amdgpu_crtc->pflip_status = %d != "
 						"AMDGPU_FLIP_SUBMITTED(%d)\n",
 						amdgpu_crtc->pflip_status,
@@ -3249,12 +3248,10 @@ static const struct amd_ip_funcs dce_v6_0_ip_funcs = {
 	.set_powergating_state = dce_v6_0_set_powergating_state,
 };
 
-static void
-dce_v6_0_encoder_mode_set(struct drm_encoder *encoder,
+static void dce_v6_0_encoder_mode_set(struct drm_encoder *encoder,
 			  struct drm_display_mode *mode,
 			  struct drm_display_mode *adjusted_mode)
 {
-
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	int em = amdgpu_atombios_encoder_get_encoder_mode(encoder);
 
@@ -3274,7 +3271,6 @@ dce_v6_0_encoder_mode_set(struct drm_encoder *encoder,
 
 static void dce_v6_0_encoder_prepare(struct drm_encoder *encoder)
 {
-
 	struct amdgpu_device *adev = drm_to_adev(encoder->dev);
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct drm_connector *connector = amdgpu_get_connector_for_encoder(encoder);
@@ -3314,7 +3310,6 @@ static void dce_v6_0_encoder_prepare(struct drm_encoder *encoder)
 
 static void dce_v6_0_encoder_commit(struct drm_encoder *encoder)
 {
-
 	struct drm_device *dev = encoder->dev;
 	struct amdgpu_device *adev = drm_to_adev(dev);
 
@@ -3325,7 +3320,6 @@ static void dce_v6_0_encoder_commit(struct drm_encoder *encoder)
 
 static void dce_v6_0_encoder_disable(struct drm_encoder *encoder)
 {
-
 	struct amdgpu_encoder *amdgpu_encoder = to_amdgpu_encoder(encoder);
 	struct amdgpu_encoder_atom_dig *dig;
 	int em = amdgpu_atombios_encoder_get_encoder_mode(encoder);

@@ -33,10 +33,6 @@
 #define PRIORITY_OFF                   (1 << 16)
 #define PRIORITY_ALWAYS_ON             (1 << 20)
 
-#define LATENCY_WATERMARK_MASK(x)      ((x) << 16)
-#define DC_LB_MEMORY_CONFIG(x)         ((x) << 20)
-
-#define GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
 #define GRPH_ENDIAN_NONE               0
 #define GRPH_ENDIAN_8IN16              1
 #define GRPH_ENDIAN_8IN32              2
@@ -62,12 +58,10 @@
 #define GRPH_ALPHA_SEL_G               2
 #define GRPH_ALPHA_SEL_B               3
 
-#define GRPH_DEPTH(x)                  (((x) & 0x3) << 0)
 #define GRPH_DEPTH_8BPP                0
 #define GRPH_DEPTH_16BPP               1
 #define GRPH_DEPTH_32BPP               2
 
-#define GRPH_FORMAT(x)                 (((x) & 0x7) << 8)
 #define GRPH_FORMAT_INDEXED            0
 #define GRPH_FORMAT_ARGB1555           0
 #define GRPH_FORMAT_ARGB565            1
@@ -84,18 +78,10 @@
 #define GRPH_FORMAT_RGB111110          6
 #define GRPH_FORMAT_BGR101111          7
 
-#define GRPH_NUM_BANKS(x)              (((x) & 0x3) << 2)
-#define GRPH_ARRAY_MODE(x)             (((x) & 0x7) << 20)
 #define GRPH_ARRAY_LINEAR_GENERAL      0
 #define GRPH_ARRAY_LINEAR_ALIGNED      1
 #define GRPH_ARRAY_1D_TILED_THIN1      2
 #define GRPH_ARRAY_2D_TILED_THIN1      4
-#define GRPH_TILE_SPLIT(x)             (((x) & 0x7) << 13)
-#define GRPH_BANK_WIDTH(x)             (((x) & 0x3) << 6)
-#define GRPH_BANK_HEIGHT(x)            (((x) & 0x3) << 11)
-#define GRPH_MACRO_TILE_ASPECT(x)      (((x) & 0x3) << 18)
-#define GRPH_ARRAY_MODE(x)             (((x) & 0x7) << 20)
-#define GRPH_PIPE_CONFIG(x)                   (((x) & 0x1f) << 24)
 
 #define CURSOR_EN                      (1 << 0)
 #define CURSOR_MODE(x)                 (((x) & 0x3) << 8)

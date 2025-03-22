@@ -772,17 +772,12 @@
 #define		PORT_CONNECTIVITY_MASK				(3 << 30)
 #define		PORT_CONNECTIVITY_SHIFT				30
 
-#define	DC_LB_MEMORY_SPLIT					0x1AC3
-#define		DC_LB_MEMORY_CONFIG(x)				((x) << 20)
-
 #define	PRIORITY_A_CNT						0x1AC6
 #define		PRIORITY_MARK_MASK				0x7fff
 #define		PRIORITY_OFF					(1 << 16)
 #define		PRIORITY_ALWAYS_ON				(1 << 20)
 #define	PRIORITY_B_CNT						0x1AC7
 
-#define	DPG_PIPE_ARBITRATION_CONTROL3				0x1B32
-#       define LATENCY_WATERMARK_MASK(x)			((x) << 16)
 #define	DPG_PIPE_LATENCY_CONTROL				0x1B33
 #       define LATENCY_LOW_WATERMARK(x)				((x) << 0)
 #       define LATENCY_HIGH_WATERMARK(x)			((x) << 16)
@@ -1794,109 +1789,6 @@
 #define FMT_50FRC_SEL(x)              ((x) << 28)
 #define FMT_75FRC_SEL(x)              ((x) << 30)
 
-#define EVERGREEN_DC_LUT_CONTROL                        0x1a80
-#define EVERGREEN_DC_LUT_BLACK_OFFSET_BLUE              0x1a81
-#define EVERGREEN_DC_LUT_BLACK_OFFSET_GREEN             0x1a82
-#define EVERGREEN_DC_LUT_BLACK_OFFSET_RED               0x1a83
-#define EVERGREEN_DC_LUT_WHITE_OFFSET_BLUE              0x1a84
-#define EVERGREEN_DC_LUT_WHITE_OFFSET_GREEN             0x1a85
-#define EVERGREEN_DC_LUT_WHITE_OFFSET_RED               0x1a86
-#define EVERGREEN_DC_LUT_30_COLOR                       0x1a7c
-#define EVERGREEN_DC_LUT_RW_INDEX                       0x1a79
-#define EVERGREEN_DC_LUT_WRITE_EN_MASK                  0x1a7e
-#define EVERGREEN_DC_LUT_RW_MODE                        0x1a78
-
-#define EVERGREEN_GRPH_ENABLE                           0x1a00
-#define EVERGREEN_GRPH_CONTROL                          0x1a01
-#define EVERGREEN_GRPH_DEPTH(x)                  (((x) & 0x3) << 0)
-#define EVERGREEN_GRPH_DEPTH_8BPP                0
-#define EVERGREEN_GRPH_DEPTH_16BPP               1
-#define EVERGREEN_GRPH_DEPTH_32BPP               2
-#define EVERGREEN_GRPH_NUM_BANKS(x)              (((x) & 0x3) << 2)
-#define EVERGREEN_ADDR_SURF_2_BANK               0
-#define EVERGREEN_ADDR_SURF_4_BANK               1
-#define EVERGREEN_ADDR_SURF_8_BANK               2
-#define EVERGREEN_ADDR_SURF_16_BANK              3
-#define EVERGREEN_GRPH_Z(x)                      (((x) & 0x3) << 4)
-#define EVERGREEN_GRPH_BANK_WIDTH(x)             (((x) & 0x3) << 6)
-#define EVERGREEN_ADDR_SURF_BANK_WIDTH_1         0
-#define EVERGREEN_ADDR_SURF_BANK_WIDTH_2         1
-#define EVERGREEN_ADDR_SURF_BANK_WIDTH_4         2
-#define EVERGREEN_ADDR_SURF_BANK_WIDTH_8         3
-#define EVERGREEN_GRPH_FORMAT(x)                 (((x) & 0x7) << 8)
-
-#define EVERGREEN_GRPH_FORMAT_INDEXED            0
-#define EVERGREEN_GRPH_FORMAT_ARGB1555           0
-#define EVERGREEN_GRPH_FORMAT_ARGB565            1
-#define EVERGREEN_GRPH_FORMAT_ARGB4444           2
-#define EVERGREEN_GRPH_FORMAT_AI88               3
-#define EVERGREEN_GRPH_FORMAT_MONO16             4
-#define EVERGREEN_GRPH_FORMAT_BGRA5551           5
-
-/* 32 BPP */
-#define EVERGREEN_GRPH_FORMAT_ARGB8888           0
-#define EVERGREEN_GRPH_FORMAT_ARGB2101010        1
-#define EVERGREEN_GRPH_FORMAT_32BPP_DIG          2
-#define EVERGREEN_GRPH_FORMAT_8B_ARGB2101010     3
-#define EVERGREEN_GRPH_FORMAT_BGRA1010102        4
-#define EVERGREEN_GRPH_FORMAT_8B_BGRA1010102     5
-#define EVERGREEN_GRPH_FORMAT_RGB111110          6
-#define EVERGREEN_GRPH_FORMAT_BGR101111          7
-#define EVERGREEN_GRPH_BANK_HEIGHT(x)            (((x) & 0x3) << 11)
-#define EVERGREEN_ADDR_SURF_BANK_HEIGHT_1        0
-#define EVERGREEN_ADDR_SURF_BANK_HEIGHT_2        1
-#define EVERGREEN_ADDR_SURF_BANK_HEIGHT_4        2
-#define EVERGREEN_ADDR_SURF_BANK_HEIGHT_8        3
-#define EVERGREEN_GRPH_TILE_SPLIT(x)             (((x) & 0x7) << 13)
-#define EVERGREEN_ADDR_SURF_TILE_SPLIT_64B       0
-#define EVERGREEN_ADDR_SURF_TILE_SPLIT_128B      1
-#define EVERGREEN_ADDR_SURF_TILE_SPLIT_256B      2
-#define EVERGREEN_ADDR_SURF_TILE_SPLIT_512B      3
-#define EVERGREEN_ADDR_SURF_TILE_SPLIT_1KB       4
-#define EVERGREEN_ADDR_SURF_TILE_SPLIT_2KB       5
-#define EVERGREEN_ADDR_SURF_TILE_SPLIT_4KB       6
-#define EVERGREEN_GRPH_MACRO_TILE_ASPECT(x)      (((x) & 0x3) << 18)
-#define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_1  0
-#define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_2  1
-#define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_4  2
-#define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_8  3
-#define EVERGREEN_GRPH_ARRAY_MODE(x)             (((x) & 0x7) << 20)
-#define EVERGREEN_GRPH_ARRAY_LINEAR_GENERAL      0
-#define EVERGREEN_GRPH_ARRAY_LINEAR_ALIGNED      1
-#define EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1      2
-#define EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1      4
-#define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_1  0
-#define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_2  1
-#define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_4  2
-#define EVERGREEN_ADDR_SURF_MACRO_TILE_ASPECT_8  3
-
-#define EVERGREEN_GRPH_SWAP_CONTROL                     0x1a03
-#define EVERGREEN_GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
-#       define EVERGREEN_GRPH_ENDIAN_NONE               0
-#       define EVERGREEN_GRPH_ENDIAN_8IN16              1
-#       define EVERGREEN_GRPH_ENDIAN_8IN32              2
-#       define EVERGREEN_GRPH_ENDIAN_8IN64              3
-#define EVERGREEN_GRPH_RED_CROSSBAR(x)           (((x) & 0x3) << 4)
-#       define EVERGREEN_GRPH_RED_SEL_R                 0
-#       define EVERGREEN_GRPH_RED_SEL_G                 1
-#       define EVERGREEN_GRPH_RED_SEL_B                 2
-#       define EVERGREEN_GRPH_RED_SEL_A                 3
-#define EVERGREEN_GRPH_GREEN_CROSSBAR(x)         (((x) & 0x3) << 6)
-#       define EVERGREEN_GRPH_GREEN_SEL_G               0
-#       define EVERGREEN_GRPH_GREEN_SEL_B               1
-#       define EVERGREEN_GRPH_GREEN_SEL_A               2
-#       define EVERGREEN_GRPH_GREEN_SEL_R               3
-#define EVERGREEN_GRPH_BLUE_CROSSBAR(x)          (((x) & 0x3) << 8)
-#       define EVERGREEN_GRPH_BLUE_SEL_B                0
-#       define EVERGREEN_GRPH_BLUE_SEL_A                1
-#       define EVERGREEN_GRPH_BLUE_SEL_R                2
-#       define EVERGREEN_GRPH_BLUE_SEL_G                3
-#define EVERGREEN_GRPH_ALPHA_CROSSBAR(x)         (((x) & 0x3) << 10)
-#       define EVERGREEN_GRPH_ALPHA_SEL_A               0
-#       define EVERGREEN_GRPH_ALPHA_SEL_R               1
-#       define EVERGREEN_GRPH_ALPHA_SEL_G               2
-#       define EVERGREEN_GRPH_ALPHA_SEL_B               3
-
 #define EVERGREEN_D3VGA_CONTROL                         0xf8
 #define EVERGREEN_D4VGA_CONTROL                         0xf9
 #define EVERGREEN_D5VGA_CONTROL                         0xfa
@@ -1956,65 +1848,6 @@
 #       define EVERGREEN_CURSOR_UPDATE_LOCK             (1 << 16)
 #       define EVERGREEN_CURSOR_DISABLE_MULTIPLE_UPDATE (1 << 24)
 
-
-#define NI_INPUT_CSC_CONTROL                           0x1a35
-#       define NI_INPUT_CSC_GRPH_MODE(x)               (((x) & 0x3) << 0)
-#       define NI_INPUT_CSC_BYPASS                     0
-#       define NI_INPUT_CSC_PROG_COEFF                 1
-#       define NI_INPUT_CSC_PROG_SHARED_MATRIXA        2
-#       define NI_INPUT_CSC_OVL_MODE(x)                (((x) & 0x3) << 4)
-
-#define NI_OUTPUT_CSC_CONTROL                          0x1a3c
-#       define NI_OUTPUT_CSC_GRPH_MODE(x)              (((x) & 0x7) << 0)
-#       define NI_OUTPUT_CSC_BYPASS                    0
-#       define NI_OUTPUT_CSC_TV_RGB                    1
-#       define NI_OUTPUT_CSC_YCBCR_601                 2
-#       define NI_OUTPUT_CSC_YCBCR_709                 3
-#       define NI_OUTPUT_CSC_PROG_COEFF                4
-#       define NI_OUTPUT_CSC_PROG_SHARED_MATRIXB       5
-#       define NI_OUTPUT_CSC_OVL_MODE(x)               (((x) & 0x7) << 4)
-
-#define NI_DEGAMMA_CONTROL                             0x1a58
-#       define NI_GRPH_DEGAMMA_MODE(x)                 (((x) & 0x3) << 0)
-#       define NI_DEGAMMA_BYPASS                       0
-#       define NI_DEGAMMA_SRGB_24                      1
-#       define NI_DEGAMMA_XVYCC_222                    2
-#       define NI_OVL_DEGAMMA_MODE(x)                  (((x) & 0x3) << 4)
-#       define NI_ICON_DEGAMMA_MODE(x)                 (((x) & 0x3) << 8)
-#       define NI_CURSOR_DEGAMMA_MODE(x)               (((x) & 0x3) << 12)
-
-#define NI_GAMUT_REMAP_CONTROL                         0x1a59
-#       define NI_GRPH_GAMUT_REMAP_MODE(x)             (((x) & 0x3) << 0)
-#       define NI_GAMUT_REMAP_BYPASS                   0
-#       define NI_GAMUT_REMAP_PROG_COEFF               1
-#       define NI_GAMUT_REMAP_PROG_SHARED_MATRIXA      2
-#       define NI_GAMUT_REMAP_PROG_SHARED_MATRIXB      3
-#       define NI_OVL_GAMUT_REMAP_MODE(x)              (((x) & 0x3) << 4)
-
-#define NI_REGAMMA_CONTROL                             0x1aa0
-#       define NI_GRPH_REGAMMA_MODE(x)                 (((x) & 0x7) << 0)
-#       define NI_REGAMMA_BYPASS                       0
-#       define NI_REGAMMA_SRGB_24                      1
-#       define NI_REGAMMA_XVYCC_222                    2
-#       define NI_REGAMMA_PROG_A                       3
-#       define NI_REGAMMA_PROG_B                       4
-#       define NI_OVL_REGAMMA_MODE(x)                  (((x) & 0x7) << 4)
-
-
-#define NI_PRESCALE_GRPH_CONTROL                       0x1a2d
-#       define NI_GRPH_PRESCALE_BYPASS                 (1 << 4)
-
-#define NI_PRESCALE_OVL_CONTROL                        0x1a31
-#       define NI_OVL_PRESCALE_BYPASS                  (1 << 4)
-
-#define NI_INPUT_GAMMA_CONTROL                         0x1a10
-#       define NI_GRPH_INPUT_GAMMA_MODE(x)             (((x) & 0x3) << 0)
-#       define NI_INPUT_GAMMA_USE_LUT                  0
-#       define NI_INPUT_GAMMA_BYPASS                   1
-#       define NI_INPUT_GAMMA_SRGB_24                  2
-#       define NI_INPUT_GAMMA_XVYCC_222                3
-#       define NI_OVL_INPUT_GAMMA_MODE(x)              (((x) & 0x3) << 4)
-
 #define	BLACKOUT_MODE_MASK			0x00000007
 #define	VGA_RENDER_CONTROL			0xC0
 #define R_000300_VGA_RENDER_CONTROL             0xC0
@@ -2073,6 +1906,107 @@
 #define mmBIF_FB_EN__xxFB_READ_EN__SHIFT 0x0
 #define mmBIF_FB_EN__xxFB_WRITE_EN_MASK 0x2
 #define mmBIF_FB_EN__xxFB_WRITE_EN__SHIFT 0x1
+
+#define GRPH_DEPTH_8BPP                0
+#define GRPH_DEPTH_16BPP               1
+#define GRPH_DEPTH_32BPP               2
+
+/* 8 BPP */
+#define GRPH_FORMAT_INDEXED            0
+
+/* 16 BPP */
+#define GRPH_FORMAT_ARGB1555           0
+#define GRPH_FORMAT_ARGB565            1
+#define GRPH_FORMAT_ARGB4444           2
+#define GRPH_FORMAT_AI88               3
+#define GRPH_FORMAT_MONO16             4
+#define GRPH_FORMAT_BGRA5551           5
+
+/* 32 BPP */
+#define GRPH_FORMAT_ARGB8888           0
+#define GRPH_FORMAT_ARGB2101010        1
+#define GRPH_FORMAT_32BPP_DIG          2
+#define GRPH_FORMAT_8B_ARGB2101010     3
+#define GRPH_FORMAT_BGRA1010102        4
+#define GRPH_FORMAT_8B_BGRA1010102     5
+#define GRPH_FORMAT_RGB111110          6
+#define GRPH_FORMAT_BGR101111          7
+
+#define ES_AND_GS_AUTO       3
+#define BUF_SWAP_32BIT       (2 << 16)
+
+#define GRPH_RED_CROSSBAR(x)           (((x) & 0x3) << 4)
+#define GRPH_RED_SEL_R                 0
+#define GRPH_RED_SEL_G                 1
+#define GRPH_RED_SEL_B                 2
+#define GRPH_RED_SEL_A                 3
+
+#define GRPH_GREEN_CROSSBAR(x)         (((x) & 0x3) << 6)
+#define GRPH_GREEN_SEL_G               0
+#define GRPH_GREEN_SEL_B               1
+#define GRPH_GREEN_SEL_A               2
+#define GRPH_GREEN_SEL_R               3
+
+#define GRPH_BLUE_CROSSBAR(x)          (((x) & 0x3) << 8)
+#define GRPH_BLUE_SEL_B                0
+#define GRPH_BLUE_SEL_A                1
+#define GRPH_BLUE_SEL_R                2
+#define GRPH_BLUE_SEL_G                3
+
+#define GRPH_ALPHA_CROSSBAR(x)         (((x) & 0x3) << 10)
+#define GRPH_ALPHA_SEL_A               0
+#define GRPH_ALPHA_SEL_R               1
+#define GRPH_ALPHA_SEL_G               2
+#define GRPH_ALPHA_SEL_B               3
+
+/* CUR_CONTROL */
+	#define CURSOR_MONO                    0
+	#define CURSOR_24_1                    1
+	#define CURSOR_24_8_PRE_MULT           2
+	#define CURSOR_24_8_UNPRE_MULT         3
+	#define CURSOR_URGENT_ALWAYS           0
+	#define CURSOR_URGENT_1_8              1
+	#define CURSOR_URGENT_1_4              2
+	#define CURSOR_URGENT_3_8              3
+	#define CURSOR_URGENT_1_2              4
+
+/* INPUT_CSC_CONTROL */
+#       define INPUT_CSC_BYPASS                     0
+#       define INPUT_CSC_PROG_COEFF                 1
+#       define INPUT_CSC_PROG_SHARED_MATRIXA        2
+
+/* OUTPUT_CSC_CONTROL */
+#       define OUTPUT_CSC_BYPASS                    0
+#       define OUTPUT_CSC_TV_RGB                    1
+#       define OUTPUT_CSC_YCBCR_601                 2
+#       define OUTPUT_CSC_YCBCR_709                 3
+#       define OUTPUT_CSC_PROG_COEFF                4
+#       define OUTPUT_CSC_PROG_SHARED_MATRIXB       5
+
+/* DEGAMMA_CONTROL */
+#       define DEGAMMA_BYPASS                       0
+#       define DEGAMMA_SRGB_24                      1
+#       define DEGAMMA_XVYCC_222                    2
+
+/* GAMUT_REMAP_CONTROL */
+#       define GAMUT_REMAP_BYPASS                   0
+#       define GAMUT_REMAP_PROG_COEFF               1
+#       define GAMUT_REMAP_PROG_SHARED_MATRIXA      2
+#       define GAMUT_REMAP_PROG_SHARED_MATRIXB      3
+
+/* REGAMMA_CONTROL */
+#       define REGAMMA_BYPASS                       0
+#       define REGAMMA_SRGB_24                      1
+#       define REGAMMA_XVYCC_222                    2
+#       define REGAMMA_PROG_A                       3
+#       define REGAMMA_PROG_B                       4
+
+
+/* INPUT_GAMMA_CONTROL */
+#       define INPUT_GAMMA_USE_LUT                  0
+#       define INPUT_GAMMA_BYPASS                   1
+#       define INPUT_GAMMA_SRGB_24                  2
+#       define INPUT_GAMMA_XVYCC_222                3
 
 #define mmSRBM_SOFT_RESET__xxSOFT_RESET_VMC_MASK 0x20000
 #define mmSRBM_SOFT_RESET__xxSOFT_RESET_VMC__SHIFT 0x11
