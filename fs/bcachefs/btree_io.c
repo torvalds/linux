@@ -2117,8 +2117,14 @@ out:
 	return;
 err:
 	set_btree_node_noevict(b);
-	bch2_fs_fatal_err_on(!bch2_err_matches(ret, EROFS), c,
-			     "writing btree node: %s", bch2_err_str(ret));
+
+	if (!bch2_err_matches(ret, EROFS)) {
+		struct printbuf buf = PRINTBUF;
+		prt_printf(&buf, "writing btree node: %s\n  ", bch2_err_str(ret));
+		bch2_btree_pos_to_text(&buf, c, b);
+		bch2_fs_fatal_error(c, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
 	goto out;
 }
 
@@ -2135,10 +2141,14 @@ static void btree_node_write_endio(struct bio *bio)
 	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_write,
 				   wbio->submit_time, !bio->bi_status);
 
-	if (ca && bio->bi_status)
-		bch_err_dev_ratelimited(ca,
-				   "btree write error: %s",
-				   bch2_blk_status_to_str(bio->bi_status));
+	if (ca && bio->bi_status) {
+		struct printbuf buf = PRINTBUF;
+		prt_printf(&buf, "btree write error: %s\n  ",
+			   bch2_blk_status_to_str(bio->bi_status));
+		bch2_btree_pos_to_text(&buf, c, b);
+		bch_err_dev_ratelimited(ca, "%s", buf.buf);
+		printbuf_exit(&buf);
+	}
 
 	if (bio->bi_status) {
 		unsigned long flags;
