@@ -1109,7 +1109,7 @@
 #define		MIN_POWER_SHIFT				0
 #define		MAX_POWER(x)				((x) << 16)
 #define		MAX_POWER_MASK				(0x3fff << 16)
-#define		MAX_POWER_SHIFT				0
+#define		MAX_POWER_SHIFT				16
 #define SQ_POWER_THROTTLE2                              0x8e5c
 #define		MAX_POWER_DELTA(x)			((x) << 0)
 #define		MAX_POWER_DELTA_MASK			(0x3fff << 0)
