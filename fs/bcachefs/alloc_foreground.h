@@ -30,6 +30,7 @@ struct alloc_request {
 	bool			ec;
 	enum bch_watermark	watermark;
 	enum bch_write_flags	flags;
+	enum bch_data_type	data_type;
 	struct bch_devs_list	*devs_have;
 
 	struct write_point	*wp;
@@ -191,8 +192,7 @@ static inline bool bch2_bucket_is_open_safe(struct bch_fs *c, unsigned dev, u64 
 
 enum bch_write_flags;
 int bch2_bucket_alloc_set_trans(struct btree_trans *, struct alloc_request *,
-				struct dev_stripe_state *, enum bch_data_type,
-				struct closure *);
+				struct dev_stripe_state *, struct closure *);
 
 int bch2_alloc_sectors_start_trans(struct btree_trans *,
 				   unsigned, unsigned,

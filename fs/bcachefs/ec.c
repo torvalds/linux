@@ -1755,11 +1755,9 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans,
 	if (nr_have_parity < s->nr_parity) {
 		req.nr_replicas		= s->nr_parity;
 		req.nr_effective	= nr_have_parity;
+		req.data_type		= BCH_DATA_parity;
 
-		ret = bch2_bucket_alloc_set_trans(trans, &req,
-					    &h->parity_stripe,
-					    BCH_DATA_parity,
-					    cl);
+		ret = bch2_bucket_alloc_set_trans(trans, &req, &h->parity_stripe, cl);
 
 		open_bucket_for_each(c, &req.ptrs, ob, i) {
 			j = find_next_zero_bit(s->blocks_gotten,
@@ -1780,11 +1778,9 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans,
 	if (nr_have_data < s->nr_data) {
 		req.nr_replicas		= s->nr_data;
 		req.nr_effective	= nr_have_data;
+		req.data_type		= BCH_DATA_user;
 
-		ret = bch2_bucket_alloc_set_trans(trans, &req,
-					    &h->block_stripe,
-					    BCH_DATA_user,
-					    cl);
+		ret = bch2_bucket_alloc_set_trans(trans, &req, &h->block_stripe, cl);
 
 		open_bucket_for_each(c, &req.ptrs, ob, i) {
 			j = find_next_zero_bit(s->blocks_gotten,

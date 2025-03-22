@@ -716,7 +716,6 @@ static int add_new_bucket(struct bch_fs *c,
 int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 				struct alloc_request *req,
 				struct dev_stripe_state *stripe,
-				enum bch_data_type data_type,
 				struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
@@ -737,7 +736,7 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 
 		struct bch_dev_usage usage;
 		struct open_bucket *ob = bch2_bucket_alloc_trans(trans, ca,
-							req->watermark, data_type,
+							req->watermark, req->data_type,
 							cl, req->flags & BCH_WRITE_alloc_nowait,
 							&usage);
 		if (!IS_ERR(ob))
@@ -933,8 +932,7 @@ retry_blocking:
 		 * Try nonblocking first, so that if one device is full we'll try from
 		 * other devices:
 		 */
-		ret = bch2_bucket_alloc_set_trans(trans, req, &req->wp->stripe,
-						  req->wp->data_type, cl);
+		ret = bch2_bucket_alloc_set_trans(trans, req, &req->wp->stripe, cl);
 		if (ret &&
 		    !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
 		    !bch2_err_matches(ret, BCH_ERR_insufficient_devices) &&
@@ -1285,12 +1283,14 @@ retry:
 
 	*wp_ret = req.wp = writepoint_find(trans, write_point.v);
 
+	req.data_type		= req.wp->data_type;
+
 	ret = bch2_trans_relock(trans);
 	if (ret)
 		goto err;
 
 	/* metadata may not allocate on cache devices: */
-	if (req.wp->data_type != BCH_DATA_user)
+	if (req.data_type != BCH_DATA_user)
 		req.have_cache = true;
 
 	if (target && !(flags & BCH_WRITE_only_specified_devs)) {
