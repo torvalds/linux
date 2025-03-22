@@ -198,6 +198,11 @@ static inline unsigned int user_data_to_tgt_data(__u64 user_data)
 	return (user_data >> 24) & 0xffff;
 }
 
+static inline unsigned short ublk_cmd_op_nr(unsigned int op)
+{
+	return _IOC_NR(op);
+}
+
 static inline void ublk_err(const char *fmt, ...)
 {
 	va_list ap;
