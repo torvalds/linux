@@ -381,7 +381,7 @@ static int ublk_queue_init(struct ublk_queue *q)
 
 #define WAIT_USEC 	100000
 #define MAX_WAIT_USEC 	(3 * 1000000)
-static int ublk_dev_prep(struct ublk_dev *dev)
+static int ublk_dev_prep(const struct dev_ctx *ctx, struct ublk_dev *dev)
 {
 	int dev_id = dev->dev_info.dev_id;
 	unsigned int wait_usec = 0;
@@ -404,7 +404,7 @@ static int ublk_dev_prep(struct ublk_dev *dev)
 
 	dev->fds[0] = fd;
 	if (dev->tgt.ops->init_tgt)
-		ret = dev->tgt.ops->init_tgt(dev);
+		ret = dev->tgt.ops->init_tgt(ctx, dev);
 	if (ret)
 		close(dev->fds[0]);
 	return ret;
@@ -666,7 +666,7 @@ static int ublk_start_daemon(const struct dev_ctx *ctx, struct ublk_dev *dev)
 
 	ublk_dbg(UBLK_DBG_DEV, "%s enter\n", __func__);
 
-	ret = ublk_dev_prep(dev);
+	ret = ublk_dev_prep(ctx, dev);
 	if (ret)
 		return ret;
 

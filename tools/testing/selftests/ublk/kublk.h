@@ -94,11 +94,14 @@ struct ublk_io {
 	unsigned short refs;		/* used by target code only */
 
 	int result;
+
+	unsigned short tgt_ios;
+	void *private_data;
 };
 
 struct ublk_tgt_ops {
 	const char *name;
-	int (*init_tgt)(struct ublk_dev *);
+	int (*init_tgt)(const struct dev_ctx *ctx, struct ublk_dev *);
 	void (*deinit_tgt)(struct ublk_dev *);
 
 	int (*queue_io)(struct ublk_queue *, int tag);
@@ -146,6 +149,8 @@ struct ublk_dev {
 	int nr_fds;
 	int ctrl_fd;
 	struct io_uring ring;
+
+	void *private_data;
 };
 
 #ifndef offsetof
@@ -303,6 +308,11 @@ static inline void ublk_set_sqe_cmd_op(struct io_uring_sqe *sqe, __u32 cmd_op)
 	addr[1] = 0;
 }
 
+static inline struct ublk_io *ublk_get_io(struct ublk_queue *q, unsigned tag)
+{
+	return &q->ios[tag];
+}
+
 static inline int ublk_complete_io(struct ublk_queue *q, unsigned tag, int res)
 {
 	struct ublk_io *io = &q->ios[tag];
@@ -310,6 +320,28 @@ static inline int ublk_complete_io(struct ublk_queue *q, unsigned tag, int res)
 	ublk_mark_io_done(io, res);
 
 	return ublk_queue_io_cmd(q, io, tag);
+}
+
+static inline void ublk_queued_tgt_io(struct ublk_queue *q, unsigned tag, int queued)
+{
+	if (queued < 0)
+		ublk_complete_io(q, tag, queued);
+	else {
+		struct ublk_io *io = ublk_get_io(q, tag);
+
+		q->io_inflight += queued;
+		io->tgt_ios = queued;
+		io->result = 0;
+	}
+}
+
+static inline int ublk_completed_tgt_io(struct ublk_queue *q, unsigned tag)
+{
+	struct ublk_io *io = ublk_get_io(q, tag);
+
+	q->io_inflight--;
+
+	return --io->tgt_ios == 0;
 }
 
 static inline int ublk_queue_use_zc(const struct ublk_queue *q)

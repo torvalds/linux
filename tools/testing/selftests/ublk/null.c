@@ -2,7 +2,7 @@
 
 #include "kublk.h"
 
-static int ublk_null_tgt_init(struct ublk_dev *dev)
+static int ublk_null_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 {
 	const struct ublksrv_ctrl_dev_info *info = &dev->dev_info;
 	unsigned long dev_size = 250UL << 30;

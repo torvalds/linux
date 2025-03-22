@@ -123,7 +123,7 @@ exit:
 	q->io_inflight--;
 }
 
-static int ublk_loop_tgt_init(struct ublk_dev *dev)
+static int ublk_loop_tgt_init(const struct dev_ctx *ctx, struct ublk_dev *dev)
 {
 	unsigned long long bytes;
 	int ret;
