@@ -840,7 +840,7 @@ panthor_queue_put_syncwait_obj(struct panthor_queue *queue)
 	if (queue->syncwait.kmap) {
 		struct iosys_map map = IOSYS_MAP_INIT_VADDR(queue->syncwait.kmap);
 
-		drm_gem_vunmap_unlocked(queue->syncwait.obj, &map);
+		drm_gem_vunmap(queue->syncwait.obj, &map);
 		queue->syncwait.kmap = NULL;
 	}
 
@@ -866,7 +866,7 @@ panthor_queue_get_syncwait_obj(struct panthor_group *group, struct panthor_queue
 		goto err_put_syncwait_obj;
 
 	queue->syncwait.obj = &bo->base.base;
-	ret = drm_gem_vmap_unlocked(queue->syncwait.obj, &map);
+	ret = drm_gem_vmap(queue->syncwait.obj, &map);
 	if (drm_WARN_ON(&ptdev->base, ret))
 		goto err_put_syncwait_obj;
 

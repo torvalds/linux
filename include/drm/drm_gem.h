@@ -537,8 +537,8 @@ void drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 void drm_gem_lock(struct drm_gem_object *obj);
 void drm_gem_unlock(struct drm_gem_object *obj);
 
-int drm_gem_vmap_unlocked(struct drm_gem_object *obj, struct iosys_map *map);
-void drm_gem_vunmap_unlocked(struct drm_gem_object *obj, struct iosys_map *map);
+int drm_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map);
+void drm_gem_vunmap(struct drm_gem_object *obj, struct iosys_map *map);
 
 int drm_gem_objects_lookup(struct drm_file *filp, void __user *bo_handles,
 			   int count, struct drm_gem_object ***objs_out);
