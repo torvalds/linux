@@ -139,10 +139,16 @@ __naked void load_acquire_from_pkt_pointer(void)
 {
 	asm volatile (
 	"r2 = *(u32 *)(r1 + %[xdp_md_data]);"
+	"r3 = *(u32 *)(r1 + %[xdp_md_data_end]);"
+	"r1 = r2;"
+	"r1 += 8;"
+	"if r1 >= r3 goto l0_%=;"
 	".8byte %[load_acquire_insn];" // w0 = load_acquire((u8 *)(r2 + 0));
+"l0_%=:  r0 = 0;"
 	"exit;"
 	:
 	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
 	  __imm_insn(load_acquire_insn,
 		     BPF_ATOMIC_OP(BPF_B, BPF_LOAD_ACQ, BPF_REG_0, BPF_REG_2, 0))
 	: __clobber_all);
@@ -172,12 +178,14 @@ __naked void load_acquire_from_sock_pointer(void)
 {
 	asm volatile (
 	"r2 = *(u64 *)(r1 + %[sk_reuseport_md_sk]);"
-	".8byte %[load_acquire_insn];" // w0 = load_acquire((u8 *)(r2 + 0));
+	// w0 = load_acquire((u8 *)(r2 + offsetof(struct bpf_sock, family)));
+	".8byte %[load_acquire_insn];"
 	"exit;"
 	:
 	: __imm_const(sk_reuseport_md_sk, offsetof(struct sk_reuseport_md, sk)),
 	  __imm_insn(load_acquire_insn,
-		     BPF_ATOMIC_OP(BPF_B, BPF_LOAD_ACQ, BPF_REG_0, BPF_REG_2, 0))
+		     BPF_ATOMIC_OP(BPF_B, BPF_LOAD_ACQ, BPF_REG_0, BPF_REG_2,
+				   offsetof(struct bpf_sock, family)))
 	: __clobber_all);
 }
 

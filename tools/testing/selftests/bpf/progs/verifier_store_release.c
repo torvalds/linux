@@ -140,11 +140,13 @@ __naked void store_release_to_ctx_pointer(void)
 {
 	asm volatile (
 	"w0 = 0;"
-	".8byte %[store_release_insn];" // store_release((u8 *)(r1 + 0), w0);
+	// store_release((u8 *)(r1 + offsetof(struct __sk_buff, cb[0])), w0);
+	".8byte %[store_release_insn];"
 	"exit;"
 	:
 	: __imm_insn(store_release_insn,
-		     BPF_ATOMIC_OP(BPF_B, BPF_STORE_REL, BPF_REG_1, BPF_REG_0, 0))
+		     BPF_ATOMIC_OP(BPF_B, BPF_STORE_REL, BPF_REG_1, BPF_REG_0,
+				   offsetof(struct __sk_buff, cb[0])))
 	: __clobber_all);
 }
 
@@ -156,10 +158,16 @@ __naked void store_release_to_pkt_pointer(void)
 	asm volatile (
 	"w0 = 0;"
 	"r2 = *(u32 *)(r1 + %[xdp_md_data]);"
+	"r3 = *(u32 *)(r1 + %[xdp_md_data_end]);"
+	"r1 = r2;"
+	"r1 += 8;"
+	"if r1 >= r3 goto l0_%=;"
 	".8byte %[store_release_insn];" // store_release((u8 *)(r2 + 0), w0);
+"l0_%=:  r0 = 0;"
 	"exit;"
 	:
 	: __imm_const(xdp_md_data, offsetof(struct xdp_md, data)),
+	  __imm_const(xdp_md_data_end, offsetof(struct xdp_md, data_end)),
 	  __imm_insn(store_release_insn,
 		     BPF_ATOMIC_OP(BPF_B, BPF_STORE_REL, BPF_REG_2, BPF_REG_0, 0))
 	: __clobber_all);
@@ -185,7 +193,7 @@ __naked void store_release_to_flow_keys_pointer(void)
 
 SEC("sk_reuseport")
 __description("store-release to sock pointer")
-__failure __msg("BPF_ATOMIC stores into R2 sock is not allowed")
+__failure __msg("R2 cannot write into sock")
 __naked void store_release_to_sock_pointer(void)
 {
 	asm volatile (
