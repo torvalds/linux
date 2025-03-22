@@ -168,7 +168,7 @@ static void drm_gem_shmem_test_vmap(struct kunit *test)
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
 	KUNIT_EXPECT_NULL(test, shmem->vaddr);
-	KUNIT_EXPECT_EQ(test, shmem->vmap_use_count, 0);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->vmap_use_count), 0);
 
 	ret = kunit_add_action_or_reset(test, drm_gem_shmem_free_wrapper, shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -177,7 +177,7 @@ static void drm_gem_shmem_test_vmap(struct kunit *test)
 	KUNIT_ASSERT_EQ(test, ret, 0);
 	KUNIT_ASSERT_NOT_NULL(test, shmem->vaddr);
 	KUNIT_ASSERT_FALSE(test, iosys_map_is_null(&map));
-	KUNIT_EXPECT_EQ(test, shmem->vmap_use_count, 1);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->vmap_use_count), 1);
 
 	iosys_map_memset(&map, 0, TEST_BYTE, TEST_SIZE);
 	for (i = 0; i < TEST_SIZE; i++)
@@ -185,7 +185,7 @@ static void drm_gem_shmem_test_vmap(struct kunit *test)
 
 	drm_gem_shmem_vunmap_locked(shmem, &map);
 	KUNIT_EXPECT_NULL(test, shmem->vaddr);
-	KUNIT_EXPECT_EQ(test, shmem->vmap_use_count, 0);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->vmap_use_count), 0);
 }
 
 /*
