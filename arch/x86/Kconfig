@@ -471,14 +471,15 @@ config X86_X2APIC
 	  in 2019, but it can be disabled by the BIOS. It is also frequently
 	  emulated in virtual machines, even when the host CPU does not support
 	  it. Support in the CPU can be checked by executing
-		cat /proc/cpuinfo | grep x2apic
+		grep x2apic /proc/cpuinfo
 
-	  If this configuration option is disabled, the kernel will not boot on
-	  some platforms that have x2APIC enabled.
+	  If this configuration option is disabled, the kernel will boot with
+	  very reduced functionality and performance on some platforms that
+	  have x2APIC enabled. On the other hand, on hardware that does not
+	  support x2APIC, a kernel with this option enabled will just fallback
+	  to older APIC implementations.
 
-	  Say N if you know that your platform does not have x2APIC.
-
-	  Otherwise, say Y.
+	  If in doubt, say Y.
 
 config X86_POSTED_MSI
 	bool "Enable MSI and MSI-x delivery by posted interrupts"
