@@ -134,7 +134,7 @@ static void drm_gem_shmem_test_pin_pages(struct kunit *test)
 	shmem = drm_gem_shmem_create(drm_dev, TEST_SIZE);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, shmem);
 	KUNIT_EXPECT_NULL(test, shmem->pages);
-	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 0);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->pages_use_count), 0);
 
 	ret = kunit_add_action_or_reset(test, drm_gem_shmem_free_wrapper, shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
@@ -142,14 +142,14 @@ static void drm_gem_shmem_test_pin_pages(struct kunit *test)
 	ret = drm_gem_shmem_pin(shmem);
 	KUNIT_ASSERT_EQ(test, ret, 0);
 	KUNIT_ASSERT_NOT_NULL(test, shmem->pages);
-	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 1);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->pages_use_count), 1);
 
 	for (i = 0; i < (shmem->base.size >> PAGE_SHIFT); i++)
 		KUNIT_ASSERT_NOT_NULL(test, shmem->pages[i]);
 
 	drm_gem_shmem_unpin(shmem);
 	KUNIT_EXPECT_NULL(test, shmem->pages);
-	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 0);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->pages_use_count), 0);
 }
 
 /*
@@ -251,7 +251,7 @@ static void drm_gem_shmem_test_get_sg_table(struct kunit *test)
 	sgt = drm_gem_shmem_get_pages_sgt(shmem);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, sgt);
 	KUNIT_ASSERT_NOT_NULL(test, shmem->pages);
-	KUNIT_EXPECT_EQ(test, shmem->pages_use_count, 1);
+	KUNIT_EXPECT_EQ(test, refcount_read(&shmem->pages_use_count), 1);
 	KUNIT_EXPECT_PTR_EQ(test, sgt, shmem->sgt);
 
 	for_each_sgtable_sg(sgt, sg, si) {
