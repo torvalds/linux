@@ -40,7 +40,7 @@
 /* queue idle timeout */
 #define UBLKSRV_IO_IDLE_SECS		20
 
-#define UBLK_IO_MAX_BYTES               65536
+#define UBLK_IO_MAX_BYTES               (1 << 20)
 #define UBLK_MAX_QUEUES                 4
 #define UBLK_QUEUE_DEPTH                128
 
