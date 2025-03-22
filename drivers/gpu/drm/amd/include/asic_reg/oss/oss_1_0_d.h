@@ -246,6 +246,8 @@
 #define mmDMA_CNTL                                          0x340b
 #define mmDMA_STATUS_REG                                    0x340D
 #define mmDMA_TILING_CONFIG  				  0x342E
+#define mmDMA_SEM_INCOMPLETE_TIMER_CNTL                     0x3411
+#define mmDMA_SEM_WAIT_FAIL_TIMER_CNTL                      0x3412
 #define mmDMA_POWER_CNTL					0x342F
 #define mmDMA_CLK_CTRL					0x3430
 #define mmDMA_PG						0x3435

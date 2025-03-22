@@ -1999,8 +1999,6 @@
 #define AMDGPU_PCIE_INDEX	0xc
 #define AMDGPU_PCIE_DATA	0xd
 
-#define DMA_SEM_INCOMPLETE_TIMER_CNTL                     0x3411
-#define DMA_SEM_WAIT_FAIL_TIMER_CNTL                      0x3412
 #define DMA_MODE                                          0x342f
 #define DMA_BUSY_MASK 0x20
 #define SDMA_MAX_INSTANCE 2
