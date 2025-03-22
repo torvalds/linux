@@ -3,6 +3,26 @@
 
 UBLK_SKIP_CODE=4
 
+_have_program() {
+	if command -v "$1" >/dev/null 2>&1; then
+		return 0
+	fi
+	return 1
+}
+
+_get_disk_dev_t() {
+	local dev_id=$1
+	local dev
+	local major
+	local minor
+
+	dev=/dev/ublkb"${dev_id}"
+	major=$(stat -c '%Hr' "$dev")
+	minor=$(stat -c '%Lr' "$dev")
+
+	echo $(( (major & 0xfff) << 20 | (minor & 0xfffff) ))
+}
+
 _create_backfile() {
 	local my_size=$1
 	local my_file
@@ -121,6 +141,7 @@ _check_add_dev()
 
 _cleanup_test() {
 	"${UBLK_PROG}" del -a
+	rm -f "$UBLK_TMP"
 }
 
 _have_feature()
@@ -216,6 +237,7 @@ _ublk_test_top_dir()
 	cd "$(dirname "$0")" && pwd
 }
 
+UBLK_TMP=$(mktemp ublk_test_XXXXX)
 UBLK_PROG=$(_ublk_test_top_dir)/kublk
 UBLK_TEST_QUIET=1
 UBLK_TEST_SHOW_RESULT=1

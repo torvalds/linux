@@ -3,7 +3,9 @@
 CFLAGS += -O3 -Wl,-no-as-needed -Wall -I $(top_srcdir)
 LDLIBS += -lpthread -lm -luring
 
-TEST_PROGS := test_null_01.sh
+TEST_PROGS := test_generic_01.sh
+
+TEST_PROGS += test_null_01.sh
 TEST_PROGS += test_loop_01.sh
 TEST_PROGS += test_loop_02.sh
 TEST_PROGS += test_loop_03.sh
