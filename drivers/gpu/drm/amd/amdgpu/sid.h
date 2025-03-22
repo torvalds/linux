@@ -1592,6 +1592,7 @@
 #define	DMA_PACKET_POLL_REG_MEM				  0xe
 #define	DMA_PACKET_NOP					  0xf
 
+/* VCE */
 #define VCE_STATUS					0x20004
 #define VCE_VCPU_CNTL					0x20014
 #define		VCE_CLK_EN				(1 << 0)
@@ -1785,6 +1786,14 @@
 #define EVERGREEN_VIEWPORT_SIZE                         0x1b5d
 #define EVERGREEN_DESKTOP_HEIGHT                        0x1ac1
 
+#define GRPH_ARRAY_LINEAR_GENERAL      0
+#define GRPH_ARRAY_LINEAR_ALIGNED      1
+#define GRPH_ARRAY_1D_TILED_THIN1      2
+#define GRPH_ARRAY_2D_TILED_THIN1      4
+
+#define ES_AND_GS_AUTO       3
+#define BUF_SWAP_32BIT       (2 << 16)
+
 /* CUR blocks at 0x6998, 0x7598, 0x10198, 0x10d98, 0x11998, 0x12598 */
 #define EVERGREEN_CUR_CONTROL                           0x1a66
 #       define EVERGREEN_CURSOR_EN                      (1 << 0)
@@ -1899,9 +1908,10 @@
 #define GRPH_FORMAT_RGB111110          6
 #define GRPH_FORMAT_BGR101111          7
 
-#define ES_AND_GS_AUTO       3
-#define BUF_SWAP_32BIT       (2 << 16)
-
+#define GRPH_ENDIAN_NONE               0
+#define GRPH_ENDIAN_8IN16              1
+#define GRPH_ENDIAN_8IN32              2
+#define GRPH_ENDIAN_8IN64              3
 #define GRPH_RED_SEL_R                 0
 #define GRPH_RED_SEL_G                 1
 #define GRPH_RED_SEL_B                 2
