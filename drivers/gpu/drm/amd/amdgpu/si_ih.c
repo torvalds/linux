@@ -27,6 +27,7 @@
 #include "amdgpu_ih.h"
 #include "sid.h"
 #include "si_ih.h"
+
 #include "oss/oss_1_0_d.h"
 #include "oss/oss_1_0_sh_mask.h"
 

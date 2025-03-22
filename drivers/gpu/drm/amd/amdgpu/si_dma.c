@@ -27,6 +27,8 @@
 #include "si.h"
 #include "sid.h"
 
+#include "oss/oss_1_0_d.h"
+#include "oss/oss_1_0_sh_mask.h"
 const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
 {
 	DMA0_REGISTER_OFFSET,

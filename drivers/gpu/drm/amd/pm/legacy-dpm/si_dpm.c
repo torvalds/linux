@@ -30,15 +30,31 @@
 #include "amdgpu_atombios.h"
 #include "amdgpu_dpm_internal.h"
 #include "amd_pcie.h"
-#include "sid.h"
-#include "r600_dpm.h"
-#include "si_dpm.h"
 #include "atom.h"
+#include "gfx_v6_0.h"
+#include "r600_dpm.h"
+#include "sid.h"
+#include "si_dpm.h"
 #include "../include/pptable.h"
 #include <linux/math64.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
 #include <legacy_dpm.h>
+
+#include "bif/bif_3_0_d.h"
+#include "bif/bif_3_0_sh_mask.h"
+
+#include "dce/dce_6_0_d.h"
+#include "dce/dce_6_0_sh_mask.h"
+
+#include "gca/gfx_6_0_d.h"
+#include "gca/gfx_6_0_sh_mask.h"
+
+#include"gmc/gmc_6_0_d.h"
+#include"gmc/gmc_6_0_sh_mask.h"
+
+#include "smu/smu_6_0_d.h"
+#include "smu/smu_6_0_sh_mask.h"
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b

@@ -30,6 +30,12 @@
 #include "amdgpu_ucode.h"
 #include "sislands_smc.h"
 
+#include "smu/smu_6_0_d.h"
+#include "smu/smu_6_0_sh_mask.h"
+
+#include "gca/gfx_6_0_d.h"
+#include "gca/gfx_6_0_sh_mask.h"
+
 static int si_set_smc_sram_address(struct amdgpu_device *adev,
 				   u32 smc_address, u32 limit)
 {
