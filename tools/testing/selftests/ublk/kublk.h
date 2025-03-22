@@ -44,10 +44,6 @@
 #define UBLK_MAX_QUEUES                 4
 #define UBLK_QUEUE_DEPTH                128
 
-#define UBLK_IO_TGT_NORMAL 		0
-#define UBLK_IO_TGT_ZC_BUF 		1
-#define UBLK_IO_TGT_ZC_OP 		2
-
 #define UBLK_DBG_DEV            (1U << 0)
 #define UBLK_DBG_QUEUE          (1U << 1)
 #define UBLK_DBG_IO_CMD         (1U << 2)
