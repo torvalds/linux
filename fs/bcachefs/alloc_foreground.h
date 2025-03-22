@@ -5,6 +5,7 @@
 #include "bcachefs.h"
 #include "alloc_types.h"
 #include "extents.h"
+#include "io_write_types.h"
 #include "sb-members.h"
 
 #include <linux/hash.h>
@@ -21,6 +22,22 @@ void bch2_reset_alloc_cursors(struct bch_fs *);
 struct dev_alloc_list {
 	unsigned	nr;
 	u8		data[BCH_SB_MEMBERS_MAX];
+};
+
+struct alloc_request {
+	unsigned		nr_replicas;
+	unsigned		target;
+	bool			ec;
+	enum bch_watermark	watermark;
+	enum bch_write_flags	flags;
+	struct bch_devs_list	*devs_have;
+
+	struct write_point	*wp;
+	struct open_buckets	ptrs;
+	unsigned		nr_effective;
+	bool			have_cache;
+
+	struct bch_devs_mask	devs_may_alloc;
 };
 
 struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
@@ -173,11 +190,9 @@ static inline bool bch2_bucket_is_open_safe(struct bch_fs *c, unsigned dev, u64 
 }
 
 enum bch_write_flags;
-int bch2_bucket_alloc_set_trans(struct btree_trans *, struct open_buckets *,
-		      struct dev_stripe_state *, struct bch_devs_mask *,
-		      unsigned, unsigned *, bool *, enum bch_write_flags,
-		      enum bch_data_type, enum bch_watermark,
-		      struct closure *);
+int bch2_bucket_alloc_set_trans(struct btree_trans *, struct alloc_request *,
+				struct dev_stripe_state *, enum bch_data_type,
+				struct closure *);
 
 int bch2_alloc_sectors_start_trans(struct btree_trans *,
 				   unsigned, unsigned,

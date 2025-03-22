@@ -1714,19 +1714,23 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans,
 				    enum bch_watermark watermark, struct closure *cl)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_devs_mask devs = h->devs;
 	struct open_bucket *ob;
-	struct open_buckets buckets;
 	struct bch_stripe *v = &bkey_i_to_stripe(&s->new_stripe.key)->v;
 	unsigned i, j, nr_have_parity = 0, nr_have_data = 0;
-	bool have_cache = true;
 	int ret = 0;
+
+	struct alloc_request req = {
+		.watermark	= watermark,
+		.devs_may_alloc	= h->devs,
+		.have_cache	= true,
+	};
 
 	BUG_ON(v->nr_blocks	!= s->nr_data + s->nr_parity);
 	BUG_ON(v->nr_redundant	!= s->nr_parity);
 
 	/* * We bypass the sector allocator which normally does this: */
-	bitmap_and(devs.d, devs.d, c->rw_devs[BCH_DATA_user].d, BCH_SB_MEMBERS_MAX);
+	bitmap_and(req.devs_may_alloc.d, req.devs_may_alloc.d,
+		   c->rw_devs[BCH_DATA_user].d, BCH_SB_MEMBERS_MAX);
 
 	for_each_set_bit(i, s->blocks_gotten, v->nr_blocks) {
 		/*
@@ -1736,7 +1740,7 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans,
 		 * block when updating the stripe
 		 */
 		if (v->ptrs[i].dev != BCH_SB_MEMBER_INVALID)
-			__clear_bit(v->ptrs[i].dev, devs.d);
+			__clear_bit(v->ptrs[i].dev, req.devs_may_alloc.d);
 
 		if (i < s->nr_data)
 			nr_have_data++;
@@ -1747,25 +1751,23 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans,
 	BUG_ON(nr_have_data	> s->nr_data);
 	BUG_ON(nr_have_parity	> s->nr_parity);
 
-	buckets.nr = 0;
+	req.ptrs.nr = 0;
 	if (nr_have_parity < s->nr_parity) {
-		ret = bch2_bucket_alloc_set_trans(trans, &buckets,
+		req.nr_replicas		= s->nr_parity;
+		req.nr_effective	= nr_have_parity;
+
+		ret = bch2_bucket_alloc_set_trans(trans, &req,
 					    &h->parity_stripe,
-					    &devs,
-					    s->nr_parity,
-					    &nr_have_parity,
-					    &have_cache, 0,
 					    BCH_DATA_parity,
-					    watermark,
 					    cl);
 
-		open_bucket_for_each(c, &buckets, ob, i) {
+		open_bucket_for_each(c, &req.ptrs, ob, i) {
 			j = find_next_zero_bit(s->blocks_gotten,
 					       s->nr_data + s->nr_parity,
 					       s->nr_data);
 			BUG_ON(j >= s->nr_data + s->nr_parity);
 
-			s->blocks[j] = buckets.v[i];
+			s->blocks[j] = req.ptrs.v[i];
 			v->ptrs[j] = bch2_ob_ptr(c, ob);
 			__set_bit(j, s->blocks_gotten);
 		}
@@ -1774,24 +1776,22 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans,
 			return ret;
 	}
 
-	buckets.nr = 0;
+	req.ptrs.nr = 0;
 	if (nr_have_data < s->nr_data) {
-		ret = bch2_bucket_alloc_set_trans(trans, &buckets,
+		req.nr_replicas		= s->nr_data;
+		req.nr_effective	= nr_have_data;
+
+		ret = bch2_bucket_alloc_set_trans(trans, &req,
 					    &h->block_stripe,
-					    &devs,
-					    s->nr_data,
-					    &nr_have_data,
-					    &have_cache, 0,
 					    BCH_DATA_user,
-					    watermark,
 					    cl);
 
-		open_bucket_for_each(c, &buckets, ob, i) {
+		open_bucket_for_each(c, &req.ptrs, ob, i) {
 			j = find_next_zero_bit(s->blocks_gotten,
 					       s->nr_data, 0);
 			BUG_ON(j >= s->nr_data);
 
-			s->blocks[j] = buckets.v[i];
+			s->blocks[j] = req.ptrs.v[i];
 			v->ptrs[j] = bch2_ob_ptr(c, ob);
 			__set_bit(j, s->blocks_gotten);
 		}
