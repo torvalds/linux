@@ -524,21 +524,6 @@ static int __rpc_create(struct inode *dir, struct dentry *dentry,
 	return 0;
 }
 
-static int __rpc_mkdir(struct inode *dir, struct dentry *dentry,
-		       umode_t mode,
-		       const struct file_operations *i_fop,
-		       void *private)
-{
-	int err;
-
-	err = __rpc_create_common(dir, dentry, S_IFDIR | mode, i_fop, private);
-	if (err)
-		return err;
-	inc_nlink(dir);
-	fsnotify_mkdir(dir, dentry);
-	return 0;
-}
-
 static void
 init_pipe(struct rpc_pipe *pipe)
 {
@@ -594,6 +579,35 @@ static int __rpc_mkpipe_dentry(struct inode *dir, struct dentry *dentry,
 	return 0;
 }
 
+static struct dentry *rpc_new_dir(struct dentry *parent,
+				  const char *name,
+				  umode_t mode,
+				  void *private)
+{
+	struct dentry *dentry = simple_start_creating(parent, name);
+	struct inode *dir = parent->d_inode;
+	struct inode *inode;
+
+	if (IS_ERR(dentry))
+		return dentry;
+
+	inode = rpc_get_inode(dir->i_sb, S_IFDIR | mode);
+	if (unlikely(!inode)) {
+		dput(dentry);
+		inode_unlock(dir);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	inode->i_ino = iunique(dir->i_sb, 100);
+	rpc_inode_setowner(inode, private);
+	inc_nlink(dir);
+	d_instantiate(dentry, inode);
+	fsnotify_mkdir(dir, dentry);
+	inode_unlock(dir);
+
+	return dentry;
+}
+
 static int rpc_populate(struct dentry *parent,
 			const struct rpc_filelist *files,
 			int start, int eof,
@@ -604,14 +618,14 @@ static int rpc_populate(struct dentry *parent,
 	int i, err;
 
 	for (i = start; i < eof; i++) {
-		dentry = simple_start_creating(parent, files[i].name);
-		err = PTR_ERR(dentry);
-		if (IS_ERR(dentry))
-			goto out_bad;
 		switch (files[i].mode & S_IFMT) {
 			default:
 				BUG();
 			case S_IFREG:
+				dentry = simple_start_creating(parent, files[i].name);
+				err = PTR_ERR(dentry);
+				if (IS_ERR(dentry))
+					goto out_bad;
 				err = __rpc_create(dir, dentry,
 						files[i].mode,
 						files[i].i_fop,
@@ -619,11 +633,13 @@ static int rpc_populate(struct dentry *parent,
 				inode_unlock(dir);
 				break;
 			case S_IFDIR:
-				err = __rpc_mkdir(dir, dentry,
+				dentry = rpc_new_dir(parent,
+						files[i].name,
 						files[i].mode,
-						NULL,
 						private);
-				inode_unlock(dir);
+				err = PTR_ERR(dentry);
+				if (IS_ERR(dentry))
+					goto out_bad;
 		}
 		if (err != 0)
 			goto out_bad;
@@ -640,16 +656,11 @@ static struct dentry *rpc_mkdir_populate(struct dentry *parent,
 		int (*populate)(struct dentry *, void *), void *args_populate)
 {
 	struct dentry *dentry;
-	struct inode *dir = d_inode(parent);
 	int error;
 
-	dentry = simple_start_creating(parent, name);
+	dentry = rpc_new_dir(parent, name, mode, private);
 	if (IS_ERR(dentry))
 		return dentry;
-	error = __rpc_mkdir(dir, dentry, mode, NULL, private);
-	inode_unlock(dir);
-	if (error != 0)
-		return ERR_PTR(error);
 	if (populate != NULL) {
 		error = populate(dentry, args_populate);
 		if (error) {
