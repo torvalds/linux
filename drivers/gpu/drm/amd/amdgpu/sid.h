@@ -787,26 +787,6 @@
 #       define LATENCY_LOW_WATERMARK(x)				((x) << 0)
 #       define LATENCY_HIGH_WATERMARK(x)			((x) << 16)
 
-/* 0x6bb8, 0x77b8, 0x103b8, 0x10fb8, 0x11bb8, 0x127b8 */
-#define VLINE_STATUS                                    0x1AEE
-#       define VLINE_OCCURRED                           (1 << 0)
-#       define VLINE_ACK                                (1 << 4)
-#       define VLINE_STAT                               (1 << 12)
-#       define VLINE_INTERRUPT                          (1 << 16)
-#       define VLINE_INTERRUPT_TYPE                     (1 << 17)
-/* 0x6bbc, 0x77bc, 0x103bc, 0x10fbc, 0x11bbc, 0x127bc */
-#define VBLANK_STATUS                                   0x1AEF
-#       define VBLANK_OCCURRED                          (1 << 0)
-#       define VBLANK_ACK                               (1 << 4)
-#       define VBLANK_STAT                              (1 << 12)
-#       define VBLANK_INTERRUPT                         (1 << 16)
-#       define VBLANK_INTERRUPT_TYPE                    (1 << 17)
-
-/* 0x6b40, 0x7740, 0x10340, 0x10f40, 0x11b40, 0x12740 */
-#define INT_MASK                                        0x1AD0
-#       define VBLANK_INT_MASK                          (1 << 0)
-#       define VLINE_INT_MASK                           (1 << 4)
-
 #define DISP_INTERRUPT_STATUS                           0x183D
 #       define LB_D1_VLINE_INTERRUPT                    (1 << 2)
 #       define LB_D1_VBLANK_INTERRUPT                   (1 << 3)

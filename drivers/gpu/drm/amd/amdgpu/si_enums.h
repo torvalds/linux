@@ -23,23 +23,18 @@
 #ifndef SI_ENUMS_H
 #define SI_ENUMS_H
 
-#define VBLANK_INT_MASK                (1 << 0)
-#define DC_HPDx_INT_EN                 (1 << 16)
 #define VBLANK_ACK                     (1 << 4)
 #define VLINE_ACK                      (1 << 4)
 
 #define CURSOR_WIDTH 64
 #define CURSOR_HEIGHT 64
 
-#define VGA_VSTATUS_CNTL               0xFFFCFFFF
 #define PRIORITY_MARK_MASK             0x7fff
 #define PRIORITY_OFF                   (1 << 16)
 #define PRIORITY_ALWAYS_ON             (1 << 20)
-#define INTERLEAVE_EN                  (1 << 0)
 
 #define LATENCY_WATERMARK_MASK(x)      ((x) << 16)
 #define DC_LB_MEMORY_CONFIG(x)         ((x) << 20)
-#define ICON_DEGAMMA_MODE(x)           (((x) & 0x3) << 8)
 
 #define GRPH_ENDIAN_SWAP(x)            (((x) & 0x3) << 0)
 #define GRPH_ENDIAN_NONE               0

@@ -412,7 +412,7 @@ static void dce_v6_0_set_vga_render_state(struct amdgpu_device *adev,
 {
 	if (!render)
 		WREG32(mmVGA_RENDER_CONTROL,
-			RREG32(mmVGA_RENDER_CONTROL) & VGA_VSTATUS_CNTL);
+		       RREG32(mmVGA_RENDER_CONTROL) & ~VGA_RENDER_CONTROL__VGA_VSTATUS_CNTL_MASK);
 }
 
 static int dce_v6_0_get_num_crtc(struct amdgpu_device *adev)
@@ -2108,7 +2108,7 @@ static void dce_v6_0_set_interleave(struct drm_crtc *crtc,
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		WREG32(mmDATA_FORMAT + amdgpu_crtc->crtc_offset,
-		       INTERLEAVE_EN);
+			DATA_FORMAT__INTERLEAVE_EN_MASK);
 	else
 		WREG32(mmDATA_FORMAT + amdgpu_crtc->crtc_offset, 0);
 }
@@ -2162,7 +2162,7 @@ static void dce_v6_0_crtc_load_lut(struct drm_crtc *crtc)
 	WREG32(mmDEGAMMA_CONTROL + amdgpu_crtc->crtc_offset,
 	       ((0 << DEGAMMA_CONTROL__GRPH_DEGAMMA_MODE__SHIFT) |
 		(0 << DEGAMMA_CONTROL__OVL_DEGAMMA_MODE__SHIFT) |
-		ICON_DEGAMMA_MODE(0) |
+		(0 << DEGAMMA_CONTROL__ICON_DEGAMMA_MODE__SHIFT) |
 		(0 << DEGAMMA_CONTROL__CURSOR_DEGAMMA_MODE__SHIFT)));
 	WREG32(mmGAMUT_REMAP_CONTROL + amdgpu_crtc->crtc_offset,
 	       ((0 << GAMUT_REMAP_CONTROL__GRPH_GAMUT_REMAP_MODE__SHIFT) |
@@ -2986,12 +2986,12 @@ static void dce_v6_0_set_crtc_vblank_interrupt_state(struct amdgpu_device *adev,
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 		interrupt_mask = RREG32(mmINT_MASK + reg_block);
-		interrupt_mask &= ~VBLANK_INT_MASK;
+		interrupt_mask &= ~INT_MASK__VBLANK_INT_MASK;
 		WREG32(mmINT_MASK + reg_block, interrupt_mask);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		interrupt_mask = RREG32(mmINT_MASK + reg_block);
-		interrupt_mask |= VBLANK_INT_MASK;
+		interrupt_mask |= INT_MASK__VBLANK_INT_MASK;
 		WREG32(mmINT_MASK + reg_block, interrupt_mask);
 		break;
 	default:
@@ -3021,12 +3021,12 @@ static int dce_v6_0_set_hpd_interrupt_state(struct amdgpu_device *adev,
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 		dc_hpd_int_cntl = RREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[type]);
-		dc_hpd_int_cntl &= ~DC_HPDx_INT_EN;
+		dc_hpd_int_cntl &= ~DC_HPD1_INT_CONTROL__DC_HPD1_INT_EN_MASK;
 		WREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[type], dc_hpd_int_cntl);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
 		dc_hpd_int_cntl = RREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[type]);
-		dc_hpd_int_cntl |= DC_HPDx_INT_EN;
+		dc_hpd_int_cntl |= DC_HPD1_INT_CONTROL__DC_HPD1_INT_EN_MASK;
 		WREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[type], dc_hpd_int_cntl);
 		break;
 	default:
@@ -3096,7 +3096,7 @@ static int dce_v6_0_crtc_irq(struct amdgpu_device *adev,
 	switch (entry->src_data[0]) {
 	case 0: /* vblank */
 		if (disp_int & interrupt_status_offsets[crtc].vblank)
-			WREG32(mmVBLANK_STATUS + crtc_offsets[crtc], VBLANK_ACK);
+			WREG32(mmVBLANK_STATUS + crtc_offsets[crtc], VBLANK_STATUS__VBLANK_ACK_MASK);
 		else
 			DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
 
@@ -3107,7 +3107,7 @@ static int dce_v6_0_crtc_irq(struct amdgpu_device *adev,
 		break;
 	case 1: /* vline */
 		if (disp_int & interrupt_status_offsets[crtc].vline)
-			WREG32(mmVLINE_STATUS + crtc_offsets[crtc], VLINE_ACK);
+			WREG32(mmVLINE_STATUS + crtc_offsets[crtc], VLINE_STATUS__VLINE_ACK_MASK);
 		else
 			DRM_DEBUG("IH: IH event w/o asserted irq bit?\n");
 
