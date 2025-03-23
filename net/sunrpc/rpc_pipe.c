@@ -863,27 +863,27 @@ rpc_destroy_pipe_dir_objects(struct rpc_pipe_dir_head *pdh)
  * information about the client, together with any "pipes" that may
  * later be created using rpc_mkpipe().
  */
-struct dentry *rpc_create_client_dir(struct dentry *dentry,
-				   const char *name,
-				   struct rpc_clnt *rpc_client)
+int rpc_create_client_dir(struct dentry *dentry,
+			   const char *name,
+			   struct rpc_clnt *rpc_client)
 {
 	struct dentry *ret;
 	int err;
 
 	ret = rpc_new_dir(dentry, name, 0555);
 	if (IS_ERR(ret))
-		return ret;
+		return PTR_ERR(ret);
 	err = rpc_new_file(ret, "info", S_IFREG | 0400,
 			      &rpc_info_operations, rpc_client);
 	if (err) {
 		pr_warn("%s failed to populate directory %pd\n",
 				__func__, ret);
 		simple_recursive_removal(ret, NULL);
-		return ERR_PTR(err);
+		return err;
 	}
 	rpc_client->cl_pipedir_objects.pdh_dentry = ret;
 	rpc_create_pipe_dir_objects(&rpc_client->cl_pipedir_objects);
-	return ret;
+	return 0;
 }
 
 /**
