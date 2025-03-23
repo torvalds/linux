@@ -1130,12 +1130,11 @@ static int update_gpf_port_dvsec(struct pci_dev *pdev, int dvsec, int phase)
 
 int cxl_gpf_port_setup(struct cxl_dport *dport)
 {
-	struct pci_dev *pdev;
-
 	if (!dport)
 		return -EINVAL;
 
 	if (!dport->gpf_dvsec) {
+		struct pci_dev *pdev;
 		int dvsec;
 
 		dvsec = cxl_gpf_get_dvsec(dport->dport_dev, true);
@@ -1143,11 +1142,10 @@ int cxl_gpf_port_setup(struct cxl_dport *dport)
 			return -EINVAL;
 
 		dport->gpf_dvsec = dvsec;
+		pdev = to_pci_dev(dport->dport_dev);
+		update_gpf_port_dvsec(pdev, dport->gpf_dvsec, 1);
+		update_gpf_port_dvsec(pdev, dport->gpf_dvsec, 2);
 	}
-
-	pdev = to_pci_dev(dport->dport_dev);
-	update_gpf_port_dvsec(pdev, dport->gpf_dvsec, 1);
-	update_gpf_port_dvsec(pdev, dport->gpf_dvsec, 2);
 
 	return 0;
 }
