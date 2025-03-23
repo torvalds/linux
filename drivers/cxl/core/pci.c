@@ -1072,14 +1072,20 @@ int cxl_pci_get_bandwidth(struct pci_dev *pdev, struct access_coordinate *c)
 #define GPF_TIMEOUT_BASE_MAX 2
 #define GPF_TIMEOUT_SCALE_MAX 7 /* 10 seconds */
 
-u16 cxl_gpf_get_dvsec(struct device *dev, bool is_port)
+u16 cxl_gpf_get_dvsec(struct device *dev)
 {
+	struct pci_dev *pdev;
+	bool is_port = true;
 	u16 dvsec;
 
 	if (!dev_is_pci(dev))
 		return 0;
 
-	dvsec = pci_find_dvsec_capability(to_pci_dev(dev), PCI_VENDOR_ID_CXL,
+	pdev = to_pci_dev(dev);
+	if (pci_pcie_type(pdev) == PCI_EXP_TYPE_ENDPOINT)
+		is_port = false;
+
+	dvsec = pci_find_dvsec_capability(pdev, PCI_VENDOR_ID_CXL,
 			is_port ? CXL_DVSEC_PORT_GPF : CXL_DVSEC_DEVICE_GPF);
 	if (!dvsec)
 		dev_warn(dev, "%s GPF DVSEC not present\n",
@@ -1137,7 +1143,7 @@ int cxl_gpf_port_setup(struct cxl_dport *dport)
 		struct pci_dev *pdev;
 		int dvsec;
 
-		dvsec = cxl_gpf_get_dvsec(dport->dport_dev, true);
+		dvsec = cxl_gpf_get_dvsec(dport->dport_dev);
 		if (!dvsec)
 			return -EINVAL;
 
