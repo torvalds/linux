@@ -485,31 +485,6 @@ rpc_get_inode(struct super_block *sb, umode_t mode)
 	return inode;
 }
 
-static int __rpc_create_common(struct inode *dir, struct dentry *dentry,
-			       umode_t mode,
-			       const struct file_operations *i_fop,
-			       void *private)
-{
-	struct inode *inode;
-
-	d_drop(dentry);
-	inode = rpc_get_inode(dir->i_sb, mode);
-	if (!inode)
-		goto out_err;
-	inode->i_ino = iunique(dir->i_sb, 100);
-	if (i_fop)
-		inode->i_fop = i_fop;
-	if (private)
-		rpc_inode_setowner(inode, private);
-	d_add(dentry, inode);
-	return 0;
-out_err:
-	printk(KERN_WARNING "%s: %s failed to allocate inode for dentry %pd\n",
-			__FILE__, __func__, dentry);
-	dput(dentry);
-	return -ENOMEM;
-}
-
 static void
 init_pipe(struct rpc_pipe *pipe)
 {
@@ -545,25 +520,6 @@ struct rpc_pipe *rpc_mkpipe_data(const struct rpc_pipe_ops *ops, int flags)
 	return pipe;
 }
 EXPORT_SYMBOL_GPL(rpc_mkpipe_data);
-
-static int __rpc_mkpipe_dentry(struct inode *dir, struct dentry *dentry,
-			       umode_t mode,
-			       const struct file_operations *i_fop,
-			       void *private,
-			       struct rpc_pipe *pipe)
-{
-	struct rpc_inode *rpci;
-	int err;
-
-	err = __rpc_create_common(dir, dentry, S_IFIFO | mode, i_fop, private);
-	if (err)
-		return err;
-	rpci = RPC_I(d_inode(dentry));
-	rpci->private = private;
-	rpci->pipe = pipe;
-	fsnotify_create(dir, dentry);
-	return 0;
-}
 
 static int rpc_new_file(struct dentry *parent,
 			   const char *name,
@@ -704,8 +660,10 @@ static struct dentry *rpc_mkdir_populate(struct dentry *parent,
 int rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 				 void *private, struct rpc_pipe *pipe)
 {
-	struct dentry *dentry;
 	struct inode *dir = d_inode(parent);
+	struct dentry *dentry;
+	struct inode *inode;
+	struct rpc_inode *rpci;
 	umode_t umode = S_IFIFO | 0600;
 	int err;
 
@@ -715,16 +673,33 @@ int rpc_mkpipe_dentry(struct dentry *parent, const char *name,
 		umode &= ~0222;
 
 	dentry = simple_start_creating(parent, name);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-	err = __rpc_mkpipe_dentry(dir, dentry, umode, &rpc_pipe_fops,
-				  private, pipe);
-	if (unlikely(err))
-		pr_warn("%s() failed to create pipe %pd/%s (errno = %d)\n",
-			__func__, parent, name, err);
-	else
-		pipe->dentry = dentry;
+	if (IS_ERR(dentry)) {
+		err = PTR_ERR(dentry);
+		goto failed;
+	}
+
+	inode = rpc_get_inode(dir->i_sb, umode);
+	if (unlikely(!inode)) {
+		dput(dentry);
+		inode_unlock(dir);
+		err = -ENOMEM;
+		goto failed;
+	}
+	inode->i_ino = iunique(dir->i_sb, 100);
+	inode->i_fop = &rpc_pipe_fops;
+	rpci = RPC_I(inode);
+	rpci->private = private;
+	rpci->pipe = pipe;
+	rpc_inode_setowner(inode, private);
+	d_instantiate(dentry, inode);
+	pipe->dentry = dentry;
+	fsnotify_create(dir, dentry);
 	inode_unlock(dir);
+	return 0;
+
+failed:
+	pr_warn("%s() failed to create pipe %pd/%s (errno = %d)\n",
+			__func__, parent, name, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rpc_mkpipe_dentry);
