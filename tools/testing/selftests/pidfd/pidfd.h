@@ -32,19 +32,19 @@
 #endif
 
 #ifndef __NR_pidfd_open
-#define __NR_pidfd_open -1
+#define __NR_pidfd_open 434
 #endif
 
 #ifndef __NR_pidfd_send_signal
-#define __NR_pidfd_send_signal -1
+#define __NR_pidfd_send_signal 424
 #endif
 
 #ifndef __NR_clone3
-#define __NR_clone3 -1
+#define __NR_clone3 435
 #endif
 
 #ifndef __NR_pidfd_getfd
-#define __NR_pidfd_getfd -1
+#define __NR_pidfd_getfd 438
 #endif
 
 #ifndef PIDFD_NONBLOCK
