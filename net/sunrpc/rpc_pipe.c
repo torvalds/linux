@@ -510,20 +510,6 @@ out_err:
 	return -ENOMEM;
 }
 
-static int __rpc_create(struct inode *dir, struct dentry *dentry,
-			umode_t mode,
-			const struct file_operations *i_fop,
-			void *private)
-{
-	int err;
-
-	err = __rpc_create_common(dir, dentry, S_IFREG | mode, i_fop, private);
-	if (err)
-		return err;
-	fsnotify_create(dir, dentry);
-	return 0;
-}
-
 static void
 init_pipe(struct rpc_pipe *pipe)
 {
@@ -579,6 +565,35 @@ static int __rpc_mkpipe_dentry(struct inode *dir, struct dentry *dentry,
 	return 0;
 }
 
+static int rpc_new_file(struct dentry *parent,
+			   const char *name,
+			   umode_t mode,
+			   const struct file_operations *i_fop,
+			   void *private)
+{
+	struct dentry *dentry = simple_start_creating(parent, name);
+	struct inode *dir = parent->d_inode;
+	struct inode *inode;
+
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+
+	inode = rpc_get_inode(dir->i_sb, S_IFREG | mode);
+	if (unlikely(!inode)) {
+		dput(dentry);
+		inode_unlock(dir);
+		return -ENOMEM;
+	}
+	inode->i_ino = iunique(dir->i_sb, 100);
+	if (i_fop)
+		inode->i_fop = i_fop;
+	rpc_inode_setowner(inode, private);
+	d_instantiate(dentry, inode);
+	fsnotify_create(dir, dentry);
+	inode_unlock(dir);
+	return 0;
+}
+
 static struct dentry *rpc_new_dir(struct dentry *parent,
 				  const char *name,
 				  umode_t mode,
@@ -613,7 +628,6 @@ static int rpc_populate(struct dentry *parent,
 			int start, int eof,
 			void *private)
 {
-	struct inode *dir = d_inode(parent);
 	struct dentry *dentry;
 	int i, err;
 
@@ -622,27 +636,24 @@ static int rpc_populate(struct dentry *parent,
 			default:
 				BUG();
 			case S_IFREG:
-				dentry = simple_start_creating(parent, files[i].name);
-				err = PTR_ERR(dentry);
-				if (IS_ERR(dentry))
-					goto out_bad;
-				err = __rpc_create(dir, dentry,
+				err = rpc_new_file(parent,
+						files[i].name,
 						files[i].mode,
 						files[i].i_fop,
 						private);
-				inode_unlock(dir);
+				if (err)
+					goto out_bad;
 				break;
 			case S_IFDIR:
 				dentry = rpc_new_dir(parent,
 						files[i].name,
 						files[i].mode,
 						private);
-				err = PTR_ERR(dentry);
-				if (IS_ERR(dentry))
+				if (IS_ERR(dentry)) {
+					err = PTR_ERR(dentry);
 					goto out_bad;
+				}
 		}
-		if (err != 0)
-			goto out_bad;
 	}
 	return 0;
 out_bad:
