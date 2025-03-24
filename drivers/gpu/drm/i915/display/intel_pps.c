@@ -744,10 +744,10 @@ bool intel_pps_vdd_on_unlocked(struct intel_dp *intel_dp)
 	i915_reg_t pp_stat_reg, pp_ctrl_reg;
 	bool need_to_disable = !intel_dp->pps.want_panel_vdd;
 
-	lockdep_assert_held(&display->pps.mutex);
-
 	if (!intel_dp_is_edp(intel_dp))
 		return false;
+
+	lockdep_assert_held(&display->pps.mutex);
 
 	cancel_delayed_work(&intel_dp->pps.panel_vdd_work);
 	intel_dp->pps.want_panel_vdd = true;
@@ -925,10 +925,10 @@ void intel_pps_vdd_off_unlocked(struct intel_dp *intel_dp, bool sync)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 
-	lockdep_assert_held(&display->pps.mutex);
-
 	if (!intel_dp_is_edp(intel_dp))
 		return;
+
+	lockdep_assert_held(&display->pps.mutex);
 
 	INTEL_DISPLAY_STATE_WARN(display, !intel_dp->pps.want_panel_vdd,
 				 "[ENCODER:%d:%s] %s VDD not forced on",
