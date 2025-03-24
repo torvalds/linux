@@ -1104,7 +1104,7 @@ int omnia_mcu_request_irq(struct omnia_mcu *mcu, u32 spec,
 	if (!spec)
 		return -EINVAL;
 
-	irq_idx = omnia_int_to_gpio_idx[__bf_shf(spec)];
+	irq_idx = omnia_int_to_gpio_idx[ffs(spec) - 1];
 	irq = gpiod_to_irq(gpio_device_get_desc(mcu->gc.gpiodev, irq_idx));
 	if (irq < 0)
 		return irq;
