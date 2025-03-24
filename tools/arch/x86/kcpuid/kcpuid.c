@@ -51,7 +51,7 @@ static const char * const reg_names[] = {
 struct subleaf {
 	u32 index;
 	u32 sub;
-	u32 eax, ebx, ecx, edx;
+	u32 output[NR_REGS];
 	struct reg_desc info[NR_REGS];
 };
 
@@ -119,11 +119,11 @@ static void leaf_print_raw(struct subleaf *leaf)
 		if (leaf->sub == 0)
 			printf("0x%08x: subleafs:\n", leaf->index);
 
-		printf(" %2d: EAX=0x%08x, EBX=0x%08x, ECX=0x%08x, EDX=0x%08x\n",
-			leaf->sub, leaf->eax, leaf->ebx, leaf->ecx, leaf->edx);
+		printf(" %2d: EAX=0x%08x, EBX=0x%08x, ECX=0x%08x, EDX=0x%08x\n", leaf->sub,
+		       leaf->output[0], leaf->output[1], leaf->output[2], leaf->output[3]);
 	} else {
-		printf("0x%08x: EAX=0x%08x, EBX=0x%08x, ECX=0x%08x, EDX=0x%08x\n",
-			leaf->index, leaf->eax, leaf->ebx, leaf->ecx, leaf->edx);
+		printf("0x%08x: EAX=0x%08x, EBX=0x%08x, ECX=0x%08x, EDX=0x%08x\n", leaf->index,
+		       leaf->output[0], leaf->output[1], leaf->output[2], leaf->output[3]);
 	}
 }
 
@@ -163,10 +163,10 @@ static bool cpuid_store(struct cpuid_range *range, u32 f, int subleaf,
 
 	leaf->index = f;
 	leaf->sub = subleaf;
-	leaf->eax = a;
-	leaf->ebx = b;
-	leaf->ecx = c;
-	leaf->edx = d;
+	leaf->output[R_EAX] = a;
+	leaf->output[R_EBX] = b;
+	leaf->output[R_ECX] = c;
+	leaf->output[R_EDX] = d;
 
 	return false;
 }
@@ -490,10 +490,8 @@ static void show_leaf(struct subleaf *leaf)
 				leaf->index, leaf->sub);
 	}
 
-	decode_bits(leaf->eax, &leaf->info[R_EAX], R_EAX);
-	decode_bits(leaf->ebx, &leaf->info[R_EBX], R_EBX);
-	decode_bits(leaf->ecx, &leaf->info[R_ECX], R_ECX);
-	decode_bits(leaf->edx, &leaf->info[R_EDX], R_EDX);
+	for (int i = R_EAX; i < NR_REGS; i++)
+		decode_bits(leaf->output[i], &leaf->info[i], i);
 
 	if (!show_raw && show_details)
 		printf("\n");
