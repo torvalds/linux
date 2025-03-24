@@ -32,6 +32,8 @@ bool intel_vrr_is_capable(struct intel_connector *connector)
 			return false;
 		fallthrough;
 	case DRM_MODE_CONNECTOR_DisplayPort:
+		if (connector->mst.dp)
+			return false;
 		intel_dp = intel_attached_dp(connector);
 
 		if (!drm_dp_sink_can_do_video_without_timing_msa(intel_dp->dpcd))
