@@ -44,7 +44,7 @@ const char * const __bch2_btree_ids[] = {
 	NULL
 };
 
-static const char * const __bch2_csum_types[] = {
+const char * const __bch2_csum_types[] = {
 	BCH_CSUM_TYPES()
 	NULL
 };
