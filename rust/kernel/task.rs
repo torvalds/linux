@@ -158,10 +158,10 @@ impl Task {
         }
     }
 
-    /// Returns a PidNamespace reference for the currently executing task's/thread's pid namespace.
+    /// Returns a [`PidNamespace`] reference for the currently executing task's/thread's pid namespace.
     ///
     /// This function can be used to create an unbounded lifetime by e.g., storing the returned
-    /// PidNamespace in a global variable which would be a bug. So the recommended way to get the
+    /// [`PidNamespace`] in a global variable which would be a bug. So the recommended way to get the
     /// current task's/thread's pid namespace is to use the [`current_pid_ns`] macro because it is
     /// safe.
     ///
