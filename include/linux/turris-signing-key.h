@@ -11,6 +11,7 @@
 
 struct device;
 
+#ifdef CONFIG_KEYS
 struct turris_signing_key_subtype {
 	u16 key_size;
 	u8 data_size;
@@ -29,5 +30,6 @@ static inline struct device *turris_signing_key_get_dev(const struct key *key)
 int
 devm_turris_signing_key_create(struct device *dev, const struct turris_signing_key_subtype *subtype,
 			       const char *desc);
+#endif
 
 #endif /* __TURRIS_SIGNING_KEY_H */
