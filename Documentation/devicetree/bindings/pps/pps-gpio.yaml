@@ -36,14 +36,14 @@ additionalProperties: false
 
 examples:
   - |
-      #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/gpio/gpio.h>
 
-      pps {
-          compatible = "pps-gpio";
-          pinctrl-names = "default";
-          pinctrl-0 = <&pinctrl_pps>;
-          gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
-          assert-falling-edge;
-          echo-gpios = <&gpio1 27 GPIO_ACTIVE_HIGH>;
-          echo-active-ms = <100>;
-      };
+    pps {
+        compatible = "pps-gpio";
+        pinctrl-names = "default";
+        pinctrl-0 = <&pinctrl_pps>;
+        gpios = <&gpio1 26 GPIO_ACTIVE_HIGH>;
+        assert-falling-edge;
+        echo-gpios = <&gpio1 27 GPIO_ACTIVE_HIGH>;
+        echo-active-ms = <100>;
+    };
