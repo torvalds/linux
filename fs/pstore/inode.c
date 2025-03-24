@@ -14,10 +14,10 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/string.h>
-#include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/ramfs.h>
-#include <linux/parser.h>
+#include <linux/fs_parser.h>
+#include <linux/fs_context.h>
 #include <linux/sched.h>
 #include <linux/magic.h>
 #include <linux/pstore.h>
@@ -226,37 +226,38 @@ static struct inode *pstore_get_inode(struct super_block *sb)
 }
 
 enum {
-	Opt_kmsg_bytes, Opt_err
+	Opt_kmsg_bytes
 };
 
-static const match_table_t tokens = {
-	{Opt_kmsg_bytes, "kmsg_bytes=%u"},
-	{Opt_err, NULL}
+static const struct fs_parameter_spec pstore_param_spec[] = {
+	fsparam_u32	("kmsg_bytes",	Opt_kmsg_bytes),
+	{}
 };
 
-static void parse_options(char *options)
+struct pstore_context {
+	unsigned int kmsg_bytes;
+};
+
+static int pstore_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char		*p;
-	substring_t	args[MAX_OPT_ARGS];
-	int		option;
+	struct pstore_context *ctx = fc->fs_private;
+	struct fs_parse_result result;
+	int opt;
 
-	if (!options)
-		return;
+	opt = fs_parse(fc, pstore_param_spec, param, &result);
+	/* pstore has historically ignored invalid kmsg_bytes param */
+	if (opt < 0)
+		return 0;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_kmsg_bytes:
-			if (!match_int(&args[0], &option))
-				pstore_set_kmsg_bytes(option);
-			break;
-		}
+	switch (opt) {
+	case Opt_kmsg_bytes:
+		ctx->kmsg_bytes = result.uint_32;
+		break;
+	default:
+		return -EINVAL;
 	}
+
+	return 0;
 }
 
 /*
@@ -269,10 +270,12 @@ static int pstore_show_options(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
-static int pstore_remount(struct super_block *sb, int *flags, char *data)
+static int pstore_reconfigure(struct fs_context *fc)
 {
-	sync_filesystem(sb);
-	parse_options(data);
+	struct pstore_context *ctx = fc->fs_private;
+
+	sync_filesystem(fc->root->d_sb);
+	pstore_set_kmsg_bytes(ctx->kmsg_bytes);
 
 	return 0;
 }
@@ -281,7 +284,6 @@ static const struct super_operations pstore_ops = {
 	.statfs		= simple_statfs,
 	.drop_inode	= generic_delete_inode,
 	.evict_inode	= pstore_evict_inode,
-	.remount_fs	= pstore_remount,
 	.show_options	= pstore_show_options,
 };
 
@@ -406,8 +408,9 @@ void pstore_get_records(int quiet)
 	inode_unlock(d_inode(root));
 }
 
-static int pstore_fill_super(struct super_block *sb, void *data, int silent)
+static int pstore_fill_super(struct super_block *sb, struct fs_context *fc)
 {
+	struct pstore_context *ctx = fc->fs_private;
 	struct inode *inode;
 
 	sb->s_maxbytes		= MAX_LFS_FILESIZE;
@@ -417,7 +420,7 @@ static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op		= &pstore_ops;
 	sb->s_time_gran		= 1;
 
-	parse_options(data);
+	pstore_set_kmsg_bytes(ctx->kmsg_bytes);
 
 	inode = pstore_get_inode(sb);
 	if (inode) {
@@ -438,11 +441,25 @@ static int pstore_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct dentry *pstore_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int pstore_get_tree(struct fs_context *fc)
 {
-	return mount_single(fs_type, flags, data, pstore_fill_super);
+	if (fc->root)
+		return pstore_reconfigure(fc);
+
+	return get_tree_single(fc, pstore_fill_super);
 }
+
+static void pstore_free_fc(struct fs_context *fc)
+{
+	kfree(fc->fs_private);
+}
+
+static const struct fs_context_operations pstore_context_ops = {
+	.parse_param	= pstore_parse_param,
+	.get_tree	= pstore_get_tree,
+	.reconfigure	= pstore_reconfigure,
+	.free		= pstore_free_fc,
+};
 
 static void pstore_kill_sb(struct super_block *sb)
 {
@@ -456,11 +473,33 @@ static void pstore_kill_sb(struct super_block *sb)
 	INIT_LIST_HEAD(&records_list);
 }
 
+static int pstore_init_fs_context(struct fs_context *fc)
+{
+	struct pstore_context *ctx;
+
+	ctx = kzalloc(sizeof(struct pstore_context), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	/*
+	 * Global kmsg_bytes is initialized to default, and updated
+	 * every time we (re)mount the single-sb filesystem with the
+	 * option specified.
+	 */
+	ctx->kmsg_bytes = kmsg_bytes;
+
+	fc->fs_private = ctx;
+	fc->ops = &pstore_context_ops;
+
+	return 0;
+}
+
 static struct file_system_type pstore_fs_type = {
 	.owner          = THIS_MODULE,
 	.name		= "pstore",
-	.mount		= pstore_mount,
 	.kill_sb	= pstore_kill_sb,
+	.init_fs_context = pstore_init_fs_context,
+	.parameters	= pstore_param_spec,
 };
 
 int __init pstore_init_fs(void)

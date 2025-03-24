@@ -12,6 +12,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/sched.h>
 #include <linux/namei.h>
 #include <linux/slab.h>
@@ -21,7 +23,6 @@
 #include <linux/magic.h>
 #include <linux/idr.h>
 #include <linux/devpts_fs.h>
-#include <linux/parser.h>
 #include <linux/fsnotify.h>
 #include <linux/seq_file.h>
 
@@ -87,14 +88,14 @@ enum {
 	Opt_err
 };
 
-static const match_table_t tokens = {
-	{Opt_uid, "uid=%u"},
-	{Opt_gid, "gid=%u"},
-	{Opt_mode, "mode=%o"},
-	{Opt_ptmxmode, "ptmxmode=%o"},
-	{Opt_newinstance, "newinstance"},
-	{Opt_max, "max=%d"},
-	{Opt_err, NULL}
+static const struct fs_parameter_spec devpts_param_specs[] = {
+	fsparam_u32	("gid",		Opt_gid),
+	fsparam_s32	("max",		Opt_max),
+	fsparam_u32oct	("mode",	Opt_mode),
+	fsparam_flag	("newinstance",	Opt_newinstance),
+	fsparam_u32oct	("ptmxmode",	Opt_ptmxmode),
+	fsparam_u32	("uid",		Opt_uid),
+	{}
 };
 
 struct pts_fs_info {
@@ -214,93 +215,48 @@ void devpts_release(struct pts_fs_info *fsi)
 	deactivate_super(fsi->sb);
 }
 
-#define PARSE_MOUNT	0
-#define PARSE_REMOUNT	1
-
 /*
- * parse_mount_options():
- *	Set @opts to mount options specified in @data. If an option is not
- *	specified in @data, set it to its default value.
- *
- * Note: @data may be NULL (in which case all options are set to default).
+ * devpts_parse_param - Parse mount parameters
  */
-static int parse_mount_options(char *data, int op, struct pts_mount_opts *opts)
+static int devpts_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char *p;
-	kuid_t uid;
-	kgid_t gid;
+	struct pts_fs_info *fsi = fc->s_fs_info;
+	struct pts_mount_opts *opts = &fsi->mount_opts;
+	struct fs_parse_result result;
+	int opt;
 
-	opts->setuid  = 0;
-	opts->setgid  = 0;
-	opts->uid     = GLOBAL_ROOT_UID;
-	opts->gid     = GLOBAL_ROOT_GID;
-	opts->mode    = DEVPTS_DEFAULT_MODE;
-	opts->ptmxmode = DEVPTS_DEFAULT_PTMX_MODE;
-	opts->max     = NR_UNIX98_PTY_MAX;
+	opt = fs_parse(fc, devpts_param_specs, param, &result);
+	if (opt < 0)
+		return opt;
 
-	/* Only allow instances mounted from the initial mount
-	 * namespace to tap the reserve pool of ptys.
-	 */
-	if (op == PARSE_MOUNT)
-		opts->reserve =
-			(current->nsproxy->mnt_ns == init_task.nsproxy->mnt_ns);
-
-	while ((p = strsep(&data, ",")) != NULL) {
-		substring_t args[MAX_OPT_ARGS];
-		int token;
-		int option;
-
-		if (!*p)
-			continue;
-
-		token = match_token(p, tokens, args);
-		switch (token) {
-		case Opt_uid:
-			if (match_int(&args[0], &option))
-				return -EINVAL;
-			uid = make_kuid(current_user_ns(), option);
-			if (!uid_valid(uid))
-				return -EINVAL;
-			opts->uid = uid;
-			opts->setuid = 1;
-			break;
-		case Opt_gid:
-			if (match_int(&args[0], &option))
-				return -EINVAL;
-			gid = make_kgid(current_user_ns(), option);
-			if (!gid_valid(gid))
-				return -EINVAL;
-			opts->gid = gid;
-			opts->setgid = 1;
-			break;
-		case Opt_mode:
-			if (match_octal(&args[0], &option))
-				return -EINVAL;
-			opts->mode = option & S_IALLUGO;
-			break;
-		case Opt_ptmxmode:
-			if (match_octal(&args[0], &option))
-				return -EINVAL;
-			opts->ptmxmode = option & S_IALLUGO;
-			break;
-		case Opt_newinstance:
-			break;
-		case Opt_max:
-			if (match_int(&args[0], &option) ||
-			    option < 0 || option > NR_UNIX98_PTY_MAX)
-				return -EINVAL;
-			opts->max = option;
-			break;
-		default:
-			pr_err("called with bogus options\n");
-			return -EINVAL;
-		}
+	switch (opt) {
+	case Opt_uid:
+		opts->uid = result.uid;
+		opts->setuid = 1;
+		break;
+	case Opt_gid:
+		opts->gid = result.gid;
+		opts->setgid = 1;
+		break;
+	case Opt_mode:
+		opts->mode = result.uint_32 & S_IALLUGO;
+		break;
+	case Opt_ptmxmode:
+		opts->ptmxmode = result.uint_32 & S_IALLUGO;
+		break;
+	case Opt_newinstance:
+		break;
+	case Opt_max:
+		if (result.uint_32 > NR_UNIX98_PTY_MAX)
+			return invalf(fc, "max out of range");
+		opts->max = result.uint_32;
+		break;
 	}
 
 	return 0;
 }
 
-static int mknod_ptmx(struct super_block *sb)
+static int mknod_ptmx(struct super_block *sb, struct fs_context *fc)
 {
 	int mode;
 	int rc = -ENOMEM;
@@ -362,13 +318,23 @@ static void update_ptmx_mode(struct pts_fs_info *fsi)
 	}
 }
 
-static int devpts_remount(struct super_block *sb, int *flags, char *data)
+static int devpts_reconfigure(struct fs_context *fc)
 {
-	int err;
-	struct pts_fs_info *fsi = DEVPTS_SB(sb);
-	struct pts_mount_opts *opts = &fsi->mount_opts;
+	struct pts_fs_info *fsi = DEVPTS_SB(fc->root->d_sb);
+	struct pts_fs_info *new = fc->s_fs_info;
 
-	err = parse_mount_options(data, PARSE_REMOUNT, opts);
+	/* Apply the revised options.  We don't want to change ->reserve.
+	 * Ideally, we'd update each option conditionally on it having been
+	 * explicitly changed, but the default is to reset everything so that
+	 * would break UAPI...
+	 */
+	fsi->mount_opts.setuid		= new->mount_opts.setuid;
+	fsi->mount_opts.setgid		= new->mount_opts.setgid;
+	fsi->mount_opts.uid		= new->mount_opts.uid;
+	fsi->mount_opts.gid		= new->mount_opts.gid;
+	fsi->mount_opts.mode		= new->mount_opts.mode;
+	fsi->mount_opts.ptmxmode	= new->mount_opts.ptmxmode;
+	fsi->mount_opts.max		= new->mount_opts.max;
 
 	/*
 	 * parse_mount_options() restores options to default values
@@ -378,7 +344,7 @@ static int devpts_remount(struct super_block *sb, int *flags, char *data)
 	 */
 	update_ptmx_mode(fsi);
 
-	return err;
+	return 0;
 }
 
 static int devpts_show_options(struct seq_file *seq, struct dentry *root)
@@ -402,31 +368,13 @@ static int devpts_show_options(struct seq_file *seq, struct dentry *root)
 
 static const struct super_operations devpts_sops = {
 	.statfs		= simple_statfs,
-	.remount_fs	= devpts_remount,
 	.show_options	= devpts_show_options,
 };
 
-static void *new_pts_fs_info(struct super_block *sb)
+static int devpts_fill_super(struct super_block *s, struct fs_context *fc)
 {
-	struct pts_fs_info *fsi;
-
-	fsi = kzalloc(sizeof(struct pts_fs_info), GFP_KERNEL);
-	if (!fsi)
-		return NULL;
-
-	ida_init(&fsi->allocated_ptys);
-	fsi->mount_opts.mode = DEVPTS_DEFAULT_MODE;
-	fsi->mount_opts.ptmxmode = DEVPTS_DEFAULT_PTMX_MODE;
-	fsi->sb = sb;
-
-	return fsi;
-}
-
-static int
-devpts_fill_super(struct super_block *s, void *data, int silent)
-{
+	struct pts_fs_info *fsi = DEVPTS_SB(s);
 	struct inode *inode;
-	int error;
 
 	s->s_iflags &= ~SB_I_NODEV;
 	s->s_blocksize = 1024;
@@ -435,20 +383,11 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	s->s_op = &devpts_sops;
 	s->s_d_op = &simple_dentry_operations;
 	s->s_time_gran = 1;
+	fsi->sb = s;
 
-	error = -ENOMEM;
-	s->s_fs_info = new_pts_fs_info(s);
-	if (!s->s_fs_info)
-		goto fail;
-
-	error = parse_mount_options(data, PARSE_MOUNT, &DEVPTS_SB(s)->mount_opts);
-	if (error)
-		goto fail;
-
-	error = -ENOMEM;
 	inode = new_inode(s);
 	if (!inode)
-		goto fail;
+		return -ENOMEM;
 	inode->i_ino = 1;
 	simple_inode_init_ts(inode);
 	inode->i_mode = S_IFDIR | S_IRUGO | S_IXUGO | S_IWUSR;
@@ -459,31 +398,60 @@ devpts_fill_super(struct super_block *s, void *data, int silent)
 	s->s_root = d_make_root(inode);
 	if (!s->s_root) {
 		pr_err("get root dentry failed\n");
-		goto fail;
+		return -ENOMEM;
 	}
 
-	error = mknod_ptmx(s);
-	if (error)
-		goto fail_dput;
-
-	return 0;
-fail_dput:
-	dput(s->s_root);
-	s->s_root = NULL;
-fail:
-	return error;
+	return mknod_ptmx(s, fc);
 }
 
 /*
- * devpts_mount()
+ * devpts_get_tree()
  *
  *     Mount a new (private) instance of devpts.  PTYs created in this
  *     instance are independent of the PTYs in other devpts instances.
  */
-static struct dentry *devpts_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int devpts_get_tree(struct fs_context *fc)
 {
-	return mount_nodev(fs_type, flags, data, devpts_fill_super);
+	return get_tree_nodev(fc, devpts_fill_super);
+}
+
+static void devpts_free_fc(struct fs_context *fc)
+{
+	kfree(fc->s_fs_info);
+}
+
+static const struct fs_context_operations devpts_context_ops = {
+	.free		= devpts_free_fc,
+	.parse_param	= devpts_parse_param,
+	.get_tree	= devpts_get_tree,
+	.reconfigure	= devpts_reconfigure,
+};
+
+/*
+ * Set up the filesystem mount context.
+ */
+static int devpts_init_fs_context(struct fs_context *fc)
+{
+	struct pts_fs_info *fsi;
+
+	fsi = kzalloc(sizeof(struct pts_fs_info), GFP_KERNEL);
+	if (!fsi)
+		return -ENOMEM;
+
+	ida_init(&fsi->allocated_ptys);
+	fsi->mount_opts.uid     = GLOBAL_ROOT_UID;
+	fsi->mount_opts.gid     = GLOBAL_ROOT_GID;
+	fsi->mount_opts.mode    = DEVPTS_DEFAULT_MODE;
+	fsi->mount_opts.ptmxmode = DEVPTS_DEFAULT_PTMX_MODE;
+	fsi->mount_opts.max     = NR_UNIX98_PTY_MAX;
+
+	if (fc->purpose == FS_CONTEXT_FOR_MOUNT &&
+	    current->nsproxy->mnt_ns == init_task.nsproxy->mnt_ns)
+		fsi->mount_opts.reserve = true;
+
+	fc->s_fs_info = fsi;
+	fc->ops = &devpts_context_ops;
+	return 0;
 }
 
 static void devpts_kill_sb(struct super_block *sb)
@@ -498,7 +466,8 @@ static void devpts_kill_sb(struct super_block *sb)
 
 static struct file_system_type devpts_fs_type = {
 	.name		= "devpts",
-	.mount		= devpts_mount,
+	.init_fs_context = devpts_init_fs_context,
+	.parameters	= devpts_param_specs,
 	.kill_sb	= devpts_kill_sb,
 	.fs_flags	= FS_USERNS_MOUNT,
 };

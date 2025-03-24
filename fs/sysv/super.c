@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
+#include <linux/fs_context.h>
 #include "sysv.h"
 
 /*
@@ -349,12 +350,13 @@ static int complete_read_super(struct super_block *sb, int silent, int size)
 	return 1;
 }
 
-static int sysv_fill_super(struct super_block *sb, void *data, int silent)
+static int sysv_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct buffer_head *bh1, *bh = NULL;
 	struct sysv_sb_info *sbi;
 	unsigned long blocknr;
 	int size = 0, i;
+	int silent = fc->sb_flags & SB_SILENT;
 	
 	BUILD_BUG_ON(1024 != sizeof (struct xenix_super_block));
 	BUILD_BUG_ON(512 != sizeof (struct sysv4_super_block));
@@ -471,10 +473,11 @@ static int v7_sanity_check(struct super_block *sb, struct buffer_head *bh)
 	return 1;
 }
 
-static int v7_fill_super(struct super_block *sb, void *data, int silent)
+static int v7_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct sysv_sb_info *sbi;
 	struct buffer_head *bh;
+	int silent = fc->sb_flags & SB_SILENT;
 
 	BUILD_BUG_ON(sizeof(struct v7_super_block) != 440);
 	BUILD_BUG_ON(sizeof(struct sysv_inode) != 64);
@@ -528,33 +531,51 @@ failed:
 
 /* Every kernel module contains stuff like this. */
 
-static struct dentry *sysv_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int sysv_get_tree(struct fs_context *fc)
 {
-	return mount_bdev(fs_type, flags, dev_name, data, sysv_fill_super);
+	return get_tree_bdev(fc, sysv_fill_super);
 }
 
-static struct dentry *v7_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int v7_get_tree(struct fs_context *fc)
 {
-	return mount_bdev(fs_type, flags, dev_name, data, v7_fill_super);
+	return get_tree_bdev(fc, v7_fill_super);
+}
+
+static const struct fs_context_operations sysv_context_ops = {
+	.get_tree	= sysv_get_tree,
+};
+
+static const struct fs_context_operations v7_context_ops = {
+	.get_tree	= v7_get_tree,
+};
+
+static int sysv_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &sysv_context_ops;
+	return 0;
+}
+
+static int v7_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &v7_context_ops;
+	return 0;
 }
 
 static struct file_system_type sysv_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "sysv",
-	.mount		= sysv_mount,
-	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "sysv",
+	.kill_sb		= kill_block_super,
+	.fs_flags		= FS_REQUIRES_DEV,
+	.init_fs_context	= sysv_init_fs_context,
 };
 MODULE_ALIAS_FS("sysv");
 
 static struct file_system_type v7_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "v7",
-	.mount		= v7_mount,
-	.kill_sb	= kill_block_super,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "v7",
+	.kill_sb		= kill_block_super,
+	.fs_flags		= FS_REQUIRES_DEV,
+	.init_fs_context	= v7_init_fs_context,
 };
 MODULE_ALIAS_FS("v7");
 MODULE_ALIAS("v7");
