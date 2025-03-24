@@ -233,9 +233,12 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 		 * as well be forgiving and just succeed silently.
 		 */
 		goto out_put;
-	status = vfs_mkdir(&nop_mnt_idmap, d_inode(dir), dentry, S_IRWXU);
+	dentry = vfs_mkdir(&nop_mnt_idmap, d_inode(dir), dentry, S_IRWXU);
+	if (IS_ERR(dentry))
+		status = PTR_ERR(dentry);
 out_put:
-	dput(dentry);
+	if (!status)
+		dput(dentry);
 out_unlock:
 	inode_unlock(d_inode(dir));
 	if (status == 0) {

@@ -327,9 +327,10 @@ retry:
 			goto retry;
 		}
 
-		err = ovl_mkdir_real(ofs, dir, &work, attr.ia_mode);
-		if (err)
-			goto out_dput;
+		work = ovl_do_mkdir(ofs, dir, work, attr.ia_mode);
+		err = PTR_ERR(work);
+		if (IS_ERR(work))
+			goto out_err;
 
 		/* Weird filesystem returning with hashed negative (kernfs)? */
 		err = -EINVAL;

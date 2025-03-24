@@ -1671,6 +1671,8 @@ static struct dentry *lookup_dcache(const struct qstr *name,
  * dentries - as the matter of fact, this only gets called
  * when directory is guaranteed to have no in-lookup children
  * at all.
+ * Will return -ENOENT if name isn't found and LOOKUP_CREATE wasn't passed.
+ * Will return -EEXIST if name is found and LOOKUP_EXCL was passed.
  */
 struct dentry *lookup_one_qstr_excl(const struct qstr *name,
 				    struct dentry *base,
@@ -1681,7 +1683,7 @@ struct dentry *lookup_one_qstr_excl(const struct qstr *name,
 	struct inode *dir = base->d_inode;
 
 	if (dentry)
-		return dentry;
+		goto found;
 
 	/* Don't create child dentry for a dead directory. */
 	if (unlikely(IS_DEADDIR(dir)))
@@ -1695,6 +1697,17 @@ struct dentry *lookup_one_qstr_excl(const struct qstr *name,
 	if (unlikely(old)) {
 		dput(dentry);
 		dentry = old;
+	}
+found:
+	if (IS_ERR(dentry))
+		return dentry;
+	if (d_is_negative(dentry) && !(flags & LOOKUP_CREATE)) {
+		dput(dentry);
+		return ERR_PTR(-ENOENT);
+	}
+	if (d_is_positive(dentry) && (flags & LOOKUP_EXCL)) {
+		dput(dentry);
+		return ERR_PTR(-EEXIST);
 	}
 	return dentry;
 }
@@ -4080,27 +4093,13 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 	 * '/', and a directory wasn't requested.
 	 */
 	if (last.name[last.len] && !want_dir)
-		create_flags = 0;
+		create_flags &= ~LOOKUP_CREATE;
 	inode_lock_nested(path->dentry->d_inode, I_MUTEX_PARENT);
 	dentry = lookup_one_qstr_excl(&last, path->dentry,
 				      reval_flag | create_flags);
 	if (IS_ERR(dentry))
 		goto unlock;
 
-	error = -EEXIST;
-	if (d_is_positive(dentry))
-		goto fail;
-
-	/*
-	 * Special case - lookup gave negative, but... we had foo/bar/
-	 * From the vfs_mknod() POV we just have a negative dentry -
-	 * all is fine. Let's be bastards - you had / on the end, you've
-	 * been asking for (non-existent) directory. -ENOENT for you.
-	 */
-	if (unlikely(!create_flags)) {
-		error = -ENOENT;
-		goto fail;
-	}
 	if (unlikely(err2)) {
 		error = err2;
 		goto fail;
@@ -4131,7 +4130,8 @@ EXPORT_SYMBOL(kern_path_create);
 
 void done_path_create(struct path *path, struct dentry *dentry)
 {
-	dput(dentry);
+	if (!IS_ERR(dentry))
+		dput(dentry);
 	inode_unlock(path->dentry->d_inode);
 	mnt_drop_write(path->mnt);
 	path_put(path);
@@ -4277,7 +4277,7 @@ SYSCALL_DEFINE3(mknod, const char __user *, filename, umode_t, mode, unsigned, d
 }
 
 /**
- * vfs_mkdir - create directory
+ * vfs_mkdir - create directory returning correct dentry if possible
  * @idmap:	idmap of the mount the inode was found from
  * @dir:	inode of the parent directory
  * @dentry:	dentry of the child directory
@@ -4290,32 +4290,51 @@ SYSCALL_DEFINE3(mknod, const char __user *, filename, umode_t, mode, unsigned, d
  * care to map the inode according to @idmap before checking permissions.
  * On non-idmapped mounts or if permission checking is to be performed on the
  * raw inode simply pass @nop_mnt_idmap.
+ *
+ * In the event that the filesystem does not use the *@dentry but leaves it
+ * negative or unhashes it and possibly splices a different one returning it,
+ * the original dentry is dput() and the alternate is returned.
+ *
+ * In case of an error the dentry is dput() and an ERR_PTR() is returned.
  */
-int vfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-	      struct dentry *dentry, umode_t mode)
+struct dentry *vfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+			 struct dentry *dentry, umode_t mode)
 {
 	int error;
 	unsigned max_links = dir->i_sb->s_max_links;
+	struct dentry *de;
 
 	error = may_create(idmap, dir, dentry);
 	if (error)
-		return error;
+		goto err;
 
+	error = -EPERM;
 	if (!dir->i_op->mkdir)
-		return -EPERM;
+		goto err;
 
 	mode = vfs_prepare_mode(idmap, dir, mode, S_IRWXUGO | S_ISVTX, 0);
 	error = security_inode_mkdir(dir, dentry, mode);
 	if (error)
-		return error;
+		goto err;
 
+	error = -EMLINK;
 	if (max_links && dir->i_nlink >= max_links)
-		return -EMLINK;
+		goto err;
 
-	error = dir->i_op->mkdir(idmap, dir, dentry, mode);
-	if (!error)
-		fsnotify_mkdir(dir, dentry);
-	return error;
+	de = dir->i_op->mkdir(idmap, dir, dentry, mode);
+	error = PTR_ERR(de);
+	if (IS_ERR(de))
+		goto err;
+	if (de) {
+		dput(dentry);
+		dentry = de;
+	}
+	fsnotify_mkdir(dir, dentry);
+	return dentry;
+
+err:
+	dput(dentry);
+	return ERR_PTR(error);
 }
 EXPORT_SYMBOL(vfs_mkdir);
 
@@ -4335,8 +4354,10 @@ retry:
 	error = security_path_mkdir(&path, dentry,
 			mode_strip_umask(path.dentry->d_inode, mode));
 	if (!error) {
-		error = vfs_mkdir(mnt_idmap(path.mnt), path.dentry->d_inode,
+		dentry = vfs_mkdir(mnt_idmap(path.mnt), path.dentry->d_inode,
 				  dentry, mode);
+		if (IS_ERR(dentry))
+			error = PTR_ERR(dentry);
 	}
 	done_path_create(&path, dentry);
 	if (retry_estale(error, lookup_flags)) {
@@ -4447,10 +4468,6 @@ retry:
 	error = PTR_ERR(dentry);
 	if (IS_ERR(dentry))
 		goto exit3;
-	if (!dentry->d_inode) {
-		error = -ENOENT;
-		goto exit4;
-	}
 	error = security_path_rmdir(&path, dentry);
 	if (error)
 		goto exit4;
@@ -4581,7 +4598,7 @@ retry_deleg:
 	if (!IS_ERR(dentry)) {
 
 		/* Why not before? Because we want correct error value */
-		if (last.name[last.len] || d_is_negative(dentry))
+		if (last.name[last.len])
 			goto slashes;
 		inode = dentry->d_inode;
 		ihold(inode);
@@ -4615,9 +4632,7 @@ exit1:
 	return error;
 
 slashes:
-	if (d_is_negative(dentry))
-		error = -ENOENT;
-	else if (d_is_dir(dentry))
+	if (d_is_dir(dentry))
 		error = -EISDIR;
 	else
 		error = -ENOTDIR;
@@ -5117,7 +5132,8 @@ int do_renameat2(int olddfd, struct filename *from, int newdfd,
 	struct qstr old_last, new_last;
 	int old_type, new_type;
 	struct inode *delegated_inode = NULL;
-	unsigned int lookup_flags = 0, target_flags = LOOKUP_RENAME_TARGET;
+	unsigned int lookup_flags = 0, target_flags =
+		LOOKUP_RENAME_TARGET | LOOKUP_CREATE;
 	bool should_retry = false;
 	int error = -EINVAL;
 
@@ -5130,6 +5146,8 @@ int do_renameat2(int olddfd, struct filename *from, int newdfd,
 
 	if (flags & RENAME_EXCHANGE)
 		target_flags = 0;
+	if (flags & RENAME_NOREPLACE)
+		target_flags |= LOOKUP_EXCL;
 
 retry:
 	error = filename_parentat(olddfd, from, lookup_flags, &old_path,
@@ -5171,23 +5189,12 @@ retry_deleg:
 	error = PTR_ERR(old_dentry);
 	if (IS_ERR(old_dentry))
 		goto exit3;
-	/* source must exist */
-	error = -ENOENT;
-	if (d_is_negative(old_dentry))
-		goto exit4;
 	new_dentry = lookup_one_qstr_excl(&new_last, new_path.dentry,
 					  lookup_flags | target_flags);
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto exit4;
-	error = -EEXIST;
-	if ((flags & RENAME_NOREPLACE) && d_is_positive(new_dentry))
-		goto exit5;
 	if (flags & RENAME_EXCHANGE) {
-		error = -ENOENT;
-		if (d_is_negative(new_dentry))
-			goto exit5;
-
 		if (!d_is_dir(new_dentry)) {
 			error = -ENOTDIR;
 			if (new_last.name[new_last.len])

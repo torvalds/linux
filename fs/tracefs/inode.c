@@ -109,9 +109,9 @@ static char *get_dname(struct dentry *dentry)
 	return name;
 }
 
-static int tracefs_syscall_mkdir(struct mnt_idmap *idmap,
-				 struct inode *inode, struct dentry *dentry,
-				 umode_t mode)
+static struct dentry *tracefs_syscall_mkdir(struct mnt_idmap *idmap,
+					    struct inode *inode, struct dentry *dentry,
+					    umode_t mode)
 {
 	struct tracefs_inode *ti;
 	char *name;
@@ -119,7 +119,7 @@ static int tracefs_syscall_mkdir(struct mnt_idmap *idmap,
 
 	name = get_dname(dentry);
 	if (!name)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	/*
 	 * This is a new directory that does not take the default of
@@ -141,7 +141,7 @@ static int tracefs_syscall_mkdir(struct mnt_idmap *idmap,
 
 	kfree(name);
 
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)

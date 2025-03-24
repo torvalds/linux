@@ -495,7 +495,7 @@ As of kernel 2.6.22, the following members are defined:
 		int (*link) (struct dentry *,struct inode *,struct dentry *);
 		int (*unlink) (struct inode *,struct dentry *);
 		int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,const char *);
-		int (*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t);
+		struct dentry *(*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t);
 		int (*rmdir) (struct inode *,struct dentry *);
 		int (*mknod) (struct mnt_idmap *, struct inode *,struct dentry *,umode_t,dev_t);
 		int (*rename) (struct mnt_idmap *, struct inode *, struct dentry *,
@@ -562,7 +562,26 @@ otherwise noted.
 ``mkdir``
 	called by the mkdir(2) system call.  Only required if you want
 	to support creating subdirectories.  You will probably need to
-	call d_instantiate() just as you would in the create() method
+	call d_instantiate_new() just as you would in the create() method.
+
+	If d_instantiate_new() is not used and if the fh_to_dentry()
+	export operation is provided, or if the storage might be
+	accessible by another path (e.g. with a network filesystem)
+	then more care may be needed.  Importantly d_instantate()
+	should not be used with an inode that is no longer I_NEW if there
+	any chance that the inode could already be attached to a dentry.
+	This is because of a hard rule in the VFS that a directory must
+	only ever have one dentry.
+
+	For example, if an NFS filesystem is mounted twice the new directory
+	could be visible on the other mount before it is on the original
+	mount, and a pair of name_to_handle_at(), open_by_handle_at()
+	calls could instantiate the directory inode with an IS_ROOT()
+	dentry before the first mkdir returns.
+
+	If there is any chance this could happen, then the new inode
+	should be d_drop()ed and attached with d_splice_alias().  The
+	returned dentry (if any) should be returned by ->mkdir().
 
 ``rmdir``
 	called by the rmdir(2) system call.  Only required if you want

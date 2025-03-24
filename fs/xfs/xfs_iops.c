@@ -298,14 +298,14 @@ xfs_vn_create(
 	return xfs_generic_create(idmap, dir, dentry, mode, 0, NULL);
 }
 
-STATIC int
+STATIC struct dentry *
 xfs_vn_mkdir(
 	struct mnt_idmap	*idmap,
 	struct inode		*dir,
 	struct dentry		*dentry,
 	umode_t			mode)
 {
-	return xfs_generic_create(idmap, dir, dentry, mode | S_IFDIR, 0, NULL);
+	return ERR_PTR(xfs_generic_create(idmap, dir, dentry, mode | S_IFDIR, 0, NULL));
 }
 
 STATIC struct dentry *
