@@ -215,7 +215,6 @@ struct mlx5e_sw_stats {
 	u64 ch_aff_change;
 	u64 ch_force_irq;
 	u64 ch_eq_rearm;
-#ifdef CONFIG_PAGE_POOL_STATS
 	u64 rx_pp_alloc_fast;
 	u64 rx_pp_alloc_slow;
 	u64 rx_pp_alloc_slow_high_order;
@@ -227,7 +226,6 @@ struct mlx5e_sw_stats {
 	u64 rx_pp_recycle_ring;
 	u64 rx_pp_recycle_ring_full;
 	u64 rx_pp_recycle_released_ref;
-#endif
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tx_tls_encrypted_packets;
 	u64 tx_tls_encrypted_bytes;
@@ -385,7 +383,6 @@ struct mlx5e_rq_stats {
 	u64 arfs_err;
 #endif
 	u64 recover;
-#ifdef CONFIG_PAGE_POOL_STATS
 	u64 pp_alloc_fast;
 	u64 pp_alloc_slow;
 	u64 pp_alloc_slow_high_order;
@@ -397,7 +394,6 @@ struct mlx5e_rq_stats {
 	u64 pp_recycle_ring;
 	u64 pp_recycle_ring_full;
 	u64 pp_recycle_released_ref;
-#endif
 #ifdef CONFIG_MLX5_EN_TLS
 	u64 tls_decrypted_packets;
 	u64 tls_decrypted_bytes;
