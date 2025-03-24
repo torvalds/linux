@@ -24,7 +24,7 @@ obj-y			+= rdrand.o
 obj-y			+= match.o
 obj-y			+= bugs.o
 obj-y			+= aperfmperf.o
-obj-y			+= cpuid-deps.o
+obj-y			+= cpuid-deps.o cpuid_0x2_table.o
 obj-y			+= umwait.o
 obj-y 			+= capflags.o powerflags.o
 

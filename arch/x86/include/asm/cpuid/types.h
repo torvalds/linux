@@ -48,27 +48,34 @@ union leaf_0x2_regs {
 
 /*
  * Leaf 0x2 1-byte descriptors' cache types
- * To be used for their mappings at cache_table[]
+ * To be used for their mappings at cpuid_0x2_table[]
+ *
+ * Start at 1 since type 0 is reserved for HW byte descriptors which are
+ * not recognized by the kernel; i.e., those without an explicit mapping.
  */
 enum _cache_table_type {
-	CACHE_L1_INST,
+	CACHE_L1_INST		= 1,
 	CACHE_L1_DATA,
 	CACHE_L2,
-	CACHE_L3,
+	CACHE_L3
+	/* Adjust __TLB_TABLE_TYPE_BEGIN before adding more types */
 } __packed;
 #ifndef __CHECKER__
 static_assert(sizeof(enum _cache_table_type) == 1);
 #endif
 
 /*
+ * Ensure that leaf 0x2 cache and TLB type values do not intersect,
+ * since they share the same type field at struct cpuid_0x2_table.
+ */
+#define __TLB_TABLE_TYPE_BEGIN		(CACHE_L3 + 1)
+
+/*
  * Leaf 0x2 1-byte descriptors' TLB types
- * To be used for their mappings at intel_tlb_table[]
- *
- * Start at 1 since type 0 is reserved for HW byte descriptors which are
- * not recognized by the kernel; i.e., those without an explicit mapping.
+ * To be used for their mappings at cpuid_0x2_table[]
  */
 enum _tlb_table_type {
-	TLB_INST_4K		= 1,
+	TLB_INST_4K		= __TLB_TABLE_TYPE_BEGIN,
 	TLB_INST_4M,
 	TLB_INST_2M_4M,
 	TLB_INST_ALL,
@@ -90,5 +97,22 @@ enum _tlb_table_type {
 #ifndef __CHECKER__
 static_assert(sizeof(enum _tlb_table_type) == 1);
 #endif
+
+/*
+ * Combined parsing table for leaf 0x2 cache and TLB descriptors.
+ */
+
+struct leaf_0x2_table {
+	union {
+		enum _cache_table_type	c_type;
+		enum _tlb_table_type	t_type;
+	};
+	union {
+		short			c_size;
+		short			entries;
+	};
+};
+
+extern const struct leaf_0x2_table cpuid_0x2_table[256];
 
 #endif /* _ASM_X86_CPUID_TYPES_H */

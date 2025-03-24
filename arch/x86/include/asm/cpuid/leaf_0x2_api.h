@@ -13,7 +13,8 @@
  * invalid 1-byte descriptor returned by the hardware to zero (the NULL
  * cache/TLB descriptor) before returning it to the caller.
  *
- * Use for_each_leaf_0x2_desc() to iterate over the returned output.
+ * Use for_each_leaf_0x2_entry() to iterate over the register output in
+ * parsed form.
  */
 static inline void cpuid_get_leaf_0x2_regs(union leaf_0x2_regs *regs)
 {
@@ -61,5 +62,35 @@ static inline void cpuid_get_leaf_0x2_regs(union leaf_0x2_regs *regs)
  */
 #define for_each_leaf_0x2_desc(regs, desc)				\
 	for (desc = &(regs).desc[1]; desc < &(regs).desc[16]; desc++)
+
+/**
+ * for_each_leaf_0x2_entry() - Iterator for parsed leaf 0x2 descriptors
+ * @regs:   Leaf 0x2 register output, returned by cpuid_get_leaf_0x2_regs()
+ * @__ptr:  u8 pointer, for macro internal use only
+ * @entry:  Pointer to parsed descriptor information at each iteration
+ *
+ * Loop over the 1-byte descriptors in the passed leaf 0x2 output registers
+ * @regs.  Provide the parsed information for each descriptor through @entry.
+ *
+ * To handle cache-specific descriptors, switch on @entry->c_type.  For TLB
+ * descriptors, switch on @entry->t_type.
+ *
+ * Example usage for cache descriptors::
+ *
+ *	const struct leaf_0x2_table *entry;
+ *	union leaf_0x2_regs regs;
+ *	u8 *ptr;
+ *
+ *	cpuid_get_leaf_0x2_regs(&regs);
+ *	for_each_leaf_0x2_entry(regs, ptr, entry) {
+ *		switch (entry->c_type) {
+ *			...
+ *		}
+ *	}
+ */
+#define for_each_leaf_0x2_entry(regs, __ptr, entry)				\
+	for (__ptr = &(regs).desc[1];						\
+	     __ptr < &(regs).desc[16] && (entry = &cpuid_0x2_table[*__ptr]);	\
+	     __ptr++)
 
 #endif /* _ASM_X86_CPUID_LEAF_0x2_API_H */
