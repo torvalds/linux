@@ -88,8 +88,8 @@ static int ath12k_get_tpc_ctl_mode_idx(struct wmi_tpc_stats_arg *tpc_stats,
 	u32 chan_freq = le32_to_cpu(tpc_stats->tpc_config.chan_freq);
 	u8 band;
 
-	band = ((chan_freq > ATH12K_MIN_6G_FREQ) ? NL80211_BAND_6GHZ :
-		((chan_freq > ATH12K_MIN_5G_FREQ) ? NL80211_BAND_5GHZ :
+	band = ((chan_freq > ATH12K_MIN_6GHZ_FREQ) ? NL80211_BAND_6GHZ :
+		((chan_freq > ATH12K_MIN_5GHZ_FREQ) ? NL80211_BAND_5GHZ :
 		NL80211_BAND_2GHZ));
 
 	if (band == NL80211_BAND_5GHZ || band == NL80211_BAND_6GHZ) {
