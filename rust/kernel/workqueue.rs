@@ -703,3 +703,21 @@ pub fn system_freezable_power_efficient() -> &'static Queue {
     // SAFETY: `system_freezable_power_efficient_wq` is a C global, always available.
     unsafe { Queue::from_raw(bindings::system_freezable_power_efficient_wq) }
 }
+
+/// Returns the system bottom halves work queue (`system_bh_wq`).
+///
+/// It is similar to the one returned by [`system`] but for work items which
+/// need to run from a softirq context.
+pub fn system_bh() -> &'static Queue {
+    // SAFETY: `system_bh_wq` is a C global, always available.
+    unsafe { Queue::from_raw(bindings::system_bh_wq) }
+}
+
+/// Returns the system bottom halves high-priority work queue (`system_bh_highpri_wq`).
+///
+/// It is similar to the one returned by [`system_bh`] but for work items which
+/// require higher scheduling priority.
+pub fn system_bh_highpri() -> &'static Queue {
+    // SAFETY: `system_bh_highpri_wq` is a C global, always available.
+    unsafe { Queue::from_raw(bindings::system_bh_highpri_wq) }
+}
