@@ -981,7 +981,6 @@ static int create_direct_call_sections(struct objtool_file *file)
  */
 static void add_ignores(struct objtool_file *file)
 {
-	struct instruction *insn;
 	struct section *rsec;
 	struct symbol *func;
 	struct reloc *reloc;
@@ -1008,8 +1007,7 @@ static void add_ignores(struct objtool_file *file)
 			continue;
 		}
 
-		func_for_each_insn(file, func, insn)
-			insn->ignore = true;
+		func->ignore = true;
 	}
 }
 
@@ -1612,6 +1610,7 @@ static int add_call_destinations(struct objtool_file *file)
 	struct reloc *reloc;
 
 	for_each_insn(file, insn) {
+		struct symbol *func = insn_func(insn);
 		if (insn->type != INSN_CALL)
 			continue;
 
@@ -1622,7 +1621,7 @@ static int add_call_destinations(struct objtool_file *file)
 
 			add_call_dest(file, insn, dest, false);
 
-			if (insn->ignore)
+			if (func && func->ignore)
 				continue;
 
 			if (!insn_call_dest(insn)) {
@@ -1630,7 +1629,7 @@ static int add_call_destinations(struct objtool_file *file)
 				return -1;
 			}
 
-			if (insn_func(insn) && insn_call_dest(insn)->type != STT_FUNC) {
+			if (func && insn_call_dest(insn)->type != STT_FUNC) {
 				WARN_INSN(insn, "unsupported call to non-function");
 				return -1;
 			}
@@ -3470,6 +3469,9 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 	u8 visited;
 	int ret;
 
+	if (func && func->ignore)
+		return 0;
+
 	sec = insn->sec;
 
 	while (1) {
@@ -3715,7 +3717,7 @@ static int validate_unwind_hint(struct objtool_file *file,
 				  struct instruction *insn,
 				  struct insn_state *state)
 {
-	if (insn->hint && !insn->visited && !insn->ignore) {
+	if (insn->hint && !insn->visited) {
 		int ret = validate_branch(file, insn_func(insn), insn, *state);
 		if (ret)
 			BT_INSN(insn, "<=== (hint)");
@@ -3929,10 +3931,11 @@ static bool is_ubsan_insn(struct instruction *insn)
 
 static bool ignore_unreachable_insn(struct objtool_file *file, struct instruction *insn)
 {
-	int i;
+	struct symbol *func = insn_func(insn);
 	struct instruction *prev_insn;
+	int i;
 
-	if (insn->ignore || insn->type == INSN_NOP || insn->type == INSN_TRAP)
+	if (insn->ignore || insn->type == INSN_NOP || insn->type == INSN_TRAP || (func && func->ignore))
 		return true;
 
 	/*
@@ -3951,7 +3954,7 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 	 * In this case we'll find a piece of code (whole function) that is not
 	 * covered by a !section symbol. Ignore them.
 	 */
-	if (opts.link && !insn_func(insn)) {
+	if (opts.link && !func) {
 		int size = find_symbol_hole_containing(insn->sec, insn->offset);
 		unsigned long end = insn->offset + size;
 
@@ -3977,19 +3980,17 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 			 */
 			if (insn->jump_dest && insn_func(insn->jump_dest) &&
 			    strstr(insn_func(insn->jump_dest)->name, ".cold")) {
-				struct instruction *dest = insn->jump_dest;
-				func_for_each_insn(file, insn_func(dest), dest)
-					dest->ignore = true;
+				insn_func(insn->jump_dest)->ignore = true;
 			}
 		}
 
 		return false;
 	}
 
-	if (!insn_func(insn))
+	if (!func)
 		return false;
 
-	if (insn_func(insn)->static_call_tramp)
+	if (func->static_call_tramp)
 		return true;
 
 	/*
@@ -4020,7 +4021,7 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 
 		if (insn->type == INSN_JUMP_UNCONDITIONAL) {
 			if (insn->jump_dest &&
-			    insn_func(insn->jump_dest) == insn_func(insn)) {
+			    insn_func(insn->jump_dest) == func) {
 				insn = insn->jump_dest;
 				continue;
 			}
@@ -4028,7 +4029,7 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 			break;
 		}
 
-		if (insn->offset + insn->len >= insn_func(insn)->offset + insn_func(insn)->len)
+		if (insn->offset + insn->len >= func->offset + func->len)
 			break;
 
 		insn = next_insn_same_sec(file, insn);
@@ -4120,7 +4121,7 @@ static int validate_symbol(struct objtool_file *file, struct section *sec,
 		return 0;
 
 	insn = find_insn(file, sec, sym->offset);
-	if (!insn || insn->ignore || insn->visited)
+	if (!insn || insn->visited)
 		return 0;
 
 	state->uaccess = sym->uaccess_safe;
