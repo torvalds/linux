@@ -378,3 +378,49 @@ int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 
 	return 0;
 }
+
+/* CONFIG_64BIT=y */
+enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
+{
+	struct ib_umem_odp *umem_odp = to_ib_umem_odp(mr->umem);
+	unsigned int page_offset;
+	unsigned long index;
+	struct page *page;
+	int err;
+	u64 *va;
+
+	/* See IBA oA19-28 */
+	err = mr_check_range(mr, iova, sizeof(value));
+	if (unlikely(err)) {
+		rxe_dbg_mr(mr, "iova out of range\n");
+		return RESPST_ERR_RKEY_VIOLATION;
+	}
+
+	err = rxe_odp_map_range_and_lock(mr, iova, sizeof(value),
+					 RXE_PAGEFAULT_DEFAULT);
+	if (err)
+		return RESPST_ERR_RKEY_VIOLATION;
+
+	page_offset = rxe_odp_iova_to_page_offset(umem_odp, iova);
+	index = rxe_odp_iova_to_index(umem_odp, iova);
+	page = hmm_pfn_to_page(umem_odp->pfn_list[index]);
+	if (!page) {
+		mutex_unlock(&umem_odp->umem_mutex);
+		return RESPST_ERR_RKEY_VIOLATION;
+	}
+	/* See IBA A19.4.2 */
+	if (unlikely(page_offset & 0x7)) {
+		mutex_unlock(&umem_odp->umem_mutex);
+		rxe_dbg_mr(mr, "misaligned address\n");
+		return RESPST_ERR_MISALIGNED_ATOMIC;
+	}
+
+	va = kmap_local_page(page);
+	/* Do atomic write after all prior operations have completed */
+	smp_store_release(&va[page_offset >> 3], value);
+	kunmap_local(va);
+
+	mutex_unlock(&umem_odp->umem_mutex);
+
+	return RESPST_NONE;
+}

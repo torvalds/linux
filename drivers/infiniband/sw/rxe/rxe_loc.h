@@ -187,7 +187,7 @@ static inline unsigned int wr_opcode_mask(int opcode, struct rxe_qp *qp)
 /* rxe_odp.c */
 extern const struct mmu_interval_notifier_ops rxe_mn_ops;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+#if defined CONFIG_INFINIBAND_ON_DEMAND_PAGING
 int rxe_odp_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length,
 			 u64 iova, int access_flags, struct rxe_mr *mr);
 int rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
@@ -218,6 +218,16 @@ static inline int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
 					  unsigned int length)
 {
 	return -EOPNOTSUPP;
+}
+#endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value);
+#else
+static inline enum resp_states rxe_odp_do_atomic_write(struct rxe_mr *mr,
+						       u64 iova, u64 value)
+{
+	return RESPST_ERR_UNSUPPORTED_OPCODE;
 }
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 
