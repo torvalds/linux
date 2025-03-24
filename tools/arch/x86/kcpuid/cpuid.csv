@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: CC0-1.0
-# Generator: x86-cpuid-db v2.2
+# Generator: x86-cpuid-db v2.3
 
 #
 # Auto-generated file.
@@ -115,14 +115,6 @@
        0x2,         0,  edx,   23:16,    desc14                 , Descriptor #14
        0x2,         0,  edx,   30:24,    desc15                 , Descriptor #15
        0x2,         0,  edx,      31,    edx_invalid            , Descriptors 12-15 are invalid if set
-
-# Leaf 3H
-# Transmeta Processor Serial Number (PSN)
-
-       0x3,         0,  eax,    31:0,    cpu_psn_0              , Processor Serial Number bytes 0 - 3
-       0x3,         0,  ebx,    31:0,    cpu_psn_1              , Processor Serial Number bytes 4 - 7
-       0x3,         0,  ecx,    31:0,    cpu_psn_2              , Processor Serial Number bytes 8 - 11
-       0x3,         0,  edx,    31:0,    cpu_psn_3              , Processor Serial Number bytes 12 - 15
 
 # Leaf 4H
 # Intel deterministic cache parameters
@@ -1020,20 +1012,20 @@
 0x80000021,         0,  eax,       0,    no_nested_data_bp      , No nested data breakpoints
 0x80000021,         0,  eax,       1,    fsgs_non_serializing   , WRMSR to {FS,GS,KERNEL_GS}_BASE is non-serializing
 0x80000021,         0,  eax,       2,    lfence_rdtsc           , LFENCE always serializing / synchronizes RDTSC
-0x80000021,         0,  eax,       3,    smm_page_cfg_lock      , SMM paging configuration lock is supported
+0x80000021,         0,  eax,       3,    smm_page_cfg_lock      , SMM paging configuration lock
 0x80000021,         0,  eax,       6,    null_sel_clr_base      , Null selector clears base
-0x80000021,         0,  eax,       7,    upper_addr_ignore      , EFER MSR Upper Address Ignore Enable bit supported
-0x80000021,         0,  eax,       8,    autoibrs               , EFER MSR Automatic IBRS enable bit supported
-0x80000021,         0,  eax,       9,    no_smm_ctl_msr         , SMM_CTL MSR (0xc0010116) is not present
-0x80000021,         0,  eax,      10,    fsrs_supported         , Fast Short Rep STOSB (FSRS) is supported
-0x80000021,         0,  eax,      11,    fsrc_supported         , Fast Short Rep CMPSB (FSRC) is supported
-0x80000021,         0,  eax,      13,    prefetch_ctl_msr       , Prefetch control MSR is supported
+0x80000021,         0,  eax,       7,    upper_addr_ignore      , EFER MSR Upper Address Ignore
+0x80000021,         0,  eax,       8,    autoibrs               , EFER MSR Automatic IBRS
+0x80000021,         0,  eax,       9,    no_smm_ctl_msr         , SMM_CTL MSR (0xc0010116) is not available
+0x80000021,         0,  eax,      10,    fsrs                   , Fast Short Rep STOSB
+0x80000021,         0,  eax,      11,    fsrc                   , Fast Short Rep CMPSB
+0x80000021,         0,  eax,      13,    prefetch_ctl_msr       , Prefetch control MSR is available
 0x80000021,         0,  eax,      16,    opcode_reclaim         , Reserves opcode space
 0x80000021,         0,  eax,      17,    user_cpuid_disable     , #GP when executing CPUID at CPL > 0 is supported
-0x80000021,         0,  eax,      18,    epsf_supported         , Enhanced Predictive Store Forwarding (EPSF) is supported
+0x80000021,         0,  eax,      18,    epsf                   , Enhanced Predictive Store Forwarding
 0x80000021,         0,  eax,      22,    wl_feedback            , Workload-based heuristic feedback to OS
-0x80000021,         0,  eax,      24,    eraps_support          , Enhanced Return Address Predictor Security
-0x80000021,         0,  eax,      27,    sbpb                   , Support for the Selective Branch Predictor Barrier
+0x80000021,         0,  eax,      24,    eraps                  , Enhanced Return Address Predictor Security
+0x80000021,         0,  eax,      27,    sbpb                   , Selective Branch Predictor Barrier
 0x80000021,         0,  eax,      28,    ibpb_brtype            , Branch predictions flushed from CPU branch predictor
 0x80000021,         0,  eax,      29,    srso_no                , CPU is not subject to the SRSO vulnerability
 0x80000021,         0,  eax,      30,    srso_uk_no             , CPU is not vulnerable to SRSO at user-kernel boundary
