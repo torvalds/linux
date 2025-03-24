@@ -947,7 +947,9 @@ void netdev_nl_sock_priv_destroy(struct netdev_nl_sock *priv)
 
 	mutex_lock(&priv->lock);
 	list_for_each_entry_safe(binding, temp, &priv->bindings, list) {
+		netdev_lock(binding->dev);
 		net_devmem_unbind_dmabuf(binding);
+		netdev_unlock(binding->dev);
 	}
 	mutex_unlock(&priv->lock);
 }
