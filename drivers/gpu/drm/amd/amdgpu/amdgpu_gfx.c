@@ -1665,15 +1665,8 @@ static ssize_t amdgpu_gfx_set_enforce_isolation(struct device *dev,
 	}
 
 	mutex_lock(&adev->enforce_isolation_mutex);
-	for (i = 0; i < num_partitions; i++) {
-		if (adev->enforce_isolation[i] && !partition_values[i])
-			/* Going from enabled to disabled */
-			amdgpu_vmid_free_reserved(adev, AMDGPU_GFXHUB(i));
-		else if (!adev->enforce_isolation[i] && partition_values[i])
-			/* Going from disabled to enabled */
-			amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(i));
+	for (i = 0; i < num_partitions; i++)
 		adev->enforce_isolation[i] = partition_values[i];
-	}
 	mutex_unlock(&adev->enforce_isolation_mutex);
 
 	amdgpu_mes_update_enforce_isolation(adev);
@@ -2160,11 +2153,16 @@ void amdgpu_gfx_profile_idle_work_handler(struct work_struct *work)
 	for (i = 0; i < (AMDGPU_MAX_COMPUTE_RINGS * AMDGPU_MAX_GC_INSTANCES); ++i)
 		fences += amdgpu_fence_count_emitted(&adev->gfx.compute_ring[i]);
 	if (!fences && !atomic_read(&adev->gfx.total_submission_cnt)) {
-		r = amdgpu_dpm_switch_power_profile(adev, profile, false);
-		if (r)
-			dev_warn(adev->dev, "(%d) failed to disable %s power profile mode\n", r,
-				 profile == PP_SMC_POWER_PROFILE_FULLSCREEN3D ?
-				 "fullscreen 3D" : "compute");
+		mutex_lock(&adev->gfx.workload_profile_mutex);
+		if (adev->gfx.workload_profile_active) {
+			r = amdgpu_dpm_switch_power_profile(adev, profile, false);
+			if (r)
+				dev_warn(adev->dev, "(%d) failed to disable %s power profile mode\n", r,
+					 profile == PP_SMC_POWER_PROFILE_FULLSCREEN3D ?
+					 "fullscreen 3D" : "compute");
+			adev->gfx.workload_profile_active = false;
+		}
+		mutex_unlock(&adev->gfx.workload_profile_mutex);
 	} else {
 		schedule_delayed_work(&adev->gfx.idle_work, GFX_PROFILE_IDLE_TIMEOUT);
 	}
@@ -2183,13 +2181,25 @@ void amdgpu_gfx_profile_ring_begin_use(struct amdgpu_ring *ring)
 
 	atomic_inc(&adev->gfx.total_submission_cnt);
 
-	if (!cancel_delayed_work_sync(&adev->gfx.idle_work)) {
+	cancel_delayed_work_sync(&adev->gfx.idle_work);
+
+	/* We can safely return early here because we've cancelled the
+	 * the delayed work so there is no one else to set it to false
+	 * and we don't care if someone else sets it to true.
+	 */
+	if (adev->gfx.workload_profile_active)
+		return;
+
+	mutex_lock(&adev->gfx.workload_profile_mutex);
+	if (!adev->gfx.workload_profile_active) {
 		r = amdgpu_dpm_switch_power_profile(adev, profile, true);
 		if (r)
 			dev_warn(adev->dev, "(%d) failed to disable %s power profile mode\n", r,
 				 profile == PP_SMC_POWER_PROFILE_FULLSCREEN3D ?
 				 "fullscreen 3D" : "compute");
+		adev->gfx.workload_profile_active = true;
 	}
+	mutex_unlock(&adev->gfx.workload_profile_mutex);
 }
 
 void amdgpu_gfx_profile_ring_end_use(struct amdgpu_ring *ring)

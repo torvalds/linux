@@ -504,6 +504,39 @@ void amdgpu_sdma_sysfs_reset_mask_fini(struct amdgpu_device *adev)
 	}
 }
 
+struct amdgpu_ring *amdgpu_sdma_get_shared_ring(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	if (adev->sdma.has_page_queue &&
+	    (ring->me < adev->sdma.num_instances) &&
+	    (ring == &adev->sdma.instance[ring->me].ring))
+		return &adev->sdma.instance[ring->me].page;
+	else
+		return NULL;
+}
+
+/**
+* amdgpu_sdma_is_shared_inv_eng - Check if a ring is an SDMA ring that shares a VM invalidation engine
+* @adev: Pointer to the AMDGPU device structure
+* @ring: Pointer to the ring structure to check
+*
+* This function checks if the given ring is an SDMA ring that shares a VM invalidation engine.
+* It returns true if the ring is such an SDMA ring, false otherwise.
+*/
+bool amdgpu_sdma_is_shared_inv_eng(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	int i = ring->me;
+
+	if (!adev->sdma.has_page_queue || i >= adev->sdma.num_instances)
+		return false;
+
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0))
+		return (ring == &adev->sdma.instance[i].page);
+	else
+		return false;
+}
+
 /**
  * amdgpu_sdma_register_on_reset_callbacks - Register SDMA reset callbacks
  * @funcs: Pointer to the callback structure containing pre_reset and post_reset functions
@@ -532,7 +565,6 @@ void amdgpu_sdma_register_on_reset_callbacks(struct amdgpu_device *adev, struct 
  * amdgpu_sdma_reset_engine - Reset a specific SDMA engine
  * @adev: Pointer to the AMDGPU device
  * @instance_id: ID of the SDMA engine instance to reset
- * @suspend_user_queues: check if suspend user queue.
  *
  * This function performs the following steps:
  * 1. Calls all registered pre_reset callbacks to allow KFD and AMDGPU to save their state.
@@ -541,22 +573,16 @@ void amdgpu_sdma_register_on_reset_callbacks(struct amdgpu_device *adev, struct 
  *
  * Returns: 0 on success, or a negative error code on failure.
  */
-int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id, bool suspend_user_queues)
+int amdgpu_sdma_reset_engine(struct amdgpu_device *adev, uint32_t instance_id)
 {
 	struct sdma_on_reset_funcs *funcs;
 	int ret = 0;
-	struct amdgpu_sdma_instance *sdma_instance = &adev->sdma.instance[instance_id];;
+	struct amdgpu_sdma_instance *sdma_instance = &adev->sdma.instance[instance_id];
 	struct amdgpu_ring *gfx_ring = &sdma_instance->ring;
 	struct amdgpu_ring *page_ring = &sdma_instance->page;
 	bool gfx_sched_stopped = false, page_sched_stopped = false;
 
-	/* Suspend KFD if suspend_user_queues is true.
-	 * prevent the destruction of in-flight healthy user queue packets and
-	 * avoid race conditions between KFD and KGD during the reset process.
-	 */
-	if (suspend_user_queues)
-		amdgpu_amdkfd_suspend(adev, false);
-
+	mutex_lock(&sdma_instance->engine_reset_mutex);
 	/* Stop the scheduler's work queue for the GFX and page rings if they are running.
 	* This ensures that no new tasks are submitted to the queues while
 	* the reset is in progress.
@@ -609,7 +635,7 @@ exit:
 	 * if they were stopped by this function. This allows new tasks
 	 * to be submitted to the queues after the reset is complete.
 	 */
-	if (ret) {
+	if (!ret) {
 		if (gfx_sched_stopped && amdgpu_ring_sched_ready(gfx_ring)) {
 			drm_sched_wqueue_start(&gfx_ring->sched);
 		}
@@ -617,9 +643,7 @@ exit:
 			drm_sched_wqueue_start(&page_ring->sched);
 		}
 	}
-
-	if (suspend_user_queues)
-		amdgpu_amdkfd_resume(adev, false);
+	mutex_unlock(&sdma_instance->engine_reset_mutex);
 
 	return ret;
 }

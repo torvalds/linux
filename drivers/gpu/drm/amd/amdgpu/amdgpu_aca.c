@@ -391,6 +391,7 @@ static void aca_banks_generate_cper(struct amdgpu_device *adev,
 {
 	struct aca_bank_node *node;
 	struct aca_bank *bank;
+	int r;
 
 	if (!adev->cper.enabled)
 		return;
@@ -402,11 +403,27 @@ static void aca_banks_generate_cper(struct amdgpu_device *adev,
 
 	/* UEs must be encoded into separate CPER entries */
 	if (type == ACA_SMU_TYPE_UE) {
+		struct aca_banks de_banks;
+
+		aca_banks_init(&de_banks);
 		list_for_each_entry(node, &banks->list, node) {
 			bank = &node->bank;
-			if (amdgpu_cper_generate_ue_record(adev, bank))
-				dev_warn(adev->dev, "fail to generate ue cper records\n");
+			if (bank->aca_err_type == ACA_ERROR_TYPE_DEFERRED) {
+				r = aca_banks_add_bank(&de_banks, bank);
+				if (r)
+					dev_warn(adev->dev, "fail to add de banks, ret = %d\n", r);
+			} else {
+				if (amdgpu_cper_generate_ue_record(adev, bank))
+					dev_warn(adev->dev, "fail to generate ue cper records\n");
+			}
 		}
+
+		if (!list_empty(&de_banks.list)) {
+			if (amdgpu_cper_generate_ce_records(adev, &de_banks, de_banks.nr_banks))
+				dev_warn(adev->dev, "fail to generate de cper records\n");
+		}
+
+		aca_banks_release(&de_banks);
 	} else {
 		/*
 		 * SMU_TYPE_CE banks are combined into 1 CPER entries,
@@ -540,6 +557,10 @@ static int __aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *h
 	ret = aca_banks_update(adev, smu_type, handler_aca_log_bank_error, qctx, NULL);
 	if (ret)
 		return ret;
+
+	/* DEs may contain in CEs or UEs */
+	if (type != ACA_ERROR_TYPE_DEFERRED)
+		aca_log_aca_error(handle, ACA_ERROR_TYPE_DEFERRED, err_data);
 
 	return aca_log_aca_error(handle, type, err_data);
 }

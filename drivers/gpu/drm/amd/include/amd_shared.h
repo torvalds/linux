@@ -358,6 +358,18 @@ enum DC_DEBUG_MASK {
 	 * @DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE: If set, disable support for custom brightness curves
 	 */
 	DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE = 0x40000,
+
+	/**
+	 * @DC_HDCP_LC_FORCE_FW_ENABLE: If set, use HDCP Locality Check FW
+	 * path regardless of reported HW capabilities.
+	 */
+	DC_HDCP_LC_FORCE_FW_ENABLE = 0x80000,
+
+	/**
+	 * @DC_HDCP_LC_ENABLE_SW_FALLBACK If set, upon HDCP Locality Check FW
+	 * path failure, retry using legacy SW path.
+	 */
+	DC_HDCP_LC_ENABLE_SW_FALLBACK = 0x100000,
 };
 
 enum amd_dpm_forced_level;

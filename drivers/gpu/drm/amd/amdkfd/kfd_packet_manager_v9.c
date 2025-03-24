@@ -310,6 +310,13 @@ static inline void pm_build_dequeue_wait_counts_packet_info(struct packet_manage
 		reg_data);
 }
 
+/* pm_config_dequeue_wait_counts_v9: Builds WRITE_DATA packet with
+ *    register/value for configuring dequeue wait counts
+ *
+ * @return: -ve for failure and 0 for success and buffer is
+ *  filled in with packet
+ *
+ **/
 static int pm_config_dequeue_wait_counts_v9(struct packet_manager *pm,
 		uint32_t *buffer,
 		enum kfd_config_dequeue_wait_counts_cmd cmd,
@@ -321,24 +328,25 @@ static int pm_config_dequeue_wait_counts_v9(struct packet_manager *pm,
 
 	switch (cmd) {
 	case KFD_DEQUEUE_WAIT_INIT: {
-		uint32_t sch_wave = 0, que_sleep = 0;
-		/* Reduce CP_IQ_WAIT_TIME2.QUE_SLEEP to 0x1 from default 0x40.
+		uint32_t sch_wave = 0, que_sleep = 1;
+
+		/* For all gfx9 ASICs > gfx941,
+		 * Reduce CP_IQ_WAIT_TIME2.QUE_SLEEP to 0x1 from default 0x40.
 		 * On a 1GHz machine this is roughly 1 microsecond, which is
 		 * about how long it takes to load data out of memory during
 		 * queue connect
 		 * QUE_SLEEP: Wait Count for Dequeue Retry.
+		 *
+		 * Set CWSR grace period to 1x1000 cycle for GFX9.4.3 APU
 		 */
-		if (KFD_GC_VERSION(pm->dqm->dev) >= IP_VERSION(9, 4, 1) &&
-		    KFD_GC_VERSION(pm->dqm->dev) < IP_VERSION(10, 0, 0)) {
-			que_sleep = 1;
+		if (KFD_GC_VERSION(pm->dqm->dev) < IP_VERSION(9, 4, 1) ||
+		    KFD_GC_VERSION(pm->dqm->dev) >= IP_VERSION(10, 0, 0))
+			return -EPERM;
 
-			/* Set CWSR grace period to 1x1000 cycle for GFX9.4.3 APU */
-			if (amdgpu_emu_mode == 0 && pm->dqm->dev->adev->gmc.is_app_apu &&
-			(KFD_GC_VERSION(pm->dqm->dev) == IP_VERSION(9, 4, 3)))
-				sch_wave = 1;
-		} else {
-			return 0;
-		}
+		if (amdgpu_emu_mode == 0 && pm->dqm->dev->adev->gmc.is_app_apu &&
+		    (KFD_GC_VERSION(pm->dqm->dev) == IP_VERSION(9, 4, 3)))
+			sch_wave = 1;
+
 		pm_build_dequeue_wait_counts_packet_info(pm, sch_wave, que_sleep,
 			&reg_offset, &reg_data);
 

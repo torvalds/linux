@@ -147,10 +147,15 @@ static void vcn_v2_5_idle_work_handler(struct work_struct *work)
 	if (!fences && !atomic_read(&adev->vcn.inst[0].total_submission_cnt)) {
 		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
 						       AMD_PG_STATE_GATE);
-		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
-						    false);
-		if (r)
-			dev_warn(adev->dev, "(%d) failed to disable video power profile mode\n", r);
+		mutex_lock(&adev->vcn.workload_profile_mutex);
+		if (adev->vcn.workload_profile_active) {
+			r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
+							    false);
+			if (r)
+				dev_warn(adev->dev, "(%d) failed to disable video power profile mode\n", r);
+			adev->vcn.workload_profile_active = false;
+		}
+		mutex_unlock(&adev->vcn.workload_profile_mutex);
 	} else {
 		schedule_delayed_work(&adev->vcn.inst[0].idle_work, VCN_IDLE_TIMEOUT);
 	}
@@ -164,13 +169,26 @@ static void vcn_v2_5_ring_begin_use(struct amdgpu_ring *ring)
 
 	atomic_inc(&adev->vcn.inst[0].total_submission_cnt);
 
-	if (!cancel_delayed_work_sync(&adev->vcn.inst[0].idle_work)) {
+	cancel_delayed_work_sync(&adev->vcn.inst[0].idle_work);
+
+	/* We can safely return early here because we've cancelled the
+	 * the delayed work so there is no one else to set it to false
+	 * and we don't care if someone else sets it to true.
+	 */
+	if (adev->vcn.workload_profile_active)
+		goto pg_lock;
+
+	mutex_lock(&adev->vcn.workload_profile_mutex);
+	if (!adev->vcn.workload_profile_active) {
 		r = amdgpu_dpm_switch_power_profile(adev, PP_SMC_POWER_PROFILE_VIDEO,
 						    true);
 		if (r)
 			dev_warn(adev->dev, "(%d) failed to switch to video power profile mode\n", r);
+		adev->vcn.workload_profile_active = true;
 	}
+	mutex_unlock(&adev->vcn.workload_profile_mutex);
 
+pg_lock:
 	mutex_lock(&adev->vcn.inst[0].vcn_pg_lock);
 	amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VCN,
 					       AMD_PG_STATE_UNGATE);
