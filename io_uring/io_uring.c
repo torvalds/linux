@@ -892,6 +892,7 @@ bool io_req_post_cqe(struct io_kiocb *req, s32 res, u32 cflags)
 static void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	bool completed = true;
 
 	/*
 	 * All execution paths but io-wq use the deferred completions by
@@ -905,17 +906,19 @@ static void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 	 * the submitter task context, IOPOLL protects with uring_lock.
 	 */
 	if (ctx->lockless_cq || (req->flags & REQ_F_REISSUE)) {
+defer_complete:
 		req->io_task_work.func = io_req_task_complete;
 		io_req_task_work_add(req);
 		return;
 	}
 
 	io_cq_lock(ctx);
-	if (!(req->flags & REQ_F_CQE_SKIP)) {
-		if (!io_fill_cqe_req(ctx, req))
-			io_req_cqe_overflow(req);
-	}
+	if (!(req->flags & REQ_F_CQE_SKIP))
+		completed = io_fill_cqe_req(ctx, req);
 	io_cq_unlock_post(ctx);
+
+	if (!completed)
+		goto defer_complete;
 
 	/*
 	 * We don't free the request here because we know it's called from
