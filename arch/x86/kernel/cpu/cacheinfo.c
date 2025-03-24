@@ -19,6 +19,7 @@
 #include <asm/amd_nb.h>
 #include <asm/cacheinfo.h>
 #include <asm/cpufeature.h>
+#include <asm/cpuid.h>
 #include <asm/mtrr.h>
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
@@ -783,29 +784,16 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 	/* Don't use CPUID(2) if CPUID(4) is supported. */
 	if (!ci->num_leaves && c->cpuid_level > 1) {
-		u32 regs[4];
-		u8 *desc = (u8 *)regs;
+		union leaf_0x2_regs regs;
+		u8 *desc;
 
-		cpuid(2, &regs[0], &regs[1], &regs[2], &regs[3]);
-
-		/* Intel CPUs must report an iteration count of 1 */
-		if (desc[0] != 0x01)
-			return;
-
-		/* If a register's bit 31 is set, it is an unknown format */
-		for (int i = 0; i < 4; i++) {
-			if (regs[i] & (1 << 31))
-				regs[i] = 0;
-		}
-
-		/* Skip the first byte as it is not a descriptor */
-		for (int i = 1; i < 16; i++) {
-			u8 des = desc[i];
+		cpuid_get_leaf_0x2_regs(&regs);
+		for_each_leaf_0x2_desc(regs, desc) {
 			u8 k = 0;
 
 			/* look up this descriptor in the table */
 			while (cache_table[k].descriptor != 0) {
-				if (cache_table[k].descriptor == des) {
+				if (cache_table[k].descriptor == *desc) {
 					switch (cache_table[k].cache_type) {
 					case LVL_1_INST:
 						l1i += cache_table[k].size;
