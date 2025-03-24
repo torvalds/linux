@@ -186,49 +186,48 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     scb {
-            #address-cells = <2>;
-            #size-cells = <1>;
-            pcie0: pcie@7d500000 {
-                    compatible = "brcm,bcm2711-pcie";
-                    reg = <0x0 0x7d500000 0x9310>;
-                    device_type = "pci";
-                    #address-cells = <3>;
-                    #size-cells = <2>;
-                    #interrupt-cells = <1>;
-                    interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
-                                 <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
-                    interrupt-names = "pcie", "msi";
-                    interrupt-map-mask = <0x0 0x0 0x0 0x7>;
-                    interrupt-map = <0 0 0 1 &gicv2 GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH
-                                     0 0 0 2 &gicv2 GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH
-                                     0 0 0 3 &gicv2 GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH
-                                     0 0 0 4 &gicv2 GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
+        #address-cells = <2>;
+        #size-cells = <1>;
+        pcie0: pcie@7d500000 {
+            compatible = "brcm,bcm2711-pcie";
+            reg = <0x0 0x7d500000 0x9310>;
+            device_type = "pci";
+            #address-cells = <3>;
+            #size-cells = <2>;
+            #interrupt-cells = <1>;
+            interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "pcie", "msi";
+            interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+            interrupt-map = <0 0 0 1 &gicv2 GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH
+                             0 0 0 2 &gicv2 GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH
+                             0 0 0 3 &gicv2 GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH
+                             0 0 0 4 &gicv2 GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
 
-                    msi-parent = <&pcie0>;
-                    msi-controller;
-                    ranges = <0x02000000 0x0 0xf8000000 0x6 0x00000000 0x0 0x04000000>;
-                    dma-ranges = <0x42000000 0x1 0x00000000 0x0 0x40000000 0x0 0x80000000>,
-                                 <0x42000000 0x1 0x80000000 0x3 0x00000000 0x0 0x80000000>;
-                    brcm,enable-ssc;
-                    brcm,scb-sizes =  <0x0000000080000000 0x0000000080000000>;
+            msi-parent = <&pcie0>;
+            msi-controller;
+            ranges = <0x02000000 0x0 0xf8000000 0x6 0x00000000 0x0 0x04000000>;
+            dma-ranges = <0x42000000 0x1 0x00000000 0x0 0x40000000 0x0 0x80000000>,
+                         <0x42000000 0x1 0x80000000 0x3 0x00000000 0x0 0x80000000>;
+            brcm,enable-ssc;
+            brcm,scb-sizes =  <0x0000000080000000 0x0000000080000000>;
 
-                    /* PCIe bridge, Root Port */
-                    pci@0,0 {
-                            #address-cells = <3>;
-                            #size-cells = <2>;
-                            reg = <0x0 0x0 0x0 0x0 0x0>;
-                            compatible = "pciclass,0604";
-                            device_type = "pci";
-                            vpcie3v3-supply = <&vreg7>;
-                            ranges;
+            /* PCIe bridge, Root Port */
+            pci@0,0 {
+                #address-cells = <3>;
+                #size-cells = <2>;
+                reg = <0x0 0x0 0x0 0x0 0x0>;
+                compatible = "pciclass,0604";
+                device_type = "pci";
+                vpcie3v3-supply = <&vreg7>;
+                ranges;
 
-                            /* PCIe endpoint */
-                            pci-ep@0,0 {
-                                    assigned-addresses =
-                                        <0x82010000 0x0 0xf8000000 0x6 0x00000000 0x0 0x2000>;
-                                    reg = <0x0 0x0 0x0 0x0 0x0>;
-                                    compatible = "pci14e4,1688";
-                            };
-                    };
+                /* PCIe endpoint */
+                pci-ep@0,0 {
+                    assigned-addresses = <0x82010000 0x0 0xf8000000 0x6 0x00000000 0x0 0x2000>;
+                    reg = <0x0 0x0 0x0 0x0 0x0>;
+                    compatible = "pci14e4,1688";
+                };
             };
+        };
     };

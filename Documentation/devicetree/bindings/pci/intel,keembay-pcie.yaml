@@ -75,23 +75,23 @@ examples:
     #define KEEM_BAY_A53_PCIE
     #define KEEM_BAY_A53_AUX_PCIE
     pcie@37000000 {
-          compatible = "intel,keembay-pcie";
-          reg = <0x37000000 0x00001000>,
-                <0x37300000 0x00001000>,
-                <0x36e00000 0x00200000>,
-                <0x37800000 0x00000200>;
-          reg-names = "dbi", "atu", "config", "apb";
-          #address-cells = <3>;
-          #size-cells = <2>;
-          device_type = "pci";
-          ranges = <0x02000000 0 0x36000000 0x36000000 0 0x00e00000>;
-          interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
-                       <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
-                       <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
-          interrupt-names = "pcie", "pcie_ev", "pcie_err";
-          clocks = <&scmi_clk KEEM_BAY_A53_PCIE>,
-                   <&scmi_clk KEEM_BAY_A53_AUX_PCIE>;
-          clock-names = "master", "aux";
-          reset-gpios = <&pca2 9 GPIO_ACTIVE_LOW>;
-          num-lanes = <2>;
+        compatible = "intel,keembay-pcie";
+        reg = <0x37000000 0x00001000>,
+              <0x37300000 0x00001000>,
+              <0x36e00000 0x00200000>,
+              <0x37800000 0x00000200>;
+        reg-names = "dbi", "atu", "config", "apb";
+        #address-cells = <3>;
+        #size-cells = <2>;
+        device_type = "pci";
+        ranges = <0x02000000 0 0x36000000 0x36000000 0 0x00e00000>;
+        interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "pcie", "pcie_ev", "pcie_err";
+        clocks = <&scmi_clk KEEM_BAY_A53_PCIE>,
+                 <&scmi_clk KEEM_BAY_A53_AUX_PCIE>;
+        clock-names = "master", "aux";
+        reset-gpios = <&pca2 9 GPIO_ACTIVE_LOW>;
+        num-lanes = <2>;
     };
