@@ -481,9 +481,6 @@ static void decode_bits(u32 value, struct reg_desc *rdesc, enum cpuid_reg reg)
 
 static void show_leaf(struct subleaf *leaf)
 {
-	if (!leaf)
-		return;
-
 	if (show_raw) {
 		leaf_print_raw(leaf);
 	} else {
@@ -505,9 +502,6 @@ static void show_func(struct cpuid_func *func)
 {
 	int i;
 
-	if (!func)
-		return;
-
 	for (i = 0; i < func->nr; i++)
 		show_leaf(&func->leafs[i]);
 }
@@ -528,10 +522,9 @@ static inline struct cpuid_func *index_to_func(u32 index)
 	range = (index & 0x80000000) ? leafs_ext : leafs_basic;
 	func_idx = index & 0xffff;
 
-	if ((func_idx + 1) > (u32)range->nr) {
-		warnx("Invalid input index (0x%x)", index);
+	if ((func_idx + 1) > (u32)range->nr)
 		return NULL;
-	}
+
 	return &range->funcs[func_idx];
 }
 
@@ -550,18 +543,19 @@ static void show_info(void)
 		/* Only show specific leaf/subleaf info */
 		func = index_to_func(user_index);
 		if (!func)
-			return;
+			errx(EXIT_FAILURE, "Invalid input leaf (0x%x)", user_index);
 
 		/* Dump the raw data also */
 		show_raw = true;
 
 		if (user_sub != 0xFFFFFFFF) {
-			if (user_sub + 1 <= (u32)func->nr) {
-				show_leaf(&func->leafs[user_sub]);
-				return;
+			if (user_sub + 1 > (u32)func->nr) {
+				errx(EXIT_FAILURE, "Leaf 0x%x has no valid subleaf = 0x%x",
+				     user_index, user_sub);
 			}
 
-			warnx("Invalid input subleaf (0x%x)", user_sub);
+			show_leaf(&func->leafs[user_sub]);
+			return;
 		}
 
 		show_func(func);
