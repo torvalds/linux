@@ -277,7 +277,7 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
  *	0,    0,  EAX,   31:0, max_basic_leafs,  Max input value for supported subleafs
  *	1,    0,  ECX,      0, sse3,  Streaming SIMD Extensions 3(SSE3)
  */
-static int parse_line(char *line)
+static void parse_line(char *line)
 {
 	char *str;
 	int i;
@@ -307,7 +307,7 @@ static int parse_line(char *line)
 
 	/* Skip comments and NULL line */
 	if (line[0] == '#' || line[0] == '\n')
-		return 0;
+		return;
 
 	strncpy(buffer, line, 511);
 	buffer[511] = 0;
@@ -330,16 +330,15 @@ static int parse_line(char *line)
 	else
 		range = leafs_basic;
 
-	index &= 0x7FFFFFFF;
 	/* Skip line parsing for non-existing indexes */
+	index &= 0x7FFFFFFF;
 	if ((int)index >= range->nr)
-		return -1;
+		return;
 
+	/* Skip line parsing if the index CPUID output is all zero */
 	func = &range->funcs[index];
-
-	/* Return if the index has no valid item on this platform */
 	if (!func->nr)
-		return 0;
+		return;
 
 	/* subleaf */
 	buf = tokens[1];
@@ -352,11 +351,11 @@ static int parse_line(char *line)
 		subleaf_start = strtoul(start, NULL, 0);
 		subleaf_end = min(subleaf_end, (u32)(func->nr - 1));
 		if (subleaf_start > subleaf_end)
-			return 0;
+			return;
 	} else {
 		subleaf_start = subleaf_end;
 		if (subleaf_start > (u32)(func->nr - 1))
-			return 0;
+			return;
 	}
 
 	/* register */
@@ -389,12 +388,11 @@ static int parse_line(char *line)
 		strcpy(bdesc->simp, strtok(tokens[4], " \t"));
 		strcpy(bdesc->detail, tokens[5]);
 	}
-	return 0;
+	return;
 
 err_exit:
 	warnx("Wrong line format:\n"
 	      "\tline[%d]: %s", flines, line);
-	return -1;
 }
 
 /* Parse csv file, and construct the array of all leafs and subleafs */
