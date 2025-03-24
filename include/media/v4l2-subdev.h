@@ -1722,6 +1722,28 @@ int v4l2_subdev_disable_streams(struct v4l2_subdev *sd, u32 pad,
  */
 int v4l2_subdev_s_stream_helper(struct v4l2_subdev *sd, int enable);
 
+/**
+ * v4l2_subdev_get_frame_desc_passthrough() - Helper to implement the subdev
+ *	v4l2_get_frame_desc operation in simple passthrough cases
+ * @sd: The subdevice
+ * @pad: The source pad index
+ * @fd: The mbus frame desc
+ *
+ * Subdevice drivers that only pass through the streams can use this helper
+ * to implement the &v4l2_subdev_pad_ops.v4l2_get_frame_desc operation.
+ *
+ * The helper will call get_frame_desc on the subdevice's sources, create a new
+ * frame desc which contains only the streams on the given source pad. The data
+ * for each frame desc entry is copied directly from the data provided from the
+ * calls to the subdevice's sources, with the exception of the 'stream' field
+ * which is set according to the subdevice's routing table.
+ *
+ * Return: 0 on success, or a negative error code otherwise.
+ */
+int v4l2_subdev_get_frame_desc_passthrough(struct v4l2_subdev *sd,
+					   unsigned int pad,
+					   struct v4l2_mbus_frame_desc *fd);
+
 #endif /* CONFIG_VIDEO_V4L2_SUBDEV_API */
 
 #endif /* CONFIG_MEDIA_CONTROLLER */
