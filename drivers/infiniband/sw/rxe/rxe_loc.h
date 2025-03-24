@@ -194,6 +194,8 @@ int rxe_odp_mr_copy(struct rxe_mr *mr, u64 iova, void *addr, int length,
 		    enum rxe_mr_copy_dir dir);
 int rxe_odp_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 			 u64 compare, u64 swap_add, u64 *orig_val);
+int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
+			    unsigned int length);
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 static inline int
 rxe_odp_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length, u64 iova,
@@ -211,6 +213,11 @@ rxe_odp_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 		     u64 compare, u64 swap_add, u64 *orig_val)
 {
 	return RESPST_ERR_UNSUPPORTED_OPCODE;
+}
+static inline int rxe_odp_flush_pmem_iova(struct rxe_mr *mr, u64 iova,
+					  unsigned int length)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 
