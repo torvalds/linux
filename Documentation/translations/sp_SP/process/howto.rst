@@ -334,7 +334,7 @@ con el árbol principal, necesitan probar su integración. Para ello, existe
 un repositorio especial de pruebas en el que se encuentran casi todos los
 árboles de subsistema, actualizado casi a diario:
 
-	https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
+	https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
 
 De esta manera, linux-next ofrece una perspectiva resumida de lo que se
 espera que entre en el kernel principal en el próximo período de "merge"
@@ -378,13 +378,13 @@ desarrolladores del kernel participan en la lista de correo del kernel de
 Linux. Detalles sobre cómo para suscribirse y darse de baja de la lista se
 pueden encontrar en:
 
-	http://vger.kernel.org/vger-lists.html#linux-kernel
+	https://subspace.kernel.org/subscribing.html
 
 Existen archivos de la lista de correo en la web en muchos lugares
 distintos. Utilice un motor de búsqueda para encontrar estos archivos. Por
 ejemplo:
 
-	http://dir.gmane.org/gmane.linux.kernel
+	https://lore.kernel.org/linux-kernel/
 
 Es muy recomendable que busque en los archivos sobre el tema que desea
 tratar, antes de publicarlo en la lista. Un montón de cosas ya discutidas
@@ -398,13 +398,13 @@ los diferentes grupos.
 Muchas de las listas están alojadas en kernel.org. La información sobre
 estas puede ser encontrada en:
 
-	http://vger.kernel.org/vger-lists.html
+	https://subspace.kernel.org
 
 Recuerde mantener buenos hábitos de comportamiento al usar las listas.
 Aunque un poco cursi, la siguiente URL tiene algunas pautas simples para
 interactuar con la lista (o cualquier lista):
 
-	http://www.albion.com/netiquette/
+	https://subspace.kernel.org/etiquette.html
 
 Si varias personas responden a su correo, el CC (lista de destinatarios)
 puede hacerse bastante grande. No elimine a nadie de la lista CC: sin una
