@@ -4062,17 +4062,7 @@ static inline bool netif_is_multiqueue(const struct net_device *dev)
 }
 
 int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq);
-
-#ifdef CONFIG_SYSFS
 int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq);
-#else
-static inline int netif_set_real_num_rx_queues(struct net_device *dev,
-						unsigned int rxqs)
-{
-	dev->real_num_rx_queues = rxqs;
-	return 0;
-}
-#endif
 int netif_set_real_num_queues(struct net_device *dev,
 			      unsigned int txq, unsigned int rxq);
 
