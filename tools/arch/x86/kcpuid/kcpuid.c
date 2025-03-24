@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define _GNU_SOURCE
 
+#include <cpuid.h>
 #include <err.h>
 #include <getopt.h>
 #include <stdbool.h>
@@ -86,16 +87,16 @@ static u32 user_index = 0xFFFFFFFF;
 static u32 user_sub = 0xFFFFFFFF;
 static int flines;
 
-static inline void cpuid(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
-{
-	/* ecx is often an input as well as an output. */
-	asm volatile("cpuid"
-	    : "=a" (*eax),
-	      "=b" (*ebx),
-	      "=c" (*ecx),
-	      "=d" (*edx)
-	    : "0" (*eax), "2" (*ecx));
-}
+/*
+ * Force using <cpuid.h> __cpuid_count() instead of __cpuid(). The
+ * latter leaves ECX uninitialized, which can break CPUID queries.
+ */
+
+#define cpuid(leaf, a, b, c, d)				\
+	__cpuid_count(leaf, 0, a, b, c, d)
+
+#define cpuid_count(leaf, subleaf, a, b, c, d)		\
+	__cpuid_count(leaf, subleaf, a, b, c, d)
 
 static inline bool has_subleafs(u32 f)
 {
@@ -195,12 +196,7 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 	u32 max_func, idx_func;
 	u32 eax, ebx, ecx, edx;
 
-	eax = input_eax;
-	ebx = ecx = edx = 0;
-	cpuid(&eax, &ebx, &ecx, &edx);
-
-	max_func = eax;
-	idx_func = (max_func & 0xffff) + 1;
+	cpuid(input_eax, max_func, ebx, ecx, edx);
 
 	range = malloc(sizeof(struct cpuid_range));
 	if (!range)
@@ -211,6 +207,7 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 	else
 		range->is_ext = false;
 
+	idx_func = (max_func & 0xffff) + 1;
 	range->funcs = malloc(sizeof(struct cpuid_func) * idx_func);
 	if (!range->funcs)
 		err(EXIT_FAILURE, NULL);
@@ -222,9 +219,7 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 		u32 max_subleaf = MAX_SUBLEAF_NUM;
 		bool allzero;
 
-		eax = f;
-		ecx = 0;
-		cpuid(&eax, &ebx, &ecx, &edx);
+		cpuid(f, eax, ebx, ecx, edx);
 
 		allzero = cpuid_store(range, f, 0, eax, ebx, ecx, edx);
 		if (allzero)
@@ -251,9 +246,7 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 			max_subleaf = 5;
 
 		for (u32 subleaf = 1; subleaf < max_subleaf; subleaf++) {
-			eax = f;
-			ecx = subleaf;
-			cpuid(&eax, &ebx, &ecx, &edx);
+			cpuid_count(f, subleaf, eax, ebx, ecx, edx);
 
 			allzero = cpuid_store(range, f, subleaf, eax, ebx, ecx, edx);
 			if (allzero)
