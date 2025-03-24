@@ -23119,12 +23119,6 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/system76_acpi.c
 
-SYSV FILESYSTEM
-S:	Orphan
-F:	Documentation/filesystems/sysv-fs.rst
-F:	fs/sysv/
-F:	include/linux/sysv_fs.h
-
 TASKSTATS STATISTICS INTERFACE
 M:	Balbir Singh <bsingharora@gmail.com>
 S:	Maintained
