@@ -34,90 +34,6 @@ static cpumask_var_t cpu_cacheinfo_mask;
 /* Kernel controls MTRR and/or PAT MSRs. */
 unsigned int memory_caching_control __ro_after_init;
 
-struct _cache_table {
-	u8 descriptor;
-	enum _cache_table_type type;
-	short size;
-};
-
-#define MB(x)	((x) * 1024)
-
-/* All the cache descriptor types we care about (no TLB or
-   trace cache entries) */
-
-static const struct _cache_table cache_table[] =
-{
-	{ 0x06, CACHE_L1_INST,	8	},	/* 4-way set assoc, 32 byte line size */
-	{ 0x08, CACHE_L1_INST,	16	},	/* 4-way set assoc, 32 byte line size */
-	{ 0x09, CACHE_L1_INST,	32	},	/* 4-way set assoc, 64 byte line size */
-	{ 0x0a, CACHE_L1_DATA,	8	},	/* 2 way set assoc, 32 byte line size */
-	{ 0x0c, CACHE_L1_DATA,	16	},	/* 4-way set assoc, 32 byte line size */
-	{ 0x0d, CACHE_L1_DATA,	16	},	/* 4-way set assoc, 64 byte line size */
-	{ 0x0e, CACHE_L1_DATA,	24	},	/* 6-way set assoc, 64 byte line size */
-	{ 0x21, CACHE_L2,	256	},	/* 8-way set assoc, 64 byte line size */
-	{ 0x22, CACHE_L3,	512	},	/* 4-way set assoc, sectored cache, 64 byte line size */
-	{ 0x23, CACHE_L3,	MB(1)	},	/* 8-way set assoc, sectored cache, 64 byte line size */
-	{ 0x25, CACHE_L3,	MB(2)	},	/* 8-way set assoc, sectored cache, 64 byte line size */
-	{ 0x29, CACHE_L3,	MB(4)	},	/* 8-way set assoc, sectored cache, 64 byte line size */
-	{ 0x2c, CACHE_L1_DATA,	32	},	/* 8-way set assoc, 64 byte line size */
-	{ 0x30, CACHE_L1_INST,	32	},	/* 8-way set assoc, 64 byte line size */
-	{ 0x39, CACHE_L2,	128	},	/* 4-way set assoc, sectored cache, 64 byte line size */
-	{ 0x3a, CACHE_L2,	192	},	/* 6-way set assoc, sectored cache, 64 byte line size */
-	{ 0x3b, CACHE_L2,	128	},	/* 2-way set assoc, sectored cache, 64 byte line size */
-	{ 0x3c, CACHE_L2,	256	},	/* 4-way set assoc, sectored cache, 64 byte line size */
-	{ 0x3d, CACHE_L2,	384	},	/* 6-way set assoc, sectored cache, 64 byte line size */
-	{ 0x3e, CACHE_L2,	512	},	/* 4-way set assoc, sectored cache, 64 byte line size */
-	{ 0x3f, CACHE_L2,	256	},	/* 2-way set assoc, 64 byte line size */
-	{ 0x41, CACHE_L2,	128	},	/* 4-way set assoc, 32 byte line size */
-	{ 0x42, CACHE_L2,	256	},	/* 4-way set assoc, 32 byte line size */
-	{ 0x43, CACHE_L2,	512	},	/* 4-way set assoc, 32 byte line size */
-	{ 0x44, CACHE_L2,	MB(1)	},	/* 4-way set assoc, 32 byte line size */
-	{ 0x45, CACHE_L2,	MB(2)	},	/* 4-way set assoc, 32 byte line size */
-	{ 0x46, CACHE_L3,	MB(4)	},	/* 4-way set assoc, 64 byte line size */
-	{ 0x47, CACHE_L3,	MB(8)	},	/* 8-way set assoc, 64 byte line size */
-	{ 0x48, CACHE_L2,	MB(3)	},	/* 12-way set assoc, 64 byte line size */
-	{ 0x49, CACHE_L3,	MB(4)	},	/* 16-way set assoc, 64 byte line size */
-	{ 0x4a, CACHE_L3,	MB(6)	},	/* 12-way set assoc, 64 byte line size */
-	{ 0x4b, CACHE_L3,	MB(8)	},	/* 16-way set assoc, 64 byte line size */
-	{ 0x4c, CACHE_L3,	MB(12)	},	/* 12-way set assoc, 64 byte line size */
-	{ 0x4d, CACHE_L3,	MB(16)	},	/* 16-way set assoc, 64 byte line size */
-	{ 0x4e, CACHE_L2,	MB(6)	},	/* 24-way set assoc, 64 byte line size */
-	{ 0x60, CACHE_L1_DATA,	16	},	/* 8-way set assoc, sectored cache, 64 byte line size */
-	{ 0x66, CACHE_L1_DATA,	8	},	/* 4-way set assoc, sectored cache, 64 byte line size */
-	{ 0x67, CACHE_L1_DATA,	16	},	/* 4-way set assoc, sectored cache, 64 byte line size */
-	{ 0x68, CACHE_L1_DATA,	32	},	/* 4-way set assoc, sectored cache, 64 byte line size */
-	{ 0x78, CACHE_L2,	MB(1)	},	/* 4-way set assoc, 64 byte line size */
-	{ 0x79, CACHE_L2,	128	},	/* 8-way set assoc, sectored cache, 64 byte line size */
-	{ 0x7a, CACHE_L2,	256	},	/* 8-way set assoc, sectored cache, 64 byte line size */
-	{ 0x7b, CACHE_L2,	512	},	/* 8-way set assoc, sectored cache, 64 byte line size */
-	{ 0x7c, CACHE_L2,	MB(1)	},	/* 8-way set assoc, sectored cache, 64 byte line size */
-	{ 0x7d, CACHE_L2,	MB(2)	},	/* 8-way set assoc, 64 byte line size */
-	{ 0x7f, CACHE_L2,	512	},	/* 2-way set assoc, 64 byte line size */
-	{ 0x80, CACHE_L2,	512	},	/* 8-way set assoc, 64 byte line size */
-	{ 0x82, CACHE_L2,	256	},	/* 8-way set assoc, 32 byte line size */
-	{ 0x83, CACHE_L2,	512	},	/* 8-way set assoc, 32 byte line size */
-	{ 0x84, CACHE_L2,	MB(1)	},	/* 8-way set assoc, 32 byte line size */
-	{ 0x85, CACHE_L2,	MB(2)	},	/* 8-way set assoc, 32 byte line size */
-	{ 0x86, CACHE_L2,	512	},	/* 4-way set assoc, 64 byte line size */
-	{ 0x87, CACHE_L2,	MB(1)	},	/* 8-way set assoc, 64 byte line size */
-	{ 0xd0, CACHE_L3,	512	},	/* 4-way set assoc, 64 byte line size */
-	{ 0xd1, CACHE_L3,	MB(1)	},	/* 4-way set assoc, 64 byte line size */
-	{ 0xd2, CACHE_L3,	MB(2)	},	/* 4-way set assoc, 64 byte line size */
-	{ 0xd6, CACHE_L3,	MB(1)	},	/* 8-way set assoc, 64 byte line size */
-	{ 0xd7, CACHE_L3,	MB(2)	},	/* 8-way set assoc, 64 byte line size */
-	{ 0xd8, CACHE_L3,	MB(4)	},	/* 12-way set assoc, 64 byte line size */
-	{ 0xdc, CACHE_L3,	MB(2)	},	/* 12-way set assoc, 64 byte line size */
-	{ 0xdd, CACHE_L3,	MB(4)	},	/* 12-way set assoc, 64 byte line size */
-	{ 0xde, CACHE_L3,	MB(8)	},	/* 12-way set assoc, 64 byte line size */
-	{ 0xe2, CACHE_L3,	MB(2)	},	/* 16-way set assoc, 64 byte line size */
-	{ 0xe3, CACHE_L3,	MB(4)	},	/* 16-way set assoc, 64 byte line size */
-	{ 0xe4, CACHE_L3,	MB(8)	},	/* 16-way set assoc, 64 byte line size */
-	{ 0xea, CACHE_L3,	MB(12)	},	/* 24-way set assoc, 64 byte line size */
-	{ 0xeb, CACHE_L3,	MB(18)	},	/* 24-way set assoc, 64 byte line size */
-	{ 0xec, CACHE_L3,	MB(24)	},	/* 24-way set assoc, 64 byte line size */
-};
-
-
 enum _cache_type {
 	CTYPE_NULL = 0,
 	CTYPE_DATA = 1,
@@ -439,16 +355,6 @@ void init_hygon_cacheinfo(struct cpuinfo_x86 *c)
 	ci->num_leaves = find_num_cache_leaves(c);
 }
 
-static const struct _cache_table *cache_table_get(u8 desc)
-{
-	for (int i = 0; i < ARRAY_SIZE(cache_table); i++) {
-		if (cache_table[i].descriptor == desc)
-			return &cache_table[i];
-	}
-
-	return NULL;
-}
-
 void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 {
 	/* Cache sizes */
@@ -505,21 +411,17 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 	/* Don't use CPUID(2) if CPUID(4) is supported. */
 	if (!ci->num_leaves && c->cpuid_level > 1) {
-		const struct _cache_table *entry;
+		const struct leaf_0x2_table *entry;
 		union leaf_0x2_regs regs;
-		u8 *desc;
+		u8 *ptr;
 
 		cpuid_get_leaf_0x2_regs(&regs);
-		for_each_leaf_0x2_desc(regs, desc) {
-			entry = cache_table_get(*desc);
-			if (!entry)
-				continue;
-
-			switch (entry->type) {
-			case CACHE_L1_INST:	l1i += entry->size; break;
-			case CACHE_L1_DATA:	l1d += entry->size; break;
-			case CACHE_L2:		l2  += entry->size; break;
-			case CACHE_L3:		l3  += entry->size; break;
+		for_each_leaf_0x2_entry(regs, ptr, entry) {
+			switch (entry->c_type) {
+			case CACHE_L1_INST:	l1i += entry->c_size; break;
+			case CACHE_L1_DATA:	l1d += entry->c_size; break;
+			case CACHE_L2:		l2  += entry->c_size; break;
+			case CACHE_L3:		l3  += entry->c_size; break;
 			}
 		}
 	}
