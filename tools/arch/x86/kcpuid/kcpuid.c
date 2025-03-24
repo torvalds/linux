@@ -172,13 +172,10 @@ static bool cpuid_store(struct cpuid_range *range, u32 f, int subleaf,
 
 static void raw_dump_range(struct cpuid_range *range)
 {
-	u32 f;
-	int i;
-
 	printf("%s Leafs :\n", range->is_ext ? "Extended" : "Basic");
 	printf("================\n");
 
-	for (f = 0; (int)f < range->nr; f++) {
+	for (u32 f = 0; (int)f < range->nr; f++) {
 		struct cpuid_func *func = &range->funcs[f];
 
 		/* Skip leaf without valid items */
@@ -186,7 +183,7 @@ static void raw_dump_range(struct cpuid_range *range)
 			continue;
 
 		/* First item is the main leaf, followed by all subleafs */
-		for (i = 0; i < func->nr; i++)
+		for (int i = 0; i < func->nr; i++)
 			leaf_print_raw(&func->leafs[i]);
 	}
 }
@@ -194,15 +191,14 @@ static void raw_dump_range(struct cpuid_range *range)
 #define MAX_SUBLEAF_NUM		64
 struct cpuid_range *setup_cpuid_range(u32 input_eax)
 {
-	u32 max_func, idx_func, subleaf, max_subleaf;
-	u32 eax, ebx, ecx, edx, f = input_eax;
 	struct cpuid_range *range;
-	bool allzero;
+	u32 max_func, idx_func;
+	u32 eax, ebx, ecx, edx;
 
 	eax = input_eax;
 	ebx = ecx = edx = 0;
-
 	cpuid(&eax, &ebx, &ecx, &edx);
+
 	max_func = eax;
 	idx_func = (max_func & 0xffff) + 1;
 
@@ -222,19 +218,20 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 	range->nr = idx_func;
 	memset(range->funcs, 0, sizeof(struct cpuid_func) * idx_func);
 
-	for (; f <= max_func; f++) {
-		eax = f;
-		subleaf = ecx = 0;
+	for (u32 f = input_eax; f <= max_func; f++) {
+		u32 max_subleaf = MAX_SUBLEAF_NUM;
+		bool allzero;
 
+		eax = f;
+		ecx = 0;
 		cpuid(&eax, &ebx, &ecx, &edx);
-		allzero = cpuid_store(range, f, subleaf, eax, ebx, ecx, edx);
+
+		allzero = cpuid_store(range, f, 0, eax, ebx, ecx, edx);
 		if (allzero)
 			continue;
 
 		if (!has_subleafs(f))
 			continue;
-
-		max_subleaf = MAX_SUBLEAF_NUM;
 
 		/*
 		 * Some can provide the exact number of subleafs,
@@ -253,13 +250,12 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 		if (f == 0x80000026)
 			max_subleaf = 5;
 
-		for (subleaf = 1; subleaf < max_subleaf; subleaf++) {
+		for (u32 subleaf = 1; subleaf < max_subleaf; subleaf++) {
 			eax = f;
 			ecx = subleaf;
-
 			cpuid(&eax, &ebx, &ecx, &edx);
-			allzero = cpuid_store(range, f, subleaf,
-						eax, ebx, ecx, edx);
+
+			allzero = cpuid_store(range, f, subleaf, eax, ebx, ecx, edx);
 			if (allzero)
 				continue;
 		}
@@ -280,12 +276,10 @@ struct cpuid_range *setup_cpuid_range(u32 input_eax)
 static void parse_line(char *line)
 {
 	char *str;
-	int i;
 	struct cpuid_range *range;
 	struct cpuid_func *func;
 	struct subleaf *leaf;
 	u32 index;
-	u32 sub;
 	char buffer[512];
 	char *buf;
 	/*
@@ -312,7 +306,7 @@ static void parse_line(char *line)
 	strncpy(buffer, line, 511);
 	buffer[511] = 0;
 	str = buffer;
-	for (i = 0; i < 5; i++) {
+	for (int i = 0; i < 5; i++) {
 		tokens[i] = strtok(str, ",");
 		if (!tokens[i])
 			goto err_exit;
@@ -378,7 +372,7 @@ static void parse_line(char *line)
 	bit_end = strtoul(end, NULL, 0);
 	bit_start = (start) ? strtoul(start, NULL, 0) : bit_end;
 
-	for (sub = subleaf_start; sub <= subleaf_end; sub++) {
+	for (u32 sub = subleaf_start; sub <= subleaf_end; sub++) {
 		leaf = &func->leafs[sub];
 		reg = &leaf->info[reg_index];
 		bdesc = &reg->descs[reg->nr++];
@@ -432,10 +426,10 @@ static void parse_text(void)
 static void show_reg(const struct reg_desc *rdesc, u32 value)
 {
 	const struct bits_desc *bdesc;
-	int start, end, i;
+	int start, end;
 	u32 mask;
 
-	for (i = 0; i < rdesc->nr; i++) {
+	for (int i = 0; i < rdesc->nr; i++) {
 		bdesc = &rdesc->descs[i];
 
 		start = bdesc->start;
@@ -487,17 +481,13 @@ static void show_leaf(struct subleaf *leaf)
 
 static void show_func(struct cpuid_func *func)
 {
-	int i;
-
-	for (i = 0; i < func->nr; i++)
+	for (int i = 0; i < func->nr; i++)
 		show_leaf(&func->leafs[i]);
 }
 
 static void show_range(struct cpuid_range *range)
 {
-	int i;
-
-	for (i = 0; i < range->nr; i++)
+	for (int i = 0; i < range->nr; i++)
 		show_func(&range->funcs[i]);
 }
 
