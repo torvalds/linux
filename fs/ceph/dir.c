@@ -141,17 +141,18 @@ __dcache_find_get_entry(struct dentry *parent, u64 idx,
 	if (ptr_pos >= i_size_read(dir))
 		return NULL;
 
-	if (!cache_ctl->page || ptr_pgoff != cache_ctl->page->index) {
+	if (!cache_ctl->folio || ptr_pgoff != cache_ctl->folio->index) {
 		ceph_readdir_cache_release(cache_ctl);
-		cache_ctl->page = find_lock_page(&dir->i_data, ptr_pgoff);
-		if (!cache_ctl->page) {
-			doutc(cl, " page %lu not found\n", ptr_pgoff);
+		cache_ctl->folio = filemap_lock_folio(&dir->i_data, ptr_pgoff);
+		if (IS_ERR(cache_ctl->folio)) {
+			cache_ctl->folio = NULL;
+			doutc(cl, " folio %lu not found\n", ptr_pgoff);
 			return ERR_PTR(-EAGAIN);
 		}
 		/* reading/filling the cache are serialized by
-		   i_rwsem, no need to use page lock */
-		unlock_page(cache_ctl->page);
-		cache_ctl->dentries = kmap(cache_ctl->page);
+		   i_rwsem, no need to use folio lock */
+		folio_unlock(cache_ctl->folio);
+		cache_ctl->dentries = kmap_local_folio(cache_ctl->folio, 0);
 	}
 
 	cache_ctl->index = idx & idx_mask;
