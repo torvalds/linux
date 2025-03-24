@@ -41,10 +41,10 @@ unevaluatedProperties: false
 
 examples:
   - |
-      #include <dt-bindings/clock/qcom,rpmcc.h>
+    #include <dt-bindings/clock/qcom,rpmcc.h>
 
-      bimc: interconnect@400000 {
-          compatible = "qcom,msm8916-bimc";
-          reg = <0x00400000 0x62000>;
-          #interconnect-cells = <1>;
-      };
+    interconnect@400000 {
+        compatible = "qcom,msm8916-bimc";
+        reg = <0x00400000 0x62000>;
+        #interconnect-cells = <1>;
+    };

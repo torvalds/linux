@@ -127,19 +127,19 @@ unevaluatedProperties: false
 
 examples:
   - |
-      #include <dt-bindings/interconnect/qcom,sdm845.h>
+    #include <dt-bindings/interconnect/qcom,sdm845.h>
 
-      mem_noc: interconnect@1380000 {
-             compatible = "qcom,sdm845-mem-noc";
-             reg = <0x01380000 0x27200>;
-             #interconnect-cells = <1>;
-             qcom,bcm-voters = <&apps_bcm_voter>;
-      };
+    interconnect@1380000 {
+        compatible = "qcom,sdm845-mem-noc";
+        reg = <0x01380000 0x27200>;
+        #interconnect-cells = <1>;
+        qcom,bcm-voters = <&apps_bcm_voter>;
+    };
 
-      mmss_noc: interconnect@1740000 {
-             compatible = "qcom,sdm845-mmss-noc";
-             reg = <0x01740000 0x1c1000>;
-             #interconnect-cells = <1>;
-             qcom,bcm-voter-names = "apps", "disp";
-             qcom,bcm-voters = <&apps_bcm_voter>, <&disp_bcm_voter>;
-      };
+    interconnect@1740000 {
+        compatible = "qcom,sdm845-mmss-noc";
+        reg = <0x01740000 0x1c1000>;
+        #interconnect-cells = <1>;
+        qcom,bcm-voter-names = "apps", "disp";
+        qcom,bcm-voters = <&apps_bcm_voter>, <&disp_bcm_voter>;
+    };
