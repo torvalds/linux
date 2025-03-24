@@ -7,6 +7,10 @@
 
 extern struct list_head notify_list;
 
+typedef __u32 __bitwise mntns_flags_t;
+
+#define MNTNS_PROPAGATING	((__force mntns_flags_t)(1 << 0))
+
 struct mnt_namespace {
 	struct ns_common	ns;
 	struct mount *	root;
@@ -22,6 +26,7 @@ struct mnt_namespace {
 		wait_queue_head_t	poll;
 		struct rcu_head		mnt_ns_rcu;
 	};
+	u64			seq_origin; /* Sequence number of origin mount namespace */
 	u64 event;
 #ifdef CONFIG_FSNOTIFY
 	__u32			n_fsnotify_mask;
@@ -32,6 +37,7 @@ struct mnt_namespace {
 	struct rb_node		mnt_ns_tree_node; /* node in the mnt_ns_tree */
 	struct list_head	mnt_ns_list; /* entry in the sequential list of mounts namespace */
 	refcount_t		passive; /* number references not pinning @mounts */
+	mntns_flags_t		mntns_flags;
 } __randomize_layout;
 
 struct mnt_pcp {
@@ -162,6 +168,11 @@ static inline bool is_anon_ns(struct mnt_namespace *ns)
 static inline bool mnt_ns_attached(const struct mount *mnt)
 {
 	return !RB_EMPTY_NODE(&mnt->mnt_node);
+}
+
+static inline bool mnt_ns_empty(const struct mnt_namespace *ns)
+{
+	return RB_EMPTY_ROOT(&ns->mounts);
 }
 
 static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)

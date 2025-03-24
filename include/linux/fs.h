@@ -2854,6 +2854,7 @@ static inline struct filename *getname_maybe_null(const char __user *name, int f
 	return __getname_maybe_null(name);
 }
 extern void putname(struct filename *name);
+DEFINE_FREE(putname, struct filename *, if (!IS_ERR_OR_NULL(_T)) putname(_T))
 
 static inline struct filename *refname(struct filename *name)
 {
