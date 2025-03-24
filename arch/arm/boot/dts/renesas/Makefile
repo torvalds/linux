@@ -30,4 +30,5 @@ dtb-$(CONFIG_ARCH_RENESAS) += \
 	r8a7794-alt.dtb \
 	r8a7794-silk.dtb \
 	r9a06g032-rzn1d400-db.dtb \
+	r9a06g032-rzn1d400-eb.dtb \
 	sh73a0-kzm9g.dtb
