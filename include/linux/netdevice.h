@@ -710,7 +710,7 @@ struct netdev_queue {
  * slow- / control-path part
  */
 	/* NAPI instance for the queue
-	 * Readers and writers must hold RTNL
+	 * "ops protected", see comment about net_device::lock
 	 */
 	struct napi_struct	*napi;
 
@@ -2526,7 +2526,8 @@ struct net_device {
 	 * Double ops protects:
 	 *	@real_num_rx_queues, @real_num_tx_queues
 	 *
-	 * Also protects some fields in struct napi_struct.
+	 * Also protects some fields in:
+	 *	struct napi_struct, struct netdev_queue, struct netdev_rx_queue
 	 *
 	 * Ordering: take after rtnl_lock.
 	 */

@@ -56,6 +56,14 @@ static inline void netdev_ops_assert_locked(const struct net_device *dev)
 		ASSERT_RTNL();
 }
 
+static inline void
+netdev_ops_assert_locked_or_invisible(const struct net_device *dev)
+{
+	if (dev->reg_state == NETREG_REGISTERED ||
+	    dev->reg_state == NETREG_UNREGISTERING)
+		netdev_ops_assert_locked(dev);
+}
+
 static inline int netdev_lock_cmp_fn(const struct lockdep_map *a,
 				     const struct lockdep_map *b)
 {
