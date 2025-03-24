@@ -1004,9 +1004,8 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 	afs_stat_v(dvnode, n_lookup);
 	inode = afs_do_lookup(dir, dentry);
 	if (inode == ERR_PTR(-ENOENT))
-		inode = afs_try_auto_mntpt(dentry, dir);
-
-	if (!IS_ERR_OR_NULL(inode))
+		inode = NULL;
+	else if (!IS_ERR_OR_NULL(inode))
 		fid = AFS_FS_I(inode)->fid;
 
 	_debug("splice %p", dentry->d_inode);

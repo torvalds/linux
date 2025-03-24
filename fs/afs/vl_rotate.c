@@ -48,7 +48,7 @@ static bool afs_start_vl_iteration(struct afs_vl_cursor *vc)
 	    cell->dns_expiry <= ktime_get_real_seconds()) {
 		dns_lookup_count = smp_load_acquire(&cell->dns_lookup_count);
 		set_bit(AFS_CELL_FL_DO_LOOKUP, &cell->flags);
-		afs_queue_cell(cell, afs_cell_trace_get_queue_dns);
+		afs_queue_cell(cell, afs_cell_trace_queue_dns);
 
 		if (cell->dns_source == DNS_RECORD_UNAVAILABLE) {
 			if (wait_var_event_interruptible(

@@ -127,27 +127,29 @@ enum yfs_cm_operation {
 	E_(afs_call_trace_work,			"QUEUE")
 
 #define afs_server_traces \
-	EM(afs_server_trace_alloc,		"ALLOC    ") \
 	EM(afs_server_trace_callback,		"CALLBACK ") \
 	EM(afs_server_trace_destroy,		"DESTROY  ") \
 	EM(afs_server_trace_free,		"FREE     ") \
 	EM(afs_server_trace_gc,			"GC       ") \
-	EM(afs_server_trace_get_by_addr,	"GET addr ") \
-	EM(afs_server_trace_get_by_uuid,	"GET uuid ") \
-	EM(afs_server_trace_get_caps,		"GET caps ") \
-	EM(afs_server_trace_get_install,	"GET inst ") \
-	EM(afs_server_trace_get_new_cbi,	"GET cbi  ") \
 	EM(afs_server_trace_get_probe,		"GET probe") \
-	EM(afs_server_trace_give_up_cb,		"giveup-cb") \
 	EM(afs_server_trace_purging,		"PURGE    ") \
-	EM(afs_server_trace_put_call,		"PUT call ") \
 	EM(afs_server_trace_put_cbi,		"PUT cbi  ") \
-	EM(afs_server_trace_put_find_rsq,	"PUT f-rsq") \
 	EM(afs_server_trace_put_probe,		"PUT probe") \
-	EM(afs_server_trace_put_slist,		"PUT slist") \
-	EM(afs_server_trace_put_slist_isort,	"PUT isort") \
-	EM(afs_server_trace_put_uuid_rsq,	"PUT u-req") \
-	E_(afs_server_trace_update,		"UPDATE")
+	EM(afs_server_trace_see_destroyer,	"SEE destr") \
+	EM(afs_server_trace_see_expired,	"SEE expd ") \
+	EM(afs_server_trace_see_purge,		"SEE purge") \
+	EM(afs_server_trace_see_timer,		"SEE timer") \
+	EM(afs_server_trace_unuse_call,		"UNU call ") \
+	EM(afs_server_trace_unuse_create_fail,	"UNU cfail") \
+	EM(afs_server_trace_unuse_slist,	"UNU slist") \
+	EM(afs_server_trace_unuse_slist_isort,	"UNU isort") \
+	EM(afs_server_trace_update,		"UPDATE   ") \
+	EM(afs_server_trace_use_by_uuid,	"USE uuid ") \
+	EM(afs_server_trace_use_cm_call,	"USE cm-cl") \
+	EM(afs_server_trace_use_get_caps,	"USE gcaps") \
+	EM(afs_server_trace_use_give_up_cb,	"USE gvupc") \
+	EM(afs_server_trace_use_install,	"USE inst ") \
+	E_(afs_server_trace_wait_create,	"WAIT crt ")
 
 #define afs_volume_traces \
 	EM(afs_volume_trace_alloc,		"ALLOC         ") \
@@ -169,41 +171,48 @@ enum yfs_cm_operation {
 
 #define afs_cell_traces \
 	EM(afs_cell_trace_alloc,		"ALLOC     ") \
+	EM(afs_cell_trace_destroy,		"DESTROY   ") \
 	EM(afs_cell_trace_free,			"FREE      ") \
 	EM(afs_cell_trace_get_atcell,		"GET atcell") \
-	EM(afs_cell_trace_get_queue_dns,	"GET q-dns ") \
-	EM(afs_cell_trace_get_queue_manage,	"GET q-mng ") \
-	EM(afs_cell_trace_get_queue_new,	"GET q-new ") \
 	EM(afs_cell_trace_get_server,		"GET server") \
 	EM(afs_cell_trace_get_vol,		"GET vol   ") \
-	EM(afs_cell_trace_insert,		"INSERT    ") \
-	EM(afs_cell_trace_manage,		"MANAGE    ") \
+	EM(afs_cell_trace_purge,		"PURGE     ") \
 	EM(afs_cell_trace_put_atcell,		"PUT atcell") \
 	EM(afs_cell_trace_put_candidate,	"PUT candid") \
-	EM(afs_cell_trace_put_destroy,		"PUT destry") \
-	EM(afs_cell_trace_put_queue_work,	"PUT q-work") \
-	EM(afs_cell_trace_put_queue_fail,	"PUT q-fail") \
+	EM(afs_cell_trace_put_final,		"PUT final ") \
 	EM(afs_cell_trace_put_server,		"PUT server") \
 	EM(afs_cell_trace_put_vol,		"PUT vol   ") \
+	EM(afs_cell_trace_queue_again,		"QUE again ") \
+	EM(afs_cell_trace_queue_dns,		"QUE dns   ") \
+	EM(afs_cell_trace_queue_new,		"QUE new   ") \
+	EM(afs_cell_trace_queue_purge,		"QUE purge ") \
+	EM(afs_cell_trace_manage,		"MANAGE    ") \
+	EM(afs_cell_trace_managed,		"MANAGED   ") \
 	EM(afs_cell_trace_see_source,		"SEE source") \
-	EM(afs_cell_trace_see_ws,		"SEE ws    ") \
+	EM(afs_cell_trace_see_mgmt_timer,	"SEE mtimer") \
 	EM(afs_cell_trace_unuse_alias,		"UNU alias ") \
 	EM(afs_cell_trace_unuse_check_alias,	"UNU chk-al") \
 	EM(afs_cell_trace_unuse_delete,		"UNU delete") \
+	EM(afs_cell_trace_unuse_dynroot_mntpt,	"UNU dyn-mp") \
 	EM(afs_cell_trace_unuse_fc,		"UNU fc    ") \
-	EM(afs_cell_trace_unuse_lookup,		"UNU lookup") \
+	EM(afs_cell_trace_unuse_lookup_dynroot,	"UNU lu-dyn") \
+	EM(afs_cell_trace_unuse_lookup_error,	"UNU lu-err") \
 	EM(afs_cell_trace_unuse_mntpt,		"UNU mntpt ") \
 	EM(afs_cell_trace_unuse_no_pin,		"UNU no-pin") \
 	EM(afs_cell_trace_unuse_parse,		"UNU parse ") \
 	EM(afs_cell_trace_unuse_pin,		"UNU pin   ") \
-	EM(afs_cell_trace_unuse_probe,		"UNU probe ") \
 	EM(afs_cell_trace_unuse_sbi,		"UNU sbi   ") \
 	EM(afs_cell_trace_unuse_ws,		"UNU ws    ") \
 	EM(afs_cell_trace_use_alias,		"USE alias ") \
 	EM(afs_cell_trace_use_check_alias,	"USE chk-al") \
 	EM(afs_cell_trace_use_fc,		"USE fc    ") \
 	EM(afs_cell_trace_use_fc_alias,		"USE fc-al ") \
-	EM(afs_cell_trace_use_lookup,		"USE lookup") \
+	EM(afs_cell_trace_use_lookup_add,	"USE lu-add") \
+	EM(afs_cell_trace_use_lookup_canonical,	"USE lu-can") \
+	EM(afs_cell_trace_use_lookup_dynroot,	"USE lu-dyn") \
+	EM(afs_cell_trace_use_lookup_mntpt,	"USE lu-mpt") \
+	EM(afs_cell_trace_use_lookup_mount,	"USE lu-mnt") \
+	EM(afs_cell_trace_use_lookup_ws,	"USE lu-ws ") \
 	EM(afs_cell_trace_use_mntpt,		"USE mntpt ") \
 	EM(afs_cell_trace_use_pin,		"USE pin   ") \
 	EM(afs_cell_trace_use_probe,		"USE probe ") \
@@ -220,7 +229,7 @@ enum yfs_cm_operation {
 	EM(afs_alist_trace_put_getaddru,	"PUT GtAdrU") \
 	EM(afs_alist_trace_put_parse_empty,	"PUT p-empt") \
 	EM(afs_alist_trace_put_parse_error,	"PUT p-err ") \
-	EM(afs_alist_trace_put_server_dup,	"PUT sv-dup") \
+	EM(afs_alist_trace_put_server_create,	"PUT sv-crt") \
 	EM(afs_alist_trace_put_server_oom,	"PUT sv-oom") \
 	EM(afs_alist_trace_put_server_update,	"PUT sv-upd") \
 	EM(afs_alist_trace_put_vlgetcaps,	"PUT vgtcap") \
@@ -1270,7 +1279,7 @@ TRACE_EVENT(afs_bulkstat_error,
 	    );
 
 TRACE_EVENT(afs_cm_no_server,
-	    TP_PROTO(struct afs_call *call, struct sockaddr_rxrpc *srx),
+	    TP_PROTO(struct afs_call *call, const struct sockaddr_rxrpc *srx),
 
 	    TP_ARGS(call, srx),
 
@@ -1529,7 +1538,7 @@ TRACE_EVENT(afs_server,
 		    __entry->reason = reason;
 			   ),
 
-	    TP_printk("s=%08x %s u=%d a=%d",
+	    TP_printk("s=%08x %s r=%d a=%d",
 		      __entry->server,
 		      __print_symbolic(__entry->reason, afs_server_traces),
 		      __entry->ref,
@@ -1537,25 +1546,29 @@ TRACE_EVENT(afs_server,
 	    );
 
 TRACE_EVENT(afs_volume,
-	    TP_PROTO(afs_volid_t vid, int ref, enum afs_volume_trace reason),
+	    TP_PROTO(unsigned int debug_id, afs_volid_t vid, int ref,
+		     enum afs_volume_trace reason),
 
-	    TP_ARGS(vid, ref, reason),
+	    TP_ARGS(debug_id, vid, ref, reason),
 
 	    TP_STRUCT__entry(
+		    __field(unsigned int,		debug_id)
 		    __field(afs_volid_t,		vid)
 		    __field(int,			ref)
 		    __field(enum afs_volume_trace,	reason)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->vid = vid;
-		    __entry->ref = ref;
-		    __entry->reason = reason;
+		    __entry->debug_id	= debug_id;
+		    __entry->vid	= vid;
+		    __entry->ref	= ref;
+		    __entry->reason	= reason;
 			   ),
 
-	    TP_printk("V=%llx %s ur=%d",
-		      __entry->vid,
+	    TP_printk("V=%08x %s vid=%llx r=%d",
+		      __entry->debug_id,
 		      __print_symbolic(__entry->reason, afs_volume_traces),
+		      __entry->vid,
 		      __entry->ref)
 	    );
 
