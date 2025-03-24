@@ -80,14 +80,6 @@ struct ras_query_context;
 	(ACA_REG__STATUS__POISON((bank)->regs[ACA_REG_IDX_STATUS]) || \
 	 ACA_REG__STATUS__DEFERRED((bank)->regs[ACA_REG_IDX_STATUS]))
 
-#define ACA_BANK_ERR_CE_DE_DECODE(bank)                             \
-	(ACA_BANK_ERR_IS_DEFFERED(bank) ? ACA_ERROR_TYPE_DEFERRED : \
-					  ACA_ERROR_TYPE_CE)
-
-#define ACA_BANK_ERR_UE_DE_DECODE(bank)                             \
-	(ACA_BANK_ERR_IS_DEFFERED(bank) ? ACA_ERROR_TYPE_DEFERRED : \
-					  ACA_ERROR_TYPE_UE)
-
 enum aca_reg_idx {
 	ACA_REG_IDX_CTL			= 0,
 	ACA_REG_IDX_STATUS		= 1,
