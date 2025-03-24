@@ -8,15 +8,12 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/stat.h>
 #include <sys/sendfile.h>
 #include <objtool/builtin.h>
 #include <objtool/objtool.h>
-
-#define ERROR(format, ...)				\
-	fprintf(stderr,					\
-		"error: objtool: " format "\n",		\
-		##__VA_ARGS__)
+#include <objtool/warn.h>
 
 const char *objname;
 
@@ -139,22 +136,22 @@ int cmd_parse_options(int argc, const char **argv, const char * const usage[])
 static bool opts_valid(void)
 {
 	if (opts.mnop && !opts.mcount) {
-		ERROR("--mnop requires --mcount");
+		WARN("--mnop requires --mcount");
 		return false;
 	}
 
 	if (opts.noinstr && !opts.link) {
-		ERROR("--noinstr requires --link");
+		WARN("--noinstr requires --link");
 		return false;
 	}
 
 	if (opts.ibt && !opts.link) {
-		ERROR("--ibt requires --link");
+		WARN("--ibt requires --link");
 		return false;
 	}
 
 	if (opts.unret && !opts.link) {
-		ERROR("--unret requires --link");
+		WARN("--unret requires --link");
 		return false;
 	}
 
@@ -171,7 +168,7 @@ static bool opts_valid(void)
 	    opts.static_call		||
 	    opts.uaccess) {
 		if (opts.dump_orc) {
-			ERROR("--dump can't be combined with other actions");
+			WARN("--dump can't be combined with other actions");
 			return false;
 		}
 
@@ -181,7 +178,7 @@ static bool opts_valid(void)
 	if (opts.dump_orc)
 		return true;
 
-	ERROR("At least one action required");
+	WARN("At least one action required");
 	return false;
 }
 
@@ -194,30 +191,30 @@ static int copy_file(const char *src, const char *dst)
 
 	src_fd = open(src, O_RDONLY);
 	if (src_fd == -1) {
-		ERROR("can't open '%s' for reading", src);
+		WARN("can't open %s for reading: %s", src, strerror(errno));
 		return 1;
 	}
 
 	dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0400);
 	if (dst_fd == -1) {
-		ERROR("can't open '%s' for writing", dst);
+		WARN("can't open %s for writing: %s", dst, strerror(errno));
 		return 1;
 	}
 
 	if (fstat(src_fd, &stat) == -1) {
-		perror("fstat");
+		WARN_GLIBC("fstat");
 		return 1;
 	}
 
 	if (fchmod(dst_fd, stat.st_mode) == -1) {
-		perror("fchmod");
+		WARN_GLIBC("fchmod");
 		return 1;
 	}
 
 	for (to_copy = stat.st_size; to_copy > 0; to_copy -= copied) {
 		copied = sendfile(dst_fd, src_fd, &offset, to_copy);
 		if (copied == -1) {
-			perror("sendfile");
+			WARN_GLIBC("sendfile");
 			return 1;
 		}
 	}
@@ -233,14 +230,14 @@ static char **save_argv(int argc, const char **argv)
 
 	orig_argv = calloc(argc, sizeof(char *));
 	if (!orig_argv) {
-		perror("calloc");
+		WARN_GLIBC("calloc");
 		return NULL;
 	}
 
 	for (int i = 0; i < argc; i++) {
 		orig_argv[i] = strdup(argv[i]);
 		if (!orig_argv[i]) {
-			perror("strdup");
+			WARN_GLIBC("strdup(%s)", orig_argv[i]);
 			return NULL;
 		}
 	};
@@ -285,7 +282,7 @@ int objtool_run(int argc, const char **argv)
 		goto err;
 
 	if (!opts.link && has_multiple_files(file->elf)) {
-		ERROR("Linked object requires --link");
+		WARN("Linked object requires --link");
 		goto err;
 	}
 
@@ -313,7 +310,7 @@ err:
 	 */
 	backup = malloc(strlen(objname) + strlen(ORIG_SUFFIX) + 1);
 	if (!backup) {
-		perror("malloc");
+		WARN_GLIBC("malloc");
 		return 1;
 	}
 

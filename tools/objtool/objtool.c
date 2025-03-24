@@ -44,14 +44,14 @@ struct objtool_file *objtool_open_read(const char *filename)
 	return &file;
 }
 
-void objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
+int objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
 {
 	if (!opts.noinstr)
-		return;
+		return 0;
 
 	if (!f->pv_ops) {
 		WARN("paravirt confusion");
-		return;
+		return -1;
 	}
 
 	/*
@@ -60,14 +60,15 @@ void objtool_pv_add(struct objtool_file *f, int idx, struct symbol *func)
 	 */
 	if (!strcmp(func->name, "_paravirt_nop") ||
 	    !strcmp(func->name, "_paravirt_ident_64"))
-		return;
+		return 0;
 
 	/* already added this function */
 	if (!list_empty(&func->pv_target))
-		return;
+		return 0;
 
 	list_add(&func->pv_target, &f->pv_ops[idx].targets);
 	f->pv_ops[idx].clean = false;
+	return 0;
 }
 
 int main(int argc, const char **argv)

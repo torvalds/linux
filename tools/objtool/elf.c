@@ -331,7 +331,7 @@ static int read_sections(struct elf *elf)
 
 	elf->section_data = calloc(sections_nr, sizeof(*sec));
 	if (!elf->section_data) {
-		perror("calloc");
+		WARN_GLIBC("calloc");
 		return -1;
 	}
 	for (i = 0; i < sections_nr; i++) {
@@ -467,7 +467,7 @@ static int read_symbols(struct elf *elf)
 
 	elf->symbol_data = calloc(symbols_nr, sizeof(*sym));
 	if (!elf->symbol_data) {
-		perror("calloc");
+		WARN_GLIBC("calloc");
 		return -1;
 	}
 	for (i = 0; i < symbols_nr; i++) {
@@ -799,7 +799,7 @@ elf_create_section_symbol(struct elf *elf, struct section *sec)
 	struct symbol *sym = calloc(1, sizeof(*sym));
 
 	if (!sym) {
-		perror("malloc");
+		WARN_GLIBC("malloc");
 		return NULL;
 	}
 
@@ -829,7 +829,7 @@ elf_create_prefix_symbol(struct elf *elf, struct symbol *orig, long size)
 	char *name = malloc(namelen);
 
 	if (!sym || !name) {
-		perror("malloc");
+		WARN_GLIBC("malloc");
 		return NULL;
 	}
 
@@ -963,7 +963,7 @@ static int read_relocs(struct elf *elf)
 		nr_reloc = 0;
 		rsec->relocs = calloc(sec_num_entries(rsec), sizeof(*reloc));
 		if (!rsec->relocs) {
-			perror("calloc");
+			WARN_GLIBC("calloc");
 			return -1;
 		}
 		for (i = 0; i < sec_num_entries(rsec); i++) {
@@ -1005,7 +1005,7 @@ struct elf *elf_open_read(const char *name, int flags)
 
 	elf = malloc(sizeof(*elf));
 	if (!elf) {
-		perror("malloc");
+		WARN_GLIBC("malloc");
 		return NULL;
 	}
 	memset(elf, 0, sizeof(*elf));
@@ -1099,7 +1099,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 
 	sec = malloc(sizeof(*sec));
 	if (!sec) {
-		perror("malloc");
+		WARN_GLIBC("malloc");
 		return NULL;
 	}
 	memset(sec, 0, sizeof(*sec));
@@ -1114,7 +1114,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 
 	sec->name = strdup(name);
 	if (!sec->name) {
-		perror("strdup");
+		WARN_GLIBC("strdup");
 		return NULL;
 	}
 
@@ -1132,7 +1132,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	if (size) {
 		sec->data->d_buf = malloc(size);
 		if (!sec->data->d_buf) {
-			perror("malloc");
+			WARN_GLIBC("malloc");
 			return NULL;
 		}
 		memset(sec->data->d_buf, 0, size);
@@ -1179,7 +1179,7 @@ static struct section *elf_create_rela_section(struct elf *elf,
 
 	rsec_name = malloc(strlen(sec->name) + strlen(".rela") + 1);
 	if (!rsec_name) {
-		perror("malloc");
+		WARN_GLIBC("malloc");
 		return NULL;
 	}
 	strcpy(rsec_name, ".rela");
@@ -1199,7 +1199,7 @@ static struct section *elf_create_rela_section(struct elf *elf,
 
 	rsec->relocs = calloc(sec_num_entries(rsec), sizeof(struct reloc));
 	if (!rsec->relocs) {
-		perror("calloc");
+		WARN_GLIBC("calloc");
 		return NULL;
 	}
 

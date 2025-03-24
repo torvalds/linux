@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <objtool/builtin.h>
 #include <objtool/elf.h>
 
@@ -43,8 +44,9 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 
 #define WARN(format, ...)				\
 	fprintf(stderr,					\
-		"%s: %s: objtool: " format "\n",	\
-		objname,				\
+		"%s%s%s: objtool: " format "\n",	\
+		objname ?: "",				\
+		objname ? ": " : "",			\
 		opts.werror ? "error" : "warning",	\
 		##__VA_ARGS__)
 
@@ -83,7 +85,10 @@ static inline char *offstr(struct section *sec, unsigned long offset)
 	}							\
 })
 
-#define WARN_ELF(format, ...)				\
-	WARN(format ": %s", ##__VA_ARGS__, elf_errmsg(-1))
+#define WARN_ELF(format, ...)					\
+	WARN("%s: " format " failed: %s", __func__, ##__VA_ARGS__, elf_errmsg(-1))
+
+#define WARN_GLIBC(format, ...)					\
+	WARN("%s: " format " failed: %s", __func__, ##__VA_ARGS__, strerror(errno))
 
 #endif /* _WARN_H */
