@@ -4732,9 +4732,6 @@ int check(struct objtool_file *file)
 
 	free_insns(file);
 
-	if (opts.verbose)
-		disas_warned_funcs(file);
-
 	if (opts.stats) {
 		printf("nr_insns_visited: %ld\n", nr_insns_visited);
 		printf("nr_cfi: %ld\n", nr_cfi);
@@ -4743,19 +4740,25 @@ int check(struct objtool_file *file)
 	}
 
 out:
+	if (!ret && !warnings)
+		return 0;
+
+	if (opts.verbose) {
+		if (opts.werror && warnings)
+			WARN("%d warning(s) upgraded to errors", warnings);
+		print_args();
+		disas_warned_funcs(file);
+	}
+
 	/*
 	 * CONFIG_OBJTOOL_WERROR upgrades all warnings (and errors) to actual
 	 * errors.
 	 *
-	 * Note that even "fatal" type errors don't actually return an error
-	 * without CONFIG_OBJTOOL_WERROR.  That probably needs improved at some
-	 * point.
+	 * Note that even fatal errors don't yet actually return an error
+	 * without CONFIG_OBJTOOL_WERROR.  That will be fixed soon-ish.
 	 */
-	if (opts.werror && (ret || warnings)) {
-		if (warnings)
-			WARN("%d warning(s) upgraded to errors", warnings);
+	if (opts.werror)
 		return 1;
-	}
 
 	return 0;
 }

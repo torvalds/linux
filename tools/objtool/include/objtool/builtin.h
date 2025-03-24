@@ -43,8 +43,10 @@ struct opts {
 
 extern struct opts opts;
 
-extern int cmd_parse_options(int argc, const char **argv, const char * const usage[]);
+int cmd_parse_options(int argc, const char **argv, const char * const usage[]);
 
-extern int objtool_run(int argc, const char **argv);
+int objtool_run(int argc, const char **argv);
+
+void print_args(void);
 
 #endif /* _BUILTIN_H */
