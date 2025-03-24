@@ -6,6 +6,7 @@
 #include <linux/minmax.h>
 #include <linux/smp.h>
 #include <linux/string.h>
+#include <linux/types.h>
 
 #ifdef CONFIG_X86_64
 #include <linux/topology.h>
@@ -777,28 +778,27 @@ static void intel_tlb_lookup(const unsigned char desc)
 
 static void intel_detect_tlb(struct cpuinfo_x86 *c)
 {
-	int i, j, n;
-	unsigned int regs[4];
-	unsigned char *desc = (unsigned char *)regs;
+	u32 regs[4];
+	u8 *desc = (u8 *)regs;
 
 	if (c->cpuid_level < 2)
 		return;
 
-	/* Number of times to iterate */
-	n = cpuid_eax(2) & 0xFF;
+	cpuid(2, &regs[0], &regs[1], &regs[2], &regs[3]);
 
-	for (i = 0 ; i < n ; i++) {
-		cpuid(2, &regs[0], &regs[1], &regs[2], &regs[3]);
+	/* Intel CPUs must report an iteration count of 1 */
+	if (desc[0] != 0x01)
+		return;
 
-		/* If bit 31 is set, this is an unknown format */
-		for (j = 0 ; j < 4 ; j++)
-			if (regs[j] & (1 << 31))
-				regs[j] = 0;
-
-		/* Byte 0 is level count, not a descriptor */
-		for (j = 1 ; j < 16 ; j++)
-			intel_tlb_lookup(desc[j]);
+	/* If a register's bit 31 is set, it is an unknown format */
+	for (int i = 0; i < 4; i++) {
+		if (regs[i] & (1 << 31))
+			regs[i] = 0;
 	}
+
+	/* Skip the first byte as it is not a descriptor */
+	for (int i = 1; i < 16; i++)
+		intel_tlb_lookup(desc[i]);
 }
 
 static const struct cpu_dev intel_cpu_dev = {
