@@ -245,10 +245,14 @@ config MATOM
 
 endchoice
 
+config CC_HAS_MARCH_NATIVE
+	# This flag might not be available in cross-compilers:
+	def_bool $(cc-option, -march=native)
+
 config X86_NATIVE_CPU
 	bool "Build and optimize for local/native CPU"
 	depends on X86_64
-	default n
+	depends on CC_HAS_MARCH_NATIVE
 	help
 	  Optimize for the current CPU used to compile the kernel.
 	  Use this option if you intend to build the kernel for your
