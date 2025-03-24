@@ -44,7 +44,6 @@ else
 vmlinux-objtool-args-$(CONFIG_OBJTOOL_WERROR)		+= --Werror
 endif
 
-vmlinux-objtool-args-$(CONFIG_GCOV_KERNEL)		+= --no-unreachable
 vmlinux-objtool-args-$(CONFIG_NOINSTR_VALIDATION)	+= --noinstr \
 							   $(if $(or $(CONFIG_MITIGATION_UNRET_ENTRY),$(CONFIG_MITIGATION_SRSO)), --unret)
 
