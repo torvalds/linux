@@ -100,5 +100,17 @@ config DRM_TTM_KUNIT_TEST
 
 	  If in doubt, say "N".
 
+config DRM_SCHED_KUNIT_TEST
+	tristate "KUnit tests for the DRM scheduler" if !KUNIT_ALL_TESTS
+	select DRM_SCHED
+	depends on DRM && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Choose this option to build unit tests for the DRM scheduler.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
 config DRM_EXPORT_FOR_TESTS
 	bool
