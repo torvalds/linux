@@ -805,7 +805,6 @@ static void appletbdrm_disconnect(struct usb_interface *intf)
 	struct appletbdrm_device *adev = usb_get_intfdata(intf);
 	struct drm_device *drm = &adev->drm;
 
-	put_device(adev->dmadev);
 	drm_dev_unplug(drm);
 	drm_atomic_helper_shutdown(drm);
 }
