@@ -573,7 +573,7 @@ cache_get_priv_group(struct cacheinfo *ci)
 	return &cache_private_group;
 }
 
-static void amd_init_l3_cache(struct _cpuid4_info_regs *this_leaf, int index)
+static void amd_init_l3_cache(struct _cpuid4_info_regs *id4, int index)
 {
 	int node;
 
@@ -582,16 +582,16 @@ static void amd_init_l3_cache(struct _cpuid4_info_regs *this_leaf, int index)
 		return;
 
 	node = topology_amd_node_id(smp_processor_id());
-	this_leaf->nb = node_to_amd_nb(node);
-	if (this_leaf->nb && !this_leaf->nb->l3_cache.indices)
-		amd_calc_l3_indices(this_leaf->nb);
+	id4->nb = node_to_amd_nb(node);
+	if (id4->nb && !id4->nb->l3_cache.indices)
+		amd_calc_l3_indices(id4->nb);
 }
 #else
 #define amd_init_l3_cache(x, y)
 #endif  /* CONFIG_AMD_NB && CONFIG_SYSFS */
 
 static int
-cpuid4_cache_lookup_regs(int index, struct _cpuid4_info_regs *this_leaf)
+cpuid4_cache_lookup_regs(int index, struct _cpuid4_info_regs *id4)
 {
 	union _cpuid4_leaf_eax	eax;
 	union _cpuid4_leaf_ebx	ebx;
@@ -604,11 +604,11 @@ cpuid4_cache_lookup_regs(int index, struct _cpuid4_info_regs *this_leaf)
 				    &ebx.full, &ecx.full, &edx);
 		else
 			amd_cpuid4(index, &eax, &ebx, &ecx);
-		amd_init_l3_cache(this_leaf, index);
+		amd_init_l3_cache(id4, index);
 	} else if (boot_cpu_data.x86_vendor == X86_VENDOR_HYGON) {
 		cpuid_count(0x8000001d, index, &eax.full,
 			    &ebx.full, &ecx.full, &edx);
-		amd_init_l3_cache(this_leaf, index);
+		amd_init_l3_cache(id4, index);
 	} else {
 		cpuid_count(4, index, &eax.full, &ebx.full, &ecx.full, &edx);
 	}
@@ -616,13 +616,14 @@ cpuid4_cache_lookup_regs(int index, struct _cpuid4_info_regs *this_leaf)
 	if (eax.split.type == CTYPE_NULL)
 		return -EIO; /* better error ? */
 
-	this_leaf->eax = eax;
-	this_leaf->ebx = ebx;
-	this_leaf->ecx = ecx;
-	this_leaf->size = (ecx.split.number_of_sets          + 1) *
-			  (ebx.split.coherency_line_size     + 1) *
-			  (ebx.split.physical_line_partition + 1) *
-			  (ebx.split.ways_of_associativity   + 1);
+	id4->eax = eax;
+	id4->ebx = ebx;
+	id4->ecx = ecx;
+	id4->size = (ecx.split.number_of_sets          + 1) *
+		    (ebx.split.coherency_line_size     + 1) *
+		    (ebx.split.physical_line_partition + 1) *
+		    (ebx.split.ways_of_associativity   + 1);
+
 	return 0;
 }
 
@@ -754,29 +755,29 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 		 * parameters cpuid leaf to find the cache details
 		 */
 		for (i = 0; i < ci->num_leaves; i++) {
-			struct _cpuid4_info_regs this_leaf = {};
+			struct _cpuid4_info_regs id4 = {};
 			int retval;
 
-			retval = cpuid4_cache_lookup_regs(i, &this_leaf);
+			retval = cpuid4_cache_lookup_regs(i, &id4);
 			if (retval < 0)
 				continue;
 
-			switch (this_leaf.eax.split.level) {
+			switch (id4.eax.split.level) {
 			case 1:
-				if (this_leaf.eax.split.type == CTYPE_DATA)
-					new_l1d = this_leaf.size/1024;
-				else if (this_leaf.eax.split.type == CTYPE_INST)
-					new_l1i = this_leaf.size/1024;
+				if (id4.eax.split.type == CTYPE_DATA)
+					new_l1d = id4.size/1024;
+				else if (id4.eax.split.type == CTYPE_INST)
+					new_l1i = id4.size/1024;
 				break;
 			case 2:
-				new_l2 = this_leaf.size/1024;
-				num_threads_sharing = 1 + this_leaf.eax.split.num_threads_sharing;
+				new_l2 = id4.size/1024;
+				num_threads_sharing = 1 + id4.eax.split.num_threads_sharing;
 				index_msb = get_count_order(num_threads_sharing);
 				l2_id = c->topo.apicid & ~((1 << index_msb) - 1);
 				break;
 			case 3:
-				new_l3 = this_leaf.size/1024;
-				num_threads_sharing = 1 + this_leaf.eax.split.num_threads_sharing;
+				new_l3 = id4.size/1024;
+				num_threads_sharing = 1 + id4.eax.split.num_threads_sharing;
 				index_msb = get_count_order(num_threads_sharing);
 				l3_id = c->topo.apicid & ~((1 << index_msb) - 1);
 				break;
@@ -841,7 +842,7 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 }
 
 static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
-				    const struct _cpuid4_info_regs *base)
+				    const struct _cpuid4_info_regs *id4)
 {
 	struct cpu_cacheinfo *this_cpu_ci;
 	struct cacheinfo *ci;
@@ -867,7 +868,7 @@ static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 	} else if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		unsigned int apicid, nshared, first, last;
 
-		nshared = base->eax.split.num_threads_sharing + 1;
+		nshared = id4->eax.split.num_threads_sharing + 1;
 		apicid = cpu_data(cpu).topo.apicid;
 		first = apicid - (apicid % nshared);
 		last = first + nshared - 1;
@@ -898,7 +899,7 @@ static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 }
 
 static void __cache_cpumap_setup(unsigned int cpu, int index,
-				 const struct _cpuid4_info_regs *base)
+				 const struct _cpuid4_info_regs *id4)
 {
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 	struct cacheinfo *ci, *sibling_ci;
@@ -908,12 +909,12 @@ static void __cache_cpumap_setup(unsigned int cpu, int index,
 
 	if (c->x86_vendor == X86_VENDOR_AMD ||
 	    c->x86_vendor == X86_VENDOR_HYGON) {
-		if (__cache_amd_cpumap_setup(cpu, index, base))
+		if (__cache_amd_cpumap_setup(cpu, index, id4))
 			return;
 	}
 
 	ci = this_cpu_ci->info_list + index;
-	num_threads_sharing = 1 + base->eax.split.num_threads_sharing;
+	num_threads_sharing = 1 + id4->eax.split.num_threads_sharing;
 
 	cpumask_set_cpu(cpu, &ci->shared_cpu_map);
 	if (num_threads_sharing == 1)
@@ -934,18 +935,18 @@ static void __cache_cpumap_setup(unsigned int cpu, int index,
 }
 
 static void ci_info_init(struct cacheinfo *ci,
-			 const struct _cpuid4_info_regs *base)
+			 const struct _cpuid4_info_regs *id4)
 {
-	ci->id				= base->id;
+	ci->id				= id4->id;
 	ci->attributes			= CACHE_ID;
-	ci->level			= base->eax.split.level;
-	ci->type			= cache_type_map[base->eax.split.type];
-	ci->coherency_line_size		= base->ebx.split.coherency_line_size + 1;
-	ci->ways_of_associativity	= base->ebx.split.ways_of_associativity + 1;
-	ci->size			= base->size;
-	ci->number_of_sets		= base->ecx.split.number_of_sets + 1;
-	ci->physical_line_partition	= base->ebx.split.physical_line_partition + 1;
-	ci->priv			= base->nb;
+	ci->level			= id4->eax.split.level;
+	ci->type			= cache_type_map[id4->eax.split.type];
+	ci->coherency_line_size		= id4->ebx.split.coherency_line_size + 1;
+	ci->ways_of_associativity	= id4->ebx.split.ways_of_associativity + 1;
+	ci->size			= id4->size;
+	ci->number_of_sets		= id4->ecx.split.number_of_sets + 1;
+	ci->physical_line_partition	= id4->ebx.split.physical_line_partition + 1;
+	ci->priv			= id4->nb;
 }
 
 int init_cache_level(unsigned int cpu)
@@ -964,15 +965,15 @@ int init_cache_level(unsigned int cpu)
  * ECX as cache index. Then right shift apicid by the number's order to get
  * cache id for this cache node.
  */
-static void get_cache_id(int cpu, struct _cpuid4_info_regs *id4_regs)
+static void get_cache_id(int cpu, struct _cpuid4_info_regs *id4)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	unsigned long num_threads_sharing;
 	int index_msb;
 
-	num_threads_sharing = 1 + id4_regs->eax.split.num_threads_sharing;
+	num_threads_sharing = 1 + id4->eax.split.num_threads_sharing;
 	index_msb = get_count_order(num_threads_sharing);
-	id4_regs->id = c->topo.apicid >> index_msb;
+	id4->id = c->topo.apicid >> index_msb;
 }
 
 int populate_cache_leaves(unsigned int cpu)
@@ -980,15 +981,15 @@ int populate_cache_leaves(unsigned int cpu)
 	unsigned int idx, ret;
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 	struct cacheinfo *ci = this_cpu_ci->info_list;
-	struct _cpuid4_info_regs id4_regs = {};
+	struct _cpuid4_info_regs id4 = {};
 
 	for (idx = 0; idx < this_cpu_ci->num_leaves; idx++) {
-		ret = cpuid4_cache_lookup_regs(idx, &id4_regs);
+		ret = cpuid4_cache_lookup_regs(idx, &id4);
 		if (ret)
 			return ret;
-		get_cache_id(cpu, &id4_regs);
-		ci_info_init(ci++, &id4_regs);
-		__cache_cpumap_setup(cpu, idx, &id4_regs);
+		get_cache_id(cpu, &id4);
+		ci_info_init(ci++, &id4);
+		__cache_cpumap_setup(cpu, idx, &id4);
 	}
 	this_cpu_ci->cpu_map_populated = true;
 
