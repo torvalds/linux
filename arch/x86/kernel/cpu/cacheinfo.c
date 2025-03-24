@@ -168,7 +168,6 @@ struct _cpuid4_info_regs {
 	union _cpuid4_leaf_ecx ecx;
 	unsigned int id;
 	unsigned long size;
-	struct amd_northbridge *nb;
 };
 
 /* AMD doesn't have CPUID4. Emulate it here to report the same
@@ -573,25 +572,36 @@ cache_get_priv_group(struct cacheinfo *ci)
 	return &cache_private_group;
 }
 
-static void amd_init_l3_cache(struct _cpuid4_info_regs *id4, int index)
+static struct amd_northbridge *amd_init_l3_cache(int index)
 {
+	struct amd_northbridge *nb;
 	int node;
 
 	/* only for L3, and not in virtualized environments */
 	if (index < 3)
-		return;
+		return NULL;
 
 	node = topology_amd_node_id(smp_processor_id());
-	id4->nb = node_to_amd_nb(node);
-	if (id4->nb && !id4->nb->l3_cache.indices)
-		amd_calc_l3_indices(id4->nb);
+	nb = node_to_amd_nb(node);
+	if (nb && !nb->l3_cache.indices)
+		amd_calc_l3_indices(nb);
+
+	return nb;
 }
 #else
-#define amd_init_l3_cache(x, y)
+static struct amd_northbridge *amd_init_l3_cache(int index)
+{
+	return NULL;
+}
 #endif  /* CONFIG_AMD_NB && CONFIG_SYSFS */
 
-static int
-cpuid4_cache_lookup_regs(int index, struct _cpuid4_info_regs *id4)
+/*
+ * Fill passed _cpuid4_info_regs structure.
+ * Intel-only code paths should pass NULL for the amd_northbridge
+ * return pointer.
+ */
+static int cpuid4_cache_lookup_regs(int index, struct _cpuid4_info_regs *id4,
+				    struct amd_northbridge **nb)
 {
 	u8 cpu_vendor = boot_cpu_data.x86_vendor;
 	union _cpuid4_leaf_eax eax;
@@ -607,7 +617,9 @@ cpuid4_cache_lookup_regs(int index, struct _cpuid4_info_regs *id4)
 			/* Legacy AMD fallback */
 			amd_cpuid4(index, &eax, &ebx, &ecx);
 		}
-		amd_init_l3_cache(id4, index);
+
+		if (nb)
+			*nb = amd_init_l3_cache(index);
 	} else {
 		/* Intel */
 		cpuid_count(4, index, &eax.full, &ebx.full, &ecx.full, &edx);
@@ -758,7 +770,7 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 			struct _cpuid4_info_regs id4 = {};
 			int retval;
 
-			retval = cpuid4_cache_lookup_regs(i, &id4);
+			retval = cpuid4_cache_lookup_regs(i, &id4, NULL);
 			if (retval < 0)
 				continue;
 
@@ -934,8 +946,8 @@ static void __cache_cpumap_setup(unsigned int cpu, int index,
 		}
 }
 
-static void ci_info_init(struct cacheinfo *ci,
-			 const struct _cpuid4_info_regs *id4)
+static void ci_info_init(struct cacheinfo *ci, const struct _cpuid4_info_regs *id4,
+			 struct amd_northbridge *nb)
 {
 	ci->id				= id4->id;
 	ci->attributes			= CACHE_ID;
@@ -946,7 +958,7 @@ static void ci_info_init(struct cacheinfo *ci,
 	ci->size			= id4->size;
 	ci->number_of_sets		= id4->ecx.split.number_of_sets + 1;
 	ci->physical_line_partition	= id4->ebx.split.physical_line_partition + 1;
-	ci->priv			= id4->nb;
+	ci->priv			= nb;
 }
 
 int init_cache_level(unsigned int cpu)
@@ -982,13 +994,14 @@ int populate_cache_leaves(unsigned int cpu)
 	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
 	struct cacheinfo *ci = this_cpu_ci->info_list;
 	struct _cpuid4_info_regs id4 = {};
+	struct amd_northbridge *nb;
 
 	for (idx = 0; idx < this_cpu_ci->num_leaves; idx++) {
-		ret = cpuid4_cache_lookup_regs(idx, &id4);
+		ret = cpuid4_cache_lookup_regs(idx, &id4, &nb);
 		if (ret)
 			return ret;
 		get_cache_id(cpu, &id4);
-		ci_info_init(ci++, &id4);
+		ci_info_init(ci++, &id4, nb);
 		__cache_cpumap_setup(cpu, idx, &id4);
 	}
 	this_cpu_ci->cpu_map_populated = true;
