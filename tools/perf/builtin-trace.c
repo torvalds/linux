@@ -4476,10 +4476,12 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		 * CPU the bpf-output event's file descriptor.
 		 */
 		perf_cpu_map__for_each_cpu(cpu, i, trace->syscalls.events.bpf_output->core.cpus) {
+			int mycpu = cpu.cpu;
+
 			bpf_map__update_elem(trace->skel->maps.__augmented_syscalls__,
-					&cpu.cpu, sizeof(int),
+					&mycpu, sizeof(mycpu),
 					xyarray__entry(trace->syscalls.events.bpf_output->core.fd,
-						       cpu.cpu, 0),
+						       mycpu, 0),
 					sizeof(__u32), BPF_ANY);
 		}
 	}
