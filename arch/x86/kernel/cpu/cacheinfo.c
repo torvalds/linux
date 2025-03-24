@@ -400,6 +400,16 @@ static void intel_cacheinfo_0x2(struct cpuinfo_x86 *c)
 	intel_cacheinfo_done(c, l3, l2, l1i, l1d);
 }
 
+static unsigned int calc_cache_topo_id(struct cpuinfo_x86 *c, const struct _cpuid4_info *id4)
+{
+	unsigned int num_threads_sharing;
+	int index_msb;
+
+	num_threads_sharing = 1 + id4->eax.split.num_threads_sharing;
+	index_msb = get_count_order(num_threads_sharing);
+	return c->topo.apicid & ~((1 << index_msb) - 1);
+}
+
 static bool intel_cacheinfo_0x4(struct cpuinfo_x86 *c)
 {
 	struct cpu_cacheinfo *ci = get_cpu_cacheinfo(c->cpu_index);
@@ -420,7 +430,6 @@ static bool intel_cacheinfo_0x4(struct cpuinfo_x86 *c)
 		return false;
 
 	for (int i = 0; i < ci->num_leaves; i++) {
-		unsigned int num_threads_sharing, index_msb;
 		struct _cpuid4_info id4 = {};
 		int ret;
 
@@ -437,15 +446,11 @@ static bool intel_cacheinfo_0x4(struct cpuinfo_x86 *c)
 			break;
 		case 2:
 			l2 = id4.size / 1024;
-			num_threads_sharing = 1 + id4.eax.split.num_threads_sharing;
-			index_msb = get_count_order(num_threads_sharing);
-			l2_id = c->topo.apicid & ~((1 << index_msb) - 1);
+			l2_id = calc_cache_topo_id(c, &id4);
 			break;
 		case 3:
 			l3 = id4.size / 1024;
-			num_threads_sharing = 1 + id4.eax.split.num_threads_sharing;
-			index_msb = get_count_order(num_threads_sharing);
-			l3_id = c->topo.apicid & ~((1 << index_msb) - 1);
+			l3_id = calc_cache_topo_id(c, &id4);
 			break;
 		default:
 			break;
