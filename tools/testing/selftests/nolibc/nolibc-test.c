@@ -16,7 +16,6 @@
 #ifndef _NOLIBC_STDIO_H
 /* standard libcs need more includes */
 #include <sys/auxv.h>
-#include <sys/io.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
