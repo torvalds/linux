@@ -97,6 +97,7 @@ struct drm_mock_sched_job {
 	struct completion	done;
 
 #define DRM_MOCK_SCHED_JOB_DONE		0x1
+#define DRM_MOCK_SCHED_JOB_TIMEDOUT	0x2
 	unsigned long		flags;
 
 	struct list_head	link;
@@ -129,7 +130,8 @@ drm_sched_job_to_mock_job(struct drm_sched_job *sched_job)
 	return container_of(sched_job, struct drm_mock_sched_job, base);
 };
 
-struct drm_mock_scheduler *drm_mock_sched_new(struct kunit *test);
+struct drm_mock_scheduler *drm_mock_sched_new(struct kunit *test,
+					      long timeout);
 void drm_mock_sched_fini(struct drm_mock_scheduler *sched);
 unsigned int drm_mock_sched_advance(struct drm_mock_scheduler *sched,
 				    unsigned int num);

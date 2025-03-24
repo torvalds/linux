@@ -203,7 +203,11 @@ static struct dma_fence *mock_sched_run_job(struct drm_sched_job *sched_job)
 static enum drm_gpu_sched_stat
 mock_sched_timedout_job(struct drm_sched_job *sched_job)
 {
-	return DRM_GPU_SCHED_STAT_ENODEV;
+	struct drm_mock_sched_job *job = drm_sched_job_to_mock_job(sched_job);
+
+	job->flags |= DRM_MOCK_SCHED_JOB_TIMEDOUT;
+
+	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static void mock_sched_free_job(struct drm_sched_job *sched_job)
@@ -234,17 +238,18 @@ static const struct drm_sched_backend_ops drm_mock_scheduler_ops = {
  * drm_mock_sched_new - Create a new mock scheduler
  *
  * @test: KUnit test owning the job
+ * @timeout: Job timeout to set
  *
  * Returns: New mock scheduler with allocation managed by the test
  */
-struct drm_mock_scheduler *drm_mock_sched_new(struct kunit *test)
+struct drm_mock_scheduler *drm_mock_sched_new(struct kunit *test, long timeout)
 {
 	struct drm_sched_init_args args = {
 		.ops		= &drm_mock_scheduler_ops,
 		.num_rqs	= DRM_SCHED_PRIORITY_COUNT,
 		.credit_limit	= U32_MAX,
 		.hang_limit	= 1,
-		.timeout	= MAX_SCHEDULE_TIMEOUT,
+		.timeout	= timeout,
 		.name		= "drm-mock-scheduler",
 	};
 	struct drm_mock_scheduler *sched;
