@@ -1941,8 +1941,7 @@ __weak unsigned long arch_jump_table_sym_offset(struct reloc *reloc, struct relo
 	return reloc->sym->offset + reloc_addend(reloc);
 }
 
-static int add_jump_table(struct objtool_file *file, struct instruction *insn,
-			  struct reloc *next_table)
+static int add_jump_table(struct objtool_file *file, struct instruction *insn)
 {
 	unsigned long table_size = insn_jump_table_size(insn);
 	struct symbol *pfunc = insn_func(insn)->pfunc;
@@ -1962,7 +1961,7 @@ static int add_jump_table(struct objtool_file *file, struct instruction *insn,
 		/* Check for the end of the table: */
 		if (table_size && reloc_offset(reloc) - reloc_offset(table) >= table_size)
 			break;
-		if (reloc != table && reloc == next_table)
+		if (reloc != table && is_jump_table(reloc))
 			break;
 
 		/* Make sure the table entries are consecutive: */
@@ -2053,8 +2052,10 @@ static void find_jump_table(struct objtool_file *file, struct symbol *func,
 		if (!dest_insn || !insn_func(dest_insn) || insn_func(dest_insn)->pfunc != func)
 			continue;
 
+		set_jump_table(table_reloc);
 		orig_insn->_jump_table = table_reloc;
 		orig_insn->_jump_table_size = table_size;
+
 		break;
 	}
 }
@@ -2096,31 +2097,20 @@ static void mark_func_jump_tables(struct objtool_file *file,
 static int add_func_jump_tables(struct objtool_file *file,
 				  struct symbol *func)
 {
-	struct instruction *insn, *insn_t1 = NULL, *insn_t2;
-	int ret = 0;
+	struct instruction *insn;
+	int ret;
 
 	func_for_each_insn(file, func, insn) {
 		if (!insn_jump_table(insn))
 			continue;
 
-		if (!insn_t1) {
-			insn_t1 = insn;
-			continue;
-		}
 
-		insn_t2 = insn;
-
-		ret = add_jump_table(file, insn_t1, insn_jump_table(insn_t2));
+		ret = add_jump_table(file, insn);
 		if (ret)
 			return ret;
-
-		insn_t1 = insn_t2;
 	}
 
-	if (insn_t1)
-		ret = add_jump_table(file, insn_t1, NULL);
-
-	return ret;
+	return 0;
 }
 
 /*

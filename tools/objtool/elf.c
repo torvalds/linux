@@ -583,7 +583,7 @@ static int elf_update_sym_relocs(struct elf *elf, struct symbol *sym)
 {
 	struct reloc *reloc;
 
-	for (reloc = sym->relocs; reloc; reloc = reloc->sym_next_reloc)
+	for (reloc = sym->relocs; reloc; reloc = sym_next_reloc(reloc))
 		set_reloc_sym(elf, reloc, reloc->sym->idx);
 
 	return 0;
@@ -880,7 +880,7 @@ static struct reloc *elf_init_reloc(struct elf *elf, struct section *rsec,
 	set_reloc_addend(elf, reloc, addend);
 
 	elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
-	reloc->sym_next_reloc = sym->relocs;
+	set_sym_next_reloc(reloc, sym->relocs);
 	sym->relocs = reloc;
 
 	return reloc;
@@ -979,7 +979,7 @@ static int read_relocs(struct elf *elf)
 			}
 
 			elf_hash_add(reloc, &reloc->hash, reloc_hash(reloc));
-			reloc->sym_next_reloc = sym->relocs;
+			set_sym_next_reloc(reloc, sym->relocs);
 			sym->relocs = reloc;
 
 			nr_reloc++;
