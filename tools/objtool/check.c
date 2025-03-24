@@ -828,8 +828,11 @@ static int create_ibt_endbr_seal_sections(struct objtool_file *file)
 		if (opts.module && sym && sym->type == STT_FUNC &&
 		    insn->offset == sym->offset &&
 		    (!strcmp(sym->name, "init_module") ||
-		     !strcmp(sym->name, "cleanup_module")))
-			WARN("%s(): not an indirect call target", sym->name);
+		     !strcmp(sym->name, "cleanup_module"))) {
+			WARN("%s(): Magic init_module() function name is deprecated, use module_init(fn) instead",
+			     sym->name);
+			return -1;
+		}
 
 		if (!elf_init_reloc_text_sym(file->elf, sec,
 					     idx * sizeof(int), idx,
