@@ -16,6 +16,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/cpufeature.h>
 #include <asm/cpu.h>
+#include <asm/cpuid.h>
 #include <asm/hwcap2.h>
 #include <asm/intel-family.h>
 #include <asm/microcode.h>
@@ -778,27 +779,15 @@ static void intel_tlb_lookup(const unsigned char desc)
 
 static void intel_detect_tlb(struct cpuinfo_x86 *c)
 {
-	u32 regs[4];
-	u8 *desc = (u8 *)regs;
+	union leaf_0x2_regs regs;
+	u8 *desc;
 
 	if (c->cpuid_level < 2)
 		return;
 
-	cpuid(2, &regs[0], &regs[1], &regs[2], &regs[3]);
-
-	/* Intel CPUs must report an iteration count of 1 */
-	if (desc[0] != 0x01)
-		return;
-
-	/* If a register's bit 31 is set, it is an unknown format */
-	for (int i = 0; i < 4; i++) {
-		if (regs[i] & (1 << 31))
-			regs[i] = 0;
-	}
-
-	/* Skip the first byte as it is not a descriptor */
-	for (int i = 1; i < 16; i++)
-		intel_tlb_lookup(desc[i]);
+	cpuid_get_leaf_0x2_regs(&regs);
+	for_each_leaf_0x2_desc(regs, desc)
+		intel_tlb_lookup(*desc);
 }
 
 static const struct cpu_dev intel_cpu_dev = {
