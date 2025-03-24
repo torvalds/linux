@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: Copyright (c) 2021-2024 NVIDIA CORPORATION & AFFILIATES.
+// SPDX-FileCopyrightText: Copyright (c) 2021-2025 NVIDIA CORPORATION & AFFILIATES.
 // All rights reserved.
 //
 // tegra210_adx.c - Tegra210 ADX driver
@@ -57,8 +57,8 @@ static int tegra210_adx_startup(struct snd_pcm_substream *substream,
 	int err;
 
 	/* Ensure if ADX status is disabled */
-	err = regmap_read_poll_timeout_atomic(adx->regmap, TEGRA210_ADX_STATUS,
-					      val, !(val & 0x1), 10, 10000);
+	err = regmap_read_poll_timeout(adx->regmap, TEGRA210_ADX_STATUS,
+				       val, !(val & 0x1), 10, 10000);
 	if (err < 0) {
 		dev_err(dai->dev, "failed to stop ADX, err = %d\n", err);
 		return err;
@@ -84,7 +84,7 @@ static int tegra210_adx_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int __maybe_unused tegra210_adx_runtime_suspend(struct device *dev)
+static int tegra210_adx_runtime_suspend(struct device *dev)
 {
 	struct tegra210_adx *adx = dev_get_drvdata(dev);
 
@@ -94,7 +94,7 @@ static int __maybe_unused tegra210_adx_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused tegra210_adx_runtime_resume(struct device *dev)
+static int tegra210_adx_runtime_resume(struct device *dev)
 {
 	struct tegra210_adx *adx = dev_get_drvdata(dev);
 
@@ -524,17 +524,16 @@ static void tegra210_adx_platform_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops tegra210_adx_pm_ops = {
-	SET_RUNTIME_PM_OPS(tegra210_adx_runtime_suspend,
-			   tegra210_adx_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	RUNTIME_PM_OPS(tegra210_adx_runtime_suspend,
+		       tegra210_adx_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static struct platform_driver tegra210_adx_driver = {
 	.driver = {
 		.name = "tegra210-adx",
 		.of_match_table = tegra210_adx_of_match,
-		.pm = &tegra210_adx_pm_ops,
+		.pm = pm_ptr(&tegra210_adx_pm_ops),
 	},
 	.probe = tegra210_adx_platform_probe,
 	.remove = tegra210_adx_platform_remove,

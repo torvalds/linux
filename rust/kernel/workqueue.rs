@@ -60,7 +60,7 @@
 //!     type Pointer = Arc<MyStruct>;
 //!
 //!     fn run(this: Arc<MyStruct>) {
-//!         pr_info!("The value is: {}", this.value);
+//!         pr_info!("The value is: {}\n", this.value);
 //!     }
 //! }
 //!
@@ -108,7 +108,7 @@
 //!     type Pointer = Arc<MyStruct>;
 //!
 //!     fn run(this: Arc<MyStruct>) {
-//!         pr_info!("The value is: {}", this.value_1);
+//!         pr_info!("The value is: {}\n", this.value_1);
 //!     }
 //! }
 //!
@@ -116,7 +116,7 @@
 //!     type Pointer = Arc<MyStruct>;
 //!
 //!     fn run(this: Arc<MyStruct>) {
-//!         pr_info!("The second value is: {}", this.value_2);
+//!         pr_info!("The second value is: {}\n", this.value_2);
 //!     }
 //! }
 //!

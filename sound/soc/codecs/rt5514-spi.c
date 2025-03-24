@@ -458,7 +458,7 @@ static int rt5514_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __maybe_unused rt5514_suspend(struct device *dev)
+static int rt5514_suspend(struct device *dev)
 {
 	int irq = to_spi_device(dev)->irq;
 
@@ -468,7 +468,7 @@ static int __maybe_unused rt5514_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused rt5514_resume(struct device *dev)
+static int rt5514_resume(struct device *dev)
 {
 	struct rt5514_dsp *rt5514_dsp = dev_get_drvdata(dev);
 	int irq = to_spi_device(dev)->irq;
@@ -490,7 +490,7 @@ static int __maybe_unused rt5514_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rt5514_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt5514_suspend, rt5514_resume)
+	SYSTEM_SLEEP_PM_OPS(rt5514_suspend, rt5514_resume)
 };
 
 static const struct of_device_id rt5514_of_match[] = {
@@ -502,7 +502,7 @@ MODULE_DEVICE_TABLE(of, rt5514_of_match);
 static struct spi_driver rt5514_spi_driver = {
 	.driver = {
 		.name = "rt5514",
-		.pm = &rt5514_pm_ops,
+		.pm = pm_ptr(&rt5514_pm_ops),
 		.of_match_table = of_match_ptr(rt5514_of_match),
 	},
 	.probe = rt5514_spi_probe,

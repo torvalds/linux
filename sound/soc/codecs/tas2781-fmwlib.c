@@ -2,9 +2,10 @@
 //
 // tas2781-fmwlib.c -- TASDEVICE firmware support
 //
-// Copyright 2023 - 2024 Texas Instruments, Inc.
+// Copyright 2023 - 2025 Texas Instruments, Inc.
 //
 // Author: Shenghao Ding <shenghao-ding@ti.com>
+// Author: Baojun Xu <baojun.xu@ti.com>
 
 #include <linux/crc8.h>
 #include <linux/firmware.h>
@@ -1614,7 +1615,7 @@ static int tasdev_block_chksum(struct tasdevice_priv *tas_priv,
 	unsigned int nr_value;
 	int ret;
 
-	ret = tasdevice_dev_read(tas_priv, chn, TASDEVICE_I2CChecksum,
+	ret = tasdevice_dev_read(tas_priv, chn, TASDEVICE_CHECKSUM_REG,
 		&nr_value);
 	if (ret < 0) {
 		dev_err(tas_priv->dev, "%s: Chn %d\n", __func__, chn);
@@ -1658,7 +1659,7 @@ static int tasdev_load_blk(struct tasdevice_priv *tas_priv,
 	while (block->nr_retry > 0) {
 		if (block->is_pchksum_present) {
 			ret = tasdevice_dev_write(tas_priv, chn,
-				TASDEVICE_I2CChecksum, 0);
+				TASDEVICE_CHECKSUM_REG, 0);
 			if (ret < 0)
 				break;
 		}

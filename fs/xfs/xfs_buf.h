@@ -27,7 +27,6 @@ struct xfs_buf;
 #define XBF_READ	 (1u << 0) /* buffer intended for reading from device */
 #define XBF_WRITE	 (1u << 1) /* buffer intended for writing to device */
 #define XBF_READ_AHEAD	 (1u << 2) /* asynchronous read-ahead */
-#define XBF_NO_IOACCT	 (1u << 3) /* bypass I/O accounting (non-LRU bufs) */
 #define XBF_ASYNC	 (1u << 4) /* initiator will not wait for completion */
 #define XBF_DONE	 (1u << 5) /* all pages in the buffer uptodate */
 #define XBF_STALE	 (1u << 6) /* buffer has been staled, do not find it */
@@ -58,7 +57,6 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_READ,		"READ" }, \
 	{ XBF_WRITE,		"WRITE" }, \
 	{ XBF_READ_AHEAD,	"READ_AHEAD" }, \
-	{ XBF_NO_IOACCT,	"NO_IOACCT" }, \
 	{ XBF_ASYNC,		"ASYNC" }, \
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_STALE,		"STALE" }, \
@@ -77,7 +75,6 @@ typedef unsigned int xfs_buf_flags_t;
  * Internal state flags.
  */
 #define XFS_BSTATE_DISPOSE	 (1 << 0)	/* buffer being discarded */
-#define XFS_BSTATE_IN_FLIGHT	 (1 << 1)	/* I/O in flight */
 
 struct xfs_buf_cache {
 	struct rhashtable	bc_hash;
@@ -116,7 +113,7 @@ struct xfs_buftarg {
 	struct shrinker		*bt_shrinker;
 	struct list_lru		bt_lru;
 
-	struct percpu_counter	bt_io_count;
+	struct percpu_counter	bt_readahead_count;
 	struct ratelimit_state	bt_ioerror_rl;
 
 	/* Atomic write unit values */
@@ -291,7 +288,7 @@ int xfs_buf_get_uncached(struct xfs_buftarg *target, size_t numblks,
 int xfs_buf_read_uncached(struct xfs_buftarg *target, xfs_daddr_t daddr,
 		size_t numblks, xfs_buf_flags_t flags, struct xfs_buf **bpp,
 		const struct xfs_buf_ops *ops);
-int _xfs_buf_read(struct xfs_buf *bp, xfs_buf_flags_t flags);
+int _xfs_buf_read(struct xfs_buf *bp);
 void xfs_buf_hold(struct xfs_buf *bp);
 
 /* Releasing Buffers */

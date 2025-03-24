@@ -16,7 +16,7 @@
 #include "rt722-sdca.h"
 #include "rt722-sdca-sdw.h"
 
-static bool rt722_sdca_readable_register(struct device *dev, unsigned int reg)
+static int rt722_sdca_mbq_size(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case 0x2f01 ... 0x2f0a:
@@ -28,36 +28,52 @@ static bool rt722_sdca_readable_register(struct device *dev, unsigned int reg)
 			0):
 	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_GE49, RT722_SDCA_CTL_DETECTED_MODE,
 			0):
-	case SDW_SDCA_CTL(FUNC_NUM_HID, RT722_SDCA_ENT_HID01, RT722_SDCA_CTL_HIDTX_CURRENT_OWNER,
-			0) ... SDW_SDCA_CTL(FUNC_NUM_HID, RT722_SDCA_ENT_HID01,
-			RT722_SDCA_CTL_HIDTX_MESSAGE_LENGTH, 0):
-	case RT722_BUF_ADDR_HID1 ... RT722_BUF_ADDR_HID2:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static bool rt722_sdca_volatile_register(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
-	case 0x2f01:
-	case 0x2f54:
-	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_GE49, RT722_SDCA_CTL_DETECTED_MODE,
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_XU03, RT722_SDCA_CTL_SELECTED_MODE,
 			0):
-	case SDW_SDCA_CTL(FUNC_NUM_HID, RT722_SDCA_ENT_HID01, RT722_SDCA_CTL_HIDTX_CURRENT_OWNER,
-			0) ... SDW_SDCA_CTL(FUNC_NUM_HID, RT722_SDCA_ENT_HID01,
-			RT722_SDCA_CTL_HIDTX_MESSAGE_LENGTH, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_USER_FU05,
+			  RT722_SDCA_CTL_FU_MUTE, CH_L) ...
+	     SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_USER_FU05,
+			  RT722_SDCA_CTL_FU_MUTE, CH_R):
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_XU0D,
+			  RT722_SDCA_CTL_SELECTED_MODE, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_USER_FU0F,
+			  RT722_SDCA_CTL_FU_MUTE, CH_L) ...
+	     SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_USER_FU0F,
+			  RT722_SDCA_CTL_FU_MUTE, CH_R):
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE40,
+			  RT722_SDCA_CTL_REQ_POWER_STATE, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PDE12,
+			  RT722_SDCA_CTL_REQ_POWER_STATE, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_CS01,
+			  RT722_SDCA_CTL_SAMPLE_FREQ_INDEX, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_CS11,
+			  RT722_SDCA_CTL_SAMPLE_FREQ_INDEX, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT_USER_FU1E,
+			  RT722_SDCA_CTL_FU_MUTE, CH_01) ...
+	     SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT_USER_FU1E,
+			  RT722_SDCA_CTL_FU_MUTE, CH_04):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT_IT26,
+			  RT722_SDCA_CTL_VENDOR_DEF, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT_PDE2A,
+			  RT722_SDCA_CTL_REQ_POWER_STATE, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT722_SDCA_ENT_CS1F,
+			  RT722_SDCA_CTL_SAMPLE_FREQ_INDEX, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_HID, RT722_SDCA_ENT_HID01,
+			  RT722_SDCA_CTL_HIDTX_CURRENT_OWNER, 0) ...
+	     SDW_SDCA_CTL(FUNC_NUM_HID, RT722_SDCA_ENT_HID01,
+			  RT722_SDCA_CTL_HIDTX_MESSAGE_LENGTH, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_USER_FU06,
+			  RT722_SDCA_CTL_FU_MUTE, CH_L) ...
+	     SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_USER_FU06,
+			  RT722_SDCA_CTL_FU_MUTE, CH_R):
+	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_OT23,
+			  RT722_SDCA_CTL_VENDOR_DEF, CH_08):
+	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_PDE23,
+			  RT722_SDCA_CTL_REQ_POWER_STATE, 0):
+	case SDW_SDCA_CTL(FUNC_NUM_AMP, RT722_SDCA_ENT_CS31,
+			  RT722_SDCA_CTL_SAMPLE_FREQ_INDEX, 0):
 	case RT722_BUF_ADDR_HID1 ... RT722_BUF_ADDR_HID2:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static bool rt722_sdca_mbq_readable_register(struct device *dev, unsigned int reg)
-{
-	switch (reg) {
+		return 1;
 	case 0x2000000 ... 0x2000024:
 	case 0x2000029 ... 0x200004a:
 	case 0x2000051 ... 0x2000052:
@@ -74,6 +90,7 @@ static bool rt722_sdca_mbq_readable_register(struct device *dev, unsigned int re
 	case 0x5600000 ... 0x5600007:
 	case 0x5700000 ... 0x5700004:
 	case 0x5800000 ... 0x5800004:
+	case 0x5810000:
 	case 0x5b00003:
 	case 0x5c00011:
 	case 0x5d00006:
@@ -81,6 +98,7 @@ static bool rt722_sdca_mbq_readable_register(struct device *dev, unsigned int re
 	case 0x5f00030:
 	case 0x6100000 ... 0x6100051:
 	case 0x6100055 ... 0x6100057:
+	case 0x6100060:
 	case 0x6100062:
 	case 0x6100064 ... 0x6100065:
 	case 0x6100067:
@@ -112,15 +130,32 @@ static bool rt722_sdca_mbq_readable_register(struct device *dev, unsigned int re
 			RT722_SDCA_CTL_FU_CH_GAIN, CH_L):
 	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_PLATFORM_FU44,
 			RT722_SDCA_CTL_FU_CH_GAIN, CH_R):
-		return true;
+		return 2;
 	default:
-		return false;
+		return 0;
 	}
 }
 
-static bool rt722_sdca_mbq_volatile_register(struct device *dev, unsigned int reg)
+static struct regmap_sdw_mbq_cfg rt722_mbq_config = {
+	.mbq_size = rt722_sdca_mbq_size,
+};
+
+static bool rt722_sdca_readable_register(struct device *dev, unsigned int reg)
+{
+	return rt722_sdca_mbq_size(dev, reg) > 0;
+}
+
+static bool rt722_sdca_volatile_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case 0x2f01:
+	case 0x2f54:
+	case SDW_SDCA_CTL(FUNC_NUM_JACK_CODEC, RT722_SDCA_ENT_GE49, RT722_SDCA_CTL_DETECTED_MODE,
+			0):
+	case SDW_SDCA_CTL(FUNC_NUM_HID, RT722_SDCA_ENT_HID01, RT722_SDCA_CTL_HIDTX_CURRENT_OWNER,
+			0) ... SDW_SDCA_CTL(FUNC_NUM_HID, RT722_SDCA_ENT_HID01,
+			RT722_SDCA_CTL_HIDTX_MESSAGE_LENGTH, 0):
+	case RT722_BUF_ADDR_HID1 ... RT722_BUF_ADDR_HID2:
 	case 0x2000000:
 	case 0x200000d:
 	case 0x2000019:
@@ -139,26 +174,12 @@ static bool rt722_sdca_mbq_volatile_register(struct device *dev, unsigned int re
 
 static const struct regmap_config rt722_sdca_regmap = {
 	.reg_bits = 32,
-	.val_bits = 8,
+	.val_bits = 16,
 	.readable_reg = rt722_sdca_readable_register,
 	.volatile_reg = rt722_sdca_volatile_register,
 	.max_register = 0x44ffffff,
 	.reg_defaults = rt722_sdca_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(rt722_sdca_reg_defaults),
-	.cache_type = REGCACHE_MAPLE,
-	.use_single_read = true,
-	.use_single_write = true,
-};
-
-static const struct regmap_config rt722_sdca_mbq_regmap = {
-	.name = "sdw-mbq",
-	.reg_bits = 32,
-	.val_bits = 16,
-	.readable_reg = rt722_sdca_mbq_readable_register,
-	.volatile_reg = rt722_sdca_mbq_volatile_register,
-	.max_register = 0x41000312,
-	.reg_defaults = rt722_sdca_mbq_defaults,
-	.num_reg_defaults = ARRAY_SIZE(rt722_sdca_mbq_defaults),
 	.cache_type = REGCACHE_MAPLE,
 	.use_single_read = true,
 	.use_single_write = true,
@@ -206,6 +227,8 @@ static int rt722_sdca_read_prop(struct sdw_slave *slave)
 	u32 bit;
 	unsigned long addr;
 	struct sdw_dpn_prop *dpn;
+
+	sdw_slave_read_lane_mapping(slave);
 
 	prop->scp_int1_mask = SDW_SCP_INT1_BUS_CLASH | SDW_SCP_INT1_PARITY;
 	prop->quirks = SDW_SLAVE_QUIRKS_INVALID_INITIAL_PARITY;
@@ -373,18 +396,14 @@ static const struct sdw_slave_ops rt722_sdca_slave_ops = {
 static int rt722_sdca_sdw_probe(struct sdw_slave *slave,
 				const struct sdw_device_id *id)
 {
-	struct regmap *regmap, *mbq_regmap;
+	struct regmap *regmap;
 
 	/* Regmap Initialization */
-	mbq_regmap = devm_regmap_init_sdw_mbq(slave, &rt722_sdca_mbq_regmap);
-	if (IS_ERR(mbq_regmap))
-		return PTR_ERR(mbq_regmap);
-
-	regmap = devm_regmap_init_sdw(slave, &rt722_sdca_regmap);
+	regmap = devm_regmap_init_sdw_mbq_cfg(slave, &rt722_sdca_regmap, &rt722_mbq_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	return rt722_sdca_init(&slave->dev, regmap, mbq_regmap, slave);
+	return rt722_sdca_init(&slave->dev, regmap, slave);
 }
 
 static int rt722_sdca_sdw_remove(struct sdw_slave *slave)
@@ -411,7 +430,7 @@ static const struct sdw_device_id rt722_sdca_id[] = {
 };
 MODULE_DEVICE_TABLE(sdw, rt722_sdca_id);
 
-static int __maybe_unused rt722_sdca_dev_suspend(struct device *dev)
+static int rt722_sdca_dev_suspend(struct device *dev)
 {
 	struct rt722_sdca_priv *rt722 = dev_get_drvdata(dev);
 
@@ -422,12 +441,11 @@ static int __maybe_unused rt722_sdca_dev_suspend(struct device *dev)
 	cancel_delayed_work_sync(&rt722->jack_btn_check_work);
 
 	regcache_cache_only(rt722->regmap, true);
-	regcache_cache_only(rt722->mbq_regmap, true);
 
 	return 0;
 }
 
-static int __maybe_unused rt722_sdca_dev_system_suspend(struct device *dev)
+static int rt722_sdca_dev_system_suspend(struct device *dev)
 {
 	struct rt722_sdca_priv *rt722_sdca = dev_get_drvdata(dev);
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
@@ -459,7 +477,7 @@ static int __maybe_unused rt722_sdca_dev_system_suspend(struct device *dev)
 
 #define RT722_PROBE_TIMEOUT 5000
 
-static int __maybe_unused rt722_sdca_dev_resume(struct device *dev)
+static int rt722_sdca_dev_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct rt722_sdca_priv *rt722 = dev_get_drvdata(dev);
@@ -492,20 +510,18 @@ regmap_sync:
 	slave->unattach_request = 0;
 	regcache_cache_only(rt722->regmap, false);
 	regcache_sync(rt722->regmap);
-	regcache_cache_only(rt722->mbq_regmap, false);
-	regcache_sync(rt722->mbq_regmap);
 	return 0;
 }
 
 static const struct dev_pm_ops rt722_sdca_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(rt722_sdca_dev_system_suspend, rt722_sdca_dev_resume)
-	SET_RUNTIME_PM_OPS(rt722_sdca_dev_suspend, rt722_sdca_dev_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(rt722_sdca_dev_system_suspend, rt722_sdca_dev_resume)
+	RUNTIME_PM_OPS(rt722_sdca_dev_suspend, rt722_sdca_dev_resume, NULL)
 };
 
 static struct sdw_driver rt722_sdca_sdw_driver = {
 	.driver = {
 		.name = "rt722-sdca",
-		.pm = &rt722_sdca_pm,
+		.pm = pm_ptr(&rt722_sdca_pm),
 	},
 	.probe = rt722_sdca_sdw_probe,
 	.remove = rt722_sdca_sdw_remove,

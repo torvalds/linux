@@ -69,6 +69,8 @@ static struct mlx5dr_ste_ctx ste_ctx_v2 = {
 	.set_pop_vlan			= &dr_ste_v1_set_pop_vlan,
 	.set_rx_decap			= &dr_ste_v1_set_rx_decap,
 	.set_encap_l3			= &dr_ste_v1_set_encap_l3,
+	.set_insert_hdr			= &dr_ste_v1_set_insert_hdr,
+	.set_remove_hdr			= &dr_ste_v1_set_remove_hdr,
 	/* Send */
 	.prepare_for_postsend		= &dr_ste_v1_prepare_for_postsend,
 };

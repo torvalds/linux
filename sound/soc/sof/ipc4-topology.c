@@ -7,6 +7,7 @@
 //
 //
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <uapi/sound/sof/tokens.h>
 #include <sound/pcm_params.h>
 #include <sound/sof/ext_manifest4.h>
@@ -1807,8 +1808,8 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct sof_ipc4_copier_data *copier_data;
 	int input_fmt_index, output_fmt_index;
-	struct snd_pcm_hw_params ref_params;
 	struct sof_ipc4_copier *ipc4_copier;
+	struct snd_pcm_hw_params *ref_params __free(kfree) = NULL;
 	struct snd_sof_dai *dai;
 	u32 gtw_cfg_config_length;
 	u32 dma_config_tlv_size = 0;
@@ -1821,15 +1822,19 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	bool single_output_bitdepth;
 	int i;
 
-	dev_dbg(sdev->dev, "copier %s, type %d", swidget->widget->name, swidget->id);
-
 	switch (swidget->id) {
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_aif_out:
 	{
+		struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
+		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 		struct sof_ipc4_gtw_attributes *gtw_attr;
-		struct snd_sof_widget *pipe_widget;
-		struct sof_ipc4_pipeline *pipeline;
+
+		dev_dbg(sdev->dev,
+			"Host copier %s, type %d, ChainDMA: %s, stream_tag: %d\n",
+			swidget->widget->name, swidget->id,
+			str_yes_no(pipeline->use_chain_dma),
+			platform_params->stream_tag);
 
 		/* parse the deep buffer dma size */
 		ret = sof_update_ipc_object(scomp, &deep_buffer_dma_ms,
@@ -1845,9 +1850,6 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		gtw_attr = ipc4_copier->gtw_attr;
 		copier_data = &ipc4_copier->data;
 		available_fmt = &ipc4_copier->available_fmt;
-
-		pipe_widget = swidget->spipe->pipe_widget;
-		pipeline = pipe_widget->private;
 
 		if (pipeline->use_chain_dma) {
 			u32 host_dma_id;
@@ -1884,9 +1886,11 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		 * for capture.
 		 */
 		if (dir == SNDRV_PCM_STREAM_PLAYBACK)
-			ref_params = *fe_params;
+			ref_params = kmemdup(fe_params, sizeof(*ref_params), GFP_KERNEL);
 		else
-			ref_params = *pipeline_params;
+			ref_params = kmemdup(pipeline_params, sizeof(*ref_params), GFP_KERNEL);
+		if (!ref_params)
+			return -ENOMEM;
 
 		copier_data->gtw_cfg.node_id &= ~SOF_IPC4_NODE_INDEX_MASK;
 		copier_data->gtw_cfg.node_id |=
@@ -1901,6 +1905,10 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	{
 		struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
+
+		dev_dbg(sdev->dev, "Dai copier %s, type %d, ChainDMA: %s\n",
+			swidget->widget->name, swidget->id,
+			str_yes_no(pipeline->use_chain_dma));
 
 		if (pipeline->use_chain_dma)
 			return 0;
@@ -1919,8 +1927,11 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		 * In case of capture the ref_params returned will be used to
 		 * find the input configuration of the copier.
 		 */
-		ref_params = *fe_params;
-		ret = sof_ipc4_prepare_dai_copier(sdev, dai, &ref_params, dir);
+		ref_params = kmemdup(fe_params, sizeof(*ref_params), GFP_KERNEL);
+		if (!ref_params)
+			return -ENOMEM;
+
+		ret = sof_ipc4_prepare_dai_copier(sdev, dai, ref_params, dir);
 		if (ret < 0)
 			return ret;
 
@@ -1929,16 +1940,22 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		 * input configuration of the copier.
 		 */
 		if (dir == SNDRV_PCM_STREAM_PLAYBACK)
-			ref_params = *pipeline_params;
+			memcpy(ref_params, pipeline_params, sizeof(*ref_params));
 
 		break;
 	}
 	case snd_soc_dapm_buffer:
 	{
+		dev_dbg(sdev->dev, "Module copier %s, type %d\n",
+			swidget->widget->name, swidget->id);
+
 		ipc4_copier = (struct sof_ipc4_copier *)swidget->private;
 		copier_data = &ipc4_copier->data;
 		available_fmt = &ipc4_copier->available_fmt;
-		ref_params = *pipeline_params;
+
+		ref_params = kmemdup(pipeline_params, sizeof(*ref_params), GFP_KERNEL);
+		if (!ref_params)
+			return -ENOMEM;
 
 		break;
 	}
@@ -1951,7 +1968,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	/* set input and output audio formats */
 	input_fmt_index = sof_ipc4_init_input_audio_fmt(sdev, swidget,
 							&copier_data->base_config,
-							&ref_params, available_fmt);
+							ref_params, available_fmt);
 	if (input_fmt_index < 0)
 		return input_fmt_index;
 
@@ -3409,9 +3426,6 @@ static int sof_ipc4_dai_get_param(struct snd_sof_dev *sdev, struct snd_sof_dai *
 
 static int sof_ipc4_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verify)
 {
-	struct snd_sof_pcm *spcm;
-	int dir, ret;
-
 	/*
 	 * This function is called during system suspend, we need to make sure
 	 * that all streams have been freed up.
@@ -3423,21 +3437,8 @@ static int sof_ipc4_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verif
 	 *
 	 * This will also make sure that paused streams handled correctly.
 	 */
-	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		for_each_pcm_streams(dir) {
-			struct snd_pcm_substream *substream = spcm->stream[dir].substream;
 
-			if (!substream || !substream->runtime || spcm->stream[dir].suspend_ignored)
-				continue;
-
-			if (spcm->stream[dir].list) {
-				ret = sof_pcm_stream_free(sdev, substream, spcm, dir, true);
-				if (ret < 0)
-					return ret;
-			}
-		}
-	}
-	return 0;
+	return sof_pcm_free_all_streams(sdev);
 }
 
 static int sof_ipc4_link_setup(struct snd_sof_dev *sdev, struct snd_soc_dai_link *link)

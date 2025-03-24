@@ -68,7 +68,7 @@ file:
     .codec_dai_name = "codec-2-dai_name",
     .platform_name = "samsung-i2s.0",
     .dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-            | SND_SOC_DAIFMT_CBM_CFM,
+            | SND_SOC_DAIFMT_CBP_CFP,
     .ignore_suspend = 1,
     .c2c_params = &dsp_codec_params,
     .num_c2c_params = 1,
@@ -80,7 +80,7 @@ file:
     .codec_name = "codec-3,
     .codec_dai_name = "codec-3-dai_name",
     .dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
-            | SND_SOC_DAIFMT_CBM_CFM,
+            | SND_SOC_DAIFMT_CBP_CFP,
     .ignore_suspend = 1,
     .c2c_params = &dsp_codec_params,
     .num_c2c_params = 1,

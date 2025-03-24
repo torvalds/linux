@@ -329,61 +329,6 @@ void mt8186_afe_disable_clock(struct mtk_base_afe *afe)
 	clk_disable_unprepare(afe_priv->clk[CLK_INFRA_SYS_AUDIO]);
 }
 
-int mt8186_afe_suspend_clock(struct mtk_base_afe *afe)
-{
-	struct mt8186_afe_private *afe_priv = afe->platform_priv;
-	int ret;
-
-	/* set audio int bus to 26M */
-	ret = clk_prepare_enable(afe_priv->clk[CLK_MUX_AUDIOINTBUS]);
-	if (ret) {
-		dev_info(afe->dev, "%s clk_prepare_enable %s fail %d\n",
-			 __func__, aud_clks[CLK_MUX_AUDIOINTBUS], ret);
-		goto clk_mux_audio_intbus_err;
-	}
-	ret = mt8186_set_audio_int_bus_parent(afe, CLK_CLK26M);
-	if (ret)
-		goto clk_mux_audio_intbus_parent_err;
-
-	clk_disable_unprepare(afe_priv->clk[CLK_MUX_AUDIOINTBUS]);
-
-	return 0;
-
-clk_mux_audio_intbus_parent_err:
-	mt8186_set_audio_int_bus_parent(afe, CLK_TOP_MAINPLL_D2_D4);
-clk_mux_audio_intbus_err:
-	clk_disable_unprepare(afe_priv->clk[CLK_MUX_AUDIOINTBUS]);
-	return ret;
-}
-
-int mt8186_afe_resume_clock(struct mtk_base_afe *afe)
-{
-	struct mt8186_afe_private *afe_priv = afe->platform_priv;
-	int ret;
-
-	/* set audio int bus to normal working clock */
-	ret = clk_prepare_enable(afe_priv->clk[CLK_MUX_AUDIOINTBUS]);
-	if (ret) {
-		dev_info(afe->dev, "%s clk_prepare_enable %s fail %d\n",
-			 __func__, aud_clks[CLK_MUX_AUDIOINTBUS], ret);
-		goto clk_mux_audio_intbus_err;
-	}
-	ret = mt8186_set_audio_int_bus_parent(afe,
-					      CLK_TOP_MAINPLL_D2_D4);
-	if (ret)
-		goto clk_mux_audio_intbus_parent_err;
-
-	clk_disable_unprepare(afe_priv->clk[CLK_MUX_AUDIOINTBUS]);
-
-	return 0;
-
-clk_mux_audio_intbus_parent_err:
-	mt8186_set_audio_int_bus_parent(afe, CLK_CLK26M);
-clk_mux_audio_intbus_err:
-	clk_disable_unprepare(afe_priv->clk[CLK_MUX_AUDIOINTBUS]);
-	return ret;
-}
-
 int mt8186_apll1_enable(struct mtk_base_afe *afe)
 {
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;

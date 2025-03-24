@@ -378,6 +378,12 @@ static bool apple_is_non_apple_keyboard(struct hid_device *hdev)
 	return false;
 }
 
+static bool apple_is_omoton_kb066(struct hid_device *hdev)
+{
+	return hdev->product == USB_DEVICE_ID_APPLE_ALU_WIRELESS_ANSI &&
+		strcmp(hdev->name, "Bluetooth Keyboard") == 0;
+}
+
 static inline void apple_setup_key_translation(struct input_dev *input,
 		const struct apple_key_translation *table)
 {
@@ -545,9 +551,6 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 			}
 		}
 	}
-
-	if (usage->hid == 0xc0301) /* Omoton KB066 quirk */
-		code = KEY_F6;
 
 	if (usage->code != code) {
 		input_event_with_scancode(input, usage->type, code, usage->hid, value);
@@ -728,7 +731,7 @@ static int apple_input_configured(struct hid_device *hdev,
 {
 	struct apple_sc *asc = hid_get_drvdata(hdev);
 
-	if ((asc->quirks & APPLE_HAS_FN) && !asc->fn_found) {
+	if (((asc->quirks & APPLE_HAS_FN) && !asc->fn_found) || apple_is_omoton_kb066(hdev)) {
 		hid_info(hdev, "Fn key not found (Apple Wireless Keyboard clone?), disabling Fn key handling\n");
 		asc->quirks &= ~APPLE_HAS_FN;
 	}
