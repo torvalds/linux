@@ -1454,6 +1454,13 @@ config INITRAMFS_PRESERVE_MTIME
 
 	  If unsure, say Y.
 
+config INITRAMFS_TEST
+	bool "Test initramfs cpio archive extraction" if !KUNIT_ALL_TESTS
+	depends on BLK_DEV_INITRD && KUNIT=y
+	default KUNIT_ALL_TESTS
+	help
+	  Build KUnit tests for initramfs. See Documentation/dev-tools/kunit
+
 choice
 	prompt "Compiler optimization level"
 	default CC_OPTIMIZE_FOR_PERFORMANCE
