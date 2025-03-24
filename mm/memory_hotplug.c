@@ -1813,20 +1813,14 @@ static void do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		page = pfn_to_page(pfn);
 		folio = page_folio(page);
 
-		/*
-		 * No reference or lock is held on the folio, so it might
-		 * be modified concurrently (e.g. split).  As such,
-		 * folio_nr_pages() may read garbage.  This is fine as the outer
-		 * loop will revisit the split folio later.
-		 */
-		if (folio_test_large(folio))
-			pfn = folio_pfn(folio) + folio_nr_pages(folio) - 1;
-
 		if (!folio_try_get(folio))
 			continue;
 
 		if (unlikely(page_folio(page) != folio))
 			goto put_folio;
+
+		if (folio_test_large(folio))
+			pfn = folio_pfn(folio) + folio_nr_pages(folio) - 1;
 
 		if (folio_contain_hwpoisoned_page(folio)) {
 			if (WARN_ON(folio_test_lru(folio)))
