@@ -1052,6 +1052,10 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 		if (err) {
 			if (shared_fdb || roce_lag)
 				mlx5_lag_add_devices(ldev);
+			if (shared_fdb) {
+				mlx5_ldev_for_each(i, 0, ldev)
+					mlx5_eswitch_reload_ib_reps(ldev->pf[i].dev->priv.eswitch);
+			}
 
 			return;
 		} else if (roce_lag) {

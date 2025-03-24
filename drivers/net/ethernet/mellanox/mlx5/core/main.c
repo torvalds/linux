@@ -1205,24 +1205,24 @@ static int mlx5_function_enable(struct mlx5_core_dev *dev, bool boot, u64 timeou
 	dev->caps.embedded_cpu = mlx5_read_embedded_cpu(dev);
 	mlx5_cmd_set_state(dev, MLX5_CMDIF_STATE_UP);
 
-	mlx5_start_health_poll(dev);
-
 	err = mlx5_core_enable_hca(dev, 0);
 	if (err) {
 		mlx5_core_err(dev, "enable hca failed\n");
-		goto stop_health_poll;
+		goto err_cmd_cleanup;
 	}
+
+	mlx5_start_health_poll(dev);
 
 	err = mlx5_core_set_issi(dev);
 	if (err) {
 		mlx5_core_err(dev, "failed to set issi\n");
-		goto err_disable_hca;
+		goto stop_health_poll;
 	}
 
 	err = mlx5_satisfy_startup_pages(dev, 1);
 	if (err) {
 		mlx5_core_err(dev, "failed to allocate boot pages\n");
-		goto err_disable_hca;
+		goto stop_health_poll;
 	}
 
 	err = mlx5_tout_query_dtor(dev);
@@ -1235,10 +1235,9 @@ static int mlx5_function_enable(struct mlx5_core_dev *dev, bool boot, u64 timeou
 
 reclaim_boot_pages:
 	mlx5_reclaim_startup_pages(dev);
-err_disable_hca:
-	mlx5_core_disable_hca(dev, 0);
 stop_health_poll:
 	mlx5_stop_health_poll(dev, boot);
+	mlx5_core_disable_hca(dev, 0);
 err_cmd_cleanup:
 	mlx5_cmd_set_state(dev, MLX5_CMDIF_STATE_DOWN);
 	mlx5_cmd_disable(dev);
@@ -1249,8 +1248,8 @@ err_cmd_cleanup:
 static void mlx5_function_disable(struct mlx5_core_dev *dev, bool boot)
 {
 	mlx5_reclaim_startup_pages(dev);
-	mlx5_core_disable_hca(dev, 0);
 	mlx5_stop_health_poll(dev, boot);
+	mlx5_core_disable_hca(dev, 0);
 	mlx5_cmd_set_state(dev, MLX5_CMDIF_STATE_DOWN);
 	mlx5_cmd_disable(dev);
 }
