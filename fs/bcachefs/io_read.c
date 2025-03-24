@@ -1322,13 +1322,14 @@ int __bch2_read(struct btree_trans *trans, struct bch_read_bio *rbio,
 		ret = __bch2_read_extent(trans, rbio, bvec_iter, iter.pos,
 					 data_btree, k,
 					 offset_into_extent, failed, flags, -1);
+		swap(bvec_iter.bi_size, bytes);
+
 		if (ret)
 			goto err;
 
 		if (flags & BCH_READ_last_fragment)
 			break;
 
-		swap(bvec_iter.bi_size, bytes);
 		bio_advance_iter(&rbio->bio, &bvec_iter, bytes);
 err:
 		if (ret == -BCH_ERR_data_read_retry_csum_err_maybe_userspace)
