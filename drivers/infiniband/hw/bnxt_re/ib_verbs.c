@@ -1785,8 +1785,6 @@ int bnxt_re_destroy_srq(struct ib_srq *ib_srq, struct ib_udata *udata)
 	bnxt_qplib_destroy_srq(&rdev->qplib_res, qplib_srq);
 	ib_umem_release(srq->umem);
 	atomic_dec(&rdev->stats.res.srq_count);
-	if (nq)
-		nq->budget--;
 	return 0;
 }
 
@@ -1908,8 +1906,6 @@ int bnxt_re_create_srq(struct ib_srq *ib_srq,
 			goto fail;
 		}
 	}
-	if (nq)
-		nq->budget++;
 	active_srqs = atomic_inc_return(&rdev->stats.res.srq_count);
 	if (active_srqs > rdev->stats.res.srq_watermark)
 		rdev->stats.res.srq_watermark = active_srqs;
@@ -3079,7 +3075,6 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata)
 	ib_umem_release(cq->umem);
 
 	atomic_dec(&rdev->stats.res.cq_count);
-	nq->budget--;
 	kfree(cq->cql);
 	return 0;
 }
