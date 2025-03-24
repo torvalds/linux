@@ -2496,18 +2496,34 @@ struct net_device {
 	 * Should always be taken using netdev_lock() / netdev_unlock() helpers.
 	 * Drivers are free to use it for other protection.
 	 *
-	 * Protects:
+	 * For the drivers that implement shaper or queue API, the scope
+	 * of this lock is expanded to cover most ndo/queue/ethtool/sysfs
+	 * operations. Drivers may opt-in to this behavior by setting
+	 * @request_ops_lock.
+	 *
+	 * @lock protection mixes with rtnl_lock in multiple ways, fields are
+	 * either:
+	 *
+	 * - simply protected by the instance @lock;
+	 *
+	 * - double protected - writers hold both locks, readers hold either;
+	 *
+	 * - ops protected - protected by the lock held around the NDOs
+	 *   and other callbacks, that is the instance lock on devices for
+	 *   which netdev_need_ops_lock() returns true, otherwise by rtnl_lock;
+	 *
+	 * - double ops protected - always protected by rtnl_lock but for
+	 *   devices for which netdev_need_ops_lock() returns true - also
+	 *   the instance lock.
+	 *
+	 * Simply protects:
 	 *	@gro_flush_timeout, @napi_defer_hard_irqs, @napi_list,
 	 *	@net_shaper_hierarchy, @reg_state, @threaded
 	 *
-	 * Partially protects (writers must hold both @lock and rtnl_lock):
+	 * Double protects:
 	 *	@up
 	 *
 	 * Also protects some fields in struct napi_struct.
-	 *
-	 * For the drivers that implement shaper or queue API, the scope
-	 * of this lock is expanded to cover most ndo/queue/ethtool/sysfs
-	 * operations.
 	 *
 	 * Ordering: take after rtnl_lock.
 	 */

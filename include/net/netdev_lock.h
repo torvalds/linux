@@ -5,6 +5,7 @@
 
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
+#include <linux/rtnetlink.h>
 
 static inline bool netdev_trylock(struct net_device *dev)
 {
@@ -51,6 +52,8 @@ static inline void netdev_ops_assert_locked(const struct net_device *dev)
 {
 	if (netdev_need_ops_lock(dev))
 		lockdep_assert_held(&dev->lock);
+	else
+		ASSERT_RTNL();
 }
 
 static inline int netdev_lock_cmp_fn(const struct lockdep_map *a,
