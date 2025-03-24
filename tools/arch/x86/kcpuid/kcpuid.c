@@ -69,6 +69,8 @@ struct cpuid_func {
 enum range_index {
 	RANGE_STD = 0,			/* Standard */
 	RANGE_EXT = 0x80000000,		/* Extended */
+	RANGE_TSM = 0x80860000,		/* Transmeta */
+	RANGE_CTR = 0xc0000000,		/* Centaur/Zhaoxin */
 };
 
 #define CPUID_INDEX_MASK		0xffff0000
@@ -85,6 +87,8 @@ struct cpuid_range {
 static struct cpuid_range ranges[] = {
 	{	.index		= RANGE_STD,	},
 	{	.index		= RANGE_EXT,	},
+	{	.index		= RANGE_TSM,	},
+	{	.index		= RANGE_CTR,	},
 };
 
 static char *range_to_str(struct cpuid_range *range)
@@ -92,6 +96,8 @@ static char *range_to_str(struct cpuid_range *range)
 	switch (range->index) {
 	case RANGE_STD:		return "Standard";
 	case RANGE_EXT:		return "Extended";
+	case RANGE_TSM:		return "Transmeta";
+	case RANGE_CTR:		return "Centaur";
 	default:		return NULL;
 	}
 }
