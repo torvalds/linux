@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_DP_MON_H
 #define ATH12K_DP_MON_H
 
 #include "core.h"
+
+#define ATH12K_MON_RX_DOT11_OFFSET	5
 
 enum dp_monitor_mode {
 	ATH12K_DP_TX_MONITOR_MODE,

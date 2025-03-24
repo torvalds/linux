@@ -4480,6 +4480,8 @@ int ath12k_dp_rx_pdev_mon_attach(struct ath12k *ar)
 
 	pmon->mon_last_linkdesc_paddr = 0;
 	pmon->mon_last_buf_cookie = DP_RX_DESC_COOKIE_MAX + 1;
+	INIT_LIST_HEAD(&pmon->dp_rx_mon_mpdu_list);
+	pmon->mon_mpdu = NULL;
 	spin_lock_init(&pmon->mon_lock);
 
 	return 0;
