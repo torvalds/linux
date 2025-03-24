@@ -412,7 +412,65 @@ static struct kunit_suite drm_sched_modify_sched = {
 	.test_cases = drm_sched_modify_sched_tests,
 };
 
+static void drm_sched_test_credits(struct kunit *test)
+{
+	struct drm_mock_sched_entity *entity;
+	struct drm_mock_scheduler *sched;
+	struct drm_mock_sched_job *job[2];
+	bool done;
+	int i;
+
+	/*
+	 * Check that the configured credit limit is respected.
+	 */
+
+	sched = drm_mock_sched_new(test, MAX_SCHEDULE_TIMEOUT);
+	sched->base.credit_limit = 1;
+
+	entity = drm_mock_sched_entity_new(test,
+					   DRM_SCHED_PRIORITY_NORMAL,
+					   sched);
+
+	job[0] = drm_mock_sched_job_new(test, entity);
+	job[1] = drm_mock_sched_job_new(test, entity);
+
+	drm_mock_sched_job_submit(job[0]);
+	drm_mock_sched_job_submit(job[1]);
+
+	done = drm_mock_sched_job_wait_scheduled(job[0], HZ);
+	KUNIT_ASSERT_TRUE(test, done);
+
+	done = drm_mock_sched_job_wait_scheduled(job[1], HZ);
+	KUNIT_ASSERT_FALSE(test, done);
+
+	i = drm_mock_sched_advance(sched, 1);
+	KUNIT_ASSERT_EQ(test, i, 1);
+
+	done = drm_mock_sched_job_wait_scheduled(job[1], HZ);
+	KUNIT_ASSERT_TRUE(test, done);
+
+	i = drm_mock_sched_advance(sched, 1);
+	KUNIT_ASSERT_EQ(test, i, 1);
+
+	done = drm_mock_sched_job_wait_finished(job[1], HZ);
+	KUNIT_ASSERT_TRUE(test, done);
+
+	drm_mock_sched_entity_free(entity);
+	drm_mock_sched_fini(sched);
+}
+
+static struct kunit_case drm_sched_credits_tests[] = {
+	KUNIT_CASE(drm_sched_test_credits),
+	{}
+};
+
+static struct kunit_suite drm_sched_credits = {
+	.name = "drm_sched_basic_credits_tests",
+	.test_cases = drm_sched_credits_tests,
+};
+
 kunit_test_suites(&drm_sched_basic,
 		  &drm_sched_timeout,
 		  &drm_sched_priority,
-		  &drm_sched_modify_sched);
+		  &drm_sched_modify_sched,
+		  &drm_sched_credits);
