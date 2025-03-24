@@ -940,6 +940,9 @@ static int bch2_write_extent(struct bch_write_op *op, struct write_point *wp,
 	bool page_alloc_failed = false;
 	int ret, more = 0;
 
+	if (op->incompressible)
+		op->compression_opt = 0;
+
 	BUG_ON(!bio_sectors(src));
 
 	ec_buf = bch2_writepoint_ec_buf(c, wp);
