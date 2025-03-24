@@ -12591,6 +12591,7 @@ F:	Documentation/ABI/testing/sysfs-kernel-warn_count
 F:	arch/*/configs/hardening.config
 F:	include/linux/overflow.h
 F:	include/linux/randomize_kstack.h
+F:	include/linux/ucopysize.h
 F:	kernel/configs/hardening.config
 F:	lib/tests/usercopy_kunit.c
 F:	mm/usercopy.c

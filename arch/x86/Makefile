@@ -137,8 +137,10 @@ ifeq ($(CONFIG_X86_32),y)
         include $(srctree)/arch/x86/Makefile_32.cpu
         KBUILD_CFLAGS += $(cflags-y)
 
-        # temporary until string.h is fixed
+    ifneq ($(call clang-min-version, 160000),y)
+        # https://github.com/llvm/llvm-project/issues/53645
         KBUILD_CFLAGS += -ffreestanding
+    endif
 
     ifeq ($(CONFIG_STACKPROTECTOR),y)
         ifeq ($(CONFIG_SMP),y)

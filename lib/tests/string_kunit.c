@@ -579,8 +579,8 @@ static void string_test_strtomem(struct kunit *test)
 
 static void string_test_memtostr(struct kunit *test)
 {
-	char nonstring[7] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g' };
-	char nonstring_small[3] = { 'a', 'b', 'c' };
+	char nonstring[7] __nonstring = { 'a', 'b', 'c', 'd', 'e', 'f', 'g' };
+	char nonstring_small[3] __nonstring = { 'a', 'b', 'c' };
 	char dest[sizeof(nonstring) + 1];
 
 	/* Copy in a non-NUL-terminated string into exactly right-sized dest. */
