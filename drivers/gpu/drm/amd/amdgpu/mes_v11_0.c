@@ -740,10 +740,13 @@ static int mes_v11_0_set_hw_resources_1(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.header.opcode = MES_SCH_API_SET_HW_RSRC_1;
 	mes_set_hw_res_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 	mes_set_hw_res_pkt.enable_mes_info_ctx = 1;
-	mes_set_hw_res_pkt.mes_info_ctx_mc_addr = mes->resource_1_gpu_addr;
-	mes_set_hw_res_pkt.mes_info_ctx_size = MES11_HW_RESOURCE_1_SIZE;
-	mes_set_hw_res_pkt.cleaner_shader_fence_mc_addr =
-		mes->resource_1_gpu_addr + MES11_HW_RESOURCE_1_SIZE;
+
+	mes_set_hw_res_pkt.cleaner_shader_fence_mc_addr = mes->resource_1_gpu_addr[0];
+	if (amdgpu_sriov_is_mes_info_enable(mes->adev)) {
+		mes_set_hw_res_pkt.mes_info_ctx_mc_addr =
+			mes->resource_1_gpu_addr[0] + AMDGPU_GPU_PAGE_SIZE;
+		mes_set_hw_res_pkt.mes_info_ctx_size = MES11_HW_RESOURCE_1_SIZE;
+	}
 
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt),
@@ -1381,7 +1384,7 @@ static int mes_v11_0_mqd_sw_init(struct amdgpu_device *adev,
 static int mes_v11_0_sw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-	int pipe, r;
+	int pipe, r, bo_size;
 
 	adev->mes.funcs = &mes_v11_0_funcs;
 	adev->mes.kiq_hw_init = &mes_v11_0_kiq_hw_init;
@@ -1416,19 +1419,21 @@ static int mes_v11_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	if (amdgpu_sriov_is_mes_info_enable(adev) ||
-	    adev->gfx.enable_cleaner_shader) {
-		r = amdgpu_bo_create_kernel(adev,
-					    MES11_HW_RESOURCE_1_SIZE + AMDGPU_GPU_PAGE_SIZE,
-					    PAGE_SIZE,
-					    AMDGPU_GEM_DOMAIN_VRAM,
-					    &adev->mes.resource_1,
-					    &adev->mes.resource_1_gpu_addr,
-					    &adev->mes.resource_1_addr);
-		if (r) {
-			dev_err(adev->dev, "(%d) failed to create mes resource_1 bo\n", r);
-			return r;
-		}
+	bo_size = AMDGPU_GPU_PAGE_SIZE;
+	if (amdgpu_sriov_is_mes_info_enable(adev))
+		bo_size += MES11_HW_RESOURCE_1_SIZE;
+
+	/* Only needed for AMDGPU_MES_SCHED_PIPE on MES 11*/
+	r = amdgpu_bo_create_kernel(adev,
+				    bo_size,
+				    PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM,
+				    &adev->mes.resource_1[0],
+				    &adev->mes.resource_1_gpu_addr[0],
+				    &adev->mes.resource_1_addr[0]);
+	if (r) {
+		dev_err(adev->dev, "(%d) failed to create mes resource_1 bo\n", r);
+		return r;
 	}
 
 	return 0;
@@ -1439,11 +1444,8 @@ static int mes_v11_0_sw_fini(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	int pipe;
 
-	if (amdgpu_sriov_is_mes_info_enable(adev) ||
-	    adev->gfx.enable_cleaner_shader) {
-		amdgpu_bo_free_kernel(&adev->mes.resource_1, &adev->mes.resource_1_gpu_addr,
-				      &adev->mes.resource_1_addr);
-	}
+	amdgpu_bo_free_kernel(&adev->mes.resource_1[0], &adev->mes.resource_1_gpu_addr[0],
+			      &adev->mes.resource_1_addr[0]);
 
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
 		kfree(adev->mes.mqd_backup[pipe]);
@@ -1632,13 +1634,10 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		goto failure;
 
-	if (amdgpu_sriov_is_mes_info_enable(adev) ||
-	    adev->gfx.enable_cleaner_shader) {
-		r = mes_v11_0_set_hw_resources_1(&adev->mes);
-		if (r) {
-			DRM_ERROR("failed mes_v11_0_set_hw_resources_1, r=%d\n", r);
-			goto failure;
-		}
+	r = mes_v11_0_set_hw_resources_1(&adev->mes);
+	if (r) {
+		DRM_ERROR("failed mes_v11_0_set_hw_resources_1, r=%d\n", r);
+		goto failure;
 	}
 
 	r = mes_v11_0_query_sched_status(&adev->mes);

@@ -844,7 +844,9 @@ int amdgpu_xgmi_get_bandwidth(struct amdgpu_device *adev, struct amdgpu_device *
 {
 	bool peer_mode = bw_mode == AMDGPU_XGMI_BW_MODE_PER_PEER;
 	int unit_scale = bw_unit == AMDGPU_XGMI_BW_UNIT_MBYTES ? 1000 : 1;
-	int speed = 25, num_lanes = 16, num_links = !peer_mode ? 1 : -1;
+	int num_lanes = adev->gmc.xgmi.max_width;
+	int speed = adev->gmc.xgmi.max_speed;
+	int num_links = !peer_mode ? 1 : -1;
 
 	if (!(min_bw && max_bw))
 		return -EINVAL;

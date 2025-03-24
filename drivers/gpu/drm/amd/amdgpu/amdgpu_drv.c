@@ -122,9 +122,10 @@
  * - 3.60.0 - Add AMDGPU_TILING_GFX12_DCC_WRITE_COMPRESS_DISABLE (Vulkan requirement)
  * - 3.61.0 - Contains fix for RV/PCO compute queues
  * - 3.62.0 - Add AMDGPU_IDS_FLAGS_MODE_PF, AMDGPU_IDS_FLAGS_MODE_VF & AMDGPU_IDS_FLAGS_MODE_PT
+ * - 3.63.0 - GFX12 display DCC supports 256B max compressed block size
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	62
+#define KMS_DRIVER_MINOR	63
 #define KMS_DRIVER_PATCHLEVEL	0
 
 /*

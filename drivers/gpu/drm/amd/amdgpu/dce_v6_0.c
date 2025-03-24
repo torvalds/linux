@@ -40,18 +40,25 @@
 #include "amdgpu_connectors.h"
 #include "amdgpu_display.h"
 
+#include "dce_v6_0.h"
+#include "sid.h"
+
 #include "bif/bif_3_0_d.h"
 #include "bif/bif_3_0_sh_mask.h"
+
 #include "oss/oss_1_0_d.h"
 #include "oss/oss_1_0_sh_mask.h"
+
 #include "gca/gfx_6_0_d.h"
 #include "gca/gfx_6_0_sh_mask.h"
+#include "gca/gfx_7_2_enum.h"
+
 #include "gmc/gmc_6_0_d.h"
 #include "gmc/gmc_6_0_sh_mask.h"
+
 #include "dce/dce_6_0_d.h"
 #include "dce/dce_6_0_sh_mask.h"
-#include "gca/gfx_7_2_enum.h"
-#include "dce_v6_0.h"
+
 #include "si_enums.h"
 
 static void dce_v6_0_set_display_funcs(struct amdgpu_device *adev);
@@ -59,31 +66,31 @@ static void dce_v6_0_set_irq_funcs(struct amdgpu_device *adev);
 
 static const u32 crtc_offsets[6] =
 {
-	SI_CRTC0_REGISTER_OFFSET,
-	SI_CRTC1_REGISTER_OFFSET,
-	SI_CRTC2_REGISTER_OFFSET,
-	SI_CRTC3_REGISTER_OFFSET,
-	SI_CRTC4_REGISTER_OFFSET,
-	SI_CRTC5_REGISTER_OFFSET
+	CRTC0_REGISTER_OFFSET,
+	CRTC1_REGISTER_OFFSET,
+	CRTC2_REGISTER_OFFSET,
+	CRTC3_REGISTER_OFFSET,
+	CRTC4_REGISTER_OFFSET,
+	CRTC5_REGISTER_OFFSET
 };
 
 static const u32 hpd_offsets[] =
 {
-	mmDC_HPD1_INT_STATUS - mmDC_HPD1_INT_STATUS,
-	mmDC_HPD2_INT_STATUS - mmDC_HPD1_INT_STATUS,
-	mmDC_HPD3_INT_STATUS - mmDC_HPD1_INT_STATUS,
-	mmDC_HPD4_INT_STATUS - mmDC_HPD1_INT_STATUS,
-	mmDC_HPD5_INT_STATUS - mmDC_HPD1_INT_STATUS,
-	mmDC_HPD6_INT_STATUS - mmDC_HPD1_INT_STATUS,
+	HPD0_REGISTER_OFFSET,
+	HPD1_REGISTER_OFFSET,
+	HPD2_REGISTER_OFFSET,
+	HPD3_REGISTER_OFFSET,
+	HPD4_REGISTER_OFFSET,
+	HPD5_REGISTER_OFFSET
 };
 
 static const uint32_t dig_offsets[] = {
-	SI_CRTC0_REGISTER_OFFSET,
-	SI_CRTC1_REGISTER_OFFSET,
-	SI_CRTC2_REGISTER_OFFSET,
-	SI_CRTC3_REGISTER_OFFSET,
-	SI_CRTC4_REGISTER_OFFSET,
-	SI_CRTC5_REGISTER_OFFSET,
+	CRTC0_REGISTER_OFFSET,
+	CRTC1_REGISTER_OFFSET,
+	CRTC2_REGISTER_OFFSET,
+	CRTC3_REGISTER_OFFSET,
+	CRTC4_REGISTER_OFFSET,
+	CRTC5_REGISTER_OFFSET,
 	(0x13830 - 0x7030) >> 2,
 };
 
@@ -1389,13 +1396,13 @@ static void dce_v6_0_audio_enable(struct amdgpu_device *adev,
 
 static const u32 pin_offsets[7] =
 {
-	(0x1780 - 0x1780),
-	(0x1786 - 0x1780),
-	(0x178c - 0x1780),
-	(0x1792 - 0x1780),
-	(0x1798 - 0x1780),
-	(0x179d - 0x1780),
-	(0x17a4 - 0x1780),
+	AUD0_REGISTER_OFFSET,
+	AUD1_REGISTER_OFFSET,
+	AUD2_REGISTER_OFFSET,
+	AUD3_REGISTER_OFFSET,
+	AUD4_REGISTER_OFFSET,
+	AUD5_REGISTER_OFFSET,
+	AUD6_REGISTER_OFFSET,
 };
 
 static int dce_v6_0_audio_init(struct amdgpu_device *adev)
@@ -2954,22 +2961,22 @@ static void dce_v6_0_set_crtc_vblank_interrupt_state(struct amdgpu_device *adev,
 
 	switch (crtc) {
 	case 0:
-		reg_block = SI_CRTC0_REGISTER_OFFSET;
+		reg_block = CRTC0_REGISTER_OFFSET;
 		break;
 	case 1:
-		reg_block = SI_CRTC1_REGISTER_OFFSET;
+		reg_block = CRTC1_REGISTER_OFFSET;
 		break;
 	case 2:
-		reg_block = SI_CRTC2_REGISTER_OFFSET;
+		reg_block = CRTC2_REGISTER_OFFSET;
 		break;
 	case 3:
-		reg_block = SI_CRTC3_REGISTER_OFFSET;
+		reg_block = CRTC3_REGISTER_OFFSET;
 		break;
 	case 4:
-		reg_block = SI_CRTC4_REGISTER_OFFSET;
+		reg_block = CRTC4_REGISTER_OFFSET;
 		break;
 	case 5:
-		reg_block = SI_CRTC5_REGISTER_OFFSET;
+		reg_block = CRTC5_REGISTER_OFFSET;
 		break;
 	default:
 		DRM_DEBUG("invalid crtc %d\n", crtc);

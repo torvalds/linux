@@ -63,6 +63,10 @@ void dmub_hw_lock_mgr_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
 
 bool should_use_dmub_lock(struct dc_link *link)
 {
+	/* ASIC doesn't support DMUB */
+	if (!link->ctx->dmub_srv)
+		return false;
+
 	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
 		return true;
 

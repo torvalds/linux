@@ -143,9 +143,9 @@ struct amdgpu_mes {
 	const struct amdgpu_mes_funcs   *funcs;
 
 	/* mes resource_1 bo*/
-	struct amdgpu_bo    *resource_1;
-	uint64_t            resource_1_gpu_addr;
-	void                *resource_1_addr;
+	struct amdgpu_bo    *resource_1[AMDGPU_MAX_MES_PIPES];
+	uint64_t            resource_1_gpu_addr[AMDGPU_MAX_MES_PIPES];
+	void                *resource_1_addr[AMDGPU_MAX_MES_PIPES];
 
 };
 
