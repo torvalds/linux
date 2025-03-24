@@ -62,7 +62,6 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
 		if (!IS_ENABLED(CONFIG_IRQ_WORK))
 			return -EINVAL;
 	} else {
-		/* record the work call stack in order to print it in KASAN reports */
 		kasan_record_aux_stack(work);
 	}
 

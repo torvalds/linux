@@ -39,7 +39,7 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include "kl5kusb105.h"
@@ -75,7 +75,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_serial_driver kl5kusb105d_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"kl5kusb105d",
 	},
 	.description =		"KL5KUSB105D / PalmConnect",

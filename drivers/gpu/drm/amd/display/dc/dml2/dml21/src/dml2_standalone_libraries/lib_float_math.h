@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __LIB_FLOAT_MATH_H__
 #define __LIB_FLOAT_MATH_H__
 

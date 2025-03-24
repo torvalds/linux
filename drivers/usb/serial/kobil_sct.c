@@ -77,7 +77,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_serial_driver kobil_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"kobil",
 	},
 	.description =		"KOBIL USB smart card terminal",
@@ -156,8 +155,7 @@ static void kobil_init_termios(struct tty_struct *tty)
 {
 	/* Default to echo off and other sane device settings */
 	tty->termios.c_lflag = 0;
-	tty->termios.c_iflag &= ~(ISIG | ICANON | ECHO | IEXTEN | XCASE);
-	tty->termios.c_iflag |= IGNBRK | IGNPAR | IXOFF;
+	tty->termios.c_iflag = IGNBRK | IGNPAR | IXOFF;
 	/* do NOT translate CR to CR-NL (0x0A -> 0x0A 0x0D) */
 	tty->termios.c_oflag &= ~ONLCR;
 }

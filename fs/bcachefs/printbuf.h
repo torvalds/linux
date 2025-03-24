@@ -251,16 +251,23 @@ static inline void prt_hex_byte_upper(struct printbuf *out, u8 byte)
 	printbuf_nul_terminate_reserved(out);
 }
 
+static inline void printbuf_reset_keep_tabstops(struct printbuf *buf)
+{
+	buf->pos		= 0;
+	buf->allocation_failure	= 0;
+	buf->last_newline	= 0;
+	buf->last_field		= 0;
+	buf->indent		= 0;
+	buf->cur_tabstop	= 0;
+}
+
 /**
  * printbuf_reset - re-use a printbuf without freeing and re-initializing it:
  */
 static inline void printbuf_reset(struct printbuf *buf)
 {
-	buf->pos		= 0;
-	buf->allocation_failure	= 0;
-	buf->indent		= 0;
+	printbuf_reset_keep_tabstops(buf);
 	buf->nr_tabstops	= 0;
-	buf->cur_tabstop	= 0;
 }
 
 /**

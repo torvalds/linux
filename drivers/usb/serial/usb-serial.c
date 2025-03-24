@@ -706,14 +706,12 @@ static const struct usb_device_id *match_dynamic_id(struct usb_interface *intf,
 {
 	struct usb_dynid *dynid;
 
-	spin_lock(&drv->dynids.lock);
+	guard(mutex)(&usb_dynids_lock);
 	list_for_each_entry(dynid, &drv->dynids.list, node) {
 		if (usb_match_one_id(intf, &dynid->id)) {
-			spin_unlock(&drv->dynids.lock);
 			return &dynid->id;
 		}
 	}
-	spin_unlock(&drv->dynids.lock);
 	return NULL;
 }
 
@@ -1459,17 +1457,18 @@ static void usb_serial_deregister(struct usb_serial_driver *device)
 }
 
 /**
- * usb_serial_register_drivers - register drivers for a usb-serial module
+ * __usb_serial_register_drivers - register drivers for a usb-serial module
  * @serial_drivers: NULL-terminated array of pointers to drivers to be registered
+ * @owner: owning module
  * @name: name of the usb_driver for this set of @serial_drivers
  * @id_table: list of all devices this @serial_drivers set binds to
  *
  * Registers all the drivers in the @serial_drivers array, and dynamically
  * creates a struct usb_driver with the name @name and id_table of @id_table.
  */
-int usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[],
-				const char *name,
-				const struct usb_device_id *id_table)
+int __usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[],
+				  struct module *owner, const char *name,
+				  const struct usb_device_id *id_table)
 {
 	int rc;
 	struct usb_driver *udriver;
@@ -1514,6 +1513,7 @@ int usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[]
 
 	for (sd = serial_drivers; *sd; ++sd) {
 		(*sd)->usb_driver = udriver;
+		(*sd)->driver.owner = owner;
 		rc = usb_serial_register(*sd);
 		if (rc)
 			goto err_deregister_drivers;
@@ -1532,7 +1532,7 @@ err_free_driver:
 	kfree(udriver);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(usb_serial_register_drivers);
+EXPORT_SYMBOL_GPL(__usb_serial_register_drivers);
 
 /**
  * usb_serial_deregister_drivers - deregister drivers for a usb-serial module

@@ -133,7 +133,7 @@ MODULE_DEVICE_TABLE(of, am335x_phy_ids);
 
 static struct platform_driver am335x_phy_driver = {
 	.probe          = am335x_phy_probe,
-	.remove_new     = am335x_phy_remove,
+	.remove         = am335x_phy_remove,
 	.driver         = {
 		.name   = "am335x-phy-driver",
 		.pm = &am335x_pm_ops,

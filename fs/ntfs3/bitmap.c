@@ -710,20 +710,17 @@ int wnd_set_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 {
 	int err = 0;
 	struct super_block *sb = wnd->sb;
-	size_t bits0 = bits;
 	u32 wbits = 8 * sb->s_blocksize;
 	size_t iw = bit >> (sb->s_blocksize_bits + 3);
 	u32 wbit = bit & (wbits - 1);
 	struct buffer_head *bh;
+	u32 op;
 
-	while (iw < wnd->nwnd && bits) {
-		u32 tail, op;
-
+	for (; iw < wnd->nwnd && bits; iw++, bit += op, bits -= op, wbit = 0) {
 		if (iw + 1 == wnd->nwnd)
 			wbits = wnd->bits_last;
 
-		tail = wbits - wbit;
-		op = min_t(u32, tail, bits);
+		op = min_t(u32, wbits - wbit, bits);
 
 		bh = wnd_map(wnd, iw);
 		if (IS_ERR(bh)) {
@@ -736,20 +733,15 @@ int wnd_set_free(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 		ntfs_bitmap_clear_le(bh->b_data, wbit, op);
 
 		wnd->free_bits[iw] += op;
+		wnd->total_zeroes += op;
 
 		set_buffer_uptodate(bh);
 		mark_buffer_dirty(bh);
 		unlock_buffer(bh);
 		put_bh(bh);
 
-		wnd->total_zeroes += op;
-		bits -= op;
-		wbit = 0;
-		iw += 1;
+		wnd_add_free_ext(wnd, bit, op, false);
 	}
-
-	wnd_add_free_ext(wnd, bit, bits0, false);
-
 	return err;
 }
 
@@ -760,20 +752,17 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 {
 	int err = 0;
 	struct super_block *sb = wnd->sb;
-	size_t bits0 = bits;
 	size_t iw = bit >> (sb->s_blocksize_bits + 3);
 	u32 wbits = 8 * sb->s_blocksize;
 	u32 wbit = bit & (wbits - 1);
 	struct buffer_head *bh;
+	u32 op;
 
-	while (iw < wnd->nwnd && bits) {
-		u32 tail, op;
-
+	for (; iw < wnd->nwnd && bits; iw++, bit += op, bits -= op, wbit = 0) {
 		if (unlikely(iw + 1 == wnd->nwnd))
 			wbits = wnd->bits_last;
 
-		tail = wbits - wbit;
-		op = min_t(u32, tail, bits);
+		op = min_t(u32, wbits - wbit, bits);
 
 		bh = wnd_map(wnd, iw);
 		if (IS_ERR(bh)) {
@@ -785,21 +774,16 @@ int wnd_set_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 
 		ntfs_bitmap_set_le(bh->b_data, wbit, op);
 		wnd->free_bits[iw] -= op;
+		wnd->total_zeroes -= op;
 
 		set_buffer_uptodate(bh);
 		mark_buffer_dirty(bh);
 		unlock_buffer(bh);
 		put_bh(bh);
 
-		wnd->total_zeroes -= op;
-		bits -= op;
-		wbit = 0;
-		iw += 1;
+		if (!RB_EMPTY_ROOT(&wnd->start_tree))
+			wnd_remove_free_ext(wnd, bit, op);
 	}
-
-	if (!RB_EMPTY_ROOT(&wnd->start_tree))
-		wnd_remove_free_ext(wnd, bit, bits0);
-
 	return err;
 }
 
@@ -852,15 +836,13 @@ static bool wnd_is_free_hlp(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 	size_t iw = bit >> (sb->s_blocksize_bits + 3);
 	u32 wbits = 8 * sb->s_blocksize;
 	u32 wbit = bit & (wbits - 1);
+	u32 op;
 
-	while (iw < wnd->nwnd && bits) {
-		u32 tail, op;
-
+	for (; iw < wnd->nwnd && bits; iw++, bits -= op, wbit = 0) {
 		if (unlikely(iw + 1 == wnd->nwnd))
 			wbits = wnd->bits_last;
 
-		tail = wbits - wbit;
-		op = min_t(u32, tail, bits);
+		op = min_t(u32, wbits - wbit, bits);
 
 		if (wbits != wnd->free_bits[iw]) {
 			bool ret;
@@ -875,10 +857,6 @@ static bool wnd_is_free_hlp(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 			if (!ret)
 				return false;
 		}
-
-		bits -= op;
-		wbit = 0;
-		iw += 1;
 	}
 
 	return true;
@@ -928,6 +906,7 @@ bool wnd_is_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 	size_t iw = bit >> (sb->s_blocksize_bits + 3);
 	u32 wbits = 8 * sb->s_blocksize;
 	u32 wbit = bit & (wbits - 1);
+	u32 op;
 	size_t end;
 	struct rb_node *n;
 	struct e_node *e;
@@ -945,14 +924,11 @@ bool wnd_is_used(struct wnd_bitmap *wnd, size_t bit, size_t bits)
 		return false;
 
 use_wnd:
-	while (iw < wnd->nwnd && bits) {
-		u32 tail, op;
-
+	for (; iw < wnd->nwnd && bits; iw++, bits -= op, wbit = 0) {
 		if (unlikely(iw + 1 == wnd->nwnd))
 			wbits = wnd->bits_last;
 
-		tail = wbits - wbit;
-		op = min_t(u32, tail, bits);
+		op = min_t(u32, wbits - wbit, bits);
 
 		if (wnd->free_bits[iw]) {
 			bool ret;
@@ -966,10 +942,6 @@ use_wnd:
 			if (!ret)
 				goto out;
 		}
-
-		bits -= op;
-		wbit = 0;
-		iw += 1;
 	}
 	ret = true;
 

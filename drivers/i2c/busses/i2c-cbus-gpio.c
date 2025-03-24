@@ -264,7 +264,7 @@ MODULE_DEVICE_TABLE(of, i2c_cbus_dt_ids);
 
 static struct platform_driver cbus_i2c_driver = {
 	.probe	= cbus_i2c_probe,
-	.remove_new = cbus_i2c_remove,
+	.remove = cbus_i2c_remove,
 	.driver	= {
 		.name	= "i2c-cbus-gpio",
 		.of_match_table = of_match_ptr(i2c_cbus_dt_ids),

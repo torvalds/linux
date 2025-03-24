@@ -2049,7 +2049,7 @@ static struct platform_driver ican3_driver = {
 		.name	= DRV_NAME,
 	},
 	.probe		= ican3_probe,
-	.remove_new	= ican3_remove,
+	.remove		= ican3_remove,
 };
 
 module_platform_driver(ican3_driver);

@@ -589,7 +589,7 @@ static struct platform_driver vpif_driver = {
 		.name	= VPIF_DRIVER_NAME,
 		.pm	= vpif_pm_ops,
 	},
-	.remove_new = vpif_remove,
+	.remove = vpif_remove,
 	.probe = vpif_probe,
 };
 

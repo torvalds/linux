@@ -27,7 +27,7 @@
 #include <linux/vmalloc.h>
 #include <linux/efi_embedded_fw.h>
 
-MODULE_IMPORT_NS(TEST_FIRMWARE);
+MODULE_IMPORT_NS("TEST_FIRMWARE");
 
 #define TEST_FIRMWARE_NAME	"test-firmware.bin"
 #define TEST_FIRMWARE_NUM_REQS	4

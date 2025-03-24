@@ -2,8 +2,12 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #include "dml2_debug.h"
+
+int dml2_log_internal(const char *format, ...)
+{
+	return 0;
+}
 
 int dml2_printf(const char *format, ...)
 {

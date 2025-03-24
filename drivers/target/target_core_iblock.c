@@ -26,7 +26,7 @@
 #include <linux/pr.h>
 #include <scsi/scsi_proto.h>
 #include <scsi/scsi_common.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>

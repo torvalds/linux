@@ -32,43 +32,21 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	new_id->stack = stack;
 
 	block_signals_trace();
-	new_id->u.pid = start_userspace(stack);
+	new_id->pid = start_userspace(stack);
 	unblock_signals_trace();
 
-	if (new_id->u.pid < 0) {
-		ret = new_id->u.pid;
+	if (new_id->pid < 0) {
+		ret = new_id->pid;
 		goto out_free;
 	}
 
-	/*
-	 * Ensure the new MM is clean and nothing unwanted is mapped.
-	 *
-	 * TODO: We should clear the memory up to STUB_START to ensure there is
-	 * nothing mapped there, i.e. we (currently) have:
-	 *
-	 * |- user memory -|- unused        -|- stub        -|- unused    -|
-	 *                 ^ TASK_SIZE      ^ STUB_START
-	 *
-	 * Meaning we have two unused areas where we may still have valid
-	 * mappings from our internal clone(). That isn't really a problem as
-	 * userspace is not going to access them, but it is definitely not
-	 * correct.
-	 *
-	 * However, we are "lucky" and if rseq is configured, then on 32 bit
-	 * it will fall into the first empty range while on 64 bit it is going
-	 * to use an anonymous mapping in the second range. As such, things
-	 * continue to work for now as long as we don't start unmapping these
-	 * areas.
-	 *
-	 * Change this to STUB_START once we have a clean userspace.
-	 */
-	unmap(new_id, 0, TASK_SIZE);
+	/* Ensure the new MM is clean and nothing unwanted is mapped */
+	unmap(new_id, 0, STUB_START);
 
 	return 0;
 
  out_free:
-	if (new_id->stack != 0)
-		free_pages(new_id->stack, ilog2(STUB_DATA_PAGES));
+	free_pages(new_id->stack, ilog2(STUB_DATA_PAGES));
  out:
 	return ret;
 }
@@ -83,12 +61,12 @@ void destroy_context(struct mm_struct *mm)
 	 * whole UML suddenly dying.  Also, cover negative and
 	 * 1 cases, since they shouldn't happen either.
 	 */
-	if (mmu->id.u.pid < 2) {
+	if (mmu->id.pid < 2) {
 		printk(KERN_ERR "corrupt mm_context - pid = %d\n",
-		       mmu->id.u.pid);
+		       mmu->id.pid);
 		return;
 	}
-	os_kill_ptraced_process(mmu->id.u.pid, 1);
+	os_kill_ptraced_process(mmu->id.pid, 1);
 
 	free_pages(mmu->id.stack, ilog2(STUB_DATA_PAGES));
 }

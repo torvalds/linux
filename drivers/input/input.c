@@ -115,22 +115,22 @@ static void input_pass_values(struct input_dev *dev,
 
 	lockdep_assert_held(&dev->event_lock);
 
-	rcu_read_lock();
+	scoped_guard(rcu) {
+		handle = rcu_dereference(dev->grab);
+		if (handle) {
+			count = handle->handle_events(handle, vals, count);
+			break;
+		}
 
-	handle = rcu_dereference(dev->grab);
-	if (handle) {
-		count = handle->handler->events(handle, vals, count);
-	} else {
-		list_for_each_entry_rcu(handle, &dev->h_list, d_node)
+		list_for_each_entry_rcu(handle, &dev->h_list, d_node) {
 			if (handle->open) {
-				count = handle->handler->events(handle, vals,
-								count);
+				count = handle->handle_events(handle, vals,
+							      count);
 				if (!count)
 					break;
 			}
+		}
 	}
-
-	rcu_read_unlock();
 
 	/* trigger auto repeat for key events */
 	if (test_bit(EV_REP, dev->evbit) && test_bit(EV_KEY, dev->evbit)) {
@@ -390,13 +390,9 @@ void input_handle_event(struct input_dev *dev,
 void input_event(struct input_dev *dev,
 		 unsigned int type, unsigned int code, int value)
 {
-	unsigned long flags;
-
 	if (is_event_supported(type, dev->evbit, EV_MAX)) {
-
-		spin_lock_irqsave(&dev->event_lock, flags);
+		guard(spinlock_irqsave)(&dev->event_lock);
 		input_handle_event(dev, type, code, value);
-		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
 EXPORT_SYMBOL(input_event);
@@ -417,18 +413,15 @@ void input_inject_event(struct input_handle *handle,
 {
 	struct input_dev *dev = handle->dev;
 	struct input_handle *grab;
-	unsigned long flags;
 
 	if (is_event_supported(type, dev->evbit, EV_MAX)) {
-		spin_lock_irqsave(&dev->event_lock, flags);
+		guard(spinlock_irqsave)(&dev->event_lock);
+		guard(rcu)();
 
-		rcu_read_lock();
 		grab = rcu_dereference(dev->grab);
 		if (!grab || grab == handle)
 			input_handle_event(dev, type, code, value);
-		rcu_read_unlock();
 
-		spin_unlock_irqrestore(&dev->event_lock, flags);
 	}
 }
 EXPORT_SYMBOL(input_inject_event);
@@ -526,22 +519,15 @@ EXPORT_SYMBOL(input_copy_abs);
 int input_grab_device(struct input_handle *handle)
 {
 	struct input_dev *dev = handle->dev;
-	int retval;
 
-	retval = mutex_lock_interruptible(&dev->mutex);
-	if (retval)
-		return retval;
+	scoped_cond_guard(mutex_intr, return -EINTR, &dev->mutex) {
+		if (dev->grab)
+			return -EBUSY;
 
-	if (dev->grab) {
-		retval = -EBUSY;
-		goto out;
+		rcu_assign_pointer(dev->grab, handle);
 	}
 
-	rcu_assign_pointer(dev->grab, handle);
-
- out:
-	mutex_unlock(&dev->mutex);
-	return retval;
+	return 0;
 }
 EXPORT_SYMBOL(input_grab_device);
 
@@ -576,9 +562,8 @@ void input_release_device(struct input_handle *handle)
 {
 	struct input_dev *dev = handle->dev;
 
-	mutex_lock(&dev->mutex);
+	guard(mutex)(&dev->mutex);
 	__input_release_device(handle);
-	mutex_unlock(&dev->mutex);
 }
 EXPORT_SYMBOL(input_release_device);
 
@@ -592,64 +577,57 @@ EXPORT_SYMBOL(input_release_device);
 int input_open_device(struct input_handle *handle)
 {
 	struct input_dev *dev = handle->dev;
-	int retval;
+	int error;
 
-	retval = mutex_lock_interruptible(&dev->mutex);
-	if (retval)
-		return retval;
+	scoped_cond_guard(mutex_intr, return -EINTR, &dev->mutex) {
+		if (dev->going_away)
+			return -ENODEV;
 
-	if (dev->going_away) {
-		retval = -ENODEV;
-		goto out;
-	}
+		handle->open++;
 
-	handle->open++;
+		if (handle->handler->passive_observer)
+			return 0;
 
-	if (dev->users++ || dev->inhibited) {
-		/*
-		 * Device is already opened and/or inhibited,
-		 * so we can exit immediately and report success.
-		 */
-		goto out;
-	}
-
-	if (dev->open) {
-		retval = dev->open(dev);
-		if (retval) {
-			dev->users--;
-			handle->open--;
+		if (dev->users++ || dev->inhibited) {
 			/*
-			 * Make sure we are not delivering any more events
-			 * through this handle
+			 * Device is already opened and/or inhibited,
+			 * so we can exit immediately and report success.
 			 */
-			synchronize_rcu();
-			goto out;
+			return 0;
 		}
+
+		if (dev->open) {
+			error = dev->open(dev);
+			if (error) {
+				dev->users--;
+				handle->open--;
+				/*
+				 * Make sure we are not delivering any more
+				 * events through this handle.
+				 */
+				synchronize_rcu();
+				return error;
+			}
+		}
+
+		if (dev->poller)
+			input_dev_poller_start(dev->poller);
 	}
 
-	if (dev->poller)
-		input_dev_poller_start(dev->poller);
-
- out:
-	mutex_unlock(&dev->mutex);
-	return retval;
+	return 0;
 }
 EXPORT_SYMBOL(input_open_device);
 
 int input_flush_device(struct input_handle *handle, struct file *file)
 {
 	struct input_dev *dev = handle->dev;
-	int retval;
 
-	retval = mutex_lock_interruptible(&dev->mutex);
-	if (retval)
-		return retval;
+	scoped_cond_guard(mutex_intr, return -EINTR, &dev->mutex) {
+		if (dev->flush)
+			return dev->flush(dev, file);
+	}
 
-	if (dev->flush)
-		retval = dev->flush(dev, file);
-
-	mutex_unlock(&dev->mutex);
-	return retval;
+	return 0;
 }
 EXPORT_SYMBOL(input_flush_device);
 
@@ -664,15 +642,17 @@ void input_close_device(struct input_handle *handle)
 {
 	struct input_dev *dev = handle->dev;
 
-	mutex_lock(&dev->mutex);
+	guard(mutex)(&dev->mutex);
 
 	__input_release_device(handle);
 
-	if (!--dev->users && !dev->inhibited) {
-		if (dev->poller)
-			input_dev_poller_stop(dev->poller);
-		if (dev->close)
-			dev->close(dev);
+	if (!handle->handler->passive_observer) {
+		if (!--dev->users && !dev->inhibited) {
+			if (dev->poller)
+				input_dev_poller_stop(dev->poller);
+			if (dev->close)
+				dev->close(dev);
+		}
 	}
 
 	if (!--handle->open) {
@@ -683,8 +663,6 @@ void input_close_device(struct input_handle *handle)
 		 */
 		synchronize_rcu();
 	}
-
-	mutex_unlock(&dev->mutex);
 }
 EXPORT_SYMBOL(input_close_device);
 
@@ -721,11 +699,10 @@ static void input_disconnect_device(struct input_dev *dev)
 	 * not to protect access to dev->going_away but rather to ensure
 	 * that there are no threads in the middle of input_open_device()
 	 */
-	mutex_lock(&dev->mutex);
-	dev->going_away = true;
-	mutex_unlock(&dev->mutex);
+	scoped_guard(mutex, &dev->mutex)
+		dev->going_away = true;
 
-	spin_lock_irq(&dev->event_lock);
+	guard(spinlock_irq)(&dev->event_lock);
 
 	/*
 	 * Simulate keyup events for all pressed keys so that handlers
@@ -738,8 +715,6 @@ static void input_disconnect_device(struct input_dev *dev)
 
 	list_for_each_entry(handle, &dev->h_list, d_node)
 		handle->open = 0;
-
-	spin_unlock_irq(&dev->event_lock);
 }
 
 /**
@@ -896,14 +871,9 @@ static int input_default_setkeycode(struct input_dev *dev,
  */
 int input_get_keycode(struct input_dev *dev, struct input_keymap_entry *ke)
 {
-	unsigned long flags;
-	int retval;
+	guard(spinlock_irqsave)(&dev->event_lock);
 
-	spin_lock_irqsave(&dev->event_lock, flags);
-	retval = dev->getkeycode(dev, ke);
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	return retval;
+	return dev->getkeycode(dev, ke);
 }
 EXPORT_SYMBOL(input_get_keycode);
 
@@ -918,18 +888,17 @@ EXPORT_SYMBOL(input_get_keycode);
 int input_set_keycode(struct input_dev *dev,
 		      const struct input_keymap_entry *ke)
 {
-	unsigned long flags;
 	unsigned int old_keycode;
-	int retval;
+	int error;
 
 	if (ke->keycode > KEY_MAX)
 		return -EINVAL;
 
-	spin_lock_irqsave(&dev->event_lock, flags);
+	guard(spinlock_irqsave)(&dev->event_lock);
 
-	retval = dev->setkeycode(dev, ke, &old_keycode);
-	if (retval)
-		goto out;
+	error = dev->setkeycode(dev, ke, &old_keycode);
+	if (error)
+		return error;
 
 	/* Make sure KEY_RESERVED did not get enabled. */
 	__clear_bit(KEY_RESERVED, dev->keybit);
@@ -957,10 +926,7 @@ int input_set_keycode(struct input_dev *dev,
 				    EV_SYN, SYN_REPORT, 1);
 	}
 
- out:
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-
-	return retval;
+	return 0;
 }
 EXPORT_SYMBOL(input_set_keycode);
 
@@ -1079,32 +1045,30 @@ static inline void input_wakeup_procfs_readers(void)
 	wake_up(&input_devices_poll_wait);
 }
 
+struct input_seq_state {
+	unsigned short pos;
+	bool mutex_acquired;
+	int input_devices_state;
+};
+
 static __poll_t input_proc_devices_poll(struct file *file, poll_table *wait)
 {
+	struct seq_file *seq = file->private_data;
+	struct input_seq_state *state = seq->private;
+
 	poll_wait(file, &input_devices_poll_wait, wait);
-	if (file->f_version != input_devices_state) {
-		file->f_version = input_devices_state;
+	if (state->input_devices_state != input_devices_state) {
+		state->input_devices_state = input_devices_state;
 		return EPOLLIN | EPOLLRDNORM;
 	}
 
 	return 0;
 }
 
-union input_seq_state {
-	struct {
-		unsigned short pos;
-		bool mutex_acquired;
-	};
-	void *p;
-};
-
 static void *input_devices_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	struct input_seq_state *state = seq->private;
 	int error;
-
-	/* We need to fit into seq->private pointer */
-	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
 
 	error = mutex_lock_interruptible(&input_mutex);
 	if (error) {
@@ -1124,7 +1088,7 @@ static void *input_devices_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void input_seq_stop(struct seq_file *seq, void *v)
 {
-	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	struct input_seq_state *state = seq->private;
 
 	if (state->mutex_acquired)
 		mutex_unlock(&input_mutex);
@@ -1210,7 +1174,8 @@ static const struct seq_operations input_devices_seq_ops = {
 
 static int input_proc_devices_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &input_devices_seq_ops);
+	return seq_open_private(file, &input_devices_seq_ops,
+				sizeof(struct input_seq_state));
 }
 
 static const struct proc_ops input_devices_proc_ops = {
@@ -1218,16 +1183,13 @@ static const struct proc_ops input_devices_proc_ops = {
 	.proc_poll	= input_proc_devices_poll,
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,
-	.proc_release	= seq_release,
+	.proc_release	= seq_release_private,
 };
 
 static void *input_handlers_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	struct input_seq_state *state = seq->private;
 	int error;
-
-	/* We need to fit into seq->private pointer */
-	BUILD_BUG_ON(sizeof(union input_seq_state) != sizeof(seq->private));
 
 	error = mutex_lock_interruptible(&input_mutex);
 	if (error) {
@@ -1243,7 +1205,7 @@ static void *input_handlers_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *input_handlers_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	struct input_seq_state *state = seq->private;
 
 	state->pos = *pos + 1;
 	return seq_list_next(v, &input_handler_list, pos);
@@ -1252,7 +1214,7 @@ static void *input_handlers_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 static int input_handlers_seq_show(struct seq_file *seq, void *v)
 {
 	struct input_handler *handler = container_of(v, struct input_handler, node);
-	union input_seq_state *state = (union input_seq_state *)&seq->private;
+	struct input_seq_state *state = seq->private;
 
 	seq_printf(seq, "N: Number=%u Name=%s", state->pos, handler->name);
 	if (handler->filter)
@@ -1273,14 +1235,15 @@ static const struct seq_operations input_handlers_seq_ops = {
 
 static int input_proc_handlers_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &input_handlers_seq_ops);
+	return seq_open_private(file, &input_handlers_seq_ops,
+				sizeof(struct input_seq_state));
 }
 
 static const struct proc_ops input_handlers_proc_ops = {
 	.proc_open	= input_proc_handlers_open,
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,
-	.proc_release	= seq_release,
+	.proc_release	= seq_release_private,
 };
 
 static int __init input_proc_init(void)
@@ -1797,26 +1760,21 @@ static void input_dev_toggle(struct input_dev *dev, bool activate)
  */
 void input_reset_device(struct input_dev *dev)
 {
-	unsigned long flags;
-
-	mutex_lock(&dev->mutex);
-	spin_lock_irqsave(&dev->event_lock, flags);
+	guard(mutex)(&dev->mutex);
+	guard(spinlock_irqsave)(&dev->event_lock);
 
 	input_dev_toggle(dev, true);
 	if (input_dev_release_keys(dev))
 		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
-	mutex_unlock(&dev->mutex);
 }
 EXPORT_SYMBOL(input_reset_device);
 
 static int input_inhibit_device(struct input_dev *dev)
 {
-	mutex_lock(&dev->mutex);
+	guard(mutex)(&dev->mutex);
 
 	if (dev->inhibited)
-		goto out;
+		return 0;
 
 	if (dev->users) {
 		if (dev->close)
@@ -1825,54 +1783,50 @@ static int input_inhibit_device(struct input_dev *dev)
 			input_dev_poller_stop(dev->poller);
 	}
 
-	spin_lock_irq(&dev->event_lock);
-	input_mt_release_slots(dev);
-	input_dev_release_keys(dev);
-	input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
-	input_dev_toggle(dev, false);
-	spin_unlock_irq(&dev->event_lock);
+	scoped_guard(spinlock_irq, &dev->event_lock) {
+		input_mt_release_slots(dev);
+		input_dev_release_keys(dev);
+		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
+		input_dev_toggle(dev, false);
+	}
 
 	dev->inhibited = true;
 
-out:
-	mutex_unlock(&dev->mutex);
 	return 0;
 }
 
 static int input_uninhibit_device(struct input_dev *dev)
 {
-	int ret = 0;
+	int error;
 
-	mutex_lock(&dev->mutex);
+	guard(mutex)(&dev->mutex);
 
 	if (!dev->inhibited)
-		goto out;
+		return 0;
 
 	if (dev->users) {
 		if (dev->open) {
-			ret = dev->open(dev);
-			if (ret)
-				goto out;
+			error = dev->open(dev);
+			if (error)
+				return error;
 		}
 		if (dev->poller)
 			input_dev_poller_start(dev->poller);
 	}
 
 	dev->inhibited = false;
-	spin_lock_irq(&dev->event_lock);
-	input_dev_toggle(dev, true);
-	spin_unlock_irq(&dev->event_lock);
 
-out:
-	mutex_unlock(&dev->mutex);
-	return ret;
+	scoped_guard(spinlock_irq, &dev->event_lock)
+		input_dev_toggle(dev, true);
+
+	return 0;
 }
 
 static int input_dev_suspend(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
-	spin_lock_irq(&input_dev->event_lock);
+	guard(spinlock_irq)(&input_dev->event_lock);
 
 	/*
 	 * Keys that are pressed now are unlikely to be
@@ -1883,8 +1837,6 @@ static int input_dev_suspend(struct device *dev)
 
 	/* Turn off LEDs and sounds, if any are active. */
 	input_dev_toggle(input_dev, false);
-
-	spin_unlock_irq(&input_dev->event_lock);
 
 	return 0;
 }
@@ -1893,12 +1845,10 @@ static int input_dev_resume(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
-	spin_lock_irq(&input_dev->event_lock);
+	guard(spinlock_irq)(&input_dev->event_lock);
 
 	/* Restore state of LEDs and sounds, if any were active. */
 	input_dev_toggle(input_dev, true);
-
-	spin_unlock_irq(&input_dev->event_lock);
 
 	return 0;
 }
@@ -1907,7 +1857,7 @@ static int input_dev_freeze(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
-	spin_lock_irq(&input_dev->event_lock);
+	guard(spinlock_irq)(&input_dev->event_lock);
 
 	/*
 	 * Keys that are pressed now are unlikely to be
@@ -1916,8 +1866,6 @@ static int input_dev_freeze(struct device *dev)
 	if (input_dev_release_keys(input_dev))
 		input_handle_event(input_dev, EV_SYN, SYN_REPORT, 1);
 
-	spin_unlock_irq(&input_dev->event_lock);
-
 	return 0;
 }
 
@@ -1925,12 +1873,10 @@ static int input_dev_poweroff(struct device *dev)
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
-	spin_lock_irq(&input_dev->event_lock);
+	guard(spinlock_irq)(&input_dev->event_lock);
 
 	/* Turn off LEDs and sounds, if any are active. */
 	input_dev_toggle(input_dev, false);
-
-	spin_unlock_irq(&input_dev->event_lock);
 
 	return 0;
 }
@@ -2224,7 +2170,7 @@ static unsigned int input_estimate_events_per_packet(struct input_dev *dev)
 		mt_slots = dev->mt->num_slots;
 	} else if (test_bit(ABS_MT_TRACKING_ID, dev->absbit)) {
 		mt_slots = dev->absinfo[ABS_MT_TRACKING_ID].maximum -
-			   dev->absinfo[ABS_MT_TRACKING_ID].minimum + 1,
+			   dev->absinfo[ABS_MT_TRACKING_ID].minimum + 1;
 		mt_slots = clamp(mt_slots, 2, 32);
 	} else if (test_bit(ABS_MT_POSITION_X, dev->absbit)) {
 		mt_slots = 2;
@@ -2272,18 +2218,16 @@ static void __input_unregister_device(struct input_dev *dev)
 
 	input_disconnect_device(dev);
 
-	mutex_lock(&input_mutex);
+	scoped_guard(mutex, &input_mutex) {
+		list_for_each_entry_safe(handle, next, &dev->h_list, d_node)
+			handle->handler->disconnect(handle);
+		WARN_ON(!list_empty(&dev->h_list));
 
-	list_for_each_entry_safe(handle, next, &dev->h_list, d_node)
-		handle->handler->disconnect(handle);
-	WARN_ON(!list_empty(&dev->h_list));
+		del_timer_sync(&dev->timer);
+		list_del_init(&dev->node);
 
-	del_timer_sync(&dev->timer);
-	list_del_init(&dev->node);
-
-	input_wakeup_procfs_readers();
-
-	mutex_unlock(&input_mutex);
+		input_wakeup_procfs_readers();
+	}
 
 	device_del(&dev->dev);
 }
@@ -2306,9 +2250,8 @@ static void devm_input_device_unregister(struct device *dev, void *res)
 static void input_repeat_key(struct timer_list *t)
 {
 	struct input_dev *dev = from_timer(dev, t, timer);
-	unsigned long flags;
 
-	spin_lock_irqsave(&dev->event_lock, flags);
+	guard(spinlock_irqsave)(&dev->event_lock);
 
 	if (!dev->inhibited &&
 	    test_bit(dev->repeat_key, dev->key) &&
@@ -2322,8 +2265,6 @@ static void input_repeat_key(struct timer_list *t)
 			mod_timer(&dev->timer, jiffies +
 					msecs_to_jiffies(dev->rep[REP_PERIOD]));
 	}
-
-	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
 /**
@@ -2368,10 +2309,10 @@ static int input_device_tune_vals(struct input_dev *dev)
 	if (!vals)
 		return -ENOMEM;
 
-	spin_lock_irq(&dev->event_lock);
-	dev->max_vals = max_vals;
-	swap(dev->vals, vals);
-	spin_unlock_irq(&dev->event_lock);
+	scoped_guard(spinlock_irq, &dev->event_lock) {
+		dev->max_vals = max_vals;
+		swap(dev->vals, vals);
+	}
 
 	/* Because of swap() above, this frees the old vals memory */
 	kfree(vals);
@@ -2463,18 +2404,15 @@ int input_register_device(struct input_dev *dev)
 		path ? path : "N/A");
 	kfree(path);
 
-	error = mutex_lock_interruptible(&input_mutex);
-	if (error)
-		goto err_device_del;
+	error = -EINTR;
+	scoped_cond_guard(mutex_intr, goto err_device_del, &input_mutex) {
+		list_add_tail(&dev->node, &input_dev_list);
 
-	list_add_tail(&dev->node, &input_dev_list);
+		list_for_each_entry(handler, &input_handler_list, node)
+			input_attach_handler(dev, handler);
 
-	list_for_each_entry(handler, &input_handler_list, node)
-		input_attach_handler(dev, handler);
-
-	input_wakeup_procfs_readers();
-
-	mutex_unlock(&input_mutex);
+		input_wakeup_procfs_readers();
+	}
 
 	if (dev->devres_managed) {
 		dev_dbg(dev->dev.parent, "%s: registering %s with devres.\n",
@@ -2537,57 +2475,6 @@ static int input_handler_check_methods(const struct input_handler *handler)
 	return 0;
 }
 
-/*
- * An implementation of input_handler's events() method that simply
- * invokes handler->event() method for each event one by one.
- */
-static unsigned int input_handler_events_default(struct input_handle *handle,
-						 struct input_value *vals,
-						 unsigned int count)
-{
-	struct input_handler *handler = handle->handler;
-	struct input_value *v;
-
-	for (v = vals; v != vals + count; v++)
-		handler->event(handle, v->type, v->code, v->value);
-
-	return count;
-}
-
-/*
- * An implementation of input_handler's events() method that invokes
- * handler->filter() method for each event one by one and removes events
- * that were filtered out from the "vals" array.
- */
-static unsigned int input_handler_events_filter(struct input_handle *handle,
-						struct input_value *vals,
-						unsigned int count)
-{
-	struct input_handler *handler = handle->handler;
-	struct input_value *end = vals;
-	struct input_value *v;
-
-	for (v = vals; v != vals + count; v++) {
-		if (handler->filter(handle, v->type, v->code, v->value))
-			continue;
-		if (end != v)
-			*end = *v;
-		end++;
-	}
-
-	return end - vals;
-}
-
-/*
- * An implementation of input_handler's events() method that does nothing.
- */
-static unsigned int input_handler_events_null(struct input_handle *handle,
-					      struct input_value *vals,
-					      unsigned int count)
-{
-	return count;
-}
-
 /**
  * input_register_handler - register a new input handler
  * @handler: handler to be registered
@@ -2605,27 +2492,17 @@ int input_register_handler(struct input_handler *handler)
 	if (error)
 		return error;
 
-	INIT_LIST_HEAD(&handler->h_list);
+	scoped_cond_guard(mutex_intr, return -EINTR, &input_mutex) {
+		INIT_LIST_HEAD(&handler->h_list);
 
-	if (handler->filter)
-		handler->events = input_handler_events_filter;
-	else if (handler->event)
-		handler->events = input_handler_events_default;
-	else if (!handler->events)
-		handler->events = input_handler_events_null;
+		list_add_tail(&handler->node, &input_handler_list);
 
-	error = mutex_lock_interruptible(&input_mutex);
-	if (error)
-		return error;
+		list_for_each_entry(dev, &input_dev_list, node)
+			input_attach_handler(dev, handler);
 
-	list_add_tail(&handler->node, &input_handler_list);
+		input_wakeup_procfs_readers();
+	}
 
-	list_for_each_entry(dev, &input_dev_list, node)
-		input_attach_handler(dev, handler);
-
-	input_wakeup_procfs_readers();
-
-	mutex_unlock(&input_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(input_register_handler);
@@ -2641,7 +2518,7 @@ void input_unregister_handler(struct input_handler *handler)
 {
 	struct input_handle *handle, *next;
 
-	mutex_lock(&input_mutex);
+	guard(mutex)(&input_mutex);
 
 	list_for_each_entry_safe(handle, next, &handler->h_list, h_node)
 		handler->disconnect(handle);
@@ -2650,8 +2527,6 @@ void input_unregister_handler(struct input_handler *handler)
 	list_del_init(&handler->node);
 
 	input_wakeup_procfs_readers();
-
-	mutex_unlock(&input_mutex);
 }
 EXPORT_SYMBOL(input_unregister_handler);
 
@@ -2671,21 +2546,88 @@ int input_handler_for_each_handle(struct input_handler *handler, void *data,
 				  int (*fn)(struct input_handle *, void *))
 {
 	struct input_handle *handle;
-	int retval = 0;
+	int retval;
 
-	rcu_read_lock();
+	guard(rcu)();
 
 	list_for_each_entry_rcu(handle, &handler->h_list, h_node) {
 		retval = fn(handle, data);
 		if (retval)
-			break;
+			return retval;
 	}
 
-	rcu_read_unlock();
-
-	return retval;
+	return 0;
 }
 EXPORT_SYMBOL(input_handler_for_each_handle);
+
+/*
+ * An implementation of input_handle's handle_events() method that simply
+ * invokes handler->event() method for each event one by one.
+ */
+static unsigned int input_handle_events_default(struct input_handle *handle,
+						struct input_value *vals,
+						unsigned int count)
+{
+	struct input_handler *handler = handle->handler;
+	struct input_value *v;
+
+	for (v = vals; v != vals + count; v++)
+		handler->event(handle, v->type, v->code, v->value);
+
+	return count;
+}
+
+/*
+ * An implementation of input_handle's handle_events() method that invokes
+ * handler->filter() method for each event one by one and removes events
+ * that were filtered out from the "vals" array.
+ */
+static unsigned int input_handle_events_filter(struct input_handle *handle,
+					       struct input_value *vals,
+					       unsigned int count)
+{
+	struct input_handler *handler = handle->handler;
+	struct input_value *end = vals;
+	struct input_value *v;
+
+	for (v = vals; v != vals + count; v++) {
+		if (handler->filter(handle, v->type, v->code, v->value))
+			continue;
+		if (end != v)
+			*end = *v;
+		end++;
+	}
+
+	return end - vals;
+}
+
+/*
+ * An implementation of input_handle's handle_events() method that does nothing.
+ */
+static unsigned int input_handle_events_null(struct input_handle *handle,
+					     struct input_value *vals,
+					     unsigned int count)
+{
+	return count;
+}
+
+/*
+ * Sets up appropriate handle->event_handler based on the input_handler
+ * associated with the handle.
+ */
+static void input_handle_setup_event_handler(struct input_handle *handle)
+{
+	struct input_handler *handler = handle->handler;
+
+	if (handler->filter)
+		handle->handle_events = input_handle_events_filter;
+	else if (handler->event)
+		handle->handle_events = input_handle_events_default;
+	else if (handler->events)
+		handle->handle_events = handler->events;
+	else
+		handle->handle_events = input_handle_events_null;
+}
 
 /**
  * input_register_handle - register a new input handle
@@ -2702,26 +2644,22 @@ int input_register_handle(struct input_handle *handle)
 {
 	struct input_handler *handler = handle->handler;
 	struct input_dev *dev = handle->dev;
-	int error;
 
+	input_handle_setup_event_handler(handle);
 	/*
 	 * We take dev->mutex here to prevent race with
 	 * input_release_device().
 	 */
-	error = mutex_lock_interruptible(&dev->mutex);
-	if (error)
-		return error;
-
-	/*
-	 * Filters go to the head of the list, normal handlers
-	 * to the tail.
-	 */
-	if (handler->filter)
-		list_add_rcu(&handle->d_node, &dev->h_list);
-	else
-		list_add_tail_rcu(&handle->d_node, &dev->h_list);
-
-	mutex_unlock(&dev->mutex);
+	scoped_cond_guard(mutex_intr, return -EINTR, &dev->mutex) {
+		/*
+		 * Filters go to the head of the list, normal handlers
+		 * to the tail.
+		 */
+		if (handler->filter)
+			list_add_rcu(&handle->d_node, &dev->h_list);
+		else
+			list_add_tail_rcu(&handle->d_node, &dev->h_list);
+	}
 
 	/*
 	 * Since we are supposed to be called from ->connect()
@@ -2757,9 +2695,8 @@ void input_unregister_handle(struct input_handle *handle)
 	/*
 	 * Take dev->mutex to prevent race with input_release_device().
 	 */
-	mutex_lock(&dev->mutex);
-	list_del_rcu(&handle->d_node);
-	mutex_unlock(&dev->mutex);
+	scoped_guard(mutex, &dev->mutex)
+		list_del_rcu(&handle->d_node);
 
 	synchronize_rcu();
 }

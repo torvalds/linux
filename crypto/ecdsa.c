@@ -4,14 +4,11 @@
  */
 
 #include <linux/module.h>
-#include <crypto/internal/akcipher.h>
 #include <crypto/internal/ecc.h>
-#include <crypto/akcipher.h>
+#include <crypto/internal/sig.h>
 #include <crypto/ecdh.h>
-#include <linux/asn1_decoder.h>
-#include <linux/scatterlist.h>
-
-#include "ecdsasignature.asn1.h"
+#include <crypto/sha2.h>
+#include <crypto/sig.h>
 
 struct ecc_ctx {
 	unsigned int curve_id;
@@ -22,66 +19,6 @@ struct ecc_ctx {
 	u64 y[ECC_MAX_DIGITS];
 	struct ecc_point pub_key;
 };
-
-struct ecdsa_signature_ctx {
-	const struct ecc_curve *curve;
-	u64 r[ECC_MAX_DIGITS];
-	u64 s[ECC_MAX_DIGITS];
-};
-
-/*
- * Get the r and s components of a signature from the X509 certificate.
- */
-static int ecdsa_get_signature_rs(u64 *dest, size_t hdrlen, unsigned char tag,
-				  const void *value, size_t vlen, unsigned int ndigits)
-{
-	size_t bufsize = ndigits * sizeof(u64);
-	ssize_t diff = vlen - bufsize;
-	const char *d = value;
-
-	if (!value || !vlen)
-		return -EINVAL;
-
-	/* diff = 0: 'value' has exacly the right size
-	 * diff > 0: 'value' has too many bytes; one leading zero is allowed that
-	 *           makes the value a positive integer; error on more
-	 * diff < 0: 'value' is missing leading zeros
-	 */
-	if (diff > 0) {
-		/* skip over leading zeros that make 'value' a positive int */
-		if (*d == 0) {
-			vlen -= 1;
-			diff--;
-			d++;
-		}
-		if (diff)
-			return -EINVAL;
-	}
-	if (-diff >= bufsize)
-		return -EINVAL;
-
-	ecc_digits_from_bytes(d, vlen, dest, ndigits);
-
-	return 0;
-}
-
-int ecdsa_get_signature_r(void *context, size_t hdrlen, unsigned char tag,
-			  const void *value, size_t vlen)
-{
-	struct ecdsa_signature_ctx *sig = context;
-
-	return ecdsa_get_signature_rs(sig->r, hdrlen, tag, value, vlen,
-				      sig->curve->g.ndigits);
-}
-
-int ecdsa_get_signature_s(void *context, size_t hdrlen, unsigned char tag,
-			  const void *value, size_t vlen)
-{
-	struct ecdsa_signature_ctx *sig = context;
-
-	return ecdsa_get_signature_rs(sig->s, hdrlen, tag, value, vlen,
-				      sig->curve->g.ndigits);
-}
 
 static int _ecdsa_verify(struct ecc_ctx *ctx, const u64 *hash, const u64 *r, const u64 *s)
 {
@@ -126,46 +63,27 @@ static int _ecdsa_verify(struct ecc_ctx *ctx, const u64 *hash, const u64 *r, con
 /*
  * Verify an ECDSA signature.
  */
-static int ecdsa_verify(struct akcipher_request *req)
+static int ecdsa_verify(struct crypto_sig *tfm,
+			const void *src, unsigned int slen,
+			const void *digest, unsigned int dlen)
 {
-	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
-	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 	size_t bufsize = ctx->curve->g.ndigits * sizeof(u64);
-	struct ecdsa_signature_ctx sig_ctx = {
-		.curve = ctx->curve,
-	};
+	const struct ecdsa_raw_sig *sig = src;
 	u64 hash[ECC_MAX_DIGITS];
-	unsigned char *buffer;
-	int ret;
 
 	if (unlikely(!ctx->pub_key_set))
 		return -EINVAL;
 
-	buffer = kmalloc(req->src_len + req->dst_len, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
+	if (slen != sizeof(*sig))
+		return -EINVAL;
 
-	sg_pcopy_to_buffer(req->src,
-		sg_nents_for_len(req->src, req->src_len + req->dst_len),
-		buffer, req->src_len + req->dst_len, 0);
+	if (bufsize > dlen)
+		bufsize = dlen;
 
-	ret = asn1_ber_decoder(&ecdsasignature_decoder, &sig_ctx,
-			       buffer, req->src_len);
-	if (ret < 0)
-		goto error;
+	ecc_digits_from_bytes(digest, bufsize, hash, ctx->curve->g.ndigits);
 
-	if (bufsize > req->dst_len)
-		bufsize = req->dst_len;
-
-	ecc_digits_from_bytes(buffer + req->src_len, bufsize,
-			      hash, ctx->curve->g.ndigits);
-
-	ret = _ecdsa_verify(ctx, hash, sig_ctx.r, sig_ctx.s);
-
-error:
-	kfree(buffer);
-
-	return ret;
+	return _ecdsa_verify(ctx, hash, sig->r, sig->s);
 }
 
 static int ecdsa_ecc_ctx_init(struct ecc_ctx *ctx, unsigned int curve_id)
@@ -201,9 +119,10 @@ static int ecdsa_ecc_ctx_reset(struct ecc_ctx *ctx)
  * Set the public ECC key as defined by RFC5480 section 2.2 "Subject Public
  * Key". Only the uncompressed format is supported.
  */
-static int ecdsa_set_pub_key(struct crypto_akcipher *tfm, const void *key, unsigned int keylen)
+static int ecdsa_set_pub_key(struct crypto_sig *tfm, const void *key,
+			     unsigned int keylen)
 {
-	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 	unsigned int digitlen, ndigits;
 	const unsigned char *d = key;
 	int ret;
@@ -237,31 +156,43 @@ static int ecdsa_set_pub_key(struct crypto_akcipher *tfm, const void *key, unsig
 	return ret;
 }
 
-static void ecdsa_exit_tfm(struct crypto_akcipher *tfm)
+static void ecdsa_exit_tfm(struct crypto_sig *tfm)
 {
-	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 
 	ecdsa_ecc_ctx_deinit(ctx);
 }
 
-static unsigned int ecdsa_max_size(struct crypto_akcipher *tfm)
+static unsigned int ecdsa_key_size(struct crypto_sig *tfm)
 {
-	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 
 	return DIV_ROUND_UP(ctx->curve->nbits, 8);
 }
 
-static int ecdsa_nist_p521_init_tfm(struct crypto_akcipher *tfm)
+static unsigned int ecdsa_digest_size(struct crypto_sig *tfm)
 {
-	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	/*
+	 * ECDSA key sizes are much smaller than RSA, and thus could
+	 * operate on (hashed) inputs that are larger than the key size.
+	 * E.g. SHA384-hashed input used with secp256r1 based keys.
+	 * Return the largest supported hash size (SHA512).
+	 */
+	return SHA512_DIGEST_SIZE;
+}
+
+static int ecdsa_nist_p521_init_tfm(struct crypto_sig *tfm)
+{
+	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 
 	return ecdsa_ecc_ctx_init(ctx, ECC_CURVE_NIST_P521);
 }
 
-static struct akcipher_alg ecdsa_nist_p521 = {
+static struct sig_alg ecdsa_nist_p521 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
-	.max_size = ecdsa_max_size,
+	.key_size = ecdsa_key_size,
+	.digest_size = ecdsa_digest_size,
 	.init = ecdsa_nist_p521_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -273,17 +204,18 @@ static struct akcipher_alg ecdsa_nist_p521 = {
 	},
 };
 
-static int ecdsa_nist_p384_init_tfm(struct crypto_akcipher *tfm)
+static int ecdsa_nist_p384_init_tfm(struct crypto_sig *tfm)
 {
-	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 
 	return ecdsa_ecc_ctx_init(ctx, ECC_CURVE_NIST_P384);
 }
 
-static struct akcipher_alg ecdsa_nist_p384 = {
+static struct sig_alg ecdsa_nist_p384 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
-	.max_size = ecdsa_max_size,
+	.key_size = ecdsa_key_size,
+	.digest_size = ecdsa_digest_size,
 	.init = ecdsa_nist_p384_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -295,17 +227,18 @@ static struct akcipher_alg ecdsa_nist_p384 = {
 	},
 };
 
-static int ecdsa_nist_p256_init_tfm(struct crypto_akcipher *tfm)
+static int ecdsa_nist_p256_init_tfm(struct crypto_sig *tfm)
 {
-	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 
 	return ecdsa_ecc_ctx_init(ctx, ECC_CURVE_NIST_P256);
 }
 
-static struct akcipher_alg ecdsa_nist_p256 = {
+static struct sig_alg ecdsa_nist_p256 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
-	.max_size = ecdsa_max_size,
+	.key_size = ecdsa_key_size,
+	.digest_size = ecdsa_digest_size,
 	.init = ecdsa_nist_p256_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -317,17 +250,18 @@ static struct akcipher_alg ecdsa_nist_p256 = {
 	},
 };
 
-static int ecdsa_nist_p192_init_tfm(struct crypto_akcipher *tfm)
+static int ecdsa_nist_p192_init_tfm(struct crypto_sig *tfm)
 {
-	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	struct ecc_ctx *ctx = crypto_sig_ctx(tfm);
 
 	return ecdsa_ecc_ctx_init(ctx, ECC_CURVE_NIST_P192);
 }
 
-static struct akcipher_alg ecdsa_nist_p192 = {
+static struct sig_alg ecdsa_nist_p192 = {
 	.verify = ecdsa_verify,
 	.set_pub_key = ecdsa_set_pub_key,
-	.max_size = ecdsa_max_size,
+	.key_size = ecdsa_key_size,
+	.digest_size = ecdsa_digest_size,
 	.init = ecdsa_nist_p192_init_tfm,
 	.exit = ecdsa_exit_tfm,
 	.base = {
@@ -345,42 +279,59 @@ static int __init ecdsa_init(void)
 	int ret;
 
 	/* NIST p192 may not be available in FIPS mode */
-	ret = crypto_register_akcipher(&ecdsa_nist_p192);
+	ret = crypto_register_sig(&ecdsa_nist_p192);
 	ecdsa_nist_p192_registered = ret == 0;
 
-	ret = crypto_register_akcipher(&ecdsa_nist_p256);
+	ret = crypto_register_sig(&ecdsa_nist_p256);
 	if (ret)
 		goto nist_p256_error;
 
-	ret = crypto_register_akcipher(&ecdsa_nist_p384);
+	ret = crypto_register_sig(&ecdsa_nist_p384);
 	if (ret)
 		goto nist_p384_error;
 
-	ret = crypto_register_akcipher(&ecdsa_nist_p521);
+	ret = crypto_register_sig(&ecdsa_nist_p521);
 	if (ret)
 		goto nist_p521_error;
 
+	ret = crypto_register_template(&ecdsa_x962_tmpl);
+	if (ret)
+		goto x962_tmpl_error;
+
+	ret = crypto_register_template(&ecdsa_p1363_tmpl);
+	if (ret)
+		goto p1363_tmpl_error;
+
 	return 0;
 
+p1363_tmpl_error:
+	crypto_unregister_template(&ecdsa_x962_tmpl);
+
+x962_tmpl_error:
+	crypto_unregister_sig(&ecdsa_nist_p521);
+
 nist_p521_error:
-	crypto_unregister_akcipher(&ecdsa_nist_p384);
+	crypto_unregister_sig(&ecdsa_nist_p384);
 
 nist_p384_error:
-	crypto_unregister_akcipher(&ecdsa_nist_p256);
+	crypto_unregister_sig(&ecdsa_nist_p256);
 
 nist_p256_error:
 	if (ecdsa_nist_p192_registered)
-		crypto_unregister_akcipher(&ecdsa_nist_p192);
+		crypto_unregister_sig(&ecdsa_nist_p192);
 	return ret;
 }
 
 static void __exit ecdsa_exit(void)
 {
+	crypto_unregister_template(&ecdsa_x962_tmpl);
+	crypto_unregister_template(&ecdsa_p1363_tmpl);
+
 	if (ecdsa_nist_p192_registered)
-		crypto_unregister_akcipher(&ecdsa_nist_p192);
-	crypto_unregister_akcipher(&ecdsa_nist_p256);
-	crypto_unregister_akcipher(&ecdsa_nist_p384);
-	crypto_unregister_akcipher(&ecdsa_nist_p521);
+		crypto_unregister_sig(&ecdsa_nist_p192);
+	crypto_unregister_sig(&ecdsa_nist_p256);
+	crypto_unregister_sig(&ecdsa_nist_p384);
+	crypto_unregister_sig(&ecdsa_nist_p521);
 }
 
 subsys_initcall(ecdsa_init);

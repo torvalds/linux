@@ -353,7 +353,7 @@ static int ef4_ethtool_fill_self_tests(struct ef4_nic *efx,
 	return n;
 }
 
-static size_t ef4_describe_per_queue_stats(struct ef4_nic *efx, u8 *strings)
+static size_t ef4_describe_per_queue_stats(struct ef4_nic *efx, u8 **strings)
 {
 	size_t n_stats = 0;
 	struct ef4_channel *channel;
@@ -361,24 +361,22 @@ static size_t ef4_describe_per_queue_stats(struct ef4_nic *efx, u8 *strings)
 	ef4_for_each_channel(channel, efx) {
 		if (ef4_channel_has_tx_queues(channel)) {
 			n_stats++;
-			if (strings != NULL) {
-				snprintf(strings, ETH_GSTRING_LEN,
-					 "tx-%u.tx_packets",
-					 channel->tx_queue[0].queue /
-					 EF4_TXQ_TYPES);
+			if (!strings)
+				continue;
 
-				strings += ETH_GSTRING_LEN;
-			}
+			ethtool_sprintf(strings, "tx-%u.tx_packets",
+					channel->tx_queue[0].queue /
+						EF4_TXQ_TYPES);
 		}
 	}
 	ef4_for_each_channel(channel, efx) {
 		if (ef4_channel_has_rx_queue(channel)) {
 			n_stats++;
-			if (strings != NULL) {
-				snprintf(strings, ETH_GSTRING_LEN,
-					 "rx-%d.rx_packets", channel->channel);
-				strings += ETH_GSTRING_LEN;
-			}
+			if (!strings)
+				continue;
+
+			ethtool_sprintf(strings, "rx-%d.rx_packets",
+					channel->channel);
 		}
 	}
 	return n_stats;
@@ -409,14 +407,10 @@ static void ef4_ethtool_get_strings(struct net_device *net_dev,
 
 	switch (string_set) {
 	case ETH_SS_STATS:
-		strings += (efx->type->describe_stats(efx, strings) *
-			    ETH_GSTRING_LEN);
+		efx->type->describe_stats(efx, &strings);
 		for (i = 0; i < EF4_ETHTOOL_SW_STAT_COUNT; i++)
-			strscpy(strings + i * ETH_GSTRING_LEN,
-				ef4_sw_stat_desc[i].name, ETH_GSTRING_LEN);
-		strings += EF4_ETHTOOL_SW_STAT_COUNT * ETH_GSTRING_LEN;
-		strings += (ef4_describe_per_queue_stats(efx, strings) *
-			    ETH_GSTRING_LEN);
+			ethtool_puts(&strings, ef4_sw_stat_desc[i].name);
+		ef4_describe_per_queue_stats(efx, &strings);
 		break;
 	case ETH_SS_TEST:
 		ef4_ethtool_fill_self_tests(efx, NULL, strings, NULL);

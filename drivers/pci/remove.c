@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
+
 #include "pci.h"
 
 static void pci_free_resources(struct pci_dev *dev)
@@ -14,25 +17,43 @@ static void pci_free_resources(struct pci_dev *dev)
 	}
 }
 
+static void pci_pwrctrl_unregister(struct device *dev)
+{
+	struct device_node *np;
+	struct platform_device *pdev;
+
+	np = dev_of_node(dev);
+	if (!np)
+		return;
+
+	pdev = of_find_device_by_node(np);
+	if (!pdev)
+		return;
+
+	of_device_unregister(pdev);
+	of_node_clear_flag(np, OF_POPULATED);
+}
+
 static void pci_stop_dev(struct pci_dev *dev)
 {
 	pci_pme_active(dev, false);
 
-	if (pci_dev_is_added(dev)) {
-		of_platform_depopulate(&dev->dev);
-		device_release_driver(&dev->dev);
-		pci_proc_detach_device(dev);
-		pci_remove_sysfs_dev_files(dev);
-		of_pci_remove_node(dev);
+	if (!pci_dev_test_and_clear_added(dev))
+		return;
 
-		pci_dev_assign_added(dev, false);
-	}
+	pci_pwrctrl_unregister(&dev->dev);
+	device_release_driver(&dev->dev);
+	pci_proc_detach_device(dev);
+	pci_remove_sysfs_dev_files(dev);
+	of_pci_remove_node(dev);
 }
 
 static void pci_destroy_dev(struct pci_dev *dev)
 {
-	if (!dev->dev.kobj.parent)
+	if (pci_dev_test_and_set_removed(dev))
 		return;
+
+	pci_npem_remove(dev);
 
 	device_del(&dev->dev);
 
@@ -163,7 +184,7 @@ void pci_remove_root_bus(struct pci_bus *bus)
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
 	/* Release domain_nr if it was dynamically allocated */
 	if (host_bridge->domain_nr == PCI_DOMAIN_NR_NOT_SET)
-		pci_bus_release_domain_nr(bus, host_bridge->dev.parent);
+		pci_bus_release_domain_nr(host_bridge->dev.parent, bus->domain_nr);
 #endif
 
 	pci_remove_bus(bus);

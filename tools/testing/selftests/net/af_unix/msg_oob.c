@@ -209,7 +209,7 @@ static void __sendpair(struct __test_metadata *_metadata,
 
 static void __recvpair(struct __test_metadata *_metadata,
 		       FIXTURE_DATA(msg_oob) *self,
-		       const void *expected_buf, int expected_len,
+		       const char *expected_buf, int expected_len,
 		       int buf_len, int flags)
 {
 	int i, ret[2], recv_errno[2], expected_errno = 0;
@@ -523,6 +523,29 @@ TEST_F(msg_oob, ex_oob_drop_2)
 		epollpair(false);
 		siocatmarkpair(true);
 	}
+}
+
+TEST_F(msg_oob, ex_oob_oob)
+{
+	sendpair("x", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+
+	recvpair("x", 1, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(true);
+
+	sendpair("y", 1, MSG_OOB);
+	epollpair(true);
+	siocatmarkpair(true);
+
+	recvpair("", -EAGAIN, 1, 0);
+	epollpair(false);
+	siocatmarkpair(false);
+
+	recvpair("", -EINVAL, 1, MSG_OOB);
+	epollpair(false);
+	siocatmarkpair(false);
 }
 
 TEST_F(msg_oob, ex_oob_ahead_break)

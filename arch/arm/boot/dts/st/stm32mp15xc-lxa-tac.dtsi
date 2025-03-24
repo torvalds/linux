@@ -16,12 +16,20 @@
 
 / {
 	aliases {
+		can0 = &m_can1;
+		can1 = &m_can2;
 		ethernet0 = &ethernet0;
 		ethernet1 = &port_uplink;
 		ethernet2 = &port_dut;
+		i2c0 = &i2c1;
+		i2c1 = &i2c4;
+		i2c2 = &i2c5;
 		mmc1 = &sdmmc2;
 		serial0 = &uart4;
 		serial1 = &usart3;
+		spi0 = &spi2;
+		spi1 = &spi4;
+		spi2 = &spi5;
 	};
 
 	chosen {
@@ -142,76 +150,6 @@
 baseboard_eeprom: &sip_eeprom {
 };
 
-&adc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&adc1_ain_pins_a>;
-	vdd-supply = <&vdd>;
-	vdda-supply = <&vdda>;
-	vref-supply = <&vrefbuf>;
-	status = "okay";
-
-	adc1: adc@0 {
-		st,adc-channels = <0 1 2 5 9 10 13 15>;
-		st,min-sample-time-nsecs = <5000>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "okay";
-
-		channel@0 {
-			reg = <0>;
-			label = "HOST_2_CURR_FB";
-		};
-
-		channel@1 {
-			reg = <1>;
-			label = "HOST_3_CURR_FB";
-		};
-
-		channel@2 {
-			reg = <2>;
-			label = "OUT_0_FB";
-		};
-
-		channel@5 {
-			reg = <5>;
-			label = "IOBUS_CURR_FB";
-		};
-
-		channel@9 {
-			reg = <9>;
-			label = "IOBUS_VOLT_FB";
-		};
-
-		channel@10 {
-			reg = <10>;
-			label = "OUT_1_FB";
-		};
-
-		channel@13 {
-			reg = <13>;
-			label = "HOST_CURR_FB";
-		};
-
-		channel@15 {
-			reg = <15>;
-			label = "HOST_1_CURR_FB";
-		};
-	};
-
-	adc2: adc@100 {
-		st,adc-channels = <12>;
-		st,min-sample-time-nsecs = <500000>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		status = "okay";
-
-		channel@12 {
-			reg = <12>;
-			label = "TEMP_INTERNAL";
-		};
-	};
-};
-
 &crc1 {
 	status = "okay";
 };
@@ -265,25 +203,11 @@ baseboard_eeprom: &sip_eeprom {
 	"ETH_LAB_LEDRN";                          /* 15 */
 };
 
-&gpioe {
-	gpio-line-names = "TP35", "", "", "", "CAN_1_120R", /*  0 */
-	"", "", "USER_BTN2", "TP48", "UART_TX_EN",          /*  5 */
-	"UART_RX_EN", "TP24", "", "TP25", "TP26",           /* 10 */
-	"TP27";                                             /* 15 */
-};
-
 &gpiof {
 	gpio-line-names = "TP36", "TP37", "", "", "OLED_CS", /*  0 */
 	"", "", "", "", "",                                  /*  5 */
 	"USER_LED1", "", "STACK_CS0", "", "",                /* 10 */
 	"";                                                  /* 15 */
-};
-
-&gpiog {
-	gpio-line-names = "ETH_RESET", "", "", "", "",               /*  0 */
-	"IOBUS_FLT_FB", "", "USER_LED2", "ETH1_PPS_A", "CAN_0_120R", /*  5 */
-	"TP49", "", "", "", "",                                      /* 10 */
-	"";                                                          /* 15 */
 };
 
 &gpioh {
@@ -377,10 +301,6 @@ baseboard_eeprom: &sip_eeprom {
 		boost-supply = <&reg_5v>;	/* PMIC_BSTIN */
 		pwr_sw2-supply = <&bst_out>;	/* PMIC_SWIN */
 	};
-};
-
-&rtc {
-	status = "okay";
 };
 
 &sdmmc2 {
@@ -575,6 +495,10 @@ baseboard_eeprom: &sip_eeprom {
 
 	vusb_d-supply = <&vdd_usb>;
 	vusb_a-supply = <&reg18>;
+
+	g-rx-fifo-size = <512>;
+	g-np-tx-fifo-size = <32>;
+	g-tx-fifo-size = <128 128 64 16 16 16 16 16>;
 
 	dr_mode = "peripheral";
 

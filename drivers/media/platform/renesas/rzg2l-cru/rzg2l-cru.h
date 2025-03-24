@@ -8,6 +8,7 @@
 #ifndef __RZG2L_CRU__
 #define __RZG2L_CRU__
 
+#include <linux/irqreturn.h>
 #include <linux/reset.h>
 
 #include <media/v4l2-async.h>
@@ -30,6 +31,11 @@
 #define RZG2L_CRU_MIN_INPUT_HEIGHT	240
 #define RZG2L_CRU_MAX_INPUT_HEIGHT	4095
 
+enum rzg2l_csi2_pads {
+	RZG2L_CRU_IP_SINK = 0,
+	RZG2L_CRU_IP_SOURCE,
+};
+
 /**
  * enum rzg2l_cru_dma_state - DMA states
  * @RZG2L_CRU_DMA_STOPPED:   No operation in progress
@@ -47,7 +53,6 @@ enum rzg2l_cru_dma_state {
 struct rzg2l_cru_csi {
 	struct v4l2_async_connection *asd;
 	struct v4l2_subdev *subdev;
-	u32 channel;
 };
 
 struct rzg2l_cru_ip {
@@ -55,6 +60,24 @@ struct rzg2l_cru_ip {
 	struct media_pad pads[2];
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev *remote;
+};
+
+/**
+ * struct rzg2l_cru_ip_format - CRU IP format
+ * @code: Media bus code
+ * @datatype: MIPI CSI2 data type
+ * @format: 4CC format identifier (V4L2_PIX_FMT_*)
+ * @icndmr: ICnDMR register value
+ * @bpp: bytes per pixel
+ * @yuv: Flag to indicate whether the format is YUV-based.
+ */
+struct rzg2l_cru_ip_format {
+	u32 code;
+	u32 datatype;
+	u32 format;
+	u32 icndmr;
+	u8 bpp;
+	bool yuv;
 };
 
 /**
@@ -67,8 +90,6 @@ struct rzg2l_cru_ip {
  * @aresetn:		CRU_ARESETN reset line
  *
  * @vclk:		CRU Main clock
- *
- * @image_conv_irq:	Holds image conversion interrupt number
  *
  * @vdev:		V4L2 video device associated with CRU
  * @v4l2_dev:		V4L2 device
@@ -105,8 +126,6 @@ struct rzg2l_cru_dev {
 
 	struct clk *vclk;
 
-	int image_conv_irq;
-
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	u8 num_buf;
@@ -141,11 +160,16 @@ void rzg2l_cru_dma_unregister(struct rzg2l_cru_dev *cru);
 
 int rzg2l_cru_video_register(struct rzg2l_cru_dev *cru);
 void rzg2l_cru_video_unregister(struct rzg2l_cru_dev *cru);
+irqreturn_t rzg2l_cru_irq(int irq, void *data);
 
 const struct v4l2_format_info *rzg2l_cru_format_from_pixel(u32 format);
 
 int rzg2l_cru_ip_subdev_register(struct rzg2l_cru_dev *cru);
 void rzg2l_cru_ip_subdev_unregister(struct rzg2l_cru_dev *cru);
 struct v4l2_mbus_framefmt *rzg2l_cru_ip_get_src_fmt(struct rzg2l_cru_dev *cru);
+
+const struct rzg2l_cru_ip_format *rzg2l_cru_ip_code_to_fmt(unsigned int code);
+const struct rzg2l_cru_ip_format *rzg2l_cru_ip_format_to_fmt(u32 format);
+const struct rzg2l_cru_ip_format *rzg2l_cru_ip_index_to_fmt(u32 index);
 
 #endif

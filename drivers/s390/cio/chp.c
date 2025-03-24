@@ -128,7 +128,7 @@ static int s390_vary_chpid(struct chp_id chpid, int on)
  * Channel measurement related functions
  */
 static ssize_t measurement_chars_read(struct file *filp, struct kobject *kobj,
-				      struct bin_attribute *bin_attr,
+				      const struct bin_attribute *bin_attr,
 				      char *buf, loff_t off, size_t count)
 {
 	struct channel_path *chp;
@@ -142,7 +142,19 @@ static ssize_t measurement_chars_read(struct file *filp, struct kobject *kobj,
 	return memory_read_from_buffer(buf, count, &off, &chp->cmg_chars,
 				       sizeof(chp->cmg_chars));
 }
-static BIN_ATTR_ADMIN_RO(measurement_chars, sizeof(struct cmg_chars));
+static const BIN_ATTR_ADMIN_RO(measurement_chars, sizeof(struct cmg_chars));
+
+static ssize_t measurement_chars_full_read(struct file *filp,
+					   struct kobject *kobj,
+					   const struct bin_attribute *bin_attr,
+					   char *buf, loff_t off, size_t count)
+{
+	struct channel_path *chp = to_channelpath(kobj_to_dev(kobj));
+
+	return memory_read_from_buffer(buf, count, &off, &chp->cmcb,
+				       sizeof(chp->cmcb));
+}
+static BIN_ATTR_ADMIN_RO(measurement_chars_full, sizeof(struct cmg_cmcb));
 
 static ssize_t chp_measurement_copy_block(void *buf, loff_t off, size_t count,
 					  struct kobject *kobj, bool extended)
@@ -184,23 +196,24 @@ static ssize_t chp_measurement_copy_block(void *buf, loff_t off, size_t count,
 }
 
 static ssize_t measurement_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr,
+				const struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
 	return chp_measurement_copy_block(buf, off, count, kobj, false);
 }
-static BIN_ATTR_ADMIN_RO(measurement, sizeof(struct cmg_entry));
+static const BIN_ATTR_ADMIN_RO(measurement, sizeof(struct cmg_entry));
 
 static ssize_t ext_measurement_read(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *bin_attr,
+				    const struct bin_attribute *bin_attr,
 				    char *buf, loff_t off, size_t count)
 {
 	return chp_measurement_copy_block(buf, off, count, kobj, true);
 }
-static BIN_ATTR_ADMIN_RO(ext_measurement, sizeof(struct cmg_ext_entry));
+static const BIN_ATTR_ADMIN_RO(ext_measurement, sizeof(struct cmg_ext_entry));
 
-static struct bin_attribute *measurement_attrs[] = {
+static const struct bin_attribute *measurement_attrs[] = {
 	&bin_attr_measurement_chars,
+	&bin_attr_measurement_chars_full,
 	&bin_attr_measurement,
 	&bin_attr_ext_measurement,
 	NULL,
@@ -230,7 +243,7 @@ static ssize_t chp_status_show(struct device *dev,
 	status = chp->state;
 	mutex_unlock(&chp->lock);
 
-	return status ? sprintf(buf, "online\n") : sprintf(buf, "offline\n");
+	return status ? sysfs_emit(buf, "online\n") : sysfs_emit(buf, "offline\n");
 }
 
 static ssize_t chp_status_write(struct device *dev,
@@ -311,7 +324,7 @@ static ssize_t chp_type_show(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&chp->lock);
 	type = chp->desc.desc;
 	mutex_unlock(&chp->lock);
-	return sprintf(buf, "%x\n", type);
+	return sysfs_emit(buf, "%x\n", type);
 }
 
 static DEVICE_ATTR(type, 0444, chp_type_show, NULL);
@@ -324,8 +337,8 @@ static ssize_t chp_cmg_show(struct device *dev, struct device_attribute *attr,
 	if (!chp)
 		return 0;
 	if (chp->cmg == -1) /* channel measurements not available */
-		return sprintf(buf, "unknown\n");
-	return sprintf(buf, "%d\n", chp->cmg);
+		return sysfs_emit(buf, "unknown\n");
+	return sysfs_emit(buf, "%d\n", chp->cmg);
 }
 
 static DEVICE_ATTR(cmg, 0444, chp_cmg_show, NULL);
@@ -338,8 +351,8 @@ static ssize_t chp_shared_show(struct device *dev,
 	if (!chp)
 		return 0;
 	if (chp->shared == -1) /* channel measurements not available */
-		return sprintf(buf, "unknown\n");
-	return sprintf(buf, "%x\n", chp->shared);
+		return sysfs_emit(buf, "unknown\n");
+	return sysfs_emit(buf, "%x\n", chp->shared);
 }
 
 static DEVICE_ATTR(shared, 0444, chp_shared_show, NULL);
@@ -352,7 +365,7 @@ static ssize_t chp_chid_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&chp->lock);
 	if (chp->desc_fmt1.flags & 0x10)
-		rc = sprintf(buf, "%04x\n", chp->desc_fmt1.chid);
+		rc = sysfs_emit(buf, "%04x\n", chp->desc_fmt1.chid);
 	else
 		rc = 0;
 	mutex_unlock(&chp->lock);
@@ -369,7 +382,7 @@ static ssize_t chp_chid_external_show(struct device *dev,
 
 	mutex_lock(&chp->lock);
 	if (chp->desc_fmt1.flags & 0x10)
-		rc = sprintf(buf, "%x\n", chp->desc_fmt1.flags & 0x8 ? 1 : 0);
+		rc = sysfs_emit(buf, "%x\n", chp->desc_fmt1.flags & 0x8 ? 1 : 0);
 	else
 		rc = 0;
 	mutex_unlock(&chp->lock);
@@ -385,7 +398,7 @@ static ssize_t chp_esc_show(struct device *dev,
 	ssize_t rc;
 
 	mutex_lock(&chp->lock);
-	rc = sprintf(buf, "%x\n", chp->desc_fmt1.esc);
+	rc = sysfs_emit(buf, "%x\n", chp->desc_fmt1.esc);
 	mutex_unlock(&chp->lock);
 
 	return rc;
@@ -422,7 +435,7 @@ static ssize_t speed_bps_show(struct device *dev,
 static DEVICE_ATTR_RO(speed_bps);
 
 static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *attr, char *buf,
+				const struct bin_attribute *attr, char *buf,
 				loff_t off, size_t count)
 {
 	struct channel_path *chp = to_channelpath(kobj_to_dev(kobj));
@@ -435,10 +448,10 @@ static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
 
 	return rc;
 }
-static BIN_ATTR_RO(util_string,
-		   sizeof(((struct channel_path_desc_fmt3 *)0)->util_str));
+static const BIN_ATTR_RO(util_string,
+			 sizeof(((struct channel_path_desc_fmt3 *)0)->util_str));
 
-static struct bin_attribute *chp_bin_attrs[] = {
+static const struct bin_attribute *const chp_bin_attrs[] = {
 	&bin_attr_util_string,
 	NULL,
 };
@@ -455,9 +468,9 @@ static struct attribute *chp_attrs[] = {
 	&dev_attr_speed_bps.attr,
 	NULL,
 };
-static struct attribute_group chp_attr_group = {
+static const struct attribute_group chp_attr_group = {
 	.attrs = chp_attrs,
-	.bin_attrs = chp_bin_attrs,
+	.bin_attrs_new = chp_bin_attrs,
 };
 static const struct attribute_group *chp_attr_groups[] = {
 	&chp_attr_group,
@@ -682,7 +695,8 @@ static int info_update(void)
 	if (time_after(jiffies, chp_info_expires)) {
 		/* Data is too old, update. */
 		rc = sclp_chp_read_info(&chp_info);
-		chp_info_expires = jiffies + CHP_INFO_UPDATE_INTERVAL ;
+		if (!rc)
+			chp_info_expires = jiffies + CHP_INFO_UPDATE_INTERVAL;
 	}
 	mutex_unlock(&info_lock);
 

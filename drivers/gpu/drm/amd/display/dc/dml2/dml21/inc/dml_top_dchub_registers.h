@@ -2,7 +2,6 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __dml2_TOP_DCHUB_REGISTERS_H__
 #define __dml2_TOP_DCHUB_REGISTERS_H__
 
@@ -89,6 +88,7 @@ struct dml2_display_arb_regs {
 	uint32_t sdpif_request_rate_limit;
 	uint32_t allow_sdpif_rate_limit_when_cstate_req;
 	uint32_t dcfclk_deep_sleep_hysteresis;
+	uint32_t pstate_stall_threshold;
 };
 
 struct dml2_cursor_dlg_regs{

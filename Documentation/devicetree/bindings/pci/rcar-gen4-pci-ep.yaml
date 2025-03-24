@@ -19,6 +19,7 @@ properties:
       - enum:
           - renesas,r8a779f0-pcie-ep      # R-Car S4-8
           - renesas,r8a779g0-pcie-ep      # R-Car V4H
+          - renesas,r8a779h0-pcie-ep      # R-Car V4M
       - const: renesas,rcar-gen4-pcie-ep  # R-Car Gen4
 
   reg:

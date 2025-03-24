@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/string_choices.h>
 #include <linux/suspend.h>
 #include "../dual_accel_detect.h"
 
@@ -118,6 +119,13 @@ static const struct dmi_system_id button_array_table[] = {
 		},
 	},
 	{
+		.ident = "Lenovo ThinkPad X1 Tablet Gen 1",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "ThinkPad X12 Detachable Gen 1"),
+		},
+	},
+	{
 		.ident = "Lenovo ThinkPad X1 Tablet Gen 2",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
@@ -129,6 +137,13 @@ static const struct dmi_system_id button_array_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Surface Go 3"),
+		},
+	},
+	{
+		.ident = "Microsoft Surface Go 4",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Surface Go 4"),
 		},
 	},
 	{ }
@@ -331,10 +346,8 @@ static int intel_hid_set_enable(struct device *device, bool enable)
 	acpi_handle handle = ACPI_HANDLE(device);
 
 	/* Enable|disable features - power button is always enabled */
-	if (!intel_hid_execute_method(handle, INTEL_HID_DSM_HDSM_FN,
-				      enable)) {
-		dev_warn(device, "failed to %sable hotkeys\n",
-			 enable ? "en" : "dis");
+	if (!intel_hid_execute_method(handle, INTEL_HID_DSM_HDSM_FN, enable)) {
+		dev_warn(device, "failed to %s hotkeys\n", str_enable_disable(enable));
 		return -EIO;
 	}
 
@@ -748,7 +761,7 @@ static struct platform_driver intel_hid_pl_driver = {
 		.pm = &intel_hid_pl_pm_ops,
 	},
 	.probe = intel_hid_probe,
-	.remove_new = intel_hid_remove,
+	.remove = intel_hid_remove,
 };
 
 /*

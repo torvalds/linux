@@ -262,4 +262,5 @@ examples:
         reg-names = "core", "aux";
         interrupts = <10>;
         interrupt-controller;
+        #interrupt-cells = <2>;
     };

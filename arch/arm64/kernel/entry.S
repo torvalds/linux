@@ -25,6 +25,7 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/scs.h>
+#include <asm/stacktrace/frame.h>
 #include <asm/thread_info.h>
 #include <asm/asm-uaccess.h>
 #include <asm/unistd.h>
@@ -284,15 +285,16 @@ alternative_else_nop_endif
 	stp	lr, x21, [sp, #S_LR]
 
 	/*
-	 * For exceptions from EL0, create a final frame record.
-	 * For exceptions from EL1, create a synthetic frame record so the
-	 * interrupted code shows up in the backtrace.
+	 * Create a metadata frame record. The unwinder will use this to
+	 * identify and unwind exception boundaries.
 	 */
-	.if \el == 0
 	stp	xzr, xzr, [sp, #S_STACKFRAME]
+	.if \el == 0
+	mov	x0, #FRAME_META_TYPE_FINAL
 	.else
-	stp	x29, x22, [sp, #S_STACKFRAME]
+	mov	x0, #FRAME_META_TYPE_PT_REGS
 	.endif
+	str	x0, [sp, #S_STACKFRAME_TYPE]
 	add	x29, sp, #S_STACKFRAME
 
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
@@ -315,7 +317,7 @@ alternative_if_not ARM64_HAS_GIC_PRIO_MASKING
 alternative_else_nop_endif
 
 	mrs_s	x20, SYS_ICC_PMR_EL1
-	str	x20, [sp, #S_PMR_SAVE]
+	str	w20, [sp, #S_PMR]
 	mov	x20, #GIC_PRIO_IRQON | GIC_PRIO_PSR_I_SET
 	msr_s	SYS_ICC_PMR_EL1, x20
 
@@ -342,7 +344,7 @@ alternative_if_not ARM64_HAS_GIC_PRIO_MASKING
 	b	.Lskip_pmr_restore\@
 alternative_else_nop_endif
 
-	ldr	x20, [sp, #S_PMR_SAVE]
+	ldr	w20, [sp, #S_PMR]
 	msr_s	SYS_ICC_PMR_EL1, x20
 
 	/* Ensure priority change is seen by redistributor */

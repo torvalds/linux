@@ -13,7 +13,7 @@
 #include <linux/io.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/kdump.h>
 #include <asm/firmware.h>
 #include <linux/uio.h>

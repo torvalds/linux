@@ -184,9 +184,9 @@ static const struct of_device_id lpc18xx_dac_match[] = {
 MODULE_DEVICE_TABLE(of, lpc18xx_dac_match);
 
 static struct platform_driver lpc18xx_dac_driver = {
-	.probe	= lpc18xx_dac_probe,
-	.remove_new = lpc18xx_dac_remove,
-	.driver	= {
+	.probe = lpc18xx_dac_probe,
+	.remove = lpc18xx_dac_remove,
+	.driver = {
 		.name = "lpc18xx-dac",
 		.of_match_table = lpc18xx_dac_match,
 	},

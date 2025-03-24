@@ -82,6 +82,9 @@ struct key_type cifs_spnego_key_type = {
 /* strlen of ";pid=0x" */
 #define PID_KEY_LEN		7
 
+/* strlen of ";upcall_target=" */
+#define UPCALL_TARGET_KEY_LEN	15
+
 /* get a key struct with a SPNEGO security blob, suitable for session setup */
 struct key *
 cifs_get_spnego_key(struct cifs_ses *sesInfo,
@@ -108,6 +111,11 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo,
 	if (sesInfo->user_name)
 		desc_len += USER_KEY_LEN + strlen(sesInfo->user_name);
 
+	if (sesInfo->upcall_target == UPTARGET_MOUNT)
+		desc_len += UPCALL_TARGET_KEY_LEN + 5; // strlen("mount")
+	else
+		desc_len += UPCALL_TARGET_KEY_LEN + 3; // strlen("app")
+
 	spnego_key = ERR_PTR(-ENOMEM);
 	description = kzalloc(desc_len, GFP_KERNEL);
 	if (description == NULL)
@@ -130,11 +138,13 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo,
 
 	dp = description + strlen(description);
 
-	/* for now, only sec=krb5 and sec=mskrb5 are valid */
+	/* for now, only sec=krb5 and sec=mskrb5 and iakerb are valid */
 	if (server->sec_kerberos)
 		sprintf(dp, ";sec=krb5");
 	else if (server->sec_mskerberos)
 		sprintf(dp, ";sec=mskrb5");
+	else if (server->sec_iakerb)
+		sprintf(dp, ";sec=iakerb");
 	else {
 		cifs_dbg(VFS, "unknown or missing server auth type, use krb5\n");
 		sprintf(dp, ";sec=krb5");
@@ -155,6 +165,14 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo,
 
 	dp = description + strlen(description);
 	sprintf(dp, ";pid=0x%x", current->pid);
+
+	if (sesInfo->upcall_target == UPTARGET_MOUNT) {
+		dp = description + strlen(description);
+		sprintf(dp, ";upcall_target=mount");
+	} else {
+		dp = description + strlen(description);
+		sprintf(dp, ";upcall_target=app");
+	}
 
 	cifs_dbg(FYI, "key description = %s\n", description);
 	saved_cred = override_creds(spnego_cred);

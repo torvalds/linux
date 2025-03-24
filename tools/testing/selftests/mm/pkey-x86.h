@@ -15,6 +15,10 @@
 
 #endif
 
+#define MCONTEXT_IP(mc)		mc.gregs[REG_IP_IDX]
+#define MCONTEXT_TRAPNO(mc)	mc.gregs[REG_TRAPNO]
+#define MCONTEXT_FPREGS
+
 #ifndef PKEY_DISABLE_ACCESS
 # define PKEY_DISABLE_ACCESS	0x1
 #endif
@@ -29,6 +33,8 @@
 #define HPAGE_SIZE		(1UL<<21)
 #define PAGE_SIZE		4096
 #define MB			(1<<20)
+
+#define PKEY_REG_ALLOW_NONE	0x55555555
 
 static inline void __page_o_noops(void)
 {
@@ -107,7 +113,7 @@ static inline u32 pkey_bit_position(int pkey)
 #define XSTATE_PKEY	0x200
 #define XSTATE_BV_OFFSET	512
 
-int pkey_reg_xstate_offset(void)
+static inline int pkey_reg_xstate_offset(void)
 {
 	unsigned int eax;
 	unsigned int ebx;
@@ -142,7 +148,7 @@ static inline int get_arch_reserved_keys(void)
 	return NR_RESERVED_PKEYS;
 }
 
-void expect_fault_on_read_execonly_key(void *p1, int pkey)
+static inline void expect_fault_on_read_execonly_key(void *p1, int pkey)
 {
 	int ptr_contents;
 
@@ -151,7 +157,7 @@ void expect_fault_on_read_execonly_key(void *p1, int pkey)
 	expected_pkey_fault(pkey);
 }
 
-void *malloc_pkey_with_mprotect_subpage(long size, int prot, u16 pkey)
+static inline void *malloc_pkey_with_mprotect_subpage(long size, int prot, u16 pkey)
 {
 	return PTR_ERR_ENOTSUP;
 }

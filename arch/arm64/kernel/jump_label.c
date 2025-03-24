@@ -9,7 +9,7 @@
 #include <linux/jump_label.h>
 #include <linux/smp.h>
 #include <asm/insn.h>
-#include <asm/patching.h>
+#include <asm/text-patching.h>
 
 bool arch_jump_label_transform_queue(struct jump_entry *entry,
 				     enum jump_label_type type)

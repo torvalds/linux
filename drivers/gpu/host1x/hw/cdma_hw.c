@@ -254,11 +254,23 @@ static void timeout_release_mlock(struct host1x_cdma *cdma)
 	u32 offset;
 
 	switch (ch->client->class) {
+	case HOST1X_CLASS_NVJPG1:
+		offset = HOST1X_COMMON_NVJPG1_MLOCK;
+		break;
+	case HOST1X_CLASS_NVENC:
+		offset = HOST1X_COMMON_NVENC_MLOCK;
+		break;
 	case HOST1X_CLASS_VIC:
 		offset = HOST1X_COMMON_VIC_MLOCK;
 		break;
+	case HOST1X_CLASS_NVJPG:
+		offset = HOST1X_COMMON_NVJPG_MLOCK;
+		break;
 	case HOST1X_CLASS_NVDEC:
 		offset = HOST1X_COMMON_NVDEC_MLOCK;
+		break;
+	case HOST1X_CLASS_OFA:
+		offset = HOST1X_COMMON_OFA_MLOCK;
 		break;
 	default:
 		WARN(1, "%s was not updated for class %u", __func__, ch->client->class);

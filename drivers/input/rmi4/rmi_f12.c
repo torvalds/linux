@@ -24,6 +24,7 @@ enum rmi_f12_object_type {
 };
 
 #define F12_DATA1_BYTES_PER_OBJ			8
+#define RMI_F12_QUERY_RESOLUTION		29
 
 struct f12_data {
 	struct rmi_2d_sensor sensor;
@@ -73,6 +74,8 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	int pitch_y = 0;
 	int rx_receivers = 0;
 	int tx_receivers = 0;
+	u16 query_dpm_addr = 0;
+	int dpm_resolution = 0;
 
 	item = rmi_get_register_desc_item(&f12->control_reg_desc, 8);
 	if (!item) {
@@ -122,18 +125,38 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 		offset += 4;
 	}
 
-	if (rmi_register_desc_has_subpacket(item, 3)) {
-		rx_receivers = buf[offset];
-		tx_receivers = buf[offset + 1];
-		offset += 2;
+	/*
+	 * Use the Query DPM feature when the resolution query register
+	 * exists.
+	 */
+	if (rmi_get_register_desc_item(&f12->query_reg_desc,
+				       RMI_F12_QUERY_RESOLUTION)) {
+		offset = rmi_register_desc_calc_reg_offset(&f12->query_reg_desc,
+						RMI_F12_QUERY_RESOLUTION);
+		query_dpm_addr = fn->fd.query_base_addr	+ offset;
+		ret = rmi_read(fn->rmi_dev, query_dpm_addr, buf);
+		if (ret < 0) {
+			dev_err(&fn->dev, "Failed to read DPM value: %d\n", ret);
+			return -ENODEV;
+		}
+		dpm_resolution = buf[0];
+
+		sensor->x_mm = sensor->max_x / dpm_resolution;
+		sensor->y_mm = sensor->max_y / dpm_resolution;
+	} else {
+		if (rmi_register_desc_has_subpacket(item, 3)) {
+			rx_receivers = buf[offset];
+			tx_receivers = buf[offset + 1];
+			offset += 2;
+		}
+
+		/* Skip over sensor flags */
+		if (rmi_register_desc_has_subpacket(item, 4))
+			offset += 1;
+
+		sensor->x_mm = (pitch_x * rx_receivers) >> 12;
+		sensor->y_mm = (pitch_y * tx_receivers) >> 12;
 	}
-
-	/* Skip over sensor flags */
-	if (rmi_register_desc_has_subpacket(item, 4))
-		offset += 1;
-
-	sensor->x_mm = (pitch_x * rx_receivers) >> 12;
-	sensor->y_mm = (pitch_y * tx_receivers) >> 12;
 
 	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: x_mm: %d y_mm: %d\n", __func__,
 		sensor->x_mm, sensor->y_mm);

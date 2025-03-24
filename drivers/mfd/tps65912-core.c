@@ -57,7 +57,7 @@ static const struct regmap_irq tps65912_irqs[] = {
 	REGMAP_IRQ_REG(TPS65912_IRQ_PGOOD_LDO10, 3, TPS65912_INT_STS4_PGOOD_LDO10),
 };
 
-static struct regmap_irq_chip tps65912_irq_chip = {
+static const struct regmap_irq_chip tps65912_irq_chip = {
 	.name = "tps65912",
 	.irqs = tps65912_irqs,
 	.num_irqs = ARRAY_SIZE(tps65912_irqs),

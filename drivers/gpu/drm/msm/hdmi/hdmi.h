@@ -137,6 +137,7 @@ enum hdmi_phy_type {
 	MSM_HDMI_PHY_8960,
 	MSM_HDMI_PHY_8x74,
 	MSM_HDMI_PHY_8996,
+	MSM_HDMI_PHY_8998,
 	MSM_HDMI_PHY_MAX,
 };
 
@@ -154,6 +155,7 @@ extern const struct hdmi_phy_cfg msm_hdmi_phy_8x60_cfg;
 extern const struct hdmi_phy_cfg msm_hdmi_phy_8960_cfg;
 extern const struct hdmi_phy_cfg msm_hdmi_phy_8x74_cfg;
 extern const struct hdmi_phy_cfg msm_hdmi_phy_8996_cfg;
+extern const struct hdmi_phy_cfg msm_hdmi_phy_8998_cfg;
 
 struct hdmi_phy {
 	struct platform_device *pdev;
@@ -184,6 +186,7 @@ void __exit msm_hdmi_phy_driver_unregister(void);
 #ifdef CONFIG_COMMON_CLK
 int msm_hdmi_pll_8960_init(struct platform_device *pdev);
 int msm_hdmi_pll_8996_init(struct platform_device *pdev);
+int msm_hdmi_pll_8998_init(struct platform_device *pdev);
 #else
 static inline int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 {
@@ -191,6 +194,11 @@ static inline int msm_hdmi_pll_8960_init(struct platform_device *pdev)
 }
 
 static inline int msm_hdmi_pll_8996_init(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+
+static inline int msm_hdmi_pll_8998_init(struct platform_device *pdev)
 {
 	return -ENODEV;
 }

@@ -128,7 +128,7 @@ static struct platform_driver pxa2xx_flash_driver = {
 		.name		= "pxa2xx-flash",
 	},
 	.probe		= pxa2xx_flash_probe,
-	.remove_new	= pxa2xx_flash_remove,
+	.remove		= pxa2xx_flash_remove,
 	.shutdown	= pxa2xx_flash_shutdown,
 };
 

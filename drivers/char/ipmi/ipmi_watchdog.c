@@ -903,7 +903,6 @@ static const struct file_operations ipmi_wdog_fops = {
 	.open    = ipmi_open,
 	.release = ipmi_close,
 	.fasync  = ipmi_fasync,
-	.llseek  = no_llseek,
 };
 
 static struct miscdevice ipmi_wdog_miscdev = {
@@ -1065,7 +1064,6 @@ static void ipmi_register_watchdog(int ipmi_intf)
 
 static void ipmi_unregister_watchdog(int ipmi_intf)
 {
-	int rv;
 	struct ipmi_user *loc_user = watchdog_user;
 
 	if (!loc_user)
@@ -1090,9 +1088,7 @@ static void ipmi_unregister_watchdog(int ipmi_intf)
 	mutex_lock(&ipmi_watchdog_mutex);
 
 	/* Disconnect from IPMI. */
-	rv = ipmi_destroy_user(loc_user);
-	if (rv)
-		pr_warn("error unlinking from IPMI: %d\n",  rv);
+	ipmi_destroy_user(loc_user);
 
 	/* If it comes back, restart it properly. */
 	ipmi_start_timer_on_heartbeat = 1;

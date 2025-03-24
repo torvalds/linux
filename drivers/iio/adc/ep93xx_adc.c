@@ -228,7 +228,7 @@ static void ep93xx_adc_remove(struct platform_device *pdev)
 
 static const struct of_device_id ep93xx_adc_of_ids[] = {
 	{ .compatible = "cirrus,ep9301-adc" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ep93xx_adc_of_ids);
 
@@ -238,7 +238,7 @@ static struct platform_driver ep93xx_adc_driver = {
 		.of_match_table = ep93xx_adc_of_ids,
 	},
 	.probe = ep93xx_adc_probe,
-	.remove_new = ep93xx_adc_remove,
+	.remove = ep93xx_adc_remove,
 };
 module_platform_driver(ep93xx_adc_driver);
 

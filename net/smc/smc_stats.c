@@ -218,6 +218,12 @@ static int smc_nl_fill_stats_tech_data(struct sk_buff *skb,
 			      smc_tech->tx_bytes,
 			      SMC_NLA_STATS_PAD))
 		goto errattr;
+	if (nla_put_uint(skb, SMC_NLA_STATS_T_RX_RMB_USAGE,
+			 smc_tech->rx_rmbuse))
+		goto errattr;
+	if (nla_put_uint(skb, SMC_NLA_STATS_T_TX_RMB_USAGE,
+			 smc_tech->tx_rmbuse))
+		goto errattr;
 	if (nla_put_u64_64bit(skb, SMC_NLA_STATS_T_RX_CNT,
 			      smc_tech->rx_cnt,
 			      SMC_NLA_STATS_PAD))

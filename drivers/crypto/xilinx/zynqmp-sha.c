@@ -248,7 +248,7 @@ static void zynqmp_sha_remove(struct platform_device *pdev)
 
 static struct platform_driver zynqmp_sha_driver = {
 	.probe = zynqmp_sha_probe,
-	.remove_new = zynqmp_sha_remove,
+	.remove = zynqmp_sha_remove,
 	.driver = {
 		.name = "zynqmp-sha3-384",
 	},

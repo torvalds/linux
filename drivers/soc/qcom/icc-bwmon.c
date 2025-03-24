@@ -17,6 +17,8 @@
 #include <linux/pm_opp.h>
 #include <linux/regmap.h>
 #include <linux/sizes.h>
+#define CREATE_TRACE_POINTS
+#include "trace_icc-bwmon.h"
 
 /*
  * The BWMON samples data throughput within 'sample_ms' time. With three
@@ -645,9 +647,10 @@ static irqreturn_t bwmon_intr_thread(int irq, void *dev_id)
 	struct icc_bwmon *bwmon = dev_id;
 	unsigned int irq_enable = 0;
 	struct dev_pm_opp *opp, *target_opp;
-	unsigned int bw_kbps, up_kbps, down_kbps;
+	unsigned int bw_kbps, up_kbps, down_kbps, meas_kbps;
 
 	bw_kbps = bwmon->target_kbps;
+	meas_kbps = bwmon->target_kbps;
 
 	target_opp = dev_pm_opp_find_bw_ceil(bwmon->dev, &bw_kbps, 0);
 	if (IS_ERR(target_opp) && PTR_ERR(target_opp) == -ERANGE)
@@ -679,6 +682,7 @@ static irqreturn_t bwmon_intr_thread(int irq, void *dev_id)
 	bwmon_clear_irq(bwmon);
 	bwmon_enable(bwmon, irq_enable);
 
+	trace_qcom_bwmon_update(dev_name(bwmon->dev), meas_kbps, up_kbps, down_kbps);
 	if (bwmon->target_kbps == bwmon->current_kbps)
 		goto out;
 
@@ -868,7 +872,7 @@ MODULE_DEVICE_TABLE(of, bwmon_of_match);
 
 static struct platform_driver bwmon_driver = {
 	.probe = bwmon_probe,
-	.remove_new = bwmon_remove,
+	.remove = bwmon_remove,
 	.driver = {
 		.name = "qcom-bwmon",
 		.of_match_table = bwmon_of_match,

@@ -68,6 +68,74 @@ cleanup:
 	task_kfunc_success__destroy(skel);
 }
 
+static int run_vpid_test(void *prog_name)
+{
+	struct task_kfunc_success *skel;
+	struct bpf_program *prog;
+	int prog_fd, err = 0;
+
+	if (getpid() != 1)
+		return 1;
+
+	skel = open_load_task_kfunc_skel();
+	if (!skel)
+		return 2;
+
+	if (skel->bss->err) {
+		err = 3;
+		goto cleanup;
+	}
+
+	prog = bpf_object__find_program_by_name(skel->obj, prog_name);
+	if (!prog) {
+		err = 4;
+		goto cleanup;
+	}
+
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		err = 5;
+		goto cleanup;
+	}
+
+	if (bpf_prog_test_run_opts(prog_fd, NULL)) {
+		err = 6;
+		goto cleanup;
+	}
+
+	if (skel->bss->err)
+		err = 7 + skel->bss->err;
+cleanup:
+	task_kfunc_success__destroy(skel);
+	return err;
+}
+
+static void run_vpid_success_test(const char *prog_name)
+{
+	const int stack_size = 1024 * 1024;
+	int child_pid, wstatus;
+	char *stack;
+
+	stack = (char *)malloc(stack_size);
+	if (!ASSERT_OK_PTR(stack, "clone_stack"))
+		return;
+
+	child_pid = clone(run_vpid_test, stack + stack_size,
+			  CLONE_NEWPID | SIGCHLD, (void *)prog_name);
+	if (!ASSERT_GT(child_pid, -1, "child_pid"))
+		goto cleanup;
+
+	if (!ASSERT_GT(waitpid(child_pid, &wstatus, 0), -1, "waitpid"))
+		goto cleanup;
+
+	if (WEXITSTATUS(wstatus) > 7)
+		ASSERT_OK(WEXITSTATUS(wstatus) - 7, "vpid_test_failure");
+	else
+		ASSERT_OK(WEXITSTATUS(wstatus), "run_vpid_test_err");
+cleanup:
+	free(stack);
+}
+
 static const char * const success_tests[] = {
 	"test_task_acquire_release_argument",
 	"test_task_acquire_release_current",
@@ -83,6 +151,11 @@ static const char * const success_tests[] = {
 	"test_task_kfunc_flavor_relo_not_found",
 };
 
+static const char * const vpid_success_tests[] = {
+	"test_task_from_vpid_current",
+	"test_task_from_vpid_invalid",
+};
+
 void test_task_kfunc(void)
 {
 	int i;
@@ -92,6 +165,13 @@ void test_task_kfunc(void)
 			continue;
 
 		run_success_test(success_tests[i]);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(vpid_success_tests); i++) {
+		if (!test__start_subtest(vpid_success_tests[i]))
+			continue;
+
+		run_vpid_success_test(vpid_success_tests[i]);
 	}
 
 	RUN_TESTS(task_kfunc_failure);

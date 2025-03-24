@@ -594,8 +594,8 @@ static int pxa3xx_gcu_probe(struct platform_device *pdev)
 	 * container_of(). This isn't really necessary as we have a fixed minor
 	 * number anyway, but this is to avoid statics. */
 
-	priv->misc_dev.minor	= PXA3XX_GCU_MINOR,
-	priv->misc_dev.name	= DRV_NAME,
+	priv->misc_dev.minor	= PXA3XX_GCU_MINOR;
+	priv->misc_dev.name	= DRV_NAME;
 	priv->misc_dev.fops	= &pxa3xx_gcu_miscdev_fops;
 
 	/* handle IO resources */
@@ -696,10 +696,10 @@ MODULE_DEVICE_TABLE(of, pxa3xx_gcu_of_match);
 #endif
 
 static struct platform_driver pxa3xx_gcu_driver = {
-	.probe	  = pxa3xx_gcu_probe,
-	.remove_new	 = pxa3xx_gcu_remove,
-	.driver	 = {
-		.name   = DRV_NAME,
+	.probe = pxa3xx_gcu_probe,
+	.remove = pxa3xx_gcu_remove,
+	.driver = {
+		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(pxa3xx_gcu_of_match),
 	},
 };

@@ -14,6 +14,7 @@
 #include "core_types.h"
 #include "dm_helpers.h"
 #include "link.h"
+#include "dc_state_priv.h"
 #include "atomfirmware.h"
 
 #include "dcn401_smu14_driver_if.h"
@@ -29,6 +30,7 @@
 #define mmCLK01_CLK0_CLK2_DFS_CNTL                      0x16E6F
 #define mmCLK01_CLK0_CLK3_DFS_CNTL                      0x16E72
 #define mmCLK01_CLK0_CLK4_DFS_CNTL                      0x16E75
+#define mmCLK20_CLK2_CLK2_DFS_CNTL                      0x1B051
 
 #define CLK0_CLK_PLL_REQ__FbMult_int_MASK                  0x000001ffUL
 #define CLK0_CLK_PLL_REQ__PllSpineDiv_MASK                 0x0000f000UL
@@ -137,6 +139,20 @@ static bool dcn401_is_ppclk_idle_dpm_enabled(struct clk_mgr_internal *clk_mgr, P
 	ppclk_idle_dpm_enabled &= clk_mgr->smu_present;
 
 	return ppclk_idle_dpm_enabled;
+}
+
+static bool dcn401_is_df_throttle_opt_enabled(struct clk_mgr_internal *clk_mgr)
+{
+	bool is_df_throttle_opt_enabled = false;
+
+	if (ASICREV_IS_GC_12_0_1_A0(clk_mgr->base.ctx->asic_id.hw_internal_rev) &&
+			clk_mgr->smu_ver >= 0x663500) {
+		is_df_throttle_opt_enabled = !clk_mgr->base.ctx->dc->debug.force_subvp_df_throttle;
+	}
+
+	is_df_throttle_opt_enabled &= clk_mgr->smu_present;
+
+	return is_df_throttle_opt_enabled;
 }
 
 /* Query SMU for all clock states for a particular clock */
@@ -302,6 +318,197 @@ void dcn401_init_clocks(struct clk_mgr *clk_mgr_base)
 	dcn401_build_wm_range_table(clk_mgr_base);
 }
 
+static void dcn401_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
+		struct clk_mgr *clk_mgr_base, struct clk_log_info *log_info)
+{
+		struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+		uint32_t dprefclk_did = 0;
+		uint32_t dcfclk_did = 0;
+		uint32_t dtbclk_did = 0;
+		uint32_t dispclk_did = 0;
+		uint32_t dppclk_did = 0;
+		uint32_t fclk_did = 0;
+		uint32_t target_div = 0;
+
+		/* DFS Slice 0 is used for DISPCLK */
+		dispclk_did = REG_READ(CLK0_CLK0_DFS_CNTL);
+		/* DFS Slice 1 is used for DPPCLK */
+		dppclk_did = REG_READ(CLK0_CLK1_DFS_CNTL);
+		/* DFS Slice 2 is used for DPREFCLK */
+		dprefclk_did = REG_READ(CLK0_CLK2_DFS_CNTL);
+		/* DFS Slice 3 is used for DCFCLK */
+		dcfclk_did = REG_READ(CLK0_CLK3_DFS_CNTL);
+		/* DFS Slice 4 is used for DTBCLK */
+		dtbclk_did = REG_READ(CLK0_CLK4_DFS_CNTL);
+		/* DFS Slice _ is used for FCLK */
+		fclk_did = REG_READ(CLK2_CLK2_DFS_CNTL);
+
+		/* Convert DISPCLK DFS Slice DID to divider*/
+		target_div = dentist_get_divider_from_did(dispclk_did);
+		//Get dispclk in khz
+		regs_and_bypass->dispclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+
+		/* Convert DISPCLK DFS Slice DID to divider*/
+		target_div = dentist_get_divider_from_did(dppclk_did);
+		//Get dppclk in khz
+		regs_and_bypass->dppclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+
+		/* Convert DPREFCLK DFS Slice DID to divider*/
+		target_div = dentist_get_divider_from_did(dprefclk_did);
+		//Get dprefclk in khz
+		regs_and_bypass->dprefclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+
+		/* Convert DCFCLK DFS Slice DID to divider*/
+		target_div = dentist_get_divider_from_did(dcfclk_did);
+		//Get dcfclk in khz
+		regs_and_bypass->dcfclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+
+		/* Convert DTBCLK DFS Slice DID to divider*/
+		target_div = dentist_get_divider_from_did(dtbclk_did);
+		//Get dtbclk in khz
+		regs_and_bypass->dtbclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+
+		/* Convert DTBCLK DFS Slice DID to divider*/
+		target_div = dentist_get_divider_from_did(fclk_did);
+		//Get fclk in khz
+		regs_and_bypass->fclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+				* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+}
+
+static bool dcn401_check_native_scaling(struct pipe_ctx *pipe)
+{
+	bool is_native_scaling = false;
+	int width = pipe->plane_state->src_rect.width;
+	int height = pipe->plane_state->src_rect.height;
+
+	if (pipe->stream->timing.h_addressable == width &&
+			pipe->stream->timing.v_addressable == height &&
+			pipe->plane_state->dst_rect.width == width &&
+			pipe->plane_state->dst_rect.height == height)
+		is_native_scaling = true;
+
+	return is_native_scaling;
+}
+
+static void dcn401_auto_dpm_test_log(
+		struct dc_clocks *new_clocks,
+		struct clk_mgr_internal *clk_mgr,
+		struct dc_state *context)
+{
+	unsigned int mall_ss_size_bytes;
+	int dramclk_khz_override, fclk_khz_override, num_fclk_levels;
+
+	struct pipe_ctx *pipe_ctx_list[MAX_PIPES];
+	int active_pipe_count = 0;
+
+	for (int i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream && dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM) {
+			pipe_ctx_list[active_pipe_count] = pipe_ctx;
+			active_pipe_count++;
+		}
+	}
+
+	msleep(5);
+
+	mall_ss_size_bytes = context->bw_ctx.bw.dcn.mall_ss_size_bytes;
+
+	struct clk_log_info log_info = {0};
+	struct clk_state_registers_and_bypass clk_register_dump;
+
+	dcn401_dump_clk_registers(&clk_register_dump, &clk_mgr->base, &log_info);
+
+	// Overrides for these clocks in case there is no p_state change support
+	dramclk_khz_override = new_clocks->dramclk_khz;
+	fclk_khz_override = new_clocks->fclk_khz;
+
+	num_fclk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_fclk_levels - 1;
+
+	if (!new_clocks->p_state_change_support)
+		dramclk_khz_override = clk_mgr->base.bw_params->max_memclk_mhz * 1000;
+
+	if (!new_clocks->fclk_p_state_change_support)
+		fclk_khz_override = clk_mgr->base.bw_params->clk_table.entries[num_fclk_levels].fclk_mhz * 1000;
+
+
+	////////////////////////////////////////////////////////////////////////////
+	//	IMPORTANT: 	When adding more clocks to these logs, do NOT put a newline
+	//	 			anywhere other than at the very end of the string.
+	//
+	//	Formatting example (make sure to have " - " between each entry):
+	//
+	//				AutoDPMTest: clk1:%d - clk2:%d - clk3:%d - clk4:%d\n"
+	////////////////////////////////////////////////////////////////////////////
+	if (active_pipe_count > 0 &&
+		new_clocks->dramclk_khz > 0 &&
+		new_clocks->fclk_khz > 0 &&
+		new_clocks->dcfclk_khz > 0 &&
+		new_clocks->dppclk_khz > 0) {
+
+		uint32_t pix_clk_list[MAX_PIPES] = {0};
+		int p_state_list[MAX_PIPES] = {0};
+		int disp_src_width_list[MAX_PIPES] = {0};
+		int disp_src_height_list[MAX_PIPES] = {0};
+		uint64_t disp_src_refresh_list[MAX_PIPES] = {0};
+		bool is_scaled_list[MAX_PIPES] = {0};
+
+		for (int i = 0; i < active_pipe_count; i++) {
+			struct pipe_ctx *curr_pipe_ctx = pipe_ctx_list[i];
+			uint64_t refresh_rate;
+
+			pix_clk_list[i] = curr_pipe_ctx->stream->timing.pix_clk_100hz;
+			p_state_list[i] = curr_pipe_ctx->p_state_type;
+
+			refresh_rate = (curr_pipe_ctx->stream->timing.pix_clk_100hz * (uint64_t)100 +
+				curr_pipe_ctx->stream->timing.v_total
+				* (uint64_t) curr_pipe_ctx->stream->timing.h_total - (uint64_t)1);
+			refresh_rate = div_u64(refresh_rate, curr_pipe_ctx->stream->timing.v_total);
+			refresh_rate = div_u64(refresh_rate, curr_pipe_ctx->stream->timing.h_total);
+			disp_src_refresh_list[i] = refresh_rate;
+
+			if (curr_pipe_ctx->plane_state) {
+				is_scaled_list[i] = !(dcn401_check_native_scaling(curr_pipe_ctx));
+				disp_src_width_list[i] = curr_pipe_ctx->plane_state->src_rect.width;
+				disp_src_height_list[i] = curr_pipe_ctx->plane_state->src_rect.height;
+			}
+		}
+
+		DC_LOG_AUTO_DPM_TEST("AutoDPMTest: dramclk:%d - fclk:%d - "
+			"dcfclk:%d - dppclk:%d - dispclk_hw:%d - "
+			"dppclk_hw:%d - dprefclk_hw:%d - dcfclk_hw:%d - "
+			"dtbclk_hw:%d - fclk_hw:%d - pix_clk_0:%d - pix_clk_1:%d - "
+			"pix_clk_2:%d - pix_clk_3:%d - mall_ss_size:%d - p_state_type_0:%d - "
+			"p_state_type_1:%d - p_state_type_2:%d - p_state_type_3:%d - "
+			"pix_width_0:%d - pix_height_0:%d - refresh_rate_0:%lld - is_scaled_0:%d - "
+			"pix_width_1:%d - pix_height_1:%d - refresh_rate_1:%lld - is_scaled_1:%d - "
+			"pix_width_2:%d - pix_height_2:%d - refresh_rate_2:%lld - is_scaled_2:%d - "
+			"pix_width_3:%d - pix_height_3:%d - refresh_rate_3:%lld - is_scaled_3:%d - LOG_END\n",
+			dramclk_khz_override,
+			fclk_khz_override,
+			new_clocks->dcfclk_khz,
+			new_clocks->dppclk_khz,
+			clk_register_dump.dispclk,
+			clk_register_dump.dppclk,
+			clk_register_dump.dprefclk,
+			clk_register_dump.dcfclk,
+			clk_register_dump.dtbclk,
+			clk_register_dump.fclk,
+			pix_clk_list[0], pix_clk_list[1], pix_clk_list[3], pix_clk_list[2],
+			mall_ss_size_bytes,
+			p_state_list[0], p_state_list[1], p_state_list[2], p_state_list[3],
+			disp_src_width_list[0], disp_src_height_list[0], disp_src_refresh_list[0], is_scaled_list[0],
+			disp_src_width_list[1], disp_src_height_list[1], disp_src_refresh_list[1], is_scaled_list[1],
+			disp_src_width_list[2], disp_src_height_list[2], disp_src_refresh_list[2], is_scaled_list[2],
+			disp_src_width_list[3], disp_src_height_list[3], disp_src_refresh_list[3], is_scaled_list[3]);
+	}
+}
+
 static void dcn401_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
 			struct dc_state *context,
 			int ref_dtbclk_khz)
@@ -324,10 +531,12 @@ static void dcn401_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr
 		if (!use_hpo_encoder)
 			continue;
 
-		otg_master->clock_source->funcs->program_pix_clk(
+		if (otg_master->stream_res.pix_clk_params.controller_id > CONTROLLER_ID_UNDEFINED)
+			otg_master->clock_source->funcs->program_pix_clk(
 				otg_master->clock_source,
 				&otg_master->stream_res.pix_clk_params,
-				dccg->ctx->dc->link_srv->dp_get_encoding_format(&otg_master->link_config.dp_link_settings),
+				dccg->ctx->dc->link_srv->dp_get_encoding_format(
+					&otg_master->link_config.dp_link_settings),
 				&otg_master->pll_settings);
 	}
 }
@@ -419,207 +628,6 @@ static void dcn401_update_clocks_update_dentist(
 
 }
 
-static void dcn401_update_clocks_legacy(struct clk_mgr *clk_mgr_base,
-			struct dc_state *context,
-			bool safe_to_lower)
-{
-	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
-	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
-	struct dc *dc = clk_mgr_base->ctx->dc;
-	int display_count;
-	bool update_dppclk = false;
-	bool update_dispclk = false;
-	bool enter_display_off = false;
-	bool dpp_clock_lowered = false;
-	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
-	bool force_reset = false;
-	bool update_uclk = false, update_fclk = false;
-	bool p_state_change_support;
-	bool fclk_p_state_change_support;
-	int total_plane_count;
-
-	if (dc->work_arounds.skip_clock_update)
-		return;
-
-	if (clk_mgr_base->clks.dispclk_khz == 0 ||
-			(dc->debug.force_clock_mode & 0x1)) {
-		/* This is from resume or boot up, if forced_clock cfg option used,
-		 * we bypass program dispclk and DPPCLK, but need set them for S3.
-		 */
-		force_reset = true;
-
-		dcn2_read_clocks_from_hw_dentist(clk_mgr_base);
-
-		/* Force_clock_mode 0x1:  force reset the clock even it is the same clock
-		 * as long as it is in Passive level.
-		 */
-	}
-	display_count = clk_mgr_helper_get_active_display_cnt(dc, context);
-
-	if (display_count == 0)
-		enter_display_off = true;
-
-	if (clk_mgr->smu_present) {
-		if (enter_display_off == safe_to_lower)
-			dcn401_smu_set_num_of_displays(clk_mgr, display_count);
-
-		clk_mgr_base->clks.fclk_prev_p_state_change_support = clk_mgr_base->clks.fclk_p_state_change_support;
-
-		total_plane_count = clk_mgr_helper_get_active_plane_cnt(dc, context);
-		fclk_p_state_change_support = new_clocks->fclk_p_state_change_support || (total_plane_count == 0);
-
-		if (should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_p_state_change_support)) {
-			clk_mgr_base->clks.fclk_p_state_change_support = fclk_p_state_change_support;
-
-			/* To enable FCLK P-state switching, send PSTATE_SUPPORTED message to PMFW */
-			if (clk_mgr_base->clks.fclk_p_state_change_support) {
-				/* Handle the code for sending a message to PMFW that FCLK P-state change is supported */
-				dcn401_smu_send_fclk_pstate_message(clk_mgr, true);
-			}
-		}
-
-		if (dc->debug.force_min_dcfclk_mhz > 0)
-			new_clocks->dcfclk_khz = (new_clocks->dcfclk_khz > (dc->debug.force_min_dcfclk_mhz * 1000)) ?
-					new_clocks->dcfclk_khz : (dc->debug.force_min_dcfclk_mhz * 1000);
-
-		if (should_set_clock(safe_to_lower, new_clocks->dcfclk_khz, clk_mgr_base->clks.dcfclk_khz)) {
-			clk_mgr_base->clks.dcfclk_khz = new_clocks->dcfclk_khz;
-			if (dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DCFCLK))
-				dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DCFCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_khz));
-		}
-
-		if (should_set_clock(safe_to_lower, new_clocks->dcfclk_deep_sleep_khz, clk_mgr_base->clks.dcfclk_deep_sleep_khz)) {
-			clk_mgr_base->clks.dcfclk_deep_sleep_khz = new_clocks->dcfclk_deep_sleep_khz;
-			if (dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DCFCLK))
-				dcn401_smu_set_min_deep_sleep_dcef_clk(clk_mgr, khz_to_mhz_ceil(clk_mgr_base->clks.dcfclk_deep_sleep_khz));
-		}
-
-		if (should_set_clock(safe_to_lower, new_clocks->socclk_khz, clk_mgr_base->clks.socclk_khz))
-			/* We don't actually care about socclk, don't notify SMU of hard min */
-			clk_mgr_base->clks.socclk_khz = new_clocks->socclk_khz;
-
-		clk_mgr_base->clks.prev_p_state_change_support = clk_mgr_base->clks.p_state_change_support;
-		clk_mgr_base->clks.prev_num_ways = clk_mgr_base->clks.num_ways;
-
-		if (clk_mgr_base->clks.num_ways != new_clocks->num_ways &&
-				clk_mgr_base->clks.num_ways < new_clocks->num_ways) {
-			clk_mgr_base->clks.num_ways = new_clocks->num_ways;
-			if (dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_UCLK))
-				dcn401_smu_send_cab_for_uclk_message(clk_mgr, clk_mgr_base->clks.num_ways);
-		}
-
-
-		p_state_change_support = new_clocks->p_state_change_support || (total_plane_count == 0);
-		if (should_update_pstate_support(safe_to_lower, p_state_change_support, clk_mgr_base->clks.prev_p_state_change_support)) {
-			clk_mgr_base->clks.p_state_change_support = p_state_change_support;
-			clk_mgr_base->clks.fw_based_mclk_switching = p_state_change_support && new_clocks->fw_based_mclk_switching;
-
-			/* to disable P-State switching, set UCLK min = max */
-			if (!clk_mgr_base->clks.p_state_change_support && dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_UCLK))
-				dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-						clk_mgr_base->bw_params->clk_table.entries[clk_mgr_base->bw_params->clk_table.num_entries_per_clk.num_memclk_levels - 1].memclk_mhz);
-		}
-
-		/* Always update saved value, even if new value not set due to P-State switching unsupported. Also check safe_to_lower for FCLK */
-		if (safe_to_lower && (clk_mgr_base->clks.fclk_p_state_change_support != clk_mgr_base->clks.fclk_prev_p_state_change_support)) {
-			update_fclk = true;
-		}
-
-		if (!clk_mgr_base->clks.fclk_p_state_change_support &&
-				update_fclk &&
-				dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_FCLK)) {
-			/* Handle code for sending a message to PMFW that FCLK P-state change is not supported */
-			dcn401_smu_send_fclk_pstate_message(clk_mgr, false);
-		}
-
-		/* Always update saved value, even if new value not set due to P-State switching unsupported */
-		if (should_set_clock(safe_to_lower, new_clocks->dramclk_khz, clk_mgr_base->clks.dramclk_khz)) {
-			clk_mgr_base->clks.dramclk_khz = new_clocks->dramclk_khz;
-			update_uclk = true;
-		}
-
-		/* set UCLK to requested value if P-State switching is supported, or to re-enable P-State switching */
-		if (clk_mgr_base->clks.p_state_change_support &&
-				(update_uclk || !clk_mgr_base->clks.prev_p_state_change_support) &&
-				dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_UCLK))
-			dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK, khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
-
-		if (clk_mgr_base->clks.num_ways != new_clocks->num_ways &&
-				clk_mgr_base->clks.num_ways > new_clocks->num_ways) {
-			clk_mgr_base->clks.num_ways = new_clocks->num_ways;
-			if (dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_UCLK))
-				dcn401_smu_send_cab_for_uclk_message(clk_mgr, clk_mgr_base->clks.num_ways);
-		}
-	}
-
-	if (should_set_clock(safe_to_lower, new_clocks->dppclk_khz, clk_mgr_base->clks.dppclk_khz)) {
-		if (clk_mgr_base->clks.dppclk_khz > new_clocks->dppclk_khz)
-			dpp_clock_lowered = true;
-
-		clk_mgr_base->clks.dppclk_khz = new_clocks->dppclk_khz;
-		clk_mgr_base->clks.actual_dppclk_khz = new_clocks->dppclk_khz;
-
-		if (clk_mgr->smu_present && !dpp_clock_lowered && dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DPPCLK))
-			clk_mgr_base->clks.actual_dppclk_khz = dcn401_set_hard_min_by_freq_optimized(clk_mgr, PPCLK_DPPCLK, clk_mgr_base->clks.dppclk_khz);
-		update_dppclk = true;
-	}
-
-	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
-		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
-
-		if (clk_mgr->smu_present && dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DISPCLK))
-			clk_mgr_base->clks.actual_dispclk_khz = dcn401_set_hard_min_by_freq_optimized(clk_mgr, PPCLK_DISPCLK, clk_mgr_base->clks.dispclk_khz);
-
-		update_dispclk = true;
-	}
-
-	if (!new_clocks->dtbclk_en && dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DTBCLK)) {
-		new_clocks->ref_dtbclk_khz = clk_mgr_base->bw_params->clk_table.entries[0].dtbclk_mhz * 1000;
-	}
-
-	/* clock limits are received with MHz precision, divide by 1000 to prevent setting clocks at every call */
-	if (!dc->debug.disable_dtb_ref_clk_switch &&
-			should_set_clock(safe_to_lower, new_clocks->ref_dtbclk_khz / 1000, clk_mgr_base->clks.ref_dtbclk_khz / 1000) &&
-			dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DTBCLK)) {
-		/* DCCG requires KHz precision for DTBCLK */
-		clk_mgr_base->clks.ref_dtbclk_khz =
-				dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DTBCLK, khz_to_mhz_ceil(new_clocks->ref_dtbclk_khz));
-
-		dcn401_update_clocks_update_dtb_dto(clk_mgr, context, clk_mgr_base->clks.ref_dtbclk_khz);
-	}
-
-	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
-		if (dpp_clock_lowered) {
-			/* if clock is being lowered, increase DTO before lowering refclk */
-			dcn401_update_clocks_update_dpp_dto(clk_mgr, context,
-					safe_to_lower, clk_mgr_base->clks.dppclk_khz);
-			dcn401_update_clocks_update_dentist(clk_mgr, context);
-			if (clk_mgr->smu_present && dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_DPPCLK)) {
-				clk_mgr_base->clks.actual_dppclk_khz = dcn401_set_hard_min_by_freq_optimized(clk_mgr, PPCLK_DPPCLK,
-						clk_mgr_base->clks.dppclk_khz);
-				dcn401_update_clocks_update_dpp_dto(clk_mgr, context, safe_to_lower,
-						clk_mgr_base->clks.actual_dppclk_khz);
-			}
-
-		} else {
-			/* if clock is being raised, increase refclk before lowering DTO */
-			if (update_dppclk || update_dispclk)
-				dcn401_update_clocks_update_dentist(clk_mgr, context);
-			/* There is a check inside dcn20_update_clocks_update_dpp_dto which ensures
-			 * that we do not lower dto when it is not safe to lower. We do not need to
-			 * compare the current and new dppclk before calling this function.
-			 */
-			dcn401_update_clocks_update_dpp_dto(clk_mgr, context,
-					safe_to_lower, clk_mgr_base->clks.actual_dppclk_khz);
-		}
-	}
-
-	if (update_dispclk && dmcu && dmcu->funcs->is_dmcu_initialized(dmcu))
-		/*update dmcu for wait_loop count*/
-		dmcu->funcs->set_psr_wait_loop(dmcu,
-				clk_mgr_base->clks.dispclk_khz / 1000 / 7);
-}
-
 static void dcn401_execute_block_sequence(struct clk_mgr *clk_mgr_base, unsigned int num_steps)
 {
 	struct clk_mgr_internal *clk_mgr_internal = TO_CLK_MGR_INTERNAL(clk_mgr_base);
@@ -670,6 +678,12 @@ static void dcn401_execute_block_sequence(struct clk_mgr *clk_mgr_base, unsigned
 			break;
 		case CLK_MGR401_UPDATE_IDLE_HARDMINS:
 			dcn401_smu_set_idle_uclk_fclk_hardmin(
+					clk_mgr_internal,
+					params->update_idle_hardmin_params.uclk_mhz,
+					params->update_idle_hardmin_params.fclk_mhz);
+			break;
+		case CLK_MGR401_UPDATE_SUBVP_HARDMINS:
+			dcn401_smu_set_subvp_uclk_fclk_hardmin(
 					clk_mgr_internal,
 					params->update_idle_hardmin_params.uclk_mhz,
 					params->update_idle_hardmin_params.fclk_mhz);
@@ -738,27 +752,33 @@ static void dcn401_execute_block_sequence(struct clk_mgr *clk_mgr_base, unsigned
 static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		struct clk_mgr *clk_mgr_base,
 		struct dc_state *context,
+		struct dc_clocks *new_clocks,
 		bool safe_to_lower)
 {
 	struct clk_mgr_internal *clk_mgr_internal = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dcn401_clk_mgr *clk_mgr401 = TO_DCN401_CLK_MGR(clk_mgr_internal);
 	struct dc *dc = clk_mgr_base->ctx->dc;
-	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct dcn401_clk_mgr_block_sequence *block_sequence = clk_mgr401->block_sequence;
 	bool enter_display_off = false;
 	bool update_active_fclk = false;
 	bool update_active_uclk = false;
 	bool update_idle_fclk = false;
 	bool update_idle_uclk = false;
+	bool update_subvp_prefetch_dramclk = false;
+	bool update_subvp_prefetch_fclk = false;
 	bool is_idle_dpm_enabled = dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_UCLK) &&
 			dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK) &&
 			dcn401_is_ppclk_idle_dpm_enabled(clk_mgr_internal, PPCLK_UCLK) &&
 			dcn401_is_ppclk_idle_dpm_enabled(clk_mgr_internal, PPCLK_FCLK);
+	bool is_df_throttle_opt_enabled = is_idle_dpm_enabled &&
+		dcn401_is_df_throttle_opt_enabled(clk_mgr_internal);
 	int total_plane_count = clk_mgr_helper_get_active_plane_cnt(dc, context);
 	int active_uclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz);
 	int active_fclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.fclk_khz);
 	int idle_uclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.idle_dramclk_khz);
 	int idle_fclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.idle_fclk_khz);
+	int subvp_prefetch_dramclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.subvp_prefetch_dramclk_khz);
+	int subvp_prefetch_fclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.subvp_prefetch_fclk_khz);
 
 	unsigned int num_steps = 0;
 
@@ -787,15 +807,15 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		update_active_fclk = true;
 		update_idle_fclk = true;
 
-		/* To enable FCLK P-state switching, send PSTATE_SUPPORTED message to PMFW */
-		if (clk_mgr_base->clks.fclk_p_state_change_support) {
-			/* Handle the code for sending a message to PMFW that FCLK P-state change is supported */
-			if (dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
-				block_sequence[num_steps].params.update_pstate_support_params.support = true;
-				block_sequence[num_steps].func = CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT;
-				num_steps++;
-			}
-		}
+		/* To enable FCLK P-state switching, send PSTATE_SUPPORTED message to PMFW (message not supported on DCN401)*/
+		// if (clk_mgr_base->clks.fclk_p_state_change_support) {
+		// 	/* Handle the code for sending a message to PMFW that FCLK P-state change is supported */
+		// 	if (dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
+		// 		block_sequence[num_steps].params.update_pstate_support_params.support = true;
+		// 		block_sequence[num_steps].func = CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT;
+		// 		num_steps++;
+		// 	}
+		// }
 	}
 
 	if (!clk_mgr_base->clks.fclk_p_state_change_support && dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
@@ -914,6 +934,12 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		}
 	}
 
+	if (should_set_clock(safe_to_lower, new_clocks->subvp_prefetch_dramclk_khz, clk_mgr_base->clks.subvp_prefetch_dramclk_khz)) {
+		clk_mgr_base->clks.subvp_prefetch_dramclk_khz = new_clocks->subvp_prefetch_dramclk_khz;
+		update_subvp_prefetch_dramclk = true;
+		subvp_prefetch_dramclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.subvp_prefetch_dramclk_khz);
+	}
+
 	/* FCLK */
 	/* Always update saved value, even if new value not set due to P-State switching unsupported */
 	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz, clk_mgr_base->clks.fclk_khz)) {
@@ -934,6 +960,12 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		}
 	}
 
+	if (should_set_clock(safe_to_lower, new_clocks->subvp_prefetch_fclk_khz, clk_mgr_base->clks.subvp_prefetch_fclk_khz)) {
+		clk_mgr_base->clks.subvp_prefetch_fclk_khz = new_clocks->subvp_prefetch_fclk_khz;
+		update_subvp_prefetch_fclk = true;
+		subvp_prefetch_fclk_mhz = khz_to_mhz_ceil(clk_mgr_base->clks.subvp_prefetch_fclk_khz);
+	}
+
 	/* When idle DPM is enabled, need to send active and idle hardmins separately */
 	/* CLK_MGR401_UPDATE_ACTIVE_HARDMINS */
 	if ((update_active_uclk || update_active_fclk) && is_idle_dpm_enabled) {
@@ -948,6 +980,14 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		block_sequence[num_steps].params.update_idle_hardmin_params.uclk_mhz = idle_uclk_mhz;
 		block_sequence[num_steps].params.update_idle_hardmin_params.fclk_mhz = idle_fclk_mhz;
 		block_sequence[num_steps].func = CLK_MGR401_UPDATE_IDLE_HARDMINS;
+		num_steps++;
+	}
+
+	/* CLK_MGR401_UPDATE_SUBVP_HARDMINS */
+	if ((update_subvp_prefetch_dramclk || update_subvp_prefetch_fclk) && is_df_throttle_opt_enabled) {
+		block_sequence[num_steps].params.update_idle_hardmin_params.uclk_mhz = subvp_prefetch_dramclk_mhz;
+		block_sequence[num_steps].params.update_idle_hardmin_params.fclk_mhz = subvp_prefetch_fclk_mhz;
+		block_sequence[num_steps].func = CLK_MGR401_UPDATE_SUBVP_HARDMINS;
 		num_steps++;
 	}
 
@@ -983,14 +1023,14 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 		// 	(*num_steps)++;
 		// }
 
-		/* disable FCLK P-State support if needed */
-		if (!fclk_p_state_change_support &&
-				should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_prev_p_state_change_support) &&
-				dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
-			block_sequence[num_steps].params.update_pstate_support_params.support = false;
-			block_sequence[num_steps].func = CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT;
-			num_steps++;
-		}
+		/* disable FCLK P-State support if needed (message not supported on DCN401)*/
+		// if (!fclk_p_state_change_support &&
+		// 		should_update_pstate_support(safe_to_lower, fclk_p_state_change_support, clk_mgr_base->clks.fclk_prev_p_state_change_support) &&
+		// 		dcn401_is_ppclk_dpm_enabled(clk_mgr_internal, PPCLK_FCLK)) {
+		// 	block_sequence[num_steps].params.update_pstate_support_params.support = false;
+		// 	block_sequence[num_steps].func = CLK_MGR401_UPDATE_FCLK_PSTATE_SUPPORT;
+		// 	num_steps++;
+		// }
 	}
 
 	if (new_clocks->fw_based_mclk_switching != clk_mgr_base->clks.fw_based_mclk_switching &&
@@ -1025,13 +1065,13 @@ static unsigned int dcn401_build_update_bandwidth_clocks_sequence(
 static unsigned int dcn401_build_update_display_clocks_sequence(
 		struct clk_mgr *clk_mgr_base,
 		struct dc_state *context,
+		struct dc_clocks *new_clocks,
 		bool safe_to_lower)
 {
 	struct clk_mgr_internal *clk_mgr_internal = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dcn401_clk_mgr *clk_mgr401 = TO_DCN401_CLK_MGR(clk_mgr_internal);
 	struct dc *dc = clk_mgr_base->ctx->dc;
 	struct dmcu *dmcu = clk_mgr_base->ctx->dc->res_pool->dmcu;
-	struct dc_clocks *new_clocks = &context->bw_ctx.bw.dcn.clk;
 	struct dcn401_clk_mgr_block_sequence *block_sequence = clk_mgr401->block_sequence;
 	bool force_reset = false;
 	bool update_dispclk = false;
@@ -1171,17 +1211,10 @@ static void dcn401_update_clocks(struct clk_mgr *clk_mgr_base,
 
 	unsigned int num_steps = 0;
 
-	if (dc->work_arounds.skip_clock_update)
-		return;
-
-	if (dc->debug.enable_legacy_clock_update) {
-		dcn401_update_clocks_legacy(clk_mgr_base, context, safe_to_lower);
-		return;
-	}
-
 	/* build bandwidth related clocks update sequence */
 	num_steps = dcn401_build_update_bandwidth_clocks_sequence(clk_mgr_base,
 			context,
+			&context->bw_ctx.bw.dcn.clk,
 			safe_to_lower);
 
 	/* execute sequence */
@@ -1190,10 +1223,15 @@ static void dcn401_update_clocks(struct clk_mgr *clk_mgr_base,
 	/* build display related clocks update sequence */
 	num_steps = dcn401_build_update_display_clocks_sequence(clk_mgr_base,
 			context,
+			&context->bw_ctx.bw.dcn.clk,
 			safe_to_lower);
 
 	/* execute sequence */
 	dcn401_execute_block_sequence(clk_mgr_base,	num_steps);
+
+	if (dc->config.enable_auto_dpm_test_logs)
+		dcn401_auto_dpm_test_log(&context->bw_ctx.bw.dcn.clk, TO_CLK_MGR_INTERNAL(clk_mgr_base), context);
+
 }
 
 
@@ -1216,59 +1254,6 @@ static uint32_t dcn401_get_vco_frequency_from_reg(struct clk_mgr_internal *clk_m
 		pll_req = dc_fixpt_mul_int(pll_req, clk_mgr->dfs_ref_freq_khz);
 
 		return dc_fixpt_floor(pll_req);
-}
-
-static void dcn401_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
-		struct clk_mgr *clk_mgr_base, struct clk_log_info *log_info)
-{
-	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
-	uint32_t dprefclk_did = 0;
-	uint32_t dcfclk_did = 0;
-	uint32_t dtbclk_did = 0;
-	uint32_t dispclk_did = 0;
-	uint32_t dppclk_did = 0;
-	uint32_t target_div = 0;
-
-	/* DFS Slice 0 is used for DISPCLK */
-	dispclk_did = REG_READ(CLK0_CLK0_DFS_CNTL);
-	/* DFS Slice 1 is used for DPPCLK */
-	dppclk_did = REG_READ(CLK0_CLK1_DFS_CNTL);
-	/* DFS Slice 2 is used for DPREFCLK */
-	dprefclk_did = REG_READ(CLK0_CLK2_DFS_CNTL);
-	/* DFS Slice 3 is used for DCFCLK */
-	dcfclk_did = REG_READ(CLK0_CLK3_DFS_CNTL);
-	/* DFS Slice 4 is used for DTBCLK */
-	dtbclk_did = REG_READ(CLK0_CLK4_DFS_CNTL);
-
-	/* Convert DISPCLK DFS Slice DID to divider*/
-	target_div = dentist_get_divider_from_did(dispclk_did);
-	//Get dispclk in khz
-	regs_and_bypass->dispclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
-
-	/* Convert DISPCLK DFS Slice DID to divider*/
-	target_div = dentist_get_divider_from_did(dppclk_did);
-	//Get dppclk in khz
-	regs_and_bypass->dppclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
-
-	/* Convert DPREFCLK DFS Slice DID to divider*/
-	target_div = dentist_get_divider_from_did(dprefclk_did);
-	//Get dprefclk in khz
-	regs_and_bypass->dprefclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
-
-	/* Convert DCFCLK DFS Slice DID to divider*/
-	target_div = dentist_get_divider_from_did(dcfclk_did);
-	//Get dcfclk in khz
-	regs_and_bypass->dcfclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
-
-	/* Convert DTBCLK DFS Slice DID to divider*/
-	target_div = dentist_get_divider_from_did(dtbclk_did);
-	//Get dtbclk in khz
-	regs_and_bypass->dtbclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
-			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
 }
 
 static void dcn401_clock_read_ss_info(struct clk_mgr_internal *clk_mgr)
@@ -1330,33 +1315,48 @@ static void dcn401_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 static void dcn401_set_hard_min_memclk(struct clk_mgr *clk_mgr_base, bool current_mode)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	const struct dc *dc = clk_mgr->base.ctx->dc;
+	struct dc_state *context = dc->current_state;
+	struct dc_clocks new_clocks;
+	int num_steps;
 
 	if (!clk_mgr->smu_present || !dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_UCLK))
 		return;
 
+	/* build clock update */
+	memcpy(&new_clocks, &clk_mgr_base->clks, sizeof(struct dc_clocks));
+
 	if (current_mode) {
-		if (clk_mgr_base->clks.p_state_change_support)
-			dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-					khz_to_mhz_ceil(clk_mgr_base->clks.dramclk_khz));
-		else
-			dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-					clk_mgr_base->bw_params->max_memclk_mhz);
+		new_clocks.dramclk_khz = context->bw_ctx.bw.dcn.clk.dramclk_khz;
+		new_clocks.idle_dramclk_khz = context->bw_ctx.bw.dcn.clk.idle_dramclk_khz;
+		new_clocks.p_state_change_support = context->bw_ctx.bw.dcn.clk.p_state_change_support;
 	} else {
-		dcn401_smu_set_hard_min_by_freq(clk_mgr, PPCLK_UCLK,
-				clk_mgr_base->bw_params->clk_table.entries[0].memclk_mhz);
+		new_clocks.dramclk_khz = clk_mgr_base->bw_params->clk_table.entries[0].memclk_mhz * 1000;
+		new_clocks.idle_dramclk_khz = new_clocks.dramclk_khz;
+		new_clocks.p_state_change_support = true;
 	}
+
+	num_steps = dcn401_build_update_bandwidth_clocks_sequence(clk_mgr_base,
+			context,
+			&new_clocks,
+			true);
+
+	/* execute sequence */
+	dcn401_execute_block_sequence(clk_mgr_base,	num_steps);
 }
 
-/* Set max memclk to highest DPM value */
-static void dcn401_set_hard_max_memclk(struct clk_mgr *clk_mgr_base)
+static int dcn401_get_hard_min_memclk(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 
-	if (!clk_mgr->smu_present || !dcn401_is_ppclk_dpm_enabled(clk_mgr, PPCLK_UCLK))
-		return;
+	return clk_mgr->base.ctx->dc->current_state->bw_ctx.bw.dcn.clk.dramclk_khz;
+}
 
-	dcn30_smu_set_hard_max_by_freq(clk_mgr, PPCLK_UCLK,
-			clk_mgr_base->bw_params->max_memclk_mhz);
+static int dcn401_get_hard_min_fclk(struct clk_mgr *clk_mgr_base)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+
+	return clk_mgr->base.ctx->dc->current_state->bw_ctx.bw.dcn.clk.fclk_khz;
 }
 
 /* Get current memclk states, update bounding box */
@@ -1402,6 +1402,15 @@ static void dcn401_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 
 	if (clk_mgr->dpm_present && !num_levels)
 		clk_mgr->dpm_present = false;
+
+	clk_mgr_base->bw_params->num_channels = dcn401_smu_get_num_of_umc_channels(clk_mgr);
+	if (clk_mgr_base->ctx->dc_bios) {
+		/* use BIOS values if none provided by PMFW */
+		if (clk_mgr_base->bw_params->num_channels == 0) {
+			clk_mgr_base->bw_params->num_channels = clk_mgr_base->ctx->dc_bios->vram_info.num_chans;
+		}
+		clk_mgr_base->bw_params->dram_channel_width_bytes = clk_mgr_base->ctx->dc_bios->vram_info.dram_channel_width_bytes;
+	}
 
 	/* Refresh bounding box */
 	clk_mgr_base->ctx->dc->res_pool->funcs->update_bw_bounding_box(
@@ -1487,12 +1496,13 @@ static struct clk_mgr_funcs dcn401_funcs = {
 		.init_clocks = dcn401_init_clocks,
 		.notify_wm_ranges = dcn401_notify_wm_ranges,
 		.set_hard_min_memclk = dcn401_set_hard_min_memclk,
-		.set_hard_max_memclk = dcn401_set_hard_max_memclk,
 		.get_memclk_states_from_smu = dcn401_get_memclk_states_from_smu,
 		.are_clock_states_equal = dcn401_are_clock_states_equal,
 		.enable_pme_wa = dcn401_enable_pme_wa,
 		.is_smu_present = dcn401_is_smu_present,
 		.get_dispclk_from_dentist = dcn401_get_dispclk_from_dentist,
+		.get_hard_min_memclk = dcn401_get_hard_min_memclk,
+		.get_hard_min_fclk = dcn401_get_hard_min_fclk,
 };
 
 struct clk_mgr_internal *dcn401_clk_mgr_construct(

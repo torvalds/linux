@@ -307,8 +307,8 @@ static struct platform_driver sun6i_msgbox_driver = {
 		.name = "sun6i-msgbox",
 		.of_match_table = sun6i_msgbox_of_match,
 	},
-	.probe  = sun6i_msgbox_probe,
-	.remove_new = sun6i_msgbox_remove,
+	.probe = sun6i_msgbox_probe,
+	.remove = sun6i_msgbox_remove,
 };
 module_platform_driver(sun6i_msgbox_driver);
 

@@ -9,6 +9,7 @@
 #include <linux/atomic.h>
 #include <linux/io-pgtable.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pm_runtime.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 
@@ -64,6 +65,25 @@ struct panthor_irq {
 
 	/** @suspended: Set to true when the IRQ is suspended. */
 	atomic_t suspended;
+};
+
+/**
+ * enum panthor_device_profiling_mode - Profiling state
+ */
+enum panthor_device_profiling_flags {
+	/** @PANTHOR_DEVICE_PROFILING_DISABLED: Profiling is disabled. */
+	PANTHOR_DEVICE_PROFILING_DISABLED = 0,
+
+	/** @PANTHOR_DEVICE_PROFILING_CYCLES: Sampling job cycles. */
+	PANTHOR_DEVICE_PROFILING_CYCLES = BIT(0),
+
+	/** @PANTHOR_DEVICE_PROFILING_TIMESTAMP: Sampling job timestamp. */
+	PANTHOR_DEVICE_PROFILING_TIMESTAMP = BIT(1),
+
+	/** @PANTHOR_DEVICE_PROFILING_ALL: Sampling everything. */
+	PANTHOR_DEVICE_PROFILING_ALL =
+	PANTHOR_DEVICE_PROFILING_CYCLES |
+	PANTHOR_DEVICE_PROFILING_TIMESTAMP,
 };
 
 /**
@@ -137,6 +157,17 @@ struct panthor_device {
 
 		/** @pending: Set to true if a reset is pending. */
 		atomic_t pending;
+
+		/**
+		 * @fast: True if the post_reset logic can proceed with a fast reset.
+		 *
+		 * A fast reset is just a reset where the driver doesn't reload the FW sections.
+		 *
+		 * Any time the firmware is properly suspended, a fast reset can take place.
+		 * On the other hand, if the halt operation failed, the driver will reload
+		 * all FW sections to make sure we start from a fresh state.
+		 */
+		bool fast;
 	} reset;
 
 	/** @pm: Power management related data. */
@@ -161,7 +192,24 @@ struct panthor_device {
 		 * is suspended.
 		 */
 		struct page *dummy_latest_flush;
+
+		/** @recovery_needed: True when a resume attempt failed. */
+		atomic_t recovery_needed;
 	} pm;
+
+	/** @profile_mask: User-set profiling flags for job accounting. */
+	u32 profile_mask;
+
+	/** @current_frequency: Device clock frequency at present. Set by DVFS*/
+	unsigned long current_frequency;
+
+	/** @fast_rate: Maximum device clock frequency. Set by DVFS */
+	unsigned long fast_rate;
+};
+
+struct panthor_gpu_usage {
+	u64 time;
+	u64 cycles;
 };
 
 /**
@@ -176,6 +224,9 @@ struct panthor_file {
 
 	/** @groups: Scheduling group pool attached to this file. */
 	struct panthor_group_pool *groups;
+
+	/** @stats: cycle and timestamp measures for job execution. */
+	struct panthor_gpu_usage stats;
 };
 
 int panthor_device_init(struct panthor_device *ptdev);
@@ -206,6 +257,28 @@ int panthor_device_mmap_io(struct panthor_device *ptdev,
 
 int panthor_device_resume(struct device *dev);
 int panthor_device_suspend(struct device *dev);
+
+static inline int panthor_device_resume_and_get(struct panthor_device *ptdev)
+{
+	int ret = pm_runtime_resume_and_get(ptdev->base.dev);
+
+	/* If the resume failed, we need to clear the runtime_error, which
+	 * can done by forcing the RPM state to suspended. If multiple
+	 * threads called panthor_device_resume_and_get(), we only want
+	 * one of them to update the state, hence the cmpxchg. Note that a
+	 * thread might enter panthor_device_resume_and_get() and call
+	 * pm_runtime_resume_and_get() after another thread had attempted
+	 * to resume and failed. This means we will end up with an error
+	 * without even attempting a resume ourselves. The only risk here
+	 * is to report an error when the second resume attempt might have
+	 * succeeded. Given resume errors are not expected, this is probably
+	 * something we can live with.
+	 */
+	if (ret && atomic_cmpxchg(&ptdev->pm.recovery_needed, 1, 0) == 1)
+		pm_runtime_set_suspended(ptdev->base.dev);
+
+	return ret;
+}
 
 enum drm_panthor_exception_type {
 	DRM_PANTHOR_EXCEPTION_OK = 0x00,

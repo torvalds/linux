@@ -12,6 +12,7 @@
 #include <net/netns/generic.h>
 
 #include "protocol.h"
+#include "mib.h"
 
 #define MPTCP_SYSCTL_PATH "net/mptcp"
 
@@ -27,8 +28,12 @@ struct mptcp_pernet {
 #endif
 
 	unsigned int add_addr_timeout;
+	unsigned int blackhole_timeout;
 	unsigned int close_timeout;
 	unsigned int stale_loss_cnt;
+	atomic_t active_disable_times;
+	u8 syn_retrans_before_tcp_fallback;
+	unsigned long active_disable_stamp;
 	u8 mptcp_enabled;
 	u8 checksum_enabled;
 	u8 allow_join_initial_addr_port;
@@ -87,6 +92,9 @@ static void mptcp_pernet_set_defaults(struct mptcp_pernet *pernet)
 {
 	pernet->mptcp_enabled = 1;
 	pernet->add_addr_timeout = TCP_RTO_MAX;
+	pernet->blackhole_timeout = 3600;
+	pernet->syn_retrans_before_tcp_fallback = 2;
+	atomic_set(&pernet->active_disable_times, 0);
 	pernet->close_timeout = TCP_TIMEWAIT_LEN;
 	pernet->checksum_enabled = 0;
 	pernet->allow_join_initial_addr_port = 1;
@@ -96,16 +104,15 @@ static void mptcp_pernet_set_defaults(struct mptcp_pernet *pernet)
 }
 
 #ifdef CONFIG_SYSCTL
-static int mptcp_set_scheduler(const struct net *net, const char *name)
+static int mptcp_set_scheduler(char *scheduler, const char *name)
 {
-	struct mptcp_pernet *pernet = mptcp_get_pernet(net);
 	struct mptcp_sched_ops *sched;
 	int ret = 0;
 
 	rcu_read_lock();
 	sched = mptcp_sched_find(name);
 	if (sched)
-		strscpy(pernet->scheduler, name, MPTCP_SCHED_NAME_MAX);
+		strscpy(scheduler, name, MPTCP_SCHED_NAME_MAX);
 	else
 		ret = -ENOENT;
 	rcu_read_unlock();
@@ -116,7 +123,7 @@ static int mptcp_set_scheduler(const struct net *net, const char *name)
 static int proc_scheduler(const struct ctl_table *ctl, int write,
 			  void *buffer, size_t *lenp, loff_t *ppos)
 {
-	const struct net *net = current->nsproxy->net_ns;
+	char (*scheduler)[MPTCP_SCHED_NAME_MAX] = ctl->data;
 	char val[MPTCP_SCHED_NAME_MAX];
 	struct ctl_table tbl = {
 		.data = val,
@@ -124,11 +131,11 @@ static int proc_scheduler(const struct ctl_table *ctl, int write,
 	};
 	int ret;
 
-	strscpy(val, mptcp_get_scheduler(net), MPTCP_SCHED_NAME_MAX);
+	strscpy(val, *scheduler, MPTCP_SCHED_NAME_MAX);
 
 	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		ret = mptcp_set_scheduler(net, val);
+		ret = mptcp_set_scheduler(*scheduler, val);
 
 	return ret;
 }
@@ -147,6 +154,22 @@ static int proc_available_schedulers(const struct ctl_table *ctl,
 	mptcp_get_available_schedulers(tbl.data, MPTCP_SCHED_BUF_MAX);
 	ret = proc_dostring(&tbl, write, buffer, lenp, ppos);
 	kfree(tbl.data);
+
+	return ret;
+}
+
+static int proc_blackhole_detect_timeout(const struct ctl_table *table,
+					 int write, void *buffer, size_t *lenp,
+					 loff_t *ppos)
+{
+	struct mptcp_pernet *pernet = container_of(table->data,
+						   struct mptcp_pernet,
+						   blackhole_timeout);
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+	if (write && ret == 0)
+		atomic_set(&pernet->active_disable_times, 0);
 
 	return ret;
 }
@@ -208,7 +231,7 @@ static struct ctl_table mptcp_sysctl_table[] = {
 	{
 		.procname = "available_schedulers",
 		.maxlen	= MPTCP_SCHED_BUF_MAX,
-		.mode = 0644,
+		.mode = 0444,
 		.proc_handler = proc_available_schedulers,
 	},
 	{
@@ -216,6 +239,19 @@ static struct ctl_table mptcp_sysctl_table[] = {
 		.maxlen = sizeof(unsigned int),
 		.mode = 0644,
 		.proc_handler = proc_dointvec_jiffies,
+	},
+	{
+		.procname = "blackhole_timeout",
+		.maxlen = sizeof(unsigned int),
+		.mode = 0644,
+		.proc_handler = proc_blackhole_detect_timeout,
+		.extra1 = SYSCTL_ZERO,
+	},
+	{
+		.procname = "syn_retrans_before_tcp_fallback",
+		.maxlen = sizeof(u8),
+		.mode = 0644,
+		.proc_handler = proc_dou8vec_minmax,
 	},
 };
 
@@ -240,6 +276,8 @@ static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
 	table[6].data = &pernet->scheduler;
 	/* table[7] is for available_schedulers which is read-only info */
 	table[8].data = &pernet->close_timeout;
+	table[9].data = &pernet->blackhole_timeout;
+	table[10].data = &pernet->syn_retrans_before_tcp_fallback;
 
 	hdr = register_net_sysctl_sz(net, MPTCP_SYSCTL_PATH, table,
 				     ARRAY_SIZE(mptcp_sysctl_table));
@@ -276,6 +314,115 @@ static int mptcp_pernet_new_table(struct net *net, struct mptcp_pernet *pernet)
 static void mptcp_pernet_del_table(struct mptcp_pernet *pernet) {}
 
 #endif /* CONFIG_SYSCTL */
+
+/* The following code block is to deal with middle box issues with MPTCP,
+ * similar to what is done with TFO.
+ * The proposed solution is to disable active MPTCP globally when SYN+MPC are
+ * dropped, while SYN without MPC aren't. In this case, active side MPTCP is
+ * disabled globally for 1hr at first. Then if it happens again, it is disabled
+ * for 2h, then 4h, 8h, ...
+ * The timeout is reset back to 1hr when a successful active MPTCP connection is
+ * fully established.
+ */
+
+/* Disable active MPTCP and record current jiffies and active_disable_times */
+void mptcp_active_disable(struct sock *sk)
+{
+	struct net *net = sock_net(sk);
+	struct mptcp_pernet *pernet;
+
+	pernet = mptcp_get_pernet(net);
+
+	if (!READ_ONCE(pernet->blackhole_timeout))
+		return;
+
+	/* Paired with READ_ONCE() in mptcp_active_should_disable() */
+	WRITE_ONCE(pernet->active_disable_stamp, jiffies);
+
+	/* Paired with smp_rmb() in mptcp_active_should_disable().
+	 * We want pernet->active_disable_stamp to be updated first.
+	 */
+	smp_mb__before_atomic();
+	atomic_inc(&pernet->active_disable_times);
+
+	MPTCP_INC_STATS(net, MPTCP_MIB_BLACKHOLE);
+}
+
+/* Calculate timeout for MPTCP active disable
+ * Return true if we are still in the active MPTCP disable period
+ * Return false if timeout already expired and we should use active MPTCP
+ */
+bool mptcp_active_should_disable(struct sock *ssk)
+{
+	struct net *net = sock_net(ssk);
+	unsigned int blackhole_timeout;
+	struct mptcp_pernet *pernet;
+	unsigned long timeout;
+	int disable_times;
+	int multiplier;
+
+	pernet = mptcp_get_pernet(net);
+	blackhole_timeout = READ_ONCE(pernet->blackhole_timeout);
+
+	if (!blackhole_timeout)
+		return false;
+
+	disable_times = atomic_read(&pernet->active_disable_times);
+	if (!disable_times)
+		return false;
+
+	/* Paired with smp_mb__before_atomic() in mptcp_active_disable() */
+	smp_rmb();
+
+	/* Limit timeout to max: 2^6 * initial timeout */
+	multiplier = 1 << min(disable_times - 1, 6);
+
+	/* Paired with the WRITE_ONCE() in mptcp_active_disable(). */
+	timeout = READ_ONCE(pernet->active_disable_stamp) +
+		  multiplier * blackhole_timeout * HZ;
+
+	return time_before(jiffies, timeout);
+}
+
+/* Enable active MPTCP and reset active_disable_times if needed */
+void mptcp_active_enable(struct sock *sk)
+{
+	struct mptcp_pernet *pernet = mptcp_get_pernet(sock_net(sk));
+
+	if (atomic_read(&pernet->active_disable_times)) {
+		struct dst_entry *dst = sk_dst_get(sk);
+
+		if (dst && dst->dev && (dst->dev->flags & IFF_LOOPBACK))
+			atomic_set(&pernet->active_disable_times, 0);
+	}
+}
+
+/* Check the number of retransmissions, and fallback to TCP if needed */
+void mptcp_active_detect_blackhole(struct sock *ssk, bool expired)
+{
+	struct mptcp_subflow_context *subflow;
+
+	if (!sk_is_mptcp(ssk))
+		return;
+
+	subflow = mptcp_subflow_ctx(ssk);
+
+	if (subflow->request_mptcp && ssk->sk_state == TCP_SYN_SENT) {
+		struct net *net = sock_net(ssk);
+		u8 timeouts, to_max;
+
+		timeouts = inet_csk(ssk)->icsk_retransmits;
+		to_max = mptcp_get_pernet(net)->syn_retrans_before_tcp_fallback;
+
+		if (timeouts == to_max || (timeouts < to_max && expired)) {
+			MPTCP_INC_STATS(net, MPTCP_MIB_MPCAPABLEACTIVEDROP);
+			subflow->mpc_drop = 1;
+			mptcp_subflow_early_fallback(mptcp_sk(subflow->conn), subflow);
+		}
+	} else if (ssk->sk_state == TCP_SYN_SENT) {
+		subflow->mpc_drop = 0;
+	}
+}
 
 static int __net_init mptcp_net_init(struct net *net)
 {

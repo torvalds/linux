@@ -734,7 +734,7 @@ static struct platform_driver xge_driver = {
 		   .acpi_match_table = ACPI_PTR(xge_acpi_match),
 	},
 	.probe = xge_probe,
-	.remove_new = xge_remove,
+	.remove = xge_remove,
 	.shutdown = xge_shutdown,
 };
 module_platform_driver(xge_driver);

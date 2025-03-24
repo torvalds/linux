@@ -232,7 +232,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_sleep: usdhc1grp-sleep {
+	pinctrl_usdhc1_sleep: usdhc1-sleep-grp {
 		fsl,pins = <
 			MX6UL_PAD_SD1_CMD__GPIO2_IO16           0x3000
 			MX6UL_PAD_SD1_CLK__GPIO2_IO17           0x3000
@@ -250,7 +250,7 @@
 		>;
 	};
 
-	pinctrl_wifibt_ctrl_sleep: wifibt-ctrl-grp-sleep {
+	pinctrl_wifibt_ctrl_sleep: wifibt-ctrl-sleep-grp {
 		fsl,pins = <
 			MX6UL_PAD_SNVS_TAMPER0__GPIO5_IO00      0x3000
 			MX6UL_PAD_SNVS_TAMPER9__GPIO5_IO09      0x3000

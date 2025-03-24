@@ -83,7 +83,7 @@ static struct i2c_driver adxl367_i2c_driver = {
 
 module_i2c_driver(adxl367_i2c_driver);
 
-MODULE_IMPORT_NS(IIO_ADXL367);
+MODULE_IMPORT_NS("IIO_ADXL367");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADXL367 3-axis accelerometer I2C driver");
 MODULE_LICENSE("GPL");

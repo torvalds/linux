@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/usb/input.h>
 #include <linux/usb/cdc.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define IMS_PCU_KEYMAP_LEN		32
 
@@ -739,7 +739,7 @@ static int ims_pcu_switch_to_bootloader(struct ims_pcu *pcu)
 {
 	int error;
 
-	/* Execute jump to the bootoloader */
+	/* Execute jump to the bootloader */
 	error = ims_pcu_execute_command(pcu, JUMP_TO_BTLDR, NULL, 0);
 	if (error) {
 		dev_err(pcu->dev,
@@ -1067,7 +1067,7 @@ static ssize_t ims_pcu_attribute_store(struct device *dev,
 	if (data_len > attr->field_length)
 		return -EINVAL;
 
-	scoped_cond_guard(mutex, return -EINTR, &pcu->cmd_mutex) {
+	scoped_cond_guard(mutex_intr, return -EINTR, &pcu->cmd_mutex) {
 		memset(field, 0, attr->field_length);
 		memcpy(field, buf, data_len);
 

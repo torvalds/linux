@@ -40,27 +40,6 @@ config BSC9132_QDS
 	  and dual StarCore SC3850 DSP cores.
 	  Manufacturer : Freescale Semiconductor, Inc
 
-config MPC8540_ADS
-	bool "Freescale MPC8540 ADS"
-	select DEFAULT_UIMAGE
-	help
-	  This option enables support for the MPC 8540 ADS board
-
-config MPC8560_ADS
-	bool "Freescale MPC8560 ADS"
-	select DEFAULT_UIMAGE
-	select CPM2
-	help
-	  This option enables support for the MPC 8560 ADS board
-
-config MPC85xx_CDS
-	bool "Freescale MPC85xx CDS"
-	select DEFAULT_UIMAGE
-	select PPC_I8259
-	select HAVE_RAPIDIO
-	help
-	  This option enables support for the MPC85xx CDS board
-
 config MPC85xx_MDS
 	bool "Freescale MPC8568 MDS / MPC8569 MDS / P1021 MDS"
 	select DEFAULT_UIMAGE

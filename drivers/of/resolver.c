@@ -42,7 +42,7 @@ static void adjust_overlay_phandles(struct device_node *overlay,
 		int phandle_delta)
 {
 	struct device_node *child;
-	struct property *prop;
+	const struct property *prop;
 	phandle phandle;
 
 	/* adjust node's phandle in node */
@@ -71,10 +71,10 @@ static void adjust_overlay_phandles(struct device_node *overlay,
 }
 
 static int update_usages_of_a_phandle_reference(struct device_node *overlay,
-		struct property *prop_fixup, phandle phandle)
+		const struct property *prop_fixup, phandle phandle)
 {
 	struct device_node *refnode;
-	struct property *prop;
+	const struct property *prop;
 	char *value __free(kfree) = kmemdup(prop_fixup->value, prop_fixup->length, GFP_KERNEL);
 	char *cur, *end, *node_path, *prop_name, *s;
 	int offset, len;
@@ -147,11 +147,11 @@ static int node_name_cmp(const struct device_node *dn1,
  * of offsets of the phandle reference(s) within the respective property
  * value(s).  The values at these offsets will be fixed up.
  */
-static int adjust_local_phandle_references(struct device_node *local_fixups,
-		struct device_node *overlay, int phandle_delta)
+static int adjust_local_phandle_references(const struct device_node *local_fixups,
+		const struct device_node *overlay, int phandle_delta)
 {
-	struct device_node *child, *overlay_child;
-	struct property *prop_fix, *prop;
+	struct device_node *overlay_child;
+	const struct property *prop_fix, *prop;
 	int err, i, count;
 	unsigned int off;
 
@@ -194,7 +194,7 @@ static int adjust_local_phandle_references(struct device_node *local_fixups,
 	 * The roots of the subtrees are the overlay's __local_fixups__ node
 	 * and the overlay's root node.
 	 */
-	for_each_child_of_node(local_fixups, child) {
+	for_each_child_of_node_scoped(local_fixups, child) {
 
 		for_each_child_of_node(overlay, overlay_child)
 			if (!node_name_cmp(child, overlay_child)) {
@@ -202,17 +202,13 @@ static int adjust_local_phandle_references(struct device_node *local_fixups,
 				break;
 			}
 
-		if (!overlay_child) {
-			of_node_put(child);
+		if (!overlay_child)
 			return -EINVAL;
-		}
 
 		err = adjust_local_phandle_references(child, overlay_child,
 				phandle_delta);
-		if (err) {
-			of_node_put(child);
+		if (err)
 			return err;
-		}
 	}
 
 	return 0;

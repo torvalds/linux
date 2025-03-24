@@ -48,7 +48,7 @@
 #define VRFB_TX_TIMEOUT         1000
 #define VRFB_NUM_BUFS		4
 
-/* Max buffer size tobe allocated during init */
+/* Max buffer size to be allocated during init */
 #define OMAP_VOUT_MAX_BUF_SIZE (VID_MAX_WIDTH*VID_MAX_HEIGHT*4)
 
 enum dma_channel_state {

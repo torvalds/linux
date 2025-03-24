@@ -355,22 +355,7 @@ just do it. As a result, a sequence of smaller series gets merged quicker and
 with better review coverage. Re-posting large series also increases the mailing
 list traffic.
 
-Multi-line comments
-~~~~~~~~~~~~~~~~~~~
-
-Comment style convention is slightly different for networking and most of
-the tree.  Instead of this::
-
-  /*
-   * foobar blah blah blah
-   * another line of text
-   */
-
-it is requested that you make it look like this::
-
-  /* foobar blah blah blah
-   * another line of text
-   */
+.. _rcs:
 
 Local variable ordering ("reverse xmas tree", "RCS")
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -391,6 +376,37 @@ Format precedence
 When working in existing code which uses nonstandard formatting make
 your code follow the most recent guidelines, so that eventually all code
 in the domain of netdev is in the preferred format.
+
+Using device-managed and cleanup.h constructs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Netdev remains skeptical about promises of all "auto-cleanup" APIs,
+including even ``devm_`` helpers, historically. They are not the preferred
+style of implementation, merely an acceptable one.
+
+Use of ``guard()`` is discouraged within any function longer than 20 lines,
+``scoped_guard()`` is considered more readable. Using normal lock/unlock is
+still (weakly) preferred.
+
+Low level cleanup constructs (such as ``__free()``) can be used when building
+APIs and helpers, especially scoped iterators. However, direct use of
+``__free()`` within networking core and drivers is discouraged.
+Similar guidance applies to declaring variables mid-function.
+
+Clean-up patches
+~~~~~~~~~~~~~~~~
+
+Netdev discourages patches which perform simple clean-ups, which are not in
+the context of other work. For example:
+
+* Addressing ``checkpatch.pl`` warnings
+* Addressing :ref:`Local variable ordering<rcs>` issues
+* Conversions to device-managed APIs (``devm_`` helpers)
+
+This is because it is felt that the churn that such changes produce comes
+at a greater cost than the value of such clean-ups.
+
+Conversely, spelling and grammar fixes are not discouraged.
 
 Resending after review
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -453,6 +469,52 @@ in a way which would break what would normally be considered uAPI.
 ``netdevsim`` is reserved for use by upstream tests only, so any
 new ``netdevsim`` features must be accompanied by selftests under
 ``tools/testing/selftests/``.
+
+Supported status for drivers
+----------------------------
+
+.. note: The following requirements apply only to Ethernet NIC drivers.
+
+Netdev defines additional requirements for drivers which want to acquire
+the ``Supported`` status in the MAINTAINERS file. ``Supported`` drivers must
+be running all upstream driver tests and reporting the results twice a day.
+Drivers which do not comply with this requirement should use the ``Maintained``
+status. There is currently no difference in how ``Supported`` and ``Maintained``
+drivers are treated upstream.
+
+The exact rules a driver must follow to acquire the ``Supported`` status:
+
+1. Must run all tests under ``drivers/net`` and ``drivers/net/hw`` targets
+   of Linux selftests. Running and reporting private / internal tests is
+   also welcome, but upstream tests are a must.
+
+2. The minimum run frequency is once every 12 hours. Must test the
+   designated branch from the selected branch feed. Note that branches
+   are auto-constructed and exposed to intentional malicious patch posting,
+   so the test systems must be isolated.
+
+3. Drivers supporting multiple generations of devices must test at
+   least one device from each generation. A testbed manifest (exact
+   format TBD) should describe the device models tested.
+
+4. The tests must run reliably, if multiple branches are skipped or tests
+   are failing due to execution environment problems the ``Supported``
+   status will be withdrawn.
+
+5. Test failures due to bugs either in the driver or the test itself,
+   or lack of support for the feature the test is targgeting are
+   *not* a basis for losing the ``Supported`` status.
+
+netdev CI will maintain an official page of supported devices, listing their
+recent test results.
+
+The driver maintainer may arrange for someone else to run the test,
+there is no requirement for the person listed as maintainer (or their
+employer) to be responsible for running the tests. Collaboration between
+vendors, hosting GH CI, other repos under linux-netdev, etc. is most welcome.
+
+See https://github.com/linux-netdev/nipa/wiki for more information about
+netdev CI. Feel free to reach out to maintainers or the list with any questions.
 
 Reviewer guidance
 -----------------

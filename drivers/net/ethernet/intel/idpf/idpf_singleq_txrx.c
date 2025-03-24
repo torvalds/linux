@@ -2,6 +2,7 @@
 /* Copyright (C) 2023 Intel Corporation */
 
 #include <net/libeth/rx.h>
+#include <net/libeth/tx.h>
 
 #include "idpf.h"
 
@@ -224,6 +225,7 @@ static void idpf_tx_singleq_map(struct idpf_tx_queue *tx_q,
 		/* record length, and DMA address */
 		dma_unmap_len_set(tx_buf, len, size);
 		dma_unmap_addr_set(tx_buf, dma, dma);
+		tx_buf->type = LIBETH_SQE_FRAG;
 
 		/* align size to end of page */
 		max_data += -dma & (IDPF_TX_MAX_READ_REQ_SIZE - 1);
@@ -237,13 +239,16 @@ static void idpf_tx_singleq_map(struct idpf_tx_queue *tx_q,
 								  offsets,
 								  max_data,
 								  td_tag);
-			tx_desc++;
-			i++;
-
-			if (i == tx_q->desc_count) {
+			if (unlikely(++i == tx_q->desc_count)) {
+				tx_buf = &tx_q->tx_buf[0];
 				tx_desc = &tx_q->base_tx[0];
 				i = 0;
+			} else {
+				tx_buf++;
+				tx_desc++;
 			}
+
+			tx_buf->type = LIBETH_SQE_EMPTY;
 
 			dma += max_data;
 			size -= max_data;
@@ -257,12 +262,14 @@ static void idpf_tx_singleq_map(struct idpf_tx_queue *tx_q,
 
 		tx_desc->qw1 = idpf_tx_singleq_build_ctob(td_cmd, offsets,
 							  size, td_tag);
-		tx_desc++;
-		i++;
 
-		if (i == tx_q->desc_count) {
+		if (unlikely(++i == tx_q->desc_count)) {
+			tx_buf = &tx_q->tx_buf[0];
 			tx_desc = &tx_q->base_tx[0];
 			i = 0;
+		} else {
+			tx_buf++;
+			tx_desc++;
 		}
 
 		size = skb_frag_size(frag);
@@ -270,8 +277,6 @@ static void idpf_tx_singleq_map(struct idpf_tx_queue *tx_q,
 
 		dma = skb_frag_dma_map(tx_q->dev, frag, 0, size,
 				       DMA_TO_DEVICE);
-
-		tx_buf = &tx_q->tx_buf[i];
 	}
 
 	skb_tx_timestamp(first->skb);
@@ -282,13 +287,13 @@ static void idpf_tx_singleq_map(struct idpf_tx_queue *tx_q,
 	tx_desc->qw1 = idpf_tx_singleq_build_ctob(td_cmd, offsets,
 						  size, td_tag);
 
+	first->type = LIBETH_SQE_SKB;
+	first->rs_idx = i;
+
 	IDPF_SINGLEQ_BUMP_RING_IDX(tx_q, i);
 
-	/* set next_to_watch value indicating a packet is present */
-	first->next_to_watch = tx_desc;
-
 	nq = netdev_get_tx_queue(tx_q->netdev, tx_q->idx);
-	netdev_tx_sent_queue(nq, first->bytecount);
+	netdev_tx_sent_queue(nq, first->bytes);
 
 	idpf_tx_buf_hw_update(tx_q, i, netdev_xmit_more());
 }
@@ -306,8 +311,7 @@ idpf_tx_singleq_get_ctx_desc(struct idpf_tx_queue *txq)
 	struct idpf_base_tx_ctx_desc *ctx_desc;
 	int ntu = txq->next_to_use;
 
-	memset(&txq->tx_buf[ntu], 0, sizeof(struct idpf_tx_buf));
-	txq->tx_buf[ntu].ctx_entry = true;
+	txq->tx_buf[ntu].type = LIBETH_SQE_CTX;
 
 	ctx_desc = &txq->base_ctx[ntu];
 
@@ -371,6 +375,10 @@ netdev_tx_t idpf_tx_singleq_frame(struct sk_buff *skb,
 				      IDPF_TX_DESCS_FOR_CTX)) {
 		idpf_tx_buf_hw_update(tx_q, tx_q->next_to_use, false);
 
+		u64_stats_update_begin(&tx_q->stats_sync);
+		u64_stats_inc(&tx_q->q_stats.q_busy);
+		u64_stats_update_end(&tx_q->stats_sync);
+
 		return NETDEV_TX_BUSY;
 	}
 
@@ -396,11 +404,11 @@ netdev_tx_t idpf_tx_singleq_frame(struct sk_buff *skb,
 	first->skb = skb;
 
 	if (tso) {
-		first->gso_segs = offload.tso_segs;
-		first->bytecount = skb->len + ((first->gso_segs - 1) * offload.tso_hdr_len);
+		first->packets = offload.tso_segs;
+		first->bytes = skb->len + ((first->packets - 1) * offload.tso_hdr_len);
 	} else {
-		first->bytecount = max_t(unsigned int, skb->len, ETH_ZLEN);
-		first->gso_segs = 1;
+		first->bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
+		first->packets = 1;
 	}
 	idpf_tx_singleq_map(tx_q, first, &offload);
 
@@ -420,10 +428,15 @@ out_drop:
 static bool idpf_tx_singleq_clean(struct idpf_tx_queue *tx_q, int napi_budget,
 				  int *cleaned)
 {
-	unsigned int total_bytes = 0, total_pkts = 0;
+	struct libeth_sq_napi_stats ss = { };
 	struct idpf_base_tx_desc *tx_desc;
 	u32 budget = tx_q->clean_budget;
 	s16 ntc = tx_q->next_to_clean;
+	struct libeth_cq_pp cp = {
+		.dev	= tx_q->dev,
+		.ss	= &ss,
+		.napi	= napi_budget,
+	};
 	struct idpf_netdev_priv *np;
 	struct idpf_tx_buf *tx_buf;
 	struct netdev_queue *nq;
@@ -441,47 +454,26 @@ static bool idpf_tx_singleq_clean(struct idpf_tx_queue *tx_q, int napi_budget,
 		 * such. We can skip this descriptor since there is no buffer
 		 * to clean.
 		 */
-		if (tx_buf->ctx_entry) {
-			/* Clear this flag here to avoid stale flag values when
-			 * this buffer is used for actual data in the future.
-			 * There are cases where the tx_buf struct / the flags
-			 * field will not be cleared before being reused.
-			 */
-			tx_buf->ctx_entry = false;
+		if (unlikely(tx_buf->type <= LIBETH_SQE_CTX)) {
+			tx_buf->type = LIBETH_SQE_EMPTY;
 			goto fetch_next_txq_desc;
 		}
 
-		/* if next_to_watch is not set then no work pending */
-		eop_desc = (struct idpf_base_tx_desc *)tx_buf->next_to_watch;
-		if (!eop_desc)
+		if (unlikely(tx_buf->type != LIBETH_SQE_SKB))
 			break;
 
-		/* prevent any other reads prior to eop_desc */
+		/* prevent any other reads prior to type */
 		smp_rmb();
+
+		eop_desc = &tx_q->base_tx[tx_buf->rs_idx];
 
 		/* if the descriptor isn't done, no work yet to do */
 		if (!(eop_desc->qw1 &
 		      cpu_to_le64(IDPF_TX_DESC_DTYPE_DESC_DONE)))
 			break;
 
-		/* clear next_to_watch to prevent false hangs */
-		tx_buf->next_to_watch = NULL;
-
 		/* update the statistics for this packet */
-		total_bytes += tx_buf->bytecount;
-		total_pkts += tx_buf->gso_segs;
-
-		napi_consume_skb(tx_buf->skb, napi_budget);
-
-		/* unmap skb header data */
-		dma_unmap_single(tx_q->dev,
-				 dma_unmap_addr(tx_buf, dma),
-				 dma_unmap_len(tx_buf, len),
-				 DMA_TO_DEVICE);
-
-		/* clear tx_buf data */
-		tx_buf->skb = NULL;
-		dma_unmap_len_set(tx_buf, len, 0);
+		libeth_tx_complete(tx_buf, &cp);
 
 		/* unmap remaining buffers */
 		while (tx_desc != eop_desc) {
@@ -495,13 +487,7 @@ static bool idpf_tx_singleq_clean(struct idpf_tx_queue *tx_q, int napi_budget,
 			}
 
 			/* unmap any remaining paged data */
-			if (dma_unmap_len(tx_buf, len)) {
-				dma_unmap_page(tx_q->dev,
-					       dma_unmap_addr(tx_buf, dma),
-					       dma_unmap_len(tx_buf, len),
-					       DMA_TO_DEVICE);
-				dma_unmap_len_set(tx_buf, len, 0);
-			}
+			libeth_tx_complete(tx_buf, &cp);
 		}
 
 		/* update budget only if we did something */
@@ -521,11 +507,11 @@ fetch_next_txq_desc:
 	ntc += tx_q->desc_count;
 	tx_q->next_to_clean = ntc;
 
-	*cleaned += total_pkts;
+	*cleaned += ss.packets;
 
 	u64_stats_update_begin(&tx_q->stats_sync);
-	u64_stats_add(&tx_q->q_stats.packets, total_pkts);
-	u64_stats_add(&tx_q->q_stats.bytes, total_bytes);
+	u64_stats_add(&tx_q->q_stats.packets, ss.packets);
+	u64_stats_add(&tx_q->q_stats.bytes, ss.bytes);
 	u64_stats_update_end(&tx_q->stats_sync);
 
 	np = netdev_priv(tx_q->netdev);
@@ -533,7 +519,7 @@ fetch_next_txq_desc:
 
 	dont_wake = np->state != __IDPF_VPORT_UP ||
 		    !netif_carrier_ok(tx_q->netdev);
-	__netif_txq_completed_wake(nq, total_pkts, total_bytes,
+	__netif_txq_completed_wake(nq, ss.packets, ss.bytes,
 				   IDPF_DESC_UNUSED(tx_q), IDPF_TX_WAKE_THRESH,
 				   dont_wake);
 
@@ -1134,8 +1120,10 @@ int idpf_vport_singleq_napi_poll(struct napi_struct *napi, int budget)
 						    &work_done);
 
 	/* If work not completed, return budget and polling will return */
-	if (!clean_complete)
+	if (!clean_complete) {
+		idpf_vport_intr_set_wb_on_itr(q_vector);
 		return budget;
+	}
 
 	work_done = min_t(int, work_done, budget - 1);
 
@@ -1144,6 +1132,8 @@ int idpf_vport_singleq_napi_poll(struct napi_struct *napi, int budget)
 	 */
 	if (likely(napi_complete_done(napi, work_done)))
 		idpf_vport_intr_update_itr_ena_irq(q_vector);
+	else
+		idpf_vport_intr_set_wb_on_itr(q_vector);
 
 	return work_done;
 }

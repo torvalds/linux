@@ -11,6 +11,9 @@
 #include <net/udp.h>
 #include <net/hotdata.h>
 
+/* This should be increased if a protocol with a bigger head is added. */
+#define GRO_MAX_HEAD (MAX_HEADER + 128)
+
 struct napi_gro_cb {
 	union {
 		struct {

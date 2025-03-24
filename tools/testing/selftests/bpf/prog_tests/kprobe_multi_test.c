@@ -6,6 +6,7 @@
 #include "kprobe_multi_override.skel.h"
 #include "kprobe_multi_session.skel.h"
 #include "kprobe_multi_session_cookie.skel.h"
+#include "kprobe_multi_verifier.skel.h"
 #include "bpf/libbpf_internal.h"
 #include "bpf/hashmap.h"
 
@@ -396,6 +397,31 @@ cleanup:
 	kprobe_multi_session_cookie__destroy(skel);
 }
 
+static void test_unique_match(void)
+{
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	struct kprobe_multi *skel = NULL;
+	struct bpf_link *link = NULL;
+
+	skel = kprobe_multi__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kprobe_multi__open_and_load"))
+		return;
+
+	opts.unique_match = true;
+	skel->bss->pid = getpid();
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
+						     "bpf_fentry_test*", &opts);
+	if (!ASSERT_ERR_PTR(link, "bpf_program__attach_kprobe_multi_opts"))
+		bpf_link__destroy(link);
+
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_manual,
+						     "bpf_fentry_test8*", &opts);
+	if (ASSERT_OK_PTR(link, "bpf_program__attach_kprobe_multi_opts"))
+		bpf_link__destroy(link);
+
+	kprobe_multi__destroy(skel);
+}
+
 static size_t symbol_hash(long key, void *ctx __maybe_unused)
 {
 	return str_hash((const char *) key);
@@ -764,4 +790,7 @@ void test_kprobe_multi_test(void)
 		test_session_skel_api();
 	if (test__start_subtest("session_cookie"))
 		test_session_cookie_skel_api();
+	if (test__start_subtest("unique_match"))
+		test_unique_match();
+	RUN_TESTS(kprobe_multi_verifier);
 }

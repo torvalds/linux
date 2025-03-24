@@ -693,6 +693,8 @@ void intel_engines_release(struct intel_gt *gt)
 
 		memset(&engine->reset, 0, sizeof(engine->reset));
 	}
+
+	llist_del_all(&gt->i915->uabi_engines_llist);
 }
 
 void intel_engine_free_request_pool(struct intel_engine_cs *engine)

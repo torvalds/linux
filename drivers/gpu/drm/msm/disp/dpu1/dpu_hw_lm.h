@@ -93,13 +93,6 @@ static inline struct dpu_hw_mixer *to_dpu_hw_mixer(struct dpu_hw_blk *hw)
 	return container_of(hw, struct dpu_hw_mixer, base);
 }
 
-/**
- * dpu_hw_lm_init() - Initializes the mixer hw driver object.
- * should be called once before accessing every mixer.
- * @dev:  Corresponding device for devres management
- * @cfg:  mixer catalog entry for which driver object is required
- * @addr: mapped register io address of MDP
- */
 struct dpu_hw_mixer *dpu_hw_lm_init(struct drm_device *dev,
 				    const struct dpu_lm_cfg *cfg,
 				    void __iomem *addr);

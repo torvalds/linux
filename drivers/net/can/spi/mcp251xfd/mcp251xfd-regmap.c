@@ -8,7 +8,7 @@
 
 #include "mcp251xfd.h"
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static const struct regmap_config mcp251xfd_regmap_crc;
 

@@ -209,6 +209,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 
 	mvif->mt76.band_idx = ext_phy;
 	mvif->mt76.wmm_idx = vif->type != NL80211_IFTYPE_AP;
+	mvif->mt76.wcid = &mvif->sta.wcid;
 	if (ext_phy)
 		mvif->mt76.wmm_idx += 2;
 
@@ -224,9 +225,7 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 
 	INIT_LIST_HEAD(&mvif->sta.wcid.poll_list);
 	mvif->sta.wcid.idx = idx;
-	mvif->sta.wcid.phy_idx = mvif->mt76.band_idx;
-	mvif->sta.wcid.hw_key_idx = -1;
-	mt76_wcid_init(&mvif->sta.wcid);
+	mt76_wcid_init(&mvif->sta.wcid, mvif->mt76.band_idx);
 
 	mt7615_mac_wtbl_update(dev, idx,
 			       MT_WTBL_UPDATE_ADM_COUNT_CLEAR);
@@ -282,19 +281,14 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 	mt76_wcid_cleanup(&dev->mt76, &mvif->sta.wcid);
 }
 
-int mt7615_set_channel(struct mt7615_phy *phy)
+int mt7615_set_channel(struct mt76_phy *mphy)
 {
+	struct mt7615_phy *phy = mphy->priv;
 	struct mt7615_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
 	int ret;
 
-	cancel_delayed_work_sync(&phy->mt76->mac_work);
-
-	mt7615_mutex_acquire(dev);
-
-	set_bit(MT76_RESET, &phy->mt76->state);
-
-	mt76_set_channel(phy->mt76);
+	mt76_connac_pm_wake(mphy, &dev->pm);
 
 	if (is_mt7615(&dev->mt76) && dev->flash_eeprom) {
 		ret = mt7615_mcu_apply_rx_dcoc(phy);
@@ -325,11 +319,8 @@ int mt7615_set_channel(struct mt7615_phy *phy)
 	phy->chfreq = mt76_rr(dev, MT_CHFREQ(ext_phy));
 
 out:
-	clear_bit(MT76_RESET, &phy->mt76->state);
+	mt76_connac_power_save_sched(mphy, &dev->pm);
 
-	mt7615_mutex_release(dev);
-
-	mt76_worker_schedule(&dev->mt76.tx_worker);
 	if (!mt76_testmode_enabled(phy->mt76)) {
 		unsigned long timeout = mt7615_get_macwork_timeout(dev);
 
@@ -339,6 +330,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mt7615_set_channel);
 
 static int mt7615_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			  struct ieee80211_vif *vif, struct ieee80211_sta *sta,
@@ -425,11 +417,7 @@ static int mt7615_set_sar_specs(struct ieee80211_hw *hw,
 	if (mt7615_firmware_offload(phy->dev))
 		return mt76_connac_mcu_set_rate_txpower(phy->mt76);
 
-	ieee80211_stop_queues(hw);
-	err = mt7615_set_channel(phy);
-	ieee80211_wake_queues(hw);
-
-	return err;
+	return mt76_update_channel(phy->mt76);
 }
 
 static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
@@ -448,9 +436,7 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 			mt7615_mutex_release(dev);
 		}
 #endif
-		ieee80211_stop_queues(hw);
-		ret = mt7615_set_channel(phy);
-		ieee80211_wake_queues(hw);
+		ret = mt76_update_channel(phy->mt76);
 	}
 
 	mt7615_mutex_acquire(dev);
@@ -476,7 +462,7 @@ mt7615_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
-	struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+	struct mt76_vif_link *mvif = (struct mt76_vif_link *)vif->drv_priv;
 	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	int err;
 
@@ -1262,7 +1248,7 @@ static int mt7615_suspend(struct ieee80211_hw *hw,
 					    phy->mt76);
 
 	if (!mt7615_dev_running(dev))
-		err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, true);
+		err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, true, true);
 
 	mt7615_mutex_release(dev);
 
@@ -1284,7 +1270,7 @@ static int mt7615_resume(struct ieee80211_hw *hw)
 	if (!running) {
 		int err;
 
-		err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, false);
+		err = mt76_connac_mcu_set_hif_suspend(&dev->mt76, false, true);
 		if (err < 0) {
 			mt7615_mutex_release(dev);
 			return err;

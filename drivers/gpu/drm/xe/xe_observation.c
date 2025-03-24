@@ -6,7 +6,7 @@
 #include <linux/errno.h>
 #include <linux/sysctl.h>
 
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "xe_oa.h"
 #include "xe_observation.h"
@@ -56,7 +56,7 @@ int xe_observation_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	}
 }
 
-static struct ctl_table observation_ctl_table[] = {
+static const struct ctl_table observation_ctl_table[] = {
 	{
 	 .procname = "observation_paranoid",
 	 .data = &xe_observation_paranoid,
@@ -66,7 +66,6 @@ static struct ctl_table observation_ctl_table[] = {
 	 .extra1 = SYSCTL_ZERO,
 	 .extra2 = SYSCTL_ONE,
 	 },
-	{}
 };
 
 /**

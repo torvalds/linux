@@ -325,7 +325,7 @@ MODULE_DEVICE_TABLE(of, jz4740_musb_of_match);
 
 static struct platform_driver jz4740_driver = {
 	.probe		= jz4740_probe,
-	.remove_new	= jz4740_remove,
+	.remove		= jz4740_remove,
 	.driver		= {
 		.name	= "musb-jz4740",
 		.of_match_table = jz4740_musb_of_match,

@@ -302,7 +302,7 @@ static struct platform_driver powernv_ipmi_driver = {
 		.of_match_table	= ipmi_powernv_match,
 	},
 	.probe	= ipmi_powernv_probe,
-	.remove_new = ipmi_powernv_remove,
+	.remove = ipmi_powernv_remove,
 };
 
 

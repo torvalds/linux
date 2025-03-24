@@ -87,6 +87,7 @@ struct icc_provider *icc_clk_register(struct device *dev,
 	onecell = devm_kzalloc(dev, struct_size(onecell, nodes, 2 * num_clocks), GFP_KERNEL);
 	if (!onecell)
 		return ERR_PTR(-ENOMEM);
+	onecell->num_nodes = 2 * num_clocks;
 
 	qp = devm_kzalloc(dev, struct_size(qp, clocks, num_clocks), GFP_KERNEL);
 	if (!qp)
@@ -115,6 +116,11 @@ struct icc_provider *icc_clk_register(struct device *dev,
 		}
 
 		node->name = devm_kasprintf(dev, GFP_KERNEL, "%s_master", data[i].name);
+		if (!node->name) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
 		node->data = &qp->clocks[i];
 		icc_node_add(node, provider);
 		/* link to the next node, slave */
@@ -128,12 +134,15 @@ struct icc_provider *icc_clk_register(struct device *dev,
 		}
 
 		node->name = devm_kasprintf(dev, GFP_KERNEL, "%s_slave", data[i].name);
+		if (!node->name) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
 		/* no data for slave node */
 		icc_node_add(node, provider);
 		onecell->nodes[j++] = node;
 	}
-
-	onecell->num_nodes = j;
 
 	ret = icc_provider_register(provider);
 	if (ret)

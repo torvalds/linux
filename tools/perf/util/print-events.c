@@ -29,6 +29,7 @@
 #include "tracepoint.h"
 #include "pfm.h"
 #include "thread_map.h"
+#include "tool_pmu.h"
 #include "util.h"
 
 #define MAX_NAME_LEN 100
@@ -43,21 +44,6 @@ static const char * const event_type_descriptors[] = {
 	"Hardware breakpoint",
 };
 
-static const struct event_symbol event_symbols_tool[PERF_TOOL_MAX] = {
-	[PERF_TOOL_DURATION_TIME] = {
-		.symbol = "duration_time",
-		.alias  = "",
-	},
-	[PERF_TOOL_USER_TIME] = {
-		.symbol = "user_time",
-		.alias  = "",
-	},
-	[PERF_TOOL_SYSTEM_TIME] = {
-		.symbol = "system_time",
-		.alias  = "",
-	},
-};
-
 /*
  * Print the events from <debugfs_mount_point>/tracing/events
  */
@@ -68,11 +54,12 @@ void print_tracepoint_events(const struct print_callbacks *print_cb __maybe_unus
 	struct dirent **sys_namelist = NULL;
 	int sys_items;
 
-	put_tracing_file(events_path);
 	if (events_fd < 0) {
 		pr_err("Error: failed to open tracing events directory\n");
+		pr_err("%s: %s\n", events_path, strerror(errno));
 		return;
 	}
+	put_tracing_file(events_path);
 
 	sys_items = tracing_events__scandir_alphasort(&sys_namelist);
 
@@ -340,24 +327,6 @@ int print_hwcache_events(const struct print_callbacks *print_cb, void *print_sta
 	return 0;
 }
 
-void print_tool_events(const struct print_callbacks *print_cb, void *print_state)
-{
-	// Start at 1 because the first enum entry means no tool event.
-	for (int i = 1; i < PERF_TOOL_MAX; ++i) {
-		print_cb->print_event(print_state,
-				"tool",
-				/*pmu_name=*/NULL,
-				event_symbols_tool[i].symbol,
-				event_symbols_tool[i].alias,
-				/*scale_unit=*/NULL,
-				/*deprecated=*/false,
-				"Tool event",
-				/*desc=*/NULL,
-				/*long_desc=*/NULL,
-				/*encoding_desc=*/NULL);
-	}
-}
-
 void print_symbol_events(const struct print_callbacks *print_cb, void *print_state,
 			 unsigned int type, const struct event_symbol *syms,
 			 unsigned int max)
@@ -420,8 +389,6 @@ void print_events(const struct print_callbacks *print_cb, void *print_state)
 			event_symbols_hw, PERF_COUNT_HW_MAX);
 	print_symbol_events(print_cb, print_state, PERF_TYPE_SOFTWARE,
 			event_symbols_sw, PERF_COUNT_SW_MAX);
-
-	print_tool_events(print_cb, print_state);
 
 	print_hwcache_events(print_cb, print_state);
 

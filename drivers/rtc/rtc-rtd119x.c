@@ -228,7 +228,7 @@ static void rtd119x_rtc_remove(struct platform_device *pdev)
 
 static struct platform_driver rtd119x_rtc_driver = {
 	.probe = rtd119x_rtc_probe,
-	.remove_new = rtd119x_rtc_remove,
+	.remove = rtd119x_rtc_remove,
 	.driver = {
 		.name = "rtd1295-rtc",
 		.of_match_table	= rtd119x_rtc_dt_ids,

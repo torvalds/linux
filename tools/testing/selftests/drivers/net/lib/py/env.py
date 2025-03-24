@@ -4,7 +4,8 @@ import os
 import time
 from pathlib import Path
 from lib.py import KsftSkipEx, KsftXfailEx
-from lib.py import cmd, ethtool, ip
+from lib.py import ksft_setup
+from lib.py import cmd, ethtool, ip, CmdExitFailure
 from lib.py import NetNS, NetdevSimDev
 from .remote import Remote
 
@@ -14,7 +15,7 @@ def _load_env_file(src_path):
 
     src_dir = Path(src_path).parent.resolve()
     if not (src_dir / "net.config").exists():
-        return env
+        return ksft_setup(env)
 
     with open((src_dir / "net.config").as_posix(), 'r') as fp:
         for line in fp.readlines():
@@ -30,7 +31,7 @@ def _load_env_file(src_path):
             if len(pair) != 2:
                 raise Exception("Can't parse configuration line:", full_file)
             env[pair[0]] = pair[1]
-    return env
+    return ksft_setup(env)
 
 
 class NetDrvEnv:
@@ -47,6 +48,7 @@ class NetDrvEnv:
         else:
             self._ns = NetdevSimDev(**kwargs)
             self.dev = self._ns.nsims[0].dev
+        self.ifname = self.dev['ifname']
         self.ifindex = self.dev['ifindex']
 
     def __enter__(self):
@@ -233,7 +235,12 @@ class NetDrvEpEnv:
         Good drivers will tell us via ethtool what their sync period is.
         """
         if self._stats_settle_time is None:
-            data = ethtool("-c " + self.ifname, json=True)[0]
+            data = {}
+            try:
+                data = ethtool("-c " + self.ifname, json=True)[0]
+            except CmdExitFailure as e:
+                if "Operation not supported" not in e.cmd.stderr:
+                    raise
 
             self._stats_settle_time = 0.025 + \
                 data.get('stats-block-usecs', 0) / 1000 / 1000

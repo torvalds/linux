@@ -837,7 +837,7 @@ static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 static int qtnf_start_radar_detection(struct wiphy *wiphy,
 				      struct net_device *ndev,
 				      struct cfg80211_chan_def *chandef,
-				      u32 cac_time_ms)
+				      u32 cac_time_ms, int link_id)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
 	int ret;
@@ -881,7 +881,7 @@ static int qtnf_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int qtnf_get_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
-			     int *dbm)
+			     unsigned int link_id, int *dbm)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(wdev->netdev);
 	int ret;

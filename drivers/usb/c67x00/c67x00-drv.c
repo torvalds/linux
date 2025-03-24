@@ -201,7 +201,7 @@ static void c67x00_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver c67x00_driver = {
 	.probe	= c67x00_drv_probe,
-	.remove_new = c67x00_drv_remove,
+	.remove = c67x00_drv_remove,
 	.driver	= {
 		.name = "c67x00",
 	},

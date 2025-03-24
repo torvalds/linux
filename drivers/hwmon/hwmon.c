@@ -145,13 +145,19 @@ static const struct class hwmon_class = {
 
 static DEFINE_IDA(hwmon_ida);
 
+static umode_t hwmon_is_visible(const struct hwmon_ops *ops,
+				const void *drvdata,
+				enum hwmon_sensor_types type,
+				u32 attr, int channel)
+{
+	if (ops->visible)
+		return ops->visible;
+
+	return ops->is_visible(drvdata, type, attr, channel);
+}
+
 /* Thermal zone handling */
 
-/*
- * The complex conditional is necessary to avoid a cyclic dependency
- * between hwmon and thermal_sys modules.
- */
-#ifdef CONFIG_THERMAL_OF
 static int hwmon_thermal_get_temp(struct thermal_zone_device *tz, int *temp)
 {
 	struct hwmon_thermal_data *tdata = thermal_zone_device_priv(tz);
@@ -257,6 +263,9 @@ static int hwmon_thermal_register_sensors(struct device *dev)
 	void *drvdata = dev_get_drvdata(dev);
 	int i;
 
+	if (!IS_ENABLED(CONFIG_THERMAL_OF))
+		return 0;
+
 	for (i = 1; info[i]; i++) {
 		int j;
 
@@ -267,8 +276,8 @@ static int hwmon_thermal_register_sensors(struct device *dev)
 			int err;
 
 			if (!(info[i]->config[j] & HWMON_T_INPUT) ||
-			    !chip->ops->is_visible(drvdata, hwmon_temp,
-						   hwmon_temp_input, j))
+			    !hwmon_is_visible(chip->ops, drvdata, hwmon_temp,
+					      hwmon_temp_input, j))
 				continue;
 
 			err = hwmon_thermal_add_sensor(dev, j);
@@ -285,6 +294,9 @@ static void hwmon_thermal_notify(struct device *dev, int index)
 	struct hwmon_device *hwdev = to_hwmon_device(dev);
 	struct hwmon_thermal_data *tzdata;
 
+	if (!IS_ENABLED(CONFIG_THERMAL_OF))
+		return;
+
 	list_for_each_entry(tzdata, &hwdev->tzdata, node) {
 		if (tzdata->index == index) {
 			thermal_zone_device_update(tzdata->tzd,
@@ -292,16 +304,6 @@ static void hwmon_thermal_notify(struct device *dev, int index)
 		}
 	}
 }
-
-#else
-static int hwmon_thermal_register_sensors(struct device *dev)
-{
-	return 0;
-}
-
-static void hwmon_thermal_notify(struct device *dev, int index) { }
-
-#endif /* IS_REACHABLE(CONFIG_THERMAL) && ... */
 
 static int hwmon_attr_base(enum hwmon_sensor_types type)
 {
@@ -330,7 +332,7 @@ static int hwmon_attr_base(enum hwmon_sensor_types type)
 
 static DEFINE_MUTEX(hwmon_pec_mutex);
 
-static int hwmon_match_device(struct device *dev, void *data)
+static int hwmon_match_device(struct device *dev, const void *data)
 {
 	return dev->class == &hwmon_class;
 }
@@ -506,7 +508,7 @@ static struct attribute *hwmon_genattr(const void *drvdata,
 	const char *name;
 	bool is_string = is_string_attr(type, attr);
 
-	mode = ops->is_visible(drvdata, type, attr, index);
+	mode = hwmon_is_visible(ops, drvdata, type, attr, index);
 	if (!mode)
 		return ERR_PTR(-ENOENT);
 
@@ -1033,7 +1035,7 @@ hwmon_device_register_with_info(struct device *dev, const char *name,
 	if (!dev || !name || !chip)
 		return ERR_PTR(-EINVAL);
 
-	if (!chip->ops || !chip->ops->is_visible || !chip->info)
+	if (!chip->ops || !(chip->ops->visible || chip->ops->is_visible) || !chip->info)
 		return ERR_PTR(-EINVAL);
 
 	return __hwmon_device_register(dev, name, drvdata, chip, extra_groups);
@@ -1063,7 +1065,7 @@ hwmon_device_register_for_thermal(struct device *dev, const char *name,
 
 	return __hwmon_device_register(dev, name, drvdata, NULL, NULL);
 }
-EXPORT_SYMBOL_NS_GPL(hwmon_device_register_for_thermal, HWMON_THERMAL);
+EXPORT_SYMBOL_NS_GPL(hwmon_device_register_for_thermal, "HWMON_THERMAL");
 
 /**
  * hwmon_device_register - register w/ hwmon
@@ -1168,6 +1170,12 @@ devm_hwmon_device_register_with_info(struct device *dev, const char *name,
 	if (!dev)
 		return ERR_PTR(-EINVAL);
 
+	if (!name) {
+		name = devm_hwmon_sanitize_name(dev, dev_name(dev));
+		if (IS_ERR(name))
+			return ERR_CAST(name);
+	}
+
 	ptr = devres_alloc(devm_hwmon_release, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
 		return ERR_PTR(-ENOMEM);
@@ -1187,24 +1195,6 @@ error:
 	return hwdev;
 }
 EXPORT_SYMBOL_GPL(devm_hwmon_device_register_with_info);
-
-static int devm_hwmon_match(struct device *dev, void *res, void *data)
-{
-	struct device **hwdev = res;
-
-	return *hwdev == data;
-}
-
-/**
- * devm_hwmon_device_unregister - removes a previously registered hwmon device
- *
- * @dev: the parent device of the device to unregister
- */
-void devm_hwmon_device_unregister(struct device *dev)
-{
-	WARN_ON(devres_release(dev, devm_hwmon_release, devm_hwmon_match, dev));
-}
-EXPORT_SYMBOL_GPL(devm_hwmon_device_unregister);
 
 static char *__hwmon_sanitize_name(struct device *dev, const char *old_name)
 {

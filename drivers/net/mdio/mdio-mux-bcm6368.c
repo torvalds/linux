@@ -173,7 +173,7 @@ static struct platform_driver bcm6368_mdiomux_driver = {
 		.of_match_table = bcm6368_mdiomux_ids,
 	},
 	.probe	= bcm6368_mdiomux_probe,
-	.remove_new = bcm6368_mdiomux_remove,
+	.remove = bcm6368_mdiomux_remove,
 };
 module_platform_driver(bcm6368_mdiomux_driver);
 

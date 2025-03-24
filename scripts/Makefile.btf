@@ -3,6 +3,8 @@
 pahole-ver := $(CONFIG_PAHOLE_VERSION)
 pahole-flags-y :=
 
+JOBS := $(patsubst -j%,%,$(filter -j%,$(MAKEFLAGS)))
+
 ifeq ($(call test-le, $(pahole-ver), 125),y)
 
 # pahole 1.18 through 1.21 can't handle zero-sized per-CPU vars
@@ -12,14 +14,14 @@ endif
 
 pahole-flags-$(call test-ge, $(pahole-ver), 121)	+= --btf_gen_floats
 
-pahole-flags-$(call test-ge, $(pahole-ver), 122)	+= -j
+pahole-flags-$(call test-ge, $(pahole-ver), 122)	+= -j$(JOBS)
 
 pahole-flags-$(call test-ge, $(pahole-ver), 125)	+= --skip_encoding_btf_inconsistent_proto --btf_gen_optimized
 
 else
 
 # Switch to using --btf_features for v1.26 and later.
-pahole-flags-$(call test-ge, $(pahole-ver), 126)  = -j --btf_features=encode_force,var,float,enum64,decl_tag,type_tag,optimized_func,consistent_func,decl_tag_kfuncs
+pahole-flags-$(call test-ge, $(pahole-ver), 126)  = -j$(JOBS) --btf_features=encode_force,var,float,enum64,decl_tag,type_tag,optimized_func,consistent_func,decl_tag_kfuncs
 
 ifneq ($(KBUILD_EXTMOD),)
 module-pahole-flags-$(call test-ge, $(pahole-ver), 126) += --btf_features=distilled_base

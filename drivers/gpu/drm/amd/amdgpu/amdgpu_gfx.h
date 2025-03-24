@@ -34,6 +34,7 @@
 #include "soc15.h"
 #include "amdgpu_ras.h"
 #include "amdgpu_ring_mux.h"
+#include "amdgpu_xcp.h"
 
 /* GFX current status */
 #define AMDGPU_GFX_NORMAL_MODE			0x00000000L
@@ -138,6 +139,10 @@ struct kiq_pm4_funcs {
 	void (*kiq_invalidate_tlbs)(struct amdgpu_ring *kiq_ring,
 				uint16_t pasid, uint32_t flush_type,
 				bool all_hub);
+	void (*kiq_reset_hw_queue)(struct amdgpu_ring *kiq_ring,
+				   uint32_t queue_type, uint32_t me_id,
+				   uint32_t pipe_id, uint32_t queue_id,
+				   uint32_t xcc_id, uint32_t vmid);
 	/* Packet sizes */
 	int set_resources_size;
 	int map_queues_size;
@@ -240,6 +245,12 @@ struct amdgpu_gfx_config {
 	uint32_t gc_tcp_size_per_cu;
 	uint32_t gc_num_cu_per_sqc;
 	uint32_t gc_tcc_size;
+	uint32_t gc_tcp_cache_line_size;
+	uint32_t gc_instruction_cache_size_per_sqc;
+	uint32_t gc_instruction_cache_line_size;
+	uint32_t gc_scalar_data_cache_size_per_sqc;
+	uint32_t gc_scalar_data_cache_line_size;
+	uint32_t gc_tcc_cache_line_size;
 };
 
 struct amdgpu_cu_info {
@@ -339,6 +350,12 @@ struct amdgpu_me {
 	DECLARE_BITMAP(queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
 };
 
+struct amdgpu_isolation_work {
+	struct amdgpu_device		*adev;
+	u32				xcp_id;
+	struct delayed_work		work;
+};
+
 struct amdgpu_gfx {
 	struct mutex			gpu_clock_mutex;
 	struct amdgpu_gfx_config	config;
@@ -391,6 +408,7 @@ struct amdgpu_gfx {
 	struct amdgpu_irq_src		eop_irq;
 	struct amdgpu_irq_src		priv_reg_irq;
 	struct amdgpu_irq_src		priv_inst_irq;
+	struct amdgpu_irq_src		bad_op_irq;
 	struct amdgpu_irq_src		cp_ecc_error_irq;
 	struct amdgpu_irq_src		sq_irq;
 	struct amdgpu_irq_src		rlc_gc_fed_irq;
@@ -406,6 +424,8 @@ struct amdgpu_gfx {
 	/* reset mask */
 	uint32_t                        grbm_soft_reset;
 	uint32_t                        srbm_soft_reset;
+	uint32_t 			gfx_supported_reset;
+	uint32_t 			compute_supported_reset;
 
 	/* gfx off */
 	bool                            gfx_off_state;      /* true: enabled, false: disabled */
@@ -439,6 +459,23 @@ struct amdgpu_gfx {
 	uint32_t			*ip_dump_core;
 	uint32_t			*ip_dump_compute_queues;
 	uint32_t			*ip_dump_gfx_queues;
+
+	struct mutex			reset_sem_mutex;
+
+	/* cleaner shader */
+	struct amdgpu_bo		*cleaner_shader_obj;
+	unsigned int                    cleaner_shader_size;
+	u64				cleaner_shader_gpu_addr;
+	void				*cleaner_shader_cpu_ptr;
+	const void			*cleaner_shader_ptr;
+	bool				enable_cleaner_shader;
+	struct amdgpu_isolation_work	enforce_isolation[MAX_XCP];
+	/* Mutex for synchronizing KFD scheduler operations */
+	struct mutex                    kfd_sch_mutex;
+	u64				kfd_sch_req_count[MAX_XCP];
+	bool				kfd_sch_inactive[MAX_XCP];
+	unsigned long			enforce_isolation_jiffies[MAX_XCP];
+	unsigned long			enforce_isolation_time[MAX_XCP];
 };
 
 struct amdgpu_gfx_ras_reg_entry {
@@ -507,8 +544,6 @@ bool amdgpu_gfx_is_high_priority_graphics_queue(struct amdgpu_device *adev,
 						struct amdgpu_ring *ring);
 int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev, int me,
 			       int pipe, int queue);
-void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
-				int *me, int *pipe, int *queue);
 bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev, int me,
 				    int pipe, int queue);
 void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable);
@@ -540,6 +575,17 @@ void amdgpu_gfx_ras_error_func(struct amdgpu_device *adev,
 		void *ras_error_status,
 		void (*func)(struct amdgpu_device *adev, void *ras_error_status,
 				int xcc_id));
+int amdgpu_gfx_cleaner_shader_sw_init(struct amdgpu_device *adev,
+				      unsigned int cleaner_shader_size);
+void amdgpu_gfx_cleaner_shader_sw_fini(struct amdgpu_device *adev);
+void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
+				    unsigned int cleaner_shader_size,
+				    const void *cleaner_shader_ptr);
+void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work);
+void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring);
+void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring);
+void amdgpu_debugfs_gfx_sched_mask_init(struct amdgpu_device *adev);
+void amdgpu_debugfs_compute_sched_mask_init(struct amdgpu_device *adev);
 
 static inline const char *amdgpu_gfx_compute_mode_desc(int mode)
 {

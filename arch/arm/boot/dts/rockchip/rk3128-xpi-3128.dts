@@ -38,7 +38,7 @@
 		};
 	};
 
-	dc_5v: dc-5v-regulator {
+	dc_5v: regulator-dc-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "DC_5V";
 		regulator-min-microvolt = <5000000>;
@@ -62,7 +62,7 @@
 	 * This is a vbus-supply, which also supplies the GL852G usb hub,
 	 * thus has to be always-on
 	 */
-	host_pwr_5v: host-pwr-5v-regulator {
+	host_pwr_5v: regulator-host-pwr-5v {
 		compatible = "regulator-fixed";
 		gpio = <&gpio3 RK_PC4 GPIO_ACTIVE_HIGH>;
 		startup-delay-us = <1500>;
@@ -111,7 +111,7 @@
 		};
 	};
 
-	mcu3v3: mcu3v3-regulator {
+	mcu3v3: regulator-mcu3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "MCU3V3";
 		regulator-min-microvolt = <3300000>;
@@ -121,7 +121,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_ddr: vcc-ddr-regulator {
+	vcc_ddr: regulator-vcc-ddr {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_DDR";
 		regulator-min-microvolt = <1500000>;
@@ -131,7 +131,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_io: vcc-io-regulator {
+	vcc_io: regulator-vcc-io {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_IO";
 		regulator-min-microvolt = <3300000>;
@@ -141,7 +141,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_lan: vcc-lan-regulator {
+	vcc_lan: regulator-vcc-lan {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_LAN";
 		regulator-min-microvolt = <3300000>;
@@ -151,7 +151,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_sd: vcc-sd-regulator {
+	vcc_sd: regulator-vcc-sd {
 		compatible = "regulator-fixed";
 		gpio = <&gpio1 RK_PB6 GPIO_ACTIVE_LOW>;
 		startup-delay-us = <500>;
@@ -163,7 +163,7 @@
 		pinctrl-0 = <&sdmmc_pwren>;
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_SYS";
 		regulator-min-microvolt = <5000000>;
@@ -173,7 +173,7 @@
 		regulator-boot-on;
 	};
 
-	vcc33_hdmi: vcc33-hdmi-regulator {
+	vcc33_hdmi: regulator-vcc33-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC33_HDMI";
 		regulator-min-microvolt = <3300000>;
@@ -183,7 +183,7 @@
 		regulator-boot-on;
 	};
 
-	vcca_33: vcca-33-regulator {
+	vcca_33: regulator-vcca-33 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCCA_33";
 		regulator-min-microvolt = <3300000>;
@@ -193,7 +193,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_11: vdd-11-regulator {
+	vdd_11: regulator-vdd-11 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD_11";
 		regulator-min-microvolt = <1100000>;
@@ -203,7 +203,7 @@
 		regulator-boot-on;
 	};
 
-	vdd11_hdmi: vdd11-hdmi-regulator {
+	vdd11_hdmi: regulator-vdd11-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "VDD11_HDMI";
 		regulator-min-microvolt = <1100000>;
@@ -213,7 +213,7 @@
 		regulator-boot-on;
 	};
 
-	vdd_arm: vdd-arm-regulator {
+	vdd_arm: regulator-vdd-arm {
 		compatible = "pwm-regulator";
 		regulator-name = "VDD_ARM";
 		pwms = <&pwm1 0 25000 1>;
@@ -231,7 +231,7 @@
 	 * driver does not implement regulator support we have to make
 	 * sure here that the voltage never drops below 1050 mV.
 	 */
-	vdd_log: vdd-log-regulator {
+	vdd_log: regulator-vdd-log {
 		compatible = "pwm-regulator";
 		regulator-name = "VDD_LOG";
 		pwms = <&pwm2 0 25000 1>;

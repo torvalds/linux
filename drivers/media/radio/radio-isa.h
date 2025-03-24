@@ -4,7 +4,7 @@
  * This takes care of all the V4L2 scaffolding, allowing the ISA drivers
  * to concentrate on the actual hardware operation.
  *
- * Copyright (C) 2012 Hans Verkuil <hans.verkuil@cisco.com>
+ * Copyright (C) 2012 Hans Verkuil <hansverk@cisco.com>
  */
 
 #ifndef _RADIO_ISA_H_

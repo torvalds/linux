@@ -21,7 +21,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #include "reg_helper.h"
 #include "dcn35_dwb.h"
 

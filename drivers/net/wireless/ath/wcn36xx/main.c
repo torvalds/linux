@@ -1590,7 +1590,10 @@ static int wcn36xx_probe(struct platform_device *pdev)
 	}
 
 	n_channels = wcn_band_2ghz.n_channels + wcn_band_5ghz.n_channels;
-	wcn->chan_survey = devm_kmalloc(wcn->dev, n_channels, GFP_KERNEL);
+	wcn->chan_survey = devm_kcalloc(wcn->dev,
+					n_channels,
+					sizeof(struct wcn36xx_chan_survey),
+					GFP_KERNEL);
 	if (!wcn->chan_survey) {
 		ret = -ENOMEM;
 		goto out_wq;
@@ -1679,10 +1682,10 @@ static const struct of_device_id wcn36xx_of_match[] = {
 MODULE_DEVICE_TABLE(of, wcn36xx_of_match);
 
 static struct platform_driver wcn36xx_driver = {
-	.probe      = wcn36xx_probe,
-	.remove_new = wcn36xx_remove,
-	.driver         = {
-		.name   = "wcn36xx",
+	.probe = wcn36xx_probe,
+	.remove = wcn36xx_remove,
+	.driver = {
+		.name = "wcn36xx",
 		.of_match_table = wcn36xx_of_match,
 	},
 };

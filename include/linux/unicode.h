@@ -16,6 +16,8 @@ struct utf8data_table;
 	 ((unsigned int)(MIN) << UNICODE_MIN_SHIFT) |	\
 	 ((unsigned int)(REV)))
 
+#define UTF8_LATEST        UNICODE_AGE(12, 1, 0)
+
 static inline u8 unicode_major(unsigned int age)
 {
 	return (age >> UNICODE_MAJ_SHIFT) & 0xff;
@@ -75,5 +77,7 @@ int utf8_casefold_hash(const struct unicode_map *um, const void *salt,
 
 struct unicode_map *utf8_load(unsigned int version);
 void utf8_unload(struct unicode_map *um);
+
+int utf8_parse_version(char *version);
 
 #endif /* _LINUX_UNICODE_H */

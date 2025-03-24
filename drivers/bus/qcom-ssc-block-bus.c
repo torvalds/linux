@@ -373,7 +373,7 @@ MODULE_DEVICE_TABLE(of, qcom_ssc_block_bus_of_match);
 
 static struct platform_driver qcom_ssc_block_bus_driver = {
 	.probe = qcom_ssc_block_bus_probe,
-	.remove_new = qcom_ssc_block_bus_remove,
+	.remove = qcom_ssc_block_bus_remove,
 	.driver = {
 		.name = "qcom-ssc-block-bus",
 		.of_match_table = qcom_ssc_block_bus_of_match,

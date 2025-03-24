@@ -26,7 +26,7 @@ struct of_pci_addr_pair {
  * side and the child address is the corresponding address on the secondary
  * side.
  */
-struct of_pci_range {
+struct of_pci_range_entry {
 	u32		child_addr[OF_PCI_ADDRESS_CELLS];
 	u32		parent_addr[OF_PCI_ADDRESS_CELLS];
 	u32		size[OF_PCI_SIZE_CELLS];
@@ -101,7 +101,7 @@ static int of_pci_prop_bus_range(struct pci_dev *pdev,
 static int of_pci_prop_ranges(struct pci_dev *pdev, struct of_changeset *ocs,
 			      struct device_node *np)
 {
-	struct of_pci_range *rp;
+	struct of_pci_range_entry *rp;
 	struct resource *res;
 	int i, j, ret;
 	u32 flags, num;
@@ -126,7 +126,7 @@ static int of_pci_prop_ranges(struct pci_dev *pdev, struct of_changeset *ocs,
 		if (of_pci_get_addr_flags(&res[j], &flags))
 			continue;
 
-		val64 = res[j].start;
+		val64 = pci_bus_address(pdev, &res[j] - pdev->resource);
 		of_pci_set_address(pdev, rp[i].parent_addr, val64, 0, flags,
 				   false);
 		if (pci_is_bridge(pdev)) {

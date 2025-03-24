@@ -50,6 +50,10 @@ bool dynamic_scs_is_enabled;
 #define DW_CFA_GNU_negative_offset_extended 0x2f
 #define DW_CFA_hi_user                      0x3f
 
+#define DW_EH_PE_sdata4                     0x0b
+#define DW_EH_PE_sdata8                     0x0c
+#define DW_EH_PE_pcrel                      0x10
+
 enum {
 	PACIASP		= 0xd503233f,
 	AUTIASP		= 0xd50323bf,
@@ -120,7 +124,12 @@ struct eh_frame {
 	union {
 		struct { // CIE
 			u8	version;
-			u8	augmentation_string[];
+			u8	augmentation_string[3];
+			u8	code_alignment_factor;
+			u8	data_alignment_factor;
+			u8	return_address_register;
+			u8	augmentation_data_size;
+			u8	fde_pointer_format;
 		};
 
 		struct { // FDE
@@ -128,29 +137,38 @@ struct eh_frame {
 			s32	range;
 			u8	opcodes[];
 		};
+
+		struct { // FDE
+			s64	initial_loc64;
+			s64	range64;
+			u8	opcodes64[];
+		};
 	};
 };
 
 static int scs_handle_fde_frame(const struct eh_frame *frame,
-				bool fde_has_augmentation_data,
 				int code_alignment_factor,
+				bool use_sdata8,
 				bool dry_run)
 {
 	int size = frame->size - offsetof(struct eh_frame, opcodes) + 4;
 	u64 loc = (u64)offset_to_ptr(&frame->initial_loc);
 	const u8 *opcode = frame->opcodes;
+	int l;
 
-	if (fde_has_augmentation_data) {
-		int l;
-
-		// assume single byte uleb128_t
-		if (WARN_ON(*opcode & BIT(7)))
-			return -ENOEXEC;
-
-		l = *opcode++;
-		opcode += l;
-		size -= l + 1;
+	if (use_sdata8) {
+		loc = (u64)&frame->initial_loc64 + frame->initial_loc64;
+		opcode = frame->opcodes64;
+		size -= 8;
 	}
+
+	// assume single byte uleb128_t for augmentation data size
+	if (*opcode & BIT(7))
+		return EDYNSCS_INVALID_FDE_AUGM_DATA_SIZE;
+
+	l = *opcode++;
+	opcode += l;
+	size -= l + 1;
 
 	/*
 	 * Starting from 'loc', apply the CFA opcodes that advance the location
@@ -201,7 +219,7 @@ static int scs_handle_fde_frame(const struct eh_frame *frame,
 			break;
 
 		default:
-			return -ENOEXEC;
+			return EDYNSCS_INVALID_CFA_OPCODE;
 		}
 	}
 	return 0;
@@ -209,12 +227,12 @@ static int scs_handle_fde_frame(const struct eh_frame *frame,
 
 int scs_patch(const u8 eh_frame[], int size)
 {
+	int code_alignment_factor = 1;
+	bool fde_use_sdata8 = false;
 	const u8 *p = eh_frame;
 
 	while (size > 4) {
 		const struct eh_frame *frame = (const void *)p;
-		bool fde_has_augmentation_data = true;
-		int code_alignment_factor = 1;
 		int ret;
 
 		if (frame->size == 0 ||
@@ -223,28 +241,47 @@ int scs_patch(const u8 eh_frame[], int size)
 			break;
 
 		if (frame->cie_id_or_pointer == 0) {
-			const u8 *p = frame->augmentation_string;
-
-			/* a 'z' in the augmentation string must come first */
-			fde_has_augmentation_data = *p == 'z';
+			/*
+			 * Require presence of augmentation data (z) with a
+			 * specifier for the size of the FDE initial_loc and
+			 * range fields (R), and nothing else.
+			 */
+			if (strcmp(frame->augmentation_string, "zR"))
+				return EDYNSCS_INVALID_CIE_HEADER;
 
 			/*
 			 * The code alignment factor is a uleb128 encoded field
 			 * but given that the only sensible values are 1 or 4,
-			 * there is no point in decoding the whole thing.
+			 * there is no point in decoding the whole thing.  Also
+			 * sanity check the size of the data alignment factor
+			 * field, and the values of the return address register
+			 * and augmentation data size fields.
 			 */
-			p += strlen(p) + 1;
-			if (!WARN_ON(*p & BIT(7)))
-				code_alignment_factor = *p;
+			if ((frame->code_alignment_factor & BIT(7)) ||
+			    (frame->data_alignment_factor & BIT(7)) ||
+			    frame->return_address_register != 30 ||
+			    frame->augmentation_data_size != 1)
+				return EDYNSCS_INVALID_CIE_HEADER;
+
+			code_alignment_factor = frame->code_alignment_factor;
+
+			switch (frame->fde_pointer_format) {
+			case DW_EH_PE_pcrel | DW_EH_PE_sdata4:
+				fde_use_sdata8 = false;
+				break;
+			case DW_EH_PE_pcrel | DW_EH_PE_sdata8:
+				fde_use_sdata8 = true;
+				break;
+			default:
+				return EDYNSCS_INVALID_CIE_SDATA_SIZE;
+			}
 		} else {
-			ret = scs_handle_fde_frame(frame,
-						   fde_has_augmentation_data,
-						   code_alignment_factor,
-						   true);
+			ret = scs_handle_fde_frame(frame, code_alignment_factor,
+						   fde_use_sdata8, true);
 			if (ret)
 				return ret;
-			scs_handle_fde_frame(frame, fde_has_augmentation_data,
-					     code_alignment_factor, false);
+			scs_handle_fde_frame(frame, code_alignment_factor,
+					     fde_use_sdata8, false);
 		}
 
 		p += sizeof(frame->size) + frame->size;

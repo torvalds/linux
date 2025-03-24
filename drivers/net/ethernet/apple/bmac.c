@@ -1317,7 +1317,7 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 
 	timer_setup(&bp->tx_timeout, bmac_tx_timeout, 0);
 
-	ret = request_irq(dev->irq, bmac_misc_intr, 0, "BMAC-misc", dev);
+	ret = request_irq(dev->irq, bmac_misc_intr, IRQF_NO_AUTOEN, "BMAC-misc", dev);
 	if (ret) {
 		printk(KERN_ERR "BMAC: can't get irq %d\n", dev->irq);
 		goto err_out_iounmap_rx;
@@ -1336,7 +1336,6 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	/* Mask chip interrupts and disable chip, will be
 	 * re-enabled on open()
 	 */
-	disable_irq(dev->irq);
 	pmac_call_feature(PMAC_FTR_BMAC_ENABLE, macio_get_of_node(bp->mdev), 0, 0);
 
 	if (register_netdev(dev) != 0) {

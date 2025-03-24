@@ -298,7 +298,7 @@ MODULE_DEVICE_TABLE(of, st_ohci_platform_ids);
 
 static struct platform_driver ohci_platform_driver = {
 	.probe		= st_ohci_platform_probe,
-	.remove_new	= st_ohci_platform_remove,
+	.remove		= st_ohci_platform_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "st-ohci",

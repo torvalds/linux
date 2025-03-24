@@ -211,11 +211,9 @@ struct dccg_funcs {
 			struct dccg *dccg,
 			enum streamclk_source src,
 			uint32_t otg_inst);
-	void (*set_dto_dscclk)(
-			struct dccg *dccg,
-			uint32_t dsc_inst,
-			bool enable);
+	void (*set_dto_dscclk)(struct dccg *dccg, uint32_t dsc_inst);
 	void (*set_ref_dscclk)(struct dccg *dccg, uint32_t dsc_inst);
+	void (*dccg_root_gate_disable_control)(struct dccg *dccg, uint32_t pipe_idx, uint32_t disable_clock_gating);
 };
 
 #endif //__DAL_DCCG_H__

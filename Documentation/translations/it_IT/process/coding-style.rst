@@ -620,18 +620,6 @@ Lo stile preferito per i commenti più lunghi (multi-riga) è:
 	 * with beginning and ending almost-blank lines.
 	 */
 
-Per i file in net/ e in drivers/net/ lo stile preferito per i commenti
-più lunghi (multi-riga) è leggermente diverso.
-
-.. code-block:: c
-
-	/* The preferred comment style for files in net/ and drivers/net
-	 * looks like this.
-	 *
-	 * It is nearly the same as the generally preferred comment style,
-	 * but there is no initial almost-blank line.
-	 */
-
 È anche importante commentare i dati, sia per i tipi base che per tipi
 derivati.  A questo scopo, dichiarate un dato per riga (niente virgole
 per una dichiarazione multipla).  Questo vi lascerà spazio per un piccolo
@@ -726,7 +714,7 @@ di stile, refusi e possibilmente anche delle migliorie. È anche utile per
 ordinare gli ``#include``, per allineare variabili/macro, per ridistribuire
 il testo e altre cose simili.
 Per maggiori dettagli, consultate il file
-:ref:`Documentation/translations/it_IT/process/clang-format.rst <it_clangformat>`.
+:ref:`Documentation/translations/it_IT/dev-tools/clang-format.rst <it_clangformat>`.
 
 Se utilizzate un programma compatibile con EditorConfig, allora alcune
 configurazioni basilari come l'indentazione e la fine delle righe verranno
@@ -826,6 +814,29 @@ blocco do - while:
 			if (a == 5)			\
 				do_this(b, c);		\
 		} while (0)
+
+Le macro che sembrano funzioni con parametri non usati dovrebbero essere
+sostituite da funzioni inline per evitare il problema.
+
+.. code-block:: c
+
+       static inline void fun(struct foo *foo)
+       {
+       }
+
+Per motivi storici, molti file usano ancora l'approccio "cast a (void)" per
+valutare i parametri. Tuttavia, non è raccomandato. Le funzioni inline risolvono
+i problemi di "espressioni con effetti avversi valutate più di una volta",
+variabili non utilizzate, e in genere per qualche motivo sono documentate
+meglio.
+
+.. code-block:: c
+
+       /*
+        * Avoid doing this whenever possible and instead opt for static
+        * inline functions
+        */
+       #define macrofun(foo) do { (void) (foo); } while (0)
 
 Cose da evitare quando si usano le macro:
 

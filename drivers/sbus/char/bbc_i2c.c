@@ -413,7 +413,7 @@ static struct platform_driver bbc_i2c_driver = {
 		.of_match_table = bbc_i2c_match,
 	},
 	.probe		= bbc_i2c_probe,
-	.remove_new	= bbc_i2c_remove,
+	.remove		= bbc_i2c_remove,
 };
 
 module_platform_driver(bbc_i2c_driver);

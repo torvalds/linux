@@ -130,7 +130,7 @@
 		reset-gpios = <&gpio3 RK_PD0 GPIO_ACTIVE_LOW>;
 	};
 
-	avdd_cif: cif-avdd-regulator {
+	avdd_cif: regulator-cif-avdd {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd-cif";
 		regulator-min-microvolt = <2800000>;
@@ -142,7 +142,7 @@
 		vin-supply = <&vcc28_cif>;
 	};
 
-	vcc_5v: vcc-5v-regulator {
+	vcc_5v: regulator-vcc-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc-5v";
 		regulator-min-microvolt = <5000000>;
@@ -154,7 +154,7 @@
 		vin-supply = <&vsys>;
 	};
 
-	vcc_lcd: lcd-regulator {
+	vcc_lcd: regulator-lcd {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc-lcd";
 		gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_LOW>;
@@ -164,7 +164,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vcc_otg: usb-otg-regulator {
+	vcc_otg: regulator-usb-otg {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc-otg";
 		regulator-min-microvolt = <5000000>;
@@ -177,7 +177,7 @@
 		vin-supply = <&vcc_5v>;
 	};
 
-	vcc_sd: sdmmc-regulator {
+	vcc_sd: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc-sd";
 		regulator-min-microvolt = <3300000>;
@@ -189,7 +189,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vccq_emmc: emmc-vccq-regulator {
+	vccq_emmc: regulator-emmc-vccq {
 		compatible = "regulator-fixed";
 		regulator-name = "vccq-emmc";
 		regulator-min-microvolt = <2800000>;
@@ -198,7 +198,7 @@
 	};
 
 	/* supplied from the bq24196 */
-	vsys: vsys-regulator {
+	vsys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vsys";
 		regulator-min-microvolt = <5000000>;

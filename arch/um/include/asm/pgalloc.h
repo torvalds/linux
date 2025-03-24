@@ -27,18 +27,27 @@ extern pgd_t *pgd_alloc(struct mm_struct *);
 
 #define __pte_free_tlb(tlb, pte, address)			\
 do {								\
-	pagetable_pte_dtor(page_ptdesc(pte));			\
+	pagetable_dtor(page_ptdesc(pte));			\
 	tlb_remove_page_ptdesc((tlb), (page_ptdesc(pte)));	\
 } while (0)
 
-#ifdef CONFIG_3_LEVEL_PGTABLES
+#if CONFIG_PGTABLE_LEVELS > 2
 
 #define __pmd_free_tlb(tlb, pmd, address)			\
 do {								\
-	pagetable_pmd_dtor(virt_to_ptdesc(pmd));			\
+	pagetable_dtor(virt_to_ptdesc(pmd));			\
 	tlb_remove_page_ptdesc((tlb), virt_to_ptdesc(pmd));	\
 } while (0)
 
+#if CONFIG_PGTABLE_LEVELS > 3
+
+#define __pud_free_tlb(tlb, pud, address)			\
+do {								\
+	pagetable_dtor(virt_to_ptdesc(pud));		\
+	tlb_remove_page_ptdesc((tlb), virt_to_ptdesc(pud));	\
+} while (0)
+
+#endif
 #endif
 
 #endif

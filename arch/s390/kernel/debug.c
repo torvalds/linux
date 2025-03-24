@@ -24,6 +24,7 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/math.h>
 #include <linux/minmax.h>
 #include <linux/debugfs.h>
 
@@ -38,13 +39,13 @@
 
 typedef struct file_private_info {
 	loff_t offset;			/* offset of last read in file */
-	int    act_area;		/* number of last formated area */
+	int    act_area;		/* number of last formatted area */
 	int    act_page;		/* act page in given area */
-	int    act_entry;		/* last formated entry (offset */
+	int    act_entry;		/* last formatted entry (offset */
 					/* relative to beginning of last */
-					/* formated page) */
+					/* formatted page) */
 	size_t act_entry_offset;	/* up to this offset we copied */
-					/* in last read the last formated */
+					/* in last read the last formatted */
 					/* entry to userland */
 	char   temp_buf[2048];		/* buffer for output */
 	debug_info_t *debug_info_org;	/* original debug information */
@@ -63,7 +64,7 @@ typedef struct {
 	long args[];
 } debug_sprintf_entry_t;
 
-/* internal function prototyes */
+/* internal function prototypes */
 
 static int debug_init(void);
 static ssize_t debug_output(struct file *file, char __user *user_buf,
@@ -77,12 +78,14 @@ static debug_info_t *debug_info_create(const char *name, int pages_per_area,
 static void debug_info_get(debug_info_t *);
 static void debug_info_put(debug_info_t *);
 static int debug_prolog_level_fn(debug_info_t *id,
-				 struct debug_view *view, char *out_buf);
+				 struct debug_view *view, char *out_buf,
+				 size_t out_buf_size);
 static int debug_input_level_fn(debug_info_t *id, struct debug_view *view,
 				struct file *file, const char __user *user_buf,
 				size_t user_buf_size, loff_t *offset);
 static int debug_prolog_pages_fn(debug_info_t *id,
-				 struct debug_view *view, char *out_buf);
+				 struct debug_view *view, char *out_buf,
+				 size_t out_buf_size);
 static int debug_input_pages_fn(debug_info_t *id, struct debug_view *view,
 				struct file *file, const char __user *user_buf,
 				size_t user_buf_size, loff_t *offset);
@@ -90,9 +93,8 @@ static int debug_input_flush_fn(debug_info_t *id, struct debug_view *view,
 				struct file *file, const char __user *user_buf,
 				size_t user_buf_size, loff_t *offset);
 static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
-				     char *out_buf, const char *in_buf);
-static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
-				   char *out_buf, const char *inbuf);
+				     char *out_buf, size_t out_buf_size,
+				     const char *in_buf);
 static void debug_areas_swap(debug_info_t *a, debug_info_t *b);
 static void debug_events_append(debug_info_t *dest, debug_info_t *src);
 
@@ -163,7 +165,6 @@ static const struct file_operations debug_file_ops = {
 	.write	 = debug_input,
 	.open	 = debug_open,
 	.release = debug_close,
-	.llseek  = no_llseek,
 };
 
 static struct dentry *debug_debugfs_root_entry;
@@ -351,7 +352,10 @@ static debug_info_t *debug_info_copy(debug_info_t *in, int mode)
 	for (i = 0; i < in->nr_areas; i++) {
 		for (j = 0; j < in->pages_per_area; j++)
 			memcpy(rc->areas[i][j], in->areas[i][j], PAGE_SIZE);
+		rc->active_pages[i] = in->active_pages[i];
+		rc->active_entries[i] = in->active_entries[i];
 	}
+	rc->active_area = in->active_area;
 out:
 	spin_unlock_irqrestore(&in->lock, flags);
 	return rc;
@@ -381,7 +385,7 @@ static void debug_info_put(debug_info_t *db_info)
 
 /*
  * debug_format_entry:
- * - format one debug entry and return size of formated data
+ * - format one debug entry and return size of formatted data
  */
 static int debug_format_entry(file_private_info_t *p_info)
 {
@@ -392,8 +396,10 @@ static int debug_format_entry(file_private_info_t *p_info)
 
 	if (p_info->act_entry == DEBUG_PROLOG_ENTRY) {
 		/* print prolog */
-		if (view->prolog_proc)
-			len += view->prolog_proc(id_snap, view, p_info->temp_buf);
+		if (view->prolog_proc) {
+			len += view->prolog_proc(id_snap, view, p_info->temp_buf,
+						 sizeof(p_info->temp_buf));
+		}
 		goto out;
 	}
 	if (!id_snap->areas) /* this is true, if we have a prolog only view */
@@ -403,21 +409,31 @@ static int debug_format_entry(file_private_info_t *p_info)
 
 	if (act_entry->clock == 0LL)
 		goto out; /* empty entry */
-	if (view->header_proc)
+	if (view->header_proc) {
 		len += view->header_proc(id_snap, view, p_info->act_area,
-					 act_entry, p_info->temp_buf + len);
-	if (view->format_proc)
+					 act_entry, p_info->temp_buf + len,
+					 sizeof(p_info->temp_buf) - len);
+	}
+	if (view->format_proc) {
 		len += view->format_proc(id_snap, view, p_info->temp_buf + len,
+					 sizeof(p_info->temp_buf) - len,
 					 DEBUG_DATA(act_entry));
+	}
 out:
 	return len;
 }
 
-/*
- * debug_next_entry:
- * - goto next entry in p_info
+/**
+ * debug_next_entry - Go to the next entry
+ * @p_info:	Private info that is manipulated
+ *
+ * Sets the current position in @p_info to the next entry. If no further entry
+ * exists the current position is set to one after the end the return value
+ * indicates that no further entries exist.
+ *
+ * Return: True if there are more following entries, false otherwise
  */
-static inline int debug_next_entry(file_private_info_t *p_info)
+static inline bool debug_next_entry(file_private_info_t *p_info)
 {
 	debug_info_t *id;
 
@@ -425,10 +441,10 @@ static inline int debug_next_entry(file_private_info_t *p_info)
 	if (p_info->act_entry == DEBUG_PROLOG_ENTRY) {
 		p_info->act_entry = 0;
 		p_info->act_page  = 0;
-		goto out;
+		return true;
 	}
 	if (!id->areas)
-		return 1;
+		return false;
 	p_info->act_entry += id->entry_size;
 	/* switch to next page, if we reached the end of the page  */
 	if (p_info->act_entry > (PAGE_SIZE - id->entry_size)) {
@@ -441,16 +457,93 @@ static inline int debug_next_entry(file_private_info_t *p_info)
 			p_info->act_page = 0;
 		}
 		if (p_info->act_area >= id->nr_areas)
-			return 1;
+			return false;
 	}
-out:
-	return 0;
+	return true;
+}
+
+/**
+ * debug_to_act_entry - Go to the currently active entry
+ * @p_info:	Private info that is manipulated
+ *
+ * Sets the current position in @p_info to the currently active
+ * entry of @p_info->debug_info_snap
+ */
+static void debug_to_act_entry(file_private_info_t *p_info)
+{
+	debug_info_t *snap_id;
+
+	snap_id = p_info->debug_info_snap;
+	p_info->act_area = snap_id->active_area;
+	p_info->act_page = snap_id->active_pages[snap_id->active_area];
+	p_info->act_entry = snap_id->active_entries[snap_id->active_area];
+}
+
+/**
+ * debug_prev_entry - Go to the previous entry
+ * @p_info:	Private info that is manipulated
+ *
+ * Sets the current position in @p_info to the previous entry. If no previous entry
+ * exists the current position is set left as DEBUG_PROLOG_ENTRY and the return value
+ * indicates that no previous entries exist.
+ *
+ * Return: True if there are more previous entries, false otherwise
+ */
+
+static inline bool debug_prev_entry(file_private_info_t *p_info)
+{
+	debug_info_t *id;
+
+	id = p_info->debug_info_snap;
+	if (p_info->act_entry == DEBUG_PROLOG_ENTRY)
+		debug_to_act_entry(p_info);
+	if (!id->areas)
+		return false;
+	p_info->act_entry -= id->entry_size;
+	/* switch to prev page, if we reached the beginning of the page  */
+	if (p_info->act_entry < 0) {
+		/* end of previous page */
+		p_info->act_entry = rounddown(PAGE_SIZE, id->entry_size) - id->entry_size;
+		p_info->act_page--;
+		if (p_info->act_page < 0) {
+			/* previous area */
+			p_info->act_area--;
+			p_info->act_page = id->pages_per_area - 1;
+		}
+		if (p_info->act_area < 0)
+			p_info->act_area = (id->nr_areas - 1) % id->nr_areas;
+	}
+	/* check full circle */
+	if (id->active_area == p_info->act_area &&
+	    id->active_pages[id->active_area] == p_info->act_page &&
+	    id->active_entries[id->active_area] == p_info->act_entry)
+		return false;
+	return true;
+}
+
+/**
+ * debug_move_entry - Go to next entry in either the forward or backward direction
+ * @p_info:	Private info that is manipulated
+ * @reverse:	If true go to the next entry in reverse i.e. previous
+ *
+ * Sets the current position in @p_info to the next (@reverse == false) or
+ * previous (@reverse == true) entry.
+ *
+ * Return: True if there are further entries in that direction,
+ * false otherwise.
+ */
+static bool debug_move_entry(file_private_info_t *p_info, bool reverse)
+{
+	if (reverse)
+		return debug_prev_entry(p_info);
+	else
+		return debug_next_entry(p_info);
 }
 
 /*
  * debug_output:
  * - called for user read()
- * - copies formated debug entries to the user buffer
+ * - copies formatted debug entries to the user buffer
  */
 static ssize_t debug_output(struct file *file,		/* file descriptor */
 			    char __user *user_buf,	/* user buffer */
@@ -486,7 +579,7 @@ static ssize_t debug_output(struct file *file,		/* file descriptor */
 		}
 		if (copy_size == formatted_line_residue) {
 			entry_offset = 0;
-			if (debug_next_entry(p_info))
+			if (!debug_next_entry(p_info))
 				goto out;
 		}
 	}
@@ -521,15 +614,51 @@ static ssize_t debug_input(struct file *file, const char __user *user_buf,
 	return rc; /* number of input characters */
 }
 
+static file_private_info_t *debug_file_private_alloc(debug_info_t *debug_info,
+						     struct debug_view *view)
+{
+	debug_info_t *debug_info_snapshot;
+	file_private_info_t *p_info;
+
+	/*
+	 * Make snapshot of current debug areas to get it consistent.
+	 * To copy all the areas is only needed, if we have a view which
+	 * formats the debug areas.
+	 */
+	if (!view->format_proc && !view->header_proc)
+		debug_info_snapshot = debug_info_copy(debug_info, NO_AREAS);
+	else
+		debug_info_snapshot = debug_info_copy(debug_info, ALL_AREAS);
+
+	if (!debug_info_snapshot)
+		return NULL;
+	p_info = kmalloc(sizeof(file_private_info_t), GFP_KERNEL);
+	if (!p_info) {
+		debug_info_free(debug_info_snapshot);
+		return NULL;
+	}
+	p_info->offset = 0;
+	p_info->debug_info_snap = debug_info_snapshot;
+	p_info->debug_info_org	= debug_info;
+	p_info->view = view;
+	p_info->act_area = 0;
+	p_info->act_page = 0;
+	p_info->act_entry = DEBUG_PROLOG_ENTRY;
+	p_info->act_entry_offset = 0;
+	debug_info_get(debug_info);
+
+	return p_info;
+}
+
 /*
  * debug_open:
  * - called for user open()
- * - copies formated output to private_data area of the file
+ * - copies formatted output to private_data area of the file
  *   handle
  */
 static int debug_open(struct inode *inode, struct file *file)
 {
-	debug_info_t *debug_info, *debug_info_snapshot;
+	debug_info_t *debug_info;
 	file_private_info_t *p_info;
 	int i, rc = 0;
 
@@ -547,40 +676,24 @@ static int debug_open(struct inode *inode, struct file *file)
 	goto out;
 
 found:
-
-	/* Make snapshot of current debug areas to get it consistent.	  */
-	/* To copy all the areas is only needed, if we have a view which  */
-	/* formats the debug areas. */
-
-	if (!debug_info->views[i]->format_proc && !debug_info->views[i]->header_proc)
-		debug_info_snapshot = debug_info_copy(debug_info, NO_AREAS);
-	else
-		debug_info_snapshot = debug_info_copy(debug_info, ALL_AREAS);
-
-	if (!debug_info_snapshot) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	p_info = kmalloc(sizeof(file_private_info_t), GFP_KERNEL);
+	p_info = debug_file_private_alloc(debug_info, debug_info->views[i]);
 	if (!p_info) {
-		debug_info_free(debug_info_snapshot);
 		rc = -ENOMEM;
 		goto out;
 	}
-	p_info->offset = 0;
-	p_info->debug_info_snap = debug_info_snapshot;
-	p_info->debug_info_org	= debug_info;
-	p_info->view = debug_info->views[i];
-	p_info->act_area = 0;
-	p_info->act_page = 0;
-	p_info->act_entry = DEBUG_PROLOG_ENTRY;
-	p_info->act_entry_offset = 0;
 	file->private_data = p_info;
-	debug_info_get(debug_info);
 	nonseekable_open(inode, file);
 out:
 	mutex_unlock(&debug_mutex);
 	return rc;
+}
+
+static void debug_file_private_free(file_private_info_t *p_info)
+{
+	if (p_info->debug_info_snap)
+		debug_info_free(p_info->debug_info_snap);
+	debug_info_put(p_info->debug_info_org);
+	kfree(p_info);
 }
 
 /*
@@ -593,11 +706,57 @@ static int debug_close(struct inode *inode, struct file *file)
 	file_private_info_t *p_info;
 
 	p_info = (file_private_info_t *) file->private_data;
-	if (p_info->debug_info_snap)
-		debug_info_free(p_info->debug_info_snap);
-	debug_info_put(p_info->debug_info_org);
-	kfree(file->private_data);
+	debug_file_private_free(p_info);
+	file->private_data = NULL;
 	return 0; /* success */
+}
+
+/**
+ * debug_dump - Get a textual representation of debug info, or as much as fits
+ * @id:		Debug information to use
+ * @view:	View with which to dump the debug information
+ * @buf:	Buffer the textual debug data representation is written to
+ * @buf_size:	Size of the buffer, including the trailing '\0' byte
+ * @reverse:	Go backwards from the last written entry
+ *
+ * This function may be used whenever a textual representation of the debug
+ * information is required without using an s390dbf file.
+ *
+ * Note: It is the callers responsibility to supply a view that is compatible
+ * with the debug information data.
+ *
+ * Return: On success returns the number of bytes written to the buffer not
+ * including the trailing '\0' byte. If bug_size == 0 the function returns 0.
+ * On failure an error code less than 0 is returned.
+ */
+ssize_t debug_dump(debug_info_t *id, struct debug_view *view,
+		   char *buf, size_t buf_size, bool reverse)
+{
+	file_private_info_t *p_info;
+	size_t size, offset = 0;
+
+	/* Need space for '\0' byte */
+	if (buf_size < 1)
+		return 0;
+	buf_size--;
+
+	p_info = debug_file_private_alloc(id, view);
+	if (!p_info)
+		return -ENOMEM;
+
+	/* There is always at least the DEBUG_PROLOG_ENTRY */
+	do {
+		size = debug_format_entry(p_info);
+		size = min(size, buf_size - offset);
+		memcpy(buf + offset, p_info->temp_buf, size);
+		offset += size;
+		if (offset >= buf_size)
+			break;
+	} while (debug_move_entry(p_info, reverse));
+	debug_file_private_free(p_info);
+	buf[offset] = '\0';
+
+	return offset;
 }
 
 /* Create debugfs entries and add to internal list. */
@@ -963,7 +1122,7 @@ static int s390dbf_procactive(const struct ctl_table *table, int write,
 		return 0;
 }
 
-static struct ctl_table s390dbf_table[] = {
+static const struct ctl_table s390dbf_table[] = {
 	{
 		.procname	= "debug_stoppable",
 		.data		= &debug_stoppable,
@@ -1293,9 +1452,9 @@ static inline int debug_get_uint(char *buf)
  */
 
 static int debug_prolog_pages_fn(debug_info_t *id, struct debug_view *view,
-				 char *out_buf)
+				 char *out_buf, size_t out_buf_size)
 {
-	return sprintf(out_buf, "%i\n", id->pages_per_area);
+	return scnprintf(out_buf, out_buf_size, "%i\n", id->pages_per_area);
 }
 
 /*
@@ -1342,14 +1501,14 @@ out:
  * prints out actual debug level
  */
 static int debug_prolog_level_fn(debug_info_t *id, struct debug_view *view,
-				 char *out_buf)
+				 char *out_buf, size_t out_buf_size)
 {
 	int rc = 0;
 
 	if (id->level == DEBUG_OFF_LEVEL)
-		rc = sprintf(out_buf, "-\n");
+		rc = scnprintf(out_buf, out_buf_size, "-\n");
 	else
-		rc = sprintf(out_buf, "%i\n", id->level);
+		rc = scnprintf(out_buf, out_buf_size, "%i\n", id->level);
 	return rc;
 }
 
@@ -1466,22 +1625,24 @@ out:
  * prints debug data in hex/ascii format
  */
 static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
-				     char *out_buf, const char *in_buf)
+				     char *out_buf, size_t out_buf_size, const char *in_buf)
 {
 	int i, rc = 0;
 
-	for (i = 0; i < id->buf_size; i++)
-		rc += sprintf(out_buf + rc, "%02x ", ((unsigned char *) in_buf)[i]);
-	rc += sprintf(out_buf + rc, "| ");
+	for (i = 0; i < id->buf_size; i++) {
+		rc += scnprintf(out_buf + rc, out_buf_size - rc,
+				"%02x ", ((unsigned char *)in_buf)[i]);
+	}
+	rc += scnprintf(out_buf + rc, out_buf_size - rc, "| ");
 	for (i = 0; i < id->buf_size; i++) {
 		unsigned char c = in_buf[i];
 
 		if (isascii(c) && isprint(c))
-			rc += sprintf(out_buf + rc, "%c", c);
+			rc += scnprintf(out_buf + rc, out_buf_size - rc, "%c", c);
 		else
-			rc += sprintf(out_buf + rc, ".");
+			rc += scnprintf(out_buf + rc, out_buf_size - rc, ".");
 	}
-	rc += sprintf(out_buf + rc, "\n");
+	rc += scnprintf(out_buf + rc, out_buf_size - rc, "\n");
 	return rc;
 }
 
@@ -1489,7 +1650,8 @@ static int debug_hex_ascii_format_fn(debug_info_t *id, struct debug_view *view,
  * prints header for debug entry
  */
 int debug_dflt_header_fn(debug_info_t *id, struct debug_view *view,
-			 int area, debug_entry_t *entry, char *out_buf)
+			 int area, debug_entry_t *entry, char *out_buf,
+			 size_t out_buf_size)
 {
 	unsigned long sec, usec;
 	unsigned long caller;
@@ -1506,22 +1668,22 @@ int debug_dflt_header_fn(debug_info_t *id, struct debug_view *view,
 	else
 		except_str = "-";
 	caller = (unsigned long) entry->caller;
-	rc += sprintf(out_buf, "%02i %011ld:%06lu %1u %1s %04u %px  ",
-		      area, sec, usec, level, except_str,
-		      entry->cpu, (void *)caller);
+	rc += scnprintf(out_buf, out_buf_size, "%02i %011ld:%06lu %1u %1s %04u %px  ",
+			area, sec, usec, level, except_str,
+			entry->cpu, (void *)caller);
 	return rc;
 }
 EXPORT_SYMBOL(debug_dflt_header_fn);
 
 /*
- * prints debug data sprintf-formated:
+ * prints debug data sprintf-formatted:
  * debug_sprinf_event/exception calls must be used together with this view
  */
 
 #define DEBUG_SPRINTF_MAX_ARGS 10
 
-static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
-				   char *out_buf, const char *inbuf)
+int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
+			    char *out_buf, size_t out_buf_size, const char *inbuf)
 {
 	debug_sprintf_entry_t *curr_event = (debug_sprintf_entry_t *)inbuf;
 	int num_longs, num_used_args = 0, i, rc = 0;
@@ -1534,8 +1696,9 @@ static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
 		goto out; /* bufsize of entry too small */
 	if (num_longs == 1) {
 		/* no args, we use only the string */
-		strcpy(out_buf, curr_event->string);
-		rc = strlen(curr_event->string);
+		rc = strscpy(out_buf, curr_event->string, out_buf_size);
+		if (rc == -E2BIG)
+			rc = out_buf_size;
 		goto out;
 	}
 
@@ -1547,15 +1710,17 @@ static int debug_sprintf_format_fn(debug_info_t *id, struct debug_view *view,
 	for (i = 0; i < num_used_args; i++)
 		index[i] = i;
 
-	rc = sprintf(out_buf, curr_event->string, curr_event->args[index[0]],
-		     curr_event->args[index[1]], curr_event->args[index[2]],
-		     curr_event->args[index[3]], curr_event->args[index[4]],
-		     curr_event->args[index[5]], curr_event->args[index[6]],
-		     curr_event->args[index[7]], curr_event->args[index[8]],
-		     curr_event->args[index[9]]);
+	rc = scnprintf(out_buf, out_buf_size,
+		       curr_event->string, curr_event->args[index[0]],
+		       curr_event->args[index[1]], curr_event->args[index[2]],
+		       curr_event->args[index[3]], curr_event->args[index[4]],
+		       curr_event->args[index[5]], curr_event->args[index[6]],
+		       curr_event->args[index[7]], curr_event->args[index[8]],
+		       curr_event->args[index[9]]);
 out:
 	return rc;
 }
+EXPORT_SYMBOL(debug_sprintf_format_fn);
 
 /*
  * debug_init:

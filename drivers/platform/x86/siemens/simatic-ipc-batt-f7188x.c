@@ -73,7 +73,7 @@ static int simatic_ipc_batt_f7188x_probe(struct platform_device *pdev)
 
 static struct platform_driver simatic_ipc_batt_driver = {
 	.probe = simatic_ipc_batt_f7188x_probe,
-	.remove_new = simatic_ipc_batt_f7188x_remove,
+	.remove = simatic_ipc_batt_f7188x_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},

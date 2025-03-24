@@ -299,18 +299,15 @@ void efx_nic_get_regs(struct efx_nic *efx, void *buf)
  * bits in the first @count bits of @mask for which a name is defined.
  */
 size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
-			      const unsigned long *mask, u8 *names)
+			      const unsigned long *mask, u8 **names)
 {
 	size_t visible = 0;
 	size_t index;
 
 	for_each_set_bit(index, mask, count) {
 		if (desc[index].name) {
-			if (names) {
-				strscpy(names, desc[index].name,
-					ETH_GSTRING_LEN);
-				names += ETH_GSTRING_LEN;
-			}
+			if (names)
+				ethtool_puts(names, desc[index].name);
 			++visible;
 		}
 	}

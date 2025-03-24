@@ -2,5 +2,6 @@
 audit_logread
 connect_close
 conntrack_dump_flush
+conntrack_reverse_clash
 sctp_collision
 nf_queue

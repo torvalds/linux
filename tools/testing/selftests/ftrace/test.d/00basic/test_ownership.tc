@@ -1,12 +1,14 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Test file and directory ownership changes for eventfs
+# requires: "[gid=<gid>]":README
 
 original_group=`stat -c "%g" .`
 original_owner=`stat -c "%u" .`
 
-mount_point=`stat -c '%m' .`
-mount_options=`mount | grep "$mount_point" | sed -e 's/.*(\(.*\)).*/\1/'`
+local mount_point=$(get_mount_point)
+
+mount_options=$(get_mnt_options "$mount_point")
 
 # find another owner and group that is not the original
 other_group=`tac /etc/group | grep -v ":$original_group:" | head -1 | cut -d: -f3`
@@ -83,32 +85,38 @@ run_tests() {
 	done
 }
 
-mount -o remount,"$new_options" .
+# Run the tests twice as leftovers can cause issues
+for loop in 1 2 ; do
 
-run_tests
+	echo "Running iteration $loop"
 
-mount -o remount,"$mount_options" .
+	mount -o remount,"$new_options" .
 
-for d in "." "events" "events/sched" "events/sched/sched_switch" "events/sched/sched_switch/enable" $canary; do
-	test "$d" $original_group
-done
+	run_tests
+
+	mount -o remount,"$mount_options" .
+
+	for d in "." "events" "events/sched" "events/sched/sched_switch" "events/sched/sched_switch/enable" $canary; do
+		test "$d" $original_group
+	done
 
 # check instances as well
 
-chgrp $other_group instances
+	chgrp $other_group instances
 
-instance="$(mktemp -u test-XXXXXX)"
+	instance="$(mktemp -u test-XXXXXX)"
 
-mkdir instances/$instance
+	mkdir instances/$instance
 
-cd instances/$instance
+	cd instances/$instance
 
-run_tests
+	run_tests
 
-cd ../..
+	cd ../..
 
-rmdir instances/$instance
+	rmdir instances/$instance
 
-chgrp $original_group instances
+	chgrp $original_group instances
+done
 
 exit 0

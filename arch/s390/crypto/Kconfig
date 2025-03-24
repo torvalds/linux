@@ -2,18 +2,6 @@
 
 menu "Accelerated Cryptographic Algorithms for CPU (s390)"
 
-config CRYPTO_CRC32_S390
-	tristate "CRC32c and CRC32"
-	depends on S390
-	select CRYPTO_HASH
-	select CRC32
-	help
-	  CRC32c and CRC32 CRC algorithms
-
-	  Architecture: s390
-
-	  It is available with IBM z13 or later.
-
 config CRYPTO_SHA512_S390
 	tristate "Hash functions: SHA-384 and SHA-512"
 	depends on S390
@@ -131,5 +119,15 @@ config CRYPTO_CHACHA_S390
 	  Architecture: s390
 
 	  It is available as of z13.
+
+config CRYPTO_HMAC_S390
+	tristate "Keyed-hash message authentication code: HMAC"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  s390 specific HMAC hardware support for SHA224, SHA256, SHA384 and
+	  SHA512.
+
+	  Architecture: s390
 
 endmenu

@@ -698,12 +698,18 @@ static int check_gsc_manifest(struct intel_gt *gt,
 			      const struct firmware *fw,
 			      struct intel_uc_fw *uc_fw)
 {
+	int ret;
+
 	switch (uc_fw->type) {
 	case INTEL_UC_FW_TYPE_HUC:
-		intel_huc_fw_get_binary_info(uc_fw, fw->data, fw->size);
+		ret = intel_huc_fw_get_binary_info(uc_fw, fw->data, fw->size);
+		if (ret)
+			return ret;
 		break;
 	case INTEL_UC_FW_TYPE_GSC:
-		intel_gsc_fw_get_binary_info(uc_fw, fw->data, fw->size);
+		ret = intel_gsc_fw_get_binary_info(uc_fw, fw->data, fw->size);
+		if (ret)
+			return ret;
 		break;
 	default:
 		MISSING_CASE(uc_fw->type);

@@ -746,6 +746,7 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 	unsigned char	*p;
 	int sect, nsect;
 	unsigned long	flags;
+	unsigned int memflags;
 	int ret;
 
 	if (type) {
@@ -758,7 +759,7 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 	}
 
 	q = unit[drive].disk[type]->queue;
-	blk_mq_freeze_queue(q);
+	memflags = blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
 
 	local_irq_save(flags);
@@ -817,7 +818,7 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 	ret = FormatError ? -EIO : 0;
 out:
 	blk_mq_unquiesce_queue(q);
-	blk_mq_unfreeze_queue(q);
+	blk_mq_unfreeze_queue(q, memflags);
 	return ret;
 }
 
@@ -2088,7 +2089,6 @@ static int __init atari_floppy_init (void)
 		unit[i].tag_set.nr_maps = 1;
 		unit[i].tag_set.queue_depth = 2;
 		unit[i].tag_set.numa_node = NUMA_NO_NODE;
-		unit[i].tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 		ret = blk_mq_alloc_tag_set(&unit[i].tag_set);
 		if (ret)
 			goto err;

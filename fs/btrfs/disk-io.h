@@ -52,8 +52,7 @@ struct extent_buffer *btrfs_find_create_tree_block(
 int btrfs_start_pre_rw_mount(struct btrfs_fs_info *fs_info);
 int btrfs_check_super_csum(struct btrfs_fs_info *fs_info,
 			   const struct btrfs_super_block *disk_sb);
-int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_devices,
-		      const char *options);
+int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_devices);
 void __cold close_ctree(struct btrfs_fs_info *fs_info);
 int btrfs_validate_super(const struct btrfs_fs_info *fs_info,
 			 const struct btrfs_super_block *sb, int mirror_num);
@@ -97,9 +96,6 @@ struct btrfs_root *btrfs_alloc_dummy_root(struct btrfs_fs_info *fs_info);
 /*
  * This function is used to grab the root, and avoid it is freed when we
  * access it. But it doesn't ensure that the tree is not dropped.
- *
- * If you want to ensure the whole tree is safe, you should use
- * 	fs_info->subvol_srcu
  */
 static inline struct btrfs_root *btrfs_grab_root(struct btrfs_root *root)
 {
@@ -127,8 +123,7 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root);
 void btrfs_cleanup_dirty_bgs(struct btrfs_transaction *trans,
 			     struct btrfs_fs_info *fs_info);
-void btrfs_cleanup_one_transaction(struct btrfs_transaction *trans,
-				  struct btrfs_fs_info *fs_info);
+void btrfs_cleanup_one_transaction(struct btrfs_transaction *trans);
 struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
 				     u64 objectid);
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);

@@ -178,7 +178,7 @@ fail_malloc:
 	return result;
 }
 
-static int __ref ps3_setup_uhc_device(
+static int __init ps3_setup_uhc_device(
 	const struct ps3_repository_device *repo, enum ps3_match_id match_id,
 	enum ps3_interrupt_type interrupt_type, enum ps3_reg_type reg_type)
 {

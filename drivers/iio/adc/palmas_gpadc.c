@@ -456,7 +456,7 @@ static int palmas_gpadc_get_calibrated_code(struct palmas_gpadc *adc,
  *   raw high threshold = (ideal threshold + INL) * gain error + offset error
  *
  * The gain error include both gain error, as specified in the datasheet, and
- * the gain error drift. These paramenters vary depending on device and whether
+ * the gain error drift. These parameters vary depending on device and whether
  * the channel is calibrated (trimmed) or not.
  */
 static int palmas_gpadc_threshold_with_tolerance(int val, const int INL,
@@ -676,7 +676,7 @@ static int palmas_gpadc_write_event_config(struct iio_dev *indio_dev,
 					   const struct iio_chan_spec *chan,
 					   enum iio_event_type type,
 					   enum iio_event_direction dir,
-					   int state)
+					   bool state)
 {
 	struct palmas_gpadc *adc = iio_priv(indio_dev);
 	int adc_chan = chan->channel;

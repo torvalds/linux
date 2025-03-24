@@ -21,6 +21,7 @@
 #include "xfs_ag.h"
 #include "xfs_health.h"
 #include "xfs_rtbitmap.h"
+#include "xfs_rtgroup.h"
 
 /*
  * Notes on an efficient, low latency fstrim algorithm
@@ -72,6 +73,8 @@
  * extent search so that it overlaps in flight discard IO.
  */
 
+#define XFS_DISCARD_MAX_EXAMINE	(100)
+
 struct workqueue_struct *xfs_discard_wq;
 
 static void
@@ -81,13 +84,13 @@ xfs_discard_endio_work(
 	struct xfs_busy_extents	*extents =
 		container_of(work, struct xfs_busy_extents, endio_work);
 
-	xfs_extent_busy_clear(extents->mount, &extents->extent_list, false);
+	xfs_extent_busy_clear(&extents->extent_list, false);
 	kfree(extents->owner);
 }
 
 /*
  * Queue up the actual completion to a thread to avoid IRQ-safe locking for
- * pagb_lock.
+ * eb_lock.
  */
 static void
 xfs_discard_endio(
@@ -98,6 +101,24 @@ xfs_discard_endio(
 	INIT_WORK(&extents->endio_work, xfs_discard_endio_work);
 	queue_work(xfs_discard_wq, &extents->endio_work);
 	bio_put(bio);
+}
+
+static inline struct block_device *
+xfs_group_bdev(
+	const struct xfs_group	*xg)
+{
+	struct xfs_mount	*mp = xg->xg_mount;
+
+	switch (xg->xg_type) {
+	case XG_TYPE_AG:
+		return mp->m_ddev_targp->bt_bdev;
+	case XG_TYPE_RTG:
+		return mp->m_rtdev_targp->bt_bdev;
+	default:
+		ASSERT(0);
+		break;
+	}
+	return NULL;
 }
 
 /*
@@ -117,11 +138,11 @@ xfs_discard_extents(
 
 	blk_start_plug(&plug);
 	list_for_each_entry(busyp, &extents->extent_list, list) {
-		trace_xfs_discard_extent(mp, busyp->agno, busyp->bno,
-					 busyp->length);
+		trace_xfs_discard_extent(busyp->group, busyp->bno,
+				busyp->length);
 
-		error = __blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
-				XFS_AGB_TO_DADDR(mp, busyp->agno, busyp->bno),
+		error = __blkdev_issue_discard(xfs_group_bdev(busyp->group),
+				xfs_gbno_to_daddr(busyp->group, busyp->bno),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_KERNEL, &bio);
 		if (error && error != -EOPNOTSUPP) {
@@ -158,16 +179,15 @@ static int
 xfs_trim_gather_extents(
 	struct xfs_perag	*pag,
 	struct xfs_trim_cur	*tcur,
-	struct xfs_busy_extents	*extents,
-	uint64_t		*blocks_trimmed)
+	struct xfs_busy_extents	*extents)
 {
-	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_mount	*mp = pag_mount(pag);
 	struct xfs_trans	*tp;
 	struct xfs_btree_cur	*cur;
 	struct xfs_buf		*agbp;
 	int			error;
 	int			i;
-	int			batch = 100;
+	int			batch = XFS_DISCARD_MAX_EXAMINE;
 
 	/*
 	 * Force out the log.  This means any transactions that might have freed
@@ -240,11 +260,11 @@ xfs_trim_gather_extents(
 		 * overlapping ranges for now.
 		 */
 		if (fbno + flen < tcur->start) {
-			trace_xfs_discard_exclude(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_exclude(pag_group(pag), fbno, flen);
 			goto next_extent;
 		}
 		if (fbno > tcur->end) {
-			trace_xfs_discard_exclude(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_exclude(pag_group(pag), fbno, flen);
 			if (tcur->by_bno) {
 				tcur->count = 0;
 				break;
@@ -262,7 +282,7 @@ xfs_trim_gather_extents(
 
 		/* Too small?  Give up. */
 		if (flen < tcur->minlen) {
-			trace_xfs_discard_toosmall(mp, pag->pag_agno, fbno, flen);
+			trace_xfs_discard_toosmall(pag_group(pag), fbno, flen);
 			if (tcur->by_bno)
 				goto next_extent;
 			tcur->count = 0;
@@ -273,14 +293,13 @@ xfs_trim_gather_extents(
 		 * If any blocks in the range are still busy, skip the
 		 * discard and try again the next time.
 		 */
-		if (xfs_extent_busy_search(mp, pag, fbno, flen)) {
-			trace_xfs_discard_busy(mp, pag->pag_agno, fbno, flen);
+		if (xfs_extent_busy_search(pag_group(pag), fbno, flen)) {
+			trace_xfs_discard_busy(pag_group(pag), fbno, flen);
 			goto next_extent;
 		}
 
-		xfs_extent_busy_insert_discard(pag, fbno, flen,
+		xfs_extent_busy_insert_discard(pag_group(pag), fbno, flen,
 				&extents->extent_list);
-		*blocks_trimmed += flen;
 next_extent:
 		if (tcur->by_bno)
 			error = xfs_btree_increment(cur, 0, &i);
@@ -303,7 +322,7 @@ next_extent:
 	 * we aren't going to issue a discard on them any more.
 	 */
 	if (error)
-		xfs_extent_busy_clear(mp, &extents->extent_list, false);
+		xfs_extent_busy_clear(&extents->extent_list, false);
 out_del_cursor:
 	xfs_btree_del_cursor(cur, error);
 out_trans_cancel:
@@ -327,8 +346,7 @@ xfs_trim_perag_extents(
 	struct xfs_perag	*pag,
 	xfs_agblock_t		start,
 	xfs_agblock_t		end,
-	xfs_extlen_t		minlen,
-	uint64_t		*blocks_trimmed)
+	xfs_extlen_t		minlen)
 {
 	struct xfs_trim_cur	tcur = {
 		.start		= start,
@@ -338,7 +356,7 @@ xfs_trim_perag_extents(
 	};
 	int			error = 0;
 
-	if (start != 0 || end != pag->block_count)
+	if (start != 0 || end != pag_group(pag)->xg_block_count)
 		tcur.by_bno = true;
 
 	do {
@@ -350,12 +368,10 @@ xfs_trim_perag_extents(
 			break;
 		}
 
-		extents->mount = pag->pag_mount;
 		extents->owner = extents;
 		INIT_LIST_HEAD(&extents->extent_list);
 
-		error = xfs_trim_gather_extents(pag, &tcur, extents,
-				blocks_trimmed);
+		error = xfs_trim_gather_extents(pag, &tcur, extents);
 		if (error) {
 			kfree(extents);
 			break;
@@ -371,7 +387,7 @@ xfs_trim_perag_extents(
 		 * list  after this function call, as it may have been freed by
 		 * the time control returns to us.
 		 */
-		error = xfs_discard_extents(pag->pag_mount, extents);
+		error = xfs_discard_extents(pag_mount(pag), extents);
 		if (error)
 			break;
 
@@ -389,13 +405,12 @@ xfs_trim_datadev_extents(
 	struct xfs_mount	*mp,
 	xfs_daddr_t		start,
 	xfs_daddr_t		end,
-	xfs_extlen_t		minlen,
-	uint64_t		*blocks_trimmed)
+	xfs_extlen_t		minlen)
 {
 	xfs_agnumber_t		start_agno, end_agno;
 	xfs_agblock_t		start_agbno, end_agbno;
+	struct xfs_perag	*pag = NULL;
 	xfs_daddr_t		ddev_end;
-	struct xfs_perag	*pag;
 	int			last_error = 0, error;
 
 	ddev_end = min_t(xfs_daddr_t, end,
@@ -406,13 +421,12 @@ xfs_trim_datadev_extents(
 	end_agno = xfs_daddr_to_agno(mp, ddev_end);
 	end_agbno = xfs_daddr_to_agbno(mp, ddev_end);
 
-	for_each_perag_range(mp, start_agno, end_agno, pag) {
-		xfs_agblock_t	agend = pag->block_count;
+	while ((pag = xfs_perag_next_range(mp, pag, start_agno, end_agno))) {
+		xfs_agblock_t	agend = pag_group(pag)->xg_block_count;
 
-		if (start_agno == end_agno)
+		if (pag_agno(pag) == end_agno)
 			agend = end_agbno;
-		error = xfs_trim_perag_extents(pag, start_agbno, agend, minlen,
-				blocks_trimmed);
+		error = xfs_trim_perag_extents(pag, start_agbno, agend, minlen);
 		if (error)
 			last_error = error;
 
@@ -430,9 +444,6 @@ xfs_trim_datadev_extents(
 struct xfs_trim_rtdev {
 	/* list of rt extents to free */
 	struct list_head	extent_list;
-
-	/* pointer to count of blocks trimmed */
-	uint64_t		*blocks_trimmed;
 
 	/* minimum length that caller allows us to trim */
 	xfs_rtblock_t		minlen_fsb;
@@ -488,7 +499,7 @@ xfs_discard_rtdev_extents(
 		trace_xfs_discard_rtextent(mp, busyp->bno, busyp->length);
 
 		error = __blkdev_issue_discard(bdev,
-				XFS_FSB_TO_BB(mp, busyp->bno),
+				xfs_rtb_to_daddr(mp, busyp->bno),
 				XFS_FSB_TO_BB(mp, busyp->length),
 				GFP_NOFS, &bio);
 		if (error)
@@ -515,7 +526,7 @@ xfs_discard_rtdev_extents(
 
 static int
 xfs_trim_gather_rtextent(
-	struct xfs_mount		*mp,
+	struct xfs_rtgroup		*rtg,
 	struct xfs_trans		*tp,
 	const struct xfs_rtalloc_rec	*rec,
 	void				*priv)
@@ -534,12 +545,12 @@ xfs_trim_gather_rtextent(
 		return -ECANCELED;
 	}
 
-	rbno = xfs_rtx_to_rtb(mp, rec->ar_startext);
-	rlen = xfs_rtx_to_rtb(mp, rec->ar_extcount);
+	rbno = xfs_rtx_to_rtb(rtg, rec->ar_startext);
+	rlen = xfs_rtbxlen_to_blen(rtg_mount(rtg), rec->ar_extcount);
 
 	/* Ignore too small. */
 	if (rlen < tr->minlen_fsb) {
-		trace_xfs_discard_rttoosmall(mp, rbno, rlen);
+		trace_xfs_discard_rttoosmall(rtg_mount(rtg), rbno, rlen);
 		return 0;
 	}
 
@@ -551,10 +562,198 @@ xfs_trim_gather_rtextent(
 	busyp->length = rlen;
 	INIT_LIST_HEAD(&busyp->list);
 	list_add_tail(&busyp->list, &tr->extent_list);
-	*tr->blocks_trimmed += rlen;
 
 	tr->restart_rtx = rec->ar_startext + rec->ar_extcount;
 	return 0;
+}
+
+/* Trim extents on an !rtgroups realtime device */
+static int
+xfs_trim_rtextents(
+	struct xfs_rtgroup	*rtg,
+	xfs_rtxnum_t		low,
+	xfs_rtxnum_t		high,
+	xfs_daddr_t		minlen)
+{
+	struct xfs_mount	*mp = rtg_mount(rtg);
+	struct xfs_trim_rtdev	tr = {
+		.minlen_fsb	= XFS_BB_TO_FSB(mp, minlen),
+		.extent_list	= LIST_HEAD_INIT(tr.extent_list),
+	};
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc_empty(mp, &tp);
+	if (error)
+		return error;
+
+	/*
+	 * Walk the free ranges between low and high.  The query_range function
+	 * trims the extents returned.
+	 */
+	do {
+		tr.stop_rtx = low + xfs_rtbitmap_rtx_per_rbmblock(mp);
+		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		error = xfs_rtalloc_query_range(rtg, tp, low, high,
+				xfs_trim_gather_rtextent, &tr);
+
+		if (error == -ECANCELED)
+			error = 0;
+		if (error) {
+			xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+			xfs_discard_free_rtdev_extents(&tr);
+			break;
+		}
+
+		if (list_empty(&tr.extent_list)) {
+			xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+			break;
+		}
+
+		error = xfs_discard_rtdev_extents(mp, &tr);
+		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		if (error)
+			break;
+
+		low = tr.restart_rtx;
+	} while (!xfs_trim_should_stop() && low <= high);
+
+	xfs_trans_cancel(tp);
+	return error;
+}
+
+struct xfs_trim_rtgroup {
+	/* list of rtgroup extents to free */
+	struct xfs_busy_extents	*extents;
+
+	/* minimum length that caller allows us to trim */
+	xfs_rtblock_t		minlen_fsb;
+
+	/* restart point for the rtbitmap walk */
+	xfs_rtxnum_t		restart_rtx;
+
+	/* number of extents to examine before stopping to issue discard ios */
+	int			batch;
+
+	/* number of extents queued for discard */
+	int			queued;
+};
+
+static int
+xfs_trim_gather_rtgroup_extent(
+	struct xfs_rtgroup		*rtg,
+	struct xfs_trans		*tp,
+	const struct xfs_rtalloc_rec	*rec,
+	void				*priv)
+{
+	struct xfs_trim_rtgroup		*tr = priv;
+	xfs_rgblock_t			rgbno;
+	xfs_extlen_t			len;
+
+	if (--tr->batch <= 0) {
+		/*
+		 * If we've checked a large number of extents, update the
+		 * cursor to point at this extent so we restart the next batch
+		 * from this extent.
+		 */
+		tr->restart_rtx = rec->ar_startext;
+		return -ECANCELED;
+	}
+
+	rgbno = xfs_rtx_to_rgbno(rtg, rec->ar_startext);
+	len = xfs_rtxlen_to_extlen(rtg_mount(rtg), rec->ar_extcount);
+
+	/* Ignore too small. */
+	if (len < tr->minlen_fsb) {
+		trace_xfs_discard_toosmall(rtg_group(rtg), rgbno, len);
+		return 0;
+	}
+
+	/*
+	 * If any blocks in the range are still busy, skip the discard and try
+	 * again the next time.
+	 */
+	if (xfs_extent_busy_search(rtg_group(rtg), rgbno, len)) {
+		trace_xfs_discard_busy(rtg_group(rtg), rgbno, len);
+		return 0;
+	}
+
+	xfs_extent_busy_insert_discard(rtg_group(rtg), rgbno, len,
+			&tr->extents->extent_list);
+
+	tr->queued++;
+	tr->restart_rtx = rec->ar_startext + rec->ar_extcount;
+	return 0;
+}
+
+/* Trim extents in this rtgroup using the busy extent machinery. */
+static int
+xfs_trim_rtgroup_extents(
+	struct xfs_rtgroup	*rtg,
+	xfs_rtxnum_t		low,
+	xfs_rtxnum_t		high,
+	xfs_daddr_t		minlen)
+{
+	struct xfs_mount	*mp = rtg_mount(rtg);
+	struct xfs_trim_rtgroup	tr = {
+		.minlen_fsb	= XFS_BB_TO_FSB(mp, minlen),
+	};
+	struct xfs_trans	*tp;
+	int			error;
+
+	error = xfs_trans_alloc_empty(mp, &tp);
+	if (error)
+		return error;
+
+	/*
+	 * Walk the free ranges between low and high.  The query_range function
+	 * trims the extents returned.
+	 */
+	do {
+		tr.extents = kzalloc(sizeof(*tr.extents), GFP_KERNEL);
+		if (!tr.extents) {
+			error = -ENOMEM;
+			break;
+		}
+
+		tr.queued = 0;
+		tr.batch = XFS_DISCARD_MAX_EXAMINE;
+		tr.extents->owner = tr.extents;
+		INIT_LIST_HEAD(&tr.extents->extent_list);
+
+		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		error = xfs_rtalloc_query_range(rtg, tp, low, high,
+				xfs_trim_gather_rtgroup_extent, &tr);
+		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		if (error == -ECANCELED)
+			error = 0;
+		if (error) {
+			kfree(tr.extents);
+			break;
+		}
+
+		if (!tr.queued)
+			break;
+
+		/*
+		 * We hand the extent list to the discard function here so the
+		 * discarded extents can be removed from the busy extent list.
+		 * This allows the discards to run asynchronously with
+		 * gathering the next round of extents to discard.
+		 *
+		 * However, we must ensure that we do not reference the extent
+		 * list  after this function call, as it may have been freed by
+		 * the time control returns to us.
+		 */
+		error = xfs_discard_extents(rtg_mount(rtg), tr.extents);
+		if (error)
+			break;
+
+		low = tr.restart_rtx;
+	} while (!xfs_trim_should_stop() && low <= high);
+
+	xfs_trans_cancel(tp);
+	return error;
 }
 
 static int
@@ -562,79 +761,59 @@ xfs_trim_rtdev_extents(
 	struct xfs_mount	*mp,
 	xfs_daddr_t		start,
 	xfs_daddr_t		end,
-	xfs_daddr_t		minlen,
-	uint64_t		*blocks_trimmed)
+	xfs_daddr_t		minlen)
 {
-	struct xfs_rtalloc_rec	low = { };
-	struct xfs_rtalloc_rec	high = { };
-	struct xfs_trim_rtdev	tr = {
-		.blocks_trimmed	= blocks_trimmed,
-		.minlen_fsb	= XFS_BB_TO_FSB(mp, minlen),
-	};
-	struct xfs_trans	*tp;
-	xfs_daddr_t		rtdev_daddr;
-	int			error;
-
-	INIT_LIST_HEAD(&tr.extent_list);
+	xfs_rtblock_t		start_rtbno, end_rtbno;
+	xfs_rtxnum_t		start_rtx, end_rtx;
+	xfs_rgnumber_t		start_rgno, end_rgno;
+	xfs_daddr_t		daddr_offset;
+	int			last_error = 0, error;
+	struct xfs_rtgroup	*rtg = NULL;
 
 	/* Shift the start and end downwards to match the rt device. */
-	rtdev_daddr = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
-	if (start > rtdev_daddr)
-		start -= rtdev_daddr;
+	daddr_offset = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks);
+	if (start > daddr_offset)
+		start -= daddr_offset;
 	else
 		start = 0;
+	start_rtbno = xfs_daddr_to_rtb(mp, start);
+	start_rtx = xfs_rtb_to_rtx(mp, start_rtbno);
+	start_rgno = xfs_rtb_to_rgno(mp, start_rtbno);
 
-	if (end <= rtdev_daddr)
+	if (end <= daddr_offset)
 		return 0;
-	end -= rtdev_daddr;
+	else
+		end -= daddr_offset;
+	end_rtbno = xfs_daddr_to_rtb(mp, end);
+	end_rtx = xfs_rtb_to_rtx(mp, end_rtbno + mp->m_sb.sb_rextsize - 1);
+	end_rgno = xfs_rtb_to_rgno(mp, end_rtbno);
 
-	error = xfs_trans_alloc_empty(mp, &tp);
-	if (error)
-		return error;
+	while ((rtg = xfs_rtgroup_next_range(mp, rtg, start_rgno, end_rgno))) {
+		xfs_rtxnum_t	rtg_end = rtg->rtg_extents;
 
-	end = min_t(xfs_daddr_t, end,
-			XFS_FSB_TO_BB(mp, mp->m_sb.sb_rblocks) - 1);
+		if (rtg_rgno(rtg) == end_rgno)
+			rtg_end = min(rtg_end, end_rtx);
 
-	/* Convert the rt blocks to rt extents */
-	low.ar_startext = xfs_rtb_to_rtxup(mp, XFS_BB_TO_FSB(mp, start));
-	high.ar_startext = xfs_rtb_to_rtx(mp, XFS_BB_TO_FSBT(mp, end));
-
-	/*
-	 * Walk the free ranges between low and high.  The query_range function
-	 * trims the extents returned.
-	 */
-	do {
-		tr.stop_rtx = low.ar_startext + (mp->m_sb.sb_blocksize * NBBY);
-		xfs_rtbitmap_lock_shared(mp, XFS_RBMLOCK_BITMAP);
-		error = xfs_rtalloc_query_range(mp, tp, &low, &high,
-				xfs_trim_gather_rtextent, &tr);
-
-		if (error == -ECANCELED)
-			error = 0;
-		if (error) {
-			xfs_rtbitmap_unlock_shared(mp, XFS_RBMLOCK_BITMAP);
-			xfs_discard_free_rtdev_extents(&tr);
-			break;
-		}
-
-		if (list_empty(&tr.extent_list)) {
-			xfs_rtbitmap_unlock_shared(mp, XFS_RBMLOCK_BITMAP);
-			break;
-		}
-
-		error = xfs_discard_rtdev_extents(mp, &tr);
-		xfs_rtbitmap_unlock_shared(mp, XFS_RBMLOCK_BITMAP);
+		if (xfs_has_rtgroups(mp))
+			error = xfs_trim_rtgroup_extents(rtg, start_rtx,
+					rtg_end, minlen);
+		else
+			error = xfs_trim_rtextents(rtg, start_rtx, rtg_end,
+					minlen);
 		if (error)
+			last_error = error;
+
+		if (xfs_trim_should_stop()) {
+			xfs_rtgroup_rele(rtg);
 			break;
+		}
+		start_rtx = 0;
+	}
 
-		low.ar_startext = tr.restart_rtx;
-	} while (!xfs_trim_should_stop() && low.ar_startext <= high.ar_startext);
-
-	xfs_trans_cancel(tp);
-	return error;
+	return last_error;
 }
 #else
-# define xfs_trim_rtdev_extents(m,s,e,n,b)	(-EOPNOTSUPP)
+# define xfs_trim_rtdev_extents(...)	(-EOPNOTSUPP)
 #endif /* CONFIG_XFS_RT */
 
 /*
@@ -661,7 +840,6 @@ xfs_ioc_trim(
 	xfs_daddr_t		start, end;
 	xfs_extlen_t		minlen;
 	xfs_rfsblock_t		max_blocks;
-	uint64_t		blocks_trimmed = 0;
 	int			error, last_error = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -706,15 +884,13 @@ xfs_ioc_trim(
 	end = start + BTOBBT(range.len) - 1;
 
 	if (bdev_max_discard_sectors(mp->m_ddev_targp->bt_bdev)) {
-		error = xfs_trim_datadev_extents(mp, start, end, minlen,
-				&blocks_trimmed);
+		error = xfs_trim_datadev_extents(mp, start, end, minlen);
 		if (error)
 			last_error = error;
 	}
 
 	if (rt_bdev && !xfs_trim_should_stop()) {
-		error = xfs_trim_rtdev_extents(mp, start, end, minlen,
-				&blocks_trimmed);
+		error = xfs_trim_rtdev_extents(mp, start, end, minlen);
 		if (error)
 			last_error = error;
 	}
@@ -722,7 +898,8 @@ xfs_ioc_trim(
 	if (last_error)
 		return last_error;
 
-	range.len = XFS_FSB_TO_B(mp, blocks_trimmed);
+	range.len = min_t(unsigned long long, range.len,
+			  XFS_FSB_TO_B(mp, max_blocks) - range.start);
 	if (copy_to_user(urange, &range, sizeof(range)))
 		return -EFAULT;
 	return 0;

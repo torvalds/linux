@@ -92,6 +92,10 @@ properties:
           Built-in switch of the MT7988 SoC
         const: mediatek,mt7988-switch
 
+      - description:
+          Built-in switch of the Airoha EN7581 SoC
+        const: airoha,en7581-switch
+
   reg:
     maxItems: 1
 
@@ -284,7 +288,9 @@ allOf:
   - if:
       properties:
         compatible:
-          const: mediatek,mt7988-switch
+          enum:
+            - mediatek,mt7988-switch
+            - airoha,en7581-switch
     then:
       $ref: "#/$defs/mt7530-dsa-port"
       properties:

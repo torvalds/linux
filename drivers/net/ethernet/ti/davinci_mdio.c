@@ -760,7 +760,7 @@ static struct platform_driver davinci_mdio_driver = {
 		.of_match_table = of_match_ptr(davinci_mdio_of_mtable),
 	},
 	.probe = davinci_mdio_probe,
-	.remove_new = davinci_mdio_remove,
+	.remove = davinci_mdio_remove,
 };
 
 static int __init davinci_mdio_init(void)

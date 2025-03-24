@@ -18,12 +18,18 @@ allOf:
 
 properties:
   reg:
-    maxItems: 2
+    maxItems: 3
+    minItems: 2
 
   reg-names:
-    items:
-      - const: cfg
-      - const: apb
+    oneOf:
+      - items:
+          - const: cfg
+          - const: apb
+      - items:
+          - const: cfg
+          - const: bridge
+          - const: ctrl
 
   interrupts:
     minItems: 1

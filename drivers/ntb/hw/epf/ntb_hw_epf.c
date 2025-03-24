@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * Host side endpoint driver to implement Non-Transparent Bridge functionality
  *
  * Copyright (C) 2020 Texas Instruments

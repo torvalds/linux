@@ -11,7 +11,7 @@
 		mmc0 = &emmc;
 	};
 
-	vccio_flash: vccio-flash-regulator {
+	vccio_flash: regulator-vccio-flash {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;

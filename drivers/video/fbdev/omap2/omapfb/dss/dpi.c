@@ -20,6 +20,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/string.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 
@@ -817,8 +818,8 @@ static void dpi_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_dpi_driver = {
 	.probe		= dpi_probe,
-	.remove_new	= dpi_remove,
-	.driver         = {
+	.remove		= dpi_remove,
+	.driver		= {
 		.name   = "omapdss_dpi",
 		.suppress_bind_attrs = true,
 	},
@@ -845,7 +846,7 @@ int dpi_init_port(struct platform_device *pdev, struct device_node *port)
 	if (!dpi)
 		return -ENOMEM;
 
-	ep = omapdss_of_get_next_endpoint(port, NULL);
+	ep = of_graph_get_next_port_endpoint(port, NULL);
 	if (!ep)
 		return 0;
 

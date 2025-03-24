@@ -8,7 +8,7 @@
 #include "../mvm.h"
 #include <kunit/test.h>
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static const struct acs_average_db_case {
 	const char *desc;

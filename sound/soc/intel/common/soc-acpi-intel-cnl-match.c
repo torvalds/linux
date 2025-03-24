@@ -8,7 +8,6 @@
 
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
-#include "../skylake/skl.h"
 #include "soc-acpi-intel-sdw-mockup-match.h"
 
 static const struct snd_soc_acpi_codecs essx_83x6 = {
@@ -16,16 +15,11 @@ static const struct snd_soc_acpi_codecs essx_83x6 = {
 	.codecs = { "ESSX8316", "ESSX8326", "ESSX8336"},
 };
 
-static struct skl_machine_pdata cnl_pdata = {
-	.use_tplg_pcm = true,
-};
-
 struct snd_soc_acpi_mach snd_soc_acpi_intel_cnl_machines[] = {
 	{
 		.id = "INT34C2",
 		.drv_name = "cnl_rt274",
 		.fw_filename = "intel/dsp_fw_cnl.bin",
-		.pdata = &cnl_pdata,
 		.sof_tplg_filename = "sof-cnl-rt274.tplg",
 	},
 	{

@@ -1529,7 +1529,7 @@ static struct platform_driver arm_ccn_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = arm_ccn_probe,
-	.remove_new = arm_ccn_remove,
+	.remove = arm_ccn_remove,
 };
 
 static int __init arm_ccn_init(void)

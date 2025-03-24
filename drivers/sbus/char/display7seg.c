@@ -261,7 +261,7 @@ static struct platform_driver d7s_driver = {
 		.of_match_table = d7s_match,
 	},
 	.probe		= d7s_probe,
-	.remove_new	= d7s_remove,
+	.remove		= d7s_remove,
 };
 
 module_platform_driver(d7s_driver);

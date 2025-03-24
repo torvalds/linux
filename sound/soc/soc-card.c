@@ -29,16 +29,6 @@ static inline int _soc_card_ret(struct snd_soc_card *card,
 	return ret;
 }
 
-struct snd_kcontrol *snd_soc_card_get_kcontrol_locked(struct snd_soc_card *soc_card,
-						      const char *name)
-{
-	if (unlikely(!name))
-		return NULL;
-
-	return snd_ctl_find_id_mixer_locked(soc_card->snd_card, name);
-}
-EXPORT_SYMBOL_GPL(snd_soc_card_get_kcontrol_locked);
-
 struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,
 					       const char *name)
 {
@@ -229,7 +219,7 @@ int snd_soc_card_set_bias_level(struct snd_soc_card *card,
 {
 	int ret = 0;
 
-	if (card && card->set_bias_level)
+	if (card->set_bias_level)
 		ret = card->set_bias_level(card, dapm, level);
 
 	return soc_card_ret(card, ret);
@@ -241,7 +231,7 @@ int snd_soc_card_set_bias_level_post(struct snd_soc_card *card,
 {
 	int ret = 0;
 
-	if (card && card->set_bias_level_post)
+	if (card->set_bias_level_post)
 		ret = card->set_bias_level_post(card, dapm, level);
 
 	return soc_card_ret(card, ret);

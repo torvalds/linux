@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <asm/rtas.h>
 #include <asm/rtas-work-area.h>
+#include <asm/prom.h>
 
 static struct workqueue_struct *pseries_hp_wq;
 
@@ -250,11 +251,8 @@ int dlpar_detach_node(struct device_node *dn)
 	struct device_node *child;
 	int rc;
 
-	child = of_get_next_child(dn, NULL);
-	while (child) {
+	for_each_child_of_node(dn, child)
 		dlpar_detach_node(child);
-		child = of_get_next_child(dn, child);
-	}
 
 	rc = of_detach_node(dn);
 	if (rc)
@@ -263,6 +261,20 @@ int dlpar_detach_node(struct device_node *dn)
 	of_node_put(dn);
 
 	return 0;
+}
+static int dlpar_changeset_attach_cc_nodes(struct of_changeset *ocs,
+					struct device_node *dn)
+{
+	int rc;
+
+	rc = of_changeset_attach_node(ocs, dn);
+
+	if (!rc && dn->child)
+		rc = dlpar_changeset_attach_cc_nodes(ocs, dn->child);
+	if (!rc && dn->sibling)
+		rc = dlpar_changeset_attach_cc_nodes(ocs, dn->sibling);
+
+	return rc;
 }
 
 #define DR_ENTITY_SENSE		9003
@@ -330,26 +342,205 @@ int dlpar_unisolate_drc(u32 drc_index)
 	return 0;
 }
 
+static struct device_node *
+get_device_node_with_drc_index(u32 index)
+{
+	struct device_node *np = NULL;
+	u32 node_index;
+	int rc;
+
+	for_each_node_with_property(np, "ibm,my-drc-index") {
+		rc = of_property_read_u32(np, "ibm,my-drc-index",
+					     &node_index);
+		if (rc) {
+			pr_err("%s: %pOF: of_property_read_u32 %s: %d\n",
+			       __func__, np, "ibm,my-drc-index", rc);
+			of_node_put(np);
+			return NULL;
+		}
+
+		if (index == node_index)
+			break;
+	}
+
+	return np;
+}
+
+static struct device_node *
+get_device_node_with_drc_info(u32 index)
+{
+	struct device_node *np = NULL;
+	struct of_drc_info drc;
+	struct property *info;
+	const __be32 *value;
+	u32 node_index;
+	int i, j, count;
+
+	for_each_node_with_property(np, "ibm,drc-info") {
+		info = of_find_property(np, "ibm,drc-info", NULL);
+		if (info == NULL) {
+			/* XXX can this happen? */
+			of_node_put(np);
+			return NULL;
+		}
+		value = of_prop_next_u32(info, NULL, &count);
+		if (value == NULL)
+			continue;
+		value++;
+		for (i = 0; i < count; i++) {
+			if (of_read_drc_info_cell(&info, &value, &drc))
+				break;
+			if (index > drc.last_drc_index)
+				continue;
+			node_index = drc.drc_index_start;
+			for (j = 0; j < drc.num_sequential_elems; j++) {
+				if (index == node_index)
+					return np;
+				node_index += drc.sequential_inc;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+static int dlpar_hp_dt_add(u32 index)
+{
+	struct device_node *np, *nodes;
+	struct of_changeset ocs;
+	int rc;
+
+	/*
+	 * Do not add device node(s) if already exists in the
+	 * device tree.
+	 */
+	np = get_device_node_with_drc_index(index);
+	if (np) {
+		pr_err("%s: Adding device node for index (%d), but "
+				"already exists in the device tree\n",
+				__func__, index);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	np = get_device_node_with_drc_info(index);
+
+	if (!np)
+		return -EIO;
+
+	/* Next, configure the connector. */
+	nodes = dlpar_configure_connector(cpu_to_be32(index), np);
+	if (!nodes) {
+		rc = -EIO;
+		goto out;
+	}
+
+	/*
+	 * Add the new nodes from dlpar_configure_connector() onto
+	 * the device-tree.
+	 */
+	of_changeset_init(&ocs);
+	rc = dlpar_changeset_attach_cc_nodes(&ocs, nodes);
+
+	if (!rc)
+		rc = of_changeset_apply(&ocs);
+	else
+		dlpar_free_cc_nodes(nodes);
+
+	of_changeset_destroy(&ocs);
+
+out:
+	of_node_put(np);
+	return rc;
+}
+
+static int changeset_detach_node_recursive(struct of_changeset *ocs,
+					struct device_node *node)
+{
+	struct device_node *child;
+	int rc;
+
+	for_each_child_of_node(node, child) {
+		rc = changeset_detach_node_recursive(ocs, child);
+		if (rc) {
+			of_node_put(child);
+			return rc;
+		}
+	}
+
+	return of_changeset_detach_node(ocs, node);
+}
+
+static int dlpar_hp_dt_remove(u32 drc_index)
+{
+	struct device_node *np;
+	struct of_changeset ocs;
+	u32 index;
+	int rc = 0;
+
+	/*
+	 * Prune all nodes with a matching index.
+	 */
+	of_changeset_init(&ocs);
+
+	for_each_node_with_property(np, "ibm,my-drc-index") {
+		rc = of_property_read_u32(np, "ibm,my-drc-index", &index);
+		if (rc) {
+			pr_err("%s: %pOF: of_property_read_u32 %s: %d\n",
+				__func__, np, "ibm,my-drc-index", rc);
+			of_node_put(np);
+			goto out;
+		}
+
+		if (index == drc_index) {
+			rc = changeset_detach_node_recursive(&ocs, np);
+			if (rc) {
+				of_node_put(np);
+				goto out;
+			}
+		}
+	}
+
+	rc = of_changeset_apply(&ocs);
+
+out:
+	of_changeset_destroy(&ocs);
+	return rc;
+}
+
+static int dlpar_hp_dt(struct pseries_hp_errorlog *phpe)
+{
+	u32 drc_index;
+	int rc;
+
+	if (phpe->id_type != PSERIES_HP_ELOG_ID_DRC_INDEX)
+		return -EINVAL;
+
+	drc_index = be32_to_cpu(phpe->_drc_u.drc_index);
+
+	lock_device_hotplug();
+
+	switch (phpe->action) {
+	case PSERIES_HP_ELOG_ACTION_ADD:
+		rc = dlpar_hp_dt_add(drc_index);
+		break;
+	case PSERIES_HP_ELOG_ACTION_REMOVE:
+		rc = dlpar_hp_dt_remove(drc_index);
+		break;
+	default:
+		pr_err("Invalid action (%d) specified\n", phpe->action);
+		rc = -EINVAL;
+		break;
+	}
+
+	unlock_device_hotplug();
+
+	return rc;
+}
+
 int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
 {
 	int rc;
-
-	/* pseries error logs are in BE format, convert to cpu type */
-	switch (hp_elog->id_type) {
-	case PSERIES_HP_ELOG_ID_DRC_COUNT:
-		hp_elog->_drc_u.drc_count =
-				be32_to_cpu(hp_elog->_drc_u.drc_count);
-		break;
-	case PSERIES_HP_ELOG_ID_DRC_INDEX:
-		hp_elog->_drc_u.drc_index =
-				be32_to_cpu(hp_elog->_drc_u.drc_index);
-		break;
-	case PSERIES_HP_ELOG_ID_DRC_IC:
-		hp_elog->_drc_u.ic.count =
-				be32_to_cpu(hp_elog->_drc_u.ic.count);
-		hp_elog->_drc_u.ic.index =
-				be32_to_cpu(hp_elog->_drc_u.ic.index);
-	}
 
 	switch (hp_elog->resource) {
 	case PSERIES_HP_ELOG_RESOURCE_MEM:
@@ -360,6 +551,9 @@ int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
 		break;
 	case PSERIES_HP_ELOG_RESOURCE_PMEM:
 		rc = dlpar_hp_pmem(hp_elog);
+		break;
+	case PSERIES_HP_ELOG_RESOURCE_DT:
+		rc = dlpar_hp_dt(hp_elog);
 		break;
 
 	default:
@@ -413,6 +607,8 @@ static int dlpar_parse_resource(char **cmd, struct pseries_hp_errorlog *hp_elog)
 		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_MEM;
 	} else if (sysfs_streq(arg, "cpu")) {
 		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_CPU;
+	} else if (sysfs_streq(arg, "dt")) {
+		hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_DT;
 	} else {
 		pr_err("Invalid resource specified.\n");
 		return -EINVAL;
@@ -554,7 +750,7 @@ dlpar_store_out:
 static ssize_t dlpar_show(const struct class *class, const struct class_attribute *attr,
 			  char *buf)
 {
-	return sprintf(buf, "%s\n", "memory,cpu");
+	return sprintf(buf, "%s\n", "memory,cpu,dt");
 }
 
 static CLASS_ATTR_RW(dlpar);

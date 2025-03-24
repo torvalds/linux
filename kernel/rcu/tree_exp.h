@@ -7,6 +7,7 @@
  * Authors: Paul E. McKenney <paulmck@linux.ibm.com>
  */
 
+#include <linux/console.h>
 #include <linux/lockdep.h>
 
 static void rcu_exp_handler(void *unused);
@@ -226,16 +227,16 @@ static void __maybe_unused rcu_report_exp_rnp(struct rcu_node *rnp, bool wake)
 
 /*
  * Report expedited quiescent state for multiple CPUs, all covered by the
- * specified leaf rcu_node structure.
+ * specified leaf rcu_node structure, which is acquired by the caller.
  */
-static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
+static void rcu_report_exp_cpu_mult(struct rcu_node *rnp, unsigned long flags,
 				    unsigned long mask, bool wake)
+				    __releases(rnp->lock)
 {
 	int cpu;
-	unsigned long flags;
 	struct rcu_data *rdp;
 
-	raw_spin_lock_irqsave_rcu_node(rnp, flags);
+	raw_lockdep_assert_held_rcu_node(rnp);
 	if (!(rnp->expmask & mask)) {
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
@@ -256,8 +257,13 @@ static void rcu_report_exp_cpu_mult(struct rcu_node *rnp,
  */
 static void rcu_report_exp_rdp(struct rcu_data *rdp)
 {
+	unsigned long flags;
+	struct rcu_node *rnp = rdp->mynode;
+
+	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	WRITE_ONCE(rdp->cpu_no_qs.b.exp, false);
-	rcu_report_exp_cpu_mult(rdp->mynode, rdp->grpmask, true);
+	ASSERT_EXCLUSIVE_WRITER(rdp->cpu_no_qs.b.exp);
+	rcu_report_exp_cpu_mult(rnp, flags, rdp->grpmask, true);
 }
 
 /* Common code for work-done checking. */
@@ -376,11 +382,11 @@ static void __sync_rcu_exp_select_node_cpus(struct rcu_exp_work *rewp)
 			 * post grace period updater's accesses is enforced by the
 			 * below acquire semantic.
 			 */
-			snap = ct_dynticks_cpu_acquire(cpu);
-			if (rcu_dynticks_in_eqs(snap))
+			snap = ct_rcu_watching_cpu_acquire(cpu);
+			if (rcu_watching_snap_in_eqs(snap))
 				mask_ofl_test |= mask;
 			else
-				rdp->exp_dynticks_snap = snap;
+				rdp->exp_watching_snap = snap;
 		}
 	}
 	mask_ofl_ipi = rnp->expmask & ~mask_ofl_test;
@@ -400,7 +406,7 @@ static void __sync_rcu_exp_select_node_cpus(struct rcu_exp_work *rewp)
 		unsigned long mask = rdp->grpmask;
 
 retry_ipi:
-		if (rcu_dynticks_in_eqs_since(rdp, rdp->exp_dynticks_snap)) {
+		if (rcu_watching_snap_stopped_since(rdp, rdp->exp_watching_snap)) {
 			mask_ofl_test |= mask;
 			continue;
 		}
@@ -431,8 +437,10 @@ retry_ipi:
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	}
 	/* Report quiescent states for those that went offline. */
-	if (mask_ofl_test)
-		rcu_report_exp_cpu_mult(rnp, mask_ofl_test, false);
+	if (mask_ofl_test) {
+		raw_spin_lock_irqsave_rcu_node(rnp, flags);
+		rcu_report_exp_cpu_mult(rnp, flags, mask_ofl_test, false);
+	}
 }
 
 static void rcu_exp_sel_wait_wake(unsigned long s);
@@ -543,6 +551,67 @@ static bool synchronize_rcu_expedited_wait_once(long tlimit)
 }
 
 /*
+ * Print out an expedited RCU CPU stall warning message.
+ */
+static void synchronize_rcu_expedited_stall(unsigned long jiffies_start, unsigned long j)
+{
+	int cpu;
+	unsigned long mask;
+	int ndetected;
+	struct rcu_node *rnp;
+	struct rcu_node *rnp_root = rcu_get_root();
+
+	if (READ_ONCE(csd_lock_suppress_rcu_stall) && csd_lock_is_stuck()) {
+		pr_err("INFO: %s detected expedited stalls, but suppressed full report due to a stuck CSD-lock.\n", rcu_state.name);
+		return;
+	}
+	pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {", rcu_state.name);
+	ndetected = 0;
+	rcu_for_each_leaf_node(rnp) {
+		ndetected += rcu_print_task_exp_stall(rnp);
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
+			struct rcu_data *rdp;
+
+			mask = leaf_node_cpu_bit(rnp, cpu);
+			if (!(READ_ONCE(rnp->expmask) & mask))
+				continue;
+			ndetected++;
+			rdp = per_cpu_ptr(&rcu_data, cpu);
+			pr_cont(" %d-%c%c%c%c", cpu,
+				"O."[!!cpu_online(cpu)],
+				"o."[!!(rdp->grpmask & rnp->expmaskinit)],
+				"N."[!!(rdp->grpmask & rnp->expmaskinitnext)],
+				"D."[!!data_race(rdp->cpu_no_qs.b.exp)]);
+		}
+	}
+	pr_cont(" } %lu jiffies s: %lu root: %#lx/%c\n",
+		j - jiffies_start, rcu_state.expedited_sequence, data_race(rnp_root->expmask),
+		".T"[!!data_race(rnp_root->exp_tasks)]);
+	if (ndetected) {
+		pr_err("blocking rcu_node structures (internal RCU debug):");
+		rcu_for_each_node_breadth_first(rnp) {
+			if (rnp == rnp_root)
+				continue; /* printed unconditionally */
+			if (sync_rcu_exp_done_unlocked(rnp))
+				continue;
+			pr_cont(" l=%u:%d-%d:%#lx/%c",
+				rnp->level, rnp->grplo, rnp->grphi, data_race(rnp->expmask),
+				".T"[!!data_race(rnp->exp_tasks)]);
+		}
+		pr_cont("\n");
+	}
+	rcu_for_each_leaf_node(rnp) {
+		for_each_leaf_node_possible_cpu(rnp, cpu) {
+			mask = leaf_node_cpu_bit(rnp, cpu);
+			if (!(READ_ONCE(rnp->expmask) & mask))
+				continue;
+			dump_cpu_task(cpu);
+		}
+		rcu_exp_print_detail_task_stall_rnp(rnp);
+	}
+}
+
+/*
  * Wait for the expedited grace period to elapse, issuing any needed
  * RCU CPU stall warnings along the way.
  */
@@ -553,10 +622,8 @@ static void synchronize_rcu_expedited_wait(void)
 	unsigned long jiffies_stall;
 	unsigned long jiffies_start;
 	unsigned long mask;
-	int ndetected;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
-	struct rcu_node *rnp_root = rcu_get_root();
 	unsigned long flags;
 
 	trace_rcu_exp_grace_period(rcu_state.name, rcu_exp_gp_seq_endval(), TPS("startwait"));
@@ -590,59 +657,17 @@ static void synchronize_rcu_expedited_wait(void)
 			return;
 		if (rcu_stall_is_suppressed())
 			continue;
+
+		nbcon_cpu_emergency_enter();
+
 		j = jiffies;
 		rcu_stall_notifier_call_chain(RCU_STALL_NOTIFY_EXP, (void *)(j - jiffies_start));
 		trace_rcu_stall_warning(rcu_state.name, TPS("ExpeditedStall"));
-		pr_err("INFO: %s detected expedited stalls on CPUs/tasks: {",
-		       rcu_state.name);
-		ndetected = 0;
-		rcu_for_each_leaf_node(rnp) {
-			ndetected += rcu_print_task_exp_stall(rnp);
-			for_each_leaf_node_possible_cpu(rnp, cpu) {
-				struct rcu_data *rdp;
-
-				mask = leaf_node_cpu_bit(rnp, cpu);
-				if (!(READ_ONCE(rnp->expmask) & mask))
-					continue;
-				ndetected++;
-				rdp = per_cpu_ptr(&rcu_data, cpu);
-				pr_cont(" %d-%c%c%c%c", cpu,
-					"O."[!!cpu_online(cpu)],
-					"o."[!!(rdp->grpmask & rnp->expmaskinit)],
-					"N."[!!(rdp->grpmask & rnp->expmaskinitnext)],
-					"D."[!!data_race(rdp->cpu_no_qs.b.exp)]);
-			}
-		}
-		pr_cont(" } %lu jiffies s: %lu root: %#lx/%c\n",
-			j - jiffies_start, rcu_state.expedited_sequence,
-			data_race(rnp_root->expmask),
-			".T"[!!data_race(rnp_root->exp_tasks)]);
-		if (ndetected) {
-			pr_err("blocking rcu_node structures (internal RCU debug):");
-			rcu_for_each_node_breadth_first(rnp) {
-				if (rnp == rnp_root)
-					continue; /* printed unconditionally */
-				if (sync_rcu_exp_done_unlocked(rnp))
-					continue;
-				pr_cont(" l=%u:%d-%d:%#lx/%c",
-					rnp->level, rnp->grplo, rnp->grphi,
-					data_race(rnp->expmask),
-					".T"[!!data_race(rnp->exp_tasks)]);
-			}
-			pr_cont("\n");
-		}
-		rcu_for_each_leaf_node(rnp) {
-			for_each_leaf_node_possible_cpu(rnp, cpu) {
-				mask = leaf_node_cpu_bit(rnp, cpu);
-				if (!(READ_ONCE(rnp->expmask) & mask))
-					continue;
-				preempt_disable(); // For smp_processor_id() in dump_cpu_task().
-				dump_cpu_task(cpu);
-				preempt_enable();
-			}
-			rcu_exp_print_detail_task_stall_rnp(rnp);
-		}
+		synchronize_rcu_expedited_stall(jiffies_start, j);
 		jiffies_stall = 3 * rcu_exp_jiffies_till_stall_check() + 3;
+
+		nbcon_cpu_emergency_exit();
+
 		panic_on_rcu_stall();
 	}
 }
@@ -694,6 +719,18 @@ static void rcu_exp_sel_wait_wake(unsigned long s)
 	rcu_exp_wait_wake(s);
 }
 
+/* Request an expedited quiescent state. */
+static void rcu_exp_need_qs(void)
+{
+	lockdep_assert_irqs_disabled();
+	ASSERT_EXCLUSIVE_WRITER_SCOPED(*this_cpu_ptr(&rcu_data.cpu_no_qs.b.exp));
+	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, true);
+	/* Store .exp before .rcu_urgent_qs. */
+	smp_store_release(this_cpu_ptr(&rcu_data.rcu_urgent_qs), true);
+	set_tsk_need_resched(current);
+	set_preempt_need_resched();
+}
+
 #ifdef CONFIG_PREEMPT_RCU
 
 /*
@@ -712,24 +749,34 @@ static void rcu_exp_handler(void *unused)
 	struct task_struct *t = current;
 
 	/*
-	 * First, the common case of not being in an RCU read-side
+	 * First, is there no need for a quiescent state from this CPU,
+	 * or is this CPU already looking for a quiescent state for the
+	 * current grace period?  If either is the case, just leave.
+	 * However, this should not happen due to the preemptible
+	 * sync_sched_exp_online_cleanup() implementation being a no-op,
+	 * so warn if this does happen.
+	 */
+	ASSERT_EXCLUSIVE_WRITER_SCOPED(rdp->cpu_no_qs.b.exp);
+	if (WARN_ON_ONCE(!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
+			 READ_ONCE(rdp->cpu_no_qs.b.exp)))
+		return;
+
+	/*
+	 * Second, the common case of not being in an RCU read-side
 	 * critical section.  If also enabled or idle, immediately
 	 * report the quiescent state, otherwise defer.
 	 */
 	if (!depth) {
 		if (!(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK)) ||
-		    rcu_is_cpu_rrupt_from_idle()) {
+		    rcu_is_cpu_rrupt_from_idle())
 			rcu_report_exp_rdp(rdp);
-		} else {
-			WRITE_ONCE(rdp->cpu_no_qs.b.exp, true);
-			set_tsk_need_resched(t);
-			set_preempt_need_resched();
-		}
+		else
+			rcu_exp_need_qs();
 		return;
 	}
 
 	/*
-	 * Second, the less-common case of being in an RCU read-side
+	 * Third, the less-common case of being in an RCU read-side
 	 * critical section.  In this case we can count on a future
 	 * rcu_read_unlock().  However, this rcu_read_unlock() might
 	 * execute on some other CPU, but in that case there will be
@@ -750,7 +797,7 @@ static void rcu_exp_handler(void *unused)
 		return;
 	}
 
-	// Finally, negative nesting depth should not happen.
+	// Fourth and finally, negative nesting depth should not happen.
 	WARN_ON_ONCE(1);
 }
 
@@ -817,16 +864,6 @@ static void rcu_exp_print_detail_task_stall_rnp(struct rcu_node *rnp)
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
-/* Request an expedited quiescent state. */
-static void rcu_exp_need_qs(void)
-{
-	__this_cpu_write(rcu_data.cpu_no_qs.b.exp, true);
-	/* Store .exp before .rcu_urgent_qs. */
-	smp_store_release(this_cpu_ptr(&rcu_data.rcu_urgent_qs), true);
-	set_tsk_need_resched(current);
-	set_preempt_need_resched();
-}
-
 /* Invoked on each online non-idle CPU for expedited quiescent state. */
 static void rcu_exp_handler(void *unused)
 {
@@ -834,6 +871,7 @@ static void rcu_exp_handler(void *unused)
 	struct rcu_node *rnp = rdp->mynode;
 	bool preempt_bh_enabled = !(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK));
 
+	ASSERT_EXCLUSIVE_WRITER_SCOPED(rdp->cpu_no_qs.b.exp);
 	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask) ||
 	    __this_cpu_read(rcu_data.cpu_no_qs.b.exp))
 		return;

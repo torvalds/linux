@@ -1413,8 +1413,8 @@ static void max2175_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max2175_id[] = {
-	{ DRIVER_NAME, 0},
-	{},
+	{ DRIVER_NAME },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, max2175_id);
 

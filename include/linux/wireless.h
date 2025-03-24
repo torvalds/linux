@@ -21,8 +21,7 @@ struct compat_iw_point {
 	__u16 length;
 	__u16 flags;
 };
-#endif
-#ifdef CONFIG_COMPAT
+
 struct __compat_iw_event {
 	__u16		len;			/* Real length of this stuff */
 	__u16		cmd;			/* Wireless IOCTL */
@@ -49,5 +48,5 @@ struct __compat_iw_event {
 #define IW_EV_COMPAT_POINT_LEN	\
 	(IW_EV_COMPAT_LCP_LEN + sizeof(struct compat_iw_point) - \
 	 IW_EV_COMPAT_POINT_OFF)
-#endif
+#endif /* CONFIG_COMPAT */
 #endif	/* _LINUX_WIRELESS_H */

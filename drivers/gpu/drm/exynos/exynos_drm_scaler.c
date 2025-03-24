@@ -403,7 +403,7 @@ static int scaler_commit(struct exynos_drm_ipp *ipp,
 	return 0;
 }
 
-static struct exynos_drm_ipp_funcs ipp_funcs = {
+static const struct exynos_drm_ipp_funcs ipp_funcs = {
 	.commit = scaler_commit,
 };
 
@@ -719,7 +719,7 @@ MODULE_DEVICE_TABLE(of, exynos_scaler_match);
 
 struct platform_driver scaler_driver = {
 	.probe		= scaler_probe,
-	.remove_new	= scaler_remove,
+	.remove		= scaler_remove,
 	.driver		= {
 		.name	= "exynos-scaler",
 		.pm	= pm_ptr(&scaler_pm_ops),

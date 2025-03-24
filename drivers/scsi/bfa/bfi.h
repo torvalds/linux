@@ -1148,7 +1148,7 @@ struct bfi_diag_dport_scn_testcomp_s {
 	u16	numbuffer; /* from switch  */
 	u8	subtest_status[DPORT_TEST_MAX];  /* 4 bytes */
 	u32	latency;   /* from switch  */
-	u32	distance;  /* from swtich unit in meters  */
+	u32	distance;  /* from switch unit in meters  */
 			/* Buffers required to saturate the link */
 	u16	frm_sz;	/* from switch for buf_reqd */
 	u8	rsvd[2];

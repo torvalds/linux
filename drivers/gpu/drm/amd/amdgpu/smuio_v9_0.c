@@ -60,7 +60,7 @@ static void smuio_v9_0_get_clock_gating_state(struct amdgpu_device *adev, u64 *f
 {
 	u32 data;
 
-	/* CGTT_ROM_CLK_CTRL0 is not availabe for APUs */
+	/* CGTT_ROM_CLK_CTRL0 is not available for APUs */
 	if (adev->flags & AMD_IS_APU)
 		return;
 

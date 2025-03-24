@@ -16,6 +16,7 @@
 #include "debugfs.h"
 #include "iwl-modparams.h"
 #include "iwl-drv.h"
+#include "iwl-utils.h"
 #include "fw/error-dump.h"
 #include "fw/api/phy-ctxt.h"
 
@@ -462,7 +463,6 @@ static ssize_t iwl_dbgfs_amsdu_len_write(struct ieee80211_link_sta *link_sta,
 	if (amsdu_len) {
 		mvm_link_sta->orig_amsdu_len = link_sta->agg.max_amsdu_len;
 		link_sta->agg.max_amsdu_len = amsdu_len;
-		link_sta->agg.max_amsdu_len = amsdu_len;
 		for (i = 0; i < ARRAY_SIZE(link_sta->agg.max_tid_amsdu_len); i++)
 			link_sta->agg.max_tid_amsdu_len[i] = amsdu_len;
 	} else {
@@ -537,43 +537,12 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 	return ret ?: count;
 }
 
-static ssize_t iwl_dbgfs_fw_ver_read(struct file *file, char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct iwl_mvm *mvm = file->private_data;
-	char *buff, *pos, *endpos;
-	static const size_t bufsz = 1024;
-	int ret;
-
-	buff = kmalloc(bufsz, GFP_KERNEL);
-	if (!buff)
-		return -ENOMEM;
-
-	pos = buff;
-	endpos = pos + bufsz;
-
-	pos += scnprintf(pos, endpos - pos, "FW id: %s\n",
-			 mvm->fwrt.fw->fw_version);
-	pos += scnprintf(pos, endpos - pos, "FW: %s\n",
-			 mvm->fwrt.fw->human_readable);
-	pos += scnprintf(pos, endpos - pos, "Device: %s\n",
-			 mvm->fwrt.trans->name);
-	pos += scnprintf(pos, endpos - pos, "Bus: %s\n",
-			 mvm->fwrt.dev->bus->name);
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buff, pos - buff);
-	kfree(buff);
-
-	return ret;
-}
-
 static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 					     char __user *user_buf,
 					     size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
-	struct iwl_mvm_tas_status_resp tas_rsp;
-	struct iwl_mvm_tas_status_resp *rsp = &tas_rsp;
+	struct iwl_mvm_tas_status_resp *rsp = NULL;
 	static const size_t bufsz = 1024;
 	char *buff, *pos, *endpos;
 	const char * const tas_dis_reason[TAS_DISABLED_REASON_MAX] = {
@@ -608,6 +577,10 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 
 	if (!iwl_mvm_firmware_running(mvm))
 		return -ENODEV;
+
+	if (iwl_fw_lookup_notif_ver(mvm->fw, DEBUG_GROUP, GET_TAS_STATUS,
+				    0) != 3)
+		return -EOPNOTSUPP;
 
 	mutex_lock(&mvm->mutex);
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
@@ -659,6 +632,14 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 			 rsp->tas_fw_version);
 	pos += scnprintf(pos, endpos - pos, "Is UHB enabled for USA?: %s\n",
 			 rsp->is_uhb_for_usa_enable ? "True" : "False");
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_UHB_CANADA_TAS_SUPPORT))
+		pos += scnprintf(pos, endpos - pos,
+				 "Is UHB enabled for CANADA?: %s\n",
+				 rsp->uhb_allowed_flags &
+				 TAS_UHB_ALLOWED_CANADA ? "True" : "False");
+
 	pos += scnprintf(pos, endpos - pos, "Current MCC: 0x%x\n",
 			 le16_to_cpu(rsp->curr_mcc));
 
@@ -1159,10 +1140,6 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct iwl_mvm *mvm, char *buf,
 
 	mutex_lock(&mvm->mutex);
 
-	/* allow one more restart that we're provoking here */
-	if (mvm->fw_restart >= 0)
-		mvm->fw_restart++;
-
 	if (count == 6 && !strcmp(buf, "nolog\n")) {
 		set_bit(IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE, &mvm->status);
 		set_bit(STATUS_SUPPRESS_CMD_ERROR_ONCE, &mvm->trans->status);
@@ -1409,9 +1386,9 @@ static int _iwl_dbgfs_inject_beacon_ie(struct iwl_mvm *mvm, char *bin, int len)
 
 		if (iwl_fw_lookup_cmd_ver(mvm->fw,
 					  BEACON_TEMPLATE_CMD, 0) >= 14) {
-			u32 offset = iwl_mvm_find_ie_offset(beacon->data,
-							    WLAN_EID_S1G_TWT,
-							    beacon->len);
+			u32 offset = iwl_find_ie_offset(beacon->data,
+							WLAN_EID_S1G_TWT,
+							beacon->len);
 
 			beacon_cmd.btwt_offset = cpu_to_le32(offset);
 		}
@@ -1495,28 +1472,19 @@ static ssize_t iwl_dbgfs_fw_dbg_conf_write(struct iwl_mvm *mvm,
 	return ret ?: count;
 }
 
-static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
-					      char *buf, size_t count,
-					      loff_t *ppos)
-{
-	if (count == 0)
-		return 0;
-
-	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_USER_TRIGGER,
-			       NULL);
-
-	iwl_fw_dbg_collect(&mvm->fwrt, FW_DBG_TRIGGER_USER, buf,
-			   (count - 1), NULL);
-
-	return count;
-}
-
 static ssize_t iwl_dbgfs_fw_dbg_clear_write(struct iwl_mvm *mvm,
 					    char *buf, size_t count,
 					    loff_t *ppos)
 {
 	if (mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_9000)
 		return -EOPNOTSUPP;
+
+	/*
+	 * If the firmware is not running, silently succeed since there is
+	 * no data to clear.
+	 */
+	if (!iwl_mvm_firmware_running(mvm))
+		return count;
 
 	mutex_lock(&mvm->mutex);
 	iwl_fw_dbg_clear_monitor_buf(&mvm->fwrt);
@@ -1964,14 +1932,12 @@ MVM_DEBUGFS_READ_WRITE_FILE_OPS(disable_power_off, 64);
 MVM_DEBUGFS_READ_FILE_OPS(fw_rx_stats);
 MVM_DEBUGFS_READ_FILE_OPS(drv_rx_stats);
 MVM_DEBUGFS_READ_FILE_OPS(fw_system_stats);
-MVM_DEBUGFS_READ_FILE_OPS(fw_ver);
 MVM_DEBUGFS_READ_FILE_OPS(phy_integration_ver);
 MVM_DEBUGFS_READ_FILE_OPS(tas_get_status);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart, 10);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_nmi, 10);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(scan_ant_rxchain, 8);
 MVM_DEBUGFS_READ_WRITE_FILE_OPS(fw_dbg_conf, 8);
-MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_dbg_clear, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(dbg_time_point, 64);
 MVM_DEBUGFS_WRITE_FILE_OPS(indirection_tbl,
@@ -2164,7 +2130,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	MVM_DEBUGFS_ADD_FILE(force_ctkill, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(stations, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(disable_power_off, mvm->debugfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE(fw_ver, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(fw_rx_stats, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(drv_rx_stats, mvm->debugfs_dir, 0400);
 	MVM_DEBUGFS_ADD_FILE(fw_system_stats, mvm->debugfs_dir, 0400);
@@ -2173,7 +2138,6 @@ void iwl_mvm_dbgfs_register(struct iwl_mvm *mvm)
 	MVM_DEBUGFS_ADD_FILE(scan_ant_rxchain, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(prph_reg, mvm->debugfs_dir, 0600);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_conf, mvm->debugfs_dir, 0600);
-	MVM_DEBUGFS_ADD_FILE(fw_dbg_collect, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(fw_dbg_clear, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(dbg_time_point, mvm->debugfs_dir, 0200);
 	MVM_DEBUGFS_ADD_FILE(send_echo_cmd, mvm->debugfs_dir, 0200);

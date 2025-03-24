@@ -12,6 +12,7 @@
 #include <linux/types.h>
 
 #include "ipu6-bus.h"
+#include "ipu6-dma.h"
 #include "ipu6-fw-com.h"
 
 /*
@@ -88,7 +89,6 @@ struct ipu6_fw_com_context {
 	void *dma_buffer;
 	dma_addr_t dma_addr;
 	unsigned int dma_size;
-	unsigned long attrs;
 
 	struct ipu6_fw_sys_queue *input_queue;	/* array of host to SP queues */
 	struct ipu6_fw_sys_queue *output_queue;	/* array of SP to host */
@@ -164,7 +164,6 @@ void *ipu6_fw_com_prepare(struct ipu6_fw_com_cfg *cfg,
 	struct ipu6_fw_com_context *ctx;
 	struct device *dev = &adev->auxdev.dev;
 	size_t sizeall, offset;
-	unsigned long attrs = 0;
 	void *specific_host_addr;
 	unsigned int i;
 
@@ -206,9 +205,8 @@ void *ipu6_fw_com_prepare(struct ipu6_fw_com_cfg *cfg,
 
 	sizeall += sizeinput + sizeoutput;
 
-	ctx->dma_buffer = dma_alloc_attrs(dev, sizeall, &ctx->dma_addr,
-					  GFP_KERNEL, attrs);
-	ctx->attrs = attrs;
+	ctx->dma_buffer = ipu6_dma_alloc(adev, sizeall, &ctx->dma_addr,
+					 GFP_KERNEL, 0);
 	if (!ctx->dma_buffer) {
 		dev_err(dev, "failed to allocate dma memory\n");
 		kfree(ctx);
@@ -239,10 +237,12 @@ void *ipu6_fw_com_prepare(struct ipu6_fw_com_cfg *cfg,
 		memcpy(specific_host_addr, cfg->specific_addr,
 		       cfg->specific_size);
 
+	ipu6_dma_sync_single(adev, ctx->config_vied_addr, sizeall);
+
 	/* initialize input queues */
 	offset += specific_size;
 	res.reg = SYSCOM_QPR_BASE_REG;
-	res.host_address = (u64)(ctx->dma_buffer + offset);
+	res.host_address = (uintptr_t)(ctx->dma_buffer + offset);
 	res.vied_address = ctx->dma_addr + offset;
 	for (i = 0; i < cfg->num_input_queues; i++)
 		ipu6_sys_queue_init(ctx->input_queue + i,
@@ -251,7 +251,7 @@ void *ipu6_fw_com_prepare(struct ipu6_fw_com_cfg *cfg,
 
 	/* initialize output queues */
 	offset += sizeinput;
-	res.host_address = (u64)(ctx->dma_buffer + offset);
+	res.host_address = (uintptr_t)(ctx->dma_buffer + offset);
 	res.vied_address = ctx->dma_addr + offset;
 	for (i = 0; i < cfg->num_output_queues; i++) {
 		ipu6_sys_queue_init(ctx->output_queue + i,
@@ -261,7 +261,7 @@ void *ipu6_fw_com_prepare(struct ipu6_fw_com_cfg *cfg,
 
 	return ctx;
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_prepare, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_prepare, "INTEL_IPU6");
 
 int ipu6_fw_com_open(struct ipu6_fw_com_context *ctx)
 {
@@ -289,7 +289,7 @@ int ipu6_fw_com_open(struct ipu6_fw_com_context *ctx)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_open, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_open, "INTEL_IPU6");
 
 int ipu6_fw_com_close(struct ipu6_fw_com_context *ctx)
 {
@@ -307,7 +307,7 @@ int ipu6_fw_com_close(struct ipu6_fw_com_context *ctx)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_close, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_close, "INTEL_IPU6");
 
 int ipu6_fw_com_release(struct ipu6_fw_com_context *ctx, unsigned int force)
 {
@@ -315,12 +315,12 @@ int ipu6_fw_com_release(struct ipu6_fw_com_context *ctx, unsigned int force)
 	if (!force && !ctx->cell_ready(ctx->adev))
 		return -EBUSY;
 
-	dma_free_attrs(&ctx->adev->auxdev.dev, ctx->dma_size,
-		       ctx->dma_buffer, ctx->dma_addr, ctx->attrs);
+	ipu6_dma_free(ctx->adev, ctx->dma_size,
+		      ctx->dma_buffer, ctx->dma_addr, 0);
 	kfree(ctx);
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_release, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_release, "INTEL_IPU6");
 
 bool ipu6_fw_com_ready(struct ipu6_fw_com_context *ctx)
 {
@@ -332,7 +332,7 @@ bool ipu6_fw_com_ready(struct ipu6_fw_com_context *ctx)
 
 	return state == SYSCOM_STATE_READY;
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_ready, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_fw_com_ready, "INTEL_IPU6");
 
 void *ipu6_send_get_token(struct ipu6_fw_com_context *ctx, int q_nbr)
 {
@@ -358,9 +358,9 @@ void *ipu6_send_get_token(struct ipu6_fw_com_context *ctx, int q_nbr)
 
 	index = readl(q_dmem + FW_COM_WR_REG);
 
-	return (void *)(q->host_address + index * q->token_size);
+	return (void *)((uintptr_t)q->host_address + index * q->token_size);
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_send_get_token, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_send_get_token, "INTEL_IPU6");
 
 void ipu6_send_put_token(struct ipu6_fw_com_context *ctx, int q_nbr)
 {
@@ -373,7 +373,7 @@ void ipu6_send_put_token(struct ipu6_fw_com_context *ctx, int q_nbr)
 
 	writel(wr, q_dmem + FW_COM_WR_REG);
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_send_put_token, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_send_put_token, "INTEL_IPU6");
 
 void *ipu6_recv_get_token(struct ipu6_fw_com_context *ctx, int q_nbr)
 {
@@ -395,9 +395,9 @@ void *ipu6_recv_get_token(struct ipu6_fw_com_context *ctx, int q_nbr)
 	if (!packets)
 		return NULL;
 
-	return (void *)(q->host_address + rd * q->token_size);
+	return (void *)((uintptr_t)q->host_address + rd * q->token_size);
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_recv_get_token, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_recv_get_token, "INTEL_IPU6");
 
 void ipu6_recv_put_token(struct ipu6_fw_com_context *ctx, int q_nbr)
 {
@@ -410,4 +410,4 @@ void ipu6_recv_put_token(struct ipu6_fw_com_context *ctx, int q_nbr)
 
 	writel(rd, q_dmem + FW_COM_RD_REG);
 }
-EXPORT_SYMBOL_NS_GPL(ipu6_recv_put_token, INTEL_IPU6);
+EXPORT_SYMBOL_NS_GPL(ipu6_recv_put_token, "INTEL_IPU6");

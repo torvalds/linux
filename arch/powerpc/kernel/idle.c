@@ -97,7 +97,7 @@ void power4_idle(void)
 /*
  * Register the sysctl to set/clear powersave_nap.
  */
-static struct ctl_table powersave_nap_ctl_table[] = {
+static const struct ctl_table powersave_nap_ctl_table[] = {
 	{
 		.procname	= "powersave-nap",
 		.data		= &powersave_nap,

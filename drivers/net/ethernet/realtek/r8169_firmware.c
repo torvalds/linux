@@ -215,7 +215,7 @@ int rtl_fw_request_firmware(struct rtl_fw *rtl_fw)
 {
 	int rc;
 
-	rc = request_firmware(&rtl_fw->fw, rtl_fw->fw_name, rtl_fw->dev);
+	rc = firmware_request_nowarn(&rtl_fw->fw, rtl_fw->fw_name, rtl_fw->dev);
 	if (rc < 0)
 		goto out;
 
@@ -227,7 +227,7 @@ int rtl_fw_request_firmware(struct rtl_fw *rtl_fw)
 
 	return 0;
 out:
-	dev_err(rtl_fw->dev, "Unable to load firmware %s (%d)\n",
-		rtl_fw->fw_name, rc);
+	dev_warn(rtl_fw->dev, "Unable to load firmware %s (%d)\n",
+		 rtl_fw->fw_name, rc);
 	return rc;
 }

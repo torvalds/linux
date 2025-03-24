@@ -237,8 +237,8 @@ static int v3d_measure_clock(struct seq_file *m, void *unused)
 	if (v3d->ver >= 40) {
 		int cycle_count_reg = V3D_PCTR_CYCLE_COUNT(v3d->ver);
 		V3D_CORE_WRITE(core, V3D_V4_PCTR_0_SRC_0_3,
-			       V3D_SET_FIELD(cycle_count_reg,
-					     V3D_PCTR_S0));
+			       V3D_SET_FIELD_VER(cycle_count_reg,
+						 V3D_PCTR_S0, v3d->ver));
 		V3D_CORE_WRITE(core, V3D_V4_PCTR_0_CLR, 1);
 		V3D_CORE_WRITE(core, V3D_V4_PCTR_0_EN, 1);
 	} else {

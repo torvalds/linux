@@ -75,7 +75,7 @@ Here are the main features of EROFS:
 
  - Support merging tail-end data into a special inode as fragments.
 
- - Support large folios for uncompressed files.
+ - Support large folios to make use of THPs (Transparent Hugepages);
 
  - Support direct I/O on uncompressed files to avoid double caching for loop
    devices;

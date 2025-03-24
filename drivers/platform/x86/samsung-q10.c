@@ -78,7 +78,7 @@ static struct platform_driver samsungq10_driver = {
 		.name	= KBUILD_MODNAME,
 	},
 	.probe		= samsungq10_probe,
-	.remove_new	= samsungq10_remove,
+	.remove		= samsungq10_remove,
 };
 
 static struct platform_device *samsungq10_device;

@@ -182,7 +182,7 @@ static int cbtx_get_sset_count(struct phy_device *phydev)
 
 static void cbtx_get_strings(struct phy_device *phydev, u8 *data)
 {
-	strncpy(data, "100btx_rx_err", ETH_GSTRING_LEN);
+	ethtool_puts(&data, "100btx_rx_err");
 }
 
 static void cbtx_get_stats(struct phy_device *phydev,
@@ -215,7 +215,7 @@ static struct phy_driver cbtx_driver[] = {
 
 module_phy_driver(cbtx_driver);
 
-static struct mdio_device_id __maybe_unused cbtx_tbl[] = {
+static const struct mdio_device_id __maybe_unused cbtx_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_CBTX_SJA1110) },
 	{ },
 };

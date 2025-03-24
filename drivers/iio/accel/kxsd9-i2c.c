@@ -62,4 +62,4 @@ module_i2c_driver(kxsd9_i2c_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("KXSD9 accelerometer I2C interface");
-MODULE_IMPORT_NS(IIO_KXSD9);
+MODULE_IMPORT_NS("IIO_KXSD9");

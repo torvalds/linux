@@ -66,7 +66,7 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 	spin_unlock_irqrestore(&vdev->priv_lock, flags);
 
 	if (!urb) {
-		pr_err("cannot find a urb of seqnum %u max seqnum %d\n",
+		pr_err("cannot find a urb of seqnum %u max seqnum %u\n",
 			pdu->base.seqnum,
 			atomic_read(&vhci_hcd->seqnum));
 		usbip_event_add(ud, VDEV_EVENT_ERROR_TCP);
@@ -162,10 +162,10 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 		 * already received the result of its submit result and gave
 		 * back the URB.
 		 */
-		pr_info("the urb (seqnum %d) was already given back\n",
+		pr_info("the urb (seqnum %u) was already given back\n",
 			pdu->base.seqnum);
 	} else {
-		usbip_dbg_vhci_rx("now giveback urb %d\n", pdu->base.seqnum);
+		usbip_dbg_vhci_rx("now giveback urb %u\n", pdu->base.seqnum);
 
 		/* If unlink is successful, status is -ECONNRESET */
 		urb->status = pdu->u.ret_unlink.status;

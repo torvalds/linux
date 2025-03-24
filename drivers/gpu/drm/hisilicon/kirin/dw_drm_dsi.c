@@ -889,7 +889,7 @@ MODULE_DEVICE_TABLE(of, dsi_of_match);
 
 static struct platform_driver dsi_driver = {
 	.probe = dsi_probe,
-	.remove_new = dsi_remove,
+	.remove = dsi_remove,
 	.driver = {
 		.name = "dw-dsi",
 		.of_match_table = dsi_of_match,

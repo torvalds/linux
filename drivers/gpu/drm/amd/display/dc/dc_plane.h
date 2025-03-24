@@ -26,7 +26,6 @@
 #ifndef _DC_PLANE_H_
 #define _DC_PLANE_H_
 
-#include "dc.h"
 #include "dc_hw_types.h"
 
 struct dc_plane_state *dc_create_plane_state(const struct dc *dc);
@@ -34,5 +33,8 @@ const struct dc_plane_status *dc_plane_get_status(
 		const struct dc_plane_state *plane_state);
 void dc_plane_state_retain(struct dc_plane_state *plane_state);
 void dc_plane_state_release(struct dc_plane_state *plane_state);
+
+void dc_plane_force_update_for_panic(struct dc_plane_state *plane_state,
+				     bool clear_tiling);
 
 #endif /* _DC_PLANE_H_ */

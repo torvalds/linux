@@ -10,7 +10,7 @@
 #define _CIFSPDU_H
 
 #include <net/sock.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "../common/smbfsctl.h"
 
 #define CIFS_PROT   0
@@ -190,42 +190,82 @@
  */
 
 #define FILE_READ_DATA        0x00000001  /* Data can be read from the file   */
+					  /* or directory child entries can   */
+					  /* be listed together with the      */
+					  /* associated child attributes      */
+					  /* (so the FILE_READ_ATTRIBUTES on  */
+					  /* the child entry is not needed)   */
 #define FILE_WRITE_DATA       0x00000002  /* Data can be written to the file  */
+					  /* or new file can be created in    */
+					  /* the directory                    */
 #define FILE_APPEND_DATA      0x00000004  /* Data can be appended to the file */
+					  /* (for non-local files over SMB it */
+					  /* is same as FILE_WRITE_DATA)      */
+					  /* or new subdirectory can be       */
+					  /* created in the directory         */
 #define FILE_READ_EA          0x00000008  /* Extended attributes associated   */
 					  /* with the file can be read        */
 #define FILE_WRITE_EA         0x00000010  /* Extended attributes associated   */
 					  /* with the file can be written     */
 #define FILE_EXECUTE          0x00000020  /*Data can be read into memory from */
 					  /* the file using system paging I/O */
-#define FILE_DELETE_CHILD     0x00000040
+					  /* for executing the file / script  */
+					  /* or right to traverse directory   */
+					  /* (but by default all users have   */
+					  /* directory bypass traverse        */
+					  /* privilege and do not need this   */
+					  /* permission on directories at all)*/
+#define FILE_DELETE_CHILD     0x00000040  /* Child entry can be deleted from  */
+					  /* the directory (so the DELETE on  */
+					  /* the child entry is not needed)   */
 #define FILE_READ_ATTRIBUTES  0x00000080  /* Attributes associated with the   */
-					  /* file can be read                 */
+					  /* file or directory can be read    */
 #define FILE_WRITE_ATTRIBUTES 0x00000100  /* Attributes associated with the   */
-					  /* file can be written              */
-#define DELETE                0x00010000  /* The file can be deleted          */
-#define READ_CONTROL          0x00020000  /* The access control list and      */
-					  /* ownership associated with the    */
-					  /* file can be read                 */
-#define WRITE_DAC             0x00040000  /* The access control list and      */
-					  /* ownership associated with the    */
-					  /* file can be written.             */
+					  /* file or directory can be written */
+#define DELETE                0x00010000  /* The file or dir can be deleted   */
+#define READ_CONTROL          0x00020000  /* The discretionary access control */
+					  /* list and ownership associated    */
+					  /* with the file or dir can be read */
+#define WRITE_DAC             0x00040000  /* The discretionary access control */
+					  /* list associated with the file or */
+					  /* directory can be written         */
 #define WRITE_OWNER           0x00080000  /* Ownership information associated */
-					  /* with the file can be written     */
+					  /* with the file/dir can be written */
 #define SYNCHRONIZE           0x00100000  /* The file handle can waited on to */
 					  /* synchronize with the completion  */
 					  /* of an input/output request       */
 #define SYSTEM_SECURITY       0x01000000  /* The system access control list   */
-					  /* can be read and changed          */
-#define GENERIC_ALL           0x10000000
-#define GENERIC_EXECUTE       0x20000000
-#define GENERIC_WRITE         0x40000000
-#define GENERIC_READ          0x80000000
-					 /* In summary - Relevant file       */
-					 /* access flags from CIFS are       */
-					 /* file_read_data, file_write_data  */
-					 /* file_execute, file_read_attributes*/
-					 /* write_dac, and delete.           */
+					  /* associated with the file or      */
+					  /* directory can be read or written */
+					  /* (cannot be in DACL, can in SACL) */
+#define MAXIMUM_ALLOWED       0x02000000  /* Maximal subset of GENERIC_ALL    */
+					  /* permissions which can be granted */
+					  /* (cannot be in DACL nor SACL)     */
+#define GENERIC_ALL           0x10000000  /* Same as: GENERIC_EXECUTE |       */
+					  /*          GENERIC_WRITE |         */
+					  /*          GENERIC_READ |          */
+					  /*          FILE_DELETE_CHILD |     */
+					  /*          DELETE |                */
+					  /*          WRITE_DAC |             */
+					  /*          WRITE_OWNER             */
+					  /* So GENERIC_ALL contains all bits */
+					  /* mentioned above except these two */
+					  /* SYSTEM_SECURITY  MAXIMUM_ALLOWED */
+#define GENERIC_EXECUTE       0x20000000  /* Same as: FILE_EXECUTE |          */
+					  /*          FILE_READ_ATTRIBUTES |  */
+					  /*          READ_CONTROL |          */
+					  /*          SYNCHRONIZE             */
+#define GENERIC_WRITE         0x40000000  /* Same as: FILE_WRITE_DATA |       */
+					  /*          FILE_APPEND_DATA |      */
+					  /*          FILE_WRITE_EA |         */
+					  /*          FILE_WRITE_ATTRIBUTES | */
+					  /*          READ_CONTROL |          */
+					  /*          SYNCHRONIZE             */
+#define GENERIC_READ          0x80000000  /* Same as: FILE_READ_DATA |        */
+					  /*          FILE_READ_EA |          */
+					  /*          FILE_READ_ATTRIBUTES |  */
+					  /*          READ_CONTROL |          */
+					  /*          SYNCHRONIZE             */
 
 #define FILE_READ_RIGHTS (FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES)
 #define FILE_WRITE_RIGHTS (FILE_WRITE_DATA | FILE_APPEND_DATA \
@@ -649,7 +689,7 @@ typedef union smb_com_session_setup_andx {
 struct ntlmssp2_name {
 	__le16 type;
 	__le16 length;
-/*	char   name[length]; */
+	__u8 data[];
 } __attribute__((packed));
 
 struct ntlmv2_resp {
@@ -781,7 +821,7 @@ typedef struct smb_com_logoff_andx_rsp {
 	__u16 ByteCount;
 } __attribute__((packed)) LOGOFF_ANDX_RSP;
 
-typedef union smb_com_tree_disconnect {	/* as an altetnative can use flag on
+typedef union smb_com_tree_disconnect {	/* as an alternative can use flag on
 					tree_connect PDU to effect disconnect */
 					/* tdis is probably simplest SMB PDU */
 	struct {
@@ -1482,36 +1522,6 @@ struct file_notify_information {
 	__le32 Action;
 	__le32 FileNameLength;
 	__u8  FileName[];
-} __attribute__((packed));
-
-/* For IO_REPARSE_TAG_SYMLINK */
-struct reparse_symlink_data {
-	__le32	ReparseTag;
-	__le16	ReparseDataLength;
-	__u16	Reserved;
-	__le16	SubstituteNameOffset;
-	__le16	SubstituteNameLength;
-	__le16	PrintNameOffset;
-	__le16	PrintNameLength;
-	__le32	Flags;
-	char	PathBuffer[];
-} __attribute__((packed));
-
-/* Flag above */
-#define SYMLINK_FLAG_RELATIVE 0x00000001
-
-/* For IO_REPARSE_TAG_NFS */
-#define NFS_SPECFILE_LNK	0x00000000014B4E4C
-#define NFS_SPECFILE_CHR	0x0000000000524843
-#define NFS_SPECFILE_BLK	0x00000000004B4C42
-#define NFS_SPECFILE_FIFO	0x000000004F464946
-#define NFS_SPECFILE_SOCK	0x000000004B434F53
-struct reparse_posix_data {
-	__le32	ReparseTag;
-	__le16	ReparseDataLength;
-	__u16	Reserved;
-	__le64	InodeType; /* LNK, FIFO, CHR etc. */
-	__u8	DataBuffer[];
 } __attribute__((packed));
 
 struct cifs_quota_data {
@@ -2280,13 +2290,7 @@ typedef struct { /* data block encoding of response to level 263 QPathInfo */
 	__u8 DeletePending;
 	__u8 Directory;
 	__u16 Pad2;
-	__le64 IndexNumber;
 	__le32 EASize;
-	__le32 AccessFlags;
-	__u64 IndexNumber1;
-	__le64 CurrentByteOffset;
-	__le32 Mode;
-	__le32 AlignmentRequirement;
 	__le32 FileNameLength;
 	union {
 		char __pad;
@@ -2406,7 +2410,7 @@ struct cifs_posix_ace { /* access control entry (ACE) */
 	__le64 cifs_uid; /* or gid */
 } __attribute__((packed));
 
-struct cifs_posix_acl { /* access conrol list  (ACL) */
+struct cifs_posix_acl { /* access control list  (ACL) */
 	__le16	version;
 	__le16	access_entry_count;  /* access ACL - count of entries */
 	__le16	default_entry_count; /* default ACL - count of entries */
@@ -2572,12 +2576,6 @@ typedef struct {
 	char FileName[];
 } __attribute__((packed)) FIND_FILE_STANDARD_INFO; /* level 0x1 FF resp data */
 
-
-struct win_dev {
-	unsigned char type[8]; /* IntxCHR or IntxBLK or LnxFIFO or LnxSOCK */
-	__le64 major;
-	__le64 minor;
-} __attribute__((packed));
 
 struct fea {
 	unsigned char EA_flags;

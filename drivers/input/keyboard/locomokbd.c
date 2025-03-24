@@ -112,11 +112,10 @@ static inline void locomokbd_reset_col(unsigned long membase, int col)
 static void locomokbd_scankeyboard(struct locomokbd *locomokbd)
 {
 	unsigned int row, col, rowd;
-	unsigned long flags;
 	unsigned int num_pressed;
 	unsigned long membase = locomokbd->base;
 
-	spin_lock_irqsave(&locomokbd->lock, flags);
+	guard(spinlock_irqsave)(&locomokbd->lock);
 
 	locomokbd_charge_all(membase);
 
@@ -167,8 +166,6 @@ static void locomokbd_scankeyboard(struct locomokbd *locomokbd)
 		mod_timer(&locomokbd->timer, jiffies + SCAN_INTERVAL);
 	else
 		locomokbd->count_cancel = 0;
-
-	spin_unlock_irqrestore(&locomokbd->lock, flags);
 }
 
 /*

@@ -87,21 +87,21 @@ examples:
         #size-cells = <0>;
 
         typec-mux@42 {
-          compatible = "fcs,fsa4480";
-          reg = <0x42>;
+            compatible = "fcs,fsa4480";
+            reg = <0x42>;
 
-          interrupts-extended = <&tlmm 2 IRQ_TYPE_LEVEL_LOW>;
+            interrupts-extended = <&tlmm 2 IRQ_TYPE_LEVEL_LOW>;
 
-          vcc-supply = <&vreg_bob>;
+            vcc-supply = <&vreg_bob>;
 
-          mode-switch;
-          orientation-switch;
+            mode-switch;
+            orientation-switch;
 
-          port {
-            fsa4480_ept: endpoint {
-              remote-endpoint = <&typec_controller>;
+            port {
+                fsa4480_ept: endpoint {
+                    remote-endpoint = <&typec_controller>;
+                };
             };
-          };
         };
     };
 ...

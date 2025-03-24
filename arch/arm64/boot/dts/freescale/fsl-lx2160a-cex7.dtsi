@@ -94,9 +94,6 @@
 			fan-temperature-ctrlr@18 {
 				compatible = "ti,amc6821";
 				reg = <0x18>;
-				cooling-min-state = <0>;
-				cooling-max-state = <9>;
-				#cooling-cells = <2>;
 			};
 		};
 

@@ -15,7 +15,7 @@
 #include <linux/firmware.h>
 #include <linux/property.h>
 #include <linux/wordpart.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define EN8811H_PHY_ID		0x03a2a411
 
@@ -1075,7 +1075,7 @@ static struct phy_driver en8811h_driver[] = {
 
 module_phy_driver(en8811h_driver);
 
-static struct mdio_device_id __maybe_unused en8811h_tbl[] = {
+static const struct mdio_device_id __maybe_unused en8811h_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(EN8811H_PHY_ID) },
 	{ }
 };

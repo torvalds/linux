@@ -1173,7 +1173,7 @@ static void af9033_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id af9033_id_table[] = {
-	{"af9033", 0},
+	{ "af9033" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, af9033_id_table);

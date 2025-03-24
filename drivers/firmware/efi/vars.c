@@ -149,7 +149,7 @@ int efivar_lock(void)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(efivar_lock, EFIVAR);
+EXPORT_SYMBOL_NS_GPL(efivar_lock, "EFIVAR");
 
 /*
  * efivar_lock() - obtain the efivar lock if it is free
@@ -165,7 +165,7 @@ int efivar_trylock(void)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(efivar_trylock, EFIVAR);
+EXPORT_SYMBOL_NS_GPL(efivar_trylock, "EFIVAR");
 
 /*
  * efivar_unlock() - release the efivar lock
@@ -174,7 +174,7 @@ void efivar_unlock(void)
 {
 	up(&efivars_lock);
 }
-EXPORT_SYMBOL_NS_GPL(efivar_unlock, EFIVAR);
+EXPORT_SYMBOL_NS_GPL(efivar_unlock, "EFIVAR");
 
 /*
  * efivar_get_variable() - retrieve a variable identified by name/vendor
@@ -186,7 +186,7 @@ efi_status_t efivar_get_variable(efi_char16_t *name, efi_guid_t *vendor,
 {
 	return __efivars->ops->get_variable(name, vendor, attr, size, data);
 }
-EXPORT_SYMBOL_NS_GPL(efivar_get_variable, EFIVAR);
+EXPORT_SYMBOL_NS_GPL(efivar_get_variable, "EFIVAR");
 
 /*
  * efivar_get_next_variable() - enumerate the next name/vendor pair
@@ -198,7 +198,7 @@ efi_status_t efivar_get_next_variable(unsigned long *name_size,
 {
 	return __efivars->ops->get_next_variable(name_size, name, vendor);
 }
-EXPORT_SYMBOL_NS_GPL(efivar_get_next_variable, EFIVAR);
+EXPORT_SYMBOL_NS_GPL(efivar_get_next_variable, "EFIVAR");
 
 /*
  * efivar_set_variable_locked() - set a variable identified by name/vendor
@@ -230,7 +230,7 @@ efi_status_t efivar_set_variable_locked(efi_char16_t *name, efi_guid_t *vendor,
 
 	return setvar(name, vendor, attr, data_size, data);
 }
-EXPORT_SYMBOL_NS_GPL(efivar_set_variable_locked, EFIVAR);
+EXPORT_SYMBOL_NS_GPL(efivar_set_variable_locked, "EFIVAR");
 
 /*
  * efivar_set_variable() - set a variable identified by name/vendor
@@ -252,7 +252,7 @@ efi_status_t efivar_set_variable(efi_char16_t *name, efi_guid_t *vendor,
 	efivar_unlock();
 	return status;
 }
-EXPORT_SYMBOL_NS_GPL(efivar_set_variable, EFIVAR);
+EXPORT_SYMBOL_NS_GPL(efivar_set_variable, "EFIVAR");
 
 efi_status_t efivar_query_variable_info(u32 attr,
 					u64 *storage_space,
@@ -264,4 +264,4 @@ efi_status_t efivar_query_variable_info(u32 attr,
 	return __efivars->ops->query_variable_info(attr, storage_space,
 			remaining_space, max_variable_size);
 }
-EXPORT_SYMBOL_NS_GPL(efivar_query_variable_info, EFIVAR);
+EXPORT_SYMBOL_NS_GPL(efivar_query_variable_info, "EFIVAR");

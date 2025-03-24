@@ -13,6 +13,7 @@
   */
 
 #include <linux/interrupt.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
@@ -24,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
+#include <linux/unaligned.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -159,6 +161,7 @@ struct max1363_chip_info {
  * @vref_uv:		Actual (external or internal) reference voltage
  * @send:		function used to send data to the chip
  * @recv:		function used to receive data from the chip
+ * @data:		buffer to store channel data and timestamp
  */
 struct max1363_state {
 	struct i2c_client		*client;
@@ -184,6 +187,10 @@ struct max1363_state {
 						const char *buf, int count);
 	int				(*recv)(const struct i2c_client *client,
 						char *buf, int count);
+	struct {
+		u8 buf[MAX1363_MAX_CHANNELS * 2];
+		aligned_s64 ts;
+	} data;
 };
 
 #define MAX1363_MODE_SINGLE(_num, _mask) {				\
@@ -391,7 +398,7 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 			if (data < 0)
 				return data;
 
-			data = (rxbuf[1] | rxbuf[0] << 8) &
+			data = get_unaligned_be16(rxbuf) &
 				((1 << st->chip_info->bits) - 1);
 		} else {
 			/* Get reading */
@@ -818,7 +825,6 @@ static int max1363_read_event_config(struct iio_dev *indio_dev,
 
 static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 {
-	u8 *tx_buf;
 	int ret, i = 3, j;
 	unsigned long numelements;
 	int len;
@@ -850,11 +856,10 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	}
 	numelements = bitmap_weight(modemask, MAX1363_MAX_CHANNELS);
 	len = 3 * numelements + 3;
-	tx_buf = kmalloc(len, GFP_KERNEL);
-	if (!tx_buf) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
+	u8 *tx_buf __free(kfree) = kmalloc(len, GFP_KERNEL);
+	if (!tx_buf)
+		return -ENOMEM;
+
 	tx_buf[0] = st->configbyte;
 	tx_buf[1] = st->setupbyte;
 	tx_buf[2] = (st->monitor_speed << 1);
@@ -893,11 +898,9 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 
 	ret = st->send(st->client, tx_buf, len);
 	if (ret < 0)
-		goto error_ret;
-	if (ret != len) {
-		ret = -EIO;
-		goto error_ret;
-	}
+		return ret;
+	if (ret != len)
+		return -EIO;
 
 	/*
 	 * Now that we hopefully have sensible thresholds in place it is
@@ -910,18 +913,13 @@ static int max1363_monitor_mode_update(struct max1363_state *st, int enabled)
 	tx_buf[1] = MAX1363_MON_INT_ENABLE | (st->monitor_speed << 1) | 0xF0;
 	ret = st->send(st->client, tx_buf, 2);
 	if (ret < 0)
-		goto error_ret;
-	if (ret != 2) {
-		ret = -EIO;
-		goto error_ret;
-	}
-	ret = 0;
+		return ret;
+	if (ret != 2)
+		return -EIO;
+
 	st->monitor_on = true;
-error_ret:
 
-	kfree(tx_buf);
-
-	return ret;
+	return 0;
 }
 
 /*
@@ -951,7 +949,7 @@ error_ret:
 
 static int max1363_write_event_config(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
-	enum iio_event_direction dir, int state)
+	enum iio_event_direction dir, bool state)
 {
 	struct max1363_state *st = iio_priv(indio_dev);
 
@@ -1469,22 +1467,10 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1363_state *st = iio_priv(indio_dev);
-	__u8 *rxbuf;
 	int b_sent;
-	size_t d_size;
 	unsigned long numvals = bitmap_weight(st->current_mode->modemask,
 					      MAX1363_MAX_CHANNELS);
 
-	/* Ensure the timestamp is 8 byte aligned */
-	if (st->chip_info->bits != 8)
-		d_size = numvals*2;
-	else
-		d_size = numvals;
-	if (indio_dev->scan_timestamp) {
-		d_size += sizeof(s64);
-		if (d_size % sizeof(s64))
-			d_size += sizeof(s64) - (d_size % sizeof(s64));
-	}
 	/* Monitor mode prevents reading. Whilst not currently implemented
 	 * might as well have this test in here in the meantime as it does
 	 * no harm.
@@ -1492,21 +1478,16 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	if (numvals == 0)
 		goto done;
 
-	rxbuf = kmalloc(d_size,	GFP_KERNEL);
-	if (rxbuf == NULL)
-		goto done;
 	if (st->chip_info->bits != 8)
-		b_sent = st->recv(st->client, rxbuf, numvals * 2);
+		b_sent = st->recv(st->client, st->data.buf, numvals * 2);
 	else
-		b_sent = st->recv(st->client, rxbuf, numvals);
+		b_sent = st->recv(st->client, st->data.buf, numvals);
 	if (b_sent < 0)
-		goto done_free;
+		goto done;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, rxbuf,
+	iio_push_to_buffers_with_timestamp(indio_dev, &st->data,
 					   iio_get_time_ns(indio_dev));
 
-done_free:
-	kfree(rxbuf);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 

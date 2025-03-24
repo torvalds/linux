@@ -531,7 +531,7 @@ static struct platform_driver sprd_iommu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= sprd_iommu_probe,
-	.remove_new = sprd_iommu_remove,
+	.remove = sprd_iommu_remove,
 };
 module_platform_driver(sprd_iommu_driver);
 

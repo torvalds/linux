@@ -42,7 +42,6 @@ struct intel_runtime_pm {
 	atomic_t wakeref_count;
 	struct device *kdev; /* points to i915->drm.dev */
 	bool available;
-	bool irqs_enabled;
 	bool no_wakeref_tracking;
 
 	/*
@@ -97,10 +96,16 @@ intel_rpm_wakelock_count(int wakeref_count)
 	return wakeref_count >> INTEL_RPM_WAKELOCK_SHIFT;
 }
 
+static inline bool
+intel_runtime_pm_suspended(struct intel_runtime_pm *rpm)
+{
+	return pm_runtime_suspended(rpm->kdev);
+}
+
 static inline void
 assert_rpm_device_not_suspended(struct intel_runtime_pm *rpm)
 {
-	WARN_ONCE(pm_runtime_suspended(rpm->kdev),
+	WARN_ONCE(intel_runtime_pm_suspended(rpm),
 		  "Device suspended during HW access\n");
 }
 
@@ -189,15 +194,15 @@ intel_wakeref_t intel_runtime_pm_get_raw(struct intel_runtime_pm *rpm);
 
 #define with_intel_runtime_pm(rpm, wf) \
 	for ((wf) = intel_runtime_pm_get(rpm); (wf); \
-	     intel_runtime_pm_put((rpm), (wf)), (wf) = 0)
+	     intel_runtime_pm_put((rpm), (wf)), (wf) = NULL)
 
 #define with_intel_runtime_pm_if_in_use(rpm, wf) \
 	for ((wf) = intel_runtime_pm_get_if_in_use(rpm); (wf); \
-	     intel_runtime_pm_put((rpm), (wf)), (wf) = 0)
+	     intel_runtime_pm_put((rpm), (wf)), (wf) = NULL)
 
 #define with_intel_runtime_pm_if_active(rpm, wf) \
 	for ((wf) = intel_runtime_pm_get_if_active(rpm); (wf); \
-	     intel_runtime_pm_put((rpm), (wf)), (wf) = 0)
+	     intel_runtime_pm_put((rpm), (wf)), (wf) = NULL)
 
 void intel_runtime_pm_put_unchecked(struct intel_runtime_pm *rpm);
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)

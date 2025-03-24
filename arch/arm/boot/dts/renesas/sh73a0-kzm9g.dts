@@ -172,8 +172,7 @@
 		compatible = "smsc,lan9221", "smsc,lan9115";
 		reg = <0x10000000 0x100>;
 		phy-mode = "mii";
-		interrupt-parent = <&irqpin0>;
-		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqpin0 3 IRQ_TYPE_EDGE_FALLING>;
 		reg-io-width = <4>;
 		smsc,irq-push-pull;
 		smsc,save-mac-address;
@@ -196,8 +195,7 @@
 	compass@c {
 		compatible = "asahi-kasei,ak8975";
 		reg = <0x0c>;
-		interrupt-parent = <&irqpin3>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqpin3 4 IRQ_TYPE_EDGE_FALLING>;
 	};
 
 	ak4648: codec@12 {
@@ -209,9 +207,8 @@
 	accelerometer@1d {
 		compatible = "adi,adxl345";
 		reg = <0x1d>;
-		interrupt-parent = <&irqpin3>;
-		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
-			     <3 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&irqpin3 2 IRQ_TYPE_LEVEL_HIGH>,
+				      <&irqpin3 3 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	rtc@32 {
@@ -297,8 +294,7 @@
 	touchscreen@55 {
 		compatible = "sitronix,st1232";
 		reg = <0x55>;
-		interrupt-parent = <&irqpin1>;
-		interrupts = <0 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqpin1 0 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
@@ -310,8 +306,7 @@
 	pcf8575: gpio@20 {
 		compatible = "nxp,pcf8575";
 		reg = <0x20>;
-		interrupt-parent = <&irqpin2>;
-		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&irqpin2 3 IRQ_TYPE_EDGE_FALLING>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		interrupt-controller;

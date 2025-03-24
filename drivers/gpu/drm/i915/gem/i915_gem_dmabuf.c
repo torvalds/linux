@@ -16,7 +16,7 @@
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 I915_SELFTEST_DECLARE(static bool force_different_devices;)
 

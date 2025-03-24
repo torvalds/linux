@@ -545,7 +545,7 @@ static void mac_sonic_platform_remove(struct platform_device *pdev)
 
 static struct platform_driver mac_sonic_platform_driver = {
 	.probe  = mac_sonic_platform_probe,
-	.remove_new = mac_sonic_platform_remove,
+	.remove = mac_sonic_platform_remove,
 	.driver = {
 		.name = "macsonic",
 	},

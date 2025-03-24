@@ -7,4 +7,6 @@
 void kvm_init_hyp_services(void);
 bool kvm_arm_hyp_service_available(u32 func_id);
 
+static inline void kvm_arch_init_hyp_services(void) { };
+
 #endif

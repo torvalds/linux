@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/proc_fs.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
@@ -27,7 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "phy-fsl-usb.h"
 
@@ -529,7 +530,7 @@ int fsl_otg_start_gadget(struct otg_fsm *fsm, int on)
 	if (!otg->gadget || !otg->gadget->dev.parent)
 		return -ENODEV;
 
-	VDBG("gadget %s\n", on ? "on" : "off");
+	VDBG("gadget %s\n", str_on_off(on));
 	dev = otg->gadget->dev.parent;
 
 	if (on) {
@@ -1002,7 +1003,7 @@ static void fsl_otg_remove(struct platform_device *pdev)
 
 struct platform_driver fsl_otg_driver = {
 	.probe = fsl_otg_probe,
-	.remove_new = fsl_otg_remove,
+	.remove = fsl_otg_remove,
 	.driver = {
 		.name = driver_name,
 	},

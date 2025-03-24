@@ -279,7 +279,7 @@ MODULE_DEVICE_TABLE(platform, usb_extcon_platform_ids);
 
 static struct platform_driver usb_extcon_driver = {
 	.probe		= usb_extcon_probe,
-	.remove_new	= usb_extcon_remove,
+	.remove		= usb_extcon_remove,
 	.driver		= {
 		.name	= "extcon-usb-gpio",
 		.pm	= &usb_extcon_pm_ops,

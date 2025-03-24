@@ -245,6 +245,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.cfg.ibss_creator = false;
 		sdata->vif.bss_conf.enable_beacon = false;
 		netif_carrier_off(sdata->dev);
+		synchronize_net();
 		ieee80211_bss_info_change_notify(sdata,
 						 BSS_CHANGED_IBSS |
 						 BSS_CHANGED_BEACON_ENABLED);
@@ -569,7 +570,7 @@ static struct sta_info *ieee80211_ibss_finish_sta(struct sta_info *sta)
 	if (!sta->sdata->u.ibss.control_port)
 		sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
 
-	rate_control_rate_init(sta);
+	rate_control_rate_init(&sta->deflink);
 
 	/* If it fails, maybe we raced another insertion? */
 	if (sta_info_insert_rcu(sta))
@@ -1068,11 +1069,12 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 
 		/* Force rx_nss recalculation */
 		sta->sta.deflink.rx_nss = 0;
-		rate_control_rate_init(sta);
+		rate_control_rate_init(&sta->deflink);
 		if (sta->sta.deflink.rx_nss != rx_nss)
 			changed |= IEEE80211_RC_NSS_CHANGED;
 
-		drv_sta_rc_update(local, sdata, &sta->sta, changed);
+		drv_link_sta_rc_update(local, sdata, &sta->sta.deflink,
+				       changed);
 	}
 
 	rcu_read_unlock();
@@ -1825,8 +1827,8 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 
-	ieee80211_ibss_disconnect(sdata);
 	ifibss->ssid_len = 0;
+	ieee80211_ibss_disconnect(sdata);
 	eth_zero_addr(ifibss->bssid);
 
 	/* remove beacon */

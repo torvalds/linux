@@ -13,7 +13,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 
 struct patch {
 	void *addr;

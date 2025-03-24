@@ -591,12 +591,13 @@ Deadline Task Scheduling
 
  The system wide settings are configured under the /proc virtual file system.
 
- For now the -rt knobs are used for -deadline admission control and the
- -deadline runtime is accounted against the -rt runtime. We realize that this
- isn't entirely desirable; however, it is better to have a small interface for
- now, and be able to change it easily later. The ideal situation (see 5.) is to
- run -rt tasks from a -deadline server; in which case the -rt bandwidth is a
- direct subset of dl_bw.
+ For now the -rt knobs are used for -deadline admission control and with
+ CONFIG_RT_GROUP_SCHED the -deadline runtime is accounted against the (root)
+ -rt runtime. With !CONFIG_RT_GROUP_SCHED the knob only serves for the -dl
+ admission control. We realize that this isn't entirely desirable; however, it
+ is better to have a small interface for now, and be able to change it easily
+ later. The ideal situation (see 5.) is to run -rt tasks from a -deadline
+ server; in which case the -rt bandwidth is a direct subset of dl_bw.
 
  This means that, for a root_domain comprising M CPUs, -deadline tasks
  can be created while the sum of their bandwidths stays below:
@@ -749,21 +750,19 @@ Appendix A. Test suite
  of the command line options. Please refer to rt-app documentation for more
  details (`<rt-app-sources>/doc/*.json`).
 
- The second testing application is a modification of schedtool, called
- schedtool-dl, which can be used to setup SCHED_DEADLINE parameters for a
- certain pid/application. schedtool-dl is available at:
- https://github.com/scheduler-tools/schedtool-dl.git.
+ The second testing application is done using chrt which has support
+ for SCHED_DEADLINE.
 
  The usage is straightforward::
 
-  # schedtool -E -t 10000000:100000000 -e ./my_cpuhog_app
+  # chrt -d -T 10000000 -D 100000000 0 ./my_cpuhog_app
 
  With this, my_cpuhog_app is put to run inside a SCHED_DEADLINE reservation
- of 10ms every 100ms (note that parameters are expressed in microseconds).
- You can also use schedtool to create a reservation for an already running
+ of 10ms every 100ms (note that parameters are expressed in nanoseconds).
+ You can also use chrt to create a reservation for an already running
  application, given that you know its pid::
 
-  # schedtool -E -t 10000000:100000000 my_app_pid
+  # chrt -d -T 10000000 -D 100000000 -p 0 my_app_pid
 
 Appendix B. Minimal main()
 ==========================

@@ -459,7 +459,7 @@ int devm_tng_gpio_probe(struct device *dev, struct tng_gpio *gpio)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(devm_tng_gpio_probe, GPIO_TANGIER);
+EXPORT_SYMBOL_NS_GPL(devm_tng_gpio_probe, "GPIO_TANGIER");
 
 static int tng_gpio_suspend(struct device *dev)
 {

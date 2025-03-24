@@ -384,7 +384,7 @@ static u32 amd_sdw_read_ping_status(struct sdw_bus *bus)
 	return slave_stat;
 }
 
-static int amd_sdw_compute_params(struct sdw_bus *bus)
+static int amd_sdw_compute_params(struct sdw_bus *bus, struct sdw_stream_runtime *stream)
 {
 	struct sdw_transport_data t_data = {0};
 	struct sdw_master_runtime *m_rt;
@@ -410,7 +410,7 @@ static int amd_sdw_compute_params(struct sdw_bus *bus)
 			sdw_fill_xport_params(&p_rt->transport_params, p_rt->num,
 					      false, SDW_BLK_GRP_CNT_1, sample_int,
 					      port_bo, port_bo >> 8, hstart, hstop,
-					      SDW_BLK_PKG_PER_PORT, 0x0);
+					      SDW_BLK_PKG_PER_PORT, p_rt->lane);
 
 			sdw_fill_port_params(&p_rt->port_params,
 					     p_rt->num, bps,
@@ -433,12 +433,18 @@ static int amd_sdw_port_params(struct sdw_bus *bus, struct sdw_port_params *p_pa
 	u32 frame_fmt_reg, dpn_frame_fmt;
 
 	dev_dbg(amd_manager->dev, "p_params->num:0x%x\n", p_params->num);
-	switch (amd_manager->instance) {
-	case ACP_SDW0:
-		frame_fmt_reg = sdw0_manager_dp_reg[p_params->num].frame_fmt_reg;
-		break;
-	case ACP_SDW1:
-		frame_fmt_reg = sdw1_manager_dp_reg[p_params->num].frame_fmt_reg;
+	switch (amd_manager->acp_rev) {
+	case ACP63_PCI_REV_ID:
+		switch (amd_manager->instance) {
+		case ACP_SDW0:
+			frame_fmt_reg = acp63_sdw0_dp_reg[p_params->num].frame_fmt_reg;
+			break;
+		case ACP_SDW1:
+			frame_fmt_reg = acp63_sdw1_dp_reg[p_params->num].frame_fmt_reg;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -465,20 +471,28 @@ static int amd_sdw_transport_params(struct sdw_bus *bus,
 	u32 frame_fmt_reg, sample_int_reg, hctrl_dp0_reg;
 	u32 offset_reg, lane_ctrl_ch_en_reg;
 
-	switch (amd_manager->instance) {
-	case ACP_SDW0:
-		frame_fmt_reg = sdw0_manager_dp_reg[params->port_num].frame_fmt_reg;
-		sample_int_reg = sdw0_manager_dp_reg[params->port_num].sample_int_reg;
-		hctrl_dp0_reg = sdw0_manager_dp_reg[params->port_num].hctrl_dp0_reg;
-		offset_reg = sdw0_manager_dp_reg[params->port_num].offset_reg;
-		lane_ctrl_ch_en_reg = sdw0_manager_dp_reg[params->port_num].lane_ctrl_ch_en_reg;
-		break;
-	case ACP_SDW1:
-		frame_fmt_reg = sdw1_manager_dp_reg[params->port_num].frame_fmt_reg;
-		sample_int_reg = sdw1_manager_dp_reg[params->port_num].sample_int_reg;
-		hctrl_dp0_reg = sdw1_manager_dp_reg[params->port_num].hctrl_dp0_reg;
-		offset_reg = sdw1_manager_dp_reg[params->port_num].offset_reg;
-		lane_ctrl_ch_en_reg = sdw1_manager_dp_reg[params->port_num].lane_ctrl_ch_en_reg;
+	switch (amd_manager->acp_rev) {
+	case ACP63_PCI_REV_ID:
+		switch (amd_manager->instance) {
+		case ACP_SDW0:
+			frame_fmt_reg = acp63_sdw0_dp_reg[params->port_num].frame_fmt_reg;
+			sample_int_reg = acp63_sdw0_dp_reg[params->port_num].sample_int_reg;
+			hctrl_dp0_reg = acp63_sdw0_dp_reg[params->port_num].hctrl_dp0_reg;
+			offset_reg = acp63_sdw0_dp_reg[params->port_num].offset_reg;
+			lane_ctrl_ch_en_reg =
+					acp63_sdw0_dp_reg[params->port_num].lane_ctrl_ch_en_reg;
+			break;
+		case ACP_SDW1:
+			frame_fmt_reg = acp63_sdw1_dp_reg[params->port_num].frame_fmt_reg;
+			sample_int_reg = acp63_sdw1_dp_reg[params->port_num].sample_int_reg;
+			hctrl_dp0_reg = acp63_sdw1_dp_reg[params->port_num].hctrl_dp0_reg;
+			offset_reg = acp63_sdw1_dp_reg[params->port_num].offset_reg;
+			lane_ctrl_ch_en_reg =
+					acp63_sdw1_dp_reg[params->port_num].lane_ctrl_ch_en_reg;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -520,12 +534,20 @@ static int amd_sdw_port_enable(struct sdw_bus *bus,
 	u32 dpn_ch_enable;
 	u32 lane_ctrl_ch_en_reg;
 
-	switch (amd_manager->instance) {
-	case ACP_SDW0:
-		lane_ctrl_ch_en_reg = sdw0_manager_dp_reg[enable_ch->port_num].lane_ctrl_ch_en_reg;
-		break;
-	case ACP_SDW1:
-		lane_ctrl_ch_en_reg = sdw1_manager_dp_reg[enable_ch->port_num].lane_ctrl_ch_en_reg;
+	switch (amd_manager->acp_rev) {
+	case ACP63_PCI_REV_ID:
+		switch (amd_manager->instance) {
+		case ACP_SDW0:
+			lane_ctrl_ch_en_reg =
+					acp63_sdw0_dp_reg[enable_ch->port_num].lane_ctrl_ch_en_reg;
+			break;
+		case ACP_SDW1:
+			lane_ctrl_ch_en_reg =
+					acp63_sdw1_dp_reg[enable_ch->port_num].lane_ctrl_ch_en_reg;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -910,6 +932,7 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 	amd_manager->mmio = amd_manager->acp_mmio +
 			    (amd_manager->instance * SDW_MANAGER_REG_OFFSET);
 	amd_manager->acp_sdw_lock = pdata->acp_sdw_lock;
+	amd_manager->acp_rev = pdata->acp_rev;
 	amd_manager->cols_index = sdw_find_col_index(AMD_SDW_DEFAULT_COLUMNS);
 	amd_manager->rows_index = sdw_find_row_index(AMD_SDW_DEFAULT_ROWS);
 	amd_manager->dev = dev;
@@ -926,15 +949,21 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 	 * information.
 	 */
 	amd_manager->bus.controller_id = 0;
-
-	switch (amd_manager->instance) {
-	case ACP_SDW0:
-		amd_manager->num_dout_ports = AMD_SDW0_MAX_TX_PORTS;
-		amd_manager->num_din_ports = AMD_SDW0_MAX_RX_PORTS;
-		break;
-	case ACP_SDW1:
-		amd_manager->num_dout_ports = AMD_SDW1_MAX_TX_PORTS;
-		amd_manager->num_din_ports = AMD_SDW1_MAX_RX_PORTS;
+	dev_dbg(dev, "acp_rev:0x%x\n", amd_manager->acp_rev);
+	switch (amd_manager->acp_rev) {
+	case ACP63_PCI_REV_ID:
+		switch (amd_manager->instance) {
+		case ACP_SDW0:
+			amd_manager->num_dout_ports = AMD_ACP63_SDW0_MAX_TX_PORTS;
+			amd_manager->num_din_ports = AMD_ACP63_SDW0_MAX_RX_PORTS;
+			break;
+		case ACP_SDW1:
+			amd_manager->num_dout_ports = AMD_ACP63_SDW1_MAX_TX_PORTS;
+			amd_manager->num_din_ports = AMD_ACP63_SDW1_MAX_RX_PORTS;
+			break;
+		default:
+			return -EINVAL;
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -1161,6 +1190,7 @@ static int __maybe_unused amd_resume_runtime(struct device *dev)
 	if (amd_manager->power_mode_mask & AMD_SDW_CLK_STOP_MODE) {
 		return amd_sdw_clock_stop_exit(amd_manager);
 	} else if (amd_manager->power_mode_mask & AMD_SDW_POWER_OFF_MODE) {
+		writel(0x00, amd_manager->acp_mmio + ACP_SW_WAKE_EN(amd_manager->instance));
 		val = readl(amd_manager->mmio + ACP_SW_CLK_RESUME_CTRL);
 		if (val) {
 			val |= AMD_SDW_CLK_RESUME_REQ;
@@ -1192,7 +1222,7 @@ static const struct dev_pm_ops amd_pm = {
 
 static struct platform_driver amd_sdw_driver = {
 	.probe	= &amd_sdw_manager_probe,
-	.remove_new = &amd_sdw_manager_remove,
+	.remove = &amd_sdw_manager_remove,
 	.driver = {
 		.name	= "amd_sdw_manager",
 		.pm = &amd_pm,

@@ -422,7 +422,7 @@ static inline int nr_pages_per_csrow(struct csrow_info *csrow)
 	return nr_pages;
 }
 
-/* Create a CSROW object under specifed edac_mc_device */
+/* Create a CSROW object under specified edac_mc_device */
 static int edac_create_csrow_object(struct mem_ctl_info *mci,
 				    struct csrow_info *csrow, int index)
 {
@@ -449,7 +449,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	return 0;
 }
 
-/* Create a CSROW object under specifed edac_mc_device */
+/* Create a CSROW object under specified edac_mc_device */
 static int edac_create_csrow_objects(struct mem_ctl_info *mci)
 {
 	int err, i;
@@ -636,7 +636,7 @@ static void dimm_release(struct device *dev)
 	 */
 }
 
-/* Create a DIMM object under specifed memory controller device */
+/* Create a DIMM object under specified memory controller device */
 static int edac_create_dimm_object(struct mem_ctl_info *mci,
 				   struct dimm_info *dimm)
 {

@@ -27,7 +27,8 @@
 #include "amdgpu_ras.h"
 
 #define AMDGPU_MAX_JPEG_INSTANCES	4
-#define AMDGPU_MAX_JPEG_RINGS		8
+#define AMDGPU_MAX_JPEG_RINGS           10
+#define AMDGPU_MAX_JPEG_RINGS_4_0_3     8
 
 #define AMDGPU_JPEG_HARVEST_JPEG0 (1 << 0)
 #define AMDGPU_JPEG_HARVEST_JPEG1 (1 << 1)
@@ -128,6 +129,7 @@ struct amdgpu_jpeg {
 	uint16_t inst_mask;
 	uint8_t num_inst_per_aid;
 	bool	indirect_sram;
+	uint32_t supported_reset;
 };
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);
@@ -149,5 +151,8 @@ int amdgpu_jpeg_ras_late_init(struct amdgpu_device *adev,
 int amdgpu_jpeg_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_jpeg_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
 			       enum AMDGPU_UCODE_ID ucode_id);
+void amdgpu_debugfs_jpeg_sched_mask_init(struct amdgpu_device *adev);
+int amdgpu_jpeg_sysfs_reset_mask_init(struct amdgpu_device *adev);
+void amdgpu_jpeg_sysfs_reset_mask_fini(struct amdgpu_device *adev);
 
 #endif /*__AMDGPU_JPEG_H__*/

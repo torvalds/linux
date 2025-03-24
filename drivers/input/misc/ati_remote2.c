@@ -244,29 +244,21 @@ static int ati_remote2_open(struct input_dev *idev)
 	if (r) {
 		dev_err(&ar2->intf[0]->dev,
 			"%s(): usb_autopm_get_interface() = %d\n", __func__, r);
-		goto fail1;
+		return r;
 	}
 
-	mutex_lock(&ati_remote2_mutex);
+	scoped_guard(mutex, &ati_remote2_mutex) {
+		if (!(ar2->flags & ATI_REMOTE2_SUSPENDED)) {
+			r = ati_remote2_submit_urbs(ar2);
+			if (r)
+				break;
+		}
 
-	if (!(ar2->flags & ATI_REMOTE2_SUSPENDED)) {
-		r = ati_remote2_submit_urbs(ar2);
-		if (r)
-			goto fail2;
+		ar2->flags |= ATI_REMOTE2_OPENED;
 	}
-
-	ar2->flags |= ATI_REMOTE2_OPENED;
-
-	mutex_unlock(&ati_remote2_mutex);
 
 	usb_autopm_put_interface(ar2->intf[0]);
 
-	return 0;
-
- fail2:
-	mutex_unlock(&ati_remote2_mutex);
-	usb_autopm_put_interface(ar2->intf[0]);
- fail1:
 	return r;
 }
 
@@ -276,14 +268,12 @@ static void ati_remote2_close(struct input_dev *idev)
 
 	dev_dbg(&ar2->intf[0]->dev, "%s()\n", __func__);
 
-	mutex_lock(&ati_remote2_mutex);
+	guard(mutex)(&ati_remote2_mutex);
 
 	if (!(ar2->flags & ATI_REMOTE2_SUSPENDED))
 		ati_remote2_kill_urbs(ar2);
 
 	ar2->flags &= ~ATI_REMOTE2_OPENED;
-
-	mutex_unlock(&ati_remote2_mutex);
 }
 
 static void ati_remote2_input_mouse(struct ati_remote2 *ar2)
@@ -713,15 +703,13 @@ static ssize_t ati_remote2_store_channel_mask(struct device *dev,
 		return r;
 	}
 
-	mutex_lock(&ati_remote2_mutex);
-
-	if (mask != ar2->channel_mask) {
-		r = ati_remote2_setup(ar2, mask);
-		if (!r)
-			ar2->channel_mask = mask;
+	scoped_guard(mutex, &ati_remote2_mutex) {
+		if (mask != ar2->channel_mask) {
+			r = ati_remote2_setup(ar2, mask);
+			if (!r)
+				ar2->channel_mask = mask;
+		}
 	}
-
-	mutex_unlock(&ati_remote2_mutex);
 
 	usb_autopm_put_interface(ar2->intf[0]);
 
@@ -892,14 +880,12 @@ static int ati_remote2_suspend(struct usb_interface *interface,
 
 	dev_dbg(&ar2->intf[0]->dev, "%s()\n", __func__);
 
-	mutex_lock(&ati_remote2_mutex);
+	guard(mutex)(&ati_remote2_mutex);
 
 	if (ar2->flags & ATI_REMOTE2_OPENED)
 		ati_remote2_kill_urbs(ar2);
 
 	ar2->flags |= ATI_REMOTE2_SUSPENDED;
-
-	mutex_unlock(&ati_remote2_mutex);
 
 	return 0;
 }
@@ -917,15 +903,13 @@ static int ati_remote2_resume(struct usb_interface *interface)
 
 	dev_dbg(&ar2->intf[0]->dev, "%s()\n", __func__);
 
-	mutex_lock(&ati_remote2_mutex);
+	guard(mutex)(&ati_remote2_mutex);
 
 	if (ar2->flags & ATI_REMOTE2_OPENED)
 		r = ati_remote2_submit_urbs(ar2);
 
 	if (!r)
 		ar2->flags &= ~ATI_REMOTE2_SUSPENDED;
-
-	mutex_unlock(&ati_remote2_mutex);
 
 	return r;
 }
@@ -943,20 +927,17 @@ static int ati_remote2_reset_resume(struct usb_interface *interface)
 
 	dev_dbg(&ar2->intf[0]->dev, "%s()\n", __func__);
 
-	mutex_lock(&ati_remote2_mutex);
+	guard(mutex)(&ati_remote2_mutex);
 
 	r = ati_remote2_setup(ar2, ar2->channel_mask);
 	if (r)
-		goto out;
+		return r;
 
 	if (ar2->flags & ATI_REMOTE2_OPENED)
 		r = ati_remote2_submit_urbs(ar2);
 
 	if (!r)
 		ar2->flags &= ~ATI_REMOTE2_SUSPENDED;
-
- out:
-	mutex_unlock(&ati_remote2_mutex);
 
 	return r;
 }

@@ -22,6 +22,7 @@ properties:
   compatible:
     enum:
       - qcom,sm8450-videocc
+      - qcom,sm8475-videocc
       - qcom,sm8550-videocc
       - qcom,sm8650-videocc
 
@@ -44,11 +45,20 @@ required:
   - compatible
   - clocks
   - power-domains
-  - required-opps
   - '#power-domain-cells'
 
 allOf:
   - $ref: qcom,gcc.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sm8450-videocc
+              - qcom,sm8550-videocc
+    then:
+      required:
+        - required-opps
 
 unevaluatedProperties: false
 

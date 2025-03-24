@@ -53,7 +53,7 @@ properties:
   samsung,s2mps11-wrstbi-ground:
     description: |
       Indicates that WRSTBI pin of PMIC is pulled down. When the system is
-      suspended it will always go down thus triggerring unwanted buck warm
+      suspended it will always go down thus triggering unwanted buck warm
       reset (setting buck voltages to default values).
     type: boolean
 

@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <drm/display/drm_hdcp_helper.h>
 
@@ -498,34 +498,6 @@ static void cdns_mhdp_hdcp_prop_work(struct work_struct *work)
 	}
 	mutex_unlock(&mhdp->hdcp.mutex);
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
-}
-
-int cdns_mhdp_hdcp_set_lc(struct cdns_mhdp_device *mhdp, u8 *val)
-{
-	int ret;
-
-	mutex_lock(&mhdp->mbox_mutex);
-	ret = cdns_mhdp_secure_mailbox_send(mhdp, MB_MODULE_ID_HDCP_GENERAL,
-					    HDCP_GENERAL_SET_LC_128,
-					    16, val);
-	mutex_unlock(&mhdp->mbox_mutex);
-
-	return ret;
-}
-
-int
-cdns_mhdp_hdcp_set_public_key_param(struct cdns_mhdp_device *mhdp,
-				    struct cdns_hdcp_tx_public_key_param *val)
-{
-	int ret;
-
-	mutex_lock(&mhdp->mbox_mutex);
-	ret = cdns_mhdp_secure_mailbox_send(mhdp, MB_MODULE_ID_HDCP_TX,
-					    HDCP2X_TX_SET_PUBLIC_KEY_PARAMS,
-					    sizeof(*val), (u8 *)val);
-	mutex_unlock(&mhdp->mbox_mutex);
-
-	return ret;
 }
 
 int cdns_mhdp_hdcp_enable(struct cdns_mhdp_device *mhdp, u8 content_type)

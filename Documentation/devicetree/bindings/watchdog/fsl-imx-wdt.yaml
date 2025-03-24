@@ -48,6 +48,8 @@ properties:
   clocks:
     maxItems: 1
 
+  big-endian: true
+
   fsl,ext-reset-output:
     $ref: /schemas/types.yaml#/definitions/flag
     description: |
@@ -92,6 +94,18 @@ allOf:
     then:
       properties:
         fsl,suspend-in-wait: false
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - fsl,ls1012a-wdt
+                - fsl,ls1043a-wdt
+    then:
+      properties:
+        big-endian: false
 
 unevaluatedProperties: false
 

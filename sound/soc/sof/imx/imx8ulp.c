@@ -155,8 +155,7 @@ static int imx8ulp_reset(struct snd_sof_dev *sdev)
 
 static int imx8ulp_probe(struct snd_sof_dev *sdev)
 {
-	struct platform_device *pdev =
-		container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *res_node;
 	struct resource *mmio;
@@ -507,7 +506,7 @@ MODULE_DEVICE_TABLE(of, sof_of_imx8ulp_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_imx8ulp_driver = {
 	.probe = sof_of_probe,
-	.remove_new = sof_of_remove,
+	.remove = sof_of_remove,
 	.driver = {
 		.name = "sof-audio-of-imx8ulp",
 		.pm = &sof_of_pm,
@@ -518,4 +517,4 @@ module_platform_driver(snd_sof_of_imx8ulp_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for IMX8ULP platforms");
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
+MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");

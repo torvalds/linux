@@ -49,16 +49,22 @@ static inline unsigned long pud_val(pud_t x)
 #endif /* CONFIG_PPC64 */
 
 /* PGD level */
-#if defined(CONFIG_PPC_E500) && defined(CONFIG_PTE_64BIT)
+#if defined(CONFIG_PPC_85xx) && defined(CONFIG_PTE_64BIT)
 typedef struct { unsigned long long pgd; } pgd_t;
+
+static inline unsigned long long pgd_val(pgd_t x)
+{
+	return x.pgd;
+}
 #else
 typedef struct { unsigned long pgd; } pgd_t;
-#endif
-#define __pgd(x)	((pgd_t) { (x) })
+
 static inline unsigned long pgd_val(pgd_t x)
 {
 	return x.pgd;
 }
+#endif
+#define __pgd(x)	((pgd_t) { (x) })
 
 /* Page protection bits */
 typedef struct { unsigned long pgprot; } pgprot_t;

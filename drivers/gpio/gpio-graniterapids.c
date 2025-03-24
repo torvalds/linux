@@ -32,12 +32,14 @@
 #define GNR_PINS_PER_REG 32
 #define GNR_NUM_REGS DIV_ROUND_UP(GNR_NUM_PINS, GNR_PINS_PER_REG)
 
-#define GNR_CFG_BAR		0x00
+#define GNR_CFG_PADBAR		0x00
 #define GNR_CFG_LOCK_OFFSET	0x04
-#define GNR_GPI_STATUS_OFFSET	0x20
+#define GNR_GPI_STATUS_OFFSET	0x14
 #define GNR_GPI_ENABLE_OFFSET	0x24
 
-#define GNR_CFG_DW_RX_MASK	GENMASK(25, 22)
+#define GNR_CFG_DW_HOSTSW_MODE	BIT(27)
+#define GNR_CFG_DW_RX_MASK	GENMASK(23, 22)
+#define GNR_CFG_DW_INTSEL_MASK	GENMASK(21, 14)
 #define GNR_CFG_DW_RX_DISABLE	FIELD_PREP(GNR_CFG_DW_RX_MASK, 2)
 #define GNR_CFG_DW_RX_EDGE	FIELD_PREP(GNR_CFG_DW_RX_MASK, 1)
 #define GNR_CFG_DW_RX_LEVEL	FIELD_PREP(GNR_CFG_DW_RX_MASK, 0)
@@ -50,6 +52,7 @@
  * struct gnr_gpio - Intel Granite Rapids-D vGPIO driver state
  * @gc: GPIO controller interface
  * @reg_base: base address of the GPIO registers
+ * @pad_base: base address of the vGPIO pad configuration registers
  * @ro_bitmap: bitmap of read-only pins
  * @lock: guard the registers
  * @pad_backup: backup of the register state for suspend
@@ -57,6 +60,7 @@
 struct gnr_gpio {
 	struct gpio_chip gc;
 	void __iomem *reg_base;
+	void __iomem *pad_base;
 	DECLARE_BITMAP(ro_bitmap, GNR_NUM_PINS);
 	raw_spinlock_t lock;
 	u32 pad_backup[];
@@ -65,7 +69,7 @@ struct gnr_gpio {
 static void __iomem *gnr_gpio_get_padcfg_addr(const struct gnr_gpio *priv,
 					      unsigned int gpio)
 {
-	return priv->reg_base + gpio * sizeof(u32);
+	return priv->pad_base + gpio * sizeof(u32);
 }
 
 static int gnr_gpio_configure_line(struct gpio_chip *gc, unsigned int gpio,
@@ -84,6 +88,20 @@ static int gnr_gpio_configure_line(struct gpio_chip *gc, unsigned int gpio,
 	dw &= ~clear_mask;
 	dw |= set_mask;
 	writel(dw, addr);
+
+	return 0;
+}
+
+static int gnr_gpio_request(struct gpio_chip *gc, unsigned int gpio)
+{
+	struct gnr_gpio *priv = gpiochip_get_data(gc);
+	u32 dw;
+
+	dw = readl(gnr_gpio_get_padcfg_addr(priv, gpio));
+	if (!(dw & GNR_CFG_DW_HOSTSW_MODE)) {
+		dev_warn(gc->parent, "GPIO %u is not owned by host", gpio);
+		return -EBUSY;
+	}
 
 	return 0;
 }
@@ -139,6 +157,7 @@ static int gnr_gpio_direction_output(struct gpio_chip *gc, unsigned int gpio, in
 
 static const struct gpio_chip gnr_gpio_chip = {
 	.owner		  = THIS_MODULE,
+	.request	  = gnr_gpio_request,
 	.get		  = gnr_gpio_get,
 	.set		  = gnr_gpio_set,
 	.get_direction    = gnr_gpio_get_direction,
@@ -166,7 +185,7 @@ static void gnr_gpio_irq_ack(struct irq_data *d)
 	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	reg = readl(addr);
-	reg &= ~BIT(bit_idx);
+	reg |= BIT(bit_idx);
 	writel(reg, addr);
 }
 
@@ -209,9 +228,17 @@ static void gnr_gpio_irq_unmask(struct irq_data *d)
 static int gnr_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	irq_hw_number_t pin = irqd_to_hwirq(d);
-	u32 mask = GNR_CFG_DW_RX_MASK;
+	struct gnr_gpio *priv = gpiochip_get_data(gc);
+	irq_hw_number_t hwirq = irqd_to_hwirq(d);
+	u32 reg;
 	u32 set;
+
+	/* Allow interrupts only if Interrupt Select field is non-zero */
+	reg = readl(gnr_gpio_get_padcfg_addr(priv, hwirq));
+	if (!(reg & GNR_CFG_DW_INTSEL_MASK)) {
+		dev_dbg(gc->parent, "GPIO %lu cannot be used as IRQ", hwirq);
+		return -EPERM;
+	}
 
 	/* Falling edge and level low triggers not supported by the GPIO controller */
 	switch (type) {
@@ -230,10 +257,11 @@ static int gnr_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	return gnr_gpio_configure_line(gc, pin, mask, set);
+	return gnr_gpio_configure_line(gc, hwirq, GNR_CFG_DW_RX_MASK, set);
 }
 
 static const struct irq_chip gnr_gpio_irq_chip = {
+	.name		= "gpio-graniterapids",
 	.irq_ack	= gnr_gpio_irq_ack,
 	.irq_mask	= gnr_gpio_irq_mask,
 	.irq_unmask	= gnr_gpio_irq_unmask,
@@ -291,6 +319,7 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 	struct gnr_gpio *priv;
 	void __iomem *regs;
 	int irq, ret;
+	u32 offset;
 
 	priv = devm_kzalloc(dev, struct_size(priv, pad_backup, num_backup_pins), GFP_KERNEL);
 	if (!priv)
@@ -302,6 +331,10 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
+	priv->reg_base = regs;
+	offset = readl(priv->reg_base + GNR_CFG_PADBAR);
+	priv->pad_base = priv->reg_base + offset;
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -310,8 +343,6 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 			       dev_name(dev), priv);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to request interrupt\n");
-
-	priv->reg_base = regs + readl(regs + GNR_CFG_BAR);
 
 	gnr_gpio_init_pin_ro_bits(dev, priv->reg_base + GNR_CFG_LOCK_OFFSET,
 				  priv->ro_bitmap);
@@ -324,7 +355,6 @@ static int gnr_gpio_probe(struct platform_device *pdev)
 
 	girq = &priv->gc.irq;
 	gpio_irq_chip_set_chip(girq, &gnr_gpio_irq_chip);
-	girq->chip->name	= dev_name(dev);
 	girq->parent_handler	= NULL;
 	girq->num_parents	= 0;
 	girq->parents		= NULL;

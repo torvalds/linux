@@ -3,17 +3,6 @@
  * Support for mt9m114 Camera Sensor.
  *
  * Copyright (c) 2010 Intel Corporation. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
  */
 
 #include <linux/module.h>
@@ -30,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
+#include <linux/mutex.h>
 #include "../include/linux/atomisp_gmin_platform.h"
 #include <media/v4l2-device.h>
 
@@ -664,6 +654,7 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 
 	fmt->width = res->width;
 	fmt->height = res->height;
+	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		*v4l2_subdev_state_get_format(sd_state, 0) = *fmt;
@@ -1224,6 +1215,7 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 		.def = 0,
 		.flags = 0,
 	},
+#if 0 /* Causes v4l2_ctrl_new_custom() to fail with -ERANGE, disable for now */
 	{
 		.ops = &ctrl_ops,
 		.id = V4L2_CID_3A_LOCK,
@@ -1235,6 +1227,7 @@ static struct v4l2_ctrl_config mt9m114_controls[] = {
 		.def = 0,
 		.flags = 0,
 	},
+#endif
 };
 
 static int mt9m114_detect(struct mt9m114_device *dev, struct i2c_client *client)
@@ -1525,7 +1518,6 @@ static void mt9m114_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&dev->sd.entity);
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
-	kfree(dev);
 }
 
 static int mt9m114_probe(struct i2c_client *client)
@@ -1536,9 +1528,13 @@ static int mt9m114_probe(struct i2c_client *client)
 	void *pdata;
 
 	/* Setup sensor configuration structure */
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
+
+	ret = devm_mutex_init(&client->dev, &dev->input_lock);
+	if (ret)
+		return ret;
 
 	v4l2_i2c_subdev_init(&dev->sd, client, &mt9m114_ops);
 	pdata = gmin_camera_platform_data(&dev->sd,
@@ -1548,14 +1544,12 @@ static int mt9m114_probe(struct i2c_client *client)
 		ret = mt9m114_s_config(&dev->sd, client->irq, pdata);
 	if (!pdata || ret) {
 		v4l2_device_unregister_subdev(&dev->sd);
-		kfree(dev);
 		return ret;
 	}
 
 	ret = atomisp_register_i2c_module(&dev->sd, pdata);
 	if (ret) {
 		v4l2_device_unregister_subdev(&dev->sd);
-		kfree(dev);
 		/* Coverity CID 298095 - return on error */
 		return ret;
 	}

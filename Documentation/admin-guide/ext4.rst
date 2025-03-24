@@ -212,16 +212,6 @@ When mounting an ext4 filesystem, the following option are accepted:
         that ext4's inode table readahead algorithm will pre-read into the
         buffer cache.  The default value is 32 blocks.
 
-  nouser_xattr
-        Disables Extended User Attributes.  See the attr(5) manual page for
-        more information about extended attributes.
-
-  noacl
-        This option disables POSIX Access Control List support. If ACL support
-        is enabled in the kernel configuration (CONFIG_EXT4_FS_POSIX_ACL), ACL
-        is enabled by default on mount. See the acl(5) manual page for more
-        information about acl.
-
   bsddf	(*)
         Make 'df' act like BSD.
 

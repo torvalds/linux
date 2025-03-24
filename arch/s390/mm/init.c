@@ -56,13 +56,22 @@ pgd_t invalid_pg_dir[PTRS_PER_PGD] __section(".bss..invalid_pg_dir");
 
 struct ctlreg __bootdata_preserved(s390_invalid_asce);
 
+unsigned long __bootdata_preserved(page_noexec_mask);
+EXPORT_SYMBOL(page_noexec_mask);
+
+unsigned long __bootdata_preserved(segment_noexec_mask);
+EXPORT_SYMBOL(segment_noexec_mask);
+
+unsigned long __bootdata_preserved(region_noexec_mask);
+EXPORT_SYMBOL(region_noexec_mask);
+
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(zero_page_mask);
 
 static void __init setup_zero_pages(void)
 {
-	unsigned long total_pages = PHYS_PFN(memblock_phys_mem_size() - memblock_reserved_size());
+	unsigned long total_pages = memblock_estimated_nr_free_pages();
 	unsigned int order;
 	struct page *page;
 	int i;
@@ -97,7 +106,7 @@ void __init paging_init(void)
 
 	vmem_map_init();
 	sparse_init();
-	zone_dma_bits = 31;
+	zone_dma_limit = DMA_BIT_MASK(31);
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] = virt_to_pfn(MAX_DMA_ADDRESS);
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;

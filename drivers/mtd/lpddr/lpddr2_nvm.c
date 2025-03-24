@@ -487,7 +487,7 @@ static struct platform_driver lpddr2_nvm_drv = {
 		.name	= "lpddr2_nvm",
 	},
 	.probe		= lpddr2_nvm_probe,
-	.remove_new	= lpddr2_nvm_remove,
+	.remove		= lpddr2_nvm_remove,
 };
 
 module_platform_driver(lpddr2_nvm_drv);

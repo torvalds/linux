@@ -326,6 +326,7 @@ static const struct of_device_id at91_pmc_ids[] = {
 	{ .compatible = "atmel,sama5d2-pmc" },
 	{ .compatible = "microchip,sam9x60-pmc" },
 	{ .compatible = "microchip,sama7g5-pmc" },
+	{ .compatible = "microchip,sam9x7-pmc" },
 	{ /* Sentinel. */ }
 };
 
@@ -441,7 +442,7 @@ static void at91_shdwc_remove(struct platform_device *pdev)
 
 static struct platform_driver at91_shdwc_driver = {
 	.probe = at91_shdwc_probe,
-	.remove_new = at91_shdwc_remove,
+	.remove = at91_shdwc_remove,
 	.driver = {
 		.name = "at91-shdwc",
 		.of_match_table = at91_shdwc_of_match,

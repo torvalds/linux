@@ -46,7 +46,7 @@
 		};
 	};
 
-	dc_12v: dc-12v-regulator {
+	dc_12v: regulator-dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
 		regulator-always-on;
@@ -73,7 +73,7 @@
 		pinctrl-0 = <&ir_receiver_pin>;
 	};
 
-	vcc3v3_sys: vcc3v3-sys-regulator {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-always-on;
@@ -83,7 +83,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -93,7 +93,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	pcie30_avdd0v9: pcie30-avdd0v9-regulator {
+	pcie30_avdd0v9: regulator-pcie30-avdd0v9 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie30_avdd0v9";
 		regulator-always-on;
@@ -103,7 +103,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	pcie30_avdd1v8: pcie30-avdd1v8-regulator {
+	pcie30_avdd1v8: regulator-pcie30-avdd1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "pcie30_avdd1v8";
 		regulator-always-on;
@@ -114,7 +114,7 @@
 	};
 
 	/* pi6c pcie clock generator feeds both ports */
-	vcc3v3_pi6c_05: vcc3v3-pi6c-05-regulator {
+	vcc3v3_pi6c_05: regulator-vcc3v3-pi6c-05 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie";
 		regulator-min-microvolt = <3300000>;
@@ -126,7 +126,7 @@
 	};
 
 	/* actually fed by vcc3v3_sys, dependent on pi6c clock generator */
-	vcc3v3_minipcie: vcc3v3-minipcie-regulator {
+	vcc3v3_minipcie: regulator-vcc3v3-minipcie {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_minipcie";
 		regulator-min-microvolt = <3300000>;
@@ -140,7 +140,7 @@
 	};
 
 	/* actually fed by vcc3v3_sys, dependent on pi6c clock generator */
-	vcc3v3_ngff: vcc3v3-ngff-regulator {
+	vcc3v3_ngff: regulator-vcc3v3-ngff {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_ngff";
 		regulator-min-microvolt = <3300000>;
@@ -153,7 +153,7 @@
 		vin-supply = <&vcc3v3_pi6c_05>;
 	};
 
-	vcc5v0_usb: vcc5v0-usb-regulator {
+	vcc5v0_usb: regulator-vcc5v0-usb {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb";
 		regulator-always-on;
@@ -163,7 +163,7 @@
 		vin-supply = <&dc_12v>;
 	};
 
-	vcc5v0_usb_host: vcc5v0-usb-host-regulator {
+	vcc5v0_usb_host: regulator-vcc5v0-usb-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -175,7 +175,7 @@
 		vin-supply = <&vcc5v0_usb>;
 	};
 
-	vcc5v0_usb_otg: vcc5v0-usb-otg-regulator {
+	vcc5v0_usb_otg: regulator-vcc5v0-usb-otg {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
@@ -291,7 +291,7 @@
 		#clock-cells = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		vcc1-supply = <&vcc3v3_sys>;
 		vcc2-supply = <&vcc3v3_sys>;
 		vcc3-supply = <&vcc3v3_sys>;

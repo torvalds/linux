@@ -17,7 +17,7 @@
 #include <crypto/sm3_base.h>
 #include <linux/bitops.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 const u8 sm3_zero_message_hash[SM3_DIGEST_SIZE] = {
 	0x1A, 0xB2, 0x1D, 0x83, 0x55, 0xCF, 0xA1, 0x7F,

@@ -5,3 +5,4 @@ TAGS
 tags
 cscope.*
 /bpf_helper_defs.h
+fixdep

@@ -297,7 +297,7 @@ static struct platform_driver sh_wdt_driver = {
 	},
 
 	.probe		= sh_wdt_probe,
-	.remove_new	= sh_wdt_remove,
+	.remove		= sh_wdt_remove,
 	.shutdown	= sh_wdt_shutdown,
 };
 

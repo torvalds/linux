@@ -184,6 +184,7 @@
 #define UARTCTRL_SBK		0x00010000
 #define UARTCTRL_MA1IE		0x00008000
 #define UARTCTRL_MA2IE		0x00004000
+#define UARTCTRL_M7		0x00000800
 #define UARTCTRL_IDLECFG	GENMASK(10, 8)
 #define UARTCTRL_LOOPS		0x00000080
 #define UARTCTRL_DOZEEN		0x00000040
@@ -244,7 +245,7 @@
 
 #define DRIVER_NAME	"fsl-lpuart"
 #define DEV_NAME	"ttyLP"
-#define UART_NR		8
+#define UART_NR		12
 
 /* IMX lpuart has four extra unused regs located at the beginning */
 #define IMX_REG_OFF	0x10
@@ -1964,6 +1965,11 @@ static void lpuart32_shutdown(struct uart_port *port)
 			UARTCTRL_TIE | UARTCTRL_TCIE | UARTCTRL_RIE | UARTCTRL_SBK);
 	lpuart32_write(port, temp, UARTCTRL);
 
+	/* flush Rx/Tx FIFO */
+	temp = lpuart32_read(port, UARTFIFO);
+	temp |= UARTFIFO_TXFLUSH | UARTFIFO_RXFLUSH;
+	lpuart32_write(port, temp, UARTFIFO);
+
 	uart_port_unlock_irqrestore(port, flags);
 
 	lpuart_dma_shutdown(sport);
@@ -2222,8 +2228,9 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	modem = lpuart32_read(&sport->port, UARTMODIR);
 	sport->is_cs7 = false;
 	/*
-	 * only support CS8 and CS7, and for CS7 must enable PE.
+	 * only support CS8 and CS7
 	 * supported mode:
+	 *  - (7,n,1) (imx only)
 	 *  - (7,e/o,1)
 	 *  - (8,n,1)
 	 *  - (8,m/s,1)
@@ -2238,7 +2245,7 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	if ((termios->c_cflag & CSIZE) == CS8 ||
 		(termios->c_cflag & CSIZE) == CS7)
-		ctrl = old_ctrl & ~UARTCTRL_M;
+		ctrl = old_ctrl & ~(UARTCTRL_M | UARTCTRL_M7);
 
 	if (termios->c_cflag & CMSPAR) {
 		if ((termios->c_cflag & CSIZE) != CS8) {
@@ -2265,9 +2272,18 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	else
 		bd &= ~UARTBAUD_SBNS;
 
-	/* parity must be enabled when CS7 to match 8-bits format */
-	if ((termios->c_cflag & CSIZE) == CS7)
-		termios->c_cflag |= PARENB;
+	/*
+	 * imx support 7-bits format, no limitation on parity when CS7
+	 * for layerscape, parity must be enabled when CS7 to match 8-bits format
+	 */
+	if ((termios->c_cflag & CSIZE) == CS7 && !(termios->c_cflag & PARENB)) {
+		if (is_imx7ulp_lpuart(sport) ||
+		    is_imx8ulp_lpuart(sport) ||
+		    is_imx8qxp_lpuart(sport))
+			ctrl |= UARTCTRL_M7;
+		else
+			termios->c_cflag |= PARENB;
+	}
 
 	if ((termios->c_cflag & PARENB)) {
 		if (termios->c_cflag & CMSPAR) {
@@ -2923,6 +2939,7 @@ static int lpuart_probe(struct platform_device *pdev)
 	pm_runtime_set_autosuspend_delay(&pdev->dev, UART_AUTOSUSPEND_TIMEOUT);
 	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
+	pm_runtime_mark_last_busy(&pdev->dev);
 
 	ret = lpuart_global_reset(sport);
 	if (ret)
@@ -3205,7 +3222,7 @@ static const struct dev_pm_ops lpuart_pm_ops = {
 
 static struct platform_driver lpuart_driver = {
 	.probe		= lpuart_probe,
-	.remove_new	= lpuart_remove,
+	.remove		= lpuart_remove,
 	.driver		= {
 		.name	= "fsl-lpuart",
 		.of_match_table = lpuart_dt_ids,

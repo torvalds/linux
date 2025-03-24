@@ -27,9 +27,9 @@ pid_list=$(echo ${pids[@]} | tr ' ' ',')
 load_lp $MOD_SYSCALL klp_pids=$pid_list
 
 # wait for all tasks to transition to patched state
-loop_until 'grep -q '^0$' /sys/kernel/test_klp_syscall/npids'
+loop_until 'grep -q '^0$' $SYSFS_KERNEL_DIR/$MOD_SYSCALL/npids'
 
-pending_pids=$(cat /sys/kernel/test_klp_syscall/npids)
+pending_pids=$(cat $SYSFS_KERNEL_DIR/$MOD_SYSCALL/npids)
 log "$MOD_SYSCALL: Remaining not livepatched processes: $pending_pids"
 
 for pid in ${pids[@]}; do
@@ -46,7 +46,7 @@ livepatch: '$MOD_SYSCALL': starting patching transition
 livepatch: '$MOD_SYSCALL': completing patching transition
 livepatch: '$MOD_SYSCALL': patching complete
 $MOD_SYSCALL: Remaining not livepatched processes: 0
-% echo 0 > /sys/kernel/livepatch/$MOD_SYSCALL/enabled
+% echo 0 > $SYSFS_KLP_DIR/$MOD_SYSCALL/enabled
 livepatch: '$MOD_SYSCALL': initializing unpatching transition
 livepatch: '$MOD_SYSCALL': starting unpatching transition
 livepatch: '$MOD_SYSCALL': completing unpatching transition

@@ -819,10 +819,10 @@ static void mxs_lradc_adc_remove(struct platform_device *pdev)
 
 static struct platform_driver mxs_lradc_adc_driver = {
 	.driver = {
-		.name	= "mxs-lradc-adc",
+		.name = "mxs-lradc-adc",
 	},
-	.probe	= mxs_lradc_adc_probe,
-	.remove_new = mxs_lradc_adc_remove,
+	.probe = mxs_lradc_adc_probe,
+	.remove = mxs_lradc_adc_remove,
 };
 module_platform_driver(mxs_lradc_adc_driver);
 

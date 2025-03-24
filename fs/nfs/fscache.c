@@ -263,15 +263,25 @@ int nfs_netfs_readahead(struct readahead_control *ractl)
 static atomic_t nfs_netfs_debug_id;
 static int nfs_netfs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
+	if (!file) {
+		if (WARN_ON_ONCE(rreq->origin != NETFS_PGPRIV2_COPY_TO_CACHE))
+			return -EIO;
+		return 0;
+	}
+
 	rreq->netfs_priv = get_nfs_open_context(nfs_file_open_context(file));
 	rreq->debug_id = atomic_inc_return(&nfs_netfs_debug_id);
+	/* [DEPRECATED] Use PG_private_2 to mark folio being written to the cache. */
+	__set_bit(NETFS_RREQ_USE_PGPRIV2, &rreq->flags);
+	rreq->io_streams[0].sreq_max_len = NFS_SB(rreq->inode->i_sb)->rsize;
 
 	return 0;
 }
 
 static void nfs_netfs_free_request(struct netfs_io_request *rreq)
 {
-	put_nfs_open_context(rreq->netfs_priv);
+	if (rreq->netfs_priv)
+		put_nfs_open_context(rreq->netfs_priv);
 }
 
 static struct nfs_netfs_io_data *nfs_netfs_alloc(struct netfs_io_subrequest *sreq)
@@ -286,14 +296,6 @@ static struct nfs_netfs_io_data *nfs_netfs_alloc(struct netfs_io_subrequest *sre
 	return netfs;
 }
 
-static bool nfs_netfs_clamp_length(struct netfs_io_subrequest *sreq)
-{
-	size_t	rsize = NFS_SB(sreq->rreq->inode->i_sb)->rsize;
-
-	sreq->len = min(sreq->len, rsize);
-	return true;
-}
-
 static void nfs_netfs_issue_read(struct netfs_io_subrequest *sreq)
 {
 	struct nfs_netfs_io_data	*netfs;
@@ -302,17 +304,20 @@ static void nfs_netfs_issue_read(struct netfs_io_subrequest *sreq)
 	struct nfs_open_context *ctx = sreq->rreq->netfs_priv;
 	struct page *page;
 	unsigned long idx;
+	pgoff_t start, last;
 	int err;
-	pgoff_t start = (sreq->start + sreq->transferred) >> PAGE_SHIFT;
-	pgoff_t last = ((sreq->start + sreq->len -
-			 sreq->transferred - 1) >> PAGE_SHIFT);
+
+	start = (sreq->start + sreq->transferred) >> PAGE_SHIFT;
+	last = ((sreq->start + sreq->len - sreq->transferred - 1) >> PAGE_SHIFT);
 
 	nfs_pageio_init_read(&pgio, inode, false,
 			     &nfs_async_read_completion_ops);
 
 	netfs = nfs_netfs_alloc(sreq);
-	if (!netfs)
-		return netfs_subreq_terminated(sreq, -ENOMEM, false);
+	if (!netfs) {
+		sreq->error = -ENOMEM;
+		return netfs_read_subreq_terminated(sreq);
+	}
 
 	pgio.pg_netfs = netfs; /* used in completion */
 
@@ -361,7 +366,8 @@ void nfs_netfs_read_completion(struct nfs_pgio_header *hdr)
 		return;
 
 	sreq = netfs->sreq;
-	if (test_bit(NFS_IOHDR_EOF, &hdr->flags))
+	if (test_bit(NFS_IOHDR_EOF, &hdr->flags) &&
+	    sreq->rreq->origin != NETFS_DIO_READ)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &sreq->flags);
 
 	if (hdr->error)
@@ -377,5 +383,4 @@ const struct netfs_request_ops nfs_netfs_ops = {
 	.init_request		= nfs_netfs_init_request,
 	.free_request		= nfs_netfs_free_request,
 	.issue_read		= nfs_netfs_issue_read,
-	.clamp_length		= nfs_netfs_clamp_length
 };

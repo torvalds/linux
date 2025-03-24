@@ -21,7 +21,7 @@
 #define SYN_QUE_EXT_MIN_COORDS		0x0f
 #define SYN_QUE_MEXT_CAPAB_10		0x10
 
-/* synatics modes */
+/* synaptics modes */
 #define SYN_BIT_ABSOLUTE_MODE		BIT(7)
 #define SYN_BIT_HIGH_RATE		BIT(6)
 #define SYN_BIT_SLEEP_MODE		BIT(3)
@@ -188,6 +188,7 @@ struct synaptics_data {
 	bool disable_gesture;			/* disable gestures */
 
 	struct serio *pt_port;			/* Pass-through serio port */
+	bool pt_port_open;
 
 	/*
 	 * Last received Advanced Gesture Mode (AGM) packet. An AGM packet

@@ -255,8 +255,8 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_apply);
 /**
  * atmel_hsmc_cs_conf_apply - apply an SMC CS conf
  * @regmap: the HSMC regmap
- * @cs: the CS id
  * @layout: the layout of registers
+ * @cs: the CS id
  * @conf: the SMC CS conf to apply
  *
  * Applies an SMC CS configuration.
@@ -296,8 +296,8 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_get);
 /**
  * atmel_hsmc_cs_conf_get - retrieve the current SMC CS conf
  * @regmap: the HSMC regmap
- * @cs: the CS id
  * @layout: the layout of registers
+ * @cs: the CS id
  * @conf: the SMC CS conf object to store the current conf
  *
  * Retrieve the SMC CS configuration.

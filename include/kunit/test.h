@@ -28,6 +28,7 @@
 #include <linux/types.h>
 
 #include <asm/rwonce.h>
+#include <asm/sections.h>
 
 /* Static key: true if any KUnit tests are currently running */
 DECLARE_STATIC_KEY_FALSE(kunit_running);
@@ -311,6 +312,7 @@ static inline void kunit_set_failure(struct kunit *test)
 }
 
 bool kunit_enabled(void);
+bool kunit_autorun(void);
 const char *kunit_action(void);
 const char *kunit_filter_glob(void);
 char *kunit_filter(void);
@@ -333,7 +335,8 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 		    int *err);
 void kunit_free_suite_set(struct kunit_suite_set suite_set);
 
-int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites);
+int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites,
+			     bool run_tests);
 
 void __kunit_test_suites_exit(struct kunit_suite **suites, int num_suites);
 
@@ -479,6 +482,54 @@ static inline void *kunit_kcalloc(struct kunit *test, size_t n, size_t size, gfp
 {
 	return kunit_kmalloc_array(test, n, size, gfp | __GFP_ZERO);
 }
+
+
+/**
+ * kunit_kfree_const() - conditionally free test managed memory
+ * @test: The test context object.
+ * @x: pointer to the memory
+ *
+ * Calls kunit_kfree() only if @x is not in .rodata section.
+ * See kunit_kstrdup_const() for more information.
+ */
+void kunit_kfree_const(struct kunit *test, const void *x);
+
+/**
+ * kunit_kstrdup() - Duplicates a string into a test managed allocation.
+ *
+ * @test: The test context object.
+ * @str: The NULL-terminated string to duplicate.
+ * @gfp: flags passed to underlying kmalloc().
+ *
+ * See kstrdup() and kunit_kmalloc_array() for more information.
+ */
+static inline char *kunit_kstrdup(struct kunit *test, const char *str, gfp_t gfp)
+{
+	size_t len;
+	char *buf;
+
+	if (!str)
+		return NULL;
+
+	len = strlen(str) + 1;
+	buf = kunit_kmalloc(test, len, gfp);
+	if (buf)
+		memcpy(buf, str, len);
+	return buf;
+}
+
+/**
+ * kunit_kstrdup_const() - Conditionally duplicates a string into a test managed allocation.
+ *
+ * @test: The test context object.
+ * @str: The NULL-terminated string to duplicate.
+ * @gfp: flags passed to underlying kmalloc().
+ *
+ * Calls kunit_kstrdup() only if @str is not in the rodata section. Must be freed with
+ * kunit_kfree_const() -- not kunit_kfree().
+ * See kstrdup_const() and kunit_kmalloc_array() for more information.
+ */
+const char *kunit_kstrdup_const(struct kunit *test, const char *str, gfp_t gfp);
 
 /**
  * kunit_vm_mmap() - Allocate KUnit-tracked vm_mmap() area

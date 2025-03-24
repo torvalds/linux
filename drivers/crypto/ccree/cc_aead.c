@@ -2226,7 +2226,7 @@ static int cc_rfc4543_gcm_encrypt(struct aead_request *req)
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
-	//plaintext is not encryped with rfc4543
+	//plaintext is not encrypted with rfc4543
 	areq_ctx->plaintext_authenticate_only = true;
 
 	/* No generated IV required */
@@ -2277,7 +2277,7 @@ static int cc_rfc4543_gcm_decrypt(struct aead_request *req)
 
 	memset(areq_ctx, 0, sizeof(*areq_ctx));
 
-	//plaintext is not decryped with rfc4543
+	//plaintext is not decrypted with rfc4543
 	areq_ctx->plaintext_authenticate_only = true;
 
 	/* No generated IV required */

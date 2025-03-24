@@ -258,11 +258,11 @@ ndo_get_stats:
 ndo_start_xmit:
 	Synchronization: __netif_tx_lock spinlock.
 
-	When the driver sets NETIF_F_LLTX in dev->features this will be
+	When the driver sets dev->lltx this will be
 	called without holding netif_tx_lock. In this case the driver
 	has to lock by itself when needed.
 	The locking there should also properly protect against
-	set_rx_mode. WARNING: use of NETIF_F_LLTX is deprecated.
+	set_rx_mode. WARNING: use of dev->lltx is deprecated.
 	Don't use it for new drivers.
 
 	Context: Process with BHs disabled or BH (timer),
@@ -297,3 +297,13 @@ napi->poll:
 	Context:
 		 softirq
 		 will be called with interrupts disabled by netconsole.
+
+NETDEV_INTERNAL symbol namespace
+================================
+
+Symbols exported as NETDEV_INTERNAL can only be used in networking
+core and drivers which exclusively flow via the main networking list and trees.
+Note that the inverse is not true, most symbols outside of NETDEV_INTERNAL
+are not expected to be used by random code outside netdev either.
+Symbols may lack the designation because they predate the namespaces,
+or simply due to an oversight.

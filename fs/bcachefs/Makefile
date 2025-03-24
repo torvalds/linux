@@ -69,6 +69,7 @@ bcachefs-y		:=	\
 	printbuf.o		\
 	quota.o			\
 	rebalance.o		\
+	rcu_pending.o		\
 	recovery.o		\
 	recovery_passes.o	\
 	reflink.o		\
@@ -81,6 +82,7 @@ bcachefs-y		:=	\
 	siphash.o		\
 	six.o			\
 	snapshot.o		\
+	str_hash.o		\
 	subvolume.o		\
 	super.o			\
 	super-io.o		\

@@ -245,8 +245,8 @@ static void rt5120_fillin_regulator_desc(struct regulator_desc *desc, int rid)
 		desc->n_voltages = RT5120_BUCK1_NUM_VOLT;
 		desc->min_uV = RT5120_BUCK1_MINUV;
 		desc->uV_step = RT5120_BUCK1_STEPUV;
-		desc->vsel_reg = RT5120_REG_CH1VID,
-		desc->vsel_mask = RT5120_CH1VID_MASK,
+		desc->vsel_reg = RT5120_REG_CH1VID;
+		desc->vsel_mask = RT5120_CH1VID_MASK;
 		desc->ops = &rt5120_buck1_ops;
 		break;
 	case RT5120_REGULATOR_BUCK2 ... RT5120_REGULATOR_BUCK4:

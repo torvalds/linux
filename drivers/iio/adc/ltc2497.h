@@ -23,4 +23,4 @@ struct ltc2497core_driverdata {
 int ltc2497core_probe(struct device *dev, struct iio_dev *indio_dev);
 void ltc2497core_remove(struct iio_dev *indio_dev);
 
-MODULE_IMPORT_NS(LTC2497);
+MODULE_IMPORT_NS("LTC2497");

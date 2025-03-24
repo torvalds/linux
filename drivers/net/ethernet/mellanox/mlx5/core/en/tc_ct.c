@@ -866,7 +866,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	return 0;
 
 err_rule:
-	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, zone_rule->attr, zone_rule->mh);
+	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, attr, zone_rule->mh);
 	mlx5_put_label_mapping(ct_priv, attr->ct_attr.ct_labels_id);
 err_mod_hdr:
 	kfree(attr);
@@ -876,15 +876,14 @@ err_attr:
 }
 
 static int
-mlx5_tc_ct_entry_replace_rule(struct mlx5_tc_ct_priv *ct_priv,
-			      struct flow_rule *flow_rule,
-			      struct mlx5_ct_entry *entry,
-			      bool nat, u8 zone_restore_id)
+mlx5_tc_ct_entry_update_rule(struct mlx5_tc_ct_priv *ct_priv,
+			     struct flow_rule *flow_rule,
+			     struct mlx5_ct_entry *entry,
+			     bool nat, u8 zone_restore_id)
 {
 	struct mlx5_ct_zone_rule *zone_rule = &entry->zone_rules[nat];
 	struct mlx5_flow_attr *attr = zone_rule->attr, *old_attr;
 	struct mlx5e_mod_hdr_handle *mh;
-	struct mlx5_ct_fs_rule *rule;
 	struct mlx5_flow_spec *spec;
 	int err;
 
@@ -902,29 +901,26 @@ mlx5_tc_ct_entry_replace_rule(struct mlx5_tc_ct_priv *ct_priv,
 	err = mlx5_tc_ct_entry_create_mod_hdr(ct_priv, attr, flow_rule, &mh, zone_restore_id,
 					      nat, mlx5_tc_ct_entry_in_ct_nat_table(entry));
 	if (err) {
-		ct_dbg("Failed to create ct entry mod hdr");
+		ct_dbg("Failed to create ct entry mod hdr, err: %d", err);
 		goto err_mod_hdr;
 	}
 
 	mlx5_tc_ct_set_tuple_match(ct_priv, spec, flow_rule);
 	mlx5e_tc_match_to_reg_match(spec, ZONE_TO_REG, entry->tuple.zone, MLX5_CT_ZONE_MASK);
 
-	rule = ct_priv->fs_ops->ct_rule_add(ct_priv->fs, spec, attr, flow_rule);
-	if (IS_ERR(rule)) {
-		err = PTR_ERR(rule);
-		ct_dbg("Failed to add replacement ct entry rule, nat: %d", nat);
+	err = ct_priv->fs_ops->ct_rule_update(ct_priv->fs, zone_rule->rule, spec, attr);
+	if (err) {
+		ct_dbg("Failed to update ct entry rule, nat: %d, err: %d", nat, err);
 		goto err_rule;
 	}
 
-	ct_priv->fs_ops->ct_rule_del(ct_priv->fs, zone_rule->rule);
-	zone_rule->rule = rule;
 	mlx5_tc_ct_entry_destroy_mod_hdr(ct_priv, old_attr, zone_rule->mh);
 	zone_rule->mh = mh;
 	mlx5_put_label_mapping(ct_priv, old_attr->ct_attr.ct_labels_id);
 
 	kfree(old_attr);
 	kvfree(spec);
-	ct_dbg("Replaced ct entry rule in zone %d", entry->tuple.zone);
+	ct_dbg("Updated ct entry rule in zone %d", entry->tuple.zone);
 
 	return 0;
 
@@ -1030,7 +1026,7 @@ mlx5_tc_ct_counter_create(struct mlx5_tc_ct_priv *ct_priv)
 		return ERR_PTR(-ENOMEM);
 
 	counter->is_shared = false;
-	counter->counter = mlx5_fc_create_ex(ct_priv->dev, true);
+	counter->counter = mlx5_fc_create(ct_priv->dev, true);
 	if (IS_ERR(counter->counter)) {
 		ct_dbg("Failed to create counter for ct entry");
 		ret = PTR_ERR(counter->counter);
@@ -1141,23 +1137,23 @@ err_orig:
 }
 
 static int
-mlx5_tc_ct_entry_replace_rules(struct mlx5_tc_ct_priv *ct_priv,
-			       struct flow_rule *flow_rule,
-			       struct mlx5_ct_entry *entry,
-			       u8 zone_restore_id)
+mlx5_tc_ct_entry_update_rules(struct mlx5_tc_ct_priv *ct_priv,
+			      struct flow_rule *flow_rule,
+			      struct mlx5_ct_entry *entry,
+			      u8 zone_restore_id)
 {
 	int err = 0;
 
 	if (mlx5_tc_ct_entry_in_ct_table(entry)) {
-		err = mlx5_tc_ct_entry_replace_rule(ct_priv, flow_rule, entry, false,
-						    zone_restore_id);
+		err = mlx5_tc_ct_entry_update_rule(ct_priv, flow_rule, entry, false,
+						   zone_restore_id);
 		if (err)
 			return err;
 	}
 
 	if (mlx5_tc_ct_entry_in_ct_nat_table(entry)) {
-		err = mlx5_tc_ct_entry_replace_rule(ct_priv, flow_rule, entry, true,
-						    zone_restore_id);
+		err = mlx5_tc_ct_entry_update_rule(ct_priv, flow_rule, entry, true,
+						   zone_restore_id);
 		if (err && mlx5_tc_ct_entry_in_ct_table(entry))
 			mlx5_tc_ct_entry_del_rule(ct_priv, entry, false);
 	}
@@ -1165,13 +1161,13 @@ mlx5_tc_ct_entry_replace_rules(struct mlx5_tc_ct_priv *ct_priv,
 }
 
 static int
-mlx5_tc_ct_block_flow_offload_replace(struct mlx5_ct_ft *ft, struct flow_rule *flow_rule,
-				      struct mlx5_ct_entry *entry, unsigned long cookie)
+mlx5_tc_ct_block_flow_offload_update(struct mlx5_ct_ft *ft, struct flow_rule *flow_rule,
+				     struct mlx5_ct_entry *entry, unsigned long cookie)
 {
 	struct mlx5_tc_ct_priv *ct_priv = ft->ct_priv;
 	int err;
 
-	err = mlx5_tc_ct_entry_replace_rules(ct_priv, flow_rule, entry, ft->zone_restore_id);
+	err = mlx5_tc_ct_entry_update_rules(ct_priv, flow_rule, entry, ft->zone_restore_id);
 	if (!err)
 		return 0;
 
@@ -1216,7 +1212,7 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 		entry->restore_cookie = meta_action->ct_metadata.cookie;
 		spin_unlock_bh(&ct_priv->ht_lock);
 
-		err = mlx5_tc_ct_block_flow_offload_replace(ft, flow_rule, entry, cookie);
+		err = mlx5_tc_ct_block_flow_offload_update(ft, flow_rule, entry, cookie);
 		mlx5_tc_ct_entry_put(entry);
 		return err;
 	}
@@ -2069,10 +2065,19 @@ mlx5_tc_ct_fs_init(struct mlx5_tc_ct_priv *ct_priv)
 	struct mlx5_ct_fs_ops *fs_ops = mlx5_ct_fs_dmfs_ops_get();
 	int err;
 
-	if (ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB &&
-	    ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS) {
-		ct_dbg("Using SMFS ct flow steering provider");
-		fs_ops = mlx5_ct_fs_smfs_ops_get();
+	if (ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB) {
+		if (ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_HMFS) {
+			ct_dbg("Using HMFS ct flow steering provider");
+			fs_ops = mlx5_ct_fs_hmfs_ops_get();
+		} else if (ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS) {
+			ct_dbg("Using SMFS ct flow steering provider");
+			fs_ops = mlx5_ct_fs_smfs_ops_get();
+		}
+
+		if (!fs_ops) {
+			ct_dbg("Requested flow steering mode is not enabled.");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	ct_priv->fs = kzalloc(sizeof(*ct_priv->fs) + fs_ops->priv_size, GFP_KERNEL);
@@ -2424,4 +2429,75 @@ mlx5e_tc_ct_restore_flow(struct mlx5_tc_ct_priv *ct_priv,
 out_inc_drop:
 	atomic_inc(&ct_priv->debugfs.stats.rx_dropped);
 	return false;
+}
+
+static bool mlx5e_tc_ct_valid_used_dissector_keys(const u64 used_keys)
+{
+#define DISS_BIT(name) BIT_ULL(FLOW_DISSECTOR_KEY_ ## name)
+	const u64 basic_keys = DISS_BIT(BASIC) | DISS_BIT(CONTROL) |
+				DISS_BIT(META);
+	const u64 ipv4_tcp = basic_keys | DISS_BIT(IPV4_ADDRS) |
+				DISS_BIT(PORTS) | DISS_BIT(TCP);
+	const u64 ipv6_tcp = basic_keys | DISS_BIT(IPV6_ADDRS) |
+				DISS_BIT(PORTS) | DISS_BIT(TCP);
+	const u64 ipv4_udp = basic_keys | DISS_BIT(IPV4_ADDRS) |
+				DISS_BIT(PORTS);
+	const u64 ipv6_udp = basic_keys | DISS_BIT(IPV6_ADDRS) |
+				 DISS_BIT(PORTS);
+	const u64 ipv4_gre = basic_keys | DISS_BIT(IPV4_ADDRS);
+	const u64 ipv6_gre = basic_keys | DISS_BIT(IPV6_ADDRS);
+
+	return (used_keys == ipv4_tcp || used_keys == ipv4_udp || used_keys == ipv6_tcp ||
+		used_keys == ipv6_udp || used_keys == ipv4_gre || used_keys == ipv6_gre);
+}
+
+bool mlx5e_tc_ct_is_valid_flow_rule(const struct net_device *dev, struct flow_rule *flow_rule)
+{
+	struct flow_match_ipv4_addrs ipv4_addrs;
+	struct flow_match_ipv6_addrs ipv6_addrs;
+	struct flow_match_control control;
+	struct flow_match_basic basic;
+	struct flow_match_ports ports;
+	struct flow_match_tcp tcp;
+
+	if (!mlx5e_tc_ct_valid_used_dissector_keys(flow_rule->match.dissector->used_keys)) {
+		netdev_dbg(dev, "ct_debug: rule uses unexpected dissectors (0x%016llx)",
+			   flow_rule->match.dissector->used_keys);
+		return false;
+	}
+
+	flow_rule_match_basic(flow_rule, &basic);
+	flow_rule_match_control(flow_rule, &control);
+	flow_rule_match_ipv4_addrs(flow_rule, &ipv4_addrs);
+	flow_rule_match_ipv6_addrs(flow_rule, &ipv6_addrs);
+	if (basic.key->ip_proto != IPPROTO_GRE)
+		flow_rule_match_ports(flow_rule, &ports);
+	if (basic.key->ip_proto == IPPROTO_TCP)
+		flow_rule_match_tcp(flow_rule, &tcp);
+
+	if (basic.mask->n_proto != htons(0xFFFF) ||
+	    (basic.key->n_proto != htons(ETH_P_IP) && basic.key->n_proto != htons(ETH_P_IPV6)) ||
+	    basic.mask->ip_proto != 0xFF ||
+	    (basic.key->ip_proto != IPPROTO_UDP && basic.key->ip_proto != IPPROTO_TCP &&
+	     basic.key->ip_proto != IPPROTO_GRE)) {
+		netdev_dbg(dev, "ct_debug: rule uses unexpected basic match (n_proto 0x%04x/0x%04x, ip_proto 0x%02x/0x%02x)",
+			   ntohs(basic.key->n_proto), ntohs(basic.mask->n_proto),
+			   basic.key->ip_proto, basic.mask->ip_proto);
+		return false;
+	}
+
+	if (basic.key->ip_proto != IPPROTO_GRE &&
+	    (ports.mask->src != htons(0xFFFF) || ports.mask->dst != htons(0xFFFF))) {
+		netdev_dbg(dev, "ct_debug: rule uses ports match (src 0x%04x, dst 0x%04x)",
+			   ports.mask->src, ports.mask->dst);
+		return false;
+	}
+
+	if (basic.key->ip_proto == IPPROTO_TCP && tcp.mask->flags != MLX5_CT_TCP_FLAGS_MASK) {
+		netdev_dbg(dev, "ct_debug: rule uses unexpected tcp match (flags 0x%02x)",
+			   tcp.mask->flags);
+		return false;
+	}
+
+	return true;
 }

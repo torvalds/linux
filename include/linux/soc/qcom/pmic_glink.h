@@ -23,10 +23,11 @@ struct pmic_glink_hdr {
 
 int pmic_glink_send(struct pmic_glink_client *client, void *data, size_t len);
 
-struct pmic_glink_client *devm_pmic_glink_register_client(struct device *dev,
-							  unsigned int id,
-							  void (*cb)(const void *, size_t, void *),
-							  void (*pdr)(void *, int),
-							  void *priv);
+struct pmic_glink_client *devm_pmic_glink_client_alloc(struct device *dev,
+						       unsigned int id,
+						       void (*cb)(const void *, size_t, void *),
+						       void (*pdr)(void *, int),
+						       void *priv);
+void pmic_glink_client_register(struct pmic_glink_client *client);
 
 #endif

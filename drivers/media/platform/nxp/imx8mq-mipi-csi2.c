@@ -693,7 +693,7 @@ unlock:
 	return ret ? -EAGAIN : 0;
 }
 
-static int __maybe_unused imx8mq_mipi_csi_suspend(struct device *dev)
+static int imx8mq_mipi_csi_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
@@ -705,7 +705,7 @@ static int __maybe_unused imx8mq_mipi_csi_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused imx8mq_mipi_csi_resume(struct device *dev)
+static int imx8mq_mipi_csi_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
@@ -716,7 +716,7 @@ static int __maybe_unused imx8mq_mipi_csi_resume(struct device *dev)
 	return imx8mq_mipi_csi_pm_resume(dev);
 }
 
-static int __maybe_unused imx8mq_mipi_csi_runtime_suspend(struct device *dev)
+static int imx8mq_mipi_csi_runtime_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
@@ -731,7 +731,7 @@ static int __maybe_unused imx8mq_mipi_csi_runtime_suspend(struct device *dev)
 	return ret;
 }
 
-static int __maybe_unused imx8mq_mipi_csi_runtime_resume(struct device *dev)
+static int imx8mq_mipi_csi_runtime_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
@@ -747,10 +747,9 @@ static int __maybe_unused imx8mq_mipi_csi_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops imx8mq_mipi_csi_pm_ops = {
-	SET_RUNTIME_PM_OPS(imx8mq_mipi_csi_runtime_suspend,
-			   imx8mq_mipi_csi_runtime_resume,
-			   NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(imx8mq_mipi_csi_suspend, imx8mq_mipi_csi_resume)
+	RUNTIME_PM_OPS(imx8mq_mipi_csi_runtime_suspend,
+		       imx8mq_mipi_csi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(imx8mq_mipi_csi_suspend, imx8mq_mipi_csi_resume)
 };
 
 /* -----------------------------------------------------------------------------
@@ -954,11 +953,11 @@ MODULE_DEVICE_TABLE(of, imx8mq_mipi_csi_of_match);
 
 static struct platform_driver imx8mq_mipi_csi_driver = {
 	.probe		= imx8mq_mipi_csi_probe,
-	.remove_new	= imx8mq_mipi_csi_remove,
+	.remove		= imx8mq_mipi_csi_remove,
 	.driver		= {
 		.of_match_table = imx8mq_mipi_csi_of_match,
 		.name		= MIPI_CSI2_DRIVER_NAME,
-		.pm		= &imx8mq_mipi_csi_pm_ops,
+		.pm		= pm_ptr(&imx8mq_mipi_csi_pm_ops),
 	},
 };
 

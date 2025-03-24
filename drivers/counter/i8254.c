@@ -15,7 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/regmap.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define I8254_COUNTER_REG(_counter) (_counter)
 #define I8254_CONTROL_REG 0x3
@@ -439,9 +439,9 @@ int devm_i8254_regmap_register(struct device *const dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(devm_i8254_regmap_register, I8254);
+EXPORT_SYMBOL_NS_GPL(devm_i8254_regmap_register, "I8254");
 
 MODULE_AUTHOR("William Breathitt Gray");
 MODULE_DESCRIPTION("Intel 8254 Programmable Interval Timer");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(COUNTER);
+MODULE_IMPORT_NS("COUNTER");

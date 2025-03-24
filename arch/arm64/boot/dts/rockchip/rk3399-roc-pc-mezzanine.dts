@@ -16,7 +16,7 @@
 	};
 
 	/* MP8009 PoE PD */
-	poe_12v: poe-12v {
+	poe_12v: regulator-poe-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "poe_12v";
 		regulator-always-on;
@@ -25,7 +25,7 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
-	vcc3v3_ngff: vcc3v3-ngff {
+	vcc3v3_ngff: regulator-vcc3v3-ngff {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_ngff";
 		enable-active-high;
@@ -39,7 +39,7 @@
 		vin-supply = <&sys_12v>;
 	};
 
-	vcc3v3_pcie: vcc3v3-pcie {
+	vcc3v3_pcie: regulator-vcc3v3-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie";
 		enable-active-high;

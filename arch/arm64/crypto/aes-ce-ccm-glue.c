@@ -9,7 +9,7 @@
  */
 
 #include <asm/neon.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/aes.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/internal/aead.h>
@@ -18,7 +18,7 @@
 
 #include "aes-ce-setkey.h"
 
-MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+MODULE_IMPORT_NS("CRYPTO_INTERNAL");
 
 static int num_rounds(struct crypto_aes_ctx *ctx)
 {

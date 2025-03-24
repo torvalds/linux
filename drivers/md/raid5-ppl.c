@@ -258,7 +258,7 @@ static struct ppl_io_unit *ppl_new_iounit(struct ppl_log *log,
 	memset(pplhdr->reserved, 0xff, PPL_HDR_RESERVED);
 	pplhdr->signature = cpu_to_le32(ppl_conf->signature);
 
-	io->seq = atomic64_add_return(1, &ppl_conf->seq);
+	io->seq = atomic64_inc_return(&ppl_conf->seq);
 	pplhdr->generation = cpu_to_le64(io->seq);
 
 	return io;

@@ -222,6 +222,14 @@ static void dpu_hw_cdm_bind_pingpong_blk(struct dpu_hw_cdm *ctx, const enum dpu_
 	DPU_REG_WRITE(c, CDM_MUX, mux_cfg);
 }
 
+/**
+ * dpu_hw_cdm_init - initializes the cdm hw driver object.
+ * should be called once before accessing every cdm.
+ * @dev: DRM device handle
+ * @cfg: CDM catalog entry for which driver object is required
+ * @addr :   mapped register io address of MDSS
+ * @mdss_rev: mdss hw core revision
+ */
 struct dpu_hw_cdm *dpu_hw_cdm_init(struct drm_device *dev,
 				   const struct dpu_cdm_cfg *cfg, void __iomem *addr,
 				   const struct dpu_mdss_version *mdss_rev)

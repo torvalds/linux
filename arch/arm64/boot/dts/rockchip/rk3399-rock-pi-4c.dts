@@ -6,8 +6,8 @@
  */
 
 /dts-v1/;
+#include "rk3399.dtsi"
 #include "rk3399-rock-pi-4.dtsi"
-#include "rk3399-opp.dtsi"
 
 / {
 	model = "Radxa ROCK Pi 4C";
@@ -40,7 +40,7 @@
 };
 
 &sound {
-	hp-det-gpio = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
+	hp-det-gpios = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
 };
 
 &spi1 {

@@ -240,7 +240,7 @@ static struct platform_driver rzg2l_thermal_driver = {
 		.of_match_table = rzg2l_thermal_dt_ids,
 	},
 	.probe = rzg2l_thermal_probe,
-	.remove_new = rzg2l_thermal_remove,
+	.remove = rzg2l_thermal_remove,
 };
 module_platform_driver(rzg2l_thermal_driver);
 

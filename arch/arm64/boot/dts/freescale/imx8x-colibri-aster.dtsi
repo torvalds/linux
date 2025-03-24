@@ -3,7 +3,21 @@
  * Copyright 2018-2021 Toradex
  */
 
+/* Colibri Analogue Inputs */
+&adc0 {
+	status = "okay";
+};
+
+/* Colibri PWM_A */
+&adma_pwm {
+	status = "okay";
+};
+
 &colibri_gpio_keys {
+	status = "okay";
+};
+
+&extcon_usbc_det {
 	status = "okay";
 };
 
@@ -35,6 +49,28 @@
 
 /* Colibri UART_A */
 &lpuart3 {
+	status = "okay";
+};
+
+/* USB PHY for usbotg3 */
+&usb3_phy {
+	status = "okay";
+};
+
+&usbotg1 {
+	status = "okay";
+};
+
+&usbotg3 {
+	status = "okay";
+};
+
+&usbotg3_cdns3 {
+	status = "okay";
+};
+
+/* USB PHY for usbotg1 */
+&usbphy1 {
 	status = "okay";
 };
 

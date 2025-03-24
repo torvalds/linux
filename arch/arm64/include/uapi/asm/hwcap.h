@@ -21,7 +21,7 @@
  * HWCAP flags - for AT_HWCAP
  *
  * Bits 62 and 63 are reserved for use by libc.
- * Bits 32-61 are unallocated for potential use by libc.
+ * Bits 33-61 are unallocated for potential use by libc.
  */
 #define HWCAP_FP		(1 << 0)
 #define HWCAP_ASIMD		(1 << 1)
@@ -55,6 +55,22 @@
 #define HWCAP_SB		(1 << 29)
 #define HWCAP_PACA		(1 << 30)
 #define HWCAP_PACG		(1UL << 31)
+#define HWCAP_GCS		(1UL << 32)
+#define HWCAP_CMPBR		(1UL << 33)
+#define HWCAP_FPRCVT		(1UL << 34)
+#define HWCAP_F8MM8		(1UL << 35)
+#define HWCAP_F8MM4		(1UL << 36)
+#define HWCAP_SVE_F16MM		(1UL << 37)
+#define HWCAP_SVE_ELTPERM	(1UL << 38)
+#define HWCAP_SVE_AES2		(1UL << 39)
+#define HWCAP_SVE_BFSCALE	(1UL << 40)
+#define HWCAP_SVE2P2		(1UL << 41)
+#define HWCAP_SME2P2		(1UL << 42)
+#define HWCAP_SME_SBITPERM	(1UL << 43)
+#define HWCAP_SME_AES		(1UL << 44)
+#define HWCAP_SME_SFEXPA	(1UL << 45)
+#define HWCAP_SME_STMOP		(1UL << 46)
+#define HWCAP_SME_SMOP4		(1UL << 47)
 
 /*
  * HWCAP2 flags - for AT_HWCAP2
@@ -122,5 +138,10 @@
 #define HWCAP2_SME_SF8FMA	(1UL << 60)
 #define HWCAP2_SME_SF8DP4	(1UL << 61)
 #define HWCAP2_SME_SF8DP2	(1UL << 62)
+#define HWCAP2_POE		(1UL << 63)
+
+/*
+ * HWCAP3 flags - for AT_HWCAP3
+ */
 
 #endif /* _UAPI__ASM_HWCAP_H */

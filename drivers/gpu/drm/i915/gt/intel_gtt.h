@@ -608,8 +608,8 @@ int i915_ppgtt_init_hw(struct intel_gt *gt);
 struct i915_ppgtt *i915_ppgtt_create(struct intel_gt *gt,
 				     unsigned long lmem_pt_obj_flags);
 
-void i915_ggtt_suspend_vm(struct i915_address_space *vm);
-bool i915_ggtt_resume_vm(struct i915_address_space *vm);
+void i915_ggtt_suspend_vm(struct i915_address_space *vm, bool evict_all);
+bool i915_ggtt_resume_vm(struct i915_address_space *vm, bool all_evicted);
 void i915_ggtt_suspend(struct i915_ggtt *gtt);
 void i915_ggtt_resume(struct i915_ggtt *ggtt);
 

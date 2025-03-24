@@ -938,25 +938,6 @@ bfa_fcs_lport_get_rport_by_pwwn(struct bfa_fcs_lport_s *port, wwn_t pwwn)
 }
 
 /*
- *   NWWN based Lookup for a R-Port in the Port R-Port Queue
- */
-struct bfa_fcs_rport_s *
-bfa_fcs_lport_get_rport_by_nwwn(struct bfa_fcs_lport_s *port, wwn_t nwwn)
-{
-	struct bfa_fcs_rport_s *rport;
-	struct list_head	*qe;
-
-	list_for_each(qe, &port->rport_q) {
-		rport = (struct bfa_fcs_rport_s *) qe;
-		if (wwn_is_equal(rport->nwwn, nwwn))
-			return rport;
-	}
-
-	bfa_trc(port->fcs, nwwn);
-	return NULL;
-}
-
-/*
  * PWWN & PID based Lookup for a R-Port in the Port R-Port Queue
  */
 struct bfa_fcs_rport_s *
@@ -5645,54 +5626,6 @@ bfa_fcs_get_base_port(struct bfa_fcs_s *fcs)
 	return &fcs->fabric.bport;
 }
 
-wwn_t
-bfa_fcs_lport_get_rport(struct bfa_fcs_lport_s *port, wwn_t wwn, int index,
-		int nrports, bfa_boolean_t bwwn)
-{
-	struct list_head	*qh, *qe;
-	struct bfa_fcs_rport_s *rport = NULL;
-	int	i;
-	struct bfa_fcs_s	*fcs;
-
-	if (port == NULL || nrports == 0)
-		return (wwn_t) 0;
-
-	fcs = port->fcs;
-	bfa_trc(fcs, (u32) nrports);
-
-	i = 0;
-	qh = &port->rport_q;
-	qe = bfa_q_first(qh);
-
-	while ((qe != qh) && (i < nrports)) {
-		rport = (struct bfa_fcs_rport_s *) qe;
-		if (bfa_ntoh3b(rport->pid) > 0xFFF000) {
-			qe = bfa_q_next(qe);
-			bfa_trc(fcs, (u32) rport->pwwn);
-			bfa_trc(fcs, rport->pid);
-			bfa_trc(fcs, i);
-			continue;
-		}
-
-		if (bwwn) {
-			if (!memcmp(&wwn, &rport->pwwn, 8))
-				break;
-		} else {
-			if (i == index)
-				break;
-		}
-
-		i++;
-		qe = bfa_q_next(qe);
-	}
-
-	bfa_trc(fcs, i);
-	if (rport)
-		return rport->pwwn;
-	else
-		return (wwn_t) 0;
-}
-
 void
 bfa_fcs_lport_get_rport_quals(struct bfa_fcs_lport_s *port,
 		struct bfa_rport_qualifier_s rports[], int *nrports)
@@ -5821,54 +5754,6 @@ bfa_fcs_lookup_port(struct bfa_fcs_s *fcs, u16 vf_id, wwn_t lpwwn)
 		return &vport->lport;
 
 	return NULL;
-}
-
-/*
- *  API corresponding to NPIV_VPORT_GETINFO.
- */
-void
-bfa_fcs_lport_get_info(struct bfa_fcs_lport_s *port,
-	 struct bfa_lport_info_s *port_info)
-{
-
-	bfa_trc(port->fcs, port->fabric->fabric_name);
-
-	if (port->vport == NULL) {
-		/*
-		 * This is a Physical port
-		 */
-		port_info->port_type = BFA_LPORT_TYPE_PHYSICAL;
-
-		/*
-		 * @todo : need to fix the state & reason
-		 */
-		port_info->port_state = 0;
-		port_info->offline_reason = 0;
-
-		port_info->port_wwn = bfa_fcs_lport_get_pwwn(port);
-		port_info->node_wwn = bfa_fcs_lport_get_nwwn(port);
-
-		port_info->max_vports_supp =
-			bfa_lps_get_max_vport(port->fcs->bfa);
-		port_info->num_vports_inuse =
-			port->fabric->num_vports;
-		port_info->max_rports_supp = BFA_FCS_MAX_RPORTS_SUPP;
-		port_info->num_rports_inuse = port->num_rports;
-	} else {
-		/*
-		 * This is a virtual port
-		 */
-		port_info->port_type = BFA_LPORT_TYPE_VIRTUAL;
-
-		/*
-		 * @todo : need to fix the state & reason
-		 */
-		port_info->port_state = 0;
-		port_info->offline_reason = 0;
-
-		port_info->port_wwn = bfa_fcs_lport_get_pwwn(port);
-		port_info->node_wwn = bfa_fcs_lport_get_nwwn(port);
-	}
 }
 
 void
@@ -6568,15 +6453,6 @@ bfa_fcs_vport_offline(struct bfa_fcs_vport_s *vport)
 }
 
 /*
- * Cleanup notification from fabric SM on link timer expiry.
- */
-void
-bfa_fcs_vport_cleanup(struct bfa_fcs_vport_s *vport)
-{
-	vport->vport_stats.fab_cleanup++;
-}
-
-/*
  * Stop notification from fabric SM. To be invoked from within FCS.
  */
 void
@@ -6696,24 +6572,6 @@ bfa_fcs_pbc_vport_create(struct bfa_fcs_vport_s *vport, struct bfa_fcs_s *fcs,
 	vport->lport.port_cfg.preboot_vp = BFA_TRUE;
 
 	return rc;
-}
-
-/*
- *	Use this function to findout if this is a pbc vport or not.
- *
- * @param[in] vport - pointer to bfa_fcs_vport_t.
- *
- * @returns None
- */
-bfa_boolean_t
-bfa_fcs_is_pbc_vport(struct bfa_fcs_vport_s *vport)
-{
-
-	if (vport && (vport->lport.port_cfg.preboot_vp == BFA_TRUE))
-		return BFA_TRUE;
-	else
-		return BFA_FALSE;
-
 }
 
 /*

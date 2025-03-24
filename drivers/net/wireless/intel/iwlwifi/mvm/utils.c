@@ -261,7 +261,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq)
 		.data = { lq, },
 	};
 
-	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA ||
+	if (WARN_ON(lq->sta_id == IWL_INVALID_STA ||
 		    iwl_mvm_has_tlc_offload(mvm)))
 		return -EINVAL;
 
@@ -295,6 +295,10 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	/* SMPS is handled by firmware */
+	if (iwl_mvm_has_rlc_offload(mvm))
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -675,10 +679,8 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_bss_iface_iterator, &bss_iter_data);
 
-	if (bss_iter_data.error) {
-		IWL_ERR(mvm, "More than one managed interface active!\n");
+	if (bss_iter_data.error)
 		return ERR_PTR(-EINVAL);
-	}
 
 	return bss_iter_data.vif;
 }
@@ -743,58 +745,20 @@ bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm)
 }
 
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif,
-				    bool tdls, bool cmd_q)
+				    struct ieee80211_vif *vif)
 {
-	struct iwl_fw_dbg_trigger_tlv *trigger;
-	struct iwl_fw_dbg_trigger_txq_timer *txq_timer;
-	unsigned int default_timeout = cmd_q ?
-		IWL_DEF_WD_TIMEOUT :
+	unsigned int default_timeout =
 		mvm->trans->trans_cfg->base_params->wd_timeout;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS)) {
-		/*
-		 * We can't know when the station is asleep or awake, so we
-		 * must disable the queue hang detection.
-		 */
-		if (fw_has_capa(&mvm->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
-		    vif && vif->type == NL80211_IFTYPE_AP)
-			return IWL_WATCHDOG_DISABLED;
-		return default_timeout;
-	}
-
-	trigger = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS);
-	txq_timer = (void *)trigger->data;
-
-	if (tdls)
-		return le32_to_cpu(txq_timer->tdls);
-
-	if (cmd_q)
-		return le32_to_cpu(txq_timer->command_queue);
-
-	if (WARN_ON(!vif))
-		return default_timeout;
-
-	switch (ieee80211_vif_type_p2p(vif)) {
-	case NL80211_IFTYPE_ADHOC:
-		return le32_to_cpu(txq_timer->ibss);
-	case NL80211_IFTYPE_STATION:
-		return le32_to_cpu(txq_timer->bss);
-	case NL80211_IFTYPE_AP:
-		return le32_to_cpu(txq_timer->softap);
-	case NL80211_IFTYPE_P2P_CLIENT:
-		return le32_to_cpu(txq_timer->p2p_client);
-	case NL80211_IFTYPE_P2P_GO:
-		return le32_to_cpu(txq_timer->p2p_go);
-	case NL80211_IFTYPE_P2P_DEVICE:
-		return le32_to_cpu(txq_timer->p2p_device);
-	case NL80211_IFTYPE_MONITOR:
-		return default_timeout;
-	default:
-		WARN_ON(1);
-		return mvm->trans->trans_cfg->base_params->wd_timeout;
-	}
+	/*
+	 * We can't know when the station is asleep or awake, so we
+	 * must disable the queue hang detection.
+	 */
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
+	    vif->type == NL80211_IFTYPE_AP)
+		return IWL_WATCHDOG_DISABLED;
+	return default_timeout;
 }
 
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

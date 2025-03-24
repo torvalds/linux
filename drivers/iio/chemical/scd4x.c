@@ -11,7 +11,7 @@
  * https://www.sensirion.com/file/datasheet_scd4x
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/crc8.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -665,7 +665,7 @@ static irqreturn_t scd4x_trigger_handler(int irq, void *p)
 	struct scd4x_state *state = iio_priv(indio_dev);
 	struct {
 		uint16_t data[3];
-		int64_t ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 	int ret;
 

@@ -870,8 +870,8 @@ lpfc_debugfs_nodelist_data(struct lpfc_vport *vport, char *buf, int size)
 				wwn_to_u64(ndlp->nlp_nodename.u.wwn));
 		len += scnprintf(buf+len, size-len, "RPI:x%04x ",
 				 ndlp->nlp_rpi);
-		len +=  scnprintf(buf+len, size-len, "flag:x%08x ",
-			ndlp->nlp_flag);
+		len += scnprintf(buf+len, size-len, "flag:x%08lx ",
+				 ndlp->nlp_flag);
 		if (!ndlp->nlp_type)
 			len += scnprintf(buf+len, size-len, "UNKNOWN_TYPE ");
 		if (ndlp->nlp_type & NLP_FC_NODE)

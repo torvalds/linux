@@ -5,8 +5,8 @@
  */
 
 /dts-v1/;
+#include "rk3399-t.dtsi"
 #include "rk3399-rock-pi-4.dtsi"
-#include "rk3399-t-opp.dtsi"
 
 / {
 	model = "Radxa ROCK 4SE";
@@ -14,14 +14,6 @@
 
 	aliases {
 		mmc2 = &sdio0;
-	};
-};
-
-&pinctrl {
-	usb2 {
-		vcc5v0_host_en: vcc5v0-host-en {
-			rockchip,pins = <4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
 	};
 };
 
@@ -55,11 +47,4 @@
 		vbat-supply = <&vcc3v3_sys>;
 		vddio-supply = <&vcc_1v8>;
 	};
-};
-
-&vcc5v0_host {
-	enable-active-high;
-	gpio = <&gpio4 RK_PD1 GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&vcc5v0_host_en>;
 };

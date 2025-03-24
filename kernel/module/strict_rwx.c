@@ -34,6 +34,9 @@ int module_enable_text_rox(const struct module *mod)
 	for_class_mod_mem_type(type, text) {
 		int ret;
 
+		if (mod->mem[type].is_rox)
+			continue;
+
 		if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
 			ret = module_set_memory(mod, type, set_memory_rox);
 		else
@@ -44,7 +47,7 @@ int module_enable_text_rox(const struct module *mod)
 	return 0;
 }
 
-int module_enable_rodata_ro(const struct module *mod, bool after_init)
+int module_enable_rodata_ro(const struct module *mod)
 {
 	int ret;
 
@@ -58,10 +61,15 @@ int module_enable_rodata_ro(const struct module *mod, bool after_init)
 	if (ret)
 		return ret;
 
-	if (after_init)
-		return module_set_memory(mod, MOD_RO_AFTER_INIT, set_memory_ro);
-
 	return 0;
+}
+
+int module_enable_rodata_ro_after_init(const struct module *mod)
+{
+	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX) || !rodata_enabled)
+		return 0;
+
+	return module_set_memory(mod, MOD_RO_AFTER_INIT, set_memory_ro);
 }
 
 int module_enable_data_nx(const struct module *mod)

@@ -231,6 +231,21 @@ do_suspend()
 
 		for i in `seq 1 $2`; do
 			printf "Starting $1\n"
+
+			if [ "$3" = "rtc" ]; then
+				if ! command -v rtcwake &> /dev/null; then
+					printf "rtcwake could not be found, please install it.\n"
+					return 1
+				fi
+
+				rtcwake -m $filename -s 15
+
+				if [ $? -ne 0 ]; then
+					printf "Failed to suspend using RTC wake alarm\n"
+					return 1
+				fi
+			fi
+
 			echo $filename > $SYSFS/power/state
 			printf "Came out of $1\n"
 

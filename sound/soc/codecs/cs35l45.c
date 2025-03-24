@@ -177,7 +177,7 @@ static int cs35l45_activate_ctl(struct snd_soc_component *component,
 	struct snd_kcontrol_volatile *vd;
 	unsigned int index_offset;
 
-	kcontrol = snd_soc_component_get_kcontrol_locked(component, ctl_name);
+	kcontrol = snd_soc_component_get_kcontrol(component, ctl_name);
 	if (!kcontrol) {
 		dev_err(component->dev, "Can't find kcontrol %s\n", ctl_name);
 		return -EINVAL;
@@ -1486,7 +1486,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l45_probe, SND_SOC_CS35L45);
+EXPORT_SYMBOL_NS_GPL(cs35l45_probe, "SND_SOC_CS35L45");
 
 void cs35l45_remove(struct cs35l45_private *cs35l45)
 {
@@ -1501,7 +1501,7 @@ void cs35l45_remove(struct cs35l45_private *cs35l45)
 	/* VDD_BATT must be the last to power-off */
 	regulator_disable(cs35l45->vdd_batt);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l45_remove, SND_SOC_CS35L45);
+EXPORT_SYMBOL_NS_GPL(cs35l45_remove, "SND_SOC_CS35L45");
 
 EXPORT_GPL_DEV_PM_OPS(cs35l45_pm_ops) = {
 	RUNTIME_PM_OPS(cs35l45_runtime_suspend, cs35l45_runtime_resume, NULL)

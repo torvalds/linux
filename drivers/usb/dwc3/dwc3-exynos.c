@@ -243,7 +243,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(dwc3_exynos_dev_pm_ops,
 
 static struct platform_driver dwc3_exynos_driver = {
 	.probe		= dwc3_exynos_probe,
-	.remove_new	= dwc3_exynos_remove,
+	.remove		= dwc3_exynos_remove,
 	.driver		= {
 		.name	= "exynos-dwc3",
 		.of_match_table = exynos_dwc3_match,

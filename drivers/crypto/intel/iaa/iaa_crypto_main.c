@@ -173,7 +173,7 @@ static int set_iaa_sync_mode(const char *name)
 		async_mode = false;
 		use_irq = false;
 	} else if (sysfs_streq(name, "async")) {
-		async_mode = true;
+		async_mode = false;
 		use_irq = false;
 	} else if (sysfs_streq(name, "async_irq")) {
 		async_mode = true;
@@ -495,10 +495,10 @@ static void remove_device_compression_modes(struct iaa_device *iaa_device)
 		if (!device_mode)
 			continue;
 
-		free_device_compression_mode(iaa_device, device_mode);
-		iaa_device->compression_modes[i] = NULL;
 		if (iaa_compression_modes[i]->free)
 			iaa_compression_modes[i]->free(device_mode);
+		free_device_compression_mode(iaa_device, device_mode);
+		iaa_device->compression_modes[i] = NULL;
 	}
 }
 
@@ -945,12 +945,22 @@ static inline int check_completion(struct device *dev,
 				   bool only_once)
 {
 	char *op_str = compress ? "compress" : "decompress";
+	int status_checks = 0;
 	int ret = 0;
 
 	while (!comp->status) {
 		if (only_once)
 			return -EAGAIN;
 		cpu_relax();
+		if (status_checks++ >= IAA_COMPLETION_TIMEOUT) {
+			/* Something is wrong with the hw, disable it. */
+			dev_err(dev, "%s completion timed out - "
+				"assuming broken hw, iaa_crypto now DISABLED\n",
+				op_str);
+			iaa_crypto_enabled = false;
+			ret = -ETIMEDOUT;
+			goto out;
+		}
 	}
 
 	if (comp->status != IAX_COMP_SUCCESS) {
@@ -2084,7 +2094,7 @@ static void __exit iaa_crypto_cleanup_module(void)
 	pr_debug("cleaned up\n");
 }
 
-MODULE_IMPORT_NS(IDXD);
+MODULE_IMPORT_NS("IDXD");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_IDXD_DEVICE(0);
 MODULE_AUTHOR("Intel Corporation");

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  Copyright IBM Corp. 2022
+ *  Copyright IBM Corp. 2022, 2024
  *  Author(s): Steffen Eiden <seiden@linux.ibm.com>
  *
  *  This file provides a Linux misc device to give userspace access to some
@@ -40,6 +40,7 @@ static const u32 ioctl_nr_to_uvc_bit[] __initconst = {
 	[UVIO_IOCTL_ADD_SECRET_NR] = BIT_UVC_CMD_ADD_SECRET,
 	[UVIO_IOCTL_LIST_SECRETS_NR] = BIT_UVC_CMD_LIST_SECRETS,
 	[UVIO_IOCTL_LOCK_SECRETS_NR] = BIT_UVC_CMD_LOCK_SECRETS,
+	[UVIO_IOCTL_RETR_SECRET_NR] = BIT_UVC_CMD_RETR_ATTEST,
 };
 
 static_assert(ARRAY_SIZE(ioctl_nr_to_uvc_bit) == UVIO_IOCTL_NUM_IOCTLS);
@@ -62,11 +63,13 @@ static void __init set_supp_uv_cmds(unsigned long *supp_uv_cmds)
 }
 
 /**
- * uvio_uvdev_info() - get information about the uvdevice
+ * uvio_uvdev_info() - Get information about the uvdevice
  *
  * @uv_ioctl: ioctl control block
  *
  * Lists all IOCTLs that are supported by this uvdevice
+ *
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_uvdev_info(struct uvio_ioctl_cb *uv_ioctl)
 {
@@ -177,7 +180,7 @@ static int get_uvio_attest(struct uvio_ioctl_cb *uv_ioctl, struct uvio_attest *u
  *
  * Context: might sleep
  *
- * Return: 0 on success or a negative error code on error.
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_attestation(struct uvio_ioctl_cb *uv_ioctl)
 {
@@ -237,7 +240,8 @@ out:
 	return ret;
 }
 
-/** uvio_add_secret() - perform an Add Secret UVC
+/**
+ * uvio_add_secret() - Perform an Add Secret UVC
  *
  * @uv_ioctl: ioctl control block
  *
@@ -260,7 +264,7 @@ out:
  *
  * Context: might sleep
  *
- * Return: 0 on success or a negative error code on error.
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_add_secret(struct uvio_ioctl_cb *uv_ioctl)
 {
@@ -296,7 +300,44 @@ out:
 	return ret;
 }
 
-/** uvio_list_secrets() - perform a List Secret UVC
+/*
+ * Do the actual secret list creation. Calls the list secrets UVC until there
+ * is no more space in the user buffer, or the list ends.
+ */
+static int uvio_get_list(void *zpage, struct uvio_ioctl_cb *uv_ioctl)
+{
+	const size_t data_off = offsetof(struct uv_secret_list, secrets);
+	u8 __user *user_buf = (u8 __user *)uv_ioctl->argument_addr;
+	struct uv_secret_list *list = zpage;
+	u16 num_secrets_stored = 0;
+	size_t user_off = data_off;
+	size_t copy_len;
+
+	do {
+		uv_list_secrets(list, list->next_secret_idx, &uv_ioctl->uv_rc,
+				&uv_ioctl->uv_rrc);
+		if (uv_ioctl->uv_rc != UVC_RC_EXECUTED &&
+		    uv_ioctl->uv_rc != UVC_RC_MORE_DATA)
+			break;
+
+		copy_len = sizeof(list->secrets[0]) * list->num_secr_stored;
+		if (copy_to_user(user_buf + user_off, list->secrets, copy_len))
+			return -EFAULT;
+
+		user_off += copy_len;
+		num_secrets_stored += list->num_secr_stored;
+	} while (uv_ioctl->uv_rc == UVC_RC_MORE_DATA &&
+		 user_off + sizeof(*list) <= uv_ioctl->argument_len);
+
+	list->num_secr_stored = num_secrets_stored;
+	if (copy_to_user(user_buf, list, data_off))
+		return -EFAULT;
+	return 0;
+}
+
+/**
+ * uvio_list_secrets() - Perform a List Secret UVC
+ *
  * @uv_ioctl: ioctl control block
  *
  * uvio_list_secrets() performs the List Secret Ultravisor Call. It verifies
@@ -307,45 +348,43 @@ out:
  *
  * The argument specifies the location for the result of the UV-Call.
  *
+ * Argument length must be a multiple of a page.
+ * The list secrets IOCTL will call the list UVC multiple times and fill
+ * the provided user-buffer with list elements until either the list ends or
+ * the buffer is full. The list header is merged over all list header from the
+ * individual UVCs.
+ *
  * If the List Secrets UV facility is not present, UV will return invalid
  * command rc. This won't be fenced in the driver and does not result in a
  * negative return value.
  *
  * Context: might sleep
  *
- * Return: 0 on success or a negative error code on error.
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_list_secrets(struct uvio_ioctl_cb *uv_ioctl)
 {
-	void __user *user_buf_arg = (void __user *)uv_ioctl->argument_addr;
-	struct uv_cb_guest_addr uvcb = {
-		.header.len = sizeof(uvcb),
-		.header.cmd = UVC_CMD_LIST_SECRETS,
-	};
-	void *secrets = NULL;
-	int ret = 0;
+	void *zpage;
+	int rc;
 
-	if (uv_ioctl->argument_len != UVIO_LIST_SECRETS_LEN)
+	if (uv_ioctl->argument_len == 0 ||
+	    uv_ioctl->argument_len % UVIO_LIST_SECRETS_LEN != 0)
 		return -EINVAL;
 
-	secrets = kvzalloc(UVIO_LIST_SECRETS_LEN, GFP_KERNEL);
-	if (!secrets)
+	zpage = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!zpage)
 		return -ENOMEM;
 
-	uvcb.addr = (u64)secrets;
-	uv_call_sched(0, (u64)&uvcb);
-	uv_ioctl->uv_rc = uvcb.header.rc;
-	uv_ioctl->uv_rrc = uvcb.header.rrc;
+	rc = uvio_get_list(zpage, uv_ioctl);
 
-	if (copy_to_user(user_buf_arg, secrets, UVIO_LIST_SECRETS_LEN))
-		ret = -EFAULT;
-
-	kvfree(secrets);
-	return ret;
+	free_page((unsigned long)zpage);
+	return rc;
 }
 
-/** uvio_lock_secrets() - perform a Lock Secret Store UVC
- * @uv_ioctl: ioctl control block
+/**
+ * uvio_lock_secrets() - Perform a Lock Secret Store UVC
+ *
+ * @ioctl: ioctl control block
  *
  * uvio_lock_secrets() performs the Lock Secret Store Ultravisor Call. It
  * performs the UV-call and copies the return codes to the ioctl control block.
@@ -360,7 +399,7 @@ static int uvio_list_secrets(struct uvio_ioctl_cb *uv_ioctl)
  *
  * Context: might sleep
  *
- * Return: 0 on success or a negative error code on error.
+ * Return: 0 on success or a negative error code on error
  */
 static int uvio_lock_secrets(struct uvio_ioctl_cb *ioctl)
 {
@@ -377,6 +416,59 @@ static int uvio_lock_secrets(struct uvio_ioctl_cb *ioctl)
 	ioctl->uv_rrc = uvcb.header.rrc;
 
 	return 0;
+}
+
+/**
+ * uvio_retr_secret() - Perform a retrieve secret UVC
+ *
+ * @uv_ioctl: ioctl control block.
+ *
+ * uvio_retr_secret() performs the Retrieve Secret Ultravisor Call.
+ * The first two bytes of the argument specify the index of the secret to be
+ * retrieved. The retrieved secret is copied into the argument buffer if there
+ * is enough space.
+ * The argument length must be at least two bytes and at max 8192 bytes.
+ *
+ * Context: might sleep
+ *
+ * Return: 0 on success or a negative error code on error
+ */
+static int uvio_retr_secret(struct uvio_ioctl_cb *uv_ioctl)
+{
+	u16 __user *user_index = (u16 __user *)uv_ioctl->argument_addr;
+	struct uv_cb_retr_secr uvcb = {
+		.header.len = sizeof(uvcb),
+		.header.cmd = UVC_CMD_RETR_SECRET,
+	};
+	u32 buf_len = uv_ioctl->argument_len;
+	void *buf = NULL;
+	int ret;
+
+	if (buf_len > UVIO_RETR_SECRET_MAX_LEN || buf_len < sizeof(*user_index))
+		return -EINVAL;
+
+	buf = kvzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = -EFAULT;
+	if (get_user(uvcb.secret_idx, user_index))
+		goto err;
+
+	uvcb.buf_addr = (u64)buf;
+	uvcb.buf_size = buf_len;
+	uv_call_sched(0, (u64)&uvcb);
+
+	if (copy_to_user((__user void *)uv_ioctl->argument_addr, buf, buf_len))
+		goto err;
+
+	ret = 0;
+	uv_ioctl->uv_rc = uvcb.header.rc;
+	uv_ioctl->uv_rrc = uvcb.header.rrc;
+
+err:
+	kvfree_sensitive(buf, buf_len);
+	return ret;
 }
 
 static int uvio_copy_and_check_ioctl(struct uvio_ioctl_cb *ioctl, void __user *argp,
@@ -432,6 +524,9 @@ static long uvio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case UVIO_IOCTL_LOCK_SECRETS_NR:
 		ret = uvio_lock_secrets(&uv_ioctl);
 		break;
+	case UVIO_IOCTL_RETR_SECRET_NR:
+		ret = uvio_retr_secret(&uv_ioctl);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -448,7 +543,6 @@ static long uvio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 static const struct file_operations uvio_dev_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = uvio_ioctl,
-	.llseek = no_llseek,
 };
 
 static struct miscdevice uvio_dev_miscdev = {

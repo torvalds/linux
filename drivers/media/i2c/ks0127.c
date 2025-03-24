@@ -677,9 +677,9 @@ static void ks0127_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ks0127_id[] = {
-	{ "ks0127", 0 },
-	{ "ks0127b", 0 },
-	{ "ks0122s", 0 },
+	{ "ks0127" },
+	{ "ks0127b" },
+	{ "ks0122s" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ks0127_id);

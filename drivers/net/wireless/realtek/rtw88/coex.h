@@ -384,6 +384,7 @@ u32 rtw_coex_read_indirect_reg(struct rtw_dev *rtwdev, u16 addr);
 void rtw_coex_write_indirect_reg(struct rtw_dev *rtwdev, u16 addr,
 				 u32 mask, u32 val);
 void rtw_coex_write_scbd(struct rtw_dev *rtwdev, u16 bitpos, bool set);
+void rtw_coex_query_bt_info(struct rtw_dev *rtwdev);
 
 void rtw_coex_bt_relink_work(struct work_struct *work);
 void rtw_coex_bt_reenable_work(struct work_struct *work);
@@ -417,6 +418,16 @@ static inline bool rtw_coex_disabled(struct rtw_dev *rtwdev)
 	struct rtw_coex_stat *coex_stat = &coex->stat;
 
 	return coex_stat->bt_disabled;
+}
+
+static inline void rtw_coex_active_query_bt_info(struct rtw_dev *rtwdev)
+{
+	/* The RTL8821AU firmware doesn't send C2H_BT_INFO by itself
+	 * when bluetooth headphones are disconnected, so we have to
+	 * ask for it regularly.
+	 */
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8821A && rtwdev->efuse.btcoex)
+		rtw_coex_query_bt_info(rtwdev);
 }
 
 #endif

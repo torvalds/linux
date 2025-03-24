@@ -7,8 +7,14 @@ CC := $(CROSS_COMPILE)gcc
 endif
 
 CFLAGS += -mbranch-protection=pac-ret
+
+# All supported LLVMs have PAC, test for GCC
+ifeq ($(LLVM),1)
+pauth_cc_support := 1
+else
 # check if the compiler supports ARMv8.3 and branch protection with PAuth
 pauth_cc_support := $(shell if ($(CC) $(CFLAGS) -march=armv8.3-a -E -x c /dev/null -o /dev/null 2>&1) then echo "1"; fi)
+endif
 
 ifeq ($(pauth_cc_support),1)
 TEST_GEN_PROGS := pac

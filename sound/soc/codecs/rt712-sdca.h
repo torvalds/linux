@@ -36,6 +36,7 @@ struct  rt712_sdca_priv {
 	unsigned int scp_sdca_stat2;
 	unsigned int hw_id;
 	unsigned int version_id;
+	bool dmic_function_found;
 	bool fu0f_dapm_mute;
 	bool fu0f_mixer_l_mute;
 	bool fu0f_mixer_r_mute;

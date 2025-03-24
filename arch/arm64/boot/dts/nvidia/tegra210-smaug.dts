@@ -1362,6 +1362,19 @@
 		};
 	};
 
+	i2c@7000c000 {
+		status = "okay";
+		clock-frequency = <1000000>;
+
+		touchscreen: i2c-hid-dev@20 {
+				compatible = "hid-over-i2c";
+				reg = <0x20>;
+				hid-descr-addr = <0x0020>;
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA_GPIO(X, 1) IRQ_TYPE_EDGE_FALLING>;
+		};
+	};
+
 	i2c@7000c400 {
 		status = "okay";
 		clock-frequency = <1000000>;
@@ -1384,6 +1397,11 @@
 					compatible = "ti,bq27742";
 					reg = <0x55>;
 				};
+			};
+
+			usbc_extcon0: extcon0 {
+				compatible = "google,extcon-usbc-cros-ec";
+				google,usb-port-id = <0>;
 			};
 		};
 	};
@@ -1718,6 +1736,15 @@
 			gpio-controller;
 			#gpio-cells = <2>;
 			status = "okay";
+		};
+
+		tmp451: temperature-sensor@4c {
+			compatible = "ti,tmp451";
+			reg = <0x4c>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(X, 4) IRQ_TYPE_LEVEL_LOW>;
+			vcc-supply = <&pp1800>;
+			#thermal-sensor-cells = <1>;
 		};
 	};
 

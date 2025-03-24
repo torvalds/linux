@@ -78,5 +78,5 @@ module_platform_driver(pwm_lpss_driver_platform);
 
 MODULE_DESCRIPTION("PWM platform driver for Intel LPSS");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(PWM_LPSS);
+MODULE_IMPORT_NS("PWM_LPSS");
 MODULE_ALIAS("platform:pwm-lpss");

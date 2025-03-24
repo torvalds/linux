@@ -249,6 +249,14 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 		};
+
+		pmk8550_pwm: pwm {
+			compatible = "qcom,pmk8550-pwm";
+
+			#pwm-cells = <2>;
+
+			status = "disabled";
+		};
 	};
 
 	/* PMC8380C */
@@ -483,6 +491,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		status = "disabled";
+
 		smb2360_0_eusb2_repeater: phy@fd00 {
 			compatible = "qcom,smb2360-eusb2-repeater";
 			reg = <0xfd00>;
@@ -496,6 +506,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		status = "disabled";
+
 		smb2360_1_eusb2_repeater: phy@fd00 {
 			compatible = "qcom,smb2360-eusb2-repeater";
 			reg = <0xfd00>;
@@ -508,6 +520,8 @@
 		reg = <0xb SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		status = "disabled";
 
 		smb2360_2_eusb2_repeater: phy@fd00 {
 			compatible = "qcom,smb2360-eusb2-repeater";

@@ -22,11 +22,12 @@ struct hdcp2_ske_send_eks;
 struct hdcp2_rep_send_receiverid_list;
 struct hdcp2_rep_send_ack;
 struct hdcp2_rep_stream_ready;
+struct intel_display;
 
 ssize_t intel_hdcp_gsc_msg_send(struct drm_i915_private *i915, u8 *msg_in,
 				size_t msg_in_len, u8 *msg_out,
 				size_t msg_out_len);
-bool intel_hdcp_gsc_check_status(struct drm_i915_private *i915);
+bool intel_hdcp_gsc_check_status(struct intel_display *display);
 int
 intel_hdcp_gsc_initiate_session(struct device *dev, struct hdcp_port_data *data,
 				struct hdcp2_ake_init *ake_data);

@@ -1,18 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Platform driver for OneXPlayer, AOK ZOE, and Aya Neo Handhelds that expose
- * fan reading and control via hwmon sysfs.
+ * Platform driver for OneXPlayer, AOKZOE, AYANEO, and OrangePi Handhelds
+ * that expose fan reading and control via hwmon sysfs.
  *
  * Old OXP boards have the same DMI strings and they are told apart by
- * the boot cpu vendor (Intel/AMD). Currently only AMD boards are
- * supported but the code is made to be simple to add other handheld
- * boards in the future.
+ * the boot cpu vendor (Intel/AMD). Of these older models only AMD is
+ * supported.
+ *
  * Fan control is provided via pwm interface in the range [0-255].
  * Old AMD boards use [0-100] as range in the EC, the written value is
  * scaled to accommodate for that. Newer boards like the mini PRO and
- * AOK ZOE are not scaled but have the same EC layout.
+ * AOKZOE are not scaled but have the same EC layout. Newer models
+ * like the 2 and X1 are [0-184] and are scaled to 0-255. OrangePi
+ * are [1-244] and scaled to 0-255.
  *
  * Copyright (C) 2022 Joaquín I. Aramendía <samsagax@gmail.com>
+ * Copyright (C) 2024 Derek J. Clark <derekjohn.clark@gmail.com>
  */
 
 #include <linux/acpi.h>
@@ -43,32 +46,48 @@ enum oxp_board {
 	aok_zoe_a1 = 1,
 	aya_neo_2,
 	aya_neo_air,
+	aya_neo_air_1s,
 	aya_neo_air_plus_mendo,
 	aya_neo_air_pro,
+	aya_neo_flip,
 	aya_neo_geek,
+	aya_neo_kun,
+	orange_pi_neo,
+	oxp_2,
+	oxp_fly,
 	oxp_mini_amd,
 	oxp_mini_amd_a07,
 	oxp_mini_amd_pro,
+	oxp_x1,
 };
 
 static enum oxp_board board;
 
 /* Fan reading and PWM */
-#define OXP_SENSOR_FAN_REG		0x76 /* Fan reading is 2 registers long */
-#define OXP_SENSOR_PWM_ENABLE_REG	0x4A /* PWM enable is 1 register long */
-#define OXP_SENSOR_PWM_REG		0x4B /* PWM reading is 1 register long */
+#define OXP_SENSOR_FAN_REG             0x76 /* Fan reading is 2 registers long */
+#define OXP_2_SENSOR_FAN_REG           0x58 /* Fan reading is 2 registers long */
+#define OXP_SENSOR_PWM_ENABLE_REG      0x4A /* PWM enable is 1 register long */
+#define OXP_SENSOR_PWM_REG             0x4B /* PWM reading is 1 register long */
+#define PWM_MODE_AUTO                  0x00
+#define PWM_MODE_MANUAL                0x01
+
+/* OrangePi fan reading and PWM */
+#define ORANGEPI_SENSOR_FAN_REG        0x78 /* Fan reading is 2 registers long */
+#define ORANGEPI_SENSOR_PWM_ENABLE_REG 0x40 /* PWM enable is 1 register long */
+#define ORANGEPI_SENSOR_PWM_REG        0x38 /* PWM reading is 1 register long */
 
 /* Turbo button takeover function
- * Older boards have different values and EC registers
+ * Different boards have different values and EC registers
  * for the same function
  */
-#define OXP_OLD_TURBO_SWITCH_REG	0x1E
-#define OXP_OLD_TURBO_TAKE_VAL		0x01
-#define OXP_OLD_TURBO_RETURN_VAL	0x00
+#define OXP_TURBO_SWITCH_REG           0xF1 /* Mini Pro, OneXFly, AOKZOE */
+#define OXP_2_TURBO_SWITCH_REG         0xEB /* OXP2 and X1 */
+#define OXP_MINI_TURBO_SWITCH_REG      0x1E /* Mini AO7 */
 
-#define OXP_TURBO_SWITCH_REG		0xF1
-#define OXP_TURBO_TAKE_VAL		0x40
-#define OXP_TURBO_RETURN_VAL		0x00
+#define OXP_MINI_TURBO_TAKE_VAL        0x01 /* Mini AO7 */
+#define OXP_TURBO_TAKE_VAL             0x40 /* All other models */
+
+#define OXP_TURBO_RETURN_VAL           0x00 /* Common return val */
 
 static const struct dmi_system_id dmi_table[] = {
 	{
@@ -88,7 +107,7 @@ static const struct dmi_system_id dmi_table[] = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AYANEO 2"),
+			DMI_MATCH(DMI_BOARD_NAME, "AYANEO 2"),
 		},
 		.driver_data = (void *)aya_neo_2,
 	},
@@ -98,6 +117,13 @@ static const struct dmi_system_id dmi_table[] = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AIR"),
 		},
 		.driver_data = (void *)aya_neo_air,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "AIR 1S"),
+		},
+		.driver_data = (void *)aya_neo_air_1s,
 	},
 	{
 		.matches = {
@@ -116,9 +142,30 @@ static const struct dmi_system_id dmi_table[] = {
 	{
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
-			DMI_EXACT_MATCH(DMI_BOARD_NAME, "GEEK"),
+			DMI_MATCH(DMI_BOARD_NAME, "FLIP"),
+		},
+		.driver_data = (void *)aya_neo_flip,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
+			DMI_MATCH(DMI_BOARD_NAME, "GEEK"),
 		},
 		.driver_data = (void *)aya_neo_geek,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AYANEO"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "KUN"),
+		},
+		.driver_data = (void *)aya_neo_kun,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "OrangePi"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "NEO-01"),
+		},
+		.driver_data = (void *)orange_pi_neo,
 	},
 	{
 		.matches = {
@@ -126,6 +173,20 @@ static const struct dmi_system_id dmi_table[] = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONE XPLAYER"),
 		},
 		.driver_data = (void *)oxp_mini_amd,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
+			DMI_MATCH(DMI_BOARD_NAME, "ONEXPLAYER 2"),
+		},
+		.driver_data = (void *)oxp_2,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
+			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER F1"),
+		},
+		.driver_data = (void *)oxp_fly,
 	},
 	{
 		.matches = {
@@ -140,6 +201,13 @@ static const struct dmi_system_id dmi_table[] = {
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "ONEXPLAYER Mini Pro"),
 		},
 		.driver_data = (void *)oxp_mini_amd_pro,
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ONE-NETBOOK"),
+			DMI_MATCH(DMI_BOARD_NAME, "ONEXPLAYER X1"),
+		},
+		.driver_data = (void *)oxp_x1,
 	},
 	{},
 };
@@ -192,12 +260,18 @@ static int tt_toggle_enable(void)
 
 	switch (board) {
 	case oxp_mini_amd_a07:
-		reg = OXP_OLD_TURBO_SWITCH_REG;
-		val = OXP_OLD_TURBO_TAKE_VAL;
+		reg = OXP_MINI_TURBO_SWITCH_REG;
+		val = OXP_MINI_TURBO_TAKE_VAL;
 		break;
-	case oxp_mini_amd_pro:
 	case aok_zoe_a1:
+	case oxp_fly:
+	case oxp_mini_amd_pro:
 		reg = OXP_TURBO_SWITCH_REG;
+		val = OXP_TURBO_TAKE_VAL;
+		break;
+	case oxp_2:
+	case oxp_x1:
+		reg = OXP_2_TURBO_SWITCH_REG;
 		val = OXP_TURBO_TAKE_VAL;
 		break;
 	default:
@@ -213,12 +287,18 @@ static int tt_toggle_disable(void)
 
 	switch (board) {
 	case oxp_mini_amd_a07:
-		reg = OXP_OLD_TURBO_SWITCH_REG;
-		val = OXP_OLD_TURBO_RETURN_VAL;
+		reg = OXP_MINI_TURBO_SWITCH_REG;
+		val = OXP_TURBO_RETURN_VAL;
 		break;
-	case oxp_mini_amd_pro:
 	case aok_zoe_a1:
+	case oxp_fly:
+	case oxp_mini_amd_pro:
 		reg = OXP_TURBO_SWITCH_REG;
+		val = OXP_TURBO_RETURN_VAL;
+		break;
+	case oxp_2:
+	case oxp_x1:
+		reg = OXP_2_TURBO_SWITCH_REG;
 		val = OXP_TURBO_RETURN_VAL;
 		break;
 	default:
@@ -233,8 +313,11 @@ static umode_t tt_toggle_is_visible(struct kobject *kobj,
 {
 	switch (board) {
 	case aok_zoe_a1:
+	case oxp_2:
+	case oxp_fly:
 	case oxp_mini_amd_a07:
 	case oxp_mini_amd_pro:
+	case oxp_x1:
 		return attr->mode;
 	default:
 		break;
@@ -273,11 +356,16 @@ static ssize_t tt_toggle_show(struct device *dev,
 
 	switch (board) {
 	case oxp_mini_amd_a07:
-		reg = OXP_OLD_TURBO_SWITCH_REG;
+		reg = OXP_MINI_TURBO_SWITCH_REG;
 		break;
-	case oxp_mini_amd_pro:
 	case aok_zoe_a1:
+	case oxp_fly:
+	case oxp_mini_amd_pro:
 		reg = OXP_TURBO_SWITCH_REG;
+		break;
+	case oxp_2:
+	case oxp_x1:
+		reg = OXP_2_TURBO_SWITCH_REG;
 		break;
 	default:
 		return -EINVAL;
@@ -295,12 +383,53 @@ static DEVICE_ATTR_RW(tt_toggle);
 /* PWM enable/disable functions */
 static int oxp_pwm_enable(void)
 {
-	return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, 0x01);
+	switch (board) {
+	case orange_pi_neo:
+		return write_to_ec(ORANGEPI_SENSOR_PWM_ENABLE_REG, PWM_MODE_MANUAL);
+	case aok_zoe_a1:
+	case aya_neo_2:
+	case aya_neo_air:
+	case aya_neo_air_plus_mendo:
+	case aya_neo_air_pro:
+	case aya_neo_flip:
+	case aya_neo_geek:
+	case aya_neo_kun:
+	case oxp_2:
+	case oxp_fly:
+	case oxp_mini_amd:
+	case oxp_mini_amd_a07:
+	case oxp_mini_amd_pro:
+	case oxp_x1:
+		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_MANUAL);
+	default:
+		return -EINVAL;
+	}
 }
 
 static int oxp_pwm_disable(void)
 {
-	return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, 0x00);
+	switch (board) {
+	case orange_pi_neo:
+		return write_to_ec(ORANGEPI_SENSOR_PWM_ENABLE_REG, PWM_MODE_AUTO);
+	case aok_zoe_a1:
+	case aya_neo_2:
+	case aya_neo_air:
+	case aya_neo_air_1s:
+	case aya_neo_air_plus_mendo:
+	case aya_neo_air_pro:
+	case aya_neo_flip:
+	case aya_neo_geek:
+	case aya_neo_kun:
+	case oxp_2:
+	case oxp_fly:
+	case oxp_mini_amd:
+	case oxp_mini_amd_a07:
+	case oxp_mini_amd_pro:
+	case oxp_x1:
+		return write_to_ec(OXP_SENSOR_PWM_ENABLE_REG, PWM_MODE_AUTO);
+	default:
+		return -EINVAL;
+	}
 }
 
 /* Callbacks for hwmon interface */
@@ -326,7 +455,30 @@ static int oxp_platform_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_fan:
 		switch (attr) {
 		case hwmon_fan_input:
-			return read_from_ec(OXP_SENSOR_FAN_REG, 2, val);
+			switch (board) {
+			case orange_pi_neo:
+				return read_from_ec(ORANGEPI_SENSOR_FAN_REG, 2, val);
+			case oxp_2:
+			case oxp_x1:
+				return read_from_ec(OXP_2_SENSOR_FAN_REG, 2, val);
+			case aok_zoe_a1:
+			case aya_neo_2:
+			case aya_neo_air:
+			case aya_neo_air_1s:
+			case aya_neo_air_plus_mendo:
+			case aya_neo_air_pro:
+			case aya_neo_flip:
+			case aya_neo_geek:
+			case aya_neo_kun:
+			case oxp_fly:
+			case oxp_mini_amd:
+			case oxp_mini_amd_a07:
+			case oxp_mini_amd_pro:
+				return read_from_ec(OXP_SENSOR_FAN_REG, 2, val);
+			default:
+				break;
+			}
+			break;
 		default:
 			break;
 		}
@@ -334,27 +486,72 @@ static int oxp_platform_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_pwm:
 		switch (attr) {
 		case hwmon_pwm_input:
-			ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
-			if (ret)
-				return ret;
 			switch (board) {
+			case orange_pi_neo:
+				ret = read_from_ec(ORANGEPI_SENSOR_PWM_REG, 1, val);
+				if (ret)
+					return ret;
+				/* scale from range [1-244] */
+				*val = ((*val - 1) * 254 / 243) + 1;
+				break;
+			case oxp_2:
+			case oxp_x1:
+				ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
+				if (ret)
+					return ret;
+				/* scale from range [0-184] */
+				*val = (*val * 255) / 184;
+				break;
 			case aya_neo_2:
 			case aya_neo_air:
+			case aya_neo_air_1s:
 			case aya_neo_air_plus_mendo:
 			case aya_neo_air_pro:
+			case aya_neo_flip:
 			case aya_neo_geek:
+			case aya_neo_kun:
 			case oxp_mini_amd:
 			case oxp_mini_amd_a07:
+				ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
+				if (ret)
+					return ret;
+				/* scale from range [0-100] */
 				*val = (*val * 255) / 100;
 				break;
-			case oxp_mini_amd_pro:
 			case aok_zoe_a1:
+			case oxp_fly:
+			case oxp_mini_amd_pro:
 			default:
+				ret = read_from_ec(OXP_SENSOR_PWM_REG, 1, val);
+				if (ret)
+					return ret;
 				break;
 			}
 			return 0;
 		case hwmon_pwm_enable:
-			return read_from_ec(OXP_SENSOR_PWM_ENABLE_REG, 1, val);
+			switch (board) {
+			case orange_pi_neo:
+				return read_from_ec(ORANGEPI_SENSOR_PWM_ENABLE_REG, 1, val);
+			case aok_zoe_a1:
+			case aya_neo_2:
+			case aya_neo_air:
+			case aya_neo_air_1s:
+			case aya_neo_air_plus_mendo:
+			case aya_neo_air_pro:
+			case aya_neo_flip:
+			case aya_neo_geek:
+			case aya_neo_kun:
+			case oxp_2:
+			case oxp_fly:
+			case oxp_mini_amd:
+			case oxp_mini_amd_a07:
+			case oxp_mini_amd_pro:
+			case oxp_x1:
+				return read_from_ec(OXP_SENSOR_PWM_ENABLE_REG, 1, val);
+			default:
+				break;
+			}
+			break;
 		default:
 			break;
 		}
@@ -381,21 +578,36 @@ static int oxp_platform_write(struct device *dev, enum hwmon_sensor_types type,
 			if (val < 0 || val > 255)
 				return -EINVAL;
 			switch (board) {
+			case orange_pi_neo:
+				/* scale to range [1-244] */
+				val = ((val - 1) * 243 / 254) + 1;
+				return write_to_ec(ORANGEPI_SENSOR_PWM_REG, val);
+			case oxp_2:
+			case oxp_x1:
+				/* scale to range [0-184] */
+				val = (val * 184) / 255;
+				return write_to_ec(OXP_SENSOR_PWM_REG, val);
 			case aya_neo_2:
 			case aya_neo_air:
+			case aya_neo_air_1s:
 			case aya_neo_air_plus_mendo:
 			case aya_neo_air_pro:
+			case aya_neo_flip:
 			case aya_neo_geek:
+			case aya_neo_kun:
 			case oxp_mini_amd:
 			case oxp_mini_amd_a07:
+				/* scale to range [0-100] */
 				val = (val * 100) / 255;
-				break;
+				return write_to_ec(OXP_SENSOR_PWM_REG, val);
 			case aok_zoe_a1:
+			case oxp_fly:
 			case oxp_mini_amd_pro:
+				return write_to_ec(OXP_SENSOR_PWM_REG, val);
 			default:
 				break;
 			}
-			return write_to_ec(OXP_SENSOR_PWM_REG, val);
+			break;
 		default:
 			break;
 		}
@@ -467,18 +679,19 @@ static int __init oxp_platform_init(void)
 {
 	const struct dmi_system_id *dmi_entry;
 
-	/*
-	 * Have to check for AMD processor here because DMI strings are the
-	 * same between Intel and AMD boards, the only way to tell them apart
-	 * is the CPU.
-	 * Intel boards seem to have different EC registers and values to
-	 * read/write.
-	 */
 	dmi_entry = dmi_first_match(dmi_table);
-	if (!dmi_entry || boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	if (!dmi_entry)
 		return -ENODEV;
 
 	board = (enum oxp_board)(unsigned long)dmi_entry->driver_data;
+
+	/*
+	 * Have to check for AMD processor here because DMI strings are the same
+	 * between Intel and AMD boards on older OneXPlayer devices, the only way
+	 * to tell them apart is the CPU. Old Intel boards have an unsupported EC.
+	 */
+	if (board == oxp_mini_amd && boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return -ENODEV;
 
 	oxp_platform_device =
 		platform_create_bundle(&oxp_platform_driver,

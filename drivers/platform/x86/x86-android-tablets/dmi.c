@@ -99,17 +99,17 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 	{
 		/* Lenovo Yoga Book X91F / X91L */
 		.matches = {
-			/* Non exact match to match F + L versions */
+			/* Inexact match to match F + L versions */
 			DMI_MATCH(DMI_PRODUCT_NAME, "Lenovo YB1-X91"),
 		},
 		.driver_data = (void *)&lenovo_yogabook_x91_info,
 	},
 	{
 		/*
-		 * Lenovo Yoga Tablet 2 Pro 1380F/L (13") This has more or less
-		 * the same BIOS as the 830F/L or 1050F/L (8" and 10") below,
-		 * but unlike the 8" / 10" models which share the same mainboard
-		 * this model has a different mainboard.
+		 * Lenovo Yoga Tablet 2 Pro 1380F/L (13")
+		 * This has more or less the same BIOS as the 830F/L or 1050F/L
+		 * (8" and 10") below, but unlike the 8"/10" models which share
+		 * the same mainboard this model has a different mainboard.
 		 * This match for the 13" model MUST come before the 8" + 10"
 		 * match since that one will also match the 13" model!
 		 */
@@ -124,8 +124,8 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 	},
 	{
 		/*
-		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L (The 8" and 10"
-		 * Lenovo Yoga Tablet 2 use the same mainboard)
+		 * Lenovo Yoga Tablet 2 830F/L or 1050F/L
+		 * The 8" and 10" Lenovo Yoga Tablet 2 use the same mainboard.
 		 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corp."),
@@ -140,7 +140,6 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		/* Lenovo Yoga Tab 3 Pro YT3-X90F */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "CHERRYVIEW D1 PLATFORM"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "Blade3-10A-001"),
 		},
 		.driver_data = (void *)&lenovo_yt3_info,
@@ -164,7 +163,7 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 		.driver_data = (void *)&nextbook_ares8_info,
 	},
 	{
-		/* Nextbook Ares 8A (CHT version)*/
+		/* Nextbook Ares 8A (CHT version) */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CherryTrail"),
@@ -179,6 +178,16 @@ const struct dmi_system_id x86_android_tablet_ids[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "PEAQ PMM C1010 MD99187"),
 		},
 		.driver_data = (void *)&peaq_c1010_info,
+	},
+	{
+		/* Vexia Edu Atla 10 tablet 9V version */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
+			/* Above strings are too generic, also match on BIOS date */
+			DMI_MATCH(DMI_BIOS_DATE, "08/25/2014"),
+		},
+		.driver_data = (void *)&vexia_edu_atla10_info,
 	},
 	{
 		/* Whitelabel (sold as various brands) TM800A550L */

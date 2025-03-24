@@ -23,7 +23,7 @@
 #include "gntdev-common.h"
 #include "gntdev-dmabuf.h"
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 struct gntdev_dmabuf {
 	struct gntdev_dmabuf_priv *priv;

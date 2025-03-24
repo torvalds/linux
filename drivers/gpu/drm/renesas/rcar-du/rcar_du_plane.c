@@ -680,6 +680,12 @@ static const struct drm_plane_helper_funcs rcar_du_plane_helper_funcs = {
 	.atomic_update = rcar_du_plane_atomic_update,
 };
 
+static const struct drm_plane_helper_funcs rcar_du_primary_plane_helper_funcs = {
+	.atomic_check = rcar_du_plane_atomic_check,
+	.atomic_update = rcar_du_plane_atomic_update,
+	.get_scanout_buffer = drm_fb_dma_get_scanout_buffer,
+};
+
 static struct drm_plane_state *
 rcar_du_plane_atomic_duplicate_state(struct drm_plane *plane)
 {
@@ -812,8 +818,12 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 		if (ret < 0)
 			return ret;
 
-		drm_plane_helper_add(&plane->plane,
-				     &rcar_du_plane_helper_funcs);
+		if (type == DRM_PLANE_TYPE_PRIMARY)
+			drm_plane_helper_add(&plane->plane,
+					     &rcar_du_primary_plane_helper_funcs);
+		else
+			drm_plane_helper_add(&plane->plane,
+					     &rcar_du_plane_helper_funcs);
 
 		drm_plane_create_alpha_property(&plane->plane);
 

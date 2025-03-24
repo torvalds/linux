@@ -44,7 +44,7 @@ struct tea5767_priv {
 
 /* Third register */
 
-/* Station search from botton to up */
+/* Station search from bottom to up */
 #define TEA5767_SEARCH_UP	0x80
 
 /* Searches with ADC output = 10 */
@@ -183,7 +183,7 @@ static void tea5767_status_dump(struct tea5767_priv *priv,
 		   (buffer[4] & TEA5767_RESERVED_MASK));
 }
 
-/* Freq should be specifyed at 62.5 Hz */
+/* Freq should be specified at 62.5 Hz */
 static int set_radio_freq(struct dvb_frontend *fe,
 			  struct analog_parameters *params)
 {

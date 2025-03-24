@@ -640,7 +640,7 @@ static struct platform_driver dmc520_edac_driver = {
 	},
 
 	.probe = dmc520_edac_probe,
-	.remove_new = dmc520_edac_remove
+	.remove = dmc520_edac_remove
 };
 
 module_platform_driver(dmc520_edac_driver);

@@ -100,6 +100,8 @@ void adf_cfg_dev_dbgfs_rm(struct adf_accel_dev *accel_dev)
 }
 
 static void adf_cfg_section_del_all(struct list_head *head);
+static void adf_cfg_section_del_all_except(struct list_head *head,
+					   const char *section_name);
 
 void adf_cfg_del_all(struct adf_accel_dev *accel_dev)
 {
@@ -107,6 +109,17 @@ void adf_cfg_del_all(struct adf_accel_dev *accel_dev)
 
 	down_write(&dev_cfg_data->lock);
 	adf_cfg_section_del_all(&dev_cfg_data->sec_list);
+	up_write(&dev_cfg_data->lock);
+	clear_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
+}
+
+void adf_cfg_del_all_except(struct adf_accel_dev *accel_dev,
+			    const char *section_name)
+{
+	struct adf_cfg_device_data *dev_cfg_data = accel_dev->cfg;
+
+	down_write(&dev_cfg_data->lock);
+	adf_cfg_section_del_all_except(&dev_cfg_data->sec_list, section_name);
 	up_write(&dev_cfg_data->lock);
 	clear_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
 }
@@ -179,6 +192,22 @@ static void adf_cfg_section_del_all(struct list_head *head)
 
 	list_for_each_prev_safe(list, tmp, head) {
 		ptr = list_entry(list, struct adf_cfg_section, list);
+		adf_cfg_keyval_del_all(&ptr->param_head);
+		list_del(list);
+		kfree(ptr);
+	}
+}
+
+static void adf_cfg_section_del_all_except(struct list_head *head,
+					   const char *section_name)
+{
+	struct list_head *list, *tmp;
+	struct adf_cfg_section *ptr;
+
+	list_for_each_prev_safe(list, tmp, head) {
+		ptr = list_entry(list, struct adf_cfg_section, list);
+		if (!strcmp(ptr->name, section_name))
+			continue;
 		adf_cfg_keyval_del_all(&ptr->param_head);
 		list_del(list);
 		kfree(ptr);

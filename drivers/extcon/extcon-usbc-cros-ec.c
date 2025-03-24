@@ -529,7 +529,7 @@ static struct platform_driver extcon_cros_ec_driver = {
 		.of_match_table = of_match_ptr(extcon_cros_ec_of_match),
 		.pm = DEV_PM_OPS,
 	},
-	.remove_new = extcon_cros_ec_remove,
+	.remove  = extcon_cros_ec_remove,
 	.probe   = extcon_cros_ec_probe,
 };
 

@@ -170,7 +170,7 @@ static struct intel_gt *find_gt_for_required_teelink(struct drm_i915_private *i9
 
 static struct intel_gt *find_gt_for_required_protected_content(struct drm_i915_private *i915)
 {
-	if (!IS_ENABLED(CONFIG_DRM_I915_PXP) || !INTEL_INFO(i915)->has_pxp)
+	if (!HAS_PXP(i915))
 		return NULL;
 
 	/*
@@ -461,9 +461,11 @@ void intel_pxp_fini_hw(struct intel_pxp *pxp)
 }
 
 int intel_pxp_key_check(struct intel_pxp *pxp,
-			struct drm_i915_gem_object *obj,
+			struct drm_gem_object *_obj,
 			bool assign)
 {
+	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
+
 	if (!intel_pxp_is_active(pxp))
 		return -ENODEV;
 
@@ -529,7 +531,7 @@ void intel_pxp_invalidate(struct intel_pxp *pxp)
 		if (ctx->pxp_wakeref) {
 			intel_runtime_pm_put(&i915->runtime_pm,
 					     ctx->pxp_wakeref);
-			ctx->pxp_wakeref = 0;
+			ctx->pxp_wakeref = NULL;
 		}
 
 		spin_lock_irq(&i915->gem.contexts.lock);

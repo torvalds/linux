@@ -147,6 +147,8 @@ static const struct x86_cpu_id pl4_support_ids[] = {
 	X86_MATCH_VFM(INTEL_RAPTORLAKE_P, NULL),
 	X86_MATCH_VFM(INTEL_METEORLAKE, NULL),
 	X86_MATCH_VFM(INTEL_METEORLAKE_L, NULL),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_U, NULL),
+	X86_MATCH_VFM(INTEL_ARROWLAKE_H, NULL),
 	{}
 };
 
@@ -211,7 +213,7 @@ MODULE_DEVICE_TABLE(platform, rapl_msr_ids);
 
 static struct platform_driver intel_rapl_msr_driver = {
 	.probe = rapl_msr_probe,
-	.remove_new = rapl_msr_remove,
+	.remove = rapl_msr_remove,
 	.id_table = rapl_msr_ids,
 	.driver = {
 		.name = "intel_rapl_msr",

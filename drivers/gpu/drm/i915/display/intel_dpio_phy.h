@@ -10,9 +10,9 @@
 
 enum pipe;
 enum port;
-struct drm_i915_private;
 struct intel_crtc_state;
 struct intel_digital_port;
+struct intel_display;
 struct intel_encoder;
 
 enum dpio_channel {
@@ -27,15 +27,15 @@ enum dpio_phy {
 };
 
 #ifdef I915
-void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
+void bxt_port_to_phy_channel(struct intel_display *display, enum port port,
 			     enum dpio_phy *phy, enum dpio_channel *ch);
 void bxt_dpio_phy_set_signal_levels(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *crtc_state);
-void bxt_dpio_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy);
-void bxt_dpio_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy);
-bool bxt_dpio_phy_is_enabled(struct drm_i915_private *dev_priv,
+void bxt_dpio_phy_init(struct intel_display *display, enum dpio_phy phy);
+void bxt_dpio_phy_uninit(struct intel_display *display, enum dpio_phy phy);
+bool bxt_dpio_phy_is_enabled(struct intel_display *display,
 			     enum dpio_phy phy);
-bool bxt_dpio_phy_verify_state(struct drm_i915_private *dev_priv,
+bool bxt_dpio_phy_verify_state(struct intel_display *display,
 			       enum dpio_phy phy);
 u8 bxt_dpio_phy_calc_lane_lat_optim_mask(u8 lane_count);
 void bxt_dpio_phy_set_lane_optim_mask(struct intel_encoder *encoder,
@@ -73,7 +73,7 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 			 const struct intel_crtc_state *old_crtc_state);
 #else
-static inline void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
+static inline void bxt_port_to_phy_channel(struct intel_display *display, enum port port,
 					   enum dpio_phy *phy, enum dpio_channel *ch)
 {
 }
@@ -81,18 +81,18 @@ static inline void bxt_dpio_phy_set_signal_levels(struct intel_encoder *encoder,
 						  const struct intel_crtc_state *crtc_state)
 {
 }
-static inline void bxt_dpio_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+static inline void bxt_dpio_phy_init(struct intel_display *display, enum dpio_phy phy)
 {
 }
-static inline void bxt_dpio_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy)
+static inline void bxt_dpio_phy_uninit(struct intel_display *display, enum dpio_phy phy)
 {
 }
-static inline bool bxt_dpio_phy_is_enabled(struct drm_i915_private *dev_priv,
+static inline bool bxt_dpio_phy_is_enabled(struct intel_display *display,
 					   enum dpio_phy phy)
 {
 	return false;
 }
-static inline bool bxt_dpio_phy_verify_state(struct drm_i915_private *dev_priv,
+static inline bool bxt_dpio_phy_verify_state(struct intel_display *display,
 					     enum dpio_phy phy)
 {
 	return true;

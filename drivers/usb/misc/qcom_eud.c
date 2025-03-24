@@ -232,14 +232,14 @@ static void eud_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id eud_dt_match[] = {
-	{ .compatible = "qcom,sc7280-eud" },
+	{ .compatible = "qcom,eud" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, eud_dt_match);
 
 static struct platform_driver eud_driver = {
 	.probe	= eud_probe,
-	.remove_new = eud_remove,
+	.remove = eud_remove,
 	.driver	= {
 		.name = "qcom_eud",
 		.dev_groups = eud_groups,

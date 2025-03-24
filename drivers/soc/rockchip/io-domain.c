@@ -39,6 +39,10 @@
 #define RK3288_SOC_CON2_FLASH0		BIT(7)
 #define RK3288_SOC_FLASH_SUPPLY_NUM	2
 
+#define RK3308_SOC_CON0			0x300
+#define RK3308_SOC_CON0_VCCIO3		BIT(8)
+#define RK3308_SOC_VCCIO3_SUPPLY_NUM	3
+
 #define RK3328_SOC_CON4			0x410
 #define RK3328_SOC_CON4_VCCIO2		BIT(7)
 #define RK3328_SOC_VCCIO2_SUPPLY_NUM	1
@@ -229,6 +233,25 @@ static void rk3288_iodomain_init(struct rockchip_iodomain *iod)
 		dev_warn(iod->dev, "couldn't update flash0 ctrl\n");
 }
 
+static void rk3308_iodomain_init(struct rockchip_iodomain *iod)
+{
+	int ret;
+	u32 val;
+
+	/* if no vccio3 supply we should leave things alone */
+	if (!iod->supplies[RK3308_SOC_VCCIO3_SUPPLY_NUM].reg)
+		return;
+
+	/*
+	 * set vccio3 iodomain to also use this framework
+	 * instead of a special gpio.
+	 */
+	val = RK3308_SOC_CON0_VCCIO3 | (RK3308_SOC_CON0_VCCIO3 << 16);
+	ret = regmap_write(iod->grf, RK3308_SOC_CON0, val);
+	if (ret < 0)
+		dev_warn(iod->dev, "couldn't update vccio3 vsel ctrl\n");
+}
+
 static void rk3328_iodomain_init(struct rockchip_iodomain *iod)
 {
 	int ret;
@@ -374,6 +397,19 @@ static const struct rockchip_iodomain_soc_data soc_data_rk3288 = {
 		"gpio1830",	/* APIO2_VDD */
 	},
 	.init = rk3288_iodomain_init,
+};
+
+static const struct rockchip_iodomain_soc_data soc_data_rk3308 = {
+	.grf_offset = 0x300,
+	.supply_names = {
+		"vccio0",
+		"vccio1",
+		"vccio2",
+		"vccio3",
+		"vccio4",
+		"vccio5",
+	},
+	.init = rk3308_iodomain_init,
 };
 
 static const struct rockchip_iodomain_soc_data soc_data_rk3328 = {
@@ -527,6 +563,10 @@ static const struct of_device_id rockchip_iodomain_match[] = {
 	{
 		.compatible = "rockchip,rk3288-io-voltage-domain",
 		.data = &soc_data_rk3288
+	},
+	{
+		.compatible = "rockchip,rk3308-io-voltage-domain",
+		.data = &soc_data_rk3308
 	},
 	{
 		.compatible = "rockchip,rk3328-io-voltage-domain",
@@ -702,10 +742,10 @@ static void rockchip_iodomain_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver rockchip_iodomain_driver = {
-	.probe   = rockchip_iodomain_probe,
-	.remove_new = rockchip_iodomain_remove,
-	.driver  = {
-		.name  = "rockchip-iodomain",
+	.probe = rockchip_iodomain_probe,
+	.remove = rockchip_iodomain_remove,
+	.driver = {
+		.name = "rockchip-iodomain",
 		.of_match_table = rockchip_iodomain_match,
 	},
 };

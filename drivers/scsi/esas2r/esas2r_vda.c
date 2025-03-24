@@ -444,23 +444,6 @@ void esas2r_build_ae_req(struct esas2r_adapter *a, struct esas2r_request *rq)
 	}
 }
 
-/* Build a VDA CLI request. */
-void esas2r_build_cli_req(struct esas2r_adapter *a,
-			  struct esas2r_request *rq,
-			  u32 length,
-			  u32 cmd_rsp_len)
-{
-	struct atto_vda_cli_req *vrq = &rq->vrq->cli;
-
-	clear_vda_request(rq);
-
-	rq->vrq->scsi.function = VDA_FUNC_CLI;
-
-	vrq->length = cpu_to_le32(length);
-	vrq->cmd_rsp_len = cpu_to_le32(cmd_rsp_len);
-	vrq->sg_list_offset = (u8)offsetof(struct atto_vda_cli_req, sge);
-}
-
 /* Build a VDA IOCTL request. */
 void esas2r_build_ioctl_req(struct esas2r_adapter *a,
 			    struct esas2r_request *rq,

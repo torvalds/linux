@@ -87,6 +87,7 @@ static int mt7663s_probe(struct sdio_func *func,
 		.sta_add = mt7615_mac_sta_add,
 		.sta_remove = mt7615_mac_sta_remove,
 		.update_survey = mt7615_update_channel,
+		.set_channel = mt7615_set_channel,
 	};
 	static const struct mt76_bus_ops mt7663s_ops = {
 		.rr = mt76s_rr,
@@ -190,7 +191,7 @@ static int mt7663s_suspend(struct device *dev)
 	    mt7615_firmware_offload(mdev)) {
 		int err;
 
-		err = mt76_connac_mcu_set_hif_suspend(&mdev->mt76, true);
+		err = mt76_connac_mcu_set_hif_suspend(&mdev->mt76, true, true);
 		if (err < 0)
 			return err;
 	}
@@ -229,7 +230,7 @@ static int mt7663s_resume(struct device *dev)
 
 	if (!test_bit(MT76_STATE_SUSPEND, &mdev->mphy.state) &&
 	    mt7615_firmware_offload(mdev))
-		err = mt76_connac_mcu_set_hif_suspend(&mdev->mt76, false);
+		err = mt76_connac_mcu_set_hif_suspend(&mdev->mt76, false, true);
 
 	return err;
 }

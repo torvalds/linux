@@ -455,7 +455,7 @@ static struct platform_driver zynqmp_ocm_edac_driver = {
 		   .of_match_table = zynqmp_ocm_edac_match,
 		   },
 	.probe = edac_probe,
-	.remove_new = edac_remove,
+	.remove = edac_remove,
 };
 
 module_platform_driver(zynqmp_ocm_edac_driver);

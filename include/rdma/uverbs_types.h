@@ -134,6 +134,8 @@ static inline void uverbs_uobject_get(struct ib_uobject *uobject)
 }
 void uverbs_uobject_put(struct ib_uobject *uobject);
 
+int uverbs_try_lock_object(struct ib_uobject *uobj, enum rdma_lookup_mode mode);
+
 struct uverbs_obj_fd_type {
 	/*
 	 * In fd based objects, uverbs_obj_type_ops points to generic
@@ -148,6 +150,37 @@ struct uverbs_obj_fd_type {
 	const struct file_operations	*fops;
 	const char			*name;
 	int				flags;
+};
+
+struct ib_uverbs_file {
+	struct kref				ref;
+	struct ib_uverbs_device		       *device;
+	struct mutex				ucontext_lock;
+	/*
+	 * ucontext must be accessed via ib_uverbs_get_ucontext() or with
+	 * ucontext_lock held
+	 */
+	struct ib_ucontext		       *ucontext;
+	struct ib_uverbs_async_event_file      *default_async_file;
+	struct list_head			list;
+
+	/*
+	 * To access the uobjects list hw_destroy_rwsem must be held for write
+	 * OR hw_destroy_rwsem held for read AND uobjects_lock held.
+	 * hw_destroy_rwsem should be called across any destruction of the HW
+	 * object of an associated uobject.
+	 */
+	struct rw_semaphore	hw_destroy_rwsem;
+	spinlock_t		uobjects_lock;
+	struct list_head	uobjects;
+
+	struct mutex umap_lock;
+	struct list_head umaps;
+	struct page *disassociate_page;
+
+	struct xarray		idr;
+
+	struct mutex disassociation_lock;
 };
 
 extern const struct uverbs_obj_type_class uverbs_idr_class;

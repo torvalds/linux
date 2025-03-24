@@ -45,6 +45,7 @@ static const struct cpuid_dep cpuid_deps[] = {
 	{ X86_FEATURE_AES,			X86_FEATURE_XMM2      },
 	{ X86_FEATURE_SHA_NI,			X86_FEATURE_XMM2      },
 	{ X86_FEATURE_GFNI,			X86_FEATURE_XMM2      },
+	{ X86_FEATURE_AVX_VNNI,			X86_FEATURE_AVX       },
 	{ X86_FEATURE_FMA,			X86_FEATURE_AVX       },
 	{ X86_FEATURE_VAES,			X86_FEATURE_AVX       },
 	{ X86_FEATURE_VPCLMULQDQ,		X86_FEATURE_AVX       },
@@ -83,7 +84,6 @@ static const struct cpuid_dep cpuid_deps[] = {
 	{ X86_FEATURE_AMX_TILE,			X86_FEATURE_XFD       },
 	{ X86_FEATURE_SHSTK,			X86_FEATURE_XSAVES    },
 	{ X86_FEATURE_FRED,			X86_FEATURE_LKGS      },
-	{ X86_FEATURE_FRED,			X86_FEATURE_WRMSRNS   },
 	{}
 };
 

@@ -96,28 +96,28 @@
 		pinctrl-0 = <&keyboard_pins>;
 		pinctrl-names = "default";
 
-		one {
+		key-1 {
 			linux,code = <KEY_1>;
 			label = "SW2-1";
 			wakeup-source;
 			debounce-interval = <20>;
 			gpios = <&gpio3 9 GPIO_ACTIVE_LOW>;
 		};
-		two {
+		key-2 {
 			linux,code = <KEY_2>;
 			label = "SW2-2";
 			wakeup-source;
 			debounce-interval = <20>;
 			gpios = <&gpio3 10 GPIO_ACTIVE_LOW>;
 		};
-		three {
+		key-3 {
 			linux,code = <KEY_3>;
 			label = "SW2-3";
 			wakeup-source;
 			debounce-interval = <20>;
 			gpios = <&gpio3 11 GPIO_ACTIVE_LOW>;
 		};
-		four {
+		key-4 {
 			linux,code = <KEY_4>;
 			label = "SW2-4";
 			wakeup-source;
@@ -381,8 +381,7 @@
 		compatible = "ethernet-phy-id0022.1537",
 			     "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
-		interrupt-parent = <&irqc0>;
-		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc0 8 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 	};
@@ -450,8 +449,7 @@
 	pmic@58 {
 		compatible = "dlg,da9063";
 		reg = <0x58>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <31 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio3 31 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 

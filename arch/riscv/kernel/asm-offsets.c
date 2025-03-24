@@ -4,8 +4,6 @@
  * Copyright (C) 2017 SiFive
  */
 
-#define GENERATING_ASM_OFFSETS
-
 #include <linux/kbuild.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -36,12 +34,19 @@ void asm_offsets(void)
 	OFFSET(TASK_THREAD_S9, task_struct, thread.s[9]);
 	OFFSET(TASK_THREAD_S10, task_struct, thread.s[10]);
 	OFFSET(TASK_THREAD_S11, task_struct, thread.s[11]);
+
+	OFFSET(TASK_TI_CPU, task_struct, thread_info.cpu);
 	OFFSET(TASK_TI_FLAGS, task_struct, thread_info.flags);
 	OFFSET(TASK_TI_PREEMPT_COUNT, task_struct, thread_info.preempt_count);
 	OFFSET(TASK_TI_KERNEL_SP, task_struct, thread_info.kernel_sp);
 	OFFSET(TASK_TI_USER_SP, task_struct, thread_info.user_sp);
 #ifdef CONFIG_SHADOW_CALL_STACK
 	OFFSET(TASK_TI_SCS_SP, task_struct, thread_info.scs_sp);
+#endif
+#ifdef CONFIG_64BIT
+	OFFSET(TASK_TI_A0, task_struct, thread_info.a0);
+	OFFSET(TASK_TI_A1, task_struct, thread_info.a1);
+	OFFSET(TASK_TI_A2, task_struct, thread_info.a2);
 #endif
 
 	OFFSET(TASK_TI_CPU_NUM, task_struct, thread_info.cpu);
@@ -491,19 +496,19 @@ void asm_offsets(void)
 	OFFSET(STACKFRAME_RA, stackframe, ra);
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
-	DEFINE(FREGS_SIZE_ON_STACK, ALIGN(sizeof(struct ftrace_regs), STACK_ALIGN));
-	DEFINE(FREGS_EPC,	    offsetof(struct ftrace_regs, epc));
-	DEFINE(FREGS_RA,	    offsetof(struct ftrace_regs, ra));
-	DEFINE(FREGS_SP,	    offsetof(struct ftrace_regs, sp));
-	DEFINE(FREGS_S0,	    offsetof(struct ftrace_regs, s0));
-	DEFINE(FREGS_T1,	    offsetof(struct ftrace_regs, t1));
-	DEFINE(FREGS_A0,	    offsetof(struct ftrace_regs, a0));
-	DEFINE(FREGS_A1,	    offsetof(struct ftrace_regs, a1));
-	DEFINE(FREGS_A2,	    offsetof(struct ftrace_regs, a2));
-	DEFINE(FREGS_A3,	    offsetof(struct ftrace_regs, a3));
-	DEFINE(FREGS_A4,	    offsetof(struct ftrace_regs, a4));
-	DEFINE(FREGS_A5,	    offsetof(struct ftrace_regs, a5));
-	DEFINE(FREGS_A6,	    offsetof(struct ftrace_regs, a6));
-	DEFINE(FREGS_A7,	    offsetof(struct ftrace_regs, a7));
+	DEFINE(FREGS_SIZE_ON_STACK, ALIGN(sizeof(struct __arch_ftrace_regs), STACK_ALIGN));
+	DEFINE(FREGS_EPC,	    offsetof(struct __arch_ftrace_regs, epc));
+	DEFINE(FREGS_RA,	    offsetof(struct __arch_ftrace_regs, ra));
+	DEFINE(FREGS_SP,	    offsetof(struct __arch_ftrace_regs, sp));
+	DEFINE(FREGS_S0,	    offsetof(struct __arch_ftrace_regs, s0));
+	DEFINE(FREGS_T1,	    offsetof(struct __arch_ftrace_regs, t1));
+	DEFINE(FREGS_A0,	    offsetof(struct __arch_ftrace_regs, a0));
+	DEFINE(FREGS_A1,	    offsetof(struct __arch_ftrace_regs, a1));
+	DEFINE(FREGS_A2,	    offsetof(struct __arch_ftrace_regs, a2));
+	DEFINE(FREGS_A3,	    offsetof(struct __arch_ftrace_regs, a3));
+	DEFINE(FREGS_A4,	    offsetof(struct __arch_ftrace_regs, a4));
+	DEFINE(FREGS_A5,	    offsetof(struct __arch_ftrace_regs, a5));
+	DEFINE(FREGS_A6,	    offsetof(struct __arch_ftrace_regs, a6));
+	DEFINE(FREGS_A7,	    offsetof(struct __arch_ftrace_regs, a7));
 #endif
 }

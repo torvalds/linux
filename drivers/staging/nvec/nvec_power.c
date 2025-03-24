@@ -433,7 +433,7 @@ static void nvec_power_remove(struct platform_device *pdev)
 
 static struct platform_driver nvec_power_driver = {
 	.probe = nvec_power_probe,
-	.remove_new = nvec_power_remove,
+	.remove = nvec_power_remove,
 	.driver = {
 		   .name = "nvec-power",
 	}

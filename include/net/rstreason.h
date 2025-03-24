@@ -17,6 +17,12 @@
 	FN(TCP_ABORT_ON_DATA)		\
 	FN(TCP_TIMEWAIT_SOCKET)		\
 	FN(INVALID_SYN)			\
+	FN(TCP_ABORT_ON_CLOSE)		\
+	FN(TCP_ABORT_ON_LINGER)		\
+	FN(TCP_ABORT_ON_MEMORY)		\
+	FN(TCP_STATE)			\
+	FN(TCP_KEEPALIVE_TIMEOUT)	\
+	FN(TCP_DISCONNECT_WITH_DATA)	\
 	FN(MPTCP_RST_EUNSPEC)		\
 	FN(MPTCP_RST_EMPTCP)		\
 	FN(MPTCP_RST_ERESOURCE)		\
@@ -84,6 +90,39 @@ enum sk_rst_reason {
 	 * an error, send a reset"
 	 */
 	SK_RST_REASON_INVALID_SYN,
+	/**
+	 * @SK_RST_REASON_TCP_ABORT_ON_CLOSE: abort on close
+	 * corresponding to LINUX_MIB_TCPABORTONCLOSE
+	 */
+	SK_RST_REASON_TCP_ABORT_ON_CLOSE,
+	/**
+	 * @SK_RST_REASON_TCP_ABORT_ON_LINGER: abort on linger
+	 * corresponding to LINUX_MIB_TCPABORTONLINGER
+	 */
+	SK_RST_REASON_TCP_ABORT_ON_LINGER,
+	/**
+	 * @SK_RST_REASON_TCP_ABORT_ON_MEMORY: abort on memory
+	 * corresponding to LINUX_MIB_TCPABORTONMEMORY
+	 */
+	SK_RST_REASON_TCP_ABORT_ON_MEMORY,
+	/**
+	 * @SK_RST_REASON_TCP_STATE: abort on tcp state
+	 * Please see RFC 9293 for all possible reset conditions
+	 */
+	SK_RST_REASON_TCP_STATE,
+	/**
+	 * @SK_RST_REASON_TCP_KEEPALIVE_TIMEOUT: time to timeout
+	 * When we have already run out of all the chances, which means
+	 * keepalive timeout, we have to reset the connection
+	 */
+	SK_RST_REASON_TCP_KEEPALIVE_TIMEOUT,
+	/**
+	 * @SK_RST_REASON_TCP_DISCONNECT_WITH_DATA: disconnect when write
+	 * queue is not empty
+	 * It means user has written data into the write queue when doing
+	 * disconnecting, so we have to send an RST.
+	 */
+	SK_RST_REASON_TCP_DISCONNECT_WITH_DATA,
 
 	/* Copy from include/uapi/linux/mptcp.h.
 	 * These reset fields will not be changed since they adhere to

@@ -12,7 +12,7 @@
 
 #include <linux/ctype.h>
 #include <linux/kernel.h>
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 
 static int get_common_field(struct scripting_context *context,
 			    int *offset, int *size, const char *type)
@@ -99,7 +99,7 @@ unsigned long long read_size(struct tep_event *event, void *ptr, int size)
 	return tep_read_number(event->tep, ptr, size);
 }
 
-void event_format__fprintf(struct tep_event *event,
+void event_format__fprintf(const struct tep_event *event,
 			   int cpu, void *data, int size, FILE *fp)
 {
 	struct tep_record record;
@@ -114,12 +114,6 @@ void event_format__fprintf(struct tep_event *event,
 	tep_print_event(event->tep, &s, &record, "%s", TEP_PRINT_INFO);
 	trace_seq_do_fprintf(&s, fp);
 	trace_seq_destroy(&s);
-}
-
-void event_format__print(struct tep_event *event,
-			 int cpu, void *data, int size)
-{
-	return event_format__fprintf(event, cpu, data, size, stdout);
 }
 
 /*

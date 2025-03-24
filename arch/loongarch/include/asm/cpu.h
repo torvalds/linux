@@ -87,18 +87,21 @@ enum cpu_type_enum {
 #define CPU_FEATURE_LBT_MIPS		12	/* CPU has MIPS Binary Translation */
 #define CPU_FEATURE_TLB			13	/* CPU has TLB */
 #define CPU_FEATURE_CSR			14	/* CPU has CSR */
-#define CPU_FEATURE_WATCH		15	/* CPU has watchpoint registers */
-#define CPU_FEATURE_VINT		16	/* CPU has vectored interrupts */
-#define CPU_FEATURE_CSRIPI		17	/* CPU has CSR-IPI */
-#define CPU_FEATURE_EXTIOI		18	/* CPU has EXT-IOI */
-#define CPU_FEATURE_PREFETCH		19	/* CPU has prefetch instructions */
-#define CPU_FEATURE_PMP			20	/* CPU has perfermance counter */
-#define CPU_FEATURE_SCALEFREQ		21	/* CPU supports cpufreq scaling */
-#define CPU_FEATURE_FLATMODE		22	/* CPU has flat mode */
-#define CPU_FEATURE_EIODECODE		23	/* CPU has EXTIOI interrupt pin decode mode */
-#define CPU_FEATURE_GUESTID		24	/* CPU has GuestID feature */
-#define CPU_FEATURE_HYPERVISOR		25	/* CPU has hypervisor (running in VM) */
-#define CPU_FEATURE_PTW			26	/* CPU has hardware page table walker */
+#define CPU_FEATURE_IOCSR		15	/* CPU has IOCSR */
+#define CPU_FEATURE_WATCH		16	/* CPU has watchpoint registers */
+#define CPU_FEATURE_VINT		17	/* CPU has vectored interrupts */
+#define CPU_FEATURE_CSRIPI		18	/* CPU has CSR-IPI */
+#define CPU_FEATURE_EXTIOI		19	/* CPU has EXT-IOI */
+#define CPU_FEATURE_PREFETCH		20	/* CPU has prefetch instructions */
+#define CPU_FEATURE_PMP			21	/* CPU has perfermance counter */
+#define CPU_FEATURE_SCALEFREQ		22	/* CPU supports cpufreq scaling */
+#define CPU_FEATURE_FLATMODE		23	/* CPU has flat mode */
+#define CPU_FEATURE_EIODECODE		24	/* CPU has EXTIOI interrupt pin decode mode */
+#define CPU_FEATURE_GUESTID		25	/* CPU has GuestID feature */
+#define CPU_FEATURE_HYPERVISOR		26	/* CPU has hypervisor (running in VM) */
+#define CPU_FEATURE_PTW			27	/* CPU has hardware page table walker */
+#define CPU_FEATURE_LSPW		28	/* CPU has LSPW (lddir/ldpte instructions) */
+#define CPU_FEATURE_AVECINT		29	/* CPU has AVEC interrupt */
 
 #define LOONGARCH_CPU_CPUCFG		BIT_ULL(CPU_FEATURE_CPUCFG)
 #define LOONGARCH_CPU_LAM		BIT_ULL(CPU_FEATURE_LAM)
@@ -114,6 +117,7 @@ enum cpu_type_enum {
 #define LOONGARCH_CPU_LBT_ARM		BIT_ULL(CPU_FEATURE_LBT_ARM)
 #define LOONGARCH_CPU_LBT_MIPS		BIT_ULL(CPU_FEATURE_LBT_MIPS)
 #define LOONGARCH_CPU_TLB		BIT_ULL(CPU_FEATURE_TLB)
+#define LOONGARCH_CPU_IOCSR		BIT_ULL(CPU_FEATURE_IOCSR)
 #define LOONGARCH_CPU_CSR		BIT_ULL(CPU_FEATURE_CSR)
 #define LOONGARCH_CPU_WATCH		BIT_ULL(CPU_FEATURE_WATCH)
 #define LOONGARCH_CPU_VINT		BIT_ULL(CPU_FEATURE_VINT)
@@ -127,5 +131,7 @@ enum cpu_type_enum {
 #define LOONGARCH_CPU_GUESTID		BIT_ULL(CPU_FEATURE_GUESTID)
 #define LOONGARCH_CPU_HYPERVISOR	BIT_ULL(CPU_FEATURE_HYPERVISOR)
 #define LOONGARCH_CPU_PTW		BIT_ULL(CPU_FEATURE_PTW)
+#define LOONGARCH_CPU_LSPW		BIT_ULL(CPU_FEATURE_LSPW)
+#define LOONGARCH_CPU_AVECINT		BIT_ULL(CPU_FEATURE_AVECINT)
 
 #endif /* _ASM_CPU_H */

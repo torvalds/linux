@@ -10,6 +10,7 @@
 
 #include <linux/sched.h>
 #include <linux/rcupdate.h>
+#include <linux/cleanup.h>
 
 extern struct lockdep_map rcu_trace_lock_map;
 
@@ -97,5 +98,9 @@ static inline void call_rcu_tasks_trace(struct rcu_head *rhp, rcu_callback_t fun
 static inline void rcu_read_lock_trace(void) { BUG(); }
 static inline void rcu_read_unlock_trace(void) { BUG(); }
 #endif /* #ifdef CONFIG_TASKS_TRACE_RCU */
+
+DEFINE_LOCK_GUARD_0(rcu_tasks_trace,
+	rcu_read_lock_trace(),
+	rcu_read_unlock_trace())
 
 #endif /* __LINUX_RCUPDATE_TRACE_H */

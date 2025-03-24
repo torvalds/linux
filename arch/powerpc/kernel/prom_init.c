@@ -2792,91 +2792,6 @@ static void __init flatten_device_tree(void)
 		    dt_struct_start, dt_struct_end);
 }
 
-#ifdef CONFIG_PPC_MAPLE
-/* PIBS Version 1.05.0000 04/26/2005 has an incorrect /ht/isa/ranges property.
- * The values are bad, and it doesn't even have the right number of cells. */
-static void __init fixup_device_tree_maple(void)
-{
-	phandle isa;
-	u32 rloc = 0x01002000; /* IO space; PCI device = 4 */
-	u32 isa_ranges[6];
-	char *name;
-
-	name = "/ht@0/isa@4";
-	isa = call_prom("finddevice", 1, 1, ADDR(name));
-	if (!PHANDLE_VALID(isa)) {
-		name = "/ht@0/isa@6";
-		isa = call_prom("finddevice", 1, 1, ADDR(name));
-		rloc = 0x01003000; /* IO space; PCI device = 6 */
-	}
-	if (!PHANDLE_VALID(isa))
-		return;
-
-	if (prom_getproplen(isa, "ranges") != 12)
-		return;
-	if (prom_getprop(isa, "ranges", isa_ranges, sizeof(isa_ranges))
-		== PROM_ERROR)
-		return;
-
-	if (isa_ranges[0] != 0x1 ||
-		isa_ranges[1] != 0xf4000000 ||
-		isa_ranges[2] != 0x00010000)
-		return;
-
-	prom_printf("Fixing up bogus ISA range on Maple/Apache...\n");
-
-	isa_ranges[0] = 0x1;
-	isa_ranges[1] = 0x0;
-	isa_ranges[2] = rloc;
-	isa_ranges[3] = 0x0;
-	isa_ranges[4] = 0x0;
-	isa_ranges[5] = 0x00010000;
-	prom_setprop(isa, name, "ranges",
-			isa_ranges, sizeof(isa_ranges));
-}
-
-#define CPC925_MC_START		0xf8000000
-#define CPC925_MC_LENGTH	0x1000000
-/* The values for memory-controller don't have right number of cells */
-static void __init fixup_device_tree_maple_memory_controller(void)
-{
-	phandle mc;
-	u32 mc_reg[4];
-	char *name = "/hostbridge@f8000000";
-	u32 ac, sc;
-
-	mc = call_prom("finddevice", 1, 1, ADDR(name));
-	if (!PHANDLE_VALID(mc))
-		return;
-
-	if (prom_getproplen(mc, "reg") != 8)
-		return;
-
-	prom_getprop(prom.root, "#address-cells", &ac, sizeof(ac));
-	prom_getprop(prom.root, "#size-cells", &sc, sizeof(sc));
-	if ((ac != 2) || (sc != 2))
-		return;
-
-	if (prom_getprop(mc, "reg", mc_reg, sizeof(mc_reg)) == PROM_ERROR)
-		return;
-
-	if (mc_reg[0] != CPC925_MC_START || mc_reg[1] != CPC925_MC_LENGTH)
-		return;
-
-	prom_printf("Fixing up bogus hostbridge on Maple...\n");
-
-	mc_reg[0] = 0x0;
-	mc_reg[1] = CPC925_MC_START;
-	mc_reg[2] = 0x0;
-	mc_reg[3] = CPC925_MC_LENGTH;
-	prom_setprop(mc, name, "reg", mc_reg, sizeof(mc_reg));
-}
-#else
-#define fixup_device_tree_maple()
-#define fixup_device_tree_maple_memory_controller()
-#endif
-
-#ifdef CONFIG_PPC_CHRP
 /*
  * Pegasos and BriQ lacks the "ranges" property in the isa node
  * Pegasos needs decimal IRQ 14/15, not hexadecimal
@@ -2927,12 +2842,8 @@ static void __init fixup_device_tree_chrp(void)
 		}
 	}
 }
-#else
-#define fixup_device_tree_chrp()
-#endif
 
-#if defined(CONFIG_PPC64) && defined(CONFIG_PPC_PMAC)
-static void __init fixup_device_tree_pmac(void)
+static void __init fixup_device_tree_pmac64(void)
 {
 	phandle u3, i2c, mpic;
 	u32 u3_rev;
@@ -2971,11 +2882,27 @@ static void __init fixup_device_tree_pmac(void)
 	prom_setprop(i2c, "/u3@0,f8000000/i2c@f8001000", "interrupt-parent",
 		     &parent, sizeof(parent));
 }
-#else
-#define fixup_device_tree_pmac()
-#endif
 
-#ifdef CONFIG_PPC_EFIKA
+static void __init fixup_device_tree_pmac(void)
+{
+	__be32 val = 1;
+	char type[8];
+	phandle node;
+
+	// Some pmacs are missing #size-cells on escc nodes
+	for (node = 0; prom_next_node(&node); ) {
+		type[0] = '\0';
+		prom_getprop(node, "device_type", type, sizeof(type));
+		if (prom_strcmp(type, "escc"))
+			continue;
+
+		if (prom_getproplen(node, "#size-cells") != PROM_ERROR)
+			continue;
+
+		prom_setprop(node, NULL, "#size-cells", &val, sizeof(val));
+	}
+}
+
 /*
  * The MPC5200 FEC driver requires an phy-handle property to tell it how
  * to talk to the phy.  If the phy-handle property is missing, then this
@@ -3107,11 +3034,7 @@ static void __init fixup_device_tree_efika(void)
 	/* Make sure ethernet phy-handle property exists */
 	fixup_device_tree_efika_add_phy();
 }
-#else
-#define fixup_device_tree_efika()
-#endif
 
-#ifdef CONFIG_PPC_PASEMI_NEMO
 /*
  * CFE supplied on Nemo is broken in several ways, biggest
  * problem is that it reassigns ISA interrupts to unused mpic ints.
@@ -3187,18 +3110,23 @@ static void __init fixup_device_tree_pasemi(void)
 
 	prom_setprop(iob, name, "device_type", "isa", sizeof("isa"));
 }
-#else	/* !CONFIG_PPC_PASEMI_NEMO */
-static inline void fixup_device_tree_pasemi(void) { }
-#endif
 
 static void __init fixup_device_tree(void)
 {
-	fixup_device_tree_maple();
-	fixup_device_tree_maple_memory_controller();
-	fixup_device_tree_chrp();
-	fixup_device_tree_pmac();
-	fixup_device_tree_efika();
-	fixup_device_tree_pasemi();
+	if (IS_ENABLED(CONFIG_PPC_CHRP))
+		fixup_device_tree_chrp();
+
+	if (IS_ENABLED(CONFIG_PPC_PMAC))
+		fixup_device_tree_pmac();
+
+	if (IS_ENABLED(CONFIG_PPC_PMAC) && IS_ENABLED(CONFIG_PPC64))
+		fixup_device_tree_pmac64();
+
+	if (IS_ENABLED(CONFIG_PPC_EFIKA))
+		fixup_device_tree_efika();
+
+	if (IS_ENABLED(CONFIG_PPC_PASEMI_NEMO))
+		fixup_device_tree_pasemi();
 }
 
 static void __init prom_find_boot_cpu(void)

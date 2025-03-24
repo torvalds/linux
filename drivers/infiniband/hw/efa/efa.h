@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2025 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_H_
@@ -57,15 +57,15 @@ struct efa_dev {
 	u64 db_bar_addr;
 	u64 db_bar_len;
 
-	unsigned int num_irq_vectors;
-	int admin_msix_vector_idx;
+	u32 num_irq_vectors;
+	u32 admin_msix_vector_idx;
 	struct efa_irq admin_irq;
 
 	struct efa_stats stats;
 
 	/* Array of completion EQs */
 	struct efa_eq *eqs;
-	unsigned int neqs;
+	u32 neqs;
 
 	/* Only stores CQs with interrupts enabled */
 	struct xarray cqs_xa;
@@ -168,7 +168,7 @@ struct ib_mr *efa_reg_mr(struct ib_pd *ibpd, u64 start, u64 length,
 struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 				     u64 length, u64 virt_addr,
 				     int fd, int access_flags,
-				     struct ib_udata *udata);
+				     struct uverbs_attr_bundle *attrs);
 int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata);
 int efa_get_port_immutable(struct ib_device *ibdev, u32 port_num,
 			   struct ib_port_immutable *immutable);

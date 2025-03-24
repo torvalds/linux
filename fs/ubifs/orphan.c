@@ -76,7 +76,7 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
 		else if (inum > o->inum)
 			p = &(*p)->rb_right;
 		else {
-			ubifs_err(c, "orphaned twice");
+			ubifs_err(c, "ino %lu orphaned twice", (unsigned long)inum);
 			spin_unlock(&c->orphan_lock);
 			kfree(orphan);
 			return -EINVAL;

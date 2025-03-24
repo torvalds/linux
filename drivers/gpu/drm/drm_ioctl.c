@@ -540,6 +540,55 @@ int drm_version(struct drm_device *dev, void *data,
 	return err;
 }
 
+/*
+ * Check if the passed string contains control char or spaces or
+ * anything that would mess up a formatted output.
+ */
+static int drm_validate_value_string(const char *value, size_t len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (!isascii(value[i]) || !isgraph(value[i]))
+			return -EINVAL;
+	}
+	return 0;
+}
+
+static int drm_set_client_name(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv)
+{
+	struct drm_set_client_name *name = data;
+	size_t len = name->name_len;
+	void __user *user_ptr;
+	char *new_name;
+
+	if (len > DRM_CLIENT_NAME_MAX_LEN) {
+		return -EINVAL;
+	} else if (len) {
+		user_ptr = u64_to_user_ptr(name->name);
+
+		new_name = memdup_user_nul(user_ptr, len);
+		if (IS_ERR(new_name))
+			return PTR_ERR(new_name);
+
+		if (strlen(new_name) != len ||
+		    drm_validate_value_string(new_name, len) < 0) {
+			kfree(new_name);
+			return -EINVAL;
+		}
+	} else {
+		new_name = NULL;
+	}
+
+	mutex_lock(&file_priv->client_name_lock);
+	kfree(file_priv->client_name);
+	file_priv->client_name = new_name;
+	mutex_unlock(&file_priv->client_name_lock);
+
+	return 0;
+}
+
 static int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 {
 	/* ROOT_ONLY is only for CAP_SYS_ADMIN */
@@ -609,6 +658,8 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 
 	DRM_IOCTL_DEF(DRM_IOCTL_PRIME_HANDLE_TO_FD, drm_prime_handle_to_fd_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF(DRM_IOCTL_PRIME_FD_TO_HANDLE, drm_prime_fd_to_handle_ioctl, DRM_RENDER_ALLOW),
+
+	DRM_IOCTL_DEF(DRM_IOCTL_SET_CLIENT_NAME, drm_set_client_name, DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETPLANERESOURCES, drm_mode_getplane_res, 0),
 	DRM_IOCTL_DEF(DRM_IOCTL_MODE_GETCRTC, drm_mode_getcrtc, 0),

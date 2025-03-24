@@ -28,8 +28,10 @@ struct ivpu_cmdq {
 	struct ivpu_bo *secondary_preempt_buf;
 	struct ivpu_bo *mem;
 	u32 entry_count;
+	u32 id;
 	u32 db_id;
 	bool db_registered;
+	u8 priority;
 };
 
 /**

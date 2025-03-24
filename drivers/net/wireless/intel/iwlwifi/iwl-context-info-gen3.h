@@ -76,7 +76,17 @@ enum iwl_prph_scratch_flags {
 	IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE	= BIT(29),
 };
 
-/*
+/**
+ * enum iwl_prph_scratch_ext_flags - PRPH scratch control ext flags
+ * @IWL_PRPH_SCRATCH_EXT_URM_FW: switch to URM mode based on fw setting
+ * @IWL_PRPH_SCRATCH_EXT_URM_PERM: switch to permanent URM mode
+ */
+enum iwl_prph_scratch_ext_flags {
+	IWL_PRPH_SCRATCH_EXT_URM_FW	= BIT(4),
+	IWL_PRPH_SCRATCH_EXT_URM_PERM	= BIT(5),
+};
+
+/**
  * struct iwl_prph_scratch_version - version structure
  * @mac_id: SKU and revision id
  * @version: prph scratch information version id
@@ -90,17 +100,18 @@ struct iwl_prph_scratch_version {
 	__le16 reserved;
 } __packed; /* PERIPH_SCRATCH_VERSION_S */
 
-/*
+/**
  * struct iwl_prph_scratch_control - control structure
  * @control_flags: context information flags see &enum iwl_prph_scratch_flags
- * @reserved: reserved
+ * @control_flags_ext: context information for extended flags,
+ *	see &enum iwl_prph_scratch_ext_flags
  */
 struct iwl_prph_scratch_control {
 	__le32 control_flags;
-	__le32 reserved;
+	__le32 control_flags_ext;
 } __packed; /* PERIPH_SCRATCH_CONTROL_S */
 
-/*
+/**
  * struct iwl_prph_scratch_pnvm_cfg - PNVM scratch
  * @pnvm_base_addr: PNVM start address
  * @pnvm_size: the size of the PNVM image in bytes
@@ -120,7 +131,8 @@ struct iwl_prph_scratch_pnvm_cfg {
 struct iwl_prph_scrath_mem_desc_addr_array {
 	__le64 mem_descs[IPC_DRAM_MAP_ENTRY_NUM_MAX];
 } __packed; /* PERIPH_SCRATCH_MEM_DESC_ADDR_ARRAY_S_VER_1 */
-/*
+
+/**
  * struct iwl_prph_scratch_hwm_cfg - hwm config
  * @hwm_base_addr: hwm start address
  * @hwm_size: hwm size in DWs
@@ -132,7 +144,7 @@ struct iwl_prph_scratch_hwm_cfg {
 	__le32 debug_token_config;
 } __packed; /* PERIPH_SCRATCH_HWM_CFG_S */
 
-/*
+/**
  * struct iwl_prph_scratch_rbd_cfg - RBDs configuration
  * @free_rbd_addr: default queue free RB CB base address
  * @reserved: reserved
@@ -142,10 +154,11 @@ struct iwl_prph_scratch_rbd_cfg {
 	__le32 reserved;
 } __packed; /* PERIPH_SCRATCH_RBD_CFG_S */
 
-/*
+/**
  * struct iwl_prph_scratch_uefi_cfg - prph scratch reduce power table
  * @base_addr: reduce power table address
  * @size: the size of the entire power table image
+ * @reserved: (reserved)
  */
 struct iwl_prph_scratch_uefi_cfg {
 	__le64 base_addr;
@@ -153,7 +166,7 @@ struct iwl_prph_scratch_uefi_cfg {
 	__le32 reserved;
 } __packed; /* PERIPH_SCRATCH_UEFI_CFG_S */
 
-/*
+/**
  * struct iwl_prph_scratch_step_cfg - prph scratch step configuration
  * @mbx_addr_0: [0:7] revision,
  *		[8:15] cnvi_to_cnvr length,
@@ -167,13 +180,14 @@ struct iwl_prph_scratch_step_cfg {
 	__le32 mbx_addr_1;
 } __packed;
 
-/*
+/**
  * struct iwl_prph_scratch_ctrl_cfg - prph scratch ctrl and config
  * @version: version information of context info and HW
  * @control: control flags of FH configurations
  * @pnvm_cfg: ror configuration
  * @hwm_cfg: hwm configuration
  * @rbd_cfg: default RX queue configuration
+ * @reduce_power_cfg: UEFI power reduction table
  * @step_cfg: step configuration
  */
 struct iwl_prph_scratch_ctrl_cfg {
@@ -186,7 +200,7 @@ struct iwl_prph_scratch_ctrl_cfg {
 	struct iwl_prph_scratch_step_cfg step_cfg;
 } __packed; /* PERIPH_SCRATCH_CTRL_CFG_S */
 
-/*
+/**
  * struct iwl_prph_scratch - peripheral scratch mapping
  * @ctrl_cfg: control and configuration of prph scratch
  * @dram: firmware images addresses in DRAM
@@ -202,7 +216,7 @@ struct iwl_prph_scratch {
 	struct iwl_context_info_dram dram;
 } __packed; /* PERIPH_SCRATCH_S */
 
-/*
+/**
  * struct iwl_prph_info - peripheral information
  * @boot_stage_mirror: reflects the value in the Boot Stage CSR register
  * @ipc_status_mirror: reflects the value in the IPC Status CSR register
@@ -216,7 +230,7 @@ struct iwl_prph_info {
 	__le32 reserved;
 } __packed; /* PERIPH_INFO_S */
 
-/*
+/**
  * struct iwl_context_info_gen3 - device INIT configuration
  * @version: version of the context information
  * @size: size of context information in DWs

@@ -553,6 +553,8 @@ static const struct sfp_upstream_ops sfp_phy_ops = {
 	.link_down = mv2222_sfp_link_down,
 	.attach = phy_sfp_attach,
 	.detach = phy_sfp_detach,
+	.connect_phy = phy_sfp_connect_phy,
+	.disconnect_phy = phy_sfp_disconnect_phy,
 };
 
 static int mv2222_probe(struct phy_device *phydev)
@@ -611,7 +613,7 @@ static struct phy_driver mv2222_drivers[] = {
 };
 module_phy_driver(mv2222_drivers);
 
-static struct mdio_device_id __maybe_unused mv2222_tbl[] = {
+static const struct mdio_device_id __maybe_unused mv2222_tbl[] = {
 	{ MARVELL_PHY_ID_88X2222, MARVELL_PHY_ID_MASK },
 	{ }
 };

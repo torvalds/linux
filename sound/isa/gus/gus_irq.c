@@ -26,7 +26,6 @@ __again:
 	if (status == 0)
 		return IRQ_RETVAL(handled);
 	handled = 1;
-	/* snd_printk(KERN_DEBUG "IRQ: status = 0x%x\n", status); */
 	if (status & 0x02) {
 		STAT_ADD(gus->gf1.interrupt_stat_midi_in);
 		if (gus->gf1.interrupt_handler_midi_in)
@@ -50,9 +49,9 @@ __again:
 				continue;	/* multi request */
 			already |= _current_;	/* mark request */
 #if 0
-			printk(KERN_DEBUG "voice = %i, voice_status = 0x%x, "
-			       "voice_verify = %i\n",
-			       voice, voice_status, inb(GUSP(gus, GF1PAGE)));
+			dev_dbg(gus->card->dev,
+				"voice = %i, voice_status = 0x%x, voice_verify = %i\n",
+				voice, voice_status, inb(GUSP(gus, GF1PAGE)));
 #endif
 			pvoice = &gus->gf1.voices[voice]; 
 			if (pvoice->use) {

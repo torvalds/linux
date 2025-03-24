@@ -16,6 +16,7 @@
 
 		multi-led {
 			color = <LED_COLOR_ID_RGB>;
+			function = LED_FUNCTION_STATUS;
 			max-brightness = <255>;
 
 			led-red {
@@ -35,7 +36,7 @@
 		};
 	};
 
-	vbus_typec: vbus-typec-regulator {
+	vbus_typec: regulator-vbus-typec {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
@@ -50,7 +51,7 @@
 	/* actually fed by vcc5v0_sys, dependent
 	 * on pi6c clock generator
 	 */
-	vcc3v3_minipcie: vcc3v3-minipcie-regulator {
+	vcc3v3_minipcie: regulator-vcc3v3-minipcie {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
@@ -62,7 +63,7 @@
 		vin-supply = <&vcc3v3_pi6c_05>;
 	};
 
-	vcc3v3_ngff: vcc3v3-ngff-regulator {
+	vcc3v3_ngff: regulator-vcc3v3-ngff {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PD6 GPIO_ACTIVE_HIGH>;
@@ -74,7 +75,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc3v3_pcie30x1: vcc3v3-pcie30x1-regulator {
+	vcc3v3_pcie30x1: regulator-vcc3v3-pcie30x1 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
@@ -86,7 +87,7 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
-	vcc3v3_pi6c_05: vcc3v3-pi6c-05-regulator {
+	vcc3v3_pi6c_05: regulator-vcc3v3-pi6c-05 {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_HIGH>;
@@ -101,6 +102,10 @@
 
 &combphy1 {
 	phy-supply = <&vcc3v3_pcie30x1>;
+};
+
+&display_subsystem {
+	status = "disabled";
 };
 
 &pcie2x1 {
@@ -119,7 +124,7 @@
 &pcie3x1 {
 	num-lanes = <1>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&pcie30x1m0_pins>;
+	pinctrl-0 = <&pcie30x1_reset_h>;
 	reset-gpios = <&gpio0 RK_PC3 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_minipcie>;
 	status = "okay";
@@ -142,6 +147,10 @@
 
 		pcie30x1_enable_h: pcie30x1-enable-h {
 			rockchip,pins = <0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		pcie30x1_reset_h: pcie30x1-reset-h {
+			rockchip,pins = <0 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		pcie30x2_reset_h: pcie30x2-reset-h {

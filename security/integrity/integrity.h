@@ -37,6 +37,8 @@ struct evm_ima_xattr_data {
 	);
 	u8 data[];
 } __packed;
+static_assert(offsetof(struct evm_ima_xattr_data, data) == sizeof(struct evm_ima_xattr_data_hdr),
+	      "struct member likely outside of __struct_group()");
 
 /* Only used in the EVM HMAC code. */
 struct evm_xattr {
@@ -65,6 +67,8 @@ struct ima_digest_data {
 	);
 	u8 digest[];
 } __packed;
+static_assert(offsetof(struct ima_digest_data, digest) == sizeof(struct ima_digest_data_hdr),
+	      "struct member likely outside of __struct_group()");
 
 /*
  * Instead of wrapping the ima_digest_data struct inside a local structure

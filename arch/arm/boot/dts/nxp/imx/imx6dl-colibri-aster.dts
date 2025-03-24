@@ -52,7 +52,7 @@
 		&pinctrl_weim_gpio_5
 	>;
 
-	pinctrl_gpio_aster: gpioaster {
+	pinctrl_gpio_aster: gpioastergrp {
 		fsl,pins = <
 			MX6QDL_PAD_KEY_COL2__GPIO4_IO10		0x1b0b0
 			MX6QDL_PAD_KEY_ROW2__GPIO4_IO11		0x1b0b0

@@ -28,7 +28,7 @@
  * @groupcounter:		index of next attribute group
  * @legacy_scan_el_group:	attribute group for legacy scan elements attribute group
  * @legacy_buffer_group:	attribute group for legacy buffer attributes group
- * @bounce_buffer:		for devices that call iio_push_to_buffers_with_timestamp_unaligned()
+ * @bounce_buffer:		for devices that call iio_push_to_buffers_with_ts_unaligned()
  * @bounce_buffer_size:		size of currently allocate bounce buffer
  * @scan_index_timestamp:	cache of the index to the timestamp
  * @clock_id:			timestamping clock posix identifier
@@ -70,7 +70,7 @@ struct iio_dev_opaque {
 
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_dentry;
-	unsigned			cached_reg_addr;
+	unsigned int			cached_reg_addr;
 	char				read_buf[20];
 	unsigned int			read_buf_len;
 #endif

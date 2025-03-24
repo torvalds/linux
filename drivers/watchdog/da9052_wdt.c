@@ -135,7 +135,11 @@ static int da9052_wdt_ping(struct watchdog_device *wdt_dev)
 }
 
 static const struct watchdog_info da9052_wdt_info = {
-	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
+	.options =	WDIOF_SETTIMEOUT |
+			WDIOF_KEEPALIVEPING |
+			WDIOF_CARDRESET |
+			WDIOF_OVERHEAT |
+			WDIOF_POWERUNDER,
 	.identity	= "DA9052 Watchdog",
 };
 
@@ -168,6 +172,13 @@ static int da9052_wdt_probe(struct platform_device *pdev)
 	da9052_wdt->ops = &da9052_wdt_ops;
 	da9052_wdt->parent = dev;
 	watchdog_set_drvdata(da9052_wdt, driver_data);
+
+	if (da9052->fault_log & DA9052_FAULTLOG_TWDERROR)
+		da9052_wdt->bootstatus |= WDIOF_CARDRESET;
+	if (da9052->fault_log & DA9052_FAULTLOG_TEMPOVER)
+		da9052_wdt->bootstatus |= WDIOF_OVERHEAT;
+	if (da9052->fault_log & DA9052_FAULTLOG_VDDFAULT)
+		da9052_wdt->bootstatus |= WDIOF_POWERUNDER;
 
 	ret = da9052_reg_update(da9052, DA9052_CONTROL_D_REG,
 				DA9052_CONTROLD_TWDSCALE, 0);

@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/realtek,rtl9301-switch.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Realtek Switch with Internal CPU
+
+maintainers:
+  - Chris Packham <chris.packham@alliedtelesis.co.nz>
+
+description:
+  The RTL9300 is a series of is an Ethernet switches with an integrated CPU. A
+  number of different peripherals are accessed through a common register block,
+  represented here as a syscon node.
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - realtek,rtl9301-switch
+          - realtek,rtl9302b-switch
+          - realtek,rtl9302c-switch
+          - realtek,rtl9303-switch
+      - const: syscon
+      - const: simple-mfd
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+patternProperties:
+  'reboot@[0-9a-f]+$':
+    $ref: /schemas/power/reset/syscon-reboot.yaml#
+
+  'i2c@[0-9a-f]+$':
+    $ref: /schemas/i2c/realtek,rtl9301-i2c.yaml#
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    ethernet-switch@1b000000 {
+      compatible = "realtek,rtl9301-switch", "syscon", "simple-mfd";
+      reg = <0x1b000000 0x10000>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+
+      reboot@c {
+        compatible = "syscon-reboot";
+        reg = <0x0c 0x4>;
+        value = <0x01>;
+      };
+
+      i2c@36c {
+        compatible = "realtek,rtl9301-i2c";
+        reg = <0x36c 0x14>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        i2c@0 {
+          reg = <0>;
+          #address-cells = <1>;
+          #size-cells = <0>;
+          gpio@20 {
+            compatible = "nxp,pca9555";
+            gpio-controller;
+            #gpio-cells = <2>;
+            reg = <0x20>;
+          };
+        };
+
+        i2c@2 {
+          reg = <2>;
+          #address-cells = <1>;
+          #size-cells = <0>;
+          gpio@20 {
+            compatible = "nxp,pca9555";
+            gpio-controller;
+            #gpio-cells = <2>;
+            reg = <0x20>;
+          };
+        };
+      };
+
+      i2c@388 {
+        compatible = "realtek,rtl9301-i2c";
+        reg = <0x388 0x14>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        i2c@7 {
+          reg = <7>;
+          #address-cells = <1>;
+          #size-cells = <0>;
+          gpio@20 {
+            compatible = "nxp,pca9555";
+            gpio-controller;
+            #gpio-cells = <2>;
+            reg = <0x20>;
+          };
+        };
+      };
+    };
+

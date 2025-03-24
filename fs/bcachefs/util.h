@@ -55,6 +55,16 @@ static inline size_t buf_pages(void *p, size_t len)
 			    PAGE_SIZE);
 }
 
+static inline void *bch2_kvmalloc(size_t n, gfp_t flags)
+{
+	void *p = unlikely(n >= INT_MAX)
+		? vmalloc(n)
+		: kvmalloc(n, flags & ~__GFP_ZERO);
+	if (p && (flags & __GFP_ZERO))
+		memset(p, 0, n);
+	return p;
+}
+
 #define init_heap(heap, _size, gfp)					\
 ({									\
 	(heap)->nr = 0;						\
@@ -195,7 +205,7 @@ static inline int bch2_strtoul_h(const char *cp, long *res)
 
 bool bch2_is_zero(const void *, size_t);
 
-u64 bch2_read_flag_list(char *, const char * const[]);
+u64 bch2_read_flag_list(const char *, const char * const[]);
 
 void bch2_prt_u64_base2_nbits(struct printbuf *, u64, unsigned);
 void bch2_prt_u64_base2(struct printbuf *, u64);
@@ -317,6 +327,19 @@ do {									\
 	_ptr ? container_of(_ptr, type, member) : NULL;			\
 })
 
+static inline struct list_head *list_pop(struct list_head *head)
+{
+	if (list_empty(head))
+		return NULL;
+
+	struct list_head *ret = head->next;
+	list_del_init(ret);
+	return ret;
+}
+
+#define list_pop_entry(head, type, member)		\
+	container_of_or_null(list_pop(head), type, member)
+
 /* Does linear interpolation between powers of two */
 static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
 {
@@ -378,7 +401,7 @@ do {									\
 	_ret;								\
 })
 
-size_t bch2_rand_range(size_t);
+u64 bch2_get_random_u64_below(u64);
 
 void memcpy_to_bio(struct bio *, struct bvec_iter, const void *);
 void memcpy_from_bio(void *, struct bio *, struct bvec_iter);
@@ -647,8 +670,6 @@ static inline int cmp_le32(__le32 l, __le32 r)
 
 #include <linux/uuid.h>
 
-#define QSTR(n) { { { .len = strlen(n) } }, .name = n }
-
 static inline bool qstr_eq(const struct qstr l, const struct qstr r)
 {
 	return l.len == r.len && !memcmp(l.name, r.name, l.len);
@@ -694,6 +715,15 @@ static inline void __clear_bit_le64(size_t bit, __le64 *addr)
 static inline bool test_bit_le64(size_t bit, __le64 *addr)
 {
 	return (addr[bit / 64] & cpu_to_le64(BIT_ULL(bit % 64))) != 0;
+}
+
+static inline void memcpy_swab(void *_dst, void *_src, size_t len)
+{
+	u8 *dst = _dst + len;
+	u8 *src = _src;
+
+	while (len--)
+		*--dst = *src++;
 }
 
 #endif /* _BCACHEFS_UTIL_H */

@@ -124,19 +124,19 @@
 		};
 
 		port@1 {
-			label = "lan1";
+			label = "lan4";
 		};
 
 		port@2 {
-			label = "lan2";
-		};
-
-		port@3 {
 			label = "lan3";
 		};
 
+		port@3 {
+			label = "lan2";
+		};
+
 		port@4 {
-			label = "lan4";
+			label = "lan1";
 		};
 	};
 };

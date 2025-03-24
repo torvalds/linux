@@ -333,7 +333,7 @@ static struct platform_driver amlogic_thermal_driver = {
 		.of_match_table = of_amlogic_thermal_match,
 	},
 	.probe = amlogic_thermal_probe,
-	.remove_new = amlogic_thermal_remove,
+	.remove = amlogic_thermal_remove,
 };
 
 module_platform_driver(amlogic_thermal_driver);

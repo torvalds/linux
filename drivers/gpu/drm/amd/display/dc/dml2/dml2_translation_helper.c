@@ -553,13 +553,53 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		}
 	}
 
-	dml2_policy_build_synthetic_soc_states(s, p);
-	if (dml2->v20.dml_core_ctx.project == dml_project_dcn35) {
-		// Override last out_state with data from last in_state
-		// This will ensure that out_state contains max fclk
-		memcpy(&p->out_states->state_array[p->out_states->num_states - 1],
-				&p->in_states->state_array[p->in_states->num_states - 1],
-				sizeof(struct soc_state_bounding_box_st));
+	if (dml2->v20.dml_core_ctx.project == dml_project_dcn35 ||
+	    dml2->v20.dml_core_ctx.project == dml_project_dcn351) {
+		int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0, max_phyclk_mhz = 0,
+			max_dtbclk_mhz = 0, max_fclk_mhz = 0, max_uclk_mhz = 0, max_socclk_mhz = 0;
+
+		for (i = 0; i < p->in_states->num_states; i++) {
+			if (p->in_states->state_array[i].dcfclk_mhz > max_dcfclk_mhz)
+				max_dcfclk_mhz = (int)p->in_states->state_array[i].dcfclk_mhz;
+			if (p->in_states->state_array[i].fabricclk_mhz > max_fclk_mhz)
+				max_fclk_mhz = (int)p->in_states->state_array[i].fabricclk_mhz;
+			if (p->in_states->state_array[i].socclk_mhz > max_socclk_mhz)
+				max_socclk_mhz = (int)p->in_states->state_array[i].socclk_mhz;
+			if (p->in_states->state_array[i].dram_speed_mts > max_uclk_mhz)
+				max_uclk_mhz = (int)p->in_states->state_array[i].dram_speed_mts;
+			if (p->in_states->state_array[i].dispclk_mhz > max_dispclk_mhz)
+				max_dispclk_mhz = (int)p->in_states->state_array[i].dispclk_mhz;
+			if (p->in_states->state_array[i].dppclk_mhz > max_dppclk_mhz)
+				max_dppclk_mhz = (int)p->in_states->state_array[i].dppclk_mhz;
+			if (p->in_states->state_array[i].phyclk_mhz > max_phyclk_mhz)
+				max_phyclk_mhz = (int)p->in_states->state_array[i].phyclk_mhz;
+			if (p->in_states->state_array[i].dtbclk_mhz > max_dtbclk_mhz)
+				max_dtbclk_mhz = (int)p->in_states->state_array[i].dtbclk_mhz;
+		}
+
+		for (i = 0; i < p->in_states->num_states; i++) {
+			/* Independent states - including base (unlisted) parameters from state 0. */
+			p->out_states->state_array[i] = p->in_states->state_array[0];
+
+			p->out_states->state_array[i].dispclk_mhz = max_dispclk_mhz;
+			p->out_states->state_array[i].dppclk_mhz = max_dppclk_mhz;
+			p->out_states->state_array[i].dtbclk_mhz = max_dtbclk_mhz;
+			p->out_states->state_array[i].phyclk_mhz = max_phyclk_mhz;
+
+			p->out_states->state_array[i].dscclk_mhz = max_dispclk_mhz / 3.0;
+			p->out_states->state_array[i].phyclk_mhz = max_phyclk_mhz;
+			p->out_states->state_array[i].dtbclk_mhz = max_dtbclk_mhz;
+
+			/* Dependent states. */
+			p->out_states->state_array[i].dram_speed_mts = p->in_states->state_array[i].dram_speed_mts;
+			p->out_states->state_array[i].fabricclk_mhz = p->in_states->state_array[i].fabricclk_mhz;
+			p->out_states->state_array[i].socclk_mhz = p->in_states->state_array[i].socclk_mhz;
+			p->out_states->state_array[i].dcfclk_mhz = p->in_states->state_array[i].dcfclk_mhz;
+		}
+
+		p->out_states->num_states = p->in_states->num_states;
+	} else {
+		dml2_policy_build_synthetic_soc_states(s, p);
 	}
 }
 
@@ -733,7 +773,7 @@ static void populate_dml_timing_cfg_from_stream_state(struct dml_timing_cfg_st *
 }
 
 static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *out, unsigned int location,
-				const struct dc_stream_state *in, const struct pipe_ctx *pipe)
+				const struct dc_stream_state *in, const struct pipe_ctx *pipe, struct dml2_context *dml2)
 {
 	unsigned int output_bpc;
 
@@ -746,8 +786,8 @@ static void populate_dml_output_cfg_from_stream_state(struct dml_output_cfg_st *
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 	case SIGNAL_TYPE_DISPLAY_PORT:
 		out->OutputEncoder[location] = dml_dp;
-		if (is_dp2p0_output_encoder(pipe))
-			out->OutputEncoder[location] = dml_dp2p0;
+		if (location < MAX_HPO_DP2_ENCODERS && dml2->v20.scratch.hpo_stream_to_link_encoder_mapping[location] != -1)
+			out->OutputEncoder[dml2->v20.scratch.hpo_stream_to_link_encoder_mapping[location]] = dml_dp2p0;
 		break;
 	case SIGNAL_TYPE_EDP:
 		out->OutputEncoder[location] = dml_edp;
@@ -953,7 +993,9 @@ static void get_scaler_data_for_plane(const struct dc_plane_state *in, struct dc
 	memcpy(out, &temp_pipe->plane_res.scl_data, sizeof(*out));
 }
 
-static void populate_dummy_dml_plane_cfg(struct dml_plane_cfg_st *out, unsigned int location, const struct dc_stream_state *in)
+static void populate_dummy_dml_plane_cfg(struct dml_plane_cfg_st *out, unsigned int location,
+					 const struct dc_stream_state *in,
+					 const struct soc_bounding_box_st *soc)
 {
 	dml_uint_t width, height;
 
@@ -970,7 +1012,7 @@ static void populate_dummy_dml_plane_cfg(struct dml_plane_cfg_st *out, unsigned 
 	out->CursorBPP[location] = dml_cur_32bit;
 	out->CursorWidth[location] = 256;
 
-	out->GPUVMMinPageSizeKBytes[location] = 256;
+	out->GPUVMMinPageSizeKBytes[location] = soc->gpuvm_min_page_size_kbytes;
 
 	out->ViewportWidth[location] = width;
 	out->ViewportHeight[location] = height;
@@ -1007,7 +1049,9 @@ static void populate_dummy_dml_plane_cfg(struct dml_plane_cfg_st *out, unsigned 
 	out->ScalerEnabled[location] = false;
 }
 
-static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out, unsigned int location, const struct dc_plane_state *in, struct dc_state *context)
+static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out, unsigned int location,
+						    const struct dc_plane_state *in, struct dc_state *context,
+						    const struct soc_bounding_box_st *soc)
 {
 	struct scaler_data *scaler_data = kzalloc(sizeof(*scaler_data), GFP_KERNEL);
 	if (!scaler_data)
@@ -1018,7 +1062,7 @@ static void populate_dml_plane_cfg_from_plane_state(struct dml_plane_cfg_st *out
 	out->CursorBPP[location] = dml_cur_32bit;
 	out->CursorWidth[location] = 256;
 
-	out->GPUVMMinPageSizeKBytes[location] = 256;
+	out->GPUVMMinPageSizeKBytes[location] = soc->gpuvm_min_page_size_kbytes;
 
 	out->ViewportWidth[location] = scaler_data->viewport.width;
 	out->ViewportHeight[location] = scaler_data->viewport.height;
@@ -1193,6 +1237,7 @@ static void dml2_populate_pipe_to_plane_index_mapping(struct dml2_context *dml2,
 		plane_index = 0;
 	}
 }
+
 static void populate_dml_writeback_cfg_from_stream_state(struct dml_writeback_cfg_st *out,
 		unsigned int location, const struct dc_stream_state *in)
 {
@@ -1233,6 +1278,30 @@ static void populate_dml_writeback_cfg_from_stream_state(struct dml_writeback_cf
 		}
 	}
 }
+
+static void dml2_map_hpo_stream_encoder_to_hpo_link_encoder_index(struct dml2_context *dml2, struct dc_state *context)
+{
+	int i;
+	struct pipe_ctx *current_pipe_context;
+
+	/* Scratch gets reset to zero in dml, but link encoder instance can be zero, so reset to -1 */
+	for (i = 0; i < MAX_HPO_DP2_ENCODERS; i++) {
+		dml2->v20.scratch.hpo_stream_to_link_encoder_mapping[i] = -1;
+	}
+
+	/* If an HPO stream encoder is allocated to a pipe, get the instance of it's allocated HPO Link encoder */
+	for (i = 0; i < MAX_PIPES; i++) {
+		current_pipe_context = &context->res_ctx.pipe_ctx[i];
+		if (current_pipe_context->stream &&
+			current_pipe_context->stream_res.hpo_dp_stream_enc &&
+			current_pipe_context->link_res.hpo_dp_link_enc &&
+			dc_is_dp_signal(current_pipe_context->stream->signal)) {
+				dml2->v20.scratch.hpo_stream_to_link_encoder_mapping[current_pipe_context->stream_res.hpo_dp_stream_enc->inst] =
+					current_pipe_context->link_res.hpo_dp_link_enc->inst;
+			}
+	}
+}
+
 void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_state *context, struct dml_display_cfg_st *dml_dispcfg)
 {
 	int i = 0, j = 0, k = 0;
@@ -1256,6 +1325,7 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 		dml2->v20.dml_core_ctx.policy.AllowForPStateChangeOrStutterInVBlankFinal = dml_prefetch_support_uclk_fclk_and_stutter;
 
 	dml2_populate_pipe_to_plane_index_mapping(dml2, context);
+	dml2_map_hpo_stream_encoder_to_hpo_link_encoder_index(dml2, context);
 
 	for (i = 0; i < context->stream_count; i++) {
 		current_pipe_context = NULL;
@@ -1273,10 +1343,10 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 		if (disp_cfg_stream_location < 0)
 			disp_cfg_stream_location = dml_dispcfg->num_timings++;
 
-		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location <= __DML2_WRAPPER_MAX_STREAMS_PLANES__);
+		ASSERT(disp_cfg_stream_location >= 0 && disp_cfg_stream_location < __DML2_WRAPPER_MAX_STREAMS_PLANES__);
 
 		populate_dml_timing_cfg_from_stream_state(&dml_dispcfg->timing, disp_cfg_stream_location, context->streams[i]);
-		populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_stream_location, context->streams[i], current_pipe_context);
+		populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_stream_location, context->streams[i], current_pipe_context, dml2);
 		/*Call site for populate_dml_writeback_cfg_from_stream_state*/
 		populate_dml_writeback_cfg_from_stream_state(&dml_dispcfg->writeback,
 			disp_cfg_stream_location, context->streams[i]);
@@ -1299,7 +1369,8 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 			disp_cfg_plane_location = dml_dispcfg->num_surfaces++;
 
 			populate_dummy_dml_surface_cfg(&dml_dispcfg->surface, disp_cfg_plane_location, context->streams[i]);
-			populate_dummy_dml_plane_cfg(&dml_dispcfg->plane, disp_cfg_plane_location, context->streams[i]);
+			populate_dummy_dml_plane_cfg(&dml_dispcfg->plane, disp_cfg_plane_location,
+						     context->streams[i], &dml2->v20.dml_core_ctx.soc);
 
 			dml_dispcfg->plane.BlendingAndTiming[disp_cfg_plane_location] = disp_cfg_stream_location;
 
@@ -1312,10 +1383,13 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 				if (disp_cfg_plane_location < 0)
 					disp_cfg_plane_location = dml_dispcfg->num_surfaces++;
 
-				ASSERT(disp_cfg_plane_location >= 0 && disp_cfg_plane_location <= __DML2_WRAPPER_MAX_STREAMS_PLANES__);
+				ASSERT(disp_cfg_plane_location >= 0 && disp_cfg_plane_location < __DML2_WRAPPER_MAX_STREAMS_PLANES__);
 
 				populate_dml_surface_cfg_from_plane_state(dml2->v20.dml_core_ctx.project, &dml_dispcfg->surface, disp_cfg_plane_location, context->stream_status[i].plane_states[j]);
-				populate_dml_plane_cfg_from_plane_state(&dml_dispcfg->plane, disp_cfg_plane_location, context->stream_status[i].plane_states[j], context);
+				populate_dml_plane_cfg_from_plane_state(
+					&dml_dispcfg->plane, disp_cfg_plane_location,
+					context->stream_status[i].plane_states[j], context,
+					&dml2->v20.dml_core_ctx.soc);
 
 				if (stream_mall_type == SUBVP_MAIN) {
 					dml_dispcfg->plane.UseMALLForPStateChange[disp_cfg_plane_location] = dml_use_mall_pstate_change_sub_viewport;
@@ -1337,7 +1411,7 @@ void map_dc_state_into_dml_display_cfg(struct dml2_context *dml2, struct dc_stat
 
 				if (j >= 1) {
 					populate_dml_timing_cfg_from_stream_state(&dml_dispcfg->timing, disp_cfg_plane_location, context->streams[i]);
-					populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_plane_location, context->streams[i], current_pipe_context);
+					populate_dml_output_cfg_from_stream_state(&dml_dispcfg->output, disp_cfg_plane_location, context->streams[i], current_pipe_context, dml2);
 					switch (context->streams[i]->debug.force_odm_combine_segments) {
 					case 2:
 						dml2->v20.dml_core_ctx.policy.ODMUse[disp_cfg_plane_location] = dml_odm_use_policy_combine_2to1;

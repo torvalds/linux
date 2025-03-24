@@ -9,7 +9,6 @@
 #define _UAPI_ASM_SIGCONTEXT_H
 
 #include <linux/types.h>
-#include <linux/posix_types.h>
 
 /* FP context was used */
 #define SC_USED_FP		(1 << 0)

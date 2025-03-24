@@ -623,7 +623,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_reset: usdhc3grp-reset {
+	pinctrl_usdhc3_reset: usdhc3-resetgrp {
 		fsl,pins = <
 			MX6QDL_PAD_SD3_RST__SD3_RESET   0x170F9
 		>;

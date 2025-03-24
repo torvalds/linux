@@ -86,6 +86,7 @@ struct mlx5_flow_attr {
 	u32 dest_chain;
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_table *dest_ft;
+	struct mlx5_flow_table *extra_split_ft;
 	u8 inner_match_level;
 	u8 outer_match_level;
 	u8 tun_ip_version;
@@ -139,7 +140,7 @@ struct mlx5_rx_tun_attr {
 #define MLX5E_TC_TABLE_CHAIN_TAG_BITS 16
 #define MLX5E_TC_TABLE_CHAIN_TAG_MASK GENMASK(MLX5E_TC_TABLE_CHAIN_TAG_BITS - 1, 0)
 
-#define MLX5E_TC_MAX_INT_PORT_NUM (8)
+#define MLX5E_TC_MAX_INT_PORT_NUM (32)
 
 #if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 

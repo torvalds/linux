@@ -7,24 +7,23 @@
  * Copyright (C) 2009 David Brownell
  */
 
-#include <linux/module.h>
-#include <linux/ioport.h>
-#include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/err.h>
 #include <linux/cpufreq.h>
-#include <linux/mmc/host.h>
-#include <linux/io.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
-#include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
-#include <linux/mmc/mmc.h>
-#include <linux/of.h>
-#include <linux/mmc/slot-gpio.h>
+#include <linux/dmaengine.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
-
+#include <linux/io.h>
+#include <linux/ioport.h>
+#include <linux/irq.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
+#include <linux/mmc/slot-gpio.h>
+#include <linux/module.h>
 #include <linux/platform_data/mmc-davinci.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 
 /*
  * Register Definitions
@@ -1229,7 +1228,7 @@ static int davinci_mmcsd_probe(struct platform_device *pdev)
 
 	host->mmc_input_clk = clk_get_rate(host->clk);
 
-	pdev->id_entry = of_device_get_match_data(&pdev->dev);
+	pdev->id_entry = device_get_match_data(&pdev->dev);
 	if (pdev->id_entry) {
 		ret = mmc_of_parse(mmc);
 		if (ret) {
@@ -1400,7 +1399,7 @@ static struct platform_driver davinci_mmcsd_driver = {
 		.of_match_table = davinci_mmc_dt_ids,
 	},
 	.probe		= davinci_mmcsd_probe,
-	.remove_new	= davinci_mmcsd_remove,
+	.remove		= davinci_mmcsd_remove,
 	.id_table	= davinci_mmc_devtype,
 };
 

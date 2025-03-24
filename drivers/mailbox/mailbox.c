@@ -450,30 +450,20 @@ struct mbox_chan *mbox_request_channel_byname(struct mbox_client *cl,
 					      const char *name)
 {
 	struct device_node *np = cl->dev->of_node;
-	struct property *prop;
-	const char *mbox_name;
-	int index = 0;
+	int index;
 
 	if (!np) {
 		dev_err(cl->dev, "%s() currently only supports DT\n", __func__);
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!of_get_property(np, "mbox-names", NULL)) {
-		dev_err(cl->dev,
-			"%s() requires an \"mbox-names\" property\n", __func__);
+	index = of_property_match_string(np, "mbox-names", name);
+	if (index < 0) {
+		dev_err(cl->dev, "%s() could not locate channel named \"%s\"\n",
+			__func__, name);
 		return ERR_PTR(-EINVAL);
 	}
-
-	of_property_for_each_string(np, "mbox-names", prop, mbox_name) {
-		if (!strncmp(name, mbox_name, strlen(name)))
-			return mbox_request_channel(cl, index);
-		index++;
-	}
-
-	dev_err(cl->dev, "%s() could not locate channel named \"%s\"\n",
-		__func__, name);
-	return ERR_PTR(-EINVAL);
+	return mbox_request_channel(cl, index);
 }
 EXPORT_SYMBOL_GPL(mbox_request_channel_byname);
 

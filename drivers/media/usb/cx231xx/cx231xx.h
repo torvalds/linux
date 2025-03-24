@@ -790,7 +790,6 @@ void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 					 u8 spectral_invert, u32 mode);
 void cx231xx_Setup_AFE_for_LowIF(struct cx231xx *dev);
 void reset_s5h1432_demod(struct cx231xx *dev);
-void cx231xx_dump_HH_reg(struct cx231xx *dev);
 void update_HH_register_after_set_DIF(struct cx231xx *dev);
 
 
@@ -905,7 +904,6 @@ int cx231xx_initialize_stream_xfer(struct cx231xx *dev, u32 media_type);
 
 /* Power control functions */
 int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode);
-int cx231xx_power_suspend(struct cx231xx *dev);
 
 /* chip specific control functions */
 int cx231xx_init_ctrl_pin_status(struct cx231xx *dev);
@@ -916,7 +914,7 @@ int cx231xx_enable_i2c_port_3(struct cx231xx *dev, bool is_port_3);
 /* video audio decoder related functions */
 void video_mux(struct cx231xx *dev, int index);
 int cx231xx_set_video_input_mux(struct cx231xx *dev, u8 input);
-int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u8 input);
+int cx231xx_set_decoder_video_input(struct cx231xx *dev, u8 pin_type, u32 input);
 int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev);
 int cx231xx_set_audio_input(struct cx231xx *dev, u8 input);
 
@@ -949,7 +947,6 @@ extern void cx231xx_pre_card_setup(struct cx231xx *dev);
 extern void cx231xx_card_setup(struct cx231xx *dev);
 extern struct cx231xx_board cx231xx_boards[];
 extern struct usb_device_id cx231xx_id_table[];
-extern const unsigned int cx231xx_bcount;
 int cx231xx_tuner_callback(void *ptr, int component, int command, int arg);
 
 /* cx23885-417.c                                               */

@@ -102,7 +102,6 @@ static void hv_kbd_on_receive(struct hv_device *hv_dev,
 {
 	struct hv_kbd_dev *kbd_dev = hv_get_drvdata(hv_dev);
 	struct synth_kbd_keystroke *ks_msg;
-	unsigned long flags;
 	u32 msg_type = __le32_to_cpu(msg->header.type);
 	u32 info;
 	u16 scan_code;
@@ -147,21 +146,22 @@ static void hv_kbd_on_receive(struct hv_device *hv_dev,
 		/*
 		 * Inject the information through the serio interrupt.
 		 */
-		spin_lock_irqsave(&kbd_dev->lock, flags);
-		if (kbd_dev->started) {
-			if (info & IS_E0)
-				serio_interrupt(kbd_dev->hv_serio,
-						XTKBD_EMUL0, 0);
-			if (info & IS_E1)
-				serio_interrupt(kbd_dev->hv_serio,
-						XTKBD_EMUL1, 0);
-			scan_code = __le16_to_cpu(ks_msg->make_code);
-			if (info & IS_BREAK)
-				scan_code |= XTKBD_RELEASE;
+		scoped_guard(spinlock_irqsave, &kbd_dev->lock) {
+			if (kbd_dev->started) {
+				if (info & IS_E0)
+					serio_interrupt(kbd_dev->hv_serio,
+							XTKBD_EMUL0, 0);
+				if (info & IS_E1)
+					serio_interrupt(kbd_dev->hv_serio,
+							XTKBD_EMUL1, 0);
+				scan_code = __le16_to_cpu(ks_msg->make_code);
+				if (info & IS_BREAK)
+					scan_code |= XTKBD_RELEASE;
 
-			serio_interrupt(kbd_dev->hv_serio, scan_code, 0);
+				serio_interrupt(kbd_dev->hv_serio,
+						scan_code, 0);
+			}
 		}
-		spin_unlock_irqrestore(&kbd_dev->lock, flags);
 
 		/*
 		 * Only trigger a wakeup on key down, otherwise
@@ -292,11 +292,10 @@ static int hv_kbd_connect_to_vsp(struct hv_device *hv_dev)
 static int hv_kbd_start(struct serio *serio)
 {
 	struct hv_kbd_dev *kbd_dev = serio->port_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&kbd_dev->lock, flags);
+	guard(spinlock_irqsave)(&kbd_dev->lock);
+
 	kbd_dev->started = true;
-	spin_unlock_irqrestore(&kbd_dev->lock, flags);
 
 	return 0;
 }
@@ -304,11 +303,10 @@ static int hv_kbd_start(struct serio *serio)
 static void hv_kbd_stop(struct serio *serio)
 {
 	struct hv_kbd_dev *kbd_dev = serio->port_data;
-	unsigned long flags;
 
-	spin_lock_irqsave(&kbd_dev->lock, flags);
+	guard(spinlock_irqsave)(&kbd_dev->lock);
+
 	kbd_dev->started = false;
-	spin_unlock_irqrestore(&kbd_dev->lock, flags);
 }
 
 static int hv_kbd_probe(struct hv_device *hv_dev,

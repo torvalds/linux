@@ -11,6 +11,7 @@
  */
 
 #include <linux/const.h>
+#include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/vdso.h>
 
@@ -19,7 +20,7 @@ OUTPUT_ARCH(arm)
 
 SECTIONS
 {
-	PROVIDE(_start = .);
+	PROVIDE(_vdso_data = . - VDSO_DATA_SIZE);
 
 	. = SIZEOF_HEADERS;
 

@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ti/ti,interface-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments interface clock.
+
+maintainers:
+  - Tero Kristo <kristo@kernel.org>
+
+description: |
+  This clock is quite much similar to the basic gate-clock[1], however,
+  it supports a number of additional features, including
+  companion clock finding (match corresponding functional gate
+  clock) and hardware autoidle enable / disable.
+
+  [1] Documentation/devicetree/bindings/clock/gpio-gate-clock.yaml
+
+properties:
+  compatible:
+    enum:
+      - ti,omap3-interface-clock           # basic OMAP3 interface clock
+      - ti,omap3-no-wait-interface-clock   # interface clock which has no hardware
+                                           # capability for waiting clock to be ready
+      - ti,omap3-hsotgusb-interface-clock  # interface clock with USB specific HW handling
+      - ti,omap3-dss-interface-clock       # interface clock with DSS specific HW handling
+      - ti,omap3-ssi-interface-clock       # interface clock with SSI specific HW handling
+      - ti,am35xx-interface-clock          # interface clock with AM35xx specific HW handling
+      - ti,omap2430-interface-clock        # interface clock with OMAP2430 specific HW handling
+
+  "#clock-cells":
+    const: 0
+
+  clocks:
+    maxItems: 1
+
+  clock-output-names:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+  ti,bit-shift:
+    description:
+      bit shift for the bit enabling/disabling the clock
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 0
+    maximum: 31
+
+required:
+  - compatible
+  - clocks
+  - '#clock-cells'
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    bus {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      aes1_ick: clock-controller@3 {
+        #clock-cells = <0>;
+        compatible = "ti,omap3-interface-clock";
+        clocks = <&security_l4_ick2>;
+        reg = <3>;
+      };
+    };

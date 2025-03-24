@@ -205,13 +205,14 @@ struct mpi3_encrypted_hash_entry {
 	u8                         hash_image_type;
 	u8                         hash_algorithm;
 	u8                         encryption_algorithm;
-	u8                         reserved03;
+	u8                         flags;
 	__le16                     public_key_size;
 	__le16                     signature_size;
 	__le32                     public_key[MPI3_PUBLIC_KEY_MAX];
 };
-
-#define MPI3_HASH_IMAGE_TYPE_KEY_WITH_SIGNATURE      (0x03)
+#define MPI3_HASH_IMAGE_TYPE_KEY_WITH_HASH           (0x03)
+#define MPI3_HASH_IMAGE_TYPE_KEY_WITH_HASH_1_OF_2    (0x04)
+#define MPI3_HASH_IMAGE_TYPE_KEY_WITH_HASH_2_OF_2    (0x05)
 #define MPI3_HASH_ALGORITHM_VERSION_MASK             (0xe0)
 #define MPI3_HASH_ALGORITHM_VERSION_NONE             (0x00)
 #define MPI3_HASH_ALGORITHM_VERSION_SHA1             (0x20)
@@ -229,6 +230,12 @@ struct mpi3_encrypted_hash_entry {
 #define MPI3_ENCRYPTION_ALGORITHM_RSA2048            (0x04)
 #define MPI3_ENCRYPTION_ALGORITHM_RSA4096            (0x05)
 #define MPI3_ENCRYPTION_ALGORITHM_RSA3072            (0x06)
+
+/* hierarchical signature system (hss) */
+#define MPI3_ENCRYPTION_ALGORITHM_ML_DSA_87	    (0x0b)
+#define MPI3_ENCRYPTION_ALGORITHM_ML_DSA_65	    (0x0c)
+#define MPI3_ENCRYPTION_ALGORITHM_ML_DSA_44	    (0x0d)
+#define MPI3_ENCRYPTED_HASH_ENTRY_FLAGS_PAIRED_KEY_MASK		(0x0f)
 
 #ifndef MPI3_ENCRYPTED_HASH_ENTRY_MAX
 #define MPI3_ENCRYPTED_HASH_ENTRY_MAX               (1)

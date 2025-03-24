@@ -19,7 +19,7 @@ struct pse_req_info {
 
 struct pse_reply_data {
 	struct ethnl_reply_data	base;
-	struct pse_control_status status;
+	struct ethtool_pse_control_status status;
 };
 
 #define PSE_REPDATA(__reply_base) \
@@ -28,17 +28,15 @@ struct pse_reply_data {
 /* PSE_GET */
 
 const struct nla_policy ethnl_pse_get_policy[ETHTOOL_A_PSE_HEADER + 1] = {
-	[ETHTOOL_A_PSE_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_PSE_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy_phy),
 };
 
-static int pse_get_pse_attributes(struct net_device *dev,
+static int pse_get_pse_attributes(struct phy_device *phydev,
 				  struct netlink_ext_ack *extack,
 				  struct pse_reply_data *data)
 {
-	struct phy_device *phydev = dev->phydev;
-
 	if (!phydev) {
-		NL_SET_ERR_MSG(extack, "No PHY is attached");
+		NL_SET_ERR_MSG(extack, "No PHY found");
 		return -EOPNOTSUPP;
 	}
 
@@ -58,13 +56,20 @@ static int pse_prepare_data(const struct ethnl_req_info *req_base,
 {
 	struct pse_reply_data *data = PSE_REPDATA(reply_base);
 	struct net_device *dev = reply_base->dev;
+	struct nlattr **tb = info->attrs;
+	struct phy_device *phydev;
 	int ret;
 
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
 
-	ret = pse_get_pse_attributes(dev, info->extack, data);
+	phydev = ethnl_req_get_phydev(req_base, tb, ETHTOOL_A_PSE_HEADER,
+				      info->extack);
+	if (IS_ERR(phydev))
+		return -ENODEV;
+
+	ret = pse_get_pse_attributes(phydev, info->extack, data);
 
 	ethnl_ops_complete(dev);
 
@@ -75,7 +80,7 @@ static int pse_reply_size(const struct ethnl_req_info *req_base,
 			  const struct ethnl_reply_data *reply_base)
 {
 	const struct pse_reply_data *data = PSE_REPDATA(reply_base);
-	const struct pse_control_status *st = &data->status;
+	const struct ethtool_pse_control_status *st = &data->status;
 	int len = 0;
 
 	if (st->podl_admin_state > 0)
@@ -109,7 +114,7 @@ static int pse_reply_size(const struct ethnl_req_info *req_base,
 }
 
 static int pse_put_pw_limit_ranges(struct sk_buff *skb,
-				   const struct pse_control_status *st)
+				   const struct ethtool_pse_control_status *st)
 {
 	const struct ethtool_c33_pse_pw_limit_range *pw_limit_ranges;
 	int i;
@@ -141,7 +146,7 @@ static int pse_fill_reply(struct sk_buff *skb,
 			  const struct ethnl_reply_data *reply_base)
 {
 	const struct pse_reply_data *data = PSE_REPDATA(reply_base);
-	const struct pse_control_status *st = &data->status;
+	const struct ethtool_pse_control_status *st = &data->status;
 
 	if (st->podl_admin_state > 0 &&
 	    nla_put_u32(skb, ETHTOOL_A_PODL_PSE_ADMIN_STATE,
@@ -206,7 +211,7 @@ static void pse_cleanup_data(struct ethnl_reply_data *reply_base)
 /* PSE_SET */
 
 const struct nla_policy ethnl_pse_set_policy[ETHTOOL_A_PSE_MAX + 1] = {
-	[ETHTOOL_A_PSE_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy),
+	[ETHTOOL_A_PSE_HEADER] = NLA_POLICY_NESTED(ethnl_header_policy_phy),
 	[ETHTOOL_A_PODL_PSE_ADMIN_CONTROL] =
 		NLA_POLICY_RANGE(NLA_U32, ETHTOOL_PODL_PSE_ADMIN_STATE_DISABLED,
 				 ETHTOOL_PODL_PSE_ADMIN_STATE_ENABLED),
@@ -217,14 +222,11 @@ const struct nla_policy ethnl_pse_set_policy[ETHTOOL_A_PSE_MAX + 1] = {
 };
 
 static int
-ethnl_set_pse_validate(struct ethnl_req_info *req_info, struct genl_info *info)
+ethnl_set_pse_validate(struct phy_device *phydev, struct genl_info *info)
 {
-	struct net_device *dev = req_info->dev;
 	struct nlattr **tb = info->attrs;
-	struct phy_device *phydev;
 
-	phydev = dev->phydev;
-	if (!phydev) {
+	if (IS_ERR_OR_NULL(phydev)) {
 		NL_SET_ERR_MSG(info->extack, "No PHY is attached");
 		return -EOPNOTSUPP;
 	}
@@ -249,18 +251,21 @@ ethnl_set_pse_validate(struct ethnl_req_info *req_info, struct genl_info *info)
 		return -EOPNOTSUPP;
 	}
 
-	return 1;
+	return 0;
 }
 
 static int
 ethnl_set_pse(struct ethnl_req_info *req_info, struct genl_info *info)
 {
-	struct net_device *dev = req_info->dev;
 	struct nlattr **tb = info->attrs;
 	struct phy_device *phydev;
-	int ret = 0;
+	int ret;
 
-	phydev = dev->phydev;
+	phydev = ethnl_req_get_phydev(req_info, tb, ETHTOOL_A_PSE_HEADER,
+				      info->extack);
+	ret = ethnl_set_pse_validate(phydev, info);
+	if (ret)
+		return ret;
 
 	if (tb[ETHTOOL_A_C33_PSE_AVAIL_PW_LIMIT]) {
 		unsigned int pw_limit;
@@ -307,7 +312,6 @@ const struct ethnl_request_ops ethnl_pse_request_ops = {
 	.fill_reply		= pse_fill_reply,
 	.cleanup_data		= pse_cleanup_data,
 
-	.set_validate		= ethnl_set_pse_validate,
 	.set			= ethnl_set_pse,
 	/* PSE has no notification */
 };

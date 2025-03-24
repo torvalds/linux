@@ -87,6 +87,18 @@ static void __init init_vec_parent_group(void)
 	acpi_table_parse(ACPI_SIG_MCFG, early_pci_mcfg_parse);
 }
 
+int __init arch_probe_nr_irqs(void)
+{
+	int nr_io_pics = bitmap_weight(loongson_sysconf.cores_io_master, NR_CPUS);
+
+	if (!cpu_has_avecint)
+		irq_set_nr_irqs(64 + NR_VECTORS * nr_io_pics);
+	else
+		irq_set_nr_irqs(64 + NR_VECTORS * (nr_cpu_ids + nr_io_pics));
+
+	return NR_IRQS_LEGACY;
+}
+
 void __init init_IRQ(void)
 {
 	int i;
@@ -101,9 +113,6 @@ void __init init_IRQ(void)
 #ifdef CONFIG_SMP
 	mp_ops.init_ipi();
 #endif
-
-	for (i = 0; i < NR_IRQS; i++)
-		irq_set_noprobe(i);
 
 	for_each_possible_cpu(i) {
 		page = alloc_pages_node(cpu_to_node(i), GFP_KERNEL, order);

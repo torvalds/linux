@@ -791,7 +791,7 @@ static struct platform_driver of_fhci_driver = {
 		.of_match_table = of_fhci_match,
 	},
 	.probe		= of_fhci_probe,
-	.remove_new	= of_fhci_remove,
+	.remove		= of_fhci_remove,
 };
 
 module_platform_driver(of_fhci_driver);

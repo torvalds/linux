@@ -409,7 +409,7 @@ MODULE_DEVICE_TABLE(of, uniphier_i2c_match);
 
 static struct platform_driver uniphier_i2c_drv = {
 	.probe  = uniphier_i2c_probe,
-	.remove_new = uniphier_i2c_remove,
+	.remove = uniphier_i2c_remove,
 	.driver = {
 		.name  = "uniphier-i2c",
 		.of_match_table = uniphier_i2c_match,

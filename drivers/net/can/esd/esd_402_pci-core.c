@@ -369,12 +369,13 @@ static int pci402_init_cores(struct pci_dev *pdev)
 		SET_NETDEV_DEV(netdev, &pdev->dev);
 
 		priv = netdev_priv(netdev);
+		priv->can.clock.freq = card->ov.core_frequency;
 		priv->can.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK |
 			CAN_CTRLMODE_LISTENONLY |
 			CAN_CTRLMODE_BERR_REPORTING |
 			CAN_CTRLMODE_CC_LEN8_DLC;
-
-		priv->can.clock.freq = card->ov.core_frequency;
+		if (card->ov.features & ACC_OV_REG_FEAT_MASK_DAR)
+			priv->can.ctrlmode_supported |= CAN_CTRLMODE_ONE_SHOT;
 		if (card->ov.features & ACC_OV_REG_FEAT_MASK_CANFD)
 			priv->can.bittiming_const = &pci402_bittiming_const_canfd;
 		else

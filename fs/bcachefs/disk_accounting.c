@@ -79,6 +79,8 @@ static inline void accounting_key_init(struct bkey_i *k, struct disk_accounting_
 	memcpy_u64s_small(acc->v.d, d, nr);
 }
 
+static int bch2_accounting_update_sb_one(struct bch_fs *, struct bpos);
+
 int bch2_disk_accounting_mod(struct btree_trans *trans,
 			     struct disk_accounting_pos *k,
 			     s64 *d, unsigned nr, bool gc)
@@ -96,9 +98,16 @@ int bch2_disk_accounting_mod(struct btree_trans *trans,
 
 	accounting_key_init(&k_i.k, k, d, nr);
 
-	return likely(!gc)
-		? bch2_trans_update_buffered(trans, BTREE_ID_accounting, &k_i.k)
-		: bch2_accounting_mem_add(trans, bkey_i_to_s_c_accounting(&k_i.k), true);
+	if (unlikely(gc)) {
+		int ret = bch2_accounting_mem_add(trans, bkey_i_to_s_c_accounting(&k_i.k), true);
+		if (ret == -BCH_ERR_btree_insert_need_mark_replicas)
+			ret = drop_locks_do(trans,
+				bch2_accounting_update_sb_one(trans->c, disk_accounting_pos_to_bpos(k))) ?:
+				bch2_accounting_mem_add(trans, bkey_i_to_s_c_accounting(&k_i.k), true);
+		return ret;
+	} else {
+		return bch2_trans_update_buffered(trans, BTREE_ID_accounting, &k_i.k);
+	}
 }
 
 int bch2_mod_dev_cached_sectors(struct btree_trans *trans,
@@ -126,14 +135,18 @@ static inline bool is_zero(char *start, char *end)
 
 #define field_end(p, member)	(((void *) (&p.member)) + sizeof(p.member))
 
-int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
-			    enum bch_validate_flags flags,
-			    struct printbuf *err)
+int bch2_accounting_validate(struct bch_fs *c, struct bkey_s_c k,
+			     struct bkey_validate_context from)
 {
 	struct disk_accounting_pos acc_k;
 	bpos_to_disk_accounting_pos(&acc_k, k.k->p);
 	void *end = &acc_k + 1;
 	int ret = 0;
+
+	bkey_fsck_err_on((from.flags & BCH_VALIDATE_commit) &&
+			 bversion_zero(k.k->bversion),
+			 c, accounting_key_version_0,
+			 "accounting key with version=0");
 
 	switch (acc_k.type) {
 	case BCH_DISK_ACCOUNTING_nr_inodes:
@@ -144,18 +157,18 @@ int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
 		break;
 	case BCH_DISK_ACCOUNTING_replicas:
 		bkey_fsck_err_on(!acc_k.replicas.nr_devs,
-				 c, err, accounting_key_replicas_nr_devs_0,
+				 c, accounting_key_replicas_nr_devs_0,
 				 "accounting key replicas entry with nr_devs=0");
 
 		bkey_fsck_err_on(acc_k.replicas.nr_required > acc_k.replicas.nr_devs ||
 				 (acc_k.replicas.nr_required > 1 &&
 				  acc_k.replicas.nr_required == acc_k.replicas.nr_devs),
-				 c, err, accounting_key_replicas_nr_required_bad,
+				 c, accounting_key_replicas_nr_required_bad,
 				 "accounting key replicas entry with bad nr_required");
 
 		for (unsigned i = 0; i + 1 < acc_k.replicas.nr_devs; i++)
-			bkey_fsck_err_on(acc_k.replicas.devs[i] > acc_k.replicas.devs[i + 1],
-					 c, err, accounting_key_replicas_devs_unsorted,
+			bkey_fsck_err_on(acc_k.replicas.devs[i] >= acc_k.replicas.devs[i + 1],
+					 c, accounting_key_replicas_devs_unsorted,
 					 "accounting key replicas entry with unsorted devs");
 
 		end = (void *) &acc_k.replicas + replicas_entry_bytes(&acc_k.replicas);
@@ -178,7 +191,7 @@ int bch2_accounting_invalid(struct bch_fs *c, struct bkey_s_c k,
 	}
 
 	bkey_fsck_err_on(!is_zero(end, (void *) (&acc_k + 1)),
-			 c, err, accounting_key_junk_at_end,
+			 c, accounting_key_junk_at_end,
 			 "junk at end of accounting key");
 fsck_err:
 	return ret;
@@ -214,7 +227,8 @@ void bch2_accounting_key_to_text(struct printbuf *out, struct disk_accounting_po
 		prt_printf(out, "id=%u", k->snapshot.id);
 		break;
 	case BCH_DISK_ACCOUNTING_btree:
-		prt_printf(out, "btree=%s", bch2_btree_id_str(k->btree.id));
+		prt_str(out, "btree=");
+		bch2_btree_id_to_text(out, k->btree.id);
 		break;
 	}
 }
@@ -239,6 +253,14 @@ void bch2_accounting_swab(struct bkey_s k)
 		*p = swab64(*p);
 }
 
+static inline void __accounting_to_replicas(struct bch_replicas_entry_v1 *r,
+					    struct disk_accounting_pos *acc)
+{
+	unsafe_memcpy(r, &acc->replicas,
+		      replicas_entry_bytes(&acc->replicas),
+		      "variable length struct");
+}
+
 static inline bool accounting_to_replicas(struct bch_replicas_entry_v1 *r, struct bpos p)
 {
 	struct disk_accounting_pos acc_k;
@@ -246,9 +268,7 @@ static inline bool accounting_to_replicas(struct bch_replicas_entry_v1 *r, struc
 
 	switch (acc_k.type) {
 	case BCH_DISK_ACCOUNTING_replicas:
-		unsafe_memcpy(r, &acc_k.replicas,
-			      replicas_entry_bytes(&acc_k.replicas),
-			      "variable length struct");
+		__accounting_to_replicas(r, &acc_k);
 		return true;
 	default:
 		return false;
@@ -292,7 +312,7 @@ static int __bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accoun
 
 	struct accounting_mem_entry n = {
 		.pos		= a.k->p,
-		.version	= a.k->version,
+		.bversion	= a.k->bversion,
 		.nr_counters	= bch2_accounting_counters(a.k),
 		.v[0]		= __alloc_percpu_gfp(n.nr_counters * sizeof(u64),
 						     sizeof(u64), GFP_KERNEL),
@@ -313,6 +333,14 @@ static int __bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accoun
 
 	eytzinger0_sort(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
 			accounting_pos_cmp, NULL);
+
+	if (trace_accounting_mem_insert_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_accounting_to_text(&buf, c, a.s_c);
+		trace_accounting_mem_insert(c, buf.buf);
+		printbuf_exit(&buf);
+	}
 	return 0;
 err:
 	free_percpu(n.v[1]);
@@ -320,11 +348,13 @@ err:
 	return -BCH_ERR_ENOMEM_disk_accounting;
 }
 
-int bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a, bool gc)
+int bch2_accounting_mem_insert(struct bch_fs *c, struct bkey_s_c_accounting a,
+			       enum bch_accounting_mode mode)
 {
 	struct bch_replicas_padded r;
 
-	if (accounting_to_replicas(&r.e, a.k->p) &&
+	if (mode != BCH_ACCOUNTING_read &&
+	    accounting_to_replicas(&r.e, a.k->p) &&
 	    !bch2_replicas_marked_locked(c, &r.e))
 		return -BCH_ERR_btree_insert_need_mark_replicas;
 
@@ -450,32 +480,6 @@ int bch2_fs_accounting_read(struct bch_fs *c, darray_char *out_buf, unsigned acc
 	return ret;
 }
 
-void bch2_fs_accounting_to_text(struct printbuf *out, struct bch_fs *c)
-{
-	struct bch_accounting_mem *acc = &c->accounting;
-
-	percpu_down_read(&c->mark_lock);
-	out->atomic++;
-
-	eytzinger0_for_each(i, acc->k.nr) {
-		struct disk_accounting_pos acc_k;
-		bpos_to_disk_accounting_pos(&acc_k, acc->k.data[i].pos);
-
-		bch2_accounting_key_to_text(out, &acc_k);
-
-		u64 v[BCH_ACCOUNTING_MAX_COUNTERS];
-		bch2_accounting_mem_read_counters(acc, i, v, ARRAY_SIZE(v), false);
-
-		prt_str(out, ":");
-		for (unsigned j = 0; j < acc->k.data[i].nr_counters; j++)
-			prt_printf(out, " %llu", v[j]);
-		prt_newline(out);
-	}
-
-	--out->atomic;
-	percpu_up_read(&c->mark_lock);
-}
-
 static void bch2_accounting_free_counters(struct bch_accounting_mem *acc, bool gc)
 {
 	darray_for_each(acc->k, e) {
@@ -528,6 +532,9 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 		struct disk_accounting_pos acc_k;
 		bpos_to_disk_accounting_pos(&acc_k, e->pos);
 
+		if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
+			continue;
+
 		u64 src_v[BCH_ACCOUNTING_MAX_COUNTERS];
 		u64 dst_v[BCH_ACCOUNTING_MAX_COUNTERS];
 
@@ -564,7 +571,9 @@ int bch2_gc_accounting_done(struct bch_fs *c)
 					struct { __BKEY_PADDED(k, BCH_ACCOUNTING_MAX_COUNTERS); } k_i;
 
 					accounting_key_init(&k_i.k, &acc_k, src_v, nr);
-					bch2_accounting_mem_mod_locked(trans, bkey_i_to_s_c_accounting(&k_i.k), false);
+					bch2_accounting_mem_mod_locked(trans,
+								bkey_i_to_s_c_accounting(&k_i.k),
+								BCH_ACCOUNTING_normal);
 
 					preempt_disable();
 					struct bch_fs_usage_base *dst = this_cpu_ptr(c->usage);
@@ -587,31 +596,90 @@ fsck_err:
 static int accounting_read_key(struct btree_trans *trans, struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
-	struct printbuf buf = PRINTBUF;
 
 	if (k.k->type != KEY_TYPE_accounting)
 		return 0;
 
 	percpu_down_read(&c->mark_lock);
-	int ret = __bch2_accounting_mem_mod(c, bkey_s_c_to_accounting(k), false);
+	int ret = bch2_accounting_mem_mod_locked(trans, bkey_s_c_to_accounting(k),
+						 BCH_ACCOUNTING_read);
 	percpu_up_read(&c->mark_lock);
+	return ret;
+}
 
-	if (bch2_accounting_key_is_zero(bkey_s_c_to_accounting(k)) &&
-	    ret == -BCH_ERR_btree_insert_need_mark_replicas)
-		ret = 0;
+static int bch2_disk_accounting_validate_late(struct btree_trans *trans,
+					      struct disk_accounting_pos acc,
+					      u64 *v, unsigned nr)
+{
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
+	int ret = 0, invalid_dev = -1;
 
-	struct disk_accounting_pos acc;
-	bpos_to_disk_accounting_pos(&acc, k.k->p);
+	switch (acc.type) {
+	case BCH_DISK_ACCOUNTING_replicas: {
+		struct bch_replicas_padded r;
+		__accounting_to_replicas(&r.e, &acc);
 
-	if (fsck_err_on(ret == -BCH_ERR_btree_insert_need_mark_replicas,
-			trans, accounting_replicas_not_marked,
-			"accounting not marked in superblock replicas\n  %s",
-			(bch2_accounting_key_to_text(&buf, &acc),
-			 buf.buf)))
-		ret = bch2_accounting_update_sb_one(c, k.k->p);
+		for (unsigned i = 0; i < r.e.nr_devs; i++)
+			if (r.e.devs[i] != BCH_SB_MEMBER_INVALID &&
+			    !bch2_dev_exists(c, r.e.devs[i])) {
+				invalid_dev = r.e.devs[i];
+				goto invalid_device;
+			}
+
+		/*
+		 * All replicas entry checks except for invalid device are done
+		 * in bch2_accounting_validate
+		 */
+		BUG_ON(bch2_replicas_entry_validate(&r.e, c, &buf));
+
+		if (fsck_err_on(!bch2_replicas_marked_locked(c, &r.e),
+				trans, accounting_replicas_not_marked,
+				"accounting not marked in superblock replicas\n  %s",
+				(printbuf_reset(&buf),
+				 bch2_accounting_key_to_text(&buf, &acc),
+				 buf.buf))) {
+			/*
+			 * We're not RW yet and still single threaded, dropping
+			 * and retaking lock is ok:
+			 */
+			percpu_up_write(&c->mark_lock);
+			ret = bch2_mark_replicas(c, &r.e);
+			if (ret)
+				goto fsck_err;
+			percpu_down_write(&c->mark_lock);
+		}
+		break;
+	}
+
+	case BCH_DISK_ACCOUNTING_dev_data_type:
+		if (!bch2_dev_exists(c, acc.dev_data_type.dev)) {
+			invalid_dev = acc.dev_data_type.dev;
+			goto invalid_device;
+		}
+		break;
+	}
+
 fsck_err:
 	printbuf_exit(&buf);
 	return ret;
+invalid_device:
+	if (fsck_err(trans, accounting_to_invalid_device,
+		     "accounting entry points to invalid device %i\n  %s",
+		     invalid_dev,
+		     (printbuf_reset(&buf),
+		      bch2_accounting_key_to_text(&buf, &acc),
+		      buf.buf))) {
+		for (unsigned i = 0; i < nr; i++)
+			v[i] = -v[i];
+
+		ret = commit_do(trans, NULL, NULL, 0,
+				bch2_disk_accounting_mod(trans, &acc, v, nr, false)) ?:
+			-BCH_ERR_remove_disk_accounting_entry;
+	} else {
+		ret = -BCH_ERR_remove_disk_accounting_entry;
+	}
+	goto fsck_err;
 }
 
 /*
@@ -622,12 +690,47 @@ int bch2_accounting_read(struct bch_fs *c)
 {
 	struct bch_accounting_mem *acc = &c->accounting;
 	struct btree_trans *trans = bch2_trans_get(c);
+	struct printbuf buf = PRINTBUF;
 
-	int ret = for_each_btree_key(trans, iter,
-				BTREE_ID_accounting, POS_MIN,
+	/*
+	 * We might run more than once if we rewind to start topology repair or
+	 * btree node scan - and those might cause us to get different results,
+	 * so we can't just skip if we've already run.
+	 *
+	 * Instead, zero out any accounting we have:
+	 */
+	percpu_down_write(&c->mark_lock);
+	darray_for_each(acc->k, e)
+		percpu_memset(e->v[0], 0, sizeof(u64) * e->nr_counters);
+	for_each_member_device(c, ca)
+		percpu_memset(ca->usage, 0, sizeof(*ca->usage));
+	percpu_memset(c->usage, 0, sizeof(*c->usage));
+	percpu_up_write(&c->mark_lock);
+
+	struct btree_iter iter;
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_accounting, POS_MIN,
+			     BTREE_ITER_prefetch|BTREE_ITER_all_snapshots);
+	iter.flags &= ~BTREE_ITER_with_journal;
+	int ret = for_each_btree_key_continue(trans, iter,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k, ({
 			struct bkey u;
 			struct bkey_s_c k = bch2_btree_path_peek_slot_exact(btree_iter_path(trans, &iter), &u);
+
+			if (k.k->type != KEY_TYPE_accounting)
+				continue;
+
+			struct disk_accounting_pos acc_k;
+			bpos_to_disk_accounting_pos(&acc_k, k.k->p);
+
+			if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
+				break;
+
+			if (!bch2_accounting_is_mem(acc_k)) {
+				struct disk_accounting_pos next = { .type = acc_k.type + 1 };
+				bch2_btree_iter_set_pos(&iter, disk_accounting_pos_to_bpos(&next));
+				continue;
+			}
+
 			accounting_read_key(trans, k);
 		}));
 	if (ret)
@@ -639,13 +742,19 @@ int bch2_accounting_read(struct bch_fs *c)
 
 	darray_for_each(*keys, i) {
 		if (i->k->k.type == KEY_TYPE_accounting) {
+			struct disk_accounting_pos acc_k;
+			bpos_to_disk_accounting_pos(&acc_k, i->k->k.p);
+
+			if (!bch2_accounting_is_mem(acc_k))
+				continue;
+
 			struct bkey_s_c k = bkey_i_to_s_c(i->k);
 			unsigned idx = eytzinger0_find(acc->k.data, acc->k.nr,
 						sizeof(acc->k.data[0]),
 						accounting_pos_cmp, &k.k->p);
 
 			bool applied = idx < acc->k.nr &&
-				bversion_cmp(acc->k.data[idx].version, k.k->version) >= 0;
+				bversion_cmp(acc->k.data[idx].bversion, k.k->bversion) >= 0;
 
 			if (applied)
 				continue;
@@ -653,7 +762,7 @@ int bch2_accounting_read(struct bch_fs *c)
 			if (i + 1 < &darray_top(*keys) &&
 			    i[1].k->k.type == KEY_TYPE_accounting &&
 			    !journal_key_cmp(i, i + 1)) {
-				BUG_ON(bversion_cmp(i[0].k->k.version, i[1].k->k.version) >= 0);
+				WARN_ON(bversion_cmp(i[0].k->k.bversion, i[1].k->k.bversion) >= 0);
 
 				i[1].journal_seq = i[0].journal_seq;
 
@@ -671,7 +780,44 @@ int bch2_accounting_read(struct bch_fs *c)
 	}
 	keys->gap = keys->nr = dst - keys->data;
 
-	percpu_down_read(&c->mark_lock);
+	percpu_down_write(&c->mark_lock);
+
+	darray_for_each_reverse(acc->k, i) {
+		struct disk_accounting_pos acc_k;
+		bpos_to_disk_accounting_pos(&acc_k, i->pos);
+
+		u64 v[BCH_ACCOUNTING_MAX_COUNTERS];
+		memset(v, 0, sizeof(v));
+
+		for (unsigned j = 0; j < i->nr_counters; j++)
+			v[j] = percpu_u64_get(i->v[0] + j);
+
+		/*
+		 * If the entry counters are zeroed, it should be treated as
+		 * nonexistent - it might point to an invalid device.
+		 *
+		 * Remove it, so that if it's re-added it gets re-marked in the
+		 * superblock:
+		 */
+		ret = bch2_is_zero(v, sizeof(v[0]) * i->nr_counters)
+			? -BCH_ERR_remove_disk_accounting_entry
+			: bch2_disk_accounting_validate_late(trans, acc_k, v, i->nr_counters);
+
+		if (ret == -BCH_ERR_remove_disk_accounting_entry) {
+			free_percpu(i->v[0]);
+			free_percpu(i->v[1]);
+			darray_remove_item(&acc->k, i);
+			ret = 0;
+			continue;
+		}
+
+		if (ret)
+			goto fsck_err;
+	}
+
+	eytzinger0_sort(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
+			accounting_pos_cmp, NULL);
+
 	preempt_disable();
 	struct bch_fs_usage_base *usage = this_cpu_ptr(c->usage);
 
@@ -691,7 +837,7 @@ int bch2_accounting_read(struct bch_fs *c)
 			break;
 		case BCH_DISK_ACCOUNTING_dev_data_type:
 			rcu_read_lock();
-			struct bch_dev *ca = bch2_dev_rcu(c, k.dev_data_type.dev);
+			struct bch_dev *ca = bch2_dev_rcu_noerror(c, k.dev_data_type.dev);
 			if (ca) {
 				struct bch_dev_usage_type __percpu *d = &ca->usage->d[k.dev_data_type.data_type];
 				percpu_u64_set(&d->buckets,	v[0]);
@@ -707,8 +853,10 @@ int bch2_accounting_read(struct bch_fs *c)
 		}
 	}
 	preempt_enable();
-	percpu_up_read(&c->mark_lock);
+fsck_err:
+	percpu_up_write(&c->mark_lock);
 err:
+	printbuf_exit(&buf);
 	bch2_trans_put(trans);
 	bch_err_fn(c, ret);
 	return ret;
@@ -741,8 +889,10 @@ int bch2_dev_usage_init(struct bch_dev *ca, bool gc)
 	};
 	u64 v[3] = { ca->mi.nbuckets - ca->mi.first_bucket, 0, 0 };
 
-	int ret = bch2_trans_do(c, NULL, NULL, 0,
-			bch2_disk_accounting_mod(trans, &acc, v, ARRAY_SIZE(v), gc));
+	int ret = bch2_trans_do(c, ({
+		bch2_disk_accounting_mod(trans, &acc, v, ARRAY_SIZE(v), gc) ?:
+		(!gc ? bch2_trans_commit(trans, NULL, NULL, 0) : 0);
+	}));
 	bch_err_fn(c, ret);
 	return ret;
 }
@@ -760,6 +910,18 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 			struct bkey_s_c_accounting a = bkey_s_c_to_accounting(k);
 			unsigned nr = bch2_accounting_counters(k.k);
 
+			struct disk_accounting_pos acc_k;
+			bpos_to_disk_accounting_pos(&acc_k, k.k->p);
+
+			if (acc_k.type >= BCH_DISK_ACCOUNTING_TYPE_NR)
+				break;
+
+			if (!bch2_accounting_is_mem(acc_k)) {
+				struct disk_accounting_pos next = { .type = acc_k.type + 1 };
+				bch2_btree_iter_set_pos(&iter, disk_accounting_pos_to_bpos(&next));
+				continue;
+			}
+
 			bch2_accounting_mem_read(c, k.k->p, v, nr);
 
 			if (memcmp(a.v->d, v, nr * sizeof(u64))) {
@@ -775,9 +937,6 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 				mismatch = true;
 			}
 
-			struct disk_accounting_pos acc_k;
-			bpos_to_disk_accounting_pos(&acc_k, a.k->p);
-
 			switch (acc_k.type) {
 			case BCH_DISK_ACCOUNTING_persistent_reserved:
 				base.reserved += acc_k.persistent_reserved.nr_replicas * a.v->d[0];
@@ -787,7 +946,7 @@ void bch2_verify_accounting_clean(struct bch_fs *c)
 				break;
 			case BCH_DISK_ACCOUNTING_dev_data_type: {
 				rcu_read_lock();
-				struct bch_dev *ca = bch2_dev_rcu(c, acc_k.dev_data_type.dev);
+				struct bch_dev *ca = bch2_dev_rcu_noerror(c, acc_k.dev_data_type.dev);
 				if (!ca) {
 					rcu_read_unlock();
 					continue;

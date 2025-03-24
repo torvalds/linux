@@ -18,13 +18,13 @@ struct btree_node_read_all;
 static inline void set_btree_node_dirty_acct(struct bch_fs *c, struct btree *b)
 {
 	if (!test_and_set_bit(BTREE_NODE_dirty, &b->flags))
-		atomic_inc(&c->btree_cache.dirty);
+		atomic_long_inc(&c->btree_cache.nr_dirty);
 }
 
 static inline void clear_btree_node_dirty_acct(struct bch_fs *c, struct btree *b)
 {
 	if (test_and_clear_bit(BTREE_NODE_dirty, &b->flags))
-		atomic_dec(&c->btree_cache.dirty);
+		atomic_long_dec(&c->btree_cache.nr_dirty);
 }
 
 static inline unsigned btree_ptr_sectors_written(struct bkey_s_c k)
@@ -144,11 +144,13 @@ enum btree_write_flags {
 void __bch2_btree_node_write(struct bch_fs *, struct btree *, unsigned);
 void bch2_btree_node_write(struct bch_fs *, struct btree *,
 			   enum six_lock_type, unsigned);
+void bch2_btree_node_write_trans(struct btree_trans *, struct btree *,
+				 enum six_lock_type, unsigned);
 
-static inline void btree_node_write_if_need(struct bch_fs *c, struct btree *b,
+static inline void btree_node_write_if_need(struct btree_trans *trans, struct btree *b,
 					    enum six_lock_type lock_held)
 {
-	bch2_btree_node_write(c, b, lock_held, BTREE_WRITE_ONLY_IF_NEED);
+	bch2_btree_node_write_trans(trans, b, lock_held, BTREE_WRITE_ONLY_IF_NEED);
 }
 
 bool bch2_btree_flush_all_reads(struct bch_fs *);

@@ -836,7 +836,6 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
 	u32 cipher_bits = 0;
 	u32 ecf_bits = 0;
 	u8 sctx_words = 0;
-	u8 *ptr = spu_hdr;
 
 	flow_log("%s()\n", __func__);
 	flow_log("  cipher alg:%u mode:%u type %u\n", cipher_parms->alg,
@@ -847,7 +846,6 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
 
 	/* starting out: zero the header (plus some) */
 	memset(spu_hdr, 0, sizeof(struct SPUHEADER));
-	ptr += sizeof(struct SPUHEADER);
 
 	/* format master header word */
 	/* Do not set the next bit even though the datasheet says to */
@@ -861,10 +859,8 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
 
 	/* copy the encryption keys in the SAD entry */
 	if (cipher_parms->alg) {
-		if (cipher_parms->key_len) {
-			ptr += cipher_parms->key_len;
+		if (cipher_parms->key_len)
 			sctx_words += cipher_parms->key_len / 4;
-		}
 
 		/*
 		 * if encrypting then set IV size, use SCTX IV unless no IV
@@ -873,7 +869,6 @@ u16 spum_cipher_req_init(u8 *spu_hdr, struct spu_cipher_parms *cipher_parms)
 		if (cipher_parms->iv_len) {
 			/* Use SCTX IV */
 			ecf_bits |= SCTX_IV;
-			ptr += cipher_parms->iv_len;
 			sctx_words += cipher_parms->iv_len / 4;
 		}
 	}

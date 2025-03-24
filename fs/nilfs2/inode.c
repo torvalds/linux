@@ -15,6 +15,7 @@
 #include <linux/writeback.h>
 #include <linux/uio.h>
 #include <linux/fiemap.h>
+#include <linux/random.h>
 #include "nilfs.h"
 #include "btnode.h"
 #include "segment.h"
@@ -28,17 +29,13 @@
  * @ino: inode number
  * @cno: checkpoint number
  * @root: pointer on NILFS root object (mounted checkpoint)
- * @for_gc: inode for GC flag
- * @for_btnc: inode for B-tree node cache flag
- * @for_shadow: inode for shadowed page cache flag
+ * @type: inode type
  */
 struct nilfs_iget_args {
 	u64 ino;
 	__u64 cno;
 	struct nilfs_root *root;
-	bool for_gc;
-	bool for_btnc;
-	bool for_shadow;
+	unsigned int type;
 };
 
 static int nilfs_iget_test(struct inode *inode, void *opaque);
@@ -71,6 +68,8 @@ void nilfs_inode_sub_blocks(struct inode *inode, int n)
  *
  * This function does not issue actual read request of the specified data
  * block. It is done by VFS.
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_get_block(struct inode *inode, sector_t blkoff,
 		    struct buffer_head *bh_result, int create)
@@ -144,6 +143,8 @@ int nilfs_get_block(struct inode *inode, sector_t blkoff,
  * address_space_operations.
  * @file: file struct of the file to be read
  * @folio: the folio to be read
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_read_folio(struct file *file, struct folio *folio)
 {
@@ -162,7 +163,7 @@ static int nilfs_writepages(struct address_space *mapping,
 	int err = 0;
 
 	if (sb_rdonly(inode->i_sb)) {
-		nilfs_clear_dirty_pages(mapping, false);
+		nilfs_clear_dirty_pages(mapping);
 		return -EROFS;
 	}
 
@@ -171,37 +172,6 @@ static int nilfs_writepages(struct address_space *mapping,
 						    wbc->range_start,
 						    wbc->range_end);
 	return err;
-}
-
-static int nilfs_writepage(struct page *page, struct writeback_control *wbc)
-{
-	struct folio *folio = page_folio(page);
-	struct inode *inode = folio->mapping->host;
-	int err;
-
-	if (sb_rdonly(inode->i_sb)) {
-		/*
-		 * It means that filesystem was remounted in read-only
-		 * mode because of error or metadata corruption. But we
-		 * have dirty pages that try to be flushed in background.
-		 * So, here we simply discard this dirty page.
-		 */
-		nilfs_clear_folio_dirty(folio, false);
-		folio_unlock(folio);
-		return -EROFS;
-	}
-
-	folio_redirty_for_writepage(wbc, folio);
-	folio_unlock(folio);
-
-	if (wbc->sync_mode == WB_SYNC_ALL) {
-		err = nilfs_construct_segment(inode->i_sb);
-		if (unlikely(err))
-			return err;
-	} else if (wbc->for_reclaim)
-		nilfs_flush_segment(inode->i_sb, inode->i_ino);
-
-	return 0;
 }
 
 static bool nilfs_dirty_folio(struct address_space *mapping,
@@ -250,7 +220,7 @@ void nilfs_write_failed(struct address_space *mapping, loff_t to)
 
 static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 			     loff_t pos, unsigned len,
-			     struct page **pagep, void **fsdata)
+			     struct folio **foliop, void **fsdata)
 
 {
 	struct inode *inode = mapping->host;
@@ -259,7 +229,7 @@ static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 	if (unlikely(err))
 		return err;
 
-	err = block_write_begin(mapping, pos, len, pagep, nilfs_get_block);
+	err = block_write_begin(mapping, pos, len, foliop, nilfs_get_block);
 	if (unlikely(err)) {
 		nilfs_write_failed(mapping, pos + len);
 		nilfs_transaction_abort(inode->i_sb);
@@ -269,16 +239,16 @@ static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 
 static int nilfs_write_end(struct file *file, struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
-			   struct page *page, void *fsdata)
+			   struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	unsigned int start = pos & (PAGE_SIZE - 1);
 	unsigned int nr_dirty;
 	int err;
 
-	nr_dirty = nilfs_page_count_clean_buffers(page, start,
+	nr_dirty = nilfs_page_count_clean_buffers(folio, start,
 						  start + copied);
-	copied = generic_write_end(file, mapping, pos, len, copied, page,
+	copied = generic_write_end(file, mapping, pos, len, copied, folio,
 				   fsdata);
 	nilfs_set_file_dirty(inode, nr_dirty);
 	err = nilfs_transaction_commit(inode->i_sb);
@@ -298,7 +268,6 @@ nilfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 }
 
 const struct address_space_operations nilfs_aops = {
-	.writepage		= nilfs_writepage,
 	.read_folio		= nilfs_read_folio,
 	.writepages		= nilfs_writepages,
 	.dirty_folio		= nilfs_dirty_folio,
@@ -307,7 +276,12 @@ const struct address_space_operations nilfs_aops = {
 	.write_end		= nilfs_write_end,
 	.invalidate_folio	= block_invalidate_folio,
 	.direct_IO		= nilfs_direct_IO,
+	.migrate_folio		= buffer_migrate_folio_norefs,
 	.is_partially_uptodate  = block_is_partially_uptodate,
+};
+
+const struct address_space_operations nilfs_buffer_cache_aops = {
+	.invalidate_folio	= block_invalidate_folio,
 };
 
 static int nilfs_insert_inode_locked(struct inode *inode,
@@ -315,8 +289,7 @@ static int nilfs_insert_inode_locked(struct inode *inode,
 				     unsigned long ino)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = root, .cno = 0, .for_gc = false,
-		.for_btnc = false, .for_shadow = false
+		.ino = ino, .root = root, .cno = 0, .type = NILFS_I_TYPE_NORMAL
 	};
 
 	return insert_inode_locked4(inode, ino, nilfs_iget_test, &args);
@@ -325,7 +298,6 @@ static int nilfs_insert_inode_locked(struct inode *inode,
 struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 {
 	struct super_block *sb = dir->i_sb;
-	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct inode *inode;
 	struct nilfs_inode_info *ii;
 	struct nilfs_root *root;
@@ -343,25 +315,13 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	root = NILFS_I(dir)->i_root;
 	ii = NILFS_I(inode);
 	ii->i_state = BIT(NILFS_I_NEW);
+	ii->i_type = NILFS_I_TYPE_NORMAL;
 	ii->i_root = root;
 
 	err = nilfs_ifile_create_inode(root->ifile, &ino, &bh);
 	if (unlikely(err))
 		goto failed_ifile_create_inode;
 	/* reference count of i_bh inherits from nilfs_mdt_read_block() */
-
-	if (unlikely(ino < NILFS_USER_INO)) {
-		nilfs_warn(sb,
-			   "inode bitmap is inconsistent for reserved inodes");
-		do {
-			brelse(bh);
-			err = nilfs_ifile_create_inode(root->ifile, &ino, &bh);
-			if (unlikely(err))
-				goto failed_ifile_create_inode;
-		} while (ino < NILFS_USER_INO);
-
-		nilfs_info(sb, "repaired inode bitmap for reserved inodes");
-	}
 	ii->i_bh = bh;
 
 	atomic64_inc(&root->inodes_count);
@@ -385,9 +345,7 @@ struct inode *nilfs_new_inode(struct inode *dir, umode_t mode)
 	/* ii->i_dir_acl = 0; */
 	ii->i_dir_start_lookup = 0;
 	nilfs_set_inode_flags(inode);
-	spin_lock(&nilfs->ns_next_gen_lock);
-	inode->i_generation = nilfs->ns_next_generation++;
-	spin_unlock(&nilfs->ns_next_gen_lock);
+	inode->i_generation = get_random_u32();
 	if (nilfs_insert_inode_locked(inode, root, ino) < 0) {
 		err = -EIO;
 		goto failed_after_creation;
@@ -546,23 +504,10 @@ static int nilfs_iget_test(struct inode *inode, void *opaque)
 		return 0;
 
 	ii = NILFS_I(inode);
-	if (test_bit(NILFS_I_BTNC, &ii->i_state)) {
-		if (!args->for_btnc)
-			return 0;
-	} else if (args->for_btnc) {
+	if (ii->i_type != args->type)
 		return 0;
-	}
-	if (test_bit(NILFS_I_SHADOW, &ii->i_state)) {
-		if (!args->for_shadow)
-			return 0;
-	} else if (args->for_shadow) {
-		return 0;
-	}
 
-	if (!test_bit(NILFS_I_GCINODE, &ii->i_state))
-		return !args->for_gc;
-
-	return args->for_gc && args->cno == ii->i_cno;
+	return !(args->type & NILFS_I_TYPE_GC) || args->cno == ii->i_cno;
 }
 
 static int nilfs_iget_set(struct inode *inode, void *opaque)
@@ -572,15 +517,9 @@ static int nilfs_iget_set(struct inode *inode, void *opaque)
 	inode->i_ino = args->ino;
 	NILFS_I(inode)->i_cno = args->cno;
 	NILFS_I(inode)->i_root = args->root;
+	NILFS_I(inode)->i_type = args->type;
 	if (args->root && args->ino == NILFS_ROOT_INO)
 		nilfs_get_root(args->root);
-
-	if (args->for_gc)
-		NILFS_I(inode)->i_state = BIT(NILFS_I_GCINODE);
-	if (args->for_btnc)
-		NILFS_I(inode)->i_state |= BIT(NILFS_I_BTNC);
-	if (args->for_shadow)
-		NILFS_I(inode)->i_state |= BIT(NILFS_I_SHADOW);
 	return 0;
 }
 
@@ -588,8 +527,7 @@ struct inode *nilfs_ilookup(struct super_block *sb, struct nilfs_root *root,
 			    unsigned long ino)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = root, .cno = 0, .for_gc = false,
-		.for_btnc = false, .for_shadow = false
+		.ino = ino, .root = root, .cno = 0, .type = NILFS_I_TYPE_NORMAL
 	};
 
 	return ilookup5(sb, ino, nilfs_iget_test, &args);
@@ -599,8 +537,7 @@ struct inode *nilfs_iget_locked(struct super_block *sb, struct nilfs_root *root,
 				unsigned long ino)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = root, .cno = 0, .for_gc = false,
-		.for_btnc = false, .for_shadow = false
+		.ino = ino, .root = root, .cno = 0, .type = NILFS_I_TYPE_NORMAL
 	};
 
 	return iget5_locked(sb, ino, nilfs_iget_test, nilfs_iget_set, &args);
@@ -615,8 +552,14 @@ struct inode *nilfs_iget(struct super_block *sb, struct nilfs_root *root,
 	inode = nilfs_iget_locked(sb, root, ino);
 	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
-	if (!(inode->i_state & I_NEW))
+
+	if (!(inode->i_state & I_NEW)) {
+		if (!inode->i_nlink) {
+			iput(inode);
+			return ERR_PTR(-ESTALE);
+		}
 		return inode;
+	}
 
 	err = __nilfs_read_inode(sb, root, ino, inode);
 	if (unlikely(err)) {
@@ -631,8 +574,7 @@ struct inode *nilfs_iget_for_gc(struct super_block *sb, unsigned long ino,
 				__u64 cno)
 {
 	struct nilfs_iget_args args = {
-		.ino = ino, .root = NULL, .cno = cno, .for_gc = true,
-		.for_btnc = false, .for_shadow = false
+		.ino = ino, .root = NULL, .cno = cno, .type = NILFS_I_TYPE_GC
 	};
 	struct inode *inode;
 	int err;
@@ -660,10 +602,7 @@ struct inode *nilfs_iget_for_gc(struct super_block *sb, unsigned long ino,
  * or does nothing if the inode already has it.  This function allocates
  * an additional inode to maintain page cache of B-tree nodes one-on-one.
  *
- * Return Value: On success, 0 is returned. On errors, one of the following
- * negative error code is returned.
- *
- * %-ENOMEM - Insufficient memory available.
+ * Return: 0 on success, or %-ENOMEM if memory is insufficient.
  */
 int nilfs_attach_btree_node_cache(struct inode *inode)
 {
@@ -677,9 +616,7 @@ int nilfs_attach_btree_node_cache(struct inode *inode)
 	args.ino = inode->i_ino;
 	args.root = ii->i_root;
 	args.cno = ii->i_cno;
-	args.for_gc = test_bit(NILFS_I_GCINODE, &ii->i_state) != 0;
-	args.for_btnc = true;
-	args.for_shadow = test_bit(NILFS_I_SHADOW, &ii->i_state) != 0;
+	args.type = ii->i_type | NILFS_I_TYPE_BTNC;
 
 	btnc_inode = iget5_locked(inode->i_sb, inode->i_ino, nilfs_iget_test,
 				  nilfs_iget_set, &args);
@@ -724,17 +661,14 @@ void nilfs_detach_btree_node_cache(struct inode *inode)
  * in one inode and the one for b-tree node pages is set up in the
  * other inode, which is attached to the former inode.
  *
- * Return Value: On success, a pointer to the inode for data pages is
- * returned. On errors, one of the following negative error code is returned
- * in a pointer type.
- *
- * %-ENOMEM - Insufficient memory available.
+ * Return: a pointer to the inode for data pages on success, or %-ENOMEM
+ * if memory is insufficient.
  */
 struct inode *nilfs_iget_for_shadow(struct inode *inode)
 {
 	struct nilfs_iget_args args = {
-		.ino = inode->i_ino, .root = NULL, .cno = 0, .for_gc = false,
-		.for_btnc = false, .for_shadow = true
+		.ino = inode->i_ino, .root = NULL, .cno = 0,
+		.type = NILFS_I_TYPE_SHADOW
 	};
 	struct inode *s_inode;
 	int err;
@@ -749,6 +683,7 @@ struct inode *nilfs_iget_for_shadow(struct inode *inode)
 	NILFS_I(s_inode)->i_flags = 0;
 	memset(NILFS_I(s_inode)->i_bmap, 0, sizeof(struct nilfs_bmap));
 	mapping_set_gfp_mask(s_inode->i_mapping, GFP_NOFS);
+	s_inode->i_mapping->a_ops = &nilfs_buffer_cache_aops;
 
 	err = nilfs_attach_btree_node_cache(s_inode);
 	if (unlikely(err)) {
@@ -900,7 +835,7 @@ static void nilfs_clear_inode(struct inode *inode)
 	if (test_bit(NILFS_I_BMAP, &ii->i_state))
 		nilfs_bmap_clear(ii->i_bmap);
 
-	if (!test_bit(NILFS_I_BTNC, &ii->i_state))
+	if (!(ii->i_type & NILFS_I_TYPE_BTNC))
 		nilfs_detach_btree_node_cache(inode);
 
 	if (ii->i_root && inode->i_ino == NILFS_ROOT_INO)
@@ -1251,7 +1186,7 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			if (size) {
 				if (phys && blkphy << blkbits == phys + size) {
 					/* The current extent goes on */
-					size += n << blkbits;
+					size += (u64)n << blkbits;
 				} else {
 					/* Terminate the current extent */
 					ret = fiemap_fill_next_extent(
@@ -1264,14 +1199,14 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 					flags = FIEMAP_EXTENT_MERGED;
 					logical = blkoff << blkbits;
 					phys = blkphy << blkbits;
-					size = n << blkbits;
+					size = (u64)n << blkbits;
 				}
 			} else {
 				/* Start a new extent */
 				flags = FIEMAP_EXTENT_MERGED;
 				logical = blkoff << blkbits;
 				phys = blkphy << blkbits;
-				size = n << blkbits;
+				size = (u64)n << blkbits;
 			}
 			blkoff += n;
 		}

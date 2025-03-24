@@ -16,8 +16,6 @@ struct us122l {
 	struct file		*slave;
 	struct list_head	midi_list;
 
-	atomic_t		mmap_count;
-
 	bool			is_us144;
 };
 

@@ -6,6 +6,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/net_tstamp.h>
 #include <linux/phylib_stubs.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/wireless.h>
 #include <linux/if_bridge.h>
 #include <net/dsa_stubs.h>
@@ -64,7 +65,7 @@ int dev_ifconf(struct net *net, struct ifconf __user *uifc)
 	}
 
 	/* Loop over the interfaces, and write an info block for each. */
-	rtnl_lock();
+	rtnl_net_lock(net);
 	for_each_netdev(net, dev) {
 		if (!pos)
 			done = inet_gifconf(dev, NULL, 0, size);
@@ -72,12 +73,12 @@ int dev_ifconf(struct net *net, struct ifconf __user *uifc)
 			done = inet_gifconf(dev, pos + total,
 					    len - total, size);
 		if (done < 0) {
-			rtnl_unlock();
+			rtnl_net_unlock(net);
 			return -EFAULT;
 		}
 		total += done;
 	}
-	rtnl_unlock();
+	rtnl_net_unlock(net);
 
 	return put_user(total, &uifc->ifc_len);
 }
@@ -184,7 +185,7 @@ static int dev_ifsioc_locked(struct net *net, struct ifreq *ifr, unsigned int cm
 	return err;
 }
 
-static int net_hwtstamp_validate(const struct kernel_hwtstamp_config *cfg)
+int net_hwtstamp_validate(const struct kernel_hwtstamp_config *cfg)
 {
 	enum hwtstamp_tx_types tx_type;
 	enum hwtstamp_rx_filters rx_filter;
@@ -266,9 +267,24 @@ static int dev_eth_ioctl(struct net_device *dev,
  * -EOPNOTSUPP for phylib for now, which is still more accurate than letting
  * the netdev handle the GET request.
  */
-static int dev_get_hwtstamp_phylib(struct net_device *dev,
-				   struct kernel_hwtstamp_config *cfg)
+int dev_get_hwtstamp_phylib(struct net_device *dev,
+			    struct kernel_hwtstamp_config *cfg)
 {
+	struct hwtstamp_provider *hwprov;
+
+	hwprov = rtnl_dereference(dev->hwprov);
+	if (hwprov) {
+		cfg->qualifier = hwprov->desc.qualifier;
+		if (hwprov->source == HWTSTAMP_SOURCE_PHYLIB &&
+		    hwprov->phydev)
+			return phy_hwtstamp_get(hwprov->phydev, cfg);
+
+		if (hwprov->source == HWTSTAMP_SOURCE_NETDEV)
+			return dev->netdev_ops->ndo_hwtstamp_get(dev, cfg);
+
+		return -EOPNOTSUPP;
+	}
+
 	if (phy_is_default_hwtstamp(dev->phydev))
 		return phy_hwtstamp_get(dev->phydev, cfg);
 
@@ -317,28 +333,48 @@ static int dev_get_hwtstamp(struct net_device *dev, struct ifreq *ifr)
  * should take precedence in front of hardware timestamping provided by the
  * netdev. If the netdev driver needs to perform specific actions even for PHY
  * timestamping to work properly (a switch port must trap the timestamped
- * frames and not forward them), it must set IFF_SEE_ALL_HWTSTAMP_REQUESTS in
- * dev->priv_flags.
+ * frames and not forward them), it must set dev->see_all_hwtstamp_requests.
  */
 int dev_set_hwtstamp_phylib(struct net_device *dev,
 			    struct kernel_hwtstamp_config *cfg,
 			    struct netlink_ext_ack *extack)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
-	bool phy_ts = phy_is_default_hwtstamp(dev->phydev);
 	struct kernel_hwtstamp_config old_cfg = {};
+	struct hwtstamp_provider *hwprov;
+	struct phy_device *phydev;
 	bool changed = false;
+	bool phy_ts;
 	int err;
+
+	hwprov = rtnl_dereference(dev->hwprov);
+	if (hwprov) {
+		if (hwprov->source == HWTSTAMP_SOURCE_PHYLIB &&
+		    hwprov->phydev) {
+			phy_ts = true;
+			phydev = hwprov->phydev;
+		} else if (hwprov->source == HWTSTAMP_SOURCE_NETDEV) {
+			phy_ts = false;
+		} else {
+			return -EOPNOTSUPP;
+		}
+
+		cfg->qualifier = hwprov->desc.qualifier;
+	} else {
+		phy_ts = phy_is_default_hwtstamp(dev->phydev);
+		if (phy_ts)
+			phydev = dev->phydev;
+	}
 
 	cfg->source = phy_ts ? HWTSTAMP_SOURCE_PHYLIB : HWTSTAMP_SOURCE_NETDEV;
 
-	if (phy_ts && (dev->priv_flags & IFF_SEE_ALL_HWTSTAMP_REQUESTS)) {
+	if (phy_ts && dev->see_all_hwtstamp_requests) {
 		err = ops->ndo_hwtstamp_get(dev, &old_cfg);
 		if (err)
 			return err;
 	}
 
-	if (!phy_ts || (dev->priv_flags & IFF_SEE_ALL_HWTSTAMP_REQUESTS)) {
+	if (!phy_ts || dev->see_all_hwtstamp_requests) {
 		err = ops->ndo_hwtstamp_set(dev, cfg, extack);
 		if (err) {
 			if (extack->_msg)
@@ -347,11 +383,11 @@ int dev_set_hwtstamp_phylib(struct net_device *dev,
 		}
 	}
 
-	if (phy_ts && (dev->priv_flags & IFF_SEE_ALL_HWTSTAMP_REQUESTS))
+	if (phy_ts && dev->see_all_hwtstamp_requests)
 		changed = kernel_hwtstamp_config_changed(&old_cfg, cfg);
 
 	if (phy_ts) {
-		err = phy_hwtstamp_set(dev->phydev, cfg, extack);
+		err = phy_hwtstamp_set(phydev, cfg, extack);
 		if (err) {
 			if (changed)
 				ops->ndo_hwtstamp_set(dev, &old_cfg, NULL);
@@ -507,7 +543,7 @@ static int dev_siocwandev(struct net_device *dev, struct if_settings *ifs)
 }
 
 /*
- *	Perform the SIOCxIFxxx calls, inside rtnl_lock()
+ *	Perform the SIOCxIFxxx calls, inside rtnl_net_lock()
  */
 static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 		      unsigned int cmd)
@@ -584,11 +620,14 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, void __user *data,
 			return -ENODEV;
 		if (!netif_is_bridge_master(dev))
 			return -EOPNOTSUPP;
+
 		netdev_hold(dev, &dev_tracker, GFP_KERNEL);
-		rtnl_unlock();
+		rtnl_net_unlock(net);
+
 		err = br_ioctl_call(net, netdev_priv(dev), cmd, ifr, NULL);
+
 		netdev_put(dev, &dev_tracker);
-		rtnl_lock();
+		rtnl_net_lock(net);
 		return err;
 
 	case SIOCDEVPRIVATE ... SIOCDEVPRIVATE + 15:
@@ -734,9 +773,11 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 		dev_load(net, ifr->ifr_name);
 		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
-		rtnl_lock();
+
+		rtnl_net_lock(net);
 		ret = dev_ifsioc(net, ifr, data, cmd);
-		rtnl_unlock();
+		rtnl_net_unlock(net);
+
 		if (colon)
 			*colon = ':';
 		return ret;
@@ -780,9 +821,11 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 	case SIOCBONDSLAVEINFOQUERY:
 	case SIOCBONDINFOQUERY:
 		dev_load(net, ifr->ifr_name);
-		rtnl_lock();
+
+		rtnl_net_lock(net);
 		ret = dev_ifsioc(net, ifr, data, cmd);
-		rtnl_unlock();
+		rtnl_net_unlock(net);
+
 		if (need_copyout)
 			*need_copyout = false;
 		return ret;
@@ -805,9 +848,10 @@ int dev_ioctl(struct net *net, unsigned int cmd, struct ifreq *ifr,
 		    (cmd >= SIOCDEVPRIVATE &&
 		     cmd <= SIOCDEVPRIVATE + 15)) {
 			dev_load(net, ifr->ifr_name);
-			rtnl_lock();
+
+			rtnl_net_lock(net);
 			ret = dev_ifsioc(net, ifr, data, cmd);
-			rtnl_unlock();
+			rtnl_net_unlock(net);
 			return ret;
 		}
 		return -ENOTTY;

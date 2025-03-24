@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ethernet on Serial Communications Controller (SCC) driver for Motorola MPC8xx and MPC82xx.
  *
@@ -6,10 +7,6 @@
  *
  * 2005 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #include <linux/module.h>
@@ -25,7 +22,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
-#include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 #include <linux/fs.h>
@@ -131,15 +127,14 @@ static int setup_data(struct net_device *dev)
 static int allocate_bd(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	const struct fs_platform_info *fpi = fep->fpi;
+	struct fs_platform_info *fpi = fep->fpi;
 
-	fep->ring_mem_addr = cpm_muram_alloc((fpi->tx_ring + fpi->rx_ring) *
-					     sizeof(cbd_t), 8);
-	if (IS_ERR_VALUE(fep->ring_mem_addr))
+	fpi->dpram_offset = cpm_muram_alloc((fpi->tx_ring + fpi->rx_ring) *
+					    sizeof(cbd_t), 8);
+	if (IS_ERR_VALUE(fpi->dpram_offset))
 		return -ENOMEM;
 
-	fep->ring_base = (void __iomem __force*)
-		cpm_muram_addr(fep->ring_mem_addr);
+	fep->ring_base = cpm_muram_addr(fpi->dpram_offset);
 
 	return 0;
 }
@@ -147,9 +142,10 @@ static int allocate_bd(struct net_device *dev)
 static void free_bd(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
+	const struct fs_platform_info *fpi = fep->fpi;
 
 	if (fep->ring_base)
-		cpm_muram_free(fep->ring_mem_addr);
+		cpm_muram_free(fpi->dpram_offset);
 }
 
 static void cleanup_data(struct net_device *dev)
@@ -230,7 +226,8 @@ static void set_multicast_list(struct net_device *dev)
  * change.  This only happens when switching between half and full
  * duplex.
  */
-static void restart(struct net_device *dev)
+static void restart(struct net_device *dev, phy_interface_t interface,
+		    int speed, int duplex)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	scc_t __iomem *sccp = fep->scc.sccp;
@@ -247,9 +244,9 @@ static void restart(struct net_device *dev)
 		__fs_out8((u8 __iomem *)ep + i, 0);
 
 	/* point to bds */
-	W16(ep, sen_genscc.scc_rbase, fep->ring_mem_addr);
+	W16(ep, sen_genscc.scc_rbase, fpi->dpram_offset);
 	W16(ep, sen_genscc.scc_tbase,
-	    fep->ring_mem_addr + sizeof(cbd_t) * fpi->rx_ring);
+	    fpi->dpram_offset + sizeof(cbd_t) * fpi->rx_ring);
 
 	/* Initialize function code registers for big-endian.
 	 */
@@ -341,7 +338,7 @@ static void restart(struct net_device *dev)
 	W16(sccp, scc_psmr, SCC_PSMR_ENCRC | SCC_PSMR_NIB22);
 
 	/* Set full duplex mode if needed */
-	if (dev->phydev->duplex)
+	if (duplex == DUPLEX_FULL)
 		S16(sccp, scc_psmr, SCC_PSMR_LPB | SCC_PSMR_FDE);
 
 	/* Restore multicast and promiscuous settings */

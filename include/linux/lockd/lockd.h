@@ -200,7 +200,7 @@ extern const struct svc_procedure nlmsvc_procedures[24];
 extern const struct svc_procedure nlmsvc_procedures4[24];
 #endif
 extern int			nlmsvc_grace_period;
-extern unsigned long		nlmsvc_timeout;
+extern unsigned long		nlm_timeout;
 extern bool			nsm_use_hostnames;
 extern u32			nsm_local_state;
 
@@ -278,9 +278,9 @@ __be32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
 			      struct nlm_host *, struct nlm_lock *, int,
 			      struct nlm_cookie *, int);
 __be32		  nlmsvc_unlock(struct net *net, struct nlm_file *, struct nlm_lock *);
-__be32		  nlmsvc_testlock(struct svc_rqst *, struct nlm_file *,
-			struct nlm_host *, struct nlm_lock *,
-			struct nlm_lock *, struct nlm_cookie *);
+__be32		  nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
+			struct nlm_host *host, struct nlm_lock *lock,
+			struct nlm_lock *conflock);
 __be32		  nlmsvc_cancel_blocked(struct net *net, struct nlm_file *, struct nlm_lock *);
 void		  nlmsvc_retry_blocked(struct svc_rqst *rqstp);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,

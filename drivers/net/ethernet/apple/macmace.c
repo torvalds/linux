@@ -759,7 +759,7 @@ static void mac_mace_device_remove(struct platform_device *pdev)
 
 static struct platform_driver mac_mace_driver = {
 	.probe  = mace_probe,
-	.remove_new = mac_mace_device_remove,
+	.remove = mac_mace_device_remove,
 	.driver	= {
 		.name	= mac_mace_string,
 	},

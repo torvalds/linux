@@ -300,23 +300,23 @@ static int vboxsf_writepage(struct page *page, struct writeback_control *wbc)
 
 static int vboxsf_write_end(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned int len, unsigned int copied,
-			    struct page *page, void *fsdata)
+			    struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct vboxsf_handle *sf_handle = file->private_data;
-	unsigned int from = pos & ~PAGE_MASK;
+	size_t from = offset_in_folio(folio, pos);
 	u32 nwritten = len;
 	u8 *buf;
 	int err;
 
-	/* zero the stale part of the page if we did a short copy */
-	if (!PageUptodate(page) && copied < len)
-		zero_user(page, from + copied, len - copied);
+	/* zero the stale part of the folio if we did a short copy */
+	if (!folio_test_uptodate(folio) && copied < len)
+		folio_zero_range(folio, from + copied, len - copied);
 
-	buf = kmap(page);
+	buf = kmap(&folio->page);
 	err = vboxsf_write(sf_handle->root, sf_handle->handle,
 			   pos, &nwritten, buf + from);
-	kunmap(page);
+	kunmap(&folio->page);
 
 	if (err) {
 		nwritten = 0;
@@ -326,16 +326,16 @@ static int vboxsf_write_end(struct file *file, struct address_space *mapping,
 	/* mtime changed */
 	VBOXSF_I(inode)->force_restat = 1;
 
-	if (!PageUptodate(page) && nwritten == PAGE_SIZE)
-		SetPageUptodate(page);
+	if (!folio_test_uptodate(folio) && nwritten == folio_size(folio))
+		folio_mark_uptodate(folio);
 
 	pos += nwritten;
 	if (pos > inode->i_size)
 		i_size_write(inode, pos);
 
 out:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return nwritten;
 }
@@ -343,7 +343,7 @@ out:
 /*
  * Note simple_write_begin does not read the page from disk on partial writes
  * this is ok since vboxsf_write_end only writes the written parts of the
- * page and it does not call SetPageUptodate for partial writes.
+ * page and it does not call folio_mark_uptodate for partial writes.
  */
 const struct address_space_operations vboxsf_reg_aops = {
 	.read_folio = vboxsf_read_folio,

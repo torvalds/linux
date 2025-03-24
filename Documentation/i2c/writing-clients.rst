@@ -31,12 +31,11 @@ driver model device node, and its I2C address.
 
 ::
 
-  static struct i2c_device_id foo_idtable[] = {
+  static const struct i2c_device_id foo_idtable[] = {
 	{ "foo", my_id_for_foo },
 	{ "bar", my_id_for_bar },
 	{ }
   };
-
   MODULE_DEVICE_TABLE(i2c, foo_idtable);
 
   static struct i2c_driver foo_driver = {

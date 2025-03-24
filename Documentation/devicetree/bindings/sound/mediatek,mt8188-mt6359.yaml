@@ -14,11 +14,15 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - mediatek,mt8188-es8326
-      - mediatek,mt8188-mt6359-evb
-      - mediatek,mt8188-nau8825
-      - mediatek,mt8188-rt5682s
+    oneOf:
+      - enum:
+          - mediatek,mt8188-es8326
+          - mediatek,mt8188-mt6359-evb
+          - mediatek,mt8188-nau8825
+          - mediatek,mt8188-rt5682s
+      - items:
+          - const: mediatek,mt8390-mt6359-evk
+          - const: mediatek,mt8188-mt6359-evb
 
   audio-routing:
     description:
@@ -28,6 +32,13 @@ properties:
   mediatek,platform:
     $ref: /schemas/types.yaml#/definitions/phandle
     description: The phandle of MT8188 ASoC platform.
+
+  mediatek,adsp:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The phandle of the MT8188 ADSP platform, which is the optional Audio DSP
+      hardware that provides additional audio functionalities if present.
+      The AFE will link to ADSP when the phandle is provided.
 
 patternProperties:
   "^dai-link-[0-9]+$":
@@ -49,6 +60,8 @@ patternProperties:
             - ETDM2_OUT_BE
             - ETDM3_OUT_BE
             - PCM1_BE
+            - DL_SRC_BE
+            - UL_SRC_BE
 
       codec:
         description: Holds subnode which indicates codec dai.

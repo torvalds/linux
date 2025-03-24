@@ -660,7 +660,7 @@ static struct platform_driver jh7110_tdm_driver = {
 		.pm = pm_ptr(&jh7110_tdm_pm_ops),
 	},
 	.probe = jh7110_tdm_probe,
-	.remove_new = jh7110_tdm_dev_remove,
+	.remove = jh7110_tdm_dev_remove,
 };
 module_platform_driver(jh7110_tdm_driver);
 

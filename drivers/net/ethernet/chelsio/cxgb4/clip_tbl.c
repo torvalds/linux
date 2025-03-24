@@ -120,7 +120,7 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 				write_unlock_bh(&ctbl->lock);
 				dev_err(adap->pdev_dev,
 					"CLIP FW cmd failed with error %d, "
-					"Connections using %pI6c wont be "
+					"Connections using %pI6c won't be "
 					"offloaded",
 					ret, ce->addr6.sin6_addr.s6_addr);
 				return ret;
@@ -133,7 +133,7 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 	} else {
 		write_unlock_bh(&ctbl->lock);
 		dev_info(adap->pdev_dev, "CLIP table overflow, "
-			 "Connections using %pI6c wont be offloaded",
+			 "Connections using %pI6c won't be offloaded",
 			 (void *)lip);
 		return -ENOMEM;
 	}

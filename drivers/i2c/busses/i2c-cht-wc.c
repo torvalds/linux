@@ -546,7 +546,7 @@ MODULE_DEVICE_TABLE(platform, cht_wc_i2c_adap_id_table);
 
 static struct platform_driver cht_wc_i2c_adap_driver = {
 	.probe = cht_wc_i2c_adap_i2c_probe,
-	.remove_new = cht_wc_i2c_adap_i2c_remove,
+	.remove = cht_wc_i2c_adap_i2c_remove,
 	.driver = {
 		.name = "cht_wcove_ext_chgr",
 	},

@@ -643,7 +643,7 @@ static struct platform_driver ccree_driver = {
 #endif
 	},
 	.probe = ccree_probe,
-	.remove_new = ccree_remove,
+	.remove = ccree_remove,
 };
 
 static int __init ccree_init(void)

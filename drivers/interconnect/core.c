@@ -808,7 +808,7 @@ void icc_put(struct icc_path *path)
 	mutex_unlock(&icc_bw_lock);
 	mutex_unlock(&icc_lock);
 
-	kfree_const(path->name);
+	kfree(path->name);
 	kfree(path);
 }
 EXPORT_SYMBOL_GPL(icc_put);
@@ -1081,7 +1081,7 @@ static int of_count_icc_providers(struct device_node *np)
 	int count = 0;
 
 	for_each_available_child_of_node(np, child) {
-		if (of_property_read_bool(child, "#interconnect-cells") &&
+		if (of_property_present(child, "#interconnect-cells") &&
 		    likely(!of_match_node(ignore_list, child)))
 			count++;
 		count += of_count_icc_providers(child);

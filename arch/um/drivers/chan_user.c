@@ -161,6 +161,8 @@ static __noreturn int winch_thread(void *arg)
 	int count;
 	char c = 1;
 
+	os_set_pdeathsig();
+
 	pty_fd = data->pty_fd;
 	pipe_fd = data->pipe_fd;
 	count = write(pipe_fd, &c, sizeof(c));

@@ -3,6 +3,7 @@
 #include <linux/kconfig.h>
 #include <linux/types.h>
 #include <linux/fault-inject.h>
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <ufs/ufshcd.h>
 #include "ufs-fault-injection.h"

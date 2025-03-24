@@ -6,6 +6,7 @@
  * Maxime Ripard <maxime.ripard@free-electrons.com>
  */
 
+#include <linux/aperture.h>
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
 #include <linux/kfifo.h>
@@ -14,7 +15,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 
-#include <drm/drm_aperture.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
@@ -49,12 +50,12 @@ static const struct drm_driver sun4i_drv_driver = {
 	.fops			= &sun4i_drv_fops,
 	.name			= "sun4i-drm",
 	.desc			= "Allwinner sun4i Display Engine",
-	.date			= "20150629",
 	.major			= 1,
 	.minor			= 0,
 
 	/* GEM Operations */
 	DRM_GEM_DMA_DRIVER_OPS_WITH_DUMB_CREATE(drm_sun4i_gem_dumb_create),
+	DRM_FBDEV_DMA_DRIVER_OPS,
 };
 
 static int sun4i_drv_bind(struct device *dev)
@@ -98,7 +99,7 @@ static int sun4i_drv_bind(struct device *dev)
 		goto unbind_all;
 
 	/* Remove early framebuffers (ie. simplefb) */
-	ret = drm_aperture_remove_framebuffers(&sun4i_drv_driver);
+	ret = aperture_remove_all_conflicting_devices(sun4i_drv_driver.name);
 	if (ret)
 		goto unbind_all;
 
@@ -111,7 +112,7 @@ static int sun4i_drv_bind(struct device *dev)
 	if (ret)
 		goto finish_poll;
 
-	drm_fbdev_dma_setup(drm, 32);
+	drm_client_setup(drm, NULL);
 
 	dev_set_drvdata(dev, drm);
 
@@ -441,7 +442,7 @@ MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);
 
 static struct platform_driver sun4i_drv_platform_driver = {
 	.probe		= sun4i_drv_probe,
-	.remove_new	= sun4i_drv_remove,
+	.remove		= sun4i_drv_remove,
 	.shutdown	= sun4i_drv_shutdown,
 	.driver		= {
 		.name		= "sun4i-drm",

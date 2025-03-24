@@ -6,10 +6,8 @@
 
 #if defined(CONFIG_MEMCG) && defined(CONFIG_SWAP)
 
-extern unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
-					unsigned short old, unsigned short new);
-extern unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
-					 unsigned int nr_ents);
+extern void swap_cgroup_record(struct folio *folio, unsigned short id, swp_entry_t ent);
+extern unsigned short swap_cgroup_clear(swp_entry_t ent, unsigned int nr_ents);
 extern unsigned short lookup_swap_cgroup_id(swp_entry_t ent);
 extern int swap_cgroup_swapon(int type, unsigned long max_pages);
 extern void swap_cgroup_swapoff(int type);
@@ -17,8 +15,12 @@ extern void swap_cgroup_swapoff(int type);
 #else
 
 static inline
-unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id,
-				  unsigned int nr_ents)
+void swap_cgroup_record(struct folio *folio, unsigned short id, swp_entry_t ent)
+{
+}
+
+static inline
+unsigned short swap_cgroup_clear(swp_entry_t ent, unsigned int nr_ents)
 {
 	return 0;
 }

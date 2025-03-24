@@ -360,8 +360,6 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
 	pgste_t pgste;
 	struct mm_struct *mm = vma->vm_mm;
 
-	if (!MACHINE_HAS_NX)
-		pte = clear_pte_bit(pte, __pgprot(_PAGE_NOEXEC));
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get(ptep);
 		pgste_set_key(ptep, pgste, pte, mm);
@@ -525,7 +523,7 @@ static inline void pudp_idte_global(struct mm_struct *mm,
 	else
 		/*
 		 * Invalid bit position is the same for pmd and pud, so we can
-		 * re-use _pmd_csp() here
+		 * reuse _pmd_csp() here
 		 */
 		__pmdp_csp((pmd_t *) pudp);
 }

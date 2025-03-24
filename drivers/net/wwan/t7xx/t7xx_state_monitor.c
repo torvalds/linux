@@ -104,14 +104,21 @@ void t7xx_fsm_broadcast_state(struct t7xx_fsm_ctl *ctl, enum md_state state)
 	fsm_state_notify(ctl->md, state);
 }
 
+static void fsm_release_command(struct kref *ref)
+{
+	struct t7xx_fsm_command *cmd = container_of(ref, typeof(*cmd), refcnt);
+
+	kfree(cmd);
+}
+
 static void fsm_finish_command(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_command *cmd, int result)
 {
 	if (cmd->flag & FSM_CMD_FLAG_WAIT_FOR_COMPLETION) {
-		*cmd->ret = result;
-		complete_all(cmd->done);
+		cmd->result = result;
+		complete_all(&cmd->done);
 	}
 
-	kfree(cmd);
+	kref_put(&cmd->refcnt, fsm_release_command);
 }
 
 static void fsm_del_kf_event(struct t7xx_fsm_event *event)
@@ -213,16 +220,6 @@ static void fsm_routine_exception(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_comm
 		fsm_finish_command(ctl, cmd, 0);
 }
 
-static void t7xx_host_event_notify(struct t7xx_modem *md, unsigned int event_id)
-{
-	u32 value;
-
-	value = ioread32(IREG_BASE(md->t7xx_dev) + T7XX_PCIE_MISC_DEV_STATUS);
-	value &= ~HOST_EVENT_MASK;
-	value |= FIELD_PREP(HOST_EVENT_MASK, event_id);
-	iowrite32(value, IREG_BASE(md->t7xx_dev) + T7XX_PCIE_MISC_DEV_STATUS);
-}
-
 static void t7xx_lk_stage_event_handling(struct t7xx_fsm_ctl *ctl, unsigned int status)
 {
 	struct t7xx_modem *md = ctl->md;
@@ -264,7 +261,13 @@ static void t7xx_lk_stage_event_handling(struct t7xx_fsm_ctl *ctl, unsigned int 
 
 static int fsm_stopped_handler(struct t7xx_fsm_ctl *ctl)
 {
+	enum t7xx_mode mode;
+
 	ctl->curr_state = FSM_STATE_STOPPED;
+
+	mode = READ_ONCE(ctl->md->t7xx_dev->mode);
+	if (mode == T7XX_FASTBOOT_DOWNLOAD || mode == T7XX_FASTBOOT_DUMP)
+		return 0;
 
 	t7xx_fsm_broadcast_state(ctl, MD_STATE_STOPPED);
 	return t7xx_md_reset(ctl->md->t7xx_dev);
@@ -284,8 +287,6 @@ static void fsm_routine_stopping(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_comma
 {
 	struct cldma_ctrl *md_ctrl = ctl->md->md_ctrl[CLDMA_ID_MD];
 	struct t7xx_pci_dev *t7xx_dev = ctl->md->t7xx_dev;
-	enum t7xx_mode mode = READ_ONCE(t7xx_dev->mode);
-	int err;
 
 	if (ctl->curr_state == FSM_STATE_STOPPED || ctl->curr_state == FSM_STATE_STOPPING) {
 		fsm_finish_command(ctl, cmd, -EINVAL);
@@ -296,20 +297,9 @@ static void fsm_routine_stopping(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_comma
 	t7xx_fsm_broadcast_state(ctl, MD_STATE_WAITING_TO_STOP);
 	t7xx_cldma_stop(md_ctrl);
 
-	if (mode == T7XX_FASTBOOT_SWITCHING)
-		t7xx_host_event_notify(ctl->md, FASTBOOT_DL_NOTIFY);
-
 	t7xx_mhccif_h2d_swint_trigger(t7xx_dev, H2D_CH_DRM_DISABLE_AP);
 	/* Wait for the DRM disable to take effect */
 	msleep(FSM_DRM_DISABLE_DELAY_MS);
-
-	if (mode == T7XX_FASTBOOT_SWITCHING) {
-		t7xx_mhccif_h2d_swint_trigger(t7xx_dev, H2D_CH_DEVICE_RESET);
-	} else {
-		err = t7xx_acpi_fldr_func(t7xx_dev);
-		if (err)
-			t7xx_mhccif_h2d_swint_trigger(t7xx_dev, H2D_CH_DEVICE_RESET);
-	}
 
 	fsm_finish_command(ctl, cmd, fsm_stopped_handler(ctl));
 }
@@ -414,7 +404,9 @@ static void fsm_routine_start(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_command 
 
 		case T7XX_DEV_STAGE_LK:
 			dev_dbg(dev, "LK_STAGE Entered\n");
+			t7xx_port_proxy_set_cfg(md, PORT_CFG_ID_EARLY);
 			t7xx_lk_stage_event_handling(ctl, status);
+
 			break;
 
 		case T7XX_DEV_STAGE_LINUX:
@@ -436,6 +428,9 @@ static void fsm_routine_start(struct t7xx_fsm_ctl *ctl, struct t7xx_fsm_command 
 	}
 
 finish_command:
+	if (ret)
+		t7xx_mode_update(md->t7xx_dev, T7XX_UNKNOWN);
+
 	fsm_finish_command(ctl, cmd, ret);
 }
 
@@ -487,7 +482,6 @@ static int fsm_main_thread(void *data)
 
 int t7xx_fsm_append_cmd(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_cmd_state cmd_id, unsigned int flag)
 {
-	DECLARE_COMPLETION_ONSTACK(done);
 	struct t7xx_fsm_command *cmd;
 	unsigned long flags;
 	int ret;
@@ -499,11 +493,13 @@ int t7xx_fsm_append_cmd(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_cmd_state cmd_id
 	INIT_LIST_HEAD(&cmd->entry);
 	cmd->cmd_id = cmd_id;
 	cmd->flag = flag;
+	kref_init(&cmd->refcnt);
 	if (flag & FSM_CMD_FLAG_WAIT_FOR_COMPLETION) {
-		cmd->done = &done;
-		cmd->ret = &ret;
+		init_completion(&cmd->done);
+		kref_get(&cmd->refcnt);
 	}
 
+	kref_get(&cmd->refcnt);
 	spin_lock_irqsave(&ctl->command_lock, flags);
 	list_add_tail(&cmd->entry, &ctl->command_queue);
 	spin_unlock_irqrestore(&ctl->command_lock, flags);
@@ -513,11 +509,11 @@ int t7xx_fsm_append_cmd(struct t7xx_fsm_ctl *ctl, enum t7xx_fsm_cmd_state cmd_id
 	if (flag & FSM_CMD_FLAG_WAIT_FOR_COMPLETION) {
 		unsigned long wait_ret;
 
-		wait_ret = wait_for_completion_timeout(&done,
+		wait_ret = wait_for_completion_timeout(&cmd->done,
 						       msecs_to_jiffies(FSM_CMD_TIMEOUT_MS));
-		if (!wait_ret)
-			return -ETIMEDOUT;
 
+		ret = wait_ret ? cmd->result : -ETIMEDOUT;
+		kref_put(&cmd->refcnt, fsm_release_command);
 		return ret;
 	}
 

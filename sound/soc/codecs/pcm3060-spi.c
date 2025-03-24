@@ -2,7 +2,7 @@
 //
 // PCM3060 SPI driver
 //
-// Copyright (C) 2018 Kirill Marinushkin <kmarinushkin@birdec.com>
+// Copyright (C) 2018 Kirill Marinushkin <k.marinushkin@gmail.com>
 
 #include <linux/module.h>
 #include <linux/spi/spi.h>
@@ -55,5 +55,5 @@ static struct spi_driver pcm3060_spi_driver = {
 module_spi_driver(pcm3060_spi_driver);
 
 MODULE_DESCRIPTION("PCM3060 SPI driver");
-MODULE_AUTHOR("Kirill Marinushkin <kmarinushkin@birdec.com>");
+MODULE_AUTHOR("Kirill Marinushkin <k.marinushkin@gmail.com>");
 MODULE_LICENSE("GPL v2");

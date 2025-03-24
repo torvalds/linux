@@ -114,7 +114,7 @@ static int snd_opl4_detect(struct snd_opl4 *opl4)
 	snd_opl4_enable_opl4(opl4);
 
 	id1 = snd_opl4_read(opl4, OPL4_REG_MEMORY_CONFIGURATION);
-	snd_printdd("OPL4[02]=%02x\n", id1);
+	dev_dbg(opl4->card->dev, "OPL4[02]=%02x\n", id1);
 	switch (id1 & OPL4_DEVICE_ID_MASK) {
 	case 0x20:
 		opl4->hardware = OPL3_HW_OPL4;
@@ -130,7 +130,7 @@ static int snd_opl4_detect(struct snd_opl4 *opl4)
 	snd_opl4_write(opl4, OPL4_REG_MIX_CONTROL_PCM, 0xff);
 	id1 = snd_opl4_read(opl4, OPL4_REG_MIX_CONTROL_FM);
 	id2 = snd_opl4_read(opl4, OPL4_REG_MIX_CONTROL_PCM);
-	snd_printdd("OPL4 id1=%02x id2=%02x\n", id1, id2);
+	dev_dbg(opl4->card->dev, "OPL4 id1=%02x id2=%02x\n", id1, id2);
        	if (id1 != 0x00 || id2 != 0xff)
 		return -ENODEV;
 
@@ -200,7 +200,7 @@ int snd_opl4_create(struct snd_card *card,
 	opl4->res_fm_port = request_region(fm_port, 8, "OPL4 FM");
 	opl4->res_pcm_port = request_region(pcm_port, 8, "OPL4 PCM/MIX");
 	if (!opl4->res_fm_port || !opl4->res_pcm_port) {
-		snd_printk(KERN_ERR "opl4: can't grab ports 0x%lx, 0x%lx\n", fm_port, pcm_port);
+		dev_err(card->dev, "opl4: can't grab ports 0x%lx, 0x%lx\n", fm_port, pcm_port);
 		snd_opl4_free(opl4);
 		return -EBUSY;
 	}
@@ -214,7 +214,7 @@ int snd_opl4_create(struct snd_card *card,
 	err = snd_opl4_detect(opl4);
 	if (err < 0) {
 		snd_opl4_free(opl4);
-		snd_printd("OPL4 chip not detected at %#lx/%#lx\n", fm_port, pcm_port);
+		dev_dbg(card->dev, "OPL4 chip not detected at %#lx/%#lx\n", fm_port, pcm_port);
 		return err;
 	}
 

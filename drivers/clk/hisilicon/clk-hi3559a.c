@@ -407,7 +407,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 		unsigned long parent_rate)
 {
 	struct hi3559av100_clk_pll *clk = to_pll_clk(hw);
-	u64 frac_val, fbdiv_val, refdiv_val;
+	u64 frac_val, fbdiv_val;
 	u32 postdiv1_val, postdiv2_val;
 	u32 val;
 	u64 tmp, rate;
@@ -435,14 +435,13 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 	val = readl_relaxed(clk->ctrl_reg2);
 	val = val >> clk->refdiv_shift;
 	val &= ((1 << clk->refdiv_width) - 1);
-	refdiv_val = val;
 
 	/* rate = 24000000 * (fbdiv + frac / (1<<24) ) / refdiv  */
 	rate = 0;
 	tmp = 24000000 * fbdiv_val + (24000000 * frac_val) / (1 << 24);
 	rate += tmp;
-	do_div(rate, refdiv_val);
-	do_div(rate, postdiv1_val * postdiv2_val);
+	rate = div_u64(rate, val);
+	rate = div_u64(rate, postdiv1_val * postdiv2_val);
 
 	return rate;
 }
@@ -818,7 +817,7 @@ static void hi3559av100_crg_remove(struct platform_device *pdev)
 
 static struct platform_driver hi3559av100_crg_driver = {
 	.probe		= hi3559av100_crg_probe,
-	.remove_new	= hi3559av100_crg_remove,
+	.remove		= hi3559av100_crg_remove,
 	.driver		= {
 		.name	= "hi3559av100-clock",
 		.of_match_table = hi3559av100_crg_match_table,

@@ -64,8 +64,7 @@ struct i915_params i915_modparams __read_mostly = {
  */
 
 i915_param_named(modeset, int, 0400,
-	"Use kernel modesetting [KMS] (0=disable, "
-	"1=on, -1=force vga console preference [default])");
+	"Deprecated. Use the 'nomodeset' kernel parameter instead.");
 
 i915_param_named_unsafe(reset, uint, 0400,
 	"Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])");

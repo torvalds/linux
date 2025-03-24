@@ -117,7 +117,7 @@ xmbuf_free(
 	struct xfs_buftarg	*btp)
 {
 	ASSERT(xfs_buftarg_is_mem(btp));
-	ASSERT(percpu_counter_sum(&btp->bt_io_count) == 0);
+	ASSERT(percpu_counter_sum(&btp->bt_readahead_count) == 0);
 
 	trace_xmbuf_free(btp);
 
@@ -149,7 +149,7 @@ xmbuf_map_page(
 		return -ENOMEM;
 	}
 
-	error = shmem_get_folio(inode, pos >> PAGE_SHIFT, &folio, SGP_CACHE);
+	error = shmem_get_folio(inode, pos >> PAGE_SHIFT, 0, &folio, SGP_CACHE);
 	if (error)
 		return error;
 

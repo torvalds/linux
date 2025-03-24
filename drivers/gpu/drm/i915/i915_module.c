@@ -30,15 +30,20 @@ static int i915_check_nomodeset(void)
 	 */
 
 	if (i915_modparams.modeset == 0)
+		pr_warn("i915.modeset=0 is deprecated. Please use the 'nomodeset' kernel parameter instead.\n");
+	else if (i915_modparams.modeset != -1)
+		pr_warn("i915.modeset=%d is deprecated. Please remove it and the 'nomodeset' kernel parameter instead.\n",
+			i915_modparams.modeset);
+
+	if (i915_modparams.modeset == 0)
 		use_kms = false;
 
 	if (drm_firmware_drivers_only() && i915_modparams.modeset == -1)
 		use_kms = false;
 
 	if (!use_kms) {
-		/* Silently fail loading to not upset userspace. */
 		DRM_DEBUG_DRIVER("KMS disabled.\n");
-		return 1;
+		return -ENODEV;
 	}
 
 	return 0;

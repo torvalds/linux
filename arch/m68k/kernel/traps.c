@@ -383,7 +383,7 @@ static inline void bus_error030 (struct frame *fp)
 			fp->ptregs.format == 0xa ? fp->ptregs.pc + 4 : fp->un.fmtb.baddr);
 	if (ssw & DF)
 		pr_debug("Data %s fault at %#010lx in %s (pc=%#lx)\n",
-			ssw & RW ? "read" : "write",
+			str_read_write(ssw & RW),
 			fp->un.fmtb.daddr,
 			space_names[ssw & DFC], fp->ptregs.pc);
 
@@ -419,7 +419,7 @@ static inline void bus_error030 (struct frame *fp)
 				}
 
 				pr_err("Data %s fault at %#010lx in %s (pc=%#lx)\n",
-					ssw & RW ? "read" : "write",
+					str_read_write(ssw & RW),
 					fp->un.fmtb.daddr,
 					space_names[ssw & DFC], fp->ptregs.pc);
 			}
@@ -455,7 +455,7 @@ static inline void bus_error030 (struct frame *fp)
 			pr_debug("*** unexpected busfault type=%#04x\n",
 				 buserr_type);
 			pr_debug("invalid %s access at %#lx from pc %#lx\n",
-				 !(ssw & RW) ? "write" : "read", addr,
+				 str_read_write(ssw & RW), addr,
 				 fp->ptregs.pc);
 			die_if_kernel ("Oops", &fp->ptregs, buserr_type);
 			force_sig (SIGBUS);
@@ -514,7 +514,7 @@ static inline void bus_error030 (struct frame *fp)
 			fp->ptregs.format == 0xa ? fp->ptregs.pc + 4 : fp->un.fmtb.baddr);
 	if (ssw & DF)
 		pr_debug("Data %s fault at %#010lx in %s (pc=%#lx)\n",
-			ssw & RW ? "read" : "write",
+			str_read_write(ssw & RW),
 			fp->un.fmtb.daddr,
 			space_names[ssw & DFC], fp->ptregs.pc);
 
@@ -548,7 +548,7 @@ static inline void bus_error030 (struct frame *fp)
 			/* We might have an exception table for this PC */
 			if (ssw & 4 && !search_exception_tables(fp->ptregs.pc)) {
 				pr_err("Data %s fault at %#010lx in %s (pc=%#lx)\n",
-				       ssw & RW ? "read" : "write",
+				       str_read_write(ssw & RW),
 				       fp->un.fmtb.daddr,
 				       space_names[ssw & DFC], fp->ptregs.pc);
 				goto buserr;
@@ -564,7 +564,7 @@ static inline void bus_error030 (struct frame *fp)
 				       mmusr);
 		} else if (mmusr & (MMU_B|MMU_L|MMU_S)) {
 			pr_err("invalid %s access at %#lx from pc %#lx\n",
-			       !(ssw & RW) ? "write" : "read", addr,
+			       str_read_write(ssw & RW), addr,
 			       fp->ptregs.pc);
 			die_if_kernel("Oops",&fp->ptregs,mmusr);
 			force_sig(SIGSEGV);
@@ -575,7 +575,7 @@ static inline void bus_error030 (struct frame *fp)
 #endif
 
 			pr_err("weird %s access at %#lx from pc %#lx (ssw is %#x)\n",
-			       !(ssw & RW) ? "write" : "read", addr,
+			       str_read_write(ssw & RW), addr,
 			       fp->ptregs.pc, ssw);
 			asm volatile ("ptestr #1,%1@,#0\n\t"
 				      "pmove %%psr,%0"
@@ -991,7 +991,7 @@ static void bad_super_trap(struct frame *fp)
 				fp->ptregs.pc + 4 : fp->un.fmtb.baddr);
 		if (ssw & DF)
 			pr_err("Data %s fault at %#010lx in %s (pc=%#lx)\n",
-				ssw & RW ? "read" : "write",
+				str_read_write(ssw & RW),
 				fp->un.fmtb.daddr, space_names[ssw & DFC],
 				fp->ptregs.pc);
 	}

@@ -2566,7 +2566,6 @@ static void gelic_wl_setup_netdev_ops(struct net_device *netdev)
 
 	netdev->ethtool_ops = &gelic_wl_ethtool_ops;
 	netdev->netdev_ops = &gelic_wl_netdevice_ops;
-	netdev->wireless_data = &wl->wireless_data;
 	netdev->wireless_handlers = &gelic_wl_wext_handler_def;
 }
 

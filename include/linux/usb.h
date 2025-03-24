@@ -495,6 +495,12 @@ struct usb_dev_state;
 
 struct usb_tt;
 
+enum usb_link_tunnel_mode {
+	USB_LINK_UNKNOWN = 0,
+	USB_LINK_NATIVE,
+	USB_LINK_TUNNELED,
+};
+
 enum usb_port_connect_type {
 	USB_PORT_CONNECT_TYPE_UNKNOWN = 0,
 	USB_PORT_CONNECT_TYPE_HOT_PLUG,
@@ -605,6 +611,7 @@ struct usb3_lpm_parameters {
  *	WUSB devices are not, until we authorize them from user space.
  *	FIXME -- complete doc
  * @authenticated: Crypto authentication passed
+ * @tunnel_mode: Connection native or tunneled over USB4
  * @lpm_capable: device supports LPM
  * @lpm_devinit_allow: Allow USB3 device initiated LPM, exit latency is in range
  * @usb2_hw_lpm_capable: device can perform USB2 hardware LPM
@@ -714,6 +721,7 @@ struct usb_device {
 	unsigned do_remote_wakeup:1;
 	unsigned reset_resume:1;
 	unsigned port_is_suspended:1;
+	enum usb_link_tunnel_mode tunnel_mode;
 
 	int slot_id;
 	struct usb2_lpm_parameters l1_params;
@@ -1121,8 +1129,8 @@ static inline int usb_make_path(struct usb_device *dev, char *buf, size_t size)
 /* ----------------------------------------------------------------------- */
 
 /* Stuff for dynamic usb ids */
+extern struct mutex usb_dynids_lock;
 struct usb_dynids {
-	spinlock_t lock;
 	struct list_head list;
 };
 
@@ -1235,7 +1243,7 @@ struct usb_driver {
 	unsigned int disable_hub_initiated_lpm:1;
 	unsigned int soft_unbind:1;
 };
-#define	to_usb_driver(d) container_of(d, struct usb_driver, driver)
+#define	to_usb_driver(d) container_of_const(d, struct usb_driver, driver)
 
 /**
  * struct usb_device_driver - identifies USB device driver to usbcore
@@ -1286,8 +1294,7 @@ struct usb_device_driver {
 	unsigned int supports_autosuspend:1;
 	unsigned int generic_subclass:1;
 };
-#define	to_usb_device_driver(d) container_of(d, struct usb_device_driver, \
-		driver)
+#define	to_usb_device_driver(d) container_of_const(d, struct usb_device_driver, driver)
 
 /**
  * struct usb_class_driver - identifies a USB driver that wants to use the USB major number

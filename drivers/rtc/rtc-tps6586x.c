@@ -241,7 +241,7 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	platform_set_drvdata(pdev, rtc);
 	rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
@@ -317,7 +317,7 @@ static struct platform_driver tps6586x_rtc_driver = {
 		.pm	= &tps6586x_pm_ops,
 	},
 	.probe	= tps6586x_rtc_probe,
-	.remove_new = tps6586x_rtc_remove,
+	.remove = tps6586x_rtc_remove,
 };
 module_platform_driver(tps6586x_rtc_driver);
 

@@ -64,9 +64,9 @@ static const struct file_operations debugfs_dim_fops = {
 static void debugfs_dim_ring_init(struct dim *dim, int ring_idx,
 				  struct dentry *dd)
 {
-	static char qname[16];
+	static char qname[12];
 
-	snprintf(qname, 10, "%d", ring_idx);
+	snprintf(qname, sizeof(qname), "%d", ring_idx);
 	debugfs_create_file(qname, 0600, dd, dim, &debugfs_dim_fops);
 }
 

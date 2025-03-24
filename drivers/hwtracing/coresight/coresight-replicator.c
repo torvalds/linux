@@ -126,7 +126,7 @@ static int replicator_enable(struct coresight_device *csdev,
 	bool first_enable = false;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (atomic_read(&out->src_refcnt) == 0) {
+	if (out->src_refcnt == 0) {
 		if (drvdata->base)
 			rc = dynamic_replicator_enable(drvdata, in->dest_port,
 						       out->src_port);
@@ -134,7 +134,7 @@ static int replicator_enable(struct coresight_device *csdev,
 			first_enable = true;
 	}
 	if (!rc)
-		atomic_inc(&out->src_refcnt);
+		out->src_refcnt++;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	if (first_enable)
@@ -180,7 +180,7 @@ static void replicator_disable(struct coresight_device *csdev,
 	bool last_disable = false;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (atomic_dec_return(&out->src_refcnt) == 0) {
+	if (--out->src_refcnt == 0) {
 		if (drvdata->base)
 			dynamic_replicator_disable(drvdata, in->dest_port,
 						   out->src_port);
@@ -389,7 +389,7 @@ MODULE_DEVICE_TABLE(acpi, replicator_acpi_ids);
 
 static struct platform_driver replicator_driver = {
 	.probe          = replicator_platform_probe,
-	.remove_new     = replicator_platform_remove,
+	.remove         = replicator_platform_remove,
 	.driver         = {
 		.name   = "coresight-replicator",
 		/* THIS_MODULE is taken care of by platform_driver_register() */

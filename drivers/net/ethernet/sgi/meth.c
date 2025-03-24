@@ -864,7 +864,7 @@ static void meth_remove(struct platform_device *pdev)
 
 static struct platform_driver meth_driver = {
 	.probe	= meth_probe,
-	.remove_new = meth_remove,
+	.remove = meth_remove,
 	.driver = {
 		.name	= "meth",
 	}

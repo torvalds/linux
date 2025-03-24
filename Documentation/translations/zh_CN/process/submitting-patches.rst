@@ -105,7 +105,7 @@ xyzzy do frotz”或“[I]changed xyzzy to do frotz”，就好像你在命令�
 当链接到邮件列表存档时，请首选lore.kernel.org邮件存档服务。用邮件中的
 ``Message-ID`` 头（去掉尖括号）可以创建链接URL。例如::
 
-    Link: https://lore.kernel.org/r/30th.anniversary.repost@klaava.Helsinki.FI/
+    Link: https://lore.kernel.org/30th.anniversary.repost@klaava.Helsinki.FI
 
 请检查该链接以确保可用且指向正确的邮件。
 
@@ -195,11 +195,8 @@ scripts/get_maintainer.pl在这个步骤中非常有用。如果您找不到正�
 在MAINTAINERS文件中查找子系统特定的列表；您的补丁可能会在那里得到更多的关注。
 不过，请不要发送垃圾邮件到无关的列表。
 
-许多与内核相关的列表托管在vger.kernel.org上；您可以在
-http://vger.kernel.org/vger-lists.html 上找到它们的列表。不过，也有与内核相关
-的列表托管在其他地方。
-
-不要一次发送超过15个补丁到vger邮件列表！！！！
+许多与内核相关的列表托管在 kernel.org 上；您可以在 https://subspace.kernel.org
+上找到它们的列表。不过，也有与内核相关的列表托管在其他地方。
 
 Linus Torvalds是决定改动能否进入 Linux 内核的最终裁决者。他的邮件地址是
 torvalds@linux-foundation.org 。他收到的邮件很多，所以一般来说最好 **别**
@@ -208,7 +205,7 @@ torvalds@linux-foundation.org 。他收到的邮件很多，所以一般来说�
 如果您有修复可利用安全漏洞的补丁，请将该补丁发送到 security@kernel.org 。对于
 严重的bug，可以考虑短期禁令以允许分销商（有时间）向用户发布补丁；在这种情况下，
 显然不应将补丁发送到任何公共列表。
-参见 Documentation/translations/zh_CN/admin-guide/security-bugs.rst 。
+参见 Documentation/translations/zh_CN/process/security-bugs.rst 。
 
 修复已发布内核中严重错误的补丁程序应该抄送给稳定版维护人员，方法是把以下列行
 放进补丁的签准区（注意，不是电子邮件收件人）::
@@ -621,6 +618,13 @@ Fixes: 指示补丁修复了之前提交的一个问题。它可以便于确定�
 的工作所基于的树的提交哈希。你应该在封面邮件或系列的第一个补丁中添加它，它应
 该放在 ``---`` 行的下面或所有其他内容之后，即只在你的电子邮件签名之前。
 
+工具
+----
+
+这个过程的许多技术方面可以使用 b4 自动完成，其文档可在
+https://b4.docs.kernel.org/en/latest/ 查看。该工具可帮助处理诸如追踪依赖项、运行
+checkpatch 以及格式化和发送邮件等事务。
+
 参考文献
 --------
 
@@ -642,9 +646,6 @@ Greg Kroah-Hartman，“如何惹恼内核子系统维护人员”
   <http://www.kroah.com/log/linux/maintainer-05.html>
 
   <http://www.kroah.com/log/linux/maintainer-06.html>
-
-不！！！别再发巨型补丁炸弹给linux-kernel@vger.kernel.org的人们了！
-  <https://lore.kernel.org/r/20050711.125305.08322243.davem@davemloft.net>
 
 内核 Documentation/translations/zh_CN/process/coding-style.rst
 

@@ -56,7 +56,7 @@ struct dc_stream_status {
 	int plane_count;
 	int audio_inst;
 	struct timing_sync_info timing_sync_info;
-	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
+	struct dc_plane_state *plane_states[MAX_SURFACES];
 	bool is_abm_supported;
 	struct mall_stream_config mall_stream_config;
 	bool fpo_in_use;
@@ -142,6 +142,8 @@ union stream_update_flags {
 		uint32_t mst_bw : 1;
 		uint32_t crtc_timing_adjust : 1;
 		uint32_t fams_changed : 1;
+		uint32_t scaler_sharpener : 1;
+		uint32_t sharpening_required : 1;
 	} bits;
 
 	uint32_t raw;
@@ -159,6 +161,12 @@ struct test_pattern {
 
 struct dc_stream_debug_options {
 	char force_odm_combine_segments;
+	/*
+	 * When force_odm_combine_segments is non zero, allow dc to
+	 * temporarily transition to ODM bypass when minimal transition state
+	 * is required to prevent visual glitches showing on the screen
+	 */
+	char allow_transition_for_forced_odm;
 };
 
 #define LUMINANCE_DATA_TABLE_SIZE 10
@@ -260,6 +268,8 @@ struct dc_stream_state {
 
 	struct dc_cursor_attributes cursor_attributes;
 	struct dc_cursor_position cursor_position;
+	bool hw_cursor_req;
+
 	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
 
 	/* from stream struct */
@@ -300,6 +310,8 @@ struct dc_stream_state {
 	bool is_phantom;
 
 	struct luminance_data lumin_data;
+	bool scaler_sharpener_update;
+	bool sharpening_required;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255
@@ -344,6 +356,9 @@ struct dc_stream_update {
 
 	struct dc_cursor_attributes *cursor_attributes;
 	struct dc_cursor_position *cursor_position;
+	bool *hw_cursor_req;
+	bool *scaler_sharpener_update;
+	bool *sharpening_required;
 };
 
 bool dc_is_stream_unchanged(
@@ -431,10 +446,6 @@ bool dc_stream_remove_writeback(struct dc *dc,
 enum dc_status dc_stream_add_dsc_to_resource(struct dc *dc,
 		struct dc_state *state,
 		struct dc_stream_state *stream);
-
-bool dc_stream_warmup_writeback(struct dc *dc,
-		int num_dwb,
-		struct dc_writeback_info *wb_info);
 
 bool dc_stream_dmdata_status_done(struct dc *dc, struct dc_stream_state *stream);
 
@@ -526,17 +537,26 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 bool dc_stream_forward_crc_window(struct dc_stream_state *stream,
 		struct rect *rect,
+		uint8_t phy_id,
 		bool is_stop);
+
+bool dc_stream_forward_multiple_crc_window(struct dc_stream_state *stream,
+		struct crc_window *window,
+		uint8_t phy_id,
+		bool stop);
 #endif
 
 bool dc_stream_configure_crc(struct dc *dc,
 			     struct dc_stream_state *stream,
 			     struct crc_params *crc_window,
 			     bool enable,
-			     bool continuous);
+			     bool continuous,
+			     uint8_t idx,
+			     bool reset);
 
 bool dc_stream_get_crc(struct dc *dc,
 		       struct dc_stream_state *stream,
+		       uint8_t idx,
 		       uint32_t *r_cr,
 		       uint32_t *g_y,
 		       uint32_t *b_cb);

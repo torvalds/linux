@@ -9,7 +9,6 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/pwm/pwm.h>
 #include "rk3399.dtsi"
-#include "rk3399-opp.dtsi"
 
 / {
 	aliases {
@@ -46,7 +45,7 @@
 	};
 
 	/* switched by pmic_sleep */
-	vcc1v8_s3: vcca1v8_s3: vcc1v8-s3 {
+	vcc1v8_s3: vcca1v8_s3: regulator-vcc1v8-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc1v8_s3";
 		regulator-always-on;
@@ -56,7 +55,7 @@
 		vin-supply = <&vcc_1v8>;
 	};
 
-	vcc3v3_pcie: vcc3v3-pcie-regulator {
+	vcc3v3_pcie: regulator-vcc3v3-pcie {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_pcie";
 		regulator-always-on;
@@ -67,7 +66,7 @@
 	};
 
 	/* Actually 3 regulators (host0, 1, 2) controlled by the same gpio */
-	vcc5v0_host: vcc5v0-host-regulator {
+	vcc5v0_host: regulator-vcc5v0-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio4 RK_PD1 GPIO_ACTIVE_HIGH>;
@@ -78,7 +77,7 @@
 		vin-supply = <&vsys_5v0>;
 	};
 
-	vdd_log: vdd-log {
+	vdd_log: regulator-vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
 		pwm-supply = <&vsys_3v3>;
@@ -89,14 +88,14 @@
 		regulator-max-microvolt = <1400000>;
 	};
 
-	vsys: vsys {
+	vsys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vsys";
 		regulator-always-on;
 		regulator-boot-on;
 	};
 
-	vsys_3v3: vsys-3v3 {
+	vsys_3v3: regulator-vsys-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vsys_3v3";
 		regulator-always-on;
@@ -106,7 +105,7 @@
 		vin-supply = <&vsys>;
 	};
 
-	vsys_5v0: vsys-5v0 {
+	vsys_5v0: regulator-vsys-5v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vsys_5v0";
 		regulator-always-on;
@@ -316,7 +315,7 @@
 		clock-output-names = "xin32k", "rk808-clkout2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vsys_3v3>;

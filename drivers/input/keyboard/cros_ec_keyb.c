@@ -27,7 +27,7 @@
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /**
  * struct cros_ec_keyb - Structure representing EC keyboard device
@@ -770,7 +770,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(cros_ec_keyb_pm_ops, NULL, cros_ec_keyb_resume);
 
 static struct platform_driver cros_ec_keyb_driver = {
 	.probe = cros_ec_keyb_probe,
-	.remove_new = cros_ec_keyb_remove,
+	.remove = cros_ec_keyb_remove,
 	.driver = {
 		.name = "cros-ec-keyb",
 		.dev_groups = cros_ec_keyb_groups,

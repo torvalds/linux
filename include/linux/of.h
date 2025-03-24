@@ -289,6 +289,9 @@ extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_parent(struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
+extern struct device_node *of_get_next_child_with_prefix(const struct device_node *node,
+							 struct device_node *prev,
+							 const char *prefix);
 extern struct device_node *of_get_next_available_child(
 	const struct device_node *node, struct device_node *prev);
 extern struct device_node *of_get_next_reserved_child(
@@ -308,6 +311,7 @@ extern struct device_node *of_find_node_with_property(
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
+extern bool of_property_read_bool(const struct device_node *np, const char *propname);
 extern int of_property_count_elems_of_size(const struct device_node *np,
 				const char *propname, int elem_size);
 extern int of_property_read_u32_index(const struct device_node *np,
@@ -357,7 +361,7 @@ extern struct device_node *of_get_cpu_node(int cpu, unsigned int *thread);
 extern struct device_node *of_cpu_device_node_get(int cpu);
 extern int of_cpu_node_to_id(struct device_node *np);
 extern struct device_node *of_get_next_cpu_node(struct device_node *prev);
-extern struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
+extern struct device_node *of_get_cpu_state_node(const struct device_node *cpu_node,
 						 int index);
 extern u64 of_get_cpu_hwid(struct device_node *cpun, unsigned int thread);
 
@@ -394,8 +398,7 @@ extern int of_phandle_iterator_args(struct of_phandle_iterator *it,
 				    uint32_t *args,
 				    int size);
 
-extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
-extern int of_alias_get_id(struct device_node *np, const char *stem);
+extern int of_alias_get_id(const struct device_node *np, const char *stem);
 extern int of_alias_get_highest_id(const char *stem);
 
 bool of_machine_compatible_match(const char *const *compats);
@@ -435,7 +438,7 @@ extern int of_detach_node(struct device_node *);
  * of_property_for_each_u32(np, "propname", u)
  *         printk("U32 value: %x\n", u);
  */
-const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
+const __be32 *of_prop_next_u32(const struct property *prop, const __be32 *cur,
 			       u32 *pu);
 /*
  * struct property *prop;
@@ -444,11 +447,11 @@ const __be32 *of_prop_next_u32(struct property *prop, const __be32 *cur,
  * of_property_for_each_string(np, "propname", prop, s)
  *         printk("String value: %s\n", s);
  */
-const char *of_prop_next_string(struct property *prop, const char *cur);
+const char *of_prop_next_string(const struct property *prop, const char *cur);
 
-bool of_console_check(struct device_node *dn, char *name, int index);
+bool of_console_check(const struct device_node *dn, char *name, int index);
 
-int of_map_id(struct device_node *np, u32 id,
+int of_map_id(const struct device_node *np, u32 id,
 	       const char *map_name, const char *map_mask_name,
 	       struct device_node **target, u32 *id_out);
 
@@ -610,6 +613,12 @@ static inline struct device_node *of_find_compatible_node(
 						const char *compat)
 {
 	return NULL;
+}
+
+static inline bool of_property_read_bool(const struct device_node *np,
+					const char *propname)
+{
+	return false;
 }
 
 static inline int of_property_count_elems_of_size(const struct device_node *np,
@@ -826,13 +835,13 @@ static inline bool of_console_check(const struct device_node *dn, const char *na
 	return false;
 }
 
-static inline const __be32 *of_prop_next_u32(struct property *prop,
+static inline const __be32 *of_prop_next_u32(const struct property *prop,
 		const __be32 *cur, u32 *pu)
 {
 	return NULL;
 }
 
-static inline const char *of_prop_next_string(struct property *prop,
+static inline const char *of_prop_next_string(const struct property *prop,
 		const char *cur)
 {
 	return NULL;
@@ -871,7 +880,7 @@ static inline void of_property_clear_flag(struct property *p, unsigned long flag
 {
 }
 
-static inline int of_map_id(struct device_node *np, u32 id,
+static inline int of_map_id(const struct device_node *np, u32 id,
 			     const char *map_name, const char *map_mask_name,
 			     struct device_node **target, u32 *id_out)
 {
@@ -899,7 +908,7 @@ static inline const void *of_device_get_match_data(const struct device *dev)
 #define of_node_cmp(s1, s2)		strcasecmp((s1), (s2))
 #endif
 
-static inline int of_prop_val_eq(struct property *p1, struct property *p2)
+static inline int of_prop_val_eq(const struct property *p1, const struct property *p2)
 {
 	return p1->length == p2->length &&
 	       !memcmp(p1->value, p2->value, (size_t)p1->length);
@@ -1240,24 +1249,6 @@ static inline int of_property_read_string_index(const struct device_node *np,
 }
 
 /**
- * of_property_read_bool - Find a property
- * @np:		device node from which the property value is to be read.
- * @propname:	name of the property to be searched.
- *
- * Search for a boolean property in a device node. Usage on non-boolean
- * property types is deprecated.
- *
- * Return: true if the property exists false otherwise.
- */
-static inline bool of_property_read_bool(const struct device_node *np,
-					 const char *propname)
-{
-	struct property *prop = of_find_property(np, propname, NULL);
-
-	return prop ? true : false;
-}
-
-/**
  * of_property_present - Test if a property is present in a node
  * @np:		device node to search for the property.
  * @propname:	name of the property to be searched.
@@ -1268,7 +1259,9 @@ static inline bool of_property_read_bool(const struct device_node *np,
  */
 static inline bool of_property_present(const struct device_node *np, const char *propname)
 {
-	return of_property_read_bool(np, propname);
+	struct property *prop = of_find_property(np, propname, NULL);
+
+	return prop ? true : false;
 }
 
 /**
@@ -1430,7 +1423,7 @@ static inline int of_property_read_s32(const struct device_node *np,
 	     err = of_phandle_iterator_next(it))
 
 #define of_property_for_each_u32(np, propname, u)			\
-	for (struct {struct property *prop; const __be32 *item; } _it =	\
+	for (struct {const struct property *prop; const __be32 *item; } _it =	\
 		{of_find_property(np, propname, NULL),			\
 		 of_prop_next_u32(_it.prop, NULL, &u)};			\
 	     _it.item;							\
@@ -1467,6 +1460,12 @@ static inline int of_property_read_s32(const struct device_node *np,
 	     of_get_next_child(parent, NULL);				\
 	     child != NULL;						\
 	     child = of_get_next_child(parent, child))
+
+#define for_each_child_of_node_with_prefix(parent, child, prefix)	\
+	for (struct device_node *child __free(device_node) =		\
+	     of_get_next_child_with_prefix(parent, NULL, prefix);	\
+	     child != NULL;						\
+	     child = of_get_next_child_with_prefix(parent, child, prefix))
 
 #define for_each_available_child_of_node(parent, child) \
 	for (child = of_get_next_available_child(parent, NULL); child != NULL; \
@@ -1651,6 +1650,10 @@ static inline int of_changeset_add_prop_u32(struct of_changeset *ocs,
 	return of_changeset_add_prop_u32_array(ocs, np, prop_name, &val, 1);
 }
 
+int of_changeset_update_prop_string(struct of_changeset *ocs,
+				    struct device_node *np,
+				    const char *prop_name, const char *str);
+
 int of_changeset_add_prop_bool(struct of_changeset *ocs, struct device_node *np,
 			       const char *prop_name);
 
@@ -1734,7 +1737,7 @@ struct of_overlay_notify_data {
 #ifdef CONFIG_OF_OVERLAY
 
 int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
-			 int *ovcs_id, struct device_node *target_base);
+			 int *ovcs_id, const struct device_node *target_base);
 int of_overlay_remove(int *ovcs_id);
 int of_overlay_remove_all(void);
 
@@ -1744,7 +1747,7 @@ int of_overlay_notifier_unregister(struct notifier_block *nb);
 #else
 
 static inline int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
-				       int *ovcs_id, struct device_node *target_base)
+				       int *ovcs_id, const struct device_node *target_base)
 {
 	return -ENOTSUPP;
 }

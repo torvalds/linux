@@ -70,7 +70,7 @@ static int max5970_read(struct device *dev, enum hwmon_sensor_types type,
 			 * millivolts) and then divide it by the maximum value of the 10-bit ADC.
 			 */
 			*val = (*val * ddata->irng) >> 10;
-			/* Convert the voltage meansurement across shunt resistor to current */
+			/* Convert the voltage measurement across shunt resistor to current */
 			*val = (*val * 1000) / ddata->shunt_micro_ohms;
 			return 0;
 		default:
@@ -485,7 +485,7 @@ static int max597x_irq_handler(int irq, struct regulator_irq_data *rid,
 }
 
 static int max597x_adc_range(struct regmap *regmap, const int ch,
-			     u32 *irng, u32 *mon_rng)
+			     int *irng, int *mon_rng)
 {
 	unsigned int reg;
 	int ret;
@@ -552,7 +552,6 @@ static int max597x_setup_irq(struct device *dev,
 
 static int max597x_regulator_probe(struct platform_device *pdev)
 {
-	struct max5970_data *max597x;
 	struct regmap *regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	struct max5970_regulator *data;
 	struct i2c_client *i2c = to_i2c_client(pdev->dev.parent);
@@ -566,25 +565,17 @@ static int max597x_regulator_probe(struct platform_device *pdev)
 	if (!regmap)
 		return -EPROBE_DEFER;
 
-	max597x = devm_kzalloc(&i2c->dev, sizeof(struct max5970_data), GFP_KERNEL);
-	if (!max597x)
-		return -ENOMEM;
-
 	rdevs = devm_kcalloc(&i2c->dev, MAX5970_NUM_SWITCHES, sizeof(struct regulator_dev *),
 			     GFP_KERNEL);
 	if (!rdevs)
 		return -ENOMEM;
 
-	i2c_set_clientdata(i2c, max597x);
-
 	if (of_device_is_compatible(i2c->dev.of_node, "maxim,max5978"))
-		max597x->num_switches = MAX5978_NUM_SWITCHES;
+		num_switches = MAX5978_NUM_SWITCHES;
 	else if (of_device_is_compatible(i2c->dev.of_node, "maxim,max5970"))
-		max597x->num_switches = MAX5970_NUM_SWITCHES;
+		num_switches = MAX5970_NUM_SWITCHES;
 	else
 		return -ENODEV;
-
-	num_switches = max597x->num_switches;
 
 	for (i = 0; i < num_switches; i++) {
 		data =
@@ -596,12 +587,9 @@ static int max597x_regulator_probe(struct platform_device *pdev)
 		data->num_switches = num_switches;
 		data->regmap = regmap;
 
-		ret = max597x_adc_range(regmap, i, &max597x->irng[i], &max597x->mon_rng[i]);
+		ret = max597x_adc_range(regmap, i, &data->irng, &data->mon_rng);
 		if (ret < 0)
 			return ret;
-
-		data->irng = max597x->irng[i];
-		data->mon_rng = max597x->mon_rng[i];
 
 		config.dev = &i2c->dev;
 		config.driver_data = (void *)data;
@@ -614,7 +602,6 @@ static int max597x_regulator_probe(struct platform_device *pdev)
 			return PTR_ERR(rdev);
 		}
 		rdevs[i] = rdev;
-		max597x->shunt_micro_ohms[i] = data->shunt_micro_ohms;
 	}
 
 	if (IS_REACHABLE(CONFIG_HWMON)) {

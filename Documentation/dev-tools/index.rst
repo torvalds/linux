@@ -10,6 +10,9 @@ whole; patches welcome!
 A brief overview of testing-specific tools can be found in
 Documentation/dev-tools/testing-overview.rst
 
+Tools that are specific to debugging can be found in
+Documentation/process/debugging/index.rst
+
 .. toctree::
    :caption: Table of contents
    :maxdepth: 2
@@ -27,13 +30,13 @@ Documentation/dev-tools/testing-overview.rst
    kmemleak
    kcsan
    kfence
-   gdb-kernel-debugging
-   kgdb
    kselftest
    kunit/index
    ktap
    checkuapi
    gpio-sloppy-logic-analyzer
+   autofdo
+   propeller
 
 
 .. only::  subproject and html

@@ -64,7 +64,7 @@
 #include <linux/iio/trigger.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "zpa2326.h"
 
 /* 200 ms should be enough for the longest conversion time in one-shot mode. */
@@ -162,7 +162,7 @@ bool zpa2326_isreg_writeable(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(zpa2326_isreg_writeable, IIO_ZPA2326);
+EXPORT_SYMBOL_NS_GPL(zpa2326_isreg_writeable, "IIO_ZPA2326");
 
 bool zpa2326_isreg_readable(struct device *dev, unsigned int reg)
 {
@@ -191,7 +191,7 @@ bool zpa2326_isreg_readable(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(zpa2326_isreg_readable, IIO_ZPA2326);
+EXPORT_SYMBOL_NS_GPL(zpa2326_isreg_readable, "IIO_ZPA2326");
 
 bool zpa2326_isreg_precious(struct device *dev, unsigned int reg)
 {
@@ -204,7 +204,7 @@ bool zpa2326_isreg_precious(struct device *dev, unsigned int reg)
 		return false;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(zpa2326_isreg_precious, IIO_ZPA2326);
+EXPORT_SYMBOL_NS_GPL(zpa2326_isreg_precious, "IIO_ZPA2326");
 
 /**
  * zpa2326_enable_device() - Enable device, i.e. get out of low power mode.
@@ -586,6 +586,8 @@ static int zpa2326_fill_sample_buffer(struct iio_dev               *indio_dev,
 	}   sample;
 	int err;
 
+	memset(&sample, 0, sizeof(sample));
+
 	if (test_bit(0, indio_dev->active_scan_mask)) {
 		/* Get current pressure from hardware FIFO. */
 		err = zpa2326_dequeue_pressure(indio_dev, &sample.pressure);
@@ -649,7 +651,7 @@ const struct dev_pm_ops zpa2326_pm_ops = {
 	SET_RUNTIME_PM_OPS(zpa2326_runtime_suspend, zpa2326_runtime_resume,
 			   NULL)
 };
-EXPORT_SYMBOL_NS_GPL(zpa2326_pm_ops, IIO_ZPA2326);
+EXPORT_SYMBOL_NS_GPL(zpa2326_pm_ops, "IIO_ZPA2326");
 
 /**
  * zpa2326_resume() - Request the PM layer to power supply the device.
@@ -1698,7 +1700,7 @@ poweroff:
 
 	return err;
 }
-EXPORT_SYMBOL_NS_GPL(zpa2326_probe, IIO_ZPA2326);
+EXPORT_SYMBOL_NS_GPL(zpa2326_probe, "IIO_ZPA2326");
 
 void zpa2326_remove(const struct device *parent)
 {
@@ -1709,7 +1711,7 @@ void zpa2326_remove(const struct device *parent)
 	zpa2326_sleep(indio_dev);
 	zpa2326_power_off(indio_dev, iio_priv(indio_dev));
 }
-EXPORT_SYMBOL_NS_GPL(zpa2326_remove, IIO_ZPA2326);
+EXPORT_SYMBOL_NS_GPL(zpa2326_remove, "IIO_ZPA2326");
 
 MODULE_AUTHOR("Gregor Boirie <gregor.boirie@parrot.com>");
 MODULE_DESCRIPTION("Core driver for Murata ZPA2326 pressure sensor");

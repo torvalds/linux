@@ -301,7 +301,7 @@ Documentation/admin-guide/reporting-regressions.rst 對此進行了更詳細的�
 添加到迴歸跟蹤列表中，以確保它不會被忽略。
 
 什麼是安全問題留給您自己判斷。在繼續之前，請考慮閱讀
-Documentation/translations/zh_CN/admin-guide/security-bugs.rst ，
+Documentation/translations/zh_CN/process/security-bugs.rst ，
 因爲它提供瞭如何最恰當地處理安全問題的額外細節。
 
 當發生了完全無法接受的糟糕事情時，此問題就是一個“非常嚴重的問題”。例如，
@@ -984,7 +984,7 @@ Documentation/admin-guide/reporting-regressions.rst ；它還提供了大量其�
 報告，請將報告的文本轉發到這些地址；但請在報告的頂部加上註釋，表明您提交了
 報告，並附上工單鏈接。
 
-更多信息請參見 Documentation/translations/zh_CN/admin-guide/security-bugs.rst 。
+更多信息請參見 Documentation/translations/zh_CN/process/security-bugs.rst 。
 
 
 發佈報告後的責任

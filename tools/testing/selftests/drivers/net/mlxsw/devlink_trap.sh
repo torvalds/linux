@@ -116,7 +116,7 @@ dev_del_test()
 
 	log_test "Device delete"
 
-	kill $mz_pid && wait $mz_pid &> /dev/null
+	kill_process $mz_pid
 }
 
 trap cleanup EXIT

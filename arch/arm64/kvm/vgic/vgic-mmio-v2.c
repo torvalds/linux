@@ -148,7 +148,7 @@ static void vgic_mmio_write_sgir(struct kvm_vcpu *source_vcpu,
 		if (!(targets & (1U << c)))
 			continue;
 
-		irq = vgic_get_irq(source_vcpu->kvm, vcpu, intid);
+		irq = vgic_get_vcpu_irq(vcpu, intid);
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 		irq->pending_latch = true;
@@ -167,7 +167,7 @@ static unsigned long vgic_mmio_read_target(struct kvm_vcpu *vcpu,
 	u64 val = 0;
 
 	for (i = 0; i < len; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		val |= (u64)irq->targets << (i * 8);
 
@@ -191,7 +191,7 @@ static void vgic_mmio_write_target(struct kvm_vcpu *vcpu,
 		return;
 
 	for (i = 0; i < len; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, NULL, intid + i);
+		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, intid + i);
 		int target;
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
@@ -213,7 +213,7 @@ static unsigned long vgic_mmio_read_sgipend(struct kvm_vcpu *vcpu,
 	u64 val = 0;
 
 	for (i = 0; i < len; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		val |= (u64)irq->source << (i * 8);
 
@@ -231,7 +231,7 @@ static void vgic_mmio_write_sgipendc(struct kvm_vcpu *vcpu,
 	unsigned long flags;
 
 	for (i = 0; i < len; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 
@@ -253,7 +253,7 @@ static void vgic_mmio_write_sgipends(struct kvm_vcpu *vcpu,
 	unsigned long flags;
 
 	for (i = 0; i < len; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, intid + i);
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
 

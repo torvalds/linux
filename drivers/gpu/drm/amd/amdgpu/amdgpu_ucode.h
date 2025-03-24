@@ -126,6 +126,7 @@ enum psp_fw_type {
 	PSP_FW_TYPE_PSP_DBG_DRV,
 	PSP_FW_TYPE_PSP_RAS_DRV,
 	PSP_FW_TYPE_PSP_IPKEYMGR_DRV,
+	PSP_FW_TYPE_PSP_SPDM_DRV,
 	PSP_FW_TYPE_MAX_INDEX,
 };
 
@@ -133,6 +134,14 @@ enum psp_fw_type {
 struct psp_firmware_header_v2_0 {
 	struct common_firmware_header header;
 	uint32_t psp_fw_bin_count;
+	struct psp_fw_bin_desc psp_fw_bin[];
+};
+
+/* version_major=2, version_minor=1 */
+struct psp_firmware_header_v2_1 {
+	struct common_firmware_header header;
+	uint32_t psp_fw_bin_count;
+	uint32_t psp_aux_fw_bin_index;
 	struct psp_fw_bin_desc psp_fw_bin[];
 };
 
@@ -155,6 +164,7 @@ enum ta_fw_type {
 	TA_FW_TYPE_PSP_DTM,
 	TA_FW_TYPE_PSP_RAP,
 	TA_FW_TYPE_PSP_SECUREDISPLAY,
+	TA_FW_TYPE_PSP_XGMI_AUX,
 	TA_FW_TYPE_MAX_INDEX,
 };
 
@@ -426,6 +436,7 @@ union amdgpu_firmware_header {
 	struct psp_firmware_header_v1_1 psp_v1_1;
 	struct psp_firmware_header_v1_3 psp_v1_3;
 	struct psp_firmware_header_v2_0 psp_v2_0;
+	struct psp_firmware_header_v2_0 psp_v2_1;
 	struct ta_firmware_header_v1_0 ta;
 	struct ta_firmware_header_v2_0 ta_v2_0;
 	struct gfx_firmware_header_v1_0 gfx;
@@ -447,7 +458,7 @@ union amdgpu_firmware_header {
 	uint8_t raw[0x100];
 };
 
-#define UCODE_MAX_PSP_PACKAGING ((sizeof(union amdgpu_firmware_header) - sizeof(struct common_firmware_header) - 4) / sizeof(struct psp_fw_bin_desc))
+#define UCODE_MAX_PSP_PACKAGING (((sizeof(union amdgpu_firmware_header) - sizeof(struct common_firmware_header) - 4) / sizeof(struct psp_fw_bin_desc)) * 2)
 
 /*
  * fw loading support
@@ -541,6 +552,11 @@ enum amdgpu_firmware_load_type {
 	AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO,
 };
 
+enum amdgpu_ucode_required {
+	AMDGPU_UCODE_OPTIONAL,
+	AMDGPU_UCODE_REQUIRED,
+};
+
 /* conform to smu_ucode_xfer_cz.h */
 #define AMDGPU_SDMA0_UCODE_LOADED	0x00000001
 #define AMDGPU_SDMA1_UCODE_LOADED	0x00000002
@@ -594,9 +610,9 @@ void amdgpu_ucode_print_rlc_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_sdma_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_psp_hdr(const struct common_firmware_header *hdr);
 void amdgpu_ucode_print_gpu_info_hdr(const struct common_firmware_header *hdr);
-__printf(3, 4)
+__printf(4, 5)
 int amdgpu_ucode_request(struct amdgpu_device *adev, const struct firmware **fw,
-			 const char *fmt, ...);
+			 enum amdgpu_ucode_required required, const char *fmt, ...);
 void amdgpu_ucode_release(const struct firmware **fw);
 bool amdgpu_ucode_hdr_version(union amdgpu_firmware_header *hdr,
 				uint16_t hdr_major, uint16_t hdr_minor);

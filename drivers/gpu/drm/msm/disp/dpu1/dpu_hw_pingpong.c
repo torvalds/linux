@@ -283,6 +283,15 @@ static int dpu_hw_pp_setup_dsc(struct dpu_hw_pingpong *pp)
 	return 0;
 }
 
+/**
+ * dpu_hw_pingpong_init() - initializes the pingpong driver for the passed
+ * pingpong catalog entry.
+ * @dev:  Corresponding device for devres management
+ * @cfg:  Pingpong catalog entry for which driver object is required
+ * @addr: Mapped register io address of MDP
+ * @mdss_rev: dpu core's major and minor versions
+ * Return: Error code or allocated dpu_hw_pingpong context
+ */
 struct dpu_hw_pingpong *dpu_hw_pingpong_init(struct drm_device *dev,
 					     const struct dpu_pingpong_cfg *cfg,
 					     void __iomem *addr,

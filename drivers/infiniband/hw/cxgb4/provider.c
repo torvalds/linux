@@ -113,6 +113,9 @@ static int c4iw_alloc_ucontext(struct ib_ucontext *ucontext,
 		mm->key = uresp.status_page_key;
 		mm->addr = virt_to_phys(rhp->rdev.status_page);
 		mm->len = PAGE_SIZE;
+		mm->vaddr = NULL;
+		mm->dma_addr = 0;
+		insert_flag_to_mmap(&rhp->rdev, mm, mm->addr);
 		insert_mmap(context, mm);
 	}
 	return 0;
@@ -131,6 +134,11 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	struct c4iw_mm_entry *mm;
 	struct c4iw_ucontext *ucontext;
 	u64 addr;
+	u8 mmap_flag;
+	size_t size;
+	void *vaddr;
+	unsigned long vm_pgoff;
+	dma_addr_t dma_addr;
 
 	pr_debug("pgoff 0x%lx key 0x%x len %d\n", vma->vm_pgoff,
 		 key, len);
@@ -145,47 +153,38 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 	if (!mm)
 		return -EINVAL;
 	addr = mm->addr;
+	vaddr = mm->vaddr;
+	dma_addr = mm->dma_addr;
+	size = mm->len;
+	mmap_flag = mm->mmap_flag;
 	kfree(mm);
 
-	if ((addr >= pci_resource_start(rdev->lldi.pdev, 0)) &&
-	    (addr < (pci_resource_start(rdev->lldi.pdev, 0) +
-		    pci_resource_len(rdev->lldi.pdev, 0)))) {
-
-		/*
-		 * MA_SYNC register...
-		 */
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	switch (mmap_flag) {
+	case CXGB4_MMAP_BAR:
+		ret = io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
+					 len,
+					 pgprot_noncached(vma->vm_page_prot));
+		break;
+	case CXGB4_MMAP_BAR_WC:
+		ret = io_remap_pfn_range(vma, vma->vm_start,
+					 addr >> PAGE_SHIFT,
+					 len, t4_pgprot_wc(vma->vm_page_prot));
+		break;
+	case CXGB4_MMAP_CONTIG:
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 addr >> PAGE_SHIFT,
 					 len, vma->vm_page_prot);
-	} else if ((addr >= pci_resource_start(rdev->lldi.pdev, 2)) &&
-		   (addr < (pci_resource_start(rdev->lldi.pdev, 2) +
-		    pci_resource_len(rdev->lldi.pdev, 2)))) {
-
-		/*
-		 * Map user DB or OCQP memory...
-		 */
-		if (addr >= rdev->oc_mw_pa)
-			vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
-		else {
-			if (!is_t4(rdev->lldi.adapter_type))
-				vma->vm_page_prot =
-					t4_pgprot_wc(vma->vm_page_prot);
-			else
-				vma->vm_page_prot =
-					pgprot_noncached(vma->vm_page_prot);
-		}
-		ret = io_remap_pfn_range(vma, vma->vm_start,
-					 addr >> PAGE_SHIFT,
-					 len, vma->vm_page_prot);
-	} else {
-
-		/*
-		 * Map WQ or CQ contig dma memory...
-		 */
-		ret = remap_pfn_range(vma, vma->vm_start,
-				      addr >> PAGE_SHIFT,
-				      len, vma->vm_page_prot);
+		break;
+	case CXGB4_MMAP_NON_CONTIG:
+		vm_pgoff = vma->vm_pgoff;
+		vma->vm_pgoff = 0;
+		ret = dma_mmap_coherent(&rdev->lldi.pdev->dev, vma,
+					vaddr, dma_addr, size);
+		vma->vm_pgoff = vm_pgoff;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
 	return ret;
@@ -474,6 +473,7 @@ static const struct ib_device_ops c4iw_dev_ops = {
 	.fill_res_cq_entry = c4iw_fill_res_cq_entry,
 	.fill_res_cm_id_entry = c4iw_fill_res_cm_id_entry,
 	.fill_res_mr_entry = c4iw_fill_res_mr_entry,
+	.fill_res_qp_entry = c4iw_fill_res_qp_entry,
 	.get_dev_fw_str = get_dev_fw_str,
 	.get_dma_mr = c4iw_get_dma_mr,
 	.get_hw_stats = c4iw_get_mib,

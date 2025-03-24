@@ -156,7 +156,7 @@ static int mchp_otpc_read(void *priv, unsigned int off, void *val,
 	/*
 	 * We reach this point with off being multiple of stride = 4 to
 	 * be able to cross the subsystem. Inside the driver we use continuous
-	 * unsigned integer numbers for packet id, thus devide off by 4
+	 * unsigned integer numbers for packet id, thus divide off by 4
 	 * before passing it to mchp_otpc_id_to_packet().
 	 */
 	packet = mchp_otpc_id_to_packet(otpc, off / 4);

@@ -2,7 +2,7 @@
 #ifndef __ASM_XTENSA_FLAT_H
 #define __ASM_XTENSA_FLAT_H
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static inline int flat_get_addr_from_rp(u32 __user *rp, u32 relval, u32 flags,
 					u32 *addr)

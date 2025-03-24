@@ -1919,7 +1919,7 @@ static struct platform_driver xgmac_driver = {
 		.pm = &xgmac_pm_ops,
 	},
 	.probe = xgmac_probe,
-	.remove_new = xgmac_remove,
+	.remove = xgmac_remove,
 };
 
 module_platform_driver(xgmac_driver);

@@ -4030,31 +4030,6 @@ located in the new subdirectory, sound/pci/xyz.
 Useful Functions
 ================
 
-:c:func:`snd_printk()` and friends
-----------------------------------
-
-.. note:: This subsection describes a few helper functions for
-   decorating a bit more on the standard :c:func:`printk()` & co.
-   However, in general, the use of such helpers is no longer recommended.
-   If possible, try to stick with the standard functions like
-   :c:func:`dev_err()` or :c:func:`pr_err()`.
-
-ALSA provides a verbose version of the :c:func:`printk()` function.
-If a kernel config ``CONFIG_SND_VERBOSE_PRINTK`` is set, this function
-prints the given message together with the file name and the line of the
-caller. The ``KERN_XXX`` prefix is processed as well as the original
-:c:func:`printk()` does, so it's recommended to add this prefix,
-e.g. snd_printk(KERN_ERR "Oh my, sorry, it's extremely bad!\\n");
-
-There are also :c:func:`printk()`'s for debugging.
-:c:func:`snd_printd()` can be used for general debugging purposes.
-If ``CONFIG_SND_DEBUG`` is set, this function is compiled, and works
-just like :c:func:`snd_printk()`. If the ALSA is compiled without
-the debugging flag, it's ignored.
-
-:c:func:`snd_printdd()` is compiled in only when
-``CONFIG_SND_DEBUG_VERBOSE`` is set.
-
 :c:func:`snd_BUG()`
 -------------------
 

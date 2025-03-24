@@ -71,14 +71,15 @@ struct nfsd4_callback {
 	struct work_struct cb_work;
 	int cb_seq_status;
 	int cb_status;
+	int cb_held_slot;
 	bool cb_need_restart;
-	bool cb_holds_slot;
 };
 
 struct nfsd4_callback_ops {
 	void (*prepare)(struct nfsd4_callback *);
 	int (*done)(struct nfsd4_callback *, struct rpc_task *);
 	void (*release)(struct nfsd4_callback *);
+	uint32_t opcode;
 };
 
 /*
@@ -113,6 +114,8 @@ struct nfs4_stid {
 /* For a deleg stateid kept around only to process free_stateid's: */
 #define SC_STATUS_REVOKED	BIT(1)
 #define SC_STATUS_ADMIN_REVOKED	BIT(2)
+#define SC_STATUS_FREEABLE	BIT(3)
+#define SC_STATUS_FREED		BIT(4)
 	unsigned short		sc_status;
 
 	struct list_head	sc_cp_list;
@@ -134,14 +137,30 @@ struct nfs4_cpntf_state {
 	time64_t		cpntf_time;	/* last time stateid used */
 };
 
+/*
+ * RFC 7862 Section 4.8 states:
+ *
+ * | A copy offload stateid will be valid until either (A) the client
+ * | or server restarts or (B) the client returns the resource by
+ * | issuing an OFFLOAD_CANCEL operation or the client replies to a
+ * | CB_OFFLOAD operation.
+ *
+ * Because a client might not reply to a CB_OFFLOAD, or a reply
+ * might get lost due to connection loss, NFSD purges async copy
+ * state after a short period to prevent it from accumulating
+ * over time.
+ */
+#define NFSD_COPY_INITIAL_TTL 10
+
 struct nfs4_cb_fattr {
 	struct nfsd4_callback ncf_getattr;
 	u32 ncf_cb_status;
-	u32 ncf_cb_bmap[1];
 
 	/* from CB_GETATTR reply */
 	u64 ncf_cb_change;
 	u64 ncf_cb_fsize;
+	struct timespec64 ncf_cb_mtime;
+	struct timespec64 ncf_cb_atime;
 
 	unsigned long ncf_cb_flags;
 	bool ncf_file_modified;
@@ -190,6 +209,22 @@ struct nfs4_delegation {
 	struct nfs4_cb_fattr    dl_cb_fattr;
 };
 
+static inline bool deleg_is_read(u32 dl_type)
+{
+	return (dl_type == OPEN_DELEGATE_READ || dl_type == OPEN_DELEGATE_READ_ATTRS_DELEG);
+}
+
+static inline bool deleg_is_write(u32 dl_type)
+{
+	return (dl_type == OPEN_DELEGATE_WRITE || dl_type == OPEN_DELEGATE_WRITE_ATTRS_DELEG);
+}
+
+static inline bool deleg_attrs_deleg(u32 dl_type)
+{
+	return dl_type == OPEN_DELEGATE_READ_ATTRS_DELEG ||
+	       dl_type == OPEN_DELEGATE_WRITE_ATTRS_DELEG;
+}
+
 #define cb_to_delegation(cb) \
 	container_of(cb, struct nfs4_delegation, dl_recall)
 
@@ -210,8 +245,11 @@ static inline struct nfs4_delegation *delegstateid(struct nfs4_stid *s)
 	return container_of(s, struct nfs4_delegation, dl_stid);
 }
 
-/* Maximum number of slots per session. 160 is useful for long haul TCP */
-#define NFSD_MAX_SLOTS_PER_SESSION     160
+/* Maximum number of slots per session.  This is for sanity-check only.
+ * It could be increased if we had a mechanism to shutdown misbehaving clients.
+ * A large number can be needed to get good throughput on high-latency servers.
+ */
+#define NFSD_MAX_SLOTS_PER_SESSION	2048
 /* Maximum  session per slot cache size */
 #define NFSD_SLOT_CACHE_SIZE		2048
 /* Maximum number of NFSD_SLOT_CACHE_SIZE slots per session */
@@ -225,10 +263,12 @@ struct nfsd4_slot {
 	struct svc_cred sl_cred;
 	u32	sl_datalen;
 	u16	sl_opcnt;
+	u16	sl_generation;
 #define NFSD4_SLOT_INUSE	(1 << 0)
 #define NFSD4_SLOT_CACHETHIS	(1 << 1)
 #define NFSD4_SLOT_INITIALIZED	(1 << 2)
 #define NFSD4_SLOT_CACHED	(1 << 3)
+#define NFSD4_SLOT_REUSED	(1 << 4)
 	u8	sl_flags;
 	char	sl_data[];
 };
@@ -287,6 +327,9 @@ struct nfsd4_conn {
 	unsigned char cn_flags;
 };
 
+/* Maximum number of slots that nfsd will use in the backchannel */
+#define NFSD_BC_SLOT_TABLE_SIZE		(sizeof(u32) * 8)
+
 /*
  * Representation of a v4.1+ session. These are refcounted in a similar fashion
  * to the nfs4_client. References are only taken when the server is actively
@@ -294,20 +337,23 @@ struct nfsd4_conn {
  */
 struct nfsd4_session {
 	atomic_t		se_ref;
+	spinlock_t		se_lock;
+	u32			se_cb_slot_avail; /* bitmap of available slots */
+	u32			se_cb_highest_slot;	/* highest slot client wants */
+	u32			se_cb_prog;
 	struct list_head	se_hash;	/* hash by sessionid */
 	struct list_head	se_perclnt;
-/* See SESSION4_PERSIST, etc. for standard flags; this is internal-only: */
-#define NFS4_SESSION_DEAD	0x010
-	u32			se_flags;
+	struct list_head	se_all_sessions;/* global list of sessions */
 	struct nfs4_client	*se_client;
 	struct nfs4_sessionid	se_sessionid;
 	struct nfsd4_channel_attrs se_fchannel;
-	struct nfsd4_channel_attrs se_bchannel;
 	struct nfsd4_cb_sec	se_cb_sec;
 	struct list_head	se_conns;
-	u32			se_cb_prog;
-	u32			se_cb_seq_nr;
-	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
+	u32			se_cb_seq_nr[NFSD_BC_SLOT_TABLE_SIZE];
+	struct xarray		se_slots;	/* forward channel slots */
+	u16			se_slot_gen;
+	bool			se_dead;
+	u32			se_target_maxslots;
 };
 
 /* formatted contents of nfs4_sessionid */
@@ -440,9 +486,6 @@ struct nfs4_client {
 	 */
 	struct dentry		*cl_nfsd_info_dentry;
 
-	/* for nfs41 callbacks */
-	/* We currently support a single back channel with a single slot */
-	unsigned long		cl_cb_slot_busy;
 	struct rpc_wait_queue	cl_cb_waitq;	/* backchannel callers may */
 						/* wait here for slots */
 	struct net		*net;
@@ -488,7 +531,7 @@ struct nfs4_replay {
 	unsigned int		rp_buflen;
 	char			*rp_buf;
 	struct knfsd_fh		rp_openfh;
-	atomic_t		rp_locked;
+	int			rp_locked;
 	char			rp_ibuf[NFSD4_REPLAY_ISIZE];
 };
 
@@ -739,6 +782,8 @@ extern void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 extern bool nfsd4_run_cb(struct nfsd4_callback *cb);
 extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfsd4_shutdown_copy(struct nfs4_client *clp);
+void nfsd4_async_copy_reaper(struct nfsd_net *nn);
+bool nfsd4_has_active_async_copies(struct nfs4_client *clp);
 extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(struct xdr_netobj name,
 				struct xdr_netobj princhash, struct nfsd_net *nn);
 extern bool nfs4_has_reclaimed_state(struct xdr_netobj name, struct nfsd_net *nn);
@@ -781,5 +826,5 @@ static inline bool try_to_expire_client(struct nfs4_client *clp)
 }
 
 extern __be32 nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp,
-		struct inode *inode, bool *file_modified, u64 *size);
+		struct dentry *dentry, struct nfs4_delegation **pdp);
 #endif   /* NFSD4_STATE_H */

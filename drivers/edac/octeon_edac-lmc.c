@@ -312,7 +312,7 @@ static void octeon_lmc_edac_remove(struct platform_device *pdev)
 
 static struct platform_driver octeon_lmc_edac_driver = {
 	.probe = octeon_lmc_edac_probe,
-	.remove_new = octeon_lmc_edac_remove,
+	.remove = octeon_lmc_edac_remove,
 	.driver = {
 		   .name = "octeon_lmc_edac",
 	}

@@ -101,6 +101,7 @@ static void construct_link_service_validation(struct link_service *link_srv)
 	link_srv->validate_mode_timing = link_validate_mode_timing;
 	link_srv->dp_link_bandwidth_kbps = dp_link_bandwidth_kbps;
 	link_srv->validate_dpia_bandwidth = link_validate_dpia_bandwidth;
+	link_srv->dp_required_hblank_size_bytes = dp_required_hblank_size_bytes;
 }
 
 /* link dpms owns the programming sequence of stream's dpms state associated
@@ -385,7 +386,7 @@ static void link_destruct(struct dc_link *link)
 	if (link->panel_cntl)
 		link->panel_cntl->funcs->destroy(&link->panel_cntl);
 
-	if (link->link_enc) {
+	if (link->link_enc && !link->is_dig_mapping_flexible) {
 		/* Update link encoder resource tracking variables. These are used for
 		 * the dynamic assignment of link encoders to streams. Virtual links
 		 * are not assigned encoder resources on creation.
@@ -524,6 +525,7 @@ static bool construct_phy(struct dc_link *link,
 		link->connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		break;
 	case CONNECTOR_ID_DISPLAY_PORT:
+	case CONNECTOR_ID_MXM:
 	case CONNECTOR_ID_USBC:
 		link->connector_signal = SIGNAL_TYPE_DISPLAY_PORT;
 
@@ -697,7 +699,7 @@ static bool construct_phy(struct dc_link *link,
 						  link->chip_caps);
 				}
 
-				if (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) {
+				if ((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) {
 					link->bios_forced_drive_settings.VOLTAGE_SWING =
 						(bios->integrated_info->ext_disp_conn_info.fixdpvoltageswing & 0x3);
 					link->bios_forced_drive_settings.PRE_EMPHASIS =

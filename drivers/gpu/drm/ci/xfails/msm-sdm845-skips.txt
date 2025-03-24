@@ -4,12 +4,12 @@ kms_bw.*
 # Failing due to a bootloader/fw issue. The workaround in mesa CI involves these two patches
 # https://gitlab.freedesktop.org/gfx-ci/linux/-/commit/4b49f902ec6f2bb382cbbf489870573f4b43371e
 # https://gitlab.freedesktop.org/gfx-ci/linux/-/commit/38cdf4c5559771e2474ae0fecef8469f65147bc1
-msm_mapping@*
+msm/msm_mapping@*
 
 # Skip driver specific tests
 ^amdgpu.*
 nouveau_.*
-panfrost_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*
@@ -17,6 +17,7 @@ panfrost_.*
 # Skip intel specific tests
 gem_.*
 i915_.*
+tools_test.*
 
 # Currently fails and causes coverage loss for other tests
 # since core_getversion also fails.
@@ -24,3 +25,8 @@ core_hotunplug.*
 
 # Whole machine hangs
 kms_cursor_crc.*
+
+# IGT test crash
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_content_protection@uevent

@@ -244,7 +244,6 @@ static void pids_event(struct pids_cgroup *pids_forking,
 		       struct pids_cgroup *pids_over_limit)
 {
 	struct pids_cgroup *p = pids_forking;
-	bool limit = false;
 
 	/* Only log the first time limit is hit. */
 	if (atomic64_inc_return(&p->events_local[PIDCG_FORKFAIL]) == 1) {
@@ -252,20 +251,17 @@ static void pids_event(struct pids_cgroup *pids_forking,
 		pr_cont_cgroup_path(p->css.cgroup);
 		pr_cont("\n");
 	}
-	cgroup_file_notify(&p->events_local_file);
 	if (!cgroup_subsys_on_dfl(pids_cgrp_subsys) ||
-	    cgrp_dfl_root.flags & CGRP_ROOT_PIDS_LOCAL_EVENTS)
+	    cgrp_dfl_root.flags & CGRP_ROOT_PIDS_LOCAL_EVENTS) {
+		cgroup_file_notify(&p->events_local_file);
 		return;
+	}
 
-	for (; parent_pids(p); p = parent_pids(p)) {
-		if (p == pids_over_limit) {
-			limit = true;
-			atomic64_inc(&p->events_local[PIDCG_MAX]);
-			cgroup_file_notify(&p->events_local_file);
-		}
-		if (limit)
-			atomic64_inc(&p->events[PIDCG_MAX]);
+	atomic64_inc(&pids_over_limit->events_local[PIDCG_MAX]);
+	cgroup_file_notify(&pids_over_limit->events_local_file);
 
+	for (p = pids_over_limit; parent_pids(p); p = parent_pids(p)) {
+		atomic64_inc(&p->events[PIDCG_MAX]);
 		cgroup_file_notify(&p->events_file);
 	}
 }
@@ -276,15 +272,10 @@ static void pids_event(struct pids_cgroup *pids_forking,
  */
 static int pids_can_fork(struct task_struct *task, struct css_set *cset)
 {
-	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids, *pids_over_limit;
 	int err;
 
-	if (cset)
-		css = cset->subsys[pids_cgrp_id];
-	else
-		css = task_css_check(current, pids_cgrp_id, true);
-	pids = css_pids(css);
+	pids = css_pids(cset->subsys[pids_cgrp_id]);
 	err = pids_try_charge(pids, 1, &pids_over_limit);
 	if (err)
 		pids_event(pids, pids_over_limit);
@@ -294,14 +285,9 @@ static int pids_can_fork(struct task_struct *task, struct css_set *cset)
 
 static void pids_cancel_fork(struct task_struct *task, struct css_set *cset)
 {
-	struct cgroup_subsys_state *css;
 	struct pids_cgroup *pids;
 
-	if (cset)
-		css = cset->subsys[pids_cgrp_id];
-	else
-		css = task_css_check(current, pids_cgrp_id, true);
-	pids = css_pids(css);
+	pids = css_pids(cset->subsys[pids_cgrp_id]);
 	pids_uncharge(pids, 1);
 }
 

@@ -9,6 +9,8 @@
 #include <asm/cacheflush.h>
 #include <asm/cpufeature.h>
 #include <asm/kvm_csr.h>
+#include <asm/kvm_eiointc.h>
+#include <asm/kvm_pch_pic.h>
 #include "trace.h"
 
 unsigned long vpid_mask;
@@ -243,6 +245,24 @@ void kvm_check_vpid(struct kvm_vcpu *vcpu)
 		trace_kvm_vpid_change(vcpu, vcpu->arch.vpid);
 		vcpu->cpu = cpu;
 		kvm_clear_request(KVM_REQ_TLB_FLUSH_GPA, vcpu);
+
+		/*
+		 * LLBCTL is a separated guest CSR register from host, a general
+		 * exception ERET instruction clears the host LLBCTL register in
+		 * host mode, and clears the guest LLBCTL register in guest mode.
+		 * ERET in tlb refill exception does not clear LLBCTL register.
+		 *
+		 * When secondary mmu mapping is changed, guest OS does not know
+		 * even if the content is changed after mapping is changed.
+		 *
+		 * Here clear WCLLB of the guest LLBCTL register when mapping is
+		 * changed. Otherwise, if mmu mapping is changed while guest is
+		 * executing LL/SC pair, LL loads with the old address and set
+		 * the LLBCTL flag, SC checks the LLBCTL flag and will store the
+		 * new address successfully since LLBCTL_WCLLB is on, even if
+		 * memory with new address is changed on other VCPUs.
+		 */
+		set_gcsr_llbctl(CSR_LLBCTL_WCLLB);
 	}
 
 	/* Restore GSTAT(0x50).vpid */
@@ -261,7 +281,7 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -ENOIOCTLCMD;
 }
 
-int kvm_arch_hardware_enable(void)
+int kvm_arch_enable_virtualization_cpu(void)
 {
 	unsigned long env, gcfg = 0;
 
@@ -283,9 +303,9 @@ int kvm_arch_hardware_enable(void)
 	 * TOE=0:       Trap on Exception.
 	 * TIT=0:       Trap on Timer.
 	 */
-	if (env & CSR_GCFG_GCIP_ALL)
+	if (env & CSR_GCFG_GCIP_SECURE)
 		gcfg |= CSR_GCFG_GCI_SECURE;
-	if (env & CSR_GCFG_MATC_ROOT)
+	if (env & CSR_GCFG_MATP_ROOT)
 		gcfg |= CSR_GCFG_MATC_ROOT;
 
 	write_csr_gcfg(gcfg);
@@ -297,10 +317,17 @@ int kvm_arch_hardware_enable(void)
 	kvm_debug("GCFG:%lx GSTAT:%lx GINTC:%lx GTLBC:%lx",
 		  read_csr_gcfg(), read_csr_gstat(), read_csr_gintc(), read_csr_gtlbc());
 
+	/*
+	 * HW Guest CSR registers are lost after CPU suspend and resume.
+	 * Clear last_vcpu so that Guest CSR registers forced to reload
+	 * from vCPU SW state.
+	 */
+	this_cpu_ptr(vmcs)->last_vcpu = NULL;
+
 	return 0;
 }
 
-void kvm_arch_hardware_disable(void)
+void kvm_arch_disable_virtualization_cpu(void)
 {
 	write_csr_gcfg(0);
 	write_csr_gstat(0);
@@ -313,7 +340,7 @@ void kvm_arch_hardware_disable(void)
 
 static int kvm_loongarch_env_init(void)
 {
-	int cpu, order;
+	int cpu, order, ret;
 	void *addr;
 	struct kvm_context *context;
 
@@ -368,7 +395,20 @@ static int kvm_loongarch_env_init(void)
 
 	kvm_init_gcsr_flag();
 
-	return 0;
+	/* Register LoongArch IPI interrupt controller interface. */
+	ret = kvm_loongarch_register_ipi_device();
+	if (ret)
+		return ret;
+
+	/* Register LoongArch EIOINTC interrupt controller interface. */
+	ret = kvm_loongarch_register_eiointc_device();
+	if (ret)
+		return ret;
+
+	/* Register LoongArch PCH-PIC interrupt controller interface. */
+	ret = kvm_loongarch_register_pch_pic_device();
+
+	return ret;
 }
 
 static void kvm_loongarch_env_exit(void)

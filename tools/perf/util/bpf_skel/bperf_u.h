@@ -11,4 +11,9 @@ enum bperf_filter_type {
 	BPERF_FILTER_TGID,
 };
 
+struct bperf_filter_value {
+	__u32 accum_key;
+	__u8 exited;
+};
+
 #endif /* __BPERF_STAT_U_H */

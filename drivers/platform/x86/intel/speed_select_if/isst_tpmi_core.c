@@ -1549,8 +1549,7 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 			goto unlock_free;
 		}
 
-		ret = sst_main(auxdev, &pd_info[i]);
-		if (ret) {
+		if (sst_main(auxdev, &pd_info[i])) {
 			/*
 			 * This entry is not valid, hardware can partially
 			 * populate dies. In this case MMIO will have 0xFFs.
@@ -1594,7 +1593,7 @@ unlock_exit:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_add, INTEL_TPMI_SST);
+EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_add, "INTEL_TPMI_SST");
 
 void tpmi_sst_dev_remove(struct auxiliary_device *auxdev)
 {
@@ -1615,7 +1614,7 @@ void tpmi_sst_dev_remove(struct auxiliary_device *auxdev)
 	}
 	mutex_unlock(&isst_tpmi_dev_lock);
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_remove, INTEL_TPMI_SST);
+EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_remove, "INTEL_TPMI_SST");
 
 void tpmi_sst_dev_suspend(struct auxiliary_device *auxdev)
 {
@@ -1643,7 +1642,7 @@ void tpmi_sst_dev_suspend(struct auxiliary_device *auxdev)
 						    power_domain_info->sst_header.pp_offset +
 						    SST_PP_CONTROL_OFFSET);
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_suspend, INTEL_TPMI_SST);
+EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_suspend, "INTEL_TPMI_SST");
 
 void tpmi_sst_dev_resume(struct auxiliary_device *auxdev)
 {
@@ -1670,7 +1669,7 @@ void tpmi_sst_dev_resume(struct auxiliary_device *auxdev)
 	writeq(power_domain_info->saved_pp_control, power_domain_info->sst_base +
 				power_domain_info->sst_header.pp_offset + SST_PP_CONTROL_OFFSET);
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_resume, INTEL_TPMI_SST);
+EXPORT_SYMBOL_NS_GPL(tpmi_sst_dev_resume, "INTEL_TPMI_SST");
 
 #define ISST_TPMI_API_VERSION	0x03
 
@@ -1710,7 +1709,7 @@ init_done:
 	mutex_unlock(&isst_tpmi_dev_lock);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_sst_init, INTEL_TPMI_SST);
+EXPORT_SYMBOL_NS_GPL(tpmi_sst_init, "INTEL_TPMI_SST");
 
 void tpmi_sst_exit(void)
 {
@@ -1724,10 +1723,10 @@ void tpmi_sst_exit(void)
 	}
 	mutex_unlock(&isst_tpmi_dev_lock);
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_sst_exit, INTEL_TPMI_SST);
+EXPORT_SYMBOL_NS_GPL(tpmi_sst_exit, "INTEL_TPMI_SST");
 
-MODULE_IMPORT_NS(INTEL_TPMI);
-MODULE_IMPORT_NS(INTEL_TPMI_POWER_DOMAIN);
+MODULE_IMPORT_NS("INTEL_TPMI");
+MODULE_IMPORT_NS("INTEL_TPMI_POWER_DOMAIN");
 
 MODULE_DESCRIPTION("ISST TPMI interface module");
 MODULE_LICENSE("GPL");

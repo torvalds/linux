@@ -395,8 +395,8 @@ static void saa7706h_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id saa7706h_id[] = {
-	{DRIVER_NAME, 0},
-	{},
+	{ DRIVER_NAME },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, saa7706h_id);

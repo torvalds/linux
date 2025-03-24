@@ -819,7 +819,7 @@ static struct platform_driver caam_jr_driver = {
 		.pm = pm_ptr(&caam_jr_pm_ops),
 	},
 	.probe       = caam_jr_probe,
-	.remove_new  = caam_jr_remove,
+	.remove      = caam_jr_remove,
 	.shutdown    = caam_jr_remove,
 };
 

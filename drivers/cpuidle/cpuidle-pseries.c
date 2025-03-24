@@ -22,6 +22,7 @@
 #include <asm/idle.h>
 #include <asm/plpar_wrappers.h>
 #include <asm/rtas.h>
+#include <asm/time.h>
 
 static struct cpuidle_driver pseries_idle_driver = {
 	.name             = "pseries_idle",

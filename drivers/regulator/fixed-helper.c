@@ -26,6 +26,8 @@ static void regulator_fixed_release(struct device *dev)
  * @supplies: consumers for this regulator
  * @num_supplies: number of consumers
  * @uv: voltage in microvolts
+ *
+ * Return: Pointer to registered platform device, or %NULL if memory allocation fails.
  */
 struct platform_device *regulator_register_always_on(int id, const char *name,
 	struct regulator_consumer_supply *supplies, int num_supplies, int uv)

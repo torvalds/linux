@@ -486,7 +486,7 @@ static struct platform_driver kempld_driver = {
 		.dev_groups	  = pld_groups,
 	},
 	.probe		= kempld_probe,
-	.remove_new	= kempld_remove,
+	.remove		= kempld_remove,
 };
 
 static const struct dmi_system_id kempld_dmi_table[] __initconst = {

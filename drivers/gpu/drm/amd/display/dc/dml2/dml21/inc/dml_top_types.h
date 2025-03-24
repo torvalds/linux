@@ -5,7 +5,6 @@
 #ifndef __DML_TOP_TYPES_H__
 #define __DML_TOP_TYPES_H__
 
-#include "dml_top_types.h"
 #include "dml_top_display_cfg_types.h"
 #include "dml_top_soc_parameter_types.h"
 #include "dml_top_policy_types.h"
@@ -27,20 +26,14 @@ enum dml2_project_id {
 	dml2_project_dcn4x_stage2_auto_drr_svp = 3,
 };
 
-enum dml2_dram_clock_change_support {
-	dml2_dram_clock_change_vactive = 0,
-	dml2_dram_clock_change_vblank = 1,
-	dml2_dram_clock_change_vblank_and_vactive = 2,
-	dml2_dram_clock_change_drr = 3,
-	dml2_dram_clock_change_mall_svp = 4,
-	dml2_dram_clock_change_mall_full_frame = 6,
-	dml2_dram_clock_change_unsupported = 7
-};
-
-enum dml2_fclock_change_support {
-	dml2_fclock_change_vactive = 0,
-	dml2_fclock_change_vblank = 1,
-	dml2_fclock_change_unsupported = 2
+enum dml2_pstate_change_support {
+	dml2_pstate_change_vactive = 0,
+	dml2_pstate_change_vblank = 1,
+	dml2_pstate_change_vblank_and_vactive = 2,
+	dml2_pstate_change_drr = 3,
+	dml2_pstate_change_mall_svp = 4,
+	dml2_pstate_change_mall_full_frame = 6,
+	dml2_pstate_change_unsupported = 7
 };
 
 enum dml2_output_type_and_rate__type {
@@ -74,6 +67,7 @@ struct dml2_pmo_options {
 	bool disable_drr_var;
 	bool disable_drr_clamped;
 	bool disable_drr_var_when_var_active;
+	bool disable_drr_clamped_when_var_active;
 	bool disable_fams2;
 	bool disable_vactive_det_fill_bw_pad; /* dml2_project_dcn4x_stage2_auto_drr_svp and above only */
 	bool disable_dyn_odm;
@@ -202,24 +196,23 @@ struct dml2_mcache_surface_allocation {
 	} informative;
 };
 
-enum dml2_uclk_pstate_support_method {
-	dml2_uclk_pstate_support_method_not_supported = 0,
-	/* hw */
-	dml2_uclk_pstate_support_method_vactive = 1,
-	dml2_uclk_pstate_support_method_vblank = 2,
-	dml2_uclk_pstate_support_method_reserved_hw = 5,
-	/* fw */
-	dml2_uclk_pstate_support_method_fw_subvp_phantom = 6,
-	dml2_uclk_pstate_support_method_reserved_fw = 10,
-	/* fw w/drr */
-	dml2_uclk_pstate_support_method_fw_vactive_drr = 11,
-	dml2_uclk_pstate_support_method_fw_vblank_drr = 12,
-	dml2_uclk_pstate_support_method_fw_subvp_phantom_drr = 13,
-	dml2_uclk_pstate_support_method_reserved_fw_drr_fixed = 20,
-	dml2_uclk_pstate_support_method_fw_drr = 21,
-	dml2_uclk_pstate_support_method_reserved_fw_drr_var = 22,
-
-	dml2_uclk_pstate_support_method_count
+enum dml2_pstate_method {
+	dml2_pstate_method_na = 0,
+	/* hw exclusive modes */
+	dml2_pstate_method_vactive = 1,
+	dml2_pstate_method_vblank = 2,
+	dml2_pstate_method_reserved_hw = 5,
+	/* fw assisted exclusive modes */
+	dml2_pstate_method_fw_svp = 6,
+	dml2_pstate_method_reserved_fw = 10,
+	/* fw assisted modes requiring drr modulation */
+	dml2_pstate_method_fw_vactive_drr = 11,
+	dml2_pstate_method_fw_vblank_drr = 12,
+	dml2_pstate_method_fw_svp_drr = 13,
+	dml2_pstate_method_reserved_fw_drr_clamped = 20,
+	dml2_pstate_method_fw_drr = 21,
+	dml2_pstate_method_reserved_fw_drr_var = 22,
+	dml2_pstate_method_count
 };
 
 struct dml2_per_plane_programming {
@@ -228,7 +221,7 @@ struct dml2_per_plane_programming {
 	union {
 		struct {
 			unsigned long dppclk_khz;
-		} dcn4;
+		} dcn4x;
 	} min_clocks;
 
 	struct dml2_mcache_surface_allocation mcache_allocation;
@@ -241,7 +234,7 @@ struct dml2_per_plane_programming {
 	// If a stream is using odm split, then this value is always 1
 	unsigned int num_dpps_required;
 
-	enum dml2_uclk_pstate_support_method uclk_pstate_support_method;
+	enum dml2_pstate_method uclk_pstate_support_method;
 
 	// MALL size requirements for MALL SS and SubVP
 	unsigned int surface_size_mall_bytes;
@@ -262,7 +255,8 @@ union dml2_global_sync_programming {
 		unsigned int vupdate_offset_pixels;
 		unsigned int vupdate_vupdate_width_pixels;
 		unsigned int vready_offset_pixels;
-	} dcn4;
+		unsigned int pstate_keepout_start_lines;
+	} dcn4x;
 };
 
 struct dml2_per_stream_programming {
@@ -273,14 +267,14 @@ struct dml2_per_stream_programming {
 			unsigned long dscclk_khz;
 			unsigned long dtbclk_khz;
 			unsigned long phyclk_khz;
-		} dcn4;
+		} dcn4x;
 	} min_clocks;
 
 	union dml2_global_sync_programming global_sync;
 
 	unsigned int num_odms_required;
 
-	enum dml2_uclk_pstate_support_method uclk_pstate_method;
+	enum dml2_pstate_method uclk_pstate_method;
 
 	struct {
 		bool enabled;
@@ -288,7 +282,8 @@ struct dml2_per_stream_programming {
 		union dml2_global_sync_programming global_sync;
 	} phantom_stream;
 
-	struct dmub_fams2_stream_static_state fams2_params;
+	union dmub_cmd_fams2_config fams2_base_params;
+	union dmub_cmd_fams2_config fams2_sub_params;
 };
 
 //-----------------
@@ -338,7 +333,7 @@ struct dml2_mode_support_info {
 	bool DCCMetaBufferSizeNotExceeded;
 	bool TotalVerticalActiveBandwidthSupport;
 	bool VActiveBandwidthSupport;
-	enum dml2_fclock_change_support FCLKChangeSupport[DML2_MAX_PLANES];
+	enum dml2_pstate_change_support FCLKChangeSupport[DML2_MAX_PLANES];
 	bool USRRetrainingSupport;
 	bool PrefetchSupported;
 	bool DynamicMetadataSupported;
@@ -360,6 +355,7 @@ struct dml2_mode_support_info {
 	unsigned int AlignedYPitch[DML2_MAX_PLANES];
 	unsigned int AlignedCPitch[DML2_MAX_PLANES];
 	bool g6_temp_read_support;
+	bool temp_read_or_ppt_support;
 }; // dml2_mode_support_info
 
 struct dml2_display_cfg_programming {
@@ -374,7 +370,7 @@ struct dml2_display_cfg_programming {
 			unsigned long dispclk_khz;
 			unsigned long dcfclk_deepsleep_khz;
 			unsigned long dpp_ref_khz;
-		} dcn3;
+		} dcn32x;
 		struct {
 			struct {
 				unsigned long uclk_khz;
@@ -391,6 +387,11 @@ struct dml2_display_cfg_programming {
 				unsigned long fclk_khz;
 				unsigned long dcfclk_khz;
 			} svp_prefetch;
+			struct {
+				unsigned long uclk_khz;
+				unsigned long fclk_khz;
+				unsigned long dcfclk_khz;
+			} svp_prefetch_no_throttle;
 
 			unsigned long deepsleep_dcfclk_khz;
 			unsigned long dispclk_khz;
@@ -403,7 +404,7 @@ struct dml2_display_cfg_programming {
 				uint32_t dpprefclk_did;
 				uint32_t dtbrefclk_did;
 			} divider_ids;
-		} dcn4;
+		} dcn4x;
 	} min_clocks;
 
 	bool uclk_pstate_supported;
@@ -411,6 +412,7 @@ struct dml2_display_cfg_programming {
 
 	/* indicates this configuration requires FW to support */
 	bool fams2_required;
+	struct dmub_cmd_fams2_global_config fams2_global_config;
 
 	struct {
 		bool supported_in_blank; // Changing to configurations where this is false requires stutter to be disabled during the transition
@@ -442,7 +444,7 @@ struct dml2_display_cfg_programming {
 			double pstate_change_us;
 			double fclk_pstate_change_us;
 			double usr_retraining_us;
-			double g6_temp_read_watermark_us;
+			double temp_read_or_ppt_watermark_us;
 		} watermarks;
 
 		struct {
@@ -651,6 +653,7 @@ struct dml2_display_cfg_programming {
 			double DisplayPipeLineDeliveryTimeLumaPrefetch[DML2_MAX_PLANES];
 			double DisplayPipeLineDeliveryTimeChromaPrefetch[DML2_MAX_PLANES];
 
+			double WritebackRequiredBandwidth;
 			double WritebackAllowDRAMClockChangeEndPosition[DML2_MAX_PLANES];
 			double WritebackAllowFCLKChangeEndPosition[DML2_MAX_PLANES];
 			double DSCCLK_calculated[DML2_MAX_PLANES];
@@ -660,6 +663,7 @@ struct dml2_display_cfg_programming {
 			double MaxActiveDRAMClockChangeLatencySupported[DML2_MAX_PLANES];
 			unsigned int PrefetchMode[DML2_MAX_PLANES]; // LEGACY_ONLY
 			bool ROBUrgencyAvoidance;
+			double LowestPrefetchMargin;
 		} misc;
 
 		struct dml2_mode_support_info mode_support_info;
@@ -673,6 +677,7 @@ struct dml2_display_cfg_programming {
 		bool failed_mcache_validation;
 		bool failed_dpmm;
 		bool failed_mode_programming;
+		bool failed_map_watermarks;
 	} informative;
 };
 

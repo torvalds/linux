@@ -593,7 +593,7 @@ MODULE_DEVICE_TABLE(of, omap2_onenand_id_table);
 
 static struct platform_driver omap2_onenand_driver = {
 	.probe		= omap2_onenand_probe,
-	.remove_new	= omap2_onenand_remove,
+	.remove		= omap2_onenand_remove,
 	.shutdown	= omap2_onenand_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,

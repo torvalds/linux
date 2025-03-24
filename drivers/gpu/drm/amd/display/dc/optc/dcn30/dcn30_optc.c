@@ -271,6 +271,48 @@ void optc3_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_c
 	optc1->opp_count = opp_cnt;
 }
 
+/* OTG status register that indicates OPTC update is pending */
+bool optc3_get_optc_double_buffer_pending(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t update_pending = 0;
+
+	REG_GET(OPTC_INPUT_GLOBAL_CONTROL,
+			OPTC_DOUBLE_BUFFER_PENDING,
+			&update_pending);
+
+	return (update_pending == 1);
+}
+
+/* OTG status register that indicates OTG update is pending */
+bool optc3_get_otg_update_pending(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t update_pending = 0;
+
+	REG_GET(OTG_DOUBLE_BUFFER_CONTROL,
+			OTG_UPDATE_PENDING,
+			&update_pending);
+
+	return (update_pending == 1);
+}
+
+/* OTG status register that indicates surface update is pending */
+bool optc3_get_pipe_update_pending(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	uint32_t flip_pending = 0;
+	uint32_t dc_update_pending = 0;
+
+	REG_GET_2(OTG_PIPE_UPDATE_STATUS,
+			OTG_FLIP_PENDING,
+			&flip_pending,
+			OTG_DC_REG_UPDATE_PENDING,
+			&dc_update_pending);
+
+	return (flip_pending == 1 || dc_update_pending == 1);
+}
+
 /**
  * optc3_set_timing_double_buffer() - DRR double buffering control
  *
@@ -375,6 +417,9 @@ static struct timing_generator_funcs dcn30_tg_funcs = {
 		.get_hw_timing = optc1_get_hw_timing,
 		.wait_drr_doublebuffer_pending_clear = optc3_wait_drr_doublebuffer_pending_clear,
 		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
+		.get_optc_double_buffer_pending = optc3_get_optc_double_buffer_pending,
+		.get_otg_double_buffer_pending = optc3_get_otg_update_pending,
+		.get_pipe_update_pending = optc3_get_pipe_update_pending,
 };
 
 void dcn30_timing_generator_init(struct optc *optc1)

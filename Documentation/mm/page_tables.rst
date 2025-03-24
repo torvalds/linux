@@ -29,7 +29,7 @@ address.
 With a page granularity of 4KB and a address range of 32 bits, pfn 0 is at
 address 0x00000000, pfn 1 is at address 0x00001000, pfn 2 is at 0x00002000
 and so on until we reach pfn 0xfffff at 0xfffff000. With 16KB pages pfs are
-at 0x00004000, 0x00008000 ... 0xffffc000 and pfn goes from 0 to 0x3fffff.
+at 0x00004000, 0x00008000 ... 0xffffc000 and pfn goes from 0 to 0x3ffff.
 
 As you can see, with 4KB pages the page base address uses bits 12-31 of the
 address, and this is why `PAGE_SHIFT` in this case is defined as 12 and

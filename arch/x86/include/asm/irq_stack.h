@@ -100,8 +100,8 @@
 }
 
 #define ASM_CALL_ARG0							\
-	"call %c[__func]				\n"		\
-	ASM_REACHABLE
+	"1: call %c[__func]				\n"		\
+	ANNOTATE_REACHABLE(1b)
 
 #define ASM_CALL_ARG1							\
 	"movq	%[arg1], %%rdi				\n"		\

@@ -233,14 +233,15 @@ static int a500_battery_probe(struct platform_device *pdev)
 
 	psy_cfg.of_node = pdev->dev.parent->of_node;
 	psy_cfg.drv_data = bat;
+	psy_cfg.no_wakeup_source = true;
 
 	bat->regmap = dev_get_regmap(pdev->dev.parent, "KB930");
 	if (!bat->regmap)
 		return -EINVAL;
 
-	bat->psy = devm_power_supply_register_no_ws(&pdev->dev,
-						    &a500_battery_desc,
-						    &psy_cfg);
+	bat->psy = devm_power_supply_register(&pdev->dev,
+					      &a500_battery_desc,
+					      &psy_cfg);
 	if (IS_ERR(bat->psy))
 		return dev_err_probe(&pdev->dev, PTR_ERR(bat->psy),
 				     "failed to register battery\n");
@@ -285,7 +286,7 @@ static struct platform_driver a500_battery_driver = {
 		.pm = &a500_battery_pm_ops,
 	},
 	.probe = a500_battery_probe,
-	.remove_new = a500_battery_remove,
+	.remove = a500_battery_remove,
 };
 module_platform_driver(a500_battery_driver);
 

@@ -124,10 +124,8 @@ static void *alloc_quote_buf(void)
 	if (!addr)
 		return NULL;
 
-	if (set_memory_decrypted((unsigned long)addr, count)) {
-		free_pages_exact(addr, len);
+	if (set_memory_decrypted((unsigned long)addr, count))
 		return NULL;
-	}
 
 	return addr;
 }
@@ -285,7 +283,6 @@ static long tdx_guest_ioctl(struct file *file, unsigned int cmd,
 static const struct file_operations tdx_guest_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = tdx_guest_ioctl,
-	.llseek = no_llseek,
 };
 
 static struct miscdevice tdx_misc_dev = {

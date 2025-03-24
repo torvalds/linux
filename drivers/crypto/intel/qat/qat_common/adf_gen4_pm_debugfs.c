@@ -42,13 +42,13 @@ struct pm_status_row {
 	const char *key;
 };
 
-static struct pm_status_row pm_fuse_rows[] = {
+static const struct pm_status_row pm_fuse_rows[] = {
 	PM_INFO_REGSET_ENTRY(fusectl0, ENABLE_PM),
 	PM_INFO_REGSET_ENTRY(fusectl0, ENABLE_PM_IDLE),
 	PM_INFO_REGSET_ENTRY(fusectl0, ENABLE_DEEP_PM_IDLE),
 };
 
-static struct pm_status_row pm_info_rows[] = {
+static const struct pm_status_row pm_info_rows[] = {
 	PM_INFO_REGSET_ENTRY(pm.status, CPM_PM_STATE),
 	PM_INFO_REGSET_ENTRY(pm.status, PENDING_WP),
 	PM_INFO_REGSET_ENTRY(pm.status, CURRENT_WP),
@@ -59,7 +59,7 @@ static struct pm_status_row pm_info_rows[] = {
 	PM_INFO_REGSET_ENTRY(pm.main, THR_VALUE),
 };
 
-static struct pm_status_row pm_ssm_rows[] = {
+static const struct pm_status_row pm_ssm_rows[] = {
 	PM_INFO_REGSET_ENTRY(ssm.pm_enable, SSM_PM_ENABLE),
 	PM_INFO_REGSET_ENTRY32(ssm.active_constraint, ACTIVE_CONSTRAINT),
 	PM_INFO_REGSET_ENTRY(ssm.pm_domain_status, DOMAIN_POWER_GATED),
@@ -83,7 +83,7 @@ static struct pm_status_row pm_ssm_rows[] = {
 	PM_INFO_REGSET_ENTRY(ssm.pm_managed_status, WCP_MANAGED_COUNT),
 };
 
-static struct pm_status_row pm_log_rows[] = {
+static const struct pm_status_row pm_log_rows[] = {
 	PM_INFO_REGSET_ENTRY32(event_counters.host_msg, HOST_MSG_EVENT_COUNT),
 	PM_INFO_REGSET_ENTRY32(event_counters.sys_pm, SYS_PM_EVENT_COUNT),
 	PM_INFO_REGSET_ENTRY32(event_counters.local_ssm, SSM_EVENT_COUNT),
@@ -91,7 +91,7 @@ static struct pm_status_row pm_log_rows[] = {
 	PM_INFO_REGSET_ENTRY32(event_counters.unknown, UNKNOWN_EVENT_COUNT),
 };
 
-static struct pm_status_row pm_event_rows[ICP_QAT_NUMBER_OF_PM_EVENTS] = {
+static const struct pm_status_row pm_event_rows[ICP_QAT_NUMBER_OF_PM_EVENTS] = {
 	PM_INFO_REGSET_ENTRY32(event_log[0], EVENT0),
 	PM_INFO_REGSET_ENTRY32(event_log[1], EVENT1),
 	PM_INFO_REGSET_ENTRY32(event_log[2], EVENT2),
@@ -102,14 +102,14 @@ static struct pm_status_row pm_event_rows[ICP_QAT_NUMBER_OF_PM_EVENTS] = {
 	PM_INFO_REGSET_ENTRY32(event_log[7], EVENT7),
 };
 
-static struct pm_status_row pm_csrs_rows[] = {
+static const struct pm_status_row pm_csrs_rows[] = {
 	PM_INFO_REGSET_ENTRY32(pm.fw_init, CPM_PM_FW_INIT),
 	PM_INFO_REGSET_ENTRY32(pm.status, CPM_PM_STATUS),
 	PM_INFO_REGSET_ENTRY32(pm.main, CPM_PM_MASTER_FW),
 	PM_INFO_REGSET_ENTRY32(pm.pwrreq, CPM_PM_PWRREQ),
 };
 
-static int pm_scnprint_table(char *buff, struct pm_status_row *table,
+static int pm_scnprint_table(char *buff, const struct pm_status_row *table,
 			     u32 *pm_info_regs, size_t buff_size, int table_len,
 			     bool lowercase)
 {
@@ -131,7 +131,7 @@ static int pm_scnprint_table(char *buff, struct pm_status_row *table,
 	return wr;
 }
 
-static int pm_scnprint_table_upper_keys(char *buff, struct pm_status_row *table,
+static int pm_scnprint_table_upper_keys(char *buff, const struct pm_status_row *table,
 					u32 *pm_info_regs, size_t buff_size,
 					int table_len)
 {
@@ -139,7 +139,7 @@ static int pm_scnprint_table_upper_keys(char *buff, struct pm_status_row *table,
 				 table_len, false);
 }
 
-static int pm_scnprint_table_lower_keys(char *buff, struct pm_status_row *table,
+static int pm_scnprint_table_lower_keys(char *buff, const struct pm_status_row *table,
 					u32 *pm_info_regs, size_t buff_size,
 					int table_len)
 {

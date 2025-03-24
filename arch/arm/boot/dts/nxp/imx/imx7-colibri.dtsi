@@ -120,7 +120,7 @@
 		simple-audio-card,bitclock-master = <&dailink_master>;
 		simple-audio-card,format = "i2s";
 		simple-audio-card,frame-master = <&dailink_master>;
-		simple-audio-card,name = "imx7-sgtl5000";
+		simple-audio-card,name = "colibri-imx7";
 
 		simple-audio-card,cpu {
 			sound-dai = <&sai1>;
@@ -903,7 +903,7 @@
 		>;
 	};
 
-	pinctrl_lvds_transceiver: lvdstx {
+	pinctrl_lvds_transceiver: lvdstxgrp {
 		fsl,pins = <
 			MX7D_PAD_ENET1_RGMII_RD2__GPIO7_IO2     0x14 /* SODIMM 63 */
 			MX7D_PAD_ENET1_RGMII_RD3__GPIO7_IO3     0x74 /* SODIMM 55 */

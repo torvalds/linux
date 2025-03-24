@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * Copyright (C) 2024 Marek Vasut <marex@denx.de>
+ *
+ * DHCOM iMX6 variant:
+ * DHCM-iMX6DL-C080-R102-F0819-E-SD-RTC-T-HS-I-01D2
+ * DHCOM PCB number: 493-400 or newer
+ * PDK2 PCB number: 516-400 or newer
+ */
+/dts-v1/;
+
+#include "imx6dl.dtsi"
+#include "imx6qdl-dhcom-som.dtsi"
+#include "imx6qdl-dhcom-pdk2.dtsi"
+
+/ {
+	model = "DH electronics i.MX6DL DHCOM on Premium Developer Kit (2)";
+	compatible = "dh,imx6dl-dhcom-pdk2", "dh,imx6dl-dhcom-som",
+		     "fsl,imx6dl";
+};

@@ -2,7 +2,7 @@
 #include <linux/memory.h>
 #include <linux/static_call.h>
 
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 
 void arch_static_call_transform(void *site, void *tramp, void *func, bool tail)
 {
@@ -17,7 +17,7 @@ void arch_static_call_transform(void *site, void *tramp, void *func, bool tail)
 	mutex_lock(&text_mutex);
 
 	if (func && !is_short) {
-		err = patch_instruction(tramp + PPC_SCT_DATA, ppc_inst(target));
+		err = patch_ulong(tramp + PPC_SCT_DATA, target);
 		if (err)
 			goto out;
 	}

@@ -81,7 +81,7 @@ struct qcaspi {
 	struct qcafrm_handle frm_handle;
 	struct sk_buff *rx_skb;
 
-	unsigned long intr;
+	unsigned long flags;
 	u16 reset_count;
 
 #ifdef CONFIG_DEBUG_FS
@@ -89,7 +89,6 @@ struct qcaspi {
 #endif
 
 	/* user configurable options */
-	u32 clkspeed;
 	u8 legacy_mode;
 	u16 burst_len;
 };

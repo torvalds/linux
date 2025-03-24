@@ -787,7 +787,7 @@ static struct platform_driver dsu_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = dsu_pmu_device_probe,
-	.remove_new = dsu_pmu_device_remove,
+	.remove = dsu_pmu_device_remove,
 };
 
 static int dsu_pmu_cpu_online(unsigned int cpu, struct hlist_node *node)

@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+# If CONFIG_OF_ALL_DTBS is enabled, all DT blobs are built
+dtb-$(CONFIG_OF_ALL_DTBS) += $(dtb-)
+
+# Composite DTB (i.e. DTB constructed by overlay)
+multi-dtb-y := $(call multi-search, $(dtb-y), .dtb, -dtbs)
+# Primitive DTB compiled from *.dts
+real-dtb-y := $(call real-search, $(dtb-y), .dtb, -dtbs)
+# Base DTB that overlay is applied onto
+base-dtb-y := $(filter %.dtb, $(call real-search, $(multi-dtb-y), .dtb, -dtbs))
+
+dtb-y           := $(addprefix $(obj)/, $(dtb-y))
+multi-dtb-y     := $(addprefix $(obj)/, $(multi-dtb-y))
+real-dtb-y      := $(addprefix $(obj)/, $(real-dtb-y))
+
+always-y        += $(dtb-y)
+targets         += $(real-dtb-y)
+
+# dtbs-list
+# ---------------------------------------------------------------------------
+
+ifdef need-dtbslist
+subdir-dtbslist := $(addsuffix /dtbs-list, $(subdir-ym))
+dtb-y           += $(subdir-dtbslist)
+always-y        += $(obj)/dtbs-list
+endif
+
+$(subdir-dtbslist): $(obj)/%/dtbs-list: $(obj)/% ;
+
+$(obj)/dtbs-list: $(dtb-y) FORCE
+	$(call if_changed,gen_order)
+
+# Assembly file to wrap dtb(o)
+# ---------------------------------------------------------------------------
+
+builtin-dtb-section = $(if $(filter arch/$(SRCARCH)/boot/dts%, $(obj)),.dtb.init.rodata,.rodata)
+
+# Generate an assembly file to wrap the output of the device tree compiler
+quiet_cmd_wrap_S_dtb = WRAP    $@
+      cmd_wrap_S_dtb = {								\
+		symbase=__$(patsubst .%,%,$(suffix $<))_$(subst -,_,$(notdir $*));	\
+		echo '\#include <asm-generic/vmlinux.lds.h>';				\
+		echo '.section $(builtin-dtb-section),"a"';				\
+		echo '.balign STRUCT_ALIGNMENT';					\
+		echo ".global $${symbase}_begin";					\
+		echo "$${symbase}_begin:";						\
+		echo '.incbin "$<" ';							\
+		echo ".global $${symbase}_end";						\
+		echo "$${symbase}_end:";						\
+		echo '.balign STRUCT_ALIGNMENT';					\
+	} > $@
+
+$(obj)/%.dtb.S: $(obj)/%.dtb FORCE
+	$(call if_changed,wrap_S_dtb)
+
+$(obj)/%.dtbo.S: $(obj)/%.dtbo FORCE
+	$(call if_changed,wrap_S_dtb)
+
+# Schema check
+# ---------------------------------------------------------------------------
+
+ifneq ($(CHECK_DTBS),)
+DT_CHECKER ?= dt-validate
+DT_CHECKER_FLAGS ?= $(if $(DT_SCHEMA_FILES),-l $(DT_SCHEMA_FILES),-m)
+DT_BINDING_DIR := Documentation/devicetree/bindings
+DT_TMP_SCHEMA := $(objtree)/$(DT_BINDING_DIR)/processed-schema.json
+dtb-check-enabled = $(if $(filter %.dtb, $@),y)
+endif
+
+quiet_dtb_check_tag = $(if $(dtb-check-enabled),[C],   )
+cmd_dtb_check = $(if $(dtb-check-enabled),; $(DT_CHECKER) $(DT_CHECKER_FLAGS) -u $(srctree)/$(DT_BINDING_DIR) -p $(DT_TMP_SCHEMA) $@ || true)
+
+# Overlay
+# ---------------------------------------------------------------------------
+
+# NOTE:
+# Do not replace $(filter %.dtb %.dtbo, $^) with $(real-prereqs). When a single
+# DTB is turned into a multi-blob DTB, $^ will contain header file dependencies
+# recorded in the .*.cmd file.
+quiet_cmd_fdtoverlay = OVL $(quiet_dtb_check_tag) $@
+      cmd_fdtoverlay = $(objtree)/scripts/dtc/fdtoverlay -o $@ -i $(filter %.dtb %.dtbo, $^) $(cmd_dtb_check)
+
+$(multi-dtb-y): $(DT_TMP_SCHEMA) FORCE
+	$(call if_changed,fdtoverlay)
+$(call multi_depend, $(multi-dtb-y), .dtb, -dtbs)
+
+# DTC
+# ---------------------------------------------------------------------------
+
+DTC ?= $(objtree)/scripts/dtc/dtc
+DTC_FLAGS += -Wno-unique_unit_address
+
+# Disable noisy checks by default
+ifeq ($(findstring 1,$(KBUILD_EXTRA_WARN)),)
+DTC_FLAGS += -Wno-unit_address_vs_reg \
+             -Wno-avoid_unnecessary_addr_size \
+             -Wno-alias_paths \
+             -Wno-graph_child_address \
+             -Wno-simple_bus_reg
+else
+DTC_FLAGS += -Wunique_unit_address_if_enabled
+endif
+
+ifneq ($(findstring 2,$(KBUILD_EXTRA_WARN)),)
+DTC_FLAGS += -Wnode_name_chars_strict \
+             -Wproperty_name_chars_strict \
+             -Wunique_unit_address
+endif
+
+DTC_FLAGS += $(DTC_FLAGS_$(target-stem))
+
+# Set -@ if the target is a base DTB that overlay is applied onto
+DTC_FLAGS += $(if $(filter $(patsubst $(obj)/%,%,$@), $(base-dtb-y)), -@)
+
+DTC_INCLUDE := $(srctree)/scripts/dtc/include-prefixes
+
+dtc_cpp_flags = -Wp,-MMD,$(depfile).pre.tmp -nostdinc -I $(DTC_INCLUDE) -undef -D__DTS__
+
+dtc-tmp = $(subst $(comma),_,$(dot-target).dts.tmp)
+
+quiet_cmd_dtc = DTC $(quiet_dtb_check_tag) $@
+      cmd_dtc = \
+	$(HOSTCC) -E $(dtc_cpp_flags) -x assembler-with-cpp -o $(dtc-tmp) $< ; \
+	$(DTC) -o $@ -b 0 $(addprefix -i,$(dir $<) $(DTC_INCLUDE)) \
+	       $(DTC_FLAGS) -d $(depfile).dtc.tmp $(dtc-tmp) ; \
+	cat $(depfile).pre.tmp $(depfile).dtc.tmp > $(depfile) \
+	$(cmd_dtb_check)
+
+$(obj)/%.dtb: $(obj)/%.dts $(DTC) $(DT_TMP_SCHEMA) FORCE
+	$(call if_changed_dep,dtc)
+
+$(obj)/%.dtbo: $(src)/%.dtso $(DTC) FORCE
+	$(call if_changed_dep,dtc)
+
+# targets
+# ---------------------------------------------------------------------------
+
+targets += $(always-y)
+
+# %.dtb.o <- %.dtb.S <- %.dtb <- %.dts
+# %.dtbo.o <- %.dtbo.S <- %.dtbo <- %.dtso
+targets += $(call intermediate_targets, .dtb.o, .dtb.S .dtb) \
+           $(call intermediate_targets, .dtbo.o, .dtbo.S .dtbo)

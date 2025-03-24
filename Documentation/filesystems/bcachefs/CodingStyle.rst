@@ -175,7 +175,7 @@ errors in our thinking by running our code and seeing what happens. If your
 time is being wasted because your tools are bad or too slow - don't accept it,
 fix it.
 
-Put effort into your documentation, commmit messages, and code comments - but
+Put effort into your documentation, commit messages, and code comments - but
 don't go overboard. A good commit message is wonderful - but if the information
 was important enough to go in a commit message, ask yourself if it would be
 even better as a code comment.
@@ -183,4 +183,4 @@ even better as a code comment.
 A good code comment is wonderful, but even better is the comment that didn't
 need to exist because the code was so straightforward as to be obvious;
 organized into small clean and tidy modules, with clear and descriptive names
-for functions and variable, where every line of code has a clear purpose.
+for functions and variables, where every line of code has a clear purpose.

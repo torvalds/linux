@@ -565,7 +565,7 @@ static struct platform_driver acpi_pfru_driver = {
 		.acpi_match_table = acpi_pfru_ids,
 	},
 	.probe = acpi_pfru_probe,
-	.remove_new = acpi_pfru_remove,
+	.remove = acpi_pfru_remove,
 };
 module_platform_driver(acpi_pfru_driver);
 

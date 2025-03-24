@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "../kselftest.h"
 #include "cgroup_util.h"
@@ -221,6 +222,79 @@ static int test_cpucg_stats(const char *root)
 		goto cleanup;
 
 	ret = KSFT_PASS;
+
+cleanup:
+	cg_destroy(cpucg);
+	free(cpucg);
+
+	return ret;
+}
+
+/*
+ * Creates a nice process that consumes CPU and checks that the elapsed
+ * usertime in the cgroup is close to the expected time.
+ */
+static int test_cpucg_nice(const char *root)
+{
+	int ret = KSFT_FAIL;
+	int status;
+	long user_usec, nice_usec;
+	long usage_seconds = 2;
+	long expected_nice_usec = usage_seconds * USEC_PER_SEC;
+	char *cpucg;
+	pid_t pid;
+
+	cpucg = cg_name(root, "cpucg_test");
+	if (!cpucg)
+		goto cleanup;
+
+	if (cg_create(cpucg))
+		goto cleanup;
+
+	user_usec = cg_read_key_long(cpucg, "cpu.stat", "user_usec");
+	nice_usec = cg_read_key_long(cpucg, "cpu.stat", "nice_usec");
+	if (nice_usec == -1)
+		ret = KSFT_SKIP;
+	if (user_usec != 0 || nice_usec != 0)
+		goto cleanup;
+
+	/*
+	 * We fork here to create a new process that can be niced without
+	 * polluting the nice value of other selftests
+	 */
+	pid = fork();
+	if (pid < 0) {
+		goto cleanup;
+	} else if (pid == 0) {
+		struct cpu_hog_func_param param = {
+			.nprocs = 1,
+			.ts = {
+				.tv_sec = usage_seconds,
+				.tv_nsec = 0,
+			},
+			.clock_type = CPU_HOG_CLOCK_PROCESS,
+		};
+		char buf[64];
+		snprintf(buf, sizeof(buf), "%d", getpid());
+		if (cg_write(cpucg, "cgroup.procs", buf))
+			goto cleanup;
+
+		/* Try to keep niced CPU usage as constrained to hog_cpu as possible */
+		nice(1);
+		hog_cpus_timed(cpucg, &param);
+		exit(0);
+	} else {
+		waitpid(pid, &status, 0);
+		if (!WIFEXITED(status))
+			goto cleanup;
+
+		user_usec = cg_read_key_long(cpucg, "cpu.stat", "user_usec");
+		nice_usec = cg_read_key_long(cpucg, "cpu.stat", "nice_usec");
+		if (!values_close(nice_usec, expected_nice_usec, 1))
+			goto cleanup;
+
+		ret = KSFT_PASS;
+	}
 
 cleanup:
 	cg_destroy(cpucg);
@@ -686,6 +760,7 @@ struct cpucg_test {
 } tests[] = {
 	T(test_cpucg_subtree_control),
 	T(test_cpucg_stats),
+	T(test_cpucg_nice),
 	T(test_cpucg_weight_overprovisioned),
 	T(test_cpucg_weight_underprovisioned),
 	T(test_cpucg_nested_weight_overprovisioned),

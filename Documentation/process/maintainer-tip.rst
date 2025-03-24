@@ -7,7 +7,7 @@ What is the tip tree?
 ---------------------
 
 The tip tree is a collection of several subsystems and areas of
-development. The tip tree is both a direct development tree and a
+development. The tip tree is both a direct development tree and an
 aggregation tree for several sub-maintainer trees. The tip tree gitweb URL
 is: https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git
 
@@ -121,7 +121,7 @@ The tip tree preferred format for patch subject prefixes is
 prefix. 'git log path/to/file' should give you a reasonable hint in most
 cases.
 
-The condensed patch description in the subject line should start with a
+The condensed patch description in the subject line should start with an
 uppercase letter and should be written in imperative tone.
 
 
@@ -154,7 +154,7 @@ Examples for illustration:
 
     We modify the hot cpu handling to cancel the delayed work on the dying
     cpu and run the worker immediately on a different cpu in same domain. We
-    donot flush the worker because the MBM overflow worker reschedules the
+    do not flush the worker because the MBM overflow worker reschedules the
     worker on same CPU and scans the domain->cpu_mask to get the domain
     pointer.
 
@@ -270,7 +270,7 @@ Ordering of commit tags
 To have a uniform view of the commit tags, the tip maintainers use the
 following tag ordering scheme:
 
- - Fixes: 12char-SHA1 ("sub/sys: Original subject line")
+ - Fixes: 12+char-SHA1 ("sub/sys: Original subject line")
 
    A Fixes tag should be added even for changes which do not need to be
    backported to stable kernels, i.e. when addressing a recently introduced

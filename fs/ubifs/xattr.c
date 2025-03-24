@@ -48,19 +48,6 @@
 #include <linux/slab.h>
 #include <linux/xattr.h>
 
-/*
- * Extended attribute type constants.
- *
- * USER_XATTR: user extended attribute ("user.*")
- * TRUSTED_XATTR: trusted extended attribute ("trusted.*)
- * SECURITY_XATTR: security extended attribute ("security.*")
- */
-enum {
-	USER_XATTR,
-	TRUSTED_XATTR,
-	SECURITY_XATTR,
-};
-
 static const struct inode_operations empty_iops;
 static const struct file_operations empty_fops;
 
@@ -532,8 +519,6 @@ int ubifs_purge_xattrs(struct inode *host)
 			ubifs_err(c, "dead directory entry '%s', error %d",
 				  xent->name, err);
 			ubifs_ro_mode(c, err);
-			kfree(pxent);
-			kfree(xent);
 			goto out_err;
 		}
 
@@ -541,15 +526,11 @@ int ubifs_purge_xattrs(struct inode *host)
 
 		clear_nlink(xino);
 		err = remove_xattr(c, host, xino, &nm);
+		iput(xino);
 		if (err) {
-			kfree(pxent);
-			kfree(xent);
-			iput(xino);
 			ubifs_err(c, "cannot remove xattr, error %d", err);
 			goto out_err;
 		}
-
-		iput(xino);
 
 		kfree(pxent);
 		pxent = xent;
@@ -566,30 +547,10 @@ int ubifs_purge_xattrs(struct inode *host)
 	return 0;
 
 out_err:
+	kfree(pxent);
+	kfree(xent);
 	up_write(&ubifs_inode(host)->xattr_sem);
 	return err;
-}
-
-/**
- * ubifs_evict_xattr_inode - Evict an xattr inode.
- * @c: UBIFS file-system description object
- * @xattr_inum: xattr inode number
- *
- * When an inode that hosts xattrs is being removed we have to make sure
- * that cached inodes of the xattrs also get removed from the inode cache
- * otherwise we'd waste memory. This function looks up an inode from the
- * inode cache and clears the link counter such that iput() will evict
- * the inode.
- */
-void ubifs_evict_xattr_inode(struct ubifs_info *c, ino_t xattr_inum)
-{
-	struct inode *inode;
-
-	inode = ilookup(c->vfs_sb, xattr_inum);
-	if (inode) {
-		clear_nlink(inode);
-		iput(inode);
-	}
 }
 
 static int ubifs_xattr_remove(struct inode *host, const char *name)

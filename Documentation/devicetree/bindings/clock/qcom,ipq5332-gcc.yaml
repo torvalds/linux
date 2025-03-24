@@ -4,37 +4,66 @@
 $id: http://devicetree.org/schemas/clock/qcom,ipq5332-gcc.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Qualcomm Global Clock & Reset Controller on IPQ5332
+title: Qualcomm Global Clock & Reset Controller on IPQ5332 and IPQ5424
 
 maintainers:
   - Bjorn Andersson <andersson@kernel.org>
 
 description: |
   Qualcomm global clock control module provides the clocks, resets and power
-  domains on IPQ5332.
+  domains on IPQ5332 and IPQ5424.
 
-  See also:: include/dt-bindings/clock/qcom,gcc-ipq5332.h
-
-allOf:
-  - $ref: qcom,gcc.yaml#
+  See also:
+    include/dt-bindings/clock/qcom,gcc-ipq5332.h
+    include/dt-bindings/clock/qcom,gcc-ipq5424.h
 
 properties:
   compatible:
-    const: qcom,ipq5332-gcc
+    enum:
+      - qcom,ipq5332-gcc
+      - qcom,ipq5424-gcc
 
   clocks:
+    minItems: 5
     items:
       - description: Board XO clock source
       - description: Sleep clock source
       - description: PCIE 2lane PHY pipe clock source
       - description: PCIE 2lane x1 PHY pipe clock source (For second lane)
       - description: USB PCIE wrapper pipe clock source
+      - description: PCIE 2-lane PHY2 pipe clock source
+      - description: PCIE 2-lane PHY3 pipe clock source
 
   '#power-domain-cells': false
+  '#interconnect-cells':
+    const: 1
 
 required:
   - compatible
   - clocks
+
+allOf:
+  - $ref: qcom,gcc.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,ipq5332-gcc
+    then:
+      properties:
+        clocks:
+          maxItems: 5
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,ipq5424-gcc
+    then:
+      properties:
+        clocks:
+          minItems: 7
+          maxItems: 7
 
 unevaluatedProperties: false
 

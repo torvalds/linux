@@ -7,17 +7,17 @@
 ssize_t cpu_show_spectre_v1(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "Mitigation: __user pointer sanitization\n");
+	return sysfs_emit(buf, "Mitigation: __user pointer sanitization\n");
 }
 
 ssize_t cpu_show_spectre_v2(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	if (test_facility(156))
-		return sprintf(buf, "Mitigation: etokens\n");
+		return sysfs_emit(buf, "Mitigation: etokens\n");
 	if (nospec_uses_trampoline())
-		return sprintf(buf, "Mitigation: execute trampolines\n");
+		return sysfs_emit(buf, "Mitigation: execute trampolines\n");
 	if (nobp_enabled())
-		return sprintf(buf, "Mitigation: limited branch prediction\n");
-	return sprintf(buf, "Vulnerable\n");
+		return sysfs_emit(buf, "Mitigation: limited branch prediction\n");
+	return sysfs_emit(buf, "Vulnerable\n");
 }

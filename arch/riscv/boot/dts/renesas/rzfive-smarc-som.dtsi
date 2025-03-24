@@ -6,3 +6,7 @@
  */
 
 #include <arm64/renesas/rzg2ul-smarc-som.dtsi>
+
+&sbc {
+	status = "disabled";
+};

@@ -7,7 +7,7 @@
 #include <kunit/test.h>
 #include "../ieee80211_i.h"
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static void mle_defrag(struct kunit *test)
 {

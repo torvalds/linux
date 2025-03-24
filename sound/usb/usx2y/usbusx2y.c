@@ -151,6 +151,12 @@ static int snd_usx2y_card_used[SNDRV_CARDS];
 static void snd_usx2y_card_private_free(struct snd_card *card);
 static void usx2y_unlinkseq(struct snd_usx2y_async_seq *s);
 
+#ifdef USX2Y_NRPACKS_VARIABLE
+int nrpacks = USX2Y_NRPACKS; /* number of packets per urb */
+module_param(nrpacks, int, 0444);
+MODULE_PARM_DESC(nrpacks, "Number of packets per URB.");
+#endif
+
 /*
  * pipe 4 is used for switching the lamps, setting samplerate, volumes ....
  */
@@ -163,7 +169,7 @@ static void i_usx2y_out04_int(struct urb *urb)
 
 		for (i = 0; i < 10 && usx2y->as04.urb[i] != urb; i++)
 			;
-		snd_printdd("%s urb %i status=%i\n", __func__, i, urb->status);
+		dev_dbg(&urb->dev->dev, "%s urb %i status=%i\n", __func__, i, urb->status);
 	}
 #endif
 }
@@ -179,11 +185,10 @@ static void i_usx2y_in04_int(struct urb *urb)
 	usx2y->in04_int_calls++;
 
 	if (urb->status) {
-		snd_printdd("Interrupt Pipe 4 came back with status=%i\n", urb->status);
+		dev_dbg(&urb->dev->dev, "Interrupt Pipe 4 came back with status=%i\n", urb->status);
 		return;
 	}
 
-	//	printk("%i:0x%02X ", 8, (int)((unsigned char*)usx2y->in04_buf)[8]); Master volume shows 0 here if fader is at max during boot ?!?
 	if (us428ctls) {
 		diff = -1;
 		if (us428ctls->ctl_snapshot_last == -2) {
@@ -239,7 +244,7 @@ static void i_usx2y_in04_int(struct urb *urb)
 	}
 
 	if (err)
-		snd_printk(KERN_ERR "in04_int() usb_submit_urb err=%i\n", err);
+		dev_err(&urb->dev->dev, "in04_int() usb_submit_urb err=%i\n", err);
 
 	urb->dev = usx2y->dev;
 	usb_submit_urb(urb, GFP_ATOMIC);
@@ -423,7 +428,7 @@ static void snd_usx2y_disconnect(struct usb_interface *intf)
 	}
 	if (usx2y->us428ctls_sharedmem)
 		wake_up(&usx2y->us428ctls_wait_queue_head);
-	snd_card_free(card);
+	snd_card_free_when_closed(card);
 }
 
 static int snd_usx2y_probe(struct usb_interface *intf,
@@ -432,6 +437,11 @@ static int snd_usx2y_probe(struct usb_interface *intf,
 	struct usb_device *device = interface_to_usbdev(intf);
 	struct snd_card *card;
 	int err;
+
+#ifdef USX2Y_NRPACKS_VARIABLE
+	if (nrpacks < 0 || nrpacks > USX2Y_NRPACKS_MAX)
+		return -EINVAL;
+#endif
 
 	if (le16_to_cpu(device->descriptor.idVendor) != 0x1604 ||
 	    (le16_to_cpu(device->descriptor.idProduct) != USB_ID_US122 &&

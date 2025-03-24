@@ -158,6 +158,13 @@ static void _setup_mixer_ops(struct dpu_hw_lm_ops *ops,
 	ops->collect_misr = dpu_hw_lm_collect_misr;
 }
 
+/**
+ * dpu_hw_lm_init() - Initializes the mixer hw driver object.
+ * should be called once before accessing every mixer.
+ * @dev:  Corresponding device for devres management
+ * @cfg:  mixer catalog entry for which driver object is required
+ * @addr: mapped register io address of MDP
+ */
 struct dpu_hw_mixer *dpu_hw_lm_init(struct drm_device *dev,
 				    const struct dpu_lm_cfg *cfg,
 				    void __iomem *addr)

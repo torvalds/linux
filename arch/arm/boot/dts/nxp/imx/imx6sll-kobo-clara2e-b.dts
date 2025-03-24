@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: (GPL-2.0)
+/*
+ * Device tree for the Kobo Clara 2E rev B ebook reader
+ *
+ * Name on mainboard is: 37NB-E60K2M+4B0
+ * Serials start with: E60K2M (a number also seen in
+ * vendor kernel sources)
+ *
+ * Copyright 2024 Andreas Kemnade
+ */
+
+/dts-v1/;
+
+#include "imx6sll-kobo-clara2e-common.dtsi"
+
+/ {
+	model = "Kobo Clara 2E";
+	compatible = "kobo,clara2e-b", "kobo,clara2e", "fsl,imx6sll";
+};
+
+&i2c2 {
+	/* EPD PMIC JD9930 at 0x18 */
+};

@@ -305,19 +305,16 @@ static int idio_24_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct regmap_irq_chip_data *chip_data;
 
 	err = pcim_enable_device(pdev);
-	if (err) {
-		dev_err(dev, "Failed to enable PCI device (%d)\n", err);
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "Failed to enable PCI device\n");
 
-	err = pcim_iomap_regions(pdev, BIT(pci_plx_bar_index) | BIT(pci_bar_index), name);
-	if (err) {
-		dev_err(dev, "Unable to map PCI I/O addresses (%d)\n", err);
-		return err;
-	}
+	pex8311_regs = pcim_iomap_region(pdev, pci_plx_bar_index, "pex8311");
+	if (IS_ERR(pex8311_regs))
+		return dev_err_probe(dev, PTR_ERR(pex8311_regs), "Unable to map PEX 8311 I/O addresses\n");
 
-	pex8311_regs = pcim_iomap_table(pdev)[pci_plx_bar_index];
-	idio_24_regs = pcim_iomap_table(pdev)[pci_bar_index];
+	idio_24_regs = pcim_iomap_region(pdev, pci_bar_index, name);
+	if (IS_ERR(idio_24_regs))
+		return dev_err_probe(dev, PTR_ERR(idio_24_regs), "Unable to map PCIe-IDIO-24 I/O addresses\n");
 
 	intcsr_map = devm_regmap_init_mmio(dev, pex8311_regs, &pex8311_intcsr_regmap_config);
 	if (IS_ERR(intcsr_map))

@@ -49,7 +49,7 @@ static const char *const bench_usage[] = {
 
 static atomic_t event_count;
 
-static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
+static int process_synthesized_event(const struct perf_tool *tool __maybe_unused,
 				     union perf_event *event __maybe_unused,
 				     struct perf_sample *sample __maybe_unused,
 				     struct machine *machine __maybe_unused)

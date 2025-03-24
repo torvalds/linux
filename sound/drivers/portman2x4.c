@@ -385,9 +385,8 @@ static void portman_flush_input(struct portman *pm, unsigned char port)
 		command = RXDATA1;
 		break;
 	default:
-		snd_printk(KERN_WARNING
-			   "portman_flush_input() Won't flush port %i\n",
-			   port);
+		dev_warn(pm->card->dev, "%s Won't flush port %i\n",
+			 __func__, port);
 		return;
 	}
 
@@ -712,7 +711,7 @@ static int snd_portman_probe(struct platform_device *pdev)
 	err = snd_card_new(&pdev->dev, index[dev], id[dev], THIS_MODULE,
 			   0, &card);
 	if (err < 0) {
-		snd_printd("Cannot create card\n");
+		dev_dbg(&pdev->dev, "Cannot create card\n");
 		return err;
 	}
 	strcpy(card->driver, DRIVER_NAME);
@@ -726,21 +725,21 @@ static int snd_portman_probe(struct platform_device *pdev)
 					    &portman_cb,   /* callbacks */
 					    pdev->id);	   /* device number */
 	if (pardev == NULL) {
-		snd_printd("Cannot register pardevice\n");
+		dev_dbg(card->dev, "Cannot register pardevice\n");
 		err = -EIO;
 		goto __err;
 	}
 
 	/* claim parport */
 	if (parport_claim(pardev)) {
-		snd_printd("Cannot claim parport 0x%lx\n", pardev->port->base);
+		dev_dbg(card->dev, "Cannot claim parport 0x%lx\n", pardev->port->base);
 		err = -EIO;
 		goto free_pardev;
 	}
 
 	err = portman_create(card, pardev, &pm);
 	if (err < 0) {
-		snd_printd("Cannot create main component\n");
+		dev_dbg(card->dev, "Cannot create main component\n");
 		goto release_pardev;
 	}
 	card->private_data = pm;
@@ -754,7 +753,7 @@ static int snd_portman_probe(struct platform_device *pdev)
 	
 	err = snd_portman_rawmidi_create(card);
 	if (err < 0) {
-		snd_printd("Creating Rawmidi component failed\n");
+		dev_dbg(card->dev, "Creating Rawmidi component failed\n");
 		goto __err;
 	}
 
@@ -768,11 +767,11 @@ static int snd_portman_probe(struct platform_device *pdev)
 	/* At this point card will be usable */
 	err = snd_card_register(card);
 	if (err < 0) {
-		snd_printd("Cannot register card\n");
+		dev_dbg(card->dev, "Cannot register card\n");
 		goto __err;
 	}
 
-	snd_printk(KERN_INFO "Portman 2x4 on 0x%lx\n", p->base);
+	dev_info(card->dev, "Portman 2x4 on 0x%lx\n", p->base);
 	return 0;
 
 release_pardev:
@@ -795,7 +794,7 @@ static void snd_portman_remove(struct platform_device *pdev)
 
 static struct platform_driver snd_portman_driver = {
 	.probe  = snd_portman_probe,
-	.remove_new = snd_portman_remove,
+	.remove = snd_portman_remove,
 	.driver = {
 		.name = PLATFORM_DRIVER,
 	}

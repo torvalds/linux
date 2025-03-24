@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/hwmon/pmbus/mps,mp2975.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MPS MP2975 Synchronous Buck Regulator
+
+maintainers:
+  - Naresh Solanki <naresh.solanki@9elements.com>
+
+description:
+  The MPS MP2971, MP2973 & MP2975 is a multi-phase voltage regulator
+  designed for use in high-performance computing and server
+  applications. It supports I2C/PMBus for control and monitoring.
+
+properties:
+  compatible:
+    enum:
+      - mps,mp2971
+      - mps,mp2973
+      - mps,mp2975
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  regulators:
+    type: object
+    description:
+      List of regulators provided by this controller.
+
+    patternProperties:
+      "^vout[0-1]$":
+        $ref: /schemas/regulator/regulator.yaml#
+        type: object
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        regulator@58 {
+            compatible = "mps,mp2973";
+            reg = <0x58>;
+
+            interrupt-parent = <&smb_pex_cpu1_event>;
+            interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+
+            regulators {
+                vout0 {
+                    regulator-name = "pvccin_cpu1";
+                    regulator-enable-ramp-delay = <200>;
+                };
+                vout1 {
+                    regulator-name = "pvccfa_ehv_fivra_cpu1";
+                    regulator-enable-ramp-delay = <200>;
+                };
+            };
+        };
+    };
+

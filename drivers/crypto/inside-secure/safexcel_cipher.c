@@ -5,7 +5,7 @@
  * Antoine Tenart <antoine.tenart@free-electrons.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>

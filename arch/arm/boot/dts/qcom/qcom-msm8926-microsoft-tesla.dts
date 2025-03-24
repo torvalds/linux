@@ -13,6 +13,9 @@
 /* This device has touchscreen on i2c1 instead */
 /delete-node/ &touchscreen;
 
+/* The magnetometer used on this device is currently unknown */
+/delete-node/ &magnetometer;
+
 / {
 	model = "Nokia Lumia 830";
 	compatible = "microsoft,tesla", "qcom,msm8926", "qcom,msm8226";

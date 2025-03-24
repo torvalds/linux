@@ -106,7 +106,7 @@ static struct platform_driver bvme6000_scsi_driver = {
 		.name		= "bvme6000-scsi",
 	},
 	.probe		= bvme6000_probe,
-	.remove_new	= bvme6000_device_remove,
+	.remove		= bvme6000_device_remove,
 };
 
 static int __init bvme6000_scsi_init(void)

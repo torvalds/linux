@@ -137,7 +137,7 @@ TEST_GROUP=""
 #shellcheck disable=SC2317
 cleanup()
 {
-	rm -f "$cin_disconnect" "$cout_disconnect"
+	rm -f "$cin_disconnect"
 	rm -f "$cin" "$cout"
 	rm -f "$sin" "$sout"
 	rm -f "$capout"
@@ -155,7 +155,6 @@ cin=$(mktemp)
 cout=$(mktemp)
 capout=$(mktemp)
 cin_disconnect="$cin".disconnect
-cout_disconnect="$cout".disconnect
 trap cleanup EXIT
 
 mptcp_lib_ns_init ns1 ns2 ns3 ns4
@@ -259,6 +258,15 @@ check_mptcp_disabled()
 	mptcp_lib_ns_init disabled_ns
 
 	print_larger_title "New MPTCP socket can be blocked via sysctl"
+
+	# mainly to cover more code
+	if ! ip netns exec ${disabled_ns} sysctl net.mptcp >/dev/null; then
+		mptcp_lib_pr_fail "not able to list net.mptcp sysctl knobs"
+		mptcp_lib_result_fail "not able to list net.mptcp sysctl knobs"
+		ret=${KSFT_FAIL}
+		return 1
+	fi
+
 	# net.mptcp.enabled should be enabled by default
 	if [ "$(ip netns exec ${disabled_ns} sysctl net.mptcp.enabled | awk '{ print $3 }')" -ne 1 ]; then
 		mptcp_lib_pr_fail "net.mptcp.enabled sysctl is not 1 by default"
@@ -345,9 +353,11 @@ do_transfer()
 
 	local addr_port
 	addr_port=$(printf "%s:%d" ${connect_addr} ${port})
-	local result_msg
-	result_msg="$(printf "%.3s %-5s -> %.3s (%-20s) %-5s" ${connector_ns} ${cl_proto} ${listener_ns} ${addr_port} ${srv_proto})"
-	mptcp_lib_print_title "${result_msg}"
+	local pretty_title
+	pretty_title="$(printf "%.3s %-5s -> %.3s (%-20s) %-5s" ${connector_ns} ${cl_proto} ${listener_ns} ${addr_port} ${srv_proto})"
+	mptcp_lib_print_title "${pretty_title}"
+
+	local tap_title="${connector_ns:0:3} ${cl_proto} -> ${listener_ns:0:3} (${addr_port}) ${srv_proto}"
 
 	if $capture; then
 		local capuser
@@ -431,20 +441,15 @@ do_transfer()
 
 	local duration
 	duration=$((stop-start))
-	result_msg+=" # time=${duration}ms"
 	printf "(duration %05sms) " "${duration}"
 	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
 		mptcp_lib_pr_fail "client exit code $retc, server $rets"
-		echo -e "\nnetns ${listener_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${listener_ns} ss -Menita 1>&2 -o "sport = :$port"
-		cat /tmp/${listener_ns}.out
-		echo -e "\nnetns ${connector_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${connector_ns} ss -Menita 1>&2 -o "dport = :$port"
-		[ ${listener_ns} != ${connector_ns} ] && cat /tmp/${connector_ns}.out
+		mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}" \
+			"/tmp/${listener_ns}.out" "/tmp/${connector_ns}.out"
 
 		echo
 		cat "$capout"
-		mptcp_lib_result_fail "${TEST_GROUP}: ${result_msg}"
+		mptcp_lib_result_fail "${TEST_GROUP}: ${tap_title}"
 		return 1
 	fi
 
@@ -544,12 +549,12 @@ do_transfer()
 
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ]; then
 		mptcp_lib_pr_ok "${extra:1}"
-		mptcp_lib_result_pass "${TEST_GROUP}: ${result_msg}"
+		mptcp_lib_result_pass "${TEST_GROUP}: ${tap_title}"
 	else
 		if [ -n "${extra}" ]; then
 			mptcp_lib_print_warn "${extra:1}"
 		fi
-		mptcp_lib_result_fail "${TEST_GROUP}: ${result_msg}"
+		mptcp_lib_result_fail "${TEST_GROUP}: ${tap_title}"
 	fi
 
 	cat "$capout"
@@ -577,7 +582,7 @@ make_file()
 	mptcp_lib_make_file $name 1024 $ksize
 	dd if=/dev/urandom conv=notrunc of="$name" oflag=append bs=1 count=$rem 2> /dev/null
 
-	echo "Created $name (size $(du -b "$name")) containing data sent by $who"
+	echo "Created $name (size $(stat -c "%s" "$name") B) containing data sent by $who"
 }
 
 run_tests_lo()
@@ -847,6 +852,8 @@ stop_if_error()
 
 make_file "$cin" "client"
 make_file "$sin" "server"
+
+mptcp_lib_subtests_last_ts_reset
 
 check_mptcp_disabled
 

@@ -141,7 +141,6 @@
 #define BMI323_STEP_SC1_REG			0x10
 #define BMI323_STEP_SC1_WTRMRK_MSK		GENMASK(9, 0)
 #define BMI323_STEP_SC1_RST_CNT_MSK		BIT(10)
-#define BMI323_STEP_SC1_REG			0x10
 #define BMI323_STEP_LEN				2
 
 /* Tap gesture config registers */
@@ -205,5 +204,6 @@
 struct device;
 int bmi323_core_probe(struct device *dev);
 extern const struct regmap_config bmi323_regmap_config;
+extern const struct dev_pm_ops bmi323_core_pm_ops;
 
 #endif

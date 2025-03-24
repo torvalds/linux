@@ -173,7 +173,7 @@
 						      "rxtx1", "rxtx2",
 						      "rxtx3", "rxtx4",
 						      "rxtx5", "rxtx6",
-						      "rxtx7", "dma";
+						      "rxtx7", "spba";
 					status = "disabled";
 				};
 
@@ -358,7 +358,7 @@
 			};
 
 			gpt1: timer@2098000 {
-				compatible = "fsl,imx6sl-gpt";
+				compatible = "fsl,imx6sl-gpt", "fsl,imx6dl-gpt";
 				reg = <0x02098000 0x4000>;
 				interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6SLL_CLK_GPT_BUS>,
@@ -507,12 +507,9 @@
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				reg_3p0: regulator-3p0@20c8120 {
+				reg_3p0: regulator-3p0 {
 					compatible = "fsl,anatop-regulator";
-					reg = <0x20c8120>;
 					regulator-name = "vdd3p0";
 					regulator-min-microvolt = <2625000>;
 					regulator-max-microvolt = <3400000>;
@@ -525,7 +522,7 @@
 					anatop-enable-bit = <0>;
 				};
 
-				tempmon: temperature-sensor {
+				tempmon: tempmon {
 					compatible = "fsl,imx6sll-tempmon", "fsl,imx6sx-tempmon";
 					interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 					interrupt-parent = <&gpc>;
@@ -533,6 +530,7 @@
 					nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
 					nvmem-cell-names = "calib", "temp_grade";
 					clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
+					#thermal-sensor-cells = <0>;
 				};
 			};
 
@@ -601,6 +599,18 @@
 				#interrupt-cells = <3>;
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 				interrupt-parent = <&intc>;
+				clocks = <&clks IMX6SLL_CLK_IPG>;
+				clock-names = "ipg";
+
+				pgc {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					power-domain@0 {
+						reg = <0>;
+						#power-domain-cells = <0>;
+					};
+				};
 			};
 
 			iomuxc: pinctrl@20e0000 {

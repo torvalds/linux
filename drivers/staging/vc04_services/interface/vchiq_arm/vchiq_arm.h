@@ -155,7 +155,8 @@ static inline int vchiq_register_chrdev(struct device *parent) { return 0; }
 
 extern int
 service_callback(struct vchiq_instance *vchiq_instance, enum vchiq_reason reason,
-		 struct vchiq_header *header, unsigned int handle, void *bulk_userdata);
+		 struct vchiq_header *header, unsigned int handle,
+		 void *cb_data, void __user *cb_userdata);
 
 extern void
 free_bulk_waiter(struct vchiq_instance *instance);

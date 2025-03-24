@@ -86,14 +86,14 @@ static int funnel_enable(struct coresight_device *csdev,
 	bool first_enable = false;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (atomic_read(&in->dest_refcnt) == 0) {
+	if (in->dest_refcnt == 0) {
 		if (drvdata->base)
 			rc = dynamic_funnel_enable_hw(drvdata, in->dest_port);
 		if (!rc)
 			first_enable = true;
 	}
 	if (!rc)
-		atomic_inc(&in->dest_refcnt);
+		in->dest_refcnt++;
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	if (first_enable)
@@ -130,7 +130,7 @@ static void funnel_disable(struct coresight_device *csdev,
 	bool last_disable = false;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (atomic_dec_return(&in->dest_refcnt) == 0) {
+	if (--in->dest_refcnt == 0) {
 		if (drvdata->base)
 			dynamic_funnel_disable_hw(drvdata, in->dest_port);
 		last_disable = true;
@@ -377,7 +377,7 @@ MODULE_DEVICE_TABLE(acpi, funnel_acpi_ids);
 
 static struct platform_driver funnel_driver = {
 	.probe		= funnel_platform_probe,
-	.remove_new	= funnel_platform_remove,
+	.remove		= funnel_platform_remove,
 	.driver		= {
 		.name   = "coresight-funnel",
 		/* THIS_MODULE is taken care of by platform_driver_register() */

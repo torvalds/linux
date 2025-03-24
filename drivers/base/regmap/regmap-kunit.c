@@ -22,6 +22,7 @@ struct regmap_test_param {
 	enum regmap_endian val_endian;
 
 	unsigned int from_reg;
+	bool fast_io;
 };
 
 static void get_changed_bytes(void *orig, void *new, size_t size)
@@ -80,41 +81,52 @@ static const char *regmap_endian_name(enum regmap_endian endian)
 
 static void param_to_desc(const struct regmap_test_param *param, char *desc)
 {
-	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s-%s @%#x",
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s-%s%s @%#x",
 		 regcache_type_name(param->cache),
 		 regmap_endian_name(param->val_endian),
+		 param->fast_io ? " fast I/O" : "",
 		 param->from_reg);
 }
 
 static const struct regmap_test_param regcache_types_list[] = {
 	{ .cache = REGCACHE_NONE },
+	{ .cache = REGCACHE_NONE, .fast_io = true },
 	{ .cache = REGCACHE_FLAT },
+	{ .cache = REGCACHE_FLAT, .fast_io = true },
 	{ .cache = REGCACHE_RBTREE },
+	{ .cache = REGCACHE_RBTREE, .fast_io = true },
 	{ .cache = REGCACHE_MAPLE },
+	{ .cache = REGCACHE_MAPLE, .fast_io = true },
 };
 
 KUNIT_ARRAY_PARAM(regcache_types, regcache_types_list, param_to_desc);
 
 static const struct regmap_test_param real_cache_types_only_list[] = {
 	{ .cache = REGCACHE_FLAT },
+	{ .cache = REGCACHE_FLAT, .fast_io = true },
 	{ .cache = REGCACHE_RBTREE },
+	{ .cache = REGCACHE_RBTREE, .fast_io = true },
 	{ .cache = REGCACHE_MAPLE },
+	{ .cache = REGCACHE_MAPLE, .fast_io = true },
 };
 
 KUNIT_ARRAY_PARAM(real_cache_types_only, real_cache_types_only_list, param_to_desc);
 
 static const struct regmap_test_param real_cache_types_list[] = {
 	{ .cache = REGCACHE_FLAT,   .from_reg = 0 },
+	{ .cache = REGCACHE_FLAT,   .from_reg = 0, .fast_io = true },
 	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2001 },
 	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2002 },
 	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2003 },
 	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2004 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0, .fast_io = true },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2001 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2002 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2003 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2004 },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0, .fast_io = true },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2001 },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2002 },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2003 },
@@ -125,11 +137,13 @@ KUNIT_ARRAY_PARAM(real_cache_types, real_cache_types_list, param_to_desc);
 
 static const struct regmap_test_param sparse_cache_types_list[] = {
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0, .fast_io = true },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2001 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2002 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2003 },
 	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2004 },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0, .fast_io = true },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2001 },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2002 },
 	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2003 },
@@ -151,8 +165,7 @@ static struct regmap *gen_regmap(struct kunit *test,
 	struct reg_default *defaults;
 
 	config->cache_type = param->cache;
-	config->disable_locking = config->cache_type == REGCACHE_RBTREE ||
-					config->cache_type == REGCACHE_MAPLE;
+	config->fast_io = param->fast_io;
 
 	if (config->max_register == 0) {
 		config->max_register = param->from_reg;
@@ -1486,6 +1499,48 @@ static void cache_present(struct kunit *test)
 		KUNIT_ASSERT_TRUE(test, regcache_reg_cached(map, param->from_reg + i));
 }
 
+static void cache_write_zero(struct kunit *test)
+{
+	const struct regmap_test_param *param = test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val;
+	int i;
+
+	config = test_regmap_config;
+
+	map = gen_regmap(test, &config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		data->read[param->from_reg + i] = false;
+
+	/* No defaults so no registers cached. */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_ASSERT_FALSE(test, regcache_reg_cached(map, param->from_reg + i));
+
+	/* We didn't trigger any reads */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_ASSERT_FALSE(test, data->read[param->from_reg + i]);
+
+	/* Write a zero value */
+	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, 1, 0));
+
+	/* Read that zero value back */
+	KUNIT_EXPECT_EQ(test, 0, regmap_read(map, 1, &val));
+	KUNIT_EXPECT_EQ(test, 0, val);
+
+	/* From the cache? */
+	KUNIT_ASSERT_TRUE(test, regcache_reg_cached(map, 1));
+
+	/* Try to throw it away */
+	KUNIT_EXPECT_EQ(test, 0, regcache_drop_region(map, 1, 1));
+	KUNIT_ASSERT_FALSE(test, regcache_reg_cached(map, 1));
+}
+
 /* Check that caching the window register works with sync */
 static void cache_range_window_reg(struct kunit *test)
 {
@@ -1999,6 +2054,7 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(cache_drop_all_and_sync_no_defaults, sparse_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_drop_all_and_sync_has_defaults, sparse_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_present, sparse_cache_types_gen_params),
+	KUNIT_CASE_PARAM(cache_write_zero, sparse_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_range_window_reg, real_cache_types_only_gen_params),
 
 	KUNIT_CASE_PARAM(raw_read_defaults_single, raw_test_types_gen_params),

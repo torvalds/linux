@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
+#include <linux/string_choices.h>
 
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
@@ -217,7 +218,7 @@ static void mv_otg_start_periphrals(struct mv_otg *mvotg, int on)
 	if (!otg->gadget)
 		return;
 
-	dev_info(mvotg->phy.dev, "gadget %s\n", on ? "on" : "off");
+	dev_info(mvotg->phy.dev, "gadget %s\n", str_on_off(on));
 
 	if (on)
 		usb_gadget_vbus_connect(otg->gadget);
@@ -867,7 +868,7 @@ static int mv_otg_resume(struct platform_device *pdev)
 
 static struct platform_driver mv_otg_driver = {
 	.probe = mv_otg_probe,
-	.remove_new = mv_otg_remove,
+	.remove = mv_otg_remove,
 	.driver = {
 		   .name = driver_name,
 		   .dev_groups = mv_otg_groups,

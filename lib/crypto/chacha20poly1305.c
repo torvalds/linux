@@ -13,7 +13,7 @@
 #include <crypto/poly1305.h>
 #include <crypto/scatterwalk.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/mm.h>

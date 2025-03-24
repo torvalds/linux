@@ -26,7 +26,7 @@
 
 #define NR_CS553X_CONTROLLERS	4
 
-#define MSR_DIVIL_GLD_CAP	0x51400000	/* DIVIL capabilitiies */
+#define MSR_DIVIL_GLD_CAP	0x51400000	/* DIVIL capabilities */
 #define CAP_CS5535		0x2df000ULL
 #define CAP_CS5536		0x5df500ULL
 

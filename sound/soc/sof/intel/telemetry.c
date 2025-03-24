@@ -93,4 +93,4 @@ free_block:
 free_telemetry_data:
 	kfree(telemetry_data);
 }
-EXPORT_SYMBOL_NS(sof_ipc4_intel_dump_telemetry_state, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(sof_ipc4_intel_dump_telemetry_state, "SND_SOC_SOF_INTEL_HDA_COMMON");

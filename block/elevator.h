@@ -71,7 +71,7 @@ struct elevator_type
 
 	size_t icq_size;	/* see iocontext.h */
 	size_t icq_align;	/* ditto */
-	struct elv_fs_entry *elevator_attrs;
+	const struct elv_fs_entry *elevator_attrs;
 	const char *elevator_name;
 	const char *elevator_alias;
 	struct module *elevator_owner;
@@ -148,6 +148,8 @@ extern void elv_unregister(struct elevator_type *);
  * io scheduler sysfs switching
  */
 ssize_t elv_iosched_show(struct gendisk *disk, char *page);
+void elv_iosched_load_module(struct gendisk *disk, const char *page,
+		size_t count);
 ssize_t elv_iosched_store(struct gendisk *disk, const char *page, size_t count);
 
 extern bool elv_bio_merge_ok(struct request *, struct bio *);

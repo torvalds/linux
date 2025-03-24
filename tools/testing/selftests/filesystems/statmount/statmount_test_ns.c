@@ -319,8 +319,11 @@ static void test_listmount_ns(void)
 		 * Tell our parent how many mounts we have, and then wait for it
 		 * to tell us we're done.
 		 */
-		write(child_ready_pipe[1], &nr_mounts, sizeof(nr_mounts));
-		read(parent_ready_pipe[0], &cval, sizeof(cval));
+		if (write(child_ready_pipe[1], &nr_mounts, sizeof(nr_mounts)) !=
+					sizeof(nr_mounts))
+			ret = NSID_ERROR;
+		if (read(parent_ready_pipe[0], &cval, sizeof(cval)) != sizeof(cval))
+			ret = NSID_ERROR;
 		exit(NSID_PASS);
 	}
 

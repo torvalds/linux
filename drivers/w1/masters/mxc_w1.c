@@ -172,7 +172,7 @@ static struct platform_driver mxc_w1_driver = {
 		.of_match_table = mxc_w1_dt_ids,
 	},
 	.probe = mxc_w1_probe,
-	.remove_new = mxc_w1_remove,
+	.remove = mxc_w1_remove,
 };
 module_platform_driver(mxc_w1_driver);
 

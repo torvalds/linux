@@ -44,6 +44,19 @@ struct fbnic_fw_cap {
 	u8	link_fec;
 };
 
+struct fbnic_fw_completion {
+	u32 msg_type;
+	struct completion done;
+	struct kref ref_count;
+	int result;
+	union {
+		struct {
+			s32 millivolts;
+			s32 millidegrees;
+		} tsene;
+	} u;
+};
+
 void fbnic_mbx_init(struct fbnic_dev *fbd);
 void fbnic_mbx_clean(struct fbnic_dev *fbd);
 void fbnic_mbx_poll(struct fbnic_dev *fbd);
@@ -52,11 +65,17 @@ void fbnic_mbx_flush_tx(struct fbnic_dev *fbd);
 int fbnic_fw_xmit_ownership_msg(struct fbnic_dev *fbd, bool take_ownership);
 int fbnic_fw_init_heartbeat(struct fbnic_dev *fbd, bool poll);
 void fbnic_fw_check_heartbeat(struct fbnic_dev *fbd);
+int fbnic_fw_xmit_tsene_read_msg(struct fbnic_dev *fbd,
+				 struct fbnic_fw_completion *cmpl_data);
+void fbnic_fw_init_cmpl(struct fbnic_fw_completion *cmpl_data,
+			u32 msg_type);
+void fbnic_fw_clear_compl(struct fbnic_dev *fbd);
+void fbnic_fw_put_cmpl(struct fbnic_fw_completion *cmpl_data);
 
-#define fbnic_mk_full_fw_ver_str(_rev_id, _delim, _commit, _str)	\
+#define fbnic_mk_full_fw_ver_str(_rev_id, _delim, _commit, _str, _str_sz) \
 do {									\
 	const u32 __rev_id = _rev_id;					\
-	snprintf(_str, sizeof(_str), "%02lu.%02lu.%02lu-%03lu%s%s",	\
+	snprintf(_str, _str_sz, "%02lu.%02lu.%02lu-%03lu%s%s",	\
 		 FIELD_GET(FBNIC_FW_CAP_RESP_VERSION_MAJOR, __rev_id),	\
 		 FIELD_GET(FBNIC_FW_CAP_RESP_VERSION_MINOR, __rev_id),	\
 		 FIELD_GET(FBNIC_FW_CAP_RESP_VERSION_PATCH, __rev_id),	\
@@ -65,7 +84,7 @@ do {									\
 } while (0)
 
 #define fbnic_mk_fw_ver_str(_rev_id, _str) \
-	fbnic_mk_full_fw_ver_str(_rev_id, "", "", _str)
+	fbnic_mk_full_fw_ver_str(_rev_id, "", "", _str, sizeof(_str))
 
 #define FW_HEARTBEAT_PERIOD		(10 * HZ)
 
@@ -76,6 +95,8 @@ enum {
 	FBNIC_TLV_MSG_ID_OWNERSHIP_RESP			= 0x13,
 	FBNIC_TLV_MSG_ID_HEARTBEAT_REQ			= 0x14,
 	FBNIC_TLV_MSG_ID_HEARTBEAT_RESP			= 0x15,
+	FBNIC_TLV_MSG_ID_TSENE_READ_REQ			= 0x3C,
+	FBNIC_TLV_MSG_ID_TSENE_READ_RESP		= 0x3D,
 };
 
 #define FBNIC_FW_CAP_RESP_VERSION_MAJOR		CSR_GENMASK(31, 24)
@@ -115,6 +136,13 @@ enum {
 	FBNIC_FW_LINK_FEC_NONE			= 1,
 	FBNIC_FW_LINK_FEC_RS			= 2,
 	FBNIC_FW_LINK_FEC_BASER			= 3,
+};
+
+enum {
+	FBNIC_TSENE_THERM			= 0x0,
+	FBNIC_TSENE_VOLT			= 0x1,
+	FBNIC_TSENE_ERROR			= 0x2,
+	FBNIC_TSENE_MSG_MAX
 };
 
 enum {

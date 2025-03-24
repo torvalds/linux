@@ -16,6 +16,7 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,sar2130p-adsp-pas
       - qcom,sm8350-adsp-pas
       - qcom,sm8350-cdsp-pas
       - qcom,sm8350-slpi-pas
@@ -61,6 +62,7 @@ allOf:
       properties:
         compatible:
           enum:
+            - qcom,sar2130p-adsp-pas
             - qcom,sm8350-adsp-pas
             - qcom,sm8350-cdsp-pas
             - qcom,sm8350-slpi-pas
@@ -101,6 +103,7 @@ allOf:
       properties:
         compatible:
           enum:
+            - qcom,sar2130p-adsp-pas
             - qcom,sm8350-adsp-pas
             - qcom,sm8350-slpi-pas
             - qcom,sm8450-adsp-pas

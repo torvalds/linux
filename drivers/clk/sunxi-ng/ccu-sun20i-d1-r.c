@@ -91,7 +91,7 @@ static struct clk_hw_onecell_data sun20i_d1_r_hw_clks = {
 	},
 };
 
-static struct ccu_reset_map sun20i_d1_r_ccu_resets[] = {
+static const struct ccu_reset_map sun20i_d1_r_ccu_resets[] = {
 	[RST_BUS_R_TIMER]	= { 0x11c, BIT(16) },
 	[RST_BUS_R_TWD]		= { 0x12c, BIT(16) },
 	[RST_BUS_R_PPU]		= { 0x1ac, BIT(16) },
@@ -137,6 +137,6 @@ static struct platform_driver sun20i_d1_r_ccu_driver = {
 };
 module_platform_driver(sun20i_d1_r_ccu_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner D1/R528/T113 PRCM CCU");
 MODULE_LICENSE("GPL");

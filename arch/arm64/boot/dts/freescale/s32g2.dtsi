@@ -114,6 +114,209 @@
 		#size-cells = <1>;
 		ranges = <0 0 0 0x80000000>;
 
+		pinctrl: pinctrl@4009c240 {
+			compatible = "nxp,s32g2-siul2-pinctrl";
+				/* MSCR0-MSCR101 registers on siul2_0 */
+			reg = <0x4009c240 0x198>,
+				/* MSCR112-MSCR122 registers on siul2_1 */
+			      <0x44010400 0x2c>,
+				/* MSCR144-MSCR190 registers on siul2_1 */
+			      <0x44010480 0xbc>,
+				/* IMCR0-IMCR83 registers on siul2_0 */
+			      <0x4009ca40 0x150>,
+				/* IMCR119-IMCR397 registers on siul2_1 */
+			      <0x44010c1c 0x45c>,
+				/* IMCR430-IMCR495 registers on siul2_1 */
+			      <0x440110f8 0x108>;
+
+			jtag_pins: jtag-pins {
+				jtag-grp0 {
+					pinmux = <0x0>;
+					input-enable;
+					bias-pull-up;
+					slew-rate = <166>;
+				};
+
+				jtag-grp1 {
+					pinmux = <0x11>;
+					slew-rate = <166>;
+				};
+
+				jtag-grp2 {
+					pinmux = <0x40>;
+					input-enable;
+					bias-pull-down;
+					slew-rate = <166>;
+				};
+
+				jtag-grp3 {
+					pinmux = <0x23c0>,
+						 <0x23d0>,
+						 <0x2320>;
+				};
+
+				jtag-grp4 {
+					pinmux = <0x51>;
+					input-enable;
+					bias-pull-up;
+					slew-rate = <166>;
+				};
+			};
+
+			pinctrl_usdhc0: usdhc0grp-pins {
+				usdhc0-grp0 {
+					pinmux = <0x2e1>,
+						 <0x381>;
+					output-enable;
+					bias-pull-down;
+					slew-rate = <150>;
+				};
+
+				usdhc0-grp1 {
+					pinmux = <0x2f1>,
+						 <0x301>,
+						 <0x311>,
+						 <0x321>,
+						 <0x331>,
+						 <0x341>,
+						 <0x351>,
+						 <0x361>,
+						 <0x371>;
+					output-enable;
+					input-enable;
+					bias-pull-up;
+					slew-rate = <150>;
+				};
+
+				usdhc0-grp2 {
+					pinmux = <0x391>;
+					output-enable;
+					slew-rate = <150>;
+				};
+
+				usdhc0-grp3 {
+					pinmux = <0x3a0>;
+					input-enable;
+					slew-rate = <150>;
+				};
+
+				usdhc0-grp4 {
+					pinmux = <0x2032>,
+						 <0x2042>,
+						 <0x2052>,
+						 <0x2062>,
+						 <0x2072>,
+						 <0x2082>,
+						 <0x2092>,
+						 <0x20a2>,
+						 <0x20b2>,
+						 <0x20c2>;
+				};
+			};
+
+			pinctrl_usdhc0_100mhz: usdhc0-100mhzgrp-pins {
+				usdhc0-100mhz-grp0 {
+					pinmux = <0x2e1>,
+						 <0x381>;
+					output-enable;
+					bias-pull-down;
+					slew-rate = <150>;
+				};
+
+				usdhc0-100mhz-grp1 {
+					pinmux = <0x2f1>,
+						 <0x301>,
+						 <0x311>,
+						 <0x321>,
+						 <0x331>,
+						 <0x341>,
+						 <0x351>,
+						 <0x361>,
+						 <0x371>;
+					output-enable;
+					input-enable;
+					bias-pull-up;
+					slew-rate = <150>;
+				};
+
+				usdhc0-100mhz-grp2 {
+					pinmux = <0x391>;
+					output-enable;
+					slew-rate = <150>;
+				};
+
+				usdhc0-100mhz-grp3 {
+					pinmux = <0x3a0>;
+					input-enable;
+					slew-rate = <150>;
+				};
+
+				usdhc0-100mhz-grp4 {
+					pinmux = <0x2032>,
+						 <0x2042>,
+						 <0x2052>,
+						 <0x2062>,
+						 <0x2072>,
+						 <0x2082>,
+						 <0x2092>,
+						 <0x20a2>,
+						 <0x20b2>,
+						 <0x20c2>;
+				};
+			};
+
+			pinctrl_usdhc0_200mhz: usdhc0-200mhzgrp-pins {
+				usdhc0-200mhz-grp0 {
+					pinmux = <0x2e1>,
+						 <0x381>;
+					output-enable;
+					bias-pull-down;
+					slew-rate = <208>;
+				};
+
+				usdhc0-200mhz-grp1 {
+					pinmux = <0x2f1>,
+						 <0x301>,
+						 <0x311>,
+						 <0x321>,
+						 <0x331>,
+						 <0x341>,
+						 <0x351>,
+						 <0x361>,
+						 <0x371>;
+					output-enable;
+					input-enable;
+					bias-pull-up;
+					slew-rate = <208>;
+				};
+
+				usdhc0-200mhz-grp2 {
+					pinmux = <0x391>;
+					output-enable;
+					slew-rate = <208>;
+				};
+
+				usdhc0-200mhz-grp3 {
+					pinmux = <0x3a0>;
+					input-enable;
+					slew-rate = <208>;
+				};
+
+				usdhc0-200mhz-grp4 {
+					pinmux = <0x2032>,
+						 <0x2042>,
+						 <0x2052>,
+						 <0x2062>,
+						 <0x2072>,
+						 <0x2082>,
+						 <0x2092>,
+						 <0x20a2>,
+						 <0x20b2>,
+						 <0x20c2>;
+				};
+			};
+		};
+
 		uart0: serial@401c8000 {
 			compatible = "nxp,s32g2-linflexuart",
 				     "fsl,s32v234-linflexuart";

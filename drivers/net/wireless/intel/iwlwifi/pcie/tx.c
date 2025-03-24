@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2003-2014, 2018-2021, 2023-2024 Intel Corporation
+ * Copyright (C) 2003-2014, 2018-2021, 2023-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1449,7 +1449,9 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		spin_unlock_irqrestore(&txq->lock, flags);
 
 		IWL_ERR(trans, "No space in command queue\n");
-		iwl_op_mode_cmd_queue_full(trans->op_mode);
+		iwl_op_mode_nic_error(trans->op_mode,
+				      IWL_ERR_TYPE_CMD_QUEUE_FULL);
+		iwl_trans_schedule_reset(trans, IWL_ERR_TYPE_CMD_QUEUE_FULL);
 		idx = -ENOSPC;
 		goto free_dup_buf;
 	}
@@ -1814,23 +1816,31 @@ out:
 /**
  * iwl_pcie_get_sgt_tb_phys - Find TB address in mapped SG list
  * @sgt: scatter gather table
- * @addr: Virtual address
+ * @offset: Offset into the mapped memory (i.e. SKB payload data)
+ * @len: Length of the area
  *
- * Find the entry that includes the address for the given address and return
- * correct physical address for the TB entry.
+ * Find the DMA address that corresponds to the SKB payload data at the
+ * position given by @offset.
  *
  * Returns: Address for TB entry
  */
-dma_addr_t iwl_pcie_get_sgt_tb_phys(struct sg_table *sgt, void *addr)
+dma_addr_t iwl_pcie_get_sgt_tb_phys(struct sg_table *sgt, unsigned int offset,
+				    unsigned int len)
 {
 	struct scatterlist *sg;
+	unsigned int sg_offset = 0;
 	int i;
 
+	/*
+	 * Search the mapped DMA areas in the SG for the area that contains the
+	 * data at offset with the given length.
+	 */
 	for_each_sgtable_dma_sg(sgt, sg, i) {
-		if (addr >= sg_virt(sg) &&
-		    (u8 *)addr < (u8 *)sg_virt(sg) + sg_dma_len(sg))
-			return sg_dma_address(sg) +
-			       ((unsigned long)addr - (unsigned long)sg_virt(sg));
+		if (offset >= sg_offset &&
+		    offset + len <= sg_offset + sg_dma_len(sg))
+			return sg_dma_address(sg) + offset - sg_offset;
+
+		sg_offset += sg_dma_len(sg);
 	}
 
 	WARN_ON_ONCE(1);
@@ -1845,6 +1855,7 @@ dma_addr_t iwl_pcie_get_sgt_tb_phys(struct sg_table *sgt, void *addr)
  * @cmd_meta: command meta to store the scatter list information for unmapping
  * @hdr: output argument for TSO headers
  * @hdr_room: requested length for TSO headers
+ * @offset: offset into the data from which mapping should start
  *
  * Allocate space for a scatter gather list and TSO headers and map the SKB
  * using the scatter gather list. The SKB is unmapped again when the page is
@@ -1854,9 +1865,12 @@ dma_addr_t iwl_pcie_get_sgt_tb_phys(struct sg_table *sgt, void *addr)
  */
 struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
 				   struct iwl_cmd_meta *cmd_meta,
-				   u8 **hdr, unsigned int hdr_room)
+				   u8 **hdr, unsigned int hdr_room,
+				   unsigned int offset)
 {
 	struct sg_table *sgt;
+	unsigned int n_segments = skb_shinfo(skb)->nr_frags + 1;
+	int orig_nents;
 
 	if (WARN_ON_ONCE(skb_has_frag_list(skb)))
 		return NULL;
@@ -1864,8 +1878,7 @@ struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
 	*hdr = iwl_pcie_get_page_hdr(trans,
 				     hdr_room + __alignof__(struct sg_table) +
 				     sizeof(struct sg_table) +
-				     (skb_shinfo(skb)->nr_frags + 1) *
-				     sizeof(struct scatterlist),
+				     n_segments * sizeof(struct scatterlist),
 				     skb);
 	if (!*hdr)
 		return NULL;
@@ -1873,11 +1886,14 @@ struct sg_table *iwl_pcie_prep_tso(struct iwl_trans *trans, struct sk_buff *skb,
 	sgt = (void *)PTR_ALIGN(*hdr + hdr_room, __alignof__(struct sg_table));
 	sgt->sgl = (void *)(sgt + 1);
 
-	sg_init_table(sgt->sgl, skb_shinfo(skb)->nr_frags + 1);
+	sg_init_table(sgt->sgl, n_segments);
 
-	sgt->orig_nents = skb_to_sgvec(skb, sgt->sgl, 0, skb->len);
-	if (WARN_ON_ONCE(sgt->orig_nents <= 0))
+	/* Only map the data, not the header (it is copied to the TSO page) */
+	orig_nents = skb_to_sgvec(skb, sgt->sgl, offset, skb->len - offset);
+	if (WARN_ON_ONCE(orig_nents <= 0))
 		return NULL;
+
+	sgt->orig_nents = orig_nents;
 
 	/* And map the entire SKB */
 	if (dma_map_sgtable(trans->dev, sgt, DMA_TO_DEVICE, 0) < 0)
@@ -1900,6 +1916,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr = (void *)skb->data;
 	unsigned int snap_ip_tcp_hdrlen, ip_hdrlen, total_len, hdr_room;
 	unsigned int mss = skb_shinfo(skb)->gso_size;
+	unsigned int data_offset = 0;
 	u16 length, iv_len, amsdu_pad;
 	dma_addr_t start_hdr_phys;
 	u8 *start_hdr, *pos_hdr;
@@ -1926,7 +1943,8 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		(3 + snap_ip_tcp_hdrlen + sizeof(struct ethhdr)) + iv_len;
 
 	/* Our device supports 9 segments at most, it will fit in 1 page */
-	sgt = iwl_pcie_prep_tso(trans, skb, out_meta, &start_hdr, hdr_room);
+	sgt = iwl_pcie_prep_tso(trans, skb, out_meta, &start_hdr, hdr_room,
+				snap_ip_tcp_hdrlen + hdr_len + iv_len);
 	if (!sgt)
 		return -ENOMEM;
 
@@ -2000,7 +2018,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 						  data_left);
 			dma_addr_t tb_phys;
 
-			tb_phys = iwl_pcie_get_sgt_tb_phys(sgt, tso.data);
+			tb_phys = iwl_pcie_get_sgt_tb_phys(sgt, data_offset, size);
 			/* Not a real mapping error, use direct comparison */
 			if (unlikely(tb_phys == DMA_MAPPING_ERROR))
 				return -EINVAL;
@@ -2011,6 +2029,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 						tb_phys, size);
 
 			data_left -= size;
+			data_offset += size;
 			tso_build_data(skb, &tso, size);
 		}
 	}
@@ -2338,6 +2357,10 @@ void iwl_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	txq_read_ptr = txq->read_ptr;
 	txq_write_ptr = txq->write_ptr;
 	spin_unlock(&txq->lock);
+
+	/* There is nothing to do if we are flushing an empty queue */
+	if (is_flush && txq_write_ptr == txq_read_ptr)
+		goto out;
 
 	read_ptr = iwl_txq_get_cmd_index(txq, txq_read_ptr);
 

@@ -164,7 +164,7 @@ static void __init percpu_setup_exception_stacks(unsigned int cpu)
 	}
 }
 #else
-static inline void percpu_setup_exception_stacks(unsigned int cpu)
+static void __init percpu_setup_exception_stacks(unsigned int cpu)
 {
 	struct cpu_entry_area *cea = get_cpu_entry_area(cpu);
 

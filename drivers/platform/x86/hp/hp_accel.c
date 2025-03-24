@@ -267,7 +267,7 @@ static struct delayed_led_classdev hpled_led = {
 };
 
 static bool hp_accel_i8042_filter(unsigned char data, unsigned char str,
-				  struct serio *port)
+				  struct serio *port, void *context)
 {
 	static bool extended;
 
@@ -326,7 +326,7 @@ static int lis3lv02d_probe(struct platform_device *device)
 	/* filter to remove HPQ6000 accelerometer data
 	 * from keyboard bus stream */
 	if (strstr(dev_name(&device->dev), "HPQ6000"))
-		i8042_install_filter(hp_accel_i8042_filter);
+		i8042_install_filter(hp_accel_i8042_filter, NULL);
 
 	INIT_WORK(&hpled_led.work, delayed_set_status_worker);
 	ret = led_classdev_register(NULL, &hpled_led.led_classdev);
@@ -372,7 +372,7 @@ static SIMPLE_DEV_PM_OPS(hp_accel_pm, lis3lv02d_suspend, lis3lv02d_resume);
 /* For the HP MDPS aka 3D Driveguard */
 static struct platform_driver lis3lv02d_driver = {
 	.probe	= lis3lv02d_probe,
-	.remove_new = lis3lv02d_remove,
+	.remove	= lis3lv02d_remove,
 	.driver	= {
 		.name	= "hp_accel",
 		.pm	= &hp_accel_pm,

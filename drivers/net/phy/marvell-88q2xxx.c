@@ -95,10 +95,30 @@
 
 #define MDIO_MMD_PCS_MV_TDR_OFF_CUTOFF			65246
 
+struct mv88q2xxx_priv {
+	bool enable_temp;
+};
+
 struct mmd_val {
 	int devad;
 	u32 regnum;
 	u16 val;
+};
+
+static const struct mmd_val mv88q2110_init_seq0[] = {
+	{ MDIO_MMD_PCS, 0xffe4, 0x07b5 },
+	{ MDIO_MMD_PCS, 0xffe4, 0x06b6 },
+};
+
+static const struct mmd_val mv88q2110_init_seq1[] = {
+	{ MDIO_MMD_PCS, 0xffde, 0x402f },
+	{ MDIO_MMD_PCS, 0xfe34, 0x4040 },
+	{ MDIO_MMD_PCS, 0xfe2a, 0x3c1d },
+	{ MDIO_MMD_PCS, 0xfe34, 0x0040 },
+	{ MDIO_MMD_AN, 0x8032, 0x0064 },
+	{ MDIO_MMD_AN, 0x8031, 0x0a01 },
+	{ MDIO_MMD_AN, 0x8031, 0x0c01 },
+	{ MDIO_MMD_PCS, 0xffdb, 0x0010 },
 };
 
 static const struct mmd_val mv88q222x_revb0_init_seq0[] = {
@@ -174,20 +194,54 @@ static const struct mmd_val mv88q222x_revb1_revb2_init_seq1[] = {
 	{ MDIO_MMD_PCS, 0xfe11, 0x1105 },
 };
 
+static int mv88q2xxx_write_mmd_vals(struct phy_device *phydev,
+				    const struct mmd_val *vals, size_t len)
+{
+	int ret;
+
+	for (; len; vals++, len--) {
+		ret = phy_write_mmd(phydev, vals->devad, vals->regnum,
+				    vals->val);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int mv88q2xxx_soft_reset(struct phy_device *phydev)
 {
 	int ret;
 	int val;
 
-	ret = phy_write_mmd(phydev, MDIO_MMD_PCS,
-			    MDIO_PCS_1000BT1_CTRL, MDIO_PCS_1000BT1_CTRL_RESET);
+	/* Enable RESET of DCL */
+	if (phydev->autoneg == AUTONEG_ENABLE || phydev->speed == SPEED_1000) {
+		ret = phy_write_mmd(phydev, MDIO_MMD_PCS, 0xfe1b, 0x48);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_1000BT1_CTRL,
+			    MDIO_PCS_1000BT1_CTRL_RESET);
 	if (ret < 0)
 		return ret;
 
-	return phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
-					 MDIO_PCS_1000BT1_CTRL, val,
-					 !(val & MDIO_PCS_1000BT1_CTRL_RESET),
-					 50000, 600000, true);
+	ret = phy_read_mmd_poll_timeout(phydev, MDIO_MMD_PCS,
+					MDIO_PCS_1000BT1_CTRL, val,
+					!(val & MDIO_PCS_1000BT1_CTRL_RESET),
+					50000, 600000, true);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, 0xffe4, 0xc);
+	if (ret < 0)
+		return ret;
+
+	/* Disable RESET of DCL */
+	if (phydev->autoneg == AUTONEG_ENABLE || phydev->speed == SPEED_1000)
+		return phy_write_mmd(phydev, MDIO_MMD_PCS, 0xfe1b, 0x58);
+
+	return 0;
 }
 
 static int mv88q2xxx_read_link_gbit(struct phy_device *phydev)
@@ -389,15 +443,6 @@ static int mv88q2xxx_get_features(struct phy_device *phydev)
 	ret = genphy_c45_pma_baset1_read_abilities(phydev);
 	if (ret)
 		return ret;
-
-	/* The PHY signalizes it supports autonegotiation. Unfortunately, so
-	 * far it was not possible to get a link even when following the init
-	 * sequence provided by Marvell. Disable it for now until a proper
-	 * workaround is found or a new PHY revision is released.
-	 */
-	if (phydev->drv->phy_id == MARVELL_PHY_ID_88Q2110)
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-				   phydev->supported);
 
 	return 0;
 }
@@ -669,17 +714,12 @@ static const struct hwmon_chip_info mv88q2xxx_hwmon_chip_info = {
 
 static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
 {
+	struct mv88q2xxx_priv *priv = phydev->priv;
 	struct device *dev = &phydev->mdio.dev;
 	struct device *hwmon;
 	char *hwmon_name;
-	int ret;
 
-	/* Enable temperature sense */
-	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_TEMP_SENSOR2,
-			     MDIO_MMD_PCS_MV_TEMP_SENSOR2_DIS_MASK, 0);
-	if (ret < 0)
-		return ret;
-
+	priv->enable_temp = true;
 	hwmon_name = devm_hwmon_sanitize_name(dev, dev_name(dev));
 	if (IS_ERR(hwmon_name))
 		return PTR_ERR(hwmon_name);
@@ -702,63 +742,48 @@ static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
 
 static int mv88q2xxx_probe(struct phy_device *phydev)
 {
+	struct mv88q2xxx_priv *priv;
+
+	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	phydev->priv = priv;
+
 	return mv88q2xxx_hwmon_probe(phydev);
 }
 
-static int mv88q222x_soft_reset(struct phy_device *phydev)
+static int mv88q2110_config_init(struct phy_device *phydev)
 {
 	int ret;
 
-	/* Enable RESET of DCL */
-	if (phydev->autoneg == AUTONEG_ENABLE || phydev->speed == SPEED_1000) {
-		ret = phy_write_mmd(phydev, MDIO_MMD_PCS, 0xfe1b, 0x48);
-		if (ret < 0)
-			return ret;
-	}
-
-	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_1000BT1_CTRL,
-			    MDIO_PCS_1000BT1_CTRL_RESET);
+	ret = mv88q2xxx_write_mmd_vals(phydev, mv88q2110_init_seq0,
+				       ARRAY_SIZE(mv88q2110_init_seq0));
 	if (ret < 0)
 		return ret;
 
-	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, 0xffe4, 0xc);
+	usleep_range(5000, 10000);
+
+	ret = mv88q2xxx_write_mmd_vals(phydev, mv88q2110_init_seq1,
+				       ARRAY_SIZE(mv88q2110_init_seq1));
 	if (ret < 0)
 		return ret;
 
-	/* Disable RESET of DCL */
-	if (phydev->autoneg == AUTONEG_ENABLE || phydev->speed == SPEED_1000)
-		return phy_write_mmd(phydev, MDIO_MMD_PCS, 0xfe1b, 0x58);
-
-	return 0;
-}
-
-static int mv88q222x_write_mmd_vals(struct phy_device *phydev,
-				    const struct mmd_val *vals, size_t len)
-{
-	int ret;
-
-	for (; len; vals++, len--) {
-		ret = phy_write_mmd(phydev, vals->devad, vals->regnum,
-				    vals->val);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
+	return mv88q2xxx_config_init(phydev);
 }
 
 static int mv88q222x_revb0_config_init(struct phy_device *phydev)
 {
 	int ret;
 
-	ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb0_init_seq0,
+	ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb0_init_seq0,
 				       ARRAY_SIZE(mv88q222x_revb0_init_seq0));
 	if (ret < 0)
 		return ret;
 
 	usleep_range(5000, 10000);
 
-	ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb0_init_seq1,
+	ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb0_init_seq1,
 				       ARRAY_SIZE(mv88q222x_revb0_init_seq1));
 	if (ret < 0)
 		return ret;
@@ -772,17 +797,17 @@ static int mv88q222x_revb1_revb2_config_init(struct phy_device *phydev)
 	int ret;
 
 	if (is_rev_b1)
-		ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb1_init_seq0,
+		ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb1_init_seq0,
 					       ARRAY_SIZE(mv88q222x_revb1_init_seq0));
 	else
-		ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb2_init_seq0,
+		ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb2_init_seq0,
 					       ARRAY_SIZE(mv88q222x_revb2_init_seq0));
 	if (ret < 0)
 		return ret;
 
 	usleep_range(3000, 5000);
 
-	ret = mv88q222x_write_mmd_vals(phydev, mv88q222x_revb1_revb2_init_seq1,
+	ret = mv88q2xxx_write_mmd_vals(phydev, mv88q222x_revb1_revb2_init_seq1,
 				       ARRAY_SIZE(mv88q222x_revb1_revb2_init_seq1));
 	if (ret < 0)
 		return ret;
@@ -792,6 +817,18 @@ static int mv88q222x_revb1_revb2_config_init(struct phy_device *phydev)
 
 static int mv88q222x_config_init(struct phy_device *phydev)
 {
+	struct mv88q2xxx_priv *priv = phydev->priv;
+	int ret;
+
+	/* Enable temperature sense */
+	if (priv->enable_temp) {
+		ret = phy_modify_mmd(phydev, MDIO_MMD_PCS,
+				     MDIO_MMD_PCS_MV_TEMP_SENSOR2,
+				     MDIO_MMD_PCS_MV_TEMP_SENSOR2_DIS_MASK, 0);
+		if (ret < 0)
+			return ret;
+	}
+
 	if (phydev->c45_ids.device_ids[MDIO_MMD_PMAPMD] == PHY_ID_88Q2220_REVB0)
 		return mv88q222x_revb0_config_init(phydev);
 	else
@@ -888,7 +925,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.name			= "mv88q2110",
 		.get_features		= mv88q2xxx_get_features,
 		.config_aneg		= mv88q2xxx_config_aneg,
-		.config_init		= mv88q2xxx_config_init,
+		.config_init		= mv88q2110_config_init,
 		.read_status		= mv88q2xxx_read_status,
 		.soft_reset		= mv88q2xxx_soft_reset,
 		.set_loopback		= genphy_c45_loopback,
@@ -906,7 +943,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.aneg_done		= genphy_c45_aneg_done,
 		.config_init		= mv88q222x_config_init,
 		.read_status		= mv88q2xxx_read_status,
-		.soft_reset		= mv88q222x_soft_reset,
+		.soft_reset		= mv88q2xxx_soft_reset,
 		.config_intr		= mv88q2xxx_config_intr,
 		.handle_interrupt	= mv88q2xxx_handle_interrupt,
 		.set_loopback		= genphy_c45_loopback,
@@ -921,7 +958,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 
 module_phy_driver(mv88q2xxx_driver);
 
-static struct mdio_device_id __maybe_unused mv88q2xxx_tbl[] = {
+static const struct mdio_device_id __maybe_unused mv88q2xxx_tbl[] = {
 	{ MARVELL_PHY_ID_88Q2110, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88Q2220, MARVELL_PHY_ID_MASK },
 	{ /*sentinel*/ }

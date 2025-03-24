@@ -297,7 +297,7 @@ static struct platform_driver seiko_panel_platform_driver = {
 		.of_match_table = platform_of_match,
 	},
 	.probe = seiko_panel_platform_probe,
-	.remove_new = seiko_panel_remove,
+	.remove = seiko_panel_remove,
 };
 module_platform_driver(seiko_panel_platform_driver);
 

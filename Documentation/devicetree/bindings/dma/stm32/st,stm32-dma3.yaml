@@ -96,6 +96,12 @@ properties:
                including the update of the LLI if any
           0x3: at channel level, the transfer complete event is generated at the
                end of the last LLI
+        -bit 16: Prevent packing/unpacking mode
+          0x0: pack/unpack enabled when source data width/burst != destination data width/burst
+          0x1: memory data width/burst forced to peripheral data width/burst to prevent pack/unpack
+        -bit 17: Prevent additional transfers due to linked-list refactoring
+          0x0: don't prevent additional transfers for optimal performance
+          0x1: prevent additional transfer to accommodate user constraints such as single transfer
 
 required:
   - compatible

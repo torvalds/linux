@@ -1108,7 +1108,7 @@ static struct clk_hw_onecell_data sun9i_a80_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun9i_a80_ccu_resets[] = {
+static const struct ccu_reset_map sun9i_a80_ccu_resets[] = {
 	/* AHB0 reset controls */
 	[RST_BUS_FD]		= { 0x5a0, BIT(0) },
 	[RST_BUS_VE]		= { 0x5a0, BIT(1) },
@@ -1248,6 +1248,6 @@ static struct platform_driver sun9i_a80_ccu_driver = {
 };
 module_platform_driver(sun9i_a80_ccu_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner A80 CCU");
 MODULE_LICENSE("GPL");

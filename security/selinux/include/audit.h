@@ -16,45 +16,46 @@
 #include <linux/types.h>
 
 /**
- *	selinux_audit_rule_init - alloc/init an selinux audit rule structure.
- *	@field: the field this rule refers to
- *	@op: the operator the rule uses
- *	@rulestr: the text "target" of the rule
- *	@rule: pointer to the new rule structure returned via this
- *	@gfp: GFP flag used for kmalloc
+ * selinux_audit_rule_init - alloc/init an selinux audit rule structure.
+ * @field: the field this rule refers to
+ * @op: the operator the rule uses
+ * @rulestr: the text "target" of the rule
+ * @rule: pointer to the new rule structure returned via this
+ * @gfp: GFP flag used for kmalloc
  *
- *	Returns 0 if successful, -errno if not.  On success, the rule structure
- *	will be allocated internally.  The caller must free this structure with
- *	selinux_audit_rule_free() after use.
+ * Returns 0 if successful, -errno if not.  On success, the rule structure
+ * will be allocated internally.  The caller must free this structure with
+ * selinux_audit_rule_free() after use.
  */
 int selinux_audit_rule_init(u32 field, u32 op, char *rulestr, void **rule,
 			    gfp_t gfp);
 
 /**
- *	selinux_audit_rule_free - free an selinux audit rule structure.
- *	@rule: pointer to the audit rule to be freed
+ * selinux_audit_rule_free - free an selinux audit rule structure.
+ * @rule: pointer to the audit rule to be freed
  *
- *	This will free all memory associated with the given rule.
- *	If @rule is NULL, no operation is performed.
+ * This will free all memory associated with the given rule.
+ * If @rule is NULL, no operation is performed.
  */
 void selinux_audit_rule_free(void *rule);
 
 /**
- *	selinux_audit_rule_match - determine if a context ID matches a rule.
- *	@sid: the context ID to check
- *	@field: the field this rule refers to
- *	@op: the operator the rule uses
- *	@rule: pointer to the audit rule to check against
+ * selinux_audit_rule_match - determine if a context ID matches a rule.
+ * @prop: includes the context ID to check
+ * @field: the field this rule refers to
+ * @op: the operator the rule uses
+ * @rule: pointer to the audit rule to check against
  *
- *	Returns 1 if the context id matches the rule, 0 if it does not, and
- *	-errno on failure.
+ * Returns 1 if the context id matches the rule, 0 if it does not, and
+ * -errno on failure.
  */
-int selinux_audit_rule_match(u32 sid, u32 field, u32 op, void *rule);
+int selinux_audit_rule_match(struct lsm_prop *prop, u32 field, u32 op,
+			     void *rule);
 
 /**
- *	selinux_audit_rule_known - check to see if rule contains selinux fields.
- *	@rule: rule to be checked
- *	Returns 1 if there are selinux fields specified in the rule, 0 otherwise.
+ * selinux_audit_rule_known - check to see if rule contains selinux fields.
+ * @rule: rule to be checked
+ * Returns 1 if there are selinux fields specified in the rule, 0 otherwise.
  */
 int selinux_audit_rule_known(struct audit_krule *rule);
 

@@ -39,7 +39,6 @@
 #define WARN_DEBUG(x)	do { } while (0)
 #endif
 
-
 /*
  * Module Standby and Software Reset register offets.
  *
@@ -716,7 +715,6 @@ static inline int cpg_mssr_reset_controller_register(struct cpg_mssr_priv *priv)
 }
 #endif /* !CONFIG_RESET_CONTROLLER */
 
-
 static const struct of_device_id cpg_mssr_match[] = {
 #ifdef CONFIG_CLK_R7S9210
 	{
@@ -981,7 +979,7 @@ static void __init cpg_mssr_reserved_exit(struct cpg_mssr_priv *priv)
 static int __init cpg_mssr_reserved_init(struct cpg_mssr_priv *priv,
 					 const struct cpg_mssr_info *info)
 {
-	struct device_node *soc = of_find_node_by_path("/soc");
+	struct device_node *soc __free(device_node) = of_find_node_by_path("/soc");
 	struct device_node *node;
 	uint32_t args[MAX_PHANDLE_ARGS];
 	unsigned int *ids = NULL;

@@ -19,6 +19,7 @@ properties:
   compatible:
     enum:
       - qcom,sm8450-dispcc
+      - qcom,sm8475-dispcc
 
   clocks:
     minItems: 3

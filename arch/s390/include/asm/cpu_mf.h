@@ -13,6 +13,7 @@
 #include <linux/kmsan-checks.h>
 #include <asm/asm-extable.h>
 #include <asm/facility.h>
+#include <asm/asm.h>
 
 asm(".include \"asm/cpu_mf-insn.h\"\n");
 
@@ -185,11 +186,12 @@ static inline int lcctl(u64 ctl)
 	int cc;
 
 	asm volatile (
-		"	lcctl	%1\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc) : "Q" (ctl) : "cc");
-	return cc;
+		"	lcctl	%[ctl]\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
+		: [ctl] "Q" (ctl)
+		: CC_CLOBBER);
+	return CC_TRANSFORM(cc);
 }
 
 /* Extract CPU counter */
@@ -199,12 +201,13 @@ static inline int __ecctr(u64 ctr, u64 *content)
 	int cc;
 
 	asm volatile (
-		"	ecctr	%0,%2\n"
-		"	ipm	%1\n"
-		"	srl	%1,28\n"
-		: "=d" (_content), "=d" (cc) : "d" (ctr) : "cc");
+		"	ecctr	%[_content],%[ctr]\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc), [_content] "=d" (_content)
+		: [ctr] "d" (ctr)
+		: CC_CLOBBER);
 	*content = _content;
-	return cc;
+	return CC_TRANSFORM(cc);
 }
 
 /* Extract CPU counter */
@@ -234,18 +237,17 @@ static __always_inline int stcctm(enum stcctm_ctr_set set, u64 range, u64 *dest)
 	int cc;
 
 	asm volatile (
-		"	STCCTM	%2,%3,%1\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc)
-		: "Q" (*dest), "d" (range), "i" (set)
-		: "cc", "memory");
+		"	STCCTM	%[range],%[set],%[dest]\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc)
+		: [dest] "Q" (*dest), [range] "d" (range), [set] "i" (set)
+		: CC_CLOBBER_LIST("memory"));
 	/*
 	 * If cc == 2, less than RANGE counters are stored, but it's not easy
 	 * to tell how many. Always unpoison the whole range for simplicity.
 	 */
 	kmsan_unpoison_memory(dest, range * sizeof(u64));
-	return cc;
+	return CC_TRANSFORM(cc);
 }
 
 /* Query sampling information */
@@ -265,19 +267,20 @@ static inline int qsi(struct hws_qsi_info_block *info)
 /* Load sampling controls */
 static inline int lsctl(struct hws_lsctl_request_block *req)
 {
-	int cc;
+	int cc, exception;
 
-	cc = 1;
+	exception = 1;
 	asm volatile(
-		"0:	lsctl	0(%1)\n"
-		"1:	ipm	%0\n"
-		"	srl	%0,28\n"
+		"0:	lsctl	%[req]\n"
+		"1:	lhi	%[exc],0\n"
 		"2:\n"
+		CC_IPM(cc)
 		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
-		: "+d" (cc), "+a" (req)
-		: "m" (*req)
-		: "cc", "memory");
-
-	return cc ? -EINVAL : 0;
+		: CC_OUT(cc, cc), [exc] "+d" (exception)
+		: [req] "Q" (*req)
+		: CC_CLOBBER);
+	if (exception || CC_TRANSFORM(cc))
+		return -EINVAL;
+	return 0;
 }
 #endif /* _ASM_S390_CPU_MF_H */

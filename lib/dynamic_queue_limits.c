@@ -179,7 +179,7 @@ void dql_completed(struct dql *dql, unsigned int count)
 
 	dql->adj_limit = limit + completed;
 	dql->prev_ovlimit = ovlimit;
-	dql->prev_last_obj_cnt = dql->last_obj_cnt;
+	dql->prev_last_obj_cnt = READ_ONCE(dql->last_obj_cnt);
 	dql->num_completed = completed;
 	dql->prev_num_queued = num_queued;
 

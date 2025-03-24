@@ -172,4 +172,4 @@ MODULE_AUTHOR("Johannes Thumshirn <johannes.thumshirn@men.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("IIO ADC driver for MEN 16z188 ADC Core");
 MODULE_ALIAS("mcb:16z188");
-MODULE_IMPORT_NS(MCB);
+MODULE_IMPORT_NS("MCB");

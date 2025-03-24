@@ -1253,7 +1253,7 @@ MODULE_DEVICE_TABLE(acpi, nvsw_sn2201_acpi_ids);
 
 static struct platform_driver nvsw_sn2201_driver = {
 	.probe = nvsw_sn2201_probe,
-	.remove_new = nvsw_sn2201_remove,
+	.remove = nvsw_sn2201_remove,
 	.driver = {
 		.name = "nvsw-sn2201",
 	.acpi_match_table = nvsw_sn2201_acpi_ids,

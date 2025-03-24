@@ -17,7 +17,7 @@ mlx5_core-y :=	main.o cmd.o debugfs.o fw.o eq.o uar.o pagealloc.o \
 		fs_counters.o fs_ft_pool.o rl.o lag/debugfs.o lag/lag.o dev.o events.o wq.o lib/gid.o \
 		lib/devcom.o lib/pci_vsc.o lib/dm.o lib/fs_ttc.o diag/fs_tracepoint.o \
 		diag/fw_tracer.o diag/crdump.o devlink.o diag/rsc_dump.o diag/reporter_vnic.o \
-		fw_reset.o qos.o lib/tout.o lib/aso.o wc.o
+		fw_reset.o qos.o lib/tout.o lib/aso.o wc.o fs_pool.o
 
 #
 # Netdev basic
@@ -60,6 +60,7 @@ mlx5_core-$(CONFIG_MLX5_CLS_ACT)     += en/tc/act/act.o en/tc/act/drop.o en/tc/a
 ifneq ($(CONFIG_MLX5_TC_CT),)
 	mlx5_core-y			     += en/tc_ct.o en/tc/ct_fs_dmfs.o
 	mlx5_core-$(CONFIG_MLX5_SW_STEERING) += en/tc/ct_fs_smfs.o
+	mlx5_core-$(CONFIG_MLX5_HW_STEERING) += en/tc/ct_fs_hmfs.o
 endif
 
 mlx5_core-$(CONFIG_MLX5_TC_SAMPLE)   += en/tc/sample.o
@@ -109,16 +110,52 @@ mlx5_core-$(CONFIG_MLX5_EN_TLS) += en_accel/ktls_stats.o \
 				   en_accel/fs_tcp.o en_accel/ktls.o en_accel/ktls_txrx.o \
 				   en_accel/ktls_tx.o en_accel/ktls_rx.o
 
-mlx5_core-$(CONFIG_MLX5_SW_STEERING) += steering/dr_domain.o steering/dr_table.o \
-					steering/dr_matcher.o steering/dr_rule.o \
-					steering/dr_icm_pool.o steering/dr_buddy.o \
-					steering/dr_ste.o steering/dr_send.o \
-					steering/dr_ste_v0.o steering/dr_ste_v1.o \
-					steering/dr_ste_v2.o \
-					steering/dr_cmd.o steering/dr_fw.o \
-					steering/dr_action.o steering/fs_dr.o \
-					steering/dr_definer.o steering/dr_ptrn.o \
-					steering/dr_arg.o steering/dr_dbg.o lib/smfs.o
+#
+# SW Steering
+#
+mlx5_core-$(CONFIG_MLX5_SW_STEERING) += steering/sws/dr_domain.o \
+					steering/sws/dr_table.o \
+					steering/sws/dr_matcher.o \
+					steering/sws/dr_rule.o \
+					steering/sws/dr_icm_pool.o \
+					steering/sws/dr_buddy.o \
+					steering/sws/dr_ste.o \
+					steering/sws/dr_send.o \
+					steering/sws/dr_ste_v0.o \
+					steering/sws/dr_ste_v1.o \
+					steering/sws/dr_ste_v2.o \
+					steering/sws/dr_ste_v3.o \
+					steering/sws/dr_cmd.o \
+					steering/sws/dr_fw.o \
+					steering/sws/dr_action.o \
+					steering/sws/dr_definer.o \
+					steering/sws/dr_ptrn.o \
+					steering/sws/dr_arg.o \
+					steering/sws/dr_dbg.o \
+					steering/sws/fs_dr.o \
+					lib/smfs.o
+
+#
+# HW Steering
+#
+mlx5_core-$(CONFIG_MLX5_HW_STEERING) += steering/hws/cmd.o \
+					steering/hws/context.o \
+					steering/hws/pat_arg.o \
+					steering/hws/buddy.o \
+					steering/hws/pool.o \
+					steering/hws/table.o \
+					steering/hws/action.o \
+					steering/hws/rule.o \
+					steering/hws/matcher.o \
+					steering/hws/send.o \
+					steering/hws/definer.o \
+					steering/hws/bwc.o \
+					steering/hws/debug.o \
+					steering/hws/vport.o \
+					steering/hws/bwc_complex.o \
+					steering/hws/fs_hws_pools.o \
+					steering/hws/fs_hws.o
+
 #
 # SF device
 #

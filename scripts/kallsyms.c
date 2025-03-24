@@ -5,8 +5,7 @@
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  *
- * Usage: kallsyms [--all-symbols] [--absolute-percpu]
- *                         [--lto-clang] in.map > out.S
+ * Usage: kallsyms [--all-symbols] [--absolute-percpu]  in.map > out.S
  *
  *      Table compression uses all the unused char codes on the symbols and
  *  maps these to the most used substrings (tokens). For instance, it might
@@ -27,6 +26,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+
+#include <xalloc.h>
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
@@ -62,7 +63,6 @@ static struct sym_entry **table;
 static unsigned int table_size, table_cnt;
 static int all_symbols;
 static int absolute_percpu;
-static int lto_clang;
 
 static int token_profit[0x10000];
 
@@ -73,8 +73,7 @@ static unsigned char best_table_len[256];
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: kallsyms [--all-symbols] [--absolute-percpu] "
-			"[--lto-clang] in.map > out.S\n");
+	fprintf(stderr, "Usage: kallsyms [--all-symbols] [--absolute-percpu] in.map > out.S\n");
 	exit(1);
 }
 
@@ -171,12 +170,7 @@ static struct sym_entry *read_symbol(FILE *in, char **buf, size_t *buf_len)
 	 * compressed together */
 	len++;
 
-	sym = malloc(sizeof(*sym) + len + 1);
-	if (!sym) {
-		fprintf(stderr, "kallsyms failure: "
-			"unable to allocate required amount of memory\n");
-		exit(EXIT_FAILURE);
-	}
+	sym = xmalloc(sizeof(*sym) + len + 1);
 	sym->addr = addr;
 	sym->len = len;
 	sym->sym[0] = type;
@@ -281,12 +275,7 @@ static void read_map(const char *in)
 
 		if (table_cnt >= table_size) {
 			table_size += 10000;
-			table = realloc(table, sizeof(*table) * table_size);
-			if (!table) {
-				fprintf(stderr, "out of memory\n");
-				fclose(fp);
-				exit (1);
-			}
+			table = xrealloc(table, sizeof(*table) * table_size);
 		}
 
 		table[table_cnt++] = sym;
@@ -301,15 +290,6 @@ static void output_label(const char *label)
 	printf(".globl %s\n", label);
 	printf("\tALGN\n");
 	printf("%s:\n", label);
-}
-
-/* Provide proper symbols relocatability by their '_text' relativeness. */
-static void output_address(unsigned long long addr)
-{
-	if (_text <= addr)
-		printf("\tPTR\t_text + %#llx\n", addr - _text);
-	else
-		printf("\tPTR\t_text - %#llx\n", _text - addr);
 }
 
 /* uncompress a compressed symbol. When this function is called, the best table
@@ -342,25 +322,6 @@ static int expand_symbol(const unsigned char *data, int len, char *result)
 static bool symbol_absolute(const struct sym_entry *s)
 {
 	return s->percpu_absolute;
-}
-
-static void cleanup_symbol_name(char *s)
-{
-	char *p;
-
-	/*
-	 * ASCII[.]   = 2e
-	 * ASCII[0-9] = 30,39
-	 * ASCII[A-Z] = 41,5a
-	 * ASCII[_]   = 5f
-	 * ASCII[a-z] = 61,7a
-	 *
-	 * As above, replacing the first '.' in ".llvm." with '\0' does not
-	 * affect the main sorting, but it helps us with subsorting.
-	 */
-	p = strstr(s, ".llvm.");
-	if (p)
-		*p = '\0';
 }
 
 static int compare_names(const void *a, const void *b)
@@ -413,12 +374,7 @@ static void write_src(void)
 	/* table of offset markers, that give the offset in the compressed stream
 	 * every 256 symbols */
 	markers_cnt = (table_cnt + 255) / 256;
-	markers = malloc(sizeof(*markers) * markers_cnt);
-	if (!markers) {
-		fprintf(stderr, "kallsyms failure: "
-			"unable to allocate required memory\n");
-		exit(EXIT_FAILURE);
-	}
+	markers = xmalloc(sizeof(*markers) * markers_cnt);
 
 	output_label("kallsyms_names");
 	off = 0;
@@ -499,17 +455,17 @@ static void write_src(void)
 		 */
 
 		long long offset;
-		int overflow;
+		bool overflow;
 
 		if (!absolute_percpu) {
 			offset = table[i]->addr - relative_base;
-			overflow = (offset < 0 || offset > UINT_MAX);
+			overflow = offset < 0 || offset > UINT_MAX;
 		} else if (symbol_absolute(table[i])) {
 			offset = table[i]->addr;
-			overflow = (offset < 0 || offset > INT_MAX);
+			overflow = offset < 0 || offset > INT_MAX;
 		} else {
 			offset = relative_base - table[i]->addr - 1;
-			overflow = (offset < INT_MIN || offset >= 0);
+			overflow = offset < INT_MIN || offset >= 0;
 		}
 		if (overflow) {
 			fprintf(stderr, "kallsyms failure: "
@@ -523,12 +479,12 @@ static void write_src(void)
 	printf("\n");
 
 	output_label("kallsyms_relative_base");
-	output_address(relative_base);
+	/* Provide proper symbols relocatability by their '_text' relativeness. */
+	if (_text <= relative_base)
+		printf("\tPTR\t_text + %#llx\n", relative_base - _text);
+	else
+		printf("\tPTR\t_text - %#llx\n", _text - relative_base);
 	printf("\n");
-
-	if (lto_clang)
-		for (i = 0; i < table_cnt; i++)
-			cleanup_symbol_name((char *)table[i]->sym);
 
 	sort_symbols_by_name();
 	output_label("kallsyms_seqs_of_names");
@@ -807,7 +763,6 @@ int main(int argc, char **argv)
 		static const struct option long_options[] = {
 			{"all-symbols",     no_argument, &all_symbols,     1},
 			{"absolute-percpu", no_argument, &absolute_percpu, 1},
-			{"lto-clang",       no_argument, &lto_clang,       1},
 			{},
 		};
 

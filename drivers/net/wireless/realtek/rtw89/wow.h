@@ -95,6 +95,27 @@ static inline int rtw89_wow_get_sec_hdr_len(struct rtw89_dev *rtwdev)
 }
 
 #ifdef CONFIG_PM
+static inline bool rtw89_wow_mgd_linked(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
+
+	return rtwvif_link->net_type == RTW89_NET_TYPE_INFRA;
+}
+
+static inline bool rtw89_wow_no_link(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_vif_link *rtwvif_link = rtwdev->wow.rtwvif_link;
+
+	return rtwvif_link->net_type == RTW89_NET_TYPE_NO_LINK;
+}
+
+static inline bool rtw_wow_has_mgd_features(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
+
+	return !bitmap_empty(rtw_wow->flags, RTW89_WOW_FLAG_NUM);
+}
+
 int rtw89_wow_suspend(struct rtw89_dev *rtwdev, struct cfg80211_wowlan *wowlan);
 int rtw89_wow_resume(struct rtw89_dev *rtwdev);
 void rtw89_wow_parse_akm(struct rtw89_dev *rtwdev, struct sk_buff *skb);

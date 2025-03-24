@@ -60,23 +60,18 @@ host_create()
 	local host=$1; shift
 
 	simple_if_init $dev
+	defer simple_if_fini $dev
+
 	mtu_set $dev 10000
+	defer mtu_restore $dev
 
 	vlan_create $dev 10 v$dev $(ipaddr $host 10)/28
+	defer vlan_destroy $dev 10
 	ip link set dev $dev.10 type vlan egress 0:0
 
 	vlan_create $dev 11 v$dev $(ipaddr $host 11)/28
+	defer vlan_destroy $dev 11
 	ip link set dev $dev.11 type vlan egress 0:1
-}
-
-host_destroy()
-{
-	local dev=$1; shift
-
-	vlan_destroy $dev 11
-	vlan_destroy $dev 10
-	mtu_restore $dev
-	simple_if_fini $dev
 }
 
 h1_create()
@@ -84,26 +79,17 @@ h1_create()
 	host_create $h1 1
 }
 
-h1_destroy()
-{
-	host_destroy $h1
-}
-
 h2_create()
 {
 	host_create $h2 2
 
 	tc qdisc add dev $h2 clsact
+	defer tc qdisc del dev $h2 clsact
+
 	tc filter add dev $h2 ingress pref 1010 prot 802.1q \
 	   flower $TCFLAGS vlan_id 10 action pass
 	tc filter add dev $h2 ingress pref 1011 prot 802.1q \
 	   flower $TCFLAGS vlan_id 11 action pass
-}
-
-h2_destroy()
-{
-	tc qdisc del dev $h2 clsact
-	host_destroy $h2
 }
 
 switch_create()
@@ -112,16 +98,27 @@ switch_create()
 	local vlan
 
 	ip link add dev br10 type bridge
+	defer ip link del dev br10
+
 	ip link add dev br11 type bridge
+	defer ip link del dev br11
 
 	for intf in $swp1 $swp2; do
 		ip link set dev $intf up
+		defer ip link set dev $intf down
+
 		mtu_set $intf 10000
+		defer mtu_restore $intf
 
 		for vlan in 10 11; do
 			vlan_create $intf $vlan
+			defer vlan_destroy $intf $vlan
+
 			ip link set dev $intf.$vlan master br$vlan
+			defer ip link set dev $intf.$vlan nomaster
+
 			ip link set dev $intf.$vlan up
+			defer ip link set dev $intf.$vlan down
 		done
 	done
 
@@ -130,34 +127,10 @@ switch_create()
 	done
 
 	ip link set dev br10 up
+	defer ip link set dev br10 down
+
 	ip link set dev br11 up
-}
-
-switch_destroy()
-{
-	local intf
-	local vlan
-
-	# A test may have been interrupted mid-run, with Qdisc installed. Delete
-	# it here.
-	tc qdisc del dev $swp2 root 2>/dev/null
-
-	ip link set dev br11 down
-	ip link set dev br10 down
-
-	for intf in $swp2 $swp1; do
-		for vlan in 11 10; do
-			ip link set dev $intf.$vlan down
-			ip link set dev $intf.$vlan nomaster
-			vlan_destroy $intf $vlan
-		done
-
-		mtu_restore $intf
-		ip link set dev $intf down
-	done
-
-	ip link del dev br11
-	ip link del dev br10
+	defer ip link set dev br11 down
 }
 
 setup_prepare()
@@ -177,21 +150,11 @@ setup_prepare()
 	h2_mac=$(mac_get $h2)
 
 	vrf_prepare
+	defer vrf_cleanup
 
 	h1_create
 	h2_create
 	switch_create
-}
-
-cleanup()
-{
-	pre_cleanup
-
-	switch_destroy
-	h2_destroy
-	h1_destroy
-
-	vrf_cleanup
 }
 
 ping_ipv4()
@@ -207,18 +170,18 @@ tbf_get_counter()
 	tc_rule_stats_get $h2 10$vlan ingress .bytes
 }
 
-do_tbf_test()
+__tbf_test()
 {
 	local vlan=$1; shift
 	local mbit=$1; shift
 
 	start_traffic $h1.$vlan $(ipaddr 1 $vlan) $(ipaddr 2 $vlan) $h2_mac
+	defer stop_traffic $!
 	sleep 5 # Wait for the burst to dwindle
 
 	local t2=$(busywait_for_counter 1000 +1 tbf_get_counter $vlan)
 	sleep 10
 	local t3=$(tbf_get_counter $vlan)
-	stop_traffic
 
 	RET=0
 
@@ -230,4 +193,10 @@ do_tbf_test()
 	xfail_on_slow check_err $? "Expected rate $(humanize $er), got $(humanize $nr), which is $nr_pct% off. Required accuracy is +-5%."
 
 	log_test "TC $((vlan - 10)): TBF rate ${mbit}Mbit"
+}
+
+do_tbf_test()
+{
+	in_defer_scope \
+		__tbf_test "$@"
 }

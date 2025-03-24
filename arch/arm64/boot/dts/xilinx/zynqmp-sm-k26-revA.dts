@@ -90,20 +90,6 @@
 		};
 	};
 
-	ams {
-		compatible = "iio-hwmon";
-		io-channels = <&xilinx_ams 0>, <&xilinx_ams 1>, <&xilinx_ams 2>,
-			<&xilinx_ams 3>, <&xilinx_ams 4>, <&xilinx_ams 5>,
-			<&xilinx_ams 6>, <&xilinx_ams 7>, <&xilinx_ams 8>,
-			<&xilinx_ams 9>, <&xilinx_ams 10>, <&xilinx_ams 11>,
-			<&xilinx_ams 12>, <&xilinx_ams 13>, <&xilinx_ams 14>,
-			<&xilinx_ams 15>, <&xilinx_ams 16>, <&xilinx_ams 17>,
-			<&xilinx_ams 18>, <&xilinx_ams 19>, <&xilinx_ams 20>,
-			<&xilinx_ams 21>, <&xilinx_ams 22>, <&xilinx_ams 23>,
-			<&xilinx_ams 24>, <&xilinx_ams 25>, <&xilinx_ams 26>,
-			<&xilinx_ams 27>, <&xilinx_ams 28>, <&xilinx_ams 29>;
-	};
-
 	pwm-fan {
 		compatible = "pwm-fan";
 		status = "okay";
@@ -364,10 +350,6 @@
 			  "", "", "", "", "", /* 160 - 164 */
 			  "", "", "", "", "", /* 165 - 169 */
 			  "", "", "", ""; /* 170 - 173 */
-};
-
-&xilinx_ams {
-	status = "okay";
 };
 
 &ams_ps {

@@ -73,8 +73,8 @@ Once you have the patch in git, you can go ahead and cherry-pick it into
 your source tree. Don't forget to cherry-pick with ``-x`` if you want a
 written record of where the patch came from!
 
-Note that if you are submiting a patch for stable, the format is
-slightly different; the first line after the subject line needs tobe
+Note that if you are submitting a patch for stable, the format is
+slightly different; the first line after the subject line needs to be
 either::
 
     commit <upstream commit> upstream
@@ -147,7 +147,7 @@ divergence.
 It's important to always identify the commit or commits that caused the
 conflict, as otherwise you cannot be confident in the correctness of
 your resolution. As an added bonus, especially if the patch is in an
-area you're not that famliar with, the changelogs of these commits will
+area you're not that familiar with, the changelogs of these commits will
 often give you the context to understand the code and potential problems
 or pitfalls with your conflict resolution.
 
@@ -197,7 +197,7 @@ git blame
 Another way to find prerequisite commits (albeit only the most recent
 one for a given conflict) is to run ``git blame``. In this case, you
 need to run it against the parent commit of the patch you are
-cherry-picking and the file where the conflict appared, i.e.::
+cherry-picking and the file where the conflict appeared, i.e.::
 
     git blame <commit>^ -- <path>
 
@@ -553,7 +553,7 @@ Submitting backports to stable
 ==============================
 
 As the stable maintainers try to cherry-pick mainline fixes onto their
-stable kernels, they may send out emails asking for backports when when
+stable kernels, they may send out emails asking for backports when
 encountering conflicts, see e.g.
 <https://lore.kernel.org/stable/2023101528-jawed-shelving-071a@gregkh/>.
 These emails typically include the exact steps you need to cherry-pick
@@ -563,9 +563,9 @@ One thing to make sure is that your changelog conforms to the expected
 format::
 
   <original patch title>
-  
+
   [ Upstream commit <mainline rev> ]
-  
+
   <rest of the original changelog>
   [ <summary of the conflicts and their resolutions> ]
   Signed-off-by: <your name and email>

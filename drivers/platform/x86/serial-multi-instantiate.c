@@ -83,11 +83,15 @@ static int smi_get_irq(struct platform_device *pdev, struct acpi_device *adev,
 
 static void smi_devs_unregister(struct smi *smi)
 {
+#if IS_REACHABLE(CONFIG_I2C)
 	while (smi->i2c_num--)
 		i2c_unregister_device(smi->i2c_devs[smi->i2c_num]);
+#endif
 
-	while (smi->spi_num--)
-		spi_unregister_device(smi->spi_devs[smi->spi_num]);
+	if (IS_REACHABLE(CONFIG_SPI)) {
+		while (smi->spi_num--)
+			spi_unregister_device(smi->spi_devs[smi->spi_num]);
+	}
 }
 
 /**
@@ -258,9 +262,15 @@ static int smi_probe(struct platform_device *pdev)
 
 	switch (node->bus_type) {
 	case SMI_I2C:
-		return smi_i2c_probe(pdev, smi, node->instances);
+		if (IS_REACHABLE(CONFIG_I2C))
+			return smi_i2c_probe(pdev, smi, node->instances);
+
+		return -ENODEV;
 	case SMI_SPI:
-		return smi_spi_probe(pdev, smi, node->instances);
+		if (IS_REACHABLE(CONFIG_SPI))
+			return smi_spi_probe(pdev, smi, node->instances);
+
+		return -ENODEV;
 	case SMI_AUTO_DETECT:
 		/*
 		 * For backwards-compatibility with the existing nodes I2C
@@ -270,10 +280,16 @@ static int smi_probe(struct platform_device *pdev)
 		 * SpiSerialBus nodes that were previously ignored, and this
 		 * preserves that behavior.
 		 */
-		ret = smi_i2c_probe(pdev, smi, node->instances);
-		if (ret != -ENOENT)
-			return ret;
-		return smi_spi_probe(pdev, smi, node->instances);
+		if (IS_REACHABLE(CONFIG_I2C)) {
+			ret = smi_i2c_probe(pdev, smi, node->instances);
+			if (ret != -ENOENT)
+				return ret;
+		}
+
+		if (IS_REACHABLE(CONFIG_SPI))
+			return smi_spi_probe(pdev, smi, node->instances);
+
+		return -ENODEV;
 	default:
 		return -EINVAL;
 	}
@@ -368,6 +384,17 @@ static const struct smi_node cs35l57_hda = {
 	.bus_type = SMI_AUTO_DETECT,
 };
 
+static const struct smi_node tas2781_hda = {
+	.instances = {
+		{ "tas2781-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "tas2781-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "tas2781-hda", IRQ_RESOURCE_AUTO, 0 },
+		{ "tas2781-hda", IRQ_RESOURCE_AUTO, 0 },
+		{}
+	},
+	.bus_type = SMI_AUTO_DETECT,
+};
+
 /*
  * Note new device-ids must also be added to ignore_serial_bus_ids in
  * drivers/acpi/scan.c: acpi_device_enumeration_by_parent().
@@ -380,6 +407,7 @@ static const struct acpi_device_id smi_acpi_ids[] = {
 	{ "CSC3556", (unsigned long)&cs35l56_hda },
 	{ "CSC3557", (unsigned long)&cs35l57_hda },
 	{ "INT3515", (unsigned long)&int3515_data },
+	{ "TXNW2781", (unsigned long)&tas2781_hda },
 	/* Non-conforming _HID for Cirrus Logic already released */
 	{ "CLSA0100", (unsigned long)&cs35l41_hda },
 	{ "CLSA0101", (unsigned long)&cs35l41_hda },
@@ -393,7 +421,7 @@ static struct platform_driver smi_driver = {
 		.acpi_match_table = smi_acpi_ids,
 	},
 	.probe = smi_probe,
-	.remove_new = smi_remove,
+	.remove = smi_remove,
 };
 module_platform_driver(smi_driver);
 

@@ -56,7 +56,6 @@ DT_DOCS = $(patsubst $(srctree)/%,%,$(shell $(find_all_cmd)))
 override DTC_FLAGS := \
 	-Wno-avoid_unnecessary_addr_size \
 	-Wno-graph_child_address \
-	-Wno-interrupt_provider \
 	-Wno-unique_unit_address \
 	-Wunique_unit_address_if_enabled
 

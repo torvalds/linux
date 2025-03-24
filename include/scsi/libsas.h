@@ -683,8 +683,7 @@ int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 int sas_phy_enable(struct sas_phy *phy, int enable);
 extern int sas_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
 extern int sas_target_alloc(struct scsi_target *);
-int sas_device_configure(struct scsi_device *dev,
-		struct queue_limits *lim);
+int sas_sdev_configure(struct scsi_device *dev, struct queue_limits *lim);
 extern int sas_change_queue_depth(struct scsi_device *, int new_depth);
 extern int sas_bios_param(struct scsi_device *, struct block_device *,
 			  sector_t capacity, int *hsc);
@@ -703,7 +702,7 @@ int sas_eh_device_reset_handler(struct scsi_cmnd *cmd);
 int sas_eh_target_reset_handler(struct scsi_cmnd *cmd);
 
 extern void sas_target_destroy(struct scsi_target *);
-extern int sas_slave_alloc(struct scsi_device *);
+extern int sas_sdev_init(struct scsi_device *);
 extern int sas_ioctl(struct scsi_device *sdev, unsigned int cmd,
 		     void __user *arg);
 extern int sas_drain_work(struct sas_ha_struct *ha);
@@ -750,8 +749,8 @@ void sas_notify_phy_event(struct asd_sas_phy *phy, enum phy_event event,
 #endif
 
 #define LIBSAS_SHT_BASE			_LIBSAS_SHT_BASE		\
-	.device_configure		= sas_device_configure,		\
-	.slave_alloc			= sas_slave_alloc,		\
+	.sdev_configure			= sas_sdev_configure,		\
+	.sdev_init			= sas_sdev_init,		\
 
 #define LIBSAS_SHT_BASE_NO_SLAVE_INIT	_LIBSAS_SHT_BASE
 

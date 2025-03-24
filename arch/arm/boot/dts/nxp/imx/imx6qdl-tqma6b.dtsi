@@ -20,8 +20,8 @@
 		reg = <0x08>;
 	};
 
-	sensor@48 {
-		compatible = "national,lm75";
+	temperature-sensor@48 {
+		compatible = "national,lm75a";
 		reg = <0x48>;
 		vs-supply = <&reg_3p3v>;
 	};
@@ -31,5 +31,21 @@
 		reg = <0x50>;
 		pagesize = <32>;
 		vcc-supply = <&reg_3p3v>;
+	};
+};
+
+&iomuxc {
+	pinctrl_i2c3: i2c3grp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_5__I2C3_SCL 0x4001b899
+			MX6QDL_PAD_GPIO_6__I2C3_SDA 0x4001b899
+		>;
+	};
+
+	pinctrl_i2c3_recovery: i2c3recoverygrp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_5__GPIO1_IO05 0x4001b899
+			MX6QDL_PAD_GPIO_6__GPIO1_IO06 0x4001b899
+		>;
 	};
 };

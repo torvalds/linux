@@ -12,6 +12,7 @@
 #include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/device.h>
+#include <linux/intel_vsec.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -21,8 +22,6 @@
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
-
-#include "vsec.h"
 
 #define ACCESS_TYPE_BARID		2
 #define ACCESS_TYPE_LOCAL		3
@@ -399,8 +398,8 @@ free_payload:
 }
 
 static ssize_t provision_akc_write(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *attr, char *buf, loff_t off,
-				   size_t count)
+				   const struct bin_attribute *attr, char *buf,
+				   loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct sdsi_priv *priv = dev_get_drvdata(dev);
@@ -410,11 +409,11 @@ static ssize_t provision_akc_write(struct file *filp, struct kobject *kobj,
 
 	return sdsi_provision(priv, buf, count, SDSI_CMD_PROVISION_AKC);
 }
-static BIN_ATTR_WO(provision_akc, SDSI_SIZE_WRITE_MSG);
+static const BIN_ATTR_WO(provision_akc, SDSI_SIZE_WRITE_MSG);
 
 static ssize_t provision_cap_write(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *attr, char *buf, loff_t off,
-				   size_t count)
+				   const struct bin_attribute *attr, char *buf,
+				   loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct sdsi_priv *priv = dev_get_drvdata(dev);
@@ -424,7 +423,7 @@ static ssize_t provision_cap_write(struct file *filp, struct kobject *kobj,
 
 	return sdsi_provision(priv, buf, count, SDSI_CMD_PROVISION_CAP);
 }
-static BIN_ATTR_WO(provision_cap, SDSI_SIZE_WRITE_MSG);
+static const BIN_ATTR_WO(provision_cap, SDSI_SIZE_WRITE_MSG);
 
 static ssize_t
 certificate_read(u64 command, u64 control_flags, struct sdsi_priv *priv,
@@ -470,7 +469,7 @@ free_buffer:
 
 static ssize_t
 state_certificate_read(struct file *filp, struct kobject *kobj,
-		       struct bin_attribute *attr, char *buf, loff_t off,
+		       const struct bin_attribute *attr, char *buf, loff_t off,
 		       size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -478,11 +477,11 @@ state_certificate_read(struct file *filp, struct kobject *kobj,
 
 	return certificate_read(SDSI_CMD_READ_STATE, 0, priv, buf, off, count);
 }
-static BIN_ATTR_ADMIN_RO(state_certificate, SDSI_SIZE_READ_MSG);
+static const BIN_ATTR_ADMIN_RO(state_certificate, SDSI_SIZE_READ_MSG);
 
 static ssize_t
 meter_certificate_read(struct file *filp, struct kobject *kobj,
-		       struct bin_attribute *attr, char *buf, loff_t off,
+		       const struct bin_attribute *attr, char *buf, loff_t off,
 		       size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -490,11 +489,11 @@ meter_certificate_read(struct file *filp, struct kobject *kobj,
 
 	return certificate_read(SDSI_CMD_READ_METER, 0, priv, buf, off, count);
 }
-static BIN_ATTR_ADMIN_RO(meter_certificate, SDSI_SIZE_READ_MSG);
+static const BIN_ATTR_ADMIN_RO(meter_certificate, SDSI_SIZE_READ_MSG);
 
 static ssize_t
 meter_current_read(struct file *filp, struct kobject *kobj,
-		   struct bin_attribute *attr, char *buf, loff_t off,
+		   const struct bin_attribute *attr, char *buf, loff_t off,
 		   size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -503,11 +502,11 @@ meter_current_read(struct file *filp, struct kobject *kobj,
 	return certificate_read(SDSI_CMD_READ_METER, CTRL_METER_ENABLE_DRAM,
 				priv, buf, off, count);
 }
-static BIN_ATTR_ADMIN_RO(meter_current, SDSI_SIZE_READ_MSG);
+static const BIN_ATTR_ADMIN_RO(meter_current, SDSI_SIZE_READ_MSG);
 
 static ssize_t registers_read(struct file *filp, struct kobject *kobj,
-			      struct bin_attribute *attr, char *buf, loff_t off,
-			      size_t count)
+			      const struct bin_attribute *attr, char *buf,
+			      loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct sdsi_priv *priv = dev_get_drvdata(dev);
@@ -529,9 +528,9 @@ static ssize_t registers_read(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
-static BIN_ATTR_ADMIN_RO(registers, SDSI_SIZE_REGS);
+static const BIN_ATTR_ADMIN_RO(registers, SDSI_SIZE_REGS);
 
-static struct bin_attribute *sdsi_bin_attrs[] = {
+static const struct bin_attribute *const sdsi_bin_attrs[] = {
 	&bin_attr_registers,
 	&bin_attr_state_certificate,
 	&bin_attr_meter_certificate,
@@ -542,7 +541,7 @@ static struct bin_attribute *sdsi_bin_attrs[] = {
 };
 
 static umode_t
-sdsi_battr_is_visible(struct kobject *kobj, struct bin_attribute *attr, int n)
+sdsi_battr_is_visible(struct kobject *kobj, const struct bin_attribute *attr, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct sdsi_priv *priv = dev_get_drvdata(dev);
@@ -577,7 +576,7 @@ static struct attribute *sdsi_attrs[] = {
 
 static const struct attribute_group sdsi_group = {
 	.attrs = sdsi_attrs,
-	.bin_attrs = sdsi_bin_attrs,
+	.bin_attrs_new = sdsi_bin_attrs,
 	.is_bin_visible = sdsi_battr_is_visible,
 };
 __ATTRIBUTE_GROUPS(sdsi);

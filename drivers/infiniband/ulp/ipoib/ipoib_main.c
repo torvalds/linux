@@ -49,6 +49,7 @@
 #include <linux/jhash.h>
 #include <net/arp.h>
 #include <net/addrconf.h>
+#include <net/pkt_sched.h>
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
 
@@ -2145,7 +2146,7 @@ void ipoib_setup_common(struct net_device *dev)
 	dev->hard_header_len	 = IPOIB_HARD_LEN;
 	dev->addr_len		 = INFINIBAND_ALEN;
 	dev->type		 = ARPHRD_INFINIBAND;
-	dev->tx_queue_len	 = ipoib_sendq_size * 2;
+	dev->tx_queue_len	 = DEFAULT_TX_QUEUE_LEN;
 	dev->features		 = (NETIF_F_VLAN_CHALLENGED	|
 				    NETIF_F_HIGHDMA);
 	netif_keep_dst(dev);

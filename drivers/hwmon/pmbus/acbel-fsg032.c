@@ -120,4 +120,4 @@ module_i2c_driver(acbel_fsg032_driver);
 MODULE_AUTHOR("Lakshmi Yadlapati");
 MODULE_DESCRIPTION("PMBus driver for AcBel Power System power supplies");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

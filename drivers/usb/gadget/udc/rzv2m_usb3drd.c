@@ -127,7 +127,7 @@ static struct platform_driver rzv2m_usb3drd_driver = {
 		.of_match_table = rzv2m_usb3drd_of_match,
 	},
 	.probe = rzv2m_usb3drd_probe,
-	.remove_new = rzv2m_usb3drd_remove,
+	.remove = rzv2m_usb3drd_remove,
 };
 module_platform_driver(rzv2m_usb3drd_driver);
 

@@ -11,7 +11,7 @@
 #include "ivpu_ms.h"
 #include "ivpu_pm.h"
 
-#define MS_INFO_BUFFER_SIZE	  SZ_16K
+#define MS_INFO_BUFFER_SIZE	  SZ_64K
 #define MS_NUM_BUFFERS		  2
 #define MS_READ_PERIOD_MULTIPLIER 2
 #define MS_MIN_SAMPLE_PERIOD_NS   1000000

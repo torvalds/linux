@@ -4,12 +4,11 @@
 
 #include <asm/sgx.h>
 
-#include "cpuid.h"
+#include "x86.h"
 #include "kvm_cache_regs.h"
 #include "nested.h"
 #include "sgx.h"
 #include "vmx.h"
-#include "x86.h"
 
 bool __read_mostly enable_sgx = 1;
 module_param_named(sgx, enable_sgx, bool, 0444);
@@ -38,7 +37,7 @@ static int sgx_get_encls_gva(struct kvm_vcpu *vcpu, unsigned long offset,
 		fault = true;
 	} else if (likely(is_64_bit_mode(vcpu))) {
 		*gva = vmx_get_untagged_addr(vcpu, *gva, 0);
-		fault = is_noncanonical_address(*gva, vcpu);
+		fault = is_noncanonical_address(*gva, vcpu, 0);
 	} else {
 		*gva &= 0xffffffff;
 		fault = (s.unusable) ||
@@ -123,7 +122,7 @@ static int sgx_inject_fault(struct kvm_vcpu *vcpu, gva_t gva, int trapnr)
 	 * likely than a bad userspace address.
 	 */
 	if ((trapnr == PF_VECTOR || !boot_cpu_has(X86_FEATURE_SGX2)) &&
-	    guest_cpuid_has(vcpu, X86_FEATURE_SGX2)) {
+	    guest_cpu_cap_has(vcpu, X86_FEATURE_SGX2)) {
 		memset(&ex, 0, sizeof(ex));
 		ex.vector = PF_VECTOR;
 		ex.error_code = PFERR_PRESENT_MASK | PFERR_WRITE_MASK |
@@ -274,7 +273,7 @@ static int handle_encls_ecreate(struct kvm_vcpu *vcpu)
 	 * simultaneously set SGX_ATTR_PROVISIONKEY to bypass the check to
 	 * enforce restriction of access to the PROVISIONKEY.
 	 */
-	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL_ACCOUNT);
+	contents = (struct sgx_secs *)__get_free_page(GFP_KERNEL);
 	if (!contents)
 		return -ENOMEM;
 
@@ -366,7 +365,7 @@ static inline bool encls_leaf_enabled_in_guest(struct kvm_vcpu *vcpu, u32 leaf)
 		return true;
 
 	if (leaf >= EAUG && leaf <= EMODT)
-		return guest_cpuid_has(vcpu, X86_FEATURE_SGX2);
+		return guest_cpu_cap_has(vcpu, X86_FEATURE_SGX2);
 
 	return false;
 }
@@ -382,8 +381,8 @@ int handle_encls(struct kvm_vcpu *vcpu)
 {
 	u32 leaf = (u32)kvm_rax_read(vcpu);
 
-	if (!enable_sgx || !guest_cpuid_has(vcpu, X86_FEATURE_SGX) ||
-	    !guest_cpuid_has(vcpu, X86_FEATURE_SGX1)) {
+	if (!enable_sgx || !guest_cpu_cap_has(vcpu, X86_FEATURE_SGX) ||
+	    !guest_cpu_cap_has(vcpu, X86_FEATURE_SGX1)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
 	} else if (!encls_leaf_enabled_in_guest(vcpu, leaf) ||
 		   !sgx_enabled_in_guest_bios(vcpu) || !is_paging(vcpu)) {
@@ -480,15 +479,15 @@ void vmx_write_encls_bitmap(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	if (!cpu_has_vmx_encls_vmexit())
 		return;
 
-	if (guest_cpuid_has(vcpu, X86_FEATURE_SGX) &&
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_SGX) &&
 	    sgx_enabled_in_guest_bios(vcpu)) {
-		if (guest_cpuid_has(vcpu, X86_FEATURE_SGX1)) {
+		if (guest_cpu_cap_has(vcpu, X86_FEATURE_SGX1)) {
 			bitmap &= ~GENMASK_ULL(ETRACK, ECREATE);
 			if (sgx_intercept_encls_ecreate(vcpu))
 				bitmap |= (1 << ECREATE);
 		}
 
-		if (guest_cpuid_has(vcpu, X86_FEATURE_SGX2))
+		if (guest_cpu_cap_has(vcpu, X86_FEATURE_SGX2))
 			bitmap &= ~GENMASK_ULL(EMODT, EAUG);
 
 		/*

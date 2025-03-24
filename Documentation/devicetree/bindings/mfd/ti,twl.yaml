@@ -54,7 +54,7 @@ allOf:
           $ref: /schemas/iio/adc/ti,twl4030-madc.yaml
           unevaluatedProperties: false
 
-        bci:
+        charger:
           type: object
           $ref: /schemas/power/supply/twl4030-charger.yaml
           unevaluatedProperties: false
@@ -105,6 +105,11 @@ allOf:
             regulator-initial-mode: false
 
       properties:
+        charger:
+          type: object
+          properties:
+            compatible:
+              const: ti,twl6030-charger
         gpadc:
           type: object
           properties:
@@ -136,6 +141,13 @@ allOf:
             regulator-initial-mode: false
 
       properties:
+        charger:
+          type: object
+          properties:
+            compatible:
+              items:
+                - const: ti,twl6032-charger
+                - const: ti,twl6030-charger
         gpadc:
           type: object
           properties:
@@ -168,6 +180,14 @@ properties:
 
   "#clock-cells":
     const: 1
+
+  charger:
+    type: object
+    additionalProperties: true
+    properties:
+      compatible: true
+    required:
+      - compatible
 
   rtc:
     type: object
@@ -222,6 +242,14 @@ examples:
         interrupt-controller;
         #interrupt-cells = <1>;
 
+        charger {
+          compatible = "ti,twl6030-charger";
+          interrupts = <2>, <5>;
+          io-channels = <&gpadc 10>;
+          io-channel-names = "vusb";
+          monitored-battery = <&bat>;
+        };
+
         gpadc {
           compatible = "ti,twl6030-gpadc";
           interrupts = <6>;
@@ -259,7 +287,7 @@ examples:
         interrupt-controller;
         #interrupt-cells = <1>;
 
-        bci {
+        charger {
           compatible = "ti,twl4030-bci";
           interrupts = <9>, <2>;
           bci3v1-supply = <&vusb3v1>;

@@ -129,7 +129,7 @@
 			reg = <0x4c001000 0x400>;
 			st,proc-id = <0>;
 			interrupts-extended =
-				<&exti 61 1>,
+				<&exti 61 IRQ_TYPE_LEVEL_HIGH>,
 				<&intc GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "rx", "tx";
 			clocks = <&rcc IPCC>;
@@ -355,6 +355,8 @@
 			reg = <0x5a002000 0x400>;
 			clocks = <&rcc IWDG2>, <&rcc CK_LSI>;
 			clock-names = "pclk", "lsi";
+			interrupts-extended = <&exti 46 IRQ_TYPE_LEVEL_HIGH>;
+			wakeup-source;
 			status = "disabled";
 		};
 
@@ -576,6 +578,11 @@
 				access-controllers = <&etzpc 20>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				timer@5 {
 					compatible = "st,stm32h7-timer-trigger";
 					reg = <5>;
@@ -597,6 +604,11 @@
 				access-controllers = <&etzpc 21>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				timer@6 {
 					compatible = "st,stm32h7-timer-trigger";
 					reg = <6>;
@@ -615,6 +627,11 @@
 				clock-names = "int";
 				access-controllers = <&etzpc 22>;
 				status = "disabled";
+
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
 
 				pwm {
 					compatible = "st,stm32-pwm";
@@ -641,6 +658,11 @@
 				access-controllers = <&etzpc 23>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
@@ -665,6 +687,11 @@
 				clock-names = "int";
 				access-controllers = <&etzpc 24>;
 				status = "disabled";
+
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
 
 				pwm {
 					compatible = "st,stm32-pwm";
@@ -1114,6 +1141,11 @@
 				access-controllers = <&etzpc 54>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
@@ -1142,11 +1174,17 @@
 				access-controllers = <&etzpc 55>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
 					status = "disabled";
 				};
+
 				timer@15 {
 					compatible = "st,stm32h7-timer-trigger";
 					reg = <15>;
@@ -1168,6 +1206,11 @@
 				dma-names = "ch1", "up";
 				access-controllers = <&etzpc 56>;
 				status = "disabled";
+
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
 
 				pwm {
 					compatible = "st,stm32-pwm";

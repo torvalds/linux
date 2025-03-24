@@ -56,9 +56,9 @@ static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (ret)
 		return ret;
 
-	dw_dma_acpi_controller_register(chip->dw);
-
 	pci_set_drvdata(pdev, data);
+
+	dw_dma_acpi_controller_register(chip->dw);
 
 	return 0;
 }

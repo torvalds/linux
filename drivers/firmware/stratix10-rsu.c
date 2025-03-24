@@ -802,7 +802,7 @@ static void stratix10_rsu_remove(struct platform_device *pdev)
 
 static struct platform_driver stratix10_rsu_driver = {
 	.probe = stratix10_rsu_probe,
-	.remove_new = stratix10_rsu_remove,
+	.remove = stratix10_rsu_remove,
 	.driver = {
 		.name = "stratix10-rsu",
 		.dev_groups = rsu_groups,

@@ -25,7 +25,7 @@
 #include "drbd_protocol.h"
 #include "drbd_req.h"
 #include "drbd_state_change.h"
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/drbd_limits.h>
 #include <linux/kthread.h>
 

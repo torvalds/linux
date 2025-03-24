@@ -53,7 +53,7 @@
 MODULE_DESCRIPTION("Driver for In-System Design, Inc. ISD200 ASIC");
 MODULE_AUTHOR("Björn Stenberg <bjorn@haxx.se>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(USB_STORAGE);
+MODULE_IMPORT_NS("USB_STORAGE");
 
 static int isd200_Initialization(struct us_data *us);
 
@@ -67,7 +67,7 @@ static int isd200_Initialization(struct us_data *us);
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
   .driver_info = (flags) }
 
-static struct usb_device_id isd200_usb_ids[] = {
+static const struct usb_device_id isd200_usb_ids[] = {
 #	include "unusual_isd200.h"
 	{ }		/* Terminating entry */
 };
@@ -89,7 +89,7 @@ MODULE_DEVICE_TABLE(usb, isd200_usb_ids);
 	.initFunction = init_function,	\
 }
 
-static struct us_unusual_dev isd200_unusual_dev_list[] = {
+static const struct us_unusual_dev isd200_unusual_dev_list[] = {
 #	include "unusual_isd200.h"
 	{ }		/* Terminating entry */
 };

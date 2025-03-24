@@ -62,6 +62,7 @@ struct autofs_info {
 	struct list_head expiring;
 
 	struct autofs_sb_info *sbi;
+	unsigned long exp_timeout;
 	unsigned long last_used;
 	int count;
 
@@ -81,6 +82,9 @@ struct autofs_info {
 					*/
 #define AUTOFS_INF_PENDING	(1<<2) /* dentry pending mount */
 
+#define AUTOFS_INF_EXPIRE_SET	(1<<3) /* per-dentry expire timeout set for
+					  this mount point.
+					*/
 struct autofs_wait_queue {
 	wait_queue_head_t queue;
 	struct autofs_wait_queue *next;

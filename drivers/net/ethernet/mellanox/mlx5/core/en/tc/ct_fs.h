@@ -25,6 +25,8 @@ struct mlx5_ct_fs_ops {
 						struct mlx5_flow_attr *attr,
 						struct flow_rule *flow_rule);
 	void (*ct_rule_del)(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_rule);
+	int (*ct_rule_update)(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_rule,
+			      struct mlx5_flow_spec *spec, struct mlx5_flow_attr *attr);
 
 	size_t priv_size;
 };
@@ -41,6 +43,16 @@ struct mlx5_ct_fs_ops *mlx5_ct_fs_smfs_ops_get(void);
 #else
 static inline struct mlx5_ct_fs_ops *
 mlx5_ct_fs_smfs_ops_get(void)
+{
+	return NULL;
+}
+#endif /* IS_ENABLED(CONFIG_MLX5_SW_STEERING) */
+
+#if IS_ENABLED(CONFIG_MLX5_HW_STEERING)
+struct mlx5_ct_fs_ops *mlx5_ct_fs_hmfs_ops_get(void);
+#else
+static inline struct mlx5_ct_fs_ops *
+mlx5_ct_fs_hmfs_ops_get(void)
 {
 	return NULL;
 }

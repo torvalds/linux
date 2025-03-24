@@ -40,7 +40,7 @@
 		};
 	};
 
-	pmu: pmu@0 {
+	pmu: pmu {
 		compatible = "arm,cortex-a8-pmu";
 		interrupt-parent = <&intc>;
 		interrupts = <0 47 IRQ_TYPE_LEVEL_HIGH>;

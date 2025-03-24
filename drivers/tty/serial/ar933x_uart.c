@@ -832,7 +832,7 @@ MODULE_DEVICE_TABLE(of, ar933x_uart_of_ids);
 
 static struct platform_driver ar933x_uart_platform_driver = {
 	.probe		= ar933x_uart_probe,
-	.remove_new	= ar933x_uart_remove,
+	.remove		= ar933x_uart_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.of_match_table = of_match_ptr(ar933x_uart_of_ids),

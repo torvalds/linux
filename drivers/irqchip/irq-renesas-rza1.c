@@ -259,7 +259,7 @@ MODULE_DEVICE_TABLE(of, rza1_irqc_dt_ids);
 
 static struct platform_driver rza1_irqc_device_driver = {
 	.probe		= rza1_irqc_probe,
-	.remove_new	= rza1_irqc_remove,
+	.remove		= rza1_irqc_remove,
 	.driver		= {
 		.name		= "renesas_rza1_irqc",
 		.of_match_table	= rza1_irqc_dt_ids,

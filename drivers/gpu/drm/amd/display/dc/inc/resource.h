@@ -639,4 +639,11 @@ struct dscl_prog_data *resource_get_dscl_prog_data(struct pipe_ctx *pipe_ctx);
  * @dml2_options: struct to hold callbacks
  */
 void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuration_options *dml2_options);
+
+/*
+ *Calculate total DET allocated for all pipes for a given OTG_MASTER pipe
+ */
+int resource_calculate_det_for_stream(struct dc_state *state, struct pipe_ctx *otg_master);
+
+bool resource_is_hpo_acquired(struct dc_state *context);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

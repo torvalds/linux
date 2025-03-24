@@ -12,7 +12,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/find.h>
+#include <linux/bitmap.h>
 #include <linux/gcd.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -1146,7 +1146,7 @@ static const struct snd_kcontrol_new cs42l43_controls[] = {
 
 	SOC_DOUBLE_R_SX_TLV("ADC Volume", CS42L43_ADC_B_CTRL1, CS42L43_ADC_B_CTRL2,
 			    CS42L43_ADC_PGA_GAIN_SHIFT,
-			    0xF, 5, cs42l43_adc_tlv),
+			    0xF, 4, cs42l43_adc_tlv),
 
 	SOC_DOUBLE("PDM1 Invert Switch", CS42L43_DMIC_PDM_CTRL,
 		   CS42L43_PDM1L_INV_SHIFT, CS42L43_PDM1R_INV_SHIFT, 1, 0),
@@ -2402,50 +2402,22 @@ static int cs42l43_codec_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int cs42l43_codec_suspend(struct device *dev)
+static int cs42l43_codec_runtime_force_suspend(struct device *dev)
 {
 	struct cs42l43_codec *priv = dev_get_drvdata(dev);
-	struct cs42l43 *cs42l43 = priv->core;
 
-	disable_irq(cs42l43->irq);
+	dev_dbg(priv->dev, "Runtime suspend\n");
 
-	return 0;
-}
+	priv->suspend_jack_debounce = true;
 
-static int cs42l43_codec_suspend_noirq(struct device *dev)
-{
-	struct cs42l43_codec *priv = dev_get_drvdata(dev);
-	struct cs42l43 *cs42l43 = priv->core;
-
-	enable_irq(cs42l43->irq);
-
-	return 0;
-}
-
-static int cs42l43_codec_resume(struct device *dev)
-{
-	struct cs42l43_codec *priv = dev_get_drvdata(dev);
-	struct cs42l43 *cs42l43 = priv->core;
-
-	enable_irq(cs42l43->irq);
-
-	return 0;
-}
-
-static int cs42l43_codec_resume_noirq(struct device *dev)
-{
-	struct cs42l43_codec *priv = dev_get_drvdata(dev);
-	struct cs42l43 *cs42l43 = priv->core;
-
-	disable_irq(cs42l43->irq);
+	pm_runtime_force_suspend(dev);
 
 	return 0;
 }
 
 static const struct dev_pm_ops cs42l43_codec_pm_ops = {
-	SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend, cs42l43_codec_resume)
-	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend_noirq, cs42l43_codec_resume_noirq)
 	RUNTIME_PM_OPS(NULL, cs42l43_codec_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(cs42l43_codec_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static const struct platform_device_id cs42l43_codec_id_table[] = {
@@ -2461,12 +2433,12 @@ static struct platform_driver cs42l43_codec_driver = {
 	},
 
 	.probe		= cs42l43_codec_probe,
-	.remove_new	= cs42l43_codec_remove,
+	.remove		= cs42l43_codec_remove,
 	.id_table	= cs42l43_codec_id_table,
 };
 module_platform_driver(cs42l43_codec_driver);
 
-MODULE_IMPORT_NS(SND_SOC_CS42L43);
+MODULE_IMPORT_NS("SND_SOC_CS42L43");
 
 MODULE_DESCRIPTION("CS42L43 CODEC Driver");
 MODULE_AUTHOR("Charles Keepax <ckeepax@opensource.cirrus.com>");

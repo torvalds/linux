@@ -92,6 +92,16 @@ properties:
     description: |
       This property is as per sci-pm-domain.txt.
 
+  clocks:
+    items:
+      - description: ICSSG_CORE Clock
+      - description: ICSSG_IEP Clock
+      - description: ICSSG_RGMII_MHZ_250 Clock
+      - description: ICSSG_RGMII_MHZ_50 Clock
+      - description: ICSSG_RGMII_MHZ_5 Clock
+      - description: ICSSG_UART Clock
+      - description: ICSSG_ICLK Clock
+
 patternProperties:
 
   memories@[a-f0-9]+$:
@@ -277,6 +287,26 @@ patternProperties:
         maxItems: 1
 
     additionalProperties: false
+
+  ^pa-stats@[a-f0-9]+$:
+    description: |
+      PA-STATS sub-module represented as a SysCon. PA_STATS is a set of
+      registers where different statistics related to ICSSG, are dumped by
+      ICSSG firmware. This syscon sub-module will help the device to
+      access/read/write those statistics.
+
+    type: object
+
+    additionalProperties: false
+
+    properties:
+      compatible:
+        items:
+          - const: ti,pruss-pa-st
+          - const: syscon
+
+      reg:
+        maxItems: 1
 
   interrupt-controller@[a-f0-9]+$:
     description: |

@@ -11,7 +11,7 @@
 /* Module modprobe variables */
 struct xe_modparam {
 	bool force_execlist;
-	bool enable_display;
+	bool probe_display;
 	u32 force_vram_bar_size;
 	int guc_log_level;
 	char *guc_firmware_path;

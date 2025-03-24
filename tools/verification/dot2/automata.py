@@ -19,21 +19,22 @@ class Automata:
 
     invalid_state_str = "INVALID_STATE"
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, model_name=None):
         self.__dot_path = file_path
-        self.name = self.__get_model_name()
+        self.name = model_name or self.__get_model_name()
         self.__dot_lines = self.__open_dot()
         self.states, self.initial_state, self.final_states = self.__get_state_variables()
         self.events = self.__get_event_variables()
         self.function = self.__create_matrix()
+        self.events_start, self.events_start_run = self.__store_init_events()
 
     def __get_model_name(self):
         basename = ntpath.basename(self.__dot_path)
-        if basename.endswith(".dot") == False:
+        if not basename.endswith(".dot") and not basename.endswith(".gv"):
             print("not a dot file")
             raise Exception("not a dot file: %s" % self.__dot_path)
 
-        model_name = basename[0:-4]
+        model_name = ntpath.splitext(basename)[0]
         if model_name.__len__() == 0:
             raise Exception("not a dot file: %s" % self.__dot_path)
 
@@ -68,9 +69,9 @@ class Automata:
     def __get_cursor_begin_events(self):
         cursor = 0
         while self.__dot_lines[cursor].split()[0] != "{node":
-           cursor += 1
+            cursor += 1
         while self.__dot_lines[cursor].split()[0] == "{node":
-           cursor += 1
+            cursor += 1
         # skip initial state transition
         cursor += 1
         return cursor
@@ -94,11 +95,11 @@ class Automata:
                 initial_state = state[7:]
             else:
                 states.append(state)
-                if self.__dot_lines[cursor].__contains__("doublecircle") == True:
+                if "doublecircle" in self.__dot_lines[cursor]:
                     final_states.append(state)
                     has_final_states = True
 
-                if self.__dot_lines[cursor].__contains__("ellipse") == True:
+                if "ellipse" in self.__dot_lines[cursor]:
                     final_states.append(state)
                     has_final_states = True
 
@@ -110,7 +111,7 @@ class Automata:
         # Insert the initial state at the bein og the states
         states.insert(0, initial_state)
 
-        if has_final_states == False:
+        if not has_final_states:
             final_states.append(initial_state)
 
         return states, initial_state, final_states
@@ -120,7 +121,7 @@ class Automata:
         cursor = self.__get_cursor_begin_events()
 
         events = []
-        while self.__dot_lines[cursor][1] == '"':
+        while self.__dot_lines[cursor].lstrip()[0] == '"':
             # transitions have the format:
             # "all_fired" -> "both_fired" [ label = "disable_irq" ];
             #  ------------ event is here ------------^^^^^
@@ -161,7 +162,7 @@ class Automata:
         # and we are back! Let's fill the matrix
         cursor = self.__get_cursor_begin_events()
 
-        while self.__dot_lines[cursor][1] == '"':
+        while self.__dot_lines[cursor].lstrip()[0] == '"':
             if self.__dot_lines[cursor].split()[1] == "->":
                 line = self.__dot_lines[cursor].split()
                 origin_state = line[0].replace('"','').replace(',','_')
@@ -172,3 +173,34 @@ class Automata:
             cursor += 1
 
         return matrix
+
+    def __store_init_events(self):
+        events_start = [False] * len(self.events)
+        events_start_run = [False] * len(self.events)
+        for i, _ in enumerate(self.events):
+            curr_event_will_init = 0
+            curr_event_from_init = False
+            curr_event_used = 0
+            for j, _ in enumerate(self.states):
+                if self.function[j][i] != self.invalid_state_str:
+                    curr_event_used += 1
+                if self.function[j][i] == self.initial_state:
+                    curr_event_will_init += 1
+            if self.function[0][i] != self.invalid_state_str:
+                curr_event_from_init = True
+            # this event always leads to init
+            if curr_event_will_init and curr_event_used == curr_event_will_init:
+                events_start[i] = True
+            # this event is only called from init
+            if curr_event_from_init and curr_event_used == 1:
+                events_start_run[i] = True
+        return events_start, events_start_run
+
+    def is_start_event(self, event):
+        return self.events_start[self.events.index(event)]
+
+    def is_start_run_event(self, event):
+        # prefer handle_start_event if there
+        if any(self.events_start):
+            return False
+        return self.events_start_run[self.events.index(event)]

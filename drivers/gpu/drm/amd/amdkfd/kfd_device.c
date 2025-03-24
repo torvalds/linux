@@ -85,6 +85,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(4, 4, 0):/* ALDEBARAN */
 	case IP_VERSION(4, 4, 2):
 	case IP_VERSION(4, 4, 5):
+	case IP_VERSION(4, 4, 4):
 	case IP_VERSION(5, 0, 0):/* NAVI10 */
 	case IP_VERSION(5, 0, 1):/* CYAN_SKILLFISH */
 	case IP_VERSION(5, 0, 2):/* NAVI14 */
@@ -152,6 +153,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 		break;
 	case IP_VERSION(9, 4, 3): /* GC 9.4.3 */
 	case IP_VERSION(9, 4, 4): /* GC 9.4.4 */
+	case IP_VERSION(9, 5, 0): /* GC 9.5.0 */
 		kfd->device_info.event_interrupt_class =
 						&event_interrupt_class_v9_4_3;
 		break;
@@ -235,6 +237,9 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 			 */
 			kfd->device_info.needs_pci_atomics = true;
 			kfd->device_info.no_atomic_fw_version = kfd->adev->gfx.rs64_enable ? 509 : 0;
+		} else if (gc_version < IP_VERSION(13, 0, 0)) {
+			kfd->device_info.needs_pci_atomics = true;
+			kfd->device_info.no_atomic_fw_version = 2090;
 		} else {
 			kfd->device_info.needs_pci_atomics = true;
 		}
@@ -351,6 +356,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			break;
 		case IP_VERSION(9, 4, 4):
 			gfx_target_version = 90402;
+			f2g = &gc_9_4_3_kfd2kgd;
+			break;
+		case IP_VERSION(9, 5, 0):
+			gfx_target_version = 90500;
 			f2g = &gc_9_4_3_kfd2kgd;
 			break;
 		/* Navi10 */
@@ -512,6 +521,10 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx9_4_3_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_4_3_hex);
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 5, 0)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_5_0_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx9_5_0_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_5_0_hex);
 		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(10, 1, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex)
 					     > KFD_CWSR_TMA_OFFSET);
@@ -534,7 +547,8 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
 		} else {
-			BUILD_BUG_ON(sizeof(cwsr_trap_gfx12_hex) > PAGE_SIZE);
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx12_hex)
+					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx12_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx12_hex);
 		}
@@ -563,6 +577,7 @@ static int kfd_gws_init(struct kfd_node *node)
 			&& kfd->mec2_fw_version >= 0x28) ||
 		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 3) ||
 		 KFD_GC_VERSION(node) == IP_VERSION(9, 4, 4)) ||
+		(KFD_GC_VERSION(node) == IP_VERSION(9, 5, 0)) ||
 		(KFD_GC_VERSION(node) >= IP_VERSION(10, 3, 0)
 			&& KFD_GC_VERSION(node) < IP_VERSION(11, 0, 0)
 			&& kfd->mec2_fw_version >= 0x6b) ||
@@ -633,6 +648,14 @@ static void kfd_cleanup_nodes(struct kfd_dev *kfd, unsigned int num_nodes)
 {
 	struct kfd_node *knode;
 	unsigned int i;
+
+	/*
+	 * flush_work ensures that there are no outstanding
+	 * work-queue items that will access interrupt_ring. New work items
+	 * can't be created because we stopped interrupt handling above.
+	 */
+	flush_workqueue(kfd->ih_wq);
+	destroy_workqueue(kfd->ih_wq);
 
 	for (i = 0; i < num_nodes; i++) {
 		knode = kfd->nodes[i];
@@ -729,14 +752,14 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	last_vmid_kfd = fls(gpu_resources->compute_vmid_bitmap)-1;
 	vmid_num_kfd = last_vmid_kfd - first_vmid_kfd + 1;
 
-	/* For GFX9.4.3, we need special handling for VMIDs depending on
-	 * partition mode.
+	/* For multi-partition capable GPUs, we need special handling for VMIDs
+	 * depending on partition mode.
 	 * In CPX mode, the VMID range needs to be shared between XCDs.
 	 * Additionally, there are 13 VMIDs (3-15) available for KFD. To
 	 * divide them equally, we change starting VMID to 4 and not use
 	 * VMID 3.
-	 * If the VMID range changes for GFX9.4.3, then this code MUST be
-	 * revisited.
+	 * If the VMID range changes for multi-partition capable GPUs, then
+	 * this code MUST be revisited.
 	 */
 	if (kfd->adev->xcp_mgr) {
 		partition_mode = amdgpu_xcp_query_partition_mode(kfd->adev->xcp_mgr,
@@ -801,14 +824,12 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		kfd->hive_id = kfd->adev->gmc.xgmi.hive_id;
 
 	/*
-	 * For GFX9.4.3, the KFD abstracts all partitions within a socket as
-	 * xGMI connected in the topology so assign a unique hive id per
-	 * device based on the pci device location if device is in PCIe mode.
+	 * For multi-partition capable GPUs, the KFD abstracts all partitions
+	 * within a socket as xGMI connected in the topology so assign a unique
+	 * hive id per device based on the pci device location if device is in
+	 * PCIe mode.
 	 */
-	if (!kfd->hive_id &&
-	    (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
-	     KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) &&
-	    kfd->num_nodes > 1)
+	if (!kfd->hive_id && kfd->num_nodes > 1)
 		kfd->hive_id = pci_dev_id(kfd->adev->pdev);
 
 	kfd->noretry = kfd->adev->gmc.noretry;
@@ -846,12 +867,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 				KFD_XCP_MEMORY_SIZE(node->adev, node->node_id) >> 20);
 		}
 
-		if ((KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
-		     KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) &&
-		    partition_mode == AMDGPU_CPX_PARTITION_MODE &&
+		if (partition_mode == AMDGPU_CPX_PARTITION_MODE &&
 		    kfd->num_nodes != 1) {
-			/* For GFX9.4.3 and CPX mode, first XCD gets VMID range
-			 * 4-9 and second XCD gets VMID range 10-15.
+			/* For multi-partition capable GPUs and CPX mode, first
+			 * XCD gets VMID range 4-9 and second XCD gets VMID
+			 * range 10-15.
 			 */
 
 			node->vm_info.first_vmid_kfd = (i%2 == 0) ?
@@ -875,8 +895,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		amdgpu_amdkfd_get_local_mem_info(kfd->adev,
 					&node->local_mem_info, node->xcp);
 
-		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
-		    KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4))
+		if (kfd->adev->xcp_mgr)
 			kfd_setup_interrupt_bitmap(node, i);
 
 		/* Initialize the KFD node */
@@ -884,12 +903,13 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			dev_err(kfd_device, "Error initializing KFD node\n");
 			goto node_init_error;
 		}
+
+		spin_lock_init(&node->watch_points_lock);
+
 		kfd->nodes[i] = node;
 	}
 
 	svm_range_set_max_pages(kfd->adev);
-
-	spin_lock_init(&kfd->watch_points_lock);
 
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device %x:%x\n", kfd->adev->pdev->vendor,
@@ -907,7 +927,7 @@ node_alloc_error:
 kfd_doorbell_error:
 	kfd_gtt_sa_fini(kfd);
 kfd_gtt_sa_init_error:
-	amdgpu_amdkfd_free_gtt_mem(kfd->adev, kfd->gtt_mem);
+	amdgpu_amdkfd_free_gtt_mem(kfd->adev, &kfd->gtt_mem);
 alloc_gtt_mem_failure:
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
@@ -925,7 +945,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_doorbell_fini(kfd);
 		ida_destroy(&kfd->doorbell_ida);
 		kfd_gtt_sa_fini(kfd);
-		amdgpu_amdkfd_free_gtt_mem(kfd->adev, kfd->gtt_mem);
+		amdgpu_amdkfd_free_gtt_mem(kfd->adev, &kfd->gtt_mem);
 	}
 
 	kfree(kfd);
@@ -1054,21 +1074,6 @@ static int kfd_resume(struct kfd_node *node)
 	return err;
 }
 
-static inline void kfd_queue_work(struct workqueue_struct *wq,
-				  struct work_struct *work)
-{
-	int cpu, new_cpu;
-
-	cpu = new_cpu = smp_processor_id();
-	do {
-		new_cpu = cpumask_next(new_cpu, cpu_online_mask) % nr_cpu_ids;
-		if (cpu_to_node(new_cpu) == numa_node_id())
-			break;
-	} while (cpu != new_cpu);
-
-	queue_work_on(new_cpu, wq, work);
-}
-
 /* This is called directly from KGD at ISR. */
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 {
@@ -1094,7 +1099,7 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 			    	patched_ihre, &is_patched)
 		    && enqueue_ih_ring_entry(node,
 			    	is_patched ? patched_ihre : ih_ring_entry)) {
-			kfd_queue_work(node->ih_wq, &node->interrupt_work);
+			queue_work(node->kfd->ih_wq, &node->interrupt_work);
 			spin_unlock_irqrestore(&node->interrupt_lock, flags);
 			return;
 		}
@@ -1391,6 +1396,13 @@ void kfd_dec_compute_active(struct kfd_node *node)
 	WARN_ONCE(count < 0, "Compute profile ref. count error");
 }
 
+static bool kfd_compute_active(struct kfd_node *node)
+{
+	if (atomic_read(&node->kfd->compute_profile))
+		return true;
+	return false;
+}
+
 void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
 {
 	/*
@@ -1443,6 +1455,130 @@ void kgd2kfd_unlock_kfd(void)
 	mutex_lock(&kfd_processes_mutex);
 	--kfd_locked;
 	mutex_unlock(&kfd_processes_mutex);
+}
+
+int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id)
+{
+	struct kfd_node *node;
+	int ret;
+
+	if (!kfd->init_complete)
+		return 0;
+
+	if (node_id >= kfd->num_nodes) {
+		dev_warn(kfd->adev->dev, "Invalid node ID: %u exceeds %u\n",
+			 node_id, kfd->num_nodes - 1);
+		return -EINVAL;
+	}
+	node = kfd->nodes[node_id];
+
+	ret = node->dqm->ops.unhalt(node->dqm);
+	if (ret)
+		dev_err(kfd_device, "Error in starting scheduler\n");
+
+	return ret;
+}
+
+int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id)
+{
+	struct kfd_node *node;
+
+	if (!kfd->init_complete)
+		return 0;
+
+	if (node_id >= kfd->num_nodes) {
+		dev_warn(kfd->adev->dev, "Invalid node ID: %u exceeds %u\n",
+			 node_id, kfd->num_nodes - 1);
+		return -EINVAL;
+	}
+
+	node = kfd->nodes[node_id];
+	return node->dqm->ops.halt(node->dqm);
+}
+
+bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id)
+{
+	struct kfd_node *node;
+
+	if (!kfd->init_complete)
+		return false;
+
+	if (node_id >= kfd->num_nodes) {
+		dev_warn(kfd->adev->dev, "Invalid node ID: %u exceeds %u\n",
+			 node_id, kfd->num_nodes - 1);
+		return false;
+	}
+
+	node = kfd->nodes[node_id];
+
+	return kfd_compute_active(node);
+}
+
+/**
+ * kgd2kfd_vmfault_fast_path() - KFD vm page fault interrupt handling fast path for gmc v9
+ * @adev: amdgpu device
+ * @entry: vm fault interrupt vector
+ * @retry_fault: if this is retry fault
+ *
+ * retry fault -
+ *    with CAM enabled, adev primary ring
+ *                           |  gmc_v9_0_process_interrupt()
+ *                      adev soft_ring
+ *                           |  gmc_v9_0_process_interrupt() worker failed to recover page fault
+ *                      KFD node ih_fifo
+ *                           |  KFD interrupt_wq worker
+ *                      kfd_signal_vm_fault_event
+ *
+ *    without CAM,      adev primary ring1
+ *                           |  gmc_v9_0_process_interrupt worker failed to recvoer page fault
+ *                      KFD node ih_fifo
+ *                           |  KFD interrupt_wq worker
+ *                      kfd_signal_vm_fault_event
+ *
+ * no-retry fault -
+ *                      adev primary ring
+ *                           |  gmc_v9_0_process_interrupt()
+ *                      KFD node ih_fifo
+ *                           |  KFD interrupt_wq worker
+ *                      kfd_signal_vm_fault_event
+ *
+ * fast path - After kfd_signal_vm_fault_event, gmc_v9_0_process_interrupt drop the page fault
+ *            of same process, don't copy interrupt to KFD node ih_fifo.
+ *            With gdb debugger enabled, need convert the retry fault to no-retry fault for
+ *            debugger, cannot use the fast path.
+ *
+ * Return:
+ *   true - use the fast path to handle this fault
+ *   false - use normal path to handle it
+ */
+bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entry *entry,
+			       bool retry_fault)
+{
+	struct kfd_process *p;
+	u32 cam_index;
+
+	if (entry->ih == &adev->irq.ih_soft || entry->ih == &adev->irq.ih1) {
+		p = kfd_lookup_process_by_pasid(entry->pasid);
+		if (!p)
+			return true;
+
+		if (p->gpu_page_fault && !p->debug_trap_enabled) {
+			if (retry_fault && adev->irq.retry_cam_enabled) {
+				cam_index = entry->src_data[2] & 0x3ff;
+				WDOORBELL32(adev->irq.retry_cam_doorbell_index, cam_index);
+			}
+
+			kfd_unref_process(p);
+			return true;
+		}
+
+		/*
+		 * This is the first page fault, set flag and then signal user space
+		 */
+		p->gpu_page_fault = true;
+		kfd_unref_process(p);
+	}
+	return false;
 }
 
 #if defined(CONFIG_DEBUG_FS)

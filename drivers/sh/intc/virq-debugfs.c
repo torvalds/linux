@@ -18,6 +18,7 @@
 
 static int intc_irq_xlate_show(struct seq_file *m, void *priv)
 {
+	const unsigned int nr_irqs = irq_get_nr_irqs();
 	int i;
 
 	seq_printf(m, "%-5s  %-7s  %-15s\n", "irq", "enum", "chip name");

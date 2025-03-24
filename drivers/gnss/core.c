@@ -206,7 +206,6 @@ static const struct file_operations gnss_fops = {
 	.read		= gnss_read,
 	.write		= gnss_write,
 	.poll		= gnss_poll,
-	.llseek		= no_llseek,
 };
 
 static struct class *gnss_class;

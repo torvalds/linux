@@ -5,6 +5,8 @@
 #ifndef _NET_DSA_TAG_OCELOT_H
 #define _NET_DSA_TAG_OCELOT_H
 
+#include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
 #include <linux/kthread.h>
 #include <linux/packing.h>
 #include <linux/skbuff.h>
@@ -13,6 +15,7 @@
 struct ocelot_skb_cb {
 	struct sk_buff *clone;
 	unsigned int ptp_class; /* valid only for clones */
+	unsigned long ptp_tx_time; /* valid only for clones */
 	u32 tstamp_lo;
 	u8 ptp_cmd;
 	u8 ts_id;
@@ -271,6 +274,51 @@ static inline u32 ocelot_ptp_rew_op(struct sk_buff *skb)
 	}
 
 	return rew_op;
+}
+
+/**
+ * ocelot_xmit_get_vlan_info: Determine VLAN_TCI and TAG_TYPE for injected frame
+ * @skb: Pointer to socket buffer
+ * @br: Pointer to bridge device that the port is under, if any
+ * @vlan_tci:
+ * @tag_type:
+ *
+ * If the port is under a VLAN-aware bridge, remove the VLAN header from the
+ * payload and move it into the DSA tag, which will make the switch classify
+ * the packet to the bridge VLAN. Otherwise, leave the classified VLAN at zero,
+ * which is the pvid of standalone ports (OCELOT_STANDALONE_PVID), although not
+ * of VLAN-unaware bridge ports (that would be ocelot_vlan_unaware_pvid()).
+ * Anyway, VID 0 is fine because it is stripped on egress for these port modes,
+ * and source address learning is not performed for packets injected from the
+ * CPU anyway, so it doesn't matter that the VID is "wrong".
+ */
+static inline void ocelot_xmit_get_vlan_info(struct sk_buff *skb,
+					     struct net_device *br,
+					     u64 *vlan_tci, u64 *tag_type)
+{
+	struct vlan_ethhdr *hdr;
+	u16 proto, tci;
+
+	if (!br || !br_vlan_enabled(br)) {
+		*vlan_tci = 0;
+		*tag_type = IFH_TAG_TYPE_C;
+		return;
+	}
+
+	hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
+	br_vlan_get_proto(br, &proto);
+
+	if (ntohs(hdr->h_vlan_proto) == proto) {
+		vlan_remove_tag(skb, &tci);
+		*vlan_tci = tci;
+	} else {
+		rcu_read_lock();
+		br_vlan_get_pvid_rcu(br, &tci);
+		rcu_read_unlock();
+		*vlan_tci = tci;
+	}
+
+	*tag_type = (proto != ETH_P_8021Q) ? IFH_TAG_TYPE_S : IFH_TAG_TYPE_C;
 }
 
 #endif

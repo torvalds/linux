@@ -42,10 +42,6 @@
 #include "../../../include/linux/filter.h"
 #include "testing_helpers.h"
 
-#ifndef ENOTSUPP
-#define ENOTSUPP 524
-#endif
-
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_EXPECTED_INSNS	32
 #define MAX_UNEXPECTED_INSNS	32

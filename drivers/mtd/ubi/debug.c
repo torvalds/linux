@@ -470,7 +470,6 @@ static const struct file_operations dfs_fops = {
 	.read   = dfs_file_read,
 	.write  = dfs_file_write,
 	.open	= simple_open,
-	.llseek = no_llseek,
 	.owner  = THIS_MODULE,
 };
 

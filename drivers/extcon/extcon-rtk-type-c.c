@@ -1369,6 +1369,8 @@ static int extcon_rtk_type_c_probe(struct platform_device *pdev)
 	}
 
 	type_c->type_c_cfg = devm_kzalloc(dev, sizeof(*type_c_cfg), GFP_KERNEL);
+	if (!type_c->type_c_cfg)
+		return -ENOMEM;
 
 	memcpy(type_c->type_c_cfg, type_c_cfg, sizeof(*type_c_cfg));
 
@@ -1778,7 +1780,7 @@ static const struct dev_pm_ops extcon_rtk_type_c_pm_ops = {
 
 static struct platform_driver extcon_rtk_type_c_driver = {
 	.probe		= extcon_rtk_type_c_probe,
-	.remove_new	= extcon_rtk_type_c_remove,
+	.remove		= extcon_rtk_type_c_remove,
 	.driver		= {
 		.name	= "extcon-rtk-type_c",
 		.of_match_table = extcon_rtk_type_c_match,

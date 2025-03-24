@@ -63,7 +63,7 @@ static void nft_meta_bridge_get_eval(const struct nft_expr *expr,
 		return nft_meta_get_eval(expr, regs, pkt);
 	}
 
-	strncpy((char *)dest, br_dev ? br_dev->name : "", IFNAMSIZ);
+	strscpy_pad((char *)dest, br_dev ? br_dev->name : "", IFNAMSIZ);
 	return;
 err:
 	regs->verdict.code = NFT_BREAK;
@@ -142,7 +142,7 @@ static int nft_meta_bridge_set_init(const struct nft_ctx *ctx,
 	}
 
 	priv->len = len;
-	err = nft_parse_register_load(tb[NFTA_META_SREG], &priv->sreg, len);
+	err = nft_parse_register_load(ctx, tb[NFTA_META_SREG], &priv->sreg, len);
 	if (err < 0)
 		return err;
 
@@ -168,8 +168,7 @@ static bool nft_meta_bridge_set_reduce(struct nft_regs_track *track,
 }
 
 static int nft_meta_bridge_set_validate(const struct nft_ctx *ctx,
-					const struct nft_expr *expr,
-					const struct nft_data **data)
+					const struct nft_expr *expr)
 {
 	struct nft_meta *priv = nft_expr_priv(expr);
 	unsigned int hooks;
@@ -179,7 +178,7 @@ static int nft_meta_bridge_set_validate(const struct nft_ctx *ctx,
 		hooks = 1 << NF_BR_PRE_ROUTING;
 		break;
 	default:
-		return nft_meta_set_validate(ctx, expr, data);
+		return nft_meta_set_validate(ctx, expr);
 	}
 
 	return nft_chain_validate_hooks(ctx->chain, hooks);

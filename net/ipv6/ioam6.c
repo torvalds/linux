@@ -135,15 +135,11 @@ static int ioam6_genl_addns(struct sk_buff *skb, struct genl_info *info)
 
 	ns->id = id;
 
-	if (!info->attrs[IOAM6_ATTR_NS_DATA])
-		data32 = IOAM6_U32_UNAVAILABLE;
-	else
-		data32 = nla_get_u32(info->attrs[IOAM6_ATTR_NS_DATA]);
+	data32 = nla_get_u32_default(info->attrs[IOAM6_ATTR_NS_DATA],
+				     IOAM6_U32_UNAVAILABLE);
 
-	if (!info->attrs[IOAM6_ATTR_NS_DATA_WIDE])
-		data64 = IOAM6_U64_UNAVAILABLE;
-	else
-		data64 = nla_get_u64(info->attrs[IOAM6_ATTR_NS_DATA_WIDE]);
+	data64 = nla_get_u64_default(info->attrs[IOAM6_ATTR_NS_DATA_WIDE],
+				     IOAM6_U64_UNAVAILABLE);
 
 	ns->data = cpu_to_be32(data32);
 	ns->data_wide = cpu_to_be64(data64);

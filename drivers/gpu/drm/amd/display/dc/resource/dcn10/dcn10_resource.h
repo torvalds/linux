@@ -51,6 +51,7 @@ struct stream_encoder *dcn10_find_first_free_match_stream_enc_for_link(
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream);
 
+unsigned int dcn10_get_vstartup_for_pipe(struct pipe_ctx *pipe_ctx);
 
 #endif /* __DC_RESOURCE_DCN10_H__ */
 

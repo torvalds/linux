@@ -20,13 +20,12 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include <linux/pm_wakeup.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DRIVER_NAME	"quickstart"
 

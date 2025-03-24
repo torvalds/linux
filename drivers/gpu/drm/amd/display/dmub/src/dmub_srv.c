@@ -61,10 +61,6 @@
 /* Default state size if meta is absent. */
 #define DMUB_FW_STATE_SIZE (64 * 1024)
 
-/* Default tracebuffer size if meta is absent. */
-#define DMUB_TRACE_BUFFER_SIZE (64 * 1024)
-
-
 /* Default scratch mem size. */
 #define DMUB_SCRATCH_MEM_SIZE (1024)
 
@@ -497,6 +493,7 @@ enum dmub_status
 	const struct dmub_fw_meta_info *fw_info;
 	uint32_t fw_state_size = DMUB_FW_STATE_SIZE;
 	uint32_t trace_buffer_size = DMUB_TRACE_BUFFER_SIZE;
+	uint32_t shared_state_size = DMUB_FW_HEADER_SHARED_STATE_SIZE;
 	uint32_t window_sizes[DMUB_WINDOW_TOTAL] = { 0 };
 
 	if (!dmub->sw_init)
@@ -514,6 +511,7 @@ enum dmub_status
 
 		fw_state_size = fw_info->fw_region_size;
 		trace_buffer_size = fw_info->trace_buffer_size;
+		shared_state_size = fw_info->shared_state_size;
 
 		/**
 		 * If DM didn't fill in a version, then fill it in based on
@@ -534,7 +532,7 @@ enum dmub_status
 	window_sizes[DMUB_WINDOW_5_TRACEBUFF] = trace_buffer_size;
 	window_sizes[DMUB_WINDOW_6_FW_STATE] = fw_state_size;
 	window_sizes[DMUB_WINDOW_7_SCRATCH_MEM] = DMUB_SCRATCH_MEM_SIZE;
-	window_sizes[DMUB_WINDOW_SHARED_STATE] = DMUB_FW_HEADER_SHARED_STATE_SIZE;
+	window_sizes[DMUB_WINDOW_SHARED_STATE] = max(DMUB_FW_HEADER_SHARED_STATE_SIZE, shared_state_size);
 
 	out->fb_size =
 		dmub_srv_calc_regions_for_memory_type(params, out, window_sizes, DMUB_WINDOW_MEMORY_TYPE_FB);
@@ -706,7 +704,7 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	cw6.region.base = DMUB_CW6_BASE;
 	cw6.region.top = cw6.region.base + fw_state_fb->size;
 
-	dmub->fw_state = fw_state_fb->cpu_addr;
+	dmub->fw_state = (void *)((uintptr_t)(fw_state_fb->cpu_addr) + DMUB_DEBUG_FW_STATE_OFFSET);
 
 	region6.offset.quad_part = shared_state_fb->gpu_addr;
 	region6.region.base = DMUB_CW6_BASE;

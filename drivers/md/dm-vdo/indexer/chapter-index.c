@@ -177,7 +177,7 @@ int uds_pack_open_chapter_index_page(struct open_chapter_index *chapter_index,
 			if (list_number < 0)
 				return UDS_OVERFLOW;
 
-			next_list = first_list + list_number--,
+			next_list = first_list + list_number--;
 			result = uds_start_delta_index_search(delta_index, next_list, 0,
 							      &entry);
 			if (result != UDS_SUCCESS)

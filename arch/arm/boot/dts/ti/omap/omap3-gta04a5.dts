@@ -114,6 +114,16 @@
 	};
 };
 
+&uart1 {
+	bluetooth {
+		compatible = "ti,wl1837-st";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_pins>;
+		enable-gpios = <&gpio5 9 GPIO_ACTIVE_HIGH>;	/* GPIO_137 */
+	};
+};
+
+
 &i2c2 {
 	/delete-node/ bmp085@77;
 	/delete-node/ bma180@41;

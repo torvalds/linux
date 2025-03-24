@@ -4,4 +4,4 @@
 #include "cxl.h"
 
 /* Exporting of cxl_core symbols that are only used by cxl_test */
-EXPORT_SYMBOL_NS_GPL(cxl_num_decoders_committed, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_num_decoders_committed, "CXL");

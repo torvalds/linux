@@ -67,7 +67,7 @@ void nau8318_set_dai_link(struct snd_soc_dai_link *link)
 	link->num_codecs = ARRAY_SIZE(nau8318_components);
 	link->init = nau8318_init;
 }
-EXPORT_SYMBOL_NS(nau8318_set_dai_link, SND_SOC_INTEL_SOF_NUVOTON_COMMON);
+EXPORT_SYMBOL_NS(nau8318_set_dai_link, "SND_SOC_INTEL_SOF_NUVOTON_COMMON");
 
 MODULE_DESCRIPTION("ASoC Intel SOF Nuvoton helpers");
 MODULE_LICENSE("GPL");

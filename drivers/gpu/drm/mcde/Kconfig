@@ -6,6 +6,7 @@ config DRM_MCDE
 	depends on OF
 	depends on COMMON_CLK
 	select MFD_SYSCON
+	select DRM_CLIENT_SELECTION
 	select DRM_MIPI_DSI
 	select DRM_BRIDGE
 	select DRM_PANEL_BRIDGE

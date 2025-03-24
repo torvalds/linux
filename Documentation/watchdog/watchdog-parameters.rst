@@ -120,16 +120,6 @@ coh901327_wdt:
 
 -------------------------------------------------
 
-cpu5wdt:
-    port:
-	base address of watchdog card, default is 0x91
-    verbose:
-	be verbose, default is 0 (no)
-    ticks:
-	count down ticks, default is 10000
-
--------------------------------------------------
-
 cpwd:
     wd0_timeout:
 	Default watchdog0 timeout in 1/10secs

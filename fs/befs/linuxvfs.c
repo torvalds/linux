@@ -11,12 +11,13 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
+#include <linux/fs_parser.h>
 #include <linux/errno.h>
 #include <linux/stat.h>
 #include <linux/nls.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
-#include <linux/parser.h>
 #include <linux/namei.h>
 #include <linux/sched.h>
 #include <linux/cred.h>
@@ -54,22 +55,20 @@ static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static void befs_put_super(struct super_block *);
-static int befs_remount(struct super_block *, int *, char *);
 static int befs_statfs(struct dentry *, struct kstatfs *);
 static int befs_show_options(struct seq_file *, struct dentry *);
-static int parse_options(char *, struct befs_mount_options *);
 static struct dentry *befs_fh_to_dentry(struct super_block *sb,
 				struct fid *fid, int fh_len, int fh_type);
 static struct dentry *befs_fh_to_parent(struct super_block *sb,
 				struct fid *fid, int fh_len, int fh_type);
 static struct dentry *befs_get_parent(struct dentry *child);
+static void befs_free_fc(struct fs_context *fc);
 
 static const struct super_operations befs_sops = {
 	.alloc_inode	= befs_alloc_inode,	/* allocate a new inode */
 	.free_inode	= befs_free_inode, /* deallocate an inode */
 	.put_super	= befs_put_super,	/* uninit super */
 	.statfs		= befs_statfs,	/* statfs */
-	.remount_fs	= befs_remount,
 	.show_options	= befs_show_options,
 };
 
@@ -672,92 +671,53 @@ static struct dentry *befs_get_parent(struct dentry *child)
 }
 
 enum {
-	Opt_uid, Opt_gid, Opt_charset, Opt_debug, Opt_err,
+	Opt_uid, Opt_gid, Opt_charset, Opt_debug,
 };
 
-static const match_table_t befs_tokens = {
-	{Opt_uid, "uid=%d"},
-	{Opt_gid, "gid=%d"},
-	{Opt_charset, "iocharset=%s"},
-	{Opt_debug, "debug"},
-	{Opt_err, NULL}
+static const struct fs_parameter_spec befs_param_spec[] = {
+	fsparam_uid	("uid",		Opt_uid),
+	fsparam_gid	("gid",		Opt_gid),
+	fsparam_string	("iocharset",	Opt_charset),
+	fsparam_flag	("debug",	Opt_debug),
+	{}
 };
 
 static int
-parse_options(char *options, struct befs_mount_options *opts)
+befs_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
-	char *p;
-	substring_t args[MAX_OPT_ARGS];
-	int option;
-	kuid_t uid;
-	kgid_t gid;
+	struct befs_mount_options *opts = fc->fs_private;
+	int token;
+	struct fs_parse_result result;
 
-	/* Initialize options */
-	opts->uid = GLOBAL_ROOT_UID;
-	opts->gid = GLOBAL_ROOT_GID;
-	opts->use_uid = 0;
-	opts->use_gid = 0;
-	opts->iocharset = NULL;
-	opts->debug = 0;
+	/* befs ignores all options on remount */
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE)
+		return 0;
 
-	if (!options)
-		return 1;
+	token = fs_parse(fc, befs_param_spec, param, &result);
+	if (token < 0)
+		return token;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		int token;
-
-		if (!*p)
-			continue;
-
-		token = match_token(p, befs_tokens, args);
-		switch (token) {
-		case Opt_uid:
-			if (match_int(&args[0], &option))
-				return 0;
-			uid = INVALID_UID;
-			if (option >= 0)
-				uid = make_kuid(current_user_ns(), option);
-			if (!uid_valid(uid)) {
-				pr_err("Invalid uid %d, "
-				       "using default\n", option);
-				break;
-			}
-			opts->uid = uid;
-			opts->use_uid = 1;
-			break;
-		case Opt_gid:
-			if (match_int(&args[0], &option))
-				return 0;
-			gid = INVALID_GID;
-			if (option >= 0)
-				gid = make_kgid(current_user_ns(), option);
-			if (!gid_valid(gid)) {
-				pr_err("Invalid gid %d, "
-				       "using default\n", option);
-				break;
-			}
-			opts->gid = gid;
-			opts->use_gid = 1;
-			break;
-		case Opt_charset:
-			kfree(opts->iocharset);
-			opts->iocharset = match_strdup(&args[0]);
-			if (!opts->iocharset) {
-				pr_err("allocation failure for "
-				       "iocharset string\n");
-				return 0;
-			}
-			break;
-		case Opt_debug:
-			opts->debug = 1;
-			break;
-		default:
-			pr_err("Unrecognized mount option \"%s\" "
-			       "or missing value\n", p);
-			return 0;
-		}
+	switch (token) {
+	case Opt_uid:
+		opts->uid = result.uid;
+		opts->use_uid = 1;
+		break;
+	case Opt_gid:
+		opts->gid = result.gid;
+		opts->use_gid = 1;
+		break;
+	case Opt_charset:
+		kfree(opts->iocharset);
+		opts->iocharset = param->string;
+		param->string = NULL;
+		break;
+	case Opt_debug:
+		opts->debug = 1;
+		break;
+	default:
+		return -EINVAL;
 	}
-	return 1;
+	return 0;
 }
 
 static int befs_show_options(struct seq_file *m, struct dentry *root)
@@ -793,6 +753,21 @@ befs_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 }
 
+/*
+ * Copy the parsed options into the sbi mount_options member
+ */
+static void
+befs_set_options(struct befs_sb_info *sbi, struct befs_mount_options *opts)
+{
+	sbi->mount_opts.uid = opts->uid;
+	sbi->mount_opts.gid = opts->gid;
+	sbi->mount_opts.use_uid = opts->use_uid;
+	sbi->mount_opts.use_gid = opts->use_gid;
+	sbi->mount_opts.debug = opts->debug;
+	sbi->mount_opts.iocharset = opts->iocharset;
+	opts->iocharset = NULL;
+}
+
 /* Allocate private field of the superblock, fill it.
  *
  * Finish filling the public superblock fields
@@ -800,7 +775,7 @@ befs_put_super(struct super_block *sb)
  * Load a set of NLS translations if needed.
  */
 static int
-befs_fill_super(struct super_block *sb, void *data, int silent)
+befs_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct buffer_head *bh;
 	struct befs_sb_info *befs_sb;
@@ -810,6 +785,8 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	const unsigned long sb_block = 0;
 	const off_t x86_sb_off = 512;
 	int blocksize;
+	struct befs_mount_options *parsed_opts = fc->fs_private;
+	int silent = fc->sb_flags & SB_SILENT;
 
 	sb->s_fs_info = kzalloc(sizeof(*befs_sb), GFP_KERNEL);
 	if (sb->s_fs_info == NULL)
@@ -817,11 +794,7 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 
 	befs_sb = BEFS_SB(sb);
 
-	if (!parse_options((char *) data, &befs_sb->mount_opts)) {
-		if (!silent)
-			befs_error(sb, "cannot parse mount options");
-		goto unacquire_priv_sbp;
-	}
+	befs_set_options(befs_sb, parsed_opts);
 
 	befs_debug(sb, "---> %s", __func__);
 
@@ -934,10 +907,10 @@ unacquire_none:
 }
 
 static int
-befs_remount(struct super_block *sb, int *flags, char *data)
+befs_reconfigure(struct fs_context *fc)
 {
-	sync_filesystem(sb);
-	if (!(*flags & SB_RDONLY))
+	sync_filesystem(fc->root->d_sb);
+	if (!(fc->sb_flags & SB_RDONLY))
 		return -EINVAL;
 	return 0;
 }
@@ -965,19 +938,51 @@ befs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static struct dentry *
-befs_mount(struct file_system_type *fs_type, int flags, const char *dev_name,
-	    void *data)
+static int befs_get_tree(struct fs_context *fc)
 {
-	return mount_bdev(fs_type, flags, dev_name, data, befs_fill_super);
+	return get_tree_bdev(fc, befs_fill_super);
+}
+
+static const struct fs_context_operations befs_context_ops = {
+	.parse_param	= befs_parse_param,
+	.get_tree	= befs_get_tree,
+	.reconfigure	= befs_reconfigure,
+	.free		= befs_free_fc,
+};
+
+static int befs_init_fs_context(struct fs_context *fc)
+{
+	struct befs_mount_options *opts;
+
+	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
+	if (!opts)
+		return -ENOMEM;
+
+	/* Initialize options */
+	opts->uid = GLOBAL_ROOT_UID;
+	opts->gid = GLOBAL_ROOT_GID;
+
+	fc->fs_private = opts;
+	fc->ops = &befs_context_ops;
+
+	return 0;
+}
+
+static void befs_free_fc(struct fs_context *fc)
+{
+	struct befs_mount_options *opts = fc->fs_private;
+
+	kfree(opts->iocharset);
+	kfree(fc->fs_private);
 }
 
 static struct file_system_type befs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "befs",
-	.mount		= befs_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
+	.init_fs_context = befs_init_fs_context,
+	.parameters	= befs_param_spec,
 };
 MODULE_ALIAS_FS("befs");
 

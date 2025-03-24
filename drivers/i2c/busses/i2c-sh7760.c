@@ -552,7 +552,7 @@ static struct platform_driver sh7760_i2c_drv = {
 		.name	= SH7760_I2C_DEVNAME,
 	},
 	.probe		= sh7760_i2c_probe,
-	.remove_new	= sh7760_i2c_remove,
+	.remove		= sh7760_i2c_remove,
 };
 
 module_platform_driver(sh7760_i2c_drv);

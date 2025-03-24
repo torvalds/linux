@@ -9,7 +9,6 @@ check_error() { # command-with-error-pos-by-^
 
 check_error 't^100 kfree'		# BAD_MAXACT_TYPE
 
-check_error 't ^non_exist_tracepoint'	# NO_TRACEPOINT
 check_error 't:^/bar kfree'		# NO_GROUP_NAME
 check_error 't:^12345678901234567890123456789012345678901234567890123456789012345/bar kfree'	# GROUP_TOO_LONG
 

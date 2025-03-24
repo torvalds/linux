@@ -110,6 +110,7 @@ static inline void free_dev_ioctl(struct autofs_dev_ioctl *param)
  */
 static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 {
+	unsigned int inr = _IOC_NR(cmd);
 	int err;
 
 	err = check_dev_ioctl_version(cmd, param);
@@ -128,15 +129,19 @@ static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 			goto out;
 		}
 
+		/* Setting the per-dentry expire timeout requires a trailing
+		 * path component, ie. no '/', so invert the logic of the
+		 * check_name() return for AUTOFS_DEV_IOCTL_TIMEOUT_CMD.
+		 */
 		err = check_name(param->path);
+		if (inr == AUTOFS_DEV_IOCTL_TIMEOUT_CMD)
+			err = err ? 0 : -EINVAL;
 		if (err) {
 			pr_warn("invalid path supplied for cmd(0x%08x)\n",
 				cmd);
 			goto out;
 		}
 	} else {
-		unsigned int inr = _IOC_NR(cmd);
-
 		if (inr == AUTOFS_DEV_IOCTL_OPENMOUNT_CMD ||
 		    inr == AUTOFS_DEV_IOCTL_REQUESTER_CMD ||
 		    inr == AUTOFS_DEV_IOCTL_ISMOUNTPOINT_CMD) {
@@ -396,16 +401,97 @@ static int autofs_dev_ioctl_catatonic(struct file *fp,
 	return 0;
 }
 
-/* Set the autofs mount timeout */
+/*
+ * Set the autofs mount expire timeout.
+ *
+ * There are two places an expire timeout can be set, in the autofs
+ * super block info. (this is all that's needed for direct and offset
+ * mounts because there's a distinct mount corresponding to each of
+ * these) and per-dentry within within the dentry info. If a per-dentry
+ * timeout is set it will override the expire timeout set in the parent
+ * autofs super block info.
+ *
+ * If setting the autofs super block expire timeout the autofs_dev_ioctl
+ * size field will be equal to the autofs_dev_ioctl structure size. If
+ * setting the per-dentry expire timeout the mount point name is passed
+ * in the autofs_dev_ioctl path field and the size field updated to
+ * reflect this.
+ *
+ * Setting the autofs mount expire timeout sets the timeout in the super
+ * block info. struct. Setting the per-dentry timeout does a little more.
+ * If the timeout is equal to -1 the per-dentry timeout (and flag) is
+ * cleared which reverts to using the super block timeout, otherwise if
+ * timeout is 0 the timeout is set to this value and the flag is left
+ * set which disables expiration for the mount point, lastly the flag
+ * and the timeout are set enabling the dentry to use this timeout.
+ */
 static int autofs_dev_ioctl_timeout(struct file *fp,
 				    struct autofs_sb_info *sbi,
 				    struct autofs_dev_ioctl *param)
 {
-	unsigned long timeout;
+	unsigned long timeout = param->timeout.timeout;
 
-	timeout = param->timeout.timeout;
-	param->timeout.timeout = sbi->exp_timeout / HZ;
-	sbi->exp_timeout = timeout * HZ;
+	/* If setting the expire timeout for an individual indirect
+	 * mount point dentry the mount trailing component path is
+	 * placed in param->path and param->size adjusted to account
+	 * for it otherwise param->size it is set to the structure
+	 * size.
+	 */
+	if (param->size == AUTOFS_DEV_IOCTL_SIZE) {
+		param->timeout.timeout = sbi->exp_timeout / HZ;
+		sbi->exp_timeout = timeout * HZ;
+	} else {
+		struct dentry *base = fp->f_path.dentry;
+		struct inode *inode = base->d_inode;
+		int path_len = param->size - AUTOFS_DEV_IOCTL_SIZE - 1;
+		struct dentry *dentry;
+		struct autofs_info *ino;
+
+		if (!autofs_type_indirect(sbi->type))
+			return -EINVAL;
+
+		/* An expire timeout greater than the superblock timeout
+		 * could be a problem at shutdown but the super block
+		 * timeout itself can change so all we can really do is
+		 * warn the user.
+		 */
+		if (timeout >= sbi->exp_timeout)
+			pr_warn("per-mount expire timeout is greater than "
+				"the parent autofs mount timeout which could "
+				"prevent shutdown\n");
+
+		inode_lock_shared(inode);
+		dentry = try_lookup_one_len(param->path, base, path_len);
+		inode_unlock_shared(inode);
+		if (IS_ERR_OR_NULL(dentry))
+			return dentry ? PTR_ERR(dentry) : -ENOENT;
+		ino = autofs_dentry_ino(dentry);
+		if (!ino) {
+			dput(dentry);
+			return -ENOENT;
+		}
+
+		if (ino->exp_timeout && ino->flags & AUTOFS_INF_EXPIRE_SET)
+			param->timeout.timeout = ino->exp_timeout / HZ;
+		else
+			param->timeout.timeout = sbi->exp_timeout / HZ;
+
+		if (timeout == -1) {
+			/* Revert to using the super block timeout */
+			ino->flags &= ~AUTOFS_INF_EXPIRE_SET;
+			ino->exp_timeout = 0;
+		} else {
+			/* Set the dentry expire flag and timeout.
+			 *
+			 * If timeout is 0 it will prevent the expire
+			 * of this particular automount.
+			 */
+			ino->flags |= AUTOFS_INF_EXPIRE_SET;
+			ino->exp_timeout = timeout * HZ;
+		}
+		dput(dentry);
+	}
+
 	return 0;
 }
 

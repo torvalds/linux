@@ -22,7 +22,7 @@ void m10bmc_fw_state_set(struct intel_m10bmc *m10bmc, enum m10bmc_fw_state new_s
 	m10bmc->bmcfw_state = new_state;
 	up_write(&m10bmc->bmcfw_lock);
 }
-EXPORT_SYMBOL_NS_GPL(m10bmc_fw_state_set, INTEL_M10_BMC_CORE);
+EXPORT_SYMBOL_NS_GPL(m10bmc_fw_state_set, "INTEL_M10_BMC_CORE");
 
 /*
  * For some Intel FPGA devices, the BMC firmware is not available to service
@@ -75,7 +75,7 @@ int m10bmc_sys_read(struct intel_m10bmc *m10bmc, unsigned int offset, unsigned i
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(m10bmc_sys_read, INTEL_M10_BMC_CORE);
+EXPORT_SYMBOL_NS_GPL(m10bmc_sys_read, "INTEL_M10_BMC_CORE");
 
 int m10bmc_sys_update_bits(struct intel_m10bmc *m10bmc, unsigned int offset,
 			   unsigned int msk, unsigned int val)
@@ -95,7 +95,7 @@ int m10bmc_sys_update_bits(struct intel_m10bmc *m10bmc, unsigned int offset,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(m10bmc_sys_update_bits, INTEL_M10_BMC_CORE);
+EXPORT_SYMBOL_NS_GPL(m10bmc_sys_update_bits, "INTEL_M10_BMC_CORE");
 
 static ssize_t bmc_version_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -183,7 +183,7 @@ const struct attribute_group *m10bmc_dev_groups[] = {
 	&m10bmc_group,
 	NULL,
 };
-EXPORT_SYMBOL_NS_GPL(m10bmc_dev_groups, INTEL_M10_BMC_CORE);
+EXPORT_SYMBOL_NS_GPL(m10bmc_dev_groups, "INTEL_M10_BMC_CORE");
 
 int m10bmc_dev_init(struct intel_m10bmc *m10bmc, const struct intel_m10bmc_platform_info *info)
 {
@@ -201,7 +201,7 @@ int m10bmc_dev_init(struct intel_m10bmc *m10bmc, const struct intel_m10bmc_platf
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(m10bmc_dev_init, INTEL_M10_BMC_CORE);
+EXPORT_SYMBOL_NS_GPL(m10bmc_dev_init, "INTEL_M10_BMC_CORE");
 
 MODULE_DESCRIPTION("Intel MAX 10 BMC core driver");
 MODULE_AUTHOR("Intel Corporation");

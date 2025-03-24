@@ -395,7 +395,7 @@
 		>;
 	};
 
-	pinctrl_ipu1_lcdif: pinctrlipu1lcdif { /* parallel port 24-bit */
+	pinctrl_ipu1_lcdif: pinctrlipu1lcdifgrp { /* parallel port 24-bit */
 		fsl,pins = <
 			MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK 0x10 /* VDOUT_PCLK */
 			MX6QDL_PAD_DI0_PIN15__IPU1_DI0_PIN15       0x10

@@ -19,10 +19,11 @@ struct mgb4_vout_regs {
 	u32 config;
 	u32 status;
 	u32 resolution;
-	u32 frame_period;
+	u32 frame_limit;
 	u32 hsync;
 	u32 vsync;
 	u32 padding;
+	u32 timer;
 };
 
 struct mgb4_vout_config {
@@ -53,9 +54,8 @@ struct mgb4_vout_dev {
 	const struct mgb4_vout_config *config;
 
 #ifdef CONFIG_DEBUG_FS
-	struct dentry *debugfs;
 	struct debugfs_regset32 regset;
-	struct debugfs_reg32 regs[7];
+	struct debugfs_reg32 regs[sizeof(struct mgb4_vout_regs) / 4];
 #endif
 };
 

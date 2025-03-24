@@ -399,7 +399,8 @@ static void emit_batch(struct i915_vma * const vma,
 	batch_add(&cmds, MI_LOAD_REGISTER_IMM(2));
 	batch_add(&cmds, i915_mmio_reg_offset(CACHE_MODE_0_GEN7));
 	batch_add(&cmds, 0xffff0000 |
-			((IS_IVB_GT1(i915) || IS_VALLEYVIEW(i915)) ?
+			(((IS_IVYBRIDGE(i915) && INTEL_INFO(i915)->gt == 1) ||
+			  IS_VALLEYVIEW(i915)) ?
 			 HIZ_RAW_STALL_OPT_DISABLE :
 			 0));
 	batch_add(&cmds, i915_mmio_reg_offset(CACHE_MODE_1));

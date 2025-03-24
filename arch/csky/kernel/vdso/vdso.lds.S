@@ -49,10 +49,6 @@ VERSION
 	LINUX_5.10 {
 	global:
 		__vdso_rt_sigreturn;
-		__vdso_clock_gettime;
-		__vdso_clock_gettime64;
-		__vdso_gettimeofday;
-		__vdso_clock_getres;
 	local: *;
 	};
 }

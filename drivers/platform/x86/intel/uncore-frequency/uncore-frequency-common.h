@@ -34,6 +34,13 @@
  * @domain_id_kobj_attr: Storage for kobject attribute domain_id
  * @fabric_cluster_id_kobj_attr: Storage for kobject attribute fabric_cluster_id
  * @package_id_kobj_attr: Storage for kobject attribute package_id
+ * @elc_low_threshold_percent_kobj_attr:
+		Storage for kobject attribute elc_low_threshold_percent
+ * @elc_high_threshold_percent_kobj_attr:
+		Storage for kobject attribute elc_high_threshold_percent
+ * @elc_high_threshold_enable_kobj_attr:
+		Storage for kobject attribute elc_high_threshold_enable
+ * @elc_floor_freq_khz_kobj_attr: Storage for kobject attribute elc_floor_freq_khz
  * @uncore_attrs:	Attribute storage for group creation
  *
  * This structure is used to encapsulate all data related to uncore sysfs
@@ -61,7 +68,11 @@ struct uncore_data {
 	struct kobj_attribute domain_id_kobj_attr;
 	struct kobj_attribute fabric_cluster_id_kobj_attr;
 	struct kobj_attribute package_id_kobj_attr;
-	struct attribute *uncore_attrs[9];
+	struct kobj_attribute elc_low_threshold_percent_kobj_attr;
+	struct kobj_attribute elc_high_threshold_percent_kobj_attr;
+	struct kobj_attribute elc_high_threshold_enable_kobj_attr;
+	struct kobj_attribute elc_floor_freq_khz_kobj_attr;
+	struct attribute *uncore_attrs[13];
 };
 
 #define UNCORE_DOMAIN_ID_INVALID	-1
@@ -70,6 +81,10 @@ enum uncore_index {
 	UNCORE_INDEX_MIN_FREQ,
 	UNCORE_INDEX_MAX_FREQ,
 	UNCORE_INDEX_CURRENT_FREQ,
+	UNCORE_INDEX_EFF_LAT_CTRL_LOW_THRESHOLD,
+	UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD,
+	UNCORE_INDEX_EFF_LAT_CTRL_HIGH_THRESHOLD_ENABLE,
+	UNCORE_INDEX_EFF_LAT_CTRL_FREQ,
 };
 
 int uncore_freq_common_init(int (*read)(struct uncore_data *data, unsigned int *value,

@@ -19,7 +19,7 @@
 #include "hid-ids.h"
 #include <linux/ctype.h>
 #include <linux/string.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /**
  * uclogic_params_pen_inrange_to_str() - Convert a pen in-range reporting type
@@ -681,7 +681,7 @@ void uclogic_params_cleanup(struct uclogic_params *params)
  *	-ENOMEM, if failed to allocate memory.
  */
 int uclogic_params_get_desc(const struct uclogic_params *params,
-				__u8 **pdesc,
+				const __u8 **pdesc,
 				unsigned int *psize)
 {
 	int rc = -ENOMEM;
@@ -769,7 +769,7 @@ static void uclogic_params_init_invalid(struct uclogic_params *params)
 static int uclogic_params_init_with_opt_desc(struct uclogic_params *params,
 					     struct hid_device *hdev,
 					     unsigned int orig_desc_size,
-					     __u8 *desc_ptr,
+					     const __u8 *desc_ptr,
 					     unsigned int desc_size)
 {
 	__u8 *desc_copy_ptr = NULL;
@@ -842,7 +842,7 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 	__u8 *params_ptr = NULL;
 	size_t params_len = 0;
 	/* Parameters string descriptor of a model with touch ring (HS610) */
-	const __u8 touch_ring_model_params_buf[] = {
+	static const __u8 touch_ring_model_params_buf[] = {
 		0x13, 0x03, 0x70, 0xC6, 0x00, 0x06, 0x7C, 0x00,
 		0xFF, 0x1F, 0xD8, 0x13, 0x03, 0x0D, 0x10, 0x01,
 		0x04, 0x3C, 0x3E

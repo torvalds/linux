@@ -46,8 +46,7 @@ static void handle_kick_signal(int sig, siginfo_t *info, void *context)
 }
 
 static char *drivers[] = {
-	"crct10dif-arm64-ce",
-	/* "crct10dif-arm64-neon", - Same priority as generic */
+	"crct10dif-arm64",
 	"sha1-ce",
 	"sha224-arm64",
 	"sha224-arm64-neon",
@@ -267,6 +266,10 @@ int main(void)
 		       strerror(errno), errno);
 
 	sa.sa_sigaction = handle_kick_signal;
+	ret = sigaction(SIGUSR1, &sa, NULL);
+	if (ret < 0)
+		printf("Failed to install SIGUSR1 handler: %s (%d)\n",
+		       strerror(errno), errno);
 	ret = sigaction(SIGUSR2, &sa, NULL);
 	if (ret < 0)
 		printf("Failed to install SIGUSR2 handler: %s (%d)\n",

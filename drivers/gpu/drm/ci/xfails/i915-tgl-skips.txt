@@ -12,9 +12,9 @@ kms_plane_scaling@invalid-parameters
 
 # Skip driver specific tests
 ^amdgpu.*
-msm_.*
+^msm.*
 nouveau_.*
-panfrost_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*

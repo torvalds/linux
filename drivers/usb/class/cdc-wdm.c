@@ -26,7 +26,7 @@
 #include <linux/usb/cdc.h>
 #include <linux/wwan.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/usb/cdc-wdm.h>
 
 #define DRIVER_AUTHOR "Oliver Neukum"

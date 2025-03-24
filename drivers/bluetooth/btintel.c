@@ -9,9 +9,11 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/regmap.h>
+#include <linux/string_choices.h>
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
+#include <linux/efi.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -25,6 +27,8 @@
 #define CSS_HEADER_OFFSET	8
 #define ECDSA_OFFSET		644
 #define ECDSA_HEADER_LEN	320
+
+#define BTINTEL_EFI_DSBR	L"UefiCnvCommonDSBR"
 
 enum {
 	DSM_SET_WDISABLE2_DELAY = 1,
@@ -503,13 +507,13 @@ int btintel_version_info_tlv(struct hci_dev *hdev,
 
 		bt_dev_info(hdev, "Device revision is %u", version->dev_rev_id);
 		bt_dev_info(hdev, "Secure boot is %s",
-			    version->secure_boot ? "enabled" : "disabled");
+			    str_enabled_disabled(version->secure_boot));
 		bt_dev_info(hdev, "OTP lock is %s",
-			    version->otp_lock ? "enabled" : "disabled");
+			    str_enabled_disabled(version->otp_lock));
 		bt_dev_info(hdev, "API lock is %s",
-			    version->api_lock ? "enabled" : "disabled");
+			    str_enabled_disabled(version->api_lock));
 		bt_dev_info(hdev, "Debug lock is %s",
-			    version->debug_lock ? "enabled" : "disabled");
+			    str_enabled_disabled(version->debug_lock));
 		bt_dev_info(hdev, "Minimum firmware build %u week %u %u",
 			    version->min_fw_build_nn, version->min_fw_build_cw,
 			    2000 + version->min_fw_build_yy);
@@ -924,16 +928,16 @@ int btintel_read_boot_params(struct hci_dev *hdev,
 		    le16_to_cpu(params->dev_revid));
 
 	bt_dev_info(hdev, "Secure boot is %s",
-		    params->secure_boot ? "enabled" : "disabled");
+		    str_enabled_disabled(params->secure_boot));
 
 	bt_dev_info(hdev, "OTP lock is %s",
-		    params->otp_lock ? "enabled" : "disabled");
+		    str_enabled_disabled(params->otp_lock));
 
 	bt_dev_info(hdev, "API lock is %s",
-		    params->api_lock ? "enabled" : "disabled");
+		    str_enabled_disabled(params->api_lock));
 
 	bt_dev_info(hdev, "Debug lock is %s",
-		    params->debug_lock ? "enabled" : "disabled");
+		    str_enabled_disabled(params->debug_lock));
 
 	bt_dev_info(hdev, "Minimum firmware build %u week %u %u",
 		    params->min_fw_build_nn, params->min_fw_build_cw,
@@ -1037,7 +1041,7 @@ static int btintel_download_firmware_payload(struct hci_dev *hdev,
 		 * as needed.
 		 *
 		 * Send set of commands with 4 byte alignment from the
-		 * firmware data buffer as a single Data fragement.
+		 * firmware data buffer as a single Data fragment.
 		 */
 		if (!(frag_len % 4)) {
 			err = btintel_secure_send(hdev, 0x01, frag_len, fw_ptr);
@@ -1249,6 +1253,12 @@ static void btintel_reset_to_bootloader(struct hci_dev *hdev)
 	struct intel_reset params;
 	struct sk_buff *skb;
 
+	/* PCIe transport uses shared hardware reset mechanism for recovery
+	 * which gets triggered in pcie *setup* function on error.
+	 */
+	if (hdev->bus == HCI_PCI)
+		return;
+
 	/* Send Intel Reset command. This will result in
 	 * re-enumeration of BT controller.
 	 *
@@ -1264,6 +1274,7 @@ static void btintel_reset_to_bootloader(struct hci_dev *hdev)
 	 * boot_param:    Boot address
 	 *
 	 */
+
 	params.reset_type = 0x01;
 	params.patch_enable = 0x01;
 	params.ddc_reload = 0x01;
@@ -1838,6 +1849,37 @@ static int btintel_boot_wait(struct hci_dev *hdev, ktime_t calltime, int msec)
 	return 0;
 }
 
+static int btintel_boot_wait_d0(struct hci_dev *hdev, ktime_t calltime,
+				int msec)
+{
+	ktime_t delta, rettime;
+	unsigned long long duration;
+	int err;
+
+	bt_dev_info(hdev, "Waiting for device transition to d0");
+
+	err = btintel_wait_on_flag_timeout(hdev, INTEL_WAIT_FOR_D0,
+					   TASK_INTERRUPTIBLE,
+					   msecs_to_jiffies(msec));
+	if (err == -EINTR) {
+		bt_dev_err(hdev, "Device d0 move interrupted");
+		return -EINTR;
+	}
+
+	if (err) {
+		bt_dev_err(hdev, "Device d0 move timeout");
+		return -ETIMEDOUT;
+	}
+
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = (unsigned long long)ktime_to_ns(delta) >> 10;
+
+	bt_dev_info(hdev, "Device moved to D0 in %llu usecs", duration);
+
+	return 0;
+}
+
 static int btintel_boot(struct hci_dev *hdev, u32 boot_addr)
 {
 	ktime_t calltime;
@@ -1846,6 +1888,7 @@ static int btintel_boot(struct hci_dev *hdev, u32 boot_addr)
 	calltime = ktime_get();
 
 	btintel_set_flag(hdev, INTEL_BOOTING);
+	btintel_set_flag(hdev, INTEL_WAIT_FOR_D0);
 
 	err = btintel_send_intel_reset(hdev, boot_addr);
 	if (err) {
@@ -1858,13 +1901,28 @@ static int btintel_boot(struct hci_dev *hdev, u32 boot_addr)
 	 * is done by the operational firmware sending bootup notification.
 	 *
 	 * Booting into operational firmware should not take longer than
-	 * 1 second. However if that happens, then just fail the setup
+	 * 5 second. However if that happens, then just fail the setup
 	 * since something went wrong.
 	 */
-	err = btintel_boot_wait(hdev, calltime, 1000);
-	if (err == -ETIMEDOUT)
+	err = btintel_boot_wait(hdev, calltime, 5000);
+	if (err == -ETIMEDOUT) {
 		btintel_reset_to_bootloader(hdev);
+		goto exit_error;
+	}
 
+	if (hdev->bus == HCI_PCI) {
+		/* In case of PCIe, after receiving bootup event, driver performs
+		 * D0 entry by writing 0 to sleep control register (check
+		 * btintel_pcie_recv_event())
+		 * Firmware acks with alive interrupt indicating host is full ready to
+		 * perform BT operation. Lets wait here till INTEL_WAIT_FOR_D0
+		 * bit is cleared.
+		 */
+		calltime = ktime_get();
+		err = btintel_boot_wait_d0(hdev, calltime, 2000);
+	}
+
+exit_error:
 	return err;
 }
 
@@ -2616,6 +2674,132 @@ static u8 btintel_classify_pkt_type(struct hci_dev *hdev, struct sk_buff *skb)
 	return hci_skb_pkt_type(skb);
 }
 
+/*
+ * UefiCnvCommonDSBR UEFI variable provides information from the OEM platforms
+ * if they have replaced the BRI (Bluetooth Radio Interface) resistor to
+ * overcome the potential STEP errors on their designs. Based on the
+ * configauration, bluetooth firmware shall adjust the BRI response line drive
+ * strength. The below structure represents DSBR data.
+ * struct {
+ *	u8 header;
+ *	u32 dsbr;
+ * } __packed;
+ *
+ * header - defines revision number of the structure
+ * dsbr - defines drive strength BRI response
+ *	bit0
+ *		0 - instructs bluetooth firmware to use default values
+ *		1 - instructs bluetooth firmware to override default values
+ *	bit3:1
+ *		Reserved
+ *	bit7:4
+ *		DSBR override values (only if bit0 is set. Default value is 0xF
+ *	bit31:7
+ *		Reserved
+ * Expected values for dsbr field:
+ *	1. 0xF1 - indicates that the resistor on board is 33 Ohm
+ *	2. 0x00 or 0xB1 - indicates that the resistor on board is 10 Ohm
+ *	3. Non existing UEFI variable or invalid (none of the above) - indicates
+ *	   that the resistor on board is 10 Ohm
+ * Even if uefi variable is not present, driver shall send 0xfc0a command to
+ * firmware to use default values.
+ *
+ */
+static int btintel_uefi_get_dsbr(u32 *dsbr_var)
+{
+	struct btintel_dsbr {
+		u8 header;
+		u32 dsbr;
+	} __packed data;
+
+	efi_status_t status;
+	unsigned long data_size = 0;
+	efi_guid_t guid = EFI_GUID(0xe65d8884, 0xd4af, 0x4b20, 0x8d, 0x03,
+				   0x77, 0x2e, 0xcc, 0x3d, 0xa5, 0x31);
+
+	if (!IS_ENABLED(CONFIG_EFI))
+		return -EOPNOTSUPP;
+
+	if (!efi_rt_services_supported(EFI_RT_SUPPORTED_GET_VARIABLE))
+		return -EOPNOTSUPP;
+
+	status = efi.get_variable(BTINTEL_EFI_DSBR, &guid, NULL, &data_size,
+				  NULL);
+
+	if (status != EFI_BUFFER_TOO_SMALL || !data_size)
+		return -EIO;
+
+	status = efi.get_variable(BTINTEL_EFI_DSBR, &guid, NULL, &data_size,
+				  &data);
+
+	if (status != EFI_SUCCESS)
+		return -ENXIO;
+
+	*dsbr_var = data.dsbr;
+	return 0;
+}
+
+static int btintel_set_dsbr(struct hci_dev *hdev, struct intel_version_tlv *ver)
+{
+	struct btintel_dsbr_cmd {
+		u8 enable;
+		u8 dsbr;
+	} __packed;
+
+	struct btintel_dsbr_cmd cmd;
+	struct sk_buff *skb;
+	u32 dsbr, cnvi;
+	u8 status;
+	int err;
+
+	cnvi = ver->cnvi_top & 0xfff;
+	/* DSBR command needs to be sent for,
+	 * 1. BlazarI or BlazarIW + B0 step product in IML image.
+	 * 2. Gale Peak2 or BlazarU in OP image.
+	 */
+
+	switch (cnvi) {
+	case BTINTEL_CNVI_BLAZARI:
+	case BTINTEL_CNVI_BLAZARIW:
+		if (ver->img_type == BTINTEL_IMG_IML &&
+		    INTEL_CNVX_TOP_STEP(ver->cnvi_top) == 0x01)
+			break;
+		return 0;
+	case BTINTEL_CNVI_GAP:
+	case BTINTEL_CNVI_BLAZARU:
+		if (ver->img_type == BTINTEL_IMG_OP &&
+		    hdev->bus == HCI_USB)
+			break;
+		return 0;
+	default:
+		return 0;
+	}
+
+	dsbr = 0;
+	err = btintel_uefi_get_dsbr(&dsbr);
+	if (err < 0)
+		bt_dev_dbg(hdev, "Error reading efi: %ls  (%d)",
+			   BTINTEL_EFI_DSBR, err);
+
+	cmd.enable = dsbr & BIT(0);
+	cmd.dsbr = dsbr >> 4 & 0xF;
+
+	bt_dev_info(hdev, "dsbr: enable: 0x%2.2x value: 0x%2.2x", cmd.enable,
+		    cmd.dsbr);
+
+	skb = __hci_cmd_sync(hdev, 0xfc0a, sizeof(cmd), &cmd,  HCI_CMD_TIMEOUT);
+	if (IS_ERR(skb))
+		return -bt_to_errno(PTR_ERR(skb));
+
+	status = skb->data[0];
+	kfree_skb(skb);
+
+	if (status)
+		return -bt_to_errno(status);
+
+	return 0;
+}
+
 int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 				 struct intel_version_tlv *ver)
 {
@@ -2631,6 +2815,13 @@ int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 	 * command while downloading the firmware.
 	 */
 	boot_param = 0x00000000;
+
+	/* In case of PCIe, this function might get called multiple times with
+	 * same hdev instance if there is any error on firmware download.
+	 * Need to clear stale bits of previous firmware download attempt.
+	 */
+	for (int i = 0; i < __INTEL_NUM_FLAGS; i++)
+		btintel_clear_flag(hdev, i);
 
 	btintel_set_flag(hdev, INTEL_BOOTLOADER);
 
@@ -2649,6 +2840,13 @@ int btintel_bootloader_setup_tlv(struct hci_dev *hdev,
 	err = btintel_read_version_tlv(hdev, ver);
 	if (err)
 		return err;
+
+	/* set drive strength of BRI response */
+	err = btintel_set_dsbr(hdev, ver);
+	if (err) {
+		bt_dev_err(hdev, "Failed to send dsbr command (%d)", err);
+		return err;
+	}
 
 	/* If image type returned is BTINTEL_IMG_IML, then controller supports
 	 * intermediate loader image
@@ -2711,7 +2909,7 @@ void btintel_set_msft_opcode(struct hci_dev *hdev, u8 hw_variant)
 	case 0x12:	/* ThP */
 	case 0x13:	/* HrP */
 	case 0x14:	/* CcP */
-	/* All Intel new genration controllers support the Microsoft vendor
+	/* All Intel new generation controllers support the Microsoft vendor
 	 * extension are using 0xFC1E for VsMsftOpCode.
 	 */
 	case 0x17:
@@ -2945,9 +3143,6 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 					       INTEL_ROM_LEGACY_NO_WBS_SUPPORT))
 				set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED,
 					&hdev->quirks);
-			if (ver.hw_variant == 0x08 && ver.fw_variant == 0x22)
-				set_bit(HCI_QUIRK_VALID_LE_STATES,
-					&hdev->quirks);
 
 			err = btintel_legacy_rom_setup(hdev, &ver);
 			break;
@@ -2956,7 +3151,6 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		case 0x12:      /* ThP */
 		case 0x13:      /* HrP */
 		case 0x14:      /* CcP */
-			set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
 			fallthrough;
 		case 0x0c:	/* WsP */
 			/* Apply the device specific HCI quirks
@@ -3048,9 +3242,6 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		/* These variants don't seem to support LE Coded PHY */
 		set_bit(HCI_QUIRK_BROKEN_LE_CODED, &hdev->quirks);
 
-		/* Set Valid LE States quirk */
-		set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
-
 		/* Setup MSFT Extension support */
 		btintel_set_msft_opcode(hdev, ver.hw_variant);
 
@@ -3075,9 +3266,6 @@ static int btintel_setup_combined(struct hci_dev *hdev)
 		 * All TLV based devices support WBS
 		 */
 		set_bit(HCI_QUIRK_WIDEBAND_SPEECH_SUPPORTED, &hdev->quirks);
-
-		/* Apply LE States quirk from solar onwards */
-		set_bit(HCI_QUIRK_VALID_LE_STATES, &hdev->quirks);
 
 		/* Setup MSFT Extension support */
 		btintel_set_msft_opcode(hdev,
@@ -3159,7 +3347,7 @@ int btintel_configure_setup(struct hci_dev *hdev, const char *driver_name)
 }
 EXPORT_SYMBOL_GPL(btintel_configure_setup);
 
-static int btintel_diagnostics(struct hci_dev *hdev, struct sk_buff *skb)
+int btintel_diagnostics(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct intel_tlv *tlv = (void *)&skb->data[5];
 
@@ -3174,13 +3362,12 @@ static int btintel_diagnostics(struct hci_dev *hdev, struct sk_buff *skb)
 	case INTEL_TLV_TEST_EXCEPTION:
 		/* Generate devcoredump from exception */
 		if (!hci_devcd_init(hdev, skb->len)) {
-			hci_devcd_append(hdev, skb);
+			hci_devcd_append(hdev, skb_clone(skb, GFP_ATOMIC));
 			hci_devcd_complete(hdev);
 		} else {
 			bt_dev_err(hdev, "Failed to generate devcoredump");
-			kfree_skb(skb);
 		}
-		return 0;
+	break;
 	default:
 		bt_dev_err(hdev, "Invalid exception type %02X", tlv->val[0]);
 	}
@@ -3188,6 +3375,7 @@ static int btintel_diagnostics(struct hci_dev *hdev, struct sk_buff *skb)
 recv_frame:
 	return hci_recv_frame(hdev, skb);
 }
+EXPORT_SYMBOL_GPL(btintel_diagnostics);
 
 int btintel_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 {
@@ -3207,7 +3395,8 @@ int btintel_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 				 * indicating that the bootup completed.
 				 */
 				btintel_bootup(hdev, ptr, len);
-				break;
+				kfree_skb(skb);
+				return 0;
 			case 0x06:
 				/* When the firmware loading completes the
 				 * device sends out a vendor specific event
@@ -3215,7 +3404,8 @@ int btintel_recv_event(struct hci_dev *hdev, struct sk_buff *skb)
 				 * loading.
 				 */
 				btintel_secure_send_result(hdev, ptr, len);
-				break;
+				kfree_skb(skb);
+				return 0;
 			}
 		}
 

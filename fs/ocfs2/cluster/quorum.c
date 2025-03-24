@@ -23,7 +23,7 @@
  * race between when we see a node start heartbeating and when we connect
  * to it.
  *
- * So nodes that are in this transtion put a hold on the quorum decision
+ * So nodes that are in this transition put a hold on the quorum decision
  * with a counter.  As they fall out of this transition they drop the count
  * and if they're the last, they fire off the decision.
  */
@@ -60,7 +60,7 @@ static void o2quo_fence_self(void)
 	switch (o2nm_single_cluster->cl_fence_method) {
 	case O2NM_FENCE_PANIC:
 		panic("*** ocfs2 is very sorry to be fencing this system by "
-		      "panicing ***\n");
+		      "panicking ***\n");
 		break;
 	default:
 		WARN_ON(o2nm_single_cluster->cl_fence_method >=
@@ -189,7 +189,7 @@ static void o2quo_clear_hold(struct o2quo_state *qs, u8 node)
 }
 
 /* as a node comes up we delay the quorum decision until we know the fate of
- * the connection.  the hold will be droped in conn_up or hb_down.  it might be
+ * the connection.  the hold will be dropped in conn_up or hb_down.  it might be
  * perpetuated by con_err until hb_down.  if we already have a conn, we might
  * be dropping a hold that conn_up got. */
 void o2quo_hb_up(u8 node)
@@ -256,7 +256,7 @@ void o2quo_hb_still_up(u8 node)
 }
 
 /* This is analogous to hb_up.  as a node's connection comes up we delay the
- * quorum decision until we see it heartbeating.  the hold will be droped in
+ * quorum decision until we see it heartbeating.  the hold will be dropped in
  * hb_up or hb_down.  it might be perpetuated by con_err until hb_down.  if
  * it's already heartbeating we might be dropping a hold that conn_up got.
  * */

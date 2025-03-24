@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/bug.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 #include <asm/alternative.h>
 #include <asm/vendorid_list.h>
 #include <asm/errata_list.h>

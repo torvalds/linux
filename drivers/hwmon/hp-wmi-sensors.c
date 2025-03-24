@@ -1597,15 +1597,13 @@ static void hp_wmi_devm_notify_remove(void *ignored)
 }
 
 /* hp_wmi_notify - WMI event notification handler */
-static void hp_wmi_notify(u32 value, void *context)
+static void hp_wmi_notify(union acpi_object *wobj, void *context)
 {
 	struct hp_wmi_info *temp_info[HP_WMI_MAX_INSTANCES] = {};
-	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct hp_wmi_sensors *state = context;
 	struct device *dev = &state->wdev->dev;
 	struct hp_wmi_event event = {};
 	struct hp_wmi_info *fan_info;
-	union acpi_object *wobj;
 	acpi_status err;
 	int event_type;
 	u8 count;
@@ -1630,18 +1628,15 @@ static void hp_wmi_notify(u32 value, void *context)
 	 * HPBIOS_BIOSEvent instance.
 	 */
 
+	if (!wobj)
+		return;
+
 	mutex_lock(&state->lock);
-
-	err = wmi_get_event_data(value, &out);
-	if (ACPI_FAILURE(err))
-		goto out_unlock;
-
-	wobj = out.pointer;
 
 	err = populate_event_from_wobj(dev, &event, wobj);
 	if (err) {
 		dev_warn(dev, "Bad event data (ACPI type %d)\n", wobj->type);
-		goto out_free_wobj;
+		goto out_free;
 	}
 
 	event_type = classify_event(event.name, event.category);
@@ -1666,13 +1661,10 @@ static void hp_wmi_notify(u32 value, void *context)
 		break;
 	}
 
-out_free_wobj:
-	kfree(wobj);
-
+out_free:
 	devm_kfree(dev, event.name);
 	devm_kfree(dev, event.description);
 
-out_unlock:
 	mutex_unlock(&state->lock);
 }
 

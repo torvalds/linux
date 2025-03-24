@@ -89,7 +89,6 @@ __i915_gem_object_unset_pages(struct drm_i915_gem_object *obj);
  * @handle: userspace handle
  *
  * Returns:
- *
  * A pointer to the object named by the handle if such exists on @filp, NULL
  * otherwise. This object is only valid whilst under the RCU read lock, and
  * note carefully the object may be in the process of being destroyed.
@@ -284,9 +283,7 @@ bool i915_gem_object_has_iomem(const struct drm_i915_gem_object *obj);
 static inline bool
 i915_gem_object_is_shrinkable(const struct drm_i915_gem_object *obj)
 {
-	/* TODO: make DPT shrinkable when it has no bound vmas */
-	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_SHRINKABLE) &&
-		!obj->is_dpt;
+	return i915_gem_object_type_has(obj, I915_GEM_OBJECT_IS_SHRINKABLE);
 }
 
 static inline bool

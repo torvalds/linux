@@ -141,7 +141,7 @@ void threads__remove_all_threads(struct threads *threads)
 
 		down_write(&table->lock);
 		__threads_table_entry__set_last_match(table, NULL);
-		hashmap__for_each_entry_safe((&table->shard), cur, tmp, bkt) {
+		hashmap__for_each_entry_safe(&table->shard, cur, tmp, bkt) {
 			struct thread *old_value;
 
 			hashmap__delete(&table->shard, cur->key, /*old_key=*/NULL, &old_value);
@@ -175,7 +175,7 @@ int threads__for_each_thread(struct threads *threads,
 		size_t bkt;
 
 		down_read(&table->lock);
-		hashmap__for_each_entry((&table->shard), cur, bkt) {
+		hashmap__for_each_entry(&table->shard, cur, bkt) {
 			int rc = fn((struct thread *)cur->pvalue, data);
 
 			if (rc != 0) {

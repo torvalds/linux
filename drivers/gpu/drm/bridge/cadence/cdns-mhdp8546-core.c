@@ -47,7 +47,7 @@
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "cdns-mhdp8546-core.h"
 #include "cdns-mhdp8546-hdcp.h"
@@ -2656,7 +2656,7 @@ static struct platform_driver mhdp_driver = {
 		.of_match_table	= mhdp_ids,
 	},
 	.probe	= cdns_mhdp_probe,
-	.remove_new = cdns_mhdp_remove,
+	.remove = cdns_mhdp_remove,
 };
 module_platform_driver(mhdp_driver);
 

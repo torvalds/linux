@@ -24,10 +24,6 @@ properties:
     description: I2C address
     maxItems: 1
 
-  assigned-clocks: true
-  assigned-clock-parents: true
-  assigned-clock-rates: true
-
   clocks:
     description: Clock frequency from 6 to 27 MHz, 37.125MHz, 74.25MHz
     maxItems: 1
@@ -75,6 +71,8 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
+
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -84,13 +82,11 @@ examples:
             reg = <0x1a>;
             clocks = <&imx335_clk>;
 
-            assigned-clocks = <&imx335_clk>;
-            assigned-clock-parents = <&imx335_clk_parent>;
-            assigned-clock-rates = <24000000>;
-
             avdd-supply = <&camera_vdda_2v9>;
             ovdd-supply = <&camera_vddo_1v8>;
             dvdd-supply = <&camera_vddd_1v2>;
+
+            reset-gpios = <&gpio 50 GPIO_ACTIVE_LOW>;
 
             port {
                 imx335: endpoint {

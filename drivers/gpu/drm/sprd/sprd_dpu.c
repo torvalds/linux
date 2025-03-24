@@ -866,7 +866,7 @@ static void sprd_dpu_remove(struct platform_device *pdev)
 
 struct platform_driver sprd_dpu_driver = {
 	.probe = sprd_dpu_probe,
-	.remove_new = sprd_dpu_remove,
+	.remove = sprd_dpu_remove,
 	.driver = {
 		.name = "sprd-dpu-drv",
 		.of_match_table = dpu_match_table,

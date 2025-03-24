@@ -32,11 +32,16 @@ properties:
       - enum:
           - samsung,exynos850-usi
 
-  reg: true
+  reg:
+    maxItems: 1
 
-  clocks: true
+  clocks:
+    maxItems: 2
 
-  clock-names: true
+  clock-names:
+    items:
+      - const: pclk
+      - const: ipclk
 
   ranges: true
 
@@ -59,6 +64,7 @@ properties:
 
   samsung,mode:
     $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [0, 1, 2, 3]
     description:
       Selects USI function (which serial protocol to use). Refer to
       <include/dt-bindings/soc/samsung,exynos-usi.h> for valid USI mode values.
@@ -113,9 +119,7 @@ then:
         - description: Operating clock for UART/SPI/I2C protocol
 
     clock-names:
-      items:
-        - const: pclk
-        - const: ipclk
+      maxItems: 2
 
   required:
     - reg

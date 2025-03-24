@@ -18,7 +18,7 @@
 #include <linux/bcma/bcma_regs.h>
 #include <linux/platform_data/x86/apple.h>
 #include <drm/intel/i915_drm.h>
-#include <drm/intel/i915_pciids.h>
+#include <drm/intel/pciids.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
 #include <asm/io_apic.h>

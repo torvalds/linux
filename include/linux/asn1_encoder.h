@@ -6,7 +6,6 @@
 #include <linux/types.h>
 #include <linux/asn1.h>
 #include <linux/asn1_ber_bytecode.h>
-#include <linux/bug.h>
 
 #define asn1_oid_len(oid) (sizeof(oid)/sizeof(u32))
 unsigned char *

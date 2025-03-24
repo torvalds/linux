@@ -15,7 +15,7 @@
 /* ACPICA external files should not include ACPICA headers directly. */
 
 #if !defined(BUILDING_ACPICA) && !defined(_LINUX_ACPI_H)
-#error "Please don't include <acpi/acpi.h> directly, include <linux/acpi.h> instead."
+#error "Please do not include <acpi/acpi.h> directly, include <linux/acpi.h> instead."
 #endif
 
 #endif

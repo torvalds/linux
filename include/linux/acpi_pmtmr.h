@@ -26,6 +26,19 @@ static inline u32 acpi_pm_read_early(void)
 	return acpi_pm_read_verified() & ACPI_PM_MASK;
 }
 
+/**
+ * Register callback for suspend and resume event
+ *
+ * @cb Callback triggered on suspend and resume
+ * @data Data passed with the callback
+ */
+void acpi_pmtmr_register_suspend_resume_callback(void (*cb)(void *data, bool suspend), void *data);
+
+/**
+ * Remove registered callback for suspend and resume event
+ */
+void acpi_pmtmr_unregister_suspend_resume_callback(void);
+
 #else
 
 static inline u32 acpi_pm_read_early(void)

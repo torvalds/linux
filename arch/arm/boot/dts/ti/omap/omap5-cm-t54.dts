@@ -413,7 +413,7 @@
 
 	clock-frequency = <400000>;
 
-	at24@50 {
+	eeprom@50 {
 		compatible = "atmel,24c02";
 		pagesize = <16>;
 		reg = <0x50>;

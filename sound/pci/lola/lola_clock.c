@@ -35,7 +35,7 @@ unsigned int lola_sample_rate_convert(unsigned int coded)
 	default:        return 0;   /* error */
 	}
 
-	/* ajustement */
+	/* adjustement */
 	switch (coded & 0x60) {
 	case (0 << 5):    break;
 	case (1 << 5):    freq = (freq * 999) / 1000; break;

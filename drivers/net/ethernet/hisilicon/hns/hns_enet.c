@@ -2439,7 +2439,7 @@ static struct platform_driver hns_nic_dev_driver = {
 		.acpi_match_table = ACPI_PTR(hns_enet_acpi_match),
 	},
 	.probe = hns_nic_dev_probe,
-	.remove_new = hns_nic_dev_remove,
+	.remove = hns_nic_dev_remove,
 };
 
 module_platform_driver(hns_nic_dev_driver);

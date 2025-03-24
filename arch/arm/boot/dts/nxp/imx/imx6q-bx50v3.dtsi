@@ -94,7 +94,7 @@
 		mdio-gpio0 = &mdio0;
 	};
 
-	mdio0: mdio-gpio {
+	mdio0: mdio {
 		compatible = "virtual,mdio-gpio";
 		gpios = <&gpio2 5 GPIO_ACTIVE_HIGH>, /* mdc */
 			<&gpio2 7 GPIO_ACTIVE_HIGH>; /* mdio */

@@ -359,7 +359,6 @@ static int zf_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations zf_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= zf_write,
 	.unlocked_ioctl = zf_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,

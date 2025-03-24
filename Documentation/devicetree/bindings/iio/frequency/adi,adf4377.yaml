@@ -17,6 +17,7 @@ description: |
    applications.
 
    https://www.analog.com/en/products/adf4377.html
+   https://www.analog.com/en/products/adf4378.html
 
 properties:
   compatible:
@@ -73,6 +74,15 @@ required:
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,adf4378
+    then:
+      properties:
+        clk2-enable-gpios: false
 
 unevaluatedProperties: false
 

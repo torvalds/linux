@@ -555,6 +555,9 @@ asmlinkage void noinstr do_ale(struct pt_regs *regs)
 #else
 	unsigned int *pc;
 
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_enable();
+
 	perf_sw_event(PERF_COUNT_SW_ALIGNMENT_FAULTS, 1, regs, regs->csr_badvaddr);
 
 	/*
@@ -579,6 +582,8 @@ sigbus:
 	die_if_kernel("Kernel ale access", regs);
 	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)regs->csr_badvaddr);
 out:
+	if (regs->csr_prmd & CSR_PRMD_PIE)
+		local_irq_disable();
 #endif
 	irqentry_exit(regs, state);
 }
@@ -592,17 +597,24 @@ int is_valid_bugaddr(unsigned long addr)
 
 static void bug_handler(struct pt_regs *regs)
 {
+	if (user_mode(regs)) {
+		force_sig(SIGTRAP);
+		return;
+	}
+
 	switch (report_bug(regs->csr_era, regs)) {
 	case BUG_TRAP_TYPE_BUG:
-	case BUG_TRAP_TYPE_NONE:
-		die_if_kernel("Oops - BUG", regs);
-		force_sig(SIGTRAP);
+		die("Oops - BUG", regs);
 		break;
 
 	case BUG_TRAP_TYPE_WARN:
 		/* Skip the BUG instruction and continue */
 		regs->csr_era += LOONGARCH_INSN_SIZE;
 		break;
+
+	default:
+		if (!fixup_exception(regs))
+			die("Oops - BUG", regs);
 	}
 }
 

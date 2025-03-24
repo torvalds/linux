@@ -6,7 +6,7 @@
  */
 
 / {
-	backlight_regulator: backlight-regulator {
+	backlight_regulator: regulator-backlight {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
@@ -17,7 +17,7 @@
 		startup-delay-us = <15000>;
 	};
 
-	panel_regulator: panel-regulator {
+	panel_regulator: regulator-panel {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio7 RK_PB6 GPIO_ACTIVE_HIGH>;

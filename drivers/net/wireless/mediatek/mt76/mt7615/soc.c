@@ -63,7 +63,7 @@ struct platform_driver mt7622_wmac_driver = {
 		.of_match_table = mt7622_wmac_of_match,
 	},
 	.probe = mt7622_wmac_probe,
-	.remove_new = mt7622_wmac_remove,
+	.remove = mt7622_wmac_remove,
 };
 
 MODULE_FIRMWARE(MT7622_FIRMWARE_N9);

@@ -946,7 +946,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(stm32_rproc_pm_ops,
 
 static struct platform_driver stm32_rproc_driver = {
 	.probe = stm32_rproc_probe,
-	.remove_new = stm32_rproc_remove,
+	.remove = stm32_rproc_remove,
 	.driver = {
 		.name = "stm32-rproc",
 		.pm = pm_ptr(&stm32_rproc_pm_ops),

@@ -32,6 +32,7 @@ properties:
           - renesas,r8a77990-csi2 # R-Car E3
           - renesas,r8a779a0-csi2 # R-Car V3U
           - renesas,r8a779g0-csi2 # R-Car V4H
+          - renesas,r8a779h0-csi2 # R-Car V4M
 
   reg:
     maxItems: 1

@@ -17,50 +17,40 @@ obj-$(CONFIG_INTEL_UNCORE_FREQ_CONTROL)	+= uncore-frequency/
 
 
 # Intel input drivers
-intel-hid-y				:= hid.o
-obj-$(CONFIG_INTEL_HID_EVENT)		+= intel-hid.o
-intel-vbtn-y				:= vbtn.o
-obj-$(CONFIG_INTEL_VBTN)		+= intel-vbtn.o
+intel-target-$(CONFIG_INTEL_HID_EVENT)		+= hid.o
+intel-target-$(CONFIG_INTEL_VBTN)		+= vbtn.o
 
 # Intel miscellaneous drivers
-obj-$(CONFIG_INTEL_ISHTP_ECLITE)	+= ishtp_eclite.o
-intel_int0002_vgpio-y			:= int0002_vgpio.o
-obj-$(CONFIG_INTEL_INT0002_VGPIO)	+= intel_int0002_vgpio.o
-intel_oaktrail-y			:= oaktrail.o
-obj-$(CONFIG_INTEL_OAKTRAIL)		+= intel_oaktrail.o
-intel_sdsi-y				:= sdsi.o
-obj-$(CONFIG_INTEL_SDSI)		+= intel_sdsi.o
-intel_vsec-y				:= vsec.o
-obj-$(CONFIG_INTEL_VSEC)		+= intel_vsec.o
+intel-target-$(CONFIG_INTEL_INT0002_VGPIO)	+= int0002_vgpio.o
+intel-target-$(CONFIG_INTEL_ISHTP_ECLITE)	+= ishtp_eclite.o
+intel-target-$(CONFIG_INTEL_OAKTRAIL)		+= oaktrail.o
+intel-target-$(CONFIG_INTEL_SDSI)		+= sdsi.o
+intel-target-$(CONFIG_INTEL_VSEC)		+= vsec.o
 
 # Intel PMIC / PMC / P-Unit drivers
-intel_bxtwc_tmu-y			:= bxtwc_tmu.o
-obj-$(CONFIG_INTEL_BXTWC_PMIC_TMU)	+= intel_bxtwc_tmu.o
-intel_crystal_cove_charger-y		:= crystal_cove_charger.o
-obj-$(CONFIG_X86_ANDROID_TABLETS)	+= intel_crystal_cove_charger.o
-intel_bytcrc_pwrsrc-y			:= bytcrc_pwrsrc.o
-obj-$(CONFIG_INTEL_BYTCRC_PWRSRC)	+= intel_bytcrc_pwrsrc.o
-intel_chtdc_ti_pwrbtn-y			:= chtdc_ti_pwrbtn.o
-obj-$(CONFIG_INTEL_CHTDC_TI_PWRBTN)	+= intel_chtdc_ti_pwrbtn.o
-intel_chtwc_int33fe-y			:= chtwc_int33fe.o
-obj-$(CONFIG_INTEL_CHTWC_INT33FE)	+= intel_chtwc_int33fe.o
-intel_mrfld_pwrbtn-y			:= mrfld_pwrbtn.o
-obj-$(CONFIG_INTEL_MRFLD_PWRBTN)	+= intel_mrfld_pwrbtn.o
-intel_punit_ipc-y			:= punit_ipc.o
-obj-$(CONFIG_INTEL_PUNIT_IPC)		+= intel_punit_ipc.o
+intel-target-$(CONFIG_INTEL_BYTCRC_PWRSRC)	+= bytcrc_pwrsrc.o
+intel-target-$(CONFIG_INTEL_BXTWC_PMIC_TMU)	+= bxtwc_tmu.o
+intel-target-$(CONFIG_INTEL_CHTDC_TI_PWRBTN)	+= chtdc_ti_pwrbtn.o
+intel-target-$(CONFIG_INTEL_CHTWC_INT33FE)	+= chtwc_int33fe.o
+intel-target-$(CONFIG_X86_ANDROID_TABLETS)	+= crystal_cove_charger.o
+intel-target-$(CONFIG_INTEL_MRFLD_PWRBTN)	+= mrfld_pwrbtn.o
+intel-target-$(CONFIG_INTEL_PUNIT_IPC)		+= punit_ipc.o
 
 # TPMI drivers
-intel_vsec_tpmi-y			:= tpmi.o
-obj-$(CONFIG_INTEL_TPMI)		+= intel_vsec_tpmi.o
-obj-$(CONFIG_INTEL_PLR_TPMI)		+= intel_plr_tpmi.o
-
-intel_tpmi_power_domains-y		:= tpmi_power_domains.o
-obj-$(CONFIG_INTEL_TPMI_POWER_DOMAINS)	+= intel_tpmi_power_domains.o
+intel-target-$(CONFIG_INTEL_PLR_TPMI)		+= plr_tpmi.o
+intel-target-$(CONFIG_INTEL_TPMI_POWER_DOMAINS)	+= tpmi_power_domains.o
+intel-target-$(CONFIG_INTEL_TPMI)		+= vsec_tpmi.o
 
 # Intel Uncore drivers
-intel-rst-y				:= rst.o
-obj-$(CONFIG_INTEL_RST)			+= intel-rst.o
-intel-smartconnect-y			:= smartconnect.o
-obj-$(CONFIG_INTEL_SMARTCONNECT)	+= intel-smartconnect.o
-intel_turbo_max_3-y			:= turbo_max_3.o
-obj-$(CONFIG_INTEL_TURBO_MAX_3)		+= intel_turbo_max_3.o
+intel-target-$(CONFIG_INTEL_RST)		+= rst.o
+intel-target-$(CONFIG_INTEL_SMARTCONNECT)	+= smartconnect.o
+intel-target-$(CONFIG_INTEL_TURBO_MAX_3)	+= turbo_max_3.o
+
+# Add 'intel' prefix to each module listed in intel-target-*
+define INTEL_OBJ_TARGET
+intel-$(1)-y := $(1).o
+obj-$(2) += intel-$(1).o
+endef
+
+$(foreach target, $(basename $(intel-target-y)), $(eval $(call INTEL_OBJ_TARGET,$(target),y)))
+$(foreach target, $(basename $(intel-target-m)), $(eval $(call INTEL_OBJ_TARGET,$(target),m)))

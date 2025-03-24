@@ -771,7 +771,7 @@ print_packet(uint32_t *data, size_t length)
 				if (pp->phy_config.set_root)
 					printf(" set_root_id=%02x", pp->phy_config.root_id);
 				if (pp->phy_config.set_gap_count)
-					printf(" set_gap_count=%d", pp->phy_config.gap_count);
+					printf(" set_gap_count=%u", pp->phy_config.gap_count);
 			}
 			break;
 
@@ -781,13 +781,13 @@ print_packet(uint32_t *data, size_t length)
 
 		case PHY_PACKET_SELF_ID:
 			if (pp->self_id.extended) {
-				printf("extended self id: phy_id=%02x, seq=%d",
+				printf("extended self id: phy_id=%02x, seq=%u",
 				       pp->ext_self_id.phy_id, pp->ext_self_id.sequence);
 			} else {
 				static const char * const speed_names[] = {
 					"S100", "S200", "S400", "BETA"
 				};
-				printf("self id: phy_id=%02x, link %s, gap_count=%d, speed=%s%s%s",
+				printf("self id: phy_id=%02x, link %s, gap_count=%u speed=%s%s%s",
 				       pp->self_id.phy_id,
 				       (pp->self_id.link_active ? "active" : "not active"),
 				       pp->self_id.gap_count,

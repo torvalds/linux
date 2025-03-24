@@ -559,7 +559,7 @@ MODULE_DEVICE_TABLE(of, sun4i_tv_of_table);
 
 static struct platform_driver sun4i_tv_platform_driver = {
 	.probe		= sun4i_tv_probe,
-	.remove_new	= sun4i_tv_remove,
+	.remove		= sun4i_tv_remove,
 	.driver		= {
 		.name		= "sun4i-tve",
 		.of_match_table	= sun4i_tv_of_table,

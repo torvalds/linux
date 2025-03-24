@@ -40,6 +40,7 @@ ALL_TESTS="
 	ping_ipv4
 	ping_ipv6
 	multipath_test
+	multipath16_test
 	nh_stats_test_v4
 	nh_stats_test_v6
 "
@@ -228,9 +229,11 @@ routing_nh_obj()
 
 multipath4_test()
 {
-	local desc="$1"
-	local weight_rp12=$2
-	local weight_rp13=$3
+	local desc=$1; shift
+	local weight_rp12=$1; shift
+	local weight_rp13=$1; shift
+	local ports=${1-sp=1024,dp=0-32768}; shift
+
 	local t0_rp12 t0_rp13 t1_rp12 t1_rp13
 	local packets_rp12 packets_rp13
 
@@ -243,7 +246,8 @@ multipath4_test()
 	t0_rp13=$(link_stats_tx_packets_get $rp13)
 
 	ip vrf exec vrf-h1 $MZ $h1 -q -p 64 -A 192.0.2.2 -B 198.51.100.2 \
-		-d $MZ_DELAY -t udp "sp=1024,dp=0-32768"
+		-d $MZ_DELAY -t udp "$ports"
+	sleep 1
 
 	t1_rp12=$(link_stats_tx_packets_get $rp12)
 	t1_rp13=$(link_stats_tx_packets_get $rp13)
@@ -258,9 +262,11 @@ multipath4_test()
 
 multipath6_l4_test()
 {
-	local desc="$1"
-	local weight_rp12=$2
-	local weight_rp13=$3
+	local desc=$1; shift
+	local weight_rp12=$1; shift
+	local weight_rp13=$1; shift
+	local ports=${1-sp=1024,dp=0-32768}; shift
+
 	local t0_rp12 t0_rp13 t1_rp12 t1_rp13
 	local packets_rp12 packets_rp13
 
@@ -273,7 +279,8 @@ multipath6_l4_test()
 	t0_rp13=$(link_stats_tx_packets_get $rp13)
 
 	$MZ $h1 -6 -q -p 64 -A 2001:db8:1::2 -B 2001:db8:2::2 \
-		-d $MZ_DELAY -t udp "sp=1024,dp=0-32768"
+		-d $MZ_DELAY -t udp "$ports"
+	sleep 1
 
 	t1_rp12=$(link_stats_tx_packets_get $rp12)
 	t1_rp13=$(link_stats_tx_packets_get $rp13)
@@ -367,6 +374,41 @@ multipath_test()
 	sleep 10
 	ip nexthop replace id 106 group 104,11/105,45 type resilient
 	multipath6_l4_test "Weighted MP 11:45" 11 45
+
+	ip nexthop replace id 106 group 104,1/105,1 type resilient
+}
+
+multipath16_test()
+{
+	check_nhgw16 104 || return
+
+	log_info "Running 16-bit IPv4 multipath tests"
+	ip nexthop replace id 103 group 101/102 type resilient idle_timer 0
+
+	ip nexthop replace id 103 group 101,65535/102,65535 type resilient
+	multipath4_test "65535:65535" 65535 65535
+
+	ip nexthop replace id 103 group 101,128/102,512 type resilient
+	multipath4_test "128:512" 128 512
+
+	ip nexthop replace id 103 group 101,255/102,65535 type resilient
+	omit_on_slow \
+		multipath4_test "255:65535" 255 65535 sp=1024-1026,dp=0-65535
+
+	ip nexthop replace id 103 group 101,1/102,1 type resilient
+
+	log_info "Running 16-bit IPv6 L4 hash multipath tests"
+	ip nexthop replace id 106 group 104/105 type resilient idle_timer 0
+
+	ip nexthop replace id 106 group 104,65535/105,65535 type resilient
+	multipath6_l4_test "65535:65535" 65535 65535
+
+	ip nexthop replace id 106 group 104,128/105,512 type resilient
+	multipath6_l4_test "128:512" 128 512
+
+	ip nexthop replace id 106 group 104,255/105,65535 type resilient
+	omit_on_slow \
+		multipath6_l4_test "255:65535" 255 65535 sp=1024-1026,dp=0-65535
 
 	ip nexthop replace id 106 group 104,1/105,1 type resilient
 }

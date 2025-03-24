@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 #include <linux/sprintf.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -272,10 +273,6 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	if (ret)
 		return ret;
 
-	ret = pcim_iomap_regions(dev, 1 << 0, "PXA2xx SPI");
-	if (ret)
-		return ret;
-
 	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
@@ -283,7 +280,9 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 	ssp = &pdata->ssp;
 	ssp->dev = &dev->dev;
 	ssp->phys_base = pci_resource_start(dev, 0);
-	ssp->mmio_base = pcim_iomap_table(dev)[0];
+	ssp->mmio_base = pcim_iomap_region(dev, 0, "PXA2xx SPI");
+	if (IS_ERR(ssp->mmio_base))
+		return PTR_ERR(ssp->mmio_base);
 
 	info = (struct pxa_spi_info *)ent->driver_data;
 	ret = info->setup(dev, pdata);
@@ -297,11 +296,23 @@ static int pxa2xx_spi_pci_probe(struct pci_dev *dev,
 		return ret;
 	ssp->irq = pci_irq_vector(dev, 0);
 
-	return pxa2xx_spi_probe(&dev->dev, ssp);
+	ret = pxa2xx_spi_probe(&dev->dev, ssp, pdata);
+	if (ret)
+		return ret;
+
+	pm_runtime_set_autosuspend_delay(&dev->dev, 50);
+	pm_runtime_use_autosuspend(&dev->dev);
+	pm_runtime_put_autosuspend(&dev->dev);
+	pm_runtime_allow(&dev->dev);
+
+	return 0;
 }
 
 static void pxa2xx_spi_pci_remove(struct pci_dev *dev)
 {
+	pm_runtime_forbid(&dev->dev);
+	pm_runtime_get_noresume(&dev->dev);
+
 	pxa2xx_spi_remove(&dev->dev);
 }
 
@@ -335,5 +346,5 @@ module_pci_driver(pxa2xx_spi_pci_driver);
 
 MODULE_DESCRIPTION("CE4100/LPSS PCI-SPI glue code for PXA's driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(SPI_PXA2xx);
+MODULE_IMPORT_NS("SPI_PXA2xx");
 MODULE_AUTHOR("Sebastian Andrzej Siewior <bigeasy@linutronix.de>");

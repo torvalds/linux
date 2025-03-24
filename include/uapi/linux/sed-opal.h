@@ -215,5 +215,6 @@ struct opal_revert_lsp {
 #define IOC_OPAL_GET_GEOMETRY       _IOR('p', 238, struct opal_geometry)
 #define IOC_OPAL_DISCOVERY          _IOW('p', 239, struct opal_discovery)
 #define IOC_OPAL_REVERT_LSP         _IOW('p', 240, struct opal_revert_lsp)
+#define IOC_OPAL_SET_SID_PW         _IOW('p', 241, struct opal_new_pw)
 
 #endif /* _UAPI_SED_OPAL_H */

@@ -12,6 +12,7 @@
 #define BTINTEL_PCIE_CSR_HW_REV_REG		(BTINTEL_PCIE_CSR_BASE + 0x028)
 #define BTINTEL_PCIE_CSR_RF_ID_REG		(BTINTEL_PCIE_CSR_BASE + 0x09C)
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_REG		(BTINTEL_PCIE_CSR_BASE + 0x108)
+#define BTINTEL_PCIE_CSR_IPC_SLEEP_CTL_REG	(BTINTEL_PCIE_CSR_BASE + 0x114)
 #define BTINTEL_PCIE_CSR_CI_ADDR_LSB_REG	(BTINTEL_PCIE_CSR_BASE + 0x118)
 #define BTINTEL_PCIE_CSR_CI_ADDR_MSB_REG	(BTINTEL_PCIE_CSR_BASE + 0x11C)
 #define BTINTEL_PCIE_CSR_IMG_RESPONSE_REG	(BTINTEL_PCIE_CSR_BASE + 0x12C)
@@ -22,6 +23,8 @@
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_INIT		(BIT(6))
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_FUNC_INIT		(BIT(7))
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_MAC_ACCESS_STS	(BIT(20))
+#define BTINTEL_PCIE_CSR_FUNC_CTRL_BUS_MASTER_STS	(BIT(28))
+#define BTINTEL_PCIE_CSR_FUNC_CTRL_BUS_MASTER_DISCON	(BIT(29))
 #define BTINTEL_PCIE_CSR_FUNC_CTRL_SW_RESET		(BIT(31))
 
 /* Value for BTINTEL_PCIE_CSR_BOOT_STAGE register */
@@ -32,6 +35,7 @@
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_IML_LOCKDOWN	(BIT(11))
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_MAC_ACCESS_ON	(BIT(16))
 #define BTINTEL_PCIE_CSR_BOOT_STAGE_ALIVE		(BIT(23))
+#define BTINTEL_PCIE_CSR_BOOT_STAGE_D3_STATE_READY	(BIT(24))
 
 /* Registers for MSI-X */
 #define BTINTEL_PCIE_CSR_MSIX_BASE		(0x2000)
@@ -55,6 +59,16 @@ enum msix_hw_int_causes {
 	BTINTEL_PCIE_MSIX_HW_INT_CAUSES_GP0	= BIT(0),	/* cause 32 */
 };
 
+/* PCIe device states
+ * Host-Device interface is active
+ * Host-Device interface is inactive(as reflected by IPC_SLEEP_CONTROL_CSR_AD)
+ * Host-Device interface is inactive(as reflected by IPC_SLEEP_CONTROL_CSR_AD)
+ */
+enum {
+	BTINTEL_PCIE_STATE_D0 = 0,
+	BTINTEL_PCIE_STATE_D3_HOT = 2,
+	BTINTEL_PCIE_STATE_D3_COLD = 3,
+};
 #define BTINTEL_PCIE_MSIX_NON_AUTO_CLEAR_CAUSE	BIT(7)
 
 /* Minimum and Maximum number of MSI-X Vector
@@ -67,7 +81,7 @@ enum msix_hw_int_causes {
 #define BTINTEL_DEFAULT_MAC_ACCESS_TIMEOUT_US	200000
 
 /* Default interrupt timeout in msec */
-#define BTINTEL_DEFAULT_INTR_TIMEOUT	3000
+#define BTINTEL_DEFAULT_INTR_TIMEOUT_MS	3000
 
 /* The number of descriptors in TX/RX queues */
 #define BTINTEL_DESCS_COUNT	16
@@ -343,6 +357,7 @@ struct rxq {
  * @ia: Index Array struct
  * @txq: TX Queue struct
  * @rxq: RX Queue struct
+ * @alive_intr_ctxt: Alive interrupt context
  */
 struct btintel_pcie_data {
 	struct pci_dev	*pdev;
@@ -389,6 +404,7 @@ struct btintel_pcie_data {
 	struct ia	ia;
 	struct txq	txq;
 	struct rxq	rxq;
+	u32	alive_intr_ctxt;
 };
 
 static inline u32 btintel_pcie_rd_reg32(struct btintel_pcie_data *data,

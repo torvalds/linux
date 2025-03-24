@@ -44,4 +44,4 @@ module_platform_driver(loongson_spi_plat_driver);
 
 MODULE_DESCRIPTION("Loongson spi platform driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SPI_LOONGSON_CORE);
+MODULE_IMPORT_NS("SPI_LOONGSON_CORE");

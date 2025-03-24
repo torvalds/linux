@@ -8,6 +8,7 @@ title: MSM Display Port Controller
 
 maintainers:
   - Kuogee Hsieh <quic_khsieh@quicinc.com>
+  - Abhinav Kumar <quic_abhinavk@quicinc.com>
 
 description: |
   Device tree bindings for DisplayPort host controller for MSM targets
@@ -17,6 +18,7 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - qcom,sa8775p-dp
           - qcom,sc7180-dp
           - qcom,sc7280-dp
           - qcom,sc7280-edp

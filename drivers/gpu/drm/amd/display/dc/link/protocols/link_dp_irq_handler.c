@@ -221,20 +221,12 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 		&replay_error_status.raw,
 		sizeof(replay_error_status.raw));
 
-	link->replay_settings.config.replay_error_status.bits.LINK_CRC_ERROR =
-		replay_error_status.bits.LINK_CRC_ERROR;
-	link->replay_settings.config.replay_error_status.bits.DESYNC_ERROR =
-		replay_configuration.bits.DESYNC_ERROR_STATUS;
-	link->replay_settings.config.replay_error_status.bits.STATE_TRANSITION_ERROR =
-		replay_configuration.bits.STATE_TRANSITION_ERROR_STATUS;
-
-	if (link->replay_settings.config.replay_error_status.bits.LINK_CRC_ERROR ||
-		link->replay_settings.config.replay_error_status.bits.DESYNC_ERROR ||
-		link->replay_settings.config.replay_error_status.bits.STATE_TRANSITION_ERROR) {
+	if (replay_error_status.bits.LINK_CRC_ERROR ||
+		replay_configuration.bits.DESYNC_ERROR_STATUS ||
+		replay_configuration.bits.STATE_TRANSITION_ERROR_STATUS) {
 		bool allow_active;
 
-		if (link->replay_settings.config.replay_error_status.bits.DESYNC_ERROR)
-			link->replay_settings.config.received_desync_error_hpd = 1;
+		link->replay_settings.config.replay_error_status.raw |= replay_error_status.raw;
 
 		if (link->replay_settings.config.force_disable_desync_error_check)
 			return;
@@ -246,6 +238,9 @@ static void handle_hpd_irq_replay_sink(struct dc_link *link)
 			DP_SINK_PR_REPLAY_STATUS,
 			&replay_configuration.raw,
 			sizeof(replay_configuration.raw));
+
+		/* Update desync error counter */
+		link->replay_settings.replay_desync_error_fail_count++;
 
 		/* Acknowledge and clear error bits */
 		dm_helpers_dp_write_dpcd(
@@ -418,7 +413,8 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 
 	if (hpd_irq_dpcd_data.bytes.device_service_irq.bits.AUTOMATED_TEST) {
 		// Workaround for DP 1.4a LL Compliance CTS as USB4 has to share encoders unlike DP and USBC
-		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
+				!link->dc->config.enable_dpia_pre_training)
 			link->skip_fallback_on_link_loss = true;
 
 		device_service_clear.bits.AUTOMATED_TEST = 1;

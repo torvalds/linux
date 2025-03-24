@@ -675,7 +675,7 @@ static void wf_rm31_remove(struct platform_device *dev)
 
 static struct platform_driver wf_rm31_driver = {
 	.probe	= wf_rm31_probe,
-	.remove_new = wf_rm31_remove,
+	.remove = wf_rm31_remove,
 	.driver	= {
 		.name = "windfarm",
 	},

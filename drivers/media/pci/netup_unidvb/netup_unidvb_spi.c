@@ -175,11 +175,11 @@ int netup_spi_init(struct netup_unidvb_dev *ndev)
 	struct spi_controller *ctlr;
 	struct netup_spi *nspi;
 
-	ctlr = devm_spi_alloc_master(&ndev->pci_dev->dev,
-					 sizeof(struct netup_spi));
+	ctlr = devm_spi_alloc_host(&ndev->pci_dev->dev,
+				   sizeof(struct netup_spi));
 	if (!ctlr) {
 		dev_err(&ndev->pci_dev->dev,
-			"%s(): unable to alloc SPI master\n", __func__);
+			"%s(): unable to alloc SPI host\n", __func__);
 		return -EINVAL;
 	}
 	nspi = spi_controller_get_devdata(ctlr);

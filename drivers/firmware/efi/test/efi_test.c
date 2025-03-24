@@ -750,7 +750,6 @@ static const struct file_operations efi_test_fops = {
 	.unlocked_ioctl	= efi_test_ioctl,
 	.open		= efi_test_open,
 	.release	= efi_test_close,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice efi_test_dev = {

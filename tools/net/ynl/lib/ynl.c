@@ -95,7 +95,7 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 
 	ynl_attr_for_each_payload(start, data_len, attr) {
 		astart_off = (char *)attr - (char *)start;
-		aend_off = astart_off + ynl_attr_data_len(attr);
+		aend_off = (char *)ynl_attr_data_end(attr) - (char *)start;
 		if (aend_off <= off)
 			continue;
 
@@ -696,14 +696,14 @@ ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 	addr.nl_family = AF_NETLINK;
 	if (bind(ys->socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		__perr(yse, "unable to bind to a socket address");
-		goto err_close_sock;;
+		goto err_close_sock;
 	}
 
 	memset(&addr, 0, sizeof(addr));
 	addrlen = sizeof(addr);
 	if (getsockname(ys->socket, (struct sockaddr *)&addr, &addrlen) < 0) {
 		__perr(yse, "unable to read socket address");
-		goto err_close_sock;;
+		goto err_close_sock;
 	}
 	ys->portid = addr.nl_pid;
 	ys->seq = random();

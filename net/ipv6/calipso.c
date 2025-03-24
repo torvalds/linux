@@ -29,7 +29,7 @@
 #include <net/calipso.h>
 #include <linux/atomic.h>
 #include <linux/bug.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/crc-ccitt.h>
 
 /* Maximium size of the calipso option including

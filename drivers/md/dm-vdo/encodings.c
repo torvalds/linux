@@ -858,7 +858,7 @@ static int __must_check make_partition(struct layout *layout, enum partition_id 
 /**
  * vdo_initialize_layout() - Lay out the partitions of a vdo.
  * @size: The entire size of the vdo.
- * @origin: The start of the layout on the underlying storage in blocks.
+ * @offset: The start of the layout on the underlying storage in blocks.
  * @block_map_blocks: The size of the block map partition.
  * @journal_blocks: The size of the journal partition.
  * @summary_blocks: The size of the slab summary partition.

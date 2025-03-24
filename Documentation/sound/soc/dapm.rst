@@ -35,6 +35,9 @@ The graph for the STM32MP1-DK1 sound card is shown in picture:
     :alt:   Example DAPM graph
     :align: center
 
+You can also generate compatible graph for your sound card using
+`tools/sound/dapm-graph` utility.
+
 DAPM power domains
 ==================
 

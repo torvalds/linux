@@ -28,7 +28,7 @@ enum fib_event_type {
 struct fib_notifier_ops {
 	int family;
 	struct list_head list;
-	unsigned int (*fib_seq_read)(struct net *net);
+	unsigned int (*fib_seq_read)(const struct net *net);
 	int (*fib_dump)(struct net *net, struct notifier_block *nb,
 			struct netlink_ext_ack *extack);
 	struct module *owner;

@@ -104,11 +104,165 @@ kms_cursor_crc@cursor-rapid-movement-256x85
 # CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
 # CR2: 0000000000000078 CR3: 0000000109b38000 CR4: 0000000000350ef0
 
+kms_cursor_crc@cursor-onscreen-256x256
+# Oops: Oops: 0000 [#1] PREEMPT SMP NOPTI
+# CPU: 1 PID: 1913 Comm: kworker/u8:6 Not tainted 6.10.0-rc5-g8a28e73ebead #1
+# Hardware name: ChromiumOS crosvm, BIOS 0
+# Workqueue: vkms_composer vkms_composer_worker [vkms]
+# RIP: 0010:compose_active_planes+0x344/0x4e0 [vkms]
+# Code: 6a 34 0f 8e 91 fe ff ff 44 89 ea 48 8d 7c 24 48 e8 71 f0 ff ff 4b 8b 04 fc 48 8b 4c 24 50 48 8b 7c 24 40 48 8b 80 48 01 00 00 <48> 63 70 18 8b 40 20 48 89 f2 48 c1 e6 03 29 d0 48 8b 54 24 48 48
+# RSP: 0018:ffffb477409fbd58 EFLAGS: 00010282
+# RAX: 0000000000000000 RBX: 0000000000000002 RCX: ffff8b124a242000
+# RDX: 00000000000000ff RSI: ffff8b124a243ff8 RDI: ffff8b124a244000
+# RBP: 0000000000000002 R08: 0000000000000000 R09: 00000000000003ff
+# R10: ffff8b124a244000 R11: 0000000000000000 R12: ffff8b1249282f30
+# R13: 0000000000000002 R14: 0000000000000002 R15: 0000000000000000
+# FS:  0000000000000000(0000) GS:ffff8b126bd00000(0000) knlGS:0000000000000000
+# CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+# CR2: 0000000000000018 CR3: 0000000107a86000 CR4: 0000000000350ef0
+# Call Trace:
+#  <TASK>
+#  ? __die+0x1e/0x60
+#  ? page_fault_oops+0x17b/0x4a0
+#  ? exc_page_fault+0x6d/0x230
+#  ? asm_exc_page_fault+0x26/0x30
+#  ? compose_active_planes+0x344/0x4e0 [vkms]
+#  ? compose_active_planes+0x32f/0x4e0 [vkms]
+#  ? srso_return_thunk+0x5/0x5f
+#  vkms_composer_worker+0x205/0x240 [vkms]
+#  process_one_work+0x201/0x6c0
+#  ? lock_is_held_type+0x9e/0x110
+#  worker_thread+0x17e/0x350
+#  ? __pfx_worker_thread+0x10/0x10
+#  kthread+0xce/0x100
+#  ? __pfx_kthread+0x10/0x10
+#  ret_from_fork+0x2f/0x50
+#  ? __pfx_kthread+0x10/0x10
+#  ret_from_fork_asm+0x1a/0x30
+#  </TASK>
+# Modules linked in: vkms
+# CR2: 0000000000000018
+# ---[ end trace 0000000000000000 ]---
+# RIP: 0010:compose_active_planes+0x344/0x4e0 [vkms]
+# Code: 6a 34 0f 8e 91 fe ff ff 44 89 ea 48 8d 7c 24 48 e8 71 f0 ff ff 4b 8b 04 fc 48 8b 4c 24 50 48 8b 7c 24 40 48 8b 80 48 01 00 00 <48> 63 70 18 8b 40 20 48 89 f2 48 c1 e6 03 29 d0 48 8b 54 24 48 48
+# RSP: 0018:ffffb477409fbd58 EFLAGS: 00010282
+# RAX: 0000000000000000 RBX: 0000000000000002 RCX: ffff8b124a242000
+# RDX: 00000000000000ff RSI: ffff8b124a243ff8 RDI: ffff8b124a244000
+# RBP: 0000000000000002 R08: 0000000000000000 R09: 00000000000003ff
+# R10: ffff8b124a244000 R11: 0000000000000000 R12: ffff8b1249282f30
+# R13: 0000000000000002 R14: 0000000000000002 R15: 0000000000000000
+# FS:  0000000000000000(0000) GS:ffff8b126bd00000(0000) knlGS:0000000000000000
+# CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+# CR2: 0000000000000018 CR3: 0000000107a86000 CR4: 0000000000350ef0
+
+kms_cursor_edge_walk@128x128-right-edge
+# Oops: Oops: 0000 [#1] PREEMPT SMP NOPTI
+# CPU: 0 PID: 1911 Comm: kworker/u8:3 Not tainted 6.10.0-rc5-g5e7a002eefe5 #1
+# Hardware name: ChromiumOS crosvm, BIOS 0
+# Workqueue: vkms_composer vkms_composer_worker [vkms]
+# RIP: 0010:compose_active_planes+0x344/0x4e0 [vkms]
+# Code: 6a 34 0f 8e 91 fe ff ff 44 89 ea 48 8d 7c 24 48 e8 71 f0 ff ff 4b 8b 04 fc 48 8b 4c 24 50 48 8b 7c 24 40 48 8b 80 48 01 00 00 <48> 63 70 18 8b 40 20 48 89 f2 48 c1 e6 03 29 d0 48 8b 54 24 48 48
+# RSP: 0018:ffffb2f040a43d58 EFLAGS: 00010282
+# RAX: 0000000000000000 RBX: 0000000000000002 RCX: ffffa2c181792000
+# RDX: 0000000000000000 RSI: ffffa2c181793ff8 RDI: ffffa2c181790000
+# RBP: 0000000000000031 R08: 0000000000000000 R09: 00000000000003ff
+# R10: ffffa2c181790000 R11: 0000000000000000 R12: ffffa2c1814fa810
+# R13: 0000000000000031 R14: 0000000000000031 R15: 0000000000000000
+# FS:  0000000000000000(0000) GS:ffffa2c1abc00000(0000) knlGS:0000000000000000
+# CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+# CR2: 0000000000000018 CR3: 0000000106768000 CR4: 0000000000350ef0
+# Call Trace:
+#  <TASK>
+#  ? __die+0x1e/0x60
+#  ? page_fault_oops+0x17b/0x4a0
+#  ? srso_return_thunk+0x5/0x5f
+#  ? mark_held_locks+0x49/0x80
+#  ? exc_page_fault+0x6d/0x230
+#  ? asm_exc_page_fault+0x26/0x30
+#  ? compose_active_planes+0x344/0x4e0 [vkms]
+#  ? compose_active_planes+0x32f/0x4e0 [vkms]
+#  ? srso_return_thunk+0x5/0x5f
+#  vkms_composer_worker+0x205/0x240 [vkms]
+#  process_one_work+0x201/0x6c0
+#  ? lock_is_held_type+0x9e/0x110
+#  worker_thread+0x17e/0x350
+#  ? __pfx_worker_thread+0x10/0x10
+#  kthread+0xce/0x100
+#  ? __pfx_kthread+0x10/0x10
+#  ret_from_fork+0x2f/0x50
+#  ? __pfx_kthread+0x10/0x10
+#  ret_from_fork_asm+0x1a/0x30
+#  </TASK>
+# Modules linked in: vkms
+# CR2: 0000000000000018
+# ---[ end trace 0000000000000000 ]---
+# RIP: 0010:compose_active_planes+0x344/0x4e0 [vkms]
+# Code: 6a 34 0f 8e 91 fe ff ff 44 89 ea 48 8d 7c 24 48 e8 71 f0 ff ff 4b 8b 04 fc 48 8b 4c 24 50 48 8b 7c 24 40 48 8b 80 48 01 00 00 <48> 63 70 18 8b 40 20 48 89 f2 48 c1 e6 03 29 d0 48 8b 54 24 48 48
+# RSP: 0018:ffffb2f040a43d58 EFLAGS: 00010282
+# RAX: 0000000000000000 RBX: 0000000000000002 RCX: ffffa2c181792000
+# RDX: 0000000000000000 RSI: ffffa2c181793ff8 RDI: ffffa2c181790000
+# RBP: 0000000000000031 R08: 0000000000000000 R09: 00000000000003ff
+# R10: ffffa2c181790000 R11: 0000000000000000 R12: ffffa2c1814fa810
+# R13: 0000000000000031 R14: 0000000000000031 R15: 000000000000
+
+kms_cursor_edge_walk@128x128-left-edge
+# DEBUG - Begin test kms_cursor_edge_walk@128x128-left-edge
+# Oops: Oops: 0000 [#1] PREEMPT SMP NOPTI
+# CPU: 0 UID: 0 PID: 27 Comm: kworker/u8:1 Not tainted 6.11.0-rc5-g5d3429a7e9aa #1
+# Hardware name: ChromiumOS crosvm, BIOS 0
+# Workqueue: vkms_composer vkms_composer_worker [vkms]
+# RIP: 0010:compose_active_planes+0x344/0x4e0 [vkms]
+# Code: 6a 34 0f 8e 91 fe ff ff 44 89 ea 48 8d 7c 24 48 e8 71 f0 ff ff 4b 8b 04 fc 48 8b 4c 24 50 48 8b 7c 24 40 48 8b 80 48 01 00 00 <48> 63 70 18 8b 40 20 48 89 f2 48 c1 e6 03 29 d0 48 8b 54 24 48 48
+# RSP: 0018:ffffa437800ebd58 EFLAGS: 00010282
+# RAX: 0000000000000000 RBX: 0000000000000002 RCX: ffffa0e841904000
+# RDX: 00000000000000ff RSI: ffffa0e841905ff8 RDI: ffffa0e841902000
+# RBP: 0000000000000000 R08: ffffa0e84158a600 R09: 00000000000003ff
+# R10: 0000000078b2bcd2 R11: 00000000278b2bcd R12: ffffa0e84870fc60
+# R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+# FS:  0000000000000000(0000) GS:ffffa0e86bc00000(0000) knlGS:0000000000000000
+# CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+# CR2: 0000000000000018 CR3: 0000000101710000 CR4: 0000000000350ef0
+# Call Trace:
+#  <TASK>
+#  ? __die+0x1e/0x60
+#  ? page_fault_oops+0x17b/0x4a0
+#  ? exc_page_fault+0x6d/0x230
+#  ? asm_exc_page_fault+0x26/0x30
+#  ? compose_active_planes+0x344/0x4e0 [vkms]
+#  ? compose_active_planes+0x32f/0x4e0 [vkms]
+#  ? srso_return_thunk+0x5/0x5f
+#  vkms_composer_worker+0x205/0x240 [vkms]
+#  process_one_work+0x201/0x6c0
+#  ? lock_is_held_type+0x9e/0x110
+#  worker_thread+0x17e/0x310
+#  ? __pfx_worker_thread+0x10/0x10
+#  kthread+0xce/0x100
+#  ? __pfx_kthread+0x10/0x10
+#  ret_from_fork+0x2f/0x50
+#  ? __pfx_kthread+0x10/0x10
+#  ret_from_fork_asm+0x1a/0x30
+#  </TASK>
+# Modules linked in: vkms
+# CR2: 0000000000000018
+# ---[ end trace 0000000000000000 ]---
+# RIP: 0010:compose_active_planes+0x344/0x4e0 [vkms]
+# Code: 6a 34 0f 8e 91 fe ff ff 44 89 ea 48 8d 7c 24 48 e8 71 f0 ff ff 4b 8b 04 fc 48 8b 4c 24 50 48 8b 7c 24 40 48 8b 80 48 01 00 00 <48> 63 70 18 8b 40 20 48 89 f2 48 c1 e6 03 29 d0 48 8b 54 24 48 48
+# RSP: 0018:ffffa437800ebd58 EFLAGS: 00010282
+# RAX: 0000000000000000 RBX: 0000000000000002 RCX: ffffa0e841904000
+# RDX: 00000000000000ff RSI: ffffa0e841905ff8 RDI: ffffa0e841902000
+# RBP: 0000000000000000 R08: ffffa0e84158a600 R09: 00000000000003ff
+# R10: 0000000078b2bcd2 R11: 00000000278b2bcd R12: ffffa0e84870fc60
+# R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+# FS:  0000000000000000(0000) GS:ffffa0e86bc00000(0000) knlGS:0000000000000000
+# CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+# CR2: 0000000000000018 CR3: 0000000101710000 CR4: 0000000000350ef0
+# vkms_vblank_simulate: vblank timer overrun
+
 # Skip driver specific tests
 ^amdgpu.*
-msm_.*
+^msm.*
 nouveau_.*
-panfrost_.*
+^panfrost.*
 ^v3d.*
 ^vc4.*
 ^vmwgfx*
@@ -117,3 +271,4 @@ panfrost_.*
 gem_.*
 i915_.*
 xe_.*
+tools_test.*

@@ -2,14 +2,12 @@
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
 
-
 #ifndef __DML2_INTERNAL_SHARED_TYPES_H__
 #define __DML2_INTERNAL_SHARED_TYPES_H__
 
 #include "dml2_external_lib_deps.h"
 #include "dml_top_types.h"
 #include "dml2_core_shared_types.h"
-
 /*
 * DML2 MCG Types and Interfaces
 */
@@ -64,7 +62,6 @@ struct dml2_mcg_build_min_clock_table_params_in_out {
 	*/
 	struct dml2_mcg_min_clock_table *min_clk_table;
 };
-
 struct dml2_mcg_instance {
 	bool (*build_min_clock_table)(struct dml2_mcg_build_min_clock_table_params_in_out *in_out);
 	bool (*unit_test)(void);
@@ -82,7 +79,6 @@ struct dml2_dpmm_map_mode_to_soc_dpm_params_in_out {
 	struct dml2_soc_bb *soc_bb;
 	struct dml2_mcg_min_clock_table *min_clk_table;
 	const struct display_configuation_with_meta *display_cfg;
-
 	struct {
 		bool perform_pseudo_map;
 		struct dml2_core_internal_soc_bb *soc_bb;
@@ -107,10 +103,16 @@ struct dml2_dpmm_map_watermarks_params_in_out {
 	struct dml2_display_cfg_programming *programming;
 };
 
+struct dml2_dpmm_scratch {
+	struct dml2_display_cfg_programming programming;
+};
+
 struct dml2_dpmm_instance {
 	bool (*map_mode_to_soc_dpm)(struct dml2_dpmm_map_mode_to_soc_dpm_params_in_out *in_out);
 	bool (*map_watermarks)(struct dml2_dpmm_map_watermarks_params_in_out *in_out);
 	bool (*unit_test)(void);
+
+	struct dml2_dpmm_scratch dpmm_scratch;
 };
 
 /*
@@ -266,6 +268,7 @@ struct dml2_fams2_meta {
 	unsigned int contention_delay_otg_vlines;
 	unsigned int min_allow_width_otg_vlines;
 	unsigned int nom_vtotal;
+	unsigned int vblank_start;
 	double nom_refresh_rate_hz;
 	double nom_frame_time_us;
 	unsigned int max_vtotal;
@@ -303,7 +306,7 @@ struct dml2_optimization_stage3_state {
 	// The pstate support mode for each plane
 	// The number of valid elements == display_cfg.num_planes
 	// The indexing of pstate_switch_modes matches plane_descriptors[]
-	enum dml2_uclk_pstate_support_method pstate_switch_modes[DML2_MAX_PLANES];
+	enum dml2_pstate_method pstate_switch_modes[DML2_MAX_PLANES];
 
 	// Meta-data for implicit SVP generation, indexed by stream index
 	struct dml2_implicit_svp_meta stream_svp_meta[DML2_MAX_PLANES];
@@ -350,6 +353,10 @@ struct display_configuation_with_meta {
 	struct dml2_optimization_stage5_state stage5;
 };
 
+struct dml2_pmo_pstate_strategy {
+	enum dml2_pstate_method per_stream_pstate_method[DML2_MAX_PLANES];
+	bool allow_state_increase;
+};
 struct dml2_core_mode_support_in_out {
 	/*
 	* Inputs
@@ -359,7 +366,6 @@ struct dml2_core_mode_support_in_out {
 
 	struct dml2_mcg_min_clock_table *min_clk_table;
 	int min_clk_index;
-
 	/*
 	* Outputs
 	*/
@@ -389,7 +395,6 @@ struct dml2_core_mode_programming_in_out {
 	struct dml2_core_instance *instance;
 	const struct display_configuation_with_meta *display_cfg;
 	const struct core_display_cfg_support_info *cfg_support_info;
-
 	/*
 	* Outputs (also Input the clk freq are also from programming struct)
 	*/
@@ -439,6 +444,7 @@ struct dml2_core_internal_state_intermediates {
 struct dml2_core_mode_support_locals {
 	struct dml2_core_calcs_mode_support_ex mode_support_ex_params;
 	struct dml2_display_cfg svp_expanded_display_cfg;
+	struct dml2_calculate_mcache_allocation_in_out calc_mcache_allocation_params;
 };
 
 struct dml2_core_mode_programming_locals {
@@ -594,29 +600,11 @@ struct dml2_pmo_optimize_for_stutter_in_out {
 	struct display_configuation_with_meta *optimized_display_config;
 };
 
-enum dml2_pmo_pstate_strategy {
-	dml2_pmo_pstate_strategy_na = 0,
-	/* hw exclusive modes */
-	dml2_pmo_pstate_strategy_vactive = 1,
-	dml2_pmo_pstate_strategy_vblank = 2,
-	dml2_pmo_pstate_strategy_reserved_hw = 5,
-	/* fw assisted exclusive modes */
-	dml2_pmo_pstate_strategy_fw_svp = 6,
-	dml2_pmo_pstate_strategy_reserved_fw = 10,
-	/* fw assisted modes requiring drr modulation */
-	dml2_pmo_pstate_strategy_fw_vactive_drr = 11,
-	dml2_pmo_pstate_strategy_fw_vblank_drr = 12,
-	dml2_pmo_pstate_strategy_fw_svp_drr = 13,
-	dml2_pmo_pstate_strategy_reserved_fw_drr_clamped = 20,
-	dml2_pmo_pstate_strategy_fw_drr = 21,
-	dml2_pmo_pstate_strategy_reserved_fw_drr_var = 22,
-};
-
-#define PMO_NO_DRR_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw - dml2_pmo_pstate_strategy_na + 1)) - 1) << dml2_pmo_pstate_strategy_na)
-#define PMO_DRR_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw_drr_var - dml2_pmo_pstate_strategy_fw_vactive_drr + 1)) - 1) << dml2_pmo_pstate_strategy_fw_vactive_drr)
-#define PMO_DRR_CLAMPED_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw_drr_clamped - dml2_pmo_pstate_strategy_fw_vactive_drr + 1)) - 1) << dml2_pmo_pstate_strategy_fw_vactive_drr)
-#define PMO_DRR_VAR_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw_drr_var - dml2_pmo_pstate_strategy_fw_drr + 1)) - 1) << dml2_pmo_pstate_strategy_fw_drr)
-#define PMO_FW_STRATEGY_MASK (((1 << (dml2_pmo_pstate_strategy_reserved_fw_drr_var - dml2_pmo_pstate_strategy_fw_svp + 1)) - 1) << dml2_pmo_pstate_strategy_fw_svp)
+#define PMO_NO_DRR_STRATEGY_MASK (((1 << (dml2_pstate_method_reserved_fw - dml2_pstate_method_na + 1)) - 1) << dml2_pstate_method_na)
+#define PMO_DRR_STRATEGY_MASK (((1 << (dml2_pstate_method_reserved_fw_drr_var - dml2_pstate_method_fw_vactive_drr + 1)) - 1) << dml2_pstate_method_fw_vactive_drr)
+#define PMO_DRR_CLAMPED_STRATEGY_MASK (((1 << (dml2_pstate_method_reserved_fw_drr_clamped - dml2_pstate_method_fw_vactive_drr + 1)) - 1) << dml2_pstate_method_fw_vactive_drr)
+#define PMO_DRR_VAR_STRATEGY_MASK (((1 << (dml2_pstate_method_reserved_fw_drr_var - dml2_pstate_method_fw_drr + 1)) - 1) << dml2_pstate_method_fw_drr)
+#define PMO_FW_STRATEGY_MASK (((1 << (dml2_pstate_method_reserved_fw_drr_var - dml2_pstate_method_fw_svp + 1)) - 1) << dml2_pstate_method_fw_svp)
 
 #define PMO_DCN4_MAX_DISPLAYS 4
 #define PMO_DCN4_MAX_NUM_VARIANTS 2
@@ -634,8 +622,9 @@ struct dml2_pmo_scratch {
 			int stream_mask;
 		} pmo_dcn3;
 		struct {
-			enum dml2_pmo_pstate_strategy per_stream_pstate_strategy[DML2_MAX_PLANES][DML2_PMO_PSTATE_CANDIDATE_LIST_SIZE];
-			bool allow_state_increase_for_strategy[DML2_PMO_PSTATE_CANDIDATE_LIST_SIZE];
+			struct dml2_pmo_pstate_strategy expanded_override_strategy_list[2 * 2 * 2 * 2];
+			unsigned int num_expanded_override_strategies;
+			struct dml2_pmo_pstate_strategy pstate_strategy_candidates[DML2_PMO_PSTATE_CANDIDATE_LIST_SIZE];
 			int num_pstate_candidates;
 			int cur_pstate_candidate;
 
@@ -661,6 +650,7 @@ struct dml2_pmo_scratch {
 			unsigned int num_timing_groups;
 			unsigned int synchronized_timing_group_masks[DML2_MAX_PLANES];
 			bool group_is_drr_enabled[DML2_MAX_PLANES];
+			bool group_is_drr_active[DML2_MAX_PLANES];
 			double group_line_time_us[DML2_MAX_PLANES];
 
 			/* scheduling check locals */
@@ -676,10 +666,10 @@ struct dml2_pmo_init_data {
 	union {
 		struct {
 			/* populated once during initialization */
-			enum dml2_pmo_pstate_strategy expanded_strategy_list_1_display[PMO_DCN4_MAX_BASE_STRATEGIES * 2][PMO_DCN4_MAX_DISPLAYS];
-			enum dml2_pmo_pstate_strategy expanded_strategy_list_2_display[PMO_DCN4_MAX_BASE_STRATEGIES * 2 * 2][PMO_DCN4_MAX_DISPLAYS];
-			enum dml2_pmo_pstate_strategy expanded_strategy_list_3_display[PMO_DCN4_MAX_BASE_STRATEGIES * 6 * 2][PMO_DCN4_MAX_DISPLAYS];
-			enum dml2_pmo_pstate_strategy expanded_strategy_list_4_display[PMO_DCN4_MAX_BASE_STRATEGIES * 24 * 2][PMO_DCN4_MAX_DISPLAYS];
+			struct dml2_pmo_pstate_strategy expanded_strategy_list_1_display[PMO_DCN4_MAX_BASE_STRATEGIES * 2];
+			struct dml2_pmo_pstate_strategy expanded_strategy_list_2_display[PMO_DCN4_MAX_BASE_STRATEGIES * 4 * 4];
+			struct dml2_pmo_pstate_strategy expanded_strategy_list_3_display[PMO_DCN4_MAX_BASE_STRATEGIES * 6 * 6 * 6];
+			struct dml2_pmo_pstate_strategy expanded_strategy_list_4_display[PMO_DCN4_MAX_BASE_STRATEGIES * 8 * 8 * 8 * 8];
 			unsigned int num_expanded_strategies_per_list[PMO_DCN4_MAX_DISPLAYS];
 		} pmo_dcn4;
 	};
@@ -695,7 +685,6 @@ struct dml2_pmo_instance {
 	int mpc_combine_limit;
 	int odm_combine_limit;
 	int mcg_clock_table_size;
-
 	union {
 		struct {
 			struct {
@@ -952,7 +941,13 @@ struct dml2_top_mcache_validate_admissability_locals {
 struct dml2_top_display_cfg_support_info {
 	const struct dml2_display_cfg *display_config;
 	struct core_display_cfg_support_info core_info;
-	enum dml2_pstate_support_method per_plane_pstate_method[DML2_MAX_PLANES];
+};
+
+struct dml2_top_funcs {
+	bool (*check_mode_supported)(struct dml2_check_mode_supported_in_out *in_out);
+	bool (*build_mode_programming)(struct dml2_build_mode_programming_in_out *in_out);
+	bool (*build_mcache_programming)(struct dml2_build_mcache_programming_in_out *in_out);
+	bool (*unit_test)(void);
 };
 
 struct dml2_instance {
@@ -967,8 +962,8 @@ struct dml2_instance {
 	struct dml2_ip_capabilities ip_caps;
 
 	struct dml2_mcg_min_clock_table min_clk_table;
-
 	struct dml2_pmo_options pmo_options;
+	struct dml2_top_funcs funcs;
 
 	struct {
 		struct dml2_initialize_instance_locals initialize_instance_locals;

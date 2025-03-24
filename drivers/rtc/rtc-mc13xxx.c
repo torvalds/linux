@@ -350,7 +350,7 @@ MODULE_DEVICE_TABLE(platform, mc13xxx_rtc_idtable);
 
 static struct platform_driver mc13xxx_rtc_driver = {
 	.id_table = mc13xxx_rtc_idtable,
-	.remove_new = mc13xxx_rtc_remove,
+	.remove = mc13xxx_rtc_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 	},

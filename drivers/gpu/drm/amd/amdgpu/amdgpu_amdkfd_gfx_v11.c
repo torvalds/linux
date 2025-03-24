@@ -786,6 +786,20 @@ static uint32_t kgd_gfx_v11_clear_address_watch(struct amdgpu_device *adev,
 	return 0;
 }
 
+static uint64_t kgd_gfx_v11_hqd_get_pq_addr(struct amdgpu_device *adev,
+					    uint32_t pipe_id, uint32_t queue_id,
+					    uint32_t inst)
+{
+	return 0;
+}
+
+static uint64_t kgd_gfx_v11_hqd_reset(struct amdgpu_device *adev,
+				      uint32_t pipe_id, uint32_t queue_id,
+				      uint32_t inst, unsigned int utimeout)
+{
+	return 0;
+}
+
 const struct kfd2kgd_calls gfx_v11_kfd2kgd = {
 	.program_sh_mem_settings = program_sh_mem_settings_v11,
 	.set_pasid_vmid_mapping = set_pasid_vmid_mapping_v11,
@@ -808,5 +822,7 @@ const struct kfd2kgd_calls gfx_v11_kfd2kgd = {
 	.set_wave_launch_trap_override = kgd_gfx_v11_set_wave_launch_trap_override,
 	.set_wave_launch_mode = kgd_gfx_v11_set_wave_launch_mode,
 	.set_address_watch = kgd_gfx_v11_set_address_watch,
-	.clear_address_watch = kgd_gfx_v11_clear_address_watch
+	.clear_address_watch = kgd_gfx_v11_clear_address_watch,
+	.hqd_get_pq_addr = kgd_gfx_v11_hqd_get_pq_addr,
+	.hqd_reset = kgd_gfx_v11_hqd_reset
 };

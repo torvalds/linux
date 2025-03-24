@@ -227,7 +227,7 @@ static void init_transmitter_control(struct bios_parser *bp)
 	uint8_t frev;
 	uint8_t crev = 0;
 
-	if (!BIOS_CMD_TABLE_REVISION(dig1transmittercontrol, frev, crev))
+	if (!BIOS_CMD_TABLE_REVISION(dig1transmittercontrol, frev, crev) && (bp->base.ctx->dc->ctx->dce_version <= DCN_VERSION_2_0))
 		BREAK_TO_DEBUGGER();
 
 	switch (crev) {

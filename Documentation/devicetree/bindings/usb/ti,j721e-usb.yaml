@@ -13,10 +13,9 @@ properties:
   compatible:
     oneOf:
       - const: ti,j721e-usb
-      - const: ti,am64-usb
       - items:
-          - const: ti,j721e-usb
           - const: ti,am64-usb
+          - const: ti,j721e-usb
 
   reg:
     maxItems: 1

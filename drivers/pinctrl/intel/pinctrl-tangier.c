@@ -579,7 +579,7 @@ int devm_tng_pinctrl_probe(struct platform_device *pdev)
 
 	return tng_pinctrl_probe(pdev, data);
 }
-EXPORT_SYMBOL_NS_GPL(devm_tng_pinctrl_probe, PINCTRL_TANGIER);
+EXPORT_SYMBOL_NS_GPL(devm_tng_pinctrl_probe, "PINCTRL_TANGIER");
 
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_AUTHOR("Raag Jadav <raag.jadav@intel.com>");

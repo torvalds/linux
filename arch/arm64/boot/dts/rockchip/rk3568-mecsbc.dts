@@ -89,6 +89,20 @@
 	};
 };
 
+&can0 {
+	compatible = "rockchip,rk3568v3-canfd", "rockchip,rk3568v2-canfd";
+	pinctrl-names = "default";
+	pinctrl-0 = <&can0m0_pins>;
+	status = "okay";
+};
+
+&can1 {
+	compatible = "rockchip,rk3568v3-canfd", "rockchip,rk3568v2-canfd";
+	pinctrl-names = "default";
+	pinctrl-0 = <&can1m1_pins>;
+	status = "okay";
+};
+
 &combphy0 {
 	status = "okay";
 };
@@ -190,12 +204,6 @@
 			regulator-off-in-suspend;
 		};
 	};
-};
-
-&i2c2 {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2m0_xfer>;
 };
 
 &i2c3 {
@@ -341,6 +349,19 @@
 	vmmc-supply = <&p3v3>;
 	vqmmc-supply = <&vcc_sd>;
 	status = "okay";
+};
+
+&spi0 {
+	/* use hardware chipselect on cs0 (cs1 unconnected) */
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0m0_pins>, <&spi0m0_cs0>;
+	status = "okay";
+
+	fram@0 {
+		compatible = "fujitsu,mb85rs128ty";
+		reg = <0>;
+		spi-max-frequency = <33000000>;
+	};
 };
 
 &tsadc {

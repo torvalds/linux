@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/lvds-dual-ports.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Dual-link LVDS Display Common Properties
+
+maintainers:
+  - Liu Ying <victor.liu@nxp.com>
+
+description: |
+  Common properties for LVDS displays with dual LVDS links. Extend LVDS display
+  common properties defined in lvds.yaml.
+
+  Dual-link LVDS displays receive odd pixels and even pixels separately from
+  the dual LVDS links. One link receives odd pixels and the other receives
+  even pixels. Some of those displays may also use only one LVDS link to
+  receive all pixels, being odd and even agnostic.
+
+allOf:
+  - $ref: lvds.yaml#
+
+properties:
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    patternProperties:
+      '^port@[01]$':
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
+        description: |
+          port@0 represents the first LVDS input link.
+          port@1 represents the second LVDS input link.
+
+        properties:
+          dual-lvds-odd-pixels:
+            type: boolean
+            description: LVDS input link for odd pixels
+
+          dual-lvds-even-pixels:
+            type: boolean
+            description: LVDS input link for even pixels
+
+        oneOf:
+          - required: [dual-lvds-odd-pixels]
+          - required: [dual-lvds-even-pixels]
+          - properties:
+              dual-lvds-odd-pixels: false
+              dual-lvds-even-pixels: false
+
+    anyOf:
+      - required:
+          - port@0
+      - required:
+          - port@1
+
+required:
+  - ports
+
+additionalProperties: true
+
+...

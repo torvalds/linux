@@ -9,6 +9,28 @@
 #include <trace/events/cgroup.h>
 
 /*
+ * Update CGRP_FROZEN of cgroup.flag
+ * Return true if flags is updated; false if flags has no change
+ */
+static bool cgroup_update_frozen_flag(struct cgroup *cgrp, bool frozen)
+{
+	lockdep_assert_held(&css_set_lock);
+
+	/* Already there? */
+	if (test_bit(CGRP_FROZEN, &cgrp->flags) == frozen)
+		return false;
+
+	if (frozen)
+		set_bit(CGRP_FROZEN, &cgrp->flags);
+	else
+		clear_bit(CGRP_FROZEN, &cgrp->flags);
+
+	cgroup_file_notify(&cgrp->events_file);
+	TRACE_CGROUP_PATH(notify_frozen, cgrp, frozen);
+	return true;
+}
+
+/*
  * Propagate the cgroup frozen state upwards by the cgroup tree.
  */
 static void cgroup_propagate_frozen(struct cgroup *cgrp, bool frozen)
@@ -24,24 +46,16 @@ static void cgroup_propagate_frozen(struct cgroup *cgrp, bool frozen)
 	while ((cgrp = cgroup_parent(cgrp))) {
 		if (frozen) {
 			cgrp->freezer.nr_frozen_descendants += desc;
-			if (!test_bit(CGRP_FROZEN, &cgrp->flags) &&
-			    test_bit(CGRP_FREEZE, &cgrp->flags) &&
-			    cgrp->freezer.nr_frozen_descendants ==
-			    cgrp->nr_descendants) {
-				set_bit(CGRP_FROZEN, &cgrp->flags);
-				cgroup_file_notify(&cgrp->events_file);
-				TRACE_CGROUP_PATH(notify_frozen, cgrp, 1);
-				desc++;
-			}
+			if (!test_bit(CGRP_FREEZE, &cgrp->flags) ||
+			    (cgrp->freezer.nr_frozen_descendants !=
+			    cgrp->nr_descendants))
+				continue;
 		} else {
 			cgrp->freezer.nr_frozen_descendants -= desc;
-			if (test_bit(CGRP_FROZEN, &cgrp->flags)) {
-				clear_bit(CGRP_FROZEN, &cgrp->flags);
-				cgroup_file_notify(&cgrp->events_file);
-				TRACE_CGROUP_PATH(notify_frozen, cgrp, 0);
-				desc++;
-			}
 		}
+
+		if (cgroup_update_frozen_flag(cgrp, frozen))
+			desc++;
 	}
 }
 
@@ -53,8 +67,6 @@ void cgroup_update_frozen(struct cgroup *cgrp)
 {
 	bool frozen;
 
-	lockdep_assert_held(&css_set_lock);
-
 	/*
 	 * If the cgroup has to be frozen (CGRP_FREEZE bit set),
 	 * and all tasks are frozen and/or stopped, let's consider
@@ -63,24 +75,9 @@ void cgroup_update_frozen(struct cgroup *cgrp)
 	frozen = test_bit(CGRP_FREEZE, &cgrp->flags) &&
 		cgrp->freezer.nr_frozen_tasks == __cgroup_task_count(cgrp);
 
-	if (frozen) {
-		/* Already there? */
-		if (test_bit(CGRP_FROZEN, &cgrp->flags))
-			return;
-
-		set_bit(CGRP_FROZEN, &cgrp->flags);
-	} else {
-		/* Already there? */
-		if (!test_bit(CGRP_FROZEN, &cgrp->flags))
-			return;
-
-		clear_bit(CGRP_FROZEN, &cgrp->flags);
-	}
-	cgroup_file_notify(&cgrp->events_file);
-	TRACE_CGROUP_PATH(notify_frozen, cgrp, frozen);
-
-	/* Update the state of ancestor cgroups. */
-	cgroup_propagate_frozen(cgrp, frozen);
+	/* If flags is updated, update the state of ancestor cgroups. */
+	if (cgroup_update_frozen_flag(cgrp, frozen))
+		cgroup_propagate_frozen(cgrp, frozen);
 }
 
 /*
@@ -260,8 +257,10 @@ void cgroup_freezer_migrate_task(struct task_struct *task,
 void cgroup_freeze(struct cgroup *cgrp, bool freeze)
 {
 	struct cgroup_subsys_state *css;
+	struct cgroup *parent;
 	struct cgroup *dsct;
 	bool applied = false;
+	bool old_e;
 
 	lockdep_assert_held(&cgroup_mutex);
 
@@ -282,22 +281,18 @@ void cgroup_freeze(struct cgroup *cgrp, bool freeze)
 		if (cgroup_is_dead(dsct))
 			continue;
 
-		if (freeze) {
-			dsct->freezer.e_freeze++;
-			/*
-			 * Already frozen because of ancestor's settings?
-			 */
-			if (dsct->freezer.e_freeze > 1)
-				continue;
-		} else {
-			dsct->freezer.e_freeze--;
-			/*
-			 * Still frozen because of ancestor's settings?
-			 */
-			if (dsct->freezer.e_freeze > 0)
-				continue;
-
-			WARN_ON_ONCE(dsct->freezer.e_freeze < 0);
+		/*
+		 * e_freeze is affected by parent's e_freeze and dst's freeze.
+		 * If old e_freeze eq new e_freeze, no change, its children
+		 * will not be affected. So do nothing and skip the subtree
+		 */
+		old_e = dsct->freezer.e_freeze;
+		parent = cgroup_parent(dsct);
+		dsct->freezer.e_freeze = (dsct->freezer.freeze ||
+					  parent->freezer.e_freeze);
+		if (dsct->freezer.e_freeze == old_e) {
+			css = css_rightmost_descendant(css);
+			continue;
 		}
 
 		/*

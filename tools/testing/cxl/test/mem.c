@@ -8,7 +8,8 @@
 #include <linux/delay.h>
 #include <linux/sizes.h>
 #include <linux/bits.h>
-#include <asm/unaligned.h>
+#include <cxl/mailbox.h>
+#include <linux/unaligned.h>
 #include <crypto/sha2.h>
 #include <cxlmem.h>
 
@@ -400,6 +401,10 @@ struct cxl_test_gen_media gen_media = {
 			.channel = 1,
 			.rank = 30,
 		},
+		.component_id = { 0x3, 0x74, 0xc5, 0x8, 0x9a, 0x1a, 0xb, 0xfc, 0xd2, 0x7e, 0x2f, 0x31, 0x9b, 0x3c, 0x81, 0x4d },
+		.cme_threshold_ev_flags = 3,
+		.cme_count = { 33, 0, 0 },
+		.sub_type = 0x2,
 	},
 };
 
@@ -428,6 +433,11 @@ struct cxl_test_dram dram = {
 		.bank_group = 5,
 		.bank = 2,
 		.column = {0xDE, 0xAD},
+		.component_id = { 0x1, 0x74, 0xc5, 0x8, 0x9a, 0x1a, 0xb, 0xfc, 0xd2, 0x7e, 0x2f, 0x31, 0x9b, 0x3c, 0x81, 0x4d },
+		.sub_channel = 8,
+		.cme_threshold_ev_flags = 2,
+		.cvme_count = { 14, 0, 0 },
+		.sub_type = 0x5,
 	},
 };
 
@@ -455,7 +465,10 @@ struct cxl_test_mem_module mem_module = {
 			.dirty_shutdown_cnt = { 0xde, 0xad, 0xbe, 0xef },
 			.cor_vol_err_cnt = { 0xde, 0xad, 0xbe, 0xef },
 			.cor_per_err_cnt = { 0xde, 0xad, 0xbe, 0xef },
-		}
+		},
+		/* .validity_flags = <set below> */
+		.component_id = { 0x2, 0x74, 0xc5, 0x8, 0x9a, 0x1a, 0xb, 0xfc, 0xd2, 0x7e, 0x2f, 0x31, 0x9b, 0x3c, 0x81, 0x4d },
+		.event_sub_type = 0x3,
 	},
 };
 
@@ -477,12 +490,17 @@ static int mock_set_timestamp(struct cxl_dev_state *cxlds,
 
 static void cxl_mock_add_event_logs(struct mock_event_store *mes)
 {
-	put_unaligned_le16(CXL_GMER_VALID_CHANNEL | CXL_GMER_VALID_RANK,
+	put_unaligned_le16(CXL_GMER_VALID_CHANNEL | CXL_GMER_VALID_RANK |
+			   CXL_GMER_VALID_COMPONENT | CXL_GMER_VALID_COMPONENT_ID_FORMAT,
 			   &gen_media.rec.media_hdr.validity_flags);
 
 	put_unaligned_le16(CXL_DER_VALID_CHANNEL | CXL_DER_VALID_BANK_GROUP |
-			   CXL_DER_VALID_BANK | CXL_DER_VALID_COLUMN,
+			   CXL_DER_VALID_BANK | CXL_DER_VALID_COLUMN | CXL_DER_VALID_SUB_CHANNEL |
+			   CXL_DER_VALID_COMPONENT | CXL_DER_VALID_COMPONENT_ID_FORMAT,
 			   &dram.rec.media_hdr.validity_flags);
+
+	put_unaligned_le16(CXL_MMER_VALID_COMPONENT | CXL_MMER_VALID_COMPONENT_ID_FORMAT,
+			   &mem_module.rec.validity_flags);
 
 	mes_add_event(mes, CXL_EVENT_TYPE_INFO, &maint_needed);
 	mes_add_event(mes, CXL_EVENT_TYPE_INFO,
@@ -534,6 +552,7 @@ static int mock_gsl(struct cxl_mbox_cmd *cmd)
 
 static int mock_get_log(struct cxl_memdev_state *mds, struct cxl_mbox_cmd *cmd)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct cxl_mbox_get_log *gl = cmd->payload_in;
 	u32 offset = le32_to_cpu(gl->offset);
 	u32 length = le32_to_cpu(gl->length);
@@ -542,7 +561,7 @@ static int mock_get_log(struct cxl_memdev_state *mds, struct cxl_mbox_cmd *cmd)
 
 	if (cmd->size_in < sizeof(*gl))
 		return -EINVAL;
-	if (length > mds->payload_size)
+	if (length > cxl_mbox->payload_size)
 		return -EINVAL;
 	if (offset + length > sizeof(mock_cel))
 		return -EINVAL;
@@ -617,12 +636,13 @@ void cxl_mockmem_sanitize_work(struct work_struct *work)
 {
 	struct cxl_memdev_state *mds =
 		container_of(work, typeof(*mds), security.poll_dwork.work);
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 
-	mutex_lock(&mds->mbox_mutex);
+	mutex_lock(&cxl_mbox->mbox_mutex);
 	if (mds->security.sanitize_node)
 		sysfs_notify_dirent(mds->security.sanitize_node);
 	mds->security.sanitize_active = false;
-	mutex_unlock(&mds->mbox_mutex);
+	mutex_unlock(&cxl_mbox->mbox_mutex);
 
 	dev_dbg(mds->cxlds.dev, "sanitize complete\n");
 }
@@ -631,6 +651,7 @@ static int mock_sanitize(struct cxl_mockmem_data *mdata,
 			 struct cxl_mbox_cmd *cmd)
 {
 	struct cxl_memdev_state *mds = mdata->mds;
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	int rc = 0;
 
 	if (cmd->size_in != 0)
@@ -648,14 +669,14 @@ static int mock_sanitize(struct cxl_mockmem_data *mdata,
 		return -ENXIO;
 	}
 
-	mutex_lock(&mds->mbox_mutex);
+	mutex_lock(&cxl_mbox->mbox_mutex);
 	if (schedule_delayed_work(&mds->security.poll_dwork,
 				  msecs_to_jiffies(mdata->sanitize_timeout))) {
 		mds->security.sanitize_active = true;
 		dev_dbg(mds->cxlds.dev, "sanitize issued\n");
 	} else
 		rc = -EBUSY;
-	mutex_unlock(&mds->mbox_mutex);
+	mutex_unlock(&cxl_mbox->mbox_mutex);
 
 	return rc;
 }
@@ -1333,12 +1354,13 @@ static int mock_activate_fw(struct cxl_mockmem_data *mdata,
 	return -EINVAL;
 }
 
-static int cxl_mock_mbox_send(struct cxl_memdev_state *mds,
+static int cxl_mock_mbox_send(struct cxl_mailbox *cxl_mbox,
 			      struct cxl_mbox_cmd *cmd)
 {
-	struct cxl_dev_state *cxlds = &mds->cxlds;
-	struct device *dev = cxlds->dev;
+	struct device *dev = cxl_mbox->host;
 	struct cxl_mockmem_data *mdata = dev_get_drvdata(dev);
+	struct cxl_memdev_state *mds = mdata->mds;
+	struct cxl_dev_state *cxlds = &mds->cxlds;
 	int rc = -EIO;
 
 	switch (cmd->opcode) {
@@ -1453,6 +1475,17 @@ static ssize_t event_trigger_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(event_trigger);
 
+static int cxl_mock_mailbox_create(struct cxl_dev_state *cxlds)
+{
+	int rc;
+
+	rc = cxl_mailbox_init(&cxlds->cxl_mbox, cxlds->dev);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+
 static int cxl_mock_mem_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1460,6 +1493,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	struct cxl_memdev_state *mds;
 	struct cxl_dev_state *cxlds;
 	struct cxl_mockmem_data *mdata;
+	struct cxl_mailbox *cxl_mbox;
 	int rc;
 
 	mdata = devm_kzalloc(dev, sizeof(*mdata), GFP_KERNEL);
@@ -1487,13 +1521,18 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (IS_ERR(mds))
 		return PTR_ERR(mds);
 
+	cxlds = &mds->cxlds;
+	rc = cxl_mock_mailbox_create(cxlds);
+	if (rc)
+		return rc;
+
+	cxl_mbox = &mds->cxlds.cxl_mbox;
 	mdata->mds = mds;
-	mds->mbox_send = cxl_mock_mbox_send;
-	mds->payload_size = SZ_4K;
+	cxl_mbox->mbox_send = cxl_mock_mbox_send;
+	cxl_mbox->payload_size = SZ_4K;
 	mds->event.buf = (struct cxl_get_event_payload *) mdata->event_buf;
 	INIT_DELAYED_WORK(&mds->security.poll_dwork, cxl_mockmem_sanitize_work);
 
-	cxlds = &mds->cxlds;
 	cxlds->serial = pdev->id;
 	if (is_rcd(pdev))
 		cxlds->rcd = true;
@@ -1651,9 +1690,10 @@ static struct platform_driver cxl_mock_mem_driver = {
 		.name = KBUILD_MODNAME,
 		.dev_groups = cxl_mock_mem_groups,
 		.groups = cxl_mock_mem_core_groups,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
 module_platform_driver(cxl_mock_mem_driver);
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("CXL");

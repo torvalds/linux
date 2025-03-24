@@ -17,7 +17,7 @@ struct meson_pmx_bank {
 };
 
 struct meson_axg_pmx_data {
-	struct meson_pmx_bank *pmx_banks;
+	const struct meson_pmx_bank *pmx_banks;
 	unsigned int num_pmx_banks;
 };
 

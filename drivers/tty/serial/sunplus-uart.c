@@ -697,7 +697,7 @@ MODULE_DEVICE_TABLE(of, sp_uart_of_match);
 
 static struct platform_driver sunplus_uart_platform_driver = {
 	.probe		= sunplus_uart_probe,
-	.remove_new	= sunplus_uart_remove,
+	.remove		= sunplus_uart_remove,
 	.driver = {
 		.name	= "sunplus_uart",
 		.of_match_table = sp_uart_of_match,

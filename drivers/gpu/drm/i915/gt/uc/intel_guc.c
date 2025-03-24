@@ -239,7 +239,15 @@ static u32 guc_ctl_debug_flags(struct intel_guc *guc)
 
 static u32 guc_ctl_feature_flags(struct intel_guc *guc)
 {
+	struct intel_gt *gt = guc_to_gt(guc);
 	u32 flags = 0;
+
+	/*
+	 * Enable PXP GuC autoteardown flow.
+	 * NB: MTL does things differently.
+	 */
+	if (HAS_PXP(gt->i915) && !IS_METEORLAKE(gt->i915))
+		flags |= GUC_CTL_ENABLE_GUC_PXP_CTL;
 
 	if (!intel_guc_submission_is_used(guc))
 		flags |= GUC_CTL_DISABLE_SCHEDULER;
@@ -296,7 +304,7 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 
 	/* Wa_16019325821 */
 	/* Wa_14019159160 */
-	if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 71)))
+	if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 74)))
 		flags |= GUC_WA_RCS_CCS_SWITCHOUT;
 
 	/*

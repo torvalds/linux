@@ -123,7 +123,7 @@ static void vgic_v4_enable_vsgis(struct kvm_vcpu *vcpu)
 	 * IRQ. The SGI code will do its magic.
 	 */
 	for (i = 0; i < VGIC_NR_SGIS; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, i);
 		struct irq_desc *desc;
 		unsigned long flags;
 		int ret;
@@ -160,7 +160,7 @@ static void vgic_v4_disable_vsgis(struct kvm_vcpu *vcpu)
 	int i;
 
 	for (i = 0; i < VGIC_NR_SGIS; i++) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, i);
+		struct vgic_irq *irq = vgic_get_vcpu_irq(vcpu, i);
 		struct irq_desc *desc;
 		unsigned long flags;
 		int ret;

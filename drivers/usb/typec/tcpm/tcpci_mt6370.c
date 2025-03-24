@@ -11,7 +11,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/pm_wakeup.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -196,7 +195,7 @@ static struct platform_driver mt6370_tcpc_driver = {
 		.of_match_table = mt6370_tcpc_devid_table,
 	},
 	.probe = mt6370_tcpc_probe,
-	.remove_new = mt6370_tcpc_remove,
+	.remove = mt6370_tcpc_remove,
 };
 module_platform_driver(mt6370_tcpc_driver);
 

@@ -72,7 +72,6 @@ static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 			unsigned long srcfd)
 {
 	int rc;
-	struct fd src_file;
 	struct inode *src_inode;
 
 	cifs_dbg(FYI, "ioctl copychunk range\n");
@@ -89,29 +88,27 @@ static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 		return rc;
 	}
 
-	src_file = fdget(srcfd);
-	if (!src_file.file) {
+	CLASS(fd, src_file)(srcfd);
+	if (fd_empty(src_file)) {
 		rc = -EBADF;
 		goto out_drop_write;
 	}
 
-	if (src_file.file->f_op->unlocked_ioctl != cifs_ioctl) {
+	if (fd_file(src_file)->f_op->unlocked_ioctl != cifs_ioctl) {
 		rc = -EBADF;
 		cifs_dbg(VFS, "src file seems to be from a different filesystem type\n");
-		goto out_fput;
+		goto out_drop_write;
 	}
 
-	src_inode = file_inode(src_file.file);
+	src_inode = file_inode(fd_file(src_file));
 	rc = -EINVAL;
 	if (S_ISDIR(src_inode->i_mode))
-		goto out_fput;
+		goto out_drop_write;
 
-	rc = cifs_file_copychunk_range(xid, src_file.file, 0, dst_file, 0,
+	rc = cifs_file_copychunk_range(xid, fd_file(src_file), 0, dst_file, 0,
 					src_inode->i_size, 0);
 	if (rc > 0)
 		rc = 0;
-out_fput:
-	fdput(src_file);
 out_drop_write:
 	mnt_drop_write_file(dst_file);
 	return rc;
@@ -229,9 +226,11 @@ static int cifs_shutdown(struct super_block *sb, unsigned long arg)
 
 shutdown_good:
 	trace_smb3_shutdown_done(flags, tcon->tid);
+	cifs_put_tlink(tlink);
 	return 0;
 shutdown_out_err:
 	trace_smb3_shutdown_err(rc, flags, tcon->tid);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 

@@ -622,6 +622,7 @@ static int __maybe_unused cctrng_resume(struct device *dev)
 	/* wait for Cryptocell reset completion */
 	if (!cctrng_wait_for_reset_completion(drvdata)) {
 		dev_err(dev, "Cryptocell reset not completed");
+		clk_disable_unprepare(drvdata->clk);
 		return -EBUSY;
 	}
 
@@ -652,7 +653,7 @@ static struct platform_driver cctrng_driver = {
 		.pm = &cctrng_pm,
 	},
 	.probe = cctrng_probe,
-	.remove_new = cctrng_remove,
+	.remove = cctrng_remove,
 };
 
 module_platform_driver(cctrng_driver);

@@ -126,8 +126,6 @@ required:
   - compatible
   - reg
   - '#clock-cells'
-  - idt,shutdown
-  - idt,output-enable-active
 
 allOf:
   - if:

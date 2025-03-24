@@ -14,7 +14,7 @@ struct rtw8822cu_efuse {
 	u8 res1[3];
 	u8 mac_addr[ETH_ALEN];		/* 0x157 */
 	u8 res2[0x3d];
-};
+} __packed;
 
 struct rtw8822cs_efuse {
 	u8 res0[0x4a];			/* 0x120 */
@@ -39,7 +39,8 @@ struct rtw8822ce_efuse {
 	u8 ltr_en:1;
 	u8 res1:2;
 	u8 obff:2;
-	u8 res2:3;
+	u8 res2_1:1;
+	u8 res2_2:2;
 	u8 obff_cap:2;
 	u8 res3:4;
 	u8 class_code[3];
@@ -55,20 +56,22 @@ struct rtw8822ce_efuse {
 	u8 res6:1;
 	u8 port_t_power_on_value:5;
 	u8 res7;
-};
+} __packed;
 
 struct rtw8822c_efuse {
 	__le16 rtl_id;
-	u8 res0[0x0e];
+	u8 res0[4];
+	u8 usb_mode;
+	u8 res1[0x09];
 
 	/* power index for four RF paths */
 	struct rtw_txpwr_idx txpwr_idx_table[4];
 
 	u8 channel_plan;		/* 0xb8 */
 	u8 xtal_k;
-	u8 res1;
+	u8 res2;
 	u8 iqk_lck;
-	u8 res2[5];			/* 0xbc */
+	u8 res3[5];			/* 0xbc */
 	u8 rf_board_option;
 	u8 rf_feature_option;
 	u8 rf_bt_setting;
@@ -80,27 +83,27 @@ struct rtw8822c_efuse {
 	u8 rf_antenna_option;		/* 0xc9 */
 	u8 rfe_option;
 	u8 country_code[2];
-	u8 res3[3];
+	u8 res4[3];
 	u8 path_a_thermal;		/* 0xd0 */
 	u8 path_b_thermal;
-	u8 res4[2];
+	u8 res5[2];
 	u8 rx_gain_gap_2g_ofdm;
-	u8 res5;
-	u8 rx_gain_gap_2g_cck;
 	u8 res6;
-	u8 rx_gain_gap_5gl;
+	u8 rx_gain_gap_2g_cck;
 	u8 res7;
-	u8 rx_gain_gap_5gm;
+	u8 rx_gain_gap_5gl;
 	u8 res8;
-	u8 rx_gain_gap_5gh;
+	u8 rx_gain_gap_5gm;
 	u8 res9;
-	u8 res10[0x42];
+	u8 rx_gain_gap_5gh;
+	u8 res10;
+	u8 res11[0x42];
 	union {
 		struct rtw8822ce_efuse e;
 		struct rtw8822cu_efuse u;
 		struct rtw8822cs_efuse s;
 	};
-};
+} __packed;
 
 enum rtw8822c_dpk_agc_phase {
 	RTW_DPK_GAIN_CHECK,

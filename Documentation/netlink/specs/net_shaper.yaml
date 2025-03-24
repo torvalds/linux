@@ -1,0 +1,362 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+name: net-shaper
+
+doc: |
+  Networking HW rate limiting configuration.
+
+  This API allows configuring HW shapers available on the network
+  devices at different levels (queues, network device) and allows
+  arbitrary manipulation of the scheduling tree of the involved
+  shapers.
+
+  Each @shaper is identified within the given device, by a @handle,
+  comprising both a @scope and an @id.
+
+  Depending on the @scope value, the shapers are attached to specific
+  HW objects (queues, devices) or, for @node scope, represent a
+  scheduling group, that can be placed in an arbitrary location of
+  the scheduling tree.
+
+  Shapers can be created with two different operations: the @set
+  operation, to create and update a single "attached" shaper, and
+  the @group operation, to create and update a scheduling
+  group. Only the @group operation can create @node scope shapers.
+
+  Existing shapers can be deleted/reset via the @delete operation.
+
+  The user can query the running configuration via the @get operation.
+
+  Different devices can provide different feature sets, e.g. with no
+  support for complex scheduling hierarchy, or for some shaping
+  parameters. The user can introspect the HW capabilities via the
+  @cap-get operation.
+
+definitions:
+  -
+    type: enum
+    name: scope
+    doc: Defines the shaper @id interpretation.
+    render-max: true
+    entries:
+      - name: unspec
+        doc: The scope is not specified.
+      -
+        name: netdev
+        doc: The main shaper for the given network device.
+      -
+        name: queue
+        doc: |
+            The shaper is attached to the given device queue,
+            the @id represents the queue number.
+      -
+        name: node
+        doc: |
+             The shaper allows grouping of queues or other
+             node shapers; can be nested in either @netdev
+             shapers or other @node shapers, allowing placement
+             in any location of the scheduling tree, except
+             leaves and root.
+  -
+    type: enum
+    name: metric
+    doc: Different metric supported by the shaper.
+    entries:
+      -
+        name: bps
+        doc: Shaper operates on a bits per second basis.
+      -
+        name: pps
+        doc: Shaper operates on a packets per second basis.
+
+attribute-sets:
+  -
+    name: net-shaper
+    attributes:
+      -
+        name: handle
+        type: nest
+        nested-attributes: handle
+        doc: Unique identifier for the given shaper inside the owning device.
+      -
+        name: metric
+        type: u32
+        enum: metric
+        doc: Metric used by the given shaper for bw-min, bw-max and burst.
+      -
+        name: bw-min
+        type: uint
+        doc: Guaranteed bandwidth for the given shaper.
+      -
+        name: bw-max
+        type: uint
+        doc: Maximum bandwidth for the given shaper or 0 when unlimited.
+      -
+        name: burst
+        type: uint
+        doc: |
+          Maximum burst-size for shaping. Should not be interpreted
+          as a quantum.
+      -
+        name: priority
+        type: u32
+        doc: |
+          Scheduling priority for the given shaper. The priority
+          scheduling is applied to sibling shapers.
+      -
+        name: weight
+        type: u32
+        doc: |
+          Relative weight for round robin scheduling of the
+          given shaper.
+          The scheduling is applied to all sibling shapers
+          with the same priority.
+      -
+        name: ifindex
+        type: u32
+        doc: Interface index owning the specified shaper.
+      -
+        name: parent
+        type: nest
+        nested-attributes: handle
+        doc: |
+          Identifier for the parent of the affected shaper.
+          Only needed for @group operation.
+      -
+        name: leaves
+        type: nest
+        multi-attr: true
+        nested-attributes: leaf-info
+        doc: |
+           Describes a set of leaves shapers for a @group operation.
+  -
+    name: handle
+    attributes:
+      -
+        name: scope
+        type: u32
+        enum: scope
+        doc: Defines the shaper @id interpretation.
+      -
+        name: id
+        type: u32
+        doc: |
+          Numeric identifier of a shaper. The id semantic depends on
+          the scope. For @queue scope it's the queue id and for @node
+          scope it's the node identifier.
+  -
+    name: leaf-info
+    subset-of: net-shaper
+    attributes:
+      -
+        name: handle
+      -
+        name: priority
+      -
+        name: weight
+  -
+    name: caps
+    attributes:
+      -
+        name: ifindex
+        type: u32
+        doc: Interface index queried for shapers capabilities.
+      -
+        name: scope
+        type: u32
+        enum: scope
+        doc: The scope to which the queried capabilities apply.
+      -
+        name: support-metric-bps
+        type: flag
+        doc: The device accepts 'bps' metric for bw-min, bw-max and burst.
+      -
+        name: support-metric-pps
+        type: flag
+        doc: The device accepts 'pps' metric for bw-min, bw-max and burst.
+      -
+        name: support-nesting
+        type: flag
+        doc: |
+          The device supports nesting shaper belonging to this scope
+          below 'node' scoped shapers. Only 'queue' and 'node'
+          scope can have flag 'support-nesting'.
+      -
+        name: support-bw-min
+        type: flag
+        doc: The device supports a minimum guaranteed B/W.
+      -
+        name: support-bw-max
+        type: flag
+        doc: The device supports maximum B/W shaping.
+      -
+        name: support-burst
+        type: flag
+        doc: The device supports a maximum burst size.
+      -
+        name: support-priority
+        type: flag
+        doc: The device supports priority scheduling.
+      -
+        name: support-weight
+        type: flag
+        doc: The device supports weighted round robin scheduling.
+
+operations:
+  list:
+    -
+      name: get
+      doc: |
+        Get information about a shaper for a given device.
+      attribute-set: net-shaper
+
+      do:
+        pre: net-shaper-nl-pre-doit
+        post: net-shaper-nl-post-doit
+        request:
+          attributes: &ns-binding
+            - ifindex
+            - handle
+        reply:
+          attributes: &ns-attrs
+            - ifindex
+            - parent
+            - handle
+            - metric
+            - bw-min
+            - bw-max
+            - burst
+            - priority
+            - weight
+
+      dump:
+        pre: net-shaper-nl-pre-dumpit
+        post: net-shaper-nl-post-dumpit
+        request:
+          attributes:
+            - ifindex
+        reply:
+          attributes: *ns-attrs
+    -
+      name: set
+      doc: |
+        Create or update the specified shaper.
+        The set operation can't be used to create a @node scope shaper,
+        use the @group operation instead.
+      attribute-set: net-shaper
+      flags: [ admin-perm ]
+
+      do:
+        pre: net-shaper-nl-pre-doit
+        post: net-shaper-nl-post-doit
+        request:
+          attributes:
+            - ifindex
+            - handle
+            - metric
+            - bw-min
+            - bw-max
+            - burst
+            - priority
+            - weight
+
+    -
+      name: delete
+      doc: |
+        Clear (remove) the specified shaper. When deleting
+        a @node shaper, reattach all the node's leaves to the
+        deleted node's parent.
+        If, after the removal, the parent shaper has no more
+        leaves and the parent shaper scope is @node, the parent
+        node is deleted, recursively.
+        When deleting a @queue shaper or a @netdev shaper,
+        the shaper disappears from the hierarchy, but the
+        queue/device can still send traffic: it has an implicit
+        node with infinite bandwidth. The queue's implicit node
+        feeds an implicit RR node at the root of the hierarchy.
+      attribute-set: net-shaper
+      flags: [ admin-perm ]
+
+      do:
+        pre: net-shaper-nl-pre-doit
+        post: net-shaper-nl-post-doit
+        request:
+          attributes: *ns-binding
+
+    -
+      name: group
+      doc: |
+        Create or update a scheduling group, attaching the specified
+        @leaves shapers under the specified node identified by @handle.
+        The @leaves shapers scope must be @queue and the node shaper
+        scope must be either @node or @netdev.
+        When the node shaper has @node scope, if the @handle @id is not
+        specified, a new shaper of such scope is created, otherwise the
+        specified node must already exist.
+        When updating an existing node shaper, the specified @leaves are
+        added to the existing node; such node will also retain any preexisting
+        leave.
+        The @parent handle for a new node shaper defaults to the parent
+        of all the leaves, provided all the leaves share the same parent.
+        Otherwise @parent handle must be specified.
+        The user can optionally provide shaping attributes for the node
+        shaper.
+        The operation is atomic, on failure no change is applied to
+        the device shaping configuration, otherwise the @node shaper
+        full identifier, comprising @binding and @handle, is provided
+        as the reply.
+      attribute-set: net-shaper
+      flags: [ admin-perm ]
+
+      do:
+        pre: net-shaper-nl-pre-doit
+        post: net-shaper-nl-post-doit
+        request:
+          attributes:
+            - ifindex
+            - parent
+            - handle
+            - metric
+            - bw-min
+            - bw-max
+            - burst
+            - priority
+            - weight
+            - leaves
+        reply:
+          attributes: *ns-binding
+
+    -
+      name: cap-get
+      doc: |
+        Get the shaper capabilities supported by the given device
+        for the specified scope.
+      attribute-set: caps
+
+      do:
+        pre: net-shaper-nl-cap-pre-doit
+        post: net-shaper-nl-cap-post-doit
+        request:
+          attributes:
+            - ifindex
+            - scope
+        reply:
+          attributes: &cap-attrs
+            - ifindex
+            - scope
+            - support-metric-bps
+            - support-metric-pps
+            - support-nesting
+            - support-bw-min
+            - support-bw-max
+            - support-burst
+            - support-priority
+            - support-weight
+
+      dump:
+        pre: net-shaper-nl-cap-pre-dumpit
+        post: net-shaper-nl-cap-post-dumpit
+        request:
+          attributes:
+            - ifindex
+        reply:
+          attributes: *cap-attrs

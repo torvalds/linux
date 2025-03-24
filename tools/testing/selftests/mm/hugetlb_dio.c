@@ -76,26 +76,34 @@ void run_dio_using_hugetlb(unsigned int start_off, unsigned int end_off)
 	/* Get the free huge pages after unmap*/
 	free_hpage_a = get_free_hugepages();
 
+	ksft_print_msg("No. Free pages before allocation : %d\n", free_hpage_b);
+	ksft_print_msg("No. Free pages after munmap : %d\n", free_hpage_a);
+
 	/*
 	 * If the no. of free hugepages before allocation and after unmap does
 	 * not match - that means there could still be a page which is pinned.
 	 */
-	if (free_hpage_a != free_hpage_b) {
-		ksft_print_msg("No. Free pages before allocation : %d\n", free_hpage_b);
-		ksft_print_msg("No. Free pages after munmap : %d\n", free_hpage_a);
-		ksft_test_result_fail(": Huge pages not freed!\n");
-	} else {
-		ksft_print_msg("No. Free pages before allocation : %d\n", free_hpage_b);
-		ksft_print_msg("No. Free pages after munmap : %d\n", free_hpage_a);
-		ksft_test_result_pass(": Huge pages freed successfully !\n");
-	}
+	ksft_test_result(free_hpage_a == free_hpage_b,
+			 "free huge pages from %u-%u\n", start_off, end_off);
 }
 
 int main(void)
 {
 	size_t pagesize = 0;
+	int fd;
 
 	ksft_print_header();
+
+	/* Open the file to DIO */
+	fd = open("/tmp", O_TMPFILE | O_RDWR | O_DIRECT, 0664);
+	if (fd < 0)
+		ksft_exit_skip("Unable to allocate file: %s\n", strerror(errno));
+	close(fd);
+
+	/* Check if huge pages are free */
+	if (!get_free_hugepages())
+		ksft_exit_skip("No free hugepage, exiting\n");
+
 	ksft_set_plan(4);
 
 	/* Get base page size */

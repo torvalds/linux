@@ -346,7 +346,6 @@ void __submit_metadata_vio(struct vio *vio, physical_block_number_t physical,
 
 
 	VDO_ASSERT_LOG_ONLY(!code->quiescent, "I/O not allowed in state %s", code->name);
-	VDO_ASSERT_LOG_ONLY(vio->bio->bi_next == NULL, "metadata bio has no next bio");
 
 	vdo_reset_completion(completion);
 	completion->error_handler = error_handler;
@@ -368,7 +367,7 @@ void __submit_metadata_vio(struct vio *vio, physical_block_number_t physical,
  *                     completions.
  * @max_requests_active: Number of bios for merge tracking.
  * @vdo: The vdo which will use this submitter.
- * @io_submitter: pointer to the new data structure.
+ * @io_submitter_ptr: pointer to the new data structure.
  *
  * Return: VDO_SUCCESS or an error.
  */

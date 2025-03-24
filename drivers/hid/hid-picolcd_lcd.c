@@ -41,15 +41,9 @@ static int picolcd_set_contrast(struct lcd_device *ldev, int contrast)
 	return 0;
 }
 
-static int picolcd_check_lcd_fb(struct lcd_device *ldev, struct fb_info *fb)
-{
-	return fb && fb == picolcd_fbinfo((struct picolcd_data *)lcd_get_data(ldev));
-}
-
 static const struct lcd_ops picolcd_lcdops = {
 	.get_contrast   = picolcd_get_contrast,
 	.set_contrast   = picolcd_set_contrast,
-	.check_fb       = picolcd_check_lcd_fb,
 };
 
 int picolcd_init_lcd(struct picolcd_data *data, struct hid_report *report)

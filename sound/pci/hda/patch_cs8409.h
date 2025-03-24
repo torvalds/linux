@@ -229,10 +229,10 @@ enum cs8409_coefficient_index_registers {
 #define CS42L42_I2C_SLEEP_US			(2000)
 #define CS42L42_PDN_TIMEOUT_US			(250000)
 #define CS42L42_PDN_SLEEP_US			(2000)
-#define CS42L42_INIT_TIMEOUT_MS			(45)
+#define CS42L42_ANA_MUTE_AB			(0x0C)
 #define CS42L42_FULL_SCALE_VOL_MASK		(2)
-#define CS42L42_FULL_SCALE_VOL_0DB		(1)
-#define CS42L42_FULL_SCALE_VOL_MINUS6DB		(0)
+#define CS42L42_FULL_SCALE_VOL_0DB		(0)
+#define CS42L42_FULL_SCALE_VOL_MINUS6DB		(1)
 
 /* Dell BULLSEYE / WARLOCK / CYBORG Specific Definitions */
 
@@ -290,6 +290,7 @@ enum {
 struct cs8409_i2c_param {
 	unsigned int addr;
 	unsigned int value;
+	unsigned int delay;
 };
 
 struct cs8409_cir_param {
@@ -355,7 +356,7 @@ int cs42l42_volume_put(struct snd_kcontrol *kctrl, struct snd_ctl_elem_value *uc
 
 extern const struct hda_pcm_stream cs42l42_48k_pcm_analog_playback;
 extern const struct hda_pcm_stream cs42l42_48k_pcm_analog_capture;
-extern const struct snd_pci_quirk cs8409_fixup_tbl[];
+extern const struct hda_quirk cs8409_fixup_tbl[];
 extern const struct hda_model_fixup cs8409_models[];
 extern const struct hda_fixup cs8409_fixups[];
 extern const struct hda_verb cs8409_cs42l42_init_verbs[];

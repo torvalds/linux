@@ -226,7 +226,7 @@ static irqreturn_t pic32_sqi_isr(int irq, void *dev_id)
 	if (status & PESQI_PKTCOMP) {
 		/* mask all interrupts */
 		enable = 0;
-		/* complete trasaction */
+		/* complete transaction */
 		complete(&sqi->xfer_done);
 	}
 
@@ -682,7 +682,7 @@ static struct platform_driver pic32_sqi_driver = {
 		.of_match_table = of_match_ptr(pic32_sqi_of_ids),
 	},
 	.probe = pic32_sqi_probe,
-	.remove_new = pic32_sqi_remove,
+	.remove = pic32_sqi_remove,
 };
 
 module_platform_driver(pic32_sqi_driver);

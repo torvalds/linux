@@ -756,7 +756,7 @@ static struct platform_driver img_spfi_driver = {
 		.of_match_table = of_match_ptr(img_spfi_of_match),
 	},
 	.probe = img_spfi_probe,
-	.remove_new = img_spfi_remove,
+	.remove = img_spfi_remove,
 };
 module_platform_driver(img_spfi_driver);
 

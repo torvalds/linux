@@ -899,7 +899,7 @@ static int configure_dma(struct pl022 *pl022)
 		break;
 	}
 
-	/* SPI pecularity: we need to read and write the same width */
+	/* SPI peculiarity: we need to read and write the same width */
 	if (rx_conf.src_addr_width == DMA_SLAVE_BUSWIDTH_UNDEFINED)
 		rx_conf.src_addr_width = tx_conf.dst_addr_width;
 	if (tx_conf.dst_addr_width == DMA_SLAVE_BUSWIDTH_UNDEFINED)

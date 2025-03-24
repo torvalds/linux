@@ -207,7 +207,7 @@ static struct platform_driver arndale_audio_driver = {
 		.of_match_table = arndale_audio_of_match,
 	},
 	.probe = arndale_audio_probe,
-	.remove_new = arndale_audio_remove,
+	.remove = arndale_audio_remove,
 };
 
 module_platform_driver(arndale_audio_driver);

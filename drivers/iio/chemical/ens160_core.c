@@ -60,7 +60,7 @@ struct ens160_data {
 	struct mutex mutex;
 	struct {
 		__le16 chans[2];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan __aligned(IIO_DMA_MINALIGN);
 	u8 fw_version[3];
 	__le16 buf;
@@ -360,7 +360,7 @@ int devm_ens160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS(devm_ens160_core_probe, IIO_ENS160);
+EXPORT_SYMBOL_NS(devm_ens160_core_probe, "IIO_ENS160");
 
 MODULE_AUTHOR("Gustavo Silva <gustavograzs@gmail.com>");
 MODULE_DESCRIPTION("ScioSense ENS160 driver");

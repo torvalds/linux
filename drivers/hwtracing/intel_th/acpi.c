@@ -69,7 +69,7 @@ static void intel_th_acpi_remove(struct platform_device *pdev)
 
 static struct platform_driver intel_th_acpi_driver = {
 	.probe		= intel_th_acpi_probe,
-	.remove_new	= intel_th_acpi_remove,
+	.remove		= intel_th_acpi_remove,
 	.driver		= {
 		.name			= DRIVER_NAME,
 		.acpi_match_table	= intel_th_acpi_ids,

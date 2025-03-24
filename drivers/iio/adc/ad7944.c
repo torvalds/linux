@@ -75,12 +75,12 @@ struct ad7944_adc {
 			u16 u16;
 			u32 u32;
 		} raw;
-		u64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	 } sample __aligned(IIO_DMA_MINALIGN);
 };
 
 /* quite time before CNV rising edge */
-#define T_QUIET_NS	20
+#define AD7944_T_QUIET_NS	20
 
 static const struct ad7944_timing_spec ad7944_timing_spec = {
 	.conv_ns = 420,
@@ -150,7 +150,7 @@ static int ad7944_3wire_cs_mode_init_msg(struct device *dev, struct ad7944_adc *
 	 * CS is tied to CNV and we need a low to high transition to start the
 	 * conversion, so place CNV low for t_QUIET to prepare for this.
 	 */
-	xfers[0].delay.value = T_QUIET_NS;
+	xfers[0].delay.value = AD7944_T_QUIET_NS;
 	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
 
 	/*

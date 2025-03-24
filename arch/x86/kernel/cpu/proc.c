@@ -41,11 +41,11 @@ static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 		   "fpu_exception\t: %s\n"
 		   "cpuid level\t: %d\n"
 		   "wp\t\t: yes\n",
-		   boot_cpu_has_bug(X86_BUG_FDIV) ? "yes" : "no",
-		   boot_cpu_has_bug(X86_BUG_F00F) ? "yes" : "no",
-		   boot_cpu_has_bug(X86_BUG_COMA) ? "yes" : "no",
-		   boot_cpu_has(X86_FEATURE_FPU) ? "yes" : "no",
-		   boot_cpu_has(X86_FEATURE_FPU) ? "yes" : "no",
+		   str_yes_no(boot_cpu_has_bug(X86_BUG_FDIV)),
+		   str_yes_no(boot_cpu_has_bug(X86_BUG_F00F)),
+		   str_yes_no(boot_cpu_has_bug(X86_BUG_COMA)),
+		   str_yes_no(boot_cpu_has(X86_FEATURE_FPU)),
+		   str_yes_no(boot_cpu_has(X86_FEATURE_FPU)),
 		   c->cpuid_level);
 }
 #else

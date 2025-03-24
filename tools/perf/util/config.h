@@ -30,6 +30,7 @@ typedef int (*config_fn_t)(const char *, const char *, void *);
 int perf_default_config(const char *, const char *, void *);
 int perf_config(config_fn_t fn, void *);
 int perf_config_scan(const char *name, const char *fmt, ...) __scanf(2, 3);
+const char *perf_config_get(const char *name);
 int perf_config_set(struct perf_config_set *set,
 		    config_fn_t fn, void *data);
 int perf_config_int(int *dest, const char *, const char *);
@@ -49,6 +50,7 @@ int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
 			     const char *var, const char *value);
 void perf_config__exit(void);
 void perf_config__refresh(void);
+int perf_config__set_variable(const char *var, const char *value);
 
 /**
  * perf_config_sections__for_each - iterate thru all the sections

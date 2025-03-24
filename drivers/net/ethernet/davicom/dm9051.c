@@ -1235,6 +1235,7 @@ static const struct of_device_id dm9051_match_table[] = {
 	{ .compatible = "davicom,dm9051" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, dm9051_match_table);
 
 static const struct spi_device_id dm9051_id_table[] = {
 	{ "dm9051", 0 },

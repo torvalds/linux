@@ -128,7 +128,7 @@ int hda_dsp_ctrl_get_caps(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_dsp_ctrl_get_caps, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_ctrl_get_caps, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_dsp_ctrl_ppcap_enable(struct snd_sof_dev *sdev, bool enable)
 {
@@ -137,7 +137,7 @@ void hda_dsp_ctrl_ppcap_enable(struct snd_sof_dev *sdev, bool enable)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
 				SOF_HDA_PPCTL_GPROCEN, val);
 }
-EXPORT_SYMBOL_NS(hda_dsp_ctrl_ppcap_enable, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_ctrl_ppcap_enable, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_dsp_ctrl_ppcap_int_enable(struct snd_sof_dev *sdev, bool enable)
 {
@@ -146,7 +146,7 @@ void hda_dsp_ctrl_ppcap_int_enable(struct snd_sof_dev *sdev, bool enable)
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
 				SOF_HDA_PPCTL_PIE, val);
 }
-EXPORT_SYMBOL_NS(hda_dsp_ctrl_ppcap_int_enable, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_ctrl_ppcap_int_enable, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_dsp_ctrl_misc_clock_gating(struct snd_sof_dev *sdev, bool enable)
 {
@@ -181,7 +181,7 @@ int hda_dsp_ctrl_clock_power_gating(struct snd_sof_dev *sdev, bool enable)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(hda_dsp_ctrl_clock_power_gating, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_ctrl_clock_power_gating, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 {
@@ -266,7 +266,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS(hda_dsp_ctrl_init_chip, SND_SOC_SOF_INTEL_HDA_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_ctrl_init_chip, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev)
 {
@@ -329,6 +329,6 @@ void hda_dsp_ctrl_stop_chip(struct snd_sof_dev *sdev)
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF helpers for HDaudio platforms");
-MODULE_IMPORT_NS(SND_SOC_SOF_HDA_MLINK);
-MODULE_IMPORT_NS(SND_SOC_SOF_HDA_AUDIO_CODEC);
-MODULE_IMPORT_NS(SND_SOC_SOF_HDA_AUDIO_CODEC_I915);
+MODULE_IMPORT_NS("SND_SOC_SOF_HDA_MLINK");
+MODULE_IMPORT_NS("SND_SOC_SOF_HDA_AUDIO_CODEC");
+MODULE_IMPORT_NS("SND_SOC_SOF_HDA_AUDIO_CODEC_I915");

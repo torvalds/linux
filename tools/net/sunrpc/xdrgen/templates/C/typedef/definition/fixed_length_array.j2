@@ -1,0 +1,6 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+
+{% if annotate %}
+/* typedef {{ name }} (fixed-length array) */
+{% endif %}
+typedef {{ type }}{{ name }}[{{ size }}];

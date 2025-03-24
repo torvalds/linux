@@ -562,11 +562,7 @@ static int ines_ts_info(struct mii_timestamper *mii_ts,
 		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_TX_SOFTWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
-		SOF_TIMESTAMPING_RX_SOFTWARE |
-		SOF_TIMESTAMPING_SOFTWARE |
 		SOF_TIMESTAMPING_RAW_HARDWARE;
-
-	info->phc_index = -1;
 
 	info->tx_types =
 		(1 << HWTSTAMP_TX_OFF) |
@@ -786,7 +782,7 @@ MODULE_DEVICE_TABLE(of, ines_ptp_ctrl_of_match);
 
 static struct platform_driver ines_ptp_ctrl_driver = {
 	.probe  = ines_ptp_ctrl_probe,
-	.remove_new = ines_ptp_ctrl_remove,
+	.remove = ines_ptp_ctrl_remove,
 	.driver = {
 		.name = "ines_ptp_ctrl",
 		.of_match_table = ines_ptp_ctrl_of_match,

@@ -379,7 +379,7 @@ static struct platform_driver stm32_ipcc_driver = {
 		.of_match_table = stm32_ipcc_of_match,
 	},
 	.probe		= stm32_ipcc_probe,
-	.remove_new	= stm32_ipcc_remove,
+	.remove		= stm32_ipcc_remove,
 };
 
 module_platform_driver(stm32_ipcc_driver);

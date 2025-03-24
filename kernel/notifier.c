@@ -5,17 +5,9 @@
 #include <linux/notifier.h>
 #include <linux/rcupdate.h>
 #include <linux/vmalloc.h>
-#include <linux/reboot.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/notifier.h>
-
-/*
- *	Notifier list for kernel code which wants to be called
- *	at shutdown. This is used to stop any idling DMA operations
- *	and the like.
- */
-BLOCKING_NOTIFIER_HEAD(reboot_notifier_list);
 
 /*
  *	Notifier chain core routines.  The exported routines below

@@ -158,3 +158,10 @@ Contact:	linux-crypto@vger.kernel.org
 Description:	Dump the total number of BD type error requests
 		to be received.
 		Available for both PF and VF, and take no other effect on ZIP.
+
+What:           /sys/kernel/debug/hisi_zip/<bdf>/cap_regs
+Date:           Oct 2024
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the values of the qm and zip capability bit registers and
+                support the query of device specifications to facilitate fault locating.
+                Available for both PF and VF, and take no other effect on ZIP.

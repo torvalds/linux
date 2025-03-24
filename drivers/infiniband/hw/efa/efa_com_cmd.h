@@ -27,6 +27,7 @@ struct efa_com_create_qp_params {
 	u16 pd;
 	u16 uarn;
 	u8 qp_type;
+	u8 sl;
 	u8 unsolicited_write_recv : 1;
 };
 
@@ -71,7 +72,7 @@ struct efa_com_create_cq_params {
 	/* cq physical base address in OS memory */
 	dma_addr_t dma_addr;
 	/* completion queue depth in # of entries */
-	u16 cq_depth;
+	u16 sub_cq_depth;
 	u16 num_sub_cqs;
 	u16 uarn;
 	u16 eqn;
@@ -112,6 +113,7 @@ struct efa_com_get_device_attr_result {
 	u8 addr[EFA_GID_SIZE];
 	u64 page_size_cap;
 	u64 max_mr_pages;
+	u64 guid;
 	u32 mtu;
 	u32 fw_version;
 	u32 admin_api_version;
@@ -140,6 +142,7 @@ struct efa_com_get_device_attr_result {
 	u16 max_wr_rdma_sge;
 	u16 max_tx_batch;
 	u16 min_sq_depth;
+	u16 max_link_speed_gbps;
 	u8 db_bar;
 };
 

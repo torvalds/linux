@@ -150,9 +150,7 @@ static u64 block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 			spin_unlock(&dest->lock);
 		}
 		if (num_bytes)
-			btrfs_space_info_free_bytes_may_use(fs_info,
-							    space_info,
-							    num_bytes);
+			btrfs_space_info_free_bytes_may_use(space_info, num_bytes);
 	}
 	if (qgroup_to_release_ret)
 		*qgroup_to_release_ret = qgroup_to_release;
@@ -383,13 +381,11 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 
 	if (block_rsv->reserved < block_rsv->size) {
 		num_bytes = block_rsv->size - block_rsv->reserved;
-		btrfs_space_info_update_bytes_may_use(fs_info, sinfo,
-						      num_bytes);
+		btrfs_space_info_update_bytes_may_use(sinfo, num_bytes);
 		block_rsv->reserved = block_rsv->size;
 	} else if (block_rsv->reserved > block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
-		btrfs_space_info_update_bytes_may_use(fs_info, sinfo,
-						      -num_bytes);
+		btrfs_space_info_update_bytes_may_use(sinfo, -num_bytes);
 		block_rsv->reserved = block_rsv->size;
 		btrfs_try_granting_tickets(fs_info, sinfo);
 	}
@@ -553,7 +549,7 @@ try_reserve:
 	return ERR_PTR(ret);
 }
 
-int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
+int btrfs_check_trunc_cache_free_space(const struct btrfs_fs_info *fs_info,
 				       struct btrfs_block_rsv *rsv)
 {
 	u64 needed_bytes;

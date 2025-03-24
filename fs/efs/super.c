@@ -15,7 +15,6 @@
 #include <linux/vfs.h>
 #include <linux/blkdev.h>
 #include <linux/fs_context.h>
-#include <linux/fs_parser.h>
 #include "efs.h"
 #include <linux/efs_vh.h>
 #include <linux/efs_fs_sb.h>
@@ -49,15 +48,6 @@ static struct pt_types sgi_pt_types[] = {
 	{0,		NULL}
 };
 
-enum {
-	Opt_explicit_open,
-};
-
-static const struct fs_parameter_spec efs_param_spec[] = {
-	fsparam_flag    ("explicit-open",       Opt_explicit_open),
-	{}
-};
-
 /*
  * File system definition and registration.
  */
@@ -67,7 +57,6 @@ static struct file_system_type efs_fs_type = {
 	.kill_sb		= efs_kill_sb,
 	.fs_flags		= FS_REQUIRES_DEV,
 	.init_fs_context	= efs_init_fs_context,
-	.parameters		= efs_param_spec,
 };
 MODULE_ALIAS_FS("efs");
 
@@ -265,7 +254,8 @@ static int efs_fill_super(struct super_block *s, struct fs_context *fc)
 	if (!sb_set_blocksize(s, EFS_BLOCKSIZE)) {
 		pr_err("device does not support %d byte blocks\n",
 			EFS_BLOCKSIZE);
-		return -EINVAL;
+		return invalf(fc, "device does not support %d byte blocks\n",
+			      EFS_BLOCKSIZE);
 	}
 
 	/* read the vh (volume header) block */
@@ -327,43 +317,22 @@ static int efs_fill_super(struct super_block *s, struct fs_context *fc)
 	return 0;
 }
 
-static void efs_free_fc(struct fs_context *fc)
-{
-	kfree(fc->fs_private);
-}
-
 static int efs_get_tree(struct fs_context *fc)
 {
 	return get_tree_bdev(fc, efs_fill_super);
 }
 
-static int efs_parse_param(struct fs_context *fc, struct fs_parameter *param)
-{
-	int token;
-	struct fs_parse_result result;
-
-	token = fs_parse(fc, efs_param_spec, param, &result);
-	if (token < 0)
-		return token;
-	return 0;
-}
-
 static int efs_reconfigure(struct fs_context *fc)
 {
 	sync_filesystem(fc->root->d_sb);
+	fc->sb_flags |= SB_RDONLY;
 
 	return 0;
 }
 
-struct efs_context {
-	unsigned long s_mount_opts;
-};
-
 static const struct fs_context_operations efs_context_opts = {
-	.parse_param	= efs_parse_param,
 	.get_tree	= efs_get_tree,
 	.reconfigure	= efs_reconfigure,
-	.free		= efs_free_fc,
 };
 
 /*
@@ -371,12 +340,6 @@ static const struct fs_context_operations efs_context_opts = {
  */
 static int efs_init_fs_context(struct fs_context *fc)
 {
-	struct efs_context *ctx;
-
-	ctx = kzalloc(sizeof(struct efs_context), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-	fc->fs_private = ctx;
 	fc->ops = &efs_context_opts;
 
 	return 0;

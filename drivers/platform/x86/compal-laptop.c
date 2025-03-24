@@ -68,6 +68,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/power_supply.h>
+#include <linux/sysfs.h>
 #include <linux/fb.h>
 #include <acpi/video.h>
 
@@ -364,21 +365,21 @@ static const struct rfkill_ops compal_rfkill_ops = {
 
 
 /* Wake_up interface */
-#define SIMPLE_MASKED_STORE_SHOW(NAME, ADDR, MASK)			\
-static ssize_t NAME##_show(struct device *dev,				\
-	struct device_attribute *attr, char *buf)			\
-{									\
-	return sprintf(buf, "%d\n", ((ec_read_u8(ADDR) & MASK) != 0));	\
-}									\
-static ssize_t NAME##_store(struct device *dev,				\
-	struct device_attribute *attr, const char *buf, size_t count)	\
-{									\
-	int state;							\
-	u8 old_val = ec_read_u8(ADDR);					\
-	if (sscanf(buf, "%d", &state) != 1 || (state < 0 || state > 1))	\
-		return -EINVAL;						\
-	ec_write(ADDR, state ? (old_val | MASK) : (old_val & ~MASK));	\
-	return count;							\
+#define SIMPLE_MASKED_STORE_SHOW(NAME, ADDR, MASK)				\
+static ssize_t NAME##_show(struct device *dev,					\
+	struct device_attribute *attr, char *buf)				\
+{										\
+	return sysfs_emit(buf, "%d\n", ((ec_read_u8(ADDR) & MASK) != 0));	\
+}										\
+static ssize_t NAME##_store(struct device *dev,					\
+	struct device_attribute *attr, const char *buf, size_t count)		\
+{										\
+	int state;								\
+	u8 old_val = ec_read_u8(ADDR);						\
+	if (sscanf(buf, "%d", &state) != 1 || (state < 0 || state > 1))		\
+		return -EINVAL;							\
+	ec_write(ADDR, state ? (old_val | MASK) : (old_val & ~MASK));		\
+	return count;								\
 }
 
 SIMPLE_MASKED_STORE_SHOW(wake_up_pme,	WAKE_UP_ADDR, WAKE_UP_PME)
@@ -393,7 +394,7 @@ static ssize_t pwm_enable_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct compal_data *data = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", data->pwm_enable);
+	return sysfs_emit(buf, "%d\n", data->pwm_enable);
 }
 
 static ssize_t pwm_enable_store(struct device *dev,
@@ -432,7 +433,7 @@ static ssize_t pwm_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct compal_data *data = dev_get_drvdata(dev);
-	return sprintf(buf, "%hhu\n", data->curr_pwm);
+	return sysfs_emit(buf, "%hhu\n", data->curr_pwm);
 }
 
 static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
@@ -460,21 +461,21 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
 static ssize_t fan_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
-	return sprintf(buf, "%d\n", get_fan_rpm());
+	return sysfs_emit(buf, "%d\n", get_fan_rpm());
 }
 
 
 /* Temperature interface */
-#define TEMPERATURE_SHOW_TEMP_AND_LABEL(POSTFIX, ADDRESS, LABEL)	\
-static ssize_t temp_##POSTFIX(struct device *dev,			\
-		struct device_attribute *attr, char *buf)		\
-{									\
-	return sprintf(buf, "%d\n", 1000 * (int)ec_read_s8(ADDRESS));	\
-}									\
-static ssize_t label_##POSTFIX(struct device *dev,			\
-		struct device_attribute *attr, char *buf)		\
-{									\
-	return sprintf(buf, "%s\n", LABEL);				\
+#define TEMPERATURE_SHOW_TEMP_AND_LABEL(POSTFIX, ADDRESS, LABEL)		\
+static ssize_t temp_##POSTFIX(struct device *dev,				\
+		struct device_attribute *attr, char *buf)			\
+{										\
+	return sysfs_emit(buf, "%d\n", 1000 * (int)ec_read_s8(ADDRESS));	\
+}										\
+static ssize_t label_##POSTFIX(struct device *dev,				\
+		struct device_attribute *attr, char *buf)			\
+{										\
+	return sysfs_emit(buf, "%s\n", LABEL);					\
 }
 
 /* Labels as in service guide */
@@ -1023,8 +1024,8 @@ static struct platform_driver compal_driver = {
 	.driver = {
 		.name = DRIVER_NAME,
 	},
-	.probe	= compal_probe,
-	.remove_new = compal_remove,
+	.probe = compal_probe,
+	.remove = compal_remove,
 };
 
 static int __init compal_init(void)

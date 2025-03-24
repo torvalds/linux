@@ -455,7 +455,7 @@ static struct platform_driver pcf50633_mbc_driver = {
 		.name = "pcf50633-mbc",
 	},
 	.probe = pcf50633_mbc_probe,
-	.remove_new = pcf50633_mbc_remove,
+	.remove = pcf50633_mbc_remove,
 };
 
 module_platform_driver(pcf50633_mbc_driver);

@@ -55,6 +55,7 @@
 #include "netns.h"
 #include "pnfs.h"
 #include "filecache.h"
+#include "nfs4xdr_gen.h"
 
 #include "trace.h"
 
@@ -519,6 +520,26 @@ nfsd4_decode_fattr4(struct nfsd4_compoundargs *argp, u32 *bmval, u32 bmlen,
 			return nfserr_bad_xdr;
 		*umask = mask & S_IRWXUGO;
 		iattr->ia_valid |= ATTR_MODE;
+	}
+	if (bmval[2] & FATTR4_WORD2_TIME_DELEG_ACCESS) {
+		fattr4_time_deleg_access access;
+
+		if (!xdrgen_decode_fattr4_time_deleg_access(argp->xdr, &access))
+			return nfserr_bad_xdr;
+		iattr->ia_atime.tv_sec = access.seconds;
+		iattr->ia_atime.tv_nsec = access.nseconds;
+		iattr->ia_valid |= ATTR_ATIME | ATTR_ATIME_SET | ATTR_DELEG;
+	}
+	if (bmval[2] & FATTR4_WORD2_TIME_DELEG_MODIFY) {
+		fattr4_time_deleg_modify modify;
+
+		if (!xdrgen_decode_fattr4_time_deleg_modify(argp->xdr, &modify))
+			return nfserr_bad_xdr;
+		iattr->ia_mtime.tv_sec = modify.seconds;
+		iattr->ia_mtime.tv_nsec = modify.nseconds;
+		iattr->ia_ctime.tv_sec = modify.seconds;
+		iattr->ia_ctime.tv_nsec = modify.seconds;
+		iattr->ia_valid |= ATTR_CTIME | ATTR_MTIME | ATTR_MTIME_SET | ATTR_DELEG;
 	}
 
 	/* request sanity: did attrlist4 contain the expected number of words? */
@@ -1066,13 +1087,13 @@ static __be32 nfsd4_decode_share_access(struct nfsd4_compoundargs *argp, u32 *sh
 		return nfs_ok;
 	if (!argp->minorversion)
 		return nfserr_bad_xdr;
-	switch (w & NFS4_SHARE_WANT_MASK) {
-	case NFS4_SHARE_WANT_NO_PREFERENCE:
-	case NFS4_SHARE_WANT_READ_DELEG:
-	case NFS4_SHARE_WANT_WRITE_DELEG:
-	case NFS4_SHARE_WANT_ANY_DELEG:
-	case NFS4_SHARE_WANT_NO_DELEG:
-	case NFS4_SHARE_WANT_CANCEL:
+	switch (w & NFS4_SHARE_WANT_TYPE_MASK) {
+	case OPEN4_SHARE_ACCESS_WANT_NO_PREFERENCE:
+	case OPEN4_SHARE_ACCESS_WANT_READ_DELEG:
+	case OPEN4_SHARE_ACCESS_WANT_WRITE_DELEG:
+	case OPEN4_SHARE_ACCESS_WANT_ANY_DELEG:
+	case OPEN4_SHARE_ACCESS_WANT_NO_DELEG:
+	case OPEN4_SHARE_ACCESS_WANT_CANCEL:
 		break;
 	default:
 		return nfserr_bad_xdr;
@@ -1243,14 +1264,6 @@ nfsd4_decode_putfh(struct nfsd4_compoundargs *argp, union nfsd4_op_u *u)
 
 	putfh->no_verify = false;
 	return nfs_ok;
-}
-
-static __be32
-nfsd4_decode_putpubfh(struct nfsd4_compoundargs *argp, union nfsd4_op_u *p)
-{
-	if (argp->minorversion == 0)
-		return nfs_ok;
-	return nfserr_notsupp;
 }
 
 static __be32
@@ -1892,7 +1905,8 @@ nfsd4_decode_sequence(struct nfsd4_compoundargs *argp,
 		return nfserr_bad_xdr;
 	seq->seqid = be32_to_cpup(p++);
 	seq->slotid = be32_to_cpup(p++);
-	seq->maxslots = be32_to_cpup(p++);
+	/* sa_highest_slotid counts from 0 but maxslots  counts from 1 ... */
+	seq->maxslots = be32_to_cpup(p++) + 1;
 	seq->cachethis = be32_to_cpup(p);
 
 	seq->status_flags = 0;
@@ -2374,7 +2388,7 @@ static const nfsd4_dec nfsd4_dec_ops[] = {
 	[OP_OPEN_CONFIRM]	= nfsd4_decode_open_confirm,
 	[OP_OPEN_DOWNGRADE]	= nfsd4_decode_open_downgrade,
 	[OP_PUTFH]		= nfsd4_decode_putfh,
-	[OP_PUTPUBFH]		= nfsd4_decode_putpubfh,
+	[OP_PUTPUBFH]		= nfsd4_decode_noop,
 	[OP_PUTROOTFH]		= nfsd4_decode_noop,
 	[OP_READ]		= nfsd4_decode_read,
 	[OP_READDIR]		= nfsd4_decode_readdir,
@@ -2660,13 +2674,10 @@ static __be32 nfsd4_encode_components_esc(struct xdr_stream *xdr, char sep,
 
 		strlen = end - str;
 		if (strlen) {
-			p = xdr_reserve_space(xdr, strlen + 4);
-			if (!p)
+			if (xdr_stream_encode_opaque(xdr, str, strlen) < 0)
 				return nfserr_resource;
-			p = xdr_encode_opaque(p, str, strlen);
 			count++;
-		}
-		else
+		} else
 			end++;
 		if (found_esc)
 			end = next;
@@ -2707,7 +2718,6 @@ static __be32 nfsd4_encode_pathname4(struct xdr_stream *xdr,
 				     const struct path *path)
 {
 	struct path cur = *path;
-	__be32 *p;
 	struct dentry **components = NULL;
 	unsigned int ncomponents = 0;
 	__be32 err = nfserr_jukebox;
@@ -2738,24 +2748,19 @@ static __be32 nfsd4_encode_pathname4(struct xdr_stream *xdr,
 		components[ncomponents++] = cur.dentry;
 		cur.dentry = dget_parent(cur.dentry);
 	}
-	err = nfserr_resource;
-	p = xdr_reserve_space(xdr, 4);
-	if (!p)
-		goto out_free;
-	*p++ = cpu_to_be32(ncomponents);
 
+	err = nfserr_resource;
+	if (xdr_stream_encode_u32(xdr, ncomponents) != XDR_UNIT)
+		goto out_free;
 	while (ncomponents) {
 		struct dentry *dentry = components[ncomponents - 1];
-		unsigned int len;
 
 		spin_lock(&dentry->d_lock);
-		len = dentry->d_name.len;
-		p = xdr_reserve_space(xdr, len + 4);
-		if (!p) {
+		if (xdr_stream_encode_opaque(xdr, dentry->d_name.name,
+					     dentry->d_name.len) < 0) {
 			spin_unlock(&dentry->d_lock);
 			goto out_free;
 		}
-		p = xdr_encode_opaque(p, dentry->d_name.name, len);
 		dprintk("/%pd", dentry);
 		spin_unlock(&dentry->d_lock);
 		dput(dentry);
@@ -2835,11 +2840,11 @@ static __be32 nfsd4_encode_nfsace4(struct xdr_stream *xdr, struct svc_rqst *rqst
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 static inline __be32
 nfsd4_encode_security_label(struct xdr_stream *xdr, struct svc_rqst *rqstp,
-			    void *context, int len)
+			    const struct lsm_context *context)
 {
 	__be32 *p;
 
-	p = xdr_reserve_space(xdr, len + 4 + 4 + 4);
+	p = xdr_reserve_space(xdr, context->len + 4 + 4 + 4);
 	if (!p)
 		return nfserr_resource;
 
@@ -2849,13 +2854,13 @@ nfsd4_encode_security_label(struct xdr_stream *xdr, struct svc_rqst *rqstp,
 	 */
 	*p++ = cpu_to_be32(0); /* lfs */
 	*p++ = cpu_to_be32(0); /* pi */
-	p = xdr_encode_opaque(p, context, len);
+	p = xdr_encode_opaque(p, context->context, context->len);
 	return 0;
 }
 #else
 static inline __be32
 nfsd4_encode_security_label(struct xdr_stream *xdr, struct svc_rqst *rqstp,
-			    void *context, int len)
+			    struct lsm_context *context)
 { return 0; }
 #endif
 
@@ -2936,10 +2941,9 @@ struct nfsd4_fattr_args {
 	struct kstat		stat;
 	struct kstatfs		statfs;
 	struct nfs4_acl		*acl;
-	u64			size;
+	u64			change_attr;
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-	void			*context;
-	int			contextlen;
+	struct lsm_context	context;
 #endif
 	u32			rdattr_err;
 	bool			contextsupport;
@@ -3036,7 +3040,6 @@ static __be32 nfsd4_encode_fattr4_change(struct xdr_stream *xdr,
 					 const struct nfsd4_fattr_args *args)
 {
 	const struct svc_export *exp = args->exp;
-	u64 c;
 
 	if (unlikely(exp->ex_flags & NFSEXP_V4ROOT)) {
 		u32 flush_time = convert_to_wallclock(exp->cd->flush_time);
@@ -3047,15 +3050,13 @@ static __be32 nfsd4_encode_fattr4_change(struct xdr_stream *xdr,
 			return nfserr_resource;
 		return nfs_ok;
 	}
-
-	c = nfsd4_change_attribute(&args->stat, d_inode(args->dentry));
-	return nfsd4_encode_changeid4(xdr, c);
+	return nfsd4_encode_changeid4(xdr, args->change_attr);
 }
 
 static __be32 nfsd4_encode_fattr4_size(struct xdr_stream *xdr,
 				       const struct nfsd4_fattr_args *args)
 {
-	return nfsd4_encode_uint64_t(xdr, args->size);
+	return nfsd4_encode_uint64_t(xdr, args->stat.size);
 }
 
 static __be32 nfsd4_encode_fattr4_fsid(struct xdr_stream *xdr,
@@ -3394,8 +3395,7 @@ static __be32 nfsd4_encode_fattr4_suppattr_exclcreat(struct xdr_stream *xdr,
 static __be32 nfsd4_encode_fattr4_sec_label(struct xdr_stream *xdr,
 					    const struct nfsd4_fattr_args *args)
 {
-	return nfsd4_encode_security_label(xdr, args->rqstp,
-					   args->context, args->contextlen);
+	return nfsd4_encode_security_label(xdr, args->rqstp, &args->context);
 }
 #endif
 
@@ -3405,6 +3405,56 @@ static __be32 nfsd4_encode_fattr4_xattr_support(struct xdr_stream *xdr,
 	int err = xattr_supports_user_prefix(d_inode(args->dentry));
 
 	return nfsd4_encode_bool(xdr, err == 0);
+}
+
+#define NFSD_OA_SHARE_ACCESS	(BIT(OPEN_ARGS_SHARE_ACCESS_READ)	| \
+				 BIT(OPEN_ARGS_SHARE_ACCESS_WRITE)	| \
+				 BIT(OPEN_ARGS_SHARE_ACCESS_BOTH))
+
+#define NFSD_OA_SHARE_DENY	(BIT(OPEN_ARGS_SHARE_DENY_NONE)		| \
+				 BIT(OPEN_ARGS_SHARE_DENY_READ)		| \
+				 BIT(OPEN_ARGS_SHARE_DENY_WRITE)	| \
+				 BIT(OPEN_ARGS_SHARE_DENY_BOTH))
+
+#define NFSD_OA_SHARE_ACCESS_WANT	(BIT(OPEN_ARGS_SHARE_ACCESS_WANT_ANY_DELEG)		| \
+					 BIT(OPEN_ARGS_SHARE_ACCESS_WANT_NO_DELEG)		| \
+					 BIT(OPEN_ARGS_SHARE_ACCESS_WANT_CANCEL)		| \
+					 BIT(OPEN_ARGS_SHARE_ACCESS_WANT_DELEG_TIMESTAMPS)	| \
+					 BIT(OPEN_ARGS_SHARE_ACCESS_WANT_OPEN_XOR_DELEGATION))
+
+#define NFSD_OA_OPEN_CLAIM	(BIT(OPEN_ARGS_OPEN_CLAIM_NULL)		| \
+				 BIT(OPEN_ARGS_OPEN_CLAIM_PREVIOUS)	| \
+				 BIT(OPEN_ARGS_OPEN_CLAIM_DELEGATE_CUR)	| \
+				 BIT(OPEN_ARGS_OPEN_CLAIM_DELEGATE_PREV)| \
+				 BIT(OPEN_ARGS_OPEN_CLAIM_FH)		| \
+				 BIT(OPEN_ARGS_OPEN_CLAIM_DELEG_CUR_FH)	| \
+				 BIT(OPEN_ARGS_OPEN_CLAIM_DELEG_PREV_FH))
+
+#define NFSD_OA_CREATE_MODE	(BIT(OPEN_ARGS_CREATEMODE_UNCHECKED4)	| \
+				 BIT(OPEN_ARGS_CREATE_MODE_GUARDED)	| \
+				 BIT(OPEN_ARGS_CREATEMODE_EXCLUSIVE4)	| \
+				 BIT(OPEN_ARGS_CREATE_MODE_EXCLUSIVE4_1))
+
+static uint32_t oa_share_access = NFSD_OA_SHARE_ACCESS;
+static uint32_t oa_share_deny = NFSD_OA_SHARE_DENY;
+static uint32_t oa_share_access_want = NFSD_OA_SHARE_ACCESS_WANT;
+static uint32_t oa_open_claim = NFSD_OA_OPEN_CLAIM;
+static uint32_t oa_create_mode = NFSD_OA_CREATE_MODE;
+
+static const struct open_arguments4 nfsd_open_arguments = {
+	.oa_share_access = { .count = 1, .element = &oa_share_access },
+	.oa_share_deny = { .count = 1, .element = &oa_share_deny },
+	.oa_share_access_want = { .count = 1, .element = &oa_share_access_want },
+	.oa_open_claim = { .count = 1, .element = &oa_open_claim },
+	.oa_create_mode = { .count = 1, .element = &oa_create_mode },
+};
+
+static __be32 nfsd4_encode_fattr4_open_arguments(struct xdr_stream *xdr,
+						 const struct nfsd4_fattr_args *args)
+{
+	if (!xdrgen_encode_fattr4_open_arguments(xdr, &nfsd_open_arguments))
+		return nfserr_resource;
+	return nfs_ok;
 }
 
 static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
@@ -3507,6 +3557,7 @@ static const nfsd4_enc_attr nfsd4_enc_fattr4_encode_ops[] = {
 
 	[FATTR4_MODE_UMASK]		= nfsd4_encode_fattr4__noop,
 	[FATTR4_XATTR_SUPPORT]		= nfsd4_encode_fattr4_xattr_support,
+	[FATTR4_OPEN_ARGUMENTS]		= nfsd4_encode_fattr4_open_arguments,
 };
 
 /*
@@ -3520,11 +3571,12 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 		    int ignore_crossmnt)
 {
 	DECLARE_BITMAP(attr_bitmap, ARRAY_SIZE(nfsd4_enc_fattr4_encode_ops));
+	struct nfs4_delegation *dp = NULL;
 	struct nfsd4_fattr_args args;
 	struct svc_fh *tempfh = NULL;
 	int starting_len = xdr->buf->len;
-	__be32 *attrlen_p, status;
-	int attrlen_offset;
+	unsigned int attrlen_offset;
+	__be32 attrlen, status;
 	u32 attrmask[3];
 	int err;
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
@@ -3534,8 +3586,6 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 		.dentry	= dentry,
 	};
 	unsigned long bit;
-	bool file_modified = false;
-	u64 size = 0;
 
 	WARN_ON_ONCE(bmval[1] & NFSD_WRITEONLY_ATTRS_WORD1);
 	WARN_ON_ONCE(!nfsd_attrs_supported(minorversion, bmval));
@@ -3545,6 +3595,9 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	args.dentry = dentry;
 	args.ignore_crossmnt = (ignore_crossmnt != 0);
 	args.acl = NULL;
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+	args.context.context = NULL;
+#endif
 
 	/*
 	 * Make a local copy of the attribute bitmap that can be modified.
@@ -3560,10 +3613,12 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 		if (status)
 			goto out;
 	}
-	args.size = 0;
-	if (attrmask[0] & (FATTR4_WORD0_CHANGE | FATTR4_WORD0_SIZE)) {
-		status = nfsd4_deleg_getattr_conflict(rqstp, d_inode(dentry),
-					&file_modified, &size);
+	if ((attrmask[0] & (FATTR4_WORD0_CHANGE |
+			    FATTR4_WORD0_SIZE)) ||
+	    (attrmask[1] & (FATTR4_WORD1_TIME_ACCESS |
+			    FATTR4_WORD1_TIME_MODIFY |
+			    FATTR4_WORD1_TIME_METADATA))) {
+		status = nfsd4_deleg_getattr_conflict(rqstp, dentry, &dp);
 		if (status)
 			goto out;
 	}
@@ -3571,12 +3626,27 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	err = vfs_getattr(&path, &args.stat,
 			  STATX_BASIC_STATS | STATX_BTIME | STATX_CHANGE_COOKIE,
 			  AT_STATX_SYNC_AS_STAT);
+	if (dp) {
+		struct nfs4_cb_fattr *ncf = &dp->dl_cb_fattr;
+
+		if (ncf->ncf_file_modified) {
+			++ncf->ncf_initial_cinfo;
+			args.stat.size = ncf->ncf_cur_fsize;
+			if (!timespec64_is_epoch(&ncf->ncf_cb_mtime))
+				args.stat.mtime = ncf->ncf_cb_mtime;
+		}
+		args.change_attr = ncf->ncf_initial_cinfo;
+
+		if (!timespec64_is_epoch(&ncf->ncf_cb_atime))
+			args.stat.atime = ncf->ncf_cb_atime;
+
+		nfs4_put_stid(&dp->dl_stid);
+	} else {
+		args.change_attr = nfsd4_change_attribute(&args.stat);
+	}
+
 	if (err)
 		goto out_nfserr;
-	if (file_modified)
-		args.size = size;
-	else
-		args.size = args.stat.size;
 
 	if (!(args.stat.result_mask & STATX_BTIME))
 		/* underlying FS does not offer btime so we can't share it */
@@ -3617,12 +3687,11 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 	args.contextsupport = false;
 
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-	args.context = NULL;
 	if ((attrmask[2] & FATTR4_WORD2_SECURITY_LABEL) ||
 	     attrmask[0] & FATTR4_WORD0_SUPPORTED_ATTRS) {
 		if (exp->ex_flags & NFSEXP_SECURITY_LABEL)
 			err = security_inode_getsecctx(d_inode(dentry),
-						&args.context, &args.contextlen);
+						&args.context);
 		else
 			err = -EOPNOTSUPP;
 		args.contextsupport = (err == 0);
@@ -3643,8 +3712,7 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 
 	/* attr_vals */
 	attrlen_offset = xdr->buf->len;
-	attrlen_p = xdr_reserve_space(xdr, XDR_UNIT);
-	if (!attrlen_p)
+	if (unlikely(!xdr_reserve_space(xdr, XDR_UNIT)))
 		goto out_resource;
 	bitmap_from_arr32(attr_bitmap, attrmask,
 			  ARRAY_SIZE(nfsd4_enc_fattr4_encode_ops));
@@ -3654,13 +3722,14 @@ nfsd4_encode_fattr4(struct svc_rqst *rqstp, struct xdr_stream *xdr,
 		if (status != nfs_ok)
 			goto out;
 	}
-	*attrlen_p = cpu_to_be32(xdr->buf->len - attrlen_offset - XDR_UNIT);
+	attrlen = cpu_to_be32(xdr->buf->len - attrlen_offset - XDR_UNIT);
+	write_bytes_to_xdr_buf(xdr->buf, attrlen_offset, &attrlen, XDR_UNIT);
 	status = nfs_ok;
 
 out:
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-	if (args.context)
-		security_release_secctx(args.context, args.contextlen);
+	if (args.context.context)
+		security_release_secctx(&args.context);
 #endif /* CONFIG_NFSD_V4_SECURITY_LABEL */
 	kfree(args.acl);
 	if (tempfh) {
@@ -3773,7 +3842,7 @@ nfsd4_encode_entry4_fattr(struct nfsd4_readdir *cd, const char *name,
 			nfserr = nfserrno(err);
 			goto out_put;
 		}
-		nfserr = check_nfsd_access(exp, cd->rd_rqstp);
+		nfserr = check_nfsd_access(exp, cd->rd_rqstp, false);
 		if (nfserr)
 			goto out_put;
 
@@ -4244,18 +4313,20 @@ nfsd4_encode_open_delegation4(struct xdr_stream *xdr, struct nfsd4_open *open)
 	if (xdr_stream_encode_u32(xdr, open->op_delegate_type) != XDR_UNIT)
 		return nfserr_resource;
 	switch (open->op_delegate_type) {
-	case NFS4_OPEN_DELEGATE_NONE:
+	case OPEN_DELEGATE_NONE:
 		status = nfs_ok;
 		break;
-	case NFS4_OPEN_DELEGATE_READ:
+	case OPEN_DELEGATE_READ:
+	case OPEN_DELEGATE_READ_ATTRS_DELEG:
 		/* read */
 		status = nfsd4_encode_open_read_delegation4(xdr, open);
 		break;
-	case NFS4_OPEN_DELEGATE_WRITE:
+	case OPEN_DELEGATE_WRITE:
+	case OPEN_DELEGATE_WRITE_ATTRS_DELEG:
 		/* write */
 		status = nfsd4_encode_open_write_delegation4(xdr, open);
 		break;
-	case NFS4_OPEN_DELEGATE_NONE_EXT:
+	case OPEN_DELEGATE_NONE_EXT:
 		/* od_whynone */
 		status = nfsd4_encode_open_none_delegation4(xdr, open);
 		break;
@@ -4330,6 +4401,15 @@ static __be32 nfsd4_encode_splice_read(
 	struct xdr_buf *buf = xdr->buf;
 	int status, space_left;
 	__be32 nfserr;
+
+	/*
+	 * Splice read doesn't work if encoding has already wandered
+	 * into the XDR buf's page array.
+	 */
+	if (unlikely(xdr->buf->page_len)) {
+		WARN_ON_ONCE(1);
+		return nfserr_serverfault;
+	}
 
 	/*
 	 * Make sure there is room at the end of buf->head for
@@ -4413,24 +4493,22 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_compoundargs *argp = resp->rqstp->rq_argp;
 	struct nfsd4_read *read = &u->read;
 	struct xdr_stream *xdr = resp->xdr;
-	int starting_len = xdr->buf->len;
 	bool splice_ok = argp->splice_ok;
+	unsigned int eof_offset;
 	unsigned long maxcount;
+	__be32 wire_data[2];
 	struct file *file;
-	__be32 *p;
 
 	if (nfserr)
 		return nfserr;
+
+	eof_offset = xdr->buf->len;
 	file = read->rd_nf->nf_file;
 
-	p = xdr_reserve_space(xdr, 8); /* eof flag and byte count */
-	if (!p) {
+	/* Reserve space for the eof flag and byte count */
+	if (unlikely(!xdr_reserve_space(xdr, XDR_UNIT * 2))) {
 		WARN_ON_ONCE(splice_ok);
 		return nfserr_resource;
-	}
-	if (resp->xdr->buf->page_len && splice_ok) {
-		WARN_ON_ONCE(1);
-		return nfserr_serverfault;
 	}
 	xdr_commit_encode(xdr);
 
@@ -4442,12 +4520,13 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 	else
 		nfserr = nfsd4_encode_readv(resp, read, file, maxcount);
 	if (nfserr) {
-		xdr_truncate_encode(xdr, starting_len);
+		xdr_truncate_encode(xdr, eof_offset);
 		return nfserr;
 	}
 
-	p = xdr_encode_bool(p, read->rd_eof);
-	*p = cpu_to_be32(read->rd_length);
+	wire_data[0] = read->rd_eof ? xdr_one : xdr_zero;
+	wire_data[1] = cpu_to_be32(read->rd_length);
+	write_bytes_to_xdr_buf(xdr->buf, eof_offset, &wire_data, XDR_UNIT * 2);
 	return nfs_ok;
 }
 
@@ -4456,25 +4535,21 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr,
 		      union nfsd4_op_u *u)
 {
 	struct nfsd4_readlink *readlink = &u->readlink;
-	__be32 *p, *maxcount_p, zero = xdr_zero;
+	__be32 *p, wire_count, zero = xdr_zero;
 	struct xdr_stream *xdr = resp->xdr;
-	int length_offset = xdr->buf->len;
+	unsigned int length_offset;
 	int maxcount, status;
 
-	maxcount_p = xdr_reserve_space(xdr, XDR_UNIT);
-	if (!maxcount_p)
+	/* linktext4.count */
+	length_offset = xdr->buf->len;
+	if (unlikely(!xdr_reserve_space(xdr, XDR_UNIT)))
 		return nfserr_resource;
-	maxcount = PAGE_SIZE;
 
+	/* linktext4.data */
+	maxcount = PAGE_SIZE;
 	p = xdr_reserve_space(xdr, maxcount);
 	if (!p)
 		return nfserr_resource;
-	/*
-	 * XXX: By default, vfs_readlink() will truncate symlinks if they
-	 * would overflow the buffer.  Is this kosher in NFSv4?  If not, one
-	 * easy fix is: if vfs_readlink() precisely fills the buffer, assume
-	 * that truncation occurred, and return NFS4ERR_RESOURCE.
-	 */
 	nfserr = nfsd_readlink(readlink->rl_rqstp, readlink->rl_fhp,
 						(char *)p, &maxcount);
 	if (nfserr == nfserr_isdir)
@@ -4487,7 +4562,9 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr,
 		nfserr = nfserrno(status);
 		goto out_err;
 	}
-	*maxcount_p = cpu_to_be32(maxcount);
+
+	wire_count = cpu_to_be32(maxcount);
+	write_bytes_to_xdr_buf(xdr->buf, length_offset, &wire_count, XDR_UNIT);
 	xdr_truncate_encode(xdr, length_offset + 4 + xdr_align_size(maxcount));
 	write_bytes_to_xdr_buf(xdr->buf, length_offset + 4 + maxcount, &zero,
 			       xdr_pad_size(maxcount));
@@ -4622,14 +4699,42 @@ nfsd4_encode_rpcsec_gss_info(struct xdr_stream *xdr,
 }
 
 static __be32
-nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
+nfsd4_encode_secinfo4(struct xdr_stream *xdr, rpc_authflavor_t pf,
+		      u32 *supported)
+{
+	struct rpcsec_gss_info info;
+	__be32 status;
+
+	if (rpcauth_get_gssinfo(pf, &info) == 0) {
+		(*supported)++;
+
+		/* flavor */
+		status = nfsd4_encode_uint32_t(xdr, RPC_AUTH_GSS);
+		if (status != nfs_ok)
+			return status;
+		/* flavor_info */
+		status = nfsd4_encode_rpcsec_gss_info(xdr, &info);
+		if (status != nfs_ok)
+			return status;
+	} else if (pf < RPC_AUTH_MAXFLAVOR) {
+		(*supported)++;
+
+		/* flavor */
+		status = nfsd4_encode_uint32_t(xdr, pf);
+		if (status != nfs_ok)
+			return status;
+	}
+	return nfs_ok;
+}
+
+static __be32
+nfsd4_encode_SECINFO4resok(struct xdr_stream *xdr, struct svc_export *exp)
 {
 	u32 i, nflavs, supported;
 	struct exp_flavor_info *flavs;
 	struct exp_flavor_info def_flavs[2];
-	static bool report = true;
-	__be32 *flavorsp;
-	__be32 status;
+	unsigned int count_offset;
+	__be32 status, wire_count;
 
 	if (exp->ex_nflavors) {
 		flavs = exp->ex_flavors;
@@ -4651,43 +4756,20 @@ nfsd4_do_encode_secinfo(struct xdr_stream *xdr, struct svc_export *exp)
 		}
 	}
 
-	supported = 0;
-	flavorsp = xdr_reserve_space(xdr, XDR_UNIT);
-	if (!flavorsp)
+	count_offset = xdr->buf->len;
+	if (unlikely(!xdr_reserve_space(xdr, XDR_UNIT)))
 		return nfserr_resource;
 
-	for (i = 0; i < nflavs; i++) {
-		rpc_authflavor_t pf = flavs[i].pseudoflavor;
-		struct rpcsec_gss_info info;
-
-		if (rpcauth_get_gssinfo(pf, &info) == 0) {
-			supported++;
-
-			/* flavor */
-			status = nfsd4_encode_uint32_t(xdr, RPC_AUTH_GSS);
-			if (status != nfs_ok)
-				return status;
-			/* flavor_info */
-			status = nfsd4_encode_rpcsec_gss_info(xdr, &info);
-			if (status != nfs_ok)
-				return status;
-		} else if (pf < RPC_AUTH_MAXFLAVOR) {
-			supported++;
-
-			/* flavor */
-			status = nfsd4_encode_uint32_t(xdr, pf);
-			if (status != nfs_ok)
-				return status;
-		} else {
-			if (report)
-				pr_warn("NFS: SECINFO: security flavor %u "
-					"is not supported\n", pf);
-		}
+	for (i = 0, supported = 0; i < nflavs; i++) {
+		status = nfsd4_encode_secinfo4(xdr, flavs[i].pseudoflavor,
+					       &supported);
+		if (status != nfs_ok)
+			return status;
 	}
 
-	if (nflavs != supported)
-		report = false;
-	*flavorsp = cpu_to_be32(supported);
+	wire_count = cpu_to_be32(supported);
+	write_bytes_to_xdr_buf(xdr->buf, count_offset, &wire_count,
+			       XDR_UNIT);
 	return 0;
 }
 
@@ -4698,7 +4780,7 @@ nfsd4_encode_secinfo(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_secinfo *secinfo = &u->secinfo;
 	struct xdr_stream *xdr = resp->xdr;
 
-	return nfsd4_do_encode_secinfo(xdr, secinfo->si_exp);
+	return nfsd4_encode_SECINFO4resok(xdr, secinfo->si_exp);
 }
 
 static __be32
@@ -4708,7 +4790,7 @@ nfsd4_encode_secinfo_no_name(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_secinfo_no_name *secinfo = &u->secinfo_no_name;
 	struct xdr_stream *xdr = resp->xdr;
 
-	return nfsd4_do_encode_secinfo(xdr, secinfo->sin_exp);
+	return nfsd4_encode_SECINFO4resok(xdr, secinfo->sin_exp);
 }
 
 static __be32
@@ -4832,6 +4914,25 @@ nfsd4_encode_server_owner4(struct xdr_stream *xdr, struct svc_rqst *rqstp)
 }
 
 static __be32
+nfsd4_encode_nfs_impl_id4(struct xdr_stream *xdr, struct nfsd4_exchange_id *exid)
+{
+	__be32 status;
+
+	/* nii_domain */
+	status = nfsd4_encode_opaque(xdr, exid->nii_domain.data,
+				     exid->nii_domain.len);
+	if (status != nfs_ok)
+		return status;
+	/* nii_name */
+	status = nfsd4_encode_opaque(xdr, exid->nii_name.data,
+				     exid->nii_name.len);
+	if (status != nfs_ok)
+		return status;
+	/* nii_time */
+	return nfsd4_encode_nfstime4(xdr, &exid->nii_time);
+}
+
+static __be32
 nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 			 union nfsd4_op_u *u)
 {
@@ -4865,8 +4966,11 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (nfserr != nfs_ok)
 		return nfserr;
 	/* eir_server_impl_id<1> */
-	if (xdr_stream_encode_u32(xdr, 0) != XDR_UNIT)
+	if (xdr_stream_encode_u32(xdr, 1) != XDR_UNIT)
 		return nfserr_resource;
+	nfserr = nfsd4_encode_nfs_impl_id4(xdr, exid);
+	if (nfserr != nfs_ok)
+		return nfserr;
 
 	return nfs_ok;
 }
@@ -4961,7 +5065,7 @@ nfsd4_encode_sequence(struct nfsd4_compoundres *resp, __be32 nfserr,
 	if (nfserr != nfs_ok)
 		return nfserr;
 	/* sr_target_highest_slotid */
-	nfserr = nfsd4_encode_slotid4(xdr, seq->maxslots - 1);
+	nfserr = nfsd4_encode_slotid4(xdr, seq->target_maxslots - 1);
 	if (nfserr != nfs_ok)
 		return nfserr;
 	/* sr_status_flags */
@@ -5289,17 +5393,20 @@ nfsd4_encode_read_plus_data(struct nfsd4_compoundres *resp,
 	struct file *file = read->rd_nf->nf_file;
 	struct xdr_stream *xdr = resp->xdr;
 	bool splice_ok = argp->splice_ok;
+	unsigned int offset_offset;
+	__be32 nfserr, wire_count;
 	unsigned long maxcount;
-	__be32 nfserr, *p;
+	__be64 wire_offset;
 
-	/* Content type, offset, byte count */
-	p = xdr_reserve_space(xdr, 4 + 8 + 4);
-	if (!p)
+	if (xdr_stream_encode_u32(xdr, NFS4_CONTENT_DATA) != XDR_UNIT)
 		return nfserr_io;
-	if (resp->xdr->buf->page_len && splice_ok) {
-		WARN_ON_ONCE(splice_ok);
-		return nfserr_serverfault;
-	}
+
+	offset_offset = xdr->buf->len;
+
+	/* Reserve space for the byte offset and count */
+	if (unlikely(!xdr_reserve_space(xdr, XDR_UNIT * 3)))
+		return nfserr_io;
+	xdr_commit_encode(xdr);
 
 	maxcount = min_t(unsigned long, read->rd_length,
 			 (xdr->buf->buflen - xdr->buf->len));
@@ -5311,10 +5418,12 @@ nfsd4_encode_read_plus_data(struct nfsd4_compoundres *resp,
 	if (nfserr)
 		return nfserr;
 
-	*p++ = cpu_to_be32(NFS4_CONTENT_DATA);
-	p = xdr_encode_hyper(p, read->rd_offset);
-	*p = cpu_to_be32(read->rd_length);
-
+	wire_offset = cpu_to_be64(read->rd_offset);
+	write_bytes_to_xdr_buf(xdr->buf, offset_offset, &wire_offset,
+			       XDR_UNIT * 2);
+	wire_count = cpu_to_be32(read->rd_length);
+	write_bytes_to_xdr_buf(xdr->buf, offset_offset + XDR_UNIT * 2,
+			       &wire_count, XDR_UNIT);
 	return nfs_ok;
 }
 
@@ -5325,16 +5434,17 @@ nfsd4_encode_read_plus(struct nfsd4_compoundres *resp, __be32 nfserr,
 	struct nfsd4_read *read = &u->read;
 	struct file *file = read->rd_nf->nf_file;
 	struct xdr_stream *xdr = resp->xdr;
-	int starting_len = xdr->buf->len;
+	unsigned int eof_offset;
+	__be32 wire_data[2];
 	u32 segments = 0;
-	__be32 *p;
 
 	if (nfserr)
 		return nfserr;
 
-	/* eof flag, segment count */
-	p = xdr_reserve_space(xdr, 4 + 4);
-	if (!p)
+	eof_offset = xdr->buf->len;
+
+	/* Reserve space for the eof flag and segment count */
+	if (unlikely(!xdr_reserve_space(xdr, XDR_UNIT * 2)))
 		return nfserr_io;
 	xdr_commit_encode(xdr);
 
@@ -5344,15 +5454,16 @@ nfsd4_encode_read_plus(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 	nfserr = nfsd4_encode_read_plus_data(resp, read);
 	if (nfserr) {
-		xdr_truncate_encode(xdr, starting_len);
+		xdr_truncate_encode(xdr, eof_offset);
 		return nfserr;
 	}
 
 	segments++;
 
 out:
-	p = xdr_encode_bool(p, read->rd_eof);
-	*p = cpu_to_be32(segments);
+	wire_data[0] = read->rd_eof ? xdr_one : xdr_zero;
+	wire_data[1] = cpu_to_be32(segments);
+	write_bytes_to_xdr_buf(xdr->buf, eof_offset, &wire_data, XDR_UNIT * 2);
 	return nfserr;
 }
 
@@ -5729,6 +5840,23 @@ __be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 respsize)
 	return nfserr_rep_too_big;
 }
 
+static __be32 nfsd4_map_status(__be32 status, u32 minor)
+{
+	switch (status) {
+	case nfs_ok:
+		break;
+	case nfserr_wrong_type:
+		/* RFC 8881 - 15.1.2.9 */
+		if (minor == 0)
+			status = nfserr_inval;
+		break;
+	case nfserr_symlink_not_dir:
+		status = nfserr_symlink;
+		break;
+	}
+	return status;
+}
+
 void
 nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 {
@@ -5736,15 +5864,14 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 	struct nfs4_stateowner *so = resp->cstate.replay_owner;
 	struct svc_rqst *rqstp = resp->rqstp;
 	const struct nfsd4_operation *opdesc = op->opdesc;
-	int post_err_offset;
+	unsigned int op_status_offset;
 	nfsd4_enc encoder;
-	__be32 *p;
 
-	p = xdr_reserve_space(xdr, 8);
-	if (!p)
+	if (xdr_stream_encode_u32(xdr, op->opnum) != XDR_UNIT)
 		goto release;
-	*p++ = cpu_to_be32(op->opnum);
-	post_err_offset = xdr->buf->len;
+	op_status_offset = xdr->buf->len;
+	if (!xdr_reserve_space(xdr, XDR_UNIT))
+		goto release;
 
 	if (op->opnum == OP_ILLEGAL)
 		goto status;
@@ -5785,18 +5912,21 @@ nfsd4_encode_operation(struct nfsd4_compoundres *resp, struct nfsd4_op *op)
 		 * bug if we had to do this on a non-idempotent op:
 		 */
 		warn_on_nonidempotent_op(op);
-		xdr_truncate_encode(xdr, post_err_offset);
+		xdr_truncate_encode(xdr, op_status_offset + XDR_UNIT);
 	}
 	if (so) {
-		int len = xdr->buf->len - post_err_offset;
+		int len = xdr->buf->len - (op_status_offset + XDR_UNIT);
 
 		so->so_replay.rp_status = op->status;
 		so->so_replay.rp_buflen = len;
-		read_bytes_from_xdr_buf(xdr->buf, post_err_offset,
+		read_bytes_from_xdr_buf(xdr->buf, op_status_offset + XDR_UNIT,
 						so->so_replay.rp_buf, len);
 	}
 status:
-	*p = op->status;
+	op->status = nfsd4_map_status(op->status,
+				      resp->cstate.minorversion);
+	write_bytes_to_xdr_buf(xdr->buf, op_status_offset,
+			       &op->status, XDR_UNIT);
 release:
 	if (opdesc && opdesc->op_release)
 		opdesc->op_release(&op->u);

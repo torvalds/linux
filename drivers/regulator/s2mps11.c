@@ -4,6 +4,7 @@
 //              http://www.samsung.com
 
 #include <linux/bug.h>
+#include <linux/cleanup.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
 #include <linux/slab.h>
@@ -1120,7 +1121,6 @@ static const struct regulator_desc s2mpu02_regulators[] = {
 static int s2mps11_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
-	struct of_regulator_match *rdata = NULL;
 	struct regulator_config config = { };
 	struct s2mps11_info *s2mps11;
 	unsigned int rdev_num = 0;
@@ -1170,7 +1170,8 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 	if (!s2mps11->ext_control_gpiod)
 		return -ENOMEM;
 
-	rdata = kcalloc(rdev_num, sizeof(*rdata), GFP_KERNEL);
+	struct of_regulator_match *rdata __free(kfree) =
+		kcalloc(rdev_num, sizeof(*rdata), GFP_KERNEL);
 	if (!rdata)
 		return -ENOMEM;
 
@@ -1179,7 +1180,7 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 
 	ret = s2mps11_pmic_dt_parse(pdev, rdata, s2mps11, rdev_num);
 	if (ret)
-		goto out;
+		return ret;
 
 	platform_set_drvdata(pdev, s2mps11);
 
@@ -1201,10 +1202,9 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 		regulator = devm_regulator_register(&pdev->dev,
 						&regulators[i], &config);
 		if (IS_ERR(regulator)) {
-			ret = PTR_ERR(regulator);
 			dev_err(&pdev->dev, "regulator init failed for %d\n",
 				i);
-			goto out;
+			return PTR_ERR(regulator);
 		}
 
 		if (config.ena_gpiod) {
@@ -1214,15 +1214,12 @@ static int s2mps11_pmic_probe(struct platform_device *pdev)
 				dev_err(&pdev->dev,
 						"failed to enable GPIO control over %s: %d\n",
 						regulator->desc->name, ret);
-				goto out;
+				return ret;
 			}
 		}
 	}
 
-out:
-	kfree(rdata);
-
-	return ret;
+	return 0;
 }
 
 static const struct platform_device_id s2mps11_pmic_id[] = {

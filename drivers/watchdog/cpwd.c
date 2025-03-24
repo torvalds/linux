@@ -507,7 +507,6 @@ static const struct file_operations cpwd_fops = {
 	.write =		cpwd_write,
 	.read =			cpwd_read,
 	.release =		cpwd_release,
-	.llseek =		no_llseek,
 };
 
 static int cpwd_probe(struct platform_device *op)
@@ -654,7 +653,7 @@ static struct platform_driver cpwd_driver = {
 		.of_match_table = cpwd_match,
 	},
 	.probe		= cpwd_probe,
-	.remove_new	= cpwd_remove,
+	.remove		= cpwd_remove,
 };
 
 module_platform_driver(cpwd_driver);

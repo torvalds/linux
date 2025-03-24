@@ -43,9 +43,22 @@ enum {
 
 enum cifs_reparse_parm {
 	Opt_reparse_default,
+	Opt_reparse_none,
 	Opt_reparse_nfs,
 	Opt_reparse_wsl,
 	Opt_reparse_err
+};
+
+enum cifs_symlink_parm {
+	Opt_symlink_default,
+	Opt_symlink_none,
+	Opt_symlink_native,
+	Opt_symlink_unix,
+	Opt_symlink_mfsymlinks,
+	Opt_symlink_sfu,
+	Opt_symlink_nfs,
+	Opt_symlink_wsl,
+	Opt_symlink_err
 };
 
 enum cifs_sec_param {
@@ -59,6 +72,12 @@ enum cifs_sec_param {
 	Opt_sec_none,
 
 	Opt_sec_err
+};
+
+enum cifs_upcall_target_param {
+	Opt_upcall_target_mount,
+	Opt_upcall_target_application,
+	Opt_upcall_target_err
 };
 
 enum cifs_param {
@@ -114,6 +133,8 @@ enum cifs_param {
 	Opt_multichannel,
 	Opt_compress,
 	Opt_witness,
+	Opt_is_upcall_target_mount,
+	Opt_is_upcall_target_application,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid,
@@ -157,6 +178,10 @@ enum cifs_param {
 	Opt_sec,
 	Opt_cache,
 	Opt_reparse,
+	Opt_upcalltarget,
+	Opt_nativesocket,
+	Opt_symlink,
+	Opt_symlinkroot,
 
 	/* Mount options to be ignored */
 	Opt_ignore,
@@ -198,6 +223,7 @@ struct smb3_fs_context {
 	umode_t file_mode;
 	umode_t dir_mode;
 	enum securityEnum sectype; /* sectype requested via mnt opts */
+	enum upcall_target_enum upcall_target; /* where to upcall for mount */
 	bool sign; /* was signing requested via mnt opts? */
 	bool ignore_signature:1;
 	bool retry:1;
@@ -260,7 +286,7 @@ struct smb3_fs_context {
 	unsigned int min_offload;
 	unsigned int retrans;
 	bool sockopt_tcp_nodelay:1;
-	/* attribute cache timemout for files and directories in jiffies */
+	/* attribute cache timeout for files and directories in jiffies */
 	unsigned long acregmax;
 	unsigned long acdirmax;
 	/* timeout for deferred close of files in jiffies */
@@ -284,9 +310,16 @@ struct smb3_fs_context {
 	struct cifs_ses *dfs_root_ses;
 	bool dfs_automount:1; /* set for dfs automount only */
 	enum cifs_reparse_type reparse_type;
+	enum cifs_symlink_type symlink_type;
+	bool nonativesocket:1;
+	bool dfs_conn:1; /* set for dfs mounts */
+	char *dns_dom;
+	char *symlinkroot; /* top level directory for native SMB symlinks in absolute format */
 };
 
 extern const struct fs_parameter_spec smb3_fs_parameters[];
+
+extern enum cifs_symlink_type get_cifs_symlink_type(struct cifs_sb_info *cifs_sb);
 
 extern int smb3_init_fs_context(struct fs_context *fc);
 extern void smb3_cleanup_fs_context_contents(struct smb3_fs_context *ctx);
@@ -298,6 +331,7 @@ static inline struct smb3_fs_context *smb3_fc2context(const struct fs_context *f
 }
 
 extern int smb3_fs_context_dup(struct smb3_fs_context *new_ctx, struct smb3_fs_context *ctx);
+extern int smb3_sync_session_ctx_passwords(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses);
 extern void smb3_update_mnt_flags(struct cifs_sb_info *cifs_sb);
 
 /*

@@ -9,15 +9,31 @@
 #include <drm/drm_util.h>
 
 #include "xe_device_types.h"
+#include "xe_gt_types.h"
+#include "xe_sriov.h"
 
 static inline struct xe_device *to_xe_device(const struct drm_device *dev)
 {
 	return container_of(dev, struct xe_device, drm);
 }
 
+static inline struct xe_device *kdev_to_xe_device(struct device *kdev)
+{
+	struct drm_device *drm = dev_get_drvdata(kdev);
+
+	return drm ? to_xe_device(drm) : NULL;
+}
+
 static inline struct xe_device *pdev_to_xe_device(struct pci_dev *pdev)
 {
-	return pci_get_drvdata(pdev);
+	struct drm_device *drm = pci_get_drvdata(pdev);
+
+	return drm ? to_xe_device(drm) : NULL;
+}
+
+static inline struct xe_device *xe_device_const_cast(const struct xe_device *xe)
+{
+	return (struct xe_device *)xe;
 }
 
 static inline struct xe_device *ttm_to_xe_device(struct ttm_device *ttm)
@@ -124,20 +140,10 @@ static inline bool xe_device_uc_enabled(struct xe_device *xe)
 
 static inline struct xe_force_wake *gt_to_fw(struct xe_gt *gt)
 {
-	return &gt->mmio.fw;
+	return &gt->pm.fw;
 }
 
 void xe_device_assert_mem_access(struct xe_device *xe);
-
-static inline bool xe_device_in_fault_mode(struct xe_device *xe)
-{
-	return xe->usm.num_vm_in_fault_mode != 0;
-}
-
-static inline bool xe_device_in_non_fault_mode(struct xe_device *xe)
-{
-	return xe->usm.num_vm_in_non_fault_mode != 0;
-}
 
 static inline bool xe_device_has_flat_ccs(struct xe_device *xe)
 {
@@ -149,9 +155,19 @@ static inline bool xe_device_has_sriov(struct xe_device *xe)
 	return xe->info.has_sriov;
 }
 
+static inline bool xe_device_has_msix(struct xe_device *xe)
+{
+	return xe->irq.msix.nvec > 0;
+}
+
 static inline bool xe_device_has_memirq(struct xe_device *xe)
 {
 	return GRAPHICS_VERx100(xe) >= 1250;
+}
+
+static inline bool xe_device_uses_memirq(struct xe_device *xe)
+{
+	return xe_device_has_memirq(xe) && (IS_SRIOV_VF(xe) || xe_device_has_msix(xe));
 }
 
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size);
@@ -162,6 +178,7 @@ u64 xe_device_canonicalize_addr(struct xe_device *xe, u64 address);
 u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address);
 
 void xe_device_td_flush(struct xe_device *xe);
+void xe_device_l2_flush(struct xe_device *xe);
 
 static inline bool xe_device_wedged(struct xe_device *xe)
 {
@@ -169,5 +186,22 @@ static inline bool xe_device_wedged(struct xe_device *xe)
 }
 
 void xe_device_declare_wedged(struct xe_device *xe);
+
+struct xe_file *xe_file_get(struct xe_file *xef);
+void xe_file_put(struct xe_file *xef);
+
+/*
+ * Occasionally it is seen that the G2H worker starts running after a delay of more than
+ * a second even after being queued and activated by the Linux workqueue subsystem. This
+ * leads to G2H timeout error. The root cause of issue lies with scheduling latency of
+ * Lunarlake Hybrid CPU. Issue disappears if we disable Lunarlake atom cores from BIOS
+ * and this is beyond xe kmd.
+ *
+ * TODO: Drop this change once workqueue scheduling delay issue is fixed on LNL Hybrid CPU.
+ */
+#define LNL_FLUSH_WORKQUEUE(wq__) \
+	flush_workqueue(wq__)
+#define LNL_FLUSH_WORK(wrk__) \
+	flush_work(wrk__)
 
 #endif

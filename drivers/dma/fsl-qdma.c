@@ -1288,7 +1288,7 @@ static struct platform_driver fsl_qdma_driver = {
 		.of_match_table = fsl_qdma_dt_ids,
 	},
 	.probe          = fsl_qdma_probe,
-	.remove_new	= fsl_qdma_remove,
+	.remove		= fsl_qdma_remove,
 };
 
 module_platform_driver(fsl_qdma_driver);

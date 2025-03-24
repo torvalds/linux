@@ -839,7 +839,6 @@ static const struct file_operations stm_fops = {
 	.mmap		= stm_char_mmap,
 	.unlocked_ioctl	= stm_char_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
-	.llseek		= no_llseek,
 };
 
 static void stm_device_release(struct device *dev)

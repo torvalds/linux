@@ -123,7 +123,8 @@ static int ad7266_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask)
 {
 	struct ad7266_state *st = iio_priv(indio_dev);
-	unsigned int nr = find_first_bit(scan_mask, indio_dev->masklength);
+	unsigned int nr = find_first_bit(scan_mask,
+					 iio_get_masklength(indio_dev));
 
 	ad7266_select_input(st, nr);
 
@@ -382,7 +383,7 @@ static const char * const ad7266_gpio_labels[] = {
 
 static int ad7266_probe(struct spi_device *spi)
 {
-	struct ad7266_platform_data *pdata = spi->dev.platform_data;
+	const struct ad7266_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct iio_dev *indio_dev;
 	struct ad7266_state *st;
 	unsigned int i;
@@ -456,8 +457,8 @@ static int ad7266_probe(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad7266_id[] = {
-	{"ad7265", 0},
-	{"ad7266", 0},
+	{ "ad7265", 0 },
+	{ "ad7266", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7266_id);

@@ -55,12 +55,11 @@
 #define TLP_READ_TAG			0x1d
 #define TLP_WRITE_TAG			0x10
 #define RP_DEVFN			0
-#define TLP_REQ_ID(bus, devfn)		(((bus) << 8) | (devfn))
 #define TLP_CFG_DW0(pcie, cfg)		\
 		(((cfg) << 24) |	\
 		  TLP_PAYLOAD_SIZE)
 #define TLP_CFG_DW1(pcie, tag, be)	\
-	(((TLP_REQ_ID(pcie->root_bus_nr,  RP_DEVFN)) << 16) | (tag << 8) | (be))
+	(((PCI_DEVID(pcie->root_bus_nr,  RP_DEVFN)) << 16) | (tag << 8) | (be))
 #define TLP_CFG_DW2(bus, devfn, offset)	\
 				(((bus) << 24) | ((devfn) << 16) | (offset))
 #define TLP_COMP_STATUS(s)		(((s) >> 13) & 7)
@@ -816,10 +815,10 @@ static void altera_pcie_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver altera_pcie_driver = {
-	.probe		= altera_pcie_probe,
-	.remove_new	= altera_pcie_remove,
+	.probe = altera_pcie_probe,
+	.remove = altera_pcie_remove,
 	.driver = {
-		.name	= "altera-pcie",
+		.name = "altera-pcie",
 		.of_match_table = altera_pcie_of_match,
 	},
 };

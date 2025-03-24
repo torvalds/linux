@@ -208,7 +208,7 @@ MODULE_DEVICE_TABLE(of, kdwc3_of_match);
 
 static struct platform_driver kdwc3_driver = {
 	.probe		= kdwc3_probe,
-	.remove_new	= kdwc3_remove,
+	.remove		= kdwc3_remove,
 	.driver		= {
 		.name	= "keystone-dwc3",
 		.of_match_table	= kdwc3_of_match,

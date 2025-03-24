@@ -817,7 +817,7 @@ static const struct regmap_config bcm2835_regmap_config = {
 	.max_register = BCM2835_I2S_GRAY_REG,
 	.precious_reg = bcm2835_i2s_precious_reg,
 	.volatile_reg = bcm2835_i2s_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct snd_soc_component_driver bcm2835_i2s_component = {

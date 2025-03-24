@@ -383,54 +383,44 @@ static void am33xx_pm_free_sram(void)
  */
 static int am33xx_pm_alloc_sram(void)
 {
-	struct device_node *np;
-	int ret = 0;
+	struct device_node *np __free(device_node) =
+			of_find_compatible_node(NULL, NULL, "ti,omap3-mpu");
 
-	np = of_find_compatible_node(NULL, NULL, "ti,omap3-mpu");
 	if (!np) {
 		np = of_find_compatible_node(NULL, NULL, "ti,omap4-mpu");
-		if (!np) {
-			dev_err(pm33xx_dev, "PM: %s: Unable to find device node for mpu\n",
-				__func__);
-			return -ENODEV;
-		}
+		if (!np)
+			return dev_err_probe(pm33xx_dev, -ENODEV,
+					     "PM: %s: Unable to find device node for mpu\n",
+					     __func__);
 	}
 
 	sram_pool = of_gen_pool_get(np, "pm-sram", 0);
-	if (!sram_pool) {
-		dev_err(pm33xx_dev, "PM: %s: Unable to get sram pool for ocmcram\n",
-			__func__);
-		ret = -ENODEV;
-		goto mpu_put_node;
-	}
+	if (!sram_pool)
+		return dev_err_probe(pm33xx_dev, -ENODEV,
+				     "PM: %s: Unable to get sram pool for ocmcram\n",
+				     __func__);
 
 	sram_pool_data = of_gen_pool_get(np, "pm-sram", 1);
-	if (!sram_pool_data) {
-		dev_err(pm33xx_dev, "PM: %s: Unable to get sram data pool for ocmcram\n",
-			__func__);
-		ret = -ENODEV;
-		goto mpu_put_node;
-	}
+	if (!sram_pool_data)
+		return dev_err_probe(pm33xx_dev, -ENODEV,
+				     "PM: %s: Unable to get sram data pool for ocmcram\n",
+				     __func__);
 
 	ocmcram_location = gen_pool_alloc(sram_pool, *pm_sram->do_wfi_sz);
-	if (!ocmcram_location) {
-		dev_err(pm33xx_dev, "PM: %s: Unable to allocate memory from ocmcram\n",
-			__func__);
-		ret = -ENOMEM;
-		goto mpu_put_node;
-	}
+	if (!ocmcram_location)
+		return dev_err_probe(pm33xx_dev, -ENOMEM,
+				     "PM: %s: Unable to allocate memory from ocmcram\n",
+				     __func__);
 
 	ocmcram_location_data = gen_pool_alloc(sram_pool_data,
 					       sizeof(struct emif_regs_amx3));
 	if (!ocmcram_location_data) {
-		dev_err(pm33xx_dev, "PM: Unable to allocate memory from ocmcram\n");
 		gen_pool_free(sram_pool, ocmcram_location, *pm_sram->do_wfi_sz);
-		ret = -ENOMEM;
+		return dev_err_probe(pm33xx_dev, -ENOMEM,
+				     "PM: Unable to allocate memory from ocmcram\n");
 	}
 
-mpu_put_node:
-	of_node_put(np);
-	return ret;
+	return 0;
 }
 
 static int am33xx_pm_rtc_setup(void)
@@ -601,7 +591,7 @@ static struct platform_driver am33xx_pm_driver = {
 		.name   = "pm33xx",
 	},
 	.probe = am33xx_pm_probe,
-	.remove_new = am33xx_pm_remove,
+	.remove = am33xx_pm_remove,
 };
 module_platform_driver(am33xx_pm_driver);
 

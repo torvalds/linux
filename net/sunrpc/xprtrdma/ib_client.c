@@ -62,10 +62,11 @@ int rpcrdma_rn_register(struct ib_device *device,
 	if (!rd || test_bit(RPCRDMA_RD_F_REMOVING, &rd->rd_flags))
 		return -ENETUNREACH;
 
-	kref_get(&rd->rd_kref);
 	if (xa_alloc(&rd->rd_xa, &rn->rn_index, rn, xa_limit_32b, GFP_KERNEL) < 0)
 		return -ENOMEM;
+	kref_get(&rd->rd_kref);
 	rn->rn_done = done;
+	trace_rpcrdma_client_register(device, rn);
 	return 0;
 }
 
@@ -91,6 +92,7 @@ void rpcrdma_rn_unregister(struct ib_device *device,
 	if (!rd)
 		return;
 
+	trace_rpcrdma_client_unregister(device, rn);
 	xa_erase(&rd->rd_xa, rn->rn_index);
 	kref_put(&rd->rd_kref, rpcrdma_rn_release);
 }
@@ -111,7 +113,7 @@ static int rpcrdma_add_one(struct ib_device *device)
 		return -ENOMEM;
 
 	kref_init(&rd->rd_kref);
-	xa_init_flags(&rd->rd_xa, XA_FLAGS_ALLOC1);
+	xa_init_flags(&rd->rd_xa, XA_FLAGS_ALLOC);
 	rd->rd_device = device;
 	init_completion(&rd->rd_done);
 	ib_set_client_data(device, &rpcrdma_ib_client, rd);
@@ -151,6 +153,7 @@ static void rpcrdma_remove_one(struct ib_device *device,
 	}
 
 	trace_rpcrdma_client_remove_one_done(device);
+	xa_destroy(&rd->rd_xa);
 	kfree(rd);
 }
 

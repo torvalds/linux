@@ -14,6 +14,7 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/fs.h>
+#include <linux/fs_context.h>
 #include <linux/slab.h>
 #include <linux/vfs.h>
 #include <linux/nls.h>
@@ -332,34 +333,33 @@ static int hfsplus_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int hfsplus_remount(struct super_block *sb, int *flags, char *data)
+static int hfsplus_reconfigure(struct fs_context *fc)
 {
-	sync_filesystem(sb);
-	if ((bool)(*flags & SB_RDONLY) == sb_rdonly(sb))
-		return 0;
-	if (!(*flags & SB_RDONLY)) {
-		struct hfsplus_vh *vhdr = HFSPLUS_SB(sb)->s_vhdr;
-		int force = 0;
+	struct super_block *sb = fc->root->d_sb;
 
-		if (!hfsplus_parse_options_remount(data, &force))
-			return -EINVAL;
+	sync_filesystem(sb);
+	if ((bool)(fc->sb_flags & SB_RDONLY) == sb_rdonly(sb))
+		return 0;
+	if (!(fc->sb_flags & SB_RDONLY)) {
+		struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
+		struct hfsplus_vh *vhdr = sbi->s_vhdr;
 
 		if (!(vhdr->attributes & cpu_to_be32(HFSPLUS_VOL_UNMNT))) {
 			pr_warn("filesystem was not cleanly unmounted, running fsck.hfsplus is recommended.  leaving read-only.\n");
 			sb->s_flags |= SB_RDONLY;
-			*flags |= SB_RDONLY;
-		} else if (force) {
+			fc->sb_flags |= SB_RDONLY;
+		} else if (test_bit(HFSPLUS_SB_FORCE, &sbi->flags)) {
 			/* nothing */
 		} else if (vhdr->attributes &
 				cpu_to_be32(HFSPLUS_VOL_SOFTLOCK)) {
 			pr_warn("filesystem is marked locked, leaving read-only.\n");
 			sb->s_flags |= SB_RDONLY;
-			*flags |= SB_RDONLY;
+			fc->sb_flags |= SB_RDONLY;
 		} else if (vhdr->attributes &
 				cpu_to_be32(HFSPLUS_VOL_JOURNALED)) {
 			pr_warn("filesystem is marked journaled, leaving read-only.\n");
 			sb->s_flags |= SB_RDONLY;
-			*flags |= SB_RDONLY;
+			fc->sb_flags |= SB_RDONLY;
 		}
 	}
 	return 0;
@@ -373,38 +373,33 @@ static const struct super_operations hfsplus_sops = {
 	.put_super	= hfsplus_put_super,
 	.sync_fs	= hfsplus_sync_fs,
 	.statfs		= hfsplus_statfs,
-	.remount_fs	= hfsplus_remount,
 	.show_options	= hfsplus_show_options,
 };
 
-static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
+static int hfsplus_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct hfsplus_vh *vhdr;
-	struct hfsplus_sb_info *sbi;
+	struct hfsplus_sb_info *sbi = HFSPLUS_SB(sb);
 	hfsplus_cat_entry entry;
 	struct hfs_find_data fd;
 	struct inode *root, *inode;
 	struct qstr str;
-	struct nls_table *nls = NULL;
+	struct nls_table *nls;
 	u64 last_fs_block, last_fs_page;
+	int silent = fc->sb_flags & SB_SILENT;
 	int err;
 
-	err = -ENOMEM;
-	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
-	if (!sbi)
-		goto out;
-
-	sb->s_fs_info = sbi;
 	mutex_init(&sbi->alloc_mutex);
 	mutex_init(&sbi->vh_mutex);
 	spin_lock_init(&sbi->work_lock);
 	INIT_DELAYED_WORK(&sbi->sync_work, delayed_sync_fs);
-	hfsplus_fill_defaults(sbi);
 
 	err = -EINVAL;
-	if (!hfsplus_parse_options(data, sbi)) {
-		pr_err("unable to parse mount options\n");
-		goto out_unload_nls;
+	if (!sbi->nls) {
+		/* try utf8 first, as this is the old default behaviour */
+		sbi->nls = load_nls("utf8");
+		if (!sbi->nls)
+			sbi->nls = load_nls_default();
 	}
 
 	/* temporarily use utf8 to correctly find the hidden dir below */
@@ -616,7 +611,6 @@ out_unload_nls:
 	unload_nls(sbi->nls);
 	unload_nls(nls);
 	kfree(sbi);
-out:
 	return err;
 }
 
@@ -641,18 +635,46 @@ static void hfsplus_free_inode(struct inode *inode)
 
 #define HFSPLUS_INODE_SIZE	sizeof(struct hfsplus_inode_info)
 
-static struct dentry *hfsplus_mount(struct file_system_type *fs_type,
-			  int flags, const char *dev_name, void *data)
+static int hfsplus_get_tree(struct fs_context *fc)
 {
-	return mount_bdev(fs_type, flags, dev_name, data, hfsplus_fill_super);
+	return get_tree_bdev(fc, hfsplus_fill_super);
+}
+
+static void hfsplus_free_fc(struct fs_context *fc)
+{
+	kfree(fc->s_fs_info);
+}
+
+static const struct fs_context_operations hfsplus_context_ops = {
+	.parse_param	= hfsplus_parse_param,
+	.get_tree	= hfsplus_get_tree,
+	.reconfigure	= hfsplus_reconfigure,
+	.free		= hfsplus_free_fc,
+};
+
+static int hfsplus_init_fs_context(struct fs_context *fc)
+{
+	struct hfsplus_sb_info *sbi;
+
+	sbi = kzalloc(sizeof(struct hfsplus_sb_info), GFP_KERNEL);
+	if (!sbi)
+		return -ENOMEM;
+
+	if (fc->purpose != FS_CONTEXT_FOR_RECONFIGURE)
+		hfsplus_fill_defaults(sbi);
+
+	fc->s_fs_info = sbi;
+	fc->ops = &hfsplus_context_ops;
+
+	return 0;
 }
 
 static struct file_system_type hfsplus_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "hfsplus",
-	.mount		= hfsplus_mount,
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
+	.init_fs_context = hfsplus_init_fs_context,
 };
 MODULE_ALIAS_FS("hfsplus");
 

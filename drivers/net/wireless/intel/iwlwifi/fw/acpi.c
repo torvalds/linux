@@ -79,9 +79,9 @@ static void *iwl_acpi_get_object(struct device *dev, acpi_string method)
  * method (DSM) interface. The returned acpi object must be freed by calling
  * function.
  */
-static void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
-				     union acpi_object *args,
-				     const guid_t *guid)
+union acpi_object *iwl_acpi_get_dsm_object(struct device *dev, int rev,
+					   int func, union acpi_object *args,
+					   const guid_t *guid)
 {
 	union acpi_object *obj;
 
@@ -108,7 +108,7 @@ static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
 				    size_t expected_size)
 {
 	union acpi_object *obj;
-	int ret = 0;
+	int ret;
 
 	obj = iwl_acpi_get_dsm_object(dev, rev, func, NULL, guid);
 	if (IS_ERR(obj)) {
@@ -123,8 +123,10 @@ static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
 	} else if (obj->type == ACPI_TYPE_BUFFER) {
 		__le64 le_value = 0;
 
-		if (WARN_ON_ONCE(expected_size > sizeof(le_value)))
-			return -EINVAL;
+		if (WARN_ON_ONCE(expected_size > sizeof(le_value))) {
+			ret = -EINVAL;
+			goto out;
+		}
 
 		/* if the buffer size doesn't match the expected size */
 		if (obj->buffer.length != expected_size)
@@ -145,8 +147,9 @@ static int iwl_acpi_get_dsm_integer(struct device *dev, int rev, int func,
 	}
 
 	IWL_DEBUG_DEV_RADIO(dev,
-			    "ACPI: DSM method evaluated: func=%d, ret=%d\n",
-			    func, ret);
+			    "ACPI: DSM method evaluated: func=%d, value=%lld\n",
+			    func, *value);
+	ret = 0;
 out:
 	ACPI_FREE(obj);
 	return ret;
@@ -259,13 +262,14 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 			   struct iwl_tas_data *tas_data)
 {
 	union acpi_object *wifi_pkg, *data;
-	int ret, tbl_rev, i, block_list_size, enabled;
+	int ret, tbl_rev, block_list_size, enabled;
+	u32 tas_selection;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_WTAS_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* try to read wtas table revision 1 or revision 0*/
+	/* try to read wtas table */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_WTAS_WIFI_DATA_SIZE,
 					 &tbl_rev);
@@ -274,27 +278,23 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		goto out_free;
 	}
 
-	if (tbl_rev == 1 && wifi_pkg->package.elements[1].type ==
-		ACPI_TYPE_INTEGER) {
-		u32 tas_selection =
-			(u32)wifi_pkg->package.elements[1].integer.value;
-
-		enabled = iwl_parse_tas_selection(fwrt, tas_data,
-						  tas_selection);
-
-	} else if (tbl_rev == 0 &&
-		wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
-		enabled = !!wifi_pkg->package.elements[1].integer.value;
-	} else {
+	if (tbl_rev < 0 || tbl_rev > 2 ||
+	    wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
 		ret = -EINVAL;
 		goto out_free;
 	}
 
-	if (!enabled) {
-		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
-		ret = 0;
-		goto out_free;
-	}
+	tas_selection = (u32)wifi_pkg->package.elements[1].integer.value;
+	enabled = tas_selection & IWL_WTAS_ENABLED_MSK;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
+			tas_selection);
+	tas_data->table_source = BIOS_SOURCE_ACPI;
+	tas_data->table_revision = tbl_rev;
+	tas_data->tas_selection = tas_selection;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS %s enabled\n",
+			enabled ? "is" : "not");
 
 	IWL_DEBUG_RADIO(fwrt, "Reading TAS table revision %d\n", tbl_rev);
 	if (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER ||
@@ -305,13 +305,14 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		ret = -EINVAL;
 		goto out_free;
 	}
+
 	block_list_size = wifi_pkg->package.elements[2].integer.value;
-	tas_data->block_list_size = cpu_to_le32(block_list_size);
+	tas_data->block_list_size = block_list_size;
 
 	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", block_list_size);
 
-	for (i = 0; i < block_list_size; i++) {
-		u32 country;
+	for (int i = 0; i < block_list_size; i++) {
+		u16 country;
 
 		if (wifi_pkg->package.elements[3 + i].type !=
 		    ACPI_TYPE_INTEGER) {
@@ -322,11 +323,11 @@ int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 		}
 
 		country = wifi_pkg->package.elements[3 + i].integer.value;
-		tas_data->block_list_array[i] = cpu_to_le32(country);
+		tas_data->block_list_array[i] = country;
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n", country);
 	}
 
-	ret = 1;
+	ret = enabled;
 out_free:
 	kfree(data);
 	return ret;
@@ -357,6 +358,11 @@ int iwl_acpi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
 	}
 
 	mcc_val = wifi_pkg->package.elements[1].integer.value;
+	if (mcc_val != BIOS_MCC_CHINA) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "ACPI WRDD is supported only for CN\n");
+		goto out_free;
+	}
 
 	mcc[0] = (mcc_val >> 8) & 0xff;
 	mcc[1] = mcc_val & 0xff;
@@ -424,37 +430,27 @@ out_free:
 	return ret;
 }
 
-static int iwl_acpi_sar_set_profile(union acpi_object *table,
-				    struct iwl_sar_profile *profile,
-				    bool enabled, u8 num_chains,
-				    u8 num_sub_bands)
+static int
+iwl_acpi_parse_chains_table(union acpi_object *table,
+			    struct iwl_sar_profile_chain *chains,
+			    u8 num_chains, u8 num_sub_bands)
 {
-	int i, j, idx = 0;
-
-	/*
-	 * The table from ACPI is flat, but we store it in a
-	 * structured array.
-	 */
-	for (i = 0; i < BIOS_SAR_MAX_CHAINS_PER_PROFILE; i++) {
-		for (j = 0; j < BIOS_SAR_MAX_SUB_BANDS_NUM; j++) {
+	for (u8 chain = 0; chain < num_chains; chain++) {
+		for (u8 subband = 0; subband < BIOS_SAR_MAX_SUB_BANDS_NUM;
+		     subband++) {
 			/* if we don't have the values, use the default */
-			if (i >= num_chains || j >= num_sub_bands) {
-				profile->chains[i].subbands[j] = 0;
+			if (subband >= num_sub_bands) {
+				chains[chain].subbands[subband] = 0;
+			} else if (table->type != ACPI_TYPE_INTEGER ||
+				   table->integer.value > U8_MAX) {
+				return -EINVAL;
 			} else {
-				if (table[idx].type != ACPI_TYPE_INTEGER ||
-				    table[idx].integer.value > U8_MAX)
-					return -EINVAL;
-
-				profile->chains[i].subbands[j] =
-					table[idx].integer.value;
-
-				idx++;
+				chains[chain].subbands[subband] =
+					table->integer.value;
+				table++;
 			}
 		}
 	}
-
-	/* Only if all values were valid can the profile be enabled */
-	profile->enabled = enabled;
 
 	return 0;
 }
@@ -538,9 +534,11 @@ read_table:
 	/* The profile from WRDS is officially profile 1, but goes
 	 * into sar_profiles[0] (because we don't have a profile 0).
 	 */
-	ret = iwl_acpi_sar_set_profile(table, &fwrt->sar_profiles[0],
-				       flags & IWL_SAR_ENABLE_MSK,
-				       num_chains, num_sub_bands);
+	ret = iwl_acpi_parse_chains_table(table, fwrt->sar_profiles[0].chains,
+					  num_chains, num_sub_bands);
+	if (!ret && flags & IWL_SAR_ENABLE_MSK)
+		fwrt->sar_profiles[0].enabled = true;
+
 out_free:
 	kfree(data);
 	return ret;
@@ -552,7 +550,7 @@ int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 	bool enabled;
 	int i, n_profiles, tbl_rev, pos;
 	int ret = 0;
-	u8 num_chains, num_sub_bands;
+	u8 num_sub_bands;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_EWRD_METHOD);
 	if (IS_ERR(data))
@@ -568,7 +566,6 @@ int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 			goto out_free;
 		}
 
-		num_chains = ACPI_SAR_NUM_CHAINS_REV2;
 		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV2;
 
 		goto read_table;
@@ -584,7 +581,6 @@ int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 			goto out_free;
 		}
 
-		num_chains = ACPI_SAR_NUM_CHAINS_REV1;
 		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV1;
 
 		goto read_table;
@@ -600,7 +596,6 @@ int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 			goto out_free;
 		}
 
-		num_chains = ACPI_SAR_NUM_CHAINS_REV0;
 		num_sub_bands = ACPI_SAR_NUM_SUB_BANDS_REV0;
 
 		goto read_table;
@@ -632,22 +627,53 @@ read_table:
 	/* the tables start at element 3 */
 	pos = 3;
 
+	BUILD_BUG_ON(ACPI_SAR_NUM_CHAINS_REV0 != ACPI_SAR_NUM_CHAINS_REV1);
+	BUILD_BUG_ON(ACPI_SAR_NUM_CHAINS_REV2 != 2 * ACPI_SAR_NUM_CHAINS_REV0);
+
+	/* parse non-cdb chains for all profiles */
 	for (i = 0; i < n_profiles; i++) {
 		union acpi_object *table = &wifi_pkg->package.elements[pos];
+
 		/* The EWRD profiles officially go from 2 to 4, but we
 		 * save them in sar_profiles[1-3] (because we don't
 		 * have profile 0).  So in the array we start from 1.
 		 */
-		ret = iwl_acpi_sar_set_profile(table,
-					       &fwrt->sar_profiles[i + 1],
-					       enabled, num_chains,
-					       num_sub_bands);
+		ret = iwl_acpi_parse_chains_table(table,
+						  fwrt->sar_profiles[i + 1].chains,
+						  ACPI_SAR_NUM_CHAINS_REV0,
+						  num_sub_bands);
 		if (ret < 0)
-			break;
+			goto out_free;
 
 		/* go to the next table */
-		pos += num_chains * num_sub_bands;
+		pos += ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands;
 	}
+
+	/* non-cdb table revisions */
+	if (tbl_rev < 2)
+		goto set_enabled;
+
+	/* parse cdb chains for all profiles */
+	for (i = 0; i < n_profiles; i++) {
+		struct iwl_sar_profile_chain *chains;
+		union acpi_object *table;
+
+		table = &wifi_pkg->package.elements[pos];
+		chains = &fwrt->sar_profiles[i + 1].chains[ACPI_SAR_NUM_CHAINS_REV0];
+		ret = iwl_acpi_parse_chains_table(table,
+						  chains,
+						  ACPI_SAR_NUM_CHAINS_REV0,
+						  num_sub_bands);
+		if (ret < 0)
+			goto out_free;
+
+		/* go to the next table */
+		pos += ACPI_SAR_NUM_CHAINS_REV0 * num_sub_bands;
+	}
+
+set_enabled:
+	for (i = 0; i < n_profiles; i++)
+		fwrt->sar_profiles[i + 1].enabled = enabled;
 
 out_free:
 	kfree(data);
@@ -725,22 +751,25 @@ int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 				entry = &wifi_pkg->package.elements[entry_idx];
 				entry_idx++;
 				if (entry->type != ACPI_TYPE_INTEGER ||
-				    entry->integer.value > num_profiles) {
+				    entry->integer.value > num_profiles ||
+				    entry->integer.value <
+					rev_data[idx].min_profiles) {
 					ret = -EINVAL;
 					goto out_free;
 				}
-				num_profiles = entry->integer.value;
 
 				/*
-				 * this also validates >= min_profiles since we
-				 * otherwise wouldn't have gotten the data when
-				 * looking up in ACPI
+				 * Check to see if we received package count
+				 * same as max # of profiles
 				 */
 				if (wifi_pkg->package.count !=
 				    hdr_size + profile_size * num_profiles) {
 					ret = -EINVAL;
 					goto out_free;
 				}
+
+				/* Number of valid profiles */
+				num_profiles = entry->integer.value;
 			}
 			goto read_table;
 		}
@@ -990,6 +1019,40 @@ int iwl_acpi_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value)
 	*value = wifi_pkg->package.elements[1].integer.value &
 		 IWL_ACPI_WBEM_REV0_MASK;
 	IWL_DEBUG_RADIO(fwrt, "Loaded WBEM config from ACPI\n");
+	ret = 0;
+out_free:
+	kfree(data);
+	return ret;
+}
+
+int iwl_acpi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	union acpi_object *wifi_pkg, *data;
+	int ret = -ENOENT;
+	int tbl_rev;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_DSBR_METHOD);
+	if (IS_ERR(data))
+		return ret;
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_DSBR_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg))
+		goto out_free;
+
+	if (tbl_rev != ACPI_DSBR_WIFI_DATA_REV) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported ACPI DSBR revision:%d\n",
+				tbl_rev);
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
+		goto out_free;
+
+	*value = wifi_pkg->package.elements[1].integer.value;
+	IWL_DEBUG_RADIO(fwrt, "Loaded DSBR config from ACPI value: 0x%x\n",
+			*value);
 	ret = 0;
 out_free:
 	kfree(data);

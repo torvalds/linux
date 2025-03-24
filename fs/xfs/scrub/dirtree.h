@@ -156,17 +156,7 @@ struct xchk_dirtree {
 #define xchk_dirtree_for_each_path(dl, path) \
 	list_for_each_entry((path), &(dl)->path_list, list)
 
-static inline bool
-xchk_dirtree_parentless(const struct xchk_dirtree *dl)
-{
-	struct xfs_scrub	*sc = dl->sc;
-
-	if (sc->ip == sc->mp->m_rootip)
-		return true;
-	if (VFS_I(sc->ip)->i_nlink == 0)
-		return true;
-	return false;
-}
+bool xchk_dirtree_parentless(const struct xchk_dirtree *dl);
 
 int xchk_dirtree_find_paths_to_root(struct xchk_dirtree *dl);
 int xchk_dirpath_append(struct xchk_dirtree *dl, struct xfs_inode *ip,

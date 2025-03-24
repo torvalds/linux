@@ -26,7 +26,6 @@
 #define __AMDGPU_DEV_COREDUMP_H__
 
 #include "amdgpu.h"
-#include "amdgpu_reset.h"
 
 #ifdef CONFIG_DEV_COREDUMP
 
@@ -36,12 +35,12 @@ struct amdgpu_coredump_info {
 	struct amdgpu_device            *adev;
 	struct amdgpu_task_info         reset_task_info;
 	struct timespec64               reset_time;
+	bool                            skip_vram_check;
 	bool                            reset_vram_lost;
 	struct amdgpu_ring              *ring;
 };
 #endif
 
-void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
-		     struct amdgpu_reset_context *reset_context);
-
+void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
+		     bool vram_lost, struct amdgpu_job *job);
 #endif

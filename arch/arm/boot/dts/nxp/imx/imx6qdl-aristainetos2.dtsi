@@ -413,7 +413,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpio>;
 
-	pinctrl_audmux: audmux {
+	pinctrl_audmux: audmuxgrp {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT7__AUD3_RXD  0x1b0b0
 			MX6QDL_PAD_CSI0_DAT4__AUD3_TXC  0x1b0b0
@@ -506,7 +506,7 @@
 		>;
 	};
 
-	pinctrl_gpmi_nand: gpmi-nand {
+	pinctrl_gpmi_nand: gpminandgrp {
 		fsl,pins = <
 			MX6QDL_PAD_NANDF_CLE__NAND_CLE     0xb0b1
 			MX6QDL_PAD_NANDF_ALE__NAND_ALE     0xb0b1
@@ -599,11 +599,11 @@
 		>;
 	};
 
-	pinctrl_aristainetos2_usbh1_vbus: aristainetos-usbh1-vbus {
+	pinctrl_aristainetos2_usbh1_vbus: aristainetos-usbh1-vbusgrp {
 		fsl,pins = <MX6QDL_PAD_GPIO_0__USB_H1_PWR 0x130b0>;
 	};
 
-	pinctrl_aristainetos2_usbotg_vbus: aristainetos-usbotg-vbus {
+	pinctrl_aristainetos2_usbotg_vbus: aristainetos-usbotg-vbusgrp {
 		fsl,pins = <MX6QDL_PAD_KEY_ROW4__USB_OTG_PWR 0x130b0>;
 	};
 

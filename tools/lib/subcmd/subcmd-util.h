@@ -20,8 +20,8 @@ static __noreturn inline void die(const char *err, ...)
 
 	va_start(params, err);
 	report(" Fatal: ", err, params);
-	exit(128);
 	va_end(params);
+	exit(128);
 }
 
 #define zfree(ptr) ({ free(*ptr); *ptr = NULL; })

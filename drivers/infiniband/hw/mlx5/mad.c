@@ -278,7 +278,13 @@ static int process_pma_cmd(struct mlx5_ib_dev *dev, u32 port_num,
 			goto done;
 		}
 
-		err = query_ib_ppcnt(mdev, mdev_port_num, 0, out_cnt, sz, 0);
+		if (dev->ib_dev.type == RDMA_DEVICE_TYPE_SMI)
+			err = query_ib_ppcnt(mdev, mdev_port_num, port_num,
+					     out_cnt, sz, 0);
+		else
+			err = query_ib_ppcnt(mdev, mdev_port_num, 0,
+					     out_cnt, sz, 0);
+
 		if (!err)
 			pma_cnt_assign(pma_cnt, out_cnt);
 	}

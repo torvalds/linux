@@ -28,7 +28,6 @@
 #include <linux/backlight.h>
 #include <linux/dmi.h>
 #include <linux/err.h>
-#include <linux/fb.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -250,7 +249,7 @@ static int oaktrail_backlight_init(void)
 	oaktrail_bl_device = bd;
 
 	bd->props.brightness = get_backlight_brightness(bd);
-	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.power = BACKLIGHT_POWER_ON;
 	backlight_update_status(bd);
 
 	return 0;

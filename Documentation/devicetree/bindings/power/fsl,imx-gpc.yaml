@@ -30,6 +30,7 @@ properties:
           - enum:
               - fsl,imx6qp-gpc
               - fsl,imx6sl-gpc
+              - fsl,imx6sll-gpc
               - fsl,imx6sx-gpc
               - fsl,imx6ul-gpc
           - const: fsl,imx6q-gpc

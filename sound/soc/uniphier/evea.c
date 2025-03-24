@@ -384,7 +384,7 @@ err_out_clock:
 	return ret;
 }
 
-static struct snd_soc_component_driver soc_codec_evea = {
+static const struct snd_soc_component_driver soc_codec_evea = {
 	.probe			= evea_codec_probe,
 	.suspend		= evea_codec_suspend,
 	.resume			= evea_codec_resume,
@@ -560,7 +560,7 @@ static struct platform_driver evea_codec_driver = {
 		.of_match_table = of_match_ptr(evea_of_match),
 	},
 	.probe  = evea_probe,
-	.remove_new = evea_remove,
+	.remove = evea_remove,
 };
 module_platform_driver(evea_codec_driver);
 

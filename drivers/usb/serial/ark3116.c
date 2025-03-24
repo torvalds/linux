@@ -599,7 +599,6 @@ static void ark3116_process_read_urb(struct urb *urb)
 
 static struct usb_serial_driver ark3116_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"ark3116",
 	},
 	.id_table =		id_table,

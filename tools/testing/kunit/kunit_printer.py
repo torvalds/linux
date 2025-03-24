@@ -15,12 +15,17 @@ _RESET = '\033[0;0m'
 class Printer:
 	"""Wraps a file object, providing utilities for coloring output, etc."""
 
-	def __init__(self, output: typing.IO[str]):
+	def __init__(self, print: bool=True, output: typing.IO[str]=sys.stdout):
 		self._output = output
-		self._use_color = output.isatty()
+		self._print = print
+		if print:
+			self._use_color = output.isatty()
+		else:
+			self._use_color = False
 
 	def print(self, message: str) -> None:
-		print(message, file=self._output)
+		if self._print:
+			print(message, file=self._output)
 
 	def print_with_timestamp(self, message: str) -> None:
 		ts = datetime.datetime.now().strftime('%H:%M:%S')
@@ -45,4 +50,5 @@ class Printer:
 		return len(self.red(''))
 
 # Provides a default instance that prints to stdout
-stdout = Printer(sys.stdout)
+stdout = Printer()
+null_printer = Printer(print=False)

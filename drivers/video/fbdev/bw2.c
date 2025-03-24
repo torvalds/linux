@@ -147,7 +147,7 @@ bw2_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-static struct sbus_mmap_map bw2_mmap_map[] = {
+static const struct sbus_mmap_map bw2_mmap_map[] = {
 	{
 		.size = SBUS_MMAP_FBSIZE(1)
 	},
@@ -372,7 +372,7 @@ static struct platform_driver bw2_driver = {
 		.of_match_table = bw2_match,
 	},
 	.probe		= bw2_probe,
-	.remove_new	= bw2_remove,
+	.remove		= bw2_remove,
 };
 
 static int __init bw2_init(void)

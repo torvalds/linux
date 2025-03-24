@@ -1,0 +1,3 @@
+# sleepgraph.py artifacts
+suspend-[0-9]*-[0-9]*
+suspend-[0-9]*-[0-9]*-x[0-9]*

@@ -910,11 +910,11 @@ static void vt8231_remove(struct platform_device *pdev)
 
 
 static struct platform_driver vt8231_driver = {
-	.driver = {
+	.driver	= {
 		.name	= DRIVER_NAME,
 	},
 	.probe	= vt8231_probe,
-	.remove_new = vt8231_remove,
+	.remove	= vt8231_remove,
 };
 
 static const struct pci_device_id vt8231_pci_ids[] = {

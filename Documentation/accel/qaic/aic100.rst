@@ -229,6 +229,8 @@ of the defined channels, and their uses.
 | _PERIODIC      |         |          | timestamps in the device side logs with|
 |                |         |          | the host time source.                  |
 +----------------+---------+----------+----------------------------------------+
+| IPCR           | 24 & 25 | AMSS     | AF_QIPCRTR clients and servers.        |
++----------------+---------+----------+----------------------------------------+
 
 DMA Bridge
 ==========

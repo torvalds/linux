@@ -238,6 +238,8 @@
 #define IGC_TQAVCC(_n)		(0x3004 + ((_n) * 0x40))
 #define IGC_TQAVHC(_n)		(0x300C + ((_n) * 0x40))
 
+#define IGC_TXARB		0x3354 /* Tx Arbitration Control TxARB - RW */
+
 /* System Time Registers */
 #define IGC_SYSTIML	0x0B600  /* System time register Low - RO */
 #define IGC_SYSTIMH	0x0B604  /* System time register High - RO */
@@ -307,6 +309,16 @@
 #define IGC_EEER	0x0E30 /* Energy Efficient Ethernet "EEE"*/
 #define IGC_IPCNFG	0x0E38 /* Internal PHY Configuration */
 #define IGC_EEE_SU	0x0E34 /* EEE Setup */
+
+/* MULTI GBT AN Control Register - reg. 7.32 */
+#define IGC_ANEG_MULTIGBT_AN_CTRL	0x0020
+
+/* EEE ANeg Advertisement Register - reg 7.60 and reg 7.62 */
+#define IGC_ANEG_EEE_AB1	0x003c
+#define IGC_ANEG_EEE_AB2	0x003e
+/* EEE ANeg Link-Partner Advertisement Register - reg 7.61 and reg 7.63 */
+#define IGC_ANEG_EEE_LP_AB1	0x003d
+#define IGC_ANEG_EEE_LP_AB2	0x003f
 
 /* LTR registers */
 #define IGC_LTRC	0x01A0 /* Latency Tolerance Reporting Control */

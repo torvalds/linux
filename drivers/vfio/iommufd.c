@@ -7,8 +7,8 @@
 
 #include "vfio.h"
 
-MODULE_IMPORT_NS(IOMMUFD);
-MODULE_IMPORT_NS(IOMMUFD_VFIO);
+MODULE_IMPORT_NS("IOMMUFD");
+MODULE_IMPORT_NS("IOMMUFD_VFIO");
 
 bool vfio_iommufd_device_has_compat_ioas(struct vfio_device *vdev,
 					 struct iommufd_ctx *ictx)

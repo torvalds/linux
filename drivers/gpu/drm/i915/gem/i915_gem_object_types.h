@@ -535,7 +535,7 @@ struct drm_i915_gem_object {
 	 *   I915_CACHE_NONE. The only exception is userptr objects, where we
 	 *   instead force I915_CACHE_LLC, but we also don't allow userspace to
 	 *   ever change the @cache_level for such objects. Another special case
-	 *   is dma-buf, which doesn't rely on @cache_dirty,  but there we
+	 *   is dma-buf, which doesn't rely on @cache_dirty, but there we
 	 *   always do a forced flush when acquiring the pages, if there is a
 	 *   chance that the pages can be read directly from main memory with
 	 *   the GPU.

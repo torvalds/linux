@@ -115,6 +115,6 @@ static struct platform_driver fch_clk_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = fch_clk_probe,
-	.remove_new = fch_clk_remove,
+	.remove = fch_clk_remove,
 };
 builtin_platform_driver(fch_clk_driver);

@@ -139,7 +139,7 @@ out_kfree_drv:
  *
  * Initializes arm cpuidle driver for all CPUs, if any CPU fails
  * to register cpuidle driver then rollback to cancel all CPUs
- * registeration.
+ * registration.
  */
 static int __init arm_idle_init(void)
 {

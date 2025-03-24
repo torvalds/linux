@@ -659,21 +659,6 @@ static void v9fs_destroy_inode_cache(void)
 	kmem_cache_destroy(v9fs_inode_cache);
 }
 
-static int v9fs_cache_register(void)
-{
-	int ret;
-
-	ret = v9fs_init_inode_cache();
-	if (ret < 0)
-		return ret;
-	return ret;
-}
-
-static void v9fs_cache_unregister(void)
-{
-	v9fs_destroy_inode_cache();
-}
-
 /**
  * init_v9fs - Initialize module
  *
@@ -686,7 +671,7 @@ static int __init init_v9fs(void)
 	pr_info("Installing v9fs 9p2000 file system support\n");
 	/* TODO: Setup list of registered trasnport modules */
 
-	err = v9fs_cache_register();
+	err = v9fs_init_inode_cache();
 	if (err < 0) {
 		pr_err("Failed to register v9fs for caching\n");
 		return err;
@@ -709,7 +694,7 @@ out_sysfs_cleanup:
 	v9fs_sysfs_cleanup();
 
 out_cache:
-	v9fs_cache_unregister();
+	v9fs_destroy_inode_cache();
 
 	return err;
 }
@@ -722,7 +707,7 @@ out_cache:
 static void __exit exit_v9fs(void)
 {
 	v9fs_sysfs_cleanup();
-	v9fs_cache_unregister();
+	v9fs_destroy_inode_cache();
 	unregister_filesystem(&v9fs_fs_type);
 }
 

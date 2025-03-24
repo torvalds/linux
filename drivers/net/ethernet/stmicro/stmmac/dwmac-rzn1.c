@@ -80,7 +80,7 @@ MODULE_DEVICE_TABLE(of, rzn1_dwmac_match);
 
 static struct platform_driver rzn1_dwmac_driver = {
 	.probe  = rzn1_dwmac_probe,
-	.remove_new = stmmac_pltfr_remove,
+	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "rzn1-dwmac",
 		.of_match_table = rzn1_dwmac_match,

@@ -498,7 +498,6 @@ static const struct file_operations stsi_##fc##_##s1##_##s2##_fs_ops = {       \
 	.open		= stsi_open_##fc##_##s1##_##s2,			       \
 	.release	= stsi_release,					       \
 	.read		= stsi_read,					       \
-	.llseek		= no_llseek,					       \
 };
 
 static int stsi_release(struct inode *inode, struct file *file)

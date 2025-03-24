@@ -75,7 +75,7 @@ int hda_component_manager_init(struct hda_codec *cdc,
 			       const char *match_str,
 			       const struct component_master_ops *ops);
 
-void hda_component_manager_free(struct hda_codec *cdc,
+void hda_component_manager_free(struct hda_component_parent *parent,
 				const struct component_master_ops *ops);
 
 int hda_component_manager_bind(struct hda_codec *cdc, struct hda_component_parent *parent);

@@ -294,4 +294,4 @@ MODULE_AUTHOR("Zhifeng Wang <zhifeng.wang@intel.com>");
 MODULE_AUTHOR("Lixu Zhang <lixu.zhang@intel.com>");
 MODULE_DESCRIPTION("Intel La Jolla Cove Adapter USB-SPI driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(LJCA);
+MODULE_IMPORT_NS("LJCA");

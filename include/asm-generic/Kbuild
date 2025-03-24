@@ -58,7 +58,6 @@ mandatory-y += tlbflush.h
 mandatory-y += topology.h
 mandatory-y += trace_clock.h
 mandatory-y += uaccess.h
-mandatory-y += unaligned.h
 mandatory-y += vermagic.h
 mandatory-y += vga.h
 mandatory-y += video.h

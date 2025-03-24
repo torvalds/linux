@@ -66,24 +66,23 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "BogoMIPS\t\t: %u.%02u\n",
 		      cpu_data[n].udelay_val / (500000/HZ),
 		      (cpu_data[n].udelay_val / (5000/HZ)) % 100);
-	seq_printf(m, "wait instruction\t: %s\n", cpu_wait ? "yes" : "no");
+	seq_printf(m, "wait instruction\t: %s\n", str_yes_no(cpu_wait));
 	seq_printf(m, "microsecond timers\t: %s\n",
-		      cpu_has_counter ? "yes" : "no");
+		      str_yes_no(cpu_has_counter));
 	seq_printf(m, "tlb_entries\t\t: %d\n", cpu_data[n].tlbsize);
 	seq_printf(m, "extra interrupt vector\t: %s\n",
-		      cpu_has_divec ? "yes" : "no");
-	seq_printf(m, "hardware watchpoint\t: %s",
-		      cpu_has_watch ? "yes, " : "no\n");
+		      str_yes_no(cpu_has_divec));
+	seq_printf(m, "hardware watchpoint\t: %s", str_yes_no(cpu_has_watch));
 	if (cpu_has_watch) {
-		seq_printf(m, "count: %d, address/irw mask: [",
+		seq_printf(m, ", count: %d, address/irw mask: [",
 		      cpu_data[n].watch_reg_count);
 		for (i = 0; i < cpu_data[n].watch_reg_count; i++)
 			seq_printf(m, "%s0x%04x", i ? ", " : "",
 				cpu_data[n].watch_reg_masks[i]);
-		seq_puts(m, "]\n");
+		seq_puts(m, "]");
 	}
 
-	seq_puts(m, "isa\t\t\t:");
+	seq_puts(m, "\nisa\t\t\t:");
 	if (cpu_has_mips_1)
 		seq_puts(m, " mips1");
 	if (cpu_has_mips_2)
@@ -155,7 +154,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	if (cpu_has_mmips) {
 		seq_printf(m, "micromips kernel\t: %s\n",
-		      (read_c0_config3() & MIPS_CONF3_ISA_OE) ?  "yes" : "no");
+		      str_yes_no(read_c0_config3() & MIPS_CONF3_ISA_OE));
 	}
 
 	seq_puts(m, "Options implemented\t:");

@@ -66,10 +66,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   " MSR:\t\t%s\n"
 		   " PCMP:\t\t%s\n"
 		   " DIV:\t\t%s\n",
-		   (cpuinfo.use_instr & PVR0_USE_BARREL_MASK) ? "yes" : "no",
-		   (cpuinfo.use_instr & PVR2_USE_MSR_INSTR) ? "yes" : "no",
-		   (cpuinfo.use_instr & PVR2_USE_PCMP_INSTR) ? "yes" : "no",
-		   (cpuinfo.use_instr & PVR0_USE_DIV_MASK) ? "yes" : "no");
+		   str_yes_no(cpuinfo.use_instr & PVR0_USE_BARREL_MASK),
+		   str_yes_no(cpuinfo.use_instr & PVR2_USE_MSR_INSTR),
+		   str_yes_no(cpuinfo.use_instr & PVR2_USE_PCMP_INSTR),
+		   str_yes_no(cpuinfo.use_instr & PVR0_USE_DIV_MASK));
 
 	seq_printf(m, " MMU:\t\t%x\n", cpuinfo.mmu);
 
@@ -120,7 +120,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	seq_printf(m,
 		   "HW-Debug:\t%s\n",
-		   cpuinfo.hw_debug ? "yes" : "no");
+		   str_yes_no(cpuinfo.hw_debug));
 
 	seq_printf(m,
 		   "PVR-USR1:\t%02x\n"

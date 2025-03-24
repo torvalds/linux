@@ -11,9 +11,9 @@
 #include "intel_wakeref.h"
 
 enum pipe;
-struct drm_i915_private;
 struct intel_connector;
 struct intel_crtc_state;
+struct intel_display;
 struct intel_dp;
 struct intel_encoder;
 
@@ -34,6 +34,7 @@ void intel_pps_off_unlocked(struct intel_dp *intel_dp);
 void intel_pps_check_power_unlocked(struct intel_dp *intel_dp);
 
 void intel_pps_vdd_on(struct intel_dp *intel_dp);
+void intel_pps_vdd_off(struct intel_dp *intel_dp);
 void intel_pps_on(struct intel_dp *intel_dp);
 void intel_pps_off(struct intel_dp *intel_dp);
 void intel_pps_vdd_off_sync(struct intel_dp *intel_dp);
@@ -43,16 +44,22 @@ void intel_pps_wait_power_cycle(struct intel_dp *intel_dp);
 bool intel_pps_init(struct intel_dp *intel_dp);
 void intel_pps_init_late(struct intel_dp *intel_dp);
 void intel_pps_encoder_reset(struct intel_dp *intel_dp);
-void intel_pps_reset_all(struct drm_i915_private *i915);
 
-void vlv_pps_init(struct intel_encoder *encoder,
-		  const struct intel_crtc_state *crtc_state);
+void vlv_pps_pipe_init(struct intel_dp *intel_dp);
+void vlv_pps_pipe_reset(struct intel_dp *intel_dp);
+enum pipe vlv_pps_backlight_initial_pipe(struct intel_dp *intel_dp);
+void vlv_pps_port_enable_unlocked(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state);
+void vlv_pps_port_disable(struct intel_encoder *encoder,
+			  const struct intel_crtc_state *crtc_state);
+void vlv_pps_reset_all(struct intel_display *display);
+void bxt_pps_reset_all(struct intel_display *display);
 
-void intel_pps_unlock_regs_wa(struct drm_i915_private *i915);
-void intel_pps_setup(struct drm_i915_private *i915);
+void intel_pps_unlock_regs_wa(struct intel_display *display);
+void intel_pps_setup(struct intel_display *display);
 
 void intel_pps_connector_debugfs_add(struct intel_connector *connector);
 
-void assert_pps_unlocked(struct drm_i915_private *i915, enum pipe pipe);
+void assert_pps_unlocked(struct intel_display *display, enum pipe pipe);
 
 #endif /* __INTEL_PPS_H__ */

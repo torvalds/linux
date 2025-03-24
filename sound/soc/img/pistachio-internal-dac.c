@@ -271,7 +271,7 @@ static struct platform_driver pistachio_internal_dac_plat_driver = {
 		.pm = &pistachio_internal_dac_pm_ops
 	},
 	.probe = pistachio_internal_dac_probe,
-	.remove_new = pistachio_internal_dac_remove
+	.remove = pistachio_internal_dac_remove
 };
 module_platform_driver(pistachio_internal_dac_plat_driver);
 

@@ -4,7 +4,7 @@
  * Copyright (c) 2018 Johannes Thumshirn, SUSE Linux GmbH
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "trace.h"
 
 static const char *nvmet_trace_admin_identify(struct trace_seq *p, u8 *cdw10)
@@ -180,6 +180,106 @@ static const char *nvmet_trace_zone_mgmt_recv(struct trace_seq *p, u8 *cdw10)
 	return ret;
 }
 
+static const char *nvmet_trace_resv_reg(struct trace_seq *p, u8 *cdw10)
+{
+	static const char * const rrega_strs[] = {
+		[0x00] = "register",
+		[0x01] = "unregister",
+		[0x02] = "replace",
+	};
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 rrega = cdw10[0] & 0x7;
+	u8 iekey = (cdw10[0] >> 3) & 0x1;
+	u8 ptpl = (cdw10[3] >> 6) & 0x3;
+	const char *rrega_str;
+
+	if (rrega < ARRAY_SIZE(rrega_strs) && rrega_strs[rrega])
+		rrega_str = rrega_strs[rrega];
+	else
+		rrega_str = "reserved";
+
+	trace_seq_printf(p, "rrega=%u:%s, iekey=%u, ptpl=%u",
+			 rrega, rrega_str, iekey, ptpl);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char * const rtype_strs[] = {
+	[0x00] = "reserved",
+	[0x01] = "write exclusive",
+	[0x02] = "exclusive access",
+	[0x03] = "write exclusive registrants only",
+	[0x04] = "exclusive access registrants only",
+	[0x05] = "write exclusive all registrants",
+	[0x06] = "exclusive access all registrants",
+};
+
+static const char *nvmet_trace_resv_acq(struct trace_seq *p, u8 *cdw10)
+{
+	static const char * const racqa_strs[] = {
+		[0x00] = "acquire",
+		[0x01] = "preempt",
+		[0x02] = "preempt and abort",
+	};
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 racqa = cdw10[0] & 0x7;
+	u8 iekey = (cdw10[0] >> 3) & 0x1;
+	u8 rtype = cdw10[1];
+	const char *racqa_str = "reserved";
+	const char *rtype_str = "reserved";
+
+	if (racqa < ARRAY_SIZE(racqa_strs) && racqa_strs[racqa])
+		racqa_str = racqa_strs[racqa];
+
+	if (rtype < ARRAY_SIZE(rtype_strs) && rtype_strs[rtype])
+		rtype_str = rtype_strs[rtype];
+
+	trace_seq_printf(p, "racqa=%u:%s, iekey=%u, rtype=%u:%s",
+			 racqa, racqa_str, iekey, rtype, rtype_str);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvmet_trace_resv_rel(struct trace_seq *p, u8 *cdw10)
+{
+	static const char * const rrela_strs[] = {
+		[0x00] = "release",
+		[0x01] = "clear",
+	};
+	const char *ret = trace_seq_buffer_ptr(p);
+	u8 rrela = cdw10[0] & 0x7;
+	u8 iekey = (cdw10[0] >> 3) & 0x1;
+	u8 rtype = cdw10[1];
+	const char *rrela_str = "reserved";
+	const char *rtype_str = "reserved";
+
+	if (rrela < ARRAY_SIZE(rrela_strs) && rrela_strs[rrela])
+		rrela_str = rrela_strs[rrela];
+
+	if (rtype < ARRAY_SIZE(rtype_strs) && rtype_strs[rtype])
+		rtype_str = rtype_strs[rtype];
+
+	trace_seq_printf(p, "rrela=%u:%s, iekey=%u, rtype=%u:%s",
+			 rrela, rrela_str, iekey, rtype, rtype_str);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
+static const char *nvmet_trace_resv_report(struct trace_seq *p, u8 *cdw10)
+{
+	const char *ret = trace_seq_buffer_ptr(p);
+	u32 numd = get_unaligned_le32(cdw10);
+	u8 eds = cdw10[4] & 0x1;
+
+	trace_seq_printf(p, "numd=%u, eds=%u", numd, eds);
+	trace_seq_putc(p, 0);
+
+	return ret;
+}
+
 const char *nvmet_trace_parse_nvm_cmd(struct trace_seq *p,
 		u8 opcode, u8 *cdw10)
 {
@@ -195,6 +295,14 @@ const char *nvmet_trace_parse_nvm_cmd(struct trace_seq *p,
 		return nvmet_trace_zone_mgmt_send(p, cdw10);
 	case nvme_cmd_zone_mgmt_recv:
 		return nvmet_trace_zone_mgmt_recv(p, cdw10);
+	case nvme_cmd_resv_register:
+		return nvmet_trace_resv_reg(p, cdw10);
+	case nvme_cmd_resv_acquire:
+		return nvmet_trace_resv_acq(p, cdw10);
+	case nvme_cmd_resv_release:
+		return nvmet_trace_resv_rel(p, cdw10);
+	case nvme_cmd_resv_report:
+		return nvmet_trace_resv_report(p, cdw10);
 	default:
 		return nvmet_trace_common(p, cdw10);
 	}

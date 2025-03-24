@@ -26,6 +26,10 @@ properties:
   reg:
     maxItems: 1
 
+  gpio-line-names:
+    minItems: 5
+    maxItems: 17
+
   interrupts:
     maxItems: 1
 
@@ -87,6 +91,45 @@ required:
 
 allOf:
   - $ref: pinctrl.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - semtech,sx1501q
+              - semtech,sx1504q
+              - semtech,sx1507q
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 5
+          maxItems: 5
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - semtech,sx1502q
+              - semtech,sx1505q
+              - semtech,sx1508q
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 9
+          maxItems: 9
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - semtech,sx1503q
+              - semtech,sx1506q
+              - semtech,sx1509q
+    then:
+      properties:
+        gpio-line-names:
+          minItems: 17
+          maxItems: 17
   - if:
       not:
         properties:

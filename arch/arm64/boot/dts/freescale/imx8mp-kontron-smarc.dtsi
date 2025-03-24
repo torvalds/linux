@@ -1,0 +1,280 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Copyright (C) 2024 Kontron Electronics GmbH
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include "imx8mp-kontron-osm-s.dtsi"
+
+/ {
+	model = "Kontron SMARC i.MX8MP";
+	compatible = "kontron,imx8mp-smarc", "kontron,imx8mp-osm-s", "fsl,imx8mp";
+
+	leds {
+		compatible = "gpio-leds";
+
+		led1 {
+			label = "led1";
+			gpios = <&gpio4 3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&ecspi1 {
+	status = "okay";
+
+	tpm@0 {
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+		reg = <0>;
+		spi-max-frequency = <18500000>;
+	};
+};
+
+&eqos {	/* Second ethernet (OSM-S ETH_B) */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_eqos_rgmii>;
+	phy-mode = "rgmii-id";
+	phy-handle = <&ethphy1>;
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy1: ethernet-phy@1 {
+			compatible = "ethernet-phy-id4f51.e91b";
+			reg = <1>;
+			pinctrl-0 = <&pinctrl_ethphy1>;
+			pinctrl-names = "default";
+			reset-assert-us = <10000>;
+			reset-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&fec { /* First ethernet (OSM-S ETH_A) */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet_rgmii>;
+	phy-connection-type = "rgmii-id";
+	phy-handle = <&ethphy0>;
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy0: ethernet-phy@1 {
+			compatible = "ethernet-phy-id4f51.e91b";
+			reg = <1>;
+			pinctrl-0 = <&pinctrl_ethphy0>;
+			pinctrl-names = "default";
+			reset-assert-us = <10000>;
+			reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+/*
+ * Rename SoM signals according to SMARC module usage:
+ *   GPIO_A_2 -> GPIO0
+ *   GPIO_A_3 -> GPIO1
+ *   GPIO_A_4 -> GPIO2
+ *   GPIO_A_5 -> GPIO3
+ *   USB_B_EN -> n.a.
+ *   USB_B_ID -> n.a.
+ *   USB_B_OC -> n.a.
+ */
+&gpio1 {
+	gpio-line-names = "GPIO_A_0", "GPIO_A_1", "", "",
+			  "", "GPIO0", "GPIO1", "GPIO2",
+			  "GPIO3", "", "USB_A_ID", "",
+			  "USB_A_EN", "USB_A_OC","CAM_MCK", "",
+			  "ETH_B_MDC", "ETH_B_MDIO", "ETH_B_TXD3", "ETH_B_TXD2",
+			  "ETH_B_TXD1", "ETH_B_TXD0", "ETH_B_TX_EN", "ETH_B_TX_CLK",
+			  "ETH_B_RX_DV", "ETH_B_RX_CLK", "ETH_B_RXD0", "ETH_B_RXD1",
+			  "ETH_B_RXD2", "ETH_B_RXD3";
+};
+
+/*
+ * Rename SoM signals according to SMARC module usage:
+ *   SDIO_A_CD -> SDIO_CD
+ *   SDIO_A_CLK -> SDIO_CK
+ *   SDIO_A_CMD -> SDIO_CMD
+ *   SDIO_A_D0 -> SDIO_D0
+ *   SDIO_A_D1 -> SDIO_D1
+ *   SDIO_A_D2 -> SDIO_D2
+ *   SDIO_A_D3 -> SDIO_D3
+ *   SDIO_A_PWR_EN -> SDIO_PWR_EN
+ *   SDIO_A_WP -> SDIO_WP
+ */
+&gpio2 {
+	gpio-line-names = "", "", "", "", "", "", "", "", "", "", "", "",
+			  "SDIO_CD", "SDIO_CK", "SDIO_CMD", "SDIO_D0",
+			  "SDIO_D1", "SDIO_D2", "SDIO_D3", "SDIO_PWR_EN",
+			  "SDIO_WP";
+};
+
+/*
+ * Rename SoM signals according to SMARC module usage:
+ *   PCIE_CLKREQ -> PCIE_A_CKREQ
+ *   PCIE_A_PERST -> PCIE_A_RST
+ *   SDIO_B_D5 -> n.a.
+ *   SDIO_B_D6 -> n.a.
+ *   SDIO_B_D7 -> n.a.
+ *   SPI_A_WP -> n.a.
+ *   SPI_A_HOLD -> n.a.
+ *   UART_B_RTS -> SER2_RTS
+ *   UART_B_CTS -> SER2_CTS
+ *   SDIO_B_D0 -> GPIO8
+ *   SDIO_B_D1 -> GPIO9
+ *   SDIO_B_D2 -> GPIO10
+ *   SDIO_B_D3 -> GPIO11
+ *   SDIO_B_WP -> n.a.
+ *   SDIO_B_D4 -> n.a.
+ *   PCIE_SM_ALERT -> SMB_ALERT
+ *   SDIO_B_CLK -> GPIO6
+ *   SDIO_B_CMD -> GPIO7
+ *   GPIO_B_0 -> LCD0_BKLT_EN
+ *   GPIO_B_1 -> LCD1_BKLT_EN
+ *   BOOT_SEL0 -> BOOT_SEL2
+ *   SDIO_B_CD -> n.a.
+ *   SDIO_B_PWR_EN -> n.a.
+ *   HDMI_CEC -> n.a.
+ *   SDIO_B_PWR_EN -> n.a.
+ */
+&gpio3 {
+	pinctrl-0 = <&pinctrl_gpio3>, <&pinctrl_gpio3_smarc>;
+	gpio-line-names = "PCIE_WAKE", "PCIE_A_CKREQ", "PCIE_A_RST", "",
+			  "", "", "", "",
+			  "SER2_RTS", "SER2_CTS", "GPIO8", "GPIO9",
+			  "GPIO10", "GPIO11", "", "",
+			  "SMB_ALERT", "GPIO6", "GPIO7", "LCD0_BKLT_EN",
+			  "LCD1_BKLT_EN", "", "BOOT_SEL2", "BOOT_SEL1",
+			  "", "", "", "",
+			  "", "HDMI_HPD";
+};
+
+/*
+ * Rename SoM signals according to SMARC module usage:
+ *   GPIO_B_5 -> n.a.
+ *   GPIO_B_6 -> n.a.
+ *   GPIO_B_7 -> n.a.
+ *   GPIO_C_0 -> LED
+ *   GPIO_B_3 -> ETH2_INT
+ *   GPIO_B_4 -> USB_HUB_RST
+ *   GPIO_B_2 -> ETH1_INT
+ *   GPIO_A_6 -> GPIO4
+ *   CAN_A_TX -> CAN0_TX
+ *   UART_A_CTS -> SER0_CTS
+ *   UART_A_RTS -> SER0_RTS
+ *   CAN_A_RX -> CAN0_RX
+ *   CAN_B_TX -> CAN1_TX
+ *   CAN_B_RX -> CAN1_RX
+ *   GPIO_A_7 -> TEST
+ *   I2S_A_DATA_IN -> I2S0_SDIN
+ *   I2S_LRCLK -> I2S0_LRCK
+ */
+&gpio4 {
+	gpio-line-names = "", "", "", "LED",
+			  "ETH_A_MDC", "ETH_A_MDIO", "ETH_A_RXD0", "ETH_A_RXD1",
+			  "ETH_A_RXD2", "ETH_A_RXD3", "ETH_A_RX_DV", "ETH_A_RX_CLK",
+			  "ETH_A_TXD0", "ETH_A_TXD1", "ETH_A_TXD2", "ETH_A_TXD3",
+			  "ETH_A_TX_EN", "ETH_A_TX_CLK", "ETH2_INT", "USB_HUB_RST",
+			  "ETH1_INT", "GPIO4", "CAN0_TX", "SER0_CTS",
+			  "SER0_RTS", "CAN0_RX", "CAN1_TX", "CAN1_RX",
+			  "TEST", "CARRIER_PWR_EN", "I2S0_SDIN", "I2S0_LRCK";
+};
+
+/*
+ * Rename SoM signals according to SMARC module usage:
+ *   I2S_BITCLK -> I2S0_CK
+ *   I2S_A_DATA_OUT -> I2S0_SDOUT
+ *   I2S_MCLK -> AUDIO_MCK
+ *   PWM_2 -> GPIO5
+ *   PWM_1 -> LCD1_BKLT_PWM
+ *   PWM_0 -> LCD0_BKLT_PWM
+ *   SPI_A_SCK -> SPI0_CK
+ *   SPI_A_SDO -> SPI0_DO
+ *   SPI_A_SDI -> SPI0_DIN
+ *   SPI_A_CS0 -> SPI0_CS0
+ *   SPI_B_SCK -> ESPI_CK
+ *   SPI_B_SDO -> ESPI_IO_0
+ *   SPI_B_SDI -> ESPI_IO_1
+ *   SPI_B_CS0 -> ESPI_CS0
+ *   I2C_A_SCL -> I2C_PM_CK
+ *   I2C_A_SDA -> I2C_PM_DAT
+ *   I2C_B_SCL -> I2C_GP_CK
+ *   I2C_B_SDA -> I2C_GP_DAT
+ *   PCIE_SMCLK -> HDMI_CTRL_CK
+ *   PCIE_SMDAT -> HDMI_CTRL_DAT
+ *   I2C_CAM_SCL -> I2C_CAM1_CK
+ *   I2C_CAM_SDA -> I2C_CAM1_DAT
+ *   UART_A_RX -> SER0_RX
+ *   UART_A_TX -> SER0_TX
+ *   UART_C_RX -> SER3_RX
+ *   UART_C_TX -> SER3_TX
+ *   UART_CON_RX -> SER1_RX
+ *   UART_CON_TX -> SER1_TX
+ *   UART_B_RX -> SER2_RX
+ *   UART_B_TX -> SER2_TX
+ */
+&gpio5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio5_smarc>;
+	gpio-line-names = "I2S0_CK", "I2S0_SDOUT", "AUDIO_MCK", "GPIO5",
+			  "LCD1_BKLT_PWM", "LCD0_BKLT_PWM", "SPI0_CK", "SPI0_DO",
+			  "SPI0_DIN", "SPI0_CS0", "ESPI_CK", "ESPI_IO_0",
+			  "ESPI_IO_1", "ESPI_CS0", "I2C_PM_CK", "I2C_PM_DAT",
+			  "I2C_GP_CK", "I2C_GP_DAT", "HDMI_CTRL_CK", "HDMI_CTRL_DAT",
+			  "I2C_CAM1_CK", "I2C_CAM1_DAT", "SER0_RX", "SER0_TX",
+			  "SER3_RX", "SER3_TX", "SER1_RX", "SER1_TX",
+			  "SER2_RX", "SER2_TX";
+};
+
+&usb_dwc3_1 {
+	dr_mode = "host";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	usb-hub@1 {
+		compatible = "usb424,2514";
+		reg = <1>;
+		reset-gpios = <&gpio4 19 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&usb3_1 {
+	fsl,disable-port-power-control;
+	fsl,permanently-attached;
+};
+
+&iomuxc {
+	pinctrl_ethphy0: ethphy0grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01		0x46
+		>;
+	};
+
+	pinctrl_ethphy1: ethphy1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO00__GPIO1_IO00		0x46
+		>;
+	};
+
+	pinctrl_gpio3_smarc: gpio3smarcgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_NAND_DATA04__GPIO3_IO10		0x1d0 /* SMARC GPIO8 */
+			MX8MP_IOMUXC_NAND_DATA05__GPIO3_IO11		0x1d0 /* SMARC GPIO9 */
+			MX8MP_IOMUXC_NAND_DATA06__GPIO3_IO12		0x1d0 /* SMARC GPIO10 */
+			MX8MP_IOMUXC_NAND_DATA07__GPIO3_IO13		0x1d0 /* SMARC GPIO11 */
+			MX8MP_IOMUXC_NAND_WE_B__GPIO3_IO17		0x190 /* SMARC GPIO6 */
+			MX8MP_IOMUXC_NAND_WP_B__GPIO3_IO18		0x1d0 /* SMARC GPIO7 */
+		>;
+	};
+
+	pinctrl_gpio5_smarc: gpio5smarcgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SPDIF_RX__GPIO5_IO04		0x1d0 /* SMARC GPIO5 */
+		>;
+	};
+};

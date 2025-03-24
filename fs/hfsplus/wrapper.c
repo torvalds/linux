@@ -12,7 +12,7 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/cdrom.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
@@ -171,6 +171,8 @@ int hfsplus_read_wrapper(struct super_block *sb)
 	blocksize = sb_min_blocksize(sb, HFSPLUS_SECTOR_SIZE);
 	if (!blocksize)
 		goto out;
+
+	sbi->min_io_size = blocksize;
 
 	if (hfsplus_get_last_session(sb, &part_start, &part_size))
 		goto out;

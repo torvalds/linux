@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+#include <acpi/video.h>
 #include "../serdev_helpers.h"
 
 /* The backlight controller must respond within 1 second */
@@ -158,7 +159,7 @@ static int dell_uart_set_bl_power(struct dell_uart_backlight *dell_bl, int power
 
 	set_power[0] = DELL_SOF(SET_CMD_LEN);
 	set_power[1] = CMD_SET_BL_POWER;
-	set_power[2] = (power == FB_BLANK_UNBLANK) ? 1 : 0;
+	set_power[2] = (power == BACKLIGHT_POWER_ON) ? 1 : 0;
 	set_power[3] = dell_uart_checksum(set_power, 3);
 
 	ret = dell_uart_bl_command(dell_bl, set_power, SET_CMD_LEN, resp, SET_RESP_LEN);
@@ -282,6 +283,9 @@ static int dell_uart_bl_serdev_probe(struct serdev_device *serdev)
 	init_waitqueue_head(&dell_bl->wait_queue);
 	dell_bl->dev = dev;
 
+	serdev_device_set_drvdata(serdev, dell_bl);
+	serdev_device_set_client_ops(serdev, &dell_uart_bl_serdev_ops);
+
 	ret = devm_serdev_device_open(dev, serdev);
 	if (ret)
 		return dev_err_probe(dev, ret, "opening UART device\n");
@@ -289,8 +293,6 @@ static int dell_uart_bl_serdev_probe(struct serdev_device *serdev)
 	/* 9600 bps, no flow control, these are the default but set them to be sure */
 	serdev_device_set_baudrate(serdev, 9600);
 	serdev_device_set_flow_control(serdev, false);
-	serdev_device_set_drvdata(serdev, dell_bl);
-	serdev_device_set_client_ops(serdev, &dell_uart_bl_serdev_ops);
 
 	get_version[0] = DELL_SOF(GET_CMD_LEN);
 	get_version[1] = CMD_GET_VERSION;
@@ -332,9 +334,16 @@ struct serdev_device_driver dell_uart_bl_serdev_driver = {
 
 static int dell_uart_bl_pdev_probe(struct platform_device *pdev)
 {
+	enum acpi_backlight_type bl_type;
 	struct serdev_device *serdev;
 	struct device *ctrl_dev;
 	int ret;
+
+	bl_type = acpi_video_get_backlight_type();
+	if (bl_type != acpi_backlight_dell_uart) {
+		dev_dbg(&pdev->dev, "Not loading (ACPI backlight type = %d)\n", bl_type);
+		return -ENODEV;
+	}
 
 	ctrl_dev = get_serdev_controller("DELL0501", NULL, 0, "serial0");
 	if (IS_ERR(ctrl_dev))
@@ -385,7 +394,7 @@ static void dell_uart_bl_pdev_remove(struct platform_device *pdev)
 
 static struct platform_driver dell_uart_bl_pdev_driver = {
 	.probe = dell_uart_bl_pdev_probe,
-	.remove_new = dell_uart_bl_pdev_remove,
+	.remove = dell_uart_bl_pdev_remove,
 	.driver = {
 		.name = "dell-uart-backlight",
 	},

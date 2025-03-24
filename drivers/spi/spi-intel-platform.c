@@ -28,6 +28,7 @@ static struct platform_driver intel_spi_platform_driver = {
 	.probe = intel_spi_platform_probe,
 	.driver = {
 		.name = "intel-spi",
+		.dev_groups = intel_spi_groups,
 	},
 };
 

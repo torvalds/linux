@@ -790,7 +790,7 @@ static struct platform_driver ibm_iic_driver = {
 		.of_match_table = ibm_iic_match,
 	},
 	.probe	= iic_probe,
-	.remove_new = iic_remove,
+	.remove = iic_remove,
 };
 
 module_platform_driver(ibm_iic_driver);

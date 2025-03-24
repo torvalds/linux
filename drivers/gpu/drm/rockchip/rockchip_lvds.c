@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author:
  *      Mark Yao <mark.yao@rock-chips.com>
  *      Sandy Huang <hjc@rock-chips.com>
@@ -746,7 +746,7 @@ static void rockchip_lvds_remove(struct platform_device *pdev)
 
 struct platform_driver rockchip_lvds_driver = {
 	.probe = rockchip_lvds_probe,
-	.remove_new = rockchip_lvds_remove,
+	.remove = rockchip_lvds_remove,
 	.driver = {
 		   .name = "rockchip-lvds",
 		   .of_match_table = rockchip_lvds_dt_ids,

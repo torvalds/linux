@@ -44,7 +44,7 @@ static pci_ers_result_t adf_error_detected(struct pci_dev *pdev,
 	adf_pf2vf_notify_restarting(accel_dev);
 	adf_pf2vf_wait_for_restarting_complete(accel_dev);
 	pci_clear_master(pdev);
-	adf_dev_down(accel_dev, false);
+	adf_dev_down(accel_dev);
 
 	return PCI_ERS_RESULT_NEED_RESET;
 }
@@ -281,8 +281,11 @@ int adf_init_aer(void)
 		return -EFAULT;
 
 	device_sriov_wq = alloc_workqueue("qat_device_sriov_wq", 0, 0);
-	if (!device_sriov_wq)
+	if (!device_sriov_wq) {
+		destroy_workqueue(device_reset_wq);
+		device_reset_wq = NULL;
 		return -EFAULT;
+	}
 
 	return 0;
 }

@@ -1576,7 +1576,8 @@ out:
 	return result;
 }
 
-static int jfs_ci_revalidate(struct dentry *dentry, unsigned int flags)
+static int jfs_ci_revalidate(struct inode *dir, const struct qstr *name,
+			     struct dentry *dentry, unsigned int flags)
 {
 	/*
 	 * This is not negative dentry. Always valid.

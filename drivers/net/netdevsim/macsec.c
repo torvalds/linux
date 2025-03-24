@@ -46,7 +46,7 @@ static int nsim_macsec_add_secy(struct macsec_context *ctx)
 		return -ENOSPC;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: adding new secy with sci %08llx at index %d\n",
+	netdev_dbg(ctx->netdev, "%s: adding new secy with sci %016llx at index %d\n",
 		   __func__, sci_to_cpu(ctx->secy->sci), idx);
 	ns->macsec.nsim_secy[idx].used = true;
 	ns->macsec.nsim_secy[idx].nsim_rxsc_count = 0;
@@ -63,12 +63,12 @@ static int nsim_macsec_upd_secy(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: updating secy with sci %08llx at index %d\n",
+	netdev_dbg(ctx->netdev, "%s: updating secy with sci %016llx at index %d\n",
 		   __func__, sci_to_cpu(ctx->secy->sci), idx);
 
 	return 0;
@@ -81,12 +81,12 @@ static int nsim_macsec_del_secy(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: removing SecY with SCI %08llx at index %d\n",
+	netdev_dbg(ctx->netdev, "%s: removing SecY with SCI %016llx at index %d\n",
 		   __func__, sci_to_cpu(ctx->secy->sci), idx);
 
 	ns->macsec.nsim_secy[idx].used = false;
@@ -104,7 +104,7 @@ static int nsim_macsec_add_rxsc(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
@@ -122,7 +122,7 @@ static int nsim_macsec_add_rxsc(struct macsec_context *ctx)
 		netdev_err(ctx->netdev, "%s: nsim_rxsc_count not full but all RXSCs used\n",
 			   __func__);
 
-	netdev_dbg(ctx->netdev, "%s: adding new rxsc with sci %08llx at index %d\n",
+	netdev_dbg(ctx->netdev, "%s: adding new rxsc with sci %016llx at index %d\n",
 		   __func__, sci_to_cpu(ctx->rx_sc->sci), idx);
 	secy->nsim_rxsc[idx].used = true;
 	secy->nsim_rxsc[idx].sci = ctx->rx_sc->sci;
@@ -139,7 +139,7 @@ static int nsim_macsec_upd_rxsc(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
@@ -147,12 +147,12 @@ static int nsim_macsec_upd_rxsc(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_rxsc(secy, ctx->rx_sc->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in RXSC table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in RXSC table\n",
 			   __func__, sci_to_cpu(ctx->rx_sc->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: updating RXSC with sci %08llx at index %d\n",
+	netdev_dbg(ctx->netdev, "%s: updating RXSC with sci %016llx at index %d\n",
 		   __func__, sci_to_cpu(ctx->rx_sc->sci), idx);
 
 	return 0;
@@ -166,7 +166,7 @@ static int nsim_macsec_del_rxsc(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
@@ -174,12 +174,12 @@ static int nsim_macsec_del_rxsc(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_rxsc(secy, ctx->rx_sc->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in RXSC table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in RXSC table\n",
 			   __func__, sci_to_cpu(ctx->rx_sc->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: removing RXSC with sci %08llx at index %d\n",
+	netdev_dbg(ctx->netdev, "%s: removing RXSC with sci %016llx at index %d\n",
 		   __func__, sci_to_cpu(ctx->rx_sc->sci), idx);
 
 	secy->nsim_rxsc[idx].used = false;
@@ -197,7 +197,7 @@ static int nsim_macsec_add_rxsa(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
@@ -205,12 +205,12 @@ static int nsim_macsec_add_rxsa(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_rxsc(secy, ctx->sa.rx_sa->sc->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in RXSC table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in RXSC table\n",
 			   __func__, sci_to_cpu(ctx->sa.rx_sa->sc->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: RXSC with sci %08llx, AN %u\n",
+	netdev_dbg(ctx->netdev, "%s: RXSC with sci %016llx, AN %u\n",
 		   __func__, sci_to_cpu(ctx->sa.rx_sa->sc->sci), ctx->sa.assoc_num);
 
 	return 0;
@@ -224,7 +224,7 @@ static int nsim_macsec_upd_rxsa(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
@@ -232,12 +232,12 @@ static int nsim_macsec_upd_rxsa(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_rxsc(secy, ctx->sa.rx_sa->sc->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in RXSC table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in RXSC table\n",
 			   __func__, sci_to_cpu(ctx->sa.rx_sa->sc->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: RXSC with sci %08llx, AN %u\n",
+	netdev_dbg(ctx->netdev, "%s: RXSC with sci %016llx, AN %u\n",
 		   __func__, sci_to_cpu(ctx->sa.rx_sa->sc->sci), ctx->sa.assoc_num);
 
 	return 0;
@@ -251,7 +251,7 @@ static int nsim_macsec_del_rxsa(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
@@ -259,12 +259,12 @@ static int nsim_macsec_del_rxsa(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_rxsc(secy, ctx->sa.rx_sa->sc->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in RXSC table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in RXSC table\n",
 			   __func__, sci_to_cpu(ctx->sa.rx_sa->sc->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: RXSC with sci %08llx, AN %u\n",
+	netdev_dbg(ctx->netdev, "%s: RXSC with sci %016llx, AN %u\n",
 		   __func__, sci_to_cpu(ctx->sa.rx_sa->sc->sci), ctx->sa.assoc_num);
 
 	return 0;
@@ -277,12 +277,12 @@ static int nsim_macsec_add_txsa(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: SECY with sci %08llx, AN %u\n",
+	netdev_dbg(ctx->netdev, "%s: SECY with sci %016llx, AN %u\n",
 		   __func__, sci_to_cpu(ctx->secy->sci), ctx->sa.assoc_num);
 
 	return 0;
@@ -295,12 +295,12 @@ static int nsim_macsec_upd_txsa(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: SECY with sci %08llx, AN %u\n",
+	netdev_dbg(ctx->netdev, "%s: SECY with sci %016llx, AN %u\n",
 		   __func__, sci_to_cpu(ctx->secy->sci), ctx->sa.assoc_num);
 
 	return 0;
@@ -313,12 +313,12 @@ static int nsim_macsec_del_txsa(struct macsec_context *ctx)
 
 	idx = nsim_macsec_find_secy(ns, ctx->secy->sci);
 	if (idx < 0) {
-		netdev_err(ctx->netdev, "%s: sci %08llx not found in secy table\n",
+		netdev_err(ctx->netdev, "%s: sci %016llx not found in secy table\n",
 			   __func__, sci_to_cpu(ctx->secy->sci));
 		return -ENOENT;
 	}
 
-	netdev_dbg(ctx->netdev, "%s: SECY with sci %08llx, AN %u\n",
+	netdev_dbg(ctx->netdev, "%s: SECY with sci %016llx, AN %u\n",
 		   __func__, sci_to_cpu(ctx->secy->sci), ctx->sa.assoc_num);
 
 	return 0;

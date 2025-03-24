@@ -51,6 +51,12 @@ static void cache_cpumap_setup(unsigned int cpu)
 				continue;
 
 			sib_leaf = sib_cpu_ci->info_list + index;
+			/* SMT cores share all caches */
+			if (cpus_are_siblings(i, cpu)) {
+				cpumask_set_cpu(cpu, &sib_leaf->shared_cpu_map);
+				cpumask_set_cpu(i, &this_leaf->shared_cpu_map);
+			}
+			/* Node's cores share shared caches */
 			if (cache_leaves_are_shared(this_leaf, sib_leaf)) {
 				cpumask_set_cpu(cpu, &sib_leaf->shared_cpu_map);
 				cpumask_set_cpu(i, &this_leaf->shared_cpu_map);

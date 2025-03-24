@@ -282,6 +282,29 @@ int apmf_update_fan_idx(struct amd_pmf_dev *pdev, bool manual, u32 idx)
 	return 0;
 }
 
+static int apmf_notify_smart_pc_update(struct amd_pmf_dev *pdev, u32 val, u32 preq, u32 index)
+{
+	struct amd_pmf_notify_smart_pc_update args;
+	struct acpi_buffer params;
+	union acpi_object *info;
+
+	args.size = sizeof(args);
+	args.pending_req = preq;
+	args.custom_bios[index] = val;
+
+	params.length = sizeof(args);
+	params.pointer = &args;
+
+	info = apmf_if_call(pdev, APMF_FUNC_NOTIFY_SMART_PC_UPDATES, &params);
+	if (!info)
+		return -EIO;
+
+	kfree(info);
+	dev_dbg(pdev->dev, "Notify smart pc update, val: %u\n", val);
+
+	return 0;
+}
+
 int apmf_get_auto_mode_def(struct amd_pmf_dev *pdev, struct apmf_auto_mode *data)
 {
 	return apmf_if_call_store_buffer(pdev, APMF_FUNC_AUTO_MODE, data, sizeof(*data));
@@ -298,17 +321,29 @@ int apmf_get_sbios_requests(struct amd_pmf_dev *pdev, struct apmf_sbios_req *req
 									 req, sizeof(*req));
 }
 
+static void apmf_event_handler_v2(acpi_handle handle, u32 event, void *data)
+{
+	struct amd_pmf_dev *pmf_dev = data;
+	int ret;
+
+	guard(mutex)(&pmf_dev->cb_mutex);
+
+	ret = apmf_get_sbios_requests_v2(pmf_dev, &pmf_dev->req);
+	if (ret)
+		dev_err(pmf_dev->dev, "Failed to get v2 SBIOS requests: %d\n", ret);
+}
+
 static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
 {
 	struct amd_pmf_dev *pmf_dev = data;
 	struct apmf_sbios_req req;
 	int ret;
 
-	mutex_lock(&pmf_dev->update_mutex);
+	guard(mutex)(&pmf_dev->update_mutex);
 	ret = apmf_get_sbios_requests(pmf_dev, &req);
 	if (ret) {
 		dev_err(pmf_dev->dev, "Failed to get SBIOS requests:%d\n", ret);
-		goto out;
+		return;
 	}
 
 	if (req.pending_req & BIT(APMF_AMT_NOTIFICATION)) {
@@ -330,8 +365,6 @@ static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
 		if (pmf_dev->amt_enabled)
 			amd_pmf_update_2_cql(pmf_dev, req.cql_event);
 	}
-out:
-	mutex_unlock(&pmf_dev->update_mutex);
 }
 
 static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
@@ -407,44 +440,53 @@ int apmf_install_handler(struct amd_pmf_dev *pmf_dev)
 		apmf_event_handler(ahandle, 0, pmf_dev);
 	}
 
+	if (pmf_dev->smart_pc_enabled && pmf_dev->pmf_if_version == PMF_IF_V2) {
+		status = acpi_install_notify_handler(ahandle, ACPI_ALL_NOTIFY,
+						     apmf_event_handler_v2, pmf_dev);
+		if (ACPI_FAILURE(status)) {
+			dev_err(pmf_dev->dev, "failed to install notify handler for custom BIOS inputs\n");
+			return -ENODEV;
+		}
+	}
+
 	return 0;
-}
-
-static acpi_status apmf_walk_resources(struct acpi_resource *res, void *data)
-{
-	struct amd_pmf_dev *dev = data;
-
-	switch (res->type) {
-	case ACPI_RESOURCE_TYPE_ADDRESS64:
-		dev->policy_addr = res->data.address64.address.minimum;
-		dev->policy_sz = res->data.address64.address.address_length;
-		break;
-	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
-		dev->policy_addr = res->data.fixed_memory32.address;
-		dev->policy_sz = res->data.fixed_memory32.address_length;
-		break;
-	}
-
-	if (!dev->policy_addr || dev->policy_sz > POLICY_BUF_MAX_SZ || dev->policy_sz == 0) {
-		pr_err("Incorrect Policy params, possibly a SBIOS bug\n");
-		return AE_ERROR;
-	}
-
-	return AE_OK;
 }
 
 int apmf_check_smart_pc(struct amd_pmf_dev *pmf_dev)
 {
-	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
-	acpi_status status;
+	struct platform_device *pdev = to_platform_device(pmf_dev->dev);
 
-	status = acpi_walk_resources(ahandle, METHOD_NAME__CRS, apmf_walk_resources, pmf_dev);
-	if (ACPI_FAILURE(status)) {
-		dev_dbg(pmf_dev->dev, "acpi_walk_resources failed :%d\n", status);
+	pmf_dev->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!pmf_dev->res) {
+		dev_dbg(pmf_dev->dev, "Failed to get I/O memory resource\n");
+		return -EINVAL;
+	}
+
+	pmf_dev->policy_addr = pmf_dev->res->start;
+	/*
+	 * We cannot use resource_size() here because it adds an extra byte to round off the size.
+	 * In the case of PMF ResourceTemplate(), this rounding is already handled within the _CRS.
+	 * Using resource_size() would increase the resource size by 1, causing a mismatch with the
+	 * length field and leading to issues. Therefore, simply use end-start of the ACPI resource
+	 * to obtain the actual length.
+	 */
+	pmf_dev->policy_sz = pmf_dev->res->end - pmf_dev->res->start;
+
+	if (!pmf_dev->policy_addr || pmf_dev->policy_sz > POLICY_BUF_MAX_SZ ||
+	    pmf_dev->policy_sz == 0) {
+		dev_err(pmf_dev->dev, "Incorrect policy params, possibly a SBIOS bug\n");
 		return -EINVAL;
 	}
 
 	return 0;
+}
+
+int amd_pmf_smartpc_apply_bios_output(struct amd_pmf_dev *dev, u32 val, u32 preq, u32 idx)
+{
+	if (!is_apmf_func_supported(dev, APMF_FUNC_NOTIFY_SMART_PC_UPDATES))
+		return -EINVAL;
+
+	return apmf_notify_smart_pc_update(dev, val, preq, idx);
 }
 
 void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
@@ -457,6 +499,9 @@ void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
 	if (is_apmf_func_supported(pmf_dev, APMF_FUNC_AUTO_MODE) &&
 	    is_apmf_func_supported(pmf_dev, APMF_FUNC_SBIOS_REQUESTS))
 		acpi_remove_notify_handler(ahandle, ACPI_ALL_NOTIFY, apmf_event_handler);
+
+	if (pmf_dev->smart_pc_enabled && pmf_dev->pmf_if_version == PMF_IF_V2)
+		acpi_remove_notify_handler(ahandle, ACPI_ALL_NOTIFY, apmf_event_handler_v2);
 }
 
 int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)

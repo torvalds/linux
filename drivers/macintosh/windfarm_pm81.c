@@ -765,7 +765,7 @@ static void wf_smu_remove(struct platform_device *ddev)
 
 static struct platform_driver wf_smu_driver = {
 	.probe = wf_smu_probe,
-	.remove_new = wf_smu_remove,
+	.remove = wf_smu_remove,
 	.driver = {
 		.name = "windfarm",
 	},

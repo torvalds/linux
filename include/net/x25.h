@@ -81,7 +81,7 @@ enum {
 
 #define	X25_DEFAULT_WINDOW_SIZE	2			/* Default Window Size	*/
 #define	X25_DEFAULT_PACKET_SIZE	X25_PS128		/* Default Packet Size */
-#define	X25_DEFAULT_THROUGHPUT	0x0A			/* Deafult Throughput */
+#define	X25_DEFAULT_THROUGHPUT	0x0A			/* Default Throughput */
 #define	X25_DEFAULT_REVERSE	0x00			/* Default Reverse Charging */
 
 #define X25_SMODULUS 		8

@@ -107,6 +107,7 @@ struct amdgpu_sdma {
 	struct amdgpu_irq_src	doorbell_invalid_irq;
 	struct amdgpu_irq_src	pool_timeout_irq;
 	struct amdgpu_irq_src	srbm_write_irq;
+	struct amdgpu_irq_src	ctxt_empty_irq;
 
 	int			num_instances;
 	uint32_t 		sdma_mask;
@@ -115,6 +116,8 @@ struct amdgpu_sdma {
 	bool			has_page_queue;
 	struct ras_common_if	*ras_if;
 	struct amdgpu_sdma_ras	*ras;
+	uint32_t		*ip_dump;
+	uint32_t 		supported_reset;
 };
 
 /*
@@ -174,5 +177,7 @@ int amdgpu_sdma_init_microcode(struct amdgpu_device *adev, u32 instance,
 void amdgpu_sdma_destroy_inst_ctx(struct amdgpu_device *adev,
         bool duplicate);
 int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev);
-
+void amdgpu_debugfs_sdma_sched_mask_init(struct amdgpu_device *adev);
+int amdgpu_sdma_sysfs_reset_mask_init(struct amdgpu_device *adev);
+void amdgpu_sdma_sysfs_reset_mask_fini(struct amdgpu_device *adev);
 #endif

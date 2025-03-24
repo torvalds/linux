@@ -146,7 +146,7 @@ static struct attribute *elog_default_attrs[] = {
 };
 ATTRIBUTE_GROUPS(elog_default);
 
-static struct kobj_type elog_ktype = {
+static const struct kobj_type elog_ktype = {
 	.sysfs_ops = &elog_sysfs_ops,
 	.release = &elog_release,
 	.default_groups = elog_default_groups,

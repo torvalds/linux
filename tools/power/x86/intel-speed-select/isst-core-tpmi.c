@@ -329,7 +329,7 @@ static int tpmi_get_get_trls(struct isst_id *id, int config_index,
 	return 0;
 }
 
-static int tpmi_get_get_trl(struct isst_id *id, int level, int config_index,
+static int tpmi_get_get_trl(struct isst_id *id, int config_index, int level,
 			    int *trl)
 {
 	struct isst_pkg_ctdp_level_info ctdp_level;

@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/marvell,xor-v2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell XOR v2 engines
+
+maintainers:
+  - Andrew Lunn <andrew@lunn.ch>
+
+properties:
+  compatible:
+    oneOf:
+      - const: marvell,xor-v2
+      - items:
+          - enum:
+              - marvell,armada-7k-xor
+          - const: marvell,xor-v2
+
+  reg:
+    items:
+      - description: DMA registers
+      - description: global registers
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: core
+      - const: reg
+
+  msi-parent:
+    description:
+      Phandle to the MSI-capable interrupt controller used for
+      interrupts.
+    maxItems: 1
+
+  dma-coherent: true
+
+required:
+  - compatible
+  - reg
+  - msi-parent
+  - dma-coherent
+
+additionalProperties: false
+
+examples:
+  - |
+    xor0@6a0000 {
+        compatible = "marvell,armada-7k-xor", "marvell,xor-v2";
+        reg = <0x6a0000 0x1000>, <0x6b0000 0x1000>;
+        clocks = <&ap_clk 0>, <&ap_clk 1>;
+        clock-names = "core", "reg";
+        msi-parent = <&gic_v2m0>;
+        dma-coherent;
+    };

@@ -17,7 +17,7 @@
 
 #include <crypto/internal/hash.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DRIVER_NAME             "stm32-crc32"
 #define CHKSUM_DIGEST_SIZE      4
@@ -465,7 +465,7 @@ MODULE_DEVICE_TABLE(of, stm32_dt_ids);
 
 static struct platform_driver stm32_crc_driver = {
 	.probe  = stm32_crc_probe,
-	.remove_new = stm32_crc_remove,
+	.remove = stm32_crc_remove,
 	.driver = {
 		.name           = DRIVER_NAME,
 		.pm		= &stm32_crc_pm_ops,

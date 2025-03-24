@@ -47,9 +47,10 @@ bool __pure __efi_soft_reserve_enabled(void)
  */
 efi_status_t efi_parse_options(char const *cmdline)
 {
-	size_t len;
+	char *buf __free(efi_pool) = NULL;
 	efi_status_t status;
-	char *str, *buf;
+	size_t len;
+	char *str;
 
 	if (!cmdline)
 		return EFI_SUCCESS;
@@ -102,7 +103,6 @@ efi_status_t efi_parse_options(char const *cmdline)
 			efi_parse_option_graphics(val + strlen("efifb:"));
 		}
 	}
-	efi_bs_call(free_pool, buf);
 	return EFI_SUCCESS;
 }
 
@@ -250,7 +250,7 @@ static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
 						  u64, const union efistub_event *);
 		struct { u32 hash_log_extend_event; } mixed_mode;
 	} method;
-	struct efistub_measured_event *evt;
+	struct efistub_measured_event *evt __free(efi_pool) = NULL;
 	int size = struct_size(evt, tagged_event.tagged_event_data,
 			       events[event].event_data_len);
 	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
@@ -312,7 +312,6 @@ static efi_status_t efi_measure_tagged_event(unsigned long load_addr,
 
 	status = efi_fn_call(&method, hash_log_extend_event, protocol, 0,
 			     load_addr, load_size, &evt->event_data);
-	efi_bs_call(free_pool, evt);
 
 	if (status == EFI_SUCCESS)
 		return EFI_SUCCESS;
@@ -327,7 +326,7 @@ fail:
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
  */
-char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
+char *efi_convert_cmdline(efi_loaded_image_t *image)
 {
 	const efi_char16_t *options = efi_table_attr(image, load_options);
 	u32 options_size = efi_table_attr(image, load_options_size);
@@ -405,7 +404,6 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 	snprintf((char *)cmdline_addr, options_bytes, "%.*ls",
 		 options_bytes - 1, options);
 
-	*cmd_line_len = options_bytes;
 	return (char *)cmdline_addr;
 }
 
@@ -621,10 +619,6 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 	status = efi_load_initrd_dev_path(&initrd, hard_limit);
 	if (status == EFI_SUCCESS) {
 		efi_info("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
-		if (initrd.size > 0 &&
-		    efi_measure_tagged_event(initrd.base, initrd.size,
-					     EFISTUB_EVT_INITRD) == EFI_SUCCESS)
-			efi_info("Measured initrd data into PCR 9\n");
 	} else if (status == EFI_NOT_FOUND) {
 		status = efi_load_initrd_cmdline(image, &initrd, soft_limit,
 						 hard_limit);
@@ -636,6 +630,11 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 	}
 	if (status != EFI_SUCCESS)
 		goto failed;
+
+	if (initrd.size > 0 &&
+	    efi_measure_tagged_event(initrd.base, initrd.size,
+				     EFISTUB_EVT_INITRD) == EFI_SUCCESS)
+		efi_info("Measured initrd data into PCR 9\n");
 
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(initrd),
 			     (void **)&tbl);

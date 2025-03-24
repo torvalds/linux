@@ -212,8 +212,6 @@
 #define PCLK_CAN		233
 #define PCLK_OWIRE		234
 
-#define CLK_NR_CLKS		(PCLK_OWIRE + 1)
-
 /* soft-reset indices */
 
 /* cru_softrst_con0 */

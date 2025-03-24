@@ -944,7 +944,7 @@ static struct platform_driver bcm63xx_hsspi_driver = {
 		.of_match_table = bcm63xx_hsspi_of_match,
 	},
 	.probe		= bcm63xx_hsspi_probe,
-	.remove_new	= bcm63xx_hsspi_remove,
+	.remove		= bcm63xx_hsspi_remove,
 };
 
 module_platform_driver(bcm63xx_hsspi_driver);

@@ -6,6 +6,7 @@
 
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/mux/driver.h>
 #include <linux/regulator/consumer.h>
 #include <sound/soc.h>
 
@@ -16,6 +17,7 @@ struct simple_mux {
 	struct gpio_desc *gpiod_mux;
 	unsigned int mux;
 	const char *mux_texts[MUX_TEXT_SIZE];
+	unsigned int idle_state;
 	struct soc_enum mux_enum;
 	struct snd_kcontrol_new mux_mux;
 	struct snd_soc_dapm_widget mux_widgets[MUX_WIDGET_SIZE];
@@ -57,6 +59,9 @@ static int simple_mux_control_put(struct snd_kcontrol *kcontrol,
 
 	priv->mux = ucontrol->value.enumerated.item[0];
 
+	if (priv->idle_state != MUX_IDLE_AS_IS && dapm->bias_level < SND_SOC_BIAS_PREPARE)
+		return 0;
+
 	gpiod_set_value_cansleep(priv->gpiod_mux, priv->mux);
 
 	return snd_soc_dapm_mux_update_power(dapm, kcontrol,
@@ -75,10 +80,33 @@ static unsigned int simple_mux_read(struct snd_soc_component *component,
 static const struct snd_kcontrol_new simple_mux_mux =
 	SOC_DAPM_ENUM_EXT("Muxer", simple_mux_enum, simple_mux_control_get, simple_mux_control_put);
 
+static int simple_mux_event(struct snd_soc_dapm_widget *w,
+			    struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *c = snd_soc_dapm_to_component(w->dapm);
+	struct simple_mux *priv = snd_soc_component_get_drvdata(c);
+
+	if (priv->idle_state != MUX_IDLE_AS_IS) {
+		switch (event) {
+		case SND_SOC_DAPM_PRE_PMU:
+			gpiod_set_value_cansleep(priv->gpiod_mux, priv->mux);
+			break;
+		case SND_SOC_DAPM_POST_PMD:
+			gpiod_set_value_cansleep(priv->gpiod_mux, priv->idle_state);
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_widget simple_mux_dapm_widgets[MUX_WIDGET_SIZE] = {
 	SND_SOC_DAPM_INPUT("IN1"),
 	SND_SOC_DAPM_INPUT("IN2"),
-	SND_SOC_DAPM_MUX("MUX", SND_SOC_NOPM, 0, 0, &simple_mux_mux), // see simple_mux_probe()
+	SND_SOC_DAPM_MUX_E("MUX", SND_SOC_NOPM, 0, 0, &simple_mux_mux, // see simple_mux_probe()
+			   simple_mux_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_OUTPUT("OUT"),
 };
 
@@ -93,6 +121,7 @@ static int simple_mux_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct simple_mux *priv;
+	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -120,6 +149,14 @@ static int simple_mux_probe(struct platform_device *pdev)
 
 	/* Overwrite text ("Input 1", "Input 2") if property exists */
 	of_property_read_string_array(np, "state-labels", priv->mux_texts, MUX_TEXT_SIZE);
+
+	ret = of_property_read_u32(np, "idle-state", &priv->idle_state);
+	if (ret < 0) {
+		priv->idle_state = MUX_IDLE_AS_IS;
+	} else if (priv->idle_state != MUX_IDLE_AS_IS && priv->idle_state >= 2) {
+		dev_err(dev, "invalid idle-state %u\n", priv->idle_state);
+		return -EINVAL;
+	}
 
 	/* switch to use priv data instead of default */
 	priv->mux_enum.texts			= priv->mux_texts;

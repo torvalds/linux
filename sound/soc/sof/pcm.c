@@ -100,7 +100,7 @@ sof_pcm_setup_connected_widgets(struct snd_sof_dev *sdev, struct snd_soc_pcm_run
 							     dpcm_end_walk_at_be);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: dai %s has no valid %s path\n", dai->name,
-				dir == SNDRV_PCM_STREAM_PLAYBACK ? "playback" : "capture");
+				snd_pcm_direction_name(dir));
 			return ret;
 		}
 
@@ -510,6 +510,8 @@ static int sof_pcm_close(struct snd_soc_component *component,
 		 * from happening
 		 */
 	}
+
+	spcm->stream[substream->stream].substream = NULL;
 
 	return 0;
 }

@@ -86,6 +86,10 @@ enum hist_column {
 	HISTC_TYPE,
 	HISTC_TYPE_OFFSET,
 	HISTC_SYMBOL_OFFSET,
+	HISTC_TYPE_CACHELINE,
+	HISTC_CALLCHAIN_BRANCH_PREDICTED,
+	HISTC_CALLCHAIN_BRANCH_ABORT,
+	HISTC_CALLCHAIN_BRANCH_CYCLES,
 	HISTC_NR_COLS, /* Last entry */
 };
 
@@ -338,8 +342,6 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 struct perf_hpp;
 struct perf_hpp_fmt;
 
-int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
-int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
 int hist_entry__transaction_len(void);
 int hist_entry__sort_snprintf(struct hist_entry *he, char *bf, size_t size,
 			      struct hists *hists);
@@ -371,6 +373,7 @@ void hists__inc_stats(struct hists *hists, struct hist_entry *h);
 void hists__inc_nr_events(struct hists *hists);
 void hists__inc_nr_samples(struct hists *hists, bool filtered);
 void hists__inc_nr_lost_samples(struct hists *hists, u32 lost);
+void hists__inc_nr_dropped_samples(struct hists *hists, u32 lost);
 
 size_t hists__fprintf(struct hists *hists, bool show_header, int max_rows,
 		      int max_cols, float min_pcnt, FILE *fp,
@@ -447,6 +450,9 @@ struct perf_hpp {
 	bool skip;
 };
 
+typedef int64_t (*perf_hpp_fmt_cmp_t)(
+	struct perf_hpp_fmt *, struct hist_entry *, struct hist_entry *);
+
 struct perf_hpp_fmt {
 	const char *name;
 	int (*header)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
@@ -458,12 +464,9 @@ struct perf_hpp_fmt {
 		     struct hist_entry *he);
 	int (*entry)(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		     struct hist_entry *he);
-	int64_t (*cmp)(struct perf_hpp_fmt *fmt,
-		       struct hist_entry *a, struct hist_entry *b);
-	int64_t (*collapse)(struct perf_hpp_fmt *fmt,
-			    struct hist_entry *a, struct hist_entry *b);
-	int64_t (*sort)(struct perf_hpp_fmt *fmt,
-			struct hist_entry *a, struct hist_entry *b);
+	perf_hpp_fmt_cmp_t cmp;
+	perf_hpp_fmt_cmp_t collapse;
+	perf_hpp_fmt_cmp_t sort;
 	bool (*equal)(struct perf_hpp_fmt *a, struct perf_hpp_fmt *b);
 	void (*free)(struct perf_hpp_fmt *fmt);
 
@@ -742,7 +745,7 @@ unsigned int hists__overhead_width(struct hists *hists);
 
 void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 			  struct perf_sample *sample, bool nonany_branch_mode,
-			  u64 *total_cycles);
+			  u64 *total_cycles, struct evsel *evsel);
 
 struct option;
 int parse_filter_percentage(const struct option *opt, const char *arg, int unset);

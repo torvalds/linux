@@ -231,7 +231,7 @@ struct dpu_crtc_state {
 	container_of(x, struct dpu_crtc_state, base)
 
 /**
- * dpu_crtc_frame_pending - retun the number of pending frames
+ * dpu_crtc_frame_pending - return the number of pending frames
  * @crtc: Pointer to drm crtc object
  */
 static inline int dpu_crtc_frame_pending(struct drm_crtc *crtc)
@@ -239,55 +239,17 @@ static inline int dpu_crtc_frame_pending(struct drm_crtc *crtc)
 	return crtc ? atomic_read(&to_dpu_crtc(crtc)->frame_pending) : -EINVAL;
 }
 
-/**
- * dpu_crtc_vblank - enable or disable vblanks for this crtc
- * @crtc: Pointer to drm crtc object
- * @en: true to enable vblanks, false to disable
- */
 int dpu_crtc_vblank(struct drm_crtc *crtc, bool en);
 
-/**
- * dpu_crtc_vblank_callback - called on vblank irq, issues completion events
- * @crtc: Pointer to drm crtc object
- */
 void dpu_crtc_vblank_callback(struct drm_crtc *crtc);
 
-/**
- * dpu_crtc_commit_kickoff - trigger kickoff of the commit for this crtc
- * @crtc: Pointer to drm crtc object
- */
 void dpu_crtc_commit_kickoff(struct drm_crtc *crtc);
 
-/**
- * dpu_crtc_complete_commit - callback signalling completion of current commit
- * @crtc: Pointer to drm crtc object
- */
 void dpu_crtc_complete_commit(struct drm_crtc *crtc);
 
-/**
- * dpu_crtc_init - create a new crtc object
- * @dev: dpu device
- * @plane: base plane
- * @cursor: cursor plane
- * @Return: new crtc object or error
- */
 struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
 			       struct drm_plane *cursor);
 
-/**
- * dpu_crtc_register_custom_event - api for enabling/disabling crtc event
- * @kms: Pointer to dpu_kms
- * @crtc_drm: Pointer to crtc object
- * @event: Event that client is interested
- * @en: Flag to enable/disable the event
- */
-int dpu_crtc_register_custom_event(struct dpu_kms *kms,
-		struct drm_crtc *crtc_drm, u32 event, bool en);
-
-/**
- * dpu_crtc_get_intf_mode - get interface mode of the given crtc
- * @crtc: Pointert to crtc
- */
 enum dpu_intf_mode dpu_crtc_get_intf_mode(struct drm_crtc *crtc);
 
 /**

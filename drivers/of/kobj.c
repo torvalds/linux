@@ -29,7 +29,7 @@ const struct kobj_type of_node_ktype = {
 };
 
 static ssize_t of_node_property_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr, char *buf,
+				const struct bin_attribute *bin_attr, char *buf,
 				loff_t offset, size_t count)
 {
 	struct property *pp = container_of(bin_attr, struct property, attr);
@@ -37,7 +37,7 @@ static ssize_t of_node_property_read(struct file *filp, struct kobject *kobj,
 }
 
 /* always return newly allocated name, caller must free after use */
-static const char *safe_name(struct kobject *kobj, const char *orig_name)
+static const char *safe_name(const struct kobject *kobj, const char *orig_name)
 {
 	const char *name = orig_name;
 	struct kernfs_node *kn;
@@ -77,14 +77,14 @@ int __of_add_property_sysfs(struct device_node *np, struct property *pp)
 	pp->attr.attr.name = safe_name(&np->kobj, pp->name);
 	pp->attr.attr.mode = secure ? 0400 : 0444;
 	pp->attr.size = secure ? 0 : pp->length;
-	pp->attr.read = of_node_property_read;
+	pp->attr.read_new = of_node_property_read;
 
 	rc = sysfs_create_bin_file(&np->kobj, &pp->attr);
 	WARN(rc, "error adding attribute %s to node %pOF\n", pp->name, np);
 	return rc;
 }
 
-void __of_sysfs_remove_bin_file(struct device_node *np, struct property *prop)
+void __of_sysfs_remove_bin_file(struct device_node *np, const struct property *prop)
 {
 	if (!IS_ENABLED(CONFIG_SYSFS))
 		return;
@@ -93,7 +93,7 @@ void __of_sysfs_remove_bin_file(struct device_node *np, struct property *prop)
 	kfree(prop->attr.attr.name);
 }
 
-void __of_remove_property_sysfs(struct device_node *np, struct property *prop)
+void __of_remove_property_sysfs(struct device_node *np, const struct property *prop)
 {
 	/* at early boot, bail here and defer setup to of_init() */
 	if (of_kset && of_node_is_attached(np))
@@ -101,7 +101,7 @@ void __of_remove_property_sysfs(struct device_node *np, struct property *prop)
 }
 
 void __of_update_property_sysfs(struct device_node *np, struct property *newprop,
-		struct property *oldprop)
+		const struct property *oldprop)
 {
 	/* At early boot, bail out and defer setup to of_init() */
 	if (!of_kset)

@@ -62,7 +62,7 @@ config INTEL_INT0002_VGPIO
 
 config INTEL_OAKTRAIL
 	tristate "Intel Oaktrail Platform Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on ACPI_VIDEO || ACPI_VIDEO=n
 	depends on RFKILL && BACKLIGHT_CLASS_DEVICE && ACPI
 	help
@@ -83,6 +83,7 @@ config INTEL_BXTWC_PMIC_TMU
 config INTEL_BYTCRC_PWRSRC
 	tristate "Intel Bay Trail Crystal Cove power source driver"
 	depends on INTEL_SOC_PMIC
+	depends on POWER_SUPPLY
 	help
 	  This option adds a power source driver for Crystal Cove PMICs
 	  on Intel Bay Trail devices.

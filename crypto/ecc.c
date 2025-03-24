@@ -33,7 +33,7 @@
 #include <crypto/ecdh.h>
 #include <crypto/rng.h>
 #include <crypto/internal/ecc.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/ratelimit.h>
 
 #include "ecc_curve_defs.h"

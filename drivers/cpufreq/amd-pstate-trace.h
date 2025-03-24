@@ -32,7 +32,6 @@ TRACE_EVENT(amd_pstate_perf,
 		 u64 aperf,
 		 u64 tsc,
 		 unsigned int cpu_id,
-		 bool changed,
 		 bool fast_switch
 		 ),
 
@@ -44,7 +43,6 @@ TRACE_EVENT(amd_pstate_perf,
 		aperf,
 		tsc,
 		cpu_id,
-		changed,
 		fast_switch
 		),
 
@@ -57,7 +55,6 @@ TRACE_EVENT(amd_pstate_perf,
 		__field(unsigned long long, aperf)
 		__field(unsigned long long, tsc)
 		__field(unsigned int, cpu_id)
-		__field(bool, changed)
 		__field(bool, fast_switch)
 		),
 
@@ -70,11 +67,10 @@ TRACE_EVENT(amd_pstate_perf,
 		__entry->aperf = aperf;
 		__entry->tsc = tsc;
 		__entry->cpu_id = cpu_id;
-		__entry->changed = changed;
 		__entry->fast_switch = fast_switch;
 		),
 
-	TP_printk("amd_min_perf=%lu amd_des_perf=%lu amd_max_perf=%lu freq=%llu mperf=%llu aperf=%llu tsc=%llu cpu_id=%u changed=%s fast_switch=%s",
+	TP_printk("amd_min_perf=%lu amd_des_perf=%lu amd_max_perf=%lu freq=%llu mperf=%llu aperf=%llu tsc=%llu cpu_id=%u fast_switch=%s",
 		  (unsigned long)__entry->min_perf,
 		  (unsigned long)__entry->target_perf,
 		  (unsigned long)__entry->capacity,
@@ -83,8 +79,52 @@ TRACE_EVENT(amd_pstate_perf,
 		  (unsigned long long)__entry->aperf,
 		  (unsigned long long)__entry->tsc,
 		  (unsigned int)__entry->cpu_id,
-		  (__entry->changed) ? "true" : "false",
 		  (__entry->fast_switch) ? "true" : "false"
+		 )
+);
+
+TRACE_EVENT(amd_pstate_epp_perf,
+
+	TP_PROTO(unsigned int cpu_id,
+		 unsigned int highest_perf,
+		 unsigned int epp,
+		 unsigned int min_perf,
+		 unsigned int max_perf,
+		 bool boost
+		 ),
+
+	TP_ARGS(cpu_id,
+		highest_perf,
+		epp,
+		min_perf,
+		max_perf,
+		boost),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, cpu_id)
+		__field(unsigned int, highest_perf)
+		__field(unsigned int, epp)
+		__field(unsigned int, min_perf)
+		__field(unsigned int, max_perf)
+		__field(bool, boost)
+		),
+
+	TP_fast_assign(
+		__entry->cpu_id = cpu_id;
+		__entry->highest_perf = highest_perf;
+		__entry->epp = epp;
+		__entry->min_perf = min_perf;
+		__entry->max_perf = max_perf;
+		__entry->boost = boost;
+		),
+
+	TP_printk("cpu%u: [%u<->%u]/%u, epp=%u, boost=%u",
+		  (unsigned int)__entry->cpu_id,
+		  (unsigned int)__entry->min_perf,
+		  (unsigned int)__entry->max_perf,
+		  (unsigned int)__entry->highest_perf,
+		  (unsigned int)__entry->epp,
+		  (bool)__entry->boost
 		 )
 );
 

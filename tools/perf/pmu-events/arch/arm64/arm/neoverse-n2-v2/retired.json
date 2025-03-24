@@ -9,7 +9,7 @@
     },
     {
         "ArchStdEvent": "CID_WRITE_RETIRED",
-        "PublicDescription": "Counts architecturally executed writes to the CONTEXTIDR register, which usually contain the kernel PID and can be output with hardware trace."
+        "PublicDescription": "Counts architecturally executed writes to the CONTEXTIDR_EL1 register, which usually contain the kernel PID and can be output with hardware trace."
     },
     {
         "ArchStdEvent": "TTBR_WRITE_RETIRED",
@@ -17,7 +17,7 @@
     },
     {
         "ArchStdEvent": "BR_RETIRED",
-        "PublicDescription": "Counts architecturally executed branches, whether the branch is taken or not. Instructions that explicitly write to the PC are also counted."
+        "PublicDescription": "Counts architecturally executed branches, whether the branch is taken or not. Instructions that explicitly write to the PC are also counted. Note that exception generating instructions, exception return instructions and context synchronization instructions are not counted."
     },
     {
         "ArchStdEvent": "BR_MIS_PRED_RETIRED",

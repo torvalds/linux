@@ -21,6 +21,8 @@
  * nilfs_palloc_groups_per_desc_block - get the number of groups that a group
  *					descriptor block can maintain
  * @inode: inode of metadata file using this allocator
+ *
+ * Return: Number of groups that a group descriptor block can maintain.
  */
 static inline unsigned long
 nilfs_palloc_groups_per_desc_block(const struct inode *inode)
@@ -32,6 +34,8 @@ nilfs_palloc_groups_per_desc_block(const struct inode *inode)
 /**
  * nilfs_palloc_groups_count - get maximum number of groups
  * @inode: inode of metadata file using this allocator
+ *
+ * Return: Maximum number of groups.
  */
 static inline unsigned long
 nilfs_palloc_groups_count(const struct inode *inode)
@@ -43,6 +47,8 @@ nilfs_palloc_groups_count(const struct inode *inode)
  * nilfs_palloc_init_blockgroup - initialize private variables for allocator
  * @inode: inode of metadata file using this allocator
  * @entry_size: size of the persistent object
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
 {
@@ -78,6 +84,9 @@ int nilfs_palloc_init_blockgroup(struct inode *inode, unsigned int entry_size)
  * @inode: inode of metadata file using this allocator
  * @nr: serial number of the entry (e.g. inode number)
  * @offset: pointer to store offset number in the group
+ *
+ * Return: Number of the group that contains the entry with the index
+ * specified by @nr.
  */
 static unsigned long nilfs_palloc_group(const struct inode *inode, __u64 nr,
 					unsigned long *offset)
@@ -93,8 +102,8 @@ static unsigned long nilfs_palloc_group(const struct inode *inode, __u64 nr,
  * @inode: inode of metadata file using this allocator
  * @group: group number
  *
- * nilfs_palloc_desc_blkoff() returns block offset of the descriptor
- * block which contains a descriptor of the specified group.
+ * Return: Index number in the metadata file of the descriptor block of
+ * the group specified by @group.
  */
 static unsigned long
 nilfs_palloc_desc_blkoff(const struct inode *inode, unsigned long group)
@@ -111,6 +120,9 @@ nilfs_palloc_desc_blkoff(const struct inode *inode, unsigned long group)
  *
  * nilfs_palloc_bitmap_blkoff() returns block offset of the bitmap
  * block used to allocate/deallocate entries in the specified group.
+ *
+ * Return: Index number in the metadata file of the bitmap block of
+ * the group specified by @group.
  */
 static unsigned long
 nilfs_palloc_bitmap_blkoff(const struct inode *inode, unsigned long group)
@@ -125,6 +137,8 @@ nilfs_palloc_bitmap_blkoff(const struct inode *inode, unsigned long group)
  * nilfs_palloc_group_desc_nfrees - get the number of free entries in a group
  * @desc: pointer to descriptor structure for the group
  * @lock: spin lock protecting @desc
+ *
+ * Return: Number of free entries written in the group descriptor @desc.
  */
 static unsigned long
 nilfs_palloc_group_desc_nfrees(const struct nilfs_palloc_group_desc *desc,
@@ -143,6 +157,9 @@ nilfs_palloc_group_desc_nfrees(const struct nilfs_palloc_group_desc *desc,
  * @desc: pointer to descriptor structure for the group
  * @lock: spin lock protecting @desc
  * @n: delta to be added
+ *
+ * Return: Number of free entries after adjusting the group descriptor
+ * @desc.
  */
 static u32
 nilfs_palloc_group_desc_add_entries(struct nilfs_palloc_group_desc *desc,
@@ -161,6 +178,9 @@ nilfs_palloc_group_desc_add_entries(struct nilfs_palloc_group_desc *desc,
  * nilfs_palloc_entry_blkoff - get block offset of an entry block
  * @inode: inode of metadata file using this allocator
  * @nr: serial number of the entry (e.g. inode number)
+ *
+ * Return: Index number in the metadata file of the block containing
+ * the entry specified by @nr.
  */
 static unsigned long
 nilfs_palloc_entry_blkoff(const struct inode *inode, __u64 nr)
@@ -177,12 +197,14 @@ nilfs_palloc_entry_blkoff(const struct inode *inode, __u64 nr)
  * nilfs_palloc_desc_block_init - initialize buffer of a group descriptor block
  * @inode: inode of metadata file
  * @bh: buffer head of the buffer to be initialized
- * @kaddr: kernel address mapped for the page including the buffer
+ * @from: kernel address mapped for a chunk of the block
+ *
+ * This function does not yet support the case where block size > PAGE_SIZE.
  */
 static void nilfs_palloc_desc_block_init(struct inode *inode,
-					 struct buffer_head *bh, void *kaddr)
+					 struct buffer_head *bh, void *from)
 {
-	struct nilfs_palloc_group_desc *desc = kaddr + bh_offset(bh);
+	struct nilfs_palloc_group_desc *desc = from;
 	unsigned long n = nilfs_palloc_groups_per_desc_block(inode);
 	__le32 nfrees;
 
@@ -236,6 +258,12 @@ static int nilfs_palloc_get_block(struct inode *inode, unsigned long blkoff,
  * @blkoff: block offset
  * @prev: nilfs_bh_assoc struct of the last used buffer
  * @lock: spin lock protecting @prev
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOENT	- Non-existent block.
+ * * %-ENOMEM	- Insufficient memory available.
  */
 static int nilfs_palloc_delete_block(struct inode *inode, unsigned long blkoff,
 				     struct nilfs_bh_assoc *prev,
@@ -256,6 +284,8 @@ static int nilfs_palloc_delete_block(struct inode *inode, unsigned long blkoff,
  * @group: group number
  * @create: create flag
  * @bhp: pointer to store the resultant buffer head
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_get_desc_block(struct inode *inode,
 				       unsigned long group,
@@ -275,6 +305,8 @@ static int nilfs_palloc_get_desc_block(struct inode *inode,
  * @group: group number
  * @create: create flag
  * @bhp: pointer to store the resultant buffer head
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_get_bitmap_block(struct inode *inode,
 					 unsigned long group,
@@ -292,6 +324,8 @@ static int nilfs_palloc_get_bitmap_block(struct inode *inode,
  * nilfs_palloc_delete_bitmap_block - delete a bitmap block
  * @inode: inode of metadata file using this allocator
  * @group: group number
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_delete_bitmap_block(struct inode *inode,
 					    unsigned long group)
@@ -310,6 +344,8 @@ static int nilfs_palloc_delete_bitmap_block(struct inode *inode,
  * @nr: serial number of the entry (e.g. inode number)
  * @create: create flag
  * @bhp: pointer to store the resultant buffer head
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_palloc_get_entry_block(struct inode *inode, __u64 nr,
 				 int create, struct buffer_head **bhp)
@@ -326,6 +362,8 @@ int nilfs_palloc_get_entry_block(struct inode *inode, __u64 nr,
  * nilfs_palloc_delete_entry_block - delete an entry block
  * @inode: inode of metadata file using this allocator
  * @nr: serial number of the entry
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_delete_entry_block(struct inode *inode, __u64 nr)
 {
@@ -337,38 +375,55 @@ static int nilfs_palloc_delete_entry_block(struct inode *inode, __u64 nr)
 }
 
 /**
- * nilfs_palloc_block_get_group_desc - get kernel address of a group descriptor
+ * nilfs_palloc_group_desc_offset - calculate the byte offset of a group
+ *                                  descriptor in the folio containing it
  * @inode: inode of metadata file using this allocator
  * @group: group number
- * @bh: buffer head of the buffer storing the group descriptor block
- * @kaddr: kernel address mapped for the page including the buffer
+ * @bh:    buffer head of the group descriptor block
+ *
+ * Return: Byte offset in the folio of the group descriptor for @group.
  */
-static struct nilfs_palloc_group_desc *
-nilfs_palloc_block_get_group_desc(const struct inode *inode,
-				  unsigned long group,
-				  const struct buffer_head *bh, void *kaddr)
+static size_t nilfs_palloc_group_desc_offset(const struct inode *inode,
+					     unsigned long group,
+					     const struct buffer_head *bh)
 {
-	return (struct nilfs_palloc_group_desc *)(kaddr + bh_offset(bh)) +
-		group % nilfs_palloc_groups_per_desc_block(inode);
+	return offset_in_folio(bh->b_folio, bh->b_data) +
+		sizeof(struct nilfs_palloc_group_desc) *
+		(group % nilfs_palloc_groups_per_desc_block(inode));
 }
 
 /**
- * nilfs_palloc_block_get_entry - get kernel address of an entry
- * @inode: inode of metadata file using this allocator
- * @nr: serial number of the entry (e.g. inode number)
- * @bh: buffer head of the buffer storing the entry block
- * @kaddr: kernel address mapped for the page including the buffer
+ * nilfs_palloc_bitmap_offset - calculate the byte offset of a bitmap block
+ *                              in the folio containing it
+ * @bh: buffer head of the bitmap block
+ *
+ * Return: Byte offset in the folio of the bitmap block for @bh.
  */
-void *nilfs_palloc_block_get_entry(const struct inode *inode, __u64 nr,
-				   const struct buffer_head *bh, void *kaddr)
+static size_t nilfs_palloc_bitmap_offset(const struct buffer_head *bh)
 {
-	unsigned long entry_offset, group_offset;
+	return offset_in_folio(bh->b_folio, bh->b_data);
+}
 
-	nilfs_palloc_group(inode, nr, &group_offset);
-	entry_offset = group_offset % NILFS_MDT(inode)->mi_entries_per_block;
+/**
+ * nilfs_palloc_entry_offset - calculate the byte offset of an entry in the
+ *                             folio containing it
+ * @inode: inode of metadata file using this allocator
+ * @nr:    serial number of the entry (e.g. inode number)
+ * @bh:    buffer head of the entry block
+ *
+ * Return: Byte offset in the folio of the entry @nr.
+ */
+size_t nilfs_palloc_entry_offset(const struct inode *inode, __u64 nr,
+				 const struct buffer_head *bh)
+{
+	unsigned long entry_index_in_group, entry_index_in_block;
 
-	return kaddr + bh_offset(bh) +
-		entry_offset * NILFS_MDT(inode)->mi_entry_size;
+	nilfs_palloc_group(inode, nr, &entry_index_in_group);
+	entry_index_in_block = entry_index_in_group %
+		NILFS_MDT(inode)->mi_entries_per_block;
+
+	return offset_in_folio(bh->b_folio, bh->b_data) +
+		entry_index_in_block * NILFS_MDT(inode)->mi_entry_size;
 }
 
 /**
@@ -378,6 +433,9 @@ void *nilfs_palloc_block_get_entry(const struct inode *inode, __u64 nr,
  * @bsize: size in bits
  * @lock: spin lock protecting @bitmap
  * @wrap: whether to wrap around
+ *
+ * Return: Offset number within the group of the found free entry, or
+ * %-ENOSPC if not found.
  */
 static int nilfs_palloc_find_available_slot(unsigned char *bitmap,
 					    unsigned long target,
@@ -419,6 +477,9 @@ static int nilfs_palloc_find_available_slot(unsigned char *bitmap,
  * @inode: inode of metadata file using this allocator
  * @curr: current group number
  * @max: maximum number of groups
+ *
+ * Return: Number of remaining descriptors (= groups) managed by the descriptor
+ * block.
  */
 static unsigned long
 nilfs_palloc_rest_groups_in_desc_block(const struct inode *inode,
@@ -434,6 +495,8 @@ nilfs_palloc_rest_groups_in_desc_block(const struct inode *inode,
  * nilfs_palloc_count_desc_blocks - count descriptor blocks number
  * @inode: inode of metadata file using this allocator
  * @desc_blocks: descriptor blocks number [out]
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 static int nilfs_palloc_count_desc_blocks(struct inode *inode,
 					    unsigned long *desc_blocks)
@@ -454,6 +517,8 @@ static int nilfs_palloc_count_desc_blocks(struct inode *inode,
  *					MDT file growing
  * @inode: inode of metadata file using this allocator
  * @desc_blocks: known current descriptor blocks count
+ *
+ * Return: true if a group can be added in the metadata file, false if not.
  */
 static inline bool nilfs_palloc_mdt_file_can_grow(struct inode *inode,
 						    unsigned long desc_blocks)
@@ -468,6 +533,12 @@ static inline bool nilfs_palloc_mdt_file_can_grow(struct inode *inode,
  * @inode: inode of metadata file using this allocator
  * @nused: current number of used entries
  * @nmaxp: max number of entries [out]
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-ERANGE	- Number of entries in use is out of range.
  */
 int nilfs_palloc_count_max_entries(struct inode *inode, u64 nused, u64 *nmaxp)
 {
@@ -499,6 +570,13 @@ int nilfs_palloc_count_max_entries(struct inode *inode, u64 nused, u64 *nmaxp)
  * @inode: inode of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the allocation
  * @wrap: whether to wrap around
+ *
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-ENOSPC	- Entries exhausted (No entries available for allocation).
+ * * %-EROFS	- Read only filesystem
  */
 int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 				     struct nilfs_palloc_req *req, bool wrap)
@@ -506,7 +584,7 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 	struct buffer_head *desc_bh, *bitmap_bh;
 	struct nilfs_palloc_group_desc *desc;
 	unsigned char *bitmap;
-	void *desc_kaddr, *bitmap_kaddr;
+	size_t doff, boff;
 	unsigned long group, maxgroup, ngroups;
 	unsigned long group_offset, maxgroup_offset;
 	unsigned long n, entries_per_group;
@@ -529,17 +607,17 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 		ret = nilfs_palloc_get_desc_block(inode, group, 1, &desc_bh);
 		if (ret < 0)
 			return ret;
-		desc_kaddr = kmap_local_page(desc_bh->b_page);
-		desc = nilfs_palloc_block_get_group_desc(
-			inode, group, desc_bh, desc_kaddr);
+
+		doff = nilfs_palloc_group_desc_offset(inode, group, desc_bh);
+		desc = kmap_local_folio(desc_bh->b_folio, doff);
 		n = nilfs_palloc_rest_groups_in_desc_block(inode, group,
 							   maxgroup);
-		for (j = 0; j < n; j++, desc++, group++, group_offset = 0) {
+		for (j = 0; j < n; j++, group++, group_offset = 0) {
 			lock = nilfs_mdt_bgl_lock(inode, group);
-			if (nilfs_palloc_group_desc_nfrees(desc, lock) == 0)
+			if (nilfs_palloc_group_desc_nfrees(&desc[j], lock) == 0)
 				continue;
 
-			kunmap_local(desc_kaddr);
+			kunmap_local(desc);
 			ret = nilfs_palloc_get_bitmap_block(inode, group, 1,
 							    &bitmap_bh);
 			if (unlikely(ret < 0)) {
@@ -547,12 +625,14 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 				return ret;
 			}
 
-			desc_kaddr = kmap_local_page(desc_bh->b_page);
-			desc = nilfs_palloc_block_get_group_desc(
-				inode, group, desc_bh, desc_kaddr);
+			/*
+			 * Re-kmap the folio containing the first (and
+			 * subsequent) group descriptors.
+			 */
+			desc = kmap_local_folio(desc_bh->b_folio, doff);
 
-			bitmap_kaddr = kmap_local_page(bitmap_bh->b_page);
-			bitmap = bitmap_kaddr + bh_offset(bitmap_bh);
+			boff = nilfs_palloc_bitmap_offset(bitmap_bh);
+			bitmap = kmap_local_folio(bitmap_bh->b_folio, boff);
 			pos = nilfs_palloc_find_available_slot(
 				bitmap, group_offset, entries_per_group, lock,
 				wrap);
@@ -562,14 +642,14 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 			 * beginning, the wrap flag only has an effect on the
 			 * first search.
 			 */
-			kunmap_local(bitmap_kaddr);
+			kunmap_local(bitmap);
 			if (pos >= 0)
 				goto found;
 
 			brelse(bitmap_bh);
 		}
 
-		kunmap_local(desc_kaddr);
+		kunmap_local(desc);
 		brelse(desc_bh);
 	}
 
@@ -578,9 +658,9 @@ int nilfs_palloc_prepare_alloc_entry(struct inode *inode,
 
 found:
 	/* found a free entry */
-	nilfs_palloc_group_desc_add_entries(desc, lock, -1);
+	nilfs_palloc_group_desc_add_entries(&desc[j], lock, -1);
 	req->pr_entry_nr = entries_per_group * group + pos;
-	kunmap_local(desc_kaddr);
+	kunmap_local(desc);
 
 	req->pr_desc_bh = desc_bh;
 	req->pr_bitmap_bh = bitmap_bh;
@@ -611,18 +691,18 @@ void nilfs_palloc_commit_alloc_entry(struct inode *inode,
 void nilfs_palloc_commit_free_entry(struct inode *inode,
 				    struct nilfs_palloc_req *req)
 {
-	struct nilfs_palloc_group_desc *desc;
 	unsigned long group, group_offset;
+	size_t doff, boff;
+	struct nilfs_palloc_group_desc *desc;
 	unsigned char *bitmap;
-	void *desc_kaddr, *bitmap_kaddr;
 	spinlock_t *lock;
 
 	group = nilfs_palloc_group(inode, req->pr_entry_nr, &group_offset);
-	desc_kaddr = kmap_local_page(req->pr_desc_bh->b_page);
-	desc = nilfs_palloc_block_get_group_desc(inode, group,
-						 req->pr_desc_bh, desc_kaddr);
-	bitmap_kaddr = kmap_local_page(req->pr_bitmap_bh->b_page);
-	bitmap = bitmap_kaddr + bh_offset(req->pr_bitmap_bh);
+	doff = nilfs_palloc_group_desc_offset(inode, group, req->pr_desc_bh);
+	desc = kmap_local_folio(req->pr_desc_bh->b_folio, doff);
+
+	boff = nilfs_palloc_bitmap_offset(req->pr_bitmap_bh);
+	bitmap = kmap_local_folio(req->pr_bitmap_bh->b_folio, boff);
 	lock = nilfs_mdt_bgl_lock(inode, group);
 
 	if (!nilfs_clear_bit_atomic(lock, group_offset, bitmap))
@@ -633,8 +713,8 @@ void nilfs_palloc_commit_free_entry(struct inode *inode,
 	else
 		nilfs_palloc_group_desc_add_entries(desc, lock, 1);
 
-	kunmap_local(bitmap_kaddr);
-	kunmap_local(desc_kaddr);
+	kunmap_local(bitmap);
+	kunmap_local(desc);
 
 	mark_buffer_dirty(req->pr_desc_bh);
 	mark_buffer_dirty(req->pr_bitmap_bh);
@@ -653,17 +733,17 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
 				    struct nilfs_palloc_req *req)
 {
 	struct nilfs_palloc_group_desc *desc;
-	void *desc_kaddr, *bitmap_kaddr;
+	size_t doff, boff;
 	unsigned char *bitmap;
 	unsigned long group, group_offset;
 	spinlock_t *lock;
 
 	group = nilfs_palloc_group(inode, req->pr_entry_nr, &group_offset);
-	desc_kaddr = kmap_local_page(req->pr_desc_bh->b_page);
-	desc = nilfs_palloc_block_get_group_desc(inode, group,
-						 req->pr_desc_bh, desc_kaddr);
-	bitmap_kaddr = kmap_local_page(req->pr_bitmap_bh->b_page);
-	bitmap = bitmap_kaddr + bh_offset(req->pr_bitmap_bh);
+	doff = nilfs_palloc_group_desc_offset(inode, group, req->pr_desc_bh);
+	desc = kmap_local_folio(req->pr_desc_bh->b_folio, doff);
+
+	boff = nilfs_palloc_bitmap_offset(req->pr_bitmap_bh);
+	bitmap = kmap_local_folio(req->pr_bitmap_bh->b_folio, boff);
 	lock = nilfs_mdt_bgl_lock(inode, group);
 
 	if (!nilfs_clear_bit_atomic(lock, group_offset, bitmap))
@@ -674,8 +754,8 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
 	else
 		nilfs_palloc_group_desc_add_entries(desc, lock, 1);
 
-	kunmap_local(bitmap_kaddr);
-	kunmap_local(desc_kaddr);
+	kunmap_local(bitmap);
+	kunmap_local(desc);
 
 	brelse(req->pr_bitmap_bh);
 	brelse(req->pr_desc_bh);
@@ -689,6 +769,8 @@ void nilfs_palloc_abort_alloc_entry(struct inode *inode,
  * nilfs_palloc_prepare_free_entry - prepare to deallocate a persistent object
  * @inode: inode of metadata file using this allocator
  * @req: nilfs_palloc_req structure exchanged for the removal
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_palloc_prepare_free_entry(struct inode *inode,
 				    struct nilfs_palloc_req *req)
@@ -733,13 +815,15 @@ void nilfs_palloc_abort_free_entry(struct inode *inode,
  * @inode: inode of metadata file using this allocator
  * @entry_nrs: array of entry numbers to be deallocated
  * @nitems: number of entries stored in @entry_nrs
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 {
 	struct buffer_head *desc_bh, *bitmap_bh;
 	struct nilfs_palloc_group_desc *desc;
 	unsigned char *bitmap;
-	void *desc_kaddr, *bitmap_kaddr;
+	size_t doff, boff;
 	unsigned long group, group_offset;
 	__u64 group_min_nr, last_nrs[8];
 	const unsigned long epg = nilfs_palloc_entries_per_group(inode);
@@ -767,8 +851,8 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 		/* Get the first entry number of the group */
 		group_min_nr = (__u64)group * epg;
 
-		bitmap_kaddr = kmap_local_page(bitmap_bh->b_page);
-		bitmap = bitmap_kaddr + bh_offset(bitmap_bh);
+		boff = nilfs_palloc_bitmap_offset(bitmap_bh);
+		bitmap = kmap_local_folio(bitmap_bh->b_folio, boff);
 		lock = nilfs_mdt_bgl_lock(inode, group);
 
 		j = i;
@@ -813,7 +897,7 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 			entry_start = rounddown(group_offset, epb);
 		} while (true);
 
-		kunmap_local(bitmap_kaddr);
+		kunmap_local(bitmap);
 		mark_buffer_dirty(bitmap_bh);
 		brelse(bitmap_bh);
 
@@ -827,11 +911,10 @@ int nilfs_palloc_freev(struct inode *inode, __u64 *entry_nrs, size_t nitems)
 					   inode->i_ino);
 		}
 
-		desc_kaddr = kmap_local_page(desc_bh->b_page);
-		desc = nilfs_palloc_block_get_group_desc(
-			inode, group, desc_bh, desc_kaddr);
+		doff = nilfs_palloc_group_desc_offset(inode, group, desc_bh);
+		desc = kmap_local_folio(desc_bh->b_folio, doff);
 		nfree = nilfs_palloc_group_desc_add_entries(desc, lock, n);
-		kunmap_local(desc_kaddr);
+		kunmap_local(desc);
 		mark_buffer_dirty(desc_bh);
 		nilfs_mdt_mark_dirty(inode);
 		brelse(desc_bh);

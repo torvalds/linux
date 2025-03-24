@@ -81,32 +81,31 @@ do_syscall:
 	stp	x27, x28, [sp, #96]
 
 	// Set SVCR if we're doing SME
-	cbz	x1, 1f
+	cbz	x1, load_gpr
 	adrp	x2, svcr_in
 	ldr	x2, [x2, :lo12:svcr_in]
 	msr	S3_3_C4_C2_2, x2
-1:
 
 	// Load ZA and ZT0 if enabled - uses x12 as scratch due to SME LDR
-	tbz	x2, #SVCR_ZA_SHIFT, 1f
+	tbz	x2, #SVCR_ZA_SHIFT, load_gpr
 	mov	w12, #0
 	ldr	x2, =za_in
-2:	_ldr_za 12, 2
+1:	_ldr_za 12, 2
 	add	x2, x2, x1
 	add	x12, x12, #1
 	cmp	x1, x12
-	bne	2b
+	bne	1b
 
 	// ZT0
 	mrs	x2, S3_0_C0_C4_5	// ID_AA64SMFR0_EL1
 	ubfx	x2, x2, #ID_AA64SMFR0_EL1_SMEver_SHIFT, \
 			 #ID_AA64SMFR0_EL1_SMEver_WIDTH
-	cbz	x2, 1f
+	cbz	x2, load_gpr
 	adrp	x2, zt_in
 	add	x2, x2, :lo12:zt_in
 	_ldr_zt 2
-1:
 
+load_gpr:
 	// Load GPRs x8-x28, and save our SP/FP for later comparison
 	ldr	x2, =gpr_in
 	add	x2, x2, #64
@@ -125,9 +124,9 @@ do_syscall:
 	str	x30, [x2], #8		// LR
 
 	// Load FPRs if we're not doing neither SVE nor streaming SVE
-	cbnz	x0, 1f
+	cbnz	x0, check_sve_in
 	ldr	x2, =svcr_in
-	tbnz	x2, #SVCR_SM_SHIFT, 1f
+	tbnz	x2, #SVCR_SM_SHIFT, check_sve_in
 
 	ldr	x2, =fpr_in
 	ldp	q0, q1, [x2]
@@ -148,8 +147,8 @@ do_syscall:
 	ldp	q30, q31, [x2, #16 * 30]
 
 	b	2f
-1:
 
+check_sve_in:
 	// Load the SVE registers if we're doing SVE/SME
 
 	ldr	x2, =z_in
@@ -256,32 +255,31 @@ do_syscall:
 	stp	q30, q31, [x2, #16 * 30]
 
 	// Save SVCR if we're doing SME
-	cbz	x1, 1f
+	cbz	x1, check_sve_out
 	mrs	x2, S3_3_C4_C2_2
 	adrp	x3, svcr_out
 	str	x2, [x3, :lo12:svcr_out]
-1:
 
 	// Save ZA if it's enabled - uses x12 as scratch due to SME STR
-	tbz	x2, #SVCR_ZA_SHIFT, 1f
+	tbz	x2, #SVCR_ZA_SHIFT, check_sve_out
 	mov	w12, #0
 	ldr	x2, =za_out
-2:	_str_za 12, 2
+1:	_str_za 12, 2
 	add	x2, x2, x1
 	add	x12, x12, #1
 	cmp	x1, x12
-	bne	2b
+	bne	1b
 
 	// ZT0
 	mrs	x2, S3_0_C0_C4_5	// ID_AA64SMFR0_EL1
 	ubfx	x2, x2, #ID_AA64SMFR0_EL1_SMEver_SHIFT, \
 			#ID_AA64SMFR0_EL1_SMEver_WIDTH
-	cbz	x2, 1f
+	cbz	x2, check_sve_out
 	adrp	x2, zt_out
 	add	x2, x2, :lo12:zt_out
 	_str_zt 2
-1:
 
+check_sve_out:
 	// Save the SVE state if we have some
 	cbz	x0, 1f
 

@@ -27,6 +27,7 @@
 #include "xe_guc_relay.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"
+#include "xe_sriov_vf.h"
 #include "xe_uc_fw.h"
 #include "xe_wopcm.h"
 
@@ -221,6 +222,44 @@ int xe_gt_sriov_vf_bootstrap(struct xe_gt *gt)
 		return err;
 
 	return 0;
+}
+
+static int guc_action_vf_notify_resfix_done(struct xe_guc *guc)
+{
+	u32 request[GUC_HXG_REQUEST_MSG_MIN_LEN] = {
+		FIELD_PREP(GUC_HXG_MSG_0_ORIGIN, GUC_HXG_ORIGIN_HOST) |
+		FIELD_PREP(GUC_HXG_MSG_0_TYPE, GUC_HXG_TYPE_REQUEST) |
+		FIELD_PREP(GUC_HXG_REQUEST_MSG_0_ACTION, GUC_ACTION_VF2GUC_NOTIFY_RESFIX_DONE),
+	};
+	int ret;
+
+	ret = xe_guc_mmio_send(guc, request, ARRAY_SIZE(request));
+
+	return ret > 0 ? -EPROTO : ret;
+}
+
+/**
+ * xe_gt_sriov_vf_notify_resfix_done - Notify GuC about resource fixups apply completed.
+ * @gt: the &xe_gt struct instance linked to target GuC
+ *
+ * Returns: 0 if the operation completed successfully, or a negative error
+ * code otherwise.
+ */
+int xe_gt_sriov_vf_notify_resfix_done(struct xe_gt *gt)
+{
+	struct xe_guc *guc = &gt->uc.guc;
+	int err;
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+
+	err = guc_action_vf_notify_resfix_done(guc);
+	if (unlikely(err))
+		xe_gt_sriov_err(gt, "Failed to notify GuC about resource fixup done (%pe)\n",
+				ERR_PTR(err));
+	else
+		xe_gt_sriov_dbg_verbose(gt, "sent GuC resource fixup done\n");
+
+	return err;
 }
 
 static int guc_action_query_single_klv(struct xe_guc *guc, u32 key,
@@ -495,6 +534,25 @@ u64 xe_gt_sriov_vf_lmem(struct xe_gt *gt)
 	return gt->sriov.vf.self_config.lmem_size;
 }
 
+static struct xe_ggtt_node *
+vf_balloon_ggtt_node(struct xe_ggtt *ggtt, u64 start, u64 end)
+{
+	struct xe_ggtt_node *node;
+	int err;
+
+	node = xe_ggtt_node_init(ggtt);
+	if (IS_ERR(node))
+		return node;
+
+	err = xe_ggtt_node_insert_balloon(node, start, end);
+	if (err) {
+		xe_ggtt_node_fini(node);
+		return ERR_PTR(err);
+	}
+
+	return node;
+}
+
 static int vf_balloon_ggtt(struct xe_gt *gt)
 {
 	struct xe_gt_sriov_vf_selfconfig *config = &gt->sriov.vf.self_config;
@@ -502,7 +560,6 @@ static int vf_balloon_ggtt(struct xe_gt *gt)
 	struct xe_ggtt *ggtt = tile->mem.ggtt;
 	struct xe_device *xe = gt_to_xe(gt);
 	u64 start, end;
-	int err;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(xe));
 	xe_gt_assert(gt, !xe_gt_is_media_type(gt));
@@ -528,35 +585,31 @@ static int vf_balloon_ggtt(struct xe_gt *gt)
 	start = xe_wopcm_size(xe);
 	end = config->ggtt_base;
 	if (end != start) {
-		err = xe_ggtt_balloon(ggtt, start, end, &tile->sriov.vf.ggtt_balloon[0]);
-		if (err)
-			goto failed;
+		tile->sriov.vf.ggtt_balloon[0] = vf_balloon_ggtt_node(ggtt, start, end);
+		if (IS_ERR(tile->sriov.vf.ggtt_balloon[0]))
+			return PTR_ERR(tile->sriov.vf.ggtt_balloon[0]);
 	}
 
 	start = config->ggtt_base + config->ggtt_size;
 	end = GUC_GGTT_TOP;
 	if (end != start) {
-		err = xe_ggtt_balloon(ggtt, start, end, &tile->sriov.vf.ggtt_balloon[1]);
-		if (err)
-			goto deballoon;
+		tile->sriov.vf.ggtt_balloon[1] = vf_balloon_ggtt_node(ggtt, start, end);
+		if (IS_ERR(tile->sriov.vf.ggtt_balloon[1])) {
+			xe_ggtt_node_remove_balloon(tile->sriov.vf.ggtt_balloon[0]);
+			return PTR_ERR(tile->sriov.vf.ggtt_balloon[1]);
+		}
 	}
 
 	return 0;
-
-deballoon:
-	xe_ggtt_deballoon(ggtt, &tile->sriov.vf.ggtt_balloon[0]);
-failed:
-	return err;
 }
 
 static void deballoon_ggtt(struct drm_device *drm, void *arg)
 {
 	struct xe_tile *tile = arg;
-	struct xe_ggtt *ggtt = tile->mem.ggtt;
 
 	xe_tile_assert(tile, IS_SRIOV_VF(tile_to_xe(tile)));
-	xe_ggtt_deballoon(ggtt, &tile->sriov.vf.ggtt_balloon[1]);
-	xe_ggtt_deballoon(ggtt, &tile->sriov.vf.ggtt_balloon[0]);
+	xe_ggtt_node_remove_balloon(tile->sriov.vf.ggtt_balloon[1]);
+	xe_ggtt_node_remove_balloon(tile->sriov.vf.ggtt_balloon[0]);
 }
 
 /**
@@ -676,6 +729,30 @@ int xe_gt_sriov_vf_connect(struct xe_gt *gt)
 failed:
 	xe_gt_sriov_err(gt, "Failed to get version info (%pe)\n", ERR_PTR(err));
 	return err;
+}
+
+/**
+ * xe_gt_sriov_vf_migrated_event_handler - Start a VF migration recovery,
+ *   or just mark that a GuC is ready for it.
+ * @gt: the &xe_gt struct instance linked to target GuC
+ *
+ * This function shall be called only by VF.
+ */
+void xe_gt_sriov_vf_migrated_event_handler(struct xe_gt *gt)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+
+	xe_gt_assert(gt, IS_SRIOV_VF(xe));
+
+	set_bit(gt->info.id, &xe->sriov.vf.migration.gt_flags);
+	/*
+	 * We need to be certain that if all flags were set, at least one
+	 * thread will notice that and schedule the recovery.
+	 */
+	smp_mb__after_atomic();
+
+	xe_gt_sriov_info(gt, "ready for recovery after migration\n");
+	xe_sriov_vf_start_migration_recovery(xe);
 }
 
 static bool vf_is_negotiated(struct xe_gt *gt, u16 major, u16 minor)
@@ -850,7 +927,7 @@ static struct vf_runtime_reg *vf_lookup_reg(struct xe_gt *gt, u32 addr)
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
 
-	return bsearch(&key, runtime->regs, runtime->regs_size, sizeof(key),
+	return bsearch(&key, runtime->regs, runtime->num_regs, sizeof(key),
 		       vf_runtime_reg_cmp);
 }
 
@@ -867,7 +944,7 @@ static struct vf_runtime_reg *vf_lookup_reg(struct xe_gt *gt, u32 addr)
  */
 u32 xe_gt_sriov_vf_read32(struct xe_gt *gt, struct xe_reg reg)
 {
-	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	u32 addr = xe_mmio_adjusted_addr(&gt->mmio, reg.addr);
 	struct vf_runtime_reg *rr;
 
 	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
@@ -890,6 +967,32 @@ u32 xe_gt_sriov_vf_read32(struct xe_gt *gt, struct xe_reg reg)
 
 	xe_gt_sriov_dbg_verbose(gt, "runtime[%#x] = %#x\n", addr, rr->value);
 	return rr->value;
+}
+
+/**
+ * xe_gt_sriov_vf_write32 - Handle a write to an inaccessible register.
+ * @gt: the &xe_gt
+ * @reg: the register to write
+ * @val: value to write
+ *
+ * This function is for VF use only.
+ * Currently it will trigger a WARN if running on debug build.
+ */
+void xe_gt_sriov_vf_write32(struct xe_gt *gt, struct xe_reg reg, u32 val)
+{
+	u32 addr = xe_mmio_adjusted_addr(&gt->mmio, reg.addr);
+
+	xe_gt_assert(gt, IS_SRIOV_VF(gt_to_xe(gt)));
+	xe_gt_assert(gt, !reg.vf);
+
+	/*
+	 * In the future, we may want to handle selected writes to inaccessible
+	 * registers in some custom way, but for now let's just log a warning
+	 * about such attempt, as likely we might be doing something wrong.
+	 */
+	xe_gt_WARN(gt, IS_ENABLED(CONFIG_DRM_XE_DEBUG),
+		   "VF is trying to write %#x to an inaccessible register %#x+%#x\n",
+		   val, reg.addr, addr - reg.addr);
 }
 
 /**

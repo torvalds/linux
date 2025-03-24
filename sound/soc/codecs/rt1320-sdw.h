@@ -18,6 +18,7 @@
 #define RT1320_DEV_VERSION_ID_1 0xc404
 
 #define RT1320_KR0_STATUS_CNT 0x1000f008
+#define RT1320_KR0_INT_READY 0x1000f021
 #define RT1320_HIFI_VER_0 0x3fe2e000
 #define RT1320_HIFI_VER_1 0x3fe2e001
 #define RT1320_HIFI_VER_2 0x3fe2e002
@@ -25,6 +26,7 @@
 
 /* RT1320 SDCA Control - function number */
 #define FUNC_NUM_AMP 0x04
+#define FUNC_NUM_MIC 0x02
 
 /* RT1320 SDCA entity */
 #define RT1320_SDCA_ENT0 0x00
@@ -43,6 +45,7 @@
 /* RT1320 SDCA control */
 #define RT1320_SDCA_CTL_SAMPLE_FREQ_INDEX 0x10
 #define RT1320_SDCA_CTL_REQ_POWER_STATE 0x01
+#define RT1320_SDCA_CTL_ACTUAL_POWER_STATE 0x10
 #define RT1320_SDCA_CTL_FU_MUTE 0x01
 #define RT1320_SDCA_CTL_FU_VOLUME 0x02
 #define RT1320_SDCA_CTL_SAPU_PROTECTION_MODE 0x10
@@ -67,6 +70,7 @@
 
 enum {
 	RT1320_AIF1,
+	RT1320_AIF2,
 };
 
 /*
@@ -76,9 +80,12 @@ enum {
 enum rt1320_version_id {
 	RT1320_VA,
 	RT1320_VB,
+	RT1320_VC,
 };
 
 #define RT1320_VER_B_ID 0x07392238
+#define RT1320_VAB_MCU_PATCH "realtek/rt1320/rt1320-patch-code-vab.bin"
+#define RT1320_VC_MCU_PATCH "realtek/rt1320/rt1320-patch-code-vc.bin"
 
 struct rt1320_sdw_priv {
 	struct snd_soc_component *component;
@@ -89,6 +96,8 @@ struct rt1320_sdw_priv {
 	bool hw_init;
 	bool first_hw_init;
 	int version_id;
+	bool fu_dapm_mute;
+	bool fu_mixer_mute[4];
 };
 
 #endif /* __RT1320_SDW_H__ */

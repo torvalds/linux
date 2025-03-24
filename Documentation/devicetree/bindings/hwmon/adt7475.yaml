@@ -45,11 +45,30 @@ properties:
       the pwm uses a logic low output for 100% duty cycle. If set to 1 the pwm
       uses a logic high output for 100% duty cycle.
     $ref: /schemas/types.yaml#/definitions/uint32-array
+    deprecated: true
     minItems: 3
     maxItems: 3
     items:
       enum: [0, 1]
       default: 1
+
+  "#pwm-cells":
+    const: 4
+    description: |
+      Number of cells in a PWM specifier.
+      - 0: The PWM channel
+      - 1: The PWM period in nanoseconds
+           - 90909091 (11 Hz)
+           - 71428571 (14 Hz)
+           - 45454545 (22 Hz)
+           - 34482759 (29 Hz)
+           - 28571429 (35 Hz)
+           - 22727273 (44 Hz)
+           - 17241379 (58 Hz)
+           - 11363636 (88 Hz)
+           - 44444 (22 kHz)
+      - 2: PWM flags 0 or PWM_POLARITY_INVERTED
+      - 3: The default PWM duty cycle in nanoseconds
 
 patternProperties:
   "^adi,bypass-attenuator-in[0-4]$":
@@ -81,6 +100,10 @@ patternProperties:
       - smbalert#
       - gpio
 
+  "^fan-[0-9]+$":
+    $ref: fan-common.yaml#
+    unevaluatedProperties: false
+
 required:
   - compatible
   - reg
@@ -89,17 +112,27 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/pwm/pwm.h>
     i2c {
       #address-cells = <1>;
       #size-cells = <0>;
 
-      hwmon@2e {
+      pwm: hwmon@2e {
         compatible = "adi,adt7476";
         reg = <0x2e>;
         adi,bypass-attenuator-in0 = <1>;
         adi,bypass-attenuator-in1 = <0>;
-        adi,pwm-active-state = <1 0 1>;
         adi,pin10-function = "smbalert#";
         adi,pin14-function = "tach4";
+        #pwm-cells = <4>;
+
+        /* PWMs at 22.5 kHz frequency, 50% duty*/
+        fan-0 {
+          pwms = <&pwm 0 44444 0 22222>;
+        };
+
+        fan-1 {
+          pwms = <&pwm 2 44444 0 22222>;
+        };
       };
     };

@@ -58,10 +58,21 @@ struct xe_guc {
 	struct xe_guc_ads ads;
 	/** @ct: GuC ct */
 	struct xe_guc_ct ct;
+	/** @capture: the error-state-capture module's data and objects */
+	struct xe_guc_state_capture *capture;
 	/** @pc: GuC Power Conservation */
 	struct xe_guc_pc pc;
 	/** @dbm: GuC Doorbell Manager */
 	struct xe_guc_db_mgr dbm;
+
+	/** @g2g: GuC to GuC communication state */
+	struct {
+		/** @g2g.bo: Storage for GuC to GuC communication channels */
+		struct xe_bo *bo;
+		/** @g2g.owned: Is the BO owned by this GT or just mapped in */
+		bool owned;
+	} g2g;
+
 	/** @submission_state: GuC submission state */
 	struct {
 		/** @submission_state.idm: GuC context ID Manager */
@@ -72,16 +83,12 @@ struct xe_guc {
 		atomic_t stopped;
 		/** @submission_state.lock: protects submission state */
 		struct mutex lock;
-#ifdef CONFIG_PROVE_LOCKING
-#define NUM_SUBMIT_WQ	256
-		/** @submission_state.submit_wq_pool: submission ordered workqueues pool */
-		struct workqueue_struct *submit_wq_pool[NUM_SUBMIT_WQ];
-		/** @submission_state.submit_wq_idx: submission ordered workqueue index */
-		int submit_wq_idx;
-#endif
 		/** @submission_state.enabled: submission is enabled */
 		bool enabled;
+		/** @submission_state.fini_wq: submit fini wait queue */
+		wait_queue_head_t fini_wq;
 	} submission_state;
+
 	/** @hwconfig: Hardware config state */
 	struct {
 		/** @hwconfig.bo: buffer object of the hardware config */

@@ -1,0 +1,14 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+
+{% if annotate %}
+/* enum {{ name }} (big-endian) */
+{% endif %}
+{% if name in public_apis %}
+bool
+{% else %}
+static bool __maybe_unused
+{% endif %}
+xdrgen_encode_{{ name }}(struct xdr_stream *xdr, {{ name }} value)
+{
+	return xdr_stream_encode_be32(xdr, value) == XDR_UNIT;
+}

@@ -485,6 +485,104 @@ static int jbd2_block_tag_csum_verify(journal_t *j, journal_block_tag_t *tag,
 		return tag->t_checksum == cpu_to_be16(csum32);
 }
 
+static __always_inline int jbd2_do_replay(journal_t *journal,
+					  struct recovery_info *info,
+					  struct buffer_head *bh,
+					  unsigned long *next_log_block,
+					  unsigned int next_commit_ID)
+{
+	char *tagp;
+	int flags;
+	int ret = 0;
+	int tag_bytes = journal_tag_bytes(journal);
+	int descr_csum_size = 0;
+	unsigned long io_block;
+	journal_block_tag_t tag;
+	struct buffer_head *obh;
+	struct buffer_head *nbh;
+
+	if (jbd2_journal_has_csum_v2or3(journal))
+		descr_csum_size = sizeof(struct jbd2_journal_block_tail);
+
+	tagp = &bh->b_data[sizeof(journal_header_t)];
+	while (tagp - bh->b_data + tag_bytes <=
+	       journal->j_blocksize - descr_csum_size) {
+		int err;
+
+		memcpy(&tag, tagp, sizeof(tag));
+		flags = be16_to_cpu(tag.t_flags);
+
+		io_block = (*next_log_block)++;
+		wrap(journal, *next_log_block);
+		err = jread(&obh, journal, io_block);
+		if (err) {
+			/* Recover what we can, but report failure at the end. */
+			ret = err;
+			pr_err("JBD2: IO error %d recovering block %lu in log\n",
+			      err, io_block);
+		} else {
+			unsigned long long blocknr;
+
+			J_ASSERT(obh != NULL);
+			blocknr = read_tag_block(journal, &tag);
+
+			/* If the block has been revoked, then we're all done here. */
+			if (jbd2_journal_test_revoke(journal, blocknr,
+						     next_commit_ID)) {
+				brelse(obh);
+				++info->nr_revoke_hits;
+				goto skip_write;
+			}
+
+			/* Look for block corruption */
+			if (!jbd2_block_tag_csum_verify(journal, &tag,
+					(journal_block_tag3_t *)tagp,
+					obh->b_data, next_commit_ID)) {
+				brelse(obh);
+				ret = -EFSBADCRC;
+				pr_err("JBD2: Invalid checksum recovering data block %llu in journal block %lu\n",
+				      blocknr, io_block);
+				goto skip_write;
+			}
+
+			/* Find a buffer for the new data being restored */
+			nbh = __getblk(journal->j_fs_dev, blocknr,
+				       journal->j_blocksize);
+			if (nbh == NULL) {
+				pr_err("JBD2: Out of memory during recovery.\n");
+				brelse(obh);
+				return -ENOMEM;
+			}
+
+			lock_buffer(nbh);
+			memcpy(nbh->b_data, obh->b_data, journal->j_blocksize);
+			if (flags & JBD2_FLAG_ESCAPE) {
+				*((__be32 *)nbh->b_data) =
+				cpu_to_be32(JBD2_MAGIC_NUMBER);
+			}
+
+			BUFFER_TRACE(nbh, "marking dirty");
+			set_buffer_uptodate(nbh);
+			mark_buffer_dirty(nbh);
+			BUFFER_TRACE(nbh, "marking uptodate");
+			++info->nr_replays;
+			unlock_buffer(nbh);
+			brelse(obh);
+			brelse(nbh);
+		}
+
+skip_write:
+		tagp += tag_bytes;
+		if (!(flags & JBD2_FLAG_SAME_UUID))
+			tagp += 16;
+
+		if (flags & JBD2_FLAG_LAST_TAG)
+			break;
+	}
+
+	return ret;
+}
+
 static int do_one_pass(journal_t *journal,
 			struct recovery_info *info, enum passtype pass)
 {
@@ -493,13 +591,10 @@ static int do_one_pass(journal_t *journal,
 	int			err, success = 0;
 	journal_superblock_t *	sb;
 	journal_header_t *	tmp;
-	struct buffer_head *	bh;
+	struct buffer_head	*bh = NULL;
 	unsigned int		sequence;
 	int			blocktype;
-	int			tag_bytes = journal_tag_bytes(journal);
 	__u32			crc32_sum = ~0; /* Transactional Checksums */
-	int			descr_csum_size = 0;
-	int			block_error = 0;
 	bool			need_check_commit_time = false;
 	__u64			last_trans_commit_time = 0, commit_time;
 
@@ -528,12 +623,6 @@ static int do_one_pass(journal_t *journal,
 	 */
 
 	while (1) {
-		int			flags;
-		char *			tagp;
-		journal_block_tag_t	tag;
-		struct buffer_head *	obh;
-		struct buffer_head *	nbh;
-
 		cond_resched();
 
 		/* If we already know where to stop the log traversal,
@@ -552,6 +641,8 @@ static int do_one_pass(journal_t *journal,
 		 * record. */
 
 		jbd2_debug(3, "JBD2: checking block %ld\n", next_log_block);
+		brelse(bh);
+		bh = NULL;
 		err = jread(&bh, journal, next_log_block);
 		if (err)
 			goto failed;
@@ -567,20 +658,16 @@ static int do_one_pass(journal_t *journal,
 
 		tmp = (journal_header_t *)bh->b_data;
 
-		if (tmp->h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER)) {
-			brelse(bh);
+		if (tmp->h_magic != cpu_to_be32(JBD2_MAGIC_NUMBER))
 			break;
-		}
 
 		blocktype = be32_to_cpu(tmp->h_blocktype);
 		sequence = be32_to_cpu(tmp->h_sequence);
 		jbd2_debug(3, "Found magic %d, sequence %d\n",
 			  blocktype, sequence);
 
-		if (sequence != next_commit_ID) {
-			brelse(bh);
+		if (sequence != next_commit_ID)
 			break;
-		}
 
 		/* OK, we have a valid descriptor block which matches
 		 * all of the sequence number checks.  What are we going
@@ -589,11 +676,7 @@ static int do_one_pass(journal_t *journal,
 		switch(blocktype) {
 		case JBD2_DESCRIPTOR_BLOCK:
 			/* Verify checksum first */
-			if (jbd2_journal_has_csum_v2or3(journal))
-				descr_csum_size =
-					sizeof(struct jbd2_journal_block_tail);
-			if (descr_csum_size > 0 &&
-			    !jbd2_descriptor_block_csum_verify(journal,
+			if (!jbd2_descriptor_block_csum_verify(journal,
 							       bh->b_data)) {
 				/*
 				 * PASS_SCAN can see stale blocks due to lazy
@@ -603,7 +686,6 @@ static int do_one_pass(journal_t *journal,
 					pr_err("JBD2: Invalid checksum recovering block %lu in log\n",
 					       next_log_block);
 					err = -EFSBADCRC;
-					brelse(bh);
 					goto failed;
 				}
 				need_check_commit_time = true;
@@ -619,125 +701,39 @@ static int do_one_pass(journal_t *journal,
 			if (pass != PASS_REPLAY) {
 				if (pass == PASS_SCAN &&
 				    jbd2_has_feature_checksum(journal) &&
-				    !need_check_commit_time &&
 				    !info->end_transaction) {
 					if (calc_chksums(journal, bh,
 							&next_log_block,
-							&crc32_sum)) {
-						put_bh(bh);
+							&crc32_sum))
 						break;
-					}
-					put_bh(bh);
 					continue;
 				}
 				next_log_block += count_tags(journal, bh);
 				wrap(journal, next_log_block);
-				put_bh(bh);
 				continue;
 			}
 
-			/* A descriptor block: we can now write all of
-			 * the data blocks.  Yay, useful work is finally
-			 * getting done here! */
-
-			tagp = &bh->b_data[sizeof(journal_header_t)];
-			while ((tagp - bh->b_data + tag_bytes)
-			       <= journal->j_blocksize - descr_csum_size) {
-				unsigned long io_block;
-
-				memcpy(&tag, tagp, sizeof(tag));
-				flags = be16_to_cpu(tag.t_flags);
-
-				io_block = next_log_block++;
-				wrap(journal, next_log_block);
-				err = jread(&obh, journal, io_block);
-				if (err) {
-					/* Recover what we can, but
-					 * report failure at the end. */
-					success = err;
-					printk(KERN_ERR
-						"JBD2: IO error %d recovering "
-						"block %lu in log\n",
-						err, io_block);
-				} else {
-					unsigned long long blocknr;
-
-					J_ASSERT(obh != NULL);
-					blocknr = read_tag_block(journal,
-								 &tag);
-
-					/* If the block has been
-					 * revoked, then we're all done
-					 * here. */
-					if (jbd2_journal_test_revoke
-					    (journal, blocknr,
-					     next_commit_ID)) {
-						brelse(obh);
-						++info->nr_revoke_hits;
-						goto skip_write;
-					}
-
-					/* Look for block corruption */
-					if (!jbd2_block_tag_csum_verify(
-			journal, &tag, (journal_block_tag3_t *)tagp,
-			obh->b_data, be32_to_cpu(tmp->h_sequence))) {
-						brelse(obh);
-						success = -EFSBADCRC;
-						printk(KERN_ERR "JBD2: Invalid "
-						       "checksum recovering "
-						       "data block %llu in "
-						       "journal block %lu\n",
-						       blocknr, io_block);
-						block_error = 1;
-						goto skip_write;
-					}
-
-					/* Find a buffer for the new
-					 * data being restored */
-					nbh = __getblk(journal->j_fs_dev,
-							blocknr,
-							journal->j_blocksize);
-					if (nbh == NULL) {
-						printk(KERN_ERR
-						       "JBD2: Out of memory "
-						       "during recovery.\n");
-						err = -ENOMEM;
-						brelse(bh);
-						brelse(obh);
-						goto failed;
-					}
-
-					lock_buffer(nbh);
-					memcpy(nbh->b_data, obh->b_data,
-							journal->j_blocksize);
-					if (flags & JBD2_FLAG_ESCAPE) {
-						*((__be32 *)nbh->b_data) =
-						cpu_to_be32(JBD2_MAGIC_NUMBER);
-					}
-
-					BUFFER_TRACE(nbh, "marking dirty");
-					set_buffer_uptodate(nbh);
-					mark_buffer_dirty(nbh);
-					BUFFER_TRACE(nbh, "marking uptodate");
-					++info->nr_replays;
-					unlock_buffer(nbh);
-					brelse(obh);
-					brelse(nbh);
-				}
-
-			skip_write:
-				tagp += tag_bytes;
-				if (!(flags & JBD2_FLAG_SAME_UUID))
-					tagp += 16;
-
-				if (flags & JBD2_FLAG_LAST_TAG)
-					break;
+			/*
+			 * A descriptor block: we can now write all of the
+			 * data blocks. Yay, useful work is finally getting
+			 * done here!
+			 */
+			err = jbd2_do_replay(journal, info, bh, &next_log_block,
+					     next_commit_ID);
+			if (err) {
+				if (err == -ENOMEM)
+					goto failed;
+				success = err;
 			}
 
-			brelse(bh);
 			continue;
 
 		case JBD2_COMMIT_BLOCK:
+			if (pass != PASS_SCAN) {
+				next_commit_ID++;
+				continue;
+			}
+
 			/*     How to differentiate between interrupted commit
 			 *               and journal corruption ?
 			 *
@@ -782,7 +778,6 @@ static int do_one_pass(journal_t *journal,
 					pr_err("JBD2: Invalid checksum found in transaction %u\n",
 					       next_commit_ID);
 					err = -EFSBADCRC;
-					brelse(bh);
 					goto failed;
 				}
 			ignore_crc_mismatch:
@@ -792,7 +787,6 @@ static int do_one_pass(journal_t *journal,
 				 */
 				jbd2_debug(1, "JBD2: Invalid checksum ignored in transaction %u, likely stale data\n",
 					  next_commit_ID);
-				brelse(bh);
 				goto done;
 			}
 
@@ -802,8 +796,7 @@ static int do_one_pass(journal_t *journal,
 			 * much to do other than move on to the next sequence
 			 * number.
 			 */
-			if (pass == PASS_SCAN &&
-			    jbd2_has_feature_checksum(journal)) {
+			if (jbd2_has_feature_checksum(journal)) {
 				struct commit_header *cbh =
 					(struct commit_header *)bh->b_data;
 				unsigned found_chksum =
@@ -812,7 +805,6 @@ static int do_one_pass(journal_t *journal,
 				if (info->end_transaction) {
 					journal->j_failed_commit =
 						info->end_transaction;
-					brelse(bh);
 					break;
 				}
 
@@ -828,36 +820,33 @@ static int do_one_pass(journal_t *journal,
 					goto chksum_error;
 
 				crc32_sum = ~0;
+				goto chksum_ok;
 			}
-			if (pass == PASS_SCAN &&
-			    !jbd2_commit_block_csum_verify(journal,
-							   bh->b_data)) {
-				if (jbd2_commit_block_csum_verify_partial(
-								  journal,
-								  bh->b_data)) {
-					pr_notice("JBD2: Find incomplete commit block in transaction %u block %lu\n",
-						  next_commit_ID, next_log_block);
-					goto chksum_ok;
-				}
-			chksum_error:
-				if (commit_time < last_trans_commit_time)
-					goto ignore_crc_mismatch;
-				info->end_transaction = next_commit_ID;
-				info->head_block = head_block;
 
-				if (!jbd2_has_feature_async_commit(journal)) {
-					journal->j_failed_commit =
-						next_commit_ID;
-					brelse(bh);
-					break;
-				}
+			if (jbd2_commit_block_csum_verify(journal, bh->b_data))
+				goto chksum_ok;
+
+			if (jbd2_commit_block_csum_verify_partial(journal,
+								  bh->b_data)) {
+				pr_notice("JBD2: Find incomplete commit block in transaction %u block %lu\n",
+					  next_commit_ID, next_log_block);
+				goto chksum_ok;
 			}
-			if (pass == PASS_SCAN) {
-			chksum_ok:
-				last_trans_commit_time = commit_time;
-				head_block = next_log_block;
+
+chksum_error:
+			if (commit_time < last_trans_commit_time)
+				goto ignore_crc_mismatch;
+			info->end_transaction = next_commit_ID;
+			info->head_block = head_block;
+
+			if (!jbd2_has_feature_async_commit(journal)) {
+				journal->j_failed_commit = next_commit_ID;
+				break;
 			}
-			brelse(bh);
+
+chksum_ok:
+			last_trans_commit_time = commit_time;
+			head_block = next_log_block;
 			next_commit_ID++;
 			continue;
 
@@ -876,14 +865,11 @@ static int do_one_pass(journal_t *journal,
 
 			/* If we aren't in the REVOKE pass, then we can
 			 * just skip over this block. */
-			if (pass != PASS_REVOKE) {
-				brelse(bh);
+			if (pass != PASS_REVOKE)
 				continue;
-			}
 
 			err = scan_revoke_records(journal, bh,
 						  next_commit_ID, info);
-			brelse(bh);
 			if (err)
 				goto failed;
 			continue;
@@ -891,12 +877,12 @@ static int do_one_pass(journal_t *journal,
 		default:
 			jbd2_debug(3, "Unrecognised magic %d, end of scan.\n",
 				  blocktype);
-			brelse(bh);
 			goto done;
 		}
 	}
 
  done:
+	brelse(bh);
 	/*
 	 * We broke out of the log scan loop: either we came to the
 	 * known end of the log or we found an unexpected block in the
@@ -927,11 +913,10 @@ static int do_one_pass(journal_t *journal,
 			success = err;
 	}
 
-	if (block_error && success == 0)
-		success = -EIO;
 	return success;
 
  failed:
+	brelse(bh);
 	return err;
 }
 

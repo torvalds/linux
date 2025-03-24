@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Advanced Micro Devices, Inc.
+# Copyright 2017-2024 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -39,23 +39,7 @@ ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_DISPLAY_PATH)/amdgpu_dm \
 	-I$(FULL_AMD_PATH)/amdkfd
 
-subdir-ccflags-y := -Wextra
-subdir-ccflags-y += -Wunused
-subdir-ccflags-y += -Wmissing-prototypes
-subdir-ccflags-y += -Wmissing-declarations
-subdir-ccflags-y += -Wmissing-include-dirs
-subdir-ccflags-y += -Wold-style-definition
-subdir-ccflags-y += -Wmissing-format-attribute
-# Need this to avoid recursive variable evaluation issues
-cond-flags := $(call cc-option, -Wunused-but-set-variable) \
-	$(call cc-option, -Wunused-const-variable) \
-	$(call cc-option, -Wstringop-truncation) \
-	$(call cc-option, -Wpacked-not-aligned)
-subdir-ccflags-y += $(cond-flags)
-subdir-ccflags-y += -Wno-unused-parameter
-subdir-ccflags-y += -Wno-type-limits
-subdir-ccflags-y += -Wno-sign-compare
-subdir-ccflags-y += -Wno-missing-field-initializers
+# Locally disable W=1 warnings enabled in drm subsystem Makefile
 subdir-ccflags-y += -Wno-override-init
 subdir-ccflags-$(CONFIG_DRM_AMDGPU_WERROR) += -Werror
 
@@ -121,7 +105,7 @@ amdgpu-y += \
 
 # add UMC block
 amdgpu-y += \
-	umc_v6_0.o umc_v6_1.o umc_v6_7.o umc_v8_7.o umc_v8_10.o umc_v12_0.o
+	umc_v6_0.o umc_v6_1.o umc_v6_7.o umc_v8_7.o umc_v8_10.o umc_v12_0.o umc_v8_14.o
 
 # add IH block
 amdgpu-y += \
@@ -216,6 +200,7 @@ amdgpu-y += \
 	vcn_v4_0_3.o \
 	vcn_v4_0_5.o \
 	vcn_v5_0_0.o \
+	vcn_v5_0_1.o \
 	amdgpu_jpeg.o \
 	jpeg_v1_0.o \
 	jpeg_v2_0.o \
@@ -224,7 +209,8 @@ amdgpu-y += \
 	jpeg_v4_0.o \
 	jpeg_v4_0_3.o \
 	jpeg_v4_0_5.o \
-	jpeg_v5_0_0.o
+	jpeg_v5_0_0.o \
+	jpeg_v5_0_1.o
 
 # add VPE block
 amdgpu-y += \

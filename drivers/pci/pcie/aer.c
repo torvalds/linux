@@ -180,7 +180,8 @@ static int disable_ecrc_checking(struct pci_dev *dev)
 }
 
 /**
- * pcie_set_ecrc_checking - set/unset PCIe ECRC checking for a device based on global policy
+ * pcie_set_ecrc_checking - set/unset PCIe ECRC checking for a device based
+ * on global policy
  * @dev: the PCI device
  */
 void pcie_set_ecrc_checking(struct pci_dev *dev)
@@ -230,7 +231,7 @@ int pcie_aer_is_native(struct pci_dev *dev)
 
 	return pcie_ports_native || host->native_aer;
 }
-EXPORT_SYMBOL_NS_GPL(pcie_aer_is_native, CXL);
+EXPORT_SYMBOL_NS_GPL(pcie_aer_is_native, "CXL");
 
 static int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 {
@@ -664,12 +665,6 @@ static void pci_rootport_aer_stats_incr(struct pci_dev *pdev,
 	}
 }
 
-static void __print_tlp_header(struct pci_dev *dev, struct pcie_tlp_log *t)
-{
-	pci_err(dev, "  TLP Header: %08x %08x %08x %08x\n",
-		t->dw[0], t->dw[1], t->dw[2], t->dw[3]);
-}
-
 static void __aer_print_error(struct pci_dev *dev,
 			      struct aer_err_info *info)
 {
@@ -724,7 +719,7 @@ void aer_print_error(struct pci_dev *dev, struct aer_err_info *info)
 	__aer_print_error(dev, info);
 
 	if (info->tlp_header_valid)
-		__print_tlp_header(dev, &info->tlp);
+		pcie_print_tlp_log(dev, &info->tlp, dev_fmt("  "));
 
 out:
 	if (info->id && info->error_dev_num > 1 && info->id == id)
@@ -796,12 +791,12 @@ void pci_print_aer(struct pci_dev *dev, int aer_severity,
 			aer->uncor_severity);
 
 	if (tlp_header_valid)
-		__print_tlp_header(dev, &aer->header_log);
+		pcie_print_tlp_log(dev, &aer->header_log, dev_fmt("  "));
 
 	trace_aer_event(dev_name(&dev->dev), (status & ~mask),
 			aer_severity, tlp_header_valid, &aer->header_log);
 }
-EXPORT_SYMBOL_NS_GPL(pci_print_aer, CXL);
+EXPORT_SYMBOL_NS_GPL(pci_print_aer, "CXL");
 
 /**
  * add_error_device - list device to be handled
@@ -1148,14 +1143,16 @@ static void aer_recover_work_func(struct work_struct *work)
 			continue;
 		}
 		pci_print_aer(pdev, entry.severity, entry.regs);
+
 		/*
-		 * Memory for aer_capability_regs(entry.regs) is being allocated from the
-		 * ghes_estatus_pool to protect it from overwriting when multiple sections
-		 * are present in the error status. Thus free the same after processing
-		 * the data.
+		 * Memory for aer_capability_regs(entry.regs) is being
+		 * allocated from the ghes_estatus_pool to protect it from
+		 * overwriting when multiple sections are present in the
+		 * error status. Thus free the same after processing the
+		 * data.
 		 */
 		ghes_estatus_pool_region_free((unsigned long)entry.regs,
-					      sizeof(struct aer_capability_regs));
+					    sizeof(struct aer_capability_regs));
 
 		if (entry.severity == AER_NONFATAL)
 			pcie_do_recovery(pdev, pci_channel_io_normal,
@@ -1245,7 +1242,10 @@ int aer_get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 
 		if (info->status & AER_LOG_TLP_MASKS) {
 			info->tlp_header_valid = 1;
-			pcie_read_tlp_log(dev, aer + PCI_ERR_HEADER_LOG, &info->tlp);
+			pcie_read_tlp_log(dev, aer + PCI_ERR_HEADER_LOG,
+					  aer + PCI_ERR_PREFIX_LOG,
+					  aer_tlp_log_len(dev, aercc),
+					  &info->tlp);
 		}
 	}
 

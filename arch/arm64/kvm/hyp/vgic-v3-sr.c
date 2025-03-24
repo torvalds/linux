@@ -268,8 +268,16 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 	 * starting to mess with the rest of the GIC, and VMCR_EL2 in
 	 * particular.  This logic must be called before
 	 * __vgic_v3_restore_state().
+	 *
+	 * However, if the vgic is disabled (ICH_HCR_EL2.EN==0), no GIC is
+	 * provisioned at all. In order to prevent illegal accesses to the
+	 * system registers to trap to EL1 (duh), force ICC_SRE_EL1.SRE to 1
+	 * so that the trap bits can take effect. Yes, we *loves* the GIC.
 	 */
-	if (!cpu_if->vgic_sre) {
+	if (!(cpu_if->vgic_hcr & ICH_HCR_EN)) {
+		write_gicreg(ICC_SRE_EL1_SRE, ICC_SRE_EL1);
+		isb();
+	} else if (!cpu_if->vgic_sre) {
 		write_gicreg(0, ICC_SRE_EL1);
 		isb();
 		write_gicreg(cpu_if->vgic_vmcr, ICH_VMCR_EL2);
@@ -288,8 +296,9 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 	}
 
 	/*
-	 * Prevent the guest from touching the GIC system registers if
-	 * SRE isn't enabled for GICv3 emulation.
+	 * Prevent the guest from touching the ICC_SRE_EL1 system
+	 * register. Note that this may not have any effect, as
+	 * ICC_SRE_EL2.Enable being RAO/WI is a valid implementation.
 	 */
 	write_gicreg(read_gicreg(ICC_SRE_EL2) & ~ICC_SRE_EL2_ENABLE,
 		     ICC_SRE_EL2);
@@ -297,10 +306,11 @@ void __vgic_v3_activate_traps(struct vgic_v3_cpu_if *cpu_if)
 	/*
 	 * If we need to trap system registers, we must write
 	 * ICH_HCR_EL2 anyway, even if no interrupts are being
-	 * injected,
+	 * injected. Note that this also applies if we don't expect
+	 * any system register access (no vgic at all).
 	 */
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
-	    cpu_if->its_vpe.its_vm)
+	    cpu_if->its_vpe.its_vm || !cpu_if->vgic_sre)
 		write_gicreg(cpu_if->vgic_hcr, ICH_HCR_EL2);
 }
 
@@ -326,7 +336,7 @@ void __vgic_v3_deactivate_traps(struct vgic_v3_cpu_if *cpu_if)
 	 * no interrupts were being injected, and we disable it again here.
 	 */
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) ||
-	    cpu_if->its_vpe.its_vm)
+	    cpu_if->its_vpe.its_vm || !cpu_if->vgic_sre)
 		write_gicreg(0, ICH_HCR_EL2);
 }
 
@@ -1002,9 +1012,6 @@ static void __vgic_v3_read_ctlr(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 	val = ((vtr >> 29) & 7) << ICC_CTLR_EL1_PRI_BITS_SHIFT;
 	/* IDbits */
 	val |= ((vtr >> 23) & 7) << ICC_CTLR_EL1_ID_BITS_SHIFT;
-	/* SEIS */
-	if (kvm_vgic_global_state.ich_vtr_el2 & ICH_VTR_SEIS_MASK)
-		val |= BIT(ICC_CTLR_EL1_SEIS_SHIFT);
 	/* A3V */
 	val |= ((vtr >> 21) & 1) << ICC_CTLR_EL1_A3V_SHIFT;
 	/* EOImode */
@@ -1032,6 +1039,75 @@ static void __vgic_v3_write_ctlr(struct kvm_vcpu *vcpu, u32 vmcr, int rt)
 	write_gicreg(vmcr, ICH_VMCR_EL2);
 }
 
+static bool __vgic_v3_check_trap_forwarding(struct kvm_vcpu *vcpu,
+					    u32 sysreg, bool is_read)
+{
+	u64 ich_hcr;
+
+	if (!vcpu_has_nv(vcpu) || is_hyp_ctxt(vcpu))
+		return false;
+
+	ich_hcr = __vcpu_sys_reg(vcpu, ICH_HCR_EL2);
+
+	switch (sysreg) {
+	case SYS_ICC_IGRPEN0_EL1:
+		if (is_read &&
+		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+			return true;
+
+		if (!is_read &&
+		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+			return true;
+
+		fallthrough;
+
+	case SYS_ICC_AP0Rn_EL1(0):
+	case SYS_ICC_AP0Rn_EL1(1):
+	case SYS_ICC_AP0Rn_EL1(2):
+	case SYS_ICC_AP0Rn_EL1(3):
+	case SYS_ICC_BPR0_EL1:
+	case SYS_ICC_EOIR0_EL1:
+	case SYS_ICC_HPPIR0_EL1:
+	case SYS_ICC_IAR0_EL1:
+		return ich_hcr & ICH_HCR_TALL0;
+
+	case SYS_ICC_IGRPEN1_EL1:
+		if (is_read &&
+		    (__vcpu_sys_reg(vcpu, HFGRTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+			return true;
+
+		if (!is_read &&
+		    (__vcpu_sys_reg(vcpu, HFGWTR_EL2) & HFGxTR_EL2_ICC_IGRPENn_EL1))
+			return true;
+
+		fallthrough;
+
+	case SYS_ICC_AP1Rn_EL1(0):
+	case SYS_ICC_AP1Rn_EL1(1):
+	case SYS_ICC_AP1Rn_EL1(2):
+	case SYS_ICC_AP1Rn_EL1(3):
+	case SYS_ICC_BPR1_EL1:
+	case SYS_ICC_EOIR1_EL1:
+	case SYS_ICC_HPPIR1_EL1:
+	case SYS_ICC_IAR1_EL1:
+		return ich_hcr & ICH_HCR_TALL1;
+
+	case SYS_ICC_DIR_EL1:
+		if (ich_hcr & ICH_HCR_TDIR)
+			return true;
+
+		fallthrough;
+
+	case SYS_ICC_RPR_EL1:
+	case SYS_ICC_CTLR_EL1:
+	case SYS_ICC_PMR_EL1:
+		return ich_hcr & ICH_HCR_TC;
+
+	default:
+		return false;
+	}
+}
+
 int __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 {
 	int rt;
@@ -1040,6 +1116,9 @@ int __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	void (*fn)(struct kvm_vcpu *, u32, int);
 	bool is_read;
 	u32 sysreg;
+
+	if (kern_hyp_va(vcpu->kvm)->arch.vgic.vgic_model != KVM_DEV_TYPE_ARM_VGIC_V3)
+		return 0;
 
 	esr = kvm_vcpu_get_esr(vcpu);
 	if (vcpu_mode_is_32bit(vcpu)) {
@@ -1054,6 +1133,9 @@ int __vgic_v3_perform_cpuif_access(struct kvm_vcpu *vcpu)
 	}
 
 	is_read = (esr & ESR_ELx_SYS64_ISS_DIR_MASK) == ESR_ELx_SYS64_ISS_DIR_READ;
+
+	if (__vgic_v3_check_trap_forwarding(vcpu, sysreg, is_read))
+		return 0;
 
 	switch (sysreg) {
 	case SYS_ICC_IAR0_EL1:

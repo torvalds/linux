@@ -14,6 +14,7 @@
 #define KX022A_REG_WHO		0x0f
 #define KX022A_ID		0xc8
 #define KX132ACR_LBZ_ID		0xd8
+#define KX134ACR_LBZ_ID		0xcc
 
 #define KX022A_REG_CNTL2	0x19
 #define KX022A_MASK_SRST	BIT(7)
@@ -77,6 +78,7 @@
 
 #define KX132_REG_WHO		0x13
 #define KX132_ID		0x3d
+#define KX134_1211_ID		0x46
 
 #define KX132_FIFO_LENGTH	86
 
@@ -135,6 +137,14 @@ struct kx022a_data;
  *
  * @name:			name of the device
  * @regmap_config:		pointer to register map configuration
+ * @scale_table:		An array of tables of scaling factors for
+ *				a supported acceleration measurement range.
+ *				Each table containing a single scaling
+ *				factor consisting of two integers. The first
+ *				value in a table is the integer part, and
+ *				the second value is the	fractional part as
+ *				parts per billion.
+ * @scale_table_size:		Amount of values in tables.
  * @channels:			pointer to iio_chan_spec array
  * @num_channels:		number of iio_chan_spec channels
  * @fifo_length:		number of 16-bit samples in a full buffer
@@ -161,6 +171,8 @@ struct kx022a_data;
 struct kx022a_chip_info {
 	const char *name;
 	const struct regmap_config *regmap_config;
+	const int (*scale_table)[2];
+	const int scale_table_size;
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
 	unsigned int fifo_length;
@@ -187,6 +199,8 @@ int kx022a_probe_internal(struct device *dev, const struct kx022a_chip_info *chi
 
 extern const struct kx022a_chip_info kx022a_chip_info;
 extern const struct kx022a_chip_info kx132_chip_info;
+extern const struct kx022a_chip_info kx134_chip_info;
 extern const struct kx022a_chip_info kx132acr_chip_info;
+extern const struct kx022a_chip_info kx134acr_chip_info;
 
 #endif

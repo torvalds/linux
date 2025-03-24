@@ -69,5 +69,6 @@ struct rtw8922a_efuse {
 } __packed;
 
 extern const struct rtw89_chip_info rtw8922a_chip_info;
+extern const struct rtw89_chip_variant rtw8922ae_vs_variant;
 
 #endif

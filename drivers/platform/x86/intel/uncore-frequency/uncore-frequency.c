@@ -316,6 +316,6 @@ static void __exit intel_uncore_exit(void)
 }
 module_exit(intel_uncore_exit)
 
-MODULE_IMPORT_NS(INTEL_UNCORE_FREQUENCY);
+MODULE_IMPORT_NS("INTEL_UNCORE_FREQUENCY");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel Uncore Frequency Limits Driver");

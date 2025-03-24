@@ -15,6 +15,7 @@ properties:
       - enum:
           - fsl,mpc5121-gpio
           - fsl,mpc5125-gpio
+          - fsl,mpc8314-gpio
           - fsl,mpc8349-gpio
           - fsl,mpc8572-gpio
           - fsl,mpc8610-gpio

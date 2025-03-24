@@ -61,36 +61,36 @@
  * not advertised as enabled in ACPI, and enabling it in DT can cause boot
  * hangs.
  */
-&CPU0 {
-	cpu-idle-states = <&LITTLE_CPU_SLEEP_1>;
+&cpu0 {
+	cpu-idle-states = <&little_cpu_sleep_1>;
 };
 
-&CPU1 {
-	cpu-idle-states = <&LITTLE_CPU_SLEEP_1>;
+&cpu1 {
+	cpu-idle-states = <&little_cpu_sleep_1>;
 };
 
-&CPU2 {
-	cpu-idle-states = <&LITTLE_CPU_SLEEP_1>;
+&cpu2 {
+	cpu-idle-states = <&little_cpu_sleep_1>;
 };
 
-&CPU3 {
-	cpu-idle-states = <&LITTLE_CPU_SLEEP_1>;
+&cpu3 {
+	cpu-idle-states = <&little_cpu_sleep_1>;
 };
 
-&CPU4 {
-	cpu-idle-states = <&BIG_CPU_SLEEP_1>;
+&cpu4 {
+	cpu-idle-states = <&big_cpu_sleep_1>;
 };
 
-&CPU5 {
-	cpu-idle-states = <&BIG_CPU_SLEEP_1>;
+&cpu5 {
+	cpu-idle-states = <&big_cpu_sleep_1>;
 };
 
-&CPU6 {
-	cpu-idle-states = <&BIG_CPU_SLEEP_1>;
+&cpu6 {
+	cpu-idle-states = <&big_cpu_sleep_1>;
 };
 
-&CPU7 {
-	cpu-idle-states = <&BIG_CPU_SLEEP_1>;
+&cpu7 {
+	cpu-idle-states = <&big_cpu_sleep_1>;
 };
 
 /*
@@ -126,6 +126,12 @@
 		/* hack until we rig up the gpu consumer */
 		regulator-always-on;
 	};
+};
+
+&pm8998_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+
+	status = "okay";
 };
 
 &qusb2phy {

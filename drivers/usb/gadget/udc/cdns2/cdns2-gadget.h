@@ -292,8 +292,17 @@ struct cdns2_usb_regs {
 #define SPEEDCTRL_HSDISABLE	BIT(7)
 
 /* CPUCTRL- bitmasks. */
+/* UP clock enable */
+#define CPUCTRL_UPCLK		BIT(0)
 /* Controller reset bit. */
 #define CPUCTRL_SW_RST		BIT(1)
+/**
+ * If the wuen bit is ‘1’, the upclken is automatically set to ‘1’ after
+ * detecting rising edge of wuintereq interrupt. If the wuen bit is ‘0’,
+ * the wuintereq interrupt is ignored.
+ */
+#define CPUCTRL_WUEN		BIT(7)
+
 
 /**
  * struct cdns2_adma_regs - ADMA controller registers.

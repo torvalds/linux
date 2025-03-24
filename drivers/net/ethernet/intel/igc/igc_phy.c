@@ -240,7 +240,7 @@ static s32 igc_phy_setup_autoneg(struct igc_hw *hw)
 		/* Read the MULTI GBT AN Control Register - reg 7.32 */
 		ret_val = phy->ops.read_reg(hw, (STANDARD_AN_REG_MASK <<
 					    MMD_DEVADDR_SHIFT) |
-					    ANEG_MULTIGBT_AN_CTRL,
+					    IGC_ANEG_MULTIGBT_AN_CTRL,
 					    &aneg_multigbt_an_ctrl);
 
 		if (ret_val)
@@ -380,7 +380,7 @@ static s32 igc_phy_setup_autoneg(struct igc_hw *hw)
 		ret_val = phy->ops.write_reg(hw,
 					     (STANDARD_AN_REG_MASK <<
 					     MMD_DEVADDR_SHIFT) |
-					     ANEG_MULTIGBT_AN_CTRL,
+					     IGC_ANEG_MULTIGBT_AN_CTRL,
 					     aneg_multigbt_an_ctrl);
 
 	return ret_val;
@@ -494,24 +494,12 @@ s32 igc_setup_copper_link(struct igc_hw *hw)
 	s32 ret_val = 0;
 	bool link;
 
-	if (hw->mac.autoneg) {
-		/* Setup autoneg and flow control advertisement and perform
-		 * autonegotiation.
-		 */
-		ret_val = igc_copper_link_autoneg(hw);
-		if (ret_val)
-			goto out;
-	} else {
-		/* PHY will be set to 10H, 10F, 100H or 100F
-		 * depending on user settings.
-		 */
-		hw_dbg("Forcing Speed and Duplex\n");
-		ret_val = hw->phy.ops.force_speed_duplex(hw);
-		if (ret_val) {
-			hw_dbg("Error Forcing Speed and Duplex\n");
-			goto out;
-		}
-	}
+	/* Setup autoneg and flow control advertisement and perform
+	 * autonegotiation.
+	 */
+	ret_val = igc_copper_link_autoneg(hw);
+	if (ret_val)
+		goto out;
 
 	/* Check link status. Wait up to 100 microseconds for link to become
 	 * valid.

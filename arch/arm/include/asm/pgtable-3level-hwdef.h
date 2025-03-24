@@ -106,6 +106,11 @@
 
 /*
  * TTBCR register bits.
+ *
+ * The ORGN0 and IRGN0 bits enables different forms of caching when
+ * walking the translation table. Clearing these bits (which is claimed
+ * to be the reset default) means "normal memory, [outer|inner]
+ * non-cacheable"
  */
 #define TTBCR_EAE		(1 << 31)
 #define TTBCR_IMP		(1 << 30)

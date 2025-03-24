@@ -54,7 +54,7 @@
 
 #define CFG_RD_SUCCESS			0
 #define CFG_RD_UR			1
-#define CFG_RD_CRS			2
+#define CFG_RD_RRS			2
 #define CFG_RD_CA			3
 #define CFG_RETRY_STATUS		0xffff0001
 #define CFG_RETRY_STATUS_TIMEOUT_US	500000 /* 500 milliseconds */
@@ -485,31 +485,31 @@ static unsigned int iproc_pcie_cfg_retry(struct iproc_pcie *pcie,
 	u32 status;
 
 	/*
-	 * As per PCIe spec r3.1, sec 2.3.2, CRS Software Visibility only
+	 * As per PCIe r6.0, sec 2.3.2, Config RRS Software Visibility only
 	 * affects config reads of the Vendor ID.  For config writes or any
 	 * other config reads, the Root may automatically reissue the
 	 * configuration request again as a new request.
 	 *
 	 * For config reads, this hardware returns CFG_RETRY_STATUS data
-	 * when it receives a CRS completion, regardless of the address of
-	 * the read or the CRS Software Visibility Enable bit.  As a
+	 * when it receives a RRS completion, regardless of the address of
+	 * the read or the RRS Software Visibility Enable bit.  As a
 	 * partial workaround for this, we retry in software any read that
 	 * returns CFG_RETRY_STATUS.
 	 *
 	 * Note that a non-Vendor ID config register may have a value of
 	 * CFG_RETRY_STATUS.  If we read that, we can't distinguish it from
-	 * a CRS completion, so we will incorrectly retry the read and
+	 * a RRS completion, so we will incorrectly retry the read and
 	 * eventually return the wrong data (0xffffffff).
 	 */
 	data = readl(cfg_data_p);
 	while (data == CFG_RETRY_STATUS && timeout--) {
 		/*
-		 * CRS state is set in CFG_RD status register
+		 * RRS state is set in CFG_RD status register
 		 * This will handle the case where CFG_RETRY_STATUS is
 		 * valid config data.
 		 */
 		status = iproc_pcie_read_reg(pcie, IPROC_PCIE_CFG_RD_STATUS);
-		if (status != CFG_RD_CRS)
+		if (status != CFG_RD_RRS)
 			return data;
 
 		udelay(1);
@@ -556,8 +556,8 @@ static void iproc_pcie_fix_cap(struct iproc_pcie *pcie, int where, u32 *val)
 		break;
 
 	case IPROC_PCI_EXP_CAP + PCI_EXP_RTCTL:
-		/* Don't advertise CRS SV support */
-		*val &= ~(PCI_EXP_RTCAP_CRSVIS << 16);
+		/* Don't advertise RRS SV support */
+		*val &= ~(PCI_EXP_RTCAP_RRS_SV << 16);
 		break;
 
 	default:

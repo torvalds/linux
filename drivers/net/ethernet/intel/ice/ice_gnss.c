@@ -182,7 +182,7 @@ static struct gnss_serial *ice_gnss_struct_init(struct ice_pf *pf)
 	pf->gnss_serial = gnss;
 
 	kthread_init_delayed_work(&gnss->read_work, ice_gnss_read);
-	kworker = kthread_create_worker(0, "ice-gnss-%s", dev_name(dev));
+	kworker = kthread_run_worker(0, "ice-gnss-%s", dev_name(dev));
 	if (IS_ERR(kworker)) {
 		kfree(gnss);
 		return NULL;
@@ -397,8 +397,8 @@ bool ice_gnss_is_gps_present(struct ice_hw *hw)
 		int err;
 		u8 data;
 
-		err = ice_read_pca9575_reg_e810t(hw, ICE_PCA9575_P0_IN, &data);
-		if (err || !!(data & ICE_E810T_P0_GNSS_PRSNT_N))
+		err = ice_read_pca9575_reg(hw, ICE_PCA9575_P0_IN, &data);
+		if (err || !!(data & ICE_P0_GNSS_PRSNT_N))
 			return false;
 	} else {
 		return false;

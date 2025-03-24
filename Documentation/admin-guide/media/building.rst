@@ -15,7 +15,7 @@ Please notice, however, that, if:
 
 you should use the main media development tree ``master`` branch:
 
-    https://git.linuxtv.org/media_tree.git/
+    https://git.linuxtv.org/media.git/
 
 In this case, you may find some useful information at the
 `LinuxTv wiki pages <https://linuxtv.org/wiki>`_:

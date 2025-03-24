@@ -341,7 +341,6 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 
 static struct usb_serial_driver metrousb_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"metro-usb",
 	},
 	.description		= "Metrologic USB to Serial",

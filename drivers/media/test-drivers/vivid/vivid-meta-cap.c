@@ -122,8 +122,6 @@ const struct vb2_ops vivid_meta_cap_qops = {
 	.start_streaming	= meta_cap_start_streaming,
 	.stop_streaming		= meta_cap_stop_streaming,
 	.buf_request_complete	= meta_cap_buf_request_complete,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 int vidioc_enum_fmt_meta_cap(struct file *file, void  *priv,

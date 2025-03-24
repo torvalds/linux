@@ -25,6 +25,7 @@
 #include <linux/uuid.h>
 #include <linux/xarray.h>
 #include <linux/file.h>
+#include <linux/lockdep.h>
 
 struct module;
 struct request_queue;
@@ -194,13 +195,12 @@ struct gendisk {
 	unsigned int		nr_zones;
 	unsigned int		zone_capacity;
 	unsigned int		last_zone_capacity;
-	unsigned long		*conv_zones_bitmap;
-	unsigned int            zone_wplugs_hash_bits;
-	spinlock_t              zone_wplugs_lock;
+	unsigned long __rcu	*conv_zones_bitmap;
+	unsigned int		zone_wplugs_hash_bits;
+	atomic_t		nr_zone_wplugs;
+	spinlock_t		zone_wplugs_lock;
 	struct mempool_s	*zone_wplugs_pool;
-	struct hlist_head       *zone_wplugs_hash;
-	struct list_head        zone_wplugs_err_list;
-	struct work_struct	zone_wplugs_work;
+	struct hlist_head	*zone_wplugs_hash;
 	struct workqueue_struct *zone_wplugs_wq;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
@@ -332,6 +332,10 @@ typedef unsigned int __bitwise blk_features_t;
 #define BLK_FEAT_RAID_PARTIAL_STRIPES_EXPENSIVE \
 	((__force blk_features_t)(1u << 15))
 
+/* atomic writes enabled */
+#define BLK_FEAT_ATOMIC_WRITES \
+	((__force blk_features_t)(1u << 16))
+
 /*
  * Flags automatically inherited when stacking limits.
  */
@@ -349,6 +353,9 @@ typedef unsigned int __bitwise blk_flags_t;
 /* I/O topology is misaligned */
 #define BLK_FLAG_MISALIGNED		((__force blk_flags_t)(1u << 1))
 
+/* passthrough command IO accounting */
+#define BLK_FLAG_IOSTATS_PASSTHROUGH	((__force blk_flags_t)(1u << 2))
+
 struct queue_limits {
 	blk_features_t		features;
 	blk_flags_t		flags;
@@ -361,6 +368,7 @@ struct queue_limits {
 	unsigned int		max_sectors;
 	unsigned int		max_user_sectors;
 	unsigned int		max_segment_size;
+	unsigned int		min_segment_size;
 	unsigned int		physical_block_size;
 	unsigned int		logical_block_size;
 	unsigned int		alignment_offset;
@@ -371,6 +379,7 @@ struct queue_limits {
 	unsigned int		max_user_discard_sectors;
 	unsigned int		max_secure_erase_sectors;
 	unsigned int		max_write_zeroes_sectors;
+	unsigned int		max_hw_zone_append_sectors;
 	unsigned int		max_zone_append_sectors;
 	unsigned int		discard_granularity;
 	unsigned int		discard_alignment;
@@ -471,6 +480,11 @@ struct request_queue {
 	struct xarray		hctx_table;
 
 	struct percpu_ref	q_usage_counter;
+	struct lock_class_key	io_lock_cls_key;
+	struct lockdep_map	io_lockdep_map;
+
+	struct lock_class_key	q_lock_cls_key;
+	struct lockdep_map	q_lockdep_map;
 
 	struct request		*last_merge;
 
@@ -549,7 +563,6 @@ struct request_queue {
 	struct list_head	flush_list;
 
 	struct mutex		sysfs_lock;
-	struct mutex		sysfs_dir_lock;
 	struct mutex		limits_lock;
 
 	/*
@@ -566,6 +579,16 @@ struct request_queue {
 	struct throtl_data *td;
 #endif
 	struct rcu_head		rcu_head;
+#ifdef CONFIG_LOCKDEP
+	struct task_struct	*mq_freeze_owner;
+	int			mq_freeze_owner_depth;
+	/*
+	 * Records disk & queue state in current context, used in unfreeze
+	 * queue
+	 */
+	bool			mq_freeze_disk_dead;
+	bool			mq_freeze_queue_dying;
+#endif
 	wait_queue_head_t	mq_freeze_wq;
 	/*
 	 * Protect concurrent access to q_usage_counter by
@@ -583,8 +606,6 @@ struct request_queue {
 	 * Serializes all debugfs metadata operations using the above dentries.
 	 */
 	struct mutex		debugfs_mutex;
-
-	bool			mq_sysfs_init_done;
 };
 
 /* Keep blk_queue_flag_name[] in sync with the definitions below */
@@ -617,6 +638,8 @@ void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
 	test_bit(QUEUE_FLAG_NOXMERGES, &(q)->queue_flags)
 #define blk_queue_nonrot(q)	(!((q)->limits.features & BLK_FEAT_ROTATIONAL))
 #define blk_queue_io_stat(q)	((q)->limits.features & BLK_FEAT_IO_STAT)
+#define blk_queue_passthrough_stat(q)	\
+	((q)->limits.flags & BLK_FLAG_IOSTATS_PASSTHROUGH)
 #define blk_queue_dax(q)	((q)->limits.features & BLK_FEAT_DAX)
 #define blk_queue_pci_p2pdma(q)	((q)->limits.features & BLK_FEAT_PCI_P2PDMA)
 #ifdef CONFIG_BLK_RQ_ALLOC_TIME
@@ -725,6 +748,9 @@ static inline unsigned int blk_queue_depth(struct request_queue *q)
 #define for_each_bio(_bio)		\
 	for (; _bio; _bio = _bio->bi_next)
 
+int __must_check add_disk_fwnode(struct device *parent, struct gendisk *disk,
+				 const struct attribute_group **groups,
+				 struct fwnode_handle *fwnode);
 int __must_check device_add_disk(struct device *parent, struct gendisk *disk,
 				 const struct attribute_group **groups);
 static inline int __must_check add_disk(struct gendisk *disk)
@@ -756,13 +782,13 @@ static inline void bdev_clear_flag(struct block_device *bdev, unsigned flag)
 	atomic_andnot(flag, &bdev->__bd_flags);
 }
 
-static inline int get_disk_ro(struct gendisk *disk)
+static inline bool get_disk_ro(struct gendisk *disk)
 {
 	return bdev_test_flag(disk->part0, BD_READ_ONLY) ||
 		test_bit(GD_READ_ONLY, &disk->state);
 }
 
-static inline int bdev_read_only(struct block_device *bdev)
+static inline bool bdev_read_only(struct block_device *bdev)
 {
 	return bdev_test_flag(bdev, BD_READ_ONLY) || get_disk_ro(bdev->bd_disk);
 }
@@ -917,8 +943,7 @@ static inline unsigned int blk_boundary_sectors_left(sector_t offset,
  * the caller can modify.  The caller must call queue_limits_commit_update()
  * to finish the update.
  *
- * Context: process context.  The caller must have frozen the queue or ensured
- * that there is outstanding I/O by other means.
+ * Context: process context.
  */
 static inline struct queue_limits
 queue_limits_start_update(struct request_queue *q)
@@ -926,9 +951,12 @@ queue_limits_start_update(struct request_queue *q)
 	mutex_lock(&q->limits_lock);
 	return q->limits;
 }
+int queue_limits_commit_update_frozen(struct request_queue *q,
+		struct queue_limits *lim);
 int queue_limits_commit_update(struct request_queue *q,
 		struct queue_limits *lim);
 int queue_limits_set(struct request_queue *q, struct queue_limits *lim);
+int blk_validate_limits(struct queue_limits *lim);
 
 /**
  * queue_limits_cancel_update - cancel an atomic update of queue limits
@@ -968,8 +996,6 @@ static inline void blk_queue_disable_write_zeroes(struct request_queue *q)
 /*
  * Access functions for manipulating queue properties
  */
-extern void blk_limits_io_min(struct queue_limits *limits, unsigned int min);
-extern void blk_limits_io_opt(struct queue_limits *limits, unsigned int opt);
 extern void blk_set_queue_depth(struct request_queue *q, unsigned int depth);
 extern void blk_set_stacking_limits(struct queue_limits *lim);
 extern int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
@@ -988,6 +1014,11 @@ extern void blk_put_queue(struct request_queue *);
 
 void blk_mark_disk_dead(struct gendisk *disk);
 
+struct rq_list {
+	struct request *head;
+	struct request *tail;
+};
+
 #ifdef CONFIG_BLOCK
 /*
  * blk_plug permits building a queue of related requests by holding the I/O
@@ -1001,10 +1032,10 @@ void blk_mark_disk_dead(struct gendisk *disk);
  * blk_flush_plug() is called.
  */
 struct blk_plug {
-	struct request *mq_list; /* blk-mq requests */
+	struct rq_list mq_list; /* blk-mq requests */
 
 	/* if ios_left is > 1, we can batch tag/rq allocations */
-	struct request *cached_rq;
+	struct rq_list cached_rqs;
 	u64 cur_ktime;
 	unsigned short nr_ios;
 
@@ -1147,6 +1178,11 @@ enum blk_default_limits {
  */
 #define BLK_DEF_MAX_SECTORS_CAP	2560u
 
+static inline struct queue_limits *bdev_limits(struct block_device *bdev)
+{
+	return &bdev_get_queue(bdev)->limits;
+}
+
 static inline unsigned long queue_segment_boundary(const struct request_queue *q)
 {
 	return q->limits.seg_boundary_mask;
@@ -1187,24 +1223,9 @@ static inline unsigned int queue_max_segment_size(const struct request_queue *q)
 	return q->limits.max_segment_size;
 }
 
-static inline unsigned int queue_limits_max_zone_append_sectors(struct queue_limits *l)
-{
-	unsigned int max_sectors = min(l->chunk_sectors, l->max_hw_sectors);
-
-	return min_not_zero(l->max_zone_append_sectors, max_sectors);
-}
-
-static inline unsigned int queue_max_zone_append_sectors(struct request_queue *q)
-{
-	if (!blk_queue_is_zoned(q))
-		return 0;
-
-	return queue_limits_max_zone_append_sectors(&q->limits);
-}
-
 static inline bool queue_emulates_zone_append(struct request_queue *q)
 {
-	return blk_queue_is_zoned(q) && !q->limits.max_zone_append_sectors;
+	return blk_queue_is_zoned(q) && !q->limits.max_hw_zone_append_sectors;
 }
 
 static inline bool bdev_emulates_zone_append(struct block_device *bdev)
@@ -1215,7 +1236,7 @@ static inline bool bdev_emulates_zone_append(struct block_device *bdev)
 static inline unsigned int
 bdev_max_zone_append_sectors(struct block_device *bdev)
 {
-	return queue_max_zone_append_sectors(bdev_get_queue(bdev));
+	return bdev_limits(bdev)->max_zone_append_sectors;
 }
 
 static inline unsigned int bdev_max_segments(struct block_device *bdev)
@@ -1248,7 +1269,7 @@ static inline unsigned int queue_io_min(const struct request_queue *q)
 	return q->limits.io_min;
 }
 
-static inline int bdev_io_min(struct block_device *bdev)
+static inline unsigned int bdev_io_min(struct block_device *bdev)
 {
 	return queue_io_min(bdev_get_queue(bdev));
 }
@@ -1258,7 +1279,7 @@ static inline unsigned int queue_io_opt(const struct request_queue *q)
 	return q->limits.io_opt;
 }
 
-static inline int bdev_io_opt(struct block_device *bdev)
+static inline unsigned int bdev_io_opt(struct block_device *bdev)
 {
 	return queue_io_opt(bdev_get_queue(bdev));
 }
@@ -1280,28 +1301,23 @@ unsigned int bdev_discard_alignment(struct block_device *bdev);
 
 static inline unsigned int bdev_max_discard_sectors(struct block_device *bdev)
 {
-	return bdev_get_queue(bdev)->limits.max_discard_sectors;
+	return bdev_limits(bdev)->max_discard_sectors;
 }
 
 static inline unsigned int bdev_discard_granularity(struct block_device *bdev)
 {
-	return bdev_get_queue(bdev)->limits.discard_granularity;
+	return bdev_limits(bdev)->discard_granularity;
 }
 
 static inline unsigned int
 bdev_max_secure_erase_sectors(struct block_device *bdev)
 {
-	return bdev_get_queue(bdev)->limits.max_secure_erase_sectors;
+	return bdev_limits(bdev)->max_secure_erase_sectors;
 }
 
 static inline unsigned int bdev_write_zeroes_sectors(struct block_device *bdev)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
-
-	if (q)
-		return q->limits.max_write_zeroes_sectors;
-
-	return 0;
+	return bdev_limits(bdev)->max_write_zeroes_sectors;
 }
 
 static inline bool bdev_nonrot(struct block_device *bdev)
@@ -1337,7 +1353,7 @@ static inline bool bdev_write_cache(struct block_device *bdev)
 
 static inline bool bdev_fua(struct block_device *bdev)
 {
-	return bdev_get_queue(bdev)->limits.features & BLK_FEAT_FUA;
+	return bdev_limits(bdev)->features & BLK_FEAT_FUA;
 }
 
 static inline bool bdev_nowait(struct block_device *bdev)
@@ -1382,7 +1398,37 @@ static inline bool bdev_is_zone_start(struct block_device *bdev,
 	return bdev_offset_from_zone_start(bdev, sector) == 0;
 }
 
-static inline int queue_dma_alignment(const struct request_queue *q)
+/**
+ * bdev_zone_is_seq - check if a sector belongs to a sequential write zone
+ * @bdev:	block device to check
+ * @sector:	sector number
+ *
+ * Check if @sector on @bdev is contained in a sequential write required zone.
+ */
+static inline bool bdev_zone_is_seq(struct block_device *bdev, sector_t sector)
+{
+	bool is_seq = false;
+
+#if IS_ENABLED(CONFIG_BLK_DEV_ZONED)
+	if (bdev_is_zoned(bdev)) {
+		struct gendisk *disk = bdev->bd_disk;
+		unsigned long *bitmap;
+
+		rcu_read_lock();
+		bitmap = rcu_dereference(disk->conv_zones_bitmap);
+		is_seq = !bitmap ||
+			!test_bit(disk_zone_no(disk, sector), bitmap);
+		rcu_read_unlock();
+	}
+#endif
+
+	return is_seq;
+}
+
+int blk_zone_issue_zeroout(struct block_device *bdev, sector_t sector,
+			   sector_t nr_sects, gfp_t gfp_mask);
+
+static inline unsigned int queue_dma_alignment(const struct request_queue *q)
 {
 	return q->limits.dma_alignment;
 }
@@ -1423,12 +1469,13 @@ static inline bool bdev_iter_is_aligned(struct block_device *bdev,
 				   bdev_logical_block_size(bdev) - 1);
 }
 
-static inline int blk_lim_dma_alignment_and_pad(struct queue_limits *lim)
+static inline unsigned int
+blk_lim_dma_alignment_and_pad(struct queue_limits *lim)
 {
 	return lim->dma_alignment | lim->dma_pad_mask;
 }
 
-static inline int blk_rq_aligned(struct request_queue *q, unsigned long addr,
+static inline bool blk_rq_aligned(struct request_queue *q, unsigned long addr,
 				 unsigned int len)
 {
 	unsigned int alignment = blk_lim_dma_alignment_and_pad(&q->limits);
@@ -1546,7 +1593,6 @@ static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
 	return bio_end_io_acct_remapped(bio, start_time, bio->bi_bdev);
 }
 
-int bdev_read_only(struct block_device *bdev);
 int set_blocksize(struct file *file, int size);
 
 int lookup_bdev(const char *pathname, dev_t *dev);
@@ -1654,10 +1700,19 @@ int bdev_thaw(struct block_device *bdev);
 void bdev_fput(struct file *bdev_file);
 
 struct io_comp_batch {
-	struct request *req_list;
+	struct rq_list req_list;
 	bool need_ts;
 	void (*complete)(struct io_comp_batch *);
 };
+
+static inline bool blk_atomic_write_start_sect_aligned(sector_t sector,
+						struct queue_limits *limits)
+{
+	unsigned int alignment = max(limits->atomic_write_hw_unit_min,
+				limits->atomic_write_hw_boundary);
+
+	return IS_ALIGNED(sector, alignment >> SECTOR_SHIFT);
+}
 
 static inline bool bdev_can_atomic_write(struct block_device *bdev)
 {
@@ -1667,17 +1722,27 @@ static inline bool bdev_can_atomic_write(struct block_device *bdev)
 	if (!limits->atomic_write_unit_min)
 		return false;
 
-	if (bdev_is_partition(bdev)) {
-		sector_t bd_start_sect = bdev->bd_start_sect;
-		unsigned int alignment =
-			max(limits->atomic_write_unit_min,
-			    limits->atomic_write_hw_boundary);
-
-		if (!IS_ALIGNED(bd_start_sect, alignment >> SECTOR_SHIFT))
-			return false;
-	}
+	if (bdev_is_partition(bdev))
+		return blk_atomic_write_start_sect_aligned(bdev->bd_start_sect,
+							limits);
 
 	return true;
+}
+
+static inline unsigned int
+bdev_atomic_write_unit_min_bytes(struct block_device *bdev)
+{
+	if (!bdev_can_atomic_write(bdev))
+		return 0;
+	return queue_atomic_write_unit_min_bytes(bdev_get_queue(bdev));
+}
+
+static inline unsigned int
+bdev_atomic_write_unit_max_bytes(struct block_device *bdev)
+{
+	if (!bdev_can_atomic_write(bdev))
+		return 0;
+	return queue_atomic_write_unit_max_bytes(bdev_get_queue(bdev));
 }
 
 #define DEFINE_IO_COMP_BATCH(name)	struct io_comp_batch name = { }

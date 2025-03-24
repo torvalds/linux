@@ -2721,7 +2721,7 @@ static struct platform_driver dme1737_isa_driver = {
 		.name = "dme1737",
 	},
 	.probe = dme1737_isa_probe,
-	.remove_new = dme1737_isa_remove,
+	.remove = dme1737_isa_remove,
 };
 
 /* ---------------------------------------------------------------------

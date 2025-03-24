@@ -515,7 +515,7 @@ static const struct soc_device_data soc_device_INT33D3 = {
 };
 
 /*
- * Button info for Microsoft Surface 3 (non pro), this is indentical to
+ * Button info for Microsoft Surface 3 (non pro), this is identical to
  * the PNP0C40 info except that the home button is active-high.
  *
  * The Surface 3 Pro also has a MSHW0028 ACPI device, but that uses a custom
@@ -612,7 +612,7 @@ MODULE_DEVICE_TABLE(acpi, soc_button_acpi_match);
 
 static struct platform_driver soc_button_driver = {
 	.probe          = soc_button_probe,
-	.remove_new	= soc_button_remove,
+	.remove		= soc_button_remove,
 	.driver		= {
 		.name = KBUILD_MODNAME,
 		.acpi_match_table = ACPI_PTR(soc_button_acpi_match),

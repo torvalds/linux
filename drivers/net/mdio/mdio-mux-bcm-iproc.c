@@ -342,7 +342,7 @@ static struct platform_driver mdiomux_iproc_driver = {
 		.pm		= &mdio_mux_iproc_pm_ops,
 	},
 	.probe		= mdio_mux_iproc_probe,
-	.remove_new	= mdio_mux_iproc_remove,
+	.remove		= mdio_mux_iproc_remove,
 };
 
 module_platform_driver(mdiomux_iproc_driver);

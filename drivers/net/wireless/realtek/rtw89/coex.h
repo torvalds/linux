@@ -193,6 +193,8 @@ enum btc_wa_type {
 	BTC_WA_5G_HI_CH_RX = BIT(0),
 	BTC_WA_NULL_AP = BIT(1),
 	BTC_WA_HFP_ZB = BIT(2),  /* HFP PTA req bit4 define issue */
+	BTC_WA_HFP_LAG = BIT(3),  /* 52BT WL break BT Rx lag issue */
+	BTC_WA_INIT_SCAN = BIT(4)  /* 52A/C/D init scan move to wl slot WA */
 };
 
 enum btc_3cx_type {
@@ -269,8 +271,10 @@ void rtw89_btc_ntfy_eapol_packet_work(struct work_struct *work);
 void rtw89_btc_ntfy_arp_packet_work(struct work_struct *work);
 void rtw89_btc_ntfy_dhcp_packet_work(struct work_struct *work);
 void rtw89_btc_ntfy_icmp_packet_work(struct work_struct *work);
-void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
-			      struct rtw89_sta *rtwsta, enum btc_role_state state);
+void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev,
+			      struct rtw89_vif_link *rtwvif_link,
+			      struct rtw89_sta_link *rtwsta_link,
+			      enum btc_role_state state);
 void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_state);
 void rtw89_btc_ntfy_wl_rfk(struct rtw89_dev *rtwdev, u8 phy_map,
 			   enum btc_wl_rfk_type type,
@@ -289,9 +293,10 @@ void rtw89_coex_recognize_ver(struct rtw89_dev *rtwdev);
 
 static inline u8 rtw89_btc_phymap(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx,
-				  enum rtw89_rf_path_bit paths)
+				  enum rtw89_rf_path_bit paths,
+				  enum rtw89_chanctx_idx chanctx_idx)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, chanctx_idx);
 	u8 phy_map;
 
 	phy_map = FIELD_PREP(BTC_RFK_PATH_MAP, paths) |
@@ -303,9 +308,10 @@ static inline u8 rtw89_btc_phymap(struct rtw89_dev *rtwdev,
 
 static inline u8 rtw89_btc_path_phymap(struct rtw89_dev *rtwdev,
 				       enum rtw89_phy_idx phy_idx,
-				       enum rtw89_rf_path path)
+				       enum rtw89_rf_path path,
+				       enum rtw89_chanctx_idx chanctx_idx)
 {
-	return rtw89_btc_phymap(rtwdev, phy_idx, BIT(path));
+	return rtw89_btc_phymap(rtwdev, phy_idx, BIT(path), chanctx_idx);
 }
 
 /* return bt req len in TU */

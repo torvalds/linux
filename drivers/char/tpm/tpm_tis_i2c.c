@@ -375,7 +375,7 @@ static void tpm_tis_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tpm_tis_i2c_id[] = {
-	{ "tpm_tis_i2c", 0 },
+	{ "tpm_tis_i2c" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, tpm_tis_i2c_id);

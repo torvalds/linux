@@ -1109,7 +1109,7 @@ void ecard_remove_driver(struct ecard_driver *drv)
 	driver_unregister(&drv->drv);
 }
 
-static int ecard_match(struct device *_dev, struct device_driver *_drv)
+static int ecard_match(struct device *_dev, const struct device_driver *_drv)
 {
 	struct expansion_card *ec = ECARD_DEV(_dev);
 	struct ecard_driver *drv = ECARD_DRV(_drv);
@@ -1124,7 +1124,7 @@ static int ecard_match(struct device *_dev, struct device_driver *_drv)
 	return ret;
 }
 
-struct bus_type ecard_bus_type = {
+const struct bus_type ecard_bus_type = {
 	.name		= "ecard",
 	.dev_groups	= ecard_dev_groups,
 	.match		= ecard_match,

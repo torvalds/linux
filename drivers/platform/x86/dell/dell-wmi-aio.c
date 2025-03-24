@@ -70,20 +70,10 @@ static bool dell_wmi_aio_event_check(u8 *buffer, int length)
 	return false;
 }
 
-static void dell_wmi_aio_notify(u32 value, void *context)
+static void dell_wmi_aio_notify(union acpi_object *obj, void *context)
 {
-	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
 	struct dell_wmi_event *event;
-	acpi_status status;
 
-	status = wmi_get_event_data(value, &response);
-	if (status != AE_OK) {
-		pr_info("bad event status 0x%x\n", status);
-		return;
-	}
-
-	obj = (union acpi_object *)response.pointer;
 	if (obj) {
 		unsigned int scancode = 0;
 
@@ -114,7 +104,6 @@ static void dell_wmi_aio_notify(u32 value, void *context)
 			break;
 		}
 	}
-	kfree(obj);
 }
 
 static int __init dell_wmi_aio_input_setup(void)

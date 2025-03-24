@@ -374,10 +374,9 @@ static int mv88e6xxx_region_atu_snapshot(struct devlink *dl,
 					 u8 **data)
 {
 	struct dsa_switch *ds = dsa_devlink_to_ds(dl);
-	DECLARE_BITMAP(fid_bitmap, MV88E6XXX_N_FID);
 	struct mv88e6xxx_devlink_atu_entry *table;
 	struct mv88e6xxx_chip *chip = ds->priv;
-	int fid = -1, count, err;
+	int fid = -1, err = 0, count;
 
 	table = kmalloc_array(mv88e6xxx_num_databases(chip),
 			      sizeof(struct mv88e6xxx_devlink_atu_entry),
@@ -392,14 +391,8 @@ static int mv88e6xxx_region_atu_snapshot(struct devlink *dl,
 
 	mv88e6xxx_reg_lock(chip);
 
-	err = mv88e6xxx_fid_map(chip, fid_bitmap);
-	if (err) {
-		kfree(table);
-		goto out;
-	}
-
 	while (1) {
-		fid = find_next_bit(fid_bitmap, MV88E6XXX_N_FID, fid + 1);
+		fid = find_next_bit(chip->fid_bitmap, MV88E6XXX_N_FID, fid + 1);
 		if (fid == MV88E6XXX_N_FID)
 			break;
 

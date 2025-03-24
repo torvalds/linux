@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/sched/signal.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "pci.h"
 
 #define PCI_VPD_LRDT_TAG_SIZE		3
@@ -271,8 +271,8 @@ void pci_vpd_init(struct pci_dev *dev)
 }
 
 static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr, char *buf, loff_t off,
-			size_t count)
+			const struct bin_attribute *bin_attr, char *buf,
+			loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
 	struct pci_dev *vpd_dev = dev;
@@ -295,8 +295,8 @@ static ssize_t vpd_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t vpd_write(struct file *filp, struct kobject *kobj,
-			 struct bin_attribute *bin_attr, char *buf, loff_t off,
-			 size_t count)
+			 const struct bin_attribute *bin_attr, char *buf,
+			 loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
 	struct pci_dev *vpd_dev = dev;
@@ -317,15 +317,15 @@ static ssize_t vpd_write(struct file *filp, struct kobject *kobj,
 
 	return ret;
 }
-static BIN_ATTR(vpd, 0600, vpd_read, vpd_write, 0);
+static const BIN_ATTR(vpd, 0600, vpd_read, vpd_write, 0);
 
-static struct bin_attribute *vpd_attrs[] = {
+static const struct bin_attribute *const vpd_attrs[] = {
 	&bin_attr_vpd,
 	NULL,
 };
 
 static umode_t vpd_attr_is_visible(struct kobject *kobj,
-				   struct bin_attribute *a, int n)
+				   const struct bin_attribute *a, int n)
 {
 	struct pci_dev *pdev = to_pci_dev(kobj_to_dev(kobj));
 
@@ -336,7 +336,7 @@ static umode_t vpd_attr_is_visible(struct kobject *kobj,
 }
 
 const struct attribute_group pci_dev_vpd_attr_group = {
-	.bin_attrs = vpd_attrs,
+	.bin_attrs_new = vpd_attrs,
 	.is_bin_visible = vpd_attr_is_visible,
 };
 

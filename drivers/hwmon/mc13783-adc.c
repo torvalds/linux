@@ -315,7 +315,7 @@ static const struct platform_device_id mc13783_adc_idtable[] = {
 MODULE_DEVICE_TABLE(platform, mc13783_adc_idtable);
 
 static struct platform_driver mc13783_adc_driver = {
-	.remove_new	= mc13783_adc_remove,
+	.remove		= mc13783_adc_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},

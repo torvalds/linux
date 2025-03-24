@@ -193,8 +193,6 @@ module_param(low_rate_allow, bool, 0444);
 MODULE_PARM_DESC(low_rate_allow,
 		 "Allow IMU rates below the minimum advisable when external clk is used in PPS mode (default: N)");
 
-#ifdef CONFIG_DEBUG_FS
-
 static ssize_t adis16480_show_firmware_revision(struct file *file,
 		char __user *userbuf, size_t count, loff_t *ppos)
 {
@@ -304,10 +302,13 @@ static int adis16480_show_flash_count(void *arg, u64 *val)
 DEFINE_DEBUGFS_ATTRIBUTE(adis16480_flash_count_fops,
 	adis16480_show_flash_count, NULL, "%lld\n");
 
-static int adis16480_debugfs_init(struct iio_dev *indio_dev)
+static void adis16480_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16480 *adis16480 = iio_priv(indio_dev);
 	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
+
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
+		return;
 
 	debugfs_create_file_unsafe("firmware_revision", 0400,
 		d, adis16480, &adis16480_firmware_revision_fops);
@@ -319,18 +320,7 @@ static int adis16480_debugfs_init(struct iio_dev *indio_dev)
 		d, adis16480, &adis16480_product_id_fops);
 	debugfs_create_file_unsafe("flash_count", 0400,
 		d, adis16480, &adis16480_flash_count_fops);
-
-	return 0;
 }
-
-#else
-
-static int adis16480_debugfs_init(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-#endif
 
 static int adis16480_set_freq(struct iio_dev *indio_dev, int val, int val2)
 {
@@ -888,11 +878,32 @@ static const struct iio_chan_spec adis16545_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(17),
 };
 
+static const struct iio_chan_spec adis16489_channels[] = {
+	ADIS16480_GYRO_CHANNEL(X),
+	ADIS16480_GYRO_CHANNEL(Y),
+	ADIS16480_GYRO_CHANNEL(Z),
+	ADIS16480_ACCEL_CHANNEL(X),
+	ADIS16480_ACCEL_CHANNEL(Y),
+	ADIS16480_ACCEL_CHANNEL(Z),
+	ADIS16480_PRESSURE_CHANNEL(),
+	ADIS16480_TEMP_CHANNEL(),
+	IIO_CHAN_SOFT_TIMESTAMP(8),
+	ADIS16480_DELTANG_CHANNEL_NO_SCAN(X),
+	ADIS16480_DELTANG_CHANNEL_NO_SCAN(Y),
+	ADIS16480_DELTANG_CHANNEL_NO_SCAN(Z),
+	ADIS16480_DELTVEL_CHANNEL_NO_SCAN(X),
+	ADIS16480_DELTVEL_CHANNEL_NO_SCAN(Y),
+	ADIS16480_DELTVEL_CHANNEL_NO_SCAN(Z),
+};
+
 enum adis16480_variant {
 	ADIS16375,
 	ADIS16480,
 	ADIS16485,
+	ADIS16486,
+	ADIS16487,
 	ADIS16488,
+	ADIS16489,
 	ADIS16490,
 	ADIS16495_1,
 	ADIS16495_2,
@@ -1048,6 +1059,38 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.filter_freqs = adis16480_def_filter_freqs,
 		.adis_data = ADIS16480_DATA(16485, &adis16485_timeouts, 0, 0),
 	},
+	[ADIS16486] = {
+		.channels = adis16485_channels,
+		.num_channels = ARRAY_SIZE(adis16485_channels),
+		.gyro_max_val = 22500 << 16,
+		.gyro_max_scale = IIO_DEGREE_TO_RAD(450),
+		.accel_max_val = IIO_M_S_2_TO_G(20000 << 16),
+		.accel_max_scale = 18,
+		.temp_scale = 5650, /* 5.65 milli degree Celsius */
+		.deltang_max_val = IIO_DEGREE_TO_RAD(720),
+		.deltvel_max_val = 200,
+		.int_clk = 2460000,
+		.max_dec_rate = 2048,
+		.has_sleep_cnt = true,
+		.filter_freqs = adis16480_def_filter_freqs,
+		.adis_data = ADIS16480_DATA(16486, &adis16480_timeouts, 0, 0),
+	},
+	[ADIS16487] = {
+		.channels = adis16485_channels,
+		.num_channels = ARRAY_SIZE(adis16485_channels),
+		.gyro_max_val = 22500 << 16,
+		.gyro_max_scale = IIO_DEGREE_TO_RAD(450),
+		.accel_max_val = IIO_M_S_2_TO_G(20000 << 16),
+		.accel_max_scale = 5,
+		.temp_scale = 5650, /* 5.65 milli degree Celsius */
+		.deltang_max_val = IIO_DEGREE_TO_RAD(720),
+		.deltvel_max_val = 50,
+		.int_clk = 2460000,
+		.max_dec_rate = 2048,
+		.has_sleep_cnt = true,
+		.filter_freqs = adis16480_def_filter_freqs,
+		.adis_data = ADIS16480_DATA(16487, &adis16485_timeouts, 0, 0),
+	},
 	[ADIS16488] = {
 		.channels = adis16480_channels,
 		.num_channels = ARRAY_SIZE(adis16480_channels),
@@ -1063,6 +1106,22 @@ static const struct adis16480_chip_info adis16480_chip_info[] = {
 		.has_sleep_cnt = true,
 		.filter_freqs = adis16480_def_filter_freqs,
 		.adis_data = ADIS16480_DATA(16488, &adis16485_timeouts, 0, 0),
+	},
+	[ADIS16489] = {
+		.channels = adis16489_channels,
+		.num_channels = ARRAY_SIZE(adis16489_channels),
+		.gyro_max_val = 22500 << 16,
+		.gyro_max_scale = IIO_DEGREE_TO_RAD(450),
+		.accel_max_val = IIO_M_S_2_TO_G(20000 << 16),
+		.accel_max_scale = 18,
+		.temp_scale = 5650, /* 5.65 milli degree Celsius */
+		.deltang_max_val = IIO_DEGREE_TO_RAD(720),
+		.deltvel_max_val = 200,
+		.int_clk = 2460000,
+		.max_dec_rate = 2048,
+		.has_sleep_cnt = true,
+		.filter_freqs = adis16480_def_filter_freqs,
+		.adis_data = ADIS16480_DATA(16489, &adis16480_timeouts, 0, 0),
 	},
 	[ADIS16490] = {
 		.channels = adis16485_channels,
@@ -1395,7 +1454,7 @@ static irqreturn_t adis16480_trigger_handler(int irq, void *p)
 		goto irq_done;
 	}
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask, indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		/*
 		 * When burst mode is used, temperature is the first data
 		 * channel in the sequence, but the temperature scan index
@@ -1751,7 +1810,10 @@ static const struct spi_device_id adis16480_ids[] = {
 	{ "adis16375", ADIS16375 },
 	{ "adis16480", ADIS16480 },
 	{ "adis16485", ADIS16485 },
+	{ "adis16486", ADIS16486 },
+	{ "adis16487", ADIS16487 },
 	{ "adis16488", ADIS16488 },
+	{ "adis16489", ADIS16489 },
 	{ "adis16490", ADIS16490 },
 	{ "adis16495-1", ADIS16495_1 },
 	{ "adis16495-2", ADIS16495_2 },
@@ -1773,7 +1835,10 @@ static const struct of_device_id adis16480_of_match[] = {
 	{ .compatible = "adi,adis16375" },
 	{ .compatible = "adi,adis16480" },
 	{ .compatible = "adi,adis16485" },
+	{ .compatible = "adi,adis16486" },
+	{ .compatible = "adi,adis16487" },
 	{ .compatible = "adi,adis16488" },
+	{ .compatible = "adi,adis16489" },
 	{ .compatible = "adi,adis16490" },
 	{ .compatible = "adi,adis16495-1" },
 	{ .compatible = "adi,adis16495-2" },
@@ -1804,4 +1869,4 @@ module_spi_driver(adis16480_driver);
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices ADIS16480 IMU driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_ADISLIB);
+MODULE_IMPORT_NS("IIO_ADISLIB");

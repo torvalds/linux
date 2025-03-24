@@ -357,7 +357,7 @@ MODULE_DEVICE_TABLE(of, omap_wdt_of_match);
 
 static struct platform_driver omap_wdt_driver = {
 	.probe		= omap_wdt_probe,
-	.remove_new	= omap_wdt_remove,
+	.remove		= omap_wdt_remove,
 	.shutdown	= omap_wdt_shutdown,
 	.suspend	= pm_ptr(omap_wdt_suspend),
 	.resume		= pm_ptr(omap_wdt_resume),

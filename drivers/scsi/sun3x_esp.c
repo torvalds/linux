@@ -265,7 +265,7 @@ static void esp_sun3x_remove(struct platform_device *dev)
 
 static struct platform_driver esp_sun3x_driver = {
 	.probe          = esp_sun3x_probe,
-	.remove_new     = esp_sun3x_remove,
+	.remove         = esp_sun3x_remove,
 	.driver = {
 		.name   = "sun3x_esp",
 	},

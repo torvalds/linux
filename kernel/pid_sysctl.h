@@ -31,7 +31,7 @@ static int pid_mfd_noexec_dointvec_minmax(const struct ctl_table *table,
 	return err;
 }
 
-static struct ctl_table pid_ns_ctl_table_vm[] = {
+static const struct ctl_table pid_ns_ctl_table_vm[] = {
 	{
 		.procname	= "memfd_noexec",
 		.data		= &init_pid_ns.memfd_noexec_scope,

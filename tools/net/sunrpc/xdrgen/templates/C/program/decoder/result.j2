@@ -1,0 +1,18 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+
+{% if annotate %}
+/* Decode {{ result }} results */
+{% endif %}
+static int {{ program }}_xdr_dec_{{ result }}(struct rpc_rqst *req,
+		struct xdr_stream *xdr, void *data)
+{
+{% if result == 'void' %}
+	xdrgen_decode_void(xdr);
+{% else %}
+	struct {{ result }} *result = data;
+
+	if (!xdrgen_decode_{{ result }}(xdr, result))
+		return -EIO;
+{% endif %}
+	return 0;
+}

@@ -361,7 +361,7 @@ MODULE_DEVICE_TABLE(of, stm32_cec_of_match);
 
 static struct platform_driver stm32_cec_driver = {
 	.probe  = stm32_cec_probe,
-	.remove_new = stm32_cec_remove,
+	.remove = stm32_cec_remove,
 	.driver = {
 		.name		= CEC_NAME,
 		.of_match_table = stm32_cec_of_match,

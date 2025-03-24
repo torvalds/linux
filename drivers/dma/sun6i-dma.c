@@ -1488,7 +1488,7 @@ static void sun6i_dma_remove(struct platform_device *pdev)
 
 static struct platform_driver sun6i_dma_driver = {
 	.probe		= sun6i_dma_probe,
-	.remove_new	= sun6i_dma_remove,
+	.remove		= sun6i_dma_remove,
 	.driver = {
 		.name		= "sun6i-dma",
 		.of_match_table	= sun6i_dma_match,

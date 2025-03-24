@@ -67,7 +67,7 @@
     },
     {
         "id": "0234",
-        "name": "Add cgroup filter with cmp ematch u32/link layer and miltiple actions",
+        "name": "Add cgroup filter with cmp ematch u32/link layer and multiple actions",
         "category": [
             "filter",
             "cgroup"
@@ -155,7 +155,7 @@
     },
     {
         "id": "2733",
-        "name": "Add cgroup filter with cmp ematch u32/network layer and miltiple actions",
+        "name": "Add cgroup filter with cmp ematch u32/network layer and multiple actions",
         "category": [
             "filter",
             "cgroup"
@@ -1189,7 +1189,7 @@
     },
     {
         "id": "4319",
-        "name": "Replace cgroup filter with diffferent match",
+        "name": "Replace cgroup filter with different match",
         "category": [
             "filter",
             "cgroup"

@@ -175,8 +175,7 @@ static int imx8_run(struct snd_sof_dev *sdev)
 
 static int imx8_probe(struct snd_sof_dev *sdev)
 {
-	struct platform_device *pdev =
-		container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *res_node;
 	struct resource *mmio;
@@ -607,10 +606,31 @@ static struct snd_sof_of_mach sof_imx8_machs[] = {
 		.drv_name = "asoc-audio-graph-card2",
 	},
 	{
+		.compatible = "fsl,imx8qxp-mek-wcpu",
+		.sof_tplg_filename = "sof-imx8-wm8962.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+	{
 		.compatible = "fsl,imx8qm-mek",
 		.sof_tplg_filename = "sof-imx8-wm8960.tplg",
 		.drv_name = "asoc-audio-graph-card2",
 	},
+	{
+		.compatible = "fsl,imx8qm-mek-revd",
+		.sof_tplg_filename = "sof-imx8-wm8962.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+	{
+		.compatible = "fsl,imx8qxp-mek-bb",
+		.sof_tplg_filename = "sof-imx8-cs42888.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+	{
+		.compatible = "fsl,imx8qm-mek-bb",
+		.sof_tplg_filename = "sof-imx8-cs42888.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+
 	{}
 };
 
@@ -658,7 +678,7 @@ MODULE_DEVICE_TABLE(of, sof_of_imx8_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_imx8_driver = {
 	.probe = sof_of_probe,
-	.remove_new = sof_of_remove,
+	.remove = sof_of_remove,
 	.driver = {
 		.name = "sof-audio-of-imx8",
 		.pm = &sof_of_pm,
@@ -669,4 +689,4 @@ module_platform_driver(snd_sof_of_imx8_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SOF support for IMX8 platforms");
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
+MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");

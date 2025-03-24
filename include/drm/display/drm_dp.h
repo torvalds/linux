@@ -359,6 +359,7 @@
 # define DP_DSC_BITS_PER_PIXEL_1_4          0x2
 # define DP_DSC_BITS_PER_PIXEL_1_2          0x3
 # define DP_DSC_BITS_PER_PIXEL_1_1          0x4
+# define DP_DSC_BITS_PER_PIXEL_MASK         0x7
 
 #define DP_PSR_SUPPORT                      0x070   /* XXX 1.2? */
 # define DP_PSR_IS_SUPPORTED                1
@@ -1542,6 +1543,10 @@ enum drm_dp_phy {
 #define DP_SYMBOL_ERROR_COUNT_LANE1_PHY_REPEATER1	    0xf0037 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE2_PHY_REPEATER1	    0xf0039 /* 1.3 */
 #define DP_SYMBOL_ERROR_COUNT_LANE3_PHY_REPEATER1	    0xf003b /* 1.3 */
+
+#define DP_OUI_PHY_REPEATER1				    0xf003d /* 1.3 */
+#define DP_OUI_PHY_REPEATER(dp_phy) \
+	DP_LTTPR_REG(dp_phy, DP_OUI_PHY_REPEATER1)
 
 #define __DP_FEC1_BASE					    0xf0290 /* 1.4 */
 #define __DP_FEC2_BASE					    0xf0298 /* 1.4 */

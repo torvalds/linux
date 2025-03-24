@@ -286,7 +286,7 @@ static struct platform_driver st_wdog_driver = {
 		.of_match_table = st_wdog_match,
 	},
 	.probe = st_wdog_probe,
-	.remove_new = st_wdog_remove,
+	.remove = st_wdog_remove,
 };
 module_platform_driver(st_wdog_driver);
 

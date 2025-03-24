@@ -791,7 +791,7 @@ l0_%=:	r0 = *(u8*)skb[0];				\
 
 SEC("tc")
 __description("reference tracking: forbid LD_ABS while holding reference")
-__failure __msg("BPF_LD_[ABS|IND] cannot be mixed with socket references")
+__failure __msg("BPF_LD_[ABS|IND] would lead to reference leak")
 __naked void ld_abs_while_holding_reference(void)
 {
 	asm volatile ("					\
@@ -836,7 +836,7 @@ l0_%=:	r7 = 1;						\
 
 SEC("tc")
 __description("reference tracking: forbid LD_IND while holding reference")
-__failure __msg("BPF_LD_[ABS|IND] cannot be mixed with socket references")
+__failure __msg("BPF_LD_[ABS|IND] would lead to reference leak")
 __naked void ld_ind_while_holding_reference(void)
 {
 	asm volatile ("					\

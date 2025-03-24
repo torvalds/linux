@@ -777,7 +777,7 @@ static int probe_gdrom(struct platform_device *devptr)
 	probe_gdrom_setupcd();
 
 	err = blk_mq_alloc_sq_tag_set(&gd.tag_set, &gdrom_mq_ops, 1,
-				BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
+				BLK_MQ_F_BLOCKING);
 	if (err)
 		goto probe_fail_free_cd_info;
 
@@ -847,7 +847,7 @@ static void remove_gdrom(struct platform_device *devptr)
 
 static struct platform_driver gdrom_driver = {
 	.probe = probe_gdrom,
-	.remove_new = remove_gdrom,
+	.remove = remove_gdrom,
 	.driver = {
 			.name = GDROM_DEV_NAME,
 	},

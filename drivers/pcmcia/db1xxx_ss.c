@@ -592,7 +592,7 @@ static struct platform_driver db1x_pcmcia_socket_driver = {
 		.name	= "db1xxx_pcmcia",
 	},
 	.probe		= db1x_pcmcia_socket_probe,
-	.remove_new	= db1x_pcmcia_socket_remove,
+	.remove		= db1x_pcmcia_socket_remove,
 };
 
 module_platform_driver(db1x_pcmcia_socket_driver);

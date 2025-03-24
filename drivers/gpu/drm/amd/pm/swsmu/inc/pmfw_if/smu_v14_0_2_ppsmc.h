@@ -92,7 +92,6 @@
 
 //Resets
 #define PPSMC_MSG_PrepareMp1ForUnload            0x2E
-#define PPSMC_MSG_Mode1Reset                     0x2F
 
 //Set SystemVirtual DramAddrHigh
 #define PPSMC_MSG_SetSystemVirtualDramAddrHigh   0x30
@@ -119,11 +118,12 @@
 
 //STB to dram log
 #define PPSMC_MSG_DumpSTBtoDram                  0x3D
-#define PPSMC_MSG_STBtoDramLogSetDramAddrHigh    0x3E
-#define PPSMC_MSG_STBtoDramLogSetDramAddrLow     0x3F
+#define PPSMC_MSG_STBtoDramLogSetDramAddress     0x3E
+#define PPSMC_MSG_DummyUndefined                 0x3F
 #define PPSMC_MSG_STBtoDramLogSetDramSize        0x40
 #define PPSMC_MSG_SetOBMTraceBufferLogging       0x41
 
+#define PPSMC_MSG_UseProfilingMode               0x42
 #define PPSMC_MSG_AllowGfxDcs                    0x43
 #define PPSMC_MSG_DisallowGfxDcs                 0x44
 #define PPSMC_MSG_EnableAudioStutterWA           0x45
@@ -135,6 +135,16 @@
 #define PPSMC_MSG_SetBadMemoryPagesRetiredFlagsPerChannel 0x4B
 #define PPSMC_MSG_SetPriorityDeltaGain           0x4C
 #define PPSMC_MSG_AllowIHHostInterrupt           0x4D
+#define PPSMC_MSG_EnableShadowDpm                0x4E
 #define PPSMC_MSG_Mode3Reset                     0x4F
-#define PPSMC_Message_Count                      0x50
+#define PPSMC_MSG_SetDriverDramAddr              0x50
+#define PPSMC_MSG_SetToolsDramAddr               0x51
+#define PPSMC_MSG_TransferTableSmu2DramWithAddr  0x52
+#define PPSMC_MSG_TransferTableDram2SmuWithAddr  0x53
+#define PPSMC_MSG_GetAllRunningSmuFeatures       0x54
+#define PPSMC_MSG_GetSvi3Voltage                 0x55
+#define PPSMC_MSG_UpdatePolicy                   0x56
+#define PPSMC_MSG_ExtPwrConnSupport              0x57
+#define PPSMC_MSG_PreloadSwPstateForUclkOverDrive         0x58
+#define PPSMC_Message_Count                      0x59
 #endif

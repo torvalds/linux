@@ -19,7 +19,7 @@
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -32,7 +32,7 @@
 
 unsigned int uvc_clock_param = CLOCK_MONOTONIC;
 unsigned int uvc_hw_timestamps_param;
-unsigned int uvc_no_drop_param;
+unsigned int uvc_no_drop_param = 1;
 static unsigned int uvc_quirks_param = -1;
 unsigned int uvc_dbg_param;
 unsigned int uvc_timeout_param = UVC_CTRL_STREAMING_TIMEOUT;
@@ -220,20 +220,127 @@ static struct uvc_streaming *uvc_stream_new(struct uvc_device *dev,
  * Descriptors parsing
  */
 
+static int uvc_parse_frame(struct uvc_device *dev,
+			   struct uvc_streaming *streaming,
+			   struct uvc_format *format, struct uvc_frame *frame,
+			   u32 **intervals, u8 ftype, int width_multiplier,
+			   const unsigned char *buffer, int buflen)
+{
+	struct usb_host_interface *alts = streaming->intf->cur_altsetting;
+	unsigned int maxIntervalIndex;
+	unsigned int interval;
+	unsigned int i, n;
+
+	if (ftype != UVC_VS_FRAME_FRAME_BASED)
+		n = buflen > 25 ? buffer[25] : 0;
+	else
+		n = buflen > 21 ? buffer[21] : 0;
+
+	n = n ? n : 3;
+
+	if (buflen < 26 + 4 * n) {
+		uvc_dbg(dev, DESCR,
+			"device %d videostreaming interface %d FRAME error\n",
+			dev->udev->devnum, alts->desc.bInterfaceNumber);
+		return -EINVAL;
+	}
+
+	frame->bFrameIndex = buffer[3];
+	frame->bmCapabilities = buffer[4];
+	frame->wWidth = get_unaligned_le16(&buffer[5]) * width_multiplier;
+	frame->wHeight = get_unaligned_le16(&buffer[7]);
+	frame->dwMinBitRate = get_unaligned_le32(&buffer[9]);
+	frame->dwMaxBitRate = get_unaligned_le32(&buffer[13]);
+	if (ftype != UVC_VS_FRAME_FRAME_BASED) {
+		frame->dwMaxVideoFrameBufferSize =
+			get_unaligned_le32(&buffer[17]);
+		frame->dwDefaultFrameInterval =
+			get_unaligned_le32(&buffer[21]);
+		frame->bFrameIntervalType = buffer[25];
+	} else {
+		frame->dwMaxVideoFrameBufferSize = 0;
+		frame->dwDefaultFrameInterval =
+			get_unaligned_le32(&buffer[17]);
+		frame->bFrameIntervalType = buffer[21];
+	}
+
+	/*
+	 * Copy the frame intervals.
+	 *
+	 * Some bogus devices report dwMinFrameInterval equal to
+	 * dwMaxFrameInterval and have dwFrameIntervalStep set to zero. Setting
+	 * all null intervals to 1 fixes the problem and some other divisions
+	 * by zero that could happen.
+	 */
+	frame->dwFrameInterval = *intervals;
+
+	for (i = 0; i < n; ++i) {
+		interval = get_unaligned_le32(&buffer[26 + 4 * i]);
+		(*intervals)[i] = interval ? interval : 1;
+	}
+
+	/*
+	 * Apply more fixes, quirks and workarounds to handle incorrect or
+	 * broken descriptors.
+	 */
+
+	/*
+	 * Several UVC chipsets screw up dwMaxVideoFrameBufferSize completely.
+	 * Observed behaviours range from setting the value to 1.1x the actual
+	 * frame size to hardwiring the 16 low bits to 0. This results in a
+	 * higher than necessary memory usage as well as a wrong image size
+	 * information. For uncompressed formats this can be fixed by computing
+	 * the value from the frame size.
+	 */
+	if (!(format->flags & UVC_FMT_FLAG_COMPRESSED))
+		frame->dwMaxVideoFrameBufferSize = format->bpp * frame->wWidth
+						 * frame->wHeight / 8;
+
+	/*
+	 * Clamp the default frame interval to the boundaries. A zero
+	 * bFrameIntervalType value indicates a continuous frame interval
+	 * range, with dwFrameInterval[0] storing the minimum value and
+	 * dwFrameInterval[1] storing the maximum value.
+	 */
+	maxIntervalIndex = frame->bFrameIntervalType ? n - 1 : 1;
+	frame->dwDefaultFrameInterval =
+		clamp(frame->dwDefaultFrameInterval,
+		      frame->dwFrameInterval[0],
+		      frame->dwFrameInterval[maxIntervalIndex]);
+
+	/*
+	 * Some devices report frame intervals that are not functional. If the
+	 * corresponding quirk is set, restrict operation to the first interval
+	 * only.
+	 */
+	if (dev->quirks & UVC_QUIRK_RESTRICT_FRAME_RATE) {
+		frame->bFrameIntervalType = 1;
+		(*intervals)[0] = frame->dwDefaultFrameInterval;
+	}
+
+	uvc_dbg(dev, DESCR, "- %ux%u (%u.%u fps)\n",
+		frame->wWidth, frame->wHeight,
+		10000000 / frame->dwDefaultFrameInterval,
+		(100000000 / frame->dwDefaultFrameInterval) % 10);
+
+	*intervals += n;
+
+	return buffer[0];
+}
+
 static int uvc_parse_format(struct uvc_device *dev,
 	struct uvc_streaming *streaming, struct uvc_format *format,
 	struct uvc_frame *frames, u32 **intervals, const unsigned char *buffer,
 	int buflen)
 {
-	struct usb_interface *intf = streaming->intf;
-	struct usb_host_interface *alts = intf->cur_altsetting;
+	struct usb_host_interface *alts = streaming->intf->cur_altsetting;
 	const struct uvc_format_desc *fmtdesc;
 	struct uvc_frame *frame;
 	const unsigned char *start = buffer;
 	unsigned int width_multiplier = 1;
-	unsigned int interval;
 	unsigned int i, n;
 	u8 ftype;
+	int ret;
 
 	format->type = buffer[2];
 	format->index = buffer[3];
@@ -371,111 +478,19 @@ static int uvc_parse_format(struct uvc_device *dev,
 	 * Parse the frame descriptors. Only uncompressed, MJPEG and frame
 	 * based formats have frame descriptors.
 	 */
-	while (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
-	       buffer[2] == ftype) {
-		unsigned int maxIntervalIndex;
-
-		frame = &frames[format->nframes];
-		if (ftype != UVC_VS_FRAME_FRAME_BASED)
-			n = buflen > 25 ? buffer[25] : 0;
-		else
-			n = buflen > 21 ? buffer[21] : 0;
-
-		n = n ? n : 3;
-
-		if (buflen < 26 + 4*n) {
-			uvc_dbg(dev, DESCR,
-				"device %d videostreaming interface %d FRAME error\n",
-				dev->udev->devnum,
-				alts->desc.bInterfaceNumber);
-			return -EINVAL;
+	if (ftype) {
+		while (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
+		       buffer[2] == ftype) {
+			frame = &frames[format->nframes];
+			ret = uvc_parse_frame(dev, streaming, format, frame,
+					      intervals, ftype, width_multiplier,
+					      buffer, buflen);
+			if (ret < 0)
+				return ret;
+			format->nframes++;
+			buflen -= ret;
+			buffer += ret;
 		}
-
-		frame->bFrameIndex = buffer[3];
-		frame->bmCapabilities = buffer[4];
-		frame->wWidth = get_unaligned_le16(&buffer[5])
-			      * width_multiplier;
-		frame->wHeight = get_unaligned_le16(&buffer[7]);
-		frame->dwMinBitRate = get_unaligned_le32(&buffer[9]);
-		frame->dwMaxBitRate = get_unaligned_le32(&buffer[13]);
-		if (ftype != UVC_VS_FRAME_FRAME_BASED) {
-			frame->dwMaxVideoFrameBufferSize =
-				get_unaligned_le32(&buffer[17]);
-			frame->dwDefaultFrameInterval =
-				get_unaligned_le32(&buffer[21]);
-			frame->bFrameIntervalType = buffer[25];
-		} else {
-			frame->dwMaxVideoFrameBufferSize = 0;
-			frame->dwDefaultFrameInterval =
-				get_unaligned_le32(&buffer[17]);
-			frame->bFrameIntervalType = buffer[21];
-		}
-
-		/*
-		 * Copy the frame intervals.
-		 *
-		 * Some bogus devices report dwMinFrameInterval equal to
-		 * dwMaxFrameInterval and have dwFrameIntervalStep set to
-		 * zero. Setting all null intervals to 1 fixes the problem and
-		 * some other divisions by zero that could happen.
-		 */
-		frame->dwFrameInterval = *intervals;
-
-		for (i = 0; i < n; ++i) {
-			interval = get_unaligned_le32(&buffer[26+4*i]);
-			(*intervals)[i] = interval ? interval : 1;
-		}
-
-		/*
-		 * Apply more fixes, quirks and workarounds to handle incorrect
-		 * or broken descriptors.
-		 */
-
-		/*
-		 * Several UVC chipsets screw up dwMaxVideoFrameBufferSize
-		 * completely. Observed behaviours range from setting the
-		 * value to 1.1x the actual frame size to hardwiring the
-		 * 16 low bits to 0. This results in a higher than necessary
-		 * memory usage as well as a wrong image size information. For
-		 * uncompressed formats this can be fixed by computing the
-		 * value from the frame size.
-		 */
-		if (!(format->flags & UVC_FMT_FLAG_COMPRESSED))
-			frame->dwMaxVideoFrameBufferSize = format->bpp
-				* frame->wWidth * frame->wHeight / 8;
-
-		/*
-		 * Clamp the default frame interval to the boundaries. A zero
-		 * bFrameIntervalType value indicates a continuous frame
-		 * interval range, with dwFrameInterval[0] storing the minimum
-		 * value and dwFrameInterval[1] storing the maximum value.
-		 */
-		maxIntervalIndex = frame->bFrameIntervalType ? n - 1 : 1;
-		frame->dwDefaultFrameInterval =
-			clamp(frame->dwDefaultFrameInterval,
-			      frame->dwFrameInterval[0],
-			      frame->dwFrameInterval[maxIntervalIndex]);
-
-		/*
-		 * Some devices report frame intervals that are not functional.
-		 * If the corresponding quirk is set, restrict operation to the
-		 * first interval only.
-		 */
-		if (dev->quirks & UVC_QUIRK_RESTRICT_FRAME_RATE) {
-			frame->bFrameIntervalType = 1;
-			(*intervals)[0] = frame->dwDefaultFrameInterval;
-		}
-
-		uvc_dbg(dev, DESCR, "- %ux%u (%u.%u fps)\n",
-			frame->wWidth, frame->wHeight,
-			10000000 / frame->dwDefaultFrameInterval,
-			(100000000 / frame->dwDefaultFrameInterval) % 10);
-
-		format->nframes++;
-		*intervals += n;
-
-		buflen -= buffer[0];
-		buffer += buffer[0];
 	}
 
 	if (buflen > 2 && buffer[1] == USB_DT_CS_INTERFACE &&
@@ -1280,14 +1295,14 @@ static int uvc_gpio_parse(struct uvc_device *dev)
 	struct gpio_desc *gpio_privacy;
 	int irq;
 
-	gpio_privacy = devm_gpiod_get_optional(&dev->udev->dev, "privacy",
+	gpio_privacy = devm_gpiod_get_optional(&dev->intf->dev, "privacy",
 					       GPIOD_IN);
 	if (IS_ERR_OR_NULL(gpio_privacy))
 		return PTR_ERR_OR_ZERO(gpio_privacy);
 
 	irq = gpiod_to_irq(gpio_privacy);
 	if (irq < 0)
-		return dev_err_probe(&dev->udev->dev, irq,
+		return dev_err_probe(&dev->intf->dev, irq,
 				     "No IRQ for privacy GPIO\n");
 
 	unit = uvc_alloc_entity(UVC_EXT_GPIO_UNIT, UVC_EXT_GPIO_UNIT_ID, 0, 1);
@@ -1313,15 +1328,27 @@ static int uvc_gpio_parse(struct uvc_device *dev)
 static int uvc_gpio_init_irq(struct uvc_device *dev)
 {
 	struct uvc_entity *unit = dev->gpio_unit;
+	int ret;
 
 	if (!unit || unit->gpio.irq < 0)
 		return 0;
 
-	return devm_request_threaded_irq(&dev->udev->dev, unit->gpio.irq, NULL,
-					 uvc_gpio_irq,
-					 IRQF_ONESHOT | IRQF_TRIGGER_FALLING |
-					 IRQF_TRIGGER_RISING,
-					 "uvc_privacy_gpio", dev);
+	ret = request_threaded_irq(unit->gpio.irq, NULL, uvc_gpio_irq,
+				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING |
+				   IRQF_TRIGGER_RISING,
+				   "uvc_privacy_gpio", dev);
+
+	unit->gpio.initialized = !ret;
+
+	return ret;
+}
+
+static void uvc_gpio_deinit(struct uvc_device *dev)
+{
+	if (!dev->gpio_unit || !dev->gpio_unit->gpio.initialized)
+		return;
+
+	free_irq(dev->gpio_unit->gpio.irq, dev);
 }
 
 /* ------------------------------------------------------------------------
@@ -1918,12 +1945,44 @@ static void uvc_unregister_video(struct uvc_device *dev)
 {
 	struct uvc_streaming *stream;
 
+	uvc_gpio_deinit(dev);
+
 	list_for_each_entry(stream, &dev->streams, list) {
+		/* Nothing to do here, continue. */
 		if (!video_is_registered(&stream->vdev))
 			continue;
 
+		/*
+		 * For stream->vdev we follow the same logic as:
+		 * vb2_video_unregister_device().
+		 */
+
+		/* 1. Take a reference to vdev */
+		get_device(&stream->vdev.dev);
+
+		/* 2. Ensure that no new ioctls can be called. */
 		video_unregister_device(&stream->vdev);
-		video_unregister_device(&stream->meta.vdev);
+
+		/* 3. Wait for old ioctls to finish. */
+		mutex_lock(&stream->mutex);
+
+		/* 4. Stop streaming. */
+		uvc_queue_release(&stream->queue);
+
+		mutex_unlock(&stream->mutex);
+
+		put_device(&stream->vdev.dev);
+
+		/*
+		 * For stream->meta.vdev we can directly call:
+		 * vb2_video_unregister_device().
+		 */
+		vb2_video_unregister_device(&stream->meta.vdev);
+
+		/*
+		 * Now both vdevs are not streaming and all the ioctls will
+		 * return -ENODEV.
+		 */
 
 		uvc_debugfs_cleanup_stream(stream);
 	}
@@ -1949,7 +2008,7 @@ int uvc_register_video_device(struct uvc_device *dev,
 	int ret;
 
 	/* Initialize the video buffers queue. */
-	ret = uvc_queue_init(queue, type, !uvc_no_drop_param);
+	ret = uvc_queue_init(queue, type);
 	if (ret)
 		return ret;
 
@@ -2116,7 +2175,6 @@ static int uvc_probe(struct usb_interface *intf,
 	INIT_LIST_HEAD(&dev->streams);
 	kref_init(&dev->ref);
 	atomic_set(&dev->nmappings, 0);
-	mutex_init(&dev->lock);
 
 	dev->udev = usb_get_dev(udev);
 	dev->intf = usb_get_intf(intf);
@@ -2288,10 +2346,7 @@ static int uvc_suspend(struct usb_interface *intf, pm_message_t message)
 	/* Controls are cached on the fly so they don't need to be saved. */
 	if (intf->cur_altsetting->desc.bInterfaceSubClass ==
 	    UVC_SC_VIDEOCONTROL) {
-		mutex_lock(&dev->lock);
-		if (dev->users)
-			uvc_status_stop(dev);
-		mutex_unlock(&dev->lock);
+		uvc_status_suspend(dev);
 		return 0;
 	}
 
@@ -2322,12 +2377,7 @@ static int __uvc_resume(struct usb_interface *intf, int reset)
 				return ret;
 		}
 
-		mutex_lock(&dev->lock);
-		if (dev->users)
-			ret = uvc_status_start(dev, GFP_NOIO);
-		mutex_unlock(&dev->lock);
-
-		return ret;
+		return uvc_status_resume(dev);
 	}
 
 	list_for_each_entry(stream, &dev->streams, list) {
@@ -2387,8 +2437,25 @@ module_param_call(clock, uvc_clock_param_set, uvc_clock_param_get,
 MODULE_PARM_DESC(clock, "Video buffers timestamp clock");
 module_param_named(hwtimestamps, uvc_hw_timestamps_param, uint, 0644);
 MODULE_PARM_DESC(hwtimestamps, "Use hardware timestamps");
-module_param_named(nodrop, uvc_no_drop_param, uint, 0644);
+
+static int param_set_nodrop(const char *val, const struct kernel_param *kp)
+{
+	pr_warn_once("uvcvideo: "
+		     DEPRECATED
+		     "nodrop parameter will be eventually removed.\n");
+	return param_set_bool(val, kp);
+}
+
+static const struct kernel_param_ops param_ops_nodrop = {
+	.set = param_set_nodrop,
+	.get = param_get_uint,
+};
+
+param_check_uint(nodrop, &uvc_no_drop_param);
+module_param_cb(nodrop, &param_ops_nodrop, &uvc_no_drop_param, 0644);
+__MODULE_PARM_TYPE(nodrop, "uint");
 MODULE_PARM_DESC(nodrop, "Don't drop incomplete frames");
+
 module_param_named(quirks, uvc_quirks_param, uint, 0644);
 MODULE_PARM_DESC(quirks, "Forced device quirks");
 module_param_named(trace, uvc_dbg_param, uint, 0644);
@@ -2428,8 +2495,21 @@ static const struct uvc_device_info uvc_quirk_force_y8 = {
  * The Logitech cameras listed below have their interface class set to
  * VENDOR_SPEC because they don't announce themselves as UVC devices, even
  * though they are compliant.
+ *
+ * Sort these by vendor/product ID.
  */
 static const struct usb_device_id uvc_ids[] = {
+	/* Quanta ACER HD User Facing */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x0408,
+	  .idProduct		= 0x4033,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= UVC_PC_PROTOCOL_15,
+	  .driver_info		= (kernel_ulong_t)&(const struct uvc_device_info){
+		.uvc_version = 0x010a,
+	  } },
 	/* Quanta ACER HD User Facing */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -2752,6 +2832,15 @@ static const struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= (kernel_ulong_t)&uvc_quirk_probe_minmax },
+	/* Sonix Technology Co. Ltd. - 292A IPC AR0330 */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x0c45,
+	  .idProduct		= 0x6366,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_INFO_QUIRK(UVC_QUIRK_MJPEG_NO_EOF) },
 	/* MT6227 */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -2780,6 +2869,15 @@ static const struct usb_device_id uvc_ids[] = {
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= (kernel_ulong_t)&uvc_quirk_probe_minmax },
+	/* Kurokesu C1 PRO */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x16d0,
+	  .idProduct		= 0x0ed1,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_INFO_QUIRK(UVC_QUIRK_MJPEG_NO_EOF) },
 	/* Syntek (HP Spartan) */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -2964,6 +3062,15 @@ static const struct usb_device_id uvc_ids[] = {
 	  .bInterfaceProtocol	= 0,
 	  .driver_info		= UVC_INFO_QUIRK(UVC_QUIRK_PROBE_MINMAX
 					| UVC_QUIRK_IGNORE_SELECTOR_UNIT) },
+	/* NXP Semiconductors IR VIDEO */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x1fc9,
+	  .idProduct		= 0x009b,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= (kernel_ulong_t)&uvc_quirk_probe_minmax },
 	/* Oculus VR Positional Tracker DK2 */
 	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
 				| USB_DEVICE_ID_MATCH_INT_INFO,
@@ -3068,6 +3175,15 @@ static const struct usb_device_id uvc_ids[] = {
 				| USB_DEVICE_ID_MATCH_INT_INFO,
 	  .idVendor		= 0x8086,
 	  .idProduct		= 0x0b5c,
+	  .bInterfaceClass	= USB_CLASS_VIDEO,
+	  .bInterfaceSubClass	= 1,
+	  .bInterfaceProtocol	= 0,
+	  .driver_info		= UVC_INFO_META(V4L2_META_FMT_D4XX) },
+	/* Intel D421 Depth Module */
+	{ .match_flags		= USB_DEVICE_ID_MATCH_DEVICE
+				| USB_DEVICE_ID_MATCH_INT_INFO,
+	  .idVendor		= 0x8086,
+	  .idProduct		= 0x1155,
 	  .bInterfaceClass	= USB_CLASS_VIDEO,
 	  .bInterfaceSubClass	= 1,
 	  .bInterfaceProtocol	= 0,

@@ -36,7 +36,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/atomic.h>
 #include <asm/smp.h>
 #include <asm/pdc.h>
@@ -46,6 +46,8 @@
 #include <asm/cacheflush.h>
 #include <linux/kgdb.h>
 #include <linux/kprobes.h>
+
+#include "unaligned.h"
 
 #if defined(CONFIG_LIGHTWEIGHT_SPINLOCK_CHECK)
 #include <asm/spinlock.h>
@@ -504,7 +506,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	if (((unsigned long)regs->iaoq[0] & 3) &&
 	    ((unsigned long)regs->iasq[0] != (unsigned long)regs->sr[7])) { 
 		/* Kill the user process later */
-		regs->iaoq[0] = 0 | 3;
+		regs->iaoq[0] = 0 | PRIV_USER;
 		regs->iaoq[1] = regs->iaoq[0] + 4;
 		regs->iasq[0] = regs->iasq[1] = regs->sr[7];
 		regs->gr[0] &= ~PSW_B;

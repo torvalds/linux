@@ -987,9 +987,9 @@ static int alc5623_i2c_probe(struct i2c_client *client)
 	struct alc5623_priv *alc5623;
 	struct device_node *np;
 	unsigned int vid1, vid2;
+	unsigned int matched_id;
 	int ret;
 	u32 val32;
-	const struct i2c_device_id *id;
 
 	alc5623 = devm_kzalloc(&client->dev, sizeof(struct alc5623_priv),
 			       GFP_KERNEL);
@@ -1016,12 +1016,12 @@ static int alc5623_i2c_probe(struct i2c_client *client)
 	}
 	vid2 >>= 8;
 
-	id = i2c_match_id(alc5623_i2c_table, client);
+	matched_id = (uintptr_t)i2c_get_match_data(client);
 
-	if ((vid1 != 0x10ec) || (vid2 != id->driver_data)) {
+	if ((vid1 != 0x10ec) || (vid2 != matched_id)) {
 		dev_err(&client->dev, "unknown or wrong codec\n");
-		dev_err(&client->dev, "Expected %x:%lx, got %x:%x\n",
-				0x10ec, id->driver_data,
+		dev_err(&client->dev, "Expected %x:%x, got %x:%x\n",
+				0x10ec, matched_id,
 				vid1, vid2);
 		return -ENODEV;
 	}

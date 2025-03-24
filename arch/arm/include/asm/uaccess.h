@@ -12,7 +12,7 @@
 #include <linux/string.h>
 #include <asm/page.h>
 #include <asm/domain.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/unified.h>
 #include <asm/pgtable.h>
 #include <asm/proc-fns.h>

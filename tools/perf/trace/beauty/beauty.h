@@ -113,6 +113,7 @@ struct syscall_arg {
 	struct thread *thread;
 	struct trace  *trace;
 	void	      *parm;
+	char	      *type_name;
 	u16	      len;
 	u8	      idx;
 	u8	      mask;
@@ -228,6 +229,11 @@ size_t syscall_arg__scnprintf_renameat2_flags(char *bf, size_t size, struct sysc
 size_t syscall_arg__scnprintf_sockaddr(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SOCKADDR syscall_arg__scnprintf_sockaddr
 
+// 'argname' is just documentational at this point, to remove the previous comment with that info
+#define SCA_SOCKADDR_FROM_USER(argname) \
+	  { .scnprintf	= SCA_SOCKADDR, \
+	    .from_user	= true, }
+
 size_t syscall_arg__scnprintf_socket_protocol(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_SK_PROTO syscall_arg__scnprintf_socket_protocol
 
@@ -248,6 +254,11 @@ size_t syscall_arg__scnprintf_sync_file_range_flags(char *bf, size_t size, struc
 
 size_t syscall_arg__scnprintf_timespec(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_TIMESPEC syscall_arg__scnprintf_timespec
+
+// 'argname' is just documentational at this point, to remove the previous comment with that info
+#define SCA_TIMESPEC_FROM_USER(argname) \
+	  { .scnprintf	= SCA_TIMESPEC, \
+	    .from_user	= true, }
 
 size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix);
 

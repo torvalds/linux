@@ -998,7 +998,7 @@ static struct platform_driver mtk_nor_driver = {
 		.pm = &mtk_nor_pm_ops,
 	},
 	.probe = mtk_nor_probe,
-	.remove_new = mtk_nor_remove,
+	.remove = mtk_nor_remove,
 };
 
 module_platform_driver(mtk_nor_driver);

@@ -22,8 +22,9 @@ enum sensor_index {
 	ACCEL_IDX,
 	GYRO_IDX,
 	MAG_IDX,
-	ALS_IDX = 4,
-	HPD_IDX = 5,
+	SRA_IDX,
+	ALS_IDX,
+	HPD_IDX,
 	MAX_IDX = 15,
 };
 
@@ -161,6 +162,25 @@ struct hpd_status {
 			u32 state			: 1;
 		} shpd;
 		u32 val;
+	};
+};
+
+struct sfh_op_mode {
+	union {
+		u32 val;
+		struct {
+			u32 mode		: 3;
+			u32 lidstatus		: 1;
+			u32 angle		: 10;
+			u32 inbagstatedbg	: 2;
+			u32 ontablestate	: 2;
+			u32 inbagstate		: 2;
+			u32 outbagstate		: 2;
+			u32 inbagmlcstate	: 1;
+			u32 powerstate		: 2;
+			u32 data		: 3;
+			u32 devicemode		: 4;
+		} op_mode;
 	};
 };
 

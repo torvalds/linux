@@ -1713,5 +1713,5 @@ struct platform_driver tegra_dsi_driver = {
 		.of_match_table = tegra_dsi_of_match,
 	},
 	.probe = tegra_dsi_probe,
-	.remove_new = tegra_dsi_remove,
+	.remove = tegra_dsi_remove,
 };

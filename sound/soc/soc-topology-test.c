@@ -88,8 +88,6 @@ static struct snd_soc_dai_link kunit_dai_links[] = {
 		.nonatomic = 1,
 		.dynamic = 1,
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST, SND_SOC_DPCM_TRIGGER_POST},
-		.dpcm_playback = 1,
-		.dpcm_capture = 1,
 		SND_SOC_DAILINK_REG(dummy, dummy, platform),
 	},
 };
@@ -244,12 +242,12 @@ static void snd_soc_tplg_test_load_with_null_comp(struct kunit *test)
 	kunit_comp->kunit = test;
 	kunit_comp->expect = -EINVAL; /* expect failure */
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -286,12 +284,12 @@ static void snd_soc_tplg_test_load_with_null_ops(struct kunit *test)
 	kunit_comp->kunit = test;
 	kunit_comp->expect = 0; /* expect success */
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -348,12 +346,12 @@ static void snd_soc_tplg_test_load_with_null_fw(struct kunit *test)
 	kunit_comp->kunit = test;
 	kunit_comp->expect = -EINVAL; /* expect failure */
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -396,12 +394,12 @@ static void snd_soc_tplg_test_load_empty_tplg(struct kunit *test)
 	kunit_comp->fw.data = (u8 *)data;
 	kunit_comp->fw.size = size;
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -451,12 +449,12 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_magic(struct kunit *test)
 	kunit_comp->fw.data = (u8 *)data;
 	kunit_comp->fw.size = size;
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -506,12 +504,12 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_abi(struct kunit *test)
 	kunit_comp->fw.data = (u8 *)data;
 	kunit_comp->fw.size = size;
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -561,12 +559,12 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_size(struct kunit *test)
 	kunit_comp->fw.data = (u8 *)data;
 	kunit_comp->fw.size = size;
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -617,12 +615,12 @@ static void snd_soc_tplg_test_load_empty_tplg_bad_payload_size(struct kunit *tes
 	kunit_comp->fw.data = (u8 *)data;
 	kunit_comp->fw.size = size;
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -665,12 +663,12 @@ static void snd_soc_tplg_test_load_pcm_tplg(struct kunit *test)
 	kunit_comp->fw.data = data;
 	kunit_comp->fw.size = size;
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -715,12 +713,12 @@ static void snd_soc_tplg_test_load_pcm_tplg_reload_comp(struct kunit *test)
 	kunit_comp->fw.data = data;
 	kunit_comp->fw.size = size;
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_register_card(&kunit_comp->card);
@@ -767,12 +765,12 @@ static void snd_soc_tplg_test_load_pcm_tplg_reload_card(struct kunit *test)
 	kunit_comp->fw.data = data;
 	kunit_comp->fw.size = size;
 
-	kunit_comp->card.dev = test_dev,
-	kunit_comp->card.name = "kunit-card",
-	kunit_comp->card.owner = THIS_MODULE,
-	kunit_comp->card.dai_link = kunit_dai_links,
-	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links),
-	kunit_comp->card.fully_routed = true,
+	kunit_comp->card.dev = test_dev;
+	kunit_comp->card.name = "kunit-card";
+	kunit_comp->card.owner = THIS_MODULE;
+	kunit_comp->card.dai_link = kunit_dai_links;
+	kunit_comp->card.num_links = ARRAY_SIZE(kunit_dai_links);
+	kunit_comp->card.fully_routed = true;
 
 	/* run test */
 	ret = snd_soc_component_initialize(&kunit_comp->comp, &test_component, test_dev);

@@ -25,7 +25,7 @@ impl<'a> RawWriter<'a> {
     }
 
     pub(crate) fn from_array<const N: usize>(
-        a: &'a mut [core::ffi::c_char; N],
+        a: &'a mut [crate::ffi::c_char; N],
     ) -> Result<RawWriter<'a>> {
         Self::new(
             // SAFETY: the buffer of `a` is valid for read and write as `u8` for

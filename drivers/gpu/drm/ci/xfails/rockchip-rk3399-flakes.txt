@@ -1,6 +1,76 @@
 # Board Name: rk3399-gru-kevin
-# Bug Report: https://lore.kernel.org/dri-devel/5cc34a8b-c1fa-4744-9031-2d33ecf41011@collabora.com/T/#u
-# IGT Version: 1.28-g0df7b9b97
-# Linux Version: 6.9.0-rc7
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
 # Failure Rate: 50
-panfrost_submit@pan-unhandled-pagefault
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_bw@linear-tiling-1-displays-2560x1440p
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_cursor_legacy@nonblocking-modeset-vs-cursor-atomic
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_flip@dpms-vs-vblank-race-interruptible
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_flip@flip-vs-absolute-wf_vblank-interruptible
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_flip@flip-vs-wf_vblank-interruptible
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_setmode@basic
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_bw@connected-linear-tiling-1-displays-2560x1440p
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/7505ac00-29ef-4ad9-8904-94b4c024c02b@collabora.com/T/#t
+# Failure Rate: 50
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_flip@wf_vblank-ts-check
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/7505ac00-29ef-4ad9-8904-94b4c024c02b@collabora.com/T/#t
+# Failure Rate: 50
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc5
+kms_flip@dpms-vs-vblank-race
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/7505ac00-29ef-4ad9-8904-94b4c024c02b@collabora.com/T/#t
+# Failure Rate: 50
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc5
+kms_bw@linear-tiling-2-displays-2160x1440p
+
+# Board Name: rk3399-gru-kevin
+# Bug Report: https://lore.kernel.org/linux-rockchip/7505ac00-29ef-4ad9-8904-94b4c024c02b@collabora.com/T/#t
+# Failure Rate: 50
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc5
+kms_flip@flip-vs-expired-vblank

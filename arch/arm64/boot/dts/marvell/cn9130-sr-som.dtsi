@@ -136,7 +136,7 @@
 		};
 
 		cp0_mdio_pins: cp0-mdio-pins {
-			marvell,pins = "mpp40", "mpp41";
+			marvell,pins = "mpp0", "mpp1";
 			marvell,function = "ge";
 		};
 

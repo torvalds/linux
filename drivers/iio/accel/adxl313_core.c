@@ -32,19 +32,19 @@ const struct regmap_access_table adxl312_readable_regs_table = {
 	.yes_ranges = adxl312_readable_reg_range,
 	.n_yes_ranges = ARRAY_SIZE(adxl312_readable_reg_range),
 };
-EXPORT_SYMBOL_NS_GPL(adxl312_readable_regs_table, IIO_ADXL313);
+EXPORT_SYMBOL_NS_GPL(adxl312_readable_regs_table, "IIO_ADXL313");
 
 const struct regmap_access_table adxl313_readable_regs_table = {
 	.yes_ranges = adxl313_readable_reg_range,
 	.n_yes_ranges = ARRAY_SIZE(adxl313_readable_reg_range),
 };
-EXPORT_SYMBOL_NS_GPL(adxl313_readable_regs_table, IIO_ADXL313);
+EXPORT_SYMBOL_NS_GPL(adxl313_readable_regs_table, "IIO_ADXL313");
 
 const struct regmap_access_table adxl314_readable_regs_table = {
 	.yes_ranges = adxl312_readable_reg_range,
 	.n_yes_ranges = ARRAY_SIZE(adxl312_readable_reg_range),
 };
-EXPORT_SYMBOL_NS_GPL(adxl314_readable_regs_table, IIO_ADXL313);
+EXPORT_SYMBOL_NS_GPL(adxl314_readable_regs_table, "IIO_ADXL313");
 
 static int adxl312_check_id(struct device *dev,
 			    struct adxl313_data *data)
@@ -121,7 +121,7 @@ const struct adxl313_chip_info adxl31x_chip_info[] = {
 		.check_id = &adxl312_check_id,
 	},
 };
-EXPORT_SYMBOL_NS_GPL(adxl31x_chip_info, IIO_ADXL313);
+EXPORT_SYMBOL_NS_GPL(adxl31x_chip_info, "IIO_ADXL313");
 
 static const struct regmap_range adxl312_writable_reg_range[] = {
 	regmap_reg_range(ADXL313_REG_OFS_AXIS(0), ADXL313_REG_OFS_AXIS(2)),
@@ -144,19 +144,19 @@ const struct regmap_access_table adxl312_writable_regs_table = {
 	.yes_ranges = adxl312_writable_reg_range,
 	.n_yes_ranges = ARRAY_SIZE(adxl312_writable_reg_range),
 };
-EXPORT_SYMBOL_NS_GPL(adxl312_writable_regs_table, IIO_ADXL313);
+EXPORT_SYMBOL_NS_GPL(adxl312_writable_regs_table, "IIO_ADXL313");
 
 const struct regmap_access_table adxl313_writable_regs_table = {
 	.yes_ranges = adxl313_writable_reg_range,
 	.n_yes_ranges = ARRAY_SIZE(adxl313_writable_reg_range),
 };
-EXPORT_SYMBOL_NS_GPL(adxl313_writable_regs_table, IIO_ADXL313);
+EXPORT_SYMBOL_NS_GPL(adxl313_writable_regs_table, "IIO_ADXL313");
 
 const struct regmap_access_table adxl314_writable_regs_table = {
 	.yes_ranges = adxl312_writable_reg_range,
 	.n_yes_ranges = ARRAY_SIZE(adxl312_writable_reg_range),
 };
-EXPORT_SYMBOL_NS_GPL(adxl314_writable_regs_table, IIO_ADXL313);
+EXPORT_SYMBOL_NS_GPL(adxl314_writable_regs_table, "IIO_ADXL313");
 
 static const int adxl313_odr_freqs[][2] = {
 	[0] = { 6, 250000 },
@@ -417,7 +417,7 @@ int adxl313_core_probe(struct device *dev,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(adxl313_core_probe, IIO_ADXL313);
+EXPORT_SYMBOL_NS_GPL(adxl313_core_probe, "IIO_ADXL313");
 
 MODULE_AUTHOR("Lucas Stankus <lucas.p.stankus@gmail.com>");
 MODULE_DESCRIPTION("ADXL313 3-Axis Digital Accelerometer core driver");

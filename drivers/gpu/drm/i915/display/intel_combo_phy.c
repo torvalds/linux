@@ -3,6 +3,7 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_combo_phy.h"
 #include "intel_combo_phy_regs.h"
@@ -159,9 +160,11 @@ static bool icl_combo_phy_enabled(struct drm_i915_private *dev_priv,
 
 static bool ehl_vbt_ddi_d_present(struct drm_i915_private *i915)
 {
-	bool ddi_a_present = intel_bios_is_port_present(i915, PORT_A);
-	bool ddi_d_present = intel_bios_is_port_present(i915, PORT_D);
-	bool dsi_present = intel_bios_is_dsi_present(i915, NULL);
+	struct intel_display *display = &i915->display;
+
+	bool ddi_a_present = intel_bios_is_port_present(display, PORT_A);
+	bool ddi_d_present = intel_bios_is_port_present(display, PORT_D);
+	bool dsi_present = intel_bios_is_dsi_present(display, NULL);
 
 	/*
 	 * VBT's 'dvo port' field for child devices references the DDI, not

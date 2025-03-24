@@ -43,6 +43,4 @@ int cn23xx_octeon_pfvf_handshake(struct octeon_device *oct);
 int cn23xx_setup_octeon_vf_device(struct octeon_device *oct);
 
 u32 cn23xx_vf_get_oq_ticks(struct octeon_device *oct, u32 time_intr_in_us);
-
-void cn23xx_dump_vf_initialized_regs(struct octeon_device *oct);
 #endif

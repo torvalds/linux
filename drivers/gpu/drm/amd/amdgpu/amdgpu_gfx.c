@@ -24,10 +24,13 @@
  */
 
 #include <linux/firmware.h>
+#include <linux/pm_runtime.h>
+
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "amdgpu_rlc.h"
 #include "amdgpu_ras.h"
+#include "amdgpu_reset.h"
 #include "amdgpu_xcp.h"
 #include "amdgpu_xgmi.h"
 
@@ -82,16 +85,6 @@ int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev,
 	bit += queue;
 
 	return bit;
-}
-
-void amdgpu_gfx_bit_to_me_queue(struct amdgpu_device *adev, int bit,
-				int *me, int *pipe, int *queue)
-{
-	*queue = bit % adev->gfx.me.num_queue_per_pipe;
-	*pipe = (bit / adev->gfx.me.num_queue_per_pipe)
-		% adev->gfx.me.num_pipe_per_me;
-	*me = (bit / adev->gfx.me.num_queue_per_pipe)
-		/ adev->gfx.me.num_pipe_per_me;
 }
 
 bool amdgpu_gfx_is_me_queue_enabled(struct amdgpu_device *adev,
@@ -412,7 +405,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 		}
 
 		/* prepare MQD backup */
-		kiq->mqd_backup = kmalloc(mqd_size, GFP_KERNEL);
+		kiq->mqd_backup = kzalloc(mqd_size, GFP_KERNEL);
 		if (!kiq->mqd_backup) {
 			dev_warn(adev->dev,
 				 "no memory to create MQD backup for ring %s\n", ring->name);
@@ -435,7 +428,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 				ring->mqd_size = mqd_size;
 				/* prepare MQD backup */
-				adev->gfx.me.mqd_backup[i] = kmalloc(mqd_size, GFP_KERNEL);
+				adev->gfx.me.mqd_backup[i] = kzalloc(mqd_size, GFP_KERNEL);
 				if (!adev->gfx.me.mqd_backup[i]) {
 					dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 					return -ENOMEM;
@@ -459,7 +452,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 
 			ring->mqd_size = mqd_size;
 			/* prepare MQD backup */
-			adev->gfx.mec.mqd_backup[j] = kmalloc(mqd_size, GFP_KERNEL);
+			adev->gfx.mec.mqd_backup[j] = kzalloc(mqd_size, GFP_KERNEL);
 			if (!adev->gfx.mec.mqd_backup[j]) {
 				dev_warn(adev->dev, "no memory to create MQD backup for ring %s\n", ring->name);
 				return -ENOMEM;
@@ -509,8 +502,21 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 	int i, r = 0;
 	int j;
 
+	if (adev->enable_mes) {
+		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+			j = i + xcc_id * adev->gfx.num_compute_rings;
+			amdgpu_mes_unmap_legacy_queue(adev,
+						   &adev->gfx.compute_ring[j],
+						   RESET_QUEUES, 0, 0);
+		}
+		return 0;
+	}
+
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
+
+	if (!kiq_ring->sched.ready || amdgpu_in_reset(adev))
+		return 0;
 
 	spin_lock(&kiq->ring_lock);
 	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
@@ -525,20 +531,15 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 					   &adev->gfx.compute_ring[j],
 					   RESET_QUEUES, 0, 0);
 	}
-
-	/**
-	 * This is workaround: only skip kiq_ring test
-	 * during ras recovery in suspend stage for gfx9.4.3
+	/* Submit unmap queue packet */
+	amdgpu_ring_commit(kiq_ring);
+	/*
+	 * Ring test will do a basic scratch register change check. Just run
+	 * this to ensure that unmap queues that is submitted before got
+	 * processed successfully before returning.
 	 */
-	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
-	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) &&
-	    amdgpu_ras_in_recovery(adev)) {
-		spin_unlock(&kiq->ring_lock);
-		return 0;
-	}
+	r = amdgpu_ring_test_helper(kiq_ring);
 
-	if (kiq_ring->sched.ready && !adev->job_hang)
-		r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&kiq->ring_lock);
 
 	return r;
@@ -551,11 +552,26 @@ int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id)
 	int i, r = 0;
 	int j;
 
+	if (adev->enable_mes) {
+		if (amdgpu_gfx_is_master_xcc(adev, xcc_id)) {
+			for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+				j = i + xcc_id * adev->gfx.num_gfx_rings;
+				amdgpu_mes_unmap_legacy_queue(adev,
+						      &adev->gfx.gfx_ring[j],
+						      PREEMPT_QUEUES, 0, 0);
+			}
+		}
+		return 0;
+	}
+
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
-	spin_lock(&kiq->ring_lock);
+	if (!adev->gfx.kiq[0].ring.sched.ready || amdgpu_in_reset(adev))
+		return 0;
+
 	if (amdgpu_gfx_is_master_xcc(adev, xcc_id)) {
+		spin_lock(&kiq->ring_lock);
 		if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
 						adev->gfx.num_gfx_rings)) {
 			spin_unlock(&kiq->ring_lock);
@@ -568,11 +584,17 @@ int amdgpu_gfx_disable_kgq(struct amdgpu_device *adev, int xcc_id)
 						   &adev->gfx.gfx_ring[j],
 						   PREEMPT_QUEUES, 0, 0);
 		}
-	}
+		/* Submit unmap queue packet */
+		amdgpu_ring_commit(kiq_ring);
 
-	if (adev->gfx.kiq[0].ring.sched.ready && !adev->job_hang)
+		/*
+		 * Ring test will do a basic scratch register change check.
+		 * Just run this to ensure that unmap queues that is submitted
+		 * before got processed successfully before returning.
+		 */
 		r = amdgpu_ring_test_helper(kiq_ring);
-	spin_unlock(&kiq->ring_lock);
+		spin_unlock(&kiq->ring_lock);
+	}
 
 	return r;
 }
@@ -635,7 +657,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 	uint64_t queue_mask = 0;
 	int r, i, j;
 
-	if (adev->enable_mes)
+	if (adev->mes.enable_legacy_queue_map)
 		return amdgpu_gfx_mes_enable_kcq(adev, xcc_id);
 
 	if (!kiq->pmf || !kiq->pmf->kiq_map_queues || !kiq->pmf->kiq_set_resources)
@@ -677,7 +699,13 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 		kiq->pmf->kiq_map_queues(kiq_ring,
 					 &adev->gfx.compute_ring[j]);
 	}
-
+	/* Submit map queue packet */
+	amdgpu_ring_commit(kiq_ring);
+	/*
+	 * Ring test will do a basic scratch register change check. Just run
+	 * this to ensure that map queues that is submitted before got
+	 * processed successfully before returning.
+	 */
 	r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&kiq->ring_lock);
 	if (r)
@@ -697,7 +725,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 
 	amdgpu_device_flush_hdp(adev, NULL);
 
-	if (adev->enable_mes) {
+	if (adev->mes.enable_legacy_queue_map) {
 		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
 			j = i + xcc_id * adev->gfx.num_gfx_rings;
 			r = amdgpu_mes_map_legacy_queue(adev,
@@ -728,7 +756,13 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 						 &adev->gfx.gfx_ring[j]);
 		}
 	}
-
+	/* Submit map queue packet */
+	amdgpu_ring_commit(kiq_ring);
+	/*
+	 * Ring test will do a basic scratch register change check. Just run
+	 * this to ensure that map queues that is submitted before got
+	 * processed successfully before returning.
+	 */
 	r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&kiq->ring_lock);
 	if (r)
@@ -772,7 +806,7 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 			/* If going to s2idle, no need to wait */
 			if (adev->in_s0ix) {
 				if (!amdgpu_dpm_set_powergating_by_smu(adev,
-						AMD_IP_BLOCK_TYPE_GFX, true))
+						AMD_IP_BLOCK_TYPE_GFX, true, 0))
 					adev->gfx.gfx_off_state = true;
 			} else {
 				schedule_delayed_work(&adev->gfx.gfx_off_delay_work,
@@ -784,7 +818,7 @@ void amdgpu_gfx_off_ctrl(struct amdgpu_device *adev, bool enable)
 			cancel_delayed_work_sync(&adev->gfx.gfx_off_delay_work);
 
 			if (adev->gfx.gfx_off_state &&
-			    !amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false)) {
+			    !amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_GFX, false, 0)) {
 				adev->gfx.gfx_off_state = false;
 
 				if (adev->gfx.funcs->init_spm_golden) {
@@ -860,11 +894,17 @@ int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *r
 	int r;
 
 	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
-		if (!amdgpu_persistent_edc_harvesting_supported(adev))
-			amdgpu_ras_reset_error_status(adev, AMDGPU_RAS_BLOCK__GFX);
+		if (!amdgpu_persistent_edc_harvesting_supported(adev)) {
+			r = amdgpu_ras_reset_error_status(adev, AMDGPU_RAS_BLOCK__GFX);
+			if (r)
+				return r;
+		}
 
 		r = amdgpu_ras_block_late_init(adev, ras_block);
 		if (r)
+			return r;
+
+		if (amdgpu_sriov_vf(adev))
 			return r;
 
 		if (adev->gfx.cp_ecc_error_irq.funcs) {
@@ -995,7 +1035,7 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_
 	if (amdgpu_device_skip_hw_access(adev))
 		return 0;
 
-	if (adev->mes.ring.sched.ready)
+	if (adev->mes.ring[0].sched.ready)
 		return amdgpu_mes_rreg(adev, reg);
 
 	BUG_ON(!ring->funcs->emit_rreg);
@@ -1005,7 +1045,10 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg, uint32_t xcc_
 		pr_err("critical bug! too many kiq readers\n");
 		goto failed_unlock;
 	}
-	amdgpu_ring_alloc(ring, 32);
+	r = amdgpu_ring_alloc(ring, 32);
+	if (r)
+		goto failed_unlock;
+
 	amdgpu_ring_emit_rreg(ring, reg, reg_val_offs);
 	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
 	if (r)
@@ -1065,13 +1108,16 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint3
 	if (amdgpu_device_skip_hw_access(adev))
 		return;
 
-	if (adev->mes.ring.sched.ready) {
+	if (adev->mes.ring[0].sched.ready) {
 		amdgpu_mes_wreg(adev, reg, v);
 		return;
 	}
 
 	spin_lock_irqsave(&kiq->ring_lock, flags);
-	amdgpu_ring_alloc(ring, 32);
+	r = amdgpu_ring_alloc(ring, 32);
+	if (r)
+		goto failed_unlock;
+
 	amdgpu_ring_emit_wreg(ring, reg, v);
 	r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
 	if (r)
@@ -1107,6 +1153,7 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v, uint3
 
 failed_undo:
 	amdgpu_ring_undo(ring);
+failed_unlock:
 	spin_unlock_irqrestore(&kiq->ring_lock, flags);
 failed_kiq_write:
 	dev_err(adev->dev, "failed to write reg:%x\n", reg);
@@ -1328,36 +1375,317 @@ static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
 	return count;
 }
 
+static const char *xcp_desc[] = {
+	[AMDGPU_SPX_PARTITION_MODE] = "SPX",
+	[AMDGPU_DPX_PARTITION_MODE] = "DPX",
+	[AMDGPU_TPX_PARTITION_MODE] = "TPX",
+	[AMDGPU_QPX_PARTITION_MODE] = "QPX",
+	[AMDGPU_CPX_PARTITION_MODE] = "CPX",
+};
+
 static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 						struct device_attribute *addr,
 						char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	char *supported_partition;
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	int size = 0, mode;
+	char *sep = "";
 
-	/* TBD */
-	switch (NUM_XCC(adev->gfx.xcc_mask)) {
-	case 8:
-		supported_partition = "SPX, DPX, QPX, CPX";
-		break;
-	case 6:
-		supported_partition = "SPX, TPX, CPX";
-		break;
-	case 4:
-		supported_partition = "SPX, DPX, CPX";
-		break;
-	/* this seems only existing in emulation phase */
-	case 2:
-		supported_partition = "SPX, CPX";
-		break;
-	default:
-		supported_partition = "Not supported";
-		break;
+	if (!xcp_mgr || !xcp_mgr->avail_xcp_modes)
+		return sysfs_emit(buf, "Not supported\n");
+
+	for_each_inst(mode, xcp_mgr->avail_xcp_modes) {
+		size += sysfs_emit_at(buf, size, "%s%s", sep, xcp_desc[mode]);
+		sep = ", ";
 	}
 
-	return sysfs_emit(buf, "%s\n", supported_partition);
+	size += sysfs_emit_at(buf, size, "\n");
+
+	return size;
 }
+
+static int amdgpu_gfx_run_cleaner_shader_job(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	struct drm_gpu_scheduler *sched = &ring->sched;
+	struct drm_sched_entity entity;
+	struct dma_fence *f;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
+	int i, r;
+
+	/* Initialize the scheduler entity */
+	r = drm_sched_entity_init(&entity, DRM_SCHED_PRIORITY_NORMAL,
+				  &sched, 1, NULL);
+	if (r) {
+		dev_err(adev->dev, "Failed setting up GFX kernel entity.\n");
+		goto err;
+	}
+
+	r = amdgpu_job_alloc_with_ib(ring->adev, &entity, NULL,
+				     64, 0,
+				     &job);
+	if (r)
+		goto err;
+
+	job->enforce_isolation = true;
+
+	ib = &job->ibs[0];
+	for (i = 0; i <= ring->funcs->align_mask; ++i)
+		ib->ptr[i] = ring->funcs->nop;
+	ib->length_dw = ring->funcs->align_mask + 1;
+
+	f = amdgpu_job_submit(job);
+
+	r = dma_fence_wait(f, false);
+	if (r)
+		goto err;
+
+	dma_fence_put(f);
+
+	/* Clean up the scheduler entity */
+	drm_sched_entity_destroy(&entity);
+	return 0;
+
+err:
+	return r;
+}
+
+static int amdgpu_gfx_run_cleaner_shader(struct amdgpu_device *adev, int xcp_id)
+{
+	int num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	struct amdgpu_ring *ring;
+	int num_xcc_to_clear;
+	int i, r, xcc_id;
+
+	if (adev->gfx.num_xcc_per_xcp)
+		num_xcc_to_clear = adev->gfx.num_xcc_per_xcp;
+	else
+		num_xcc_to_clear = 1;
+
+	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
+		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+			ring = &adev->gfx.compute_ring[i + xcc_id * adev->gfx.num_compute_rings];
+			if ((ring->xcp_id == xcp_id) && ring->sched.ready) {
+				r = amdgpu_gfx_run_cleaner_shader_job(ring);
+				if (r)
+					return r;
+				num_xcc_to_clear--;
+				break;
+			}
+		}
+	}
+
+	if (num_xcc_to_clear)
+		return -ENOENT;
+
+	return 0;
+}
+
+/**
+ * amdgpu_gfx_set_run_cleaner_shader - Execute the AMDGPU GFX Cleaner Shader
+ * @dev: The device structure
+ * @attr: The device attribute structure
+ * @buf: The buffer containing the input data
+ * @count: The size of the input data
+ *
+ * Provides the sysfs interface to manually run a cleaner shader, which is
+ * used to clear the GPU state between different tasks. Writing a value to the
+ * 'run_cleaner_shader' sysfs file triggers the cleaner shader execution.
+ * The value written corresponds to the partition index on multi-partition
+ * devices. On single-partition devices, the value should be '0'.
+ *
+ * The cleaner shader clears the Local Data Store (LDS) and General Purpose
+ * Registers (GPRs) to ensure data isolation between GPU workloads.
+ *
+ * Return: The number of bytes written to the sysfs file.
+ */
+static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf,
+						 size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int ret;
+	long value;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	ret = kstrtol(buf, 0, &value);
+
+	if (ret)
+		return -EINVAL;
+
+	if (value < 0)
+		return -EINVAL;
+
+	if (adev->xcp_mgr) {
+		if (value >= adev->xcp_mgr->num_xcps)
+			return -EINVAL;
+	} else {
+		if (value > 1)
+			return -EINVAL;
+	}
+
+	ret = pm_runtime_get_sync(ddev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return ret;
+	}
+
+	ret = amdgpu_gfx_run_cleaner_shader(adev, value);
+
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+/**
+ * amdgpu_gfx_get_enforce_isolation - Query AMDGPU GFX Enforce Isolation Settings
+ * @dev: The device structure
+ * @attr: The device attribute structure
+ * @buf: The buffer to store the output data
+ *
+ * Provides the sysfs read interface to get the current settings of the 'enforce_isolation'
+ * feature for each GPU partition. Reading from the 'enforce_isolation'
+ * sysfs file returns the isolation settings for all partitions, where '0'
+ * indicates disabled and '1' indicates enabled.
+ *
+ * Return: The number of bytes read from the sysfs file.
+ */
+static ssize_t amdgpu_gfx_get_enforce_isolation(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	int i;
+	ssize_t size = 0;
+
+	if (adev->xcp_mgr) {
+		for (i = 0; i < adev->xcp_mgr->num_xcps; i++) {
+			size += sysfs_emit_at(buf, size, "%u", adev->enforce_isolation[i]);
+			if (i < (adev->xcp_mgr->num_xcps - 1))
+				size += sysfs_emit_at(buf, size, " ");
+		}
+		buf[size++] = '\n';
+	} else {
+		size = sysfs_emit_at(buf, 0, "%u\n", adev->enforce_isolation[0]);
+	}
+
+	return size;
+}
+
+/**
+ * amdgpu_gfx_set_enforce_isolation - Control AMDGPU GFX Enforce Isolation
+ * @dev: The device structure
+ * @attr: The device attribute structure
+ * @buf: The buffer containing the input data
+ * @count: The size of the input data
+ *
+ * This function allows control over the 'enforce_isolation' feature, which
+ * serializes access to the graphics engine. Writing '1' or '0' to the
+ * 'enforce_isolation' sysfs file enables or disables process isolation for
+ * each partition. The input should specify the setting for all partitions.
+ *
+ * Return: The number of bytes written to the sysfs file.
+ */
+static ssize_t amdgpu_gfx_set_enforce_isolation(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	long partition_values[MAX_XCP] = {0};
+	int ret, i, num_partitions;
+	const char *input_buf = buf;
+
+	for (i = 0; i < (adev->xcp_mgr ? adev->xcp_mgr->num_xcps : 1); i++) {
+		ret = sscanf(input_buf, "%ld", &partition_values[i]);
+		if (ret <= 0)
+			break;
+
+		/* Move the pointer to the next value in the string */
+		input_buf = strchr(input_buf, ' ');
+		if (input_buf) {
+			input_buf++;
+		} else {
+			i++;
+			break;
+		}
+	}
+	num_partitions = i;
+
+	if (adev->xcp_mgr && num_partitions != adev->xcp_mgr->num_xcps)
+		return -EINVAL;
+
+	if (!adev->xcp_mgr && num_partitions != 1)
+		return -EINVAL;
+
+	for (i = 0; i < num_partitions; i++) {
+		if (partition_values[i] != 0 && partition_values[i] != 1)
+			return -EINVAL;
+	}
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	for (i = 0; i < num_partitions; i++) {
+		if (adev->enforce_isolation[i] && !partition_values[i])
+			/* Going from enabled to disabled */
+			amdgpu_vmid_free_reserved(adev, AMDGPU_GFXHUB(i));
+		else if (!adev->enforce_isolation[i] && partition_values[i])
+			/* Going from disabled to enabled */
+			amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(i));
+		adev->enforce_isolation[i] = partition_values[i];
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+
+	amdgpu_mes_update_enforce_isolation(adev);
+
+	return count;
+}
+
+static ssize_t amdgpu_gfx_get_gfx_reset_mask(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (!adev)
+		return -ENODEV;
+
+	return amdgpu_show_reset_mask(buf, adev->gfx.gfx_supported_reset);
+}
+
+static ssize_t amdgpu_gfx_get_compute_reset_mask(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (!adev)
+		return -ENODEV;
+
+	return amdgpu_show_reset_mask(buf, adev->gfx.compute_supported_reset);
+}
+
+static DEVICE_ATTR(run_cleaner_shader, 0200,
+		   NULL, amdgpu_gfx_set_run_cleaner_shader);
+
+static DEVICE_ATTR(enforce_isolation, 0644,
+		   amdgpu_gfx_get_enforce_isolation,
+		   amdgpu_gfx_set_enforce_isolation);
 
 static DEVICE_ATTR(current_compute_partition, 0644,
 		   amdgpu_gfx_get_current_compute_partition,
@@ -1365,22 +1693,565 @@ static DEVICE_ATTR(current_compute_partition, 0644,
 
 static DEVICE_ATTR(available_compute_partition, 0444,
 		   amdgpu_gfx_get_available_compute_partition, NULL);
+static DEVICE_ATTR(gfx_reset_mask, 0444,
+		   amdgpu_gfx_get_gfx_reset_mask, NULL);
 
-int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
+static DEVICE_ATTR(compute_reset_mask, 0444,
+		   amdgpu_gfx_get_compute_reset_mask, NULL);
+
+static int amdgpu_gfx_sysfs_xcp_init(struct amdgpu_device *adev)
 {
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	bool xcp_switch_supported;
 	int r;
+
+	if (!xcp_mgr)
+		return 0;
+
+	xcp_switch_supported =
+		(xcp_mgr->funcs && xcp_mgr->funcs->switch_partition_mode);
+
+	if (!xcp_switch_supported)
+		dev_attr_current_compute_partition.attr.mode &=
+			~(S_IWUSR | S_IWGRP | S_IWOTH);
 
 	r = device_create_file(adev->dev, &dev_attr_current_compute_partition);
 	if (r)
 		return r;
 
-	r = device_create_file(adev->dev, &dev_attr_available_compute_partition);
+	if (xcp_switch_supported)
+		r = device_create_file(adev->dev,
+				       &dev_attr_available_compute_partition);
+
+	return r;
+}
+
+static void amdgpu_gfx_sysfs_xcp_fini(struct amdgpu_device *adev)
+{
+	struct amdgpu_xcp_mgr *xcp_mgr = adev->xcp_mgr;
+	bool xcp_switch_supported;
+
+	if (!xcp_mgr)
+		return;
+
+	xcp_switch_supported =
+		(xcp_mgr->funcs && xcp_mgr->funcs->switch_partition_mode);
+	device_remove_file(adev->dev, &dev_attr_current_compute_partition);
+
+	if (xcp_switch_supported)
+		device_remove_file(adev->dev,
+				   &dev_attr_available_compute_partition);
+}
+
+static int amdgpu_gfx_sysfs_isolation_shader_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = device_create_file(adev->dev, &dev_attr_enforce_isolation);
+	if (r)
+		return r;
+	if (adev->gfx.enable_cleaner_shader)
+		r = device_create_file(adev->dev, &dev_attr_run_cleaner_shader);
+
+	return r;
+}
+
+static void amdgpu_gfx_sysfs_isolation_shader_fini(struct amdgpu_device *adev)
+{
+	device_remove_file(adev->dev, &dev_attr_enforce_isolation);
+	if (adev->gfx.enable_cleaner_shader)
+		device_remove_file(adev->dev, &dev_attr_run_cleaner_shader);
+}
+
+static int amdgpu_gfx_sysfs_reset_mask_init(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (!amdgpu_gpu_recovery)
+		return r;
+
+	if (adev->gfx.num_gfx_rings) {
+		r = device_create_file(adev->dev, &dev_attr_gfx_reset_mask);
+		if (r)
+			return r;
+	}
+
+	if (adev->gfx.num_compute_rings) {
+		r = device_create_file(adev->dev, &dev_attr_compute_reset_mask);
+		if (r)
+			return r;
+	}
+
+	return r;
+}
+
+static void amdgpu_gfx_sysfs_reset_mask_fini(struct amdgpu_device *adev)
+{
+	if (!amdgpu_gpu_recovery)
+		return;
+
+	if (adev->gfx.num_gfx_rings)
+		device_remove_file(adev->dev, &dev_attr_gfx_reset_mask);
+
+	if (adev->gfx.num_compute_rings)
+		device_remove_file(adev->dev, &dev_attr_compute_reset_mask);
+}
+
+int amdgpu_gfx_sysfs_init(struct amdgpu_device *adev)
+{
+	int r;
+
+	r = amdgpu_gfx_sysfs_xcp_init(adev);
+	if (r) {
+		dev_err(adev->dev, "failed to create xcp sysfs files");
+		return r;
+	}
+
+	r = amdgpu_gfx_sysfs_isolation_shader_init(adev);
+	if (r)
+		dev_err(adev->dev, "failed to create isolation sysfs files");
+
+	r = amdgpu_gfx_sysfs_reset_mask_init(adev);
+	if (r)
+		dev_err(adev->dev, "failed to create reset mask sysfs files");
 
 	return r;
 }
 
 void amdgpu_gfx_sysfs_fini(struct amdgpu_device *adev)
 {
-	device_remove_file(adev->dev, &dev_attr_current_compute_partition);
-	device_remove_file(adev->dev, &dev_attr_available_compute_partition);
+	if (adev->dev->kobj.sd) {
+		amdgpu_gfx_sysfs_xcp_fini(adev);
+		amdgpu_gfx_sysfs_isolation_shader_fini(adev);
+		amdgpu_gfx_sysfs_reset_mask_fini(adev);
+	}
+}
+
+int amdgpu_gfx_cleaner_shader_sw_init(struct amdgpu_device *adev,
+				      unsigned int cleaner_shader_size)
+{
+	if (!adev->gfx.enable_cleaner_shader)
+		return -EOPNOTSUPP;
+
+	return amdgpu_bo_create_kernel(adev, cleaner_shader_size, PAGE_SIZE,
+				       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT,
+				       &adev->gfx.cleaner_shader_obj,
+				       &adev->gfx.cleaner_shader_gpu_addr,
+				       (void **)&adev->gfx.cleaner_shader_cpu_ptr);
+}
+
+void amdgpu_gfx_cleaner_shader_sw_fini(struct amdgpu_device *adev)
+{
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	amdgpu_bo_free_kernel(&adev->gfx.cleaner_shader_obj,
+			      &adev->gfx.cleaner_shader_gpu_addr,
+			      (void **)&adev->gfx.cleaner_shader_cpu_ptr);
+}
+
+void amdgpu_gfx_cleaner_shader_init(struct amdgpu_device *adev,
+				    unsigned int cleaner_shader_size,
+				    const void *cleaner_shader_ptr)
+{
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	if (adev->gfx.cleaner_shader_cpu_ptr && cleaner_shader_ptr)
+		memcpy_toio(adev->gfx.cleaner_shader_cpu_ptr, cleaner_shader_ptr,
+			    cleaner_shader_size);
+}
+
+/**
+ * amdgpu_gfx_kfd_sch_ctrl - Control the KFD scheduler from the KGD (Graphics Driver)
+ * @adev: amdgpu_device pointer
+ * @idx: Index of the scheduler to control
+ * @enable: Whether to enable or disable the KFD scheduler
+ *
+ * This function is used to control the KFD (Kernel Fusion Driver) scheduler
+ * from the KGD. It is part of the cleaner shader feature. This function plays
+ * a key role in enforcing process isolation on the GPU.
+ *
+ * The function uses a reference count mechanism (kfd_sch_req_count) to keep
+ * track of the number of requests to enable the KFD scheduler. When a request
+ * to enable the KFD scheduler is made, the reference count is decremented.
+ * When the reference count reaches zero, a delayed work is scheduled to
+ * enforce isolation after a delay of GFX_SLICE_PERIOD.
+ *
+ * When a request to disable the KFD scheduler is made, the function first
+ * checks if the reference count is zero. If it is, it cancels the delayed work
+ * for enforcing isolation and checks if the KFD scheduler is active. If the
+ * KFD scheduler is active, it sends a request to stop the KFD scheduler and
+ * sets the KFD scheduler state to inactive. Then, it increments the reference
+ * count.
+ *
+ * The function is synchronized using the kfd_sch_mutex to ensure that the KFD
+ * scheduler state and reference count are updated atomically.
+ *
+ * Note: If the reference count is already zero when a request to enable the
+ * KFD scheduler is made, it means there's an imbalance bug somewhere. The
+ * function triggers a warning in this case.
+ */
+static void amdgpu_gfx_kfd_sch_ctrl(struct amdgpu_device *adev, u32 idx,
+				    bool enable)
+{
+	mutex_lock(&adev->gfx.kfd_sch_mutex);
+
+	if (enable) {
+		/* If the count is already 0, it means there's an imbalance bug somewhere.
+		 * Note that the bug may be in a different caller than the one which triggers the
+		 * WARN_ON_ONCE.
+		 */
+		if (WARN_ON_ONCE(adev->gfx.kfd_sch_req_count[idx] == 0)) {
+			dev_err(adev->dev, "Attempted to enable KFD scheduler when reference count is already zero\n");
+			goto unlock;
+		}
+
+		adev->gfx.kfd_sch_req_count[idx]--;
+
+		if (adev->gfx.kfd_sch_req_count[idx] == 0 &&
+		    adev->gfx.kfd_sch_inactive[idx]) {
+			schedule_delayed_work(&adev->gfx.enforce_isolation[idx].work,
+					      msecs_to_jiffies(adev->gfx.enforce_isolation_time[idx]));
+		}
+	} else {
+		if (adev->gfx.kfd_sch_req_count[idx] == 0) {
+			cancel_delayed_work_sync(&adev->gfx.enforce_isolation[idx].work);
+			if (!adev->gfx.kfd_sch_inactive[idx]) {
+				amdgpu_amdkfd_stop_sched(adev, idx);
+				adev->gfx.kfd_sch_inactive[idx] = true;
+			}
+		}
+
+		adev->gfx.kfd_sch_req_count[idx]++;
+	}
+
+unlock:
+	mutex_unlock(&adev->gfx.kfd_sch_mutex);
+}
+
+/**
+ * amdgpu_gfx_enforce_isolation_handler - work handler for enforcing shader isolation
+ *
+ * @work: work_struct.
+ *
+ * This function is the work handler for enforcing shader isolation on AMD GPUs.
+ * It counts the number of emitted fences for each GFX and compute ring. If there
+ * are any fences, it schedules the `enforce_isolation_work` to be run after a
+ * delay of `GFX_SLICE_PERIOD`. If there are no fences, it signals the Kernel Fusion
+ * Driver (KFD) to resume the runqueue. The function is synchronized using the
+ * `enforce_isolation_mutex`.
+ */
+void amdgpu_gfx_enforce_isolation_handler(struct work_struct *work)
+{
+	struct amdgpu_isolation_work *isolation_work =
+		container_of(work, struct amdgpu_isolation_work, work.work);
+	struct amdgpu_device *adev = isolation_work->adev;
+	u32 i, idx, fences = 0;
+
+	if (isolation_work->xcp_id == AMDGPU_XCP_NO_PARTITION)
+		idx = 0;
+	else
+		idx = isolation_work->xcp_id;
+
+	if (idx >= MAX_XCP)
+		return;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	for (i = 0; i < AMDGPU_MAX_GFX_RINGS; ++i) {
+		if (isolation_work->xcp_id == adev->gfx.gfx_ring[i].xcp_id)
+			fences += amdgpu_fence_count_emitted(&adev->gfx.gfx_ring[i]);
+	}
+	for (i = 0; i < (AMDGPU_MAX_COMPUTE_RINGS * AMDGPU_MAX_GC_INSTANCES); ++i) {
+		if (isolation_work->xcp_id == adev->gfx.compute_ring[i].xcp_id)
+			fences += amdgpu_fence_count_emitted(&adev->gfx.compute_ring[i]);
+	}
+	if (fences) {
+		/* we've already had our timeslice, so let's wrap this up */
+		schedule_delayed_work(&adev->gfx.enforce_isolation[idx].work,
+				      msecs_to_jiffies(1));
+	} else {
+		/* Tell KFD to resume the runqueue */
+		if (adev->kfd.init_complete) {
+			WARN_ON_ONCE(!adev->gfx.kfd_sch_inactive[idx]);
+			WARN_ON_ONCE(adev->gfx.kfd_sch_req_count[idx]);
+				amdgpu_amdkfd_start_sched(adev, idx);
+				adev->gfx.kfd_sch_inactive[idx] = false;
+		}
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+}
+
+/**
+ * amdgpu_gfx_enforce_isolation_wait_for_kfd - Manage KFD wait period for process isolation
+ * @adev: amdgpu_device pointer
+ * @idx: Index of the GPU partition
+ *
+ * When kernel submissions come in, the jobs are given a time slice and once
+ * that time slice is up, if there are KFD user queues active, kernel
+ * submissions are blocked until KFD has had its time slice. Once the KFD time
+ * slice is up, KFD user queues are preempted and kernel submissions are
+ * unblocked and allowed to run again.
+ */
+static void
+amdgpu_gfx_enforce_isolation_wait_for_kfd(struct amdgpu_device *adev,
+					  u32 idx)
+{
+	unsigned long cjiffies;
+	bool wait = false;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	if (adev->enforce_isolation[idx]) {
+		/* set the initial values if nothing is set */
+		if (!adev->gfx.enforce_isolation_jiffies[idx]) {
+			adev->gfx.enforce_isolation_jiffies[idx] = jiffies;
+			adev->gfx.enforce_isolation_time[idx] =	GFX_SLICE_PERIOD_MS;
+		}
+		/* Make sure KFD gets a chance to run */
+		if (amdgpu_amdkfd_compute_active(adev, idx)) {
+			cjiffies = jiffies;
+			if (time_after(cjiffies, adev->gfx.enforce_isolation_jiffies[idx])) {
+				cjiffies -= adev->gfx.enforce_isolation_jiffies[idx];
+				if ((jiffies_to_msecs(cjiffies) >= GFX_SLICE_PERIOD_MS)) {
+					/* if our time is up, let KGD work drain before scheduling more */
+					wait = true;
+					/* reset the timer period */
+					adev->gfx.enforce_isolation_time[idx] =	GFX_SLICE_PERIOD_MS;
+				} else {
+					/* set the timer period to what's left in our time slice */
+					adev->gfx.enforce_isolation_time[idx] =
+						GFX_SLICE_PERIOD_MS - jiffies_to_msecs(cjiffies);
+				}
+			} else {
+				/* if jiffies wrap around we will just wait a little longer */
+				adev->gfx.enforce_isolation_jiffies[idx] = jiffies;
+			}
+		} else {
+			/* if there is no KFD work, then set the full slice period */
+			adev->gfx.enforce_isolation_jiffies[idx] = jiffies;
+			adev->gfx.enforce_isolation_time[idx] = GFX_SLICE_PERIOD_MS;
+		}
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+
+	if (wait)
+		msleep(GFX_SLICE_PERIOD_MS);
+}
+
+/**
+ * amdgpu_gfx_enforce_isolation_ring_begin_use - Begin use of a ring with enforced isolation
+ * @ring: Pointer to the amdgpu_ring structure
+ *
+ * Ring begin_use helper implementation for gfx which serializes access to the
+ * gfx IP between kernel submission IOCTLs and KFD user queues when isolation
+ * enforcement is enabled. The kernel submission IOCTLs and KFD user queues
+ * each get a time slice when both are active.
+ */
+void amdgpu_gfx_enforce_isolation_ring_begin_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	u32 idx;
+	bool sched_work = false;
+
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	if (ring->xcp_id == AMDGPU_XCP_NO_PARTITION)
+		idx = 0;
+	else
+		idx = ring->xcp_id;
+
+	if (idx >= MAX_XCP)
+		return;
+
+	/* Don't submit more work until KFD has had some time */
+	amdgpu_gfx_enforce_isolation_wait_for_kfd(adev, idx);
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	if (adev->enforce_isolation[idx]) {
+		if (adev->kfd.init_complete)
+			sched_work = true;
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+
+	if (sched_work)
+		amdgpu_gfx_kfd_sch_ctrl(adev, idx, false);
+}
+
+/**
+ * amdgpu_gfx_enforce_isolation_ring_end_use - End use of a ring with enforced isolation
+ * @ring: Pointer to the amdgpu_ring structure
+ *
+ * Ring end_use helper implementation for gfx which serializes access to the
+ * gfx IP between kernel submission IOCTLs and KFD user queues when isolation
+ * enforcement is enabled. The kernel submission IOCTLs and KFD user queues
+ * each get a time slice when both are active.
+ */
+void amdgpu_gfx_enforce_isolation_ring_end_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	u32 idx;
+	bool sched_work = false;
+
+	if (!adev->gfx.enable_cleaner_shader)
+		return;
+
+	if (ring->xcp_id == AMDGPU_XCP_NO_PARTITION)
+		idx = 0;
+	else
+		idx = ring->xcp_id;
+
+	if (idx >= MAX_XCP)
+		return;
+
+	mutex_lock(&adev->enforce_isolation_mutex);
+	if (adev->enforce_isolation[idx]) {
+		if (adev->kfd.init_complete)
+			sched_work = true;
+	}
+	mutex_unlock(&adev->enforce_isolation_mutex);
+
+	if (sched_work)
+		amdgpu_gfx_kfd_sch_ctrl(adev, idx, true);
+}
+
+/*
+ * debugfs for to enable/disable gfx job submission to specific core.
+ */
+#if defined(CONFIG_DEBUG_FS)
+static int amdgpu_debugfs_gfx_sched_mask_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+
+	mask = (1ULL << adev->gfx.num_gfx_rings) - 1;
+	if ((val & mask) == 0)
+		return -EINVAL;
+
+	for (i = 0; i < adev->gfx.num_gfx_rings; ++i) {
+		ring = &adev->gfx.gfx_ring[i];
+		if (val & (1 << i))
+			ring->sched.ready = true;
+		else
+			ring->sched.ready = false;
+	}
+	/* publish sched.ready flag update effective immediately across smp */
+	smp_rmb();
+	return 0;
+}
+
+static int amdgpu_debugfs_gfx_sched_mask_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+	for (i = 0; i < adev->gfx.num_gfx_rings; ++i) {
+		ring = &adev->gfx.gfx_ring[i];
+		if (ring->sched.ready)
+			mask |= 1ULL << i;
+	}
+
+	*val = mask;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(amdgpu_debugfs_gfx_sched_mask_fops,
+			 amdgpu_debugfs_gfx_sched_mask_get,
+			 amdgpu_debugfs_gfx_sched_mask_set, "%llx\n");
+
+#endif
+
+void amdgpu_debugfs_gfx_sched_mask_init(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+	char name[32];
+
+	if (!(adev->gfx.num_gfx_rings > 1))
+		return;
+	sprintf(name, "amdgpu_gfx_sched_mask");
+	debugfs_create_file(name, 0600, root, adev,
+			    &amdgpu_debugfs_gfx_sched_mask_fops);
+#endif
+}
+
+/*
+ * debugfs for to enable/disable compute job submission to specific core.
+ */
+#if defined(CONFIG_DEBUG_FS)
+static int amdgpu_debugfs_compute_sched_mask_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+
+	mask = (1ULL << adev->gfx.num_compute_rings) - 1;
+	if ((val & mask) == 0)
+		return -EINVAL;
+
+	for (i = 0; i < adev->gfx.num_compute_rings; ++i) {
+		ring = &adev->gfx.compute_ring[i];
+		if (val & (1 << i))
+			ring->sched.ready = true;
+		else
+			ring->sched.ready = false;
+	}
+
+	/* publish sched.ready flag update effective immediately across smp */
+	smp_rmb();
+	return 0;
+}
+
+static int amdgpu_debugfs_compute_sched_mask_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)data;
+	u32 i;
+	u64 mask = 0;
+	struct amdgpu_ring *ring;
+
+	if (!adev)
+		return -ENODEV;
+	for (i = 0; i < adev->gfx.num_compute_rings; ++i) {
+		ring = &adev->gfx.compute_ring[i];
+		if (ring->sched.ready)
+			mask |= 1ULL << i;
+	}
+
+	*val = mask;
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(amdgpu_debugfs_compute_sched_mask_fops,
+			 amdgpu_debugfs_compute_sched_mask_get,
+			 amdgpu_debugfs_compute_sched_mask_set, "%llx\n");
+
+#endif
+
+void amdgpu_debugfs_compute_sched_mask_init(struct amdgpu_device *adev)
+{
+#if defined(CONFIG_DEBUG_FS)
+	struct drm_minor *minor = adev_to_drm(adev)->primary;
+	struct dentry *root = minor->debugfs_root;
+	char name[32];
+
+	if (!(adev->gfx.num_compute_rings > 1))
+		return;
+	sprintf(name, "amdgpu_compute_sched_mask");
+	debugfs_create_file(name, 0600, root, adev,
+			    &amdgpu_debugfs_compute_sched_mask_fops);
+#endif
 }

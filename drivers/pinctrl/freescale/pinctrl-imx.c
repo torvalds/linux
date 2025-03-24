@@ -633,11 +633,11 @@ static int imx_pinctrl_parse_functions(struct device_node *np,
 static bool imx_pinctrl_dt_is_flat_functions(struct device_node *np)
 {
 	for_each_child_of_node_scoped(np, function_np) {
-		if (of_property_read_bool(function_np, "fsl,pins"))
+		if (of_property_present(function_np, "fsl,pins"))
 			return true;
 
 		for_each_child_of_node_scoped(function_np, pinctrl_np) {
-			if (of_property_read_bool(pinctrl_np, "fsl,pins"))
+			if (of_property_present(pinctrl_np, "fsl,pins"))
 				return false;
 		}
 	}
@@ -746,7 +746,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 		if (IS_ERR(ipctl->base))
 			return PTR_ERR(ipctl->base);
 
-		if (of_property_read_bool(dev_np, "fsl,input-sel")) {
+		if (of_property_present(dev_np, "fsl,input-sel")) {
 			np = of_parse_phandle(dev_np, "fsl,input-sel", 0);
 			if (!np) {
 				dev_err(&pdev->dev, "iomuxc fsl,input-sel property not found\n");
@@ -804,14 +804,14 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(imx_pinctrl_probe);
 
-static int __maybe_unused imx_pinctrl_suspend(struct device *dev)
+static int imx_pinctrl_suspend(struct device *dev)
 {
 	struct imx_pinctrl *ipctl = dev_get_drvdata(dev);
 
 	return pinctrl_force_sleep(ipctl->pctl);
 }
 
-static int __maybe_unused imx_pinctrl_resume(struct device *dev)
+static int imx_pinctrl_resume(struct device *dev)
 {
 	struct imx_pinctrl *ipctl = dev_get_drvdata(dev);
 
@@ -819,8 +819,7 @@ static int __maybe_unused imx_pinctrl_resume(struct device *dev)
 }
 
 const struct dev_pm_ops imx_pinctrl_pm_ops = {
-	SET_LATE_SYSTEM_SLEEP_PM_OPS(imx_pinctrl_suspend,
-					imx_pinctrl_resume)
+	LATE_SYSTEM_SLEEP_PM_OPS(imx_pinctrl_suspend, imx_pinctrl_resume)
 };
 EXPORT_SYMBOL_GPL(imx_pinctrl_pm_ops);
 

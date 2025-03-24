@@ -41,6 +41,12 @@ const char *usb_ep_type_string(int ep_type)
 }
 EXPORT_SYMBOL_GPL(usb_ep_type_string);
 
+/**
+ * usb_otg_state_string() - returns human readable name of OTG state.
+ * @state: the OTG state to return the human readable name of. If it's not
+ *    any of the states defined in usb_otg_state enum, 'UNDEFINED' will be
+ *    returned.
+ */
 const char *usb_otg_state_string(enum usb_otg_state state)
 {
 	static const char *const names[] = {
@@ -107,19 +113,18 @@ EXPORT_SYMBOL_GPL(usb_speed_string);
  */
 enum usb_device_speed usb_get_maximum_speed(struct device *dev)
 {
-	const char *maximum_speed;
+	const char *p = "maximum-speed";
 	int ret;
 
-	ret = device_property_read_string(dev, "maximum-speed", &maximum_speed);
-	if (ret < 0)
-		return USB_SPEED_UNKNOWN;
-
-	ret = match_string(ssp_rate, ARRAY_SIZE(ssp_rate), maximum_speed);
+	ret = device_property_match_property_string(dev, p, ssp_rate, ARRAY_SIZE(ssp_rate));
 	if (ret > 0)
 		return USB_SPEED_SUPER_PLUS;
 
-	ret = match_string(speed_names, ARRAY_SIZE(speed_names), maximum_speed);
-	return (ret < 0) ? USB_SPEED_UNKNOWN : ret;
+	ret = device_property_match_property_string(dev, p, speed_names, ARRAY_SIZE(speed_names));
+	if (ret > 0)
+		return ret;
+
+	return USB_SPEED_UNKNOWN;
 }
 EXPORT_SYMBOL_GPL(usb_get_maximum_speed);
 
@@ -180,6 +185,14 @@ static const char *const usb_dr_modes[] = {
 	[USB_DR_MODE_OTG]		= "otg",
 };
 
+/**
+ * usb_get_dr_mode_from_string() - Get dual role mode for given string
+ * @str: String to find the corresponding dual role mode for
+ *
+ * This function performs a lookup for the given string and returns the
+ * corresponding enum usb_dr_mode. If no match for the string could be found,
+ * 'USB_DR_MODE_UNKNOWN' is returned.
+ */
 static enum usb_dr_mode usb_get_dr_mode_from_string(const char *str)
 {
 	int ret;
@@ -276,14 +289,13 @@ EXPORT_SYMBOL_GPL(usb_decode_interval);
  */
 enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 {
-	struct device_node *controller = NULL;
+	struct device_node *controller;
 	struct of_phandle_args args;
 	const char *dr_mode;
 	int index;
 	int err;
 
-	do {
-		controller = of_find_node_with_property(controller, "phys");
+	for_each_node_with_property(controller, "phys") {
 		if (!of_device_is_available(controller))
 			continue;
 		index = 0;
@@ -306,7 +318,7 @@ enum usb_dr_mode of_usb_get_dr_mode_by_phy(struct device_node *np, int arg0)
 				goto finish;
 			index++;
 		} while (args.np);
-	} while (controller);
+	}
 
 finish:
 	err = of_property_read_string(controller, "dr_mode", &dr_mode);
@@ -416,6 +428,9 @@ EXPORT_SYMBOL_GPL(usb_of_get_companion_dev);
 
 struct dentry *usb_debug_root;
 EXPORT_SYMBOL_GPL(usb_debug_root);
+
+DEFINE_MUTEX(usb_dynids_lock);
+EXPORT_SYMBOL_GPL(usb_dynids_lock);
 
 static int __init usb_common_init(void)
 {

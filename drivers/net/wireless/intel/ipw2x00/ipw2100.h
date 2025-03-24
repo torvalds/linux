@@ -554,8 +554,6 @@ struct ipw2100_priv {
 	struct net_device *net_dev;
 	struct iw_statistics wstats;
 
-	struct iw_public_data wireless_data;
-
 	struct tasklet_struct irq_tasklet;
 
 	struct delayed_work reset_work;

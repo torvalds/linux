@@ -515,6 +515,27 @@ void rdma_roce_rescan_device(struct ib_device *ib_dev)
 }
 EXPORT_SYMBOL(rdma_roce_rescan_device);
 
+/**
+ * rdma_roce_rescan_port - Rescan all of the network devices in the system
+ * and add their gids if relevant to the port of the RoCE device.
+ *
+ * @ib_dev: IB device
+ * @port: Port number
+ */
+void rdma_roce_rescan_port(struct ib_device *ib_dev, u32 port)
+{
+	struct net_device *ndev = NULL;
+
+	if (rdma_protocol_roce(ib_dev, port)) {
+		ndev = ib_device_get_netdev(ib_dev, port);
+		if (!ndev)
+			return;
+		enum_all_gids_of_dev_cb(ib_dev, port, ndev, ndev);
+		dev_put(ndev);
+	}
+}
+EXPORT_SYMBOL(rdma_roce_rescan_port);
+
 static void callback_for_addr_gid_device_scan(struct ib_device *device,
 					      u32 port,
 					      struct net_device *rdma_ndev,
@@ -575,16 +596,17 @@ static void handle_netdev_upper(struct ib_device *ib_dev, u32 port,
 	}
 }
 
-static void _roce_del_all_netdev_gids(struct ib_device *ib_dev, u32 port,
-				      struct net_device *event_ndev)
+void roce_del_all_netdev_gids(struct ib_device *ib_dev,
+			      u32 port, struct net_device *ndev)
 {
-	ib_cache_gid_del_all_netdev_gids(ib_dev, port, event_ndev);
+	ib_cache_gid_del_all_netdev_gids(ib_dev, port, ndev);
 }
+EXPORT_SYMBOL(roce_del_all_netdev_gids);
 
 static void del_netdev_upper_ips(struct ib_device *ib_dev, u32 port,
 				 struct net_device *rdma_ndev, void *cookie)
 {
-	handle_netdev_upper(ib_dev, port, cookie, _roce_del_all_netdev_gids);
+	handle_netdev_upper(ib_dev, port, cookie, roce_del_all_netdev_gids);
 }
 
 static void add_netdev_upper_ips(struct ib_device *ib_dev, u32 port,

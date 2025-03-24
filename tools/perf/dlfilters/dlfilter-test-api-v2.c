@@ -235,7 +235,7 @@ static int check_sample(struct filter_data *d, const struct perf_dlfilter_sample
 	CHECK_SAMPLE(raw_callchain_nr);
 	CHECK(!sample->raw_callchain);
 
-#define EVENT_NAME "branches:"
+#define EVENT_NAME "branches"
 	CHECK(!strncmp(sample->event, EVENT_NAME, strlen(EVENT_NAME)));
 
 	return 0;

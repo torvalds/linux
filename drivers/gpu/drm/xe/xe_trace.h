@@ -21,6 +21,7 @@
 #include "xe_vm.h"
 
 #define __dev_name_xe(xe)	dev_name((xe)->drm.dev)
+#define __dev_name_tile(tile)	__dev_name_xe(tile_to_xe((tile)))
 #define __dev_name_gt(gt)	__dev_name_xe(gt_to_xe((gt)))
 #define __dev_name_eq(q)	__dev_name_gt((q)->gt)
 
@@ -210,6 +211,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			     __string(dev, __dev_name_eq(job->q))
 			     __field(u32, seqno)
 			     __field(u32, lrc_seqno)
+			     __field(u8, gt_id)
 			     __field(u16, guc_id)
 			     __field(u32, guc_state)
 			     __field(u32, flags)
@@ -222,6 +224,7 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			   __assign_str(dev);
 			   __entry->seqno = xe_sched_job_seqno(job);
 			   __entry->lrc_seqno = xe_sched_job_lrc_seqno(job);
+			   __entry->gt_id = job->q->gt->info.id;
 			   __entry->guc_id = job->q->guc->id;
 			   __entry->guc_state =
 			   atomic_read(&job->q->guc->state);
@@ -231,9 +234,9 @@ DECLARE_EVENT_CLASS(xe_sched_job,
 			   __entry->batch_addr = (u64)job->ptrs[0].batch_addr;
 			   ),
 
-		    TP_printk("dev=%s, fence=%p, seqno=%u, lrc_seqno=%u, guc_id=%d, batch_addr=0x%012llx, guc_state=0x%x, flags=0x%x, error=%d",
+		    TP_printk("dev=%s, fence=%p, seqno=%u, lrc_seqno=%u, gt=%u, guc_id=%d, batch_addr=0x%012llx, guc_state=0x%x, flags=0x%x, error=%d",
 			      __get_str(dev), __entry->fence, __entry->seqno,
-			      __entry->lrc_seqno, __entry->guc_id,
+			      __entry->lrc_seqno, __entry->gt_id, __entry->guc_id,
 			      __entry->batch_addr, __entry->guc_state,
 			      __entry->flags, __entry->error)
 );
@@ -281,6 +284,7 @@ DECLARE_EVENT_CLASS(xe_sched_msg,
 			     __string(dev, __dev_name_eq(((struct xe_exec_queue *)msg->private_data)))
 			     __field(u32, opcode)
 			     __field(u16, guc_id)
+			     __field(u8, gt_id)
 			     ),
 
 		    TP_fast_assign(
@@ -288,9 +292,11 @@ DECLARE_EVENT_CLASS(xe_sched_msg,
 			   __entry->opcode = msg->opcode;
 			   __entry->guc_id =
 			   ((struct xe_exec_queue *)msg->private_data)->guc->id;
+			   __entry->gt_id =
+			   ((struct xe_exec_queue *)msg->private_data)->gt->info.id;
 			   ),
 
-		    TP_printk("dev=%s, guc_id=%d, opcode=%u", __get_str(dev), __entry->guc_id,
+		    TP_printk("dev=%s, gt=%u guc_id=%d, opcode=%u", __get_str(dev), __entry->gt_id, __entry->guc_id,
 			      __entry->opcode)
 );
 
@@ -309,7 +315,7 @@ DECLARE_EVENT_CLASS(xe_hw_fence,
 		    TP_ARGS(fence),
 
 		    TP_STRUCT__entry(
-			     __string(dev, __dev_name_gt(fence->ctx->gt))
+			     __string(dev, __dev_name_xe(fence->xe))
 			     __field(u64, ctx)
 			     __field(u32, seqno)
 			     __field(struct xe_hw_fence *, fence)
@@ -342,12 +348,12 @@ DEFINE_EVENT(xe_hw_fence, xe_hw_fence_try_signal,
 );
 
 TRACE_EVENT(xe_reg_rw,
-	TP_PROTO(struct xe_gt *gt, bool write, u32 reg, u64 val, int len),
+	TP_PROTO(struct xe_mmio *mmio, bool write, u32 reg, u64 val, int len),
 
-	TP_ARGS(gt, write, reg, val, len),
+	TP_ARGS(mmio, write, reg, val, len),
 
 	TP_STRUCT__entry(
-		__string(dev, __dev_name_gt(gt))
+		__string(dev, __dev_name_tile(mmio->tile))
 		__field(u64, val)
 		__field(u32, reg)
 		__field(u16, write)
@@ -367,6 +373,58 @@ TRACE_EVENT(xe_reg_rw,
 		  __entry->reg, __entry->len,
 		  (u32)(__entry->val & 0xffffffff),
 		  (u32)(__entry->val >> 32))
+);
+
+DECLARE_EVENT_CLASS(xe_pm_runtime,
+		    TP_PROTO(struct xe_device *xe, void *caller),
+		    TP_ARGS(xe, caller),
+
+		    TP_STRUCT__entry(
+			     __string(dev, __dev_name_xe(xe))
+			     __field(void *, caller)
+			     ),
+
+		    TP_fast_assign(
+			   __assign_str(dev);
+			   __entry->caller = caller;
+			   ),
+
+		    TP_printk("dev=%s caller_function=%pS", __get_str(dev), __entry->caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_get,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_put,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_resume,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_suspend,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_resume,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_suspend,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
+);
+
+DEFINE_EVENT(xe_pm_runtime, xe_pm_runtime_get_ioctl,
+	     TP_PROTO(struct xe_device *xe, void *caller),
+	     TP_ARGS(xe, caller)
 );
 
 #endif

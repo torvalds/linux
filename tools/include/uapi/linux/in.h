@@ -81,6 +81,8 @@ enum {
 #define IPPROTO_ETHERNET	IPPROTO_ETHERNET
   IPPROTO_RAW = 255,		/* Raw IP packets			*/
 #define IPPROTO_RAW		IPPROTO_RAW
+  IPPROTO_SMC = 256,		/* Shared Memory Communications		*/
+#define IPPROTO_SMC		IPPROTO_SMC
   IPPROTO_MPTCP = 262,		/* Multipath TCP connection		*/
 #define IPPROTO_MPTCP		IPPROTO_MPTCP
   IPPROTO_MAX
@@ -139,7 +141,7 @@ struct in_addr {
  */
 #define IP_PMTUDISC_INTERFACE		4
 /* weaker version of IP_PMTUDISC_INTERFACE, which allows packets to get
- * fragmented if they exeed the interface mtu
+ * fragmented if they exceed the interface mtu
  */
 #define IP_PMTUDISC_OMIT		5
 

@@ -19,13 +19,13 @@ void acp_mailbox_write(struct snd_sof_dev *sdev, u32 offset, void *message, size
 {
 	memcpy_to_scratch(sdev, offset, message, bytes);
 }
-EXPORT_SYMBOL_NS(acp_mailbox_write, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_mailbox_write, "SND_SOC_SOF_AMD_COMMON");
 
 void acp_mailbox_read(struct snd_sof_dev *sdev, u32 offset, void *message, size_t bytes)
 {
 	memcpy_from_scratch(sdev, offset, message, bytes);
 }
-EXPORT_SYMBOL_NS(acp_mailbox_read, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_mailbox_read, "SND_SOC_SOF_AMD_COMMON");
 
 static void acpbus_trigger_host_to_dsp_swintr(struct acp_dev_data *adata)
 {
@@ -91,7 +91,7 @@ int acp_sof_ipc_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_sof_ipc_send_msg, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_sof_ipc_send_msg, "SND_SOC_SOF_AMD_COMMON");
 
 static void acp_dsp_ipc_get_reply(struct snd_sof_dev *sdev)
 {
@@ -165,8 +165,9 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 	int dsp_msg, dsp_ack;
 	unsigned int status;
 
-	if (sdev->first_boot && sdev->fw_state != SOF_FW_BOOT_COMPLETE) {
+	if (unlikely(sdev->first_boot && sdev->fw_state != SOF_FW_BOOT_COMPLETE)) {
 		acp_mailbox_read(sdev, sdev->dsp_box.offset, &status, sizeof(status));
+
 		if ((status & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
 			snd_sof_dsp_panic(sdev, sdev->dsp_box.offset + sizeof(status),
 					  true);
@@ -188,13 +189,21 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 
 	dsp_ack = snd_sof_dsp_read(sdev, ACP_DSP_BAR, ACP_SCRATCH_REG_0 + dsp_ack_write);
 	if (dsp_ack) {
-		spin_lock_irq(&sdev->ipc_lock);
-		/* handle immediate reply from DSP core */
-		acp_dsp_ipc_get_reply(sdev);
-		snd_sof_ipc_reply(sdev, 0);
-		/* set the done bit */
-		acp_dsp_ipc_dsp_done(sdev);
-		spin_unlock_irq(&sdev->ipc_lock);
+		if (likely(sdev->fw_state == SOF_FW_BOOT_COMPLETE)) {
+			spin_lock_irq(&sdev->ipc_lock);
+
+			/* handle immediate reply from DSP core */
+			acp_dsp_ipc_get_reply(sdev);
+			snd_sof_ipc_reply(sdev, 0);
+			/* set the done bit */
+			acp_dsp_ipc_dsp_done(sdev);
+
+			spin_unlock_irq(&sdev->ipc_lock);
+		} else {
+			dev_dbg_ratelimited(sdev->dev, "IPC reply before FW_BOOT_COMPLETE: %#x\n",
+					    dsp_ack);
+		}
+
 		ipc_irq = true;
 	}
 
@@ -235,7 +244,7 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 
 	return IRQ_HANDLED;
 }
-EXPORT_SYMBOL_NS(acp_sof_ipc_irq_thread, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_sof_ipc_irq_thread, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_sof_ipc_msg_data(struct snd_sof_dev *sdev, struct snd_sof_pcm_stream *sps,
 			 void *p, size_t sz)
@@ -261,7 +270,7 @@ int acp_sof_ipc_msg_data(struct snd_sof_dev *sdev, struct snd_sof_pcm_stream *sp
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_sof_ipc_msg_data, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_sof_ipc_msg_data, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_set_stream_data_offset(struct snd_sof_dev *sdev,
 			       struct snd_sof_pcm_stream *sps,
@@ -282,7 +291,7 @@ int acp_set_stream_data_offset(struct snd_sof_dev *sdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_set_stream_data_offset, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_set_stream_data_offset, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_sof_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
 {
@@ -290,12 +299,12 @@ int acp_sof_ipc_get_mailbox_offset(struct snd_sof_dev *sdev)
 
 	return desc->sram_pte_offset;
 }
-EXPORT_SYMBOL_NS(acp_sof_ipc_get_mailbox_offset, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_sof_ipc_get_mailbox_offset, "SND_SOC_SOF_AMD_COMMON");
 
 int acp_sof_ipc_get_window_offset(struct snd_sof_dev *sdev, u32 id)
 {
 	return 0;
 }
-EXPORT_SYMBOL_NS(acp_sof_ipc_get_window_offset, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(acp_sof_ipc_get_window_offset, "SND_SOC_SOF_AMD_COMMON");
 
 MODULE_DESCRIPTION("AMD ACP sof-ipc driver");

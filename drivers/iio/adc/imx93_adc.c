@@ -470,7 +470,7 @@ MODULE_DEVICE_TABLE(of, imx93_adc_match);
 
 static struct platform_driver imx93_adc_driver = {
 	.probe		= imx93_adc_probe,
-	.remove_new	= imx93_adc_remove,
+	.remove		= imx93_adc_remove,
 	.driver		= {
 		.name	= IMX93_ADC_DRIVER_NAME,
 		.of_match_table = imx93_adc_match,

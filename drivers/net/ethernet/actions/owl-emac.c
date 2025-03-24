@@ -1607,7 +1607,7 @@ static struct platform_driver owl_emac_driver = {
 		.pm = &owl_emac_pm_ops,
 	},
 	.probe = owl_emac_probe,
-	.remove_new = owl_emac_remove,
+	.remove = owl_emac_remove,
 };
 module_platform_driver(owl_emac_driver);
 

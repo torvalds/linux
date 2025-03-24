@@ -28,12 +28,6 @@ properties:
     items:
       - description: Reference to the mclk clock.
 
-  assigned-clocks:
-    maxItems: 1
-
-  assigned-clock-rates:
-    maxItems: 1
-
   reset-gpios:
     description: Reference to the GPIO connected to the RESETB pin. Active low.
     maxItems: 1
@@ -82,8 +76,6 @@ required:
   - compatible
   - reg
   - clocks
-  - assigned-clocks
-  - assigned-clock-rates
   - vddio-supply
   - vdda-supply
   - vddd-supply
@@ -105,8 +97,6 @@ examples:
             pinctrl-names = "default";
             pinctrl-0 = <&pinctrl_csi1>;
             clocks = <&clk 0>;
-            assigned-clocks = <&clk 0>;
-            assigned-clock-rates = <25000000>;
             vdda-supply = <&reg_camera_vdda>;
             vddd-supply = <&reg_camera_vddd>;
             vddio-supply = <&reg_camera_vddio>;

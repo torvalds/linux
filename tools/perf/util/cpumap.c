@@ -293,7 +293,7 @@ struct aggr_cpu_id aggr_cpu_id__die(struct perf_cpu cpu, void *data)
 
 	die = cpu__get_die_id(cpu);
 	/* There is no die_id on legacy system. */
-	if (die == -1)
+	if (die < 0)
 		die = 0;
 
 	/*
@@ -322,7 +322,7 @@ struct aggr_cpu_id aggr_cpu_id__cluster(struct perf_cpu cpu, void *data)
 	struct aggr_cpu_id id;
 
 	/* There is no cluster_id on legacy system. */
-	if (cluster == -1)
+	if (cluster < 0)
 		cluster = 0;
 
 	id = aggr_cpu_id__die(cpu, data);

@@ -1,0 +1,64 @@
+HID           Driver         Description
+MLNXBFD0      mlxbf-pmc      Performance counters (BlueField-1)
+MLNXBFD1      mlxbf-pmc      Performance counters (BlueField-2)
+MLNXBFD2      mlxbf-pmc      Performance counters (BlueField-3)
+
+What:		/sys/bus/platform/devices/<HID>/hwmon/hwmonX/<block>/event_list
+Date:		Dec 2020
+KernelVersion:	5.10
+Contact:	"Shravan Kumar Ramani <shravankr@nvidia.com>"
+Description:
+		List of events supported by the counters in the specific block.
+		It is used to extract the event number or ID associated with
+		each event.
+
+What:		/sys/bus/platform/devices/<HID>/hwmon/hwmonX/<block>/event<N>
+Date:		Dec 2020
+KernelVersion:	5.10
+Contact:	"Shravan Kumar Ramani <shravankr@nvidia.com>"
+Description:
+		Event monitored by corresponding counter. This is used to
+		program or read back the event that should be or is currently
+		being monitored by counter<N>.
+
+What:		/sys/bus/platform/devices/<HID>/hwmon/hwmonX/<block>/counter<N>
+Date:		Dec 2020
+KernelVersion:	5.10
+Contact:	"Shravan Kumar Ramani <shravankr@nvidia.com>"
+Description:
+		Counter value of the event being monitored. This is used to
+		read the counter value of the event which was programmed using
+		event<N>. This is also used to clear or reset the counter value
+		by writing 0 to the counter sysfs.
+
+What:		/sys/bus/platform/devices/<HID>/hwmon/hwmonX/<block>/enable
+Date:		Dec 2020
+KernelVersion:	5.10
+Contact:	"Shravan Kumar Ramani <shravankr@nvidia.com>"
+Description:
+		Start or stop counters. This is used to start the counters
+		for monitoring the programmed events and also to stop the
+		counters after the desired duration. Writing value 1 will
+		start all the counters in the block, and writing 0 will
+		stop all the counters together.
+
+What:		/sys/bus/platform/devices/<HID>/hwmon/hwmonX/<block>/<reg>
+Date:		Dec 2020
+KernelVersion:	5.10
+Contact:	"Shravan Kumar Ramani <shravankr@nvidia.com>"
+Description:
+		Value of register. This is used to read or reset the registers
+		where various performance statistics are counted for each block.
+		Writing 0 to the sysfs will clear the counter, writing any other
+		value is not allowed.
+
+What:		/sys/bus/platform/devices/<HID>/hwmon/hwmonX/<block>/count_clock
+Date:		Mar 2025
+KernelVersion:	6.14
+Contact:	"Shravan Kumar Ramani <shravankr@nvidia.com>"
+Description:
+		Use a counter for counting cycles. This is used to repurpose/dedicate
+		any of the counters in the block to counting cycles. Each counter is
+		represented by a bit (bit 0 for counter0, bit1 for counter1 and so on)
+		and setting the corresponding bit will reserve that specific counter
+		for counting cycles and override the event<N> setting.

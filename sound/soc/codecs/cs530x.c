@@ -821,7 +821,7 @@ const struct regmap_config cs530x_regmap = {
 	.reg_defaults = cs530x_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(cs530x_reg_defaults),
 };
-EXPORT_SYMBOL_NS_GPL(cs530x_regmap, SND_SOC_CS530X);
+EXPORT_SYMBOL_NS_GPL(cs530x_regmap, "SND_SOC_CS530X");
 
 static int cs530x_check_device_id(struct cs530x_priv *cs530x)
 {
@@ -964,7 +964,7 @@ err_regulator:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs530x_probe, SND_SOC_CS530X);
+EXPORT_SYMBOL_NS_GPL(cs530x_probe, "SND_SOC_CS530X");
 
 MODULE_DESCRIPTION("CS530X CODEC Driver");
 MODULE_AUTHOR("Paul Handrigan <paulha@opensource.cirrus.com>");

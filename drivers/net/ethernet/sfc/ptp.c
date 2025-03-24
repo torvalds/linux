@@ -399,7 +399,7 @@ static const unsigned long efx_ptp_stat_mask[] = {
 	[0 ... BITS_TO_LONGS(PTP_STAT_COUNT) - 1] = ~0UL,
 };
 
-size_t efx_ptp_describe_stats(struct efx_nic *efx, u8 *strings)
+size_t efx_ptp_describe_stats(struct efx_nic *efx, u8 **strings)
 {
 	if (!efx->ptp_data)
 		return 0;
@@ -884,7 +884,7 @@ static void efx_ptp_read_timeset(MCDI_DECLARE_STRUCT_PTR(data),
 	timeset->host_start = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_HOSTSTART);
 	timeset->major = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_MAJOR);
 	timeset->minor = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_MINOR);
-	timeset->host_end = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_HOSTEND),
+	timeset->host_end = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_HOSTEND);
 	timeset->wait = MCDI_DWORD(data, PTP_OUT_SYNCHRONIZE_WAITNS);
 
 	/* Ignore seconds */
@@ -1798,11 +1798,6 @@ int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
 	queue_work(ptp->workwq, &ptp->work);
 
 	return NETDEV_TX_OK;
-}
-
-int efx_ptp_get_mode(struct efx_nic *efx)
-{
-	return efx->ptp_data->mode;
 }
 
 int efx_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,

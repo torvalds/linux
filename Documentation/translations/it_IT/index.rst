@@ -103,9 +103,11 @@ sviluppatori del kernel.
 .. toctree::
    :maxdepth: 1
 
-   process/license-rules
-   doc-guide/index
-   kernel-hacking/index
+   Regole sulle licenze <process/license-rules>
+   Scrivere la documentazione <doc-guide/index>
+   Strumenti di sviluppo <dev-tools/index>
+   La guida all'*hacking*<kernel-hacking/index>
+
 
 Documentazione per gli utenti
 =============================

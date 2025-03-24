@@ -40,6 +40,7 @@ struct quirk_entry {
 	bool wmi_force_als_set;
 	bool wmi_ignore_fan;
 	bool filter_i8042_e1_extended_codes;
+	bool ignore_key_wlan;
 	enum asus_wmi_tablet_switch_mode tablet_switch_mode;
 	int wapf;
 	/*
@@ -72,8 +73,7 @@ struct asus_wmi_driver {
 	void (*key_filter) (struct asus_wmi_driver *driver, int *code,
 			    unsigned int *value, bool *autorelease);
 	/* Optional standard i8042 filter */
-	bool (*i8042_filter)(unsigned char data, unsigned char str,
-			     struct serio *serio);
+	i8042_filter_t		i8042_filter;
 
 	int (*probe) (struct platform_device *device);
 	void (*detect_quirks) (struct asus_wmi_driver *driver);

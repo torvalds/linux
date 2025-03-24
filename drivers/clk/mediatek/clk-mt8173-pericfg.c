@@ -115,7 +115,7 @@ static struct platform_driver clk_mt8173_pericfg_drv = {
 		.of_match_table = of_match_clk_mt8173_pericfg,
 	},
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 };
 module_platform_driver(clk_mt8173_pericfg_drv);
 

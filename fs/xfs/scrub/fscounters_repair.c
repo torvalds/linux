@@ -68,15 +68,16 @@ xrep_fscounters(
 
 	/*
 	 * Online repair is only supported on v5 file systems, which require
-	 * lazy sb counters and thus no update of sb_fdblocks here.  But as of
-	 * now we don't support lazy counting sb_frextents yet, and thus need
-	 * to also update it directly here.  And for that we need to keep
+	 * lazy sb counters and thus no update of sb_fdblocks here.  But
+	 * sb_frextents only uses a lazy counter with rtgroups, and thus needs
+	 * to be updated directly here otherwise.  And for that we need to keep
 	 * track of the delalloc reservations separately, as they are are
 	 * subtracted from m_frextents, but not included in sb_frextents.
 	 */
 	percpu_counter_set(&mp->m_frextents,
 		fsc->frextents - fsc->frextents_delayed);
-	mp->m_sb.sb_frextents = fsc->frextents;
+	if (!xfs_has_rtgroups(mp))
+		mp->m_sb.sb_frextents = fsc->frextents;
 
 	return 0;
 }

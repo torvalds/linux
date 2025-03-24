@@ -348,6 +348,7 @@ static int highbank_initialize_phys(struct device *dev, void __iomem *addr)
 			phy_nodes[phy] = phy_data.np;
 			cphy_base[phy] = of_iomap(phy_nodes[phy], 0);
 			if (cphy_base[phy] == NULL) {
+				of_node_put(phy_data.np);
 				return 0;
 			}
 			phy_count += 1;
@@ -614,12 +615,12 @@ static SIMPLE_DEV_PM_OPS(ahci_highbank_pm_ops,
 		  ahci_highbank_suspend, ahci_highbank_resume);
 
 static struct platform_driver ahci_highbank_driver = {
-	.remove_new = ata_platform_remove_one,
-        .driver = {
-                .name = "highbank-ahci",
-                .of_match_table = ahci_of_match,
-                .pm = &ahci_highbank_pm_ops,
-        },
+	.remove = ata_platform_remove_one,
+	.driver = {
+		.name = "highbank-ahci",
+		.of_match_table = ahci_of_match,
+		.pm = &ahci_highbank_pm_ops,
+	},
 	.probe = ahci_highbank_probe,
 };
 

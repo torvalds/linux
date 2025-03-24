@@ -1979,13 +1979,3 @@ void idxd_unregister_devices(struct idxd_device *idxd)
 		device_unregister(group_confdev(group));
 	}
 }
-
-int idxd_register_bus_type(void)
-{
-	return bus_register(&dsa_bus_type);
-}
-
-void idxd_unregister_bus_type(void)
-{
-	bus_unregister(&dsa_bus_type);
-}

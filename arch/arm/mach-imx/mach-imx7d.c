@@ -48,7 +48,7 @@ static void __init imx7d_enet_clk_sel(void)
 	}
 }
 
-static inline void imx7d_enet_init(void)
+static void __init imx7d_enet_init(void)
 {
 	imx7d_enet_phy_init();
 	imx7d_enet_clk_sel();

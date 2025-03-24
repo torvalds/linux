@@ -743,7 +743,7 @@ static void esp32_uart_remove(struct platform_device *pdev)
 
 static struct platform_driver esp32_uart_driver = {
 	.probe		= esp32_uart_probe,
-	.remove_new	= esp32_uart_remove,
+	.remove		= esp32_uart_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table	= esp32_uart_dt_ids,

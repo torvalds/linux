@@ -349,7 +349,6 @@ allOf:
       properties:
         compatible:
           enum:
-            - qcom,pm8550ve-rpmh-regulators
             - qcom,pm8550vs-rpmh-regulators
     then:
       patternProperties:
@@ -385,6 +384,7 @@ allOf:
         compatible:
           enum:
             - qcom,pmc8380-rpmh-regulators
+            - qcom,pm8550ve-rpmh-regulators
     then:
       patternProperties:
         "^vdd-l[1-3]-supply$": true

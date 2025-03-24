@@ -68,12 +68,12 @@ void __mptcp_fastopen_gen_msk_ackseq(struct mptcp_sock *msk, struct mptcp_subflo
 	skb = skb_peek_tail(&sk->sk_receive_queue);
 	if (skb) {
 		WARN_ON_ONCE(MPTCP_SKB_CB(skb)->end_seq);
-		pr_debug("msk %p moving seq %llx -> %llx end_seq %llx -> %llx", sk,
+		pr_debug("msk %p moving seq %llx -> %llx end_seq %llx -> %llx\n", sk,
 			 MPTCP_SKB_CB(skb)->map_seq, MPTCP_SKB_CB(skb)->map_seq + msk->ack_seq,
 			 MPTCP_SKB_CB(skb)->end_seq, MPTCP_SKB_CB(skb)->end_seq + msk->ack_seq);
 		MPTCP_SKB_CB(skb)->map_seq += msk->ack_seq;
 		MPTCP_SKB_CB(skb)->end_seq += msk->ack_seq;
 	}
 
-	pr_debug("msk=%p ack_seq=%llx", msk, msk->ack_seq);
+	pr_debug("msk=%p ack_seq=%llx\n", msk, msk->ack_seq);
 }

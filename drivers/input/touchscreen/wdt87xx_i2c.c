@@ -20,7 +20,7 @@
 #include <linux/firmware.h>
 #include <linux/input/mt.h>
 #include <linux/acpi.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define WDT87XX_NAME		"wdt87xx_i2c"
 #define WDT87XX_FW_NAME		"wdt87xx_fw.bin"
@@ -1153,11 +1153,13 @@ static const struct i2c_device_id wdt87xx_dev_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, wdt87xx_dev_id);
 
+#ifdef CONFIG_ACPI
 static const struct acpi_device_id wdt87xx_acpi_id[] = {
 	{ "WDHT0001", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, wdt87xx_acpi_id);
+#endif
 
 static struct i2c_driver wdt87xx_driver = {
 	.probe		= wdt87xx_ts_probe,

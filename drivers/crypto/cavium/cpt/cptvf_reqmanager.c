@@ -238,7 +238,7 @@ static int send_cpt_command(struct cpt_vf *cptvf, union cpt_inst_s *cmd,
 
 	qinfo = &cptvf->cqinfo;
 	queue = &qinfo->queue[qno];
-	/* lock commad queue */
+	/* lock command queue */
 	spin_lock(&queue->lock);
 	ent = &queue->qhead->head[queue->idx * qinfo->cmd_size];
 	memcpy(ent, (void *)cmd, qinfo->cmd_size);
@@ -510,7 +510,7 @@ get_pending_entry:
 	info->time_in = jiffies;
 	info->req = req;
 
-	/* Create the CPT_INST_S type command for HW intrepretation */
+	/* Create the CPT_INST_S type command for HW interpretation */
 	cptinst.s.doneint = true;
 	cptinst.s.res_addr = (u64)info->comp_baddr;
 	cptinst.s.tag = 0;

@@ -113,7 +113,7 @@ init_cpu()
 		taskset -p "$newmask" "$p" || continue
 	done 2>/dev/null >/dev/null
 
-	# Big hammer! Working with 'rcu_momentary_dyntick_idle()' for a more fine-grained solution
+	# Big hammer! Working with 'rcu_momentary_eqs()' for a more fine-grained solution
 	# still printed warnings. Same for re-enabling the stall detector after sampling.
 	echo 1 > /sys/module/rcupdate/parameters/rcu_cpu_stall_suppress
 

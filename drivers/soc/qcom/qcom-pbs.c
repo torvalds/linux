@@ -3,6 +3,7 @@
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -83,16 +84,16 @@ int qcom_pbs_trigger_event(struct pbs_dev *pbs, u8 bitmap)
 	if (IS_ERR_OR_NULL(pbs))
 		return -EINVAL;
 
-	mutex_lock(&pbs->lock);
+	guard(mutex)(&pbs->lock);
 	ret = regmap_read(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH2, &val);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (val == PBS_CLIENT_SCRATCH2_ERROR) {
 		/* PBS error - clear SCRATCH2 register */
 		ret = regmap_write(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH2, 0);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
 
 	for (bit_pos = 0; bit_pos < 8; bit_pos++) {
@@ -103,37 +104,31 @@ int qcom_pbs_trigger_event(struct pbs_dev *pbs, u8 bitmap)
 		ret = regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH2,
 					 BIT(bit_pos), 0);
 		if (ret < 0)
-			goto out_clear_scratch1;
+			break;
 
 		/* Set the PBS sequence bit position */
 		ret = regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH1,
 					 BIT(bit_pos), BIT(bit_pos));
 		if (ret < 0)
-			goto out_clear_scratch1;
+			break;
 
 		/* Initiate the SW trigger */
 		ret = regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_TRIG_CTL,
 					 PBS_CLIENT_SW_TRIG_BIT, PBS_CLIENT_SW_TRIG_BIT);
 		if (ret < 0)
-			goto out_clear_scratch1;
+			break;
 
 		ret = qcom_pbs_wait_for_ack(pbs, bit_pos);
 		if (ret < 0)
-			goto out_clear_scratch1;
+			break;
 
 		/* Clear the PBS sequence bit position */
 		regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH1, BIT(bit_pos), 0);
 		regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH2, BIT(bit_pos), 0);
 	}
 
-out_clear_scratch1:
 	/* Clear all the requested bitmap */
-	ret = regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH1, bitmap, 0);
-
-out:
-	mutex_unlock(&pbs->lock);
-
-	return ret;
+	return regmap_update_bits(pbs->regmap, pbs->base + PBS_CLIENT_SCRATCH1, bitmap, 0);
 }
 EXPORT_SYMBOL_GPL(qcom_pbs_trigger_event);
 
@@ -148,11 +143,11 @@ EXPORT_SYMBOL_GPL(qcom_pbs_trigger_event);
  */
 struct pbs_dev *get_pbs_client_device(struct device *dev)
 {
-	struct device_node *pbs_dev_node;
 	struct platform_device *pdev;
 	struct pbs_dev *pbs;
 
-	pbs_dev_node = of_parse_phandle(dev->of_node, "qcom,pbs", 0);
+	struct device_node *pbs_dev_node __free(device_node) = of_parse_phandle(dev->of_node,
+										"qcom,pbs", 0);
 	if (!pbs_dev_node) {
 		dev_err(dev, "Missing qcom,pbs property\n");
 		return ERR_PTR(-ENODEV);
@@ -161,28 +156,23 @@ struct pbs_dev *get_pbs_client_device(struct device *dev)
 	pdev = of_find_device_by_node(pbs_dev_node);
 	if (!pdev) {
 		dev_err(dev, "Unable to find PBS dev_node\n");
-		pbs = ERR_PTR(-EPROBE_DEFER);
-		goto out;
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	pbs = platform_get_drvdata(pdev);
 	if (!pbs) {
 		dev_err(dev, "Cannot get pbs instance from %s\n", dev_name(&pdev->dev));
 		platform_device_put(pdev);
-		pbs = ERR_PTR(-EPROBE_DEFER);
-		goto out;
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	pbs->link = device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_SUPPLIER);
 	if (!pbs->link) {
 		dev_err(&pdev->dev, "Failed to create device link to consumer %s\n", dev_name(dev));
 		platform_device_put(pdev);
-		pbs = ERR_PTR(-EINVAL);
-		goto out;
+		return ERR_PTR(-EINVAL);
 	}
 
-out:
-	of_node_put(pbs_dev_node);
 	return pbs;
 }
 EXPORT_SYMBOL_GPL(get_pbs_client_device);

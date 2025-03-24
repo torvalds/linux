@@ -119,7 +119,7 @@ void update_vsyscall(struct timekeeper *tk)
 	if (clock_mode != VDSO_CLOCKMODE_NONE)
 		update_vdso_data(vdata, tk);
 
-	__arch_update_vsyscall(vdata, tk);
+	__arch_update_vsyscall(vdata);
 
 	vdso_write_end(vdata);
 
@@ -151,9 +151,8 @@ void update_vsyscall_tz(void)
 unsigned long vdso_update_begin(void)
 {
 	struct vdso_data *vdata = __arch_get_k_vdso_data();
-	unsigned long flags;
+	unsigned long flags = timekeeper_lock_irqsave();
 
-	raw_spin_lock_irqsave(&timekeeper_lock, flags);
 	vdso_write_begin(vdata);
 	return flags;
 }
@@ -172,5 +171,5 @@ void vdso_update_end(unsigned long flags)
 
 	vdso_write_end(vdata);
 	__arch_sync_vdso_data(vdata);
-	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
+	timekeeper_unlock_irqrestore(flags);
 }

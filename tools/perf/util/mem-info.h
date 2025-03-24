@@ -15,6 +15,7 @@ DECLARE_RC_STRUCT(mem_info) {
 };
 
 struct mem_info *mem_info__new(void);
+struct mem_info *mem_info__clone(struct mem_info *mi);
 struct mem_info *mem_info__get(struct mem_info *mi);
 void   mem_info__put(struct mem_info *mi);
 

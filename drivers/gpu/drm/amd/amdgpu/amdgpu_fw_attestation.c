@@ -122,6 +122,10 @@ static int amdgpu_is_fw_attestation_supported(struct amdgpu_device *adev)
 	if (adev->flags & AMD_IS_APU)
 		return 0;
 
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(14, 0, 2) ||
+	    amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(14, 0, 3))
+		return 0;
+
 	if (adev->asic_type >= CHIP_SIENNA_CICHLID)
 		return 1;
 

@@ -85,7 +85,7 @@ static int __init gxp_timer_init(struct device_node *node)
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		ret = (int)PTR_ERR(clk);
+		ret = PTR_ERR(clk);
 		pr_err("%pOFn clock not found: %d\n", node, ret);
 		goto err_free;
 	}

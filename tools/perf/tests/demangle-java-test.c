@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <linux/kernel.h>
 #include "tests.h"
 #include "session.h"
 #include "debug.h"
@@ -28,7 +29,7 @@ static int test__demangle_java(struct test_suite *test __maybe_unused, int subte
 		  "void java.lang.Object<init>()" },
 	};
 
-	for (i = 0; i < sizeof(test_cases) / sizeof(test_cases[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(test_cases); i++) {
 		buf = java_demangle_sym(test_cases[i].mangled, 0);
 		if (strcmp(buf, test_cases[i].demangled)) {
 			pr_debug("FAILED: %s: %s != %s\n", test_cases[i].mangled,

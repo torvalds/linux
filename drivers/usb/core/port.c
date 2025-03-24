@@ -9,6 +9,8 @@
 
 #include <linux/kstrtox.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
+#include <linux/sysfs.h>
 #include <linux/pm_qos.h>
 #include <linux/component.h>
 #include <linux/usb/of.h>
@@ -24,7 +26,7 @@ static ssize_t early_stop_show(struct device *dev,
 {
 	struct usb_port *port_dev = to_usb_port(dev);
 
-	return sysfs_emit(buf, "%s\n", port_dev->early_stop ? "yes" : "no");
+	return sysfs_emit(buf, "%s\n", str_yes_no(port_dev->early_stop));
 }
 
 static ssize_t early_stop_store(struct device *dev, struct device_attribute *attr,
@@ -166,7 +168,7 @@ static ssize_t location_show(struct device *dev,
 {
 	struct usb_port *port_dev = to_usb_port(dev);
 
-	return sprintf(buf, "0x%08x\n", port_dev->location);
+	return sysfs_emit(buf, "0x%08x\n", port_dev->location);
 }
 static DEVICE_ATTR_RO(location);
 
@@ -191,7 +193,7 @@ static ssize_t connect_type_show(struct device *dev,
 		break;
 	}
 
-	return sprintf(buf, "%s\n", result);
+	return sysfs_emit(buf, "%s\n", result);
 }
 static DEVICE_ATTR_RO(connect_type);
 
@@ -210,7 +212,7 @@ static ssize_t over_current_count_show(struct device *dev,
 {
 	struct usb_port *port_dev = to_usb_port(dev);
 
-	return sprintf(buf, "%u\n", port_dev->over_current_count);
+	return sysfs_emit(buf, "%u\n", port_dev->over_current_count);
 }
 static DEVICE_ATTR_RO(over_current_count);
 
@@ -219,7 +221,7 @@ static ssize_t quirks_show(struct device *dev,
 {
 	struct usb_port *port_dev = to_usb_port(dev);
 
-	return sprintf(buf, "%08x\n", port_dev->quirks);
+	return sysfs_emit(buf, "%08x\n", port_dev->quirks);
 }
 
 static ssize_t quirks_store(struct device *dev, struct device_attribute *attr,
@@ -254,7 +256,7 @@ static ssize_t usb3_lpm_permit_show(struct device *dev,
 			p = "0";
 	}
 
-	return sprintf(buf, "%s\n", p);
+	return sysfs_emit(buf, "%s\n", p);
 }
 
 static ssize_t usb3_lpm_permit_store(struct device *dev,
@@ -452,10 +454,11 @@ static int usb_port_runtime_suspend(struct device *dev)
 static void usb_port_shutdown(struct device *dev)
 {
 	struct usb_port *port_dev = to_usb_port(dev);
+	struct usb_device *udev = port_dev->child;
 
-	if (port_dev->child) {
-		usb_disable_usb2_hardware_lpm(port_dev->child);
-		usb_unlocked_disable_lpm(port_dev->child);
+	if (udev && !udev->port_is_suspended) {
+		usb_disable_usb2_hardware_lpm(udev);
+		usb_unlocked_disable_lpm(udev);
 	}
 }
 

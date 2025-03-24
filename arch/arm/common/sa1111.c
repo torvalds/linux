@@ -1154,7 +1154,7 @@ static struct dev_pm_ops sa1111_pm_ops = {
  */
 static struct platform_driver sa1111_device_driver = {
 	.probe		= sa1111_probe,
-	.remove_new	= sa1111_remove,
+	.remove		= sa1111_remove,
 	.driver		= {
 		.name	= "sa1111",
 		.pm	= &sa1111_pm_ops,

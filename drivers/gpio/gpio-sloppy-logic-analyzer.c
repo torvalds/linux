@@ -217,7 +217,6 @@ static const struct file_operations fops_trigger = {
 	.owner = THIS_MODULE,
 	.open = trigger_open,
 	.write = trigger_write,
-	.llseek = no_llseek,
 	.release = single_release,
 };
 
@@ -235,7 +234,9 @@ static int gpio_la_poll_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	devm_mutex_init(dev, &priv->blob_lock);
+	ret = devm_mutex_init(dev, &priv->blob_lock);
+	if (ret)
+		return ret;
 
 	fops_buf_size_set(priv, GPIO_LA_DEFAULT_BUF_SIZE);
 
@@ -312,7 +313,7 @@ MODULE_DEVICE_TABLE(of, gpio_la_poll_of_match);
 
 static struct platform_driver gpio_la_poll_device_driver = {
 	.probe = gpio_la_poll_probe,
-	.remove_new = gpio_la_poll_remove,
+	.remove = gpio_la_poll_remove,
 	.driver = {
 		.name = GPIO_LA_NAME,
 		.of_match_table = gpio_la_poll_of_match,

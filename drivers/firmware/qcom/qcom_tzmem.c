@@ -40,7 +40,6 @@ struct qcom_tzmem_pool {
 };
 
 struct qcom_tzmem_chunk {
-	phys_addr_t paddr;
 	size_t size;
 	struct qcom_tzmem_pool *owner;
 };
@@ -78,6 +77,7 @@ static bool qcom_tzmem_using_shm_bridge;
 /* List of machines that are known to not support SHM bridge correctly. */
 static const char *const qcom_tzmem_blacklist[] = {
 	"qcom,sc8180x",
+	"qcom,sdm670", /* failure in GPU firmware loading */
 	"qcom,sdm845", /* reset in rmtfs memory assignment */
 	"qcom,sm8150", /* reset in rmtfs memory assignment */
 	NULL
@@ -385,7 +385,6 @@ again:
 		return NULL;
 	}
 
-	chunk->paddr = gen_pool_virt_to_phys(pool->genpool, vaddr);
 	chunk->size = size;
 	chunk->owner = pool;
 
@@ -431,25 +430,37 @@ void qcom_tzmem_free(void *vaddr)
 EXPORT_SYMBOL_GPL(qcom_tzmem_free);
 
 /**
- * qcom_tzmem_to_phys() - Map the virtual address of a TZ buffer to physical.
- * @vaddr: Virtual address of the buffer allocated from a TZ memory pool.
+ * qcom_tzmem_to_phys() - Map the virtual address of TZ memory to physical.
+ * @vaddr: Virtual address of memory allocated from a TZ memory pool.
  *
- * Can be used in any context. The address must have been returned by a call
- * to qcom_tzmem_alloc().
+ * Can be used in any context. The address must point to memory allocated
+ * using qcom_tzmem_alloc().
  *
- * Returns: Physical address of the buffer.
+ * Returns:
+ * Physical address mapped from the virtual or 0 if the mapping failed.
  */
 phys_addr_t qcom_tzmem_to_phys(void *vaddr)
 {
 	struct qcom_tzmem_chunk *chunk;
+	struct radix_tree_iter iter;
+	void __rcu **slot;
+	phys_addr_t ret;
 
 	guard(spinlock_irqsave)(&qcom_tzmem_chunks_lock);
 
-	chunk = radix_tree_lookup(&qcom_tzmem_chunks, (unsigned long)vaddr);
-	if (!chunk)
-		return 0;
+	radix_tree_for_each_slot(slot, &qcom_tzmem_chunks, &iter, 0) {
+		chunk = radix_tree_deref_slot_protected(slot,
+						&qcom_tzmem_chunks_lock);
 
-	return chunk->paddr;
+		ret = gen_pool_virt_to_phys(chunk->owner->genpool,
+					    (unsigned long)vaddr);
+		if (ret == -1)
+			continue;
+
+		return ret;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_tzmem_to_phys);
 

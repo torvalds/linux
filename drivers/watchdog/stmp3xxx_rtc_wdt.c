@@ -143,7 +143,7 @@ static struct platform_driver stmp3xxx_wdt_driver = {
 		.pm = &stmp3xxx_wdt_pm_ops,
 	},
 	.probe = stmp3xxx_wdt_probe,
-	.remove_new = stmp3xxx_wdt_remove,
+	.remove = stmp3xxx_wdt_remove,
 };
 module_platform_driver(stmp3xxx_wdt_driver);
 

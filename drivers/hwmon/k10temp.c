@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
-#include <asm/amd_nb.h>
+#include <asm/amd_node.h>
 #include <asm/processor.h>
 
 MODULE_DESCRIPTION("AMD Family 10h+ CPU core temperature monitor");
@@ -148,6 +148,11 @@ static void read_tempreg_nb_f15(struct pci_dev *pdev, u32 *regval)
 {
 	amd_nb_index_read(pdev, PCI_DEVFN(0, 0), 0xb8,
 			  F15H_M60H_REPORTED_TEMP_CTRL_OFFSET, regval);
+}
+
+static u16 amd_pci_dev_to_node_id(struct pci_dev *pdev)
+{
+	return PCI_SLOT(pdev->devfn) - AMD_NODE0_PCI_SLOT;
 }
 
 static void read_tempreg_nb_zen(struct pci_dev *pdev, u32 *regval)
@@ -438,16 +443,21 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		data->disp_negative = true;
 	}
 
-	if (boot_cpu_data.x86 == 0x15 &&
+	data->is_zen = cpu_feature_enabled(X86_FEATURE_ZEN);
+	if (data->is_zen) {
+		data->temp_adjust_mask = ZEN_CUR_TEMP_RANGE_SEL_MASK;
+		data->read_tempreg = read_tempreg_nb_zen;
+	} else if (boot_cpu_data.x86 == 0x15 &&
 	    ((boot_cpu_data.x86_model & 0xf0) == 0x60 ||
 	     (boot_cpu_data.x86_model & 0xf0) == 0x70)) {
 		data->read_htcreg = read_htcreg_nb_f15;
 		data->read_tempreg = read_tempreg_nb_f15;
-	} else if (boot_cpu_data.x86 == 0x17 || boot_cpu_data.x86 == 0x18) {
-		data->temp_adjust_mask = ZEN_CUR_TEMP_RANGE_SEL_MASK;
-		data->read_tempreg = read_tempreg_nb_zen;
-		data->is_zen = true;
+	} else {
+		data->read_htcreg = read_htcreg_pci;
+		data->read_tempreg = read_tempreg_pci;
+	}
 
+	if (boot_cpu_data.x86 == 0x17 || boot_cpu_data.x86 == 0x18) {
 		switch (boot_cpu_data.x86_model) {
 		case 0x1:	/* Zen */
 		case 0x8:	/* Zen+ */
@@ -469,10 +479,6 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			break;
 		}
 	} else if (boot_cpu_data.x86 == 0x19) {
-		data->temp_adjust_mask = ZEN_CUR_TEMP_RANGE_SEL_MASK;
-		data->read_tempreg = read_tempreg_nb_zen;
-		data->is_zen = true;
-
 		switch (boot_cpu_data.x86_model) {
 		case 0x0 ... 0x1:	/* Zen3 SP3/TR */
 		case 0x8:		/* Zen3 TR Chagall */
@@ -496,13 +502,6 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			k10temp_get_ccd_support(data, 12);
 			break;
 		}
-	} else if (boot_cpu_data.x86 == 0x1a) {
-		data->temp_adjust_mask = ZEN_CUR_TEMP_RANGE_SEL_MASK;
-		data->read_tempreg = read_tempreg_nb_zen;
-		data->is_zen = true;
-	} else {
-		data->read_htcreg = read_htcreg_pci;
-		data->read_tempreg = read_tempreg_pci;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(tctl_offset_table); i++) {
@@ -548,6 +547,7 @@ static const struct pci_device_id k10temp_id_table[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_19H_M78H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_1AH_M00H_DF_F3) },
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_1AH_M20H_DF_F3) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_1AH_M60H_DF_F3) },
 	{ PCI_VDEVICE(HYGON, PCI_DEVICE_ID_AMD_17H_DF_F3) },
 	{}
 };

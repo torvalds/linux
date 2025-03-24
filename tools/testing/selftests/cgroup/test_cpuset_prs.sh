@@ -84,6 +84,20 @@ echo member > test/cpuset.cpus.partition
 echo "" > test/cpuset.cpus
 [[ $RESULT -eq 0 ]] && skip_test "Child cgroups are using cpuset!"
 
+#
+# If isolated CPUs have been reserved at boot time (as shown in
+# cpuset.cpus.isolated), these isolated CPUs should be outside of CPUs 0-8
+# that will be used by this script for testing purpose. If not, some of
+# the tests may fail incorrectly. These pre-isolated CPUs should stay in
+# an isolated state throughout the testing process for now.
+#
+BOOT_ISOLCPUS=$(cat $CGROUP2/cpuset.cpus.isolated)
+if [[ -n "$BOOT_ISOLCPUS" ]]
+then
+	[[ $(echo $BOOT_ISOLCPUS | sed -e "s/[,-].*//") -le 8 ]] &&
+		skip_test "Pre-isolated CPUs ($BOOT_ISOLCPUS) overlap CPUs to be tested"
+	echo "Pre-isolated CPUs: $BOOT_ISOLCPUS"
+fi
 cleanup()
 {
 	online_cpus
@@ -321,7 +335,7 @@ TEST_MATRIX=(
 	#  old-A1 old-A2 old-A3 old-B1 new-A1 new-A2 new-A3 new-B1 fail ECPUs Pstate ISOLCPUS
 	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
 	#
-	# Incorrect change to cpuset.cpus invalidates partition root
+	# Incorrect change to cpuset.cpus[.exclusive] invalidates partition root
 	#
 	# Adding CPUs to partition root that are not in parent's
 	# cpuset.cpus is allowed, but those extra CPUs are ignored.
@@ -364,6 +378,16 @@ TEST_MATRIX=(
 
 	# cpuset.cpus can overlap with sibling cpuset.cpus.exclusive but not subsumed by it
 	"   C0-3     .      .    C4-5     X5     .      .      .     0 A1:0-3,B1:4-5"
+
+	# Child partition root that try to take all CPUs from parent partition
+	# with tasks will remain invalid.
+	" C1-4:P1:S+ P1     .      .       .     .      .      .     0 A1:1-4,A2:1-4 A1:P1,A2:P-1"
+	" C1-4:P1:S+ P1     .      .       .   C1-4     .      .     0 A1,A2:1-4 A1:P1,A2:P1"
+	" C1-4:P1:S+ P1     .      .       T   C1-4     .      .     0 A1:1-4,A2:1-4 A1:P1,A2:P-1"
+
+	# Clearing of cpuset.cpus with a preset cpuset.cpus.exclusive shouldn't
+	# affect cpuset.cpus.exclusive.effective.
+	" C1-4:X3:S+ C1:X3  .      .       .     C      .      .     0 A2:1-4,XA2:3"
 
 	#  old-A1 old-A2 old-A3 old-B1 new-A1 new-A2 new-A3 new-B1 fail ECPUs Pstate ISOLCPUS
 	#  ------ ------ ------ ------ ------ ------ ------ ------ ---- ----- ------ --------
@@ -632,7 +656,8 @@ check_cgroup_states()
 # Note that isolated CPUs from the sched/domains context include offline
 # CPUs as well as CPUs in non-isolated 1-CPU partition. Those CPUs may
 # not be included in the cpuset.cpus.isolated control file which contains
-# only CPUs in isolated partitions.
+# only CPUs in isolated partitions as well as those that are isolated at
+# boot time.
 #
 # $1 - expected isolated cpu list(s) <isolcpus1>{,<isolcpus2>}
 # <isolcpus1> - expected sched/domains value
@@ -659,18 +684,25 @@ check_isolcpus()
 	fi
 
 	#
-	# Check the debug isolated cpumask, if present
+	# Appending pre-isolated CPUs
+	# Even though CPU #8 isn't used for testing, it can't be pre-isolated
+	# to make appending those CPUs easier.
 	#
-	[[ -f $ISCPUS ]] && {
-		ISOLCPUS=$(cat $ISCPUS)
-		[[ "$EXPECT_VAL2" != "$ISOLCPUS" ]] && {
-			# Take a 50ms pause and try again
-			pause 0.05
-			ISOLCPUS=$(cat $ISCPUS)
-		}
-		[[ "$EXPECT_VAL2" != "$ISOLCPUS" ]] && return 1
-		ISOLCPUS=
+	[[ -n "$BOOT_ISOLCPUS" ]] && {
+		EXPECT_VAL=${EXPECT_VAL:+${EXPECT_VAL},}${BOOT_ISOLCPUS}
+		EXPECT_VAL2=${EXPECT_VAL2:+${EXPECT_VAL2},}${BOOT_ISOLCPUS}
 	}
+
+	#
+	# Check cpuset.cpus.isolated cpumask
+	#
+	[[ "$EXPECT_VAL2" != "$ISOLCPUS" ]] && {
+		# Take a 50ms pause and try again
+		pause 0.05
+		ISOLCPUS=$(cat $ISCPUS)
+	}
+	[[ "$EXPECT_VAL2" != "$ISOLCPUS" ]] && return 1
+	ISOLCPUS=
 
 	#
 	# Use the sched domain in debugfs to check isolated CPUs, if available
@@ -703,6 +735,7 @@ check_isolcpus()
 		fi
 	done
 	[[ "$ISOLCPUS" = *- ]] && ISOLCPUS=${ISOLCPUS}$LASTISOLCPU
+
 	[[ "$EXPECT_VAL" = "$ISOLCPUS" ]]
 }
 
@@ -720,7 +753,8 @@ test_fail()
 }
 
 #
-# Check to see if there are unexpected isolated CPUs left
+# Check to see if there are unexpected isolated CPUs left beyond the boot
+# time isolated ones.
 #
 null_isolcpus_check()
 {
@@ -804,8 +838,11 @@ run_state_test()
 		# if available
 		[[ -n "$ICPUS" ]] && {
 			check_isolcpus $ICPUS
-			[[ $? -ne 0 ]] && test_fail $I "isolated CPU" \
-				"Expect $ICPUS, get $ISOLCPUS instead"
+			[[ $? -ne 0 ]] && {
+				[[ -n "$BOOT_ISOLCPUS" ]] && ICPUS=${ICPUS},${BOOT_ISOLCPUS}
+				test_fail $I "isolated CPU" \
+					"Expect $ICPUS, get $ISOLCPUS instead"
+			}
 		}
 		reset_cgroup_states
 		#

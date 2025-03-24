@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 series register access through I2C
  *
- * Copyright (C) 2018-2019 Microchip Technology Inc.
+ * Copyright (C) 2018-2024 Microchip Technology Inc.
  */
 
 #include <linux/i2c.h>
@@ -16,6 +16,8 @@ KSZ_REGMAP_TABLE(ksz9477, not_used, 16, 0, 0);
 
 static int ksz9477_i2c_probe(struct i2c_client *i2c)
 {
+	const struct ksz_chip_data *chip;
+	struct device *ddev = &i2c->dev;
 	struct regmap_config rc;
 	struct ksz_device *dev;
 	int i, ret;
@@ -24,6 +26,12 @@ static int ksz9477_i2c_probe(struct i2c_client *i2c)
 	if (!dev)
 		return -ENOMEM;
 
+	chip = device_get_match_data(ddev);
+	if (!chip)
+		return -EINVAL;
+
+	/* Save chip id to do special initialization when probing. */
+	dev->chip_id = chip->chip_id;
 	for (i = 0; i < __KSZ_NUM_REGMAPS; i++) {
 		rc = ksz9477_regmap_config[i];
 		rc.lock_arg = &dev->regmap_mutex;
@@ -111,14 +119,22 @@ static const struct of_device_id ksz9477_dt_ids[] = {
 		.compatible = "microchip,ksz9567",
 		.data = &ksz_switch_chips[KSZ9567]
 	},
+	{
+		.compatible = "microchip,lan9646",
+		.data = &ksz_switch_chips[LAN9646]
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ksz9477_dt_ids);
+
+static DEFINE_SIMPLE_DEV_PM_OPS(ksz_i2c_pm_ops,
+				ksz_switch_suspend, ksz_switch_resume);
 
 static struct i2c_driver ksz9477_i2c_driver = {
 	.driver = {
 		.name	= "ksz9477-switch",
 		.of_match_table = ksz9477_dt_ids,
+		.pm = &ksz_i2c_pm_ops,
 	},
 	.probe = ksz9477_i2c_probe,
 	.remove	= ksz9477_i2c_remove,

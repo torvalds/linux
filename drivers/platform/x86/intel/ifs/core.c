@@ -20,6 +20,7 @@ static const struct x86_cpu_id ifs_cpu_ids[] __initconst = {
 	X86_MATCH(INTEL_GRANITERAPIDS_X, ARRAY_GEN0),
 	X86_MATCH(INTEL_GRANITERAPIDS_D, ARRAY_GEN0),
 	X86_MATCH(INTEL_ATOM_CRESTMONT_X, ARRAY_GEN1),
+	X86_MATCH(INTEL_ATOM_DARKMONT_X, ARRAY_GEN1),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, ifs_cpu_ids);
@@ -32,6 +33,7 @@ bool *ifs_pkg_auth;
 static const struct ifs_test_caps scan_test = {
 	.integrity_cap_bit = MSR_INTEGRITY_CAPS_PERIODIC_BIST_BIT,
 	.test_num = IFS_TYPE_SAF,
+	.image_suffix = "scan",
 };
 
 static const struct ifs_test_caps array_test = {
@@ -39,9 +41,32 @@ static const struct ifs_test_caps array_test = {
 	.test_num = IFS_TYPE_ARRAY_BIST,
 };
 
+static const struct ifs_test_msrs scan_msrs = {
+	.copy_hashes = MSR_COPY_SCAN_HASHES,
+	.copy_hashes_status = MSR_SCAN_HASHES_STATUS,
+	.copy_chunks = MSR_AUTHENTICATE_AND_COPY_CHUNK,
+	.copy_chunks_status = MSR_CHUNKS_AUTHENTICATION_STATUS,
+	.test_ctrl = MSR_SAF_CTRL,
+};
+
+static const struct ifs_test_msrs sbaf_msrs = {
+	.copy_hashes = MSR_COPY_SBAF_HASHES,
+	.copy_hashes_status = MSR_SBAF_HASHES_STATUS,
+	.copy_chunks = MSR_AUTHENTICATE_AND_COPY_SBAF_CHUNK,
+	.copy_chunks_status = MSR_SBAF_CHUNKS_AUTHENTICATION_STATUS,
+	.test_ctrl = MSR_SBAF_CTRL,
+};
+
+static const struct ifs_test_caps sbaf_test = {
+	.integrity_cap_bit = MSR_INTEGRITY_CAPS_SBAF_BIT,
+	.test_num = IFS_TYPE_SBAF,
+	.image_suffix = "sbft",
+};
+
 static struct ifs_device ifs_devices[] = {
 	[IFS_TYPE_SAF] = {
 		.test_caps = &scan_test,
+		.test_msrs = &scan_msrs,
 		.misc = {
 			.name = "intel_ifs_0",
 			.minor = MISC_DYNAMIC_MINOR,
@@ -54,6 +79,15 @@ static struct ifs_device ifs_devices[] = {
 			.name = "intel_ifs_1",
 			.minor = MISC_DYNAMIC_MINOR,
 			.groups = plat_ifs_array_groups,
+		},
+	},
+	[IFS_TYPE_SBAF] = {
+		.test_caps = &sbaf_test,
+		.test_msrs = &sbaf_msrs,
+		.misc = {
+			.name = "intel_ifs_2",
+			.minor = MISC_DYNAMIC_MINOR,
+			.groups = plat_ifs_groups,
 		},
 	},
 };

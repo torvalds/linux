@@ -858,7 +858,7 @@ static struct platform_driver smsc47m1_driver __refdata = {
 	.driver = {
 		.name	= DRVNAME,
 	},
-	.remove_new	= __exit_p(smsc47m1_remove),
+	.remove		= __exit_p(smsc47m1_remove),
 };
 
 static int __init smsc47m1_device_add(unsigned short address,

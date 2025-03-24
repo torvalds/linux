@@ -13,6 +13,7 @@
 
 #include "iwl-trans.h"
 #include "iwl-nvm-utils.h"
+#include "iwl-utils.h"
 #include "mvm.h"
 #include "sta.h"
 #include "time-sync.h"
@@ -938,78 +939,6 @@ unsigned int iwl_mvm_max_amsdu_size(struct iwl_mvm *mvm,
 
 #ifdef CONFIG_INET
 
-static int
-iwl_mvm_tx_tso_segment(struct sk_buff *skb, unsigned int num_subframes,
-		       netdev_features_t netdev_flags,
-		       struct sk_buff_head *mpdus_skb)
-{
-	struct sk_buff *tmp, *next;
-	struct ieee80211_hdr *hdr = (void *)skb->data;
-	char cb[sizeof(skb->cb)];
-	u16 i = 0;
-	unsigned int tcp_payload_len;
-	unsigned int mss = skb_shinfo(skb)->gso_size;
-	bool ipv4 = (skb->protocol == htons(ETH_P_IP));
-	bool qos = ieee80211_is_data_qos(hdr->frame_control);
-	u16 ip_base_id = ipv4 ? ntohs(ip_hdr(skb)->id) : 0;
-
-	skb_shinfo(skb)->gso_size = num_subframes * mss;
-	memcpy(cb, skb->cb, sizeof(cb));
-
-	next = skb_gso_segment(skb, netdev_flags);
-	skb_shinfo(skb)->gso_size = mss;
-	skb_shinfo(skb)->gso_type = ipv4 ? SKB_GSO_TCPV4 : SKB_GSO_TCPV6;
-
-	if (IS_ERR(next) && PTR_ERR(next) == -ENOMEM)
-		return -ENOMEM;
-
-	if (WARN_ONCE(IS_ERR(next),
-		      "skb_gso_segment error: %d\n", (int)PTR_ERR(next)))
-		return PTR_ERR(next);
-
-	if (next)
-		consume_skb(skb);
-
-	skb_list_walk_safe(next, tmp, next) {
-		memcpy(tmp->cb, cb, sizeof(tmp->cb));
-		/*
-		 * Compute the length of all the data added for the A-MSDU.
-		 * This will be used to compute the length to write in the TX
-		 * command. We have: SNAP + IP + TCP for n -1 subframes and
-		 * ETH header for n subframes.
-		 */
-		tcp_payload_len = skb_tail_pointer(tmp) -
-			skb_transport_header(tmp) -
-			tcp_hdrlen(tmp) + tmp->data_len;
-
-		if (ipv4)
-			ip_hdr(tmp)->id = htons(ip_base_id + i * num_subframes);
-
-		if (tcp_payload_len > mss) {
-			skb_shinfo(tmp)->gso_size = mss;
-			skb_shinfo(tmp)->gso_type = ipv4 ? SKB_GSO_TCPV4 :
-							   SKB_GSO_TCPV6;
-		} else {
-			if (qos) {
-				u8 *qc;
-
-				if (ipv4)
-					ip_send_check(ip_hdr(tmp));
-
-				qc = ieee80211_get_qos_ctl((void *)tmp->data);
-				*qc &= ~IEEE80211_QOS_CTL_A_MSDU_PRESENT;
-			}
-			skb_shinfo(tmp)->gso_size = 0;
-		}
-
-		skb_mark_not_on_list(tmp);
-		__skb_queue_tail(mpdus_skb, tmp);
-		i++;
-	}
-
-	return 0;
-}
-
 static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 			  struct ieee80211_tx_info *info,
 			  struct ieee80211_sta *sta,
@@ -1028,7 +957,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (!mvmsta->max_amsdu_len ||
 	    !ieee80211_is_data_qos(hdr->frame_control) ||
 	    !mvmsta->amsdu_enabled)
-		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
+		return iwl_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 
 	/*
 	 * Do not build AMSDU for IPv6 with extension headers.
@@ -1038,7 +967,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    ((struct ipv6hdr *)skb_network_header(skb))->nexthdr !=
 	    IPPROTO_TCP) {
 		netdev_flags &= ~NETIF_F_CSUM_MASK;
-		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
+		return iwl_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 	}
 
 	tid = ieee80211_get_tid(hdr);
@@ -1052,7 +981,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if ((info->flags & IEEE80211_TX_CTL_AMPDU &&
 	     !mvmsta->tid_data[tid].amsdu_in_ampdu_allowed) ||
 	    !(mvmsta->amsdu_enabled & BIT(tid)))
-		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
+		return iwl_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 
 	/*
 	 * Take the min of ieee80211 station and mvm station
@@ -1110,8 +1039,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * Trick the segmentation function to make it
 	 * create SKBs that can fit into one A-MSDU.
 	 */
-	return iwl_mvm_tx_tso_segment(skb, num_subframes, netdev_flags,
-				      mpdus_skb);
+	return iwl_tx_tso_segment(skb, num_subframes, netdev_flags, mpdus_skb);
 }
 #else /* CONFIG_INET */
 static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
@@ -1203,6 +1131,9 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	bool is_ampdu = false;
 	int hdrlen;
 
+	if (WARN_ON_ONCE(!sta))
+		return -1;
+
 	mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	fc = hdr->frame_control;
 	hdrlen = ieee80211_hdrlen(fc);
@@ -1210,10 +1141,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (IWL_MVM_NON_TRANSMITTING_AP && ieee80211_is_probe_resp(fc))
 		return -1;
 
-	if (WARN_ON_ONCE(!mvmsta))
-		return -1;
-
-	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_MVM_INVALID_STA))
+	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_INVALID_STA))
 		return -1;
 
 	if (unlikely(ieee80211_is_any_nullfunc(fc)) && sta->deflink.he_cap.has_he)
@@ -1343,7 +1271,7 @@ drop:
 int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 		       struct ieee80211_sta *sta)
 {
-	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+	struct iwl_mvm_sta *mvmsta;
 	struct ieee80211_tx_info info;
 	struct sk_buff_head mpdus_skbs;
 	struct ieee80211_vif *vif;
@@ -1352,10 +1280,12 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 	struct sk_buff *orig_skb = skb;
 	const u8 *addr3;
 
-	if (WARN_ON_ONCE(!mvmsta))
+	if (WARN_ON_ONCE(!sta))
 		return -1;
 
-	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_MVM_INVALID_STA))
+	mvmsta = iwl_mvm_sta_from_mac80211(sta);
+
+	if (WARN_ON_ONCE(mvmsta->deflink.sta_id == IWL_INVALID_STA))
 		return -1;
 
 	memcpy(&info, skb->cb, sizeof(info));
@@ -1678,7 +1608,7 @@ static void iwl_mvm_tx_status_check_trigger(struct iwl_mvm *mvm,
  * For 22000-series and lower, this is just 12 bits. For later, 16 bits.
  */
 static inline u32 iwl_mvm_get_scd_ssn(struct iwl_mvm *mvm,
-				      struct iwl_mvm_tx_resp *tx_resp)
+				      struct iwl_tx_resp *tx_resp)
 {
 	u32 val = le32_to_cpup((__le32 *)iwl_mvm_get_agg_status(mvm, tx_resp) +
 			       tx_resp->frame_count);
@@ -1694,10 +1624,10 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	struct ieee80211_sta *sta;
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
-	/* struct iwl_mvm_tx_resp_v3 is almost the same */
-	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
-	int sta_id = IWL_MVM_TX_RES_GET_RA(tx_resp->ra_tid);
-	int tid = IWL_MVM_TX_RES_GET_TID(tx_resp->ra_tid);
+	/* struct iwl_tx_resp_v3 is almost the same */
+	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
+	int sta_id = IWL_TX_RES_GET_RA(tx_resp->ra_tid);
+	int tid = IWL_TX_RES_GET_TID(tx_resp->ra_tid);
 	struct agg_tx_status *agg_status =
 		iwl_mvm_get_agg_status(mvm, tx_resp);
 	u32 status = le16_to_cpu(agg_status->status);
@@ -1878,7 +1808,9 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 				IWL_DEBUG_TX_REPLY(mvm,
 						   "Next reclaimed packet:%d\n",
 						   next_reclaimed);
-				iwl_mvm_count_mpdu(mvmsta, sta_id, 1, true, 0);
+				if (tid < IWL_MAX_TID_COUNT)
+					iwl_mvm_count_mpdu(mvmsta, sta_id, 1,
+							   true, 0);
 			} else {
 				IWL_DEBUG_TX_REPLY(mvm,
 						   "NDP - don't update next_reclaimed\n");
@@ -1952,7 +1884,7 @@ static const char *iwl_get_agg_tx_status(u16 status)
 static void iwl_mvm_rx_tx_cmd_agg_dbg(struct iwl_mvm *mvm,
 				      struct iwl_rx_packet *pkt)
 {
-	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
+	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
 	struct agg_tx_status *frame_status =
 		iwl_mvm_get_agg_status(mvm, tx_resp);
 	int i;
@@ -1986,9 +1918,9 @@ static void iwl_mvm_rx_tx_cmd_agg_dbg(struct iwl_mvm *mvm,
 static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 				  struct iwl_rx_packet *pkt)
 {
-	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
-	int sta_id = IWL_MVM_TX_RES_GET_RA(tx_resp->ra_tid);
-	int tid = IWL_MVM_TX_RES_GET_TID(tx_resp->ra_tid);
+	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
+	int sta_id = IWL_TX_RES_GET_RA(tx_resp->ra_tid);
+	int tid = IWL_TX_RES_GET_TID(tx_resp->ra_tid);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	struct iwl_mvm_sta *mvmsta;
 	int queue = SEQ_TO_QUEUE(sequence);
@@ -2027,7 +1959,7 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 void iwl_mvm_rx_tx_cmd(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_mvm_tx_resp *tx_resp = (void *)pkt->data;
+	struct iwl_tx_resp *tx_resp = (void *)pkt->data;
 
 	if (tx_resp->frame_count == 1)
 		iwl_mvm_rx_tx_cmd_single(mvm, pkt);
@@ -2191,7 +2123,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	ba_info.flags = IEEE80211_TX_STAT_AMPDU;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		struct iwl_mvm_compressed_ba_notif *ba_res =
+		struct iwl_compressed_ba_notif *ba_res =
 			(void *)pkt->data;
 		u8 lq_color = TX_RES_RATE_TABLE_COL_GET(ba_res->tlc_rate_info);
 		u16 tfd_cnt;
@@ -2239,8 +2171,7 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 
 		/* Free per TID */
 		for (i = 0; i < tfd_cnt; i++) {
-			struct iwl_mvm_compressed_ba_tfd *ba_tfd =
-				&ba_res->tfd[i];
+			struct iwl_compressed_ba_tfd *ba_tfd = &ba_res->tfd[i];
 
 			tid = ba_tfd->tid;
 			if (tid == IWL_MGMT_TID)

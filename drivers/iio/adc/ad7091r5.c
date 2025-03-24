@@ -112,13 +112,13 @@ static int ad7091r5_i2c_probe(struct i2c_client *i2c)
 
 static const struct of_device_id ad7091r5_dt_ids[] = {
 	{ .compatible = "adi,ad7091r5", .data = &ad7091r5_init_info },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7091r5_dt_ids);
 
 static const struct i2c_device_id ad7091r5_i2c_ids[] = {
-	{"ad7091r5", (kernel_ulong_t)&ad7091r5_init_info },
-	{}
+	{ "ad7091r5", (kernel_ulong_t)&ad7091r5_init_info },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ad7091r5_i2c_ids);
 
@@ -135,4 +135,4 @@ module_i2c_driver(ad7091r5_driver);
 MODULE_AUTHOR("Beniamin Bia <beniamin.bia@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7091R5 multi-channel ADC driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_AD7091R);
+MODULE_IMPORT_NS("IIO_AD7091R");

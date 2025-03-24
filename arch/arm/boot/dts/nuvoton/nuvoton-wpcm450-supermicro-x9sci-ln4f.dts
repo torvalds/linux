@@ -34,7 +34,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&key_pins>;
 
-		uid {
+		button-uid {
 			label = "UID button";
 			linux,code = <KEY_HOME>;
 			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
@@ -46,12 +46,12 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins>;
 
-		uid {
+		led-uid {
 			label = "UID";
 			gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		};
 
-		heartbeat {
+		led-heartbeat {
 			label = "heartbeat";
 			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};

@@ -224,34 +224,13 @@ int mlx5r_umr_init(struct mlx5_ib_dev *dev)
 
 void mlx5r_umr_cleanup(struct mlx5_ib_dev *dev)
 {
+	if (!dev->umrc.pd)
+		return;
+
 	mutex_destroy(&dev->umrc.init_lock);
 	ib_dealloc_pd(dev->umrc.pd);
 }
 
-static int mlx5r_umr_recover(struct mlx5_ib_dev *dev)
-{
-	struct umr_common *umrc = &dev->umrc;
-	struct ib_qp_attr attr;
-	int err;
-
-	attr.qp_state = IB_QPS_RESET;
-	err = ib_modify_qp(umrc->qp, &attr, IB_QP_STATE);
-	if (err) {
-		mlx5_ib_dbg(dev, "Couldn't modify UMR QP\n");
-		goto err;
-	}
-
-	err = mlx5r_umr_qp_rst2rts(dev, umrc->qp);
-	if (err)
-		goto err;
-
-	umrc->state = MLX5_UMR_STATE_ACTIVE;
-	return 0;
-
-err:
-	umrc->state = MLX5_UMR_STATE_ERR;
-	return err;
-}
 
 static int mlx5r_umr_post_send(struct ib_qp *ibqp, u32 mkey, struct ib_cqe *cqe,
 			       struct mlx5r_umr_wqe *wqe, bool with_data)
@@ -296,6 +275,61 @@ static int mlx5r_umr_post_send(struct ib_qp *ibqp, u32 mkey, struct ib_cqe *cqe,
 out:
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
 
+	return err;
+}
+
+static int mlx5r_umr_recover(struct mlx5_ib_dev *dev, u32 mkey,
+			     struct mlx5r_umr_context *umr_context,
+			     struct mlx5r_umr_wqe *wqe, bool with_data)
+{
+	struct umr_common *umrc = &dev->umrc;
+	struct ib_qp_attr attr;
+	int err;
+
+	mutex_lock(&umrc->lock);
+	/* Preventing any further WRs to be sent now */
+	if (umrc->state != MLX5_UMR_STATE_RECOVER) {
+		mlx5_ib_warn(dev, "UMR recovery encountered an unexpected state=%d\n",
+			     umrc->state);
+		umrc->state = MLX5_UMR_STATE_RECOVER;
+	}
+	mutex_unlock(&umrc->lock);
+
+	/* Sending a final/barrier WR (the failed one) and wait for its completion.
+	 * This will ensure that all the previous WRs got a completion before
+	 * we set the QP state to RESET.
+	 */
+	err = mlx5r_umr_post_send(umrc->qp, mkey, &umr_context->cqe, wqe,
+				  with_data);
+	if (err) {
+		mlx5_ib_warn(dev, "UMR recovery post send failed, err %d\n", err);
+		goto err;
+	}
+
+	/* Since the QP is in an error state, it will only receive
+	 * IB_WC_WR_FLUSH_ERR. However, as it serves only as a barrier
+	 * we don't care about its status.
+	 */
+	wait_for_completion(&umr_context->done);
+
+	attr.qp_state = IB_QPS_RESET;
+	err = ib_modify_qp(umrc->qp, &attr, IB_QP_STATE);
+	if (err) {
+		mlx5_ib_warn(dev, "Couldn't modify UMR QP to RESET, err=%d\n", err);
+		goto err;
+	}
+
+	err = mlx5r_umr_qp_rst2rts(dev, umrc->qp);
+	if (err) {
+		mlx5_ib_warn(dev, "Couldn't modify UMR QP to RTS, err=%d\n", err);
+		goto err;
+	}
+
+	umrc->state = MLX5_UMR_STATE_ACTIVE;
+	return 0;
+
+err:
+	umrc->state = MLX5_UMR_STATE_ERR;
 	return err;
 }
 
@@ -363,9 +397,7 @@ static int mlx5r_umr_post_send_wait(struct mlx5_ib_dev *dev, u32 mkey,
 		mlx5_ib_warn(dev,
 			"reg umr failed (%u). Trying to recover and resubmit the flushed WQEs, mkey = %u\n",
 			umr_context.status, mkey);
-		mutex_lock(&umrc->lock);
-		err = mlx5r_umr_recover(dev);
-		mutex_unlock(&umrc->lock);
+		err = mlx5r_umr_recover(dev, mkey, &umr_context, wqe, with_data);
 		if (err)
 			mlx5_ib_warn(dev, "couldn't recover UMR, err %d\n",
 				     err);
@@ -632,44 +664,47 @@ static void mlx5r_umr_final_update_xlt(struct mlx5_ib_dev *dev,
 	wqe->data_seg.byte_count = cpu_to_be32(sg->length);
 }
 
-/*
- * Send the DMA list to the HW for a normal MR using UMR.
- * Dmabuf MR is handled in a similar way, except that the MLX5_IB_UPD_XLT_ZAP
- * flag may be used.
- */
-int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
+static int
+_mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags, bool dd)
 {
+	size_t ent_size = dd ? sizeof(struct mlx5_ksm) : sizeof(struct mlx5_mtt);
 	struct mlx5_ib_dev *dev = mr_to_mdev(mr);
 	struct device *ddev = &dev->mdev->pdev->dev;
 	struct mlx5r_umr_wqe wqe = {};
 	struct ib_block_iter biter;
+	struct mlx5_ksm *cur_ksm;
 	struct mlx5_mtt *cur_mtt;
 	size_t orig_sg_length;
-	struct mlx5_mtt *mtt;
 	size_t final_size;
+	void *curr_entry;
 	struct ib_sge sg;
+	void *entry;
 	u64 offset = 0;
 	int err = 0;
 
-	if (WARN_ON(mr->umem->is_odp))
-		return -EINVAL;
-
-	mtt = mlx5r_umr_create_xlt(
-		dev, &sg, ib_umem_num_dma_blocks(mr->umem, 1 << mr->page_shift),
-		sizeof(*mtt), flags);
-	if (!mtt)
+	entry = mlx5r_umr_create_xlt(dev, &sg,
+				     ib_umem_num_dma_blocks(mr->umem, 1 << mr->page_shift),
+				     ent_size, flags);
+	if (!entry)
 		return -ENOMEM;
 
 	orig_sg_length = sg.length;
-
 	mlx5r_umr_set_update_xlt_ctrl_seg(&wqe.ctrl_seg, flags, &sg);
 	mlx5r_umr_set_update_xlt_mkey_seg(dev, &wqe.mkey_seg, mr,
 					  mr->page_shift);
+	if (dd) {
+		/* Use the data direct internal kernel PD */
+		MLX5_SET(mkc, &wqe.mkey_seg, pd, dev->ddr.pdn);
+		cur_ksm = entry;
+	} else {
+		cur_mtt = entry;
+	}
+
 	mlx5r_umr_set_update_xlt_data_seg(&wqe.data_seg, &sg);
 
-	cur_mtt = mtt;
+	curr_entry = entry;
 	rdma_umem_for_each_dma_block(mr->umem, &biter, BIT(mr->page_shift)) {
-		if (cur_mtt == (void *)mtt + sg.length) {
+		if (curr_entry == entry + sg.length) {
 			dma_sync_single_for_device(ddev, sg.addr, sg.length,
 						   DMA_TO_DEVICE);
 
@@ -681,23 +716,31 @@ int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 						DMA_TO_DEVICE);
 			offset += sg.length;
 			mlx5r_umr_update_offset(&wqe.ctrl_seg, offset);
-
-			cur_mtt = mtt;
+			if (dd)
+				cur_ksm = entry;
+			else
+				cur_mtt = entry;
 		}
 
-		cur_mtt->ptag =
-			cpu_to_be64(rdma_block_iter_dma_address(&biter) |
-				    MLX5_IB_MTT_PRESENT);
-
-		if (mr->umem->is_dmabuf && (flags & MLX5_IB_UPD_XLT_ZAP))
-			cur_mtt->ptag = 0;
-
-		cur_mtt++;
+		if (dd) {
+			cur_ksm->va = cpu_to_be64(rdma_block_iter_dma_address(&biter));
+			cur_ksm->key = cpu_to_be32(dev->ddr.mkey);
+			cur_ksm++;
+			curr_entry = cur_ksm;
+		} else {
+			cur_mtt->ptag =
+				cpu_to_be64(rdma_block_iter_dma_address(&biter) |
+					    MLX5_IB_MTT_PRESENT);
+			if (mr->umem->is_dmabuf && (flags & MLX5_IB_UPD_XLT_ZAP))
+				cur_mtt->ptag = 0;
+			cur_mtt++;
+			curr_entry = cur_mtt;
+		}
 	}
 
-	final_size = (void *)cur_mtt - (void *)mtt;
+	final_size = curr_entry - entry;
 	sg.length = ALIGN(final_size, MLX5_UMR_FLEX_ALIGNMENT);
-	memset(cur_mtt, 0, sg.length - final_size);
+	memset(curr_entry, 0, sg.length - final_size);
 	mlx5r_umr_final_update_xlt(dev, &wqe, mr, &sg, flags);
 
 	dma_sync_single_for_device(ddev, sg.addr, sg.length, DMA_TO_DEVICE);
@@ -705,8 +748,30 @@ int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
 
 err:
 	sg.length = orig_sg_length;
-	mlx5r_umr_unmap_free_xlt(dev, mtt, &sg);
+	mlx5r_umr_unmap_free_xlt(dev, entry, &sg);
 	return err;
+}
+
+int mlx5r_umr_update_data_direct_ksm_pas(struct mlx5_ib_mr *mr, unsigned int flags)
+{
+	/* No invalidation flow is expected */
+	if (WARN_ON(!mr->umem->is_dmabuf) || (flags & MLX5_IB_UPD_XLT_ZAP))
+		return -EINVAL;
+
+	return _mlx5r_umr_update_mr_pas(mr, flags, true);
+}
+
+/*
+ * Send the DMA list to the HW for a normal MR using UMR.
+ * Dmabuf MR is handled in a similar way, except that the MLX5_IB_UPD_XLT_ZAP
+ * flag may be used.
+ */
+int mlx5r_umr_update_mr_pas(struct mlx5_ib_mr *mr, unsigned int flags)
+{
+	if (WARN_ON(mr->umem->is_odp))
+		return -EINVAL;
+
+	return _mlx5r_umr_update_mr_pas(mr, flags, false);
 }
 
 static bool umr_can_use_indirect_mkey(struct mlx5_ib_dev *dev)

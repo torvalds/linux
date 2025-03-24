@@ -81,7 +81,9 @@ static const struct x86_cpu_id tpmi_cpu_ids[] = {
 	X86_MATCH_VFM(INTEL_GRANITERAPIDS_X,	NULL),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT_X,	NULL),
 	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,	NULL),
+	X86_MATCH_VFM(INTEL_ATOM_DARKMONT_X,	NULL),
 	X86_MATCH_VFM(INTEL_GRANITERAPIDS_D,	NULL),
+	X86_MATCH_VFM(INTEL_PANTHERCOVE_X,	NULL),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, tpmi_cpu_ids);
@@ -109,7 +111,7 @@ int tpmi_get_linux_cpu_number(int package_id, int domain_id, int punit_core_id)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_get_linux_cpu_number, INTEL_TPMI_POWER_DOMAIN);
+EXPORT_SYMBOL_NS_GPL(tpmi_get_linux_cpu_number, "INTEL_TPMI_POWER_DOMAIN");
 
 int tpmi_get_punit_core_number(int cpu_no)
 {
@@ -118,7 +120,7 @@ int tpmi_get_punit_core_number(int cpu_no)
 
 	return per_cpu(tpmi_cpu_info, cpu_no).punit_core_id;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_get_punit_core_number, INTEL_TPMI_POWER_DOMAIN);
+EXPORT_SYMBOL_NS_GPL(tpmi_get_punit_core_number, "INTEL_TPMI_POWER_DOMAIN");
 
 int tpmi_get_power_domain_id(int cpu_no)
 {
@@ -127,7 +129,7 @@ int tpmi_get_power_domain_id(int cpu_no)
 
 	return per_cpu(tpmi_cpu_info, cpu_no).punit_domain_id;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_get_power_domain_id, INTEL_TPMI_POWER_DOMAIN);
+EXPORT_SYMBOL_NS_GPL(tpmi_get_power_domain_id, "INTEL_TPMI_POWER_DOMAIN");
 
 cpumask_t *tpmi_get_power_domain_mask(int cpu_no)
 {
@@ -148,7 +150,7 @@ cpumask_t *tpmi_get_power_domain_mask(int cpu_no)
 
 	return mask;
 }
-EXPORT_SYMBOL_NS_GPL(tpmi_get_power_domain_mask, INTEL_TPMI_POWER_DOMAIN);
+EXPORT_SYMBOL_NS_GPL(tpmi_get_power_domain_mask, "INTEL_TPMI_POWER_DOMAIN");
 
 static int tpmi_get_logical_id(unsigned int cpu, struct tpmi_cpu_info *info)
 {

@@ -97,8 +97,6 @@ struct ocxl_process_element {
 	__be32 software_state;
 };
 
-int ocxl_create_cdev(struct ocxl_afu *afu);
-void ocxl_destroy_cdev(struct ocxl_afu *afu);
 int ocxl_file_register_afu(struct ocxl_afu *afu);
 void ocxl_file_unregister_afu(struct ocxl_afu *afu);
 

@@ -8,7 +8,7 @@
  */
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "glob.h"
 #include "unicode.h"
 #include "smb_common.h"
@@ -297,7 +297,7 @@ char *smb_strndup_from_utf16(const char *src, const int maxlen,
 	if (is_unicode) {
 		len = smb_utf16_bytes((__le16 *)src, maxlen, codepage);
 		len += nls_nullsize(codepage);
-		dst = kmalloc(len, GFP_KERNEL);
+		dst = kmalloc(len, KSMBD_DEFAULT_GFP);
 		if (!dst)
 			return ERR_PTR(-ENOMEM);
 		ret = smb_from_utf16(dst, (__le16 *)src, len, maxlen, codepage,
@@ -309,7 +309,7 @@ char *smb_strndup_from_utf16(const char *src, const int maxlen,
 	} else {
 		len = strnlen(src, maxlen);
 		len++;
-		dst = kmalloc(len, GFP_KERNEL);
+		dst = kmalloc(len, KSMBD_DEFAULT_GFP);
 		if (!dst)
 			return ERR_PTR(-ENOMEM);
 		strscpy(dst, src, len);

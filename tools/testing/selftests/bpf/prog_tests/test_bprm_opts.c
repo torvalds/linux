@@ -51,7 +51,7 @@ static int run_set_secureexec(int map_fd, int secureexec)
 			exit(ret);
 
 		/* If the binary is executed with securexec=1, the dynamic
-		 * loader ingores and unsets certain variables like LD_PRELOAD,
+		 * loader ignores and unsets certain variables like LD_PRELOAD,
 		 * TMPDIR etc. TMPDIR is used here to simplify the example, as
 		 * LD_PRELOAD requires a real .so file.
 		 *

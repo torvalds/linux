@@ -82,9 +82,9 @@ static int __mhi_download_rddm_in_panic(struct mhi_controller *mhi_cntrl)
 	 * other cores to shutdown while we're collecting RDDM buffer. After
 	 * returning from this function, we expect the device to reset.
 	 *
-	 * Normaly, we read/write pm_state only after grabbing the
+	 * Normally, we read/write pm_state only after grabbing the
 	 * pm_lock, since we're in a panic, skipping it. Also there is no
-	 * gurantee that this state change would take effect since
+	 * guarantee that this state change would take effect since
 	 * we're setting it w/o grabbing pm_lock
 	 */
 	mhi_cntrl->pm_state = MHI_PM_LD_ERR_FATAL_DETECT;
@@ -357,6 +357,7 @@ error_alloc_segment:
 	for (--i, --mhi_buf; i >= 0; i--, mhi_buf--)
 		dma_free_coherent(mhi_cntrl->cntrl_dev, mhi_buf->len,
 				  mhi_buf->buf, mhi_buf->dma_addr);
+	kfree(img_info->mhi_buf);
 
 error_alloc_mhi_buf:
 	kfree(img_info);

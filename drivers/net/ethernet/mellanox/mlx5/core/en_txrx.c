@@ -55,7 +55,7 @@ static void mlx5e_handle_tx_dim(struct mlx5e_txqsq *sq)
 		return;
 
 	dim_update_sample(sq->cq.event_ctr, stats->packets, stats->bytes, &dim_sample);
-	net_dim(sq->dim, dim_sample);
+	net_dim(sq->dim, &dim_sample);
 }
 
 static void mlx5e_handle_rx_dim(struct mlx5e_rq *rq)
@@ -67,7 +67,7 @@ static void mlx5e_handle_rx_dim(struct mlx5e_rq *rq)
 		return;
 
 	dim_update_sample(rq->cq.event_ctr, stats->packets, stats->bytes, &dim_sample);
-	net_dim(rq->dim, dim_sample);
+	net_dim(rq->dim, &dim_sample);
 }
 
 void mlx5e_trigger_irq(struct mlx5e_icosq *sq)
@@ -165,7 +165,8 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	if (unlikely(!budget))
 		goto out;
 
-	busy |= mlx5e_poll_xdpsq_cq(&c->xdpsq.cq);
+	if (c->xdpsq)
+		busy |= mlx5e_poll_xdpsq_cq(&c->xdpsq->cq);
 
 	if (c->xdp)
 		busy |= mlx5e_poll_xdpsq_cq(&c->rq_xdpsq.cq);
@@ -236,7 +237,8 @@ int mlx5e_napi_poll(struct napi_struct *napi, int budget)
 	mlx5e_cq_arm(&rq->cq);
 	mlx5e_cq_arm(&c->icosq.cq);
 	mlx5e_cq_arm(&c->async_icosq.cq);
-	mlx5e_cq_arm(&c->xdpsq.cq);
+	if (c->xdpsq)
+		mlx5e_cq_arm(&c->xdpsq->cq);
 
 	if (xsk_open) {
 		mlx5e_handle_rx_dim(xskrq);

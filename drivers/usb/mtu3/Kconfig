@@ -21,7 +21,7 @@ config USB_MTU3
 
 if USB_MTU3
 choice
-	bool "MTU3 Mode Selection"
+	prompt "MTU3 Mode Selection"
 	default USB_MTU3_DUAL_ROLE if (USB && USB_GADGET)
 	default USB_MTU3_HOST if (USB && !USB_GADGET)
 	default USB_MTU3_GADGET if (!USB && USB_GADGET)

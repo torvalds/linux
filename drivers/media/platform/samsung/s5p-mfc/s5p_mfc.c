@@ -774,8 +774,10 @@ static int s5p_mfc_open(struct file *file)
 	int ret = 0;
 
 	mfc_debug_enter();
-	if (mutex_lock_interruptible(&dev->mfc_mutex))
-		return -ERESTARTSYS;
+	if (mutex_lock_interruptible(&dev->mfc_mutex)) {
+		ret = -ERESTARTSYS;
+		goto err_enter;
+	}
 	dev->num_inst++;	/* It is guarded by mfc_mutex in vfd */
 	/* Allocate memory for context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -946,6 +948,7 @@ err_no_ctx:
 err_alloc:
 	dev->num_inst--;
 	mutex_unlock(&dev->mfc_mutex);
+err_enter:
 	mfc_debug_leave();
 	return ret;
 }
@@ -1721,7 +1724,7 @@ MODULE_DEVICE_TABLE(of, exynos_mfc_match);
 
 static struct platform_driver s5p_mfc_driver = {
 	.probe		= s5p_mfc_probe,
-	.remove_new	= s5p_mfc_remove,
+	.remove		= s5p_mfc_remove,
 	.driver	= {
 		.name	= S5P_MFC_NAME,
 		.pm	= &s5p_mfc_pm_ops,

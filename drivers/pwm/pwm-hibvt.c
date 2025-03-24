@@ -276,7 +276,7 @@ static struct platform_driver hibvt_pwm_driver = {
 		.of_match_table = hibvt_pwm_of_match,
 	},
 	.probe = hibvt_pwm_probe,
-	.remove_new = hibvt_pwm_remove,
+	.remove = hibvt_pwm_remove,
 };
 module_platform_driver(hibvt_pwm_driver);
 

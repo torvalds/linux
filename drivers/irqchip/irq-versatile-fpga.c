@@ -69,7 +69,7 @@ static void fpga_irq_print_chip(struct irq_data *d, struct seq_file *p)
 {
 	struct fpga_irq_data *f = irq_data_get_irq_chip_data(d);
 
-	seq_printf(p, irq_domain_get_of_node(f->domain)->name);
+	seq_puts(p, irq_domain_get_of_node(f->domain)->name);
 }
 
 static const struct irq_chip fpga_chip = {
@@ -128,7 +128,7 @@ static int handle_one_fpga(struct fpga_irq_data *f, struct pt_regs *regs)
  * Keep iterating over all registered FPGA IRQ controllers until there are
  * no pending interrupts.
  */
-static asmlinkage void __exception_irq_entry fpga_handle_irq(struct pt_regs *regs)
+static void __exception_irq_entry fpga_handle_irq(struct pt_regs *regs)
 {
 	int i, handled;
 

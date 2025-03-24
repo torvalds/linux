@@ -17,6 +17,7 @@ properties:
           - enum:
               - fsl,imx8m-irqsteer
               - fsl,imx8mp-irqsteer
+              - fsl,imx8qm-irqsteer
               - fsl,imx8qxp-irqsteer
           - const: fsl,imx-irqsteer
 
@@ -83,6 +84,7 @@ allOf:
           contains:
             enum:
               - fsl,imx8mp-irqsteer
+              - fsl,imx8qm-irqsteer
               - fsl,imx8qxp-irqsteer
     then:
       required:

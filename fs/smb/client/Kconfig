@@ -2,7 +2,6 @@
 config CIFS
 	tristate "SMB3 and CIFS support (advanced network filesystem)"
 	depends on INET
-	select NETFS_SUPPORT
 	select NLS
 	select NLS_UCS2_UTILS
 	select CRYPTO
@@ -203,5 +202,19 @@ config CIFS_ROOT
 	  Enables root file system support over SMB protocol.
 
 	  Most people say N here.
+
+config CIFS_COMPRESSION
+	bool "SMB message compression (Experimental)"
+	depends on CIFS
+	default n
+	help
+	  Enables over-the-wire message compression for SMB 3.1.1
+	  mounts when negotiated with the server.
+
+	  Only write requests with data size >= PAGE_SIZE will be
+	  compressed to avoid wasting resources.
+
+	  Say Y here if you want SMB traffic to be compressed.
+	  If unsure, say N.
 
 endif

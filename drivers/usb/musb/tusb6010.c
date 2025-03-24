@@ -1290,7 +1290,7 @@ static void tusb_remove(struct platform_device *pdev)
 
 static struct platform_driver tusb_driver = {
 	.probe		= tusb_probe,
-	.remove_new	= tusb_remove,
+	.remove		= tusb_remove,
 	.driver		= {
 		.name	= "musb-tusb",
 	},

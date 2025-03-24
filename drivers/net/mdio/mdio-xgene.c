@@ -441,7 +441,7 @@ static struct platform_driver xgene_mdio_driver = {
 		.acpi_match_table = ACPI_PTR(xgene_mdio_acpi_match),
 	},
 	.probe = xgene_mdio_probe,
-	.remove_new = xgene_mdio_remove,
+	.remove = xgene_mdio_remove,
 };
 
 module_platform_driver(xgene_mdio_driver);

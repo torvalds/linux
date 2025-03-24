@@ -223,12 +223,6 @@ config PPC_EARLY_DEBUG_RTAS_CONSOLE
 	help
 	  Select this to enable early debugging via the RTAS console.
 
-config PPC_EARLY_DEBUG_MAPLE
-	bool "Maple real mode"
-	depends on PPC_MAPLE
-	help
-	  Select this to enable early debugging for Maple.
-
 config PPC_EARLY_DEBUG_PAS_REALMODE
 	bool "PA Semi real mode"
 	depends on PPC_PASEMI
@@ -378,12 +372,6 @@ config FAIL_IOMMU
 	  be selectively enabled via the fail_iommu property.
 
 	  If you are unsure, say N.
-
-config PPC_FAST_ENDIAN_SWITCH
-	bool "Deprecated fast endian-switch syscall"
-	depends on DEBUG_KERNEL && PPC_BOOK3S_64
-	help
-	  If you're unsure what this is, say N.
 
 config KASAN_SHADOW_OFFSET
 	hex

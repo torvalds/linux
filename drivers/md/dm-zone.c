@@ -344,7 +344,7 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q,
 		clear_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
 	} else {
 		set_bit(DMF_EMULATE_ZONE_APPEND, &md->flags);
-		lim->max_zone_append_sectors = 0;
+		lim->max_hw_zone_append_sectors = 0;
 	}
 
 	/*
@@ -379,7 +379,7 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q,
 	if (!zlim.mapped_nr_seq_zones) {
 		lim->max_open_zones = 0;
 		lim->max_active_zones = 0;
-		lim->max_zone_append_sectors = 0;
+		lim->max_hw_zone_append_sectors = 0;
 		lim->zone_write_granularity = 0;
 		lim->chunk_sectors = 0;
 		lim->features &= ~BLK_FEAT_ZONED;

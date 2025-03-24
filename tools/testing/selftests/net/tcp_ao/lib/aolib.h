@@ -37,17 +37,59 @@ extern void __test_xfail(const char *buf);
 extern void __test_error(const char *buf);
 extern void __test_skip(const char *buf);
 
-__attribute__((__format__(__printf__, 2, 3)))
-static inline void __test_print(void (*fn)(const char *), const char *fmt, ...)
+static inline char *test_snprintf(const char *fmt, va_list vargs)
 {
-#define TEST_MSG_BUFFER_SIZE 4096
-	char buf[TEST_MSG_BUFFER_SIZE];
-	va_list arg;
+	char *ret = NULL;
+	size_t size = 0;
+	va_list tmp;
+	int n = 0;
 
-	va_start(arg, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, arg);
-	va_end(arg);
-	fn(buf);
+	va_copy(tmp, vargs);
+	n = vsnprintf(ret, size, fmt, tmp);
+	va_end(tmp);
+	if (n < 0)
+		return NULL;
+
+	size = n + 1;
+	ret = malloc(size);
+	if (!ret)
+		return NULL;
+
+	n = vsnprintf(ret, size, fmt, vargs);
+	if (n < 0 || n > size - 1) {
+		free(ret);
+		return NULL;
+	}
+	return ret;
+}
+
+static __printf(1, 2) inline char *test_sprintf(const char *fmt, ...)
+{
+	va_list vargs;
+	char *ret;
+
+	va_start(vargs, fmt);
+	ret = test_snprintf(fmt, vargs);
+	va_end(vargs);
+
+	return ret;
+}
+
+static __printf(2, 3) inline void __test_print(void (*fn)(const char *),
+					       const char *fmt, ...)
+{
+	va_list vargs;
+	char *msg;
+
+	va_start(vargs, fmt);
+	msg = test_snprintf(fmt, vargs);
+	va_end(vargs);
+
+	if (!msg)
+		return;
+
+	fn(msg);
+	free(msg);
 }
 
 #define test_print(fmt, ...)						\
@@ -103,6 +145,7 @@ enum test_needs_kconfig {
 	KCONFIG_TCP_AO,			/* required */
 	KCONFIG_TCP_MD5,		/* optional, for TCP-MD5 features */
 	KCONFIG_NET_VRF,		/* optional, for L3/VRF testing */
+	KCONFIG_FTRACE,			/* optional, for tracepoints checks */
 	__KCONFIG_LAST__
 };
 extern bool kernel_config_has(enum test_needs_kconfig k);
@@ -142,6 +185,8 @@ static inline void test_init2(unsigned int ntests,
 	__test_init(ntests, family, prefix, taddr1, taddr2, peer1, peer2);
 }
 extern void test_add_destructor(void (*d)(void));
+extern void test_init_ftrace(int nsfd1, int nsfd2);
+extern int test_setup_tracing(void);
 
 /* To adjust optmem socket limit, approximately estimate a number,
  * that is bigger than sizeof(struct tcp_ao_key).
@@ -216,12 +261,17 @@ static inline void test_init(unsigned int ntests,
 }
 extern void synchronize_threads(void);
 extern void switch_ns(int fd);
+extern int switch_save_ns(int fd);
+extern void switch_close_ns(int fd);
 
 extern __thread union tcp_addr this_ip_addr;
 extern __thread union tcp_addr this_ip_dest;
 extern int test_family;
 
 extern void randomize_buffer(void *buf, size_t buflen);
+extern __printf(3, 4) int test_echo(const char *fname, bool append,
+				    const char *fmt, ...);
+
 extern int open_netns(void);
 extern int unshare_open_netns(void);
 extern const char veth_name[];
@@ -601,5 +651,116 @@ static inline int test_add_repaired_key(int sk,
 
 	return test_verify_socket_key(sk, &tmp);
 }
+
+#define DEFAULT_FTRACE_BUFFER_KB	10000
+#define DEFAULT_TRACER_LINES_ARR	200
+struct test_ftracer;
+extern uint64_t ns_cookie1, ns_cookie2;
+
+enum ftracer_op {
+	FTRACER_LINE_DISCARD = 0,
+	FTRACER_LINE_PRESERVE,
+	FTRACER_EXIT,
+};
+
+extern struct test_ftracer *create_ftracer(const char *name,
+		enum ftracer_op (*process_line)(const char *line),
+		void (*destructor)(struct test_ftracer *tracer),
+		bool (*expecting_more)(void),
+		size_t lines_buf_sz, size_t buffer_size_kb);
+extern int setup_trace_event(struct test_ftracer *tracer,
+			     const char *event, const char *filter);
+extern void destroy_ftracer(struct test_ftracer *tracer);
+extern const size_t tracer_get_savedlines_nr(struct test_ftracer *tracer);
+extern const char **tracer_get_savedlines(struct test_ftracer *tracer);
+
+enum trace_events {
+	/* TCP_HASH_EVENT */
+	TCP_HASH_BAD_HEADER = 0,
+	TCP_HASH_MD5_REQUIRED,
+	TCP_HASH_MD5_UNEXPECTED,
+	TCP_HASH_MD5_MISMATCH,
+	TCP_HASH_AO_REQUIRED,
+	/* TCP_AO_EVENT */
+	TCP_AO_HANDSHAKE_FAILURE,
+	TCP_AO_WRONG_MACLEN,
+	TCP_AO_MISMATCH,
+	TCP_AO_KEY_NOT_FOUND,
+	TCP_AO_RNEXT_REQUEST,
+	/* TCP_AO_EVENT_SK */
+	TCP_AO_SYNACK_NO_KEY,
+	/* TCP_AO_EVENT_SNE */
+	TCP_AO_SND_SNE_UPDATE,
+	TCP_AO_RCV_SNE_UPDATE,
+	__MAX_TRACE_EVENTS
+};
+
+extern int __trace_event_expect(enum trace_events type, int family,
+				union tcp_addr src, union tcp_addr dst,
+				int src_port, int dst_port, int L3index,
+				int fin, int syn, int rst, int psh, int ack,
+				int keyid, int rnext, int maclen, int sne);
+
+static inline void trace_hash_event_expect(enum trace_events type,
+				union tcp_addr src, union tcp_addr dst,
+				int src_port, int dst_port, int L3index,
+				int fin, int syn, int rst, int psh, int ack)
+{
+	int err;
+
+	err = __trace_event_expect(type, TEST_FAMILY, src, dst,
+				   src_port, dst_port, L3index,
+				   fin, syn, rst, psh, ack,
+				   -1, -1, -1, -1);
+	if (err)
+		test_error("Couldn't add a trace event: %d", err);
+}
+
+static inline void trace_ao_event_expect(enum trace_events type,
+				union tcp_addr src, union tcp_addr dst,
+				int src_port, int dst_port, int L3index,
+				int fin, int syn, int rst, int psh, int ack,
+				int keyid, int rnext, int maclen)
+{
+	int err;
+
+	err = __trace_event_expect(type, TEST_FAMILY, src, dst,
+				   src_port, dst_port, L3index,
+				   fin, syn, rst, psh, ack,
+				   keyid, rnext, maclen, -1);
+	if (err)
+		test_error("Couldn't add a trace event: %d", err);
+}
+
+static inline void trace_ao_event_sk_expect(enum trace_events type,
+				union tcp_addr src, union tcp_addr dst,
+				int src_port, int dst_port,
+				int keyid, int rnext)
+{
+	int err;
+
+	err = __trace_event_expect(type, TEST_FAMILY, src, dst,
+				   src_port, dst_port, -1,
+				   -1, -1, -1, -1, -1,
+				   keyid, rnext, -1, -1);
+	if (err)
+		test_error("Couldn't add a trace event: %d", err);
+}
+
+static inline void trace_ao_event_sne_expect(enum trace_events type,
+				union tcp_addr src, union tcp_addr dst,
+				int src_port, int dst_port, int sne)
+{
+	int err;
+
+	err = __trace_event_expect(type, TEST_FAMILY, src, dst,
+				   src_port, dst_port, -1,
+				   -1, -1, -1, -1, -1,
+				   -1, -1, -1, sne);
+	if (err)
+		test_error("Couldn't add a trace event: %d", err);
+}
+
+extern int setup_aolib_ftracer(void);
 
 #endif /* _AOLIB_H_ */

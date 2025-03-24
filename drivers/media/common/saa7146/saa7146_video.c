@@ -681,8 +681,6 @@ const struct vb2_ops video_qops = {
 	.buf_cleanup	= buf_cleanup,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,
-	.wait_prepare	= vb2_ops_wait_prepare,
-	.wait_finish	= vb2_ops_wait_finish,
 };
 
 /********************************************************************************/

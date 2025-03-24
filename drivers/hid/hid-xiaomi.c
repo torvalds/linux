@@ -14,7 +14,7 @@
 /* Fixed Mi Silent Mouse report descriptor */
 /* Button's Usage Maximum changed from 3 to 5 to make side buttons work */
 #define MI_SILENT_MOUSE_ORIG_RDESC_LENGTH   87
-static __u8 mi_silent_mouse_rdesc_fixed[] = {
+static const __u8 mi_silent_mouse_rdesc_fixed[] = {
 	0x05, 0x01,         /*  Usage Page (Desktop),               */
 	0x09, 0x02,         /*  Usage (Mouse),                      */
 	0xA1, 0x01,         /*  Collection (Application),           */
@@ -61,15 +61,15 @@ static __u8 mi_silent_mouse_rdesc_fixed[] = {
 	0xC0                /*  End Collection                      */
 };
 
-static __u8 *xiaomi_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-				 unsigned int *rsize)
+static const __u8 *xiaomi_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+				       unsigned int *rsize)
 {
 	switch (hdev->product) {
 	case USB_DEVICE_ID_MI_SILENT_MOUSE:
 		if (*rsize == MI_SILENT_MOUSE_ORIG_RDESC_LENGTH) {
 			hid_info(hdev, "fixing up Mi Silent Mouse report descriptor\n");
-			rdesc = mi_silent_mouse_rdesc_fixed;
 			*rsize = sizeof(mi_silent_mouse_rdesc_fixed);
+			return mi_silent_mouse_rdesc_fixed;
 		}
 		break;
 	}

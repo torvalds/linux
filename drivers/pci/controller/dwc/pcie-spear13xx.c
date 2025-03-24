@@ -233,7 +233,7 @@ static int spear13xx_pcie_probe(struct platform_device *pdev)
 	}
 
 	if (of_property_read_bool(np, "st,pcie-is-gen1"))
-		pci->link_gen = 1;
+		pci->max_link_speed = 1;
 
 	platform_set_drvdata(pdev, spear13xx_pcie);
 

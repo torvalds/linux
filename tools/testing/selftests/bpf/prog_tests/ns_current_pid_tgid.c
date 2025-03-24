@@ -11,7 +11,7 @@
 #include <sched.h>
 #include <sys/wait.h>
 #include <sys/mount.h>
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include "network_helpers.h"
 
 #define STACK_SIZE (1024 * 1024)
@@ -23,7 +23,7 @@ static int get_pid_tgid(pid_t *pid, pid_t *tgid,
 	struct stat st;
 	int err;
 
-	*pid = syscall(SYS_gettid);
+	*pid = sys_gettid();
 	*tgid = getpid();
 
 	err = stat("/proc/self/ns/pid", &st);

@@ -7,7 +7,6 @@
 #include <linux/netdevice.h>
 #include <linux/wait.h>
 #include <linux/refcount.h>
-#include <linux/cleanup.h>
 #include <uapi/linux/rtnetlink.h>
 
 extern int rtnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, u32 group, int echo);
@@ -47,12 +46,14 @@ extern int rtnl_is_locked(void);
 extern int rtnl_lock_killable(void);
 extern bool refcount_dec_and_rtnl_lock(refcount_t *r);
 
-DEFINE_LOCK_GUARD_0(rtnl, rtnl_lock(), rtnl_unlock())
-
 extern wait_queue_head_t netdev_unregistering_wq;
 extern atomic_t dev_unreg_count;
 extern struct rw_semaphore pernet_ops_rwsem;
 extern struct rw_semaphore net_rwsem;
+
+#define ASSERT_RTNL() \
+	WARN_ONCE(!rtnl_is_locked(), \
+		  "RTNL: assertion failed at %s (%d)\n", __FILE__,  __LINE__)
 
 #ifdef CONFIG_PROVE_LOCKING
 extern bool lockdep_rtnl_is_held(void);
@@ -77,7 +78,7 @@ static inline bool lockdep_rtnl_is_held(void)
  * rtnl_dereference - fetch RCU pointer when updates are prevented by RTNL
  * @p: The pointer to read, prior to dereferencing
  *
- * Return the value of the specified RCU-protected pointer, but omit
+ * Return: the value of the specified RCU-protected pointer, but omit
  * the READ_ONCE(), because caller holds RTNL.
  */
 #define rtnl_dereference(p)					\
@@ -94,6 +95,67 @@ static inline bool lockdep_rtnl_is_held(void)
  */
 #define rcu_replace_pointer_rtnl(rp, p)			\
 	rcu_replace_pointer(rp, p, lockdep_rtnl_is_held())
+
+#ifdef CONFIG_DEBUG_NET_SMALL_RTNL
+void __rtnl_net_lock(struct net *net);
+void __rtnl_net_unlock(struct net *net);
+void rtnl_net_lock(struct net *net);
+void rtnl_net_unlock(struct net *net);
+int rtnl_net_trylock(struct net *net);
+int rtnl_net_lock_killable(struct net *net);
+int rtnl_net_lock_cmp_fn(const struct lockdep_map *a, const struct lockdep_map *b);
+
+bool rtnl_net_is_locked(struct net *net);
+
+#define ASSERT_RTNL_NET(net)						\
+	WARN_ONCE(!rtnl_net_is_locked(net),				\
+		  "RTNL_NET: assertion failed at %s (%d)\n",		\
+		  __FILE__,  __LINE__)
+
+bool lockdep_rtnl_net_is_held(struct net *net);
+
+#define rcu_dereference_rtnl_net(net, p)				\
+	rcu_dereference_check(p, lockdep_rtnl_net_is_held(net))
+#define rtnl_net_dereference(net, p)					\
+	rcu_dereference_protected(p, lockdep_rtnl_net_is_held(net))
+#define rcu_replace_pointer_rtnl_net(net, rp, p)			\
+	rcu_replace_pointer(rp, p, lockdep_rtnl_net_is_held(net))
+#else
+static inline void __rtnl_net_lock(struct net *net) {}
+static inline void __rtnl_net_unlock(struct net *net) {}
+
+static inline void rtnl_net_lock(struct net *net)
+{
+	rtnl_lock();
+}
+
+static inline void rtnl_net_unlock(struct net *net)
+{
+	rtnl_unlock();
+}
+
+static inline int rtnl_net_trylock(struct net *net)
+{
+	return rtnl_trylock();
+}
+
+static inline int rtnl_net_lock_killable(struct net *net)
+{
+	return rtnl_lock_killable();
+}
+
+static inline void ASSERT_RTNL_NET(struct net *net)
+{
+	ASSERT_RTNL();
+}
+
+#define rcu_dereference_rtnl_net(net, p)		\
+	rcu_dereference_rtnl(p)
+#define rtnl_net_dereference(net, p)			\
+	rtnl_dereference(p)
+#define rcu_replace_pointer_rtnl_net(net, rp, p)	\
+	rcu_replace_pointer_rtnl(rp, p)
+#endif
 
 static inline struct netdev_queue *dev_ingress_queue(struct net_device *dev)
 {
@@ -122,9 +184,11 @@ void rtnetlink_init(void);
 void __rtnl_unlock(void);
 void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail);
 
-#define ASSERT_RTNL() \
-	WARN_ONCE(!rtnl_is_locked(), \
-		  "RTNL: assertion failed at %s (%d)\n", __FILE__,  __LINE__)
+/* Shared by rtnl_fdb_dump() and various ndo_fdb_dump() helpers. */
+struct ndo_fdb_dump_context {
+	unsigned long ifindex;
+	unsigned long fdb_idx;
+};
 
 extern int ndo_dflt_fdb_dump(struct sk_buff *skb,
 			     struct netlink_callback *cb,

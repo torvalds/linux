@@ -129,7 +129,7 @@
 	};
 
 	/* This turns on USB vbus for both host0 (ehci) and host1 (dwc2) */
-	vcc_host: vcc-host-regulator {
+	vcc_host: regulator-vcc-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
@@ -140,7 +140,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_phy: vcc-phy-regulator {
+	vcc_phy: regulator-vcc-phy {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
@@ -153,7 +153,7 @@
 		regulator-boot-on;
 	};
 
-	vcc_sys: vsys-regulator {
+	vcc_sys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-min-microvolt = <5000000>;
@@ -167,7 +167,7 @@
 	 * vcc_io directly.  Those boards won't be able to power cycle SD cards
 	 * but it shouldn't hurt to toggle this pin there anyway.
 	 */
-	vcc_sd: sdmmc-regulator {
+	vcc_sd: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		gpio = <&gpio7 RK_PB3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";

@@ -331,7 +331,7 @@ ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 	int i;
 
 	/* Work out how much data we can actually add into the pipe */
-	used = pipe_occupancy(pipe->head, pipe->tail);
+	used = pipe_buf_usage(pipe);
 	npages = max_t(ssize_t, pipe->max_usage - used, 0);
 	len = min_t(size_t, len, npages * PAGE_SIZE);
 	npages = DIV_ROUND_UP(len, PAGE_SIZE);
@@ -342,7 +342,7 @@ ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 		return -ENOMEM;
 
 	pages = (struct page **)(bv + npages);
-	npages = alloc_pages_bulk_array(GFP_USER, npages, pages);
+	npages = alloc_pages_bulk(GFP_USER, npages, pages);
 	if (!npages) {
 		kfree(bv);
 		return -ENOMEM;
@@ -527,7 +527,7 @@ static int splice_from_pipe_next(struct pipe_inode_info *pipe, struct splice_des
 		return -ERESTARTSYS;
 
 repeat:
-	while (pipe_empty(pipe->head, pipe->tail)) {
+	while (pipe_is_empty(pipe)) {
 		if (!pipe->writers)
 			return 0;
 
@@ -820,7 +820,7 @@ ssize_t splice_to_socket(struct pipe_inode_info *pipe, struct file *out,
 		if (signal_pending(current))
 			break;
 
-		while (pipe_empty(pipe->head, pipe->tail)) {
+		while (pipe_is_empty(pipe)) {
 			ret = 0;
 			if (!pipe->writers)
 				goto out;
@@ -968,7 +968,7 @@ static ssize_t do_splice_read(struct file *in, loff_t *ppos,
 		return 0;
 
 	/* Don't try to read more the pipe has space for. */
-	p_space = pipe->max_usage - pipe_occupancy(pipe->head, pipe->tail);
+	p_space = pipe->max_usage - pipe_buf_usage(pipe);
 	len = min_t(size_t, len, p_space << PAGE_SHIFT);
 
 	if (unlikely(len > MAX_RW_COUNT))
@@ -1080,7 +1080,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	more = sd->flags & SPLICE_F_MORE;
 	sd->flags |= SPLICE_F_MORE;
 
-	WARN_ON_ONCE(!pipe_empty(pipe->head, pipe->tail));
+	WARN_ON_ONCE(!pipe_is_empty(pipe));
 
 	while (len) {
 		size_t read_len;
@@ -1268,7 +1268,7 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 			send_sig(SIGPIPE, current, 0);
 			return -EPIPE;
 		}
-		if (!pipe_full(pipe->head, pipe->tail, pipe->max_usage))
+		if (!pipe_is_full(pipe))
 			return 0;
 		if (flags & SPLICE_F_NONBLOCK)
 			return -EAGAIN;
@@ -1564,21 +1564,6 @@ static ssize_t vmsplice_to_pipe(struct file *file, struct iov_iter *iter,
 	return ret;
 }
 
-static int vmsplice_type(struct fd f, int *type)
-{
-	if (!f.file)
-		return -EBADF;
-	if (f.file->f_mode & FMODE_WRITE) {
-		*type = ITER_SOURCE;
-	} else if (f.file->f_mode & FMODE_READ) {
-		*type = ITER_DEST;
-	} else {
-		fdput(f);
-		return -EBADF;
-	}
-	return 0;
-}
-
 /*
  * Note that vmsplice only really supports true splicing _from_ user memory
  * to a pipe, not the other way around. Splicing from user memory is a simple
@@ -1602,32 +1587,34 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, uiov,
 	struct iovec *iov = iovstack;
 	struct iov_iter iter;
 	ssize_t error;
-	struct fd f;
 	int type;
 
 	if (unlikely(flags & ~SPLICE_F_ALL))
 		return -EINVAL;
 
-	f = fdget(fd);
-	error = vmsplice_type(f, &type);
-	if (error)
-		return error;
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
+		return -EBADF;
+	if (fd_file(f)->f_mode & FMODE_WRITE)
+		type = ITER_SOURCE;
+	else if (fd_file(f)->f_mode & FMODE_READ)
+		type = ITER_DEST;
+	else
+		return -EBADF;
 
 	error = import_iovec(type, uiov, nr_segs,
 			     ARRAY_SIZE(iovstack), &iov, &iter);
 	if (error < 0)
-		goto out_fdput;
+		return error;
 
 	if (!iov_iter_count(&iter))
 		error = 0;
 	else if (type == ITER_SOURCE)
-		error = vmsplice_to_pipe(f.file, &iter, flags);
+		error = vmsplice_to_pipe(fd_file(f), &iter, flags);
 	else
-		error = vmsplice_to_user(f.file, &iter, flags);
+		error = vmsplice_to_user(fd_file(f), &iter, flags);
 
 	kfree(iov);
-out_fdput:
-	fdput(f);
 	return error;
 }
 
@@ -1635,27 +1622,22 @@ SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 		int, fd_out, loff_t __user *, off_out,
 		size_t, len, unsigned int, flags)
 {
-	struct fd in, out;
-	ssize_t error;
-
 	if (unlikely(!len))
 		return 0;
 
 	if (unlikely(flags & ~SPLICE_F_ALL))
 		return -EINVAL;
 
-	error = -EBADF;
-	in = fdget(fd_in);
-	if (in.file) {
-		out = fdget(fd_out);
-		if (out.file) {
-			error = __do_splice(in.file, off_in, out.file, off_out,
+	CLASS(fd, in)(fd_in);
+	if (fd_empty(in))
+		return -EBADF;
+
+	CLASS(fd, out)(fd_out);
+	if (fd_empty(out))
+		return -EBADF;
+
+	return __do_splice(fd_file(in), off_in, fd_file(out), off_out,
 					    len, flags);
-			fdput(out);
-		}
-		fdput(in);
-	}
-	return error;
 }
 
 /*
@@ -1670,13 +1652,13 @@ static int ipipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 	 * Check the pipe occupancy without the inode lock first. This function
 	 * is speculative anyways, so missing one is ok.
 	 */
-	if (!pipe_empty(pipe->head, pipe->tail))
+	if (!pipe_is_empty(pipe))
 		return 0;
 
 	ret = 0;
 	pipe_lock(pipe);
 
-	while (pipe_empty(pipe->head, pipe->tail)) {
+	while (pipe_is_empty(pipe)) {
 		if (signal_pending(current)) {
 			ret = -ERESTARTSYS;
 			break;
@@ -1706,13 +1688,13 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 	 * Check pipe occupancy without the inode lock first. This function
 	 * is speculative anyways, so missing one is ok.
 	 */
-	if (!pipe_full(pipe->head, pipe->tail, pipe->max_usage))
+	if (!pipe_is_full(pipe))
 		return 0;
 
 	ret = 0;
 	pipe_lock(pipe);
 
-	while (pipe_full(pipe->head, pipe->tail, pipe->max_usage)) {
+	while (pipe_is_full(pipe)) {
 		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			ret = -EPIPE;
@@ -2005,25 +1987,19 @@ ssize_t do_tee(struct file *in, struct file *out, size_t len,
 
 SYSCALL_DEFINE4(tee, int, fdin, int, fdout, size_t, len, unsigned int, flags)
 {
-	struct fd in, out;
-	ssize_t error;
-
 	if (unlikely(flags & ~SPLICE_F_ALL))
 		return -EINVAL;
 
 	if (unlikely(!len))
 		return 0;
 
-	error = -EBADF;
-	in = fdget(fdin);
-	if (in.file) {
-		out = fdget(fdout);
-		if (out.file) {
-			error = do_tee(in.file, out.file, len, flags);
-			fdput(out);
-		}
- 		fdput(in);
- 	}
+	CLASS(fd, in)(fdin);
+	if (fd_empty(in))
+		return -EBADF;
 
-	return error;
+	CLASS(fd, out)(fdout);
+	if (fd_empty(out))
+		return -EBADF;
+
+	return do_tee(fd_file(in), fd_file(out), len, flags);
 }

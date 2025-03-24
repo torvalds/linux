@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __CSI_RX_PUBLIC_H_INCLUDED__
@@ -94,7 +85,7 @@ hrt_data csi_rx_fe_ctrl_reg_load(
     const hrt_address reg);
 /**
  * @brief Store a value to the register.
- * Store a value to the registe of the csi rx fe.
+ * Store a value to the register of the csi rx fe.
  *
  * @param[in]	ID		The global unique ID for the ibuf-controller instance.
  * @param[in]	reg		The offset address of the register.
@@ -119,7 +110,7 @@ hrt_data csi_rx_be_ctrl_reg_load(
     const hrt_address reg);
 /**
  * @brief Store a value to the register.
- * Store a value to the registe of the csi rx be.
+ * Store a value to the register of the csi rx be.
  *
  * @param[in]	ID		The global unique ID for the ibuf-controller instance.
  * @param[in]	reg		The offset address of the register.

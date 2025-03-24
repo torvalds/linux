@@ -1,0 +1,5 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+{% if annotate %}
+	/* (fixed-length opaque) */
+{% endif %}
+	u8 {{ name }}[{{ size }}];

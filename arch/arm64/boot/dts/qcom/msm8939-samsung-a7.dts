@@ -198,7 +198,7 @@
 		};
 	};
 
-	pwm_vibrator: pwm-vibrator {
+	pwm_vibrator: pwm {
 		compatible = "clk-pwm";
 		#pwm-cells = <2>;
 

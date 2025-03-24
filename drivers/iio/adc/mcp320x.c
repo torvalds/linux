@@ -459,16 +459,6 @@ static int mcp320x_probe(struct spi_device *spi)
 }
 
 static const struct of_device_id mcp320x_dt_ids[] = {
-	/* NOTE: The use of compatibles with no vendor prefix is deprecated. */
-	{ .compatible = "mcp3001" },
-	{ .compatible = "mcp3002" },
-	{ .compatible = "mcp3004" },
-	{ .compatible = "mcp3008" },
-	{ .compatible = "mcp3201" },
-	{ .compatible = "mcp3202" },
-	{ .compatible = "mcp3204" },
-	{ .compatible = "mcp3208" },
-	{ .compatible = "mcp3301" },
 	{ .compatible = "microchip,mcp3001" },
 	{ .compatible = "microchip,mcp3002" },
 	{ .compatible = "microchip,mcp3004" },

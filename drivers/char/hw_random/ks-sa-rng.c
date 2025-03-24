@@ -261,7 +261,7 @@ static struct platform_driver ks_sa_rng_driver = {
 		.of_match_table = ks_sa_rng_dt_match,
 	},
 	.probe		= ks_sa_rng_probe,
-	.remove_new	= ks_sa_rng_remove,
+	.remove		= ks_sa_rng_remove,
 };
 
 module_platform_driver(ks_sa_rng_driver);

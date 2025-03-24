@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <assert_support.h>
@@ -43,7 +34,8 @@ ia_css_fpn_dump(
     const struct sh_css_isp_fpn_params *fpn,
     unsigned int level)
 {
-	if (!fpn) return;
+	if (!fpn)
+		return;
 	ia_css_debug_dtrace(level, "Fixed Pattern Noise Reduction:\n");
 	ia_css_debug_dtrace(level, "\t%-32s = %d\n",
 			    "fpn_shift", fpn->shift);

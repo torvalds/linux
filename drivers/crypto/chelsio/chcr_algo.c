@@ -1186,7 +1186,7 @@ static int chcr_handle_cipher_resp(struct skcipher_request *req,
 		else
 			bytes = rounddown(bytes, 16);
 	} else {
-		/*CTR mode counter overfloa*/
+		/*CTR mode counter overflow*/
 		bytes  = req->cryptlen - reqctx->processed;
 	}
 	err = chcr_update_cipher_iv(req, fw6_pld, reqctx->iv);

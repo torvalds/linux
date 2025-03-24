@@ -40,7 +40,7 @@ The '$HOME/.perfconfig' file is used to store a per-user configuration.
 The file '$(sysconfdir)/perfconfig' can be used to
 store a system-wide default configuration.
 
-One an disable reading config files by setting the PERF_CONFIG environment
+One can disable reading config files by setting the PERF_CONFIG environment
 variable to /dev/null, or provide an alternate config file by setting that
 variable.
 
@@ -246,6 +246,19 @@ buildid-cache.*::
 annotate.*::
 	These are in control of addresses, jump function, source code
 	in lines of assembly code from a specific program.
+
+	annotate.disassemblers::
+		Choose the disassembler to use: "objdump", "llvm",  "capstone",
+		if not specified it will first try, if available, the "llvm" one,
+		then, if it fails, "capstone", and finally the original "objdump"
+		based one.
+
+		Choosing a different one is useful when handling some feature that
+		is known to be best support at some point by one of the options,
+		to compare the output when in doubt about some bug, etc.
+
+		This can be a list, in order of preference, the first one that works
+		finishes the process.
 
 	annotate.addr2line::
 		addr2line binary to use for file names and line numbers.

@@ -346,8 +346,8 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	/*
 	 * Mediatek UARTs use an extra highspeed register (MTK_UART_HIGHS)
 	 *
-	 * We need to recalcualte the quot register, as the claculation depends
-	 * on the vaule in the highspeed register.
+	 * We need to recalculate the quot register, as the calculation depends
+	 * on the value in the highspeed register.
 	 *
 	 * Some baudrates are not supported by the chip, so we use the next
 	 * lower rate supported and update termios c_flag.
@@ -654,7 +654,7 @@ static struct platform_driver mtk8250_platform_driver = {
 		.of_match_table	= mtk8250_of_match,
 	},
 	.probe			= mtk8250_probe,
-	.remove_new		= mtk8250_remove,
+	.remove			= mtk8250_remove,
 };
 module_platform_driver(mtk8250_platform_driver);
 

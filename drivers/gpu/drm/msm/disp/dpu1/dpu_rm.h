@@ -20,6 +20,7 @@ struct dpu_global_state;
  * @ctl_blks: array of ctl hardware resources
  * @hw_intf: array of intf hardware resources
  * @hw_wb: array of wb hardware resources
+ * @hw_cwb: array of cwb hardware resources
  * @dspp_blks: array of dspp hardware resources
  * @hw_sspp: array of sspp hardware resources
  * @cdm_blk: cdm hardware resource
@@ -30,6 +31,7 @@ struct dpu_rm {
 	struct dpu_hw_blk *ctl_blks[CTL_MAX - CTL_0];
 	struct dpu_hw_intf *hw_intf[INTF_MAX - INTF_0];
 	struct dpu_hw_wb *hw_wb[WB_MAX - WB_0];
+	struct dpu_hw_blk *cwb_blks[CWB_MAX - CWB_0];
 	struct dpu_hw_blk *dspp_blks[DSPP_MAX - DSPP_0];
 	struct dpu_hw_blk *merge_3d_blks[MERGE_3D_MAX - MERGE_3D_0];
 	struct dpu_hw_blk *dsc_blks[DSC_MAX - DSC_0];
@@ -37,63 +39,55 @@ struct dpu_rm {
 	struct dpu_hw_blk *cdm_blk;
 };
 
+struct dpu_rm_sspp_requirements {
+	bool yuv;
+	bool scale;
+	bool rot90;
+};
+
 /**
- * dpu_rm_init - Read hardware catalog and create reservation tracking objects
- *	for all HW blocks.
- * @dev:  Corresponding device for devres management
- * @rm: DPU Resource Manager handle
- * @cat: Pointer to hardware catalog
- * @mdss_data: Pointer to MDSS / UBWC configuration
- * @mmio: mapped register io address of MDP
- * @Return: 0 on Success otherwise -ERROR
+ * struct msm_display_topology - defines a display topology pipeline
+ * @num_lm:       number of layer mixers used
+ * @num_intf:     number of interfaces the panel is mounted on
+ * @num_dspp:     number of dspp blocks used
+ * @num_dsc:      number of Display Stream Compression (DSC) blocks used
+ * @needs_cdm:    indicates whether cdm block is needed for this display topology
  */
+struct msm_display_topology {
+	u32 num_lm;
+	u32 num_intf;
+	u32 num_dspp;
+	u32 num_dsc;
+	bool needs_cdm;
+};
+
 int dpu_rm_init(struct drm_device *dev,
 		struct dpu_rm *rm,
 		const struct dpu_mdss_cfg *cat,
 		const struct msm_mdss_data *mdss_data,
 		void __iomem *mmio);
 
-/**
- * dpu_rm_reserve - Given a CRTC->Encoder->Connector display chain, analyze
- *	the use connections and user requirements, specified through related
- *	topology control properties, and reserve hardware blocks to that
- *	display chain.
- *	HW blocks can then be accessed through dpu_rm_get_* functions.
- *	HW Reservations should be released via dpu_rm_release_hw.
- * @rm: DPU Resource Manager handle
- * @drm_enc: DRM Encoder handle
- * @crtc_state: Proposed Atomic DRM CRTC State handle
- * @topology: Pointer to topology info for the display
- * @Return: 0 on Success otherwise -ERROR
- */
 int dpu_rm_reserve(struct dpu_rm *rm,
 		struct dpu_global_state *global_state,
 		struct drm_encoder *drm_enc,
 		struct drm_crtc_state *crtc_state,
-		struct msm_display_topology topology);
+		struct msm_display_topology *topology);
 
-/**
- * dpu_rm_reserve - Given the encoder for the display chain, release any
- *	HW blocks previously reserved for that use case.
- * @rm: DPU Resource Manager handle
- * @enc: DRM Encoder handle
- * @Return: 0 on Success otherwise -ERROR
- */
 void dpu_rm_release(struct dpu_global_state *global_state,
 		struct drm_encoder *enc);
 
-/**
- * Get hw resources of the given type that are assigned to this encoder.
- */
+struct dpu_hw_sspp *dpu_rm_reserve_sspp(struct dpu_rm *rm,
+					struct dpu_global_state *global_state,
+					struct drm_crtc *crtc,
+					struct dpu_rm_sspp_requirements *reqs);
+
+void dpu_rm_release_all_sspp(struct dpu_global_state *global_state,
+			     struct drm_crtc *crtc);
+
 int dpu_rm_get_assigned_resources(struct dpu_rm *rm,
 	struct dpu_global_state *global_state, uint32_t enc_id,
 	enum dpu_hw_blk_type type, struct dpu_hw_blk **blks, int blks_size);
 
-/**
- * dpu_rm_print_state - output the RM private state
- * @p: DRM printer
- * @global_state: global state
- */
 void dpu_rm_print_state(struct drm_printer *p,
 			const struct dpu_global_state *global_state);
 

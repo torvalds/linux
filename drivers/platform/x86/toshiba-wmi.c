@@ -32,26 +32,13 @@ static const struct key_entry toshiba_wmi_keymap[] __initconst = {
 	{ KE_END, 0 }
 };
 
-static void toshiba_wmi_notify(u32 value, void *context)
+static void toshiba_wmi_notify(union acpi_object *obj, void *context)
 {
-	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	acpi_status status;
-
-	status = wmi_get_event_data(value, &response);
-	if (ACPI_FAILURE(status)) {
-		pr_err("Bad event status 0x%x\n", status);
-		return;
-	}
-
-	obj = (union acpi_object *)response.pointer;
 	if (!obj)
 		return;
 
 	/* TODO: Add proper checks once we have data */
 	pr_debug("Unknown event received, obj type %x\n", obj->type);
-
-	kfree(response.pointer);
 }
 
 static const struct dmi_system_id toshiba_wmi_dmi_table[] __initconst = {

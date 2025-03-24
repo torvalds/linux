@@ -245,7 +245,7 @@ static void sja1000_isa_remove(struct platform_device *pdev)
 
 static struct platform_driver sja1000_isa_driver = {
 	.probe = sja1000_isa_probe,
-	.remove_new = sja1000_isa_remove,
+	.remove = sja1000_isa_remove,
 	.driver = {
 		.name = DRV_NAME,
 	},

@@ -1913,7 +1913,7 @@
 					};
 				};
 
-				uart_ao_a_pins: uart-a-ao {
+				uart_ao_a_pins: uart-ao-a {
 					mux {
 						groups = "uart_ao_a_tx",
 							 "uart_ao_a_rx";

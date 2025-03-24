@@ -2,6 +2,7 @@
 /* Copyright (c) 2022 Meta Platforms, Inc. and affiliates. */
 #define _GNU_SOURCE
 #include <argp.h>
+#include <libgen.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sched.h>
@@ -15,13 +16,23 @@
 #include <sys/stat.h>
 #include <bpf/libbpf.h>
 #include <bpf/btf.h>
+#include <bpf/bpf.h>
 #include <libelf.h>
 #include <gelf.h>
 #include <float.h>
 #include <math.h>
+#include <limits.h>
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#endif
+
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
 enum stat_id {
@@ -32,6 +43,11 @@ enum stat_id {
 	PEAK_STATES,
 	MAX_STATES_PER_INSN,
 	MARK_READ_MAX_LEN,
+	SIZE,
+	JITED_SIZE,
+	STACK,
+	PROG_TYPE,
+	ATTACH_TYPE,
 
 	FILE_NAME,
 	PROG_NAME,
@@ -178,6 +194,7 @@ static struct env {
 	int files_skipped;
 	int progs_processed;
 	int progs_skipped;
+	int top_src_lines;
 } env;
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
@@ -200,7 +217,8 @@ const char argp_program_doc[] =
 "\n"
 "USAGE: veristat <obj-file> [<obj-file>...]\n"
 "   OR: veristat -C <baseline.csv> <comparison.csv>\n"
-"   OR: veristat -R <results.csv>\n";
+"   OR: veristat -R <results.csv>\n"
+"   OR: veristat -vl2 <to_analyze.bpf.o>\n";
 
 enum {
 	OPT_LOG_FIXED = 1000,
@@ -212,7 +230,7 @@ static const struct argp_option opts[] = {
 	{ "version", 'V', NULL, 0, "Print version" },
 	{ "verbose", 'v', NULL, 0, "Verbose mode" },
 	{ "debug", 'd', NULL, 0, "Debug mode (turns on libbpf debug logging)" },
-	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
+	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode, 2 for full verification log)" },
 	{ "log-fixed", OPT_LOG_FIXED, NULL, 0, "Disable verifier log rotation" },
 	{ "log-size", OPT_LOG_SIZE, "BYTES", 0, "Customize verifier log size (default to 16MB)" },
 	{ "top-n", 'n', "N", 0, "Emit only up to first N results." },
@@ -227,6 +245,7 @@ static const struct argp_option opts[] = {
 	  "Force frequent BPF verifier state checkpointing (set BPF_F_TEST_STATE_FREQ program flag)" },
 	{ "test-reg-invariants", 'r', NULL, 0,
 	  "Force BPF verifier failure on register invariant violation (BPF_F_TEST_REG_INVARIANTS program flag)" },
+	{ "top-src-lines", 'S', "N", 0, "Emit N most frequent source code lines" },
 	{},
 };
 
@@ -324,6 +343,14 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (err) {
 			fprintf(stderr, "Failed to collect program filter expressions: %d\n", err);
 			return err;
+		}
+		break;
+	case 'S':
+		errno = 0;
+		env.top_src_lines = strtol(arg, NULL, 10);
+		if (errno) {
+			fprintf(stderr, "invalid top lines N specifier: %s\n", arg);
+			argp_usage(state);
 		}
 		break;
 	case ARGP_KEY_ARG:
@@ -628,19 +655,21 @@ cleanup:
 }
 
 static const struct stat_specs default_output_spec = {
-	.spec_cnt = 7,
+	.spec_cnt = 8,
 	.ids = {
 		FILE_NAME, PROG_NAME, VERDICT, DURATION,
-		TOTAL_INSNS, TOTAL_STATES, PEAK_STATES,
+		TOTAL_INSNS, TOTAL_STATES, SIZE, JITED_SIZE
 	},
 };
 
 static const struct stat_specs default_csv_output_spec = {
-	.spec_cnt = 9,
+	.spec_cnt = 14,
 	.ids = {
 		FILE_NAME, PROG_NAME, VERDICT, DURATION,
 		TOTAL_INSNS, TOTAL_STATES, PEAK_STATES,
 		MAX_STATES_PER_INSN, MARK_READ_MAX_LEN,
+		SIZE, JITED_SIZE, PROG_TYPE, ATTACH_TYPE,
+		STACK,
 	},
 };
 
@@ -676,6 +705,11 @@ static struct stat_def {
 	[PEAK_STATES] = { "Peak states", {"peak_states"}, },
 	[MAX_STATES_PER_INSN] = { "Max states per insn", {"max_states_per_insn"}, },
 	[MARK_READ_MAX_LEN] = { "Max mark read length", {"max_mark_read_len", "mark_read"}, },
+	[SIZE] = { "Program size", {"prog_size"}, },
+	[JITED_SIZE] = { "Jited size", {"prog_size_jited"}, },
+	[STACK] = {"Stack depth", {"stack_depth", "stack"}, },
+	[PROG_TYPE] = { "Program type", {"prog_type"}, },
+	[ATTACH_TYPE] = { "Attach type", {"attach_type", }, },
 };
 
 static bool parse_stat_id_var(const char *name, size_t len, int *id,
@@ -784,13 +818,13 @@ static int parse_stat(const char *stat_name, struct stat_specs *specs)
 static int parse_stats(const char *stats_str, struct stat_specs *specs)
 {
 	char *input, *state = NULL, *next;
-	int err;
+	int err, cnt = 0;
 
 	input = strdup(stats_str);
 	if (!input)
 		return -ENOMEM;
 
-	while ((next = strtok_r(state ? NULL : input, ",", &state))) {
+	while ((next = strtok_r(cnt++ ? NULL : input, ",", &state))) {
 		err = parse_stat(next, specs);
 		if (err) {
 			free(input);
@@ -823,7 +857,8 @@ static char verif_log_buf[64 * 1024];
 static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *s)
 {
 	const char *cur;
-	int pos, lines;
+	int pos, lines, sub_stack, cnt = 0;
+	char *state = NULL, *token, stack[512];
 
 	buf[buf_sz - 1] = '\0';
 
@@ -841,16 +876,135 @@ static int parse_verif_log(char * const buf, size_t buf_sz, struct verif_stats *
 
 		if (1 == sscanf(cur, "verification time %ld usec\n", &s->stats[DURATION]))
 			continue;
-		if (6 == sscanf(cur, "processed %ld insns (limit %*d) max_states_per_insn %ld total_states %ld peak_states %ld mark_read %ld",
+		if (5 == sscanf(cur, "processed %ld insns (limit %*d) max_states_per_insn %ld total_states %ld peak_states %ld mark_read %ld",
 				&s->stats[TOTAL_INSNS],
 				&s->stats[MAX_STATES_PER_INSN],
 				&s->stats[TOTAL_STATES],
 				&s->stats[PEAK_STATES],
 				&s->stats[MARK_READ_MAX_LEN]))
 			continue;
+
+		if (1 == sscanf(cur, "stack depth %511s", stack))
+			continue;
+	}
+	while ((token = strtok_r(cnt++ ? NULL : stack, "+", &state))) {
+		if (sscanf(token, "%d", &sub_stack) == 0)
+			break;
+		s->stats[STACK] += sub_stack;
+	}
+	return 0;
+}
+
+struct line_cnt {
+	char *line;
+	int cnt;
+};
+
+static int str_cmp(const void *a, const void *b)
+{
+	const char **str1 = (const char **)a;
+	const char **str2 = (const char **)b;
+
+	return strcmp(*str1, *str2);
+}
+
+static int line_cnt_cmp(const void *a, const void *b)
+{
+	const struct line_cnt *a_cnt = (const struct line_cnt *)a;
+	const struct line_cnt *b_cnt = (const struct line_cnt *)b;
+
+	if (a_cnt->cnt != b_cnt->cnt)
+		return a_cnt->cnt > b_cnt->cnt ? -1 : 1;
+	return strcmp(a_cnt->line, b_cnt->line);
+}
+
+static int print_top_src_lines(char * const buf, size_t buf_sz, const char *prog_name)
+{
+	int lines_cap = 0;
+	int lines_size = 0;
+	char **lines = NULL;
+	char *line = NULL;
+	char *state;
+	struct line_cnt *freq = NULL;
+	struct line_cnt *cur;
+	int unique_lines;
+	int err = 0;
+	int i;
+
+	while ((line = strtok_r(line ? NULL : buf, "\n", &state))) {
+		if (strncmp(line, "; ", 2) != 0)
+			continue;
+		line += 2;
+
+		if (lines_size == lines_cap) {
+			char **tmp;
+
+			lines_cap = max(16, lines_cap * 2);
+			tmp = realloc(lines, lines_cap * sizeof(*tmp));
+			if (!tmp) {
+				err = -ENOMEM;
+				goto cleanup;
+			}
+			lines = tmp;
+		}
+		lines[lines_size] = line;
+		lines_size++;
 	}
 
-	return 0;
+	if (lines_size == 0)
+		goto cleanup;
+
+	qsort(lines, lines_size, sizeof(*lines), str_cmp);
+
+	freq = calloc(lines_size, sizeof(*freq));
+	if (!freq) {
+		err = -ENOMEM;
+		goto cleanup;
+	}
+
+	cur = freq;
+	cur->line = lines[0];
+	cur->cnt = 1;
+	for (i = 1; i < lines_size; ++i) {
+		if (strcmp(lines[i], cur->line) != 0) {
+			cur++;
+			cur->line = lines[i];
+			cur->cnt = 0;
+		}
+		cur->cnt++;
+	}
+	unique_lines = cur - freq + 1;
+
+	qsort(freq, unique_lines, sizeof(struct line_cnt), line_cnt_cmp);
+
+	printf("Top source lines (%s):\n", prog_name);
+	for (i = 0; i < min(unique_lines, env.top_src_lines); ++i) {
+		const char *src_code = freq[i].line;
+		const char *src_line = NULL;
+		char *split = strrchr(freq[i].line, '@');
+
+		if (split) {
+			src_line = split + 1;
+
+			while (*src_line && isspace(*src_line))
+				src_line++;
+
+			while (split > src_code && isspace(*split))
+				split--;
+			*split = '\0';
+		}
+
+		if (src_line)
+			printf("%5d: (%s)\t%s\n", freq[i].cnt, src_line, src_code);
+		else
+			printf("%5d: %s\n", freq[i].cnt, src_code);
+	}
+	printf("\n");
+
+cleanup:
+	free(freq);
+	free(lines);
+	return err;
 }
 
 static int guess_prog_type_by_ctx_name(const char *ctx_name,
@@ -908,6 +1062,41 @@ static int guess_prog_type_by_ctx_name(const char *ctx_name,
 	return -ESRCH;
 }
 
+/* Make sure only target program is referenced from struct_ops map,
+ * otherwise libbpf would automatically set autocreate for all
+ * referenced programs.
+ * See libbpf.c:bpf_object_adjust_struct_ops_autoload.
+ */
+static void mask_unrelated_struct_ops_progs(struct bpf_object *obj,
+					    struct bpf_map *map,
+					    struct bpf_program *prog)
+{
+	struct btf *btf = bpf_object__btf(obj);
+	const struct btf_type *t, *mt;
+	struct btf_member *m;
+	int i, moff;
+	size_t data_sz, ptr_sz = sizeof(void *);
+	void *data;
+
+	t = btf__type_by_id(btf, bpf_map__btf_value_type_id(map));
+	if (!btf_is_struct(t))
+		return;
+
+	data = bpf_map__initial_value(map, &data_sz);
+	for (i = 0; i < btf_vlen(t); i++) {
+		m = &btf_members(t)[i];
+		mt = btf__type_by_id(btf, m->type);
+		if (!btf_is_ptr(mt))
+			continue;
+		moff = m->offset / 8;
+		if (moff + ptr_sz > data_sz)
+			continue;
+		if (memcmp(data + moff, &prog, ptr_sz) == 0)
+			continue;
+		memset(data + moff, 0, ptr_sz);
+	}
+}
+
 static void fixup_obj(struct bpf_object *obj, struct bpf_program *prog, const char *filename)
 {
 	struct bpf_map *map;
@@ -922,6 +1111,9 @@ static void fixup_obj(struct bpf_object *obj, struct bpf_program *prog, const ch
 		case BPF_MAP_TYPE_TASK_STORAGE:
 		case BPF_MAP_TYPE_INODE_STORAGE:
 		case BPF_MAP_TYPE_CGROUP_STORAGE:
+			break;
+		case BPF_MAP_TYPE_STRUCT_OPS:
+			mask_unrelated_struct_ops_progs(obj, map, prog);
 			break;
 		default:
 			if (bpf_map__max_entries(map) == 0)
@@ -986,15 +1178,47 @@ skip_freplace_fixup:
 	return;
 }
 
+static int max_verifier_log_size(void)
+{
+	const int SMALL_LOG_SIZE = UINT_MAX >> 8;
+	const int BIG_LOG_SIZE = UINT_MAX >> 2;
+	struct bpf_insn insns[] = {
+		{ .code = BPF_ALU | BPF_MOV | BPF_X, .dst_reg = BPF_REG_0, },
+		{ .code  = BPF_JMP | BPF_EXIT, },
+	};
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		    .log_size = BIG_LOG_SIZE,
+		    .log_buf = (void *)-1,
+		    .log_level = 4
+	);
+	int ret, insn_cnt = ARRAY_SIZE(insns);
+	static int log_size;
+
+	if (log_size != 0)
+		return log_size;
+
+	ret = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL", insns, insn_cnt, &opts);
+
+	if (ret == -EFAULT)
+		log_size = BIG_LOG_SIZE;
+	else /* ret == -EINVAL, big log size is not supported by the verifier */
+		log_size = SMALL_LOG_SIZE;
+
+	return log_size;
+}
+
 static int process_prog(const char *filename, struct bpf_object *obj, struct bpf_program *prog)
 {
+	const char *base_filename = basename(strdupa(filename));
 	const char *prog_name = bpf_program__name(prog);
-	const char *base_filename = basename(filename);
 	char *buf;
 	int buf_sz, log_level;
 	struct verif_stats *stats;
+	struct bpf_prog_info info;
+	__u32 info_len = sizeof(info);
 	int err = 0;
 	void *tmp;
+	int fd;
 
 	if (!should_process_file_prog(base_filename, bpf_program__name(prog))) {
 		env.progs_skipped++;
@@ -1008,13 +1232,16 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	stats = &env.prog_stats[env.prog_stat_cnt++];
 	memset(stats, 0, sizeof(*stats));
 
-	if (env.verbose) {
-		buf_sz = env.log_size ? env.log_size : 16 * 1024 * 1024;
+	if (env.verbose || env.top_src_lines > 0) {
+		buf_sz = env.log_size ? env.log_size : max_verifier_log_size();
 		buf = malloc(buf_sz);
 		if (!buf)
 			return -ENOMEM;
 		/* ensure we always request stats */
 		log_level = env.log_level | 4 | (env.log_fixed ? 8 : 0);
+		/* --top-src-lines needs verifier log */
+		if (env.top_src_lines > 0 && env.log_level == 0)
+			log_level |= 2;
 	} else {
 		buf = verif_log_buf;
 		buf_sz = sizeof(verif_log_buf);
@@ -1040,6 +1267,15 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 	stats->file_name = strdup(base_filename);
 	stats->prog_name = strdup(bpf_program__name(prog));
 	stats->stats[VERDICT] = err == 0; /* 1 - success, 0 - failure */
+	stats->stats[SIZE] = bpf_program__insn_cnt(prog);
+	stats->stats[PROG_TYPE] = bpf_program__type(prog);
+	stats->stats[ATTACH_TYPE] = bpf_program__expected_attach_type(prog);
+
+	memset(&info, 0, info_len);
+	fd = bpf_program__fd(prog);
+	if (fd > 0 && bpf_prog_get_info_by_fd(fd, &info, &info_len) == 0)
+		stats->stats[JITED_SIZE] = info.jited_prog_len;
+
 	parse_verif_log(buf, buf_sz, stats);
 
 	if (env.verbose) {
@@ -1047,6 +1283,8 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 		       filename, prog_name, stats->stats[DURATION],
 		       err ? "failure" : "success", buf);
 	}
+	if (env.top_src_lines > 0)
+		print_top_src_lines(buf, buf_sz, stats->prog_name);
 
 	if (verif_log_buf != buf)
 		free(buf);
@@ -1056,13 +1294,14 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 
 static int process_obj(const char *filename)
 {
+	const char *base_filename = basename(strdupa(filename));
 	struct bpf_object *obj = NULL, *tobj;
 	struct bpf_program *prog, *tprog, *lprog;
 	libbpf_print_fn_t old_libbpf_print_fn;
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	int err = 0, prog_cnt = 0;
 
-	if (!should_process_file_prog(basename(filename), NULL)) {
+	if (!should_process_file_prog(base_filename, NULL)) {
 		if (env.verbose)
 			printf("Skipping '%s' due to filters...\n", filename);
 		env.files_skipped++;
@@ -1076,7 +1315,7 @@ static int process_obj(const char *filename)
 	}
 
 	if (!env.quiet && env.out_fmt == RESFMT_TABLE)
-		printf("Processing '%s'...\n", basename(filename));
+		printf("Processing '%s'...\n", base_filename);
 
 	old_libbpf_print_fn = libbpf_set_print(libbpf_print_fn);
 	obj = bpf_object__open_file(filename, &opts);
@@ -1150,6 +1389,11 @@ static int cmp_stat(const struct verif_stats *s1, const struct verif_stats *s2,
 	case PROG_NAME:
 		cmp = strcmp(s1->prog_name, s2->prog_name);
 		break;
+	case ATTACH_TYPE:
+	case PROG_TYPE:
+	case SIZE:
+	case JITED_SIZE:
+	case STACK:
 	case VERDICT:
 	case DURATION:
 	case TOTAL_INSNS:
@@ -1364,12 +1608,27 @@ static void prepare_value(const struct verif_stats *s, enum stat_id id,
 		else
 			*str = s->stats[VERDICT] ? "success" : "failure";
 		break;
+	case ATTACH_TYPE:
+		if (!s)
+			*str = "N/A";
+		else
+			*str = libbpf_bpf_attach_type_str(s->stats[ATTACH_TYPE]) ?: "N/A";
+		break;
+	case PROG_TYPE:
+		if (!s)
+			*str = "N/A";
+		else
+			*str = libbpf_bpf_prog_type_str(s->stats[PROG_TYPE]) ?: "N/A";
+		break;
 	case DURATION:
 	case TOTAL_INSNS:
 	case TOTAL_STATES:
 	case PEAK_STATES:
 	case MAX_STATES_PER_INSN:
 	case MARK_READ_MAX_LEN:
+	case STACK:
+	case SIZE:
+	case JITED_SIZE:
 		*val = s ? s->stats[id] : 0;
 		break;
 	default:
@@ -1453,7 +1712,10 @@ static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats
 	case TOTAL_STATES:
 	case PEAK_STATES:
 	case MAX_STATES_PER_INSN:
-	case MARK_READ_MAX_LEN: {
+	case MARK_READ_MAX_LEN:
+	case SIZE:
+	case JITED_SIZE:
+	case STACK: {
 		long val;
 		int err, n;
 
@@ -1464,6 +1726,42 @@ static int parse_stat_value(const char *str, enum stat_id id, struct verif_stats
 		}
 
 		st->stats[id] = val;
+		break;
+	}
+	case PROG_TYPE: {
+		enum bpf_prog_type prog_type = 0;
+		const char *type;
+
+		while ((type = libbpf_bpf_prog_type_str(prog_type)))  {
+			if (strcmp(type, str) == 0) {
+				st->stats[id] = prog_type;
+				break;
+			}
+			prog_type++;
+		}
+
+		if (!type) {
+			fprintf(stderr, "Unrecognized prog type %s\n", str);
+			return -EINVAL;
+		}
+		break;
+	}
+	case ATTACH_TYPE: {
+		enum bpf_attach_type attach_type = 0;
+		const char *type;
+
+		while ((type = libbpf_bpf_attach_type_str(attach_type)))  {
+			if (strcmp(type, str) == 0) {
+				st->stats[id] = attach_type;
+				break;
+			}
+			attach_type++;
+		}
+
+		if (!type) {
+			fprintf(stderr, "Unrecognized attach type %s\n", str);
+			return -EINVAL;
+		}
 		break;
 	}
 	default:
@@ -1493,7 +1791,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 	while (fgets(line, sizeof(line), f)) {
 		char *input = line, *state = NULL, *next;
 		struct verif_stats *st = NULL;
-		int col = 0;
+		int col = 0, cnt = 0;
 
 		if (!header) {
 			void *tmp;
@@ -1511,7 +1809,7 @@ static int parse_stats_csv(const char *filename, struct stat_specs *specs,
 			*stat_cntp += 1;
 		}
 
-		while ((next = strtok_r(state ? NULL : input, ",\n", &state))) {
+		while ((next = strtok_r(cnt++ ? NULL : input, ",\n", &state))) {
 			if (header) {
 				/* for the first line, set up spec stats */
 				err = parse_stat(next, specs);

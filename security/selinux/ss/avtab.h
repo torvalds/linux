@@ -53,8 +53,9 @@ struct avtab_key {
  */
 struct avtab_extended_perms {
 /* These are not flags. All 256 values may be used */
-#define AVTAB_XPERMS_IOCTLFUNCTION 0x01
-#define AVTAB_XPERMS_IOCTLDRIVER   0x02
+#define AVTAB_XPERMS_IOCTLFUNCTION	0x01
+#define AVTAB_XPERMS_IOCTLDRIVER	0x02
+#define AVTAB_XPERMS_NLMSG		0x03
 	/* extension of the avtab_key specified */
 	u8 specified; /* ioctl, netfilter, ... */
 	/*
@@ -88,7 +89,7 @@ struct avtab {
 };
 
 void avtab_init(struct avtab *h);
-int avtab_alloc(struct avtab *, u32);
+int avtab_alloc(struct avtab *h, u32 nrules);
 int avtab_alloc_dup(struct avtab *new, const struct avtab *orig);
 void avtab_destroy(struct avtab *h);
 
@@ -104,15 +105,16 @@ static inline void avtab_hash_eval(struct avtab *h, const char *tag)
 #endif
 
 struct policydb;
-int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
+struct policy_file;
+int avtab_read_item(struct avtab *a, struct policy_file *fp, struct policydb *pol,
 		    int (*insert)(struct avtab *a, const struct avtab_key *k,
 				  const struct avtab_datum *d, void *p),
-		    void *p);
+		    void *p, bool conditional);
 
-int avtab_read(struct avtab *a, void *fp, struct policydb *pol);
+int avtab_read(struct avtab *a, struct policy_file *fp, struct policydb *pol);
 int avtab_write_item(struct policydb *p, const struct avtab_node *cur,
-		     void *fp);
-int avtab_write(struct policydb *p, struct avtab *a, void *fp);
+		     struct policy_file *fp);
+int avtab_write(struct policydb *p, struct avtab *a, struct policy_file *fp);
 
 struct avtab_node *avtab_insert_nonunique(struct avtab *h,
 					  const struct avtab_key *key,

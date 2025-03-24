@@ -26,6 +26,17 @@ config MTK_DEVAPC
 	  The violation information is logged for further analysis or
 	  countermeasures.
 
+config MTK_DVFSRC
+	tristate "MediaTek DVFSRC Support"
+	depends on ARCH_MEDIATEK
+	help
+	  Say yes here to add support for the MediaTek Dynamic Voltage
+	  and Frequency Scaling Resource Collector (DVFSRC): a HW
+	  IP found on many MediaTek SoCs, which is responsible for
+	  collecting DVFS requests from various SoC IPs, other than
+	  software, and performing bandwidth scaling to provide the
+	  best achievable performance-per-watt.
+
 config MTK_INFRACFG
 	bool "MediaTek INFRACFG Support"
 	select REGMAP

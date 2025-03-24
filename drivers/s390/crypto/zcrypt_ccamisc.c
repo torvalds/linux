@@ -172,7 +172,7 @@ EXPORT_SYMBOL(cca_check_secaescipherkey);
  * key token. Returns 0 on success or errno value on failure.
  */
 int cca_check_sececckeytoken(debug_info_t *dbg, int dbflvl,
-			     const u8 *token, size_t keysize,
+			     const u8 *token, u32 keysize,
 			     int checkcpacfexport)
 {
 	struct eccprivkeytoken *t = (struct eccprivkeytoken *)token;
@@ -187,7 +187,7 @@ int cca_check_sececckeytoken(debug_info_t *dbg, int dbflvl,
 	}
 	if (t->len > keysize) {
 		if (dbg)
-			DBF("%s token check failed, len %d > keysize %zu\n",
+			DBF("%s token check failed, len %d > keysize %u\n",
 			    __func__, (int)t->len, keysize);
 		return -EINVAL;
 	}
@@ -737,7 +737,7 @@ static const u8 aes_cipher_key_skeleton[] = {
  * Generate (random) CCA AES CIPHER secure key.
  */
 int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
-		     u8 *keybuf, size_t *keybufsize)
+		     u8 *keybuf, u32 *keybufsize)
 {
 	int rc;
 	u8 *mem, *ptr;
@@ -1085,7 +1085,7 @@ out:
  * Build CCA AES CIPHER secure key with a given clear key value.
  */
 int cca_clr2cipherkey(u16 card, u16 dom, u32 keybitsize, u32 keygenflags,
-		      const u8 *clrkey, u8 *keybuf, size_t *keybufsize)
+		      const u8 *clrkey, u8 *keybuf, u32 *keybufsize)
 {
 	int rc;
 	u8 *token;

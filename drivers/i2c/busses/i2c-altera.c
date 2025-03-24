@@ -482,7 +482,7 @@ MODULE_DEVICE_TABLE(of, altr_i2c_of_match);
 
 static struct platform_driver altr_i2c_driver = {
 	.probe = altr_i2c_probe,
-	.remove_new = altr_i2c_remove,
+	.remove = altr_i2c_remove,
 	.driver = {
 		.name = "altera-i2c",
 		.of_match_table = altr_i2c_of_match,

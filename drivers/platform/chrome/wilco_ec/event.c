@@ -403,7 +403,6 @@ static const struct file_operations event_fops = {
 	.poll  = event_poll,
 	.read = event_read,
 	.release = event_release,
-	.llseek = no_llseek,
 	.owner = THIS_MODULE,
 };
 

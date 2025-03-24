@@ -112,6 +112,15 @@ void arm_smmu_make_sva_cd(struct arm_smmu_cd *target,
 	 * from the current CPU register
 	 */
 	target->data[3] = cpu_to_le64(read_sysreg(mair_el1));
+
+	/*
+	 * Note that we don't bother with S1PIE on the SMMU, we just rely on
+	 * our default encoding scheme matching direct permissions anyway.
+	 * SMMU has no notion of S1POE nor GCS, so make sure that is clear if
+	 * either is enabled for CPUs, just in case anyone imagines otherwise.
+	 */
+	if (system_supports_poe() || system_supports_gcs())
+		dev_warn_once(master->smmu->dev, "SVA devices ignore permission overlays and GCS\n");
 }
 EXPORT_SYMBOL_IF_KUNIT(arm_smmu_make_sva_cd);
 
@@ -206,8 +215,12 @@ bool arm_smmu_sva_supported(struct arm_smmu_device *smmu)
 	unsigned long asid_bits;
 	u32 feat_mask = ARM_SMMU_FEAT_COHERENCY;
 
-	if (vabits_actual == 52)
+	if (vabits_actual == 52) {
+		/* We don't support LPA2 */
+		if (PAGE_SIZE != SZ_64K)
+			return false;
 		feat_mask |= ARM_SMMU_FEAT_VAX;
+	}
 
 	if ((smmu->features & feat_mask) != feat_mask)
 		return false;
@@ -332,7 +345,8 @@ void arm_smmu_sva_notifier_synchronize(void)
 }
 
 static int arm_smmu_sva_set_dev_pasid(struct iommu_domain *domain,
-				      struct device *dev, ioasid_t id)
+				      struct device *dev, ioasid_t id,
+				      struct iommu_domain *old)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
@@ -348,7 +362,7 @@ static int arm_smmu_sva_set_dev_pasid(struct iommu_domain *domain,
 	 * get reassigned
 	 */
 	arm_smmu_make_sva_cd(&target, master, domain->mm, smmu_domain->cd.asid);
-	ret = arm_smmu_set_pasid(master, smmu_domain, id, &target);
+	ret = arm_smmu_set_pasid(master, smmu_domain, id, &target, old);
 
 	mmput(domain->mm);
 	return ret;

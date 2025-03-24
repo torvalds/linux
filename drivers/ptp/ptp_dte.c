@@ -327,7 +327,7 @@ static struct platform_driver ptp_dte_driver = {
 		.of_match_table = ptp_dte_of_match,
 	},
 	.probe    = ptp_dte_probe,
-	.remove_new = ptp_dte_remove,
+	.remove   = ptp_dte_remove,
 };
 module_platform_driver(ptp_dte_driver);
 

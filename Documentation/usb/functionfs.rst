@@ -25,6 +25,8 @@ interface numbers starting from zero).  The FunctionFS changes
 them as needed also handling situation when numbers differ in
 different configurations.
 
+For more information about FunctionFS descriptors see :doc:`functionfs-desc`
+
 When descriptors and strings are written "ep#" files appear
 (one for each declared endpoint) which handle communication on
 a single endpoint.  Again, FunctionFS takes care of the real

@@ -16,3 +16,7 @@
 		     "phytec,am62a-phycore-som", "ti,am62a7";
 	model = "PHYTEC phyBOARD-Lyra AM62A7";
 };
+
+&cpsw3g_phy3 {
+	ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_50_NS>;
+};

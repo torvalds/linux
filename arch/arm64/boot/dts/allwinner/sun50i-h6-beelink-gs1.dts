@@ -129,6 +129,7 @@
 &mmc0 {
 	vmmc-supply = <&reg_cldo1>;
 	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;
+	disable-wp;
 	bus-width = <4>;
 	status = "okay";
 };

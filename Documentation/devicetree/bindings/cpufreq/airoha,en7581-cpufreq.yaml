@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/cpufreq/airoha,en7581-cpufreq.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Airoha EN7581 CPUFreq
+
+maintainers:
+  - Christian Marangi <ansuelsmth@gmail.com>
+
+description: |
+  On newer Airoha SoC, CPU Frequency is scaled indirectly with SMC commands
+  to ATF.
+
+  A virtual clock is exposed. This virtual clock is a get-only clock and
+  is used to expose the current global CPU clock. The frequency info comes
+  by the output of the SMC command that reports the clock in MHz.
+
+  The SMC sets the CPU clock by providing an index, this is modelled as
+  performance states in a power domain.
+
+  CPUs can't be individually scaled as the CPU frequency is shared across
+  all CPUs and is global.
+
+properties:
+  compatible:
+    const: airoha,en7581-cpufreq
+
+  '#clock-cells':
+    const: 0
+
+  '#power-domain-cells':
+    const: 0
+
+  operating-points-v2: true
+
+required:
+  - compatible
+  - '#clock-cells'
+  - '#power-domain-cells'
+  - operating-points-v2
+
+additionalProperties: false
+
+examples:
+  - |
+    performance-domain {
+        compatible = "airoha,en7581-cpufreq";
+
+        operating-points-v2 = <&cpu_smcc_opp_table>;
+
+        #power-domain-cells = <0>;
+        #clock-cells = <0>;
+    };

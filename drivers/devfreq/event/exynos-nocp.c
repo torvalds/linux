@@ -284,7 +284,7 @@ static void exynos_nocp_remove(struct platform_device *pdev)
 
 static struct platform_driver exynos_nocp_driver = {
 	.probe	= exynos_nocp_probe,
-	.remove_new = exynos_nocp_remove,
+	.remove = exynos_nocp_remove,
 	.driver = {
 		.name	= "exynos-nocp",
 		.of_match_table = exynos_nocp_id_match,

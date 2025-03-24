@@ -27,7 +27,7 @@ struct rtw8822bu_efuse {
 	u8 res11[0xcf];
 	u8 package_type;		/* 0x1fb */
 	u8 res12[0x4];
-};
+} __packed;
 
 struct rtw8822be_efuse {
 	u8 mac_addr[ETH_ALEN];		/* 0xd0 */
@@ -47,7 +47,8 @@ struct rtw8822be_efuse {
 	u8 ltr_en:1;
 	u8 res1:2;
 	u8 obff:2;
-	u8 res2:3;
+	u8 res2_1:1;
+	u8 res2_2:2;
 	u8 obff_cap:2;
 	u8 res3:4;
 	u8 res4[3];
@@ -63,7 +64,7 @@ struct rtw8822be_efuse {
 	u8 res6:1;
 	u8 port_t_power_on_value:5;
 	u8 res7;
-};
+} __packed;
 
 struct rtw8822bs_efuse {
 	u8 res4[0x4a];			/* 0xd0 */
@@ -72,7 +73,9 @@ struct rtw8822bs_efuse {
 
 struct rtw8822b_efuse {
 	__le16 rtl_id;
-	u8 res0[0x0e];
+	u8 res0[4];
+	u8 usb_mode;
+	u8 res1[0x09];
 
 	/* power index for four RF paths */
 	struct rtw_txpwr_idx txpwr_idx_table[4];
@@ -101,7 +104,7 @@ struct rtw8822b_efuse {
 		struct rtw8822bu_efuse u;
 		struct rtw8822bs_efuse s;
 	};
-};
+} __packed;
 
 static inline void
 _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
@@ -149,21 +152,12 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define RTW8822B_EDCCA_MAX	0x7f
 #define RTW8822B_EDCCA_SRC_DEF	1
 #define REG_HTSTFWT	0x800
-#define REG_RXPSEL	0x808
-#define BIT_RX_PSEL_RST		(BIT(28) | BIT(29))
-#define REG_TXPSEL	0x80c
 #define REG_RXCCAMSK	0x814
-#define REG_CCASEL	0x82c
-#define REG_PDMFTH	0x830
-#define REG_CCA2ND	0x838
 #define REG_L1WT	0x83c
 #define REG_L1PKWT	0x840
 #define REG_MRC		0x850
-#define REG_CLKTRK	0x860
 #define REG_EDCCA_POW_MA	0x8a0
 #define BIT_MA_LEVEL	GENMASK(1, 0)
-#define REG_ADCCLK	0x8ac
-#define REG_ADC160	0x8c4
 #define REG_ADC40	0x8c8
 #define REG_EDCCA_DECISION	0x8dc
 #define BIT_EDCCA_OPTION	BIT(5)
@@ -174,7 +168,6 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_ACBB0	0x948
 #define REG_ACBBRXFIR	0x94c
 #define REG_ACGG2TBL	0x958
-#define REG_RXSB	0xa00
 #define REG_ADCINI	0xa04
 #define REG_TXSF2	0xa24
 #define REG_TXSF6	0xa28
@@ -182,14 +175,12 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_ENTXCCK	0xa80
 #define REG_AGCTR_A	0xc08
 #define REG_TXDFIR	0xc20
-#define REG_RXIGI_A	0xc50
 #define REG_TRSW	0xca0
 #define REG_RFESEL0	0xcb0
 #define REG_RFESEL8	0xcb4
 #define REG_RFECTL	0xcb8
 #define REG_RFEINV	0xcbc
 #define REG_AGCTR_B	0xe08
-#define REG_RXIGI_B	0xe50
 #define REG_ANTWT	0x1904
 #define REG_IQKFAILMSK	0x1bf0
 

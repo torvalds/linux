@@ -148,6 +148,10 @@ struct link_service {
 			const struct dc_stream_state *stream,
 			const unsigned int num_streams);
 
+	uint32_t (*dp_required_hblank_size_bytes)(
+		const struct dc_link *link,
+		struct dp_audio_bandwidth_params *audio_params);
+
 
 	/*************************** DPMS *************************************/
 	void (*set_dpms_on)(struct dc_state *state, struct pipe_ctx *pipe_ctx);
@@ -248,8 +252,7 @@ struct link_service {
 			uint32_t *backlight_millinits_avg,
 			uint32_t *backlight_millinits_peak);
 	bool (*edp_set_backlight_level)(const struct dc_link *link,
-			uint32_t backlight_pwm_u16_16,
-			uint32_t frame_ramp);
+			struct set_backlight_level_params *backlight_level_params);
 	bool (*edp_set_backlight_level_nits)(struct dc_link *link,
 			bool isHDR,
 			uint32_t backlight_millinits,

@@ -570,7 +570,7 @@ MODULE_DEVICE_TABLE(of, mlb_usio_dt_ids);
 
 static struct platform_driver mlb_usio_driver = {
 	.probe          = mlb_usio_probe,
-	.remove_new     = mlb_usio_remove,
+	.remove         = mlb_usio_remove,
 	.driver         = {
 		.name   = USIO_NAME,
 		.of_match_table = mlb_usio_dt_ids,

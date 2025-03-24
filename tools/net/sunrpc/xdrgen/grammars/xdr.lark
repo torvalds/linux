@@ -1,0 +1,121 @@
+// A Lark grammar for the XDR specification language based on
+// https://tools.ietf.org/html/rfc4506 Section 6.3
+
+declaration             : "opaque" identifier "[" value "]"            -> fixed_length_opaque
+                        | "opaque" identifier "<" [ value ] ">"        -> variable_length_opaque
+                        | "string" identifier "<" [ value ] ">"        -> string
+                        | type_specifier identifier "[" value "]"      -> fixed_length_array
+                        | type_specifier identifier "<" [ value ] ">"  -> variable_length_array
+                        | type_specifier "*" identifier                -> optional_data
+                        | type_specifier identifier                    -> basic
+                        | "void"                                       -> void
+
+value                   : decimal_constant
+                        | hexadecimal_constant
+                        | octal_constant
+                        | identifier
+
+constant                : decimal_constant | hexadecimal_constant | octal_constant
+
+type_specifier          : unsigned_hyper
+                        | unsigned_long
+                        | unsigned_int
+                        | hyper
+                        | long
+                        | int
+                        | float
+                        | double
+                        | quadruple
+                        | bool
+                        | enum_type_spec
+                        | struct_type_spec
+                        | union_type_spec
+                        | identifier
+
+unsigned_hyper          : "unsigned" "hyper"
+unsigned_long           : "unsigned" "long"
+unsigned_int            : "unsigned" "int"
+hyper                   : "hyper"
+long                    : "long"
+int                     : "int"
+float                   : "float"
+double                  : "double"
+quadruple               : "quadruple"
+bool                    : "bool"
+
+enum_type_spec          : "enum" enum_body
+
+enum_body               : "{" ( identifier "=" value ) ( "," identifier "=" value )* "}"
+
+struct_type_spec        : "struct" struct_body
+
+struct_body             : "{" ( declaration ";" )+ "}"
+
+union_type_spec         : "union" union_body
+
+union_body              : switch_spec "{" case_spec+ [ default_spec ] "}"
+
+switch_spec             : "switch" "(" declaration ")"
+
+case_spec               : ( "case" value ":" )+ declaration ";"
+
+default_spec            : "default" ":" declaration ";"
+
+constant_def            : "const" identifier "=" value ";"
+
+type_def                : "typedef" declaration ";"                -> typedef
+                        | "enum" identifier enum_body ";"          -> enum
+                        | "struct" identifier struct_body ";"      -> struct
+                        | "union" identifier union_body ";"        -> union
+
+specification           : definition*
+
+definition              : constant_def
+                        | type_def
+                        | program_def
+                        | pragma_def
+
+//
+// RPC program definitions not specified in RFC 4506
+//
+
+program_def             : "program" identifier "{" version_def+ "}" "=" constant ";"
+
+version_def             : "version" identifier "{" procedure_def+ "}" "=" constant ";"
+
+procedure_def           : type_specifier identifier "(" type_specifier ")" "=" constant ";"
+
+pragma_def              : "pragma" directive identifier [ identifier ] ";"
+
+directive               : big_endian_directive
+                        | exclude_directive
+                        | header_directive
+                        | pages_directive
+                        | public_directive
+                        | skip_directive
+
+big_endian_directive    : "big_endian"
+exclude_directive       : "exclude"
+header_directive        : "header"
+pages_directive         : "pages"
+public_directive        : "public"
+skip_directive          : "skip"
+
+//
+// XDR language primitives
+//
+
+identifier              : /([a-z]|[A-Z])(_|[a-z]|[A-Z]|[0-9])*/
+
+decimal_constant        : /[\+-]?(0|[1-9][0-9]*)/
+hexadecimal_constant    : /0x([a-f]|[A-F]|[0-9])+/
+octal_constant          : /0[0-7]+/
+
+PASSTHRU                : "%" | "%" /.+/
+%ignore PASSTHRU
+
+%import common.C_COMMENT
+%ignore C_COMMENT
+
+%import common.WS
+%ignore WS

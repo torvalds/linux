@@ -9,7 +9,7 @@
  * Contact: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/delay.h>
 #include <linux/i2c.h>

@@ -202,7 +202,7 @@ mtu_value_is_too_small_test()
 
 	mtu_restore $rp2
 
-	kill $mz_pid && wait $mz_pid &> /dev/null
+	kill_process $mz_pid
 	tc filter del dev $h1 ingress protocol ip pref 1 handle 101 flower
 }
 
@@ -235,7 +235,7 @@ __ttl_value_is_too_small_test()
 
 	log_test "TTL value is too small: TTL=$ttl_val"
 
-	kill $mz_pid && wait $mz_pid &> /dev/null
+	kill_process $mz_pid
 	tc filter del dev $h1 ingress protocol ip pref 1 handle 101 flower
 }
 
@@ -299,7 +299,7 @@ __mc_reverse_path_forwarding_test()
 
 	log_test "Multicast reverse path forwarding: $desc"
 
-	kill $mz_pid && wait $mz_pid &> /dev/null
+	kill_process $mz_pid
 	tc filter del dev $rp2 egress protocol $proto pref 1 handle 101 flower
 }
 
@@ -347,7 +347,7 @@ __reject_route_test()
 
 	log_test "Reject route: $desc"
 
-	kill $mz_pid && wait $mz_pid &> /dev/null
+	kill_process $mz_pid
 	ip route del unreachable $unreachable
 	tc filter del dev $h1 ingress protocol $proto pref 1 handle 101 flower
 }
@@ -542,7 +542,7 @@ ipv4_lpm_miss_test()
 
 	log_test "LPM miss: IPv4"
 
-	kill $mz_pid && wait $mz_pid &> /dev/null
+	kill_process $mz_pid
 	vrf_without_routes_destroy
 }
 
@@ -569,7 +569,7 @@ ipv6_lpm_miss_test()
 
 	log_test "LPM miss: IPv6"
 
-	kill $mz_pid && wait $mz_pid &> /dev/null
+	kill_process $mz_pid
 	vrf_without_routes_destroy
 }
 

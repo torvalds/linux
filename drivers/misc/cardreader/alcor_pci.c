@@ -17,8 +17,6 @@
 
 #include <linux/alcor_pci.h>
 
-#define DRV_NAME_ALCOR_PCI			"alcor_pci"
-
 static DEFINE_IDA(alcor_pci_idr);
 
 static struct mfd_cell alcor_pci_cells[] = {

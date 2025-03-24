@@ -265,7 +265,7 @@
 		>;
 	};
 
-	pinctrl_ecspi2: ecspi2 {
+	pinctrl_ecspi2: ecspi2grp {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT8__ECSPI2_SCLK      0x100b1
 			MX6QDL_PAD_CSI0_DAT9__ECSPI2_MOSI      0x100b1
@@ -280,7 +280,7 @@
 		>;
 	};
 
-	pinctrl_enet: enet {
+	pinctrl_enet: enetgrp {
 		fsl,pins = <
 			MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x1b0b0
 			MX6QDL_PAD_ENET_MDC__ENET_MDC		0x1b0b0

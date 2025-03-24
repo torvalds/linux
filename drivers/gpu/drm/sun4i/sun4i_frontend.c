@@ -717,7 +717,7 @@ MODULE_DEVICE_TABLE(of, sun4i_frontend_of_table);
 
 static struct platform_driver sun4i_frontend_driver = {
 	.probe		= sun4i_frontend_probe,
-	.remove_new	= sun4i_frontend_remove,
+	.remove		= sun4i_frontend_remove,
 	.driver		= {
 		.name		= "sun4i-frontend",
 		.of_match_table	= sun4i_frontend_of_table,

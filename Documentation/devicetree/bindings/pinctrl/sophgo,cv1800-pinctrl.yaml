@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/sophgo,cv1800-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Sophgo CV1800 Pin Controller
+
+maintainers:
+  - Inochi Amaoto <inochiama@outlook.com>
+
+properties:
+  compatible:
+    enum:
+      - sophgo,cv1800b-pinctrl
+      - sophgo,cv1812h-pinctrl
+      - sophgo,sg2000-pinctrl
+      - sophgo,sg2002-pinctrl
+
+  reg:
+    items:
+      - description: pinctrl for system domain
+      - description: pinctrl for rtc domain
+
+  reg-names:
+    items:
+      - const: sys
+      - const: rtc
+
+  resets:
+    maxItems: 1
+
+patternProperties:
+  '-cfg$':
+    type: object
+    description:
+      A pinctrl node should contain at least one subnode representing the
+      pinctrl groups available on the machine.
+
+    additionalProperties: false
+
+    patternProperties:
+      '-pins$':
+        type: object
+        description: |
+          Each subnode will list the pins it needs, and how they should
+          be configured, with regard to muxer configuration, bias, input
+          enable/disable, input schmitt trigger, slew-rate, drive strength
+          and bus hold state. In addition, all pins in the same subnode
+          should have the same power domain. For configuration detail,
+          refer to https://github.com/sophgo/sophgo-doc/.
+
+        allOf:
+          - $ref: pincfg-node.yaml#
+          - $ref: pinmux-node.yaml#
+
+        properties:
+          pinmux:
+            description: |
+              The list of GPIOs and their mux settings that properties in the
+              node apply to. This should be set using the PINMUX or PINMUX2
+              macro.
+
+          bias-pull-up:
+            type: boolean
+
+          bias-pull-down:
+            type: boolean
+
+          drive-strength-microamp:
+            description: typical current when output high level.
+
+          input-schmitt-microvolt:
+            description: typical threshold for schmitt trigger.
+
+          power-source:
+            description: power supplies at X mV.
+            enum: [ 1800, 3300 ]
+
+          slew-rate:
+            description: slew rate for output buffer (0 is fast, 1 is slow)
+            enum: [ 0, 1 ]
+
+          bias-bus-hold: true
+
+        required:
+          - pinmux
+          - power-source
+
+        additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - reg-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/pinctrl-cv1800b.h>
+
+    pinctrl@3001000 {
+        compatible = "sophgo,cv1800b-pinctrl";
+        reg = <0x03001000 0x1000>,
+              <0x05027000 0x1000>;
+        reg-names = "sys", "rtc";
+
+        uart0_cfg: uart0-cfg {
+            uart0-pins {
+                pinmux = <PINMUX(PIN_UART0_TX, 0)>,
+                         <PINMUX(PIN_UART0_RX, 0)>;
+                bias-pull-up;
+                drive-strength-microamp = <10800>;
+                input-schmitt-microvolt = <0>;
+                power-source = <3300>;
+                slew-rate = <0>;
+            };
+        };
+    };
+
+...

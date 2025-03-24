@@ -969,6 +969,29 @@ union dp_sink_video_fallback_formats {
 	uint8_t raw;
 };
 
+union dp_receive_port0_cap {
+	struct {
+		uint8_t RESERVED					:1;
+		uint8_t LOCAL_EDID_PRESENT			:1;
+		uint8_t ASSOCIATED_TO_PRECEDING_PORT:1;
+		uint8_t HBLANK_EXPANSION_CAPABLE	:1;
+		uint8_t BUFFER_SIZE_UNIT			:1;
+		uint8_t BUFFER_SIZE_PER_PORT		:1;
+		uint8_t HBLANK_REDUCTION_CAPABLE	:1;
+		uint8_t RESERVED2:1;
+		uint8_t BUFFER_SIZE:8;
+	} bits;
+	uint8_t raw[2];
+};
+
+union dpcd_max_uncompressed_pixel_rate_cap {
+	struct {
+		uint16_t max_uncompressed_pixel_rate_cap	:15;
+		uint16_t valid			:1;
+	} bits;
+	uint8_t raw[2];
+};
+
 union dp_fec_capability1 {
 	struct {
 		uint8_t AGGREGATED_ERROR_COUNTERS_CAPABLE	:1;
@@ -1158,6 +1181,7 @@ struct dpcd_caps {
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
 	int8_t branch_fw_revision[2];
+	int8_t branch_vendor_specific_data[4];
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;
@@ -1170,6 +1194,7 @@ struct dpcd_caps {
 	struct dc_lttpr_caps lttpr_caps;
 	struct adaptive_sync_caps adaptive_sync_caps;
 	struct dpcd_usb4_dp_tunneling_info usb4_dp_tun_info;
+	union dpcd_max_uncompressed_pixel_rate_cap max_uncompressed_pixel_rate_cap;
 
 	union dp_128b_132b_supported_link_rates dp_128b_132b_supported_link_rates;
 	union dp_main_line_channel_coding_cap channel_coding_cap;
@@ -1182,6 +1207,8 @@ struct dpcd_caps {
 	struct edp_psr_info psr_info;
 
 	struct replay_info pr_info;
+	uint16_t edp_oled_emission_rate;
+	union dp_receive_port0_cap receive_port0_cap;
 };
 
 union dpcd_sink_ext_caps {
@@ -1195,7 +1222,7 @@ union dpcd_sink_ext_caps {
 		uint8_t oled : 1;
 		uint8_t reserved_2 : 1;
 		uint8_t miniled : 1;
-		uint8_t reserved : 1;
+		uint8_t emission_output : 1;
 	} bits;
 	uint8_t raw;
 };
@@ -1340,11 +1367,17 @@ struct dp_trace {
 #ifndef DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX
 #define DP_CABLE_ATTRIBUTES_UPDATED_BY_DPTX		0x110
 #endif
+#ifndef DPCD_MAX_UNCOMPRESSED_PIXEL_RATE_CAP
+#define DPCD_MAX_UNCOMPRESSED_PIXEL_RATE_CAP    0x221c
+#endif
 #ifndef DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE
 #define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE	0x50
 #endif
 #ifndef DP_TUNNELING_IRQ
 #define DP_TUNNELING_IRQ				(1 << 5)
+#endif
+#ifndef DP_BRANCH_VENDOR_SPECIFIC_START
+#define DP_BRANCH_VENDOR_SPECIFIC_START     0x50C
 #endif
 /** USB4 DPCD BW Allocation Registers Chapter 10.7 **/
 #ifndef DP_TUNNELING_CAPABILITIES

@@ -138,6 +138,10 @@
 	interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 };
 
+&usbphy1 {
+	compatible = "fsl,imx8dxl-usbphy", "fsl,imx7ulp-usbphy";
+};
+
 &usdhc1 {
 	compatible = "fsl,imx8dxl-usdhc", "fsl,imx8qxp-usdhc";
 	interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;

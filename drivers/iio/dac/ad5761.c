@@ -53,7 +53,6 @@ enum ad5761_supported_device_ids {
 /**
  * struct ad5761_state - driver instance specific data
  * @spi:		spi_device
- * @vref_reg:		reference voltage regulator
  * @use_intref:		true when the internal voltage reference is used
  * @vref:		actual voltage reference in mVolts
  * @range:		output range mode used
@@ -62,7 +61,6 @@ enum ad5761_supported_device_ids {
  */
 struct ad5761_state {
 	struct spi_device		*spi;
-	struct regulator		*vref_reg;
 	struct mutex			lock;
 
 	bool use_intref;
@@ -287,63 +285,6 @@ static const struct ad5761_chip_info ad5761_chip_infos[] = {
 	},
 };
 
-static int ad5761_get_vref(struct ad5761_state *st,
-			   const struct ad5761_chip_info *chip_info)
-{
-	int ret;
-
-	st->vref_reg = devm_regulator_get_optional(&st->spi->dev, "vref");
-	if (PTR_ERR(st->vref_reg) == -ENODEV) {
-		/* Use Internal regulator */
-		if (!chip_info->int_vref) {
-			dev_err(&st->spi->dev,
-				"Voltage reference not found\n");
-			return -EIO;
-		}
-
-		st->use_intref = true;
-		st->vref = chip_info->int_vref;
-		return 0;
-	}
-
-	if (IS_ERR(st->vref_reg)) {
-		dev_err(&st->spi->dev,
-			"Error getting voltage reference regulator\n");
-		return PTR_ERR(st->vref_reg);
-	}
-
-	ret = regulator_enable(st->vref_reg);
-	if (ret) {
-		dev_err(&st->spi->dev,
-			 "Failed to enable voltage reference\n");
-		return ret;
-	}
-
-	ret = regulator_get_voltage(st->vref_reg);
-	if (ret < 0) {
-		dev_err(&st->spi->dev,
-			 "Failed to get voltage reference value\n");
-		goto disable_regulator_vref;
-	}
-
-	if (ret < 2000000 || ret > 3000000) {
-		dev_warn(&st->spi->dev,
-			 "Invalid external voltage ref. value %d uV\n", ret);
-		ret = -EIO;
-		goto disable_regulator_vref;
-	}
-
-	st->vref = ret / 1000;
-	st->use_intref = false;
-
-	return 0;
-
-disable_regulator_vref:
-	regulator_disable(st->vref_reg);
-	st->vref_reg = NULL;
-	return ret;
-}
-
 static int ad5761_probe(struct spi_device *spi)
 {
 	struct iio_dev *iio_dev;
@@ -361,11 +302,28 @@ static int ad5761_probe(struct spi_device *spi)
 	st = iio_priv(iio_dev);
 
 	st->spi = spi;
-	spi_set_drvdata(spi, iio_dev);
 
-	ret = ad5761_get_vref(st, chip_info);
-	if (ret)
-		return ret;
+	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vref");
+	if (ret < 0 && ret != -ENODEV)
+		return dev_err_probe(&spi->dev, ret,
+			"Failed to get voltage reference value\n");
+	if (ret == -ENODEV) {
+		/* Use Internal regulator */
+		if (!chip_info->int_vref)
+			return dev_err_probe(&spi->dev, -EIO,
+				"Voltage reference not found\n");
+
+		st->use_intref = true;
+		st->vref = chip_info->int_vref;
+	} else {
+		if (ret < 2000000 || ret > 3000000)
+			return dev_err_probe(&spi->dev, -EIO,
+				 "Invalid external voltage ref. value %d uV\n",
+				 ret);
+
+		st->use_intref = false;
+		st->vref = ret / 1000;
+	}
 
 	if (pdata)
 		voltage_range = pdata->voltage_range;
@@ -374,35 +332,15 @@ static int ad5761_probe(struct spi_device *spi)
 
 	ret = ad5761_spi_set_range(st, voltage_range);
 	if (ret)
-		goto disable_regulator_err;
+		return ret;
 
 	iio_dev->info = &ad5761_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
 	iio_dev->channels = &chip_info->channel;
 	iio_dev->num_channels = 1;
 	iio_dev->name = spi_get_device_id(st->spi)->name;
-	ret = iio_device_register(iio_dev);
-	if (ret)
-		goto disable_regulator_err;
 
-	return 0;
-
-disable_regulator_err:
-	if (!IS_ERR_OR_NULL(st->vref_reg))
-		regulator_disable(st->vref_reg);
-
-	return ret;
-}
-
-static void ad5761_remove(struct spi_device *spi)
-{
-	struct iio_dev *iio_dev = spi_get_drvdata(spi);
-	struct ad5761_state *st = iio_priv(iio_dev);
-
-	iio_device_unregister(iio_dev);
-
-	if (!IS_ERR_OR_NULL(st->vref_reg))
-		regulator_disable(st->vref_reg);
+	return devm_iio_device_register(&spi->dev, iio_dev);
 }
 
 static const struct spi_device_id ad5761_id[] = {
@@ -419,7 +357,6 @@ static struct spi_driver ad5761_driver = {
 		   .name = "ad5761",
 		   },
 	.probe = ad5761_probe,
-	.remove = ad5761_remove,
 	.id_table = ad5761_id,
 };
 module_spi_driver(ad5761_driver);

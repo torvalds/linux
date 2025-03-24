@@ -51,10 +51,7 @@
 #define LINUX_MPTLAN_H_INCLUDED
 /*****************************************************************************/
 
-#if !defined(__GENKSYMS__)
 #include <linux/module.h>
-#endif
-
 #include <linux/netdevice.h>
 #include <linux/errno.h>
 // #include <linux/etherdevice.h>

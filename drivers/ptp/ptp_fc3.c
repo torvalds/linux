@@ -18,7 +18,7 @@
 #include <linux/bitfield.h>
 #include <linux/mfd/rsmu.h>
 #include <linux/mfd/idtRC38xxx_reg.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ptp_private.h"
 #include "ptp_fc3.h"
@@ -986,11 +986,6 @@ static int idtfc3_probe(struct platform_device *pdev)
 
 	mutex_unlock(idtfc3->lock);
 
-	if (err) {
-		ptp_clock_unregister(idtfc3->ptp_clock);
-		return err;
-	}
-
 	platform_set_drvdata(pdev, idtfc3);
 
 	return 0;
@@ -1008,7 +1003,7 @@ static struct platform_driver idtfc3_driver = {
 		.name = "rc38xxx-phc",
 	},
 	.probe = idtfc3_probe,
-	.remove_new = idtfc3_remove,
+	.remove = idtfc3_remove,
 };
 
 module_platform_driver(idtfc3_driver);

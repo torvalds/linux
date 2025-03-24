@@ -47,9 +47,11 @@
 #include "dce/dmub_outbox.h"
 #include "link.h"
 #include "dcn10/dcn10_hwseq.h"
+#include "dcn21/dcn21_hwseq.h"
 #include "inc/link_enc_cfg.h"
 #include "dcn30/dcn30_vpg.h"
 #include "dce/dce_i2c_hw.h"
+#include "dce/dmub_abm_lcd.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -256,10 +258,10 @@ void dcn31_init_hw(struct dc *dc)
 	if (!dcb->funcs->is_accelerated_mode(dcb) && dc->res_pool->hubbub->funcs->init_watermarks)
 		dc->res_pool->hubbub->funcs->init_watermarks(dc->res_pool->hubbub);
 
-	if (dc->clk_mgr->funcs->notify_wm_ranges)
+	if (dc->clk_mgr && dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
 
-	if (dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
+	if (dc->clk_mgr && dc->clk_mgr->funcs->set_hard_max_memclk && !dc->clk_mgr->dc_mode_softmax_enabled)
 		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
 
 	if (dc->res_pool->hubbub->funcs->force_pstate_change_control)
@@ -517,10 +519,18 @@ static void dcn31_reset_back_end_for_pipe(
 
 	dc->hwss.set_abm_immediate_disable(pipe_ctx);
 
+	link = pipe_ctx->stream->link;
+
+	if ((!pipe_ctx->stream->dpms_off || link->link_status.link_active) &&
+		(link->connector_signal == SIGNAL_TYPE_EDP))
+		dc->hwss.blank_stream(pipe_ctx);
+
 	pipe_ctx->stream_res.tg->funcs->set_dsc_config(
 			pipe_ctx->stream_res.tg,
 			OPTC_DSC_DISABLED, 0, 0);
+
 	pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
+
 	pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
 	if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
@@ -532,7 +542,6 @@ static void dcn31_reset_back_end_for_pipe(
 		pipe_ctx->stream_res.tg->funcs->set_drr(
 				pipe_ctx->stream_res.tg, NULL);
 
-	link = pipe_ctx->stream->link;
 	/* DPMS may already disable or */
 	/* dpms_off status is incorrect due to fastboot
 	 * feature. When system resume from S4 with second
@@ -632,4 +641,52 @@ void dcn31_set_static_screen_control(struct pipe_ctx **pipe_ctx,
 	for (i = 0; i < num_pipes; i++)
 		pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(pipe_ctx[i]->stream_res.tg,
 					triggers, params->num_frames);
+}
+
+static void dmub_abm_set_backlight(struct dc_context *dc,
+	struct set_backlight_level_params *backlight_level_params, uint32_t panel_inst)
+{
+	union dmub_rb_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.abm_set_backlight.header.type = DMUB_CMD__ABM;
+	cmd.abm_set_backlight.header.sub_type = DMUB_CMD__ABM_SET_BACKLIGHT;
+	cmd.abm_set_backlight.abm_set_backlight_data.frame_ramp = backlight_level_params->frame_ramp;
+	cmd.abm_set_backlight.abm_set_backlight_data.backlight_user_level = backlight_level_params->backlight_pwm_u16_16;
+	cmd.abm_set_backlight.abm_set_backlight_data.backlight_control_type =
+		(enum dmub_backlight_control_type) backlight_level_params->control_type;
+	cmd.abm_set_backlight.abm_set_backlight_data.min_luminance = backlight_level_params->min_luminance;
+	cmd.abm_set_backlight.abm_set_backlight_data.max_luminance = backlight_level_params->max_luminance;
+	cmd.abm_set_backlight.abm_set_backlight_data.min_backlight_pwm = backlight_level_params->min_backlight_pwm;
+	cmd.abm_set_backlight.abm_set_backlight_data.max_backlight_pwm = backlight_level_params->max_backlight_pwm;
+	cmd.abm_set_backlight.abm_set_backlight_data.version = DMUB_CMD_ABM_CONTROL_VERSION_1;
+	cmd.abm_set_backlight.abm_set_backlight_data.panel_mask = (0x01 << panel_inst);
+	cmd.abm_set_backlight.header.payload_bytes = sizeof(struct dmub_cmd_abm_set_backlight_data);
+
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+bool dcn31_set_backlight_level(struct pipe_ctx *pipe_ctx,
+	struct set_backlight_level_params *backlight_level_params)
+{
+	struct dc_context *dc = pipe_ctx->stream->ctx;
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+	uint32_t otg_inst;
+
+	if (!abm || !tg || !panel_cntl)
+		return false;
+
+	otg_inst = tg->inst;
+
+		dcn21_dmub_abm_set_pipe(abm,
+			otg_inst,
+			SET_ABM_PIPE_NORMAL,
+			panel_cntl->inst,
+			panel_cntl->pwrseq_inst);
+
+	dmub_abm_set_backlight(dc, backlight_level_params, panel_cntl->inst);
+
+	return true;
 }

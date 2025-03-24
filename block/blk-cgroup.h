@@ -225,7 +225,9 @@ void blkg_conf_exit(struct blkg_conf_ctx *ctx);
 
 /**
  * bio_issue_as_root_blkg - see if this bio needs to be issued as root blkg
- * @return: true if this bio needs to be submitted with the root blkg context.
+ * @bio: the target &bio
+ *
+ * Return: true if this bio needs to be submitted with the root blkg context.
  *
  * In order to avoid priority inversions we sometimes need to issue a bio as if
  * it were attached to the root blkg, and then backcharge to the actual owning
@@ -245,7 +247,7 @@ static inline bool bio_issue_as_root_blkg(struct bio *bio)
  * @q: request_queue of interest
  *
  * Lookup blkg for the @blkcg - @q pair.
-
+ *
  * Must be called in a RCU critical section.
  */
 static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
@@ -268,7 +270,7 @@ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
 }
 
 /**
- * blkg_to_pdata - get policy private data
+ * blkg_to_pd - get policy private data
  * @blkg: blkg of interest
  * @pol: policy of interest
  *
@@ -287,7 +289,7 @@ static inline struct blkcg_policy_data *blkcg_to_cpd(struct blkcg *blkcg,
 }
 
 /**
- * pdata_to_blkg - get blkg associated with policy private data
+ * pd_to_blkg - get blkg associated with policy private data
  * @pd: policy private data of interest
  *
  * @pd is policy private data.  Determine the blkg it's associated with.
@@ -485,7 +487,6 @@ static inline void blkcg_deactivate_policy(struct gendisk *disk,
 static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
 						  struct blkcg_policy *pol) { return NULL; }
 static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd) { return NULL; }
-static inline char *blkg_path(struct blkcg_gq *blkg) { return NULL; }
 static inline void blkg_get(struct blkcg_gq *blkg) { }
 static inline void blkg_put(struct blkcg_gq *blkg) { }
 static inline void blkcg_bio_issue_init(struct bio *bio) { }

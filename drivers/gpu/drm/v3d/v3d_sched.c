@@ -5,16 +5,16 @@
  * DOC: Broadcom V3D scheduling
  *
  * The shared DRM GPU scheduler is used to coordinate submitting jobs
- * to the hardware.  Each DRM fd (roughly a client process) gets its
- * own scheduler entity, which will process jobs in order.  The GPU
- * scheduler will round-robin between clients to submit the next job.
+ * to the hardware. Each DRM fd (roughly a client process) gets its
+ * own scheduler entity, which will process jobs in order. The GPU
+ * scheduler will schedule the clients with a FIFO scheduling algorithm.
  *
  * For simplicity, and in order to keep latency low for interactive
  * jobs when bulk background jobs are queued up, we submit a new job
  * to the HW only when it has completed the last one, instead of
- * filling up the CT[01]Q FIFOs with jobs.  Similarly, we use
- * drm_sched_job_add_dependency() to manage the dependency between bin and
- * render, instead of having the clients submit jobs using the HW's
+ * filling up the CT[01]Q FIFOs with jobs. Similarly, we use
+ * `drm_sched_job_add_dependency()` to manage the dependency between bin
+ * and render, instead of having the clients submit jobs using the HW's
  * semaphores to interlock between them.
  */
 
@@ -94,8 +94,10 @@ v3d_performance_query_info_free(struct v3d_performance_query_info *query_info,
 	if (query_info->queries) {
 		unsigned int i;
 
-		for (i = 0; i < count; i++)
+		for (i = 0; i < count; i++) {
 			drm_syncobj_put(query_info->queries[i].syncobj);
+			kvfree(query_info->queries[i].kperfmon_ids);
+		}
 
 		kvfree(query_info->queries);
 	}
@@ -118,11 +120,19 @@ v3d_cpu_job_free(struct drm_sched_job *sched_job)
 static void
 v3d_switch_perfmon(struct v3d_dev *v3d, struct v3d_job *job)
 {
-	if (job->perfmon != v3d->active_perfmon)
+	struct v3d_perfmon *perfmon = v3d->global_perfmon;
+
+	if (!perfmon)
+		perfmon = job->perfmon;
+
+	if (perfmon == v3d->active_perfmon)
+		return;
+
+	if (perfmon != v3d->active_perfmon)
 		v3d_perfmon_stop(v3d, v3d->active_perfmon, true);
 
-	if (job->perfmon && v3d->active_perfmon != job->perfmon)
-		v3d_perfmon_start(v3d, job->perfmon);
+	if (perfmon && v3d->active_perfmon != perfmon)
+		v3d_perfmon_start(v3d, perfmon);
 }
 
 static void
@@ -133,6 +143,31 @@ v3d_job_start_stats(struct v3d_job *job, enum v3d_queue queue)
 	struct v3d_stats *global_stats = &v3d->queue[queue].stats;
 	struct v3d_stats *local_stats = &file->stats[queue];
 	u64 now = local_clock();
+	unsigned long flags;
+
+	/*
+	 * We only need to disable local interrupts to appease lockdep who
+	 * otherwise would think v3d_job_start_stats vs v3d_stats_update has an
+	 * unsafe in-irq vs no-irq-off usage problem. This is a false positive
+	 * because all the locks are per queue and stats type, and all jobs are
+	 * completely one at a time serialised. More specifically:
+	 *
+	 * 1. Locks for GPU queues are updated from interrupt handlers under a
+	 *    spin lock and started here with preemption disabled.
+	 *
+	 * 2. Locks for CPU queues are updated from the worker with preemption
+	 *    disabled and equally started here with preemption disabled.
+	 *
+	 * Therefore both are consistent.
+	 *
+	 * 3. Because next job can only be queued after the previous one has
+	 *    been signaled, and locks are per queue, there is also no scope for
+	 *    the start part to race with the update part.
+	 */
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		local_irq_save(flags);
+	else
+		preempt_disable();
 
 	write_seqcount_begin(&local_stats->lock);
 	local_stats->start_ns = now;
@@ -141,6 +176,11 @@ v3d_job_start_stats(struct v3d_job *job, enum v3d_queue queue)
 	write_seqcount_begin(&global_stats->lock);
 	global_stats->start_ns = now;
 	write_seqcount_end(&global_stats->lock);
+
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		local_irq_restore(flags);
+	else
+		preempt_enable();
 }
 
 static void
@@ -161,9 +201,21 @@ v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue)
 	struct v3d_stats *global_stats = &v3d->queue[queue].stats;
 	struct v3d_stats *local_stats = &file->stats[queue];
 	u64 now = local_clock();
+	unsigned long flags;
+
+	/* See comment in v3d_job_start_stats() */
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		local_irq_save(flags);
+	else
+		preempt_disable();
 
 	v3d_stats_update(local_stats, now);
 	v3d_stats_update(global_stats, now);
+
+	if (IS_ENABLED(CONFIG_LOCKDEP))
+		local_irq_restore(flags);
+	else
+		preempt_enable();
 }
 
 static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
@@ -174,8 +226,12 @@ static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
 	struct dma_fence *fence;
 	unsigned long irqflags;
 
-	if (unlikely(job->base.base.s_fence->finished.error))
+	if (unlikely(job->base.base.s_fence->finished.error)) {
+		spin_lock_irqsave(&v3d->job_lock, irqflags);
+		v3d->bin_job = NULL;
+		spin_unlock_irqrestore(&v3d->job_lock, irqflags);
 		return NULL;
+	}
 
 	/* Lock required around bin_job update vs
 	 * v3d_overflow_mem_work().
@@ -229,8 +285,10 @@ static struct dma_fence *v3d_render_job_run(struct drm_sched_job *sched_job)
 	struct drm_device *dev = &v3d->drm;
 	struct dma_fence *fence;
 
-	if (unlikely(job->base.base.s_fence->finished.error))
+	if (unlikely(job->base.base.s_fence->finished.error)) {
+		v3d->render_job = NULL;
 		return NULL;
+	}
 
 	v3d->render_job = job;
 
@@ -275,11 +333,17 @@ v3d_tfu_job_run(struct drm_sched_job *sched_job)
 	struct drm_device *dev = &v3d->drm;
 	struct dma_fence *fence;
 
+	if (unlikely(job->base.base.s_fence->finished.error)) {
+		v3d->tfu_job = NULL;
+		return NULL;
+	}
+
+	v3d->tfu_job = job;
+
 	fence = v3d_fence_create(v3d, V3D_TFU);
 	if (IS_ERR(fence))
 		return NULL;
 
-	v3d->tfu_job = job;
 	if (job->base.irq_fence)
 		dma_fence_put(job->base.irq_fence);
 	job->base.irq_fence = dma_fence_get(fence);
@@ -315,7 +379,12 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 	struct v3d_dev *v3d = job->base.v3d;
 	struct drm_device *dev = &v3d->drm;
 	struct dma_fence *fence;
-	int i, csd_cfg0_reg, csd_cfg_reg_count;
+	int i, csd_cfg0_reg;
+
+	if (unlikely(job->base.base.s_fence->finished.error)) {
+		v3d->csd_job = NULL;
+		return NULL;
+	}
 
 	v3d->csd_job = job;
 
@@ -335,9 +404,17 @@ v3d_csd_job_run(struct drm_sched_job *sched_job)
 	v3d_switch_perfmon(v3d, &job->base);
 
 	csd_cfg0_reg = V3D_CSD_QUEUED_CFG0(v3d->ver);
-	csd_cfg_reg_count = v3d->ver < 71 ? 6 : 7;
-	for (i = 1; i <= csd_cfg_reg_count; i++)
+	for (i = 1; i <= 6; i++)
 		V3D_CORE_WRITE(0, csd_cfg0_reg + 4 * i, job->args.cfg[i]);
+
+	/* Although V3D 7.1 has an eighth configuration register, we are not
+	 * using it. Therefore, make sure it remains unused.
+	 *
+	 * XXX: Set the CFG7 register
+	 */
+	if (v3d->ver >= 71)
+		V3D_CORE_WRITE(0, V3D_V7_CSD_QUEUED_CFG7, 0);
+
 	/* CFG0 write kicks off the job. */
 	V3D_CORE_WRITE(0, csd_cfg0_reg, job->args.cfg[0]);
 
@@ -351,8 +428,7 @@ v3d_rewrite_csd_job_wg_counts_from_indirect(struct v3d_cpu_job *job)
 	struct v3d_bo *bo = to_v3d_bo(job->base.bo[0]);
 	struct v3d_bo *indirect = to_v3d_bo(indirect_csd->indirect);
 	struct drm_v3d_submit_csd *args = &indirect_csd->job->args;
-	struct v3d_dev *v3d = job->base.v3d;
-	u32 num_batches, *wg_counts;
+	u32 *wg_counts;
 
 	v3d_get_bo_vaddr(bo);
 	v3d_get_bo_vaddr(indirect);
@@ -365,17 +441,8 @@ v3d_rewrite_csd_job_wg_counts_from_indirect(struct v3d_cpu_job *job)
 	args->cfg[0] = wg_counts[0] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
 	args->cfg[1] = wg_counts[1] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
 	args->cfg[2] = wg_counts[2] << V3D_CSD_CFG012_WG_COUNT_SHIFT;
-
-	num_batches = DIV_ROUND_UP(indirect_csd->wg_size, 16) *
-		      (wg_counts[0] * wg_counts[1] * wg_counts[2]);
-
-	/* V3D 7.1.6 and later don't subtract 1 from the number of batches */
-	if (v3d->ver < 71 || (v3d->ver == 71 && v3d->rev < 6))
-		args->cfg[4] = num_batches - 1;
-	else
-		args->cfg[4] = num_batches;
-
-	WARN_ON(args->cfg[4] == ~0);
+	args->cfg[4] = DIV_ROUND_UP(indirect_csd->wg_size, 16) *
+		       (wg_counts[0] * wg_counts[1] * wg_counts[2]) - 1;
 
 	for (int i = 0; i < 3; i++) {
 		/* 0xffffffff indicates that the uniform rewrite is not needed */
@@ -429,18 +496,23 @@ v3d_reset_timestamp_queries(struct v3d_cpu_job *job)
 	v3d_put_bo_vaddr(bo);
 }
 
-static void
-write_to_buffer(void *dst, u32 idx, bool do_64bit, u64 value)
+static void write_to_buffer_32(u32 *dst, unsigned int idx, u32 value)
 {
-	if (do_64bit) {
-		u64 *dst64 = (u64 *)dst;
+	dst[idx] = value;
+}
 
-		dst64[idx] = value;
-	} else {
-		u32 *dst32 = (u32 *)dst;
+static void write_to_buffer_64(u64 *dst, unsigned int idx, u64 value)
+{
+	dst[idx] = value;
+}
 
-		dst32[idx] = (u32)value;
-	}
+static void
+write_to_buffer(void *dst, unsigned int idx, bool do_64bit, u64 value)
+{
+	if (do_64bit)
+		write_to_buffer_64(dst, idx, value);
+	else
+		write_to_buffer_32(dst, idx, value);
 }
 
 static void
@@ -513,18 +585,24 @@ v3d_reset_performance_queries(struct v3d_cpu_job *job)
 }
 
 static void
-v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data, u32 query)
+v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data,
+				   unsigned int query)
 {
-	struct v3d_performance_query_info *performance_query = &job->performance_query;
-	struct v3d_copy_query_results_info *copy = &job->copy;
+	struct v3d_performance_query_info *performance_query =
+						&job->performance_query;
 	struct v3d_file_priv *v3d_priv = job->base.file->driver_priv;
+	struct v3d_performance_query *perf_query =
+			&performance_query->queries[query];
 	struct v3d_dev *v3d = job->base.v3d;
-	struct v3d_perfmon *perfmon;
-	u64 counter_values[V3D_MAX_COUNTERS];
+	unsigned int i, j, offset;
 
-	for (int i = 0; i < performance_query->nperfmons; i++) {
+	for (i = 0, offset = 0;
+	     i < performance_query->nperfmons;
+	     i++, offset += DRM_V3D_MAX_PERF_COUNTERS) {
+		struct v3d_perfmon *perfmon;
+
 		perfmon = v3d_perfmon_find(v3d_priv,
-					   performance_query->queries[query].kperfmon_ids[i]);
+					   perf_query->kperfmon_ids[i]);
 		if (!perfmon) {
 			DRM_DEBUG("Failed to find perfmon.");
 			continue;
@@ -532,14 +610,18 @@ v3d_write_performance_query_result(struct v3d_cpu_job *job, void *data, u32 quer
 
 		v3d_perfmon_stop(v3d, perfmon, true);
 
-		memcpy(&counter_values[i * DRM_V3D_MAX_PERF_COUNTERS], perfmon->values,
-		       perfmon->ncounters * sizeof(u64));
+		if (job->copy.do_64bit) {
+			for (j = 0; j < perfmon->ncounters; j++)
+				write_to_buffer_64(data, offset + j,
+						   perfmon->values[j]);
+		} else {
+			for (j = 0; j < perfmon->ncounters; j++)
+				write_to_buffer_32(data, offset + j,
+						   perfmon->values[j]);
+		}
 
 		v3d_perfmon_put(perfmon);
 	}
-
-	for (int i = 0; i < performance_query->ncounters; i++)
-		write_to_buffer(data, i, copy->do_64bit, counter_values[i]);
 }
 
 static void
@@ -646,7 +728,7 @@ v3d_gpu_reset_for_timeout(struct v3d_dev *v3d, struct drm_sched_job *sched_job)
 
 	/* Unblock schedulers and restart their jobs. */
 	for (q = 0; q < V3D_MAX_QUEUES; q++) {
-		drm_sched_start(&v3d->queue[q].sched, true);
+		drm_sched_start(&v3d->queue[q].sched, 0);
 	}
 
 	mutex_unlock(&v3d->reset_lock);

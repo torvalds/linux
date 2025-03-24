@@ -89,4 +89,4 @@ module_spi_driver(mpr_spi_driver);
 MODULE_AUTHOR("Petre Rodan <petre.rodan@subdimension.ro>");
 MODULE_DESCRIPTION("Honeywell MPR pressure sensor spi driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_HONEYWELL_MPRLS0025PA);
+MODULE_IMPORT_NS("IIO_HONEYWELL_MPRLS0025PA");

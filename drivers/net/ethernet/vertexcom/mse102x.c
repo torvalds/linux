@@ -222,7 +222,7 @@ static int mse102x_tx_frame_spi(struct mse102x_net *mse, struct sk_buff *txp,
 	struct mse102x_net_spi *mses = to_mse102x_spi(mse);
 	struct spi_transfer *xfer = &mses->spi_xfer;
 	struct spi_message *msg = &mses->spi_msg;
-	struct sk_buff *tskb;
+	struct sk_buff *tskb = NULL;
 	int ret;
 
 	netif_dbg(mse, tx_queued, mse->ndev, "%s: skb %p, %d@%p\n",
@@ -235,7 +235,6 @@ static int mse102x_tx_frame_spi(struct mse102x_net *mse, struct sk_buff *txp,
 		if (!tskb)
 			return -ENOMEM;
 
-		dev_kfree_skb(txp);
 		txp = tskb;
 	}
 
@@ -256,6 +255,8 @@ static int mse102x_tx_frame_spi(struct mse102x_net *mse, struct sk_buff *txp,
 			   __func__, ret);
 		mse->stats.xfer_err++;
 	}
+
+	dev_kfree_skb(tskb);
 
 	return ret;
 }
@@ -377,8 +378,8 @@ static int mse102x_tx_pkt_spi(struct mse102x_net *mse, struct sk_buff *txb,
 	int ret;
 	bool first = true;
 
-	if (txb->len < 60)
-		pad = 60 - txb->len;
+	if (txb->len < ETH_ZLEN)
+		pad = ETH_ZLEN - txb->len;
 
 	while (1) {
 		mse102x_tx_cmd_spi(mse, CMD_RTS | (txb->len + pad));
@@ -436,13 +437,15 @@ static void mse102x_tx_work(struct work_struct *work)
 	mse = &mses->mse102x;
 
 	while ((txb = skb_dequeue(&mse->txq))) {
+		unsigned int len = max_t(unsigned int, txb->len, ETH_ZLEN);
+
 		mutex_lock(&mses->lock);
 		ret = mse102x_tx_pkt_spi(mse, txb, work_timeout);
 		mutex_unlock(&mses->lock);
 		if (ret) {
 			mse->ndev->stats.tx_dropped++;
 		} else {
-			mse->ndev->stats.tx_bytes += txb->len;
+			mse->ndev->stats.tx_bytes += len;
 			mse->ndev->stats.tx_packets++;
 		}
 
@@ -451,7 +454,7 @@ static void mse102x_tx_work(struct work_struct *work)
 
 	if (ret == -ETIMEDOUT) {
 		if (netif_msg_timer(mse))
-			netdev_err(mse->ndev, "tx work timeout\n");
+			netdev_err_once(mse->ndev, "tx work timeout\n");
 
 		mse->stats.tx_timeout++;
 	}
@@ -485,8 +488,8 @@ static void mse102x_init_mac(struct mse102x_net *mse, struct device_node *np)
 
 	if (ret) {
 		eth_hw_addr_random(ndev);
-		netdev_err(ndev, "Using random MAC address: %pM\n",
-			   ndev->dev_addr);
+		dev_warn(ndev->dev.parent, "Using random MAC address: %pM\n",
+			 ndev->dev_addr);
 	}
 }
 
@@ -622,8 +625,6 @@ static const struct ethtool_ops mse102x_ethtool_ops = {
 
 /* driver bus management functions */
 
-#ifdef CONFIG_PM_SLEEP
-
 static int mse102x_suspend(struct device *dev)
 {
 	struct mse102x_net *mse = dev_get_drvdata(dev);
@@ -649,9 +650,8 @@ static int mse102x_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(mse102x_pm_ops, mse102x_suspend, mse102x_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(mse102x_pm_ops, mse102x_suspend, mse102x_resume);
 
 static int mse102x_probe_spi(struct spi_device *spi)
 {
@@ -736,9 +736,6 @@ static void mse102x_remove_spi(struct spi_device *spi)
 	struct mse102x_net *mse = dev_get_drvdata(&spi->dev);
 	struct mse102x_net_spi *mses = to_mse102x_spi(mse);
 
-	if (netif_msg_drv(mse))
-		dev_info(&spi->dev, "remove\n");
-
 	mse102x_remove_device_debugfs(mses);
 	unregister_netdev(mse->ndev);
 }
@@ -761,7 +758,7 @@ static struct spi_driver mse102x_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = mse102x_match_table,
-		.pm = &mse102x_pm_ops,
+		.pm = pm_sleep_ptr(&mse102x_pm_ops),
 	},
 	.probe = mse102x_probe_spi,
 	.remove = mse102x_remove_spi,

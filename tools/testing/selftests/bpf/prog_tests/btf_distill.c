@@ -385,7 +385,7 @@ static void test_distilled_base_missing_err(void)
 		"[2] INT 'int' size=8 bits_offset=0 nr_bits=64 encoding=SIGNED");
 	btf5 = btf__new_empty();
 	if (!ASSERT_OK_PTR(btf5, "empty_reloc_btf"))
-		return;
+		goto cleanup;
 	btf__add_int(btf5, "int", 4, BTF_INT_SIGNED);   /* [1] int */
 	VALIDATE_RAW_BTF(
 		btf5,
@@ -478,7 +478,7 @@ static void test_distilled_base_multi_err2(void)
 		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED");
 	btf5 = btf__new_empty();
 	if (!ASSERT_OK_PTR(btf5, "empty_reloc_btf"))
-		return;
+		goto cleanup;
 	btf__add_int(btf5, "int", 4, BTF_INT_SIGNED);   /* [1] int */
 	btf__add_int(btf5, "int", 4, BTF_INT_SIGNED);   /* [2] int */
 	VALIDATE_RAW_BTF(
@@ -535,6 +535,142 @@ cleanup:
 	btf__free(vmlinux_btf);
 }
 
+/* Split and new base BTFs should inherit endianness from source BTF. */
+static void test_distilled_endianness(void)
+{
+	struct btf *base = NULL, *split = NULL, *new_base = NULL, *new_split = NULL;
+	struct btf *new_base1 = NULL, *new_split1 = NULL;
+	enum btf_endianness inverse_endianness;
+	const void *raw_data;
+	__u32 size;
+
+	base = btf__new_empty();
+	if (!ASSERT_OK_PTR(base, "empty_main_btf"))
+		return;
+	inverse_endianness = btf__endianness(base) == BTF_LITTLE_ENDIAN ? BTF_BIG_ENDIAN
+									: BTF_LITTLE_ENDIAN;
+	btf__set_endianness(base, inverse_endianness);
+	btf__add_int(base, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	VALIDATE_RAW_BTF(
+		base,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED");
+	split = btf__new_empty_split(base);
+	if (!ASSERT_OK_PTR(split, "empty_split_btf"))
+		goto cleanup;
+	btf__add_ptr(split, 1);
+	VALIDATE_RAW_BTF(
+		split,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1");
+	if (!ASSERT_EQ(0, btf__distill_base(split, &new_base, &new_split),
+		       "distilled_base") ||
+	    !ASSERT_OK_PTR(new_base, "distilled_base") ||
+	    !ASSERT_OK_PTR(new_split, "distilled_split") ||
+	    !ASSERT_EQ(2, btf__type_cnt(new_base), "distilled_base_type_cnt"))
+		goto cleanup;
+	VALIDATE_RAW_BTF(
+		new_split,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1");
+
+	raw_data = btf__raw_data(new_base, &size);
+	if (!ASSERT_OK_PTR(raw_data, "btf__raw_data #1"))
+		goto cleanup;
+	new_base1 = btf__new(raw_data, size);
+	if (!ASSERT_OK_PTR(new_base1, "new_base1 = btf__new()"))
+		goto cleanup;
+	raw_data = btf__raw_data(new_split, &size);
+	if (!ASSERT_OK_PTR(raw_data, "btf__raw_data #2"))
+		goto cleanup;
+	new_split1 = btf__new_split(raw_data, size, new_base1);
+	if (!ASSERT_OK_PTR(new_split1, "new_split1 = btf__new()"))
+		goto cleanup;
+
+	ASSERT_EQ(btf__endianness(new_base1), inverse_endianness, "new_base1 endianness");
+	ASSERT_EQ(btf__endianness(new_split1), inverse_endianness, "new_split1 endianness");
+	VALIDATE_RAW_BTF(
+		new_split1,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] PTR '(anon)' type_id=1");
+cleanup:
+	btf__free(new_split1);
+	btf__free(new_base1);
+	btf__free(new_split);
+	btf__free(new_base);
+	btf__free(split);
+	btf__free(base);
+}
+
+/* If a needed composite type, which is the member of composite type
+ * in the split BTF, has a different size in the base BTF we wish to
+ * relocate with, btf__relocate() should error out.
+ */
+static void test_distilled_base_embedded_err(void)
+{
+	struct btf *btf1 = NULL, *btf2 = NULL, *btf3 = NULL, *btf4 = NULL, *btf5 = NULL;
+
+	btf1 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf1, "empty_main_btf"))
+		return;
+
+	btf__add_int(btf1, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	btf__add_struct(btf1, "s1", 4);                 /* [2] struct s1 { */
+	btf__add_field(btf1, "f1", 1, 0, 0);            /*      int f1; */
+							/* } */
+	VALIDATE_RAW_BTF(
+		btf1,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] STRUCT 's1' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0");
+
+	btf2 = btf__new_empty_split(btf1);
+	if (!ASSERT_OK_PTR(btf2, "empty_split_btf"))
+		goto cleanup;
+
+	btf__add_struct(btf2, "with_embedded", 8);      /* [3] struct with_embedded { */
+	btf__add_field(btf2, "e1", 2, 0, 0);		/*      struct s1 e1; */
+							/* } */
+
+	VALIDATE_RAW_BTF(
+		btf2,
+		"[1] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED",
+		"[2] STRUCT 's1' size=4 vlen=1\n"
+		"\t'f1' type_id=1 bits_offset=0",
+		"[3] STRUCT 'with_embedded' size=8 vlen=1\n"
+		"\t'e1' type_id=2 bits_offset=0");
+
+	if (!ASSERT_EQ(0, btf__distill_base(btf2, &btf3, &btf4),
+		       "distilled_base") ||
+	    !ASSERT_OK_PTR(btf3, "distilled_base") ||
+	    !ASSERT_OK_PTR(btf4, "distilled_split") ||
+	    !ASSERT_EQ(2, btf__type_cnt(btf3), "distilled_base_type_cnt"))
+		goto cleanup;
+
+	VALIDATE_RAW_BTF(
+		btf4,
+		"[1] STRUCT 's1' size=4 vlen=0",
+		"[2] STRUCT 'with_embedded' size=8 vlen=1\n"
+		"\t'e1' type_id=1 bits_offset=0");
+
+	btf5 = btf__new_empty();
+	if (!ASSERT_OK_PTR(btf5, "empty_reloc_btf"))
+		goto cleanup;
+
+	btf__add_int(btf5, "int", 4, BTF_INT_SIGNED);   /* [1] int */
+	/* struct with the same name but different size */
+	btf__add_struct(btf5, "s1", 8);                 /* [2] struct s1 { */
+	btf__add_field(btf5, "f1", 1, 0, 0);            /*      int f1; */
+							/* } */
+
+	ASSERT_EQ(btf__relocate(btf4, btf5), -EINVAL, "relocate_split");
+cleanup:
+	btf__free(btf5);
+	btf__free(btf4);
+	btf__free(btf3);
+	btf__free(btf2);
+	btf__free(btf1);
+}
+
 void test_btf_distill(void)
 {
 	if (test__start_subtest("distilled_base"))
@@ -547,6 +683,10 @@ void test_btf_distill(void)
 		test_distilled_base_multi_err();
 	if (test__start_subtest("distilled_base_multi_err2"))
 		test_distilled_base_multi_err2();
+	if (test__start_subtest("distilled_base_embedded_err"))
+		test_distilled_base_embedded_err();
 	if (test__start_subtest("distilled_base_vmlinux"))
 		test_distilled_base_vmlinux();
+	if (test__start_subtest("distilled_endianness"))
+		test_distilled_endianness();
 }

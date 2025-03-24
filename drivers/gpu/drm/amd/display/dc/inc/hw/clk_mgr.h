@@ -29,9 +29,6 @@
 #include "dc.h"
 #include "dm_pp_smu.h"
 
-#define DCN_MINIMUM_DISPCLK_Khz 100000
-#define DCN_MINIMUM_DPPCLK_Khz 100000
-
 /* Constants */
 #define DDR4_DRAM_WIDTH   64
 #define WM_A 0
@@ -180,6 +177,7 @@ struct clk_state_registers_and_bypass {
 	uint32_t dispclk;
 	uint32_t dppclk;
 	uint32_t dtbclk;
+	uint32_t fclk;
 
 	uint32_t dppclk_bypass;
 	uint32_t dcfclk_bypass;
@@ -307,6 +305,9 @@ struct clk_mgr_funcs {
 	 * When current_mode = true, set required clock for current mode
 	 */
 	void (*set_hard_min_memclk)(struct clk_mgr *clk_mgr, bool current_mode);
+
+	int (*get_hard_min_memclk)(struct clk_mgr *clk_mgr);
+	int (*get_hard_min_fclk)(struct clk_mgr *clk_mgr);
 
 	/* Send message to PMFW to set hard max memclk frequency to highest DPM */
 	void (*set_hard_max_memclk)(struct clk_mgr *clk_mgr);

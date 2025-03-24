@@ -531,7 +531,7 @@ static struct platform_driver npcm_edac_driver = {
 		.of_match_table = npcm_edac_of_match,
 	},
 	.probe = edac_probe,
-	.remove_new = edac_remove,
+	.remove = edac_remove,
 };
 
 module_platform_driver(npcm_edac_driver);

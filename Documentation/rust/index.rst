@@ -25,13 +25,27 @@ support is still in development/experimental, especially for certain kernel
 configurations.
 
 
+Code documentation
+------------------
+
+Given a kernel configuration, the kernel may generate Rust code documentation,
+i.e. HTML rendered by the ``rustdoc`` tool.
+
 .. only:: rustdoc and html
 
-	You can also browse `rustdoc documentation <rustdoc/kernel/index.html>`_.
+	This kernel documentation was built with `Rust code documentation
+	<rustdoc/kernel/index.html>`_.
 
 .. only:: not rustdoc and html
 
-	This documentation does not include rustdoc generated information.
+	This kernel documentation was not built with Rust code documentation.
+
+A pregenerated version is provided at:
+
+	https://rust.docs.kernel.org
+
+Please see the :ref:`Code documentation <rust_code_documentation>` section for
+more details.
 
 .. toctree::
     :maxdepth: 1
@@ -41,6 +55,9 @@ configurations.
     coding-guidelines
     arch-support
     testing
+
+You can also find learning materials for Rust in its section in
+:doc:`../process/kernel-docs`.
 
 .. only::  subproject and html
 

@@ -300,7 +300,7 @@ Documentation/admin-guide/reporting-regressions.rst 对此进行了更详细的�
 添加到回归跟踪列表中，以确保它不会被忽略。
 
 什么是安全问题留给您自己判断。在继续之前，请考虑阅读
-Documentation/translations/zh_CN/admin-guide/security-bugs.rst ，
+Documentation/translations/zh_CN/process/security-bugs.rst ，
 因为它提供了如何最恰当地处理安全问题的额外细节。
 
 当发生了完全无法接受的糟糕事情时，此问题就是一个“非常严重的问题”。例如，
@@ -983,7 +983,7 @@ Documentation/admin-guide/reporting-regressions.rst ；它还提供了大量其�
 报告，请将报告的文本转发到这些地址；但请在报告的顶部加上注释，表明您提交了
 报告，并附上工单链接。
 
-更多信息请参见 Documentation/translations/zh_CN/admin-guide/security-bugs.rst 。
+更多信息请参见 Documentation/translations/zh_CN/process/security-bugs.rst 。
 
 
 发布报告后的责任

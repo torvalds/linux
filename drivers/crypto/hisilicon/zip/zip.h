@@ -81,8 +81,34 @@ struct hisi_zip_sqe {
 	u32 rsvd1[4];
 };
 
+enum zip_cap_table_type {
+	QM_RAS_NFE_TYPE,
+	QM_RAS_NFE_RESET,
+	QM_RAS_CE_TYPE,
+	ZIP_RAS_NFE_TYPE,
+	ZIP_RAS_NFE_RESET,
+	ZIP_RAS_CE_TYPE,
+	ZIP_CORE_INFO,
+	ZIP_CORE_EN,
+	ZIP_DRV_ALG_BITMAP_TB,
+	ZIP_ALG_BITMAP,
+	ZIP_CORE1_BITMAP,
+	ZIP_CORE2_BITMAP,
+	ZIP_CORE3_BITMAP,
+	ZIP_CORE4_BITMAP,
+	ZIP_CORE5_BITMAP,
+};
+
 int zip_create_qps(struct hisi_qp **qps, int qp_num, int node);
 int hisi_zip_register_to_crypto(struct hisi_qm *qm);
 void hisi_zip_unregister_from_crypto(struct hisi_qm *qm);
 bool hisi_zip_alg_support(struct hisi_qm *qm, u32 alg);
+int hisi_dae_set_user_domain(struct hisi_qm *qm);
+int hisi_dae_set_alg(struct hisi_qm *qm);
+void hisi_dae_hw_error_disable(struct hisi_qm *qm);
+void hisi_dae_hw_error_enable(struct hisi_qm *qm);
+void hisi_dae_open_axi_master_ooo(struct hisi_qm *qm);
+int hisi_dae_close_axi_master_ooo(struct hisi_qm *qm);
+bool hisi_dae_dev_is_abnormal(struct hisi_qm *qm);
+enum acc_err_result hisi_dae_get_err_result(struct hisi_qm *qm);
 #endif

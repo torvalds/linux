@@ -1518,7 +1518,7 @@ static struct platform_driver tegra_spi_driver = {
 		.of_match_table	= tegra_spi_of_match,
 	},
 	.probe =	tegra_spi_probe,
-	.remove_new =	tegra_spi_remove,
+	.remove =	tegra_spi_remove,
 };
 module_platform_driver(tegra_spi_driver);
 

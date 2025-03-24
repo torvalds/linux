@@ -8,7 +8,6 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/unistd.h>
-#include <asm/vvar.h>
 
 /**
  * getrandom_syscall - Invoke the getrandom() syscall.
@@ -28,27 +27,15 @@ static __always_inline ssize_t getrandom_syscall(void *buffer, size_t len, unsig
 	return ret;
 }
 
-#define __vdso_rng_data (VVAR(_vdso_rng_data))
+extern struct vdso_rng_data vdso_rng_data
+	__attribute__((visibility("hidden")));
 
 static __always_inline const struct vdso_rng_data *__arch_get_vdso_rng_data(void)
 {
-	if (IS_ENABLED(CONFIG_TIME_NS) && __vdso_data->clock_mode == VDSO_CLOCKMODE_TIMENS)
-		return (void *)&__vdso_rng_data + ((void *)&__timens_vdso_data - (void *)&__vdso_data);
-	return &__vdso_rng_data;
+	if (IS_ENABLED(CONFIG_TIME_NS) && __arch_get_vdso_data()->clock_mode == VDSO_CLOCKMODE_TIMENS)
+		return (void *)&vdso_rng_data + ((void *)&timens_page - (void *)__arch_get_vdso_data());
+	return &vdso_rng_data;
 }
-
-/**
- * __arch_chacha20_blocks_nostack - Generate ChaCha20 stream without using the stack.
- * @dst_bytes:	Destination buffer to hold @nblocks * 64 bytes of output.
- * @key:	32-byte input key.
- * @counter:	8-byte counter, read on input and updated on return.
- * @nblocks:	Number of blocks to generate.
- *
- * Generates a given positive number of blocks of ChaCha20 output with nonce=0, and does not write
- * to any stack or memory outside of the parameters passed to it, in order to mitigate stack data
- * leaking into forked child processes.
- */
-extern void __arch_chacha20_blocks_nostack(u8 *dst_bytes, const u32 *key, u32 *counter, size_t nblocks);
 
 #endif /* !__ASSEMBLY__ */
 

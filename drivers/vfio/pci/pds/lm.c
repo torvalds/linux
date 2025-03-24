@@ -235,7 +235,6 @@ static const struct file_operations pds_vfio_save_fops = {
 	.owner = THIS_MODULE,
 	.read = pds_vfio_save_read,
 	.release = pds_vfio_release_file,
-	.llseek = no_llseek,
 };
 
 static int pds_vfio_get_save_file(struct pds_vfio_pci_device *pds_vfio)
@@ -334,7 +333,6 @@ static const struct file_operations pds_vfio_restore_fops = {
 	.owner = THIS_MODULE,
 	.write = pds_vfio_restore_write,
 	.release = pds_vfio_release_file,
-	.llseek = no_llseek,
 };
 
 static int pds_vfio_get_restore_file(struct pds_vfio_pci_device *pds_vfio)

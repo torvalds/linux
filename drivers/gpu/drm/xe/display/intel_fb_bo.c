@@ -7,11 +7,14 @@
 #include <drm/ttm/ttm_bo.h>
 
 #include "intel_display_types.h"
+#include "intel_fb.h"
 #include "intel_fb_bo.h"
 #include "xe_bo.h"
 
-void intel_fb_bo_framebuffer_fini(struct xe_bo *bo)
+void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj)
 {
+	struct xe_bo *bo = gem_to_xe_bo(obj);
+
 	if (bo->flags & XE_BO_FLAG_PINNED) {
 		/* Unpin our kernel fb first */
 		xe_bo_lock(bo, false);
@@ -22,11 +25,20 @@ void intel_fb_bo_framebuffer_fini(struct xe_bo *bo)
 }
 
 int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
-				 struct xe_bo *bo,
+				 struct drm_gem_object *obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct xe_bo *bo = gem_to_xe_bo(obj);
 	struct xe_device *xe = to_xe_device(bo->ttm.base.dev);
 	int ret;
+
+	/*
+	 * Some modifiers require physical alignment of 64KiB VRAM pages;
+	 * require that the BO in those cases is created correctly.
+	 */
+	if (XE_IOCTL_DBG(xe, intel_fb_needs_64k_phys(mode_cmd->modifier[0]) &&
+			     !(bo->flags & XE_BO_FLAG_NEEDS_64K)))
+		return -EINVAL;
 
 	xe_bo_get(bo);
 
@@ -56,11 +68,11 @@ err:
 	return ret;
 }
 
-struct xe_bo *intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
-					  struct drm_file *filp,
-					  const struct drm_mode_fb_cmd2 *mode_cmd)
+struct drm_gem_object *intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
+						   struct drm_file *filp,
+						   const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	struct drm_i915_gem_object *bo;
+	struct xe_bo *bo;
 	struct drm_gem_object *gem = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
 
 	if (!gem)
@@ -69,11 +81,11 @@ struct xe_bo *intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
 	bo = gem_to_xe_bo(gem);
 	/* Require vram placement or dma-buf import */
 	if (IS_DGFX(i915) &&
-	    !xe_bo_can_migrate(gem_to_xe_bo(gem), XE_PL_VRAM0) &&
+	    !xe_bo_can_migrate(bo, XE_PL_VRAM0) &&
 	    bo->ttm.type != ttm_bo_type_sg) {
 		drm_gem_object_put(gem);
 		return ERR_PTR(-EREMOTE);
 	}
 
-	return bo;
+	return gem;
 }

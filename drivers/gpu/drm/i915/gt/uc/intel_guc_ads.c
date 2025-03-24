@@ -815,8 +815,7 @@ engine_instance_list:
 	return PAGE_ALIGN(total_size);
 }
 
-static void guc_waklv_enable_simple(struct intel_guc *guc,
-				    u32 klv_id, u32 *offset, u32 *remain)
+static void guc_waklv_enable_simple(struct intel_guc *guc, u32 *offset, u32 *remain, u32 klv_id)
 {
 	u32 size;
 	u32 klv_entry[] = {
@@ -850,19 +849,20 @@ static void guc_waklv_init(struct intel_guc *guc)
 	remain = guc_ads_waklv_size(guc);
 
 	/* Wa_14019159160 */
-	if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 71)))
-		guc_waklv_enable_simple(guc,
-					GUC_WORKAROUND_KLV_SERIALIZED_RA_MODE,
-					&offset, &remain);
+	if (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 74))) {
+		guc_waklv_enable_simple(guc, &offset, &remain,
+					GUC_WORKAROUND_KLV_SERIALIZED_RA_MODE);
+		guc_waklv_enable_simple(guc, &offset, &remain,
+					GUC_WORKAROUND_KLV_AVOID_GFX_CLEAR_WHILE_ACTIVE);
+	}
 
 	/* Wa_16021333562 */
 	if ((GUC_FIRMWARE_VER(guc) >= MAKE_GUC_VER(70, 21, 1)) &&
 	    (IS_GFX_GT_IP_RANGE(gt, IP_VER(12, 70), IP_VER(12, 74)) ||
 	     IS_MEDIA_GT_IP_RANGE(gt, IP_VER(13, 0), IP_VER(13, 0)) ||
 	     IS_DG2(gt->i915)))
-		guc_waklv_enable_simple(guc,
-					GUC_WORKAROUND_KLV_BLOCK_INTERRUPTS_WHEN_MGSR_BLOCKED,
-					&offset, &remain);
+		guc_waklv_enable_simple(guc, &offset, &remain,
+					GUC_WORKAROUND_KLV_BLOCK_INTERRUPTS_WHEN_MGSR_BLOCKED);
 
 	size = guc_ads_waklv_size(guc) - remain;
 	if (!size)

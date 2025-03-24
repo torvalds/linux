@@ -280,7 +280,7 @@ static void vmw_du_put_cursor_mob(struct vmw_cursor_plane *vcp,
 static int vmw_du_get_cursor_mob(struct vmw_cursor_plane *vcp,
 				 struct vmw_plane_state *vps)
 {
-	struct vmw_private *dev_priv = vcp->base.dev->dev_private;
+	struct vmw_private *dev_priv = vmw_priv(vcp->base.dev);
 	u32 size = vmw_du_cursor_mob_size(vps->base.crtc_w, vps->base.crtc_h);
 	u32 i;
 	u32 cursor_max_dim, mob_max_size;
@@ -519,7 +519,7 @@ void vmw_du_cursor_plane_destroy(struct drm_plane *plane)
 	struct vmw_cursor_plane *vcp = vmw_plane_to_vcp(plane);
 	u32 i;
 
-	vmw_cursor_update_position(plane->dev->dev_private, false, 0, 0);
+	vmw_cursor_update_position(vmw_priv(plane->dev), false, 0, 0);
 
 	for (i = 0; i < ARRAY_SIZE(vcp->cursor_mobs); i++)
 		vmw_du_destroy_cursor_mob(&vcp->cursor_mobs[i]);
@@ -750,6 +750,7 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	struct vmw_plane_state *old_vps = vmw_plane_state_to_vps(old_state);
 	struct vmw_bo *old_bo = NULL;
 	struct vmw_bo *new_bo = NULL;
+	struct ww_acquire_ctx ctx;
 	s32 hotspot_x, hotspot_y;
 	int ret;
 
@@ -769,9 +770,11 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	if (du->cursor_surface)
 		du->cursor_age = du->cursor_surface->snooper.age;
 
+	ww_acquire_init(&ctx, &reservation_ww_class);
+
 	if (!vmw_user_object_is_null(&old_vps->uo)) {
 		old_bo = vmw_user_object_buffer(&old_vps->uo);
-		ret = ttm_bo_reserve(&old_bo->tbo, false, false, NULL);
+		ret = ttm_bo_reserve(&old_bo->tbo, false, false, &ctx);
 		if (ret != 0)
 			return;
 	}
@@ -779,9 +782,14 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	if (!vmw_user_object_is_null(&vps->uo)) {
 		new_bo = vmw_user_object_buffer(&vps->uo);
 		if (old_bo != new_bo) {
-			ret = ttm_bo_reserve(&new_bo->tbo, false, false, NULL);
-			if (ret != 0)
+			ret = ttm_bo_reserve(&new_bo->tbo, false, false, &ctx);
+			if (ret != 0) {
+				if (old_bo) {
+					ttm_bo_unreserve(&old_bo->tbo);
+					ww_acquire_fini(&ctx);
+				}
 				return;
+			}
 		} else {
 			new_bo = NULL;
 		}
@@ -803,10 +811,12 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 						hotspot_x, hotspot_y);
 	}
 
-	if (old_bo)
-		ttm_bo_unreserve(&old_bo->tbo);
 	if (new_bo)
 		ttm_bo_unreserve(&new_bo->tbo);
+	if (old_bo)
+		ttm_bo_unreserve(&old_bo->tbo);
+
+	ww_acquire_fini(&ctx);
 
 	du->cursor_x = new_state->crtc_x + du->set_gui_x;
 	du->cursor_y = new_state->crtc_y + du->set_gui_y;
@@ -1265,6 +1275,8 @@ static int vmw_framebuffer_surface_create_handle(struct drm_framebuffer *fb,
 	struct vmw_framebuffer_surface *vfbs = vmw_framebuffer_to_vfbs(fb);
 	struct vmw_bo *bo = vmw_user_object_buffer(&vfbs->uo);
 
+	if (WARN_ON(!bo))
+		return -EINVAL;
 	return drm_gem_handle_create(file_priv, &bo->tbo.base, handle);
 }
 
@@ -1283,7 +1295,6 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 {
 	struct drm_device *dev = &dev_priv->drm;
 	struct vmw_framebuffer_surface *vfbs;
-	enum SVGA3dSurfaceFormat format;
 	struct vmw_surface *surface;
 	int ret;
 
@@ -1317,34 +1328,6 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		     surface->metadata.base_size.depth != 1)) {
 		DRM_ERROR("Incompatible surface dimensions "
 			  "for requested mode.\n");
-		return -EINVAL;
-	}
-
-	switch (mode_cmd->pixel_format) {
-	case DRM_FORMAT_ARGB8888:
-		format = SVGA3D_A8R8G8B8;
-		break;
-	case DRM_FORMAT_XRGB8888:
-		format = SVGA3D_X8R8G8B8;
-		break;
-	case DRM_FORMAT_RGB565:
-		format = SVGA3D_R5G6B5;
-		break;
-	case DRM_FORMAT_XRGB1555:
-		format = SVGA3D_A1R5G5B5;
-		break;
-	default:
-		DRM_ERROR("Invalid pixel format: %p4cc\n",
-			  &mode_cmd->pixel_format);
-		return -EINVAL;
-	}
-
-	/*
-	 * For DX, surface format validation is done when surface->scanout
-	 * is set.
-	 */
-	if (!has_sm4_context(dev_priv) && format != surface->metadata.format) {
-		DRM_ERROR("Invalid surface format for requested mode.\n");
 		return -EINVAL;
 	}
 
@@ -1539,6 +1522,7 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 		DRM_ERROR("Surface size cannot exceed %dx%d\n",
 			dev_priv->texture_max_width,
 			dev_priv->texture_max_height);
+		ret = -EINVAL;
 		goto err_out;
 	}
 
@@ -2225,7 +2209,7 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_vmw_update_layout_arg *arg =
 		(struct drm_vmw_update_layout_arg *)data;
-	void __user *user_rects;
+	const void __user *user_rects;
 	struct drm_vmw_rect *rects;
 	struct drm_rect *drm_rects;
 	unsigned rects_size;
@@ -2237,6 +2221,8 @@ int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 					    VMWGFX_MIN_INITIAL_HEIGHT};
 		vmw_du_update_layout(dev_priv, 1, &def_rect);
 		return 0;
+	} else if (arg->num_outputs > VMWGFX_NUM_DISPLAY_UNITS) {
+		return -E2BIG;
 	}
 
 	rects_size = arg->num_outputs * sizeof(struct drm_vmw_rect);

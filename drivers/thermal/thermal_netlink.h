@@ -53,6 +53,13 @@ int thermal_notify_tz_gov_change(const struct thermal_zone_device *tz,
 int thermal_genl_sampling_temp(int id, int temp);
 int thermal_genl_cpu_capability_event(int count,
 				      struct thermal_genl_cpu_caps *caps);
+int thermal_notify_threshold_add(const struct thermal_zone_device *tz,
+				 int temperature, int direction);
+int thermal_notify_threshold_delete(const struct thermal_zone_device *tz,
+				    int temperature, int direction);
+int thermal_notify_threshold_flush(const struct thermal_zone_device *tz);
+int thermal_notify_threshold_down(const struct thermal_zone_device *tz);
+int thermal_notify_threshold_up(const struct thermal_zone_device *tz);
 #else
 static inline int thermal_netlink_init(void)
 {
@@ -135,6 +142,33 @@ static inline int thermal_genl_sampling_temp(int id, int temp)
 }
 
 static inline int thermal_genl_cpu_capability_event(int count, struct thermal_genl_cpu_caps *caps)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_add(const struct thermal_zone_device *tz,
+					       int temperature, int direction)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_delete(const struct thermal_zone_device *tz,
+						  int temperature, int direction)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_flush(const struct thermal_zone_device *tz)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_down(const struct thermal_zone_device *tz)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_up(const struct thermal_zone_device *tz)
 {
 	return 0;
 }

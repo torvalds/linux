@@ -3,9 +3,8 @@
 #
 # headers_check.pl execute a number of trivial consistency checks
 #
-# Usage: headers_check.pl dir arch [files...]
+# Usage: headers_check.pl dir [files...]
 # dir:   dir to look for included files
-# arch:  architecture
 # files: list of files to check
 #
 # The script reads the supplied files line by line and:
@@ -23,7 +22,7 @@ use warnings;
 use strict;
 use File::Basename;
 
-my ($dir, $arch, @files) = @ARGV;
+my ($dir, @files) = @ARGV;
 
 my $ret = 0;
 my $line;
@@ -54,10 +53,6 @@ sub check_include
 		my $inc = $1;
 		my $found;
 		$found = stat($dir . "/" . $inc);
-		if (!$found) {
-			$inc =~ s#asm/#asm-$arch/#;
-			$found = stat($dir . "/" . $inc);
-		}
 		if (!$found) {
 			printf STDERR "$filename:$lineno: included file '$inc' is not exported\n";
 			$ret = 1;

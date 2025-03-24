@@ -699,6 +699,8 @@ static const struct sfp_upstream_ops qca807x_sfp_ops = {
 	.detach = phy_sfp_detach,
 	.module_insert = qca807x_sfp_insert,
 	.module_remove = qca807x_sfp_remove,
+	.connect_phy = phy_sfp_connect_phy,
+	.disconnect_phy = phy_sfp_disconnect_phy,
 };
 
 static int qca807x_probe(struct phy_device *phydev)
@@ -733,16 +735,6 @@ static int qca807x_probe(struct phy_device *phydev)
 								     "qcom,dac-disable-bias-current-tweak");
 
 #if IS_ENABLED(CONFIG_GPIOLIB)
-	/* Make sure we don't have mixed leds node and gpio-controller
-	 * to prevent registering leds and having gpio-controller usage
-	 * conflicting with them.
-	 */
-	if (of_find_property(node, "leds", NULL) &&
-	    of_find_property(node, "gpio-controller", NULL)) {
-		phydev_err(phydev, "Invalid property detected. LEDs and gpio-controller are mutually exclusive.");
-		return -EINVAL;
-	}
-
 	/* Do not register a GPIO controller unless flagged for it */
 	if (of_property_read_bool(node, "gpio-controller")) {
 		ret = qca807x_gpio(phydev);
@@ -782,7 +774,7 @@ static int qca807x_config_init(struct phy_device *phydev)
 	control_dac &= ~QCA807X_CONTROL_DAC_MASK;
 	if (!priv->dac_full_amplitude)
 		control_dac |= QCA807X_CONTROL_DAC_DSP_AMPLITUDE;
-	if (!priv->dac_full_amplitude)
+	if (!priv->dac_full_bias_current)
 		control_dac |= QCA807X_CONTROL_DAC_DSP_BIAS_CURRENT;
 	if (!priv->dac_disable_bias_current_tweak)
 		control_dac |= QCA807X_CONTROL_DAC_BIAS_CURRENT_TWEAK;
@@ -836,7 +828,7 @@ static struct phy_driver qca807x_drivers[] = {
 };
 module_phy_driver(qca807x_drivers);
 
-static struct mdio_device_id __maybe_unused qca807x_tbl[] = {
+static const struct mdio_device_id __maybe_unused qca807x_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(PHY_ID_QCA8072) },
 	{ PHY_ID_MATCH_EXACT(PHY_ID_QCA8075) },
 	{ }

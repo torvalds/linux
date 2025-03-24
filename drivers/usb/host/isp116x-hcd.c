@@ -1684,7 +1684,7 @@ MODULE_ALIAS("platform:isp116x-hcd");
 
 static struct platform_driver isp116x_driver = {
 	.probe = isp116x_probe,
-	.remove_new = isp116x_remove,
+	.remove = isp116x_remove,
 	.suspend = isp116x_suspend,
 	.resume = isp116x_resume,
 	.driver = {

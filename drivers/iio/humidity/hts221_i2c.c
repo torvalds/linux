@@ -73,4 +73,4 @@ module_i2c_driver(hts221_driver);
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_DESCRIPTION("STMicroelectronics hts221 i2c driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_HTS221);
+MODULE_IMPORT_NS("IIO_HTS221");

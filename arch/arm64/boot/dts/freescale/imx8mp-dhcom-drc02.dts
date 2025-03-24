@@ -1,0 +1,255 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024 Marek Vasut <marex@denx.de>
+ *
+ * DHCOM iMX8MP variant:
+ * DHCM-iMX8ML8-C160-R204-F1638-SPI16-E2-CAN2-RTC-I-01D2
+ * DHCOM PCB number: 660-100 or newer
+ * DRC02 PCB number: 568-100 or newer
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/phy/phy-imx8-pcie.h>
+#include "imx8mp-dhcom-som.dtsi"
+
+/ {
+	model = "DH electronics i.MX8M Plus DHCOM on DRC02";
+	compatible = "dh,imx8mp-dhcom-drc02", "dh,imx8mp-dhcom-som",
+		     "fsl,imx8mp";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+};
+
+&eqos {	/* First ethernet */
+	pinctrl-0 = <&pinctrl_eqos_rmii>;
+	phy-handle = <&ethphy0f>;
+	phy-mode = "rmii";
+
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_266M>,
+				 <&clk IMX8MP_SYS_PLL2_100M>,
+				 <&clk IMX8MP_SYS_PLL2_50M>;
+	assigned-clock-rates = <0>, <100000000>, <50000000>;
+};
+
+&ethphy0g {	/* Micrel KSZ9131RNXI */
+	status = "disabled";
+};
+
+&ethphy0f {	/* SMSC LAN8740Ai */
+	status = "okay";
+};
+
+&fec {	/* Second ethernet */
+	pinctrl-0 = <&pinctrl_fec_rmii>;
+	phy-handle = <&ethphy1f>;
+	phy-mode = "rmii";
+	status = "okay";
+
+	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_266M>,
+				 <&clk IMX8MP_SYS_PLL2_100M>,
+				 <&clk IMX8MP_SYS_PLL2_50M>,
+				 <&clk IMX8MP_SYS_PLL2_50M>;
+	assigned-clock-rates = <0>, <100000000>, <50000000>, <0>;
+};
+
+&ethphy1f {	/* SMSC LAN8740Ai */
+	status = "okay";
+};
+
+&flexcan1 {
+	status = "okay";
+};
+
+&flexcan2 {
+	status = "okay";
+};
+
+&gpio1 {
+	gpio-line-names =
+		"DRC02-In1", "", "", "", "", "DHCOM-I", "DRC02-HW2", "DRC02-HW0",
+		"DHCOM-B", "DHCOM-A", "", "DHCOM-H", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "";
+
+	/*
+	 * NOTE: On DRC02, the RS485_RX_En is controlled by a separate
+	 * GPIO line, however the i.MX8 UART driver assumes RX happens
+	 * during TX anyway and that it only controls drive enable DE
+	 * line. Hence, the RX is always enabled here.
+	 */
+	rs485-rx-en-hog {
+		gpio-hog;
+		gpios = <13 0>; /* GPIO Q */
+		line-name = "rs485-rx-en";
+		output-low;
+	};
+};
+
+&gpio2 {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"DHCOM-O", "DHCOM-N", "", "SOM-HW1", "", "", "", "",
+		"", "", "", "", "DRC02-In2", "", "", "",
+		"", "", "", "", "", "", "", "";
+};
+
+&gpio3 {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "SOM-HW0", "",
+		"", "", "", "", "", "", "SOM-MEM0", "SOM-MEM1",
+		"SOM-MEM2", "SOM-HW2", "", "", "", "", "", "";
+};
+
+&gpio4 {
+	gpio-line-names =
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "SOM-HW1", "", "", "", "",
+		"", "", "", "DRC02-Out2", "", "", "", "";
+};
+
+&gpio5 {
+	gpio-line-names =
+		"", "", "DHCOM-C", "", "", "", "", "",
+		"", "", "", "", "", "", "", "",
+		"", "", "", "", "", "", "DHCOM-E", "DRC02-Out1",
+		"", "", "", "", "", "", "", "";
+};
+
+/* No HS connector on this SoM variant, so no HDMI, PCIe and only USB HS. */
+&hdmi_blk_ctrl {
+	status = "disabled";
+};
+
+&hdmi_pvi {
+	status = "disabled";
+};
+
+&hdmi_tx {
+	status = "disabled";
+};
+
+&hdmi_tx_phy {
+	status = "disabled";
+};
+
+&i2c3 {
+	/* Resistive touch controller not populated on this one SoM variant. */
+	touchscreen@49 {
+		status = "disabled";
+	};
+};
+
+&irqsteer_hdmi {
+	status = "disabled";
+};
+
+&lcdif3 {
+	status = "disabled";
+};
+
+&pcie_phy {
+	status = "disabled";
+};
+
+&pcie {
+	status = "disabled";
+};
+
+/* Console UART */
+&pinctrl_uart1 {
+	fsl,pins = <
+		/* No pull-ups on DRC02, enable in-SoC pull-ups */
+		MX8MP_IOMUXC_SAI2_RXC__UART1_DCE_RX		0x149
+		MX8MP_IOMUXC_SAI2_RXFS__UART1_DCE_TX		0x149
+	>;
+};
+
+&pinctrl_uart3 {
+	fsl,pins = <
+		/* No pull-ups on DRC02, enable in-SoC pull-ups */
+		MX8MP_IOMUXC_ECSPI1_SCLK__UART3_DCE_RX		0x149
+		MX8MP_IOMUXC_ECSPI1_MOSI__UART3_DCE_TX		0x149
+	>;
+};
+
+&uart1 {
+	/*
+	 * Due to the use of CAN2 the signals for CAN2 Tx and Rx are routed to
+	 * DHCOM UART1 RTS/CTS pins. Therefore this UART have to use DHCOM GPIOs
+	 * for RTS/CTS. So configure DHCOM GPIO I as RTS and GPIO M as CTS.
+	 */
+	/delete-property/ uart-has-rtscts;
+	cts-gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>; /* GPIO M */
+	pinctrl-0 = <&pinctrl_uart1 &pinctrl_dhcom_i &pinctrl_dhcom_m>;
+	pinctrl-names = "default";
+	rts-gpios = <&gpio1 5 GPIO_ACTIVE_HIGH>; /* GPIO I */
+};
+
+&uart3 {
+	/*
+	 * On DRC02 this UART is used as RS485 interface and RS485_TX_En is
+	 * controlled by DHCOM GPIO P. So remove RTS/CTS pins and the property
+	 * uart-has-rtscts from this UART and add the DHCOM GPIO P pin via
+	 * rts-gpios. The RS485_RX_En is controlled by DHCOM GPIO Q, see gpio1
+	 * node above.
+	 */
+	/delete-property/ uart-has-rtscts;
+	linux,rs485-enabled-at-boot-time;
+	pinctrl-0 = <&pinctrl_uart3 &pinctrl_dhcom_p &pinctrl_dhcom_q>;
+	pinctrl-names = "default";
+	rts-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>; /* GPIO P */
+};
+
+/* No WiFi/BT chipset on this SoM variant. */
+&uart2 {
+	bluetooth {
+		status = "disabled";
+	};
+};
+
+/* USB_OTG port is not routed out on DRC02. */
+&usb3_0 {
+	status = "disabled";
+};
+
+&usb_dwc3_0 {
+	status = "disabled";
+};
+
+/* USB_HOST port has USB Hub connected to it, PWR/OC pins are unused */
+&usb3_1 {
+	fsl,disable-port-power-control;
+	fsl,permanently-attached;
+};
+
+&usb_dwc3_1 {
+	dr_mode = "host";
+	maximum-speed = "high-speed";
+};
+
+/* No WiFi/BT chipset on this SoM variant. */
+&usdhc1 {
+	status = "disabled";
+};
+
+&iomuxc {
+	/*
+	 * GPIO I is connected to UART1_RTS
+	 * GPIO M is connected to UART1_CTS
+	 * GPIO P is connected to RS485_TX_En
+	 * GPIO Q is connected to RS485_RX_En
+	 */
+	pinctrl-0 = <&pinctrl_hog_base
+		     &pinctrl_dhcom_a &pinctrl_dhcom_b &pinctrl_dhcom_c
+		     &pinctrl_dhcom_d &pinctrl_dhcom_e &pinctrl_dhcom_f
+		     &pinctrl_dhcom_g &pinctrl_dhcom_h &pinctrl_dhcom_j
+		     &pinctrl_dhcom_k &pinctrl_dhcom_l &pinctrl_dhcom_n
+		     &pinctrl_dhcom_o &pinctrl_dhcom_r &pinctrl_dhcom_s
+		     &pinctrl_dhcom_int>;
+};

@@ -766,12 +766,12 @@ MODULE_DEVICE_TABLE(of, npcm_fiu_dt_ids);
 
 static struct platform_driver npcm_fiu_driver = {
 	.driver = {
-		.name	= "NPCM-FIU",
-		.bus	= &platform_bus_type,
+		.name = "NPCM-FIU",
+		.bus = &platform_bus_type,
 		.of_match_table = npcm_fiu_dt_ids,
 	},
-	.probe      = npcm_fiu_probe,
-	.remove_new	    = npcm_fiu_remove,
+	.probe = npcm_fiu_probe,
+	.remove = npcm_fiu_remove,
 };
 module_platform_driver(npcm_fiu_driver);
 

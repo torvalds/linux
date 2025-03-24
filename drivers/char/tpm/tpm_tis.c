@@ -356,7 +356,7 @@ MODULE_DEVICE_TABLE(of, tis_of_platform_match);
 
 static struct platform_driver tis_drv = {
 	.probe = tpm_tis_plat_probe,
-	.remove_new = tpm_tis_plat_remove,
+	.remove = tpm_tis_plat_remove,
 	.driver = {
 		.name		= "tpm_tis",
 		.pm		= &tpm_tis_pm,

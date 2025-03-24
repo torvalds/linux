@@ -445,6 +445,7 @@
 
 #define NIX_CONST_MAX_BPIDS		GENMASK_ULL(23, 12)
 #define NIX_CONST_SDP_CHANS		GENMASK_ULL(11, 0)
+#define NIX_VLAN_ETYPE_MASK		GENMASK_ULL(63, 48)
 
 #define NIX_AF_MDQ_PARENT_MASK         GENMASK_ULL(24, 16)
 #define NIX_AF_TL4_PARENT_MASK         GENMASK_ULL(23, 16)
@@ -545,6 +546,7 @@
 #define CPT_AF_CTX_PSH_PC               (0x49450ull)
 #define CPT_AF_CTX_PSH_LATENCY_PC       (0x49458ull)
 #define CPT_AF_CTX_CAM_DATA(a)          (0x49800ull | (u64)(a) << 3)
+#define CPT_AF_RXC_CFG1                 (0x50000ull)
 #define CPT_AF_RXC_TIME                 (0x50010ull)
 #define CPT_AF_RXC_TIME_CFG             (0x50018ull)
 #define CPT_AF_RXC_DFRG                 (0x50020ull)

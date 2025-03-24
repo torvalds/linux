@@ -58,4 +58,5 @@ static void __exit devfreq_performance_exit(void)
 	return;
 }
 module_exit(devfreq_performance_exit);
+MODULE_DESCRIPTION("DEVFREQ Performance governor");
 MODULE_LICENSE("GPL");

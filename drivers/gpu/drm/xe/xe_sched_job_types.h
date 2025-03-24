@@ -40,7 +40,6 @@ struct xe_sched_job {
 	 * @fence: dma fence to indicate completion. 1 way relationship - job
 	 * can safely reference fence, fence cannot safely reference job.
 	 */
-#define JOB_FLAG_SUBMIT		DMA_FENCE_FLAG_USER_BITS
 	struct dma_fence *fence;
 	/** @user_fence: write back value when BB is complete */
 	struct {
@@ -57,13 +56,15 @@ struct xe_sched_job {
 	u32 migrate_flush_flags;
 	/** @ring_ops_flush_tlb: The ring ops need to flush TLB before payload. */
 	bool ring_ops_flush_tlb;
+	/** @ggtt: mapped in ggtt. */
+	bool ggtt;
 	/** @ptrs: per instance pointers. */
 	struct xe_job_ptrs ptrs[];
 };
 
 struct xe_sched_job_snapshot {
 	u16 batch_addr_len;
-	u64 batch_addr[];
+	u64 batch_addr[] __counted_by(batch_addr_len);
 };
 
 #endif

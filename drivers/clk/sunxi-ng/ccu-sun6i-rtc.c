@@ -356,7 +356,7 @@ int sun6i_rtc_ccu_probe(struct device *dev, void __iomem *reg)
 		const char *fw_name;
 
 		/* ext-osc32k was the only input clock in the old binding. */
-		fw_name = of_property_read_bool(dev->of_node, "clock-names")
+		fw_name = of_property_present(dev->of_node, "clock-names")
 			? "ext-osc32k" : NULL;
 		ext_osc32k_clk = devm_clk_get_optional(dev, fw_name);
 		if (IS_ERR(ext_osc32k_clk))
@@ -381,6 +381,6 @@ int sun6i_rtc_ccu_probe(struct device *dev, void __iomem *reg)
 	return devm_sunxi_ccu_probe(dev, reg, &sun6i_rtc_ccu_desc);
 }
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner H616/R329 RTC CCU");
 MODULE_LICENSE("GPL");

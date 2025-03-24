@@ -29,8 +29,6 @@ static int of_iommu_xlate(struct device *dev,
 		return -ENODEV;
 
 	ret = iommu_fwspec_init(dev, of_fwnode_handle(iommu_spec->np));
-	if (ret == -EPROBE_DEFER)
-		return driver_deferred_probe_check_state(dev);
 	if (ret)
 		return ret;
 
@@ -214,7 +212,7 @@ void of_iommu_get_resv_regions(struct device *dev, struct list_head *list)
 		 * that represent reservations in the IOVA space, which are regions that should
 		 * not be mapped.
 		 */
-		if (of_find_property(it.node, "reg", NULL)) {
+		if (of_property_present(it.node, "reg")) {
 			err = of_address_to_resource(it.node, 0, &phys);
 			if (err < 0) {
 				dev_err(dev, "failed to parse memory region %pOF: %d\n",

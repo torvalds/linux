@@ -245,8 +245,8 @@ CPU which can be assigned to the work items of a wq. For example, with
 at the same time per CPU. This is always a per-CPU attribute, even for
 unbound workqueues.
 
-The maximum limit for ``@max_active`` is 512 and the default value used
-when 0 is specified is 256. These values are chosen sufficiently high
+The maximum limit for ``@max_active`` is 2048 and the default value used
+when 0 is specified is 1024. These values are chosen sufficiently high
 such that they are not the limiting factor while providing protection in
 runaway cases.
 
@@ -260,7 +260,7 @@ Some users depend on strict execution ordering where only one work item
 is in flight at any given time and the work items are processed in
 queueing order. While the combination of ``@max_active`` of 1 and
 ``WQ_UNBOUND`` used to achieve this behavior, this is no longer the
-case. Use ``alloc_ordered_queue()`` instead.
+case. Use alloc_ordered_workqueue() instead.
 
 
 Example Execution Scenarios
@@ -356,6 +356,11 @@ Guidelines
   special attribute, can use one of the system wq.  There is no
   difference in execution characteristics between using a dedicated wq
   and a system wq.
+
+  Note: If something may generate more than @max_active outstanding
+  work items (do stress test your producers), it may saturate a system
+  wq and potentially lead to deadlock. It should utilize its own
+  dedicated workqueue rather than the system wq.
 
 * Unless work items are expected to consume a huge amount of CPU
   cycles, using a bound wq is usually beneficial due to the increased

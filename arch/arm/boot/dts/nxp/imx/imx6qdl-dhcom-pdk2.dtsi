@@ -56,7 +56,6 @@
 	};
 
 	gpio-keys {
-		#size-cells = <0>;
 		compatible = "gpio-keys";
 
 		button-0 {
@@ -144,12 +143,32 @@
 	panel {
 		backlight = <&display_bl>;
 		compatible = "edt,etm0700g0edh6";
+		power-supply = <&reg_panel_3v3>;
 
 		port {
 			lcd_panel_in: endpoint {
 				remote-endpoint = <&lcd_display_out>;
 			};
 		};
+	};
+
+	/* Filtered supply voltage */
+	reg_pdk2_24v: regulator-pdk2-24v {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-max-microvolt = <24000000>;
+		regulator-min-microvolt = <24000000>;
+		regulator-name = "24V_PDK2";
+	};
+
+	/* 560-200 U1 */
+	reg_panel_3v3: regulator-panel-3v3 {
+		compatible = "regulator-fixed";
+		regulator-always-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-name = "3V3_PANEL";
+		vin-supply = <&reg_pdk2_24v>;
 	};
 
 	sound {

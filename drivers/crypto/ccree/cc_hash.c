@@ -1577,7 +1577,7 @@ struct cc_hash_template {
 
 /* hash descriptors */
 static struct cc_hash_template driver_hash[] = {
-	//Asynchronize hash template
+	//Asynchronous hash template
 	{
 		.name = "sha1",
 		.driver_name = "sha1-ccree",

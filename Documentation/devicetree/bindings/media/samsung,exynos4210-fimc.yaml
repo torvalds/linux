@@ -77,7 +77,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     maxItems: 2
     description: |
-      An array specyfing minimum image size in pixels at the FIMC input and
+      An array specifying minimum image size in pixels at the FIMC input and
       output DMA, in the first and second cell respectively.  Default value
       is <16 16>.
 

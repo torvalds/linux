@@ -422,16 +422,12 @@ KASAN连接到vmap基础架构以懒清理未使用的影子内存。
 ~~~~
 
 有一些KASAN测试可以验证KASAN是否正常工作并可以检测某些类型的内存损坏。
-测试由两部分组成:
 
-1. 与KUnit测试框架集成的测试。使用 ``CONFIG_KASAN_KUNIT_TEST`` 启用。
-这些测试可以通过几种不同的方式自动运行和部分验证；请参阅下面的说明。
+所有 KASAN 测试都与 KUnit 测试框架集成，可通过 ``CONFIG_KASAN_KUNIT_TEST`` 启用。
+测试可以通过几种不同的方式自动运行和部分验证；请参阅以下说明。
 
-2. 与KUnit不兼容的测试。使用 ``CONFIG_KASAN_MODULE_TEST`` 启用并且只能作为模块
-运行。这些测试只能通过加载内核模块并检查内核日志以获取KASAN报告来手动验证。
-
-如果检测到错误，每个KUnit兼容的KASAN测试都会打印多个KASAN报告之一，然后测试打印
-其编号和状态。
+如果检测到错误，每个 KASAN 测试都会打印多份 KASAN 报告中的一份。
+然后测试会打印其编号和状态。
 
 当测试通过::
 
@@ -458,16 +454,16 @@ KASAN连接到vmap基础架构以懒清理未使用的影子内存。
 
         not ok 1 - kasan
 
-有几种方法可以运行与KUnit兼容的KASAN测试。
+有几种方法可以运行 KASAN 测试。
 
 1. 可加载模块
 
-   启用 ``CONFIG_KUNIT`` 后，KASAN-KUnit测试可以构建为可加载模块，并通过使用
-   ``insmod`` 或 ``modprobe`` 加载 ``kasan_test.ko`` 来运行。
+   启用 ``CONFIG_KUNIT`` 后，可以将测试构建为可加载模块
+   并通过使用 ``insmod`` 或 ``modprobe`` 加载 ``kasan_test.ko`` 来运行。
 
 2. 内置
 
-   通过内置 ``CONFIG_KUNIT`` ，也可以内置KASAN-KUnit测试。在这种情况下，
+   通过内置 ``CONFIG_KUNIT``，测试也可以内置。
    测试将在启动时作为后期初始化调用运行。
 
 3. 使用kunit_tool

@@ -13,10 +13,23 @@
 #include <linux/ioport.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
 
 #include "pci.h"
+
+/*
+ * The first PCI_BRIDGE_RESOURCE_NUM PCI bus resources (those that correspond
+ * to P2P or CardBus bridge windows) go in a table.  Additional ones (for
+ * buses below host bridges or subtractive decode bridges) go in the list.
+ * Use pci_bus_for_each_resource() to iterate through all the resources.
+ */
+
+struct pci_bus_resource {
+	struct list_head	list;
+	struct resource		*res;
+};
 
 void pci_add_resource_offset(struct list_head *resources, struct resource *res,
 			     resource_size_t offset)
@@ -46,8 +59,7 @@ void pci_free_resource_list(struct list_head *resources)
 }
 EXPORT_SYMBOL(pci_free_resource_list);
 
-void pci_bus_add_resource(struct pci_bus *bus, struct resource *res,
-			  unsigned int flags)
+void pci_bus_add_resource(struct pci_bus *bus, struct resource *res)
 {
 	struct pci_bus_resource *bus_res;
 
@@ -58,7 +70,6 @@ void pci_bus_add_resource(struct pci_bus *bus, struct resource *res,
 	}
 
 	bus_res->res = res;
-	bus_res->flags = flags;
 	list_add_tail(&bus_res->list, &bus->resources);
 }
 
@@ -320,6 +331,47 @@ void __weak pcibios_resource_survey_bus(struct pci_bus *bus) { }
 
 void __weak pcibios_bus_add_device(struct pci_dev *pdev) { }
 
+/*
+ * Create pwrctrl devices (if required) for the PCI devices to handle the power
+ * state.
+ */
+static void pci_pwrctrl_create_devices(struct pci_dev *dev)
+{
+	struct device_node *np = dev_of_node(&dev->dev);
+	struct device *parent = &dev->dev;
+	struct platform_device *pdev;
+
+	/*
+	 * First ensure that we are starting from a PCI bridge and it has a
+	 * corresponding devicetree node.
+	 */
+	if (np && pci_is_bridge(dev)) {
+		/*
+		 * Now look for the child PCI device nodes and create pwrctrl
+		 * devices for them. The pwrctrl device drivers will manage the
+		 * power state of the devices.
+		 */
+		for_each_available_child_of_node_scoped(np, child) {
+			/*
+			 * First check whether the pwrctrl device really
+			 * needs to be created or not. This is decided
+			 * based on at least one of the power supplies
+			 * being defined in the devicetree node of the
+			 * device.
+			 */
+			if (!of_pci_supply_present(child)) {
+				pci_dbg(dev, "skipping OF node: %s\n", child->name);
+				return;
+			}
+
+			/* Now create the pwrctrl device */
+			pdev = of_platform_device_create(child, NULL, parent);
+			if (!pdev)
+				pci_err(dev, "failed to create OF node: %s\n", child->name);
+		}
+	}
+}
+
 /**
  * pci_bus_add_device - start driver for a single device
  * @dev: device to add
@@ -329,6 +381,7 @@ void __weak pcibios_bus_add_device(struct pci_dev *pdev) { }
 void pci_bus_add_device(struct pci_dev *dev)
 {
 	struct device_node *dn = dev->dev.of_node;
+	struct platform_device *pdev;
 	int retval;
 
 	/*
@@ -343,20 +396,28 @@ void pci_bus_add_device(struct pci_dev *dev)
 	pci_proc_attach_device(dev);
 	pci_bridge_d3_update(dev);
 
+	pci_pwrctrl_create_devices(dev);
+
+	/*
+	 * If the PCI device is associated with a pwrctrl device with a
+	 * power supply, create a device link between the PCI device and
+	 * pwrctrl device.  This ensures that pwrctrl drivers are probed
+	 * before PCI client drivers.
+	 */
+	pdev = of_find_device_by_node(dn);
+	if (pdev && of_pci_supply_present(dn)) {
+		if (!device_link_add(&dev->dev, &pdev->dev,
+				     DL_FLAG_AUTOREMOVE_CONSUMER))
+			pci_err(dev, "failed to add device link to power control device %s\n",
+				pdev->name);
+	}
+
 	dev->match_driver = !dn || of_device_is_available(dn);
 	retval = device_attach(&dev->dev);
 	if (retval < 0 && retval != -EPROBE_DEFER)
 		pci_warn(dev, "device attach failed (%d)\n", retval);
 
-	pci_dev_assign_added(dev, true);
-
-	if (dev_of_node(&dev->dev) && pci_is_bridge(dev)) {
-		retval = of_platform_populate(dev_of_node(&dev->dev), NULL, NULL,
-					      &dev->dev);
-		if (retval)
-			pci_err(dev, "failed to populate child OF nodes (%d)\n",
-				retval);
-	}
+	pci_dev_assign_added(dev);
 }
 EXPORT_SYMBOL_GPL(pci_bus_add_device);
 
@@ -389,41 +450,23 @@ void pci_bus_add_devices(const struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pci_bus_add_devices);
 
-static void __pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
-			   void *userdata, bool locked)
+static int __pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
+			  void *userdata)
 {
 	struct pci_dev *dev;
-	struct pci_bus *bus;
-	struct list_head *next;
-	int retval;
+	int ret = 0;
 
-	bus = top;
-	if (!locked)
-		down_read(&pci_bus_sem);
-	next = top->devices.next;
-	for (;;) {
-		if (next == &bus->devices) {
-			/* end of this bus, go up or finish */
-			if (bus == top)
-				break;
-			next = bus->self->bus_list.next;
-			bus = bus->self->bus;
-			continue;
-		}
-		dev = list_entry(next, struct pci_dev, bus_list);
-		if (dev->subordinate) {
-			/* this is a pci-pci bridge, do its devices next */
-			next = dev->subordinate->devices.next;
-			bus = dev->subordinate;
-		} else
-			next = dev->bus_list.next;
-
-		retval = cb(dev, userdata);
-		if (retval)
+	list_for_each_entry(dev, &top->devices, bus_list) {
+		ret = cb(dev, userdata);
+		if (ret)
 			break;
+		if (dev->subordinate) {
+			ret = __pci_walk_bus(dev->subordinate, cb, userdata);
+			if (ret)
+				break;
+		}
 	}
-	if (!locked)
-		up_read(&pci_bus_sem);
+	return ret;
 }
 
 /**
@@ -441,7 +484,9 @@ static void __pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void
  */
 void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *), void *userdata)
 {
-	__pci_walk_bus(top, cb, userdata, false);
+	down_read(&pci_bus_sem);
+	__pci_walk_bus(top, cb, userdata);
+	up_read(&pci_bus_sem);
 }
 EXPORT_SYMBOL_GPL(pci_walk_bus);
 
@@ -449,9 +494,8 @@ void pci_walk_bus_locked(struct pci_bus *top, int (*cb)(struct pci_dev *, void *
 {
 	lockdep_assert_held(&pci_bus_sem);
 
-	__pci_walk_bus(top, cb, userdata, true);
+	__pci_walk_bus(top, cb, userdata);
 }
-EXPORT_SYMBOL_GPL(pci_walk_bus_locked);
 
 struct pci_bus *pci_bus_get(struct pci_bus *bus)
 {

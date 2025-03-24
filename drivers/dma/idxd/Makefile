@@ -1,4 +1,4 @@
-ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE=IDXD
+ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE='"IDXD"'
 
 obj-$(CONFIG_INTEL_IDXD_BUS) += idxd_bus.o
 idxd_bus-y := bus.o

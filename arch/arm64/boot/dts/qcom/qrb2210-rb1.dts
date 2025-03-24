@@ -24,7 +24,7 @@
 	};
 
 	clocks {
-		clk40M: can-clk {
+		clk40m: can-clk {
 			compatible = "fixed-clock";
 			clock-frequency = <40000000>;
 			#clock-cells = <0>;
@@ -188,23 +188,23 @@
 	};
 };
 
-&CPU_PD0 {
+&cpu_pd0 {
 	/delete-property/ power-domains;
 };
 
-&CPU_PD1 {
+&cpu_pd1 {
 	/delete-property/ power-domains;
 };
 
-&CPU_PD2 {
+&cpu_pd2 {
 	/delete-property/ power-domains;
 };
 
-&CPU_PD3 {
+&cpu_pd3 {
 	/delete-property/ power-domains;
 };
 
-/delete-node/ &CLUSTER_PD;
+/delete-node/ &cluster_pd;
 
 &gpi_dma0 {
 	status = "okay";
@@ -541,7 +541,7 @@
 		compatible = "microchip,mcp2518fd";
 		reg = <0>;
 		interrupts-extended = <&tlmm 39 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&clk40M>;
+		clocks = <&clk40m>;
 		spi-max-frequency = <10000000>;
 		vdd-supply = <&vdc_5v>;
 		xceiver-supply = <&vdc_5v>;

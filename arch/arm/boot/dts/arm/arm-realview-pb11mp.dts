@@ -92,7 +92,7 @@
 		      <0x1f000100 0x100>;
 	};
 
-	L2: cache-controller {
+	L2: cache-controller@1f002000 {
 		compatible = "arm,l220-cache";
 		reg = <0x1f002000 0x1000>;
 		interrupt-parent = <&intc_tc11mp>;

@@ -265,7 +265,7 @@ static void dw_hdmi_imx_remove(struct platform_device *pdev)
 
 static struct platform_driver dw_hdmi_imx_platform_driver = {
 	.probe  = dw_hdmi_imx_probe,
-	.remove_new = dw_hdmi_imx_remove,
+	.remove = dw_hdmi_imx_remove,
 	.driver = {
 		.name = "dwhdmi-imx",
 		.of_match_table = dw_hdmi_imx_dt_ids,

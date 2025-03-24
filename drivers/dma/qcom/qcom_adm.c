@@ -650,7 +650,7 @@ static enum dma_status adm_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	/*
 	 * residue is either the full length if it is in the issued list, or 0
 	 * if it is in progress.  We have no reliable way of determining
-	 * anything inbetween
+	 * anything in between
 	 */
 	dma_set_residue(txstate, residue);
 
@@ -937,7 +937,7 @@ MODULE_DEVICE_TABLE(of, adm_of_match);
 
 static struct platform_driver adm_dma_driver = {
 	.probe = adm_dma_probe,
-	.remove_new = adm_dma_remove,
+	.remove = adm_dma_remove,
 	.driver = {
 		.name = "adm-dma-engine",
 		.of_match_table = adm_of_match,

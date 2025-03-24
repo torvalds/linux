@@ -291,4 +291,4 @@ module_i2c_driver(fsp3y_driver);
 MODULE_AUTHOR("Václav Kubernát");
 MODULE_DESCRIPTION("PMBus driver for FSP/3Y-Power power supplies");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

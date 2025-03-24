@@ -103,6 +103,7 @@ static int tb_retimer_nvm_add(struct tb_retimer *rt)
 
 err_nvm:
 	dev_dbg(&rt->dev, "NVM upgrade disabled\n");
+	rt->no_nvm_upgrade = true;
 	if (!IS_ERR(nvm))
 		tb_nvm_free(nvm);
 
@@ -182,8 +183,6 @@ static ssize_t nvm_authenticate_show(struct device *dev,
 
 	if (!rt->nvm)
 		ret = -EAGAIN;
-	else if (rt->no_nvm_upgrade)
-		ret = -EOPNOTSUPP;
 	else
 		ret = sysfs_emit(buf, "%#x\n", rt->auth_status);
 
@@ -323,8 +322,6 @@ static ssize_t nvm_version_show(struct device *dev,
 
 	if (!rt->nvm)
 		ret = -EAGAIN;
-	else if (rt->no_nvm_upgrade)
-		ret = -EOPNOTSUPP;
 	else
 		ret = sysfs_emit(buf, "%x.%x\n", rt->nvm->major, rt->nvm->minor);
 
@@ -342,6 +339,19 @@ static ssize_t vendor_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(vendor);
 
+static umode_t retimer_is_visible(struct kobject *kobj, struct attribute *attr,
+				  int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct tb_retimer *rt = tb_to_retimer(dev);
+
+	if (attr == &dev_attr_nvm_authenticate.attr ||
+	    attr == &dev_attr_nvm_version.attr)
+		return rt->no_nvm_upgrade ? 0 : attr->mode;
+
+	return attr->mode;
+}
+
 static struct attribute *retimer_attrs[] = {
 	&dev_attr_device.attr,
 	&dev_attr_nvm_authenticate.attr,
@@ -351,6 +361,7 @@ static struct attribute *retimer_attrs[] = {
 };
 
 static const struct attribute_group retimer_group = {
+	.is_visible = retimer_is_visible,
 	.attrs = retimer_attrs,
 };
 
@@ -461,7 +472,7 @@ struct tb_retimer_lookup {
 	u8 index;
 };
 
-static int retimer_match(struct device *dev, void *data)
+static int retimer_match(struct device *dev, const void *data)
 {
 	const struct tb_retimer_lookup *lookup = data;
 	struct tb_retimer *rt = tb_to_retimer(dev);
@@ -516,7 +527,7 @@ int tb_retimer_scan(struct tb_port *port, bool add)
 	 */
 	tb_retimer_set_inbound_sbtx(port);
 
-	for (i = 1; i <= TB_MAX_RETIMER_INDEX; i++) {
+	for (max = 1, i = 1; i <= TB_MAX_RETIMER_INDEX; i++) {
 		/*
 		 * Last retimer is true only for the last on-board
 		 * retimer (the one connected directly to the Type-C
@@ -527,10 +538,13 @@ int tb_retimer_scan(struct tb_port *port, bool add)
 			last_idx = i;
 		else if (ret < 0)
 			break;
+
+		max = i;
 	}
 
-	max = i;
 	ret = 0;
+	if (!IS_ENABLED(CONFIG_USB4_DEBUGFS_MARGINING))
+		max = min(last_idx, max);
 
 	/* Add retimers if they do not exist already */
 	for (i = 1; i <= max; i++) {

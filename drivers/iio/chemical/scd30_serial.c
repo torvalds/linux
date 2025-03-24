@@ -15,7 +15,7 @@
 #include <linux/serdev.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "scd30.h"
 
@@ -261,4 +261,4 @@ module_serdev_device_driver(scd30_serdev_driver);
 MODULE_AUTHOR("Tomasz Duszynski <tomasz.duszynski@octakon.com>");
 MODULE_DESCRIPTION("Sensirion SCD30 carbon dioxide sensor serial driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_SCD30);
+MODULE_IMPORT_NS("IIO_SCD30");

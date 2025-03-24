@@ -191,4 +191,4 @@ module_i2c_driver(max6959_i2c_driver);
 MODULE_DESCRIPTION("MAX6958/6959 7-segment LED controller");
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(LINEDISP);
+MODULE_IMPORT_NS("LINEDISP");

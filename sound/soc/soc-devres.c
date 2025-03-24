@@ -9,43 +9,6 @@
 #include <sound/soc.h>
 #include <sound/dmaengine_pcm.h>
 
-static void devm_dai_release(struct device *dev, void *res)
-{
-	snd_soc_unregister_dai(*(struct snd_soc_dai **)res);
-}
-
-/**
- * devm_snd_soc_register_dai - resource-managed dai registration
- * @dev: Device used to manage component
- * @component: The component the DAIs are registered for
- * @dai_drv: DAI driver to use for the DAI
- * @legacy_dai_naming: if %true, use legacy single-name format;
- *	if %false, use multiple-name format;
- */
-struct snd_soc_dai *devm_snd_soc_register_dai(struct device *dev,
-					      struct snd_soc_component *component,
-					      struct snd_soc_dai_driver *dai_drv,
-					      bool legacy_dai_naming)
-{
-	struct snd_soc_dai **ptr;
-	struct snd_soc_dai *dai;
-
-	ptr = devres_alloc(devm_dai_release, sizeof(*ptr), GFP_KERNEL);
-	if (!ptr)
-		return NULL;
-
-	dai = snd_soc_register_dai(component, dai_drv, legacy_dai_naming);
-	if (dai) {
-		*ptr = dai;
-		devres_add(dev, ptr);
-	} else {
-		devres_free(ptr);
-	}
-
-	return dai;
-}
-EXPORT_SYMBOL_GPL(devm_snd_soc_register_dai);
-
 static void devm_component_release(struct device *dev, void *res)
 {
 	const struct snd_soc_component_driver **cmpnt_drv = res;

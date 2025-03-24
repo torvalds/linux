@@ -587,11 +587,25 @@
 #define PPC_RAW_MTSPR(spr, d)		(0x7c0003a6 | ___PPC_RS(d) | __PPC_SPR(spr))
 #define PPC_RAW_EIEIO()			(0x7c0006ac)
 
+/* bcl 20,31,$+4 */
+#define PPC_RAW_BCL4()			(0x429f0005)
 #define PPC_RAW_BRANCH(offset)		(0x48000000 | PPC_LI(offset))
 #define PPC_RAW_BL(offset)		(0x48000001 | PPC_LI(offset))
 #define PPC_RAW_TW(t0, a, b)		(0x7c000008 | ___PPC_RS(t0) | ___PPC_RA(a) | ___PPC_RB(b))
 #define PPC_RAW_TRAP()			PPC_RAW_TW(31, 0, 0)
 #define PPC_RAW_SETB(t, bfa)		(0x7c000100 | ___PPC_RT(t) | ___PPC_RA((bfa) << 2))
+
+#ifdef CONFIG_PPC32
+#define PPC_RAW_STL		PPC_RAW_STW
+#define PPC_RAW_STLU		PPC_RAW_STWU
+#define PPC_RAW_LL		PPC_RAW_LWZ
+#define PPC_RAW_CMPLI		PPC_RAW_CMPWI
+#else
+#define PPC_RAW_STL		PPC_RAW_STD
+#define PPC_RAW_STLU		PPC_RAW_STDU
+#define PPC_RAW_LL		PPC_RAW_LD
+#define PPC_RAW_CMPLI		PPC_RAW_CMPDI
+#endif
 
 /* Deal with instructions that older assemblers aren't aware of */
 #define	PPC_BCCTR_FLUSH		stringify_in_c(.long PPC_INST_BCCTR_FLUSH)

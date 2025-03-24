@@ -16,7 +16,7 @@
 #include <linux/sched/mm.h>
 #include <linux/stop_machine.h>
 #include <asm/cputable.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/interrupt.h>
 #include <asm/page.h>
 #include <asm/sections.h>

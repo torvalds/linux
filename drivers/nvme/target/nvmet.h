@@ -20,9 +20,11 @@
 #include <linux/blkdev.h>
 #include <linux/radix-tree.h>
 #include <linux/t10-pi.h>
+#include <linux/kfifo.h>
 
-#define NVMET_DEFAULT_VS		NVME_VS(1, 3, 0)
+#define NVMET_DEFAULT_VS		NVME_VS(2, 1, 0)
 
+#define NVMET_NS_ENABLED		XA_MARK_1
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
 #define NVMET_NO_ERROR_LOC		((u16)-1)
@@ -30,6 +32,13 @@
 #define NVMET_MN_MAX_SIZE		40
 #define NVMET_SN_MAX_SIZE		20
 #define NVMET_FR_MAX_SIZE		8
+#define NVMET_PR_LOG_QUEUE_SIZE		64
+
+#define nvmet_for_each_ns(xa, index, entry) \
+	xa_for_each(xa, index, entry)
+
+#define nvmet_for_each_enabled_ns(xa, index, entry) \
+	xa_for_each_marked(xa, index, entry, NVMET_NS_ENABLED)
 
 /*
  * Supported optional AENs:
@@ -55,6 +64,38 @@
 	(cpu_to_le32((1 << 16) | (offsetof(struct nvmf_connect_data, x))))
 #define IPO_IATTR_CONNECT_SQE(x)	\
 	(cpu_to_le32(offsetof(struct nvmf_connect_command, x)))
+
+struct nvmet_pr_registrant {
+	u64			rkey;
+	uuid_t			hostid;
+	enum nvme_pr_type	rtype;
+	struct list_head	entry;
+	struct rcu_head		rcu;
+};
+
+struct nvmet_pr {
+	bool			enable;
+	unsigned long		notify_mask;
+	atomic_t		generation;
+	struct nvmet_pr_registrant __rcu *holder;
+	/*
+	 * During the execution of the reservation command, mutual
+	 * exclusion is required throughout the process. However,
+	 * while waiting asynchronously for the 'per controller
+	 * percpu_ref' to complete before the 'preempt and abort'
+	 * command finishes, a semaphore is needed to ensure mutual
+	 * exclusion instead of a mutex.
+	 */
+	struct semaphore	pr_sem;
+	struct list_head	registrant_list;
+};
+
+struct nvmet_pr_per_ctrl_ref {
+	struct percpu_ref	ref;
+	struct completion	free_done;
+	struct completion	confirm_done;
+	uuid_t			hostid;
+};
 
 struct nvmet_ns {
 	struct percpu_ref	ref;
@@ -85,6 +126,8 @@ struct nvmet_ns {
 	int			pi_type;
 	int			metadata_size;
 	u8			csi;
+	struct nvmet_pr		pr;
+	struct xarray		pr_per_ctrl_refs;
 };
 
 static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
@@ -191,9 +234,18 @@ static inline bool nvmet_port_secure_channel_required(struct nvmet_port *port)
     return nvmet_port_disc_addr_treq_secure_channel(port) == NVMF_TREQ_REQUIRED;
 }
 
+struct nvmet_pr_log_mgr {
+	struct mutex		lock;
+	u64			lost_count;
+	u64			counter;
+	DECLARE_KFIFO(log_queue, struct nvme_pr_log, NVMET_PR_LOG_QUEUE_SIZE);
+};
+
 struct nvmet_ctrl {
 	struct nvmet_subsys	*subsys;
 	struct nvmet_sq		**sqs;
+
+	void			*drvdata;
 
 	bool			reset_tbkas;
 
@@ -246,6 +298,7 @@ struct nvmet_ctrl {
 	u8			*dh_key;
 	size_t			dh_keysize;
 #endif
+	struct nvmet_pr_log_mgr pr_log_mgr;
 };
 
 struct nvmet_subsys {
@@ -280,6 +333,8 @@ struct nvmet_subsys {
 	struct config_group	namespaces_group;
 	struct config_group	allowed_hosts_group;
 
+	u16			vendor_id;
+	u16			subsys_vendor_id;
 	char			*model_number;
 	u32			ieee_oui;
 	char			*firmware_rev;
@@ -360,6 +415,18 @@ struct nvmet_fabrics_ops {
 	void (*discovery_chg)(struct nvmet_port *port);
 	u8 (*get_mdts)(const struct nvmet_ctrl *ctrl);
 	u16 (*get_max_queue_size)(const struct nvmet_ctrl *ctrl);
+
+	/* Operations mandatory for PCI target controllers */
+	u16 (*create_sq)(struct nvmet_ctrl *ctrl, u16 sqid, u16 flags,
+			 u16 qsize, u64 prp1);
+	u16 (*delete_sq)(struct nvmet_ctrl *ctrl, u16 sqid);
+	u16 (*create_cq)(struct nvmet_ctrl *ctrl, u16 cqid, u16 flags,
+			 u16 qsize, u64 prp1, u16 irq_vector);
+	u16 (*delete_cq)(struct nvmet_ctrl *ctrl, u16 cqid);
+	u16 (*set_feature)(const struct nvmet_ctrl *ctrl, u8 feat,
+			   void *feat_data);
+	u16 (*get_feature)(const struct nvmet_ctrl *ctrl, u8 feat,
+			   void *feat_data);
 };
 
 #define NVMET_MAX_INLINE_BIOVEC	8
@@ -396,6 +463,9 @@ struct nvmet_req {
 			struct work_struct	zmgmt_work;
 		} z;
 #endif /* CONFIG_BLK_DEV_ZONED */
+		struct {
+			struct work_struct	abort_work;
+		} r;
 	};
 	int			sg_cnt;
 	int			metadata_sg_cnt;
@@ -412,6 +482,7 @@ struct nvmet_req {
 	struct device		*p2p_client;
 	u16			error_loc;
 	u64			error_slba;
+	struct nvmet_pr_per_ctrl_ref *pc_ref;
 };
 
 #define NVMET_MAX_MPOOL_BVEC		16
@@ -465,18 +536,24 @@ void nvmet_start_keep_alive_timer(struct nvmet_ctrl *ctrl);
 void nvmet_stop_keep_alive_timer(struct nvmet_ctrl *ctrl);
 
 u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
+u32 nvmet_connect_cmd_data_len(struct nvmet_req *req);
 void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id);
 u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_file_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_bdev_zns_parse_io_cmd(struct nvmet_req *req);
+u32 nvmet_admin_cmd_data_len(struct nvmet_req *req);
 u16 nvmet_parse_admin_cmd(struct nvmet_req *req);
+u32 nvmet_discovery_cmd_data_len(struct nvmet_req *req);
 u16 nvmet_parse_discovery_cmd(struct nvmet_req *req);
 u16 nvmet_parse_fabrics_admin_cmd(struct nvmet_req *req);
+u32 nvmet_fabrics_admin_cmd_data_len(struct nvmet_req *req);
 u16 nvmet_parse_fabrics_io_cmd(struct nvmet_req *req);
+u32 nvmet_fabrics_io_cmd_data_len(struct nvmet_req *req);
 
 bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 		struct nvmet_sq *sq, const struct nvmet_fabrics_ops *ops);
 void nvmet_req_uninit(struct nvmet_req *req);
+size_t nvmet_req_transfer_len(struct nvmet_req *req);
 bool nvmet_check_transfer_len(struct nvmet_req *req, size_t len);
 bool nvmet_check_data_len_lte(struct nvmet_req *req, size_t data_len);
 void nvmet_req_complete(struct nvmet_req *req, u16 status);
@@ -487,9 +564,15 @@ void nvmet_execute_set_features(struct nvmet_req *req);
 void nvmet_execute_get_features(struct nvmet_req *req);
 void nvmet_execute_keep_alive(struct nvmet_req *req);
 
+u16 nvmet_check_cqid(struct nvmet_ctrl *ctrl, u16 cqid);
 void nvmet_cq_setup(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
 		u16 size);
+u16 nvmet_cq_create(struct nvmet_ctrl *ctrl, struct nvmet_cq *cq, u16 qid,
+		u16 size);
+u16 nvmet_check_sqid(struct nvmet_ctrl *ctrl, u16 sqid, bool create);
 void nvmet_sq_setup(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, u16 qid,
+		u16 size);
+u16 nvmet_sq_create(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq, u16 qid,
 		u16 size);
 void nvmet_sq_destroy(struct nvmet_sq *sq);
 int nvmet_sq_init(struct nvmet_sq *sq);
@@ -497,8 +580,21 @@ int nvmet_sq_init(struct nvmet_sq *sq);
 void nvmet_ctrl_fatal_error(struct nvmet_ctrl *ctrl);
 
 void nvmet_update_cc(struct nvmet_ctrl *ctrl, u32 new);
-u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
-		struct nvmet_req *req, u32 kato, struct nvmet_ctrl **ctrlp);
+
+struct nvmet_alloc_ctrl_args {
+	struct nvmet_port	*port;
+	char			*subsysnqn;
+	char			*hostnqn;
+	uuid_t			*hostid;
+	const struct nvmet_fabrics_ops *ops;
+	struct device		*p2p_client;
+	u32			kato;
+	__le32			result;
+	u16			error_loc;
+	u16			status;
+};
+
+struct nvmet_ctrl *nvmet_alloc_ctrl(struct nvmet_alloc_ctrl_args *args);
 struct nvmet_ctrl *nvmet_ctrl_find_get(const char *subsysnqn,
 				       const char *hostnqn, u16 cntlid,
 				       struct nvmet_req *req);
@@ -551,7 +647,6 @@ void nvmet_subsys_disc_changed(struct nvmet_subsys *subsys,
 		struct nvmet_host *host);
 void nvmet_add_async_event(struct nvmet_ctrl *ctrl, u8 event_type,
 		u8 event_info, u8 log_page);
-bool nvmet_subsys_nsid_exists(struct nvmet_subsys *subsys, u32 nsid);
 
 #define NVMET_MIN_QUEUE_SIZE	16
 #define NVMET_MAX_QUEUE_SIZE	1024
@@ -640,6 +735,11 @@ static inline bool nvmet_is_disc_subsys(struct nvmet_subsys *subsys)
     return subsys->type != NVME_NQN_NVME;
 }
 
+static inline bool nvmet_is_pci_ctrl(struct nvmet_ctrl *ctrl)
+{
+	return ctrl->port->disc_addr.trtype == NVMF_TRTYPE_PCI;
+}
+
 #ifdef CONFIG_NVME_TARGET_PASSTHRU
 void nvmet_passthru_subsys_free(struct nvmet_subsys *subsys);
 int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys);
@@ -681,6 +781,41 @@ void nvmet_passthrough_override_cap(struct nvmet_ctrl *ctrl);
 u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
 u16 nvmet_report_invalid_opcode(struct nvmet_req *req);
 
+static inline bool nvmet_cc_en(u32 cc)
+{
+	return (cc & NVME_CC_ENABLE) >> NVME_CC_EN_SHIFT;
+}
+
+static inline u8 nvmet_cc_css(u32 cc)
+{
+	return (cc & NVME_CC_CSS_MASK) >> NVME_CC_CSS_SHIFT;
+}
+
+static inline u8 nvmet_cc_mps(u32 cc)
+{
+	return (cc & NVME_CC_MPS_MASK) >> NVME_CC_MPS_SHIFT;
+}
+
+static inline u8 nvmet_cc_ams(u32 cc)
+{
+	return (cc & NVME_CC_AMS_MASK) >> NVME_CC_AMS_SHIFT;
+}
+
+static inline u8 nvmet_cc_shn(u32 cc)
+{
+	return (cc & NVME_CC_SHN_MASK) >> NVME_CC_SHN_SHIFT;
+}
+
+static inline u8 nvmet_cc_iosqes(u32 cc)
+{
+	return (cc & NVME_CC_IOSQES_MASK) >> NVME_CC_IOSQES_SHIFT;
+}
+
+static inline u8 nvmet_cc_iocqes(u32 cc)
+{
+	return (cc & NVME_CC_IOCQES_MASK) >> NVME_CC_IOCQES_SHIFT;
+}
+
 /* Convert a 32-bit number to a 16-bit 0's based number */
 static inline __le16 to0based(u32 a)
 {
@@ -717,7 +852,9 @@ static inline void nvmet_req_bio_put(struct nvmet_req *req, struct bio *bio)
 }
 
 #ifdef CONFIG_NVME_TARGET_AUTH
+u32 nvmet_auth_send_data_len(struct nvmet_req *req);
 void nvmet_execute_auth_send(struct nvmet_req *req);
+u32 nvmet_auth_receive_data_len(struct nvmet_req *req);
 void nvmet_execute_auth_receive(struct nvmet_req *req);
 int nvmet_auth_set_key(struct nvmet_host *host, const char *secret,
 		       bool set_ctrl);
@@ -760,5 +897,41 @@ static inline bool nvmet_has_auth(struct nvmet_ctrl *ctrl)
 }
 static inline const char *nvmet_dhchap_dhgroup_name(u8 dhgid) { return NULL; }
 #endif
+
+int nvmet_pr_init_ns(struct nvmet_ns *ns);
+u16 nvmet_parse_pr_cmd(struct nvmet_req *req);
+u16 nvmet_pr_check_cmd_access(struct nvmet_req *req);
+int nvmet_ctrl_init_pr(struct nvmet_ctrl *ctrl);
+void nvmet_ctrl_destroy_pr(struct nvmet_ctrl *ctrl);
+void nvmet_pr_exit_ns(struct nvmet_ns *ns);
+void nvmet_execute_get_log_page_resv(struct nvmet_req *req);
+u16 nvmet_set_feat_resv_notif_mask(struct nvmet_req *req, u32 mask);
+u16 nvmet_get_feat_resv_notif_mask(struct nvmet_req *req);
+u16 nvmet_pr_get_ns_pc_ref(struct nvmet_req *req);
+static inline void nvmet_pr_put_ns_pc_ref(struct nvmet_pr_per_ctrl_ref *pc_ref)
+{
+	percpu_ref_put(&pc_ref->ref);
+}
+
+/*
+ * Data for the get_feature() and set_feature() operations of PCI target
+ * controllers.
+ */
+struct nvmet_feat_irq_coalesce {
+	u8		thr;
+	u8		time;
+};
+
+struct nvmet_feat_irq_config {
+	u16		iv;
+	bool		cd;
+};
+
+struct nvmet_feat_arbitration {
+	u8		hpw;
+	u8		mpw;
+	u8		lpw;
+	u8		ab;
+};
 
 #endif /* _NVMET_H */

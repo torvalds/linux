@@ -15,6 +15,8 @@
 #include "evsel.h"
 #include "pmus.h"
 #include "pmu.h"
+#include "hwmon_pmu.h"
+#include "tool_pmu.h"
 #include "print-events.h"
 #include "strbuf.h"
 
@@ -69,7 +71,7 @@ size_t pmu_name_len_no_suffix(const char *str)
 
 int pmu_name_cmp(const char *lhs_pmu_name, const char *rhs_pmu_name)
 {
-	unsigned long lhs_num = 0, rhs_num = 0;
+	unsigned long long lhs_num = 0, rhs_num = 0;
 	size_t lhs_pmu_name_len = pmu_name_len_no_suffix(lhs_pmu_name);
 	size_t rhs_pmu_name_len = pmu_name_len_no_suffix(rhs_pmu_name);
 	int ret = strncmp(lhs_pmu_name, rhs_pmu_name,
@@ -79,9 +81,9 @@ int pmu_name_cmp(const char *lhs_pmu_name, const char *rhs_pmu_name)
 		return ret;
 
 	if (lhs_pmu_name_len + 1 < strlen(lhs_pmu_name))
-		lhs_num = strtoul(&lhs_pmu_name[lhs_pmu_name_len + 1], NULL, 16);
+		lhs_num = strtoull(&lhs_pmu_name[lhs_pmu_name_len + 1], NULL, 16);
 	if (rhs_pmu_name_len + 1 < strlen(rhs_pmu_name))
-		rhs_num = strtoul(&rhs_pmu_name[rhs_pmu_name_len + 1], NULL, 16);
+		rhs_num = strtoull(&rhs_pmu_name[rhs_pmu_name_len + 1], NULL, 16);
 
 	return lhs_num < rhs_num ? -1 : (lhs_num > rhs_num ? 1 : 0);
 }
@@ -200,6 +202,7 @@ static void pmu_read_sysfs(bool core_only)
 	int fd;
 	DIR *dir;
 	struct dirent *dent;
+	struct perf_pmu *tool_pmu;
 
 	if (read_sysfs_all_pmus || (core_only && read_sysfs_core_pmus))
 		return;
@@ -229,6 +232,11 @@ static void pmu_read_sysfs(bool core_only)
 			pr_err("Failure to set up any core PMUs\n");
 	}
 	list_sort(NULL, &core_pmus, pmus_cmp);
+	if (!core_only) {
+		tool_pmu = perf_pmus__tool_pmu();
+		list_add_tail(&tool_pmu->list, &other_pmus);
+		perf_pmus__read_hwmon_pmus(&other_pmus);
+	}
 	list_sort(NULL, &other_pmus, pmus_cmp);
 	if (!list_empty(&core_pmus)) {
 		read_sysfs_core_pmus = true;
@@ -371,6 +379,7 @@ struct sevent {
 	const char *encoding_desc;
 	const char *topic;
 	const char *pmu_name;
+	const char *event_type_desc;
 	bool deprecated;
 };
 
@@ -433,6 +442,7 @@ static int perf_pmus__print_pmu_events__callback(void *vstate,
 		pr_err("Unexpected event %s/%s/\n", info->pmu->name, info->name);
 		return 1;
 	}
+	assert(info->pmu != NULL || info->name != NULL);
 	s = &state->aliases[state->index];
 	s->pmu = info->pmu;
 #define COPY_STR(str) s->str = info->str ? strdup(info->str) : NULL
@@ -444,6 +454,7 @@ static int perf_pmus__print_pmu_events__callback(void *vstate,
 	COPY_STR(encoding_desc);
 	COPY_STR(topic);
 	COPY_STR(pmu_name);
+	COPY_STR(event_type_desc);
 #undef COPY_STR
 	s->deprecated = info->deprecated;
 	state->index++;
@@ -492,13 +503,13 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 			goto free;
 
 		print_cb->print_event(print_state,
-				aliases[j].pmu_name,
 				aliases[j].topic,
+				aliases[j].pmu_name,
 				aliases[j].name,
 				aliases[j].alias,
 				aliases[j].scale_unit,
 				aliases[j].deprecated,
-				"Kernel PMU event",
+				aliases[j].event_type_desc,
 				aliases[j].desc,
 				aliases[j].long_desc,
 				aliases[j].encoding_desc);
@@ -511,6 +522,7 @@ free:
 		zfree(&aliases[j].encoding_desc);
 		zfree(&aliases[j].topic);
 		zfree(&aliases[j].pmu_name);
+		zfree(&aliases[j].event_type_desc);
 	}
 	if (printed && pager_in_use())
 		printf("\n");
@@ -719,4 +731,22 @@ struct perf_pmu *perf_pmus__add_test_pmu(int test_sysfs_dirfd, const char *name)
 	 * format files.
 	 */
 	return perf_pmu__lookup(&other_pmus, test_sysfs_dirfd, name, /*eager_load=*/true);
+}
+
+struct perf_pmu *perf_pmus__add_test_hwmon_pmu(int hwmon_dir,
+					       const char *sysfs_name,
+					       const char *name)
+{
+	return hwmon_pmu__new(&other_pmus, hwmon_dir, sysfs_name, name);
+}
+
+struct perf_pmu *perf_pmus__fake_pmu(void)
+{
+	static struct perf_pmu fake = {
+		.name = "fake",
+		.type = PERF_PMU_TYPE_FAKE,
+		.format = LIST_HEAD_INIT(fake.format),
+	};
+
+	return &fake;
 }

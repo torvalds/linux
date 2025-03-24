@@ -859,7 +859,7 @@ static struct platform_driver pic32_spi_driver = {
 		.of_match_table = of_match_ptr(pic32_spi_of_match),
 	},
 	.probe = pic32_spi_probe,
-	.remove_new = pic32_spi_remove,
+	.remove = pic32_spi_remove,
 };
 
 module_platform_driver(pic32_spi_driver);

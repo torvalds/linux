@@ -234,10 +234,11 @@ static int sparx5_dcb_ieee_dscp_setdel(struct net_device *dev,
 						     struct dcb_app *))
 {
 	struct sparx5_port *port = netdev_priv(dev);
+	struct sparx5 *sparx5 = port->sparx5;
 	struct sparx5_port *port_itr;
 	int err, i;
 
-	for (i = 0; i < SPX5_PORTS; i++) {
+	for (i = 0; i < sparx5->data->consts->n_ports; i++) {
 		port_itr = port->sparx5->ports[i];
 		if (!port_itr)
 			continue;
@@ -386,7 +387,7 @@ int sparx5_dcb_init(struct sparx5 *sparx5)
 	struct sparx5_port *port;
 	int i;
 
-	for (i = 0; i < SPX5_PORTS; i++) {
+	for (i = 0; i < sparx5->data->consts->n_ports; i++) {
 		port = sparx5->ports[i];
 		if (!port)
 			continue;

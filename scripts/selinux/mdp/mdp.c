@@ -11,10 +11,6 @@
  * Authors: Serge E. Hallyn <serue@us.ibm.com>
  */
 
-
-/* NOTE: we really do want to use the kernel headers here */
-#define __EXPORTED_HEADERS__
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -170,9 +166,6 @@ int main(int argc, char *argv[])
 #endif
 #ifdef CONFIG_JFS_SECURITY
 	FS_USE("xattr", "jfs");
-#endif
-#ifdef CONFIG_REISERFS_FS_SECURITY
-	FS_USE("xattr", "reiserfs");
 #endif
 #ifdef CONFIG_JFFS2_FS_SECURITY
 	FS_USE("xattr", "jffs2");

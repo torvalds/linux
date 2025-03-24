@@ -265,7 +265,7 @@ static struct platform_driver via_i2c_driver = {
 		.name = "viafb-i2c",
 	},
 	.probe = viafb_i2c_probe,
-	.remove_new = viafb_i2c_remove,
+	.remove = viafb_i2c_remove,
 };
 
 int viafb_i2c_init(void)

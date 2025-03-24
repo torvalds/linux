@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NETWORK_HELPERS_H
 #define __NETWORK_HELPERS_H
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <linux/types.h>
@@ -13,6 +14,7 @@ typedef __u16 __sum16;
 #include <linux/sockios.h>
 #include <linux/err.h>
 #include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <bpf/bpf_endian.h>
 #include <net/if.h>
 
@@ -23,7 +25,6 @@ typedef __u16 __sum16;
 
 struct network_helper_opts {
 	int timeout_ms;
-	bool must_fail;
 	int proto;
 	/* +ve: Passed to listen() as-is.
 	 *   0: Default when the test does not set
@@ -70,8 +71,10 @@ int client_socket(int family, int type,
 		  const struct network_helper_opts *opts);
 int connect_to_addr(int type, const struct sockaddr_storage *addr, socklen_t len,
 		    const struct network_helper_opts *opts);
+int connect_to_addr_str(int family, int type, const char *addr_str, __u16 port,
+			const struct network_helper_opts *opts);
 int connect_to_fd(int server_fd, int timeout_ms);
-int connect_to_fd_opts(int server_fd, int type, const struct network_helper_opts *opts);
+int connect_to_fd_opts(int server_fd, const struct network_helper_opts *opts);
 int connect_fd_to_fd(int client_fd, int server_fd, int timeout_ms);
 int fastopen_connect(int server_fd, const char *data, unsigned int data_len,
 		     int timeout_ms);
@@ -92,6 +95,8 @@ struct nstoken;
 struct nstoken *open_netns(const char *name);
 void close_netns(struct nstoken *token);
 int send_recv_data(int lfd, int fd, uint32_t total_bytes);
+int make_netns(const char *name);
+int remove_netns(const char *name);
 
 static __u16 csum_fold(__u32 csum)
 {
@@ -101,6 +106,45 @@ static __u16 csum_fold(__u32 csum)
 	return (__u16)~csum;
 }
 
+static __wsum csum_partial(const void *buf, int len, __wsum sum)
+{
+	__u16 *p = (__u16 *)buf;
+	int num_u16 = len >> 1;
+	int i;
+
+	for (i = 0; i < num_u16; i++)
+		sum += p[i];
+
+	return sum;
+}
+
+static inline __sum16 build_ip_csum(struct iphdr *iph)
+{
+	__u32 sum = 0;
+	__u16 *p;
+
+	iph->check = 0;
+	p = (void *)iph;
+	sum = csum_partial(p, iph->ihl << 2, 0);
+
+	return csum_fold(sum);
+}
+
+/**
+ * csum_tcpudp_magic - compute IP pseudo-header checksum
+ *
+ * Compute the IPv4 pseudo header checksum. The helper can take a
+ * accumulated sum from the transport layer to accumulate it and directly
+ * return the transport layer
+ *
+ * @saddr: IP source address
+ * @daddr: IP dest address
+ * @len: IP data size
+ * @proto: transport layer protocol
+ * @csum: The accumulated partial sum to add to the computation
+ *
+ * Returns the folded sum
+ */
 static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 					__u32 len, __u8 proto,
 					__wsum csum)
@@ -116,6 +160,21 @@ static inline __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 	return csum_fold((__u32)s);
 }
 
+/**
+ * csum_ipv6_magic - compute IPv6 pseudo-header checksum
+ *
+ * Compute the ipv6 pseudo header checksum. The helper can take a
+ * accumulated sum from the transport layer to accumulate it and directly
+ * return the transport layer
+ *
+ * @saddr: IPv6 source address
+ * @daddr: IPv6 dest address
+ * @len: IPv6 data size
+ * @proto: transport layer protocol
+ * @csum: The accumulated partial sum to add to the computation
+ *
+ * Returns the folded sum
+ */
 static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 				      const struct in6_addr *daddr,
 					__u32 len, __u8 proto,
@@ -134,5 +193,64 @@ static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 
 	return csum_fold((__u32)s);
 }
+
+/**
+ * build_udp_v4_csum - compute UDP checksum for UDP over IPv4
+ *
+ * Compute the checksum to embed in UDP header, composed of the sum of IP
+ * pseudo-header checksum, UDP header checksum and UDP data checksum
+ * @iph IP header
+ * @udph UDP header, which must be immediately followed by UDP data
+ *
+ * Returns the total checksum
+ */
+
+static inline __sum16 build_udp_v4_csum(const struct iphdr *iph,
+					const struct udphdr *udph)
+{
+	unsigned long sum;
+
+	sum = csum_partial(udph, ntohs(udph->len), 0);
+	return csum_tcpudp_magic(iph->saddr, iph->daddr, ntohs(udph->len),
+				 IPPROTO_UDP, sum);
+}
+
+/**
+ * build_udp_v6_csum - compute UDP checksum for UDP over IPv6
+ *
+ * Compute the checksum to embed in UDP header, composed of the sum of IPv6
+ * pseudo-header checksum, UDP header checksum and UDP data checksum
+ * @ip6h IPv6 header
+ * @udph UDP header, which must be immediately followed by UDP data
+ *
+ * Returns the total checksum
+ */
+static inline __sum16 build_udp_v6_csum(const struct ipv6hdr *ip6h,
+					const struct udphdr *udph)
+{
+	unsigned long sum;
+
+	sum = csum_partial(udph, ntohs(udph->len), 0);
+	return csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr, ntohs(udph->len),
+			       IPPROTO_UDP, sum);
+}
+
+struct tmonitor_ctx;
+
+#ifdef TRAFFIC_MONITOR
+struct tmonitor_ctx *traffic_monitor_start(const char *netns, const char *test_name,
+					   const char *subtest_name);
+void traffic_monitor_stop(struct tmonitor_ctx *ctx);
+#else
+static inline struct tmonitor_ctx *traffic_monitor_start(const char *netns, const char *test_name,
+							 const char *subtest_name)
+{
+	return NULL;
+}
+
+static inline void traffic_monitor_stop(struct tmonitor_ctx *ctx)
+{
+}
+#endif
 
 #endif

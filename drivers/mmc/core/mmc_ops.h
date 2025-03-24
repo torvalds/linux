@@ -25,6 +25,7 @@ struct mmc_command;
 int mmc_select_card(struct mmc_card *card);
 int mmc_deselect_cards(struct mmc_host *host);
 int mmc_set_dsr(struct mmc_host *host);
+int __mmc_go_idle(struct mmc_host *host);
 int mmc_go_idle(struct mmc_host *host);
 int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr);
 int mmc_set_relative_addr(struct mmc_card *card);
@@ -55,6 +56,20 @@ void mmc_run_bkops(struct mmc_card *card);
 int mmc_cmdq_enable(struct mmc_card *card);
 int mmc_cmdq_disable(struct mmc_card *card);
 int mmc_sanitize(struct mmc_card *card, unsigned int timeout_ms);
+
+static inline u32 unstuff_bits(const u32 *resp, int start, int size)
+{
+	const int __size = size;
+	const u32 __mask = (__size < 32 ? 1 << __size : 0) - 1;
+	const int __off = 3 - (start / 32);
+	const int __shft = start & 31;
+	u32 __res = resp[__off] >> __shft;
+
+	if (__size + __shft > 32)
+		__res |= resp[__off - 1] << ((32 - __shft) % 32);
+
+	return __res & __mask;
+}
 
 #endif
 

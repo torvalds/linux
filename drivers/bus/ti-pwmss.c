@@ -44,7 +44,7 @@ static struct platform_driver pwmss_driver = {
 		.of_match_table	= pwmss_of_match,
 	},
 	.probe	= pwmss_probe,
-	.remove_new = pwmss_remove,
+	.remove	= pwmss_remove,
 };
 
 module_platform_driver(pwmss_driver);

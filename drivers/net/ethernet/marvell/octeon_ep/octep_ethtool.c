@@ -47,7 +47,7 @@ static const char octep_gstrings_global_stats[][ETH_GSTRING_LEN] = {
 	"rx_err_pkts",
 };
 
-#define OCTEP_GLOBAL_STATS_CNT (sizeof(octep_gstrings_global_stats) / ETH_GSTRING_LEN)
+#define OCTEP_GLOBAL_STATS_CNT ARRAY_SIZE(octep_gstrings_global_stats)
 
 static const char octep_gstrings_tx_q_stats[][ETH_GSTRING_LEN] = {
 	"tx_packets_posted[Q-%u]",
@@ -56,7 +56,7 @@ static const char octep_gstrings_tx_q_stats[][ETH_GSTRING_LEN] = {
 	"tx_busy[Q-%u]",
 };
 
-#define OCTEP_TX_Q_STATS_CNT (sizeof(octep_gstrings_tx_q_stats) / ETH_GSTRING_LEN)
+#define OCTEP_TX_Q_STATS_CNT ARRAY_SIZE(octep_gstrings_tx_q_stats)
 
 static const char octep_gstrings_rx_q_stats[][ETH_GSTRING_LEN] = {
 	"rx_packets[Q-%u]",
@@ -64,7 +64,7 @@ static const char octep_gstrings_rx_q_stats[][ETH_GSTRING_LEN] = {
 	"rx_alloc_errors[Q-%u]",
 };
 
-#define OCTEP_RX_Q_STATS_CNT (sizeof(octep_gstrings_rx_q_stats) / ETH_GSTRING_LEN)
+#define OCTEP_RX_Q_STATS_CNT ARRAY_SIZE(octep_gstrings_rx_q_stats)
 
 static void octep_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *info)
@@ -80,32 +80,25 @@ static void octep_get_strings(struct net_device *netdev,
 {
 	struct octep_device *oct = netdev_priv(netdev);
 	u16 num_queues = CFG_GET_PORTS_ACTIVE_IO_RINGS(oct->conf);
-	char *strings = (char *)data;
+	const char *str;
 	int i, j;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < OCTEP_GLOBAL_STATS_CNT; i++) {
-			snprintf(strings, ETH_GSTRING_LEN,
-				 octep_gstrings_global_stats[i]);
-			strings += ETH_GSTRING_LEN;
-		}
+		for (i = 0; i < OCTEP_GLOBAL_STATS_CNT; i++)
+			ethtool_puts(&data, octep_gstrings_global_stats[i]);
 
-		for (i = 0; i < num_queues; i++) {
+		for (i = 0; i < num_queues; i++)
 			for (j = 0; j < OCTEP_TX_Q_STATS_CNT; j++) {
-				snprintf(strings, ETH_GSTRING_LEN,
-					 octep_gstrings_tx_q_stats[j], i);
-				strings += ETH_GSTRING_LEN;
+				str = octep_gstrings_tx_q_stats[j];
+				ethtool_sprintf(&data, str, i);
 			}
-		}
 
-		for (i = 0; i < num_queues; i++) {
+		for (i = 0; i < num_queues; i++)
 			for (j = 0; j < OCTEP_RX_Q_STATS_CNT; j++) {
-				snprintf(strings, ETH_GSTRING_LEN,
-					 octep_gstrings_rx_q_stats[j], i);
-				strings += ETH_GSTRING_LEN;
+				str = octep_gstrings_rx_q_stats[j];
+				ethtool_sprintf(&data, str, i);
 			}
-		}
 		break;
 	default:
 		break;
@@ -157,17 +150,14 @@ octep_get_ethtool_stats(struct net_device *netdev,
 				    iface_rx_stats,
 				    iface_tx_stats);
 
-	for (q = 0; q < oct->num_oqs; q++) {
-		struct octep_iq *iq = oct->iq[q];
-		struct octep_oq *oq = oct->oq[q];
+	for (q = 0; q < OCTEP_MAX_QUEUES; q++) {
+		tx_packets += oct->stats_iq[q].instr_completed;
+		tx_bytes += oct->stats_iq[q].bytes_sent;
+		tx_busy_errors += oct->stats_iq[q].tx_busy;
 
-		tx_packets += iq->stats.instr_completed;
-		tx_bytes += iq->stats.bytes_sent;
-		tx_busy_errors += iq->stats.tx_busy;
-
-		rx_packets += oq->stats.packets;
-		rx_bytes += oq->stats.bytes;
-		rx_alloc_errors += oq->stats.alloc_failures;
+		rx_packets += oct->stats_oq[q].packets;
+		rx_bytes += oct->stats_oq[q].bytes;
+		rx_alloc_errors += oct->stats_oq[q].alloc_failures;
 	}
 	i = 0;
 	data[i++] = rx_packets;
@@ -205,22 +195,18 @@ octep_get_ethtool_stats(struct net_device *netdev,
 	data[i++] = iface_rx_stats->err_pkts;
 
 	/* Per Tx Queue stats */
-	for (q = 0; q < oct->num_iqs; q++) {
-		struct octep_iq *iq = oct->iq[q];
-
-		data[i++] = iq->stats.instr_posted;
-		data[i++] = iq->stats.instr_completed;
-		data[i++] = iq->stats.bytes_sent;
-		data[i++] = iq->stats.tx_busy;
+	for (q = 0; q < OCTEP_MAX_QUEUES; q++) {
+		data[i++] = oct->stats_iq[q].instr_posted;
+		data[i++] = oct->stats_iq[q].instr_completed;
+		data[i++] = oct->stats_iq[q].bytes_sent;
+		data[i++] = oct->stats_iq[q].tx_busy;
 	}
 
 	/* Per Rx Queue stats */
-	for (q = 0; q < oct->num_oqs; q++) {
-		struct octep_oq *oq = oct->oq[q];
-
-		data[i++] = oq->stats.packets;
-		data[i++] = oq->stats.bytes;
-		data[i++] = oq->stats.alloc_failures;
+	for (q = 0; q < OCTEP_MAX_QUEUES; q++) {
+		data[i++] = oct->stats_oq[q].packets;
+		data[i++] = oct->stats_oq[q].bytes;
+		data[i++] = oct->stats_oq[q].alloc_failures;
 	}
 }
 

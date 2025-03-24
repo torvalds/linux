@@ -235,7 +235,7 @@ static struct platform_device *ieee802154fake_dev;
 
 static struct platform_driver ieee802154fake_driver = {
 	.probe = fakelb_probe,
-	.remove_new = fakelb_remove,
+	.remove = fakelb_remove,
 	.driver = {
 			.name = "ieee802154fakelb",
 	},

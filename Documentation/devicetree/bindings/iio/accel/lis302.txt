@@ -36,7 +36,7 @@ Optional properties for all bus drivers:
  - st,irq{1,2}-disable:		disable IRQ 1/2
  - st,irq{1,2}-ff-wu-1:		raise IRQ 1/2 on FF_WU_1 condition
  - st,irq{1,2}-ff-wu-2:		raise IRQ 1/2 on FF_WU_2 condition
- - st,irq{1,2}-data-ready:	raise IRQ 1/2 on data ready contition
+ - st,irq{1,2}-data-ready:	raise IRQ 1/2 on data ready condition
  - st,irq{1,2}-click:		raise IRQ 1/2 on click condition
  - st,irq-open-drain:		consider IRQ lines open-drain
  - st,irq-active-low:		make IRQ lines active low

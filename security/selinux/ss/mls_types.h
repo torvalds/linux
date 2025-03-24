@@ -29,7 +29,7 @@ struct mls_range {
 static inline int mls_level_eq(const struct mls_level *l1,
 			       const struct mls_level *l2)
 {
-	return ((l1->sens == l2->sens) && ebitmap_cmp(&l1->cat, &l2->cat));
+	return ((l1->sens == l2->sens) && ebitmap_equal(&l1->cat, &l2->cat));
 }
 
 static inline int mls_level_dom(const struct mls_level *l1,

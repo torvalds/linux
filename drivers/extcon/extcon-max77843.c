@@ -956,7 +956,7 @@ static struct platform_driver max77843_muic_driver = {
 		.of_match_table = of_max77843_muic_dt_match,
 	},
 	.probe		= max77843_muic_probe,
-	.remove_new	= max77843_muic_remove,
+	.remove		= max77843_muic_remove,
 	.id_table	= max77843_muic_id,
 };
 

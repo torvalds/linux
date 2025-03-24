@@ -286,7 +286,7 @@ static const struct i2c_rv ov965x_init_regs[] = {
 	{ REG_COM5, 0x00 },	/* System clock options */
 	{ REG_COM2, 0x01 },	/* Output drive, soft sleep mode */
 	{ REG_COM10, 0x00 },	/* Slave mode, HREF vs HSYNC, signals negate */
-	{ REG_EDGE, 0xa6 },	/* Edge enhancement treshhold and factor */
+	{ REG_EDGE, 0xa6 },	/* Edge enhancement threshold and factor */
 	{ REG_COM16, 0x02 },	/* Color matrix coeff double option */
 	{ REG_COM17, 0x08 },	/* Single frame out, banding filter */
 	{ 0x16, 0x06 },
@@ -1566,8 +1566,8 @@ static void ov965x_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ov965x_id[] = {
-	{ "OV9650", 0 },
-	{ "OV9652", 0 },
+	{ "OV9650" },
+	{ "OV9652" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, ov965x_id);

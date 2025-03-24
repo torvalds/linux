@@ -25,10 +25,6 @@
 #include "efi.h"
 
 #include <generated/compile.h>
-#include <linux/module.h>
-#include <linux/uts.h>
-#include <linux/utsname.h>
-#include <linux/ctype.h>
 #include <generated/utsversion.h>
 #include <generated/utsrelease.h>
 

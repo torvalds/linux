@@ -16,18 +16,6 @@
 #define MAX5978_NUM_SWITCHES 1
 #define MAX5970_NUM_LEDS     4
 
-struct max5970_data {
-	int num_switches;
-	u32 irng[MAX5970_NUM_SWITCHES];
-	u32 mon_rng[MAX5970_NUM_SWITCHES];
-	u32 shunt_micro_ohms[MAX5970_NUM_SWITCHES];
-};
-
-enum max5970_chip_type {
-	TYPE_MAX5978 = 1,
-	TYPE_MAX5970,
-};
-
 #define MAX5970_REG_CURRENT_L(ch)		(0x01 + (ch) * 4)
 #define MAX5970_REG_CURRENT_H(ch)		(0x00 + (ch) * 4)
 #define MAX5970_REG_VOLTAGE_L(ch)		(0x03 + (ch) * 4)

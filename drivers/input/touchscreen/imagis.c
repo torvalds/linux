@@ -22,6 +22,7 @@
 
 #define IST3032C_WHOAMI			0x32c
 #define IST3038C_WHOAMI			0x38c
+#define IST3038H_WHOAMI			0x38d
 
 #define IST3038B_REG_CHIPID		0x30
 #define IST3038B_WHOAMI			0x30380b
@@ -395,6 +396,7 @@ static int imagis_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(imagis_pm_ops, imagis_suspend, imagis_resume);
 
+#ifdef CONFIG_OF
 static const struct imagis_properties imagis_3032c_data = {
 	.interrupt_msg_cmd = IST3038C_REG_INTR_MESSAGE,
 	.touch_coord_cmd = IST3038C_REG_TOUCH_COORD,
@@ -427,12 +429,19 @@ static const struct imagis_properties imagis_3038c_data = {
 	.protocol_b = true,
 };
 
-#ifdef CONFIG_OF
+static const struct imagis_properties imagis_3038h_data = {
+	.interrupt_msg_cmd = IST3038C_REG_INTR_MESSAGE,
+	.touch_coord_cmd = IST3038C_REG_TOUCH_COORD,
+	.whoami_cmd = IST3038C_REG_CHIPID,
+	.whoami_val = IST3038H_WHOAMI,
+};
+
 static const struct of_device_id imagis_of_match[] = {
 	{ .compatible = "imagis,ist3032c", .data = &imagis_3032c_data },
 	{ .compatible = "imagis,ist3038", .data = &imagis_3038_data },
 	{ .compatible = "imagis,ist3038b", .data = &imagis_3038b_data },
 	{ .compatible = "imagis,ist3038c", .data = &imagis_3038c_data },
+	{ .compatible = "imagis,ist3038h", .data = &imagis_3038h_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, imagis_of_match);

@@ -116,6 +116,7 @@ properties:
           - const: atmel,24c02
       - items:
           - enum:
+              - giantec,gt24c04a
               - onnn,cat24c04
               - onnn,cat24c05
               - rohm,br24g04
@@ -133,13 +134,20 @@ properties:
           - const: atmel,24c64
       - items:
           - enum:
+              - giantec,gt24p128f
               - renesas,r1ex24128
               - samsung,s524ad0xd1
           - const: atmel,24c128
       - items:
+          - enum:
+              - puya,p24c256c
+          - const: atmel,24c256
+      - items:
           - const: microchip,24aa025e48
       - items:
           - const: microchip,24aa025e64
+      - items:
+          - const: st,24256e-wl
       - pattern: '^atmel,24c(32|64)d-wl$' # Actual vendor is st
 
   label:

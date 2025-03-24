@@ -1,0 +1,24 @@
+[config]
+command = record
+args    = --no-bpf-event -C 0 kill >/dev/null 2>&1
+ret     = 1
+
+[event:base-record]
+cpu=0
+
+# no enable on exec for CPU attached
+enable_on_exec=0
+
+# PERF_SAMPLE_IP | PERF_SAMPLE_TID | PERF_SAMPLE_TIME |
+# PERF_SAMPLE_PERIOD | PERF_SAMPLE_IDENTIFIER
+# + PERF_SAMPLE_CPU added by -C 0
+sample_type=65927
+
+# Dummy event handles mmaps, comm and task.
+mmap=0
+comm=0
+task=0
+inherit=0
+
+[event:system-wide-dummy]
+inherit=0

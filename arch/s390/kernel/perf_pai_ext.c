@@ -503,7 +503,7 @@ static int paiext_push_sample(size_t rawsize, struct paiext_map *cpump,
 	if (event->attr.sample_type & PERF_SAMPLE_RAW) {
 		raw.frag.size = rawsize;
 		raw.frag.data = cpump->save;
-		perf_sample_save_raw_data(&data, &raw);
+		perf_sample_save_raw_data(&data, event, &raw);
 	}
 
 	overflow = perf_event_overflow(event, &data, &regs);
@@ -635,6 +635,15 @@ static const char * const paiext_ctrnames[] = {
 	[25] = "NNPA_1MFRAME",
 	[26] = "NNPA_2GFRAME",
 	[27] = "NNPA_ACCESSEXCEPT",
+	[28] = "NNPA_TRANSFORM",
+	[29] = "NNPA_GELU",
+	[30] = "NNPA_MOMENTS",
+	[31] = "NNPA_LAYERNORM",
+	[32] = "NNPA_MATMUL_OP_BCAST1",
+	[33] = "NNPA_SQRT",
+	[34] = "NNPA_INVSQRT",
+	[35] = "NNPA_NORM",
+	[36] = "NNPA_REDUCE",
 };
 
 static void __init attr_event_free(struct attribute **attrs, int num)

@@ -94,7 +94,7 @@
 };
 
 &iomuxc {
-	pinctrl_gpmi_nand: gpmi-nand {
+	pinctrl_gpmi_nand: gpminandgrp {
 		fsl,pins = <
 			MX6UL_PAD_NAND_CLE__RAWNAND_CLE		0xb0b1
 			MX6UL_PAD_NAND_ALE__RAWNAND_ALE		0xb0b1

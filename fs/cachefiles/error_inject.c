@@ -11,7 +11,7 @@
 unsigned int cachefiles_error_injection_state;
 
 static struct ctl_table_header *cachefiles_sysctl;
-static struct ctl_table cachefiles_sysctls[] = {
+static const struct ctl_table cachefiles_sysctls[] = {
 	{
 		.procname	= "error_injection",
 		.data		= &cachefiles_error_injection_state,

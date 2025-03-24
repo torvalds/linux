@@ -19,7 +19,7 @@
 #include <asm/macints.h>
 #include <asm/mac_iop.h>
 #include <asm/adb_iop.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/adb.h>
 

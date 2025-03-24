@@ -36,7 +36,7 @@
 #include <regex.h>
 
 #include <linux/ctype.h>
-#include <traceevent/event-parse.h>
+#include <event-parse.h>
 
 static int	kmem_slab;
 static int	kmem_page;
@@ -761,6 +761,7 @@ static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 	};
 	struct trace_seq seq;
 	char *str, *pos = NULL;
+	const struct tep_event *tp_format;
 
 	if (nr_gfps) {
 		struct gfp_flag key = {
@@ -772,8 +773,9 @@ static int parse_gfp_flags(struct evsel *evsel, struct perf_sample *sample,
 	}
 
 	trace_seq_init(&seq);
-	tep_print_event(evsel->tp_format->tep,
-			&seq, &record, "%s", TEP_PRINT_INFO);
+	tp_format = evsel__tp_format(evsel);
+	if (tp_format)
+		tep_print_event(tp_format->tep, &seq, &record, "%s", TEP_PRINT_INFO);
 
 	str = strtok_r(seq.buffer, " ", &pos);
 	while (str) {
@@ -955,7 +957,7 @@ static bool perf_kmem__skip_sample(struct perf_sample *sample)
 typedef int (*tracepoint_handler)(struct evsel *evsel,
 				  struct perf_sample *sample);
 
-static int process_sample_event(struct perf_tool *tool __maybe_unused,
+static int process_sample_event(const struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,
@@ -985,15 +987,6 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 	return err;
 }
-
-static struct perf_tool perf_kmem = {
-	.sample		 = process_sample_event,
-	.comm		 = perf_event__process_comm,
-	.mmap		 = perf_event__process_mmap,
-	.mmap2		 = perf_event__process_mmap2,
-	.namespaces	 = perf_event__process_namespaces,
-	.ordered_events	 = true,
-};
 
 static double fragmentation(unsigned long n_req, unsigned long n_alloc)
 {
@@ -1971,6 +1964,7 @@ int cmd_kmem(int argc, const char **argv)
 		NULL
 	};
 	struct perf_session *session;
+	struct perf_tool perf_kmem;
 	static const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
 	int ret = perf_config(kmem_config, NULL);
 
@@ -1998,6 +1992,13 @@ int cmd_kmem(int argc, const char **argv)
 
 	data.path = input_name;
 
+	perf_tool__init(&perf_kmem, /*ordered_events=*/true);
+	perf_kmem.sample	= process_sample_event;
+	perf_kmem.comm		= perf_event__process_comm;
+	perf_kmem.mmap		= perf_event__process_mmap;
+	perf_kmem.mmap2		= perf_event__process_mmap2;
+	perf_kmem.namespaces	= perf_event__process_namespaces;
+
 	kmem_session = session = perf_session__new(&data, &perf_kmem);
 	if (IS_ERR(session))
 		return PTR_ERR(session);
@@ -2013,13 +2014,13 @@ int cmd_kmem(int argc, const char **argv)
 
 	if (kmem_page) {
 		struct evsel *evsel = evlist__find_tracepoint_by_name(session->evlist, "kmem:mm_page_alloc");
+		const struct tep_event *tp_format = evsel ? evsel__tp_format(evsel) : NULL;
 
-		if (evsel == NULL) {
+		if (tp_format == NULL) {
 			pr_err(errmsg, "page", "page");
 			goto out_delete;
 		}
-
-		kmem_page_size = tep_get_page_size(evsel->tp_format->tep);
+		kmem_page_size = tep_get_page_size(tp_format->tep);
 		symbol_conf.use_callchain = true;
 	}
 
@@ -2058,7 +2059,8 @@ int cmd_kmem(int argc, const char **argv)
 
 out_delete:
 	perf_session__delete(session);
+	/* free usage string allocated by parse_options_subcommand */
+	free((void *)kmem_usage[0]);
 
 	return ret;
 }
-

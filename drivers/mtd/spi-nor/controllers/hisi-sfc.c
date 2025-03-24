@@ -488,7 +488,7 @@ static struct platform_driver hisi_spi_nor_driver = {
 		.of_match_table = hisi_spi_nor_dt_ids,
 	},
 	.probe	= hisi_spi_nor_probe,
-	.remove_new = hisi_spi_nor_remove,
+	.remove = hisi_spi_nor_remove,
 };
 module_platform_driver(hisi_spi_nor_driver);
 

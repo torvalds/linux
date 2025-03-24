@@ -65,4 +65,15 @@ static inline void cond_resched_rcu(void)
 #endif
 }
 
+// Has the current task blocked within its current RCU read-side
+// critical section?
+static inline bool has_rcu_reader_blocked(void)
+{
+#ifdef CONFIG_PREEMPT_RCU
+	return !list_empty(&current->rcu_node_entry);
+#else
+	return false;
+#endif
+}
+
 #endif /* _LINUX_SCHED_RCUPDATE_WAIT_H */

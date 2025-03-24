@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
 
+import errno
 import time
 import os
 from lib.py import ksft_run, ksft_exit, ksft_pr
@@ -20,9 +21,9 @@ def _enable_pp_allocation_fail():
     if not os.path.exists("/sys/kernel/debug/fail_function"):
         raise KsftSkipEx("Kernel built without function error injection (or DebugFS)")
 
-    if not os.path.exists("/sys/kernel/debug/fail_function/page_pool_alloc_pages"):
+    if not os.path.exists("/sys/kernel/debug/fail_function/page_pool_alloc_netmems"):
         with open("/sys/kernel/debug/fail_function/inject", "w") as fp:
-            fp.write("page_pool_alloc_pages\n")
+            fp.write("page_pool_alloc_netmems\n")
 
     _write_fail_config({
         "verbose": 0,
@@ -36,7 +37,7 @@ def _disable_pp_allocation_fail():
     if not os.path.exists("/sys/kernel/debug/fail_function"):
         return
 
-    if os.path.exists("/sys/kernel/debug/fail_function/page_pool_alloc_pages"):
+    if os.path.exists("/sys/kernel/debug/fail_function/page_pool_alloc_netmems"):
         with open("/sys/kernel/debug/fail_function/inject", "w") as fp:
             fp.write("\n")
 
@@ -61,7 +62,7 @@ def test_pp_alloc(cfg, netdevnl):
     try:
         stats = get_stats()
     except NlError as e:
-        if e.nl_msg.error == -95:
+        if e.nl_msg.error == -errno.EOPNOTSUPP:
             stats = {}
         else:
             raise

@@ -60,6 +60,10 @@ properties:
               data-lines:
                 $ref: /schemas/types.yaml#/definitions/uint32
                 enum: [ 16, 18, 24 ]
+                deprecated: true
+
+              bus-width:
+                enum: [ 16, 18, 24 ]
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port

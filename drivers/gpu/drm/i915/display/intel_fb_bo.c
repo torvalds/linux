@@ -11,15 +11,16 @@
 #include "intel_fb.h"
 #include "intel_fb_bo.h"
 
-void intel_fb_bo_framebuffer_fini(struct drm_i915_gem_object *obj)
+void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj)
 {
 	/* Nothing to do for i915 */
 }
 
 int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
-				 struct drm_i915_gem_object *obj,
+				 struct drm_gem_object *_obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct drm_i915_gem_object *obj = to_intel_bo(_obj);
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	unsigned int tiling, stride;
 
@@ -74,7 +75,7 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 	return 0;
 }
 
-struct drm_i915_gem_object *
+struct drm_gem_object *
 intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
 			    struct drm_file *filp,
 			    const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -93,5 +94,5 @@ intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
 		return ERR_PTR(-EREMOTE);
 	}
 
-	return obj;
+	return intel_bo_to_drm_bo(obj);
 }

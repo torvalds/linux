@@ -1412,7 +1412,6 @@ static void garmin_port_remove(struct usb_serial_port *port)
 /* All of the device info needed */
 static struct usb_serial_driver garmin_device = {
 	.driver = {
-		.owner       = THIS_MODULE,
 		.name        = "garmin_gps",
 	},
 	.description         = "Garmin GPS usb/tty",

@@ -38,7 +38,7 @@ void mte_default_handler(int signum, siginfo_t *si, void *uc)
 			if (cur_mte_cxt.trig_si_code == si->si_code)
 				cur_mte_cxt.fault_valid = true;
 			else
-				ksft_print_msg("Got unexpected SEGV_MTEAERR at pc=$lx, fault addr=%lx\n",
+				ksft_print_msg("Got unexpected SEGV_MTEAERR at pc=%llx, fault addr=%lx\n",
 					       ((ucontext_t *)uc)->uc_mcontext.pc,
 					       addr);
 			return;
@@ -64,7 +64,7 @@ void mte_default_handler(int signum, siginfo_t *si, void *uc)
 			exit(1);
 		}
 	} else if (signum == SIGBUS) {
-		ksft_print_msg("INFO: SIGBUS signal at pc=%lx, fault addr=%lx, si_code=%lx\n",
+		ksft_print_msg("INFO: SIGBUS signal at pc=%llx, fault addr=%lx, si_code=%x\n",
 				((ucontext_t *)uc)->uc_mcontext.pc, addr, si->si_code);
 		if ((cur_mte_cxt.trig_range >= 0 &&
 		     addr >= MT_CLEAR_TAG(cur_mte_cxt.trig_addr) &&
@@ -100,7 +100,7 @@ void *mte_insert_tags(void *ptr, size_t size)
 	int align_size;
 
 	if (!ptr || (unsigned long)(ptr) & MT_ALIGN_GRANULE) {
-		ksft_print_msg("FAIL: Addr=%lx: invalid\n", ptr);
+		ksft_print_msg("FAIL: Addr=%p: invalid\n", ptr);
 		return NULL;
 	}
 	align_size = MT_ALIGN_UP(size);
@@ -112,7 +112,7 @@ void *mte_insert_tags(void *ptr, size_t size)
 void mte_clear_tags(void *ptr, size_t size)
 {
 	if (!ptr || (unsigned long)(ptr) & MT_ALIGN_GRANULE) {
-		ksft_print_msg("FAIL: Addr=%lx: invalid\n", ptr);
+		ksft_print_msg("FAIL: Addr=%p: invalid\n", ptr);
 		return;
 	}
 	size = MT_ALIGN_UP(size);
@@ -150,13 +150,13 @@ static void *__mte_allocate_memory_range(size_t size, int mem_type, int mapping,
 		map_flag |= MAP_PRIVATE;
 	ptr = mmap(NULL, entire_size, prot_flag, map_flag, fd, 0);
 	if (ptr == MAP_FAILED) {
-		ksft_print_msg("FAIL: mmap allocation\n");
+		ksft_perror("mmap()");
 		return NULL;
 	}
 	if (mem_type == USE_MPROTECT) {
 		if (mprotect(ptr, entire_size, prot_flag | PROT_MTE)) {
+			ksft_perror("mprotect(PROT_MTE)");
 			munmap(ptr, size);
-			ksft_print_msg("FAIL: mprotect PROT_MTE property\n");
 			return NULL;
 		}
 	}
@@ -190,13 +190,13 @@ void *mte_allocate_file_memory(size_t size, int mem_type, int mapping, bool tags
 	lseek(fd, 0, SEEK_SET);
 	for (index = INIT_BUFFER_SIZE; index < size; index += INIT_BUFFER_SIZE) {
 		if (write(fd, buffer, INIT_BUFFER_SIZE) != INIT_BUFFER_SIZE) {
-			perror("initialising buffer");
+			ksft_perror("initialising buffer");
 			return NULL;
 		}
 	}
 	index -= INIT_BUFFER_SIZE;
 	if (write(fd, buffer, size - index) != size - index) {
-		perror("initialising buffer");
+		ksft_perror("initialising buffer");
 		return NULL;
 	}
 	return __mte_allocate_memory_range(size, mem_type, mapping, 0, 0, tags, fd);
@@ -217,12 +217,12 @@ void *mte_allocate_file_memory_tag_range(size_t size, int mem_type, int mapping,
 	lseek(fd, 0, SEEK_SET);
 	for (index = INIT_BUFFER_SIZE; index < map_size; index += INIT_BUFFER_SIZE)
 		if (write(fd, buffer, INIT_BUFFER_SIZE) != INIT_BUFFER_SIZE) {
-			perror("initialising buffer");
+			ksft_perror("initialising buffer");
 			return NULL;
 		}
 	index -= INIT_BUFFER_SIZE;
 	if (write(fd, buffer, map_size - index) != map_size - index) {
-		perror("initialising buffer");
+		ksft_perror("initialising buffer");
 		return NULL;
 	}
 	return __mte_allocate_memory_range(size, mem_type, mapping, range_before,
@@ -319,10 +319,9 @@ int mte_default_setup(void)
 	unsigned long en = 0;
 	int ret;
 
-	if (!(hwcaps2 & HWCAP2_MTE)) {
-		ksft_print_msg("SKIP: MTE features unavailable\n");
-		return KSFT_SKIP;
-	}
+	if (!(hwcaps2 & HWCAP2_MTE))
+		ksft_exit_skip("MTE features unavailable\n");
+
 	/* Get current mte mode */
 	ret = prctl(PR_GET_TAGGED_ADDR_CTRL, en, 0, 0, 0);
 	if (ret < 0) {
@@ -359,7 +358,7 @@ int create_temp_file(void)
 	/* Create a file in the tmpfs filesystem */
 	fd = mkstemp(&filename[0]);
 	if (fd == -1) {
-		perror(filename);
+		ksft_perror(filename);
 		ksft_print_msg("FAIL: Unable to open temporary file\n");
 		return 0;
 	}

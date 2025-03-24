@@ -8,6 +8,7 @@
 
 #include <linux/acpi.h>
 #include <linux/module.h>
+#include <linux/platform_data/x86/intel_scu_ipc.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/usb/pd.h>
@@ -17,8 +18,6 @@
 #include <linux/usb/typec_tbt.h>
 #include <linux/debugfs.h>
 #include <linux/usb.h>
-
-#include <asm/intel_scu_ipc.h>
 
 #define PMC_USBC_CMD		0xa7
 
@@ -719,7 +718,7 @@ DEFINE_SHOW_ATTRIBUTE(port_iom_status);
 static void pmc_mux_port_debugfs_init(struct pmc_usb_port *port)
 {
 	struct dentry *debugfs_dir;
-	char name[6];
+	char name[8];
 
 	snprintf(name, sizeof(name), "port%d", port->usb3_port - 1);
 
@@ -829,7 +828,7 @@ static struct platform_driver pmc_usb_driver = {
 		.acpi_match_table = ACPI_PTR(pmc_usb_acpi_ids),
 	},
 	.probe = pmc_usb_probe,
-	.remove_new = pmc_usb_remove,
+	.remove = pmc_usb_remove,
 };
 
 static int __init pmc_usb_init(void)

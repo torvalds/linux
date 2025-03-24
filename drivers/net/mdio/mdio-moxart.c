@@ -171,7 +171,7 @@ MODULE_DEVICE_TABLE(of, moxart_mdio_dt_ids);
 
 static struct platform_driver moxart_mdio_driver = {
 	.probe = moxart_mdio_probe,
-	.remove_new = moxart_mdio_remove,
+	.remove = moxart_mdio_remove,
 	.driver = {
 		.name = "moxart-mdio",
 		.of_match_table = moxart_mdio_dt_ids,

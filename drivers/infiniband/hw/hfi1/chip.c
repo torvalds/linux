@@ -13235,7 +13235,7 @@ int set_intr_bits(struct hfi1_devdata *dd, u16 first, u16 last, bool set)
 /*
  * Clear all interrupt sources on the chip.
  */
-void clear_all_interrupts(struct hfi1_devdata *dd)
+static void clear_all_interrupts(struct hfi1_devdata *dd)
 {
 	int i;
 

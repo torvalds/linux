@@ -280,7 +280,7 @@ MODULE_DEVICE_TABLE(of, stm32_vrefbuf_of_match);
 
 static struct platform_driver stm32_vrefbuf_driver = {
 	.probe = stm32_vrefbuf_probe,
-	.remove_new = stm32_vrefbuf_remove,
+	.remove = stm32_vrefbuf_remove,
 	.driver = {
 		.name  = "stm32-vrefbuf",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

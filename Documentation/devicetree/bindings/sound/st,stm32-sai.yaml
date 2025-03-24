@@ -20,6 +20,7 @@ properties:
     enum:
       - st,stm32f4-sai
       - st,stm32h7-sai
+      - st,stm32mp25-sai
 
   reg:
     items:
@@ -43,9 +44,11 @@ properties:
     const: 1
 
   clocks:
+    minItems: 1
     maxItems: 3
 
   clock-names:
+    minItems: 1
     maxItems: 3
 
   access-controllers:
@@ -156,7 +159,13 @@ allOf:
           items:
             - const: x8k
             - const: x11k
-    else:
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32mph7-sai
+    then:
       properties:
         clocks:
           items:
@@ -169,6 +178,21 @@ allOf:
             - const: pclk
             - const: x8k
             - const: x11k
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: st,stm32mp25-sai
+    then:
+      properties:
+        clocks:
+          items:
+            - description: pclk feeds the peripheral bus interface.
+
+        clock-names:
+          items:
+            - const: pclk
 
 additionalProperties: false
 

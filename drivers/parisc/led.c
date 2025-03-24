@@ -369,7 +369,7 @@ MODULE_ALIAS("platform:platform-leds");
 
 static struct platform_driver hppa_mainboard_led_driver = {
 	.probe		= platform_led_probe,
-	.remove_new	= platform_led_remove,
+	.remove		= platform_led_remove,
 	.driver		= {
 		.name	= "platform-leds",
 	},

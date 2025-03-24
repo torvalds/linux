@@ -70,7 +70,7 @@
  * it's crucial to keep the hop fields near the buckets that they use them so they'll tend to share
  * cache lines.
  */
-struct __packed bucket {
+struct bucket {
 	/**
 	 * @first_hop: The biased offset of the first entry in the hop list of the neighborhood
 	 *             that hashes to this bucket.
@@ -82,7 +82,7 @@ struct __packed bucket {
 	u64 key;
 	/** @value: The value stored in this bucket (NULL if empty). */
 	void *value;
-};
+} __packed;
 
 /**
  * struct int_map - The concrete definition of the opaque int_map type.
@@ -310,7 +310,6 @@ static struct bucket *select_bucket(const struct int_map *map, u64 key)
 /**
  * search_hop_list() - Search the hop list associated with given hash bucket for a given search
  *                     key.
- * @map: The map being searched.
  * @bucket: The map bucket to search for the key.
  * @key: The mapping key.
  * @previous_ptr: Output. if not NULL, a pointer in which to store the bucket in the list preceding
@@ -321,9 +320,7 @@ static struct bucket *select_bucket(const struct int_map *map, u64 key)
  *
  * Return: An entry that matches the key, or NULL if not found.
  */
-static struct bucket *search_hop_list(struct int_map *map __always_unused,
-				      struct bucket *bucket,
-				      u64 key,
+static struct bucket *search_hop_list(struct bucket *bucket, u64 key,
 				      struct bucket **previous_ptr)
 {
 	struct bucket *previous = NULL;
@@ -357,7 +354,7 @@ static struct bucket *search_hop_list(struct int_map *map __always_unused,
  */
 void *vdo_int_map_get(struct int_map *map, u64 key)
 {
-	struct bucket *match = search_hop_list(map, select_bucket(map, key), key, NULL);
+	struct bucket *match = search_hop_list(select_bucket(map, key), key, NULL);
 
 	return ((match != NULL) ? match->value : NULL);
 }
@@ -443,7 +440,6 @@ find_empty_bucket(struct int_map *map, struct bucket *bucket, unsigned int max_p
 
 /**
  * move_empty_bucket() - Move an empty bucket closer to the start of the bucket array.
- * @map: The map containing the bucket.
  * @hole: The empty bucket to fill with an entry that precedes it in one of its enclosing
  *        neighborhoods.
  *
@@ -454,8 +450,7 @@ find_empty_bucket(struct int_map *map, struct bucket *bucket, unsigned int max_p
  * Return: The bucket that was vacated by moving its entry to the provided hole, or NULL if no
  *         entry could be moved.
  */
-static struct bucket *move_empty_bucket(struct int_map *map __always_unused,
-					struct bucket *hole)
+static struct bucket *move_empty_bucket(struct bucket *hole)
 {
 	/*
 	 * Examine every neighborhood that the empty bucket is part of, starting with the one in
@@ -516,7 +511,6 @@ static struct bucket *move_empty_bucket(struct int_map *map __always_unused,
 /**
  * update_mapping() - Find and update any existing mapping for a given key, returning the value
  *                    associated with the key in the provided pointer.
- * @map: The int_map to attempt to modify.
  * @neighborhood: The first bucket in the neighborhood that would contain the search key
  * @key: The key with which to associate the new value.
  * @new_value: The value to be associated with the key.
@@ -525,10 +519,10 @@ static struct bucket *move_empty_bucket(struct int_map *map __always_unused,
  *
  * Return: true if the map contains a mapping for the key, false if it does not.
  */
-static bool update_mapping(struct int_map *map, struct bucket *neighborhood,
-			   u64 key, void *new_value, bool update, void **old_value_ptr)
+static bool update_mapping(struct bucket *neighborhood, u64 key, void *new_value,
+			   bool update, void **old_value_ptr)
 {
-	struct bucket *bucket = search_hop_list(map, neighborhood, key, NULL);
+	struct bucket *bucket = search_hop_list(neighborhood, key, NULL);
 
 	if (bucket == NULL) {
 		/* There is no bucket containing the key in the neighborhood. */
@@ -584,7 +578,7 @@ static struct bucket *find_or_make_vacancy(struct int_map *map,
 		 * The nearest empty bucket isn't within the neighborhood that must contain the new
 		 * entry, so try to swap it with bucket that is closer.
 		 */
-		hole = move_empty_bucket(map, hole);
+		hole = move_empty_bucket(hole);
 	}
 
 	return NULL;
@@ -625,7 +619,7 @@ int vdo_int_map_put(struct int_map *map, u64 key, void *new_value, bool update,
 	 * Check whether the neighborhood already contains an entry for the key, in which case we
 	 * optionally update it, returning the old value.
 	 */
-	if (update_mapping(map, neighborhood, key, new_value, update, old_value_ptr))
+	if (update_mapping(neighborhood, key, new_value, update, old_value_ptr))
 		return VDO_SUCCESS;
 
 	/*
@@ -679,7 +673,7 @@ void *vdo_int_map_remove(struct int_map *map, u64 key)
 	/* Select the bucket to search and search it for an existing entry. */
 	struct bucket *bucket = select_bucket(map, key);
 	struct bucket *previous;
-	struct bucket *victim = search_hop_list(map, bucket, key, &previous);
+	struct bucket *victim = search_hop_list(bucket, key, &previous);
 
 	if (victim == NULL) {
 		/* There is no matching entry to remove. */

@@ -154,19 +154,6 @@ static struct macsec_rx_sa *macsec_rxsa_get(struct macsec_rx_sa __rcu *ptr)
 	return sa;
 }
 
-static struct macsec_rx_sa *macsec_active_rxsa_get(struct macsec_rx_sc *rx_sc)
-{
-	struct macsec_rx_sa *sa = NULL;
-	int an;
-
-	for (an = 0; an < MACSEC_NUM_AN; an++)	{
-		sa = macsec_rxsa_get(rx_sc->sa[an]);
-		if (sa)
-			break;
-	}
-	return sa;
-}
-
 static void free_rx_sc_rcu(struct rcu_head *head)
 {
 	struct macsec_rx_sc *rx_sc = container_of(head, struct macsec_rx_sc, rcu_head);
@@ -1208,15 +1195,12 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 		/* If validateFrames is Strict or the C bit in the
 		 * SecTAG is set, discard
 		 */
-		struct macsec_rx_sa *active_rx_sa = macsec_active_rxsa_get(rx_sc);
 		if (hdr->tci_an & MACSEC_TCI_C ||
 		    secy->validate_frames == MACSEC_VALIDATE_STRICT) {
 			u64_stats_update_begin(&rxsc_stats->syncp);
 			rxsc_stats->stats.InPktsNotUsingSA++;
 			u64_stats_update_end(&rxsc_stats->syncp);
 			DEV_STATS_INC(secy->netdev, rx_errors);
-			if (active_rx_sa)
-				this_cpu_inc(active_rx_sa->stats->InPktsNotUsingSA);
 			goto drop_nosa;
 		}
 
@@ -1226,8 +1210,6 @@ static rx_handler_result_t macsec_handle_frame(struct sk_buff **pskb)
 		u64_stats_update_begin(&rxsc_stats->syncp);
 		rxsc_stats->stats.InPktsUnusedSA++;
 		u64_stats_update_end(&rxsc_stats->syncp);
-		if (active_rx_sa)
-			this_cpu_inc(active_rx_sa->stats->InPktsUnusedSA);
 		goto deliver;
 	}
 
@@ -2639,6 +2621,17 @@ static void macsec_set_head_tail_room(struct net_device *dev)
 	dev->needed_tailroom = real_dev->needed_tailroom + needed_tailroom;
 }
 
+static void macsec_inherit_tso_max(struct net_device *dev)
+{
+	struct macsec_dev *macsec = macsec_priv(dev);
+
+	/* if macsec is offloaded, we need to follow the lower
+	 * device's capabilities. otherwise, we can ignore them.
+	 */
+	if (macsec_is_offloaded(macsec))
+		netif_inherit_tso_max(dev, macsec->real_dev);
+}
+
 static int macsec_update_offload(struct net_device *dev, enum macsec_offload offload)
 {
 	enum macsec_offload prev_offload;
@@ -2683,6 +2676,10 @@ static int macsec_update_offload(struct net_device *dev, enum macsec_offload off
 
 	macsec_set_head_tail_room(dev);
 	macsec->insert_tx_tag = macsec_needs_tx_tag(macsec, ops);
+
+	macsec_inherit_tso_max(dev);
+
+	netdev_update_features(dev);
 
 	return ret;
 }
@@ -3539,6 +3536,10 @@ static netdev_tx_t macsec_start_xmit(struct sk_buff *skb,
 #define MACSEC_FEATURES \
 	(NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST)
 
+#define MACSEC_OFFLOAD_FEATURES \
+	(MACSEC_FEATURES | NETIF_F_GSO_SOFTWARE | NETIF_F_SOFT_FEATURES | \
+	 NETIF_F_LRO | NETIF_F_RXHASH | NETIF_F_CSUM_MASK | NETIF_F_RXCSUM)
+
 static int macsec_dev_init(struct net_device *dev)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
@@ -3549,8 +3550,14 @@ static int macsec_dev_init(struct net_device *dev)
 	if (err)
 		return err;
 
-	dev->features = real_dev->features & MACSEC_FEATURES;
-	dev->features |= NETIF_F_LLTX | NETIF_F_GSO_SOFTWARE;
+	macsec_inherit_tso_max(dev);
+
+	dev->hw_features = real_dev->hw_features & MACSEC_OFFLOAD_FEATURES;
+	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
+
+	dev->features = real_dev->features & MACSEC_OFFLOAD_FEATURES;
+	dev->features |= NETIF_F_GSO_SOFTWARE;
+	dev->lltx = true;
 	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	macsec_set_head_tail_room(dev);
@@ -3578,10 +3585,13 @@ static netdev_features_t macsec_fix_features(struct net_device *dev,
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct net_device *real_dev = macsec->real_dev;
+	netdev_features_t mask;
 
-	features &= (real_dev->features & MACSEC_FEATURES) |
+	mask = macsec_is_offloaded(macsec) ? MACSEC_OFFLOAD_FEATURES
+					   : MACSEC_FEATURES;
+
+	features &= (real_dev->features & mask) |
 		    NETIF_F_GSO_SOFTWARE | NETIF_F_SOFT_FEATURES;
-	features |= NETIF_F_LLTX;
 
 	return features;
 }
@@ -3816,8 +3826,7 @@ static void macsec_free_netdev(struct net_device *dev)
 {
 	struct macsec_dev *macsec = macsec_priv(dev);
 
-	if (macsec->secy.tx_sc.md_dst)
-		metadata_dst_free(macsec->secy.tx_sc.md_dst);
+	dst_release(&macsec->secy.tx_sc.md_dst->dst);
 	free_percpu(macsec->stats);
 	free_percpu(macsec->secy.tx_sc.stats);
 
@@ -4318,9 +4327,9 @@ static int macsec_validate_attr(struct nlattr *tb[], struct nlattr *data[],
 		}
 	}
 
-	es  = data[IFLA_MACSEC_ES] ? nla_get_u8(data[IFLA_MACSEC_ES]) : false;
-	sci = data[IFLA_MACSEC_INC_SCI] ? nla_get_u8(data[IFLA_MACSEC_INC_SCI]) : false;
-	scb = data[IFLA_MACSEC_SCB] ? nla_get_u8(data[IFLA_MACSEC_SCB]) : false;
+	es  = nla_get_u8_default(data[IFLA_MACSEC_ES], false);
+	sci = nla_get_u8_default(data[IFLA_MACSEC_INC_SCI], false);
+	scb = nla_get_u8_default(data[IFLA_MACSEC_SCB], false);
 
 	if ((sci && (scb || es)) || (scb && es))
 		return -EINVAL;
@@ -4447,31 +4456,26 @@ static int macsec_notify(struct notifier_block *this, unsigned long event,
 			 void *ptr)
 {
 	struct net_device *real_dev = netdev_notifier_info_to_dev(ptr);
+	struct macsec_rxh_data *rxd;
+	struct macsec_dev *m, *n;
 	LIST_HEAD(head);
 
 	if (!is_macsec_master(real_dev))
 		return NOTIFY_DONE;
 
+	rxd = macsec_data_rtnl(real_dev);
+
 	switch (event) {
 	case NETDEV_DOWN:
 	case NETDEV_UP:
-	case NETDEV_CHANGE: {
-		struct macsec_dev *m, *n;
-		struct macsec_rxh_data *rxd;
-
-		rxd = macsec_data_rtnl(real_dev);
+	case NETDEV_CHANGE:
 		list_for_each_entry_safe(m, n, &rxd->secys, secys) {
 			struct net_device *dev = m->secy.netdev;
 
 			netif_stacked_transfer_operstate(real_dev, dev);
 		}
 		break;
-	}
-	case NETDEV_UNREGISTER: {
-		struct macsec_dev *m, *n;
-		struct macsec_rxh_data *rxd;
-
-		rxd = macsec_data_rtnl(real_dev);
+	case NETDEV_UNREGISTER:
 		list_for_each_entry_safe(m, n, &rxd->secys, secys) {
 			macsec_common_dellink(m->secy.netdev, &head);
 		}
@@ -4481,12 +4485,7 @@ static int macsec_notify(struct notifier_block *this, unsigned long event,
 
 		unregister_netdevice_many(&head);
 		break;
-	}
-	case NETDEV_CHANGEMTU: {
-		struct macsec_dev *m;
-		struct macsec_rxh_data *rxd;
-
-		rxd = macsec_data_rtnl(real_dev);
+	case NETDEV_CHANGEMTU:
 		list_for_each_entry(m, &rxd->secys, secys) {
 			struct net_device *dev = m->secy.netdev;
 			unsigned int mtu = real_dev->mtu - (m->secy.icv_len +
@@ -4495,7 +4494,13 @@ static int macsec_notify(struct notifier_block *this, unsigned long event,
 			if (dev->mtu > mtu)
 				dev_set_mtu(dev, mtu);
 		}
-	}
+		break;
+	case NETDEV_FEAT_CHANGE:
+		list_for_each_entry(m, &rxd->secys, secys) {
+			macsec_inherit_tso_max(m->secy.netdev);
+			netdev_update_features(m->secy.netdev);
+		}
+		break;
 	}
 
 	return NOTIFY_OK;

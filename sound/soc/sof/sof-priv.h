@@ -76,14 +76,6 @@ bool sof_debug_check_flag(int mask);
 #define SOF_IPC_DSP_REPLY		0
 #define SOF_IPC_HOST_REPLY		1
 
-/* convenience constructor for DAI driver streams */
-#define SOF_DAI_STREAM(sname, scmin, scmax, srates, sfmt) \
-	{.stream_name = sname, .channels_min = scmin, .channels_max = scmax, \
-	 .rates = srates, .formats = sfmt}
-
-#define SOF_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
-	SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_FLOAT)
-
 /* So far the primary core on all DSPs has ID 0 */
 #define SOF_DSP_PRIMARY_CORE 0
 
@@ -132,16 +124,17 @@ struct snd_sof_pdata;
 
 /**
  * struct snd_sof_platform_stream_params - platform dependent stream parameters
- * @stream_tag:		Stream tag to use
- * @use_phy_addr:	Use the provided @phy_addr for configuration
  * @phy_addr:		Platform dependent address to be used, if  @use_phy_addr
  *			is true
+ * @stream_tag:		Stream tag to use
+ * @use_phy_addr:	Use the provided @phy_addr for configuration
  * @no_ipc_position:	Disable position update IPC from firmware
+ * @cont_update_posn:	Continuous position update.
  */
 struct snd_sof_platform_stream_params {
+	u32 phy_addr;
 	u16 stream_tag;
 	bool use_phy_address;
-	u32 phy_addr;
 	bool no_ipc_position;
 	bool cont_update_posn;
 };
@@ -411,8 +404,8 @@ struct snd_sof_debugfs_map {
 
 /* mailbox descriptor, used for host <-> DSP IPC */
 struct snd_sof_mailbox {
-	u32 offset;
 	size_t size;
+	u32 offset;
 };
 
 /* IPC message descriptor for host <-> DSP IO */
@@ -424,11 +417,12 @@ struct snd_sof_ipc_msg {
 	size_t reply_size;
 	int reply_error;
 
-	/* notification, firmware initiated messages */
-	void *rx_data;
+	bool ipc_complete;
 
 	wait_queue_head_t waitq;
-	bool ipc_complete;
+
+	/* notification, firmware initiated messages */
+	void *rx_data;
 };
 
 /**

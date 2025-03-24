@@ -13,6 +13,11 @@
 Active MM
 =========
 
+注意，在配置了 CONFIG_MMU_LAZY_TLB_REFCOUNT=n 的内核中，mm_count 引用计数
+可能不再包括“懒惰”用户（运行任务中 ->active_mm == mm && ->mm == NULL）。
+获取和释放这些懒惰引用必须使用 mmgrab_lazy_tlb() 和 mmdrop_lazy_tlb() 这
+两个辅助函数，它们抽象了这个配置选项。
+
 这是一封linux之父回复开发者的一封邮件，所以翻译时我尽量保持邮件格式的完整。
 
 ::

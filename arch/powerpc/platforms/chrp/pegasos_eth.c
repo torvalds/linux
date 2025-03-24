@@ -14,7 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <linux/mv643xx.h>
+#include <linux/mv643xx_eth.h>
 #include <linux/pci.h>
 
 #define PEGASOS2_MARVELL_REGBASE 		(0xf1000000)
@@ -25,11 +25,14 @@
 #define PEGASOS2_SRAM_BASE_ETH_PORT0			(PEGASOS2_SRAM_BASE)
 #define PEGASOS2_SRAM_BASE_ETH_PORT1			(PEGASOS2_SRAM_BASE_ETH_PORT0 + (PEGASOS2_SRAM_SIZE / 2) )
 
-
 #define PEGASOS2_SRAM_RXRING_SIZE		(PEGASOS2_SRAM_SIZE/4)
 #define PEGASOS2_SRAM_TXRING_SIZE		(PEGASOS2_SRAM_SIZE/4)
 
 #undef BE_VERBOSE
+
+#define MV64340_BASE_ADDR_ENABLE                                    0x278
+#define MV64340_INTEGRATED_SRAM_BASE_ADDR                           0x268
+#define MV64340_SRAM_CONFIG                                         0x380
 
 static struct resource mv643xx_eth_shared_resources[] = {
 	[0] = {

@@ -20,12 +20,6 @@ properties:
     items:
       - description: EXTCLK Clock
 
-  assigned-clocks:
-    maxItems: 1
-
-  assigned-clock-rates:
-    maxItems: 1
-
   dvdd-supply:
     description: Digital Domain Power Supply
 
@@ -68,8 +62,6 @@ required:
   - compatible
   - reg
   - clocks
-  - assigned-clocks
-  - assigned-clock-rates
   - dvdd-supply
   - avdd-supply
   - dovdd-supply
@@ -94,8 +86,6 @@ examples:
             pinctrl-0 = <&csi_mclk_pin>;
 
             clocks = <&ccu CLK_CSI_MCLK>;
-            assigned-clocks = <&ccu CLK_CSI_MCLK>;
-            assigned-clock-rates = <24000000>;
 
             avdd-supply = <&reg_ov8865_avdd>;
             dovdd-supply = <&reg_ov8865_dovdd>;

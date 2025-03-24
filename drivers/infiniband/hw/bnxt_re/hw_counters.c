@@ -37,18 +37,9 @@
  *
  */
 
-#include <linux/interrupt.h>
 #include <linux/types.h>
-#include <linux/spinlock.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/pci.h>
-#include <linux/prefetch.h>
-#include <linux/delay.h>
 
-#include <rdma/ib_addr.h>
-
-#include "bnxt_ulp.h"
 #include "roce_hsi.h"
 #include "qplib_res.h"
 #include "qplib_sp.h"
@@ -357,8 +348,8 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 			goto done;
 		}
 		bnxt_re_copy_err_stats(rdev, stats, err_s);
-		if (_is_ext_stats_supported(rdev->dev_attr.dev_cap_flags) &&
-		    !rdev->is_virtfn) {
+		if (bnxt_ext_stats_supported(rdev->chip_ctx, rdev->dev_attr->dev_cap_flags,
+					     rdev->is_virtfn)) {
 			rc = bnxt_re_get_ext_stat(rdev, stats);
 			if (rc) {
 				clear_bit(BNXT_RE_FLAG_ISSUE_ROCE_STATS,
@@ -366,7 +357,7 @@ int bnxt_re_ib_get_hw_stats(struct ib_device *ibdev,
 				goto done;
 			}
 		}
-		if (rdev->pacing.dbr_pacing)
+		if (rdev->pacing.dbr_pacing && bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
 			bnxt_re_copy_db_pacing_stats(rdev, stats);
 	}
 

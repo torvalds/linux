@@ -41,6 +41,10 @@ helps in understanding how the WMI device is supposed to work. The path of the A
 method associated with a given WMI device can be retrieved using the ``lswmi`` utility
 as mentioned above.
 
+If you are attempting to port a driver to Linux and are working on a Windows
+system, `WMIExplorer <https://github.com/vinaypamnani/wmie2>`_ can be useful
+for inspecting available WMI methods and invoking them directly.
+
 Basic WMI driver structure
 --------------------------
 
@@ -64,6 +68,7 @@ to matching WMI devices using a struct wmi_device_id table:
         .id_table = foo_id_table,
         .probe = foo_probe,
         .remove = foo_remove,         /* optional, devres is preferred */
+        .shutdown = foo_shutdown,     /* optional, called during shutdown */
         .notify = foo_notify,         /* optional, for event handling */
         .no_notify_data = true,       /* optional, enables events containing no additional data */
         .no_singleton = true,         /* required for new WMI drivers */
@@ -78,6 +83,10 @@ The remove() callback is then called when the WMI driver is unbound from a WMI d
 to unregister interfaces to other kernel subsystems and release resources, devres should be used.
 This simplifies error handling during probe and often allows to omit this callback entirely, see
 Documentation/driver-api/driver-model/devres.rst for details.
+
+The shutdown() callback is called during shutdown, reboot or kexec. Its sole purpose is to disable
+the WMI device and put it in a well-known state for the WMI driver to pick up later after reboot
+or kexec. Most WMI drivers need no special shutdown handling and can thus omit this callback.
 
 Please note that new WMI drivers are required to be able to be instantiated multiple times,
 and are forbidden from using any deprecated GUID-based WMI functions. This means that the
@@ -123,7 +132,7 @@ ACPI object is being done by the WMI subsystem, not the driver.
 
 The WMI driver core will take care that the notify() callback will only be called after
 the probe() callback has been called, and that no events are being received by the driver
-right before and after calling its remove() callback.
+right before and after calling its remove() or shutdown() callback.
 
 However WMI driver developers should be aware that multiple WMI events can be received concurrently,
 so any locking (if necessary) needs to be provided by the WMI driver itself.

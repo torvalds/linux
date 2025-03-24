@@ -462,7 +462,7 @@ static void pcnet32_netif_start(struct net_device *dev)
 	val = lp->a->read_csr(ioaddr, CSR3);
 	val &= 0x00ff;
 	lp->a->write_csr(ioaddr, CSR3, val);
-	napi_enable(&lp->napi);
+	napi_enable_locked(&lp->napi);
 }
 
 /*
@@ -889,6 +889,7 @@ static int pcnet32_set_ringparam(struct net_device *dev,
 	if (netif_running(dev))
 		pcnet32_netif_stop(dev);
 
+	netdev_lock(dev);
 	spin_lock_irqsave(&lp->lock, flags);
 	lp->a->write_csr(ioaddr, CSR0, CSR0_STOP);	/* stop the chip */
 
@@ -920,6 +921,7 @@ static int pcnet32_set_ringparam(struct net_device *dev,
 	}
 
 	spin_unlock_irqrestore(&lp->lock, flags);
+	netdev_unlock(dev);
 
 	netif_info(lp, drv, dev, "Ring Param Settings: RX: %d, TX: %d\n",
 		   lp->rx_ring_size, lp->tx_ring_size);
@@ -985,6 +987,7 @@ static int pcnet32_loopback_test(struct net_device *dev, uint64_t * data1)
 	if (netif_running(dev))
 		pcnet32_netif_stop(dev);
 
+	netdev_lock(dev);
 	spin_lock_irqsave(&lp->lock, flags);
 	lp->a->write_csr(ioaddr, CSR0, CSR0_STOP);	/* stop the chip */
 
@@ -1122,6 +1125,7 @@ clean_up:
 		lp->a->write_bcr(ioaddr, 20, 4);	/* return to 16bit mode */
 	}
 	spin_unlock_irqrestore(&lp->lock, flags);
+	netdev_unlock(dev);
 
 	return rc;
 }				/* end pcnet32_loopback_test  */
@@ -2101,6 +2105,7 @@ static int pcnet32_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
+	netdev_lock(dev);
 	spin_lock_irqsave(&lp->lock, flags);
 	/* Check for a valid station address */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
@@ -2266,7 +2271,7 @@ static int pcnet32_open(struct net_device *dev)
 		goto err_free_ring;
 	}
 
-	napi_enable(&lp->napi);
+	napi_enable_locked(&lp->napi);
 
 	/* Re-initialize the PCNET32, and start it when done. */
 	lp->a->write_csr(ioaddr, 1, (lp->init_dma_addr & 0xffff));
@@ -2300,6 +2305,7 @@ static int pcnet32_open(struct net_device *dev)
 		     lp->a->read_csr(ioaddr, CSR0));
 
 	spin_unlock_irqrestore(&lp->lock, flags);
+	netdev_unlock(dev);
 
 	return 0;		/* Always succeed */
 
@@ -2315,6 +2321,7 @@ err_free_ring:
 
 err_free_irq:
 	spin_unlock_irqrestore(&lp->lock, flags);
+	netdev_unlock(dev);
 	free_irq(dev->irq, dev);
 	return rc;
 }

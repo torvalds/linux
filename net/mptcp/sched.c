@@ -60,7 +60,6 @@ void mptcp_get_available_schedulers(char *buf, size_t maxlen)
 	size_t offs = 0;
 
 	rcu_read_lock();
-	spin_lock(&mptcp_sched_list_lock);
 	list_for_each_entry_rcu(sched, &mptcp_sched_list, list) {
 		offs += snprintf(buf + offs, maxlen - offs,
 				 "%s%s",
@@ -69,7 +68,6 @@ void mptcp_get_available_schedulers(char *buf, size_t maxlen)
 		if (WARN_ON_ONCE(offs >= maxlen))
 			break;
 	}
-	spin_unlock(&mptcp_sched_list_lock);
 	rcu_read_unlock();
 }
 
@@ -86,7 +84,7 @@ int mptcp_register_scheduler(struct mptcp_sched_ops *sched)
 	list_add_tail_rcu(&sched->list, &mptcp_sched_list);
 	spin_unlock(&mptcp_sched_list_lock);
 
-	pr_debug("%s registered", sched->name);
+	pr_debug("%s registered\n", sched->name);
 	return 0;
 }
 
@@ -118,7 +116,7 @@ int mptcp_init_sched(struct mptcp_sock *msk,
 	if (msk->sched->init)
 		msk->sched->init(msk);
 
-	pr_debug("sched=%s", msk->sched->name);
+	pr_debug("sched=%s\n", msk->sched->name);
 
 	return 0;
 }

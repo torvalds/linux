@@ -125,7 +125,6 @@ static inline size_t range_size(const struct codetag_type *cttype,
 			cttype->desc.tag_size;
 }
 
-#ifdef CONFIG_MODULES
 static void *get_symbol(struct module *mod, const char *prefix, const char *name)
 {
 	DECLARE_SEQ_BUF(sb, KSYM_NAME_LEN);
@@ -150,9 +149,18 @@ static struct codetag_range get_section_range(struct module *mod,
 					      const char *section)
 {
 	return (struct codetag_range) {
-		get_symbol(mod, "__start_", section),
-		get_symbol(mod, "__stop_", section),
+		get_symbol(mod, CODETAG_SECTION_START_PREFIX, section),
+		get_symbol(mod, CODETAG_SECTION_STOP_PREFIX, section),
 	};
+}
+
+static const char *get_mod_name(__maybe_unused struct module *mod)
+{
+#ifdef CONFIG_MODULES
+	if (mod)
+		return mod->name;
+#endif
+	return "(built-in)";
 }
 
 static int codetag_module_init(struct codetag_type *cttype, struct module *mod)
@@ -164,8 +172,7 @@ static int codetag_module_init(struct codetag_type *cttype, struct module *mod)
 	range = get_section_range(mod, cttype->desc.section);
 	if (!range.start || !range.stop) {
 		pr_warn("Failed to load code tags of type %s from the module %s\n",
-			cttype->desc.section,
-			mod ? mod->name : "(built-in)");
+			cttype->desc.section, get_mod_name(mod));
 		return -EINVAL;
 	}
 
@@ -199,6 +206,95 @@ static int codetag_module_init(struct codetag_type *cttype, struct module *mod)
 	return 0;
 }
 
+#ifdef CONFIG_MODULES
+#define CODETAG_SECTION_PREFIX	".codetag."
+
+/* Some codetag types need a separate module section */
+bool codetag_needs_module_section(struct module *mod, const char *name,
+				  unsigned long size)
+{
+	const char *type_name;
+	struct codetag_type *cttype;
+	bool ret = false;
+
+	if (strncmp(name, CODETAG_SECTION_PREFIX, strlen(CODETAG_SECTION_PREFIX)))
+		return false;
+
+	type_name = name + strlen(CODETAG_SECTION_PREFIX);
+	mutex_lock(&codetag_lock);
+	list_for_each_entry(cttype, &codetag_types, link) {
+		if (strcmp(type_name, cttype->desc.section) == 0) {
+			if (!cttype->desc.needs_section_mem)
+				break;
+
+			down_write(&cttype->mod_lock);
+			ret = cttype->desc.needs_section_mem(mod, size);
+			up_write(&cttype->mod_lock);
+			break;
+		}
+	}
+	mutex_unlock(&codetag_lock);
+
+	return ret;
+}
+
+void *codetag_alloc_module_section(struct module *mod, const char *name,
+				   unsigned long size, unsigned int prepend,
+				   unsigned long align)
+{
+	const char *type_name = name + strlen(CODETAG_SECTION_PREFIX);
+	struct codetag_type *cttype;
+	void *ret = ERR_PTR(-EINVAL);
+
+	mutex_lock(&codetag_lock);
+	list_for_each_entry(cttype, &codetag_types, link) {
+		if (strcmp(type_name, cttype->desc.section) == 0) {
+			if (WARN_ON(!cttype->desc.alloc_section_mem))
+				break;
+
+			down_write(&cttype->mod_lock);
+			ret = cttype->desc.alloc_section_mem(mod, size, prepend, align);
+			up_write(&cttype->mod_lock);
+			break;
+		}
+	}
+	mutex_unlock(&codetag_lock);
+
+	return ret;
+}
+
+void codetag_free_module_sections(struct module *mod)
+{
+	struct codetag_type *cttype;
+
+	mutex_lock(&codetag_lock);
+	list_for_each_entry(cttype, &codetag_types, link) {
+		if (!cttype->desc.free_section_mem)
+			continue;
+
+		down_write(&cttype->mod_lock);
+		cttype->desc.free_section_mem(mod, false);
+		up_write(&cttype->mod_lock);
+	}
+	mutex_unlock(&codetag_lock);
+}
+
+void codetag_module_replaced(struct module *mod, struct module *new_mod)
+{
+	struct codetag_type *cttype;
+
+	mutex_lock(&codetag_lock);
+	list_for_each_entry(cttype, &codetag_types, link) {
+		if (!cttype->desc.module_replaced)
+			continue;
+
+		down_write(&cttype->mod_lock);
+		cttype->desc.module_replaced(mod, new_mod);
+		up_write(&cttype->mod_lock);
+	}
+	mutex_unlock(&codetag_lock);
+}
+
 void codetag_load_module(struct module *mod)
 {
 	struct codetag_type *cttype;
@@ -212,13 +308,15 @@ void codetag_load_module(struct module *mod)
 	mutex_unlock(&codetag_lock);
 }
 
-bool codetag_unload_module(struct module *mod)
+void codetag_unload_module(struct module *mod)
 {
 	struct codetag_type *cttype;
-	bool unload_ok = true;
 
 	if (!mod)
-		return true;
+		return;
+
+	/* await any module's kfree_rcu() operations to complete */
+	kvfree_rcu_barrier();
 
 	mutex_lock(&codetag_lock);
 	list_for_each_entry(cttype, &codetag_types, link) {
@@ -235,22 +333,18 @@ bool codetag_unload_module(struct module *mod)
 		}
 		if (found) {
 			if (cttype->desc.module_unload)
-				if (!cttype->desc.module_unload(cttype, cmod))
-					unload_ok = false;
+				cttype->desc.module_unload(cttype, cmod);
 
 			cttype->count -= range_size(cttype, &cmod->range);
 			idr_remove(&cttype->mod_idr, mod_id);
 			kfree(cmod);
 		}
 		up_write(&cttype->mod_lock);
+		if (found && cttype->desc.free_section_mem)
+			cttype->desc.free_section_mem(mod, true);
 	}
 	mutex_unlock(&codetag_lock);
-
-	return unload_ok;
 }
-
-#else /* CONFIG_MODULES */
-static int codetag_module_init(struct codetag_type *cttype, struct module *mod) { return 0; }
 #endif /* CONFIG_MODULES */
 
 struct codetag_type *

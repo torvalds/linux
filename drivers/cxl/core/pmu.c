@@ -65,4 +65,4 @@ err:
 	put_device(&pmu->dev);
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_pmu_add, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_pmu_add, "CXL");

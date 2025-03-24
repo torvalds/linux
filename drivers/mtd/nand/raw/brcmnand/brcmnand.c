@@ -1561,7 +1561,7 @@ static int write_oob_to_regs(struct brcmnand_controller *ctrl, int i,
 				(oob[j + 2] <<  8) |
 				(oob[j + 3] <<  0));
 
-	/* handle the remaing bytes */
+	/* handle the remaining bytes */
 	while (j < tbytes)
 		plast[k++] = oob[j++];
 
@@ -2341,6 +2341,11 @@ static int brcmnand_write(struct mtd_info *mtd, struct nand_chip *chip,
 		/* we cannot use SPARE_AREA_PROGRAM when PARTIAL_PAGE_EN=0 */
 		brcmnand_send_cmd(host, CMD_PROGRAM_PAGE);
 		status = brcmnand_waitfunc(chip);
+
+		if (status < 0) {
+			ret = status;
+			goto out;
+		}
 
 		if (status & NAND_STATUS_FAIL) {
 			dev_info(ctrl->dev, "program failed at %llx\n",

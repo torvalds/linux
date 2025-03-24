@@ -140,6 +140,20 @@ config HV_PERF_CTRS
 
 	  If unsure, select Y.
 
+config VPA_PMU
+	tristate "VPA PMU events"
+	depends on KVM_BOOK3S_64_HV && HV_PERF_CTRS
+	help
+	  Enable access to the VPA PMU counters via perf. This enables
+	  code that support measurement for KVM on PowerVM(KoP) feature.
+	  PAPR hypervisor has introduced three new counters in the VPA area
+	  of LPAR CPUs for KVM L2 guest observability. Two for context switches
+	  from host to guest and vice versa, and one counter for getting
+	  the total time spent inside the KVM guest. This config enables code
+	  that access these software counters via perf.
+
+	  If unsure, Select N.
+
 config IBMVIO
 	depends on PPC_PSERIES
 	bool

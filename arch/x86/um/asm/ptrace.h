@@ -2,6 +2,16 @@
 #ifndef __UM_X86_PTRACE_H
 #define __UM_X86_PTRACE_H
 
+/* This is here because signal.c needs the REGSET_FP_LEGACY definition */
+enum {
+	REGSET_GENERAL,
+#ifdef CONFIG_X86_32
+	REGSET_FP_LEGACY,
+#endif
+	REGSET_FP,
+	REGSET_XSTATE,
+};
+
 #include <linux/compiler.h>
 #ifndef CONFIG_X86_32
 #define __FRAME_OFFSETS /* Needed to get the R* macros */

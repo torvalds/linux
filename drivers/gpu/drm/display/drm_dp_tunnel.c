@@ -1896,8 +1896,8 @@ static void destroy_mgr(struct drm_dp_tunnel_mgr *mgr)
  *
  * Creates a DP tunnel manager for @dev.
  *
- * Returns a pointer to the tunnel manager if created successfully or NULL in
- * case of an error.
+ * Returns a pointer to the tunnel manager if created successfully or error
+ * pointer in case of failure.
  */
 struct drm_dp_tunnel_mgr *
 drm_dp_tunnel_mgr_create(struct drm_device *dev, int max_group_count)
@@ -1907,7 +1907,7 @@ drm_dp_tunnel_mgr_create(struct drm_device *dev, int max_group_count)
 
 	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (!mgr)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	mgr->dev = dev;
 	init_waitqueue_head(&mgr->bw_req_queue);
@@ -1916,7 +1916,7 @@ drm_dp_tunnel_mgr_create(struct drm_device *dev, int max_group_count)
 	if (!mgr->groups) {
 		kfree(mgr);
 
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 #ifdef CONFIG_DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
@@ -1927,7 +1927,7 @@ drm_dp_tunnel_mgr_create(struct drm_device *dev, int max_group_count)
 		if (!init_group(mgr, &mgr->groups[i])) {
 			destroy_mgr(mgr);
 
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		}
 
 		mgr->group_count++;

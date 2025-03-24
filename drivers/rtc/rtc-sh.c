@@ -611,7 +611,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_unmap;
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 	return 0;
 
 err_unmap:
@@ -678,7 +678,7 @@ static struct platform_driver sh_rtc_platform_driver __refdata = {
 		.pm	= &sh_rtc_pm_ops,
 		.of_match_table = sh_rtc_of_match,
 	},
-	.remove_new	= __exit_p(sh_rtc_remove),
+	.remove		= __exit_p(sh_rtc_remove),
 };
 
 module_platform_driver_probe(sh_rtc_platform_driver, sh_rtc_probe);

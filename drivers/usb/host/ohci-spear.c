@@ -157,7 +157,7 @@ MODULE_DEVICE_TABLE(of, spear_ohci_id_table);
 /* Driver definition to register with the platform bus */
 static struct platform_driver spear_ohci_hcd_driver = {
 	.probe =	spear_ohci_hcd_drv_probe,
-	.remove_new =	spear_ohci_hcd_drv_remove,
+	.remove =	spear_ohci_hcd_drv_remove,
 #ifdef CONFIG_PM
 	.suspend =	spear_ohci_hcd_drv_suspend,
 	.resume =	spear_ohci_hcd_drv_resume,

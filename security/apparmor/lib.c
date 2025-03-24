@@ -46,44 +46,6 @@ void aa_free_str_table(struct aa_str_table *t)
 }
 
 /**
- * aa_split_fqname - split a fqname into a profile and namespace name
- * @fqname: a full qualified name in namespace profile format (NOT NULL)
- * @ns_name: pointer to portion of the string containing the ns name (NOT NULL)
- *
- * Returns: profile name or NULL if one is not specified
- *
- * Split a namespace name from a profile name (see policy.c for naming
- * description).  If a portion of the name is missing it returns NULL for
- * that portion.
- *
- * NOTE: may modify the @fqname string.  The pointers returned point
- *       into the @fqname string.
- */
-char *aa_split_fqname(char *fqname, char **ns_name)
-{
-	char *name = strim(fqname);
-
-	*ns_name = NULL;
-	if (name[0] == ':') {
-		char *split = strchr(&name[1], ':');
-		*ns_name = skip_spaces(&name[1]);
-		if (split) {
-			/* overwrite ':' with \0 */
-			*split++ = 0;
-			if (strncmp(split, "//", 2) == 0)
-				split += 2;
-			name = skip_spaces(split);
-		} else
-			/* a ns name without a following profile is allowed */
-			name = NULL;
-	}
-	if (name && *name == 0)
-		name = NULL;
-
-	return name;
-}
-
-/**
  * skipn_spaces - Removes leading whitespace from @str.
  * @str: The string to be stripped.
  * @n: length of str to parse, will stop at \0 if encountered before n
@@ -276,33 +238,6 @@ void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
 }
 
 /**
- * aa_audit_perms_cb - generic callback fn for auditing perms
- * @ab: audit buffer (NOT NULL)
- * @va: audit struct to audit values of (NOT NULL)
- */
-static void aa_audit_perms_cb(struct audit_buffer *ab, void *va)
-{
-	struct common_audit_data *sa = va;
-	struct apparmor_audit_data *ad = aad(sa);
-
-	if (ad->request) {
-		audit_log_format(ab, " requested_mask=");
-		aa_audit_perm_mask(ab, ad->request, aa_file_perm_chrs,
-				   PERMS_CHRS_MASK, aa_file_perm_names,
-				   PERMS_NAMES_MASK);
-	}
-	if (ad->denied) {
-		audit_log_format(ab, "denied_mask=");
-		aa_audit_perm_mask(ab, ad->denied, aa_file_perm_chrs,
-				   PERMS_CHRS_MASK, aa_file_perm_names,
-				   PERMS_NAMES_MASK);
-	}
-	audit_log_format(ab, " peer=");
-	aa_label_xaudit(ab, labels_ns(ad->subj_label), ad->peer,
-				      FLAGS_NONE, GFP_ATOMIC);
-}
-
-/**
  * aa_apply_modes_to_perms - apply namespace and profile flags to perms
  * @profile: that perms where computed from
  * @perms: perms to apply mode modifiers to
@@ -348,25 +283,6 @@ void aa_profile_match_label(struct aa_profile *profile,
 	aa_label_match(profile, rules, label, state, false, request, perms);
 }
 
-
-/* currently unused */
-int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
-			  u32 request, int type, u32 *deny,
-			  struct apparmor_audit_data *ad)
-{
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
-	struct aa_perms perms;
-
-	ad->peer = &target->label;
-	ad->request = request;
-
-	aa_profile_match_label(profile, rules, &target->label, type, request,
-			       &perms);
-	aa_apply_modes_to_perms(profile, &perms);
-	*deny |= request & perms.deny;
-	return aa_check_perms(profile, &perms, request, ad, aa_audit_perms_cb);
-}
 
 /**
  * aa_check_perms - do audit mode selection based on perms set

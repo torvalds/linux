@@ -110,7 +110,6 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	spin_lock_init(&port->lock);
 
 	if (resource_type(&resource) == IORESOURCE_IO) {
-		port->iotype = UPIO_PORT;
 		port->iobase = resource.start;
 	} else {
 		port->mapbase = resource.start;
@@ -352,7 +351,7 @@ static struct platform_driver of_platform_serial_driver = {
 		.pm = &of_serial_pm_ops,
 	},
 	.probe = of_platform_serial_probe,
-	.remove_new = of_platform_serial_remove,
+	.remove = of_platform_serial_remove,
 };
 
 module_platform_driver(of_platform_serial_driver);

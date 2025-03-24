@@ -146,7 +146,7 @@ static struct platform_driver w1_gpio_driver = {
 		.of_match_table = w1_gpio_dt_ids,
 	},
 	.probe = w1_gpio_probe,
-	.remove_new = w1_gpio_remove,
+	.remove = w1_gpio_remove,
 };
 
 module_platform_driver(w1_gpio_driver);

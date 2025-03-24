@@ -49,7 +49,7 @@ static void panel_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 	if (backlight) {
 		backlight->props.power = mode == DRM_MODE_DPMS_ON ?
-					 FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+					 BACKLIGHT_POWER_ON : BACKLIGHT_POWER_OFF;
 		backlight_update_status(backlight);
 	}
 
@@ -390,7 +390,7 @@ static const struct of_device_id panel_of_match[] = {
 
 static struct platform_driver panel_driver = {
 	.probe = panel_probe,
-	.remove_new = panel_remove,
+	.remove = panel_remove,
 	.driver = {
 		.name = "tilcdc-panel",
 		.of_match_table = panel_of_match,

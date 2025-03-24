@@ -469,7 +469,7 @@ static int samsung_universal_kbd_input_mapping(struct hid_device *hdev,
 	return 1;
 }
 
-static __u8 *samsung_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *samsung_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	unsigned int *rsize)
 {
 	if (hdev->product == USB_DEVICE_ID_SAMSUNG_IR_REMOTE && hid_is_usb(hdev))

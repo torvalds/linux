@@ -19,7 +19,7 @@
 #include <linux/uio.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/random.h>
 #include <linux/iversion.h>
 #include "fat.h"
@@ -221,13 +221,12 @@ static void fat_write_failed(struct address_space *mapping, loff_t to)
 
 static int fat_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len,
-			struct page **pagep, void **fsdata)
+			struct folio **foliop, void **fsdata)
 {
 	int err;
 
-	*pagep = NULL;
 	err = cont_write_begin(file, mapping, pos, len,
-				pagep, fsdata, fat_get_block,
+				foliop, fsdata, fat_get_block,
 				&MSDOS_I(mapping->host)->mmu_private);
 	if (err < 0)
 		fat_write_failed(mapping, pos + len);
@@ -236,11 +235,11 @@ static int fat_write_begin(struct file *file, struct address_space *mapping,
 
 static int fat_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *pagep, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
 	struct inode *inode = mapping->host;
 	int err;
-	err = generic_write_end(file, mapping, pos, len, copied, pagep, fsdata);
+	err = generic_write_end(file, mapping, pos, len, copied, folio, fsdata);
 	if (err < len)
 		fat_write_failed(mapping, pos + len);
 	if (!(err < 0) && !(MSDOS_I(inode)->i_attrs & ATTR_ARCH)) {

@@ -32,6 +32,11 @@ static inline int secure_computing(void)
 }
 #else
 extern void secure_computing_strict(int this_syscall);
+static inline int __secure_computing(const struct seccomp_data *sd)
+{
+	secure_computing_strict(sd->nr);
+	return 0;
+}
 #endif
 
 extern long prctl_get_seccomp(void);
@@ -50,10 +55,10 @@ struct seccomp_data;
 
 #ifdef CONFIG_HAVE_ARCH_SECCOMP_FILTER
 static inline int secure_computing(void) { return 0; }
-static inline int __secure_computing(const struct seccomp_data *sd) { return 0; }
 #else
 static inline void secure_computing_strict(int this_syscall) { return; }
 #endif
+static inline int __secure_computing(const struct seccomp_data *sd) { return 0; }
 
 static inline long prctl_get_seccomp(void)
 {

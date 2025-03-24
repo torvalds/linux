@@ -1243,7 +1243,7 @@ static const struct of_device_id ftmac100_of_ids[] = {
 
 static struct platform_driver ftmac100_driver = {
 	.probe		= ftmac100_probe,
-	.remove_new	= ftmac100_remove,
+	.remove		= ftmac100_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.of_match_table = ftmac100_of_ids

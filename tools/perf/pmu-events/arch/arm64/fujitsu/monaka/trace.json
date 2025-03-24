@@ -1,0 +1,18 @@
+[
+    {
+        "ArchStdEvent": "TRB_WRAP",
+        "BriefDescription": "This event counts the event generated each time the current write pointer is wrapped to the base pointer."
+    },
+    {
+        "ArchStdEvent": "TRB_TRIG",
+        "BriefDescription": "This event counts the event generated when a Trace Buffer Extension Trigger Event occurs."
+    },
+    {
+        "ArchStdEvent": "TRCEXTOUT0",
+        "BriefDescription": "This event counts the event generated each time an event is signaled by the trace unit external event 0."
+    },
+    {
+        "ArchStdEvent": "CTI_TRIGOUT4",
+        "BriefDescription": "This event counts the event generated each time an event is signaled on CTI output trigger 4."
+    }
+]

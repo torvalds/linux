@@ -380,7 +380,7 @@ static const struct dev_pm_ops rk_spdif_pm_ops = {
 
 static struct platform_driver rk_spdif_driver = {
 	.probe = rk_spdif_probe,
-	.remove_new = rk_spdif_remove,
+	.remove = rk_spdif_remove,
 	.driver = {
 		.name = "rockchip-spdif",
 		.of_match_table = of_match_ptr(rk_spdif_match),

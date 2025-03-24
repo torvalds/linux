@@ -4,8 +4,8 @@
 #ifndef __MLX5_LIB_SMFS_H__
 #define __MLX5_LIB_SMFS_H__
 
-#include "steering/mlx5dr.h"
-#include "steering/dr_types.h"
+#include "steering/sws/mlx5dr.h"
+#include "steering/sws/dr_types.h"
 
 struct mlx5dr_matcher *
 mlx5_smfs_matcher_create(struct mlx5dr_table *table, u32 priority, struct mlx5_flow_spec *spec);

@@ -162,8 +162,8 @@ int aq_pci_func_alloc_irq(struct aq_nic_s *self, unsigned int i,
 		self->msix_entry_mask |= (1 << i);
 
 		if (pdev->msix_enabled && affinity_mask)
-			irq_set_affinity_hint(pci_irq_vector(pdev, i),
-					      affinity_mask);
+			irq_update_affinity_hint(pci_irq_vector(pdev, i),
+						 affinity_mask);
 	}
 
 	return err;
@@ -187,7 +187,7 @@ void aq_pci_func_free_irqs(struct aq_nic_s *self)
 			continue;
 
 		if (pdev->msix_enabled)
-			irq_set_affinity_hint(pci_irq_vector(pdev, i), NULL);
+			irq_update_affinity_hint(pci_irq_vector(pdev, i), NULL);
 		free_irq(pci_irq_vector(pdev, i), irq_data);
 		self->msix_entry_mask &= ~(1U << i);
 	}

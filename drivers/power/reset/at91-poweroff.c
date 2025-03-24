@@ -223,7 +223,7 @@ MODULE_DEVICE_TABLE(of, at91_poweroff_of_match);
 
 static struct platform_driver at91_poweroff_driver = {
 	.probe = at91_poweroff_probe,
-	.remove_new = at91_poweroff_remove,
+	.remove = at91_poweroff_remove,
 	.driver = {
 		.name = "at91-poweroff",
 		.of_match_table = at91_poweroff_of_match,

@@ -336,7 +336,7 @@ MODULE_DEVICE_TABLE(of, ts_nbus_of_match);
 
 static struct platform_driver ts_nbus_driver = {
 	.probe		= ts_nbus_probe,
-	.remove_new	= ts_nbus_remove,
+	.remove		= ts_nbus_remove,
 	.driver		= {
 		.name	= "ts_nbus",
 		.of_match_table = ts_nbus_of_match,

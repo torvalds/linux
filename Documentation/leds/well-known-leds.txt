@@ -72,6 +72,14 @@ Good: "platform:*:charging" (allwinner sun50i, leds-cht-wcove)
 
 Good: ":backlight" (Motorola Droid 4)
 
+* Indicators
+
+Good: ":indicator" (Blinkm)
+
+* RGB
+
+Good: ":rgb" (Blinkm)
+
 * Ethernet LEDs
 
 Currently two types of Network LEDs are support, those controlled by

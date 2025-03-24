@@ -12,9 +12,10 @@
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
 #include <linux/sysctl.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/hardirq.h>
 #include <asm/traps.h>
+#include "unaligned.h"
 
 /* #define DEBUG_UNALIGNED 1 */
 

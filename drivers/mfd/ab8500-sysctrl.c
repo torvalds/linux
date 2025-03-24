@@ -159,7 +159,7 @@ static struct platform_driver ab8500_sysctrl_driver = {
 		.of_match_table = ab8500_sysctrl_match,
 	},
 	.probe = ab8500_sysctrl_probe,
-	.remove_new = ab8500_sysctrl_remove,
+	.remove = ab8500_sysctrl_remove,
 };
 
 static int __init ab8500_sysctrl_init(void)

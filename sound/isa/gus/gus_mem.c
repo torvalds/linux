@@ -189,7 +189,7 @@ struct snd_gf1_mem_block *snd_gf1_mem_alloc(struct snd_gf1_mem * alloc, int owne
 		if (nblock != NULL) {
 			if (size != (int)nblock->size) {
 				/* TODO: remove in the future */
-				snd_printk(KERN_ERR "snd_gf1_mem_alloc - share: sizes differ\n");
+				pr_err("%s - share: sizes differ\n", __func__);
 				goto __std;
 			}
 			nblock->share++;

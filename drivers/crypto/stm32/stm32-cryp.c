@@ -2771,7 +2771,7 @@ static const struct dev_pm_ops stm32_cryp_pm_ops = {
 
 static struct platform_driver stm32_cryp_driver = {
 	.probe  = stm32_cryp_probe,
-	.remove_new = stm32_cryp_remove,
+	.remove = stm32_cryp_remove,
 	.driver = {
 		.name           = DRIVER_NAME,
 		.pm		= &stm32_cryp_pm_ops,

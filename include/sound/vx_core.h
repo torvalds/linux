@@ -155,7 +155,6 @@ struct vx_core {
 	unsigned int chip_status;
 	unsigned int pcm_running;
 
-	struct device *dev;
 	struct snd_hwdep *hwdep;
 
 	struct vx_rmh irq_rmh;	/* RMH used in interrupts */

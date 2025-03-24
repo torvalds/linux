@@ -88,7 +88,7 @@
 			reg = <0x10000000 0x20000>;
 			ranges;
 
-			dma: dma@10001000 {
+			dma: dma-controller@10001000 {
 				compatible = "fsl,imx27-dma";
 				reg = <0x10001000 0x1000>;
 				interrupts = <32>;

@@ -22,8 +22,10 @@
 *.dtb.S
 *.dtbo.S
 *.dwo
+*.dylib
 *.elf
 *.gcno
+*.gcda
 *.gz
 *.i
 *.ko
@@ -46,7 +48,6 @@
 *.so.dbg
 *.su
 *.symtypes
-*.symversions
 *.tab.[ch]
 *.tar
 *.xz
@@ -70,6 +71,7 @@ modules.order
 /Module.markers
 /modules.builtin
 /modules.builtin.modinfo
+/modules.builtin.ranges
 /modules.nsdeps
 
 #
@@ -102,6 +104,7 @@ modules.order
 # We don't want to ignore the following even if they are dot-files
 #
 !.clang-format
+!.clippy.toml
 !.cocciconfig
 !.editorconfig
 !.get_maintainer.ignore
@@ -127,6 +130,7 @@ series
 
 # ctags files
 tags
+!tags/
 TAGS
 
 # cscope files
@@ -142,7 +146,6 @@ GTAGS
 # id-utils files
 ID
 
-*.orig
 *~
 \#*#
 

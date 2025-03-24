@@ -46,6 +46,10 @@
 		serial1 = &lpuart1;
 		serial2 = &lpuart2;
 		serial3 = &lpuart3;
+		spi0 = &lpspi0;
+		spi1 = &lpspi1;
+		spi2 = &lpspi2;
+		spi3 = &lpspi3;
 		vpu-core0 = &vpu_core0;
 		vpu-core1 = &vpu_core1;
 	};
@@ -323,6 +327,7 @@
 	#include "imx8-ss-conn.dtsi"
 	#include "imx8-ss-ddr.dtsi"
 	#include "imx8-ss-lsio.dtsi"
+	#include "imx8-ss-hsio.dtsi"
 };
 
 #include "imx8qxp-ss-img.dtsi"
@@ -330,3 +335,4 @@
 #include "imx8qxp-ss-adma.dtsi"
 #include "imx8qxp-ss-conn.dtsi"
 #include "imx8qxp-ss-lsio.dtsi"
+#include "imx8qxp-ss-hsio.dtsi"

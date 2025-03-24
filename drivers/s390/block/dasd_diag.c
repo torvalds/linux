@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/vtoc.h>
+#include <asm/asm.h>
 
 #include "dasd_int.h"
 #include "dasd_diag.h"
@@ -67,22 +68,24 @@ static const u8 DASD_DIAG_CMS1[] = { 0xc3, 0xd4, 0xe2, 0xf1 };/* EBCDIC CMS1 */
 static inline int __dia250(void *iob, int cmd)
 {
 	union register_pair rx = { .even = (unsigned long)iob, };
+	int cc, exception;
 	typedef union {
 		struct dasd_diag_init_io init_io;
 		struct dasd_diag_rw_io rw_io;
 	} addr_type;
-	int cc;
 
-	cc = 3;
+	exception = 1;
 	asm volatile(
 		"	diag	%[rx],%[cmd],0x250\n"
-		"0:	ipm	%[cc]\n"
-		"	srl	%[cc],28\n"
+		"0:	lhi	%[exc],0\n"
 		"1:\n"
+		CC_IPM(cc)
 		EX_TABLE(0b,1b)
-		: [cc] "+&d" (cc), [rx] "+&d" (rx.pair), "+m" (*(addr_type *)iob)
+		: CC_OUT(cc, cc), [rx] "+d" (rx.pair),
+		  "+m" (*(addr_type *)iob), [exc] "+d" (exception)
 		: [cmd] "d" (cmd)
-		: "cc");
+		: CC_CLOBBER);
+	cc = exception ? 3 : CC_TRANSFORM(cc);
 	return cc | rx.odd;
 }
 

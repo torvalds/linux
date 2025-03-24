@@ -1273,7 +1273,7 @@ static void ioc3_set_multicast_list(struct net_device *dev)
 
 static struct platform_driver ioc3eth_driver = {
 	.probe  = ioc3eth_probe,
-	.remove_new = ioc3eth_remove,
+	.remove = ioc3eth_remove,
 	.driver = {
 		.name = "ioc3-eth",
 	}

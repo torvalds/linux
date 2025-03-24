@@ -96,6 +96,7 @@ struct dcn20_hubbub {
 	unsigned int det1_size;
 	unsigned int det2_size;
 	unsigned int det3_size;
+	bool allow_sdpif_rate_limit_when_cstate_req;
 };
 
 void hubbub2_construct(struct dcn20_hubbub *hubbub,

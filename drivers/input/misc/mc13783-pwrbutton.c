@@ -253,7 +253,7 @@ static void mc13783_pwrbutton_remove(struct platform_device *pdev)
 
 static struct platform_driver mc13783_pwrbutton_driver = {
 	.probe		= mc13783_pwrbutton_probe,
-	.remove_new	= mc13783_pwrbutton_remove,
+	.remove		= mc13783_pwrbutton_remove,
 	.driver		= {
 		.name	= "mc13783-pwrbutton",
 	},

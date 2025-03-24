@@ -139,8 +139,8 @@
 			reg = <0x1e6c0080 0x80>;
 		};
 
-		cvic: copro-interrupt-controller@1e6c2000 {
-			compatible = "aspeed,ast2500-cvic", "aspeed-cvic";
+		cvic: interrupt-controller@1e6c2000 {
+			compatible = "aspeed,ast2500-cvic", "aspeed,cvic";
 			valid-sources = <0xffffffff>;
 			copro-sw-interrupts = <1>;
 			reg = <0x1e6c2000 0x80>;
@@ -281,17 +281,6 @@
 				interrupts = <0x19>;
 			};
 
-			xdma: xdma@1e6e7000 {
-				compatible = "aspeed,ast2500-xdma";
-				reg = <0x1e6e7000 0x100>;
-				clocks = <&syscon ASPEED_CLK_GATE_BCLK>;
-				resets = <&syscon ASPEED_RESET_XDMA>;
-				interrupts-extended = <&vic 6>, <&scu_ic ASPEED_AST2500_SCU_IC_PCIE_RESET_LO_TO_HI>;
-				aspeed,pcie-device = "bmc";
-				aspeed,scu = <&syscon>;
-				status = "disabled";
-			};
-
 			adc: adc@1e6e9000 {
 				compatible = "aspeed,ast2500-adc";
 				reg = <0x1e6e9000 0xb0>;
@@ -314,6 +303,9 @@
 			sram: sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x9000>;	// 36K
+				ranges;
+				#address-cells = <1>;
+				#size-cells = <1>;
 			};
 
 			sdmmc: sd-controller@1e740000 {

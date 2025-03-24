@@ -88,10 +88,10 @@ struct ufs_inode_info {
 #endif
 
 /* balloc.c */
-extern void ufs_free_fragments (struct inode *, u64, unsigned);
-extern void ufs_free_blocks (struct inode *, u64, unsigned);
-extern u64 ufs_new_fragments(struct inode *, void *, u64, u64,
-			     unsigned, int *, struct page *);
+void ufs_free_fragments (struct inode *, u64 fragment, unsigned count);
+void ufs_free_blocks (struct inode *, u64 fragment, unsigned count);
+u64 ufs_new_fragments(struct inode *, void *, u64 fragment, u64 goal,
+		unsigned count, int *err, struct folio *);
 
 /* cylinder.c */
 extern struct ufs_cg_private_info * ufs_load_cylinder (struct super_block *, unsigned);
@@ -99,15 +99,17 @@ extern void ufs_put_cylinder (struct super_block *, unsigned);
 
 /* dir.c */
 extern const struct inode_operations ufs_dir_inode_operations;
-extern int ufs_add_link (struct dentry *, struct inode *);
-extern ino_t ufs_inode_by_name(struct inode *, const struct qstr *);
-extern int ufs_make_empty(struct inode *, struct inode *);
-extern struct ufs_dir_entry *ufs_find_entry(struct inode *, const struct qstr *, struct page **);
-extern int ufs_delete_entry(struct inode *, struct ufs_dir_entry *, struct page *);
-extern int ufs_empty_dir (struct inode *);
-extern struct ufs_dir_entry *ufs_dotdot(struct inode *, struct page **);
-extern void ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
-			 struct page *page, struct inode *inode, bool update_times);
+
+int ufs_add_link(struct dentry *, struct inode *);
+ino_t ufs_inode_by_name(struct inode *, const struct qstr *);
+int ufs_make_empty(struct inode *, struct inode *);
+struct ufs_dir_entry *ufs_find_entry(struct inode *, const struct qstr *,
+		struct folio **);
+int ufs_delete_entry(struct inode *, struct ufs_dir_entry *, struct folio *);
+int ufs_empty_dir(struct inode *);
+struct ufs_dir_entry *ufs_dotdot(struct inode *, struct folio **);
+int ufs_set_link(struct inode *dir, struct ufs_dir_entry *de,
+		 struct folio *folio, struct inode *inode, bool update_times);
 
 /* file.c */
 extern const struct inode_operations ufs_file_inode_operations;

@@ -132,11 +132,12 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	 x86_this_cpu_test_bit(bit, cpu_info.x86_capability))
 
 /*
- * This macro is for detection of features which need kernel
- * infrastructure to be used.  It may *not* directly test the CPU
- * itself.  Use the cpu_has() family if you want true runtime
- * testing of CPU features, like in hypervisor code where you are
- * supporting a possible guest feature where host support for it
+ * This is the default CPU features testing macro to use in code.
+ *
+ * It is for detection of features which need kernel infrastructure to be
+ * used.  It may *not* directly test the CPU itself.  Use the cpu_has() family
+ * if you want true runtime testing of CPU features, like in hypervisor code
+ * where you are supporting a possible guest feature where host support for it
  * is not relevant.
  */
 #define cpu_feature_enabled(bit)	\
@@ -161,13 +162,6 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 #define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
 
 /*
- * Static testing of CPU features. Used the same as boot_cpu_has(). It
- * statically patches the target code for additional performance. Use
- * static_cpu_has() only in fast paths, where every cycle counts. Which
- * means that the boot_cpu_has() variant is already fast enough for the
- * majority of cases and you should stick to using it as it is generally
- * only two instructions: a RIP-relative MOV and a TEST.
- *
  * Do not use an "m" constraint for [cap_byte] here: gcc doesn't know
  * that this is only used on a fallback path and will sometimes cause
  * it to manifest the address of boot_cpu_data in a register, fouling

@@ -95,7 +95,6 @@ static int navman_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 static struct usb_serial_driver navman_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"navman",
 	},
 	.id_table =		id_table,

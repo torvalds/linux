@@ -319,11 +319,11 @@ static struct platform_driver hid_time_platform_driver = {
 		.name	= KBUILD_MODNAME,
 	},
 	.probe		= hid_time_probe,
-	.remove_new	= hid_time_remove,
+	.remove		= hid_time_remove,
 };
 module_platform_driver(hid_time_platform_driver);
 
 MODULE_DESCRIPTION("HID Sensor Time");
 MODULE_AUTHOR("Alexander Holler <holler@ahsoftware.de>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_HID);
+MODULE_IMPORT_NS("IIO_HID");

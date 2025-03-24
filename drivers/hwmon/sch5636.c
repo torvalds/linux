@@ -416,8 +416,7 @@ static int sch5636_probe(struct platform_device *pdev)
 	id[i] = '\0';
 
 	if (strcmp(id, "THS")) {
-		pr_err("Unknown Fujitsu id: %02x%02x%02x\n",
-		       id[0], id[1], id[2]);
+		pr_err("Unknown Fujitsu id: %3pE (%3ph)\n", id, id);
 		err = -ENODEV;
 		goto error;
 	}
@@ -513,7 +512,7 @@ static struct platform_driver sch5636_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= sch5636_probe,
-	.remove_new	= sch5636_remove,
+	.remove		= sch5636_remove,
 	.id_table	= sch5636_device_id,
 };
 

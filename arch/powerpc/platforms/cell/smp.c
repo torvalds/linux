@@ -35,7 +35,7 @@
 #include <asm/firmware.h>
 #include <asm/rtas.h>
 #include <asm/cputhreads.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 
 #include "interrupt.h"
 #include <asm/udbg.h>

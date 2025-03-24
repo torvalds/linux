@@ -245,7 +245,7 @@ MODULE_DEVICE_TABLE(of, ahci_mvebu_of_match);
 
 static struct platform_driver ahci_mvebu_driver = {
 	.probe = ahci_mvebu_probe,
-	.remove_new = ata_platform_remove_one,
+	.remove = ata_platform_remove_one,
 	.suspend = ahci_mvebu_suspend,
 	.resume = ahci_mvebu_resume,
 	.driver = {

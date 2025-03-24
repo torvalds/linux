@@ -143,6 +143,7 @@ static const struct of_device_id max14577_dt_match[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, max14577_dt_match);
 
 static bool max14577_muic_volatile_reg(struct device *dev, unsigned int reg)
 {

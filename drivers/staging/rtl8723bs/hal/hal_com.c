@@ -7,30 +7,26 @@
 
 #include <linux/kernel.h>
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include "hal_com_h2c.h"
 
 #include "odm_precomp.h"
 
 u8 rtw_hal_data_init(struct adapter *padapter)
 {
-	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
-		padapter->hal_data_sz = sizeof(struct hal_com_data);
-		padapter->HalData = vzalloc(padapter->hal_data_sz);
-		if (!padapter->HalData)
-			return _FAIL;
-	}
+	padapter->hal_data_sz = sizeof(struct hal_com_data);
+	padapter->HalData = vzalloc(padapter->hal_data_sz);
+	if (!padapter->HalData)
+		return _FAIL;
+
 	return _SUCCESS;
 }
 
 void rtw_hal_data_deinit(struct adapter *padapter)
 {
-	if (is_primary_adapter(padapter)) {	/* if (padapter->isprimary) */
-		if (padapter->HalData) {
-			vfree(padapter->HalData);
-			padapter->HalData = NULL;
-			padapter->hal_data_sz = 0;
-		}
+	if (padapter->HalData) {
+		vfree(padapter->HalData);
+		padapter->HalData = NULL;
+		padapter->hal_data_sz = 0;
 	}
 }
 
@@ -686,14 +682,6 @@ u8 SetHalDefVar(
 	u8 bResult = _SUCCESS;
 
 	switch (variable) {
-	case HAL_DEF_DBG_RX_INFO_DUMP:
-
-		if (odm->bLinked) {
-			#ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
-			rtw_dump_raw_rssi_info(adapter);
-			#endif
-		}
-		break;
 	case HW_DEF_ODM_DBG_FLAG:
 		ODM_CmnInfoUpdate(odm, ODM_CMNINFO_DBG_COMP, *((u64 *)value));
 		break;
@@ -797,19 +785,6 @@ u8 GetHalDefVar(
 	return bResult;
 }
 
-void GetHalODMVar(
-	struct adapter *Adapter,
-	enum hal_odm_variable eVariable,
-	void *pValue1,
-	void *pValue2
-)
-{
-	switch (eVariable) {
-	default:
-		break;
-	}
-}
-
 void SetHalODMVar(
 	struct adapter *Adapter,
 	enum hal_odm_variable eVariable,
@@ -884,7 +859,6 @@ void rtw_hal_check_rxfifo_full(struct adapter *adapter)
 	int save_cnt = false;
 
 	/* switch counter to RX fifo */
-	/* printk("8723b or 8192e , MAC_667 set 0xf0\n"); */
 	rtw_write8(adapter, REG_RXERR_RPT+3, rtw_read8(adapter, REG_RXERR_RPT+3)|0xf0);
 	save_cnt = true;
 	/* todo: other chips */
@@ -896,54 +870,6 @@ void rtw_hal_check_rxfifo_full(struct adapter *adapter)
 		pdbgpriv->dbg_rx_fifo_diff_overflow = pdbgpriv->dbg_rx_fifo_curr_overflow-pdbgpriv->dbg_rx_fifo_last_overflow;
 	}
 }
-
-#ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
-void rtw_dump_raw_rssi_info(struct adapter *padapter)
-{
-	u8 isCCKrate, rf_path;
-	struct hal_com_data *pHalData =  GET_HAL_DATA(padapter);
-	struct rx_raw_rssi *psample_pkt_rssi = &padapter->recvpriv.raw_rssi_info;
-
-	isCCKrate = psample_pkt_rssi->data_rate <= DESC_RATE11M;
-
-	if (isCCKrate)
-		psample_pkt_rssi->mimo_signal_strength[0] = psample_pkt_rssi->pwdball;
-
-	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		if (!isCCKrate) {
-			printk(", rx_ofdm_pwr:%d(dBm), rx_ofdm_snr:%d(dB)\n",
-			psample_pkt_rssi->ofdm_pwr[rf_path], psample_pkt_rssi->ofdm_snr[rf_path]);
-		} else {
-			printk("\n");
-		}
-	}
-}
-
-void rtw_store_phy_info(struct adapter *padapter, union recv_frame *prframe)
-{
-	u8 isCCKrate, rf_path;
-	struct hal_com_data *pHalData =  GET_HAL_DATA(padapter);
-	struct rx_pkt_attrib *pattrib = &prframe->u.hdr.attrib;
-
-	struct odm_phy_info *pPhyInfo  = (PODM_PHY_INFO_T)(&pattrib->phy_info);
-	struct rx_raw_rssi *psample_pkt_rssi = &padapter->recvpriv.raw_rssi_info;
-
-	psample_pkt_rssi->data_rate = pattrib->data_rate;
-	isCCKrate = pattrib->data_rate <= DESC_RATE11M;
-
-	psample_pkt_rssi->pwdball = pPhyInfo->rx_pwd_ba11;
-	psample_pkt_rssi->pwr_all = pPhyInfo->recv_signal_power;
-
-	for (rf_path = 0; rf_path < pHalData->NumTotalRFPath; rf_path++) {
-		psample_pkt_rssi->mimo_signal_strength[rf_path] = pPhyInfo->rx_mimo_signal_strength[rf_path];
-		psample_pkt_rssi->mimo_signal_quality[rf_path] = pPhyInfo->rx_mimo_signal_quality[rf_path];
-		if (!isCCKrate) {
-			psample_pkt_rssi->ofdm_pwr[rf_path] = pPhyInfo->RxPwr[rf_path];
-			psample_pkt_rssi->ofdm_snr[rf_path] = pPhyInfo->RxSNR[rf_path];
-		}
-	}
-}
-#endif
 
 static u32 Array_kfreemap[] = {
 	0xf8, 0xe,

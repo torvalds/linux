@@ -485,7 +485,7 @@ MODULE_DEVICE_TABLE(of, mvneta_bm_match);
 
 static struct platform_driver mvneta_bm_driver = {
 	.probe = mvneta_bm_probe,
-	.remove_new = mvneta_bm_remove,
+	.remove = mvneta_bm_remove,
 	.driver = {
 		.name = MVNETA_BM_DRIVER_NAME,
 		.of_match_table = mvneta_bm_match,

@@ -18,6 +18,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <xalloc.h>
 #include "internal.h"
 #include "lkc.h"
 
@@ -359,10 +360,12 @@ int conf_read_simple(const char *name, int def)
 
 			*p = '\0';
 
-			in = zconf_fopen(env);
+			name = env;
+
+			in = zconf_fopen(name);
 			if (in) {
 				conf_message("using defaults found in %s",
-					     env);
+					     name);
 				goto load;
 			}
 
@@ -394,6 +397,8 @@ load:
 			sym->def[def].tri = no;
 		}
 	}
+
+	expr_invalidate_all();
 
 	while (getline_stripped(&line, &line_asize, in) != -1) {
 		struct menu *choice;

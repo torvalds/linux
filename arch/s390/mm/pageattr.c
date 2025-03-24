@@ -12,6 +12,7 @@
 #include <asm/pgalloc.h>
 #include <asm/kfence.h>
 #include <asm/page.h>
+#include <asm/asm.h>
 #include <asm/set_memory.h>
 
 static inline unsigned long sske_frame(unsigned long addr, unsigned char skey)
@@ -108,8 +109,6 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 		} else if (flags & SET_MEMORY_DEF) {
 			new = __pte(pte_val(new) & PAGE_MASK);
 			new = set_pte_bit(new, PAGE_KERNEL);
-			if (!MACHINE_HAS_NX)
-				new = clear_pte_bit(new, __pgprot(_PAGE_NOEXEC));
 		}
 		pgt_set((unsigned long *)ptep, pte_val(new), addr, CRDTE_DTT_PAGE);
 		ptep++;
@@ -166,8 +165,6 @@ static void modify_pmd_page(pmd_t *pmdp, unsigned long addr,
 	} else if (flags & SET_MEMORY_DEF) {
 		new = __pmd(pmd_val(new) & PMD_MASK);
 		new = set_pmd_bit(new, SEGMENT_KERNEL);
-		if (!MACHINE_HAS_NX)
-			new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
 	}
 	pgt_set((unsigned long *)pmdp, pmd_val(new), addr, CRDTE_DTT_SEGMENT);
 }
@@ -255,8 +252,6 @@ static void modify_pud_page(pud_t *pudp, unsigned long addr,
 	} else if (flags & SET_MEMORY_DEF) {
 		new = __pud(pud_val(new) & PUD_MASK);
 		new = set_pud_bit(new, REGION3_KERNEL);
-		if (!MACHINE_HAS_NX)
-			new = clear_pud_bit(new, __pgprot(_REGION_ENTRY_NOEXEC));
 	}
 	pgt_set((unsigned long *)pudp, pud_val(new), addr, CRDTE_DTT_REGION3);
 }
@@ -404,6 +399,33 @@ int set_direct_map_invalid_noflush(struct page *page)
 int set_direct_map_default_noflush(struct page *page)
 {
 	return __set_memory((unsigned long)page_to_virt(page), 1, SET_MEMORY_DEF);
+}
+
+int set_direct_map_valid_noflush(struct page *page, unsigned nr, bool valid)
+{
+	unsigned long flags;
+
+	if (valid)
+		flags = SET_MEMORY_DEF;
+	else
+		flags = SET_MEMORY_INV;
+
+	return __set_memory((unsigned long)page_to_virt(page), nr, flags);
+}
+
+bool kernel_page_present(struct page *page)
+{
+	unsigned long addr;
+	unsigned int cc;
+
+	addr = (unsigned long)page_address(page);
+	asm volatile(
+		"	lra	%[addr],0(%[addr])\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc), [addr] "+a" (addr)
+		:
+		: CC_CLOBBER);
+	return CC_TRANSFORM(cc) == 0;
 }
 
 #if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)

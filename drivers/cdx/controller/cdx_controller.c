@@ -250,7 +250,7 @@ static struct platform_driver cdx_pdriver = {
 		   .of_match_table = cdx_match_table,
 		   },
 	.probe = xlnx_cdx_probe,
-	.remove_new = xlnx_cdx_remove,
+	.remove = xlnx_cdx_remove,
 };
 
 static int __init cdx_controller_init(void)
@@ -275,4 +275,4 @@ module_exit(cdx_controller_exit);
 MODULE_AUTHOR("AMD Inc.");
 MODULE_DESCRIPTION("CDX controller for AMD devices");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(CDX_BUS_CONTROLLER);
+MODULE_IMPORT_NS("CDX_BUS_CONTROLLER");

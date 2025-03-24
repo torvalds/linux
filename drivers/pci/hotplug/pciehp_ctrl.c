@@ -19,6 +19,8 @@
 #include <linux/types.h>
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
+
+#include "../pci.h"
 #include "pciehp.h"
 
 /* The following routines constitute the bulk of the
@@ -127,6 +129,9 @@ static void remove_board(struct controller *ctrl, bool safe_removal)
 
 	pciehp_set_indicators(ctrl, PCI_EXP_SLTCTL_PWR_IND_OFF,
 			      INDICATOR_NOOP);
+
+	/* Don't carry LBMS indications across */
+	pcie_reset_lbms_count(ctrl->pcie->port);
 }
 
 static int pciehp_enable_slot(struct controller *ctrl);

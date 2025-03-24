@@ -84,7 +84,7 @@
 		clock-frequency = <0>;
 	};
 
-	lbsc: lbsc {
+	lbsc: bus {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;

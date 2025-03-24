@@ -477,7 +477,7 @@ static struct clk_hw_onecell_data suniv_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map suniv_ccu_resets[] = {
+static const struct ccu_reset_map suniv_ccu_resets[] = {
 	[RST_USB_PHY0]		=  { 0x0cc, BIT(0) },
 
 	[RST_BUS_DMA]		=  { 0x2c0, BIT(6) },
@@ -577,6 +577,6 @@ static struct platform_driver suniv_f1c100s_ccu_driver = {
 };
 module_platform_driver(suniv_f1c100s_ccu_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner newer F1C100s CCU");
 MODULE_LICENSE("GPL");

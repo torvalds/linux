@@ -161,7 +161,7 @@ static int max34408_read_raw(struct iio_dev *indio_dev,
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		/*
-		 * calcluate current for 8bit ADC with Rsense
+		 * calculate current for 8bit ADC with Rsense
 		 * value.
 		 * 10 mV * 1000 / Rsense uOhm = max current
 		 * (max current * adc val * 1000) / (2^8 - 1) mA
@@ -250,14 +250,14 @@ static const struct of_device_id max34408_of_match[] = {
 		.compatible = "maxim,max34409",
 		.data = &max34409_model_data,
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, max34408_of_match);
 
 static const struct i2c_device_id max34408_id[] = {
 	{ "max34408", (kernel_ulong_t)&max34408_model_data },
 	{ "max34409", (kernel_ulong_t)&max34409_model_data },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max34408_id);
 

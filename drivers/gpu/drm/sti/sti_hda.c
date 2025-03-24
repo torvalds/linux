@@ -807,11 +807,10 @@ MODULE_DEVICE_TABLE(of, hda_of_match);
 struct platform_driver sti_hda_driver = {
 	.driver = {
 		.name = "sti-hda",
-		.owner = THIS_MODULE,
 		.of_match_table = hda_of_match,
 	},
 	.probe = sti_hda_probe,
-	.remove_new = sti_hda_remove,
+	.remove = sti_hda_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

@@ -206,7 +206,7 @@ static int afs_proc_rootcell_show(struct seq_file *m, void *v)
 
 	net = afs_seq2net_single(m);
 	down_read(&net->cells_lock);
-	cell = net->ws_cell;
+	cell = rcu_dereference_protected(net->ws_cell, lockdep_is_held(&net->cells_lock));
 	if (cell)
 		seq_printf(m, "%s\n", cell->name);
 	up_read(&net->cells_lock);
@@ -240,7 +240,13 @@ static int afs_proc_rootcell_write(struct file *file, char *buf, size_t size)
 	/* determine command to perform */
 	_debug("rootcell=%s", buf);
 
-	ret = afs_cell_init(net, buf);
+	ret = -EEXIST;
+	inode_lock(file_inode(file));
+	if (!rcu_access_pointer(net->ws_cell))
+		ret = afs_cell_init(net, buf);
+	else
+		printk("busy\n");
+	inode_unlock(file_inode(file));
 
 out:
 	_leave(" = %d", ret);

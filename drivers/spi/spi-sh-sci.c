@@ -183,7 +183,7 @@ static void sh_sci_spi_remove(struct platform_device *dev)
 
 static struct platform_driver sh_sci_spi_drv = {
 	.probe		= sh_sci_spi_probe,
-	.remove_new	= sh_sci_spi_remove,
+	.remove		= sh_sci_spi_remove,
 	.driver		= {
 		.name	= "spi_sh_sci",
 	},

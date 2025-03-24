@@ -37,6 +37,7 @@ struct sec_aead_req {
 	u8 *a_ivin;
 	dma_addr_t a_ivin_dma;
 	struct aead_request *aead_req;
+	bool fallback;
 };
 
 /* SEC request of Crypto */
@@ -90,9 +91,7 @@ struct sec_auth_ctx {
 	dma_addr_t a_key_dma;
 	u8 *a_key;
 	u8 a_key_len;
-	u8 mac_len;
 	u8 a_alg;
-	bool fallback;
 	struct crypto_shash *hash_tfm;
 	struct crypto_aead *fallback_aead_tfm;
 };
@@ -220,11 +219,27 @@ enum sec_cap_type {
 	SEC_CORE4_ALG_BITMAP_HIGH,
 };
 
-enum sec_cap_reg_record_idx {
-	SEC_DRV_ALG_BITMAP_LOW_IDX = 0x0,
-	SEC_DRV_ALG_BITMAP_HIGH_IDX,
-	SEC_DEV_ALG_BITMAP_LOW_IDX,
-	SEC_DEV_ALG_BITMAP_HIGH_IDX,
+enum sec_cap_table_type {
+	QM_RAS_NFE_TYPE = 0x0,
+	QM_RAS_NFE_RESET,
+	QM_RAS_CE_TYPE,
+	SEC_RAS_NFE_TYPE,
+	SEC_RAS_NFE_RESET,
+	SEC_RAS_CE_TYPE,
+	SEC_CORE_INFO,
+	SEC_CORE_EN,
+	SEC_DRV_ALG_BITMAP_LOW_TB,
+	SEC_DRV_ALG_BITMAP_HIGH_TB,
+	SEC_ALG_BITMAP_LOW,
+	SEC_ALG_BITMAP_HIGH,
+	SEC_CORE1_BITMAP_LOW,
+	SEC_CORE1_BITMAP_HIGH,
+	SEC_CORE2_BITMAP_LOW,
+	SEC_CORE2_BITMAP_HIGH,
+	SEC_CORE3_BITMAP_LOW,
+	SEC_CORE3_BITMAP_HIGH,
+	SEC_CORE4_BITMAP_LOW,
+	SEC_CORE4_BITMAP_HIGH,
 };
 
 void sec_destroy_qps(struct hisi_qp **qps, int qp_num);

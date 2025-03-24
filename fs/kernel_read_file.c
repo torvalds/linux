@@ -175,15 +175,11 @@ ssize_t kernel_read_file_from_fd(int fd, loff_t offset, void **buf,
 				 size_t buf_size, size_t *file_size,
 				 enum kernel_read_file_id id)
 {
-	struct fd f = fdget(fd);
-	ssize_t ret = -EBADF;
+	CLASS(fd, f)(fd);
 
-	if (!f.file || !(f.file->f_mode & FMODE_READ))
-		goto out;
+	if (fd_empty(f) || !(fd_file(f)->f_mode & FMODE_READ))
+		return -EBADF;
 
-	ret = kernel_read_file(f.file, offset, buf, buf_size, file_size, id);
-out:
-	fdput(f);
-	return ret;
+	return kernel_read_file(fd_file(f), offset, buf, buf_size, file_size, id);
 }
 EXPORT_SYMBOL_GPL(kernel_read_file_from_fd);

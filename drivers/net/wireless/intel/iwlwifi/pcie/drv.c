@@ -500,9 +500,7 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x7E40, PCI_ANY_ID, iwl_ma_trans_cfg)},
 
 /* Bz devices */
-	{IWL_PCI_DEVICE(0x2727, PCI_ANY_ID, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0x272D, PCI_ANY_ID, iwl_bz_trans_cfg)},
-	{IWL_PCI_DEVICE(0x272b, PCI_ANY_ID, iwl_bz_trans_cfg)},
+	{IWL_PCI_DEVICE(0x272b, PCI_ANY_ID, iwl_gl_trans_cfg)},
 	{IWL_PCI_DEVICE(0xA840, 0x0000, iwl_bz_trans_cfg)},
 	{IWL_PCI_DEVICE(0xA840, 0x0090, iwl_bz_trans_cfg)},
 	{IWL_PCI_DEVICE(0xA840, 0x0094, iwl_bz_trans_cfg)},
@@ -542,6 +540,9 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0xE340, PCI_ANY_ID, iwl_sc_trans_cfg)},
 	{IWL_PCI_DEVICE(0xD340, PCI_ANY_ID, iwl_sc_trans_cfg)},
 	{IWL_PCI_DEVICE(0x6E70, PCI_ANY_ID, iwl_sc_trans_cfg)},
+
+/* Dr devices */
+	{IWL_PCI_DEVICE(0x272F, PCI_ANY_ID, iwl_dr_trans_cfg)},
 #endif /* CONFIG_IWLMVM */
 
 	{0}
@@ -1108,18 +1109,53 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		      iwlax210_2ax_cfg_so_jf_b0, iwl9462_name),
 
 /* Bz */
-/* FIXME: need to change the naming according to the actual CRF */
 	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
 		      IWL_CFG_MAC_TYPE_BZ, IWL_CFG_ANY,
+		      IWL_CFG_RF_TYPE_HR2, IWL_CFG_ANY, IWL_CFG_ANY,
 		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      iwl_cfg_bz, iwl_ax201_name),
+
+	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_BZ, IWL_CFG_ANY,
+		      IWL_CFG_RF_TYPE_GF, IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      iwl_cfg_bz, iwl_ax211_name),
+
+	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_BZ, IWL_CFG_ANY,
+		      IWL_CFG_RF_TYPE_FM, IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      iwl_cfg_bz, iwl_fm_name),
+
+	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_BZ, IWL_CFG_ANY,
+		      IWL_CFG_RF_TYPE_WH, IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      iwl_cfg_bz, iwl_wh_name),
+
+	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_BZ_W, IWL_CFG_ANY,
+		      IWL_CFG_RF_TYPE_HR2, IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      iwl_cfg_bz, iwl_ax201_name),
+
+	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_BZ_W, IWL_CFG_ANY,
+		      IWL_CFG_RF_TYPE_GF, IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      iwl_cfg_bz, iwl_ax211_name),
+
+	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_BZ_W, IWL_CFG_ANY,
+		      IWL_CFG_RF_TYPE_FM, IWL_CFG_ANY, IWL_CFG_ANY,
 		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
 		      iwl_cfg_bz, iwl_fm_name),
 
 	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
 		      IWL_CFG_MAC_TYPE_BZ_W, IWL_CFG_ANY,
+		      IWL_CFG_RF_TYPE_WH, IWL_CFG_ANY, IWL_CFG_ANY,
 		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
-		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
-		      iwl_cfg_bz, iwl_fm_name),
+		      iwl_cfg_bz, iwl_wh_name),
 
 /* Ga (Gl) */
 	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
@@ -1149,6 +1185,19 @@ VISIBLE_IF_IWLWIFI_KUNIT const struct iwl_dev_info iwl_dev_info_table[] = {
 		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
 		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
 		      iwl_cfg_sc2f, iwl_sc2f_name),
+/* Dr */
+	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_DR, IWL_CFG_ANY,
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      iwl_cfg_dr, iwl_dr_name),
+
+/* Br */
+	_IWL_DEV_INFO(IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_MAC_TYPE_BR, IWL_CFG_ANY,
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      IWL_CFG_ANY, IWL_CFG_ANY, IWL_CFG_ANY,
+		      iwl_cfg_br, iwl_br_name),
 #endif /* CONFIG_IWLMVM */
 };
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_dev_info_table);
@@ -1252,6 +1301,9 @@ static int map_crf_id(struct iwl_trans *iwl_trans)
 		break;
 	case REG_CRF_ID_TYPE_WHP:
 		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_WH << 12);
+		break;
+	case REG_CRF_ID_TYPE_PE:
+		iwl_trans->hw_rf_id = (IWL_CFG_RF_TYPE_PE << 12);
 		break;
 	default:
 		ret = -EIO;
@@ -1358,6 +1410,47 @@ iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
 }
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_pci_find_dev_info);
 
+static void iwl_pcie_recheck_me_status(struct work_struct *wk)
+{
+	struct iwl_trans *trans = container_of(wk, typeof(*trans),
+					       me_recheck_wk.work);
+	u32 val;
+
+	val = iwl_read32(trans, CSR_HW_IF_CONFIG_REG);
+	trans->me_present = !!(val & CSR_HW_IF_CONFIG_REG_IAMT_UP);
+}
+
+static void iwl_pcie_check_me_status(struct iwl_trans *trans)
+{
+	u32 val;
+
+	trans->me_present = -1;
+
+	INIT_DELAYED_WORK(&trans->me_recheck_wk,
+			  iwl_pcie_recheck_me_status);
+
+	/* we don't have a good way of determining this until BZ */
+	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ)
+		return;
+
+	val = iwl_read_prph(trans, CNVI_SCU_REG_FOR_ECO_1);
+	if (val & CNVI_SCU_REG_FOR_ECO_1_WIAMT_KNOWN) {
+		trans->me_present =
+			!!(val & CNVI_SCU_REG_FOR_ECO_1_WIAMT_PRESENT);
+		return;
+	}
+
+	val = iwl_read32(trans, CSR_HW_IF_CONFIG_REG);
+	if (val & (CSR_HW_IF_CONFIG_REG_ME_OWN |
+		   CSR_HW_IF_CONFIG_REG_IAMT_UP)) {
+		trans->me_present = 1;
+		return;
+	}
+
+	/* recheck again later, ME might still be initializing */
+	schedule_delayed_work(&trans->me_recheck_wk, HZ);
+}
+
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct iwl_cfg_trans_params *trans;
@@ -1386,6 +1479,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return PTR_ERR(iwl_trans);
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
+
+	iwl_trans_pcie_check_product_reset_status(pdev);
+	iwl_trans_pcie_check_product_reset_mode(pdev);
 
 	/*
 	 * Let's try to grab NIC access early here. Sometimes, NICs may
@@ -1533,6 +1629,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, iwl_trans);
 
+	iwl_pcie_check_me_status(iwl_trans);
+
 	/* try to get ownership so that we'll know if we don't own it */
 	iwl_pcie_prepare_card_hw(iwl_trans);
 
@@ -1560,6 +1658,8 @@ static void iwl_pci_remove(struct pci_dev *pdev)
 	if (!trans)
 		return;
 
+	cancel_delayed_work_sync(&trans->me_recheck_wk);
+
 	iwl_drv_stop(trans->drv);
 
 	iwl_trans_pcie_free(trans);
@@ -1577,11 +1677,12 @@ static int iwl_pci_suspend(struct device *device)
 	return 0;
 }
 
-static int iwl_pci_resume(struct device *device)
+static int _iwl_pci_resume(struct device *device, bool restore)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	bool device_was_powered_off = false;
 
 	/* Before you put code here, think about WoWLAN. You cannot check here
 	 * whether WoWLAN is enabled or not, and your code will run even if
@@ -1596,6 +1697,26 @@ static int iwl_pci_resume(struct device *device)
 
 	if (!trans->op_mode)
 		return 0;
+
+	/*
+	 * Scratch value was altered, this means the device was powered off, we
+	 * need to reset it completely.
+	 * Note: MAC (bits 0:7) will be cleared upon suspend even with wowlan,
+	 * so assume that any bits there mean that the device is usable.
+	 */
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ &&
+	    !iwl_read32(trans, CSR_FUNC_SCRATCH))
+		device_was_powered_off = true;
+
+	if (restore || device_was_powered_off) {
+		trans->state = IWL_TRANS_NO_FW;
+		/* Hope for the best here ... If one of those steps fails we
+		 * won't really know how to recover.
+		 */
+		iwl_pcie_prepare_card_hw(trans);
+		iwl_finish_nic_init(trans);
+		iwl_op_mode_device_powered_off(trans->op_mode);
+	}
 
 	/* In WOWLAN, let iwl_trans_pcie_d3_resume do the rest of the work */
 	if (test_bit(STATUS_DEVICE_ENABLED, &trans->status))
@@ -1617,9 +1738,23 @@ static int iwl_pci_resume(struct device *device)
 	return 0;
 }
 
+static int iwl_pci_restore(struct device *device)
+{
+	return _iwl_pci_resume(device, true);
+}
+
+static int iwl_pci_resume(struct device *device)
+{
+	return _iwl_pci_resume(device, false);
+}
+
 static const struct dev_pm_ops iwl_dev_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(iwl_pci_suspend,
-				iwl_pci_resume)
+	.suspend = pm_sleep_ptr(iwl_pci_suspend),
+	.resume = pm_sleep_ptr(iwl_pci_resume),
+	.freeze = pm_sleep_ptr(iwl_pci_suspend),
+	.thaw = pm_sleep_ptr(iwl_pci_resume),
+	.poweroff = pm_sleep_ptr(iwl_pci_suspend),
+	.restore = pm_sleep_ptr(iwl_pci_restore),
 };
 
 #define IWL_PM_OPS	(&iwl_dev_pm_ops)

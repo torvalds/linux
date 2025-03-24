@@ -12,6 +12,7 @@
 #include <net/devlink.h>
 #include <linux/avf/virtchnl.h>
 #include "ice_type.h"
+#include "ice_flow.h"
 #include "ice_virtchnl_fdir.h"
 #include "ice_vsi_vlan_ops.h"
 
@@ -50,6 +51,19 @@ struct ice_mdd_vf_events {
 	u16 count;			/* total count of Rx|Tx events */
 	/* count number of the last printed event */
 	u16 last_printed;
+};
+
+/* Structure to store fdir fv entry */
+struct ice_fdir_prof_info {
+	struct ice_parser_profile prof;
+	u64 fdir_active_cnt;
+};
+
+struct ice_vf_qs_bw {
+	u32 committed;
+	u32 peak;
+	u16 queue_id;
+	u8 tc;
 };
 
 /* VF operations */
@@ -91,6 +105,7 @@ struct ice_vf {
 	u16 lan_vsi_idx;		/* index into PF struct */
 	u16 ctrl_vsi_idx;
 	struct ice_vf_fdir fdir;
+	struct ice_fdir_prof_info fdir_prof_info[ICE_MAX_PTGS];
 	/* first vector index of this VF in the PF space */
 	int first_vector_idx;
 	struct ice_sw *vf_sw_id;	/* switch ID the VF VSIs connect to */
@@ -132,6 +147,7 @@ struct ice_vf {
 	struct devlink_port devlink_port;
 
 	u16 num_msix;			/* num of MSI-X configured on this VF */
+	struct ice_vf_qs_bw qs_bw[ICE_MAX_RSS_QS_PER_VF];
 };
 
 /* Flags for controlling behavior of ice_reset_vf */

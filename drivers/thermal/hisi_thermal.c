@@ -465,11 +465,22 @@ static irqreturn_t hisi_thermal_alarm_irq_thread(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static int hisi_trip_walk_cb(struct thermal_trip *trip, void *arg)
+{
+	struct hisi_thermal_sensor *sensor = arg;
+
+	if (trip->type != THERMAL_TRIP_PASSIVE)
+		return 0;
+
+	sensor->thres_temp = trip->temperature;
+	/* Return nonzero to terminate the search. */
+	return 1;
+}
+
 static int hisi_thermal_register_sensor(struct platform_device *pdev,
 					struct hisi_thermal_sensor *sensor)
 {
-	int ret, i;
-	struct thermal_trip trip;
+	int ret;
 
 	sensor->tzd = devm_thermal_of_zone_register(&pdev->dev,
 						    sensor->id, sensor,
@@ -482,15 +493,7 @@ static int hisi_thermal_register_sensor(struct platform_device *pdev,
 		return ret;
 	}
 
-	for (i = 0; i < thermal_zone_get_num_trips(sensor->tzd); i++) {
-
-		thermal_zone_get_trip(sensor->tzd, i, &trip);
-
-		if (trip.type == THERMAL_TRIP_PASSIVE) {
-			sensor->thres_temp = trip.temperature;
-			break;
-		}
-	}
+	thermal_zone_for_each_trip(sensor->tzd, hisi_trip_walk_cb, sensor);
 
 	return 0;
 }
@@ -634,10 +637,10 @@ static struct platform_driver hisi_thermal_driver = {
 	.driver = {
 		.name		= "hisi_thermal",
 		.pm		= pm_sleep_ptr(&hisi_thermal_pm_ops),
-		.of_match_table = of_hisi_thermal_match,
+		.of_match_table	= of_hisi_thermal_match,
 	},
 	.probe	= hisi_thermal_probe,
-	.remove_new = hisi_thermal_remove,
+	.remove	= hisi_thermal_remove,
 };
 
 module_platform_driver(hisi_thermal_driver);

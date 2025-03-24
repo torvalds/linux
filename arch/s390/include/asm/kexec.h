@@ -94,6 +94,9 @@ void arch_kexec_protect_crashkres(void);
 
 void arch_kexec_unprotect_crashkres(void);
 #define arch_kexec_unprotect_crashkres arch_kexec_unprotect_crashkres
+
+bool is_kdump_kernel(void);
+#define is_kdump_kernel is_kdump_kernel
 #endif
 
 #ifdef CONFIG_KEXEC_FILE

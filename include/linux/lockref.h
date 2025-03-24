@@ -34,14 +34,25 @@ struct lockref {
 	};
 };
 
-extern void lockref_get(struct lockref *);
-extern int lockref_put_return(struct lockref *);
-extern int lockref_get_not_zero(struct lockref *);
-extern int lockref_put_not_zero(struct lockref *);
-extern int lockref_put_or_lock(struct lockref *);
+/**
+ * lockref_init - Initialize a lockref
+ * @lockref: pointer to lockref structure
+ *
+ * Initializes @lockref->count to 1.
+ */
+static inline void lockref_init(struct lockref *lockref)
+{
+	spin_lock_init(&lockref->lock);
+	lockref->count = 1;
+}
 
-extern void lockref_mark_dead(struct lockref *);
-extern int lockref_get_not_dead(struct lockref *);
+void lockref_get(struct lockref *lockref);
+int lockref_put_return(struct lockref *lockref);
+bool lockref_get_not_zero(struct lockref *lockref);
+bool lockref_put_or_lock(struct lockref *lockref);
+
+void lockref_mark_dead(struct lockref *lockref);
+bool lockref_get_not_dead(struct lockref *lockref);
 
 /* Must be called under spinlock for reliable results */
 static inline bool __lockref_is_dead(const struct lockref *l)

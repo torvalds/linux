@@ -84,20 +84,9 @@ static int us144_create_usbmidi(struct snd_card *card)
 
 static void pt_info_set(struct usb_device *dev, u8 v)
 {
-	int ret;
-
-	ret = usb_control_msg_send(dev, 0, 'I',
-				   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-				   v, 0, NULL, 0, 1000, GFP_NOIO);
-	snd_printdd(KERN_DEBUG "%i\n", ret);
-}
-
-static void usb_stream_hwdep_vm_open(struct vm_area_struct *area)
-{
-	struct us122l *us122l = area->vm_private_data;
-
-	atomic_inc(&us122l->mmap_count);
-	snd_printdd(KERN_DEBUG "%i\n", atomic_read(&us122l->mmap_count));
+	usb_control_msg_send(dev, 0, 'I',
+			     USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			     v, 0, NULL, 0, 1000, GFP_NOIO);
 }
 
 static vm_fault_t usb_stream_hwdep_vm_fault(struct vm_fault *vmf)
@@ -136,18 +125,9 @@ unlock:
 	return VM_FAULT_SIGBUS;
 }
 
-static void usb_stream_hwdep_vm_close(struct vm_area_struct *area)
-{
-	struct us122l *us122l = area->vm_private_data;
-
-	atomic_dec(&us122l->mmap_count);
-	snd_printdd(KERN_DEBUG "%i\n", atomic_read(&us122l->mmap_count));
-}
 
 static const struct vm_operations_struct usb_stream_hwdep_vm_ops = {
-	.open = usb_stream_hwdep_vm_open,
 	.fault = usb_stream_hwdep_vm_fault,
-	.close = usb_stream_hwdep_vm_close,
 };
 
 static int usb_stream_hwdep_open(struct snd_hwdep *hw, struct file *file)
@@ -155,7 +135,6 @@ static int usb_stream_hwdep_open(struct snd_hwdep *hw, struct file *file)
 	struct us122l	*us122l = hw->private_data;
 	struct usb_interface *iface;
 
-	snd_printdd(KERN_DEBUG "%p %p\n", hw, file);
 	if (hw->used >= 2)
 		return -EBUSY;
 
@@ -175,8 +154,6 @@ static int usb_stream_hwdep_release(struct snd_hwdep *hw, struct file *file)
 {
 	struct us122l	*us122l = hw->private_data;
 	struct usb_interface *iface;
-
-	snd_printdd(KERN_DEBUG "%p %p\n", hw, file);
 
 	if (us122l->is_us144) {
 		iface = usb_ifnum_to_if(us122l->dev, 0);
@@ -213,12 +190,10 @@ static int usb_stream_hwdep_mmap(struct snd_hwdep *hw,
 		err = -EPERM;
 		goto out;
 	}
-	snd_printdd(KERN_DEBUG "%lu %u\n", size,
-		    read ? s->read_size : s->write_size);
 	/* if userspace tries to mmap beyond end of our buffer, fail */
 	if (size > PAGE_ALIGN(read ? s->read_size : s->write_size)) {
-		snd_printk(KERN_WARNING "%lu > %u\n", size,
-			   read ? s->read_size : s->write_size);
+		dev_warn(hw->card->dev, "%s: size %lu > %u\n", __func__,
+			 size, read ? s->read_size : s->write_size);
 		err = -EINVAL;
 		goto out;
 	}
@@ -228,7 +203,6 @@ static int usb_stream_hwdep_mmap(struct snd_hwdep *hw,
 	if (!read)
 		vm_flags_set(area, VM_DONTEXPAND);
 	area->vm_private_data = us122l;
-	atomic_inc(&us122l->mmap_count);
 out:
 	mutex_unlock(&us122l->mutex);
 	return err;
@@ -289,8 +263,8 @@ static int us122l_set_sample_rate(struct usb_device *dev, int rate)
 				   UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep, data, 3,
 				   1000, GFP_NOIO);
 	if (err)
-		snd_printk(KERN_ERR "%d: cannot set freq %d to ep 0x%x\n",
-			   dev->devnum, rate, ep);
+		dev_err(&dev->dev, "%d: cannot set freq %d to ep 0x%x\n",
+			dev->devnum, rate, ep);
 	return err;
 }
 
@@ -326,13 +300,13 @@ static bool us122l_start(struct us122l *us122l,
 	err = us122l_set_sample_rate(us122l->dev, rate);
 	if (err < 0) {
 		us122l_stop(us122l);
-		snd_printk(KERN_ERR "us122l_set_sample_rate error\n");
+		dev_err(&us122l->dev->dev, "us122l_set_sample_rate error\n");
 		goto out;
 	}
 	err = usb_stream_start(&us122l->sk);
 	if (err < 0) {
 		us122l_stop(us122l);
-		snd_printk(KERN_ERR "%s error %i\n", __func__, err);
+		dev_err(&us122l->dev->dev, "%s error %i\n", __func__, err);
 		goto out;
 	}
 	list_for_each(p, &us122l->midi_list)
@@ -445,13 +419,13 @@ static bool us122l_create_card(struct snd_card *card)
 	if (us122l->is_us144) {
 		err = usb_set_interface(us122l->dev, 0, 1);
 		if (err) {
-			snd_printk(KERN_ERR "usb_set_interface error\n");
+			dev_err(card->dev, "usb_set_interface error\n");
 			return false;
 		}
 	}
 	err = usb_set_interface(us122l->dev, 1, 1);
 	if (err) {
-		snd_printk(KERN_ERR "usb_set_interface error\n");
+		dev_err(card->dev, "usb_set_interface error\n");
 		return false;
 	}
 
@@ -466,7 +440,7 @@ static bool us122l_create_card(struct snd_card *card)
 	else
 		err = us122l_create_usbmidi(card);
 	if (err < 0) {
-		snd_printk(KERN_ERR "us122l_create_usbmidi error %i\n", err);
+		dev_err(card->dev, "us122l_create_usbmidi error %i\n", err);
 		goto stop;
 	}
 	err = usb_stream_hwdep_new(card);
@@ -517,6 +491,7 @@ static int usx2y_create_card(struct usb_device *device,
 	card->private_free = snd_us122l_free;
 	US122L(card)->dev = device;
 	mutex_init(&US122L(card)->mutex);
+	US122L(card)->sk.dev = device;
 	init_waitqueue_head(&US122L(card)->sk.sleep);
 	US122L(card)->is_us144 = flags & US122L_FLAG_US144;
 	INIT_LIST_HEAD(&US122L(card)->midi_list);
@@ -572,12 +547,10 @@ static int snd_us122l_probe(struct usb_interface *intf,
 
 	if (id->driver_info & US122L_FLAG_US144 &&
 			device->speed == USB_SPEED_HIGH) {
-		snd_printk(KERN_ERR "disable ehci-hcd to run US-144\n");
+		dev_err(&device->dev, "disable ehci-hcd to run US-144\n");
 		return -ENODEV;
 	}
 
-	snd_printdd(KERN_DEBUG"%p:%i\n",
-		    intf, intf->cur_altsetting->desc.bInterfaceNumber);
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 1)
 		return 0;
 
@@ -617,10 +590,7 @@ static void snd_us122l_disconnect(struct usb_interface *intf)
 	usb_put_intf(usb_ifnum_to_if(us122l->dev, 1));
 	usb_put_dev(us122l->dev);
 
-	while (atomic_read(&us122l->mmap_count))
-		msleep(500);
-
-	snd_card_free(card);
+	snd_card_free_when_closed(card);
 }
 
 static int snd_us122l_suspend(struct usb_interface *intf, pm_message_t message)
@@ -668,13 +638,13 @@ static int snd_us122l_resume(struct usb_interface *intf)
 	if (us122l->is_us144) {
 		err = usb_set_interface(us122l->dev, 0, 1);
 		if (err) {
-			snd_printk(KERN_ERR "usb_set_interface error\n");
+			dev_err(&us122l->dev->dev, "usb_set_interface error\n");
 			goto unlock;
 		}
 	}
 	err = usb_set_interface(us122l->dev, 1, 1);
 	if (err) {
-		snd_printk(KERN_ERR "usb_set_interface error\n");
+		dev_err(&us122l->dev->dev, "usb_set_interface error\n");
 		goto unlock;
 	}
 
@@ -684,7 +654,7 @@ static int snd_us122l_resume(struct usb_interface *intf)
 	err = us122l_set_sample_rate(us122l->dev,
 				     us122l->sk.s->cfg.sample_rate);
 	if (err < 0) {
-		snd_printk(KERN_ERR "us122l_set_sample_rate error\n");
+		dev_err(&us122l->dev->dev, "us122l_set_sample_rate error\n");
 		goto unlock;
 	}
 	err = usb_stream_start(&us122l->sk);

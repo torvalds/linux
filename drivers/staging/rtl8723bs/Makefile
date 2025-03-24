@@ -3,7 +3,6 @@ r8723bs-y = \
 		core/rtw_ap.o \
 		core/rtw_btcoex.o \
 	 	core/rtw_cmd.o \
-		core/rtw_debug.o \
 		core/rtw_efuse.o \
 		core/rtw_io.o \
 		core/rtw_ioctl_set.o \
@@ -12,7 +11,6 @@ r8723bs-y = \
 		core/rtw_mlme_ext.o \
 		core/rtw_pwrctrl.o \
 		core/rtw_recv.o \
-		core/rtw_rf.o \
 		core/rtw_security.o \
 		core/rtw_sta_mgt.o \
 		core/rtw_wlan_util.o \
@@ -50,7 +48,6 @@ r8723bs-y = \
 		hal/HalHWImg8723B_RF.o \
 		hal/HalPhyRf_8723B.o \
 		os_dep/ioctl_cfg80211.o \
-		os_dep/ioctl_linux.o \
 		os_dep/mlme_linux.o \
 		os_dep/osdep_service.o \
 		os_dep/os_intfs.o \

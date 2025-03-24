@@ -17,12 +17,11 @@ menuconfig VIRTUALIZATION
 
 if VIRTUALIZATION
 
-config KVM
-	tristate "Kernel-based Virtual Machine (KVM) support"
-	depends on HIGH_RES_TIMERS
-	depends on X86_LOCAL_APIC
+config KVM_X86
+	def_tristate KVM if (KVM_INTEL != n || KVM_AMD != n)
 	select KVM_COMMON
 	select KVM_GENERIC_MMU_NOTIFIER
+	select KVM_ELIDE_TLB_FLUSH_IF_YOUNG
 	select HAVE_KVM_IRQCHIP
 	select HAVE_KVM_PFNCACHE
 	select HAVE_KVM_DIRTY_RING_TSO
@@ -30,6 +29,7 @@ config KVM
 	select HAVE_KVM_IRQ_BYPASS
 	select HAVE_KVM_IRQ_ROUTING
 	select HAVE_KVM_READONLY_MEM
+	select VHOST_TASK
 	select KVM_ASYNC_PF
 	select USER_RETURN_NOTIFIER
 	select KVM_MMIO
@@ -45,7 +45,12 @@ config KVM
 	select HAVE_KVM_PM_NOTIFIER if PM
 	select KVM_GENERIC_HARDWARE_ENABLING
 	select KVM_GENERIC_PRE_FAULT_MEMORY
+	select KVM_GENERIC_PRIVATE_MEM if KVM_SW_PROTECTED_VM
 	select KVM_WERROR if WERROR
+
+config KVM
+	tristate "Kernel-based Virtual Machine (KVM) support"
+	depends on X86_LOCAL_APIC
 	help
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
@@ -78,7 +83,6 @@ config KVM_SW_PROTECTED_VM
 	bool "Enable support for KVM software-protected VMs"
 	depends on EXPERT
 	depends on KVM && X86_64
-	select KVM_GENERIC_PRIVATE_MEM
 	help
 	  Enable support for KVM software-protected VMs.  Currently, software-
 	  protected VMs are purely a development and testing vehicle for
@@ -144,8 +148,10 @@ config KVM_AMD_SEV
 	select HAVE_KVM_ARCH_GMEM_PREPARE
 	select HAVE_KVM_ARCH_GMEM_INVALIDATE
 	help
-	  Provides support for launching Encrypted VMs (SEV) and Encrypted VMs
-	  with Encrypted State (SEV-ES) on AMD processors.
+	  Provides support for launching encrypted VMs which use Secure
+	  Encrypted Virtualization (SEV), Secure Encrypted Virtualization with
+	  Encrypted State (SEV-ES), and Secure Encrypted Virtualization with
+	  Secure Nested Paging (SEV-SNP) technologies on AMD processors.
 
 config KVM_SMM
 	bool "System Management Mode emulation"

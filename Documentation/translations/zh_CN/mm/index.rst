@@ -53,6 +53,8 @@ Linux内存管理文档
    page_migration
    page_owner
    page_table_check
+   page_tables
+   physical_memory
    remap_file_pages
    split_page_table_lock
    vmalloced-kernel-stacks

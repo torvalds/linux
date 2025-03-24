@@ -254,6 +254,10 @@ static int omap_prefetch_reset(int cs, struct omap_nand_info *info)
 
 /**
  * omap_nand_data_in_pref - NAND data in using prefetch engine
+ * @chip: NAND chip
+ * @buf: output buffer where NAND data is placed into
+ * @len: length of transfer
+ * @force_8bit: force 8-bit transfers
  */
 static void omap_nand_data_in_pref(struct nand_chip *chip, void *buf,
 				   unsigned int len, bool force_8bit)
@@ -297,6 +301,10 @@ static void omap_nand_data_in_pref(struct nand_chip *chip, void *buf,
 
 /**
  * omap_nand_data_out_pref - NAND data out using Write Posting engine
+ * @chip: NAND chip
+ * @buf: input buffer that is sent to NAND
+ * @len: length of transfer
+ * @force_8bit: force 8-bit transfers
  */
 static void omap_nand_data_out_pref(struct nand_chip *chip,
 				    const void *buf, unsigned int len,
@@ -440,6 +448,10 @@ out_copy:
 
 /**
  * omap_nand_data_in_dma_pref - NAND data in using DMA and Prefetch
+ * @chip: NAND chip
+ * @buf: output buffer where NAND data is placed into
+ * @len: length of transfer
+ * @force_8bit: force 8-bit transfers
  */
 static void omap_nand_data_in_dma_pref(struct nand_chip *chip, void *buf,
 				       unsigned int len, bool force_8bit)
@@ -460,6 +472,10 @@ static void omap_nand_data_in_dma_pref(struct nand_chip *chip, void *buf,
 
 /**
  * omap_nand_data_out_dma_pref - NAND data out using DMA and write posting
+ * @chip: NAND chip
+ * @buf: input buffer that is sent to NAND
+ * @len: length of transfer
+ * @force_8bit: force 8-bit transfers
  */
 static void omap_nand_data_out_dma_pref(struct nand_chip *chip,
 					const void *buf, unsigned int len,
@@ -2291,7 +2307,7 @@ MODULE_DEVICE_TABLE(of, omap_nand_ids);
 
 static struct platform_driver omap_nand_driver = {
 	.probe		= omap_nand_probe,
-	.remove_new	= omap_nand_remove,
+	.remove		= omap_nand_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table = omap_nand_ids,

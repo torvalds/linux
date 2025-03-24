@@ -82,14 +82,34 @@ allOf:
             enum:
               - fsl,ls1043a-extirq
               - fsl,ls1046a-extirq
-              - fsl,ls1088a-extirq
-              - fsl,ls2080a-extirq
-              - fsl,lx2160a-extirq
     then:
       properties:
         interrupt-map:
           minItems: 12
           maxItems: 12
+        interrupt-map-mask:
+          items:
+            - const: 0xf
+            - const: 0
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,ls1088a-extirq
+              - fsl,ls2080a-extirq
+              - fsl,lx2160a-extirq
+# The driver(drivers/irqchip/irq-ls-extirq.c) have not use standard DT
+# function to parser interrupt-map. So it doesn't consider '#address-size'
+# in parent interrupt controller, such as GIC.
+#
+# When dt-binding verify interrupt-map, item data matrix is spitted at
+# incorrect position. Remove interrupt-map restriction because it always
+# wrong.
+
+    then:
+      properties:
         interrupt-map-mask:
           items:
             - const: 0xf

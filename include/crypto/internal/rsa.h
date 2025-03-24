@@ -8,6 +8,7 @@
 #ifndef _RSA_HELPER_
 #define _RSA_HELPER_
 #include <linux/types.h>
+#include <crypto/akcipher.h>
 
 /**
  * rsa_key - RSA key structure
@@ -53,5 +54,33 @@ int rsa_parse_pub_key(struct rsa_key *rsa_key, const void *key,
 int rsa_parse_priv_key(struct rsa_key *rsa_key, const void *key,
 		       unsigned int key_len);
 
+#define RSA_PUB (true)
+#define RSA_PRIV (false)
+
+static inline int rsa_set_key(struct crypto_akcipher *child,
+			      unsigned int *key_size, bool is_pubkey,
+			      const void *key, unsigned int keylen)
+{
+	int err;
+
+	*key_size = 0;
+
+	if (is_pubkey)
+		err = crypto_akcipher_set_pub_key(child, key, keylen);
+	else
+		err = crypto_akcipher_set_priv_key(child, key, keylen);
+	if (err)
+		return err;
+
+	/* Find out new modulus size from rsa implementation */
+	err = crypto_akcipher_maxsize(child);
+	if (err > PAGE_SIZE)
+		return -ENOTSUPP;
+
+	*key_size = err;
+	return 0;
+}
+
 extern struct crypto_template rsa_pkcs1pad_tmpl;
+extern struct crypto_template rsassa_pkcs1_tmpl;
 #endif

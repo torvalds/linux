@@ -6,7 +6,7 @@
  * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -667,7 +667,7 @@ out:
 
 static ssize_t alarm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct spwr_battery_device *bat = power_supply_get_drvdata(psy);
 	int status;
 
@@ -681,7 +681,7 @@ static ssize_t alarm_show(struct device *dev, struct device_attribute *attr, cha
 static ssize_t alarm_store(struct device *dev, struct device_attribute *attr, const char *buf,
 			   size_t count)
 {
-	struct power_supply *psy = dev_get_drvdata(dev);
+	struct power_supply *psy = dev_to_psy(dev);
 	struct spwr_battery_device *bat = power_supply_get_drvdata(psy);
 	unsigned long value;
 	int status;

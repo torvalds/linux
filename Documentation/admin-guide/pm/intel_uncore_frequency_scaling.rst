@@ -113,3 +113,62 @@ to apply at each uncore* level.
 
 Support for "current_freq_khz" is available only at each fabric cluster
 level (i.e., in uncore* directory).
+
+Efficiency vs. Latency Tradeoff
+-------------------------------
+
+The Efficiency Latency Control (ELC) feature improves performance
+per watt. With this feature hardware power management algorithms
+optimize trade-off between latency and power consumption. For some
+latency sensitive workloads further tuning can be done by SW to
+get desired performance.
+
+The hardware monitors the average CPU utilization across all cores
+in a power domain at regular intervals and decides an uncore frequency.
+While this may result in the best performance per watt, workload may be
+expecting higher performance at the expense of power. Consider an
+application that intermittently wakes up to perform memory reads on an
+otherwise idle system. In such cases, if hardware lowers uncore
+frequency, then there may be delay in ramp up of frequency to meet
+target performance.
+
+The ELC control defines some parameters which can be changed from SW.
+If the average CPU utilization is below a user-defined threshold
+(elc_low_threshold_percent attribute below), the user-defined uncore
+floor frequency will be used (elc_floor_freq_khz attribute below)
+instead of hardware calculated minimum.
+
+Similarly in high load scenario where the CPU utilization goes above
+the high threshold value (elc_high_threshold_percent attribute below)
+instead of jumping to maximum uncore frequency, frequency is increased
+in 100MHz steps. This avoids consuming unnecessarily high power
+immediately with CPU utilization spikes.
+
+Attributes for efficiency latency control:
+
+``elc_floor_freq_khz``
+	This attribute is used to get/set the efficiency latency floor frequency.
+	If this variable is lower than the 'min_freq_khz', it is ignored by
+	the firmware.
+
+``elc_low_threshold_percent``
+	This attribute is used to get/set the efficiency latency control low
+	threshold. This attribute is in percentages of CPU utilization.
+
+``elc_high_threshold_percent``
+	This attribute is used to get/set the efficiency latency control high
+	threshold. This attribute is in percentages of CPU utilization.
+
+``elc_high_threshold_enable``
+	This attribute is used to enable/disable the efficiency latency control
+	high threshold. Write '1' to enable, '0' to disable.
+
+Example system configuration below, which does following:
+  * when CPU utilization is less than 10%: sets uncore frequency to 800MHz
+  * when CPU utilization is higher than 95%: increases uncore frequency in
+    100MHz steps, until power limit is reached
+
+  elc_floor_freq_khz:800000
+  elc_high_threshold_percent:95
+  elc_high_threshold_enable:1
+  elc_low_threshold_percent:10

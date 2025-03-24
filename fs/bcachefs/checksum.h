@@ -109,7 +109,7 @@ int bch2_enable_encryption(struct bch_fs *, bool);
 void bch2_fs_encryption_exit(struct bch_fs *);
 int bch2_fs_encryption_init(struct bch_fs *);
 
-static inline enum bch_csum_type bch2_csum_opt_to_type(enum bch_csum_opts type,
+static inline enum bch_csum_type bch2_csum_opt_to_type(enum bch_csum_opt type,
 						       bool data)
 {
 	switch (type) {

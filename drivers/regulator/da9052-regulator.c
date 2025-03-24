@@ -67,11 +67,11 @@ struct da9052_regulator_info {
 
 struct da9052_regulator {
 	struct da9052 *da9052;
-	struct da9052_regulator_info *info;
+	const struct da9052_regulator_info *info;
 	struct regulator_dev *rdev;
 };
 
-static int verify_range(struct da9052_regulator_info *info,
+static int verify_range(const struct da9052_regulator_info *info,
 			 int min_uV, int max_uV)
 {
 	if (min_uV > info->max_uV || max_uV < info->min_uV)
@@ -151,7 +151,7 @@ static int da9052_list_voltage(struct regulator_dev *rdev,
 				unsigned int selector)
 {
 	struct da9052_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9052_regulator_info *info = regulator->info;
+	const struct da9052_regulator_info *info = regulator->info;
 	int id = rdev_get_id(rdev);
 	int volt_uV;
 
@@ -175,7 +175,7 @@ static int da9052_map_voltage(struct regulator_dev *rdev,
 			      int min_uV, int max_uV)
 {
 	struct da9052_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9052_regulator_info *info = regulator->info;
+	const struct da9052_regulator_info *info = regulator->info;
 	int id = rdev_get_id(rdev);
 	int ret, sel;
 
@@ -206,7 +206,7 @@ static int da9052_regulator_set_voltage_sel(struct regulator_dev *rdev,
 					    unsigned int selector)
 {
 	struct da9052_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9052_regulator_info *info = regulator->info;
+	const struct da9052_regulator_info *info = regulator->info;
 	int id = rdev_get_id(rdev);
 	int ret;
 
@@ -237,7 +237,7 @@ static int da9052_regulator_set_voltage_time_sel(struct regulator_dev *rdev,
 						 unsigned int new_sel)
 {
 	struct da9052_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9052_regulator_info *info = regulator->info;
+	const struct da9052_regulator_info *info = regulator->info;
 	int id = rdev_get_id(rdev);
 	int ret = 0;
 
@@ -327,7 +327,7 @@ static const struct regulator_ops da9052_ldo_ops = {
 	.activate_bit = (abits),\
 }
 
-static struct da9052_regulator_info da9052_regulator_info[] = {
+static const struct da9052_regulator_info da9052_regulator_info[] = {
 	DA9052_DCDC(BUCK1, buck1, 25, 500, 2075, 6, 6, DA9052_SUPPLY_VBCOREGO),
 	DA9052_DCDC(BUCK2, buck2, 25, 500, 2075, 6, 6, DA9052_SUPPLY_VBPROGO),
 	DA9052_DCDC(BUCK3, buck3, 25, 950, 2525, 6, 6, DA9052_SUPPLY_VBMEMGO),
@@ -344,7 +344,7 @@ static struct da9052_regulator_info da9052_regulator_info[] = {
 	DA9052_LDO(LDO10, ldo10, 50, 1200, 3600, 6, 6, 0),
 };
 
-static struct da9052_regulator_info da9053_regulator_info[] = {
+static const struct da9052_regulator_info da9053_regulator_info[] = {
 	DA9052_DCDC(BUCK1, buck1, 25, 500, 2075, 6, 6, DA9052_SUPPLY_VBCOREGO),
 	DA9052_DCDC(BUCK2, buck2, 25, 500, 2075, 6, 6, DA9052_SUPPLY_VBPROGO),
 	DA9052_DCDC(BUCK3, buck3, 25, 950, 2525, 6, 6, DA9052_SUPPLY_VBMEMGO),
@@ -361,10 +361,10 @@ static struct da9052_regulator_info da9053_regulator_info[] = {
 	DA9052_LDO(LDO10, ldo10, 50, 1200, 3600, 6, 6, 0),
 };
 
-static inline struct da9052_regulator_info *find_regulator_info(u8 chip_id,
-								 int id)
+static inline const struct da9052_regulator_info *find_regulator_info(u8 chip_id,
+								      int id)
 {
-	struct da9052_regulator_info *info;
+	const struct da9052_regulator_info *info;
 	int i;
 
 	switch (chip_id) {

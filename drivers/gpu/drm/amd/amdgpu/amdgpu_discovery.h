@@ -33,6 +33,6 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev);
 int amdgpu_discovery_get_nps_info(struct amdgpu_device *adev,
 				  uint32_t *nps_type,
 				  struct amdgpu_gmc_memrange **ranges,
-				  int *range_cnt);
+				  int *range_cnt, bool refresh);
 
 #endif /* __AMDGPU_DISCOVERY__ */

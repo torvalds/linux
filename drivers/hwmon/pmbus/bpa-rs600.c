@@ -205,4 +205,4 @@ module_i2c_driver(bpa_rs600_driver);
 MODULE_AUTHOR("Chris Packham");
 MODULE_DESCRIPTION("PMBus driver for BluTek BPA-RS600");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

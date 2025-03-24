@@ -13,6 +13,7 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -21,7 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
@@ -114,7 +115,7 @@ struct bma400_data {
 	struct {
 		__le16 buff[3];
 		u8 temperature;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer __aligned(IIO_DMA_MINALIGN);
 	__le16 status;
 	__be16 duration;
@@ -193,7 +194,7 @@ const struct regmap_config bma400_regmap_config = {
 	.writeable_reg = bma400_is_writable_reg,
 	.volatile_reg = bma400_is_volatile_reg,
 };
-EXPORT_SYMBOL_NS(bma400_regmap_config, IIO_BMA400);
+EXPORT_SYMBOL_NS(bma400_regmap_config, "IIO_BMA400");
 
 static const struct iio_mount_matrix *
 bma400_accel_get_mount_matrix(const struct iio_dev *indio_dev,
@@ -795,21 +796,19 @@ static int bma400_enable_steps(struct bma400_data *data, int val)
 
 static int bma400_get_steps_reg(struct bma400_data *data, int *val)
 {
-	u8 *steps_raw;
 	int ret;
 
-	steps_raw = kmalloc(BMA400_STEP_RAW_LEN, GFP_KERNEL);
+	u8 *steps_raw __free(kfree) = kmalloc(BMA400_STEP_RAW_LEN, GFP_KERNEL);
 	if (!steps_raw)
 		return -ENOMEM;
 
 	ret = regmap_bulk_read(data->regmap, BMA400_STEP_CNT0_REG,
 			       steps_raw, BMA400_STEP_RAW_LEN);
-	if (ret) {
-		kfree(steps_raw);
+	if (ret)
 		return ret;
-	}
+
 	*val = get_unaligned_le24(steps_raw);
-	kfree(steps_raw);
+
 	return IIO_VAL_INT;
 }
 
@@ -1219,7 +1218,8 @@ static int bma400_activity_event_en(struct bma400_data *data,
 static int bma400_tap_event_en(struct bma400_data *data,
 			       enum iio_event_direction dir, int state)
 {
-	unsigned int mask, field_value;
+	unsigned int mask;
+	unsigned int field_value = 0;
 	int ret;
 
 	/*
@@ -1293,7 +1293,7 @@ static int bma400_disable_adv_interrupt(struct bma400_data *data)
 static int bma400_write_event_config(struct iio_dev *indio_dev,
 				     const struct iio_chan_spec *chan,
 				     enum iio_event_type type,
-				     enum iio_event_direction dir, int state)
+				     enum iio_event_direction dir, bool state)
 {
 	struct bma400_data *data = iio_priv(indio_dev);
 	int ret;
@@ -1763,7 +1763,7 @@ int bma400_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS(bma400_probe, IIO_BMA400);
+EXPORT_SYMBOL_NS(bma400_probe, "IIO_BMA400");
 
 MODULE_AUTHOR("Dan Robertson <dan@dlrobertson.com>");
 MODULE_AUTHOR("Jagath Jog J <jagathjog1996@gmail.com>");

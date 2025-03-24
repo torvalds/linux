@@ -188,15 +188,26 @@ For example, a Kconfig entry might look like:
 Test File and Module Names
 ==========================
 
-KUnit tests can often be compiled as a module. These modules should be named
-after the test suite, followed by ``_test``. If this is likely to conflict with
-non-KUnit tests, the suffix ``_kunit`` can also be used.
+KUnit tests are often compiled as a separate module. To avoid conflicting
+with regular modules, KUnit modules should be named after the test suite,
+followed by ``_kunit`` (e.g. if "foobar" is the core module, then
+"foobar_kunit" is the KUnit test module).
 
-The easiest way of achieving this is to name the file containing the test suite
-``<suite>_test.c`` (or, as above, ``<suite>_kunit.c``). This file should be
-placed next to the code under test.
+Test source files, whether compiled as a separate module or an
+``#include`` in another source file, are best kept in a ``tests/``
+subdirectory to not conflict with other source files (e.g. for
+tab-completion).
+
+Note that the ``_test`` suffix has also been used in some existing
+tests. The ``_kunit`` suffix is preferred, as it makes the distinction
+between KUnit and non-KUnit tests clearer.
+
+So for the common case, name the file containing the test suite
+``tests/<suite>_kunit.c``. The ``tests`` directory should be placed at
+the same level as the code under test. For example, tests for
+``lib/string.c`` live in ``lib/tests/string_kunit.c``.
 
 If the suite name contains some or all of the name of the test's parent
-directory, it may make sense to modify the source filename to reduce redundancy.
-For example, a ``foo_firmware`` suite could be in the ``foo/firmware_test.c``
-file.
+directory, it may make sense to modify the source filename to reduce
+redundancy. For example, a ``foo_firmware`` suite could be in the
+``foo/tests/firmware_kunit.c`` file.

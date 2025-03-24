@@ -152,7 +152,7 @@ MODULE_DEVICE_TABLE(acpi, tpm_synquacer_acpi_tbl);
 
 static struct platform_driver tis_synquacer_drv = {
 	.probe = tpm_tis_synquacer_probe,
-	.remove_new = tpm_tis_synquacer_remove,
+	.remove = tpm_tis_synquacer_remove,
 	.driver = {
 		.name		= "tpm_tis_synquacer",
 		.pm		= &tpm_tis_synquacer_pm,

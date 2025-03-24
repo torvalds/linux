@@ -29,6 +29,10 @@ properties:
     $ref: /schemas/types.yaml#/definitions/string-array
     maxItems: 2
 
+  idle-state:
+    description: If present specifies the state when the mux is powered down
+    $ref: /schemas/mux/mux-controller.yaml#/properties/idle-state
+
   sound-name-prefix: true
 
 required:
@@ -43,4 +47,5 @@ examples:
         compatible = "simple-audio-mux";
         mux-gpios = <&gpio 3 0>;
         state-labels = "Label_A", "Label_B";
+        idle-state = <0>;
     };

@@ -666,7 +666,7 @@ examples:
             #address-cells = <1>;
             #size-cells = <0>;
 
-            touch@56 {
+            touchscreen@56 {
                     compatible = "azoteq,iqs7210a";
                     reg = <0x56>;
                     irq-gpios = <&gpio 4 GPIO_ACTIVE_LOW>;
@@ -704,7 +704,7 @@ examples:
             #address-cells = <1>;
             #size-cells = <0>;
 
-            touch@56 {
+            touchscreen@56 {
                     compatible = "azoteq,iqs7211e";
                     reg = <0x56>;
                     irq-gpios = <&gpio 4 (GPIO_ACTIVE_LOW |

@@ -108,6 +108,11 @@
 		};
 	};
 
+	poweroff {
+		compatible = "regulator-poweroff";
+		cpu-supply = <&vgen2_reg>;
+	};
+
 	reg_module_3v3: regulator-module-3v3 {
 		compatible = "regulator-fixed";
 		regulator-always-on;
@@ -191,17 +196,26 @@
 			"MIC_IN", "Mic Jack",
 			"Mic Jack", "Mic Bias",
 			"Headphone Jack", "HP_OUT";
-		model = "imx6q-apalis-sgtl5000";
+		model = "apalis-imx6";
 		mux-ext-port = <4>;
 		mux-int-port = <1>;
 		ssi-controller = <&ssi1>;
 	};
 
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_in: spdif-in {
+		compatible = "linux,spdif-dir";
+		#sound-dai-cells = <0>;
+	};
+
 	sound_spdif: sound-spdif {
 		compatible = "fsl,imx-audio-spdif";
-		spdif-controller = <&spdif>;
-		spdif-in;
-		spdif-out;
+		audio-cpu = <&spdif>;
+		audio-codec = <&spdif_out>, <&spdif_in>;
 		model = "imx-spdif";
 		status = "disabled";
 	};
@@ -225,10 +239,6 @@
 	pinctrl-0 = <&pinctrl_flexcan2_default>;
 	pinctrl-1 = <&pinctrl_flexcan2_sleep>;
 	status = "disabled";
-};
-
-&clks {
-	fsl,pmic-stby-poweroff;
 };
 
 /* Apalis SPI1 */
@@ -518,7 +528,6 @@
 
 	pmic: pmic@8 {
 		compatible = "fsl,pfuze100";
-		fsl,pmic-stby-poweroff;
 		reg = <0x08>;
 
 		regulators {
@@ -682,7 +691,7 @@
 
 	adv_7280: adv7280@21 {
 		compatible = "adi,adv7280";
-		adv,force-bt656-4;
+		adi,force-bt656-4;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ipu1_csi0>;
 		reg = <0x21>;

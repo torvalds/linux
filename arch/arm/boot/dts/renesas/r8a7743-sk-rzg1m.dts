@@ -73,8 +73,7 @@
 		compatible = "ethernet-phy-id0022.1537",
 			     "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
-		interrupt-parent = <&irqc>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc 0 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 		reset-gpios = <&gpio5 22 GPIO_ACTIVE_LOW>;
 	};

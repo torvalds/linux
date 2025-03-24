@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/kernel.h>
-#include <linux/bug.h>
 #include <linux/compiler.h>
 #include <linux/export.h>
-#include <linux/string.h>
 #include <linux/list_sort.h>
 #include <linux/list.h>
 
@@ -110,6 +107,13 @@ static void merge_final(void *priv, list_cmp_func_t cmp, struct list_head *head,
  * always called with the element that came first in the input in @a,
  * and list_sort is a stable sort, so it is not necessary to distinguish
  * the @a < @b and @a == @b cases.
+ *
+ * The comparison function must adhere to specific mathematical properties
+ * to ensure correct and stable sorting:
+ * - Antisymmetry: cmp(@a, @b) must return the opposite sign of
+ * cmp(@b, @a).
+ * - Transitivity: if cmp(@a, @b) <= 0 and cmp(@b, @c) <= 0, then
+ * cmp(@a, @c) <= 0.
  *
  * This is compatible with two styles of @cmp function:
  * - The traditional style which returns <0 / =0 / >0, or

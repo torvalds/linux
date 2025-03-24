@@ -336,7 +336,7 @@ static const struct dev_pm_ops pxa2xx_drv_pcmcia_pm_ops = {
 
 static struct platform_driver pxa2xx_pcmcia_driver = {
 	.probe		= pxa2xx_drv_pcmcia_probe,
-	.remove_new	= pxa2xx_drv_pcmcia_remove,
+	.remove		= pxa2xx_drv_pcmcia_remove,
 	.driver		= {
 		.name	= "pxa2xx-pcmcia",
 		.pm	= &pxa2xx_drv_pcmcia_pm_ops,

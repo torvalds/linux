@@ -12,14 +12,24 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - microchip,lan966x-pinctrl
-      - microchip,sparx5-pinctrl
-      - mscc,jaguar2-pinctrl
-      - mscc,luton-pinctrl
-      - mscc,ocelot-pinctrl
-      - mscc,serval-pinctrl
-      - mscc,servalt-pinctrl
+    oneOf:
+      - enum:
+          - microchip,lan966x-pinctrl
+          - microchip,lan9691-pinctrl
+          - microchip,sparx5-pinctrl
+          - mscc,jaguar2-pinctrl
+          - mscc,luton-pinctrl
+          - mscc,ocelot-pinctrl
+          - mscc,serval-pinctrl
+          - mscc,servalt-pinctrl
+      - items:
+          - enum:
+              - microchip,lan9698-pinctrl
+              - microchip,lan9696-pinctrl
+              - microchip,lan9694-pinctrl
+              - microchip,lan9693-pinctrl
+              - microchip,lan9692-pinctrl
+          - const: microchip,lan9691-pinctrl
 
   reg:
     items:
@@ -85,6 +95,7 @@ allOf:
           contains:
             enum:
               - microchip,lan966x-pinctrl
+              - microchip,lan9691-pinctrl
               - microchip,sparx5-pinctrl
     then:
       properties:

@@ -129,63 +129,6 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 				KFD_DEBUG_CP_BAD_OP_ECODE_MASK)		\
 				>> KFD_DEBUG_CP_BAD_OP_ECODE_SHIFT)
 
-static void event_interrupt_poison_consumption(struct kfd_node *dev,
-				uint16_t pasid, uint16_t client_id)
-{
-	enum amdgpu_ras_block block = 0;
-	int old_poison, ret = -EINVAL;
-	uint32_t reset = 0;
-	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
-
-	if (!p)
-		return;
-
-	/* all queues of a process will be unmapped in one time */
-	old_poison = atomic_cmpxchg(&p->poison, 0, 1);
-	kfd_unref_process(p);
-	if (old_poison)
-		return;
-
-	switch (client_id) {
-	case SOC15_IH_CLIENTID_SE0SH:
-	case SOC15_IH_CLIENTID_SE1SH:
-	case SOC15_IH_CLIENTID_SE2SH:
-	case SOC15_IH_CLIENTID_SE3SH:
-	case SOC15_IH_CLIENTID_UTCL2:
-		ret = kfd_dqm_evict_pasid(dev->dqm, pasid);
-		block = AMDGPU_RAS_BLOCK__GFX;
-		if (ret)
-			reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
-		break;
-	case SOC15_IH_CLIENTID_SDMA0:
-	case SOC15_IH_CLIENTID_SDMA1:
-	case SOC15_IH_CLIENTID_SDMA2:
-	case SOC15_IH_CLIENTID_SDMA3:
-	case SOC15_IH_CLIENTID_SDMA4:
-		block = AMDGPU_RAS_BLOCK__SDMA;
-		reset = AMDGPU_RAS_GPU_RESET_MODE2_RESET;
-		break;
-	default:
-		break;
-	}
-
-	kfd_signal_poison_consumed_event(dev, pasid);
-
-	/* resetting queue passes, do page retirement without gpu reset
-	 * resetting queue fails, fallback to gpu reset solution
-	 */
-	if (!ret)
-		dev_warn(dev->adev->dev,
-			"RAS poison consumption, unmap queue flow succeeded: client id %d\n",
-			client_id);
-	else
-		dev_warn(dev->adev->dev,
-			"RAS poison consumption, fall back to gpu reset flow: client id %d\n",
-			client_id);
-
-	amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, reset);
-}
-
 static bool event_interrupt_isr_v10(struct kfd_node *dev,
 					const uint32_t *ih_ring_entry,
 					uint32_t *patched_ihre,
@@ -332,11 +275,6 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 					REG_GET_FIELD(context_id1, SQ_INTERRUPT_WORD_WAVE_CTXID1,
 							WGP_ID),
 					sq_intr_err_type);
-				if (sq_intr_err_type != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
-					sq_intr_err_type != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
-					event_interrupt_poison_consumption(dev, pasid, source_id);
-					return;
-				}
 				break;
 			default:
 				break;
@@ -362,37 +300,13 @@ static void event_interrupt_wq_v10(struct kfd_node *dev,
 		   client_id == SOC15_IH_CLIENTID_SDMA7) {
 		if (source_id == SOC15_INTSRC_SDMA_TRAP) {
 			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
-		} else if (source_id == SOC15_INTSRC_SDMA_ECC) {
-			event_interrupt_poison_consumption(dev, pasid, source_id);
-			return;
 		}
 	} else if (client_id == SOC15_IH_CLIENTID_VMC ||
 		   client_id == SOC15_IH_CLIENTID_VMC1 ||
 		   client_id == SOC15_IH_CLIENTID_UTCL2) {
 		struct kfd_vm_fault_info info = {0};
 		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
-		uint32_t node_id = SOC15_NODEID_FROM_IH_ENTRY(ih_ring_entry);
-		uint32_t vmid_type = SOC15_VMID_TYPE_FROM_IH_ENTRY(ih_ring_entry);
-		int hub_inst = 0;
 		struct kfd_hsa_memory_exception_data exception_data;
-
-		/* gfxhub */
-		if (!vmid_type && dev->adev->gfx.funcs->ih_node_to_logical_xcc) {
-			hub_inst = dev->adev->gfx.funcs->ih_node_to_logical_xcc(dev->adev,
-				node_id);
-			if (hub_inst < 0)
-				hub_inst = 0;
-		}
-
-		/* mmhub */
-		if (vmid_type && client_id == SOC15_IH_CLIENTID_VMC)
-			hub_inst = node_id / 4;
-
-		if (amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev,
-					hub_inst, vmid_type)) {
-			event_interrupt_poison_consumption(dev, pasid, client_id);
-			return;
-		}
 
 		info.vmid = vmid;
 		info.mc_id = client_id;

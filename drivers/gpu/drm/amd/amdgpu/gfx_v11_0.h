@@ -26,4 +26,7 @@
 
 extern const struct amdgpu_ip_block_version gfx_v11_0_ip_block;
 
+int gfx_v11_0_request_gfx_index_mutex(struct amdgpu_device *adev,
+				      bool req);
+
 #endif

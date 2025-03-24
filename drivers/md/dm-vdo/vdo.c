@@ -643,7 +643,7 @@ static void finish_vdo(struct vdo *vdo)
 
 /**
  * free_listeners() - Free the list of read-only listeners associated with a thread.
- * @thread_data: The thread holding the list to free.
+ * @thread: The thread holding the list to free.
  */
 static void free_listeners(struct vdo_thread *thread)
 {
@@ -852,7 +852,7 @@ int vdo_synchronous_flush(struct vdo *vdo)
 /**
  * vdo_get_state() - Get the current state of the vdo.
  * @vdo: The vdo.
-
+ *
  * Context: This method may be called from any thread.
  *
  * Return: The current state of the vdo.

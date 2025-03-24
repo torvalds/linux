@@ -341,7 +341,6 @@ static int it8712f_wdt_release(struct inode *inode, struct file *file)
 
 static const struct file_operations it8712f_wdt_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 	.write = it8712f_wdt_write,
 	.unlocked_ioctl = it8712f_wdt_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,

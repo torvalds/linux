@@ -28,13 +28,6 @@
 extern unsigned char * cfag12864b_buffer;
 
 /*
- * Get the refresh rate of the LCD
- *
- * Returns the refresh rate (hertz).
- */
-extern unsigned int cfag12864b_getrate(void);
-
-/*
  * Enable refreshing
  *
  * Returns 0 if successful (anyone was using it),
@@ -48,16 +41,6 @@ extern unsigned char cfag12864b_enable(void);
  * You should call this only when you finish using the LCD.
  */
 extern void cfag12864b_disable(void);
-
-/*
- * Is enabled refreshing? (is anyone using the module?)
- *
- * Returns 0 if refreshing is not enabled (anyone is using it),
- * or != 0 if refreshing is enabled (someone is using it).
- *
- * Useful for buffer read-only modules.
- */
-extern unsigned char cfag12864b_isenabled(void);
 
 /*
  * Is the module inited?

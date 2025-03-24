@@ -11,7 +11,19 @@
 /plugin/;
 
 &{/} {
-	compatible = "gw,imx8mp-gw74xx", "fsl,imx8mp";
+	reg_vana: regulator-2p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "2P8V";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+	};
+
+	reg_vddl: regulator-1p2v {
+		compatible = "regulator-fixed";
+		regulator-name = "1P2V";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+	};
 
 	reg_cam: regulator-cam {
 		pinctrl-names = "default";
@@ -41,6 +53,8 @@
 		reg = <0x10>;
 		clocks = <&cam24m>;
 		VDIG-supply = <&reg_cam>;
+		VANA-supply = <&reg_vana>;
+		VDDL-supply = <&reg_vddl>;
 
 		port {
 			/* MIPI CSI-2 bus endpoint */

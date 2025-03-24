@@ -34,28 +34,39 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 			    struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
-	const struct bch_logged_op_fn *fn = logged_op_fn(k.k->type);
-	struct bkey_buf sk;
 	u32 restart_count = trans->restart_count;
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
 
-	if (!fn)
-		return 0;
+	fsck_err_on(test_bit(BCH_FS_clean_recovery, &c->flags),
+		    trans, logged_op_but_clean,
+		    "filesystem marked as clean but have logged op\n%s",
+		    (bch2_bkey_val_to_text(&buf, c, k),
+		     buf.buf));
 
+	struct bkey_buf sk;
 	bch2_bkey_buf_init(&sk);
 	bch2_bkey_buf_reassemble(&sk, c, k);
 
-	fn->resume(trans, sk.k);
+	const struct bch_logged_op_fn *fn = logged_op_fn(sk.k->k.type);
+	if (fn)
+		fn->resume(trans, sk.k);
+
+	ret = bch2_logged_op_finish(trans, sk.k);
 
 	bch2_bkey_buf_exit(&sk, c);
-
-	return trans_was_restarted(trans, restart_count);
+fsck_err:
+	printbuf_exit(&buf);
+	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
 int bch2_resume_logged_ops(struct bch_fs *c)
 {
 	int ret = bch2_trans_run(c,
-		for_each_btree_key(trans, iter,
-				   BTREE_ID_logged_ops, POS_MIN,
+		for_each_btree_key_max(trans, iter,
+				   BTREE_ID_logged_ops,
+				   POS(LOGGED_OPS_INUM_logged_ops, 0),
+				   POS(LOGGED_OPS_INUM_logged_ops, U64_MAX),
 				   BTREE_ITER_prefetch, k,
 			resume_logged_op(trans, &iter, k)));
 	bch_err_fn(c, ret);
@@ -65,9 +76,8 @@ int bch2_resume_logged_ops(struct bch_fs *c)
 static int __bch2_logged_op_start(struct btree_trans *trans, struct bkey_i *k)
 {
 	struct btree_iter iter;
-	int ret;
-
-	ret = bch2_bkey_get_empty_slot(trans, &iter, BTREE_ID_logged_ops, POS_MAX);
+	int ret = bch2_bkey_get_empty_slot(trans, &iter,
+				 BTREE_ID_logged_ops, POS(LOGGED_OPS_INUM_logged_ops, U64_MAX));
 	if (ret)
 		return ret;
 
@@ -84,7 +94,7 @@ int bch2_logged_op_start(struct btree_trans *trans, struct bkey_i *k)
 			 __bch2_logged_op_start(trans, k));
 }
 
-void bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
+int bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
 {
 	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			    bch2_btree_delete(trans, BTREE_ID_logged_ops, k->k.p, 0));
@@ -104,4 +114,6 @@ void bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
 				    buf.buf, bch2_err_str(ret));
 		printbuf_exit(&buf);
 	}
+
+	return ret;
 }

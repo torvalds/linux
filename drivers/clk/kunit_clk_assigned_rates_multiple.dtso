@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+/plugin/;
+
+#include "kunit_clk_assigned_rates.h"
+
+&{/} {
+	clk: kunit-clock {
+		compatible = "test,clk-assigned-rates";
+		#clock-cells = <1>;
+		assigned-clocks = <&clk 0>,
+				  <&clk 1>;
+		assigned-clock-rates = <ASSIGNED_RATES_0_RATE>,
+				       <ASSIGNED_RATES_1_RATE>;
+	};
+};

@@ -5,7 +5,7 @@
 
 #include "xe_sched_job.h"
 
-#include <drm/xe_drm.h>
+#include <uapi/drm/xe_drm.h>
 #include <linux/dma-fence-chain.h>
 #include <linux/slab.h>
 
@@ -89,8 +89,7 @@ static void xe_sched_job_free_fences(struct xe_sched_job *job)
 
 		if (ptrs->lrc_fence)
 			xe_lrc_free_seqno_fence(ptrs->lrc_fence);
-		if (ptrs->chain_fence)
-			dma_fence_chain_free(ptrs->chain_fence);
+		dma_fence_chain_free(ptrs->chain_fence);
 	}
 }
 
@@ -171,12 +170,13 @@ void xe_sched_job_destroy(struct kref *ref)
 	struct xe_sched_job *job =
 		container_of(ref, struct xe_sched_job, refcount);
 	struct xe_device *xe = job_to_xe(job);
+	struct xe_exec_queue *q = job->q;
 
 	xe_sched_job_free_fences(job);
-	xe_exec_queue_put(job->q);
 	dma_fence_put(job->fence);
 	drm_sched_job_cleanup(&job->drm);
 	job_free(job);
+	xe_exec_queue_put(q);
 	xe_pm_runtime_put(xe);
 }
 
@@ -280,7 +280,7 @@ void xe_sched_job_arm(struct xe_sched_job *job)
 		fence = &chain->base;
 	}
 
-	job->fence = fence;
+	job->fence = dma_fence_get(fence);	/* Pairs with put in scheduler */
 	drm_sched_job_arm(&job->drm);
 }
 

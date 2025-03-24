@@ -1,5 +1,15 @@
 [
   {
+    "EventCode": "0x1505E",
+    "EventName": "PM_LD_HIT_L1",
+    "BriefDescription": "Load  finished without experiencing an L1 miss."
+  },
+  {
+    "EventCode": "0x100FC",
+    "EventName": "PM_LD_REF_L1",
+    "BriefDescription": "All L1 D cache load references counted at finish, gated by reject. In P9 and earlier this event counted only cacheable loads but in P10 both cacheable and non-cacheable loads are included."
+  },
+  {
     "EventCode": "0x200FE",
     "EventName": "PM_DATA_FROM_L2MISS",
     "BriefDescription": "The processor's L1 data cache was reloaded from a source beyond the local core's L2 due to a demand miss."
@@ -10,9 +20,39 @@
     "BriefDescription": "The processor's L1 data cache was reloaded from beyond the local core's L3 due to a demand miss."
   },
   {
+    "EventCode": "0x400F0",
+    "EventName": "PM_LD_DEMAND_MISS_L1_FIN",
+    "BriefDescription": "Load missed L1, counted at finish time."
+  },
+  {
     "EventCode": "0x400FE",
     "EventName": "PM_DATA_FROM_MEMORY",
     "BriefDescription": "The processor's data cache was reloaded from local, remote, or distant memory due to a demand miss."
+  },
+  {
+    "EventCode": "0x0000004080",
+    "EventName": "PM_INST_FROM_L1",
+    "BriefDescription": "An instruction fetch hit in the L1. Each fetch group contains 8 instructions. The same line can hit 4 times if 32 sequential instructions are fetched."
+  },
+  {
+    "EventCode": "0x000000026080",
+    "EventName": "PM_L2_LD_MISS",
+    "BriefDescription": "All successful D-Side Load dispatches for this thread that missed in the L2. Since the event happens in a 2:1 clock domain and is time-sliced across all 4 threads, the event count should be multiplied by 2."
+  },
+  {
+    "EventCode": "0x000000026880",
+    "EventName": "PM_L2_ST_MISS",
+    "BriefDescription": "All successful D-Side Store dispatches for this thread that missed in the L2. Since the event happens in a 2:1 clock domain and is time-sliced across all 4 threads, the event count should be multiplied by 2."
+  },
+  {
+    "EventCode": "0x010000046880",
+    "EventName": "PM_L2_ST_HIT",
+    "BriefDescription": "All successful D-side store dispatches for this thread that were L2 hits. Since the event happens in a 2:1 clock domain and is time-sliced across all 4 threads, the event count should be multiplied by 2."
+  },
+  {
+    "EventCode": "0x000000036880",
+    "EventName": "PM_L2_INST_MISS",
+    "BriefDescription": "All successful instruction (demand and prefetch) dispatches for this thread that missed in the L2. Since the event happens in a 2:1 clock domain and is time-sliced across all 4 threads, the event count should be multiplied by 2."
   },
   {
     "EventCode": "0x000300000000C040",

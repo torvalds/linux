@@ -364,7 +364,7 @@ static struct platform_driver max77650_charger_driver = {
 		.of_match_table = max77650_charger_of_match,
 	},
 	.probe = max77650_charger_probe,
-	.remove_new = max77650_charger_remove,
+	.remove = max77650_charger_remove,
 };
 module_platform_driver(max77650_charger_driver);
 

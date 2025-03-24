@@ -432,7 +432,7 @@ static struct platform_driver tegra_pwm_driver = {
 		.pm = &tegra_pwm_pm_ops,
 	},
 	.probe = tegra_pwm_probe,
-	.remove_new = tegra_pwm_remove,
+	.remove = tegra_pwm_remove,
 };
 
 module_platform_driver(tegra_pwm_driver);

@@ -18,7 +18,7 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_gem.h"
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 
 static int exynos_drm_gem_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
 

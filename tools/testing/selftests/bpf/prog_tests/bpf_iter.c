@@ -226,7 +226,7 @@ static void test_task_common_nocheck(struct bpf_iter_attach_opts *opts,
 	ASSERT_OK(pthread_create(&thread_id, NULL, &do_nothing_wait, NULL),
 		  "pthread_create");
 
-	skel->bss->tid = getpid();
+	skel->bss->tid = sys_gettid();
 
 	do_dummy_read_opts(skel->progs.dump_task, opts);
 
@@ -249,25 +249,42 @@ static void test_task_common(struct bpf_iter_attach_opts *opts, int num_unknown,
 	ASSERT_EQ(num_known_tid, num_known, "check_num_known_tid");
 }
 
-static void test_task_tid(void)
+static void *run_test_task_tid(void *arg)
 {
 	LIBBPF_OPTS(bpf_iter_attach_opts, opts);
 	union bpf_iter_link_info linfo;
 	int num_unknown_tid, num_known_tid;
 
+	ASSERT_NEQ(getpid(), sys_gettid(), "check_new_thread_id");
+
 	memset(&linfo, 0, sizeof(linfo));
-	linfo.task.tid = getpid();
+	linfo.task.tid = sys_gettid();
 	opts.link_info = &linfo;
 	opts.link_info_len = sizeof(linfo);
 	test_task_common(&opts, 0, 1);
 
 	linfo.task.tid = 0;
 	linfo.task.pid = getpid();
-	test_task_common(&opts, 1, 1);
+	/* This includes the parent thread, this thread, watchdog timer thread
+	 * and the do_nothing_wait thread
+	 */
+	test_task_common(&opts, 3, 1);
 
 	test_task_common_nocheck(NULL, &num_unknown_tid, &num_known_tid);
-	ASSERT_GT(num_unknown_tid, 1, "check_num_unknown_tid");
+	ASSERT_GT(num_unknown_tid, 2, "check_num_unknown_tid");
 	ASSERT_EQ(num_known_tid, 1, "check_num_known_tid");
+
+	return NULL;
+}
+
+static void test_task_tid(void)
+{
+	pthread_t thread_id;
+
+	/* Create a new thread so pid and tid aren't the same */
+	ASSERT_OK(pthread_create(&thread_id, NULL, &run_test_task_tid, NULL),
+		  "pthread_create");
+	ASSERT_FALSE(pthread_join(thread_id, NULL), "pthread_join");
 }
 
 static void test_task_pid(void)
@@ -280,7 +297,7 @@ static void test_task_pid(void)
 	opts.link_info = &linfo;
 	opts.link_info_len = sizeof(linfo);
 
-	test_task_common(&opts, 1, 1);
+	test_task_common(&opts, 2, 1);
 }
 
 static void test_task_pidfd(void)
@@ -298,7 +315,7 @@ static void test_task_pidfd(void)
 	opts.link_info = &linfo;
 	opts.link_info_len = sizeof(linfo);
 
-	test_task_common(&opts, 1, 1);
+	test_task_common(&opts, 2, 1);
 
 	close(pidfd);
 }
@@ -1218,7 +1235,7 @@ out:
 	bpf_iter_bpf_sk_storage_helpers__destroy(skel);
 }
 
-static void test_bpf_sk_stoarge_map_iter_fd(void)
+static void test_bpf_sk_storage_map_iter_fd(void)
 {
 	struct bpf_iter_bpf_sk_storage_map *skel;
 
@@ -1693,7 +1710,7 @@ void test_bpf_iter(void)
 	if (test__start_subtest("bpf_sk_storage_map"))
 		test_bpf_sk_storage_map();
 	if (test__start_subtest("bpf_sk_storage_map_iter_fd"))
-		test_bpf_sk_stoarge_map_iter_fd();
+		test_bpf_sk_storage_map_iter_fd();
 	if (test__start_subtest("bpf_sk_storage_delete"))
 		test_bpf_sk_storage_delete();
 	if (test__start_subtest("bpf_sk_storage_get"))

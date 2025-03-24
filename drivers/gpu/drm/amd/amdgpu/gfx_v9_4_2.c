@@ -412,7 +412,7 @@ static int gfx_v9_4_2_run_shader(struct amdgpu_device *adev,
 	r = amdgpu_ib_schedule(ring, 1, ib, NULL, fence_ptr);
 	if (r) {
 		dev_err(adev->dev, "ib submit failed (%d).\n", r);
-		amdgpu_ib_free(adev, ib, NULL);
+		amdgpu_ib_free(ib, NULL);
 	}
 	return r;
 }
@@ -611,16 +611,16 @@ static int gfx_v9_4_2_do_sgprs_init(struct amdgpu_device *adev)
 	}
 
 disp2_failed:
-	amdgpu_ib_free(adev, &disp_ibs[2], NULL);
+	amdgpu_ib_free(&disp_ibs[2], NULL);
 	dma_fence_put(fences[2]);
 disp1_failed:
-	amdgpu_ib_free(adev, &disp_ibs[1], NULL);
+	amdgpu_ib_free(&disp_ibs[1], NULL);
 	dma_fence_put(fences[1]);
 disp0_failed:
-	amdgpu_ib_free(adev, &disp_ibs[0], NULL);
+	amdgpu_ib_free(&disp_ibs[0], NULL);
 	dma_fence_put(fences[0]);
 pro_end:
-	amdgpu_ib_free(adev, &wb_ib, NULL);
+	amdgpu_ib_free(&wb_ib, NULL);
 
 	if (r)
 		dev_info(adev->dev, "Init SGPRS Failed\n");
@@ -687,10 +687,10 @@ static int gfx_v9_4_2_do_vgprs_init(struct amdgpu_device *adev)
 	}
 
 disp_failed:
-	amdgpu_ib_free(adev, &disp_ib, NULL);
+	amdgpu_ib_free(&disp_ib, NULL);
 	dma_fence_put(fence);
 pro_end:
-	amdgpu_ib_free(adev, &wb_ib, NULL);
+	amdgpu_ib_free(&wb_ib, NULL);
 
 	if (r)
 		dev_info(adev->dev, "Init VGPRS Failed\n");

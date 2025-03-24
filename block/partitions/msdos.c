@@ -36,7 +36,7 @@
  * the nr_sects and start_sect partition table entries are
  * at a 2 (mod 4) address.
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static inline sector_t nr_sects(struct msdos_partition *p)
 {

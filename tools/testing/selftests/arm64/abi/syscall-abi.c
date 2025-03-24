@@ -81,7 +81,7 @@ static int check_gpr(struct syscall_cfg *cfg, int sve_vl, int sme_vl, uint64_t s
 	 */
 	for (i = 9; i < ARRAY_SIZE(gpr_in); i++) {
 		if (gpr_in[i] != gpr_out[i]) {
-			ksft_print_msg("%s SVE VL %d mismatch in GPR %d: %llx != %llx\n",
+			ksft_print_msg("%s SVE VL %d mismatch in GPR %d: %lx != %lx\n",
 				       cfg->name, sve_vl, i,
 				       gpr_in[i], gpr_out[i]);
 			errors++;
@@ -112,7 +112,7 @@ static int check_fpr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 	if (!sve_vl && !(svcr & SVCR_SM_MASK)) {
 		for (i = 0; i < ARRAY_SIZE(fpr_in); i++) {
 			if (fpr_in[i] != fpr_out[i]) {
-				ksft_print_msg("%s Q%d/%d mismatch %llx != %llx\n",
+				ksft_print_msg("%s Q%d/%d mismatch %lx != %lx\n",
 					       cfg->name,
 					       i / 2, i % 2,
 					       fpr_in[i], fpr_out[i]);
@@ -294,13 +294,13 @@ static int check_svcr(struct syscall_cfg *cfg, int sve_vl, int sme_vl,
 	int errors = 0;
 
 	if (svcr_out & SVCR_SM_MASK) {
-		ksft_print_msg("%s Still in SM, SVCR %llx\n",
+		ksft_print_msg("%s Still in SM, SVCR %lx\n",
 			       cfg->name, svcr_out);
 		errors++;
 	}
 
 	if ((svcr_in & SVCR_ZA_MASK) != (svcr_out & SVCR_ZA_MASK)) {
-		ksft_print_msg("%s PSTATE.ZA changed, SVCR %llx != %llx\n",
+		ksft_print_msg("%s PSTATE.ZA changed, SVCR %lx != %lx\n",
 			       cfg->name, svcr_in, svcr_out);
 		errors++;
 	}

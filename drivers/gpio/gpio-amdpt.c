@@ -106,7 +106,7 @@ static int pt_gpio_probe(struct platform_device *pdev)
 	pt_gpio->gc.free             = pt_gpio_free;
 	pt_gpio->gc.ngpio            = (uintptr_t)device_get_match_data(dev);
 
-	ret = gpiochip_add_data(&pt_gpio->gc, pt_gpio);
+	ret = devm_gpiochip_add_data(dev, &pt_gpio->gc, pt_gpio);
 	if (ret) {
 		dev_err(dev, "Failed to register GPIO lib\n");
 		return ret;
@@ -120,13 +120,6 @@ static int pt_gpio_probe(struct platform_device *pdev)
 
 	dev_dbg(dev, "PT GPIO driver loaded\n");
 	return ret;
-}
-
-static void pt_gpio_remove(struct platform_device *pdev)
-{
-	struct pt_gpio_chip *pt_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&pt_gpio->gc);
 }
 
 static const struct acpi_device_id pt_gpio_acpi_match[] = {
@@ -143,7 +136,6 @@ static struct platform_driver pt_gpio_driver = {
 		.acpi_match_table = ACPI_PTR(pt_gpio_acpi_match),
 	},
 	.probe = pt_gpio_probe,
-	.remove_new = pt_gpio_remove,
 };
 
 module_platform_driver(pt_gpio_driver);

@@ -224,7 +224,7 @@ static const struct regmap_config npcm_peci_regmap_config = {
 	.fast_io = true,
 };
 
-static struct peci_controller_ops npcm_ops = {
+static const struct peci_controller_ops npcm_ops = {
 	.xfer = npcm_peci_xfer,
 };
 
@@ -295,4 +295,4 @@ module_platform_driver(npcm_peci_driver);
 MODULE_AUTHOR("Tomer Maimon <tomer.maimon@nuvoton.com>");
 MODULE_DESCRIPTION("NPCM PECI driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PECI);
+MODULE_IMPORT_NS("PECI");

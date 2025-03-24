@@ -851,7 +851,6 @@
 			interrupts = <0 0x44 0x4>;
 			#clock-cells = <1>;
 			clocks = <&ahbclk 0>;
-			bus_num = <0>;
 		};
 
 		phy1: phy@1f21a000 {
@@ -997,7 +996,7 @@
 				compatible = "apm,xgene-mdio";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				menetphy: menetphy@3 {
+				menetphy: ethernet-phy@3 {
 					compatible = "ethernet-phy-id001c.c915";
 					reg = <0x3>;
 				};

@@ -583,7 +583,7 @@ static const struct efx_hw_stat_desc ef100_stat_desc[EF100_STAT_COUNT] = {
 	EFX_GENERIC_SW_STAT(rx_noskb_drops),
 };
 
-static size_t ef100_describe_stats(struct efx_nic *efx, u8 *names)
+static size_t ef100_describe_stats(struct efx_nic *efx, u8 **names)
 {
 	DECLARE_BITMAP(mask, EF100_STAT_COUNT) = {};
 

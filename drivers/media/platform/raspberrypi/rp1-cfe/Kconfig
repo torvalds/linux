@@ -1,0 +1,15 @@
+# RP1 V4L2 camera support
+
+config VIDEO_RP1_CFE
+	tristate "Raspberry Pi RP1 Camera Front End (CFE) video capture driver"
+	depends on VIDEO_DEV
+	depends on PM
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
+	help
+	  Say Y here to enable support for the Raspberry Pi RP1 Camera Front End.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called rp1-cfe.

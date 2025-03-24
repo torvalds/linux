@@ -26,7 +26,7 @@
 #include "codec-v4l2-fwht.h"
 
 MODULE_DESCRIPTION("Virtual codec device");
-MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
+MODULE_AUTHOR("Hans Verkuil <hansverk@cisco.com>");
 MODULE_LICENSE("GPL v2");
 
 static bool multiplanar;
@@ -43,6 +43,8 @@ MODULE_PARM_DESC(debug, " activates debug info");
 #define MIN_WIDTH		640U
 #define MAX_HEIGHT		2160U
 #define MIN_HEIGHT		360U
+/* Recommended number of buffers for the stateful codecs */
+#define VICODEC_REC_BUFS	2
 
 #define dprintk(dev, fmt, arg...) \
 	v4l2_dbg(1, debug, &dev->v4l2_dev, "%s: " fmt, __func__, ## arg)
@@ -1215,8 +1217,7 @@ static int vicodec_encoder_cmd(struct file *file, void *fh,
 	if (ret < 0)
 		return ret;
 
-	if (!vb2_is_streaming(&ctx->fh.m2m_ctx->cap_q_ctx.q) ||
-	    !vb2_is_streaming(&ctx->fh.m2m_ctx->out_q_ctx.q))
+	if (!vb2_is_streaming(&ctx->fh.m2m_ctx->out_q_ctx.q))
 		return 0;
 
 	ret = v4l2_m2m_ioctl_encoder_cmd(file, fh, ec);
@@ -1250,8 +1251,7 @@ static int vicodec_decoder_cmd(struct file *file, void *fh,
 	if (ret < 0)
 		return ret;
 
-	if (!vb2_is_streaming(&ctx->fh.m2m_ctx->cap_q_ctx.q) ||
-	    !vb2_is_streaming(&ctx->fh.m2m_ctx->out_q_ctx.q))
+	if (!vb2_is_streaming(&ctx->fh.m2m_ctx->out_q_ctx.q))
 		return 0;
 
 	ret = v4l2_m2m_ioctl_decoder_cmd(file, fh, dc);
@@ -1690,8 +1690,6 @@ static const struct vb2_ops vicodec_qops = {
 	.buf_request_complete	= vicodec_buf_request_complete,
 	.start_streaming	= vicodec_start_streaming,
 	.stop_streaming		= vicodec_stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int queue_init(void *priv, struct vb2_queue *src_vq,
@@ -1709,12 +1707,14 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->ops = &vicodec_qops;
 	src_vq->mem_ops = &vb2_vmalloc_memops;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
-	if (ctx->is_enc)
+	if (ctx->is_enc) {
 		src_vq->lock = &ctx->dev->stateful_enc.mutex;
-	else if (ctx->is_stateless)
+		src_vq->min_reqbufs_allocation = VICODEC_REC_BUFS;
+	} else if (ctx->is_stateless) {
 		src_vq->lock = &ctx->dev->stateless_dec.mutex;
-	else
+	} else {
 		src_vq->lock = &ctx->dev->stateful_dec.mutex;
+	}
 	src_vq->supports_requests = ctx->is_stateless;
 	src_vq->requires_requests = ctx->is_stateless;
 	ret = vb2_queue_init(src_vq);
@@ -1732,6 +1732,8 @@ static int queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->mem_ops = &vb2_vmalloc_memops;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = src_vq->lock;
+	if (!ctx->is_stateless && !ctx->is_enc)
+		dst_vq->min_reqbufs_allocation = VICODEC_REC_BUFS;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -1856,11 +1858,16 @@ static int vicodec_open(struct file *file)
 			  1, 31, 1, 20);
 	v4l2_ctrl_new_std(hdl, &vicodec_ctrl_ops, V4L2_CID_FWHT_P_FRAME_QP,
 			  1, 31, 1, 20);
-	if (ctx->is_enc)
-		v4l2_ctrl_new_std(hdl, &vicodec_ctrl_ops,
-				  V4L2_CID_MIN_BUFFERS_FOR_OUTPUT, 1, 1, 1, 1);
+
 	if (ctx->is_stateless)
 		v4l2_ctrl_new_custom(hdl, &vicodec_ctrl_stateless_state, NULL);
+	else
+		v4l2_ctrl_new_std(hdl, &vicodec_ctrl_ops, ctx->is_enc ?
+				  V4L2_CID_MIN_BUFFERS_FOR_OUTPUT :
+				  V4L2_CID_MIN_BUFFERS_FOR_CAPTURE,
+				  VICODEC_REC_BUFS, VICODEC_REC_BUFS, 1,
+				  VICODEC_REC_BUFS);
+
 	if (hdl->error) {
 		rc = hdl->error;
 		v4l2_ctrl_handler_free(hdl);
@@ -2209,7 +2216,7 @@ static void vicodec_remove(struct platform_device *pdev)
 
 static struct platform_driver vicodec_pdrv = {
 	.probe		= vicodec_probe,
-	.remove_new	= vicodec_remove,
+	.remove		= vicodec_remove,
 	.driver		= {
 		.name	= VICODEC_NAME,
 	},

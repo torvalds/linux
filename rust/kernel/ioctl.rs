@@ -4,7 +4,7 @@
 //!
 //! C header: [`include/asm-generic/ioctl.h`](srctree/include/asm-generic/ioctl.h)
 
-#![allow(non_snake_case)]
+#![expect(non_snake_case)]
 
 use crate::build_assert;
 

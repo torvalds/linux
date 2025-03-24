@@ -52,6 +52,19 @@ config KASAN_SHADOW_OFFSET
 	depends on KASAN
 	default 0x1C000000000000
 
+config CC_ASM_FLAG_OUTPUT_BROKEN
+	def_bool CC_IS_GCC && GCC_VERSION < 140200
+	help
+	  GCC versions before 14.2.0 may die with an internal
+	  compiler error in some configurations if flag output
+	  operands are used within inline assemblies.
+
+config CC_HAS_ASM_AOR_FORMAT_FLAGS
+	def_bool !(CC_IS_CLANG && CLANG_VERSION < 190100)
+	help
+	  Clang versions before 19.1.0 do not support A,
+	  O, and R inline assembly format flags.
+
 config S390
 	def_bool y
 	#
@@ -65,11 +78,14 @@ config S390
 	select ARCH_ENABLE_MEMORY_HOTPLUG if SPARSEMEM
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
+	select ARCH_HAS_CPU_FINALIZE_INIT
+	select ARCH_HAS_CRC32
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_DEBUG_WX
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select ARCH_HAS_DMA_OPS if PCI
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORCE_DMA_UNENCRYPTED
 	select ARCH_HAS_FORTIFY_SOURCE
@@ -79,6 +95,7 @@ config S390
 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
 	select ARCH_HAS_MEM_ENCRYPT
 	select ARCH_HAS_NMI_SAFE_THIS_CPU_OPS
+	select ARCH_HAS_PREEMPT_LAZY
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_HAS_SCALED_CPUTIME
 	select ARCH_HAS_SET_DIRECT_MAP
@@ -87,7 +104,7 @@ config S390
 	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_SYSCALL_WRAPPER
 	select ARCH_HAS_UBSAN
-	select ARCH_HAS_VDSO_DATA
+	select ARCH_HAS_VDSO_TIME_DATA
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_INLINE_READ_LOCK
 	select ARCH_INLINE_READ_LOCK_BH
@@ -137,7 +154,6 @@ config S390
 	select BUILDTIME_TABLE_SORT
 	select CLONE_BACKWARDS2
 	select DCACHE_WORD_ACCESS if !KMSAN
-	select DMA_OPS if PCI
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
 	select FUNCTION_ALIGNMENT_8B if CC_IS_GCC
 	select FUNCTION_ALIGNMENT_16B if !CC_IS_GCC
@@ -175,16 +191,18 @@ config S390
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
+	select HAVE_FTRACE_REGS_HAVING_PT_REGS
 	select HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EBPF_JIT if HAVE_MARCH_Z196_FEATURES
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_GUP_FAST
 	select HAVE_FENTRY
+	select HAVE_FTRACE_GRAPH_FUNC
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select HAVE_FUNCTION_ERROR_INJECTION
-	select HAVE_FUNCTION_GRAPH_RETVAL
+	select HAVE_FUNCTION_GRAPH_FREGS
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GCC_PLUGINS
@@ -211,6 +229,7 @@ config S390
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_PREEMPT_DYNAMIC_KEY
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RELIABLE_STACKTRACE
 	select HAVE_RETHOOK
@@ -224,12 +243,15 @@ config S390
 	select HAVE_VIRT_CPU_ACCOUNTING_IDLE
 	select IOMMU_HELPER		if PCI
 	select IOMMU_SUPPORT		if PCI
+	select KASAN_VMALLOC if KASAN
+	select LOCK_MM_AND_FIND_VMA
 	select MMU_GATHER_MERGE_VMAS
 	select MMU_GATHER_NO_GATHER
 	select MMU_GATHER_RCU_TABLE_FREE
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE	if PCI
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK
+	select NEED_PROC_VMCORE_DEVICE_RAM if PROC_VMCORE
 	select NEED_SG_DMA_LENGTH	if PCI
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
@@ -243,7 +265,9 @@ config S390
 	select TRACE_IRQFLAGS_SUPPORT
 	select TTY
 	select USER_STACKTRACE_SUPPORT
+	select VDSO_GETRANDOM
 	select VIRT_CPU_ACCOUNTING
+	select VMAP_STACK
 	select ZONE_DMA
 	# Note: keep the above list sorted alphabetically
 
@@ -274,6 +298,9 @@ config ARCH_SUPPORTS_CRASH_DUMP
 	  Refer to <file:Documentation/arch/s390/zfcpdump.rst> for more details on this.
 	  This option also enables s390 zfcpdump.
 	  See also <file:Documentation/arch/s390/zfcpdump.rst>
+
+config ARCH_DEFAULT_CRASH_DUMP
+	def_bool y
 
 menu "Processor type and features"
 
@@ -513,6 +540,26 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
+config SCHED_TOPOLOGY_VERTICAL
+	def_bool y
+	bool "Use vertical CPU polarization by default"
+	depends on SCHED_TOPOLOGY
+	help
+	  Use vertical CPU polarization by default if available.
+	  The default CPU polarization is horizontal.
+
+config HIPERDISPATCH_ON
+	def_bool y
+	bool "Use hiperdispatch on vertical polarization by default"
+	depends on SCHED_TOPOLOGY
+	depends on PROC_SYSCTL
+	help
+	  Hiperdispatch aims to improve the CPU scheduler's decision
+	  making when using vertical polarization by adjusting CPU
+	  capacities dynamically. Set this option to use hiperdispatch
+	  on vertical polarization by default. This can be overwritten
+	  by sysctl's s390.hiperdispatch attribute later on.
+
 source "kernel/Kconfig.hz"
 
 config CERT_STORE
@@ -557,17 +604,13 @@ config EXPOLINE
 	  If unsure, say N.
 
 config EXPOLINE_EXTERN
-	def_bool y if EXPOLINE
-	depends on EXPOLINE
-	depends on CC_IS_GCC && GCC_VERSION >= 110200
-	depends on $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
-	prompt "Generate expolines as extern functions."
+	def_bool EXPOLINE && CC_IS_GCC && GCC_VERSION >= 110200 && \
+		 $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))
 	help
-	  This option is required for some tooling like kpatch. The kernel is
-	  compiled with -mindirect-branch=thunk-extern and requires a newer
-	  compiler.
-
-	  If unsure, say N.
+	  Generate expolines as external functions if the compiler supports it.
+	  This option is required for some tooling like kpatch, if expolines
+	  are enabled. The kernel is compiled with
+	  -mindirect-branch=thunk-extern, which requires a newer compiler.
 
 choice
 	prompt "Expoline default"
@@ -603,6 +646,19 @@ config RANDOMIZE_BASE
 	  this randomizes the address at which the kernel image is loaded,
 	  as a security feature that deters exploit attempts relying on
 	  knowledge of the location of kernel internals.
+
+config RANDOMIZE_IDENTITY_BASE
+	bool "Randomize the address of the identity mapping base"
+	depends on RANDOMIZE_BASE
+	default DEBUG_VM
+	help
+	  The identity mapping base address is pinned to zero by default.
+	  Allow randomization of that base to expose otherwise missed
+	  notion of physical and virtual addresses of data structures.
+	  That does not have any impact on the base address at which the
+	  kernel image is loaded.
+
+	  If unsure, say N
 
 config KERNEL_IMAGE_BASE
 	hex "Kernel image base address"
@@ -644,32 +700,6 @@ config MAX_PHYSMEM_BITS
 	  in bits. Supported is any size between 2^42 (4TB) and 2^53 (8PB).
 	  Increasing the number of bits also increases the kernel image size.
 	  By default 46 bits (64TB) are supported.
-
-config CHECK_STACK
-	def_bool y
-	depends on !VMAP_STACK
-	prompt "Detect kernel stack overflow"
-	help
-	  This option enables the compiler option -mstack-guard and
-	  -mstack-size if they are available. If the compiler supports them
-	  it will emit additional code to each function prolog to trigger
-	  an illegal operation if the kernel stack is about to overflow.
-
-	  Say N if you are unsure.
-
-config STACK_GUARD
-	int "Size of the guard area (128-1024)"
-	range 128 1024
-	depends on CHECK_STACK
-	default "256"
-	help
-	  This allows you to specify the size of the guard area at the lower
-	  end of the kernel stack. If the kernel stack points into the guard
-	  area on function entry an illegal operation is triggered. The size
-	  needs to be a power of 2. Please keep in mind that the size of an
-	  interrupt frame is 184 bytes for 31 bit and 328 bytes on 64 bit.
-	  The minimum size for the stack guard should be 256 for 31 bit and
-	  512 for 64 bit.
 
 endmenu
 

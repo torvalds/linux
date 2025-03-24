@@ -559,12 +559,12 @@ static int iwl_mvm_ftm_set_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (mvmvif->ftm_unprotected) {
-			*sta_id = IWL_MVM_INVALID_STA;
+			*sta_id = IWL_INVALID_STA;
 			*flags &= ~cpu_to_le32(IWL_INITIATOR_AP_FLAGS_PMF);
 		}
 #endif
 	} else {
-		*sta_id = IWL_MVM_INVALID_STA;
+		*sta_id = IWL_INVALID_STA;
 	}
 
 	return 0;
@@ -772,6 +772,7 @@ iwl_mvm_ftm_set_secured_ranging(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			struct iwl_mvm_ftm_iter_data target;
 
 			target.bssid = bssid;
+			target.cipher = cipher;
 			ieee80211_iter_keys(mvm->hw, vif, iter, &target);
 		} else {
 			memcpy(tk, entry->tk, sizeof(entry->tk));
@@ -1062,6 +1063,8 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 						   IWL_FW_CMD_VER_UNKNOWN);
 
 		switch (cmd_ver) {
+		case 15:
+			/* Version 15 has the same struct as 14 */
 		case 14:
 			err = iwl_mvm_ftm_start_v14(mvm, vif, req);
 			break;

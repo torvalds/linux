@@ -21,7 +21,7 @@
 		stdout-path = "serial2:1500000n8";
 	};
 
-	vcc12v_dcin: vcc12v-dcin-regulator {
+	vcc12v_dcin: regulator-vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
 		regulator-always-on;
@@ -30,7 +30,7 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -40,7 +40,7 @@
 		vin-supply = <&vcc12v_dcin>;
 	};
 
-	v3v3_sys: v3v3-sys-regulator {
+	v3v3_sys: regulator-v3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "v3v3_sys";
 		regulator-always-on;

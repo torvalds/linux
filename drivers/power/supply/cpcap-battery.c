@@ -1169,7 +1169,7 @@ static struct platform_driver cpcap_battery_driver = {
 		.of_match_table = of_match_ptr(cpcap_battery_id_table),
 	},
 	.probe	= cpcap_battery_probe,
-	.remove_new = cpcap_battery_remove,
+	.remove	= cpcap_battery_remove,
 };
 module_platform_driver(cpcap_battery_driver);
 

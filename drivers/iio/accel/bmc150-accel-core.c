@@ -10,9 +10,9 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/of_irq.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
@@ -203,7 +203,7 @@ const struct regmap_config bmc150_regmap_conf = {
 	.val_bits = 8,
 	.max_register = 0x3f,
 };
-EXPORT_SYMBOL_NS_GPL(bmc150_regmap_conf, IIO_BMC150);
+EXPORT_SYMBOL_NS_GPL(bmc150_regmap_conf, "IIO_BMC150");
 
 static int bmc150_accel_set_mode(struct bmc150_accel_data *data,
 				 enum bmc150_power_modes mode,
@@ -387,7 +387,7 @@ static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
 						   struct iio_mount_matrix *orientation)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct acpi_device *adev = ACPI_COMPANION(dev);
+	acpi_handle handle = ACPI_HANDLE(dev);
 	char *name, *alt_name, *label;
 
 	if (strcmp(dev_name(dev), "i2c-BOSC0200:base") == 0) {
@@ -398,9 +398,9 @@ static bool bmc150_apply_bosc0200_acpi_orientation(struct device *dev,
 		label = "accel-display";
 	}
 
-	if (acpi_has_method(adev->handle, "ROTM")) {
+	if (acpi_has_method(handle, "ROTM")) {
 		name = "ROTM";
-	} else if (acpi_has_method(adev->handle, alt_name)) {
+	} else if (acpi_has_method(handle, alt_name)) {
 		name = alt_name;
 		indio_dev->label = label;
 	} else {
@@ -514,7 +514,7 @@ static void bmc150_accel_interrupts_setup(struct iio_dev *indio_dev,
 	 */
 	irq_info = bmc150_accel_interrupts_int1;
 	if (data->type == BOSCH_BMC156 ||
-	    irq == of_irq_get_byname(dev->of_node, "INT2"))
+	    irq == fwnode_irq_get_byname(dev_fwnode(dev), "INT2"))
 		irq_info = bmc150_accel_interrupts_int2;
 
 	for (i = 0; i < BMC150_ACCEL_INTERRUPTS; i++)
@@ -804,7 +804,7 @@ static int bmc150_accel_write_event_config(struct iio_dev *indio_dev,
 					   const struct iio_chan_spec *chan,
 					   enum iio_event_type type,
 					   enum iio_event_direction dir,
-					   int state)
+					   bool state)
 {
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 	int ret;
@@ -1007,8 +1007,7 @@ static int __bmc150_accel_fifo_flush(struct iio_dev *indio_dev,
 		int j, bit;
 
 		j = 0;
-		for_each_set_bit(bit, indio_dev->active_scan_mask,
-				 indio_dev->masklength)
+		iio_for_each_active_channel(indio_dev, bit)
 			memcpy(&data->scan.channels[j++], &buffer[i * 3 + bit],
 			       sizeof(data->scan.channels[0]));
 
@@ -1761,7 +1760,7 @@ err_disable_regulators:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(bmc150_accel_core_probe, IIO_BMC150);
+EXPORT_SYMBOL_NS_GPL(bmc150_accel_core_probe, "IIO_BMC150");
 
 void bmc150_accel_core_remove(struct device *dev)
 {
@@ -1784,7 +1783,7 @@ void bmc150_accel_core_remove(struct device *dev)
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
 			       data->regulators);
 }
-EXPORT_SYMBOL_NS_GPL(bmc150_accel_core_remove, IIO_BMC150);
+EXPORT_SYMBOL_NS_GPL(bmc150_accel_core_remove, "IIO_BMC150");
 
 #ifdef CONFIG_PM_SLEEP
 static int bmc150_accel_suspend(struct device *dev)
@@ -1859,7 +1858,7 @@ const struct dev_pm_ops bmc150_accel_pm_ops = {
 	SET_RUNTIME_PM_OPS(bmc150_accel_runtime_suspend,
 			   bmc150_accel_runtime_resume, NULL)
 };
-EXPORT_SYMBOL_NS_GPL(bmc150_accel_pm_ops, IIO_BMC150);
+EXPORT_SYMBOL_NS_GPL(bmc150_accel_pm_ops, "IIO_BMC150");
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_LICENSE("GPL v2");

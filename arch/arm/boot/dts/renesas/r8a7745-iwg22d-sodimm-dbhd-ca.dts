@@ -84,8 +84,7 @@
 	hdmi@39 {
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio1 0 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&cec_clock>;
 		clock-names = "cec";
 		pd-gpios = <&gpio2 24 GPIO_ACTIVE_HIGH>;

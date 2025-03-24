@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config SND_SOC_SDCA
+	tristate
+	depends on ACPI
+	help
+	  This option enables support for the MIPI SoundWire Device
+	  Class for Audio (SDCA).
+
+config SND_SOC_SDCA_OPTIONAL
+	def_tristate SND_SOC_SDCA || !SND_SOC_SDCA

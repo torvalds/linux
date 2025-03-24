@@ -453,7 +453,7 @@ struct acpi_table_ccel {
  * IORT - IO Remapping Table
  *
  * Conforms to "IO Remapping Table System Software on ARM Platforms",
- * Document number: ARM DEN 0049E.e, Sep 2022
+ * Document number: ARM DEN 0049E.f, Apr 2024
  *
  ******************************************************************************/
 
@@ -524,6 +524,7 @@ struct acpi_iort_memory_access {
 
 #define ACPI_IORT_MF_COHERENCY          (1)
 #define ACPI_IORT_MF_ATTRIBUTES         (1<<1)
+#define ACPI_IORT_MF_CANWBS             (1<<2)
 
 /*
  * IORT node specific subtables
@@ -1607,7 +1608,7 @@ struct acpi_mpam_msc_node {
 	u32 max_nrdy_usec;
 	u64 hardware_id_linked_device;
 	u32 instance_id_linked_device;
-	u32 num_resouce_nodes;
+	u32 num_resource_nodes;
 };
 
 struct acpi_table_mpam {

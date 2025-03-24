@@ -1104,13 +1104,6 @@ int ssam_controller_caps_load_from_acpi(acpi_handle handle,
 	u64 funcs;
 	int status;
 
-	/* Set defaults. */
-	caps->ssh_power_profile = U32_MAX;
-	caps->screen_on_sleep_idle_timeout = U32_MAX;
-	caps->screen_off_sleep_idle_timeout = U32_MAX;
-	caps->d3_closes_handle = false;
-	caps->ssh_buffer_size = U32_MAX;
-
 	/* Pre-load supported DSM functions. */
 	status = ssam_dsm_get_functions(handle, &funcs);
 	if (status)
@@ -1150,6 +1143,52 @@ int ssam_controller_caps_load_from_acpi(acpi_handle handle,
 }
 
 /**
+ * ssam_controller_caps_load_from_of() - Load controller capabilities from OF/DT.
+ * @dev:  A pointer to the controller device
+ * @caps: Where to store the capabilities in.
+ *
+ * Return: Returns zero on success, a negative error code on failure.
+ */
+static int ssam_controller_caps_load_from_of(struct device *dev, struct ssam_controller_caps *caps)
+{
+	/*
+	 * Every device starting with Surface Pro X through Laptop 7 uses these
+	 * identical values, which makes them good defaults.
+	 */
+	caps->d3_closes_handle = true;
+	caps->screen_on_sleep_idle_timeout = 5000;
+	caps->screen_off_sleep_idle_timeout = 30;
+	caps->ssh_buffer_size = 48;
+	/* TODO: figure out power profile */
+
+	return 0;
+}
+
+/**
+ * ssam_controller_caps_load() - Load controller capabilities
+ * @dev:  A pointer to the controller device
+ * @caps: Where to store the capabilities in.
+ *
+ * Return: Returns zero on success, a negative error code on failure.
+ */
+static int ssam_controller_caps_load(struct device *dev, struct ssam_controller_caps *caps)
+{
+	acpi_handle handle = ACPI_HANDLE(dev);
+
+	/* Set defaults. */
+	caps->ssh_power_profile = U32_MAX;
+	caps->screen_on_sleep_idle_timeout = U32_MAX;
+	caps->screen_off_sleep_idle_timeout = U32_MAX;
+	caps->d3_closes_handle = false;
+	caps->ssh_buffer_size = U32_MAX;
+
+	if (handle)
+		return ssam_controller_caps_load_from_acpi(handle, caps);
+	else
+		return ssam_controller_caps_load_from_of(dev, caps);
+}
+
+/**
  * ssam_controller_init() - Initialize SSAM controller.
  * @ctrl:   The controller to initialize.
  * @serdev: The serial device representing the underlying data transport.
@@ -1165,13 +1204,12 @@ int ssam_controller_caps_load_from_acpi(acpi_handle handle,
 int ssam_controller_init(struct ssam_controller *ctrl,
 			 struct serdev_device *serdev)
 {
-	acpi_handle handle = ACPI_HANDLE(&serdev->dev);
 	int status;
 
 	init_rwsem(&ctrl->lock);
 	kref_init(&ctrl->kref);
 
-	status = ssam_controller_caps_load_from_acpi(handle, &ctrl->caps);
+	status = ssam_controller_caps_load(&serdev->dev, &ctrl->caps);
 	if (status)
 		return status;
 
@@ -1354,7 +1392,8 @@ void ssam_controller_destroy(struct ssam_controller *ctrl)
 	if (ctrl->state == SSAM_CONTROLLER_UNINITIALIZED)
 		return;
 
-	WARN_ON(ctrl->state != SSAM_CONTROLLER_STOPPED);
+	WARN_ON(ctrl->state != SSAM_CONTROLLER_STOPPED &&
+		ctrl->state != SSAM_CONTROLLER_INITIALIZED);
 
 	/*
 	 * Note: New events could still have been received after the previous
@@ -2715,11 +2754,12 @@ int ssam_irq_setup(struct ssam_controller *ctrl)
 	const int irqf = IRQF_ONESHOT | IRQF_TRIGGER_RISING | IRQF_NO_AUTOEN;
 
 	gpiod = gpiod_get(dev, "ssam_wakeup-int", GPIOD_ASIS);
-	if (IS_ERR(gpiod))
-		return PTR_ERR(gpiod);
-
-	irq = gpiod_to_irq(gpiod);
-	gpiod_put(gpiod);
+	if (IS_ERR(gpiod)) {
+		irq = fwnode_irq_get(dev_fwnode(dev), 0);
+	} else {
+		irq = gpiod_to_irq(gpiod);
+		gpiod_put(gpiod);
+	}
 
 	if (irq < 0)
 		return irq;

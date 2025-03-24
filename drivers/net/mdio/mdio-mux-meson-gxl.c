@@ -149,7 +149,7 @@ static void gxl_mdio_mux_remove(struct platform_device *pdev)
 
 static struct platform_driver gxl_mdio_mux_driver = {
 	.probe		= gxl_mdio_mux_probe,
-	.remove_new	= gxl_mdio_mux_remove,
+	.remove		= gxl_mdio_mux_remove,
 	.driver		= {
 		.name	= "gxl-mdio-mux",
 		.of_match_table = gxl_mdio_mux_match,

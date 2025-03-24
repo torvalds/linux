@@ -117,7 +117,7 @@ struct mlxsw_afk_element_inst { /* element instance in actual block */
 
 struct mlxsw_afk_block {
 	u16 encoding; /* block ID */
-	struct mlxsw_afk_element_inst *instances;
+	const struct mlxsw_afk_element_inst *instances;
 	unsigned int instances_count;
 	bool high_entropy;
 };

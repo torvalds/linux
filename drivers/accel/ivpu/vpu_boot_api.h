@@ -1,14 +1,13 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (c) 2020-2023, Intel Corporation.
+ * Copyright (c) 2020-2024, Intel Corporation.
  */
 
 #ifndef VPU_BOOT_API_H
 #define VPU_BOOT_API_H
 
 /*
- * =========== FW API version information beginning ================
- *  The bellow values will be used to construct the version info this way:
+ *  The below values will be used to construct the version info this way:
  *  fw_bin_header->api_version[VPU_BOOT_API_VER_ID] = (VPU_BOOT_API_VER_MAJOR << 16) |
  *  VPU_BOOT_API_VER_MINOR;
  *  VPU_BOOT_API_VER_PATCH will be ignored. KMD and compatibility is not affected if this changes
@@ -27,19 +26,18 @@
  * Minor version changes when API backward compatibility is preserved.
  * Resets to 0 if Major version is incremented.
  */
-#define VPU_BOOT_API_VER_MINOR 24
+#define VPU_BOOT_API_VER_MINOR 26
 
 /*
  * API header changed (field names, documentation, formatting) but API itself has not been changed
  */
-#define VPU_BOOT_API_VER_PATCH 0
+#define VPU_BOOT_API_VER_PATCH 3
 
 /*
  * Index in the API version table
  * Must be unique for each API
  */
 #define VPU_BOOT_API_VER_INDEX 0
-/* ------------ FW API version information end ---------------------*/
 
 #pragma pack(push, 4)
 
@@ -164,8 +162,6 @@ enum vpu_trace_destination {
 /* VPU 30xx HW component IDs are sequential, so define first and last IDs. */
 #define VPU_TRACE_PROC_BIT_30XX_FIRST VPU_TRACE_PROC_BIT_LRT
 #define VPU_TRACE_PROC_BIT_30XX_LAST  VPU_TRACE_PROC_BIT_SHV_15
-#define VPU_TRACE_PROC_BIT_KMB_FIRST  VPU_TRACE_PROC_BIT_30XX_FIRST
-#define VPU_TRACE_PROC_BIT_KMB_LAST   VPU_TRACE_PROC_BIT_30XX_LAST
 
 struct vpu_boot_l2_cache_config {
 	u8 use;
@@ -198,6 +194,17 @@ struct vpu_warm_boot_section {
  * To be defined as part of 32 bit mask.
  */
 #define POWER_PROFILE_SURVIVABILITY 0x1
+
+/**
+ * Enum for dvfs_mode boot param.
+ */
+enum vpu_governor {
+	VPU_GOV_DEFAULT = 0, /* Default Governor for the system */
+	VPU_GOV_MAX_PERFORMANCE = 1, /* Maximum performance governor */
+	VPU_GOV_ON_DEMAND = 2, /* On Demand frequency control governor */
+	VPU_GOV_POWER_SAVE = 3, /* Power save governor */
+	VPU_GOV_ON_DEMAND_PRIORITY_AWARE = 4 /* On Demand priority based governor */
+};
 
 struct vpu_boot_params {
 	u32 magic;
@@ -301,7 +308,14 @@ struct vpu_boot_params {
 	u32 temp_sensor_period_ms;
 	/** PLL ratio for efficient clock frequency */
 	u32 pn_freq_pll_ratio;
-	/** DVFS Mode: Default: 0, Max Performance: 1, On Demand: 2, Power Save: 3 */
+	/**
+	 * DVFS Mode:
+	 * 0 - Default, DVFS mode selected by the firmware
+	 * 1 - Max Performance
+	 * 2 - On Demand
+	 * 3 - Power Save
+	 * 4 - On Demand Priority Aware
+	 */
 	u32 dvfs_mode;
 	/**
 	 * Depending on DVFS Mode:
@@ -332,8 +346,8 @@ struct vpu_boot_params {
 	u64 d0i3_entry_vpu_ts;
 	/*
 	 * The system time of the host operating system in microseconds.
-	 * E.g the number of microseconds since 1st of January 1970, or whatever date the
-	 * host operating system uses to maintain system time.
+	 * E.g the number of microseconds since 1st of January 1970, or whatever
+	 * date the host operating system uses to maintain system time.
 	 * This value will be used to track system time on the VPU.
 	 * The KMD is required to update this value on every VPU reset.
 	 */
@@ -382,10 +396,7 @@ struct vpu_boot_params {
 	u32 pad6[734];
 };
 
-/*
- * Magic numbers set between host and vpu to detect corruptio of tracing init
- */
-
+/* Magic numbers set between host and vpu to detect corruption of tracing init */
 #define VPU_TRACING_BUFFER_CANARY (0xCAFECAFE)
 
 /* Tracing buffer message format definitions */
@@ -405,7 +416,9 @@ struct vpu_tracing_buffer_header {
 	u32 host_canary_start;
 	/* offset from start of buffer for trace entries */
 	u32 read_index;
-	u32 pad_to_cache_line_size_0[14];
+	/* keeps track of wrapping on the reader side */
+	u32 read_wrap_count;
+	u32 pad_to_cache_line_size_0[13];
 	/* End of first cache line */
 
 	/**

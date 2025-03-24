@@ -58,4 +58,4 @@ module_spi_driver(ens160_spi_driver);
 MODULE_AUTHOR("Gustavo Silva <gustavograzs@gmail.com>");
 MODULE_DESCRIPTION("ScioSense ENS160 SPI driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_ENS160);
+MODULE_IMPORT_NS("IIO_ENS160");

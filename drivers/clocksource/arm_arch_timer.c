@@ -1179,8 +1179,6 @@ static void arch_timer_stop(struct clock_event_device *clk)
 	disable_percpu_irq(arch_timer_ppi[arch_timer_uses_ppi]);
 	if (arch_timer_has_nonsecure_ppi())
 		disable_percpu_irq(arch_timer_ppi[ARCH_TIMER_PHYS_NONSECURE_PPI]);
-
-	clk->set_state_shutdown(clk);
 }
 
 static int arch_timer_dying_cpu(unsigned int cpu)
@@ -1430,7 +1428,7 @@ static int __init arch_timer_of_init(struct device_node *np)
 
 	arch_timers_present |= ARCH_TIMER_TYPE_CP15;
 
-	has_names = of_property_read_bool(np, "interrupt-names");
+	has_names = of_property_present(np, "interrupt-names");
 
 	for (i = ARCH_TIMER_PHYS_SECURE_PPI; i < ARCH_TIMER_MAX_TIMER_PPI; i++) {
 		if (has_names)
@@ -1594,7 +1592,6 @@ static int __init arch_timer_mem_of_init(struct device_node *np)
 {
 	struct arch_timer_mem *timer_mem;
 	struct arch_timer_mem_frame *frame;
-	struct device_node *frame_node;
 	struct resource res;
 	int ret = -EINVAL;
 	u32 rate;
@@ -1608,33 +1605,29 @@ static int __init arch_timer_mem_of_init(struct device_node *np)
 	timer_mem->cntctlbase = res.start;
 	timer_mem->size = resource_size(&res);
 
-	for_each_available_child_of_node(np, frame_node) {
+	for_each_available_child_of_node_scoped(np, frame_node) {
 		u32 n;
 		struct arch_timer_mem_frame *frame;
 
 		if (of_property_read_u32(frame_node, "frame-number", &n)) {
 			pr_err(FW_BUG "Missing frame-number.\n");
-			of_node_put(frame_node);
 			goto out;
 		}
 		if (n >= ARCH_TIMER_MEM_MAX_FRAMES) {
 			pr_err(FW_BUG "Wrong frame-number, only 0-%u are permitted.\n",
 			       ARCH_TIMER_MEM_MAX_FRAMES - 1);
-			of_node_put(frame_node);
 			goto out;
 		}
 		frame = &timer_mem->frame[n];
 
 		if (frame->valid) {
 			pr_err(FW_BUG "Duplicated frame-number.\n");
-			of_node_put(frame_node);
 			goto out;
 		}
 
-		if (of_address_to_resource(frame_node, 0, &res)) {
-			of_node_put(frame_node);
+		if (of_address_to_resource(frame_node, 0, &res))
 			goto out;
-		}
+
 		frame->cntbase = res.start;
 		frame->size = resource_size(&res);
 

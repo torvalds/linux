@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/brcm,bcm2835-aux-spi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM2835 Auxiliary SPI1/2 Controller
+
+maintainers:
+  - Karan Sanghavi <karansanghvi98@gmail.com>
+
+description:
+  The BCM2835 contains two forms of SPI master controller. One is known simply
+  as SPI0, and the other as the "Universal SPI Master," which is part of the
+  auxiliary block. This binding applies to the SPI1 and SPI2 auxiliary
+  controllers.
+
+allOf:
+  - $ref: spi-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - brcm,bcm2835-aux-spi
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/bcm2835-aux.h>
+    spi@7e215080 {
+        compatible = "brcm,bcm2835-aux-spi";
+        reg = <0x7e215080 0x40>;
+        interrupts = <1 29>;
+        clocks = <&aux_clocks BCM2835_AUX_CLOCK_SPI1>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+    };

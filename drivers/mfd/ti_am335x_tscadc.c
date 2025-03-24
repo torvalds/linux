@@ -377,7 +377,7 @@ static struct platform_driver ti_tscadc_driver = {
 		.of_match_table = ti_tscadc_dt_ids,
 	},
 	.probe	= ti_tscadc_probe,
-	.remove_new = ti_tscadc_remove,
+	.remove = ti_tscadc_remove,
 
 };
 

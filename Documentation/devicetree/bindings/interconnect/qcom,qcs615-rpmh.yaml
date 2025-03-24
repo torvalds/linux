@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interconnect/qcom,qcs615-rpmh.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm RPMh Network-On-Chip Interconnect on QCS615
+
+maintainers:
+  - Raviteja Laggyshetty <quic_rlaggysh@quicinc.com>
+
+description: |
+  RPMh interconnect providers support system bandwidth requirements through
+  RPMh hardware accelerators known as Bus Clock Manager (BCM). The provider is
+  able to communicate with the BCM through the Resource State Coordinator (RSC)
+  associated with each execution environment. Provider nodes must point to at
+  least one RPMh device child node pertaining to their RSC and each provider
+  can map to multiple RPMh resources.
+
+  See also: include/dt-bindings/interconnect/qcom,qcs615-rpmh.h
+
+properties:
+  compatible:
+    enum:
+      - qcom,qcs615-aggre1-noc
+      - qcom,qcs615-camnoc-virt
+      - qcom,qcs615-config-noc
+      - qcom,qcs615-dc-noc
+      - qcom,qcs615-gem-noc
+      - qcom,qcs615-ipa-virt
+      - qcom,qcs615-mc-virt
+      - qcom,qcs615-mmss-noc
+      - qcom,qcs615-system-noc
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+
+allOf:
+  - $ref: qcom,rpmh-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcs615-camnoc-virt
+              - qcom,qcs615-ipa-virt
+              - qcom,qcs615-mc-virt
+    then:
+      properties:
+        reg: false
+    else:
+      required:
+        - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    gem_noc: interconnect@9680000 {
+        compatible = "qcom,qcs615-gem-noc";
+        reg = <0x9680000 0x3e200>;
+        #interconnect-cells = <2>;
+        qcom,bcm-voters = <&apps_bcm_voter>;
+    };
+
+    mc_virt: interconnect-2 {
+        compatible = "qcom,qcs615-mc-virt";
+        #interconnect-cells = <2>;
+        qcom,bcm-voters = <&apps_bcm_voter>;
+    };

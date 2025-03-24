@@ -524,7 +524,7 @@ static void qmi_sample_remove(struct platform_device *pdev)
 
 static struct platform_driver qmi_sample_driver = {
 	.probe = qmi_sample_probe,
-	.remove_new = qmi_sample_remove,
+	.remove = qmi_sample_remove,
 	.driver = {
 		.name = "qmi_sample_client",
 	},

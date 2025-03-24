@@ -187,7 +187,7 @@ l0_%=:	r6 = r0;					\
 
 SEC("cgroup/skb")
 __description("spin_lock: test6 missing unlock")
-__failure __msg("unlock is missing")
+__failure __msg("BPF_EXIT instruction in main prog cannot be used inside bpf_spin_lock-ed region")
 __failure_unpriv __msg_unpriv("")
 __naked void spin_lock_test6_missing_unlock(void)
 {
@@ -528,6 +528,32 @@ l1_%=:	exit;						\
 	  __imm(bpf_spin_unlock),
 	  __imm_addr(map_spin_lock)
 	: __clobber_all);
+}
+
+SEC("tc")
+__description("spin_lock: loop within a locked region")
+__success __failure_unpriv __msg_unpriv("")
+__retval(0)
+int bpf_loop_inside_locked_region(void)
+{
+	const int zero = 0;
+	struct val *val;
+	int i, j = 0;
+
+	val = bpf_map_lookup_elem(&map_spin_lock, &zero);
+	if (!val)
+		return -1;
+
+	bpf_spin_lock(&val->l);
+	bpf_for(i, 0, 10) {
+		j++;
+		/* Silence "unused variable" warnings. */
+		if (j == 10)
+			break;
+	}
+	bpf_spin_unlock(&val->l);
+
+	return 0;
 }
 
 char _license[] SEC("license") = "GPL";

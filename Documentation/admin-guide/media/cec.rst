@@ -42,9 +42,13 @@ dongles):
   ``persistent_config``: by default this is off, but when set to 1 the driver
   will store the current settings to the device's internal eeprom and restore
   it the next time the device is connected to the USB port.
+
 - RainShadow Tech. Note: this driver does not support the persistent_config
   module option of the Pulse-Eight driver. The hardware supports it, but I
   have no plans to add this feature. But I accept patches :-)
+
+- Extron DA HD 4K PLUS HDMI Distribution Amplifier. See
+  :ref:`extron_da_hd_4k_plus` for more information.
 
 Miscellaneous:
 
@@ -378,3 +382,86 @@ it later using ``--analyze-pin``.
 
 You can also use this as a full-fledged CEC device by configuring it
 using ``cec-ctl --tv -p0.0.0.0`` or ``cec-ctl --playback -p1.0.0.0``.
+
+.. _extron_da_hd_4k_plus:
+
+Extron DA HD 4K PLUS CEC Adapter driver
+=======================================
+
+This driver is for the Extron DA HD 4K PLUS series of HDMI Distribution
+Amplifiers: https://www.extron.com/product/dahd4kplusseries
+
+The 2, 4 and 6 port models are supported.
+
+Firmware version 1.02.0001 or higher is required.
+
+Note that older Extron hardware revisions have a problem with the CEC voltage,
+which may mean that CEC will not work. This is fixed in hardware revisions
+E34814 and up.
+
+The CEC support has two modes: the first is a manual mode where userspace has
+to manually control CEC for the HDMI Input and all HDMI Outputs. While this gives
+full control, it is also complicated.
+
+The second mode is an automatic mode, which is selected if the module option
+``vendor_id`` is set. In that case the driver controls CEC and CEC messages
+received in the input will be distributed to the outputs. It is still possible
+to use the /dev/cecX devices to talk to the connected devices directly, but it is
+the driver that configures everything and deals with things like Hotplug Detect
+changes.
+
+The driver also takes care of the EDIDs: /dev/videoX devices are created to
+read the EDIDs and (for the HDMI Input port) to set the EDID.
+
+By default userspace is responsible to set the EDID for the HDMI Input
+according to the EDIDs of the connected displays. But if the ``manufacturer_name``
+module option is set, then the driver will take care of setting the EDID
+of the HDMI Input based on the supported resolutions of the connected displays.
+Currently the driver only supports resolutions 1080p60 and 4kp60: if all connected
+displays support 4kp60, then it will advertise 4kp60 on the HDMI input, otherwise
+it will fall back to an EDID that just reports 1080p60.
+
+The status of the Extron is reported in ``/sys/kernel/debug/cec/cecX/status``.
+
+The extron-da-hd-4k-plus driver implements the following module options:
+
+``debug``
+---------
+
+If set to 1, then all serial port traffic is shown.
+
+``vendor_id``
+-------------
+
+The CEC Vendor ID to report to connected displays.
+
+If set, then the driver will take care of distributing CEC messages received
+on the input to the HDMI outputs. This is done for the following CEC messages:
+
+- <Standby>
+- <Image View On> and <Text View On>
+- <Give Device Power Status>
+- <Set System Audio Mode>
+- <Request Current Latency>
+
+If not set, then userspace is responsible for this, and it will have to
+configure the CEC devices for HDMI Input and the HDMI Outputs manually.
+
+``manufacturer_name``
+---------------------
+
+A three character manufacturer name that is used in the EDID for the HDMI
+Input. If not set, then userspace is reponsible for configuring an EDID.
+If set, then the driver will update the EDID automatically based on the
+resolutions supported by the connected displays, and it will not be possible
+anymore to manually set the EDID for the HDMI Input.
+
+``hpd_never_low``
+-----------------
+
+If set, then the Hotplug Detect pin of the HDMI Input will always be high,
+even if nothing is connected to the HDMI Outputs. If not set (the default)
+then the Hotplug Detect pin of the HDMI input will go low if all the detected
+Hotplug Detect pins of the HDMI Outputs are also low.
+
+This option may be changed dynamically.

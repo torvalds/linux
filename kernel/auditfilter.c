@@ -1319,13 +1319,20 @@ int audit_compare_dname_path(const struct qstr *dname, const char *path, int par
 	if (pathlen < dlen)
 		return 1;
 
-	parentlen = parentlen == AUDIT_NAME_FULL ? parent_len(path) : parentlen;
-	if (pathlen - parentlen != dlen)
-		return 1;
+	if (parentlen == AUDIT_NAME_FULL)
+		parentlen = parent_len(path);
 
 	p = path + parentlen;
 
-	return strncmp(p, dname->name, dlen);
+	/* handle trailing slashes */
+	pathlen -= parentlen;
+	while (p[pathlen - 1] == '/')
+		pathlen--;
+
+	if (pathlen != dlen)
+		return 1;
+
+	return memcmp(p, dname->name, dlen);
 }
 
 int audit_filter(int msgtype, unsigned int listtype)
@@ -1339,12 +1346,12 @@ int audit_filter(int msgtype, unsigned int listtype)
 
 		for (i = 0; i < e->rule.field_count; i++) {
 			struct audit_field *f = &e->rule.fields[i];
+			struct lsm_prop prop = { };
 			pid_t pid;
-			u32 sid;
 
 			switch (f->type) {
 			case AUDIT_PID:
-				pid = task_pid_nr(current);
+				pid = task_tgid_nr(current);
 				result = audit_comparator(pid, f->op, f->val);
 				break;
 			case AUDIT_UID:
@@ -1370,9 +1377,10 @@ int audit_filter(int msgtype, unsigned int listtype)
 			case AUDIT_SUBJ_SEN:
 			case AUDIT_SUBJ_CLR:
 				if (f->lsm_rule) {
-					security_current_getsecid_subj(&sid);
-					result = security_audit_rule_match(sid,
-						   f->type, f->op, f->lsm_rule);
+					security_current_getlsmprop_subj(&prop);
+					result = security_audit_rule_match(
+						   &prop, f->type, f->op,
+						   f->lsm_rule);
 				}
 				break;
 			case AUDIT_EXE:

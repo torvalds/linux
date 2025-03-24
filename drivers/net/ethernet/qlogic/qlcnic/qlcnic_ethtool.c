@@ -1196,60 +1196,56 @@ qlcnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int index, i, num_stats;
+	const char *str;
 
 	switch (stringset) {
 	case ETH_SS_TEST:
-		memcpy(data, *qlcnic_gstrings_test,
-		       QLCNIC_TEST_LEN * ETH_GSTRING_LEN);
+		for (i = 0; i < QLCNIC_TEST_LEN; i++)
+			ethtool_puts(&data, qlcnic_gstrings_test[i]);
 		break;
 	case ETH_SS_STATS:
 		num_stats = ARRAY_SIZE(qlcnic_tx_queue_stats_strings);
-		for (i = 0; i < adapter->drv_tx_rings; i++) {
+		for (i = 0; i < adapter->drv_tx_rings; i++)
 			for (index = 0; index < num_stats; index++) {
-				sprintf(data, "tx_queue_%d %s", i,
-					qlcnic_tx_queue_stats_strings[index]);
-				data += ETH_GSTRING_LEN;
+				str = qlcnic_tx_queue_stats_strings[index];
+				ethtool_sprintf(&data, "tx_queue_%d %s", i,
+						str);
 			}
-		}
 
-		for (index = 0; index < QLCNIC_STATS_LEN; index++) {
-			memcpy(data + index * ETH_GSTRING_LEN,
-			       qlcnic_gstrings_stats[index].stat_string,
-			       ETH_GSTRING_LEN);
+		for (i = 0; i < QLCNIC_STATS_LEN; i++) {
+			str = qlcnic_gstrings_stats[i].stat_string;
+			ethtool_puts(&data, str);
 		}
 
 		if (qlcnic_83xx_check(adapter)) {
 			num_stats = ARRAY_SIZE(qlcnic_83xx_tx_stats_strings);
-			for (i = 0; i < num_stats; i++, index++)
-				memcpy(data + index * ETH_GSTRING_LEN,
-				       qlcnic_83xx_tx_stats_strings[i],
-				       ETH_GSTRING_LEN);
+			for (i = 0; i < num_stats; i++) {
+				str = qlcnic_83xx_tx_stats_strings[i];
+				ethtool_puts(&data, str);
+			}
 			num_stats = ARRAY_SIZE(qlcnic_83xx_mac_stats_strings);
-			for (i = 0; i < num_stats; i++, index++)
-				memcpy(data + index * ETH_GSTRING_LEN,
-				       qlcnic_83xx_mac_stats_strings[i],
-				       ETH_GSTRING_LEN);
+			for (i = 0; i < num_stats; i++) {
+				str = qlcnic_83xx_mac_stats_strings[i];
+				ethtool_puts(&data, str);
+			}
 			num_stats = ARRAY_SIZE(qlcnic_83xx_rx_stats_strings);
-			for (i = 0; i < num_stats; i++, index++)
-				memcpy(data + index * ETH_GSTRING_LEN,
-				       qlcnic_83xx_rx_stats_strings[i],
-				       ETH_GSTRING_LEN);
+			for (i = 0; i < num_stats; i++) {
+				str = qlcnic_83xx_rx_stats_strings[i];
+				ethtool_puts(&data, str);
+			}
 			return;
 		} else {
 			num_stats = ARRAY_SIZE(qlcnic_83xx_mac_stats_strings);
-			for (i = 0; i < num_stats; i++, index++)
-				memcpy(data + index * ETH_GSTRING_LEN,
-				       qlcnic_83xx_mac_stats_strings[i],
-				       ETH_GSTRING_LEN);
+			for (i = 0; i < num_stats; i++) {
+				str = qlcnic_83xx_mac_stats_strings[i];
+				ethtool_puts(&data, str);
+			}
 		}
 		if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED))
 			return;
 		num_stats = ARRAY_SIZE(qlcnic_device_gstrings_stats);
-		for (i = 0; i < num_stats; index++, i++) {
-			memcpy(data + index * ETH_GSTRING_LEN,
-			       qlcnic_device_gstrings_stats[i],
-			       ETH_GSTRING_LEN);
-		}
+		for (i = 0; i < num_stats; i++)
+			ethtool_puts(&data, qlcnic_device_gstrings_stats[i]);
 	}
 }
 

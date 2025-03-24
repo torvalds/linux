@@ -32,7 +32,7 @@ KBUILD_CFLAGS += -DBUILD_VDSO -DDISABLE_BRANCH_PROFILING
 VDSO_LIBGCC := $(shell $(CC) -print-libgcc-file-name)
 
 obj-y += vdso64_wrapper.o
-extra-y += vdso64.lds
+targets += vdso64.lds
 CPPFLAGS_vdso64.lds += -P -C -U$(ARCH)
 
 $(obj)/vdso64_wrapper.o : $(obj)/vdso64.so FORCE

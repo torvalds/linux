@@ -3,6 +3,7 @@ config DRM_STI
 	tristate "DRM Support for STMicroelectronics SoC stiH4xx Series"
 	depends on OF && DRM && (ARCH_STI || COMPILE_TEST)
 	select RESET_CONTROLLER
+	select DRM_CLIENT_SELECTION
 	select DRM_KMS_HELPER
 	select DRM_GEM_DMA_HELPER
 	select DRM_PANEL

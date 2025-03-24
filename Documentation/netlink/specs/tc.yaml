@@ -622,7 +622,7 @@ definitions:
       -
         name: max-P
         type: u32
-        doc: probabilty, high resolution
+        doc: probability, high resolution
       -
         name: stats
         type: binary

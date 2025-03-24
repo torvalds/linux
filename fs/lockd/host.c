@@ -440,7 +440,7 @@ nlm_bind_host(struct nlm_host *host)
 	if ((clnt = host->h_rpcclnt) != NULL) {
 		nlm_rebind_host(host);
 	} else {
-		unsigned long increment = nlmsvc_timeout;
+		unsigned long increment = nlm_timeout * HZ;
 		struct rpc_timeout timeparms = {
 			.to_initval	= increment,
 			.to_increment	= increment,

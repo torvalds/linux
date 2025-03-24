@@ -2652,6 +2652,7 @@
 			clocks = <&cpg CPG_MOD 615>;
 			power-domains = <&sysc R8A774E1_PD_A3VP>;
 			resets = <&cpg 615>;
+			iommus = <&ipmmu_vp0 0>;
 		};
 
 		fcpf1: fcp@fe951000 {
@@ -2660,6 +2661,7 @@
 			clocks = <&cpg CPG_MOD 614>;
 			power-domains = <&sysc R8A774E1_PD_A3VP>;
 			resets = <&cpg 614>;
+			iommus = <&ipmmu_vp1 1>;
 		};
 
 		fcpvb0: fcp@fe96f000 {
@@ -2668,6 +2670,7 @@
 			clocks = <&cpg CPG_MOD 607>;
 			power-domains = <&sysc R8A774E1_PD_A3VP>;
 			resets = <&cpg 607>;
+			iommus = <&ipmmu_vp0 5>;
 		};
 
 		fcpvb1: fcp@fe92f000 {
@@ -2676,6 +2679,7 @@
 			clocks = <&cpg CPG_MOD 606>;
 			power-domains = <&sysc R8A774E1_PD_A3VP>;
 			resets = <&cpg 606>;
+			iommus = <&ipmmu_vp1 7>;
 		};
 
 		fcpvi0: fcp@fe9af000 {
@@ -2684,6 +2688,7 @@
 			clocks = <&cpg CPG_MOD 611>;
 			power-domains = <&sysc R8A774E1_PD_A3VP>;
 			resets = <&cpg 611>;
+			iommus = <&ipmmu_vp0 8>;
 		};
 
 		fcpvi1: fcp@fe9bf000 {
@@ -2692,6 +2697,7 @@
 			clocks = <&cpg CPG_MOD 610>;
 			power-domains = <&sysc R8A774E1_PD_A3VP>;
 			resets = <&cpg 610>;
+			iommus = <&ipmmu_vp1 9>;
 		};
 
 		fcpvd0: fcp@fea27000 {
@@ -2700,6 +2706,7 @@
 			clocks = <&cpg CPG_MOD 603>;
 			power-domains = <&sysc R8A774E1_PD_ALWAYS_ON>;
 			resets = <&cpg 603>;
+			iommus = <&ipmmu_vi0 8>;
 		};
 
 		fcpvd1: fcp@fea2f000 {
@@ -2708,6 +2715,7 @@
 			clocks = <&cpg CPG_MOD 602>;
 			power-domains = <&sysc R8A774E1_PD_ALWAYS_ON>;
 			resets = <&cpg 602>;
+			iommus = <&ipmmu_vi0 9>;
 		};
 
 		csi20: csi2@fea80000 {

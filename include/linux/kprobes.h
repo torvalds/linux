@@ -269,15 +269,6 @@ extern unsigned long __stop_kprobe_blacklist[];
 
 extern struct kretprobe_blackpoint kretprobe_blacklist[];
 
-#ifdef CONFIG_KPROBES_SANITY_TEST
-extern int init_test_probes(void);
-#else /* !CONFIG_KPROBES_SANITY_TEST */
-static inline int init_test_probes(void)
-{
-	return 0;
-}
-#endif /* CONFIG_KPROBES_SANITY_TEST */
-
 extern int arch_prepare_kprobe(struct kprobe *p);
 extern void arch_arm_kprobe(struct kprobe *p);
 extern void arch_disarm_kprobe(struct kprobe *p);

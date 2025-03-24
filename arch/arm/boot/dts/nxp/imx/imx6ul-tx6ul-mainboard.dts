@@ -198,7 +198,7 @@
 		>;
 	};
 
-	pinctrl_disp0_3: disp0grp-3 {
+	pinctrl_disp0_3: disp0-3-grp {
 		fsl,pins = <
 			MX6UL_PAD_LCD_CLK__LCDIF_CLK		0x10 /* LSCLK */
 			MX6UL_PAD_LCD_ENABLE__LCDIF_ENABLE	0x10 /* OE_ACD */

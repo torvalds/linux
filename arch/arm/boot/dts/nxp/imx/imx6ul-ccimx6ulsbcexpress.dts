@@ -112,7 +112,7 @@
 		>;
 	};
 
-	pinctrl_ecspi3_master: ecspi3grp1 {
+	pinctrl_ecspi3_master: ecspi3-1-grp {
 		fsl,pins = <
 			MX6UL_PAD_UART2_RX_DATA__ECSPI3_SCLK	0x10b0
 			MX6UL_PAD_UART2_CTS_B__ECSPI3_MOSI	0x10b0
@@ -121,7 +121,7 @@
 		>;
 	};
 
-	pinctrl_ecspi3_slave: ecspi3grp2 {
+	pinctrl_ecspi3_slave: ecspi3-2-grp {
 		fsl,pins = <
 			MX6UL_PAD_UART2_RX_DATA__ECSPI3_SCLK	0x10b0
 			MX6UL_PAD_UART2_CTS_B__ECSPI3_MOSI	0x10b0

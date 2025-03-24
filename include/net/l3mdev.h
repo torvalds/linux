@@ -78,7 +78,7 @@ static inline int l3mdev_master_ifindex_by_index(struct net *net, int ifindex)
 	struct net_device *dev;
 	int rc = 0;
 
-	if (likely(ifindex)) {
+	if (ifindex) {
 		rcu_read_lock();
 
 		dev = dev_get_by_index_rcu(net, ifindex);
@@ -198,10 +198,12 @@ struct sk_buff *l3mdev_l3_out(struct sock *sk, struct sk_buff *skb, u16 proto)
 	if (netif_is_l3_slave(dev)) {
 		struct net_device *master;
 
+		rcu_read_lock();
 		master = netdev_master_upper_dev_get_rcu(dev);
 		if (master && master->l3mdev_ops->l3mdev_l3_out)
 			skb = master->l3mdev_ops->l3mdev_l3_out(master, sk,
 								skb, proto);
+		rcu_read_unlock();
 	}
 
 	return skb;

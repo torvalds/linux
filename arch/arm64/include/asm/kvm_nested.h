@@ -33,14 +33,14 @@ static inline u64 translate_tcr_el2_to_tcr_el1(u64 tcr)
 
 static inline u64 translate_cptr_el2_to_cpacr_el1(u64 cptr_el2)
 {
-	u64 cpacr_el1 = CPACR_ELx_RES1;
+	u64 cpacr_el1 = CPACR_EL1_RES1;
 
 	if (cptr_el2 & CPTR_EL2_TTA)
-		cpacr_el1 |= CPACR_ELx_TTA;
+		cpacr_el1 |= CPACR_EL1_TTA;
 	if (!(cptr_el2 & CPTR_EL2_TFP))
-		cpacr_el1 |= CPACR_ELx_FPEN;
+		cpacr_el1 |= CPACR_EL1_FPEN;
 	if (!(cptr_el2 & CPTR_EL2_TZ))
-		cpacr_el1 |= CPACR_ELx_ZEN;
+		cpacr_el1 |= CPACR_EL1_ZEN;
 
 	cpacr_el1 |= cptr_el2 & (CPTR_EL2_TCPAC | CPTR_EL2_TAM);
 
@@ -64,6 +64,7 @@ static inline u64 translate_ttbr0_el2_to_ttbr0_el1(u64 ttbr0)
 }
 
 extern bool forward_smc_trap(struct kvm_vcpu *vcpu);
+extern bool forward_debug_exception(struct kvm_vcpu *vcpu);
 extern void kvm_init_nested(struct kvm *kvm);
 extern int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu);
 extern void kvm_init_nested_s2_mmu(struct kvm_s2_mmu *mmu);
@@ -78,6 +79,8 @@ extern void kvm_s2_mmu_iterate_by_vmid(struct kvm *kvm, u16 vmid,
 extern void kvm_vcpu_load_hw_mmu(struct kvm_vcpu *vcpu);
 extern void kvm_vcpu_put_hw_mmu(struct kvm_vcpu *vcpu);
 
+extern void check_nested_vcpu_requests(struct kvm_vcpu *vcpu);
+
 struct kvm_s2_trans {
 	phys_addr_t output;
 	unsigned long block_size;
@@ -85,7 +88,7 @@ struct kvm_s2_trans {
 	bool readable;
 	int level;
 	u32 esr;
-	u64 upper_attr;
+	u64 desc;
 };
 
 static inline phys_addr_t kvm_s2_trans_output(struct kvm_s2_trans *trans)
@@ -115,7 +118,7 @@ static inline bool kvm_s2_trans_writable(struct kvm_s2_trans *trans)
 
 static inline bool kvm_s2_trans_executable(struct kvm_s2_trans *trans)
 {
-	return !(trans->upper_attr & BIT(54));
+	return !(trans->desc & BIT(54));
 }
 
 extern int kvm_walk_nested_s2(struct kvm_vcpu *vcpu, phys_addr_t gipa,
@@ -124,7 +127,7 @@ extern int kvm_s2_handle_perm_fault(struct kvm_vcpu *vcpu,
 				    struct kvm_s2_trans *trans);
 extern int kvm_inject_s2_fault(struct kvm_vcpu *vcpu, u64 esr_el2);
 extern void kvm_nested_s2_wp(struct kvm *kvm);
-extern void kvm_nested_s2_unmap(struct kvm *kvm);
+extern void kvm_nested_s2_unmap(struct kvm *kvm, bool may_block);
 extern void kvm_nested_s2_flush(struct kvm *kvm);
 
 unsigned long compute_tlb_inval_range(struct kvm_s2_mmu *mmu, u64 val);
@@ -184,7 +187,7 @@ static inline bool kvm_supported_tlbi_s1e2_op(struct kvm_vcpu *vpcu, u32 instr)
 	return true;
 }
 
-int kvm_init_nv_sysregs(struct kvm *kvm);
+int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu);
 
 #ifdef CONFIG_ARM64_PTR_AUTH
 bool kvm_auth_eretax(struct kvm_vcpu *vcpu, u64 *elr);
@@ -203,6 +206,42 @@ static inline bool kvm_auth_eretax(struct kvm_vcpu *vcpu, u64 *elr)
 static inline u64 kvm_encode_nested_level(struct kvm_s2_trans *trans)
 {
 	return FIELD_PREP(KVM_NV_GUEST_MAP_SZ, trans->level);
+}
+
+/* Adjust alignment for the contiguous bit as per StageOA() */
+#define contiguous_bit_shift(d, wi, l)					\
+	({								\
+		u8 shift = 0;						\
+									\
+		if ((d) & PTE_CONT) {					\
+			switch (BIT((wi)->pgshift)) {			\
+			case SZ_4K:					\
+				shift = 4;				\
+				break;					\
+			case SZ_16K:					\
+				shift = (l) == 2 ? 5 : 7;		\
+				break;					\
+			case SZ_64K:					\
+				shift = 5;				\
+				break;					\
+			}						\
+		}							\
+									\
+		shift;							\
+	})
+
+static inline unsigned int ps_to_output_size(unsigned int ps)
+{
+	switch (ps) {
+	case 0: return 32;
+	case 1: return 36;
+	case 2: return 40;
+	case 3: return 42;
+	case 4: return 44;
+	case 5:
+	default:
+		return 48;
+	}
 }
 
 #endif /* __ARM64_KVM_NESTED_H */

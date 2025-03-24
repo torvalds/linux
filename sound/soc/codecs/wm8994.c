@@ -4699,7 +4699,7 @@ static struct platform_driver wm8994_codec_driver = {
 		.pm = &wm8994_pm_ops,
 	},
 	.probe = wm8994_probe,
-	.remove_new = wm8994_remove,
+	.remove = wm8994_remove,
 };
 
 module_platform_driver(wm8994_codec_driver);

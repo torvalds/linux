@@ -432,12 +432,11 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct device_node *child_np;
 	struct phy_provider *provider;
 	struct resource *glb_res;
 	struct mtk_xsphy *xsphy;
 	struct resource res;
-	int port, retval;
+	int port;
 
 	xsphy = devm_kzalloc(dev, sizeof(*xsphy), GFP_KERNEL);
 	if (!xsphy)
@@ -471,37 +470,34 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "mediatek,src-coef", &xsphy->src_coef);
 
 	port = 0;
-	for_each_child_of_node(np, child_np) {
+	for_each_child_of_node_scoped(np, child_np) {
 		struct xsphy_instance *inst;
 		struct phy *phy;
+		int retval;
 
 		inst = devm_kzalloc(dev, sizeof(*inst), GFP_KERNEL);
-		if (!inst) {
-			retval = -ENOMEM;
-			goto put_child;
-		}
+		if (!inst)
+			return -ENOMEM;
 
 		xsphy->phys[port] = inst;
 
 		phy = devm_phy_create(dev, child_np, &mtk_xsphy_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create phy\n");
-			retval = PTR_ERR(phy);
-			goto put_child;
+			return PTR_ERR(phy);
 		}
 
 		retval = of_address_to_resource(child_np, 0, &res);
 		if (retval) {
 			dev_err(dev, "failed to get address resource(id-%d)\n",
 				port);
-			goto put_child;
+			return retval;
 		}
 
 		inst->port_base = devm_ioremap_resource(&phy->dev, &res);
 		if (IS_ERR(inst->port_base)) {
 			dev_err(dev, "failed to remap phy regs\n");
-			retval = PTR_ERR(inst->port_base);
-			goto put_child;
+			return PTR_ERR(inst->port_base);
 		}
 
 		inst->phy = phy;
@@ -512,17 +508,12 @@ static int mtk_xsphy_probe(struct platform_device *pdev)
 		inst->ref_clk = devm_clk_get(&phy->dev, "ref");
 		if (IS_ERR(inst->ref_clk)) {
 			dev_err(dev, "failed to get ref_clk(id-%d)\n", port);
-			retval = PTR_ERR(inst->ref_clk);
-			goto put_child;
+			return PTR_ERR(inst->ref_clk);
 		}
 	}
 
 	provider = devm_of_phy_provider_register(dev, mtk_phy_xlate);
 	return PTR_ERR_OR_ZERO(provider);
-
-put_child:
-	of_node_put(child_np);
-	return retval;
 }
 
 static struct platform_driver mtk_xsphy_driver = {

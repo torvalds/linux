@@ -183,7 +183,7 @@ static struct platform_driver mpc52xx_wkup_gpiochip_driver = {
 		.of_match_table = mpc52xx_wkup_gpiochip_match,
 	},
 	.probe = mpc52xx_wkup_gpiochip_probe,
-	.remove_new = mpc52xx_gpiochip_remove,
+	.remove = mpc52xx_gpiochip_remove,
 };
 
 /*
@@ -336,7 +336,7 @@ static struct platform_driver mpc52xx_simple_gpiochip_driver = {
 		.of_match_table = mpc52xx_simple_gpiochip_match,
 	},
 	.probe = mpc52xx_simple_gpiochip_probe,
-	.remove_new = mpc52xx_gpiochip_remove,
+	.remove = mpc52xx_gpiochip_remove,
 };
 
 static struct platform_driver * const drivers[] = {

@@ -203,9 +203,9 @@ static int pwm_beeper_suspend(struct device *dev)
 	 * beeper->suspended, but to ensure that pwm_beeper_event
 	 * does not re-submit work once flag is set.
 	 */
-	spin_lock_irq(&beeper->input->event_lock);
-	beeper->suspended = true;
-	spin_unlock_irq(&beeper->input->event_lock);
+	scoped_guard(spinlock_irq, &beeper->input->event_lock) {
+		beeper->suspended = true;
+	}
 
 	pwm_beeper_stop(beeper);
 
@@ -216,9 +216,9 @@ static int pwm_beeper_resume(struct device *dev)
 {
 	struct pwm_beeper *beeper = dev_get_drvdata(dev);
 
-	spin_lock_irq(&beeper->input->event_lock);
-	beeper->suspended = false;
-	spin_unlock_irq(&beeper->input->event_lock);
+	scoped_guard(spinlock_irq, &beeper->input->event_lock) {
+		beeper->suspended = false;
+	}
 
 	/* Let worker figure out if we should resume beeping */
 	schedule_work(&beeper->work);

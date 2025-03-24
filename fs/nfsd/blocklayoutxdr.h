@@ -47,7 +47,7 @@ struct pnfs_block_volume {
 
 struct pnfs_block_deviceaddr {
 	u32				nr_volumes;
-	struct pnfs_block_volume	volumes[];
+	struct pnfs_block_volume	volumes[] __counted_by(nr_volumes);
 };
 
 __be32 nfsd4_block_encode_getdeviceinfo(struct xdr_stream *xdr,

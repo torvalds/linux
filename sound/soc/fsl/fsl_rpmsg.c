@@ -286,7 +286,6 @@ static void fsl_rpmsg_remove(struct platform_device *pdev)
 		platform_device_unregister(rpmsg->card_pdev);
 }
 
-#ifdef CONFIG_PM
 static int fsl_rpmsg_runtime_resume(struct device *dev)
 {
 	struct fsl_rpmsg *rpmsg = dev_get_drvdata(dev);
@@ -321,20 +320,18 @@ static int fsl_rpmsg_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops fsl_rpmsg_pm_ops = {
-	SET_RUNTIME_PM_OPS(fsl_rpmsg_runtime_suspend,
-			   fsl_rpmsg_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(fsl_rpmsg_runtime_suspend, fsl_rpmsg_runtime_resume,
+		       NULL)
 };
 
 static struct platform_driver fsl_rpmsg_driver = {
 	.probe  = fsl_rpmsg_probe,
-	.remove_new = fsl_rpmsg_remove,
+	.remove = fsl_rpmsg_remove,
 	.driver = {
 		.name = "fsl_rpmsg",
-		.pm = &fsl_rpmsg_pm_ops,
+		.pm = pm_ptr(&fsl_rpmsg_pm_ops),
 		.of_match_table = fsl_rpmsg_ids,
 	},
 };

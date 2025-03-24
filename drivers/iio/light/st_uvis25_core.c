@@ -174,8 +174,7 @@ static int st_uvis25_allocate_trigger(struct iio_dev *iio_dev)
 	unsigned long irq_type;
 	int err;
 
-	irq_type = irqd_get_trigger_type(irq_get_irq_data(hw->irq));
-
+	irq_type = irq_get_trigger_type(hw->irq);
 	switch (irq_type) {
 	case IRQF_TRIGGER_HIGH:
 	case IRQF_TRIGGER_RISING:
@@ -323,7 +322,7 @@ int st_uvis25_probe(struct device *dev, int irq, struct regmap *regmap)
 
 	return devm_iio_device_register(dev, iio_dev);
 }
-EXPORT_SYMBOL_NS(st_uvis25_probe, IIO_UVIS25);
+EXPORT_SYMBOL_NS(st_uvis25_probe, "IIO_UVIS25");
 
 static int st_uvis25_suspend(struct device *dev)
 {

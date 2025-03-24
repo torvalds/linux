@@ -798,7 +798,7 @@ static const struct v4l2_subdev_internal_ops cal_camerarx_internal_ops = {
 	.init_state = cal_camerarx_sd_init_state,
 };
 
-static struct media_entity_operations cal_camerarx_media_ops = {
+static const struct media_entity_operations cal_camerarx_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 

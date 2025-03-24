@@ -348,6 +348,24 @@ static bool amdgpu_mca_bank_should_update(struct amdgpu_device *adev, enum amdgp
 	return ret;
 }
 
+static bool amdgpu_mca_bank_should_dump(struct amdgpu_device *adev, enum amdgpu_mca_error_type type,
+					struct mca_bank_entry *entry)
+{
+	bool ret;
+
+	switch (type) {
+	case AMDGPU_MCA_ERROR_TYPE_CE:
+		ret = amdgpu_mca_is_deferred_error(adev, entry->regs[MCA_REG_IDX_STATUS]);
+		break;
+	case AMDGPU_MCA_ERROR_TYPE_UE:
+	default:
+		ret = true;
+		break;
+	}
+
+	return ret;
+}
+
 static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mca_error_type type, struct mca_bank_set *mca_set,
 				      struct ras_query_context *qctx)
 {
@@ -373,7 +391,8 @@ static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mc
 
 		amdgpu_mca_bank_set_add_entry(mca_set, &entry);
 
-		amdgpu_mca_smu_mca_bank_dump(adev, i, &entry, qctx);
+		if (amdgpu_mca_bank_should_dump(adev, type, &entry))
+			amdgpu_mca_smu_mca_bank_dump(adev, i, &entry, qctx);
 	}
 
 	return 0;
@@ -396,7 +415,6 @@ static int amdgpu_mca_smu_parse_mca_error_count(struct amdgpu_device *adev, enum
 static int amdgpu_mca_dispatch_mca_set(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type,
 				       struct mca_bank_set *mca_set, struct ras_err_data *err_data)
 {
-	struct ras_err_addr err_addr;
 	struct amdgpu_smuio_mcm_config_info mcm_info;
 	struct mca_bank_node *node, *tmp;
 	struct mca_bank_entry *entry;
@@ -421,27 +439,20 @@ static int amdgpu_mca_dispatch_mca_set(struct amdgpu_device *adev, enum amdgpu_r
 			continue;
 
 		memset(&mcm_info, 0, sizeof(mcm_info));
-		memset(&err_addr, 0, sizeof(err_addr));
 
 		mcm_info.socket_id = entry->info.socket_id;
 		mcm_info.die_id = entry->info.aid;
 
-		if (blk == AMDGPU_RAS_BLOCK__UMC) {
-			err_addr.err_status = entry->regs[MCA_REG_IDX_STATUS];
-			err_addr.err_ipid = entry->regs[MCA_REG_IDX_IPID];
-			err_addr.err_addr = entry->regs[MCA_REG_IDX_ADDR];
-		}
-
 		if (type == AMDGPU_MCA_ERROR_TYPE_UE) {
 			amdgpu_ras_error_statistic_ue_count(err_data,
-							    &mcm_info, &err_addr, (uint64_t)count);
+							    &mcm_info, (uint64_t)count);
 		} else {
 			if (amdgpu_mca_is_deferred_error(adev, entry->regs[MCA_REG_IDX_STATUS]))
 				amdgpu_ras_error_statistic_de_count(err_data,
-								    &mcm_info, &err_addr, (uint64_t)count);
+								    &mcm_info, (uint64_t)count);
 			else
 				amdgpu_ras_error_statistic_ce_count(err_data,
-								    &mcm_info, &err_addr, (uint64_t)count);
+								    &mcm_info, (uint64_t)count);
 		}
 
 		amdgpu_mca_bank_set_remove_node(mca_set, node);

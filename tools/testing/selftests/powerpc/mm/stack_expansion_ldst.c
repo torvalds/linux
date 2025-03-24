@@ -175,7 +175,7 @@ static int test(void)
 
 	page_size = getpagesize();
 	getrlimit(RLIMIT_STACK, &rlimit);
-	printf("Stack rlimit is 0x%lx\n", rlimit.rlim_cur);
+	printf("Stack rlimit is 0x%llx\n", (unsigned long long)rlimit.rlim_cur);
 
 	printf("Testing loads ...\n");
 	test_one_type(LOAD, page_size, rlimit.rlim_cur);

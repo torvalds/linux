@@ -975,7 +975,8 @@ static inline void update_can_queue(struct Scsi_Host *host, u_int in_ptr, u_int 
 	host->sg_tablesize = QLOGICPTI_MAX_SG(num_free);
 }
 
-static int qlogicpti_slave_configure(struct scsi_device *sdev)
+static int qlogicpti_sdev_configure(struct scsi_device *sdev,
+				    struct queue_limits *lim)
 {
 	struct qlogicpti *qpti = shost_priv(sdev->host);
 	int tgt = sdev->id;
@@ -1292,7 +1293,7 @@ static const struct scsi_host_template qpti_template = {
 	.name			= "qlogicpti",
 	.info			= qlogicpti_info,
 	.queuecommand		= qlogicpti_queuecommand,
-	.slave_configure	= qlogicpti_slave_configure,
+	.sdev_configure		= qlogicpti_sdev_configure,
 	.eh_abort_handler	= qlogicpti_abort,
 	.eh_host_reset_handler	= qlogicpti_reset,
 	.can_queue		= QLOGICPTI_REQ_QUEUE_LEN,
@@ -1463,7 +1464,7 @@ static struct platform_driver qpti_sbus_driver = {
 		.of_match_table = qpti_match,
 	},
 	.probe		= qpti_sbus_probe,
-	.remove_new	= qpti_sbus_remove,
+	.remove		= qpti_sbus_remove,
 };
 module_platform_driver(qpti_sbus_driver);
 

@@ -130,12 +130,12 @@
 		#gpio-cells = <2>;
 	};
 
-	temp: lm75@48 {
-		compatible = "lm75";
+	temp: temperature-sensor@48 {
+		compatible = "national,lm75";
 		reg = <0x48>;
 	};
 
-	at24@50 {
+	eeprom@50 {
 		compatible = "atmel,24c01";
 		pagesize = <8>;
 		reg = <0x50>;
@@ -211,7 +211,7 @@
 	status = "okay";
 	clock-frequency = <100000>;
 
-	at24@50 {
+	eeprom@50 {
 		compatible = "atmel,24c02";
 		pagesize = <8>;
 		reg = <0x50>;

@@ -70,7 +70,7 @@
 		};
 	};
 
-	sata_pwr: sata-prw-regulator {
+	sata_pwr: regulator-sata-prw {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 13 GPIO_ACTIVE_HIGH>;
@@ -108,7 +108,7 @@
 		reset-gpios = <&gpio4 RK_PD4 GPIO_ACTIVE_LOW>;
 	};
 
-	vcc_usb_host: vcc-host-regulator {
+	vcc_usb_host: regulator-vcc-host {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
@@ -117,7 +117,7 @@
 		regulator-name = "vcc_host";
 	};
 
-	vcc_sd: sdmmc-regulator {
+	vcc_sd: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		gpio = <&gpio7 RK_PB3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";

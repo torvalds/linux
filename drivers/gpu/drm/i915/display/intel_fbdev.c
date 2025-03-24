@@ -41,12 +41,11 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_gem.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 
-#include "gem/i915_gem_mman.h"
-#include "gem/i915_gem_object.h"
-
 #include "i915_drv.h"
+#include "intel_bo.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
 #include "intel_fb_pin.h"
@@ -129,10 +128,9 @@ static int intel_fbdev_pan_display(struct fb_var_screeninfo *var,
 static int intel_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct intel_fbdev *fbdev = to_intel_fbdev(info->par);
-	struct drm_gem_object *bo = drm_gem_fb_get_obj(&fbdev->fb->base, 0);
-	struct drm_i915_gem_object *obj = to_intel_bo(bo);
+	struct drm_gem_object *obj = drm_gem_fb_get_obj(&fbdev->fb->base, 0);
 
-	return i915_gem_fb_mmap(obj, vma);
+	return intel_bo_fb_mmap(obj, vma);
 }
 
 static void intel_fbdev_fb_destroy(struct fb_info *info)
@@ -187,7 +185,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct i915_vma *vma;
 	unsigned long flags = 0;
 	bool prealloc = false;
-	struct drm_i915_gem_object *obj;
+	struct drm_gem_object *obj;
 	int ret;
 
 	mutex_lock(&ifbdev->hpd_lock);
@@ -209,7 +207,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		drm_framebuffer_put(&fb->base);
 		fb = NULL;
 	}
-	if (!fb || drm_WARN_ON(dev, !intel_fb_obj(&fb->base))) {
+	if (!fb || drm_WARN_ON(dev, !intel_fb_bo(&fb->base))) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "no BIOS fb, allocating a new one\n");
 		fb = intel_fbdev_fb_alloc(helper, sizes);
@@ -247,7 +245,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 
 	info->fbops = &intelfb_ops;
 
-	obj = intel_fb_obj(&fb->base);
+	obj = intel_fb_bo(&fb->base);
 
 	ret = intel_fbdev_fb_fill_info(dev_priv, info, obj, vma);
 	if (ret)
@@ -259,7 +257,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * If the object is stolen however, it will be full of whatever
 	 * garbage was left in there.
 	 */
-	if (!i915_gem_object_is_shmem(obj) && !prealloc)
+	if (!intel_bo_is_shmem(obj) && !prealloc)
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
@@ -323,8 +321,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			to_intel_plane(crtc->base.primary);
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
-		struct drm_i915_gem_object *obj =
-			intel_fb_obj(plane_state->uapi.fb);
+		struct drm_gem_object *obj = intel_fb_bo(plane_state->uapi.fb);
 
 		if (!crtc_state->uapi.active) {
 			drm_dbg_kms(&i915->drm,
@@ -340,12 +337,12 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 			continue;
 		}
 
-		if (intel_bo_to_drm_bo(obj)->size > max_size) {
+		if (obj->size > max_size) {
 			drm_dbg_kms(&i915->drm,
 				    "found possible fb from [PLANE:%d:%s]\n",
 				    plane->base.base.id, plane->base.name);
 			fb = to_intel_framebuffer(plane_state->uapi.fb);
-			max_size = intel_bo_to_drm_bo(obj)->size;
+			max_size = obj->size;
 		}
 	}
 
@@ -533,7 +530,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	 * full of whatever garbage was left in there.
 	 */
 	if (state == FBINFO_STATE_RUNNING &&
-	    !i915_gem_object_is_shmem(intel_fb_obj(&ifbdev->fb->base)))
+	    !intel_bo_is_shmem(intel_fb_bo(&ifbdev->fb->base)))
 		memset_io(info->screen_base, 0, info->screen_size);
 
 	drm_fb_helper_set_suspend(&ifbdev->helper, state);

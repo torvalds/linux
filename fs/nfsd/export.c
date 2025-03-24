@@ -355,16 +355,25 @@ static void export_stats_destroy(struct export_stats *stats)
 					    EXP_STATS_COUNTERS_NUM);
 }
 
-static void svc_export_put(struct kref *ref)
+static void svc_export_release(struct rcu_head *rcu_head)
 {
-	struct svc_export *exp = container_of(ref, struct svc_export, h.ref);
-	path_put(&exp->ex_path);
-	auth_domain_put(exp->ex_client);
+	struct svc_export *exp = container_of(rcu_head, struct svc_export,
+			ex_rcu);
+
 	nfsd4_fslocs_free(&exp->ex_fslocs);
 	export_stats_destroy(exp->ex_stats);
 	kfree(exp->ex_stats);
 	kfree(exp->ex_uuid);
-	kfree_rcu(exp, ex_rcu);
+	kfree(exp);
+}
+
+static void svc_export_put(struct kref *ref)
+{
+	struct svc_export *exp = container_of(ref, struct svc_export, h.ref);
+
+	path_put(&exp->ex_path);
+	auth_domain_put(exp->ex_client);
+	call_rcu(&exp->ex_rcu, svc_export_release);
 }
 
 static int svc_export_upcall(struct cache_detail *cd, struct cache_head *h)
@@ -1074,10 +1083,32 @@ static struct svc_export *exp_find(struct cache_detail *cd,
 	return exp;
 }
 
-__be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
+/**
+ * check_nfsd_access - check if access to export is allowed.
+ * @exp: svc_export that is being accessed.
+ * @rqstp: svc_rqst attempting to access @exp (will be NULL for LOCALIO).
+ * @may_bypass_gss: reduce strictness of authorization check
+ *
+ * Return values:
+ *   %nfs_ok if access is granted, or
+ *   %nfserr_wrongsec if access is denied
+ */
+__be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp,
+			 bool may_bypass_gss)
 {
 	struct exp_flavor_info *f, *end = exp->ex_flavors + exp->ex_nflavors;
-	struct svc_xprt *xprt = rqstp->rq_xprt;
+	struct svc_xprt *xprt;
+
+	/*
+	 * If rqstp is NULL, this is a LOCALIO request which will only
+	 * ever use a filehandle/credential pair for which access has
+	 * been affirmed (by ACCESS or OPEN NFS requests) over the
+	 * wire. So there is no need for further checks here.
+	 */
+	if (!rqstp)
+		return nfs_ok;
+
+	xprt = rqstp->rq_xprt;
 
 	if (exp->ex_xprtsec_modes & NFSEXP_XPRTSEC_NONE) {
 		if (!test_bit(XPT_TLS_SESSION, &xprt->xpt_flags))
@@ -1098,17 +1129,17 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
 ok:
 	/* legacy gss-only clients are always OK: */
 	if (exp->ex_client == rqstp->rq_gssclient)
-		return 0;
+		return nfs_ok;
 	/* ip-address based client; check sec= export option: */
 	for (f = exp->ex_flavors; f < end; f++) {
 		if (f->pseudoflavor == rqstp->rq_cred.cr_flavor)
-			return 0;
+			return nfs_ok;
 	}
 	/* defaults in absence of sec= options: */
 	if (exp->ex_nflavors == 0) {
 		if (rqstp->rq_cred.cr_flavor == RPC_AUTH_NULL ||
 		    rqstp->rq_cred.cr_flavor == RPC_AUTH_UNIX)
-			return 0;
+			return nfs_ok;
 	}
 
 	/* If the compound op contains a spo_must_allowed op,
@@ -1118,10 +1149,27 @@ ok:
 	 */
 
 	if (nfsd4_spo_must_allow(rqstp))
-		return 0;
+		return nfs_ok;
+
+	/* Some calls may be processed without authentication
+	 * on GSS exports. For example NFS2/3 calls on root
+	 * directory, see section 2.3.2 of rfc 2623.
+	 * For "may_bypass_gss" check that export has really
+	 * enabled some flavor with authentication (GSS or any
+	 * other) and also check that the used auth flavor is
+	 * without authentication (none or sys).
+	 */
+	if (may_bypass_gss && (
+	     rqstp->rq_cred.cr_flavor == RPC_AUTH_NULL ||
+	     rqstp->rq_cred.cr_flavor == RPC_AUTH_UNIX)) {
+		for (f = exp->ex_flavors; f < end; f++) {
+			if (f->pseudoflavor >= RPC_AUTH_DES)
+				return 0;
+		}
+	}
 
 denied:
-	return rqstp->rq_vers < 4 ? nfserr_acces : nfserr_wrongsec;
+	return nfserr_wrongsec;
 }
 
 /*
@@ -1164,19 +1212,35 @@ gss:
 	return gssexp;
 }
 
+/**
+ * rqst_exp_find - Find an svc_export in the context of a rqst or similar
+ * @reqp:	The handle to be used to suspend the request if a cache-upcall is needed
+ *		If NULL, missing in-cache information will result in failure.
+ * @net:	The network namespace in which the request exists
+ * @cl:		default auth_domain to use for looking up the export
+ * @gsscl:	an alternate auth_domain defined using deprecated gss/krb5 format.
+ * @fsid_type:	The type of fsid to look for
+ * @fsidv:	The actual fsid to look up in the context of either client.
+ *
+ * Perform a lookup for @cl/@fsidv in the given @net for an export.  If
+ * none found and @gsscl specified, repeat the lookup.
+ *
+ * Returns an export, or an error pointer.
+ */
 struct svc_export *
-rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
+rqst_exp_find(struct cache_req *reqp, struct net *net,
+	      struct auth_domain *cl, struct auth_domain *gsscl,
+	      int fsid_type, u32 *fsidv)
 {
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
-	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 	struct cache_detail *cd = nn->svc_export_cache;
 
-	if (rqstp->rq_client == NULL)
+	if (!cl)
 		goto gss;
 
 	/* First try the auth_unix client: */
-	exp = exp_find(cd, rqstp->rq_client, fsid_type,
-		       fsidv, &rqstp->rq_chandle);
+	exp = exp_find(cd, cl, fsid_type, fsidv, reqp);
 	if (PTR_ERR(exp) == -ENOENT)
 		goto gss;
 	if (IS_ERR(exp))
@@ -1186,10 +1250,9 @@ rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
 		return exp;
 gss:
 	/* Otherwise, try falling back on gss client */
-	if (rqstp->rq_gssclient == NULL)
+	if (!gsscl)
 		return exp;
-	gssexp = exp_find(cd, rqstp->rq_gssclient, fsid_type, fsidv,
-						&rqstp->rq_chandle);
+	gssexp = exp_find(cd, gsscl, fsid_type, fsidv, reqp);
 	if (PTR_ERR(gssexp) == -ENOENT)
 		return exp;
 	if (!IS_ERR(exp))
@@ -1220,7 +1283,9 @@ struct svc_export *rqst_find_fsidzero_export(struct svc_rqst *rqstp)
 
 	mk_fsid(FSID_NUM, fsidv, 0, 0, 0, NULL);
 
-	return rqst_exp_find(rqstp, FSID_NUM, fsidv);
+	return rqst_exp_find(&rqstp->rq_chandle, SVC_NET(rqstp),
+			     rqstp->rq_client, rqstp->rq_gssclient,
+			     FSID_NUM, fsidv);
 }
 
 /*
@@ -1369,10 +1434,9 @@ static int e_show(struct seq_file *m, void *p)
 		return 0;
 	}
 
-	exp_get(exp);
-	if (cache_check(cd, &exp->h, NULL))
+	if (cache_check_rcu(cd, &exp->h, NULL))
 		return 0;
-	exp_put(exp);
+
 	return svc_export_show(m, cd, cp);
 }
 

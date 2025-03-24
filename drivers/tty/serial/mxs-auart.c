@@ -1704,7 +1704,7 @@ static void mxs_auart_remove(struct platform_device *pdev)
 
 static struct platform_driver mxs_auart_driver = {
 	.probe = mxs_auart_probe,
-	.remove_new = mxs_auart_remove,
+	.remove = mxs_auart_remove,
 	.driver = {
 		.name = "mxs-auart",
 		.of_match_table = mxs_auart_dt_ids,

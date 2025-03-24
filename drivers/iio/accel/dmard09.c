@@ -5,7 +5,7 @@
  * Copyright (c) 2016, Jelle van der Waa <jelle@vdwaa.nl>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>

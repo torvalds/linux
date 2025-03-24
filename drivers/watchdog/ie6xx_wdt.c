@@ -280,7 +280,7 @@ static void ie6xx_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver ie6xx_wdt_driver = {
 	.probe		= ie6xx_wdt_probe,
-	.remove_new	= ie6xx_wdt_remove,
+	.remove		= ie6xx_wdt_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},

@@ -566,8 +566,6 @@ static const struct vb2_ops video_i2c_video_qops = {
 	.buf_queue		= buffer_queue,
 	.start_streaming	= start_streaming,
 	.stop_streaming		= stop_streaming,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static int video_i2c_querycap(struct file *file, void  *priv,
@@ -798,13 +796,13 @@ static int video_i2c_probe(struct i2c_client *client)
 	queue->min_queued_buffers = 1;
 	queue->ops = &video_i2c_video_qops;
 	queue->mem_ops = &vb2_vmalloc_memops;
+	queue->lock = &data->queue_lock;
 
 	ret = vb2_queue_init(queue);
 	if (ret < 0)
 		goto error_unregister_device;
 
 	data->vdev.queue = queue;
-	data->vdev.queue->lock = &data->queue_lock;
 
 	snprintf(data->vdev.name, sizeof(data->vdev.name),
 				 "I2C %d-%d Transport Video",

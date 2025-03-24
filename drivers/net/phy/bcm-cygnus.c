@@ -278,7 +278,7 @@ static struct phy_driver bcm_cygnus_phy_driver[] = {
 }
 };
 
-static struct mdio_device_id __maybe_unused bcm_cygnus_phy_tbl[] = {
+static const struct mdio_device_id __maybe_unused bcm_cygnus_phy_tbl[] = {
 	{ PHY_ID_BCM_CYGNUS, 0xfffffff0, },
 	{ PHY_ID_BCM_OMEGA, 0xfffffff0, },
 	{ }

@@ -48,7 +48,7 @@
 /* SHADOWCON */
 #define SHADOWCON				0x30
 
-#define SHADOWCON_WINx_PROTECT(_win)		(1 << (10 + (_win)))
+#define SHADOWCON_WINx_PROTECT(_shf, _win)	(1 << ((_shf) + (_win)))
 
 /* WINCONx */
 #define WINCON(_win)				(0x50 + ((_win) * 4))
@@ -58,10 +58,9 @@
 #define WINCONx_BUFSEL_SHIFT			28
 #define WINCONx_TRIPLE_BUF_MODE			(0x1 << 18)
 #define WINCONx_DOUBLE_BUF_MODE			(0x0 << 18)
-#define WINCONx_BURSTLEN_16WORD			(0x0 << 11)
-#define WINCONx_BURSTLEN_8WORD			(0x1 << 11)
-#define WINCONx_BURSTLEN_MASK			(0x1 << 11)
-#define WINCONx_BURSTLEN_SHIFT			11
+#define WINCONx_BURSTLEN_16WORD(_shf)		(0x0 << (_shf))
+#define WINCONx_BURSTLEN_8WORD(_shf)		(0x1 << (_shf))
+#define WINCONx_BURSTLEN_MASK(_shf)		(0x1 << (_shf))
 #define WINCONx_BLD_PLANE			(0 << 8)
 #define WINCONx_BLD_PIX				(1 << 8)
 #define WINCONx_ALPHA_MUL			(1 << 7)
@@ -89,9 +88,9 @@
 #define VIDOSD_H(_x)				(0x80 + ((_x) * 4))
 
 /* Frame buffer start addresses: VIDWxxADD0n */
-#define VIDW_BUF_START(_win)			(0x80 + ((_win) * 0x10))
-#define VIDW_BUF_START1(_win)			(0x84 + ((_win) * 0x10))
-#define VIDW_BUF_START2(_win)			(0x88 + ((_win) * 0x10))
+#define VIDW_BUF_START(_base, _win)		((_base) + ((_win) * 0x10))
+#define VIDW_BUF_START1(_base, _win)		((_base) + ((_win) * 0x10))
+#define VIDW_BUF_START2(_base, _win)		((_base) + ((_win) * 0x10))
 
 #define VIDW_WHOLE_X(_win)			(0x0130 + ((_win) * 8))
 #define VIDW_WHOLE_Y(_win)			(0x0134 + ((_win) * 8))

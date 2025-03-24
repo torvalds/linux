@@ -506,7 +506,7 @@ xmit:
 	skb_dst_set(skb, dst);
 	skb->dev = tdev;
 
-	err = dst_output(xi->net, skb->sk, skb);
+	err = dst_output(xi->net, skb_to_full_sk(skb), skb);
 	if (net_xmit_eval(err) == 0) {
 		dev_sw_netstats_tx_add(dev, 1, length);
 	} else {
@@ -769,7 +769,7 @@ static int xfrmi_dev_init(struct net_device *dev)
 	if (err)
 		return err;
 
-	dev->features |= NETIF_F_LLTX;
+	dev->lltx = true;
 	dev->features |= XFRMI_FEATURES;
 	dev->hw_features |= XFRMI_FEATURES;
 

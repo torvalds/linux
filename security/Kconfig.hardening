@@ -127,6 +127,7 @@ choice
 		  repeating for all types and padding except float and double
 		  which use 0xFF repeating (-NaN). Clang on 32-bit uses 0xFF
 		  repeating for all types and padding.
+		  GCC uses 0xFE repeating for all types, and zero for padding.
 
 	config INIT_STACK_ALL_ZERO
 		bool "zero-init everything (strongest and safest)"
@@ -340,7 +341,7 @@ choice
 	config RANDSTRUCT_FULL
 		bool "Fully randomize structure layout"
 		depends on CC_HAS_RANDSTRUCT || GCC_PLUGINS
-		select MODVERSIONS if MODULES
+		select MODVERSIONS if MODULES && !COMPILE_TEST
 		help
 		  Fully randomize the member layout of sensitive
 		  structures as much as possible, which may have both a
@@ -356,7 +357,7 @@ choice
 	config RANDSTRUCT_PERFORMANCE
 		bool "Limit randomization of structure layout to cache-lines"
 		depends on GCC_PLUGINS
-		select MODVERSIONS if MODULES
+		select MODVERSIONS if MODULES && !COMPILE_TEST
 		help
 		  Randomization of sensitive kernel structures will make a
 		  best effort at restricting randomization to cacheline-sized

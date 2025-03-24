@@ -53,7 +53,7 @@
 		};
 	};
 
-	vcc5v0_usb30: vcc5v0-usb30-regulator {
+	vcc5v0_usb30: regulator-vcc5v0-usb30 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb30";
 		enable-active-high;
@@ -66,7 +66,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcca1v8_image: vcca1v8-image-regulator {
+	vcca1v8_image: regulator-vcca1v8-image {
 		compatible = "regulator-fixed";
 		regulator-name = "vcca1v8_image";
 		regulator-always-on;
@@ -76,7 +76,7 @@
 		vin-supply = <&vcc_1v8_p>;
 	};
 
-	vdda0v9_image: vdda0v9-image-regulator {
+	vdda0v9_image: regulator-vdda0v9-image {
 		compatible = "regulator-fixed";
 		regulator-name = "vcca0v9_image";
 		regulator-always-on;

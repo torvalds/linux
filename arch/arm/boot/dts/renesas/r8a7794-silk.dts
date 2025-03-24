@@ -262,8 +262,7 @@
 		hdmi@39 {
 			compatible = "adi,adv7511w";
 			reg = <0x39>;
-			interrupt-parent = <&gpio5>;
-			interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+			interrupts-extended = <&gpio5 23 IRQ_TYPE_LEVEL_LOW>;
 
 			avdd-supply = <&d1_8v>;
 			dvdd-supply = <&d1_8v>;
@@ -415,8 +414,7 @@
 		compatible = "ethernet-phy-id0022.1537",
 			     "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
-		interrupt-parent = <&irqc0>;
-		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&irqc0 8 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 	};
@@ -436,8 +434,7 @@
 	pmic@58 {
 		compatible = "dlg,da9063";
 		reg = <0x58>;
-		interrupt-parent = <&gpio3>;
-		interrupts = <31 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio3 31 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 

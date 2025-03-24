@@ -655,8 +655,8 @@ static int meson_spicc_pow2_clk_init(struct meson_spicc_device *spicc)
 	}
 	init.num_parents = 1;
 
-	pow2_fixed_div->mult = 1,
-	pow2_fixed_div->div = 4,
+	pow2_fixed_div->mult = 1;
+	pow2_fixed_div->div = 4;
 	pow2_fixed_div->hw.init = &init;
 
 	clk = devm_clk_register(dev, &pow2_fixed_div->hw);
@@ -674,9 +674,9 @@ static int meson_spicc_pow2_clk_init(struct meson_spicc_device *spicc)
 	parent_data[0].hw = &pow2_fixed_div->hw;
 	init.num_parents = 1;
 
-	spicc->pow2_div.shift = 16,
-	spicc->pow2_div.width = 3,
-	spicc->pow2_div.flags = CLK_DIVIDER_POWER_OF_TWO,
+	spicc->pow2_div.shift = 16;
+	spicc->pow2_div.width = 3;
+	spicc->pow2_div.flags = CLK_DIVIDER_POWER_OF_TWO;
 	spicc->pow2_div.reg = spicc->base + SPICC_CONREG;
 	spicc->pow2_div.hw.init = &init;
 
@@ -721,8 +721,8 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 	}
 	init.num_parents = 1;
 
-	enh_fixed_div->mult = 1,
-	enh_fixed_div->div = 2,
+	enh_fixed_div->mult = 1;
+	enh_fixed_div->div = 2;
 	enh_fixed_div->hw.init = &init;
 
 	clk = devm_clk_register(dev, &enh_fixed_div->hw);
@@ -740,8 +740,8 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 	parent_data[0].hw = &enh_fixed_div->hw;
 	init.num_parents = 1;
 
-	enh_div->shift	= 16,
-	enh_div->width	= 8,
+	enh_div->shift	= 16;
+	enh_div->width	= 8;
 	enh_div->reg = spicc->base + SPICC_ENH_CTL0;
 	enh_div->hw.init = &init;
 
@@ -761,8 +761,8 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 	init.num_parents = 2;
 	init.flags = CLK_SET_RATE_PARENT;
 
-	mux->mask = 0x1,
-	mux->shift = 24,
+	mux->mask = 0x1;
+	mux->shift = 24;
 	mux->reg = spicc->base + SPICC_ENH_CTL0;
 	mux->hw.init = &init;
 
@@ -949,7 +949,7 @@ MODULE_DEVICE_TABLE(of, meson_spicc_of_match);
 
 static struct platform_driver meson_spicc_driver = {
 	.probe   = meson_spicc_probe,
-	.remove_new = meson_spicc_remove,
+	.remove = meson_spicc_remove,
 	.driver  = {
 		.name = "meson-spicc",
 		.of_match_table = of_match_ptr(meson_spicc_of_match),

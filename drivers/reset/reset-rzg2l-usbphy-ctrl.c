@@ -176,6 +176,7 @@ static int rzg2l_usbphy_ctrl_probe(struct platform_device *pdev)
 	vdev->dev.parent = dev;
 	priv->vdev = vdev;
 
+	device_set_of_node_from_dev(&vdev->dev, dev);
 	error = platform_device_add(vdev);
 	if (error)
 		goto err_device_put;
@@ -208,7 +209,7 @@ static struct platform_driver rzg2l_usbphy_ctrl_driver = {
 		.of_match_table	= rzg2l_usbphy_ctrl_match_table,
 	},
 	.probe	= rzg2l_usbphy_ctrl_probe,
-	.remove_new = rzg2l_usbphy_ctrl_remove,
+	.remove = rzg2l_usbphy_ctrl_remove,
 };
 module_platform_driver(rzg2l_usbphy_ctrl_driver);
 

@@ -274,6 +274,8 @@
 					clocks = <&clks IMX6UL_CLK_UART7_IPG>,
 						 <&clks IMX6UL_CLK_UART7_SERIAL>;
 					clock-names = "ipg", "per";
+					dmas = <&sdma 43 4 0>, <&sdma 44 4 0>;
+					dma-names = "rx", "tx";
 					status = "disabled";
 				};
 
@@ -285,6 +287,8 @@
 					clocks = <&clks IMX6UL_CLK_UART1_IPG>,
 						 <&clks IMX6UL_CLK_UART1_SERIAL>;
 					clock-names = "ipg", "per";
+					dmas = <&sdma 25 4 0>, <&sdma 26 4 0>;
+					dma-names = "rx", "tx";
 					status = "disabled";
 				};
 
@@ -296,6 +300,8 @@
 					clocks = <&clks IMX6UL_CLK_UART8_IPG>,
 						 <&clks IMX6UL_CLK_UART8_SERIAL>;
 					clock-names = "ipg", "per";
+					dmas = <&sdma 45 4 0>, <&sdma 46 4 0>;
+					dma-names = "rx", "tx";
 					status = "disabled";
 				};
 
@@ -1075,6 +1081,8 @@
 				clocks = <&clks IMX6UL_CLK_UART2_IPG>,
 					 <&clks IMX6UL_CLK_UART2_SERIAL>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 27 4 0>, <&sdma 28 4 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -1086,6 +1094,8 @@
 				clocks = <&clks IMX6UL_CLK_UART3_IPG>,
 					 <&clks IMX6UL_CLK_UART3_SERIAL>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 29 4 0>, <&sdma 30 4 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -1097,6 +1107,8 @@
 				clocks = <&clks IMX6UL_CLK_UART4_IPG>,
 					 <&clks IMX6UL_CLK_UART4_SERIAL>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 31 4 0>, <&sdma 32 4 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -1108,6 +1120,8 @@
 				clocks = <&clks IMX6UL_CLK_UART5_IPG>,
 					 <&clks IMX6UL_CLK_UART5_SERIAL>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 33 4 0>, <&sdma 34 4 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -1129,6 +1143,8 @@
 				clocks = <&clks IMX6UL_CLK_UART6_IPG>,
 					 <&clks IMX6UL_CLK_UART6_SERIAL>;
 				clock-names = "ipg", "per";
+				dmas = <&sdma 0 4 0>, <&sdma 47 4 0>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 		};

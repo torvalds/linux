@@ -66,7 +66,7 @@ static void kirkwood_cpuidle_remove(struct platform_device *pdev)
 
 static struct platform_driver kirkwood_cpuidle_driver = {
 	.probe = kirkwood_cpuidle_probe,
-	.remove_new = kirkwood_cpuidle_remove,
+	.remove = kirkwood_cpuidle_remove,
 	.driver = {
 		   .name = "kirkwood_cpuidle",
 		   },

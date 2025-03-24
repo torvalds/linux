@@ -49,11 +49,14 @@ Link frequency
 The :ref:`V4L2_CID_LINK_FREQ <v4l2-cid-link-freq>` control is used to tell the
 receiver the frequency of the bus (i.e. it is not the same as the symbol rate).
 
-``.s_stream()`` callback
-^^^^^^^^^^^^^^^^^^^^^^^^
+``.enable_streams()`` and ``.disable_streams()`` callbacks
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The struct struct v4l2_subdev_video_ops->s_stream() callback is used by the
-receiver driver to control the transmitter driver's streaming state.
+The struct v4l2_subdev_pad_ops->enable_streams() and struct
+v4l2_subdev_pad_ops->disable_streams() callbacks are used by the receiver driver
+to control the transmitter driver's streaming state. These callbacks may not be
+called directly, but by using ``v4l2_subdev_enable_streams()`` and
+``v4l2_subdev_disable_streams()``.
 
 
 CSI-2 transmitter drivers
@@ -76,14 +79,15 @@ where
    * - link_freq
      - The value of the ``V4L2_CID_LINK_FREQ`` integer64 menu item.
    * - nr_of_lanes
-     - Number of data lanes used on the CSI-2 link. This can
-       be obtained from the OF endpoint configuration.
+     - Number of data lanes used on the CSI-2 link.
    * - 2
      - Data is transferred on both rising and falling edge of the signal.
    * - bits_per_sample
      - Number of bits per sample.
    * - k
-     - 16 for D-PHY and 7 for C-PHY
+     - 16 for D-PHY and 7 for C-PHY.
+
+Information on whether D-PHY or C-PHY is used, and the value of ``nr_of_lanes``, can be obtained from the OF endpoint configuration.
 
 .. note::
 
@@ -127,7 +131,7 @@ Stopping the transmitter
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 A transmitter stops sending the stream of images as a result of
-calling the ``.s_stream()`` callback. Some transmitters may stop the
+calling the ``.disable_streams()`` callback. Some transmitters may stop the
 stream at a frame boundary whereas others stop immediately,
 effectively leaving the current frame unfinished. The receiver driver
 should not make assumptions either way, but function properly in both

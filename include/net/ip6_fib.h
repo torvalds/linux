@@ -394,7 +394,7 @@ struct fib6_table {
 	struct fib6_node	tb6_root;
 	struct inet_peer_base	tb6_peers;
 	unsigned int		flags;
-	unsigned int		fib_seq;
+	unsigned int		fib_seq; /* writes protected by rtnl_mutex */
 	struct hlist_head       tb6_gc_hlist;	/* GC candidates */
 #define RT6_TABLE_HAS_DFLT_ROUTER	BIT(0)
 };
@@ -563,7 +563,7 @@ int call_fib6_notifiers(struct net *net, enum fib_event_type event_type,
 int __net_init fib6_notifier_init(struct net *net);
 void __net_exit fib6_notifier_exit(struct net *net);
 
-unsigned int fib6_tables_seq_read(struct net *net);
+unsigned int fib6_tables_seq_read(const struct net *net);
 int fib6_tables_dump(struct net *net, struct notifier_block *nb,
 		     struct netlink_ext_ack *extack);
 
@@ -632,7 +632,7 @@ void fib6_rules_cleanup(void);
 bool fib6_rule_default(const struct fib_rule *rule);
 int fib6_rules_dump(struct net *net, struct notifier_block *nb,
 		    struct netlink_ext_ack *extack);
-unsigned int fib6_rules_seq_read(struct net *net);
+unsigned int fib6_rules_seq_read(const struct net *net);
 
 static inline bool fib6_rules_early_flow_dissect(struct net *net,
 						 struct sk_buff *skb,
@@ -676,7 +676,7 @@ static inline int fib6_rules_dump(struct net *net, struct notifier_block *nb,
 {
 	return 0;
 }
-static inline unsigned int fib6_rules_seq_read(struct net *net)
+static inline unsigned int fib6_rules_seq_read(const struct net *net)
 {
 	return 0;
 }

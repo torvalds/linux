@@ -58,23 +58,22 @@ EXPORT_SYMBOL(lockref_get);
  * @lockref: pointer to lockref structure
  * Return: 1 if count updated successfully or 0 if count was zero
  */
-int lockref_get_not_zero(struct lockref *lockref)
+bool lockref_get_not_zero(struct lockref *lockref)
 {
-	int retval;
+	bool retval = false;
 
 	CMPXCHG_LOOP(
 		new.count++;
 		if (old.count <= 0)
-			return 0;
+			return false;
 	,
-		return 1;
+		return true;
 	);
 
 	spin_lock(&lockref->lock);
-	retval = 0;
 	if (lockref->count > 0) {
 		lockref->count++;
-		retval = 1;
+		retval = true;
 	}
 	spin_unlock(&lockref->lock);
 	return retval;
@@ -82,39 +81,11 @@ int lockref_get_not_zero(struct lockref *lockref)
 EXPORT_SYMBOL(lockref_get_not_zero);
 
 /**
- * lockref_put_not_zero - Decrements count unless count <= 1 before decrement
- * @lockref: pointer to lockref structure
- * Return: 1 if count updated successfully or 0 if count would become zero
- */
-int lockref_put_not_zero(struct lockref *lockref)
-{
-	int retval;
-
-	CMPXCHG_LOOP(
-		new.count--;
-		if (old.count <= 1)
-			return 0;
-	,
-		return 1;
-	);
-
-	spin_lock(&lockref->lock);
-	retval = 0;
-	if (lockref->count > 1) {
-		lockref->count--;
-		retval = 1;
-	}
-	spin_unlock(&lockref->lock);
-	return retval;
-}
-EXPORT_SYMBOL(lockref_put_not_zero);
-
-/**
  * lockref_put_return - Decrement reference count if possible
  * @lockref: pointer to lockref structure
  *
  * Decrement the reference count and return the new value.
- * If the lockref was dead or locked, return an error.
+ * If the lockref was dead or locked, return -1.
  */
 int lockref_put_return(struct lockref *lockref)
 {
@@ -134,22 +105,22 @@ EXPORT_SYMBOL(lockref_put_return);
  * @lockref: pointer to lockref structure
  * Return: 1 if count updated successfully or 0 if count <= 1 and lock taken
  */
-int lockref_put_or_lock(struct lockref *lockref)
+bool lockref_put_or_lock(struct lockref *lockref)
 {
 	CMPXCHG_LOOP(
 		new.count--;
 		if (old.count <= 1)
 			break;
 	,
-		return 1;
+		return true;
 	);
 
 	spin_lock(&lockref->lock);
 	if (lockref->count <= 1)
-		return 0;
+		return false;
 	lockref->count--;
 	spin_unlock(&lockref->lock);
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(lockref_put_or_lock);
 
@@ -169,23 +140,22 @@ EXPORT_SYMBOL(lockref_mark_dead);
  * @lockref: pointer to lockref structure
  * Return: 1 if count updated successfully or 0 if lockref was dead
  */
-int lockref_get_not_dead(struct lockref *lockref)
+bool lockref_get_not_dead(struct lockref *lockref)
 {
-	int retval;
+	bool retval = false;
 
 	CMPXCHG_LOOP(
 		new.count++;
 		if (old.count < 0)
-			return 0;
+			return false;
 	,
-		return 1;
+		return true;
 	);
 
 	spin_lock(&lockref->lock);
-	retval = 0;
 	if (lockref->count >= 0) {
 		lockref->count++;
-		retval = 1;
+		retval = true;
 	}
 	spin_unlock(&lockref->lock);
 	return retval;

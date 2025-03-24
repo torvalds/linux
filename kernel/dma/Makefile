@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
 obj-$(CONFIG_HAS_DMA)			+= mapping.o direct.o
-obj-$(CONFIG_DMA_OPS)			+= ops_helpers.o
-obj-$(CONFIG_DMA_OPS)			+= dummy.o
+obj-$(CONFIG_DMA_OPS_HELPERS)		+= ops_helpers.o
+obj-$(CONFIG_ARCH_HAS_DMA_OPS)		+= dummy.o
 obj-$(CONFIG_DMA_CMA)			+= contiguous.o
 obj-$(CONFIG_DMA_DECLARE_COHERENT)	+= coherent.o
 obj-$(CONFIG_DMA_API_DEBUG)		+= debug.o

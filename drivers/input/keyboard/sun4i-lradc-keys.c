@@ -24,7 +24,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
-#include <linux/pm_wakeup.h>
 #include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -202,7 +201,7 @@ static void sun4i_lradc_close(struct input_dev *dev)
 static int sun4i_lradc_load_dt_keymap(struct device *dev,
 				      struct sun4i_lradc_data *lradc)
 {
-	struct device_node *np, *pp;
+	struct device_node *np;
 	int i;
 	int error;
 
@@ -223,28 +222,25 @@ static int sun4i_lradc_load_dt_keymap(struct device *dev,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_child_of_node(np, pp) {
+	for_each_child_of_node_scoped(np, pp) {
 		struct sun4i_lradc_keymap *map = &lradc->chan0_map[i];
 		u32 channel;
 
 		error = of_property_read_u32(pp, "channel", &channel);
 		if (error || channel != 0) {
 			dev_err(dev, "%pOFn: Inval channel prop\n", pp);
-			of_node_put(pp);
 			return -EINVAL;
 		}
 
 		error = of_property_read_u32(pp, "voltage", &map->voltage);
 		if (error) {
 			dev_err(dev, "%pOFn: Inval voltage prop\n", pp);
-			of_node_put(pp);
 			return -EINVAL;
 		}
 
 		error = of_property_read_u32(pp, "linux,code", &map->keycode);
 		if (error) {
 			dev_err(dev, "%pOFn: Inval linux,code prop\n", pp);
-			of_node_put(pp);
 			return -EINVAL;
 		}
 

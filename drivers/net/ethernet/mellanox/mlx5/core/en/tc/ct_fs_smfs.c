@@ -13,7 +13,6 @@
 #define INIT_ERR_PREFIX "ct_fs_smfs init failed"
 #define ct_dbg(fmt, args...)\
 	netdev_dbg(fs->netdev, "ct_fs_smfs debug: " fmt "\n", ##args)
-#define MLX5_CT_TCP_FLAGS_MASK cpu_to_be16(be32_to_cpu(TCP_FLAG_RST | TCP_FLAG_FIN) >> 16)
 
 struct mlx5_ct_fs_smfs_matcher {
 	struct mlx5dr_matcher *dr_matcher;
@@ -220,78 +219,6 @@ mlx5_ct_fs_smfs_destroy(struct mlx5_ct_fs *fs)
 	mlx5_smfs_action_destroy(fs_smfs->fwd_action);
 }
 
-static inline bool
-mlx5_tc_ct_valid_used_dissector_keys(const u64 used_keys)
-{
-#define DISS_BIT(name) BIT_ULL(FLOW_DISSECTOR_KEY_ ## name)
-	const u64 basic_keys = DISS_BIT(BASIC) | DISS_BIT(CONTROL) |
-				DISS_BIT(META);
-	const u64 ipv4_tcp = basic_keys | DISS_BIT(IPV4_ADDRS) |
-				DISS_BIT(PORTS) | DISS_BIT(TCP);
-	const u64 ipv6_tcp = basic_keys | DISS_BIT(IPV6_ADDRS) |
-				DISS_BIT(PORTS) | DISS_BIT(TCP);
-	const u64 ipv4_udp = basic_keys | DISS_BIT(IPV4_ADDRS) |
-				DISS_BIT(PORTS);
-	const u64 ipv6_udp = basic_keys | DISS_BIT(IPV6_ADDRS) |
-				 DISS_BIT(PORTS);
-	const u64 ipv4_gre = basic_keys | DISS_BIT(IPV4_ADDRS);
-	const u64 ipv6_gre = basic_keys | DISS_BIT(IPV6_ADDRS);
-
-	return (used_keys == ipv4_tcp || used_keys == ipv4_udp || used_keys == ipv6_tcp ||
-		used_keys == ipv6_udp || used_keys == ipv4_gre || used_keys == ipv6_gre);
-}
-
-static bool
-mlx5_ct_fs_smfs_ct_validate_flow_rule(struct mlx5_ct_fs *fs, struct flow_rule *flow_rule)
-{
-	struct flow_match_ipv4_addrs ipv4_addrs;
-	struct flow_match_ipv6_addrs ipv6_addrs;
-	struct flow_match_control control;
-	struct flow_match_basic basic;
-	struct flow_match_ports ports;
-	struct flow_match_tcp tcp;
-
-	if (!mlx5_tc_ct_valid_used_dissector_keys(flow_rule->match.dissector->used_keys)) {
-		ct_dbg("rule uses unexpected dissectors (0x%016llx)",
-		       flow_rule->match.dissector->used_keys);
-		return false;
-	}
-
-	flow_rule_match_basic(flow_rule, &basic);
-	flow_rule_match_control(flow_rule, &control);
-	flow_rule_match_ipv4_addrs(flow_rule, &ipv4_addrs);
-	flow_rule_match_ipv6_addrs(flow_rule, &ipv6_addrs);
-	if (basic.key->ip_proto != IPPROTO_GRE)
-		flow_rule_match_ports(flow_rule, &ports);
-	if (basic.key->ip_proto == IPPROTO_TCP)
-		flow_rule_match_tcp(flow_rule, &tcp);
-
-	if (basic.mask->n_proto != htons(0xFFFF) ||
-	    (basic.key->n_proto != htons(ETH_P_IP) && basic.key->n_proto != htons(ETH_P_IPV6)) ||
-	    basic.mask->ip_proto != 0xFF ||
-	    (basic.key->ip_proto != IPPROTO_UDP && basic.key->ip_proto != IPPROTO_TCP &&
-	     basic.key->ip_proto != IPPROTO_GRE)) {
-		ct_dbg("rule uses unexpected basic match (n_proto 0x%04x/0x%04x, ip_proto 0x%02x/0x%02x)",
-		       ntohs(basic.key->n_proto), ntohs(basic.mask->n_proto),
-		       basic.key->ip_proto, basic.mask->ip_proto);
-		return false;
-	}
-
-	if (basic.key->ip_proto != IPPROTO_GRE &&
-	    (ports.mask->src != htons(0xFFFF) || ports.mask->dst != htons(0xFFFF))) {
-		ct_dbg("rule uses ports match (src 0x%04x, dst 0x%04x)",
-		       ports.mask->src, ports.mask->dst);
-		return false;
-	}
-
-	if (basic.key->ip_proto == IPPROTO_TCP && tcp.mask->flags != MLX5_CT_TCP_FLAGS_MASK) {
-		ct_dbg("rule uses unexpected tcp match (flags 0x%02x)", tcp.mask->flags);
-		return false;
-	}
-
-	return true;
-}
-
 static struct mlx5_ct_fs_rule *
 mlx5_ct_fs_smfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 			    struct mlx5_flow_attr *attr, struct flow_rule *flow_rule)
@@ -304,7 +231,7 @@ mlx5_ct_fs_smfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 	int num_actions = 0, err;
 	bool nat, tcp, ipv4, gre;
 
-	if (!mlx5_ct_fs_smfs_ct_validate_flow_rule(fs, flow_rule))
+	if (!mlx5e_tc_ct_is_valid_flow_rule(fs->netdev, flow_rule))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	smfs_rule = kzalloc(sizeof(*smfs_rule), GFP_KERNEL);
@@ -318,7 +245,7 @@ mlx5_ct_fs_smfs_ct_rule_add(struct mlx5_ct_fs *fs, struct mlx5_flow_spec *spec,
 	}
 
 	actions[num_actions++] = smfs_rule->count_action;
-	actions[num_actions++] = attr->modify_hdr->action.dr_action;
+	actions[num_actions++] = attr->modify_hdr->fs_dr_action.dr_action;
 	actions[num_actions++] = fs_smfs->fwd_action;
 
 	nat = (attr->ft == fs_smfs->ct_nat);
@@ -368,9 +295,35 @@ mlx5_ct_fs_smfs_ct_rule_del(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_ru
 	kfree(smfs_rule);
 }
 
+static int mlx5_ct_fs_smfs_ct_rule_update(struct mlx5_ct_fs *fs, struct mlx5_ct_fs_rule *fs_rule,
+					  struct mlx5_flow_spec *spec, struct mlx5_flow_attr *attr)
+{
+	struct mlx5_ct_fs_smfs_rule *smfs_rule = container_of(fs_rule,
+							      struct mlx5_ct_fs_smfs_rule,
+							      fs_rule);
+	struct mlx5_ct_fs_smfs *fs_smfs = mlx5_ct_fs_priv(fs);
+	struct mlx5dr_action *actions[3];  /* We only need to create 3 actions, see below. */
+	struct mlx5dr_rule *rule;
+
+	actions[0] = smfs_rule->count_action;
+	actions[1] = attr->modify_hdr->fs_dr_action.dr_action;
+	actions[2] = fs_smfs->fwd_action;
+
+	rule = mlx5_smfs_rule_create(smfs_rule->smfs_matcher->dr_matcher, spec,
+				     ARRAY_SIZE(actions), actions, spec->flow_context.flow_source);
+	if (!rule)
+		return -EINVAL;
+
+	mlx5_smfs_rule_destroy(smfs_rule->rule);
+	smfs_rule->rule = rule;
+
+	return 0;
+}
+
 static struct mlx5_ct_fs_ops fs_smfs_ops = {
 	.ct_rule_add = mlx5_ct_fs_smfs_ct_rule_add,
 	.ct_rule_del = mlx5_ct_fs_smfs_ct_rule_del,
+	.ct_rule_update = mlx5_ct_fs_smfs_ct_rule_update,
 
 	.init = mlx5_ct_fs_smfs_init,
 	.destroy = mlx5_ct_fs_smfs_destroy,

@@ -22,7 +22,7 @@
 #include <linux/spi/spi.h>
 
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* register map */
 #define LTC2983_STATUS_REG			0x0000

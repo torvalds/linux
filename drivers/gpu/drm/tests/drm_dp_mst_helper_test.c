@@ -199,10 +199,8 @@ static const struct drm_dp_mst_calc_pbn_div_test drm_dp_mst_calc_pbn_div_dp1_4_c
 static void drm_test_dp_mst_calc_pbn_div(struct kunit *test)
 {
 	const struct drm_dp_mst_calc_pbn_div_test *params = test->param_value;
-	/* mgr->dev is only needed by drm_dbg_kms(), but it's not called for the test cases. */
-	struct drm_dp_mst_topology_mgr *mgr = test->priv;
 
-	KUNIT_EXPECT_EQ(test, drm_dp_get_vc_payload_bw(mgr, params->link_rate, params->lane_count).full,
+	KUNIT_EXPECT_EQ(test, drm_dp_get_vc_payload_bw(params->link_rate, params->lane_count).full,
 			params->expected.full);
 }
 
@@ -568,21 +566,8 @@ static struct kunit_case drm_dp_mst_helper_tests[] = {
 	{ }
 };
 
-static int drm_dp_mst_helper_tests_init(struct kunit *test)
-{
-	struct drm_dp_mst_topology_mgr *mgr;
-
-	mgr = kunit_kzalloc(test, sizeof(*mgr), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, mgr);
-
-	test->priv = mgr;
-
-	return 0;
-}
-
 static struct kunit_suite drm_dp_mst_helper_test_suite = {
 	.name = "drm_dp_mst_helper",
-	.init = drm_dp_mst_helper_tests_init,
 	.test_cases = drm_dp_mst_helper_tests,
 };
 

@@ -61,14 +61,14 @@ void rmi_f03_commit_buttons(struct rmi_function *fn)
 	struct f03_data *f03 = dev_get_drvdata(&fn->dev);
 	struct serio *serio = f03->serio;
 
-	serio_pause_rx(serio);
+	guard(serio_pause_rx)(serio);
+
 	if (serio->drv) {
 		serio->drv->interrupt(serio, PSMOUSE_OOB_EXTRA_BTNS,
 				      SERIO_OOB_DATA);
 		serio->drv->interrupt(serio, f03->overwrite_buttons,
 				      SERIO_OOB_DATA);
 	}
-	serio_continue_rx(serio);
 }
 
 static int rmi_f03_pt_write(struct serio *id, unsigned char val)

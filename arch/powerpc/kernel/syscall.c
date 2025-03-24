@@ -27,7 +27,7 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 
 	trace_hardirqs_off(); /* finish reconciling */
 
-	CT_WARN_ON(ct_state() == CONTEXT_KERNEL);
+	CT_WARN_ON(ct_state() == CT_STATE_KERNEL);
 	user_exit_irqoff();
 
 	BUG_ON(regs_is_unrecoverable(regs));

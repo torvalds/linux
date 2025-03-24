@@ -447,7 +447,7 @@ struct st_lsm6dsx_hw {
 	/* Ensure natural alignment of buffer elements */
 	struct {
 		__le16 channels[3];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan[ST_LSM6DSX_ID_MAX];
 };
 

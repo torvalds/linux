@@ -30,6 +30,7 @@ properties:
               - qcom,sdm845-dsi-ctrl
               - qcom,sm6115-dsi-ctrl
               - qcom,sm6125-dsi-ctrl
+              - qcom,sm6150-dsi-ctrl
               - qcom,sm6350-dsi-ctrl
               - qcom,sm6375-dsi-ctrl
               - qcom,sm7150-dsi-ctrl
@@ -349,6 +350,7 @@ allOf:
             enum:
               - qcom,sc7180-dsi-ctrl
               - qcom,sc7280-dsi-ctrl
+              - qcom,sm6150-dsi-ctrl
               - qcom,sm7150-dsi-ctrl
               - qcom,sm8150-dsi-ctrl
               - qcom,sm8250-dsi-ctrl
@@ -416,63 +418,63 @@ unevaluatedProperties: false
 
 examples:
   - |
-     #include <dt-bindings/interrupt-controller/arm-gic.h>
-     #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
-     #include <dt-bindings/clock/qcom,gcc-sdm845.h>
-     #include <dt-bindings/power/qcom-rpmpd.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
+    #include <dt-bindings/clock/qcom,gcc-sdm845.h>
+    #include <dt-bindings/power/qcom-rpmpd.h>
 
-     dsi@ae94000 {
-           compatible = "qcom,sc7180-dsi-ctrl", "qcom,mdss-dsi-ctrl";
-           reg = <0x0ae94000 0x400>;
-           reg-names = "dsi_ctrl";
+    dsi@ae94000 {
+        compatible = "qcom,sc7180-dsi-ctrl", "qcom,mdss-dsi-ctrl";
+        reg = <0x0ae94000 0x400>;
+        reg-names = "dsi_ctrl";
 
-           #address-cells = <1>;
-           #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-           interrupt-parent = <&mdss>;
-           interrupts = <4>;
+        interrupt-parent = <&mdss>;
+        interrupts = <4>;
 
-           clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK>,
-                    <&dispcc DISP_CC_MDSS_BYTE0_INTF_CLK>,
-                    <&dispcc DISP_CC_MDSS_PCLK0_CLK>,
-                    <&dispcc DISP_CC_MDSS_ESC0_CLK>,
-                    <&dispcc DISP_CC_MDSS_AHB_CLK>,
-                    <&dispcc DISP_CC_MDSS_AXI_CLK>;
-           clock-names = "byte",
-                         "byte_intf",
-                         "pixel",
-                         "core",
-                         "iface",
-                         "bus";
+        clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK>,
+                 <&dispcc DISP_CC_MDSS_BYTE0_INTF_CLK>,
+                 <&dispcc DISP_CC_MDSS_PCLK0_CLK>,
+                 <&dispcc DISP_CC_MDSS_ESC0_CLK>,
+                 <&dispcc DISP_CC_MDSS_AHB_CLK>,
+                 <&dispcc DISP_CC_MDSS_AXI_CLK>;
+        clock-names = "byte",
+                      "byte_intf",
+                      "pixel",
+                      "core",
+                      "iface",
+                      "bus";
 
-           phys = <&dsi0_phy>;
-           phy-names = "dsi";
+        phys = <&dsi0_phy>;
+        phy-names = "dsi";
 
-           assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK_SRC>, <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
-           assigned-clock-parents = <&dsi_phy 0>, <&dsi_phy 1>;
+        assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK_SRC>, <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
+        assigned-clock-parents = <&dsi_phy 0>, <&dsi_phy 1>;
 
-           power-domains = <&rpmhpd SC7180_CX>;
-           operating-points-v2 = <&dsi_opp_table>;
+        power-domains = <&rpmhpd SC7180_CX>;
+        operating-points-v2 = <&dsi_opp_table>;
 
-           ports {
-                  #address-cells = <1>;
-                  #size-cells = <0>;
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-                  port@0 {
-                          reg = <0>;
-                          dsi0_in: endpoint {
-                                   remote-endpoint = <&dpu_intf1_out>;
-                          };
-                  };
+            port@0 {
+                reg = <0>;
+                endpoint {
+                    remote-endpoint = <&dpu_intf1_out>;
+                };
+            };
 
-                  port@1 {
-                          reg = <1>;
-                          dsi0_out: endpoint {
-                                   remote-endpoint = <&sn65dsi86_in>;
-                                   data-lanes = <0 1 2 3>;
-                                   qcom,te-source = "mdp_vsync_e";
-                          };
-                  };
-           };
-     };
+            port@1 {
+                reg = <1>;
+                endpoint {
+                    remote-endpoint = <&sn65dsi86_in>;
+                    data-lanes = <0 1 2 3>;
+                    qcom,te-source = "mdp_vsync_e";
+                };
+            };
+        };
+    };
 ...

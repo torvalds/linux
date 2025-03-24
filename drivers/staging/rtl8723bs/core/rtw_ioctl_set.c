@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include <drv_types.h>
-#include <rtw_debug.h>
 
 u8 rtw_validate_bssid(u8 *bssid)
 {

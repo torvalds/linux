@@ -2,7 +2,7 @@
 /* Copyright (c) 2021 Facebook */
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
-#include "../bpf_testmod/bpf_testmod_kfunc.h"
+#include "../test_kmods/bpf_testmod_kfunc.h"
 
 struct syscall_test_args {
 	__u8 data[16];
@@ -148,6 +148,13 @@ int kfunc_call_test_mem_acquire_fail(struct __sk_buff *skb)
 		bpf_kfunc_call_test_release(pt);
 	}
 	return ret;
+}
+
+SEC("?tc")
+int kfunc_call_test_pointer_arg_type_mismatch(struct __sk_buff *skb)
+{
+	bpf_kfunc_call_test_pass_ctx((void *)10);
+	return 0;
 }
 
 char _license[] SEC("license") = "GPL";

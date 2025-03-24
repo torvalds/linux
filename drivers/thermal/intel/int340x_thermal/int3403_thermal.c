@@ -275,13 +275,14 @@ static const struct acpi_device_id int3403_device_ids[] = {
 	{"INTC1062", 0},
 	{"INTC1069", 0},
 	{"INTC10A1", 0},
+	{"INTC10D5", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, int3403_device_ids);
 
 static struct platform_driver int3403_driver = {
 	.probe = int3403_add,
-	.remove_new = int3403_remove,
+	.remove = int3403_remove,
 	.driver = {
 		.name = "int3403 thermal",
 		.acpi_match_table = int3403_device_ids,

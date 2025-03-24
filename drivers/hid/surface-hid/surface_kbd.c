@@ -7,7 +7,7 @@
  * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/hid.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -284,7 +284,7 @@ MODULE_DEVICE_TABLE(acpi, surface_kbd_match);
 
 static struct platform_driver surface_kbd_driver = {
 	.probe = surface_kbd_probe,
-	.remove_new = surface_kbd_remove,
+	.remove = surface_kbd_remove,
 	.driver = {
 		.name = "surface_keyboard",
 		.acpi_match_table = surface_kbd_match,

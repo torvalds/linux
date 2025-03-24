@@ -64,11 +64,6 @@ static int tsc2005_probe(struct spi_device *spi)
 			     tsc2005_cmd);
 }
 
-static void tsc2005_remove(struct spi_device *spi)
-{
-	tsc200x_remove(&spi->dev);
-}
-
 #ifdef CONFIG_OF
 static const struct of_device_id tsc2005_of_match[] = {
 	{ .compatible = "ti,tsc2005" },
@@ -85,7 +80,6 @@ static struct spi_driver tsc2005_driver = {
 		.pm		= pm_sleep_ptr(&tsc200x_pm_ops),
 	},
 	.probe	= tsc2005_probe,
-	.remove	= tsc2005_remove,
 };
 module_spi_driver(tsc2005_driver);
 

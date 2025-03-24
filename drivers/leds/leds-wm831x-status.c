@@ -292,7 +292,7 @@ static struct platform_driver wm831x_status_driver = {
 		   .name = "wm831x-status",
 		   },
 	.probe = wm831x_status_probe,
-	.remove_new = wm831x_status_remove,
+	.remove = wm831x_status_remove,
 };
 
 module_platform_driver(wm831x_status_driver);

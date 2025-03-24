@@ -24,7 +24,6 @@ extern size_t strlen(const char *s);
 extern char *strstr(const char *s1, const char *s2);
 extern char *strchr(const char *s, int c);
 extern size_t strnlen(const char *s, size_t maxlen);
-extern unsigned int atou(const char *s);
 extern unsigned long long simple_strtoull(const char *cp, char **endp,
 					  unsigned int base);
 long simple_strtol(const char *cp, char **endp, unsigned int base);

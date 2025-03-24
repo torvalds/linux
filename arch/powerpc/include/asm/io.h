@@ -970,18 +970,6 @@ static inline void * phys_to_virt(unsigned long address)
 #define phys_to_virt phys_to_virt
 
 /*
- * Change "struct page" to physical address.
- */
-static inline phys_addr_t page_to_phys(struct page *page)
-{
-	unsigned long pfn = page_to_pfn(page);
-
-	WARN_ON(IS_ENABLED(CONFIG_DEBUG_VIRTUAL) && !pfn_valid(pfn));
-
-	return PFN_PHYS(pfn);
-}
-
-/*
  * 32 bits still uses virt_to_bus() for its implementation of DMA
  * mappings se we have to keep it defined here. We also have some old
  * drivers (shame shame shame) that use bus_to_virt() and haven't been

@@ -41,7 +41,7 @@ char *mips_get_machine_name(void)
 
 void __init __dt_setup_arch(void *bph)
 {
-	if (!early_init_dt_scan(bph))
+	if (!early_init_dt_scan(bph, __pa(bph)))
 		return;
 
 	mips_set_machine_name(of_flat_dt_get_machine_name());

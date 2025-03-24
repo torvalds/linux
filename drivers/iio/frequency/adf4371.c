@@ -4,6 +4,7 @@
  *
  * Copyright 2019 Analog Devices Inc.
  */
+#include "linux/dev_printk.h"
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -150,6 +151,7 @@ static const struct regmap_config adf4371_regmap_config = {
 };
 
 struct adf4371_chip_info {
+	const char *name;
 	unsigned int num_channels;
 	const struct iio_chan_spec *channels;
 };
@@ -157,7 +159,6 @@ struct adf4371_chip_info {
 struct adf4371_state {
 	struct spi_device *spi;
 	struct regmap *regmap;
-	struct clk *clkin;
 	/*
 	 * Lock for accessing device registers. Some operations require
 	 * multiple consecutive R/W operations, during which the device
@@ -444,15 +445,16 @@ static const struct iio_chan_spec adf4371_chan[] = {
 	ADF4371_CHANNEL(ADF4371_CH_RF32),
 };
 
-static const struct adf4371_chip_info adf4371_chip_info[] = {
-	[ADF4371] = {
-		.channels = adf4371_chan,
-		.num_channels = 4,
-	},
-	[ADF4372] = {
-		.channels = adf4371_chan,
-		.num_channels = 3,
-	}
+static const struct adf4371_chip_info adf4371_chip_info = {
+	.name = "adf4371",
+	.channels = adf4371_chan,
+	.num_channels = 4,
+};
+
+static const struct adf4371_chip_info adf4372_chip_info = {
+	.name = "adf4372",
+	.channels = adf4371_chan,
+	.num_channels = 3,
 };
 
 static int adf4371_reg_access(struct iio_dev *indio_dev,
@@ -542,10 +544,10 @@ static int adf4371_setup(struct adf4371_state *st)
 
 static int adf4371_probe(struct spi_device *spi)
 {
-	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct iio_dev *indio_dev;
 	struct adf4371_state *st;
 	struct regmap *regmap;
+	struct clk *clkin;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -553,50 +555,49 @@ static int adf4371_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	regmap = devm_regmap_init_spi(spi, &adf4371_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(&spi->dev, "Error initializing spi regmap: %ld\n",
-			PTR_ERR(regmap));
-		return PTR_ERR(regmap);
-	}
+	if (IS_ERR(regmap))
+		return dev_err_probe(&spi->dev, PTR_ERR(regmap),
+				     "Error initializing spi regmap\n");
 
 	st = iio_priv(indio_dev);
-	spi_set_drvdata(spi, indio_dev);
 	st->spi = spi;
 	st->regmap = regmap;
 	mutex_init(&st->lock);
 
-	st->chip_info = &adf4371_chip_info[id->driver_data];
-	indio_dev->name = id->name;
+	st->chip_info = spi_get_device_match_data(spi);
+	if (!st->chip_info)
+		return -ENODEV;
+
+	indio_dev->name = st->chip_info->name;
 	indio_dev->info = &adf4371_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
 
-	st->clkin = devm_clk_get_enabled(&spi->dev, "clkin");
-	if (IS_ERR(st->clkin))
-		return PTR_ERR(st->clkin);
+	clkin = devm_clk_get_enabled(&spi->dev, "clkin");
+	if (IS_ERR(clkin))
+		return dev_err_probe(&spi->dev, PTR_ERR(clkin),
+				     "Failed to get clkin\n");
 
-	st->clkin_freq = clk_get_rate(st->clkin);
+	st->clkin_freq = clk_get_rate(clkin);
 
 	ret = adf4371_setup(st);
-	if (ret < 0) {
-		dev_err(&spi->dev, "ADF4371 setup failed\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&spi->dev, ret, "ADF4371 setup failed\n");
 
 	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id adf4371_id_table[] = {
-	{ "adf4371", ADF4371 },
-	{ "adf4372", ADF4372 },
+	{ "adf4371", (kernel_ulong_t)&adf4371_chip_info },
+	{ "adf4372", (kernel_ulong_t)&adf4372_chip_info },
 	{}
 };
 MODULE_DEVICE_TABLE(spi, adf4371_id_table);
 
 static const struct of_device_id adf4371_of_match[] = {
-	{ .compatible = "adi,adf4371" },
-	{ .compatible = "adi,adf4372" },
+	{ .compatible = "adi,adf4371", .data = &adf4371_chip_info },
+	{ .compatible = "adi,adf4372", .data = &adf4372_chip_info},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adf4371_of_match);

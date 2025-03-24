@@ -782,7 +782,7 @@ MODULE_DEVICE_TABLE(of, csi2dc_of_match);
 
 static struct platform_driver csi2dc_driver = {
 	.probe	= csi2dc_probe,
-	.remove_new = csi2dc_remove,
+	.remove = csi2dc_remove,
 	.driver = {
 		.name =			"microchip-csi2dc",
 		.pm =			&csi2dc_dev_pm_ops,

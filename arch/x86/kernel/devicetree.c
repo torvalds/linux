@@ -2,6 +2,7 @@
 /*
  * Architecture specific OF callbacks.
  */
+#include <linux/acpi.h>
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
@@ -305,7 +306,7 @@ void __init x86_flattree_get_config(void)
 			map_len = size;
 		}
 
-		early_init_dt_verify(dt);
+		early_init_dt_verify(dt, __pa(dt));
 	}
 
 	unflatten_and_copy_device_tree();
@@ -313,6 +314,6 @@ void __init x86_flattree_get_config(void)
 	if (initial_dtb)
 		early_memunmap(dt, map_len);
 #endif
-	if (of_have_populated_dt())
+	if (acpi_disabled && of_have_populated_dt())
 		x86_init.mpparse.parse_smp_cfg = x86_dtb_parse_smp_config;
 }

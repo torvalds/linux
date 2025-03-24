@@ -342,15 +342,13 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
  * @ring: ring we want to submit job to
  * @job: job who wants to use the VMID
  * @id: resulting VMID
- * @fence: fence to wait for if no id could be grabbed
  *
  * Try to reuse a VMID for this submission.
  */
 static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 				 struct amdgpu_ring *ring,
 				 struct amdgpu_job *job,
-				 struct amdgpu_vmid **id,
-				 struct dma_fence **fence)
+				 struct amdgpu_vmid **id)
 {
 	struct amdgpu_device *adev = ring->adev;
 	unsigned vmhub = ring->vm_hub;
@@ -424,12 +422,12 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	if (r || !idle)
 		goto error;
 
-	if (amdgpu_vmid_uses_reserved(vm, vmhub)) {
+	if (amdgpu_vmid_uses_reserved(adev, vm, vmhub)) {
 		r = amdgpu_vmid_grab_reserved(vm, ring, job, &id, fence);
 		if (r || !id)
 			goto error;
 	} else {
-		r = amdgpu_vmid_grab_used(vm, ring, job, &id, fence);
+		r = amdgpu_vmid_grab_used(vm, ring, job, &id);
 		if (r)
 			goto error;
 
@@ -476,15 +474,19 @@ error:
 
 /*
  * amdgpu_vmid_uses_reserved - check if a VM will use a reserved VMID
+ * @adev: amdgpu_device pointer
  * @vm: the VM to check
  * @vmhub: the VMHUB which will be used
  *
  * Returns: True if the VM will use a reserved VMID.
  */
-bool amdgpu_vmid_uses_reserved(struct amdgpu_vm *vm, unsigned int vmhub)
+bool amdgpu_vmid_uses_reserved(struct amdgpu_device *adev,
+			       struct amdgpu_vm *vm, unsigned int vmhub)
 {
 	return vm->reserved_vmid[vmhub] ||
-		(enforce_isolation && (vmhub == AMDGPU_GFXHUB(0)));
+		(adev->enforce_isolation[(vm->root.bo->xcp_id != AMDGPU_XCP_NO_PARTITION) ?
+					 vm->root.bo->xcp_id : 0] &&
+		 AMDGPU_IS_GFXHUB(vmhub));
 }
 
 int amdgpu_vmid_alloc_reserved(struct amdgpu_device *adev,
@@ -600,9 +602,10 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 		}
 	}
 	/* alloc a default reserved vmid to enforce isolation */
-	if (enforce_isolation)
-		amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(0));
-
+	for (i = 0; i < (adev->xcp_mgr ? adev->xcp_mgr->num_xcps : 1); i++) {
+		if (adev->enforce_isolation[i])
+			amdgpu_vmid_alloc_reserved(adev, AMDGPU_GFXHUB(i));
+	}
 }
 
 /**

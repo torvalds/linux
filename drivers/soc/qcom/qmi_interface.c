@@ -195,8 +195,8 @@ static void qmi_send_new_lookup(struct qmi_handle *qmi, struct qmi_service *svc)
  * qmi_add_lookup() - register a new lookup with the name service
  * @qmi:	qmi handle
  * @service:	service id of the request
- * @instance:	instance id of the request
  * @version:	version number of the request
+ * @instance:	instance id of the request
  *
  * Registering a lookup query with the name server will cause the name server
  * to send NEW_SERVER and DEL_SERVER control messages to this socket as

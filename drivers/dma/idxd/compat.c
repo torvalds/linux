@@ -103,4 +103,4 @@ struct idxd_device_driver dsa_drv = {
 };
 
 module_idxd_driver(dsa_drv);
-MODULE_IMPORT_NS(IDXD);
+MODULE_IMPORT_NS("IDXD");

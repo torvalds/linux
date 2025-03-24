@@ -1,0 +1,9 @@
+[
+   {
+           "BriefDescription": "ddr cycles event",
+           "EventCode": "0x00",
+           "EventName": "imx91_ddr.cycles",
+           "Unit": "imx9_ddr",
+           "Compat": "imx91"
+   }
+]

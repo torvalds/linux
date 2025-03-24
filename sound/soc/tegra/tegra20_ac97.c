@@ -448,7 +448,7 @@ static struct platform_driver tegra20_ac97_driver = {
 		.of_match_table = tegra20_ac97_of_match,
 	},
 	.probe = tegra20_ac97_platform_probe,
-	.remove_new = tegra20_ac97_platform_remove,
+	.remove = tegra20_ac97_platform_remove,
 };
 module_platform_driver(tegra20_ac97_driver);
 

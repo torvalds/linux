@@ -21,6 +21,7 @@
 #include "cmd.h"
 #include "port.h"
 #include "resources.h"
+#include "txheader.h"
 
 #define mlxsw_pci_write32(mlxsw_pci, reg, val) \
 	iowrite32be(val, (mlxsw_pci)->hw_addr + (MLXSW_PCI_ ## reg))
@@ -389,14 +390,26 @@ static void mlxsw_pci_wqe_frag_unmap(struct mlxsw_pci *mlxsw_pci, char *wqe,
 	dma_unmap_single(&pdev->dev, mapaddr, frag_len, direction);
 }
 
-static struct sk_buff *mlxsw_pci_rdq_build_skb(struct page *pages[],
+static struct sk_buff *mlxsw_pci_rdq_build_skb(struct mlxsw_pci_queue *q,
+					       struct page *pages[],
 					       u16 byte_count)
 {
+	struct mlxsw_pci_queue *cq = q->u.rdq.cq;
 	unsigned int linear_data_size;
+	struct page_pool *page_pool;
 	struct sk_buff *skb;
 	int page_index = 0;
 	bool linear_only;
 	void *data;
+
+	linear_only = byte_count + MLXSW_PCI_RX_BUF_SW_OVERHEAD <= PAGE_SIZE;
+	linear_data_size = linear_only ? byte_count :
+					 PAGE_SIZE -
+					 MLXSW_PCI_RX_BUF_SW_OVERHEAD;
+
+	page_pool = cq->u.cq.page_pool;
+	page_pool_dma_sync_for_cpu(page_pool, pages[page_index],
+				   MLXSW_PCI_SKB_HEADROOM, linear_data_size);
 
 	data = page_address(pages[page_index]);
 	net_prefetch(data);
@@ -404,11 +417,6 @@ static struct sk_buff *mlxsw_pci_rdq_build_skb(struct page *pages[],
 	skb = napi_build_skb(data, PAGE_SIZE);
 	if (unlikely(!skb))
 		return ERR_PTR(-ENOMEM);
-
-	linear_only = byte_count + MLXSW_PCI_RX_BUF_SW_OVERHEAD <= PAGE_SIZE;
-	linear_data_size = linear_only ? byte_count :
-					 PAGE_SIZE -
-					 MLXSW_PCI_RX_BUF_SW_OVERHEAD;
 
 	skb_reserve(skb, MLXSW_PCI_SKB_HEADROOM);
 	skb_put(skb, linear_data_size);
@@ -425,6 +433,7 @@ static struct sk_buff *mlxsw_pci_rdq_build_skb(struct page *pages[],
 
 		page = pages[page_index];
 		frag_size = min(byte_count, PAGE_SIZE);
+		page_pool_dma_sync_for_cpu(page_pool, page, 0, frag_size);
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
 				page, 0, frag_size, PAGE_SIZE);
 		byte_count -= frag_size;
@@ -729,6 +738,7 @@ static void mlxsw_pci_cqe_rdq_md_init(struct sk_buff *skb, const char *cqe)
 }
 
 static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
+				     struct napi_struct *napi,
 				     struct mlxsw_pci_queue *q,
 				     u16 consumer_counter_limit,
 				     enum mlxsw_pci_cqe_v cqe_v, char *cqe)
@@ -760,7 +770,7 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	if (err)
 		goto out;
 
-	skb = mlxsw_pci_rdq_build_skb(pages, byte_count);
+	skb = mlxsw_pci_rdq_build_skb(q, pages, byte_count);
 	if (IS_ERR(skb)) {
 		dev_err_ratelimited(&pdev->dev, "Failed to build skb for RDQ\n");
 		mlxsw_pci_rdq_pages_recycle(q, pages, num_sg_entries);
@@ -799,6 +809,7 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	}
 
 	mlxsw_pci_skb_cb_ts_set(mlxsw_pci, skb, cqe_v, cqe);
+	mlxsw_skb_cb(skb)->rx_md_info.napi = napi;
 
 	mlxsw_core_skb_receive(mlxsw_pci->core, skb, &rx_info);
 
@@ -861,7 +872,7 @@ static int mlxsw_pci_napi_poll_cq_rx(struct napi_struct *napi, int budget)
 			continue;
 		}
 
-		mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
+		mlxsw_pci_cqe_rdq_handle(mlxsw_pci, napi, rdq,
 					 wqe_counter, q->u.cq.v, cqe);
 
 		if (++work_done == budget)
@@ -988,12 +999,13 @@ static int mlxsw_pci_cq_page_pool_init(struct mlxsw_pci_queue *q,
 	if (cq_type != MLXSW_PCI_CQ_RDQ)
 		return 0;
 
-	pp_params.flags = PP_FLAG_DMA_MAP;
+	pp_params.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV;
 	pp_params.pool_size = MLXSW_PCI_WQE_COUNT * mlxsw_pci->num_sg_entries;
 	pp_params.nid = dev_to_node(&mlxsw_pci->pdev->dev);
 	pp_params.dev = &mlxsw_pci->pdev->dev;
 	pp_params.napi = &q->u.cq.napi;
 	pp_params.dma_dir = DMA_FROM_DEVICE;
+	pp_params.max_len = PAGE_SIZE;
 
 	page_pool = page_pool_create(&pp_params);
 	if (IS_ERR(page_pool))
@@ -2084,6 +2096,39 @@ static void mlxsw_pci_fini(void *bus_priv)
 	mlxsw_pci_free_irq_vectors(mlxsw_pci);
 }
 
+static int mlxsw_pci_txhdr_construct(struct sk_buff *skb,
+				     const struct mlxsw_txhdr_info *txhdr_info)
+{
+	const struct mlxsw_tx_info tx_info = txhdr_info->tx_info;
+	char *txhdr;
+
+	if (skb_cow_head(skb, MLXSW_TXHDR_LEN))
+		return -ENOMEM;
+
+	txhdr = skb_push(skb, MLXSW_TXHDR_LEN);
+	memset(txhdr, 0, MLXSW_TXHDR_LEN);
+
+	mlxsw_tx_hdr_version_set(txhdr, MLXSW_TXHDR_VERSION_1);
+	mlxsw_tx_hdr_proto_set(txhdr, MLXSW_TXHDR_PROTO_ETH);
+	mlxsw_tx_hdr_swid_set(txhdr, 0);
+
+	if (unlikely(txhdr_info->data)) {
+		u16 fid = txhdr_info->max_fid + tx_info.local_port - 1;
+
+		mlxsw_tx_hdr_rx_is_router_set(txhdr, true);
+		mlxsw_tx_hdr_fid_valid_set(txhdr, true);
+		mlxsw_tx_hdr_fid_set(txhdr, fid);
+		mlxsw_tx_hdr_type_set(txhdr, MLXSW_TXHDR_TYPE_DATA);
+	} else {
+		mlxsw_tx_hdr_ctl_set(txhdr, MLXSW_TXHDR_ETH_CTL);
+		mlxsw_tx_hdr_control_tclass_set(txhdr, 1);
+		mlxsw_tx_hdr_port_mid_set(txhdr, tx_info.local_port);
+		mlxsw_tx_hdr_type_set(txhdr, MLXSW_TXHDR_TYPE_CONTROL);
+	}
+
+	return 0;
+}
+
 static struct mlxsw_pci_queue *
 mlxsw_pci_sdq_pick(struct mlxsw_pci *mlxsw_pci,
 		   const struct mlxsw_tx_info *tx_info)
@@ -2111,7 +2156,7 @@ static bool mlxsw_pci_skb_transmit_busy(void *bus_priv,
 }
 
 static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
-				  const struct mlxsw_tx_info *tx_info)
+				  const struct mlxsw_txhdr_info *txhdr_info)
 {
 	struct mlxsw_pci *mlxsw_pci = bus_priv;
 	struct mlxsw_pci_queue *q;
@@ -2120,13 +2165,17 @@ static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
 	int i;
 	int err;
 
+	err = mlxsw_pci_txhdr_construct(skb, txhdr_info);
+	if (err)
+		return err;
+
 	if (skb_shinfo(skb)->nr_frags > MLXSW_PCI_WQE_SG_ENTRIES - 1) {
 		err = skb_linearize(skb);
 		if (err)
 			return err;
 	}
 
-	q = mlxsw_pci_sdq_pick(mlxsw_pci, tx_info);
+	q = mlxsw_pci_sdq_pick(mlxsw_pci, &txhdr_info->tx_info);
 	spin_lock_bh(&q->lock);
 	elem_info = mlxsw_pci_queue_elem_info_producer_get(q);
 	if (!elem_info) {
@@ -2134,7 +2183,7 @@ static int mlxsw_pci_skb_transmit(void *bus_priv, struct sk_buff *skb,
 		err = -EAGAIN;
 		goto unlock;
 	}
-	mlxsw_skb_cb(skb)->tx_info = *tx_info;
+	mlxsw_skb_cb(skb)->tx_info = txhdr_info->tx_info;
 	elem_info->sdq.skb = skb;
 
 	wqe = elem_info->elem;

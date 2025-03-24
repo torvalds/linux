@@ -63,9 +63,7 @@ struct save_area * __init save_area_alloc(bool is_boot_cpu)
 {
 	struct save_area *sa;
 
-	sa = memblock_alloc(sizeof(*sa), 8);
-	if (!sa)
-		return NULL;
+	sa = memblock_alloc_or_panic(sizeof(*sa), 8);
 
 	if (is_boot_cpu)
 		list_add(&sa->list, &dump_save_areas);
@@ -236,6 +234,17 @@ int remap_oldmem_pfn_range(struct vm_area_struct *vma, unsigned long from,
 		return remap_oldmem_pfn_range_zfcpdump(vma, from, pfn, size,
 						       prot);
 }
+
+/*
+ * Return true only when in a kdump or stand-alone kdump environment.
+ * Note that /proc/vmcore might also be available in "standard zfcp/nvme dump"
+ * environments, where this function returns false; see dump_available().
+ */
+bool is_kdump_kernel(void)
+{
+	return oldmem_data.start;
+}
+EXPORT_SYMBOL_GPL(is_kdump_kernel);
 
 static const char *nt_name(Elf64_Word type)
 {
@@ -497,6 +506,19 @@ static int get_mem_chunk_cnt(void)
 	return cnt;
 }
 
+static void fill_ptload(Elf64_Phdr *phdr, unsigned long paddr,
+		unsigned long vaddr, unsigned long size)
+{
+	phdr->p_type = PT_LOAD;
+	phdr->p_vaddr = vaddr;
+	phdr->p_offset = paddr;
+	phdr->p_paddr = paddr;
+	phdr->p_filesz = size;
+	phdr->p_memsz = size;
+	phdr->p_flags = PF_R | PF_W | PF_X;
+	phdr->p_align = PAGE_SIZE;
+}
+
 /*
  * Initialize ELF loads (new kernel)
  */
@@ -509,14 +531,8 @@ static void loads_init(Elf64_Phdr *phdr, bool os_info_has_vm)
 	if (os_info_has_vm)
 		old_identity_base = os_info_old_value(OS_INFO_IDENTITY_BASE);
 	for_each_physmem_range(idx, &oldmem_type, &start, &end) {
-		phdr->p_type = PT_LOAD;
-		phdr->p_vaddr = old_identity_base + start;
-		phdr->p_offset = start;
-		phdr->p_paddr = start;
-		phdr->p_filesz = end - start;
-		phdr->p_memsz = end - start;
-		phdr->p_flags = PF_R | PF_W | PF_X;
-		phdr->p_align = PAGE_SIZE;
+		fill_ptload(phdr, start, old_identity_base + start,
+			    end - start);
 		phdr++;
 	}
 }
@@ -525,6 +541,22 @@ static bool os_info_has_vm(void)
 {
 	return os_info_old_value(OS_INFO_KASLR_OFFSET);
 }
+
+#ifdef CONFIG_PROC_VMCORE_DEVICE_RAM
+/*
+ * Fill PT_LOAD for a physical memory range owned by a device and detected by
+ * its device driver.
+ */
+void elfcorehdr_fill_device_ram_ptload_elf64(Elf64_Phdr *phdr,
+		unsigned long long paddr, unsigned long long size)
+{
+	unsigned long old_identity_base = 0;
+
+	if (os_info_has_vm())
+		old_identity_base = os_info_old_value(OS_INFO_IDENTITY_BASE);
+	fill_ptload(phdr, paddr, old_identity_base + paddr, size);
+}
+#endif
 
 /*
  * Prepare PT_LOAD type program header for kernel image region

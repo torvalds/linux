@@ -5,7 +5,7 @@
  * Copyright 2018 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  * Copyright (C) 2018 Intel Corporation
  *
- * Author: Hans Verkuil <hans.verkuil@cisco.com>
+ * Author: Hans Verkuil <hansverk@cisco.com>
  * Author: Sakari Ailus <sakari.ailus@linux.intel.com>
  */
 

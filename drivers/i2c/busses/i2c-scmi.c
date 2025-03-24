@@ -411,7 +411,7 @@ static void smbus_cmi_remove(struct platform_device *device)
 
 static struct platform_driver smbus_cmi_driver = {
 	.probe = smbus_cmi_probe,
-	.remove_new = smbus_cmi_remove,
+	.remove = smbus_cmi_remove,
 	.driver = {
 		.name   = "smbus_cmi",
 		.acpi_match_table = acpi_smbus_cmi_ids,

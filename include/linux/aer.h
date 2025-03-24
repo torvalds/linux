@@ -16,10 +16,18 @@
 #define AER_CORRECTABLE			2
 #define DPC_FATAL			3
 
+/*
+ * AER and DPC capabilities TLP Logging register sizes (PCIe r6.2, sec 7.8.4
+ * & 7.9.14).
+ */
+#define PCIE_STD_NUM_TLP_HEADERLOG     4
+#define PCIE_STD_MAX_TLP_PREFIXLOG     4
+
 struct pci_dev;
 
 struct pcie_tlp_log {
-	u32 dw[4];
+	u32 dw[PCIE_STD_NUM_TLP_HEADERLOG];
+	u32 prefix[PCIE_STD_MAX_TLP_PREFIXLOG];
 };
 
 struct aer_capability_regs {
@@ -36,8 +44,6 @@ struct aer_capability_regs {
 	u16 cor_err_source;
 	u16 uncor_err_source;
 };
-
-int pcie_read_tlp_log(struct pci_dev *dev, int where, struct pcie_tlp_log *log);
 
 #if defined(CONFIG_PCIEAER)
 int pci_aer_clear_nonfatal_status(struct pci_dev *dev);

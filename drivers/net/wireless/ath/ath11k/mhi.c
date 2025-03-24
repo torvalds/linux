@@ -398,6 +398,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 	case ATH11K_HW_WCN6855_HW20:
 	case ATH11K_HW_WCN6855_HW21:
 	case ATH11K_HW_QCA2066_HW21:
+	case ATH11K_HW_QCA6698AQ_HW21:
 		ath11k_mhi_config = &ath11k_mhi_config_qca6390;
 		break;
 	default:
@@ -453,17 +454,9 @@ int ath11k_mhi_start(struct ath11k_pci *ab_pci)
 	return 0;
 }
 
-void ath11k_mhi_stop(struct ath11k_pci *ab_pci, bool is_suspend)
+void ath11k_mhi_stop(struct ath11k_pci *ab_pci)
 {
-	/* During suspend we need to use mhi_power_down_keep_dev()
-	 * workaround, otherwise ath11k_core_resume() will timeout
-	 * during resume.
-	 */
-	if (is_suspend)
-		mhi_power_down_keep_dev(ab_pci->mhi_ctrl, true);
-	else
-		mhi_power_down(ab_pci->mhi_ctrl, true);
-
+	mhi_power_down(ab_pci->mhi_ctrl, true);
 	mhi_unprepare_after_power_down(ab_pci->mhi_ctrl);
 }
 

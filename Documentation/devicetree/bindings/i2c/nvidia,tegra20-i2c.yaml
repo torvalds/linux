@@ -103,6 +103,9 @@ properties:
     items:
       - const: i2c
 
+  power-domains:
+    maxItems: 1
+
   dmas:
     items:
       - description: DMA channel for the reception FIFO
@@ -124,6 +127,8 @@ allOf:
               - nvidia,tegra30-i2c
     then:
       properties:
+        clocks:
+          minItems: 2
         clock-names:
           items:
             - const: div-clk
@@ -133,20 +138,13 @@ allOf:
       properties:
         compatible:
           contains:
-            const: nvidia,tegra114-i2c
+            enum:
+              - nvidia,tegra114-i2c
+              - nvidia,tegra210-i2c
     then:
       properties:
-        clock-names:
-          items:
-            - const: div-clk
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            const: nvidia,tegra210-i2c
-    then:
-      properties:
+        clocks:
+          maxItems: 1
         clock-names:
           items:
             - const: div-clk
@@ -158,6 +156,8 @@ allOf:
             const: nvidia,tegra210-i2c-vi
     then:
       properties:
+        clocks:
+          minItems: 2
         clock-names:
           items:
             - const: div-clk
@@ -165,6 +165,9 @@ allOf:
         power-domains:
           items:
             - description: phandle to the VENC power domain
+    else:
+      properties:
+        power-domains: false
 
 unevaluatedProperties: false
 

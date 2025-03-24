@@ -26,7 +26,7 @@
 
 #include <linux/regulator/consumer.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "mprls0025pa.h"
 
@@ -448,7 +448,7 @@ int mpr_common_probe(struct device *dev, const struct mpr_ops *ops, int irq)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(mpr_common_probe, IIO_HONEYWELL_MPRLS0025PA);
+EXPORT_SYMBOL_NS(mpr_common_probe, "IIO_HONEYWELL_MPRLS0025PA");
 
 MODULE_AUTHOR("Andreas Klinger <ak@it-klinger.de>");
 MODULE_DESCRIPTION("Honeywell MPR pressure sensor core driver");

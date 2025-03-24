@@ -22,7 +22,7 @@ int call_fib6_notifiers(struct net *net, enum fib_event_type event_type,
 	return call_fib_notifiers(net, event_type, info);
 }
 
-static unsigned int fib6_seq_read(struct net *net)
+static unsigned int fib6_seq_read(const struct net *net)
 {
 	return fib6_tables_seq_read(net) + fib6_rules_seq_read(net);
 }

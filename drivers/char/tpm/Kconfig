@@ -162,7 +162,7 @@ config TCG_NSC
 
 config TCG_ATMEL
 	tristate "Atmel TPM Interface"
-	depends on PPC64 || HAS_IOPORT_MAP
+	depends on HAS_IOPORT_MAP
 	depends on HAS_IOPORT
 	help
 	  If you have a TPM security chip from Atmel say Yes and it 

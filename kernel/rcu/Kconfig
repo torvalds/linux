@@ -249,16 +249,24 @@ config RCU_NOCB_CPU
 	  workloads will incur significant increases in context-switch
 	  rates.
 
-	  This option offloads callback invocation from the set of CPUs
-	  specified at boot time by the rcu_nocbs parameter.  For each
-	  such CPU, a kthread ("rcuox/N") will be created to invoke
-	  callbacks, where the "N" is the CPU being offloaded, and where
-	  the "x" is "p" for RCU-preempt (PREEMPTION kernels) and "s" for
-	  RCU-sched (!PREEMPTION kernels).  Nothing prevents this kthread
-	  from running on the specified CPUs, but (1) the kthreads may be
-	  preempted between each callback, and (2) affinity or cgroups can
-	  be used to force the kthreads to run on whatever set of CPUs is
-	  desired.
+	  This option offloads callback invocation from the set of
+	  CPUs specified at boot time by the rcu_nocbs parameter.
+	  For each such CPU, a kthread ("rcuox/N") will be created to
+	  invoke callbacks, where the "N" is the CPU being offloaded,
+	  and where the "x" is "p" for RCU-preempt (PREEMPTION kernels)
+	  and "s" for RCU-sched (!PREEMPTION kernels).	This option
+	  also creates another kthread for each sqrt(nr_cpu_ids) CPUs
+	  ("rcuog/N", where N is the first CPU in that group to come
+	  online), which handles grace periods for its group.  Nothing
+	  prevents these kthreads from running on the specified CPUs,
+	  but (1) the kthreads may be preempted between each callback,
+	  and (2) affinity or cgroups can be used to force the kthreads
+	  to run on whatever set of CPUs is desired.
+
+	  The sqrt(nr_cpu_ids) grouping may be overridden using the
+	  rcutree.rcu_nocb_gp_stride kernel boot parameter.  This can
+	  be especially helpful for smaller numbers of CPUs, where
+	  sqrt(nr_cpu_ids) can be a bit of a blunt instrument.
 
 	  Say Y here if you need reduced OS jitter, despite added overhead.
 	  Say N here if you are unsure.

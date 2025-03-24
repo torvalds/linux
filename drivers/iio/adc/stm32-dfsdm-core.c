@@ -299,7 +299,7 @@ static const struct of_device_id stm32_dfsdm_of_match[] = {
 		.compatible = "st,stm32mp1-dfsdm",
 		.data = &stm32mp1_dfsdm_data,
 	},
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stm32_dfsdm_of_match);
 
@@ -506,7 +506,7 @@ static const struct dev_pm_ops stm32_dfsdm_core_pm_ops = {
 
 static struct platform_driver stm32_dfsdm_driver = {
 	.probe = stm32_dfsdm_probe,
-	.remove_new = stm32_dfsdm_core_remove,
+	.remove = stm32_dfsdm_core_remove,
 	.driver = {
 		.name = "stm32-dfsdm",
 		.of_match_table = stm32_dfsdm_of_match,

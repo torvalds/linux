@@ -199,7 +199,7 @@ static irqreturn_t lmp92064_trigger_handler(int irq, void *p)
 	struct lmp92064_adc_priv *priv = iio_priv(indio_dev);
 	struct {
 		u16 values[2];
-		int64_t timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} data;
 	int ret;
 
@@ -360,7 +360,7 @@ static int lmp92064_adc_probe(struct spi_device *spi)
 
 static const struct spi_device_id lmp92064_id_table[] = {
 	{ "lmp92064" },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(spi, lmp92064_id_table);
 

@@ -61,14 +61,19 @@ properties:
           - const: anbernic,rg35xx-2024
           - const: allwinner,sun50i-h700
 
+      - description: Anbernic RG35XX H
+        items:
+          - const: anbernic,rg35xx-h
+          - const: allwinner,sun50i-h700
+
       - description: Anbernic RG35XX Plus
         items:
           - const: anbernic,rg35xx-plus
           - const: allwinner,sun50i-h700
 
-      - description: Anbernic RG35XX H
+      - description: Anbernic RG35XX SP
         items:
-          - const: anbernic,rg35xx-h
+          - const: anbernic,rg35xx-sp
           - const: allwinner,sun50i-h700
 
       - description: Amarula A64 Relic
@@ -840,6 +845,12 @@ properties:
           - const: jide,remix-mini-pc
           - const: allwinner,sun50i-h64
           - const: allwinner,sun50i-a64
+
+      - description: RerVision A33-Vstar (with A33-Core1 SoM)
+        items:
+          - const: rervision,a33-vstar
+          - const: rervision,a33-core1
+          - const: allwinner,sun8i-a33
 
       - description: RerVision H3-DVK
         items:

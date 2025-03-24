@@ -23,8 +23,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/itco_wdt.h>
-
-#include <asm/intel_scu_ipc.h>
+#include <linux/platform_data/x86/intel_scu_ipc.h>
 
 /* Residency with clock rate at 19.2MHz to usecs */
 #define S0IX_RESIDENCY_IN_USECS(d, s)		\

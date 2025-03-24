@@ -352,8 +352,8 @@ static void i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id i2c_id[] = {
-	{ "most_i2c", 0 },
-	{ }, /* Terminating entry */
+	{ "most_i2c" },
+	{ } /* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(i2c, i2c_id);

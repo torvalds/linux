@@ -31,6 +31,16 @@ properties:
       it must be self resetting edge interrupts.
     maxItems: 1
 
+  fan-stop-to-start-percent:
+    description:
+      Minimum fan RPM in percent to start when stopped.
+    minimum: 0
+    maximum: 100
+
+  fan-stop-to-start-us:
+    description:
+      Time to wait in microseconds after start when stopped.
+
   pulses-per-revolution:
     description:
       Define the number of pulses per fan revolution for each tachometer

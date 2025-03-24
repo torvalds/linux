@@ -22,6 +22,8 @@
 #define IWL_UEFI_ECKV_NAME		L"UefiCnvWlanECKV"
 #define IWL_UEFI_DSM_NAME		L"UefiCnvWlanGeneralCfg"
 #define IWL_UEFI_WBEM_NAME		L"UefiCnvWlanWBEM"
+#define IWL_UEFI_PUNCTURING_NAME	L"UefiCnvWlanPuncturing"
+#define IWL_UEFI_DSBR_NAME		L"UefiCnvCommonDSBR"
 
 
 #define IWL_SGOM_MAP_SIZE		339
@@ -32,12 +34,15 @@
 #define IWL_UEFI_WGDS_REVISION		3
 #define IWL_UEFI_MIN_PPAG_REV		1
 #define IWL_UEFI_MAX_PPAG_REV		3
-#define IWL_UEFI_WTAS_REVISION		1
+#define IWL_UEFI_MIN_WTAS_REVISION	1
+#define IWL_UEFI_MAX_WTAS_REVISION	2
 #define IWL_UEFI_SPLC_REVISION		0
 #define IWL_UEFI_WRDD_REVISION		0
 #define IWL_UEFI_ECKV_REVISION		0
 #define IWL_UEFI_WBEM_REVISION		0
 #define IWL_UEFI_DSM_REVISION		4
+#define IWL_UEFI_PUNCTURING_REVISION	0
+#define IWL_UEFI_DSBR_REVISION		1
 
 struct pnvm_sku_package {
 	u8 rev;
@@ -149,8 +154,6 @@ struct uefi_cnv_var_splc {
 	u32 default_pwr_limit;
 } __packed;
 
-#define UEFI_MCC_CHINA 0x434e
-
 /* struct uefi_cnv_var_wrdd - WRDD table as defined in UEFI
  * @revision: the revision of the table
  * @mcc: country identifier as defined in ISO/IEC 3166-1 Alpha 2 code
@@ -194,6 +197,39 @@ struct uefi_cnv_wlan_wbem_data {
 	u32 wbem_320mhz_per_mcc;
 } __packed;
 
+enum iwl_uefi_cnv_puncturing_flags {
+	IWL_UEFI_CNV_PUNCTURING_USA_EN_MSK	= BIT(0),
+	IWL_UEFI_CNV_PUNCTURING_CANADA_EN_MSK	= BIT(1),
+};
+
+#define IWL_UEFI_PUNCTURING_REV0_MASK (IWL_UEFI_CNV_PUNCTURING_USA_EN_MSK | \
+				       IWL_UEFI_CNV_PUNCTURING_CANADA_EN_MSK)
+/**
+ * struct uefi_cnv_var_puncturing_data - controlling channel
+ *	puncturing for few countries.
+ * @revision: the revision of the table
+ * @puncturing: enablement of channel puncturing per mcc
+ *	see &enum iwl_uefi_cnv_puncturing_flags.
+ */
+struct uefi_cnv_var_puncturing_data {
+	u8 revision;
+	u32 puncturing;
+} __packed;
+
+/**
+ * struct uefi_cnv_wlan_dsbr_data - BIOS STEP configuration information
+ * @revision: the revision of the table
+ * @config: STEP configuration flags:
+ *	bit 8, switch to URM depending on FW setting
+ *	bit 9, switch to URM
+ *
+ * Platform information for STEP configuration/workarounds.
+ */
+struct uefi_cnv_wlan_dsbr_data {
+	u8 revision;
+	u32 config;
+} __packed;
+
 /*
  * This is known to be broken on v4.19 and to work on v5.4.  Until we
  * figure out why this is the case and how to make it work, simply
@@ -224,6 +260,8 @@ int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 			    struct iwl_fw_runtime *fwrt);
+int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt);
+int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -319,6 +357,18 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 			    struct iwl_fw_runtime *fwrt)
 {
 	return 0;
+}
+
+static inline
+int iwl_uefi_get_puncturing(struct iwl_fw_runtime *fwrt)
+{
+	return 0;
+}
+
+static inline
+int iwl_uefi_get_dsbr(struct iwl_fw_runtime *fwrt, u32 *value)
+{
+	return -ENOENT;
 }
 #endif /* CONFIG_EFI */
 #endif /* __iwl_fw_uefi__ */

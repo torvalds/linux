@@ -26,7 +26,7 @@ void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *) = {
 	[SIGFPE]	= relay_signal,
 	[SIGILL]	= relay_signal,
 	[SIGWINCH]	= winch,
-	[SIGBUS]	= bus_handler,
+	[SIGBUS]	= relay_signal,
 	[SIGSEGV]	= segv_handler,
 	[SIGIO]		= sigio_handler,
 };
@@ -65,7 +65,7 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 #define SIGALRM_MASK (1 << SIGALRM_BIT)
 
 int signals_enabled;
-#ifdef UML_CONFIG_UML_TIME_TRAVEL_SUPPORT
+#if IS_ENABLED(CONFIG_UML_TIME_TRAVEL_SUPPORT)
 static int signals_blocked, signals_blocked_pending;
 #endif
 static unsigned int signals_pending;
@@ -75,7 +75,7 @@ static void sig_handler(int sig, struct siginfo *si, mcontext_t *mc)
 {
 	int enabled = signals_enabled;
 
-#ifdef UML_CONFIG_UML_TIME_TRAVEL_SUPPORT
+#if IS_ENABLED(CONFIG_UML_TIME_TRAVEL_SUPPORT)
 	if ((signals_blocked ||
 	     __atomic_load_n(&signals_blocked_pending, __ATOMIC_SEQ_CST)) &&
 	    (sig == SIGIO)) {
@@ -190,43 +190,8 @@ static void hard_handler(int sig, siginfo_t *si, void *p)
 {
 	ucontext_t *uc = p;
 	mcontext_t *mc = &uc->uc_mcontext;
-	unsigned long pending = 1UL << sig;
 
-	do {
-		int nested, bail;
-
-		/*
-		 * pending comes back with one bit set for each
-		 * interrupt that arrived while setting up the stack,
-		 * plus a bit for this interrupt, plus the zero bit is
-		 * set if this is a nested interrupt.
-		 * If bail is true, then we interrupted another
-		 * handler setting up the stack.  In this case, we
-		 * have to return, and the upper handler will deal
-		 * with this interrupt.
-		 */
-		bail = to_irq_stack(&pending);
-		if (bail)
-			return;
-
-		nested = pending & 1;
-		pending &= ~1;
-
-		while ((sig = ffs(pending)) != 0){
-			sig--;
-			pending &= ~(1 << sig);
-			(*handlers[sig])(sig, (struct siginfo *)si, mc);
-		}
-
-		/*
-		 * Again, pending comes back with a mask of signals
-		 * that arrived while tearing down the stack.  If this
-		 * is non-zero, we just go back, set up the stack
-		 * again, and handle the new interrupts.
-		 */
-		if (!nested)
-			pending = from_irq_stack(nested);
-	} while (pending);
+	(*handlers[sig])(sig, (struct siginfo *)si, mc);
 }
 
 void set_handler(int sig)
@@ -297,7 +262,7 @@ void unblock_signals(void)
 		return;
 
 	signals_enabled = 1;
-#ifdef UML_CONFIG_UML_TIME_TRAVEL_SUPPORT
+#if IS_ENABLED(CONFIG_UML_TIME_TRAVEL_SUPPORT)
 	deliver_time_travel_irqs();
 #endif
 
@@ -389,7 +354,7 @@ int um_set_signals_trace(int enable)
 	return ret;
 }
 
-#ifdef UML_CONFIG_UML_TIME_TRAVEL_SUPPORT
+#if IS_ENABLED(CONFIG_UML_TIME_TRAVEL_SUPPORT)
 void mark_sigio_pending(void)
 {
 	/*
@@ -487,11 +452,3 @@ void unblock_signals_hard(void)
 	unblocking = false;
 }
 #endif
-
-int os_is_signal_stack(void)
-{
-	stack_t ss;
-	sigaltstack(NULL, &ss);
-
-	return ss.ss_flags & SS_ONSTACK;
-}

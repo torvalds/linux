@@ -238,7 +238,7 @@ MODULE_DEVICE_TABLE(of, i2c_pca_of_match_table);
 
 static struct platform_driver i2c_pca_pf_driver = {
 	.probe = i2c_pca_pf_probe,
-	.remove_new = i2c_pca_pf_remove,
+	.remove = i2c_pca_pf_remove,
 	.driver = {
 		.name = "i2c-pca-platform",
 		.of_match_table = of_match_ptr(i2c_pca_of_match_table),

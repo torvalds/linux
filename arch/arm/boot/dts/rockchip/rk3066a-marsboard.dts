@@ -19,7 +19,7 @@
 		reg = <0x60000000 0x40000000>;
 	};
 
-	vdd_log: vdd-log {
+	vdd_log: regulator-vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm3 0 1000>;
 		regulator-name = "vdd_log";
@@ -31,7 +31,7 @@
 		status = "okay";
 	};
 
-	vcc_sd0: sdmmc-regulator {
+	vcc_sd0: regulator-sdmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "sdmmc-supply";
 		regulator-min-microvolt = <3000000>;
@@ -41,7 +41,7 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	vsys: vsys-regulator {
+	vsys: regulator-vsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vsys";
 		regulator-min-microvolt = <5000000>;

@@ -7,23 +7,27 @@ The DAMON subsystem covers the files that are listed in 'DATA ACCESS MONITOR'
 section of 'MAINTAINERS' file.
 
 The mailing lists for the subsystem are damon@lists.linux.dev and
-linux-mm@kvack.org.  Patches should be made against the mm-unstable tree [1]_
-whenever possible and posted to the mailing lists.
+linux-mm@kvack.org.  Patches should be made against the `mm-unstable tree
+<https://git.kernel.org/akpm/mm/h/mm-unstable>`_ whenever possible and posted
+to the mailing lists.
 
 SCM Trees
 ---------
 
 There are multiple Linux trees for DAMON development.  Patches under
-development or testing are queued in damon/next [2]_ by the DAMON maintainer.
-Sufficiently reviewed patches will be queued in mm-unstable [1]_ by the memory
-management subsystem maintainer.  After more sufficient tests, the patches will
-be queued in mm-stable [3]_ , and finally pull-requested to the mainline by the
-memory management subsystem maintainer.
+development or testing are queued in `damon/next
+<https://git.kernel.org/sj/h/damon/next>`_ by the DAMON maintainer.
+Sufficiently reviewed patches will be queued in `mm-unstable
+<https://git.kernel.org/akpm/mm/h/mm-unstable>`_ by the memory management
+subsystem maintainer.  After more sufficient tests, the patches will be queued
+in `mm-stable <https://git.kernel.org/akpm/mm/h/mm-stable>`_, and finally
+pull-requested to the mainline by the memory management subsystem maintainer.
 
-Note again the patches for mm-unstable tree [1]_ are queued by the memory
+Note again the patches for `mm-unstable tree
+<https://git.kernel.org/akpm/mm/h/mm-unstable>`_ are queued by the memory
 management subsystem maintainer.  If the patches requires some patches in
-damon/next tree [2]_ which not yet merged in mm-unstable, please make sure the
-requirement is clearly specified.
+`damon/next tree <https://git.kernel.org/sj/h/damon/next>`_ which not yet merged
+in mm-unstable, please make sure the requirement is clearly specified.
 
 Submit checklist addendum
 -------------------------
@@ -32,18 +36,27 @@ When making DAMON changes, you should do below.
 
 - Build changes related outputs including kernel and documents.
 - Ensure the builds introduce no new errors or warnings.
-- Run and ensure no new failures for DAMON selftests [4]_ and kunittests [5]_ .
+- Run and ensure no new failures for DAMON `selftests
+  <https://github.com/damonitor/damon-tests/blob/master/corr/run.sh#L49>`_ and
+  `kunittests
+  <https://github.com/damonitor/damon-tests/blob/master/corr/tests/kunit.sh>`_.
 
 Further doing below and putting the results will be helpful.
 
-- Run damon-tests/corr [6]_ for normal changes.
-- Run damon-tests/perf [7]_ for performance changes.
+- Run `damon-tests/corr
+  <https://github.com/damonitor/damon-tests/tree/master/corr>`_ for normal
+  changes.
+- Run `damon-tests/perf
+  <https://github.com/damonitor/damon-tests/tree/master/perf>`_ for performance
+  changes.
 
 Key cycle dates
 ---------------
 
-Patches can be sent anytime.  Key cycle dates of the mm-unstable [1]_ and
-mm-stable [3]_ trees depend on the memory management subsystem maintainer.
+Patches can be sent anytime.  Key cycle dates of the `mm-unstable
+<https://git.kernel.org/akpm/mm/h/mm-unstable>`_ and `mm-stable
+<https://git.kernel.org/akpm/mm/h/mm-stable>`_ trees depend on the memory
+management subsystem maintainer.
 
 Review cadence
 --------------
@@ -58,16 +71,17 @@ Mailing tool
 
 Like many other Linux kernel subsystems, DAMON uses the mailing lists
 (damon@lists.linux.dev and linux-mm@kvack.org) as the major communication
-channel.  There is a simple tool called HacKerMaiL (``hkml``) [8]_ , which is
-for people who are not very familiar with the mailing lists based
-communication.  The tool could be particularly helpful for DAMON community
-members since it is developed and maintained by DAMON maintainer.  The tool is
-also officially announced to support DAMON and general Linux kernel development
-workflow.
+channel.  There is a simple tool called `HacKerMaiL
+<https://github.com/damonitor/hackermail>`_ (``hkml``), which is for people who
+are not very familiar with the mailing lists based communication.  The tool
+could be particularly helpful for DAMON community members since it is developed
+and maintained by DAMON maintainer.  The tool is also officially announced to
+support DAMON and general Linux kernel development workflow.
 
-In other words, ``hkml`` [8]_ is a mailing tool for DAMON community, which
-DAMON maintainer is committed to support.  Please feel free to try and report
-issues or feature requests for the tool to the maintainer.
+In other words, `hkml <https://github.com/damonitor/hackermail>`_ is a mailing
+tool for DAMON community, which DAMON maintainer is committed to support.
+Please feel free to try and report issues or feature requests for the tool to
+the maintainer.
 
 Community meetup
 ----------------
@@ -83,17 +97,9 @@ members including the maintainer.  The maintainer shares the available time
 slots, and attendees should reserve one of those at least 24 hours before the
 time slot, by reaching out to the maintainer.
 
-Schedules and available reservation time slots are available at the Google doc
-[9]_ .  DAMON maintainer will also provide periodic reminder to the mailing
-list (damon@lists.linux.dev).
-
-
-.. [1] https://git.kernel.org/akpm/mm/h/mm-unstable
-.. [2] https://git.kernel.org/sj/h/damon/next
-.. [3] https://git.kernel.org/akpm/mm/h/mm-stable
-.. [4] https://github.com/awslabs/damon-tests/blob/master/corr/run.sh#L49
-.. [5] https://github.com/awslabs/damon-tests/blob/master/corr/tests/kunit.sh
-.. [6] https://github.com/awslabs/damon-tests/tree/master/corr
-.. [7] https://github.com/awslabs/damon-tests/tree/master/perf
-.. [8] https://github.com/damonitor/hackermail
-.. [9] https://docs.google.com/document/d/1v43Kcj3ly4CYqmAkMaZzLiM2GEnWfgdGbZAH3mi2vpM/edit?usp=sharing
+Schedules and available reservation time slots are available at the Google `doc
+<https://docs.google.com/document/d/1v43Kcj3ly4CYqmAkMaZzLiM2GEnWfgdGbZAH3mi2vpM/edit?usp=sharing>`_.
+There is also a public Google `calendar
+<https://calendar.google.com/calendar/u/0?cid=ZDIwOTA4YTMxNjc2MDQ3NTIyMmUzYTM5ZmQyM2U4NDA0ZGIwZjBiYmJlZGQxNDM0MmY4ZTRjOTE0NjdhZDRiY0Bncm91cC5jYWxlbmRhci5nb29nbGUuY29t>`_
+that has the events.  Anyone can subscribe it.  DAMON maintainer will also
+provide periodic reminder to the mailing list (damon@lists.linux.dev).

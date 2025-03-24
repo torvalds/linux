@@ -100,7 +100,7 @@ static int bch2_ioc_setflags(struct bch_fs *c,
 	}
 
 	mutex_lock(&inode->ei_update_lock);
-	ret   = bch2_subvol_is_ro(c, inode->ei_subvol) ?:
+	ret   = bch2_subvol_is_ro(c, inode->ei_inum.subvol) ?:
 		bch2_write_inode(c, inode, bch2_inode_flags_set, &s,
 			       ATTR_CTIME);
 	mutex_unlock(&inode->ei_update_lock);
@@ -184,7 +184,7 @@ static int bch2_ioc_fssetxattr(struct bch_fs *c,
 	}
 
 	mutex_lock(&inode->ei_update_lock);
-	ret   = bch2_subvol_is_ro(c, inode->ei_subvol) ?:
+	ret   = bch2_subvol_is_ro(c, inode->ei_inum.subvol) ?:
 		bch2_set_projid(c, inode, fa.fsx_projid) ?:
 		bch2_write_inode(c, inode, fssetxattr_inode_update_fn, &s,
 			       ATTR_CTIME);
@@ -328,9 +328,8 @@ static int bch2_ioc_setlabel(struct bch_fs *c,
 
 	mutex_lock(&c->sb_lock);
 	strscpy(c->disk_sb.sb->label, label, BCH_SB_LABEL_SIZE);
-	mutex_unlock(&c->sb_lock);
-
 	ret = bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
 
 	mnt_drop_write_file(file);
 	return ret;
@@ -407,7 +406,7 @@ static long bch2_ioctl_subvolume_create(struct bch_fs *c, struct file *filp,
 		sync_inodes_sb(c->vfs_sb);
 		up_read(&c->vfs_sb->s_umount);
 	}
-retry:
+
 	if (arg.src_ptr) {
 		error = user_path_at(arg.dirfd,
 				(const char __user *)(unsigned long)arg.src_ptr,
@@ -487,11 +486,6 @@ err3:
 err2:
 	if (arg.src_ptr)
 		path_put(&src_path);
-
-	if (retry_estale(error, lookup_flags)) {
-		lookup_flags |= LOOKUP_REVAL;
-		goto retry;
-	}
 err1:
 	return error;
 }

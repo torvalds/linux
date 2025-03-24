@@ -1,0 +1,6 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+{% if annotate %}
+		/* member {{ name }} (variable-length opaque) */
+{% endif %}
+		if (!xdrgen_decode_opaque(xdr, (struct opaque *)ptr->u.{{ name }}, {{ maxsize }}))
+			return false;

@@ -11,6 +11,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
 
@@ -1059,6 +1060,13 @@ const struct regmap_config adau1372_regmap_config = {
 	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_GPL(adau1372_regmap_config);
+
+const struct of_device_id adau1372_of_match[] = {
+	{ .compatible = "adi,adau1372" },
+	{ }
+};
+EXPORT_SYMBOL_GPL(adau1372_of_match);
+MODULE_DEVICE_TABLE(of, adau1372_of_match);
 
 MODULE_DESCRIPTION("ASoC ADAU1372 CODEC driver");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");

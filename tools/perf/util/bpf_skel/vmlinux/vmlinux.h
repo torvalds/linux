@@ -15,6 +15,7 @@
 
 typedef __u8 u8;
 typedef __u32 u32;
+typedef __s32 s32;
 typedef __u64 u64;
 typedef __s64 s64;
 
@@ -170,9 +171,15 @@ struct perf_sample_data {
 		u32		 cpu;
 	} cpu_entry;
 	u64			 phys_addr;
+	u64			 cgroup;
 	u64			 data_page_size;
 	u64			 code_page_size;
 } __attribute__((__aligned__(64))) __attribute__((preserve_access_index));
+
+struct perf_event {
+	struct perf_event	*parent;
+	u64			id;
+} __attribute__((preserve_access_index));
 
 struct bpf_perf_event_data_kern {
 	struct perf_sample_data *data;
@@ -187,5 +194,13 @@ struct bpf_perf_event_data_kern {
  * lock_contention.bpf.c for consistency with a generated vmlinux.h.
  */
 struct rq {};
+
+struct kmem_cache {
+	const char *name;
+} __attribute__((preserve_access_index));
+
+struct bpf_iter__kmem_cache {
+	struct kmem_cache *s;
+} __attribute__((preserve_access_index));
 
 #endif // __VMLINUX_H

@@ -86,6 +86,7 @@ Subsystem-specific APIs
    dmaengine/index
    dpll
    edac
+   extcon
    firmware/index
    fpga/index
    frame-buffer
@@ -124,6 +125,7 @@ Subsystem-specific APIs
    pps
    ptp
    pwm
+   pwrseq
    regulator
    reset
    rfkill

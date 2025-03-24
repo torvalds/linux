@@ -9,6 +9,8 @@
 #include <linux/module.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/types.h>
 #include <linux/units.h>
 #include <linux/nvmem-consumer.h>
@@ -478,8 +480,50 @@ static int mtk_hdmi_phy_configure(struct phy *phy, union phy_configure_opts *opt
 	return ret;
 }
 
+static int mtk_hdmi_phy_pwr5v_enable(struct regulator_dev *rdev)
+{
+	struct mtk_hdmi_phy *hdmi_phy = rdev_get_drvdata(rdev);
+
+	mtk_phy_set_bits(hdmi_phy->regs + HDMI_CTL_1, RG_HDMITX_PWR5V_O);
+
+	return 0;
+}
+
+static int mtk_hdmi_phy_pwr5v_disable(struct regulator_dev *rdev)
+{
+	struct mtk_hdmi_phy *hdmi_phy = rdev_get_drvdata(rdev);
+
+	mtk_phy_clear_bits(hdmi_phy->regs + HDMI_CTL_1, RG_HDMITX_PWR5V_O);
+
+	return 0;
+}
+
+static int mtk_hdmi_phy_pwr5v_is_enabled(struct regulator_dev *rdev)
+{
+	struct mtk_hdmi_phy *hdmi_phy = rdev_get_drvdata(rdev);
+
+	return !!(readl(hdmi_phy->regs + HDMI_CTL_1) & RG_HDMITX_PWR5V_O);
+}
+
+static const struct regulator_ops mtk_hdmi_pwr5v_regulator_ops = {
+	.enable = mtk_hdmi_phy_pwr5v_enable,
+	.disable = mtk_hdmi_phy_pwr5v_disable,
+	.is_enabled = mtk_hdmi_phy_pwr5v_is_enabled
+};
+
+static const struct regulator_desc mtk_hdmi_phy_pwr5v_desc = {
+	.name = "hdmi-pwr5v",
+	.id = -1,
+	.n_voltages = 1,
+	.fixed_uV = 5000000,
+	.ops = &mtk_hdmi_pwr5v_regulator_ops,
+	.type = REGULATOR_VOLTAGE,
+	.owner = THIS_MODULE,
+};
+
 struct mtk_hdmi_phy_conf mtk_hdmi_phy_8195_conf = {
 	.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_GATE,
+	.hdmi_phy_regulator_desc = &mtk_hdmi_phy_pwr5v_desc,
 	.hdmi_phy_clk_ops = &mtk_hdmi_pll_ops,
 	.hdmi_phy_enable_tmds = mtk_hdmi_phy_enable_tmds,
 	.hdmi_phy_disable_tmds = mtk_hdmi_phy_disable_tmds,

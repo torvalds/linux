@@ -41,7 +41,7 @@ static void afs_volume_init_callback(struct afs_volume *volume)
 
 	list_for_each_entry(vnode, &volume->open_mmaps, cb_mmap_link) {
 		if (vnode->cb_v_check != atomic_read(&volume->cb_v_break)) {
-			atomic64_set(&vnode->cb_expires_at, AFS_NO_CB_PROMISE);
+			afs_clear_cb_promise(vnode, afs_cb_promise_clear_vol_init_cb);
 			queue_work(system_unbound_wq, &vnode->cb_work);
 		}
 	}
@@ -79,7 +79,7 @@ void __afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reas
 	_enter("");
 
 	clear_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
-	if (atomic64_xchg(&vnode->cb_expires_at, AFS_NO_CB_PROMISE) != AFS_NO_CB_PROMISE) {
+	if (afs_clear_cb_promise(vnode, afs_cb_promise_clear_cb_break)) {
 		vnode->cb_break++;
 		vnode->cb_v_check = atomic_read(&vnode->volume->cb_v_break);
 		afs_clear_permits(vnode);

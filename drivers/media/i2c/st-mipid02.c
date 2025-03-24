@@ -14,6 +14,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <media/mipi-csi2.h>
@@ -67,9 +68,6 @@ static const u32 mipid02_supported_fmt_codes[] = {
 	MEDIA_BUS_FMT_YUYV8_1X16, MEDIA_BUS_FMT_YVYU8_1X16,
 	MEDIA_BUS_FMT_UYVY8_1X16, MEDIA_BUS_FMT_VYUY8_1X16,
 	MEDIA_BUS_FMT_RGB565_1X16, MEDIA_BUS_FMT_BGR888_1X24,
-	MEDIA_BUS_FMT_RGB565_2X8_LE, MEDIA_BUS_FMT_RGB565_2X8_BE,
-	MEDIA_BUS_FMT_YUYV8_2X8, MEDIA_BUS_FMT_YVYU8_2X8,
-	MEDIA_BUS_FMT_UYVY8_2X8, MEDIA_BUS_FMT_VYUY8_2X8,
 	MEDIA_BUS_FMT_Y8_1X8, MEDIA_BUS_FMT_JPEG_1X8
 };
 
@@ -100,6 +98,7 @@ struct mipid02_dev {
 	/* remote source */
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev *s_subdev;
+	u16 s_subdev_pad_id;
 	/* registers */
 	struct {
 		u8 clk_lane_reg1;
@@ -138,12 +137,6 @@ static int bpp_from_code(__u32 code)
 	case MEDIA_BUS_FMT_UYVY8_1X16:
 	case MEDIA_BUS_FMT_VYUY8_1X16:
 	case MEDIA_BUS_FMT_RGB565_1X16:
-	case MEDIA_BUS_FMT_YUYV8_2X8:
-	case MEDIA_BUS_FMT_YVYU8_2X8:
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-	case MEDIA_BUS_FMT_VYUY8_2X8:
-	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		return 16;
 	case MEDIA_BUS_FMT_BGR888_1X24:
 		return 24;
@@ -175,16 +168,10 @@ static u8 data_type_from_code(__u32 code)
 	case MEDIA_BUS_FMT_YVYU8_1X16:
 	case MEDIA_BUS_FMT_UYVY8_1X16:
 	case MEDIA_BUS_FMT_VYUY8_1X16:
-	case MEDIA_BUS_FMT_YUYV8_2X8:
-	case MEDIA_BUS_FMT_YVYU8_2X8:
-	case MEDIA_BUS_FMT_UYVY8_2X8:
-	case MEDIA_BUS_FMT_VYUY8_2X8:
 		return MIPI_CSI2_DT_YUV422_8B;
 	case MEDIA_BUS_FMT_BGR888_1X24:
 		return MIPI_CSI2_DT_RGB888;
 	case MEDIA_BUS_FMT_RGB565_1X16:
-	case MEDIA_BUS_FMT_RGB565_2X8_LE:
-	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		return MIPI_CSI2_DT_RGB565;
 	default:
 		return 0;
@@ -248,8 +235,10 @@ static void mipid02_apply_reset(struct mipid02_dev *bridge)
 	usleep_range(5000, 10000);
 }
 
-static int mipid02_set_power_on(struct mipid02_dev *bridge)
+static int mipid02_set_power_on(struct device *dev)
 {
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 	struct i2c_client *client = bridge->i2c_client;
 	int ret;
 
@@ -282,10 +271,15 @@ xclk_off:
 	return ret;
 }
 
-static void mipid02_set_power_off(struct mipid02_dev *bridge)
+static int mipid02_set_power_off(struct device *dev)
 {
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct mipid02_dev *bridge = to_mipid02_dev(sd);
+
 	regulator_bulk_disable(MIPID02_NUM_SUPPLIES, bridge->supplies);
 	clk_disable_unprepare(bridge->xclk);
+
+	return 0;
 }
 
 static int mipid02_detect(struct mipid02_dev *bridge)
@@ -447,15 +441,19 @@ static int mipid02_configure_from_code(struct mipid02_dev *bridge,
 	return 0;
 }
 
-static int mipid02_stream_disable(struct mipid02_dev *bridge)
+static int mipid02_disable_streams(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *state, u32 pad,
+				   u64 streams_mask)
 {
+	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 	struct i2c_client *client = bridge->i2c_client;
 	int ret = -EINVAL;
 
 	if (!bridge->s_subdev)
 		goto error;
 
-	ret = v4l2_subdev_call(bridge->s_subdev, video, s_stream, 0);
+	ret = v4l2_subdev_disable_streams(bridge->s_subdev,
+					  bridge->s_subdev_pad_id, BIT(0));
 	if (ret)
 		goto error;
 
@@ -465,6 +463,10 @@ static int mipid02_stream_disable(struct mipid02_dev *bridge)
 	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG1, 0, &ret);
 	if (ret)
 		goto error;
+
+	pm_runtime_mark_last_busy(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
+
 error:
 	if (ret)
 		dev_err(&client->dev, "failed to stream off %d", ret);
@@ -472,33 +474,36 @@ error:
 	return ret;
 }
 
-static int mipid02_stream_enable(struct mipid02_dev *bridge)
+static int mipid02_enable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state, u32 pad,
+				  u64 streams_mask)
 {
+	struct mipid02_dev *bridge = to_mipid02_dev(sd);
 	struct i2c_client *client = bridge->i2c_client;
-	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *fmt;
 	int ret = -EINVAL;
 
 	if (!bridge->s_subdev)
-		goto error;
+		return ret;
 
 	memset(&bridge->r, 0, sizeof(bridge->r));
 
-	state = v4l2_subdev_lock_and_get_active_state(&bridge->sd);
 	fmt = v4l2_subdev_state_get_format(state, MIPID02_SINK_0);
 
 	/* build registers content */
 	ret = mipid02_configure_from_rx(bridge, fmt);
 	if (ret)
-		goto error;
+		return ret;
 	ret = mipid02_configure_from_tx(bridge);
 	if (ret)
-		goto error;
+		return ret;
 	ret = mipid02_configure_from_code(bridge, fmt);
 	if (ret)
-		goto error;
+		return ret;
 
-	v4l2_subdev_unlock_state(state);
+	ret = pm_runtime_resume_and_get(&client->dev);
+	if (ret < 0)
+		return ret;
 
 	/* write mipi registers */
 	cci_write(bridge->regmap, MIPID02_CLK_LANE_REG1,
@@ -524,33 +529,20 @@ static int mipid02_stream_enable(struct mipid02_dev *bridge)
 	if (ret)
 		goto error;
 
-	ret = v4l2_subdev_call(bridge->s_subdev, video, s_stream, 1);
+	ret = v4l2_subdev_enable_streams(bridge->s_subdev,
+					 bridge->s_subdev_pad_id, BIT(0));
 	if (ret)
 		goto error;
 
 	return 0;
 
 error:
-	dev_err(&client->dev, "failed to stream on %d", ret);
-	mipid02_stream_disable(bridge);
+	cci_write(bridge->regmap, MIPID02_CLK_LANE_REG1, 0, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE0_REG1, 0, &ret);
+	cci_write(bridge->regmap, MIPID02_DATA_LANE1_REG1, 0, &ret);
 
-	return ret;
-}
-
-static int mipid02_s_stream(struct v4l2_subdev *sd, int enable)
-{
-	struct mipid02_dev *bridge = to_mipid02_dev(sd);
-	struct i2c_client *client = bridge->i2c_client;
-	int ret = 0;
-
-	dev_dbg(&client->dev, "%s : requested %d\n", __func__, enable);
-
-	ret = enable ? mipid02_stream_enable(bridge) :
-		       mipid02_stream_disable(bridge);
-	if (ret)
-		dev_err(&client->dev, "failed to stream %s (%d)\n",
-			enable ? "enable" : "disable", ret);
-
+	pm_runtime_mark_last_busy(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
 	return ret;
 }
 
@@ -640,13 +632,15 @@ static int mipid02_set_fmt(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_video_ops mipid02_video_ops = {
-	.s_stream = mipid02_s_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops mipid02_pad_ops = {
 	.enum_mbus_code = mipid02_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = mipid02_set_fmt,
+	.enable_streams = mipid02_enable_streams,
+	.disable_streams = mipid02_disable_streams,
 };
 
 static const struct v4l2_subdev_ops mipid02_subdev_ops = {
@@ -692,6 +686,7 @@ static int mipid02_async_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	bridge->s_subdev = s_subdev;
+	bridge->s_subdev_pad_id = source_pad;
 
 	return 0;
 }
@@ -875,7 +870,7 @@ static int mipid02_probe(struct i2c_client *client)
 	}
 
 	/* enable clock, power and reset device if available */
-	ret = mipid02_set_power_on(bridge);
+	ret = mipid02_set_power_on(&client->dev);
 	if (ret)
 		goto entity_cleanup;
 
@@ -897,6 +892,15 @@ static int mipid02_probe(struct i2c_client *client)
 		goto power_off;
 	}
 
+	/* Enable runtime PM and turn off the device */
+	pm_runtime_set_active(dev);
+	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_enable(dev);
+
+	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
+	pm_runtime_use_autosuspend(&client->dev);
+	pm_runtime_put_autosuspend(&client->dev);
+
 	ret = v4l2_async_register_subdev(&bridge->sd);
 	if (ret < 0) {
 		dev_err(&client->dev, "v4l2_async_register_subdev failed %d",
@@ -911,8 +915,10 @@ static int mipid02_probe(struct i2c_client *client)
 unregister_notifier:
 	v4l2_async_nf_unregister(&bridge->notifier);
 	v4l2_async_nf_cleanup(&bridge->notifier);
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 power_off:
-	mipid02_set_power_off(bridge);
+	mipid02_set_power_off(&client->dev);
 entity_cleanup:
 	media_entity_cleanup(&bridge->sd.entity);
 
@@ -927,7 +933,11 @@ static void mipid02_remove(struct i2c_client *client)
 	v4l2_async_nf_unregister(&bridge->notifier);
 	v4l2_async_nf_cleanup(&bridge->notifier);
 	v4l2_async_unregister_subdev(&bridge->sd);
-	mipid02_set_power_off(bridge);
+
+	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		mipid02_set_power_off(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 	media_entity_cleanup(&bridge->sd.entity);
 }
 
@@ -937,10 +947,15 @@ static const struct of_device_id mipid02_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mipid02_dt_ids);
 
+static const struct dev_pm_ops mipid02_pm_ops = {
+	RUNTIME_PM_OPS(mipid02_set_power_off, mipid02_set_power_on, NULL)
+};
+
 static struct i2c_driver mipid02_i2c_driver = {
 	.driver = {
 		.name  = "st-mipid02",
 		.of_match_table = mipid02_dt_ids,
+		.pm = pm_ptr(&mipid02_pm_ops),
 	},
 	.probe = mipid02_probe,
 	.remove = mipid02_remove,

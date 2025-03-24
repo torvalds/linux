@@ -42,9 +42,9 @@
 #define LTC2991_V7_V8_FILT_EN		BIT(7)
 #define LTC2991_V7_V8_TEMP_EN		BIT(5)
 #define LTC2991_V7_V8_DIFF_EN		BIT(4)
-#define LTC2991_V5_V6_FILT_EN		BIT(7)
-#define LTC2991_V5_V6_TEMP_EN		BIT(5)
-#define LTC2991_V5_V6_DIFF_EN		BIT(4)
+#define LTC2991_V5_V6_FILT_EN		BIT(3)
+#define LTC2991_V5_V6_TEMP_EN		BIT(1)
+#define LTC2991_V5_V6_DIFF_EN		BIT(0)
 
 #define LTC2991_REPEAT_ACQ_EN		BIT(4)
 #define LTC2991_T_INT_FILT_EN		BIT(3)
@@ -125,7 +125,7 @@ static int ltc2991_get_curr(struct ltc2991_state *st, u32 reg, int channel,
 
 	/* Vx-Vy, 19.075uV/LSB */
 	*val = DIV_ROUND_CLOSEST(sign_extend32(reg_val, 14) * 19075,
-				 st->r_sense_uohm[channel]);
+				 (s32)st->r_sense_uohm[channel]);
 
 	return 0;
 }

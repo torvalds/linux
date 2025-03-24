@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2021 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_H_
@@ -96,7 +96,7 @@ struct efa_admin_acq_entry {
 struct efa_admin_aenq_common_desc {
 	u16 group;
 
-	u16 syndrom;
+	u16 syndrome;
 
 	/*
 	 * 0 : phase

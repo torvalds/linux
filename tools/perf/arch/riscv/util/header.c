@@ -81,7 +81,7 @@ free:
 	return cpuid;
 }
 
-int get_cpuid(char *buffer, size_t sz)
+int get_cpuid(char *buffer, size_t sz, struct perf_cpu cpu __maybe_unused)
 {
 	char *cpuid = _get_cpuid();
 	int ret = 0;
@@ -98,7 +98,7 @@ free:
 }
 
 char *
-get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
+get_cpuid_str(struct perf_cpu cpu __maybe_unused)
 {
 	return _get_cpuid();
 }

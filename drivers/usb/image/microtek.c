@@ -322,7 +322,7 @@ static inline void mts_urb_abort(struct mts_desc* desc) {
 	usb_kill_urb( desc->urb );
 }
 
-static int mts_slave_alloc (struct scsi_device *s)
+static int mts_sdev_init (struct scsi_device *s)
 {
 	s->inquiry_len = 0x24;
 	return 0;
@@ -626,7 +626,7 @@ static const struct scsi_host_template mts_scsi_host_template = {
 	.this_id =		-1,
 	.emulated =		1,
 	.dma_alignment =	511,
-	.slave_alloc =		mts_slave_alloc,
+	.sdev_init =		mts_sdev_init,
 	.max_sectors=		256, /* 128 K */
 };
 

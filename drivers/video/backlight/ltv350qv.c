@@ -6,7 +6,6 @@
  */
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/lcd.h>
 #include <linux/module.h>
@@ -15,7 +14,7 @@
 
 #include "ltv350qv.h"
 
-#define POWER_IS_ON(pwr)	((pwr) <= FB_BLANK_NORMAL)
+#define POWER_IS_ON(pwr)	((pwr) <= LCD_POWER_REDUCED)
 
 struct ltv350qv {
 	struct spi_device	*spi;
@@ -233,7 +232,7 @@ static int ltv350qv_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	lcd->spi = spi;
-	lcd->power = FB_BLANK_POWERDOWN;
+	lcd->power = LCD_POWER_OFF;
 	lcd->buffer = devm_kzalloc(&spi->dev, 8, GFP_KERNEL);
 	if (!lcd->buffer)
 		return -ENOMEM;
@@ -245,7 +244,7 @@ static int ltv350qv_probe(struct spi_device *spi)
 
 	lcd->ld = ld;
 
-	ret = ltv350qv_power(lcd, FB_BLANK_UNBLANK);
+	ret = ltv350qv_power(lcd, LCD_POWER_ON);
 	if (ret)
 		return ret;
 
@@ -258,7 +257,7 @@ static void ltv350qv_remove(struct spi_device *spi)
 {
 	struct ltv350qv *lcd = spi_get_drvdata(spi);
 
-	ltv350qv_power(lcd, FB_BLANK_POWERDOWN);
+	ltv350qv_power(lcd, LCD_POWER_OFF);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -266,14 +265,14 @@ static int ltv350qv_suspend(struct device *dev)
 {
 	struct ltv350qv *lcd = dev_get_drvdata(dev);
 
-	return ltv350qv_power(lcd, FB_BLANK_POWERDOWN);
+	return ltv350qv_power(lcd, LCD_POWER_OFF);
 }
 
 static int ltv350qv_resume(struct device *dev)
 {
 	struct ltv350qv *lcd = dev_get_drvdata(dev);
 
-	return ltv350qv_power(lcd, FB_BLANK_UNBLANK);
+	return ltv350qv_power(lcd, LCD_POWER_ON);
 }
 #endif
 
@@ -284,7 +283,7 @@ static void ltv350qv_shutdown(struct spi_device *spi)
 {
 	struct ltv350qv *lcd = spi_get_drvdata(spi);
 
-	ltv350qv_power(lcd, FB_BLANK_POWERDOWN);
+	ltv350qv_power(lcd, LCD_POWER_OFF);
 }
 
 static struct spi_driver ltv350qv_driver = {

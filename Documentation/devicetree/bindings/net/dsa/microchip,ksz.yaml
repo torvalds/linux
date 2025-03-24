@@ -22,7 +22,9 @@ properties:
       - microchip,ksz8794
       - microchip,ksz8795
       - microchip,ksz8863
+      - microchip,ksz8864  # 4-port version of KSZ8895 family switch
       - microchip,ksz8873
+      - microchip,ksz8895  # 5-port version of KSZ8895 family switch
       - microchip,ksz9477
       - microchip,ksz9897
       - microchip,ksz9896
@@ -32,6 +34,7 @@ properties:
       - microchip,ksz9563
       - microchip,ksz8563
       - microchip,ksz8567
+      - microchip,lan9646
 
   reset-gpios:
     description:
@@ -50,6 +53,11 @@ properties:
     description:
       Set if the output SYNCLKO clock should be disabled. Do not mix with
       microchip,synclko-125.
+
+  microchip,pme-active-high:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Indicates if the PME pin polarity is active-high.
 
   microchip,io-drive-strength-microamp:
     description:
@@ -73,6 +81,26 @@ properties:
 
   interrupts:
     maxItems: 1
+
+  mdio:
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
+    properties:
+      mdio-parent-bus:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description:
+          Phandle pointing to the MDIO bus controller connected to the
+          secondary MDIO interface. This property should be used when
+          the internal MDIO bus is accessed via a secondary MDIO
+          interface rather than the primary management interface.
+
+    patternProperties:
+      "^ethernet-phy@[0-9a-f]$":
+        type: object
+        $ref: /schemas/net/ethernet-phy.yaml#
+        unevaluatedProperties: false
+        description:
+          Integrated PHY node
 
 required:
   - compatible
@@ -131,7 +159,6 @@ examples:
 
         pinctrl-0 = <&pinctrl_spi_ksz>;
         cs-gpios = <&pioC 25 0>;
-        id = <1>;
 
         ksz9477: switch@0 {
             compatible = "microchip,ksz9477";

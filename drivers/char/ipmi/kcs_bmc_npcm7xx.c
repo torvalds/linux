@@ -241,7 +241,7 @@ static struct platform_driver npcm_kcs_bmc_driver = {
 		.of_match_table	= npcm_kcs_bmc_match,
 	},
 	.probe	= npcm7xx_kcs_probe,
-	.remove_new = npcm7xx_kcs_remove,
+	.remove = npcm7xx_kcs_remove,
 };
 module_platform_driver(npcm_kcs_bmc_driver);
 

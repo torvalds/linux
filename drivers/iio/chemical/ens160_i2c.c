@@ -59,4 +59,4 @@ module_i2c_driver(ens160_i2c_driver);
 MODULE_AUTHOR("Gustavo Silva <gustavograzs@gmail.com>");
 MODULE_DESCRIPTION("ScioSense ENS160 I2C driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_ENS160);
+MODULE_IMPORT_NS("IIO_ENS160");

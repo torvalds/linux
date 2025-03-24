@@ -132,6 +132,8 @@ static inline void cec_msg_init(struct cec_msg *msg,
  * Set the msg destination to the orig initiator and the msg initiator to the
  * orig destination. Note that msg and orig may be the same pointer, in which
  * case the change is done in place.
+ *
+ * It also zeroes the reply, timeout and flags fields.
  */
 static inline void cec_msg_set_reply_to(struct cec_msg *msg,
 					struct cec_msg *orig)
@@ -139,7 +141,9 @@ static inline void cec_msg_set_reply_to(struct cec_msg *msg,
 	/* The destination becomes the initiator and vice versa */
 	msg->msg[0] = (cec_msg_destination(orig) << 4) |
 		      cec_msg_initiator(orig);
-	msg->reply = msg->timeout = 0;
+	msg->reply = 0;
+	msg->timeout = 0;
+	msg->flags = 0;
 }
 
 /**
@@ -165,6 +169,7 @@ static inline int cec_msg_recv_is_rx_result(const struct cec_msg *msg)
 /* cec_msg flags field */
 #define CEC_MSG_FL_REPLY_TO_FOLLOWERS	(1 << 0)
 #define CEC_MSG_FL_RAW			(1 << 1)
+#define CEC_MSG_FL_REPLY_VENDOR_ID	(1 << 2)
 
 /* cec_msg tx/rx_status field */
 #define CEC_TX_STATUS_OK		(1 << 0)
@@ -339,6 +344,8 @@ static inline int cec_is_unconfigured(__u16 log_addr_mask)
 #define CEC_CAP_MONITOR_PIN	(1 << 7)
 /* CEC_ADAP_G_CONNECTOR_INFO is available */
 #define CEC_CAP_CONNECTOR_INFO	(1 << 8)
+/* CEC_MSG_FL_REPLY_VENDOR_ID is available */
+#define CEC_CAP_REPLY_VENDOR_ID	(1 << 9)
 
 /**
  * struct cec_caps - CEC capabilities structure.

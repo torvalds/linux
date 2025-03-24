@@ -1,0 +1,15 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+{% if annotate %}
+	/* member {{ name }} (variable-length array) */
+{% endif %}
+	if (value->{{ name }}.count > {{ maxsize }})
+		return false;
+	if (xdr_stream_encode_u32(xdr, value->{{ name }}.count) != XDR_UNIT)
+		return false;
+	for (u32 i = 0; i < value->{{ name }}.count; i++)
+{% if type in pass_by_reference %}
+		if (!xdrgen_encode_{{ type }}(xdr, &value->{{ name }}.element[i]))
+{% else %}
+		if (!xdrgen_encode_{{ type }}(xdr, value->{{ name }}.element[i]))
+{% endif %}
+			return false;

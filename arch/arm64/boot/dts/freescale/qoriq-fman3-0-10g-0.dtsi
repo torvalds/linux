@@ -27,6 +27,7 @@ fman@1a00000 {
 		reg = <0xf0000 0x1000>;
 		fsl,fman-ports = <&fman0_rx_0x10 &fman0_tx_0x30>;
 		pcsphy-handle = <&pcsphy6>;
+		pcs-handle = <&pcsphy6>;
 	};
 
 	mdio@f1000 {

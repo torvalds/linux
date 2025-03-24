@@ -85,6 +85,9 @@ struct pvr_context {
 		/** @compute: Transfer queue. */
 		struct pvr_queue *transfer;
 	} queues;
+
+	/** @file_link: pvr_file PVR context list link. */
+	struct list_head file_link;
 };
 
 static __always_inline struct pvr_queue *
@@ -121,6 +124,24 @@ pvr_context_get(struct pvr_context *ctx)
 		kref_get(&ctx->ref_count);
 
 	return ctx;
+}
+
+/**
+ * pvr_context_get_if_referenced() - Take an additional reference on a still
+ * referenced context.
+ * @ctx: Context pointer.
+ *
+ * Call pvr_context_put() to release.
+ *
+ * Returns:
+ *  * True on success, or
+ *  * false if no context pointer passed, or the context wasn't still
+ *  * referenced.
+ */
+static __always_inline bool
+pvr_context_get_if_referenced(struct pvr_context *ctx)
+{
+	return ctx != NULL && kref_get_unless_zero(&ctx->ref_count) != 0;
 }
 
 /**

@@ -217,8 +217,22 @@ config CPUFREQ_DT
 
 	  If in doubt, say N.
 
+config CPUFREQ_VIRT
+	tristate "Virtual cpufreq driver"
+	depends on GENERIC_ARCH_TOPOLOGY
+	help
+	  This adds a virtualized cpufreq driver for guest kernels that
+	  read/writes to a MMIO region for a virtualized cpufreq device to
+	  communicate with the host. It sends performance requests to the host
+	  which gets used as a hint to schedule vCPU threads and select CPU
+	  frequency. If a VM does not support a virtualized FIE such as AMUs,
+	  it updates the frequency scaling factor by polling host CPU frequency
+	  to enable accurate Per-Entity Load Tracking for tasks running in the guest.
+
+	  If in doubt, say N.
+
 config CPUFREQ_DT_PLATDEV
-	tristate "Generic DT based cpufreq platdev driver"
+	bool "Generic DT based cpufreq platdev driver"
 	depends on OF
 	help
 	  This adds a generic DT based cpufreq platdev driver for frequency
@@ -231,9 +245,7 @@ if X86
 source "drivers/cpufreq/Kconfig.x86"
 endif
 
-if ARM || ARM64
 source "drivers/cpufreq/Kconfig.arm"
-endif
 
 if PPC32 || PPC64
 source "drivers/cpufreq/Kconfig.powerpc"
@@ -313,8 +325,6 @@ config QORIQ_CPUFREQ
 	  This adds the CPUFreq driver support for Freescale QorIQ SoCs
 	  which are capable of changing the CPU's frequency dynamically.
 
-endif
-
 config ACPI_CPPC_CPUFREQ
 	tristate "CPUFreq driver based on the ACPI CPPC spec"
 	depends on ACPI_PROCESSOR
@@ -342,5 +352,7 @@ config ACPI_CPPC_CPUFREQ_FIE
 	  by using CPPC delivered and reference performance counters.
 
 	  If in doubt, say N.
+
+endif
 
 endmenu

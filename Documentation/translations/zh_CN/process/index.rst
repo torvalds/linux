@@ -49,10 +49,11 @@ TODOLIST:
 
    embargoed-hardware-issues
    cve
+   security-bugs
 
 TODOLIST:
 
-* security-bugs
+* handling-regressions
 
 其它大多数开发人员感兴趣的社区指南：
 

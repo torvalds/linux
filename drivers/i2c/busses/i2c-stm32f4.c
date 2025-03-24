@@ -869,7 +869,7 @@ static struct platform_driver stm32f4_i2c_driver = {
 		.of_match_table = stm32f4_i2c_match,
 	},
 	.probe = stm32f4_i2c_probe,
-	.remove_new = stm32f4_i2c_remove,
+	.remove = stm32f4_i2c_remove,
 };
 
 module_platform_driver(stm32f4_i2c_driver);

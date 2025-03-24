@@ -32,8 +32,12 @@
 #define   HECI1_FWSTS1_CURRENT_STATE_RESET		0
 #define   HECI1_FWSTS1_PROXY_STATE_NORMAL		5
 #define   HECI1_FWSTS1_INIT_COMPLETE			REG_BIT(9)
+#define HECI_FWSTS2(base)				XE_REG((base) + 0xc48)
+#define HECI_FWSTS3(base)				XE_REG((base) + 0xc60)
+#define HECI_FWSTS4(base)				XE_REG((base) + 0xc64)
 #define HECI_FWSTS5(base)				XE_REG((base) + 0xc68)
 #define   HECI1_FWSTS5_HUC_AUTH_DONE			REG_BIT(19)
+#define HECI_FWSTS6(base)				XE_REG((base) + 0xc6c)
 
 #define HECI_H_GS1(base)	XE_REG((base) + 0xc4c)
 #define   HECI_H_GS1_ER_PREP	REG_BIT(0)

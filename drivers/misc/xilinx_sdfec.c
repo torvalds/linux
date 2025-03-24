@@ -1444,7 +1444,7 @@ static struct platform_driver xsdfec_driver = {
 		.of_match_table = xsdfec_of_match,
 	},
 	.probe = xsdfec_probe,
-	.remove_new =  xsdfec_remove,
+	.remove = xsdfec_remove,
 };
 
 module_platform_driver(xsdfec_driver);

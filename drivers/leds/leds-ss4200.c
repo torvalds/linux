@@ -451,7 +451,7 @@ static ssize_t blink_show(struct device *dev,
 	int blinking = 0;
 	if (nasgpio_led_get_attr(led, GPO_BLINK))
 		blinking = 1;
-	return sprintf(buf, "%u\n", blinking);
+	return sprintf(buf, "%d\n", blinking);
 }
 
 static ssize_t blink_store(struct device *dev,

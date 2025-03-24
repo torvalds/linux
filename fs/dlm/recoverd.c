@@ -151,7 +151,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	error = dlm_recover_members(ls, rv, &neg);
 	if (error) {
 		log_rinfo(ls, "dlm_recover_members error %d", error);
-		goto fail;
+		goto fail_root_list;
 	}
 
 	dlm_recover_dir_nodeid(ls, &root_list);

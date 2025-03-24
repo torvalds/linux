@@ -5,13 +5,10 @@
 
 #include <linux/dma-mapping.h>
 
-#include <drm/drm_mm.h>
-
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_gem.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_mmu.h"
-#include "etnaviv_perfmon.h"
 
 #define SUBALLOC_SIZE		SZ_512K
 #define SUBALLOC_GRANULE	SZ_4K
@@ -55,6 +52,7 @@ etnaviv_cmdbuf_suballoc_new(struct device *dev)
 	return suballoc;
 
 free_suballoc:
+	mutex_destroy(&suballoc->lock);
 	kfree(suballoc);
 
 	return ERR_PTR(ret);
@@ -79,6 +77,7 @@ void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc)
 {
 	dma_free_wc(suballoc->dev, SUBALLOC_SIZE, suballoc->vaddr,
 		    suballoc->paddr);
+	mutex_destroy(&suballoc->lock);
 	kfree(suballoc);
 }
 
@@ -100,7 +99,7 @@ retry:
 		mutex_unlock(&suballoc->lock);
 		ret = wait_event_interruptible_timeout(suballoc->free_event,
 						       suballoc->free_space,
-						       msecs_to_jiffies(10 * 1000));
+						       secs_to_jiffies(10));
 		if (!ret) {
 			dev_err(suballoc->dev,
 				"Timeout waiting for cmdbuf space\n");

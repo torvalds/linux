@@ -331,7 +331,7 @@ static void mlxbf2_gpio_irq_print_chip(struct irq_data *irqd,
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(irqd);
 	struct mlxbf2_gpio_context *gs = gpiochip_get_data(gc);
 
-	seq_printf(p, dev_name(gs->dev));
+	seq_puts(p, dev_name(gs->dev));
 }
 
 static const struct irq_chip mlxbf2_gpio_irq_chip = {

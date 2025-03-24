@@ -424,10 +424,10 @@ o entrambi.
 Molte delle liste di discussione del Kernel girano su vger.kernel.org;
 l'elenco principale lo si trova sul sito:
 
-	http://vger.kernel.org/vger-lists.html
+	https://subspace.kernel.org
 
-Esistono liste gestite altrove; un certo numero di queste sono in
-redhat.com/mailman/listinfo.
+Tuttavia, esistono liste gestite altrove; controllare il file MAINTAINERS per
+trovare la lista relativa ad un sottosistema specifico.
 
 La lista di discussione principale per lo sviluppo del kernel è, ovviamente,
 linux-kernel.  Questa lista è un luogo ostile dove trovarsi; i volumi possono

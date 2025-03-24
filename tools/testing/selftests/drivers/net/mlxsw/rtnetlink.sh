@@ -186,10 +186,7 @@ bridge_vlan_flags_test()
 
 	# If we did not handle references correctly, then this should produce a
 	# trace
-	devlink dev reload "$DEVLINK_DEV"
-
-	# Allow netdevices to be re-created following the reload
-	sleep 20
+	devlink_reload
 
 	log_test "bridge vlan flags"
 }
@@ -923,12 +920,9 @@ devlink_reload_test()
 	# devlink reload can be performed without errors
 	RET=0
 
-	devlink dev reload "$DEVLINK_DEV"
-	check_err $? "devlink reload failed"
+	devlink_reload
 
 	log_test "devlink reload - last test"
-
-	sleep 20
 }
 
 trap cleanup EXIT

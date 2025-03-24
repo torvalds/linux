@@ -131,7 +131,7 @@ struct xe_reg_sr;
  * @ver_end__: Last graphics IP version to match
  *
  * Note that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
- * inclusive on boths sides
+ * inclusive on both sides
  *
  * Refer to XE_RTP_RULES() for expected usage.
  */
@@ -169,7 +169,7 @@ struct xe_reg_sr;
  * @ver_end__: Last media IP version to match
  *
  * Note that the range matching this rule is [ @ver_start__, @ver_end__ ], i.e.
- * inclusive on boths sides
+ * inclusive on both sides
  *
  * Refer to XE_RTP_RULES() for expected usage.
  */
@@ -374,7 +374,7 @@ struct xe_reg_sr;
  * XE_RTP_RULES - Helper to set multiple rules to a struct xe_rtp_entry_sr entry
  * @...: Rules
  *
- * At least one rule is needed and up to 6 are supported. Multiple rules are
+ * At least one rule is needed and up to 12 are supported. Multiple rules are
  * AND'ed together, i.e. all the rules must evaluate to true for the entry to
  * be processed. See XE_RTP_MATCH_* for the possible match rules. Example:
  *
@@ -399,7 +399,7 @@ struct xe_reg_sr;
  * XE_RTP_ACTIONS - Helper to set multiple actions to a struct xe_rtp_entry_sr
  * @...: Actions to be taken
  *
- * At least one action is needed and up to 6 are supported. See XE_RTP_ACTION_*
+ * At least one action is needed and up to 12 are supported. See XE_RTP_ACTION_*
  * for the possible actions. Example:
  *
  * .. code-block:: c
@@ -475,5 +475,16 @@ bool xe_rtp_match_first_render_or_compute(const struct xe_gt *gt,
  */
 bool xe_rtp_match_first_gslice_fused_off(const struct xe_gt *gt,
 					 const struct xe_hw_engine *hwe);
+
+/*
+ * xe_rtp_match_not_sriov_vf - Match when not on SR-IOV VF device
+ *
+ * @gt: GT structure
+ * @hwe: Engine instance
+ *
+ * Returns: true if device is not VF, false otherwise.
+ */
+bool xe_rtp_match_not_sriov_vf(const struct xe_gt *gt,
+			       const struct xe_hw_engine *hwe);
 
 #endif

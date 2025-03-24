@@ -502,7 +502,7 @@ static struct platform_driver tegra186_wdt_driver = {
 		.of_match_table = tegra186_timer_of_match,
 	},
 	.probe = tegra186_timer_probe,
-	.remove_new = tegra186_timer_remove,
+	.remove = tegra186_timer_remove,
 };
 module_platform_driver(tegra186_wdt_driver);
 

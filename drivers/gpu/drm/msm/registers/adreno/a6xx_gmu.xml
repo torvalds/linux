@@ -52,6 +52,11 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 	<reg32 offset="0x23fd" name="GMU_DCVS_PERF_SETTING"/>
 	<reg32 offset="0x23fe" name="GMU_DCVS_BW_SETTING"/>
 	<reg32 offset="0x23ff" name="GMU_DCVS_RETURN"/>
+	<reg32 offset="0x2bf8" name="GMU_CORE_FW_VERSION">
+		<bitfield name="MAJOR" low="28" high="31"/>
+		<bitfield name="MINOR" low="16" high="27"/>
+		<bitfield name="STEP" low="0" high="15"/>
+	</reg32>
 	<reg32 offset="0x4c00" name="GMU_ICACHE_CONFIG"/>
 	<reg32 offset="0x4c01" name="GMU_DCACHE_CONFIG"/>
 	<reg32 offset="0x4c0f" name="GMU_SYS_BUS_CONFIG"/>

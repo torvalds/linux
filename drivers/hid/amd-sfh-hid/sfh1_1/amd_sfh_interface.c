@@ -87,6 +87,41 @@ void sfh_interface_init(struct amd_mp2_dev *mp2)
 	emp2 = mp2;
 }
 
+static int amd_sfh_mode_info(u32 *platform_type, u32 *laptop_placement)
+{
+	struct sfh_op_mode mode;
+
+	if (!platform_type || !laptop_placement)
+		return -EINVAL;
+
+	if (!emp2 || !emp2->dev_en.is_sra_present)
+		return -ENODEV;
+
+	mode.val = readl(emp2->mmio + amd_get_c2p_val(emp2, 3));
+
+	*platform_type = mode.op_mode.devicemode;
+
+	if (mode.op_mode.ontablestate == 1) {
+		*laptop_placement = ON_TABLE;
+	} else if (mode.op_mode.ontablestate == 2) {
+		*laptop_placement = ON_LAP_MOTION;
+	} else if (mode.op_mode.inbagstate == 1) {
+		*laptop_placement = IN_BAG;
+	} else if (mode.op_mode.outbagstate == 1) {
+		*laptop_placement = OUT_OF_BAG;
+	} else if (mode.op_mode.ontablestate == 0 || mode.op_mode.inbagstate == 0 ||
+		 mode.op_mode.outbagstate == 0) {
+		*laptop_placement = LP_UNKNOWN;
+		pr_warn_once("Unknown laptop placement\n");
+	} else if (mode.op_mode.ontablestate == 3 || mode.op_mode.inbagstate == 3 ||
+		 mode.op_mode.outbagstate == 3) {
+		*laptop_placement = LP_UNDEFINED;
+		pr_warn_once("Undefined laptop placement\n");
+	}
+
+	return 0;
+}
+
 static int amd_sfh_hpd_info(u8 *user_present)
 {
 	struct hpd_status hpdstatus;
@@ -131,6 +166,9 @@ int amd_get_sfh_info(struct amd_sfh_info *sfh_info, enum sfh_message_type op)
 			return amd_sfh_hpd_info(&sfh_info->user_present);
 		case MT_ALS:
 			return amd_sfh_als_info(&sfh_info->ambient_light);
+		case MT_SRA:
+			return amd_sfh_mode_info(&sfh_info->platform_type,
+						 &sfh_info->laptop_placement);
 		}
 	}
 	return -EINVAL;

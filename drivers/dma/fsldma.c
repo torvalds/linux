@@ -1404,7 +1404,7 @@ static struct platform_driver fsldma_of_driver = {
 #endif
 	},
 	.probe = fsldma_of_probe,
-	.remove_new = fsldma_of_remove,
+	.remove = fsldma_of_remove,
 };
 
 /*----------------------------------------------------------------------------*/

@@ -13,7 +13,6 @@
 #include <linux/completion.h>
 #include <linux/cred.h>
 #include <linux/file.h>
-#include <linux/fdtable.h>
 #include <linux/fs_struct.h>
 #include <linux/workqueue.h>
 #include <linux/security.h>
@@ -545,7 +544,7 @@ static int proc_cap_handler(const struct ctl_table *table, int write,
 	return 0;
 }
 
-static struct ctl_table usermodehelper_table[] = {
+static const struct ctl_table usermodehelper_table[] = {
 	{
 		.procname	= "bset",
 		.data		= &usermodehelper_bset,

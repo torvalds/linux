@@ -16,7 +16,7 @@ description:
   can be connected to CMOS image sensors from various vendors, supporting both
   MIPI CSI-2 and parallel interfaces. It can also output on either MIPI CSI-2
   or parallel. The hardware is capable of transmitting and receiving MIPI
-  interlaved data strams with data types or multiple virtual channel
+  interleaved data streams with data types or multiple virtual channel
   identifiers.
 
 allOf:
@@ -135,8 +135,7 @@ properties:
 
           data-lanes:
             $ref: /schemas/media/video-interfaces.yaml#/properties/data-lanes
-            items:
-              maxItems: 4
+            maxItems: 4
             description:
               This property is for lane reordering between the THP7312 and the imaging
               sensor that it is connected to.

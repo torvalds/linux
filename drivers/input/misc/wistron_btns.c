@@ -271,7 +271,7 @@ static struct key_entry keymap_fs_amilo_pro_v8210[] __initdata = {
 	{ KE_BLUETOOTH, 0x30 },                      /* Fn+F10 */
 	{ KE_KEY,       0x31, {KEY_MAIL} },          /* mail button */
 	{ KE_KEY,       0x36, {KEY_WWW} },           /* www button */
-	{ KE_WIFI,      0x78 },                      /* satelite dish button */
+	{ KE_WIFI,      0x78 },                      /* satellite dish button */
 	{ KE_END,       FE_WIFI_LED }
 };
 
@@ -990,8 +990,8 @@ static int __init copy_keymap(void)
 	for (key = keymap; key->type != KE_END; key++)
 		length++;
 
-	new_keymap = kmemdup(keymap, length * sizeof(struct key_entry),
-			     GFP_KERNEL);
+	new_keymap = kmemdup_array(keymap, length, sizeof(struct key_entry),
+				   GFP_KERNEL);
 	if (!new_keymap)
 		return -ENOMEM;
 
@@ -1075,7 +1075,7 @@ static void wistron_led_init(struct device *parent)
 	}
 
 	if (leds_present & FE_MAIL_LED) {
-		/* bios_get_default_setting(MAIL) always retuns 0, so just turn the led off */
+		/* bios_get_default_setting(MAIL) always returns 0, so just turn the led off */
 		wistron_mail_led.brightness = LED_OFF;
 		if (led_classdev_register(parent, &wistron_mail_led))
 			leds_present &= ~FE_MAIL_LED;
@@ -1334,7 +1334,7 @@ static struct platform_driver wistron_driver = {
 		.pm	= pm_sleep_ptr(&wistron_pm_ops),
 	},
 	.probe		= wistron_probe,
-	.remove_new	= wistron_remove,
+	.remove		= wistron_remove,
 };
 
 static int __init wb_module_init(void)

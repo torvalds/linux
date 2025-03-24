@@ -66,9 +66,10 @@ static unsigned long get_target_state(struct thermal_instance *instance,
 }
 
 static void thermal_zone_trip_update(struct thermal_zone_device *tz,
-				     const struct thermal_trip *trip,
+				     const struct thermal_trip_desc *td,
 				     int trip_threshold)
 {
+	const struct thermal_trip *trip = &td->trip;
 	enum thermal_trend trend = get_tz_trend(tz, trip);
 	int trip_id = thermal_zone_trip_id(tz, trip);
 	struct thermal_instance *instance;
@@ -82,11 +83,8 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 	dev_dbg(&tz->device, "Trip%d[type=%d,temp=%d]:trend=%d,throttle=%d\n",
 		trip_id, trip->type, trip_threshold, trend, throttle);
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+	list_for_each_entry(instance, &td->thermal_instances, trip_node) {
 		int old_target;
-
-		if (instance->trip != trip)
-			continue;
 
 		old_target = instance->target;
 		instance->target = get_target_state(instance, trend, throttle);
@@ -99,9 +97,9 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 
 		instance->initialized = true;
 
-		mutex_lock(&instance->cdev->lock);
-		instance->cdev->updated = false; /* cdev needs update */
-		mutex_unlock(&instance->cdev->lock);
+		scoped_guard(cooling_dev, instance->cdev) {
+			instance->cdev->updated = false; /* cdev needs update */
+		}
 	}
 }
 
@@ -127,11 +125,13 @@ static void step_wise_manage(struct thermal_zone_device *tz)
 		    trip->type == THERMAL_TRIP_HOT)
 			continue;
 
-		thermal_zone_trip_update(tz, trip, td->threshold);
+		thermal_zone_trip_update(tz, td, td->threshold);
 	}
 
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
-		thermal_cdev_update(instance->cdev);
+	for_each_trip_desc(tz, td) {
+		list_for_each_entry(instance, &td->thermal_instances, trip_node)
+			thermal_cdev_update(instance->cdev);
+	}
 }
 
 static struct thermal_governor thermal_gov_step_wise = {

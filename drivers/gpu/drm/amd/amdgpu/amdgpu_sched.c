@@ -22,7 +22,6 @@
  * Authors: Andres Rodriguez <andresx7@gmail.com>
  */
 
-#include <linux/fdtable.h>
 #include <linux/file.h>
 #include <linux/pid.h>
 
@@ -36,21 +35,19 @@ static int amdgpu_sched_process_priority_override(struct amdgpu_device *adev,
 						  int fd,
 						  int32_t priority)
 {
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 	struct amdgpu_fpriv *fpriv;
 	struct amdgpu_ctx_mgr *mgr;
 	struct amdgpu_ctx *ctx;
 	uint32_t id;
 	int r;
 
-	if (!f.file)
+	if (fd_empty(f))
 		return -EINVAL;
 
-	r = amdgpu_file_to_fpriv(f.file, &fpriv);
-	if (r) {
-		fdput(f);
+	r = amdgpu_file_to_fpriv(fd_file(f), &fpriv);
+	if (r)
 		return r;
-	}
 
 	mgr = &fpriv->ctx_mgr;
 	mutex_lock(&mgr->lock);
@@ -58,7 +55,6 @@ static int amdgpu_sched_process_priority_override(struct amdgpu_device *adev,
 		amdgpu_ctx_priority_override(ctx, priority);
 	mutex_unlock(&mgr->lock);
 
-	fdput(f);
 	return 0;
 }
 
@@ -67,31 +63,25 @@ static int amdgpu_sched_context_priority_override(struct amdgpu_device *adev,
 						  unsigned ctx_id,
 						  int32_t priority)
 {
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 	struct amdgpu_fpriv *fpriv;
 	struct amdgpu_ctx *ctx;
 	int r;
 
-	if (!f.file)
+	if (fd_empty(f))
 		return -EINVAL;
 
-	r = amdgpu_file_to_fpriv(f.file, &fpriv);
-	if (r) {
-		fdput(f);
+	r = amdgpu_file_to_fpriv(fd_file(f), &fpriv);
+	if (r)
 		return r;
-	}
 
 	ctx = amdgpu_ctx_get(fpriv, ctx_id);
 
-	if (!ctx) {
-		fdput(f);
+	if (!ctx)
 		return -EINVAL;
-	}
 
 	amdgpu_ctx_priority_override(ctx, priority);
 	amdgpu_ctx_put(ctx);
-	fdput(f);
-
 	return 0;
 }
 

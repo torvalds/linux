@@ -86,7 +86,7 @@ static int fch_misc_setup(struct apd_private_data *pdata)
 		if (!clk_data->name)
 			return -ENOMEM;
 
-		strcpy(clk_data->name, obj->string.pointer);
+		strscpy(clk_data->name, obj->string.pointer, obj->string.length);
 	} else {
 		/* Set default name to mclk if entry missing in firmware */
 		clk_data->name = "mclk";
@@ -116,6 +116,11 @@ static const struct apd_device_desc cz_i2c_desc = {
 static const struct apd_device_desc wt_i2c_desc = {
 	.setup = acpi_apd_setup,
 	.fixed_clk_rate = 150000000,
+};
+
+static const struct apd_device_desc wt_i3c_desc = {
+	.setup = acpi_apd_setup,
+	.fixed_clk_rate = 125000000,
 };
 
 static struct property_entry uart_properties[] = {
@@ -231,6 +236,7 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 	{ "AMD0030", },
 	{ "AMD0040", APD_ADDR(fch_misc_desc)},
 	{ "AMDI0010", APD_ADDR(wt_i2c_desc) },
+	{ "AMDI0015", APD_ADDR(wt_i3c_desc) },
 	{ "AMDI0019", APD_ADDR(wt_i2c_desc) },
 	{ "AMDI0020", APD_ADDR(cz_uart_desc) },
 	{ "AMDI0022", APD_ADDR(cz_uart_desc) },

@@ -177,7 +177,6 @@ static ssize_t mtx1_wdt_write(struct file *file, const char *buf,
 
 static const struct file_operations mtx1_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.unlocked_ioctl	= mtx1_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= mtx1_wdt_open,
@@ -234,7 +233,7 @@ static void mtx1_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver mtx1_wdt_driver = {
 	.probe = mtx1_wdt_probe,
-	.remove_new = mtx1_wdt_remove,
+	.remove = mtx1_wdt_remove,
 	.driver.name = "mtx1-wdt",
 };
 

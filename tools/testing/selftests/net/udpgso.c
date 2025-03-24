@@ -67,6 +67,7 @@ struct testcase {
 	int gso_len;		/* mss after applying gso */
 	int r_num_mss;		/* recv(): number of calls of full mss */
 	int r_len_last;		/* recv(): size of last non-mss dgram, if any */
+	bool v6_ext_hdr;	/* send() dgrams with IPv6 extension headers */
 };
 
 const struct in6_addr addr6 = {
@@ -76,6 +77,8 @@ const struct in6_addr addr6 = {
 const struct in_addr addr4 = {
 	__constant_htonl(0x0a000001), /* 10.0.0.1 */
 };
+
+static const char ipv6_hopopts_pad1[8] = { 0 };
 
 struct testcase testcases_v4[] = {
 	{
@@ -98,6 +101,19 @@ struct testcase testcases_v4[] = {
 		.tlen = CONST_MSS_V4,
 		.gso_len = CONST_MSS_V4,
 		.r_num_mss = 1,
+	},
+	{
+		/* datalen <= MSS < gso_len: will fall back to no GSO */
+		.tlen = CONST_MSS_V4,
+		.gso_len = CONST_MSS_V4 + 1,
+		.r_num_mss = 0,
+		.r_len_last = CONST_MSS_V4,
+	},
+	{
+		/* MSS < datalen < gso_len: fail */
+		.tlen = CONST_MSS_V4 + 1,
+		.gso_len = CONST_MSS_V4 + 2,
+		.tfail = true,
 	},
 	{
 		/* send a single MSS + 1B */
@@ -203,6 +219,19 @@ struct testcase testcases_v6[] = {
 		.r_num_mss = 1,
 	},
 	{
+		/* datalen <= MSS < gso_len: will fall back to no GSO */
+		.tlen = CONST_MSS_V6,
+		.gso_len = CONST_MSS_V6 + 1,
+		.r_num_mss = 0,
+		.r_len_last = CONST_MSS_V6,
+	},
+	{
+		/* MSS < datalen < gso_len: fail */
+		.tlen = CONST_MSS_V6 + 1,
+		.gso_len = CONST_MSS_V6 + 2,
+		.tfail = true
+	},
+	{
 		/* send a single MSS + 1B */
 		.tlen = CONST_MSS_V6 + 1,
 		.gso_len = CONST_MSS_V6,
@@ -254,6 +283,13 @@ struct testcase testcases_v6[] = {
 		.tlen = 2,
 		.gso_len = 1,
 		.r_num_mss = 2,
+	},
+	{
+		/* send 2 1B segments with extension headers */
+		.tlen = 2,
+		.gso_len = 1,
+		.r_num_mss = 2,
+		.v6_ext_hdr = true,
 	},
 	{
 		/* send 2B + 2B + 1B segments */
@@ -396,10 +432,17 @@ static void run_one(struct testcase *test, int fdt, int fdr,
 	int i, ret, val, mss;
 	bool sent;
 
-	fprintf(stderr, "ipv%d tx:%d gso:%d %s\n",
+	fprintf(stderr, "ipv%d tx:%d gso:%d %s%s\n",
 			addr->sa_family == AF_INET ? 4 : 6,
 			test->tlen, test->gso_len,
+			test->v6_ext_hdr ? "ext-hdr " : "",
 			test->tfail ? "(fail)" : "");
+
+	if (test->v6_ext_hdr) {
+		if (setsockopt(fdt, IPPROTO_IPV6, IPV6_HOPOPTS,
+			       ipv6_hopopts_pad1, sizeof(ipv6_hopopts_pad1)))
+			error(1, errno, "setsockopt ipv6 hopopts");
+	}
 
 	val = test->gso_len;
 	if (cfg_do_setsockopt) {
@@ -412,6 +455,12 @@ static void run_one(struct testcase *test, int fdt, int fdr,
 		error(1, 0, "send succeeded while expecting failure");
 	if (!sent && !test->tfail)
 		error(1, 0, "send failed while expecting success");
+
+	if (test->v6_ext_hdr) {
+		if (setsockopt(fdt, IPPROTO_IPV6, IPV6_HOPOPTS, NULL, 0))
+			error(1, errno, "setsockopt ipv6 hopopts clear");
+	}
+
 	if (!sent)
 		return;
 

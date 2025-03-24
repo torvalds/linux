@@ -189,23 +189,16 @@ static inline bool new_bucket_min_cmp(const void *l, const void *r, void *args)
 	return new_bucket_prio(ca, *lhs) < new_bucket_prio(ca, *rhs);
 }
 
-static inline void new_bucket_swap(void *l, void *r, void __always_unused *args)
-{
-	struct bucket **lhs = l, **rhs = r;
-
-	swap(*lhs, *rhs);
-}
-
 static void invalidate_buckets_lru(struct cache *ca)
 {
 	struct bucket *b;
 	const struct min_heap_callbacks bucket_max_cmp_callback = {
 		.less = new_bucket_max_cmp,
-		.swp = new_bucket_swap,
+		.swp = NULL,
 	};
 	const struct min_heap_callbacks bucket_min_cmp_callback = {
 		.less = new_bucket_min_cmp,
-		.swp = new_bucket_swap,
+		.swp = NULL,
 	};
 
 	ca->heap.nr = 0;

@@ -42,5 +42,17 @@ rate, number of channels and word size) to save on power.
 It is also desirable to use the codec (if possible) to drive (or master) the
 audio clocks as it usually gives more accurate sample rates than the CPU.
 
+ASoC provided clock APIs
+------------------------
 
+.. kernel-doc:: sound/soc/soc-dai.c
+   :identifiers: snd_soc_dai_set_sysclk
 
+.. kernel-doc:: sound/soc/soc-dai.c
+   :identifiers: snd_soc_dai_set_clkdiv
+
+.. kernel-doc:: sound/soc/soc-dai.c
+   :identifiers: snd_soc_dai_set_pll
+
+.. kernel-doc:: sound/soc/soc-dai.c
+   :identifiers: snd_soc_dai_set_bclk_ratio

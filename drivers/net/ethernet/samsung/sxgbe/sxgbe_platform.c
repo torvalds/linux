@@ -224,7 +224,7 @@ MODULE_DEVICE_TABLE(of, sxgbe_dt_ids);
 
 static struct platform_driver sxgbe_platform_driver = {
 	.probe	= sxgbe_platform_probe,
-	.remove_new = sxgbe_platform_remove,
+	.remove = sxgbe_platform_remove,
 	.driver	= {
 		.name		= SXGBE_RESOURCE_NAME,
 		.pm		= &sxgbe_platform_pm_ops,

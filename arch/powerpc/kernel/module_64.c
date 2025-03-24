@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <asm/module.h>
 #include <asm/firmware.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <linux/sort.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
@@ -205,7 +205,9 @@ static int relacmp(const void *_x, const void *_y)
 
 /* Get size of potential trampolines required. */
 static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
-				    const Elf64_Shdr *sechdrs)
+				    const Elf64_Shdr *sechdrs,
+				    char *secstrings,
+				    struct module *me)
 {
 	/* One extra reloc so it's always 0-addr terminated */
 	unsigned long relocs = 1;
@@ -241,13 +243,25 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 		}
 	}
 
-#ifdef CONFIG_DYNAMIC_FTRACE
-	/* make the trampoline to the ftrace_caller */
-	relocs++;
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
-	/* an additional one for ftrace_regs_caller */
-	relocs++;
-#endif
+	/* stubs for ftrace_caller and ftrace_regs_caller */
+	relocs += IS_ENABLED(CONFIG_DYNAMIC_FTRACE) + IS_ENABLED(CONFIG_DYNAMIC_FTRACE_WITH_REGS);
+
+#ifdef CONFIG_PPC_FTRACE_OUT_OF_LINE
+	/* stubs for the function tracer */
+	for (i = 1; i < hdr->e_shnum; i++) {
+		if (!strcmp(secstrings + sechdrs[i].sh_name, "__patchable_function_entries")) {
+			me->arch.ool_stub_count = sechdrs[i].sh_size / sizeof(unsigned long);
+			me->arch.ool_stub_index = 0;
+			relocs += roundup(me->arch.ool_stub_count * sizeof(struct ftrace_ool_stub),
+					  sizeof(struct ppc64_stub_entry)) /
+				  sizeof(struct ppc64_stub_entry);
+			break;
+		}
+	}
+	if (i == hdr->e_shnum) {
+		pr_err("%s: doesn't contain __patchable_function_entries.\n", me->name);
+		return -ENOEXEC;
+	}
 #endif
 
 	pr_debug("Looks like a total of %lu stubs, max\n", relocs);
@@ -355,6 +369,24 @@ static void dedotify_versions(struct modversion_info *vers,
 		}
 }
 
+/* Same as normal versions, remove a leading dot if present. */
+static void dedotify_ext_version_names(char *str_seq, unsigned long size)
+{
+	unsigned long out = 0;
+	unsigned long in;
+	char last = '\0';
+
+	for (in = 0; in < size; in++) {
+		/* Skip one leading dot */
+		if (last == '\0' && str_seq[in] == '.')
+			in++;
+		last = str_seq[in];
+		str_seq[out++] = last;
+	}
+	/* Zero the trailing portion of the names table for robustness */
+	memset(&str_seq[out], 0, size - out);
+}
+
 /*
  * Undefined symbols which refer to .funcname, hack to funcname. Make .TOC.
  * seem to be defined (value set later).
@@ -424,10 +456,12 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 			me->arch.toc_section = i;
 			if (sechdrs[i].sh_addralign < 8)
 				sechdrs[i].sh_addralign = 8;
-		}
-		else if (strcmp(secstrings+sechdrs[i].sh_name,"__versions")==0)
+		} else if (strcmp(secstrings + sechdrs[i].sh_name, "__versions") == 0)
 			dedotify_versions((void *)hdr + sechdrs[i].sh_offset,
 					  sechdrs[i].sh_size);
+		else if (strcmp(secstrings + sechdrs[i].sh_name, "__version_ext_names") == 0)
+			dedotify_ext_version_names((void *)hdr + sechdrs[i].sh_offset,
+						   sechdrs[i].sh_size);
 
 		if (sechdrs[i].sh_type == SHT_SYMTAB)
 			dedotify((void *)hdr + sechdrs[i].sh_offset,
@@ -460,7 +494,7 @@ int module_frob_arch_sections(Elf64_Ehdr *hdr,
 #endif
 
 	/* Override the stubs size */
-	sechdrs[me->arch.stubs_section].sh_size = get_stubs_size(hdr, sechdrs);
+	sechdrs[me->arch.stubs_section].sh_size = get_stubs_size(hdr, sechdrs, secstrings, me);
 
 	return 0;
 }
@@ -651,12 +685,11 @@ static inline int create_stub(const Elf64_Shdr *sechdrs,
 	// func_desc_t is 8 bytes if ABIv2, else 16 bytes
 	desc = func_desc(addr);
 	for (i = 0; i < sizeof(func_desc_t) / sizeof(u32); i++) {
-		if (patch_instruction(((u32 *)&entry->funcdata) + i,
-				      ppc_inst(((u32 *)(&desc))[i])))
+		if (patch_u32(((u32 *)&entry->funcdata) + i, ((u32 *)&desc)[i]))
 			return 0;
 	}
 
-	if (patch_instruction(&entry->magic, ppc_inst(STUB_MAGIC)))
+	if (patch_u32(&entry->magic, STUB_MAGIC))
 		return 0;
 
 	return 1;
@@ -1086,6 +1119,37 @@ int module_trampoline_target(struct module *mod, unsigned long addr,
 	return 0;
 }
 
+static int setup_ftrace_ool_stubs(const Elf64_Shdr *sechdrs, unsigned long addr, struct module *me)
+{
+#ifdef CONFIG_PPC_FTRACE_OUT_OF_LINE
+	unsigned int i, total_stubs, num_stubs;
+	struct ppc64_stub_entry *stub;
+
+	total_stubs = sechdrs[me->arch.stubs_section].sh_size / sizeof(*stub);
+	num_stubs = roundup(me->arch.ool_stub_count * sizeof(struct ftrace_ool_stub),
+			    sizeof(struct ppc64_stub_entry)) / sizeof(struct ppc64_stub_entry);
+
+	/* Find the next available entry */
+	stub = (void *)sechdrs[me->arch.stubs_section].sh_addr;
+	for (i = 0; stub_func_addr(stub[i].funcdata); i++)
+		if (WARN_ON(i >= total_stubs))
+			return -1;
+
+	if (WARN_ON(i + num_stubs > total_stubs))
+		return -1;
+
+	stub += i;
+	me->arch.ool_stubs = (struct ftrace_ool_stub *)stub;
+
+	/* reserve stubs */
+	for (i = 0; i < num_stubs; i++)
+		if (patch_u32((void *)&stub->funcdata, PPC_RAW_NOP()))
+			return -1;
+#endif
+
+	return 0;
+}
+
 int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs)
 {
 	mod->arch.tramp = stub_for_addr(sechdrs,
@@ -1102,6 +1166,9 @@ int module_finalize_ftrace(struct module *mod, const Elf_Shdr *sechdrs)
 #endif
 
 	if (!mod->arch.tramp)
+		return -ENOENT;
+
+	if (setup_ftrace_ool_stubs(sechdrs, mod->arch.tramp, mod))
 		return -ENOENT;
 
 	return 0;

@@ -51,7 +51,7 @@ and send them to the device for encryption and transmission.
 RX
 --
 
-On the receive side if the device handled decryption and authentication
+On the receive side, if the device handled decryption and authentication
 successfully, the driver will set the decrypted bit in the associated
 :c:type:`struct sk_buff <sk_buff>`. The packets reach the TCP stack and
 are handled normally. ``ktls`` is informed when data is queued to the socket
@@ -120,8 +120,9 @@ before installing the connection state in the kernel.
 RX
 --
 
-In RX direction local networking stack has little control over the segmentation,
-so the initial records' TCP sequence number may be anywhere inside the segment.
+In the RX direction, the local networking stack has little control over
+segmentation, so the initial records' TCP sequence number may be anywhere
+inside the segment.
 
 Normal operation
 ================
@@ -138,8 +139,8 @@ There are no guarantees on record length or record segmentation. In particular
 segments may start at any point of a record and contain any number of records.
 Assuming segments are received in order, the device should be able to perform
 crypto operations and authentication regardless of segmentation. For this
-to be possible device has to keep small amount of segment-to-segment state.
-This includes at least:
+to be possible, the device has to keep a small amount of segment-to-segment
+state. This includes at least:
 
  * partial headers (if a segment carried only a part of the TLS header)
  * partial data block
@@ -175,12 +176,12 @@ and packet transformation functions) the device validates the Layer 4
 checksum and performs a 5-tuple lookup to find any TLS connection the packet
 may belong to (technically a 4-tuple
 lookup is sufficient - IP addresses and TCP port numbers, as the protocol
-is always TCP). If connection is matched device confirms if the TCP sequence
-number is the expected one and proceeds to TLS handling (record delineation,
-decryption, authentication for each record in the packet). The device leaves
-the record framing unmodified, the stack takes care of record decapsulation.
-Device indicates successful handling of TLS offload in the per-packet context
-(descriptor) passed to the host.
+is always TCP). If the packet is matched to a connection, the device confirms
+if the TCP sequence number is the expected one and proceeds to TLS handling
+(record delineation, decryption, authentication for each record in the packet).
+The device leaves the record framing unmodified, the stack takes care of record
+decapsulation. Device indicates successful handling of TLS offload in the
+per-packet context (descriptor) passed to the host.
 
 Upon reception of a TLS offloaded packet, the driver sets
 the :c:member:`decrypted` mark in :c:type:`struct sk_buff <sk_buff>`
@@ -439,7 +440,7 @@ by the driver:
  * ``rx_tls_resync_req_end`` - number of times the TLS async resync request
     properly ended with providing the HW tracked tcp-seq.
  * ``rx_tls_resync_req_skip`` - number of times the TLS async resync request
-    procedure was started by not properly ended.
+    procedure was started but not properly ended.
  * ``rx_tls_resync_res_ok`` - number of times the TLS resync response call to
     the driver was successfully handled.
  * ``rx_tls_resync_res_skip`` - number of times the TLS resync response call to
@@ -507,8 +508,8 @@ in packets as seen on the wire.
 Transport layer transparency
 ----------------------------
 
-The device should not modify any packet headers for the purpose
-of the simplifying TLS offload.
+For the purpose of simplifying TLS offload, the device should not modify any
+packet headers.
 
 The device should not depend on any packet headers beyond what is strictly
 necessary for TLS offload.

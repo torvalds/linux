@@ -99,7 +99,7 @@
  * - map previously unused analog trigger data to Z/RZ
  * - simplify feature and output descriptor
  */
-static __u8 pid0902_rdesc_fixed[] = {
+static const __u8 pid0902_rdesc_fixed[] = {
 	0x05, 0x01,        /* Usage Page (Generic Desktop Ctrls) */
 	0x09, 0x05,        /* Usage (Game Pad) */
 	0xA1, 0x01,        /* Collection (Application) */
@@ -464,12 +464,12 @@ error_hw_stop:
 	return error;
 }
 
-static __u8 *bigben_report_fixup(struct hid_device *hid, __u8 *rdesc,
+static const __u8 *bigben_report_fixup(struct hid_device *hid, __u8 *rdesc,
 	unsigned int *rsize)
 {
 	if (*rsize == PID0902_RDESC_ORIG_SIZE) {
-		rdesc = pid0902_rdesc_fixed;
 		*rsize = sizeof(pid0902_rdesc_fixed);
+		return pid0902_rdesc_fixed;
 	} else
 		hid_warn(hid, "unexpected rdesc, please submit for review\n");
 	return rdesc;

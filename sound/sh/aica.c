@@ -75,8 +75,7 @@ static void spu_write_wait(void)
 		/* To ensure hardware failure doesn't wedge kernel */
 		time_count++;
 		if (time_count > 0x10000) {
-			snd_printk
-			    ("WARNING: G2 FIFO appears to be blocked.\n");
+			pr_warn("WARNING: G2 FIFO appears to be blocked.\n");
 			break;
 		}
 	}
@@ -316,8 +315,6 @@ static void aica_period_elapsed(struct timer_list *t)
 static void spu_begin_dma(struct snd_pcm_substream *substream)
 {
 	struct snd_card_aica *dreamcastcard;
-	struct snd_pcm_runtime *runtime;
-	runtime = substream->runtime;
 	dreamcastcard = substream->pcm->private_data;
 	/*get the queue to do the work */
 	schedule_work(&(dreamcastcard->spu_dma_work));
@@ -591,8 +588,8 @@ static int snd_aica_probe(struct platform_device *devptr)
 	if (unlikely(err < 0))
 		goto freedreamcast;
 	platform_set_drvdata(devptr, dreamcastcard);
-	snd_printk
-	    ("ALSA Driver for Yamaha AICA Super Intelligent Sound Processor\n");
+	dev_info(&devptr->dev,
+		 "ALSA Driver for Yamaha AICA Super Intelligent Sound Processor\n");
 	return 0;
       freedreamcast:
 	snd_card_free(dreamcastcard->card);
@@ -602,7 +599,7 @@ static int snd_aica_probe(struct platform_device *devptr)
 
 static struct platform_driver snd_aica_driver = {
 	.probe = snd_aica_probe,
-	.remove_new = snd_aica_remove,
+	.remove = snd_aica_remove,
 	.driver = {
 		.name = SND_AICA_DRIVER,
 	},

@@ -59,6 +59,9 @@ properties:
   clocks:
     maxItems: 1
 
+  iommus:
+    maxItems: 1
+
   power-domains:
     maxItems: 1
 
@@ -123,7 +126,6 @@ examples:
             reg = <1>;
             interrupt-parent = <&irqc0>;
             interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-            micrel,led-mode = <1>;
             reset-gpios = <&gpio5 31 GPIO_ACTIVE_LOW>;
         };
     };

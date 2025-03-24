@@ -57,6 +57,7 @@ struct cpuinfo_loongarch {
 	int			global_id; /* physical global thread number */
 	int			vabits; /* Virtual Address size in bits */
 	int			pabits; /* Physical Address size in bits */
+	int			timerbits; /* Width of arch timer in bits */
 	unsigned int		ksave_mask; /* Usable KSave mask. */
 	unsigned int		watch_dreg_count;   /* Number data breakpoints */
 	unsigned int		watch_ireg_count;   /* Number instruction breakpoints */
@@ -74,27 +75,6 @@ extern const char *__cpu_family[];
 extern const char *__cpu_full_name[];
 #define cpu_family_string()	__cpu_family[raw_smp_processor_id()]
 #define cpu_full_name_string()	__cpu_full_name[raw_smp_processor_id()]
-
-struct seq_file;
-struct notifier_block;
-
-extern int register_proc_cpuinfo_notifier(struct notifier_block *nb);
-extern int proc_cpuinfo_notifier_call_chain(unsigned long val, void *v);
-
-#define proc_cpuinfo_notifier(fn, pri)					\
-({									\
-	static struct notifier_block fn##_nb = {			\
-		.notifier_call = fn,					\
-		.priority = pri						\
-	};								\
-									\
-	register_proc_cpuinfo_notifier(&fn##_nb);			\
-})
-
-struct proc_cpuinfo_notifier_args {
-	struct seq_file *m;
-	unsigned long n;
-};
 
 static inline bool cpus_are_siblings(int cpua, int cpub)
 {

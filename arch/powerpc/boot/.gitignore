@@ -30,7 +30,6 @@ zImage.coff
 zImage.epapr
 zImage.holly
 zImage.*lds
-zImage.maple
 zImage.miboot
 zImage.pmac
 zImage.pseries

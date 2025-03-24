@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/mediatek,syscon.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek Clock controller syscon's
+
+maintainers:
+  - Matthias Brugger <matthias.bgg@gmail.com>
+  - AngeloGioacchino Del Regno <angelogioacchino.delregno@collabora.com>
+
+description:
+  The MediaTek clock controller syscon's provide various clocks to the system.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt2701-bdpsys
+              - mediatek,mt2701-imgsys
+              - mediatek,mt2701-vdecsys
+              - mediatek,mt2712-bdpsys
+              - mediatek,mt2712-imgsys
+              - mediatek,mt2712-jpgdecsys
+              - mediatek,mt2712-mcucfg
+              - mediatek,mt2712-mfgcfg
+              - mediatek,mt2712-vdecsys
+              - mediatek,mt2712-vencsys
+              - mediatek,mt6735-imgsys
+              - mediatek,mt6735-mfgcfg
+              - mediatek,mt6735-vdecsys
+              - mediatek,mt6735-vencsys
+              - mediatek,mt6765-camsys
+              - mediatek,mt6765-imgsys
+              - mediatek,mt6765-mipi0a
+              - mediatek,mt6765-vcodecsys
+              - mediatek,mt6779-camsys
+              - mediatek,mt6779-imgsys
+              - mediatek,mt6779-ipesys
+              - mediatek,mt6779-mfgcfg
+              - mediatek,mt6779-vdecsys
+              - mediatek,mt6779-vencsys
+              - mediatek,mt6797-imgsys
+              - mediatek,mt6797-vdecsys
+              - mediatek,mt6797-vencsys
+              - mediatek,mt8167-imgsys
+              - mediatek,mt8167-mfgcfg
+              - mediatek,mt8167-vdecsys
+              - mediatek,mt8173-imgsys
+              - mediatek,mt8173-vdecsys
+              - mediatek,mt8173-vencltsys
+              - mediatek,mt8173-vencsys
+              - mediatek,mt8183-camsys
+              - mediatek,mt8183-imgsys
+              - mediatek,mt8183-ipu_conn
+              - mediatek,mt8183-ipu_adl
+              - mediatek,mt8183-ipu_core0
+              - mediatek,mt8183-ipu_core1
+              - mediatek,mt8183-mcucfg
+              - mediatek,mt8183-mfgcfg
+              - mediatek,mt8183-vdecsys
+              - mediatek,mt8183-vencsys
+          - const: syscon
+      - items:
+          - const: mediatek,mt7623-bdpsys
+          - const: mediatek,mt2701-bdpsys
+          - const: syscon
+      - items:
+          - const: mediatek,mt7623-imgsys
+          - const: mediatek,mt2701-imgsys
+          - const: syscon
+      - items:
+          - const: mediatek,mt7623-vdecsys
+          - const: mediatek,mt2701-vdecsys
+          - const: syscon
+
+  reg:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@11220000 {
+        compatible = "mediatek,mt2701-bdpsys", "syscon";
+        reg = <0x11220000 0x2000>;
+        #clock-cells = <1>;
+    };

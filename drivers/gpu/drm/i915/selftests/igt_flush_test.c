@@ -19,12 +19,22 @@ int igt_flush_test(struct drm_i915_private *i915)
 	int ret = 0;
 
 	for_each_gt(gt, i915, i) {
+		struct intel_engine_cs *engine;
+		unsigned long timeout_ms = 0;
+		unsigned int id;
+
 		if (intel_gt_is_wedged(gt))
 			ret = -EIO;
 
+		for_each_engine(engine, gt, id) {
+			if (engine->props.preempt_timeout_ms > timeout_ms)
+				timeout_ms = engine->props.preempt_timeout_ms;
+		}
+
 		cond_resched();
 
-		if (intel_gt_wait_for_idle(gt, HZ * 3) == -ETIME) {
+		/* 2x longest preempt timeout, experimentally determined */
+		if (intel_gt_wait_for_idle(gt, HZ * timeout_ms / 500) == -ETIME) {
 			pr_err("%pS timed out, cancelling all further testing.\n",
 			       __builtin_return_address(0));
 

@@ -175,6 +175,100 @@ setup_hsr_interfaces()
 	ip -net "$ns3" link set hsr3 up
 }
 
+setup_vlan_interfaces() {
+	ip -net "$ns1" link add link hsr1 name hsr1.2 type vlan id 2
+	ip -net "$ns1" link add link hsr1 name hsr1.3 type vlan id 3
+	ip -net "$ns1" link add link hsr1 name hsr1.4 type vlan id 4
+	ip -net "$ns1" link add link hsr1 name hsr1.5 type vlan id 5
+
+	ip -net "$ns2" link add link hsr2 name hsr2.2 type vlan id 2
+	ip -net "$ns2" link add link hsr2 name hsr2.3 type vlan id 3
+	ip -net "$ns2" link add link hsr2 name hsr2.4 type vlan id 4
+	ip -net "$ns2" link add link hsr2 name hsr2.5 type vlan id 5
+
+	ip -net "$ns3" link add link hsr3 name hsr3.2 type vlan id 2
+	ip -net "$ns3" link add link hsr3 name hsr3.3 type vlan id 3
+	ip -net "$ns3" link add link hsr3 name hsr3.4 type vlan id 4
+	ip -net "$ns3" link add link hsr3 name hsr3.5 type vlan id 5
+
+	ip -net "$ns1" addr add 100.64.2.1/24 dev hsr1.2
+	ip -net "$ns1" addr add 100.64.3.1/24 dev hsr1.3
+	ip -net "$ns1" addr add 100.64.4.1/24 dev hsr1.4
+	ip -net "$ns1" addr add 100.64.5.1/24 dev hsr1.5
+
+	ip -net "$ns2" addr add 100.64.2.2/24 dev hsr2.2
+	ip -net "$ns2" addr add 100.64.3.2/24 dev hsr2.3
+	ip -net "$ns2" addr add 100.64.4.2/24 dev hsr2.4
+	ip -net "$ns2" addr add 100.64.5.2/24 dev hsr2.5
+
+	ip -net "$ns3" addr add 100.64.2.3/24 dev hsr3.2
+	ip -net "$ns3" addr add 100.64.3.3/24 dev hsr3.3
+	ip -net "$ns3" addr add 100.64.4.3/24 dev hsr3.4
+	ip -net "$ns3" addr add 100.64.5.3/24 dev hsr3.5
+
+	ip -net "$ns1" link set dev hsr1.2 up
+	ip -net "$ns1" link set dev hsr1.3 up
+	ip -net "$ns1" link set dev hsr1.4 up
+	ip -net "$ns1" link set dev hsr1.5 up
+
+	ip -net "$ns2" link set dev hsr2.2 up
+	ip -net "$ns2" link set dev hsr2.3 up
+	ip -net "$ns2" link set dev hsr2.4 up
+	ip -net "$ns2" link set dev hsr2.5 up
+
+	ip -net "$ns3" link set dev hsr3.2 up
+	ip -net "$ns3" link set dev hsr3.3 up
+	ip -net "$ns3" link set dev hsr3.4 up
+	ip -net "$ns3" link set dev hsr3.5 up
+
+}
+
+hsr_vlan_ping() {
+	do_ping "$ns1" 100.64.2.2
+	do_ping "$ns1" 100.64.3.2
+	do_ping "$ns1" 100.64.4.2
+	do_ping "$ns1" 100.64.5.2
+
+	do_ping "$ns1" 100.64.2.3
+	do_ping "$ns1" 100.64.3.3
+	do_ping "$ns1" 100.64.4.3
+	do_ping "$ns1" 100.64.5.3
+
+	do_ping "$ns2" 100.64.2.1
+	do_ping "$ns2" 100.64.3.1
+	do_ping "$ns2" 100.64.4.1
+	do_ping "$ns2" 100.64.5.1
+
+	do_ping "$ns2" 100.64.2.3
+	do_ping "$ns2" 100.64.3.3
+	do_ping "$ns2" 100.64.4.3
+	do_ping "$ns2" 100.64.5.3
+
+	do_ping "$ns3" 100.64.2.1
+	do_ping "$ns3" 100.64.3.1
+	do_ping "$ns3" 100.64.4.1
+	do_ping "$ns3" 100.64.5.1
+
+	do_ping "$ns3" 100.64.2.2
+	do_ping "$ns3" 100.64.3.2
+	do_ping "$ns3" 100.64.4.2
+	do_ping "$ns3" 100.64.5.2
+}
+
+run_vlan_tests() {
+	vlan_challenged_hsr1=$(ip net exec "$ns1" ethtool -k hsr1 | grep "vlan-challenged" | awk '{print $2}')
+	vlan_challenged_hsr2=$(ip net exec "$ns2" ethtool -k hsr2 | grep "vlan-challenged" | awk '{print $2}')
+	vlan_challenged_hsr3=$(ip net exec "$ns3" ethtool -k hsr3 | grep "vlan-challenged" | awk '{print $2}')
+
+	if [[ "$vlan_challenged_hsr1" = "off" || "$vlan_challenged_hsr2" = "off" || "$vlan_challenged_hsr3" = "off" ]]; then
+		echo "INFO: Running VLAN tests"
+		setup_vlan_interfaces
+		hsr_vlan_ping
+	else
+		echo "INFO: Not Running VLAN tests as the device does not support VLAN"
+	fi
+}
+
 check_prerequisites
 setup_ns ns1 ns2 ns3
 
@@ -183,9 +277,13 @@ trap cleanup_all_ns EXIT
 setup_hsr_interfaces 0
 do_complete_ping_test
 
+run_vlan_tests
+
 setup_ns ns1 ns2 ns3
 
 setup_hsr_interfaces 1
 do_complete_ping_test
+
+run_vlan_tests
 
 exit $ret

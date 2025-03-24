@@ -45,6 +45,7 @@ struct vsc73xx_portinfo {
  * @vlans: List of configured vlans. Contains port mask and untagged status of
  *	every vlan configured in port vlan operation. It doesn't cover tag_8021q
  *	vlans.
+ * @fdb_lock: Mutex protects fdb access
  */
 struct vsc73xx {
 	struct device			*dev;
@@ -57,6 +58,7 @@ struct vsc73xx {
 	void				*priv;
 	struct vsc73xx_portinfo		portinfo[VSC73XX_MAX_NUM_PORTS];
 	struct list_head		vlans;
+	struct mutex			fdb_lock;
 };
 
 /**

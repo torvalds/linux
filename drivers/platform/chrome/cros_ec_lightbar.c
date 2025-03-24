@@ -608,7 +608,7 @@ static struct platform_driver cros_ec_lightbar_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = cros_ec_lightbar_probe,
-	.remove_new = cros_ec_lightbar_remove,
+	.remove = cros_ec_lightbar_remove,
 	.id_table = cros_ec_lightbar_id,
 };
 

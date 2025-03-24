@@ -428,7 +428,6 @@
 		interrupts = <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A73A4_CLK_MMCIF0>;
 		power-domains = <&pd_a3sp>;
-		reg-io-width = <4>;
 		status = "disabled";
 	};
 
@@ -438,7 +437,6 @@
 		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A73A4_CLK_MMCIF1>;
 		power-domains = <&pd_a3sp>;
-		reg-io-width = <4>;
 		status = "disabled";
 	};
 

@@ -203,7 +203,7 @@ __naked void stack_write_clobbers_spilled_regs(void)
 
 SEC("sockops")
 __description("indirect variable-offset stack access, unbounded")
-__failure __msg("invalid unbounded variable-offset indirect access to stack R4")
+__failure __msg("invalid unbounded variable-offset write to stack R4")
 __naked void variable_offset_stack_access_unbounded(void)
 {
 	asm volatile ("					\
@@ -236,7 +236,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("lwt_in")
 __description("indirect variable-offset stack access, max out of bound")
-__failure __msg("invalid variable-offset indirect access to stack R2")
+__failure __msg("invalid variable-offset read from stack R2")
 __naked void access_max_out_of_bound(void)
 {
 	asm volatile ("					\
@@ -269,7 +269,7 @@ __naked void access_max_out_of_bound(void)
  */
 SEC("socket")
 __description("indirect variable-offset stack access, zero-sized, max out of bound")
-__failure __msg("invalid variable-offset indirect access to stack R1")
+__failure __msg("invalid variable-offset write to stack R1")
 __naked void zero_sized_access_max_out_of_bound(void)
 {
 	asm volatile ("                      \
@@ -294,7 +294,7 @@ __naked void zero_sized_access_max_out_of_bound(void)
 
 SEC("lwt_in")
 __description("indirect variable-offset stack access, min out of bound")
-__failure __msg("invalid variable-offset indirect access to stack R2")
+__failure __msg("invalid variable-offset read from stack R2")
 __naked void access_min_out_of_bound(void)
 {
 	asm volatile ("					\

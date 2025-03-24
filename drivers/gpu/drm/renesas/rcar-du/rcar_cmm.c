@@ -201,7 +201,7 @@ MODULE_DEVICE_TABLE(of, rcar_cmm_of_table);
 
 static struct platform_driver rcar_cmm_platform_driver = {
 	.probe		= rcar_cmm_probe,
-	.remove_new	= rcar_cmm_remove,
+	.remove		= rcar_cmm_remove,
 	.driver		= {
 		.name	= "rcar-cmm",
 		.of_match_table = rcar_cmm_of_table,
