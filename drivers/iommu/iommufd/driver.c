@@ -102,7 +102,7 @@ int iommufd_viommu_report_event(struct iommufd_viommu *viommu,
 		goto out_set_header;
 	}
 
-	vevent = kmalloc(struct_size(vevent, event_data, data_len), GFP_ATOMIC);
+	vevent = kzalloc(struct_size(vevent, event_data, data_len), GFP_ATOMIC);
 	if (!vevent) {
 		rc = -ENOMEM;
 		vevent = &veventq->lost_events_header;
