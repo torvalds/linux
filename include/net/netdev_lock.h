@@ -11,19 +11,20 @@ static inline bool netdev_trylock(struct net_device *dev)
 	return mutex_trylock(&dev->lock);
 }
 
-static inline void netdev_assert_locked(struct net_device *dev)
+static inline void netdev_assert_locked(const struct net_device *dev)
 {
 	lockdep_assert_held(&dev->lock);
 }
 
-static inline void netdev_assert_locked_or_invisible(struct net_device *dev)
+static inline void
+netdev_assert_locked_or_invisible(const struct net_device *dev)
 {
 	if (dev->reg_state == NETREG_REGISTERED ||
 	    dev->reg_state == NETREG_UNREGISTERING)
 		netdev_assert_locked(dev);
 }
 
-static inline bool netdev_need_ops_lock(struct net_device *dev)
+static inline bool netdev_need_ops_lock(const struct net_device *dev)
 {
 	bool ret = dev->request_ops_lock || !!dev->queue_mgmt_ops;
 
@@ -46,7 +47,7 @@ static inline void netdev_unlock_ops(struct net_device *dev)
 		netdev_unlock(dev);
 }
 
-static inline void netdev_ops_assert_locked(struct net_device *dev)
+static inline void netdev_ops_assert_locked(const struct net_device *dev)
 {
 	if (netdev_need_ops_lock(dev))
 		lockdep_assert_held(&dev->lock);
