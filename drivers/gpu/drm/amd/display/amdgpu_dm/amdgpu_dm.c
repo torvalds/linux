@@ -4826,41 +4826,54 @@ static int get_brightness_range(const struct amdgpu_dm_backlight_caps *caps,
 	return 1;
 }
 
-static u32 convert_brightness_from_user(const struct amdgpu_dm_backlight_caps *caps,
-					uint32_t brightness)
+static void convert_custom_brightness(const struct amdgpu_dm_backlight_caps *caps,
+				      uint32_t *brightness)
 {
-	unsigned int min, max;
 	u8 prev_signal = 0, prev_lum = 0;
+	int i = 0;
 
-	if (!get_brightness_range(caps, &min, &max))
-		return brightness;
+	if (amdgpu_dc_debug_mask & DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE)
+		return;
 
-	for (int i = 0; i < caps->data_points; i++) {
-		u8 signal, lum;
+	if (!caps->data_points)
+		return;
 
-		if (amdgpu_dc_debug_mask & DC_DISABLE_CUSTOM_BRIGHTNESS_CURVE)
-			break;
-
-		signal = caps->luminance_data[i].input_signal;
-		lum = caps->luminance_data[i].luminance;
+	/* choose start to run less interpolation steps */
+	if (caps->luminance_data[caps->data_points/2].input_signal > *brightness)
+		i = caps->data_points/2;
+	do {
+		u8 signal = caps->luminance_data[i].input_signal;
+		u8 lum = caps->luminance_data[i].luminance;
 
 		/*
 		 * brightness == signal: luminance is percent numerator
 		 * brightness < signal: interpolate between previous and current luminance numerator
 		 * brightness > signal: find next data point
 		 */
-		if (brightness < signal)
-			lum = prev_lum + DIV_ROUND_CLOSEST((lum - prev_lum) *
-							   (brightness - prev_signal),
-							   signal - prev_signal);
-		else if (brightness > signal) {
+		if (*brightness > signal) {
 			prev_signal = signal;
 			prev_lum = lum;
+			i++;
 			continue;
 		}
-		brightness = DIV_ROUND_CLOSEST(lum * brightness, 101);
-		break;
-	}
+		if (*brightness < signal)
+			lum = prev_lum + DIV_ROUND_CLOSEST((lum - prev_lum) *
+							   (*brightness - prev_signal),
+							   signal - prev_signal);
+		*brightness = DIV_ROUND_CLOSEST(lum * *brightness, 101);
+		return;
+	} while (i < caps->data_points);
+}
+
+static u32 convert_brightness_from_user(const struct amdgpu_dm_backlight_caps *caps,
+					uint32_t brightness)
+{
+	unsigned int min, max;
+
+	if (!get_brightness_range(caps, &min, &max))
+		return brightness;
+
+	convert_custom_brightness(caps, &brightness);
 
 	// Rescale 0..255 to min..max
 	return min + DIV_ROUND_CLOSEST((max - min) * brightness,
