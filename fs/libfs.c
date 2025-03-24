@@ -2113,7 +2113,7 @@ struct timespec64 simple_inode_init_ts(struct inode *inode)
 }
 EXPORT_SYMBOL(simple_inode_init_ts);
 
-static inline struct dentry *get_stashed_dentry(struct dentry **stashed)
+struct dentry *stashed_dentry_get(struct dentry **stashed)
 {
 	struct dentry *dentry;
 
@@ -2215,7 +2215,7 @@ int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
 	const struct stashed_operations *sops = mnt->mnt_sb->s_fs_info;
 
 	/* See if dentry can be reused. */
-	path->dentry = get_stashed_dentry(stashed);
+	path->dentry = stashed_dentry_get(stashed);
 	if (path->dentry) {
 		sops->put_data(data);
 		goto out_path;
