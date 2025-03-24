@@ -42,7 +42,11 @@ struct statmount {
 	__u32 opt_array;	/* [str] Array of nul terminated fs options */
 	__u32 opt_sec_num;	/* Number of security options */
 	__u32 opt_sec_array;	/* [str] Array of nul terminated security options */
-	__u64 __spare2[46];
+	__u32 mnt_uidmap_num;	/* Number of uid mappings */
+	__u32 mnt_uidmap;	/* [str] Array of uid mappings */
+	__u32 mnt_gidmap_num;	/* Number of gid mappings */
+	__u32 mnt_gidmap;	/* [str] Array of gid mappings */
+	__u64 __spare2[44];
 	char str[];		/* Variable size part containing strings */
 };
 
@@ -156,6 +160,14 @@ struct mnt_ns_info {
 
 #ifndef STATX_MNT_ID_UNIQUE
 #define STATX_MNT_ID_UNIQUE 0x00004000U /* Want/got extended stx_mount_id */
+#endif
+
+#ifndef STATMOUNT_MNT_UIDMAP
+#define STATMOUNT_MNT_UIDMAP		0x00002000U	/* Want/got uidmap... */
+#endif
+
+#ifndef STATMOUNT_MNT_GIDMAP
+#define STATMOUNT_MNT_GIDMAP		0x00004000U	/* Want/got gidmap... */
 #endif
 
 #ifndef MOUNT_ATTR_RDONLY
