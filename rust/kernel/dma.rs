@@ -94,7 +94,7 @@ pub mod attrs {
     pub const DMA_ATTR_ALLOC_SINGLE_PAGES: Attrs = Attrs(bindings::DMA_ATTR_ALLOC_SINGLE_PAGES);
 
     /// This tells the DMA-mapping subsystem to suppress allocation failure reports (similarly to
-    /// __GFP_NOWARN).
+    /// `__GFP_NOWARN`).
     pub const DMA_ATTR_NO_WARN: Attrs = Attrs(bindings::DMA_ATTR_NO_WARN);
 
     /// Used to indicate that the buffer is fully accessible at an elevated privilege level (and
