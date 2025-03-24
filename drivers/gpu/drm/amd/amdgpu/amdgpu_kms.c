@@ -999,6 +999,13 @@ out:
 			}
 		}
 
+		if (adev->userq_funcs[AMDGPU_HW_IP_GFX])
+			dev_info->userq_ip_mask |= (1 << AMDGPU_HW_IP_GFX);
+		if (adev->userq_funcs[AMDGPU_HW_IP_COMPUTE])
+			dev_info->userq_ip_mask |= (1 << AMDGPU_HW_IP_COMPUTE);
+		if (adev->userq_funcs[AMDGPU_HW_IP_DMA])
+			dev_info->userq_ip_mask |= (1 << AMDGPU_HW_IP_DMA);
+
 		ret = copy_to_user(out, dev_info,
 				   min((size_t)size, sizeof(*dev_info))) ? -EFAULT : 0;
 		kfree(dev_info);
