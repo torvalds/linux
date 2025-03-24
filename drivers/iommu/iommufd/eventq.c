@@ -385,7 +385,8 @@ static ssize_t iommufd_veventq_fops_read(struct file *filep, char __user *buf,
 			break;
 		}
 		spin_lock(&eventq->lock);
-		veventq->num_events--;
+		if (!vevent_for_lost_events_header(cur))
+			veventq->num_events--;
 		spin_unlock(&eventq->lock);
 		done += cur->data_len;
 		kfree(cur);
