@@ -5,7 +5,7 @@
 //! It is called from a panic handler, so it should't allocate memory and
 //! does all the work on the stack or on the provided buffers. For
 //! simplification, it only supports low error correction, and applies the
-//! first mask (checkerboard). It will draw the smallest QRcode that can
+//! first mask (checkerboard). It will draw the smallest QR code that can
 //! contain the string passed as parameter. To get the most compact
 //! QR code, the start of the URL is encoded as binary, and the
 //! compressed kmsg is encoded as numeric.
