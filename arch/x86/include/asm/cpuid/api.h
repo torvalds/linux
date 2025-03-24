@@ -207,4 +207,13 @@ static inline u32 hypervisor_cpuid_base(const char *sig, u32 leaves)
 	return 0;
 }
 
+/*
+ * CPUID(0x80000006) parsing helpers
+ */
+
+static inline bool cpuid_amd_hygon_has_l3_cache(void)
+{
+	return cpuid_edx(0x80000006);
+}
+
 #endif /* _ASM_X86_CPUID_API_H */
