@@ -26,6 +26,28 @@
 
 #include "internal.h"
 
+bool __file_ref_put_badval(file_ref_t *ref, unsigned long cnt)
+{
+	/*
+	 * If the reference count was already in the dead zone, then this
+	 * put() operation is imbalanced. Warn, put the reference count back to
+	 * DEAD and tell the caller to not deconstruct the object.
+	 */
+	if (WARN_ONCE(cnt >= FILE_REF_RELEASED, "imbalanced put on file reference count")) {
+		atomic_long_set(&ref->refcnt, FILE_REF_DEAD);
+		return false;
+	}
+
+	/*
+	 * This is a put() operation on a saturated refcount. Restore the
+	 * mean saturation value and tell the caller to not deconstruct the
+	 * object.
+	 */
+	if (cnt > FILE_REF_MAXREF)
+		atomic_long_set(&ref->refcnt, FILE_REF_SATURATED);
+	return false;
+}
+
 /**
  * __file_ref_put - Slowpath of file_ref_put()
  * @ref:	Pointer to the reference count
@@ -67,24 +89,7 @@ bool __file_ref_put(file_ref_t *ref, unsigned long cnt)
 		return true;
 	}
 
-	/*
-	 * If the reference count was already in the dead zone, then this
-	 * put() operation is imbalanced. Warn, put the reference count back to
-	 * DEAD and tell the caller to not deconstruct the object.
-	 */
-	if (WARN_ONCE(cnt >= FILE_REF_RELEASED, "imbalanced put on file reference count")) {
-		atomic_long_set(&ref->refcnt, FILE_REF_DEAD);
-		return false;
-	}
-
-	/*
-	 * This is a put() operation on a saturated refcount. Restore the
-	 * mean saturation value and tell the caller to not deconstruct the
-	 * object.
-	 */
-	if (cnt > FILE_REF_MAXREF)
-		atomic_long_set(&ref->refcnt, FILE_REF_SATURATED);
-	return false;
+	return __file_ref_put_badval(ref, cnt);
 }
 EXPORT_SYMBOL_GPL(__file_ref_put);
 
@@ -1179,8 +1184,13 @@ struct fd fdget_raw(unsigned int fd)
  */
 static inline bool file_needs_f_pos_lock(struct file *file)
 {
-	return (file->f_mode & FMODE_ATOMIC_POS) &&
-		(file_count(file) > 1 || file->f_op->iterate_shared);
+	if (!(file->f_mode & FMODE_ATOMIC_POS))
+		return false;
+	if (__file_ref_read_raw(&file->f_ref) != FILE_REF_ONEREF)
+		return true;
+	if (file->f_op->iterate_shared)
+		return true;
+	return false;
 }
 
 bool file_seek_cur_needs_f_lock(struct file *file)
@@ -1198,7 +1208,7 @@ struct fd fdget_pos(unsigned int fd)
 	struct fd f = fdget(fd);
 	struct file *file = fd_file(f);
 
-	if (file && file_needs_f_pos_lock(file)) {
+	if (likely(file) && file_needs_f_pos_lock(file)) {
 		f.word |= FDPUT_POS_UNLOCK;
 		mutex_lock(&file->f_pos_lock);
 	}

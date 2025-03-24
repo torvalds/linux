@@ -118,6 +118,9 @@ static inline void put_file_access(struct file *file)
 	}
 }
 
+void fput_close_sync(struct file *);
+void fput_close(struct file *);
+
 /*
  * super.c
  */
