@@ -168,6 +168,9 @@ static int thunder_i2c_probe_pci(struct pci_dev *pdev,
 	i2c->roff.twsi_int = 0x1010;
 	i2c->roff.sw_twsi_ext = 0x1018;
 	i2c->roff.mode = 0x1038;
+	i2c->roff.block_ctl = 0x1048;
+	i2c->roff.block_sts = 0x1050;
+	i2c->roff.block_fifo = 0x1058;
 
 	i2c->dev = dev;
 	pci_set_drvdata(pdev, i2c);
