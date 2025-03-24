@@ -92,6 +92,9 @@ static int __net_mp_open_rxq(struct net_device *dev, unsigned ifq_idx,
 	struct netdev_rx_queue *rxq;
 	int ret;
 
+	if (!netdev_need_ops_lock(dev))
+		return -EOPNOTSUPP;
+
 	if (ifq_idx >= dev->real_num_rx_queues)
 		return -EINVAL;
 	ifq_idx = array_index_nospec(ifq_idx, dev->real_num_rx_queues);

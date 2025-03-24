@@ -2148,8 +2148,10 @@ static void remove_queue_kobjects(struct net_device *dev)
 	net_rx_queue_update_kobjects(dev, real_rx, 0);
 	netdev_queue_update_kobjects(dev, real_tx, 0);
 
+	netdev_lock_ops(dev);
 	dev->real_num_rx_queues = 0;
 	dev->real_num_tx_queues = 0;
+	netdev_unlock_ops(dev);
 #ifdef CONFIG_SYSFS
 	kset_unregister(dev->queues_kset);
 #endif

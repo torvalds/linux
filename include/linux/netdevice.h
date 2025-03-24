@@ -2523,6 +2523,9 @@ struct net_device {
 	 * Double protects:
 	 *	@up
 	 *
+	 * Double ops protects:
+	 *	@real_num_rx_queues, @real_num_tx_queues
+	 *
 	 * Also protects some fields in struct napi_struct.
 	 *
 	 * Ordering: take after rtnl_lock.
