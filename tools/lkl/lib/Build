@@ -12,7 +12,6 @@ liblkl-y += utils.o
 liblkl-y += virtio_blk.o
 liblkl-y += virtio.o
 liblkl-y += dbg.o
-liblkl-y += dbg_handler.o
 liblkl-$(LKL_HOST_CONFIG_VIRTIO_NET) += virtio_net.o
 liblkl-$(LKL_HOST_CONFIG_VIRTIO_NET_FD) += virtio_net_fd.o
 liblkl-$(LKL_HOST_CONFIG_VIRTIO_NET_FD) += virtio_net_tap.o
