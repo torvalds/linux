@@ -355,14 +355,56 @@ void init_hygon_cacheinfo(struct cpuinfo_x86 *c)
 	ci->num_leaves = find_num_cache_leaves(c);
 }
 
+static void intel_cacheinfo_done(struct cpuinfo_x86 *c, unsigned int l3,
+				 unsigned int l2, unsigned int l1i, unsigned int l1d)
+{
+	/*
+	 * If llc_id is still unset, then cpuid_level < 4, which implies
+	 * that the only possibility left is SMT.  Since CPUID(2) doesn't
+	 * specify any shared caches and SMT shares all caches, we can
+	 * unconditionally set LLC ID to the package ID so that all
+	 * threads share it.
+	 */
+	if (c->topo.llc_id == BAD_APICID)
+		c->topo.llc_id = c->topo.pkg_id;
+
+	c->x86_cache_size = l3 ? l3 : (l2 ? l2 : l1i + l1d);
+
+	if (!l2)
+		cpu_detect_cache_sizes(c);
+}
+
+/*
+ * Legacy Intel CPUID(2) path if CPUID(4) is not available.
+ */
+static void intel_cacheinfo_0x2(struct cpuinfo_x86 *c)
+{
+	unsigned int l1i = 0, l1d = 0, l2 = 0, l3 = 0;
+	const struct leaf_0x2_table *entry;
+	union leaf_0x2_regs regs;
+	u8 *ptr;
+
+	if (c->cpuid_level < 2)
+		return;
+
+	cpuid_get_leaf_0x2_regs(&regs);
+	for_each_leaf_0x2_entry(regs, ptr, entry) {
+		switch (entry->c_type) {
+		case CACHE_L1_INST:	l1i += entry->c_size; break;
+		case CACHE_L1_DATA:	l1d += entry->c_size; break;
+		case CACHE_L2:		l2  += entry->c_size; break;
+		case CACHE_L3:		l3  += entry->c_size; break;
+		}
+	}
+
+	intel_cacheinfo_done(c, l3, l2, l1i, l1d);
+}
+
 void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 {
-	/* Cache sizes */
-	unsigned int l1i = 0, l1d = 0, l2 = 0, l3 = 0;
-	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */
-	unsigned int new_l2 = 0, new_l3 = 0, i; /* Cache sizes from cpuid(4) */
-	unsigned int l2_id = 0, l3_id = 0, num_threads_sharing, index_msb;
 	struct cpu_cacheinfo *ci = get_cpu_cacheinfo(c->cpu_index);
+	unsigned int l1i = 0, l1d = 0, l2 = 0, l3 = 0;
+	unsigned int l2_id = 0, l3_id = 0;
 
 	if (c->cpuid_level > 3) {
 		/*
@@ -376,7 +418,8 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 		 * Whenever possible use cpuid(4), deterministic cache
 		 * parameters cpuid leaf to find the cache details
 		 */
-		for (i = 0; i < ci->num_leaves; i++) {
+		for (int i = 0; i < ci->num_leaves; i++) {
+			unsigned int num_threads_sharing, index_msb;
 			struct _cpuid4_info id4 = {};
 			int retval;
 
@@ -387,18 +430,18 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 			switch (id4.eax.split.level) {
 			case 1:
 				if (id4.eax.split.type == CTYPE_DATA)
-					new_l1d = id4.size/1024;
+					l1d = id4.size / 1024;
 				else if (id4.eax.split.type == CTYPE_INST)
-					new_l1i = id4.size/1024;
+					l1i = id4.size / 1024;
 				break;
 			case 2:
-				new_l2 = id4.size/1024;
+				l2 = id4.size / 1024;
 				num_threads_sharing = 1 + id4.eax.split.num_threads_sharing;
 				index_msb = get_count_order(num_threads_sharing);
 				l2_id = c->topo.apicid & ~((1 << index_msb) - 1);
 				break;
 			case 3:
-				new_l3 = id4.size/1024;
+				l3 = id4.size / 1024;
 				num_threads_sharing = 1 + id4.eax.split.num_threads_sharing;
 				index_msb = get_count_order(num_threads_sharing);
 				l3_id = c->topo.apicid & ~((1 << index_msb) - 1);
@@ -411,52 +454,19 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 	/* Don't use CPUID(2) if CPUID(4) is supported. */
 	if (!ci->num_leaves && c->cpuid_level > 1) {
-		const struct leaf_0x2_table *entry;
-		union leaf_0x2_regs regs;
-		u8 *ptr;
-
-		cpuid_get_leaf_0x2_regs(&regs);
-		for_each_leaf_0x2_entry(regs, ptr, entry) {
-			switch (entry->c_type) {
-			case CACHE_L1_INST:	l1i += entry->c_size; break;
-			case CACHE_L1_DATA:	l1d += entry->c_size; break;
-			case CACHE_L2:		l2  += entry->c_size; break;
-			case CACHE_L3:		l3  += entry->c_size; break;
-			}
-		}
+		intel_cacheinfo_0x2(c);
+		return;
 	}
 
-	if (new_l1d)
-		l1d = new_l1d;
-
-	if (new_l1i)
-		l1i = new_l1i;
-
-	if (new_l2) {
-		l2 = new_l2;
+	if (l2) {
 		c->topo.llc_id = l2_id;
 		c->topo.l2c_id = l2_id;
 	}
 
-	if (new_l3) {
-		l3 = new_l3;
+	if (l3)
 		c->topo.llc_id = l3_id;
-	}
 
-	/*
-	 * If llc_id is not yet set, this means cpuid_level < 4 which in
-	 * turns means that the only possibility is SMT (as indicated in
-	 * cpuid1). Since cpuid2 doesn't specify shared caches, and we know
-	 * that SMT shares all caches, we can unconditionally set cpu_llc_id to
-	 * c->topo.pkg_id.
-	 */
-	if (c->topo.llc_id == BAD_APICID)
-		c->topo.llc_id = c->topo.pkg_id;
-
-	c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));
-
-	if (!l2)
-		cpu_detect_cache_sizes(c);
+	intel_cacheinfo_done(c, l3, l2, l1i, l1d);
 }
 
 static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
