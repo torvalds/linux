@@ -1198,7 +1198,8 @@ config CPUSETS_V1
 	help
 	  Legacy cgroup v1 cpusets controller which has been deprecated by
 	  cgroup v2 implementation. The v1 is there for legacy applications
-	  which haven't migrated to the new cgroup v2 interface yet. If you
+	  which haven't migrated to the new cgroup v2 interface yet. Legacy
+	  interface includes cpuset filesystem and /proc/<pid>/cpuset. If you
 	  do not have any such application then you are completely fine leaving
 	  this option disabled.
 
@@ -1206,7 +1207,7 @@ config CPUSETS_V1
 
 config PROC_PID_CPUSET
 	bool "Include legacy /proc/<pid>/cpuset file"
-	depends on CPUSETS
+	depends on CPUSETS_V1
 	default y
 
 config CGROUP_DEVICE
