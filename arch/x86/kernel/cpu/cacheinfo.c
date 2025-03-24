@@ -42,7 +42,7 @@ static cpumask_var_t cpu_cacheinfo_mask;
 unsigned int memory_caching_control __ro_after_init;
 
 struct _cache_table {
-	unsigned char descriptor;
+	u8 descriptor;
 	char cache_type;
 	short size;
 };
@@ -783,50 +783,47 @@ void init_intel_cacheinfo(struct cpuinfo_x86 *c)
 
 	/* Don't use CPUID(2) if CPUID(4) is supported. */
 	if (!ci->num_leaves && c->cpuid_level > 1) {
-		/* supports eax=2  call */
-		int j, n;
-		unsigned int regs[4];
-		unsigned char *dp = (unsigned char *)regs;
+		u32 regs[4];
+		u8 *desc = (u8 *)regs;
 
-		/* Number of times to iterate */
-		n = cpuid_eax(2) & 0xFF;
+		cpuid(2, &regs[0], &regs[1], &regs[2], &regs[3]);
 
-		for (i = 0 ; i < n ; i++) {
-			cpuid(2, &regs[0], &regs[1], &regs[2], &regs[3]);
+		/* Intel CPUs must report an iteration count of 1 */
+		if (desc[0] != 0x01)
+			return;
 
-			/* If bit 31 is set, this is an unknown format */
-			for (j = 0 ; j < 4 ; j++)
-				if (regs[j] & (1 << 31))
-					regs[j] = 0;
+		/* If a register's bit 31 is set, it is an unknown format */
+		for (int i = 0; i < 4; i++) {
+			if (regs[i] & (1 << 31))
+				regs[i] = 0;
+		}
 
-			/* Byte 0 is level count, not a descriptor */
-			for (j = 1 ; j < 16 ; j++) {
-				unsigned char des = dp[j];
-				unsigned char k = 0;
+		/* Skip the first byte as it is not a descriptor */
+		for (int i = 1; i < 16; i++) {
+			u8 des = desc[i];
+			u8 k = 0;
 
-				/* look up this descriptor in the table */
-				while (cache_table[k].descriptor != 0) {
-					if (cache_table[k].descriptor == des) {
-						switch (cache_table[k].cache_type) {
-						case LVL_1_INST:
-							l1i += cache_table[k].size;
-							break;
-						case LVL_1_DATA:
-							l1d += cache_table[k].size;
-							break;
-						case LVL_2:
-							l2 += cache_table[k].size;
-							break;
-						case LVL_3:
-							l3 += cache_table[k].size;
-							break;
-						}
-
+			/* look up this descriptor in the table */
+			while (cache_table[k].descriptor != 0) {
+				if (cache_table[k].descriptor == des) {
+					switch (cache_table[k].cache_type) {
+					case LVL_1_INST:
+						l1i += cache_table[k].size;
+						break;
+					case LVL_1_DATA:
+						l1d += cache_table[k].size;
+						break;
+					case LVL_2:
+						l2 += cache_table[k].size;
+						break;
+					case LVL_3:
+						l3 += cache_table[k].size;
 						break;
 					}
 
-					k++;
+					break;
 				}
+				k++;
 			}
 		}
 	}
