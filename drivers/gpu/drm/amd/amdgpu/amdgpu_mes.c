@@ -31,6 +31,7 @@
 
 #define AMDGPU_MES_MAX_NUM_OF_QUEUES_PER_PROCESS 1024
 #define AMDGPU_ONE_DOORBELL_SIZE 8
+#define AMDGPU_MES_RESERVED_QUEUES	2
 
 int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev)
 {
@@ -92,6 +93,8 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 {
 	int i, r, num_pipes;
 	int num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	u32 total_vmid_mask, reserved_vmid_mask;
+	u32 queue_mask, reserved_queue_mask;
 
 	adev->mes.adev = adev;
 
@@ -106,8 +109,14 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 		spin_lock_init(&adev->mes.ring_lock[i]);
 
 	adev->mes.total_max_queue = AMDGPU_FENCE_MES_QUEUE_ID_MASK;
+	total_vmid_mask = (u32)((1UL << 16) - 1);
+	reserved_vmid_mask = (u32)((1UL << adev->vm_manager.first_kfd_vmid) - 1);
+
 	adev->mes.vmid_mask_mmhub = 0xFF00;
-	adev->mes.vmid_mask_gfxhub = adev->gfx.disable_kq ? 0xFFFE : 0xFF00;
+	adev->mes.vmid_mask_gfxhub = total_vmid_mask & ~reserved_vmid_mask;
+
+	queue_mask = (u32)(1UL << adev->gfx.mec.num_queue_per_pipe) - 1;
+	reserved_queue_mask = (u32)(1UL << AMDGPU_MES_RESERVED_QUEUES) - 1;
 
 	num_pipes = adev->gfx.me.num_pipe_per_me * adev->gfx.me.num_me;
 	if (num_pipes > AMDGPU_MES_MAX_GFX_PIPES)
@@ -143,7 +152,8 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 	for (i = 0; i < AMDGPU_MES_MAX_COMPUTE_PIPES; i++) {
 		if (i >= num_pipes)
 			break;
-		adev->mes.compute_hqd_mask[i] = adev->gfx.disable_kq ? 0xF : 0xC;
+		adev->mes.compute_hqd_mask[i] =
+			adev->gfx.disable_kq ? 0xF : (queue_mask & ~reserved_queue_mask);
 	}
 
 	num_pipes = adev->sdma.num_instances;
