@@ -21,7 +21,13 @@ struct platform_profile_handler {
 	struct device dev;
 	int minor;
 	unsigned long choices[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
+	unsigned long hidden_choices[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
 	const struct platform_profile_ops *ops;
+};
+
+struct aggregate_choices_data {
+	unsigned long aggregate[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
+	int count;
 };
 
 static const char * const profile_names[] = {
@@ -73,7 +79,7 @@ static int _store_class_profile(struct device *dev, void *data)
 
 	lockdep_assert_held(&profile_lock);
 	handler = to_pprof_handler(dev);
-	if (!test_bit(*bit, handler->choices))
+	if (!test_bit(*bit, handler->choices) && !test_bit(*bit, handler->hidden_choices))
 		return -EOPNOTSUPP;
 
 	return handler->ops->profile_set(dev, *bit);
@@ -239,21 +245,44 @@ static const struct class platform_profile_class = {
 /**
  * _aggregate_choices - Aggregate the available profile choices
  * @dev: The device
- * @data: The available profile choices
+ * @arg: struct aggregate_choices_data
  *
  * Return: 0 on success, -errno on failure
  */
-static int _aggregate_choices(struct device *dev, void *data)
+static int _aggregate_choices(struct device *dev, void *arg)
 {
+	unsigned long tmp[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
+	struct aggregate_choices_data *data = arg;
 	struct platform_profile_handler *handler;
-	unsigned long *aggregate = data;
 
 	lockdep_assert_held(&profile_lock);
 	handler = to_pprof_handler(dev);
-	if (test_bit(PLATFORM_PROFILE_LAST, aggregate))
-		bitmap_copy(aggregate, handler->choices, PLATFORM_PROFILE_LAST);
+	bitmap_or(tmp, handler->choices, handler->hidden_choices, PLATFORM_PROFILE_LAST);
+	if (test_bit(PLATFORM_PROFILE_LAST, data->aggregate))
+		bitmap_copy(data->aggregate, tmp, PLATFORM_PROFILE_LAST);
 	else
-		bitmap_and(aggregate, handler->choices, aggregate, PLATFORM_PROFILE_LAST);
+		bitmap_and(data->aggregate, tmp, data->aggregate, PLATFORM_PROFILE_LAST);
+	data->count++;
+
+	return 0;
+}
+
+/**
+ * _remove_hidden_choices - Remove hidden choices from aggregate data
+ * @dev: The device
+ * @arg: struct aggregate_choices_data
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int _remove_hidden_choices(struct device *dev, void *arg)
+{
+	struct aggregate_choices_data *data = arg;
+	struct platform_profile_handler *handler;
+
+	lockdep_assert_held(&profile_lock);
+	handler = to_pprof_handler(dev);
+	bitmap_andnot(data->aggregate, handler->choices,
+		      handler->hidden_choices, PLATFORM_PROFILE_LAST);
 
 	return 0;
 }
@@ -270,22 +299,31 @@ static ssize_t platform_profile_choices_show(struct device *dev,
 					     struct device_attribute *attr,
 					     char *buf)
 {
-	unsigned long aggregate[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
+	struct aggregate_choices_data data = {
+		.aggregate = { [0 ... BITS_TO_LONGS(PLATFORM_PROFILE_LAST) - 1] = ~0UL },
+		.count = 0,
+	};
 	int err;
 
-	set_bit(PLATFORM_PROFILE_LAST, aggregate);
+	set_bit(PLATFORM_PROFILE_LAST, data.aggregate);
 	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &profile_lock) {
 		err = class_for_each_device(&platform_profile_class, NULL,
-					    aggregate, _aggregate_choices);
+					    &data, _aggregate_choices);
 		if (err)
 			return err;
+		if (data.count == 1) {
+			err = class_for_each_device(&platform_profile_class, NULL,
+						    &data, _remove_hidden_choices);
+			if (err)
+				return err;
+		}
 	}
 
 	/* no profile handler registered any more */
-	if (bitmap_empty(aggregate, PLATFORM_PROFILE_LAST))
+	if (bitmap_empty(data.aggregate, PLATFORM_PROFILE_LAST))
 		return -EINVAL;
 
-	return _commmon_choices_show(aggregate, buf);
+	return _commmon_choices_show(data.aggregate, buf);
 }
 
 /**
@@ -373,7 +411,10 @@ static ssize_t platform_profile_store(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
-	unsigned long choices[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
+	struct aggregate_choices_data data = {
+		.aggregate = { [0 ... BITS_TO_LONGS(PLATFORM_PROFILE_LAST) - 1] = ~0UL },
+		.count = 0,
+	};
 	int ret;
 	int i;
 
@@ -381,13 +422,13 @@ static ssize_t platform_profile_store(struct device *dev,
 	i = sysfs_match_string(profile_names, buf);
 	if (i < 0 || i == PLATFORM_PROFILE_CUSTOM)
 		return -EINVAL;
-	set_bit(PLATFORM_PROFILE_LAST, choices);
+	set_bit(PLATFORM_PROFILE_LAST, data.aggregate);
 	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &profile_lock) {
 		ret = class_for_each_device(&platform_profile_class, NULL,
-					    choices, _aggregate_choices);
+					    &data, _aggregate_choices);
 		if (ret)
 			return ret;
-		if (!test_bit(i, choices))
+		if (!test_bit(i, data.aggregate))
 			return -EOPNOTSUPP;
 
 		ret = class_for_each_device(&platform_profile_class, NULL, &i,
@@ -453,12 +494,15 @@ EXPORT_SYMBOL_GPL(platform_profile_notify);
  */
 int platform_profile_cycle(void)
 {
+	struct aggregate_choices_data data = {
+		.aggregate = { [0 ... BITS_TO_LONGS(PLATFORM_PROFILE_LAST) - 1] = ~0UL },
+		.count = 0,
+	};
 	enum platform_profile_option next = PLATFORM_PROFILE_LAST;
 	enum platform_profile_option profile = PLATFORM_PROFILE_LAST;
-	unsigned long choices[BITS_TO_LONGS(PLATFORM_PROFILE_LAST)];
 	int err;
 
-	set_bit(PLATFORM_PROFILE_LAST, choices);
+	set_bit(PLATFORM_PROFILE_LAST, data.aggregate);
 	scoped_cond_guard(mutex_intr, return -ERESTARTSYS, &profile_lock) {
 		err = class_for_each_device(&platform_profile_class, NULL,
 					    &profile, _aggregate_profiles);
@@ -470,14 +514,14 @@ int platform_profile_cycle(void)
 			return -EINVAL;
 
 		err = class_for_each_device(&platform_profile_class, NULL,
-					    choices, _aggregate_choices);
+					    &data, _aggregate_choices);
 		if (err)
 			return err;
 
 		/* never iterate into a custom if all drivers supported it */
-		clear_bit(PLATFORM_PROFILE_CUSTOM, choices);
+		clear_bit(PLATFORM_PROFILE_CUSTOM, data.aggregate);
 
-		next = find_next_bit_wrap(choices,
+		next = find_next_bit_wrap(data.aggregate,
 					  PLATFORM_PROFILE_LAST,
 					  profile + 1);
 
@@ -530,6 +574,14 @@ struct device *platform_profile_register(struct device *dev, const char *name,
 	if (bitmap_empty(pprof->choices, PLATFORM_PROFILE_LAST)) {
 		dev_err(dev, "Failed to register platform_profile class device with empty choices\n");
 		return ERR_PTR(-EINVAL);
+	}
+
+	if (ops->hidden_choices) {
+		err = ops->hidden_choices(drvdata, pprof->hidden_choices);
+		if (err) {
+			dev_err(dev, "platform_profile hidden_choices failed\n");
+			return ERR_PTR(err);
+		}
 	}
 
 	guard(mutex)(&profile_lock);

@@ -3181,6 +3181,7 @@ static int kcompactd(void *p)
 	long default_timeout = msecs_to_jiffies(HPAGE_FRAG_CHECK_INTERVAL_MSEC);
 	long timeout = default_timeout;
 
+	current->flags |= PF_KCOMPACTD;
 	set_freezable();
 
 	pgdat->kcompactd_max_order = 0;
@@ -3236,6 +3237,8 @@ static int kcompactd(void *p)
 		if (unlikely(pgdat->proactive_compact_trigger))
 			pgdat->proactive_compact_trigger = false;
 	}
+
+	current->flags &= ~PF_KCOMPACTD;
 
 	return 0;
 }

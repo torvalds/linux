@@ -199,13 +199,8 @@
 #define WSA881X_PROBE_TIMEOUT 1000
 
 #define WSA881X_PA_GAIN_TLV(xname, reg, shift, max, invert, tlv_array) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
-		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
-	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
-	.put = wsa881x_put_pa_gain, \
-	.private_value = SOC_SINGLE_VALUE(reg, shift, max, invert, 0) }
+	SOC_SINGLE_EXT_TLV(xname, reg, shift, max, invert, \
+			   snd_soc_get_volsw, wsa881x_put_pa_gain, tlv_array)
 
 static struct reg_default wsa881x_defaults[] = {
 	{ WSA881X_CHIP_ID0, 0x00 },
@@ -1174,7 +1169,7 @@ static int wsa881x_probe(struct sdw_slave *pdev,
 					       ARRAY_SIZE(wsa881x_dais));
 }
 
-static int __maybe_unused wsa881x_runtime_suspend(struct device *dev)
+static int wsa881x_runtime_suspend(struct device *dev)
 {
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
 	struct wsa881x_priv *wsa881x = dev_get_drvdata(dev);
@@ -1187,7 +1182,7 @@ static int __maybe_unused wsa881x_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused wsa881x_runtime_resume(struct device *dev)
+static int wsa881x_runtime_resume(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
@@ -1211,7 +1206,7 @@ static int __maybe_unused wsa881x_runtime_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops wsa881x_pm_ops = {
-	SET_RUNTIME_PM_OPS(wsa881x_runtime_suspend, wsa881x_runtime_resume, NULL)
+	RUNTIME_PM_OPS(wsa881x_runtime_suspend, wsa881x_runtime_resume, NULL)
 };
 
 static const struct sdw_device_id wsa881x_slave_id[] = {
@@ -1227,7 +1222,7 @@ static struct sdw_driver wsa881x_codec_driver = {
 	.id_table = wsa881x_slave_id,
 	.driver = {
 		.name	= "wsa881x-codec",
-		.pm = &wsa881x_pm_ops,
+		.pm = pm_ptr(&wsa881x_pm_ops),
 	}
 };
 module_sdw_driver(wsa881x_codec_driver);

@@ -817,7 +817,6 @@ static void img_spdif_in_dev_remove(struct platform_device *pdev)
 		img_spdif_in_runtime_suspend(&pdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int img_spdif_in_suspend(struct device *dev)
 {
 	struct img_spdif_in *spdif = dev_get_drvdata(dev);
@@ -857,7 +856,6 @@ static int img_spdif_in_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct of_device_id img_spdif_in_of_match[] = {
 	{ .compatible = "img,spdif-in" },
@@ -866,16 +864,15 @@ static const struct of_device_id img_spdif_in_of_match[] = {
 MODULE_DEVICE_TABLE(of, img_spdif_in_of_match);
 
 static const struct dev_pm_ops img_spdif_in_pm_ops = {
-	SET_RUNTIME_PM_OPS(img_spdif_in_runtime_suspend,
-			   img_spdif_in_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(img_spdif_in_suspend, img_spdif_in_resume)
+	RUNTIME_PM_OPS(img_spdif_in_runtime_suspend, img_spdif_in_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(img_spdif_in_suspend, img_spdif_in_resume)
 };
 
 static struct platform_driver img_spdif_in_driver = {
 	.driver = {
 		.name = "img-spdif-in",
 		.of_match_table = img_spdif_in_of_match,
-		.pm = &img_spdif_in_pm_ops
+		.pm = pm_ptr(&img_spdif_in_pm_ops)
 	},
 	.probe = img_spdif_in_probe,
 	.remove = img_spdif_in_dev_remove

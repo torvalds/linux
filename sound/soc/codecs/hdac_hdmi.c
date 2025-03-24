@@ -1017,8 +1017,7 @@ static int hdac_hdmi_create_pin_port_muxs(struct hdac_device *hdev,
 			return -ENOMEM;
 	}
 
-	se->texts = devm_kmemdup(&hdev->dev, items,
-			(num_items  * sizeof(char *)), GFP_KERNEL);
+	se->texts = devm_kmemdup_array(&hdev->dev, items, num_items, sizeof(items[0]), GFP_KERNEL);
 	if (!se->texts)
 		return -ENOMEM;
 
@@ -2033,7 +2032,6 @@ static void hdmi_codec_remove(struct snd_soc_component *component)
 	pm_runtime_disable(&hdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int hdmi_codec_resume(struct device *dev)
 {
 	struct hdac_device *hdev = dev_to_hdac_dev(dev);
@@ -2056,9 +2054,6 @@ static int hdmi_codec_resume(struct device *dev)
 	hdac_hdmi_present_sense_all_pins(hdev, hdmi, false);
 	return 0;
 }
-#else
-#define hdmi_codec_resume NULL
-#endif
 
 static const struct snd_soc_component_driver hdmi_hda_codec = {
 	.probe			= hdmi_codec_probe,
@@ -2228,7 +2223,6 @@ static int hdac_hdmi_dev_remove(struct hdac_device *hdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int hdac_hdmi_runtime_suspend(struct device *dev)
 {
 	struct hdac_device *hdev = dev_to_hdac_dev(dev);
@@ -2297,14 +2291,10 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#else
-#define hdac_hdmi_runtime_suspend NULL
-#define hdac_hdmi_runtime_resume NULL
-#endif
 
 static const struct dev_pm_ops hdac_hdmi_pm = {
-	SET_RUNTIME_PM_OPS(hdac_hdmi_runtime_suspend, hdac_hdmi_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, hdmi_codec_resume)
+	RUNTIME_PM_OPS(hdac_hdmi_runtime_suspend, hdac_hdmi_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, hdmi_codec_resume)
 };
 
 static const struct hda_device_id hdmi_list[] = {
@@ -2323,7 +2313,7 @@ MODULE_DEVICE_TABLE(hdaudio, hdmi_list);
 static struct hdac_driver hdmi_driver = {
 	.driver = {
 		.name   = "HDMI HDA Codec",
-		.pm = &hdac_hdmi_pm,
+		.pm = pm_ptr(&hdac_hdmi_pm),
 	},
 	.id_table       = hdmi_list,
 	.probe          = hdac_hdmi_dev_probe,

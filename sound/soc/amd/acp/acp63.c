@@ -20,6 +20,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
+
+#include <asm/amd_node.h>
+
 #include "amd.h"
 #include "acp-mach.h"
 #include "../mach-config.h"
@@ -47,24 +50,6 @@ union clk_pll_req_no {
 		u32 gb_mult_frac : 16;
 	} bitfields, bits;
 	u32 clk_pll_req_no_reg;
-};
-
-static struct acp_resource rsrc = {
-	.offset = 0,
-	.no_of_ctrls = 2,
-	.irqp_used = 1,
-	.soc_mclk = true,
-	.irq_reg_offset = 0x1a00,
-	.scratch_reg_offset = 0x12800,
-	.sram_pte_offset = 0x03802800,
-};
-
-static struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_acp_machines[] = {
-	{
-		.id = "AMDI0052",
-		.drv_name = "acp63-acp",
-	},
-	{},
 };
 
 static struct snd_soc_dai_driver acp63_dai[] = {
@@ -158,47 +143,61 @@ static struct snd_soc_dai_driver acp63_dai[] = {
 },
 };
 
-static int acp63_i2s_master_clock_generate(struct acp_dev_data *adata)
+static int acp63_i2s_master_clock_generate(struct acp_chip_info *chip)
 {
+	int rc;
 	u32 data;
 	union clk_pll_req_no clk_pll;
-	struct pci_dev *smn_dev;
-
-	smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x14E8, NULL);
-	if (!smn_dev)
-		return -ENODEV;
 
 	/* Clk5 pll register values to get mclk as 196.6MHz*/
 	clk_pll.bits.fb_mult_int = 0x31;
 	clk_pll.bits.pll_spine_div = 0;
 	clk_pll.bits.gb_mult_frac = 0x26E9;
 
-	data = smn_read(smn_dev, CLK_PLL_PWR_REQ_N0);
-	smn_write(smn_dev, CLK_PLL_PWR_REQ_N0, data | PLL_AUTO_STOP_REQ);
+	rc = amd_smn_read(0, CLK_PLL_PWR_REQ_N0, &data);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, CLK_PLL_PWR_REQ_N0, data | PLL_AUTO_STOP_REQ);
+	if (rc)
+		return rc;
 
-	data = smn_read(smn_dev, CLK_SPLL_FIELD_2_N0);
-	if (data & PLL_FRANCE_EN)
-		smn_write(smn_dev, CLK_SPLL_FIELD_2_N0, data | PLL_FRANCE_EN);
+	rc = amd_smn_read(0, CLK_SPLL_FIELD_2_N0, &data);
+	if (rc)
+		return rc;
+	if (data & PLL_FRANCE_EN) {
+		rc = amd_smn_write(0, CLK_SPLL_FIELD_2_N0, data | PLL_FRANCE_EN);
+		if (rc)
+			return rc;
+	}
 
-	smn_write(smn_dev, CLK_PLL_REQ_N0, clk_pll.clk_pll_req_no_reg);
+	rc = amd_smn_write(0, CLK_PLL_REQ_N0, clk_pll.clk_pll_req_no_reg);
+	if (rc)
+		return rc;
 
-	data = smn_read(smn_dev, CLK_PLL_PWR_REQ_N0);
-	smn_write(smn_dev, CLK_PLL_PWR_REQ_N0, data | PLL_AUTO_START_REQ);
+	rc = amd_smn_read(0, CLK_PLL_PWR_REQ_N0, &data);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, CLK_PLL_PWR_REQ_N0, data | PLL_AUTO_START_REQ);
+	if (rc)
+		return rc;
 
-	data = smn_read(smn_dev, CLK_DFSBYPASS_CONTR);
-	smn_write(smn_dev, CLK_DFSBYPASS_CONTR, data | EXIT_DPF_BYPASS_0);
-	smn_write(smn_dev, CLK_DFSBYPASS_CONTR, data | EXIT_DPF_BYPASS_1);
+	rc = amd_smn_read(0, CLK_DFSBYPASS_CONTR, &data);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, CLK_DFSBYPASS_CONTR, data | EXIT_DPF_BYPASS_0);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, CLK_DFSBYPASS_CONTR, data | EXIT_DPF_BYPASS_1);
+	if (rc)
+		return rc;
 
-	smn_write(smn_dev, CLK_DFS_CNTL_N0, CLK0_DIVIDER);
-	return 0;
+	return amd_smn_write(0, CLK_DFS_CNTL_N0, CLK0_DIVIDER);
 }
 
 static int acp63_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_chip_info *chip;
-	struct acp_dev_data *adata;
-	struct resource *res;
 	int ret;
 
 	chip = dev_get_platdata(&pdev->dev);
@@ -212,44 +211,20 @@ static int acp63_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	adata = devm_kzalloc(dev, sizeof(struct acp_dev_data), GFP_KERNEL);
-	if (!adata)
-		return -ENOMEM;
+	chip->dev = dev;
+	chip->dai_driver = acp63_dai;
+	chip->num_dai = ARRAY_SIZE(acp63_dai);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "acp_mem");
-	if (!res) {
-		dev_err(&pdev->dev, "IORESOURCE_MEM FAILED\n");
-		return -ENODEV;
-	}
-
-	adata->acp_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (!adata->acp_base)
-		return -ENOMEM;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "acp_dai_irq");
-	if (!res) {
-		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
-		return -ENODEV;
-	}
-
-	adata->i2s_irq = res->start;
-	adata->dev = dev;
-	adata->dai_driver = acp63_dai;
-	adata->num_dai = ARRAY_SIZE(acp63_dai);
-	adata->rsrc = &rsrc;
-	adata->acp_rev = chip->acp_rev;
-	adata->flag = chip->flag;
-	adata->is_i2s_config = chip->is_i2s_config;
-	adata->machines = snd_soc_acpi_amd_acp63_acp_machines;
-	acp_machine_select(adata);
-	dev_set_drvdata(dev, adata);
-
-	if (chip->is_i2s_config && rsrc.soc_mclk) {
-		ret = acp63_i2s_master_clock_generate(adata);
+	if (chip->is_i2s_config && chip->rsrc->soc_mclk) {
+		ret = acp63_i2s_master_clock_generate(chip);
 		if (ret)
 			return ret;
 	}
-	acp_enable_interrupts(adata);
+	ret = acp_hw_en_interrupts(chip);
+	if (ret) {
+		dev_err(dev, "ACP en-interrupts failed\n");
+		return ret;
+	}
 	acp_platform_register(dev);
 	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(&pdev->dev);
@@ -262,44 +237,48 @@ static int acp63_audio_probe(struct platform_device *pdev)
 static void acp63_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip = dev_get_platdata(dev);
+	int ret;
 
-	acp_disable_interrupts(adata);
+	ret = acp_hw_dis_interrupts(chip);
+	if (ret)
+		dev_err(dev, "ACP dis-interrupts failed\n");
+
 	acp_platform_unregister(dev);
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int __maybe_unused acp63_pcm_resume(struct device *dev)
+static int acp63_pcm_resume(struct device *dev)
 {
-	struct acp_dev_data *adata = dev_get_drvdata(dev);
+	struct acp_chip_info *chip = dev_get_platdata(dev);
 	struct acp_stream *stream;
 	struct snd_pcm_substream *substream;
 	snd_pcm_uframes_t buf_in_frames;
 	u64 buf_size;
 
-	if (adata->is_i2s_config && adata->rsrc->soc_mclk)
-		acp63_i2s_master_clock_generate(adata);
+	if (chip->is_i2s_config && chip->rsrc->soc_mclk)
+		acp63_i2s_master_clock_generate(chip);
 
-	spin_lock(&adata->acp_lock);
-	list_for_each_entry(stream, &adata->stream_list, list) {
+	spin_lock(&chip->acp_lock);
+	list_for_each_entry(stream, &chip->stream_list, list) {
 		substream = stream->substream;
 		if (substream && substream->runtime) {
 			buf_in_frames = (substream->runtime->buffer_size);
 			buf_size = frames_to_bytes(substream->runtime, buf_in_frames);
-			config_pte_for_stream(adata, stream);
-			config_acp_dma(adata, stream, buf_size);
+			config_pte_for_stream(chip, stream);
+			config_acp_dma(chip, stream, buf_size);
 			if (stream->dai_id)
-				restore_acp_i2s_params(substream, adata, stream);
+				restore_acp_i2s_params(substream, chip, stream);
 			else
-				restore_acp_pdm_params(substream, adata);
+				restore_acp_pdm_params(substream, chip);
 		}
 	}
-	spin_unlock(&adata->acp_lock);
+	spin_unlock(&chip->acp_lock);
 	return 0;
 }
 
 static const struct dev_pm_ops acp63_dma_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(NULL, acp63_pcm_resume)
+	SYSTEM_SLEEP_PM_OPS(NULL, acp63_pcm_resume)
 };
 
 static struct platform_driver acp63_driver = {
@@ -307,7 +286,7 @@ static struct platform_driver acp63_driver = {
 	.remove = acp63_audio_remove,
 	.driver = {
 		.name = "acp_asoc_acp63",
-		.pm = &acp63_dma_pm_ops,
+		.pm = pm_ptr(&acp63_dma_pm_ops),
 	},
 };
 

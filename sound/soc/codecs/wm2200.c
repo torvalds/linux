@@ -1576,15 +1576,15 @@ static int wm2200_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBC_CFP:
 		lrclk |= WM2200_AIF1TX_LRCLK_MSTR;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBP_CFC:
 		bclk |= WM2200_AIF1_BCLK_MSTR;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		lrclk |= WM2200_AIF1TX_LRCLK_MSTR;
 		bclk |= WM2200_AIF1_BCLK_MSTR;
 		break;
@@ -2429,7 +2429,6 @@ static void wm2200_i2c_remove(struct i2c_client *i2c)
 			       wm2200->core_supplies);
 }
 
-#ifdef CONFIG_PM
 static int wm2200_runtime_suspend(struct device *dev)
 {
 	struct wm2200_priv *wm2200 = dev_get_drvdata(dev);
@@ -2466,11 +2465,9 @@ static int wm2200_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops wm2200_pm = {
-	SET_RUNTIME_PM_OPS(wm2200_runtime_suspend, wm2200_runtime_resume,
-			   NULL)
+	RUNTIME_PM_OPS(wm2200_runtime_suspend, wm2200_runtime_resume, NULL)
 };
 
 static const struct i2c_device_id wm2200_i2c_id[] = {
@@ -2482,7 +2479,7 @@ MODULE_DEVICE_TABLE(i2c, wm2200_i2c_id);
 static struct i2c_driver wm2200_i2c_driver = {
 	.driver = {
 		.name = "wm2200",
-		.pm = &wm2200_pm,
+		.pm = pm_ptr(&wm2200_pm),
 	},
 	.probe =    wm2200_i2c_probe,
 	.remove =   wm2200_i2c_remove,

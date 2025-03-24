@@ -264,6 +264,22 @@ out:
 	BUG_ON(wb->sorted.size < wb->flushing.keys.nr);
 }
 
+int bch2_btree_write_buffer_insert_err(struct btree_trans *trans,
+				       enum btree_id btree, struct bkey_i *k)
+{
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
+
+	prt_printf(&buf, "attempting to do write buffer update on non wb btree=");
+	bch2_btree_id_to_text(&buf, btree);
+	prt_str(&buf, "\n");
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
+
+	bch2_fs_inconsistent(c, "%s", buf.buf);
+	printbuf_exit(&buf);
+	return -EROFS;
+}
+
 static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
@@ -312,7 +328,10 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 	darray_for_each(wb->sorted, i) {
 		struct btree_write_buffered_key *k = &wb->flushing.keys.data[i->idx];
 
-		BUG_ON(!btree_type_uses_write_buffer(k->btree));
+		if (unlikely(!btree_type_uses_write_buffer(k->btree))) {
+			ret = bch2_btree_write_buffer_insert_err(trans, k->btree, &k->k);
+			goto err;
+		}
 
 		for (struct wb_key_ref *n = i + 1; n < min(i + 4, &darray_top(wb->sorted)); n++)
 			prefetch(&wb->flushing.keys.data[n->idx]);

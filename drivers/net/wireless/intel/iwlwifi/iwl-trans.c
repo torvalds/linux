@@ -403,6 +403,8 @@ void iwl_trans_op_mode_leave(struct iwl_trans *trans)
 
 	iwl_trans_pcie_op_mode_leave(trans);
 
+	cancel_work_sync(&trans->restart.wk);
+
 	trans->op_mode = NULL;
 
 	trans->state = IWL_TRANS_NO_FW;

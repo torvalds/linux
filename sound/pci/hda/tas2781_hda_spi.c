@@ -52,7 +52,7 @@
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
 		SNDRV_CTL_ELEM_ACCESS_READWRITE, \
 	.tlv.p = (tlv_array), \
-	.info = snd_soc_info_volsw_range, \
+	.info = snd_soc_info_volsw, \
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) { \
 		.reg = xreg, .rreg = xreg, \
@@ -802,7 +802,6 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 	static efi_char16_t efi_name[] = TASDEVICE_CALIBRATION_DATA_NAME;
 	unsigned char data[TASDEVICE_CALIBRATION_DATA_SIZE], *buf;
 	unsigned int attr, crc, offset, *tmp_val;
-	struct tm *tm = &tas_priv->tm;
 	unsigned long total_sz = 0;
 	efi_status_t status;
 
@@ -849,7 +848,6 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 		if (crc != tmp_val[3 + tmp_val[1] * 6])
 			return 0;
 
-		time64_to_tm(tmp_val[2], 0, tm);
 		for (int j = 0; j < tmp_val[1]; j++) {
 			offset = j * 6 + 3;
 			if (tmp_val[offset] == tas_priv->index) {
@@ -882,7 +880,6 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 		 */
 		crc = crc32(~0, data, 84) ^ ~0;
 		if (crc == tmp_val[21]) {
-			time64_to_tm(tmp_val[20], 0, tm);
 			for (int i = 0; i < CALIB_MAX; i++)
 				tas_priv->cali_data[i] =
 					tmp_val[tas_priv->index * 5 + i];
