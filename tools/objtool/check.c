@@ -25,7 +25,6 @@
 struct alternative {
 	struct alternative *next;
 	struct instruction *insn;
-	bool skip_orig;
 };
 
 static unsigned long nr_cfi, nr_cfi_reused, nr_cfi_cache;
@@ -1696,6 +1695,7 @@ static int handle_group_alt(struct objtool_file *file,
 		orig_alt_group->first_insn = orig_insn;
 		orig_alt_group->last_insn = last_orig_insn;
 		orig_alt_group->nop = NULL;
+		orig_alt_group->ignore = orig_insn->ignore_alts;
 	} else {
 		if (orig_alt_group->last_insn->offset + orig_alt_group->last_insn->len -
 		    orig_alt_group->first_insn->offset != special_alt->orig_len) {
@@ -1735,7 +1735,6 @@ static int handle_group_alt(struct objtool_file *file,
 		nop->type = INSN_NOP;
 		nop->sym = orig_insn->sym;
 		nop->alt_group = new_alt_group;
-		nop->ignore = orig_insn->ignore_alts;
 	}
 
 	if (!special_alt->new_len) {
@@ -1752,7 +1751,6 @@ static int handle_group_alt(struct objtool_file *file,
 
 		last_new_insn = insn;
 
-		insn->ignore = orig_insn->ignore_alts;
 		insn->sym = orig_insn->sym;
 		insn->alt_group = new_alt_group;
 
@@ -1799,6 +1797,7 @@ end:
 	new_alt_group->first_insn = *new_insn;
 	new_alt_group->last_insn = last_new_insn;
 	new_alt_group->nop = nop;
+	new_alt_group->ignore = (*new_insn)->ignore_alts;
 	new_alt_group->cfi = orig_alt_group->cfi;
 	return 0;
 }
@@ -1916,8 +1915,6 @@ static int add_special_section_alts(struct objtool_file *file)
 		}
 
 		alt->insn = new_insn;
-		alt->skip_orig = special_alt->skip_orig;
-		orig_insn->ignore_alts |= special_alt->skip_alt;
 		alt->next = orig_insn->alts;
 		orig_insn->alts = alt;
 
@@ -2295,6 +2292,8 @@ static int read_annotate(struct objtool_file *file,
 static int __annotate_early(struct objtool_file *file, int type, struct instruction *insn)
 {
 	switch (type) {
+
+	/* Must be before add_special_section_alts() */
 	case ANNOTYPE_IGNORE_ALTS:
 		insn->ignore_alts = true;
 		break;
@@ -3488,11 +3487,6 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 			return 1;
 		}
 
-		if (func && insn->ignore) {
-			WARN_INSN(insn, "BUG: why am I validating an ignored function?");
-			return 1;
-		}
-
 		visited = VISITED_BRANCH << state.uaccess;
 		if (insn->visited & VISITED_BRANCH_MASK) {
 			if (!insn->hint && !insn_cfi_match(insn, &state.cfi))
@@ -3564,23 +3558,18 @@ static int validate_branch(struct objtool_file *file, struct symbol *func,
 		if (propagate_alt_cfi(file, insn))
 			return 1;
 
-		if (!insn->ignore_alts && insn->alts) {
-			bool skip_orig = false;
-
+		if (insn->alts) {
 			for (alt = insn->alts; alt; alt = alt->next) {
-				if (alt->skip_orig)
-					skip_orig = true;
-
 				ret = validate_branch(file, func, alt->insn, state);
 				if (ret) {
 					BT_INSN(insn, "(alt)");
 					return ret;
 				}
 			}
-
-			if (skip_orig)
-				return 0;
 		}
+
+		if (insn->alt_group && insn->alt_group->ignore)
+			return 0;
 
 		if (handle_insn_ops(insn, next_insn, &state))
 			return 1;
@@ -3768,23 +3757,15 @@ static int validate_unret(struct objtool_file *file, struct instruction *insn)
 
 		insn->visited |= VISITED_UNRET;
 
-		if (!insn->ignore_alts && insn->alts) {
+		if (insn->alts) {
 			struct alternative *alt;
-			bool skip_orig = false;
-
 			for (alt = insn->alts; alt; alt = alt->next) {
-				if (alt->skip_orig)
-					skip_orig = true;
-
 				ret = validate_unret(file, alt->insn);
 				if (ret) {
 					BT_INSN(insn, "(alt)");
 					return ret;
 				}
 			}
-
-			if (skip_orig)
-				return 0;
 		}
 
 		switch (insn->type) {
@@ -3935,7 +3916,7 @@ static bool ignore_unreachable_insn(struct objtool_file *file, struct instructio
 	struct instruction *prev_insn;
 	int i;
 
-	if (insn->ignore || insn->type == INSN_NOP || insn->type == INSN_TRAP || (func && func->ignore))
+	if (insn->type == INSN_NOP || insn->type == INSN_TRAP || (func && func->ignore))
 		return true;
 
 	/*

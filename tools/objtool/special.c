@@ -54,7 +54,7 @@ static const struct special_entry entries[] = {
 	{},
 };
 
-void __weak arch_handle_alternative(unsigned short feature, struct special_alt *alt)
+void __weak arch_handle_alternative(struct special_alt *alt)
 {
 }
 
@@ -92,15 +92,7 @@ static int get_alt_entry(struct elf *elf, const struct special_entry *entry,
 
 	reloc_to_sec_off(orig_reloc, &alt->orig_sec, &alt->orig_off);
 
-	if (entry->feature) {
-		unsigned short feature;
-
-		feature = bswap_if_needed(elf,
-					  *(unsigned short *)(sec->data->d_buf +
-							      offset +
-							      entry->feature));
-		arch_handle_alternative(feature, alt);
-	}
+	arch_handle_alternative(alt);
 
 	if (!entry->group || alt->new_len) {
 		new_reloc = find_reloc_by_dest(elf, sec, offset + entry->new);
