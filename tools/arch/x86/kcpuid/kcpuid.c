@@ -96,8 +96,13 @@ static char *range_to_str(struct cpuid_range *range)
 	}
 }
 
-#define for_each_cpuid_range(range)		\
-	for (unsigned int i = 0; i < ARRAY_SIZE(ranges) && ((range) = &ranges[i]); i++)
+#define __for_each_cpuid_range(range, __condition)				\
+	for (unsigned int i = 0;						\
+	     i < ARRAY_SIZE(ranges) && ((range) = &ranges[i]) && (__condition);	\
+	     i++)
+
+#define for_each_valid_cpuid_range(range)	__for_each_cpuid_range(range, (range)->nr != 0)
+#define for_each_cpuid_range(range)		__for_each_cpuid_range(range, true)
 
 struct cpuid_range *index_to_cpuid_range(u32 index)
 {
@@ -105,7 +110,7 @@ struct cpuid_range *index_to_cpuid_range(u32 index)
 	u32 range_idx = index & CPUID_INDEX_MASK;
 	struct cpuid_range *range;
 
-	for_each_cpuid_range(range) {
+	for_each_valid_cpuid_range(range) {
 		if (range->index == range_idx && (u32)range->nr > func_idx)
 			return range;
 	}
@@ -223,20 +228,32 @@ static void raw_dump_range(struct cpuid_range *range)
 }
 
 #define MAX_SUBLEAF_NUM		64
+#define MAX_RANGE_INDEX_OFFSET	0xff
 void setup_cpuid_range(struct cpuid_range *range)
 {
-	u32 max_func, idx_func;
+	u32 max_func, range_funcs_sz;
 	u32 eax, ebx, ecx, edx;
 
 	cpuid(range->index, max_func, ebx, ecx, edx);
 
-	idx_func = (max_func & CPUID_FUNCTION_MASK) + 1;
-	range->funcs = malloc(sizeof(struct cpuid_func) * idx_func);
+	/*
+	 * If the CPUID range's maximum function value is garbage, then it
+	 * is not recognized by this CPU.  Set the range's number of valid
+	 * leaves to zero so that for_each_valid_cpu_range() can ignore it.
+	 */
+	if (max_func < range->index || max_func > (range->index + MAX_RANGE_INDEX_OFFSET)) {
+		range->nr = 0;
+		return;
+	}
+
+	range->nr = (max_func & CPUID_FUNCTION_MASK) + 1;
+	range_funcs_sz = range->nr * sizeof(struct cpuid_func);
+
+	range->funcs = malloc(range_funcs_sz);
 	if (!range->funcs)
 		err(EXIT_FAILURE, NULL);
 
-	range->nr = idx_func;
-	memset(range->funcs, 0, sizeof(struct cpuid_func) * idx_func);
+	memset(range->funcs, 0, range_funcs_sz);
 
 	for (u32 f = range->index; f <= max_func; f++) {
 		u32 max_subleaf = MAX_SUBLEAF_NUM;
@@ -523,7 +540,7 @@ static void show_info(void)
 
 	if (show_raw) {
 		/* Show all of the raw output of 'cpuid' instr */
-		for_each_cpuid_range(range)
+		for_each_valid_cpuid_range(range)
 			raw_dump_range(range);
 		return;
 	}
@@ -552,7 +569,7 @@ static void show_info(void)
 	}
 
 	printf("CPU features:\n=============\n\n");
-	for_each_cpuid_range(range)
+	for_each_valid_cpuid_range(range)
 		show_range(range);
 }
 
