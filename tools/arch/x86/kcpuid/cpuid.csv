@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: CC0-1.0
-# Generator: x86-cpuid-db v2.1
+# Generator: x86-cpuid-db v2.2
 
 #
 # Auto-generated file.
@@ -12,7 +12,7 @@
 # Leaf 0H
 # Maximum standard leaf number + CPU vendor string
 
-       0x0,         0,  eax,    31:0,    max_std_leaf           , Highest cpuid standard leaf supported
+       0x0,         0,  eax,    31:0,    max_std_leaf           , Highest standard CPUID leaf supported
        0x0,         0,  ebx,    31:0,    cpu_vendorid_0         , CPU vendor ID string bytes 0 - 3
        0x0,         0,  ecx,    31:0,    cpu_vendorid_2         , CPU vendor ID string bytes 8 - 11
        0x0,         0,  edx,    31:0,    cpu_vendorid_1         , CPU vendor ID string bytes 4 - 7
@@ -193,7 +193,7 @@
 # Leaf 7H
 # Extended CPU features enumeration
 
-       0x7,         0,  eax,    31:0,    leaf7_n_subleaves      , Number of cpuid 0x7 subleaves
+       0x7,         0,  eax,    31:0,    leaf7_n_subleaves      , Number of leaf 0x7 subleaves
        0x7,         0,  ebx,       0,    fsgsbase               , FSBASE/GSBASE read/write support
        0x7,         0,  ebx,       1,    tsc_adjust             , IA32_TSC_ADJUST MSR supported
        0x7,         0,  ebx,       2,    sgx                    , Intel SGX (Software Guard Extensions)
@@ -281,7 +281,7 @@
        0x7,         1,  eax,       5,    avx512_bf16            , AVX-512 bfloat16 instructions
        0x7,         1,  eax,       6,    lass                   , Linear address space separation
        0x7,         1,  eax,       7,    cmpccxadd              , CMPccXADD instructions
-       0x7,         1,  eax,       8,    arch_perfmon_ext       , ArchPerfmonExt: CPUID leaf 0x23 is supported
+       0x7,         1,  eax,       8,    arch_perfmon_ext       , ArchPerfmonExt: leaf 0x23 is supported
        0x7,         1,  eax,      10,    fzrm                   , Fast zero-length REP MOVSB
        0x7,         1,  eax,      11,    fsrs                   , Fast short REP STOSB
        0x7,         1,  eax,      12,    fsrc                   , Fast Short REP CMPSB/SCASB
@@ -319,7 +319,7 @@
        0xa,         0,  eax,     7:0,    pmu_version            , Performance monitoring unit version ID
        0xa,         0,  eax,    15:8,    pmu_n_gcounters        , Number of general PMU counters per logical CPU
        0xa,         0,  eax,   23:16,    pmu_gcounters_nbits    , Bitwidth of PMU general counters
-       0xa,         0,  eax,   31:24,    pmu_cpuid_ebx_bits     , Length of cpuid leaf 0xa EBX bit vector
+       0xa,         0,  eax,   31:24,    pmu_cpuid_ebx_bits     , Length of leaf 0xa EBX bit vector
        0xa,         0,  ebx,       0,    no_core_cycle_evt      , Core cycle event not available
        0xa,         0,  ebx,       1,    no_insn_retired_evt    , Instruction retired event not available
        0xa,         0,  ebx,       2,    no_refcycle_evt        , Reference cycles event not available
@@ -453,7 +453,7 @@
 # Leaf 14H
 # Intel Processor Trace enumeration
 
-      0x14,         0,  eax,    31:0,    pt_max_subleaf         , Max cpuid 0x14 subleaf
+      0x14,         0,  eax,    31:0,    pt_max_subleaf         , Maximum leaf 0x14 subleaf
       0x14,         0,  ebx,       0,    cr3_filtering          , IA32_RTIT_CR3_MATCH is accessible
       0x14,         0,  ebx,       1,    psb_cyc                , Configurable PSB and cycle-accurate mode
       0x14,         0,  ebx,       2,    ip_filtering           , IP/TraceStop filtering; Warm-reset PT MSRs preservation
@@ -490,7 +490,7 @@
 # Leaf 17H
 # Intel SoC vendor attributes enumeration
 
-      0x17,         0,  eax,    31:0,    soc_max_subleaf        , Max cpuid leaf 0x17 subleaf
+      0x17,         0,  eax,    31:0,    soc_max_subleaf        , Maximum leaf 0x17 subleaf
       0x17,         0,  ebx,    15:0,    soc_vendor_id          , SoC vendor ID
       0x17,         0,  ebx,      16,    is_vendor_scheme       , Assigned by industry enumeration scheme (not Intel)
       0x17,         0,  ecx,    31:0,    soc_proj_id            , SoC project ID, assigned by vendor
@@ -503,7 +503,7 @@
 # Leaf 18H
 # Intel determenestic address translation (TLB) parameters
 
-      0x18,      31:0,  eax,    31:0,    tlb_max_subleaf        , Max cpuid 0x18 subleaf
+      0x18,      31:0,  eax,    31:0,    tlb_max_subleaf        , Maximum leaf 0x18 subleaf
       0x18,      31:0,  ebx,       0,    tlb_4k_page            , TLB 4KB-page entries supported
       0x18,      31:0,  ebx,       1,    tlb_2m_page            , TLB 2MB-page entries supported
       0x18,      31:0,  ebx,       2,    tlb_4m_page            , TLB 4MB-page entries supported
@@ -634,7 +634,7 @@
 # Leaf 80000000H
 # Maximum extended leaf number + AMD/Transmeta CPU vendor string
 
-0x80000000,         0,  eax,    31:0,    max_ext_leaf           , Maximum extended cpuid leaf supported
+0x80000000,         0,  eax,    31:0,    max_ext_leaf           , Maximum extended CPUID leaf supported
 0x80000000,         0,  ebx,    31:0,    cpu_vendorid_0         , Vendor ID string bytes 0 - 3
 0x80000000,         0,  ecx,    31:0,    cpu_vendorid_2         , Vendor ID string bytes 8 - 11
 0x80000000,         0,  edx,    31:0,    cpu_vendorid_1         , Vendor ID string bytes 4 - 7
@@ -669,7 +669,7 @@
 0x80000001,         0,  ecx,      17,    tce                    , Translation cache extension
 0x80000001,         0,  ecx,      19,    nodeid_msr             , NodeId MSR (0xc001100c)
 0x80000001,         0,  ecx,      21,    tbm                    , Trailing bit manipulations
-0x80000001,         0,  ecx,      22,    topoext                , Topology Extensions (cpuid leaf 0x8000001d)
+0x80000001,         0,  ecx,      22,    topoext                , Topology Extensions (leaf 0x8000001d)
 0x80000001,         0,  ecx,      23,    perfctr_core           , Core performance counter extensions
 0x80000001,         0,  ecx,      24,    perfctr_nb             , NB/DF performance counter extensions
 0x80000001,         0,  ecx,      26,    bpext                  , Data access breakpoint extension
