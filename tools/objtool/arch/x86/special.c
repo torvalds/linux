@@ -3,6 +3,7 @@
 
 #include <objtool/special.h>
 #include <objtool/builtin.h>
+#include <objtool/warn.h>
 
 #define X86_FEATURE_POPCNT (4 * 32 + 23)
 #define X86_FEATURE_SMAP   (9 * 32 + 20)
@@ -156,8 +157,10 @@ struct reloc *arch_find_switch_table(struct objtool_file *file,
 	 * indicates a rare GCC quirk/bug which can leave dead
 	 * code behind.
 	 */
-	if (reloc_type(text_reloc) == R_X86_64_PC32)
+	if (reloc_type(text_reloc) == R_X86_64_PC32) {
+		WARN_INSN(insn, "ignoring unreachables due to jump table quirk");
 		file->ignore_unreachables = true;
+	}
 
 	*table_size = 0;
 	return rodata_reloc;
