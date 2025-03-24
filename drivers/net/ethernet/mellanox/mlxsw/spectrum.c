@@ -2409,8 +2409,6 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	/* Multicast Router Traps */
 	MLXSW_SP_RXL_MARK(ACL1, TRAP_TO_CPU, MULTICAST, false),
 	MLXSW_SP_RXL_L3_MARK(ACL2, TRAP_TO_CPU, MULTICAST, false),
-	/* NVE traps */
-	MLXSW_SP_RXL_MARK(NVE_ENCAP_ARP, TRAP_TO_CPU, NEIGH_DISCOVERY, false),
 };
 
 static const struct mlxsw_listener mlxsw_sp1_listener[] = {
@@ -5232,25 +5230,13 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 			return 0;
 		if (!mlxsw_sp_bridge_vxlan_is_valid(upper_dev, extack))
 			return -EOPNOTSUPP;
-		if (cu_info->linking) {
-			if (!netif_running(dev))
-				return 0;
-			/* When the bridge is VLAN-aware, the VNI of the VxLAN
-			 * device needs to be mapped to a VLAN, but at this
-			 * point no VLANs are configured on the VxLAN device
-			 */
-			if (br_vlan_enabled(upper_dev))
-				return 0;
+		if (!netif_running(dev))
+			return 0;
+		if (cu_info->linking)
 			return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev,
 							  dev, 0, extack);
-		} else {
-			/* VLANs were already flushed, which triggered the
-			 * necessary cleanup
-			 */
-			if (br_vlan_enabled(upper_dev))
-				return 0;
+		else
 			mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, dev);
-		}
 		break;
 	case NETDEV_PRE_UP:
 		upper_dev = netdev_master_upper_dev_get(dev);
