@@ -51,6 +51,8 @@
 
 #define AST_LUT_SIZE 256
 
+#define AST_PRIMARY_PLANE_MAX_OFFSET	(BIT(16) - 1)
+
 static unsigned long ast_fb_vram_offset(void)
 {
 	return 0; // with shmem, the primary plane is always at offset 0
@@ -960,16 +962,20 @@ static const struct drm_mode_config_helper_funcs ast_mode_config_helper_funcs = 
 static enum drm_mode_status ast_mode_config_mode_valid(struct drm_device *dev,
 						       const struct drm_display_mode *mode)
 {
-	static const unsigned long max_bpp = 4; /* DRM_FORMAT_XRGB8888 */
+	const struct drm_format_info *info = drm_format_info(DRM_FORMAT_XRGB8888);
 	struct ast_device *ast = to_ast_device(dev);
-	unsigned long fbsize, fbpages, max_fbpages;
+	unsigned long max_fb_size = ast_fb_vram_size(ast);
+	u64 pitch;
 
-	max_fbpages = ast_fb_vram_size(ast) >> PAGE_SHIFT;
+	if (drm_WARN_ON_ONCE(dev, !info))
+		return MODE_ERROR; /* driver bug */
 
-	fbsize = mode->hdisplay * mode->vdisplay * max_bpp;
-	fbpages = DIV_ROUND_UP(fbsize, PAGE_SIZE);
-
-	if (fbpages > max_fbpages)
+	pitch = drm_format_info_min_pitch(info, 0, mode->hdisplay);
+	if (!pitch)
+		return MODE_BAD_WIDTH;
+	if (pitch > AST_PRIMARY_PLANE_MAX_OFFSET)
+		return MODE_BAD_WIDTH; /* maximum programmable pitch */
+	if (pitch > max_fb_size / mode->vdisplay)
 		return MODE_MEM;
 
 	return MODE_OK;
