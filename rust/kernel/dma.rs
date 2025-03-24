@@ -301,6 +301,10 @@ impl<T: AsBytes + FromBytes> Drop for CoherentAllocation<T> {
     }
 }
 
+// SAFETY: It is safe to send a `CoherentAllocation` to another thread if `T`
+// can be sent to another thread.
+unsafe impl<T: AsBytes + FromBytes + Send> Send for CoherentAllocation<T> {}
+
 /// Reads a field of an item from an allocated region of structs.
 ///
 /// # Examples
