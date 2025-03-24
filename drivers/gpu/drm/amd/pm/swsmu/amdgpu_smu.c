@@ -3967,3 +3967,11 @@ int smu_reset_sdma(struct smu_context *smu, uint32_t inst_mask)
 
 	return ret;
 }
+
+int smu_reset_vcn(struct smu_context *smu, uint32_t inst_mask)
+{
+	if (smu->ppt_funcs && smu->ppt_funcs->dpm_reset_vcn)
+		smu->ppt_funcs->dpm_reset_vcn(smu, inst_mask);
+
+	return 0;
+}
