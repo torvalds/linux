@@ -221,7 +221,8 @@ struct file *alloc_empty_file(int flags, const struct cred *cred)
 	/*
 	 * Privileged users can go above max_files
 	 */
-	if (get_nr_files() >= files_stat.max_files && !capable(CAP_SYS_ADMIN)) {
+	if (unlikely(get_nr_files() >= files_stat.max_files) &&
+	    !capable(CAP_SYS_ADMIN)) {
 		/*
 		 * percpu_counters are inaccurate.  Do an expensive check before
 		 * we go and fail.

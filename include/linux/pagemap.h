@@ -1044,21 +1044,23 @@ static inline pgoff_t page_pgoff(const struct folio *folio,
 	return folio->index + folio_page_idx(folio, page);
 }
 
+/**
+ * folio_pos - Returns the byte position of this folio in its file.
+ * @folio: The folio.
+ */
+static inline loff_t folio_pos(const struct folio *folio)
+{
+	return ((loff_t)folio->index) * PAGE_SIZE;
+}
+
 /*
  * Return byte-offset into filesystem object for page.
  */
 static inline loff_t page_offset(struct page *page)
 {
-	return ((loff_t)page->index) << PAGE_SHIFT;
-}
+	struct folio *folio = page_folio(page);
 
-/**
- * folio_pos - Returns the byte position of this folio in its file.
- * @folio: The folio.
- */
-static inline loff_t folio_pos(struct folio *folio)
-{
-	return page_offset(&folio->page);
+	return folio_pos(folio) + folio_page_idx(folio, page) * PAGE_SIZE;
 }
 
 /*

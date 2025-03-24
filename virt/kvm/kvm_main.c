@@ -4224,15 +4224,14 @@ static int kvm_vcpu_ioctl_get_stats_fd(struct kvm_vcpu *vcpu)
 	if (fd < 0)
 		return fd;
 
-	file = anon_inode_getfile(name, &kvm_vcpu_stats_fops, vcpu, O_RDONLY);
+	file = anon_inode_getfile_fmode(name, &kvm_vcpu_stats_fops, vcpu,
+					O_RDONLY, FMODE_PREAD);
 	if (IS_ERR(file)) {
 		put_unused_fd(fd);
 		return PTR_ERR(file);
 	}
 
 	kvm_get_kvm(vcpu->kvm);
-
-	file->f_mode |= FMODE_PREAD;
 	fd_install(fd, file);
 
 	return fd;
@@ -5020,16 +5019,14 @@ static int kvm_vm_ioctl_get_stats_fd(struct kvm *kvm)
 	if (fd < 0)
 		return fd;
 
-	file = anon_inode_getfile("kvm-vm-stats",
-			&kvm_vm_stats_fops, kvm, O_RDONLY);
+	file = anon_inode_getfile_fmode("kvm-vm-stats",
+			&kvm_vm_stats_fops, kvm, O_RDONLY, FMODE_PREAD);
 	if (IS_ERR(file)) {
 		put_unused_fd(fd);
 		return PTR_ERR(file);
 	}
 
 	kvm_get_kvm(kvm);
-
-	file->f_mode |= FMODE_PREAD;
 	fd_install(fd, file);
 
 	return fd;
