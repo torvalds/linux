@@ -484,6 +484,10 @@ void intel_vrr_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
 
 	intel_vrr_set_fixed_rr_timings(crtc_state);
 
+	if (!intel_vrr_always_use_vrr_tg(display) && !crtc_state->vrr.enable)
+		intel_de_write(display, TRANS_VRR_CTL(display, cpu_transcoder),
+			       trans_vrr_ctl(crtc_state));
+
 	if (HAS_AS_SDP(display))
 		intel_de_write(display,
 			       TRANS_VRR_VSYNC(display, cpu_transcoder),
