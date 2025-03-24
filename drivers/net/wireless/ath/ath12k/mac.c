@@ -1245,61 +1245,6 @@ static int ath12k_mac_monitor_vdev_stop(struct ath12k *ar)
 	return ret;
 }
 
-static int ath12k_mac_monitor_vdev_create(struct ath12k *ar)
-{
-	struct ath12k_pdev *pdev = ar->pdev;
-	struct ath12k_wmi_vdev_create_arg arg = {};
-	int bit, ret;
-	u8 tmp_addr[6];
-
-	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
-
-	if (ar->monitor_vdev_created)
-		return 0;
-
-	if (ar->ab->free_vdev_map == 0) {
-		ath12k_warn(ar->ab, "failed to find free vdev id for monitor vdev\n");
-		return -ENOMEM;
-	}
-
-	bit = __ffs64(ar->ab->free_vdev_map);
-
-	ar->monitor_vdev_id = bit;
-
-	arg.if_id = ar->monitor_vdev_id;
-	arg.type = WMI_VDEV_TYPE_MONITOR;
-	arg.subtype = WMI_VDEV_SUBTYPE_NONE;
-	arg.pdev_id = pdev->pdev_id;
-	arg.if_stats_id = ATH12K_INVAL_VDEV_STATS_ID;
-
-	if (pdev->cap.supported_bands & WMI_HOST_WLAN_2GHZ_CAP) {
-		arg.chains[NL80211_BAND_2GHZ].tx = ar->num_tx_chains;
-		arg.chains[NL80211_BAND_2GHZ].rx = ar->num_rx_chains;
-	}
-
-	if (pdev->cap.supported_bands & WMI_HOST_WLAN_5GHZ_CAP) {
-		arg.chains[NL80211_BAND_5GHZ].tx = ar->num_tx_chains;
-		arg.chains[NL80211_BAND_5GHZ].rx = ar->num_rx_chains;
-	}
-
-	ret = ath12k_wmi_vdev_create(ar, tmp_addr, &arg);
-	if (ret) {
-		ath12k_warn(ar->ab, "failed to request monitor vdev %i creation: %d\n",
-			    ar->monitor_vdev_id, ret);
-		ar->monitor_vdev_id = -1;
-		return ret;
-	}
-
-	ar->allocated_vdev_map |= 1LL << ar->monitor_vdev_id;
-	ar->ab->free_vdev_map &= ~(1LL << ar->monitor_vdev_id);
-	ar->num_created_vdevs++;
-	ar->monitor_vdev_created = true;
-	ath12k_dbg(ar->ab, ATH12K_DBG_MAC, "mac monitor vdev %d created\n",
-		   ar->monitor_vdev_id);
-
-	return 0;
-}
-
 static int ath12k_mac_monitor_vdev_delete(struct ath12k *ar)
 {
 	int ret;
@@ -1358,7 +1303,6 @@ static int ath12k_mac_monitor_start(struct ath12k *ar)
 					    &arg.chanctx_conf->def);
 	if (ret) {
 		ath12k_warn(ar->ab, "failed to start monitor vdev: %d\n", ret);
-		ath12k_mac_monitor_vdev_delete(ar);
 		return ret;
 	}
 
@@ -1433,58 +1377,9 @@ err:
 	return ret;
 }
 
-static int ath12k_mac_config(struct ath12k *ar, u32 changed)
-{
-	struct ieee80211_hw *hw = ath12k_ar_to_hw(ar);
-	struct ieee80211_conf *conf = &hw->conf;
-	int ret = 0;
-
-	lockdep_assert_wiphy(hw->wiphy);
-
-	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
-		ar->monitor_conf_enabled = conf->flags & IEEE80211_CONF_MONITOR;
-		if (ar->monitor_conf_enabled) {
-			if (ar->monitor_vdev_created)
-				return ret;
-			ret = ath12k_mac_monitor_vdev_create(ar);
-			if (ret)
-				return ret;
-			ret = ath12k_mac_monitor_start(ar);
-			if (ret)
-				goto err_mon_del;
-		} else {
-			if (!ar->monitor_vdev_created)
-				return ret;
-			ret = ath12k_mac_monitor_stop(ar);
-			if (ret)
-				return ret;
-			ath12k_mac_monitor_vdev_delete(ar);
-		}
-	}
-
-	return ret;
-
-err_mon_del:
-	ath12k_mac_monitor_vdev_delete(ar);
-	return ret;
-}
-
 static int ath12k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
 {
-	struct ath12k_hw *ah = ath12k_hw_to_ah(hw);
-	struct ath12k *ar;
-	int ret;
-
-	lockdep_assert_wiphy(hw->wiphy);
-
-	ar = ath12k_ah_to_ar(ah, 0);
-
-	ret = ath12k_mac_config(ar, changed);
-	if (ret)
-		ath12k_warn(ar->ab, "failed to update config pdev idx %d: %d\n",
-			    ar->pdev_idx, ret);
-
-	return ret;
+	return 0;
 }
 
 static int ath12k_mac_setup_bcn_p2p_ie(struct ath12k_link_vif *arvif,
@@ -8396,8 +8291,6 @@ int ath12k_mac_vdev_create(struct ath12k *ar, struct ath12k_link_vif *arvif)
 	}
 
 	ath12k_dp_vdev_tx_attach(ar, arvif);
-	if (vif->type != NL80211_IFTYPE_MONITOR && ar->monitor_conf_enabled)
-		ath12k_mac_monitor_vdev_create(ar);
 
 	return ret;
 
@@ -8699,8 +8592,6 @@ static int ath12k_mac_vdev_delete(struct ath12k *ar, struct ath12k_link_vif *arv
 	if (ahvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
 		ar->monitor_vdev_id = -1;
 		ar->monitor_vdev_created = false;
-	} else if (ar->monitor_vdev_created && !ar->monitor_started) {
-		ret = ath12k_mac_monitor_vdev_delete(ar);
 	}
 
 	ath12k_dbg(ab, ATH12K_DBG_MAC, "vdev %pM deleted, vdev_id %d\n",
@@ -9392,8 +9283,10 @@ ath12k_mac_update_vif_chan(struct ath12k *ar,
 		arvif = wiphy_dereference(ath12k_ar_to_hw(ar)->wiphy,
 					  ahvif->link[link_id]);
 
-		if (vif->type == NL80211_IFTYPE_MONITOR)
+		if (vif->type == NL80211_IFTYPE_MONITOR) {
 			monitor_vif = true;
+			continue;
+		}
 
 		ath12k_dbg(ab, ATH12K_DBG_MAC,
 			   "mac chanctx switch vdev_id %i freq %u->%u width %d->%d\n",
@@ -9636,8 +9529,10 @@ ath12k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 	if (ahvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
 		ret = ath12k_mac_monitor_start(ar);
-		if (ret)
+		if (ret) {
+			ath12k_mac_monitor_vdev_delete(ar);
 			goto out;
+		}
 
 		arvif->is_started = true;
 		goto out;
@@ -9650,9 +9545,6 @@ ath12k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 			    ctx->def.chan->center_freq, ret);
 		goto out;
 	}
-
-	if (ahvif->vdev_type != WMI_VDEV_TYPE_MONITOR && ar->monitor_vdev_created)
-		ath12k_mac_monitor_start(ar);
 
 	arvif->is_started = true;
 
@@ -9715,10 +9607,6 @@ ath12k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 				    arvif->vdev_id, ret);
 	}
 	arvif->is_started = false;
-
-	if (ahvif->vdev_type != WMI_VDEV_TYPE_MONITOR &&
-	    ar->num_started_vdevs == 1 && ar->monitor_vdev_created)
-		ath12k_mac_monitor_stop(ar);
 }
 
 static int

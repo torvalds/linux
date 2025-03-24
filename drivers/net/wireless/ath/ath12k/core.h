@@ -741,7 +741,6 @@ struct ath12k {
 #endif
 
 	bool dfs_block_radar_events;
-	bool monitor_conf_enabled;
 	bool monitor_vdev_created;
 	bool monitor_started;
 	int monitor_vdev_id;
