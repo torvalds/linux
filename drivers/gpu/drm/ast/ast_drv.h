@@ -122,7 +122,6 @@ enum ast_config_mode {
 struct ast_plane {
 	struct drm_plane base;
 
-	void __iomem *vaddr;
 	u64 offset;
 	unsigned long size;
 };
@@ -443,11 +442,12 @@ int ast_astdp_output_init(struct ast_device *ast);
 /* ast_mode.c */
 int ast_mode_config_init(struct ast_device *ast);
 int ast_plane_init(struct drm_device *dev, struct ast_plane *ast_plane,
-		   void __iomem *vaddr, u64 offset, unsigned long size,
+		   u64 offset, unsigned long size,
 		   uint32_t possible_crtcs,
 		   const struct drm_plane_funcs *funcs,
 		   const uint32_t *formats, unsigned int format_count,
 		   const uint64_t *format_modifiers,
 		   enum drm_plane_type type);
+void __iomem *ast_plane_vaddr(struct ast_plane *ast);
 
 #endif

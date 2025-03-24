@@ -91,7 +91,7 @@ static u32 ast_cursor_calculate_checksum(const void *src, unsigned int width, un
 static void ast_set_cursor_image(struct ast_device *ast, const u8 *src,
 				 unsigned int width, unsigned int height)
 {
-	u8 __iomem *dst = ast->cursor_plane.base.vaddr;
+	u8 __iomem *dst = ast_plane_vaddr(&ast->cursor_plane.base);
 	u32 csum;
 
 	csum = ast_cursor_calculate_checksum(src, width, height);
@@ -193,7 +193,7 @@ static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	struct ast_device *ast = to_ast_device(plane->dev);
 	struct drm_rect damage;
 	u64 dst_off = ast_plane->offset;
-	u8 __iomem *dst = ast_plane->vaddr; /* TODO: Use mapping abstraction properly */
+	u8 __iomem *dst = ast_plane_vaddr(ast_plane); /* TODO: Use mapping abstraction properly */
 	u8 __iomem *sig = dst + AST_HWC_SIZE; /* TODO: Use mapping abstraction properly */
 	unsigned int offset_x, offset_y;
 	u16 x, y;
@@ -291,7 +291,6 @@ int ast_cursor_plane_init(struct ast_device *ast)
 	struct ast_plane *ast_plane = &ast_cursor_plane->base;
 	struct drm_plane *cursor_plane = &ast_plane->base;
 	unsigned long size;
-	void __iomem *vaddr;
 	long offset;
 	int ret;
 
@@ -299,9 +298,8 @@ int ast_cursor_plane_init(struct ast_device *ast)
 	offset = ast_cursor_vram_offset(ast);
 	if (offset < 0)
 		return offset;
-	vaddr = ast->vram + offset;
 
-	ret = ast_plane_init(dev, ast_plane, vaddr, offset, size,
+	ret = ast_plane_init(dev, ast_plane, offset, size,
 			     0x01, &ast_cursor_plane_funcs,
 			     ast_cursor_plane_formats, ARRAY_SIZE(ast_cursor_plane_formats),
 			     NULL, DRM_PLANE_TYPE_CURSOR);
