@@ -287,6 +287,31 @@ static int vcn_v4_0_3_sw_fini(struct amdgpu_ip_block *ip_block)
 	return 0;
 }
 
+static int vcn_v4_0_3_hw_init_inst(struct amdgpu_vcn_inst *vinst)
+{
+	int vcn_inst;
+	struct amdgpu_device *adev = vinst->adev;
+	struct amdgpu_ring *ring;
+	int inst_idx = vinst->inst;
+
+	vcn_inst = GET_INST(VCN, inst_idx);
+	ring = &adev->vcn.inst[inst_idx].ring_enc[0];
+	if (ring->use_doorbell) {
+		adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
+			(adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 9 * vcn_inst,
+			adev->vcn.inst[inst_idx].aid_id);
+
+		WREG32_SOC15(VCN, vcn_inst, regVCN_RB1_DB_CTRL,
+			ring->doorbell_index << VCN_RB1_DB_CTRL__OFFSET__SHIFT |
+			VCN_RB1_DB_CTRL__EN_MASK);
+
+		/* Read DB_CTRL to flush the write DB_CTRL command. */
+		RREG32_SOC15(VCN, vcn_inst, regVCN_RB1_DB_CTRL);
+	}
+
+	return 0;
+}
+
 /**
  * vcn_v4_0_3_hw_init - start and test VCN block
  *
@@ -298,7 +323,8 @@ static int vcn_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_ring *ring;
-	int i, r, vcn_inst;
+	struct amdgpu_vcn_inst *vinst;
+	int i, r;
 
 	if (amdgpu_sriov_vf(adev)) {
 		r = vcn_v4_0_3_start_sriov(adev);
@@ -321,28 +347,9 @@ static int vcn_v4_0_3_hw_init(struct amdgpu_ip_block *ip_block)
 		for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 			struct amdgpu_vcn4_fw_shared *fw_shared;
 
-			vcn_inst = GET_INST(VCN, i);
 			ring = &adev->vcn.inst[i].ring_enc[0];
-
-			if (ring->use_doorbell) {
-				adev->nbio.funcs->vcn_doorbell_range(
-					adev, ring->use_doorbell,
-					(adev->doorbell_index.vcn.vcn_ring0_1 << 1) +
-						9 * vcn_inst,
-					adev->vcn.inst[i].aid_id);
-
-				WREG32_SOC15(
-					VCN, GET_INST(VCN, ring->me),
-					regVCN_RB1_DB_CTRL,
-					ring->doorbell_index
-							<< VCN_RB1_DB_CTRL__OFFSET__SHIFT |
-						VCN_RB1_DB_CTRL__EN_MASK);
-
-				/* Read DB_CTRL to flush the write DB_CTRL command. */
-				RREG32_SOC15(
-					VCN, GET_INST(VCN, ring->me),
-					regVCN_RB1_DB_CTRL);
-			}
+			vinst = &adev->vcn.inst[i];
+			vcn_v4_0_3_hw_init_inst(vinst);
 
 			/* Re-init fw_shared when RAS fatal error occurred */
 			fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
