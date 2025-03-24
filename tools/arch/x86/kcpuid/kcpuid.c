@@ -101,10 +101,12 @@ static char *range_to_str(struct cpuid_range *range)
 
 struct cpuid_range *index_to_cpuid_range(u32 index)
 {
+	u32 func_idx = index & CPUID_FUNCTION_MASK;
+	u32 range_idx = index & CPUID_INDEX_MASK;
 	struct cpuid_range *range;
 
 	for_each_cpuid_range(range) {
-		if (range->index == (index & CPUID_INDEX_MASK))
+		if (range->index == range_idx && (u32)range->nr > func_idx)
 			return range;
 	}
 
@@ -331,17 +333,16 @@ static void parse_line(char *line)
 	/* index/main-leaf */
 	index = strtoull(tokens[0], NULL, 0);
 
-	/* Skip line parsing if it's not covered by known ranges */
+	/*
+	 * Skip line parsing if the index is not covered by known-valid
+	 * CPUID ranges on this CPU.
+	 */
 	range = index_to_cpuid_range(index);
 	if (!range)
 		return;
 
-	/* Skip line parsing for non-existing indexes */
-	index &= CPUID_FUNCTION_MASK;
-	if ((int)index >= range->nr)
-		return;
-
 	/* Skip line parsing if the index CPUID output is all zero */
+	index &= CPUID_FUNCTION_MASK;
 	func = &range->funcs[index];
 	if (!func->nr)
 		return;
@@ -505,15 +506,11 @@ static void show_range(struct cpuid_range *range)
 
 static inline struct cpuid_func *index_to_func(u32 index)
 {
+	u32 func_idx = index & CPUID_FUNCTION_MASK;
 	struct cpuid_range *range;
-	u32 func_idx;
 
 	range = index_to_cpuid_range(index);
 	if (!range)
-		return NULL;
-
-	func_idx = index & CPUID_FUNCTION_MASK;
-	if ((func_idx + 1) > (u32)range->nr)
 		return NULL;
 
 	return &range->funcs[func_idx];
