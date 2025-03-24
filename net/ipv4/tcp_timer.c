@@ -322,8 +322,9 @@ void tcp_delack_timer_handler(struct sock *sk)
 	if (!(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		return;
 
-	if (time_after(icsk->icsk_ack.timeout, jiffies)) {
-		sk_reset_timer(sk, &icsk->icsk_delack_timer, icsk->icsk_ack.timeout);
+	if (time_after(icsk_delack_timeout(icsk), jiffies)) {
+		sk_reset_timer(sk, &icsk->icsk_delack_timer,
+			       icsk_delack_timeout(icsk));
 		return;
 	}
 	icsk->icsk_ack.pending &= ~ICSK_ACK_TIMER;
