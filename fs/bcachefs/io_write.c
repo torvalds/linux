@@ -839,7 +839,6 @@ static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct
 {
 	struct bch_fs *c = op->c;
 	struct bio *bio = &op->wbio.bio;
-	struct nonce nonce = extent_nonce(op->version, op->crc);
 	int ret = 0;
 
 	BUG_ON(bio_sectors(bio) != op->crc.compressed_size);
@@ -866,6 +865,7 @@ static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct
 	 */
 	if (crc_is_compressed(op->crc)) {
 		/* Last point we can still verify checksum: */
+		struct nonce nonce = extent_nonce(op->version, op->crc);
 		struct bch_csum csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
 		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
 			goto csum_err;
@@ -905,6 +905,7 @@ static noinline int bch2_write_prep_encoded_data(struct bch_write_op *op, struct
 	 */
 	if (bch2_csum_type_is_encryption(op->crc.csum_type) &&
 	    (op->compression_opt || op->crc.csum_type != op->csum_type)) {
+		struct nonce nonce = extent_nonce(op->version, op->crc);
 		struct bch_csum csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, bio);
 		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
 			goto csum_err;
