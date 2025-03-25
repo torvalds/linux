@@ -1975,18 +1975,19 @@ static void msdc_init_hw(struct msdc_host *host)
 
 	if (host->dev_comp->data_tune) {
 		if (host->top_base) {
-			sdr_set_bits(host->top_base + EMMC_TOP_CONTROL,
-				     PAD_DAT_RD_RXDLY_SEL);
-			sdr_clr_bits(host->top_base + EMMC_TOP_CONTROL,
-				     DATA_K_VALUE_SEL);
-			sdr_set_bits(host->top_base + EMMC_TOP_CMD,
-				     PAD_CMD_RD_RXDLY_SEL);
+			u32 top_ctl_val = readl(host->top_base + EMMC_TOP_CONTROL);
+			u32 top_cmd_val = readl(host->top_base + EMMC_TOP_CMD);
+
+			top_cmd_val |= PAD_CMD_RD_RXDLY_SEL;
+			top_ctl_val |= PAD_DAT_RD_RXDLY_SEL;
+			top_ctl_val &= ~DATA_K_VALUE_SEL;
 			if (host->tuning_step > PAD_DELAY_HALF) {
-				sdr_set_bits(host->top_base + EMMC_TOP_CONTROL,
-					     PAD_DAT_RD_RXDLY2_SEL);
-				sdr_set_bits(host->top_base + EMMC_TOP_CMD,
-					     PAD_CMD_RD_RXDLY2_SEL);
+				top_cmd_val |= PAD_CMD_RD_RXDLY2_SEL;
+				top_ctl_val |= PAD_DAT_RD_RXDLY2_SEL;
 			}
+
+			writel(top_ctl_val, host->top_base + EMMC_TOP_CONTROL);
+			writel(top_cmd_val, host->top_base + EMMC_TOP_CMD);
 		} else {
 			sdr_set_bits(host->base + tune_reg,
 				     MSDC_PAD_TUNE_RD_SEL |
@@ -2196,15 +2197,17 @@ static inline void msdc_set_cmd_delay(struct msdc_host *host, u32 value)
 	u32 tune_reg = host->dev_comp->pad_tune_reg;
 
 	if (host->top_base) {
+		u32 regval = readl(host->top_base + EMMC_TOP_CMD);
+
+		regval &= ~(PAD_CMD_RXDLY | PAD_CMD_RXDLY2);
+
 		if (value < PAD_DELAY_HALF) {
-			sdr_set_field(host->top_base + EMMC_TOP_CMD, PAD_CMD_RXDLY, value);
-			sdr_set_field(host->top_base + EMMC_TOP_CMD, PAD_CMD_RXDLY2, 0);
+			regval |= FIELD_PREP(PAD_CMD_RXDLY, value);
 		} else {
-			sdr_set_field(host->top_base + EMMC_TOP_CMD, PAD_CMD_RXDLY,
-				      PAD_DELAY_HALF - 1);
-			sdr_set_field(host->top_base + EMMC_TOP_CMD, PAD_CMD_RXDLY2,
-				      value - PAD_DELAY_HALF);
+			regval |= FIELD_PREP(PAD_CMD_RXDLY, PAD_DELAY_HALF - 1);
+			regval |= FIELD_PREP(PAD_CMD_RXDLY2, value - PAD_DELAY_HALF);
 		}
+		writel(regval, host->top_base + EMMC_TOP_CMD);
 	} else {
 		if (value < PAD_DELAY_HALF) {
 			sdr_set_field(host->base + tune_reg, MSDC_PAD_TUNE_CMDRDLY, value);
@@ -2224,17 +2227,18 @@ static inline void msdc_set_data_delay(struct msdc_host *host, u32 value)
 	u32 tune_reg = host->dev_comp->pad_tune_reg;
 
 	if (host->top_base) {
+		u32 regval = readl(host->top_base + EMMC_TOP_CONTROL);
+
+		regval &= ~(PAD_DAT_RD_RXDLY | PAD_DAT_RD_RXDLY2);
+
 		if (value < PAD_DELAY_HALF) {
-			sdr_set_field(host->top_base + EMMC_TOP_CONTROL,
-				      PAD_DAT_RD_RXDLY, value);
-			sdr_set_field(host->top_base + EMMC_TOP_CONTROL,
-				      PAD_DAT_RD_RXDLY2, 0);
+			regval |= FIELD_PREP(PAD_DAT_RD_RXDLY, value);
+			regval |= FIELD_PREP(PAD_DAT_RD_RXDLY2, value);
 		} else {
-			sdr_set_field(host->top_base + EMMC_TOP_CONTROL,
-				      PAD_DAT_RD_RXDLY, PAD_DELAY_HALF - 1);
-			sdr_set_field(host->top_base + EMMC_TOP_CONTROL,
-				      PAD_DAT_RD_RXDLY2, value - PAD_DELAY_HALF);
+			regval |= FIELD_PREP(PAD_DAT_RD_RXDLY, PAD_DELAY_HALF - 1);
+			regval |= FIELD_PREP(PAD_DAT_RD_RXDLY2, value - PAD_DELAY_HALF);
 		}
+		writel(regval, host->top_base + EMMC_TOP_CONTROL);
 	} else {
 		if (value < PAD_DELAY_HALF) {
 			sdr_set_field(host->base + tune_reg, MSDC_PAD_TUNE_DATRRDLY, value);
