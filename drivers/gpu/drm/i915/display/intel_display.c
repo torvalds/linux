@@ -2134,9 +2134,9 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 
 	if (!intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DSI)) {
 		if (display->platform.cherryview)
-			chv_disable_pll(dev_priv, pipe);
+			chv_disable_pll(display, pipe);
 		else if (display->platform.valleyview)
-			vlv_disable_pll(dev_priv, pipe);
+			vlv_disable_pll(display, pipe);
 		else
 			i9xx_disable_pll(old_crtc_state);
 	}

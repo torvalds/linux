@@ -181,8 +181,6 @@ static void intel_plane_possible_crtcs_init(struct intel_display *display)
 
 void intel_display_driver_early_probe(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (!HAS_DISPLAY(display))
 		return;
 
@@ -198,7 +196,7 @@ void intel_display_driver_early_probe(struct intel_display *display)
 	intel_color_init_hooks(display);
 	intel_init_cdclk_hooks(display);
 	intel_audio_hooks_init(display);
-	intel_dpll_init_clock_hook(i915);
+	intel_dpll_init_clock_hook(display);
 	intel_init_display_hooks(display);
 	intel_fdi_init_hook(display);
 	intel_dmc_wl_init(display);

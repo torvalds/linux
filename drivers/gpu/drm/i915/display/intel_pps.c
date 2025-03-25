@@ -91,7 +91,6 @@ static void
 vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum pipe pipe = intel_dp->pps.vlv_pps_pipe;
 	bool pll_enabled, release_cl_override = false;
@@ -134,7 +133,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 		release_cl_override = display->platform.cherryview &&
 			!chv_phy_powergate_ch(display, phy, ch, true);
 
-		if (vlv_force_pll_on(dev_priv, pipe, vlv_get_dpll(display))) {
+		if (vlv_force_pll_on(display, pipe, vlv_get_dpll(display))) {
 			drm_err(display->drm,
 				"Failed to force on PLL for pipe %c!\n",
 				pipe_name(pipe));
@@ -158,7 +157,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 	intel_de_posting_read(display, intel_dp->output_reg);
 
 	if (!pll_enabled) {
-		vlv_force_pll_off(dev_priv, pipe);
+		vlv_force_pll_off(display, pipe);
 
 		if (release_cl_override)
 			chv_phy_powergate_ch(display, phy, ch, false);
