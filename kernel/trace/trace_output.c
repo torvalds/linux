@@ -938,6 +938,9 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 			 struct list_head *head)
 {
 	struct ftrace_event_field *field;
+	struct trace_array *tr = iter->tr;
+	unsigned long long laddr;
+	unsigned long addr;
 	int offset;
 	int len;
 	int ret;
@@ -974,8 +977,8 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 		case FILTER_PTR_STRING:
 			if (!iter->fmt_size)
 				trace_iter_expand_format(iter);
-			pos = *(void **)pos;
-			ret = strncpy_from_kernel_nofault(iter->fmt, pos,
+			addr = trace_adjust_address(tr, *(unsigned long *)pos);
+			ret = strncpy_from_kernel_nofault(iter->fmt, (void *)addr,
 							  iter->fmt_size);
 			if (ret < 0)
 				trace_seq_printf(&iter->seq, "(0x%px)", pos);
@@ -984,8 +987,8 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 						 pos, iter->fmt);
 			break;
 		case FILTER_TRACE_FN:
-			pos = *(void **)pos;
-			trace_seq_printf(&iter->seq, "%pS", pos);
+			addr = trace_adjust_address(tr, *(unsigned long *)pos);
+			trace_seq_printf(&iter->seq, "%pS", (void *)addr);
 			break;
 		case FILTER_CPU:
 		case FILTER_OTHER:
@@ -1015,24 +1018,25 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 					break;
 				}
 
-				if (sizeof(long) == 4)
+				addr = *(unsigned int *)pos;
+				if (sizeof(long) == 4) {
+					addr = trace_adjust_address(tr, addr);
 					trace_seq_printf(&iter->seq, "%pS (%d)",
-							 *(void **)pos,
-							 *(unsigned int *)pos);
-				else
+							 (void *)addr, (int)addr);
+				} else {
 					trace_seq_printf(&iter->seq, "0x%x (%d)",
-							 *(unsigned int *)pos,
-							 *(unsigned int *)pos);
+							 (unsigned int)addr, (int)addr);
+				}
 				break;
 			case 8:
-				if (sizeof(long) == 8)
+				laddr = *(unsigned long long *)pos;
+				if (sizeof(long) == 8) {
+					laddr = trace_adjust_address(tr, (unsigned long)laddr);
 					trace_seq_printf(&iter->seq, "%pS (%lld)",
-							 *(void **)pos,
-							 *(unsigned long long *)pos);
-				else
-					trace_seq_printf(&iter->seq, "0x%llx (%lld)",
-							 *(unsigned long long *)pos,
-							 *(unsigned long long *)pos);
+							 (void *)(long)laddr, laddr);
+				} else {
+					trace_seq_printf(&iter->seq, "0x%llx (%lld)", laddr, laddr);
+				}
 				break;
 			default:
 				trace_seq_puts(&iter->seq, "<INVALID-SIZE>");
