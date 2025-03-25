@@ -119,22 +119,57 @@ enum disk_accounting_type {
 	BCH_DISK_ACCOUNTING_TYPE_NR,
 };
 
+/*
+ * No subtypes - number of inodes in the entire filesystem
+ *
+ * XXX: perhaps we could add a per-subvolume counter?
+ */
 struct bch_acct_nr_inodes {
 };
 
+/*
+ * Tracks KEY_TYPE_reservation sectors, broken out by number of replicas for the
+ * reservation:
+ */
 struct bch_acct_persistent_reserved {
 	__u8			nr_replicas;
 };
 
+/*
+ * device, data type counter fields:
+ * [
+ *   nr_buckets
+ *   live sectors (in buckets of that data type)
+ *   sectors of internal fragmentation
+ * ]
+ *
+ * XXX: live sectors should've been done differently, you can have multiple data
+ * types in the same bucket (user, stripe, cached) and this collapses them to
+ * the bucket data type, and makes the internal fragmentation counter redundant
+ */
 struct bch_acct_dev_data_type {
 	__u8			dev;
 	__u8			data_type;
 };
 
+/*
+ * Compression type fields:
+ * [
+ *   number of extents
+ *   uncompressed size
+ *   compressed size
+ * ]
+ *
+ * Compression ratio, average extent size (fragmentation).
+ */
 struct bch_acct_compression {
 	__u8			type;
 };
 
+/*
+ * On disk usage by snapshot id; counts same values as replicas counter, but
+ * aggregated differently
+ */
 struct bch_acct_snapshot {
 	__u32			id;
 } __packed;
@@ -143,10 +178,27 @@ struct bch_acct_btree {
 	__u32			id;
 } __packed;
 
+/*
+ * inum counter fields:
+ * [
+ *   number of extents
+ *   sum of extent sizes - bkey size
+ *     this field is similar to inode.bi_sectors, except here extents in
+ *     different snapshots but the same inode number are all collapsed to the
+ *     same counter
+ *   sum of on disk size - same values tracked by replicas counters
+ * ]
+ *
+ * This tracks on disk fragmentation.
+ */
 struct bch_acct_inum {
 	__u64			inum;
 } __packed;
 
+/*
+ * Simple counter of the amount of data (on disk sectors) rebalance needs to
+ * move, extents counted here are also in the rebalance_work btree.
+ */
 struct bch_acct_rebalance_work {
 };
 
@@ -155,7 +207,7 @@ struct disk_accounting_pos {
 	struct {
 		__u8				type;
 		union {
-		struct bch_acct_nr_inodes		nr_inodes;
+		struct bch_acct_nr_inodes	nr_inodes;
 		struct bch_acct_persistent_reserved	persistent_reserved;
 		struct bch_replicas_entry_v1	replicas;
 		struct bch_acct_dev_data_type	dev_data_type;
