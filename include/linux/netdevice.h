@@ -710,7 +710,7 @@ struct netdev_queue {
  * slow- / control-path part
  */
 	/* NAPI instance for the queue
-	 * Readers and writers must hold RTNL
+	 * "ops protected", see comment about net_device::lock
 	 */
 	struct napi_struct	*napi;
 
@@ -2496,18 +2496,38 @@ struct net_device {
 	 * Should always be taken using netdev_lock() / netdev_unlock() helpers.
 	 * Drivers are free to use it for other protection.
 	 *
-	 * Protects:
+	 * For the drivers that implement shaper or queue API, the scope
+	 * of this lock is expanded to cover most ndo/queue/ethtool/sysfs
+	 * operations. Drivers may opt-in to this behavior by setting
+	 * @request_ops_lock.
+	 *
+	 * @lock protection mixes with rtnl_lock in multiple ways, fields are
+	 * either:
+	 *
+	 * - simply protected by the instance @lock;
+	 *
+	 * - double protected - writers hold both locks, readers hold either;
+	 *
+	 * - ops protected - protected by the lock held around the NDOs
+	 *   and other callbacks, that is the instance lock on devices for
+	 *   which netdev_need_ops_lock() returns true, otherwise by rtnl_lock;
+	 *
+	 * - double ops protected - always protected by rtnl_lock but for
+	 *   devices for which netdev_need_ops_lock() returns true - also
+	 *   the instance lock.
+	 *
+	 * Simply protects:
 	 *	@gro_flush_timeout, @napi_defer_hard_irqs, @napi_list,
 	 *	@net_shaper_hierarchy, @reg_state, @threaded
 	 *
-	 * Partially protects (writers must hold both @lock and rtnl_lock):
+	 * Double protects:
 	 *	@up
 	 *
-	 * Also protects some fields in struct napi_struct.
+	 * Double ops protects:
+	 *	@real_num_rx_queues, @real_num_tx_queues
 	 *
-	 * For the drivers that implement shaper or queue API, the scope
-	 * of this lock is expanded to cover most ndo/queue/ethtool/sysfs
-	 * operations.
+	 * Also protects some fields in:
+	 *	struct napi_struct, struct netdev_queue, struct netdev_rx_queue
 	 *
 	 * Ordering: take after rtnl_lock.
 	 */
@@ -4062,17 +4082,7 @@ static inline bool netif_is_multiqueue(const struct net_device *dev)
 }
 
 int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq);
-
-#ifdef CONFIG_SYSFS
 int netif_set_real_num_rx_queues(struct net_device *dev, unsigned int rxq);
-#else
-static inline int netif_set_real_num_rx_queues(struct net_device *dev,
-						unsigned int rxqs)
-{
-	dev->real_num_rx_queues = rxqs;
-	return 0;
-}
-#endif
 int netif_set_real_num_queues(struct net_device *dev,
 			      unsigned int txq, unsigned int rxq);
 
