@@ -721,14 +721,14 @@ static void reset_idle_masks(struct sched_ext_ops *ops)
 void scx_idle_enable(struct sched_ext_ops *ops)
 {
 	if (!ops->update_idle || (ops->flags & SCX_OPS_KEEP_BUILTIN_IDLE))
-		static_branch_enable(&scx_builtin_idle_enabled);
+		static_branch_enable_cpuslocked(&scx_builtin_idle_enabled);
 	else
-		static_branch_disable(&scx_builtin_idle_enabled);
+		static_branch_disable_cpuslocked(&scx_builtin_idle_enabled);
 
 	if (ops->flags & SCX_OPS_BUILTIN_IDLE_PER_NODE)
-		static_branch_enable(&scx_builtin_idle_per_node);
+		static_branch_enable_cpuslocked(&scx_builtin_idle_per_node);
 	else
-		static_branch_disable(&scx_builtin_idle_per_node);
+		static_branch_disable_cpuslocked(&scx_builtin_idle_per_node);
 
 #ifdef CONFIG_SMP
 	reset_idle_masks(ops);
