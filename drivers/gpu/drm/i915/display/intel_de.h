@@ -181,20 +181,18 @@ intel_de_wait_custom(struct intel_display *display, i915_reg_t reg,
 }
 
 static inline int
-__intel_de_wait_for_set(struct intel_display *display, i915_reg_t reg,
-			u32 mask, unsigned int timeout)
+intel_de_wait_for_set(struct intel_display *display, i915_reg_t reg,
+		      u32 mask, unsigned int timeout)
 {
 	return intel_de_wait(display, reg, mask, mask, timeout);
 }
-#define intel_de_wait_for_set(p,...) __intel_de_wait_for_set(__to_intel_display(p), __VA_ARGS__)
 
 static inline int
-__intel_de_wait_for_clear(struct intel_display *display, i915_reg_t reg,
-			  u32 mask, unsigned int timeout)
+intel_de_wait_for_clear(struct intel_display *display, i915_reg_t reg,
+			u32 mask, unsigned int timeout)
 {
 	return intel_de_wait(display, reg, mask, 0, timeout);
 }
-#define intel_de_wait_for_clear(p,...) __intel_de_wait_for_clear(__to_intel_display(p), __VA_ARGS__)
 
 /*
  * Unlocked mmio-accessors, think carefully before using these.
@@ -205,7 +203,7 @@ __intel_de_wait_for_clear(struct intel_display *display, i915_reg_t reg,
  * a more localised lock guarding all access to that bank of registers.
  */
 static inline u32
-__intel_de_read_fw(struct intel_display *display, i915_reg_t reg)
+intel_de_read_fw(struct intel_display *display, i915_reg_t reg)
 {
 	u32 val;
 
@@ -214,15 +212,13 @@ __intel_de_read_fw(struct intel_display *display, i915_reg_t reg)
 
 	return val;
 }
-#define intel_de_read_fw(p,...) __intel_de_read_fw(__to_intel_display(p), __VA_ARGS__)
 
 static inline void
-__intel_de_write_fw(struct intel_display *display, i915_reg_t reg, u32 val)
+intel_de_write_fw(struct intel_display *display, i915_reg_t reg, u32 val)
 {
 	trace_i915_reg_rw(true, reg, val, sizeof(val), true);
 	intel_uncore_write_fw(__to_uncore(display), reg, val);
 }
-#define intel_de_write_fw(p,...) __intel_de_write_fw(__to_intel_display(p), __VA_ARGS__)
 
 static inline u32
 intel_de_read_notrace(struct intel_display *display, i915_reg_t reg)
