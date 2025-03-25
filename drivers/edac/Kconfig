@@ -196,7 +196,7 @@ config EDAC_I3200
 
 config EDAC_IE31200
 	tristate "Intel e312xx"
-	depends on PCI && X86
+	depends on PCI && X86 && X86_MCE_INTEL
 	help
 	  Support for error detection and correction on the Intel
 	  E3-1200 based DRAM controllers.
