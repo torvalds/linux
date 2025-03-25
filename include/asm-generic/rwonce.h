@@ -79,11 +79,14 @@ unsigned long __read_once_word_nocheck(const void *addr)
 	(typeof(x))__read_once_word_nocheck(&(x));			\
 })
 
-static __no_kasan_or_inline
+static __no_sanitize_or_inline
 unsigned long read_word_at_a_time(const void *addr)
 {
+	/* open-coded instrument_read(addr, 1) */
 	kasan_check_read(addr, 1);
-	return *(unsigned long *)addr;
+	kcsan_check_read(addr, 1);
+
+	return READ_ONCE(*(unsigned long *)addr);
 }
 
 #endif /* __ASSEMBLY__ */
