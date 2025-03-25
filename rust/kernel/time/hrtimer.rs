@@ -400,11 +400,9 @@ pub unsafe trait HasHrTimer<T> {
 #[repr(u32)]
 pub enum HrTimerRestart {
     /// Timer should not be restarted.
-    #[allow(clippy::unnecessary_cast)]
-    NoRestart = bindings::hrtimer_restart_HRTIMER_NORESTART as u32,
+    NoRestart = bindings::hrtimer_restart_HRTIMER_NORESTART,
     /// Timer should be restarted.
-    #[allow(clippy::unnecessary_cast)]
-    Restart = bindings::hrtimer_restart_HRTIMER_RESTART as u32,
+    Restart = bindings::hrtimer_restart_HRTIMER_RESTART,
 }
 
 impl HrTimerRestart {
