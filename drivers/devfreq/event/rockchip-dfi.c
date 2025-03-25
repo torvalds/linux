@@ -642,8 +642,7 @@ static int rockchip_ddr_perf_init(struct rockchip_dfi *dfi)
 	if (ret)
 		return ret;
 
-	hrtimer_init(&dfi->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	dfi->timer.function = rockchip_dfi_timer;
+	hrtimer_setup(&dfi->timer, rockchip_dfi_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	switch (dfi->ddr_type) {
 	case ROCKCHIP_DDRTYPE_LPDDR2:

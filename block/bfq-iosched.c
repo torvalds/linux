@@ -7315,9 +7315,8 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
 
 	INIT_LIST_HEAD(&bfqd->dispatch);
 
-	hrtimer_init(&bfqd->idle_slice_timer, CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
-	bfqd->idle_slice_timer.function = bfq_idle_slice_timer;
+	hrtimer_setup(&bfqd->idle_slice_timer, bfq_idle_slice_timer, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 
 	bfqd->queue_weights_tree = RB_ROOT_CACHED;
 #ifdef CONFIG_BFQ_GROUP_IOSCHED

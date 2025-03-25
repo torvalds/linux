@@ -2064,8 +2064,7 @@ int rapl_package_add_pmu(struct rapl_package *rp)
 	raw_spin_lock_init(&data->lock);
 	INIT_LIST_HEAD(&data->active_list);
 	data->timer_interval = ms_to_ktime(rapl_pmu.timer_ms);
-	hrtimer_init(&data->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	data->hrtimer.function = rapl_hrtimer_handle;
+	hrtimer_setup(&data->hrtimer, rapl_hrtimer_handle, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	return rapl_pmu_update(rp);
 }

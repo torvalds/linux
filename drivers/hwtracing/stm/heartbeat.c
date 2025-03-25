@@ -81,10 +81,8 @@ static int stm_heartbeat_init(void)
 		stm_heartbeat[i].data.type	= STM_USER;
 		stm_heartbeat[i].data.link	= stm_heartbeat_link;
 		stm_heartbeat[i].data.unlink	= stm_heartbeat_unlink;
-		hrtimer_init(&stm_heartbeat[i].hrtimer, CLOCK_MONOTONIC,
-			     HRTIMER_MODE_ABS);
-		stm_heartbeat[i].hrtimer.function =
-			stm_heartbeat_hrtimer_handler;
+		hrtimer_setup(&stm_heartbeat[i].hrtimer, stm_heartbeat_hrtimer_handler,
+			      CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 
 		ret = stm_source_register_device(NULL, &stm_heartbeat[i].data);
 		if (ret)
