@@ -1002,15 +1002,11 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(io_buffer_unregister_bvec);
 
-static int io_import_fixed(int ddir, struct iov_iter *iter,
-			   struct io_mapped_ubuf *imu,
-			   u64 buf_addr, size_t len)
+static int validate_fixed_range(u64 buf_addr, size_t len,
+				const struct io_mapped_ubuf *imu)
 {
 	u64 buf_end;
-	size_t offset;
 
-	if (WARN_ON_ONCE(!imu))
-		return -EFAULT;
 	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
 	/* not inside the mapped region */
@@ -1018,6 +1014,21 @@ static int io_import_fixed(int ddir, struct iov_iter *iter,
 		return -EFAULT;
 	if (unlikely(len > MAX_RW_COUNT))
 		return -EFAULT;
+	return 0;
+}
+
+static int io_import_fixed(int ddir, struct iov_iter *iter,
+			   struct io_mapped_ubuf *imu,
+			   u64 buf_addr, size_t len)
+{
+	size_t offset;
+	int ret;
+
+	if (WARN_ON_ONCE(!imu))
+		return -EFAULT;
+	ret = validate_fixed_range(buf_addr, len, imu);
+	if (unlikely(ret))
+		return ret;
 	if (!(imu->dir & (1 << ddir)))
 		return -EFAULT;
 
@@ -1307,12 +1318,12 @@ static int io_vec_fill_bvec(int ddir, struct iov_iter *iter,
 		u64 buf_addr = (u64)(uintptr_t)iovec[iov_idx].iov_base;
 		struct bio_vec *src_bvec;
 		size_t offset;
-		u64 buf_end;
+		int ret;
 
-		if (unlikely(check_add_overflow(buf_addr, (u64)iov_len, &buf_end)))
-			return -EFAULT;
-		if (unlikely(buf_addr < imu->ubuf || buf_end > (imu->ubuf + imu->len)))
-			return -EFAULT;
+		ret = validate_fixed_range(buf_addr, iov_len, imu);
+		if (unlikely(ret))
+			return ret;
+
 		if (unlikely(!iov_len))
 			return -EFAULT;
 		if (unlikely(check_add_overflow(total_len, iov_len, &total_len)))
