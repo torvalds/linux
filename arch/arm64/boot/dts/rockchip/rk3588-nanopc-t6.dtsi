@@ -371,6 +371,9 @@
 	};
 };
 
+&hdmi0_sound {
+	status = "okay";
+};
 
 &hdmi1 {
 	status = "okay";
@@ -386,6 +389,10 @@
 	hdmi1_out_con: endpoint {
 		remote-endpoint = <&hdmi1_con_in>;
 	};
+};
+
+&hdmi1_sound {
+	status = "okay";
 };
 
 &hdptxphy0 {
@@ -561,6 +568,14 @@
 			remote-endpoint = <&rt5616_p0_0>;
 		};
 	};
+};
+
+&i2s5_8ch {
+	status = "okay";
+};
+
+&i2s6_8ch {
+	status = "okay";
 };
 
 &pcie2x1l0 {
