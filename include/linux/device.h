@@ -1025,6 +1025,15 @@ static inline bool dev_pm_test_driver_flags(struct device *dev, u32 flags)
 	return !!(dev->power.driver_flags & flags);
 }
 
+static inline bool dev_pm_smart_suspend(struct device *dev)
+{
+#ifdef CONFIG_PM_SLEEP
+	return dev->power.smart_suspend;
+#else
+	return false;
+#endif
+}
+
 static inline void device_lock(struct device *dev)
 {
 	mutex_lock(&dev->mutex);

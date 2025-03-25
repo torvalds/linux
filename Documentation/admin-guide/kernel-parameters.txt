@@ -2314,6 +2314,9 @@
 			per_cpu_perf_limits
 			  Allow per-logical-CPU P-State performance control limits using
 			  cpufreq sysfs interface
+			no_cas
+			  Do not enable capacity-aware scheduling (CAS) on
+			  hybrid systems
 
 	intremap=	[X86-64,Intel-IOMMU,EARLY]
 			on	enable Interrupt Remapping (default)

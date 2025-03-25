@@ -315,7 +315,6 @@ static struct cpufreq_driver speedstep_driver = {
 	.target_index = speedstep_target,
 	.init	= speedstep_cpu_init,
 	.get	= speedstep_get,
-	.attr	= cpufreq_generic_attr,
 };
 
 static const struct x86_cpu_id ss_smi_ids[] = {

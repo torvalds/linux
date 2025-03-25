@@ -8541,6 +8541,15 @@ M:	Maxim Levitsky <maximlevitsky@gmail.com>
 S:	Maintained
 F:	drivers/media/rc/ene_ir.*
 
+ENERGY MODEL
+M:	Lukasz Luba <lukasz.luba@arm.com>
+M:	"Rafael J. Wysocki" <rafael@kernel.org>
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	kernel/power/energy_model.c
+F:	include/linux/energy_model.h
+F:	Documentation/power/energy-model.rst
+
 EPAPR HYPERVISOR BYTE CHANNEL DEVICE DRIVER
 M:	Laurentiu Tudor <laurentiu.tudor@nxp.com>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -11690,12 +11699,14 @@ F:	Documentation/driver-api/crypto/iaa/iaa-crypto.rst
 F:	drivers/crypto/intel/iaa/*
 
 INTEL IDLE DRIVER
-M:	Jacob Pan <jacob.jun.pan@linux.intel.com>
-M:	Len Brown <lenb@kernel.org>
+M:	Rafael J. Wysocki <rafael@kernel.org>
+M:	Artem Bityutskiy <artem.bityutskiy@linux.intel.com>
+M:	Artem Bityutskiy <dedekind1@gmail.com>
+R:	Len Brown <lenb@kernel.org>
 L:	linux-pm@vger.kernel.org
 S:	Supported
 B:	https://bugzilla.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 F:	drivers/idle/intel_idle.c
 
 INTEL IDXD DRIVER

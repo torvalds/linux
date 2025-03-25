@@ -88,6 +88,7 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 			      struct cpufreq_governor *new_gov,
 			      unsigned int new_pol);
 static bool cpufreq_boost_supported(void);
+static int cpufreq_boost_trigger_state(int state);
 
 /*
  * Two notifier lists: the "policy" list is involved in the
@@ -631,6 +632,9 @@ static ssize_t store_local_boost(struct cpufreq_policy *policy,
 	if (!cpufreq_driver->boost_enabled)
 		return -EINVAL;
 
+	if (!policy->boost_supported)
+		return -EINVAL;
+
 	if (policy->boost_enabled == enable)
 		return count;
 
@@ -1080,6 +1084,21 @@ static int cpufreq_add_dev_interface(struct cpufreq_policy *policy)
 {
 	struct freq_attr **drv_attr;
 	int ret = 0;
+
+	/* Attributes that need freq_table */
+	if (policy->freq_table) {
+		ret = sysfs_create_file(&policy->kobj,
+				&cpufreq_freq_attr_scaling_available_freqs.attr);
+		if (ret)
+			return ret;
+
+		if (cpufreq_boost_supported()) {
+			ret = sysfs_create_file(&policy->kobj,
+				&cpufreq_freq_attr_scaling_boost_freqs.attr);
+			if (ret)
+				return ret;
+		}
+	}
 
 	/* set up files for this cpu device */
 	drv_attr = cpufreq_driver->attr;
@@ -1599,14 +1618,14 @@ static int cpufreq_online(unsigned int cpu)
 		policy->cdev = of_cpufreq_cooling_register(policy);
 
 	/* Let the per-policy boost flag mirror the cpufreq_driver boost during init */
-	if (cpufreq_driver->set_boost &&
+	if (cpufreq_driver->set_boost && policy->boost_supported &&
 	    policy->boost_enabled != cpufreq_boost_enabled()) {
 		policy->boost_enabled = cpufreq_boost_enabled();
 		ret = cpufreq_driver->set_boost(policy, policy->boost_enabled);
 		if (ret) {
 			/* If the set_boost fails, the online operation is not affected */
 			pr_info("%s: CPU%d: Cannot %s BOOST\n", __func__, policy->cpu,
-				policy->boost_enabled ? "enable" : "disable");
+				str_enable_disable(policy->boost_enabled));
 			policy->boost_enabled = !policy->boost_enabled;
 		}
 	}
@@ -2800,7 +2819,7 @@ EXPORT_SYMBOL_GPL(cpufreq_update_limits);
 /*********************************************************************
  *               BOOST						     *
  *********************************************************************/
-static int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
+int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
 {
 	int ret;
 
@@ -2819,8 +2838,9 @@ static int cpufreq_boost_set_sw(struct cpufreq_policy *policy, int state)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpufreq_boost_set_sw);
 
-int cpufreq_boost_trigger_state(int state)
+static int cpufreq_boost_trigger_state(int state)
 {
 	struct cpufreq_policy *policy;
 	unsigned long flags;
@@ -2835,6 +2855,9 @@ int cpufreq_boost_trigger_state(int state)
 
 	cpus_read_lock();
 	for_each_active_policy(policy) {
+		if (!policy->boost_supported)
+			continue;
+
 		policy->boost_enabled = state;
 		ret = cpufreq_driver->set_boost(policy, state);
 		if (ret) {
@@ -2881,21 +2904,6 @@ static void remove_boost_sysfs_file(void)
 	if (cpufreq_boost_supported())
 		sysfs_remove_file(cpufreq_global_kobject, &boost.attr);
 }
-
-int cpufreq_enable_boost_support(void)
-{
-	if (!cpufreq_driver)
-		return -EINVAL;
-
-	if (cpufreq_boost_supported())
-		return 0;
-
-	cpufreq_driver->set_boost = cpufreq_boost_set_sw;
-
-	/* This will get removed on driver unregister */
-	return create_boost_sysfs_file();
-}
-EXPORT_SYMBOL_GPL(cpufreq_enable_boost_support);
 
 bool cpufreq_boost_enabled(void)
 {
