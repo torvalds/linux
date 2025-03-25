@@ -43,6 +43,10 @@ static umode_t acpi_fan_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_
 		case hwmon_fan_input:
 			return 0444;
 		case hwmon_fan_target:
+			/* Only acpi4 fans support fan control. */
+			if (!fan->acpi4)
+				return 0;
+
 			/*
 			 * When in fine grain control mode, not every fan control value
 			 * has an associated fan performance state.
@@ -57,6 +61,10 @@ static umode_t acpi_fan_hwmon_is_visible(const void *drvdata, enum hwmon_sensor_
 	case hwmon_power:
 		switch (attr) {
 		case hwmon_power_input:
+			/* Only acpi4 fans support fan control. */
+			if (!fan->acpi4)
+				return 0;
+
 			/*
 			 * When in fine grain control mode, not every fan control value
 			 * has an associated fan performance state.

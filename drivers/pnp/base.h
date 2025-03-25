@@ -9,7 +9,6 @@ extern const struct attribute_group *pnp_dev_groups[];
 extern const struct bus_type pnp_bus_type;
 
 int pnp_register_protocol(struct pnp_protocol *protocol);
-void pnp_unregister_protocol(struct pnp_protocol *protocol);
 
 #define PNP_EISA_ID_MASK 0x7fffffff
 void pnp_eisa_id_to_string(u32 id, char *str);
@@ -21,9 +20,7 @@ int pnp_add_device(struct pnp_dev *dev);
 struct pnp_id *pnp_add_id(struct pnp_dev *dev, const char *id);
 
 int pnp_add_card(struct pnp_card *card);
-void pnp_remove_card(struct pnp_card *card);
 int pnp_add_card_device(struct pnp_card *card, struct pnp_dev *dev);
-void pnp_remove_card_device(struct pnp_dev *dev);
 
 struct pnp_port {
 	resource_size_t min;	/* min base number */
@@ -138,7 +135,6 @@ void pnp_init_resources(struct pnp_dev *dev);
 void pnp_fixup_device(struct pnp_dev *dev);
 void pnp_free_options(struct pnp_dev *dev);
 int __pnp_add_device(struct pnp_dev *dev);
-void __pnp_remove_device(struct pnp_dev *dev);
 
 int pnp_check_port(struct pnp_dev *dev, struct resource *res);
 int pnp_check_mem(struct pnp_dev *dev, struct resource *res);
