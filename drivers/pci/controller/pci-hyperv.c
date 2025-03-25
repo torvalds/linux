@@ -1757,8 +1757,7 @@ static int hv_compose_multi_msi_req_get_cpu(void)
 
 	spin_lock_irqsave(&multi_msi_cpu_lock, flags);
 
-	cpu_next = cpumask_next_wrap(cpu_next, cpu_online_mask, nr_cpu_ids,
-				     false);
+	cpu_next = cpumask_next_wrap(cpu_next, cpu_online_mask);
 	cpu = cpu_next;
 
 	spin_unlock_irqrestore(&multi_msi_cpu_lock, flags);
