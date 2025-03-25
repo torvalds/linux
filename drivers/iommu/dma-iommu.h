@@ -19,6 +19,9 @@ int iommu_dma_init_fq(struct iommu_domain *domain);
 
 void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list);
 
+int iommu_dma_sw_msi(struct iommu_domain *domain, struct msi_desc *desc,
+		     phys_addr_t msi_addr);
+
 extern bool iommu_dma_forcedac;
 
 #else /* CONFIG_IOMMU_DMA */
@@ -47,6 +50,12 @@ static inline void iommu_put_msi_cookie(struct iommu_domain *domain)
 
 static inline void iommu_dma_get_resv_regions(struct device *dev, struct list_head *list)
 {
+}
+
+static inline int iommu_dma_sw_msi(struct iommu_domain *domain,
+				   struct msi_desc *desc, phys_addr_t msi_addr)
+{
+	return -ENODEV;
 }
 
 #endif	/* CONFIG_IOMMU_DMA */
