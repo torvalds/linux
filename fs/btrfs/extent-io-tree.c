@@ -1752,14 +1752,26 @@ bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 
 	return bitset;
 }
 
-void get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits)
+void get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits,
+		    struct extent_state **cached_state)
 {
 	struct extent_state *state;
+
+	/*
+	 * The cached state is currently mandatory and not used to start the
+	 * search, only to cache the first state record found in the range.
+	 */
+	ASSERT(cached_state != NULL);
+	ASSERT(*cached_state == NULL);
 
 	*bits = 0;
 
 	spin_lock(&tree->lock);
 	state = tree_search(tree, start);
+	if (state && state->start < end) {
+		*cached_state = state;
+		refcount_inc(&state->refs);
+	}
 	while (state) {
 		if (state->start > end)
 			break;
