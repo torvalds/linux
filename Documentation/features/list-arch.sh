@@ -6,6 +6,6 @@
 # (If no arguments are given then it will print the host architecture's status.)
 #
 
-ARCH=${1:-$(uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/')}
+ARCH=${1:-$(uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/' | sed 's/s390x/s390/')}
 
 $(dirname $0)/../../scripts/get_feat.pl list --arch $ARCH

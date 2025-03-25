@@ -30,7 +30,7 @@ CI:
 ===
 
 Instead of running your tests locally, when running the full test suite it's
-prefereable to let a server farm do it in parallel, and then have the results
+preferable to let a server farm do it in parallel, and then have the results
 in a nice test dashboard (which can tell you which failures are new, and
 presents results in a git log view, avoiding the need for most bisecting).
 
@@ -68,7 +68,7 @@ Other things to think about:
   land - use them. Use them judiciously, and not as a replacement for proper
   error handling, but use them.
 
-- Does it need to be performance tested? Should we add new peformance counters?
+- Does it need to be performance tested? Should we add new performance counters?
 
   bcachefs has a set of persistent runtime counters which can be viewed with
   the 'bcachefs fs top' command; this should give users a basic idea of what

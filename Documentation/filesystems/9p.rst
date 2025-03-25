@@ -90,7 +90,7 @@ Just start the 9pfs capable network server like diod/nfs-ganesha e.g.::
 
         $ diod -f -n -d 0 -S -l 0.0.0.0:9999 -e $PWD
 
-Optionaly scan your bus if there are more then one usbg gadgets to find their path::
+Optionally scan your bus if there are more then one usbg gadgets to find their path::
 
         $ python $kernel_dir/tools/usb/p9_fwd.py list
 

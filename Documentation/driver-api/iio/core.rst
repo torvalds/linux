@@ -60,7 +60,7 @@ directory.  Common attributes are:
 * :file:`sampling_frequency_available`, available discrete set of sampling
   frequency values for device.
 * Available standard attributes for IIO devices are described in the
-  :file:`Documentation/ABI/testing/sysfs-bus-iio` file in the Linux kernel
+  :file:Documentation/ABI/testing/sysfs-bus-iio file in the Linux kernel
   sources.
 
 IIO device channels
