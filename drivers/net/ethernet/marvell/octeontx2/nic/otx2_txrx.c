@@ -41,7 +41,7 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 				     struct bpf_prog *prog,
 				     struct nix_cqe_rx_s *cqe,
 				     struct otx2_cq_queue *cq,
-				     bool *need_xdp_flush);
+				     u32 *metasize, bool *need_xdp_flush);
 
 static void otx2_sq_set_sqe_base(struct otx2_snd_queue *sq,
 				 struct sk_buff *skb)
@@ -336,6 +336,7 @@ static void otx2_rcv_pkt_handler(struct otx2_nic *pfvf,
 	struct nix_rx_sg_s *sg = &cqe->sg;
 	struct sk_buff *skb = NULL;
 	void *end, *start;
+	u32 metasize = 0;
 	u64 *seg_addr;
 	u16 *seg_size;
 	int seg;
@@ -346,7 +347,8 @@ static void otx2_rcv_pkt_handler(struct otx2_nic *pfvf,
 	}
 
 	if (pfvf->xdp_prog)
-		if (otx2_xdp_rcv_pkt_handler(pfvf, pfvf->xdp_prog, cqe, cq, need_xdp_flush))
+		if (otx2_xdp_rcv_pkt_handler(pfvf, pfvf->xdp_prog, cqe, cq,
+					     &metasize, need_xdp_flush))
 			return;
 
 	skb = napi_get_frags(napi);
@@ -378,6 +380,8 @@ static void otx2_rcv_pkt_handler(struct otx2_nic *pfvf,
 		skb->mark = parse->match_id;
 
 	skb_mark_for_recycle(skb);
+	if (metasize)
+		skb_metadata_set(skb, metasize);
 
 	napi_gro_frags(napi);
 }
@@ -1482,7 +1486,7 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 				     struct bpf_prog *prog,
 				     struct nix_cqe_rx_s *cqe,
 				     struct otx2_cq_queue *cq,
-				     bool *need_xdp_flush)
+				     u32 *metasize, bool *need_xdp_flush)
 {
 	struct xdp_buff xdp, *xsk_buff = NULL;
 	unsigned char *hard_start;
@@ -1514,13 +1518,14 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 
 	hard_start = (unsigned char *)phys_to_virt(pa);
 	xdp_prepare_buff(&xdp, hard_start, OTX2_HEAD_ROOM,
-			 cqe->sg.seg_size, false);
+			 cqe->sg.seg_size, true);
 
 	act = bpf_prog_run_xdp(prog, &xdp);
 
 handle_xdp_verdict:
 	switch (act) {
 	case XDP_PASS:
+		*metasize = xdp.data - xdp.data_meta;
 		break;
 	case XDP_TX:
 		qidx += pfvf->hw.tx_queues;
