@@ -1,34 +1,17 @@
-.. raw:: latex
+.. SPDX-License-Identifier: GPL-2.0
 
-	\kerneldocCJKoff
-
-NOTE:
-This is a version of Documentation/process/howto.rst translated into Japanese.
-This document is maintained by Tsugikazu Shibata <tshibata@ab.jp.nec.com>
-If you find any difference between this document and the original file or
-a problem with the translation, please contact the maintainer of this file.
-
-Please also note that the purpose of this file is to be easier to
-read for non English (read: Japanese) speakers and is not intended as
-a fork. So if you have any comments or updates for this file, please
-try to update the original English file first.
-
-----------------------------------
-
-.. raw:: latex
-
-	\kerneldocCJKon
-
-この文書は、
-Documentation/process/howto.rst
-の和訳です。
-
-翻訳者： Tsugikazu Shibata <tshibata@ab.jp.nec.com>
-
-----------------------------------
+.. Originally contributed by Tsugikazu Shibata
 
 Linux カーネル開発のやり方
 ==========================
+
+.. note:: 【訳註】
+   この文書は、
+   Documentation/process/howto.rst
+   の翻訳です。
+   免責条項については、
+   :ref:`免責条項の抄訳 <translations_ja_JP_disclaimer>` および、
+   :ref:`Disclaimer (英語版) <translations_disclaimer>` を参照してください。
 
 これは上のトピック( Linux カーネル開発のやり方)の重要な事柄を網羅した
 ドキュメントです。ここには Linux カーネル開発者になるための方法とLinux

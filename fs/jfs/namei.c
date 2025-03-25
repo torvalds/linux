@@ -187,13 +187,13 @@ static int jfs_create(struct mnt_idmap *idmap, struct inode *dip,
  *		dentry	- dentry of child directory
  *		mode	- create mode (rwxrwxrwx).
  *
- * RETURN:	Errors from subroutines
+ * RETURN:	ERR_PTR() of errors from subroutines.
  *
  * note:
  * EACCES: user needs search+write permission on the parent directory
  */
-static int jfs_mkdir(struct mnt_idmap *idmap, struct inode *dip,
-		     struct dentry *dentry, umode_t mode)
+static struct dentry *jfs_mkdir(struct mnt_idmap *idmap, struct inode *dip,
+				struct dentry *dentry, umode_t mode)
 {
 	int rc = 0;
 	tid_t tid;		/* transaction id */
@@ -308,7 +308,7 @@ static int jfs_mkdir(struct mnt_idmap *idmap, struct inode *dip,
       out1:
 
 	jfs_info("jfs_mkdir: rc:%d", rc);
-	return rc;
+	return ERR_PTR(rc);
 }
 
 /*

@@ -41,7 +41,7 @@
  *
  * Returns 0 on success, -errno on error.
  */
-long vfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+int vfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int error = -ENOTTY;
 
@@ -228,8 +228,8 @@ static int ioctl_fiemap(struct file *filp, struct fiemap __user *ufiemap)
 	return error;
 }
 
-static long ioctl_file_clone(struct file *dst_file, unsigned long srcfd,
-			     u64 off, u64 olen, u64 destoff)
+static int ioctl_file_clone(struct file *dst_file, unsigned long srcfd,
+			    u64 off, u64 olen, u64 destoff)
 {
 	CLASS(fd, src_file)(srcfd);
 	loff_t cloned;
@@ -248,8 +248,8 @@ static long ioctl_file_clone(struct file *dst_file, unsigned long srcfd,
 	return ret;
 }
 
-static long ioctl_file_clone_range(struct file *file,
-				   struct file_clone_range __user *argp)
+static int ioctl_file_clone_range(struct file *file,
+				  struct file_clone_range __user *argp)
 {
 	struct file_clone_range args;
 

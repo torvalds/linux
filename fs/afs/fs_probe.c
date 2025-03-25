@@ -235,20 +235,20 @@ out:
  * Probe all of a fileserver's addresses to find out the best route and to
  * query its capabilities.
  */
-void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
-			     struct afs_addr_list *new_alist, struct key *key)
+int afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
+			    struct afs_addr_list *new_alist, struct key *key)
 {
 	struct afs_endpoint_state *estate, *old;
-	struct afs_addr_list *alist;
+	struct afs_addr_list *old_alist = NULL, *alist;
 	unsigned long unprobed;
 
 	_enter("%pU", &server->uuid);
 
 	estate = kzalloc(sizeof(*estate), GFP_KERNEL);
 	if (!estate)
-		return;
+		return -ENOMEM;
 
-	refcount_set(&estate->ref, 1);
+	refcount_set(&estate->ref, 2);
 	estate->server_id = server->debug_id;
 	estate->rtt = UINT_MAX;
 
@@ -256,21 +256,31 @@ void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 
 	old = rcu_dereference_protected(server->endpoint_state,
 					lockdep_is_held(&server->fs_lock));
-	estate->responsive_set = old->responsive_set;
-	estate->addresses = afs_get_addrlist(new_alist ?: old->addresses,
-					     afs_alist_trace_get_estate);
+	if (old) {
+		estate->responsive_set = old->responsive_set;
+		if (!new_alist)
+			new_alist = old->addresses;
+	}
+
+	if (old_alist != new_alist)
+		afs_set_peer_appdata(server, old_alist, new_alist);
+
+	estate->addresses = afs_get_addrlist(new_alist, afs_alist_trace_get_estate);
 	alist = estate->addresses;
 	estate->probe_seq = ++server->probe_counter;
 	atomic_set(&estate->nr_probing, alist->nr_addrs);
 
+	if (new_alist)
+		server->addr_version = new_alist->version;
 	rcu_assign_pointer(server->endpoint_state, estate);
-	set_bit(AFS_ESTATE_SUPERSEDED, &old->flags);
 	write_unlock(&server->fs_lock);
+	if (old)
+		set_bit(AFS_ESTATE_SUPERSEDED, &old->flags);
 
 	trace_afs_estate(estate->server_id, estate->probe_seq, refcount_read(&estate->ref),
 			 afs_estate_trace_alloc_probe);
 
-	afs_get_address_preferences(net, alist);
+	afs_get_address_preferences(net, new_alist);
 
 	server->probed_at = jiffies;
 	unprobed = (1UL << alist->nr_addrs) - 1;
@@ -293,6 +303,8 @@ void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
 	}
 
 	afs_put_endpoint_state(old, afs_estate_trace_put_probe);
+	afs_put_endpoint_state(estate, afs_estate_trace_put_probe);
+	return 0;
 }
 
 /*

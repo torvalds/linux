@@ -1715,18 +1715,12 @@ lpfc_phba_elsring(struct lpfc_hba *phba)
  * Note: If no valid cpu found, then nr_cpu_ids is returned.
  *
  **/
-static inline unsigned int
+static __always_inline unsigned int
 lpfc_next_online_cpu(const struct cpumask *mask, unsigned int start)
 {
-	unsigned int cpu_it;
-
-	for_each_cpu_wrap(cpu_it, mask, start) {
-		if (cpu_online(cpu_it))
-			break;
-	}
-
-	return cpu_it;
+	return cpumask_next_and_wrap(start, mask, cpu_online_mask);
 }
+
 /**
  * lpfc_next_present_cpu - Finds next present CPU after n
  * @n: the cpu prior to search
@@ -1734,16 +1728,9 @@ lpfc_next_online_cpu(const struct cpumask *mask, unsigned int start)
  * Note: If no next present cpu, then fallback to first present cpu.
  *
  **/
-static inline unsigned int lpfc_next_present_cpu(int n)
+static __always_inline unsigned int lpfc_next_present_cpu(int n)
 {
-	unsigned int cpu;
-
-	cpu = cpumask_next(n, cpu_present_mask);
-
-	if (cpu >= nr_cpu_ids)
-		cpu = cpumask_first(cpu_present_mask);
-
-	return cpu;
+	return cpumask_next_wrap(n, cpu_present_mask);
 }
 
 /**

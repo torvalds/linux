@@ -8,3 +8,5 @@ pidfd_getfd_test
 pidfd_setns_test
 pidfd_file_handle_test
 pidfd_bind_mount
+pidfd_info_test
+pidfd_exec_helper

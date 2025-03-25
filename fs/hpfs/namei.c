@@ -19,8 +19,8 @@ static void hpfs_update_directory_times(struct inode *dir)
 	hpfs_write_inode_nolock(dir);
 }
 
-static int hpfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *dentry, umode_t mode)
+static struct dentry *hpfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				 struct dentry *dentry, umode_t mode)
 {
 	const unsigned char *name = dentry->d_name.name;
 	unsigned len = dentry->d_name.len;
@@ -35,7 +35,7 @@ static int hpfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	int r;
 	struct hpfs_dirent dee;
 	int err;
-	if ((err = hpfs_chk_name(name, &len))) return err==-ENOENT ? -EINVAL : err;
+	if ((err = hpfs_chk_name(name, &len))) return ERR_PTR(err==-ENOENT ? -EINVAL : err);
 	hpfs_lock(dir->i_sb);
 	err = -ENOSPC;
 	fnode = hpfs_alloc_fnode(dir->i_sb, hpfs_i(dir)->i_dno, &fno, &bh);
@@ -112,7 +112,7 @@ static int hpfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	hpfs_update_directory_times(dir);
 	d_instantiate(dentry, result);
 	hpfs_unlock(dir->i_sb);
-	return 0;
+	return NULL;
 bail3:
 	iput(result);
 bail2:
@@ -123,7 +123,7 @@ bail1:
 	hpfs_free_sectors(dir->i_sb, fno, 1);
 bail:
 	hpfs_unlock(dir->i_sb);
-	return err;
+	return ERR_PTR(err);
 }
 
 static int hpfs_create(struct mnt_idmap *idmap, struct inode *dir,

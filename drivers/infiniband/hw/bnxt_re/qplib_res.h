@@ -49,6 +49,13 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 #define CHIP_NUM_58818          0xd818
 #define CHIP_NUM_57608          0x1760
 
+#define BNXT_RE_MAX_QPC_COUNT		(64 * 1024)
+#define BNXT_RE_MAX_MRW_COUNT		(64 * 1024)
+#define BNXT_RE_MAX_SRQC_COUNT		(64 * 1024)
+#define BNXT_RE_MAX_CQ_COUNT		(64 * 1024)
+#define BNXT_RE_MAX_MRW_COUNT_64K	(64 * 1024)
+#define BNXT_RE_MAX_MRW_COUNT_256K	(256 * 1024)
+
 #define BNXT_QPLIB_DBR_VALID		(0x1UL << 26)
 #define BNXT_QPLIB_DBR_EPOCH_SHIFT	24
 #define BNXT_QPLIB_DBR_TOGGLE_SHIFT	25
@@ -598,6 +605,11 @@ static inline bool _is_min_rnr_in_rtr_rts_mandatory(u16 dev_cap_ext_flags2)
 static inline bool _is_cq_coalescing_supported(u16 dev_cap_ext_flags2)
 {
 	return dev_cap_ext_flags2 & CREQ_QUERY_FUNC_RESP_SB_CQ_COALESCING_SUPPORTED;
+}
+
+static inline bool _is_max_srq_ext_supported(u16 dev_cap_ext_flags_2)
+{
+	return !!(dev_cap_ext_flags_2 & CREQ_QUERY_FUNC_RESP_SB_MAX_SRQ_EXTENDED);
 }
 
 #endif /* __BNXT_QPLIB_RES_H__ */

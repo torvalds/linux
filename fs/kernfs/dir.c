@@ -1230,24 +1230,24 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 	return d_splice_alias(inode, dentry);
 }
 
-static int kernfs_iop_mkdir(struct mnt_idmap *idmap,
-			    struct inode *dir, struct dentry *dentry,
-			    umode_t mode)
+static struct dentry *kernfs_iop_mkdir(struct mnt_idmap *idmap,
+				       struct inode *dir, struct dentry *dentry,
+				       umode_t mode)
 {
 	struct kernfs_node *parent = dir->i_private;
 	struct kernfs_syscall_ops *scops = kernfs_root(parent)->syscall_ops;
 	int ret;
 
 	if (!scops || !scops->mkdir)
-		return -EPERM;
+		return ERR_PTR(-EPERM);
 
 	if (!kernfs_get_active(parent))
-		return -ENODEV;
+		return ERR_PTR(-ENODEV);
 
 	ret = scops->mkdir(parent, dentry->d_name.name, mode);
 
 	kernfs_put_active(parent);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)

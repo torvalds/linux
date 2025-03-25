@@ -12,6 +12,7 @@ iomap-y				+= trace.o \
 				   iter.o
 iomap-$(CONFIG_BLOCK)		+= buffered-io.o \
 				   direct-io.o \
+				   ioend.o \
 				   fiemap.o \
 				   seek.o
 iomap-$(CONFIG_SWAP)		+= swapfile.o

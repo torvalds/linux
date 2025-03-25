@@ -277,15 +277,14 @@ static int do_signalfd4(int ufd, sigset_t *mask, int flags)
 			return ufd;
 		}
 
-		file = anon_inode_getfile("[signalfd]", &signalfd_fops, ctx,
-				       O_RDWR | (flags & O_NONBLOCK));
+		file = anon_inode_getfile_fmode("[signalfd]", &signalfd_fops,
+					ctx, O_RDWR | (flags & O_NONBLOCK),
+					FMODE_NOWAIT);
 		if (IS_ERR(file)) {
 			put_unused_fd(ufd);
 			kfree(ctx);
 			return PTR_ERR(file);
 		}
-		file->f_mode |= FMODE_NOWAIT;
-
 		fd_install(ufd, file);
 	} else {
 		CLASS(fd, f)(ufd);

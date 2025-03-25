@@ -2626,31 +2626,3 @@ int s390_replace_asce(struct gmap *gmap)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(s390_replace_asce);
-
-/**
- * kvm_s390_wiggle_split_folio() - try to drain extra references to a folio and optionally split
- * @mm:    the mm containing the folio to work on
- * @folio: the folio
- * @split: whether to split a large folio
- *
- * Context: Must be called while holding an extra reference to the folio;
- *          the mm lock should not be held.
- */
-int kvm_s390_wiggle_split_folio(struct mm_struct *mm, struct folio *folio, bool split)
-{
-	int rc;
-
-	lockdep_assert_not_held(&mm->mmap_lock);
-	folio_wait_writeback(folio);
-	lru_add_drain_all();
-	if (split) {
-		folio_lock(folio);
-		rc = split_folio(folio);
-		folio_unlock(folio);
-
-		if (rc != -EBUSY)
-			return rc;
-	}
-	return -EAGAIN;
-}
-EXPORT_SYMBOL_GPL(kvm_s390_wiggle_split_folio);

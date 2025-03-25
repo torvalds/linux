@@ -439,15 +439,15 @@ SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
 		return ufd;
 	}
 
-	file = anon_inode_getfile("[timerfd]", &timerfd_fops, ctx,
-				    O_RDWR | (flags & TFD_SHARED_FCNTL_FLAGS));
+	file = anon_inode_getfile_fmode("[timerfd]", &timerfd_fops, ctx,
+			    O_RDWR | (flags & TFD_SHARED_FCNTL_FLAGS),
+			    FMODE_NOWAIT);
 	if (IS_ERR(file)) {
 		put_unused_fd(ufd);
 		kfree(ctx);
 		return PTR_ERR(file);
 	}
 
-	file->f_mode |= FMODE_NOWAIT;
 	fd_install(ufd, file);
 	return ufd;
 }

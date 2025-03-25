@@ -32,8 +32,8 @@ static int jffs2_link (struct dentry *,struct inode *,struct dentry *);
 static int jffs2_unlink (struct inode *,struct dentry *);
 static int jffs2_symlink (struct mnt_idmap *, struct inode *,
 			  struct dentry *, const char *);
-static int jffs2_mkdir (struct mnt_idmap *, struct inode *,struct dentry *,
-			umode_t);
+static struct dentry *jffs2_mkdir (struct mnt_idmap *, struct inode *,struct dentry *,
+				   umode_t);
 static int jffs2_rmdir (struct inode *,struct dentry *);
 static int jffs2_mknod (struct mnt_idmap *, struct inode *,struct dentry *,
 			umode_t,dev_t);
@@ -446,8 +446,8 @@ static int jffs2_symlink (struct mnt_idmap *idmap, struct inode *dir_i,
 }
 
 
-static int jffs2_mkdir (struct mnt_idmap *idmap, struct inode *dir_i,
-		        struct dentry *dentry, umode_t mode)
+static struct dentry *jffs2_mkdir (struct mnt_idmap *idmap, struct inode *dir_i,
+				   struct dentry *dentry, umode_t mode)
 {
 	struct jffs2_inode_info *f, *dir_f;
 	struct jffs2_sb_info *c;
@@ -464,7 +464,7 @@ static int jffs2_mkdir (struct mnt_idmap *idmap, struct inode *dir_i,
 
 	ri = jffs2_alloc_raw_inode();
 	if (!ri)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	c = JFFS2_SB_INFO(dir_i->i_sb);
 
@@ -477,7 +477,7 @@ static int jffs2_mkdir (struct mnt_idmap *idmap, struct inode *dir_i,
 
 	if (ret) {
 		jffs2_free_raw_inode(ri);
-		return ret;
+		return ERR_PTR(ret);
 	}
 
 	inode = jffs2_new_inode(dir_i, mode, ri);
@@ -485,7 +485,7 @@ static int jffs2_mkdir (struct mnt_idmap *idmap, struct inode *dir_i,
 	if (IS_ERR(inode)) {
 		jffs2_free_raw_inode(ri);
 		jffs2_complete_reservation(c);
-		return PTR_ERR(inode);
+		return ERR_CAST(inode);
 	}
 
 	inode->i_op = &jffs2_dir_inode_operations;
@@ -584,11 +584,11 @@ static int jffs2_mkdir (struct mnt_idmap *idmap, struct inode *dir_i,
 	jffs2_complete_reservation(c);
 
 	d_instantiate_new(dentry, inode);
-	return 0;
+	return NULL;
 
  fail:
 	iget_failed(inode);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static int jffs2_rmdir (struct inode *dir_i, struct dentry *dentry)
