@@ -5760,6 +5760,11 @@
 	rcutorture.test_boost_duration= [KNL]
 			Duration (s) of each individual boost test.
 
+	rcutorture.test_boost_holdoff= [KNL]
+			Holdoff time (s) from start of test to the start
+			of RCU priority-boost testing.	Defaults to zero,
+			that is, no holdoff.
+
 	rcutorture.test_boost_interval= [KNL]
 			Interval (s) between each boost test.
 

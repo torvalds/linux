@@ -17,14 +17,19 @@
 struct srcu_node;
 struct srcu_struct;
 
+/* One element of the srcu_data srcu_ctrs array. */
+struct srcu_ctr {
+	atomic_long_t srcu_locks;	/* Locks per CPU. */
+	atomic_long_t srcu_unlocks;	/* Unlocks per CPU. */
+};
+
 /*
  * Per-CPU structure feeding into leaf srcu_node, similar in function
  * to rcu_node.
  */
 struct srcu_data {
 	/* Read-side state. */
-	atomic_long_t srcu_lock_count[2];	/* Locks per CPU. */
-	atomic_long_t srcu_unlock_count[2];	/* Unlocks per CPU. */
+	struct srcu_ctr srcu_ctrs[2];		/* Locks and unlocks per CPU. */
 	int srcu_reader_flavor;			/* Reader flavor for srcu_struct structure? */
 						/* Values: SRCU_READ_FLAVOR_.*  */
 
@@ -95,7 +100,7 @@ struct srcu_usage {
  * Per-SRCU-domain structure, similar in function to rcu_state.
  */
 struct srcu_struct {
-	unsigned int srcu_idx;			/* Current rdr array element. */
+	struct srcu_ctr __percpu *srcu_ctrp;
 	struct srcu_data __percpu *sda;		/* Per-CPU srcu_data array. */
 	struct lockdep_map dep_map;
 	struct srcu_usage *srcu_sup;		/* Update-side data. */
@@ -162,6 +167,7 @@ struct srcu_struct {
 #define __SRCU_STRUCT_INIT(name, usage_name, pcpu_name)						\
 {												\
 	.sda = &pcpu_name,									\
+	.srcu_ctrp = &pcpu_name.srcu_ctrs[0],							\
 	__SRCU_STRUCT_INIT_COMMON(name, usage_name)						\
 }
 
@@ -201,9 +207,76 @@ struct srcu_struct {
 #define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
 #define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
 
+int __srcu_read_lock(struct srcu_struct *ssp) __acquires(ssp);
 void synchronize_srcu_expedited(struct srcu_struct *ssp);
 void srcu_barrier(struct srcu_struct *ssp);
 void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf);
+
+// Converts a per-CPU pointer to an ->srcu_ctrs[] array element to that
+// element's index.
+static inline bool __srcu_ptr_to_ctr(struct srcu_struct *ssp, struct srcu_ctr __percpu *scpp)
+{
+	return scpp - &ssp->sda->srcu_ctrs[0];
+}
+
+// Converts an integer to a per-CPU pointer to the corresponding
+// ->srcu_ctrs[] array element.
+static inline struct srcu_ctr __percpu *__srcu_ctr_to_ptr(struct srcu_struct *ssp, int idx)
+{
+	return &ssp->sda->srcu_ctrs[idx];
+}
+
+/*
+ * Counts the new reader in the appropriate per-CPU element of the
+ * srcu_struct.  Returns a pointer that must be passed to the matching
+ * srcu_read_unlock_fast().
+ *
+ * Note that both this_cpu_inc() and atomic_long_inc() are RCU read-side
+ * critical sections either because they disables interrupts, because they
+ * are a single instruction, or because they are a read-modify-write atomic
+ * operation, depending on the whims of the architecture.
+ *
+ * This means that __srcu_read_lock_fast() is not all that fast
+ * on architectures that support NMIs but do not supply NMI-safe
+ * implementations of this_cpu_inc().
+ */
+static inline struct srcu_ctr __percpu *__srcu_read_lock_fast(struct srcu_struct *ssp)
+{
+	struct srcu_ctr __percpu *scp = READ_ONCE(ssp->srcu_ctrp);
+
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_lock_fast().");
+	if (!IS_ENABLED(CONFIG_NEED_SRCU_NMI_SAFE))
+		this_cpu_inc(scp->srcu_locks.counter); /* Y */
+	else
+		atomic_long_inc(raw_cpu_ptr(&scp->srcu_locks));  /* Z */
+	barrier(); /* Avoid leaking the critical section. */
+	return scp;
+}
+
+/*
+ * Removes the count for the old reader from the appropriate
+ * per-CPU element of the srcu_struct.  Note that this may well be a
+ * different CPU than that which was incremented by the corresponding
+ * srcu_read_lock_fast(), but it must be within the same task.
+ *
+ * Note that both this_cpu_inc() and atomic_long_inc() are RCU read-side
+ * critical sections either because they disables interrupts, because they
+ * are a single instruction, or because they are a read-modify-write atomic
+ * operation, depending on the whims of the architecture.
+ *
+ * This means that __srcu_read_unlock_fast() is not all that fast
+ * on architectures that support NMIs but do not supply NMI-safe
+ * implementations of this_cpu_inc().
+ */
+static inline void __srcu_read_unlock_fast(struct srcu_struct *ssp, struct srcu_ctr __percpu *scp)
+{
+	barrier();  /* Avoid leaking the critical section. */
+	if (!IS_ENABLED(CONFIG_NEED_SRCU_NMI_SAFE))
+		this_cpu_inc(scp->srcu_unlocks.counter);  /* Z */
+	else
+		atomic_long_inc(raw_cpu_ptr(&scp->srcu_unlocks));  /* Z */
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_unlock_fast().");
+}
 
 /*
  * Counts the new reader in the appropriate per-CPU element of the
@@ -217,13 +290,12 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf);
  */
 static inline int __srcu_read_lock_lite(struct srcu_struct *ssp)
 {
-	int idx;
+	struct srcu_ctr __percpu *scp = READ_ONCE(ssp->srcu_ctrp);
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_lock_lite().");
-	idx = READ_ONCE(ssp->srcu_idx) & 0x1;
-	this_cpu_inc(ssp->sda->srcu_lock_count[idx].counter); /* Y */
+	this_cpu_inc(scp->srcu_locks.counter); /* Y */
 	barrier(); /* Avoid leaking the critical section. */
-	return idx;
+	return __srcu_ptr_to_ctr(ssp, scp);
 }
 
 /*
@@ -240,22 +312,24 @@ static inline int __srcu_read_lock_lite(struct srcu_struct *ssp)
 static inline void __srcu_read_unlock_lite(struct srcu_struct *ssp, int idx)
 {
 	barrier();  /* Avoid leaking the critical section. */
-	this_cpu_inc(ssp->sda->srcu_unlock_count[idx].counter);  /* Z */
+	this_cpu_inc(__srcu_ctr_to_ptr(ssp, idx)->srcu_unlocks.counter);  /* Z */
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_unlock_lite().");
 }
 
 void __srcu_check_read_flavor(struct srcu_struct *ssp, int read_flavor);
 
-// Record _lite() usage even for CONFIG_PROVE_RCU=n kernels.
-static inline void srcu_check_read_flavor_lite(struct srcu_struct *ssp)
+// Record reader usage even for CONFIG_PROVE_RCU=n kernels.  This is
+// needed only for flavors that require grace-period smp_mb() calls to be
+// promoted to synchronize_rcu().
+static inline void srcu_check_read_flavor_force(struct srcu_struct *ssp, int read_flavor)
 {
 	struct srcu_data *sdp = raw_cpu_ptr(ssp->sda);
 
-	if (likely(READ_ONCE(sdp->srcu_reader_flavor) & SRCU_READ_FLAVOR_LITE))
+	if (likely(READ_ONCE(sdp->srcu_reader_flavor) & read_flavor))
 		return;
 
 	// Note that the cmpxchg() in __srcu_check_read_flavor() is fully ordered.
-	__srcu_check_read_flavor(ssp, SRCU_READ_FLAVOR_LITE);
+	__srcu_check_read_flavor(ssp, read_flavor);
 }
 
 // Record non-_lite() usage only for CONFIG_PROVE_RCU=y kernels.

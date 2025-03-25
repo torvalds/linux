@@ -207,7 +207,7 @@ TRACE_EVENT_RCU(rcu_exp_grace_period,
 		__entry->gpevent = gpevent;
 	),
 
-	TP_printk("%s %ld %s",
+	TP_printk("%s %#lx %s",
 		  __entry->rcuname, __entry->gpseq, __entry->gpevent)
 );
 

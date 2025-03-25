@@ -95,9 +95,9 @@ static inline void __rcu_read_lock(void)
 
 static inline void __rcu_read_unlock(void)
 {
-	preempt_enable();
 	if (IS_ENABLED(CONFIG_RCU_STRICT_GRACE_PERIOD))
 		rcu_read_unlock_strict();
+	preempt_enable();
 }
 
 static inline int rcu_preempt_depth(void)
@@ -120,12 +120,6 @@ static inline void call_rcu_hurry(struct rcu_head *head, rcu_callback_t func)
 void rcu_init(void);
 extern int rcu_scheduler_active;
 void rcu_sched_clock_irq(int user);
-
-#ifdef CONFIG_TASKS_RCU_GENERIC
-void rcu_init_tasks_generic(void);
-#else
-static inline void rcu_init_tasks_generic(void) { }
-#endif
 
 #ifdef CONFIG_RCU_STALL_COMMON
 void rcu_sysrq_start(void);
@@ -806,11 +800,9 @@ do {									      \
  * sections, invocation of the corresponding RCU callback is deferred
  * until after the all the other CPUs exit their critical sections.
  *
- * In v5.0 and later kernels, synchronize_rcu() and call_rcu() also
- * wait for regions of code with preemption disabled, including regions of
- * code with interrupts or softirqs disabled.  In pre-v5.0 kernels, which
- * define synchronize_sched(), only code enclosed within rcu_read_lock()
- * and rcu_read_unlock() are guaranteed to be waited for.
+ * Both synchronize_rcu() and call_rcu() also wait for regions of code
+ * with preemption disabled, including regions of code with interrupts or
+ * softirqs disabled.
  *
  * Note, however, that RCU callbacks are permitted to run concurrently
  * with new RCU read-side critical sections.  One way that this can happen
@@ -865,11 +857,10 @@ static __always_inline void rcu_read_lock(void)
  * rcu_read_unlock() - marks the end of an RCU read-side critical section.
  *
  * In almost all situations, rcu_read_unlock() is immune from deadlock.
- * In recent kernels that have consolidated synchronize_sched() and
- * synchronize_rcu_bh() into synchronize_rcu(), this deadlock immunity
- * also extends to the scheduler's runqueue and priority-inheritance
- * spinlocks, courtesy of the quiescent-state deferral that is carried
- * out when rcu_read_unlock() is invoked with interrupts disabled.
+ * This deadlock immunity also extends to the scheduler's runqueue
+ * and priority-inheritance spinlocks, courtesy of the quiescent-state
+ * deferral that is carried out when rcu_read_unlock() is invoked with
+ * interrupts disabled.
  *
  * See rcu_read_lock() for more information.
  */
