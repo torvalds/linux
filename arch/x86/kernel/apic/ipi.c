@@ -3,6 +3,7 @@
 #include <linux/cpumask.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
+#include <linux/string_choices.h>
 
 #include <asm/io_apic.h>
 
@@ -23,7 +24,7 @@ __setup("no_ipi_broadcast=", apic_ipi_shorthand);
 static int __init print_ipi_mode(void)
 {
 	pr_info("IPI shorthand broadcast: %s\n",
-		apic_ipi_shorthand_off ? "disabled" : "enabled");
+		str_disabled_enabled(apic_ipi_shorthand_off));
 	return 0;
 }
 late_initcall(print_ipi_mode);
