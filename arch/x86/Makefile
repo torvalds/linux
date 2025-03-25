@@ -142,14 +142,7 @@ ifeq ($(CONFIG_X86_32),y)
         KBUILD_CFLAGS += -ffreestanding
     endif
 
-    ifeq ($(CONFIG_STACKPROTECTOR),y)
-        ifeq ($(CONFIG_SMP),y)
-            KBUILD_CFLAGS += -mstack-protector-guard-reg=fs \
-                             -mstack-protector-guard-symbol=__ref_stack_chk_guard
-        else
-            KBUILD_CFLAGS += -mstack-protector-guard=global
-        endif
-    endif
+        percpu_seg := fs
 else
         BITS := 64
         UTS_MACHINE := x86_64
@@ -180,25 +173,24 @@ else
 	# Use -mskip-rax-setup if supported.
 	KBUILD_CFLAGS += $(call cc-option,-mskip-rax-setup)
 
-        # FIXME - should be integrated in Makefile.cpu (Makefile_32.cpu)
-        cflags-$(CONFIG_MK8)		+= -march=k8
-        cflags-$(CONFIG_MPSC)		+= -march=nocona
-        cflags-$(CONFIG_MCORE2)		+= -march=core2
-        cflags-$(CONFIG_MATOM)		+= -march=atom
-        cflags-$(CONFIG_GENERIC_CPU)	+= -mtune=generic
-        KBUILD_CFLAGS += $(cflags-y)
-
-        rustflags-$(CONFIG_MK8)		+= -Ctarget-cpu=k8
-        rustflags-$(CONFIG_MPSC)	+= -Ctarget-cpu=nocona
-        rustflags-$(CONFIG_MCORE2)	+= -Ctarget-cpu=core2
-        rustflags-$(CONFIG_MATOM)	+= -Ctarget-cpu=atom
-        rustflags-$(CONFIG_GENERIC_CPU)	+= -Ztune-cpu=generic
-        KBUILD_RUSTFLAGS += $(rustflags-y)
+        KBUILD_CFLAGS += -march=x86-64 -mtune=generic
+        KBUILD_RUSTFLAGS += -Ctarget-cpu=x86-64 -Ztune-cpu=generic
 
         KBUILD_CFLAGS += -mno-red-zone
         KBUILD_CFLAGS += -mcmodel=kernel
         KBUILD_RUSTFLAGS += -Cno-redzone=y
         KBUILD_RUSTFLAGS += -Ccode-model=kernel
+
+        percpu_seg := gs
+endif
+
+ifeq ($(CONFIG_STACKPROTECTOR),y)
+    ifeq ($(CONFIG_SMP),y)
+	KBUILD_CFLAGS += -mstack-protector-guard-reg=$(percpu_seg)
+	KBUILD_CFLAGS += -mstack-protector-guard-symbol=__ref_stack_chk_guard
+    else
+	KBUILD_CFLAGS += -mstack-protector-guard=global
+    endif
 endif
 
 #
@@ -277,6 +269,21 @@ archscripts: scripts_basic
 
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/x86/entry/syscalls all
+
+###
+# <asm/cpufeaturemasks.h> header generation
+
+cpufeaturemasks.hdr := arch/x86/include/generated/asm/cpufeaturemasks.h
+cpufeaturemasks.awk := $(srctree)/arch/x86/tools/cpufeaturemasks.awk
+cpufeatures_hdr := $(srctree)/arch/x86/include/asm/cpufeatures.h
+targets += $(cpufeaturemasks.hdr)
+quiet_cmd_gen_featuremasks = GEN     $@
+      cmd_gen_featuremasks = $(AWK) -f $(cpufeaturemasks.awk) $(cpufeatures_hdr) $(KCONFIG_CONFIG) > $@
+
+$(cpufeaturemasks.hdr): $(cpufeaturemasks.awk) $(cpufeatures_hdr) $(KCONFIG_CONFIG) FORCE
+	$(shell mkdir -p $(dir $@))
+	$(call if_changed,gen_featuremasks)
+archprepare: $(cpufeaturemasks.hdr)
 
 ###
 # Kernel objects

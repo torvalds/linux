@@ -58,7 +58,7 @@
 
 #define DESC_USER		(_DESC_DPL(3))
 
-#ifndef __ASSEMBLY__
+#ifndef __ASSEMBLER__
 
 #include <linux/types.h>
 
@@ -166,7 +166,7 @@ struct desc_ptr {
 	unsigned long address;
 } __attribute__((packed)) ;
 
-#endif /* !__ASSEMBLY__ */
+#endif /* !__ASSEMBLER__ */
 
 /* Boot IDT definitions */
 #define	BOOT_IDT_ENTRIES	32

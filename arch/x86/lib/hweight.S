@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/export.h>
 #include <linux/linkage.h>
+#include <linux/objtool.h>
 
 #include <asm/asm.h>
 
@@ -9,6 +10,7 @@
  * %rdi: w
  */
 SYM_FUNC_START(__sw_hweight32)
+	ANNOTATE_NOENDBR
 
 #ifdef CONFIG_X86_64
 	movl %edi, %eax				# w
@@ -42,6 +44,7 @@ EXPORT_SYMBOL(__sw_hweight32)
  */
 #ifdef CONFIG_X86_64
 SYM_FUNC_START(__sw_hweight64)
+	ANNOTATE_NOENDBR
 	pushq   %rdi
 	pushq   %rdx
 

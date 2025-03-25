@@ -26,6 +26,7 @@
 	 /* code below belongs to the image kernel */
 	.align PAGE_SIZE
 SYM_FUNC_START(restore_registers)
+	ANNOTATE_NOENDBR
 	/* go back to the original page tables */
 	movq    %r9, %cr3
 
@@ -119,6 +120,7 @@ SYM_FUNC_END(restore_image)
 
 	/* code below has been relocated to a safe page */
 SYM_FUNC_START(core_restore_code)
+	ANNOTATE_NOENDBR
 	/* switch to temporary page tables */
 	movq	%rax, %cr3
 	/* flush TLB */

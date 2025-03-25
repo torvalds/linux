@@ -19,7 +19,7 @@ union __u64_halves {
 	union __u64_halves o = { .full = (_old), },			\
 			   n = { .full = (_new), };			\
 									\
-	asm volatile(_lock "cmpxchg8b %[ptr]"				\
+	asm_inline volatile(_lock "cmpxchg8b %[ptr]"			\
 		     : [ptr] "+m" (*(_ptr)),				\
 		       "+a" (o.low), "+d" (o.high)			\
 		     : "b" (n.low), "c" (n.high)			\
@@ -45,7 +45,7 @@ static __always_inline u64 __cmpxchg64_local(volatile u64 *ptr, u64 old, u64 new
 			   n = { .full = (_new), };			\
 	bool ret;							\
 									\
-	asm volatile(_lock "cmpxchg8b %[ptr]"				\
+	asm_inline volatile(_lock "cmpxchg8b %[ptr]"			\
 		     CC_SET(e)						\
 		     : CC_OUT(e) (ret),					\
 		       [ptr] "+m" (*(_ptr)),				\
@@ -69,7 +69,7 @@ static __always_inline bool __try_cmpxchg64_local(volatile u64 *ptr, u64 *oldp, 
 	return __arch_try_cmpxchg64(ptr, oldp, new,);
 }
 
-#ifdef CONFIG_X86_CMPXCHG64
+#ifdef CONFIG_X86_CX8
 
 #define arch_cmpxchg64 __cmpxchg64
 

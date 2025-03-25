@@ -287,34 +287,4 @@ void default_send_IPI_mask_logical(const struct cpumask *cpumask, int vector)
 	__default_send_IPI_dest_field(mask, vector, APIC_DEST_LOGICAL);
 	local_irq_restore(flags);
 }
-
-#ifdef CONFIG_SMP
-static int convert_apicid_to_cpu(u32 apic_id)
-{
-	int i;
-
-	for_each_possible_cpu(i) {
-		if (per_cpu(x86_cpu_to_apicid, i) == apic_id)
-			return i;
-	}
-	return -1;
-}
-
-int safe_smp_processor_id(void)
-{
-	u32 apicid;
-	int cpuid;
-
-	if (!boot_cpu_has(X86_FEATURE_APIC))
-		return 0;
-
-	apicid = read_apic_id();
-	if (apicid == BAD_APICID)
-		return 0;
-
-	cpuid = convert_apicid_to_cpu(apicid);
-
-	return cpuid >= 0 ? cpuid : 0;
-}
-#endif
 #endif
