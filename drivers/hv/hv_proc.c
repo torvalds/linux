@@ -6,11 +6,7 @@
 #include <linux/slab.h>
 #include <linux/cpuhotplug.h>
 #include <linux/minmax.h>
-#include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
-#include <asm/apic.h>
-
-#include <asm/trace/hyperv.h>
 
 /*
  * See struct hv_deposit_memory. The first u64 is partition ID, the rest
@@ -91,8 +87,8 @@ int hv_call_deposit_pages(int node, u64 partition_id, u32 num_pages)
 				     page_count, 0, input_page, NULL);
 	local_irq_restore(flags);
 	if (!hv_result_success(status)) {
-		pr_err("Failed to deposit pages: %lld\n", status);
-		ret = hv_result(status);
+		hv_status_err(status, "\n");
+		ret = hv_result_to_errno(status);
 		goto err_free_allocations;
 	}
 
@@ -111,6 +107,7 @@ free_buf:
 	kfree(counts);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(hv_call_deposit_pages);
 
 int hv_call_add_logical_proc(int node, u32 lp_index, u32 apic_id)
 {
@@ -118,7 +115,7 @@ int hv_call_add_logical_proc(int node, u32 lp_index, u32 apic_id)
 	struct hv_output_add_logical_processor *output;
 	u64 status;
 	unsigned long flags;
-	int ret = HV_STATUS_SUCCESS;
+	int ret = 0;
 
 	/*
 	 * When adding a logical processor, the hypervisor may return
@@ -141,9 +138,9 @@ int hv_call_add_logical_proc(int node, u32 lp_index, u32 apic_id)
 
 		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
 			if (!hv_result_success(status)) {
-				pr_err("%s: cpu %u apic ID %u, %lld\n", __func__,
-				       lp_index, apic_id, status);
-				ret = hv_result(status);
+				hv_status_err(status, "cpu %u apic ID: %u\n",
+					      lp_index, apic_id);
+				ret = hv_result_to_errno(status);
 			}
 			break;
 		}
@@ -158,7 +155,7 @@ int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags)
 	struct hv_create_vp *input;
 	u64 status;
 	unsigned long irq_flags;
-	int ret = HV_STATUS_SUCCESS;
+	int ret = 0;
 
 	/* Root VPs don't seem to need pages deposited */
 	if (partition_id != hv_current_partition_id) {
@@ -183,9 +180,9 @@ int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags)
 
 		if (hv_result(status) != HV_STATUS_INSUFFICIENT_MEMORY) {
 			if (!hv_result_success(status)) {
-				pr_err("%s: vcpu %u, lp %u, %lld\n", __func__,
-				       vp_index, flags, status);
-				ret = hv_result(status);
+				hv_status_err(status, "vcpu: %u, lp: %u\n",
+					      vp_index, flags);
+				ret = hv_result_to_errno(status);
 			}
 			break;
 		}
@@ -195,4 +192,4 @@ int hv_call_create_vp(int node, u64 partition_id, u32 vp_index, u32 flags)
 
 	return ret;
 }
-
+EXPORT_SYMBOL_GPL(hv_call_create_vp);

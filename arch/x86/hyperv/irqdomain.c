@@ -64,7 +64,7 @@ static int hv_map_interrupt(union hv_device_id device_id, bool level,
 	local_irq_restore(flags);
 
 	if (!hv_result_success(status))
-		pr_err("%s: hypercall failed, status %lld\n", __func__, status);
+		hv_status_err(status, "\n");
 
 	return hv_result(status);
 }
@@ -224,7 +224,7 @@ static void hv_irq_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		kfree(stored_entry);
 
 		if (status != HV_STATUS_SUCCESS) {
-			pr_debug("%s: failed to unmap, status %lld", __func__, status);
+			hv_status_debug(status, "failed to unmap\n");
 			return;
 		}
 	}
@@ -273,7 +273,7 @@ static void hv_teardown_msi_irq(struct pci_dev *dev, struct irq_data *irqd)
 	status = hv_unmap_msi_interrupt(dev, &old_entry);
 
 	if (status != HV_STATUS_SUCCESS)
-		pr_err("%s: hypercall failed, status %lld\n", __func__, status);
+		hv_status_err(status, "\n");
 }
 
 static void hv_msi_free_irq(struct irq_domain *domain,
