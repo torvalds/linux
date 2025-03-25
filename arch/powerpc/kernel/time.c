@@ -950,7 +950,7 @@ void __init time_init(void)
 		sys_tz.tz_dsttime = 0;
 	}
 
-	vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
+	vdso_k_arch_data->tb_ticks_per_sec = tb_ticks_per_sec;
 #ifdef CONFIG_PPC64_PROC_SYSTEMCFG
 	systemcfg->tb_ticks_per_sec = tb_ticks_per_sec;
 #endif
