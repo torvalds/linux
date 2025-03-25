@@ -294,6 +294,42 @@ dispatching, and must be dispatched to with ``scx_bpf_dsq_insert()``. See
 the function documentation and usage in ``tools/sched_ext/scx_simple.bpf.c``
 for more information.
 
+Task Lifecycle
+--------------
+
+The following pseudo-code summarizes the entire lifecycle of a task managed
+by a sched_ext scheduler:
+
+.. code-block:: c
+
+    ops.init_task();            /* A new task is created */
+    ops.enable();               /* Enable BPF scheduling for the task */
+
+    while (task in SCHED_EXT) {
+        if (task can migrate)
+            ops.select_cpu();   /* Called on wakeup (optimization) */
+
+        ops.runnable();         /* Task becomes ready to run */
+
+        while (task is runnable) {
+            if (task is not in a DSQ) {
+                ops.enqueue();  /* Task can be added to a DSQ */
+
+                /* A CPU becomes available */
+
+                ops.dispatch(); /* Task is moved to a local DSQ */
+            }
+            ops.running();      /* Task starts running on its assigned CPU */
+            ops.tick();         /* Called every 1/HZ seconds */
+            ops.stopping();     /* Task stops running (time slice expires or wait) */
+        }
+
+        ops.quiescent();        /* Task releases its assigned CPU (wait) */
+    }
+
+    ops.disable();              /* Disable BPF scheduling for the task */
+    ops.exit_task();            /* Task is destroyed */
+
 Where to Look
 =============
 

@@ -262,6 +262,36 @@ sched_numa_hop_mask(unsigned int node, unsigned int hops)
 #endif	/* CONFIG_NUMA */
 
 /**
+ * for_each_node_numadist() - iterate over nodes in increasing distance
+ *			      order, starting from a given node
+ * @node: the iteration variable and the starting node.
+ * @unvisited: a nodemask to keep track of the unvisited nodes.
+ *
+ * This macro iterates over NUMA node IDs in increasing distance from the
+ * starting @node and yields MAX_NUMNODES when all the nodes have been
+ * visited.
+ *
+ * Note that by the time the loop completes, the @unvisited nodemask will
+ * be fully cleared, unless the loop exits early.
+ *
+ * The difference between for_each_node() and for_each_node_numadist() is
+ * that the former allows to iterate over nodes in numerical order, whereas
+ * the latter iterates over nodes in increasing order of distance.
+ *
+ * This complexity of this iterator is O(N^2), where N represents the
+ * number of nodes, as each iteration involves scanning all nodes to
+ * find the one with the shortest distance.
+ *
+ * Requires rcu_lock to be held.
+ */
+#define for_each_node_numadist(node, unvisited)					\
+	for (int __start = (node),						\
+	     (node) = nearest_node_nodemask((__start), &(unvisited));		\
+	     (node) < MAX_NUMNODES;						\
+	     node_clear((node), (unvisited)),					\
+	     (node) = nearest_node_nodemask((__start), &(unvisited)))
+
+/**
  * for_each_numa_hop_mask - iterate over cpumasks of increasing NUMA distance
  *                          from a given node.
  * @mask: the iteration variable.

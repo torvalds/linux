@@ -3922,13 +3922,8 @@ bool cpus_share_resources(int this_cpu, int that_cpu)
 
 static inline bool ttwu_queue_cond(struct task_struct *p, int cpu)
 {
-	/*
-	 * The BPF scheduler may depend on select_task_rq() being invoked during
-	 * wakeups. In addition, @p may end up executing on a different CPU
-	 * regardless of what happens in the wakeup path making the ttwu_queue
-	 * optimization less meaningful. Skip if on SCX.
-	 */
-	if (task_on_scx(p))
+	/* See SCX_OPS_ALLOW_QUEUED_WAKEUP. */
+	if (!scx_allow_ttwu_queue(p))
 		return false;
 
 	/*
