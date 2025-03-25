@@ -95,19 +95,25 @@ static inline bool data_type_is_hidden(enum bch_data_type type)
 	}
 }
 
+/*
+ * field 1: name
+ * field 2: id
+ * field 3: number of counters (max 3)
+ */
+
 #define BCH_DISK_ACCOUNTING_TYPES()		\
-	x(nr_inodes,		0)		\
-	x(persistent_reserved,	1)		\
-	x(replicas,		2)		\
-	x(dev_data_type,	3)		\
-	x(compression,		4)		\
-	x(snapshot,		5)		\
-	x(btree,		6)		\
-	x(rebalance_work,	7)		\
-	x(inum,			8)
+	x(nr_inodes,		0,	1)	\
+	x(persistent_reserved,	1,	1)	\
+	x(replicas,		2,	1)	\
+	x(dev_data_type,	3,	3)	\
+	x(compression,		4,	3)	\
+	x(snapshot,		5,	1)	\
+	x(btree,		6,	1)	\
+	x(rebalance_work,	7,	1)	\
+	x(inum,			8,	3)
 
 enum disk_accounting_type {
-#define x(f, nr)	BCH_DISK_ACCOUNTING_##f	= nr,
+#define x(f, nr, ...)	BCH_DISK_ACCOUNTING_##f	= nr,
 	BCH_DISK_ACCOUNTING_TYPES()
 #undef x
 	BCH_DISK_ACCOUNTING_TYPE_NR,

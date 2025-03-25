@@ -33,10 +33,12 @@ static inline bool bch2_accounting_key_is_zero(struct bkey_s_c_accounting a)
 static inline void bch2_accounting_accumulate(struct bkey_i_accounting *dst,
 					      struct bkey_s_c_accounting src)
 {
-	EBUG_ON(dst->k.u64s != src.k->u64s);
-
-	for (unsigned i = 0; i < bch2_accounting_counters(&dst->k); i++)
+	for (unsigned i = 0;
+	     i < min(bch2_accounting_counters(&dst->k),
+		     bch2_accounting_counters(src.k));
+	     i++)
 		dst->v.d[i] += src.v->d[i];
+
 	if (bversion_cmp(dst->k.bversion, src.k->bversion) < 0)
 		dst->k.bversion = src.k->bversion;
 }

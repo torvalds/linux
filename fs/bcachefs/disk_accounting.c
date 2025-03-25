@@ -135,6 +135,12 @@ static inline bool is_zero(char *start, char *end)
 
 #define field_end(p, member)	(((void *) (&p.member)) + sizeof(p.member))
 
+static const unsigned bch2_accounting_type_nr_counters[] = {
+#define x(f, id, nr)	[BCH_DISK_ACCOUNTING_##f]	= nr,
+	BCH_DISK_ACCOUNTING_TYPES()
+#undef x
+};
+
 int bch2_accounting_validate(struct bch_fs *c, struct bkey_s_c k,
 			     struct bkey_validate_context from)
 {
@@ -193,6 +199,11 @@ int bch2_accounting_validate(struct bch_fs *c, struct bkey_s_c k,
 	bkey_fsck_err_on(!is_zero(end, (void *) (&acc_k + 1)),
 			 c, accounting_key_junk_at_end,
 			 "junk at end of accounting key");
+
+	bkey_fsck_err_on(bch2_accounting_counters(k.k) != bch2_accounting_type_nr_counters[acc_k.type],
+			 c, accounting_key_nr_counters_wrong,
+			 "accounting key with %u counters, should be %u",
+			 bch2_accounting_counters(k.k), bch2_accounting_type_nr_counters[acc_k.type]);
 fsck_err:
 	return ret;
 }
