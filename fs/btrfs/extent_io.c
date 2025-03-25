@@ -3647,12 +3647,10 @@ static void end_bbio_meta_read(struct btrfs_bio *bbio)
 	    btrfs_validate_extent_buffer(eb, &bbio->parent_check) < 0)
 		uptodate = false;
 
-	if (uptodate) {
+	if (uptodate)
 		set_extent_buffer_uptodate(eb);
-	} else {
+	else
 		clear_extent_buffer_uptodate(eb);
-		set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
-	}
 
 	clear_extent_buffer_reading(eb);
 	free_extent_buffer(eb);
@@ -3691,7 +3689,6 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 		return 0;
 	}
 
-	clear_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
 	eb->read_mirror = 0;
 	check_buffer_tree_ref(eb);
 	atomic_inc(&eb->refs);
