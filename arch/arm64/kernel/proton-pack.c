@@ -172,7 +172,7 @@ static enum mitigation_state spectre_v2_get_cpu_hw_mitigation_state(void)
 		return SPECTRE_UNAFFECTED;
 
 	/* Alternatively, we have a list of unaffected CPUs */
-	if (is_midr_in_range_list(read_cpuid_id(), spectre_v2_safe_list))
+	if (is_midr_in_range_list(spectre_v2_safe_list))
 		return SPECTRE_UNAFFECTED;
 
 	return SPECTRE_VULNERABLE;
@@ -331,7 +331,7 @@ bool has_spectre_v3a(const struct arm64_cpu_capabilities *entry, int scope)
 	};
 
 	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
-	return is_midr_in_range_list(read_cpuid_id(), spectre_v3a_unsafe_list);
+	return is_midr_in_range_list(spectre_v3a_unsafe_list);
 }
 
 void spectre_v3a_enable_mitigation(const struct arm64_cpu_capabilities *__unused)
@@ -475,7 +475,7 @@ static enum mitigation_state spectre_v4_get_cpu_hw_mitigation_state(void)
 		{ /* sentinel */ },
 	};
 
-	if (is_midr_in_range_list(read_cpuid_id(), spectre_v4_safe_list))
+	if (is_midr_in_range_list(spectre_v4_safe_list))
 		return SPECTRE_UNAFFECTED;
 
 	/* CPU features are detected first */
@@ -864,7 +864,7 @@ static bool is_spectre_bhb_safe(int scope)
 	if (scope != SCOPE_LOCAL_CPU)
 		return all_safe;
 
-	if (is_midr_in_range_list(read_cpuid_id(), spectre_bhb_safe_list))
+	if (is_midr_in_range_list(spectre_bhb_safe_list))
 		return true;
 
 	all_safe = false;
@@ -913,17 +913,17 @@ static u8 spectre_bhb_loop_affected(void)
 		{},
 	};
 
-	if (is_midr_in_range_list(read_cpuid_id(), spectre_bhb_k132_list))
+	if (is_midr_in_range_list(spectre_bhb_k132_list))
 		k = 132;
-	else if (is_midr_in_range_list(read_cpuid_id(), spectre_bhb_k38_list))
+	else if (is_midr_in_range_list(spectre_bhb_k38_list))
 		k = 38;
-	else if (is_midr_in_range_list(read_cpuid_id(), spectre_bhb_k32_list))
+	else if (is_midr_in_range_list(spectre_bhb_k32_list))
 		k = 32;
-	else if (is_midr_in_range_list(read_cpuid_id(), spectre_bhb_k24_list))
+	else if (is_midr_in_range_list(spectre_bhb_k24_list))
 		k = 24;
-	else if (is_midr_in_range_list(read_cpuid_id(), spectre_bhb_k11_list))
+	else if (is_midr_in_range_list(spectre_bhb_k11_list))
 		k = 11;
-	else if (is_midr_in_range_list(read_cpuid_id(), spectre_bhb_k8_list))
+	else if (is_midr_in_range_list(spectre_bhb_k8_list))
 		k =  8;
 
 	return k;

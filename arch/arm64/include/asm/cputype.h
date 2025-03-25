@@ -246,6 +246,16 @@
 #define read_cpuid(reg)			read_sysreg_s(SYS_ ## reg)
 
 /*
+ * The CPU ID never changes at run time, so we might as well tell the
+ * compiler that it's constant.  Use this function to read the CPU ID
+ * rather than directly reading processor_id or read_cpuid() directly.
+ */
+static inline u32 __attribute_const__ read_cpuid_id(void)
+{
+	return read_cpuid(MIDR_EL1);
+}
+
+/*
  * Represent a range of MIDR values for a given CPU model and a
  * range of variant/revision values.
  *
@@ -280,30 +290,14 @@ static inline bool midr_is_cpu_model_range(u32 midr, u32 model, u32 rv_min,
 	return _model == model && rv >= rv_min && rv <= rv_max;
 }
 
-static inline bool is_midr_in_range(u32 midr, struct midr_range const *range)
-{
-	return midr_is_cpu_model_range(midr, range->model,
-				       range->rv_min, range->rv_max);
-}
+struct target_impl_cpu {
+	u64 midr;
+	u64 revidr;
+	u64 aidr;
+};
 
-static inline bool
-is_midr_in_range_list(u32 midr, struct midr_range const *ranges)
-{
-	while (ranges->model)
-		if (is_midr_in_range(midr, ranges++))
-			return true;
-	return false;
-}
-
-/*
- * The CPU ID never changes at run time, so we might as well tell the
- * compiler that it's constant.  Use this function to read the CPU ID
- * rather than directly reading processor_id or read_cpuid() directly.
- */
-static inline u32 __attribute_const__ read_cpuid_id(void)
-{
-	return read_cpuid(MIDR_EL1);
-}
+bool cpu_errata_set_target_impl(u64 num, void *impl_cpus);
+bool is_midr_in_range_list(struct midr_range const *ranges);
 
 static inline u64 __attribute_const__ read_cpuid_mpidr(void)
 {

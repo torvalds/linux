@@ -121,6 +121,13 @@ static inline bool kvm_vcpu_has_run(struct kvm_vcpu *vcpu)
 	return vcpu->arch.last_vmentry_cpu != -1;
 }
 
+static inline void kvm_set_mp_state(struct kvm_vcpu *vcpu, int mp_state)
+{
+	vcpu->arch.mp_state = mp_state;
+	if (mp_state == KVM_MP_STATE_RUNNABLE)
+		vcpu->arch.pv.pv_unhalted = false;
+}
+
 static inline bool kvm_is_exception_pending(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.exception.pending ||
@@ -362,6 +369,7 @@ void kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip);
 u64 get_kvmclock_ns(struct kvm *kvm);
 uint64_t kvm_get_wall_clock_epoch(struct kvm *kvm);
 bool kvm_get_monotonic_and_clockread(s64 *kernel_ns, u64 *tsc_timestamp);
+int kvm_guest_time_update(struct kvm_vcpu *v);
 
 int kvm_read_guest_virt(struct kvm_vcpu *vcpu,
 	gva_t addr, void *val, unsigned int bytes,
