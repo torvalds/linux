@@ -753,8 +753,7 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 
 out:
 	mutex_unlock(&tas_hda->priv->codec_lock);
-	if (fmw)
-		release_firmware(fmw);
+	release_firmware(fmw);
 	pm_runtime_mark_last_busy(tas_hda->dev);
 	pm_runtime_put_autosuspend(tas_hda->dev);
 }
