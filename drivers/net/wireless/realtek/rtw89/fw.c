@@ -554,7 +554,7 @@ const struct rtw89_mfw_hdr *rtw89_mfw_get_hdr_ptr(struct rtw89_dev *rtwdev,
 	if (sizeof(*mfw_hdr) > firmware->size)
 		return NULL;
 
-	mfw_hdr = (const struct rtw89_mfw_hdr *)firmware->data;
+	mfw_hdr = (const struct rtw89_mfw_hdr *)&firmware->data[0];
 
 	if (mfw_hdr->sig != RTW89_MFW_SIG)
 		return NULL;
