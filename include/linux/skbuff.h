@@ -478,8 +478,8 @@ enum {
 	/* device driver is going to provide hardware time stamp */
 	SKBTX_IN_PROGRESS = 1 << 2,
 
-	/* reserved */
-	SKBTX_RESERVED = 1 << 3,
+	/* generate software time stamp on packet tx completion */
+	SKBTX_COMPLETION_TSTAMP = 1 << 3,
 
 	/* generate wifi status information (where possible) */
 	SKBTX_WIFI_STATUS = 1 << 4,
@@ -498,7 +498,8 @@ enum {
 
 #define SKBTX_ANY_SW_TSTAMP	(SKBTX_SW_TSTAMP    | \
 				 SKBTX_SCHED_TSTAMP | \
-				 SKBTX_BPF)
+				 SKBTX_BPF          | \
+				 SKBTX_COMPLETION_TSTAMP)
 #define SKBTX_ANY_TSTAMP	(SKBTX_HW_TSTAMP | \
 				 SKBTX_ANY_SW_TSTAMP)
 
