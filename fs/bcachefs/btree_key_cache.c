@@ -156,7 +156,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path, unsigned k
 	}
 
 	if (ck) {
-		bch2_btree_lock_init(&ck->c, pcpu_readers ? SIX_LOCK_INIT_PCPU : 0);
+		bch2_btree_lock_init(&ck->c, pcpu_readers ? SIX_LOCK_INIT_PCPU : 0, GFP_KERNEL);
 		ck->c.cached = true;
 		goto lock;
 	}

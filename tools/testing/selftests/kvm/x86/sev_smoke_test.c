@@ -52,7 +52,8 @@ static void compare_xsave(u8 *from_host, u8 *from_guest)
 	bool bad = false;
 	for (i = 0; i < 4095; i++) {
 		if (from_host[i] != from_guest[i]) {
-			printf("mismatch at %02hhx | %02hhx %02hhx\n", i, from_host[i], from_guest[i]);
+			printf("mismatch at %u | %02hhx %02hhx\n",
+			       i, from_host[i], from_guest[i]);
 			bad = true;
 		}
 	}

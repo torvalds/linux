@@ -2102,6 +2102,7 @@ restart_locked:
 			goto out_sock_put;
 		}
 
+		sock_put(other);
 		goto lookup;
 	}
 

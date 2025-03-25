@@ -2972,6 +2972,16 @@ void __init sev_hardware_setup(void)
 	    WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_FLUSHBYASID)))
 		goto out;
 
+	/*
+	 * The kernel's initcall infrastructure lacks the ability to express
+	 * dependencies between initcalls, whereas the modules infrastructure
+	 * automatically handles dependencies via symbol loading.  Ensure the
+	 * PSP SEV driver is initialized before proceeding if KVM is built-in,
+	 * as the dependency isn't handled by the initcall infrastructure.
+	 */
+	if (IS_BUILTIN(CONFIG_KVM_AMD) && sev_module_init())
+		goto out;
+
 	/* Retrieve SEV CPUID information */
 	cpuid(0x8000001f, &eax, &ebx, &ecx, &edx);
 
@@ -4580,6 +4590,8 @@ void sev_es_vcpu_reset(struct vcpu_svm *svm)
 
 void sev_es_prepare_switch_to_guest(struct vcpu_svm *svm, struct sev_es_save_area *hostsa)
 {
+	struct kvm *kvm = svm->vcpu.kvm;
+
 	/*
 	 * All host state for SEV-ES guests is categorized into three swap types
 	 * based on how it is handled by hardware during a world switch:
@@ -4603,14 +4615,22 @@ void sev_es_prepare_switch_to_guest(struct vcpu_svm *svm, struct sev_es_save_are
 
 	/*
 	 * If DebugSwap is enabled, debug registers are loaded but NOT saved by
-	 * the CPU (Type-B). If DebugSwap is disabled/unsupported, the CPU both
-	 * saves and loads debug registers (Type-A).
+	 * the CPU (Type-B). If DebugSwap is disabled/unsupported, the CPU does
+	 * not save or load debug registers.  Sadly, KVM can't prevent SNP
+	 * guests from lying about DebugSwap on secondary vCPUs, i.e. the
+	 * SEV_FEATURES provided at "AP Create" isn't guaranteed to match what
+	 * the guest has actually enabled (or not!) in the VMSA.
+	 *
+	 * If DebugSwap is *possible*, save the masks so that they're restored
+	 * if the guest enables DebugSwap.  But for the DRs themselves, do NOT
+	 * rely on the CPU to restore the host values; KVM will restore them as
+	 * needed in common code, via hw_breakpoint_restore().  Note, KVM does
+	 * NOT support virtualizing Breakpoint Extensions, i.e. the mask MSRs
+	 * don't need to be restored per se, KVM just needs to ensure they are
+	 * loaded with the correct values *if* the CPU writes the MSRs.
 	 */
-	if (sev_vcpu_has_debug_swap(svm)) {
-		hostsa->dr0 = native_get_debugreg(0);
-		hostsa->dr1 = native_get_debugreg(1);
-		hostsa->dr2 = native_get_debugreg(2);
-		hostsa->dr3 = native_get_debugreg(3);
+	if (sev_vcpu_has_debug_swap(svm) ||
+	    (sev_snp_guest(kvm) && cpu_feature_enabled(X86_FEATURE_DEBUG_SWAP))) {
 		hostsa->dr0_addr_mask = amd_get_dr_addr_mask(0);
 		hostsa->dr1_addr_mask = amd_get_dr_addr_mask(1);
 		hostsa->dr2_addr_mask = amd_get_dr_addr_mask(2);

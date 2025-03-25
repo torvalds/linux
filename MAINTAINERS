@@ -124,6 +124,7 @@ F:	include/net/ieee80211_radiotap.h
 F:	include/net/iw_handler.h
 F:	include/net/wext.h
 F:	include/uapi/linux/nl80211.h
+N:	include/uapi/linux/nl80211-.*
 F:	include/uapi/linux/wireless.h
 F:	net/wireless/
 
@@ -514,7 +515,7 @@ F:	drivers/hwmon/adm1029.c
 ADM8211 WIRELESS DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
-F:	drivers/net/wireless/admtek/adm8211.*
+F:	drivers/net/wireless/admtek/
 
 ADP1050 HARDWARE MONITOR DRIVER
 M:	Radu Sabau <radu.sabau@analog.com>
@@ -1046,14 +1047,14 @@ F:	drivers/crypto/ccp/hsti.*
 AMD DISPLAY CORE
 M:	Harry Wentland <harry.wentland@amd.com>
 M:	Leo Li <sunpeng.li@amd.com>
-M:	Rodrigo Siqueira <Rodrigo.Siqueira@amd.com>
+R:	Rodrigo Siqueira <siqueira@igalia.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 T:	git https://gitlab.freedesktop.org/agd5f/linux.git
 F:	drivers/gpu/drm/amd/display/
 
 AMD DISPLAY CORE - DML
-M:	Chaitanya Dhere <chaitanya.dhere@amd.com>
+M:	Austin Zheng <austin.zheng@amd.com>
 M:	Jun Lei <jun.lei@amd.com>
 S:	Supported
 F:	drivers/gpu/drm/amd/display/dc/dml/
@@ -2210,6 +2211,7 @@ F:	sound/soc/codecs/ssm3515.c
 
 ARM/APPLE MACHINE SUPPORT
 M:	Sven Peter <sven@svenpeter.dev>
+M:	Janne Grunau <j@jannau.net>
 R:	Alyssa Rosenzweig <alyssa@rosenzweig.io>
 L:	asahi@lists.linux.dev
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -2284,7 +2286,7 @@ F:	drivers/irqchip/irq-aspeed-i2c-ic.c
 
 ARM/ASPEED MACHINE SUPPORT
 M:	Joel Stanley <joel@jms.id.au>
-R:	Andrew Jeffery <andrew@codeconstruct.com.au>
+M:	Andrew Jeffery <andrew@codeconstruct.com.au>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-aspeed@lists.ozlabs.org (moderated for non-subscribers)
 S:	Supported
@@ -2877,7 +2879,7 @@ F:	drivers/pinctrl/nxp/
 
 ARM/NXP S32G/S32R DWMAC ETHERNET DRIVER
 M:	Jan Petrous <jan.petrous@oss.nxp.com>
-L:	NXP S32 Linux Team <s32@nxp.com>
+R:	s32@nxp.com
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/nxp,s32-dwmac.yaml
 F:	drivers/net/ethernet/stmicro/stmmac/dwmac-s32.c
@@ -3654,7 +3656,6 @@ F:	Documentation/devicetree/bindings/phy/phy-ath79-usb.txt
 F:	drivers/phy/qualcomm/phy-ath79-usb.c
 
 ATHEROS ATH GENERIC UTILITIES
-M:	Kalle Valo <kvalo@kernel.org>
 M:	Jeff Johnson <jjohnson@kernel.org>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
@@ -3858,13 +3859,6 @@ S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/pwm/adi,axi-pwmgen.yaml
 F:	drivers/pwm/pwm-axi-pwmgen.c
-
-AXXIA I2C CONTROLLER
-M:	Krzysztof Adamski <krzysztof.adamski@nokia.com>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/i2c/i2c-axxia.txt
-F:	drivers/i2c/busses/i2c-axxia.c
 
 AZ6007 DVB DRIVER
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
@@ -5663,7 +5657,7 @@ F:	.clang-format
 
 CLANG/LLVM BUILD SUPPORT
 M:	Nathan Chancellor <nathan@kernel.org>
-R:	Nick Desaulniers <ndesaulniers@google.com>
+R:	Nick Desaulniers <nick.desaulniers+lkml@gmail.com>
 R:	Bill Wendling <morbo@google.com>
 R:	Justin Stitt <justinstitt@google.com>
 L:	llvm@lists.linux.dev
@@ -5782,6 +5776,7 @@ X:	drivers/clk/clkdev.c
 
 COMMON INTERNET FILE SYSTEM CLIENT (CIFS and SMB3)
 M:	Steve French <sfrench@samba.org>
+M:	Steve French <smfrench@gmail.com>
 R:	Paulo Alcantara <pc@manguebit.com> (DFS, global name space)
 R:	Ronnie Sahlberg <ronniesahlberg@gmail.com> (directory leases, sparse files)
 R:	Shyam Prasad N <sprasad@microsoft.com> (multichannel)
@@ -5863,7 +5858,6 @@ F:	Documentation/security/snp-tdx-threat-model.rst
 
 CONFIGFS
 M:	Joel Becker <jlbec@evilplan.org>
-M:	Christoph Hellwig <hch@lst.de>
 S:	Supported
 T:	git git://git.infradead.org/users/hch/configfs.git
 F:	fs/configfs/
@@ -5933,6 +5927,17 @@ F:	kernel/cgroup/cpuset.c
 F:	tools/testing/selftests/cgroup/test_cpuset.c
 F:	tools/testing/selftests/cgroup/test_cpuset_prs.sh
 F:	tools/testing/selftests/cgroup/test_cpuset_v1_base.sh
+
+CONTROL GROUP - DEVICE MEMORY CONTROLLER (DMEM)
+M:	Maarten Lankhorst <dev@lankhorst.se>
+M:	Maxime Ripard <mripard@kernel.org>
+M:	Natalie Vock <natalie.vock@gmx.de>
+L:	cgroups@vger.kernel.org
+L:	dri-devel@lists.freedesktop.org
+S:	Maintained
+T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
+F:	include/linux/cgroup_dmem.h
+F:	kernel/cgroup/dmem.c
 
 CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)
 M:	Johannes Weiner <hannes@cmpxchg.org>
@@ -6203,7 +6208,7 @@ F:	Documentation/process/cve.rst
 
 CW1200 WLAN driver
 S:	Orphan
-F:	drivers/net/wireless/st/cw1200/
+F:	drivers/net/wireless/st/
 F:	include/linux/platform_data/net-cw1200.h
 
 CX18 VIDEO4LINUX DRIVER
@@ -6886,7 +6891,6 @@ F:	kernel/dma/map_benchmark.c
 F:	tools/testing/selftests/dma/
 
 DMA MAPPING HELPERS
-M:	Christoph Hellwig <hch@lst.de>
 M:	Marek Szyprowski <m.szyprowski@samsung.com>
 R:	Robin Murphy <robin.murphy@arm.com>
 L:	iommu@lists.linux.dev
@@ -7116,8 +7120,10 @@ F:	rust/kernel/device.rs
 F:	rust/kernel/device_id.rs
 F:	rust/kernel/devres.rs
 F:	rust/kernel/driver.rs
+F:	rust/kernel/faux.rs
 F:	rust/kernel/platform.rs
 F:	samples/rust/rust_driver_platform.rs
+F:	samples/rust/rust_driver_faux.rs
 
 DRIVERS FOR OMAP ADAPTIVE VOLTAGE SCALING (AVS)
 M:	Nishanth Menon <nm@ti.com>
@@ -7431,7 +7437,6 @@ F:	Documentation/devicetree/bindings/display/panel/novatek,nt36672a.yaml
 F:	drivers/gpu/drm/panel/panel-novatek-nt36672a.c
 
 DRM DRIVER FOR NVIDIA GEFORCE/QUADRO GPUS
-M:	Karol Herbst <kherbst@redhat.com>
 M:	Lyude Paul <lyude@redhat.com>
 M:	Danilo Krummrich <dakr@kernel.org>
 L:	dri-devel@lists.freedesktop.org
@@ -9439,14 +9444,11 @@ F:	include/linux/fscrypt.h
 F:	include/uapi/linux/fscrypt.h
 
 FSI SUBSYSTEM
-M:	Jeremy Kerr <jk@ozlabs.org>
-M:	Joel Stanley <joel@jms.id.au>
-R:	Alistar Popple <alistair@popple.id.au>
-R:	Eddie James <eajames@linux.ibm.com>
+M:	Eddie James <eajames@linux.ibm.com>
+R:	Ninad Palsule <ninad@linux.ibm.com>
 L:	linux-fsi@lists.ozlabs.org
 S:	Supported
 Q:	http://patchwork.ozlabs.org/project/linux-fsi/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joel/fsi.git
 F:	drivers/fsi/
 F:	include/linux/fsi*.h
 F:	include/trace/events/fsi*.h
@@ -9827,7 +9829,6 @@ S:	Maintained
 F:	drivers/media/usb/go7007/
 
 GOODIX TOUCHSCREEN
-M:	Bastien Nocera <hadess@hadess.net>
 M:	Hans de Goede <hdegoede@redhat.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
@@ -9835,8 +9836,7 @@ F:	drivers/input/touchscreen/goodix*
 
 GOOGLE ETHERNET DRIVERS
 M:	Jeroen de Borst <jeroendb@google.com>
-M:	Praveen Kaligineedi <pkaligineedi@google.com>
-R:	Shailend Chand <shailend@google.com>
+M:	Harshitha Ramamurthy <hramamurthy@google.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/device_drivers/ethernet/google/gve.rst
@@ -10822,7 +10822,7 @@ S:	Odd Fixes
 F:	drivers/tty/hvc/
 
 I2C ACPI SUPPORT
-M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+M:	Mika Westerberg <westeri@kernel.org>
 L:	linux-i2c@vger.kernel.org
 L:	linux-acpi@vger.kernel.org
 S:	Maintained
@@ -11140,7 +11140,7 @@ S:	Maintained
 F:	drivers/i2c/busses/i2c-icy.c
 
 IDEAPAD LAPTOP EXTRAS DRIVER
-M:	Ike Panhc <ike.pan@canonical.com>
+M:	Ike Panhc <ikepanhc@gmail.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 W:	http://launchpad.net/ideapad-laptop
@@ -12653,7 +12653,9 @@ F:	tools/testing/selftests/
 
 KERNEL SMB3 SERVER (KSMBD)
 M:	Namjae Jeon <linkinjeon@kernel.org>
+M:	Namjae Jeon <linkinjeon@samba.org>
 M:	Steve French <sfrench@samba.org>
+M:	Steve French <smfrench@gmail.com>
 R:	Sergey Senozhatsky <senozhatsky@chromium.org>
 R:	Tom Talpey <tom@talpey.com>
 L:	linux-cifs@vger.kernel.org
@@ -12870,7 +12872,7 @@ F:	include/keys/trusted_dcp.h
 F:	security/keys/trusted-keys/trusted_dcp.c
 
 KEYS-TRUSTED-TEE
-M:	Sumit Garg <sumit.garg@linaro.org>
+M:	Sumit Garg <sumit.garg@kernel.org>
 L:	linux-integrity@vger.kernel.org
 L:	keyrings@vger.kernel.org
 S:	Supported
@@ -13992,6 +13994,7 @@ MARVELL LIBERTAS WIRELESS DRIVER
 L:	libertas-dev@lists.infradead.org
 S:	Orphan
 F:	drivers/net/wireless/marvell/libertas/
+F:	drivers/net/wireless/marvell/libertas_tf/
 
 MARVELL MACCHIATOBIN SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
@@ -15661,7 +15664,7 @@ M:	Ajay Singh <ajay.kathat@microchip.com>
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
-F:	drivers/net/wireless/microchip/wilc1000/
+F:	drivers/net/wireless/microchip/
 
 MICROSEMI MIPS SOCS
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
@@ -15689,7 +15692,7 @@ F:	include/uapi/linux/cciss*.h
 
 MICROSOFT MANA RDMA DRIVER
 M:	Long Li <longli@microsoft.com>
-M:	Ajay Sharma <sharmaajay@microsoft.com>
+M:	Konstantin Taranov <kotaranov@microsoft.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/mana/
@@ -16438,7 +16441,7 @@ X:	drivers/net/can/
 X:	drivers/net/wireless/
 
 NETWORKING DRIVERS (WIRELESS)
-M:	Kalle Valo <kvalo@kernel.org>
+M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 W:	https://wireless.wiki.kernel.org/
@@ -16447,6 +16450,23 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wireless/wireless.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wireless/wireless-next.git
 F:	Documentation/devicetree/bindings/net/wireless/
 F:	drivers/net/wireless/
+X:	drivers/net/wireless/ath/
+X:	drivers/net/wireless/broadcom/
+X:	drivers/net/wireless/intel/
+X:	drivers/net/wireless/intersil/
+X:	drivers/net/wireless/marvell/
+X:	drivers/net/wireless/mediatek/mt76/
+X:	drivers/net/wireless/mediatek/mt7601u/
+X:	drivers/net/wireless/microchip/
+X:	drivers/net/wireless/purelifi/
+X:	drivers/net/wireless/quantenna/
+X:	drivers/net/wireless/ralink/
+X:	drivers/net/wireless/realtek/
+X:	drivers/net/wireless/rsi/
+X:	drivers/net/wireless/silabs/
+X:	drivers/net/wireless/st/
+X:	drivers/net/wireless/ti/
+X:	drivers/net/wireless/zydas/
 
 NETWORKING [DSA]
 M:	Andrew Lunn <andrew@lunn.ch>
@@ -16477,6 +16497,12 @@ M:	Andrew Lunn <andrew@lunn.ch>
 F:	net/ethtool/cabletest.c
 F:	tools/testing/selftests/drivers/net/*/ethtool*
 K:	cable_test
+
+NETWORKING [ETHTOOL MAC MERGE]
+M:	Vladimir Oltean <vladimir.oltean@nxp.com>
+F:	net/ethtool/mm.c
+F:	tools/testing/selftests/drivers/net/hw/ethtool_mm.sh
+K:	ethtool_mm
 
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
@@ -16509,6 +16535,7 @@ F:	include/linux/netdev*
 F:	include/linux/netlink.h
 F:	include/linux/netpoll.h
 F:	include/linux/rtnetlink.h
+F:	include/linux/sctp.h
 F:	include/linux/seq_file_net.h
 F:	include/linux/skbuff*
 F:	include/net/
@@ -16525,6 +16552,7 @@ F:	include/uapi/linux/netdev*
 F:	include/uapi/linux/netlink.h
 F:	include/uapi/linux/netlink_diag.h
 F:	include/uapi/linux/rtnetlink.h
+F:	include/uapi/linux/sctp.h
 F:	lib/net_utils.c
 F:	lib/random32.c
 F:	net/
@@ -17662,7 +17690,7 @@ F:	Documentation/ABI/testing/sysfs-bus-optee-devices
 F:	drivers/tee/optee/
 
 OP-TEE RANDOM NUMBER GENERATOR (RNG) DRIVER
-M:	Sumit Garg <sumit.garg@linaro.org>
+M:	Sumit Garg <sumit.garg@kernel.org>
 L:	op-tee@lists.trustedfirmware.org
 S:	Maintained
 F:	drivers/char/hw_random/optee-rng.c
@@ -17823,7 +17851,7 @@ M:	Christian Lamparter <chunkeey@googlemail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
 W:	https://wireless.wiki.kernel.org/en/users/Drivers/p54
-F:	drivers/net/wireless/intersil/p54/
+F:	drivers/net/wireless/intersil/
 
 PACKET SOCKETS
 M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
@@ -19100,7 +19128,7 @@ PURELIFI PLFXLC DRIVER
 M:	Srinivasan Raju <srini.raju@purelifi.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
-F:	drivers/net/wireless/purelifi/plfxlc/
+F:	drivers/net/wireless/purelifi/
 
 PVRUSB2 VIDEO4LINUX DRIVER
 M:	Mike Isely <isely@pobox.com>
@@ -19355,7 +19383,6 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 F:	drivers/media/tuners/qt1010*
 
 QUALCOMM ATH12K WIRELESS DRIVER
-M:	Kalle Valo <kvalo@kernel.org>
 M:	Jeff Johnson <jjohnson@kernel.org>
 L:	ath12k@lists.infradead.org
 S:	Supported
@@ -19365,7 +19392,6 @@ F:	drivers/net/wireless/ath/ath12k/
 N:	ath12k
 
 QUALCOMM ATHEROS ATH10K WIRELESS DRIVER
-M:	Kalle Valo <kvalo@kernel.org>
 M:	Jeff Johnson <jjohnson@kernel.org>
 L:	ath10k@lists.infradead.org
 S:	Supported
@@ -19375,7 +19401,6 @@ F:	drivers/net/wireless/ath/ath10k/
 N:	ath10k
 
 QUALCOMM ATHEROS ATH11K WIRELESS DRIVER
-M:	Kalle Valo <kvalo@kernel.org>
 M:	Jeff Johnson <jjohnson@kernel.org>
 L:	ath11k@lists.infradead.org
 S:	Supported
@@ -19509,6 +19534,15 @@ L:	linux-arm-msm@vger.kernel.org
 L:	dmaengine@vger.kernel.org
 S:	Supported
 F:	drivers/dma/qcom/hidma*
+
+QUALCOMM I2C QCOM GENI DRIVER
+M:	Mukesh Kumar Savaliya <quic_msavaliy@quicinc.com>
+M:	Viken Dadhaniya <quic_vdadhani@quicinc.com>
+L:	linux-i2c@vger.kernel.org
+L:	linux-arm-msm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/i2c/qcom,i2c-geni-qcom.yaml
+F:	drivers/i2c/busses/i2c-qcom-geni.c
 
 QUALCOMM I2C CCI DRIVER
 M:	Loic Poulain <loic.poulain@linaro.org>
@@ -19645,12 +19679,11 @@ M:	Igor Mitsyanko <imitsyanko@quantenna.com>
 R:	Sergey Matyukevich <geomatsi@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F:	drivers/net/wireless/quantenna
+F:	drivers/net/wireless/quantenna/
 
 RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
 M:	Christian König <christian.koenig@amd.com>
-M:	Xinhui Pan <Xinhui.Pan@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 B:	https://gitlab.freedesktop.org/drm/amd/-/issues
@@ -19726,7 +19759,7 @@ RALINK RT2X00 WIRELESS LAN DRIVER
 M:	Stanislaw Gruszka <stf_xl@wp.pl>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
-F:	drivers/net/wireless/ralink/rt2x00/
+F:	drivers/net/wireless/ralink/
 
 RAMDISK RAM BLOCK DEVICE DRIVER
 M:	Jens Axboe <axboe@kernel.dk>
@@ -19872,7 +19905,7 @@ F:	net/rds/
 F:	tools/testing/selftests/net/rds/
 
 RDT - RESOURCE ALLOCATION
-M:	Fenghua Yu <fenghua.yu@intel.com>
+M:	Tony Luck <tony.luck@intel.com>
 M:	Reinette Chatre <reinette.chatre@intel.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
@@ -20323,6 +20356,7 @@ RISC-V ARCHITECTURE
 M:	Paul Walmsley <paul.walmsley@sifive.com>
 M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Albert Ou <aou@eecs.berkeley.edu>
+R:	Alexandre Ghiti <alex@ghiti.fr>
 L:	linux-riscv@lists.infradead.org
 S:	Supported
 Q:	https://patchwork.kernel.org/project/linux-riscv/list/
@@ -21073,6 +21107,7 @@ F:	include/linux/clk/samsung.h
 
 SAMSUNG SPI DRIVERS
 M:	Andi Shyti <andi.shyti@kernel.org>
+R:	Tudor Ambarus <tudor.ambarus@linaro.org>
 L:	linux-spi@vger.kernel.org
 L:	linux-samsung-soc@vger.kernel.org
 S:	Maintained
@@ -21483,7 +21518,6 @@ F:	include/linux/slimbus.h
 
 SFC NETWORK DRIVER
 M:	Edward Cree <ecree.xilinx@gmail.com>
-M:	Martin Habets <habetsm.xilinx@gmail.com>
 L:	netdev@vger.kernel.org
 L:	linux-net-drivers@amd.com
 S:	Maintained
@@ -21692,7 +21726,7 @@ SILICON LABS WIRELESS DRIVERS (for WFxxx series)
 M:	Jérôme Pouiller <jerome.pouiller@silabs.com>
 S:	Supported
 F:	Documentation/devicetree/bindings/net/wireless/silabs,wfx.yaml
-F:	drivers/net/wireless/silabs/wfx/
+F:	drivers/net/wireless/silabs/
 
 SILICON MOTION SM712 FRAME BUFFER DRIVER
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
@@ -21916,10 +21950,13 @@ F:	sound/soc/uniphier/
 
 SOCKET TIMESTAMPING
 M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+R:	Jason Xing <kernelxing@tencent.com>
 S:	Maintained
 F:	Documentation/networking/timestamping.rst
 F:	include/linux/net_tstamp.h
 F:	include/uapi/linux/net_tstamp.h
+F:	tools/testing/selftests/bpf/*/net_timestamping*
+F:	tools/testing/selftests/net/*timestamp*
 F:	tools/testing/selftests/net/so_txtime.c
 
 SOEKRIS NET48XX LED SUPPORT
@@ -23266,7 +23303,7 @@ F:	include/media/i2c/tw9910.h
 
 TEE SUBSYSTEM
 M:	Jens Wiklander <jens.wiklander@linaro.org>
-R:	Sumit Garg <sumit.garg@linaro.org>
+R:	Sumit Garg <sumit.garg@kernel.org>
 L:	op-tee@lists.trustedfirmware.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-class-tee
@@ -24062,7 +24099,6 @@ F:	tools/testing/selftests/ftrace/
 TRACING MMIO ACCESSES (MMIOTRACE)
 M:	Steven Rostedt <rostedt@goodmis.org>
 M:	Masami Hiramatsu <mhiramat@kernel.org>
-R:	Karol Herbst <karolherbst@gmail.com>
 R:	Pekka Paalanen <ppaalanen@gmail.com>
 L:	linux-kernel@vger.kernel.org
 L:	nouveau@lists.freedesktop.org
@@ -26190,7 +26226,7 @@ F:	mm/zbud.c
 ZD1211RW WIRELESS DRIVER
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
-F:	drivers/net/wireless/zydas/zd1211rw/
+F:	drivers/net/wireless/zydas/
 
 ZD1301 MEDIA DRIVER
 L:	linux-media@vger.kernel.org

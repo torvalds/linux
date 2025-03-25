@@ -2281,7 +2281,7 @@ int amdgpu_ttm_clear_buffer(struct amdgpu_bo *bo,
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 	struct amdgpu_res_cursor cursor;
 	u64 addr;
-	int r;
+	int r = 0;
 
 	if (!adev->mman.buffer_funcs_enabled)
 		return -EINVAL;

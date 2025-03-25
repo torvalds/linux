@@ -1407,7 +1407,7 @@ xfs_rtmount_readsb(
 
 	/* m_blkbb_log is not set up yet */
 	error = xfs_buf_read_uncached(mp->m_rtdev_targp, XFS_RTSB_DADDR,
-			mp->m_sb.sb_blocksize >> BBSHIFT, XBF_NO_IOACCT, &bp,
+			mp->m_sb.sb_blocksize >> BBSHIFT, 0, &bp,
 			&xfs_rtsb_buf_ops);
 	if (error) {
 		xfs_warn(mp, "rt sb validate failed with error %d.", error);

@@ -172,18 +172,12 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
 
 static inline const struct cred *override_creds(const struct cred *override_cred)
 {
-	const struct cred *old = current->cred;
-
-	rcu_assign_pointer(current->cred, override_cred);
-	return old;
+	return rcu_replace_pointer(current->cred, override_cred, 1);
 }
 
 static inline const struct cred *revert_creds(const struct cred *revert_cred)
 {
-	const struct cred *override_cred = current->cred;
-
-	rcu_assign_pointer(current->cred, revert_cred);
-	return override_cred;
+	return rcu_replace_pointer(current->cred, revert_cred, 1);
 }
 
 /**

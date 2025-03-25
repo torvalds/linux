@@ -1320,6 +1320,10 @@ static int btintel_pcie_send_frame(struct hci_dev *hdev,
 			if (opcode == 0xfc01)
 				btintel_pcie_inject_cmd_complete(hdev, opcode);
 		}
+		/* Firmware raises alive interrupt on HCI_OP_RESET */
+		if (opcode == HCI_OP_RESET)
+			data->gp0_received = false;
+
 		hdev->stat.cmd_tx++;
 		break;
 	case HCI_ACLDATA_PKT:
@@ -1357,7 +1361,6 @@ static int btintel_pcie_send_frame(struct hci_dev *hdev,
 			   opcode, btintel_pcie_alivectxt_state2str(old_ctxt),
 			   btintel_pcie_alivectxt_state2str(data->alive_intr_ctxt));
 		if (opcode == HCI_OP_RESET) {
-			data->gp0_received = false;
 			ret = wait_event_timeout(data->gp0_wait_q,
 						 data->gp0_received,
 						 msecs_to_jiffies(BTINTEL_DEFAULT_INTR_TIMEOUT_MS));

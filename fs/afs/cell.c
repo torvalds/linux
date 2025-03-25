@@ -64,7 +64,8 @@ static struct afs_cell *afs_find_cell_locked(struct afs_net *net,
 		return ERR_PTR(-ENAMETOOLONG);
 
 	if (!name) {
-		cell = net->ws_cell;
+		cell = rcu_dereference_protected(net->ws_cell,
+						 lockdep_is_held(&net->cells_lock));
 		if (!cell)
 			return ERR_PTR(-EDESTADDRREQ);
 		goto found;
@@ -388,8 +389,8 @@ int afs_cell_init(struct afs_net *net, const char *rootcell)
 	/* install the new cell */
 	down_write(&net->cells_lock);
 	afs_see_cell(new_root, afs_cell_trace_see_ws);
-	old_root = net->ws_cell;
-	net->ws_cell = new_root;
+	old_root = rcu_replace_pointer(net->ws_cell, new_root,
+				       lockdep_is_held(&net->cells_lock));
 	up_write(&net->cells_lock);
 
 	afs_unuse_cell(net, old_root, afs_cell_trace_unuse_ws);
@@ -945,8 +946,8 @@ void afs_cell_purge(struct afs_net *net)
 	_enter("");
 
 	down_write(&net->cells_lock);
-	ws = net->ws_cell;
-	net->ws_cell = NULL;
+	ws = rcu_replace_pointer(net->ws_cell, NULL,
+				 lockdep_is_held(&net->cells_lock));
 	up_write(&net->cells_lock);
 	afs_unuse_cell(net, ws, afs_cell_trace_unuse_ws);
 

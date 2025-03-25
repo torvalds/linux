@@ -1228,8 +1228,6 @@ static int dpu_crtc_reassign_planes(struct drm_crtc *crtc, struct drm_crtc_state
 done:
 	kfree(states);
 	return ret;
-
-	return 0;
 }
 
 static int dpu_crtc_atomic_check(struct drm_crtc *crtc,

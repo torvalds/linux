@@ -838,6 +838,12 @@ static int fuse_check_folio(struct folio *folio)
 	return 0;
 }
 
+/*
+ * Attempt to steal a page from the splice() pipe and move it into the
+ * pagecache. If successful, the pointer in @pagep will be updated. The
+ * folio that was originally in @pagep will lose a reference and the new
+ * folio returned in @pagep will carry a reference.
+ */
 static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 {
 	int err;
@@ -1451,7 +1457,7 @@ static ssize_t fuse_dev_splice_read(struct file *in, loff_t *ppos,
 	if (ret < 0)
 		goto out;
 
-	if (pipe_occupancy(pipe->head, pipe->tail) + cs.nr_segs > pipe->max_usage) {
+	if (pipe_buf_usage(pipe) + cs.nr_segs > pipe->max_usage) {
 		ret = -EIO;
 		goto out;
 	}
@@ -2101,7 +2107,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 				     struct file *out, loff_t *ppos,
 				     size_t len, unsigned int flags)
 {
-	unsigned int head, tail, mask, count;
+	unsigned int head, tail, count;
 	unsigned nbuf;
 	unsigned idx;
 	struct pipe_buffer *bufs;
@@ -2118,8 +2124,7 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 
 	head = pipe->head;
 	tail = pipe->tail;
-	mask = pipe->ring_size - 1;
-	count = head - tail;
+	count = pipe_occupancy(head, tail);
 
 	bufs = kvmalloc_array(count, sizeof(struct pipe_buffer), GFP_KERNEL);
 	if (!bufs) {
@@ -2129,8 +2134,8 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 
 	nbuf = 0;
 	rem = 0;
-	for (idx = tail; idx != head && rem < len; idx++)
-		rem += pipe->bufs[idx & mask].len;
+	for (idx = tail; !pipe_empty(head, idx) && rem < len; idx++)
+		rem += pipe_buf(pipe, idx)->len;
 
 	ret = -EINVAL;
 	if (rem < len)
@@ -2141,10 +2146,10 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 		struct pipe_buffer *ibuf;
 		struct pipe_buffer *obuf;
 
-		if (WARN_ON(nbuf >= count || tail == head))
+		if (WARN_ON(nbuf >= count || pipe_empty(head, tail)))
 			goto out_free;
 
-		ibuf = &pipe->bufs[tail & mask];
+		ibuf = pipe_buf(pipe, tail);
 		obuf = &bufs[nbuf];
 
 		if (rem >= ibuf->len) {

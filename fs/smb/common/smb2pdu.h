@@ -1707,23 +1707,33 @@ struct smb2_file_internal_info {
 } __packed; /* level 6 Query */
 
 struct smb2_file_rename_info { /* encoding of request for level 10 */
-	__u8   ReplaceIfExists; /* 1 = replace existing target with new */
-				/* 0 = fail if target already exists */
-	__u8   Reserved[7];
-	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
-	__le32 FileNameLength;
+	/* New members MUST be added within the struct_group() macro below. */
+	__struct_group(smb2_file_rename_info_hdr, __hdr, __packed,
+		__u8   ReplaceIfExists; /* 1 = replace existing target with new */
+					/* 0 = fail if target already exists */
+		__u8   Reserved[7];
+		__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
+		__le32 FileNameLength;
+	);
 	char   FileName[];     /* New name to be assigned */
 	/* padding - overall struct size must be >= 24 so filename + pad >= 6 */
 } __packed; /* level 10 Set */
+static_assert(offsetof(struct smb2_file_rename_info, FileName) == sizeof(struct smb2_file_rename_info_hdr),
+	      "struct member likely outside of __struct_group()");
 
 struct smb2_file_link_info { /* encoding of request for level 11 */
-	__u8   ReplaceIfExists; /* 1 = replace existing link with new */
-				/* 0 = fail if link already exists */
-	__u8   Reserved[7];
-	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
-	__le32 FileNameLength;
+	/* New members MUST be added within the struct_group() macro below. */
+	__struct_group(smb2_file_link_info_hdr, __hdr, __packed,
+		__u8   ReplaceIfExists; /* 1 = replace existing link with new */
+					/* 0 = fail if link already exists */
+		__u8   Reserved[7];
+		__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
+		__le32 FileNameLength;
+	);
 	char   FileName[];     /* Name to be assigned to new link */
 } __packed; /* level 11 Set */
+static_assert(offsetof(struct smb2_file_link_info, FileName) == sizeof(struct smb2_file_link_info_hdr),
+	      "struct member likely outside of __struct_group()");
 
 /*
  * This level 18, although with struct with same name is different from cifs

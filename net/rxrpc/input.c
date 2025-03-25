@@ -810,9 +810,7 @@ static void rxrpc_input_ack_trailer(struct rxrpc_call *call, struct sk_buff *skb
 	if (max_mtu < peer->max_data) {
 		trace_rxrpc_pmtud_reduce(peer, sp->hdr.serial, max_mtu,
 					 rxrpc_pmtud_reduce_ack);
-		write_seqcount_begin(&peer->mtu_lock);
 		peer->max_data = max_mtu;
-		write_seqcount_end(&peer->mtu_lock);
 	}
 
 	max_data = umin(max_mtu, peer->max_data);

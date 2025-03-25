@@ -3432,6 +3432,7 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		err = -ENODEV;
 
 	rtnl_nets_unlock(&rtnl_nets);
+	rtnl_nets_destroy(&rtnl_nets);
 errout:
 	return err;
 }
