@@ -5,6 +5,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -233,7 +234,9 @@
 
 /* MSDC_PATCH_BIT mask */
 #define MSDC_PATCH_BIT_ODDSUPP    BIT(1)	/* RW */
+#define MSDC_PATCH_BIT_DIS_WRMON  BIT(2)	/* RW */
 #define MSDC_PATCH_BIT_RD_DAT_SEL BIT(3)	/* RW */
+#define MSDC_PATCH_BIT_DESCUP_SEL BIT(6)	/* RW */
 #define MSDC_INT_DAT_LATCH_CK_SEL GENMASK(9, 7)
 #define MSDC_CKGEN_MSDC_DLY_SEL   GENMASK(14, 10)
 #define MSDC_PATCH_BIT_IODSSEL    BIT(16)	/* RW */
@@ -246,10 +249,22 @@
 #define MSDC_PATCH_BIT_SPCPUSH    BIT(29)	/* RW */
 #define MSDC_PATCH_BIT_DECRCTMO   BIT(30)	/* RW */
 
-#define MSDC_PATCH_BIT1_CMDTA     GENMASK(5, 3)    /* RW */
+/* MSDC_PATCH_BIT1 mask */
+#define MSDC_PB1_WRDAT_CRC_TACNTR GENMASK(2, 0)     /* RW */
+#define MSDC_PATCH_BIT1_CMDTA     GENMASK(5, 3)     /* RW */
 #define MSDC_PB1_BUSY_CHECK_SEL   BIT(7)    /* RW */
 #define MSDC_PATCH_BIT1_STOP_DLY  GENMASK(11, 8)    /* RW */
+#define MSDC_PB1_DDR_CMD_FIX_SEL  BIT(14)           /* RW */
+#define MSDC_PB1_SINGLE_BURST     BIT(16)           /* RW */
+#define MSDC_PB1_RSVD20           GENMASK(18, 17)   /* RW */
+#define MSDC_PB1_AUTO_SYNCST_CLR  BIT(19)           /* RW */
+#define MSDC_PB1_MARK_POP_WATER   BIT(20)           /* RW */
+#define MSDC_PB1_LP_DCM_EN        BIT(21)           /* RW */
+#define MSDC_PB1_RSVD3            BIT(22)           /* RW */
+#define MSDC_PB1_AHB_GDMA_HCLK    BIT(23)           /* RW */
+#define MSDC_PB1_MSDC_CLK_ENFEAT  GENMASK(31, 24)   /* RW */
 
+/* MSDC_PATCH_BIT2 mask */
 #define MSDC_PATCH_BIT2_CFGRESP   BIT(15)   /* RW */
 #define MSDC_PATCH_BIT2_CFGCRCSTS BIT(28)   /* RW */
 #define MSDC_PB2_SUPPORT_64G      BIT(1)    /* RW */
@@ -1816,7 +1831,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 
 static void msdc_init_hw(struct msdc_host *host)
 {
-	u32 val;
+	u32 val, pb1_val;
 	u32 tune_reg = host->dev_comp->pad_tune_reg;
 	struct mmc_host *mmc = mmc_from_priv(host);
 
@@ -1869,9 +1884,43 @@ static void msdc_init_hw(struct msdc_host *host)
 	}
 	writel(0, host->base + MSDC_IOCON);
 	sdr_set_field(host->base + MSDC_IOCON, MSDC_IOCON_DDLSEL, 0);
-	writel(0x403c0046, host->base + MSDC_PATCH_BIT);
-	sdr_set_field(host->base + MSDC_PATCH_BIT, MSDC_CKGEN_MSDC_DLY_SEL, 1);
-	writel(0xffff4089, host->base + MSDC_PATCH_BIT1);
+
+	/* Enable odd number support for 8-bit data bus */
+	val = MSDC_PATCH_BIT_ODDSUPP;
+
+	/* Disable SD command register write monitor */
+	val |= MSDC_PATCH_BIT_DIS_WRMON;
+
+	/* Issue transfer done interrupt after GPD update */
+	val |= MSDC_PATCH_BIT_DESCUP_SEL;
+
+	/* Extend R1B busy detection delay (in clock cycles) */
+	val |= FIELD_PREP(MSDC_PATCH_BIT_BUSYDLY, 15);
+
+	/* Enable CRC phase timeout during data write operation */
+	val |= MSDC_PATCH_BIT_DECRCTMO;
+
+	/* Set CKGEN delay to one stage */
+	val |= FIELD_PREP(MSDC_CKGEN_MSDC_DLY_SEL, 1);
+	writel(val, host->base + MSDC_PATCH_BIT);
+
+	/* Set wr data, crc status, cmd response turnaround period for UHS104 */
+	pb1_val = FIELD_PREP(MSDC_PB1_WRDAT_CRC_TACNTR, 1);
+	pb1_val |= FIELD_PREP(MSDC_PATCH_BIT1_CMDTA, 1);
+	pb1_val |= MSDC_PB1_DDR_CMD_FIX_SEL;
+
+	/* Set single burst mode, auto sync state clear, block gap stop clk */
+	pb1_val |= MSDC_PB1_SINGLE_BURST | MSDC_PB1_RSVD20 |
+		   MSDC_PB1_AUTO_SYNCST_CLR | MSDC_PB1_MARK_POP_WATER;
+
+	/* Set low power DCM, use HCLK for GDMA, use MSDC CLK for everything else */
+	pb1_val |= MSDC_PB1_LP_DCM_EN | MSDC_PB1_RSVD3 |
+		   MSDC_PB1_AHB_GDMA_HCLK | MSDC_PB1_MSDC_CLK_ENFEAT;
+
+	/* Enable R1b command busy check */
+	pb1_val |= MSDC_PB1_BUSY_CHECK_SEL;
+	writel(pb1_val, host->base + MSDC_PATCH_BIT1);
+
 	sdr_set_bits(host->base + EMMC50_CFG0, EMMC50_CFG_CFCSTS_SEL);
 
 	if (host->dev_comp->stop_clk_fix) {
