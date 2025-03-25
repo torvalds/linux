@@ -15,7 +15,7 @@
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 #include <linux/timer.h>
-#include <linux/mdio.h>
+#include <linux/mii.h>
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/device.h>
@@ -956,8 +956,6 @@ struct efx_mae;
  * @stats_buffer: DMA buffer for statistics
  * @phy_type: PHY type
  * @phy_data: PHY private data (including PHY-specific stats)
- * @mdio: PHY MDIO interface
- * @mdio_bus: PHY MDIO bus ID (only used by Siena)
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
  * @link_advertising: Autonegotiation advertising flags
  * @fec_config: Forward Error Correction configuration flags.  For bit positions
@@ -1132,8 +1130,6 @@ struct efx_nic {
 
 	unsigned int phy_type;
 	void *phy_data;
-	struct mdio_if_info mdio;
-	unsigned int mdio_bus;
 	enum efx_phy_mode phy_mode;
 
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(link_advertising);
@@ -1385,6 +1381,8 @@ struct efx_udp_tunnel {
  * @can_rx_scatter: NIC is able to scatter packets to multiple buffers
  * @always_rx_scatter: NIC will always scatter packets to multiple buffers
  * @option_descriptors: NIC supports TX option descriptors
+ * @flash_auto_partition: firmware flash uses AUTO partition, driver does
+ *	not need to perform image parsing
  * @min_interrupt_mode: Lowest capability interrupt mode supported
  *	from &enum efx_int_mode.
  * @timer_period_max: Maximum period of interrupt timer (in ticks)
@@ -1561,6 +1559,7 @@ struct efx_nic_type {
 	bool can_rx_scatter;
 	bool always_rx_scatter;
 	bool option_descriptors;
+	bool flash_auto_partition;
 	unsigned int min_interrupt_mode;
 	unsigned int timer_period_max;
 	netdev_features_t offload_features;
