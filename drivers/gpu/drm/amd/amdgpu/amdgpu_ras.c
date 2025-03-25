@@ -4603,6 +4603,9 @@ int amdgpu_ras_mark_ras_event_caller(struct amdgpu_device *adev, enum ras_event_
 	struct ras_event_state *event_state;
 	int ret = 0;
 
+	if (amdgpu_uniras_enabled(adev))
+		return 0;
+
 	if (type >= RAS_EVENT_TYPE_COUNT) {
 		ret = -EINVAL;
 		goto out;
