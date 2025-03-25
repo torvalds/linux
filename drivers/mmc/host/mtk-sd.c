@@ -942,15 +942,15 @@ static int msdc_ungate_clock(struct msdc_host *host)
 
 static void msdc_new_tx_setting(struct msdc_host *host)
 {
+	u32 val;
+
 	if (!host->top_base)
 		return;
 
-	sdr_set_bits(host->top_base + LOOP_TEST_CONTROL,
-		     TEST_LOOP_DSCLK_MUX_SEL);
-	sdr_set_bits(host->top_base + LOOP_TEST_CONTROL,
-		     TEST_LOOP_LATCH_MUX_SEL);
-	sdr_clr_bits(host->top_base + LOOP_TEST_CONTROL,
-		     TEST_HS400_CMD_LOOP_MUX_SEL);
+	val = readl(host->top_base + LOOP_TEST_CONTROL);
+	val |= TEST_LOOP_DSCLK_MUX_SEL;
+	val |= TEST_LOOP_LATCH_MUX_SEL;
+	val &= ~TEST_HS400_CMD_LOOP_MUX_SEL;
 
 	switch (host->timing) {
 	case MMC_TIMING_LEGACY:
@@ -960,19 +960,18 @@ static void msdc_new_tx_setting(struct msdc_host *host)
 	case MMC_TIMING_UHS_SDR25:
 	case MMC_TIMING_UHS_DDR50:
 	case MMC_TIMING_MMC_DDR52:
-		sdr_clr_bits(host->top_base + LOOP_TEST_CONTROL,
-			     LOOP_EN_SEL_CLK);
+		val &= ~LOOP_EN_SEL_CLK;
 		break;
 	case MMC_TIMING_UHS_SDR50:
 	case MMC_TIMING_UHS_SDR104:
 	case MMC_TIMING_MMC_HS200:
 	case MMC_TIMING_MMC_HS400:
-		sdr_set_bits(host->top_base + LOOP_TEST_CONTROL,
-			     LOOP_EN_SEL_CLK);
+		val |= LOOP_EN_SEL_CLK;
 		break;
 	default:
 		break;
 	}
+	writel(val, host->top_base + LOOP_TEST_CONTROL);
 }
 
 static void msdc_set_mclk(struct msdc_host *host, unsigned char timing, u32 hz)
