@@ -107,8 +107,7 @@ detailed information:
     nr_rejected   : 0
     enable_seq    : 1
 
-If ``CONFIG_SCHED_DEBUG`` is set, whether a given task is on sched_ext can
-be determined as follows:
+Whether a given task is on sched_ext can be determined as follows:
 
 .. code-block:: none
 

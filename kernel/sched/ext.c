@@ -2472,7 +2472,7 @@ static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq,
 {
 	int cpu = cpu_of(rq);
 
-	SCHED_WARN_ON(task_cpu(p) == cpu);
+	WARN_ON_ONCE(task_cpu(p) == cpu);
 
 	/*
 	 * If @p has migration disabled, @p->cpus_ptr is updated to contain only
