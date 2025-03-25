@@ -2179,7 +2179,7 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 
 	/* Some options can't be parsed until after the fs is started: */
 	opts = bch2_opts_empty();
-	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf);
+	ret = bch2_parse_mount_opts(c, &opts, NULL, opts_parse->parse_later.buf, false);
 	if (ret)
 		goto err_stop_fs;
 
@@ -2334,6 +2334,8 @@ static int bch2_fs_parse_param(struct fs_context *fc,
 	int ret = bch2_parse_one_mount_opt(c, &opts->opts,
 					   &opts->parse_later, param->key,
 					   param->string);
+	if (ret)
+		pr_err("Error parsing option %s: %s", param->key, bch2_err_str(ret));
 
 	return bch2_err_class(ret);
 }

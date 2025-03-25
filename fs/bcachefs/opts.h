@@ -636,7 +636,7 @@ int bch2_opts_check_may_set(struct bch_fs *);
 int bch2_parse_one_mount_opt(struct bch_fs *, struct bch_opts *,
 			     struct printbuf *, const char *, const char *);
 int bch2_parse_mount_opts(struct bch_fs *, struct bch_opts *, struct printbuf *,
-			  char *);
+			  char *, bool);
 
 /* inode opts: */
 

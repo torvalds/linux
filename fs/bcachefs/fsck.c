@@ -3021,7 +3021,7 @@ long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_arg)
 	if (arg.opts) {
 		char *optstr = strndup_user((char __user *)(unsigned long) arg.opts, 1 << 16);
 		ret =   PTR_ERR_OR_ZERO(optstr) ?:
-			bch2_parse_mount_opts(NULL, &thr->opts, NULL, optstr);
+			bch2_parse_mount_opts(NULL, &thr->opts, NULL, optstr, false);
 		if (!IS_ERR(optstr))
 			kfree(optstr);
 
@@ -3129,7 +3129,7 @@ long bch2_ioctl_fsck_online(struct bch_fs *c, struct bch_ioctl_fsck_online arg)
 		char *optstr = strndup_user((char __user *)(unsigned long) arg.opts, 1 << 16);
 
 		ret =   PTR_ERR_OR_ZERO(optstr) ?:
-			bch2_parse_mount_opts(c, &thr->opts, NULL, optstr);
+			bch2_parse_mount_opts(c, &thr->opts, NULL, optstr, false);
 		if (!IS_ERR(optstr))
 			kfree(optstr);
 
