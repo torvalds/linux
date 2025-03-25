@@ -7,8 +7,8 @@ Next (GCN), Radeon DNA (RDNA), and Compute DNA (CDNA) architectures.
 
 .. toctree::
 
-   module-parameters
    driver-core
+   module-parameters
    display/index
    flashing
    xgmi
