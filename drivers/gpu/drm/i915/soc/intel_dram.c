@@ -33,7 +33,13 @@ static const char *intel_dram_type_str(enum intel_dram_type type)
 		DRAM_TYPE_STR(DDR4),
 		DRAM_TYPE_STR(LPDDR3),
 		DRAM_TYPE_STR(LPDDR4),
+		DRAM_TYPE_STR(DDR5),
+		DRAM_TYPE_STR(LPDDR5),
+		DRAM_TYPE_STR(GDDR),
+		DRAM_TYPE_STR(GDDR_ECC),
 	};
+
+	BUILD_BUG_ON(ARRAY_SIZE(str) != __INTEL_DRAM_TYPE_MAX);
 
 	if (type >= ARRAY_SIZE(str))
 		type = INTEL_DRAM_UNKNOWN;
