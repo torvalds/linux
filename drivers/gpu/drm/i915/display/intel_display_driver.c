@@ -82,7 +82,6 @@ bool intel_display_driver_probe_defer(struct pci_dev *pdev)
 
 void intel_display_driver_init_hw(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_cdclk_state *cdclk_state;
 
 	if (!HAS_DISPLAY(display))
@@ -94,7 +93,7 @@ void intel_display_driver_init_hw(struct intel_display *display)
 	intel_cdclk_dump_config(display, &display->cdclk.hw, "Current CDCLK");
 	cdclk_state->logical = cdclk_state->actual = display->cdclk.hw;
 
-	intel_display_wa_apply(i915);
+	intel_display_wa_apply(display);
 }
 
 static const struct drm_mode_config_funcs intel_mode_funcs = {

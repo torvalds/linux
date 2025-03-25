@@ -10,7 +10,9 @@
 
 #include <generated/xe_wa_oob.h>
 
-bool intel_display_needs_wa_16023588340(struct drm_i915_private *i915)
+bool intel_display_needs_wa_16023588340(struct intel_display *display)
 {
-	return XE_WA(xe_root_mmio_gt(i915), 16023588340);
+	struct xe_device *xe = to_xe_device(display->drm);
+
+	return XE_WA(xe_root_mmio_gt(xe), 16023588340);
 }
