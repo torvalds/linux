@@ -4099,7 +4099,7 @@ static int selinux_kernel_module_request(char *kmod_name)
 			    SYSTEM__MODULE_REQUEST, &ad);
 }
 
-static int selinux_kernel_module_from_file(struct file *file)
+static int selinux_kernel_load_from_file(struct file *file, u32 requested)
 {
 	struct common_audit_data ad;
 	struct inode_security_struct *isec;
@@ -4107,12 +4107,8 @@ static int selinux_kernel_module_from_file(struct file *file)
 	u32 sid = current_sid();
 	int rc;
 
-	/* init_module */
 	if (file == NULL)
-		return avc_has_perm(sid, sid, SECCLASS_SYSTEM,
-					SYSTEM__MODULE_LOAD, NULL);
-
-	/* finit_module */
+		return avc_has_perm(sid, sid, SECCLASS_SYSTEM, requested, NULL);
 
 	ad.type = LSM_AUDIT_DATA_FILE;
 	ad.u.file = file;
@@ -4125,8 +4121,7 @@ static int selinux_kernel_module_from_file(struct file *file)
 	}
 
 	isec = inode_security(file_inode(file));
-	return avc_has_perm(sid, isec->sid, SECCLASS_SYSTEM,
-				SYSTEM__MODULE_LOAD, &ad);
+	return avc_has_perm(sid, isec->sid, SECCLASS_SYSTEM, requested, &ad);
 }
 
 static int selinux_kernel_read_file(struct file *file,
@@ -4135,9 +4130,30 @@ static int selinux_kernel_read_file(struct file *file,
 {
 	int rc = 0;
 
+	BUILD_BUG_ON_MSG(READING_MAX_ID > 7,
+			 "New kernel_read_file_id introduced; update SELinux!");
+
 	switch (id) {
+	case READING_FIRMWARE:
+		rc = selinux_kernel_load_from_file(file, SYSTEM__FIRMWARE_LOAD);
+		break;
 	case READING_MODULE:
-		rc = selinux_kernel_module_from_file(contents ? file : NULL);
+		rc = selinux_kernel_load_from_file(file, SYSTEM__MODULE_LOAD);
+		break;
+	case READING_KEXEC_IMAGE:
+		rc = selinux_kernel_load_from_file(file,
+						   SYSTEM__KEXEC_IMAGE_LOAD);
+		break;
+	case READING_KEXEC_INITRAMFS:
+		rc = selinux_kernel_load_from_file(file,
+						SYSTEM__KEXEC_INITRAMFS_LOAD);
+		break;
+	case READING_POLICY:
+		rc = selinux_kernel_load_from_file(file, SYSTEM__POLICY_LOAD);
+		break;
+	case READING_X509_CERTIFICATE:
+		rc = selinux_kernel_load_from_file(file,
+						SYSTEM__X509_CERTIFICATE_LOAD);
 		break;
 	default:
 		break;
@@ -4150,9 +4166,31 @@ static int selinux_kernel_load_data(enum kernel_load_data_id id, bool contents)
 {
 	int rc = 0;
 
+	BUILD_BUG_ON_MSG(LOADING_MAX_ID > 7,
+			 "New kernel_load_data_id introduced; update SELinux!");
+
 	switch (id) {
+	case LOADING_FIRMWARE:
+		rc = selinux_kernel_load_from_file(NULL, SYSTEM__FIRMWARE_LOAD);
+		break;
 	case LOADING_MODULE:
-		rc = selinux_kernel_module_from_file(NULL);
+		rc = selinux_kernel_load_from_file(NULL, SYSTEM__MODULE_LOAD);
+		break;
+	case LOADING_KEXEC_IMAGE:
+		rc = selinux_kernel_load_from_file(NULL,
+						   SYSTEM__KEXEC_IMAGE_LOAD);
+		break;
+	case LOADING_KEXEC_INITRAMFS:
+		rc = selinux_kernel_load_from_file(NULL,
+						SYSTEM__KEXEC_INITRAMFS_LOAD);
+		break;
+	case LOADING_POLICY:
+		rc = selinux_kernel_load_from_file(NULL,
+						   SYSTEM__POLICY_LOAD);
+		break;
+	case LOADING_X509_CERTIFICATE:
+		rc = selinux_kernel_load_from_file(NULL,
+						SYSTEM__X509_CERTIFICATE_LOAD);
 		break;
 	default:
 		break;
