@@ -522,7 +522,7 @@ extern u64 x86_pred_cmd;
 
 static inline void indirect_branch_prediction_barrier(void)
 {
-	alternative_msr_write(MSR_IA32_PRED_CMD, x86_pred_cmd, X86_FEATURE_USE_IBPB);
+	alternative_msr_write(MSR_IA32_PRED_CMD, x86_pred_cmd, X86_FEATURE_IBPB);
 }
 
 /* The Intel SPEC CTRL MSR base value cache */
@@ -558,6 +558,8 @@ do {									\
 DECLARE_STATIC_KEY_FALSE(switch_to_cond_stibp);
 DECLARE_STATIC_KEY_FALSE(switch_mm_cond_ibpb);
 DECLARE_STATIC_KEY_FALSE(switch_mm_always_ibpb);
+
+DECLARE_STATIC_KEY_FALSE(switch_vcpu_ibpb);
 
 DECLARE_STATIC_KEY_FALSE(mds_idle_clear);
 
