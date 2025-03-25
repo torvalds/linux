@@ -988,11 +988,10 @@ void rtw_macaddr_cfg(struct device *dev, u8 *mac_addr)
 	if (is_broadcast_ether_addr(mac) || is_zero_ether_addr(mac)) {
 		addr = of_get_property(np, "local-mac-address", &len);
 
-		if (addr && len == ETH_ALEN) {
+		if (addr && len == ETH_ALEN)
 			ether_addr_copy(mac_addr, addr);
-		} else {
+		else
 			eth_random_addr(mac_addr);
-		}
 	}
 }
 
