@@ -18,8 +18,8 @@
 struct ax88172a_private {
 	struct mii_bus *mdio;
 	struct phy_device *phydev;
-	char phy_name[20];
-	u16 phy_addr;
+	char phy_name[PHY_ID_SIZE];
+	u8 phy_addr;
 	u16 oldmode;
 	int use_embdphy;
 	struct asix_rx_fixup_info rx_fixup_info;
@@ -210,7 +210,11 @@ static int ax88172a_bind(struct usbnet *dev, struct usb_interface *intf)
 	ret = asix_read_phy_addr(dev, priv->use_embdphy);
 	if (ret < 0)
 		goto free;
-
+	if (ret >= PHY_MAX_ADDR) {
+		netdev_err(dev->net, "Invalid PHY address %#x\n", ret);
+		ret = -ENODEV;
+		goto free;
+	}
 	priv->phy_addr = ret;
 
 	ax88172a_reset_phy(dev, priv->use_embdphy);
@@ -308,7 +312,7 @@ static int ax88172a_reset(struct usbnet *dev)
 		   rx_ctl);
 
 	/* Connect to PHY */
-	snprintf(priv->phy_name, 20, PHY_ID_FMT,
+	snprintf(priv->phy_name, sizeof(priv->phy_name), PHY_ID_FMT,
 		 priv->mdio->id, priv->phy_addr);
 
 	priv->phydev = phy_connect(dev->net, priv->phy_name,
