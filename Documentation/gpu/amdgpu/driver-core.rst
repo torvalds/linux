@@ -98,6 +98,56 @@ RLC (RunList Controller)
     The name is a vestige of old hardware where it was originally added
     and doesn't really have much relation to what the engine does now.
 
+
+GFX, Compute, and SDMA Overall Behavior
+=======================================
+
+.. note:: For simplicity, whenever the term block is used in this section, it
+   means GFX, Compute, and SDMA.
+
+GFX, Compute and SDMA share a similar form of operation that can be abstracted
+to facilitate understanding of the behavior of these blocks. See the figure
+below illustrating the common components of these blocks:
+
+.. kernel-figure:: pipe_and_queue_abstraction.svg
+
+In the central part of this figure, you can see two hardware elements, one called
+**Pipes** and another called **Queues**; it is important to highlight that Queues
+must be associated with a Pipe and vice-versa. Every specific hardware IP may have
+a different number of Pipes and, in turn, a different number of Queues; for
+example, GFX 11 has two Pipes and two Queues per Pipe for the GFX front end.
+
+Pipe is the hardware that processes the instructions available in the Queues;
+in other words, it is a thread executing the operations inserted in the Queue.
+One crucial characteristic of Pipes is that they can only execute one Queue at
+a time; no matter if the hardware has multiple Queues in the Pipe, it only runs
+one Queue per Pipe.
+
+Pipes have the mechanics of swapping between queues at the hardware level.
+Nonetheless, they only make use of Queues that are considered mapped. Pipes can
+switch between queues based on any of the following inputs:
+
+1. Command Stream;
+2. Packet by Packet;
+3. Other hardware requests the change (e.g., MES).
+
+Queues within Pipes are defined by the Hardware Queue Descriptors (HQD).
+Associated with the HQD concept, we have the Memory Queue Descriptor (MQD),
+which is responsible for storing information about the state of each of the
+available Queues in the memory. The state of a Queue contains information such
+as the GPU virtual address of the queue itself, save areas, doorbell, etc. The
+MQD also stores the HQD registers, which are vital for activating or
+deactivating a given Queue.  The scheduling firmware (e.g., MES) is responsible
+for loading HQDs from MQDs and vice versa.
+
+The Queue-switching process can also happen with the firmware requesting the
+preemption or unmapping of a Queue. The firmware waits for the HQD_ACTIVE bit
+to change to low before saving the state into the MQD. To make a different
+Queue become active, the firmware copies the MQD state into the HQD registers
+and loads any additional state. Finally, it sets the HQD_ACTIVE bit to high to
+indicate that the queue is active.  The Pipe will then execute work from active
+Queues.
+
 Driver Structure
 ================
 
