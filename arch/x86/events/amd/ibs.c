@@ -1343,7 +1343,7 @@ fail:
 	 * unprivileged users.
 	 */
 	if ((event->attr.sample_type & PERF_SAMPLE_RAW) &&
-	    perf_allow_kernel(&event->attr)) {
+	    perf_allow_kernel()) {
 		perf_ibs_phyaddr_clear(perf_ibs, &ibs_data);
 	}
 
