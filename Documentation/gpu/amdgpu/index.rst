@@ -10,6 +10,7 @@ Next (GCN), Radeon DNA (RDNA), and Compute DNA (CDNA) architectures.
    driver-core
    amd-hardware-list-info
    module-parameters
+   gc/index
    display/index
    flashing
    xgmi

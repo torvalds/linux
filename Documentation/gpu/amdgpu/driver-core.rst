@@ -67,37 +67,15 @@ GC (Graphics and Compute)
     This is the graphics and compute engine, i.e., the block that
     encompasses the 3D pipeline and and shader blocks.  This is by far the
     largest block on the GPU.  The 3D pipeline has tons of sub-blocks.  In
-    addition to that, it also contains the CP microcontrollers (ME, PFP,
-    CE, MEC) and the RLC microcontroller.  It's exposed to userspace for
-    user mode drivers (OpenGL, Vulkan, OpenCL, etc.)
+    addition to that, it also contains the CP microcontrollers (ME, PFP, CE,
+    MEC) and the RLC microcontroller.  It's exposed to userspace for user mode
+    drivers (OpenGL, Vulkan, OpenCL, etc.). More details in :ref:`Graphics (GFX)
+    and Compute <amdgpu-gc>`.
 
 VCN (Video Core Next)
     This is the multi-media engine.  It handles video and image encode and
     decode.  It's exposed to userspace for user mode drivers (VA-API,
     OpenMAX, etc.)
-
-Graphics and Compute Microcontrollers
--------------------------------------
-
-CP (Command Processor)
-    The name for the hardware block that encompasses the front end of the
-    GFX/Compute pipeline.  Consists mainly of a bunch of microcontrollers
-    (PFP, ME, CE, MEC).  The firmware that runs on these microcontrollers
-    provides the driver interface to interact with the GFX/Compute engine.
-
-    MEC (MicroEngine Compute)
-        This is the microcontroller that controls the compute queues on the
-        GFX/compute engine.
-
-    MES (MicroEngine Scheduler)
-        This is a new engine for managing queues.  This is currently unused.
-
-RLC (RunList Controller)
-    This is another microcontroller in the GFX/Compute engine.  It handles
-    power management related functionality within the GFX/Compute engine.
-    The name is a vestige of old hardware where it was originally added
-    and doesn't really have much relation to what the engine does now.
-
 
 GFX, Compute, and SDMA Overall Behavior
 =======================================
