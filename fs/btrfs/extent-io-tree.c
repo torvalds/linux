@@ -1752,6 +1752,28 @@ bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 
 	return bitset;
 }
 
+void get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits)
+{
+	struct extent_state *state;
+
+	*bits = 0;
+
+	spin_lock(&tree->lock);
+	state = tree_search(tree, start);
+	while (state) {
+		if (state->start > end)
+			break;
+
+		*bits |= state->state;
+
+		if (state->end >= end)
+			break;
+
+		state = next_state(state);
+	}
+	spin_unlock(&tree->lock);
+}
+
 /*
  * Check if the whole range [@start,@end) contains the single @bit set.
  */

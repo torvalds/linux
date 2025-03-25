@@ -38,6 +38,11 @@ enum {
 	 */
 	ENUM_BIT(EXTENT_DELALLOC_NEW),
 	/*
+	 * Mark that a range is being locked for finishing an ordered extent.
+	 * Used together with EXTENT_LOCKED.
+	 */
+	ENUM_BIT(EXTENT_FINISHING_ORDERED),
+	/*
 	 * When an ordered extent successfully completes for a region marked as
 	 * a new delalloc range, use this flag when clearing a new delalloc
 	 * range to indicate that the VFS' inode number of bytes should be
@@ -165,6 +170,7 @@ void free_extent_state(struct extent_state *state);
 bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
 		    struct extent_state *cached_state);
 bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit);
+void get_range_bits(struct extent_io_tree *tree, u64 start, u64 end, u32 *bits);
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     u32 bits, struct extent_changeset *changeset);
 int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,

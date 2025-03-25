@@ -2623,33 +2623,37 @@ static bool try_release_extent_state(struct extent_io_tree *tree,
 {
 	u64 start = folio_pos(folio);
 	u64 end = start + folio_size(folio) - 1;
-	bool ret;
+	u32 range_bits;
+	u32 clear_bits;
+	int ret;
 
-	if (test_range_bit_exists(tree, start, end, EXTENT_LOCKED)) {
-		ret = false;
-	} else {
-		u32 clear_bits = ~(EXTENT_LOCKED | EXTENT_NODATASUM |
-				   EXTENT_DELALLOC_NEW | EXTENT_CTLBITS |
-				   EXTENT_QGROUP_RESERVED);
-		int ret2;
+	get_range_bits(tree, start, end, &range_bits);
 
-		/*
-		 * At this point we can safely clear everything except the
-		 * locked bit, the nodatasum bit and the delalloc new bit.
-		 * The delalloc new bit will be cleared by ordered extent
-		 * completion.
-		 */
-		ret2 = __clear_extent_bit(tree, start, end, clear_bits, NULL, NULL);
+	/*
+	 * We can release the folio if it's locked only for ordered extent
+	 * completion, since that doesn't require using the folio.
+	 */
+	if ((range_bits & EXTENT_LOCKED) &&
+	    !(range_bits & EXTENT_FINISHING_ORDERED))
+		return false;
 
-		/* if clear_extent_bit failed for enomem reasons,
-		 * we can't allow the release to continue.
-		 */
-		if (ret2 < 0)
-			ret = false;
-		else
-			ret = true;
-	}
-	return ret;
+	clear_bits = ~(EXTENT_LOCKED | EXTENT_NODATASUM | EXTENT_DELALLOC_NEW |
+		       EXTENT_CTLBITS | EXTENT_QGROUP_RESERVED |
+		       EXTENT_FINISHING_ORDERED);
+	/*
+	 * At this point we can safely clear everything except the locked,
+	 * nodatasum, delalloc new and finishing ordered bits. The delalloc new
+	 * bit will be cleared by ordered extent completion.
+	 */
+	ret = __clear_extent_bit(tree, start, end, clear_bits, NULL, NULL);
+	/*
+	 * If clear_extent_bit failed for enomem reasons, we can't allow the
+	 * release to continue.
+	 */
+	if (ret < 0)
+		return false;
+
+	return true;
 }
 
 /*
