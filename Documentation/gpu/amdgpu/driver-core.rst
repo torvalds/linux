@@ -77,6 +77,8 @@ VCN (Video Core Next)
     decode.  It's exposed to userspace for user mode drivers (VA-API,
     OpenMAX, etc.)
 
+.. _pipes-and-queues-description:
+
 GFX, Compute, and SDMA Overall Behavior
 =======================================
 

@@ -38,10 +38,15 @@ CP (Command Processor)
         GFX/compute engine.
 
     MES (MicroEngine Scheduler)
-        This is the engine for managing queues.
+        This is the engine for managing queues. For more details check
+        :ref:`MicroEngine Scheduler (MES) <amdgpu-mes>`.
 
 RLC (RunList Controller)
     This is another microcontroller in the GFX/Compute engine. It handles
     power management related functionality within the GFX/Compute engine.
     The name is a vestige of old hardware where it was originally added
     and doesn't really have much relation to what the engine does now.
+
+.. toctree::
+
+   mes.rst
