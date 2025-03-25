@@ -13,6 +13,7 @@ void iommu_setup_dma_ops(struct device *dev);
 
 int iommu_get_dma_cookie(struct iommu_domain *domain);
 void iommu_put_dma_cookie(struct iommu_domain *domain);
+void iommu_put_msi_cookie(struct iommu_domain *domain);
 
 int iommu_dma_init_fq(struct iommu_domain *domain);
 
@@ -37,6 +38,10 @@ static inline int iommu_get_dma_cookie(struct iommu_domain *domain)
 }
 
 static inline void iommu_put_dma_cookie(struct iommu_domain *domain)
+{
+}
+
+static inline void iommu_put_msi_cookie(struct iommu_domain *domain)
 {
 }
 
