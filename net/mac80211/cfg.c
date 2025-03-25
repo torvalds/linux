@@ -5,7 +5,7 @@
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -919,7 +919,7 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (!ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)) {
 		if (cfg80211_chandef_identical(&local->monitor_chanreq.oper,
-						   &chanreq.oper))
+					       &chanreq.oper))
 			return 0;
 
 		sdata = wiphy_dereference(wiphy, local->monitor_sdata);
@@ -928,7 +928,7 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 	}
 
 	if (rcu_access_pointer(sdata->deflink.conf->chanctx_conf) &&
-		cfg80211_chandef_identical(&sdata->vif.bss_conf.chanreq.oper,
+	    cfg80211_chandef_identical(&sdata->vif.bss_conf.chanreq.oper,
 				       &chanreq.oper))
 		return 0;
 
@@ -1907,12 +1907,12 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 	}
 
 	if (params->supported_rates &&
-	    params->supported_rates_len) {
-		ieee80211_parse_bitrates(link->conf->chanreq.oper.width,
-					 sband, params->supported_rates,
-					 params->supported_rates_len,
-					 &link_sta->pub->supp_rates[sband->band]);
-	}
+	    params->supported_rates_len &&
+	    !ieee80211_parse_bitrates(link->conf->chanreq.oper.width,
+				      sband, params->supported_rates,
+				      params->supported_rates_len,
+				      &link_sta->pub->supp_rates[sband->band]))
+		return -EINVAL;
 
 	if (params->ht_capa)
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
@@ -5185,14 +5185,13 @@ ieee80211_set_ttlm(struct wiphy *wiphy, struct net_device *dev,
 
 static int
 ieee80211_assoc_ml_reconf(struct wiphy *wiphy, struct net_device *dev,
-			  struct cfg80211_assoc_link *add_links,
-			  u16 rem_links)
+			  struct cfg80211_ml_reconf_req *req)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
-	return ieee80211_mgd_assoc_ml_reconf(sdata, add_links, rem_links);
+	return ieee80211_mgd_assoc_ml_reconf(sdata, req);
 }
 
 static int

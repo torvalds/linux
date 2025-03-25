@@ -788,7 +788,7 @@ static int ieee80211_chandef_num_subchans(const struct cfg80211_chan_def *c)
 	if (c->width == NL80211_CHAN_WIDTH_80P80)
 		return 4 + 4;
 
-	return nl80211_chan_width_to_mhz(c->width) / 20;
+	return cfg80211_chandef_get_width(c) / 20;
 }
 
 static int ieee80211_chandef_num_widths(const struct cfg80211_chan_def *c)
@@ -1943,6 +1943,21 @@ ieee80211_assoc_add_ml_elem(struct ieee80211_sub_if_data *sdata,
 	}
 	skb_put_data(skb, &mld_capa_ops, sizeof(mld_capa_ops));
 
+	/* Many APs have broken parsing of the extended MLD capa/ops field,
+	 * dropping (re-)association request frames or replying with association
+	 * response with a failure status if it's present. Without a clear
+	 * indication as to whether the AP supports parsing this field or not do
+	 * not include it in the common information unless strict mode is set.
+	 */
+	if (ieee80211_hw_check(&local->hw, STRICT) &&
+	    assoc_data->ext_mld_capa_ops) {
+		ml_elem->control |=
+			cpu_to_le16(IEEE80211_MLC_BASIC_PRES_EXT_MLD_CAPA_OP);
+		common->len += 2;
+		skb_put_data(skb, &assoc_data->ext_mld_capa_ops,
+			     sizeof(assoc_data->ext_mld_capa_ops));
+	}
+
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		u16 link_present_elems[PRESENT_ELEMS_MAX] = {};
 		const u8 *extra_elems;
@@ -2112,6 +2127,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		/* max common info field in basic multi-link element */
 		size += sizeof(struct ieee80211_mle_basic_common_info) +
 			2 + /* capa & op */
+			2 + /* ext capa & op */
 			2; /* EML capa */
 
 		/*
@@ -4136,18 +4152,21 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	wiphy_work_cancel(sdata->local->hw.wiphy,
 			  &ifmgd->teardown_ttlm_work);
 
-	ieee80211_vif_set_links(sdata, 0, 0);
-
-	ifmgd->mcast_seq_last = IEEE80211_SN_MODULO;
-
 	/* if disconnection happens in the middle of the ML reconfiguration
 	 * flow, cfg80211 must called to release the BSS references obtained
 	 * when the flow started.
 	 */
 	ieee80211_ml_reconf_reset(sdata);
 
+	ieee80211_vif_set_links(sdata, 0, 0);
+
+	ifmgd->mcast_seq_last = IEEE80211_SN_MODULO;
+
 	ifmgd->epcs.enabled = false;
 	ifmgd->epcs.dialog_token = 0;
+
+	memset(ifmgd->userspace_selectors, 0,
+	       sizeof(ifmgd->userspace_selectors));
 }
 
 static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
@@ -4450,7 +4469,7 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 			struct ieee80211_link_data *link;
 
 			link = sdata_dereference(sdata->link[link_id], sdata);
-			if (!link)
+			if (!link || !link->conf->bss)
 				continue;
 			cfg80211_unlink_bss(local->hw.wiphy, link->conf->bss);
 			link->conf->bss = NULL;
@@ -6121,7 +6140,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 			err = ieee80211_prep_channel(sdata, link, link_id, cbss,
 						     true, &link->u.mgd.conn,
-						     assoc_data->userspace_selectors);
+						     sdata->u.mgd.userspace_selectors);
 			if (err) {
 				link_info(link, "prep_channel failed\n");
 				goto out_err;
@@ -9367,6 +9386,8 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	else
 		memcpy(assoc_data->ap_addr, cbss->bssid, ETH_ALEN);
 
+	assoc_data->ext_mld_capa_ops = cpu_to_le16(req->ext_mld_capa_ops);
+
 	if (ifmgd->associated) {
 		u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
@@ -9383,7 +9404,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 					    false);
 	}
 
-	ieee80211_parse_cfg_selectors(assoc_data->userspace_selectors,
+	memset(sdata->u.mgd.userspace_selectors, 0,
+	       sizeof(sdata->u.mgd.userspace_selectors));
+	ieee80211_parse_cfg_selectors(sdata->u.mgd.userspace_selectors,
 				      req->supported_selectors,
 				      req->supported_selectors_len);
 
@@ -9634,7 +9657,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		err = ieee80211_prep_channel(sdata, NULL, i,
 					     assoc_data->link[i].bss, true,
 					     &assoc_data->link[i].conn,
-					     assoc_data->userspace_selectors);
+					     sdata->u.mgd.userspace_selectors);
 		if (err) {
 			req->links[i].error = err;
 			goto err_clear;
@@ -9651,7 +9674,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 					req->ap_mld_addr, true,
 					&assoc_data->link[assoc_link_id].conn,
 					override,
-					assoc_data->userspace_selectors);
+					sdata->u.mgd.userspace_selectors);
 	if (err)
 		goto err_clear;
 
@@ -9895,16 +9918,6 @@ void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif)
 }
 EXPORT_SYMBOL(ieee80211_disable_rssi_reports);
 
-static void ieee80211_ml_reconf_selectors(unsigned long *userspace_selectors)
-{
-	*userspace_selectors = 0;
-
-	/* these selectors are mandatory for ML reconfiguration */
-	set_bit(BSS_MEMBERSHIP_SELECTOR_SAE_H2E, userspace_selectors);
-	set_bit(BSS_MEMBERSHIP_SELECTOR_HE_PHY, userspace_selectors);
-	set_bit(BSS_MEMBERSHIP_SELECTOR_EHT_PHY, userspace_selectors);
-}
-
 void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_mgmt *mgmt, size_t len)
 {
@@ -9918,7 +9931,6 @@ void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 		                sdata->u.mgd.reconf.removed_links;
 	u16 link_mask, valid_links;
 	unsigned int link_id;
-	unsigned long userspace_selectors;
 	size_t orig_len = len;
 	u8 i, group_key_data_len;
 	u8 *pos;
@@ -10026,7 +10038,6 @@ void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_vif_set_links(sdata, valid_links, sdata->vif.dormant_links);
-	ieee80211_ml_reconf_selectors(&userspace_selectors);
 	link_mask = 0;
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		struct cfg80211_bss *cbss = add_links_data->link[link_id].bss;
@@ -10072,7 +10083,7 @@ void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 		link->u.mgd.conn = add_links_data->link[link_id].conn;
 		if (ieee80211_prep_channel(sdata, link, link_id, cbss,
 					   true, &link->u.mgd.conn,
-					   &userspace_selectors)) {
+					   sdata->u.mgd.userspace_selectors)) {
 			link_info(link, "mlo: reconf: prep_channel failed\n");
 			goto disconnect;
 		}
@@ -10120,8 +10131,11 @@ void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
 	done_data.len = orig_len;
 	done_data.added_links = link_mask;
 
-	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++)
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
 		done_data.links[link_id].bss = add_links_data->link[link_id].bss;
+		done_data.links[link_id].addr =
+			add_links_data->link[link_id].addr;
+	}
 
 	cfg80211_mlo_reconf_add_done(sdata->dev, &done_data);
 	kfree(sdata->u.mgd.reconf.add_links_data);
@@ -10137,7 +10151,7 @@ disconnect:
 static struct sk_buff *
 ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 			      struct ieee80211_mgd_assoc_data *add_links_data,
-			      u16 removed_links)
+			      u16 removed_links, __le16 ext_mld_capa_ops)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgmt *mgmt;
@@ -10186,6 +10200,9 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 			var_common_size += 2;
 	}
 
+	if (ext_mld_capa_ops)
+		var_common_size += 2;
+
 	/* Add the common information length */
 	size += common_size + var_common_size;
 
@@ -10212,8 +10229,8 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 		size += 2 + sizeof(struct ieee80211_mle_per_sta_profile) +
 			ETH_ALEN;
 
-		/* SSID element + WMM */
-		size += 2 + sdata->vif.cfg.ssid_len + 9;
+		/* WMM */
+		size += 9;
 		size += ieee80211_link_common_elems_size(sdata, iftype, cbss,
 							 elems_len);
 	}
@@ -10270,6 +10287,12 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 		skb_put_data(skb, &mld_capa_ops, sizeof(mld_capa_ops));
 	}
 
+	if (ext_mld_capa_ops) {
+		ml_elem->control |=
+			cpu_to_le16(IEEE80211_MLC_RECONF_PRES_EXT_MLD_CAPA_OP);
+		skb_put_data(skb, &ext_mld_capa_ops, sizeof(ext_mld_capa_ops));
+	}
+
 	if (sdata->u.mgd.flags & IEEE80211_STA_ENABLE_RRM)
 		capab |= WLAN_CAPABILITY_RADIO_MEASURE;
 
@@ -10319,11 +10342,6 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 
 			capab_pos = skb_put(skb, 2);
 
-			skb_put_u8(skb, WLAN_EID_SSID);
-			skb_put_u8(skb, sdata->vif.cfg.ssid_len);
-			skb_put_data(skb, sdata->vif.cfg.ssid,
-				     sdata->vif.cfg.ssid_len);
-
 			extra_used =
 				ieee80211_add_link_elems(sdata, skb, &capab, NULL,
 							 add_links_data->link[link_id].elems,
@@ -10363,8 +10381,7 @@ ieee80211_build_ml_reconf_req(struct ieee80211_sub_if_data *sdata,
 }
 
 int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
-				  struct cfg80211_assoc_link *add_links,
-				  u16 rem_links)
+				  struct cfg80211_ml_reconf_req *req)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_mgd_assoc_data *data = NULL;
@@ -10384,9 +10401,8 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 		return -EBUSY;
 
 	added_links = 0;
-	for (link_id = 0; add_links && link_id < IEEE80211_MLD_MAX_NUM_LINKS;
-	     link_id++) {
-		if (!add_links[link_id].bss)
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		if (!req->add_links[link_id].bss)
 			continue;
 
 		added_links |= BIT(link_id);
@@ -10403,18 +10419,20 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (added_links) {
 		bool uapsd_supported;
-		unsigned long userspace_selectors;
 
 		data = kzalloc(sizeof(*data), GFP_KERNEL);
 		if (!data)
 			return -ENOMEM;
 
+		data->assoc_link_id = -1;
+		data->wmm = true;
+
 		uapsd_supported = true;
-		ieee80211_ml_reconf_selectors(&userspace_selectors);
 		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS;
 		     link_id++) {
 			struct ieee80211_supported_band *sband;
-			struct cfg80211_bss *link_cbss = add_links[link_id].bss;
+			struct cfg80211_bss *link_cbss =
+				req->add_links[link_id].bss;
 			struct ieee80211_bss *bss;
 
 			if (!link_cbss)
@@ -10444,11 +10462,11 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 
 			data->link[link_id].bss = link_cbss;
 			data->link[link_id].disabled =
-				add_links[link_id].disabled;
+				req->add_links[link_id].disabled;
 			data->link[link_id].elems =
-				(u8 *)add_links[link_id].elems;
+				(u8 *)req->add_links[link_id].elems;
 			data->link[link_id].elems_len =
-				add_links[link_id].elems_len;
+				req->add_links[link_id].elems_len;
 
 			if (!bss->uapsd_supported)
 				uapsd_supported = false;
@@ -10467,12 +10485,11 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 			}
 		}
 
-		/* Require U-APSD support to be similar to the current valid
-		 * links
-		 */
-		if (uapsd_supported !=
-		    !!(sdata->u.mgd.flags & IEEE80211_STA_UAPSD_ENABLED)) {
+		/* Require U-APSD support if we enabled it */
+		if (sdata->u.mgd.flags & IEEE80211_STA_UAPSD_ENABLED &&
+		    !uapsd_supported) {
 			err = -EINVAL;
+			sdata_info(sdata, "U-APSD on but not available on (all) new links\n");
 			goto err_free;
 		}
 
@@ -10486,7 +10503,7 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 						     data->link[link_id].bss,
 						     true,
 						     &data->link[link_id].conn,
-						     &userspace_selectors);
+						     sdata->u.mgd.userspace_selectors);
 			if (err)
 				goto err_free;
 		}
@@ -10498,10 +10515,11 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	 * Section 35.3.6.4 in Draft P802.11be_D7.0 the AP MLD should accept the
 	 * link removal request.
 	 */
-	if (rem_links) {
-		u16 new_active_links = sdata->vif.active_links & ~rem_links;
+	if (req->rem_links) {
+		u16 new_active_links =
+			sdata->vif.active_links & ~req->rem_links;
 
-		new_valid_links = sdata->vif.valid_links & ~rem_links;
+		new_valid_links = sdata->vif.valid_links & ~req->rem_links;
 
 		/* Should not be left with no valid links to perform the
 		 * ML reconfiguration
@@ -10536,14 +10554,16 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	 * is expected to send the ML reconfiguration response frame on the link
 	 * on which the request was received.
 	 */
-	skb = ieee80211_build_ml_reconf_req(sdata, data, rem_links);
+	skb = ieee80211_build_ml_reconf_req(sdata, data, req->rem_links,
+					    cpu_to_le16(req->ext_mld_capa_ops));
 	if (!skb) {
 		err = -ENOMEM;
 		goto err_free;
 	}
 
-	if (rem_links) {
-		u16 new_dormant_links = sdata->vif.dormant_links & ~rem_links;
+	if (req->rem_links) {
+		u16 new_dormant_links =
+			sdata->vif.dormant_links & ~req->rem_links;
 
 		err = ieee80211_vif_set_links(sdata, new_valid_links,
 					      new_dormant_links);
@@ -10556,7 +10576,7 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 
 		for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS;
 		     link_id++) {
-			if (!(rem_links & BIT(link_id)))
+			if (!(req->rem_links & BIT(link_id)))
 				continue;
 
 			ieee80211_sta_remove_link(sta, link_id);
@@ -10565,17 +10585,17 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 		/* notify the driver and upper layers */
 		ieee80211_vif_cfg_change_notify(sdata,
 						BSS_CHANGED_MLD_VALID_LINKS);
-		cfg80211_links_removed(sdata->dev, rem_links);
+		cfg80211_links_removed(sdata->dev, req->rem_links);
 	}
 
 	sdata_info(sdata, "mlo: reconf: adding=0x%x, removed=0x%x\n",
-		   added_links, rem_links);
+		   added_links, req->rem_links);
 
 	ieee80211_tx_skb(sdata, skb);
 
 	sdata->u.mgd.reconf.added_links = added_links;
 	sdata->u.mgd.reconf.add_links_data = data;
-	sdata->u.mgd.reconf.removed_links = rem_links;
+	sdata->u.mgd.reconf.removed_links = req->rem_links;
 	wiphy_delayed_work_queue(sdata->local->hw.wiphy,
 				 &sdata->u.mgd.reconf.wk,
 				 IEEE80211_ASSOC_TIMEOUT_SHORT);

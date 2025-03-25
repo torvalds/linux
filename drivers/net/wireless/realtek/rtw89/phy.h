@@ -914,6 +914,13 @@ static inline s8 rtw89_phy_txpwr_rf_to_bb(struct rtw89_dev *rtwdev, s8 txpwr_rf)
 	return txpwr_rf << (chip->txpwr_factor_bb - chip->txpwr_factor_rf);
 }
 
+static inline s8 rtw89_phy_txpwr_bb_to_rf(struct rtw89_dev *rtwdev, s8 txpwr_bb)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return txpwr_bb >> (chip->txpwr_factor_bb - chip->txpwr_factor_rf);
+}
+
 static inline s8 rtw89_phy_txpwr_rf_to_mac(struct rtw89_dev *rtwdev, s8 txpwr_rf)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;

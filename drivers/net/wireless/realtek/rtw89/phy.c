@@ -2044,11 +2044,14 @@ static s8 rtw89_phy_ant_gain_offset(struct rtw89_dev *rtwdev, u8 band, u32 cente
 	if (!chip->support_ant_gain)
 		return 0;
 
-	if (!(ant_gain->regd_enabled & BIT(regd)))
+	if (ant_gain->block_country || !(ant_gain->regd_enabled & BIT(regd)))
 		return 0;
 
 	offset_patha = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_A, center_freq);
 	offset_pathb = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_B, center_freq);
+
+	if (RTW89_CHK_FW_FEATURE(NO_POWER_DIFFERENCE, &rtwdev->fw))
+		return min(offset_patha, offset_pathb);
 
 	return max(offset_patha, offset_pathb);
 }
@@ -2057,10 +2060,17 @@ s16 rtw89_phy_ant_gain_pwr_offset(struct rtw89_dev *rtwdev,
 				  const struct rtw89_chan *chan)
 {
 	struct rtw89_ant_gain_info *ant_gain = &rtwdev->ant_gain;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 regd = rtw89_regd_get(rtwdev, chan->band_type);
 	s8 offset_patha, offset_pathb;
 
-	if (!(ant_gain->regd_enabled & BIT(regd)))
+	if (!chip->support_ant_gain)
+		return 0;
+
+	if (ant_gain->block_country || !(ant_gain->regd_enabled & BIT(regd)))
+		return 0;
+
+	if (RTW89_CHK_FW_FEATURE(NO_POWER_DIFFERENCE, &rtwdev->fw))
 		return 0;
 
 	offset_patha = rtw89_phy_ant_gain_query(rtwdev, RF_PATH_A, chan->freq);
@@ -2079,7 +2089,8 @@ int rtw89_print_ant_gain(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 	char *p = buf, *end = buf + bufsz;
 	s8 offset_patha, offset_pathb;
 
-	if (!chip->support_ant_gain || !(ant_gain->regd_enabled & BIT(regd))) {
+	if (!(chip->support_ant_gain && (ant_gain->regd_enabled & BIT(regd))) ||
+	    ant_gain->block_country) {
 		p += scnprintf(p, end - p, "no DAG is applied\n");
 		goto out;
 	}
@@ -3459,6 +3470,30 @@ rtw89_phy_c2h_rfk_report_state(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u3
 static void
 rtw89_phy_c2h_rfk_log_tas_pwr(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
+	const struct rtw89_c2h_rf_tas_info *rf_tas =
+		(const struct rtw89_c2h_rf_tas_info *)c2h->data;
+	const enum rtw89_sar_sources src = rtwdev->sar.src;
+	struct rtw89_tas_info *tas = &rtwdev->tas;
+	u64 linear = 0;
+	u32 i, cur_idx;
+	s16 txpwr;
+
+	if (!tas->enable || src == RTW89_SAR_SOURCE_NONE)
+		return;
+
+	cur_idx = le32_to_cpu(rf_tas->cur_idx);
+	for (i = 0; i < cur_idx; i++) {
+		txpwr = (s16)le16_to_cpu(rf_tas->txpwr_history[i]);
+		linear += rtw89_db_quarter_to_linear(txpwr);
+
+		rtw89_debug(rtwdev, RTW89_DBG_SAR,
+			    "tas: index: %u, txpwr: %d\n", i, txpwr);
+	}
+
+	if (cur_idx == 0)
+		tas->instant_txpwr = rtw89_db_to_linear(0);
+	else
+		tas->instant_txpwr = DIV_ROUND_DOWN_ULL(linear, cur_idx);
 }
 
 static

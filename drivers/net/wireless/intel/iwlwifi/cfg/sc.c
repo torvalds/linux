@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  */
 #include <linux/module.h>
 #include <linux/stringify.h>
@@ -10,10 +10,10 @@
 #include "fw/api/txq.h"
 
 /* Highest firmware API version supported */
-#define IWL_SC_UCODE_API_MAX	96
+#define IWL_SC_UCODE_API_MAX	98
 
 /* Lowest firmware API version supported */
-#define IWL_SC_UCODE_API_MIN	92
+#define IWL_SC_UCODE_API_MIN	93
 
 /* NVM versions */
 #define IWL_SC_NVM_VERSION		0x0a1d
@@ -141,6 +141,8 @@ const struct iwl_cfg_trans_params iwl_sc_trans_cfg = {
 	.low_latency_xtal = true,
 	.ltr_delay = IWL_CFG_TRANS_LTR_DELAY_2500US,
 };
+
+const char iwl_sp_name[] = "Intel(R) Wi-Fi 7 BE213 160MHz";
 
 const struct iwl_cfg iwl_cfg_sc = {
 	.fw_name_mac = "sc",

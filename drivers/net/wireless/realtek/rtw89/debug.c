@@ -4154,6 +4154,7 @@ static const struct rtw89_disabled_dm_info {
 } rtw89_disabled_dm_infos[] = {
 	DM_INFO(DYNAMIC_EDCCA),
 	DM_INFO(THERMAL_PROTECT),
+	DM_INFO(TAS),
 };
 
 static ssize_t
