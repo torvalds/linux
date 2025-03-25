@@ -2891,10 +2891,8 @@ void udp_destroy_sock(struct sock *sk)
 			if (encap_destroy)
 				encap_destroy(sk);
 		}
-		if (udp_test_bit(ENCAP_ENABLED, sk)) {
+		if (udp_test_bit(ENCAP_ENABLED, sk))
 			static_branch_dec(&udp_encap_needed_key);
-			udp_tunnel_cleanup_gro(sk);
-		}
 	}
 }
 
@@ -3806,15 +3804,6 @@ fallback:
 
 static int __net_init udp_pernet_init(struct net *net)
 {
-#if IS_ENABLED(CONFIG_NET_UDP_TUNNEL)
-	int i;
-
-	/* No tunnel is configured */
-	for (i = 0; i < ARRAY_SIZE(net->ipv4.udp_tunnel_gro); ++i) {
-		INIT_HLIST_HEAD(&net->ipv4.udp_tunnel_gro[i].list);
-		RCU_INIT_POINTER(net->ipv4.udp_tunnel_gro[i].sk, NULL);
-	}
-#endif
 	udp_sysctl_init(net);
 	udp_set_table(net);
 
