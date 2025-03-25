@@ -8,6 +8,7 @@ Next (GCN), Radeon DNA (RDNA), and Compute DNA (CDNA) architectures.
 .. toctree::
 
    driver-core
+   amd-hardware-list-info
    module-parameters
    display/index
    flashing
