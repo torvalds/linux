@@ -2614,9 +2614,9 @@ int extent_invalidate_folio(struct extent_io_tree *tree,
 }
 
 /*
- * a helper for release_folio, this tests for areas of the page that
- * are locked or under IO and drops the related state bits if it is safe
- * to drop the page.
+ * A helper for struct address_space_operations::release_folio, this tests for
+ * areas of the folio that are locked or under IO and drops the related state
+ * bits if it is safe to drop the folio.
  */
 static bool try_release_extent_state(struct extent_io_tree *tree,
 				     struct folio *folio)
