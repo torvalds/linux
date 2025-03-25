@@ -1015,14 +1015,24 @@ static void print_fields(struct trace_iterator *iter, struct trace_event_call *c
 					break;
 				}
 
-				trace_seq_printf(&iter->seq, "0x%x (%d)",
-						 *(unsigned int *)pos,
-						 *(unsigned int *)pos);
+				if (sizeof(long) == 4)
+					trace_seq_printf(&iter->seq, "%pS (%d)",
+							 *(void **)pos,
+							 *(unsigned int *)pos);
+				else
+					trace_seq_printf(&iter->seq, "0x%x (%d)",
+							 *(unsigned int *)pos,
+							 *(unsigned int *)pos);
 				break;
 			case 8:
-				trace_seq_printf(&iter->seq, "0x%llx (%lld)",
-						 *(unsigned long long *)pos,
-						 *(unsigned long long *)pos);
+				if (sizeof(long) == 8)
+					trace_seq_printf(&iter->seq, "%pS (%lld)",
+							 *(void **)pos,
+							 *(unsigned long long *)pos);
+				else
+					trace_seq_printf(&iter->seq, "0x%llx (%lld)",
+							 *(unsigned long long *)pos,
+							 *(unsigned long long *)pos);
 				break;
 			default:
 				trace_seq_puts(&iter->seq, "<INVALID-SIZE>");
