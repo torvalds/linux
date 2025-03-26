@@ -140,7 +140,8 @@ Some useful constructs:
 KIQ (Kernel Interface Queue)
     This is a control queue used by the kernel driver to manage other gfx
     and compute queues on the GFX/compute engine.  You can use it to
-    map/unmap additional queues, etc.
+    map/unmap additional queues, etc.  This is replaced by MES on
+    GFX 11 and newer hardware.
 
 IB (Indirect Buffer)
     A command buffer for a particular engine.  Rather than writing
