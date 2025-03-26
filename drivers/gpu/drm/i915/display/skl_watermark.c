@@ -434,6 +434,14 @@ bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 	if (!i915->display.params.enable_sagv)
 		return false;
 
+	/*
+	 * SAGV is initially forced off because its current
+	 * state can't be queried from pcode. Allow SAGV to
+	 * be enabled upon the first real commit.
+	 */
+	if (crtc_state->inherited)
+		return false;
+
 	if (DISPLAY_VER(i915) >= 12)
 		return tgl_crtc_can_enable_sagv(crtc_state);
 	else
@@ -458,8 +466,7 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 	struct intel_crtc_state *new_crtc_state;
 	int i;
 
-	for_each_new_intel_crtc_in_state(state, crtc,
-					 new_crtc_state, i) {
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		struct skl_pipe_wm *pipe_wm = &new_crtc_state->wm.skl.optimal;
 
 		/*
