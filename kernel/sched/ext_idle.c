@@ -544,7 +544,7 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 		 * core.
 		 */
 		if (flags & SCX_PICK_IDLE_CORE) {
-			cpu = prev_cpu;
+			cpu = -EBUSY;
 			goto out_unlock;
 		}
 	}
