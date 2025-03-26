@@ -14,7 +14,7 @@ amdgpu_benchmark
 
 Run benchmarks using the DMA engine the driver uses for GPU memory paging.
 Write a number to the file to run the test.  The results are written to the
-kernel log.  VRAM is on device memory (dGPUs) or cave out (APUs) and GTT
+kernel log.  VRAM is on device memory (dGPUs) or carve out (APUs) and GTT
 (Graphics Translation Tables) is system memory that is accessible by the GPU.
 The following tests are available:
 
