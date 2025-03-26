@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/console.h>
 #include <linux/kernel.h>
+#include <linux/kexec.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/screen_info.h>
@@ -144,6 +145,11 @@ static __init void early_serial_hw_init(unsigned divisor)
 	static_call(serial_out)(early_serial_base, DLL, divisor & 0xff);
 	static_call(serial_out)(early_serial_base, DLH, (divisor >> 8) & 0xff);
 	static_call(serial_out)(early_serial_base, LCR, c & ~DLAB);
+
+#if defined(CONFIG_KEXEC_CORE) && defined(CONFIG_X86_64)
+	if (static_call_query(serial_in) == io_serial_in)
+		kexec_debug_8250_port = early_serial_base;
+#endif
 }
 
 #define DEFAULT_BAUD 9600
