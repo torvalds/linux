@@ -2266,6 +2266,7 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 	u8 reg6 = regulatory->reg_6ghz_power;
 	struct rtw89_sar_parm sar_parm = {
 		.center_freq = freq,
+		.ntx = ntx,
 	};
 	s8 lmt = 0, sar, offset;
 	s8 cstr;
@@ -2529,6 +2530,7 @@ s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 	u8 reg6 = regulatory->reg_6ghz_power;
 	struct rtw89_sar_parm sar_parm = {
 		.center_freq = freq,
+		.ntx = ntx,
 	};
 	s8 lmt_ru = 0, sar, offset;
 	s8 cstr;

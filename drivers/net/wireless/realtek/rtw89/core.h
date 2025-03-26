@@ -4606,6 +4606,7 @@ struct rtw89_cam_info {
 enum rtw89_sar_sources {
 	RTW89_SAR_SOURCE_NONE,
 	RTW89_SAR_SOURCE_COMMON,
+	RTW89_SAR_SOURCE_ACPI,
 
 	RTW89_SAR_SOURCE_NR,
 };
@@ -4630,6 +4631,45 @@ struct rtw89_sar_cfg_common {
 	s32 cfg[RTW89_SAR_SUBBAND_NR];
 };
 
+enum rtw89_acpi_sar_subband {
+	RTW89_ACPI_SAR_2GHZ_SUBBAND,
+	RTW89_ACPI_SAR_5GHZ_SUBBAND_1,   /* U-NII-1 */
+	RTW89_ACPI_SAR_5GHZ_SUBBAND_2,   /* U-NII-2 */
+	RTW89_ACPI_SAR_5GHZ_SUBBAND_2E,  /* U-NII-2-Extended */
+	RTW89_ACPI_SAR_5GHZ_SUBBAND_3_4, /* U-NII-3 and U-NII-4 */
+	RTW89_ACPI_SAR_6GHZ_SUBBAND_5_L, /* U-NII-5 lower part */
+	RTW89_ACPI_SAR_6GHZ_SUBBAND_5_H, /* U-NII-5 higher part */
+	RTW89_ACPI_SAR_6GHZ_SUBBAND_6,   /* U-NII-6 */
+	RTW89_ACPI_SAR_6GHZ_SUBBAND_7_L, /* U-NII-7 lower part */
+	RTW89_ACPI_SAR_6GHZ_SUBBAND_7_H, /* U-NII-7 higher part */
+	RTW89_ACPI_SAR_6GHZ_SUBBAND_8,   /* U-NII-8 */
+
+	NUM_OF_RTW89_ACPI_SAR_SUBBAND,
+};
+
+#define TXPWR_FACTOR_OF_RTW89_ACPI_SAR 3 /* unit: 0.125 dBm */
+#define MAX_VAL_OF_RTW89_ACPI_SAR S16_MAX
+#define MIN_VAL_OF_RTW89_ACPI_SAR S16_MIN
+#define MAX_NUM_OF_RTW89_ACPI_SAR_TBL 6
+#define NUM_OF_RTW89_ACPI_SAR_RF_PATH (RF_PATH_B + 1)
+
+struct rtw89_sar_entry_from_acpi {
+	s16 v[NUM_OF_RTW89_ACPI_SAR_SUBBAND][NUM_OF_RTW89_ACPI_SAR_RF_PATH];
+};
+
+struct rtw89_sar_table_from_acpi {
+	/* If this table is active, must fill all fields according to either
+	 * configuration in BIOS or some default values for SAR to work well.
+	 */
+	struct rtw89_sar_entry_from_acpi entries[RTW89_REGD_NUM];
+};
+
+struct rtw89_sar_cfg_acpi {
+	u8 downgrade_2tx;
+	unsigned int valid_num;
+	struct rtw89_sar_table_from_acpi tables[MAX_NUM_OF_RTW89_ACPI_SAR_TBL];
+};
+
 struct rtw89_sar_info {
 	/* used to decide how to access SAR cfg union */
 	enum rtw89_sar_sources src;
@@ -4639,6 +4679,7 @@ struct rtw89_sar_info {
 	 */
 	union {
 		struct rtw89_sar_cfg_common cfg_common;
+		struct rtw89_sar_cfg_acpi cfg_acpi;
 	};
 };
 
@@ -4674,11 +4715,14 @@ struct rtw89_ant_gain_info {
 struct rtw89_6ghz_span {
 	enum rtw89_sar_subband sar_subband_low;
 	enum rtw89_sar_subband sar_subband_high;
+	enum rtw89_acpi_sar_subband acpi_sar_subband_low;
+	enum rtw89_acpi_sar_subband acpi_sar_subband_high;
 	enum rtw89_ant_gain_subband ant_gain_subband_low;
 	enum rtw89_ant_gain_subband ant_gain_subband_high;
 };
 
 #define RTW89_SAR_SPAN_VALID(span) ((span)->sar_subband_high)
+#define RTW89_ACPI_SAR_SPAN_VALID(span) ((span)->acpi_sar_subband_high)
 #define RTW89_ANT_GAIN_SPAN_VALID(span) ((span)->ant_gain_subband_high)
 
 enum rtw89_tas_state {

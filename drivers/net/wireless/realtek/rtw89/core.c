@@ -211,6 +211,8 @@ static const struct ieee80211_iface_combination rtw89_iface_combs[] = {
 	[RTW89_6GHZ_SPAN_IDX(center_freq)] = { \
 		.sar_subband_low = RTW89_SAR_6GHZ_ ## subband_l, \
 		.sar_subband_high = RTW89_SAR_6GHZ_ ## subband_h, \
+		.acpi_sar_subband_low = RTW89_ACPI_SAR_6GHZ_ ## subband_l, \
+		.acpi_sar_subband_high = RTW89_ACPI_SAR_6GHZ_ ## subband_h, \
 		.ant_gain_subband_low = RTW89_ANT_GAIN_6GHZ_ ## subband_l, \
 		.ant_gain_subband_high = RTW89_ANT_GAIN_6GHZ_ ## subband_h, \
 	}
@@ -4919,7 +4921,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 
 	rtw89_ser_init(rtwdev);
 	rtw89_entity_init(rtwdev);
-	rtw89_tas_init(rtwdev);
+	rtw89_sar_init(rtwdev);
 	rtw89_phy_ant_gain_init(rtwdev);
 
 	return 0;

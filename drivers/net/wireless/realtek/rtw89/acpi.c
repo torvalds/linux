@@ -195,3 +195,82 @@ out:
 	ACPI_FREE(obj);
 	return ret;
 }
+
+enum rtw89_acpi_sar_subband rtw89_acpi_sar_get_subband(struct rtw89_dev *rtwdev,
+						       u32 center_freq)
+{
+	switch (center_freq) {
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+			    "center freq %u to ACPI SAR subband is unhandled\n",
+			    center_freq);
+		fallthrough;
+	case 2412 ... 2484:
+		return RTW89_ACPI_SAR_2GHZ_SUBBAND;
+	case 5180 ... 5240:
+		return RTW89_ACPI_SAR_5GHZ_SUBBAND_1;
+	case 5250 ... 5320:
+		return RTW89_ACPI_SAR_5GHZ_SUBBAND_2;
+	case 5500 ... 5720:
+		return RTW89_ACPI_SAR_5GHZ_SUBBAND_2E;
+	case 5745 ... 5885:
+		return RTW89_ACPI_SAR_5GHZ_SUBBAND_3_4;
+	case 5955 ... 6155:
+		return RTW89_ACPI_SAR_6GHZ_SUBBAND_5_L;
+	case 6175 ... 6415:
+		return RTW89_ACPI_SAR_6GHZ_SUBBAND_5_H;
+	case 6435 ... 6515:
+		return RTW89_ACPI_SAR_6GHZ_SUBBAND_6;
+	case 6535 ... 6695:
+		return RTW89_ACPI_SAR_6GHZ_SUBBAND_7_L;
+	case 6715 ... 6855:
+		return RTW89_ACPI_SAR_6GHZ_SUBBAND_7_H;
+
+	/* freq 6875 (ch 185, 20MHz) spans RTW89_ACPI_SAR_6GHZ_SUBBAND_7_H
+	 * and RTW89_ACPI_SAR_6GHZ_SUBBAND_8, so directly describe it with
+	 * struct rtw89_6ghz_span.
+	 */
+
+	case 6895 ... 7115:
+		return RTW89_ACPI_SAR_6GHZ_SUBBAND_8;
+	}
+}
+
+enum rtw89_band rtw89_acpi_sar_subband_to_band(struct rtw89_dev *rtwdev,
+					       enum rtw89_acpi_sar_subband subband)
+{
+	switch (subband) {
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+			    "ACPI SAR subband %u to band is unhandled\n", subband);
+		fallthrough;
+	case RTW89_ACPI_SAR_2GHZ_SUBBAND:
+		return RTW89_BAND_2G;
+	case RTW89_ACPI_SAR_5GHZ_SUBBAND_1:
+		return RTW89_BAND_5G;
+	case RTW89_ACPI_SAR_5GHZ_SUBBAND_2:
+		return RTW89_BAND_5G;
+	case RTW89_ACPI_SAR_5GHZ_SUBBAND_2E:
+		return RTW89_BAND_5G;
+	case RTW89_ACPI_SAR_5GHZ_SUBBAND_3_4:
+		return RTW89_BAND_5G;
+	case RTW89_ACPI_SAR_6GHZ_SUBBAND_5_L:
+		return RTW89_BAND_6G;
+	case RTW89_ACPI_SAR_6GHZ_SUBBAND_5_H:
+		return RTW89_BAND_6G;
+	case RTW89_ACPI_SAR_6GHZ_SUBBAND_6:
+		return RTW89_BAND_6G;
+	case RTW89_ACPI_SAR_6GHZ_SUBBAND_7_L:
+		return RTW89_BAND_6G;
+	case RTW89_ACPI_SAR_6GHZ_SUBBAND_7_H:
+		return RTW89_BAND_6G;
+	case RTW89_ACPI_SAR_6GHZ_SUBBAND_8:
+		return RTW89_BAND_6G;
+	}
+}
+
+int rtw89_acpi_evaluate_sar(struct rtw89_dev *rtwdev,
+			    struct rtw89_sar_cfg_acpi *cfg)
+{
+	return -ENOENT;
+}

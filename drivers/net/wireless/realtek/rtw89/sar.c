@@ -92,12 +92,64 @@ static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static
+s32 rtw89_sar_cfg_acpi_get_min(const struct rtw89_sar_entry_from_acpi *ent,
+			       enum rtw89_rf_path path,
+			       enum rtw89_acpi_sar_subband subband_low,
+			       enum rtw89_acpi_sar_subband subband_high)
+{
+	return min(ent->v[subband_low][path], ent->v[subband_high][path]);
+}
+
+static int rtw89_query_sar_config_acpi(struct rtw89_dev *rtwdev,
+				       const struct rtw89_sar_parm *sar_parm,
+				       s32 *cfg)
+{
+	const struct rtw89_sar_cfg_acpi *rtwsar = &rtwdev->sar.cfg_acpi;
+	const struct rtw89_sar_table_from_acpi *tbl = rtwsar->tables;
+	enum rtw89_acpi_sar_subband subband_l, subband_h;
+	const struct rtw89_sar_entry_from_acpi *ent;
+	u32 center_freq = sar_parm->center_freq;
+	const struct rtw89_6ghz_span *span;
+	enum rtw89_regulation_type regd;
+	enum rtw89_band band;
+	s32 cfg_a, cfg_b;
+
+	span = rtw89_get_6ghz_span(rtwdev, center_freq);
+
+	if (span && RTW89_ACPI_SAR_SPAN_VALID(span)) {
+		subband_l = span->acpi_sar_subband_low;
+		subband_h = span->acpi_sar_subband_high;
+	} else {
+		subband_l = rtw89_acpi_sar_get_subband(rtwdev, center_freq);
+		subband_h = subband_l;
+	}
+
+	band = rtw89_acpi_sar_subband_to_band(rtwdev, subband_l);
+	regd = rtw89_regd_get(rtwdev, band);
+	ent = &tbl->entries[regd];
+
+	cfg_a = rtw89_sar_cfg_acpi_get_min(ent, RF_PATH_A, subband_l, subband_h);
+	cfg_b = rtw89_sar_cfg_acpi_get_min(ent, RF_PATH_B, subband_l, subband_h);
+	*cfg = min(cfg_a, cfg_b);
+
+	if (sar_parm->ntx == RTW89_2TX)
+		*cfg -= rtwsar->downgrade_2tx;
+
+	return 0;
+}
+
 static const
 struct rtw89_sar_handler rtw89_sar_handlers[RTW89_SAR_SOURCE_NR] = {
 	[RTW89_SAR_SOURCE_COMMON] = {
 		.descr_sar_source = "RTW89_SAR_SOURCE_COMMON",
 		.txpwr_factor_sar = 2,
 		.query_sar_config = rtw89_query_sar_config_common,
+	},
+	[RTW89_SAR_SOURCE_ACPI] = {
+		.descr_sar_source = "RTW89_SAR_SOURCE_ACPI",
+		.txpwr_factor_sar = TXPWR_FACTOR_OF_RTW89_ACPI_SAR,
+		.query_sar_config = rtw89_query_sar_config_acpi,
 	},
 };
 
@@ -288,16 +340,7 @@ out:
 static int rtw89_apply_sar_common(struct rtw89_dev *rtwdev,
 				  const struct rtw89_sar_cfg_common *sar)
 {
-	enum rtw89_sar_sources src;
-
-	lockdep_assert_wiphy(rtwdev->hw->wiphy);
-
-	src = rtwdev->sar.src;
-	if (src != RTW89_SAR_SOURCE_NONE && src != RTW89_SAR_SOURCE_COMMON) {
-		rtw89_warn(rtwdev, "SAR source: %d is in use", src);
-		return -EBUSY;
-	}
-
+	/* let common SAR have the highest priority; always apply it */
 	rtw89_sar_set_src(rtwdev, RTW89_SAR_SOURCE_COMMON, cfg_common, sar);
 	rtw89_core_set_chip_txpwr(rtwdev);
 	rtw89_tas_reset(rtwdev, false);
@@ -363,6 +406,78 @@ int rtw89_ops_set_sar_specs(struct ieee80211_hw *hw,
 	}
 
 	return rtw89_apply_sar_common(rtwdev, &sar_common);
+}
+
+static void rtw89_apply_sar_acpi(struct rtw89_dev *rtwdev,
+				 const struct rtw89_sar_cfg_acpi *sar)
+{
+	const struct rtw89_sar_table_from_acpi *tbl;
+	const struct rtw89_sar_entry_from_acpi *ent;
+	enum rtw89_sar_sources src;
+	unsigned int i, j, k;
+
+	src = rtwdev->sar.src;
+	if (src != RTW89_SAR_SOURCE_NONE) {
+		rtw89_warn(rtwdev, "SAR source: %d is in use", src);
+		return;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_SAR,
+		    "SAR-ACPI downgrade 2TX: %u (unit: 1/%lu dBm)\n",
+		    sar->downgrade_2tx, BIT(TXPWR_FACTOR_OF_RTW89_ACPI_SAR));
+
+	for (i = 0; i < sar->valid_num; i++) {
+		tbl = &sar->tables[i];
+
+		for (j = 0; j < RTW89_REGD_NUM; j++) {
+			ent = &tbl->entries[j];
+
+			rtw89_debug(rtwdev, RTW89_DBG_SAR,
+				    "SAR-ACPI-[%u] REGD-%s (unit: 1/%lu dBm)\n",
+				    i, rtw89_regd_get_string(j),
+				    BIT(TXPWR_FACTOR_OF_RTW89_ACPI_SAR));
+
+			for (k = 0; k < NUM_OF_RTW89_ACPI_SAR_SUBBAND; k++)
+				rtw89_debug(rtwdev, RTW89_DBG_SAR,
+					    "On subband %u, { %d, %d }\n", k,
+					    ent->v[k][RF_PATH_A], ent->v[k][RF_PATH_B]);
+		}
+	}
+
+	rtw89_sar_set_src(rtwdev, RTW89_SAR_SOURCE_ACPI, cfg_acpi, sar);
+
+	/* SAR via ACPI is only configured in the early initial phase, so
+	 * it does not seem necessary to reset txpwr related things here.
+	 */
+}
+
+static void rtw89_set_sar_from_acpi(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_sar_cfg_acpi *cfg;
+	int ret;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	cfg = kzalloc(sizeof(*cfg), GFP_KERNEL);
+	if (!cfg)
+		return;
+
+	ret = rtw89_acpi_evaluate_sar(rtwdev, cfg);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_SAR,
+			    "evaluating ACPI SAR returns %d\n", ret);
+		goto out;
+	}
+
+	if (unlikely(!cfg->valid_num)) {
+		rtw89_debug(rtwdev, RTW89_DBG_SAR, "no valid SAR table from ACPI\n");
+		goto out;
+	}
+
+	rtw89_apply_sar_acpi(rtwdev, cfg);
+
+out:
+	kfree(cfg);
 }
 
 static bool rtw89_tas_query_sar_config(struct rtw89_dev *rtwdev, s32 *cfg)
@@ -524,7 +639,7 @@ static void rtw89_tas_rolling_average(struct rtw89_dev *rtwdev)
 	rtw89_tas_state_update(rtwdev, state);
 }
 
-void rtw89_tas_init(struct rtw89_dev *rtwdev)
+static void rtw89_tas_init(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_tas_info *tas = &rtwdev->tas;
@@ -671,3 +786,9 @@ void rtw89_tas_chanctx_cb(struct rtw89_dev *rtwdev,
 	}
 }
 EXPORT_SYMBOL(rtw89_tas_chanctx_cb);
+
+void rtw89_sar_init(struct rtw89_dev *rtwdev)
+{
+	rtw89_set_sar_from_acpi(rtwdev);
+	rtw89_tas_init(rtwdev);
+}
