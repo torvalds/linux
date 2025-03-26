@@ -16,6 +16,7 @@
 #include <media/v4l2-rect.h>
 
 #include "vivid-core.h"
+#include "vivid-osd.h"
 #include "vivid-vid-common.h"
 #include "vivid-kthread-out.h"
 #include "vivid-vid-out.h"
@@ -907,7 +908,7 @@ int vivid_vid_out_g_fbuf(struct file *file, void *fh,
 	a->base = (void *)dev->video_pbase;
 	a->fmt.width = dev->display_width;
 	a->fmt.height = dev->display_height;
-	if (dev->fb_defined.green.length == 5)
+	if (vivid_fb_green_bits(dev) == 5)
 		a->fmt.pixelformat = V4L2_PIX_FMT_ARGB555;
 	else
 		a->fmt.pixelformat = V4L2_PIX_FMT_RGB565;

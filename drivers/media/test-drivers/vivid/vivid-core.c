@@ -125,7 +125,9 @@ MODULE_PARM_DESC(node_types, " node types, default is 0xe1d3d. Bitmask with the 
 			     "\t\t    bit 8: Video Output node\n"
 			     "\t\t    bit 10-11: VBI Output node: 0 = none, 1 = raw vbi, 2 = sliced vbi, 3 = both\n"
 			     "\t\t    bit 12: Radio Transmitter node\n"
+#ifdef CONFIG_VIDEO_VIVID_OSD
 			     "\t\t    bit 16: Framebuffer for testing output overlays\n"
+#endif
 			     "\t\t    bit 17: Metadata Capture node\n"
 			     "\t\t    bit 18: Metadata Output node\n"
 			     "\t\t    bit 19: Touch Capture node\n");
@@ -1071,9 +1073,11 @@ static int vivid_detect_feature_set(struct vivid_dev *dev, int inst,
 	/* do we have a modulator? */
 	*has_modulator = dev->has_radio_tx;
 
+#ifdef CONFIG_VIDEO_VIVID_OSD
 	if (dev->has_vid_cap)
 		/* do we have a framebuffer for overlay testing? */
 		dev->has_fb = node_type & 0x10000;
+#endif
 
 	/* can we do crop/compose/scaling while capturing? */
 	if (no_error_inj && *ccs_cap == -1)
@@ -1410,8 +1414,6 @@ static int vivid_create_queues(struct vivid_dev *dev)
 		ret = vivid_fb_init(dev);
 		if (ret)
 			return ret;
-		v4l2_info(&dev->v4l2_dev, "Framebuffer device registered as fb%d\n",
-			  dev->fb_info.node);
 	}
 	return 0;
 }
@@ -2197,12 +2199,8 @@ static void vivid_remove(struct platform_device *pdev)
 				video_device_node_name(&dev->radio_tx_dev));
 			video_unregister_device(&dev->radio_tx_dev);
 		}
-		if (dev->has_fb) {
-			v4l2_info(&dev->v4l2_dev, "unregistering fb%d\n",
-				dev->fb_info.node);
-			unregister_framebuffer(&dev->fb_info);
-			vivid_fb_release_buffers(dev);
-		}
+		if (dev->has_fb)
+			vivid_fb_deinit(dev);
 		if (dev->has_meta_cap) {
 			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
 				  video_device_node_name(&dev->meta_cap_dev));

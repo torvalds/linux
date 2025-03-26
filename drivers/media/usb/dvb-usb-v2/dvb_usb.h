@@ -243,7 +243,7 @@ struct dvb_usb_device_properties {
 	int (*download_firmware) (struct dvb_usb_device *,
 			const struct firmware *);
 
-	struct i2c_algorithm *i2c_algo;
+	const struct i2c_algorithm *i2c_algo;
 
 	unsigned int num_adapters;
 	int (*get_adapter_count) (struct dvb_usb_device *);

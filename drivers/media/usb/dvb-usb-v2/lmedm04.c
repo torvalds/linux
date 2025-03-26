@@ -559,7 +559,7 @@ static u32 lme2510_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm lme2510_i2c_algo = {
+static const struct i2c_algorithm lme2510_i2c_algo = {
 	.master_xfer   = lme2510_i2c_xfer,
 	.functionality = lme2510_i2c_func,
 };
