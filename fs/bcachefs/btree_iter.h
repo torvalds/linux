@@ -9,7 +9,6 @@
 void bch2_trans_updates_to_text(struct printbuf *, struct btree_trans *);
 void bch2_btree_path_to_text(struct printbuf *, struct btree_trans *, btree_path_idx_t);
 void bch2_trans_paths_to_text(struct printbuf *, struct btree_trans *);
-void bch2_dump_trans_updates(struct btree_trans *);
 void bch2_dump_trans_paths_updates(struct btree_trans *);
 
 static inline int __bkey_err(const struct bkey *k)

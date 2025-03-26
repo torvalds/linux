@@ -55,7 +55,6 @@ bool bch2_trans_inconsistent(struct btree_trans *, const char *, ...);
 	_ret;								\
 })
 
-int bch2_topology_error(struct bch_fs *);
 int __bch2_topology_error(struct bch_fs *, struct printbuf *);
 __printf(2, 3)
 int bch2_fs_topology_error(struct bch_fs *, const char *, ...);

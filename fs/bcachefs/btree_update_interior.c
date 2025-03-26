@@ -54,6 +54,8 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 	struct bkey_buf prev;
 	int ret = 0;
 
+	printbuf_indent_add_nextline(&buf, 2);
+
 	BUG_ON(b->key.k.type == KEY_TYPE_btree_ptr_v2 &&
 	       !bpos_eq(bkey_i_to_btree_ptr_v2(&b->key)->v.min_key,
 			b->data->min_key));
@@ -64,19 +66,20 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 
 	if (b == btree_node_root(c, b)) {
 		if (!bpos_eq(b->data->min_key, POS_MIN)) {
-			printbuf_reset(&buf);
+			ret = __bch2_topology_error(c, &buf);
+
 			bch2_bpos_to_text(&buf, b->data->min_key);
 			log_fsck_err(trans, btree_root_bad_min_key,
 				      "btree root with incorrect min_key: %s", buf.buf);
-			goto topology_repair;
+			goto out;
 		}
 
 		if (!bpos_eq(b->data->max_key, SPOS_MAX)) {
-			printbuf_reset(&buf);
+			ret = __bch2_topology_error(c, &buf);
 			bch2_bpos_to_text(&buf, b->data->max_key);
 			log_fsck_err(trans, btree_root_bad_max_key,
 				      "btree root with incorrect max_key: %s", buf.buf);
-			goto topology_repair;
+			goto out;
 		}
 	}
 
@@ -94,9 +97,8 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 			: bpos_successor(prev.k->k.p);
 
 		if (!bpos_eq(expected_min, bp.v->min_key)) {
-			bch2_topology_error(c);
+			ret = __bch2_topology_error(c, &buf);
 
-			printbuf_reset(&buf);
 			prt_str(&buf, "end of prev node doesn't match start of next node\nin ");
 			bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
 			prt_str(&buf, " node ");
@@ -107,7 +109,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 			bch2_bkey_val_to_text(&buf, c, k);
 
 			log_fsck_err(trans, btree_node_topology_bad_min_key, "%s", buf.buf);
-			goto topology_repair;
+			goto out;
 		}
 
 		bch2_bkey_buf_reassemble(&prev, c, k);
@@ -115,20 +117,17 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 	}
 
 	if (bkey_deleted(&prev.k->k)) {
-		bch2_topology_error(c);
+		ret = __bch2_topology_error(c, &buf);
 
-		printbuf_reset(&buf);
 		prt_str(&buf, "empty interior node\nin ");
 		bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
 		prt_str(&buf, " node ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
 		log_fsck_err(trans, btree_node_topology_empty_interior_node, "%s", buf.buf);
-		goto topology_repair;
 	} else if (!bpos_eq(prev.k->k.p, b->key.k.p)) {
-		bch2_topology_error(c);
+		ret = __bch2_topology_error(c, &buf);
 
-		printbuf_reset(&buf);
 		prt_str(&buf, "last child node doesn't end at end of parent node\nin ");
 		bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
 		prt_str(&buf, " node ");
@@ -137,7 +136,6 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(prev.k));
 
 		log_fsck_err(trans, btree_node_topology_bad_max_key, "%s", buf.buf);
-		goto topology_repair;
 	}
 out:
 fsck_err:
@@ -145,9 +143,6 @@ fsck_err:
 	bch2_bkey_buf_exit(&prev, c);
 	printbuf_exit(&buf);
 	return ret;
-topology_repair:
-	ret = bch2_topology_error(c);
-	goto out;
 }
 
 /* Calculate ideal packed bkey format for new btree nodes: */
@@ -2007,18 +2002,22 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	}
 
 	if (!bpos_eq(bpos_successor(prev->data->max_key), next->data->min_key)) {
-		struct printbuf buf1 = PRINTBUF, buf2 = PRINTBUF;
+		struct printbuf buf = PRINTBUF;
 
-		bch2_bpos_to_text(&buf1, prev->data->max_key);
-		bch2_bpos_to_text(&buf2, next->data->min_key);
-		bch_err(c,
-			"%s(): btree topology error:\n"
-			"  prev ends at   %s\n"
-			"  next starts at %s",
-			__func__, buf1.buf, buf2.buf);
-		printbuf_exit(&buf1);
-		printbuf_exit(&buf2);
-		ret = bch2_topology_error(c);
+		printbuf_indent_add_nextline(&buf, 2);
+		prt_printf(&buf, "%s(): ", __func__);
+		ret = __bch2_topology_error(c, &buf);
+		prt_newline(&buf);
+
+		prt_printf(&buf, "prev ends at   ");
+		bch2_bpos_to_text(&buf, prev->data->max_key);
+		prt_newline(&buf);
+
+		prt_printf(&buf, "next starts at ");
+		bch2_bpos_to_text(&buf, next->data->min_key);
+
+		bch_err(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 		goto err;
 	}
 

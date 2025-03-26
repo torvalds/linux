@@ -5,8 +5,7 @@
 enum bch_fsck_flags {
 	FSCK_CAN_FIX		= 1 << 0,
 	FSCK_CAN_IGNORE		= 1 << 1,
-	FSCK_NO_RATELIMIT	= 1 << 2,
-	FSCK_AUTOFIX		= 1 << 3,
+	FSCK_AUTOFIX		= 1 << 2,
 };
 
 #define BCH_SB_ERRS()									\

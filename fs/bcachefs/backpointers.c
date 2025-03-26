@@ -96,6 +96,7 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
+	int ret = 0;
 
 	if (insert) {
 		prt_printf(&buf, "existing backpointer found when inserting ");
@@ -125,17 +126,15 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 
 		prt_printf(&buf, "for ");
 		bch2_bkey_val_to_text(&buf, c, orig_k);
-
-		bch_err(c, "%s", buf.buf);
 	}
 
+	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers &&
+	    __bch2_inconsistent_error(c, &buf))
+		ret = -BCH_ERR_erofs_unfixed_errors;
+
+	bch_err(c, "%s", buf.buf);
 	printbuf_exit(&buf);
-
-	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers) {
-		return bch2_inconsistent_error(c) ? BCH_ERR_erofs_unfixed_errors : 0;
-	} else {
-		return 0;
-	}
+	return ret;
 }
 
 int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *trans,

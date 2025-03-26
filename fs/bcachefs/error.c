@@ -92,23 +92,18 @@ bool bch2_trans_inconsistent(struct btree_trans *trans, const char *fmt, ...)
 	return ret;
 }
 
-int bch2_topology_error(struct bch_fs *c)
+int __bch2_topology_error(struct bch_fs *c, struct printbuf *out)
 {
+	prt_printf(out, "btree topology error: ");
+
 	set_bit(BCH_FS_topology_error, &c->flags);
 	if (!test_bit(BCH_FS_recovery_running, &c->flags)) {
-		bch2_inconsistent_error(c);
+		__bch2_inconsistent_error(c, out);
 		return -BCH_ERR_btree_need_topology_repair;
 	} else {
 		return bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology) ?:
 			-BCH_ERR_btree_node_read_validate_error;
 	}
-}
-
-int __bch2_topology_error(struct bch_fs *c, struct printbuf *out)
-{
-	prt_printf(out, "btree topology error: ");
-
-	return bch2_topology_error(c);
 }
 
 int bch2_fs_topology_error(struct bch_fs *c, const char *fmt, ...)
