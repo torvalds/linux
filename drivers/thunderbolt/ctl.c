@@ -312,7 +312,7 @@ static void tb_cfg_print_error(struct tb_ctl *ctl, enum tb_cfg_space space,
 
 static __be32 tb_crc(const void *data, size_t len)
 {
-	return cpu_to_be32(~__crc32c_le(~0, data, len));
+	return cpu_to_be32(~crc32c(~0, data, len));
 }
 
 static void tb_ctl_pkg_free(struct ctl_pkg *pkg)

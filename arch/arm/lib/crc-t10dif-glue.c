@@ -69,12 +69,6 @@ static void __exit crc_t10dif_arm_exit(void)
 }
 module_exit(crc_t10dif_arm_exit);
 
-bool crc_t10dif_is_optimized(void)
-{
-	return static_key_enabled(&have_neon);
-}
-EXPORT_SYMBOL(crc_t10dif_is_optimized);
-
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_DESCRIPTION("Accelerated CRC-T10DIF using ARM NEON and Crypto Extensions");
 MODULE_LICENSE("GPL v2");

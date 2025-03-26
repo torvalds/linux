@@ -210,7 +210,7 @@ static void t10_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 
 static __be64 ext_pi_crc64(u64 crc, void *data, unsigned int len)
 {
-	return cpu_to_be64(crc64_rocksoft_update(crc, data, len));
+	return cpu_to_be64(crc64_nvme(crc, data, len));
 }
 
 static void ext_pi_crc64_generate(struct blk_integrity_iter *iter,

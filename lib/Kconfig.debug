@@ -2889,6 +2889,7 @@ config CRC_KUNIT_TEST
 	tristate "KUnit tests for CRC functions" if !KUNIT_ALL_TESTS
 	depends on KUNIT
 	default KUNIT_ALL_TESTS
+	select CRC7
 	select CRC16
 	select CRC_T10DIF
 	select CRC32

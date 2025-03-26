@@ -676,8 +676,8 @@ static inline __wsum siw_csum_update(const void *buff, int len, __wsum sum)
 static inline __wsum siw_csum_combine(__wsum csum, __wsum csum2, int offset,
 				      int len)
 {
-	return (__force __wsum)__crc32c_le_combine((__force __u32)csum,
-						   (__force __u32)csum2, len);
+	return (__force __wsum)crc32c_combine((__force __u32)csum,
+					      (__force __u32)csum2, len);
 }
 
 static inline void siw_crc_skb(struct siw_rx_stream *srx, unsigned int len)

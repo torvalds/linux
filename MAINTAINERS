@@ -6147,6 +6147,7 @@ F:	Documentation/staging/crc*
 F:	arch/*/lib/crc*
 F:	include/linux/crc*
 F:	lib/crc*
+F:	scripts/gen-crc-consts.py
 
 CREATIVE SB0540
 M:	Bastien Nocera <hadess@hadess.net>
