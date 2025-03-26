@@ -4432,6 +4432,7 @@ static int mvneta_cpu_online(unsigned int cpu, struct hlist_node *node)
 	 */
 	if (pp->is_stopped) {
 		spin_unlock(&pp->lock);
+		netdev_unlock(port->napi.dev);
 		return 0;
 	}
 	netif_tx_stop_all_queues(pp->dev);

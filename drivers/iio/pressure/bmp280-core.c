@@ -1002,7 +1002,7 @@ static int bmp280_preinit(struct bmp280_data *data)
 	 * after resetting, the device uses the complete power-on sequence so
 	 * it needs to wait for the defined start-up time.
 	 */
-	fsleep(data->start_up_time);
+	fsleep(data->start_up_time_us);
 
 	ret = regmap_read(data->regmap, BMP280_REG_STATUS, &reg);
 	if (ret)
@@ -1161,7 +1161,7 @@ const struct bmp280_chip_info bmp280_chip_info = {
 	.chip_id = bmp280_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bmp280_chip_ids),
 	.regmap_config = &bmp280_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp280_channels,
 	.num_channels = ARRAY_SIZE(bmp280_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -1347,7 +1347,7 @@ const struct bmp280_chip_info bme280_chip_info = {
 	.chip_id = bme280_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bme280_chip_ids),
 	.regmap_config = &bme280_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bme280_channels,
 	.num_channels = ARRAY_SIZE(bme280_channels),
 	.avail_scan_masks = bme280_avail_scan_masks,
@@ -1414,7 +1414,7 @@ static int bmp380_cmd(struct bmp280_data *data, u8 cmd)
 		return ret;
 	}
 	/* Wait for 2ms for command to be processed */
-	usleep_range(data->start_up_time, data->start_up_time + 100);
+	fsleep(data->start_up_time_us);
 	/* Check for command processing error */
 	ret = regmap_read(data->regmap, BMP380_REG_ERROR, &reg);
 	if (ret) {
@@ -1806,7 +1806,7 @@ static int bmp380_chip_config(struct bmp280_data *data)
 		 * formula in datasheet section 3.9.2 with an offset of ~+15%
 		 * as it seen as well in table 3.9.1.
 		 */
-		msleep(150);
+		fsleep(150 * USEC_PER_MSEC);
 
 		/* Check config error flag */
 		ret = regmap_read(data->regmap, BMP380_REG_ERROR, &tmp);
@@ -1957,7 +1957,7 @@ const struct bmp280_chip_info bmp380_chip_info = {
 	.num_chip_id = ARRAY_SIZE(bmp380_chip_ids),
 	.regmap_config = &bmp380_regmap_config,
 	.spi_read_extra_byte = true,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp380_channels,
 	.num_channels = ARRAY_SIZE(bmp380_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -2006,7 +2006,8 @@ static int bmp580_soft_reset(struct bmp280_data *data)
 		dev_err(data->dev, "failed to send reset command to device\n");
 		return ret;
 	}
-	usleep_range(2000, 2500);
+	/* From datasheet's table 4: electrical characteristics */
+	fsleep(2000);
 
 	/* Dummy read of chip_id */
 	ret = regmap_read(data->regmap, BMP580_REG_CHIP_ID, &reg);
@@ -2208,7 +2209,7 @@ static int bmp580_nvmem_read_impl(void *priv, unsigned int offset, void *val,
 		goto exit;
 	}
 	/* Wait standby transition time */
-	usleep_range(2500, 3000);
+	fsleep(2500);
 
 	while (bytes >= sizeof(*dst)) {
 		addr = bmp580_nvmem_addrs[offset / sizeof(*dst)];
@@ -2274,7 +2275,7 @@ static int bmp580_nvmem_write_impl(void *priv, unsigned int offset, void *val,
 		goto exit;
 	}
 	/* Wait standby transition time */
-	usleep_range(2500, 3000);
+	fsleep(2500);
 
 	while (bytes >= sizeof(*buf)) {
 		addr = bmp580_nvmem_addrs[offset / sizeof(*buf)];
@@ -2458,7 +2459,7 @@ static int bmp580_chip_config(struct bmp280_data *data)
 		return ret;
 	}
 	/* From datasheet's table 4: electrical characteristics */
-	usleep_range(2500, 3000);
+	fsleep(2500);
 
 	/* Set default DSP mode settings */
 	reg_val = FIELD_PREP(BMP580_DSP_COMP_MASK, BMP580_DSP_PRESS_TEMP_COMP_EN) |
@@ -2649,7 +2650,7 @@ const struct bmp280_chip_info bmp580_chip_info = {
 	.chip_id = bmp580_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bmp580_chip_ids),
 	.regmap_config = &bmp580_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp580_channels,
 	.num_channels = ARRAY_SIZE(bmp580_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -2720,7 +2721,7 @@ static int bmp180_wait_for_eoc(struct bmp280_data *data, u8 ctrl_meas)
 			delay_us =
 				conversion_time_max[data->oversampling_press];
 
-		usleep_range(delay_us, delay_us + 1000);
+		fsleep(delay_us);
 	}
 
 	ret = regmap_read(data->regmap, BMP280_REG_CTRL_MEAS, &ctrl);
@@ -2988,7 +2989,7 @@ const struct bmp280_chip_info bmp180_chip_info = {
 	.chip_id = bmp180_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bmp180_chip_ids),
 	.regmap_config = &bmp180_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp280_channels,
 	.num_channels = ARRAY_SIZE(bmp280_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -3066,7 +3067,7 @@ const struct bmp280_chip_info bmp085_chip_info = {
 	.chip_id = bmp180_chip_ids,
 	.num_chip_id = ARRAY_SIZE(bmp180_chip_ids),
 	.regmap_config = &bmp180_regmap_config,
-	.start_up_time = 2000,
+	.start_up_time_us = 2000,
 	.channels = bmp280_channels,
 	.num_channels = ARRAY_SIZE(bmp280_channels),
 	.avail_scan_masks = bmp280_avail_scan_masks,
@@ -3175,7 +3176,7 @@ int bmp280_common_probe(struct device *dev,
 	data->oversampling_temp = chip_info->oversampling_temp_default;
 	data->iir_filter_coeff = chip_info->iir_filter_coeff_default;
 	data->sampling_freq = chip_info->sampling_freq_default;
-	data->start_up_time = chip_info->start_up_time;
+	data->start_up_time_us = chip_info->start_up_time_us;
 
 	/* Bring up regulators */
 	regulator_bulk_set_supply_names(data->supplies,
@@ -3201,7 +3202,7 @@ int bmp280_common_probe(struct device *dev,
 		return ret;
 
 	/* Wait to make sure we started up properly */
-	usleep_range(data->start_up_time, data->start_up_time + 100);
+	fsleep(data->start_up_time_us);
 
 	/* Bring chip out of reset if there is an assigned GPIO line */
 	gpiod = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
@@ -3287,7 +3288,7 @@ int bmp280_common_probe(struct device *dev,
 	 * Set autosuspend to two orders of magnitude larger than the
 	 * start-up time.
 	 */
-	pm_runtime_set_autosuspend_delay(dev, data->start_up_time / 10);
+	pm_runtime_set_autosuspend_delay(dev, data->start_up_time_us / 10);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_put(dev);
 
@@ -3306,7 +3307,7 @@ static int bmp280_runtime_suspend(struct device *dev)
 
 	data->chip_info->set_mode(data, BMP280_SLEEP);
 
-	fsleep(data->start_up_time);
+	fsleep(data->start_up_time_us);
 	return regulator_bulk_disable(BMP280_NUM_SUPPLIES, data->supplies);
 }
 
@@ -3320,7 +3321,7 @@ static int bmp280_runtime_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	usleep_range(data->start_up_time, data->start_up_time + 100);
+	fsleep(data->start_up_time_us);
 
 	ret = data->chip_info->chip_config(data);
 	if (ret)

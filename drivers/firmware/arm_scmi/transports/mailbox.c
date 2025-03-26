@@ -378,6 +378,7 @@ static const struct of_device_id scmi_of_match[] = {
 	{ .compatible = "arm,scmi" },
 	{ /* Sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, scmi_of_match);
 
 DEFINE_SCMI_TRANSPORT_DRIVER(scmi_mailbox, scmi_mailbox_driver,
 			     scmi_mailbox_desc, scmi_of_match, core);

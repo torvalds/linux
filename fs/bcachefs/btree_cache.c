@@ -24,7 +24,10 @@ do {						 \
 } while (0)
 
 const char * const bch2_btree_node_flags[] = {
-#define x(f)	#f,
+	"typebit",
+	"typebit",
+	"typebit",
+#define x(f)	[BTREE_NODE_##f] = #f,
 	BTREE_FLAGS()
 #undef x
 	NULL

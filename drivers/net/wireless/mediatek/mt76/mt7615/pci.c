@@ -164,12 +164,16 @@ static int mt7615_pci_resume(struct pci_dev *pdev)
 		dev_err(mdev->dev, "PDMA engine must be reinitialized\n");
 
 	mt76_worker_enable(&mdev->tx_worker);
-	local_bh_disable();
+
 	mt76_for_each_q_rx(mdev, i) {
 		napi_enable(&mdev->napi[i]);
-		napi_schedule(&mdev->napi[i]);
 	}
 	napi_enable(&mdev->tx_napi);
+
+	local_bh_disable();
+	mt76_for_each_q_rx(mdev, i) {
+		napi_schedule(&mdev->napi[i]);
+	}
 	napi_schedule(&mdev->tx_napi);
 	local_bh_enable();
 

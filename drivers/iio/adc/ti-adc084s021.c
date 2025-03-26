@@ -29,7 +29,7 @@ struct adc084s021 {
 	/* Buffer used to align data */
 	struct {
 		__be16 channels[4];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 	/*
 	 * DMA (thus cache coherency maintenance) may require the

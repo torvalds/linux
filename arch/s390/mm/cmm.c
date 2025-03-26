@@ -204,7 +204,7 @@ static void cmm_set_timer(void)
 			del_timer(&cmm_timer);
 		return;
 	}
-	mod_timer(&cmm_timer, jiffies + msecs_to_jiffies(cmm_timeout_seconds * MSEC_PER_SEC));
+	mod_timer(&cmm_timer, jiffies + secs_to_jiffies(cmm_timeout_seconds));
 }
 
 static void cmm_timer_fn(struct timer_list *unused)
@@ -332,7 +332,7 @@ static int cmm_timeout_handler(const struct ctl_table *ctl, int write,
 	return 0;
 }
 
-static struct ctl_table cmm_table[] = {
+static const struct ctl_table cmm_table[] = {
 	{
 		.procname	= "cmm_pages",
 		.mode		= 0644,

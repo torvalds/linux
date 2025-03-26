@@ -60,7 +60,7 @@ void nvme_mpath_unfreeze(struct nvme_subsystem *subsys)
 	lockdep_assert_held(&subsys->lock);
 	list_for_each_entry(h, &subsys->nsheads, entry)
 		if (h->disk)
-			blk_mq_unfreeze_queue(h->disk->queue);
+			blk_mq_unfreeze_queue_nomemrestore(h->disk->queue);
 }
 
 void nvme_mpath_wait_freeze(struct nvme_subsystem *subsys)

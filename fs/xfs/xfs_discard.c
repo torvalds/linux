@@ -90,7 +90,7 @@ xfs_discard_endio_work(
 
 /*
  * Queue up the actual completion to a thread to avoid IRQ-safe locking for
- * pagb_lock.
+ * eb_lock.
  */
 static void
 xfs_discard_endio(

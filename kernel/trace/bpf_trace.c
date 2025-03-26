@@ -357,17 +357,6 @@ static const struct bpf_func_proto bpf_probe_write_user_proto = {
 	.arg3_type	= ARG_CONST_SIZE,
 };
 
-static const struct bpf_func_proto *bpf_get_probe_write_proto(void)
-{
-	if (!capable(CAP_SYS_ADMIN))
-		return NULL;
-
-	pr_warn_ratelimited("%s[%d] is installing a program with bpf_probe_write_user helper that may corrupt user memory!",
-			    current->comm, task_pid_nr(current));
-
-	return &bpf_probe_write_user_proto;
-}
-
 #define MAX_TRACE_PRINTK_VARARGS	3
 #define BPF_TRACE_PRINTK_SIZE		1024
 
@@ -854,7 +843,7 @@ static int bpf_send_signal_common(u32 sig, enum pid_type type, struct task_struc
 	if (unlikely(is_global_init(task)))
 		return -EPERM;
 
-	if (irqs_disabled()) {
+	if (!preemptible()) {
 		/* Do an early check on signal validity. Otherwise,
 		 * the error is lost in deferred irq_work.
 		 */
@@ -1445,6 +1434,8 @@ late_initcall(bpf_key_sig_kfuncs_init);
 static const struct bpf_func_proto *
 bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
+	const struct bpf_func_proto *func_proto;
+
 	switch (func_id) {
 	case BPF_FUNC_map_lookup_elem:
 		return &bpf_map_lookup_elem_proto;
@@ -1486,9 +1477,6 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_perf_event_read_proto;
 	case BPF_FUNC_get_prandom_u32:
 		return &bpf_get_prandom_u32_proto;
-	case BPF_FUNC_probe_write_user:
-		return security_locked_down(LOCKDOWN_BPF_WRITE_USER) < 0 ?
-		       NULL : bpf_get_probe_write_proto();
 	case BPF_FUNC_probe_read_user:
 		return &bpf_probe_read_user_proto;
 	case BPF_FUNC_probe_read_kernel:
@@ -1567,7 +1555,22 @@ bpf_tracing_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_trace_vprintk:
 		return bpf_get_trace_vprintk_proto();
 	default:
-		return bpf_base_func_proto(func_id, prog);
+		break;
+	}
+
+	func_proto = bpf_base_func_proto(func_id, prog);
+	if (func_proto)
+		return func_proto;
+
+	if (!bpf_token_capable(prog->aux->token, CAP_SYS_ADMIN))
+		return NULL;
+
+	switch (func_id) {
+	case BPF_FUNC_probe_write_user:
+		return security_locked_down(LOCKDOWN_BPF_WRITE_USER) < 0 ?
+		       NULL : &bpf_probe_write_user_proto;
+	default:
+		return NULL;
 	}
 }
 
@@ -2243,6 +2246,7 @@ void perf_event_detach_bpf_prog(struct perf_event *event)
 {
 	struct bpf_prog_array *old_array;
 	struct bpf_prog_array *new_array;
+	struct bpf_prog *prog = NULL;
 	int ret;
 
 	mutex_lock(&bpf_event_mutex);
@@ -2263,18 +2267,22 @@ void perf_event_detach_bpf_prog(struct perf_event *event)
 	}
 
 put:
-	/*
-	 * It could be that the bpf_prog is not sleepable (and will be freed
-	 * via normal RCU), but is called from a point that supports sleepable
-	 * programs and uses tasks-trace-RCU.
-	 */
-	synchronize_rcu_tasks_trace();
-
-	bpf_prog_put(event->prog);
+	prog = event->prog;
 	event->prog = NULL;
 
 unlock:
 	mutex_unlock(&bpf_event_mutex);
+
+	if (prog) {
+		/*
+		 * It could be that the bpf_prog is not sleepable (and will be freed
+		 * via normal RCU), but is called from a point that supports sleepable
+		 * programs and uses tasks-trace-RCU.
+		 */
+		synchronize_rcu_tasks_trace();
+
+		bpf_prog_put(prog);
+	}
 }
 
 int perf_event_query_prog_array(struct perf_event *event, void __user *info)
@@ -2810,7 +2818,7 @@ kprobe_multi_link_prog_run(struct bpf_kprobe_multi_link *link,
 
 	if (unlikely(__this_cpu_inc_return(bpf_prog_active) != 1)) {
 		bpf_prog_inc_misses_counter(link->link.prog);
-		err = 0;
+		err = 1;
 		goto out;
 	}
 

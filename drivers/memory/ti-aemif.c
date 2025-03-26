@@ -13,7 +13,9 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/memory/ti-aemif.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
@@ -69,39 +71,27 @@
 #define ACR_SSTROBE_MASK	BIT(31)
 #define ASIZE_16BIT	1
 
-#define CONFIG_MASK	(TA(TA_MAX) | \
-				RHOLD(RHOLD_MAX) | \
-				RSTROBE(RSTROBE_MAX) |	\
-				RSETUP(RSETUP_MAX) | \
-				WHOLD(WHOLD_MAX) | \
-				WSTROBE(WSTROBE_MAX) | \
-				WSETUP(WSETUP_MAX) | \
-				EW(EW_MAX) | SSTROBE(SSTROBE_MAX) | \
-				ASIZE_MAX)
+#define TIMINGS_MASK	(TA(TA_MAX) | \
+			RHOLD(RHOLD_MAX) | \
+			RSTROBE(RSTROBE_MAX) |	\
+			RSETUP(RSETUP_MAX) | \
+			WHOLD(WHOLD_MAX) | \
+			WSTROBE(WSTROBE_MAX) | \
+			WSETUP(WSETUP_MAX))
+
+#define CONFIG_MASK	(EW(EW_MAX) | SSTROBE(SSTROBE_MAX) | ASIZE_MAX)
 
 /**
- * struct aemif_cs_data: structure to hold cs parameters
+ * struct aemif_cs_data: structure to hold CS parameters
+ * @timings: timings configuration
  * @cs: chip-select number
- * @wstrobe: write strobe width, ns
- * @rstrobe: read strobe width, ns
- * @wsetup: write setup width, ns
- * @whold: write hold width, ns
- * @rsetup: read setup width, ns
- * @rhold: read hold width, ns
- * @ta: minimum turn around time, ns
  * @enable_ss: enable/disable select strobe mode
  * @enable_ew: enable/disable extended wait mode
  * @asize: width of the asynchronous device's data bus
  */
 struct aemif_cs_data {
+	struct aemif_cs_timings timings;
 	u8	cs;
-	u16	wstrobe;
-	u16	rstrobe;
-	u8	wsetup;
-	u8	whold;
-	u8	rsetup;
-	u8	rhold;
-	u8	ta;
 	u8	enable_ss;
 	u8	enable_ew;
 	u8	asize;
@@ -115,6 +105,7 @@ struct aemif_cs_data {
  * @num_cs: number of assigned chip-selects
  * @cs_offset: start number of cs nodes
  * @cs_data: array of chip-select settings
+ * @config_cs_lock: lock used to access CS configuration
  */
 struct aemif_device {
 	void __iomem *base;
@@ -123,20 +114,94 @@ struct aemif_device {
 	u8 num_cs;
 	int cs_offset;
 	struct aemif_cs_data cs_data[NUM_CS];
+	struct mutex config_cs_lock;
 };
+
+/**
+ * aemif_check_cs_timings() - Check the validity of a CS timing configuration.
+ * @timings: timings configuration
+ *
+ * @return: 0 if the timing configuration is valid, negative error number otherwise.
+ */
+int aemif_check_cs_timings(struct aemif_cs_timings *timings)
+{
+	if (timings->ta > TA_MAX)
+		return -EINVAL;
+
+	if (timings->rhold > RHOLD_MAX)
+		return -EINVAL;
+
+	if (timings->rstrobe > RSTROBE_MAX)
+		return -EINVAL;
+
+	if (timings->rsetup > RSETUP_MAX)
+		return -EINVAL;
+
+	if (timings->whold > WHOLD_MAX)
+		return -EINVAL;
+
+	if (timings->wstrobe > WSTROBE_MAX)
+		return -EINVAL;
+
+	if (timings->wsetup > WSETUP_MAX)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(aemif_check_cs_timings);
+
+/**
+ * aemif_set_cs_timings() - Set the timing configuration of a given chip select.
+ * @aemif: aemif device to configure
+ * @cs: index of the chip select to configure
+ * @timings: timings configuration to set
+ *
+ * @return: 0 on success, else negative errno.
+ */
+int aemif_set_cs_timings(struct aemif_device *aemif, u8 cs,
+			 struct aemif_cs_timings *timings)
+{
+	unsigned int offset;
+	u32 val, set;
+	int ret;
+
+	if (!timings || !aemif)
+		return -EINVAL;
+
+	if (cs > aemif->num_cs)
+		return -EINVAL;
+
+	ret = aemif_check_cs_timings(timings);
+	if (ret)
+		return ret;
+
+	set = TA(timings->ta) | RHOLD(timings->rhold) | RSTROBE(timings->rstrobe) |
+	      RSETUP(timings->rsetup) | WHOLD(timings->whold) |
+	      WSTROBE(timings->wstrobe) | WSETUP(timings->wsetup);
+
+	offset = A1CR_OFFSET + cs * 4;
+
+	mutex_lock(&aemif->config_cs_lock);
+	val = readl(aemif->base + offset);
+	val &= ~TIMINGS_MASK;
+	val |= set;
+	writel(val, aemif->base + offset);
+	mutex_unlock(&aemif->config_cs_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(aemif_set_cs_timings);
 
 /**
  * aemif_calc_rate - calculate timing data.
  * @pdev: platform device to calculate for
  * @wanted: The cycle time needed in nanoseconds.
  * @clk: The input clock rate in kHz.
- * @max: The maximum divider value that can be programmed.
  *
- * On success, returns the calculated timing value minus 1 for easy
- * programming into AEMIF timing registers, else negative errno.
+ * @return: the calculated timing value minus 1 for easy
+ * programming into AEMIF timing registers.
  */
-static int aemif_calc_rate(struct platform_device *pdev, int wanted,
-			   unsigned long clk, int max)
+static u32 aemif_calc_rate(struct platform_device *pdev, int wanted, unsigned long clk)
 {
 	int result;
 
@@ -148,10 +213,6 @@ static int aemif_calc_rate(struct platform_device *pdev, int wanted,
 	/* It is generally OK to have a more relaxed timing than requested... */
 	if (result < 0)
 		result = 0;
-
-	/* ... But configuring tighter timings is not an option. */
-	else if (result > max)
-		result = -EINVAL;
 
 	return result;
 }
@@ -174,48 +235,25 @@ static int aemif_config_abus(struct platform_device *pdev, int csnum)
 {
 	struct aemif_device *aemif = platform_get_drvdata(pdev);
 	struct aemif_cs_data *data = &aemif->cs_data[csnum];
-	int ta, rhold, rstrobe, rsetup, whold, wstrobe, wsetup;
-	unsigned long clk_rate = aemif->clk_rate;
 	unsigned offset;
 	u32 set, val;
 
 	offset = A1CR_OFFSET + (data->cs - aemif->cs_offset) * 4;
 
-	ta	= aemif_calc_rate(pdev, data->ta, clk_rate, TA_MAX);
-	rhold	= aemif_calc_rate(pdev, data->rhold, clk_rate, RHOLD_MAX);
-	rstrobe	= aemif_calc_rate(pdev, data->rstrobe, clk_rate, RSTROBE_MAX);
-	rsetup	= aemif_calc_rate(pdev, data->rsetup, clk_rate, RSETUP_MAX);
-	whold	= aemif_calc_rate(pdev, data->whold, clk_rate, WHOLD_MAX);
-	wstrobe	= aemif_calc_rate(pdev, data->wstrobe, clk_rate, WSTROBE_MAX);
-	wsetup	= aemif_calc_rate(pdev, data->wsetup, clk_rate, WSETUP_MAX);
-
-	if (ta < 0 || rhold < 0 || rstrobe < 0 || rsetup < 0 ||
-	    whold < 0 || wstrobe < 0 || wsetup < 0) {
-		dev_err(&pdev->dev, "%s: cannot get suitable timings\n",
-			__func__);
-		return -EINVAL;
-	}
-
-	set = TA(ta) | RHOLD(rhold) | RSTROBE(rstrobe) | RSETUP(rsetup) |
-		WHOLD(whold) | WSTROBE(wstrobe) | WSETUP(wsetup);
-
-	set |= (data->asize & ACR_ASIZE_MASK);
+	set = (data->asize & ACR_ASIZE_MASK);
 	if (data->enable_ew)
 		set |= ACR_EW_MASK;
 	if (data->enable_ss)
 		set |= ACR_SSTROBE_MASK;
 
+	mutex_lock(&aemif->config_cs_lock);
 	val = readl(aemif->base + offset);
 	val &= ~CONFIG_MASK;
 	val |= set;
 	writel(val, aemif->base + offset);
+	mutex_unlock(&aemif->config_cs_lock);
 
-	return 0;
-}
-
-static inline int aemif_cycles_to_nsec(int val, unsigned long clk_rate)
-{
-	return ((val + 1) * NSEC_PER_MSEC) / clk_rate;
+	return aemif_set_cs_timings(aemif, data->cs - aemif->cs_offset, &data->timings);
 }
 
 /**
@@ -231,19 +269,18 @@ static void aemif_get_hw_params(struct platform_device *pdev, int csnum)
 {
 	struct aemif_device *aemif = platform_get_drvdata(pdev);
 	struct aemif_cs_data *data = &aemif->cs_data[csnum];
-	unsigned long clk_rate = aemif->clk_rate;
 	u32 val, offset;
 
 	offset = A1CR_OFFSET + (data->cs - aemif->cs_offset) * 4;
 	val = readl(aemif->base + offset);
 
-	data->ta = aemif_cycles_to_nsec(TA_VAL(val), clk_rate);
-	data->rhold = aemif_cycles_to_nsec(RHOLD_VAL(val), clk_rate);
-	data->rstrobe = aemif_cycles_to_nsec(RSTROBE_VAL(val), clk_rate);
-	data->rsetup = aemif_cycles_to_nsec(RSETUP_VAL(val), clk_rate);
-	data->whold = aemif_cycles_to_nsec(WHOLD_VAL(val), clk_rate);
-	data->wstrobe = aemif_cycles_to_nsec(WSTROBE_VAL(val), clk_rate);
-	data->wsetup = aemif_cycles_to_nsec(WSETUP_VAL(val), clk_rate);
+	data->timings.ta = TA_VAL(val);
+	data->timings.rhold = RHOLD_VAL(val);
+	data->timings.rstrobe = RSTROBE_VAL(val);
+	data->timings.rsetup = RSETUP_VAL(val);
+	data->timings.whold = WHOLD_VAL(val);
+	data->timings.wstrobe = WSTROBE_VAL(val);
+	data->timings.wsetup = WSETUP_VAL(val);
 	data->enable_ew = EW_VAL(val);
 	data->enable_ss = SSTROBE_VAL(val);
 	data->asize = val & ASIZE_MAX;
@@ -261,6 +298,7 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 				      struct device_node *np)
 {
 	struct aemif_device *aemif = platform_get_drvdata(pdev);
+	unsigned long clk_rate = aemif->clk_rate;
 	struct aemif_cs_data *data;
 	u32 cs;
 	u32 val;
@@ -288,32 +326,33 @@ static int of_aemif_parse_abus_config(struct platform_device *pdev,
 
 	/* override the values from device node */
 	if (!of_property_read_u32(np, "ti,cs-min-turnaround-ns", &val))
-		data->ta = val;
+		data->timings.ta = aemif_calc_rate(pdev, val, clk_rate);
 
 	if (!of_property_read_u32(np, "ti,cs-read-hold-ns", &val))
-		data->rhold = val;
+		data->timings.rhold = aemif_calc_rate(pdev, val, clk_rate);
 
 	if (!of_property_read_u32(np, "ti,cs-read-strobe-ns", &val))
-		data->rstrobe = val;
+		data->timings.rstrobe = aemif_calc_rate(pdev, val, clk_rate);
 
 	if (!of_property_read_u32(np, "ti,cs-read-setup-ns", &val))
-		data->rsetup = val;
+		data->timings.rsetup = aemif_calc_rate(pdev, val, clk_rate);
 
 	if (!of_property_read_u32(np, "ti,cs-write-hold-ns", &val))
-		data->whold = val;
+		data->timings.whold = aemif_calc_rate(pdev, val, clk_rate);
 
 	if (!of_property_read_u32(np, "ti,cs-write-strobe-ns", &val))
-		data->wstrobe = val;
+		data->timings.wstrobe = aemif_calc_rate(pdev, val, clk_rate);
 
 	if (!of_property_read_u32(np, "ti,cs-write-setup-ns", &val))
-		data->wsetup = val;
+		data->timings.wsetup = aemif_calc_rate(pdev, val, clk_rate);
 
 	if (!of_property_read_u32(np, "ti,cs-bus-width", &val))
 		if (val == 16)
 			data->asize = 1;
 	data->enable_ew = of_property_read_bool(np, "ti,cs-extended-wait-mode");
 	data->enable_ss = of_property_read_bool(np, "ti,cs-select-strobe-mode");
-	return 0;
+
+	return aemif_check_cs_timings(&data->timings);
 }
 
 static const struct of_device_id aemif_of_match[] = {
@@ -351,6 +390,7 @@ static int aemif_probe(struct platform_device *pdev)
 	if (IS_ERR(aemif->base))
 		return PTR_ERR(aemif->base);
 
+	mutex_init(&aemif->config_cs_lock);
 	if (np) {
 		/*
 		 * For every controller device node, there is a cs device node

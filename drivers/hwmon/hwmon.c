@@ -332,7 +332,7 @@ static int hwmon_attr_base(enum hwmon_sensor_types type)
 
 static DEFINE_MUTEX(hwmon_pec_mutex);
 
-static int hwmon_match_device(struct device *dev, void *data)
+static int hwmon_match_device(struct device *dev, const void *data)
 {
 	return dev->class == &hwmon_class;
 }

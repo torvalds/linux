@@ -756,6 +756,9 @@ retry:
 			return VM_FAULT_SIGBUS;
 		}
 	} else {
+		result = filemap_fsnotify_fault(vmf);
+		if (unlikely(result))
+			return result;
 		filemap_invalidate_lock_shared(mapping);
 	}
 	result = dax_iomap_fault(vmf, order, &pfn, &error, &ext4_iomap_ops);

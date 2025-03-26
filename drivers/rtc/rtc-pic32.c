@@ -330,7 +330,7 @@ static int pic32_rtc_probe(struct platform_device *pdev)
 
 	pic32_rtc_enable(pdata, 1);
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	pdata->rtc->ops = &pic32_rtcops;
 	pdata->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;

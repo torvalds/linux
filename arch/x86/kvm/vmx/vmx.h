@@ -176,6 +176,7 @@ struct nested_vmx {
 	bool reload_vmcs01_apic_access_page;
 	bool update_vmcs01_cpu_dirty_logging;
 	bool update_vmcs01_apicv_status;
+	bool update_vmcs01_hwapic_isr;
 
 	/*
 	 * Enlightened VMCS has been enabled. It does not mean that L1 has to
@@ -330,7 +331,10 @@ struct vcpu_vmx {
 	bool ple_window_dirty;
 
 	/* Support for PML */
-#define PML_ENTITY_NUM		512
+#define PML_LOG_NR_ENTRIES	512
+	/* PML is written backwards: this is the first entry written by the CPU */
+#define PML_HEAD_INDEX		(PML_LOG_NR_ENTRIES-1)
+
 	struct page *pml_pg;
 
 	/* apic deadline value in host tsc */

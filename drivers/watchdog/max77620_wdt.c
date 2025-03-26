@@ -25,7 +25,6 @@ static bool nowayout = WATCHDOG_NOWAYOUT;
 
 /**
  * struct max77620_variant - Data specific to a chip variant
- * @wdt_info:            watchdog descriptor
  * @reg_onoff_cnfg2:     ONOFF_CNFG2 register offset
  * @reg_cnfg_glbl2:      CNFG_GLBL2 register offset
  * @reg_cnfg_glbl3:      CNFG_GLBL3 register offset

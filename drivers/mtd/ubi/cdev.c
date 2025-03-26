@@ -828,6 +828,70 @@ out_free:
 	return err;
 }
 
+static int ubi_get_ec_info(struct ubi_device *ubi, struct ubi_ecinfo_req __user *ureq)
+{
+	struct ubi_ecinfo_req req;
+	struct ubi_wl_entry *wl;
+	int read_cnt;
+	int peb;
+	int end_peb;
+
+	/* Copy the input arguments */
+	if (copy_from_user(&req, ureq, sizeof(struct ubi_ecinfo_req)))
+		return -EFAULT;
+
+	/* Check input arguments */
+	if (req.length <= 0 || req.start < 0 || req.start >= ubi->peb_count)
+		return -EINVAL;
+
+	if (check_add_overflow(req.start, req.length, &end_peb))
+		return -EINVAL;
+
+	if (end_peb > ubi->peb_count)
+		end_peb = ubi->peb_count;
+
+	/* Check access rights before filling erase_counters array */
+	if (!access_ok((void __user *)ureq->erase_counters,
+		       (end_peb-req.start) * sizeof(int32_t)))
+		return -EFAULT;
+
+	/* Fill erase counter array */
+	read_cnt = 0;
+	for (peb = req.start; peb < end_peb; read_cnt++, peb++) {
+		int ec;
+
+		if (ubi_io_is_bad(ubi, peb)) {
+			if (__put_user(UBI_UNKNOWN, ureq->erase_counters+read_cnt))
+				return -EFAULT;
+
+			continue;
+		}
+
+		spin_lock(&ubi->wl_lock);
+
+		wl = ubi->lookuptbl[peb];
+		if (wl)
+			ec = wl->ec;
+		else
+			ec = UBI_UNKNOWN;
+
+		spin_unlock(&ubi->wl_lock);
+
+		if (__put_user(ec, ureq->erase_counters+read_cnt))
+			return -EFAULT;
+
+	}
+
+	/* Return actual read length */
+	req.read_length = read_cnt;
+
+	/* Copy everything except erase counter array */
+	if (copy_to_user(ureq, &req, sizeof(struct ubi_ecinfo_req)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 			   unsigned long arg)
 {
@@ -988,6 +1052,12 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 		}
 
 		err = ubi_bitflip_check(ubi, pnum, 1);
+		break;
+	}
+
+	case UBI_IOCECNFO:
+	{
+		err = ubi_get_ec_info(ubi, argp);
 		break;
 	}
 

@@ -1646,14 +1646,12 @@ out:
 	/* If the caller wanted a synchronous DA_ID completion, signal the
 	 * wait obj and clear flag to reset the vport.
 	 */
-	if (ndlp->save_flags & NLP_WAIT_FOR_DA_ID) {
+	if (test_bit(NLP_WAIT_FOR_DA_ID, &ndlp->save_flags)) {
 		if (ndlp->da_id_waitq)
 			wake_up(ndlp->da_id_waitq);
 	}
 
-	spin_lock_irq(&ndlp->lock);
-	ndlp->save_flags &= ~NLP_WAIT_FOR_DA_ID;
-	spin_unlock_irq(&ndlp->lock);
+	clear_bit(NLP_WAIT_FOR_DA_ID, &ndlp->save_flags);
 
 	lpfc_ct_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);

@@ -9,6 +9,7 @@
 #ifndef TB_H_
 #define TB_H_
 
+#include <linux/debugfs.h>
 #include <linux/nvmem-provider.h>
 #include <linux/pci.h>
 #include <linux/thunderbolt.h>
@@ -160,6 +161,7 @@ struct tb_switch_tmu {
  * @max_pcie_credits: Router preferred number of buffers for PCIe
  * @max_dma_credits: Router preferred number of buffers for DMA/P2P
  * @clx: CLx states on the upstream link of the router
+ * @drom_blob: DROM debugfs blob wrapper
  *
  * When the switch is being added or removed to the domain (other
  * switches) you need to have domain lock held.
@@ -212,6 +214,9 @@ struct tb_switch {
 	unsigned int max_pcie_credits;
 	unsigned int max_dma_credits;
 	unsigned int clx;
+#ifdef CONFIG_DEBUG_FS
+	struct debugfs_blob_wrapper drom_blob;
+#endif
 };
 
 /**

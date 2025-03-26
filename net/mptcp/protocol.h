@@ -149,22 +149,24 @@ struct mptcp_options_received {
 	u32	subflow_seq;
 	u16	data_len;
 	__sum16	csum;
-	u16	suboptions;
+	struct_group(status,
+		u16 suboptions;
+		u16 use_map:1,
+		    dsn64:1,
+		    data_fin:1,
+		    use_ack:1,
+		    ack64:1,
+		    mpc_map:1,
+		    reset_reason:4,
+		    reset_transient:1,
+		    echo:1,
+		    backup:1,
+		    deny_join_id0:1,
+		    __unused:2;
+	);
+	u8	join_id;
 	u32	token;
 	u32	nonce;
-	u16	use_map:1,
-		dsn64:1,
-		data_fin:1,
-		use_ack:1,
-		ack64:1,
-		mpc_map:1,
-		reset_reason:4,
-		reset_transient:1,
-		echo:1,
-		backup:1,
-		deny_join_id0:1,
-		__unused:2;
-	u8	join_id;
 	u64	thmac;
 	u8	hmac[MPTCPOPT_HMAC_LEN];
 	struct mptcp_addr_info addr;

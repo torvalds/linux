@@ -52,7 +52,10 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 		{ "rmapbt",		xfsstats_offset(xs_refcbt_2)	},
 		{ "refcntbt",		xfsstats_offset(xs_rmap_mem_2)	},
 		{ "rmapbt_mem",		xfsstats_offset(xs_rcbag_2)	},
-		{ "rcbagbt",		xfsstats_offset(xs_qm_dqreclaims)},
+		{ "rcbagbt",		xfsstats_offset(xs_rtrmap_2)	},
+		{ "rtrmapbt",		xfsstats_offset(xs_rtrmap_mem_2)},
+		{ "rtrmapbt_mem",	xfsstats_offset(xs_rtrefcbt_2)	},
+		{ "rtrefcntbt",		xfsstats_offset(xs_qm_dqreclaims)},
 		/* we print both series of quota information together */
 		{ "qm",			xfsstats_offset(xs_xstrat_bytes)},
 	};

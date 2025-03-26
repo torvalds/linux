@@ -16,26 +16,26 @@
 
 #include "dfl-afu.h"
 
-void afu_dma_region_init(struct dfl_feature_platform_data *pdata)
+void afu_dma_region_init(struct dfl_feature_dev_data *fdata)
 {
-	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
+	struct dfl_afu *afu = dfl_fpga_fdata_get_private(fdata);
 
 	afu->dma_regions = RB_ROOT;
 }
 
 /**
  * afu_dma_pin_pages - pin pages of given dma memory region
- * @pdata: feature device platform data
+ * @fdata: feature dev data
  * @region: dma memory region to be pinned
  *
  * Pin all the pages of given dfl_afu_dma_region.
  * Return 0 for success or negative error code.
  */
-static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
+static int afu_dma_pin_pages(struct dfl_feature_dev_data *fdata,
 			     struct dfl_afu_dma_region *region)
 {
 	int npages = region->length >> PAGE_SHIFT;
-	struct device *dev = &pdata->dev->dev;
+	struct device *dev = &fdata->dev->dev;
 	int ret, pinned;
 
 	ret = account_locked_vm(current->mm, npages, true);
@@ -73,17 +73,17 @@ unlock_vm:
 
 /**
  * afu_dma_unpin_pages - unpin pages of given dma memory region
- * @pdata: feature device platform data
+ * @fdata: feature dev data
  * @region: dma memory region to be unpinned
  *
  * Unpin all the pages of given dfl_afu_dma_region.
  * Return 0 for success or negative error code.
  */
-static void afu_dma_unpin_pages(struct dfl_feature_platform_data *pdata,
+static void afu_dma_unpin_pages(struct dfl_feature_dev_data *fdata,
 				struct dfl_afu_dma_region *region)
 {
 	long npages = region->length >> PAGE_SHIFT;
-	struct device *dev = &pdata->dev->dev;
+	struct device *dev = &fdata->dev->dev;
 
 	unpin_user_pages(region->pages, npages);
 	kfree(region->pages);
@@ -133,20 +133,20 @@ static bool dma_region_check_iova(struct dfl_afu_dma_region *region,
 
 /**
  * afu_dma_region_add - add given dma region to rbtree
- * @pdata: feature device platform data
+ * @fdata: feature dev data
  * @region: dma region to be added
  *
  * Return 0 for success, -EEXIST if dma region has already been added.
  *
- * Needs to be called with pdata->lock heold.
+ * Needs to be called with fdata->lock held.
  */
-static int afu_dma_region_add(struct dfl_feature_platform_data *pdata,
+static int afu_dma_region_add(struct dfl_feature_dev_data *fdata,
 			      struct dfl_afu_dma_region *region)
 {
-	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
+	struct dfl_afu *afu = dfl_fpga_fdata_get_private(fdata);
 	struct rb_node **new, *parent = NULL;
 
-	dev_dbg(&pdata->dev->dev, "add region (iova = %llx)\n",
+	dev_dbg(&fdata->dev->dev, "add region (iova = %llx)\n",
 		(unsigned long long)region->iova);
 
 	new = &afu->dma_regions.rb_node;
@@ -177,50 +177,50 @@ static int afu_dma_region_add(struct dfl_feature_platform_data *pdata,
 
 /**
  * afu_dma_region_remove - remove given dma region from rbtree
- * @pdata: feature device platform data
+ * @fdata: feature dev data
  * @region: dma region to be removed
  *
- * Needs to be called with pdata->lock heold.
+ * Needs to be called with fdata->lock held.
  */
-static void afu_dma_region_remove(struct dfl_feature_platform_data *pdata,
+static void afu_dma_region_remove(struct dfl_feature_dev_data *fdata,
 				  struct dfl_afu_dma_region *region)
 {
 	struct dfl_afu *afu;
 
-	dev_dbg(&pdata->dev->dev, "del region (iova = %llx)\n",
+	dev_dbg(&fdata->dev->dev, "del region (iova = %llx)\n",
 		(unsigned long long)region->iova);
 
-	afu = dfl_fpga_pdata_get_private(pdata);
+	afu = dfl_fpga_fdata_get_private(fdata);
 	rb_erase(&region->node, &afu->dma_regions);
 }
 
 /**
  * afu_dma_region_destroy - destroy all regions in rbtree
- * @pdata: feature device platform data
+ * @fdata: feature dev data
  *
- * Needs to be called with pdata->lock heold.
+ * Needs to be called with fdata->lock held.
  */
-void afu_dma_region_destroy(struct dfl_feature_platform_data *pdata)
+void afu_dma_region_destroy(struct dfl_feature_dev_data *fdata)
 {
-	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
+	struct dfl_afu *afu = dfl_fpga_fdata_get_private(fdata);
 	struct rb_node *node = rb_first(&afu->dma_regions);
 	struct dfl_afu_dma_region *region;
 
 	while (node) {
 		region = container_of(node, struct dfl_afu_dma_region, node);
 
-		dev_dbg(&pdata->dev->dev, "del region (iova = %llx)\n",
+		dev_dbg(&fdata->dev->dev, "del region (iova = %llx)\n",
 			(unsigned long long)region->iova);
 
 		rb_erase(node, &afu->dma_regions);
 
 		if (region->iova)
-			dma_unmap_page(dfl_fpga_pdata_to_parent(pdata),
+			dma_unmap_page(dfl_fpga_fdata_to_parent(fdata),
 				       region->iova, region->length,
 				       DMA_BIDIRECTIONAL);
 
 		if (region->pages)
-			afu_dma_unpin_pages(pdata, region);
+			afu_dma_unpin_pages(fdata, region);
 
 		node = rb_next(node);
 		kfree(region);
@@ -229,7 +229,7 @@ void afu_dma_region_destroy(struct dfl_feature_platform_data *pdata)
 
 /**
  * afu_dma_region_find - find the dma region from rbtree based on iova and size
- * @pdata: feature device platform data
+ * @fdata: feature dev data
  * @iova: address of the dma memory area
  * @size: size of the dma memory area
  *
@@ -239,14 +239,14 @@ void afu_dma_region_destroy(struct dfl_feature_platform_data *pdata)
  *   [@iova, @iova+size)
  * If nothing is matched returns NULL.
  *
- * Needs to be called with pdata->lock held.
+ * Needs to be called with fdata->lock held.
  */
 struct dfl_afu_dma_region *
-afu_dma_region_find(struct dfl_feature_platform_data *pdata, u64 iova, u64 size)
+afu_dma_region_find(struct dfl_feature_dev_data *fdata, u64 iova, u64 size)
 {
-	struct dfl_afu *afu = dfl_fpga_pdata_get_private(pdata);
+	struct dfl_afu *afu = dfl_fpga_fdata_get_private(fdata);
 	struct rb_node *node = afu->dma_regions.rb_node;
-	struct device *dev = &pdata->dev->dev;
+	struct device *dev = &fdata->dev->dev;
 
 	while (node) {
 		struct dfl_afu_dma_region *region;
@@ -276,20 +276,20 @@ afu_dma_region_find(struct dfl_feature_platform_data *pdata, u64 iova, u64 size)
 
 /**
  * afu_dma_region_find_iova - find the dma region from rbtree by iova
- * @pdata: feature device platform data
+ * @fdata: feature dev data
  * @iova: address of the dma region
  *
- * Needs to be called with pdata->lock held.
+ * Needs to be called with fdata->lock held.
  */
 static struct dfl_afu_dma_region *
-afu_dma_region_find_iova(struct dfl_feature_platform_data *pdata, u64 iova)
+afu_dma_region_find_iova(struct dfl_feature_dev_data *fdata, u64 iova)
 {
-	return afu_dma_region_find(pdata, iova, 0);
+	return afu_dma_region_find(fdata, iova, 0);
 }
 
 /**
  * afu_dma_map_region - map memory region for dma
- * @pdata: feature device platform data
+ * @fdata: feature dev data
  * @user_addr: address of the memory region
  * @length: size of the memory region
  * @iova: pointer of iova address
@@ -298,9 +298,10 @@ afu_dma_region_find_iova(struct dfl_feature_platform_data *pdata, u64 iova)
  * of the memory region via @iova.
  * Return 0 for success, otherwise error code.
  */
-int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
+int afu_dma_map_region(struct dfl_feature_dev_data *fdata,
 		       u64 user_addr, u64 length, u64 *iova)
 {
+	struct device *dev = &fdata->dev->dev;
 	struct dfl_afu_dma_region *region;
 	int ret;
 
@@ -323,47 +324,47 @@ int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
 	region->length = length;
 
 	/* Pin the user memory region */
-	ret = afu_dma_pin_pages(pdata, region);
+	ret = afu_dma_pin_pages(fdata, region);
 	if (ret) {
-		dev_err(&pdata->dev->dev, "failed to pin memory region\n");
+		dev_err(dev, "failed to pin memory region\n");
 		goto free_region;
 	}
 
 	/* Only accept continuous pages, return error else */
 	if (!afu_dma_check_continuous_pages(region)) {
-		dev_err(&pdata->dev->dev, "pages are not continuous\n");
+		dev_err(dev, "pages are not continuous\n");
 		ret = -EINVAL;
 		goto unpin_pages;
 	}
 
 	/* As pages are continuous then start to do DMA mapping */
-	region->iova = dma_map_page(dfl_fpga_pdata_to_parent(pdata),
+	region->iova = dma_map_page(dfl_fpga_fdata_to_parent(fdata),
 				    region->pages[0], 0,
 				    region->length,
 				    DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dfl_fpga_pdata_to_parent(pdata), region->iova)) {
-		dev_err(&pdata->dev->dev, "failed to map for dma\n");
+	if (dma_mapping_error(dfl_fpga_fdata_to_parent(fdata), region->iova)) {
+		dev_err(dev, "failed to map for dma\n");
 		ret = -EFAULT;
 		goto unpin_pages;
 	}
 
 	*iova = region->iova;
 
-	mutex_lock(&pdata->lock);
-	ret = afu_dma_region_add(pdata, region);
-	mutex_unlock(&pdata->lock);
+	mutex_lock(&fdata->lock);
+	ret = afu_dma_region_add(fdata, region);
+	mutex_unlock(&fdata->lock);
 	if (ret) {
-		dev_err(&pdata->dev->dev, "failed to add dma region\n");
+		dev_err(dev, "failed to add dma region\n");
 		goto unmap_dma;
 	}
 
 	return 0;
 
 unmap_dma:
-	dma_unmap_page(dfl_fpga_pdata_to_parent(pdata),
+	dma_unmap_page(dfl_fpga_fdata_to_parent(fdata),
 		       region->iova, region->length, DMA_BIDIRECTIONAL);
 unpin_pages:
-	afu_dma_unpin_pages(pdata, region);
+	afu_dma_unpin_pages(fdata, region);
 free_region:
 	kfree(region);
 	return ret;
@@ -371,34 +372,34 @@ free_region:
 
 /**
  * afu_dma_unmap_region - unmap dma memory region
- * @pdata: feature device platform data
+ * @fdata: feature dev data
  * @iova: dma address of the region
  *
  * Unmap dma memory region based on @iova.
  * Return 0 for success, otherwise error code.
  */
-int afu_dma_unmap_region(struct dfl_feature_platform_data *pdata, u64 iova)
+int afu_dma_unmap_region(struct dfl_feature_dev_data *fdata, u64 iova)
 {
 	struct dfl_afu_dma_region *region;
 
-	mutex_lock(&pdata->lock);
-	region = afu_dma_region_find_iova(pdata, iova);
+	mutex_lock(&fdata->lock);
+	region = afu_dma_region_find_iova(fdata, iova);
 	if (!region) {
-		mutex_unlock(&pdata->lock);
+		mutex_unlock(&fdata->lock);
 		return -EINVAL;
 	}
 
 	if (region->in_use) {
-		mutex_unlock(&pdata->lock);
+		mutex_unlock(&fdata->lock);
 		return -EBUSY;
 	}
 
-	afu_dma_region_remove(pdata, region);
-	mutex_unlock(&pdata->lock);
+	afu_dma_region_remove(fdata, region);
+	mutex_unlock(&fdata->lock);
 
-	dma_unmap_page(dfl_fpga_pdata_to_parent(pdata),
+	dma_unmap_page(dfl_fpga_fdata_to_parent(fdata),
 		       region->iova, region->length, DMA_BIDIRECTIONAL);
-	afu_dma_unpin_pages(pdata, region);
+	afu_dma_unpin_pages(fdata, region);
 	kfree(region);
 
 	return 0;

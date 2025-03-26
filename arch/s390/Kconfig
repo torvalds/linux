@@ -52,12 +52,18 @@ config KASAN_SHADOW_OFFSET
 	depends on KASAN
 	default 0x1C000000000000
 
-config GCC_ASM_FLAG_OUTPUT_BROKEN
+config CC_ASM_FLAG_OUTPUT_BROKEN
 	def_bool CC_IS_GCC && GCC_VERSION < 140200
 	help
 	  GCC versions before 14.2.0 may die with an internal
 	  compiler error in some configurations if flag output
 	  operands are used within inline assemblies.
+
+config CC_HAS_ASM_AOR_FORMAT_FLAGS
+	def_bool !(CC_IS_CLANG && CLANG_VERSION < 190100)
+	help
+	  Clang versions before 19.1.0 do not support A,
+	  O, and R inline assembly format flags.
 
 config S390
 	def_bool y
@@ -72,6 +78,8 @@ config S390
 	select ARCH_ENABLE_MEMORY_HOTPLUG if SPARSEMEM
 	select ARCH_ENABLE_MEMORY_HOTREMOVE
 	select ARCH_ENABLE_SPLIT_PMD_PTLOCK if PGTABLE_LEVELS > 2
+	select ARCH_HAS_CPU_FINALIZE_INIT
+	select ARCH_HAS_CRC32
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL
 	select ARCH_HAS_DEBUG_VM_PGTABLE
@@ -243,6 +251,7 @@ config S390
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE	if PCI
 	select NEED_PER_CPU_EMBED_FIRST_CHUNK
+	select NEED_PROC_VMCORE_DEVICE_RAM if PROC_VMCORE
 	select NEED_SG_DMA_LENGTH	if PCI
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3

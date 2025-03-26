@@ -562,7 +562,7 @@ static int vec_proc_do_default_vl(const struct ctl_table *table, int write,
 	return 0;
 }
 
-static struct ctl_table sve_default_vl_table[] = {
+static const struct ctl_table sve_default_vl_table[] = {
 	{
 		.procname	= "sve_default_vector_length",
 		.mode		= 0644,
@@ -585,7 +585,7 @@ static int __init sve_sysctl_init(void) { return 0; }
 #endif /* ! (CONFIG_ARM64_SVE && CONFIG_SYSCTL) */
 
 #if defined(CONFIG_ARM64_SME) && defined(CONFIG_SYSCTL)
-static struct ctl_table sme_default_vl_table[] = {
+static const struct ctl_table sme_default_vl_table[] = {
 	{
 		.procname	= "sme_default_vector_length",
 		.mode		= 0644,

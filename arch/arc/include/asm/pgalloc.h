@@ -53,19 +53,14 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, pgtable_t pte_
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *ret = (pgd_t *) __get_free_page(GFP_KERNEL);
+	pgd_t *ret = __pgd_alloc(mm, 0);
 
 	if (ret) {
 		int num, num2;
-		num = USER_PTRS_PER_PGD + USER_KERNEL_GUTTER / PGDIR_SIZE;
-		memzero(ret, num * sizeof(pgd_t));
 
+		num = USER_PTRS_PER_PGD + USER_KERNEL_GUTTER / PGDIR_SIZE;
 		num2 = VMALLOC_SIZE / PGDIR_SIZE;
 		memcpy(ret + num, swapper_pg_dir + num, num2 * sizeof(pgd_t));
-
-		memzero(ret + num + num2,
-			       (PTRS_PER_PGD - num - num2) * sizeof(pgd_t));
-
 	}
 	return ret;
 }

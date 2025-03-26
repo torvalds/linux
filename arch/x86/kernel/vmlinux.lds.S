@@ -28,6 +28,7 @@
 #include <asm/orc_lookup.h>
 #include <asm/cache.h>
 #include <asm/boot.h>
+#include <asm/kexec.h>
 
 #undef i386     /* in case the preprocessor is a 32bit one */
 
@@ -95,7 +96,19 @@ const_pcpu_hot = pcpu_hot;
 #define BSS_DECRYPTED
 
 #endif
+#if defined(CONFIG_X86_64) && defined(CONFIG_KEXEC_CORE)
+#define KEXEC_RELOCATE_KERNEL					\
+	. = ALIGN(0x100);					\
+	__relocate_kernel_start = .;				\
+	*(.text..relocate_kernel);				\
+	*(.data..relocate_kernel);				\
+	__relocate_kernel_end = .;
 
+ASSERT(__relocate_kernel_end - __relocate_kernel_start <= KEXEC_CONTROL_CODE_MAX_SIZE,
+	"relocate_kernel code too large!")
+#else
+#define KEXEC_RELOCATE_KERNEL
+#endif
 PHDRS {
 	text PT_LOAD FLAGS(5);          /* R_E */
 	data PT_LOAD FLAGS(6);          /* RW_ */
@@ -121,19 +134,6 @@ SECTIONS
 	.text :  AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = .;
 		_stext = .;
-		/* bootstrapping code */
-		HEAD_TEXT
-		TEXT_TEXT
-		SCHED_TEXT
-		LOCK_TEXT
-		KPROBES_TEXT
-		SOFTIRQENTRY_TEXT
-#ifdef CONFIG_MITIGATION_RETPOLINE
-		*(.text..__x86.indirect_thunk)
-		*(.text..__x86.return_thunk)
-#endif
-		STATIC_CALL_TEXT
-
 		ALIGN_ENTRY_TEXT_BEGIN
 		*(.text..__x86.rethunk_untrain)
 		ENTRY_TEXT
@@ -147,8 +147,24 @@ SECTIONS
 		*(.text..__x86.rethunk_safe)
 #endif
 		ALIGN_ENTRY_TEXT_END
+
+		TEXT_TEXT
+		SCHED_TEXT
+		LOCK_TEXT
+		KPROBES_TEXT
+		SOFTIRQENTRY_TEXT
+#ifdef CONFIG_MITIGATION_RETPOLINE
+		*(.text..__x86.indirect_thunk)
+		*(.text..__x86.return_thunk)
+#endif
+		STATIC_CALL_TEXT
 		*(.gnu.warning)
 
+	} :text = 0xcccccccc
+
+	/* bootstrapping code */
+	.head.text : AT(ADDR(.head.text) - LOAD_OFFSET) {
+		HEAD_TEXT
 	} :text = 0xcccccccc
 
 	/* End of text section, which should occupy whole number of pages */
@@ -181,6 +197,7 @@ SECTIONS
 
 		DATA_DATA
 		CONSTRUCTORS
+		KEXEC_RELOCATE_KERNEL
 
 		/* rarely changed data like cpu maps */
 		READ_MOSTLY_DATA(INTERNODE_CACHE_BYTES)

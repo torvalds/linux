@@ -95,11 +95,6 @@ static int ad5686_spi_probe(struct spi_device *spi)
 			    ad5686_spi_write, ad5686_spi_read);
 }
 
-static void ad5686_spi_remove(struct spi_device *spi)
-{
-	ad5686_remove(&spi->dev);
-}
-
 static const struct spi_device_id ad5686_spi_id[] = {
 	{"ad5310r", ID_AD5310R},
 	{"ad5672r", ID_AD5672R},
@@ -126,7 +121,6 @@ static struct spi_driver ad5686_spi_driver = {
 		.name = "ad5686",
 	},
 	.probe = ad5686_spi_probe,
-	.remove = ad5686_spi_remove,
 	.id_table = ad5686_spi_id,
 };
 

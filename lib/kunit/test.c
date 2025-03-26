@@ -708,7 +708,8 @@ bool kunit_enabled(void)
 	return enable_param;
 }
 
-int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites)
+int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites,
+			     bool run_tests)
 {
 	unsigned int i;
 
@@ -731,7 +732,8 @@ int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_
 
 	for (i = 0; i < num_suites; i++) {
 		kunit_init_suite(suites[i]);
-		kunit_run_tests(suites[i]);
+		if (run_tests)
+			kunit_run_tests(suites[i]);
 	}
 
 	static_branch_dec(&kunit_running);

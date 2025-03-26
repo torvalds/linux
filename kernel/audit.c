@@ -1221,7 +1221,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct audit_buffer	*ab;
 	u16			msg_type = nlh->nlmsg_type;
 	struct audit_sig_info   *sig_data;
-	struct lsm_context	lsmctx;
+	struct lsm_context	lsmctx = { NULL, 0, 0 };
 
 	err = audit_netlink_ok(skb, msg_type);
 	if (err)

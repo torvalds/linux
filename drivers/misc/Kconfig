@@ -517,7 +517,6 @@ config OPEN_DICE
 
 config NTSYNC
 	tristate "NT synchronization primitive emulation"
-	depends on BROKEN
 	help
 	  This module provides kernel support for emulation of Windows NT
 	  synchronization primitives. It is not a hardware driver.
@@ -613,8 +612,7 @@ config MARVELL_CN10K_DPI
 config MCHP_LAN966X_PCI
 	tristate "Microchip LAN966x PCIe Support"
 	depends on PCI
-	select OF
-	select OF_OVERLAY
+	depends on OF_OVERLAY
 	select IRQ_DOMAIN
 	help
 	  This enables the support for the LAN966x PCIe device.

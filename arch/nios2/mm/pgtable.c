@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 
 #include <asm/cpuinfo.h>
+#include <asm/pgalloc.h>
 
 /* pteaddr:
  *   ptbase | vpn* | zero
@@ -54,7 +55,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *ret, *init;
 
-	ret = (pgd_t *) __get_free_page(GFP_KERNEL);
+	ret = __pgd_alloc(mm, 0);
 	if (ret) {
 		init = pgd_offset(&init_mm, 0UL);
 		pgd_init(ret);

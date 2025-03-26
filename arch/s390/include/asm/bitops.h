@@ -60,7 +60,7 @@ static __always_inline bool arch_test_bit(unsigned long nr, const volatile unsig
 		asm volatile(
 			"	tm	%[addr],%[mask]\n"
 			: "=@cc" (cc)
-			: [addr] "R" (*addr), [mask] "I" (mask)
+			: [addr] "Q" (*addr), [mask] "I" (mask)
 			);
 		return cc == 3;
 	}

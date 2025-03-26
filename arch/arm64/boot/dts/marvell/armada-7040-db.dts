@@ -214,6 +214,7 @@
 
 	sata-port@1 {
 		phys = <&cp0_comphy3 1>;
+		status = "okay";
 	};
 };
 

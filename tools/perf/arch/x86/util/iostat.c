@@ -403,6 +403,10 @@ void iostat_prefix(struct evlist *evlist,
 	struct iio_root_port *rp = evlist->selected->priv;
 
 	if (rp) {
+		/*
+		 * TODO: This is the incorrect format in JSON mode.
+		 *       See prepare_timestamp()
+		 */
 		if (ts)
 			sprintf(prefix, "%6lu.%09lu%s%04x:%02x%s",
 				ts->tv_sec, ts->tv_nsec,

@@ -65,7 +65,7 @@ static struct fpga_region *dfl_fme_region_find(struct dfl_fme *fme, int port_id)
 
 static int fme_pr(struct platform_device *pdev, unsigned long arg)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(&pdev->dev);
 	void __user *argp = (void __user *)arg;
 	struct dfl_fpga_fme_port_pr port_pr;
 	struct fpga_image_info *info;
@@ -87,8 +87,7 @@ static int fme_pr(struct platform_device *pdev, unsigned long arg)
 		return -EINVAL;
 
 	/* get fme header region */
-	fme_hdr = dfl_get_feature_ioaddr_by_id(&pdev->dev,
-					       FME_FEATURE_ID_HEADER);
+	fme_hdr = dfl_get_feature_ioaddr_by_id(fdata, FME_FEATURE_ID_HEADER);
 
 	/* check port id */
 	v = readq(fme_hdr + FME_HDR_CAP);
@@ -123,8 +122,8 @@ static int fme_pr(struct platform_device *pdev, unsigned long arg)
 
 	info->flags |= FPGA_MGR_PARTIAL_RECONFIG;
 
-	mutex_lock(&pdata->lock);
-	fme = dfl_fpga_pdata_get_private(pdata);
+	mutex_lock(&fdata->lock);
+	fme = dfl_fpga_fdata_get_private(fdata);
 	/* fme device has been unregistered. */
 	if (!fme) {
 		ret = -EINVAL;
@@ -156,7 +155,7 @@ static int fme_pr(struct platform_device *pdev, unsigned long arg)
 
 	put_device(&region->dev);
 unlock_exit:
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 free_exit:
 	vfree(buf);
 	return ret;
@@ -164,16 +163,16 @@ free_exit:
 
 /**
  * dfl_fme_create_mgr - create fpga mgr platform device as child device
+ * @fdata: fme feature dev data
  * @feature: sub feature info
- * @pdata: fme platform_device's pdata
  *
  * Return: mgr platform device if successful, and error code otherwise.
  */
 static struct platform_device *
-dfl_fme_create_mgr(struct dfl_feature_platform_data *pdata,
+dfl_fme_create_mgr(struct dfl_feature_dev_data *fdata,
 		   struct dfl_feature *feature)
 {
-	struct platform_device *mgr, *fme = pdata->dev;
+	struct platform_device *mgr, *fme = fdata->dev;
 	struct dfl_fme_mgr_pdata mgr_pdata;
 	int ret = -ENOMEM;
 
@@ -209,11 +208,11 @@ create_mgr_err:
 
 /**
  * dfl_fme_destroy_mgr - destroy fpga mgr platform device
- * @pdata: fme platform device's pdata
+ * @fdata: fme feature dev data
  */
-static void dfl_fme_destroy_mgr(struct dfl_feature_platform_data *pdata)
+static void dfl_fme_destroy_mgr(struct dfl_feature_dev_data *fdata)
 {
-	struct dfl_fme *priv = dfl_fpga_pdata_get_private(pdata);
+	struct dfl_fme *priv = dfl_fpga_fdata_get_private(fdata);
 
 	platform_device_unregister(priv->mgr);
 }
@@ -221,15 +220,15 @@ static void dfl_fme_destroy_mgr(struct dfl_feature_platform_data *pdata)
 /**
  * dfl_fme_create_bridge - create fme fpga bridge platform device as child
  *
- * @pdata: fme platform device's pdata
+ * @fdata: fme feature dev data
  * @port_id: port id for the bridge to be created.
  *
  * Return: bridge platform device if successful, and error code otherwise.
  */
 static struct dfl_fme_bridge *
-dfl_fme_create_bridge(struct dfl_feature_platform_data *pdata, int port_id)
+dfl_fme_create_bridge(struct dfl_feature_dev_data *fdata, int port_id)
 {
-	struct device *dev = &pdata->dev->dev;
+	struct device *dev = &fdata->dev->dev;
 	struct dfl_fme_br_pdata br_pdata;
 	struct dfl_fme_bridge *fme_br;
 	int ret = -ENOMEM;
@@ -238,7 +237,7 @@ dfl_fme_create_bridge(struct dfl_feature_platform_data *pdata, int port_id)
 	if (!fme_br)
 		return ERR_PTR(ret);
 
-	br_pdata.cdev = pdata->dfl_cdev;
+	br_pdata.cdev = fdata->dfl_cdev;
 	br_pdata.port_id = port_id;
 
 	fme_br->br = platform_device_alloc(DFL_FPGA_FME_BRIDGE,
@@ -274,11 +273,11 @@ static void dfl_fme_destroy_bridge(struct dfl_fme_bridge *fme_br)
 
 /**
  * dfl_fme_destroy_bridges - destroy all fpga bridge platform device
- * @pdata: fme platform device's pdata
+ * @fdata: fme feature dev data
  */
-static void dfl_fme_destroy_bridges(struct dfl_feature_platform_data *pdata)
+static void dfl_fme_destroy_bridges(struct dfl_feature_dev_data *fdata)
 {
-	struct dfl_fme *priv = dfl_fpga_pdata_get_private(pdata);
+	struct dfl_fme *priv = dfl_fpga_fdata_get_private(fdata);
 	struct dfl_fme_bridge *fbridge, *tmp;
 
 	list_for_each_entry_safe(fbridge, tmp, &priv->bridge_list, node) {
@@ -290,7 +289,7 @@ static void dfl_fme_destroy_bridges(struct dfl_feature_platform_data *pdata)
 /**
  * dfl_fme_create_region - create fpga region platform device as child
  *
- * @pdata: fme platform device's pdata
+ * @fdata: fme feature dev data
  * @mgr: mgr platform device needed for region
  * @br: br platform device needed for region
  * @port_id: port id
@@ -298,12 +297,12 @@ static void dfl_fme_destroy_bridges(struct dfl_feature_platform_data *pdata)
  * Return: fme region if successful, and error code otherwise.
  */
 static struct dfl_fme_region *
-dfl_fme_create_region(struct dfl_feature_platform_data *pdata,
+dfl_fme_create_region(struct dfl_feature_dev_data *fdata,
 		      struct platform_device *mgr,
 		      struct platform_device *br, int port_id)
 {
 	struct dfl_fme_region_pdata region_pdata;
-	struct device *dev = &pdata->dev->dev;
+	struct device *dev = &fdata->dev->dev;
 	struct dfl_fme_region *fme_region;
 	int ret = -ENOMEM;
 
@@ -353,11 +352,11 @@ static void dfl_fme_destroy_region(struct dfl_fme_region *fme_region)
 
 /**
  * dfl_fme_destroy_regions - destroy all fme regions
- * @pdata: fme platform device's pdata
+ * @fdata: fme feature dev data
  */
-static void dfl_fme_destroy_regions(struct dfl_feature_platform_data *pdata)
+static void dfl_fme_destroy_regions(struct dfl_feature_dev_data *fdata)
 {
-	struct dfl_fme *priv = dfl_fpga_pdata_get_private(pdata);
+	struct dfl_fme *priv = dfl_fpga_fdata_get_private(fdata);
 	struct dfl_fme_region *fme_region, *tmp;
 
 	list_for_each_entry_safe(fme_region, tmp, &priv->region_list, node) {
@@ -369,7 +368,7 @@ static void dfl_fme_destroy_regions(struct dfl_feature_platform_data *pdata)
 static int pr_mgmt_init(struct platform_device *pdev,
 			struct dfl_feature *feature)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(&pdev->dev);
 	struct dfl_fme_region *fme_region;
 	struct dfl_fme_bridge *fme_br;
 	struct platform_device *mgr;
@@ -378,18 +377,17 @@ static int pr_mgmt_init(struct platform_device *pdev,
 	int ret = -ENODEV, i = 0;
 	u64 fme_cap, port_offset;
 
-	fme_hdr = dfl_get_feature_ioaddr_by_id(&pdev->dev,
-					       FME_FEATURE_ID_HEADER);
+	fme_hdr = dfl_get_feature_ioaddr_by_id(fdata, FME_FEATURE_ID_HEADER);
 
-	mutex_lock(&pdata->lock);
-	priv = dfl_fpga_pdata_get_private(pdata);
+	mutex_lock(&fdata->lock);
+	priv = dfl_fpga_fdata_get_private(fdata);
 
 	/* Initialize the region and bridge sub device list */
 	INIT_LIST_HEAD(&priv->region_list);
 	INIT_LIST_HEAD(&priv->bridge_list);
 
 	/* Create fpga mgr platform device */
-	mgr = dfl_fme_create_mgr(pdata, feature);
+	mgr = dfl_fme_create_mgr(fdata, feature);
 	if (IS_ERR(mgr)) {
 		dev_err(&pdev->dev, "fail to create fpga mgr pdev\n");
 		goto unlock;
@@ -405,7 +403,7 @@ static int pr_mgmt_init(struct platform_device *pdev,
 			continue;
 
 		/* Create bridge for each port */
-		fme_br = dfl_fme_create_bridge(pdata, i);
+		fme_br = dfl_fme_create_bridge(fdata, i);
 		if (IS_ERR(fme_br)) {
 			ret = PTR_ERR(fme_br);
 			goto destroy_region;
@@ -414,7 +412,7 @@ static int pr_mgmt_init(struct platform_device *pdev,
 		list_add(&fme_br->node, &priv->bridge_list);
 
 		/* Create region for each port */
-		fme_region = dfl_fme_create_region(pdata, mgr,
+		fme_region = dfl_fme_create_region(fdata, mgr,
 						   fme_br->br, i);
 		if (IS_ERR(fme_region)) {
 			ret = PTR_ERR(fme_region);
@@ -423,30 +421,30 @@ static int pr_mgmt_init(struct platform_device *pdev,
 
 		list_add(&fme_region->node, &priv->region_list);
 	}
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 
 	return 0;
 
 destroy_region:
-	dfl_fme_destroy_regions(pdata);
-	dfl_fme_destroy_bridges(pdata);
-	dfl_fme_destroy_mgr(pdata);
+	dfl_fme_destroy_regions(fdata);
+	dfl_fme_destroy_bridges(fdata);
+	dfl_fme_destroy_mgr(fdata);
 unlock:
-	mutex_unlock(&pdata->lock);
+	mutex_unlock(&fdata->lock);
 	return ret;
 }
 
 static void pr_mgmt_uinit(struct platform_device *pdev,
 			  struct dfl_feature *feature)
 {
-	struct dfl_feature_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct dfl_feature_dev_data *fdata = to_dfl_feature_dev_data(&pdev->dev);
 
-	mutex_lock(&pdata->lock);
+	mutex_lock(&fdata->lock);
 
-	dfl_fme_destroy_regions(pdata);
-	dfl_fme_destroy_bridges(pdata);
-	dfl_fme_destroy_mgr(pdata);
-	mutex_unlock(&pdata->lock);
+	dfl_fme_destroy_regions(fdata);
+	dfl_fme_destroy_bridges(fdata);
+	dfl_fme_destroy_mgr(fdata);
+	mutex_unlock(&fdata->lock);
 }
 
 static long fme_pr_ioctl(struct platform_device *pdev,

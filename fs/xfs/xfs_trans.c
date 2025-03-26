@@ -100,7 +100,6 @@ xfs_trans_dup(
 	/*
 	 * Initialize the new transaction structure.
 	 */
-	ntp->t_magic = XFS_TRANS_HEADER_MAGIC;
 	ntp->t_mountp = tp->t_mountp;
 	INIT_LIST_HEAD(&ntp->t_items);
 	INIT_LIST_HEAD(&ntp->t_busy);
@@ -275,7 +274,6 @@ retry:
 	ASSERT(!(flags & XFS_TRANS_RES_FDBLKS) ||
 	       xfs_has_lazysbcount(mp));
 
-	tp->t_magic = XFS_TRANS_HEADER_MAGIC;
 	tp->t_flags = flags;
 	tp->t_mountp = mp;
 	INIT_LIST_HEAD(&tp->t_items);
@@ -1266,6 +1264,9 @@ retry:
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
+	if (xfs_is_metadir_inode(ip))
+		goto out;
+
 	error = xfs_qm_dqattach_locked(ip, false);
 	if (error) {
 		/* Caller should have allocated the dquots! */
@@ -1334,6 +1335,7 @@ retry:
 			goto out_cancel;
 	}
 
+out:
 	*tpp = tp;
 	return 0;
 

@@ -1472,7 +1472,7 @@ static int __maybe_unused segment_bits_seq_show(struct seq_file *seq,
 			le32_to_cpu(sbi->raw_super->segment_count_main);
 	int i, j;
 
-	seq_puts(seq, "format: segment_type|valid_blocks|bitmaps\n"
+	seq_puts(seq, "format: segment_type|valid_blocks|bitmaps|mtime\n"
 		"segment_type(0:HD, 1:WD, 2:CD, 3:HN, 4:WN, 5:CN)\n");
 
 	for (i = 0; i < total_segs; i++) {
@@ -1482,6 +1482,7 @@ static int __maybe_unused segment_bits_seq_show(struct seq_file *seq,
 		seq_printf(seq, "%d|%-3u|", se->type, se->valid_blocks);
 		for (j = 0; j < SIT_VBLOCK_MAP_SIZE; j++)
 			seq_printf(seq, " %.2x", se->cur_valid_map[j]);
+		seq_printf(seq, "| %llx", se->mtime);
 		seq_putc(seq, '\n');
 	}
 	return 0;

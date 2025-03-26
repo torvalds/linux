@@ -167,9 +167,6 @@ static int sdw_drv_remove(struct device *dev)
 
 	slave->probed = false;
 
-	if (slave->prop.use_domain_irq)
-		sdw_irq_dispose_mapping(slave);
-
 	mutex_unlock(&slave->sdw_dev_lock);
 
 	if (drv->remove)

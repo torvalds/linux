@@ -13,8 +13,8 @@
  *
  * @ctrl: Controller handle
  * @reply: Reply received from the device
- * @len: Length of the reply
  * @tid: Transaction ID received with which framework can associate reply.
+ * @len: Length of the reply
  *
  * Called by controller to inform framework about the response received.
  * This helps in making the API asynchronous, and controller-driver doesn't need

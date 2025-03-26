@@ -606,6 +606,8 @@ STATIC int
 xrep_tempexch_prep_request(
 	struct xfs_scrub	*sc,
 	int			whichfork,
+	xfs_fileoff_t		off,
+	xfs_filblks_t		len,
 	struct xrep_tempexch	*tx)
 {
 	struct xfs_exchmaps_req	*req = &tx->req;
@@ -629,18 +631,19 @@ xrep_tempexch_prep_request(
 	/* Exchange all mappings in both forks. */
 	req->ip1 = sc->tempip;
 	req->ip2 = sc->ip;
-	req->startoff1 = 0;
-	req->startoff2 = 0;
+	req->startoff1 = off;
+	req->startoff2 = off;
 	switch (whichfork) {
 	case XFS_ATTR_FORK:
 		req->flags |= XFS_EXCHMAPS_ATTR_FORK;
 		break;
 	case XFS_DATA_FORK:
-		/* Always exchange sizes when exchanging data fork mappings. */
-		req->flags |= XFS_EXCHMAPS_SET_SIZES;
+		/* Exchange sizes when exchanging all data fork mappings. */
+		if (off == 0 && len == XFS_MAX_FILEOFF)
+			req->flags |= XFS_EXCHMAPS_SET_SIZES;
 		break;
 	}
-	req->blockcount = XFS_MAX_FILEOFF;
+	req->blockcount = len;
 
 	return 0;
 }
@@ -749,6 +752,7 @@ xrep_tempexch_reserve_quota(
 	 * or the two inodes have the same dquots.
 	 */
 	if (!XFS_IS_QUOTA_ON(tp->t_mountp) || req->ip1 == req->ip2 ||
+	    xfs_is_metadir_inode(req->ip1) ||
 	    (req->ip1->i_udquot == req->ip2->i_udquot &&
 	     req->ip1->i_gdquot == req->ip2->i_gdquot &&
 	     req->ip1->i_pdquot == req->ip2->i_pdquot))
@@ -795,6 +799,8 @@ int
 xrep_tempexch_trans_reserve(
 	struct xfs_scrub	*sc,
 	int			whichfork,
+	xfs_fileoff_t		off,
+	xfs_filblks_t		len,
 	struct xrep_tempexch	*tx)
 {
 	int			error;
@@ -803,7 +809,7 @@ xrep_tempexch_trans_reserve(
 	xfs_assert_ilocked(sc->ip, XFS_ILOCK_EXCL);
 	xfs_assert_ilocked(sc->tempip, XFS_ILOCK_EXCL);
 
-	error = xrep_tempexch_prep_request(sc, whichfork, tx);
+	error = xrep_tempexch_prep_request(sc, whichfork, off, len, tx);
 	if (error)
 		return error;
 
@@ -841,7 +847,8 @@ xrep_tempexch_trans_alloc(
 	ASSERT(sc->tp == NULL);
 	ASSERT(xfs_has_exchange_range(sc->mp));
 
-	error = xrep_tempexch_prep_request(sc, whichfork, tx);
+	error = xrep_tempexch_prep_request(sc, whichfork, 0, XFS_MAX_FILEOFF,
+			tx);
 	if (error)
 		return error;
 

@@ -237,7 +237,6 @@ struct page_pool {
 	struct {
 		struct hlist_node list;
 		u64 detach_time;
-		u32 napi_id;
 		u32 id;
 	} user;
 };

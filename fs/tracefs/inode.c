@@ -457,7 +457,8 @@ static void tracefs_d_release(struct dentry *dentry)
 		eventfs_d_release(dentry);
 }
 
-static int tracefs_d_revalidate(struct dentry *dentry, unsigned int flags)
+static int tracefs_d_revalidate(struct inode *inode, const struct qstr *name,
+				struct dentry *dentry, unsigned int flags)
 {
 	struct eventfs_inode *ei = dentry->d_fsdata;
 

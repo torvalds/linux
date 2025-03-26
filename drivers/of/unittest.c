@@ -161,6 +161,15 @@ static void __init of_unittest_find_node_by_name(void)
 		 "option alias path test, subcase #1 failed\n");
 	of_node_put(np);
 
+	np = of_find_node_opts_by_path("testcase-alias/phandle-tests/consumer-a:testaliasoption",
+				       &options);
+	name = kasprintf(GFP_KERNEL, "%pOF", np);
+	unittest(np && name && !strcmp("/testcase-data/phandle-tests/consumer-a", name) &&
+		 !strcmp("testaliasoption", options),
+		 "option alias path test, subcase #2 failed\n");
+	of_node_put(np);
+	kfree(name);
+
 	np = of_find_node_opts_by_path("testcase-alias:testaliasoption", NULL);
 	unittest(np, "NULL option alias path test failed\n");
 	of_node_put(np);
@@ -3680,13 +3689,7 @@ static struct device_node *overlay_base_root;
 
 static void * __init dt_alloc_memory(u64 size, u64 align)
 {
-	void *ptr = memblock_alloc(size, align);
-
-	if (!ptr)
-		panic("%s: Failed to allocate %llu bytes align=0x%llx\n",
-		      __func__, size, align);
-
-	return ptr;
+	return memblock_alloc_or_panic(size, align);
 }
 
 /*

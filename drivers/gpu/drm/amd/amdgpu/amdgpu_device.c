@@ -2365,8 +2365,8 @@ int amdgpu_device_ip_block_add(struct amdgpu_device *adev,
 		break;
 	}
 
-	DRM_INFO("add ip block number %d <%s>\n", adev->num_ip_blocks,
-		  ip_block_version->funcs->name);
+	dev_info(adev->dev, "detected ip block number %d <%s>\n",
+		 adev->num_ip_blocks, ip_block_version->funcs->name);
 
 	adev->ip_blocks[adev->num_ip_blocks].adev = adev;
 
@@ -6158,6 +6158,44 @@ static void amdgpu_device_partner_bandwidth(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_device_gpu_bandwidth - find the bandwidth of the GPU
+ *
+ * @adev: amdgpu_device pointer
+ * @speed: pointer to the speed of the link
+ * @width: pointer to the width of the link
+ *
+ * Evaluate the hierarchy to find the speed and bandwidth capabilities of the
+ * AMD dGPU which may be a virtual upstream bridge.
+ */
+static void amdgpu_device_gpu_bandwidth(struct amdgpu_device *adev,
+					enum pci_bus_speed *speed,
+					enum pcie_link_width *width)
+{
+	struct pci_dev *parent = adev->pdev;
+
+	if (!speed || !width)
+		return;
+
+	parent = pci_upstream_bridge(parent);
+	if (parent && parent->vendor == PCI_VENDOR_ID_ATI) {
+		/* use the upstream/downstream switches internal to dGPU */
+		*speed = pcie_get_speed_cap(parent);
+		*width = pcie_get_width_cap(parent);
+		while ((parent = pci_upstream_bridge(parent))) {
+			if (parent->vendor == PCI_VENDOR_ID_ATI) {
+				/* use the upstream/downstream switches internal to dGPU */
+				*speed = pcie_get_speed_cap(parent);
+				*width = pcie_get_width_cap(parent);
+			}
+		}
+	} else {
+		/* use the device itself */
+		*speed = pcie_get_speed_cap(adev->pdev);
+		*width = pcie_get_width_cap(adev->pdev);
+	}
+}
+
+/**
  * amdgpu_device_get_pcie_info - fence pcie info about the PCIE slot
  *
  * @adev: amdgpu_device pointer
@@ -6168,9 +6206,8 @@ static void amdgpu_device_partner_bandwidth(struct amdgpu_device *adev,
  */
 static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev)
 {
-	struct pci_dev *pdev;
 	enum pci_bus_speed speed_cap, platform_speed_cap;
-	enum pcie_link_width platform_link_width;
+	enum pcie_link_width platform_link_width, link_width;
 
 	if (amdgpu_pcie_gen_cap)
 		adev->pm.pcie_gen_mask = amdgpu_pcie_gen_cap;
@@ -6192,11 +6229,10 @@ static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev)
 
 	amdgpu_device_partner_bandwidth(adev, &platform_speed_cap,
 					&platform_link_width);
+	amdgpu_device_gpu_bandwidth(adev, &speed_cap, &link_width);
 
 	if (adev->pm.pcie_gen_mask == 0) {
 		/* asic caps */
-		pdev = adev->pdev;
-		speed_cap = pcie_get_speed_cap(pdev);
 		if (speed_cap == PCI_SPEED_UNKNOWN) {
 			adev->pm.pcie_gen_mask |= (CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN1 |
 						  CAIL_ASIC_PCIE_LINK_SPEED_SUPPORT_GEN2 |
@@ -6252,51 +6288,103 @@ static void amdgpu_device_get_pcie_info(struct amdgpu_device *adev)
 		}
 	}
 	if (adev->pm.pcie_mlw_mask == 0) {
+		/* asic caps */
+		if (link_width == PCIE_LNK_WIDTH_UNKNOWN) {
+			adev->pm.pcie_mlw_mask |= AMDGPU_DEFAULT_ASIC_PCIE_MLW_MASK;
+		} else {
+			switch (link_width) {
+			case PCIE_LNK_X32:
+				adev->pm.pcie_mlw_mask |= (CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X32 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X16 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X12 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case PCIE_LNK_X16:
+				adev->pm.pcie_mlw_mask |= (CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X16 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X12 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case PCIE_LNK_X12:
+				adev->pm.pcie_mlw_mask |= (CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X12 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case PCIE_LNK_X8:
+				adev->pm.pcie_mlw_mask |= (CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case PCIE_LNK_X4:
+				adev->pm.pcie_mlw_mask |= (CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case PCIE_LNK_X2:
+				adev->pm.pcie_mlw_mask |= (CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X1);
+				break;
+			case PCIE_LNK_X1:
+				adev->pm.pcie_mlw_mask |= CAIL_ASIC_PCIE_LINK_WIDTH_SUPPORT_X1;
+				break;
+			default:
+				break;
+			}
+		}
+		/* platform caps */
 		if (platform_link_width == PCIE_LNK_WIDTH_UNKNOWN) {
 			adev->pm.pcie_mlw_mask |= AMDGPU_DEFAULT_PCIE_MLW_MASK;
 		} else {
 			switch (platform_link_width) {
 			case PCIE_LNK_X32:
-				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X32 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				adev->pm.pcie_mlw_mask |= (CAIL_PCIE_LINK_WIDTH_SUPPORT_X32 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
 				break;
 			case PCIE_LNK_X16:
-				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				adev->pm.pcie_mlw_mask |= (CAIL_PCIE_LINK_WIDTH_SUPPORT_X16 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
 				break;
 			case PCIE_LNK_X12:
-				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				adev->pm.pcie_mlw_mask |= (CAIL_PCIE_LINK_WIDTH_SUPPORT_X12 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
 				break;
 			case PCIE_LNK_X8:
-				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				adev->pm.pcie_mlw_mask |= (CAIL_PCIE_LINK_WIDTH_SUPPORT_X8 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
 				break;
 			case PCIE_LNK_X4:
-				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				adev->pm.pcie_mlw_mask |= (CAIL_PCIE_LINK_WIDTH_SUPPORT_X4 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
 				break;
 			case PCIE_LNK_X2:
-				adev->pm.pcie_mlw_mask = (CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
-							  CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
+				adev->pm.pcie_mlw_mask |= (CAIL_PCIE_LINK_WIDTH_SUPPORT_X2 |
+							   CAIL_PCIE_LINK_WIDTH_SUPPORT_X1);
 				break;
 			case PCIE_LNK_X1:
-				adev->pm.pcie_mlw_mask = CAIL_PCIE_LINK_WIDTH_SUPPORT_X1;
+				adev->pm.pcie_mlw_mask |= CAIL_PCIE_LINK_WIDTH_SUPPORT_X1;
 				break;
 			default:
 				break;

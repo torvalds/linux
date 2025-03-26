@@ -100,29 +100,29 @@ Get delays, since system boot, for pid 10::
 	# ./getdelays -d -p 10
 	(output similar to next case)
 
-Get sum of delays, since system boot, for all pids with tgid 5::
+Get sum and peak of delays, since system boot, for all pids with tgid 242::
 
-	# ./getdelays -d -t 5
+	bash-4.4# ./getdelays -d -t 242
 	print delayacct stats ON
-	TGID	5
+	TGID    242
 
 
-	CPU             count     real total  virtual total    delay total  delay average
-	                    8        7000000        6872122        3382277          0.423ms
-	IO              count    delay total  delay average
-                   0              0          0.000ms
-	SWAP            count    delay total  delay average
-                       0              0          0.000ms
-	RECLAIM         count    delay total  delay average
-                   0              0          0.000ms
-	THRASHING       count    delay total  delay average
-                       0              0          0.000ms
-	COMPACT         count    delay total  delay average
-                       0              0          0.000ms
-	WPCOPY          count    delay total  delay average
-                       0              0          0.000ms
-	IRQ             count    delay total  delay average
-                       0              0          0.000ms
+	CPU         count     real total  virtual total    delay total  delay average      delay max      delay min
+	               39      156000000      156576579        2111069          0.054ms     0.212296ms     0.031307ms
+	IO          count    delay total  delay average      delay max      delay min
+	                0              0          0.000ms     0.000000ms     0.000000ms
+	SWAP        count    delay total  delay average      delay max      delay min
+	                0              0          0.000ms     0.000000ms     0.000000ms
+	RECLAIM     count    delay total  delay average      delay max      delay min
+	                0              0          0.000ms     0.000000ms     0.000000ms
+	THRASHING   count    delay total  delay average      delay max      delay min
+	                0              0          0.000ms     0.000000ms     0.000000ms
+	COMPACT     count    delay total  delay average      delay max      delay min
+	                0              0          0.000ms     0.000000ms     0.000000ms
+	WPCOPY      count    delay total  delay average      delay max      delay min
+	              156       11215873          0.072ms     0.207403ms     0.033913ms
+	IRQ         count    delay total  delay average      delay max      delay min
+	                0              0          0.000ms     0.000000ms     0.000000ms
 
 Get IO accounting for pid 1, it works only with -p::
 

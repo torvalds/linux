@@ -2,7 +2,7 @@
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include "../bpf_testmod/bpf_testmod_kfunc.h"
+#include "../test_kmods/bpf_testmod_kfunc.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -43,6 +43,12 @@ int test4(struct pt_regs *ctx)
 
 SEC("kprobe.multi/bpf_kfunc_common_test")
 int test5(struct pt_regs *ctx)
+{
+	return 0;
+}
+
+SEC("kprobe.session/bpf_kfunc_common_test")
+int test6(struct pt_regs *ctx)
 {
 	return 0;
 }

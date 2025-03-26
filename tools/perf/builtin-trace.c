@@ -389,7 +389,12 @@ static struct syscall_arg_fmt *evsel__syscall_arg_fmt(struct evsel *evsel)
 	}
 
 	if (et->fmt == NULL) {
-		et->fmt = calloc(evsel->tp_format->format.nr_fields, sizeof(struct syscall_arg_fmt));
+		const struct tep_event *tp_format = evsel__tp_format(evsel);
+
+		if (tp_format == NULL)
+			goto out_delete;
+
+		et->fmt = calloc(tp_format->format.nr_fields, sizeof(struct syscall_arg_fmt));
 		if (et->fmt == NULL)
 			goto out_delete;
 	}
@@ -1108,7 +1113,6 @@ static bool syscall_arg__strtoul_btf_type(char *bf __maybe_unused, size_t size _
 	    .strtoul	= STUL_STRARRAY_FLAGS, \
 	    .parm	= &strarray__##array, }
 
-#include "trace/beauty/arch_errno_names.c"
 #include "trace/beauty/eventfd.c"
 #include "trace/beauty/futex_op.c"
 #include "trace/beauty/futex_val3.c"
@@ -2069,30 +2073,11 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	const char *name = syscalltbl__name(trace->sctbl, id);
 	int err;
 
-#ifdef HAVE_SYSCALL_TABLE_SUPPORT
 	if (trace->syscalls.table == NULL) {
 		trace->syscalls.table = calloc(trace->sctbl->syscalls.max_id + 1, sizeof(*sc));
 		if (trace->syscalls.table == NULL)
 			return -ENOMEM;
 	}
-#else
-	if (id > trace->sctbl->syscalls.max_id || (id == 0 && trace->syscalls.table == NULL)) {
-		// When using libaudit we don't know beforehand what is the max syscall id
-		struct syscall *table = realloc(trace->syscalls.table, (id + 1) * sizeof(*sc));
-
-		if (table == NULL)
-			return -ENOMEM;
-
-		// Need to memset from offset 0 and +1 members if brand new
-		if (trace->syscalls.table == NULL)
-			memset(table, 0, (id + 1) * sizeof(*sc));
-		else
-			memset(table + trace->sctbl->syscalls.max_id + 1, 0, (id - trace->sctbl->syscalls.max_id) * sizeof(*sc));
-
-		trace->syscalls.table	      = table;
-		trace->sctbl->syscalls.max_id = id;
-	}
-#endif
 	sc = trace->syscalls.table + id;
 	if (sc->nonexistent)
 		return -EEXIST;
@@ -2122,8 +2107,12 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 		return PTR_ERR(sc->tp_format);
 	}
 
+	/*
+	 * The tracepoint format contains __syscall_nr field, so it's one more
+	 * than the actual number of syscall arguments.
+	 */
 	if (syscall__alloc_arg_fmts(sc, IS_ERR(sc->tp_format) ?
-					RAW_SYSCALL_ARGS_NUM : sc->tp_format->format.nr_fields))
+					RAW_SYSCALL_ARGS_NUM : sc->tp_format->format.nr_fields - 1))
 		return -ENOMEM;
 
 	sc->args = sc->tp_format->format.fields;
@@ -2154,8 +2143,12 @@ static int evsel__init_tp_arg_scnprintf(struct evsel *evsel, bool *use_btf)
 	struct syscall_arg_fmt *fmt = evsel__syscall_arg_fmt(evsel);
 
 	if (fmt != NULL) {
-		syscall_arg_fmt__init_array(fmt, evsel->tp_format->format.fields, use_btf);
-		return 0;
+		const struct tep_event *tp_format = evsel__tp_format(evsel);
+
+		if (tp_format) {
+			syscall_arg_fmt__init_array(fmt, tp_format->format.fields, use_btf);
+			return 0;
+		}
 	}
 
 	return -ENOMEM;
@@ -2439,18 +2432,7 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 
 	err = -EINVAL;
 
-#ifdef HAVE_SYSCALL_TABLE_SUPPORT
 	if (id > trace->sctbl->syscalls.max_id) {
-#else
-	if (id >= trace->sctbl->syscalls.max_id) {
-		/*
-		 * With libaudit we don't know beforehand what is the max_id,
-		 * so we let trace__read_syscall_info() figure that out as we
-		 * go on reading syscalls.
-		 */
-		err = trace__read_syscall_info(trace, id);
-		if (err)
-#endif
 		goto out_cant_read;
 	}
 
@@ -2581,7 +2563,6 @@ static int trace__fprintf_sample(struct trace *trace, struct evsel *evsel,
 
 static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sample, int *augmented_args_size, int raw_augmented_args_size)
 {
-	void *augmented_args = NULL;
 	/*
 	 * For now with BPF raw_augmented we hook into raw_syscalls:sys_enter
 	 * and there we get all 6 syscall args plus the tracepoint common fields
@@ -2599,10 +2580,24 @@ static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sam
 	int args_size = raw_augmented_args_size ?: sc->args_size;
 
 	*augmented_args_size = sample->raw_size - args_size;
-	if (*augmented_args_size > 0)
-		augmented_args = sample->raw_data + args_size;
+	if (*augmented_args_size > 0) {
+		static uintptr_t argbuf[1024]; /* assuming single-threaded */
 
-	return augmented_args;
+		if ((size_t)(*augmented_args_size) > sizeof(argbuf))
+			return NULL;
+
+		/*
+		 * The perf ring-buffer is 8-byte aligned but sample->raw_data
+		 * is not because it's preceded by u32 size.  Later, beautifier
+		 * will use the augmented args with stricter alignments like in
+		 * some struct.  To make sure it's aligned, let's copy the args
+		 * into a static buffer as it's single-threaded for now.
+		 */
+		memcpy(argbuf, sample->raw_data + args_size, *augmented_args_size);
+
+		return argbuf;
+	}
+	return NULL;
 }
 
 static void syscall__exit(struct syscall *sc)
@@ -3027,7 +3022,8 @@ static size_t trace__fprintf_tp_fields(struct trace *trace, struct evsel *evsel,
 {
 	char bf[2048];
 	size_t size = sizeof(bf);
-	struct tep_format_field *field = evsel->tp_format->format.fields;
+	const struct tep_event *tp_format = evsel__tp_format(evsel);
+	struct tep_format_field *field = tp_format ? tp_format->format.fields : NULL;
 	struct syscall_arg_fmt *arg = __evsel__syscall_arg_fmt(evsel);
 	size_t printed = 0, btf_printed;
 	unsigned long val;
@@ -3145,11 +3141,13 @@ static int trace__event_handler(struct trace *trace, struct evsel *evsel,
 
 	if (evsel__is_bpf_output(evsel)) {
 		bpf_output__fprintf(trace, sample);
-	} else if (evsel->tp_format) {
-		if (strncmp(evsel->tp_format->name, "sys_enter_", 10) ||
-		    trace__fprintf_sys_enter(trace, evsel, sample)) {
+	} else {
+		const struct tep_event *tp_format = evsel__tp_format(evsel);
+
+		if (tp_format && (strncmp(tp_format->name, "sys_enter_", 10) ||
+				  trace__fprintf_sys_enter(trace, evsel, sample))) {
 			if (trace->libtraceevent_print) {
-				event_format__fprintf(evsel->tp_format, sample->cpu,
+				event_format__fprintf(tp_format, sample->cpu,
 						      sample->raw_data, sample->raw_size,
 						      trace->output);
 			} else {
@@ -4077,17 +4075,23 @@ static int ordered_events__deliver_event(struct ordered_events *oe,
 static struct syscall_arg_fmt *evsel__find_syscall_arg_fmt_by_name(struct evsel *evsel, char *arg,
 								   char **type)
 {
-	struct tep_format_field *field;
 	struct syscall_arg_fmt *fmt = __evsel__syscall_arg_fmt(evsel);
+	const struct tep_event *tp_format;
 
-	if (evsel->tp_format == NULL || fmt == NULL)
+	if (!fmt)
 		return NULL;
 
-	for (field = evsel->tp_format->format.fields; field; field = field->next, ++fmt)
+	tp_format = evsel__tp_format(evsel);
+	if (!tp_format)
+		return NULL;
+
+	for (const struct tep_format_field *field = tp_format->format.fields; field;
+	     field = field->next, ++fmt) {
 		if (strcmp(field->name, arg) == 0) {
 			*type = field->type;
 			return fmt;
 		}
+	}
 
 	return NULL;
 }
@@ -4843,13 +4847,18 @@ static void evsel__set_syscall_arg_fmt(struct evsel *evsel, const char *name)
 		const struct syscall_fmt *scfmt = syscall_fmt__find(name);
 
 		if (scfmt) {
-			int skip = 0;
+			const struct tep_event *tp_format = evsel__tp_format(evsel);
 
-			if (strcmp(evsel->tp_format->format.fields->name, "__syscall_nr") == 0 ||
-			    strcmp(evsel->tp_format->format.fields->name, "nr") == 0)
-				++skip;
+			if (tp_format) {
+				int skip = 0;
 
-			memcpy(fmt + skip, scfmt->arg, (evsel->tp_format->format.nr_fields - skip) * sizeof(*fmt));
+				if (strcmp(tp_format->format.fields->name, "__syscall_nr") == 0 ||
+				    strcmp(tp_format->format.fields->name, "nr") == 0)
+					++skip;
+
+				memcpy(fmt + skip, scfmt->arg,
+				       (tp_format->format.nr_fields - skip) * sizeof(*fmt));
+			}
 		}
 	}
 }
@@ -4859,10 +4868,16 @@ static int evlist__set_syscall_tp_fields(struct evlist *evlist, bool *use_btf)
 	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
-		if (evsel->priv || !evsel->tp_format)
+		const struct tep_event *tp_format;
+
+		if (evsel->priv)
 			continue;
 
-		if (strcmp(evsel->tp_format->system, "syscalls")) {
+		tp_format = evsel__tp_format(evsel);
+		if (!tp_format)
+			continue;
+
+		if (strcmp(tp_format->system, "syscalls")) {
 			evsel__init_tp_arg_scnprintf(evsel, use_btf);
 			continue;
 		}
@@ -4870,20 +4885,24 @@ static int evlist__set_syscall_tp_fields(struct evlist *evlist, bool *use_btf)
 		if (evsel__init_syscall_tp(evsel))
 			return -1;
 
-		if (!strncmp(evsel->tp_format->name, "sys_enter_", 10)) {
+		if (!strncmp(tp_format->name, "sys_enter_", 10)) {
 			struct syscall_tp *sc = __evsel__syscall_tp(evsel);
 
 			if (__tp_field__init_ptr(&sc->args, sc->id.offset + sizeof(u64)))
 				return -1;
 
-			evsel__set_syscall_arg_fmt(evsel, evsel->tp_format->name + sizeof("sys_enter_") - 1);
-		} else if (!strncmp(evsel->tp_format->name, "sys_exit_", 9)) {
+			evsel__set_syscall_arg_fmt(evsel,
+						   tp_format->name + sizeof("sys_enter_") - 1);
+		} else if (!strncmp(tp_format->name, "sys_exit_", 9)) {
 			struct syscall_tp *sc = __evsel__syscall_tp(evsel);
 
-			if (__tp_field__init_uint(&sc->ret, sizeof(u64), sc->id.offset + sizeof(u64), evsel->needs_swap))
+			if (__tp_field__init_uint(&sc->ret, sizeof(u64),
+						  sc->id.offset + sizeof(u64),
+						  evsel->needs_swap))
 				return -1;
 
-			evsel__set_syscall_arg_fmt(evsel, evsel->tp_format->name + sizeof("sys_exit_") - 1);
+			evsel__set_syscall_arg_fmt(evsel,
+						   tp_format->name + sizeof("sys_exit_") - 1);
 		}
 	}
 

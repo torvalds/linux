@@ -171,6 +171,10 @@ static void test_kprobe_fill_link_info(struct test_fill_link_info *skel,
 		/* See also arch_adjust_kprobe_addr(). */
 		if (skel->kconfig->CONFIG_X86_KERNEL_IBT)
 			entry_offset = 4;
+		if (skel->kconfig->CONFIG_PPC64 &&
+		    skel->kconfig->CONFIG_KPROBES_ON_FTRACE &&
+		    !skel->kconfig->CONFIG_PPC_FTRACE_OUT_OF_LINE)
+			entry_offset = 4;
 		err = verify_perf_link_info(link_fd, type, kprobe_addr, 0, entry_offset);
 		ASSERT_OK(err, "verify_perf_link_info");
 	} else {

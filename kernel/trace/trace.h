@@ -400,6 +400,9 @@ struct trace_array {
 	cpumask_var_t		pipe_cpumask;
 	int			ref;
 	int			trace_ref;
+#ifdef CONFIG_MODULES
+	struct list_head	mod_events;
+#endif
 #ifdef CONFIG_FUNCTION_TRACER
 	struct ftrace_ops	*ops;
 	struct trace_pid_list	__rcu *function_pids;
@@ -434,6 +437,15 @@ enum {
 	TRACE_ARRAY_FL_BOOT	= BIT(1),
 	TRACE_ARRAY_FL_MOD_INIT	= BIT(2),
 };
+
+#ifdef CONFIG_MODULES
+bool module_exists(const char *module);
+#else
+static inline bool module_exists(const char *module)
+{
+	return false;
+}
+#endif
 
 extern struct list_head ftrace_trace_arrays;
 
@@ -912,7 +924,9 @@ extern int __trace_graph_retaddr_entry(struct trace_array *tr,
 				unsigned long retaddr);
 extern void __trace_graph_return(struct trace_array *tr,
 				 struct ftrace_graph_ret *trace,
-				 unsigned int trace_ctx);
+				 unsigned int trace_ctx,
+				 u64 calltime, u64 rettime);
+
 extern void init_array_fgraph_ops(struct trace_array *tr, struct ftrace_ops *ops);
 extern int allocate_fgraph_ops(struct trace_array *tr, struct ftrace_ops *ops);
 extern void free_fgraph_ops(struct trace_array *tr);

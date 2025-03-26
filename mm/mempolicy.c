@@ -647,7 +647,7 @@ static int queue_folios_hugetlb(pte_t *pte, unsigned long hmask,
 	 */
 	if ((flags & MPOL_MF_MOVE_ALL) ||
 	    (!folio_likely_mapped_shared(folio) && !hugetlb_pmd_shared(pte)))
-		if (!isolate_hugetlb(folio, qp->pagelist))
+		if (!folio_isolate_hugetlb(folio, qp->pagelist))
 			qp->nr_failed++;
 unlock:
 	spin_unlock(ptl);
@@ -2205,9 +2205,9 @@ static struct page *alloc_pages_preferred_many(gfp_t gfp, unsigned int order,
 	 */
 	preferred_gfp = gfp | __GFP_NOWARN;
 	preferred_gfp &= ~(__GFP_DIRECT_RECLAIM | __GFP_NOFAIL);
-	page = __alloc_pages_noprof(preferred_gfp, order, nid, nodemask);
+	page = __alloc_frozen_pages_noprof(preferred_gfp, order, nid, nodemask);
 	if (!page)
-		page = __alloc_pages_noprof(gfp, order, nid, NULL);
+		page = __alloc_frozen_pages_noprof(gfp, order, nid, NULL);
 
 	return page;
 }
@@ -2222,7 +2222,7 @@ static struct page *alloc_pages_preferred_many(gfp_t gfp, unsigned int order,
  *
  * Return: The page on success or NULL if allocation fails.
  */
-struct page *alloc_pages_mpol_noprof(gfp_t gfp, unsigned int order,
+static struct page *alloc_pages_mpol(gfp_t gfp, unsigned int order,
 		struct mempolicy *pol, pgoff_t ilx, int nid)
 {
 	nodemask_t *nodemask;
@@ -2253,8 +2253,9 @@ struct page *alloc_pages_mpol_noprof(gfp_t gfp, unsigned int order,
 			 * First, try to allocate THP only on local node, but
 			 * don't reclaim unnecessarily, just compact.
 			 */
-			page = __alloc_pages_node_noprof(nid,
-				gfp | __GFP_THISNODE | __GFP_NORETRY, order);
+			page = __alloc_frozen_pages_noprof(
+				gfp | __GFP_THISNODE | __GFP_NORETRY, order,
+				nid, NULL);
 			if (page || !(gfp & __GFP_DIRECT_RECLAIM))
 				return page;
 			/*
@@ -2266,7 +2267,7 @@ struct page *alloc_pages_mpol_noprof(gfp_t gfp, unsigned int order,
 		}
 	}
 
-	page = __alloc_pages_noprof(gfp, order, nid, nodemask);
+	page = __alloc_frozen_pages_noprof(gfp, order, nid, nodemask);
 
 	if (unlikely(pol->mode == MPOL_INTERLEAVE ||
 		     pol->mode == MPOL_WEIGHTED_INTERLEAVE) && page) {
@@ -2285,8 +2286,13 @@ struct page *alloc_pages_mpol_noprof(gfp_t gfp, unsigned int order,
 struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
 		struct mempolicy *pol, pgoff_t ilx, int nid)
 {
-	return page_rmappable_folio(alloc_pages_mpol_noprof(gfp | __GFP_COMP,
-							order, pol, ilx, nid));
+	struct page *page = alloc_pages_mpol(gfp | __GFP_COMP, order, pol,
+			ilx, nid);
+	if (!page)
+		return NULL;
+
+	set_page_refcounted(page);
+	return page_rmappable_folio(page);
 }
 
 /**
@@ -2300,7 +2306,7 @@ struct folio *folio_alloc_mpol_noprof(gfp_t gfp, unsigned int order,
  * NUMA policy.  The caller must hold the mmap_lock of the mm_struct of the
  * VMA to prevent it from going away.  Should be used for all allocations
  * for folios that will be mapped into user space, excepting hugetlbfs, and
- * excepting where direct use of alloc_pages_mpol() is more appropriate.
+ * excepting where direct use of folio_alloc_mpol() is more appropriate.
  *
  * Return: The folio on success or NULL if allocation fails.
  */
@@ -2321,6 +2327,21 @@ struct folio *vma_alloc_folio_noprof(gfp_t gfp, int order, struct vm_area_struct
 }
 EXPORT_SYMBOL(vma_alloc_folio_noprof);
 
+struct page *alloc_frozen_pages_noprof(gfp_t gfp, unsigned order)
+{
+	struct mempolicy *pol = &default_policy;
+
+	/*
+	 * No reference counting needed for current->mempolicy
+	 * nor system default_policy
+	 */
+	if (!in_interrupt() && !(gfp & __GFP_THISNODE))
+		pol = get_task_policy(current);
+
+	return alloc_pages_mpol(gfp, order, pol, NO_INTERLEAVE_INDEX,
+				       numa_node_id());
+}
+
 /**
  * alloc_pages - Allocate pages.
  * @gfp: GFP flags.
@@ -2337,17 +2358,11 @@ EXPORT_SYMBOL(vma_alloc_folio_noprof);
  */
 struct page *alloc_pages_noprof(gfp_t gfp, unsigned int order)
 {
-	struct mempolicy *pol = &default_policy;
+	struct page *page = alloc_frozen_pages_noprof(gfp, order);
 
-	/*
-	 * No reference counting needed for current->mempolicy
-	 * nor system default_policy
-	 */
-	if (!in_interrupt() && !(gfp & __GFP_THISNODE))
-		pol = get_task_policy(current);
-
-	return alloc_pages_mpol_noprof(gfp, order, pol, NO_INTERLEAVE_INDEX,
-				       numa_node_id());
+	if (page)
+		set_page_refcounted(page);
+	return page;
 }
 EXPORT_SYMBOL(alloc_pages_noprof);
 
@@ -2357,7 +2372,7 @@ struct folio *folio_alloc_noprof(gfp_t gfp, unsigned int order)
 }
 EXPORT_SYMBOL(folio_alloc_noprof);
 
-static unsigned long alloc_pages_bulk_array_interleave(gfp_t gfp,
+static unsigned long alloc_pages_bulk_interleave(gfp_t gfp,
 		struct mempolicy *pol, unsigned long nr_pages,
 		struct page **page_array)
 {
@@ -2376,13 +2391,13 @@ static unsigned long alloc_pages_bulk_array_interleave(gfp_t gfp,
 		if (delta) {
 			nr_allocated = alloc_pages_bulk_noprof(gfp,
 					interleave_nodes(pol), NULL,
-					nr_pages_per_node + 1, NULL,
+					nr_pages_per_node + 1,
 					page_array);
 			delta--;
 		} else {
 			nr_allocated = alloc_pages_bulk_noprof(gfp,
 					interleave_nodes(pol), NULL,
-					nr_pages_per_node, NULL, page_array);
+					nr_pages_per_node, page_array);
 		}
 
 		page_array += nr_allocated;
@@ -2392,7 +2407,7 @@ static unsigned long alloc_pages_bulk_array_interleave(gfp_t gfp,
 	return total_allocated;
 }
 
-static unsigned long alloc_pages_bulk_array_weighted_interleave(gfp_t gfp,
+static unsigned long alloc_pages_bulk_weighted_interleave(gfp_t gfp,
 		struct mempolicy *pol, unsigned long nr_pages,
 		struct page **page_array)
 {
@@ -2431,7 +2446,7 @@ static unsigned long alloc_pages_bulk_array_weighted_interleave(gfp_t gfp,
 	if (weight && node_isset(node, nodes)) {
 		node_pages = min(rem_pages, weight);
 		nr_allocated = __alloc_pages_bulk(gfp, node, NULL, node_pages,
-						  NULL, page_array);
+						  page_array);
 		page_array += nr_allocated;
 		total_allocated += nr_allocated;
 		/* if that's all the pages, no need to interleave */
@@ -2494,7 +2509,7 @@ static unsigned long alloc_pages_bulk_array_weighted_interleave(gfp_t gfp,
 		if (!node_pages)
 			break;
 		nr_allocated = __alloc_pages_bulk(gfp, node, NULL, node_pages,
-						  NULL, page_array);
+						  page_array);
 		page_array += nr_allocated;
 		total_allocated += nr_allocated;
 		if (total_allocated == nr_pages)
@@ -2507,7 +2522,7 @@ static unsigned long alloc_pages_bulk_array_weighted_interleave(gfp_t gfp,
 	return total_allocated;
 }
 
-static unsigned long alloc_pages_bulk_array_preferred_many(gfp_t gfp, int nid,
+static unsigned long alloc_pages_bulk_preferred_many(gfp_t gfp, int nid,
 		struct mempolicy *pol, unsigned long nr_pages,
 		struct page **page_array)
 {
@@ -2518,11 +2533,11 @@ static unsigned long alloc_pages_bulk_array_preferred_many(gfp_t gfp, int nid,
 	preferred_gfp &= ~(__GFP_DIRECT_RECLAIM | __GFP_NOFAIL);
 
 	nr_allocated  = alloc_pages_bulk_noprof(preferred_gfp, nid, &pol->nodes,
-					   nr_pages, NULL, page_array);
+					   nr_pages, page_array);
 
 	if (nr_allocated < nr_pages)
 		nr_allocated += alloc_pages_bulk_noprof(gfp, numa_node_id(), NULL,
-				nr_pages - nr_allocated, NULL,
+				nr_pages - nr_allocated,
 				page_array + nr_allocated);
 	return nr_allocated;
 }
@@ -2533,7 +2548,7 @@ static unsigned long alloc_pages_bulk_array_preferred_many(gfp_t gfp, int nid,
  * It can accelerate memory allocation especially interleaving
  * allocate memory.
  */
-unsigned long alloc_pages_bulk_array_mempolicy_noprof(gfp_t gfp,
+unsigned long alloc_pages_bulk_mempolicy_noprof(gfp_t gfp,
 		unsigned long nr_pages, struct page **page_array)
 {
 	struct mempolicy *pol = &default_policy;
@@ -2544,21 +2559,21 @@ unsigned long alloc_pages_bulk_array_mempolicy_noprof(gfp_t gfp,
 		pol = get_task_policy(current);
 
 	if (pol->mode == MPOL_INTERLEAVE)
-		return alloc_pages_bulk_array_interleave(gfp, pol,
+		return alloc_pages_bulk_interleave(gfp, pol,
 							 nr_pages, page_array);
 
 	if (pol->mode == MPOL_WEIGHTED_INTERLEAVE)
-		return alloc_pages_bulk_array_weighted_interleave(
+		return alloc_pages_bulk_weighted_interleave(
 				  gfp, pol, nr_pages, page_array);
 
 	if (pol->mode == MPOL_PREFERRED_MANY)
-		return alloc_pages_bulk_array_preferred_many(gfp,
+		return alloc_pages_bulk_preferred_many(gfp,
 				numa_node_id(), pol, nr_pages, page_array);
 
 	nid = numa_node_id();
 	nodemask = policy_nodemask(gfp, pol, NO_INTERLEAVE_INDEX, &nid);
 	return alloc_pages_bulk_noprof(gfp, nid, nodemask,
-				       nr_pages, NULL, page_array);
+				       nr_pages, page_array);
 }
 
 int vma_dup_policy(struct vm_area_struct *src, struct vm_area_struct *dst)

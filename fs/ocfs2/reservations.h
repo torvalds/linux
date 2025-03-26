@@ -31,7 +31,7 @@ struct ocfs2_alloc_reservation {
 
 #define	OCFS2_RESV_FLAG_INUSE	0x01	/* Set when r_node is part of a btree */
 #define	OCFS2_RESV_FLAG_TMP	0x02	/* Temporary reservation, will be
-					 * destroyed immedately after use */
+					 * destroyed immediately after use */
 #define	OCFS2_RESV_FLAG_DIR	0x04	/* Reservation is for an unindexed
 					 * directory btree */
 
@@ -125,7 +125,7 @@ int ocfs2_resmap_resv_bits(struct ocfs2_reservation_map *resmap,
 /**
  * ocfs2_resmap_claimed_bits() - Tell the reservation code that bits were used.
  * @resmap: reservations bitmap
- * @resv: optional reservation to recalulate based on new bitmap
+ * @resv: optional reservation to recalculate based on new bitmap
  * @cstart: start of allocation in clusters
  * @clen: end of allocation in clusters.
  *

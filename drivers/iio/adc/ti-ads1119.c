@@ -501,7 +501,7 @@ static irqreturn_t ads1119_trigger_handler(int irq, void *private)
 	struct ads1119_state *st = iio_priv(indio_dev);
 	struct {
 		s16 sample;
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	unsigned int index;
 	int ret;

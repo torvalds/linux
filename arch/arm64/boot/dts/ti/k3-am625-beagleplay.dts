@@ -610,7 +610,7 @@
 		reg = <1>;
 		reset-gpios = <&main_gpio1 5 GPIO_ACTIVE_LOW>;
 		reset-assert-us = <25>;
-		reset-deassert-us = <60000>; /* T2 */
+		reset-deassert-us = <35>;
 	};
 };
 

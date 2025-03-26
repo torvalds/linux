@@ -21,6 +21,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/export.h>
 #include <linux/module.h>
 #include <linux/console.h>
@@ -1420,10 +1421,6 @@ void gserial_disconnect(struct gserial *gser)
 	/* REVISIT as above: how best to track this? */
 	port->port_line_coding = gser->port_line_coding;
 
-	/* disable endpoints, aborting down any active I/O */
-	usb_ep_disable(gser->out);
-	usb_ep_disable(gser->in);
-
 	port->port_usb = NULL;
 	gser->ioport = NULL;
 	if (port->port.count > 0) {
@@ -1434,6 +1431,10 @@ void gserial_disconnect(struct gserial *gser)
 	port->suspended = false;
 	spin_unlock(&port->port_lock);
 	spin_unlock_irqrestore(&serial_port_lock, flags);
+
+	/* disable endpoints, aborting down any active I/O */
+	usb_ep_disable(gser->out);
+	usb_ep_disable(gser->in);
 
 	/* finally, free any unused/unusable I/O buffers */
 	spin_lock_irqsave(&port->port_lock, flags);
@@ -1545,7 +1546,7 @@ static int __init userial_init(void)
 
 	pr_debug("%s: registered %d ttyGS* device%s\n", __func__,
 			MAX_U_SERIAL_PORTS,
-			(MAX_U_SERIAL_PORTS == 1) ? "" : "s");
+			str_plural(MAX_U_SERIAL_PORTS));
 
 	return status;
 fail:

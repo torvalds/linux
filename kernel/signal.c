@@ -4950,7 +4950,7 @@ static inline void siginfo_buildtime_checks(void)
 }
 
 #if defined(CONFIG_SYSCTL)
-static struct ctl_table signal_debug_table[] = {
+static const struct ctl_table signal_debug_table[] = {
 #ifdef CONFIG_SYSCTL_EXCEPTION_TRACE
 	{
 		.procname	= "exception-trace",

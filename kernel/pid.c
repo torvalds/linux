@@ -695,7 +695,7 @@ static struct ctl_table_root pid_table_root = {
 	.set_ownership	= pid_table_root_set_ownership,
 };
 
-static struct ctl_table pid_table[] = {
+static const struct ctl_table pid_table[] = {
 	{
 		.procname	= "pid_max",
 		.data		= &init_pid_ns.pid_max,

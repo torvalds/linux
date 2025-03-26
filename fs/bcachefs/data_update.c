@@ -91,15 +91,28 @@ static bool bkey_nocow_lock(struct bch_fs *c, struct moving_context *ctxt, struc
 	return true;
 }
 
-static void trace_move_extent_finish2(struct bch_fs *c, struct bkey_s_c k)
+static noinline void trace_move_extent_finish2(struct data_update *u,
+					       struct bkey_i *new,
+					       struct bkey_i *insert)
 {
-	if (trace_move_extent_finish_enabled()) {
-		struct printbuf buf = PRINTBUF;
+	struct bch_fs *c = u->op.c;
+	struct printbuf buf = PRINTBUF;
 
-		bch2_bkey_val_to_text(&buf, c, k);
-		trace_move_extent_finish(c, buf.buf);
-		printbuf_exit(&buf);
-	}
+	prt_newline(&buf);
+
+	bch2_data_update_to_text(&buf, u);
+	prt_newline(&buf);
+
+	prt_str_indented(&buf, "new replicas:\t");
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(new));
+	prt_newline(&buf);
+
+	prt_str_indented(&buf, "insert:\t");
+	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
+	prt_newline(&buf);
+
+	trace_move_extent_finish(c, buf.buf);
+	printbuf_exit(&buf);
 }
 
 static void trace_move_extent_fail2(struct data_update *m,
@@ -372,7 +385,8 @@ restart_drop_extra_replicas:
 			bch2_btree_iter_set_pos(&iter, next_pos);
 
 			this_cpu_add(c->counters[BCH_COUNTER_move_extent_finish], new->k.size);
-			trace_move_extent_finish2(c, bkey_i_to_s_c(&new->k_i));
+			if (trace_move_extent_finish_enabled())
+				trace_move_extent_finish2(m, &new->k_i, insert);
 		}
 err:
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -525,34 +539,38 @@ void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
 				   struct data_update_opts *data_opts)
 {
 	printbuf_tabstop_push(out, 20);
-	prt_str(out, "rewrite ptrs:\t");
+
+	prt_str_indented(out, "rewrite ptrs:\t");
 	bch2_prt_u64_base2(out, data_opts->rewrite_ptrs);
 	prt_newline(out);
 
-	prt_str(out, "kill ptrs:\t");
+	prt_str_indented(out, "kill ptrs:\t");
 	bch2_prt_u64_base2(out, data_opts->kill_ptrs);
 	prt_newline(out);
 
-	prt_str(out, "target:\t");
+	prt_str_indented(out, "target:\t");
 	bch2_target_to_text(out, c, data_opts->target);
 	prt_newline(out);
 
-	prt_str(out, "compression:\t");
+	prt_str_indented(out, "compression:\t");
 	bch2_compression_opt_to_text(out, io_opts->background_compression);
 	prt_newline(out);
 
-	prt_str(out, "opts.replicas:\t");
+	prt_str_indented(out, "opts.replicas:\t");
 	prt_u64(out, io_opts->data_replicas);
+	prt_newline(out);
 
-	prt_str(out, "extra replicas:\t");
+	prt_str_indented(out, "extra replicas:\t");
 	prt_u64(out, data_opts->extra_replicas);
 }
 
 void bch2_data_update_to_text(struct printbuf *out, struct data_update *m)
 {
-	bch2_bkey_val_to_text(out, m->op.c, bkey_i_to_s_c(m->k.k));
-	prt_newline(out);
 	bch2_data_update_opts_to_text(out, m->op.c, &m->op.opts, &m->data_opts);
+	prt_newline(out);
+
+	prt_str_indented(out, "old key:\t");
+	bch2_bkey_val_to_text(out, m->op.c, bkey_i_to_s_c(m->k.k));
 }
 
 int bch2_extent_drop_ptrs(struct btree_trans *trans,

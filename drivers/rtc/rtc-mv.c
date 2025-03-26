@@ -264,7 +264,7 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	}
 
 	if (pdata->irq >= 0)
-		device_init_wakeup(&pdev->dev, 1);
+		device_init_wakeup(&pdev->dev, true);
 	else
 		clear_bit(RTC_FEATURE_ALARM, pdata->rtc->features);
 
@@ -287,7 +287,7 @@ static void __exit mv_rtc_remove(struct platform_device *pdev)
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
 	if (pdata->irq >= 0)
-		device_init_wakeup(&pdev->dev, 0);
+		device_init_wakeup(&pdev->dev, false);
 
 	if (!IS_ERR(pdata->clk))
 		clk_disable_unprepare(pdata->clk);

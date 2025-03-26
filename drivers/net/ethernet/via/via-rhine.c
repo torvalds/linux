@@ -1568,7 +1568,7 @@ static void init_registers(struct net_device *dev)
 	if (rp->quirks & rqMgmt)
 		rhine_init_cam_filter(dev);
 
-	napi_enable(&rp->napi);
+	napi_enable_locked(&rp->napi);
 
 	iowrite16(RHINE_EVENT & 0xffff, ioaddr + IntrEnable);
 
@@ -1696,7 +1696,10 @@ static int rhine_open(struct net_device *dev)
 	rhine_power_init(dev);
 	rhine_chip_reset(dev);
 	rhine_task_enable(rp);
+
+	netdev_lock(dev);
 	init_registers(dev);
+	netdev_unlock(dev);
 
 	netif_dbg(rp, ifup, dev, "%s() Done - status %04x MII status: %04x\n",
 		  __func__, ioread16(ioaddr + ChipCmd),
@@ -1727,6 +1730,8 @@ static void rhine_reset_task(struct work_struct *work)
 
 	napi_disable(&rp->napi);
 	netif_tx_disable(dev);
+
+	netdev_lock(dev);
 	spin_lock_bh(&rp->lock);
 
 	/* clear all descriptors */
@@ -1740,6 +1745,7 @@ static void rhine_reset_task(struct work_struct *work)
 	init_registers(dev);
 
 	spin_unlock_bh(&rp->lock);
+	netdev_unlock(dev);
 
 	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
@@ -2541,9 +2547,12 @@ static int rhine_resume(struct device *device)
 	alloc_tbufs(dev);
 	rhine_reset_rbufs(rp);
 	rhine_task_enable(rp);
+
+	netdev_lock(dev);
 	spin_lock_bh(&rp->lock);
 	init_registers(dev);
 	spin_unlock_bh(&rp->lock);
+	netdev_unlock(dev);
 
 	netif_device_attach(dev);
 

@@ -796,11 +796,9 @@ void bpf_obj_free_fields(const struct btf_record *rec, void *obj)
 			if (!btf_is_kernel(field->kptr.btf)) {
 				pointee_struct_meta = btf_find_struct_meta(field->kptr.btf,
 									   field->kptr.btf_id);
-				migrate_disable();
 				__bpf_obj_drop_impl(xchgd_field, pointee_struct_meta ?
 								 pointee_struct_meta->record : NULL,
 								 fields[i].type == BPF_KPTR_PERCPU);
-				migrate_enable();
 			} else {
 				field->kptr.dtor(xchgd_field);
 			}
@@ -835,8 +833,14 @@ static void bpf_map_free(struct bpf_map *map)
 	struct btf_record *rec = map->record;
 	struct btf *btf = map->btf;
 
-	/* implementation dependent freeing */
+	/* implementation dependent freeing. Disabling migration to simplify
+	 * the free of values or special fields allocated from bpf memory
+	 * allocator.
+	 */
+	migrate_disable();
 	map->ops->map_free(map);
+	migrate_enable();
+
 	/* Delay freeing of btf_record for maps, as map_free
 	 * callback usually needs access to them. It is better to do it here
 	 * than require each callback to do the free itself manually.
@@ -2730,7 +2734,7 @@ static bool is_perfmon_prog_type(enum bpf_prog_type prog_type)
 }
 
 /* last field in 'union bpf_attr' used by this command */
-#define BPF_PROG_LOAD_LAST_FIELD prog_token_fd
+#define BPF_PROG_LOAD_LAST_FIELD fd_array_cnt
 
 static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, u32 uattr_size)
 {
@@ -6124,7 +6128,7 @@ static int bpf_unpriv_handler(const struct ctl_table *table, int write,
 	return ret;
 }
 
-static struct ctl_table bpf_syscall_table[] = {
+static const struct ctl_table bpf_syscall_table[] = {
 	{
 		.procname	= "unprivileged_bpf_disabled",
 		.data		= &sysctl_unprivileged_bpf_disabled,

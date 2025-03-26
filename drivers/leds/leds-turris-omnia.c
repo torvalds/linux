@@ -438,7 +438,7 @@ static int omnia_mcu_get_features(const struct i2c_client *mcu_client)
 	return reply;
 }
 
-static int omnia_match_mcu_client(struct device *dev, void *data)
+static int omnia_match_mcu_client(struct device *dev, const void *data)
 {
 	struct i2c_client *client;
 

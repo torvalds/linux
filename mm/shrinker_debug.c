@@ -195,8 +195,6 @@ int shrinker_debugfs_add(struct shrinker *shrinker)
 
 int shrinker_debugfs_rename(struct shrinker *shrinker, const char *fmt, ...)
 {
-	struct dentry *entry;
-	char buf[128];
 	const char *new, *old;
 	va_list ap;
 	int ret = 0;
@@ -213,18 +211,8 @@ int shrinker_debugfs_rename(struct shrinker *shrinker, const char *fmt, ...)
 	old = shrinker->name;
 	shrinker->name = new;
 
-	if (shrinker->debugfs_entry) {
-		snprintf(buf, sizeof(buf), "%s-%d", shrinker->name,
-			 shrinker->debugfs_id);
-
-		entry = debugfs_rename(shrinker_debugfs_root,
-				       shrinker->debugfs_entry,
-				       shrinker_debugfs_root, buf);
-		if (IS_ERR(entry))
-			ret = PTR_ERR(entry);
-		else
-			shrinker->debugfs_entry = entry;
-	}
+	ret = debugfs_change_name(shrinker->debugfs_entry, "%s-%d",
+			shrinker->name, shrinker->debugfs_id);
 
 	mutex_unlock(&shrinker_mutex);
 

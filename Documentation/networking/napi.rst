@@ -362,7 +362,7 @@ It is expected that ``irq-suspend-timeout`` will be set to a value much larger
 than ``gro_flush_timeout`` as ``irq-suspend-timeout`` should suspend IRQs for
 the duration of one userland processing cycle.
 
-While it is not stricly necessary to use ``napi_defer_hard_irqs`` and
+While it is not strictly necessary to use ``napi_defer_hard_irqs`` and
 ``gro_flush_timeout`` to use IRQ suspension, their use is strongly
 recommended.
 

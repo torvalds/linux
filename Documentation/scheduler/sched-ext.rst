@@ -242,9 +242,9 @@ The following briefly shows how a waking task is scheduled and executed.
    task was inserted directly from ``ops.select_cpu()``). ``ops.enqueue()``
    can make one of the following decisions:
 
-   * Immediately insert the task into either the global or local DSQ by
-     calling ``scx_bpf_dsq_insert()`` with ``SCX_DSQ_GLOBAL`` or
-     ``SCX_DSQ_LOCAL``, respectively.
+   * Immediately insert the task into either the global or a local DSQ by
+     calling ``scx_bpf_dsq_insert()`` with one of the following options:
+     ``SCX_DSQ_GLOBAL``, ``SCX_DSQ_LOCAL``, or ``SCX_DSQ_LOCAL_ON | cpu``.
 
    * Immediately insert the task into a custom DSQ by calling
      ``scx_bpf_dsq_insert()`` with a DSQ ID which is smaller than 2^63.

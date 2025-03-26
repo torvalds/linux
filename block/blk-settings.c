@@ -461,11 +461,12 @@ EXPORT_SYMBOL_GPL(queue_limits_commit_update);
 int queue_limits_commit_update_frozen(struct request_queue *q,
 		struct queue_limits *lim)
 {
+	unsigned int memflags;
 	int ret;
 
-	blk_mq_freeze_queue(q);
+	memflags = blk_mq_freeze_queue(q);
 	ret = queue_limits_commit_update(q, lim);
-	blk_mq_unfreeze_queue(q);
+	blk_mq_unfreeze_queue(q, memflags);
 
 	return ret;
 }

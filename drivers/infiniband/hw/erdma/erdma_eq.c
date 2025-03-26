@@ -236,7 +236,8 @@ static int create_eq_cmd(struct erdma_dev *dev, u32 eqn, struct erdma_eq *eq)
 	req.db_dma_addr_l = lower_32_bits(eq->dbrec_dma);
 	req.db_dma_addr_h = upper_32_bits(eq->dbrec_dma);
 
-	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
+				   false);
 }
 
 static int erdma_ceq_init_one(struct erdma_dev *dev, u16 ceqn)
@@ -278,7 +279,8 @@ static void erdma_ceq_uninit_one(struct erdma_dev *dev, u16 ceqn)
 	req.qtype = ERDMA_EQ_TYPE_CEQ;
 	req.vector_idx = ceqn + 1;
 
-	err = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+	err = erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL,
+				  false);
 	if (err)
 		return;
 

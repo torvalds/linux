@@ -59,7 +59,6 @@ iptables               1.4.2            iptables -V
 openssl & libcrypto    1.0.0            openssl version
 bc                     1.06.95          bc --version
 Sphinx\ [#f1]_         2.4.4            sphinx-build --version
-cpio                   any              cpio --version
 GNU tar                1.28             tar --version
 gtags (optional)       6.6.5            gtags --version
 mkimage (optional)     2017.01          mkimage --version
@@ -535,11 +534,6 @@ mcelog
 ------
 
 - <https://www.mcelog.org/>
-
-cpio
-----
-
-- <https://www.gnu.org/software/cpio/>
 
 Networking
 **********

@@ -301,7 +301,7 @@ static int timer_migration_handler(const struct ctl_table *table, int write,
 	return ret;
 }
 
-static struct ctl_table timer_sysctl[] = {
+static const struct ctl_table timer_sysctl[] = {
 	{
 		.procname	= "timer_migration",
 		.data		= &sysctl_timer_migration,

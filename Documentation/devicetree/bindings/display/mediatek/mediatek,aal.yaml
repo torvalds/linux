@@ -104,30 +104,30 @@ examples:
         #size-cells = <2>;
 
         aal@14015000 {
-           compatible = "mediatek,mt8173-disp-aal";
-           reg = <0 0x14015000 0 0x1000>;
-           interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_LOW>;
-           power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
-           clocks = <&mmsys CLK_MM_DISP_AAL>;
-           mediatek,gce-client-reg = <&gce SUBSYS_1401XXXX 0x5000 0x1000>;
+            compatible = "mediatek,mt8173-disp-aal";
+            reg = <0 0x14015000 0 0x1000>;
+            interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_LOW>;
+            power-domains = <&scpsys MT8173_POWER_DOMAIN_MM>;
+            clocks = <&mmsys CLK_MM_DISP_AAL>;
+            mediatek,gce-client-reg = <&gce SUBSYS_1401XXXX 0x5000 0x1000>;
 
-           ports {
-               #address-cells = <1>;
-               #size-cells = <0>;
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
 
-               port@0 {
-                   reg = <0>;
-                   aal0_in: endpoint {
-                       remote-endpoint = <&ccorr0_out>;
-                   };
-               };
+                port@0 {
+                    reg = <0>;
+                    endpoint {
+                        remote-endpoint = <&ccorr0_out>;
+                    };
+                };
 
-               port@1 {
-                   reg = <1>;
-                   aal0_out: endpoint {
-                       remote-endpoint = <&gamma0_in>;
-                   };
-               };
-           };
-       };
+                port@1 {
+                    reg = <1>;
+                    endpoint {
+                        remote-endpoint = <&gamma0_in>;
+                    };
+                };
+            };
+        };
     };

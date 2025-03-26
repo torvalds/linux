@@ -681,7 +681,7 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 	struct queue_sysfs_entry *entry = to_queue(attr);
 	struct gendisk *disk = container_of(kobj, struct gendisk, queue_kobj);
 	struct request_queue *q = disk->queue;
-	unsigned int noio_flag;
+	unsigned int memflags;
 	ssize_t res;
 
 	if (!entry->store_limit && !entry->store)
@@ -711,11 +711,9 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 	}
 
 	mutex_lock(&q->sysfs_lock);
-	blk_mq_freeze_queue(q);
-	noio_flag = memalloc_noio_save();
+	memflags = blk_mq_freeze_queue(q);
 	res = entry->store(disk, page, length);
-	memalloc_noio_restore(noio_flag);
-	blk_mq_unfreeze_queue(q);
+	blk_mq_unfreeze_queue(q, memflags);
 	mutex_unlock(&q->sysfs_lock);
 	return res;
 }
@@ -764,7 +762,6 @@ int blk_register_queue(struct gendisk *disk)
 	struct request_queue *q = disk->queue;
 	int ret;
 
-	mutex_lock(&q->sysfs_dir_lock);
 	kobject_init(&disk->queue_kobj, &blk_queue_ktype);
 	ret = kobject_add(&disk->queue_kobj, &disk_to_dev(disk)->kobj, "queue");
 	if (ret < 0)
@@ -805,7 +802,6 @@ int blk_register_queue(struct gendisk *disk)
 	if (q->elevator)
 		kobject_uevent(&q->elevator->kobj, KOBJ_ADD);
 	mutex_unlock(&q->sysfs_lock);
-	mutex_unlock(&q->sysfs_dir_lock);
 
 	/*
 	 * SCSI probing may synchronously create and destroy a lot of
@@ -830,7 +826,6 @@ out_debugfs_remove:
 	mutex_unlock(&q->sysfs_lock);
 out_put_queue_kobj:
 	kobject_put(&disk->queue_kobj);
-	mutex_unlock(&q->sysfs_dir_lock);
 	return ret;
 }
 
@@ -861,7 +856,6 @@ void blk_unregister_queue(struct gendisk *disk)
 	blk_queue_flag_clear(QUEUE_FLAG_REGISTERED, q);
 	mutex_unlock(&q->sysfs_lock);
 
-	mutex_lock(&q->sysfs_dir_lock);
 	/*
 	 * Remove the sysfs attributes before unregistering the queue data
 	 * structures that can be modified through sysfs.
@@ -878,7 +872,6 @@ void blk_unregister_queue(struct gendisk *disk)
 	/* Now that we've deleted all child objects, we can delete the queue. */
 	kobject_uevent(&disk->queue_kobj, KOBJ_REMOVE);
 	kobject_del(&disk->queue_kobj);
-	mutex_unlock(&q->sysfs_dir_lock);
 
 	blk_debugfs_remove(disk);
 }

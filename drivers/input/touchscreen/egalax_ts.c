@@ -23,6 +23,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/bitops.h>
 #include <linux/input/mt.h>
 
@@ -102,7 +103,7 @@ static irqreturn_t egalax_ts_interrupt(int irq, void *dev_id)
 	input_mt_report_slot_state(input_dev, MT_TOOL_FINGER, down);
 
 	dev_dbg(&client->dev, "%s id:%d x:%d y:%d z:%d",
-		down ? "down" : "up", id, x, y, z);
+		str_down_up(down), id, x, y, z);
 
 	if (down) {
 		input_report_abs(input_dev, ABS_MT_POSITION_X, x);

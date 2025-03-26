@@ -63,6 +63,7 @@
 #define CH341_REG_DIVISOR      0x13
 #define CH341_REG_LCR          0x18
 #define CH341_REG_LCR2         0x25
+#define CH341_REG_FLOW_CTL     0x27
 
 #define CH341_NBREAK_BITS      0x01
 
@@ -76,6 +77,9 @@
 #define CH341_LCR_CS7          0x02
 #define CH341_LCR_CS6          0x01
 #define CH341_LCR_CS5          0x00
+
+#define CH341_FLOW_CTL_NONE    0x00
+#define CH341_FLOW_CTL_RTSCTS  0x01
 
 #define CH341_QUIRK_LIMITED_PRESCALER	BIT(0)
 #define CH341_QUIRK_SIMULATE_BREAK	BIT(1)
@@ -478,6 +482,28 @@ err_kill_interrupt_urb:
 	return r;
 }
 
+static void ch341_set_flow_control(struct tty_struct *tty,
+				   struct usb_serial_port *port,
+				   const struct ktermios *old_termios)
+{
+	u16 flow_ctl;
+	int r;
+
+	if (C_CRTSCTS(tty))
+		flow_ctl = CH341_FLOW_CTL_RTSCTS;
+	else
+		flow_ctl = CH341_FLOW_CTL_NONE;
+
+	r = ch341_control_out(port->serial->dev,
+			      CH341_REQ_WRITE_REG,
+			      (CH341_REG_FLOW_CTL << 8) | CH341_REG_FLOW_CTL,
+			      (flow_ctl << 8) | flow_ctl);
+	if (r < 0 && old_termios) {
+		tty->termios.c_cflag &= ~CRTSCTS;
+		tty->termios.c_cflag |= (old_termios->c_cflag & CRTSCTS);
+	}
+}
+
 /* Old_termios contains the original termios settings and
  * tty->termios contains the new setting to be used.
  */
@@ -546,6 +572,8 @@ static void ch341_set_termios(struct tty_struct *tty,
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	ch341_set_handshake(port->serial->dev, priv->mcr);
+
+	ch341_set_flow_control(tty, port, old_termios);
 }
 
 /*
@@ -632,13 +660,12 @@ restore:
 
 static int ch341_break_ctl(struct tty_struct *tty, int break_state)
 {
-	const uint16_t ch341_break_reg =
-			((uint16_t) CH341_REG_LCR << 8) | CH341_REG_BREAK;
+	const u16 ch341_break_reg = (CH341_REG_LCR << 8) | CH341_REG_BREAK;
 	struct usb_serial_port *port = tty->driver_data;
 	struct ch341_private *priv = usb_get_serial_port_data(port);
+	u16 reg_contents;
+	u8 break_reg[2];
 	int r;
-	uint16_t reg_contents;
-	uint8_t break_reg[2];
 
 	if (priv->quirks & CH341_QUIRK_SIMULATE_BREAK)
 		return ch341_simulate_break(tty, break_state);

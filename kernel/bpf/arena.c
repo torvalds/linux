@@ -138,7 +138,11 @@ static struct bpf_map *arena_map_alloc(union bpf_attr *attr)
 	INIT_LIST_HEAD(&arena->vma_list);
 	bpf_map_init_from_attr(&arena->map, attr);
 	range_tree_init(&arena->rt);
-	range_tree_set(&arena->rt, 0, attr->max_entries);
+	err = range_tree_set(&arena->rt, 0, attr->max_entries);
+	if (err) {
+		bpf_map_area_free(arena);
+		goto err;
+	}
 	mutex_init(&arena->lock);
 
 	return &arena->map;
@@ -218,7 +222,7 @@ static u64 arena_map_mem_usage(const struct bpf_map *map)
 struct vma_list {
 	struct vm_area_struct *vma;
 	struct list_head head;
-	atomic_t mmap_count;
+	refcount_t mmap_count;
 };
 
 static int remember_vma(struct bpf_arena *arena, struct vm_area_struct *vma)
@@ -228,7 +232,7 @@ static int remember_vma(struct bpf_arena *arena, struct vm_area_struct *vma)
 	vml = kmalloc(sizeof(*vml), GFP_KERNEL);
 	if (!vml)
 		return -ENOMEM;
-	atomic_set(&vml->mmap_count, 1);
+	refcount_set(&vml->mmap_count, 1);
 	vma->vm_private_data = vml;
 	vml->vma = vma;
 	list_add(&vml->head, &arena->vma_list);
@@ -239,7 +243,7 @@ static void arena_vm_open(struct vm_area_struct *vma)
 {
 	struct vma_list *vml = vma->vm_private_data;
 
-	atomic_inc(&vml->mmap_count);
+	refcount_inc(&vml->mmap_count);
 }
 
 static void arena_vm_close(struct vm_area_struct *vma)
@@ -248,7 +252,7 @@ static void arena_vm_close(struct vm_area_struct *vma)
 	struct bpf_arena *arena = container_of(map, struct bpf_arena, map);
 	struct vma_list *vml = vma->vm_private_data;
 
-	if (!atomic_dec_and_test(&vml->mmap_count))
+	if (!refcount_dec_and_test(&vml->mmap_count))
 		return;
 	guard(mutex)(&arena->lock);
 	/* update link list under lock */
@@ -256,8 +260,6 @@ static void arena_vm_close(struct vm_area_struct *vma)
 	vma->vm_private_data = NULL;
 	kfree(vml);
 }
-
-#define MT_ENTRY ((void *)&arena_map_ops) /* unused. has to be valid pointer */
 
 static vm_fault_t arena_vm_fault(struct vm_fault *vmf)
 {
@@ -443,7 +445,7 @@ static long arena_alloc_pages(struct bpf_arena *arena, long uaddr, long page_cnt
 			return 0;
 	}
 
-	/* zeroing is needed, since alloc_pages_bulk_array() only fills in non-zero entries */
+	/* zeroing is needed, since alloc_pages_bulk() only fills in non-zero entries */
 	pages = kvcalloc(page_cnt, sizeof(struct page *), GFP_KERNEL);
 	if (!pages)
 		return 0;

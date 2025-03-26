@@ -42,7 +42,7 @@ pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *ret, *init;
 
-	ret = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+	ret = __pgd_alloc(mm, 0);
 	init = pgd_offset(&init_mm, 0UL);
 	if (ret) {
 #ifdef CONFIG_ALPHA_LARGE_VMALLOC

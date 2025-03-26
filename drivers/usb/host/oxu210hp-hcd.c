@@ -15,6 +15,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -2756,7 +2757,7 @@ static void ehci_port_power(struct oxu_hcd *oxu, int is_on)
 	if (!HCS_PPC(oxu->hcs_params))
 		return;
 
-	oxu_dbg(oxu, "...power%s ports...\n", is_on ? "up" : "down");
+	oxu_dbg(oxu, "...power%s ports...\n", str_up_down(is_on));
 	for (port = HCS_N_PORTS(oxu->hcs_params); port > 0; ) {
 		if (is_on)
 			oxu_hub_control(oxu_to_hcd(oxu), SetPortFeature,

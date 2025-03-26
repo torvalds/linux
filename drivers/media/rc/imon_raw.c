@@ -37,7 +37,7 @@ static void imon_ir_data(struct imon *imon)
 	if (packet_no == 0xff)
 		return;
 
-	dev_dbg(imon->dev, "data: %*ph", 8, imon->ir_buf);
+	dev_dbg(imon->dev, "data: %8ph", imon->ir_buf);
 
 	/*
 	 * Only the first 5 bytes contain IR data. Right shift so we move

@@ -3084,7 +3084,7 @@ static int snd_cmipci_create(struct snd_card *card, struct pci_dev *pci,
 			}
 		}
 	}
-	sprintf(card->shortname, "C-Media CMI%d", val);
+	sprintf(card->shortname, "C-Media CMI%u", val);
 	if (cm->chip_version < 68)
 		scnprintf(modelstr, sizeof(modelstr),
 			  " (model %d)", cm->chip_version);

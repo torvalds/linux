@@ -312,7 +312,7 @@ static int sched_energy_aware_handler(const struct ctl_table *table, int write,
 	return ret;
 }
 
-static struct ctl_table sched_energy_aware_sysctls[] = {
+static const struct ctl_table sched_energy_aware_sysctls[] = {
 	{
 		.procname       = "sched_energy_aware",
 		.data           = &sysctl_sched_energy_aware,

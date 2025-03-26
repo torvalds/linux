@@ -38,8 +38,8 @@ struct arch_hw_breakpoint {
  * Limits.
  * Changing these will require modifications to the register accessors.
  */
-#define LOONGARCH_MAX_BRP		8
-#define LOONGARCH_MAX_WRP		8
+#define LOONGARCH_MAX_BRP		14
+#define LOONGARCH_MAX_WRP		14
 
 /* Virtual debug register bases. */
 #define CSR_CFG_ADDR	0

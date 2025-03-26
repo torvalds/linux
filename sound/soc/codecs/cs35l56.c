@@ -646,6 +646,12 @@ static struct snd_soc_dai_driver cs35l56_dai[] = {
 			.rates = CS35L56_RATES,
 			.formats = CS35L56_RX_FORMATS,
 		},
+		.symmetric_rate = 1,
+		.ops = &cs35l56_sdw_dai_ops,
+	},
+	{
+		.name = "cs35l56-sdw1c",
+		.id = 2,
 		.capture = {
 			.stream_name = "SDW1 Capture",
 			.channels_min = 1,
@@ -655,7 +661,7 @@ static struct snd_soc_dai_driver cs35l56_dai[] = {
 		},
 		.symmetric_rate = 1,
 		.ops = &cs35l56_sdw_dai_ops,
-	}
+	},
 };
 
 static int cs35l56_write_cal(struct cs35l56_private *cs35l56)

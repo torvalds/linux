@@ -754,7 +754,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 				hbt->timer(hbt->arg);
 
 			if (delay_secs != 0) {
-				symbol__annotate_decay_histogram(sym, evsel->core.idx);
+				symbol__annotate_decay_histogram(sym, evsel);
 				hists__scnprintf_title(hists, title, sizeof(title));
 				annotate_browser__show(&browser->b, title, help);
 			}

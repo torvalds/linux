@@ -1268,9 +1268,19 @@ static inline int __xfrm_policy_check2(struct sock *sk, int dir,
 
 	if (xo) {
 		x = xfrm_input_state(skb);
-		if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET)
-			return (xo->flags & CRYPTO_DONE) &&
-			       (xo->status & CRYPTO_SUCCESS);
+		if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET) {
+			bool check = (xo->flags & CRYPTO_DONE) &&
+				     (xo->status & CRYPTO_SUCCESS);
+
+			/* The packets here are plain ones and secpath was
+			 * needed to indicate that hardware already handled
+			 * them and there is no need to do nothing in addition.
+			 *
+			 * Consume secpath which was set by drivers.
+			 */
+			secpath_reset(skb);
+			return check;
+		}
 	}
 
 	return __xfrm_check_nopolicy(net, skb, dir) ||

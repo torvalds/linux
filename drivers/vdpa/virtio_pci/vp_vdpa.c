@@ -367,6 +367,14 @@ static void vp_vdpa_kick_vq(struct vdpa_device *vdpa, u16 qid)
 	vp_iowrite16(qid, vp_vdpa->vring[qid].notify);
 }
 
+static void vp_vdpa_kick_vq_with_data(struct vdpa_device *vdpa, u32 data)
+{
+	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
+	u16 qid = data & 0xFFFF;
+
+	vp_iowrite32(data, vp_vdpa->vring[qid].notify);
+}
+
 static u32 vp_vdpa_get_generation(struct vdpa_device *vdpa)
 {
 	struct virtio_pci_modern_device *mdev = vdpa_to_mdev(vdpa);
@@ -472,6 +480,7 @@ static const struct vdpa_config_ops vp_vdpa_ops = {
 	.get_vq_size	= vp_vdpa_get_vq_size,
 	.set_vq_address	= vp_vdpa_set_vq_address,
 	.kick_vq	= vp_vdpa_kick_vq,
+	.kick_vq_with_data      = vp_vdpa_kick_vq_with_data,
 	.get_generation	= vp_vdpa_get_generation,
 	.get_device_id	= vp_vdpa_get_device_id,
 	.get_vendor_id	= vp_vdpa_get_vendor_id,

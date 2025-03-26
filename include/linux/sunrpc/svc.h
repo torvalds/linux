@@ -72,16 +72,12 @@ struct svc_serv {
 	spinlock_t		sv_lock;
 	unsigned int		sv_nprogs;	/* Number of sv_programs */
 	unsigned int		sv_nrthreads;	/* # of server threads */
-	unsigned int		sv_maxconn;	/* max connections allowed or
-						 * '0' causing max to be based
-						 * on number of threads. */
-
 	unsigned int		sv_max_payload;	/* datagram payload size */
 	unsigned int		sv_max_mesg;	/* max_payload + 1 page for overheads */
 	unsigned int		sv_xdrsize;	/* XDR buffer size */
 	struct list_head	sv_permsocks;	/* all permanent sockets */
 	struct list_head	sv_tempsocks;	/* all temporary sockets */
-	int			sv_tmpcnt;	/* count of temporary sockets */
+	int			sv_tmpcnt;	/* count of temporary "valid" sockets */
 	struct timer_list	sv_temptimer;	/* timer for aging temporary sockets */
 
 	char *			sv_name;	/* service name */
@@ -327,12 +323,7 @@ static inline bool svc_thread_should_stop(struct svc_rqst *rqstp)
  */
 static inline void svc_thread_init_status(struct svc_rqst *rqstp, int err)
 {
-	rqstp->rq_err = err;
-	/* memory barrier ensures assignment to error above is visible before
-	 * waitqueue_active() test below completes.
-	 */
-	smp_mb();
-	wake_up_var(&rqstp->rq_err);
+	store_release_wake_up(&rqstp->rq_err, err);
 	if (err)
 		kthread_exit(1);
 }

@@ -1,0 +1,98 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (C) 2024 Heiko Schocher <hs@denx.de>
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/gpio/gpio.h>
+#include "imx8mp-aristainetos3a-som-v1.dtsi"
+
+&{/} {
+	model = "Aristainetos3 helios carrier";
+	compatible = "abb,imx8mp-aristanetos3-helios",
+		     "abb,imx8mp-aristanetos3-som",
+		     "fsl,imx8mp";
+
+	led-controller {
+		compatible = "gpio-leds";
+
+		led-0 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			function-enumerator = <20>;
+			gpios = <&pca6416 12 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-1 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_YELLOW>;
+			function-enumerator = <20>;
+			gpios = <&pca6416 13 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-2 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			function-enumerator = <20>;
+			gpios = <&pca6416 14 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-3 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_BLUE>;
+			function-enumerator = <20>;
+			gpios = <&pca6416 15 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+	};
+};
+
+&ethphy1 {
+	status = "disabled";
+};
+
+&fec {
+	status = "disabled";
+};
+
+&i2c1 {
+	eeprom@57 {
+		compatible = "atmel,24c64";
+		reg = <0x57>;
+	};
+};
+
+&i2c3 {
+	pca6416: gpio@20 {
+		compatible = "ti,tca6416";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "DIN0_CON",
+			"DIN1_CON",
+			"DIN2_CON",
+			"DIN3_CON",
+			"DIN4_CON",
+			"DIN5_CON",
+			"DIN6_CON",
+			"DIN7_CON",
+			"PM102_RES",
+			"COMx_RES",
+			"BPL_RES",
+			"PC_RES",
+			"LED_RED",
+			"LED_YELLOW",
+			"LED_GREEN",
+			"LED_BLUE";
+	};
+
+	rtc@68 {
+		compatible = "st,m41t00";
+		reg = <0x68>;
+	};
+};

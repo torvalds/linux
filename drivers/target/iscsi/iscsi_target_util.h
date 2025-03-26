@@ -23,7 +23,6 @@ extern struct iscsi_seq *iscsit_get_seq_holder_for_r2t(struct iscsit_cmd *);
 extern struct iscsi_r2t *iscsit_get_holder_for_r2tsn(struct iscsit_cmd *, u32);
 extern int iscsit_sequence_cmd(struct iscsit_conn *conn, struct iscsit_cmd *cmd,
 			       unsigned char * ,__be32 cmdsn);
-extern int iscsit_check_unsolicited_dataout(struct iscsit_cmd *, unsigned char *);
 extern struct iscsit_cmd *iscsit_find_cmd_from_itt_or_dump(struct iscsit_conn *,
 			itt_t, u32);
 extern struct iscsit_cmd *iscsit_find_cmd_from_ttt(struct iscsit_conn *, u32);
@@ -61,7 +60,6 @@ extern int iscsit_set_login_timer_kworker(struct iscsit_conn *, struct task_stru
 extern int iscsit_send_tx_data(struct iscsit_cmd *, struct iscsit_conn *, int);
 extern int iscsit_fe_sendpage_sg(struct iscsit_cmd *, struct iscsit_conn *);
 extern int iscsit_tx_login_rsp(struct iscsit_conn *, u8, u8);
-extern void iscsit_print_session_params(struct iscsit_session *);
 extern int rx_data(struct iscsit_conn *, struct kvec *, int, int);
 extern int tx_data(struct iscsit_conn *, struct kvec *, int, int);
 extern void iscsit_collect_login_stats(struct iscsit_conn *, u8, u8);

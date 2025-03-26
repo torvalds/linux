@@ -17,6 +17,7 @@ properties:
     enum:
       - xlnx,versal-cpm-host-1.00
       - xlnx,versal-cpm5-host
+      - xlnx,versal-cpm5-host1
 
   reg:
     items:

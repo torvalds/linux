@@ -173,13 +173,20 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 
 #define	FMODE_NOREUSE		((__force fmode_t)(1 << 23))
 
-/* FMODE_* bit 24 */
-
 /* File is embedded in backing_file object */
-#define FMODE_BACKING		((__force fmode_t)(1 << 25))
+#define FMODE_BACKING		((__force fmode_t)(1 << 24))
 
-/* File was opened by fanotify and shouldn't generate fanotify events */
-#define FMODE_NONOTIFY		((__force fmode_t)(1 << 26))
+/*
+ * Together with FMODE_NONOTIFY_PERM defines which fsnotify events shouldn't be
+ * generated (see below)
+ */
+#define FMODE_NONOTIFY		((__force fmode_t)(1 << 25))
+
+/*
+ * Together with FMODE_NONOTIFY defines which fsnotify events shouldn't be
+ * generated (see below)
+ */
+#define FMODE_NONOTIFY_PERM	((__force fmode_t)(1 << 26))
 
 /* File is capable of returning -EAGAIN if I/O will block */
 #define FMODE_NOWAIT		((__force fmode_t)(1 << 27))
@@ -189,6 +196,31 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 
 /* File does not contribute to nr_files count */
 #define FMODE_NOACCOUNT		((__force fmode_t)(1 << 29))
+
+/*
+ * The two FMODE_NONOTIFY* define which fsnotify events should not be generated
+ * for a file. These are the possible values of (f->f_mode &
+ * FMODE_FSNOTIFY_MASK) and their meaning:
+ *
+ * FMODE_NONOTIFY - suppress all (incl. non-permission) events.
+ * FMODE_NONOTIFY_PERM - suppress permission (incl. pre-content) events.
+ * FMODE_NONOTIFY | FMODE_NONOTIFY_PERM - suppress only pre-content events.
+ */
+#define FMODE_FSNOTIFY_MASK \
+	(FMODE_NONOTIFY | FMODE_NONOTIFY_PERM)
+
+#define FMODE_FSNOTIFY_NONE(mode) \
+	((mode & FMODE_FSNOTIFY_MASK) == FMODE_NONOTIFY)
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+#define FMODE_FSNOTIFY_PERM(mode) \
+	((mode & FMODE_FSNOTIFY_MASK) == 0 || \
+	 (mode & FMODE_FSNOTIFY_MASK) == (FMODE_NONOTIFY | FMODE_NONOTIFY_PERM))
+#define FMODE_FSNOTIFY_HSM(mode) \
+	((mode & FMODE_FSNOTIFY_MASK) == 0)
+#else
+#define FMODE_FSNOTIFY_PERM(mode)	0
+#define FMODE_FSNOTIFY_HSM(mode)	0
+#endif
 
 /*
  * Attribute flags.  These should be or-ed together to figure out what
@@ -758,6 +790,19 @@ struct inode {
 
 static inline void inode_set_cached_link(struct inode *inode, char *link, int linklen)
 {
+	int testlen;
+
+	/*
+	 * TODO: patch it into a debug-only check if relevant macros show up.
+	 * In the meantime, since we are suffering strlen even on production kernels
+	 * to find the right length, do a fixup if the wrong value got passed.
+	 */
+	testlen = strlen(link);
+	if (testlen != linklen) {
+		WARN_ONCE(1, "bad length passed for symlink [%s] (got %d, expected %d)",
+			  link, linklen, testlen);
+		linklen = testlen;
+	}
 	inode->i_link = link;
 	inode->i_linklen = linklen;
 	inode->i_opflags |= IOP_CACHED_LINK;
@@ -1246,6 +1291,7 @@ extern int send_sigurg(struct file *file);
 #define SB_I_RETIRED	0x00000800	/* superblock shouldn't be reused */
 #define SB_I_NOUMASK	0x00001000	/* VFS does not apply umask */
 #define SB_I_NOIDMAP	0x00002000	/* No idmapped mounts on this superblock */
+#define SB_I_ALLOW_HSM	0x00004000	/* Allow HSM events on this superblock */
 
 /* Possible states of 'frozen' field */
 enum {
@@ -2767,6 +2813,8 @@ static inline struct file *file_open_root_mnt(struct vfsmount *mnt,
 }
 struct file *dentry_open(const struct path *path, int flags,
 			 const struct cred *creds);
+struct file *dentry_open_nonotify(const struct path *path, int flags,
+				  const struct cred *cred);
 struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 			   const struct cred *cred);
 struct path *backing_file_user_path(struct file *f);
@@ -2890,6 +2938,8 @@ extern int __must_check file_fdatawait_range(struct file *file, loff_t lstart,
 extern int __must_check file_check_and_advance_wb_err(struct file *file);
 extern int __must_check file_write_and_wait_range(struct file *file,
 						loff_t start, loff_t end);
+int filemap_fdatawrite_range_kick(struct address_space *mapping, loff_t start,
+		loff_t end);
 
 static inline int file_write_and_wait(struct file *file)
 {
@@ -2922,6 +2972,11 @@ static inline ssize_t generic_write_sync(struct kiocb *iocb, ssize_t count)
 				(iocb->ki_flags & IOCB_SYNC) ? 0 : 1);
 		if (ret)
 			return ret;
+	} else if (iocb->ki_flags & IOCB_DONTCACHE) {
+		struct address_space *mapping = iocb->ki_filp->f_mapping;
+
+		filemap_fdatawrite_range_kick(mapping, iocb->ki_pos,
+					      iocb->ki_pos + count);
 	}
 
 	return count;
@@ -3075,6 +3130,34 @@ static inline void allow_write_access(struct file *file)
 	if (file)
 		atomic_inc(&file_inode(file)->i_writecount);
 }
+
+/*
+ * Do not prevent write to executable file when watched by pre-content events.
+ *
+ * Note that FMODE_FSNOTIFY_HSM mode is set depending on pre-content watches at
+ * the time of file open and remains constant for entire lifetime of the file,
+ * so if pre-content watches are added post execution or removed before the end
+ * of the execution, it will not cause i_writecount reference leak.
+ */
+static inline int exe_file_deny_write_access(struct file *exe_file)
+{
+	if (unlikely(FMODE_FSNOTIFY_HSM(exe_file->f_mode)))
+		return 0;
+	return deny_write_access(exe_file);
+}
+static inline void exe_file_allow_write_access(struct file *exe_file)
+{
+	if (unlikely(!exe_file || FMODE_FSNOTIFY_HSM(exe_file->f_mode)))
+		return;
+	allow_write_access(exe_file);
+}
+
+static inline void file_set_fsnotify_mode(struct file *file, fmode_t mode)
+{
+	file->f_mode &= ~FMODE_FSNOTIFY_MASK;
+	file->f_mode |= mode;
+}
+
 static inline bool inode_is_open_for_write(const struct inode *inode)
 {
 	return atomic_read(&inode->i_writecount) > 0;
@@ -3730,11 +3813,9 @@ struct ctl_table;
 int __init list_bdev_fs_names(char *buf, size_t size);
 
 #define __FMODE_EXEC		((__force int) FMODE_EXEC)
-#define __FMODE_NONOTIFY	((__force int) FMODE_NONOTIFY)
 
 #define ACC_MODE(x) ("\004\002\006\006"[(x)&O_ACCMODE])
-#define OPEN_FMODE(flag) ((__force fmode_t)(((flag + 1) & O_ACCMODE) | \
-					    (flag & __FMODE_NONOTIFY)))
+#define OPEN_FMODE(flag) ((__force fmode_t)((flag + 1) & O_ACCMODE))
 
 static inline bool is_sxid(umode_t mode)
 {

@@ -20,6 +20,7 @@
 #include "extents.h"
 #include "fsck.h"
 #include "inode.h"
+#include "journal_reclaim.h"
 #include "super.h"
 
 #include <linux/console.h>

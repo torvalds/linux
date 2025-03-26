@@ -264,7 +264,7 @@ EXPORT_SYMBOL(end_iomem);
 
 #define MIN_VMALLOC (32 * 1024 * 1024)
 
-static void parse_host_cpu_flags(char *line)
+static void __init parse_host_cpu_flags(char *line)
 {
 	int i;
 	for (i = 0; i < 32*NCAPINTS; i++) {
@@ -272,7 +272,8 @@ static void parse_host_cpu_flags(char *line)
 			set_cpu_cap(&boot_cpu_data, i);
 	}
 }
-static void parse_cache_line(char *line)
+
+static void __init parse_cache_line(char *line)
 {
 	long res;
 	char *to_parse = strstr(line, ":");
@@ -288,7 +289,7 @@ static void parse_cache_line(char *line)
 	}
 }
 
-static unsigned long get_top_address(char **envp)
+static unsigned long __init get_top_address(char **envp)
 {
 	unsigned long top_addr = (unsigned long) &top_addr;
 	int i;
@@ -376,9 +377,8 @@ int __init linux_main(int argc, char **argv, char **envp)
 	iomem_size = (iomem_size + PAGE_SIZE - 1) & PAGE_MASK;
 
 	max_physmem = TASK_SIZE - uml_physmem - iomem_size - MIN_VMALLOC;
-
-	if (physmem_size + iomem_size > max_physmem) {
-		physmem_size = max_physmem - iomem_size;
+	if (physmem_size > max_physmem) {
+		physmem_size = max_physmem;
 		os_info("Physical memory size shrunk to %llu bytes\n",
 			physmem_size);
 	}

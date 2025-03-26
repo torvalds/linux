@@ -95,32 +95,17 @@ __uml_setup("hostfs=", hostfs_args,
 static char *__dentry_name(struct dentry *dentry, char *name)
 {
 	char *p = dentry_path_raw(dentry, name, PATH_MAX);
-	char *root;
-	size_t len;
-	struct hostfs_fs_info *fsi;
+	struct hostfs_fs_info *fsi = dentry->d_sb->s_fs_info;
+	char *root = fsi->host_root_path;
+	size_t len = strlen(root);
 
-	fsi = dentry->d_sb->s_fs_info;
-	root = fsi->host_root_path;
-	len = strlen(root);
-	if (IS_ERR(p)) {
+	if (IS_ERR(p) || len > p - name) {
 		__putname(name);
 		return NULL;
 	}
 
-	/*
-	 * This function relies on the fact that dentry_path_raw() will place
-	 * the path name at the end of the provided buffer.
-	 */
-	BUG_ON(p + strlen(p) + 1 != name + PATH_MAX);
-
-	strscpy(name, root, PATH_MAX);
-	if (len > p - name) {
-		__putname(name);
-		return NULL;
-	}
-
-	if (p > name + len)
-		strcpy(name + len, p);
+	memcpy(name, root, len);
+	memmove(name + len, p, name + PATH_MAX - p);
 
 	return name;
 }
@@ -410,37 +395,32 @@ static const struct file_operations hostfs_dir_fops = {
 	.fsync		= hostfs_fsync,
 };
 
-static int hostfs_writepage(struct page *page, struct writeback_control *wbc)
+static int hostfs_writepages(struct address_space *mapping,
+		struct writeback_control *wbc)
 {
-	struct address_space *mapping = page->mapping;
 	struct inode *inode = mapping->host;
-	char *buffer;
-	loff_t base = page_offset(page);
-	int count = PAGE_SIZE;
-	int end_index = inode->i_size >> PAGE_SHIFT;
-	int err;
+	struct folio *folio = NULL;
+	loff_t i_size = i_size_read(inode);
+	int err = 0;
 
-	if (page->index >= end_index)
-		count = inode->i_size & (PAGE_SIZE-1);
+	while ((folio = writeback_iter(mapping, wbc, folio, &err))) {
+		loff_t pos = folio_pos(folio);
+		size_t count = folio_size(folio);
+		char *buffer;
+		int ret;
 
-	buffer = kmap_local_page(page);
+		if (count > i_size - pos)
+			count = i_size - pos;
 
-	err = write_file(HOSTFS_I(inode)->fd, &base, buffer, count);
-	if (err != count) {
-		if (err >= 0)
-			err = -EIO;
-		mapping_set_error(mapping, err);
-		goto out;
+		buffer = kmap_local_folio(folio, 0);
+		ret = write_file(HOSTFS_I(inode)->fd, &pos, buffer, count);
+		kunmap_local(buffer);
+		folio_unlock(folio);
+		if (ret != count) {
+			err = ret < 0 ? ret : -EIO;
+			mapping_set_error(mapping, err);
+		}
 	}
-
-	if (base > inode->i_size)
-		inode->i_size = base;
-
-	err = 0;
-
- out:
-	kunmap_local(buffer);
-	unlock_page(page);
 
 	return err;
 }
@@ -506,11 +486,12 @@ static int hostfs_write_end(struct file *file, struct address_space *mapping,
 }
 
 static const struct address_space_operations hostfs_aops = {
-	.writepage 	= hostfs_writepage,
+	.writepages 	= hostfs_writepages,
 	.read_folio	= hostfs_read_folio,
 	.dirty_folio	= filemap_dirty_folio,
 	.write_begin	= hostfs_write_begin,
 	.write_end	= hostfs_write_end,
+	.migrate_folio	= filemap_migrate_folio,
 };
 
 static int hostfs_inode_update(struct inode *ino, const struct hostfs_stat *st)

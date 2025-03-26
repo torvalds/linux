@@ -1209,7 +1209,6 @@ static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 
 	qm->mode = uacce_mode;
 	qm->pdev = pdev;
-	qm->ver = pdev->revision;
 	qm->sqe_size = HPRE_SQE_SIZE;
 	qm->dev_name = hpre_name;
 
@@ -1396,6 +1395,17 @@ static enum acc_err_result hpre_get_err_result(struct hisi_qm *qm)
 	return ACC_ERR_RECOVERED;
 }
 
+static bool hpre_dev_is_abnormal(struct hisi_qm *qm)
+{
+	u32 err_status;
+
+	err_status = hpre_get_hw_err_status(qm);
+	if (err_status & qm->err_info.dev_shutdown_mask)
+		return true;
+
+	return false;
+}
+
 static void hpre_err_info_init(struct hisi_qm *qm)
 {
 	struct hisi_qm_err_info *err_info = &qm->err_info;
@@ -1428,6 +1438,7 @@ static const struct hisi_qm_err_ini hpre_err_ini = {
 	.show_last_dfx_regs	= hpre_show_last_dfx_regs,
 	.err_info_init		= hpre_err_info_init,
 	.get_err_result		= hpre_get_err_result,
+	.dev_is_abnormal	= hpre_dev_is_abnormal,
 };
 
 static int hpre_pf_probe_init(struct hpre *hpre)

@@ -22,6 +22,8 @@ static int quirk_override = -1;
 module_param_named(quirk, quirk_override, int, 0444);
 MODULE_PARM_DESC(quirk, "Board-specific quirk override");
 
+#define DMIC_DEFAULT_CHANNELS 2
+
 static void log_quirks(struct device *dev)
 {
 	if (SOC_SDW_JACK_JDSRC(sof_sdw_quirk))
@@ -42,6 +44,8 @@ static void log_quirks(struct device *dev)
 		dev_dbg(dev, "quirk SOC_SDW_CODEC_SPKR enabled\n");
 	if (sof_sdw_quirk & SOC_SDW_SIDECAR_AMPS)
 		dev_dbg(dev, "quirk SOC_SDW_SIDECAR_AMPS enabled\n");
+	if (sof_sdw_quirk & SOC_SDW_CODEC_MIC)
+		dev_dbg(dev, "quirk SOC_SDW_CODEC_MIC enabled\n");
 }
 
 static int sof_sdw_quirk_cb(const struct dmi_system_id *id)
@@ -608,25 +612,41 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 		.callback = sof_sdw_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "3838")
+			DMI_MATCH(DMI_PRODUCT_NAME, "83JX")
 		},
-		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS),
+		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS | SOC_SDW_CODEC_MIC),
 	},
 	{
 		.callback = sof_sdw_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "3832")
+			DMI_MATCH(DMI_PRODUCT_NAME, "83LC")
 		},
-		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS),
+		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS | SOC_SDW_CODEC_MIC),
 	},
 	{
 		.callback = sof_sdw_quirk_cb,
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "380E")
+			DMI_MATCH(DMI_PRODUCT_NAME, "83MC")
 		},
-		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS),
+		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS | SOC_SDW_CODEC_MIC),
+	},	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "83NM")
+		},
+		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS | SOC_SDW_CODEC_MIC),
+	},
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "83HM")
+		},
+		.driver_data = (void *)(SOC_SDW_SIDECAR_AMPS |
+					SOC_SDW_CODEC_MIC),
 	},
 	{
 		.callback = sof_sdw_quirk_cb,
@@ -1127,22 +1147,24 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
 
 	/* enable dmic01 & dmic16k */
-	if (sof_sdw_quirk & SOC_SDW_PCH_DMIC || mach_params->dmic_num) {
-		if (ctx->ignore_internal_dmic)
-			dev_warn(dev, "Ignoring PCH DMIC\n");
-		else
-			dmic_num = 2;
+	if (ctx->ignore_internal_dmic) {
+		dev_dbg(dev, "SoundWire DMIC is used, ignoring internal DMIC\n");
+		mach_params->dmic_num = 0;
+	} else if (mach_params->dmic_num) {
+		dmic_num = 2;
+	} else if (sof_sdw_quirk & SOC_SDW_PCH_DMIC) {
+		dmic_num = 2;
+		/*
+		 * mach_params->dmic_num will be used to set the cfg-mics value of
+		 * card->components string. Set it to the default value.
+		 */
+		mach_params->dmic_num = DMIC_DEFAULT_CHANNELS;
 	}
-	/*
-	 * mach_params->dmic_num will be used to set the cfg-mics value of card->components
-	 * string. Overwrite it to the actual number of PCH DMICs used in the device.
-	 */
-	mach_params->dmic_num = dmic_num;
 
 	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
 		bt_num = 1;
 
-	dev_dbg(dev, "sdw %d, ssp %d, dmic %d, hdmi %d, bt: %d\n",
+	dev_dbg(dev, "DAI link numbers: sdw %d, ssp %d, dmic %d, hdmi %d, bt: %d\n",
 		sdw_be_num, ssp_num, dmic_num,
 		intel_ctx->hdmi.idisp_codec ? hdmi_num : 0, bt_num);
 

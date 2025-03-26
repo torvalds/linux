@@ -101,6 +101,13 @@ static void riscv_iommu_pci_remove(struct pci_dev *pdev)
 	riscv_iommu_remove(iommu);
 }
 
+static void riscv_iommu_pci_shutdown(struct pci_dev *pdev)
+{
+	struct riscv_iommu_device *iommu = dev_get_drvdata(&pdev->dev);
+
+	riscv_iommu_disable(iommu);
+}
+
 static const struct pci_device_id riscv_iommu_pci_tbl[] = {
 	{PCI_VDEVICE(REDHAT, PCI_DEVICE_ID_REDHAT_RISCV_IOMMU), 0},
 	{PCI_VDEVICE(RIVOS, PCI_DEVICE_ID_RIVOS_RISCV_IOMMU_GA), 0},
@@ -112,6 +119,7 @@ static struct pci_driver riscv_iommu_pci_driver = {
 	.id_table = riscv_iommu_pci_tbl,
 	.probe = riscv_iommu_pci_probe,
 	.remove = riscv_iommu_pci_remove,
+	.shutdown = riscv_iommu_pci_shutdown,
 	.driver = {
 		.suppress_bind_attrs = true,
 	},

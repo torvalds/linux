@@ -63,6 +63,7 @@ static inline int xchk_setup_nothing(struct xfs_scrub *sc)
 /* Setup functions */
 int xchk_setup_agheader(struct xfs_scrub *sc);
 int xchk_setup_fs(struct xfs_scrub *sc);
+int xchk_setup_rt(struct xfs_scrub *sc);
 int xchk_setup_ag_allocbt(struct xfs_scrub *sc);
 int xchk_setup_ag_iallocbt(struct xfs_scrub *sc);
 int xchk_setup_ag_rmapbt(struct xfs_scrub *sc);
@@ -80,10 +81,14 @@ int xchk_setup_metapath(struct xfs_scrub *sc);
 int xchk_setup_rtbitmap(struct xfs_scrub *sc);
 int xchk_setup_rtsummary(struct xfs_scrub *sc);
 int xchk_setup_rgsuperblock(struct xfs_scrub *sc);
+int xchk_setup_rtrmapbt(struct xfs_scrub *sc);
+int xchk_setup_rtrefcountbt(struct xfs_scrub *sc);
 #else
 # define xchk_setup_rtbitmap		xchk_setup_nothing
 # define xchk_setup_rtsummary		xchk_setup_nothing
 # define xchk_setup_rgsuperblock	xchk_setup_nothing
+# define xchk_setup_rtrmapbt		xchk_setup_nothing
+# define xchk_setup_rtrefcountbt	xchk_setup_nothing
 #endif
 #ifdef CONFIG_XFS_QUOTA
 int xchk_ino_dqattach(struct xfs_scrub *sc);
@@ -125,7 +130,9 @@ xchk_ag_init_existing(
 #ifdef CONFIG_XFS_RT
 
 /* All the locks we need to check an rtgroup. */
-#define XCHK_RTGLOCK_ALL	(XFS_RTGLOCK_BITMAP)
+#define XCHK_RTGLOCK_ALL	(XFS_RTGLOCK_BITMAP | \
+				 XFS_RTGLOCK_RMAP | \
+				 XFS_RTGLOCK_REFCOUNT)
 
 int xchk_rtgroup_init(struct xfs_scrub *sc, xfs_rgnumber_t rgno,
 		struct xchk_rt *sr);
@@ -141,12 +148,17 @@ xchk_rtgroup_init_existing(
 	return error == -ENOENT ? -EFSCORRUPTED : error;
 }
 
-void xchk_rtgroup_lock(struct xchk_rt *sr, unsigned int rtglock_flags);
+int xchk_rtgroup_lock(struct xfs_scrub *sc, struct xchk_rt *sr,
+		unsigned int rtglock_flags);
+void xchk_rtgroup_unlock(struct xchk_rt *sr);
+void xchk_rtgroup_btcur_free(struct xchk_rt *sr);
 void xchk_rtgroup_free(struct xfs_scrub *sc, struct xchk_rt *sr);
 #else
 # define xchk_rtgroup_init(sc, rgno, sr)		(-EFSCORRUPTED)
 # define xchk_rtgroup_init_existing(sc, rgno, sr)	(-EFSCORRUPTED)
-# define xchk_rtgroup_lock(sc, lockflags)		do { } while (0)
+# define xchk_rtgroup_lock(sc, sr, lockflags)		(-EFSCORRUPTED)
+# define xchk_rtgroup_unlock(sr)			do { } while (0)
+# define xchk_rtgroup_btcur_free(sr)			do { } while (0)
 # define xchk_rtgroup_free(sc, sr)			do { } while (0)
 #endif /* CONFIG_XFS_RT */
 
@@ -257,6 +269,12 @@ int xchk_metadata_inode_forks(struct xfs_scrub *sc);
 			(sc)->mp->m_super->s_id, \
 			(sc)->ip ? (sc)->ip->i_ino : (sc)->sm->sm_ino, \
 			##__VA_ARGS__)
+#define xchk_xfile_rtgroup_descr(sc, fmt, ...) \
+	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): rtgroup 0x%x " fmt, \
+			(sc)->mp->m_super->s_id, \
+			(sc)->sa.pag ? \
+				rtg_rgno((sc)->sr.rtg) : (sc)->sm->sm_agno, \
+			##__VA_ARGS__)
 
 /*
  * Setting up a hook to wait for intents to drain is costly -- we have to take
@@ -274,6 +292,8 @@ void xchk_fsgates_enable(struct xfs_scrub *sc, unsigned int scrub_fshooks);
 
 int xchk_inode_is_allocated(struct xfs_scrub *sc, xfs_agino_t agino,
 		bool *inuse);
+int xchk_inode_count_blocks(struct xfs_scrub *sc, int whichfork,
+		xfs_extnum_t *nextents, xfs_filblks_t *count);
 
 bool xchk_inode_is_dirtree_root(const struct xfs_inode *ip);
 bool xchk_inode_is_sb_rooted(const struct xfs_inode *ip);

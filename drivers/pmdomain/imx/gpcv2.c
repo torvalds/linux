@@ -1437,6 +1437,7 @@ static struct platform_driver imx_pgc_domain_driver = {
 	.driver = {
 		.name = "imx-pgc",
 		.pm = &imx_pgc_domain_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 	.probe    = imx_pgc_domain_probe,
 	.remove = imx_pgc_domain_remove,
@@ -1549,6 +1550,7 @@ static struct platform_driver imx_gpc_driver = {
 	.driver = {
 		.name = "imx-gpcv2",
 		.of_match_table = imx_gpcv2_dt_ids,
+		.suppress_bind_attrs = true,
 	},
 	.probe = imx_gpcv2_probe,
 };

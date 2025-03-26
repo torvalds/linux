@@ -70,9 +70,6 @@ static unsigned long		nlm_grace_period;
 unsigned long			nlm_timeout = LOCKD_DFLT_TIMEO;
 static int			nlm_udpport, nlm_tcpport;
 
-/* RLIM_NOFILE defaults to 1024. That seems like a reasonable default here. */
-static unsigned int		nlm_max_connections = 1024;
-
 /*
  * Constants needed for the sysctl interface.
  */
@@ -136,9 +133,6 @@ lockd(void *vrqstp)
 	 * NFS mount or NFS daemon has gone away.
 	 */
 	while (!svc_thread_should_stop(rqstp)) {
-		/* update sv_maxconn if it has changed */
-		rqstp->rq_server->sv_maxconn = nlm_max_connections;
-
 		nlmsvc_retry_blocked(rqstp);
 		svc_recv(rqstp);
 	}
@@ -340,7 +334,6 @@ static int lockd_get(void)
 		return -ENOMEM;
 	}
 
-	serv->sv_maxconn = nlm_max_connections;
 	error = svc_set_num_threads(serv, NULL, 1);
 	if (error < 0) {
 		svc_destroy(&serv);
@@ -419,7 +412,7 @@ EXPORT_SYMBOL_GPL(lockd_down);
  * Sysctl parameters (same as module parameters, different interface).
  */
 
-static struct ctl_table nlm_sysctls[] = {
+static const struct ctl_table nlm_sysctls[] = {
 	{
 		.procname	= "nlm_grace_period",
 		.data		= &nlm_grace_period,
@@ -542,7 +535,6 @@ module_param_call(nlm_udpport, param_set_port, param_get_int,
 module_param_call(nlm_tcpport, param_set_port, param_get_int,
 		  &nlm_tcpport, 0644);
 module_param(nsm_use_hostnames, bool, 0644);
-module_param(nlm_max_connections, uint, 0644);
 
 static int lockd_init_net(struct net *net)
 {

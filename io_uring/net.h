@@ -5,16 +5,20 @@
 
 struct io_async_msghdr {
 #if defined(CONFIG_NET)
-	struct iovec			fast_iov;
-	/* points to an allocated iov, if NULL we use fast_iov instead */
 	struct iovec			*free_iov;
+	/* points to an allocated iov, if NULL we use fast_iov instead */
 	int				free_iov_nr;
-	int				namelen;
-	__kernel_size_t			controllen;
-	__kernel_size_t			payloadlen;
-	struct sockaddr __user		*uaddr;
-	struct msghdr			msg;
-	struct sockaddr_storage		addr;
+	struct_group(clear,
+		int				namelen;
+		struct iovec			fast_iov;
+		__kernel_size_t			controllen;
+		__kernel_size_t			payloadlen;
+		struct sockaddr __user		*uaddr;
+		struct msghdr			msg;
+		struct sockaddr_storage		addr;
+	);
+#else
+	struct_group(clear);
 #endif
 };
 

@@ -303,7 +303,7 @@ int io_waitid(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_waitid_async *iwa;
 	int ret;
 
-	iwa = io_uring_alloc_async_data_nocache(req);
+	iwa = io_uring_alloc_async_data(NULL, req);
 	if (!iwa)
 		return -ENOMEM;
 

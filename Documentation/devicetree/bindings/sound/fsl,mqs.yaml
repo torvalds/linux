@@ -23,6 +23,8 @@ properties:
       - fsl,imx8qm-mqs
       - fsl,imx8qxp-mqs
       - fsl,imx93-mqs
+      - fsl,imx943-aonmix-mqs
+      - fsl,imx943-wakeupmix-mqs
       - fsl,imx95-aonmix-mqs
       - fsl,imx95-netcmix-mqs
 

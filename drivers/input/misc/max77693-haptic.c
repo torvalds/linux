@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/workqueue.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/max77693.h>
@@ -94,7 +95,7 @@ static int max77843_haptic_bias(struct max77693_haptic *haptic, bool on)
 				   on << MAINCTRL1_BIASEN_SHIFT);
 	if (error) {
 		dev_err(haptic->dev, "failed to %s bias: %d\n",
-			on ? "enable" : "disable", error);
+			str_enable_disable(on), error);
 		return error;
 	}
 

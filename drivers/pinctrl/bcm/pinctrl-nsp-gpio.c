@@ -21,6 +21,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 
 #include "../pinctrl-utils.h"
 
@@ -254,7 +255,7 @@ static int nsp_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	raw_spin_unlock_irqrestore(&chip->lock, flags);
 
 	dev_dbg(chip->dev, "gpio:%u level_low:%s falling:%s\n", gpio,
-		level_low ? "true" : "false", falling ? "true" : "false");
+		str_true_false(level_low), str_true_false(falling));
 	return 0;
 }
 

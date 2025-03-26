@@ -1961,13 +1961,11 @@ static int qedi_cpu_online(unsigned int cpu)
 	struct qedi_percpu_s *p = this_cpu_ptr(&qedi_percpu);
 	struct task_struct *thread;
 
-	thread = kthread_create_on_node(qedi_percpu_io_thread, (void *)p,
-					cpu_to_node(cpu),
-					"qedi_thread/%d", cpu);
+	thread = kthread_create_on_cpu(qedi_percpu_io_thread, (void *)p,
+				       cpu, "qedi_thread/%d");
 	if (IS_ERR(thread))
 		return PTR_ERR(thread);
 
-	kthread_bind(thread, cpu);
 	p->iothread = thread;
 	wake_up_process(thread);
 	return 0;
@@ -2869,7 +2867,7 @@ static void qedi_remove(struct pci_dev *pdev)
 	__qedi_remove(pdev, QEDI_MODE_NORMAL);
 }
 
-static struct pci_device_id qedi_pci_tbl[] = {
+static const struct pci_device_id qedi_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, 0x165E) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, 0x8084) },
 	{ 0 },

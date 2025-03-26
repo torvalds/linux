@@ -129,6 +129,8 @@
 
 #define FXLS8962AF_DEVICE_ID			0x62
 #define FXLS8964AF_DEVICE_ID			0x84
+#define FXLS8974CF_DEVICE_ID			0x86
+#define FXLS8967AF_DEVICE_ID			0x87
 
 /* Raw temp channel offset */
 #define FXLS8962AF_TEMP_CENTER_VAL		25
@@ -763,6 +765,18 @@ static const struct fxls8962af_chip_info fxls_chip_info_table[] = {
 	[fxls8964af] = {
 		.chip_id = FXLS8964AF_DEVICE_ID,
 		.name = "fxls8964af",
+		.channels = fxls8962af_channels,
+		.num_channels = ARRAY_SIZE(fxls8962af_channels),
+	},
+	[fxls8967af] = {
+		.chip_id = FXLS8967AF_DEVICE_ID,
+		.name = "fxls8967af",
+		.channels = fxls8962af_channels,
+		.num_channels = ARRAY_SIZE(fxls8962af_channels),
+	},
+	[fxls8974cf] = {
+		.chip_id = FXLS8974CF_DEVICE_ID,
+		.name = "fxls8974cf",
 		.channels = fxls8962af_channels,
 		.num_channels = ARRAY_SIZE(fxls8962af_channels),
 	},

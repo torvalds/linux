@@ -357,38 +357,38 @@ struct ines_pci_id {
 	enum ines_pci_chip pci_chip_type;
 };
 
-struct ines_pci_id pci_ids[] = {
-	{vendor_id: PCI_VENDOR_ID_PLX,
-	 device_id : PCI_DEVICE_ID_PLX_9050,
-	 subsystem_vendor_id : PCI_VENDOR_ID_PLX,
-	 subsystem_device_id : PCI_SUBDEVICE_ID_INES_GPIB,
-	 gpib_region : 2,
-	 io_offset : 1,
-	 pci_chip_type : PCI_CHIP_PLX9050,
+static struct ines_pci_id pci_ids[] = {
+	{.vendor_id = PCI_VENDOR_ID_PLX,
+	 .device_id = PCI_DEVICE_ID_PLX_9050,
+	 .subsystem_vendor_id = PCI_VENDOR_ID_PLX,
+	 .subsystem_device_id = PCI_SUBDEVICE_ID_INES_GPIB,
+	 .gpib_region = 2,
+	 .io_offset = 1,
+	 .pci_chip_type = PCI_CHIP_PLX9050,
 	},
-	{vendor_id: PCI_VENDOR_ID_AMCC,
-	 device_id : PCI_DEVICE_ID_INES_GPIB_AMCC,
-	 subsystem_vendor_id : PCI_VENDOR_ID_AMCC,
-	 subsystem_device_id : PCI_SUBDEVICE_ID_INES_GPIB,
-	 gpib_region : 1,
-	 io_offset : 1,
-	 pci_chip_type : PCI_CHIP_AMCC5920,
+	{.vendor_id = PCI_VENDOR_ID_AMCC,
+	 .device_id = PCI_DEVICE_ID_INES_GPIB_AMCC,
+	 .subsystem_vendor_id = PCI_VENDOR_ID_AMCC,
+	 .subsystem_device_id = PCI_SUBDEVICE_ID_INES_GPIB,
+	 .gpib_region = 1,
+	 .io_offset = 1,
+	 .pci_chip_type = PCI_CHIP_AMCC5920,
 	},
-	{vendor_id: PCI_VENDOR_ID_INES_QUICKLOGIC,
-	 device_id : PCI_DEVICE_ID_INES_GPIB_QL5030,
-	 subsystem_vendor_id : PCI_VENDOR_ID_INES_QUICKLOGIC,
-	 subsystem_device_id : PCI_DEVICE_ID_INES_GPIB_QL5030,
-	 gpib_region : 1,
-	 io_offset : 1,
-	 pci_chip_type : PCI_CHIP_QUICKLOGIC5030,
+	{.vendor_id = PCI_VENDOR_ID_INES_QUICKLOGIC,
+	 .device_id = PCI_DEVICE_ID_INES_GPIB_QL5030,
+	 .subsystem_vendor_id = PCI_VENDOR_ID_INES_QUICKLOGIC,
+	 .subsystem_device_id = PCI_DEVICE_ID_INES_GPIB_QL5030,
+	 .gpib_region = 1,
+	 .io_offset = 1,
+	 .pci_chip_type = PCI_CHIP_QUICKLOGIC5030,
 	},
-	{vendor_id: PCI_VENDOR_ID_QUANCOM,
-	 device_id : PCI_DEVICE_ID_QUANCOM_GPIB,
-	 subsystem_vendor_id : -1,
-	 subsystem_device_id : -1,
-	 gpib_region : 0,
-	 io_offset : 4,
-	 pci_chip_type : PCI_CHIP_QUANCOM,
+	{.vendor_id = PCI_VENDOR_ID_QUANCOM,
+	 .device_id = PCI_DEVICE_ID_QUANCOM_GPIB,
+	 .subsystem_vendor_id = -1,
+	 .subsystem_device_id = -1,
+	 .gpib_region = 0,
+	 .io_offset = 4,
+	 .pci_chip_type = PCI_CHIP_QUANCOM,
 	},
 };
 
@@ -540,116 +540,116 @@ void ines_return_to_local(gpib_board_t *board)
 	nec7210_return_to_local(board, &priv->nec7210_priv);
 }
 
-gpib_interface_t ines_pci_unaccel_interface = {
-name: "ines_pci_unaccel",
-attach : ines_pci_attach,
-detach : ines_pci_detach,
-read : ines_read,
-write : ines_write,
-command : ines_command,
-take_control : ines_take_control,
-go_to_standby : ines_go_to_standby,
-request_system_control : ines_request_system_control,
-interface_clear : ines_interface_clear,
-remote_enable : ines_remote_enable,
-enable_eos : ines_enable_eos,
-disable_eos : ines_disable_eos,
-parallel_poll : ines_parallel_poll,
-parallel_poll_configure : ines_parallel_poll_configure,
-parallel_poll_response : ines_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : ines_line_status,
-update_status : ines_update_status,
-primary_address : ines_primary_address,
-secondary_address : ines_secondary_address,
-serial_poll_response : ines_serial_poll_response,
-serial_poll_status : ines_serial_poll_status,
-t1_delay : ines_t1_delay,
-return_to_local : ines_return_to_local,
+static gpib_interface_t ines_pci_unaccel_interface = {
+	.name = "ines_pci_unaccel",
+	.attach = ines_pci_attach,
+	.detach = ines_pci_detach,
+	.read = ines_read,
+	.write = ines_write,
+	.command = ines_command,
+	.take_control = ines_take_control,
+	.go_to_standby = ines_go_to_standby,
+	.request_system_control = ines_request_system_control,
+	.interface_clear = ines_interface_clear,
+	.remote_enable = ines_remote_enable,
+	.enable_eos = ines_enable_eos,
+	.disable_eos = ines_disable_eos,
+	.parallel_poll = ines_parallel_poll,
+	.parallel_poll_configure = ines_parallel_poll_configure,
+	.parallel_poll_response = ines_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = ines_line_status,
+	.update_status = ines_update_status,
+	.primary_address = ines_primary_address,
+	.secondary_address = ines_secondary_address,
+	.serial_poll_response = ines_serial_poll_response,
+	.serial_poll_status = ines_serial_poll_status,
+	.t1_delay = ines_t1_delay,
+	.return_to_local = ines_return_to_local,
 };
 
-gpib_interface_t ines_pci_interface = {
-name: "ines_pci",
-attach : ines_pci_accel_attach,
-detach : ines_pci_detach,
-read : ines_accel_read,
-write : ines_accel_write,
-command : ines_command,
-take_control : ines_take_control,
-go_to_standby : ines_go_to_standby,
-request_system_control : ines_request_system_control,
-interface_clear : ines_interface_clear,
-remote_enable : ines_remote_enable,
-enable_eos : ines_enable_eos,
-disable_eos : ines_disable_eos,
-parallel_poll : ines_parallel_poll,
-parallel_poll_configure : ines_parallel_poll_configure,
-parallel_poll_response : ines_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : ines_line_status,
-update_status : ines_update_status,
-primary_address : ines_primary_address,
-secondary_address : ines_secondary_address,
-serial_poll_response : ines_serial_poll_response,
-serial_poll_status : ines_serial_poll_status,
-t1_delay : ines_t1_delay,
-return_to_local : ines_return_to_local,
+static gpib_interface_t ines_pci_interface = {
+	.name = "ines_pci",
+	.attach = ines_pci_accel_attach,
+	.detach = ines_pci_detach,
+	.read = ines_accel_read,
+	.write = ines_accel_write,
+	.command = ines_command,
+	.take_control = ines_take_control,
+	.go_to_standby = ines_go_to_standby,
+	.request_system_control = ines_request_system_control,
+	.interface_clear = ines_interface_clear,
+	.remote_enable = ines_remote_enable,
+	.enable_eos = ines_enable_eos,
+	.disable_eos = ines_disable_eos,
+	.parallel_poll = ines_parallel_poll,
+	.parallel_poll_configure = ines_parallel_poll_configure,
+	.parallel_poll_response = ines_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = ines_line_status,
+	.update_status = ines_update_status,
+	.primary_address = ines_primary_address,
+	.secondary_address = ines_secondary_address,
+	.serial_poll_response = ines_serial_poll_response,
+	.serial_poll_status = ines_serial_poll_status,
+	.t1_delay = ines_t1_delay,
+	.return_to_local = ines_return_to_local,
 };
 
-gpib_interface_t ines_pci_accel_interface = {
-name: "ines_pci_accel",
-attach : ines_pci_accel_attach,
-detach : ines_pci_detach,
-read : ines_accel_read,
-write : ines_accel_write,
-command : ines_command,
-take_control : ines_take_control,
-go_to_standby : ines_go_to_standby,
-request_system_control : ines_request_system_control,
-interface_clear : ines_interface_clear,
-remote_enable : ines_remote_enable,
-enable_eos : ines_enable_eos,
-disable_eos : ines_disable_eos,
-parallel_poll : ines_parallel_poll,
-parallel_poll_configure : ines_parallel_poll_configure,
-parallel_poll_response : ines_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : ines_line_status,
-update_status : ines_update_status,
-primary_address : ines_primary_address,
-secondary_address : ines_secondary_address,
-serial_poll_response : ines_serial_poll_response,
-serial_poll_status : ines_serial_poll_status,
-t1_delay : ines_t1_delay,
-return_to_local : ines_return_to_local,
+static gpib_interface_t ines_pci_accel_interface = {
+	.name = "ines_pci_accel",
+	.attach = ines_pci_accel_attach,
+	.detach = ines_pci_detach,
+	.read = ines_accel_read,
+	.write = ines_accel_write,
+	.command = ines_command,
+	.take_control = ines_take_control,
+	.go_to_standby = ines_go_to_standby,
+	.request_system_control = ines_request_system_control,
+	.interface_clear = ines_interface_clear,
+	.remote_enable = ines_remote_enable,
+	.enable_eos = ines_enable_eos,
+	.disable_eos = ines_disable_eos,
+	.parallel_poll = ines_parallel_poll,
+	.parallel_poll_configure = ines_parallel_poll_configure,
+	.parallel_poll_response = ines_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = ines_line_status,
+	.update_status = ines_update_status,
+	.primary_address = ines_primary_address,
+	.secondary_address = ines_secondary_address,
+	.serial_poll_response = ines_serial_poll_response,
+	.serial_poll_status = ines_serial_poll_status,
+	.t1_delay = ines_t1_delay,
+	.return_to_local = ines_return_to_local,
 };
 
-gpib_interface_t ines_isa_interface = {
-name: "ines_isa",
-attach : ines_isa_attach,
-detach : ines_isa_detach,
-read : ines_accel_read,
-write : ines_accel_write,
-command : ines_command,
-take_control : ines_take_control,
-go_to_standby : ines_go_to_standby,
-request_system_control : ines_request_system_control,
-interface_clear : ines_interface_clear,
-remote_enable : ines_remote_enable,
-enable_eos : ines_enable_eos,
-disable_eos : ines_disable_eos,
-parallel_poll : ines_parallel_poll,
-parallel_poll_configure : ines_parallel_poll_configure,
-parallel_poll_response : ines_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : ines_line_status,
-update_status : ines_update_status,
-primary_address : ines_primary_address,
-secondary_address : ines_secondary_address,
-serial_poll_response : ines_serial_poll_response,
-serial_poll_status : ines_serial_poll_status,
-t1_delay : ines_t1_delay,
-return_to_local : ines_return_to_local,
+static gpib_interface_t ines_isa_interface = {
+	.name = "ines_isa",
+	.attach = ines_isa_attach,
+	.detach = ines_isa_detach,
+	.read = ines_accel_read,
+	.write = ines_accel_write,
+	.command = ines_command,
+	.take_control = ines_take_control,
+	.go_to_standby = ines_go_to_standby,
+	.request_system_control = ines_request_system_control,
+	.interface_clear = ines_interface_clear,
+	.remote_enable = ines_remote_enable,
+	.enable_eos = ines_enable_eos,
+	.disable_eos = ines_disable_eos,
+	.parallel_poll = ines_parallel_poll,
+	.parallel_poll_configure = ines_parallel_poll_configure,
+	.parallel_poll_response = ines_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = ines_line_status,
+	.update_status = ines_update_status,
+	.primary_address = ines_primary_address,
+	.secondary_address = ines_secondary_address,
+	.serial_poll_response = ines_serial_poll_response,
+	.serial_poll_status = ines_serial_poll_status,
+	.t1_delay = ines_t1_delay,
+	.return_to_local = ines_return_to_local,
 };
 
 static int ines_allocate_private(gpib_board_t *board)
@@ -1122,7 +1122,7 @@ static int ines_gpib_config(struct pcmcia_device *link)
 {
 	struct local_info *dev;
 	int retval;
-	void *virt;
+	void __iomem *virt;
 
 	dev = link->priv;
 	DEBUG(0, "%s(0x%p)\n", __func__, link);
@@ -1156,7 +1156,7 @@ static int ines_gpib_config(struct pcmcia_device *link)
 	}
 	virt = ioremap(link->resource[2]->start, resource_size(link->resource[2]));
 	writeb((link->resource[2]->start >> 2) & 0xff, virt + 0xf0); // IOWindow base
-	iounmap((void *)virt);
+	iounmap(virt);
 
 	/*
 	 * This actually configures the PCMCIA socket -- setting up
@@ -1227,100 +1227,94 @@ static struct pcmcia_driver ines_gpib_cs_driver = {
 	.resume		= ines_gpib_resume,
 };
 
-int ines_pcmcia_init_module(void)
-{
-	pcmcia_register_driver(&ines_gpib_cs_driver);
-	return 0;
-}
-
 void ines_pcmcia_cleanup_module(void)
 {
 	DEBUG(0, "ines_cs: unloading\n");
 	pcmcia_unregister_driver(&ines_gpib_cs_driver);
 }
 
-gpib_interface_t ines_pcmcia_unaccel_interface = {
-name: "ines_pcmcia_unaccel",
-attach : ines_pcmcia_attach,
-detach : ines_pcmcia_detach,
-read : ines_read,
-write : ines_write,
-command : ines_command,
-take_control : ines_take_control,
-go_to_standby : ines_go_to_standby,
-request_system_control : ines_request_system_control,
-interface_clear : ines_interface_clear,
-remote_enable : ines_remote_enable,
-enable_eos : ines_enable_eos,
-disable_eos : ines_disable_eos,
-parallel_poll : ines_parallel_poll,
-parallel_poll_configure : ines_parallel_poll_configure,
-parallel_poll_response : ines_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : ines_line_status,
-update_status : ines_update_status,
-primary_address : ines_primary_address,
-secondary_address : ines_secondary_address,
-serial_poll_response : ines_serial_poll_response,
-serial_poll_status : ines_serial_poll_status,
-t1_delay : ines_t1_delay,
-return_to_local : ines_return_to_local,
+static gpib_interface_t ines_pcmcia_unaccel_interface = {
+	.name = "ines_pcmcia_unaccel",
+	.attach = ines_pcmcia_attach,
+	.detach = ines_pcmcia_detach,
+	.read = ines_read,
+	.write = ines_write,
+	.command = ines_command,
+	.take_control = ines_take_control,
+	.go_to_standby = ines_go_to_standby,
+	.request_system_control = ines_request_system_control,
+	.interface_clear = ines_interface_clear,
+	.remote_enable = ines_remote_enable,
+	.enable_eos = ines_enable_eos,
+	.disable_eos = ines_disable_eos,
+	.parallel_poll = ines_parallel_poll,
+	.parallel_poll_configure = ines_parallel_poll_configure,
+	.parallel_poll_response = ines_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = ines_line_status,
+	.update_status = ines_update_status,
+	.primary_address = ines_primary_address,
+	.secondary_address = ines_secondary_address,
+	.serial_poll_response = ines_serial_poll_response,
+	.serial_poll_status = ines_serial_poll_status,
+	.t1_delay = ines_t1_delay,
+	.return_to_local = ines_return_to_local,
 };
 
-gpib_interface_t ines_pcmcia_accel_interface = {
-name: "ines_pcmcia_accel",
-attach : ines_pcmcia_accel_attach,
-detach : ines_pcmcia_detach,
-read : ines_accel_read,
-write : ines_accel_write,
-command : ines_command,
-take_control : ines_take_control,
-go_to_standby : ines_go_to_standby,
-request_system_control : ines_request_system_control,
-interface_clear : ines_interface_clear,
-remote_enable : ines_remote_enable,
-enable_eos : ines_enable_eos,
-disable_eos : ines_disable_eos,
-parallel_poll : ines_parallel_poll,
-parallel_poll_configure : ines_parallel_poll_configure,
-parallel_poll_response : ines_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : ines_line_status,
-update_status : ines_update_status,
-primary_address : ines_primary_address,
-secondary_address : ines_secondary_address,
-serial_poll_response : ines_serial_poll_response,
-serial_poll_status : ines_serial_poll_status,
-t1_delay : ines_t1_delay,
-return_to_local : ines_return_to_local,
+static gpib_interface_t ines_pcmcia_accel_interface = {
+	.name = "ines_pcmcia_accel",
+	.attach = ines_pcmcia_accel_attach,
+	.detach = ines_pcmcia_detach,
+	.read = ines_accel_read,
+	.write = ines_accel_write,
+	.command = ines_command,
+	.take_control = ines_take_control,
+	.go_to_standby = ines_go_to_standby,
+	.request_system_control = ines_request_system_control,
+	.interface_clear = ines_interface_clear,
+	.remote_enable = ines_remote_enable,
+	.enable_eos = ines_enable_eos,
+	.disable_eos = ines_disable_eos,
+	.parallel_poll = ines_parallel_poll,
+	.parallel_poll_configure = ines_parallel_poll_configure,
+	.parallel_poll_response = ines_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = ines_line_status,
+	.update_status = ines_update_status,
+	.primary_address = ines_primary_address,
+	.secondary_address = ines_secondary_address,
+	.serial_poll_response = ines_serial_poll_response,
+	.serial_poll_status = ines_serial_poll_status,
+	.t1_delay = ines_t1_delay,
+	.return_to_local = ines_return_to_local,
 };
 
-gpib_interface_t ines_pcmcia_interface = {
-name: "ines_pcmcia",
-attach : ines_pcmcia_accel_attach,
-detach : ines_pcmcia_detach,
-read : ines_accel_read,
-write : ines_accel_write,
-command : ines_command,
-take_control : ines_take_control,
-go_to_standby : ines_go_to_standby,
-request_system_control : ines_request_system_control,
-interface_clear : ines_interface_clear,
-remote_enable : ines_remote_enable,
-enable_eos : ines_enable_eos,
-disable_eos : ines_disable_eos,
-parallel_poll : ines_parallel_poll,
-parallel_poll_configure : ines_parallel_poll_configure,
-parallel_poll_response : ines_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : ines_line_status,
-update_status : ines_update_status,
-primary_address : ines_primary_address,
-secondary_address : ines_secondary_address,
-serial_poll_response : ines_serial_poll_response,
-serial_poll_status : ines_serial_poll_status,
-t1_delay : ines_t1_delay,
-return_to_local : ines_return_to_local,
+static gpib_interface_t ines_pcmcia_interface = {
+	.name = "ines_pcmcia",
+	.attach = ines_pcmcia_accel_attach,
+	.detach = ines_pcmcia_detach,
+	.read = ines_accel_read,
+	.write = ines_accel_write,
+	.command = ines_command,
+	.take_control = ines_take_control,
+	.go_to_standby = ines_go_to_standby,
+	.request_system_control = ines_request_system_control,
+	.interface_clear = ines_interface_clear,
+	.remote_enable = ines_remote_enable,
+	.enable_eos = ines_enable_eos,
+	.disable_eos = ines_disable_eos,
+	.parallel_poll = ines_parallel_poll,
+	.parallel_poll_configure = ines_parallel_poll_configure,
+	.parallel_poll_response = ines_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = ines_line_status,
+	.update_status = ines_update_status,
+	.primary_address = ines_primary_address,
+	.secondary_address = ines_secondary_address,
+	.serial_poll_response = ines_serial_poll_response,
+	.serial_poll_status = ines_serial_poll_status,
+	.t1_delay = ines_t1_delay,
+	.return_to_local = ines_return_to_local,
 };
 
 irqreturn_t ines_pcmcia_interrupt(int irq, void *arg)
@@ -1348,8 +1342,8 @@ int ines_common_pcmcia_attach(gpib_board_t *board)
 	ines_priv = board->private_data;
 	nec_priv = &ines_priv->nec7210_priv;
 
-	if (request_region(curr_dev->resource[0]->start,
-			   resource_size(curr_dev->resource[0]), "ines_gpib") == 0) {
+	if (!request_region(curr_dev->resource[0]->start,
+			    resource_size(curr_dev->resource[0]), "ines_gpib")) {
 		pr_err("ines_gpib: ioports at 0x%lx already in use\n",
 		       (unsigned long)(curr_dev->resource[0]->start));
 		return -1;
@@ -1420,28 +1414,86 @@ void ines_pcmcia_detach(gpib_board_t *board)
 
 static int __init ines_init_module(void)
 {
-	int err = 0;
+	int ret;
 
-	err = pci_register_driver(&ines_pci_driver);
-	if (err) {
-		pr_err("ines_gpib: pci_driver_register failed!\n");
-		return err;
+	ret = pci_register_driver(&ines_pci_driver);
+	if (ret) {
+		pr_err("ines_gpib: pci_register_driver failed: error = %d\n", ret);
+		return ret;
 	}
 
-	gpib_register_driver(&ines_pci_interface, THIS_MODULE);
-	gpib_register_driver(&ines_pci_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&ines_pci_accel_interface, THIS_MODULE);
-	gpib_register_driver(&ines_isa_interface, THIS_MODULE);
+	ret = gpib_register_driver(&ines_pci_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pci;
+	}
+
+	ret = gpib_register_driver(&ines_pci_unaccel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pci_unaccel;
+	}
+
+	ret = gpib_register_driver(&ines_pci_accel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pci_accel;
+	}
+
+	ret = gpib_register_driver(&ines_isa_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_isa;
+	}
+
 #ifdef GPIB_PCMCIA
-	gpib_register_driver(&ines_pcmcia_interface, THIS_MODULE);
-	gpib_register_driver(&ines_pcmcia_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&ines_pcmcia_accel_interface, THIS_MODULE);
-	err += ines_pcmcia_init_module();
+	ret = gpib_register_driver(&ines_pcmcia_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pcmcia;
+	}
+
+	ret = gpib_register_driver(&ines_pcmcia_unaccel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pcmcia_unaccel;
+	}
+
+	ret = gpib_register_driver(&ines_pcmcia_accel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
+		goto err_pcmcia_accel;
+	}
+
+	ret = pcmcia_register_driver(&ines_gpib_cs_driver);
+	if (ret) {
+		pr_err("ines_gpib: pcmcia_register_driver failed: error = %d\n", ret);
+		goto err_pcmcia_driver;
+	}
 #endif
-	if (err)
-		return -1;
 
 	return 0;
+
+#ifdef GPIB_PCMCIA
+err_pcmcia_driver:
+	gpib_unregister_driver(&ines_pcmcia_accel_interface);
+err_pcmcia_accel:
+	gpib_unregister_driver(&ines_pcmcia_unaccel_interface);
+err_pcmcia_unaccel:
+	gpib_unregister_driver(&ines_pcmcia_interface);
+err_pcmcia:
+#endif
+	gpib_unregister_driver(&ines_isa_interface);
+err_isa:
+	gpib_unregister_driver(&ines_pci_accel_interface);
+err_pci_accel:
+	gpib_unregister_driver(&ines_pci_unaccel_interface);
+err_pci_unaccel:
+	gpib_unregister_driver(&ines_pci_interface);
+err_pci:
+	pci_unregister_driver(&ines_pci_driver);
+
+	return ret;
 }
 
 static void __exit ines_exit_module(void)

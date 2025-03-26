@@ -1091,6 +1091,7 @@ properties:
               - dmo,imx8mp-data-modul-edm-sbc # i.MX8MP eDM SBC
               - emcraft,imx8mp-navqp      # i.MX8MP Emcraft Systems NavQ+ Kit
               - fsl,imx8mp-evk            # i.MX8MP EVK Board
+              - fsl,imx8mp-evk-revb4      # i.MX8MP EVK Rev B4 Board
               - gateworks,imx8mp-gw71xx-2x # i.MX8MP Gateworks Board
               - gateworks,imx8mp-gw72xx-2x # i.MX8MP Gateworks Board
               - gateworks,imx8mp-gw73xx-2x # i.MX8MP Gateworks Board
@@ -1104,6 +1105,15 @@ properties:
               - toradex,verdin-imx8mp-nonwifi  # Verdin iMX8M Plus Modules without Wi-Fi / BT
               - toradex,verdin-imx8mp-wifi  # Verdin iMX8M Plus Wi-Fi / BT Modules
               - ysoft,imx8mp-iota2-lumpy  # Y Soft i.MX8MP IOTA2 Lumpy Board
+          - const: fsl,imx8mp
+
+      - description: ABB Boards with i.MX8M Plus Modules from ADLink
+        items:
+          - enum:
+              - abb,imx8mp-aristanetos3-adpismarc # i.MX8MP ABB SoM on PI SMARC Board
+              - abb,imx8mp-aristanetos3-helios    # i.MX8MP ABB SoM on helios Board
+              - abb,imx8mp-aristanetos3-proton2s  # i.MX8MP ABB SoM on proton2s Board
+          - const: abb,imx8mp-aristanetos3-som    # i.MX8MP ABB SoM
           - const: fsl,imx8mp
 
       - description: Avnet (MSC Branded) Boards with SM2S i.MX8M Plus Modules
@@ -1262,6 +1272,7 @@ properties:
         items:
           - enum:
               - fsl,imx8qm-mek           # i.MX8QM MEK Board
+              - fsl,imx8qm-mek-revd      # i.MX8QM MEK Rev D Board
               - toradex,apalis-imx8      # Apalis iMX8 Modules
               - toradex,apalis-imx8-v1.1 # Apalis iMX8 V1.1 Modules
           - const: fsl,imx8qm
@@ -1290,6 +1301,7 @@ properties:
           - enum:
               - einfochips,imx8qxp-ai_ml  # i.MX8QXP AI_ML Board
               - fsl,imx8qxp-mek           # i.MX8QXP MEK Board
+              - fsl,imx8qxp-mek-wcpu      # i.MX8QXP MEK WCPU Board
           - const: fsl,imx8qxp
 
       - description: i.MX8DXL based Boards

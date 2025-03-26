@@ -194,35 +194,25 @@ void hantro_postproc_free(struct hantro_ctx *ctx)
 
 static unsigned int hantro_postproc_buffer_size(struct hantro_ctx *ctx)
 {
-	struct v4l2_pix_format_mplane pix_mp;
-	const struct hantro_fmt *fmt;
 	unsigned int buf_size;
 
-	/* this should always pick native format */
-	fmt = hantro_get_default_fmt(ctx, false, ctx->bit_depth, HANTRO_AUTO_POSTPROC);
-	if (!fmt)
-		return 0;
-
-	v4l2_fill_pixfmt_mp(&pix_mp, fmt->fourcc, ctx->src_fmt.width,
-			    ctx->src_fmt.height);
-
-	buf_size = pix_mp.plane_fmt[0].sizeimage;
+	buf_size = ctx->ref_fmt.plane_fmt[0].sizeimage;
 	if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_H264_SLICE)
-		buf_size += hantro_h264_mv_size(pix_mp.width,
-						pix_mp.height);
+		buf_size += hantro_h264_mv_size(ctx->ref_fmt.width,
+						ctx->ref_fmt.height);
 	else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_VP9_FRAME)
-		buf_size += hantro_vp9_mv_size(pix_mp.width,
-					       pix_mp.height);
+		buf_size += hantro_vp9_mv_size(ctx->ref_fmt.width,
+					       ctx->ref_fmt.height);
 	else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_HEVC_SLICE) {
-		buf_size += hantro_hevc_mv_size(pix_mp.width,
-						pix_mp.height);
+		buf_size += hantro_hevc_mv_size(ctx->ref_fmt.width,
+						ctx->ref_fmt.height);
 		if (ctx->hevc_dec.use_compression)
-			buf_size += hantro_hevc_compressed_size(pix_mp.width,
-								pix_mp.height);
+			buf_size += hantro_hevc_compressed_size(ctx->ref_fmt.width,
+								ctx->ref_fmt.height);
 	}
 	else if (ctx->vpu_src_fmt->fourcc == V4L2_PIX_FMT_AV1_FRAME)
-		buf_size += hantro_av1_mv_size(pix_mp.width,
-					       pix_mp.height);
+		buf_size += hantro_av1_mv_size(ctx->ref_fmt.width,
+					       ctx->ref_fmt.height);
 
 	return buf_size;
 }

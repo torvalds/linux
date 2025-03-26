@@ -318,7 +318,7 @@ static void unlist_file(struct epitems_head *head)
 static long long_zero;
 static long long_max = LONG_MAX;
 
-static struct ctl_table epoll_table[] = {
+static const struct ctl_table epoll_table[] = {
 	{
 		.procname	= "max_user_watches",
 		.data		= &max_user_watches,

@@ -7,19 +7,12 @@ set -e
 sfile="$(readlink -f "$0")"
 outdir="$(pwd)"
 tarfile=$1
-cpio_dir=$outdir/${tarfile%/*}/.tmp_cpio_dir
+tmpdir=$outdir/${tarfile%/*}/.tmp_dir
 
 dir_list="
 include/
 arch/$SRCARCH/include/
 "
-
-if ! command -v cpio >/dev/null; then
-	echo >&2 "***"
-	echo >&2 "*** 'cpio' could not be found."
-	echo >&2 "***"
-	exit 1
-fi
 
 # Support incremental builds by skipping archive generation
 # if timestamps of files being archived are not changed.
@@ -48,9 +41,9 @@ all_dirs="$all_dirs $dir_list"
 # check include/generated/autoconf.h explicitly.
 #
 # Ignore them for md5 calculation to avoid pointless regeneration.
-headers_md5="$(find $all_dirs -name "*.h"			|
-		grep -v "include/generated/utsversion.h"	|
-		grep -v "include/generated/autoconf.h"	|
+headers_md5="$(find $all_dirs -name "*.h" -a			\
+		! -path include/generated/utsversion.h -a	\
+		! -path include/generated/autoconf.h		|
 		xargs ls -l | md5sum | cut -d ' ' -f1)"
 
 # Any changes to this script will also cause a rebuild of the archive.
@@ -65,36 +58,43 @@ fi
 
 echo "  GEN     $tarfile"
 
-rm -rf $cpio_dir
-mkdir $cpio_dir
+rm -rf "${tmpdir}"
+mkdir "${tmpdir}"
 
 if [ "$building_out_of_srctree" ]; then
 	(
 		cd $srctree
 		for f in $dir_list
 			do find "$f" -name "*.h";
-		done | cpio --quiet -pd $cpio_dir
+		done | tar -c -f - -T - | tar -xf - -C "${tmpdir}"
 	)
 fi
 
-# The second CPIO can complain if files already exist which can happen with out
-# of tree builds having stale headers in srctree. Just silence CPIO for now.
 for f in $dir_list;
 	do find "$f" -name "*.h";
-done | cpio --quiet -pdu $cpio_dir >/dev/null 2>&1
+done | tar -c -f - -T - | tar -xf - -C "${tmpdir}"
+
+# Always exclude include/generated/utsversion.h
+# Otherwise, the contents of the tarball may vary depending on the build steps.
+rm -f "${tmpdir}/include/generated/utsversion.h"
 
 # Remove comments except SDPX lines
-find $cpio_dir -type f -print0 |
-	xargs -0 -P8 -n1 perl -pi -e 'BEGIN {undef $/;}; s/\/\*((?!SPDX).)*?\*\///smg;'
+# Use a temporary file to store directory contents to prevent find/xargs from
+# seeing temporary files created by perl.
+find "${tmpdir}" -type f -print0 > "${tmpdir}.contents.txt"
+xargs -0 -P8 -n1 \
+	perl -pi -e 'BEGIN {undef $/;}; s/\/\*((?!SPDX).)*?\*\///smg;' \
+	< "${tmpdir}.contents.txt"
+rm -f "${tmpdir}.contents.txt"
 
 # Create archive and try to normalize metadata for reproducibility.
 tar "${KBUILD_BUILD_TIMESTAMP:+--mtime=$KBUILD_BUILD_TIMESTAMP}" \
     --exclude=".__afs*" --exclude=".nfs*" \
     --owner=0 --group=0 --sort=name --numeric-owner --mode=u=rw,go=r,a+X \
-    -I $XZ -cf $tarfile -C $cpio_dir/ . > /dev/null
+    -I $XZ -cf $tarfile -C "${tmpdir}/" . > /dev/null
 
 echo $headers_md5 > kernel/kheaders.md5
 echo "$this_file_md5" >> kernel/kheaders.md5
 echo "$(md5sum $tarfile | cut -d ' ' -f1)" >> kernel/kheaders.md5
 
-rm -rf $cpio_dir
+rm -rf "${tmpdir}"

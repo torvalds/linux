@@ -775,6 +775,15 @@
 	status = "okay";
 };
 
+&u2phy0 {
+	status = "okay";
+};
+
+&u2phy0_otg {
+	phy-supply = <&vcc5v0_usb_otg0>;
+	status = "okay";
+};
+
 &u2phy2 {
 	status = "okay";
 };
@@ -794,6 +803,15 @@
 };
 
 &usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host0_xhci {
+	dr_mode = "host";
+	status = "okay";
+};
+
+&usbdp_phy0 {
 	status = "okay";
 };
 

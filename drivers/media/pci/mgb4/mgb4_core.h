@@ -18,9 +18,6 @@
 #define MGB4_VIN_DEVICES  2
 #define MGB4_VOUT_DEVICES 2
 
-#define MGB4_MGB4_BAR_ID  0
-#define MGB4_XDMA_BAR_ID  1
-
 #define MGB4_IS_GMSL(mgbdev) \
 	((mgbdev)->module_version >> 4 == 2)
 #define MGB4_IS_FPDL3(mgbdev) \

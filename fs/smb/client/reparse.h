@@ -50,6 +50,7 @@ static inline kgid_t wsl_make_kgid(struct cifs_sb_info *cifs_sb,
 static inline u64 reparse_mode_nfs_type(mode_t mode)
 {
 	switch (mode & S_IFMT) {
+	case S_IFLNK: return NFS_SPECFILE_LNK;
 	case S_IFBLK: return NFS_SPECFILE_BLK;
 	case S_IFCHR: return NFS_SPECFILE_CHR;
 	case S_IFIFO: return NFS_SPECFILE_FIFO;
@@ -61,6 +62,7 @@ static inline u64 reparse_mode_nfs_type(mode_t mode)
 static inline u32 reparse_mode_wsl_tag(mode_t mode)
 {
 	switch (mode & S_IFMT) {
+	case S_IFLNK: return IO_REPARSE_TAG_LX_SYMLINK;
 	case S_IFBLK: return IO_REPARSE_TAG_LX_BLK;
 	case S_IFCHR: return IO_REPARSE_TAG_LX_CHR;
 	case S_IFIFO: return IO_REPARSE_TAG_LX_FIFO;

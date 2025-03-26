@@ -477,12 +477,12 @@ static int devm_ad7625_pwm_get(struct device *dev,
 	ref_clk = devm_clk_get_enabled(dev, NULL);
 	if (IS_ERR(ref_clk))
 		return dev_err_probe(dev, PTR_ERR(ref_clk),
-				     "failed to get ref_clk");
+				     "failed to get ref_clk\n");
 
 	ref_clk_rate_hz = clk_get_rate(ref_clk);
 	if (!ref_clk_rate_hz)
 		return dev_err_probe(dev, -EINVAL,
-				     "failed to get ref_clk rate");
+				     "failed to get ref_clk rate\n");
 
 	st->ref_clk_rate_hz = ref_clk_rate_hz;
 
@@ -533,7 +533,7 @@ static int devm_ad7625_regulator_setup(struct device *dev,
 
 	if (!st->info->has_internal_vref && !st->have_refin && !ref_mv)
 		return dev_err_probe(dev, -EINVAL,
-				     "Need either REFIN or REF");
+				     "Need either REFIN or REF\n");
 
 	if (st->have_refin && ref_mv)
 		return dev_err_probe(dev, -EINVAL,
@@ -623,7 +623,7 @@ static int ad7625_probe(struct platform_device *pdev)
 	st->back = devm_iio_backend_get(dev, NULL);
 	if (IS_ERR(st->back))
 		return dev_err_probe(dev, PTR_ERR(st->back),
-				     "failed to get IIO backend");
+				     "failed to get IIO backend\n");
 
 	ret = devm_iio_backend_request_buffer(dev, st->back, indio_dev);
 	if (ret)

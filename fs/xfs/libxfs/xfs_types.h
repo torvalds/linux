@@ -202,6 +202,13 @@ enum xfs_ag_resv_type {
 	 * altering fdblocks.  If you think you need this you're wrong.
 	 */
 	XFS_AG_RESV_IGNORE,
+
+	/*
+	 * This allocation activity is being done on behalf of a metadata file.
+	 * These files maintain their own permanent space reservations and are
+	 * required to adjust fdblocks using the xfs_metafile_resv_* helpers.
+	 */
+	XFS_AG_RESV_METAFILE,
 };
 
 /* Results of scanning a btree keyspace to check occupancy. */

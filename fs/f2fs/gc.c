@@ -806,11 +806,14 @@ retry:
 			goto out;
 		}
 
-		if (sec_usage_check(sbi, GET_SEC_FROM_SEG(sbi, *result)))
+		if (sec_usage_check(sbi, GET_SEC_FROM_SEG(sbi, *result))) {
 			ret = -EBUSY;
-		else
-			p.min_segno = *result;
-		goto out;
+			goto out;
+		}
+		if (gc_type == FG_GC)
+			clear_bit(GET_SEC_FROM_SEG(sbi, *result), dirty_i->victim_secmap);
+		p.min_segno = *result;
+		goto got_result;
 	}
 
 	ret = -ENODATA;
@@ -1412,7 +1415,7 @@ static int move_data_block(struct inode *inode, block_t bidx,
 				page_address(mpage), PAGE_SIZE);
 	f2fs_put_page(mpage, 1);
 
-	f2fs_invalidate_internal_cache(fio.sbi, fio.old_blkaddr);
+	f2fs_invalidate_internal_cache(fio.sbi, fio.old_blkaddr, 1);
 
 	set_page_dirty(fio.encrypted_page);
 	if (clear_page_dirty_for_io(fio.encrypted_page))

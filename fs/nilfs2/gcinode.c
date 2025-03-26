@@ -46,14 +46,11 @@
  * specified by @pbn to the GC pagecache with the key @blkoff.
  * This function sets @vbn (@pbn if @vbn is zero) in b_blocknr of the buffer.
  *
- * Return Value: On success, 0 is returned. On Error, one of the following
- * negative error code is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
- *
- * %-ENOENT - The block specified with @pbn does not exist.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOENT	- The block specified with @pbn does not exist.
+ * * %-ENOMEM	- Insufficient memory available.
  */
 int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 				   sector_t pbn, __u64 vbn,
@@ -114,12 +111,11 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
  * specified by @vbn to the GC pagecache.  @pbn can be supplied by the
  * caller to avoid translation of the disk block address.
  *
- * Return Value: On success, 0 is returned. On Error, one of the following
- * negative error code is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOENT	- Invalid virtual block address.
+ * * %-ENOMEM	- Insufficient memory available.
  */
 int nilfs_gccache_submit_read_node(struct inode *inode, sector_t pbn,
 				   __u64 vbn, struct buffer_head **out_bh)

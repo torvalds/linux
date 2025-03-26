@@ -230,10 +230,10 @@ xfs_qm_unmount_rt(
 
 	if (!rtg)
 		return;
-	if (rtg->rtg_inodes[XFS_RTGI_BITMAP])
-		xfs_qm_dqdetach(rtg->rtg_inodes[XFS_RTGI_BITMAP]);
-	if (rtg->rtg_inodes[XFS_RTGI_SUMMARY])
-		xfs_qm_dqdetach(rtg->rtg_inodes[XFS_RTGI_SUMMARY]);
+	if (rtg_bitmap(rtg))
+		xfs_qm_dqdetach(rtg_bitmap(rtg));
+	if (rtg_summary(rtg))
+		xfs_qm_dqdetach(rtg_summary(rtg));
 	xfs_rtgroup_rele(rtg);
 }
 
@@ -428,6 +428,8 @@ void
 xfs_qm_dqdetach(
 	xfs_inode_t	*ip)
 {
+	if (xfs_is_metadir_inode(ip))
+		return;
 	if (!(ip->i_udquot || ip->i_gdquot || ip->i_pdquot))
 		return;
 

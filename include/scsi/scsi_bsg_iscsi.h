@@ -59,7 +59,7 @@ struct iscsi_bsg_host_vendor {
  */
 struct iscsi_bsg_host_vendor_reply {
 	/* start of vendor response area */
-	uint32_t vendor_rsp[0];
+	DECLARE_FLEX_ARRAY(uint32_t, vendor_rsp);
 };
 
 

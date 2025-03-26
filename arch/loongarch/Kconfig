@@ -15,6 +15,7 @@ config LOONGARCH
 	select ARCH_ENABLE_THP_MIGRATION if TRANSPARENT_HUGEPAGE
 	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
 	select ARCH_HAS_CPU_FINALIZE_INIT
+	select ARCH_HAS_CRC32
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VM_PGTABLE
 	select ARCH_HAS_FAST_MULTIPLIER
@@ -248,7 +249,7 @@ config MACH_LOONGSON64
 	def_bool 64BIT
 
 config FIX_EARLYCON_MEM
-	def_bool y
+	def_bool !ARCH_IOREMAP
 
 config PGTABLE_2LEVEL
 	bool
@@ -399,6 +400,7 @@ endchoice
 config BUILTIN_DTB
 	bool "Enable built-in dtb in kernel"
 	depends on OF
+	select GENERIC_BUILTIN_DTB
 	help
 	  Some existing systems do not provide a canonical device tree to
 	  the kernel at boot time. Let's provide a device tree table in the

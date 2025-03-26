@@ -18,9 +18,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_profile.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #include "dell-smbios.h"
+
+static struct platform_device *platform_device;
+static int supported_modes;
 
 static const struct dmi_system_id dell_device_table[] __initconst = {
 	{
@@ -105,8 +109,6 @@ MODULE_DEVICE_TABLE(dmi, dell_device_table);
 #define DELL_ACC_SET_FIELD	GENMASK(11, 8)
 #define DELL_THERMAL_SUPPORTED	GENMASK(3, 0)
 
-static struct platform_profile_handler *thermal_handler;
-
 enum thermal_mode_bits {
 	DELL_BALANCED    = BIT(0),
 	DELL_COOL_BOTTOM = BIT(1),
@@ -182,7 +184,7 @@ static int thermal_set_mode(enum thermal_mode_bits state)
 	return dell_send_request(&buffer, CLASS_INFO, SELECT_THERMAL_MANAGEMENT);
 }
 
-static int thermal_platform_profile_set(struct platform_profile_handler *pprof,
+static int thermal_platform_profile_set(struct device *dev,
 					enum platform_profile_option profile)
 {
 	switch (profile) {
@@ -199,7 +201,7 @@ static int thermal_platform_profile_set(struct platform_profile_handler *pprof,
 	}
 }
 
-static int thermal_platform_profile_get(struct platform_profile_handler *pprof,
+static int thermal_platform_profile_get(struct device *dev,
 					enum platform_profile_option *profile)
 {
 	int ret;
@@ -228,10 +230,30 @@ static int thermal_platform_profile_get(struct platform_profile_handler *pprof,
 	return 0;
 }
 
+static int thermal_platform_profile_probe(void *drvdata, unsigned long *choices)
+{
+	if (supported_modes & DELL_QUIET)
+		set_bit(PLATFORM_PROFILE_QUIET, choices);
+	if (supported_modes & DELL_COOL_BOTTOM)
+		set_bit(PLATFORM_PROFILE_COOL, choices);
+	if (supported_modes & DELL_BALANCED)
+		set_bit(PLATFORM_PROFILE_BALANCED, choices);
+	if (supported_modes & DELL_PERFORMANCE)
+		set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+
+	return 0;
+}
+
+static const struct platform_profile_ops dell_pc_platform_profile_ops = {
+	.probe = thermal_platform_profile_probe,
+	.profile_get = thermal_platform_profile_get,
+	.profile_set = thermal_platform_profile_set,
+};
+
 static int thermal_init(void)
 {
+	struct device *ppdev;
 	int ret;
-	int supported_modes;
 
 	/* If thermal commands are not supported, exit without error */
 	if (!dell_smbios_class_is_supported(CLASS_INFO))
@@ -244,37 +266,28 @@ static int thermal_init(void)
 	if (!supported_modes)
 		return 0;
 
-	thermal_handler = kzalloc(sizeof(*thermal_handler), GFP_KERNEL);
-	if (!thermal_handler)
-		return -ENOMEM;
-	thermal_handler->profile_get = thermal_platform_profile_get;
-	thermal_handler->profile_set = thermal_platform_profile_set;
+	platform_device = platform_device_register_simple("dell-pc", PLATFORM_DEVID_NONE, NULL, 0);
+	if (IS_ERR(platform_device))
+		return PTR_ERR(platform_device);
 
-	if (supported_modes & DELL_QUIET)
-		set_bit(PLATFORM_PROFILE_QUIET, thermal_handler->choices);
-	if (supported_modes & DELL_COOL_BOTTOM)
-		set_bit(PLATFORM_PROFILE_COOL, thermal_handler->choices);
-	if (supported_modes & DELL_BALANCED)
-		set_bit(PLATFORM_PROFILE_BALANCED, thermal_handler->choices);
-	if (supported_modes & DELL_PERFORMANCE)
-		set_bit(PLATFORM_PROFILE_PERFORMANCE, thermal_handler->choices);
-
-	/* Clean up if failed */
-	ret = platform_profile_register(thermal_handler);
-	if (ret) {
-		kfree(thermal_handler);
-		thermal_handler = NULL;
+	ppdev = devm_platform_profile_register(&platform_device->dev, "dell-pc",
+					       NULL, &dell_pc_platform_profile_ops);
+	if (IS_ERR(ppdev)) {
+		ret = PTR_ERR(ppdev);
+		goto cleanup_platform_device;
 	}
+
+	return 0;
+
+cleanup_platform_device:
+	platform_device_unregister(platform_device);
 
 	return ret;
 }
 
 static void thermal_cleanup(void)
 {
-	if (thermal_handler) {
-		platform_profile_remove();
-		kfree(thermal_handler);
-	}
+	platform_device_unregister(platform_device);
 }
 
 static int __init dell_init(void)

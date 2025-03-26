@@ -139,10 +139,9 @@ int simple_util_parse_tdm_width_map(struct device *dev, struct device_node *np,
 	int n, i, ret;
 	u32 *p;
 
-	if (!of_property_read_bool(np, "dai-tdm-slot-width-map"))
-		return 0;
-
 	n = of_property_count_elems_of_size(np, "dai-tdm-slot-width-map", sizeof(u32));
+	if (n <= 0)
+		return 0;
 	if (n % 3) {
 		dev_err(dev, "Invalid number of cells for dai-tdm-slot-width-map\n");
 		return -EINVAL;
@@ -296,7 +295,7 @@ int simple_util_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->id);
+	struct simple_dai_props *props = runtime_simple_priv_to_props(priv, rtd);
 	struct simple_util_dai *dai;
 	unsigned int fixed_sysclk = 0;
 	int i1, i2, i;
@@ -357,7 +356,7 @@ void simple_util_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->id);
+	struct simple_dai_props *props = runtime_simple_priv_to_props(priv, rtd);
 	struct simple_util_dai *dai;
 	int i;
 
@@ -365,8 +364,7 @@ void simple_util_shutdown(struct snd_pcm_substream *substream)
 		struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, i);
 
 		if (props->mclk_fs && !dai->clk_fixed && !snd_soc_dai_active(cpu_dai))
-			snd_soc_dai_set_sysclk(cpu_dai,
-					       0, 0, SND_SOC_CLOCK_OUT);
+			snd_soc_dai_set_sysclk(cpu_dai, 0, 0, dai->clk_direction);
 
 		simple_clk_disable(dai);
 	}
@@ -374,8 +372,7 @@ void simple_util_shutdown(struct snd_pcm_substream *substream)
 		struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, i);
 
 		if (props->mclk_fs && !dai->clk_fixed && !snd_soc_dai_active(codec_dai))
-			snd_soc_dai_set_sysclk(codec_dai,
-					       0, 0, SND_SOC_CLOCK_IN);
+			snd_soc_dai_set_sysclk(codec_dai, 0, 0, dai->clk_direction);
 
 		simple_clk_disable(dai);
 	}
@@ -448,7 +445,7 @@ int simple_util_hw_params(struct snd_pcm_substream *substream,
 	struct simple_util_dai *pdai;
 	struct snd_soc_dai *sdai;
 	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->id);
+	struct simple_dai_props *props = runtime_simple_priv_to_props(priv, rtd);
 	unsigned int mclk, mclk_fs = 0;
 	int i, ret;
 
@@ -483,13 +480,15 @@ int simple_util_hw_params(struct snd_pcm_substream *substream,
 		}
 
 		for_each_rtd_codec_dais(rtd, i, sdai) {
-			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, SND_SOC_CLOCK_IN);
+			pdai = simple_props_to_dai_codec(props, i);
+			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, pdai->clk_direction);
 			if (ret && ret != -ENOTSUPP)
 				return ret;
 		}
 
 		for_each_rtd_cpu_dais(rtd, i, sdai) {
-			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, SND_SOC_CLOCK_OUT);
+			pdai = simple_props_to_dai_cpu(props, i);
+			ret = snd_soc_dai_set_sysclk(sdai, 0, mclk, pdai->clk_direction);
 			if (ret && ret != -ENOTSUPP)
 				return ret;
 		}
@@ -517,7 +516,7 @@ int simple_util_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				   struct snd_pcm_hw_params *params)
 {
 	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *dai_props = simple_priv_to_props(priv, rtd->id);
+	struct simple_dai_props *dai_props = runtime_simple_priv_to_props(priv, rtd);
 	struct simple_util_data *data = &dai_props->adata;
 	struct snd_interval *rate = hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
@@ -628,7 +627,7 @@ static int simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 int simple_util_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct simple_util_priv *priv = snd_soc_card_get_drvdata(rtd->card);
-	struct simple_dai_props *props = simple_priv_to_props(priv, rtd->id);
+	struct simple_dai_props *props = runtime_simple_priv_to_props(priv, rtd);
 	struct simple_util_dai *dai;
 	int i, ret;
 
@@ -713,7 +712,7 @@ int simple_util_parse_routing(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "routing");
 
-	if (!of_property_read_bool(node, prop))
+	if (!of_property_present(node, prop))
 		return 0;
 
 	return snd_soc_of_parse_audio_routing(card, prop);
@@ -731,7 +730,7 @@ int simple_util_parse_widgets(struct snd_soc_card *card,
 
 	snprintf(prop, sizeof(prop), "%s%s", prefix, "widgets");
 
-	if (of_property_read_bool(node, prop))
+	if (of_property_present(node, prop))
 		return snd_soc_of_parse_audio_simple_widgets(card, prop);
 
 	/* no widgets is not error */
@@ -1005,36 +1004,27 @@ EXPORT_SYMBOL_GPL(graph_util_card_probe);
 
 int graph_util_is_ports0(struct device_node *np)
 {
-	struct device_node *port, *ports, *ports0, *top;
-	int ret;
+	struct device_node *parent __free(device_node) = of_get_parent(np);
+	struct device_node *port;
 
 	/* np is "endpoint" or "port" */
-	if (of_node_name_eq(np, "endpoint")) {
-		port = of_get_parent(np);
-	} else {
+	if (of_node_name_eq(np, "endpoint"))
+		port = parent;
+	else
 		port = np;
-		of_node_get(port);
-	}
 
-	ports	= of_get_parent(port);
-	top	= of_get_parent(ports);
-	ports0	= of_get_child_by_name(top, "ports");
+	struct device_node *ports  __free(device_node) = of_get_parent(port);
+	struct device_node *top    __free(device_node) = of_get_parent(ports);
+	struct device_node *ports0 __free(device_node) = of_get_child_by_name(top, "ports");
 
-	ret = ports0 == ports;
-
-	of_node_put(port);
-	of_node_put(ports);
-	of_node_put(ports0);
-	of_node_put(top);
-
-	return ret;
+	return ports0 == ports;
 }
 EXPORT_SYMBOL_GPL(graph_util_is_ports0);
 
 static int graph_get_dai_id(struct device_node *ep)
 {
-	struct device_node *node;
-	struct device_node *endpoint;
+	struct device_node *node __free(device_node) = of_graph_get_port_parent(ep);
+	struct device_node *port __free(device_node) = of_get_parent(ep);
 	struct of_endpoint info;
 	int i, id;
 	int ret;
@@ -1053,16 +1043,16 @@ static int graph_get_dai_id(struct device_node *ep)
 		 * only of_graph_parse_endpoint().
 		 * We need to check "reg" property
 		 */
-		if (of_property_present(ep,   "reg"))
-			return info.id;
 
-		node = of_get_parent(ep);
-		ret = of_property_present(node, "reg");
-		of_node_put(node);
+		/* check port first */
+		ret = of_property_present(port, "reg");
 		if (ret)
 			return info.port;
+
+		/* check endpoint 2nd as backup */
+		if (of_property_present(ep,   "reg"))
+			return info.id;
 	}
-	node = of_graph_get_port_parent(ep);
 
 	/*
 	 * Non HDMI sound case, counting port/endpoint on its DT
@@ -1070,13 +1060,13 @@ static int graph_get_dai_id(struct device_node *ep)
 	 */
 	i = 0;
 	id = -1;
-	for_each_endpoint_of_node(node, endpoint) {
-		if (endpoint == ep)
+	for_each_of_graph_port(node, p) {
+		if (port == p) {
 			id = i;
+			break;
+		}
 		i++;
 	}
-
-	of_node_put(node);
 
 	if (id < 0)
 		return -ENODEV;
@@ -1087,7 +1077,6 @@ static int graph_get_dai_id(struct device_node *ep)
 int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 			 struct snd_soc_dai_link_component *dlc, int *is_single_link)
 {
-	struct device_node *node;
 	struct of_phandle_args args = {};
 	struct snd_soc_dai *dai;
 	int ret;
@@ -1095,7 +1084,7 @@ int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 	if (!ep)
 		return 0;
 
-	node = of_graph_get_port_parent(ep);
+	struct device_node *node __free(device_node) = of_graph_get_port_parent(ep);
 
 	/*
 	 * Try to find from DAI node
@@ -1136,10 +1125,8 @@ int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 	 *    if he unbinded CPU or Codec.
 	 */
 	ret = snd_soc_get_dlc(&args, dlc);
-	if (ret < 0) {
-		of_node_put(node);
+	if (ret < 0)
 		return ret;
-	}
 
 parse_dai_end:
 	if (is_single_link)

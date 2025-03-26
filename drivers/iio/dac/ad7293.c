@@ -141,8 +141,6 @@ struct ad7293_state {
 	/* Protect against concurrent accesses to the device, page selection and data content */
 	struct mutex lock;
 	struct gpio_desc *gpio_reset;
-	struct regulator *reg_avdd;
-	struct regulator *reg_vdrive;
 	u8 page_select;
 	u8 data[3] __aligned(IIO_DMA_MINALIGN);
 };
@@ -777,6 +775,15 @@ static int ad7293_reset(struct ad7293_state *st)
 static int ad7293_properties_parse(struct ad7293_state *st)
 {
 	struct spi_device *spi = st->spi;
+	int ret;
+
+	ret = devm_regulator_get_enable(&spi->dev, "avdd");
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "failed to enable AVDD\n");
+
+	ret = devm_regulator_get_enable(&spi->dev, "vdrive");
+	if (ret)
+		return dev_err_probe(&spi->dev, ret, "failed to enable VDRIVE\n");
 
 	st->gpio_reset = devm_gpiod_get_optional(&st->spi->dev, "reset",
 						 GPIOD_OUT_HIGH);
@@ -784,22 +791,7 @@ static int ad7293_properties_parse(struct ad7293_state *st)
 		return dev_err_probe(&spi->dev, PTR_ERR(st->gpio_reset),
 				     "failed to get the reset GPIO\n");
 
-	st->reg_avdd = devm_regulator_get(&spi->dev, "avdd");
-	if (IS_ERR(st->reg_avdd))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->reg_avdd),
-				     "failed to get the AVDD voltage\n");
-
-	st->reg_vdrive = devm_regulator_get(&spi->dev, "vdrive");
-	if (IS_ERR(st->reg_vdrive))
-		return dev_err_probe(&spi->dev, PTR_ERR(st->reg_vdrive),
-				     "failed to get the VDRIVE voltage\n");
-
 	return 0;
-}
-
-static void ad7293_reg_disable(void *data)
-{
-	regulator_disable(data);
 }
 
 static int ad7293_init(struct ad7293_state *st)
@@ -815,48 +807,6 @@ static int ad7293_init(struct ad7293_state *st)
 	ret = ad7293_reset(st);
 	if (ret)
 		return ret;
-
-	ret = regulator_enable(st->reg_avdd);
-	if (ret) {
-		dev_err(&spi->dev,
-			"Failed to enable specified AVDD Voltage!\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(&spi->dev, ad7293_reg_disable,
-				       st->reg_avdd);
-	if (ret)
-		return ret;
-
-	ret = regulator_enable(st->reg_vdrive);
-	if (ret) {
-		dev_err(&spi->dev,
-			"Failed to enable specified VDRIVE Voltage!\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(&spi->dev, ad7293_reg_disable,
-				       st->reg_vdrive);
-	if (ret)
-		return ret;
-
-	ret = regulator_get_voltage(st->reg_avdd);
-	if (ret < 0) {
-		dev_err(&spi->dev, "Failed to read avdd regulator: %d\n", ret);
-		return ret;
-	}
-
-	if (ret > 5500000 || ret < 4500000)
-		return -EINVAL;
-
-	ret = regulator_get_voltage(st->reg_vdrive);
-	if (ret < 0) {
-		dev_err(&spi->dev,
-			"Failed to read vdrive regulator: %d\n", ret);
-		return ret;
-	}
-	if (ret > 5500000 || ret < 1700000)
-		return -EINVAL;
 
 	/* Check Chip ID */
 	ret = __ad7293_spi_read(st, AD7293_REG_DEVICE_ID, &chip_id);

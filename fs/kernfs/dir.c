@@ -1109,7 +1109,8 @@ struct kernfs_node *kernfs_create_empty_dir(struct kernfs_node *parent,
 	return ERR_PTR(rc);
 }
 
-static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
+static int kernfs_dop_revalidate(struct inode *dir, const struct qstr *name,
+				 struct dentry *dentry, unsigned int flags)
 {
 	struct kernfs_node *kn;
 	struct kernfs_root *root;

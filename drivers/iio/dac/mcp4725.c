@@ -379,7 +379,7 @@ static int mcp4725_probe_dt(struct device *dev,
 			    struct mcp4725_platform_data *pdata)
 {
 	/* check if is the vref-supply defined */
-	pdata->use_vref = device_property_read_bool(dev, "vref-supply");
+	pdata->use_vref = device_property_present(dev, "vref-supply");
 	pdata->vref_buffered =
 		device_property_read_bool(dev, "microchip,vref-buffered");
 

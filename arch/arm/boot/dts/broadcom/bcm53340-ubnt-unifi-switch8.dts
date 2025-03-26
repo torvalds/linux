@@ -32,7 +32,6 @@
 
 &qspi {
 	status = "okay";
-	bspi-sel = <0>;
 
 	flash: flash@0 {
 		compatible = "m25p80";

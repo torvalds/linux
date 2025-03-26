@@ -23,7 +23,7 @@
 #include <linux/acpi.h>
 #include <linux/hyperv.h>
 #include <clocksource/hyperv_timer.h>
-#include <asm/hyperv-tlfs.h>
+#include <hyperv/hvhdk.h>
 #include <asm/mshyperv.h>
 
 static struct clock_event_device __percpu *hv_clock_event;

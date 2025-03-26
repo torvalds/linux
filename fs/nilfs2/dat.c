@@ -276,7 +276,8 @@ void nilfs_dat_abort_update(struct inode *dat,
  * @dat:      DAT file inode
  * @vblocknr: virtual block number
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EINVAL	- Invalid DAT entry (internal code).
  * * %-EIO	- I/O error (including metadata corruption).
  * * %-ENOMEM	- Insufficient memory available.
@@ -302,14 +303,11 @@ int nilfs_dat_mark_dirty(struct inode *dat, __u64 vblocknr)
  * Description: nilfs_dat_freev() frees the virtual block numbers specified by
  * @vblocknrs and @nitems.
  *
- * Return Value: On success, 0 is returned. On error, one of the following
- * negative error codes is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
- *
- * %-ENOENT - The virtual block number have not been allocated.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOENT	- The virtual block number have not been allocated.
+ * * %-ENOMEM	- Insufficient memory available.
  */
 int nilfs_dat_freev(struct inode *dat, __u64 *vblocknrs, size_t nitems)
 {
@@ -325,12 +323,10 @@ int nilfs_dat_freev(struct inode *dat, __u64 *vblocknrs, size_t nitems)
  * Description: nilfs_dat_move() changes the block number associated with
  * @vblocknr to @blocknr.
  *
- * Return Value: On success, 0 is returned. On error, one of the following
- * negative error codes is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOMEM	- Insufficient memory available.
  */
 int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
 {
@@ -390,17 +386,14 @@ int nilfs_dat_move(struct inode *dat, __u64 vblocknr, sector_t blocknr)
  * @blocknrp: pointer to a block number
  *
  * Description: nilfs_dat_translate() maps the virtual block number @vblocknr
- * to the corresponding block number.
+ * to the corresponding block number.  The block number associated with
+ * @vblocknr is stored in the place pointed to by @blocknrp.
  *
- * Return Value: On success, 0 is returned and the block number associated
- * with @vblocknr is stored in the place pointed by @blocknrp. On error, one
- * of the following negative error codes is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
- *
- * %-ENOENT - A block number associated with @vblocknr does not exist.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOENT	- A block number associated with @vblocknr does not exist.
+ * * %-ENOMEM	- Insufficient memory available.
  */
 int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 {
@@ -489,6 +482,8 @@ ssize_t nilfs_dat_get_vinfo(struct inode *dat, void *buf, unsigned int visz,
  * @entry_size: size of a dat entry
  * @raw_inode: on-disk dat inode
  * @inodep: buffer to store the inode
+ *
+ * Return: 0 on success, or a negative error code on failure.
  */
 int nilfs_dat_read(struct super_block *sb, size_t entry_size,
 		   struct nilfs_inode *raw_inode, struct inode **inodep)

@@ -54,15 +54,29 @@
 
 struct serio;
 
+/**
+ * typedef i8042_filter_t - i8042 filter callback
+ * @data: Data received by the i8042 controller
+ * @str: Status register of the i8042 controller
+ * @serio: Serio of the i8042 controller
+ * @context: Context pointer associated with this callback
+ *
+ * This represents a i8042 filter callback which can be used with i8042_install_filter()
+ * and i8042_remove_filter() to filter the i8042 input for platform-specific key codes.
+ *
+ * Context: Interrupt context.
+ * Returns: true if the data should be filtered out, false if otherwise.
+ */
+typedef bool (*i8042_filter_t)(unsigned char data, unsigned char str, struct serio *serio,
+			       void *context);
+
 #if defined(CONFIG_SERIO_I8042) || defined(CONFIG_SERIO_I8042_MODULE)
 
 void i8042_lock_chip(void);
 void i8042_unlock_chip(void);
 int i8042_command(unsigned char *param, int command);
-int i8042_install_filter(bool (*filter)(unsigned char data, unsigned char str,
-					struct serio *serio));
-int i8042_remove_filter(bool (*filter)(unsigned char data, unsigned char str,
-				       struct serio *serio));
+int i8042_install_filter(i8042_filter_t filter, void *context);
+int i8042_remove_filter(i8042_filter_t filter);
 
 #else
 
@@ -79,14 +93,12 @@ static inline int i8042_command(unsigned char *param, int command)
 	return -ENODEV;
 }
 
-static inline int i8042_install_filter(bool (*filter)(unsigned char data, unsigned char str,
-					struct serio *serio))
+static inline int i8042_install_filter(i8042_filter_t filter, void *context)
 {
 	return -ENODEV;
 }
 
-static inline int i8042_remove_filter(bool (*filter)(unsigned char data, unsigned char str,
-				       struct serio *serio))
+static inline int i8042_remove_filter(i8042_filter_t filter)
 {
 	return -ENODEV;
 }

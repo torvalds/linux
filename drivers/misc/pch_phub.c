@@ -483,7 +483,7 @@ static int pch_phub_write_gbe_mac_addr(struct pch_phub_reg *chip, u8 *data)
 }
 
 static ssize_t pch_phub_bin_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *attr, char *buf,
+				 const struct bin_attribute *attr, char *buf,
 				 loff_t off, size_t count)
 {
 	unsigned int rom_signature;
@@ -553,7 +553,7 @@ return_err_nomutex:
 }
 
 static ssize_t pch_phub_bin_write(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *attr,
+				  const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	int err;
@@ -655,8 +655,8 @@ static const struct bin_attribute pch_bin_attr = {
 		.mode = S_IRUGO | S_IWUSR,
 	},
 	.size = PCH_PHUB_OROM_SIZE + 1,
-	.read = pch_phub_bin_read,
-	.write = pch_phub_bin_write,
+	.read_new = pch_phub_bin_read,
+	.write_new = pch_phub_bin_write,
 };
 
 static int pch_phub_probe(struct pci_dev *pdev,

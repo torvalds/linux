@@ -19,13 +19,11 @@
 #include <um_malloc.h>
 #include "internal.h"
 
-#define PGD_BOUND (4 * 1024 * 1024)
 #define STACKSIZE (8 * 1024 * 1024)
-#define THREAD_NAME_LEN (256)
 
 long elf_aux_hwcap;
 
-static void set_stklim(void)
+static void __init set_stklim(void)
 {
 	struct rlimit lim;
 
@@ -48,7 +46,7 @@ static void last_ditch_exit(int sig)
 	exit(1);
 }
 
-static void install_fatal_handler(int sig)
+static void __init install_fatal_handler(int sig)
 {
 	struct sigaction action;
 
@@ -73,7 +71,7 @@ static void install_fatal_handler(int sig)
 
 #define UML_LIB_PATH	":" OS_LIB_PATH "/uml"
 
-static void setup_env_path(void)
+static void __init setup_env_path(void)
 {
 	char *new_path = NULL;
 	char *old_path = NULL;

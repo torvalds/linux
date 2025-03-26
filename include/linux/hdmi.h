@@ -445,7 +445,6 @@ ssize_t hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer,
 			    size_t size);
 ssize_t hdmi_infoframe_pack_only(const union hdmi_infoframe *frame,
 				 void *buffer, size_t size);
-int hdmi_infoframe_check(union hdmi_infoframe *frame);
 int hdmi_infoframe_unpack(union hdmi_infoframe *frame,
 			  const void *buffer, size_t size);
 void hdmi_infoframe_log(const char *level, struct device *dev,

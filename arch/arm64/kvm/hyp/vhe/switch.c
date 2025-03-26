@@ -256,6 +256,110 @@ void kvm_vcpu_put_vhe(struct kvm_vcpu *vcpu)
 	host_data_ptr(host_ctxt)->__hyp_running_vcpu = NULL;
 }
 
+static u64 compute_emulated_cntx_ctl_el0(struct kvm_vcpu *vcpu,
+					 enum vcpu_sysreg reg)
+{
+	unsigned long ctl;
+	u64 cval, cnt;
+	bool stat;
+
+	switch (reg) {
+	case CNTP_CTL_EL0:
+		cval = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
+		ctl  = __vcpu_sys_reg(vcpu, CNTP_CTL_EL0);
+		cnt  = compute_counter_value(vcpu_ptimer(vcpu));
+		break;
+	case CNTV_CTL_EL0:
+		cval = __vcpu_sys_reg(vcpu, CNTV_CVAL_EL0);
+		ctl  = __vcpu_sys_reg(vcpu, CNTV_CTL_EL0);
+		cnt  = compute_counter_value(vcpu_vtimer(vcpu));
+		break;
+	default:
+		BUG();
+	}
+
+	stat = cval <= cnt;
+	__assign_bit(__ffs(ARCH_TIMER_CTRL_IT_STAT), &ctl, stat);
+
+	return ctl;
+}
+
+static bool kvm_hyp_handle_timer(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	u64 esr, val;
+
+	/*
+	 * Having FEAT_ECV allows for a better quality of timer emulation.
+	 * However, this comes at a huge cost in terms of traps. Try and
+	 * satisfy the reads from guest's hypervisor context without
+	 * returning to the kernel if we can.
+	 */
+	if (!is_hyp_ctxt(vcpu))
+		return false;
+
+	esr = kvm_vcpu_get_esr(vcpu);
+	if ((esr & ESR_ELx_SYS64_ISS_DIR_MASK) != ESR_ELx_SYS64_ISS_DIR_READ)
+		return false;
+
+	switch (esr_sys64_to_sysreg(esr)) {
+	case SYS_CNTP_CTL_EL02:
+		val = compute_emulated_cntx_ctl_el0(vcpu, CNTP_CTL_EL0);
+		break;
+	case SYS_CNTP_CTL_EL0:
+		if (vcpu_el2_e2h_is_set(vcpu))
+			val = read_sysreg_el0(SYS_CNTP_CTL);
+		else
+			val = compute_emulated_cntx_ctl_el0(vcpu, CNTP_CTL_EL0);
+		break;
+	case SYS_CNTP_CVAL_EL02:
+		val = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
+		break;
+	case SYS_CNTP_CVAL_EL0:
+		if (vcpu_el2_e2h_is_set(vcpu)) {
+			val = read_sysreg_el0(SYS_CNTP_CVAL);
+
+			if (!has_cntpoff())
+				val -= timer_get_offset(vcpu_hptimer(vcpu));
+		} else {
+			val = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
+		}
+		break;
+	case SYS_CNTPCT_EL0:
+	case SYS_CNTPCTSS_EL0:
+		val = compute_counter_value(vcpu_hptimer(vcpu));
+		break;
+	case SYS_CNTV_CTL_EL02:
+		val = compute_emulated_cntx_ctl_el0(vcpu, CNTV_CTL_EL0);
+		break;
+	case SYS_CNTV_CTL_EL0:
+		if (vcpu_el2_e2h_is_set(vcpu))
+			val = read_sysreg_el0(SYS_CNTV_CTL);
+		else
+			val = compute_emulated_cntx_ctl_el0(vcpu, CNTV_CTL_EL0);
+		break;
+	case SYS_CNTV_CVAL_EL02:
+		val = __vcpu_sys_reg(vcpu, CNTV_CVAL_EL0);
+		break;
+	case SYS_CNTV_CVAL_EL0:
+		if (vcpu_el2_e2h_is_set(vcpu))
+			val = read_sysreg_el0(SYS_CNTV_CVAL);
+		else
+			val = __vcpu_sys_reg(vcpu, CNTV_CVAL_EL0);
+		break;
+	case SYS_CNTVCT_EL0:
+	case SYS_CNTVCTSS_EL0:
+		val = compute_counter_value(vcpu_hvtimer(vcpu));
+		break;
+	default:
+		return false;
+	}
+
+	vcpu_set_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu), val);
+	__kvm_skip_instr(vcpu);
+
+	return true;
+}
+
 static bool kvm_hyp_handle_eret(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
 	u64 esr = kvm_vcpu_get_esr(vcpu);
@@ -407,6 +511,9 @@ static bool kvm_hyp_handle_zcr_el2(struct kvm_vcpu *vcpu, u64 *exit_code)
 static bool kvm_hyp_handle_sysreg_vhe(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
 	if (kvm_hyp_handle_tlbi_el2(vcpu, exit_code))
+		return true;
+
+	if (kvm_hyp_handle_timer(vcpu, exit_code))
 		return true;
 
 	if (kvm_hyp_handle_cpacr_el1(vcpu, exit_code))

@@ -224,9 +224,14 @@ static inline void alloc_tag_sub(union codetag_ref *ref, size_t bytes) {}
 
 #define alloc_hooks_tag(_tag, _do_alloc)				\
 ({									\
-	struct alloc_tag * __maybe_unused _old = alloc_tag_save(_tag);	\
-	typeof(_do_alloc) _res = _do_alloc;				\
-	alloc_tag_restore(_tag, _old);					\
+	typeof(_do_alloc) _res;						\
+	if (mem_alloc_profiling_enabled()) {				\
+		struct alloc_tag * __maybe_unused _old;			\
+		_old = alloc_tag_save(_tag);				\
+		_res = _do_alloc;					\
+		alloc_tag_restore(_tag, _old);				\
+	} else								\
+		_res = _do_alloc;					\
 	_res;								\
 })
 

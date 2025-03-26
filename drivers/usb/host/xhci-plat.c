@@ -330,6 +330,8 @@ int xhci_plat_probe(struct platform_device *pdev, struct device *sysdev, const s
 		usb3_hcd->can_do_streams = 1;
 
 	if (xhci->shared_hcd) {
+		xhci->shared_hcd->rsrc_start = hcd->rsrc_start;
+		xhci->shared_hcd->rsrc_len = hcd->rsrc_len;
 		ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
 		if (ret)
 			goto put_usb3_hcd;
@@ -567,6 +569,7 @@ EXPORT_SYMBOL_GPL(xhci_plat_pm_ops);
 static const struct acpi_device_id usb_xhci_acpi_match[] = {
 	/* XHCI-compliant USB Controller */
 	{ "PNP0D10", },
+	{ "PNP0D15", },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, usb_xhci_acpi_match);

@@ -57,6 +57,7 @@ struct cpuinfo_loongarch {
 	int			global_id; /* physical global thread number */
 	int			vabits; /* Virtual Address size in bits */
 	int			pabits; /* Physical Address size in bits */
+	int			timerbits; /* Width of arch timer in bits */
 	unsigned int		ksave_mask; /* Usable KSave mask. */
 	unsigned int		watch_dreg_count;   /* Number data breakpoints */
 	unsigned int		watch_ireg_count;   /* Number instruction breakpoints */

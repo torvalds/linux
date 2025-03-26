@@ -544,7 +544,7 @@ static int drc_pmem_query_health(struct papr_scm_priv *p)
 
 	/* Jiffies offset for which the health data is assumed to be same */
 	cache_timeout = p->lasthealth_jiffies +
-		msecs_to_jiffies(MIN_HEALTH_QUERY_INTERVAL * 1000);
+		secs_to_jiffies(MIN_HEALTH_QUERY_INTERVAL);
 
 	/* Fetch new health info is its older than MIN_HEALTH_QUERY_INTERVAL */
 	if (time_after(jiffies, cache_timeout))

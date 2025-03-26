@@ -71,7 +71,7 @@ static struct test_sysctl_data test_data = {
 };
 
 /* These are all under /proc/sys/debug/test_sysctl/ */
-static struct ctl_table test_table[] = {
+static const struct ctl_table test_table[] = {
 	{
 		.procname	= "int_0001",
 		.data		= &test_data.int_0001,
@@ -177,7 +177,7 @@ static int test_sysctl_setup_node_tests(void)
 }
 
 /* Used to test that unregister actually removes the directory */
-static struct ctl_table test_table_unregister[] = {
+static const struct ctl_table test_table_unregister[] = {
 	{
 		.procname	= "unregister_error",
 		.data		= &test_data.int_0001,
@@ -220,7 +220,7 @@ static int test_sysctl_run_register_mount_point(void)
 	return 0;
 }
 
-static struct ctl_table test_table_empty[] = { };
+static const struct ctl_table test_table_empty[] = { };
 
 static int test_sysctl_run_register_empty(void)
 {

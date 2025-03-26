@@ -1856,13 +1856,6 @@ void ksmbd_vfs_posix_lock_wait(struct file_lock *flock)
 	wait_event(flock->c.flc_wait, !flock->c.flc_blocker);
 }
 
-int ksmbd_vfs_posix_lock_wait_timeout(struct file_lock *flock, long timeout)
-{
-	return wait_event_interruptible_timeout(flock->c.flc_wait,
-						!flock->c.flc_blocker,
-						timeout);
-}
-
 void ksmbd_vfs_posix_lock_unblock(struct file_lock *flock)
 {
 	locks_delete_block(flock);

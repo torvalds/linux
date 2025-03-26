@@ -2988,12 +2988,8 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	clear_bit(NLP_LOGO_SND, &ndlp->nlp_flag);
-	spin_lock_irq(&ndlp->lock);
-	if (ndlp->save_flags & NLP_WAIT_FOR_LOGO) {
+	if (test_and_clear_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags))
 		wake_up_waiter = 1;
-		ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
-	}
-	spin_unlock_irq(&ndlp->lock);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
 		"LOGO cmpl:       status:x%x/x%x did:x%x",
@@ -3034,19 +3030,6 @@ lpfc_cmpl_els_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* Call state machine. This will unregister the rpi if needed. */
 	lpfc_disc_state_machine(vport, ndlp, cmdiocb, NLP_EVT_CMPL_LOGO);
-
-	if (skip_recovery)
-		goto out;
-
-	/* The driver sets this flag for an NPIV instance that doesn't want to
-	 * log into the remote port.
-	 */
-	if (test_bit(NLP_TARGET_REMOVE, &ndlp->nlp_flag)) {
-		clear_bit(NLP_NPR_2B_DISC, &ndlp->nlp_flag);
-		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
-					NLP_EVT_DEVICE_RM);
-		goto out_rsrc_free;
-	}
 
 out:
 	/* At this point, the LOGO processing is complete. NOTE: For a
@@ -3091,7 +3074,7 @@ out:
 		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 					NLP_EVT_DEVICE_RM);
 	}
-out_rsrc_free:
+
 	/* Driver is done with the I/O. */
 	lpfc_els_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
@@ -4583,6 +4566,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	int link_reset = 0, rc;
 	u32 ulp_status = get_job_ulpstatus(phba, rspiocb);
 	u32 ulp_word4 = get_job_word4(phba, rspiocb);
+	u8 rsn_code_exp = 0;
 
 
 	/* Note: cmd_dmabuf may be 0 for internal driver abort
@@ -4798,11 +4782,22 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			break;
 
 		case LSRJT_LOGICAL_BSY:
+			rsn_code_exp = stat.un.b.lsRjtRsnCodeExp;
 			if ((cmd == ELS_CMD_PLOGI) ||
 			    (cmd == ELS_CMD_PRLI) ||
 			    (cmd == ELS_CMD_NVMEPRLI)) {
 				delay = 1000;
 				maxretry = 48;
+
+				/* An authentication LS_RJT reason code
+				 * explanation means some error in the
+				 * security settings end-to-end.  Reduce
+				 * the retry count to allow lpfc to clear
+				 * RSCN mode and not race with dev_loss.
+				 */
+				if (cmd == ELS_CMD_PLOGI &&
+				    rsn_code_exp == LSEXP_AUTH_REQ)
+					maxretry = 8;
 			} else if (cmd == ELS_CMD_FDISC) {
 				/* FDISC retry policy */
 				maxretry = 48;
@@ -4831,6 +4826,20 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					      "0820 FLOGI (x%x). "
 					      "BBCredit Not Supported\n",
 					      stat.un.lsRjtError);
+			} else if (cmd == ELS_CMD_PLOGI) {
+				rsn_code_exp = stat.un.b.lsRjtRsnCodeExp;
+
+				/* An authentication LS_RJT reason code
+				 * explanation means some error in the
+				 * security settings end-to-end.  Reduce
+				 * the retry count to allow lpfc to clear
+				 * RSCN mode and not race with dev_loss.
+				 */
+				if (rsn_code_exp == LSEXP_AUTH_REQ) {
+					delay = 1000;
+					retry = 1;
+					maxretry = 8;
+				}
 			}
 			break;
 
@@ -10411,8 +10420,6 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			}
 		}
 
-		clear_bit(NLP_TARGET_REMOVE, &ndlp->nlp_flag);
-
 		lpfc_disc_state_machine(vport, ndlp, elsiocb,
 					NLP_EVT_RCV_PLOGI);
 
@@ -11498,15 +11505,13 @@ lpfc_cmpl_els_npiv_logo(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_can_disctmo(vport);
 	}
 
-	if (ndlp->save_flags & NLP_WAIT_FOR_LOGO) {
+	if (test_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags)) {
 		/* Wake up lpfc_vport_delete if waiting...*/
 		if (ndlp->logo_waitq)
 			wake_up(ndlp->logo_waitq);
 		clear_bit(NLP_ISSUE_LOGO, &ndlp->nlp_flag);
 		clear_bit(NLP_LOGO_SND, &ndlp->nlp_flag);
-		spin_lock_irq(&ndlp->lock);
-		ndlp->save_flags &= ~NLP_WAIT_FOR_LOGO;
-		spin_unlock_irq(&ndlp->lock);
+		clear_bit(NLP_WAIT_FOR_LOGO, &ndlp->save_flags);
 	}
 
 	/* Safe to release resources now. */

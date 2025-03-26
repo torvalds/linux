@@ -2034,6 +2034,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	if (amdgpu_dc_debug_mask & DC_FORCE_SUBVP_MCLK_SWITCH)
 		adev->dm.dc->debug.force_subvp_mclk_switch = true;
 
+	if (amdgpu_dc_debug_mask & DC_DISABLE_SUBVP)
+		adev->dm.dc->debug.force_disable_subvp = true;
+
 	if (amdgpu_dc_debug_mask & DC_ENABLE_DML2) {
 		adev->dm.dc->debug.using_dml2 = true;
 		adev->dm.dc->debug.using_dml21 = true;
@@ -11483,6 +11486,11 @@ static bool amdgpu_dm_crtc_mem_type_changed(struct drm_device *dev,
 		new_plane_state = drm_atomic_get_plane_state(state, plane);
 		old_plane_state = drm_atomic_get_plane_state(state, plane);
 
+		if (IS_ERR(new_plane_state) || IS_ERR(old_plane_state)) {
+			DRM_ERROR("Failed to get plane state for plane %s\n", plane->name);
+			return false;
+		}
+
 		if (old_plane_state->fb && new_plane_state->fb &&
 		    get_mem_type(old_plane_state->fb) != get_mem_type(new_plane_state->fb))
 			return true;
@@ -12318,10 +12326,14 @@ void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 
 	if (edid && (sink->sink_signal == SIGNAL_TYPE_DISPLAY_PORT ||
 		     sink->sink_signal == SIGNAL_TYPE_EDP)) {
-		amdgpu_dm_connector->min_vfreq = connector->display_info.monitor_range.min_vfreq;
-		amdgpu_dm_connector->max_vfreq = connector->display_info.monitor_range.max_vfreq;
-		if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)
-			freesync_capable = true;
+		if (amdgpu_dm_connector->dc_link &&
+		    amdgpu_dm_connector->dc_link->dpcd_caps.allow_invalid_MSA_timing_param) {
+			amdgpu_dm_connector->min_vfreq = connector->display_info.monitor_range.min_vfreq;
+			amdgpu_dm_connector->max_vfreq = connector->display_info.monitor_range.max_vfreq;
+			if (amdgpu_dm_connector->max_vfreq - amdgpu_dm_connector->min_vfreq > 10)
+				freesync_capable = true;
+		}
+
 		parse_amd_vsdb(amdgpu_dm_connector, edid, &vsdb_info);
 
 		if (vsdb_info.replay_mode) {

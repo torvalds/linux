@@ -474,9 +474,6 @@ extern int cifs_query_reparse_point(const unsigned int xid,
 				    const char *full_path,
 				    u32 *tag, struct kvec *rsp,
 				    int *rsp_buftype);
-extern int CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
-			       __u16 fid, char **symlinkinfo,
-			       const struct nls_table *nls_codepage);
 extern int CIFSSMB_set_compression(const unsigned int xid,
 				   struct cifs_tcon *tcon, __u16 fid);
 extern int CIFS_open(const unsigned int xid, struct cifs_open_parms *oparms,
@@ -560,7 +557,7 @@ extern int CIFSSMBSetEA(const unsigned int xid, struct cifs_tcon *tcon,
 		const struct nls_table *nls_codepage,
 		struct cifs_sb_info *cifs_sb);
 extern int CIFSSMBGetCIFSACL(const unsigned int xid, struct cifs_tcon *tcon,
-			__u16 fid, struct smb_ntsd **acl_inf, __u32 *buflen);
+			__u16 fid, struct smb_ntsd **acl_inf, __u32 *buflen, __u32 info);
 extern int CIFSSMBSetCIFSACL(const unsigned int, struct cifs_tcon *, __u16,
 			struct smb_ntsd *pntsd, __u32 len, int aclflag);
 extern int cifs_do_get_acl(const unsigned int xid, struct cifs_tcon *tcon,
@@ -659,7 +656,7 @@ char *extract_sharename(const char *unc);
 int parse_reparse_point(struct reparse_data_buffer *buf,
 			u32 plen, struct cifs_sb_info *cifs_sb,
 			const char *full_path,
-			bool unicode, struct cifs_open_info_data *data);
+			struct cifs_open_info_data *data);
 int __cifs_sfu_make_node(unsigned int xid, struct inode *inode,
 			 struct dentry *dentry, struct cifs_tcon *tcon,
 			 const char *full_path, umode_t mode, dev_t dev,
@@ -680,7 +677,7 @@ static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 }
 
 int match_target_ip(struct TCP_Server_Info *server,
-		    const char *share, size_t share_len,
+		    const char *host, size_t hostlen,
 		    bool *result);
 int cifs_inval_name_dfs_link_error(const unsigned int xid,
 				   struct cifs_tcon *tcon,

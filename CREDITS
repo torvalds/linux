@@ -2515,11 +2515,9 @@ D: SLS distribution
 D: Initial implementation of VC's, pty's and select()
 
 N: Pavel Machek
-E: pavel@ucw.cz
+E: pavel@kernel.org
 P: 4096R/92DFCE96 4FA7 9EEF FCD4 C44F C585  B8C7 C060 2241 92DF CE96
-D: Softcursor for vga, hypertech cdrom support, vcsa bugfix, nbd,
-D: sun4/330 port, capabilities for elf, speedup for rm on ext2, USB,
-D: work on suspend-to-ram/disk, killing duplicates from ioctl32,
+D: NBD, Sun4/330 port, USB, work on suspend-to-ram/disk,
 D: Altera SoCFPGA and Nokia N900 support.
 S: Czech Republic
 
@@ -4339,7 +4337,7 @@ D: Freescale Highspeed USB device driver
 D: Freescale QE SoC support and Ethernet driver
 S: B-1206 Jingmao Guojigongyu
 S: 16 Baliqiao Nanjie, Beijing 101100
-S: People's Repulic of China
+S: People's Republic of China
 
 N: Vlad Yasevich
 E: vyasevich@gmail.com

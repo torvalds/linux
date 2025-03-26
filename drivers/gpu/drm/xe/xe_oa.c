@@ -237,7 +237,6 @@ static bool xe_oa_buffer_check_unlocked(struct xe_oa_stream *stream)
 	u32 tail, hw_tail, partial_report_size, available;
 	int report_size = stream->oa_buffer.format->size;
 	unsigned long flags;
-	bool pollin;
 
 	spin_lock_irqsave(&stream->oa_buffer.ptr_lock, flags);
 
@@ -282,11 +281,11 @@ static bool xe_oa_buffer_check_unlocked(struct xe_oa_stream *stream)
 	stream->oa_buffer.tail = tail;
 
 	available = xe_oa_circ_diff(stream, stream->oa_buffer.tail, stream->oa_buffer.head);
-	pollin = available >= stream->wait_num_reports * report_size;
+	stream->pollin = available >= stream->wait_num_reports * report_size;
 
 	spin_unlock_irqrestore(&stream->oa_buffer.ptr_lock, flags);
 
-	return pollin;
+	return stream->pollin;
 }
 
 static enum hrtimer_restart xe_oa_poll_check_timer_cb(struct hrtimer *hrtimer)
@@ -294,10 +293,8 @@ static enum hrtimer_restart xe_oa_poll_check_timer_cb(struct hrtimer *hrtimer)
 	struct xe_oa_stream *stream =
 		container_of(hrtimer, typeof(*stream), poll_check_timer);
 
-	if (xe_oa_buffer_check_unlocked(stream)) {
-		stream->pollin = true;
+	if (xe_oa_buffer_check_unlocked(stream))
 		wake_up(&stream->poll_wq);
-	}
 
 	hrtimer_forward_now(hrtimer, ns_to_ktime(stream->poll_period_ns));
 
@@ -452,6 +449,12 @@ static u32 __oa_ccs_select(struct xe_oa_stream *stream)
 	return val;
 }
 
+static u32 __oactrl_used_bits(struct xe_oa_stream *stream)
+{
+	return stream->hwe->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG ?
+		OAG_OACONTROL_USED_BITS : OAM_OACONTROL_USED_BITS;
+}
+
 static void xe_oa_enable(struct xe_oa_stream *stream)
 {
 	const struct xe_oa_format *format = stream->oa_buffer.format;
@@ -472,14 +475,14 @@ static void xe_oa_enable(struct xe_oa_stream *stream)
 	    stream->hwe->oa_unit->type == DRM_XE_OA_UNIT_TYPE_OAG)
 		val |= OAG_OACONTROL_OA_PES_DISAG_EN;
 
-	xe_mmio_write32(&stream->gt->mmio, regs->oa_ctrl, val);
+	xe_mmio_rmw32(&stream->gt->mmio, regs->oa_ctrl, __oactrl_used_bits(stream), val);
 }
 
 static void xe_oa_disable(struct xe_oa_stream *stream)
 {
 	struct xe_mmio *mmio = &stream->gt->mmio;
 
-	xe_mmio_write32(mmio, __oa_regs(stream)->oa_ctrl, 0);
+	xe_mmio_rmw32(mmio, __oa_regs(stream)->oa_ctrl, __oactrl_used_bits(stream), 0);
 	if (xe_mmio_wait32(mmio, __oa_regs(stream)->oa_ctrl,
 			   OAG_OACONTROL_OA_COUNTER_ENABLE, 0, 50000, NULL, false))
 		drm_err(&stream->oa->xe->drm,
@@ -2533,6 +2536,8 @@ static void __xe_oa_init_oa_units(struct xe_gt *gt)
 			u->regs = __oam_regs(mtl_oa_base[i]);
 			u->type = DRM_XE_OA_UNIT_TYPE_OAM;
 		}
+
+		xe_mmio_write32(&gt->mmio, u->regs.oa_ctrl, 0);
 
 		/* Ensure MMIO trigger remains disabled till there is a stream */
 		xe_mmio_write32(&gt->mmio, u->regs.oa_debug,

@@ -1,0 +1,160 @@
+[
+    {
+        "ArchStdEvent": "L2D_CACHE",
+        "BriefDescription": "This event counts operations that cause a cache access to the L2 cache. See L2D_CACHE of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL",
+        "BriefDescription": "This event counts operations that cause a refill of the L2 cache. See L2D_CACHE_REFILL of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WB",
+        "BriefDescription": "This event counts every write-back of data from the L2 cache caused by L2 replace, non-temporal-store and DC ZVA."
+    },
+    {
+        "ArchStdEvent": "L2I_TLB_REFILL",
+        "BriefDescription": "This event counts operations that cause a TLB refill of the L2I TLB. See L2I_TLB_REFILL of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L2I_TLB",
+        "BriefDescription": "This event counts operations that cause a TLB access to the L2I TLB. See L2I_TLB of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_RD",
+        "BriefDescription": "This event counts L2D CACHE caused by read access."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WR",
+        "BriefDescription": "This event counts L2D CACHE caused by write access."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL_RD",
+        "BriefDescription": "This event counts L2D CACHE_REFILL caused by read access."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL_WR",
+        "BriefDescription": "This event counts L2D CACHE_REFILL caused by write access."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WB_VICTIM",
+        "BriefDescription": "This event counts every write-back of data from the L2 cache caused by L2 replace."
+    },
+    {
+        "EventCode": "0x0300",
+        "EventName": "L2D_CACHE_DM",
+        "BriefDescription": "This event counts L2D_CACHE caused by demand access."
+    },
+    {
+        "EventCode": "0x0301",
+        "EventName": "L2D_CACHE_DM_RD",
+        "BriefDescription": "This event counts L2D_CACHE caused by demand read access."
+    },
+    {
+        "EventCode": "0x0302",
+        "EventName": "L2D_CACHE_DM_WR",
+        "BriefDescription": "This event counts L2D_CACHE caused by demand write access."
+    },
+    {
+        "EventCode": "0x0305",
+        "EventName": "L2D_CACHE_HWPRF_ADJACENT",
+        "BriefDescription": "This event counts L2D_CACHE caused by hardware adjacent prefetch access."
+    },
+    {
+        "EventCode": "0x0308",
+        "EventName": "L2D_CACHE_REFILL_DM",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL caused by demand access."
+    },
+    {
+        "EventCode": "0x0309",
+        "EventName": "L2D_CACHE_REFILL_DM_RD",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL caused by demand read access."
+    },
+    {
+        "EventCode": "0x030A",
+        "EventName": "L2D_CACHE_REFILL_DM_WR",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL caused by demand write access."
+    },
+    {
+        "EventCode": "0x030B",
+        "EventName": "L2D_CACHE_REFILL_DM_WR_EXCL",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL caused by demand write exclusive access."
+    },
+    {
+        "EventCode": "0x030C",
+        "EventName": "L2D_CACHE_REFILL_DM_WR_ATOM",
+        "BriefDescription": "This event counts L2D_CACHE_REFILL caused by demand write atomic access."
+    },
+    {
+        "EventCode": "0x030D",
+        "EventName": "L2D_CACHE_BTC",
+        "BriefDescription": "This event counts demand access that hits cache line with shared status and requests exclusive access in the Level 1 data and Level 2 caches, causing a coherence access to outside of the Level 1 and Level 2 caches of this PE."
+    },
+    {
+        "EventCode": "0x03B0",
+        "EventName": "L2D_CACHE_WB_VICTIM_CLEAN",
+        "BriefDescription": "This event counts every write-back of data from the L2 cache caused by L2 replace where the data is clean. In this case, the data will usually be written to L3 cache."
+    },
+    {
+        "EventCode": "0x03B1",
+        "EventName": "L2D_CACHE_WB_NT",
+        "BriefDescription": "This event counts every write-back of data from the L2 cache caused by non-temporal-store."
+    },
+    {
+        "EventCode": "0x03B2",
+        "EventName": "L2D_CACHE_WB_DCZVA",
+        "BriefDescription": "This event counts every write-back of data from the L2 cache caused by DC ZVA."
+    },
+    {
+        "EventCode": "0x03B3",
+        "EventName": "L2D_CACHE_FB",
+        "BriefDescription": "This event counts every flush-back (drop) of data from the L2 cache."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_LMISS_RD",
+        "BriefDescription": "This event counts operations that cause a refill of the L2D cache that incurs additional latency."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_MISS",
+        "BriefDescription": "This event counts demand access that misses in the Level 1 data and Level 2 caches, causing an access to outside of the Level 1 and Level 2 caches of this PE."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_HWPRF",
+        "BriefDescription": "This event counts access counted by L2D_CACHE that is due to a hardware prefetch."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL_HWPRF",
+        "BriefDescription": "This event counts hardware prefetch counted by L2D_CACHE_HWPRF that causes a refill of the Level 2 cache, or any Level 1 data and instruction cache of this PE, from outside of those caches."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_HIT_RD",
+        "BriefDescription": "This event counts demand read counted by L2D_CACHE_RD that hits in the Level 2 data cache."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_HIT_WR",
+        "BriefDescription": "This event counts demand write counted by L2D_CACHE_WR that hits in the Level 2 data cache."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_HIT",
+        "BriefDescription": "This event counts access counted by L2D_CACHE that hits in the Level 2 data cache."
+    },
+    {
+        "ArchStdEvent": "L2D_LFB_HIT_RD",
+        "BriefDescription": "This event counts demand access counted by L2D_CACHE_HIT_RD that hits a recently fetched line in the Level 2 cache."
+    },
+    {
+        "ArchStdEvent": "L2D_LFB_HIT_WR",
+        "BriefDescription": "This event counts demand access counted by L2D_CACHE_HIT_WR that hits a recently fetched line in the Level 2 cache."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_PRF",
+        "BriefDescription": "This event counts fetch counted by either Level 2 data hardware prefetch or Level 2 data software prefetch."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL_PRF",
+        "BriefDescription": "This event counts hardware prefetch counted by L2D_CACHE_PRF that causes a refill of the Level 2 data cache from outside of the Level 1 data cache."
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL_PERCYC",
+        "BriefDescription": "The counter counts by the number of cache refills counted by L2D_CACHE_REFILL in progress on each Processor cycle."
+    }
+]

@@ -3585,11 +3585,11 @@ static int check_fw_info_v2_hw(struct hisi_hba *hisi_hba)
 
 static const struct scsi_host_template sht_v2_hw = {
 	LIBSAS_SHT_BASE_NO_SLAVE_INIT
-	.device_configure	= hisi_sas_device_configure,
+	.sdev_configure		= hisi_sas_sdev_configure,
 	.scan_finished		= hisi_sas_scan_finished,
 	.scan_start		= hisi_sas_scan_start,
 	.sg_tablesize		= HISI_SAS_SGE_PAGE_CNT,
-	.slave_alloc		= hisi_sas_slave_alloc,
+	.sdev_init		= hisi_sas_sdev_init,
 	.shost_groups		= host_v2_hw_groups,
 	.sdev_groups		= sdev_groups_v2_hw,
 	.host_reset		= hisi_sas_host_reset,

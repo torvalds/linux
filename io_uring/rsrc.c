@@ -118,7 +118,7 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 	}
 }
 
-struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type)
+struct io_rsrc_node *io_rsrc_node_alloc(int type)
 {
 	struct io_rsrc_node *node;
 
@@ -203,7 +203,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				err = -EBADF;
 				break;
 			}
-			node = io_rsrc_node_alloc(ctx, IORING_RSRC_FILE);
+			node = io_rsrc_node_alloc(IORING_RSRC_FILE);
 			if (!node) {
 				err = -ENOMEM;
 				fput(file);
@@ -444,8 +444,6 @@ int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 
 void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
-	lockdep_assert_held(&ctx->uring_lock);
-
 	if (node->tag)
 		io_post_aux_cqe(ctx, node->tag, 0, 0);
 
@@ -525,7 +523,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			goto fail;
 		}
 		ret = -ENOMEM;
-		node = io_rsrc_node_alloc(ctx, IORING_RSRC_FILE);
+		node = io_rsrc_node_alloc(IORING_RSRC_FILE);
 		if (!node) {
 			fput(file);
 			goto fail;
@@ -730,7 +728,7 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	if (!iov->iov_base)
 		return NULL;
 
-	node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
+	node = io_rsrc_node_alloc(IORING_RSRC_BUFFER);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 	node->buf = NULL;
@@ -921,12 +919,25 @@ int io_import_fixed(int ddir, struct iov_iter *iter,
 	return 0;
 }
 
+/* Lock two rings at once. The rings must be different! */
+static void lock_two_rings(struct io_ring_ctx *ctx1, struct io_ring_ctx *ctx2)
+{
+	if (ctx1 > ctx2)
+		swap(ctx1, ctx2);
+	mutex_lock(&ctx1->uring_lock);
+	mutex_lock_nested(&ctx2->uring_lock, SINGLE_DEPTH_NESTING);
+}
+
+/* Both rings are locked by the caller. */
 static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx,
 			    struct io_uring_clone_buffers *arg)
 {
 	struct io_rsrc_data data;
 	int i, ret, off, nr;
 	unsigned int nbufs;
+
+	lockdep_assert_held(&ctx->uring_lock);
+	lockdep_assert_held(&src_ctx->uring_lock);
 
 	/*
 	 * Accounting state is shared between the two rings; that only works if
@@ -942,7 +953,7 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 	if (ctx->buf_table.nr && !(arg->flags & IORING_REGISTER_DST_REPLACE))
 		return -EBUSY;
 
-	nbufs = READ_ONCE(src_ctx->buf_table.nr);
+	nbufs = src_ctx->buf_table.nr;
 	if (!arg->nr)
 		arg->nr = nbufs;
 	else if (arg->nr > nbufs)
@@ -966,27 +977,20 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		}
 	}
 
-	/*
-	 * Drop our own lock here. We'll setup the data we need and reference
-	 * the source buffers, then re-grab, check, and assign at the end.
-	 */
-	mutex_unlock(&ctx->uring_lock);
-
-	mutex_lock(&src_ctx->uring_lock);
 	ret = -ENXIO;
 	nbufs = src_ctx->buf_table.nr;
 	if (!nbufs)
-		goto out_unlock;
+		goto out_free;
 	ret = -EINVAL;
 	if (!arg->nr)
 		arg->nr = nbufs;
 	else if (arg->nr > nbufs)
-		goto out_unlock;
+		goto out_free;
 	ret = -EOVERFLOW;
 	if (check_add_overflow(arg->nr, arg->src_off, &off))
-		goto out_unlock;
+		goto out_free;
 	if (off > nbufs)
-		goto out_unlock;
+		goto out_free;
 
 	off = arg->dst_off;
 	i = arg->src_off;
@@ -998,10 +1002,10 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		if (!src_node) {
 			dst_node = NULL;
 		} else {
-			dst_node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
+			dst_node = io_rsrc_node_alloc(IORING_RSRC_BUFFER);
 			if (!dst_node) {
 				ret = -ENOMEM;
-				goto out_unlock;
+				goto out_free;
 			}
 
 			refcount_inc(&src_node->buf->refs);
@@ -1011,10 +1015,6 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		i++;
 	}
 
-	/* Have a ref on the bufs now, drop src lock and re-grab our own lock */
-	mutex_unlock(&src_ctx->uring_lock);
-	mutex_lock(&ctx->uring_lock);
-
 	/*
 	 * If asked for replace, put the old table. data->nodes[] holds both
 	 * old and new nodes at this point.
@@ -1023,24 +1023,17 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		io_rsrc_data_free(ctx, &ctx->buf_table);
 
 	/*
-	 * ctx->buf_table should be empty now - either the contents are being
-	 * replaced and we just freed the table, or someone raced setting up
-	 * a buffer table while the clone was happening. If not empty, fall
-	 * through to failure handling.
+	 * ctx->buf_table must be empty now - either the contents are being
+	 * replaced and we just freed the table, or the contents are being
+	 * copied to a ring that does not have buffers yet (checked at function
+	 * entry).
 	 */
-	if (!ctx->buf_table.nr) {
-		ctx->buf_table = data;
-		return 0;
-	}
+	WARN_ON_ONCE(ctx->buf_table.nr);
+	ctx->buf_table = data;
+	return 0;
 
-	mutex_unlock(&ctx->uring_lock);
-	mutex_lock(&src_ctx->uring_lock);
-	/* someone raced setting up buffers, dump ours */
-	ret = -EBUSY;
-out_unlock:
+out_free:
 	io_rsrc_data_free(ctx, &data);
-	mutex_unlock(&src_ctx->uring_lock);
-	mutex_lock(&ctx->uring_lock);
 	return ret;
 }
 
@@ -1054,6 +1047,7 @@ out_unlock:
 int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg)
 {
 	struct io_uring_clone_buffers buf;
+	struct io_ring_ctx *src_ctx;
 	bool registered_src;
 	struct file *file;
 	int ret;
@@ -1071,8 +1065,18 @@ int io_register_clone_buffers(struct io_ring_ctx *ctx, void __user *arg)
 	file = io_uring_register_get_file(buf.src_fd, registered_src);
 	if (IS_ERR(file))
 		return PTR_ERR(file);
-	ret = io_clone_buffers(ctx, file->private_data, &buf);
-	if (!registered_src)
-		fput(file);
+
+	src_ctx = file->private_data;
+	if (src_ctx != ctx) {
+		mutex_unlock(&ctx->uring_lock);
+		lock_two_rings(ctx, src_ctx);
+	}
+
+	ret = io_clone_buffers(ctx, src_ctx, &buf);
+
+	if (src_ctx != ctx)
+		mutex_unlock(&src_ctx->uring_lock);
+
+	fput(file);
 	return ret;
 }

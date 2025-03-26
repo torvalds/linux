@@ -84,7 +84,7 @@ ATOMIC_NOTIFIER_HEAD(panic_notifier_list);
 EXPORT_SYMBOL(panic_notifier_list);
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table kern_panic_table[] = {
+static const struct ctl_table kern_panic_table[] = {
 #ifdef CONFIG_SMP
 	{
 		.procname       = "oops_all_cpu_backtrace",

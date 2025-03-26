@@ -26,12 +26,6 @@ DAMON provides below interfaces for different users.
   writing kernel space DAMON application programs for you.  You can even extend
   DAMON for various address spaces.  For detail, please refer to the interface
   :doc:`document </mm/damon/api>`.
-- *debugfs interface. (DEPRECATED!)*
-  :ref:`This <debugfs_interface>` is almost identical to :ref:`sysfs interface
-  <sysfs_interface>`.  This is deprecated, so users should move to the
-  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cannot
-  move, please report your usecase to damon@lists.linux.dev and
-  linux-mm@kvack.org.
 
 .. _sysfs_interface:
 
@@ -89,10 +83,10 @@ comma (",").
     │ │ │ │ │ │ │ │ │ 0/target_metric,target_value,current_value
     │ │ │ │ │ │ │ :ref:`watermarks <sysfs_watermarks>`/metric,interval_us,high,mid,low
     │ │ │ │ │ │ │ :ref:`filters <sysfs_filters>`/nr_filters
-    │ │ │ │ │ │ │ │ 0/type,matching,memcg_id
-    │ │ │ │ │ │ │ :ref:`stats <sysfs_schemes_stats>`/nr_tried,sz_tried,nr_applied,sz_applied,qt_exceeds
+    │ │ │ │ │ │ │ │ 0/type,matching,allow,memcg_path,addr_start,addr_end,target_idx
+    │ │ │ │ │ │ │ :ref:`stats <sysfs_schemes_stats>`/nr_tried,sz_tried,nr_applied,sz_applied,sz_ops_filter_passed,qt_exceeds
     │ │ │ │ │ │ │ :ref:`tried_regions <sysfs_schemes_tried_regions>`/total_bytes
-    │ │ │ │ │ │ │ │ 0/start,end,nr_accesses,age
+    │ │ │ │ │ │ │ │ 0/start,end,nr_accesses,age,sz_filter_passed
     │ │ │ │ │ │ │ │ ...
     │ │ │ │ │ │ ...
     │ │ │ │ ...
@@ -412,59 +406,62 @@ number (``N``) to the file creates the number of child directories named ``0``
 to ``N-1``.  Each directory represents each filter.  The filters are evaluated
 in the numeric order.
 
-Each filter directory contains six files, namely ``type``, ``matcing``,
-``memcg_path``, ``addr_start``, ``addr_end``, and ``target_idx``.  To ``type``
-file, you can write one of five special keywords: ``anon`` for anonymous pages,
-``memcg`` for specific memory cgroup, ``young`` for young pages, ``addr`` for
-specific address range (an open-ended interval), or ``target`` for specific
-DAMON monitoring target filtering.  In case of the memory cgroup filtering, you
-can specify the memory cgroup of the interest by writing the path of the memory
-cgroup from the cgroups mount point to ``memcg_path`` file.  In case of the
-address range filtering, you can specify the start and end address of the range
-to ``addr_start`` and ``addr_end`` files, respectively.  For the DAMON
-monitoring target filtering, you can specify the index of the target between
-the list of the DAMON context's monitoring targets list to ``target_idx`` file.
-You can write ``Y`` or ``N`` to ``matching`` file to filter out pages that does
-or does not match to the type, respectively.  Then, the scheme's action will
-not be applied to the pages that specified to be filtered out.
+Each filter directory contains seven files, namely ``type``, ``matching``,
+``allow``, ``memcg_path``, ``addr_start``, ``addr_end``, and ``target_idx``.
+To ``type`` file, you can write one of five special keywords: ``anon`` for
+anonymous pages, ``memcg`` for specific memory cgroup, ``young`` for young
+pages, ``addr`` for specific address range (an open-ended interval), or
+``target`` for specific DAMON monitoring target filtering.  Meaning of the
+types are same to the description on the :ref:`design doc
+<damon_design_damos_filters>`.
+
+In case of the memory cgroup filtering, you can specify the memory cgroup of
+the interest by writing the path of the memory cgroup from the cgroups mount
+point to ``memcg_path`` file.  In case of the address range filtering, you can
+specify the start and end address of the range to ``addr_start`` and
+``addr_end`` files, respectively.  For the DAMON monitoring target filtering,
+you can specify the index of the target between the list of the DAMON context's
+monitoring targets list to ``target_idx`` file.
+
+You can write ``Y`` or ``N`` to ``matching`` file to specify whether the filter
+is for memory that matches the ``type``.  You can write ``Y`` or ``N`` to
+``allow`` file to specify if applying the action to the memory that satisfies
+the ``type`` and ``matching`` should be allowed or not.
 
 For example, below restricts a DAMOS action to be applied to only non-anonymous
 pages of all memory cgroups except ``/having_care_already``.::
 
     # echo 2 > nr_filters
-    # # filter out anonymous pages
+    # # disallow anonymous pages
     echo anon > 0/type
     echo Y > 0/matching
+    echo N > 0/allow
     # # further filter out all cgroups except one at '/having_care_already'
     echo memcg > 1/type
     echo /having_care_already > 1/memcg_path
     echo Y > 1/matching
+    echo N > 1/allow
 
-Note that ``anon`` and ``memcg`` filters are currently supported only when
-``paddr`` :ref:`implementation <sysfs_context>` is being used.
-
-Also, memory regions that are filtered out by ``addr`` or ``target`` filters
-are not counted as the scheme has tried to those, while regions that filtered
-out by other type filters are counted as the scheme has tried to.  The
-difference is applied to :ref:`stats <damos_stats>` and
-:ref:`tried regions <sysfs_schemes_tried_regions>`.
+Refer to the :ref:`DAMOS filters design documentation
+<damon_design_damos_filters>` for more details including how multiple filters
+of different ``allow`` works, when each of the filters are supported, and
+differences on stats.
 
 .. _sysfs_schemes_stats:
 
 schemes/<N>/stats/
 ------------------
 
-DAMON counts the total number and bytes of regions that each scheme is tried to
-be applied, the two numbers for the regions that each scheme is successfully
-applied, and the total number of the quota limit exceeds.  This statistics can
-be used for online analysis or tuning of the schemes.
+DAMON counts statistics for each scheme.  This statistics can be used for
+online analysis or tuning of the schemes.  Refer to :ref:`design doc
+<damon_design_damos_stat>` for more details about the stats.
 
 The statistics can be retrieved by reading the files under ``stats`` directory
-(``nr_tried``, ``sz_tried``, ``nr_applied``, ``sz_applied``, and
-``qt_exceeds``), respectively.  The files are not updated in real time, so you
-should ask DAMON sysfs interface to update the content of the files for the
-stats by writing a special keyword, ``update_schemes_stats`` to the relevant
-``kdamonds/<N>/state`` file.
+(``nr_tried``, ``sz_tried``, ``nr_applied``, ``sz_applied``,
+``sz_ops_filter_passed``, and ``qt_exceeds``), respectively.  The files are not
+updated in real time, so you should ask DAMON sysfs interface to update the
+content of the files for the stats by writing a special keyword,
+``update_schemes_stats`` to the relevant ``kdamonds/<N>/state`` file.
 
 .. _sysfs_schemes_tried_regions:
 
@@ -501,10 +498,10 @@ set the ``access pattern`` as their interested pattern that they want to query.
 tried_regions/<N>/
 ------------------
 
-In each region directory, you will find four files (``start``, ``end``,
-``nr_accesses``, and ``age``).  Reading the files will show the start and end
-addresses, ``nr_accesses``, and ``age`` of the region that corresponding
-DAMON-based operation scheme ``action`` has tried to be applied.
+In each region directory, you will find five files (``start``, ``end``,
+``nr_accesses``, ``age``, and ``sz_filter_passed``).  Reading the files will
+show the properties of the region that corresponding DAMON-based operation
+scheme ``action`` has tried to be applied.
 
 Example
 ~~~~~~~
@@ -600,306 +597,3 @@ fields are as usual.  It shows the index of the DAMON context (``ctx_idx=X``)
 of the scheme in the list of the contexts of the context's kdamond, the index
 of the scheme (``scheme_idx=X``) in the list of the schemes of the context, in
 addition to the output of ``damon_aggregated`` tracepoint.
-
-
-.. _debugfs_interface:
-
-debugfs Interface (DEPRECATED!)
-===============================
-
-.. note::
-
-  THIS IS DEPRECATED!
-
-  DAMON debugfs interface is deprecated, so users should move to the
-  :ref:`sysfs interface <sysfs_interface>`.  If you depend on this and cannot
-  move, please report your usecase to damon@lists.linux.dev and
-  linux-mm@kvack.org.
-
-DAMON exports nine files, ``DEPRECATED``, ``attrs``, ``target_ids``,
-``init_regions``, ``schemes``, ``monitor_on_DEPRECATED``, ``kdamond_pid``,
-``mk_contexts`` and ``rm_contexts`` under its debugfs directory,
-``<debugfs>/damon/``.
-
-
-``DEPRECATED`` is a read-only file for the DAMON debugfs interface deprecation
-notice.  Reading it returns the deprecation notice, as below::
-
-    # cat DEPRECATED
-    DAMON debugfs interface is deprecated, so users should move to DAMON_SYSFS. If you cannot, please report your usecase to damon@lists.linux.dev and linux-mm@kvack.org.
-
-
-Attributes
-----------
-
-Users can get and set the ``sampling interval``, ``aggregation interval``,
-``update interval``, and min/max number of monitoring target regions by
-reading from and writing to the ``attrs`` file.  To know about the monitoring
-attributes in detail, please refer to the :doc:`/mm/damon/design`.  For
-example, below commands set those values to 5 ms, 100 ms, 1,000 ms, 10 and
-1000, and then check it again::
-
-    # cd <debugfs>/damon
-    # echo 5000 100000 1000000 10 1000 > attrs
-    # cat attrs
-    5000 100000 1000000 10 1000
-
-
-Target IDs
-----------
-
-Some types of address spaces supports multiple monitoring target.  For example,
-the virtual memory address spaces monitoring can have multiple processes as the
-monitoring targets.  Users can set the targets by writing relevant id values of
-the targets to, and get the ids of the current targets by reading from the
-``target_ids`` file.  In case of the virtual address spaces monitoring, the
-values should be pids of the monitoring target processes.  For example, below
-commands set processes having pids 42 and 4242 as the monitoring targets and
-check it again::
-
-    # cd <debugfs>/damon
-    # echo 42 4242 > target_ids
-    # cat target_ids
-    42 4242
-
-Users can also monitor the physical memory address space of the system by
-writing a special keyword, "``paddr\n``" to the file.  Because physical address
-space monitoring doesn't support multiple targets, reading the file will show a
-fake value, ``42``, as below::
-
-    # cd <debugfs>/damon
-    # echo paddr > target_ids
-    # cat target_ids
-    42
-
-Note that setting the target ids doesn't start the monitoring.
-
-
-Initial Monitoring Target Regions
----------------------------------
-
-In case of the virtual address space monitoring, DAMON automatically sets and
-updates the monitoring target regions so that entire memory mappings of target
-processes can be covered.  However, users can want to limit the monitoring
-region to specific address ranges, such as the heap, the stack, or specific
-file-mapped area.  Or, some users can know the initial access pattern of their
-workloads and therefore want to set optimal initial regions for the 'adaptive
-regions adjustment'.
-
-In contrast, DAMON do not automatically sets and updates the monitoring target
-regions in case of physical memory monitoring.  Therefore, users should set the
-monitoring target regions by themselves.
-
-In such cases, users can explicitly set the initial monitoring target regions
-as they want, by writing proper values to the ``init_regions`` file.  The input
-should be a sequence of three integers separated by white spaces that represent
-one region in below form.::
-
-    <target idx> <start address> <end address>
-
-The ``target idx`` should be the index of the target in ``target_ids`` file,
-starting from ``0``, and the regions should be passed in address order.  For
-example, below commands will set a couple of address ranges, ``1-100`` and
-``100-200`` as the initial monitoring target region of pid 42, which is the
-first one (index ``0``) in ``target_ids``, and another couple of address
-ranges, ``20-40`` and ``50-100`` as that of pid 4242, which is the second one
-(index ``1``) in ``target_ids``.::
-
-    # cd <debugfs>/damon
-    # cat target_ids
-    42 4242
-    # echo "0   1       100 \
-            0   100     200 \
-            1   20      40  \
-            1   50      100" > init_regions
-
-Note that this sets the initial monitoring target regions only.  In case of
-virtual memory monitoring, DAMON will automatically updates the boundary of the
-regions after one ``update interval``.  Therefore, users should set the
-``update interval`` large enough in this case, if they don't want the
-update.
-
-
-Schemes
--------
-
-Users can get and set the DAMON-based operation :ref:`schemes
-<damon_design_damos>` by reading from and writing to ``schemes`` debugfs file.
-Reading the file also shows the statistics of each scheme.  To the file, each
-of the schemes should be represented in each line in below form::
-
-    <target access pattern> <action> <quota> <watermarks>
-
-You can disable schemes by simply writing an empty string to the file.
-
-Target Access Pattern
-~~~~~~~~~~~~~~~~~~~~~
-
-The target access :ref:`pattern <damon_design_damos_access_pattern>` of the
-scheme.  The ``<target access pattern>`` is constructed with three ranges in
-below form::
-
-    min-size max-size min-acc max-acc min-age max-age
-
-Specifically, bytes for the size of regions (``min-size`` and ``max-size``),
-number of monitored accesses per aggregate interval for access frequency
-(``min-acc`` and ``max-acc``), number of aggregate intervals for the age of
-regions (``min-age`` and ``max-age``) are specified.  Note that the ranges are
-closed interval.
-
-Action
-~~~~~~
-
-The ``<action>`` is a predefined integer for memory management :ref:`actions
-<damon_design_damos_action>`.  The mapping between the ``<action>`` values and
-the memory management actions is as below.  For the detailed meaning of the
-action and DAMON operations set supporting each action, please refer to the
-list on :ref:`design doc <damon_design_damos_action>`.
-
- - 0: ``willneed``
- - 1: ``cold``
- - 2: ``pageout``
- - 3: ``hugepage``
- - 4: ``nohugepage``
- - 5: ``stat``
-
-Quota
-~~~~~
-
-Users can set the :ref:`quotas <damon_design_damos_quotas>` of the given scheme
-via the ``<quota>`` in below form::
-
-    <ms> <sz> <reset interval> <priority weights>
-
-This makes DAMON to try to use only up to ``<ms>`` milliseconds for applying
-the action to memory regions of the ``target access pattern`` within the
-``<reset interval>`` milliseconds, and to apply the action to only up to
-``<sz>`` bytes of memory regions within the ``<reset interval>``.  Setting both
-``<ms>`` and ``<sz>`` zero disables the quota limits.
-
-For the :ref:`prioritization <damon_design_damos_quotas_prioritization>`, users
-can set the weights for the three properties in ``<priority weights>`` in below
-form::
-
-    <size weight> <access frequency weight> <age weight>
-
-Watermarks
-~~~~~~~~~~
-
-Users can specify :ref:`watermarks <damon_design_damos_watermarks>` of the
-given scheme via ``<watermarks>`` in below form::
-
-    <metric> <check interval> <high mark> <middle mark> <low mark>
-
-``<metric>`` is a predefined integer for the metric to be checked.  The
-supported numbers and their meanings are as below.
-
- - 0: Ignore the watermarks
- - 1: System's free memory rate (per thousand)
-
-The value of the metric is checked every ``<check interval>`` microseconds.
-
-If the value is higher than ``<high mark>`` or lower than ``<low mark>``, the
-scheme is deactivated.  If the value is lower than ``<mid mark>``, the scheme
-is activated.
-
-.. _damos_stats:
-
-Statistics
-~~~~~~~~~~
-
-It also counts the total number and bytes of regions that each scheme is tried
-to be applied, the two numbers for the regions that each scheme is successfully
-applied, and the total number of the quota limit exceeds.  This statistics can
-be used for online analysis or tuning of the schemes.
-
-The statistics can be shown by reading the ``schemes`` file.  Reading the file
-will show each scheme you entered in each line, and the five numbers for the
-statistics will be added at the end of each line.
-
-Example
-~~~~~~~
-
-Below commands applies a scheme saying "If a memory region of size in [4KiB,
-8KiB] is showing accesses per aggregate interval in [0, 5] for aggregate
-interval in [10, 20], page out the region.  For the paging out, use only up to
-10ms per second, and also don't page out more than 1GiB per second.  Under the
-limitation, page out memory regions having longer age first.  Also, check the
-free memory rate of the system every 5 seconds, start the monitoring and paging
-out when the free memory rate becomes lower than 50%, but stop it if the free
-memory rate becomes larger than 60%, or lower than 30%".::
-
-    # cd <debugfs>/damon
-    # scheme="4096 8192  0 5    10 20    2"  # target access pattern and action
-    # scheme+=" 10 $((1024*1024*1024)) 1000" # quotas
-    # scheme+=" 0 0 100"                     # prioritization weights
-    # scheme+=" 1 5000000 600 500 300"       # watermarks
-    # echo "$scheme" > schemes
-
-
-Turning On/Off
---------------
-
-Setting the files as described above doesn't incur effect unless you explicitly
-start the monitoring.  You can start, stop, and check the current status of the
-monitoring by writing to and reading from the ``monitor_on_DEPRECATED`` file.
-Writing ``on`` to the file starts the monitoring of the targets with the
-attributes.  Writing ``off`` to the file stops those.  DAMON also stops if
-every target process is terminated.  Below example commands turn on, off, and
-check the status of DAMON::
-
-    # cd <debugfs>/damon
-    # echo on > monitor_on_DEPRECATED
-    # echo off > monitor_on_DEPRECATED
-    # cat monitor_on_DEPRECATED
-    off
-
-Please note that you cannot write to the above-mentioned debugfs files while
-the monitoring is turned on.  If you write to the files while DAMON is running,
-an error code such as ``-EBUSY`` will be returned.
-
-
-Monitoring Thread PID
----------------------
-
-DAMON does requested monitoring with a kernel thread called ``kdamond``.  You
-can get the pid of the thread by reading the ``kdamond_pid`` file.  When the
-monitoring is turned off, reading the file returns ``none``. ::
-
-    # cd <debugfs>/damon
-    # cat monitor_on_DEPRECATED
-    off
-    # cat kdamond_pid
-    none
-    # echo on > monitor_on_DEPRECATED
-    # cat kdamond_pid
-    18594
-
-
-Using Multiple Monitoring Threads
----------------------------------
-
-One ``kdamond`` thread is created for each monitoring context.  You can create
-and remove monitoring contexts for multiple ``kdamond`` required use case using
-the ``mk_contexts`` and ``rm_contexts`` files.
-
-Writing the name of the new context to the ``mk_contexts`` file creates a
-directory of the name on the DAMON debugfs directory.  The directory will have
-DAMON debugfs files for the context. ::
-
-    # cd <debugfs>/damon
-    # ls foo
-    # ls: cannot access 'foo': No such file or directory
-    # echo foo > mk_contexts
-    # ls foo
-    # attrs  init_regions  kdamond_pid  schemes  target_ids
-
-If the context is not needed anymore, you can remove it and the corresponding
-directory by putting the name of the context to the ``rm_contexts`` file. ::
-
-    # echo foo > rm_contexts
-    # ls foo
-    # ls: cannot access 'foo': No such file or directory
-
-Note that ``mk_contexts``, ``rm_contexts``, and ``monitor_on_DEPRECATED`` files
-are in the root directory only.

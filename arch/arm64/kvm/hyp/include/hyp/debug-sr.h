@@ -88,15 +88,26 @@
 	default:	write_debug(ptr[0], reg, 0);			\
 	}
 
+static struct kvm_guest_debug_arch *__vcpu_debug_regs(struct kvm_vcpu *vcpu)
+{
+	switch (vcpu->arch.debug_owner) {
+	case VCPU_DEBUG_FREE:
+		WARN_ON_ONCE(1);
+		fallthrough;
+	case VCPU_DEBUG_GUEST_OWNED:
+		return &vcpu->arch.vcpu_debug_state;
+	case VCPU_DEBUG_HOST_OWNED:
+		return &vcpu->arch.external_debug_state;
+	}
+
+	return NULL;
+}
+
 static void __debug_save_state(struct kvm_guest_debug_arch *dbg,
 			       struct kvm_cpu_context *ctxt)
 {
-	u64 aa64dfr0;
-	int brps, wrps;
-
-	aa64dfr0 = read_sysreg(id_aa64dfr0_el1);
-	brps = (aa64dfr0 >> 12) & 0xf;
-	wrps = (aa64dfr0 >> 20) & 0xf;
+	int brps = *host_data_ptr(debug_brps);
+	int wrps = *host_data_ptr(debug_wrps);
 
 	save_debug(dbg->dbg_bcr, dbgbcr, brps);
 	save_debug(dbg->dbg_bvr, dbgbvr, brps);
@@ -109,13 +120,8 @@ static void __debug_save_state(struct kvm_guest_debug_arch *dbg,
 static void __debug_restore_state(struct kvm_guest_debug_arch *dbg,
 				  struct kvm_cpu_context *ctxt)
 {
-	u64 aa64dfr0;
-	int brps, wrps;
-
-	aa64dfr0 = read_sysreg(id_aa64dfr0_el1);
-
-	brps = (aa64dfr0 >> 12) & 0xf;
-	wrps = (aa64dfr0 >> 20) & 0xf;
+	int brps = *host_data_ptr(debug_brps);
+	int wrps = *host_data_ptr(debug_wrps);
 
 	restore_debug(dbg->dbg_bcr, dbgbcr, brps);
 	restore_debug(dbg->dbg_bvr, dbgbvr, brps);
@@ -132,13 +138,13 @@ static inline void __debug_switch_to_guest_common(struct kvm_vcpu *vcpu)
 	struct kvm_guest_debug_arch *host_dbg;
 	struct kvm_guest_debug_arch *guest_dbg;
 
-	if (!vcpu_get_flag(vcpu, DEBUG_DIRTY))
+	if (!kvm_debug_regs_in_use(vcpu))
 		return;
 
 	host_ctxt = host_data_ptr(host_ctxt);
 	guest_ctxt = &vcpu->arch.ctxt;
 	host_dbg = host_data_ptr(host_debug_state.regs);
-	guest_dbg = kern_hyp_va(vcpu->arch.debug_ptr);
+	guest_dbg = __vcpu_debug_regs(vcpu);
 
 	__debug_save_state(host_dbg, host_ctxt);
 	__debug_restore_state(guest_dbg, guest_ctxt);
@@ -151,18 +157,16 @@ static inline void __debug_switch_to_host_common(struct kvm_vcpu *vcpu)
 	struct kvm_guest_debug_arch *host_dbg;
 	struct kvm_guest_debug_arch *guest_dbg;
 
-	if (!vcpu_get_flag(vcpu, DEBUG_DIRTY))
+	if (!kvm_debug_regs_in_use(vcpu))
 		return;
 
 	host_ctxt = host_data_ptr(host_ctxt);
 	guest_ctxt = &vcpu->arch.ctxt;
 	host_dbg = host_data_ptr(host_debug_state.regs);
-	guest_dbg = kern_hyp_va(vcpu->arch.debug_ptr);
+	guest_dbg = __vcpu_debug_regs(vcpu);
 
 	__debug_save_state(guest_dbg, guest_ctxt);
 	__debug_restore_state(host_dbg, host_ctxt);
-
-	vcpu_clear_flag(vcpu, DEBUG_DIRTY);
 }
 
 #endif /* __ARM64_KVM_HYP_DEBUG_SR_H__ */

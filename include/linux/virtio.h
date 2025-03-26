@@ -190,6 +190,8 @@ int virtio_device_freeze(struct virtio_device *dev);
 int virtio_device_restore(struct virtio_device *dev);
 #endif
 void virtio_reset_device(struct virtio_device *dev);
+int virtio_device_reset_prepare(struct virtio_device *dev);
+int virtio_device_reset_done(struct virtio_device *dev);
 
 size_t virtio_max_dma_size(const struct virtio_device *vdev);
 
@@ -214,6 +216,10 @@ size_t virtio_max_dma_size(const struct virtio_device *vdev);
  *    changes; may be called in interrupt context.
  * @freeze: optional function to call during suspend/hibernation.
  * @restore: optional function to call on resume.
+ * @reset_prepare: optional function to call when a transport specific reset
+ *    occurs.
+ * @reset_done: optional function to call after transport specific reset
+ *    operation has finished.
  */
 struct virtio_driver {
 	struct device_driver driver;
@@ -229,6 +235,8 @@ struct virtio_driver {
 	void (*config_changed)(struct virtio_device *dev);
 	int (*freeze)(struct virtio_device *dev);
 	int (*restore)(struct virtio_device *dev);
+	int (*reset_prepare)(struct virtio_device *dev);
+	int (*reset_done)(struct virtio_device *dev);
 };
 
 #define drv_to_virtio(__drv)	container_of_const(__drv, struct virtio_driver, driver)

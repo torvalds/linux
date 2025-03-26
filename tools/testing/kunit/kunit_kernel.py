@@ -125,6 +125,9 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 				'-append', ' '.join(params + [self._kernel_command_line]),
 				'-no-reboot',
 				'-nographic',
+				'-accel', 'kvm',
+				'-accel', 'hvf',
+				'-accel', 'tcg',
 				'-serial', self._serial] + self._extra_qemu_params
 		# Note: shlex.join() does what we want, but requires python 3.8+.
 		print('Running tests with:\n$', ' '.join(shlex.quote(arg) for arg in qemu_command))

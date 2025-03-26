@@ -143,10 +143,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 	if (result)
 		return result;
 
-	if (!IS_ERR_OR_NULL(rdev->wiphy.debugfsdir))
-		debugfs_rename(rdev->wiphy.debugfsdir->d_parent,
-			       rdev->wiphy.debugfsdir,
-			       rdev->wiphy.debugfsdir->d_parent, newname);
+	debugfs_change_name(rdev->wiphy.debugfsdir, "%s", newname);
 
 	nl80211_notify_wiphy(rdev, NL80211_CMD_NEW_WIPHY);
 

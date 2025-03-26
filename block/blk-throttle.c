@@ -1202,6 +1202,7 @@ static int blk_throtl_init(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
 	struct throtl_data *td;
+	unsigned int memflags;
 	int ret;
 
 	td = kzalloc_node(sizeof(*td), GFP_KERNEL, q->node);
@@ -1215,7 +1216,7 @@ static int blk_throtl_init(struct gendisk *disk)
 	 * Freeze queue before activating policy, to synchronize with IO path,
 	 * which is protected by 'q_usage_counter'.
 	 */
-	blk_mq_freeze_queue(disk->queue);
+	memflags = blk_mq_freeze_queue(disk->queue);
 	blk_mq_quiesce_queue(disk->queue);
 
 	q->td = td;
@@ -1239,7 +1240,7 @@ static int blk_throtl_init(struct gendisk *disk)
 
 out:
 	blk_mq_unquiesce_queue(disk->queue);
-	blk_mq_unfreeze_queue(disk->queue);
+	blk_mq_unfreeze_queue(disk->queue, memflags);
 
 	return ret;
 }

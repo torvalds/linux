@@ -96,41 +96,57 @@ void vsock_wait_remote_close(int fd)
 	close(epollfd);
 }
 
-/* Bind to <bind_port>, connect to <cid, port> and return the file descriptor. */
-int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_port, int type)
+/* Create socket <type>, bind to <cid, port> and return the file descriptor. */
+int vsock_bind(unsigned int cid, unsigned int port, int type)
 {
-	struct sockaddr_vm sa_client = {
-		.svm_family = AF_VSOCK,
-		.svm_cid = VMADDR_CID_ANY,
-		.svm_port = bind_port,
-	};
-	struct sockaddr_vm sa_server = {
+	struct sockaddr_vm sa = {
 		.svm_family = AF_VSOCK,
 		.svm_cid = cid,
 		.svm_port = port,
 	};
+	int fd;
 
-	int client_fd, ret;
-
-	client_fd = socket(AF_VSOCK, type, 0);
-	if (client_fd < 0) {
+	fd = socket(AF_VSOCK, type, 0);
+	if (fd < 0) {
 		perror("socket");
 		exit(EXIT_FAILURE);
 	}
 
-	if (bind(client_fd, (struct sockaddr *)&sa_client, sizeof(sa_client))) {
+	if (bind(fd, (struct sockaddr *)&sa, sizeof(sa))) {
 		perror("bind");
 		exit(EXIT_FAILURE);
 	}
 
+	return fd;
+}
+
+int vsock_connect_fd(int fd, unsigned int cid, unsigned int port)
+{
+	struct sockaddr_vm sa = {
+		.svm_family = AF_VSOCK,
+		.svm_cid = cid,
+		.svm_port = port,
+	};
+	int ret;
+
 	timeout_begin(TIMEOUT);
 	do {
-		ret = connect(client_fd, (struct sockaddr *)&sa_server, sizeof(sa_server));
+		ret = connect(fd, (struct sockaddr *)&sa, sizeof(sa));
 		timeout_check("connect");
 	} while (ret < 0 && errno == EINTR);
 	timeout_end();
 
-	if (ret < 0) {
+	return ret;
+}
+
+/* Bind to <bind_port>, connect to <cid, port> and return the file descriptor. */
+int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_port, int type)
+{
+	int client_fd;
+
+	client_fd = vsock_bind(VMADDR_CID_ANY, bind_port, type);
+
+	if (vsock_connect_fd(client_fd, cid, port)) {
 		perror("connect");
 		exit(EXIT_FAILURE);
 	}
@@ -141,17 +157,6 @@ int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_po
 /* Connect to <cid, port> and return the file descriptor. */
 int vsock_connect(unsigned int cid, unsigned int port, int type)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = port,
-			.svm_cid = cid,
-		},
-	};
-	int ret;
 	int fd;
 
 	control_expectln("LISTENING");
@@ -162,20 +167,14 @@ int vsock_connect(unsigned int cid, unsigned int port, int type)
 		exit(EXIT_FAILURE);
 	}
 
-	timeout_begin(TIMEOUT);
-	do {
-		ret = connect(fd, &addr.sa, sizeof(addr.svm));
-		timeout_check("connect");
-	} while (ret < 0 && errno == EINTR);
-	timeout_end();
-
-	if (ret < 0) {
+	if (vsock_connect_fd(fd, cid, port)) {
 		int old_errno = errno;
 
 		close(fd);
 		fd = -1;
 		errno = old_errno;
 	}
+
 	return fd;
 }
 
@@ -192,28 +191,9 @@ int vsock_seqpacket_connect(unsigned int cid, unsigned int port)
 /* Listen on <cid, port> and return the file descriptor. */
 static int vsock_listen(unsigned int cid, unsigned int port, int type)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = port,
-			.svm_cid = cid,
-		},
-	};
 	int fd;
 
-	fd = socket(AF_VSOCK, type, 0);
-	if (fd < 0) {
-		perror("socket");
-		exit(EXIT_FAILURE);
-	}
-
-	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
+	fd = vsock_bind(cid, port, type);
 
 	if (listen(fd, 1) < 0) {
 		perror("listen");

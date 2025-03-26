@@ -158,13 +158,20 @@ typedef struct xfs_mount {
 	uint			m_bmap_dmnr[2];	/* min bmap btree records */
 	uint			m_rmap_mxr[2];	/* max rmap btree records */
 	uint			m_rmap_mnr[2];	/* min rmap btree records */
+	uint			m_rtrmap_mxr[2]; /* max rtrmap btree records */
+	uint			m_rtrmap_mnr[2]; /* min rtrmap btree records */
 	uint			m_refc_mxr[2];	/* max refc btree records */
 	uint			m_refc_mnr[2];	/* min refc btree records */
+	uint			m_rtrefc_mxr[2]; /* max rtrefc btree records */
+	uint			m_rtrefc_mnr[2]; /* min rtrefc btree records */
 	uint			m_alloc_maxlevels; /* max alloc btree levels */
 	uint			m_bm_maxlevels[2]; /* max bmap btree levels */
 	uint			m_rmap_maxlevels; /* max rmap btree levels */
+	uint			m_rtrmap_maxlevels; /* max rtrmap btree level */
 	uint			m_refc_maxlevels; /* max refcount btree level */
+	uint			m_rtrefc_maxlevels; /* max rtrefc btree level */
 	unsigned int		m_agbtree_maxlevels; /* max level of all AG btrees */
+	unsigned int		m_rtbtree_maxlevels; /* max level of all rt btrees */
 	xfs_extlen_t		m_ag_prealloc_blocks; /* reserved ag blocks */
 	uint			m_alloc_set_aside; /* space we can't use */
 	uint			m_ag_max_usable; /* max space per AG */
@@ -350,7 +357,7 @@ typedef struct xfs_mount {
 #define XFS_FEAT_NOUUID		(1ULL << 63)	/* ignore uuid during mount */
 
 #define __XFS_HAS_FEAT(name, NAME) \
-static inline bool xfs_has_ ## name (struct xfs_mount *mp) \
+static inline bool xfs_has_ ## name (const struct xfs_mount *mp) \
 { \
 	return mp->m_features & XFS_FEAT_ ## NAME; \
 }
@@ -386,16 +393,28 @@ __XFS_HAS_FEAT(large_extent_counts, NREXT64)
 __XFS_HAS_FEAT(exchange_range, EXCHANGE_RANGE)
 __XFS_HAS_FEAT(metadir, METADIR)
 
-static inline bool xfs_has_rtgroups(struct xfs_mount *mp)
+static inline bool xfs_has_rtgroups(const struct xfs_mount *mp)
 {
 	/* all metadir file systems also allow rtgroups */
 	return xfs_has_metadir(mp);
 }
 
-static inline bool xfs_has_rtsb(struct xfs_mount *mp)
+static inline bool xfs_has_rtsb(const struct xfs_mount *mp)
 {
 	/* all rtgroups filesystems with an rt section have an rtsb */
 	return xfs_has_rtgroups(mp) && xfs_has_realtime(mp);
+}
+
+static inline bool xfs_has_rtrmapbt(const struct xfs_mount *mp)
+{
+	return xfs_has_rtgroups(mp) && xfs_has_realtime(mp) &&
+	       xfs_has_rmapbt(mp);
+}
+
+static inline bool xfs_has_rtreflink(const struct xfs_mount *mp)
+{
+	return xfs_has_metadir(mp) && xfs_has_realtime(mp) &&
+	       xfs_has_reflink(mp);
 }
 
 /*

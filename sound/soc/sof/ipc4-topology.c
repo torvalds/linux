@@ -2827,7 +2827,7 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 		msg->primary |= SOF_IPC4_MOD_INSTANCE(swidget->instance_id);
 
 		msg->extension &= ~SOF_IPC4_MOD_EXT_PARAM_SIZE_MASK;
-		msg->extension |= ipc_size >> 2;
+		msg->extension |= SOF_IPC4_MOD_EXT_PARAM_SIZE(ipc_size >> 2);
 
 		msg->extension &= ~SOF_IPC4_MOD_EXT_PPL_ID_MASK;
 		msg->extension |= SOF_IPC4_MOD_EXT_PPL_ID(pipe_widget->instance_id);

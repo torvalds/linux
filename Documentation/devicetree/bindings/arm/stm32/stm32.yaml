@@ -91,6 +91,13 @@ properties:
           - const: dh,stm32mp153c-dhcor-som
           - const: st,stm32mp153
 
+      - description: Octavo OSD32MP153 System-in-Package based boards
+        items:
+          - enum:
+              - lxa,stm32mp153c-tac-gen3 # Linux Automation TAC (Generation 3)
+          - const: oct,stm32mp153x-osd32
+          - const: st,stm32mp153
+
       - items:
           - enum:
               - shiratech,stm32mp157a-iot-box # IoT Box

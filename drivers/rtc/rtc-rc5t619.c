@@ -414,7 +414,7 @@ static int rc5t619_rtc_probe(struct platform_device *pdev)
 
 		} else {
 			/* enable wake */
-			device_init_wakeup(&pdev->dev, 1);
+			device_init_wakeup(&pdev->dev, true);
 			enable_irq_wake(rtc->irq);
 		}
 	} else {

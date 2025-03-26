@@ -11,6 +11,7 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/mman.h>
 #include <linux/random.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -97,11 +98,12 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		return -EINTR;
 
 	if (IS_ENABLED(CONFIG_MIPS_FP_SUPPORT)) {
+		unsigned long unused;
+
 		/* Map delay slot emulation page */
-		base = mmap_region(NULL, STACK_TOP, PAGE_SIZE,
-				VM_READ | VM_EXEC |
-				VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC,
-				0, NULL);
+		base = do_mmap(NULL, STACK_TOP, PAGE_SIZE, PROT_READ | PROT_EXEC,
+			       MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, 0, 0, &unused,
+			       NULL);
 		if (IS_ERR_VALUE(base)) {
 			ret = base;
 			goto out;

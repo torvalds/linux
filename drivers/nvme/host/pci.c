@@ -2153,14 +2153,6 @@ static int nvme_alloc_host_mem_multi(struct nvme_dev *dev, u64 preferred,
 	return 0;
 
 out_free_bufs:
-	while (--i >= 0) {
-		size_t size = le32_to_cpu(descs[i].size) * NVME_CTRL_PAGE_SIZE;
-
-		dma_free_attrs(dev->dev, size, bufs[i],
-			       le64_to_cpu(descs[i].addr),
-			       DMA_ATTR_NO_KERNEL_MAPPING | DMA_ATTR_NO_WARN);
-	}
-
 	kfree(bufs);
 out_free_descs:
 	dma_free_coherent(dev->dev, descs_size, descs, descs_dma);
@@ -3147,7 +3139,9 @@ static unsigned long check_vendor_combination_bug(struct pci_dev *pdev)
 		 * because of high power consumption (> 2 Watt) in s2idle
 		 * sleep. Only some boards with Intel CPU are affected.
 		 */
-		if (dmi_match(DMI_BOARD_NAME, "GMxPXxx") ||
+		if (dmi_match(DMI_BOARD_NAME, "DN50Z-140HC-YD") ||
+		    dmi_match(DMI_BOARD_NAME, "GMxPXxx") ||
+		    dmi_match(DMI_BOARD_NAME, "GXxMRXx") ||
 		    dmi_match(DMI_BOARD_NAME, "PH4PG31") ||
 		    dmi_match(DMI_BOARD_NAME, "PH4PRX1_PH6PRX1") ||
 		    dmi_match(DMI_BOARD_NAME, "PH6PG01_PH6PG71"))

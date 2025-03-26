@@ -266,10 +266,14 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 	{ 0x1409, 0x7168, 0x1409, 0xd079, 0, 0, timedia_9079c },
 
 	/* WCH CARDS */
-	{ 0x4348, 0x5053, PCI_ANY_ID, PCI_ANY_ID, 0, 0, wch_ch353_1s1p},
-	{ 0x4348, 0x7053, 0x4348, 0x3253, 0, 0, wch_ch353_2s1p},
-	{ 0x1c00, 0x3050, 0x1c00, 0x3050, 0, 0, wch_ch382_0s1p},
-	{ 0x1c00, 0x3250, 0x1c00, 0x3250, 0, 0, wch_ch382_2s1p},
+	{ PCI_VENDOR_ID_WCHCN, PCI_DEVICE_ID_WCHCN_CH353_1S1P,
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, wch_ch353_1s1p },
+	{ PCI_VENDOR_ID_WCHCN, PCI_DEVICE_ID_WCHCN_CH353_2S1P,
+	  0x4348, 0x3253, 0, 0, wch_ch353_2s1p },
+	{ PCI_VENDOR_ID_WCHIC, PCI_DEVICE_ID_WCHIC_CH382_0S1P,
+	  0x1c00, 0x3050, 0, 0, wch_ch382_0s1p },
+	{ PCI_VENDOR_ID_WCHIC, PCI_DEVICE_ID_WCHIC_CH382_2S1P,
+	  0x1c00, 0x3250, 0, 0, wch_ch382_2s1p },
 
 	/* BrainBoxes PX272/PX306 MIO card */
 	{ PCI_VENDOR_ID_INTASHIELD, 0x4100,

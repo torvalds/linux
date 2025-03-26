@@ -3,7 +3,25 @@
 # PPS generators configuration
 #
 
-comment "PPS generators support"
+menuconfig PPS_GENERATOR
+	tristate "PPS generators support"
+	help
+	  PPS generators are special hardware which are able to produce PPS
+	  (Pulse Per Second) signals.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pps_gen_core.
+
+if PPS_GENERATOR
+
+config PPS_GENERATOR_DUMMY
+        tristate "Dummy PPS generator (Testing generator, use for debug)"
+        help
+          If you say yes here you get support for a PPS debugging generator
+          (which generates no PPS signal at all).
+
+          This driver can also be built as a module.  If so, the module
+          will be called pps_gen-dummy.
 
 config PPS_GENERATOR_PARPORT
 	tristate "Parallel port PPS signal generator"
@@ -12,3 +30,5 @@ config PPS_GENERATOR_PARPORT
 	  If you say yes here you get support for a PPS signal generator which
 	  utilizes STROBE pin of a parallel port to send PPS signals. It uses
 	  parport abstraction layer and hrtimers to precisely control the signal.
+
+endif # PPS_GENERATOR

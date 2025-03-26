@@ -536,6 +536,194 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_tgl_machines);
 
+static const struct snd_soc_acpi_endpoint cs35l56_l_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 0,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 0,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_r_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 1,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 1,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_2_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 2,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 2,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_3_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 3,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 3,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_4_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 4,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 4,
+		.group_id = 2,
+	}
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_5_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 5,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 5,
+		.group_id = 2,
+	}
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_6_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 6,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 6,
+		.group_id = 2,
+	}
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_7_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 7,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 7,
+		.group_id = 2,
+	}
+};
+
+static const struct snd_soc_acpi_adr_device cs35l56_sdw_eight_1_4_fb_adr[] = {
+	{
+		.adr = 0x00003301fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_l_fb_endpoints),
+		.endpoints = cs35l56_l_fb_endpoints,
+		.name_prefix = "AMP1"
+	},
+	{
+		.adr = 0x00003201fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_2_fb_endpoints),
+		.endpoints = cs35l56_2_fb_endpoints,
+		.name_prefix = "AMP2"
+	},
+	{
+		.adr = 0x00003101fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_4_fb_endpoints),
+		.endpoints = cs35l56_4_fb_endpoints,
+		.name_prefix = "AMP3"
+	},
+	{
+		.adr = 0x00003001fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_6_fb_endpoints),
+		.endpoints = cs35l56_6_fb_endpoints,
+		.name_prefix = "AMP4"
+	},
+};
+
+static const struct snd_soc_acpi_adr_device cs35l56_sdw_eight_5_8_fb_adr[] = {
+	{
+		.adr = 0x00013701fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_r_fb_endpoints),
+		.endpoints = cs35l56_r_fb_endpoints,
+		.name_prefix = "AMP8"
+	},
+	{
+		.adr = 0x00013601fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_3_fb_endpoints),
+		.endpoints = cs35l56_3_fb_endpoints,
+		.name_prefix = "AMP7"
+	},
+	{
+		.adr = 0x00013501fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_5_fb_endpoints),
+		.endpoints = cs35l56_5_fb_endpoints,
+		.name_prefix = "AMP6"
+	},
+	{
+		.adr = 0x00013401fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_7_fb_endpoints),
+		.endpoints = cs35l56_7_fb_endpoints,
+		.name_prefix = "AMP5"
+	},
+};
+
+static const struct snd_soc_acpi_link_adr up_extreme_cs35l56_sdw_eight[] = {
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(cs35l56_sdw_eight_5_8_fb_adr),
+		.adr_d = cs35l56_sdw_eight_5_8_fb_adr,
+	},
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(cs35l56_sdw_eight_1_4_fb_adr),
+		.adr_d = cs35l56_sdw_eight_1_4_fb_adr,
+	},
+	{}
+};
+
 /* this table is used when there is no I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 	/* mockup tests need to be first */
@@ -634,6 +822,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.links = tgl_rvp_headset_only,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-tgl-rt711.tplg",
+	},
+	{
+		.link_mask = BIT(0) | BIT(1),
+		.links = up_extreme_cs35l56_sdw_eight,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-tgl-cs35l56-l01-fb8.tplg"
 	},
 	{},
 };

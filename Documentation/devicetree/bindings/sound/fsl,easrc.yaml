@@ -87,20 +87,20 @@ examples:
     #include <dt-bindings/clock/imx8mn-clock.h>
 
     easrc: easrc@300c0000 {
-           compatible = "fsl,imx8mn-easrc";
-           reg = <0x300c0000 0x10000>;
-           interrupts = <0x0 122 0x4>;
-           clocks = <&clk IMX8MN_CLK_ASRC_ROOT>;
-           clock-names = "mem";
-           dmas = <&sdma2 16 23 0> , <&sdma2 17 23 0>,
-                  <&sdma2 18 23 0> , <&sdma2 19 23 0>,
-                  <&sdma2 20 23 0> , <&sdma2 21 23 0>,
-                  <&sdma2 22 23 0> , <&sdma2 23 23 0>;
-           dma-names = "ctx0_rx", "ctx0_tx",
-                       "ctx1_rx", "ctx1_tx",
-                       "ctx2_rx", "ctx2_tx",
-                       "ctx3_rx", "ctx3_tx";
-           firmware-name = "imx/easrc/easrc-imx8mn.bin";
-           fsl,asrc-rate  = <8000>;
-           fsl,asrc-format = <2>;
+        compatible = "fsl,imx8mn-easrc";
+        reg = <0x300c0000 0x10000>;
+        interrupts = <0x0 122 0x4>;
+        clocks = <&clk IMX8MN_CLK_ASRC_ROOT>;
+        clock-names = "mem";
+        dmas = <&sdma2 16 23 0> , <&sdma2 17 23 0>,
+               <&sdma2 18 23 0> , <&sdma2 19 23 0>,
+               <&sdma2 20 23 0> , <&sdma2 21 23 0>,
+               <&sdma2 22 23 0> , <&sdma2 23 23 0>;
+        dma-names = "ctx0_rx", "ctx0_tx",
+                    "ctx1_rx", "ctx1_tx",
+                    "ctx2_rx", "ctx2_tx",
+                    "ctx3_rx", "ctx3_tx";
+        firmware-name = "imx/easrc/easrc-imx8mn.bin";
+        fsl,asrc-rate  = <8000>;
+        fsl,asrc-format = <2>;
     };
