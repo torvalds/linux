@@ -43,7 +43,7 @@
 
 #define MAX_VFS		80
 #define MAX_PEND_REQS_PER_FUNC 4
-#define MAD_TIMEOUT_MS	2000
+#define MAD_TIMEOUT_SEC	2
 
 #define mcg_warn(fmt, arg...)	pr_warn("MCG WARNING: " fmt, ##arg)
 #define mcg_error(fmt, arg...)	pr_err(fmt, ##arg)
@@ -270,7 +270,7 @@ static int send_join_to_wire(struct mcast_group *group, struct ib_sa_mad *sa_mad
 	if (!ret) {
 		/* calls mlx4_ib_mcg_timeout_handler */
 		queue_delayed_work(group->demux->mcg_wq, &group->timeout_work,
-				msecs_to_jiffies(MAD_TIMEOUT_MS));
+				   secs_to_jiffies(MAD_TIMEOUT_SEC));
 	}
 
 	return ret;
@@ -309,7 +309,7 @@ static int send_leave_to_wire(struct mcast_group *group, u8 join_state)
 	if (!ret) {
 		/* calls mlx4_ib_mcg_timeout_handler */
 		queue_delayed_work(group->demux->mcg_wq, &group->timeout_work,
-				msecs_to_jiffies(MAD_TIMEOUT_MS));
+				   secs_to_jiffies(MAD_TIMEOUT_SEC));
 	}
 
 	return ret;
@@ -1091,7 +1091,7 @@ static void _mlx4_ib_mcg_port_cleanup(struct mlx4_ib_demux_ctx *ctx, int destroy
 	for (i = 0; i < MAX_VFS; ++i)
 		clean_vf_mcast(ctx, i);
 
-	end = jiffies + msecs_to_jiffies(MAD_TIMEOUT_MS + 3000);
+	end = jiffies + secs_to_jiffies(MAD_TIMEOUT_SEC + 3);
 	do {
 		count = 0;
 		mutex_lock(&ctx->mcg_table_lock);
