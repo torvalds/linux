@@ -1157,15 +1157,15 @@ static bool intel_bw_state_changed(struct intel_display *display,
 	enum pipe pipe;
 
 	for_each_pipe(display, pipe) {
-		const struct intel_dbuf_bw *old_crtc_bw =
+		const struct intel_dbuf_bw *old_dbuf_bw =
 			&old_bw_state->dbuf_bw[pipe];
-		const struct intel_dbuf_bw *new_crtc_bw =
+		const struct intel_dbuf_bw *new_dbuf_bw =
 			&new_bw_state->dbuf_bw[pipe];
 		enum dbuf_slice slice;
 
 		for_each_dbuf_slice(display, slice) {
-			if (old_crtc_bw->max_bw[slice] != new_crtc_bw->max_bw[slice] ||
-			    old_crtc_bw->active_planes[slice] != new_crtc_bw->active_planes[slice])
+			if (old_dbuf_bw->max_bw[slice] != new_dbuf_bw->max_bw[slice] ||
+			    old_dbuf_bw->active_planes[slice] != new_dbuf_bw->active_planes[slice])
 				return true;
 		}
 
@@ -1185,7 +1185,7 @@ static void skl_plane_calc_dbuf_bw(struct intel_bw_state *bw_state,
 {
 	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *i915 = to_i915(display->drm);
-	struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[crtc->pipe];
+	struct intel_dbuf_bw *dbuf_bw = &bw_state->dbuf_bw[crtc->pipe];
 	unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(i915, ddb);
 	enum dbuf_slice slice;
 
@@ -1194,8 +1194,8 @@ static void skl_plane_calc_dbuf_bw(struct intel_bw_state *bw_state,
 	 * equal share of the total bw to each plane.
 	 */
 	for_each_dbuf_slice_in_mask(display, slice, dbuf_mask) {
-		crtc_bw->max_bw[slice] = max(crtc_bw->max_bw[slice], data_rate);
-		crtc_bw->active_planes[slice] |= BIT(plane_id);
+		dbuf_bw->max_bw[slice] = max(dbuf_bw->max_bw[slice], data_rate);
+		dbuf_bw->active_planes[slice] |= BIT(plane_id);
 	}
 }
 
@@ -1204,10 +1204,10 @@ static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[crtc->pipe];
+	struct intel_dbuf_bw *dbuf_bw = &bw_state->dbuf_bw[crtc->pipe];
 	enum plane_id plane_id;
 
-	memset(crtc_bw, 0, sizeof(*crtc_bw));
+	memset(dbuf_bw, 0, sizeof(*dbuf_bw));
 
 	if (!crtc_state->hw.active)
 		return;
@@ -1249,10 +1249,10 @@ intel_bw_dbuf_min_cdclk(struct intel_display *display,
 		 * equal share of the total bw to each plane.
 		 */
 		for_each_pipe(display, pipe) {
-			const struct intel_dbuf_bw *crtc_bw = &bw_state->dbuf_bw[pipe];
+			const struct intel_dbuf_bw *dbuf_bw = &bw_state->dbuf_bw[pipe];
 
-			max_bw = max(crtc_bw->max_bw[slice], max_bw);
-			num_active_planes += hweight8(crtc_bw->active_planes[slice]);
+			max_bw = max(dbuf_bw->max_bw[slice], max_bw);
+			num_active_planes += hweight8(dbuf_bw->active_planes[slice]);
 		}
 		max_bw *= num_active_planes;
 
