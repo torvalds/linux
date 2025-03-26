@@ -7,6 +7,11 @@
 
 #include "core.h"
 
+struct rtw89_acpi_data {
+	u32 len;
+	u8 buf[] __counted_by(len);
+};
+
 enum rtw89_acpi_dsm_func {
 	RTW89_ACPI_DSM_FUNC_IDN_BAND_SUP = 2,
 	RTW89_ACPI_DSM_FUNC_6G_DIS = 3,

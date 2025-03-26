@@ -12,6 +12,121 @@ static const guid_t rtw89_guid = GUID_INIT(0xD2A8C3E8, 0x4B69, 0x4F00,
 					   0x82, 0xBD, 0xFE, 0x86,
 					   0x07, 0x80, 0x3A, 0xA7);
 
+static u32 rtw89_acpi_traversal_object(struct rtw89_dev *rtwdev,
+				       const union acpi_object *obj, u8 *pos)
+{
+	const union acpi_object *elm;
+	unsigned int i;
+	u32 sub_len;
+	u32 len = 0;
+	u8 *tmp;
+
+	switch (obj->type) {
+	case ACPI_TYPE_INTEGER:
+		if (pos)
+			pos[len] = obj->integer.value;
+
+		len++;
+		break;
+	case ACPI_TYPE_BUFFER:
+		if (unlikely(obj->buffer.length == 0)) {
+			rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+				    "%s: invalid buffer type\n", __func__);
+			goto err;
+		}
+
+		if (pos)
+			memcpy(pos, obj->buffer.pointer, obj->buffer.length);
+
+		len += obj->buffer.length;
+		break;
+	case ACPI_TYPE_PACKAGE:
+		if (unlikely(obj->package.count == 0)) {
+			rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+				    "%s: invalid package type\n", __func__);
+			goto err;
+		}
+
+		for (i = 0; i < obj->package.count; i++) {
+			elm = &obj->package.elements[i];
+			tmp = pos ? pos + len : NULL;
+
+			sub_len = rtw89_acpi_traversal_object(rtwdev, elm, tmp);
+			if (unlikely(sub_len == 0))
+				goto err;
+
+			len += sub_len;
+		}
+		break;
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "%s: unhandled type: %d\n",
+			    __func__, obj->type);
+		goto err;
+	}
+
+	return len;
+
+err:
+	return 0;
+}
+
+static u32 rtw89_acpi_calculate_object_length(struct rtw89_dev *rtwdev,
+					      const union acpi_object *obj)
+{
+	return rtw89_acpi_traversal_object(rtwdev, obj, NULL);
+}
+
+static struct rtw89_acpi_data *
+rtw89_acpi_evaluate_method(struct rtw89_dev *rtwdev, const char *method)
+{
+	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
+	struct rtw89_acpi_data *data = NULL;
+	acpi_handle root, handle;
+	union acpi_object *obj;
+	acpi_status status;
+	u32 len;
+
+	root = ACPI_HANDLE(rtwdev->dev);
+	if (!root) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+			    "acpi (%s): failed to get root\n", method);
+		return NULL;
+	}
+
+	status = acpi_get_handle(root, (acpi_string)method, &handle);
+	if (ACPI_FAILURE(status)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+			    "acpi (%s): failed to get handle\n", method);
+		return NULL;
+	}
+
+	status = acpi_evaluate_object(handle, NULL, NULL, &buf);
+	if (ACPI_FAILURE(status)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+			    "acpi (%s): failed to evaluate object\n", method);
+		return NULL;
+	}
+
+	obj = buf.pointer;
+	len = rtw89_acpi_calculate_object_length(rtwdev, obj);
+	if (unlikely(len == 0)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+			    "acpi (%s): failed to traversal obj len\n", method);
+		goto out;
+	}
+
+	data = kzalloc(struct_size(data, buf, len), GFP_KERNEL);
+	if (!data)
+		goto out;
+
+	data->len = len;
+	rtw89_acpi_traversal_object(rtwdev, obj, data->buf);
+
+out:
+	ACPI_FREE(obj);
+	return data;
+}
+
 static
 int rtw89_acpi_dsm_get_value(struct rtw89_dev *rtwdev, union acpi_object *obj,
 			     u8 *value)
@@ -152,34 +267,15 @@ int rtw89_acpi_evaluate_dsm(struct rtw89_dev *rtwdev,
 int rtw89_acpi_evaluate_rtag(struct rtw89_dev *rtwdev,
 			     struct rtw89_acpi_rtag_result *res)
 {
-	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
-	acpi_handle root, handle;
-	union acpi_object *obj;
-	acpi_status status;
+	const struct rtw89_acpi_data *data;
 	u32 buf_len;
 	int ret = 0;
 
-	root = ACPI_HANDLE(rtwdev->dev);
-	if (!root)
-		return -EOPNOTSUPP;
-
-	status = acpi_get_handle(root, (acpi_string)"RTAG", &handle);
-	if (ACPI_FAILURE(status))
+	data = rtw89_acpi_evaluate_method(rtwdev, "RTAG");
+	if (!data)
 		return -EIO;
 
-	status = acpi_evaluate_object(handle, NULL, NULL, &buf);
-	if (ACPI_FAILURE(status))
-		return -EIO;
-
-	obj = buf.pointer;
-	if (obj->type != ACPI_TYPE_BUFFER) {
-		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
-			    "acpi: expect buffer but type: %d\n", obj->type);
-		ret = -EINVAL;
-		goto out;
-	}
-
-	buf_len = obj->buffer.length;
+	buf_len = data->len;
 	if (buf_len != sizeof(*res)) {
 		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "%s: invalid buffer length: %u\n",
 			    __func__, buf_len);
@@ -187,12 +283,12 @@ int rtw89_acpi_evaluate_rtag(struct rtw89_dev *rtwdev,
 		goto out;
 	}
 
-	*res = *(struct rtw89_acpi_rtag_result *)obj->buffer.pointer;
+	*res = *(struct rtw89_acpi_rtag_result *)data->buf;
 
 	rtw89_hex_dump(rtwdev, RTW89_DBG_ACPI, "antenna_gain: ", res, sizeof(*res));
 
 out:
-	ACPI_FREE(obj);
+	kfree(data);
 	return ret;
 }
 
