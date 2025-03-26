@@ -861,7 +861,8 @@ static noinline int prepare_one_folio(struct inode *inode, struct folio **folio_
 {
 	unsigned long index = pos >> PAGE_SHIFT;
 	gfp_t mask = get_prepare_gfp_flags(inode, nowait);
-	fgf_t fgp_flags = (nowait ? FGP_WRITEBEGIN | FGP_NOWAIT : FGP_WRITEBEGIN);
+	fgf_t fgp_flags = (nowait ? FGP_WRITEBEGIN | FGP_NOWAIT : FGP_WRITEBEGIN) |
+			  fgf_set_order(write_bytes);
 	struct folio *folio;
 	int ret = 0;
 
@@ -1166,6 +1167,16 @@ static void shrink_reserved_space(struct btrfs_inode *inode,
 					     reserved_start + new_len, diff, true);
 }
 
+/* Calculate the maximum amount of bytes we can write into one folio. */
+static size_t calc_write_bytes(const struct btrfs_inode *inode,
+			       const struct iov_iter *iter, u64 start)
+{
+	const size_t max_folio_size = mapping_max_folio_size(inode->vfs_inode.i_mapping);
+
+	return min(max_folio_size - (start & (max_folio_size - 1)),
+		   iov_iter_count(iter));
+}
+
 /*
  * Do the heavy-lifting work to copy one range into one folio of the page cache.
  *
@@ -1179,7 +1190,7 @@ static int copy_one_range(struct btrfs_inode *inode, struct iov_iter *iter,
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct extent_state *cached_state = NULL;
-	size_t write_bytes = min(iov_iter_count(iter), PAGE_SIZE - offset_in_page(start));
+	size_t write_bytes = calc_write_bytes(inode, iter, start);
 	size_t copied;
 	const u64 reserved_start = round_down(start, fs_info->sectorsize);
 	u64 reserved_len;
@@ -1224,9 +1235,25 @@ again:
 			      only_release_metadata);
 		return ret;
 	}
+
+	/*
+	 * The reserved range goes beyond the current folio, shrink the reserved
+	 * space to the folio boundary.
+	 */
+	if (reserved_start + reserved_len > folio_pos(folio) + folio_size(folio)) {
+		const u64 last_block = folio_pos(folio) + folio_size(folio);
+
+		shrink_reserved_space(inode, *data_reserved, reserved_start,
+				      reserved_len, last_block - reserved_start,
+				      only_release_metadata);
+		write_bytes = last_block - start;
+		reserved_len = last_block - reserved_start;
+	}
+
 	extents_locked = lock_and_cleanup_extent_if_need(inode, folio, start,
 							 write_bytes, &lockstart,
-							 &lockend, nowait, &cached_state);
+							 &lockend, nowait,
+							 &cached_state);
 	if (extents_locked < 0) {
 		if (!nowait && extents_locked == -EAGAIN)
 			goto again;
