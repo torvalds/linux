@@ -317,6 +317,10 @@ S: Code 930.5, Goddard Space Flight Center
 S: Greenbelt, Maryland 20771
 S: USA
 
+N: Joel Becker
+E: jlbec@evilplan.org
+D: configfs
+
 N: Adam Belay
 E: ambx1@neo.rr.com
 D: Linux Plug and Play Support

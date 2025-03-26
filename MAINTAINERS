@@ -5867,9 +5867,10 @@ S:	Maintained
 F:	Documentation/security/snp-tdx-threat-model.rst
 
 CONFIGFS
-M:	Joel Becker <jlbec@evilplan.org>
+M:	Andreas Hindborg <a.hindborg@kernel.org>
+R:	Breno Leitao <leitao@debian.org>
 S:	Supported
-T:	git git://git.infradead.org/users/hch/configfs.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/a.hindborg/linux.git configfs-next
 F:	fs/configfs/
 F:	include/linux/configfs.h
 F:	samples/configfs/
