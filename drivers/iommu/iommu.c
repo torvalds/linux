@@ -1756,7 +1756,7 @@ static int iommu_get_def_domain_type(struct iommu_group *group,
 		group->id);
 
 	/*
-	 * Try to recover, drivers are allowed to force IDENITY or DMA, IDENTITY
+	 * Try to recover, drivers are allowed to force IDENTITY or DMA, IDENTITY
 	 * takes precedence.
 	 */
 	if (type == IOMMU_DOMAIN_IDENTITY)

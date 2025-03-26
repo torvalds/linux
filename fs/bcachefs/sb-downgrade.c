@@ -90,10 +90,7 @@
 	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
 	  BCH_FSCK_ERR_accounting_mismatch,			\
 	  BCH_FSCK_ERR_accounting_key_replicas_nr_devs_0,	\
-	  BCH_FSCK_ERR_accounting_key_junk_at_end)		\
-	x(directory_size,					\
-	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
-	  BCH_FSCK_ERR_directory_size_mismatch)			\
+	  BCH_FSCK_ERR_accounting_key_junk_at_end)
 
 #define DOWNGRADE_TABLE()					\
 	x(bucket_stripe_sectors,				\

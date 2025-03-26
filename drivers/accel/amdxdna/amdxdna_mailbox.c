@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
+#include <linux/slab.h>
 #include <linux/xarray.h>
 
 #define CREATE_TRACE_POINTS

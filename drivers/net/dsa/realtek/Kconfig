@@ -43,4 +43,10 @@ config NET_DSA_REALTEK_RTL8366RB
 	help
 	  Select to enable support for Realtek RTL8366RB.
 
+config NET_DSA_REALTEK_RTL8366RB_LEDS
+	bool "Support RTL8366RB LED control"
+	depends on (LEDS_CLASS=y || LEDS_CLASS=NET_DSA_REALTEK_RTL8366RB)
+	depends on NET_DSA_REALTEK_RTL8366RB
+	default NET_DSA_REALTEK_RTL8366RB
+
 endif

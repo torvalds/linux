@@ -162,6 +162,13 @@ static int copy_p4d(struct trans_pgd_info *info, pgd_t *dst_pgdp,
 	unsigned long next;
 	unsigned long addr = start;
 
+	if (pgd_none(READ_ONCE(*dst_pgdp))) {
+		dst_p4dp = trans_alloc(info);
+		if (!dst_p4dp)
+			return -ENOMEM;
+		pgd_populate(NULL, dst_pgdp, dst_p4dp);
+	}
+
 	dst_p4dp = p4d_offset(dst_pgdp, start);
 	src_p4dp = p4d_offset(src_pgdp, start);
 	do {

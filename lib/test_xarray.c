@@ -1418,7 +1418,7 @@ static noinline void check_pause(struct xarray *xa)
 {
 	XA_STATE(xas, xa, 0);
 	void *entry;
-	unsigned int order;
+	int order;
 	unsigned long index = 1;
 	unsigned int count = 0;
 
@@ -1450,7 +1450,7 @@ static noinline void check_pause(struct xarray *xa)
 	xa_destroy(xa);
 
 	index = 0;
-	for (order = XA_CHUNK_SHIFT; order > 0; order--) {
+	for (order = order_limit - 1; order >= 0; order--) {
 		XA_BUG_ON(xa, xa_store_order(xa, index, order,
 					xa_mk_index(index), GFP_KERNEL));
 		index += 1UL << order;
@@ -1462,24 +1462,25 @@ static noinline void check_pause(struct xarray *xa)
 	rcu_read_lock();
 	xas_for_each(&xas, entry, ULONG_MAX) {
 		XA_BUG_ON(xa, entry != xa_mk_index(index));
-		index += 1UL << (XA_CHUNK_SHIFT - count);
+		index += 1UL << (order_limit - count - 1);
 		count++;
 	}
 	rcu_read_unlock();
-	XA_BUG_ON(xa, count != XA_CHUNK_SHIFT);
+	XA_BUG_ON(xa, count != order_limit);
 
 	index = 0;
 	count = 0;
-	xas_set(&xas, XA_CHUNK_SIZE / 2 + 1);
+	/* test unaligned index */
+	xas_set(&xas, 1 % (1UL << (order_limit - 1)));
 	rcu_read_lock();
 	xas_for_each(&xas, entry, ULONG_MAX) {
 		XA_BUG_ON(xa, entry != xa_mk_index(index));
-		index += 1UL << (XA_CHUNK_SHIFT - count);
+		index += 1UL << (order_limit - count - 1);
 		count++;
 		xas_pause(&xas);
 	}
 	rcu_read_unlock();
-	XA_BUG_ON(xa, count != XA_CHUNK_SHIFT);
+	XA_BUG_ON(xa, count != order_limit);
 
 	xa_destroy(xa);
 

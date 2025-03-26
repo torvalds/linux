@@ -411,6 +411,16 @@ void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op)
 	__bch2_write_op_error(out, op, op->pos.offset);
 }
 
+static void bch2_write_op_error_trans(struct btree_trans *trans, struct printbuf *out,
+				      struct bch_write_op *op, u64 offset)
+{
+	bch2_inum_offset_err_msg_trans(trans, out,
+				       (subvol_inum) { op->subvol, op->pos.inode, },
+				       offset << 9);
+	prt_printf(out, "write error%s: ",
+		   op->flags & BCH_WRITE_MOVE ? "(internal move)" : "");
+}
+
 void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 			       enum bch_data_type type,
 			       const struct bkey_i *k,
@@ -1193,7 +1203,7 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 			struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
 
 			struct printbuf buf = PRINTBUF;
-			__bch2_write_op_error(&buf, op, bkey_start_offset(&insert->k));
+			bch2_write_op_error_trans(trans, &buf, op, bkey_start_offset(&insert->k));
 			prt_printf(&buf, "btree update error: %s", bch2_err_str(ret));
 			bch_err_ratelimited(c, "%s", buf.buf);
 			printbuf_exit(&buf);

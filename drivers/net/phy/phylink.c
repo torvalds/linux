@@ -2265,12 +2265,15 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy,
 	/* Allow the MAC to stop its clock if the PHY has the capability */
 	pl->mac_tx_clk_stop = phy_eee_tx_clock_stop_capable(phy) > 0;
 
-	/* Explicitly configure whether the PHY is allowed to stop it's
-	 * receive clock.
-	 */
-	ret = phy_eee_rx_clock_stop(phy, pl->config->eee_rx_clk_stop_enable);
-	if (ret == -EOPNOTSUPP)
-		ret = 0;
+	if (pl->mac_supports_eee_ops) {
+		/* Explicitly configure whether the PHY is allowed to stop it's
+		 * receive clock.
+		 */
+		ret = phy_eee_rx_clock_stop(phy,
+					    pl->config->eee_rx_clk_stop_enable);
+		if (ret == -EOPNOTSUPP)
+			ret = 0;
+	}
 
 	return ret;
 }

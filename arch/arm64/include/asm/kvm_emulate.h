@@ -605,48 +605,6 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 					 __cpacr_to_cptr_set(clr, set));\
 	} while (0)
 
-static __always_inline void kvm_write_cptr_el2(u64 val)
-{
-	if (has_vhe() || has_hvhe())
-		write_sysreg(val, cpacr_el1);
-	else
-		write_sysreg(val, cptr_el2);
-}
-
-/* Resets the value of cptr_el2 when returning to the host. */
-static __always_inline void __kvm_reset_cptr_el2(struct kvm *kvm)
-{
-	u64 val;
-
-	if (has_vhe()) {
-		val = (CPACR_EL1_FPEN | CPACR_EL1_ZEN_EL1EN);
-		if (cpus_have_final_cap(ARM64_SME))
-			val |= CPACR_EL1_SMEN_EL1EN;
-	} else if (has_hvhe()) {
-		val = CPACR_EL1_FPEN;
-
-		if (!kvm_has_sve(kvm) || !guest_owns_fp_regs())
-			val |= CPACR_EL1_ZEN;
-		if (cpus_have_final_cap(ARM64_SME))
-			val |= CPACR_EL1_SMEN;
-	} else {
-		val = CPTR_NVHE_EL2_RES1;
-
-		if (kvm_has_sve(kvm) && guest_owns_fp_regs())
-			val |= CPTR_EL2_TZ;
-		if (!cpus_have_final_cap(ARM64_SME))
-			val |= CPTR_EL2_TSM;
-	}
-
-	kvm_write_cptr_el2(val);
-}
-
-#ifdef __KVM_NVHE_HYPERVISOR__
-#define kvm_reset_cptr_el2(v)	__kvm_reset_cptr_el2(kern_hyp_va((v)->kvm))
-#else
-#define kvm_reset_cptr_el2(v)	__kvm_reset_cptr_el2((v)->kvm)
-#endif
-
 /*
  * Returns a 'sanitised' view of CPTR_EL2, translating from nVHE to the VHE
  * format if E2H isn't set.
