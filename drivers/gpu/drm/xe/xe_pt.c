@@ -1420,6 +1420,7 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 	return err;
 }
 
+#if IS_ENABLED(CONFIG_DRM_XE_GPUSVM)
 static int xe_pt_svm_pre_commit(struct xe_migrate_pt_update *pt_update)
 {
 	struct xe_vm *vm = pt_update->vops->vm;
@@ -1453,6 +1454,7 @@ static int xe_pt_svm_pre_commit(struct xe_migrate_pt_update *pt_update)
 
 	return 0;
 }
+#endif
 
 struct invalidation_fence {
 	struct xe_gt_tlb_invalidation_fence base;
@@ -2257,11 +2259,15 @@ static const struct xe_migrate_pt_update_ops userptr_migrate_ops = {
 	.pre_commit = xe_pt_userptr_pre_commit,
 };
 
+#if IS_ENABLED(CONFIG_DRM_XE_GPUSVM)
 static const struct xe_migrate_pt_update_ops svm_migrate_ops = {
 	.populate = xe_vm_populate_pgtable,
 	.clear = xe_migrate_clear_pgtable_callback,
 	.pre_commit = xe_pt_svm_pre_commit,
 };
+#else
+static const struct xe_migrate_pt_update_ops svm_migrate_ops;
+#endif
 
 /**
  * xe_pt_update_ops_run() - Run PT update operations

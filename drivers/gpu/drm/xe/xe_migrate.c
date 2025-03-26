@@ -1544,6 +1544,7 @@ void xe_migrate_wait(struct xe_migrate *m)
 		dma_fence_wait(m->fence, false);
 }
 
+#if IS_ENABLED(CONFIG_DRM_XE_DEVMEM_MIRROR)
 static u32 pte_update_cmd_size(u64 size)
 {
 	u32 num_dword;
@@ -1718,6 +1719,8 @@ struct dma_fence *xe_migrate_from_vram(struct xe_migrate *m,
 	return xe_migrate_vram(m, npages, dst_addr, src_addr,
 			       XE_MIGRATE_COPY_TO_SRAM);
 }
+
+#endif
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
 #include "tests/xe_migrate.c"
