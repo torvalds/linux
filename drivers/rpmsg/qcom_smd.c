@@ -1369,7 +1369,8 @@ static int qcom_smd_parse_edge(struct device *dev,
 	edge->mbox_chan = mbox_request_channel(&edge->mbox_client, 0);
 	if (IS_ERR(edge->mbox_chan)) {
 		if (PTR_ERR(edge->mbox_chan) != -ENODEV) {
-			ret = PTR_ERR(edge->mbox_chan);
+			ret = dev_err_probe(dev, PTR_ERR(edge->mbox_chan),
+					    "failed to acquire IPC mailbox\n");
 			goto put_node;
 		}
 
@@ -1386,6 +1387,7 @@ static int qcom_smd_parse_edge(struct device *dev,
 		of_node_put(syscon_np);
 		if (IS_ERR(edge->ipc_regmap)) {
 			ret = PTR_ERR(edge->ipc_regmap);
+			dev_err(dev, "failed to get regmap from syscon: %d\n", ret);
 			goto put_node;
 		}
 
@@ -1501,10 +1503,8 @@ struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 	}
 
 	ret = qcom_smd_parse_edge(&edge->dev, node, edge);
-	if (ret) {
-		dev_err(&edge->dev, "failed to parse smd edge\n");
+	if (ret)
 		goto unregister_dev;
-	}
 
 	ret = qcom_smd_create_chrdev(edge);
 	if (ret) {
