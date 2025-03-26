@@ -393,6 +393,7 @@ void edp_set_panel_power(struct dc_link *link, bool powerOn)
 
 		// 3. Rx power on
 		dpcd_write_rx_power_ctrl(link, true);
+		DC_LOG_BACKLIGHT("eDP power and backlight: Power on");
 	} else {
 		// 3. Rx power off
 		dpcd_write_rx_power_ctrl(link, false);
@@ -404,6 +405,7 @@ void edp_set_panel_power(struct dc_link *link, bool powerOn)
 		// 1. panel VDD off
 		if (!link->dc->config.edp_no_power_sequencing)
 			link->dc->hwss.edp_power_control(link, false);
+		DC_LOG_BACKLIGHT("eDP power and backlight: Power off");
 	}
 }
 

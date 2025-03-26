@@ -6298,10 +6298,10 @@ void dc_query_current_properties(struct dc *dc, struct dc_current_properties *pr
 void dc_set_edp_power(const struct dc *dc, struct dc_link *edp_link,
 				 bool powerOn)
 {
-	if (edp_link->connector_signal != SIGNAL_TYPE_EDP)
+	if (!edp_link || !edp_link->dc || !edp_link->dc->link_srv)
 		return;
 
-	if (edp_link->skip_implict_edp_power_control == false)
+	if (edp_link->connector_signal != SIGNAL_TYPE_EDP)
 		return;
 
 	edp_link->dc->link_srv->edp_set_panel_power(edp_link, powerOn);
