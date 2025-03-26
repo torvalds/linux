@@ -854,11 +854,6 @@ static ssize_t __print_txpwr_map(struct rtw89_dev *rtwdev, char *buf, size_t buf
 	return p - buf;
 }
 
-#define case_REGD(_regd) \
-	case RTW89_ ## _regd: \
-		p += scnprintf(p, end - p, #_regd "\n"); \
-		break
-
 static int __print_regd(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 			const struct rtw89_chan *chan)
 {
@@ -866,32 +861,10 @@ static int __print_regd(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 	u8 band = chan->band_type;
 	u8 regd = rtw89_regd_get(rtwdev, band);
 
-	switch (regd) {
-	default:
-		p += scnprintf(p, end - p, "UNKNOWN: %d\n", regd);
-		break;
-	case_REGD(WW);
-	case_REGD(ETSI);
-	case_REGD(FCC);
-	case_REGD(MKK);
-	case_REGD(NA);
-	case_REGD(IC);
-	case_REGD(KCC);
-	case_REGD(NCC);
-	case_REGD(CHILE);
-	case_REGD(ACMA);
-	case_REGD(MEXICO);
-	case_REGD(UKRAINE);
-	case_REGD(CN);
-	case_REGD(QATAR);
-	case_REGD(UK);
-	case_REGD(THAILAND);
-	}
+	p += scnprintf(p, end - p, "%s\n", rtw89_regd_get_string(regd));
 
 	return p - buf;
 }
-
-#undef case_REGD
 
 struct dbgfs_txpwr_table {
 	const struct txpwr_map *byr;
