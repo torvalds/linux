@@ -922,6 +922,7 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 					 char *buf, size_t bufsz)
 {
 	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	struct rtw89_sar_parm sar_parm = {};
 	const struct dbgfs_txpwr_table *tbl;
 	const struct rtw89_chan *chan;
 	char *p = buf, *end = buf + bufsz;
@@ -931,11 +932,12 @@ ssize_t rtw89_debug_priv_txpwr_table_get(struct rtw89_dev *rtwdev,
 
 	rtw89_leave_ps_mode(rtwdev);
 	chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
+	sar_parm.center_freq = chan->freq;
 
 	p += rtw89_debug_priv_txpwr_table_get_regd(rtwdev, p, end - p, chan);
 
 	p += scnprintf(p, end - p, "[SAR]\n");
-	p += rtw89_print_sar(rtwdev, p, end - p, chan->freq);
+	p += rtw89_print_sar(rtwdev, p, end - p, &sar_parm);
 
 	p += scnprintf(p, end - p, "[TAS]\n");
 	p += rtw89_print_tas(rtwdev, p, end - p);

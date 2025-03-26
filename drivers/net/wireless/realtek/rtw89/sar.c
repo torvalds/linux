@@ -57,10 +57,12 @@ static enum rtw89_sar_subband rtw89_sar_get_subband(struct rtw89_dev *rtwdev,
 }
 
 static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev,
-					 u32 center_freq, s32 *cfg)
+					 const struct rtw89_sar_parm *sar_parm,
+					 s32 *cfg)
 {
 	struct rtw89_sar_cfg_common *rtwsar = &rtwdev->sar.cfg_common;
 	enum rtw89_sar_subband subband_l, subband_h;
+	u32 center_freq = sar_parm->center_freq;
 	const struct rtw89_6ghz_span *span;
 
 	span = rtw89_get_6ghz_span(rtwdev, center_freq);
@@ -175,7 +177,7 @@ static const char *rtw89_tas_state_str(enum rtw89_tas_state state)
 	}
 }
 
-s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
+s8 rtw89_query_sar(struct rtw89_dev *rtwdev, const struct rtw89_sar_parm *sar_parm)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
@@ -191,7 +193,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return RTW89_SAR_TXPWR_MAC_MAX;
 
-	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
+	ret = sar_hdl->query_sar_config(rtwdev, sar_parm, &cfg);
 	if (ret)
 		return RTW89_SAR_TXPWR_MAC_MAX;
 
@@ -217,7 +219,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, u32 center_freq)
 }
 
 int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
-		    u32 center_freq)
+		    const struct rtw89_sar_parm *sar_parm)
 {
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
@@ -238,7 +240,7 @@ int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 	p += scnprintf(p, end - p, "source: %d (%s)\n", src,
 		       sar_hdl->descr_sar_source);
 
-	ret = sar_hdl->query_sar_config(rtwdev, center_freq, &cfg);
+	ret = sar_hdl->query_sar_config(rtwdev, sar_parm, &cfg);
 	if (ret) {
 		p += scnprintf(p, end - p, "config: return code: %d\n", ret);
 		p += scnprintf(p, end - p,
@@ -369,12 +371,14 @@ static bool rtw89_tas_query_sar_config(struct rtw89_dev *rtwdev, s32 *cfg)
 	const enum rtw89_sar_sources src = rtwdev->sar.src;
 	/* its members are protected by rtw89_sar_set_src() */
 	const struct rtw89_sar_handler *sar_hdl = &rtw89_sar_handlers[src];
+	struct rtw89_sar_parm sar_parm = {};
 	int ret;
 
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return false;
 
-	ret = sar_hdl->query_sar_config(rtwdev, chan->freq, cfg);
+	sar_parm.center_freq = chan->freq;
+	ret = sar_hdl->query_sar_config(rtwdev, &sar_parm, cfg);
 	if (ret)
 		return false;
 
