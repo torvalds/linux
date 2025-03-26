@@ -19,24 +19,6 @@
 #include <adf_dbgfs.h>
 #include "adf_c62x_hw_data.h"
 
-static const struct pci_device_id adf_pci_tbl[] = {
-	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_QAT_C62X), },
-	{ }
-};
-MODULE_DEVICE_TABLE(pci, adf_pci_tbl);
-
-static int adf_probe(struct pci_dev *dev, const struct pci_device_id *ent);
-static void adf_remove(struct pci_dev *dev);
-
-static struct pci_driver adf_driver = {
-	.id_table = adf_pci_tbl,
-	.name = ADF_C62X_DEVICE_NAME,
-	.probe = adf_probe,
-	.remove = adf_remove,
-	.sriov_configure = adf_sriov_configure,
-	.err_handler = &adf_err_handler,
-};
-
 static void adf_cleanup_pci_dev(struct adf_accel_dev *accel_dev)
 {
 	pci_release_regions(accel_dev->accel_pci_dev.pci_dev);
@@ -226,6 +208,21 @@ static void adf_remove(struct pci_dev *pdev)
 	adf_cleanup_pci_dev(accel_dev);
 	kfree(accel_dev);
 }
+
+static const struct pci_device_id adf_pci_tbl[] = {
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_QAT_C62X) },
+	{ }
+};
+MODULE_DEVICE_TABLE(pci, adf_pci_tbl);
+
+static struct pci_driver adf_driver = {
+	.id_table = adf_pci_tbl,
+	.name = ADF_C62X_DEVICE_NAME,
+	.probe = adf_probe,
+	.remove = adf_remove,
+	.sriov_configure = adf_sriov_configure,
+	.err_handler = &adf_err_handler,
+};
 
 static int __init adfdrv_init(void)
 {
