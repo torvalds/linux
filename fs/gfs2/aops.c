@@ -37,27 +37,6 @@
 #include "aops.h"
 
 
-void gfs2_trans_add_databufs(struct gfs2_inode *ip, struct folio *folio,
-			     size_t from, size_t len)
-{
-	struct buffer_head *head = folio_buffers(folio);
-	unsigned int bsize = head->b_size;
-	struct buffer_head *bh;
-	size_t to = from + len;
-	size_t start, end;
-
-	for (bh = head, start = 0; bh != head || !start;
-	     bh = bh->b_this_page, start = end) {
-		end = start + bsize;
-		if (end <= from)
-			continue;
-		if (start >= to)
-			break;
-		set_buffer_uptodate(bh);
-		gfs2_trans_add_data(ip->i_gl, bh);
-	}
-}
-
 /**
  * gfs2_get_block_noalloc - Fills in a buffer head with details about a block
  * @inode: The inode
@@ -133,7 +112,7 @@ static int __gfs2_jdata_write_folio(struct folio *folio,
 					inode->i_sb->s_blocksize,
 					BIT(BH_Dirty)|BIT(BH_Uptodate));
 		}
-		gfs2_trans_add_databufs(ip, folio, 0, folio_size(folio));
+		gfs2_trans_add_databufs(ip->i_gl, folio, 0, folio_size(folio));
 	}
 	return gfs2_write_jdata_folio(folio, wbc);
 }
