@@ -9,6 +9,7 @@
 
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_print.h>
 
 #include "i915_utils.h"
 #include "intel_crtc.h"

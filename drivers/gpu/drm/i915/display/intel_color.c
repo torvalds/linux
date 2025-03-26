@@ -22,6 +22,8 @@
  *
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_utils.h"
 #include "i9xx_plane_regs.h"
 #include "intel_color.h"

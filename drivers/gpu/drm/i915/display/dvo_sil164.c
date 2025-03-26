@@ -26,6 +26,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 **************************************************************************/
 
+#include <drm/drm_print.h>
+
 #include "intel_display_types.h"
 #include "intel_dvo_dev.h"
 

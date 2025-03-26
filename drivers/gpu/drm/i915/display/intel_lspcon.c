@@ -27,6 +27,7 @@
 #include <drm/display/drm_hdmi_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
 
 #include "i915_reg.h"
 #include "i915_utils.h"
