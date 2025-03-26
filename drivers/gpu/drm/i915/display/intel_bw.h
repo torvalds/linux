@@ -54,7 +54,6 @@ struct intel_bw_state {
 	 */
 	bool force_check_qgv;
 
-	int min_cdclk[I915_MAX_PIPES];
 	unsigned int data_rate[I915_MAX_PIPES];
 	u8 num_active_planes[I915_MAX_PIPES];
 };

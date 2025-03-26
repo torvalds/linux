@@ -825,14 +825,13 @@ static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_
 }
 
 /* "Maximum Pipe Read Bandwidth" */
-static int intel_bw_crtc_min_cdclk(const struct intel_crtc_state *crtc_state)
+static int intel_bw_crtc_min_cdclk(struct intel_display *display,
+				   unsigned int data_rate)
 {
-	struct intel_display *display = to_intel_display(crtc_state);
-
 	if (DISPLAY_VER(display) < 12)
 		return 0;
 
-	return DIV_ROUND_UP_ULL(mul_u32_u32(intel_bw_crtc_data_rate(crtc_state), 10), 512);
+	return DIV_ROUND_UP_ULL(mul_u32_u32(data_rate, 10), 512);
 }
 
 static unsigned int intel_bw_num_active_planes(struct intel_display *display,
@@ -1170,7 +1169,8 @@ static bool intel_bw_state_changed(struct intel_display *display,
 				return true;
 		}
 
-		if (old_bw_state->min_cdclk[pipe] != new_bw_state->min_cdclk[pipe])
+		if (intel_bw_crtc_min_cdclk(display, old_bw_state->data_rate[pipe]) !=
+		    intel_bw_crtc_min_cdclk(display, new_bw_state->data_rate[pipe]))
 			return true;
 	}
 
@@ -1271,7 +1271,9 @@ int intel_bw_min_cdclk(struct intel_display *display,
 	min_cdclk = intel_bw_dbuf_min_cdclk(display, bw_state);
 
 	for_each_pipe(display, pipe)
-		min_cdclk = max(min_cdclk, bw_state->min_cdclk[pipe]);
+		min_cdclk = max(min_cdclk,
+				intel_bw_crtc_min_cdclk(display,
+							bw_state->data_rate[pipe]));
 
 	return min_cdclk;
 }
@@ -1299,9 +1301,6 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 		old_bw_state = intel_atomic_get_old_bw_state(state);
 
 		skl_crtc_calc_dbuf_bw(new_bw_state, crtc_state);
-
-		new_bw_state->min_cdclk[crtc->pipe] =
-			intel_bw_crtc_min_cdclk(crtc_state);
 	}
 
 	if (!old_bw_state)
