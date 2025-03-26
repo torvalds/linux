@@ -23,8 +23,15 @@ properties:
     const: 3
 
   compatible:
-    enum:
-      - fsl,imx7ulp-pwm
+    oneOf:
+      - enum:
+          - fsl,imx7ulp-pwm
+      - items:
+          - enum:
+              - fsl,imx93-pwm
+              - fsl,imx94-pwm
+              - fsl,imx95-pwm
+          - const: fsl,imx7ulp-pwm
 
   reg:
     maxItems: 1
