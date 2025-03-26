@@ -4284,6 +4284,7 @@ struct rtw89_chip_info {
 	bool support_rnr;
 	bool support_ant_gain;
 	bool support_tas;
+	bool support_sar_by_ant;
 	bool ul_tb_waveform_ctrl;
 	bool ul_tb_pwr_diff;
 	bool rx_freq_frome_ie;

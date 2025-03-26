@@ -120,6 +120,7 @@ static int rtw89_query_sar_config_acpi(struct rtw89_dev *rtwdev,
 				       const struct rtw89_sar_parm *sar_parm,
 				       s32 *cfg)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_sar_cfg_acpi *rtwsar = &rtwdev->sar.cfg_acpi;
 	const struct rtw89_sar_entry_from_acpi *ent_a, *ent_b;
 	enum rtw89_acpi_sar_subband subband_l, subband_h;
@@ -147,7 +148,30 @@ static int rtw89_query_sar_config_acpi(struct rtw89_dev *rtwdev,
 
 	cfg_a = rtw89_sar_cfg_acpi_get_min(ent_a, RF_PATH_A, subband_l, subband_h);
 	cfg_b = rtw89_sar_cfg_acpi_get_min(ent_b, RF_PATH_B, subband_l, subband_h);
-	*cfg = min(cfg_a, cfg_b);
+
+	if (chip->support_sar_by_ant) {
+		/* With declaration of support_sar_by_ant, relax the general
+		 * SAR querying to return the maximum between paths. However,
+		 * expect chip has dealt with the corresponding SAR settings
+		 * by path. (To get SAR for a given path, chip can then query
+		 * with force_path.)
+		 */
+		if (sar_parm->force_path) {
+			switch (sar_parm->path) {
+			default:
+			case RF_PATH_A:
+				*cfg = cfg_a;
+				break;
+			case RF_PATH_B:
+				*cfg = cfg_b;
+				break;
+			}
+		} else {
+			*cfg = max(cfg_a, cfg_b);
+		}
+	} else {
+		*cfg = min(cfg_a, cfg_b);
+	}
 
 	if (sar_parm->ntx == RTW89_2TX)
 		*cfg -= rtwsar->downgrade_2tx;
@@ -285,6 +309,7 @@ s8 rtw89_query_sar(struct rtw89_dev *rtwdev, const struct rtw89_sar_parm *sar_pa
 
 	return rtw89_txpwr_sar_to_mac(rtwdev, fct, cfg);
 }
+EXPORT_SYMBOL(rtw89_query_sar);
 
 int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 		    const struct rtw89_sar_parm *sar_parm)
@@ -322,6 +347,8 @@ int rtw89_print_sar(struct rtw89_dev *rtwdev, char *buf, size_t bufsz,
 	p += scnprintf(p, end - p, "config: %d (unit: 1/%lu dBm)\n", cfg,
 		       BIT(fct));
 
+	p += scnprintf(p, end - p, "support different configs by antenna: %s\n",
+		       str_yes_no(rtwdev->chip->support_sar_by_ant));
 out:
 	return p - buf;
 }

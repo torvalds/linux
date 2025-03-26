@@ -13,6 +13,9 @@
 struct rtw89_sar_parm {
 	u32 center_freq;
 	enum rtw89_ntx ntx;
+
+	bool force_path;
+	enum rtw89_rf_path path;
 };
 
 struct rtw89_sar_handler {
