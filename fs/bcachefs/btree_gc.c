@@ -1021,8 +1021,7 @@ int bch2_check_allocations(struct bch_fs *c)
 {
 	int ret;
 
-	lockdep_assert_held(&c->state_lock);
-
+	down_read(&c->state_lock);
 	down_write(&c->gc_lock);
 
 	bch2_btree_interior_updates_flush(c);
@@ -1060,6 +1059,7 @@ out:
 	percpu_up_write(&c->mark_lock);
 
 	up_write(&c->gc_lock);
+	up_read(&c->state_lock);
 
 	/*
 	 * At startup, allocations can happen directly instead of via the

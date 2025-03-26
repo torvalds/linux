@@ -5,6 +5,8 @@
 #define BCH_ERRCODES()								\
 	x(ERANGE,			ERANGE_option_too_small)		\
 	x(ERANGE,			ERANGE_option_too_big)			\
+	x(EINVAL,			injected)				\
+	x(BCH_ERR_injected,		injected_fs_start)			\
 	x(EINVAL,			mount_option)				\
 	x(BCH_ERR_mount_option,		option_name)				\
 	x(BCH_ERR_mount_option,		option_value)				\

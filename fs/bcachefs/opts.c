@@ -482,14 +482,12 @@ void bch2_opts_to_text(struct printbuf *out,
 
 int bch2_opt_check_may_set(struct bch_fs *c, struct bch_dev *ca, int id, u64 v)
 {
-	lockdep_assert_held(&c->state_lock);
-
 	int ret = 0;
 
 	switch (id) {
 	case Opt_state:
 		if (ca)
-			return __bch2_dev_set_state(c, ca, v, BCH_FORCE_IF_DEGRADED);
+			return bch2_dev_set_state(c, ca, v, BCH_FORCE_IF_DEGRADED);
 		break;
 
 	case Opt_compression:

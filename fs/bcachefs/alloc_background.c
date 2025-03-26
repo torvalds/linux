@@ -589,6 +589,8 @@ iter_err:
 
 int bch2_alloc_read(struct bch_fs *c)
 {
+	down_read(&c->state_lock);
+
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct bch_dev *ca = NULL;
 	int ret;
@@ -652,6 +654,7 @@ int bch2_alloc_read(struct bch_fs *c)
 	bch2_dev_put(ca);
 	bch2_trans_put(trans);
 
+	up_read(&c->state_lock);
 	bch_err_fn(c, ret);
 	return ret;
 }

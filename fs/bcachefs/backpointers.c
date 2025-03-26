@@ -1023,7 +1023,7 @@ int bch2_check_extents_to_backpointers(struct bch_fs *c)
 	 * Can't allow devices to come/go/resize while we have bucket bitmaps
 	 * allocated
 	 */
-	lockdep_assert_held(&c->state_lock);
+	down_read(&c->state_lock);
 
 	for_each_member_device(c, ca) {
 		BUG_ON(ca->bucket_backpointer_mismatches);
@@ -1108,6 +1108,7 @@ err_free_bitmaps:
 		ca->bucket_backpointer_mismatches = NULL;
 	}
 
+	up_read(&c->state_lock);
 	bch_err_fn(c, ret);
 	return ret;
 }
