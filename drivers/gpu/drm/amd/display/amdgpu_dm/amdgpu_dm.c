@@ -2503,7 +2503,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 		return 0;
 	}
 	if (r) {
-		dev_err(adev->dev, "amdgpu_dm: Can't validate firmware \"%s\"\n",
+		drm_err(adev_to_drm(adev), "amdgpu_dm: Can't validate firmware \"%s\"\n",
 			fw_name_dmcu);
 		amdgpu_ucode_release(&adev->dm.fw_dmcu);
 		return r;
@@ -3052,13 +3052,13 @@ static int dm_oem_i2c_hw_init(struct amdgpu_device *adev)
 	if (oem_ddc_service) {
 		oem_i2c = create_i2c(oem_ddc_service, true);
 		if (!oem_i2c) {
-			dev_info(adev->dev, "Failed to create oem i2c adapter data\n");
+			drm_info(adev_to_drm(adev), "Failed to create oem i2c adapter data\n");
 			return -ENOMEM;
 		}
 
 		r = i2c_add_adapter(&oem_i2c->base);
 		if (r) {
-			dev_info(adev->dev, "Failed to register oem i2c\n");
+			drm_info(adev_to_drm(adev), "Failed to register oem i2c\n");
 			kfree(oem_i2c);
 			return r;
 		}
@@ -3101,7 +3101,7 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
 
 	r = dm_oem_i2c_hw_init(adev);
 	if (r)
-		dev_info(adev->dev, "Failed to add OEM i2c bus\n");
+		drm_info(adev_to_drm(adev), "Failed to add OEM i2c bus\n");
 
 	return 0;
 }
@@ -5648,7 +5648,7 @@ static int dm_early_init(struct amdgpu_ip_block *ip_block)
 	/* if there is no object header, skip DM */
 	if (!amdgpu_atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
 		adev->harvest_ip_mask |= AMD_HARVEST_IP_DMU_MASK;
-		dev_info(adev->dev, "No object header, skipping DM\n");
+		drm_info(adev_to_drm(adev), "No object header, skipping DM\n");
 		return -ENOENT;
 	}
 
