@@ -3233,6 +3233,10 @@ N: Rui Prior
 E: rprior@inescn.pt
 D: ATM device driver for NICStAR based cards
 
+N: Roopa Prabhu
+E: roopa@nvidia.com
+D: Bridge co-maintainer, vxlan and networking contributor
+
 N: Stefan Probst
 E: sp@caldera.de
 D: The Linux Support Team Erlangen, 1993-97

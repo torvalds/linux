@@ -1270,28 +1270,18 @@ static int __must_check ax25_connect(struct socket *sock,
 		}
 	}
 
-	/*
-	 *	Must bind first - autobinding in this may or may not work. If
-	 *	the socket is already bound, check to see if the device has
-	 *	been filled in, error if it hasn't.
-	 */
+	/* Must bind first - autobinding does not work. */
 	if (sock_flag(sk, SOCK_ZAPPED)) {
-		/* check if we can remove this feature. It is broken. */
-		printk(KERN_WARNING "ax25_connect(): %s uses autobind, please contact jreuter@yaina.de\n",
-			current->comm);
-		if ((err = ax25_rt_autobind(ax25, &fsa->fsa_ax25.sax25_call)) < 0) {
-			kfree(digi);
-			goto out_release;
-		}
+		kfree(digi);
+		err = -EINVAL;
+		goto out_release;
+	}
 
-		ax25_fillin_cb(ax25, ax25->ax25_dev);
-		ax25_cb_add(ax25);
-	} else {
-		if (ax25->ax25_dev == NULL) {
-			kfree(digi);
-			err = -EHOSTUNREACH;
-			goto out_release;
-		}
+	/* Check to see if the device has been filled in, error if it hasn't. */
+	if (ax25->ax25_dev == NULL) {
+		kfree(digi);
+		err = -EHOSTUNREACH;
+		goto out_release;
 	}
 
 	if (sk->sk_type == SOCK_SEQPACKET &&
