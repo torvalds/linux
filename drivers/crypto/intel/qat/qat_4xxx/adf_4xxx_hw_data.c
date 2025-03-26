@@ -96,7 +96,6 @@ static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_dcc_config));
 static struct adf_hw_device_class adf_4xxx_class = {
 	.name = ADF_4XXX_DEVICE_NAME,
 	.type = DEV_4XXX,
-	.instances = 0,
 };
 
 static u32 get_ae_mask(struct adf_hw_device_data *self)

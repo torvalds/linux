@@ -22,7 +22,6 @@ static const u32 thrd_to_arb_map[ADF_C3XXX_MAX_ACCELENGINES] = {
 static struct adf_hw_device_class c3xxx_class = {
 	.name = ADF_C3XXX_DEVICE_NAME,
 	.type = DEV_C3XXX,
-	.instances = 0
 };
 
 static u32 get_accel_mask(struct adf_hw_device_data *self)

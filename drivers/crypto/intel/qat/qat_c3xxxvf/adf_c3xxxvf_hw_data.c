@@ -13,7 +13,6 @@
 static struct adf_hw_device_class c3xxxiov_class = {
 	.name = ADF_C3XXXVF_DEVICE_NAME,
 	.type = DEV_C3XXXVF,
-	.instances = 0
 };
 
 static u32 get_accel_mask(struct adf_hw_device_data *self)

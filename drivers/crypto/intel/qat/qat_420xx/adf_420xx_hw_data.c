@@ -93,7 +93,6 @@ static const struct adf_fw_config adf_fw_dcc_config[] = {
 static struct adf_hw_device_class adf_420xx_class = {
 	.name = ADF_420XX_DEVICE_NAME,
 	.type = DEV_420XX,
-	.instances = 0,
 };
 
 static u32 get_ae_mask(struct adf_hw_device_data *self)
