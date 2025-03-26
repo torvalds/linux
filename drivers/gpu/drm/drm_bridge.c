@@ -286,6 +286,9 @@ EXPORT_SYMBOL(__devm_drm_bridge_alloc);
  * drm_bridge_add - add the given bridge to the global bridge list
  *
  * @bridge: bridge control structure
+ *
+ * The bridge to be added must have been allocated by
+ * devm_drm_bridge_alloc().
  */
 void drm_bridge_add(struct drm_bridge *bridge)
 {
