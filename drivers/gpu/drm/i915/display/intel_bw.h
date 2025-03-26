@@ -48,12 +48,6 @@ struct intel_bw_state {
 	 */
 	u16 qgv_points_mask;
 
-	/*
-	 * Flag to force the QGV comparison in atomic check right after the
-	 * hw state readout
-	 */
-	bool force_check_qgv;
-
 	unsigned int data_rate[I915_MAX_PIPES];
 	u8 num_active_planes[I915_MAX_PIPES];
 };
