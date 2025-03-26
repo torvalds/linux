@@ -584,8 +584,6 @@ s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, u64 
 	 * increasing distance.
 	 */
 	cpu = scx_pick_idle_cpu(p->cpus_ptr, node, flags);
-	if (cpu >= 0)
-		goto out_unlock;
 
 out_unlock:
 	rcu_read_unlock();
