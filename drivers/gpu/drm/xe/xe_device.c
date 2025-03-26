@@ -23,6 +23,7 @@
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
+#include "xe_bo_evict.h"
 #include "xe_debugfs.h"
 #include "xe_devcoredump.h"
 #include "xe_dma_buf.h"
@@ -467,10 +468,9 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 			xa_erase(&xe->usm.asid_to_vm, asid);
 	}
 
-	spin_lock_init(&xe->pinned.lock);
-	INIT_LIST_HEAD(&xe->pinned.kernel_bo_present);
-	INIT_LIST_HEAD(&xe->pinned.external_vram);
-	INIT_LIST_HEAD(&xe->pinned.evicted);
+	err = xe_bo_pinned_init(xe);
+	if (err)
+		goto err;
 
 	xe->preempt_fence_wq = alloc_ordered_workqueue("xe-preempt-fence-wq",
 						       WQ_MEM_RECLAIM);
@@ -939,6 +939,8 @@ void xe_device_remove(struct xe_device *xe)
 	xe_display_unregister(xe);
 
 	drm_dev_unplug(&xe->drm);
+
+	xe_bo_pci_dev_remove_all(xe);
 }
 
 void xe_device_shutdown(struct xe_device *xe)

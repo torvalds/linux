@@ -276,6 +276,8 @@ int xe_bo_evict(struct xe_bo *bo, bool force_alloc);
 int xe_bo_evict_pinned(struct xe_bo *bo);
 int xe_bo_restore_pinned(struct xe_bo *bo);
 
+int xe_bo_dma_unmap_pinned(struct xe_bo *bo);
+
 extern const struct ttm_device_funcs xe_ttm_funcs;
 extern const char *const xe_mem_type_to_name[];
 

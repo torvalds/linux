@@ -12,4 +12,7 @@ int xe_bo_evict_all(struct xe_device *xe);
 int xe_bo_restore_kernel(struct xe_device *xe);
 int xe_bo_restore_user(struct xe_device *xe);
 
+void xe_bo_pci_dev_remove_all(struct xe_device *xe);
+
+int xe_bo_pinned_init(struct xe_device *xe);
 #endif

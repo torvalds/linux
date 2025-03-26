@@ -93,8 +93,8 @@ int xe_bo_evict_all(struct xe_device *xe)
 		}
 	}
 
-	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.external_vram,
-				    &xe->pinned.external_vram,
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.external,
+				    &xe->pinned.external,
 				    xe_bo_evict_pinned);
 
 	/*
@@ -181,8 +181,8 @@ int xe_bo_restore_user(struct xe_device *xe)
 		return 0;
 
 	/* Pinned user memory in VRAM should be validated on resume */
-	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.external_vram,
-				    &xe->pinned.external_vram,
+	ret = xe_bo_apply_to_pinned(xe, &xe->pinned.external,
+				    &xe->pinned.external,
 				    xe_bo_restore_pinned);
 
 	/* Wait for restore to complete */
@@ -190,4 +190,80 @@ int xe_bo_restore_user(struct xe_device *xe)
 		xe_tile_migrate_wait(tile);
 
 	return ret;
+}
+
+static void xe_bo_pci_dev_remove_pinned(struct xe_device *xe)
+{
+	struct xe_tile *tile;
+	unsigned int id;
+
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.external,
+				    &xe->pinned.external,
+				    xe_bo_dma_unmap_pinned);
+	for_each_tile(tile, xe, id)
+		xe_tile_migrate_wait(tile);
+}
+
+/**
+ * xe_bo_pci_dev_remove_all() - Handle bos when the pci_device is about to be removed
+ * @xe: The xe device.
+ *
+ * On pci_device removal we need to drop all dma mappings and move
+ * the data of exported bos out to system. This includes SVM bos and
+ * exported dma-buf bos. This is done by evicting all bos, but
+ * the evict placement in xe_evict_flags() is chosen such that all
+ * bos except those mentioned are purged, and thus their memory
+ * is released.
+ *
+ * For pinned bos, we're unmapping dma.
+ */
+void xe_bo_pci_dev_remove_all(struct xe_device *xe)
+{
+	unsigned int mem_type;
+
+	/*
+	 * Move pagemap bos and exported dma-buf to system, and
+	 * purge everything else.
+	 */
+	for (mem_type = XE_PL_VRAM1; mem_type >= XE_PL_TT; --mem_type) {
+		struct ttm_resource_manager *man =
+			ttm_manager_type(&xe->ttm, mem_type);
+
+		if (man) {
+			int ret = ttm_resource_manager_evict_all(&xe->ttm, man);
+
+			drm_WARN_ON(&xe->drm, ret);
+		}
+	}
+
+	xe_bo_pci_dev_remove_pinned(xe);
+}
+
+static void xe_bo_pinned_fini(void *arg)
+{
+	struct xe_device *xe = arg;
+
+	(void)xe_bo_apply_to_pinned(xe, &xe->pinned.kernel_bo_present,
+				    &xe->pinned.kernel_bo_present,
+				    xe_bo_dma_unmap_pinned);
+}
+
+/**
+ * xe_bo_pinned_init() - Initialize pinned bo tracking
+ * @xe: The xe device.
+ *
+ * Initializes the lists and locks required for pinned bo
+ * tracking and registers a callback to dma-unmap
+ * any remaining pinned bos on pci device removal.
+ *
+ * Return: %0 on success, negative error code on error.
+ */
+int xe_bo_pinned_init(struct xe_device *xe)
+{
+	spin_lock_init(&xe->pinned.lock);
+	INIT_LIST_HEAD(&xe->pinned.kernel_bo_present);
+	INIT_LIST_HEAD(&xe->pinned.external);
+	INIT_LIST_HEAD(&xe->pinned.evicted);
+
+	return devm_add_action_or_reset(xe->drm.dev, xe_bo_pinned_fini, xe);
 }

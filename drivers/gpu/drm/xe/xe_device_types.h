@@ -426,8 +426,8 @@ struct xe_device {
 		struct list_head kernel_bo_present;
 		/** @pinned.evicted: pinned BO that have been evicted */
 		struct list_head evicted;
-		/** @pinned.external_vram: pinned external BO in vram*/
-		struct list_head external_vram;
+		/** @pinned.external: pinned external and dma-buf. */
+		struct list_head external;
 	} pinned;
 
 	/** @ufence_wq: user fence wait queue */

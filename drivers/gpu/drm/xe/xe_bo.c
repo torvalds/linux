@@ -55,6 +55,8 @@ static struct ttm_placement sys_placement = {
 	.placement = &sys_placement_flags,
 };
 
+static struct ttm_placement purge_placement;
+
 static const struct ttm_place tt_placement_flags[] = {
 	{
 		.fpfn = 0,
@@ -281,6 +283,8 @@ int xe_bo_placement_for_flags(struct xe_device *xe, struct xe_bo *bo,
 static void xe_evict_flags(struct ttm_buffer_object *tbo,
 			   struct ttm_placement *placement)
 {
+	struct xe_device *xe = container_of(tbo->bdev, typeof(*xe), ttm);
+	bool device_unplugged = drm_dev_is_unplugged(&xe->drm);
 	struct xe_bo *bo;
 
 	if (!xe_bo_is_xe_bo(tbo)) {
@@ -290,13 +294,18 @@ static void xe_evict_flags(struct ttm_buffer_object *tbo,
 			return;
 		}
 
-		*placement = sys_placement;
+		*placement = device_unplugged ? purge_placement : sys_placement;
 		return;
 	}
 
 	bo = ttm_to_xe_bo(tbo);
 	if (bo->flags & XE_BO_FLAG_CPU_ADDR_MIRROR) {
 		*placement = sys_placement;
+		return;
+	}
+
+	if (device_unplugged && !tbo->base.dma_buf) {
+		*placement = purge_placement;
 		return;
 	}
 
@@ -657,10 +666,19 @@ static int xe_bo_move_dmabuf(struct ttm_buffer_object *ttm_bo,
 	struct xe_ttm_tt *xe_tt = container_of(ttm_bo->ttm, struct xe_ttm_tt,
 					       ttm);
 	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
+	bool device_unplugged = drm_dev_is_unplugged(&xe->drm);
 	struct sg_table *sg;
 
 	xe_assert(xe, attach);
 	xe_assert(xe, ttm_bo->ttm);
+
+	if (device_unplugged && new_res->mem_type == XE_PL_SYSTEM &&
+	    ttm_bo->sg) {
+		dma_resv_wait_timeout(ttm_bo->base.resv, DMA_RESV_USAGE_BOOKKEEP,
+				      false, MAX_SCHEDULE_TIMEOUT);
+		dma_buf_unmap_attachment(attach, ttm_bo->sg, DMA_BIDIRECTIONAL);
+		ttm_bo->sg = NULL;
+	}
 
 	if (new_res->mem_type == XE_PL_SYSTEM)
 		goto out;
@@ -1222,6 +1240,31 @@ int xe_bo_restore_pinned(struct xe_bo *bo)
 err_res_free:
 	ttm_resource_free(&bo->ttm, &new_mem);
 	return ret;
+}
+
+int xe_bo_dma_unmap_pinned(struct xe_bo *bo)
+{
+	struct ttm_buffer_object *ttm_bo = &bo->ttm;
+	struct ttm_tt *tt = ttm_bo->ttm;
+
+	if (tt) {
+		struct xe_ttm_tt *xe_tt = container_of(tt, typeof(*xe_tt), ttm);
+
+		if (ttm_bo->type == ttm_bo_type_sg && ttm_bo->sg) {
+			dma_buf_unmap_attachment(ttm_bo->base.import_attach,
+						 ttm_bo->sg,
+						 DMA_BIDIRECTIONAL);
+			ttm_bo->sg = NULL;
+			xe_tt->sg = NULL;
+		} else if (xe_tt->sg) {
+			dma_unmap_sgtable(xe_tt->xe->drm.dev, xe_tt->sg,
+					  DMA_BIDIRECTIONAL, 0);
+			sg_free_table(xe_tt->sg);
+			xe_tt->sg = NULL;
+		}
+	}
+
+	return 0;
 }
 
 static unsigned long xe_ttm_io_mem_pfn(struct ttm_buffer_object *ttm_bo,
@@ -2102,12 +2145,9 @@ int xe_bo_pin_external(struct xe_bo *bo)
 		if (err)
 			return err;
 
-		if (xe_bo_is_vram(bo)) {
-			spin_lock(&xe->pinned.lock);
-			list_add_tail(&bo->pinned_link,
-				      &xe->pinned.external_vram);
-			spin_unlock(&xe->pinned.lock);
-		}
+		spin_lock(&xe->pinned.lock);
+		list_add_tail(&bo->pinned_link, &xe->pinned.external);
+		spin_unlock(&xe->pinned.lock);
 	}
 
 	ttm_bo_pin(&bo->ttm);
