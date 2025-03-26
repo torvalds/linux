@@ -426,7 +426,7 @@ static bool tgl_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 	return true;
 }
 
-static bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
+bool intel_crtc_can_enable_sagv(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
@@ -457,19 +457,11 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 	int ret;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *new_crtc_state;
-	struct intel_bw_state *new_bw_state = NULL;
-	const struct intel_bw_state *old_bw_state = NULL;
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc,
 					 new_crtc_state, i) {
 		struct skl_pipe_wm *pipe_wm = &new_crtc_state->wm.skl.optimal;
-
-		new_bw_state = intel_atomic_get_bw_state(state);
-		if (IS_ERR(new_bw_state))
-			return PTR_ERR(new_bw_state);
-
-		old_bw_state = intel_atomic_get_old_bw_state(state);
 
 		/*
 		 * We store use_sagv_wm in the crtc state rather than relying on
@@ -491,26 +483,11 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 		pipe_wm->use_sagv_wm = !HAS_HW_SAGV_WM(display) &&
 			DISPLAY_VER(i915) >= 12 &&
 			intel_crtc_can_enable_sagv(new_crtc_state);
-
-		if (intel_crtc_can_enable_sagv(new_crtc_state))
-			new_bw_state->pipe_sagv_reject &= ~BIT(crtc->pipe);
-		else
-			new_bw_state->pipe_sagv_reject |= BIT(crtc->pipe);
 	}
 
-	if (!new_bw_state)
-		return 0;
-
-	if (intel_can_enable_sagv(i915, new_bw_state) !=
-	    intel_can_enable_sagv(i915, old_bw_state)) {
-		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
-		if (ret)
-			return ret;
-	} else if (new_bw_state->pipe_sagv_reject != old_bw_state->pipe_sagv_reject) {
-		ret = intel_atomic_lock_global_state(&new_bw_state->base);
-		if (ret)
-			return ret;
-	}
+	ret = intel_bw_check_sagv_mask(state);
+	if (ret)
+		return ret;
 
 	return 0;
 }
