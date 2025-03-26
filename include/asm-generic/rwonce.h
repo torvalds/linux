@@ -86,7 +86,12 @@ unsigned long read_word_at_a_time(const void *addr)
 	kasan_check_read(addr, 1);
 	kcsan_check_read(addr, 1);
 
-	return READ_ONCE(*(unsigned long *)addr);
+	/*
+	 * This load can race with concurrent stores to out-of-bounds memory,
+	 * but READ_ONCE() can't be used because it requires higher alignment
+	 * than plain loads in arm64 builds with LTO.
+	 */
+	return *(unsigned long *)addr;
 }
 
 #endif /* __ASSEMBLY__ */
