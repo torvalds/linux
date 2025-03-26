@@ -25,20 +25,6 @@
 
 #include "cal.h"
 
-/*  Print Four-character-code (FOURCC) */
-static char *fourcc_to_str(u32 fmt)
-{
-	static char code[5];
-
-	code[0] = (unsigned char)(fmt & 0xff);
-	code[1] = (unsigned char)((fmt >> 8) & 0xff);
-	code[2] = (unsigned char)((fmt >> 16) & 0xff);
-	code[3] = (unsigned char)((fmt >> 24) & 0xff);
-	code[4] = '\0';
-
-	return code;
-}
-
 /* ------------------------------------------------------------------
  *	V4L2 Common IOCTLs
  * ------------------------------------------------------------------
@@ -180,8 +166,8 @@ static void cal_calc_format_size(struct cal_ctx *ctx,
 	f->fmt.pix.sizeimage = f->fmt.pix.height *
 			       f->fmt.pix.bytesperline;
 
-	ctx_dbg(3, ctx, "%s: fourcc: %s size: %dx%d bpl:%d img_size:%d\n",
-		__func__, fourcc_to_str(f->fmt.pix.pixelformat),
+	ctx_dbg(3, ctx, "%s: fourcc: %p4cc size: %dx%d bpl:%d img_size:%d\n",
+		__func__, &f->fmt.pix.pixelformat,
 		f->fmt.pix.width, f->fmt.pix.height,
 		f->fmt.pix.bytesperline, f->fmt.pix.sizeimage);
 }
@@ -509,8 +495,8 @@ static void cal_mc_try_fmt(struct cal_ctx *ctx, struct v4l2_format *f,
 	if (info)
 		*info = fmtinfo;
 
-	ctx_dbg(3, ctx, "%s: %s %ux%u (bytesperline %u sizeimage %u)\n",
-		__func__, fourcc_to_str(format->pixelformat),
+	ctx_dbg(3, ctx, "%s: %p4cc %ux%u (bytesperline %u sizeimage %u)\n",
+		__func__, &format->pixelformat,
 		format->width, format->height,
 		format->bytesperline, format->sizeimage);
 }
@@ -866,8 +852,8 @@ static int cal_ctx_v4l2_init_formats(struct cal_ctx *ctx)
 			if (mbus_code.code == fmtinfo->code) {
 				ctx->active_fmt[i] = fmtinfo;
 				ctx_dbg(2, ctx,
-					"matched fourcc: %s: code: %04x idx: %u\n",
-					fourcc_to_str(fmtinfo->fourcc),
+					"matched fourcc: %p4cc: code: %04x idx: %u\n",
+					&fmtinfo->fourcc,
 					fmtinfo->code, i);
 				ctx->num_active_fmt = ++i;
 			}
