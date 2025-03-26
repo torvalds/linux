@@ -398,7 +398,7 @@ int bch2_scan_for_btree_nodes(struct bch_fs *c)
 		bch2_print_string_as_lines(KERN_INFO, buf.buf);
 	}
 
-	sort(f->nodes.data, f->nodes.nr, sizeof(f->nodes.data[0]), found_btree_node_cmp_cookie, NULL);
+	sort_nonatomic(f->nodes.data, f->nodes.nr, sizeof(f->nodes.data[0]), found_btree_node_cmp_cookie, NULL);
 
 	dst = 0;
 	darray_for_each(f->nodes, i) {
@@ -418,7 +418,7 @@ int bch2_scan_for_btree_nodes(struct bch_fs *c)
 	}
 	f->nodes.nr = dst;
 
-	sort(f->nodes.data, f->nodes.nr, sizeof(f->nodes.data[0]), found_btree_node_cmp_pos, NULL);
+	sort_nonatomic(f->nodes.data, f->nodes.nr, sizeof(f->nodes.data[0]), found_btree_node_cmp_pos, NULL);
 
 	if (0 && c->opts.verbose) {
 		printbuf_reset(&buf);
