@@ -840,25 +840,16 @@ int of_davinci_pll_init(struct device *dev, struct device_node *node,
 }
 
 /* needed in early boot for clocksource/clockevent */
-#ifdef CONFIG_ARCH_DAVINCI_DA850
 CLK_OF_DECLARE(da850_pll0, "ti,da850-pll0", of_da850_pll0_init);
-#endif
 
 static const struct of_device_id davinci_pll_of_match[] = {
-#ifdef CONFIG_ARCH_DAVINCI_DA850
 	{ .compatible = "ti,da850-pll1", .data = of_da850_pll1_init },
-#endif
 	{ }
 };
 
 static const struct platform_device_id davinci_pll_id_table[] = {
-#ifdef CONFIG_ARCH_DAVINCI_DA830
-	{ .name = "da830-pll",   .driver_data = (kernel_ulong_t)da830_pll_init   },
-#endif
-#ifdef CONFIG_ARCH_DAVINCI_DA850
 	{ .name = "da850-pll0",  .driver_data = (kernel_ulong_t)da850_pll0_init  },
 	{ .name = "da850-pll1",  .driver_data = (kernel_ulong_t)da850_pll1_init  },
-#endif
 	{ }
 };
 
