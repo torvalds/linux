@@ -723,11 +723,11 @@ cleanup:
 	 * pop everything off of the operand stack and delete those
 	 * objects
 	 */
-	walk_state->num_operands = i;
+	walk_state->num_operands = (u8)(i);
 	acpi_ds_obj_stack_pop_and_delete(new_num_operands, walk_state);
 
 	/* Restore operand count */
-	walk_state->num_operands = prev_num_operands;
+	walk_state->num_operands = (u8)(prev_num_operands);
 
 	ACPI_EXCEPTION((AE_INFO, status, "While creating Arg %u", index));
 	return_ACPI_STATUS(status);
