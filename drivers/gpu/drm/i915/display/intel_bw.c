@@ -1188,7 +1188,7 @@ static bool intel_bw_state_changed(struct intel_display *display,
 	return false;
 }
 
-static void skl_plane_calc_dbuf_bw(struct intel_bw_state *bw_state,
+static void skl_plane_calc_dbuf_bw(struct intel_dbuf_bw *dbuf_bw,
 				   struct intel_crtc *crtc,
 				   enum plane_id plane_id,
 				   const struct skl_ddb_entry *ddb,
@@ -1196,7 +1196,6 @@ static void skl_plane_calc_dbuf_bw(struct intel_bw_state *bw_state,
 {
 	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *i915 = to_i915(display->drm);
-	struct intel_dbuf_bw *dbuf_bw = &bw_state->dbuf_bw[crtc->pipe];
 	unsigned int dbuf_mask = skl_ddb_dbuf_slice_mask(i915, ddb);
 	enum dbuf_slice slice;
 
@@ -1210,12 +1209,11 @@ static void skl_plane_calc_dbuf_bw(struct intel_bw_state *bw_state,
 	}
 }
 
-static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
+static void skl_crtc_calc_dbuf_bw(struct intel_dbuf_bw *dbuf_bw,
 				  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct intel_dbuf_bw *dbuf_bw = &bw_state->dbuf_bw[crtc->pipe];
 	enum plane_id plane_id;
 
 	memset(dbuf_bw, 0, sizeof(*dbuf_bw));
@@ -1231,12 +1229,12 @@ static void skl_crtc_calc_dbuf_bw(struct intel_bw_state *bw_state,
 		if (plane_id == PLANE_CURSOR)
 			continue;
 
-		skl_plane_calc_dbuf_bw(bw_state, crtc, plane_id,
+		skl_plane_calc_dbuf_bw(dbuf_bw, crtc, plane_id,
 				       &crtc_state->wm.skl.plane_ddb[plane_id],
 				       crtc_state->data_rate[plane_id]);
 
 		if (DISPLAY_VER(display) < 11)
-			skl_plane_calc_dbuf_bw(bw_state, crtc, plane_id,
+			skl_plane_calc_dbuf_bw(dbuf_bw, crtc, plane_id,
 					       &crtc_state->wm.skl.plane_ddb_y[plane_id],
 					       crtc_state->data_rate[plane_id]);
 	}
@@ -1311,7 +1309,8 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 
 		old_bw_state = intel_atomic_get_old_bw_state(state);
 
-		skl_crtc_calc_dbuf_bw(new_bw_state, crtc_state);
+		skl_crtc_calc_dbuf_bw(&new_bw_state->dbuf_bw[crtc->pipe],
+				      crtc_state);
 	}
 
 	if (!old_bw_state)
