@@ -269,7 +269,7 @@ struct acpi_srat_gicc_affinity {
 
 #define ACPI_SRAT_GICC_ENABLED     (1)	/* 00: Use affinity structure */
 
-/* 4: GCC ITS Affinity (ACPI 6.2) */
+/* 4: GIC ITS Affinity (ACPI 6.2) */
 
 struct acpi_srat_gic_its_affinity {
 	struct acpi_subtable_header header;
