@@ -365,8 +365,348 @@ enum rtw89_band rtw89_acpi_sar_subband_to_band(struct rtw89_dev *rtwdev,
 	}
 }
 
+static u8 rtw89_acpi_sar_rfpath_to_hp_antidx(enum rtw89_rf_path rfpath)
+{
+	switch (rfpath) {
+	default:
+	case RF_PATH_B:
+		return 0;
+	case RF_PATH_A:
+		return 1;
+	}
+}
+
+static u8 rtw89_acpi_sar_rfpath_to_rt_antidx(enum rtw89_rf_path rfpath)
+{
+	switch (rfpath) {
+	default:
+	case RF_PATH_A:
+		return 0;
+	case RF_PATH_B:
+		return 1;
+	}
+}
+
+static s16 rtw89_acpi_sar_normalize_hp_val(u8 v)
+{
+	static const u8 bias = 10;
+	static const u8 fct = 1;
+	u16 res;
+
+	BUILD_BUG_ON(fct > TXPWR_FACTOR_OF_RTW89_ACPI_SAR);
+
+	res = (bias << TXPWR_FACTOR_OF_RTW89_ACPI_SAR) +
+	      (v << (TXPWR_FACTOR_OF_RTW89_ACPI_SAR - fct));
+
+	return min_t(s32, res, MAX_VAL_OF_RTW89_ACPI_SAR);
+}
+
+static s16 rtw89_acpi_sar_normalize_rt_val(u8 v)
+{
+	static const u8 fct = 3;
+	u16 res;
+
+	BUILD_BUG_ON(fct > TXPWR_FACTOR_OF_RTW89_ACPI_SAR);
+
+	res = v << (TXPWR_FACTOR_OF_RTW89_ACPI_SAR - fct);
+
+	return min_t(s32, res, MAX_VAL_OF_RTW89_ACPI_SAR);
+}
+
+static
+void rtw89_acpi_sar_load_std_legacy(struct rtw89_dev *rtwdev,
+				    const struct rtw89_acpi_sar_recognition *rec,
+				    const void *content,
+				    struct rtw89_sar_entry_from_acpi *ent)
+{
+	const struct rtw89_acpi_sar_std_legacy *ptr = content;
+	enum rtw89_acpi_sar_subband subband;
+	enum rtw89_rf_path path;
+
+	for (subband = 0; subband < NUM_OF_RTW89_ACPI_SAR_SUBBAND; subband++) {
+		for (path = 0; path < NUM_OF_RTW89_ACPI_SAR_RF_PATH; path++) {
+			u8 antidx = rec->rfpath_to_antidx(path);
+
+			if (subband < RTW89_ACPI_SAR_SUBBAND_NR_LEGACY)
+				ent->v[subband][path] =
+					rec->normalize(ptr->v[antidx][subband]);
+			else
+				ent->v[subband][path] = MAX_VAL_OF_RTW89_ACPI_SAR;
+		}
+	}
+}
+
+static
+void rtw89_acpi_sar_load_std_has_6ghz(struct rtw89_dev *rtwdev,
+				      const struct rtw89_acpi_sar_recognition *rec,
+				      const void *content,
+				      struct rtw89_sar_entry_from_acpi *ent)
+{
+	const struct rtw89_acpi_sar_std_has_6ghz *ptr = content;
+	enum rtw89_acpi_sar_subband subband;
+	enum rtw89_rf_path path;
+
+	BUILD_BUG_ON(RTW89_ACPI_SAR_SUBBAND_NR_HAS_6GHZ != NUM_OF_RTW89_ACPI_SAR_SUBBAND);
+
+	for (subband = 0; subband < NUM_OF_RTW89_ACPI_SAR_SUBBAND; subband++) {
+		for (path = 0; path < NUM_OF_RTW89_ACPI_SAR_RF_PATH; path++) {
+			u8 antidx = rec->rfpath_to_antidx(path);
+
+			ent->v[subband][path] = rec->normalize(ptr->v[antidx][subband]);
+		}
+	}
+}
+
+static
+void rtw89_acpi_sar_load_sml_legacy(struct rtw89_dev *rtwdev,
+				    const struct rtw89_acpi_sar_recognition *rec,
+				    const void *content,
+				    struct rtw89_sar_entry_from_acpi *ent)
+{
+	const struct rtw89_acpi_sar_sml_legacy *ptr = content;
+	enum rtw89_acpi_sar_subband subband;
+	enum rtw89_rf_path path;
+
+	for (subband = 0; subband < NUM_OF_RTW89_ACPI_SAR_SUBBAND; subband++) {
+		for (path = 0; path < NUM_OF_RTW89_ACPI_SAR_RF_PATH; path++) {
+			u8 antidx = rec->rfpath_to_antidx(path);
+
+			if (subband < RTW89_ACPI_SAR_SUBBAND_NR_LEGACY)
+				ent->v[subband][path] =
+					rec->normalize(ptr->v[antidx][subband]);
+			else
+				ent->v[subband][path] = MAX_VAL_OF_RTW89_ACPI_SAR;
+		}
+	}
+}
+
+static
+void rtw89_acpi_sar_load_sml_has_6ghz(struct rtw89_dev *rtwdev,
+				      const struct rtw89_acpi_sar_recognition *rec,
+				      const void *content,
+				      struct rtw89_sar_entry_from_acpi *ent)
+{
+	const struct rtw89_acpi_sar_sml_has_6ghz *ptr = content;
+	enum rtw89_acpi_sar_subband subband;
+	enum rtw89_rf_path path;
+
+	BUILD_BUG_ON(RTW89_ACPI_SAR_SUBBAND_NR_HAS_6GHZ != NUM_OF_RTW89_ACPI_SAR_SUBBAND);
+
+	for (subband = 0; subband < NUM_OF_RTW89_ACPI_SAR_SUBBAND; subband++) {
+		for (path = 0; path < NUM_OF_RTW89_ACPI_SAR_RF_PATH; path++) {
+			u8 antidx = rec->rfpath_to_antidx(path);
+
+			ent->v[subband][path] = rec->normalize(ptr->v[antidx][subband]);
+		}
+	}
+}
+
+static const struct rtw89_acpi_sar_recognition rtw89_acpi_sar_recs[] = {
+	{
+		.id = {
+			.cid = RTW89_ACPI_SAR_CID_HP,
+			.rev = RTW89_ACPI_SAR_REV_LEGACY,
+			.size = RTW89_ACPI_SAR_SIZE_OF(std_legacy),
+		},
+
+		.rfpath_to_antidx = rtw89_acpi_sar_rfpath_to_hp_antidx,
+		.normalize = rtw89_acpi_sar_normalize_hp_val,
+		.load = rtw89_acpi_sar_load_std_legacy,
+	},
+	{
+		.id = {
+			.cid = RTW89_ACPI_SAR_CID_HP,
+			.rev = RTW89_ACPI_SAR_REV_HAS_6GHZ,
+			.size = RTW89_ACPI_SAR_SIZE_OF(std_has_6ghz),
+		},
+
+		.rfpath_to_antidx = rtw89_acpi_sar_rfpath_to_hp_antidx,
+		.normalize = rtw89_acpi_sar_normalize_hp_val,
+		.load = rtw89_acpi_sar_load_std_has_6ghz,
+	},
+	{
+		.id = {
+			.cid = RTW89_ACPI_SAR_CID_RT,
+			.rev = RTW89_ACPI_SAR_REV_LEGACY,
+			.size = RTW89_ACPI_SAR_SIZE_OF(std_legacy),
+		},
+
+		.rfpath_to_antidx = rtw89_acpi_sar_rfpath_to_rt_antidx,
+		.normalize = rtw89_acpi_sar_normalize_rt_val,
+		.load = rtw89_acpi_sar_load_std_legacy,
+	},
+	{
+		.id = {
+			.cid = RTW89_ACPI_SAR_CID_RT,
+			.rev = RTW89_ACPI_SAR_REV_HAS_6GHZ,
+			.size = RTW89_ACPI_SAR_SIZE_OF(std_has_6ghz),
+		},
+
+		.rfpath_to_antidx = rtw89_acpi_sar_rfpath_to_rt_antidx,
+		.normalize = rtw89_acpi_sar_normalize_rt_val,
+		.load = rtw89_acpi_sar_load_std_has_6ghz,
+	},
+	{
+		.id = {
+			.cid = RTW89_ACPI_SAR_CID_RT,
+			.rev = RTW89_ACPI_SAR_REV_LEGACY,
+			.size = RTW89_ACPI_SAR_SIZE_OF(sml_legacy),
+		},
+
+		.rfpath_to_antidx = rtw89_acpi_sar_rfpath_to_rt_antidx,
+		.normalize = rtw89_acpi_sar_normalize_rt_val,
+		.load = rtw89_acpi_sar_load_sml_legacy,
+	},
+	{
+		.id = {
+			.cid = RTW89_ACPI_SAR_CID_RT,
+			.rev = RTW89_ACPI_SAR_REV_HAS_6GHZ,
+			.size = RTW89_ACPI_SAR_SIZE_OF(sml_has_6ghz),
+		},
+
+		.rfpath_to_antidx = rtw89_acpi_sar_rfpath_to_rt_antidx,
+		.normalize = rtw89_acpi_sar_normalize_rt_val,
+		.load = rtw89_acpi_sar_load_sml_has_6ghz,
+	},
+};
+
+struct rtw89_acpi_sar_rec_parm {
+	u32 pld_len;
+	u8 tbl_cnt;
+	u16 cid;
+	u8 rev;
+};
+
+static const struct rtw89_acpi_sar_recognition *
+rtw89_acpi_sar_recognize(struct rtw89_dev *rtwdev,
+			 const struct rtw89_acpi_sar_rec_parm *parm)
+{
+	const u32 tbl_len = parm->pld_len / parm->tbl_cnt;
+	const struct rtw89_acpi_sar_recognition *rec;
+	struct rtw89_acpi_sar_identifier id = {};
+
+	rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+		    "%s: cid %u, rev %u, tbl len %u, tbl cnt %u\n",
+		    __func__, parm->cid, parm->rev, tbl_len, parm->tbl_cnt);
+
+	if (unlikely(parm->pld_len % parm->tbl_cnt)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "invalid pld len %u\n",
+			    parm->pld_len);
+		return NULL;
+	}
+
+	if (unlikely(tbl_len > RTW89_ACPI_SAR_SIZE_MAX)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "invalid tbl len %u\n",
+			    tbl_len);
+		return NULL;
+	}
+
+	if (unlikely(parm->tbl_cnt > MAX_NUM_OF_RTW89_ACPI_SAR_TBL)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "invalid tbl cnt %u\n",
+			    parm->tbl_cnt);
+		return NULL;
+	}
+
+	switch (parm->cid) {
+	case RTW89_ACPI_SAR_CID_HP:
+	case RTW89_ACPI_SAR_CID_RT:
+		id.cid = parm->cid;
+		break;
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "invalid cid 0x%x\n",
+			    parm->cid);
+		return NULL;
+	}
+
+	switch (parm->rev) {
+	case RTW89_ACPI_SAR_REV_LEGACY:
+	case RTW89_ACPI_SAR_REV_HAS_6GHZ:
+		id.rev = parm->rev;
+		break;
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "invalid rev %u\n",
+			    parm->rev);
+		return NULL;
+	}
+
+	id.size = tbl_len;
+	for (unsigned int i = 0; i < ARRAY_SIZE(rtw89_acpi_sar_recs); i++) {
+		rec = &rtw89_acpi_sar_recs[i];
+		if (memcmp(&rec->id, &id, sizeof(rec->id)) == 0)
+			return rec;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_ACPI, "failed to recognize\n");
+	return NULL;
+}
+
+static const struct rtw89_acpi_sar_recognition *
+rtw89_acpi_evaluate_static_sar(struct rtw89_dev *rtwdev,
+			       struct rtw89_sar_cfg_acpi *cfg)
+{
+	const struct rtw89_acpi_sar_recognition *rec = NULL;
+	const struct rtw89_acpi_static_sar_hdr *hdr;
+	struct rtw89_sar_entry_from_acpi tmp = {};
+	struct rtw89_acpi_sar_rec_parm parm = {};
+	struct rtw89_sar_table_from_acpi *tbl;
+	const struct rtw89_acpi_data *data;
+	u32 len;
+
+	data = rtw89_acpi_evaluate_method(rtwdev, RTW89_ACPI_METHOD_STATIC_SAR);
+	if (!data)
+		return NULL;
+
+	rtw89_debug(rtwdev, RTW89_DBG_ACPI, "acpi load static sar\n");
+
+	len = data->len;
+	if (len <= sizeof(*hdr)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "invalid buf len %u\n", len);
+		goto out;
+	}
+
+	hdr = (typeof(hdr))data->buf;
+
+	parm.cid = le16_to_cpu(hdr->cid);
+	parm.rev = hdr->rev;
+	parm.tbl_cnt = 1;
+	parm.pld_len = len - sizeof(*hdr);
+
+	rec = rtw89_acpi_sar_recognize(rtwdev, &parm);
+	if (!rec)
+		goto out;
+
+	rec->load(rtwdev, rec, hdr->content, &tmp);
+
+	tbl = &cfg->tables[0];
+	for (u8 regd = 0; regd < RTW89_REGD_NUM; regd++)
+		tbl->entries[regd] = tmp;
+
+	cfg->valid_num = 1;
+
+out:
+	kfree(data);
+	return rec;
+}
+
 int rtw89_acpi_evaluate_sar(struct rtw89_dev *rtwdev,
 			    struct rtw89_sar_cfg_acpi *cfg)
 {
-	return -ENOENT;
+	const struct rtw89_acpi_sar_recognition *rec;
+
+	rec = rtw89_acpi_evaluate_static_sar(rtwdev, cfg);
+	if (!rec)
+		return -ENOENT;
+
+	switch (rec->id.cid) {
+	case RTW89_ACPI_SAR_CID_HP:
+		cfg->downgrade_2tx = 3 << TXPWR_FACTOR_OF_RTW89_ACPI_SAR;
+		break;
+	case RTW89_ACPI_SAR_CID_RT:
+		cfg->downgrade_2tx = 0;
+		break;
+	default:
+		return -EFAULT;
+	}
+
+	return 0;
 }

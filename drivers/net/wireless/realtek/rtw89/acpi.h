@@ -75,6 +75,67 @@ struct rtw89_acpi_rtag_result {
 	u8 ant_gain_table[RTW89_ANT_GAIN_CHAIN_NUM][RTW89_ANT_GAIN_SUBBAND_NR];
 } __packed;
 
+enum rtw89_acpi_sar_cid {
+	RTW89_ACPI_SAR_CID_HP = 0x5048,
+	RTW89_ACPI_SAR_CID_RT = 0x5452,
+};
+
+enum rtw89_acpi_sar_rev {
+	RTW89_ACPI_SAR_REV_LEGACY = 1,
+	RTW89_ACPI_SAR_REV_HAS_6GHZ = 2,
+};
+
+#define RTW89_ACPI_SAR_ANT_NR_STD 4
+#define RTW89_ACPI_SAR_ANT_NR_SML 2
+
+#define RTW89_ACPI_METHOD_STATIC_SAR "WRDS"
+
+struct rtw89_acpi_sar_std_legacy {
+	u8 v[RTW89_ACPI_SAR_ANT_NR_STD][RTW89_ACPI_SAR_SUBBAND_NR_LEGACY];
+} __packed;
+
+struct rtw89_acpi_sar_std_has_6ghz {
+	u8 v[RTW89_ACPI_SAR_ANT_NR_STD][RTW89_ACPI_SAR_SUBBAND_NR_HAS_6GHZ];
+} __packed;
+
+struct rtw89_acpi_sar_sml_legacy {
+	u8 v[RTW89_ACPI_SAR_ANT_NR_SML][RTW89_ACPI_SAR_SUBBAND_NR_LEGACY];
+} __packed;
+
+struct rtw89_acpi_sar_sml_has_6ghz {
+	u8 v[RTW89_ACPI_SAR_ANT_NR_SML][RTW89_ACPI_SAR_SUBBAND_NR_HAS_6GHZ];
+} __packed;
+
+struct rtw89_acpi_static_sar_hdr {
+	__le16 cid;
+	u8 rev;
+	u8 content[];
+} __packed;
+
+struct rtw89_acpi_sar_identifier {
+	enum rtw89_acpi_sar_cid cid;
+	enum rtw89_acpi_sar_rev rev;
+	u8 size;
+};
+
+/* for rtw89_acpi_sar_identifier::size */
+#define RTW89_ACPI_SAR_SIZE_MAX U8_MAX
+#define RTW89_ACPI_SAR_SIZE_OF(type) \
+	(BUILD_BUG_ON_ZERO(sizeof(struct rtw89_acpi_sar_ ## type) > \
+			   RTW89_ACPI_SAR_SIZE_MAX) + \
+	 sizeof(struct rtw89_acpi_sar_ ## type))
+
+struct rtw89_acpi_sar_recognition {
+	struct rtw89_acpi_sar_identifier id;
+
+	u8 (*rfpath_to_antidx)(enum rtw89_rf_path rfpath);
+	s16 (*normalize)(u8 v);
+	void (*load)(struct rtw89_dev *rtwdev,
+		     const struct rtw89_acpi_sar_recognition *rec,
+		     const void *content,
+		     struct rtw89_sar_entry_from_acpi *ent);
+};
+
 enum rtw89_acpi_sar_subband rtw89_acpi_sar_get_subband(struct rtw89_dev *rtwdev,
 						       u32 center_freq);
 enum rtw89_band rtw89_acpi_sar_subband_to_band(struct rtw89_dev *rtwdev,
