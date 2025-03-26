@@ -458,42 +458,6 @@ bool intel_can_enable_sagv(struct drm_i915_private *i915,
 	return bw_state->pipe_sagv_reject == 0;
 }
 
-static int intel_compute_sagv_mask(struct intel_atomic_state *state)
-{
-	struct intel_display *display = to_intel_display(state);
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	struct intel_crtc *crtc;
-	struct intel_crtc_state *new_crtc_state;
-	int i;
-
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
-		struct skl_pipe_wm *pipe_wm = &new_crtc_state->wm.skl.optimal;
-
-		/*
-		 * We store use_sagv_wm in the crtc state rather than relying on
-		 * that bw state since we have no convenient way to get at the
-		 * latter from the plane commit hooks (especially in the legacy
-		 * cursor case).
-		 *
-		 * drm_atomic_check_only() gets upset if we pull more crtcs
-		 * into the state, so we have to calculate this based on the
-		 * individual intel_crtc_can_enable_sagv() rather than
-		 * the overall intel_can_enable_sagv(). Otherwise the
-		 * crtcs not included in the commit would not switch to the
-		 * SAGV watermarks when we are about to enable SAGV, and that
-		 * would lead to underruns. This does mean extra power draw
-		 * when only a subset of the crtcs are blocking SAGV as the
-		 * other crtcs can't be allowed to use the more optimal
-		 * normal (ie. non-SAGV) watermarks.
-		 */
-		pipe_wm->use_sagv_wm = !HAS_HW_SAGV_WM(display) &&
-			DISPLAY_VER(i915) >= 12 &&
-			intel_crtc_can_enable_sagv(new_crtc_state);
-	}
-
-	return 0;
-}
-
 static u16 skl_ddb_entry_init(struct skl_ddb_entry *entry,
 			      u16 start, u16 end)
 {
@@ -3028,6 +2992,7 @@ intel_program_dpkgc_latency(struct intel_atomic_state *state)
 static int
 skl_compute_wm(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state __maybe_unused *new_crtc_state;
 	int ret, i;
@@ -3042,16 +3007,35 @@ skl_compute_wm(struct intel_atomic_state *state)
 	if (ret)
 		return ret;
 
-	ret = intel_compute_sagv_mask(state);
-	if (ret)
-		return ret;
-
 	/*
 	 * skl_compute_ddb() will have adjusted the final watermarks
 	 * based on how much ddb is available. Now we can actually
 	 * check if the final watermarks changed.
 	 */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		struct skl_pipe_wm *pipe_wm = &new_crtc_state->wm.skl.optimal;
+
+		/*
+		 * We store use_sagv_wm in the crtc state rather than relying on
+		 * that bw state since we have no convenient way to get at the
+		 * latter from the plane commit hooks (especially in the legacy
+		 * cursor case).
+		 *
+		 * drm_atomic_check_only() gets upset if we pull more crtcs
+		 * into the state, so we have to calculate this based on the
+		 * individual intel_crtc_can_enable_sagv() rather than
+		 * the overall intel_can_enable_sagv(). Otherwise the
+		 * crtcs not included in the commit would not switch to the
+		 * SAGV watermarks when we are about to enable SAGV, and that
+		 * would lead to underruns. This does mean extra power draw
+		 * when only a subset of the crtcs are blocking SAGV as the
+		 * other crtcs can't be allowed to use the more optimal
+		 * normal (ie. non-SAGV) watermarks.
+		 */
+		pipe_wm->use_sagv_wm = !HAS_HW_SAGV_WM(display) &&
+			DISPLAY_VER(display) >= 12 &&
+			intel_crtc_can_enable_sagv(new_crtc_state);
+
 		ret = skl_wm_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
