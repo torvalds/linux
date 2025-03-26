@@ -78,7 +78,7 @@ src/timerlat.bpf.o: src/timerlat.bpf.c
 	$(QUIET_CLANG)$(CLANG) -g -O2 -target bpf -c $(filter %.c,$^) -o $@
 
 src/timerlat.skel.h: src/timerlat.bpf.o
-	$(QUIET_GENSKEL)$(BPFTOOL) gen skeleton $< > $@
+	$(QUIET_GENSKEL)$(SYSTEM_BPFTOOL) gen skeleton $< > $@
 else
 src/timerlat.skel.h:
 	$(Q)echo '/* BPF skeleton is disabled */' > src/timerlat.skel.h
