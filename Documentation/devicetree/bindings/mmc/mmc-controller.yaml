@@ -24,7 +24,7 @@ properties:
   $nodename:
     pattern: "^mmc(@.*)?$"
 
-unevaluatedProperties: true
+additionalProperties: true
 
 examples:
   - |
