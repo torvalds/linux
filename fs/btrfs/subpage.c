@@ -204,7 +204,7 @@ static void btrfs_subpage_assert(const struct btrfs_fs_info *fs_info,
 			   btrfs_blocks_per_folio(fs_info, folio);	\
 									\
 	btrfs_subpage_assert(fs_info, folio, start, len);		\
-	__start_bit = offset_in_page(start) >> fs_info->sectorsize_bits; \
+	__start_bit = offset_in_folio(folio, start) >> fs_info->sectorsize_bits; \
 	__start_bit += blocks_per_folio * btrfs_bitmap_nr_##name;	\
 	__start_bit;							\
 })
