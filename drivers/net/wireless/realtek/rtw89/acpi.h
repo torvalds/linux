@@ -91,6 +91,7 @@ enum rtw89_acpi_sar_rev {
 #define RTW89_ACPI_METHOD_STATIC_SAR "WRDS"
 #define RTW89_ACPI_METHOD_DYNAMIC_SAR "RWRD"
 #define RTW89_ACPI_METHOD_DYNAMIC_SAR_INDICATOR "RWSI"
+#define RTW89_ACPI_METHOD_GEO_SAR "RWGS"
 
 struct rtw89_acpi_sar_std_legacy {
 	u8 v[RTW89_ACPI_SAR_ANT_NR_STD][RTW89_ACPI_SAR_SUBBAND_NR_LEGACY];
@@ -136,6 +137,7 @@ struct rtw89_acpi_sar_identifier {
 
 struct rtw89_acpi_sar_recognition {
 	struct rtw89_acpi_sar_identifier id;
+	const struct rtw89_acpi_geo_sar_handler *geo;
 
 	u8 (*rfpath_to_antidx)(enum rtw89_rf_path rfpath);
 	s16 (*normalize)(u8 v);
@@ -144,6 +146,93 @@ struct rtw89_acpi_sar_recognition {
 		     const void *content,
 		     struct rtw89_sar_entry_from_acpi *ent);
 };
+
+struct rtw89_acpi_geo_sar_hp_val {
+	u8 max;
+	s8 delta[RTW89_ACPI_SAR_ANT_NR_STD];
+} __packed;
+
+struct rtw89_acpi_geo_sar_hp_legacy_entry {
+	struct rtw89_acpi_geo_sar_hp_val val_2ghz;
+	struct rtw89_acpi_geo_sar_hp_val val_5ghz;
+} __packed;
+
+struct rtw89_acpi_geo_sar_hp_has_6ghz_entry {
+	struct rtw89_acpi_geo_sar_hp_val val_2ghz;
+	struct rtw89_acpi_geo_sar_hp_val val_5ghz;
+	struct rtw89_acpi_geo_sar_hp_val val_6ghz;
+} __packed;
+
+enum rtw89_acpi_geo_sar_regd_hp {
+	RTW89_ACPI_GEO_SAR_REGD_HP_FCC = 0,
+	RTW89_ACPI_GEO_SAR_REGD_HP_ETSI = 1,
+	RTW89_ACPI_GEO_SAR_REGD_HP_WW = 2,
+
+	RTW89_ACPI_GEO_SAR_REGD_NR_HP,
+};
+
+struct rtw89_acpi_geo_sar_hp_legacy {
+	struct rtw89_acpi_geo_sar_hp_legacy_entry
+		entries[RTW89_ACPI_GEO_SAR_REGD_NR_HP];
+} __packed;
+
+struct rtw89_acpi_geo_sar_hp_has_6ghz {
+	struct rtw89_acpi_geo_sar_hp_has_6ghz_entry
+		entries[RTW89_ACPI_GEO_SAR_REGD_NR_HP];
+} __packed;
+
+struct rtw89_acpi_geo_sar_rt_val {
+	u8 max;
+	s8 delta;
+} __packed;
+
+struct rtw89_acpi_geo_sar_rt_legacy_entry {
+	struct rtw89_acpi_geo_sar_rt_val val_2ghz;
+	struct rtw89_acpi_geo_sar_rt_val val_5ghz;
+} __packed;
+
+struct rtw89_acpi_geo_sar_rt_has_6ghz_entry {
+	struct rtw89_acpi_geo_sar_rt_val val_2ghz;
+	struct rtw89_acpi_geo_sar_rt_val val_5ghz;
+	struct rtw89_acpi_geo_sar_rt_val val_6ghz;
+} __packed;
+
+enum rtw89_acpi_geo_sar_regd_rt {
+	RTW89_ACPI_GEO_SAR_REGD_RT_FCC = 0,
+	RTW89_ACPI_GEO_SAR_REGD_RT_ETSI = 1,
+	RTW89_ACPI_GEO_SAR_REGD_RT_MKK = 2,
+	RTW89_ACPI_GEO_SAR_REGD_RT_IC = 3,
+	RTW89_ACPI_GEO_SAR_REGD_RT_KCC = 4,
+	RTW89_ACPI_GEO_SAR_REGD_RT_WW = 5,
+
+	RTW89_ACPI_GEO_SAR_REGD_NR_RT,
+};
+
+struct rtw89_acpi_geo_sar_rt_legacy {
+	struct rtw89_acpi_geo_sar_rt_legacy_entry
+		entries[RTW89_ACPI_GEO_SAR_REGD_NR_RT];
+} __packed;
+
+struct rtw89_acpi_geo_sar_rt_has_6ghz {
+	struct rtw89_acpi_geo_sar_rt_has_6ghz_entry
+		entries[RTW89_ACPI_GEO_SAR_REGD_NR_RT];
+} __packed;
+
+struct rtw89_acpi_geo_sar_handler {
+	u8 data_size;
+
+	void (*load)(struct rtw89_dev *rtwdev,
+		     const void *content,
+		     enum rtw89_regulation_type regd,
+		     struct rtw89_sar_entry_from_acpi *ent);
+};
+
+/* for rtw89_acpi_geo_sar_handler::data_size */
+#define RTW89_ACPI_GEO_SAR_SIZE_MAX U8_MAX
+#define RTW89_ACPI_GEO_SAR_SIZE_OF(type) \
+	(BUILD_BUG_ON_ZERO(sizeof(struct rtw89_acpi_geo_sar_ ## type) > \
+			   RTW89_ACPI_GEO_SAR_SIZE_MAX) + \
+	 sizeof(struct rtw89_acpi_geo_sar_ ## type))
 
 enum rtw89_acpi_sar_subband rtw89_acpi_sar_get_subband(struct rtw89_dev *rtwdev,
 						       u32 center_freq);
