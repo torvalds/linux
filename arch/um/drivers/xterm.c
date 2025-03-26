@@ -81,7 +81,7 @@ __uml_setup("xterm=", xterm_setup,
 "    '<switch> command arg1 arg2 ...'.\n"
 "    The default values are 'xterm=" CONFIG_XTERM_CHAN_DEFAULT_EMULATOR
      ",-T,-e'.\n"
-"    Values for gnome-terminal are 'xterm=gnome-terminal,-t,-x'.\n\n"
+"    Values for gnome-terminal are 'xterm=gnome-terminal,-t,--'.\n\n"
 );
 
 static int xterm_open(int input, int output, int primary, void *d,
