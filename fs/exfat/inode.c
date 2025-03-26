@@ -391,6 +391,8 @@ static int exfat_get_block(struct inode *inode, sector_t iblock,
 			/* Zero unwritten part of a block */
 			memset(bh_result->b_data + size, 0,
 			       bh_result->b_size - size);
+
+			err = 0;
 		} else {
 			/*
 			 * The range has not been written, clear the mapped flag
