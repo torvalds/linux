@@ -7,16 +7,17 @@
  * Copyright (C) 2014, Freescale Semiconductor, Inc.
  */
 
-#include <linux/err.h>
-#include <linux/errno.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/err.h>
+#include <linux/errno.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/spi-nor.h>
 #include <linux/mutex.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sizes.h>
@@ -639,32 +640,26 @@ static bool spi_nor_use_parallel_locking(struct spi_nor *nor)
 static int spi_nor_rww_start_rdst(struct spi_nor *nor)
 {
 	struct spi_nor_rww *rww = &nor->rww;
-	int ret = -EAGAIN;
 
-	mutex_lock(&nor->lock);
+	guard(mutex)(&nor->lock);
 
 	if (rww->ongoing_io || rww->ongoing_rd)
-		goto busy;
+		return -EAGAIN;
 
 	rww->ongoing_io = true;
 	rww->ongoing_rd = true;
-	ret = 0;
 
-busy:
-	mutex_unlock(&nor->lock);
-	return ret;
+	return 0;
 }
 
 static void spi_nor_rww_end_rdst(struct spi_nor *nor)
 {
 	struct spi_nor_rww *rww = &nor->rww;
 
-	mutex_lock(&nor->lock);
+	guard(mutex)(&nor->lock);
 
 	rww->ongoing_io = false;
 	rww->ongoing_rd = false;
-
-	mutex_unlock(&nor->lock);
 }
 
 static int spi_nor_lock_rdst(struct spi_nor *nor)
@@ -1212,26 +1207,21 @@ static void spi_nor_offset_to_banks(u64 bank_size, loff_t start, size_t len,
 static bool spi_nor_rww_start_io(struct spi_nor *nor)
 {
 	struct spi_nor_rww *rww = &nor->rww;
-	bool start = false;
 
-	mutex_lock(&nor->lock);
+	guard(mutex)(&nor->lock);
 
 	if (rww->ongoing_io)
-		goto busy;
+		return false;
 
 	rww->ongoing_io = true;
-	start = true;
 
-busy:
-	mutex_unlock(&nor->lock);
-	return start;
+	return true;
 }
 
 static void spi_nor_rww_end_io(struct spi_nor *nor)
 {
-	mutex_lock(&nor->lock);
+	guard(mutex)(&nor->lock);
 	nor->rww.ongoing_io = false;
-	mutex_unlock(&nor->lock);
 }
 
 static int spi_nor_lock_device(struct spi_nor *nor)
@@ -1254,32 +1244,27 @@ static void spi_nor_unlock_device(struct spi_nor *nor)
 static bool spi_nor_rww_start_exclusive(struct spi_nor *nor)
 {
 	struct spi_nor_rww *rww = &nor->rww;
-	bool start = false;
 
 	mutex_lock(&nor->lock);
 
 	if (rww->ongoing_io || rww->ongoing_rd || rww->ongoing_pe)
-		goto busy;
+		return false;
 
 	rww->ongoing_io = true;
 	rww->ongoing_rd = true;
 	rww->ongoing_pe = true;
-	start = true;
 
-busy:
-	mutex_unlock(&nor->lock);
-	return start;
+	return true;
 }
 
 static void spi_nor_rww_end_exclusive(struct spi_nor *nor)
 {
 	struct spi_nor_rww *rww = &nor->rww;
 
-	mutex_lock(&nor->lock);
+	guard(mutex)(&nor->lock);
 	rww->ongoing_io = false;
 	rww->ongoing_rd = false;
 	rww->ongoing_pe = false;
-	mutex_unlock(&nor->lock);
 }
 
 int spi_nor_prep_and_lock(struct spi_nor *nor)
@@ -1316,30 +1301,26 @@ static bool spi_nor_rww_start_pe(struct spi_nor *nor, loff_t start, size_t len)
 {
 	struct spi_nor_rww *rww = &nor->rww;
 	unsigned int used_banks = 0;
-	bool started = false;
 	u8 first, last;
 	int bank;
 
-	mutex_lock(&nor->lock);
+	guard(mutex)(&nor->lock);
 
 	if (rww->ongoing_io || rww->ongoing_rd || rww->ongoing_pe)
-		goto busy;
+		return false;
 
 	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
 	for (bank = first; bank <= last; bank++) {
 		if (rww->used_banks & BIT(bank))
-			goto busy;
+			return false;
 
 		used_banks |= BIT(bank);
 	}
 
 	rww->used_banks |= used_banks;
 	rww->ongoing_pe = true;
-	started = true;
 
-busy:
-	mutex_unlock(&nor->lock);
-	return started;
+	return true;
 }
 
 static void spi_nor_rww_end_pe(struct spi_nor *nor, loff_t start, size_t len)
@@ -1348,15 +1329,13 @@ static void spi_nor_rww_end_pe(struct spi_nor *nor, loff_t start, size_t len)
 	u8 first, last;
 	int bank;
 
-	mutex_lock(&nor->lock);
+	guard(mutex)(&nor->lock);
 
 	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
 	for (bank = first; bank <= last; bank++)
 		rww->used_banks &= ~BIT(bank);
 
 	rww->ongoing_pe = false;
-
-	mutex_unlock(&nor->lock);
 }
 
 static int spi_nor_prep_and_lock_pe(struct spi_nor *nor, loff_t start, size_t len)
@@ -1393,19 +1372,18 @@ static bool spi_nor_rww_start_rd(struct spi_nor *nor, loff_t start, size_t len)
 {
 	struct spi_nor_rww *rww = &nor->rww;
 	unsigned int used_banks = 0;
-	bool started = false;
 	u8 first, last;
 	int bank;
 
-	mutex_lock(&nor->lock);
+	guard(mutex)(&nor->lock);
 
 	if (rww->ongoing_io || rww->ongoing_rd)
-		goto busy;
+		return false;
 
 	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
 	for (bank = first; bank <= last; bank++) {
 		if (rww->used_banks & BIT(bank))
-			goto busy;
+			return false;
 
 		used_banks |= BIT(bank);
 	}
@@ -1413,11 +1391,8 @@ static bool spi_nor_rww_start_rd(struct spi_nor *nor, loff_t start, size_t len)
 	rww->used_banks |= used_banks;
 	rww->ongoing_io = true;
 	rww->ongoing_rd = true;
-	started = true;
 
-busy:
-	mutex_unlock(&nor->lock);
-	return started;
+	return true;
 }
 
 static void spi_nor_rww_end_rd(struct spi_nor *nor, loff_t start, size_t len)
@@ -1426,7 +1401,7 @@ static void spi_nor_rww_end_rd(struct spi_nor *nor, loff_t start, size_t len)
 	u8 first, last;
 	int bank;
 
-	mutex_lock(&nor->lock);
+	guard(mutex)(&nor->lock);
 
 	spi_nor_offset_to_banks(nor->params->bank_size, start, len, &first, &last);
 	for (bank = first; bank <= last; bank++)
@@ -1434,8 +1409,6 @@ static void spi_nor_rww_end_rd(struct spi_nor *nor, loff_t start, size_t len)
 
 	rww->ongoing_io = false;
 	rww->ongoing_rd = false;
-
-	mutex_unlock(&nor->lock);
 }
 
 static int spi_nor_prep_and_lock_rd(struct spi_nor *nor, loff_t start, size_t len)
