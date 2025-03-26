@@ -1294,7 +1294,8 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 	struct intel_bw_state *new_bw_state = NULL;
 	const struct intel_bw_state *old_bw_state = NULL;
 	const struct intel_cdclk_state *cdclk_state;
-	const struct intel_crtc_state *crtc_state;
+	const struct intel_crtc_state *old_crtc_state;
+	const struct intel_crtc_state *new_crtc_state;
 	int old_min_cdclk, new_min_cdclk;
 	struct intel_crtc *crtc;
 	int i;
@@ -1302,15 +1303,23 @@ int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
 	if (DISPLAY_VER(display) < 9)
 		return 0;
 
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		struct intel_dbuf_bw old_dbuf_bw, new_dbuf_bw;
+
+		skl_crtc_calc_dbuf_bw(&old_dbuf_bw, old_crtc_state);
+		skl_crtc_calc_dbuf_bw(&new_dbuf_bw, new_crtc_state);
+
+		if (!intel_dbuf_bw_changed(display, &old_dbuf_bw, &new_dbuf_bw))
+			continue;
+
 		new_bw_state = intel_atomic_get_bw_state(state);
 		if (IS_ERR(new_bw_state))
 			return PTR_ERR(new_bw_state);
 
 		old_bw_state = intel_atomic_get_old_bw_state(state);
 
-		skl_crtc_calc_dbuf_bw(&new_bw_state->dbuf_bw[crtc->pipe],
-				      crtc_state);
+		new_bw_state->dbuf_bw[crtc->pipe] = new_dbuf_bw;
 	}
 
 	if (!old_bw_state)
