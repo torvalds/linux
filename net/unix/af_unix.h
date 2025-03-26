@@ -8,9 +8,6 @@
 #define UNIX_HASH_SIZE	(256 * 2)
 #define UNIX_HASH_BITS	8
 
-#define unix_state_lock(s)	spin_lock(&unix_sk(s)->lock)
-#define unix_state_unlock(s)	spin_unlock(&unix_sk(s)->lock)
-
 struct sock *unix_peer_get(struct sock *sk);
 
 struct unix_skb_parms {
