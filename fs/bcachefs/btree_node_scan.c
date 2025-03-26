@@ -13,6 +13,7 @@
 
 #include <linux/kthread.h>
 #include <linux/min_heap.h>
+#include <linux/sched/sysctl.h>
 #include <linux/sort.h>
 
 struct find_btree_nodes_worker {
@@ -313,7 +314,8 @@ static int read_btree_nodes(struct find_btree_nodes *f)
 		wake_up_process(t);
 	}
 err:
-	closure_sync(&cl);
+	while (closure_sync_timeout(&cl, sysctl_hung_task_timeout_secs * HZ / 2))
+		;
 	return f->ret ?: ret;
 }
 
