@@ -6,7 +6,8 @@ The new repository for NeTT OS. Yes, after 5 years of NeTT OS (called TouchOS at
 
 NeTT OS 6 has been cancalled, with NeTT OS being released some time in 2029.
 
-![NeT OS25 Pages](https://github.com/user-attachments/assets/f7807686-3905-40f7-b110-3789621d7877)
+
+![NeT OS 7 Pages](https://github.com/user-attachments/assets/453a7c94-1b39-44fb-9f00-87a0b0299e33)
 
 
 Linux kernel
