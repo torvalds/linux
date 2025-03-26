@@ -16,7 +16,7 @@ struct process_cmd_struct {
 	int arg;
 };
 
-static const char *version_str = "v1.21";
+static const char *version_str = "v1.22";
 
 static const int supported_api_ver = 3;
 static struct isst_if_platform_info isst_platform_info;
@@ -46,8 +46,9 @@ static int force_online_offline;
 static int auto_mode;
 static int fact_enable_fail;
 static int cgroupv2;
+static int max_pkg_id;
 static int max_die_id;
-static int max_punit_id;
+static int max_die_id_package_0;
 
 /* clos related */
 static int current_clos = -1;
@@ -557,6 +558,8 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 		if (id.pkg < 0 || id.die < 0 || id.punit < 0)
 			continue;
 
+		id.die = id.die % (max_die_id_package_0 + 1);
+
 		valid_mask[id.pkg][id.die] = 1;
 
 		if (cpus[id.pkg][id.die][id.punit] == -1)
@@ -564,11 +567,11 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 	}
 
 	for (i = 0; i < MAX_PACKAGE_COUNT; i++) {
-		if (max_die_id == max_punit_id) {
+		if (max_die_id > max_pkg_id) {
 			for (k = 0; k < MAX_PUNIT_PER_DIE && k < MAX_DIE_PER_PACKAGE; k++) {
 				id.cpu = cpus[i][k][k];
 				id.pkg = i;
-				id.die = k;
+				id.die = get_physical_die_id(id.cpu);
 				id.punit = k;
 				if (isst_is_punit_valid(&id))
 					callback(&id, arg1, arg2, arg3, arg4);
@@ -586,7 +589,10 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 			for (k = 0; k < MAX_PUNIT_PER_DIE; k++) {
 				id.cpu = cpus[i][j][k];
 				id.pkg = i;
-				id.die = j;
+				if (id.cpu >= 0)
+					id.die = get_physical_die_id(id.cpu);
+				else
+					id.die = id.pkg;
 				id.punit = k;
 				if (isst_is_punit_valid(&id))
 					callback(&id, arg1, arg2, arg3, arg4);
@@ -788,6 +794,8 @@ static void create_cpu_map(void)
 		cpu_map[i].die_id = die_id;
 		cpu_map[i].core_id = core_id;
 
+		if (max_pkg_id < pkg_id)
+			max_pkg_id = pkg_id;
 
 		punit_id = 0;
 
@@ -812,8 +820,8 @@ static void create_cpu_map(void)
 		if (max_die_id < die_id)
 			max_die_id = die_id;
 
-		if (max_punit_id < cpu_map[i].punit_id)
-			max_punit_id = cpu_map[i].punit_id;
+		if (!pkg_id && max_die_id_package_0 < die_id)
+			max_die_id_package_0 = die_id;
 
 		debug_printf(
 			"map logical_cpu:%d core: %d die:%d pkg:%d punit:%d punit_cpu:%d punit_core:%d\n",

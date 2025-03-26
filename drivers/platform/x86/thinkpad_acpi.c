@@ -39,7 +39,6 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
-#include <linux/fb.h>
 #include <linux/freezer.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
@@ -368,9 +367,6 @@ static struct {
 	u32 beep_needs_two_args:1;
 	u32 mixer_no_level_control:1;
 	u32 battery_force_primary:1;
-	u32 input_device_registered:1;
-	u32 platform_drv_registered:1;
-	u32 sensors_pdrv_registered:1;
 	u32 hotkey_poll_active:1;
 	u32 has_adaptive_kbd:1;
 	u32 kbd_lang:1;
@@ -8513,7 +8509,7 @@ static void fan_watchdog_reset(void)
 	if (fan_watchdog_maxinterval > 0 &&
 	    tpacpi_lifecycle != TPACPI_LIFE_EXITING)
 		mod_delayed_work(tpacpi_wq, &fan_watchdog_task,
-			msecs_to_jiffies(fan_watchdog_maxinterval * 1000));
+			secs_to_jiffies(fan_watchdog_maxinterval));
 	else
 		cancel_delayed_work(&fan_watchdog_task);
 }
@@ -11817,36 +11813,18 @@ MODULE_PARM_DESC(profile_force, "Force profile mode. -1=off, 1=MMC, 2=PSC");
 
 static void thinkpad_acpi_module_exit(void)
 {
-	struct ibm_struct *ibm, *itmp;
-
 	tpacpi_lifecycle = TPACPI_LIFE_EXITING;
 
-	if (tpacpi_hwmon)
-		hwmon_device_unregister(tpacpi_hwmon);
-	if (tp_features.sensors_pdrv_registered)
+	if (tpacpi_sensors_pdev) {
 		platform_driver_unregister(&tpacpi_hwmon_pdriver);
-	if (tp_features.platform_drv_registered)
-		platform_driver_unregister(&tpacpi_pdriver);
-
-	list_for_each_entry_safe_reverse(ibm, itmp,
-					 &tpacpi_all_drivers,
-					 all_drivers) {
-		ibm_exit(ibm);
-	}
-
-	dbg_printk(TPACPI_DBG_INIT, "finished subdriver exit path...\n");
-
-	if (tpacpi_inputdev) {
-		if (tp_features.input_device_registered)
-			input_unregister_device(tpacpi_inputdev);
-		else
-			input_free_device(tpacpi_inputdev);
-	}
-
-	if (tpacpi_sensors_pdev)
 		platform_device_unregister(tpacpi_sensors_pdev);
-	if (tpacpi_pdev)
+	}
+
+	if (tpacpi_pdev) {
+		platform_driver_unregister(&tpacpi_pdriver);
 		platform_device_unregister(tpacpi_pdev);
+	}
+
 	if (proc_dir)
 		remove_proc_entry(TPACPI_PROC_DIR, acpi_root_dir);
 	if (tpacpi_wq)
@@ -11858,11 +11836,76 @@ static void thinkpad_acpi_module_exit(void)
 	kfree(thinkpad_id.nummodel_str);
 }
 
+static void tpacpi_subdrivers_release(void *data)
+{
+	struct ibm_struct *ibm, *itmp;
+
+	list_for_each_entry_safe_reverse(ibm, itmp, &tpacpi_all_drivers, all_drivers)
+		ibm_exit(ibm);
+
+	dbg_printk(TPACPI_DBG_INIT, "finished subdriver exit path...\n");
+}
+
+static int __init tpacpi_pdriver_probe(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = devm_mutex_init(&pdev->dev, &tpacpi_inputdev_send_mutex);
+	if (ret)
+		return ret;
+
+	tpacpi_inputdev = devm_input_allocate_device(&pdev->dev);
+	if (!tpacpi_inputdev)
+		return -ENOMEM;
+
+	tpacpi_inputdev->name = "ThinkPad Extra Buttons";
+	tpacpi_inputdev->phys = TPACPI_DRVR_NAME "/input0";
+	tpacpi_inputdev->id.bustype = BUS_HOST;
+	tpacpi_inputdev->id.vendor = thinkpad_id.vendor;
+	tpacpi_inputdev->id.product = TPACPI_HKEY_INPUT_PRODUCT;
+	tpacpi_inputdev->id.version = TPACPI_HKEY_INPUT_VERSION;
+	tpacpi_inputdev->dev.parent = &tpacpi_pdev->dev;
+
+	/* Init subdriver dependencies */
+	tpacpi_detect_brightness_capabilities();
+
+	/* Init subdrivers */
+	for (unsigned int i = 0; i < ARRAY_SIZE(ibms_init); i++) {
+		ret = ibm_init(&ibms_init[i]);
+		if (ret >= 0 && *ibms_init[i].param)
+			ret = ibms_init[i].data->write(ibms_init[i].param);
+		if (ret < 0) {
+			tpacpi_subdrivers_release(NULL);
+			return ret;
+		}
+	}
+
+	ret = devm_add_action_or_reset(&pdev->dev, tpacpi_subdrivers_release, NULL);
+	if (ret)
+		return ret;
+
+	ret = input_register_device(tpacpi_inputdev);
+	if (ret < 0)
+		pr_err("unable to register input device\n");
+
+	return ret;
+}
+
+static int __init tpacpi_hwmon_pdriver_probe(struct platform_device *pdev)
+{
+	tpacpi_hwmon = devm_hwmon_device_register_with_groups(
+		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, tpacpi_hwmon_groups);
+
+	if (IS_ERR(tpacpi_hwmon))
+		pr_err("unable to register hwmon device\n");
+
+	return PTR_ERR_OR_ZERO(tpacpi_hwmon);
+}
 
 static int __init thinkpad_acpi_module_init(void)
 {
 	const struct dmi_system_id *dmi_id;
-	int ret, i;
+	int ret;
 	acpi_object_type obj_type;
 
 	tpacpi_lifecycle = TPACPI_LIFE_INIT;
@@ -11922,92 +11965,28 @@ static int __init thinkpad_acpi_module_init(void)
 		tp_features.quirks = dmi_id->driver_data;
 
 	/* Device initialization */
-	tpacpi_pdev = platform_device_register_simple(TPACPI_DRVR_NAME, PLATFORM_DEVID_NONE,
-							NULL, 0);
+	tpacpi_pdev = platform_create_bundle(&tpacpi_pdriver, tpacpi_pdriver_probe,
+					     NULL, 0, NULL, 0);
 	if (IS_ERR(tpacpi_pdev)) {
 		ret = PTR_ERR(tpacpi_pdev);
 		tpacpi_pdev = NULL;
-		pr_err("unable to register platform device\n");
+		pr_err("unable to register platform device/driver bundle\n");
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
-	tpacpi_sensors_pdev = platform_device_register_simple(
-						TPACPI_HWMON_DRVR_NAME,
-						PLATFORM_DEVID_NONE, NULL, 0);
+
+	tpacpi_sensors_pdev = platform_create_bundle(&tpacpi_hwmon_pdriver,
+						     tpacpi_hwmon_pdriver_probe,
+						     NULL, 0, NULL, 0);
 	if (IS_ERR(tpacpi_sensors_pdev)) {
 		ret = PTR_ERR(tpacpi_sensors_pdev);
 		tpacpi_sensors_pdev = NULL;
-		pr_err("unable to register hwmon platform device\n");
+		pr_err("unable to register hwmon platform device/driver bundle\n");
 		thinkpad_acpi_module_exit();
 		return ret;
-	}
-
-	mutex_init(&tpacpi_inputdev_send_mutex);
-	tpacpi_inputdev = input_allocate_device();
-	if (!tpacpi_inputdev) {
-		thinkpad_acpi_module_exit();
-		return -ENOMEM;
-	} else {
-		/* Prepare input device, but don't register */
-		tpacpi_inputdev->name = "ThinkPad Extra Buttons";
-		tpacpi_inputdev->phys = TPACPI_DRVR_NAME "/input0";
-		tpacpi_inputdev->id.bustype = BUS_HOST;
-		tpacpi_inputdev->id.vendor = thinkpad_id.vendor;
-		tpacpi_inputdev->id.product = TPACPI_HKEY_INPUT_PRODUCT;
-		tpacpi_inputdev->id.version = TPACPI_HKEY_INPUT_VERSION;
-		tpacpi_inputdev->dev.parent = &tpacpi_pdev->dev;
-	}
-
-	/* Init subdriver dependencies */
-	tpacpi_detect_brightness_capabilities();
-
-	/* Init subdrivers */
-	for (i = 0; i < ARRAY_SIZE(ibms_init); i++) {
-		ret = ibm_init(&ibms_init[i]);
-		if (ret >= 0 && *ibms_init[i].param)
-			ret = ibms_init[i].data->write(ibms_init[i].param);
-		if (ret < 0) {
-			thinkpad_acpi_module_exit();
-			return ret;
-		}
 	}
 
 	tpacpi_lifecycle = TPACPI_LIFE_RUNNING;
-
-	ret = platform_driver_register(&tpacpi_pdriver);
-	if (ret) {
-		pr_err("unable to register main platform driver\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
-	tp_features.platform_drv_registered = 1;
-
-	ret = platform_driver_register(&tpacpi_hwmon_pdriver);
-	if (ret) {
-		pr_err("unable to register hwmon platform driver\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
-	tp_features.sensors_pdrv_registered = 1;
-
-	tpacpi_hwmon = hwmon_device_register_with_groups(
-		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, tpacpi_hwmon_groups);
-	if (IS_ERR(tpacpi_hwmon)) {
-		ret = PTR_ERR(tpacpi_hwmon);
-		tpacpi_hwmon = NULL;
-		pr_err("unable to register hwmon device\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
-
-	ret = input_register_device(tpacpi_inputdev);
-	if (ret < 0) {
-		pr_err("unable to register input device\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	} else {
-		tp_features.input_device_registered = 1;
-	}
 
 	return 0;
 }
