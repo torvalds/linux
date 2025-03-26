@@ -1443,7 +1443,7 @@ int intel_bw_modeset_checks(struct intel_atomic_state *state)
 	return 0;
 }
 
-int intel_bw_check_sagv_mask(struct intel_atomic_state *state)
+static int intel_bw_check_sagv_mask(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(display->drm);
@@ -1491,6 +1491,13 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	struct intel_bw_state *new_bw_state;
 	const struct intel_bw_state *old_bw_state;
 	int ret;
+
+	if (DISPLAY_VER(i915) < 9)
+		return 0;
+
+	ret = intel_bw_check_sagv_mask(state);
+	if (ret)
+		return ret;
 
 	/* FIXME earlier gens need some checks too */
 	if (DISPLAY_VER(display) < 11)

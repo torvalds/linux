@@ -454,7 +454,6 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 {
 	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	int ret;
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *new_crtc_state;
 	int i;
@@ -484,10 +483,6 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 			DISPLAY_VER(i915) >= 12 &&
 			intel_crtc_can_enable_sagv(new_crtc_state);
 	}
-
-	ret = intel_bw_check_sagv_mask(state);
-	if (ret)
-		return ret;
 
 	return 0;
 }
