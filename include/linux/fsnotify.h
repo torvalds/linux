@@ -129,7 +129,7 @@ static inline int fsnotify_file(struct file *file, __u32 mask)
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 
-void file_set_fsnotify_mode(struct file *file);
+void file_set_fsnotify_mode_from_watchers(struct file *file);
 
 /*
  * fsnotify_file_area_perm - permission hook before access to file range
@@ -168,6 +168,21 @@ static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
 	 * scanners can inspect the content filled by pre-content event.
 	 */
 	return fsnotify_path(&file->f_path, FS_ACCESS_PERM);
+}
+
+/*
+ * fsnotify_mmap_perm - permission hook before mmap of file range
+ */
+static inline int fsnotify_mmap_perm(struct file *file, int prot,
+				     const loff_t off, size_t len)
+{
+	/*
+	 * mmap() generates only pre-content events.
+	 */
+	if (!file || likely(!FMODE_FSNOTIFY_HSM(file->f_mode)))
+		return 0;
+
+	return fsnotify_pre_content(&file->f_path, &off, len);
 }
 
 /*
@@ -213,12 +228,18 @@ static inline int fsnotify_open_perm(struct file *file)
 }
 
 #else
-static inline void file_set_fsnotify_mode(struct file *file)
+static inline void file_set_fsnotify_mode_from_watchers(struct file *file)
 {
 }
 
 static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
 					  const loff_t *ppos, size_t count)
+{
+	return 0;
+}
+
+static inline int fsnotify_mmap_perm(struct file *file, int prot,
+				     const loff_t off, size_t len)
 {
 	return 0;
 }

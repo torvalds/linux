@@ -64,10 +64,10 @@ load_a6: user_lw(t7, 24(t0))		# argument #7 from usp
 load_a7: user_lw(t8, 28(t0))		# argument #8 from usp
 loads_done:
 
-	sw	t5, 16(sp)		# argument #5 to ksp
-	sw	t6, 20(sp)		# argument #6 to ksp
-	sw	t7, 24(sp)		# argument #7 to ksp
-	sw	t8, 28(sp)		# argument #8 to ksp
+	sw	t5, PT_ARG4(sp)		# argument #5 to ksp
+	sw	t6, PT_ARG5(sp)		# argument #6 to ksp
+	sw	t7, PT_ARG6(sp)		# argument #7 to ksp
+	sw	t8, PT_ARG7(sp)		# argument #8 to ksp
 	.set	pop
 
 	.section __ex_table,"a"

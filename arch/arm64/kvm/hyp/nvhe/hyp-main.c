@@ -5,6 +5,7 @@
  */
 
 #include <hyp/adjust_pc.h>
+#include <hyp/switch.h>
 
 #include <asm/pgtable-types.h>
 #include <asm/kvm_asm.h>
@@ -83,7 +84,7 @@ static void fpsimd_sve_sync(struct kvm_vcpu *vcpu)
 	if (system_supports_sve())
 		__hyp_sve_restore_host();
 	else
-		__fpsimd_restore_state(*host_data_ptr(fpsimd_state));
+		__fpsimd_restore_state(host_data_ptr(host_ctxt.fp_regs));
 
 	if (has_fpmr)
 		write_sysreg_s(*host_data_ptr(fpmr), SYS_FPMR);
@@ -91,11 +92,34 @@ static void fpsimd_sve_sync(struct kvm_vcpu *vcpu)
 	*host_data_ptr(fp_owner) = FP_STATE_HOST_OWNED;
 }
 
+static void flush_debug_state(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+	hyp_vcpu->vcpu.arch.debug_owner = host_vcpu->arch.debug_owner;
+
+	if (kvm_guest_owns_debug_regs(&hyp_vcpu->vcpu))
+		hyp_vcpu->vcpu.arch.vcpu_debug_state = host_vcpu->arch.vcpu_debug_state;
+	else if (kvm_host_owns_debug_regs(&hyp_vcpu->vcpu))
+		hyp_vcpu->vcpu.arch.external_debug_state = host_vcpu->arch.external_debug_state;
+}
+
+static void sync_debug_state(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
+
+	if (kvm_guest_owns_debug_regs(&hyp_vcpu->vcpu))
+		host_vcpu->arch.vcpu_debug_state = hyp_vcpu->vcpu.arch.vcpu_debug_state;
+	else if (kvm_host_owns_debug_regs(&hyp_vcpu->vcpu))
+		host_vcpu->arch.external_debug_state = hyp_vcpu->vcpu.arch.external_debug_state;
+}
+
 static void flush_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 {
 	struct kvm_vcpu *host_vcpu = hyp_vcpu->host_vcpu;
 
 	fpsimd_sve_flush();
+	flush_debug_state(hyp_vcpu);
 
 	hyp_vcpu->vcpu.arch.ctxt	= host_vcpu->arch.ctxt;
 
@@ -123,6 +147,7 @@ static void sync_hyp_vcpu(struct pkvm_hyp_vcpu *hyp_vcpu)
 	unsigned int i;
 
 	fpsimd_sve_sync(&hyp_vcpu->vcpu);
+	sync_debug_state(hyp_vcpu);
 
 	host_vcpu->arch.ctxt		= hyp_vcpu->vcpu.arch.ctxt;
 
@@ -200,8 +225,12 @@ static void handle___kvm_vcpu_run(struct kvm_cpu_context *host_ctxt)
 
 		sync_hyp_vcpu(hyp_vcpu);
 	} else {
+		struct kvm_vcpu *vcpu = kern_hyp_va(host_vcpu);
+
 		/* The host is fully trusted, run its vCPU directly. */
-		ret = __kvm_vcpu_run(kern_hyp_va(host_vcpu));
+		fpsimd_lazy_switch_to_guest(vcpu);
+		ret = __kvm_vcpu_run(vcpu);
+		fpsimd_lazy_switch_to_host(vcpu);
 	}
 out:
 	cpu_reg(host_ctxt, 1) =  ret;
@@ -650,12 +679,6 @@ void handle_trap(struct kvm_cpu_context *host_ctxt)
 		break;
 	case ESR_ELx_EC_SMC64:
 		handle_host_smc(host_ctxt);
-		break;
-	case ESR_ELx_EC_SVE:
-		cpacr_clear_set(0, CPACR_EL1_ZEN);
-		isb();
-		sve_cond_update_zcr_vq(sve_vq_from_vl(kvm_host_sve_max_vl) - 1,
-				       SYS_ZCR_EL2);
 		break;
 	case ESR_ELx_EC_IABT_LOW:
 	case ESR_ELx_EC_DABT_LOW:

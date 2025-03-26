@@ -570,6 +570,8 @@ config HID_LED
 
 config HID_LENOVO
 	tristate "Lenovo / Thinkpad devices"
+	depends on ACPI
+	select ACPI_PLATFORM_PROFILE
 	select NEW_LEDS
 	select LEDS_CLASS
 	help
@@ -1167,7 +1169,8 @@ config HID_TOPRE
 	tristate "Topre REALFORCE keyboards"
 	depends on HID
 	help
-	  Say Y for N-key rollover support on Topre REALFORCE R2 108/87 key keyboards.
+	  Say Y for N-key rollover support on Topre REALFORCE R2 108/87 key and
+          Topre REALFORCE R3S 87 key keyboards.
 
 config HID_THINGM
 	tristate "ThingM blink(1) USB RGB LED"
@@ -1374,10 +1377,6 @@ endmenu
 
 source "drivers/hid/bpf/Kconfig"
 
-endif # HID
-
-source "drivers/hid/usbhid/Kconfig"
-
 source "drivers/hid/i2c-hid/Kconfig"
 
 source "drivers/hid/intel-ish-hid/Kconfig"
@@ -1387,5 +1386,11 @@ source "drivers/hid/amd-sfh-hid/Kconfig"
 source "drivers/hid/surface-hid/Kconfig"
 
 source "drivers/hid/intel-thc-hid/Kconfig"
+
+endif # HID
+
+# USB support may be used with HID disabled
+
+source "drivers/hid/usbhid/Kconfig"
 
 endif # HID_SUPPORT

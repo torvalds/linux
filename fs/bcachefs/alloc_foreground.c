@@ -205,8 +205,12 @@ static inline bool may_alloc_bucket(struct bch_fs *c,
 		return false;
 	}
 
-	if (bch2_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
-			c->journal.flushed_seq_ondisk, bucket.inode, bucket.offset)) {
+	u64 journal_seq_ready =
+		bch2_bucket_journal_seq_ready(&c->buckets_waiting_for_journal,
+					      bucket.inode, bucket.offset);
+	if (journal_seq_ready > c->journal.flushed_seq_ondisk) {
+		if (journal_seq_ready > c->journal.flushing_seq)
+			s->need_journal_commit++;
 		s->skipped_need_journal_commit++;
 		return false;
 	}
@@ -570,7 +574,7 @@ alloc:
 		? bch2_bucket_alloc_freelist(trans, ca, watermark, &s, cl)
 		: bch2_bucket_alloc_early(trans, ca, watermark, &s, cl);
 
-	if (s.skipped_need_journal_commit * 2 > avail)
+	if (s.need_journal_commit * 2 > avail)
 		bch2_journal_flush_async(&c->journal, NULL);
 
 	if (!ob && s.btree_bitmap != BTREE_BITMAP_ANY) {

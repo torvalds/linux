@@ -549,10 +549,7 @@ static const struct lsm_id tomoyo_lsmid = {
 	.id = LSM_ID_TOMOYO,
 };
 
-/*
- * tomoyo_security_ops is a "struct security_operations" which is used for
- * registering TOMOYO.
- */
+/* tomoyo_hooks is used for registering TOMOYO. */
 static struct security_hook_list tomoyo_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(cred_prepare, tomoyo_cred_prepare),
 	LSM_HOOK_INIT(bprm_committed_creds, tomoyo_bprm_committed_creds),

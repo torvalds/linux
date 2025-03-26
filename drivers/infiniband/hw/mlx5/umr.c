@@ -231,30 +231,6 @@ void mlx5r_umr_cleanup(struct mlx5_ib_dev *dev)
 	ib_dealloc_pd(dev->umrc.pd);
 }
 
-static int mlx5r_umr_recover(struct mlx5_ib_dev *dev)
-{
-	struct umr_common *umrc = &dev->umrc;
-	struct ib_qp_attr attr;
-	int err;
-
-	attr.qp_state = IB_QPS_RESET;
-	err = ib_modify_qp(umrc->qp, &attr, IB_QP_STATE);
-	if (err) {
-		mlx5_ib_dbg(dev, "Couldn't modify UMR QP\n");
-		goto err;
-	}
-
-	err = mlx5r_umr_qp_rst2rts(dev, umrc->qp);
-	if (err)
-		goto err;
-
-	umrc->state = MLX5_UMR_STATE_ACTIVE;
-	return 0;
-
-err:
-	umrc->state = MLX5_UMR_STATE_ERR;
-	return err;
-}
 
 static int mlx5r_umr_post_send(struct ib_qp *ibqp, u32 mkey, struct ib_cqe *cqe,
 			       struct mlx5r_umr_wqe *wqe, bool with_data)
@@ -299,6 +275,61 @@ static int mlx5r_umr_post_send(struct ib_qp *ibqp, u32 mkey, struct ib_cqe *cqe,
 out:
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
 
+	return err;
+}
+
+static int mlx5r_umr_recover(struct mlx5_ib_dev *dev, u32 mkey,
+			     struct mlx5r_umr_context *umr_context,
+			     struct mlx5r_umr_wqe *wqe, bool with_data)
+{
+	struct umr_common *umrc = &dev->umrc;
+	struct ib_qp_attr attr;
+	int err;
+
+	mutex_lock(&umrc->lock);
+	/* Preventing any further WRs to be sent now */
+	if (umrc->state != MLX5_UMR_STATE_RECOVER) {
+		mlx5_ib_warn(dev, "UMR recovery encountered an unexpected state=%d\n",
+			     umrc->state);
+		umrc->state = MLX5_UMR_STATE_RECOVER;
+	}
+	mutex_unlock(&umrc->lock);
+
+	/* Sending a final/barrier WR (the failed one) and wait for its completion.
+	 * This will ensure that all the previous WRs got a completion before
+	 * we set the QP state to RESET.
+	 */
+	err = mlx5r_umr_post_send(umrc->qp, mkey, &umr_context->cqe, wqe,
+				  with_data);
+	if (err) {
+		mlx5_ib_warn(dev, "UMR recovery post send failed, err %d\n", err);
+		goto err;
+	}
+
+	/* Since the QP is in an error state, it will only receive
+	 * IB_WC_WR_FLUSH_ERR. However, as it serves only as a barrier
+	 * we don't care about its status.
+	 */
+	wait_for_completion(&umr_context->done);
+
+	attr.qp_state = IB_QPS_RESET;
+	err = ib_modify_qp(umrc->qp, &attr, IB_QP_STATE);
+	if (err) {
+		mlx5_ib_warn(dev, "Couldn't modify UMR QP to RESET, err=%d\n", err);
+		goto err;
+	}
+
+	err = mlx5r_umr_qp_rst2rts(dev, umrc->qp);
+	if (err) {
+		mlx5_ib_warn(dev, "Couldn't modify UMR QP to RTS, err=%d\n", err);
+		goto err;
+	}
+
+	umrc->state = MLX5_UMR_STATE_ACTIVE;
+	return 0;
+
+err:
+	umrc->state = MLX5_UMR_STATE_ERR;
 	return err;
 }
 
@@ -366,9 +397,7 @@ static int mlx5r_umr_post_send_wait(struct mlx5_ib_dev *dev, u32 mkey,
 		mlx5_ib_warn(dev,
 			"reg umr failed (%u). Trying to recover and resubmit the flushed WQEs, mkey = %u\n",
 			umr_context.status, mkey);
-		mutex_lock(&umrc->lock);
-		err = mlx5r_umr_recover(dev);
-		mutex_unlock(&umrc->lock);
+		err = mlx5r_umr_recover(dev, mkey, &umr_context, wqe, with_data);
 		if (err)
 			mlx5_ib_warn(dev, "couldn't recover UMR, err %d\n",
 				     err);

@@ -589,7 +589,7 @@ struct nvmet_alloc_ctrl_args {
 	const struct nvmet_fabrics_ops *ops;
 	struct device		*p2p_client;
 	u32			kato;
-	u32			result;
+	__le32			result;
 	u16			error_loc;
 	u16			status;
 };
@@ -647,7 +647,6 @@ void nvmet_subsys_disc_changed(struct nvmet_subsys *subsys,
 		struct nvmet_host *host);
 void nvmet_add_async_event(struct nvmet_ctrl *ctrl, u8 event_type,
 		u8 event_info, u8 log_page);
-bool nvmet_subsys_nsid_exists(struct nvmet_subsys *subsys, u32 nsid);
 
 #define NVMET_MIN_QUEUE_SIZE	16
 #define NVMET_MAX_QUEUE_SIZE	1024
@@ -784,37 +783,37 @@ u16 nvmet_report_invalid_opcode(struct nvmet_req *req);
 
 static inline bool nvmet_cc_en(u32 cc)
 {
-	return (cc >> NVME_CC_EN_SHIFT) & 0x1;
+	return (cc & NVME_CC_ENABLE) >> NVME_CC_EN_SHIFT;
 }
 
 static inline u8 nvmet_cc_css(u32 cc)
 {
-	return (cc >> NVME_CC_CSS_SHIFT) & 0x7;
+	return (cc & NVME_CC_CSS_MASK) >> NVME_CC_CSS_SHIFT;
 }
 
 static inline u8 nvmet_cc_mps(u32 cc)
 {
-	return (cc >> NVME_CC_MPS_SHIFT) & 0xf;
+	return (cc & NVME_CC_MPS_MASK) >> NVME_CC_MPS_SHIFT;
 }
 
 static inline u8 nvmet_cc_ams(u32 cc)
 {
-	return (cc >> NVME_CC_AMS_SHIFT) & 0x7;
+	return (cc & NVME_CC_AMS_MASK) >> NVME_CC_AMS_SHIFT;
 }
 
 static inline u8 nvmet_cc_shn(u32 cc)
 {
-	return (cc >> NVME_CC_SHN_SHIFT) & 0x3;
+	return (cc & NVME_CC_SHN_MASK) >> NVME_CC_SHN_SHIFT;
 }
 
 static inline u8 nvmet_cc_iosqes(u32 cc)
 {
-	return (cc >> NVME_CC_IOSQES_SHIFT) & 0xf;
+	return (cc & NVME_CC_IOSQES_MASK) >> NVME_CC_IOSQES_SHIFT;
 }
 
 static inline u8 nvmet_cc_iocqes(u32 cc)
 {
-	return (cc >> NVME_CC_IOCQES_SHIFT) & 0xf;
+	return (cc & NVME_CC_IOCQES_MASK) >> NVME_CC_IOCQES_SHIFT;
 }
 
 /* Convert a 32-bit number to a 16-bit 0's based number */

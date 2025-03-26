@@ -704,7 +704,7 @@ static inline bool bch2_extent_ptr_eq(struct bch_extent_ptr ptr1,
 		ptr1.unwritten	== ptr2.unwritten &&
 		ptr1.offset	== ptr2.offset &&
 		ptr1.dev	== ptr2.dev &&
-		ptr1.dev	== ptr2.dev);
+		ptr1.gen	== ptr2.gen);
 }
 
 void bch2_ptr_swab(struct bkey_s);

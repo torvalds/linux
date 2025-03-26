@@ -659,18 +659,4 @@ static inline void bch2_io_opts_fixups(struct bch_io_opts *opts)
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);
 bool bch2_opt_is_inode_opt(enum bch_opt_id);
 
-/* rebalance opts: */
-
-static inline struct bch_extent_rebalance io_opts_to_rebalance_opts(struct bch_io_opts *opts)
-{
-	return (struct bch_extent_rebalance) {
-		.type = BIT(BCH_EXTENT_ENTRY_rebalance),
-#define x(_name)							\
-		._name = opts->_name,					\
-		._name##_from_inode = opts->_name##_from_inode,
-		BCH_REBALANCE_OPTS()
-#undef x
-	};
-};
-
 #endif /* _BCACHEFS_OPTS_H */

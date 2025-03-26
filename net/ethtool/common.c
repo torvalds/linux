@@ -6,6 +6,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/phy_link_topology.h>
+#include <net/netdev_queues.h>
 
 #include "netlink.h"
 #include "common.h"
@@ -462,6 +463,11 @@ const char ts_rx_filter_names[][ETH_GSTRING_LEN] = {
 };
 static_assert(ARRAY_SIZE(ts_rx_filter_names) == __HWTSTAMP_FILTER_CNT);
 
+const char ts_flags_names[][ETH_GSTRING_LEN] = {
+	[const_ilog2(HWTSTAMP_FLAG_BONDED_PHC_INDEX)] = "bonded-phc-index",
+};
+static_assert(ARRAY_SIZE(ts_flags_names) == __HWTSTAMP_FLAG_CNT);
+
 const char udp_tunnel_type_names[][ETH_GSTRING_LEN] = {
 	[ETHTOOL_UDP_TUNNEL_TYPE_VXLAN]		= "vxlan",
 	[ETHTOOL_UDP_TUNNEL_TYPE_GENEVE]	= "geneve",
@@ -764,6 +770,21 @@ int ethtool_check_ops(const struct ethtool_ops *ops)
 	 * mean the ops attached to a netdev later on are sane.
 	 */
 	return 0;
+}
+
+void ethtool_ringparam_get_cfg(struct net_device *dev,
+			       struct ethtool_ringparam *param,
+			       struct kernel_ethtool_ringparam *kparam,
+			       struct netlink_ext_ack *extack)
+{
+	memset(param, 0, sizeof(*param));
+	memset(kparam, 0, sizeof(*kparam));
+
+	param->cmd = ETHTOOL_GRINGPARAM;
+	dev->ethtool_ops->get_ringparam(dev, param, kparam, extack);
+
+	/* Driver gives us current state, we want to return current config */
+	kparam->tcp_data_split = dev->cfg->hds_config;
 }
 
 static void ethtool_init_tsinfo(struct kernel_ethtool_ts_info *info)

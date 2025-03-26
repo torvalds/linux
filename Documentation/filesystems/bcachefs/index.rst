@@ -9,4 +9,5 @@ bcachefs Documentation
    :numbered:
 
    CodingStyle
+   SubmittingPatches
    errorcodes

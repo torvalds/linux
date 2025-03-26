@@ -411,6 +411,17 @@ bool bch2_fs_emergency_read_only(struct bch_fs *c)
 	return ret;
 }
 
+bool bch2_fs_emergency_read_only_locked(struct bch_fs *c)
+{
+	bool ret = !test_and_set_bit(BCH_FS_emergency_ro, &c->flags);
+
+	bch2_journal_halt_locked(&c->journal);
+	bch2_fs_read_only_async(c);
+
+	wake_up(&bch2_read_only_wait);
+	return ret;
+}
+
 static int bch2_fs_read_write_late(struct bch_fs *c)
 {
 	int ret;
@@ -1800,7 +1811,11 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		goto err_late;
 
 	up_write(&c->state_lock);
-	return 0;
+out:
+	printbuf_exit(&label);
+	printbuf_exit(&errbuf);
+	bch_err_fn(c, ret);
+	return ret;
 
 err_unlock:
 	mutex_unlock(&c->sb_lock);
@@ -1809,10 +1824,7 @@ err:
 	if (ca)
 		bch2_dev_free(ca);
 	bch2_free_super(&sb);
-	printbuf_exit(&label);
-	printbuf_exit(&errbuf);
-	bch_err_fn(c, ret);
-	return ret;
+	goto out;
 err_late:
 	up_write(&c->state_lock);
 	ca = NULL;

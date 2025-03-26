@@ -813,10 +813,10 @@ static int a6xx_gmu_fw_load(struct a6xx_gmu *gmu)
 	}
 
 	ver = gmu_read(gmu, REG_A6XX_GMU_CORE_FW_VERSION);
-	DRM_INFO("Loaded GMU firmware v%u.%u.%u\n",
-		 FIELD_GET(A6XX_GMU_CORE_FW_VERSION_MAJOR__MASK, ver),
-		 FIELD_GET(A6XX_GMU_CORE_FW_VERSION_MINOR__MASK, ver),
-		 FIELD_GET(A6XX_GMU_CORE_FW_VERSION_STEP__MASK, ver));
+	DRM_INFO_ONCE("Loaded GMU firmware v%u.%u.%u\n",
+		      FIELD_GET(A6XX_GMU_CORE_FW_VERSION_MAJOR__MASK, ver),
+		      FIELD_GET(A6XX_GMU_CORE_FW_VERSION_MINOR__MASK, ver),
+		      FIELD_GET(A6XX_GMU_CORE_FW_VERSION_STEP__MASK, ver));
 
 	return 0;
 }

@@ -47,6 +47,7 @@
 #include <linux/kcmp.h>
 #include <sys/resource.h>
 #include <sys/capability.h>
+#include <linux/perf_event.h>
 
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -66,6 +67,10 @@
 
 #ifndef PR_SET_PTRACER
 # define PR_SET_PTRACER 0x59616d61
+#endif
+
+#ifndef noinline
+#define noinline __attribute__((noinline))
 #endif
 
 #ifndef PR_SET_NO_NEW_PRIVS
@@ -4886,6 +4891,200 @@ TEST(tsync_vs_dead_thread_leader)
 
 	EXPECT_EQ(pid, waitpid(pid, &status, 0));
 	EXPECT_EQ(0, status);
+}
+
+noinline int probed(void)
+{
+	return 1;
+}
+
+static int parse_uint_from_file(const char *file, const char *fmt)
+{
+	int err = -1, ret;
+	FILE *f;
+
+	f = fopen(file, "re");
+	if (f) {
+		err = fscanf(f, fmt, &ret);
+		fclose(f);
+	}
+	return err == 1 ? ret : err;
+}
+
+static int determine_uprobe_perf_type(void)
+{
+	const char *file = "/sys/bus/event_source/devices/uprobe/type";
+
+	return parse_uint_from_file(file, "%d\n");
+}
+
+static int determine_uprobe_retprobe_bit(void)
+{
+	const char *file = "/sys/bus/event_source/devices/uprobe/format/retprobe";
+
+	return parse_uint_from_file(file, "config:%d\n");
+}
+
+static ssize_t get_uprobe_offset(const void *addr)
+{
+	size_t start, base, end;
+	bool found = false;
+	char buf[256];
+	FILE *f;
+
+	f = fopen("/proc/self/maps", "r");
+	if (!f)
+		return -1;
+
+	while (fscanf(f, "%zx-%zx %s %zx %*[^\n]\n", &start, &end, buf, &base) == 4) {
+		if (buf[2] == 'x' && (uintptr_t)addr >= start && (uintptr_t)addr < end) {
+			found = true;
+			break;
+		}
+	}
+	fclose(f);
+	return found ? (uintptr_t)addr - start + base : -1;
+}
+
+FIXTURE(URETPROBE) {
+	int fd;
+};
+
+FIXTURE_VARIANT(URETPROBE) {
+	/*
+	 * All of the URETPROBE behaviors can be tested with either
+	 * uretprobe attached or not
+	 */
+	bool attach;
+};
+
+FIXTURE_VARIANT_ADD(URETPROBE, attached) {
+	.attach = true,
+};
+
+FIXTURE_VARIANT_ADD(URETPROBE, not_attached) {
+	.attach = false,
+};
+
+FIXTURE_SETUP(URETPROBE)
+{
+	const size_t attr_sz = sizeof(struct perf_event_attr);
+	struct perf_event_attr attr;
+	ssize_t offset;
+	int type, bit;
+
+#ifndef __NR_uretprobe
+	SKIP(return, "__NR_uretprobe syscall not defined");
+#endif
+
+	if (!variant->attach)
+		return;
+
+	memset(&attr, 0, attr_sz);
+
+	type = determine_uprobe_perf_type();
+	ASSERT_GE(type, 0);
+	bit = determine_uprobe_retprobe_bit();
+	ASSERT_GE(bit, 0);
+	offset = get_uprobe_offset(probed);
+	ASSERT_GE(offset, 0);
+
+	attr.config |= 1 << bit;
+	attr.size = attr_sz;
+	attr.type = type;
+	attr.config1 = ptr_to_u64("/proc/self/exe");
+	attr.config2 = offset;
+
+	self->fd = syscall(__NR_perf_event_open, &attr,
+			   getpid() /* pid */, -1 /* cpu */, -1 /* group_fd */,
+			   PERF_FLAG_FD_CLOEXEC);
+}
+
+FIXTURE_TEARDOWN(URETPROBE)
+{
+	/* we could call close(self->fd), but we'd need extra filter for
+	 * that and since we are calling _exit right away..
+	 */
+}
+
+static int run_probed_with_filter(struct sock_fprog *prog)
+{
+	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) ||
+	    seccomp(SECCOMP_SET_MODE_FILTER, 0, prog)) {
+		return -1;
+	}
+
+	probed();
+	return 0;
+}
+
+TEST_F(URETPROBE, uretprobe_default_allow)
+{
+	struct sock_filter filter[] = {
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_fprog prog = {
+		.len = (unsigned short)ARRAY_SIZE(filter),
+		.filter = filter,
+	};
+
+	ASSERT_EQ(0, run_probed_with_filter(&prog));
+}
+
+TEST_F(URETPROBE, uretprobe_default_block)
+{
+	struct sock_filter filter[] = {
+		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
+			offsetof(struct seccomp_data, nr)),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_exit_group, 1, 0),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_fprog prog = {
+		.len = (unsigned short)ARRAY_SIZE(filter),
+		.filter = filter,
+	};
+
+	ASSERT_EQ(0, run_probed_with_filter(&prog));
+}
+
+TEST_F(URETPROBE, uretprobe_block_uretprobe_syscall)
+{
+	struct sock_filter filter[] = {
+		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
+			offsetof(struct seccomp_data, nr)),
+#ifdef __NR_uretprobe
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_uretprobe, 0, 1),
+#endif
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_fprog prog = {
+		.len = (unsigned short)ARRAY_SIZE(filter),
+		.filter = filter,
+	};
+
+	ASSERT_EQ(0, run_probed_with_filter(&prog));
+}
+
+TEST_F(URETPROBE, uretprobe_default_block_with_uretprobe_syscall)
+{
+	struct sock_filter filter[] = {
+		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
+			offsetof(struct seccomp_data, nr)),
+#ifdef __NR_uretprobe
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_uretprobe, 2, 0),
+#endif
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_exit_group, 1, 0),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL),
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
+	};
+	struct sock_fprog prog = {
+		.len = (unsigned short)ARRAY_SIZE(filter),
+		.filter = filter,
+	};
+
+	ASSERT_EQ(0, run_probed_with_filter(&prog));
 }
 
 /*

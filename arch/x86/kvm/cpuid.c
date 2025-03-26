@@ -1180,7 +1180,7 @@ void kvm_set_cpu_caps(void)
 		SYNTHESIZED_F(SBPB),
 		SYNTHESIZED_F(IBPB_BRTYPE),
 		SYNTHESIZED_F(SRSO_NO),
-		SYNTHESIZED_F(SRSO_USER_KERNEL_NO),
+		F(SRSO_USER_KERNEL_NO),
 	);
 
 	kvm_cpu_cap_init(CPUID_8000_0022_EAX,
@@ -1763,7 +1763,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 
 		entry->ecx = entry->edx = 0;
 		if (!enable_pmu || !kvm_cpu_cap_has(X86_FEATURE_PERFMON_V2)) {
-			entry->eax = entry->ebx;
+			entry->eax = entry->ebx = 0;
 			break;
 		}
 

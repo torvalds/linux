@@ -190,6 +190,7 @@ static __always_inline bool int80_is_external(void)
 
 /**
  * do_int80_emulation - 32-bit legacy syscall C entry from asm
+ * @regs: syscall arguments in struct pt_args on the stack.
  *
  * This entry point can be used by 32-bit and 64-bit programs to perform
  * 32-bit system calls.  Instances of INT $0x80 can be found inline in

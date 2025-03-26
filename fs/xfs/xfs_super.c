@@ -1661,8 +1661,12 @@ xfs_fs_fill_super(
 #endif
 	}
 
-	/* Filesystem claims it needs repair, so refuse the mount. */
-	if (xfs_has_needsrepair(mp)) {
+	/*
+	 * Filesystem claims it needs repair, so refuse the mount unless
+	 * norecovery is also specified, in which case the filesystem can
+	 * be mounted with no risk of further damage.
+	 */
+	if (xfs_has_needsrepair(mp) && !xfs_has_norecovery(mp)) {
 		xfs_warn(mp, "Filesystem needs repair.  Please run xfs_repair.");
 		error = -EFSCORRUPTED;
 		goto out_free_sb;

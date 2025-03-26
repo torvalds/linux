@@ -152,7 +152,6 @@ int bch2_create_trans(struct btree_trans *trans,
 		if (is_subdir_for_nlink(new_inode))
 			dir_u->bi_nlink++;
 		dir_u->bi_mtime = dir_u->bi_ctime = now;
-		dir_u->bi_size += dirent_occupied_size(name);
 
 		ret = bch2_inode_write(trans, &dir_iter, dir_u);
 		if (ret)
@@ -221,7 +220,6 @@ int bch2_link_trans(struct btree_trans *trans,
 	}
 
 	dir_u->bi_mtime = dir_u->bi_ctime = now;
-	dir_u->bi_size += dirent_occupied_size(name);
 
 	dir_hash = bch2_hash_info_init(c, dir_u);
 
@@ -324,7 +322,6 @@ int bch2_unlink_trans(struct btree_trans *trans,
 
 	dir_u->bi_mtime = dir_u->bi_ctime = inode_u->bi_ctime = now;
 	dir_u->bi_nlink -= is_subdir_for_nlink(inode_u);
-	dir_u->bi_size	-= dirent_occupied_size(name);
 
 	ret =   bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
 				    &dir_hash, &dirent_iter,
@@ -462,14 +459,6 @@ int bch2_rename_trans(struct btree_trans *trans,
 		ret = -EXDEV;
 		goto err;
 	}
-
-	if (mode == BCH_RENAME) {
-		src_dir_u->bi_size -= dirent_occupied_size(src_name);
-		dst_dir_u->bi_size += dirent_occupied_size(dst_name);
-	}
-
-	if (mode == BCH_RENAME_OVERWRITE)
-		src_dir_u->bi_size -= dirent_occupied_size(src_name);
 
 	if (src_inode_u->bi_parent_subvol)
 		src_inode_u->bi_parent_subvol = dst_dir.subvol;

@@ -996,7 +996,7 @@ drop_this_key:
 		}
 got_good_key:
 		le16_add_cpu(&i->u64s, -next_good_key);
-		memmove_u64s_down(k, bkey_p_next(k), (u64 *) vstruct_end(i) - (u64 *) k);
+		memmove_u64s_down(k, (u64 *) k + next_good_key, (u64 *) vstruct_end(i) - (u64 *) k);
 		set_btree_node_need_rewrite(b);
 	}
 fsck_err:
@@ -1186,7 +1186,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			     le64_to_cpu(i->journal_seq),
 			     b->written, b->written + sectors, ptr_written);
 
-		b->written += sectors;
+		b->written = min(b->written + sectors, btree_sectors(c));
 
 		if (blacklisted && !first)
 			continue;

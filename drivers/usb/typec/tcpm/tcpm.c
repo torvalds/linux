@@ -5117,16 +5117,16 @@ static void run_state_machine(struct tcpm_port *port)
 		 */
 		if (port->vbus_never_low) {
 			port->vbus_never_low = false;
-			tcpm_set_state(port, SNK_SOFT_RESET,
-				       port->timings.sink_wait_cap_time);
+			upcoming_state = SNK_SOFT_RESET;
 		} else {
 			if (!port->self_powered)
 				upcoming_state = SNK_WAIT_CAPABILITIES_TIMEOUT;
 			else
 				upcoming_state = hard_reset_state(port);
-			tcpm_set_state(port, SNK_WAIT_CAPABILITIES_TIMEOUT,
-				       port->timings.sink_wait_cap_time);
 		}
+
+		tcpm_set_state(port, upcoming_state,
+			       port->timings.sink_wait_cap_time);
 		break;
 	case SNK_WAIT_CAPABILITIES_TIMEOUT:
 		/*
@@ -5591,8 +5591,7 @@ static void run_state_machine(struct tcpm_port *port)
 		tcpm_set_auto_vbus_discharge_threshold(port, TYPEC_PWR_MODE_USB,
 						       port->pps_data.active, 0);
 		tcpm_set_charge(port, false);
-		tcpm_set_state(port, hard_reset_state(port),
-			       port->timings.ps_src_off_time);
+		tcpm_set_state(port, ERROR_RECOVERY, port->timings.ps_src_off_time);
 		break;
 	case PR_SWAP_SNK_SRC_SOURCE_ON:
 		tcpm_enable_auto_vbus_discharge(port, true);
