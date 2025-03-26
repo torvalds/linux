@@ -8,6 +8,13 @@ ifeq ($(ARCH_PROCESSED),$(filter $(ARCH_PROCESSED),x86 ppc64le))
 TEST_PROGS := test_kexec_load.sh test_kexec_file_load.sh
 TEST_FILES := kexec_common_lib.sh
 
+include ../../../scripts/Makefile.arch
+
+ifeq ($(IS_64_BIT)$(ARCH_PROCESSED),1x86)
+TEST_PROGS += test_kexec_jump.sh
+test_kexec_jump.sh: $(OUTPUT)/test_kexec_jump
+endif
+
 include ../lib.mk
 
 endif
