@@ -92,6 +92,21 @@ static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static const struct rtw89_sar_entry_from_acpi *
+rtw89_sar_cfg_acpi_get_ent(const struct rtw89_sar_cfg_acpi *rtwsar,
+			   enum rtw89_rf_path path,
+			   enum rtw89_regulation_type regd)
+{
+	const struct rtw89_sar_indicator_from_acpi *ind = &rtwsar->indicator;
+	const struct rtw89_sar_table_from_acpi *tbl;
+	u8 sel;
+
+	sel = ind->tblsel[path];
+	tbl = &rtwsar->tables[sel];
+
+	return &tbl->entries[regd];
+}
+
 static
 s32 rtw89_sar_cfg_acpi_get_min(const struct rtw89_sar_entry_from_acpi *ent,
 			       enum rtw89_rf_path path,
@@ -106,9 +121,8 @@ static int rtw89_query_sar_config_acpi(struct rtw89_dev *rtwdev,
 				       s32 *cfg)
 {
 	const struct rtw89_sar_cfg_acpi *rtwsar = &rtwdev->sar.cfg_acpi;
-	const struct rtw89_sar_table_from_acpi *tbl = rtwsar->tables;
+	const struct rtw89_sar_entry_from_acpi *ent_a, *ent_b;
 	enum rtw89_acpi_sar_subband subband_l, subband_h;
-	const struct rtw89_sar_entry_from_acpi *ent;
 	u32 center_freq = sar_parm->center_freq;
 	const struct rtw89_6ghz_span *span;
 	enum rtw89_regulation_type regd;
@@ -127,10 +141,12 @@ static int rtw89_query_sar_config_acpi(struct rtw89_dev *rtwdev,
 
 	band = rtw89_acpi_sar_subband_to_band(rtwdev, subband_l);
 	regd = rtw89_regd_get(rtwdev, band);
-	ent = &tbl->entries[regd];
 
-	cfg_a = rtw89_sar_cfg_acpi_get_min(ent, RF_PATH_A, subband_l, subband_h);
-	cfg_b = rtw89_sar_cfg_acpi_get_min(ent, RF_PATH_B, subband_l, subband_h);
+	ent_a = rtw89_sar_cfg_acpi_get_ent(rtwsar, RF_PATH_A, regd);
+	ent_b = rtw89_sar_cfg_acpi_get_ent(rtwsar, RF_PATH_B, regd);
+
+	cfg_a = rtw89_sar_cfg_acpi_get_min(ent_a, RF_PATH_A, subband_l, subband_h);
+	cfg_b = rtw89_sar_cfg_acpi_get_min(ent_b, RF_PATH_B, subband_l, subband_h);
 	*cfg = min(cfg_a, cfg_b);
 
 	if (sar_parm->ntx == RTW89_2TX)
@@ -502,18 +518,27 @@ static bool rtw89_tas_query_sar_config(struct rtw89_dev *rtwdev, s32 *cfg)
 	return true;
 }
 
-static void rtw89_tas_state_update(struct rtw89_dev *rtwdev,
-				   enum rtw89_tas_state state)
+static bool __rtw89_tas_state_update(struct rtw89_dev *rtwdev,
+				     enum rtw89_tas_state state)
 {
 	struct rtw89_tas_info *tas = &rtwdev->tas;
 
 	if (tas->state == state)
-		return;
+		return false;
 
 	rtw89_debug(rtwdev, RTW89_DBG_SAR, "tas: switch state: %s -> %s\n",
 		    rtw89_tas_state_str(tas->state), rtw89_tas_state_str(state));
 
 	tas->state = state;
+	return true;
+}
+
+static void rtw89_tas_state_update(struct rtw89_dev *rtwdev,
+				   enum rtw89_tas_state state)
+{
+	if (!__rtw89_tas_state_update(rtwdev, state))
+		return;
+
 	rtw89_core_set_chip_txpwr(rtwdev);
 }
 
@@ -608,7 +633,7 @@ static void rtw89_tas_history_update(struct rtw89_dev *rtwdev)
 		    rtw89_linear_to_db_quarter(div_u64(txpwr, PERCENT)));
 }
 
-static void rtw89_tas_rolling_average(struct rtw89_dev *rtwdev)
+static bool rtw89_tas_rolling_average(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_tas_info *tas = &rtwdev->tas;
 	s32 dpr_on_threshold, dpr_off_threshold;
@@ -634,9 +659,9 @@ static void rtw89_tas_rolling_average(struct rtw89_dev *rtwdev)
 	else if (txpwr_avg < dpr_off_threshold)
 		state = RTW89_TAS_STATE_DPR_OFF;
 	else
-		return;
+		return false;
 
-	rtw89_tas_state_update(rtwdev, state);
+	return __rtw89_tas_state_update(rtwdev, state);
 }
 
 static void rtw89_tas_init(struct rtw89_dev *rtwdev)
@@ -717,29 +742,28 @@ void rtw89_tas_reset(struct rtw89_dev *rtwdev, bool force)
 		    "tas: band: %u, freq: %u\n", chan->band_type, chan->freq);
 }
 
-void rtw89_tas_track(struct rtw89_dev *rtwdev)
+static bool rtw89_tas_track(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_tas_info *tas = &rtwdev->tas;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	s32 cfg;
 
 	if (hal->disabled_dm_bitmap & BIT(RTW89_DM_TAS))
-		return;
+		return false;
 
 	if (!rtw89_tas_is_active(rtwdev))
-		return;
+		return false;
 
-	if (!rtw89_tas_query_sar_config(rtwdev, &cfg) || tas->block_regd) {
-		rtw89_tas_state_update(rtwdev, RTW89_TAS_STATE_STATIC_SAR);
-		return;
-	}
+	if (!rtw89_tas_query_sar_config(rtwdev, &cfg) || tas->block_regd)
+		return __rtw89_tas_state_update(rtwdev, RTW89_TAS_STATE_STATIC_SAR);
 
 	if (tas->pause)
-		return;
+		return false;
 
 	rtw89_tas_window_update(rtwdev);
 	rtw89_tas_history_update(rtwdev);
-	rtw89_tas_rolling_average(rtwdev);
+
+	return rtw89_tas_rolling_average(rtwdev);
 }
 
 void rtw89_tas_scan(struct rtw89_dev *rtwdev, bool start)
@@ -791,4 +815,46 @@ void rtw89_sar_init(struct rtw89_dev *rtwdev)
 {
 	rtw89_set_sar_from_acpi(rtwdev);
 	rtw89_tas_init(rtwdev);
+}
+
+static bool rtw89_sar_track_acpi(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_sar_cfg_acpi *cfg = &rtwdev->sar.cfg_acpi;
+	struct rtw89_sar_indicator_from_acpi *ind = &cfg->indicator;
+	const enum rtw89_sar_sources src = rtwdev->sar.src;
+	bool changed;
+	int ret;
+
+	lockdep_assert_wiphy(rtwdev->hw->wiphy);
+
+	if (src != RTW89_SAR_SOURCE_ACPI)
+		return false;
+
+	if (!ind->enable_sync)
+		return false;
+
+	ret = rtw89_acpi_evaluate_dynamic_sar_indicator(rtwdev, cfg, &changed);
+	if (likely(!ret))
+		return changed;
+
+	rtw89_debug(rtwdev, RTW89_DBG_SAR,
+		    "%s: failed to track indicator: %d; reset and disable\n",
+		    __func__, ret);
+
+	memset(ind->tblsel, 0, sizeof(ind->tblsel));
+	ind->enable_sync = false;
+	return true;
+}
+
+void rtw89_sar_track(struct rtw89_dev *rtwdev)
+{
+	unsigned int changes = 0;
+
+	changes += rtw89_sar_track_acpi(rtwdev);
+	changes += rtw89_tas_track(rtwdev);
+
+	if (!changes)
+		return;
+
+	rtw89_core_set_chip_txpwr(rtwdev);
 }

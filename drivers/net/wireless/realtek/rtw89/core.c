@@ -3617,7 +3617,7 @@ static void rtw89_track_work(struct wiphy *wiphy, struct wiphy_work *work)
 	rtw89_phy_antdiv_track(rtwdev);
 	rtw89_phy_ul_tb_ctrl_track(rtwdev);
 	rtw89_phy_edcca_track(rtwdev);
-	rtw89_tas_track(rtwdev);
+	rtw89_sar_track(rtwdev);
 	rtw89_chanctx_track(rtwdev);
 	rtw89_core_rfkill_poll(rtwdev, false);
 

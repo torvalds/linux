@@ -4666,10 +4666,23 @@ struct rtw89_sar_table_from_acpi {
 	struct rtw89_sar_entry_from_acpi entries[RTW89_REGD_NUM];
 };
 
+struct rtw89_sar_indicator_from_acpi {
+	bool enable_sync;
+	unsigned int fields;
+	u8 (*rfpath_to_antidx)(enum rtw89_rf_path rfpath);
+
+	/* Select among @tables of container, rtw89_sar_cfg_acpi, by path.
+	 * Not design with pointers since addresses will be invalid after
+	 * sync content with local container instance.
+	 */
+	u8 tblsel[NUM_OF_RTW89_ACPI_SAR_RF_PATH];
+};
+
 struct rtw89_sar_cfg_acpi {
 	u8 downgrade_2tx;
 	unsigned int valid_num;
 	struct rtw89_sar_table_from_acpi tables[MAX_NUM_OF_RTW89_ACPI_SAR_TBL];
+	struct rtw89_sar_indicator_from_acpi indicator;
 };
 
 struct rtw89_sar_info {

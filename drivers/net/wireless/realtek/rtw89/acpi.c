@@ -688,25 +688,158 @@ out:
 	return rec;
 }
 
+static const struct rtw89_acpi_sar_recognition *
+rtw89_acpi_evaluate_dynamic_sar(struct rtw89_dev *rtwdev,
+				struct rtw89_sar_cfg_acpi *cfg)
+{
+	const struct rtw89_acpi_sar_recognition *rec = NULL;
+	const struct rtw89_acpi_dynamic_sar_hdr *hdr;
+	struct rtw89_acpi_sar_rec_parm parm = {};
+	struct rtw89_sar_table_from_acpi *tbl;
+	const struct rtw89_acpi_data *data;
+	u32 len;
+
+	data = rtw89_acpi_evaluate_method(rtwdev, RTW89_ACPI_METHOD_DYNAMIC_SAR);
+	if (!data)
+		return NULL;
+
+	rtw89_debug(rtwdev, RTW89_DBG_ACPI, "acpi load dynamic sar\n");
+
+	len = data->len;
+	if (len <= sizeof(*hdr)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "invalid buf len %u\n", len);
+		goto out;
+	}
+
+	hdr = (typeof(hdr))data->buf;
+
+	parm.cid = le16_to_cpu(hdr->cid);
+	parm.rev = hdr->rev;
+	parm.tbl_cnt = hdr->cnt;
+	parm.pld_len = len - sizeof(*hdr);
+
+	rec = rtw89_acpi_sar_recognize(rtwdev, &parm);
+	if (!rec)
+		goto out;
+
+	for (unsigned int i = 0; i < hdr->cnt; i++) {
+		const u8 *content = hdr->content + rec->id.size * i;
+		struct rtw89_sar_entry_from_acpi tmp = {};
+
+		rec->load(rtwdev, rec, content, &tmp);
+
+		tbl = &cfg->tables[i];
+		for (u8 regd = 0; regd < RTW89_REGD_NUM; regd++)
+			tbl->entries[regd] = tmp;
+	}
+
+	cfg->valid_num = hdr->cnt;
+
+out:
+	kfree(data);
+	return rec;
+}
+
+int rtw89_acpi_evaluate_dynamic_sar_indicator(struct rtw89_dev *rtwdev,
+					      struct rtw89_sar_cfg_acpi *cfg,
+					      bool *poll_changed)
+{
+	struct rtw89_sar_indicator_from_acpi *ind = &cfg->indicator;
+	struct rtw89_sar_indicator_from_acpi tmp = *ind;
+	const struct rtw89_acpi_data *data;
+	const u8 *tbl_base1_by_ant;
+	enum rtw89_rf_path path;
+	int ret = 0;
+	u32 len;
+
+	data = rtw89_acpi_evaluate_method(rtwdev, RTW89_ACPI_METHOD_DYNAMIC_SAR_INDICATOR);
+	if (!data)
+		return -EFAULT;
+
+	if (!poll_changed)
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "acpi load dynamic sar indicator\n");
+
+	len = data->len;
+	if (len != ind->fields) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "invalid buf len %u\n", len);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	tbl_base1_by_ant = data->buf;
+
+	for (path = 0; path < NUM_OF_RTW89_ACPI_SAR_RF_PATH; path++) {
+		u8 antidx = ind->rfpath_to_antidx(path);
+		u8 sel;
+
+		if (antidx >= ind->fields)
+			antidx = 0;
+
+		/* convert the table index from 1-based to 0-based */
+		sel = tbl_base1_by_ant[antidx] - 1;
+		if (sel >= cfg->valid_num)
+			sel = 0;
+
+		tmp.tblsel[path] = sel;
+	}
+
+	if (memcmp(ind, &tmp, sizeof(*ind)) == 0) {
+		if (poll_changed)
+			*poll_changed = false;
+	} else {
+		if (poll_changed)
+			*poll_changed = true;
+
+		*ind = tmp;
+	}
+
+out:
+	kfree(data);
+	return ret;
+}
+
 int rtw89_acpi_evaluate_sar(struct rtw89_dev *rtwdev,
 			    struct rtw89_sar_cfg_acpi *cfg)
 {
+	struct rtw89_sar_indicator_from_acpi *ind = &cfg->indicator;
 	const struct rtw89_acpi_sar_recognition *rec;
+	bool fetch_indicator = false;
+	int ret;
 
 	rec = rtw89_acpi_evaluate_static_sar(rtwdev, cfg);
+	if (rec)
+		goto recognized;
+
+	rec = rtw89_acpi_evaluate_dynamic_sar(rtwdev, cfg);
 	if (!rec)
 		return -ENOENT;
 
+	fetch_indicator = true;
+
+recognized:
 	switch (rec->id.cid) {
 	case RTW89_ACPI_SAR_CID_HP:
 		cfg->downgrade_2tx = 3 << TXPWR_FACTOR_OF_RTW89_ACPI_SAR;
+		ind->fields = RTW89_ACPI_SAR_ANT_NR_STD;
 		break;
 	case RTW89_ACPI_SAR_CID_RT:
 		cfg->downgrade_2tx = 0;
+		ind->fields = 1;
 		break;
 	default:
 		return -EFAULT;
 	}
 
+	if (fetch_indicator) {
+		ind->rfpath_to_antidx = rec->rfpath_to_antidx;
+		ret = rtw89_acpi_evaluate_dynamic_sar_indicator(rtwdev, cfg, NULL);
+		if (ret)
+			fetch_indicator = false;
+	}
+
+	if (!fetch_indicator)
+		memset(ind->tblsel, 0, sizeof(ind->tblsel));
+
+	ind->enable_sync = fetch_indicator;
 	return 0;
 }
