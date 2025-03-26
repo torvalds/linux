@@ -97,13 +97,13 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 			bch2_topology_error(c);
 
 			printbuf_reset(&buf);
-			prt_str(&buf, "end of prev node doesn't match start of next node\n  in ");
+			prt_str(&buf, "end of prev node doesn't match start of next node\nin ");
 			bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
 			prt_str(&buf, " node ");
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-			prt_str(&buf, "\n  prev ");
+			prt_str(&buf, "\nprev ");
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(prev.k));
-			prt_str(&buf, "\n  next ");
+			prt_str(&buf, "\nnext ");
 			bch2_bkey_val_to_text(&buf, c, k);
 
 			log_fsck_err(trans, btree_node_topology_bad_min_key, "%s", buf.buf);
@@ -118,7 +118,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		bch2_topology_error(c);
 
 		printbuf_reset(&buf);
-		prt_str(&buf, "empty interior node\n  in ");
+		prt_str(&buf, "empty interior node\nin ");
 		bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
 		prt_str(&buf, " node ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
@@ -129,11 +129,11 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		bch2_topology_error(c);
 
 		printbuf_reset(&buf);
-		prt_str(&buf, "last child node doesn't end at end of parent node\n  in ");
+		prt_str(&buf, "last child node doesn't end at end of parent node\nin ");
 		bch2_btree_id_level_to_text(&buf, b->c.btree_id, b->c.level);
 		prt_str(&buf, " node ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-		prt_str(&buf, "\n  last key ");
+		prt_str(&buf, "\nlast key ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(prev.k));
 
 		log_fsck_err(trans, btree_node_topology_bad_max_key, "%s", buf.buf);

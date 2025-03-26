@@ -1417,7 +1417,7 @@ void __bch2_btree_pos_to_text(struct printbuf *out, struct bch_fs *c,
 		prt_printf(out, "%u", r->level);
 	else
 		prt_printf(out, "(unknown)");
-	prt_printf(out, "\n  ");
+	prt_newline(out);
 
 	bch2_bkey_val_to_text(out, c, k);
 }

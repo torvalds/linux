@@ -320,7 +320,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 
 	if (flags & BTREE_TRIGGER_gc) {
 		struct bucket *g = gc_bucket(ca, bucket.offset);
-		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n  %s",
+		if (bch2_fs_inconsistent_on(!g, c, "reference to invalid bucket on device %u\n%s",
 					    ptr->dev,
 					    (bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
 			ret = -BCH_ERR_mark_stripe;

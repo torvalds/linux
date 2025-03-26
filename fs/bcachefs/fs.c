@@ -673,7 +673,7 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	 * back to this dirent
 	 */
 	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
-				c, "dirent to missing inode:\n  %s",
+				c, "dirent to missing inode:\n%s",
 				(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf));
 	if (ret)
 		goto err;

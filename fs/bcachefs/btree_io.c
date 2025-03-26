@@ -525,8 +525,6 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, "at btree ");
 	bch2_btree_pos_to_text(out, c, b);
 
-	printbuf_indent_add(out, 2);
-
 	prt_printf(out, "\nnode offset %u/%u",
 		   b->written, btree_ptr_sectors_written(bkey_i_to_s_c(&b->key)));
 	if (i)
@@ -817,7 +815,7 @@ static int validate_bset(struct bch_fs *c, struct bch_dev *ca,
 			     -BCH_ERR_btree_node_read_err_bad_node,
 			     c, ca, b, i, NULL,
 			     btree_node_bad_format,
-			     "invalid bkey format: %s\n  %s", buf1.buf,
+			     "invalid bkey format: %s\n%s", buf1.buf,
 			     (printbuf_reset(&buf2),
 			      bch2_bkey_format_to_text(&buf2, &bn->format), buf2.buf));
 		printbuf_reset(&buf1);

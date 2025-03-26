@@ -214,12 +214,12 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 
 		fsck_err_on(same_device,
 			    c, journal_entry_dup_same_device,
-			    "duplicate journal entry on same device\n  %s",
+			    "duplicate journal entry on same device\n%s",
 			    buf.buf);
 
 		fsck_err_on(not_identical,
 			    c, journal_entry_replicas_data_mismatch,
-			    "found duplicate but non identical journal entries\n  %s",
+			    "found duplicate but non identical journal entries\n%s",
 			    buf.buf);
 
 		if (entry_ptr.csum_good && !identical)
@@ -1371,8 +1371,8 @@ int bch2_journal_read(struct bch_fs *c,
 			missing_end = seq - 1;
 			fsck_err(c, journal_entries_missing,
 				 "journal entries %llu-%llu missing! (replaying %llu-%llu)\n"
-				 "  prev at %s\n"
-				 "  next at %s, continue?",
+				 "prev at %s\n"
+				 "next at %s, continue?",
 				 missing_start, missing_end,
 				 *last_seq, *blacklist_seq - 1,
 				 buf1.buf, buf2.buf);
@@ -1426,7 +1426,7 @@ int bch2_journal_read(struct bch_fs *c,
 		    !bch2_replicas_marked(c, &replicas.e) &&
 		    (le64_to_cpu(i->j.seq) == *last_seq ||
 		     fsck_err(c, journal_entry_replicas_not_marked,
-			      "superblock not marked as containing replicas for journal entry %llu\n  %s",
+			      "superblock not marked as containing replicas for journal entry %llu\n%s",
 			      le64_to_cpu(i->j.seq), buf.buf))) {
 			ret = bch2_mark_replicas(c, &replicas.e);
 			if (ret)

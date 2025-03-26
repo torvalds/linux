@@ -305,6 +305,13 @@ int __bch2_fsck_err(struct bch_fs *c,
 
 	bch2_sb_error_count(c, err);
 
+	printbuf_indent_add_nextline(out, 2);
+
+#ifdef BCACHEFS_LOG_PREFIX
+	if (strncmp(fmt, "bcachefs", 8))
+		prt_printf(out, bch2_log_msg(c, ""));
+#endif
+
 	va_start(args, fmt);
 	prt_vprintf(out, fmt, args);
 	va_end(args);
@@ -353,11 +360,6 @@ int __bch2_fsck_err(struct bch_fs *c,
 
 		s->nr++;
 	}
-
-#ifdef BCACHEFS_LOG_PREFIX
-	if (!strncmp(fmt, "bcachefs:", 9))
-		prt_printf(out, bch2_log_msg(c, ""));
-#endif
 
 	if ((flags & FSCK_AUTOFIX) &&
 	    (c->opts.errors == BCH_ON_ERROR_continue ||
@@ -435,17 +437,21 @@ int __bch2_fsck_err(struct bch_fs *c,
 		print = true;
 	}
 print:
+	prt_newline(out);
+
+	if (inconsistent)
+		bch2_inconsistent_error(c);
+	else if (exiting)
+		prt_printf(out, "Unable to continue, halting\n");
+	else if (suppressing)
+		prt_printf(out, "Ratelimiting new instances of previous error\n");
+
 	if (print) {
 		if (bch2_fs_stdio_redirect(c))
 			bch2_print(c, "%s\n", out->buf);
 		else
 			bch2_print_string_as_lines(KERN_ERR, out->buf);
 	}
-
-	if (exiting)
-		bch_err(c, "Unable to continue, halting");
-	else if (suppressing)
-		bch_err(c, "Ratelimiting new instances of previous error");
 
 	if (s)
 		s->ret = ret;
@@ -514,7 +520,7 @@ int __bch2_bkey_fsck_err(struct bch_fs *c,
 	prt_printf(&buf, " level=%u: ", from.level);
 
 	bch2_bkey_val_to_text(&buf, c, k);
-	prt_str(&buf, "\n  ");
+	prt_newline(&buf);
 
 	va_list args;
 	va_start(args, fmt);
@@ -536,7 +542,7 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 
 	list_for_each_entry_safe(s, n, &c->fsck_error_msgs, list) {
 		if (s->ratelimited && s->last_msg)
-			bch_err(c, "Saw %llu errors like:\n    %s", s->nr, s->last_msg);
+			bch_err(c, "Saw %llu errors like:\n  %s", s->nr, s->last_msg);
 
 		list_del(&s->list);
 		kfree(s->last_msg);

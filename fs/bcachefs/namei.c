@@ -700,9 +700,9 @@ static int bch2_check_dirent_inode_dirent(struct btree_trans *trans,
 
 	if (bch2_inode_should_have_single_bp(target) &&
 	    !fsck_err(trans, inode_wrong_backpointer,
-		      "dirent points to inode that does not point back:\n  %s",
+		      "dirent points to inode that does not point back:\n%s",
 		      (bch2_bkey_val_to_text(&buf, c, d.s_c),
-		       prt_printf(&buf, "\n  "),
+		       prt_newline(&buf),
 		       bch2_inode_unpacked_to_text(&buf, target),
 		       buf.buf)))
 		goto err;

@@ -646,7 +646,7 @@ static int bch2_disk_accounting_validate_late(struct btree_trans *trans,
 
 		if (fsck_err_on(!bch2_replicas_marked_locked(c, &r.e),
 				trans, accounting_replicas_not_marked,
-				"accounting not marked in superblock replicas\n  %s",
+				"accounting not marked in superblock replicas\n%s",
 				(printbuf_reset(&buf),
 				 bch2_accounting_key_to_text(&buf, &acc),
 				 buf.buf))) {
@@ -676,7 +676,7 @@ fsck_err:
 	return ret;
 invalid_device:
 	if (fsck_err(trans, accounting_to_invalid_device,
-		     "accounting entry points to invalid device %i\n  %s",
+		     "accounting entry points to invalid device %i\n%s",
 		     invalid_dev,
 		     (printbuf_reset(&buf),
 		      bch2_accounting_key_to_text(&buf, &acc),

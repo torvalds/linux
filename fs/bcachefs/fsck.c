@@ -1421,14 +1421,14 @@ static int check_key_has_inode(struct btree_trans *trans,
 
 	if (fsck_err_on(!i,
 			trans, key_in_missing_inode,
-			"key in missing inode:\n  %s",
+			"key in missing inode:\n%s",
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 		goto delete;
 
 	if (fsck_err_on(i && !btree_matches_i_mode(iter->btree_id, i->inode.bi_mode),
 			trans, key_in_wrong_inode_type,
-			"key for wrong inode mode %o:\n  %s",
+			"key for wrong inode mode %o:\n%s",
 			i->inode.bi_mode,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
@@ -1571,13 +1571,13 @@ static int overlapping_extents_found(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	prt_str(&buf, "\n  ");
+	prt_newline(&buf);
 	bch2_bkey_val_to_text(&buf, c, k1);
 
 	if (!bpos_eq(pos1, k1.k->p)) {
-		prt_str(&buf, "\n  wanted\n  ");
+		prt_str(&buf, "\nwanted\n  ");
 		bch2_bpos_to_text(&buf, pos1);
-		prt_str(&buf, "\n  ");
+		prt_str(&buf, "\n");
 		bch2_bkey_to_text(&buf, &pos2);
 
 		bch_err(c, "%s: error finding first overlapping extent when repairing, got%s",
@@ -1600,7 +1600,7 @@ static int overlapping_extents_found(struct btree_trans *trans,
 			break;
 	}
 
-	prt_str(&buf, "\n  ");
+	prt_newline(&buf);
 	bch2_bkey_val_to_text(&buf, c, k2);
 
 	if (bpos_gt(k2.k->p, pos2.p) ||
@@ -1611,7 +1611,7 @@ static int overlapping_extents_found(struct btree_trans *trans,
 		goto err;
 	}
 
-	prt_printf(&buf, "\n  overwriting %s extent",
+	prt_printf(&buf, "\noverwriting %s extent",
 		   pos1.snapshot >= pos2.p.snapshot ? "first" : "second");
 
 	if (fsck_err(trans, extent_overlapping,
@@ -1784,7 +1784,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			if (fsck_err_on(k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9 &&
 					!bkey_extent_is_reservation(k),
 					trans, extent_past_end_of_inode,
-					"extent type past end of inode %llu:%u, i_size %llu\n  %s",
+					"extent type past end of inode %llu:%u, i_size %llu\n%s",
 					i->inode.bi_inum, i->snapshot, i->inode.bi_size,
 					(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 				struct btree_iter iter2;
