@@ -47,7 +47,6 @@ static const struct regmap_bus gsc_hwmon_regmap_bus = {
 static const struct regmap_config gsc_hwmon_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_NONE,
 };
 
 static ssize_t pwm_auto_point_temp_show(struct device *dev,

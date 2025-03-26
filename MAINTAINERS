@@ -5878,6 +5878,7 @@ CONGATEC BOARD CONTROLLER MFD DRIVER
 M:	Thomas Richard <thomas.richard@bootlin.com>
 S:	Maintained
 F:	drivers/gpio/gpio-cgbc.c
+F:	drivers/hwmon/cgbc-hwmon.c
 F:	drivers/i2c/busses/i2c-cgbc.c
 F:	drivers/mfd/cgbc-core.c
 F:	drivers/watchdog/cgbc_wdt.c
@@ -10729,6 +10730,12 @@ W:	http://www.st.com/
 F:	Documentation/devicetree/bindings/iio/humidity/st,hts221.yaml
 F:	drivers/iio/humidity/hts221*
 
+HTU31 Hardware Temperature and Humidity Sensor
+M:	Andrei Lalaev <andrey.lalaev@gmail.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	drivers/hwmon/htu31.c
+
 HUAWEI ETHERNET DRIVER
 M:	Cai Huoqing <cai.huoqing@linux.dev>
 L:	netdev@vger.kernel.org
@@ -11369,6 +11376,13 @@ IMS TWINTURBO FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
 S:	Orphan
 F:	drivers/video/fbdev/imsttfb.c
+
+INA233 HARDWARE MONITOR DRIVERS
+M:	Leo Yang <leo.yang.sy0@gmail.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/ina233.rst
+F:	drivers/hwmon/pmbus/ina233.c
 
 INDEX OF FURTHER KERNEL DOCUMENTATION
 M:	Carlos Bilbao <carlos.bilbao@kernel.org>
