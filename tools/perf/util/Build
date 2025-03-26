@@ -173,6 +173,10 @@ perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf-filter-flex.o
 perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf-filter-bison.o
 perf-util-$(CONFIG_PERF_BPF_SKEL) += btf.o
 
+ifeq ($(CONFIG_TRACE),y)
+  perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf-trace-summary.o
+endif
+
 ifeq ($(CONFIG_LIBTRACEEVENT),y)
   perf-util-$(CONFIG_PERF_BPF_SKEL) += bpf_lock_contention.o
 endif

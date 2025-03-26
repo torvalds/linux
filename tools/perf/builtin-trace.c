@@ -55,6 +55,7 @@
 #include "util/thread_map.h"
 #include "util/stat.h"
 #include "util/tool.h"
+#include "util/trace.h"
 #include "util/util.h"
 #include "trace/beauty/beauty.h"
 #include "trace-event.h"
@@ -141,12 +142,6 @@ struct syscall_fmt {
 	bool	   hexret;
 };
 
-enum summary_mode {
-	SUMMARY__NONE = 0,
-	SUMMARY__BY_TOTAL,
-	SUMMARY__BY_THREAD,
-};
-
 struct trace {
 	struct perf_tool	tool;
 	struct {
@@ -205,7 +200,7 @@ struct trace {
 	} stats;
 	unsigned int		max_stack;
 	unsigned int		min_stack;
-	enum summary_mode	summary_mode;
+	enum trace_summary_mode	summary_mode;
 	int			raw_augmented_syscalls_args_size;
 	bool			raw_augmented_syscalls;
 	bool			fd_path_disabled;
@@ -234,6 +229,7 @@ struct trace {
 	bool			force;
 	bool			vfs_getname;
 	bool			force_btf;
+	bool			summary_bpf;
 	int			trace_pgfaults;
 	char			*perfconfig_events;
 	struct {
@@ -2614,6 +2610,9 @@ static void thread__update_stats(struct thread *thread, struct thread_trace *ttr
 	struct syscall_stats *stats = NULL;
 	u64 duration = 0;
 
+	if (trace->summary_bpf)
+		return;
+
 	if (trace->summary_mode == SUMMARY__BY_TOTAL)
 		syscall_stats = trace->syscall_stats;
 
@@ -4377,6 +4376,14 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 
 	trace->live = true;
 
+	if (trace->summary_bpf) {
+		if (trace_prepare_bpf_summary(trace->summary_mode) < 0)
+			goto out_delete_evlist;
+
+		if (trace->summary_only)
+			goto create_maps;
+	}
+
 	if (!trace->raw_augmented_syscalls) {
 		if (trace->trace_syscalls && trace__add_syscall_newtp(trace))
 			goto out_error_raw_syscalls;
@@ -4435,6 +4442,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->cgroup)
 		evlist__set_default_cgroup(trace->evlist, trace->cgroup);
 
+create_maps:
 	err = evlist__create_maps(evlist, &trace->opts.target);
 	if (err < 0) {
 		fprintf(trace->output, "Problems parsing the target to trace, check your options!\n");
@@ -4447,7 +4455,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	if (trace->summary_mode == SUMMARY__BY_TOTAL) {
+	if (trace->summary_mode == SUMMARY__BY_TOTAL && !trace->summary_bpf) {
 		trace->syscall_stats = alloc_syscall_stats();
 		if (trace->syscall_stats == NULL)
 			goto out_delete_evlist;
@@ -4535,9 +4543,11 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (err < 0)
 		goto out_error_apply_filters;
 
-	err = evlist__mmap(evlist, trace->opts.mmap_pages);
-	if (err < 0)
-		goto out_error_mmap;
+	if (!trace->summary_only || !trace->summary_bpf) {
+		err = evlist__mmap(evlist, trace->opts.mmap_pages);
+		if (err < 0)
+			goto out_error_mmap;
+	}
 
 	if (!target__none(&trace->opts.target) && !trace->opts.target.initial_delay)
 		evlist__enable(evlist);
@@ -4549,6 +4559,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 		usleep(trace->opts.target.initial_delay * 1000);
 		evlist__enable(evlist);
 	}
+
+	if (trace->summary_bpf)
+		trace_start_bpf_summary();
 
 	trace->multiple_threads = perf_thread_map__pid(evlist->core.threads, 0) == -1 ||
 		perf_thread_map__nr(evlist->core.threads) > 1 ||
@@ -4617,12 +4630,17 @@ out_disable:
 
 	evlist__disable(evlist);
 
+	if (trace->summary_bpf)
+		trace_end_bpf_summary();
+
 	if (trace->sort_events)
 		ordered_events__flush(&trace->oe.data, OE_FLUSH__FINAL);
 
 	if (!err) {
 		if (trace->summary) {
-			if (trace->summary_mode == SUMMARY__BY_TOTAL)
+			if (trace->summary_bpf)
+				trace_print_bpf_summary(trace->output);
+			else if (trace->summary_mode == SUMMARY__BY_TOTAL)
 				trace__fprintf_total_summary(trace, trace->output);
 			else
 				trace__fprintf_thread_summary(trace, trace->output);
@@ -4638,6 +4656,7 @@ out_disable:
 	}
 
 out_delete_evlist:
+	trace_cleanup_bpf_summary();
 	delete_syscall_stats(trace->syscall_stats);
 	trace__symbols__exit(trace);
 	evlist__free_syscall_tp_fields(evlist);
@@ -5473,6 +5492,7 @@ int cmd_trace(int argc, const char **argv)
 		     "start"),
 	OPT_BOOLEAN(0, "force-btf", &trace.force_btf, "Prefer btf_dump general pretty printer"
 		       "to customized ones"),
+	OPT_BOOLEAN(0, "bpf-summary", &trace.summary_bpf, "Summary syscall stats in BPF"),
 	OPTS_EVSWITCH(&trace.evswitch),
 	OPT_END()
 	};
@@ -5562,6 +5582,16 @@ int cmd_trace(int argc, const char **argv)
 	if ((argc >= 1) && (strcmp(argv[0], "record") == 0)) {
 		pr_debug("Syscall augmentation fails with record, disabling augmentation");
 		goto skip_augmentation;
+	}
+
+	if (trace.summary_bpf) {
+		if (!trace.opts.target.system_wide) {
+			/* TODO: Add filters in the BPF to support other targets. */
+			pr_err("Error: --bpf-summary only works for system-wide mode.\n");
+			goto out;
+		}
+		if (trace.summary_only)
+			goto skip_augmentation;
 	}
 
 	trace.skel = augmented_raw_syscalls_bpf__open();
