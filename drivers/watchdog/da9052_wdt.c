@@ -194,11 +194,15 @@ static int da9052_wdt_probe(struct platform_device *pdev)
 	if (da9052->fault_log & DA9052_FAULTLOG_VDDFAULT)
 		da9052_wdt->bootstatus |= WDIOF_POWERUNDER;
 
-	ret = da9052_reg_update(da9052, DA9052_CONTROL_D_REG,
-				DA9052_CONTROLD_TWDSCALE, 0);
-	if (ret < 0) {
-		dev_err(dev, "Failed to disable watchdog bits, %d\n", ret);
+	ret = da9052_reg_read(da9052, DA9052_CONTROL_D_REG);
+	if (ret < 0)
 		return ret;
+
+	/* Check if FW enabled the watchdog */
+	if (ret & DA9052_CONTROLD_TWDSCALE) {
+		/* Ensure proper initialization */
+		da9052_wdt_start(da9052_wdt);
+		set_bit(WDOG_HW_RUNNING, &da9052_wdt->status);
 	}
 
 	return devm_watchdog_register_device(dev, &driver_data->wdt);
