@@ -7,13 +7,40 @@
 // Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
 //         Liam Girdwood <lrg@slimlogic.co.uk>
 
-#include <linux/platform_device.h>
+#include <linux/device/faux.h>
 #include <linux/export.h>
 #include <linux/math.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+
+int snd_soc_ret(const struct device *dev, int ret, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	/* Positive, Zero values are not errors */
+	if (ret >= 0)
+		return ret;
+
+	/* Negative values might be errors */
+	switch (ret) {
+	case -EPROBE_DEFER:
+	case -ENOTSUPP:
+	case -EOPNOTSUPP:
+		break;
+	default:
+		va_start(args, fmt);
+		vaf.fmt = fmt;
+		vaf.va = &args;
+
+		dev_err(dev, "ASoC error (%d): %pV", ret, &vaf);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_soc_ret);
 
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots)
 {
@@ -235,48 +262,38 @@ struct snd_soc_dai_link_component snd_soc_dummy_dlc = {
 };
 EXPORT_SYMBOL_GPL(snd_soc_dummy_dlc);
 
-static int snd_soc_dummy_probe(struct platform_device *pdev)
+static int snd_soc_dummy_probe(struct faux_device *fdev)
 {
 	int ret;
 
-	ret = devm_snd_soc_register_component(&pdev->dev,
+	ret = devm_snd_soc_register_component(&fdev->dev,
 					      &dummy_codec, &dummy_dai, 1);
 	if (ret < 0)
 		return ret;
 
-	ret = devm_snd_soc_register_component(&pdev->dev, &dummy_platform,
+	ret = devm_snd_soc_register_component(&fdev->dev, &dummy_platform,
 					      NULL, 0);
 
 	return ret;
 }
 
-static struct platform_driver soc_dummy_driver = {
-	.driver = {
-		.name = "snd-soc-dummy",
-	},
+static struct faux_device_ops soc_dummy_ops = {
 	.probe = snd_soc_dummy_probe,
 };
 
-static struct platform_device *soc_dummy_dev;
+static struct faux_device *soc_dummy_dev;
 
 int __init snd_soc_util_init(void)
 {
-	int ret;
+	soc_dummy_dev = faux_device_create("snd-soc-dummy", NULL,
+					   &soc_dummy_ops);
+	if (!soc_dummy_dev)
+		return -ENODEV;
 
-	soc_dummy_dev =
-		platform_device_register_simple("snd-soc-dummy", -1, NULL, 0);
-	if (IS_ERR(soc_dummy_dev))
-		return PTR_ERR(soc_dummy_dev);
-
-	ret = platform_driver_register(&soc_dummy_driver);
-	if (ret != 0)
-		platform_device_unregister(soc_dummy_dev);
-
-	return ret;
+	return 0;
 }
 
 void snd_soc_util_exit(void)
 {
-	platform_driver_unregister(&soc_dummy_driver);
-	platform_device_unregister(soc_dummy_dev);
+	faux_device_destroy(soc_dummy_dev);
 }

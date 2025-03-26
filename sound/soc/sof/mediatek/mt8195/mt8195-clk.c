@@ -8,6 +8,7 @@
 
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/string_choices.h>
 #include "mt8195.h"
 #include "mt8195-clk.h"
 #include "../adsp_helper.h"
@@ -114,7 +115,7 @@ static int adsp_default_clk_init(struct snd_sof_dev *sdev, bool enable)
 	struct adsp_priv *priv = sdev->pdata->hw_pdata;
 	int ret;
 
-	dev_dbg(dev, "%s: %s\n", __func__, enable ? "on" : "off");
+	dev_dbg(dev, "%s: %s\n", __func__, str_on_off(enable));
 
 	if (enable) {
 		ret = clk_set_parent(priv->clk[CLK_TOP_ADSP],

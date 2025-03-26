@@ -534,11 +534,6 @@ static int cs_dsp_bin_err_test_adsp2_16bit_init(struct kunit *test)
 	return cs_dsp_bin_err_test_common_init(test, dsp, 1);
 }
 
-static struct kunit_case cs_dsp_bin_err_test_cases_halo[] = {
-
-	{ } /* terminator */
-};
-
 static void cs_dsp_bin_err_block_types_desc(const struct cs_dsp_bin_test_param *param,
 					    char *desc)
 {
@@ -560,7 +555,7 @@ KUNIT_ARRAY_PARAM(bin_test_block_types,
 		  bin_test_block_types_cases,
 		  cs_dsp_bin_err_block_types_desc);
 
-static struct kunit_case cs_dsp_bin_err_test_cases_adsp2[] = {
+static struct kunit_case cs_dsp_bin_err_test_cases[] = {
 	KUNIT_CASE(bin_load_with_unknown_blocks),
 	KUNIT_CASE(bin_err_wrong_magic),
 	KUNIT_CASE(bin_err_too_short_for_header),
@@ -578,21 +573,21 @@ static struct kunit_suite cs_dsp_bin_err_test_halo = {
 	.name = "cs_dsp_bin_err_halo",
 	.init = cs_dsp_bin_err_test_halo_init,
 	.exit = cs_dsp_bin_err_test_exit,
-	.test_cases = cs_dsp_bin_err_test_cases_halo,
+	.test_cases = cs_dsp_bin_err_test_cases,
 };
 
 static struct kunit_suite cs_dsp_bin_err_test_adsp2_32bit = {
 	.name = "cs_dsp_bin_err_adsp2_32bit",
 	.init = cs_dsp_bin_err_test_adsp2_32bit_init,
 	.exit = cs_dsp_bin_err_test_exit,
-	.test_cases = cs_dsp_bin_err_test_cases_adsp2,
+	.test_cases = cs_dsp_bin_err_test_cases,
 };
 
 static struct kunit_suite cs_dsp_bin_err_test_adsp2_16bit = {
 	.name = "cs_dsp_bin_err_adsp2_16bit",
 	.init = cs_dsp_bin_err_test_adsp2_16bit_init,
 	.exit = cs_dsp_bin_err_test_exit,
-	.test_cases = cs_dsp_bin_err_test_cases_adsp2,
+	.test_cases = cs_dsp_bin_err_test_cases,
 };
 
 kunit_test_suites(&cs_dsp_bin_err_test_halo,

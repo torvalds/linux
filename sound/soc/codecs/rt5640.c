@@ -1773,10 +1773,10 @@ static int rt5640_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	int dai_sel;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		rt5640->master[dai->id] = 1;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		reg_val |= RT5640_I2S_MS_S;
 		rt5640->master[dai->id] = 0;
 		break;
@@ -2963,19 +2963,19 @@ MODULE_DEVICE_TABLE(i2c, rt5640_i2c_id);
 static const struct of_device_id rt5640_of_match[] = {
 	{ .compatible = "realtek,rt5639", },
 	{ .compatible = "realtek,rt5640", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt5640_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5640_acpi_match[] = {
-	{ "INT33CA", 0 },
-	{ "10EC3276", 0 },
-	{ "10EC5640", 0 },
-	{ "10EC5642", 0 },
-	{ "INTCCFFD", 0 },
-	{ },
+	{ "10EC3276" },
+	{ "10EC5640" },
+	{ "10EC5642" },
+	{ "INT33CA" },
+	{ "INTCCFFD" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5640_acpi_match);
 #endif

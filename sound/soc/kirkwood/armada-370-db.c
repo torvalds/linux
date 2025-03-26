@@ -73,20 +73,20 @@ static struct snd_soc_dai_link a370db_dai[] = {
 {
 	.name = "CS42L51",
 	.stream_name = "analog",
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBC_CFC,
 	.ops = &a370db_ops,
 	SND_SOC_DAILINK_REG(analog),
 },
 {
 	.name = "S/PDIF out",
 	.stream_name = "spdif-out",
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBC_CFC,
 	SND_SOC_DAILINK_REG(spdif_out),
 },
 {
 	.name = "S/PDIF in",
 	.stream_name = "spdif-in",
-	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBC_CFC,
 	SND_SOC_DAILINK_REG(spdif_in),
 },
 };

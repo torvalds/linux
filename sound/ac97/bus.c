@@ -387,7 +387,6 @@ void snd_ac97_controller_unregister(struct ac97_controller *ac97_ctrl)
 }
 EXPORT_SYMBOL_GPL(snd_ac97_controller_unregister);
 
-#ifdef CONFIG_PM
 static int ac97_pm_runtime_suspend(struct device *dev)
 {
 	struct ac97_codec_device *codec = to_ac97_device(dev);
@@ -419,7 +418,6 @@ static int ac97_pm_runtime_resume(struct device *dev)
 
 	return pm_generic_runtime_resume(dev);
 }
-#endif /* CONFIG_PM */
 
 static const struct dev_pm_ops ac97_pm = {
 	.suspend	= pm_generic_suspend,
@@ -428,10 +426,7 @@ static const struct dev_pm_ops ac97_pm = {
 	.thaw		= pm_generic_thaw,
 	.poweroff	= pm_generic_poweroff,
 	.restore	= pm_generic_restore,
-	SET_RUNTIME_PM_OPS(
-		ac97_pm_runtime_suspend,
-		ac97_pm_runtime_resume,
-		NULL)
+	RUNTIME_PM_OPS(ac97_pm_runtime_suspend, ac97_pm_runtime_resume, NULL)
 };
 
 static int ac97_get_enable_clk(struct ac97_codec_device *adev)
@@ -535,7 +530,7 @@ const struct bus_type ac97_bus_type = {
 	.name		= "ac97bus",
 	.dev_groups	= ac97_dev_groups,
 	.match		= ac97_bus_match,
-	.pm		= &ac97_pm,
+	.pm		= pm_ptr(&ac97_pm),
 	.probe		= ac97_bus_probe,
 	.remove		= ac97_bus_remove,
 };

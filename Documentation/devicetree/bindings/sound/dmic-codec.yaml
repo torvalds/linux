@@ -19,6 +19,9 @@ properties:
   '#sound-dai-cells':
     const: 0
 
+  vref-supply:
+    description: Phandle to the digital microphone reference supply
+
   dmicen-gpios:
     description: GPIO specifier for DMIC to control start and stop
     maxItems: 1

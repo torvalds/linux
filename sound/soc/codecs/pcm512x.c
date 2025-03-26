@@ -1725,7 +1725,6 @@ void pcm512x_remove(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(pcm512x_remove);
 
-#ifdef CONFIG_PM
 static int pcm512x_suspend(struct device *dev)
 {
 	struct pcm512x_priv *pcm512x = dev_get_drvdata(dev);
@@ -1787,12 +1786,10 @@ static int pcm512x_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-const struct dev_pm_ops pcm512x_pm_ops = {
-	SET_RUNTIME_PM_OPS(pcm512x_suspend, pcm512x_resume, NULL)
+EXPORT_GPL_DEV_PM_OPS(pcm512x_pm_ops) = {
+	RUNTIME_PM_OPS(pcm512x_suspend, pcm512x_resume, NULL)
 };
-EXPORT_SYMBOL_GPL(pcm512x_pm_ops);
 
 MODULE_DESCRIPTION("ASoC PCM512x codec driver");
 MODULE_AUTHOR("Mark Brown <broonie@kernel.org>");

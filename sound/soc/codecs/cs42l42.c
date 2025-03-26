@@ -830,11 +830,11 @@ static int cs42l42_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	u32 asp_cfg_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBC_CFP:
 		asp_cfg_val |= CS42L42_ASP_MASTER_MODE <<
 				CS42L42_ASP_MODE_SHIFT;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		asp_cfg_val |= CS42L42_ASP_SLAVE_MODE <<
 				CS42L42_ASP_MODE_SHIFT;
 		break;
