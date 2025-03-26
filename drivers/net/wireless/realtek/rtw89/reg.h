@@ -8745,8 +8745,10 @@
 #define B_DPD_GDIS BIT(13)
 #define B_IQK_RFC_ON BIT(1)
 #define R_TXPWRB 0x56CC
+#define R_P1_TXPWRB 0x76CC
 #define B_TXPWRB_ON BIT(28)
 #define B_TXPWRB_VAL GENMASK(27, 19)
+#define B_TXPWRB_MAX GENMASK(8, 0)
 #define R_DPD_OFT_EN 0x5800
 #define B_DPD_OFT_EN BIT(28)
 #define B_DPD_TSSI_CW GENMASK(26, 18)
