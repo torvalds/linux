@@ -44,9 +44,7 @@ u16 crc_t10dif_arch(u16 crc, const u8 *data, size_t length)
 			crc_t10dif_pmull8(crc, data, length, buf);
 			kernel_neon_end();
 
-			crc = 0;
-			data = buf;
-			length = sizeof(buf);
+			return crc_t10dif_generic(0, buf, sizeof(buf));
 		}
 	}
 	return crc_t10dif_generic(crc, data, length);
