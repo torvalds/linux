@@ -501,15 +501,6 @@ static int intel_compute_sagv_mask(struct intel_atomic_state *state)
 	if (!new_bw_state)
 		return 0;
 
-	new_bw_state->active_pipes =
-		intel_calc_active_pipes(state, old_bw_state->active_pipes);
-
-	if (new_bw_state->active_pipes != old_bw_state->active_pipes) {
-		ret = intel_atomic_lock_global_state(&new_bw_state->base);
-		if (ret)
-			return ret;
-	}
-
 	if (intel_can_enable_sagv(i915, new_bw_state) !=
 	    intel_can_enable_sagv(i915, old_bw_state)) {
 		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
