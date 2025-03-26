@@ -1495,6 +1495,8 @@ void intel_bw_update_hw_state(struct intel_display *display)
 
 		if (DISPLAY_VER(display) >= 11)
 			intel_bw_crtc_update(bw_state, crtc_state);
+
+		skl_crtc_calc_dbuf_bw(&bw_state->dbuf_bw[pipe], crtc_state);
 	}
 }
 
@@ -1510,6 +1512,7 @@ void intel_bw_crtc_disable_noatomic(struct intel_crtc *crtc)
 
 	bw_state->data_rate[pipe] = 0;
 	bw_state->num_active_planes[pipe] = 0;
+	memset(&bw_state->dbuf_bw[pipe], 0, sizeof(bw_state->dbuf_bw[pipe]));
 }
 
 static struct intel_global_state *

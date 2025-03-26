@@ -3341,6 +3341,8 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 void intel_cdclk_update_hw_state(struct intel_display *display)
 {
+	const struct intel_bw_state *bw_state =
+		to_intel_bw_state(display->bw.obj.state);
 	struct intel_cdclk_state *cdclk_state =
 		to_intel_cdclk_state(display->cdclk.obj.state);
 	struct intel_crtc *crtc;
@@ -3358,6 +3360,8 @@ void intel_cdclk_update_hw_state(struct intel_display *display)
 		cdclk_state->min_cdclk[pipe] = intel_crtc_compute_min_cdclk(crtc_state);
 		cdclk_state->min_voltage_level[pipe] = crtc_state->min_voltage_level;
 	}
+
+	cdclk_state->bw_min_cdclk = intel_bw_min_cdclk(display, bw_state);
 }
 
 void intel_cdclk_crtc_disable_noatomic(struct intel_crtc *crtc)
