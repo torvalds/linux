@@ -32,6 +32,7 @@
 #include <linux/uaccess.h>
 
 #include "amdgpu_reset.h"
+#include "amdgpu_ras_mgr.h"
 
 /* These are memory addresses as would be seen by one or more EEPROM
  * chips strung on the I2C bus, usually by manipulating pins 1-3 of a
@@ -555,6 +556,9 @@ __decode_table_record_from_buf(struct amdgpu_ras_eeprom_control *control,
 bool amdgpu_ras_eeprom_check_err_threshold(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	if (amdgpu_uniras_enabled(adev))
+		return amdgpu_ras_mgr_check_eeprom_safety_watermark(adev);
 
 	if (!__is_ras_eeprom_supported(adev) ||
 	    !amdgpu_bad_page_threshold)
