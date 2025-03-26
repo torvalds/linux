@@ -1614,7 +1614,7 @@ static const struct of_device_id qcom_snandc_of_match[] = {
 		.data = &ipq9574_snandc_props,
 	},
 	{}
-}
+};
 MODULE_DEVICE_TABLE(of, qcom_snandc_of_match);
 
 static struct platform_driver qcom_spi_driver = {
