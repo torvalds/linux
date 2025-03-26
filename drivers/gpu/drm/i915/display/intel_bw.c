@@ -1150,6 +1150,21 @@ static int intel_bw_check_qgv_points(struct intel_display *display,
 					   old_bw_state, new_bw_state);
 }
 
+static bool intel_dbuf_bw_changed(struct intel_display *display,
+				  const struct intel_dbuf_bw *old_dbuf_bw,
+				  const struct intel_dbuf_bw *new_dbuf_bw)
+{
+	enum dbuf_slice slice;
+
+	for_each_dbuf_slice(display, slice) {
+		if (old_dbuf_bw->max_bw[slice] != new_dbuf_bw->max_bw[slice] ||
+		    old_dbuf_bw->active_planes[slice] != new_dbuf_bw->active_planes[slice])
+			return true;
+	}
+
+	return false;
+}
+
 static bool intel_bw_state_changed(struct intel_display *display,
 				   const struct intel_bw_state *old_bw_state,
 				   const struct intel_bw_state *new_bw_state)
@@ -1161,13 +1176,9 @@ static bool intel_bw_state_changed(struct intel_display *display,
 			&old_bw_state->dbuf_bw[pipe];
 		const struct intel_dbuf_bw *new_dbuf_bw =
 			&new_bw_state->dbuf_bw[pipe];
-		enum dbuf_slice slice;
 
-		for_each_dbuf_slice(display, slice) {
-			if (old_dbuf_bw->max_bw[slice] != new_dbuf_bw->max_bw[slice] ||
-			    old_dbuf_bw->active_planes[slice] != new_dbuf_bw->active_planes[slice])
-				return true;
-		}
+		if (intel_dbuf_bw_changed(display, old_dbuf_bw, new_dbuf_bw))
+			return true;
 
 		if (intel_bw_crtc_min_cdclk(display, old_bw_state->data_rate[pipe]) !=
 		    intel_bw_crtc_min_cdclk(display, new_bw_state->data_rate[pipe]))
