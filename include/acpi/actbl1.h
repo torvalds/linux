@@ -1034,7 +1034,8 @@ enum acpi_einj_actions {
 	ACPI_EINJ_GET_COMMAND_STATUS = 0x7,
 	ACPI_EINJ_SET_ERROR_TYPE_WITH_ADDRESS = 0x8,
 	ACPI_EINJ_GET_EXECUTE_TIMINGS = 0x9,
-	ACPI_EINJ_ACTION_RESERVED = 0xA,	/* 10 and greater are reserved */
+	ACPI_EINJV2_GET_ERROR_TYPE = 0x11,
+	ACPI_EINJ_ACTION_RESERVED = 0x12,	/* 0x12 and greater are reserved */
 	ACPI_EINJ_TRIGGER_ERROR = 0xFF	/* Except for this value */
 };
 
