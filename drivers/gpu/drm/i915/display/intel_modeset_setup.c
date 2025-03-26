@@ -821,18 +821,18 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane *plane;
 
-		if (crtc_state->hw.active) {
-			/*
-			 * The initial mode needs to be set in order to keep
-			 * the atomic core happy. It wants a valid mode if the
-			 * crtc's enabled, so we do the above call.
-			 *
-			 * But we don't set all the derived state fully, hence
-			 * set a flag to indicate that a full recalculation is
-			 * needed on the next commit.
-			 */
-			crtc_state->inherited = true;
+		/*
+		 * The initial mode needs to be set in order to keep
+		 * the atomic core happy. It wants a valid mode if the
+		 * crtc's enabled, so we do the above call.
+		 *
+		 * But we don't set all the derived state fully, hence
+		 * set a flag to indicate that a full recalculation is
+		 * needed on the next commit.
+		 */
+		crtc_state->inherited = true;
 
+		if (crtc_state->hw.active) {
 			intel_crtc_update_active_timings(crtc_state,
 							 crtc_state->vrr.enable);
 
