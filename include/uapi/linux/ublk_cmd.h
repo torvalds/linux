@@ -410,6 +410,29 @@ struct ublk_param_dma_align {
 	__u8	pad[4];
 };
 
+#define UBLK_MIN_SEGMENT_SIZE   4096
+/*
+ * If any one of the three segment parameter is set as 0, the behavior is
+ * undefined.
+ */
+struct ublk_param_segment {
+	/*
+	 * seg_boundary_mask + 1 needs to be power_of_2(), and the sum has
+	 * to be >= UBLK_MIN_SEGMENT_SIZE(4096)
+	 */
+	__u64 	seg_boundary_mask;
+
+	/*
+	 * max_segment_size could be override by virt_boundary_mask, so be
+	 * careful when setting both.
+	 *
+	 * max_segment_size has to be >= UBLK_MIN_SEGMENT_SIZE(4096)
+	 */
+	__u32 	max_segment_size;
+	__u16 	max_segments;
+	__u8	pad[2];
+};
+
 struct ublk_params {
 	/*
 	 * Total length of parameters, userspace has to set 'len' for both
@@ -423,6 +446,7 @@ struct ublk_params {
 #define UBLK_PARAM_TYPE_DEVT            (1 << 2)
 #define UBLK_PARAM_TYPE_ZONED           (1 << 3)
 #define UBLK_PARAM_TYPE_DMA_ALIGN       (1 << 4)
+#define UBLK_PARAM_TYPE_SEGMENT         (1 << 5)
 	__u32	types;			/* types of parameter included */
 
 	struct ublk_param_basic		basic;
@@ -430,6 +454,7 @@ struct ublk_params {
 	struct ublk_param_devt		devt;
 	struct ublk_param_zoned	zoned;
 	struct ublk_param_dma_align	dma;
+	struct ublk_param_segment	seg;
 };
 
 #endif

@@ -74,7 +74,7 @@
 #define UBLK_PARAM_TYPE_ALL                                \
 	(UBLK_PARAM_TYPE_BASIC | UBLK_PARAM_TYPE_DISCARD | \
 	 UBLK_PARAM_TYPE_DEVT | UBLK_PARAM_TYPE_ZONED |    \
-	 UBLK_PARAM_TYPE_DMA_ALIGN)
+	 UBLK_PARAM_TYPE_DMA_ALIGN | UBLK_PARAM_TYPE_SEGMENT)
 
 struct ublk_rq_data {
 	struct kref ref;
@@ -577,6 +577,18 @@ static int ublk_validate_params(const struct ublk_device *ub)
 			return -EINVAL;
 
 		if (!is_power_of_2(p->alignment + 1))
+			return -EINVAL;
+	}
+
+	if (ub->params.types & UBLK_PARAM_TYPE_SEGMENT) {
+		const struct ublk_param_segment *p = &ub->params.seg;
+
+		if (!is_power_of_2(p->seg_boundary_mask + 1))
+			return -EINVAL;
+
+		if (p->seg_boundary_mask + 1 < UBLK_MIN_SEGMENT_SIZE)
+			return -EINVAL;
+		if (p->max_segment_size < UBLK_MIN_SEGMENT_SIZE)
 			return -EINVAL;
 	}
 
@@ -2369,6 +2381,12 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub, struct io_uring_cmd *cmd)
 
 	if (ub->params.types & UBLK_PARAM_TYPE_DMA_ALIGN)
 		lim.dma_alignment = ub->params.dma.alignment;
+
+	if (ub->params.types & UBLK_PARAM_TYPE_SEGMENT) {
+		lim.seg_boundary_mask = ub->params.seg.seg_boundary_mask;
+		lim.max_segment_size = ub->params.seg.max_segment_size;
+		lim.max_segments = ub->params.seg.max_segments;
+	}
 
 	if (wait_for_completion_interruptible(&ub->completion) != 0)
 		return -EINTR;
