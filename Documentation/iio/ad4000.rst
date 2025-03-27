@@ -144,3 +144,50 @@ Set ``adi,sdi-pin`` to ``"cs"`` to select this mode.
                     ^                    |             |
                     +--------------------| SCLK        |
                                          +-------------+
+
+IIO Device characteristics
+==========================
+
+The AD4000 series driver supports differential and pseudo-differential ADCs.
+
+The span compression feature available in AD4000 series devices can be
+enabled/disabled by changing the ``_scale_available`` attribute of the voltage
+channel. Note that span compression configuration requires writing to AD4000
+configuration register, which is only possible when the ADC is wired in 3-wire
+turbo mode, and the SPI controller is ``SPI_MOSI_IDLE_HIGH`` capable. If those
+conditions are not met, no ``_scale_available`` attribute is provided.
+
+Besides that, differential and pseudo-differential voltage channels present
+slightly different sysfs interfaces.
+
+Pseudo-differential ADCs
+------------------------
+
+Typical voltage channel attributes of a pseudo-differential AD4000 series device:
+
++-------------------------------------------+------------------------------------------+
+| Voltage Channel Attributes                | Description                              |
++===========================================+==========================================+
+| ``in_voltage0_raw``                       | Raw ADC output code.                     |
++-------------------------------------------+------------------------------------------+
+| ``in_voltage0_offset``                    | Offset to convert raw value to mV.       |
++-------------------------------------------+------------------------------------------+
+| ``in_voltage0_scale``                     | Scale factor to convert raw value to mV. |
++-------------------------------------------+------------------------------------------+
+| ``in_voltage0_scale_available``           | Toggles input span compression           |
++-------------------------------------------+------------------------------------------+
+
+Differential ADCs
+-----------------
+
+Typical voltage channel attributes of a differential AD4000 series device:
+
++-------------------------------------------+------------------------------------------+
+| Voltage Channel Attributes                | Description                              |
++===========================================+==========================================+
+| ``in_voltage0-voltage1_raw``              | Raw ADC output code.                     |
++-------------------------------------------+------------------------------------------+
+| ``in_voltage0-voltage1_scale``            | Scale factor to convert raw value to mV. |
++-------------------------------------------+------------------------------------------+
+| ``in_voltage0-voltage1_scale_available``  | Toggles input span compression           |
++-------------------------------------------+------------------------------------------+
