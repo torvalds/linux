@@ -3723,7 +3723,7 @@
 		};
 
 		apps_rsc: rsc@18200000 {
-			compatible = "qcom,rpmh-rsc";
+			compatible = "qcom,sc7180-rpmh-apps-rsc", "qcom,rpmh-rsc";
 			reg = <0 0x18200000 0 0x10000>,
 			      <0 0x18210000 0 0x10000>,
 			      <0 0x18220000 0 0x10000>;
