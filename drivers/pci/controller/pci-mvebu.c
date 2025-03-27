@@ -1422,7 +1422,7 @@ static void mvebu_pcie_powerdown(struct mvebu_pcie_port *port)
 }
 
 /*
- * devm_of_pci_get_host_bridge_resources() only sets up translateable resources,
+ * devm_of_pci_get_host_bridge_resources() only sets up translatable resources,
  * so we need extra resource setup parsing our special DT properties encoding
  * the MEM and IO apertures.
  */

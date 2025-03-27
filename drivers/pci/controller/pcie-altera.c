@@ -205,7 +205,7 @@ static bool aglx_altera_pcie_link_up(struct altera_pcie *pcie)
  * Altera PCIe port uses BAR0 of RC's configuration space as the translation
  * from PCI bus to native BUS.  Entire DDR region is mapped into PCIe space
  * using these registers, so it can be reached by DMA from EP devices.
- * This BAR0 will also access to MSI vector when receiving MSI/MSIX interrupt
+ * This BAR0 will also access to MSI vector when receiving MSI/MSI-X interrupt
  * from EP devices, eventually trigger interrupt to GIC.  The BAR0 of bridge
  * should be hidden during enumeration to avoid the sizing and resource
  * allocation by PCIe core.

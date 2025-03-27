@@ -97,7 +97,7 @@ config HOTPLUG_PCI_CPCI_ZT5550
 	tristate "Ziatech ZT5550 CompactPCI Hotplug driver"
 	depends on HOTPLUG_PCI_CPCI && X86
 	help
-	  Say Y here if you have an Performance Technologies (formerly Intel,
+	  Say Y here if you have a Performance Technologies (formerly Intel,
 	  formerly just Ziatech) Ziatech ZT5550 CompactPCI system card.
 
 	  To compile this driver as a module, choose M here: the

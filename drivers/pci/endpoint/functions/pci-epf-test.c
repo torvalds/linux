@@ -654,7 +654,7 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 	case IRQ_TYPE_MSIX:
 		count = pci_epc_get_msix(epc, epf->func_no, epf->vfunc_no);
 		if (irq_number > count || count <= 0) {
-			dev_err(dev, "Invalid MSIX IRQ number %d / %d\n",
+			dev_err(dev, "Invalid MSI-X IRQ number %d / %d\n",
 				irq_number, count);
 			return;
 		}

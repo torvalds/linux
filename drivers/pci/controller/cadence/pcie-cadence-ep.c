@@ -301,12 +301,12 @@ static int cdns_pcie_ep_set_msix(struct pci_epc *epc, u8 fn, u8 vfn,
 	val |= interrupts;
 	cdns_pcie_ep_fn_writew(pcie, fn, reg, val);
 
-	/* Set MSIX BAR and offset */
+	/* Set MSI-X BAR and offset */
 	reg = cap + PCI_MSIX_TABLE;
 	val = offset | bir;
 	cdns_pcie_ep_fn_writel(pcie, fn, reg, val);
 
-	/* Set PBA BAR and offset.  BAR must match MSIX BAR */
+	/* Set PBA BAR and offset.  BAR must match MSI-X BAR */
 	reg = cap + PCI_MSIX_PBA;
 	val = (offset + (interrupts * PCI_MSIX_ENTRY_SIZE)) | bir;
 	cdns_pcie_ep_fn_writel(pcie, fn, reg, val);
@@ -572,8 +572,8 @@ static int cdns_pcie_ep_start(struct pci_epc *epc)
 
 	/*
 	 * Next function field in ARI_CAP_AND_CTR register for last function
-	 * should be 0.
-	 * Clearing Next Function Number field for the last function used.
+	 * should be 0.  Clear Next Function Number field for the last
+	 * function used.
 	 */
 	last_fn = find_last_bit(&epc->function_num_map, BITS_PER_LONG);
 	reg     = CDNS_PCIE_CORE_PF_I_ARI_CAP_AND_CTRL(last_fn);
