@@ -1762,7 +1762,7 @@ static size_t cookie_msi_granule(const struct iommu_domain *domain)
 	case IOMMU_COOKIE_DMA_MSI:
 		return PAGE_SIZE;
 	default:
-		unreachable();
+		BUG();
 	};
 }
 
@@ -1774,7 +1774,7 @@ static struct list_head *cookie_msi_pages(const struct iommu_domain *domain)
 	case IOMMU_COOKIE_DMA_MSI:
 		return &domain->msi_cookie->msi_page_list;
 	default:
-		unreachable();
+		BUG();
 	};
 }
 
