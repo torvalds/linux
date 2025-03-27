@@ -362,7 +362,7 @@ ivpu_bo_create(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 
 	if (flags & DRM_IVPU_BO_MAPPABLE) {
 		dma_resv_lock(bo->base.base.resv, NULL);
-		ret = drm_gem_shmem_vmap(&bo->base, &map);
+		ret = drm_gem_shmem_vmap_locked(&bo->base, &map);
 		dma_resv_unlock(bo->base.base.resv);
 
 		if (ret)
@@ -387,7 +387,7 @@ void ivpu_bo_free(struct ivpu_bo *bo)
 
 	if (bo->flags & DRM_IVPU_BO_MAPPABLE) {
 		dma_resv_lock(bo->base.base.resv, NULL);
-		drm_gem_shmem_vunmap(&bo->base, &map);
+		drm_gem_shmem_vunmap_locked(&bo->base, &map);
 		dma_resv_unlock(bo->base.base.resv);
 	}
 
