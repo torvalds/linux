@@ -331,12 +331,9 @@ static struct btrfs_delayed_ref_node* tree_insert(struct rb_root_cached *root,
 		struct btrfs_delayed_ref_node *ins)
 {
 	struct rb_node *node = &ins->ref_node;
-	struct rb_node *exist;
+	struct rb_node *exist = rb_find_add_cached(node, root, cmp_refs_node);
 
-	exist = rb_find_add_cached(node, root, cmp_refs_node);
-	if (exist)
-		return rb_entry(exist, struct btrfs_delayed_ref_node, ref_node);
-	return NULL;
+	return rb_entry_safe(exist, struct btrfs_delayed_ref_node, ref_node);
 }
 
 static struct btrfs_delayed_ref_head *find_first_ref_head(

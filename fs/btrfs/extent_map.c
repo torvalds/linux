@@ -361,8 +361,8 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 
 	if (em->start != 0) {
 		rb = rb_prev(&em->rb_node);
-		if (rb)
-			merge = rb_entry(rb, struct extent_map, rb_node);
+		merge = rb_entry_safe(rb, struct extent_map, rb_node);
+
 		if (rb && can_merge_extent_map(merge) && mergeable_maps(merge, em)) {
 			em->start = merge->start;
 			em->len += merge->len;
@@ -379,8 +379,8 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 	}
 
 	rb = rb_next(&em->rb_node);
-	if (rb)
-		merge = rb_entry(rb, struct extent_map, rb_node);
+	merge = rb_entry_safe(rb, struct extent_map, rb_node);
+
 	if (rb && can_merge_extent_map(merge) && mergeable_maps(em, merge)) {
 		em->len += merge->len;
 		if (em->disk_bytenr < EXTENT_MAP_LAST_BYTE)

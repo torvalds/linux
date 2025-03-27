@@ -454,40 +454,25 @@ static void btrfs_release_delayed_item(struct btrfs_delayed_item *item)
 static struct btrfs_delayed_item *__btrfs_first_delayed_insertion_item(
 					struct btrfs_delayed_node *delayed_node)
 {
-	struct rb_node *p;
-	struct btrfs_delayed_item *item = NULL;
+	struct rb_node *p = rb_first_cached(&delayed_node->ins_root);
 
-	p = rb_first_cached(&delayed_node->ins_root);
-	if (p)
-		item = rb_entry(p, struct btrfs_delayed_item, rb_node);
-
-	return item;
+	return rb_entry_safe(p, struct btrfs_delayed_item, rb_node);
 }
 
 static struct btrfs_delayed_item *__btrfs_first_delayed_deletion_item(
 					struct btrfs_delayed_node *delayed_node)
 {
-	struct rb_node *p;
-	struct btrfs_delayed_item *item = NULL;
+	struct rb_node *p = rb_first_cached(&delayed_node->del_root);
 
-	p = rb_first_cached(&delayed_node->del_root);
-	if (p)
-		item = rb_entry(p, struct btrfs_delayed_item, rb_node);
-
-	return item;
+	return rb_entry_safe(p, struct btrfs_delayed_item, rb_node);
 }
 
 static struct btrfs_delayed_item *__btrfs_next_delayed_item(
 						struct btrfs_delayed_item *item)
 {
-	struct rb_node *p;
-	struct btrfs_delayed_item *next = NULL;
+	struct rb_node *p = rb_next(&item->rb_node);
 
-	p = rb_next(&item->rb_node);
-	if (p)
-		next = rb_entry(p, struct btrfs_delayed_item, rb_node);
-
-	return next;
+	return rb_entry_safe(p, struct btrfs_delayed_item, rb_node);
 }
 
 static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,

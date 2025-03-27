@@ -191,10 +191,7 @@ static struct inode_defrag *btrfs_pick_defrag_inode(
 
 	if (parent && compare_inode_defrag(&tmp, entry) > 0) {
 		parent = rb_next(parent);
-		if (parent)
-			entry = rb_entry(parent, struct inode_defrag, rb_node);
-		else
-			entry = NULL;
+		entry = rb_entry_safe(parent, struct inode_defrag, rb_node);
 	}
 out:
 	if (entry)

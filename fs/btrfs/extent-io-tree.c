@@ -222,20 +222,14 @@ static inline struct extent_state *next_state(struct extent_state *state)
 {
 	struct rb_node *next = rb_next(&state->rb_node);
 
-	if (next)
-		return rb_entry(next, struct extent_state, rb_node);
-	else
-		return NULL;
+	return rb_entry_safe(next, struct extent_state, rb_node);
 }
 
 static inline struct extent_state *prev_state(struct extent_state *state)
 {
 	struct rb_node *next = rb_prev(&state->rb_node);
 
-	if (next)
-		return rb_entry(next, struct extent_state, rb_node);
-	else
-		return NULL;
+	return rb_entry_safe(next, struct extent_state, rb_node);
 }
 
 /*
