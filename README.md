@@ -1,17 +1,17 @@
 ## NeTT OS
 
-The new repository for NeTT OS. Yes, after 5 years of NeTT OS (called TouchOS at the time) being a shell for MS-DOS with simple and limited commands and functions, NeTT OS will now be a full GUI based on Linux. NeTT OS will be unique in the way that the entire UI is completely different to most Operating Systems. NeTT OS is also optimised for touch-based systems while being equally easy to use on atraditional desktop.
+The new repository for NeTT OS. After 5 years of NeTT OS (then called TouchOS) being a shell for MS-DOS with simple and limited commands and functions, NeTT OS will now be a full GUI based on Linux. NeTT OS will be unique in the way that the entire UI is completely different to most operating systems. NeTT OS is also optimised for touch-based systems while being equally easy to use on a traditional desktop.
 
 # Release date
 
-NeTT OS 6 has been cancalled, with NeTT OS being released some time in 2029.
+NeTT OS 6 has been cancelled, with NeTT OS being released some time in 2029.
 
 
 ![NeT OS 7 Pages](https://github.com/user-attachments/assets/453a7c94-1b39-44fb-9f00-87a0b0299e33)
 
 
-Linux kernel
-============
+Linux kernel guide
+==================
 
 There are several guides for kernel developers and users. These guides can
 be rendered in a number of formats, like HTML and PDF. Please read
