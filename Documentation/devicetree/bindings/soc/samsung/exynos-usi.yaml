@@ -191,7 +191,6 @@ examples:
             interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cmu_peri 32>, <&cmu_peri 31>;
             clock-names = "uart", "clk_uart_baud0";
-            status = "disabled";
         };
 
         hsi2c_0: i2c@13820000 {
