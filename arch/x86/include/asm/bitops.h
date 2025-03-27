@@ -267,10 +267,7 @@ static __always_inline unsigned long variable__ffs(unsigned long word)
 
 static __always_inline unsigned long variable_ffz(unsigned long word)
 {
-	asm("tzcnt %1,%0"
-		: "=r" (word)
-		: "r" (~word));
-	return word;
+	return variable__ffs(~word);
 }
 
 /**
