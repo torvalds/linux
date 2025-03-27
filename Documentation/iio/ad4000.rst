@@ -4,7 +4,7 @@
 AD4000 driver
 =============
 
-Device driver for Analog Devices Inc. AD4000 series of ADCs.
+Device driver for Analog Devices Inc. AD4000 series of ADCs and similar devices.
 
 Supported devices
 =================
@@ -25,6 +25,21 @@ Supported devices
 * `AD4022 <https://www.analog.com/AD4022>`_
 * `ADAQ4001 <https://www.analog.com/ADAQ4001>`_
 * `ADAQ4003 <https://www.analog.com/ADAQ4003>`_
+* `AD7685 <https://www.analog.com/AD7685>`_
+* `AD7686 <https://www.analog.com/AD7686>`_
+* `AD7687 <https://www.analog.com/AD7687>`_
+* `AD7688 <https://www.analog.com/AD7688>`_
+* `AD7690 <https://www.analog.com/AD7690>`_
+* `AD7691 <https://www.analog.com/AD7691>`_
+* `AD7693 <https://www.analog.com/AD7693>`_
+* `AD7942 <https://www.analog.com/AD7942>`_
+* `AD7946 <https://www.analog.com/AD7946>`_
+* `AD7980 <https://www.analog.com/AD7980>`_
+* `AD7982 <https://www.analog.com/AD7982>`_
+* `AD7983 <https://www.analog.com/AD7983>`_
+* `AD7984 <https://www.analog.com/AD7984>`_
+* `AD7988-1 <https://www.analog.com/AD7988-1>`_
+* `AD7988-5 <https://www.analog.com/AD7988-5>`_
 
 Wiring connections
 ------------------
