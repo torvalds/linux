@@ -1780,7 +1780,7 @@ static inline void __sb_end_write(struct super_block *sb, int level)
 
 static inline void __sb_start_write(struct super_block *sb, int level)
 {
-	percpu_down_read(sb->s_writers.rw_sem + level - 1);
+	percpu_down_read_freezable(sb->s_writers.rw_sem + level - 1, true);
 }
 
 static inline bool __sb_start_write_trylock(struct super_block *sb, int level)
