@@ -213,6 +213,17 @@ config GPIO_BCM_XGS_IPROC
 	help
 	  Say yes here to enable GPIO support for Broadcom XGS iProc SoCs.
 
+config GPIO_BLZP1600
+	tristate "Blaize BLZP1600 GPIO support"
+	default y if ARCH_BLAIZE
+	depends on OF_GPIO
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to add support for the Blaize BLZP1600 GPIO device.
+	  The controller is based on the Verisilicon Microelectronics GPIO APB v0.2
+	  IP block.
+
 config GPIO_BRCMSTB
 	tristate "BRCMSTB GPIO support"
 	default y if (ARCH_BRCMSTB || BMIPS_GENERIC)

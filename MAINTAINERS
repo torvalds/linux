@@ -4195,6 +4195,16 @@ F:	Documentation/ABI/stable/sysfs-class-bluetooth
 F:	include/net/bluetooth/
 F:	net/bluetooth/
 
+BLZP1600 GPIO DRIVER
+M:	James Cowgill <james.cowgill@blaize.com>
+M:	Matt Redfearn <matt.redfearn@blaize.com>
+M:	Neil Jones <neil.jones@blaize.com>
+M:	Nikolaos Pasaloukos <nikolaos.pasaloukos@blaize.com>
+L:	linux-gpio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/gpio/blaize,blzp1600-gpio.yaml
+F:	drivers/gpio/gpio-blzp1600.c
+
 BONDING DRIVER
 M:	Jay Vosburgh <jv@jvosburgh.net>
 L:	netdev@vger.kernel.org
