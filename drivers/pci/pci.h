@@ -283,6 +283,8 @@ extern unsigned long pci_hotplug_io_size;
 extern unsigned long pci_hotplug_mmio_size;
 extern unsigned long pci_hotplug_mmio_pref_size;
 extern unsigned long pci_hotplug_bus_size;
+extern unsigned long pci_cardbus_io_size;
+extern unsigned long pci_cardbus_mem_size;
 
 /**
  * pci_match_one_device - Tell if a PCI device structure has a matching
@@ -326,6 +328,10 @@ enum pci_bar_type {
 struct device *pci_get_host_bridge_device(struct pci_dev *dev);
 void pci_put_host_bridge_device(struct device *dev);
 
+unsigned int pci_rescan_bus_bridge_resize(struct pci_dev *bridge);
+int pci_reassign_bridge_resources(struct pci_dev *bridge, unsigned long type);
+int __must_check pci_reassign_resource(struct pci_dev *dev, int i, resource_size_t add_size, resource_size_t align);
+
 int pci_configure_extended_tags(struct pci_dev *dev, void *ign);
 bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *pl,
 				int rrs_timeout);
@@ -350,6 +356,29 @@ void pci_walk_bus_locked(struct pci_bus *top,
 			 void *userdata);
 
 const char *pci_resource_name(struct pci_dev *dev, unsigned int i);
+bool pci_resource_is_optional(const struct pci_dev *dev, int resno);
+
+/**
+ * pci_resource_num - Reverse lookup resource number from device resources
+ * @dev: PCI device
+ * @res: Resource to lookup index for (MUST be a @dev's resource)
+ *
+ * Perform reverse lookup to determine the resource number for @res within
+ * @dev resource array. NOTE: The caller is responsible for ensuring @res is
+ * among @dev's resources!
+ *
+ * Returns: resource number.
+ */
+static inline int pci_resource_num(const struct pci_dev *dev,
+				   const struct resource *res)
+{
+	int resno = res - &dev->resource[0];
+
+	/* Passing a resource that is not among dev's resources? */
+	WARN_ON_ONCE(resno >= PCI_NUM_RESOURCES);
+
+	return resno;
+}
 
 void pci_reassigndev_resource_alignment(struct pci_dev *dev);
 void pci_disable_bridge_window(struct pci_dev *dev);
@@ -659,6 +688,10 @@ void pci_iov_update_resource(struct pci_dev *dev, int resno);
 resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 void pci_restore_iov_state(struct pci_dev *dev);
 int pci_iov_bus_range(struct pci_bus *bus);
+static inline bool pci_resource_is_iov(int resno)
+{
+	return resno >= PCI_IOV_RESOURCES && resno <= PCI_IOV_RESOURCE_END;
+}
 extern const struct attribute_group sriov_pf_dev_attr_group;
 extern const struct attribute_group sriov_vf_dev_attr_group;
 #else
@@ -668,12 +701,21 @@ static inline int pci_iov_init(struct pci_dev *dev)
 }
 static inline void pci_iov_release(struct pci_dev *dev) { }
 static inline void pci_iov_remove(struct pci_dev *dev) { }
+static inline void pci_iov_update_resource(struct pci_dev *dev, int resno) { }
+static inline resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev,
+							   int resno)
+{
+	return 0;
+}
 static inline void pci_restore_iov_state(struct pci_dev *dev) { }
 static inline int pci_iov_bus_range(struct pci_bus *bus)
 {
 	return 0;
 }
-
+static inline bool pci_resource_is_iov(int resno)
+{
+	return false;
+}
 #endif /* CONFIG_PCI_IOV */
 
 #ifdef CONFIG_PCIE_TPH
@@ -707,12 +749,10 @@ unsigned long pci_cardbus_resource_alignment(struct resource *);
 static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 						     struct resource *res)
 {
-#ifdef CONFIG_PCI_IOV
-	int resno = res - dev->resource;
+	int resno = pci_resource_num(dev, res);
 
-	if (resno >= PCI_IOV_RESOURCES && resno <= PCI_IOV_RESOURCE_END)
+	if (pci_resource_is_iov(resno))
 		return pci_sriov_resource_alignment(dev, resno);
-#endif
 	if (dev->class >> 8 == PCI_CLASS_BRIDGE_CARDBUS)
 		return pci_cardbus_resource_alignment(res);
 	return resource_alignment(res);

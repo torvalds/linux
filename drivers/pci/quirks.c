@@ -621,7 +621,7 @@ static void quirk_io(struct pci_dev *dev, int pos, unsigned int size,
 {
 	u32 region;
 	struct pci_bus_region bus_region;
-	struct resource *res = dev->resource + pos;
+	struct resource *res = pci_resource_n(dev, pos);
 	const char *res_name = pci_resource_name(dev, pos);
 
 	pci_read_config_dword(dev, PCI_BASE_ADDRESS_0 + (pos << 2), &region);
@@ -671,7 +671,7 @@ static void quirk_io_region(struct pci_dev *dev, int port,
 {
 	u16 region;
 	struct pci_bus_region bus_region;
-	struct resource *res = dev->resource + nr;
+	struct resource *res = pci_resource_n(dev, nr);
 
 	pci_read_config_word(dev, port, &region);
 	region &= ~(size - 1);
