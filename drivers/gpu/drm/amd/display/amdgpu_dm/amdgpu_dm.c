@@ -115,6 +115,8 @@
 #include "modules/inc/mod_freesync.h"
 #include "modules/power/power_helpers.h"
 
+static_assert(AMDGPU_DMUB_NOTIFICATION_MAX == DMUB_NOTIFICATION_MAX, "AMDGPU_DMUB_NOTIFICATION_MAX mismatch");
+
 #define FIRMWARE_RENOIR_DMUB "amdgpu/renoir_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_RENOIR_DMUB);
 #define FIRMWARE_SIENNA_CICHLID_DMUB "amdgpu/sienna_cichlid_dmcub.bin"
@@ -749,6 +751,29 @@ static void dmub_aux_setconfig_callback(struct amdgpu_device *adev,
 		complete(&adev->dm.dmub_aux_transfer_done);
 }
 
+static void dmub_aux_fused_io_callback(struct amdgpu_device *adev,
+					struct dmub_notification *notify)
+{
+	if (!adev || !notify) {
+		ASSERT(false);
+		return;
+	}
+
+	const struct dmub_cmd_fused_request *req = &notify->fused_request;
+	const uint8_t ddc_line = req->u.aux.ddc_line;
+
+	if (ddc_line >= ARRAY_SIZE(adev->dm.fused_io)) {
+		ASSERT(false);
+		return;
+	}
+
+	struct fused_io_sync *sync = &adev->dm.fused_io[ddc_line];
+
+	static_assert(sizeof(*req) <= sizeof(sync->reply_data), "Size mismatch");
+	memcpy(sync->reply_data, req, sizeof(*req));
+	complete(&sync->replied);
+}
+
 /**
  * dmub_hpd_callback - DMUB HPD interrupt processing callback.
  * @adev: amdgpu_device pointer
@@ -885,6 +910,30 @@ static void dm_handle_hpd_work(struct work_struct *work)
 
 }
 
+static const char *dmub_notification_type_str(enum dmub_notification_type e)
+{
+	switch (e) {
+	case DMUB_NOTIFICATION_NO_DATA:
+		return "NO_DATA";
+	case DMUB_NOTIFICATION_AUX_REPLY:
+		return "AUX_REPLY";
+	case DMUB_NOTIFICATION_HPD:
+		return "HPD";
+	case DMUB_NOTIFICATION_HPD_IRQ:
+		return "HPD_IRQ";
+	case DMUB_NOTIFICATION_SET_CONFIG_REPLY:
+		return "SET_CONFIG_REPLY";
+	case DMUB_NOTIFICATION_DPIA_NOTIFICATION:
+		return "DPIA_NOTIFICATION";
+	case DMUB_NOTIFICATION_HPD_SENSE_NOTIFY:
+		return "HPD_SENSE_NOTIFY";
+	case DMUB_NOTIFICATION_FUSED_IO:
+		return "FUSED_IO";
+	default:
+		return "<unknown>";
+	}
+}
+
 #define DMUB_TRACE_MAX_READ 64
 /**
  * dm_dmub_outbox1_low_irq() - Handles Outbox interrupt
@@ -902,15 +951,6 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 	struct dmcub_trace_buf_entry entry = { 0 };
 	u32 count = 0;
 	struct dmub_hpd_work *dmub_hpd_wrk;
-	static const char *const event_type[] = {
-		"NO_DATA",
-		"AUX_REPLY",
-		"HPD",
-		"HPD_IRQ",
-		"SET_CONFIGC_REPLY",
-		"DPIA_NOTIFICATION",
-		"HPD_SENSE_NOTIFY",
-	};
 
 	do {
 		if (dc_dmub_srv_get_dmub_outbox0_msg(dm->dc, &entry)) {
@@ -940,7 +980,7 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 			}
 			if (!dm->dmub_callback[notify.type]) {
 				drm_warn(adev_to_drm(adev), "DMUB notification skipped due to no handler: type=%s\n",
-					event_type[notify.type]);
+					dmub_notification_type_str(notify.type));
 				continue;
 			}
 			if (dm->dmub_thread_offload[notify.type] == true) {
@@ -2131,6 +2171,12 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		adev->dm.dc->debug.using_dml21 = true;
 	}
 
+	if (amdgpu_dc_debug_mask & DC_HDCP_LC_FORCE_FW_ENABLE)
+		adev->dm.dc->debug.hdcp_lc_force_fw_enable = true;
+
+	if (amdgpu_dc_debug_mask & DC_HDCP_LC_ENABLE_SW_FALLBACK)
+		adev->dm.dc->debug.hdcp_lc_enable_sw_fallback = true;
+
 	adev->dm.dc->debug.visual_confirm = amdgpu_dc_visual_confirm;
 
 	/* TODO: Remove after DP2 receiver gets proper support of Cable ID feature */
@@ -2211,6 +2257,15 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		if (!register_dmub_notify_callback(adev, DMUB_NOTIFICATION_AUX_REPLY,
 			dmub_aux_setconfig_callback, false)) {
 			drm_err(adev_to_drm(adev), "amdgpu: fail to register dmub aux callback");
+			goto error;
+		}
+
+		for (size_t i = 0; i < ARRAY_SIZE(adev->dm.fused_io); i++)
+			init_completion(&adev->dm.fused_io[i].replied);
+
+		if (!register_dmub_notify_callback(adev, DMUB_NOTIFICATION_FUSED_IO,
+			dmub_aux_fused_io_callback, false)) {
+			drm_err(adev_to_drm(adev), "amdgpu: fail to register dmub fused io callback");
 			goto error;
 		}
 		/* Enable outbox notification only after IRQ handlers are registered and DMUB is alive.
@@ -12810,6 +12865,79 @@ out:
 	reinit_completion(&adev->dm.dmub_aux_transfer_done);
 	mutex_unlock(&adev->dm.dpia_aux_lock);
 	return ret;
+}
+
+static void abort_fused_io(
+		struct dc_context *ctx,
+		const struct dmub_cmd_fused_request *request
+)
+{
+	union dmub_rb_cmd command = { 0 };
+	struct dmub_rb_cmd_fused_io *io = &command.fused_io;
+
+	io->header.type = DMUB_CMD__FUSED_IO;
+	io->header.sub_type = DMUB_CMD__FUSED_IO_ABORT;
+	io->header.payload_bytes = sizeof(*io) - sizeof(io->header);
+	io->request = *request;
+	dm_execute_dmub_cmd(ctx, &command, DM_DMUB_WAIT_TYPE_NO_WAIT);
+}
+
+static bool execute_fused_io(
+		struct amdgpu_device *dev,
+		struct dc_context *ctx,
+		union dmub_rb_cmd *commands,
+		uint8_t count,
+		uint32_t timeout_us
+)
+{
+	const uint8_t ddc_line = commands[0].fused_io.request.u.aux.ddc_line;
+
+	if (ddc_line >= ARRAY_SIZE(dev->dm.fused_io))
+		return false;
+
+	struct fused_io_sync *sync = &dev->dm.fused_io[ddc_line];
+	struct dmub_rb_cmd_fused_io *first = &commands[0].fused_io;
+	const bool result = dm_execute_dmub_cmd_list(ctx, count, commands, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)
+			&& first->header.ret_status
+			&& first->request.status == FUSED_REQUEST_STATUS_SUCCESS;
+
+	if (!result)
+		return false;
+
+	while (wait_for_completion_timeout(&sync->replied, usecs_to_jiffies(timeout_us))) {
+		reinit_completion(&sync->replied);
+
+		struct dmub_cmd_fused_request *reply = (struct dmub_cmd_fused_request *) sync->reply_data;
+
+		static_assert(sizeof(*reply) <= sizeof(sync->reply_data), "Size mismatch");
+
+		if (reply->identifier == first->request.identifier) {
+			first->request = *reply;
+			return true;
+		}
+	}
+
+	reinit_completion(&sync->replied);
+	first->request.status = FUSED_REQUEST_STATUS_TIMEOUT;
+	abort_fused_io(ctx, &first->request);
+	return false;
+}
+
+bool amdgpu_dm_execute_fused_io(
+		struct amdgpu_device *dev,
+		struct dc_link *link,
+		union dmub_rb_cmd *commands,
+		uint8_t count,
+		uint32_t timeout_us)
+{
+	struct amdgpu_display_manager *dm = &dev->dm;
+
+	mutex_lock(&dm->dpia_aux_lock);
+
+	const bool result = execute_fused_io(dev, link->ctx, commands, count, timeout_us);
+
+	mutex_unlock(&dm->dpia_aux_lock);
+	return result;
 }
 
 int amdgpu_dm_process_dmub_set_config_sync(

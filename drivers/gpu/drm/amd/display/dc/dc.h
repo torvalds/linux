@@ -282,6 +282,7 @@ struct dc_caps {
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
+	bool fused_io_supported;
 	uint32_t max_otg_num;
 	uint32_t max_cab_allocation_bytes;
 	uint32_t cache_line_size;
@@ -902,6 +903,9 @@ struct dc_debug_options {
 	bool force_single_disp_pipe_split;
 	bool voltage_align_fclk;
 	bool disable_min_fclk;
+
+	bool hdcp_lc_force_fw_enable;
+	bool hdcp_lc_enable_sw_fallback;
 
 	bool disable_dfs_bypass;
 	bool disable_dpp_power_gate;

@@ -26,6 +26,7 @@
 #include "amdgpu_dm_hdcp.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
+#include "dc_fused_io.h"
 #include "dm_helpers.h"
 #include <drm/display/drm_hdcp_helper.h>
 #include "hdcp_psp.h"
@@ -74,6 +75,34 @@ lp_read_dpcd(void *handle, uint32_t address, uint8_t *data, uint32_t size)
 	struct dc_link *link = handle;
 
 	return dm_helpers_dp_read_dpcd(link->ctx, link, address, data, size);
+}
+
+static bool lp_atomic_write_poll_read_i2c(
+		void *handle,
+		const struct mod_hdcp_atomic_op_i2c *write,
+		const struct mod_hdcp_atomic_op_i2c *poll,
+		struct mod_hdcp_atomic_op_i2c *read,
+		uint32_t poll_timeout_us,
+		uint8_t poll_mask_msb
+)
+{
+	struct dc_link *link = handle;
+
+	return dm_atomic_write_poll_read_i2c(link, write, poll, read, poll_timeout_us, poll_mask_msb);
+}
+
+static bool lp_atomic_write_poll_read_aux(
+		void *handle,
+		const struct mod_hdcp_atomic_op_aux *write,
+		const struct mod_hdcp_atomic_op_aux *poll,
+		struct mod_hdcp_atomic_op_aux *read,
+		uint32_t poll_timeout_us,
+		uint8_t poll_mask_msb
+)
+{
+	struct dc_link *link = handle;
+
+	return dm_atomic_write_poll_read_aux(link, write, poll, read, poll_timeout_us, poll_mask_msb);
 }
 
 static uint8_t *psp_get_srm(struct psp_context *psp, uint32_t *srm_version, uint32_t *srm_size)
@@ -719,7 +748,10 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev,
 		INIT_DELAYED_WORK(&hdcp_work[i].watchdog_timer_dwork, event_watchdog_timer);
 		INIT_DELAYED_WORK(&hdcp_work[i].property_validate_dwork, event_property_validate);
 
-		hdcp_work[i].hdcp.config.psp.handle = &adev->psp;
+		struct mod_hdcp_config *config = &hdcp_work[i].hdcp.config;
+		struct mod_hdcp_ddc_funcs *ddc_funcs = &config->ddc.funcs;
+
+		config->psp.handle = &adev->psp;
 		if (dc->ctx->dce_version == DCN_VERSION_3_1 ||
 		    dc->ctx->dce_version == DCN_VERSION_3_14 ||
 		    dc->ctx->dce_version == DCN_VERSION_3_15 ||
@@ -727,12 +759,22 @@ struct hdcp_workqueue *hdcp_create_workqueue(struct amdgpu_device *adev,
 		    dc->ctx->dce_version == DCN_VERSION_3_51 ||
 		    dc->ctx->dce_version == DCN_VERSION_3_6 ||
 		    dc->ctx->dce_version == DCN_VERSION_3_16)
-			hdcp_work[i].hdcp.config.psp.caps.dtm_v3_supported = 1;
-		hdcp_work[i].hdcp.config.ddc.handle = dc_get_link_at_index(dc, i);
-		hdcp_work[i].hdcp.config.ddc.funcs.write_i2c = lp_write_i2c;
-		hdcp_work[i].hdcp.config.ddc.funcs.read_i2c = lp_read_i2c;
-		hdcp_work[i].hdcp.config.ddc.funcs.write_dpcd = lp_write_dpcd;
-		hdcp_work[i].hdcp.config.ddc.funcs.read_dpcd = lp_read_dpcd;
+			config->psp.caps.dtm_v3_supported = 1;
+		config->ddc.handle = dc_get_link_at_index(dc, i);
+
+		ddc_funcs->write_i2c = lp_write_i2c;
+		ddc_funcs->read_i2c = lp_read_i2c;
+		ddc_funcs->write_dpcd = lp_write_dpcd;
+		ddc_funcs->read_dpcd = lp_read_dpcd;
+
+		config->debug.lc_enable_sw_fallback = dc->debug.hdcp_lc_enable_sw_fallback;
+		if (dc->caps.fused_io_supported || dc->debug.hdcp_lc_force_fw_enable) {
+			ddc_funcs->atomic_write_poll_read_i2c = lp_atomic_write_poll_read_i2c;
+			ddc_funcs->atomic_write_poll_read_aux = lp_atomic_write_poll_read_aux;
+		} else {
+			ddc_funcs->atomic_write_poll_read_i2c = NULL;
+			ddc_funcs->atomic_write_poll_read_aux = NULL;
+		}
 
 		memset(hdcp_work[i].aconnector, 0,
 		       sizeof(struct amdgpu_dm_connector *) *
