@@ -3533,19 +3533,16 @@ func_start	console_putc,%a0/%a1/%d0-%d7
 	tstl	%pc@(L(console_font))
 	jeq	L(console_exit)
 
+	lea	%pc@(L(console_globals)),%a0
+
 	/* Output character in d7 on console.
 	 */
 	movel	ARG1,%d7
 	cmpib	#'\n',%d7
-	jbne	1f
-
-	/* A little safe recursion is good for the soul */
-	console_putc	#'\r'
-1:
-	lea	%pc@(L(console_globals)),%a0
-
-	cmpib	#10,%d7
 	jne	L(console_not_lf)
+
+	clrl	%a0@(Lconsole_struct_cur_column)	/* implicit \r */
+
 	movel	%a0@(Lconsole_struct_cur_row),%d0
 	movel	%a0@(Lconsole_struct_num_rows),%d1
 	cmpl	%d1,%d0
