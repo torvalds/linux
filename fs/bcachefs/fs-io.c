@@ -999,17 +999,19 @@ static loff_t bch2_seek_hole(struct file *file, u64 offset)
 				   POS(inode->v.i_ino, offset >> 9),
 				   POS(inode->v.i_ino, U64_MAX),
 				   inum.subvol, BTREE_ITER_slots, k, ({
-			if (k.k->p.inode != inode->v.i_ino) {
-				next_hole = bch2_seek_pagecache_hole(&inode->v,
-						offset, MAX_LFS_FILESIZE, 0, false);
-				break;
-			} else if (!bkey_extent_is_data(k.k)) {
-				next_hole = bch2_seek_pagecache_hole(&inode->v,
-						max(offset, bkey_start_offset(k.k) << 9),
-						k.k->p.offset << 9, 0, false);
+			if (k.k->p.inode != inode->v.i_ino ||
+			    !bkey_extent_is_data(k.k)) {
+				loff_t start_offset = k.k->p.inode == inode->v.i_ino
+					? max(offset, bkey_start_offset(k.k) << 9)
+					: offset;
+				loff_t end_offset = k.k->p.inode == inode->v.i_ino
+					? MAX_LFS_FILESIZE
+					: k.k->p.offset << 9;
 
-				if (next_hole < k.k->p.offset << 9)
-					break;
+				bch2_trans_unlock(trans);
+				next_hole = bch2_seek_pagecache_hole(&inode->v,
+						start_offset, end_offset, 0, false);
+				break;
 			} else {
 				offset = max(offset, bkey_start_offset(k.k) << 9);
 			}
