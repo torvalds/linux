@@ -426,8 +426,12 @@ void dml21_copy(struct dml2_context *dst_dml_ctx,
 
 	dst_dml_ctx->v21.mode_programming.programming = dst_dml2_programming;
 
+	DC_FP_START();
+
 	/* need to initialize copied instance for internal references to be correct */
 	dml2_initialize_instance(&dst_dml_ctx->v21.dml_init);
+
+	DC_FP_END();
 }
 
 bool dml21_create_copy(struct dml2_context **dst_dml_ctx,
