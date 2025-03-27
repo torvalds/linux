@@ -12,20 +12,34 @@
 //! do so first instead of bypassing this crate.
 
 #![no_std]
-#![feature(arbitrary_self_types)]
-#![cfg_attr(CONFIG_RUSTC_HAS_COERCE_POINTEE, feature(derive_coerce_pointee))]
-#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(coerce_unsized))]
-#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(dispatch_from_dyn))]
-#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(unsize))]
+//
+// Please see https://github.com/Rust-for-Linux/linux/issues/2 for details on
+// the unstable features in use.
+//
+// Stable since Rust 1.79.0.
 #![feature(inline_const)]
+//
+// Stable since Rust 1.81.0.
 #![feature(lint_reasons)]
-// Stable in Rust 1.82
+//
+// Stable since Rust 1.82.0.
 #![feature(raw_ref_op)]
-// Stable in Rust 1.83
+//
+// Stable since Rust 1.83.0.
 #![feature(const_maybe_uninit_as_mut_ptr)]
 #![feature(const_mut_refs)]
 #![feature(const_ptr_write)]
 #![feature(const_refs_to_cell)]
+//
+// Expected to become stable.
+#![feature(arbitrary_self_types)]
+//
+// `feature(derive_coerce_pointee)` is expected to become stable. Before Rust
+// 1.84.0, it did not exist, so enable the predecessor features.
+#![cfg_attr(CONFIG_RUSTC_HAS_COERCE_POINTEE, feature(derive_coerce_pointee))]
+#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(coerce_unsized))]
+#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(dispatch_from_dyn))]
+#![cfg_attr(not(CONFIG_RUSTC_HAS_COERCE_POINTEE), feature(unsize))]
 
 // Ensure conditional compilation based on the kernel configuration works;
 // otherwise we may silently break things like initcall handling.
