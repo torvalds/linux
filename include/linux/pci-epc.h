@@ -225,6 +225,7 @@ struct pci_epc_bar_desc {
  * @linkup_notifier: indicate if the EPC device can notify EPF driver on link up
  * @msi_capable: indicate if the endpoint function has MSI capability
  * @msix_capable: indicate if the endpoint function has MSI-X capability
+ * @intx_capable: indicate if the endpoint can raise INTx interrupts
  * @bar: array specifying the hardware description for each BAR
  * @align: alignment size required for BAR buffer allocation
  */
@@ -232,6 +233,7 @@ struct pci_epc_features {
 	unsigned int	linkup_notifier : 1;
 	unsigned int	msi_capable : 1;
 	unsigned int	msix_capable : 1;
+	unsigned int	intx_capable : 1;
 	struct	pci_epc_bar_desc bar[PCI_STD_NUM_BARS];
 	size_t	align;
 };

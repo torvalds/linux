@@ -45,6 +45,9 @@
 #define TIMER_RESOLUTION		1
 
 #define CAP_UNALIGNED_ACCESS		BIT(0)
+#define CAP_MSI				BIT(1)
+#define CAP_MSIX			BIT(2)
+#define CAP_INTX			BIT(3)
 
 static struct workqueue_struct *kpcitest_workqueue;
 
@@ -773,6 +776,15 @@ static void pci_epf_test_set_capabilities(struct pci_epf *epf)
 
 	if (epc->ops->align_addr)
 		caps |= CAP_UNALIGNED_ACCESS;
+
+	if (epf_test->epc_features->msi_capable)
+		caps |= CAP_MSI;
+
+	if (epf_test->epc_features->msix_capable)
+		caps |= CAP_MSIX;
+
+	if (epf_test->epc_features->intx_capable)
+		caps |= CAP_INTX;
 
 	reg->caps = cpu_to_le32(caps);
 }
