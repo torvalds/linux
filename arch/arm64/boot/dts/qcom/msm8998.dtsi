@@ -2795,7 +2795,7 @@
 				 <&mdss_dsi0_phy DSI_BYTE_PLL_CLK>,
 				 <&mdss_dsi1_phy DSI_PIXEL_PLL_CLK>,
 				 <&mdss_dsi1_phy DSI_BYTE_PLL_CLK>,
-				 <&mdss_hdmi_phy 0>,
+				 <&mdss_hdmi_phy>,
 				 <0>,
 				 <0>,
 				 <&gcc GCC_MMSS_GPLL0_DIV_CLK>;
