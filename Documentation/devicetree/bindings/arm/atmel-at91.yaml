@@ -23,8 +23,6 @@ properties:
           - const: atmel,at91rm9200
       - items:
           - enum:
-              - olimex,sam9-l9260
-          - enum:
               - atmel,at91sam9260
               - atmel,at91sam9261
               - atmel,at91sam9263
@@ -34,6 +32,37 @@ properties:
               - atmel,at91sam9rl
               - atmel,at91sam9xe
               - atmel,at91sam9x60
+          - const: atmel,at91sam9
+
+      - description: Olimex SAM9-L9260
+        items:
+          - const: olimex,sam9-l9260
+          - const: atmel,at91sam9260
+          - const: atmel,at91sam9
+
+      - description: Calao USB A9260
+        items:
+          - const: calao,usb-a9260
+          - const: atmel,at91sam9260
+          - const: atmel,at91sam9
+
+      - description: Calao USB A9263
+        items:
+          - const: calao,usb-a9263
+          - const: atmel,at91sam9263
+          - const: atmel,at91sam9
+
+      - description: Calao USB A9G20
+        items:
+          - const: calao,usb-a9g20
+          - const: atmel,at91sam9g20
+          - const: atmel,at91sam9
+
+      - description: Calao USB A9G20-LPW
+        items:
+          - const: calao,usb-a9g20-lpw
+          - const: calao,usb-a9g20
+          - const: atmel,at91sam9g20
           - const: atmel,at91sam9
 
       - items:
