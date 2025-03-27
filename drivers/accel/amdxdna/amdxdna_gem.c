@@ -81,7 +81,7 @@ static void amdxdna_gem_obj_free(struct drm_gem_object *gobj)
 	if (abo->type == AMDXDNA_BO_DEV_HEAP)
 		drm_mm_takedown(&abo->mm);
 
-	drm_gem_vunmap_unlocked(gobj, &map);
+	drm_gem_vunmap(gobj, &map);
 	mutex_destroy(&abo->lock);
 	drm_gem_shmem_free(&abo->base);
 }
@@ -417,7 +417,7 @@ amdxdna_drm_create_cmd_bo(struct drm_device *dev,
 	abo->type = AMDXDNA_BO_CMD;
 	abo->client = filp->driver_priv;
 
-	ret = drm_gem_vmap_unlocked(to_gobj(abo), &map);
+	ret = drm_gem_vmap(to_gobj(abo), &map);
 	if (ret) {
 		XDNA_ERR(xdna, "Vmap cmd bo failed, ret %d", ret);
 		goto release_obj;
