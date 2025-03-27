@@ -51,7 +51,7 @@
 #include <linux/workqueue.h>
 #include <linux/sort.h>
 
-#include <asm/setup.h> /* COMMAND_LINE_SIZE and kaslr_offset() */
+#include <asm/setup.h> /* COMMAND_LINE_SIZE */
 
 #include "trace.h"
 #include "trace_output.h"
@@ -5995,7 +5995,7 @@ struct trace_mod_entry {
 };
 
 struct trace_scratch {
-	unsigned long		kaslr_addr;
+	unsigned long		text_addr;
 	unsigned long		nr_entries;
 	struct trace_mod_entry	entries[];
 };
@@ -6133,11 +6133,7 @@ static void update_last_data(struct trace_array *tr)
 	kfree_rcu(module_delta, rcu);
 
 	/* Set the persistent ring buffer meta data to this address */
-#ifdef CONFIG_RANDOMIZE_BASE
-	tscratch->kaslr_addr = kaslr_offset();
-#else
-	tscratch->kaslr_addr = 0;
-#endif
+	tscratch->text_addr = (unsigned long)_text;
 }
 
 /**
@@ -6996,7 +6992,7 @@ static void show_last_boot_header(struct seq_file *m, struct trace_array *tr)
 	 * should not be the same as the current boot.
 	 */
 	if (tscratch && (tr->flags & TRACE_ARRAY_FL_LAST_BOOT))
-		seq_printf(m, "%lx\t[kernel]\n", tscratch->kaslr_addr);
+		seq_printf(m, "%lx\t[kernel]\n", tscratch->text_addr);
 	else
 		seq_puts(m, "# Current\n");
 }
@@ -9465,10 +9461,8 @@ static void setup_trace_scratch(struct trace_array *tr,
 	tr->scratch = tscratch;
 	tr->scratch_size = size;
 
-#ifdef CONFIG_RANDOMIZE_BASE
-	if (tscratch->kaslr_addr)
-		tr->text_delta = kaslr_offset() - tscratch->kaslr_addr;
-#endif
+	if (tscratch->text_addr)
+		tr->text_delta = (unsigned long)_text - tscratch->text_addr;
 
 	if (struct_size(tscratch, entries, tscratch->nr_entries) > size)
 		goto reset;
