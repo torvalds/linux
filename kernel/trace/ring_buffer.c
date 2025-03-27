@@ -5318,7 +5318,7 @@ rb_get_reader_page(struct ring_buffer_per_cpu *cpu_buffer)
 	 * moving it. The page before the header page has the
 	 * flag bit '1' set if it is pointing to the page we want.
 	 * but if the writer is in the process of moving it
-	 * than it will be '2' or already moved '0'.
+	 * then it will be '2' or already moved '0'.
 	 */
 
 	ret = rb_head_page_replace(reader, cpu_buffer->reader_page);
