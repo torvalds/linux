@@ -1040,7 +1040,7 @@ static blk_status_t ublk_setup_iod(struct ublk_queue *ubq, struct request *req)
 static inline struct ublk_uring_cmd_pdu *ublk_get_uring_cmd_pdu(
 		struct io_uring_cmd *ioucmd)
 {
-	return (struct ublk_uring_cmd_pdu *)&ioucmd->pdu;
+	return io_uring_cmd_to_pdu(ioucmd, struct ublk_uring_cmd_pdu);
 }
 
 static inline bool ubq_daemon_is_dying(struct ublk_queue *ubq)
