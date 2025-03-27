@@ -227,36 +227,54 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
 #define F_EXTEND(x) ((unsigned long)((x) | (0xffffffff00000000ULL)))
 
 #ifdef CONFIG_64BIT
-#define ioread64 ioread64
-#define ioread64be ioread64be
-#define iowrite64 iowrite64
-#define iowrite64be iowrite64be
 extern u64 ioread64(const void __iomem *addr);
 extern u64 ioread64be(const void __iomem *addr);
+#define ioread64 ioread64
+#define ioread64be ioread64be
+
 extern void iowrite64(u64 val, void __iomem *addr);
 extern void iowrite64be(u64 val, void __iomem *addr);
+#define iowrite64 iowrite64
+#define iowrite64be iowrite64be
 #endif
 
-#include <asm-generic/iomap.h>
-/*
- * These get provided from <asm-generic/iomap.h> since parisc does not
- * select GENERIC_IOMAP.
- */
+extern void __iomem *ioport_map(unsigned long port, unsigned int nr);
+extern void ioport_unmap(void __iomem *);
 #define ioport_map ioport_map
 #define ioport_unmap ioport_unmap
+
+extern unsigned int ioread8(const void __iomem *);
+extern unsigned int ioread16(const void __iomem *);
+extern unsigned int ioread16be(const void __iomem *);
+extern unsigned int ioread32(const void __iomem *);
+extern unsigned int ioread32be(const void __iomem *);
 #define ioread8 ioread8
 #define ioread16 ioread16
 #define ioread32 ioread32
 #define ioread16be ioread16be
 #define ioread32be ioread32be
+
+extern void iowrite8(u8, void __iomem *);
+extern void iowrite16(u16, void __iomem *);
+extern void iowrite16be(u16, void __iomem *);
+extern void iowrite32(u32, void __iomem *);
+extern void iowrite32be(u32, void __iomem *);
 #define iowrite8 iowrite8
 #define iowrite16 iowrite16
 #define iowrite32 iowrite32
 #define iowrite16be iowrite16be
 #define iowrite32be iowrite32be
+
+extern void ioread8_rep(const void __iomem *port, void *buf, unsigned long count);
+extern void ioread16_rep(const void __iomem *port, void *buf, unsigned long count);
+extern void ioread32_rep(const void __iomem *port, void *buf, unsigned long count);
 #define ioread8_rep ioread8_rep
 #define ioread16_rep ioread16_rep
 #define ioread32_rep ioread32_rep
+
+extern void iowrite8_rep(void __iomem *port, const void *buf, unsigned long count);
+extern void iowrite16_rep(void __iomem *port, const void *buf, unsigned long count);
+extern void iowrite32_rep(void __iomem *port, const void *buf, unsigned long count);
 #define iowrite8_rep iowrite8_rep
 #define iowrite16_rep iowrite16_rep
 #define iowrite32_rep iowrite32_rep

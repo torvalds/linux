@@ -67,17 +67,6 @@ static inline void set_io_port_base(unsigned long base)
 }
 
 /*
- * Provide the necessary definitions for generic iomap. We make use of
- * mips_io_port_base for iomap(), but we don't reserve any low addresses for
- * use with I/O ports.
- */
-
-#define HAVE_ARCH_PIO_SIZE
-#define PIO_OFFSET	mips_io_port_base
-#define PIO_MASK	IO_SPACE_LIMIT
-#define PIO_RESERVED	0x0UL
-
-/*
  * Enforce in-order execution of data I/O.  In the MIPS architecture
  * these are equivalent to corresponding platform-specific memory
  * barriers defined in <asm/barrier.h>.  API pinched from PowerPC,
@@ -397,8 +386,8 @@ static inline void writes##bwlq(volatile void __iomem *mem,		\
 	}								\
 }									\
 									\
-static inline void reads##bwlq(volatile void __iomem *mem, void *addr,	\
-			       unsigned int count)			\
+static inline void reads##bwlq(const volatile void __iomem *mem,	\
+			       void *addr, unsigned int count)		\
 {									\
 	volatile type *__addr = addr;					\
 									\
@@ -554,6 +543,16 @@ extern void (*_dma_cache_inv)(unsigned long start, unsigned long size);
 #define outsl outsl
 
 void __ioread64_copy(void *to, const void __iomem *from, size_t count);
+
+#if defined(CONFIG_PCI) && defined(CONFIG_PCI_DRIVERS_LEGACY)
+struct pci_dev;
+void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
+#define pci_iounmap pci_iounmap
+#endif
+
+#ifndef PCI_IOBASE
+#define PCI_IOBASE ((void __iomem *)mips_io_port_base)
+#endif
 
 #include <asm-generic/io.h>
 
