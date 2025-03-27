@@ -1171,11 +1171,18 @@ static void microcode_fini_cpu_amd(int cpu)
 	uci->mc = NULL;
 }
 
+static void finalize_late_load_amd(int result)
+{
+	if (result)
+		cleanup();
+}
+
 static struct microcode_ops microcode_amd_ops = {
 	.request_microcode_fw	= request_microcode_amd,
 	.collect_cpu_info	= collect_cpu_info_amd,
 	.apply_microcode	= apply_microcode_amd,
 	.microcode_fini_cpu	= microcode_fini_cpu_amd,
+	.finalize_late_load	= finalize_late_load_amd,
 	.nmi_safe		= true,
 };
 
