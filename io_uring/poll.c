@@ -220,7 +220,7 @@ static inline void io_poll_execute(struct io_kiocb *req, int res)
  * req->cqe.res. IOU_POLL_REMOVE_POLL_USE_RES indicates to remove multishot
  * poll and that the result is stored in req->cqe.
  */
-static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
+static int io_poll_check_events(struct io_kiocb *req, io_tw_token_t tw)
 {
 	int v;
 
@@ -288,7 +288,7 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 				return IOU_POLL_REMOVE_POLL_USE_RES;
 			}
 		} else {
-			int ret = io_poll_issue(req, ts);
+			int ret = io_poll_issue(req, tw);
 			if (ret == IOU_STOP_MULTISHOT)
 				return IOU_POLL_REMOVE_POLL_USE_RES;
 			else if (ret == IOU_REQUEUE)
@@ -311,11 +311,11 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 	return IOU_POLL_NO_ACTION;
 }
 
-void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
+void io_poll_task_func(struct io_kiocb *req, io_tw_token_t tw)
 {
 	int ret;
 
-	ret = io_poll_check_events(req, ts);
+	ret = io_poll_check_events(req, tw);
 	if (ret == IOU_POLL_NO_ACTION) {
 		io_kbuf_recycle(req, 0);
 		return;
@@ -335,7 +335,7 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 			poll = io_kiocb_to_cmd(req, struct io_poll);
 			req->cqe.res = mangle_poll(req->cqe.res & poll->events);
 		} else if (ret == IOU_POLL_REISSUE) {
-			io_req_task_submit(req, ts);
+			io_req_task_submit(req, tw);
 			return;
 		} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
 			req->cqe.res = ret;
@@ -343,14 +343,14 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 		}
 
 		io_req_set_res(req, req->cqe.res, 0);
-		io_req_task_complete(req, ts);
+		io_req_task_complete(req, tw);
 	} else {
-		io_tw_lock(req->ctx, ts);
+		io_tw_lock(req->ctx, tw);
 
 		if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
-			io_req_task_complete(req, ts);
+			io_req_task_complete(req, tw);
 		else if (ret == IOU_POLL_DONE || ret == IOU_POLL_REISSUE)
-			io_req_task_submit(req, ts);
+			io_req_task_submit(req, tw);
 		else
 			io_req_defer_failed(req, ret);
 	}

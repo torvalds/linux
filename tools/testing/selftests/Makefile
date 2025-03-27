@@ -114,6 +114,7 @@ endif
 TARGETS += tmpfs
 TARGETS += tpm2
 TARGETS += tty
+TARGETS += ublk
 TARGETS += uevent
 TARGETS += user_events
 TARGETS += vDSO

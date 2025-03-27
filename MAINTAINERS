@@ -24397,6 +24397,7 @@ S:	Maintained
 F:	Documentation/block/ublk.rst
 F:	drivers/block/ublk_drv.c
 F:	include/uapi/linux/ublk_cmd.h
+F:	tools/testing/selftests/ublk/
 
 UBSAN
 M:	Kees Cook <kees@kernel.org>
