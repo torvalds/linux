@@ -50,10 +50,6 @@ static inline const char *bch2_d_type_str(unsigned d_type)
  * apply the options from that struct that are defined.
  */
 
-/* dummy option, for options that aren't stored in the superblock */
-u64 BCH2_NO_SB_OPT(const struct bch_sb *);
-void SET_BCH2_NO_SB_OPT(struct bch_sb *, u64);
-
 /* When can be set: */
 enum opt_flags {
 	OPT_FS			= BIT(0),	/* Filesystem option */
@@ -132,19 +128,24 @@ enum fsck_err_opts {
 	  OPT_FS|OPT_FORMAT|						\
 	  OPT_HUMAN_READABLE|OPT_MUST_BE_POW_2|OPT_SB_FIELD_SECTORS,	\
 	  OPT_UINT(512, 1U << 16),					\
-	  BCH_SB_BLOCK_SIZE,		8,				\
+	  BCH_SB_BLOCK_SIZE,		4 << 10,			\
 	  "size",	NULL)						\
 	x(btree_node_size,		u32,				\
 	  OPT_FS|OPT_FORMAT|						\
 	  OPT_HUMAN_READABLE|OPT_MUST_BE_POW_2|OPT_SB_FIELD_SECTORS,	\
 	  OPT_UINT(512, 1U << 20),					\
-	  BCH_SB_BTREE_NODE_SIZE,	512,				\
+	  BCH_SB_BTREE_NODE_SIZE,	256 << 10,			\
 	  "size",	"Btree node size, default 256k")		\
 	x(errors,			u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_STR(bch2_error_actions),					\
 	  BCH_SB_ERROR_ACTION,		BCH_ON_ERROR_fix_safe,		\
 	  NULL,		"Action to take on filesystem error")		\
+	x(write_error_timeout,		u16,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
+	  OPT_UINT(1, 300),						\
+	  BCH_SB_WRITE_ERROR_TIMEOUT,	30,				\
+	  NULL,		"Number of consecutive write errors allowed before kicking out a device")\
 	x(metadata_replicas,		u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_UINT(1, BCH_REPLICAS_MAX),				\
@@ -181,6 +182,11 @@ enum fsck_err_opts {
 	  OPT_STR(__bch2_csum_opts),					\
 	  BCH_SB_DATA_CSUM_TYPE,	BCH_CSUM_OPT_crc32c,		\
 	  NULL,		NULL)						\
+	x(checksum_err_retry_nr,	u8,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
+	  OPT_UINT(0, 32),						\
+	  BCH_SB_CSUM_ERR_RETRY_NR,	3,				\
+	  NULL,		NULL)						\
 	x(compression,			u8,				\
 	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
 	  OPT_FN(bch2_opt_compression),					\
@@ -197,7 +203,7 @@ enum fsck_err_opts {
 	  BCH_SB_STR_HASH_TYPE,		BCH_STR_HASH_OPT_siphash,	\
 	  NULL,		"Hash function for directory entries and xattrs")\
 	x(metadata_target,		u16,				\
-	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_FN(bch2_opt_target),					\
 	  BCH_SB_METADATA_TARGET,	0,				\
 	  "(target)",	"Device or label for metadata writes")		\
@@ -308,11 +314,6 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Don't kick drives out when splitbrain detected")\
-	x(discard,			u8,				\
-	  OPT_FS|OPT_MOUNT|OPT_DEVICE,					\
-	  OPT_BOOL(),							\
-	  BCH2_NO_SB_OPT,		true,				\
-	  NULL,		"Enable discard/TRIM support")			\
 	x(verbose,			u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
@@ -493,38 +494,38 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Skip submit_bio() for data reads and writes, "	\
 			"for performance testing purposes")		\
-	x(fs_size,			u64,				\
-	  OPT_DEVICE,							\
+	x(state,			u64,				\
+	  OPT_DEVICE|OPT_RUNTIME,					\
+	  OPT_STR(bch2_member_states),					\
+	  BCH_MEMBER_STATE,		BCH_MEMBER_STATE_rw,		\
+	  "state",	"rw,ro,failed,spare")				\
+	x(bucket_size,			u32,				\
+	  OPT_DEVICE|OPT_HUMAN_READABLE|OPT_SB_FIELD_SECTORS,		\
 	  OPT_UINT(0, S64_MAX),						\
-	  BCH2_NO_SB_OPT,		0,				\
-	  "size",	"Size of filesystem on device")			\
-	x(bucket,			u32,				\
-	  OPT_DEVICE,							\
-	  OPT_UINT(0, S64_MAX),						\
-	  BCH2_NO_SB_OPT,		0,				\
+	  BCH_MEMBER_BUCKET_SIZE,	0,				\
 	  "size",	"Specifies the bucket size; must be greater than the btree node size")\
 	x(durability,			u8,				\
-	  OPT_DEVICE|OPT_SB_FIELD_ONE_BIAS,				\
+	  OPT_DEVICE|OPT_RUNTIME|OPT_SB_FIELD_ONE_BIAS,			\
 	  OPT_UINT(0, BCH_REPLICAS_MAX),				\
-	  BCH2_NO_SB_OPT,		1,				\
+	  BCH_MEMBER_DURABILITY,	1,				\
 	  "n",		"Data written to this device will be considered\n"\
 			"to have already been replicated n times")	\
 	x(data_allowed,			u8,				\
 	  OPT_DEVICE,							\
 	  OPT_BITFIELD(__bch2_data_types),				\
-	  BCH2_NO_SB_OPT,		BIT(BCH_DATA_journal)|BIT(BCH_DATA_btree)|BIT(BCH_DATA_user),\
+	  BCH_MEMBER_DATA_ALLOWED,	BIT(BCH_DATA_journal)|BIT(BCH_DATA_btree)|BIT(BCH_DATA_user),\
 	  "types",	"Allowed data types for this device: journal, btree, and/or user")\
+	x(discard,			u8,				\
+	  OPT_MOUNT|OPT_DEVICE|OPT_RUNTIME,				\
+	  OPT_BOOL(),							\
+	  BCH_MEMBER_DISCARD,		true,				\
+	  NULL,		"Enable discard/TRIM support")			\
 	x(btree_node_prefetch,		u8,				\
 	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		true,				\
 	  NULL,		"BTREE_ITER_prefetch casuse btree nodes to be\n"\
 	  " prefetched sequentially")
-
-#define BCH_DEV_OPT_SETTERS()						\
-	x(discard,		BCH_MEMBER_DISCARD)			\
-	x(durability,		BCH_MEMBER_DURABILITY)			\
-	x(data_allowed,		BCH_MEMBER_DATA_ALLOWED)
 
 struct bch_opts {
 #define x(_name, _bits, ...)	unsigned _name##_defined:1;
@@ -582,8 +583,6 @@ struct printbuf;
 
 struct bch_option {
 	struct attribute	attr;
-	u64			(*get_sb)(const struct bch_sb *);
-	void			(*set_sb)(struct bch_sb *, u64);
 	enum opt_type		type;
 	enum opt_flags		flags;
 	u64			min, max;
@@ -595,6 +594,12 @@ struct bch_option {
 	const char		*hint;
 	const char		*help;
 
+	u64			(*get_sb)(const struct bch_sb *);
+	void			(*set_sb)(struct bch_sb *, u64);
+
+	u64			(*get_member)(const struct bch_member *);
+	void			(*set_member)(struct bch_member *, u64);
+
 };
 
 extern const struct bch_option bch2_opt_table[];
@@ -603,7 +608,7 @@ bool bch2_opt_defined_by_id(const struct bch_opts *, enum bch_opt_id);
 u64 bch2_opt_get_by_id(const struct bch_opts *, enum bch_opt_id);
 void bch2_opt_set_by_id(struct bch_opts *, enum bch_opt_id, u64);
 
-u64 bch2_opt_from_sb(struct bch_sb *, enum bch_opt_id);
+u64 bch2_opt_from_sb(struct bch_sb *, enum bch_opt_id, int);
 int bch2_opts_from_sb(struct bch_opts *, struct bch_sb *);
 void __bch2_opt_set_sb(struct bch_sb *, int, const struct bch_option *, u64);
 
@@ -625,7 +630,7 @@ void bch2_opts_to_text(struct printbuf *,
 		       struct bch_fs *, struct bch_sb *,
 		       unsigned, unsigned, unsigned);
 
-int bch2_opt_check_may_set(struct bch_fs *, int, u64);
+int bch2_opt_check_may_set(struct bch_fs *, struct bch_dev *, int, u64);
 int bch2_opts_check_may_set(struct bch_fs *);
 int bch2_parse_one_mount_opt(struct bch_fs *, struct bch_opts *,
 			     struct printbuf *, const char *, const char *);

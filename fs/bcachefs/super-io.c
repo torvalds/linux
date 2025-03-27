@@ -25,9 +25,6 @@
 #include <linux/sort.h>
 #include <linux/string_choices.h>
 
-static const struct blk_holder_ops bch2_sb_handle_bdev_ops = {
-};
-
 struct bch2_metadata_version {
 	u16		version;
 	const char	*name;
@@ -69,12 +66,14 @@ enum bcachefs_metadata_version bch2_latest_compatible_version(enum bcachefs_meta
 	return v;
 }
 
-bool bch2_set_version_incompat(struct bch_fs *c, enum bcachefs_metadata_version version)
+int bch2_set_version_incompat(struct bch_fs *c, enum bcachefs_metadata_version version)
 {
-	bool ret = (c->sb.features & BIT_ULL(BCH_FEATURE_incompat_version_field)) &&
-		   version <= c->sb.version_incompat_allowed;
+	int ret = ((c->sb.features & BIT_ULL(BCH_FEATURE_incompat_version_field)) &&
+		   version <= c->sb.version_incompat_allowed)
+		? 0
+		: -BCH_ERR_may_not_use_incompat_feature;
 
-	if (ret) {
+	if (!ret) {
 		mutex_lock(&c->sb_lock);
 		SET_BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb,
 			max(BCH_SB_VERSION_INCOMPAT(c->disk_sb.sb), version));
@@ -366,37 +365,39 @@ static int bch2_sb_compatible(struct bch_sb *sb, struct printbuf *out)
 	return 0;
 }
 
-static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
-			    enum bch_validate_flags flags, struct printbuf *out)
+int bch2_sb_validate(struct bch_sb *sb, u64 read_offset,
+		     enum bch_validate_flags flags, struct printbuf *out)
 {
-	struct bch_sb *sb = disk_sb->sb;
 	struct bch_sb_field_members_v1 *mi;
 	enum bch_opt_id opt_id;
-	u16 block_size;
 	int ret;
 
 	ret = bch2_sb_compatible(sb, out);
 	if (ret)
 		return ret;
 
-	if (sb->features[1] ||
-	    (le64_to_cpu(sb->features[0]) & (~0ULL << BCH_FEATURE_NR))) {
-		prt_printf(out, "Filesystem has incompatible features");
+	u64 incompat = le64_to_cpu(sb->features[0]) & (~0ULL << BCH_FEATURE_NR);
+	unsigned incompat_bit = 0;
+	if (incompat)
+		incompat_bit = __ffs64(incompat);
+	else if (sb->features[1])
+		incompat_bit = 64 + __ffs64(le64_to_cpu(sb->features[1]));
+
+	if (incompat_bit) {
+		prt_printf(out, "Filesystem has incompatible feature bit %u, highest supported %s (%u)",
+			   incompat_bit,
+			   bch2_sb_features[BCH_FEATURE_NR - 1],
+			   BCH_FEATURE_NR - 1);
 		return -BCH_ERR_invalid_sb_features;
 	}
 
 	if (BCH_VERSION_MAJOR(le16_to_cpu(sb->version)) > BCH_VERSION_MAJOR(bcachefs_metadata_version_current) ||
 	    BCH_SB_VERSION_INCOMPAT(sb) > bcachefs_metadata_version_current) {
-		prt_printf(out, "Filesystem has incompatible version");
+		prt_str(out, "Filesystem has incompatible version ");
+		bch2_version_to_text(out, le16_to_cpu(sb->version));
+		prt_str(out, ", current version ");
+		bch2_version_to_text(out, bcachefs_metadata_version_current);
 		return -BCH_ERR_invalid_sb_features;
-	}
-
-	block_size = le16_to_cpu(sb->block_size);
-
-	if (block_size > PAGE_SECTORS) {
-		prt_printf(out, "Block size too big (got %u, max %u)",
-		       block_size, PAGE_SECTORS);
-		return -BCH_ERR_invalid_sb_block_size;
 	}
 
 	if (bch2_is_zero(sb->user_uuid.b, sizeof(sb->user_uuid))) {
@@ -407,6 +408,13 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 	if (bch2_is_zero(sb->uuid.b, sizeof(sb->uuid))) {
 		prt_printf(out, "Bad internal UUID (got zeroes)");
 		return -BCH_ERR_invalid_sb_uuid;
+	}
+
+	if (!(flags & BCH_VALIDATE_write) &&
+	    le64_to_cpu(sb->offset) != read_offset) {
+		prt_printf(out, "Bad sb offset (got %llu, read from %llu)",
+			   le64_to_cpu(sb->offset), read_offset);
+		return -BCH_ERR_invalid_sb_offset;
 	}
 
 	if (!sb->nr_devices ||
@@ -464,6 +472,13 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 
 		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_disk_accounting_v2)
 			SET_BCH_SB_PROMOTE_WHOLE_EXTENTS(sb, true);
+
+		if (!BCH_SB_WRITE_ERROR_TIMEOUT(sb))
+			SET_BCH_SB_WRITE_ERROR_TIMEOUT(sb, 30);
+
+		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_extent_flags &&
+		    !BCH_SB_CSUM_ERR_RETRY_NR(sb))
+			SET_BCH_SB_CSUM_ERR_RETRY_NR(sb, 3);
 	}
 
 #ifdef __KERNEL__
@@ -474,8 +489,8 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 	for (opt_id = 0; opt_id < bch2_opts_nr; opt_id++) {
 		const struct bch_option *opt = bch2_opt_table + opt_id;
 
-		if (opt->get_sb != BCH2_NO_SB_OPT) {
-			u64 v = bch2_opt_from_sb(sb, opt_id);
+		if (opt->get_sb) {
+			u64 v = bch2_opt_from_sb(sb, opt_id, -1);
 
 			prt_printf(out, "Invalid option ");
 			ret = bch2_opt_validate(opt, v, out);
@@ -755,7 +770,7 @@ retry:
 	memset(sb, 0, sizeof(*sb));
 	sb->mode	= BLK_OPEN_READ;
 	sb->have_bio	= true;
-	sb->holder	= kmalloc(1, GFP_KERNEL);
+	sb->holder	= kzalloc(sizeof(*sb->holder), GFP_KERNEL);
 	if (!sb->holder)
 		return -ENOMEM;
 
@@ -881,7 +896,7 @@ got_super:
 
 	sb->have_layout = true;
 
-	ret = bch2_sb_validate(sb, 0, &err);
+	ret = bch2_sb_validate(sb->sb, offset, 0, &err);
 	if (ret) {
 		bch2_print_opts(opts, KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
 				path, err.buf);
@@ -918,16 +933,16 @@ static void write_super_endio(struct bio *bio)
 {
 	struct bch_dev *ca = bio->bi_private;
 
+	bch2_account_io_success_fail(ca, bio_data_dir(bio), !bio->bi_status);
+
 	/* XXX: return errors directly */
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca,
-			       bio_data_dir(bio)
-			       ? BCH_MEMBER_ERROR_write
-			       : BCH_MEMBER_ERROR_read,
-			       "superblock %s error: %s",
+	if (bio->bi_status) {
+		bch_err_dev_ratelimited(ca, "superblock %s error: %s",
 			       str_write_read(bio_data_dir(bio)),
-			       bch2_blk_status_to_str(bio->bi_status)))
+			       bch2_blk_status_to_str(bio->bi_status));
 		ca->sb_write_error = 1;
+	}
 
 	closure_put(&ca->fs->sb_write);
 	percpu_ref_put(&ca->io_ref);
@@ -1038,7 +1053,7 @@ int bch2_write_super(struct bch_fs *c)
 	darray_for_each(online_devices, ca) {
 		printbuf_reset(&err);
 
-		ret = bch2_sb_validate(&(*ca)->disk_sb, BCH_VALIDATE_write, &err);
+		ret = bch2_sb_validate((*ca)->disk_sb.sb, 0, BCH_VALIDATE_write, &err);
 		if (ret) {
 			bch2_fs_inconsistent(c, "sb invalid before write: %s", err.buf);
 			goto out;
@@ -1166,7 +1181,7 @@ int bch2_write_super(struct bch_fs *c)
 				  !can_mount_with_written), c,
 		": Unable to write superblock to sufficient devices (from %ps)",
 		(void *) _RET_IP_))
-		ret = -1;
+		ret = -BCH_ERR_erofs_sb_err;
 out:
 	/* Make new options visible after they're persistent: */
 	bch2_sb_update(c);
@@ -1223,12 +1238,11 @@ void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version, bool incompat)
 		bch2_sb_field_resize(&c->disk_sb, downgrade, 0);
 
 	c->disk_sb.sb->version = cpu_to_le16(new_version);
-	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 
 	if (incompat) {
+		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 		SET_BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb,
 			max(BCH_SB_VERSION_INCOMPAT_ALLOWED(c->disk_sb.sb), new_version));
-		c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_FEATURE_incompat_version_field);
 	}
 }
 
@@ -1459,8 +1473,8 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 		for (id = 0; id < bch2_opts_nr; id++) {
 			const struct bch_option *opt = bch2_opt_table + id;
 
-			if (opt->get_sb != BCH2_NO_SB_OPT) {
-				u64 v = bch2_opt_from_sb(sb, id);
+			if (opt->get_sb) {
+				u64 v = bch2_opt_from_sb(sb, id, -1);
 
 				prt_printf(out, "%s:\t", opt->attr.name);
 				bch2_opt_to_text(out, NULL, sb, opt, v,

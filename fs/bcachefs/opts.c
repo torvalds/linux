@@ -163,16 +163,6 @@ const char * const bch2_d_types[BCH_DT_MAX] = {
 	[DT_SUBVOL]	= "subvol",
 };
 
-u64 BCH2_NO_SB_OPT(const struct bch_sb *sb)
-{
-	BUG();
-}
-
-void SET_BCH2_NO_SB_OPT(struct bch_sb *sb, u64 v)
-{
-	BUG();
-}
-
 void bch2_opts_apply(struct bch_opts *dst, struct bch_opts src)
 {
 #define x(_name, ...)						\
@@ -223,6 +213,21 @@ void bch2_opt_set_by_id(struct bch_opts *opts, enum bch_opt_id id, u64 v)
 	}
 }
 
+/* dummy option, for options that aren't stored in the superblock */
+typedef u64 (*sb_opt_get_fn)(const struct bch_sb *);
+typedef void (*sb_opt_set_fn)(struct bch_sb *, u64);
+typedef u64 (*member_opt_get_fn)(const struct bch_member *);
+typedef void (*member_opt_set_fn)(struct bch_member *, u64);
+
+__maybe_unused static const sb_opt_get_fn	BCH2_NO_SB_OPT = NULL;
+__maybe_unused static const sb_opt_set_fn	SET_BCH2_NO_SB_OPT = NULL;
+__maybe_unused static const member_opt_get_fn	BCH2_NO_MEMBER_OPT = NULL;
+__maybe_unused static const member_opt_set_fn	SET_BCH2_NO_MEMBER_OPT = NULL;
+
+#define type_compatible_or_null(_p, _type)				\
+	__builtin_choose_expr(						\
+		__builtin_types_compatible_p(typeof(_p), typeof(_type)), _p, NULL)
+
 const struct bch_option bch2_opt_table[] = {
 #define OPT_BOOL()		.type = BCH_OPT_BOOL, .min = 0, .max = 2
 #define OPT_UINT(_min, _max)	.type = BCH_OPT_UINT,			\
@@ -239,15 +244,15 @@ const struct bch_option bch2_opt_table[] = {
 
 #define x(_name, _bits, _flags, _type, _sb_opt, _default, _hint, _help)	\
 	[Opt_##_name] = {						\
-		.attr	= {						\
-			.name	= #_name,				\
-			.mode = (_flags) & OPT_RUNTIME ? 0644 : 0444,	\
-		},							\
-		.flags	= _flags,					\
-		.hint	= _hint,					\
-		.help	= _help,					\
-		.get_sb = _sb_opt,					\
-		.set_sb	= SET_##_sb_opt,				\
+		.attr.name	= #_name,				\
+		.attr.mode	= (_flags) & OPT_RUNTIME ? 0644 : 0444,	\
+		.flags		= _flags,				\
+		.hint		= _hint,				\
+		.help		= _help,				\
+		.get_sb		= type_compatible_or_null(_sb_opt,	*BCH2_NO_SB_OPT),	\
+		.set_sb		= type_compatible_or_null(SET_##_sb_opt,*SET_BCH2_NO_SB_OPT),	\
+		.get_member	= type_compatible_or_null(_sb_opt,	*BCH2_NO_MEMBER_OPT),	\
+		.set_member	= type_compatible_or_null(SET_##_sb_opt,*SET_BCH2_NO_MEMBER_OPT),\
 		_type							\
 	},
 
@@ -475,11 +480,18 @@ void bch2_opts_to_text(struct printbuf *out,
 	}
 }
 
-int bch2_opt_check_may_set(struct bch_fs *c, int id, u64 v)
+int bch2_opt_check_may_set(struct bch_fs *c, struct bch_dev *ca, int id, u64 v)
 {
+	lockdep_assert_held(&c->state_lock);
+
 	int ret = 0;
 
 	switch (id) {
+	case Opt_state:
+		if (ca)
+			return __bch2_dev_set_state(c, ca, v, BCH_FORCE_IF_DEGRADED);
+		break;
+
 	case Opt_compression:
 	case Opt_background_compression:
 		ret = bch2_check_set_has_compressed_data(c, v);
@@ -495,12 +507,8 @@ int bch2_opt_check_may_set(struct bch_fs *c, int id, u64 v)
 
 int bch2_opts_check_may_set(struct bch_fs *c)
 {
-	unsigned i;
-	int ret;
-
-	for (i = 0; i < bch2_opts_nr; i++) {
-		ret = bch2_opt_check_may_set(c, i,
-				bch2_opt_get_by_id(&c->opts, i));
+	for (unsigned i = 0; i < bch2_opts_nr; i++) {
+		int ret = bch2_opt_check_may_set(c, NULL, i, bch2_opt_get_by_id(&c->opts, i));
 		if (ret)
 			return ret;
 	}
@@ -619,12 +627,25 @@ out:
 	return ret;
 }
 
-u64 bch2_opt_from_sb(struct bch_sb *sb, enum bch_opt_id id)
+u64 bch2_opt_from_sb(struct bch_sb *sb, enum bch_opt_id id, int dev_idx)
 {
 	const struct bch_option *opt = bch2_opt_table + id;
 	u64 v;
 
-	v = opt->get_sb(sb);
+	if (dev_idx < 0) {
+		v = opt->get_sb(sb);
+	} else {
+		if (WARN(!bch2_member_exists(sb, dev_idx),
+			 "tried to set device option %s on nonexistent device %i",
+			 opt->attr.name, dev_idx))
+			return 0;
+
+		struct bch_member m = bch2_sb_member_get(sb, dev_idx);
+		v = opt->get_member(&m);
+	}
+
+	if (opt->flags & OPT_SB_FIELD_ONE_BIAS)
+		--v;
 
 	if (opt->flags & OPT_SB_FIELD_ILOG2)
 		v = 1ULL << v;
@@ -641,35 +662,19 @@ u64 bch2_opt_from_sb(struct bch_sb *sb, enum bch_opt_id id)
  */
 int bch2_opts_from_sb(struct bch_opts *opts, struct bch_sb *sb)
 {
-	unsigned id;
-
-	for (id = 0; id < bch2_opts_nr; id++) {
+	for (unsigned id = 0; id < bch2_opts_nr; id++) {
 		const struct bch_option *opt = bch2_opt_table + id;
 
-		if (opt->get_sb == BCH2_NO_SB_OPT)
-			continue;
-
-		bch2_opt_set_by_id(opts, id, bch2_opt_from_sb(sb, id));
+		if (opt->get_sb)
+			bch2_opt_set_by_id(opts, id, bch2_opt_from_sb(sb, id, -1));
 	}
 
 	return 0;
 }
 
-struct bch_dev_sb_opt_set {
-	void			(*set_sb)(struct bch_member *, u64);
-};
-
-static const struct bch_dev_sb_opt_set bch2_dev_sb_opt_setters [] = {
-#define x(n, set)	[Opt_##n] = { .set_sb = SET_##set },
-	BCH_DEV_OPT_SETTERS()
-#undef x
-};
-
 void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
 		       const struct bch_option *opt, u64 v)
 {
-	enum bch_opt_id id = opt - bch2_opt_table;
-
 	if (opt->flags & OPT_SB_FIELD_SECTORS)
 		v >>= 9;
 
@@ -679,24 +684,16 @@ void __bch2_opt_set_sb(struct bch_sb *sb, int dev_idx,
 	if (opt->flags & OPT_SB_FIELD_ONE_BIAS)
 		v++;
 
-	if (opt->flags & OPT_FS) {
-		if (opt->set_sb != SET_BCH2_NO_SB_OPT)
-			opt->set_sb(sb, v);
-	}
+	if ((opt->flags & OPT_FS) && opt->set_sb && dev_idx < 0)
+		opt->set_sb(sb, v);
 
-	if ((opt->flags & OPT_DEVICE) && dev_idx >= 0) {
+	if ((opt->flags & OPT_DEVICE) && opt->set_member && dev_idx >= 0) {
 		if (WARN(!bch2_member_exists(sb, dev_idx),
 			 "tried to set device option %s on nonexistent device %i",
 			 opt->attr.name, dev_idx))
 			return;
 
-		struct bch_member *m = bch2_members_v2_get_mut(sb, dev_idx);
-
-		const struct bch_dev_sb_opt_set *set = bch2_dev_sb_opt_setters + id;
-		if (set->set_sb)
-			set->set_sb(m, v);
-		else
-			pr_err("option %s cannot be set via opt_set_sb()", opt->attr.name);
+		opt->set_member(bch2_members_v2_get_mut(sb, dev_idx), v);
 	}
 }
 

@@ -166,11 +166,17 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 	bio->bi_iter.bi_sector	= offset;
 	bch2_bio_map(bio, bn, PAGE_SIZE);
 
+	u64 submit_time = local_clock();
 	submit_bio_wait(bio);
-	if (bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_read,
-			       "IO error in try_read_btree_node() at %llu: %s",
-			       offset, bch2_blk_status_to_str(bio->bi_status)))
+
+	bch2_account_io_completion(ca, BCH_MEMBER_ERROR_read, submit_time, !bio->bi_status);
+
+	if (bio->bi_status) {
+		bch_err_dev_ratelimited(ca,
+				"IO error in try_read_btree_node() at %llu: %s",
+				offset, bch2_blk_status_to_str(bio->bi_status));
 		return;
+	}
 
 	if (le64_to_cpu(bn->magic) != bset_magic(c))
 		return;
@@ -264,7 +270,7 @@ static int read_btree_nodes_worker(void *p)
 err:
 	bio_put(bio);
 	free_page((unsigned long) buf);
-	percpu_ref_get(&ca->io_ref);
+	percpu_ref_put(&ca->io_ref);
 	closure_put(w->cl);
 	kfree(w);
 	return 0;
@@ -283,29 +289,28 @@ static int read_btree_nodes(struct find_btree_nodes *f)
 			continue;
 
 		struct find_btree_nodes_worker *w = kmalloc(sizeof(*w), GFP_KERNEL);
-		struct task_struct *t;
-
 		if (!w) {
 			percpu_ref_put(&ca->io_ref);
 			ret = -ENOMEM;
 			goto err;
 		}
 
-		percpu_ref_get(&ca->io_ref);
-		closure_get(&cl);
 		w->cl		= &cl;
 		w->f		= f;
 		w->ca		= ca;
 
-		t = kthread_run(read_btree_nodes_worker, w, "read_btree_nodes/%s", ca->name);
+		struct task_struct *t = kthread_create(read_btree_nodes_worker, w, "read_btree_nodes/%s", ca->name);
 		ret = PTR_ERR_OR_ZERO(t);
 		if (ret) {
 			percpu_ref_put(&ca->io_ref);
-			closure_put(&cl);
-			f->ret = ret;
-			bch_err(c, "error starting kthread: %i", ret);
+			kfree(w);
+			bch_err_msg(c, ret, "starting kthread");
 			break;
 		}
+
+		closure_get(&cl);
+		percpu_ref_get(&ca->io_ref);
+		wake_up_process(t);
 	}
 err:
 	closure_sync(&cl);

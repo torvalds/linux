@@ -23,7 +23,19 @@ static inline bool bch2_dev_is_online(struct bch_dev *ca)
 	return !percpu_ref_is_zero(&ca->io_ref);
 }
 
-static inline bool bch2_dev_is_readable(struct bch_dev *ca)
+static inline struct bch_dev *bch2_dev_rcu(struct bch_fs *, unsigned);
+
+static inline bool bch2_dev_idx_is_online(struct bch_fs *c, unsigned dev)
+{
+	rcu_read_lock();
+	struct bch_dev *ca = bch2_dev_rcu(c, dev);
+	bool ret = ca && bch2_dev_is_online(ca);
+	rcu_read_unlock();
+
+	return ret;
+}
+
+static inline bool bch2_dev_is_healthy(struct bch_dev *ca)
 {
 	return bch2_dev_is_online(ca) &&
 		ca->mi.state != BCH_MEMBER_STATE_failed;
@@ -271,6 +283,8 @@ static inline struct bch_dev *bch2_dev_iterate(struct bch_fs *c, struct bch_dev 
 
 static inline struct bch_dev *bch2_dev_get_ioref(struct bch_fs *c, unsigned dev, int rw)
 {
+	might_sleep();
+
 	rcu_read_lock();
 	struct bch_dev *ca = bch2_dev_rcu(c, dev);
 	if (ca && !percpu_ref_tryget(&ca->io_ref))

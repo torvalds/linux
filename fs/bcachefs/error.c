@@ -3,8 +3,8 @@
 #include "btree_cache.h"
 #include "btree_iter.h"
 #include "error.h"
-#include "fs-common.h"
 #include "journal.h"
+#include "namei.h"
 #include "recovery_passes.h"
 #include "super.h"
 #include "thread_with_file.h"
@@ -54,25 +54,41 @@ void bch2_io_error_work(struct work_struct *work)
 {
 	struct bch_dev *ca = container_of(work, struct bch_dev, io_error_work);
 	struct bch_fs *c = ca->fs;
-	bool dev;
+
+	/* XXX: if it's reads or checksums that are failing, set it to failed */
 
 	down_write(&c->state_lock);
-	dev = bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_ro,
-				    BCH_FORCE_IF_DEGRADED);
-	if (dev
-	    ? __bch2_dev_set_state(c, ca, BCH_MEMBER_STATE_ro,
-				  BCH_FORCE_IF_DEGRADED)
-	    : bch2_fs_emergency_read_only(c))
+	unsigned long write_errors_start = READ_ONCE(ca->write_errors_start);
+
+	if (write_errors_start &&
+	    time_after(jiffies,
+		       write_errors_start + c->opts.write_error_timeout * HZ)) {
+		if (ca->mi.state >= BCH_MEMBER_STATE_ro)
+			goto out;
+
+		bool dev = !__bch2_dev_set_state(c, ca, BCH_MEMBER_STATE_ro,
+						 BCH_FORCE_IF_DEGRADED);
+
 		bch_err(ca,
-			"too many IO errors, setting %s RO",
+			"writes erroring for %u seconds, setting %s ro",
+			c->opts.write_error_timeout,
 			dev ? "device" : "filesystem");
+		if (!dev)
+			bch2_fs_emergency_read_only(c);
+
+	}
+out:
 	up_write(&c->state_lock);
 }
 
 void bch2_io_error(struct bch_dev *ca, enum bch_member_error_type type)
 {
 	atomic64_inc(&ca->errors[type]);
-	//queue_work(system_long_wq, &ca->io_error_work);
+
+	if (type == BCH_MEMBER_ERROR_write && !ca->write_errors_start)
+		ca->write_errors_start = jiffies;
+
+	queue_work(system_long_wq, &ca->io_error_work);
 }
 
 enum ask_yn {
@@ -530,35 +546,59 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 	mutex_unlock(&c->fsck_error_msgs_lock);
 }
 
-int bch2_inum_err_msg_trans(struct btree_trans *trans, struct printbuf *out, subvol_inum inum)
+int bch2_inum_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
+				    subvol_inum inum, u64 offset)
 {
 	u32 restart_count = trans->restart_count;
 	int ret = 0;
 
-	/* XXX: we don't yet attempt to print paths when we don't know the subvol */
-	if (inum.subvol)
-		ret = lockrestart_do(trans, bch2_inum_to_path(trans, inum, out));
+	if (inum.subvol) {
+		ret = bch2_inum_to_path(trans, inum, out);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			return ret;
+	}
 	if (!inum.subvol || ret)
 		prt_printf(out, "inum %llu:%llu", inum.subvol, inum.inum);
+	prt_printf(out, " offset %llu: ", offset);
 
 	return trans_was_restarted(trans, restart_count);
-}
-
-int bch2_inum_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
-				    subvol_inum inum, u64 offset)
-{
-	int ret = bch2_inum_err_msg_trans(trans, out, inum);
-	prt_printf(out, " offset %llu: ", offset);
-	return ret;
-}
-
-void bch2_inum_err_msg(struct bch_fs *c, struct printbuf *out, subvol_inum inum)
-{
-	bch2_trans_run(c, bch2_inum_err_msg_trans(trans, out, inum));
 }
 
 void bch2_inum_offset_err_msg(struct bch_fs *c, struct printbuf *out,
 			      subvol_inum inum, u64 offset)
 {
-	bch2_trans_run(c, bch2_inum_offset_err_msg_trans(trans, out, inum, offset));
+	bch2_trans_do(c, bch2_inum_offset_err_msg_trans(trans, out, inum, offset));
+}
+
+int bch2_inum_snap_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
+					struct bpos pos)
+{
+	struct bch_fs *c = trans->c;
+	int ret = 0;
+
+	if (!bch2_snapshot_is_leaf(c, pos.snapshot))
+		prt_str(out, "(multiple snapshots) ");
+
+	subvol_inum inum = {
+		.subvol	= bch2_snapshot_tree_oldest_subvol(c, pos.snapshot),
+		.inum	= pos.inode,
+	};
+
+	if (inum.subvol) {
+		ret = bch2_inum_to_path(trans, inum, out);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			return ret;
+	}
+
+	if (!inum.subvol || ret)
+		prt_printf(out, "inum %llu:%u", pos.inode, pos.snapshot);
+
+	prt_printf(out, " offset %llu: ", pos.offset << 8);
+	return 0;
+}
+
+void bch2_inum_snap_offset_err_msg(struct bch_fs *c, struct printbuf *out,
+				  struct bpos pos)
+{
+	bch2_trans_do(c, bch2_inum_snap_offset_err_msg_trans(trans, out, pos));
 }

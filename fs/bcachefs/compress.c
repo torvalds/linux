@@ -177,7 +177,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 	size_t src_len = src->bi_iter.bi_size;
 	size_t dst_len = crc.uncompressed_size << 9;
 	void *workspace;
-	int ret;
+	int ret = 0, ret2;
 
 	enum bch_compression_opts opt = bch2_compression_type_to_opt(crc.compression_type);
 	mempool_t *workspace_pool = &c->compress_workspace[opt];
@@ -189,7 +189,7 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 		else
 			ret = -BCH_ERR_compression_workspace_not_initialized;
 		if (ret)
-			goto out;
+			goto err;
 	}
 
 	src_data = bio_map_or_bounce(c, src, READ);
@@ -197,10 +197,10 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 	switch (crc.compression_type) {
 	case BCH_COMPRESSION_TYPE_lz4_old:
 	case BCH_COMPRESSION_TYPE_lz4:
-		ret = LZ4_decompress_safe_partial(src_data.b, dst_data,
-						  src_len, dst_len, dst_len);
-		if (ret != dst_len)
-			goto err;
+		ret2 = LZ4_decompress_safe_partial(src_data.b, dst_data,
+						   src_len, dst_len, dst_len);
+		if (ret2 != dst_len)
+			ret = -BCH_ERR_decompress_lz4;
 		break;
 	case BCH_COMPRESSION_TYPE_gzip: {
 		z_stream strm = {
@@ -214,45 +214,43 @@ static int __bio_uncompress(struct bch_fs *c, struct bio *src,
 
 		zlib_set_workspace(&strm, workspace);
 		zlib_inflateInit2(&strm, -MAX_WBITS);
-		ret = zlib_inflate(&strm, Z_FINISH);
+		ret2 = zlib_inflate(&strm, Z_FINISH);
 
 		mempool_free(workspace, workspace_pool);
 
-		if (ret != Z_STREAM_END)
-			goto err;
+		if (ret2 != Z_STREAM_END)
+			ret = -BCH_ERR_decompress_gzip;
 		break;
 	}
 	case BCH_COMPRESSION_TYPE_zstd: {
 		ZSTD_DCtx *ctx;
 		size_t real_src_len = le32_to_cpup(src_data.b);
 
-		if (real_src_len > src_len - 4)
+		if (real_src_len > src_len - 4) {
+			ret = -BCH_ERR_decompress_zstd_src_len_bad;
 			goto err;
+		}
 
 		workspace = mempool_alloc(workspace_pool, GFP_NOFS);
 		ctx = zstd_init_dctx(workspace, zstd_dctx_workspace_bound());
 
-		ret = zstd_decompress_dctx(ctx,
+		ret2 = zstd_decompress_dctx(ctx,
 				dst_data,	dst_len,
 				src_data.b + 4, real_src_len);
 
 		mempool_free(workspace, workspace_pool);
 
-		if (ret != dst_len)
-			goto err;
+		if (ret2 != dst_len)
+			ret = -BCH_ERR_decompress_zstd;
 		break;
 	}
 	default:
 		BUG();
 	}
-	ret = 0;
+err:
 fsck_err:
-out:
 	bio_unmap_or_unbounce(c, src_data);
 	return ret;
-err:
-	ret = -EIO;
-	goto out;
 }
 
 int bch2_bio_uncompress_inplace(struct bch_write_op *op,
@@ -268,27 +266,22 @@ int bch2_bio_uncompress_inplace(struct bch_write_op *op,
 	BUG_ON(!bio->bi_vcnt);
 	BUG_ON(DIV_ROUND_UP(crc->live_size, PAGE_SECTORS) > bio->bi_max_vecs);
 
-	if (crc->uncompressed_size << 9	> c->opts.encoded_extent_max ||
-	    crc->compressed_size << 9	> c->opts.encoded_extent_max) {
-		struct printbuf buf = PRINTBUF;
-		bch2_write_op_error(&buf, op);
-		prt_printf(&buf, "error rewriting existing data: extent too big");
-		bch_err_ratelimited(c, "%s", buf.buf);
-		printbuf_exit(&buf);
-		return -EIO;
+	if (crc->uncompressed_size << 9	> c->opts.encoded_extent_max) {
+		bch2_write_op_error(op, op->pos.offset,
+				    "extent too big to decompress (%u > %u)",
+				    crc->uncompressed_size << 9, c->opts.encoded_extent_max);
+		return -BCH_ERR_decompress_exceeded_max_encoded_extent;
 	}
 
 	data = __bounce_alloc(c, dst_len, WRITE);
 
-	if (__bio_uncompress(c, bio, data.b, *crc)) {
-		if (!c->opts.no_data_io) {
-			struct printbuf buf = PRINTBUF;
-			bch2_write_op_error(&buf, op);
-			prt_printf(&buf, "error rewriting existing data: decompression error");
-			bch_err_ratelimited(c, "%s", buf.buf);
-			printbuf_exit(&buf);
-		}
-		ret = -EIO;
+	ret = __bio_uncompress(c, bio, data.b, *crc);
+
+	if (c->opts.no_data_io)
+		ret = 0;
+
+	if (ret) {
+		bch2_write_op_error(op, op->pos.offset, "%s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -321,7 +314,7 @@ int bch2_bio_uncompress(struct bch_fs *c, struct bio *src,
 
 	if (crc.uncompressed_size << 9	> c->opts.encoded_extent_max ||
 	    crc.compressed_size << 9	> c->opts.encoded_extent_max)
-		return -EIO;
+		return -BCH_ERR_decompress_exceeded_max_encoded_extent;
 
 	dst_data = dst_len == dst_iter.bi_size
 		? __bio_map_or_bounce(c, dst, dst_iter, WRITE)

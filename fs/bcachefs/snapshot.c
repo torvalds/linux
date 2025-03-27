@@ -146,8 +146,9 @@ bool __bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ancestor)
 		goto out;
 	}
 
-	while (id && id < ancestor - IS_ANCESTOR_BITMAP)
-		id = get_ancestor_below(t, id, ancestor);
+	if (likely(ancestor >= IS_ANCESTOR_BITMAP))
+		while (id && id < ancestor - IS_ANCESTOR_BITMAP)
+			id = get_ancestor_below(t, id, ancestor);
 
 	ret = id && id < ancestor
 		? test_ancestor_bitmap(t, id, ancestor)
@@ -389,7 +390,7 @@ static u32 bch2_snapshot_tree_next(struct bch_fs *c, u32 id)
 	return 0;
 }
 
-static u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
+u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
 {
 	u32 id = snapshot_root;
 	u32 subvol = 0, s;

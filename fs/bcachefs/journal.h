@@ -121,11 +121,6 @@ static inline void journal_wake(struct journal *j)
 	closure_wake_up(&j->async_wait);
 }
 
-static inline struct journal_buf *journal_cur_buf(struct journal *j)
-{
-	return j->buf + j->reservations.idx;
-}
-
 /* Sequence number of oldest dirty journal entry */
 
 static inline u64 journal_last_seq(struct journal *j)
@@ -143,6 +138,15 @@ static inline u64 journal_last_unwritten_seq(struct journal *j)
 	return j->seq_ondisk + 1;
 }
 
+static inline struct journal_buf *journal_cur_buf(struct journal *j)
+{
+	unsigned idx = (journal_cur_seq(j) &
+			JOURNAL_BUF_MASK &
+			~JOURNAL_STATE_BUF_MASK) + j->reservations.idx;
+
+	return j->buf + idx;
+}
+
 static inline int journal_state_count(union journal_res_state s, int idx)
 {
 	switch (idx) {
@@ -152,6 +156,15 @@ static inline int journal_state_count(union journal_res_state s, int idx)
 	case 3: return s.buf3_count;
 	}
 	BUG();
+}
+
+static inline int journal_state_seq_count(struct journal *j,
+					  union journal_res_state s, u64 seq)
+{
+	if (journal_cur_seq(j) - seq < JOURNAL_STATE_BUF_NR)
+		return journal_state_count(s, seq & JOURNAL_STATE_BUF_MASK);
+	else
+		return 0;
 }
 
 static inline void journal_state_inc(union journal_res_state *s)
@@ -193,7 +206,7 @@ bch2_journal_add_entry_noreservation(struct journal_buf *buf, size_t u64s)
 static inline struct jset_entry *
 journal_res_entry(struct journal *j, struct journal_res *res)
 {
-	return vstruct_idx(j->buf[res->idx].data, res->offset);
+	return vstruct_idx(j->buf[res->seq & JOURNAL_BUF_MASK].data, res->offset);
 }
 
 static inline unsigned journal_entry_init(struct jset_entry *entry, unsigned type,
@@ -267,8 +280,9 @@ bool bch2_journal_entry_close(struct journal *);
 void bch2_journal_do_writes(struct journal *);
 void bch2_journal_buf_put_final(struct journal *, u64);
 
-static inline void __bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq)
+static inline void __bch2_journal_buf_put(struct journal *j, u64 seq)
 {
+	unsigned idx = seq & JOURNAL_STATE_BUF_MASK;
 	union journal_res_state s;
 
 	s = journal_state_buf_put(j, idx);
@@ -276,8 +290,9 @@ static inline void __bch2_journal_buf_put(struct journal *j, unsigned idx, u64 s
 		bch2_journal_buf_put_final(j, seq);
 }
 
-static inline void bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq)
+static inline void bch2_journal_buf_put(struct journal *j, u64 seq)
 {
+	unsigned idx = seq & JOURNAL_STATE_BUF_MASK;
 	union journal_res_state s;
 
 	s = journal_state_buf_put(j, idx);
@@ -306,7 +321,7 @@ static inline void bch2_journal_res_put(struct journal *j,
 				       BCH_JSET_ENTRY_btree_keys,
 				       0, 0, 0);
 
-	bch2_journal_buf_put(j, res->idx, res->seq);
+	bch2_journal_buf_put(j, res->seq);
 
 	res->ref = 0;
 }
@@ -335,8 +350,10 @@ static inline int journal_res_get_fast(struct journal *j,
 
 		/*
 		 * Check if there is still room in the current journal
-		 * entry:
+		 * entry, smp_rmb() guarantees that reads from reservations.counter
+		 * occur before accessing cur_entry_u64s:
 		 */
+		smp_rmb();
 		if (new.cur_entry_offset + res->u64s > j->cur_entry_u64s)
 			return 0;
 
@@ -361,9 +378,9 @@ static inline int journal_res_get_fast(struct journal *j,
 				       &old.v, new.v));
 
 	res->ref	= true;
-	res->idx	= old.idx;
 	res->offset	= old.cur_entry_offset;
-	res->seq	= le64_to_cpu(j->buf[old.idx].data->seq);
+	res->seq	= journal_cur_seq(j);
+	res->seq -= (res->seq - old.idx) & JOURNAL_STATE_BUF_MASK;
 	return 1;
 }
 
@@ -390,6 +407,7 @@ out:
 				    (flags & JOURNAL_RES_GET_NONBLOCK) != 0,
 				    NULL, _THIS_IP_);
 		EBUG_ON(!res->ref);
+		BUG_ON(!res->seq);
 	}
 	return 0;
 }

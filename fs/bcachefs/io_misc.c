@@ -115,7 +115,8 @@ err:
 		bch2_increment_clock(c, sectors_allocated, WRITE);
 	if (should_print_err(ret)) {
 		struct printbuf buf = PRINTBUF;
-		bch2_inum_offset_err_msg_trans(trans, &buf, inum, iter->pos.offset << 9);
+		lockrestart_do(trans,
+			bch2_inum_offset_err_msg_trans(trans, &buf, inum, iter->pos.offset << 9));
 		prt_printf(&buf, "fallocate error: %s", bch2_err_str(ret));
 		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);

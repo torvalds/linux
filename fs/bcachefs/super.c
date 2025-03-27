@@ -75,9 +75,6 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
 MODULE_DESCRIPTION("bcachefs filesystem");
-MODULE_SOFTDEP("pre: crc32c");
-MODULE_SOFTDEP("pre: crc64");
-MODULE_SOFTDEP("pre: sha256");
 MODULE_SOFTDEP("pre: chacha20");
 MODULE_SOFTDEP("pre: poly1305");
 MODULE_SOFTDEP("pre: xxhash");
@@ -718,7 +715,7 @@ static int bch2_fs_online(struct bch_fs *c)
 	    kobject_add(&c->time_stats, &c->kobj, "time_stats") ?:
 #endif
 	    kobject_add(&c->counters_kobj, &c->kobj, "counters") ?:
-	    bch2_opts_create_sysfs_files(&c->opts_dir);
+	    bch2_opts_create_sysfs_files(&c->opts_dir, OPT_FS);
 	if (ret) {
 		bch_err(c, "error creating sysfs objects");
 		return ret;
@@ -836,6 +833,25 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	if (ret)
 		goto err;
+
+#ifdef CONFIG_UNICODE
+	/* Default encoding until we can potentially have more as an option. */
+	c->cf_encoding = utf8_load(BCH_FS_DEFAULT_UTF8_ENCODING);
+	if (IS_ERR(c->cf_encoding)) {
+		printk(KERN_ERR "Cannot load UTF-8 encoding for filesystem. Version: %u.%u.%u",
+			unicode_major(BCH_FS_DEFAULT_UTF8_ENCODING),
+			unicode_minor(BCH_FS_DEFAULT_UTF8_ENCODING),
+			unicode_rev(BCH_FS_DEFAULT_UTF8_ENCODING));
+		ret = -EINVAL;
+		goto err;
+	}
+#else
+	if (c->sb.features & BIT_ULL(BCH_FEATURE_casefolding)) {
+		printk(KERN_ERR "Cannot mount a filesystem with casefolding on a kernel without CONFIG_UNICODE\n");
+		ret = -EINVAL;
+		goto err;
+	}
+#endif
 
 	pr_uuid(&name, c->sb.user_uuid.b);
 	ret = name.allocation_failure ? -BCH_ERR_ENOMEM_fs_name_alloc : 0;
@@ -1056,6 +1072,7 @@ int bch2_fs_start(struct bch_fs *c)
 	}
 
 	set_bit(BCH_FS_started, &c->flags);
+	wake_up(&c->ro_ref_wait);
 
 	if (c->opts.read_only) {
 		bch2_fs_read_only(c);
@@ -1280,8 +1297,8 @@ static int bch2_dev_sysfs_online(struct bch_fs *c, struct bch_dev *ca)
 		return 0;
 
 	if (!ca->kobj.state_in_sysfs) {
-		ret = kobject_add(&ca->kobj, &c->kobj,
-				  "dev-%u", ca->dev_idx);
+		ret =   kobject_add(&ca->kobj, &c->kobj, "dev-%u", ca->dev_idx) ?:
+			bch2_opts_create_sysfs_files(&ca->kobj, OPT_DEVICE);
 		if (ret)
 			return ret;
 	}
@@ -1411,6 +1428,13 @@ static int __bch2_dev_attach_bdev(struct bch_dev *ca, struct bch_sb_handle *sb)
 	/* Commit: */
 	ca->disk_sb = *sb;
 	memset(sb, 0, sizeof(*sb));
+
+	/*
+	 * Stash pointer to the filesystem for blk_holder_ops - note that once
+	 * attached to a filesystem, we will always close the block device
+	 * before tearing down the filesystem object.
+	 */
+	ca->disk_sb.holder->c = ca->fs;
 
 	ca->dev = ca->disk_sb.bdev->bd_dev;
 
@@ -1966,15 +1990,12 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	mutex_unlock(&c->sb_lock);
 
 	if (ca->mi.freespace_initialized) {
-		struct disk_accounting_pos acc = {
-			.type = BCH_DISK_ACCOUNTING_dev_data_type,
-			.dev_data_type.dev = ca->dev_idx,
-			.dev_data_type.data_type = BCH_DATA_free,
-		};
 		u64 v[3] = { nbuckets - old_nbuckets, 0, 0 };
 
 		ret   = bch2_trans_commit_do(ca->fs, NULL, NULL, 0,
-				bch2_disk_accounting_mod(trans, &acc, v, ARRAY_SIZE(v), false)) ?:
+				bch2_disk_accounting_mod2(trans, false, v, dev_data_type,
+							  .dev = ca->dev_idx,
+							  .data_type = BCH_DATA_free)) ?:
 			bch2_dev_freespace_init(c, ca, old_nbuckets, nbuckets);
 		if (ret)
 			goto err;
@@ -1997,6 +2018,102 @@ struct bch_dev *bch2_dev_lookup(struct bch_fs *c, const char *name)
 			return ca;
 	return ERR_PTR(-BCH_ERR_ENOENT_dev_not_found);
 }
+
+/* blk_holder_ops: */
+
+static struct bch_fs *bdev_get_fs(struct block_device *bdev)
+	__releases(&bdev->bd_holder_lock)
+{
+	struct bch_sb_handle_holder *holder = bdev->bd_holder;
+	struct bch_fs *c = holder->c;
+
+	if (c && !bch2_ro_ref_tryget(c))
+		c = NULL;
+
+	mutex_unlock(&bdev->bd_holder_lock);
+
+	if (c)
+		wait_event(c->ro_ref_wait, test_bit(BCH_FS_started, &c->flags));
+	return c;
+}
+
+/* returns with ref on ca->ref */
+static struct bch_dev *bdev_to_bch_dev(struct bch_fs *c, struct block_device *bdev)
+{
+	for_each_member_device(c, ca)
+		if (ca->disk_sb.bdev == bdev)
+			return ca;
+	return NULL;
+}
+
+static void bch2_fs_bdev_mark_dead(struct block_device *bdev, bool surprise)
+{
+	struct bch_fs *c = bdev_get_fs(bdev);
+	if (!c)
+		return;
+
+	struct super_block *sb = c->vfs_sb;
+	if (sb) {
+		/*
+		 * Not necessary, c->ro_ref guards against the filesystem being
+		 * unmounted - we only take this to avoid a warning in
+		 * sync_filesystem:
+		 */
+		down_read(&sb->s_umount);
+	}
+
+	down_write(&c->state_lock);
+	struct bch_dev *ca = bdev_to_bch_dev(c, bdev);
+	if (!ca)
+		goto unlock;
+
+	if (bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_failed, BCH_FORCE_IF_DEGRADED)) {
+		__bch2_dev_offline(c, ca);
+	} else {
+		if (sb) {
+			if (!surprise)
+				sync_filesystem(sb);
+			shrink_dcache_sb(sb);
+			evict_inodes(sb);
+		}
+
+		bch2_journal_flush(&c->journal);
+		bch2_fs_emergency_read_only(c);
+	}
+
+	bch2_dev_put(ca);
+unlock:
+	if (sb)
+		up_read(&sb->s_umount);
+	up_write(&c->state_lock);
+	bch2_ro_ref_put(c);
+}
+
+static void bch2_fs_bdev_sync(struct block_device *bdev)
+{
+	struct bch_fs *c = bdev_get_fs(bdev);
+	if (!c)
+		return;
+
+	struct super_block *sb = c->vfs_sb;
+	if (sb) {
+		/*
+		 * Not necessary, c->ro_ref guards against the filesystem being
+		 * unmounted - we only take this to avoid a warning in
+		 * sync_filesystem:
+		 */
+		down_read(&sb->s_umount);
+		sync_filesystem(sb);
+		up_read(&sb->s_umount);
+	}
+
+	bch2_ro_ref_put(c);
+}
+
+const struct blk_holder_ops bch2_sb_handle_bdev_ops = {
+	.mark_dead		= bch2_fs_bdev_mark_dead,
+	.sync			= bch2_fs_bdev_sync,
+};
 
 /* Filesystem open: */
 

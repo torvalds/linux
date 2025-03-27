@@ -590,11 +590,9 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		if (!p.ptr.cached) {
-			ret = bch2_bucket_backpointer_mod(trans, k, &bp, insert);
-			if (ret)
-				goto err;
-		}
+		ret = bch2_bucket_backpointer_mod(trans, k, &bp, insert);
+		if (ret)
+			goto err;
 	}
 
 	if (flags & BTREE_TRIGGER_gc) {
@@ -674,10 +672,10 @@ err:
 			return -BCH_ERR_ENOMEM_mark_stripe_ptr;
 		}
 
-		mutex_lock(&c->ec_stripes_heap_lock);
+		gc_stripe_lock(m);
 
 		if (!m || !m->alive) {
-			mutex_unlock(&c->ec_stripes_heap_lock);
+			gc_stripe_unlock(m);
 			struct printbuf buf = PRINTBUF;
 			bch2_bkey_val_to_text(&buf, c, k);
 			bch_err_ratelimited(c, "pointer to nonexistent stripe %llu\n  while marking %s",
@@ -693,7 +691,7 @@ err:
 			.type = BCH_DISK_ACCOUNTING_replicas,
 		};
 		memcpy(&acc.replicas, &m->r.e, replicas_entry_bytes(&m->r.e));
-		mutex_unlock(&c->ec_stripes_heap_lock);
+		gc_stripe_unlock(m);
 
 		acc.replicas.data_type = data_type;
 		int ret = bch2_disk_accounting_mod(trans, &acc, &sectors, 1, true);
@@ -726,9 +724,7 @@ static int __trigger_extent(struct btree_trans *trans,
 		.replicas.nr_required	= 1,
 	};
 
-	struct disk_accounting_pos acct_compression_key = {
-		.type			= BCH_DISK_ACCOUNTING_compression,
-	};
+	unsigned cur_compression_type = 0;
 	u64 compression_acct[3] = { 1, 0, 0 };
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
@@ -762,13 +758,13 @@ static int __trigger_extent(struct btree_trans *trans,
 			acc_replicas_key.replicas.nr_required = 0;
 		}
 
-		if (acct_compression_key.compression.type &&
-		    acct_compression_key.compression.type != p.crc.compression_type) {
+		if (cur_compression_type &&
+		    cur_compression_type != p.crc.compression_type) {
 			if (flags & BTREE_TRIGGER_overwrite)
 				bch2_u64s_neg(compression_acct, ARRAY_SIZE(compression_acct));
 
-			ret = bch2_disk_accounting_mod(trans, &acct_compression_key, compression_acct,
-						       ARRAY_SIZE(compression_acct), gc);
+			ret = bch2_disk_accounting_mod2(trans, gc, compression_acct,
+							compression, cur_compression_type);
 			if (ret)
 				return ret;
 
@@ -777,7 +773,7 @@ static int __trigger_extent(struct btree_trans *trans,
 			compression_acct[2] = 0;
 		}
 
-		acct_compression_key.compression.type = p.crc.compression_type;
+		cur_compression_type = p.crc.compression_type;
 		if (p.crc.compression_type) {
 			compression_acct[1] += p.crc.uncompressed_size;
 			compression_acct[2] += p.crc.compressed_size;
@@ -791,45 +787,34 @@ static int __trigger_extent(struct btree_trans *trans,
 	}
 
 	if (acc_replicas_key.replicas.nr_devs && !level && k.k->p.snapshot) {
-		struct disk_accounting_pos acc_snapshot_key = {
-			.type			= BCH_DISK_ACCOUNTING_snapshot,
-			.snapshot.id		= k.k->p.snapshot,
-		};
-		ret = bch2_disk_accounting_mod(trans, &acc_snapshot_key, replicas_sectors, 1, gc);
+		ret = bch2_disk_accounting_mod2_nr(trans, gc, replicas_sectors, 1, snapshot, k.k->p.snapshot);
 		if (ret)
 			return ret;
 	}
 
-	if (acct_compression_key.compression.type) {
+	if (cur_compression_type) {
 		if (flags & BTREE_TRIGGER_overwrite)
 			bch2_u64s_neg(compression_acct, ARRAY_SIZE(compression_acct));
 
-		ret = bch2_disk_accounting_mod(trans, &acct_compression_key, compression_acct,
-					       ARRAY_SIZE(compression_acct), gc);
+		ret = bch2_disk_accounting_mod2(trans, gc, compression_acct,
+						compression, cur_compression_type);
 		if (ret)
 			return ret;
 	}
 
 	if (level) {
-		struct disk_accounting_pos acc_btree_key = {
-			.type		= BCH_DISK_ACCOUNTING_btree,
-			.btree.id	= btree_id,
-		};
-		ret = bch2_disk_accounting_mod(trans, &acc_btree_key, replicas_sectors, 1, gc);
+		ret = bch2_disk_accounting_mod2_nr(trans, gc, replicas_sectors, 1, btree, btree_id);
 		if (ret)
 			return ret;
 	} else {
 		bool insert = !(flags & BTREE_TRIGGER_overwrite);
-		struct disk_accounting_pos acc_inum_key = {
-			.type		= BCH_DISK_ACCOUNTING_inum,
-			.inum.inum	= k.k->p.inode,
-		};
+
 		s64 v[3] = {
 			insert ? 1 : -1,
 			insert ? k.k->size : -((s64) k.k->size),
 			*replicas_sectors,
 		};
-		ret = bch2_disk_accounting_mod(trans, &acc_inum_key, v, ARRAY_SIZE(v), gc);
+		ret = bch2_disk_accounting_mod2(trans, gc, v, inum, k.k->p.inode);
 		if (ret)
 			return ret;
 	}
@@ -878,15 +863,15 @@ int bch2_trigger_extent(struct btree_trans *trans,
 		}
 
 		int need_rebalance_delta = 0;
-		s64 need_rebalance_sectors_delta = 0;
+		s64 need_rebalance_sectors_delta[1] = { 0 };
 
 		s64 s = bch2_bkey_sectors_need_rebalance(c, old);
 		need_rebalance_delta -= s != 0;
-		need_rebalance_sectors_delta -= s;
+		need_rebalance_sectors_delta[0] -= s;
 
 		s = bch2_bkey_sectors_need_rebalance(c, new.s_c);
 		need_rebalance_delta += s != 0;
-		need_rebalance_sectors_delta += s;
+		need_rebalance_sectors_delta[0] += s;
 
 		if ((flags & BTREE_TRIGGER_transactional) && need_rebalance_delta) {
 			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_rebalance_work,
@@ -895,12 +880,9 @@ int bch2_trigger_extent(struct btree_trans *trans,
 				return ret;
 		}
 
-		if (need_rebalance_sectors_delta) {
-			struct disk_accounting_pos acc = {
-				.type		= BCH_DISK_ACCOUNTING_rebalance_work,
-			};
-			int ret = bch2_disk_accounting_mod(trans, &acc, &need_rebalance_sectors_delta, 1,
-							   flags & BTREE_TRIGGER_gc);
+		if (need_rebalance_sectors_delta[0]) {
+			int ret = bch2_disk_accounting_mod2(trans, flags & BTREE_TRIGGER_gc,
+							    need_rebalance_sectors_delta, rebalance_work);
 			if (ret)
 				return ret;
 		}
@@ -916,17 +898,13 @@ static int __trigger_reservation(struct btree_trans *trans,
 			enum btree_iter_update_trigger_flags flags)
 {
 	if (flags & (BTREE_TRIGGER_transactional|BTREE_TRIGGER_gc)) {
-		s64 sectors = k.k->size;
+		s64 sectors[1] = { k.k->size };
 
 		if (flags & BTREE_TRIGGER_overwrite)
-			sectors = -sectors;
+			sectors[0] = -sectors[0];
 
-		struct disk_accounting_pos acc = {
-			.type = BCH_DISK_ACCOUNTING_persistent_reserved,
-			.persistent_reserved.nr_replicas = bkey_s_c_to_reservation(k).v->nr_replicas,
-		};
-
-		return bch2_disk_accounting_mod(trans, &acc, &sectors, 1, flags & BTREE_TRIGGER_gc);
+		return bch2_disk_accounting_mod2(trans, flags & BTREE_TRIGGER_gc, sectors,
+				persistent_reserved, bkey_s_c_to_reservation(k).v->nr_replicas);
 	}
 
 	return 0;
