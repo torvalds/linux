@@ -1,0 +1,18 @@
+digraph state_automaton {
+	center = true;
+	size = "7,11";
+	{node [shape = plaintext] "scheduling_context"};
+	{node [shape = plaintext, style=invis, label=""] "__init_thread_context"};
+	{node [shape = ellipse] "thread_context"};
+	{node [shape = plaintext] "thread_context"};
+	"__init_thread_context" -> "thread_context";
+	"scheduling_context" [label = "scheduling_context"];
+	"scheduling_context" -> "thread_context" [ label = "schedule_exit" ];
+	"thread_context" [label = "thread_context", color = green3];
+	"thread_context" -> "scheduling_context" [ label = "schedule_entry" ];
+	"thread_context" -> "thread_context" [ label = "sched_set_state" ];
+	{ rank = min ;
+		"__init_thread_context";
+		"thread_context";
+	}
+}
