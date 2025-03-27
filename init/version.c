@@ -47,7 +47,7 @@ BUILD_LTO_INFO;
  */
 
 struct uts_namespace init_uts_ns __weak;
-const char linux_banner[] __weak = "NeTT OS 7, using Linux: (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION "\n";
+const char linux_banner[] __weak;
 
 #include "version-timestamp.c"
 
