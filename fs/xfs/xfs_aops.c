@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
- * Copyright (c) 2016-2018 Christoph Hellwig.
+ * Copyright (c) 2016-2025 Christoph Hellwig.
  * All Rights Reserved.
  */
 #include "xfs.h"
@@ -20,6 +20,8 @@
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_icache.h"
+#include "xfs_zone_alloc.h"
+#include "xfs_rtgroup.h"
 
 struct xfs_writepage_ctx {
 	struct iomap_writepage_ctx ctx;
@@ -77,6 +79,26 @@ xfs_setfilesize(
 	return xfs_trans_commit(tp);
 }
 
+static void
+xfs_ioend_put_open_zones(
+	struct iomap_ioend	*ioend)
+{
+	struct iomap_ioend *tmp;
+
+	/*
+	 * Put the open zone for all ioends merged into this one (if any).
+	 */
+	list_for_each_entry(tmp, &ioend->io_list, io_list)
+		xfs_open_zone_put(tmp->io_private);
+
+	/*
+	 * The main ioend might not have an open zone if the submission failed
+	 * before xfs_zone_alloc_and_submit got called.
+	 */
+	if (ioend->io_private)
+		xfs_open_zone_put(ioend->io_private);
+}
+
 /*
  * IO write completion.
  */
@@ -86,6 +108,7 @@ xfs_end_ioend(
 {
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	struct xfs_mount	*mp = ip->i_mount;
+	bool			is_zoned = xfs_is_zoned_inode(ip);
 	xfs_off_t		offset = ioend->io_offset;
 	size_t			size = ioend->io_size;
 	unsigned int		nofs_flag;
@@ -116,9 +139,10 @@ xfs_end_ioend(
 	error = blk_status_to_errno(ioend->io_bio.bi_status);
 	if (unlikely(error)) {
 		if (ioend->io_flags & IOMAP_IOEND_SHARED) {
+			ASSERT(!is_zoned);
 			xfs_reflink_cancel_cow_range(ip, offset, size, true);
 			xfs_bmap_punch_delalloc_range(ip, XFS_DATA_FORK, offset,
-					offset + size);
+					offset + size, NULL);
 		}
 		goto done;
 	}
@@ -126,14 +150,21 @@ xfs_end_ioend(
 	/*
 	 * Success: commit the COW or unwritten blocks if needed.
 	 */
-	if (ioend->io_flags & IOMAP_IOEND_SHARED)
+	if (is_zoned)
+		error = xfs_zoned_end_io(ip, offset, size, ioend->io_sector,
+				ioend->io_private, NULLFSBLOCK);
+	else if (ioend->io_flags & IOMAP_IOEND_SHARED)
 		error = xfs_reflink_end_cow(ip, offset, size);
 	else if (ioend->io_flags & IOMAP_IOEND_UNWRITTEN)
 		error = xfs_iomap_write_unwritten(ip, offset, size, false);
 
-	if (!error && xfs_ioend_is_append(ioend))
+	if (!error &&
+	    !(ioend->io_flags & IOMAP_IOEND_DIRECT) &&
+	    xfs_ioend_is_append(ioend))
 		error = xfs_setfilesize(ip, offset, size);
 done:
+	if (is_zoned)
+		xfs_ioend_put_open_zones(ioend);
 	iomap_finish_ioends(ioend, error);
 	memalloc_nofs_restore(nofs_flag);
 }
@@ -176,17 +207,27 @@ xfs_end_io(
 	}
 }
 
-STATIC void
+void
 xfs_end_bio(
 	struct bio		*bio)
 {
 	struct iomap_ioend	*ioend = iomap_ioend_from_bio(bio);
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
+	struct xfs_mount	*mp = ip->i_mount;
 	unsigned long		flags;
+
+	/*
+	 * For Appends record the actually written block number and set the
+	 * boundary flag if needed.
+	 */
+	if (IS_ENABLED(CONFIG_XFS_RT) && bio_is_zone_append(bio)) {
+		ioend->io_sector = bio->bi_iter.bi_sector;
+		xfs_mark_rtg_boundary(ioend);
+	}
 
 	spin_lock_irqsave(&ip->i_ioend_lock, flags);
 	if (list_empty(&ip->i_ioend_list))
-		WARN_ON_ONCE(!queue_work(ip->i_mount->m_unwritten_workqueue,
+		WARN_ON_ONCE(!queue_work(mp->m_unwritten_workqueue,
 					 &ip->i_ioend_work));
 	list_add_tail(&ioend->io_list, &ip->i_ioend_list);
 	spin_unlock_irqrestore(&ip->i_ioend_lock, flags);
@@ -463,7 +504,7 @@ xfs_discard_folio(
 	 * folio itself and not the start offset that is passed in.
 	 */
 	xfs_bmap_punch_delalloc_range(ip, XFS_DATA_FORK, pos,
-				folio_pos(folio) + folio_size(folio));
+				folio_pos(folio) + folio_size(folio), NULL);
 }
 
 static const struct iomap_writeback_ops xfs_writeback_ops = {
@@ -472,15 +513,125 @@ static const struct iomap_writeback_ops xfs_writeback_ops = {
 	.discard_folio		= xfs_discard_folio,
 };
 
+struct xfs_zoned_writepage_ctx {
+	struct iomap_writepage_ctx	ctx;
+	struct xfs_open_zone		*open_zone;
+};
+
+static inline struct xfs_zoned_writepage_ctx *
+XFS_ZWPC(struct iomap_writepage_ctx *ctx)
+{
+	return container_of(ctx, struct xfs_zoned_writepage_ctx, ctx);
+}
+
+static int
+xfs_zoned_map_blocks(
+	struct iomap_writepage_ctx *wpc,
+	struct inode		*inode,
+	loff_t			offset,
+	unsigned int		len)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	xfs_fileoff_t		end_fsb = XFS_B_TO_FSB(mp, offset + len);
+	xfs_filblks_t		count_fsb;
+	struct xfs_bmbt_irec	imap, del;
+	struct xfs_iext_cursor	icur;
+
+	if (xfs_is_shutdown(mp))
+		return -EIO;
+
+	XFS_ERRORTAG_DELAY(mp, XFS_ERRTAG_WB_DELAY_MS);
+
+	/*
+	 * All dirty data must be covered by delalloc extents.  But truncate can
+	 * remove delalloc extents underneath us or reduce their size.
+	 * Returning a hole tells iomap to not write back any data from this
+	 * range, which is the right thing to do in that case.
+	 *
+	 * Otherwise just tell iomap to treat ranges previously covered by a
+	 * delalloc extent as mapped.  The actual block allocation will be done
+	 * just before submitting the bio.
+	 *
+	 * This implies we never map outside folios that are locked or marked
+	 * as under writeback, and thus there is no need check the fork sequence
+	 * count here.
+	 */
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	if (!xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &imap))
+		imap.br_startoff = end_fsb;	/* fake a hole past EOF */
+	if (imap.br_startoff > offset_fsb) {
+		imap.br_blockcount = imap.br_startoff - offset_fsb;
+		imap.br_startoff = offset_fsb;
+		imap.br_startblock = HOLESTARTBLOCK;
+		imap.br_state = XFS_EXT_NORM;
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		xfs_bmbt_to_iomap(ip, &wpc->iomap, &imap, 0, 0, 0);
+		return 0;
+	}
+	end_fsb = min(end_fsb, imap.br_startoff + imap.br_blockcount);
+	count_fsb = end_fsb - offset_fsb;
+
+	del = imap;
+	xfs_trim_extent(&del, offset_fsb, count_fsb);
+	xfs_bmap_del_extent_delay(ip, XFS_COW_FORK, &icur, &imap, &del,
+			XFS_BMAPI_REMAP);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+
+	wpc->iomap.type = IOMAP_MAPPED;
+	wpc->iomap.flags = IOMAP_F_DIRTY;
+	wpc->iomap.bdev = mp->m_rtdev_targp->bt_bdev;
+	wpc->iomap.offset = offset;
+	wpc->iomap.length = XFS_FSB_TO_B(mp, count_fsb);
+	wpc->iomap.flags = IOMAP_F_ANON_WRITE;
+
+	trace_xfs_zoned_map_blocks(ip, offset, wpc->iomap.length);
+	return 0;
+}
+
+static int
+xfs_zoned_submit_ioend(
+	struct iomap_writepage_ctx *wpc,
+	int			status)
+{
+	wpc->ioend->io_bio.bi_end_io = xfs_end_bio;
+	if (status)
+		return status;
+	xfs_zone_alloc_and_submit(wpc->ioend, &XFS_ZWPC(wpc)->open_zone);
+	return 0;
+}
+
+static const struct iomap_writeback_ops xfs_zoned_writeback_ops = {
+	.map_blocks		= xfs_zoned_map_blocks,
+	.submit_ioend		= xfs_zoned_submit_ioend,
+	.discard_folio		= xfs_discard_folio,
+};
+
 STATIC int
 xfs_vm_writepages(
 	struct address_space	*mapping,
 	struct writeback_control *wbc)
 {
-	struct xfs_writepage_ctx wpc = { };
+	struct xfs_inode	*ip = XFS_I(mapping->host);
 
-	xfs_iflags_clear(XFS_I(mapping->host), XFS_ITRUNCATED);
-	return iomap_writepages(mapping, wbc, &wpc.ctx, &xfs_writeback_ops);
+	xfs_iflags_clear(ip, XFS_ITRUNCATED);
+
+	if (xfs_is_zoned_inode(ip)) {
+		struct xfs_zoned_writepage_ctx	xc = { };
+		int				error;
+
+		error = iomap_writepages(mapping, wbc, &xc.ctx,
+					 &xfs_zoned_writeback_ops);
+		if (xc.open_zone)
+			xfs_open_zone_put(xc.open_zone);
+		return error;
+	} else {
+		struct xfs_writepage_ctx	wpc = { };
+
+		return iomap_writepages(mapping, wbc, &wpc.ctx,
+				&xfs_writeback_ops);
+	}
 }
 
 STATIC int
