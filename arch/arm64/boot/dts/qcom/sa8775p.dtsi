@@ -471,17 +471,17 @@
 
 		cluster_0_pd: power-domain-cluster0 {
 			#power-domain-cells = <0>;
-			power-domains = <&cluster_2_pd>;
 			domain-idle-states = <&cluster_sleep_gold>;
+			power-domains = <&system_pd>;
 		};
 
 		cluster_1_pd: power-domain-cluster1 {
 			#power-domain-cells = <0>;
-			power-domains = <&cluster_2_pd>;
 			domain-idle-states = <&cluster_sleep_gold>;
+			power-domains = <&system_pd>;
 		};
 
-		cluster_2_pd: power-domain-cluster2 {
+		system_pd: power-domain-system {
 			#power-domain-cells = <0>;
 			domain-idle-states = <&cluster_sleep_apss_rsc_pc>;
 		};
@@ -5484,6 +5484,7 @@
 					  <WAKE_TCS 3>,
 					  <CONTROL_TCS 0>;
 			label = "apps_rsc";
+			power-domains = <&system_pd>;
 
 			apps_bcm_voter: bcm-voter {
 				compatible = "qcom,bcm-voter";
