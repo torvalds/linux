@@ -568,7 +568,22 @@ struct request_queue {
 	struct blk_flush_queue	*fq;
 	struct list_head	flush_list;
 
+	/*
+	 * Protects against I/O scheduler switching, particularly when updating
+	 * q->elevator. Since the elevator update code path may also modify q->
+	 * nr_requests and wbt latency, this lock also protects the sysfs attrs
+	 * nr_requests and wbt_lat_usec. Additionally the nr_hw_queues update
+	 * may modify hctx tags, reserved-tags and cpumask, so this lock also
+	 * helps protect the hctx sysfs/debugfs attrs. To ensure proper locking
+	 * order during an elevator or nr_hw_queue update, first freeze the
+	 * queue, then acquire ->elevator_lock.
+	 */
+	struct mutex		elevator_lock;
+
 	struct mutex		sysfs_lock;
+	/*
+	 * Protects queue limits and also sysfs attribute read_ahead_kb.
+	 */
 	struct mutex		limits_lock;
 
 	/*

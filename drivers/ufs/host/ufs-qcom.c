@@ -147,6 +147,7 @@ static int ufs_qcom_ice_init(struct ufs_qcom_host *host)
 
 	profile->ll_ops = ufs_qcom_crypto_ops;
 	profile->max_dun_bytes_supported = 8;
+	profile->key_types_supported = BLK_CRYPTO_KEY_TYPE_RAW;
 	profile->dev = dev;
 
 	/*
@@ -202,7 +203,7 @@ static int ufs_qcom_ice_keyslot_program(struct blk_crypto_profile *profile,
 	err = qcom_ice_program_key(host->ice,
 				   QCOM_ICE_CRYPTO_ALG_AES_XTS,
 				   QCOM_ICE_CRYPTO_KEY_SIZE_256,
-				   key->raw,
+				   key->bytes,
 				   key->crypto_cfg.data_unit_size / 512,
 				   slot);
 	ufshcd_release(hba);

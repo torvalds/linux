@@ -551,8 +551,8 @@ static inline struct scatterlist *blk_next_sg(struct scatterlist **sg,
  * Map a request to scatterlist, return number of sg entries setup. Caller
  * must make sure sg can hold rq->nr_phys_segments entries.
  */
-int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
-		struct scatterlist *sglist, struct scatterlist **last_sg)
+int __blk_rq_map_sg(struct request *rq, struct scatterlist *sglist,
+		    struct scatterlist **last_sg)
 {
 	struct req_iterator iter = {
 		.bio	= rq->bio,

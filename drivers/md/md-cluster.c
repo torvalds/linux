@@ -1166,7 +1166,7 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 		struct dlm_lock_resource *bm_lockres;
 		char str[64];
 
-		if (i == md_cluster_ops->slot_number(mddev))
+		if (i == slot_number(mddev))
 			continue;
 
 		bitmap = mddev->bitmap_ops->get_from_slot(mddev, i);
@@ -1216,7 +1216,7 @@ out:
  */
 static int cluster_check_sync_size(struct mddev *mddev)
 {
-	int current_slot = md_cluster_ops->slot_number(mddev);
+	int current_slot = slot_number(mddev);
 	int node_num = mddev->bitmap_info.nodes;
 	struct dlm_lock_resource *bm_lockres;
 	struct md_bitmap_stats stats;
@@ -1612,7 +1612,14 @@ out:
 	return err;
 }
 
-static const struct md_cluster_operations cluster_ops = {
+static struct md_cluster_operations cluster_ops = {
+	.head = {
+		.type	= MD_CLUSTER,
+		.id	= ID_CLUSTER,
+		.name	= "cluster",
+		.owner	= THIS_MODULE,
+	},
+
 	.join   = join,
 	.leave  = leave,
 	.slot_number = slot_number,
@@ -1642,13 +1649,12 @@ static int __init cluster_init(void)
 {
 	pr_warn("md-cluster: support raid1 and raid10 (limited support)\n");
 	pr_info("Registering Cluster MD functions\n");
-	register_md_cluster_operations(&cluster_ops, THIS_MODULE);
-	return 0;
+	return register_md_submodule(&cluster_ops.head);
 }
 
 static void cluster_exit(void)
 {
-	unregister_md_cluster_operations();
+	unregister_md_submodule(&cluster_ops.head);
 }
 
 module_init(cluster_init);

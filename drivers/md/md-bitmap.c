@@ -29,8 +29,10 @@
 #include <linux/buffer_head.h>
 #include <linux/seq_file.h>
 #include <trace/events/block.h>
+
 #include "md.h"
 #include "md-bitmap.h"
+#include "md-cluster.h"
 
 #define BITMAP_MAJOR_LO 3
 /* version 4 insists the bitmap is in little-endian order
@@ -426,8 +428,8 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 	struct block_device *bdev;
 	struct mddev *mddev = bitmap->mddev;
 	struct bitmap_storage *store = &bitmap->storage;
-	unsigned int bitmap_limit = (bitmap->storage.file_pages - pg_index) <<
-		PAGE_SHIFT;
+	unsigned long num_pages = bitmap->storage.file_pages;
+	unsigned int bitmap_limit = (num_pages - pg_index % num_pages) << PAGE_SHIFT;
 	loff_t sboff, offset = mddev->bitmap_info.offset;
 	sector_t ps = pg_index * PAGE_SIZE / SECTOR_SIZE;
 	unsigned int size = PAGE_SIZE;
@@ -436,7 +438,7 @@ static int __write_sb_page(struct md_rdev *rdev, struct bitmap *bitmap,
 
 	bdev = (rdev->meta_bdev) ? rdev->meta_bdev : rdev->bdev;
 	/* we compare length (page numbers), not page offset. */
-	if ((pg_index - store->sb_index) == store->file_pages - 1) {
+	if ((pg_index - store->sb_index) == num_pages - 1) {
 		unsigned int last_page_size = store->bytes & (PAGE_SIZE - 1);
 
 		if (last_page_size == 0)
@@ -942,7 +944,7 @@ out:
 				bmname(bitmap), err);
 			goto out_no_sb;
 		}
-		bitmap->cluster_slot = md_cluster_ops->slot_number(bitmap->mddev);
+		bitmap->cluster_slot = bitmap->mddev->cluster_ops->slot_number(bitmap->mddev);
 		goto re_read;
 	}
 
@@ -2021,7 +2023,7 @@ static void md_bitmap_free(void *data)
 		sysfs_put(bitmap->sysfs_can_clear);
 
 	if (mddev_is_clustered(bitmap->mddev) && bitmap->mddev->cluster_info &&
-		bitmap->cluster_slot == md_cluster_ops->slot_number(bitmap->mddev))
+		bitmap->cluster_slot == bitmap->mddev->cluster_ops->slot_number(bitmap->mddev))
 		md_cluster_stop(bitmap->mddev);
 
 	/* Shouldn't be needed - but just in case.... */
@@ -2229,7 +2231,7 @@ static int bitmap_load(struct mddev *mddev)
 		mddev_create_serial_pool(mddev, rdev);
 
 	if (mddev_is_clustered(mddev))
-		md_cluster_ops->load_bitmaps(mddev, mddev->bitmap_info.nodes);
+		mddev->cluster_ops->load_bitmaps(mddev, mddev->bitmap_info.nodes);
 
 	/* Clear out old bitmap info first:  Either there is none, or we
 	 * are resuming after someone else has possibly changed things,

@@ -485,7 +485,7 @@ static int __send_request(struct request *req)
 	}
 
 	sg_init_table(sg, port->ring_cookies);
-	nsg = blk_rq_map_sg(req->q, req, sg);
+	nsg = blk_rq_map_sg(req, sg);
 
 	len = 0;
 	for (i = 0; i < nsg; i++)

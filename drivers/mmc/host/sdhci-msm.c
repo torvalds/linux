@@ -1895,6 +1895,7 @@ static int sdhci_msm_ice_init(struct sdhci_msm_host *msm_host,
 
 	profile->ll_ops = sdhci_msm_crypto_ops;
 	profile->max_dun_bytes_supported = 4;
+	profile->key_types_supported = BLK_CRYPTO_KEY_TYPE_RAW;
 	profile->dev = dev;
 
 	/*
@@ -1968,7 +1969,7 @@ static int sdhci_msm_ice_keyslot_program(struct blk_crypto_profile *profile,
 	return qcom_ice_program_key(msm_host->ice,
 				    QCOM_ICE_CRYPTO_ALG_AES_XTS,
 				    QCOM_ICE_CRYPTO_KEY_SIZE_256,
-				    key->raw,
+				    key->bytes,
 				    key->crypto_cfg.data_unit_size / 512,
 				    slot);
 }

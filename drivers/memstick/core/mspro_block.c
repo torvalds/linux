@@ -627,9 +627,7 @@ static int mspro_block_issue_req(struct memstick_dev *card)
 	while (true) {
 		msb->current_page = 0;
 		msb->current_seg = 0;
-		msb->seg_count = blk_rq_map_sg(msb->block_req->q,
-					       msb->block_req,
-					       msb->req_sg);
+		msb->seg_count = blk_rq_map_sg(msb->block_req, msb->req_sg);
 
 		if (!msb->seg_count) {
 			unsigned int bytes = blk_rq_cur_bytes(msb->block_req);

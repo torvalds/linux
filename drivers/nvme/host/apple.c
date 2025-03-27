@@ -525,7 +525,7 @@ static blk_status_t apple_nvme_map_data(struct apple_nvme *anv,
 	if (!iod->sg)
 		return BLK_STS_RESOURCE;
 	sg_init_table(iod->sg, blk_rq_nr_phys_segments(req));
-	iod->nents = blk_rq_map_sg(req->q, req, iod->sg);
+	iod->nents = blk_rq_map_sg(req, iod->sg);
 	if (!iod->nents)
 		goto out_free_sg;
 

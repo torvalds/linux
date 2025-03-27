@@ -812,7 +812,7 @@ static blk_status_t nvme_map_data(struct nvme_dev *dev, struct request *req,
 	if (!iod->sgt.sgl)
 		return BLK_STS_RESOURCE;
 	sg_init_table(iod->sgt.sgl, blk_rq_nr_phys_segments(req));
-	iod->sgt.orig_nents = blk_rq_map_sg(req->q, req, iod->sgt.sgl);
+	iod->sgt.orig_nents = blk_rq_map_sg(req, iod->sgt.sgl);
 	if (!iod->sgt.orig_nents)
 		goto out_free_sg;
 
@@ -953,9 +953,6 @@ out_free_cmd:
 	return ret;
 }
 
-/*
- * NOTE: ns is NULL when called on the admin queue.
- */
 static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
 			 const struct blk_mq_queue_data *bd)
 {
