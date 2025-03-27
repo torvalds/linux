@@ -359,17 +359,18 @@ static noinstr void default_do_nmi(struct pt_regs *regs)
 	bool b2b = false;
 
 	/*
-	 * CPU-specific NMI must be processed before non-CPU-specific
-	 * NMI, otherwise we may lose it, because the CPU-specific
-	 * NMI can not be detected/processed on other CPUs.
-	 */
-
-	/*
-	 * Back-to-back NMIs are interesting because they can either
-	 * be two NMI or more than two NMIs (any thing over two is dropped
-	 * due to NMI being edge-triggered).  If this is the second half
-	 * of the back-to-back NMI, assume we dropped things and process
-	 * more handlers.  Otherwise reset the 'swallow' NMI behaviour
+	 * Back-to-back NMIs are detected by comparing the RIP of the
+	 * current NMI with that of the previous NMI. If it is the same,
+	 * it is assumed that the CPU did not have a chance to jump back
+	 * into a non-NMI context and execute code in between the two
+	 * NMIs.
+	 *
+	 * They are interesting because even if there are more than two,
+	 * only a maximum of two can be detected (anything over two is
+	 * dropped due to NMI being edge-triggered). If this is the
+	 * second half of the back-to-back NMI, assume we dropped things
+	 * and process more handlers. Otherwise, reset the 'swallow' NMI
+	 * behavior.
 	 */
 	if (regs->ip == __this_cpu_read(last_nmi_rip))
 		b2b = true;
@@ -383,6 +384,11 @@ static noinstr void default_do_nmi(struct pt_regs *regs)
 	if (microcode_nmi_handler_enabled() && microcode_nmi_handler())
 		goto out;
 
+	/*
+	 * CPU-specific NMI must be processed before non-CPU-specific
+	 * NMI, otherwise we may lose it, because the CPU-specific
+	 * NMI can not be detected/processed on other CPUs.
+	 */
 	handled = nmi_handle(NMI_LOCAL, regs);
 	__this_cpu_add(nmi_stats.normal, handled);
 	if (handled) {
@@ -419,13 +425,14 @@ static noinstr void default_do_nmi(struct pt_regs *regs)
 			pci_serr_error(reason, regs);
 		else if (reason & NMI_REASON_IOCHK)
 			io_check_error(reason, regs);
-#ifdef CONFIG_X86_32
+
 		/*
 		 * Reassert NMI in case it became active
 		 * meanwhile as it's edge-triggered:
 		 */
-		reassert_nmi();
-#endif
+		if (IS_ENABLED(CONFIG_X86_32))
+			reassert_nmi();
+
 		__this_cpu_add(nmi_stats.external, 1);
 		raw_spin_unlock(&nmi_reason_lock);
 		goto out;
