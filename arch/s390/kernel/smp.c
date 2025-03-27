@@ -99,13 +99,6 @@ __vector128 __initdata boot_cpu_vector_save_area[__NUM_VXRS];
 static unsigned int smp_max_threads __initdata = -1U;
 cpumask_t cpu_setup_mask;
 
-static int __init early_nosmt(char *s)
-{
-	smp_max_threads = 1;
-	return 0;
-}
-early_param("nosmt", early_nosmt);
-
 static int __init early_smt(char *s)
 {
 	get_option(&s, &smp_max_threads);
@@ -808,6 +801,7 @@ void __init smp_detect_cpus(void)
 	mtid = boot_core_type ? sclp.mtid : sclp.mtid_cp;
 	mtid = (mtid < smp_max_threads) ? mtid : smp_max_threads - 1;
 	pcpu_set_smt(mtid);
+	cpu_smt_set_num_threads(smp_cpu_mtid + 1, smp_cpu_mtid + 1);
 
 	/* Print number of CPUs */
 	c_cpus = s_cpus = 0;
