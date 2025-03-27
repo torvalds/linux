@@ -233,7 +233,7 @@
 				regulator-always-on;
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1540000>;
-				regulator-name = "vdd-cpu";
+				regulator-name = "vdd_cpu";
 			};
 
 			emmc_vdd: aldo4 {
@@ -350,12 +350,6 @@
 &spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi0_pins>;
-
-	spi_dev0: spi@0 {
-		compatible = "rohm,dh2228fv";
-		reg = <0>;
-		spi-max-frequency = <10000000>;
-	};
 };
 
 &syscrg {

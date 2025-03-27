@@ -12,15 +12,7 @@
 		#pinctrl-cells = <1>;
 		pinctrl-single,register-width = <32>;
 		pinctrl-single,function-mask = <0xffffffff>;
-		pinctrl-single,gpio-range =
-			<&mcu_pmx_range 0 21 PIN_GPIO_RANGE_IOPAD>,
-			<&mcu_pmx_range 23 1 PIN_GPIO_RANGE_IOPAD>,
-			<&mcu_pmx_range 32 2 PIN_GPIO_RANGE_IOPAD>;
 		bootph-all;
-
-		mcu_pmx_range: gpio-range {
-			#pinctrl-single,gpio-range-cells = <3>;
-		};
 	};
 
 	mcu_esm: esm@4100000 {

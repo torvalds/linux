@@ -325,10 +325,6 @@
 	};
 };
 
-&i2c3 {
-	status = "okay";
-};
-
 &i2s0_8ch {
 	rockchip,trcm-sync-tx-only;
 

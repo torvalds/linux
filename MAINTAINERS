@@ -2757,6 +2757,13 @@ F:	arch/arm/boot/dts/socionext/milbeaut*
 F:	arch/arm/mach-milbeaut/
 N:	milbeaut
 
+ARM/MORELLO PLATFORM
+M:	Vincenzo Frascino <vincenzo.frascino@arm.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/arm/arm,morello.yaml
+F:	arch/arm64/boot/dts/arm/morello*
+
 ARM/MOXA ART SOC
 M:	Krzysztof Kozlowski <krzk@kernel.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -20528,7 +20535,10 @@ F:	drivers/perf/riscv_pmu_sbi.c
 RISC-V SPACEMIT SoC Support
 M:	Yixun Lan <dlan@gentoo.org>
 L:	linux-riscv@lists.infradead.org
+L:	spacemit@lists.linux.dev
 S:	Maintained
+W:	https://github.com/spacemit-com/linux/wiki
+C:	irc://irc.libera.chat/spacemit
 T:	git https://github.com/spacemit-com/linux
 F:	arch/riscv/boot/dts/spacemit/
 N:	spacemit
@@ -22285,7 +22295,9 @@ F:	include/linux/sony-laptop.h
 
 SOPHGO DEVICETREES and DRIVERS
 M:	Chen Wang <unicorn_wang@outlook.com>
-M:	Inochi Amaoto <inochiama@outlook.com>
+M:	Inochi Amaoto <inochiama@gmail.com>
+L:	sophgo@lists.linux.dev
+W:	https://github.com/sophgo/linux/wiki
 T:	git https://github.com/sophgo/linux.git
 S:	Maintained
 N:	sophgo

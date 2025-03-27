@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/arm,morello.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ARM Morello Platforms
+
+maintainers:
+  - Vincenzo Frascino <vincenzo.frascino@arm.com>
+
+description: |+
+  The Morello architecture is an experimental extension to Armv8.2-A,
+  which extends the AArch64 state with the principles proposed in
+  version 7 of the Capability Hardware Enhanced RISC Instructions
+  (CHERI) ISA.
+
+  ARM's Morello Platforms are built as a research project to explore
+  capability architectures based on arm.
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: Arm Morello System Platforms
+        items:
+          - enum:
+              - arm,morello-sdp
+              - arm,morello-fvp
+          - const: arm,morello
+
+additionalProperties: true
+
+...
