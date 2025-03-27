@@ -327,10 +327,9 @@ unknown_nmi_error(unsigned char reason, struct pt_regs *regs)
 	int handled;
 
 	/*
-	 * Use 'false' as back-to-back NMIs are dealt with one level up.
-	 * Of course this makes having multiple 'unknown' handlers useless
-	 * as only the first one is ever run (unless it can actually determine
-	 * if it caused the NMI)
+	 * As a last resort, let the "unknown" handlers make a
+	 * best-effort attempt to figure out if they can claim
+	 * responsibility for this Unknown NMI.
 	 */
 	handled = nmi_handle(NMI_UNKNOWN, regs);
 	if (handled) {
