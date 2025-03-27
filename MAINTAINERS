@@ -19081,9 +19081,10 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sysctl/sysctl.git sysctl-next
 F:	fs/proc/proc_sysctl.c
 F:	include/linux/sysctl.h
-F:	kernel/sysctl-test.c
-F:	kernel/sysctl.c
-F:	tools/testing/selftests/sysctl/
+F:	kernel/sysctl*
+F:	tools/testing/selftests/sysctl/*
+F:	lib/test_sysctl.c
+F:	scripts/check-sysctl-docs
 
 PS3 NETWORK SUPPORT
 M:	Geoff Levand <geoff@infradead.org>
